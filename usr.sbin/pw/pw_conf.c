@@ -34,7 +34,6 @@ static const char rcsid[] =
 #include <fcntl.h>
 
 #include "pw.h"
-#include "pwupd.h"
 
 #define debugging 0
 
@@ -99,7 +98,8 @@ static struct userconf config =
 	1000, 32000,		/* Allowed range of uids */
 	1000, 32000,		/* Allowed range of gids */
 	0,			/* Days until account expires */
-	0			/* Days until password expires */
+	0,			/* Days until password expires */
+	0			/* size of default_group array */
 };
 
 static char const *comments[_UC_FIELDS] =
@@ -310,7 +310,7 @@ read_userconfig(char const * file)
 					break;
 				case _UC_DEFAULTGROUP:
 					q = unquote(q);
-					config.default_group = (q == NULL || !boolean_val(q, 1) || getgrnam(q) == NULL)
+					config.default_group = (q == NULL || !boolean_val(q, 1) || GETGRNAM(q) == NULL)
 						? NULL : newstr(q);
 					break;
 				case _UC_EXTRAGROUPS:

@@ -36,7 +36,6 @@ static const char rcsid[] =
 
 #include "pw.h"
 #include "bitmap.h"
-#include "pwupd.h"
 
 
 static int      print_group(struct group * grp, int pretty);
@@ -76,10 +75,10 @@ pw_group(struct userconf * cnf, int mode, struct cargs * args)
 	if (mode == M_PRINT && getarg(args, 'a')) {
 		int             pretty = getarg(args, 'P') != NULL;
 
-		setgrent();
-		while ((grp = getgrent()) != NULL)
+		SETGRENT();
+		while ((grp = GETGRENT()) != NULL)
 			print_group(grp, pretty);
-		endgrent();
+		ENDGRENT();
 		return EXIT_SUCCESS;
 	}
 	if (a_gid == NULL) {
@@ -91,11 +90,11 @@ pw_group(struct userconf * cnf, int mode, struct cargs * args)
 			a_name = NULL;
 		}
 	}
-	grp = (a_name != NULL) ? getgrnam(a_name->val) : getgrgid((gid_t) atoi(a_gid->val));
+	grp = (a_name != NULL) ? GETGRNAM(a_name->val) : GETGRGID((gid_t) atoi(a_gid->val));
 
 	if (mode == M_UPDATE || mode == M_DELETE || mode == M_PRINT) {
 		if (a_name == NULL && grp == NULL)	/* Try harder */
-			grp = getgrgid(atoi(a_gid->val));
+			grp = GETGRGID(atoi(a_gid->val));
 
 		if (grp == NULL) {
 			if (mode == M_PRINT && getarg(args, 'F')) {
@@ -212,7 +211,7 @@ pw_group(struct userconf * cnf, int mode, struct cargs * args)
 		}
 		for (p = strtok(arg->val, ", \t"); p != NULL; p = strtok(NULL, ", \t")) {
 			int     j;
-			if ((pwd = getpwnam(p)) == NULL) {
+			if ((pwd = GETPWNAM(p)) == NULL) {
 				if (!isdigit(*p) || (pwd = getpwuid((uid_t) atoi(p))) == NULL)
 					errx(EX_NOUSER, "user `%s' does not exist", p);
 			}
@@ -237,7 +236,7 @@ pw_group(struct userconf * cnf, int mode, struct cargs * args)
 		return EX_IOERR;
 	}
 	/* grp may have been invalidated */
-	if ((grp = getgrnam(a_name->val)) == NULL)
+	if ((grp = GETGRNAM(a_name->val)) == NULL)
 		errx(EX_SOFTWARE, "group disappeared during update");
 
 	pw_log(cnf, mode, W_GROUP, "%s(%ld)", grp->gr_name, (long) grp->gr_gid);
@@ -262,7 +261,7 @@ gr_gidpolicy(struct userconf * cnf, struct cargs * args)
 	if (a_gid != NULL) {
 		gid = (gid_t) atol(a_gid->val);
 
-		if ((grp = getgrgid(gid)) != NULL && getarg(args, 'o') == NULL)
+		if ((grp = GETGRGID(gid)) != NULL && getarg(args, 'o') == NULL)
 			errx(EX_DATAERR, "gid `%ld' has already been allocated", (long) grp->gr_gid);
 	} else {
 		struct bitmap   bm;
@@ -281,11 +280,11 @@ gr_gidpolicy(struct userconf * cnf, struct cargs * args)
 		/*
 		 * Now, let's fill the bitmap from the password file
 		 */
-		setgrent();
-		while ((grp = getgrent()) != NULL)
+		SETGRENT();
+		while ((grp = GETGRENT()) != NULL)
 			if (grp->gr_gid >= (int) cnf->min_gid && grp->gr_gid <= (int) cnf->max_gid)
 				bm_setbit(&bm, grp->gr_gid - cnf->min_gid);
-		endgrent();
+		ENDGRENT();
 
 		/*
 		 * Then apply the policy, with fallback to reuse if necessary

@@ -180,8 +180,7 @@ parse_date(time_t dt, char const * str)
 		++str;
 
 	if (numerics(str)) {
-		val = strtol(str, &p, 0);
-		dt = val ? val : dt;
+		dt = strtol(str, &p, 0);
 	} else if (*str == '+' || *str == '-') {
 		val = strtol(str, &p, 0);
 		switch (*p) {

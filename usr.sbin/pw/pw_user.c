@@ -22,6 +22,7 @@
  * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
+ * 
  */
 
 #ifndef lint
@@ -46,7 +47,6 @@ static const char rcsid[] =
 #endif
 #include "pw.h"
 #include "bitmap.h"
-#include "pwupd.h"
 
 #if (MAXLOGNAME-1) > UT_NAMESIZE
 #define LOGNAMESIZE UT_NAMESIZE
@@ -54,9 +54,9 @@ static const char rcsid[] =
 #define LOGNAMESIZE (MAXLOGNAME-1)
 #endif
 
-static          randinit;
+static          int randinit;
 
-static int      print_user(struct passwd * pwd, int pretty);
+static int      print_user(struct passwd * pwd, int pretty, int v7);
 static uid_t    pw_uidpolicy(struct userconf * cnf, struct cargs * args);
 static uid_t    pw_gidpolicy(struct userconf * cnf, struct cargs * args, char *nam, gid_t prefer);
 static time_t   pw_pwdpolicy(struct userconf * cnf, struct cargs * args);
@@ -122,6 +122,7 @@ pw_user(struct userconf * cnf, int mode, struct cargs * args)
 		"",
 		"User &",
 		"/bin/sh",
+		0,
 		0,
 		0
 	};
@@ -215,8 +216,8 @@ pw_user(struct userconf * cnf, int mode, struct cargs * args)
 
 	if ((arg = getarg(args, 'g')) != NULL) {
 		p = arg->val;
-		if ((grp = getgrnam(p)) == NULL) {
-			if (!isdigit(*p) || (grp = getgrgid((gid_t) atoi(p))) == NULL)
+		if ((grp = GETGRNAM(p)) == NULL) {
+			if (!isdigit(*p) || (grp = GETGRGID((gid_t) atoi(p))) == NULL)
 				errx(EX_NOUSER, "group `%s' does not exist", p);
 		}
 		cnf->default_group = newstr(grp->gr_name);
@@ -228,8 +229,8 @@ pw_user(struct userconf * cnf, int mode, struct cargs * args)
 		int             i = 0;
 
 		for (p = strtok(arg->val, ", \t"); p != NULL; p = strtok(NULL, ", \t")) {
-			if ((grp = getgrnam(p)) == NULL) {
-				if (!isdigit(*p) || (grp = getgrgid((gid_t) atoi(p))) == NULL)
+			if ((grp = GETGRNAM(p)) == NULL) {
+				if (!isdigit(*p) || (grp = GETGRGID((gid_t) atoi(p))) == NULL)
 					errx(EX_NOUSER, "group `%s' does not exist", p);
 			}
 			if (extendarray(&cnf->groups, &cnf->numgroups, i + 2) != -1)
@@ -271,15 +272,16 @@ pw_user(struct userconf * cnf, int mode, struct cargs * args)
 	}
 	if (mode == M_PRINT && getarg(args, 'a')) {
 		int             pretty = getarg(args, 'P') != NULL;
+		int		v7 = getarg(args, '7') != NULL;
 
-		setpwent();
-		while ((pwd = getpwent()) != NULL)
-			print_user(pwd, pretty);
-		endpwent();
+		SETPWENT();
+		while ((pwd = GETPWENT()) != NULL)
+			print_user(pwd, pretty, v7);
+		ENDPWENT();
 		return EXIT_SUCCESS;
 	}
 	if ((a_name = getarg(args, 'n')) != NULL)
-		pwd = getpwnam(pw_checkname((u_char *)a_name->val, 0));
+		pwd = GETPWNAM(pw_checkname((u_char *)a_name->val, 0));
 	a_uid = getarg(args, 'u');
 
 	if (a_uid == NULL) {
@@ -303,13 +305,15 @@ pw_user(struct userconf * cnf, int mode, struct cargs * args)
 	 */
 	if (mode == M_UPDATE || mode == M_DELETE || mode == M_PRINT) {
 		if (a_name == NULL && pwd == NULL)	/* Try harder */
-			pwd = getpwuid(atoi(a_uid->val));
+			pwd = GETPWUID(atoi(a_uid->val));
 
 		if (pwd == NULL) {
 			if (mode == M_PRINT && getarg(args, 'F')) {
 				fakeuser.pw_name = a_name ? a_name->val : "nouser";
 				fakeuser.pw_uid = a_uid ? (uid_t) atol(a_uid->val) : -1;
-				return print_user(&fakeuser, getarg(args, 'P') != NULL);
+				return print_user(&fakeuser,
+						  getarg(args, 'P') != NULL,
+						  getarg(args, '7') != NULL);
 			}
 			if (a_name == NULL)
 				errx(EX_NOUSER, "no such uid `%s'", a_uid->val);
@@ -329,19 +333,21 @@ pw_user(struct userconf * cnf, int mode, struct cargs * args)
 			if (strcmp(pwd->pw_name, "root") == 0)
 				errx(EX_DATAERR, "cannot remove user 'root'");
 
-			/*
-			 * Remove skey record from /etc/skeykeys
-			 */
+			if (!PWALTDIR()) {
+				/*
+				 * Remove skey record from /etc/skeykeys
+		        	 */
 
-			rmskey(pwd->pw_name);
+				rmskey(pwd->pw_name);
 
-			/*
-			 * Remove crontabs
-			 */
-			sprintf(file, "/var/cron/tabs/%s", pwd->pw_name);
-			if (access(file, F_OK) == 0) {
-				sprintf(file, "crontab -u %s -r", pwd->pw_name);
-				system(file);
+				/*
+				 * Remove crontabs
+				 */
+				sprintf(file, "/var/cron/tabs/%s", pwd->pw_name);
+				if (access(file, F_OK) == 0) {
+					sprintf(file, "crontab -u %s -r", pwd->pw_name);
+					system(file);
+				}
 			}
 			/*
 			 * Save these for later, since contents of pwd may be
@@ -361,31 +367,35 @@ pw_user(struct userconf * cnf, int mode, struct cargs * args)
 
 			pw_log(cnf, mode, W_USER, "%s(%ld) account removed", a_name->val, (long) uid);
 
-			/*
-			 * Remove mail file
-			 */
-			remove(file);
+			if (!PWALTDIR()) {
+				/*
+				 * Remove mail file
+				 */
+				remove(file);
 
-			/*
-			 * Remove at jobs
-			 */
-			if (getpwuid(uid) == NULL)
-				rmat(uid);
+				/*
+				 * Remove at jobs
+				 */
+				if (getpwuid(uid) == NULL)
+					rmat(uid);
 
-			/*
-			 * Remove home directory and contents
-			 */
-			if (getarg(args, 'r') != NULL && *home == '/' && getpwuid(uid) == NULL) {
-				if (stat(home, &st) != -1) {
-					rm_r(home, uid);
-					pw_log(cnf, mode, W_USER, "%s(%ld) home '%s' %sremoved",
-					       a_name->val, (long) uid, home,
-					       stat(home, &st) == -1 ? "" : "not completely ");
+				/*
+				 * Remove home directory and contents
+				 */
+				if (getarg(args, 'r') != NULL && *home == '/' && getpwuid(uid) == NULL) {
+					if (stat(home, &st) != -1) {
+						rm_r(home, uid);
+						pw_log(cnf, mode, W_USER, "%s(%ld) home '%s' %sremoved",
+						       a_name->val, (long) uid, home,
+						       stat(home, &st) == -1 ? "" : "not completely ");
+					}
 				}
 			}
 			return EXIT_SUCCESS;
 		} else if (mode == M_PRINT)
-			return print_user(pwd, getarg(args, 'P') != NULL);
+			return print_user(pwd,
+					  getarg(args, 'P') != NULL,
+					  getarg(args, '7') != NULL);
 
 		/*
 		 * The rest is edit code
@@ -403,7 +413,7 @@ pw_user(struct userconf * cnf, int mode, struct cargs * args)
 				warnx("WARNING: account `%s' will have a uid of 0 (superuser access!)", pwd->pw_name);
 		}
 		if ((arg = getarg(args, 'g')) != NULL && pwd->pw_uid != 0)	/* Already checked this */
-			pwd->pw_gid = (gid_t) getgrnam(cnf->default_group)->gr_gid;
+			pwd->pw_gid = (gid_t) GETGRNAM(cnf->default_group)->gr_gid;
 
 		if ((arg = getarg(args, 'p')) != NULL) {
 			if (*arg->val == '\0' || strcmp(arg->val, "0") == 0)
@@ -449,7 +459,7 @@ pw_user(struct userconf * cnf, int mode, struct cargs * args)
 	} else {
 		if (a_name == NULL)	/* Required */
 			errx(EX_DATAERR, "login name required");
-		else if ((pwd = getpwnam(a_name->val)) != NULL)	/* Exists */
+		else if ((pwd = GETPWNAM(a_name->val)) != NULL)	/* Exists */
 			errx(EX_DATAERR, "login name `%s' already exists", a_name->val);
 
 		/*
@@ -521,7 +531,9 @@ pw_user(struct userconf * cnf, int mode, struct cargs * args)
 	 * Special case: -N only displays & exits
 	 */
 	if (getarg(args, 'N') != NULL)
-		return print_user(pwd, getarg(args, 'P') != NULL);
+		return print_user(pwd,
+				  getarg(args, 'P') != NULL,
+				  getarg(args, '7') != NULL);
 
 	r = r1 = 1;
 	if (mode == M_ADD) {
@@ -550,10 +562,10 @@ pw_user(struct userconf * cnf, int mode, struct cargs * args)
 		editgroups(pwd->pw_name, cnf->groups);
 
 	/* pwd may have been invalidated */
-	if ((pwd = getpwnam(a_name->val)) == NULL)
+	if ((pwd = GETPWNAM(a_name->val)) == NULL)
 		errx(EX_NOUSER, "user '%s' disappeared during update", a_name->val);
 
-	grp = getgrgid(pwd->pw_gid);
+	grp = GETGRGID(pwd->pw_gid);
 	pw_log(cnf, mode, W_USER, "%s(%ld):%s(%d):%s:%s:%s",
 	       pwd->pw_name, (long) pwd->pw_uid,
 	    grp ? grp->gr_name : "unknown", (long) (grp ? grp->gr_gid : -1),
@@ -567,30 +579,32 @@ pw_user(struct userconf * cnf, int mode, struct cargs * args)
 	if (mode == M_ADD) {
 		FILE           *fp;
 
-		sprintf(line, "%s/%s", _PATH_MAILDIR, pwd->pw_name);
-		close(open(line, O_RDWR | O_CREAT, 0600));	/* Preserve contents &
-								 * mtime */
-		chown(line, pwd->pw_uid, pwd->pw_gid);
+		if (!PWALTDIR()) {
+			sprintf(line, "%s/%s", _PATH_MAILDIR, pwd->pw_name);
+			close(open(line, O_RDWR | O_CREAT, 0600));	/* Preserve contents &
+									 * mtime */
+			chown(line, pwd->pw_uid, pwd->pw_gid);
 
-		/*
-		 * Send mail to the new user as well, if we are asked to
-		 */
-		if (cnf->newmail && *cnf->newmail && (fp = fopen(cnf->newmail, "r")) != NULL) {
-			FILE           *pfp = popen(_PATH_SENDMAIL " -t", "w");
+			/*
+			 * Send mail to the new user as well, if we are asked to
+			 */
+			if (cnf->newmail && *cnf->newmail && (fp = fopen(cnf->newmail, "r")) != NULL) {
+				FILE           *pfp = popen(_PATH_SENDMAIL " -t", "w");
 
-			if (pfp == NULL)
-				warn("sendmail");
-			else {
-				fprintf(pfp, "From: root\n" "To: %s\n" "Subject: Welcome!\n\n", pwd->pw_name);
-				while (fgets(line, sizeof(line), fp) != NULL) {
-					/* Do substitutions? */
-					fputs(line, pfp);
+				if (pfp == NULL)
+					warn("sendmail");
+				else {
+					fprintf(pfp, "From: root\n" "To: %s\n" "Subject: Welcome!\n\n", pwd->pw_name);
+					while (fgets(line, sizeof(line), fp) != NULL) {
+						/* Do substitutions? */
+						fputs(line, pfp);
+					}
+					pclose(pfp);
+					pw_log(cnf, mode, W_USER, "%s(%ld) new user mail sent",
+					       pwd->pw_name, (long) pwd->pw_uid);
 				}
-				pclose(pfp);
-				pw_log(cnf, mode, W_USER, "%s(%ld) new user mail sent",
-				       pwd->pw_name, (long) pwd->pw_uid);
+				fclose(fp);
 			}
-			fclose(fp);
 		}
 	}
 	/*
@@ -598,7 +612,7 @@ pw_user(struct userconf * cnf, int mode, struct cargs * args)
 	 * that this also `works' for editing users if -m is used, but
 	 * existing files will *not* be overwritten.
 	 */
-	if (getarg(args, 'm') != NULL && pwd->pw_dir && *pwd->pw_dir == '/' && pwd->pw_dir[1]) {
+	if (!PWALTDIR() && getarg(args, 'm') != NULL && pwd->pw_dir && *pwd->pw_dir == '/' && pwd->pw_dir[1]) {
 		copymkdir(pwd->pw_dir, cnf->dotdir, 0755, pwd->pw_uid, pwd->pw_gid);
 		pw_log(cnf, mode, W_USER, "%s(%ld) home %s made",
 		       pwd->pw_name, (long) pwd->pw_uid, pwd->pw_dir);
@@ -620,7 +634,7 @@ pw_uidpolicy(struct userconf * cnf, struct cargs * args)
 	if (a_uid != NULL) {
 		uid = (uid_t) atol(a_uid->val);
 
-		if ((pwd = getpwuid(uid)) != NULL && getarg(args, 'o') == NULL)
+		if ((pwd = GETPWUID(uid)) != NULL && getarg(args, 'o') == NULL)
 			errx(EX_DATAERR, "uid `%ld' has already been allocated", (long) pwd->pw_uid);
 	} else {
 		struct bitmap   bm;
@@ -640,11 +654,11 @@ pw_uidpolicy(struct userconf * cnf, struct cargs * args)
 		/*
 		 * Now, let's fill the bitmap from the password file
 		 */
-		setpwent();
-		while ((pwd = getpwent()) != NULL)
-			if (pwd->pw_uid >= (int) cnf->min_uid && pwd->pw_uid <= (int) cnf->max_uid)
+		SETPWENT();
+		while ((pwd = GETPWENT()) != NULL)
+			if (pwd->pw_uid >= (uid_t) cnf->min_uid && pwd->pw_uid <= (uid_t) cnf->max_uid)
 				bm_setbit(&bm, pwd->pw_uid - cnf->min_uid);
-		endpwent();
+		ENDPWENT();
 
 		/*
 		 * Then apply the policy, with fallback to reuse if necessary
@@ -679,15 +693,15 @@ pw_gidpolicy(struct userconf * cnf, struct cargs * args, char *nam, gid_t prefer
 	/*
 	 * Check the given gid, if any
 	 */
-	setgrent();
+	SETGRENT();
 	if (a_gid != NULL) {
-		if ((grp = getgrnam(a_gid->val)) == NULL) {
+		if ((grp = GETGRNAM(a_gid->val)) == NULL) {
 			gid = (gid_t) atol(a_gid->val);
-			if ((gid == 0 && !isdigit(*a_gid->val)) || (grp = getgrgid(gid)) == NULL)
+			if ((gid == 0 && !isdigit(*a_gid->val)) || (grp = GETGRGID(gid)) == NULL)
 				errx(EX_NOUSER, "group `%s' is not defined", a_gid->val);
 		}
 		gid = grp->gr_gid;
-	} else if ((grp = getgrnam(nam)) != NULL && grp->gr_mem[0] == NULL) {
+	} else if ((grp = GETGRNAM(nam)) != NULL && grp->gr_mem[0] == NULL) {
 		gid = grp->gr_gid;  /* Already created? Use it anyway... */
 	} else {
 		struct cargs    grpargs;
@@ -705,7 +719,7 @@ pw_gidpolicy(struct userconf * cnf, struct cargs * args, char *nam, gid_t prefer
 		 * user's name dups an existing group, then the group add
 		 * function will happily handle that case for us and exit.
 		 */
-		if (getgrgid(prefer) == NULL) {
+		if (GETGRGID(prefer) == NULL) {
 			sprintf(tmp, "%lu", (unsigned long) prefer);
 			addarg(&grpargs, 'g', tmp);
 		}
@@ -718,7 +732,7 @@ pw_gidpolicy(struct userconf * cnf, struct cargs * args, char *nam, gid_t prefer
 		else
 		{
 			pw_group(cnf, M_ADD, &grpargs);
-			if ((grp = getgrnam(nam)) != NULL)
+			if ((grp = GETGRNAM(nam)) != NULL)
 				gid = grp->gr_gid;
 		}
 		a_gid = grpargs.lh_first;
@@ -728,7 +742,7 @@ pw_gidpolicy(struct userconf * cnf, struct cargs * args, char *nam, gid_t prefer
 			a_gid = t;
 		}
 	}
-	endgrent();
+	ENDGRENT();
 	return gid;
 }
 
@@ -958,17 +972,17 @@ pw_password(struct userconf * cnf, struct cargs * args, char const * user)
 
 
 static int
-print_user(struct passwd * pwd, int pretty)
+print_user(struct passwd * pwd, int pretty, int v7)
 {
 	if (!pretty) {
 		char            buf[_UC_MAXLINE];
 
-		fmtpwent(buf, pwd);
+		fmtpwentry(buf, pwd, v7 ? PWF_PASSWD : PWF_STANDARD);
 		fputs(buf, stdout);
 	} else {
 		int		j;
 		char           *p;
-		struct group   *grp = getgrgid(pwd->pw_gid);
+		struct group   *grp = GETGRGID(pwd->pw_gid);
 		char            uname[60] = "User &", office[60] = "[None]",
 		                wphone[60] = "[None]", hphone[60] = "[None]";
 		char		acexpire[32] = "[None]", pwexpire[32] = "[None]";
@@ -1016,9 +1030,9 @@ print_user(struct passwd * pwd, int pretty)
 		       uname, pwd->pw_dir, pwd->pw_class,
 		       pwd->pw_shell, office, wphone, hphone,
 		       acexpire, pwexpire);
-	        setgrent();
+	        SETGRENT();
 		j = 0;
-		while ((grp=getgrent()) != NULL)
+		while ((grp=GETGRENT()) != NULL)
 		{
 			int     i = 0;
 			while (grp->gr_mem[i] != NULL)
@@ -1031,7 +1045,7 @@ print_user(struct passwd * pwd, int pretty)
 				++i;
 			}
 		}
-		endgrent();
+		ENDGRENT();
 		printf("%s\n", j ? "\n" : "");
 	}
 	return EXIT_SUCCESS;

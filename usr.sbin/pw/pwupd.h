@@ -54,6 +54,57 @@ enum pwdfmttype
         PWF_MASTER		/* MASTER format with password */
 };
 
+struct pwf
+{
+	int		    _altdir;
+	void		  (*_setpwent)(void);
+	void		  (*_endpwent)(void);
+	struct passwd * (*_getpwent)(void);
+	struct passwd	* (*_getpwuid)(uid_t uid);
+	struct passwd	* (*_getpwnam)(const char * nam);
+	int             (*_pwdb)(char *arg, ...);
+	int		  (*_setgrent)(void);
+	void		  (*_endgrent)(void);
+	struct group  * (*_getgrent)(void);
+	struct group  * (*_getgrgid)(gid_t gid);
+	struct group  * (*_getgrnam)(const char * nam);
+	int		  (*_grdb)(char *arg, ...);
+};
+
+extern struct pwf PWF;
+extern struct pwf VPWF;
+
+#define SETPWENT()	PWF._setpwent()
+#define ENDPWENT()	PWF._endpwent()
+#define GETPWENT()	PWF._getpwent()
+#define GETPWUID(uid)	PWF._getpwuid(uid)
+#define GETPWNAM(nam)	PWF._getpwnam(nam)
+#define PWDB(args)	PWF._pwdb(args)
+
+#define SETGRENT()	PWF._setgrent()
+#define ENDGRENT()	PWF._endgrent()
+#define GETGRENT()	PWF._getgrent()
+#define GETGRGID(gid)	PWF._getgrgid(gid)
+#define GETGRNAM(nam)	PWF._getgrnam(nam)
+#define GRDB(args)	PWF._grdb(args)
+
+#define PWALTDIR()	PWF._altdir
+#ifndef _PATH_PWD
+#define _PATH_PWD	"/etc"
+#endif
+#ifndef _GROUP
+#define _GROUP		"group"
+#endif
+#ifndef _PASSWD
+#define _PASSWD 	"passwd"
+#endif
+#ifndef _MASTERPASSWD
+#define _MASTERPASSWD	"master.passwd"
+#endif
+#ifndef _GROUP
+#define _GROUP		"group"
+#endif
+
 __BEGIN_DECLS
 int addpwent __P((struct passwd * pwd));
 int delpwent __P((struct passwd * pwd));
@@ -61,21 +112,45 @@ int chgpwent __P((char const * login, struct passwd * pwd));
 int fmtpwent __P((char *buf, struct passwd * pwd));
 int fmtpwentry __P((char *buf, struct passwd * pwd, int type));
 
+int setpwdir __P((const char * dir));
+char * getpwpath __P((char const * file));
+int pwdb __P((char *arg, ...));
+
 int addgrent __P((struct group * grp));
 int delgrent __P((struct group * grp));
 int chggrent __P((char const * name, struct group * grp));
 int fmtgrent __P((char **buf, int * buflen, struct group * grp));
 int fmtgrentry __P((char **buf, int * buflen, struct group * grp, int type));
 int editgroups __P((char *name, char **groups));
-__END_DECLS
 
-#define PWBUFSZ 1024
+int setgrdir __P((const char * dir));
+char * getgrpath __P((const char *file));
+int grdb __P((char *arg, ...));
 
-__BEGIN_DECLS
+void vsetpwent __P((void));
+void vendpwent __P((void));
+struct passwd * vgetpwent __P((void));
+struct passwd * vgetpwuid __P((uid_t uid));
+struct passwd * vgetpwnam __P((const char * nam));
+struct passwd * vgetpwent __P((void));
+int             vpwdb __P((char *arg, ...));
+
+int vsetgrent __P((void));
+void vendgrent __P((void));
+struct group * vgetgrent __P((void));
+struct group * vgetgrgid __P((gid_t gid));
+struct group * vgetgrnam __P((const char * nam));
+struct group * vgetgrent __P((void));
+int	       vgrdb __P((char *arg, ...));
+int	        vsetgrent __P((void));
+void            vendgrent __P((void));
+
 void copymkdir __P((char const * dir, char const * skel, mode_t mode, uid_t uid, gid_t gid));
 void rm_r __P((char const * dir, uid_t uid));
 int extendline __P((char **buf, int *buflen, int needed));
 int extendarray __P((char ***buf, int *buflen, int needed));
 __END_DECLS
+
+#define PWBUFSZ 1024
 
 #endif				/* !_PWUPD_H */

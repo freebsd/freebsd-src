@@ -32,6 +32,7 @@
 .Nd create, remove, modify & display system users and groups
 .Sh SYNOPSIS
 .Nm pw
+.Op Fl V Ar etcdir
 .Ar useradd
 .Op name|uid
 .Op Fl C Ar config
@@ -54,6 +55,7 @@
 .Op Fl P
 .Op Fl Y
 .Nm pw
+.Op Fl V Ar etcdir
 .Ar useradd
 .Op name|uid
 .Fl D
@@ -71,6 +73,7 @@
 .Op Fl s Ar shell
 .Op Fl y Ar path
 .Nm pw
+.Op Fl V Ar etcdir
 .Ar userdel
 .Op name|uid
 .Op Fl n Ar name
@@ -78,6 +81,7 @@
 .Op Fl r
 .Op Fl Y
 .Nm pw
+.Op Fl V Ar etcdir
 .Ar usermod
 .Op name|uid
 .Op Fl C Ar config
@@ -101,6 +105,7 @@
 .Op Fl P
 .Op Fl Y
 .Nm pw
+.Op Fl V Ar etcdir
 .Ar usershow
 .Op name|uid
 .Op Fl n Ar name
@@ -109,10 +114,12 @@
 .Op Fl P
 .Op Fl a
 .Nm pw
+.Op Fl V Ar etcdir
 .Ar usernext
 .Op Fl C Ar config
 .Op Fl q
 .Nm pw
+.Op Fl V Ar etcdir
 .Ar groupadd
 .Op group|gid
 .Op Fl C Ar config
@@ -126,12 +133,14 @@
 .Op Fl P
 .Op Fl Y
 .Nm pw
+.Op Fl V Ar etcdir
 .Ar groupdel
 .Op group|gid
 .Op Fl n Ar name
 .Op Fl g Ar gid
 .Op Fl Y
 .Nm pw
+.Op Fl V Ar etcdir
 .Ar groupmod
 .Op group|gid
 .Op Fl C Ar config
@@ -147,6 +156,7 @@
 .Op Fl P
 .Op Fl Y
 .Nm pw
+.Op Fl V Ar etcdir
 .Ar groupshow
 .Op group|gid
 .Op Fl n Ar name
@@ -155,6 +165,7 @@
 .Op Fl P
 .Op Fl a
 .Nm pw
+.Op Fl V Ar etcdir
 .Ar groupnext
 .Op Fl C Ar config
 .Op Fl q
@@ -208,9 +219,23 @@ id as an alternative to using the
 .Fl g Ar gid
 options.
 .Pp
-The following flags are common to most modes of operation;
+The following flags are common to most or all modes of operation;
 .Pp
 .Bl -tag -width "-G grouplist"
+.It Fl V Ar etcdir
+This flag sets an alternate location for the password, group and configuration files,
+and may be used to maintain a user/group database in an alternate location.
+If this switch is specified, the system
+.Pa /etc/pw.conf
+will not be sourced for default configuration data, but the file pw.conf in the
+specified directory will be used instead (or none, if it does not exist).
+The
+.Fl C
+flag may be used to override this behaviour.
+As an exception to the general rule where options must follow the operation
+type, the
+.Fl V
+flag may be used on the command line before the operation keyword.
 .It Fl C Ar config
 By default,
 .Nm

@@ -34,12 +34,14 @@
 #include <errno.h>
 #include <sys/types.h>
 #include <sys/stat.h>
+#include <sys/param.h>
 #include <pwd.h>
 #include <grp.h>
 #include <sys/queue.h>
 #include <sysexits.h>
 
 #include "psdate.h"
+#include "pwupd.h"
 
 enum _mode
 {

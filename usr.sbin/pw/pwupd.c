@@ -37,19 +37,46 @@ static const char rcsid[] =
 #include <errno.h>
 #include <sys/types.h>
 #include <sys/stat.h>
+#include <sys/param.h>
 #include <sys/wait.h>
 
 #include "pwupd.h"
 
 #define HAVE_PWDB_C	1
 
-static int
+static char pathpwd[] = _PATH_PWD;
+static char * pwpath = pathpwd;
+ 
+int
+setpwdir(const char * dir)
+{
+	if (dir == NULL)
+		return -1;
+	else {
+		char * d = malloc(strlen(dir)+1);
+		if (d == NULL)
+			return -1;
+		pwpath = strcpy(d, dir);
+	}
+	return 0;
+}
+
+char *
+getpwpath(char const * file)
+{
+	static char pathbuf[MAXPATHLEN];
+
+	snprintf(pathbuf, sizeof pathbuf, "%s/%s", pwpath, file);
+	return pathbuf;
+}
+
+int
 pwdb(char *arg,...)
 {
 	int             i = 0;
 	pid_t           pid;
 	va_list         ap;
-	char           *args[8];
+	char           *args[10];
 
 	args[i++] = _PATH_PWD_MKDB;
 	va_start(ap, arg);
@@ -57,7 +84,11 @@ pwdb(char *arg,...)
 		args[i++] = arg;
 		arg = va_arg(ap, char *);
 	}
-	args[i++] = _PATH_MASTERPASSWD;
+	if (pwpath != pathpwd) {
+		args[i++] = "-d";
+		args[i++] = pwpath;
+	}
+	args[i++] = getpwpath(_MASTERPASSWD);
 	args[i] = NULL;
 
 	if ((pid = fork()) == -1)	/* Error (errno set) */
@@ -108,7 +139,7 @@ pw_update(struct passwd * pwd, char const * user, int mode)
 {
 	int             rc = 0;
 
-	endpwent();
+	ENDPWENT();
 
 	/*
 	 * First, let's check the see if the database is alright
@@ -130,15 +161,19 @@ pw_update(struct passwd * pwd, char const * user, int mode)
 			*pwbuf = '\0';
 		else
 			fmtpwentry(pwbuf, pwd, PWF_PASSWD);
-		if ((rc = fileupdate(_PATH_PASSWD, 0644, pwbuf, pfx, l, mode)) != 0) {
+		if ((rc = fileupdate(getpwpath(_PASSWD), 0644, pwbuf, pfx, l, mode)) != 0) {
 
 			/*
 			 * Then the master.passwd file
 			 */
 			if (pwd != NULL)
 				fmtpwentry(pwbuf, pwd, PWF_MASTER);
-			if ((rc = fileupdate(_PATH_MASTERPASSWD, 0644, pwbuf, pfx, l, mode)) != 0)
-				rc = pwdb(NULL) == 0;
+			if ((rc = fileupdate(getpwpath(_MASTERPASSWD), 0644, pwbuf, pfx, l, mode)) != 0) {
+				if (mode == UPD_DELETE)
+					rc = pwdb(NULL) == 0;
+				else
+					rc = pwdb("-u", user, NULL) == 0;
+			}
 		}
 	}
 	return rc;
