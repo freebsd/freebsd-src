@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: install.c,v 1.71.2.45 1995/10/20 15:40:40 jkh Exp $
+ * $Id: install.c,v 1.71.2.47 1995/10/20 21:57:11 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -359,23 +359,6 @@ installExpress(char *str)
     if (installCommit("express") == RET_FAIL)
 	return RET_FAIL;
 
-    if (!msgYesNo("Since you're running the express installation, a few post-configuration\n"
-		  "questions will be asked at this point.\n\n"
-		  "The FreeBSD package collection is a collection of over 300 ready-to-run\n"
-		  "applications, from text editors to games to WEB servers.  If you've never\n"
-		  "done so, it's definitely worth browsing through.\n\n"
-		  "Would you like to do so now?"))
-	configPackages(NULL);
-
-    if (!msgYesNo("Would you like to configure any additional network devices or services?"))
-	dmenuOpenSimple(&MenuNetworking);
-
-    /* XXX Put whatever other nice configuration questions you'd like to ask the user here XXX */
-
-    /* Final menu of last resort */
-    if (!msgYesNo("Would you like to go to the general configuration menu for any last\n"
-		  "additional configuration options?"))
-	dmenuOpenSimple(&MenuConfigure);
     return RET_DONE;
 }
 
@@ -413,6 +396,27 @@ installCommit(char *str)
 
     if (i != RET_FAIL && installFixup(NULL) == RET_FAIL)
 	i = RET_FAIL;
+
+    if (i != RET_FAIL && str && !strcmp(str, "express")) {
+	/* Ask this now, before installFinal() tries do actually do any of it */
+	if (!msgYesNo("Since you're running the express installation, a few post-configuration\n"
+		      "questions will be asked at this point.\n\n"
+		      "The FreeBSD package collection is a collection of over 300 ready-to-run\n"
+		      "applications, from text editors to games to WEB servers.  If you've never\n"
+		      "done so, it's definitely worth browsing through.\n\n"
+		      "Would you like to do so now?"))
+	    configPackages(NULL);
+	
+	if (!msgYesNo("Would you like to configure any additional network devices or services?"))
+	    dmenuOpenSimple(&MenuNetworking);
+	
+	/* XXX Put whatever other nice configuration questions you'd like to ask the user here XXX */
+	
+	/* Final menu of last resort */
+	if (!msgYesNo("Would you like to go to the general configuration menu for any last\n"
+		      "additional configuration options?"))
+	    dmenuOpenSimple(&MenuConfigure);
+    }
 
     if (i != RET_FAIL && installFinal(NULL) == RET_FAIL)
 	i = RET_FAIL;
