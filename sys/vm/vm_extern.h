@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)vm_extern.h	8.2 (Berkeley) 1/12/94
- * $Id: vm_extern.h,v 1.9 1995/02/09 14:16:07 davidg Exp $
+ * $Id: vm_extern.h,v 1.10 1995/02/20 18:08:17 davidg Exp $
  */
 
 #ifndef _VM_EXTERN_H_
@@ -104,9 +104,7 @@ void thread_block __P((char *));
 void thread_sleep __P((int, simple_lock_t, boolean_t));
 void thread_wakeup __P((int));
 int useracc __P((caddr_t, int, int));
-int vm_allocate __P((vm_map_t, vm_offset_t *, vm_size_t, boolean_t));
 int vm_allocate_with_pager __P((vm_map_t, vm_offset_t *, vm_size_t, boolean_t, vm_pager_t, vm_offset_t, boolean_t));
-int vm_deallocate __P((vm_map_t, vm_offset_t, vm_size_t));
 int vm_fault __P((vm_map_t, vm_offset_t, vm_prot_t, boolean_t));
 void vm_fault_copy_entry __P((vm_map_t, vm_map_t, vm_map_entry_t, vm_map_entry_t));
 void vm_fault_unwire __P((vm_map_t, vm_offset_t, vm_offset_t));
@@ -116,7 +114,6 @@ void vm_init_limits __P((struct proc *));
 void vm_mem_init __P((void));
 int vm_mmap __P((vm_map_t, vm_offset_t *, vm_size_t, vm_prot_t, vm_prot_t, int, caddr_t, vm_offset_t));
 vm_offset_t vm_page_alloc_contig __P((vm_offset_t, vm_offset_t, vm_offset_t, vm_offset_t));
-int vm_protect __P((vm_map_t, vm_offset_t, vm_size_t, boolean_t, vm_prot_t));
 void vm_set_page_size __P((void));
 void vmmeter __P((void));
 struct vmspace *vmspace_alloc __P((vm_offset_t, vm_offset_t, int));
