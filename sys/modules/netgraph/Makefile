@@ -4,4 +4,8 @@
 SUBDIR=	async bpf cisco echo frame_relay hole iface ksocket lmi \
 	netgraph ppp pppoe pptpgre rfc1490 socket tee tty UI vjc
 
+.if !defined(NOCRYPT) && exists(${.CURDIR}/../../crypto/rc4/rc4.c)
+SUBDIR+=	mppc
+.endif
+
 .include <bsd.subdir.mk>
