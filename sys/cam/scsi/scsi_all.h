@@ -419,7 +419,9 @@ struct scsi_rw_10
 {
 	u_int8_t opcode;
 #define	SRW10_RELADDR	0x01
-#define SRW10_FUA	0x08
+/* EBP defined for WRITE(10) only */
+#define	SRW10_EBP	0x04
+#define	SRW10_FUA	0x08
 #define	SRW10_DPO	0x10
 	u_int8_t byte2;
 	u_int8_t addr[4];
@@ -436,6 +438,19 @@ struct scsi_rw_12
 #define	SRW12_DPO	0x10
 	u_int8_t byte2;
 	u_int8_t addr[4];
+	u_int8_t length[4];
+	u_int8_t reserved;
+	u_int8_t control;
+};
+
+struct scsi_rw_16
+{
+	u_int8_t opcode;
+#define	SRW16_RELADDR	0x01
+#define	SRW16_FUA	0x08
+#define	SRW16_DPO	0x10
+	u_int8_t byte2;
+	u_int8_t addr[8];
 	u_int8_t length[4];
 	u_int8_t reserved;
 	u_int8_t control;
@@ -486,11 +501,14 @@ struct scsi_start_stop_unit
 #define	LOG_SENSE		0x4d
 #define	MODE_SELECT_10		0x55
 #define	MODE_SENSE_10		0x5A
+#define	READ_16			0x88
+#define	WRITE_16		0x8a
+#define	SERVICE_ACTION_IN	0x9e
 #define	REPORT_LUNS		0xA0
-#define MOVE_MEDIUM     	0xa5
-#define READ_12			0xa8
-#define WRITE_12		0xaa
-#define READ_ELEMENT_STATUS	0xb8
+#define	MOVE_MEDIUM     	0xa5
+#define	READ_12			0xa8
+#define	WRITE_12		0xaa
+#define	READ_ELEMENT_STATUS	0xb8
 
 
 /*
@@ -651,10 +669,29 @@ struct scsi_read_capacity
 	u_int8_t control;
 };
 
+struct scsi_read_capacity_16
+{
+	uint8_t opcode;
+#define	SRC16_SERVICE_ACTION	0x10
+	uint8_t service_action;
+	uint8_t addr[8];
+	uint8_t alloc_len[4];
+#define	SRC16_PMI		0x01
+#define	SRC16_RELADR		0x02
+	uint8_t reladr;
+	uint8_t control;
+};
+
 struct scsi_read_capacity_data
 {
 	u_int8_t addr[4];
 	u_int8_t length[4];
+};
+
+struct scsi_read_capacity_data_long
+{
+	uint8_t addr[8];
+	uint8_t length[4];
 };
 
 struct scsi_report_luns
@@ -977,6 +1014,13 @@ void		scsi_read_capacity(struct ccb_scsiio *csio, u_int32_t retries,
 				   union ccb *), u_int8_t tag_action, 
 				   struct scsi_read_capacity_data *,
 				   u_int8_t sense_len, u_int32_t timeout);
+void		scsi_read_capacity_16(struct ccb_scsiio *csio, uint32_t retries,
+				      void (*cbfcnp)(struct cam_periph *,
+				      union ccb *), uint8_t tag_action,
+				      uint64_t lba, int reladr, int pmi,
+				      struct scsi_read_capacity_data_long
+				      *rcap_buf, uint8_t sense_len,
+				      uint32_t timeout);
 
 void		scsi_report_luns(struct ccb_scsiio *csio, u_int32_t retries,
 				   void (*cbfcnp)(struct cam_periph *, 
@@ -995,7 +1039,7 @@ void		scsi_synchronize_cache(struct ccb_scsiio *csio,
 void scsi_read_write(struct ccb_scsiio *csio, u_int32_t retries,
 		     void (*cbfcnp)(struct cam_periph *, union ccb *),
 		     u_int8_t tag_action, int readop, u_int8_t byte2, 
-		     int minimum_cmd_size, u_int32_t lba,
+		     int minimum_cmd_size, u_int64_t lba,
 		     u_int32_t block_count, u_int8_t *data_ptr,
 		     u_int32_t dxfer_len, u_int8_t sense_len,
 		     u_int32_t timeout);
@@ -1015,10 +1059,12 @@ static __inline void scsi_extract_sense(struct scsi_sense_data *sense,
 static __inline void scsi_ulto2b(u_int32_t val, u_int8_t *bytes);
 static __inline void scsi_ulto3b(u_int32_t val, u_int8_t *bytes);
 static __inline void scsi_ulto4b(u_int32_t val, u_int8_t *bytes);
+static __inline void scsi_u64to8b(u_int64_t val, u_int8_t *bytes);
 static __inline u_int32_t scsi_2btoul(u_int8_t *bytes);
 static __inline u_int32_t scsi_3btoul(u_int8_t *bytes);
 static __inline int32_t scsi_3btol(u_int8_t *bytes);
 static __inline u_int32_t scsi_4btoul(u_int8_t *bytes);
+static __inline u_int64_t scsi_8btou64(u_int8_t *bytes);
 static __inline void *find_mode_page_6(struct scsi_mode_header_6 *mode_header);
 static __inline void *find_mode_page_10(struct scsi_mode_header_10 *mode_header);
 
@@ -1057,6 +1103,20 @@ scsi_ulto4b(u_int32_t val, u_int8_t *bytes)
 	bytes[1] = (val >> 16) & 0xff;
 	bytes[2] = (val >> 8) & 0xff;
 	bytes[3] = val & 0xff;
+}
+
+static __inline void
+scsi_u64to8b(u_int64_t val, u_int8_t *bytes)
+{
+
+	bytes[0] = (val >> 56) & 0xff;
+	bytes[1] = (val >> 48) & 0xff;
+	bytes[2] = (val >> 40) & 0xff;
+	bytes[3] = (val >> 32) & 0xff;
+	bytes[4] = (val >> 24) & 0xff;
+	bytes[5] = (val >> 16) & 0xff;
+	bytes[6] = (val >> 8) & 0xff;
+	bytes[7] = val & 0xff;
 }
 
 static __inline u_int32_t
@@ -1100,6 +1160,22 @@ scsi_4btoul(u_int8_t *bytes)
 	     (bytes[1] << 16) |
 	     (bytes[2] << 8) |
 	     bytes[3];
+	return (rv);
+}
+
+static __inline uint64_t
+scsi_8btou64(uint8_t *bytes)
+{
+        uint64_t rv;
+ 
+	rv = (((uint64_t)bytes[0]) << 56) |
+	     (((uint64_t)bytes[1]) << 48) |
+	     (((uint64_t)bytes[2]) << 40) |
+	     (((uint64_t)bytes[3]) << 32) |
+	     (((uint64_t)bytes[4]) << 24) |
+	     (((uint64_t)bytes[5]) << 16) |
+	     (((uint64_t)bytes[6]) << 8) |
+	     bytes[7];
 	return (rv);
 }
 
