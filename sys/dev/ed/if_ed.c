@@ -13,7 +13,7 @@
  *   the SMC Elite Ultra (8216), the 3Com 3c503, the NE1000 and NE2000,
  *   and a variety of similar clones.
  *
- * $Id: if_ed.c,v 1.53 1994/10/22 17:52:22 phk Exp $
+ * $Id: if_ed.c,v 1.54 1994/10/23 21:27:16 wollman Exp $
  */
 
 #include "ed.h"
@@ -431,9 +431,8 @@ ed_probe_WD80x3(isa_dev)
 		isa16bit = 0;
 
 	/*
-	 * Check 83C584 interrupt configuration register if this board has one
-	 * XXX - we could also check the IO address register. But why
-	 * bother...if we get past this, it *has* to be correct.
+	 * If possible, get the assigned interrupt number from the card and
+	 * use it.
 	 */
 	if ((sc->type & ED_WD_SOFTCONFIG) && (!sc->is790)) {
 
@@ -445,15 +444,9 @@ ed_probe_WD80x3(isa_dev)
 		      (ED_WD_IRR_IR0 | ED_WD_IRR_IR1)) >> 5);
 
 		/*
-		 * Translate it using translation table, and check for
-		 * correctness.
+		 * Use what the board tells us.
 		 */
-		if (ed_intr_mask[iptr] != isa_dev->id_irq) {
-			printf("ed%d: kernel configured irq %d doesn't match board configured irq %d\n",
-			       isa_dev->id_unit, ffs(isa_dev->id_irq) - 1,
-			       ffs(ed_intr_mask[iptr]) - 1);
-			return (0);
-		}
+		isa_dev->id_irq = ed_intr_mask[iptr];
 
 		/*
 		 * Enable the interrupt.
@@ -470,18 +463,21 @@ ed_probe_WD80x3(isa_dev)
 		outb(isa_dev->id_iobase + ED_WD790_HWR,
 		 inb(isa_dev->id_iobase + ED_WD790_HWR) & ~ED_WD790_HWR_SWH);
 
-		if (ed_790_intr_mask[iptr] != isa_dev->id_irq) {
-			printf("ed%d: kernel configured irq %d doesn't match board configured irq %d %d\n",
-			       isa_dev->id_unit, ffs(isa_dev->id_irq) - 1,
-			       ffs(ed_790_intr_mask[iptr]) - 1, iptr);
-			return 0;
-		}
+		/*
+		 * Use what the board tells us.
+		 */
+		isa_dev->id_irq = ed_790_intr_mask[iptr];
 
 		/*
 		 * Enable interrupts.
 		 */
 		outb(isa_dev->id_iobase + ED_WD790_ICR,
 		  inb(isa_dev->id_iobase + ED_WD790_ICR) | ED_WD790_ICR_EIL);
+	}
+	if (isa_dev->id_irq <= 0) {
+		printf("ed%d: %s cards don't support auto-detected/assigned interrupts.\n",
+		    isa_dev->id_unit, sc->type_str);
+		return (0);
 	}
 	sc->isa16bit = isa16bit;
 	sc->mem_shared = 1;
@@ -557,6 +553,14 @@ ed_probe_WD80x3(isa_dev)
 		outb(sc->asic_addr + 0x04, (inb(sc->asic_addr + 0x04) & ~0x80));
 		sc->cr_proto = 0;
 	}
+
+#if 0
+	printf("starting memory performance test at 0x%x, size %d...\n",
+		sc->mem_start, memsize*16384);
+	for (i = 0; i < 16384; i++)
+		bzero(sc->mem_start, memsize);
+	printf("***DONE***\n");
+#endif
 
 	/*
 	 * Now zero memory and verify that it is clear
