@@ -796,10 +796,13 @@ ndis_syslog(ndis_handle adapter, ndis_error_code code,
 	ndis_miniport_block	*block;
 	va_list			ap;
 	int			i;
+	char			*str = NULL;
 
 	block = (ndis_miniport_block *)adapter;
 
-	device_printf (block->nmb_dev, "NDIS ERROR: %x\n", code);
+	pe_get_message(block->nmb_img, code, &str, &i);
+	device_printf (block->nmb_dev, "NDIS ERROR: %x (%s)\n", code,
+	    str == NULL ? "unknown error" : str);
 	device_printf (block->nmb_dev, "NDIS NUMERRORS: %x\n", numerrors);
 
 	va_start(ap, numerrors);
@@ -1894,7 +1897,14 @@ ndis_register_intr(intr, adapter, ivec, ilevel, reqisr, shared, imode)
 	uint8_t			shared;
 	ndis_interrupt_mode	imode;
 {
+	ndis_miniport_block	*block;
+
+	block = adapter;
+
 	intr->ni_block = adapter;
+	intr->ni_isrreq = reqisr;
+	intr->ni_shared = shared;
+	block->nmb_interrupt = intr;
 	return(NDIS_STATUS_SUCCESS);
 }	
 
