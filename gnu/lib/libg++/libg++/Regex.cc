@@ -31,7 +31,7 @@ extern "C" {
 #if 1
 #include <rx.h>
 #else
-#include <regex.h>
+#include <gnuregex.h>
 #endif
 }
 
