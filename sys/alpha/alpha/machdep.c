@@ -145,6 +145,7 @@
 #include <sys/vnode.h>
 #include <machine/sigframe.h>
 
+
 u_int64_t cycles_per_usec;
 u_int32_t cycles_per_sec;
 int cold = 1;
@@ -621,9 +622,10 @@ alpha_init(pfn, ptb, bim, bip, biv)
 	 * Initalize the real console, so the the bootstrap console is
 	 * no longer necessary.
 	 */
-	if (platform.cons_init)
+	if (platform.cons_init) {
 		platform.cons_init();
-
+		promcndetach();
+	}
 	/* NO MORE FIRMWARE ACCESS ALLOWED */
 #ifdef _PMAP_MAY_USE_PROM_CONSOLE
 	/*
