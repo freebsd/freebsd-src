@@ -29,7 +29,7 @@
  * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF
  * THE POSSIBILITY OF SUCH DAMAGE.
  *
- *	$Id: if_mx.c,v 1.8.2.5 1999/05/06 15:39:32 wpaul Exp $
+ *	$Id: if_mx.c,v 1.44 1999/06/16 16:17:22 wpaul Exp $
  */
 
 /*
@@ -94,7 +94,7 @@
 
 #ifndef lint
 static const char rcsid[] =
-	"$Id: if_mx.c,v 1.8.2.5 1999/05/06 15:39:32 wpaul Exp $";
+	"$Id: if_mx.c,v 1.44 1999/06/16 16:17:22 wpaul Exp $";
 #endif
 
 /*
@@ -114,7 +114,7 @@ static struct mx_type mx_devs[] = {
 	{ MX_VENDORID, MX_DEVICEID_987x5,
 		"Macronix 98725 10/100BaseTX" },
 	{ PN_VENDORID, PN_DEVICEID_PNIC_II,
-		"LC82C115 PNIC II 10/100BaseTX" }, 
+		"LC82C115 PNIC II 10/100BaseTX" },
 	{ 0, 0, NULL }
 };
 
@@ -137,7 +137,7 @@ static struct mx_type mx_phys[] = {
 static unsigned long mx_count = 0;
 static const char *mx_probe	__P((pcici_t, pcidi_t));
 static void mx_attach		__P((pcici_t, int));
-
+static struct mx_type *mx_devtype	__P((pcici_t, pcidi_t));
 static int mx_newbuf		__P((struct mx_softc *,
 						struct mx_chain_onefrag *));
 static int mx_encap		__P((struct mx_softc *, struct mx_chain *,
@@ -180,7 +180,7 @@ static void mx_setmode_mii	__P((struct mx_softc *, int));
 static void mx_setmode		__P((struct mx_softc *, int, int));
 static void mx_getmode_mii	__P((struct mx_softc *));
 static void mx_setcfg		__P((struct mx_softc *, int));
-static u_int32_t mx_calchash	__P((caddr_t));
+static u_int32_t mx_calchash	__P((struct mx_softc *, caddr_t));
 static void mx_setfilt		__P((struct mx_softc *));
 static void mx_reset		__P((struct mx_softc *));
 static int mx_list_rx_init	__P((struct mx_softc *));
@@ -569,8 +569,10 @@ static void mx_phy_writereg(sc, reg, data)
 
 #define MX_POLY		0xEDB88320
 #define MX_BITS		9
+#define MX_BITS_PNIC_II	7
 
-static u_int32_t mx_calchash(addr)
+static u_int32_t mx_calchash(sc, addr)
+	struct mx_softc		*sc;
 	caddr_t			addr;
 {
 	u_int32_t		idx, bit, data, crc;
@@ -582,6 +584,10 @@ static u_int32_t mx_calchash(addr)
 		for (data = *addr++, bit = 0; bit < 8; bit++, data >>= 1)
 			crc = (crc >> 1) ^ (((crc ^ data) & 1) ? MX_POLY : 0);
 	}
+
+	/* The hash table on the PNIC II is only 128 bits wide. */
+	if (sc->mx_info->mx_vid == PN_VENDORID)
+		return (crc & ((1 << MX_BITS_PNIC_II) - 1));
 
 	return (crc & ((1 << MX_BITS) - 1));
 }
@@ -1133,12 +1139,13 @@ void mx_setfilt(sc)
 				ifma = ifma->ifma_link.le_next) {
 		if (ifma->ifma_addr->sa_family != AF_LINK)
 			continue;
-		h = mx_calchash(LLADDR((struct sockaddr_dl *)ifma->ifma_addr));
+		h = mx_calchash(sc,
+		    LLADDR((struct sockaddr_dl *)ifma->ifma_addr));
 		sp[h >> 4] |= 1 << (h & 0xF);
 	}
 
 	if (ifp->if_flags & IFF_BROADCAST) {
-		h = mx_calchash((caddr_t)&etherbroadcastaddr);
+		h = mx_calchash(sc, (caddr_t)&etherbroadcastaddr);
 		sp[h >> 4] |= 1 << (h & 0xF);
 	}
 
@@ -1235,18 +1242,7 @@ static void mx_reset(sc)
         return;
 }
 
-/*
- * Probe for a Macronix PMAC chip. Check the PCI vendor and device
- * IDs against our list and return a device name if we find a match.
- * We do a little bit of extra work to identify the exact type of
- * chip. The MX98713 and MX98713A have the same PCI vendor/device ID,
- * but different revision IDs. The same is true for 98715/98715A
- * chips and the 98725. This doesn't affect a whole lot, but it
- * lets us tell the user exactly what type of device they have
- * in the probe output.
- */
-static const char *
-mx_probe(config_id, device_id)
+static struct mx_type *mx_devtype(config_id, device_id)
 	pcici_t			config_id;
 	pcidi_t			device_id;
 {
@@ -1269,10 +1265,35 @@ mx_probe(config_id, device_id)
 			if (t->mx_did == MX_DEVICEID_987x5 &&
 						rev >= MX_REVISION_98725)
 				t++;
-			return(t->mx_name);
+			return(t);
 		}
 		t++;
 	}
+
+	return(NULL);
+}
+
+/*
+ * Probe for a Macronix PMAC chip. Check the PCI vendor and device
+ * IDs against our list and return a device name if we find a match.
+ * We do a little bit of extra work to identify the exact type of
+ * chip. The MX98713 and MX98713A have the same PCI vendor/device ID,
+ * but different revision IDs. The same is true for 98715/98715A
+ * chips and the 98725. This doesn't affect a whole lot, but it
+ * lets us tell the user exactly what type of device they have
+ * in the probe output.
+ */
+static const char *
+mx_probe(config_id, device_id)
+	pcici_t			config_id;
+	pcidi_t			device_id;
+{
+	struct mx_type		*t;
+
+	t = mx_devtype(config_id, device_id);
+
+	if (t != NULL)
+		return(t->mx_name);
 
 	return(NULL);
 }
@@ -1405,6 +1426,10 @@ mx_attach(config_id, unit)
 
 	/* Save the cache line size. */
 	sc->mx_cachesize = pci_conf_read(config_id, MX_PCI_CACHELEN) & 0xFF;
+
+	/* Save the device info; the PNIC II requires special handling. */
+	pci_id = pci_conf_read(config_id,MX_PCI_VENDOR_ID);
+	sc->mx_info = mx_devtype(config_id, pci_id);
 
 	/* Reset the adapter. */
 	mx_reset(sc);
