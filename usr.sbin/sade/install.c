@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: install.c,v 1.61 1995/05/27 10:47:32 jkh Exp $
+ * $Id: install.c,v 1.62 1995/05/27 23:39:30 phk Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -197,8 +197,8 @@ installInitial(void)
     chroot("/mnt");
     chdir("/");
     variable_set2(RUNNING_ON_ROOT, "yes");
-    /* If we're running as init, stick a shell over on the 4th VTY */
-    if (RunningAsInit && !fork()) {
+    /* stick a helpful shell over on the 4th VTY */
+    if (!fork()) {
 	int i, fd;
 
 	for (i = 0; i < 64; i++)
@@ -210,37 +210,15 @@ installInitial(void)
 	execlp("sh", "-sh", 0);
 	exit(1);
     }
-    root_extract();
+    /* Copy the /etc files into their rightful place */
     vsystem("(cd /stand; find etc | cpio -o) | (cd /; cpio -idmv)");
+    root_extract();
     alreadyDone = TRUE;
     return TRUE;
 }
 
-static void
-installFinal(void)
-{
-    static Boolean alreadyDone = FALSE;
-    FILE *fp;
-
-    if (alreadyDone)
-	return;
-    configFstab();
-    configSysconfig();
-    configResolv();
-
-    /* Tack ourselves at the end of /etc/hosts */
-    if (getenv(VAR_IPADDR)) {
-	fp = fopen("/etc/hosts", "a");
-	fprintf(fp, "%s\t\t%s\n", getenv(VAR_IPADDR), getenv(VAR_HOSTNAME));
-	fclose(fp);
-    }
-    alreadyDone = TRUE;
-    msgConfirm("Installation completed successfully.\nHit return now to go back to the main menu.");
-    SystemWasInstalled = TRUE;
-}
-
 /*
- * What happens when we select "GO".  This is broken into a 3 stage installation so that
+ * What happens when we select "Install".  This is broken into a 3 stage installation so that
  * the user can do a full installation but come back here again to load more distributions,
  * perhaps from a different media type.  This would allow, for example, the user to load the
  * majority of the system from CDROM and then use ftp to load just the DES dist.
@@ -248,6 +226,9 @@ installFinal(void)
 int
 installCommit(char *str)
 {
+    FILE *fp;
+    static Boolean hostsModified = FALSE;
+
     if (!Dists) {
 	msgConfirm("You haven't told me what distributions to load yet!\nPlease select a distribution from the Distributions menu.");
 	return 0;
@@ -255,10 +236,23 @@ installCommit(char *str)
     if (!mediaVerify())
 	return 0;
 
-    if (!installInitial())
-	return 0;
+    if (RunningAsInit) {
+	if (!installInitial())
+	    return 0;
+	configFstab();
+	configResolv();
+    }
     distExtractAll();
-    installFinal();
+
+    /* Tack ourselves at the end of /etc/hosts */
+    if (RunningAsInit && getenv(VAR_IPADDR) && !hostsModified) {
+	fp = fopen("/etc/hosts", "a");
+	fprintf(fp, "%s\t\t%s\n", getenv(VAR_IPADDR), getenv(VAR_HOSTNAME));
+	fclose(fp);
+	hostsModified = TRUE;
+    }
+    msgConfirm("Installation completed successfully.\nHit return now to go back to the main menu.");
+    SystemWasInstalled = TRUE;
     return 0;
 }
 

@@ -1,5 +1,5 @@
 /*
- * $Id: tcpip.c,v 1.23 1995/05/27 23:52:55 jkh Exp $
+ * $Id: tcpip.c,v 1.24 1995/05/28 03:05:06 jkh Exp $
  *
  * Copyright (c) 1995
  *      Gary J Palmer. All rights reserved.
@@ -55,10 +55,6 @@
 #include "rc.h"
 #include "sysinstall.h"
 
-#define HOSTNAME_FIELD_LEN	256
-#define IPADDR_FIELD_LEN	16
-#define EXTRAS_FIELD_LEN	256
-
 /* These are nasty, but they make the layout structure a lot easier ... */
 
 static char		hostname[HOSTNAME_FIELD_LEN], domainname[HOSTNAME_FIELD_LEN],
@@ -71,13 +67,6 @@ static char		ipaddr[IPADDR_FIELD_LEN], netmask[IPADDR_FIELD_LEN], extras[EXTRAS_
 #define TCP_DIALOG_X		8
 #define TCP_DIALOG_WIDTH	COLS - 16
 #define TCP_DIALOG_HEIGHT	LINES - 2
-
-/* This is the structure that Network devices carry around in their private, erm, structures */
-typedef struct _devPriv {
-    char ipaddr[IPADDR_FIELD_LEN];
-    char netmask[IPADDR_FIELD_LEN];
-    char extras[EXTRAS_FIELD_LEN];
-} DevInfo;
 
 /* The screen layout structure */
 typedef struct _layout {
@@ -460,57 +449,4 @@ tcpDeviceSelect(char *str)
     dmenuOpenSimple(menu);
     free(menu);
     return 0;
-}
-
-/* Start PPP on the 3rd screen */
-Boolean
-tcpStartPPP(Device *devp)
-{
-    int fd;
-    FILE *fp;
-    char *val;
-    char myaddr[16], provider[16];
-
-    fd = open("/dev/ttyv2", O_RDWR);
-    if (fd == -1)
-	return FALSE;
-    Mkdir("/var/log", NULL);
-    Mkdir("/var/spool/lock", NULL);
-    Mkdir("/etc/ppp", NULL);
-    vsystem("touch /etc/ppp/ppp.linkup; chmod +x /etc/ppp/ppp.linkup");
-    vsystem("touch /etc/ppp/ppp.secret; chmod +x /etc/ppp/ppp.secret");
-    fp = fopen("/etc/ppp/ppp.conf", "w");
-    if (!fp) {
-	msgConfirm("Couldn't open /etc/ppp/ppp.conf file!  This isn't going to work");
-	return FALSE;
-    }
-    fprintf(fp, "default:\n");
-    fprintf(fp, " set device %s\n", devp->devname);
-    val = msgGetInput("115200",
-"Enter baud rate for your modem - this can be higher than the actual\nmaximum data rate since most modems can talk at one speed to the\ncomputer and at another speed to the remote end.\n\nIf you're not sure what to put here, just select the default.");
-    if (!val)
-	val = "115200";
-    fprintf(fp, " set speed %s\n", val);
-    if (getenv(VAR_GATEWAY))
-	strcpy(provider, getenv(VAR_GATEWAY));
-    else
-	strcpy(provider, "0");
-    val = msgGetInput(provider, "Enter the IP address of your service provider or 0 if you\ndon't know it and would prefer to negotiate it dynamically.");
-    if (!val)
-	val = "0";
-    if (devp->private && ((DevInfo *)devp->private)->ipaddr[0])
-	strcpy(myaddr, ((DevInfo *)devp->private)->ipaddr);
-    else
-	strcpy(myaddr, "0");
-    fprintf(fp, " set ifaddr %s %s\n", myaddr, val);
-    fclose(fp);
-    if (!fork()) {
-	dup2(fd, 0);
-	dup2(fd, 1);
-	dup2(fd, 2);
-	execl("/stand/ppp", "/stand/ppp", (char *)NULL);
-	exit(1);
-    }
-    msgConfirm("The PPP command is now started on screen 3 (type ALT-F3 to\ninteract with it, ALT-F1 to switch back here). The only command\nyou'll probably want or need to use is the \"term\" command\nwhich starts a terminal emulator you can use to talk to your\nmodem and dial the service provider.  Once you're connected,\ncome back to this screen and hit return.  DO NOT PRESS RETURN\nHERE UNTIL THE CONNECTION IS FULLY ESTABLISHED!");
-    return TRUE;
 }

@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: label.c,v 1.25 1995/05/25 18:48:26 jkh Exp $
+ * $Id: label.c,v 1.26 1995/05/26 11:21:46 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -199,8 +199,11 @@ get_mountpoint(struct chunk *old)
     char *val;
     PartInfo *tmp;
 
-    val = msgGetInput(old && old->private ? ((PartInfo *)old->private)->mountpoint : NULL,
-		      "Please specify a mount point for the partition");
+    if (old && old->private)
+	tmp = old->private;
+    else
+	tmp = NULL;
+    val = msgGetInput(tmp ? tmp->mountpoint : NULL, "Please specify a mount point for the partition");
     if (!val || !*val) {
 	if (!old)
 	    return NULL;
@@ -212,23 +215,30 @@ get_mountpoint(struct chunk *old)
     }
 
     /* Is it just the same value? */
-    if (old && old->private && !strcmp(((PartInfo *)old->private)->mountpoint, val))
+    if (tmp && !strcmp(tmp->mountpoint, val))
 	return NULL;
+
+    /* Did we use it already? */
     if (check_conflict(val)) {
 	msgConfirm("You already have a mount point for %s assigned!", val);
 	return NULL;
     }
+
+    /* Is it bogus? */
     if (*val != '/') {
 	msgConfirm("Mount point must start with a / character");
 	return NULL;
     }
+
+    /* Is it going to be mounted on root? */
     if (!strcmp(val, "/")) {
 	if (old)
 	    old->flags |= CHUNK_IS_ROOT;
-    } else if (old) {
+    }
+    else if (old)
 	old->flags &= ~CHUNK_IS_ROOT;
-    }	
-    safe_free(old ? old->private : NULL);
+
+    safe_free(tmp);
     tmp = new_part(val, TRUE, 0);
     if (old) {
 	old->private = tmp;
@@ -586,8 +596,8 @@ diskLabelEditor(char *str)
 			msgConfirm("%s is an invalid mount point for a DOS partition!", p->mountpoint);
 			strcpy(p->mountpoint, "/bogus");
 		    }
-		    record_label_chunks();
 		}
+		record_label_chunks();
 		break;
 
 	    default:
