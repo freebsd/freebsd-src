@@ -46,13 +46,3 @@
 
 /* FreeBSD is 4.4BSD derived */
 #define bsd4_4
-
-/* Tell gcc to locate libgcc.a for us according to the -m rules.  */
-#undef LIBGCC_SPEC
-#define LIBGCC_SPEC \
- "%{!shared: \
-    %{!pthread:libgcc.a%s} \
-    %{pthread:libgcc_r.a%s}} \
-  %{shared: \
-    %{!pthread:libgcc_pic.a%s} \
-    %{pthread:libgcc_r_pic.a%s}}"
