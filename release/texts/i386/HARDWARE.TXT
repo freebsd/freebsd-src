@@ -109,6 +109,7 @@ lnc0    280     10      n/a     dyn     Lance/PCnet cards
 rl0     dyn     dyn     n/a     dyn     RealTek 8129/8139 fast ethernet
 sf0     dyn     dyn     n/a     dyn     Adaptec AIC-6915 fast ethernet
 sis0    dyn     dyn     n/a     dyn     SiS 900/SiS 7016 fast ethernet
+sn0     0x300   10      n/a     n/a	SMC 91xx ethernet
 ste0    dyn     dyn     n/a     dyn     Sundance ST201 fast ethernet
 tl0     dyn     dyn     n/a     dyn     TI TNET100 'ThunderLAN' cards.
 tx0     dyn     dyn     n/a     dyn     SMC 9432 'Epic' fast ethernet
@@ -538,8 +539,7 @@ and EISA (Fast) Etherlink III / (Fast) Etherlink XL
 
 Toshiba ethernet cards
 
-PCMCIA ethernet cards from IBM and National Semiconductor are also
-supported.
+SMC 91xx based ethernet cards
 
 
 4.3.    USB
