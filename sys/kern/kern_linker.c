@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: kern_linker.c,v 1.15 1998/11/06 15:10:17 peter Exp $
+ *	$Id: kern_linker.c,v 1.16 1998/11/10 08:49:28 peter Exp $
  */
 
 #include "opt_ddb.h"
@@ -766,6 +766,59 @@ kldfirstmod(struct proc* p, struct kldfirstmod_args* uap)
     } else
 	error = ENOENT;
 
+    return error;
+}
+
+int
+kldsym(struct proc *p, struct kldsym_args *uap)
+{
+    char *symstr = NULL;
+    linker_sym_t sym;
+    linker_symval_t symval;
+    linker_file_t lf;
+    struct kld_sym_lookup lookup;
+    int error = 0;
+
+    if (error = copyin(SCARG(uap, data), &lookup, sizeof(lookup)))
+	goto out;
+    if (lookup.version != sizeof(lookup) || SCARG(uap, cmd) != KLDSYM_LOOKUP) {
+	error = EINVAL;
+	goto out;
+    }
+
+    symstr = malloc(MAXPATHLEN, M_TEMP, M_WAITOK);
+    if (error = copyinstr(lookup.symname, symstr, MAXPATHLEN, NULL))
+	goto out;
+
+    if (SCARG(uap, fileid) != 0) {
+	lf = linker_find_file_by_id(SCARG(uap, fileid));
+	if (lf == NULL) {
+	    error = ENOENT;
+	    goto out;
+	}
+	if (lf->ops->lookup_symbol(lf, symstr, &sym) == 0 &&
+	    lf->ops->symbol_values(lf, sym, &symval) == 0) {
+	    lookup.symvalue = (u_long)symval.value;
+	    lookup.symsize = symval.size;
+	    error = copyout(&lookup, SCARG(uap, data), sizeof(lookup));
+	} else
+	    error = ENOENT;
+    } else {
+	for (lf = TAILQ_FIRST(&files); lf; lf = TAILQ_NEXT(lf, link)) {
+	    if (lf->ops->lookup_symbol(lf, symstr, &sym) == 0 &&
+		lf->ops->symbol_values(lf, sym, &symval) == 0) {
+		lookup.symvalue = (u_long)symval.value;
+		lookup.symsize = symval.size;
+		error = copyout(&lookup, SCARG(uap, data), sizeof(lookup));
+		break;
+	    }
+	}
+	if (!lf)
+	    error = ENOENT;
+    }
+out:
+    if (symstr)
+	free(symstr, M_TEMP);
     return error;
 }
 
