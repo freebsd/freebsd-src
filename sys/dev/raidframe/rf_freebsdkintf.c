@@ -2496,7 +2496,11 @@ rf_search_label(dev_t dev, struct disklabel *label, RF_AutoConfig_t **ac_list)
 		if (label->d_partitions[i].p_fstype != FS_RAID)
 			continue;
 
+#if 0 /* GEOM */
 		dev1 = dkmodpart(dev, i);
+#else
+		dev1 = NULL;
+#endif
 		if (dev1 == NULL) {
 			rf_printf(1, "dev1 == null\n");
 			continue;
