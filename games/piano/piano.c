@@ -13,7 +13,7 @@ static const char rcsid[] =
 
 char *myname;
 int verbose;
-static char *initcmd = "t160 o1 l16 ml";
+static const char *initcmd = "t160 o1 l16 ml";
 
 static const char usage_msg[] =
 	"simple keyboard player V0.8086\n"
@@ -27,10 +27,10 @@ static const char usage_msg[] =
 
 struct kdef_t {
 	int ch;
-	char *str;
+	const char *str;
 };
 
-static char *kstr[256];
+static const char *kstr[256];
 
 static struct kdef_t kdef[] = {
 	/* white key */
@@ -80,12 +80,14 @@ init_kstr(void)
 }/* init_kstr */
 
 static int
-fdputs(const char *s, int fd, int echo)
+fdputs(const char *s, int fd, int p_echo)
 {
-	int err, len = strlen(s);
+	int err;
+	size_t len;
+	len = strlen(s);
 	write(fd, s, len);
 	err = write(fd, "\n", 1);
-	if (echo) {
+	if (p_echo) {
 		fputs(s, stdout);
 	}
 	return err;
