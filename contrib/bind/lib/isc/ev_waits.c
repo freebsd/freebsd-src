@@ -20,7 +20,7 @@
  */
 
 #if !defined(LINT) && !defined(CODECENTER)
-static const char rcsid[] = "$Id: ev_waits.c,v 8.11 2000/07/20 18:17:52 vixie Exp $";
+static const char rcsid[] = "$Id: ev_waits.c,v 8.12 2002/07/08 05:50:10 marka Exp $";
 #endif
 
 #include "port_before.h"
@@ -190,14 +190,14 @@ print_waits(evContext_p *ctx) {
 	evPrintf(ctx, 9, "wait waiting:\n");
 	for (wl = ctx->waitLists; wl != NULL; wl = wl->next) {
 		INSIST(wl->first != NULL);
-		evPrintf(ctx, 9, "  tag %#x:", wl->first->tag);
+		evPrintf(ctx, 9, "  tag %p:", wl->first->tag);
 		for (this = wl->first; this != NULL; this = this->next)
-			evPrintf(ctx, 9, " %#x", this);
+			evPrintf(ctx, 9, " %p", this);
 		evPrintf(ctx, 9, "\n");
 	}
 	evPrintf(ctx, 9, "wait done:");
 	for (this = ctx->waitDone.first; this != NULL; this = this->next)
-		evPrintf(ctx, 9, " %#x", this);
+		evPrintf(ctx, 9, " %p", this);
 	evPrintf(ctx, 9, "\n");
 }
 

@@ -3,7 +3,7 @@
  * vix 22jan93 [revisited; uses RCS, ANSI, POSIX; has bug fixes]
  * vix 27jun86 [broken out of tree.c]
  *
- * $Id: tree.h,v 8.2 1996/10/25 18:11:03 vixie Exp $
+ * $Id: tree.h,v 8.3 2002/12/03 05:26:48 marka Exp $
  */
 
 
@@ -27,6 +27,16 @@ typedef	void *tree_t;
 #else
 typedef	char *tree_t;
 #endif
+
+/*
+ * Do not taint namespace
+ */
+#define	tree_add	__tree_add
+#define	tree_delete	__tree_delete
+#define	tree_init	__tree_init
+#define	tree_mung	__tree_mung
+#define	tree_srch	__tree_srch
+#define	tree_trav	__tree_trav
 
 
 typedef	struct tree_s {
