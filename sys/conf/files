@@ -730,3 +730,4 @@ isa_if.h		optional isa					\
 	clean		"isa_if.h"
 isa/isa_common.c	optional isa device-driver
 isa/isahint.c		optional isa device-driver
+isa/fd.c		optional fd device-driver
