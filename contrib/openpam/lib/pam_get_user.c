@@ -31,7 +31,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $P4: //depot/projects/openpam/lib/pam_get_user.c#13 $
+ * $P4: //depot/projects/openpam/lib/pam_get_user.c#14 $
  */
 
 #include <sys/param.h>
@@ -78,7 +78,8 @@ pam_get_user(pam_handle_t *pamh,
 	free(resp);
 	if (r != PAM_SUCCESS)
 		RETURNC(r);
-	RETURNC(pam_get_item(pamh, PAM_USER, (const void **)user));
+	r = pam_get_item(pamh, PAM_USER, (const void **)user);
+	RETURNC(r);
 }
 
 /*
