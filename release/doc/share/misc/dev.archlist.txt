@@ -66,8 +66,10 @@ em	i386,pc98,alpha,ia64,amd64
 ep	i386,pc98,amd64
 ex	i386,amd64
 fe	i386,pc98,amd64
+fwohci	i386,sparc64,amd64
 gem	sparc64
 gx	i386,pc98,alpha,amd64
+hifn	i386,pc98,amd64
 ida	i386
 ie	i386
 iir	i386,amd64
@@ -86,6 +88,8 @@ ohci	i386,pc98,alpha,ia64,amd64
 re	i386,pc98,alpha,sparc64,amd64
 rl	i386,pc98,alpha,sparc64,amd64
 rue	i386,pc98,amd64
+safe	i386,pc98,amd64
+sbp	i386,sparc64,amd64
 sf	i386,pc98,alpha,amd64
 sis	i386,pc98,alpha,amd64
 sk	i386,pc98,alpha,amd64
@@ -110,6 +114,7 @@ twa	i386,amd64
 twe	i386,amd64
 txp	i386,pc98,alpha,amd64
 ubsa	i386,pc98,amd64
+ubsec	i386,pc98,amd64
 ubser	i386,pc98,amd64
 ucycom	i386,pc98,amd64
 udav	i386,pc98,amd64
