@@ -31,22 +31,13 @@
  * SUCH DAMAGE.
  *
  *	@(#)vfs_conf.c	8.8 (Berkeley) 3/31/94
- * $Id: vfs_conf.c,v 1.4 1994/09/19 15:41:13 dfr Exp $
+ * $Id: vfs_conf.c,v 1.5 1994/09/21 03:46:47 wollman Exp $
  */
 
 #include <sys/param.h>
 #include <sys/mount.h>
 #include <sys/vnode.h>
 
-#ifdef FFS
-#include <ufs/ffs/ffs_extern.h>
-
-/*
- * This specifies the filesystem used to mount the root.
- * This specification should be done by /etc/config.
- */
-int (*mountroot)() = ffs_mountroot;
-#endif
-
+int (*mountroot) __P((void));
 struct vnode *rootvnode;
 
