@@ -66,8 +66,12 @@ initfrm(struct form *form)
 			 */
 			if (field->field.input->lbl_flag)
 				field->field.input->input[0] = '\0';
-			else if (field->field.input->label)
-				strcpy(field->field.input->input, field->field.input->label);
+			else if (field->field.input->label) {
+				strncpy(field->field.input->input,
+				        field->field.input->label,
+				        field->field.input->limit);
+				field->field.input->input[field->field.input->limit] = 0;
+			}
 		} else if ((field->type != F_TEXT) && (field->type != F_MENU) &&
 		   (field->type != F_ACTION)) {
 			print_status("Unknown field type, closing form");
