@@ -435,6 +435,13 @@ static __inline void
 vm_map_wakeup(vm_map_t map)
 {
 
+	/*
+	 * Acquire and release Giant to prevent a wakeup() from being
+	 * performed (and lost) between the vm_map_unlock() and the
+	 * tsleep() in vm_map_unlock_and_wait().
+	 */
+	mtx_lock(&Giant);
+	mtx_unlock(&Giant);
 	wakeup(&map->root);
 }
 
