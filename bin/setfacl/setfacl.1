@@ -185,6 +185,24 @@ with all
 .Dq Li group
 ACL entries in the resulting ACL.
 .Pp
+Traditional POSIX interfaces acting on file system object modes have
+modified semantics in the presence of POSIX.1e extended ACLs.
+When a mask entry is present on the access ACL of an object, the mask
+entry is substituted for the group bits; this occurs in programs such
+as
+.Xr stat 1
+or
+.Xr ls 1 .
+When the mode is modified on an object that has a mask entry, the
+changes applied to the group bits will actually be applied to the
+mask entry.
+These semantics provide for greater application compatibility:
+applications modifying the mode instead of the ACL will see
+conservative behavior, limiting the effective rights granted by all
+of the additional user and group entries; this occurs in programs
+such as
+.Xr chmod 1 .
+.Pp
 ACL entries applied from a file using the
 .Fl M
 or
