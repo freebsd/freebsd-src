@@ -46,6 +46,17 @@
 .Sh DESCRIPTION
 .Nm Dmesg
 displays the contents of the system message buffer.
+If neither the
+.Fl N
+nor the
+.Fl M
+option is specified, the buffer is read from the currently running kernel
+via the
+.Xr sysctl 3
+interface.
+Otherwise, the buffer is read from the specified core file (or from the
+default one), using the name list from the specified kernel image (or from
+the default image).
 .Pp
 The options are as follows:
 .Bl -tag -width indent
@@ -59,17 +70,12 @@ Extract values associated with the name list from the specified core
 instead of the default
 .Pa /dev/kmem .
 .It Fl N
-Extract the name list from the specified system instead of the default
-.Pa /kernel .
+Extract the name list from the specified system instead of the default,
+which is the kernel image the system has booted from.
 .El
 .Sh SEE ALSO
+.Xr sysctl 3 ,
 .Xr syslogd 8
-.Sh FILES
-.Bl -tag -width /etc/kmem -compact
-.It Pa /dev/mem
-.It Pa /dev/kmem
-.It Pa /kernel
-.El
 .Sh HISTORY
 The
 .Nm
