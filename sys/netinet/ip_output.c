@@ -141,6 +141,7 @@ ip_output(m0, opt, ro, flags, imo)
 	int rv;
 #endif /* PFIL_HOOKS */
 
+	len = 0;
 	args.eh = NULL;
 	args.rule = NULL;
 	args.next_hop = NULL;
@@ -199,7 +200,8 @@ ip_output(m0, opt, ro, flags, imo)
 
 	if (opt) {
 		m = ip_insertoptions(m, opt, &len);
-		hlen = len;
+		if (len >= sizeof(struct ip))
+			hlen = len;
 	}
 	ip = mtod(m, struct ip *);
 	pkt_dst = args.next_hop ? args.next_hop->sin_addr : ip->ip_dst;
