@@ -268,9 +268,12 @@ nexus_dmamap_create(bus_dma_tag_t pdmat, bus_dma_tag_t ddmat, int flags,
 {
 
 	/* Not much to do...? */
-	*mapp = malloc(sizeof(**mapp), M_DEVBUF, M_WAITOK | M_ZERO);
-	ddmat->map_count++;
-	return (0);
+	*mapp = malloc(sizeof(**mapp), M_DEVBUF, M_NOWAIT | M_ZERO);
+	if (*mapp != NULL) {
+		ddmat->map_count++;
+		return (0);
+	} else
+		return (ENOMEM);
 }
 
 /*
@@ -422,7 +425,7 @@ int
 sparc64_dmamem_alloc_map(bus_dma_tag_t dmat, bus_dmamap_t *mapp)
 {
 
-	*mapp = malloc(sizeof(**mapp), M_DEVBUF, M_WAITOK | M_ZERO);
+	*mapp = malloc(sizeof(**mapp), M_DEVBUF, M_NOWAIT | M_ZERO);
 	if (*mapp == NULL)
 		return (ENOMEM);
 
