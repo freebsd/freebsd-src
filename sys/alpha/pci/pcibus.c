@@ -47,6 +47,9 @@
 
 #include "isa.h"
 
+#define	ISA_IRQ_OFFSET	0xe0
+#define	ISA_IRQ_LEN	0x10
+
 char chipset_type[10];
 int chipset_bwx = 0;
 long chipset_ports = 0;
@@ -197,6 +200,38 @@ alpha_platform_teardown_ide_intr(struct resource *res, void *cookie)
 
 static struct rman irq_rman, port_rman, mem_rman;
 
+int
+alpha_platform_pci_setup_intr(device_t dev, device_t child,
+			      struct resource *irq,  int flags,
+			      driver_intr_t *intr, void *arg,
+			      void **cookiep)
+{
+	/*
+	 * XXX - If we aren't the resource manager for this IRQ, assume that
+	 * it is actually handled by the ISA PIC.
+	 */
+	if(irq->r_rm != &irq_rman)
+		return isa_setup_intr(dev, child, irq, flags, intr, arg,
+				      cookiep);
+	else
+		return bus_generic_setup_intr(dev, child, irq, flags, intr,
+					      arg, cookiep);
+}
+
+int
+alpha_platform_pci_teardown_intr(device_t dev, device_t child,
+				 struct resource *irq, void *cookie)
+{
+	/*
+	 * XXX - If we aren't the resource manager for this IRQ, assume that
+	 * it is actually handled by the ISA PIC.
+	 */
+	if(irq->r_rm != &irq_rman)
+		return isa_teardown_intr(dev, child, irq, cookie);
+	else
+		return bus_generic_teardown_intr(dev, child, irq, cookie);
+}
+
 void 
 pci_init_resources(void)
 {
@@ -238,7 +273,16 @@ pci_alloc_resource(device_t bus, device_t child, int type, int *rid,
 
 	switch (type) {
 	case SYS_RES_IRQ:
-		rm = &irq_rman;
+#if NISA > 0
+		if((start >= ISA_IRQ_OFFSET) &&
+		   (end < ISA_IRQ_OFFSET + ISA_IRQ_LEN)) {
+		  	return isa_alloc_intrs(bus, child,
+					       start - ISA_IRQ_OFFSET,
+					       end - ISA_IRQ_OFFSET);
+		}
+		else
+#endif
+			rm = &irq_rman;
 		break;
 
 	case SYS_RES_IOPORT:

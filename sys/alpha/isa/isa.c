@@ -136,6 +136,13 @@ isa_alloc_intr(device_t bus, device_t child, int irq)
 				     0, child);
 }
 
+struct resource *
+isa_alloc_intrs(device_t bus, device_t child, u_long start, u_long end)
+{
+	return rman_reserve_resource(&isa_irq_rman, start, end,
+				     end - start + 1, 0, child);
+}
+
 int
 isa_release_intr(device_t bus, device_t child, struct resource *r)
 {
