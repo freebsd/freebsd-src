@@ -80,7 +80,7 @@ static void print_AMD_assoc(int i);
 static void print_transmeta_info(void);
 static void setup_tmx86_longrun(void);
 
-int	cpu_class;
+int	cpu_class = CPUCLASS_386;
 u_int	cpu_exthigh;		/* Highest arg to extended CPUID */
 u_int	cyrix_did;		/* Device ID of Cyrix CPU */
 char machine[] = "i386";
