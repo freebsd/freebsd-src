@@ -24,7 +24,7 @@
  * the rights to redistribute these changes.
  *
  *	from: Mach, [92/04/03  16:51:14  rvb]
- *	$Id: boot.c,v 1.57 1996/09/05 21:12:06 julian Exp $
+ *	$Id: boot.c,v 1.58 1996/09/07 20:18:04 bde Exp $
  */
 
 
@@ -64,6 +64,7 @@ WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
 #ifdef NAMEBLOCK
 char *dflt_name;
 #endif
+char *name;
 char namebuf[NAMEBUF_LEN];
 struct bootinfo bootinfo;
 int loadflags;
@@ -140,7 +141,7 @@ boot(int drive)
 	} else
 #endif	/*NAMEBLOCK*/
 loadstart:
-	name = dflname;		/* re-initialize in case of loop */
+	name = "/kernel";
 	/* print this all each time.. (saves space to do so) */
 	/* If we have looped, use the previous entries as defaults */
 	printf("\n>> FreeBSD BOOT @ 0x%x: %d/%d k of memory\n"
