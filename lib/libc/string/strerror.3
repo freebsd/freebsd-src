@@ -36,7 +36,7 @@
 .\"     @(#)strerror.3	8.1 (Berkeley) 6/9/93
 .\" $FreeBSD$
 .\"
-.Dd Nov 26, 2001
+.Dd December 19, 2002
 .Dt STRERROR 3
 .Os
 .Sh NAME
@@ -55,14 +55,14 @@
 .Vt extern const char * const sys_errlist[] ;
 .Vt extern const int sys_nerr ;
 .In string.h
-.Ft char *
+.Ft "char *"
 .Fn strerror "int errnum"
 .Ft int
-.Fn strerror_r "int errnum" "char * strerrbuf" "size_t buflen"
+.Fn strerror_r "int errnum" "char *strerrbuf" "size_t buflen"
 .Sh DESCRIPTION
 The
 .Fn strerror ,
-.Fn strerror_r 
+.Fn strerror_r
 and
 .Fn perror
 functions look up the error message string corresponding to an
@@ -79,7 +79,7 @@ The
 .Fn strerror_r
 function renders the same result into
 .Fa strerrbuf
-for a maximum of 
+for a maximum of
 .Fa buflen
 characters and returns 0 upon success.
 .Pp
@@ -99,7 +99,7 @@ and does not point to the null character,
 this string is prepended to the message
 string and separated from it by
 a colon and space
-.Pq Ql \&:\ \& ;
+.Pq Dq Li ":\ " ;
 otherwise, only the error message string is printed.
 .Pp
 If
@@ -108,33 +108,31 @@ is not a recognized error number,
 .Fn strerror
 returns an error message string containing
 .Dq Li "Unknown error:\ "
-followed by the error number in decimal and sets
-.Va errno
-to 
-.Er EINVAL .
+followed by the error number in decimal, while
 .Fn strerror_r
 leaves
 .Fa strerrbuf
-unchanged and returns 
+unchanged and returns
 .Er EINVAL .
 Error numbers recognized by this implementation fall in
-the range 0 <= 
+the range 0 <
 .Fa errnum
 <
 .Fa sys_nerr .
 .Pp
 If insufficient storage is provided in
-.Fa strerrbuf 
-(as specified in 
+.Fa strerrbuf
+(as specified in
 .Fa buflen )
-to contain the error string, 
+to contain the error string,
 .Fn strerror_r
 returns
-.Er ERANGE 
-and 
+.Er ERANGE
+and
 .Fa strerrbuf
-will contain an error message that has been truncated and nul 
-terminated to fit the length specified by 
+will contain an error message that has been truncated and
+.Dv NUL
+terminated to fit the length specified by
 .Fa buflen .
 .Pp
 The message strings can be accessed directly using the external
@@ -152,6 +150,17 @@ should be used instead.
 .Sh SEE ALSO
 .Xr intro 2 ,
 .Xr psignal 3
+.Sh STANDARDS
+The
+.Fn perror
+and
+.Fn strerror
+functions conform to
+.St -isoC-99 .
+The
+.Fn strerror_r
+function conforms to
+.St -p1003.1-2001 .
 .Sh HISTORY
 The
 .Fn strerror
@@ -159,18 +168,22 @@ and
 .Fn perror
 functions first appeared in
 .Bx 4.4 .
-The 
+The
 .Fn strerror_r
 function was implemented in
 .Fx 4.4
-by 
-.An Wes Peters
-.Aq wes@freebsd.org .
+by
+.An Wes Peters Aq wes@FreeBSD.org .
 .Sh BUGS
 For unknown error numbers, the
 .Fn strerror
 function will return its result in a static buffer which
 may be overwritten by subsequent calls.
+.Pp
+The return type for
+.Fn strerror
+is missing a type-qualifier; it should actually be
+.Vt const char * .
 .Pp
 Programs that use the deprecated
 .Va sys_errlist
