@@ -431,7 +431,7 @@ show_ipfw(struct ip_fw *chain, int pcwidth, int bcwidth)
 	if (chain->fw_ipflg & IP_FW_IF_IPLEN)
 		printf(" iplen %u", chain->fw_iplen);
 	if (chain->fw_ipflg & IP_FW_IF_IPID)
-		printf(" ipid 0x%04x", chain->fw_ipid);
+		printf(" ipid %#x", chain->fw_ipid);
 
 	if (chain->fw_ipflg & IP_FW_IF_IPTOS) {
 		int 	_opt_printed = 0;
@@ -872,7 +872,7 @@ show_usage(const char *fmt, ...)
 "    tcpflags [!]{syn|fin|rst|ack|psh|urg},...\n"
 "    ipoptions [!]{ssrr|lsrr|rr|ts},...\n"
 "    iplen {length}\n"
-"    ipid {identification number (in hex)}\n"
+"    ipid {identification number}\n"
 "    iptos [!]{lowdelay|throughput|reliability|mincost|congestion}\n"
 "    ipttl {time to live}\n"
 "    ipversion {version number}\n"
@@ -1974,18 +1974,20 @@ badviacombo:
   			av++; ac--; continue;
  		}
 		if (!strncmp(*av,"ipid",strlen(*av))) {
+			unsigned long ipid;
+			char *c;
+
  			av++; ac--;
 			if (!ac)
  				show_usage("missing argument"
  					" for ``ipid''");
+			ipid = strtoul(*av, &c, 0);
+			if (*c != '\0')
+				show_usage("argument to ipid must be numeric");
+			if (ipid > 65535)
+				show_usage("argument to ipid out of range");
  			rule.fw_ipflg |= IP_FW_IF_IPID;
-			if (strlen(*av) != 6 || (*av)[0] != '0' || (*av)[1] != 'x' ||
-				isxdigit((*av)[2]) == 0 ||
-				isxdigit((*av)[3]) == 0 ||
-				isxdigit((*av)[4]) == 0 ||
-				isxdigit((*av)[5]) == 0)
-				show_usage("argument to ipid must be in hex");
- 			rule.fw_ipid = (u_short)strtoul(*av, NULL, 0);
+ 			rule.fw_ipid = (u_short)ipid;
   			av++; ac--; continue;
  		}
 		if (!strncmp(*av,"iptos",strlen(*av))) {
