@@ -1,0 +1,54 @@
+This is a BETA release of a completely rewritten GNU linker.
+It is distributed with other "binary utilities" which should
+be in ../binutils.  See ../binutils/README for more general notes,
+including where to send bug reports.
+
+There are many new features of the linker:
+
+* The linker uses a Binary File Descriptor library (../bfd)
+  that it uses to read and write object files.  This helps
+  insulate the linker itself from the format of object files.
+
+* The linker support a number of different object file
+  formats.  It can even handle multiple formats at once:
+  Read two input formats and write a third.
+
+* The linker can be configured for cross-linking.
+
+* The linker contains a control language.
+
+* There is a user manual (ld.texinfo), as well as the
+  beginnings of an internals manual (ldint.texinfo).
+
+Installation
+============
+
+See ../binutils/README.
+
+If you want to make a cross-linker, you may want to specify
+a different search path of -lfoo libraries than the default.
+You can do this by setting the LIB_PATH variable in ./Makefile.
+
+To build just the linker, make the target all-ld.
+
+Porting to a new target
+=======================
+
+See the ldint.texinfo manual.
+
+Reporting bugs etc
+===========================
+See ../binutils/README.
+
+Known problems
+==============
+
+HP/UX 9.01 has a shell bug that causes the linker scripts to be
+generated incorrectly.  The symptom of this appears to be "fatal error
+- scanner input buffer overflow" error messages.  There are various
+workarounds to this:
+  * Build and install bash, and build with "make SHELL=bash".
+  * Update to a version of HP/UX with a working shell (e.g., 9.05).
+  * Replace "(. ${srcdir}/scripttempl/${SCRIPT_NAME}.sc)" in
+    genscripts.sh with "sh ${srcdir}..." (no parens) and make sure the
+    emulparams script used exports any shell variables it sets.
