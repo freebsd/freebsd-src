@@ -13,7 +13,7 @@
  *   the SMC Elite Ultra (8216), the 3Com 3c503, the NE1000 and NE2000,
  *   and a variety of similar clones.
  *
- * $Id: if_ed.c,v 1.75 1995/07/28 12:15:16 davidg Exp $
+ * $Id: if_ed.c,v 1.76 1995/08/25 19:50:15 bde Exp $
  */
 
 #include "ed.h"
@@ -71,6 +71,7 @@ struct ed_softc {
 	char   *type_str;	/* pointer to type string */
 	u_char  vendor;		/* interface vendor */
 	u_char  type;		/* interface type code */
+	u_char	gone;		/* HW missing, presumed having a good time */
 
 	u_short asic_addr;	/* ASIC I/O bus address */
 	u_short nic_addr;	/* NIC (DS8390) I/O bus address */
@@ -118,6 +119,7 @@ int	ed_probe_generic8390(struct ed_softc *);
 int	ed_probe_WD80x3(struct isa_device *);
 int	ed_probe_3Com(struct isa_device *);
 int	ed_probe_Novell(struct isa_device *);
+int	ed_probe_pccard(struct isa_device *, u_char *);
 
 void    ds_getmcaf();
 
@@ -132,6 +134,112 @@ void    ed_pio_readmem(), ed_pio_writemem();
 u_short ed_pio_write_mbufs();
 
 void    ed_setrcr(struct ifnet *, struct ed_softc *);
+
+#include "crd.h"
+#if NCRD > 0
+#include <sys/select.h>
+#include <pccard/card.h>
+#include <pccard/slot.h>
+/*
+ *	PC-Card (PCMCIA) specific code.
+ */
+static int card_intr(struct pccard_dev *);	/* Interrupt handler */
+void edunload(struct pccard_dev *);	/* Disable driver */
+void edsuspend(struct pccard_dev *);	/* Suspend driver */
+static int edinit(struct pccard_dev *, int);	/* init device */
+
+static struct pccard_drv ed_info =
+	{
+	"ed",
+	card_intr,
+	edunload,
+	edsuspend,
+	edinit,
+	0,			/* Attributes - presently unused */
+	&net_imask		/* Interrupt mask for device */
+				/* This should also include net_imask?? */
+	};
+/*
+ * Called when a power down is wanted. Shuts down the
+ * device and configures the device as unavailable (but
+ * still loaded...). A resume is done by calling
+ * edinit with first=0. This is called when the user suspends
+ * the system, or the APM code suspends the system.
+ */
+void
+edsuspend(struct pccard_dev *dp)
+{
+	printf("ed%d: suspending\n", dp->isahd.id_unit);
+}
+/*
+ *	Initialize the device - called from Slot manager.
+ *	if first is set, then initially check for
+ *	the device's existence before initialising it.
+ *	Once initialised, the device table may be set up.
+ */
+int
+edinit(struct pccard_dev *dp, int first)
+{
+	int s;
+	struct ed_softc *sc = &ed_softc[dp->isahd.id_unit];
+/*
+ *	validate unit number.
+ */
+	if (first) {
+		if (dp->isahd.id_unit >= NED)
+			return(ENODEV);
+/*
+ *	Probe the device. If a value is returned, the
+ *	device was found at the location.
+ */
+		
+		sc->gone = 0;
+		if (ed_probe_pccard(&dp->isahd,dp->misc)==0) {
+			return(ENXIO);
+		}
+		if (ed_attach(&dp->isahd)==0) {
+			return(ENXIO);
+		}
+	}
+/*
+ *	XXX TODO:
+ *	If it was already inited before, the device structure
+ *	should be already initialised. Here we should
+ *	reset (and possibly restart) the hardware, but
+ *	I am not sure of the best way to do this...
+ */
+	return(0);
+}
+/*
+ *	edunload - unload the driver and clear the table.
+ *	XXX TODO:
+ *	This is called usually when the card is ejected, but
+ *	can be caused by the modunload of a controller driver.
+ *	The idea is reset the driver's view of the device
+ *	and ensure that any driver entry points such as
+ *	read and write do not hang.
+ */
+void
+edunload(struct pccard_dev *dp)
+{
+	struct ed_softc *sc = &ed_softc[dp->isahd.id_unit];
+	sc->kdc.kdc_state = DC_UNCONFIGURED;
+	if_down(&sc->arpcom.ac_if);
+	sc->gone = 1;
+	printf("ed%d: unload\n", dp->isahd.id_unit);
+}
+
+/*
+ *	card_intr - Shared interrupt called from
+ *	front end of PC-Card handler.
+ */
+static int
+card_intr(struct pccard_dev *dp)
+{
+	edintr(dp->isahd.id_unit);
+	return(1);
+}
+#endif /* NCRD > 0 */
 
 struct isa_driver eddriver = {
 	ed_probe,
@@ -211,6 +319,13 @@ ed_probe(isa_dev)
 	struct isa_device *isa_dev;
 {
 	int     nports;
+#if NCRD > 0
+/*
+ *	If PC-Card probe required, then register driver with
+ *	slot manager.
+ */
+		pccard_add_driver(&ed_info);
+#endif /* NCRD > 0 */
 
 #ifndef DEV_LKM
 	ed_registerdev(isa_dev, "Ethernet adapter");
@@ -548,19 +663,18 @@ ed_probe_WD80x3(isa_dev)
 	/*
 	 * allocate one xmit buffer if < 16k, two buffers otherwise
 	 */
-	if ((memsize < 16384) || (isa_dev->id_flags & ED_FLAGS_NO_MULTI_BUFFERING)) {
-		sc->mem_ring = sc->mem_start + (ED_PAGE_SIZE * ED_TXBUF_SIZE);
+	if ((memsize < 16384) ||
+            (isa_dev->id_flags & ED_FLAGS_NO_MULTI_BUFFERING)) {
 		sc->txb_cnt = 1;
-		sc->rec_page_start = ED_TXBUF_SIZE;
 	} else {
-		sc->mem_ring = sc->mem_start + (ED_PAGE_SIZE * ED_TXBUF_SIZE * 2);
 		sc->txb_cnt = 2;
-		sc->rec_page_start = ED_TXBUF_SIZE * 2;
 	}
+	sc->tx_page_start = ED_WD_PAGE_OFFSET;
+	sc->rec_page_start = ED_WD_PAGE_OFFSET + ED_TXBUF_SIZE * sc->txb_cnt;
+	sc->rec_page_stop = ED_WD_PAGE_OFFSET + memsize / ED_PAGE_SIZE;
+	sc->mem_ring = sc->mem_start + (ED_PAGE_SIZE * sc->rec_page_start);
 	sc->mem_size = memsize;
 	sc->mem_end = sc->mem_start + memsize;
-	sc->rec_page_stop = memsize / ED_PAGE_SIZE;
-	sc->tx_page_start = ED_WD_PAGE_OFFSET;
 
 	/*
 	 * Get station address from on-board ROM
@@ -1153,6 +1267,115 @@ ed_probe_Novell(isa_dev)
 	return (ED_NOVELL_IO_PORTS);
 }
 
+
+/*
+ * Probe and vendor-specific initialization routine for PCCARDs
+ */
+int
+ed_probe_pccard(isa_dev, ether)
+	struct isa_device *isa_dev;
+	u_char *ether;
+{
+	struct ed_softc *sc = &ed_softc[isa_dev->id_unit];
+	int     i;
+	u_int   memsize;
+	u_char  iptr, isa16bit, sum;
+
+	sc->nic_addr = isa_dev->id_iobase; 
+	sc->gone = 0;
+	sc->is790 = 0;
+	sc->cr_proto = ED_CR_RD2;
+	sc->vendor = ED_VENDOR_PCCARD;
+	sc->type = 0;
+	sc->type_str = "PCCARD";
+	sc->kdc.kdc_description = "PCCARD Ethernet";
+	sc->mem_size = isa_dev->id_msize = memsize = 16384;
+	sc->isa16bit = isa16bit = 1;
+
+	for (i = 0; i < ETHER_ADDR_LEN; ++i)
+		sc->arpcom.ac_enaddr[i] = ether[i];
+
+#if ED_DEBUG
+	printf("type = %x type_str=%s isa16bit=%d memsize=%d id_msize=%d\n",
+	       sc->type, sc->type_str, isa16bit, memsize, isa_dev->id_msize);
+#endif
+
+	i = inb(sc->nic_addr + ED_PC_RESET);
+	DELAY(100000);
+	outb(sc->nic_addr + ED_PC_RESET,i);
+	DELAY(100000);
+	i = inb(sc->nic_addr + ED_PC_MISC);
+	if (!i) {
+		int j;
+		printf("ed_probe_pccard: possible failure\n");
+		for (j=0;j<20 && !i;j++) {
+			printf(".");
+			DELAY(100000);
+			i = inb(sc->nic_addr + ED_PC_MISC);
+		}
+		if (!i) {
+			printf("dead :-(\n");
+			return 0;
+		}
+		printf("\n");
+	}
+	/*
+	 * Set initial values for width/size.
+	 */
+
+	/* Make sure that we really have an 8390 based board */
+	if (!ed_probe_generic8390(sc)) {
+		printf("ed_probe_generic8390 failed\n");
+		return (0);
+	}
+	sc->txb_cnt = 2;
+	sc->tx_page_start = ED_PC_PAGE_OFFSET;
+	sc->rec_page_start = sc->tx_page_start + ED_TXBUF_SIZE * sc->txb_cnt;
+	sc->rec_page_stop = sc->tx_page_start + memsize / ED_PAGE_SIZE;
+
+	sc->mem_shared = 1;
+	sc->mem_start = (caddr_t) isa_dev->id_maddr;
+	sc->mem_size = memsize;
+	sc->mem_end = sc->mem_start + memsize;
+
+	sc->mem_ring = sc->mem_start + 
+		sc->txb_cnt * ED_PAGE_SIZE * ED_TXBUF_SIZE;
+
+	/*
+	 * Now zero memory and verify that it is clear
+	 */
+	bzero(sc->mem_start, memsize);
+
+	for (i = 0; i < memsize; ++i) {
+		if (sc->mem_start[i]) {
+			printf("ed%d: failed to clear shared memory at %lx - check configuration\n",
+			    isa_dev->id_unit, kvtop(sc->mem_start + i));
+
+			return (0);
+		}
+		sc->mem_start[i] = (i - 5) & 0xff;
+	}
+	for (i = 0; i < memsize; ++i) {
+		if ((sc->mem_start[i] & 0xff) != ((i - 5) & 0xff)) {
+			printf("ed%d: shared memory failed at %lx (%x != %x) - check configuration\n",
+			    isa_dev->id_unit, kvtop(sc->mem_start + i),
+			    sc->mem_start[i], (i-5) & 0xff);
+			return (0);
+
+		}
+	}
+
+	i = inb(sc->nic_addr + ED_PC_MISC);
+	if (!i) {
+		printf("ed_probe_pccard: possible failure(2)\n");
+	}
+
+	/* clear any pending interupts that we may have caused */
+	outb(sc->nic_addr + ED_P0_ISR, 0xff);
+
+	return (ED_PC_IO_PORTS);
+}
+
 /*
  * Install interface into kernel networking data structures
  */
@@ -1168,33 +1391,37 @@ ed_attach(isa_dev)
 	 */
 	ed_stop(isa_dev->id_unit);
 
-	/*
-	 * Initialize ifnet structure
-	 */
-	ifp->if_unit = isa_dev->id_unit;
-	ifp->if_name = "ed";
-	ifp->if_init = ed_init;
-	ifp->if_output = ether_output;
-	ifp->if_start = ed_start;
-	ifp->if_ioctl = ed_ioctl;
-	ifp->if_reset = ed_reset;
-	ifp->if_watchdog = ed_watchdog;
+	if (!ifp->if_name) {
+		/*
+		 * Initialize ifnet structure
+		 */
+		ifp->if_unit = isa_dev->id_unit;
+		ifp->if_name = "ed";
+		ifp->if_init = ed_init;
+		ifp->if_output = ether_output;
+		ifp->if_start = ed_start;
+		ifp->if_ioctl = ed_ioctl;
+		ifp->if_reset = ed_reset;
+		ifp->if_watchdog = ed_watchdog;
+		ifp->if_snd.ifq_maxlen = IFQ_MAXLEN;
 
-	/*
-	 * Set default state for ALTPHYS flag (used to disable the tranceiver
-	 * for AUI operation), based on compile-time config option.
-	 */
-	if (isa_dev->id_flags & ED_FLAGS_DISABLE_TRANCEIVER)
-		ifp->if_flags = (IFF_BROADCAST | IFF_SIMPLEX | IFF_NOTRAILERS |
-		    IFF_MULTICAST | IFF_ALTPHYS);
-	else
-		ifp->if_flags = (IFF_BROADCAST | IFF_SIMPLEX | IFF_NOTRAILERS |
-		    IFF_MULTICAST);
+		/*
+		 * Set default state for ALTPHYS flag (used to disable the 
+		 * tranceiver for AUI operation), based on compile-time 
+		 * config option.
+		 */
+		if (isa_dev->id_flags & ED_FLAGS_DISABLE_TRANCEIVER)
+			ifp->if_flags = (IFF_BROADCAST | IFF_SIMPLEX | 
+			    IFF_NOTRAILERS | IFF_MULTICAST | IFF_ALTPHYS);
+		else
+			ifp->if_flags = (IFF_BROADCAST | IFF_SIMPLEX |
+			    IFF_NOTRAILERS | IFF_MULTICAST);
 
-	/*
-	 * Attach the interface
-	 */
-	if_attach(ifp);
+		/*
+		 * Attach the interface
+		 */
+		if_attach(ifp);
+	}
 	/* device attach does transition from UNCONFIGURED to IDLE state */
 	sc->kdc.kdc_state = DC_IDLE;
 
@@ -1232,6 +1459,8 @@ ed_reset(unit)
 {
 	int     s;
 
+	if (ed_softc[unit].gone)
+		return;
 	s = splimp();
 
 	/*
@@ -1253,6 +1482,8 @@ ed_stop(unit)
 	struct ed_softc *sc = &ed_softc[unit];
 	int     n = 5000;
 
+	if (sc->gone)
+		return;
 	/*
 	 * Stop everything on the interface, and select page 0 registers.
 	 */
@@ -1276,6 +1507,8 @@ ed_watchdog(unit)
 {
 	struct ed_softc *sc = &ed_softc[unit];
 
+	if (sc->gone)
+		return;
 	log(LOG_ERR, "ed%d: device timeout\n", unit);
 	++sc->arpcom.ac_if.if_oerrors;
 
@@ -1293,6 +1526,8 @@ ed_init(unit)
 	struct ifnet *ifp = &sc->arpcom.ac_if;
 	int     i, s;
 
+	if (sc->gone)
+		return;
 
 	/* address not known */
 	if (ifp->if_addrlist == (struct ifaddr *) 0)
@@ -1445,6 +1680,8 @@ ed_xmit(ifp)
 	struct ed_softc *sc = &ed_softc[ifp->if_unit];
 	unsigned short len;
 
+	if (sc->gone)
+		return;
 	len = sc->txb_len[sc->txb_next_tx];
 
 	/*
@@ -1501,6 +1738,10 @@ ed_start(ifp)
 	caddr_t buffer;
 	int     len;
 
+	if (sc->gone) {
+		printf("ed_start(%p) GONE\n",ifp);
+		return;
+	}
 outloop:
 
 	/*
@@ -1653,6 +1894,9 @@ ed_rint(unit)
 	struct ed_ring packet_hdr;
 	char   *packet_ptr;
 
+	if (sc->gone)
+		return;
+
 	/*
 	 * Set NIC to page 1 registers to get 'current' pointer
 	 */
@@ -1770,6 +2014,8 @@ edintr(unit)
 	struct ed_softc *sc = &ed_softc[unit];
 	u_char  isr;
 
+	if (sc->gone)
+		return;
 	/*
 	 * Set NIC to page 0 registers
 	 */
@@ -1985,6 +2231,8 @@ ed_ioctl(ifp, command, data)
 	struct ifreq *ifr = (struct ifreq *) data;
 	int     s, error = 0;
 
+	if (sc->gone)
+		return -1;
 	s = splimp();
 
 	switch (command) {
