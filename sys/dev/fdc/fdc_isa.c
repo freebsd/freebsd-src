@@ -90,7 +90,7 @@ fdc_isa_alloc_resources(device_t dev, struct fdc_data *fdc)
 	for (rid = 0; ; rid++) {
 		newrid = rid;
 		res = bus_alloc_resource(dev, SYS_RES_IOPORT, &newrid,
-		    0ul, ~0ul, nport, RF_ACTIVE);
+		    0ul, ~0ul, rid == 0 ? nport : 1, RF_ACTIVE);
 		if (res == NULL)
 			break;
 		/*
