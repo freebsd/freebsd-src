@@ -66,7 +66,7 @@ Please make a subdir per other regression test, and add a brief description to
 this file.
 
 geom		Some tests and an out-of-kernel simulator for the GEOM code
-ia64_unaligned	Tests unaligned reads on the IA64
+ia64		ia64 specific regression tests
 nfsmmap		Some tests to exercise some tricky cases in NFS and mmap
 p1003_1b	Exercise 1003.1B scheduler
 pipe		Pipe code regression test
