@@ -40,9 +40,10 @@
 .Nd Internet Trivial File Transfer Protocol server
 .Sh SYNOPSIS
 .Nm /usr/libexec/tftpd
-.Op Fl cCln
+.Op Fl cClnw
 .Op Fl s Ar directory
 .Op Fl u Ar user
+.Op Fl U Ar umask
 .Op Ar directory ...
 .Sh DESCRIPTION
 The
@@ -163,6 +164,14 @@ when the
 .Fl s
 option is used.
 The user must be specified by name, not a numeric UID.
+.It Fl U Ar umask
+Set the
+.Ar umask
+for newly created files.  The default is 022 (S_IWGRP|S_IWOTH).
+.It Fl w
+Allow writes requests to create new files.  By default
+.Nm
+requires that the file specified in a write request exist.
 .El
 .Sh SEE ALSO
 .Xr tftp 1 ,

@@ -109,6 +109,8 @@ static struct dirlist {
 static int	suppress_naks;
 static int	logging;
 static int	ipchroot;
+static int	create_new = 0;
+static mode_t	mask = S_IWGRP|S_IWOTH;
 
 static const char *errtomsg(int);
 static void  nak(int);
@@ -130,7 +132,7 @@ main(int argc, char *argv[])
 	const char *chuser = "nobody";
 
 	openlog("tftpd", LOG_PID | LOG_NDELAY, LOG_FTP);
-	while ((ch = getopt(argc, argv, "cClns:u:")) != -1) {
+	while ((ch = getopt(argc, argv, "cClns:u:Uw")) != -1) {
 		switch (ch) {
 		case 'c':
 			ipchroot = 1;
@@ -149,6 +151,12 @@ main(int argc, char *argv[])
 			break;
 		case 'u':
 			chuser = optarg;
+			break;
+		case 'U':
+			mask = strtol(optarg, NULL, 0);
+			break;
+		case 'w':
+			create_new = 1;
 			break;
 		default:
 			syslog(LOG_WARNING, "ignoring unknown option -%c", ch);
@@ -175,6 +183,8 @@ main(int argc, char *argv[])
 		syslog(LOG_ERR, "-c requires -s");
 		exit(1);
 	}
+
+	umask(mask);
 
 	on = 1;
 	if (ioctl(0, FIONBIO, &on) < 0) {
@@ -553,9 +563,10 @@ validate_access(char **filep, int mode)
 				err = EACCESS;
 			}
 		}
-		if (dirp->name == NULL)
+		if (dirp->name != NULL)
+			*filep = filename = pathname;
+		else if (mode == RRQ)
 			return (err);
-		*filep = filename = pathname;
 	}
 	if (options[OPT_TSIZE].o_request) {
 		if (mode == RRQ) 
@@ -565,7 +576,14 @@ validate_access(char **filep, int mode)
 			options[OPT_TSIZE].o_reply =
 				atoi(options[OPT_TSIZE].o_request);
 	}
-	fd = open(filename, mode == RRQ ? O_RDONLY : O_WRONLY|O_TRUNC);
+	if (mode == RRQ)
+		fd = open(filename, O_RDONLY);
+	else {
+		if (create_new)
+			fd = open(filename, O_WRONLY|O_TRUNC|O_CREAT, 0666);
+		else
+			fd = open(filename, O_WRONLY|O_TRUNC);
+	}
 	if (fd < 0)
 		return (errno + 100);
 	file = fdopen(fd, (mode == RRQ)? "r":"w");
