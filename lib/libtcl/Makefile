@@ -1,4 +1,4 @@
-# $Id$
+# $Id: m,v 1.1 1996/10/26 14:39:26 wosch Exp wosch $
 #
 # This file is generated automatically, do not edit it here!
 #
@@ -219,237 +219,77 @@ MLINKS+= Tcl_TraceVar.3 Tcl_VarTraceInfo2.3
 MLINKS+= Tcl_UpVar.3 Tcl_UpVar2.3 
 
 # Ugly, I know, but what else can I do?!?
+TCLMAN+= Tcl_AddErrorInfo.3 AddErrInfo.3
+TCLMAN+= Tcl_Alloc.3 Alloc.3
+TCLMAN+= Tcl_AllowExceptions.3 AllowExc.3
+TCLMAN+= Tcl_AppInit.3 AppInit.3
+TCLMAN+= Tcl_GetAssocData.3 AssocData.3
+TCLMAN+= Tcl_AsyncCreate.3 Async.3
+TCLMAN+= Tcl_BackgroundError.3 BackgdErr.3
+TCLMAN+= Tcl_Backslash.3 Backslash.3
+TCLMAN+= Tcl_CallWhenDeleted.3 CallDel.3
+TCLMAN+= Tcl_CommandComplete.3 CmdCmplt.3
+TCLMAN+= Tcl_Concat.3 Concat.3
+TCLMAN+= Tcl_CreateChannel.3 CrtChannel.3
+TCLMAN+= Tcl_CreateChannelHandler.3 CrtChnlHdlr.3
+TCLMAN+= Tcl_CreateCloseHandler.3 CrtCloseHdlr.3
+TCLMAN+= Tcl_CreateCommand.3 CrtCommand.3
+TCLMAN+= Tcl_CreateFileHandler.3 CrtFileHdlr.3
+TCLMAN+= Tcl_CreateInterp.3 CrtInterp.3
+TCLMAN+= Tcl_CreateMathFunc.3 CrtMathFnc.3
+TCLMAN+= Tcl_CreateModalTimeout.3 CrtModalTmt.3
+TCLMAN+= Tcl_IsSafe.3 CrtSlave.3
+TCLMAN+= Tcl_CreateTimerHandler.3 CrtTimerHdlr.3
+TCLMAN+= Tcl_CreateTrace.3 CrtTrace.3
+TCLMAN+= Tcl_DStringInit.3 DString.3
+TCLMAN+= Tcl_DetachPids.3 DetachPids.3
+TCLMAN+= Tcl_DoOneEvent.3 DoOneEvent.3
+TCLMAN+= Tcl_DoWhenIdle.3 DoWhenIdle.3
+TCLMAN+= Tcl_Eval.3 Eval.3
+TCLMAN+= Tcl_Exit.3 Exit.3
+TCLMAN+= Tcl_ExprLong.3 ExprLong.3
+TCLMAN+= Tcl_FindExecutable.3 FindExec.3
+TCLMAN+= Tcl_GetFile.3 GetFile.3
+TCLMAN+= Tcl_GetInt.3 GetInt.3
+TCLMAN+= Tcl_GetOpenFile.3 GetOpnFl.3
+TCLMAN+= Tcl_GetStdChannel.3 GetStdChan.3
+TCLMAN+= Tcl_InitHashTable.3 Hash.3
+TCLMAN+= Tcl_Interp.3 Interp.3
+TCLMAN+= Tcl_LinkVar.3 LinkVar.3
+TCLMAN+= Tcl_CreateEventSource.3 Notifier.3
+TCLMAN+= Tcl_OpenFileChannel.3 OpenFileChnl.3
+TCLMAN+= Tcl_OpenTcpClient.3 OpenTcp.3
+TCLMAN+= Tcl_PkgRequire.3 PkgRequire.3
+TCLMAN+= Tcl_Preserve.3 Preserve.3
+TCLMAN+= Tcl_PrintDouble.3 PrintDbl.3
+TCLMAN+= Tcl_RecordAndEval.3 RecordEval.3
+TCLMAN+= Tcl_RegExpMatch.3 RegExp.3
+TCLMAN+= Tcl_SetErrno.3 SetErrno.3
+TCLMAN+= Tcl_SetRecursionLimit.3 SetRecLmt.3
+TCLMAN+= Tcl_SetResult.3 SetResult.3
+TCLMAN+= Tcl_SetVar.3 SetVar.3
+TCLMAN+= Tcl_Sleep.3 Sleep.3
+TCLMAN+= Tcl_SplitList.3 SplitList.3
+TCLMAN+= Tcl_SplitPath.3 SplitPath.3
+TCLMAN+= Tcl_StaticPackage.3 StaticPkg.3
+TCLMAN+= Tcl_StringMatch.3 StrMatch.3
+TCLMAN+= Tcl_Main.3 Tcl_Main.3
+TCLMAN+= Tcl_TraceVar.3 TraceVar.3
+TCLMAN+= Tcl_TranslateFileName.3 Translate.3
+TCLMAN+= Tcl_UpVar.3 UpVar.3
 
-CLEANFILES+=	Tcl_AddErrorInfo.3
-Tcl_AddErrorInfo.3: ${TCLDIST}/doc/AddErrInfo.3
-	ln -s ${.ALLSRC} ${.TARGET}
-
-CLEANFILES+=	Tcl_Alloc.3
-Tcl_Alloc.3: ${TCLDIST}/doc/Alloc.3
-	ln -s ${.ALLSRC} ${.TARGET}
-
-CLEANFILES+=	Tcl_AllowExceptions.3
-Tcl_AllowExceptions.3: ${TCLDIST}/doc/AllowExc.3
-	ln -s ${.ALLSRC} ${.TARGET}
-
-CLEANFILES+=	Tcl_AppInit.3
-Tcl_AppInit.3: ${TCLDIST}/doc/AppInit.3
-	ln -s ${.ALLSRC} ${.TARGET}
-
-CLEANFILES+=	Tcl_GetAssocData.3
-Tcl_GetAssocData.3: ${TCLDIST}/doc/AssocData.3
-	ln -s ${.ALLSRC} ${.TARGET}
-
-CLEANFILES+=	Tcl_AsyncCreate.3
-Tcl_AsyncCreate.3: ${TCLDIST}/doc/Async.3
-	ln -s ${.ALLSRC} ${.TARGET}
-
-CLEANFILES+=	Tcl_BackgroundError.3
-Tcl_BackgroundError.3: ${TCLDIST}/doc/BackgdErr.3
-	ln -s ${.ALLSRC} ${.TARGET}
-
-CLEANFILES+=	Tcl_Backslash.3
-Tcl_Backslash.3: ${TCLDIST}/doc/Backslash.3
-	ln -s ${.ALLSRC} ${.TARGET}
-
-CLEANFILES+=	Tcl_CallWhenDeleted.3
-Tcl_CallWhenDeleted.3: ${TCLDIST}/doc/CallDel.3
-	ln -s ${.ALLSRC} ${.TARGET}
-
-CLEANFILES+=	Tcl_CommandComplete.3
-Tcl_CommandComplete.3: ${TCLDIST}/doc/CmdCmplt.3
-	ln -s ${.ALLSRC} ${.TARGET}
-
-CLEANFILES+=	Tcl_Concat.3
-Tcl_Concat.3: ${TCLDIST}/doc/Concat.3
-	ln -s ${.ALLSRC} ${.TARGET}
-
-CLEANFILES+=	Tcl_CreateChannel.3
-Tcl_CreateChannel.3: ${TCLDIST}/doc/CrtChannel.3
-	ln -s ${.ALLSRC} ${.TARGET}
-
-CLEANFILES+=	Tcl_CreateChannelHandler.3
-Tcl_CreateChannelHandler.3: ${TCLDIST}/doc/CrtChnlHdlr.3
-	ln -s ${.ALLSRC} ${.TARGET}
-
-CLEANFILES+=	Tcl_CreateCloseHandler.3
-Tcl_CreateCloseHandler.3: ${TCLDIST}/doc/CrtCloseHdlr.3
-	ln -s ${.ALLSRC} ${.TARGET}
-
-CLEANFILES+=	Tcl_CreateCommand.3
-Tcl_CreateCommand.3: ${TCLDIST}/doc/CrtCommand.3
-	ln -s ${.ALLSRC} ${.TARGET}
-
-CLEANFILES+=	Tcl_CreateFileHandler.3
-Tcl_CreateFileHandler.3: ${TCLDIST}/doc/CrtFileHdlr.3
-	ln -s ${.ALLSRC} ${.TARGET}
-
-CLEANFILES+=	Tcl_CreateInterp.3
-Tcl_CreateInterp.3: ${TCLDIST}/doc/CrtInterp.3
-	ln -s ${.ALLSRC} ${.TARGET}
-
-CLEANFILES+=	Tcl_CreateMathFunc.3
-Tcl_CreateMathFunc.3: ${TCLDIST}/doc/CrtMathFnc.3
-	ln -s ${.ALLSRC} ${.TARGET}
-
-CLEANFILES+=	Tcl_CreateModalTimeout.3
-Tcl_CreateModalTimeout.3: ${TCLDIST}/doc/CrtModalTmt.3
-	ln -s ${.ALLSRC} ${.TARGET}
-
-CLEANFILES+=	Tcl_IsSafe.3
-Tcl_IsSafe.3: ${TCLDIST}/doc/CrtSlave.3
-	ln -s ${.ALLSRC} ${.TARGET}
-
-CLEANFILES+=	Tcl_CreateTimerHandler.3
-Tcl_CreateTimerHandler.3: ${TCLDIST}/doc/CrtTimerHdlr.3
-	ln -s ${.ALLSRC} ${.TARGET}
-
-CLEANFILES+=	Tcl_CreateTrace.3
-Tcl_CreateTrace.3: ${TCLDIST}/doc/CrtTrace.3
-	ln -s ${.ALLSRC} ${.TARGET}
-
-CLEANFILES+=	Tcl_DStringInit.3
-Tcl_DStringInit.3: ${TCLDIST}/doc/DString.3
-	ln -s ${.ALLSRC} ${.TARGET}
-
-CLEANFILES+=	Tcl_DetachPids.3
-Tcl_DetachPids.3: ${TCLDIST}/doc/DetachPids.3
-	ln -s ${.ALLSRC} ${.TARGET}
-
-CLEANFILES+=	Tcl_DoOneEvent.3
-Tcl_DoOneEvent.3: ${TCLDIST}/doc/DoOneEvent.3
-	ln -s ${.ALLSRC} ${.TARGET}
-
-CLEANFILES+=	Tcl_DoWhenIdle.3
-Tcl_DoWhenIdle.3: ${TCLDIST}/doc/DoWhenIdle.3
-	ln -s ${.ALLSRC} ${.TARGET}
-
-CLEANFILES+=	Tcl_Eval.3
-Tcl_Eval.3: ${TCLDIST}/doc/Eval.3
-	ln -s ${.ALLSRC} ${.TARGET}
-
-CLEANFILES+=	Tcl_Exit.3
-Tcl_Exit.3: ${TCLDIST}/doc/Exit.3
-	ln -s ${.ALLSRC} ${.TARGET}
-
-CLEANFILES+=	Tcl_ExprLong.3
-Tcl_ExprLong.3: ${TCLDIST}/doc/ExprLong.3
-	ln -s ${.ALLSRC} ${.TARGET}
-
-CLEANFILES+=	Tcl_FindExecutable.3
-Tcl_FindExecutable.3: ${TCLDIST}/doc/FindExec.3
-	ln -s ${.ALLSRC} ${.TARGET}
-
-CLEANFILES+=	Tcl_GetFile.3
-Tcl_GetFile.3: ${TCLDIST}/doc/GetFile.3
-	ln -s ${.ALLSRC} ${.TARGET}
-
-CLEANFILES+=	Tcl_GetInt.3
-Tcl_GetInt.3: ${TCLDIST}/doc/GetInt.3
-	ln -s ${.ALLSRC} ${.TARGET}
-
-CLEANFILES+=	Tcl_GetOpenFile.3
-Tcl_GetOpenFile.3: ${TCLDIST}/doc/GetOpnFl.3
-	ln -s ${.ALLSRC} ${.TARGET}
-
-CLEANFILES+=	Tcl_GetStdChannel.3
-Tcl_GetStdChannel.3: ${TCLDIST}/doc/GetStdChan.3
-	ln -s ${.ALLSRC} ${.TARGET}
-
-CLEANFILES+=	Tcl_InitHashTable.3
-Tcl_InitHashTable.3: ${TCLDIST}/doc/Hash.3
-	ln -s ${.ALLSRC} ${.TARGET}
-
-CLEANFILES+=	Tcl_Interp.3
-Tcl_Interp.3: ${TCLDIST}/doc/Interp.3
-	ln -s ${.ALLSRC} ${.TARGET}
-
-CLEANFILES+=	Tcl_LinkVar.3
-Tcl_LinkVar.3: ${TCLDIST}/doc/LinkVar.3
-	ln -s ${.ALLSRC} ${.TARGET}
-
-CLEANFILES+=	Tcl_CreateEventSource.3
-Tcl_CreateEventSource.3: ${TCLDIST}/doc/Notifier.3
-	ln -s ${.ALLSRC} ${.TARGET}
-
-CLEANFILES+=	Tcl_OpenFileChannel.3
-Tcl_OpenFileChannel.3: ${TCLDIST}/doc/OpenFileChnl.3
-	ln -s ${.ALLSRC} ${.TARGET}
-
-CLEANFILES+=	Tcl_OpenTcpClient.3
-Tcl_OpenTcpClient.3: ${TCLDIST}/doc/OpenTcp.3
-	ln -s ${.ALLSRC} ${.TARGET}
-
-CLEANFILES+=	Tcl_PkgRequire.3
-Tcl_PkgRequire.3: ${TCLDIST}/doc/PkgRequire.3
-	ln -s ${.ALLSRC} ${.TARGET}
-
-CLEANFILES+=	Tcl_Preserve.3
-Tcl_Preserve.3: ${TCLDIST}/doc/Preserve.3
-	ln -s ${.ALLSRC} ${.TARGET}
-
-CLEANFILES+=	Tcl_PrintDouble.3
-Tcl_PrintDouble.3: ${TCLDIST}/doc/PrintDbl.3
-	ln -s ${.ALLSRC} ${.TARGET}
-
-CLEANFILES+=	Tcl_RecordAndEval.3
-Tcl_RecordAndEval.3: ${TCLDIST}/doc/RecordEval.3
-	ln -s ${.ALLSRC} ${.TARGET}
-
-CLEANFILES+=	Tcl_RegExpMatch.3
-Tcl_RegExpMatch.3: ${TCLDIST}/doc/RegExp.3
-	ln -s ${.ALLSRC} ${.TARGET}
-
-CLEANFILES+=	Tcl_SetErrno.3
-Tcl_SetErrno.3: ${TCLDIST}/doc/SetErrno.3
-	ln -s ${.ALLSRC} ${.TARGET}
-
-CLEANFILES+=	Tcl_SetRecursionLimit.3
-Tcl_SetRecursionLimit.3: ${TCLDIST}/doc/SetRecLmt.3
-	ln -s ${.ALLSRC} ${.TARGET}
-
-CLEANFILES+=	Tcl_SetResult.3
-Tcl_SetResult.3: ${TCLDIST}/doc/SetResult.3
-	ln -s ${.ALLSRC} ${.TARGET}
-
-CLEANFILES+=	Tcl_SetVar.3
-Tcl_SetVar.3: ${TCLDIST}/doc/SetVar.3
-	ln -s ${.ALLSRC} ${.TARGET}
-
-CLEANFILES+=	Tcl_Sleep.3
-Tcl_Sleep.3: ${TCLDIST}/doc/Sleep.3
-	ln -s ${.ALLSRC} ${.TARGET}
-
-CLEANFILES+=	Tcl_SplitList.3
-Tcl_SplitList.3: ${TCLDIST}/doc/SplitList.3
-	ln -s ${.ALLSRC} ${.TARGET}
-
-CLEANFILES+=	Tcl_SplitPath.3
-Tcl_SplitPath.3: ${TCLDIST}/doc/SplitPath.3
-	ln -s ${.ALLSRC} ${.TARGET}
-
-CLEANFILES+=	Tcl_StaticPackage.3
-Tcl_StaticPackage.3: ${TCLDIST}/doc/StaticPkg.3
-	ln -s ${.ALLSRC} ${.TARGET}
-
-CLEANFILES+=	Tcl_StringMatch.3
-Tcl_StringMatch.3: ${TCLDIST}/doc/StrMatch.3
-	ln -s ${.ALLSRC} ${.TARGET}
-
-CLEANFILES+=	Tcl_Main.3
-Tcl_Main.3: ${TCLDIST}/doc/Tcl_Main.3
-	ln -s ${.ALLSRC} ${.TARGET}
-
-CLEANFILES+=	Tcl_TraceVar.3
-Tcl_TraceVar.3: ${TCLDIST}/doc/TraceVar.3
-	ln -s ${.ALLSRC} ${.TARGET}
-
-CLEANFILES+=	Tcl_TranslateFileName.3
-Tcl_TranslateFileName.3: ${TCLDIST}/doc/Translate.3
-	ln -s ${.ALLSRC} ${.TARGET}
-
-CLEANFILES+=	Tcl_UpVar.3
-Tcl_UpVar.3: ${TCLDIST}/doc/UpVar.3
-	ln -s ${.ALLSRC} ${.TARGET}
+_tcltmp=
+_tclprev=
+.for _tclpage in ${TCLMAN}
+.if !empty(_tclprev)
+_tcltmp:= ${_tcltmp} ${_tclprev}	# assign with expansion
+${_tclprev}: ${TCLDIST}/doc/${_tclpage}
+	cp -f ${.ALLSRC} ${.TARGET}
+_tclprev=
+.else
+_tclprev=${_tclpage}
+.endif
+.endfor
+CLEANFILES+= ${_tcltmp}
 
 .include <bsd.lib.mk>
