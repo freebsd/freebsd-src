@@ -136,7 +136,7 @@ g_bde_config(struct g_configargs *ga)
 	gp = NULL;
 	if (ga->flag == GCFG_DISMANTLE) {
 		/*
-		 * Orderly dettachment.
+		 * Orderly detachment.
 		 */
 		if (ga->geom != NULL) {
 			gp = ga->geom;
