@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)isa.h	5.7 (Berkeley) 5/9/91
- *	$Id: pc98.h,v 1.3 1996/09/10 09:38:21 asami Exp $
+ *	$Id: pc98.h,v 1.4 1996/09/12 11:09:54 asami Exp $
  */
 
 #ifndef _PC98_PC98_PC98_H_
@@ -265,6 +265,8 @@ epson_outsw(u_int port, void *addr, size_t cnt)
 /*
  * Obtained from NetBSD/pc98
  */
-#define MADDRUNK -1
+#define MADDRUNK	-1
+#define IRQUNK		 0
+#define DRQUNK		-1
 
 #endif /* !_PC98_PC98_PC98_H_ */

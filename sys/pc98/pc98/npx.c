@@ -32,7 +32,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)npx.c	7.2 (Berkeley) 5/12/91
- *	$Id: npx.c,v 1.5 1996/09/07 02:14:03 asami Exp $
+ *	$Id: npx.c,v 1.6 1996/09/10 09:38:17 asami Exp $
  */
 
 #include "npx.h"
@@ -307,6 +307,15 @@ npxprobe1(dvp)
 			 */
 			control &= ~(1 << 2);	/* enable divide by 0 trap */
 			fldcw(&control);
+#ifdef FPU_ERROR_BROKEN
+			/*
+			 * FPU error signal doesn't work on some CPU
+			 * accelerator board.
+			 */
+			npx_ex16 = 1;
+			dvp->id_irq = 0;
+			return (-1);
+#endif
 			npx_traps_while_probing = npx_intrs_while_probing = 0;
 			fp_divide_by_0();
 			if (npx_traps_while_probing != 0) {

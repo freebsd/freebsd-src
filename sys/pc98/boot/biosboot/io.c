@@ -24,7 +24,7 @@
  * the rights to redistribute these changes.
  *
  *	from: Mach, Revision 2.2  92/04/04  11:35:57  rpd
- *	$Id: io.c,v 1.19 1996/04/30 23:43:25 bde Exp $
+ *	$Id: io.c,v 1.3 1996/09/12 11:08:55 asami Exp $
  */
 
 #include "boot.h"
@@ -325,9 +325,12 @@ void putc(int c)
 	}
 
 	if (crtat >= Crtat + col * row) {
-		for (i = 1; i < row; i++)
-			bcopy((void*)(Crtat+col*i), (void*)(Crtat+col*(i-1)), col*2);
-		for (i = 0, cp = Crtat + col * (row - 1); i < col*2; i++) {
+		cp = Crtat;
+		for (i = 1; i < row; i++) {
+			bcopy((void *)(cp+col), (void *)cp, col*2);
+			cp += col;
+		}
+		for (i = 0; i < col; i++) {
 			*cp++ = ' ';
 		}
 		crtat -= col;

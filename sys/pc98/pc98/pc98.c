@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)isa.c	7.2 (Berkeley) 5/13/91
- *	$Id: pc98.c,v 1.6 1996/09/10 09:38:19 asami Exp $
+ *	$Id: pc98.c,v 1.7 1996/09/12 11:09:51 asami Exp $
  */
 
 /*
@@ -76,7 +76,7 @@
 #include "vector.h"
 
 #ifdef PC98
-unsigned char		hireso;
+unsigned char		hireso = 0;
 #endif
 
 /*

@@ -50,9 +50,9 @@ void init_cpu_accel_mem __P((void));
 void init_pc98_dmac __P((void));
 
 #ifdef EPSON_MEMWIN
-void init_epson_memwin __P((void));
+static void init_epson_memwin __P((void));
 
-void init_epson_memwin(void)
+static void init_epson_memwin(void)
 {
 	if (pc98_machine_type & M_EPSON_PC98) {
 		if (Maxmem > 3840) {
@@ -122,7 +122,7 @@ void init_cpu_accel_mem(void)
 			int tmp, page_bad = FALSE, OrigMaxmem = Maxmem;
 
 			*(int *)CMAP1 = PG_V | PG_RW | PG_N | target_page;
-			pmap_update();
+			invltlb();
 
 			tmp = *(int *)CADDR1;
 			/*
@@ -161,30 +161,18 @@ void init_cpu_accel_mem(void)
 			 */
 			*(int *)CADDR1 = tmp;
 			if (page_bad == TRUE) {
-				if (target_page > ptoa(4096))
-					Maxmem = atop(target_page);
-				else
-					Maxmem = OrigMaxmem;
-
+				Maxmem = atop(target_page) + 256;
+			} else 
 				break;
-			}
 		}
 		*(int *)CMAP1 = 0;
-		pmap_update();
-
-		/* XXX */
-		if (Maxmem > 3840) {
-			Maxmem_under16M = 3840;
-			if (Maxmem < 4096) {
-				Maxmem = 3840;
-			}
-		}
+		invltlb();
 	}
 }
 
 int dma_init_flag = 1;	/* dummy */
 
-void init_pc98_dmac(void)
+void pc98_init_dmac(void)
 {
 	outb(0x439, (inb(0x439) & 0xfb)); /* DMA Accsess Control over 1MB */
 	outb(0x29, (0x0c | 0));	/* Bank Mode Reg. 16M mode */
@@ -192,4 +180,23 @@ void init_pc98_dmac(void)
 	outb(0x29, (0x0c | 2));	/* Bank Mode Reg. 16M mode */
 	outb(0x29, (0x0c | 3));	/* Bank Mode Reg. 16M mode */
 	outb(0x11, 0x50);	/* PC98 must be 0x40 */
+}
+
+
+void pc98_getmemsize(void)
+{
+	unsigned char under16, over16;
+
+	/* available protected memory size under 16MB / 128KB */
+	under16 = PC98_SYSTEM_PARAMETER(0x401);
+	/* available protected memory size over 16MB / 1MB */
+	over16 = PC98_SYSTEM_PARAMETER(0x594);
+	/* add conventional memory size (1024KB / 128KB = 8) */
+	under16 += 8;
+
+	Maxmem = Maxmem_under16M = under16 * 128 * 1024 / PAGE_SIZE;
+	Maxmem += (over16 * 1024 * 1024 / PAGE_SIZE);
+#ifdef EPSON_MEMWIN
+	init_epson_memwin();
+#endif
 }

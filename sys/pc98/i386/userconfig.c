@@ -46,7 +46,7 @@
  ** (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  ** THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  **
- **      $Id: userconfig.c,v 1.5 1996/09/10 09:37:38 asami Exp $
+ **      $Id: userconfig.c,v 1.6 1996/09/12 11:09:38 asami Exp $
  **/
 
 /**
@@ -79,28 +79,27 @@
  ** - That the only tunable parameter for PCI devices are their flags.
  ** - That flags are _always_ editable.
  **
- ** Devices marked as disabled are imported as such.  It is possible to move
- ** a PCI device onto the inactive list, but it is not possible to actually
- ** prevent the device from being probed.  The ability to move is considered
- ** desirable in that people will complain otherwise 8)
+ ** Devices marked as disabled are imported as such.  PCI devices are 
+ ** listed under a seperate heading for informational purposes only.
+ ** To date, there is no means for changing the behaviour of PCI drivers
+ ** from UserConfig.
+ **
+ ** Note that some EISA devices probably fall into this category as well,
+ ** and in fact the actual bus supported by some drivers is less than clear.
+ ** A longer-term goal might be to list drivers by instance rather than
+ ** per bus-presence.
  ** 
  ** For this tool to be useful, the list of devices below _MUST_ be updated 
  ** when a new driver is brought into the kernel.  It is not possible to 
- ** extract this information from the drivers in the kernel, as the devconf
- ** structure for the device is not registered until the device is probed,
- ** which is too late.
+ ** extract this information from the drivers in the kernel.
  **
  ** XXX - TODO:
- ** 
- ** - FIX OPERATION WITH PCVT!
  ** 
  ** - Display _what_ a device conflicts with.
  ** - Implement page up/down (as what?)
  ** - Wizard mode (no restrictions)
  ** - Find out how to put syscons back into low-intensity mode so that the
  **   !b escape is useful on the console.
- ** - The min and max values used for editing parameters are probably 
- **   very bogus - fix?
  **
  ** - Only display headings with devices under them. (difficult)
  **/
@@ -109,30 +108,56 @@
  * PC-9801 port by KATO Takenori <kato@eclogite.eps.nagoya-u.ac.jp>
  */
 
+#include "opt_userconfig.h"
+#include "pci.h"
+
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/kernel.h>
 #include <sys/malloc.h>
 
 #include <machine/clock.h>
-#include <machine/cons.h>
 #include <machine/md_var.h>
 
 #include <i386/isa/isa_device.h>
 
 #include <pci/pcivar.h>
 
-#include <opt_userconfig.h>
-
 static struct isa_device *isa_devlist;	/* list read by dset to extract changes */
+
+#ifdef USERCONFIG_BOOT
+char userconfig_from_boot[512] = "";
+
+static int
+getchar(void)
+{
+    static char *next = userconfig_from_boot;
+
+    if (next == userconfig_from_boot) {
+	if (strncmp(next, "USERCONFIG\n", 11)) {
+	    next++;
+	    strcpy(next, "quit\n");
+	} else {
+	    next += 11;
+	}
+    } 
+    if (*next) {
+	return (*next++);
+    } else {
+	return cngetc();
+    }
+}
+#else /* !USERCONFIG_BOOT */
+#define getchar()	cngetc()
+#endif /* USERCONFIG_BOOT */
+
+#define putchar(x)	cnputc(x)
 
 #ifdef VISUAL_USERCONFIG
 static struct isa_device *devtabs[] = { isa_devtab_bio, isa_devtab_tty, isa_devtab_net,
 				     isa_devtab_null, NULL };
 
 
-#define putchar(x)	cnputc(x)
-#define getchar()	cngetc()
 
 
 #ifndef FALSE
@@ -164,6 +189,7 @@ typedef struct
 #define CLS_COMMS	3		/* serial, parallel ports */
 #define CLS_INPUT	4		/* user input : mice, keyboards, joysticks etc */
 #define CLS_MMEDIA	5		/* "multimedia" devices (sound, video, etc) */
+#define CLS_PCI		254		/* PCI devices */
 #define CLS_MISC	255		/* none of the above */
 
 
@@ -179,6 +205,7 @@ static DEVCLASS_INFO devclass_names[] = {
 {	"Communications : ",	CLS_COMMS},
 {	"Input :          ",	CLS_INPUT},
 {	"Multimedia :     ",	CLS_MMEDIA},
+{	"PCI :            ",	CLS_PCI},
 {	"Miscellaneous :  ",	CLS_MISC},
 {	"",0}};
 
@@ -187,9 +214,10 @@ static DEVCLASS_INFO devclass_names[] = {
 
 /** Notes :
  ** 
- ** - PCI devices should be marked FLG_FIXED, not FLG_IMMUTABLE.  Whilst
- **   it's impossible to disable them, it should be possible to move them
- **   from one list to another for peace of mind.
+ ** - PCI devices should be marked FLG_IMMUTABLE.  They should not be movable
+ **   or editable, and have no attributes.  This is handled in getdevs() and
+ **   devinfo(), so drivers that have a presence on busses other than PCI
+ **   should have appropriate flags set below.
  ** - Devices that shouldn't be seen or removed should be marked FLG_INVISIBLE.
  ** - XXX The list below should be reviewed by the driver authors to verify
  **   that the correct flags have been set for each driver, and that the
@@ -206,14 +234,22 @@ static DEV_INFO device_info[] = {
 {"ncr",         "NCR 53C810 SCSI controller",		FLG_FIXED,	CLS_STORAGE},
 {"wdc",         "IDE/ESDI/MFM disk controller",		0,		CLS_STORAGE},
 {"fdc",         "Floppy disk controller",		FLG_FIXED,	CLS_STORAGE},
-{"scd",         "Sony CD-ROM",				0,		CLS_STORAGE},
 {"mcd",         "Mitsumi CD-ROM",			0,		CLS_STORAGE},
+{"scd",         "Sony CD-ROM",				0,		CLS_STORAGE},
 {"matcdc",       "Matsushita/Panasonic/Creative CDROM",	0,		CLS_STORAGE},
 
 {"ed",          "NS8390 Ethernet adapters",	0,	CLS_NETWORK},
 {"el",          "3C501 Ethernet adapter",		0,		CLS_NETWORK},
 {"ep",          "3C509 Ethernet adapter",		0,		CLS_NETWORK},
 {"fe",         "Fujitsu MD86960A/MB869685A Ethernet adapters", 0, CLS_NETWORK},
+{"fea",         "DEC DEFEA EISA FDDI adapter",		0,		CLS_NETWORK},
+{"fxp",         "Intel EtherExpress Pro/100B Ethernet adapter",	0,	CLS_NETWORK},
+{"ie",          "AT&T Starlan 10 and EN100, 3C507, NI5210 Ethernet adapters",0,CLS_NETWORK},
+{"ix",          "Intel EtherExpress Ethernet adapter",	0,		CLS_NETWORK},
+{"le",          "DEC Etherworks 2 and 3 Ethernet adapters",	0,	CLS_NETWORK},
+{"lnc",         "Isolan, Novell NE2100/NE32-VL Ethernet adapters",	0,CLS_NETWORK},
+{"vx",          "3COM 3C590/3C595 Ethernet adapters",		0,	CLS_NETWORK},
+{"ze",          "IBM/National Semiconductor PCMCIA Ethernet adapter",0,	CLS_NETWORK},
 {"zp",          "3COM PCMCIA Etherlink III Ethernet adapter", 0, CLS_NETWORK},
 {"de",          "DEC DC21040 Ethernet adapter",		FLG_FIXED,	CLS_NETWORK},
 {"fpa",         "DEC DEFPA PCI FDDI adapter",		FLG_FIXED,	CLS_NETWORK},
@@ -221,6 +257,7 @@ static DEV_INFO device_info[] = {
 {"sio",         "8250/16450/16550 Serial port",		0,		CLS_COMMS},
 
 {"lpt",         "Parallel printer port",		0,		CLS_COMMS},
+
 {"mse",         "PC-9801 Bus Mouse",			0,		CLS_INPUT},
 {"sc",          "Syscons console driver",		FLG_FIXED,	CLS_INPUT},
 
@@ -261,10 +298,12 @@ static DEV_INFO device_info[] = {
 {"ep",          "3C509 Ethernet adapter",		0,		CLS_NETWORK},
 {"fe",          "Fujitsu MD86960A/MB869685A Ethernet adapters",	0,	CLS_NETWORK},
 {"fea",         "DEC DEFEA EISA FDDI adapter",		0,		CLS_NETWORK},
+{"fxp",         "Intel EtherExpress Pro/100B Ethernet adapter",	0,	CLS_NETWORK},
 {"ie",          "AT&T Starlan 10 and EN100, 3C507, NI5210 Ethernet adapters",0,CLS_NETWORK},
 {"ix",          "Intel EtherExpress Ethernet adapter",	0,		CLS_NETWORK},
 {"le",          "DEC Etherworks 2 and 3 Ethernet adapters",	0,	CLS_NETWORK},
 {"lnc",         "Isolan, Novell NE2100/NE32-VL Ethernet adapters",	0,CLS_NETWORK},
+{"vx",          "3COM 3C590/3C595 Ethernet adapters",		0,	CLS_NETWORK},
 {"ze",          "IBM/National Semiconductor PCMCIA Ethernet adapter",0,	CLS_NETWORK},
 {"zp",          "3COM PCMCIA Etherlink III Ethernet adapter",	0,	CLS_NETWORK},
 {"de",          "DEC DC21040 Ethernet adapter",		FLG_FIXED,	CLS_NETWORK},
@@ -377,7 +416,7 @@ static char spaces[] = "                                                        
 static void 
 setdev(DEV_LIST *dev, int enabled)
 {
-    if (!dev->device)							/* PCI device */
+    if (dev->iobase == -2)						/* PCI device */
 	return;
     dev->device->id_iobase = dev->iobase;				/* copy happy */
     dev->device->id_irq = (u_short)(dev->irq < 16 ? 1<<dev->irq : 0);	/* IRQ is bitfield */
@@ -428,23 +467,23 @@ getdevs(void)
     {
 	if (pcidevice_set.ls_items[i])
 	{
-	    if (((struct pci_device *)pcidevice_set.ls_items[i])->pd_name)
+	    if (((const struct pci_device *)pcidevice_set.ls_items[i])->pd_name)
 	    {
-		strcpy(scratch.dev,((struct pci_device *)pcidevice_set.ls_items[i])->pd_name);
+		strcpy(scratch.dev,((const struct pci_device *)pcidevice_set.ls_items[i])->pd_name);
 		scratch.iobase = -2;			/* mark as PCI for future reference */
 		scratch.irq = -2;
 		scratch.drq = -2;
 		scratch.maddr = -2;
 		scratch.msize = -2;
 		scratch.flags = 0;
-		scratch.conflict_ok = 0;			/* shouldn't conflict */
-		scratch.comment = DEV_DEVICE;			/* is a device */
-		scratch.unit = 0;				/* arbitrary number of them */
+		scratch.conflict_ok = 0;		/* shouldn't conflict */
+		scratch.comment = DEV_DEVICE;		/* is a device */
+		scratch.unit = 0;			/* arbitrary number of them */
 		scratch.conflicts = 0;
 		scratch.device = NULL;	
 		scratch.changed = 0;
 
-		if (!devinfo(&scratch))
+		if (!devinfo(&scratch))			/* look up name, set class and flags */
 		    insdev(&scratch,active);		/* always active */
 	    }
 	}
@@ -461,6 +500,9 @@ getdevs(void)
  **
  ** If the device is marked "invisible", return nonzero; the caller should
  ** not insert any such device into either list.
+ **
+ ** PCI devices are always inserted into CLS_PCI, regardless of the class associated
+ ** with the driver type.
  **/
 static int
 devinfo(DEV_LIST *dev)
@@ -471,11 +513,16 @@ devinfo(DEV_LIST *dev)
     {
 	if (!strcmp(dev->dev,device_info[i].dev))
 	{
-	    if (device_info[i].attrib & FLG_INVISIBLE)
+	    if (device_info[i].attrib & FLG_INVISIBLE)	/* forget we ever saw this one */
 		return(1);
-	    strcpy(dev->name,device_info[i].name);
-	    dev->attrib = device_info[i].attrib;
-	    dev->class = device_info[i].class;
+	    strcpy(dev->name,device_info[i].name);	/* get the name */
+	    if (dev->iobase == -2) {			/* is this a PCI device? */
+		dev->attrib = FLG_IMMUTABLE;		/* dark green ones up the back... */
+		dev->class = CLS_PCI;
+	    } else {
+		dev->attrib = device_info[i].attrib;	/* light green ones up the front */
+		dev->class = device_info[i].class;
+	    }
 	    return(0);
 	}
     }
@@ -538,37 +585,42 @@ addev(DEV_LIST *dev, DEV_LIST **list)
 static DEV_LIST	*
 findspot(DEV_LIST *dev, DEV_LIST *list)
 {
-    DEV_LIST	*ap;
+    DEV_LIST	*ap = NULL;
 
-    for (ap = list; ap; ap = ap->next)
+    /* search for a previous instance of the same device */
+    if (dev->iobase != -2)	/* avoid PCI devices grouping with non-PCI devices */
     {
-	if (ap->comment != DEV_DEVICE)			/* ignore comments */
-	    continue;
-	if (!strcmp(dev->dev,ap->dev))			/* same base device */
+	for (ap = list; ap; ap = ap->next)
 	{
-	    if ((dev->unit <= ap->unit)			/* belongs before (equal is bad) */
-		|| !ap->next)				/* or end of list */
+	    if (ap->comment != DEV_DEVICE)			/* ignore comments */
+		continue;
+	    if (!strcmp(dev->dev,ap->dev))			/* same base device */
 	    {
-		ap = ap->prev;				/* back up one */
-		break;					/* done here */
-	    }
-	    if (ap->next)				/* if the next item exists */
-	    {
-		if (ap->next->comment != DEV_DEVICE)	/* next is a comment */
-		    break;
-		if (strcmp(dev->dev,ap->next->dev))		/* next is a different device */
-		    break;
+		if ((dev->unit <= ap->unit)			/* belongs before (equal is bad) */
+		    || !ap->next)				/* or end of list */
+		{
+		    ap = ap->prev;				/* back up one */
+		    break;					/* done here */
+		}
+		if (ap->next)					/* if the next item exists */
+		{
+		    if (ap->next->comment != DEV_DEVICE)	/* next is a comment */
+			break;
+		    if (strcmp(dev->dev,ap->next->dev))		/* next is a different device */
+			break;
+		}
 	    }
 	}
     }
 
-    if (!ap)
+    if (!ap)						/* not sure yet */
     {
+	/* search for a class that the device might belong to */
 	for (ap = list; ap; ap = ap->next)
 	{
 	    if (ap->comment != DEV_DEVICE)		/* look for simlar devices */
 		continue;
-	    if (dev->class != ap->class)			/* of same class too 8) */
+	    if (dev->class != ap->class)		/* of same class too 8) */
 		continue;
 	    if (strcmp(dev->dev,ap->dev) < 0)		/* belongs before the current entry */
 	    {
@@ -637,7 +689,7 @@ movedev(DEV_LIST *dev, DEV_LIST *list)
     dev->prev = ap;					/* point new to current */
     ap->next = dev;					/* and current to new */
 }
-	    
+
 
 /**
  ** Initlist
@@ -813,12 +865,17 @@ findconflict(DEV_LIST *list)
     {
 	if (dp->comment != DEV_DEVICE)		/* comments don't usually conflict */
 	    continue;
+	if (dp->iobase == -2)			/* it's a PCI device, not interested */
+	    continue;
 
 	dp->conflicts = 0;			/* assume the best */
 	for (sp = list; sp; sp = sp->next)	/* scan the entire list for conflicts */
 	{
 	    if (sp->comment != DEV_DEVICE)	/* likewise */
 		continue;
+	    if (dp->iobase == -2)		/* it's a PCI device, not interested */
+		continue;
+
 	    if (sp == dp)			/* always conflict with itself */
 		continue;
 	    if (sp->conflict_ok && dp->conflict_ok)
@@ -1403,7 +1460,11 @@ showparams(DEV_LIST *dev)
     {
 	sprintf(buf,"Port address : 0x%x",dev->iobase);
 	putxy(1,18,buf);
+    } else {
+	if (dev->iobase == -2)			/* a PCI device */
+	    putmsg(" PCI devices are automatically configured.");
     }
+	    
     if (dev->irq > 0)
     {
 	sprintf(buf,"IRQ number   : %d",dev->irq);
@@ -1565,6 +1626,8 @@ editval(int x, int y, int width, int hex, int min, int max, int *val, int ro)
 	    VetRet(KEY_UP);
 	    break;
 
+	case '\r':
+	case '\n':
 	case 596:
 	    VetRet(KEY_DOWN);
 	    break;
@@ -2036,12 +2099,14 @@ visuserconfig(void)
 		{
 		    if (dp->comment == DEV_DEVICE)	/* can't edit comments, zoom? */
 		    {
-			masterhelp("  [!bTAB!n]   Change fields           [!bQ!n]   Save device parameters");
-			editparams(dp);
-			masterhelp("  [!bTAB!n]   Change fields           [!bQ!n]   Save and Exit");
-			putxy(0,17,lines);
-			conflicts = findconflict(active);	/* update conflict tags */
-
+			if (dp->iobase != -2)		/* can't edit PCI devices */
+			{
+			    masterhelp("  [!bTAB!n]   Change fields           [!bQ!n]   Save device parameters");
+			    editparams(dp);
+			    masterhelp("  [!bTAB!n]   Change fields           [!bQ!n]   Save and Exit");
+			    putxy(0,17,lines);
+			    conflicts = findconflict(active);	/* update conflict tags */
+			}
 		    }else{				/* DO on comment = zoom */
 			switch(dp->comment)		/* Depends on current state */
 			{
@@ -2163,8 +2228,8 @@ visuserconfig(void)
 	}
     }
 }
-
 #endif /* VISUAL_USERCONFIG */
+
 /*
  * Copyright (c) 1991 Regents of the University of California.
  * All rights reserved.
@@ -2207,7 +2272,7 @@ visuserconfig(void)
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *      $Id: userconfig.c,v 1.5 1996/09/10 09:37:38 asami Exp $
+ *      $Id: userconfig.c,v 1.6 1996/09/12 11:09:38 asami Exp $
  */
 
 #include "scbus.h"
@@ -2241,7 +2306,7 @@ static void lsscsi(void);
 static int list_scsi(CmdParm *);
 #endif
 
-static void lsdevtab(struct isa_device *);
+static int lsdevtab(struct isa_device *);
 static struct isa_device *find_device(char *, int);
 static struct isa_device *search_devtable(struct isa_device *, char *, int);
 static void cngets(char *, int);
@@ -2261,6 +2326,9 @@ static int set_device_enable(CmdParm *);
 static int set_device_disable(CmdParm *);
 static int quitfunc(CmdParm *);
 static int helpfunc(CmdParm *);
+#if defined(USERCONFIG_BOOT) && defined(VISUAL_USERCONFIG)
+static int introfunc(CmdParm *);
+#endif
 
 static int lineno;
 
@@ -2289,6 +2357,9 @@ static Cmd CmdList[] = {
     { "ex", 	quitfunc, 		NULL },		/* exit (quit)	*/
     { "f",	set_device_flags,	int_parms },	/* flags dev mask */
     { "h", 	helpfunc, 		NULL },		/* help		*/
+#if defined(USERCONFIG_BOOT) && defined(VISUAL_USERCONFIG)
+    { "intro", 	introfunc, 		NULL },		/* intro screen	*/
+#endif
     { "iom",	set_device_mem,		addr_parms },	/* iomem dev addr */
     { "ios",	set_device_iosize,	int_parms },	/* iosize dev size */
     { "ir",	set_device_irq,		int_parms },	/* irq dev #	*/
@@ -2312,16 +2383,15 @@ userconfig(void)
     int rval;
     Cmd *cmd;
 
-#ifdef PC98
-    printf("\nFreeBSD(98) Kernel Configuration Utility - Version 1.0\n"
-	   " Type \"help\" for help or \"visual\" to go to the visual\n"
-	   " configuration interface.\n");
-#else
-    printf("\nFreeBSD Kernel Configuration Utility - Version 1.0\n"
-	   " Type \"help\" for help or \"visual\" to go to the visual\n"
+    printf("\nFreeBSD Kernel Configuration Utility - Version 1.1\n"
+	   " Type \"help\" for help" 
+#ifdef VISUAL_USERCONFIG
+	   " or \"visual\" to go to the visual\n"
 	   " configuration interface (requires MGA/VGA display or\n"
-	   " serial terminal capable of displaying ANSI graphics).\n");
+	   " serial terminal capable of displaying ANSI graphics)"
 #endif
+	   ".\n");
+
 
     while (1) {
 	printf("config> ");
@@ -2429,10 +2499,10 @@ static int
 list_devices(CmdParm *parms)
 {
     lineno = 0;
-    lsdevtab(&isa_devtab_bio[0]);
-    lsdevtab(&isa_devtab_tty[0]);
-    lsdevtab(&isa_devtab_net[0]);
-    lsdevtab(&isa_devtab_null[0]);
+    if (lsdevtab(&isa_devtab_bio[0])) return 0;
+    if (lsdevtab(&isa_devtab_tty[0])) return 0;
+    if (lsdevtab(&isa_devtab_net[0])) return 0;
+    if (lsdevtab(&isa_devtab_null[0])) return 0;
     return 0;
 }
 
@@ -2544,13 +2614,53 @@ helpfunc(CmdParm *parms)
     printf("disable <devname>\tDisable device (will not be probed)\n");
     printf("quit\t\t\tExit this configuration utility\n");
     printf("reset\t\t\tReset CPU\n");
+#ifdef VISUAL_USERCONFIG
     printf("visual\t\t\tGo to fullscreen mode.\n");
+#endif
     printf("help\t\t\tThis message\n\n");
     printf("Commands may be abbreviated to a unique prefix\n");
     return 0;
 }
 
+#if defined(USERCONFIG_BOOT) && defined(VISUAL_USERCONFIG)
+
 static void
+center(int y, char *str)
+{
+    putxy((80 - strlen(str)) / 2, y, str);
+}
+
+static int
+introfunc(CmdParm *parms)
+{
+    int y = 3;
+
+    clear();
+    center(y, "!iKernel Configuration Editor!n");
+    y += 2;
+    putxy(2, y++, "In this next screen, you will be shown a full list of all the device");
+    putxy(2, y++, "drivers which are available in this copy of the OS kernel.  This is");
+    putxy(2, y++, "!inot!n a list of devices which you necessarily have, simply those");
+    putxy(2, y++, "which this kernel is capable of supporting.");
+    ++y;
+    putxy(2, y++, "You should go through each device category and delete all entries");
+    putxy(2, y++, "(using the DELETE key) for devices that you do not have.  This is an");
+    putxy(2, y++, "important step since it minimizes the chance of conflicts and also");
+    putxy(2, y++, "makes the kernel boot faster since there's no time wasted in trying to");
+    putxy(2, y++, "detect non-existant hardware.  If you see an entry for a device which you");
+    putxy(2, y++, "you !ido!n have and it's not a PCI device (which will be auto-configured),");
+    putxy(2, y++, "be sure that its configuration parameters match your actual hardware.");
+    putxy(2, y++, "To edit a device's configuration, simply press ENTER while over it.");
+    putxy(2, y++, "Once you are satisfied with your device configuration, press Q to");
+    putxy(2, y++, "proceed with the booting process.");
+    ++y;
+    center(y, "!iPress a key to continue!n");
+    cngetc();
+    return 0;
+}
+#endif
+
+static int
 lsdevtab(struct isa_device *dt)
 {
     for (; dt->id_id != 0; dt++) {
@@ -2559,7 +2669,10 @@ lsdevtab(struct isa_device *dt)
 
 	if (lineno >= 23) {
 		printf("<More> ");
-		(void)cngetc();
+		if (getchar() == 'q') {
+			printf("quit\n");
+			return (1);
+		}
 		printf("\n");
 		lineno = 0;
 	}
@@ -2594,6 +2707,7 @@ lsdevtab(struct isa_device *dt)
 	printf("%s\n", line);
 	++lineno;
     }
+    return(0);
 }
 
 static struct isa_device *
@@ -2629,7 +2743,7 @@ cngets(char *input, int maxin)
     int c, nchars = 0;
 
     while (1) {
-	c = cngetc();
+	c = getchar();
 	/* Treat ^H or ^? as backspace */
 	if ((c == '\010' || c == '\177')) {
 	    	if (nchars) {
