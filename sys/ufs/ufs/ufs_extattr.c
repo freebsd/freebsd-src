@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$FreeBSD$
+ * $FreeBSD$
  */
 /*
  * TrustedBSD Project - extended attribute support for UFS-like file systems
@@ -45,7 +45,7 @@
 #include <ufs/ufs/ufsmount.h>
 #include <ufs/ufs/inode.h>
 
-#define MIN(a,b) (((a)<(b))?(a):(b))
+#define	MIN(a,b) (((a)<(b))?(a):(b))
 
 static MALLOC_DEFINE(M_UFS_EXTATTR, "ufs_extattr", "ufs extended attribute");
 
@@ -65,7 +65,7 @@ static int	ufs_extattr_rm(struct vnode *vp, const char *name,
     struct ucred *cred, struct proc *p);
 
 /*
- * Per-FS attribute lock protecting attribute operations
+ * Per-FS attribute lock protecting attribute operations.
  * XXX Right now there is a lot of lock contention due to having a single
  * lock per-FS; really, this should be far more fine-grained.
  */
@@ -73,7 +73,7 @@ static void
 ufs_extattr_uepm_lock(struct ufsmount *ump, struct proc *p)
 {
 
-	/* ideally, LK_CANRECURSE would not be used, here */
+	/* Ideally, LK_CANRECURSE would not be used, here. */
 	lockmgr(&ump->um_extattr.uepm_lock, LK_EXCLUSIVE | LK_RETRY |
 	    LK_CANRECURSE, 0, p);
 }
@@ -90,9 +90,9 @@ ufs_extattr_uepm_unlock(struct ufsmount *ump, struct proc *p)
  * attribute.
  *
  * Invalid currently consists of:
- *         NULL pointer for attrname
- *         zero-length attrname (used to retrieve application attr list)
- *         attrname consisting of "$" (used to treive system attr list)
+ *	 NULL pointer for attrname
+ *	 zero-length attrname (used to retrieve application attribute list)
+ *	 attrname consisting of "$" (used to treive system attribute list)
  */
 static int
 ufs_extattr_valid_attrname(const char *attrname)
@@ -114,18 +114,18 @@ ufs_extattr_valid_attrname(const char *attrname)
 static struct ufs_extattr_list_entry *
 ufs_extattr_find_attr(struct ufsmount *ump, const char *attrname)
 {
-        struct ufs_extattr_list_entry   *search_attribute;
+	struct ufs_extattr_list_entry	*search_attribute;
 
-        for (search_attribute = ump->um_extattr.uepm_list.lh_first;
+	for (search_attribute = ump->um_extattr.uepm_list.lh_first;
 	    search_attribute;
 	    search_attribute = search_attribute->uele_entries.le_next) {
-                if (!(strncmp(attrname, search_attribute->uele_attrname,
-                    UFS_EXTATTR_MAXEXTATTRNAME))) {
-                        return (search_attribute);
-                }
-        }
+		if (!(strncmp(attrname, search_attribute->uele_attrname,
+		    UFS_EXTATTR_MAXEXTATTRNAME))) {
+			return (search_attribute);
+		}
+	}
 
-        return (0);
+	return (0);
 }
 
 /*
@@ -168,7 +168,7 @@ ufs_extattr_uepm_destroy(struct ufs_extattr_per_mount *uepm)
 }
 
 /*
- * Start extended attribute support on an FS
+ * Start extended attribute support on an FS.
  */
 int
 ufs_extattr_start(struct mount *mp, struct proc *p)
@@ -201,7 +201,7 @@ unlock:
 }
 
 /*
- * Stop extended attribute support on an FS
+ * Stop extended attribute support on an FS.
  */
 int
 ufs_extattr_stop(struct mount *mp, struct proc *p)
@@ -217,10 +217,10 @@ ufs_extattr_stop(struct mount *mp, struct proc *p)
 		goto unlock;
 	}
 
-        while (ump->um_extattr.uepm_list.lh_first != NULL) {
-                uele = ump->um_extattr.uepm_list.lh_first;
+	while (ump->um_extattr.uepm_list.lh_first != NULL) {
+		uele = ump->um_extattr.uepm_list.lh_first;
 		ufs_extattr_disable(ump, uele->uele_attrname, p);
-        }
+	}
 
 	ump->um_extattr.uepm_flags &= ~UFS_EXTATTR_UEPM_STARTED;
 
@@ -322,7 +322,7 @@ free_exit:
 }
 
 /*
- * Disable extended attribute support on an FS
+ * Disable extended attribute support on an FS.
  */
 static int
 ufs_extattr_disable(struct ufsmount *ump, const char *attrname, struct proc *p)
@@ -340,7 +340,7 @@ ufs_extattr_disable(struct ufsmount *ump, const char *attrname, struct proc *p)
 	LIST_REMOVE(uele, uele_entries);
 
 	uele->uele_backing_vnode->v_flag &= ~VSYSTEM;
-        error = vn_close(uele->uele_backing_vnode, FREAD|FWRITE, p->p_ucred, p);
+	error = vn_close(uele->uele_backing_vnode, FREAD|FWRITE, p->p_ucred, p);
 
 	FREE(uele, M_UFS_EXTATTR);
 
@@ -348,17 +348,17 @@ ufs_extattr_disable(struct ufsmount *ump, const char *attrname, struct proc *p)
 }
 
 /*
- * VFS call to manage extended attributes in UFS
- * attrname, arg are userspace pointers from the syscall
+ * VFS call to manage extended attributes in UFS.
+ * attrname, arg are userspace pointers from the syscall.
  */
 int
 ufs_extattrctl(struct mount *mp, int cmd, const char *attrname,
-	       caddr_t arg, struct proc *p)
+    caddr_t arg, struct proc *p)
 {
 	struct nameidata	nd;
 	struct ufsmount	*ump = VFSTOUFS(mp);
 	struct vnode	*vp;
-	char	local_attrname[UFS_EXTATTR_MAXEXTATTRNAME]; /* inc null */
+	char	local_attrname[UFS_EXTATTR_MAXEXTATTRNAME]; /* Incl. null. */
 	char	*filename;
 	int	error, flags;
 	size_t	len;
@@ -430,7 +430,7 @@ ufs_extattr_credcheck(struct vnode *vp, struct ufs_extattr_list_entry *uele,
 	    uele->uele_attrname[0] == '$');
 
 	/*
-	 * Kernel-invoked always succeeds
+	 * Kernel-invoked always succeeds.
 	 */
 	if (cred == NULL)
 		return (0);
@@ -449,17 +449,17 @@ ufs_extattr_credcheck(struct vnode *vp, struct ufs_extattr_list_entry *uele,
 }
 
 /*
- * Vnode operating to retrieve a named extended attribute
+ * Vnode operating to retrieve a named extended attribute.
  */
 int
 ufs_vop_getextattr(struct vop_getextattr_args *ap)
 /*
 vop_getextattr {
-        IN struct vnode *a_vp;
-        IN const char *a_name;
-        INOUT struct uio *a_uio;
-        IN struct ucred *a_cred;
-        IN struct proc *a_p;
+	IN struct vnode *a_vp;
+	IN const char *a_name;
+	INOUT struct uio *a_uio;
+	IN struct ucred *a_cred;
+	IN struct proc *a_p;
 };
 */
 {
@@ -500,7 +500,7 @@ ufs_extattr_get(struct vnode *vp, const char *name, struct uio *uio,
 		return (EOPNOTSUPP);
 
 	if (strlen(name) == 0 || (strlen(name) == 1 && name[0] == '$')) {
-		/* XXX retrieve attribute lists */
+		/* XXX retrieve attribute lists. */
 		return (EINVAL);
 	}
 
@@ -514,15 +514,14 @@ ufs_extattr_get(struct vnode *vp, const char *name, struct uio *uio,
 	/*
 	 * Allow only offsets of zero to encourage the read/replace
 	 * extended attribute semantic.  Otherwise we can't guarantee
-	 * atomicity, as we don't provide locks for extended
-	 * attributes.
+	 * atomicity, as we don't provide locks for extended attributes.
 	 */
 	if (uio->uio_offset != 0)
 		return (ENXIO);
 
 	/*
 	 * Find base offset of header in file based on file header size, and
-	 * data header size + maximum data size, indexed by inode number
+	 * data header size + maximum data size, indexed by inode number.
 	 */
 	base_offset = sizeof(struct ufs_extattr_fileheader) +
 	    ip->i_number * (sizeof(struct ufs_extattr_header) +
@@ -560,13 +559,13 @@ ufs_extattr_get(struct vnode *vp, const char *name, struct uio *uio,
 	if (error)
 		goto vopunlock_exit;
 
-	/* defined? */
+	/* Defined? */
 	if ((ueh.ueh_flags & UFS_EXTATTR_ATTR_FLAG_INUSE) == 0) {
 		error = ENOENT;
 		goto vopunlock_exit;
 	}
 
-	/* valid for the current inode generation? */
+	/* Valid for the current inode generation? */
 	if (ueh.ueh_i_gen != ip->i_gen) {
 		/*
 		 * The inode itself has a different generation number
@@ -574,19 +573,19 @@ ufs_extattr_get(struct vnode *vp, const char *name, struct uio *uio,
 		 * is to coerce this to undefined, and let it get cleaned
 		 * up by the next write or extattrctl clean.
 		 */
-		printf("ufs_extattr_get: inode %lu inconsistency (%d, %d)\n",
-		    (u_long)ip->i_number, ueh.ueh_i_gen, ip->i_gen);
+		printf("ufs_extattr_get: inode number inconsistency (%d, %d)\n",
+		    ueh.ueh_i_gen, ip->i_gen);
 		error = ENOENT;
 		goto vopunlock_exit;
 	}
 
-	/* local size consistency check */
+	/* Local size consistency check. */
 	if (ueh.ueh_len > attribute->uele_fileheader.uef_size) {
 		error = ENXIO;
 		goto vopunlock_exit;
 	}
 
-	/* allow for offset into the attr data */
+	/* Allow for offset into the attribute data. */
 	uio->uio_offset = base_offset + sizeof(struct ufs_extattr_header);
 
 	/*
@@ -615,17 +614,17 @@ vopunlock_exit:
 }
 
 /*
- * Vnode operation to set a named attribute
+ * Vnode operation to set a named attribute.
  */
 int
 ufs_vop_setextattr(struct vop_setextattr_args *ap)
 /*
 vop_setextattr {
-        IN struct vnode *a_vp;
-        IN const char *a_name;
-        INOUT struct uio *a_uio;
-        IN struct ucred *a_cred;
-        IN struct proc *a_p;
+	IN struct vnode *a_vp;
+	IN const char *a_name;
+	INOUT struct uio *a_uio;
+	IN struct ucred *a_cred;
+	IN struct proc *a_p;
 };
 */
 {
@@ -681,9 +680,9 @@ ufs_extattr_set(struct vnode *vp, const char *name, struct uio *uio,
 		return (error);
 
 	/*
-	 * Early rejection of invalid offsets/lengths	
+	 * Early rejection of invalid offsets/length.
 	 * Reject: any offset but 0 (replace)
-	 *         Any size greater than attribute size limit
+	 *	 Any size greater than attribute size limit
  	 */
 	if (uio->uio_offset != 0 ||
 	    uio->uio_resid > attribute->uele_fileheader.uef_size)
@@ -691,14 +690,14 @@ ufs_extattr_set(struct vnode *vp, const char *name, struct uio *uio,
 
 	/*
 	 * Find base offset of header in file based on file header size, and
-	 * data header size + maximum data size, indexed by inode number
+	 * data header size + maximum data size, indexed by inode number.
 	 */
 	base_offset = sizeof(struct ufs_extattr_fileheader) +
 	    ip->i_number * (sizeof(struct ufs_extattr_header) +
 	    attribute->uele_fileheader.uef_size);
 
 	/*
-	 * Write out a data header for the data
+	 * Write out a data header for the data.
 	 */
 	ueh.ueh_len = uio->uio_resid;
 	ueh.ueh_flags = UFS_EXTATTR_ATTR_FLAG_INUSE;
@@ -737,7 +736,7 @@ ufs_extattr_set(struct vnode *vp, const char *name, struct uio *uio,
 	}
 
 	/*
-	 * Write out user data
+	 * Write out user data.
 	 */
 	uio->uio_offset = base_offset + sizeof(struct ufs_extattr_header);
 	
@@ -787,7 +786,7 @@ ufs_extattr_rm(struct vnode *vp, const char *name, struct ucred *cred,
 
 	/*
 	 * Find base offset of header in file based on file header size, and
-	 * data header size + maximum data size, indexed by inode number
+	 * data header size + maximum data size, indexed by inode number.
 	 */
 	base_offset = sizeof(struct ufs_extattr_fileheader) +
 	    ip->i_number * (sizeof(struct ufs_extattr_header) +
@@ -823,7 +822,7 @@ ufs_extattr_rm(struct vnode *vp, const char *name, struct ucred *cred,
 	if (error)
 		goto vopunlock_exit;
 
-	/* defined? */
+	/* Defined? */
 	if ((ueh.ueh_flags & UFS_EXTATTR_ATTR_FLAG_INUSE) == 0) {
 		error = ENOENT;
 		goto vopunlock_exit;
@@ -833,17 +832,17 @@ ufs_extattr_rm(struct vnode *vp, const char *name, struct ucred *cred,
 	if (ueh.ueh_i_gen != ip->i_gen) {
 		/*
 		 * The inode itself has a different generation number than
-		 * the attribute data.  For now, the best solution is to 
+		 * the attribute data.  For now, the best solution is to
 		 * coerce this to undefined, and let it get cleaned up by
 		 * the next write or extattrctl clean.
 		 */
-		printf("ufs_extattr_rm: inode %lu inconsistency (%d, %d)\n",
-		    (u_long)ip->i_number, ueh.ueh_i_gen, ip->i_gen);
+		printf("ufs_extattr_rm: inode number inconsistency (%d, %d)\n",
+		    ueh.ueh_i_gen, ip->i_gen);
 		error = ENOENT;
 		goto vopunlock_exit;
 	}
 
-	/* flag it as not in use */
+	/* Flag it as not in use. */
 	ueh.ueh_flags = 0;
 	ueh.ueh_len = 0;
 
@@ -883,7 +882,7 @@ ufs_extattr_vnode_inactive(struct vnode *vp, struct proc *p)
 	struct ufsmount	*ump = VFSTOUFS(mp);
 
 	ufs_extattr_uepm_lock(ump, p);
-        
+
 	if (!(ump->um_extattr.uepm_flags & UFS_EXTATTR_UEPM_STARTED)) {
 		ufs_extattr_uepm_unlock(ump, p);
 		return;
