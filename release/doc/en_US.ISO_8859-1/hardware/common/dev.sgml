@@ -1634,7 +1634,7 @@
       </itemizedlist>
     </para>
 
-    <para>PRISM I and PRISM II-based 802.11 cards (awi driver)
+    <para>AMD Am79C930 and Harris (Intersil) based 802.11 cards (awi driver)
       <itemizedlist>
         <listitem>
 	  <para>BayStack 650 and 660</para>
