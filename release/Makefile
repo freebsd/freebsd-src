@@ -430,7 +430,7 @@ release.7:
 	if [ -d ${RD}/dists/crypto ] ; then ( cd ${RD}/dists/src && \
 		if [ -f ssecure.aa ] ; then mv ssecure.* ../crypto ; fi && \
 		if [ -f scrypto.aa ] ; then mv scrypto.* ../crypto ; fi && \
-		if [ -f skrb4.aa ] ; then mv skrb4.* ../crypto ; fi ; ) ; fi
+		if [ -f skrb4.aa ] ; then mv skrb4.* ../crypto ; fi && \
 		if [ -f skrb5.aa ] ; then mv skrb5.* ../crypto ; fi ; ) ; fi
 	@echo "src distribution is finished."
 .endif
