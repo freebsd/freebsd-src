@@ -1,0 +1,53 @@
+.\"
+.\"   swapinfo
+.\"
+.Dd February 23, 1993
+.Dt SWAPINFO 1
+.Sh NAME
+.Nm swapinfo
+.Nd display free swap space
+.Sh SYNOPSIS
+.Nm swapinfo
+.Op Fl k
+.Sh DESCRIPTION
+.Nm Swapinfo
+displays statistics about the amount of free swap space on all of the 
+swap areas compiled into the kernel.
+.Pp
+The following options are available:
+.Bl -tag -width Ds
+.It Fl k
+By default, all sizes are reported in 512-byte block counts.
+The
+.Fl k
+option causes the numbers to be reported in kilobyte counts.
+.El
+.Sh STATISTICS
+Statistics are reported for all swap partitions configured into the kernel.
+The first column is the device name of the partition.  The next column is
+the total space available in the partition.  The 
+.Ar Used
+column indicates the total blocks used so far;  the 
+.Ar Available
+column indicates how much space is remaining on each partition.
+The
+.Ar Capacity
+reports the percentage of space used.
+.Pp
+If more than one partition is configured into the system, totals for all
+of the statistics will be reported in the final line of the report.
+.Sh "BUGS AND CAVEATS"
+The information reported by
+.Nm swapinfo
+is stored in the kernel in a linked list.  Since we are merely reading
+this list out of kernel memory, it is entirely possible that the list could
+change as we try to read it.  Suspicious and unrepeatable values are probably
+incorrect.
+.Pp
+Statistics are reported for all swap partitions compiled into the kernel,
+regardless of whether those partitions are being used.
+.Sh AUTHOR
+.RS
+Kevin Lahey
+.br
+kml@rokkaku.atl.ga.us
