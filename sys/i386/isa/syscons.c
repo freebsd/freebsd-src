@@ -25,7 +25,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *  $Id: syscons.c,v 1.262 1998/06/07 17:11:02 dfr Exp $
+ *  $Id: syscons.c,v 1.263 1998/06/13 18:53:22 steve Exp $
  */
 
 #include "sc.h"
@@ -1307,10 +1307,7 @@ scioctl(dev_t dev, u_long cmd, caddr_t data, int flag, struct proc *p)
 	        cur_console->mouse_buttons &= ~mouse->u.event.id;
 	        mouse_status.button &= ~mouse->u.event.id;
 	    }
-	    mouse_status.flags |= 
-		((mouse->u.data.x || mouse->u.data.y || mouse->u.data.z) ? 
-		    MOUSE_POSCHANGED : 0)
-		| (mouse_status.obutton ^ mouse_status.button);
+	    mouse_status.flags |= mouse_status.obutton ^ mouse_status.button;
 
 	    if (cur_console->status & MOUSE_ENABLED)
 	    	cur_console->status |= MOUSE_VISIBLE;
