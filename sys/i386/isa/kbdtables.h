@@ -13,7 +13,7 @@
  *	Tritonvej 36		UUCP:	...uunet!dkuug!kmd-ac!sos
  *	DK9210 Aalborg SO	Phone:  +45 9814 8076
  *
- *	$Id: kbdtables.h,v 1.6 1993/10/28 06:15:09 rgrimes Exp $
+ *	$Id: kbdtables.h,v 1.7 1993/11/04 01:49:20 ache Exp $
  */
 
 #define SET8 0x80       	/* eight bit for emacs SET8-key */
@@ -731,7 +731,7 @@ keymap_t key_map = { 0x69,	/* US iso8859 keymap */
  * ---------------------------------------------------------------------------
  */
 /* sc=00 */  NOP,   NOP,   NOP,   NOP,   NOP,   NOP,   NOP,   NOP,  0xFF, 0x00,
-/* sc=01 */ 0x1B,  0x1B,   NOP,   NOP,  0x1B,  0x1B,   NOP,   NOP,  0x33, 0x00,
+/* sc=01 */ 0x1B,  0x1B,   NOP,   NOP,  0x1B,  0x1B,   DBG,   NOP,  0x33, 0x00,
 /* sc=02 */  '1',   '!',   NOP,   NOP,   '1',   '!',   NOP,   NOP,  0x33, 0x00,
 /* sc=03 */  '2',   '@',  0x00,  0x00,   '2',   '@',  0x00,  0x00,  0x00, 0x00,
 /* sc=04 */  '3',   '#',   NOP,   NOP,   '3',   '#',   NOP,   NOP,  0x33, 0x00,
@@ -833,8 +833,8 @@ keymap_t key_map = { 0x69,	/* US iso8859 keymap */
 /* sc=64 */ F(58), F(58), F(58), F(58), F(58), F(58), F(58), F(58), 0xFF, 0x00,
 /* sc=65 */ F(59), F(59), F(59), F(59), F(59), F(59), F(59), F(59), 0xFF, 0x00,
 /* sc=66 */ F(60), F(60), F(60), F(60), F(60), F(60), F(60), F(60), 0xFF, 0x00,
-/* sc=67 */ F(54), F(54), F(54), F(54), F(54), F(54), F(54), F(54), 0xFF, 0x00,
-/* sc=68 */  SLK,   SLK,   SLK,   SLK,   SLK,   SLK,   SLK,   SLK,  0xFF, 0x00,
+/* sc=67 */ F(54), F(54), F(54), F(54), F(54), F(54), RBT  , F(54), 0xFF, 0x00,
+/* sc=68 */   SLK,   SLK,   SLK,   SLK,   SLK,   SLK,   SLK,   SLK, 0xFF, 0x00,
 };
 
 #endif
