@@ -30,8 +30,8 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	@(#)if_fddisubr.c	8.1 (Berkeley) 6/10/93
- * if_fddisubr.c,v 1.5 1994/12/13 22:31:45 wollman Exp
+ *	from: if_ethersubr.c,v 1.5 1994/12/13 22:31:45 wollman Exp
+ * $Id$
  */
 
 #include <sys/param.h>
