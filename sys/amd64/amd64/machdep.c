@@ -35,7 +35,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)machdep.c	7.4 (Berkeley) 6/3/91
- *	$Id: machdep.c,v 1.132 1995/07/16 10:33:38 phk Exp $
+ *	$Id: machdep.c,v 1.133 1995/07/19 06:37:06 davidg Exp $
  */
 
 #include "npx.h"
@@ -180,7 +180,7 @@ long dumplo;
 extern int bootdev;
 int biosmem;
 
-vm_offset_t	phys_avail[10];
+vm_offset_t phys_avail[10];
 
 /* must be 2 less so 0 0 can signal end of chunks */
 #define PHYS_AVAIL_ARRAY_END ((sizeof(phys_avail) / sizeof(vm_offset_t)) - 2)
@@ -1454,7 +1454,7 @@ init386(first)
 		pa_indx++;
 	}
 
-	for (target_page = first; target_page < ptoa(Maxmem); target_page += PAGE_SIZE) {
+	for (target_page = avail_start; target_page < ptoa(Maxmem); target_page += PAGE_SIZE) {
 		int tmp, page_bad = FALSE;
 
 		/*
