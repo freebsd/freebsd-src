@@ -35,7 +35,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)machdep.c	7.4 (Berkeley) 6/3/91
- *	$Id: machdep.c,v 1.188 1996/05/02 22:24:57 phk Exp $
+ *	$Id: machdep.c,v 1.189 1996/05/03 21:00:53 phk Exp $
  */
 
 #include "npx.h"
@@ -388,8 +388,15 @@ again:
 	mclrefcnt = (char *)malloc(nmbclusters+PAGE_SIZE/MCLBYTES,
 				   M_MBUF, M_NOWAIT);
 	bzero(mclrefcnt, nmbclusters+PAGE_SIZE/MCLBYTES);
-	mb_map = kmem_suballoc(kmem_map, (vm_offset_t *)&mbutl, &maxaddr,
+	mcl_map = kmem_suballoc(kmem_map, (vm_offset_t *)&mbutl, &maxaddr,
 			       nmbclusters * MCLBYTES, FALSE);
+	{
+		vm_size_t mb_map_size;
+		mb_map_size = nmbufs * MSIZE;
+		mb_map = kmem_suballoc(kmem_map, &minaddr, &maxaddr, 
+				       round_page(mb_map_size), FALSE);
+	}
+
 	/*
 	 * Initialize callouts
 	 */

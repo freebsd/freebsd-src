@@ -61,7 +61,7 @@
  * any improvements or extensions that they make and grant Carnegie the
  * rights to redistribute these changes.
  *
- * $Id: vm_kern.c,v 1.22 1996/01/31 12:05:52 davidg Exp $
+ * $Id: vm_kern.c,v 1.23 1996/04/24 04:16:44 dyson Exp $
  */
 
 /*
@@ -94,6 +94,8 @@ vm_map_t kernel_map;
 vm_map_t kmem_map;
 vm_map_t mb_map;
 int mb_map_full;
+vm_map_t mcl_map;
+int mcl_map_full;
 vm_map_t io_map;
 vm_map_t clean_map;
 vm_map_t phys_map;
@@ -291,8 +293,8 @@ kmem_malloc(map, size, waitflag)
 	vm_offset_t addr;
 	vm_page_t m;
 
-	if (map != kmem_map && map != mb_map)
-		panic("kmem_malloc: map != {kmem,mb}_map");
+	if (map != kmem_map && map != mb_map && map != mcl_map)
+		panic("kmem_malloc: map != {kmem,mb,mcl}_map");
 
 	size = round_page(size);
 	addr = vm_map_min(map);
@@ -307,7 +309,13 @@ kmem_malloc(map, size, waitflag)
 		vm_map_unlock(map);
 		if (map == mb_map) {
 			mb_map_full = TRUE;
-			log(LOG_ERR, "Out of mbuf clusters - increase maxusers!\n");
+			log(LOG_ERR, "Out of mbufs - increase maxusers!\n");
+			return (0);
+		}
+		if (map == mcl_map) {
+			mcl_map_full = TRUE;
+			log(LOG_ERR, 
+			    "Out of mbuf clusters - increase maxusers!\n");
 			return (0);
 		}
 		if (waitflag == M_WAITOK)
