@@ -106,7 +106,7 @@ static u_int std_mask(u_int);
 static int parse_quote(char **, char *, char *, char *, int);
 
 
-int
+void
 main(int argc,
      char *argv[])
 {
@@ -244,7 +244,7 @@ main(int argc,
 	if ((not_trace && trace) || argc == 0) {
 usage:		fprintf(stderr, "%s: [-np1v] [-r tgt_rt] [-w wtime]"
 			" [-a type=passwd] host1 [host2 ...]\n"
-			"or\t-t {on=filename|more|off|on=dump/../table}"
+			"or\t-t {on=filename|more|off|dump}"
 			" host1 [host2 ...]\n",
 			pgmname);
 		exit(1);
