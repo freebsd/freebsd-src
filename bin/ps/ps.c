@@ -114,6 +114,12 @@ static char Zfmt[] = "lvl";
 
 static kvm_t *kd;
 
+#if defined(LAZY_PS)
+#define PS_ARGS	"aCcefghjLlM:mN:O:o:p:rSTt:U:uvwxZ"
+#else
+#define PS_ARGS	"aCceghjLlM:mN:O:o:p:rSTt:U:uvwxZ"
+#endif
+
 int
 main(int argc, char *argv[])
 {
@@ -123,11 +129,11 @@ main(int argc, char *argv[])
 	dev_t ttydev;
 	pid_t pid;
 	uid_t *uids;
-	int all, ch, flag, i, _fmt, lineno, nentries, dropgid;
+	int all, ch, flag, i, _fmt, lineno, nentries, nocludge, dropgid;
 	int prtheader, wflag, what, xflg, uid, nuids;
 	char *cols;
 	char errbuf[_POSIX2_LINE_MAX];
-	const char *nlistf, *memf;
+	const char *cp, *nlistf, *memf;
 
 	(void) setlocale(LC_ALL, "");
 	/* Set the time to what it is right now. */
@@ -143,8 +149,25 @@ main(int argc, char *argv[])
 	else
 		termwidth = ws.ws_col - 1;
 
-	if (argc > 1)
-		argv[1] = kludge_oldps_options(argv[1]);
+	/*
+	 * Don't apply a kludge if the first argument is an option taking an
+	 * argument
+	 */
+	if (argc > 1) {
+		nocludge = 0;
+		if (argv[1][0] == '-') {
+			for (cp = PS_ARGS; *cp != '\0'; cp++) {
+				if (*cp != ':')
+					continue;
+				if (*(cp - 1) == argv[1][1]) {
+					nocludge = 1;
+					break;
+				}
+			}
+		}
+		if (nocludge == 0)
+			argv[1] = kludge_oldps_options(argv[1]);
+	}
 
 	all = _fmt = prtheader = wflag = xflg = 0;
 	pid = -1;
@@ -153,12 +176,7 @@ main(int argc, char *argv[])
 	ttydev = NODEV;
 	dropgid = 0;
 	memf = nlistf = _PATH_DEVNULL;
-	while ((ch = getopt(argc, argv,
-#if defined(LAZY_PS)
-	    "aCcefghjLlM:mN:O:o:p:rSTt:U:uvwxZ")) != -1)
-#else
-	    "aCceghjLlM:mN:O:o:p:rSTt:U:uvwxZ")) != -1)
-#endif
+	while ((ch = getopt(argc, argv, PS_ARGS)) != -1)
 		switch((char)ch) {
 		case 'a':
 			all = 1;
