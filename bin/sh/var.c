@@ -32,12 +32,14 @@
  * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
- *
- *	$Id: var.c,v 1.10 1997/04/28 03:06:39 steve Exp $
  */
 
 #ifndef lint
-static char const sccsid[] = "@(#)var.c	8.3 (Berkeley) 5/4/95";
+#if 0
+static char sccsid[] = "@(#)var.c	8.3 (Berkeley) 5/4/95";
+#endif
+static const char rcsid[] =
+	"$Id$";
 #endif /* not lint */
 
 #include <unistd.h>

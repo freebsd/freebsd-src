@@ -32,12 +32,14 @@
  * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
- *
- *	$Id: input.c,v 1.9 1997/02/22 13:58:28 peter Exp $
  */
 
 #ifndef lint
-static char const sccsid[] = "@(#)input.c	8.3 (Berkeley) 6/9/95";
+#if 0
+static char sccsid[] = "@(#)input.c	8.3 (Berkeley) 6/9/95";
+#endif
+static const char rcsid[] =
+	"$Id$";
 #endif /* not lint */
 
 #include <stdio.h>	/* defines BUFSIZ */

@@ -32,12 +32,14 @@
  * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
- *
- *	$Id: parser.c,v 1.20 1997/04/28 03:22:09 steve Exp $
  */
 
 #ifndef lint
-static char const sccsid[] = "@(#)parser.c	8.7 (Berkeley) 5/16/95";
+#if 0
+static char sccsid[] = "@(#)parser.c	8.7 (Berkeley) 5/16/95";
+#endif
+static const char rcsid[] =
+	"$Id$";
 #endif /* not lint */
 
 #include <stdlib.h>
