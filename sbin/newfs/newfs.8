@@ -30,6 +30,7 @@
 .\" SUCH DAMAGE.
 .\"
 .\"     @(#)newfs.8	8.6 (Berkeley) 5/3/95
+.\"	$Id$
 .\"
 .Dd May 3, 1995
 .Dt NEWFS 8
@@ -84,7 +85,7 @@ replaces the more obtuse
 .Xr mkfs 8
 program.
 Before running 
-.Nm newfs
+.Nm
 or
 .Nm mount_mfs ,
 the disk must be labeled using 
@@ -92,7 +93,7 @@ the disk must be labeled using
 .Nm Newfs
 builds a file system on the specified special device.
 Typically the defaults are reasonable, however
-.Nm newfs
+.Nm
 has numerous options to allow the defaults to be selectively overridden.
 .Pp
 .Nm Mount_mfs
@@ -110,7 +111,7 @@ corresponding file system.
 The parameters to
 .Nm mount_mfs
 are the same as those to
-.Nm newfs .
+.Nm Ns .
 If the
 .Fl T
 flag is specified (see below), the special file is unused.
@@ -121,33 +122,35 @@ since that is where the file system will be backed up when
 free memory gets low and the memory supporting
 the file system has to be paged.
 .Pp
-The following options define the general layout policies.
-.Bl -tag -width Fl
+The following options define the general layout policies:
+.Bl -tag -width indent
 .It Fl T Ar disktype
 For backward compatibility and for
 .Nm mount_mfs .
 .It Fl F Ar file
-.Nm mount_mfs
+.Nm Mount_mfs
 will use this file for the image of the filesystem.  When
 .Nm mount_mfs
 exits, this file will be left behind.
 .It Fl N
-Causes the file system parameters to be printed out
+Cause the file system parameters to be printed out
 without really creating the file system.
 .It Fl O
-Creates a 4.3BSD format filesystem.
+Create a
+.Bx 4.3
+format filesystem.
 This options is primarily used to build root filesystems
 that can be understood by older boot ROMs.
 .It Fl T
-Uses information for the specified disk from
+Use information for the specified disk from
 .Pa /etc/disktab
 instead of trying to get the information from a disklabel.
 .It Fl a Ar maxcontig
-This specifies the maximum number of contiguous blocks that will be
+Specify the maximum number of contiguous blocks that will be
 laid out before forcing a rotational delay (see the
 .Fl d
 option).
-The default value is one.
+The default value is 1.
 See
 .Xr tunefs 8
 for more details on how to set this option.
@@ -157,7 +160,7 @@ The block size of the file system, in bytes.
 The number of cylinders per cylinder group in a file system.
 The default value is 16.
 .It Fl d Ar rotdelay
-This specifies the expected time (in milliseconds) to service a transfer
+Specify the expected time (in milliseconds) to service a transfer
 completion interrupt and initiate a new transfer on the same disk.
 The default is 0 milliseconds.
 See
@@ -165,7 +168,7 @@ See
 for more details on how to set this option.
 .ne 1i
 .It Fl e Ar maxbpg
-This indicates the maximum number of blocks any single file can
+Indicate the maximum number of blocks any single file can
 allocate out of a cylinder group before it is forced to begin
 allocating blocks from another cylinder group.
 The default is about one quarter of the total blocks in a cylinder group.
@@ -176,7 +179,7 @@ for more details on how to set this option.
 The fragment size of the file system in bytes.
 The default is 1024 bytes.
 .It Fl i Ar number of bytes per inode
-This specifies the density of inodes in the file system.
+Specify the density of inodes in the file system.
 The default is to create an inode for every (4 * frag-size) bytes of data space.
 If fewer inodes are desired, a larger number should be used;
 to create more inodes a smaller number should be given.
@@ -193,8 +196,9 @@ See
 .Xr tunefs 8
 for more details on how to set this option.
 .It Fl n Ar number of distinguished rotational positions
-Determines how many rotational time slots there are in one revolution of
-the disk.  Defaults to 1, which essentially disables the rotational position table.
+Determine how many rotational time slots there are in one revolution of
+the disk. Defaults to 1, which essentially disables the rotational position
+table.
 .It Fl o Ar optimization\ preference
 .Pq ``space'' or ``time''
 The file system can either be instructed to try to minimize the time spent
@@ -213,15 +217,15 @@ The size of the file system in sectors.
 The following options override the standard sizes for the disk geometry. 
 Their default values are taken from the disk label.
 Changing these defaults is useful only when using
-.Nm newfs
+.Nm
 to build a file system whose raw image will eventually be used on a
 different type of disk than the one on which it is initially created
 (for example on a write-once disk).
 Note that changing any of these values from their defaults will make
 it impossible for 
-.Xr fsck
+.Xr fsck 8
 to find the alternate superblocks if the standard superblock is lost.
-.Bl -tag -width Fl
+.Bl -tag -width indent
 .It Fl S Ar sector-size
 The size of a sector in bytes (almost never anything but 512).
 .It Fl k Ar sector \&0 skew , per track
@@ -259,7 +263,7 @@ If zero is specified, the value from the disklabel will be used.
 This does not include sectors reserved at the end of each track for bad
 block replacement (see the
 .Fl p
-option.)
+option).
 .It Fl x Ar spare sectors per cylinder
 Spare sectors (bad sector replacements) are physical sectors that occupy
 space at the end of the last track in the cylinder.
@@ -272,7 +276,7 @@ system for data allocation.
 The options to the
 .Nm mount_mfs
 command are as described for the
-.Nm newfs
+.Nm
 command, except for the
 .Fl o
 option.
@@ -295,7 +299,9 @@ Mount a 64 MB large memory file system on /tmp, with
 .Xr mount 8
 options nosuid and nodev.
 .Sh BUGS
-The boot code of FreeBSD assumes that the file system that carries the
+The boot code of
+.Bx Free
+assumes that the file system that carries the
 kernel has blocks of 8 kilobytes and fragments of 1 kilobyte. You will
 not be able to boot from a file system that uses another size.
 .Sh SEE ALSO
