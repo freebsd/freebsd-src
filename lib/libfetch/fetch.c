@@ -25,15 +25,20 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *	$Id$
+ *	$Id: fetch.c,v 1.1.1.1 1998/07/09 16:52:42 des Exp $
  */
 
 #include <sys/param.h>
+#include <sys/types.h>
+#include <sys/socket.h>
+#include <netinet/in.h>
 
 #include <ctype.h>
+#include <netdb.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <unistd.h>
 
 #include "fetch.h"
 
@@ -43,6 +48,8 @@
 #define DEBUG(x) do { } while (0)
 #endif
 
+int fetchLastErrCode;
+const char *fetchLastErrText;
 
 /* get URL */
 FILE *
@@ -186,4 +193,32 @@ fetchFreeURL(url_t *u)
 	    free(u->doc);
 	free(u);
     }
+}
+
+int
+fetchConnect(char *host, int port)
+{
+    struct sockaddr_in sin;
+    struct hostent *he;
+    int sd;
+
+    /* look up host name */
+    if ((he = gethostbyname(host)) == NULL)
+	return -1;
+
+    /* set up socket address structure */
+    bzero(&sin, sizeof(sin));
+    bcopy(he->h_addr, (char *)&sin.sin_addr, he->h_length);
+    sin.sin_family = he->h_addrtype;
+    sin.sin_port = htons(port);
+
+    /* try to connect */
+    if ((sd = socket(sin.sin_family, SOCK_STREAM, 0)) < 0)
+	return -1;
+    if (connect(sd, (struct sockaddr *)&sin, sizeof sin) < 0) {
+	close(sd);
+	return -1;
+    }
+
+    return sd;
 }
