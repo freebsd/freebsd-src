@@ -172,18 +172,39 @@ sysctl_kern_securelvl(SYSCTL_HANDLER_ARGS)
 {
 		int error, level;
 
-		level = securelevel;
+		/*
+		 * If the process is in jail, return the maximum of the
+		 * global and local levels; otherwise, return the global
+		 * level.
+		 */
+		if (req->p->p_ucred->cr_prison != NULL)
+			level = imax(securelevel,
+			    req->p->p_ucred->cr_prison->pr_securelevel);
+		else
+			level = securelevel;
 		error = sysctl_handle_int(oidp, &level, 0, req);
 		if (error || !req->newptr)
 			return (error);
-		if (level < securelevel)
-			return (EPERM);
-		securelevel = level;
+		/*
+		 * Permit update only if the new securelevel exceeds the
+		 * global level, and local level if any.
+		 */
+		if (req->p->p_ucred->cr_prison != NULL) {
+			if (level < imax(securelevel,
+			    req->p->p_ucred->cr_prison->pr_securelevel))
+				return (EPERM);
+			req->p->p_ucred->cr_prison->pr_securelevel = level;
+		} else {
+			if (level < securelevel)
+				return (EPERM);
+			securelevel = level;
+		}
 		return (error);
 }
 
-SYSCTL_PROC(_kern, KERN_SECURELVL, securelevel, CTLTYPE_INT|CTLFLAG_RW,
-    0, 0, sysctl_kern_securelvl, "I", "Current secure level");
+SYSCTL_PROC(_kern, KERN_SECURELVL, securelevel,
+    CTLTYPE_INT|CTLFLAG_RW|CTLFLAG_PRISON, 0, 0, sysctl_kern_securelvl,
+    "I", "Current secure level");
 
 char domainname[MAXHOSTNAMELEN];
 SYSCTL_STRING(_kern, KERN_NISDOMAINNAME, domainname, CTLFLAG_RW,
