@@ -247,10 +247,8 @@ lockrange(daddr_t stripe, struct buf *bp, struct plex *plex)
 			logrq(loginfo_lockwait, (union rqinfou) &info, bp);
 		    }
 #endif
-		    splx(s);
 		    tsleep((void *) lock->stripe, PRIBIO | PCATCH, "vrlock", 2 * hz);
 		    plex->lockwaits++;			    /* waited one more time */
-		    s = splbio();
 		}
 		break;					    /* out of the inner level loop */
 	    }
