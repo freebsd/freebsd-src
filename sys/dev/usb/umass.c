@@ -377,10 +377,7 @@ struct umass_softc {
 #	define XFER_CBI_RESET1		5
 #	define XFER_CBI_RESET2		6
 #	define XFER_CBI_RESET3		7
-	{ USB_VENDOR_TREK,  USB_PRODUCT_TREK_THUMBDRIVE_8MB, RID_WILDCARD,
-          UMASS_PROTO_ATAPI | UMASS_PROTO_BBB,
-	  IGNORE_RESIDUE
-	},
+
 #	define XFER_NR			9	/* maximum number */
 
 	usbd_xfer_handle	transfer_xfer[XFER_NR];	/* for ctrl xfers */
