@@ -88,6 +88,7 @@ static	int		getipaddr	P((const char *, u_int32 *));
 static	int		decodeipaddr	P((const char *, u_int32 *));
 static	void	printserver	P((struct server *, FILE *));
 static	void	printrefid	P((FILE *, struct server *));
+void		input_handler	P((l_fp * x));
 
 #ifdef SYS_WINNT
 int on = 1;

@@ -127,9 +127,6 @@ struct ppsclockev {
  */
 #define INTERVAL	1	/* Interval between position measurements (s) */
 #define AVGING_TIME	24	/* Number of hours to average */
-#define USUAL_EDOP	1.06066	/* used for normalizing EDOP */
-#define USUAL_NDOP	1.06066	/* used for normalizing NDOP */
-#define USUAL_VDOP	2.00	/* used for normalizing VDOP */
 #define NOT_INITIALIZED	-9999.	/* initial pivot longitude */
 
 /*
@@ -165,13 +162,13 @@ static char pmvxg[] = "PMVXG";
 #if __GNUC__ < 2  || (__GNUC__ == 2 && __GNUC_MINOR__ < 5)
 #ifndef __attribute__
 #define __attribute__(args)
-#endif
-#endif
+#endif /* __attribute__ */
+#endif /* __GNUC__ < 2  || (__GNUC__ == 2 && __GNUC_MINOR__ < 5) */
 #else
 #ifndef __attribute__
 #define __attribute__(args)
-#endif
-#endif
+#endif /* __attribute__ */
+#endif /* __GNUC__ */
 /* XXX end */
 
 /*
@@ -230,18 +227,6 @@ mx4200_start(
 	int fd;
 	char gpsdev[20];
 
-#ifdef HAVE_TIOCGPPSEV
-#ifdef HAVE_TERMIOS
-	struct termios ttyb;
-#endif /* HAVE_TERMIOS */
-#ifdef HAVE_SYSV_TTYS
-	struct termio ttyb;
-#endif /* HAVE_SYSV_TTYS */
-#ifdef HAVE_BSD_TTYS
-	struct sgttyb ttyb;
-#endif /* HAVE_BSD_TTYS */
-#endif /* HAVE_TIOCGPPSEV */
-
 	/*
 	 * Open serial port
 	 */
@@ -249,24 +234,6 @@ mx4200_start(
 	if (!(fd = refclock_open(gpsdev, SPEED232, LDISC_PPS))) {
 	    return (0);
 	}
-#ifdef HAVE_TIOCGPPSEV
-	if (fdpps > 0) {
-		/*
-		 * Truly nasty hack in order to get this to work on Solaris 7.
-		 * Really, refclock_open() should set the port properly, but
-		 * it doesn't work (as of ntp-4.0.98a) - almost 99% dropped
-		 * PPS signals with "Interrupted system call".  Even this
-		 * still gives a 5% error rate.
-		 */
-		ttyb.c_iflag = IGNCR;
-		ttyb.c_oflag = 0;
-		ttyb.c_cflag = CS8 | CREAD | CLOCAL;
-		ttyb.c_lflag = ICANON;
-		if (tcsetattr(fdpps, TCSAFLUSH, &ttyb) < 0) {
-			return (0);
-		}
-	}
-#endif /* HAVE_TIOCGPPSEV */
 
 	/*
 	 * Allocate unit structure
@@ -360,9 +327,9 @@ mx4200_config(
 	up->filt_lat    	= 0.0;
 	up->filt_lon    	= 0.0;
 	up->filt_alt    	= 0.0;
-	up->edop        	= USUAL_EDOP;
-	up->ndop        	= USUAL_NDOP;
-	up->vdop        	= USUAL_VDOP;
+	up->edop        	= 1;
+	up->ndop        	= 1;
+	up->vdop        	= 1;
 	up->last_leap   	= 0;	/* LEAP_NOWARNING */
 	up->clamp_time  	= current_time + (AVGING_TIME * 60 * 60);
 	up->log_time    	= current_time + SLEEPTIME;
@@ -612,7 +579,7 @@ mx4200_ref(
 	minute = (lon - (double)(int)lon) * 60.0;
 	sprintf(lons,"%03d%02.4f", (int)lon, minute);
 
-	mx4200_send(peer, "%s,%03d,,,,,%s,%c,%s,%c,%.2f,", pmvxg,
+	mx4200_send(peer, "%s,%03d,,,,,%s,%c,%s,%c,%.2f,%d", pmvxg,
 	    PMVXG_S_INITMODEA,
 	    /* day of month */
 	    /* month of year */
@@ -622,8 +589,8 @@ mx4200_ref(
 	    nsc,	/* north/south */
 	    lons,	/* longitude DDDMM.MMMM */
 	    ewc,	/* east/west */
-	    alt);	/* Altitude */
-	    		/* Altitude Reference */
+	    alt,	/* Altitude */
+	    1);		/* Altitude Reference (0=WGS84 ellipsoid, 1=MSL geoid) */
 
 	msyslog(LOG_DEBUG,
 	    "mx4200: reconfig to fixed location: %s %c, %s %c, %.2f m",
@@ -1359,19 +1326,19 @@ mx4200_parse_p(
 	/*
 	 * Calculate running weighted averages
 	 */
-	weight = USUAL_EDOP / up->edop;
+	weight = 1. / up->edop;
 	weight *= weight;
 	up->avg_lon = (up->filt_lon * up->avg_lon) + (weight * lon);
 	up->filt_lon += weight;
 	up->avg_lon = up->avg_lon / up->filt_lon;
 
-	weight = USUAL_NDOP / up->ndop;
+	weight = 1. / up->ndop;
 	weight *= weight;
 	up->avg_lat = (up->filt_lat * up->avg_lat) + (weight * lat);
 	up->filt_lat += weight;
 	up->avg_lat = up->avg_lat / up->filt_lat;
 
-	weight = USUAL_VDOP / up->vdop;
+	weight = 1. / up->vdop;
 	weight *= weight;
 	up->avg_alt = (up->filt_alt * up->avg_alt) + (weight * alt);
 	up->filt_alt += weight;
@@ -1673,15 +1640,15 @@ mx4200_pps(
 /*
  * mx4200_debug - print debug messages
  */
-#if __STDC__
+#if defined(__STDC__)
 static void
 mx4200_debug(struct peer *peer, char *fmt, ...)
 #else
-     static void
+static void
 mx4200_debug(peer, fmt, va_alist)
      struct peer *peer;
      char *fmt;
-#endif
+#endif /* __STDC__ */
 {
 	va_list ap;
 	struct refclockproc *pp;
@@ -1689,11 +1656,11 @@ mx4200_debug(peer, fmt, va_alist)
 
 	if (debug) {
 
-#if __STDC__
+#if defined(__STDC__)
 		va_start(ap, fmt);
 #else
 		va_start(ap);
-#endif
+#endif /* __STDC__ */
 
 		pp = peer->procptr;
 		up = (struct mx4200unit *)pp->unitptr;
@@ -1712,11 +1679,12 @@ mx4200_debug(peer, fmt, va_alist)
 /*
  * Send a character string to the receiver.  Checksum is appended here.
  */
+#if defined(__STDC__)
 static void
-#if __STDC__
 mx4200_send(struct peer *peer, char *fmt, ...)
 #else
-     mx4200_send(peer, fmt, va_alist)
+static void
+mx4200_send(peer, fmt, va_alist)
      struct peer *peer;
      char *fmt;
      va_dcl
@@ -1731,7 +1699,7 @@ mx4200_send(struct peer *peer, char *fmt, ...)
 	char buf[1024];
 	u_char ck;
 
-#if __STDC__
+#if defined(__STDC__)
 	va_start(ap, fmt);
 #else
 	va_start(ap);

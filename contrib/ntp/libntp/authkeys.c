@@ -193,7 +193,7 @@ auth_moremem(void)
 	struct savekey *sk;
 	int i;
 
-	sk = (struct savekey *)malloc(MEMINC * sizeof(struct savekey));
+	sk = (struct savekey *)calloc(MEMINC, sizeof(struct savekey));
 	if (sk == 0)
 		return (0);
 	

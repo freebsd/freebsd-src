@@ -74,7 +74,7 @@ map_vme (
 	}
 	if(tx.error)
 	    printf("io_testr failed internal error %d\n",tx.error);
-	if(tx.access_result <= 0) {
+	if(tx.access_result < 0) {
 		printf("io_testr failed\n");
 		exit(2);
 	}

@@ -20,10 +20,11 @@
 #ifdef REFCLOCK
 
 #ifdef TTYCLK
-# ifdef SCO5_CLOCK
-#  include <sys/sio.h>
-# else
+# ifdef HAVE_SYS_CLKDEFS_H
 #  include <sys/clkdefs.h>
+# endif
+# ifdef HAVE_SYS_SIO_H
+#  include <sys/sio.h>
 # endif
 #endif /* TTYCLK */
 
@@ -32,7 +33,13 @@
 #endif /* HAVE_PPSCLOCK_H */
 
 #ifdef HAVE_PPSAPI
-#include <sys/timepps.h>
+# ifdef HAVE_TIMEPPS_H
+#  include <timepps.h>
+# else
+#  ifdef HAVE_SYS_TIMEPPS_H
+#   include <sys/timepps.h>
+#  endif
+# endif
 #endif /* HAVE_PPSAPI */
 
 /*
@@ -755,10 +762,11 @@ int
 refclock_open(
 	char *dev,		/* device name pointer */
 	int speed,		/* serial port speed (code) */
-	int flags		/* line discipline flags */
+	int lflags		/* line discipline flags */
 	)
 {
 	int fd, i;
+	int flags;
 #ifdef HAVE_TERMIOS
 	struct termios ttyb, *ttyp;
 #endif /* HAVE_TERMIOS */
@@ -775,6 +783,9 @@ refclock_open(
 	/*
 	 * Open serial port and set default options
 	 */
+	flags = lflags;
+	if (strcmp(dev, pps_device) == 0)
+		flags |= LDISC_PPS;
 #ifdef O_NONBLOCK
 	fd = open(dev, O_RDWR | O_NONBLOCK, 0777);
 #else
@@ -936,12 +947,6 @@ refclock_open(
 		    "refclock_open: fd %d ioctl failed: %m", fd);
 		return (0);
 	}
-
-	/*
-	 * If this is the PPS device, so say and initialize the thing.
-	 */
-	if (strcmp(dev, pps_device) == 0)
-		(void)refclock_ioctl(fd, LDISC_PPS);
 	return (fd);
 }
 #endif /* HAVE_TERMIOS || HAVE_SYSV_TTYS || HAVE_BSD_TTYS */

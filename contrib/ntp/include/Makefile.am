@@ -6,9 +6,11 @@ ETAGS_ARGS = $(srcdir)/Makefile.am
 noinst_HEADERS = \
 	adjtime.h \
 	ascii.h \
+	audio.h \
 	binio.h \
 	global.h \
 	gps.h \
+	icom.h \
 	ieee754io.h \
 	iosignal.h \
 	l_stdlib.h \

@@ -25,6 +25,10 @@ call, and <TT>dosynctodr</TT>, which indicates to the kernels on some machines
 whether they should internally adjust the system clock to keep it in line
 with time-of-day clock or not.
 
+<P>We have a report that says starting with Solaris 2.6 we should
+leave <I>dosynctodr</I> alone.
+<A HREF="solaris-dosynctodr.html">Here is the report</A>. 
+
 <P>By default, with no arguments, <TT>tickadj</TT> reads the variables
 of interest in the kernel and displays them. At the same time, it determines
 an "optimal" value for the value of the <TT>tickadj</TT> variable if the
