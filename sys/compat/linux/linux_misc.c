@@ -949,7 +949,7 @@ linux_setitimer(struct thread *td, struct linux_setitimer_args *uap)
 #ifdef DEBUG
 	if (ldebug(setitimer))
 		printf(ARGS(setitimer, "%p, %p"),
-		    (void *)args->itv, (void *)args->oitv);
+		    (void *)uap->itv, (void *)uap->oitv);
 #endif
 	lp = uap->itv;
 	if (lp != NULL) {
@@ -1007,7 +1007,7 @@ linux_getitimer(struct thread *td, struct linux_getitimer_args *uap)
 
 #ifdef DEBUG
 	if (ldebug(getitimer))
-		printf(ARGS(getitimer, "%p"), (void *)args->itv);
+		printf(ARGS(getitimer, "%p"), (void *)uap->itv);
 #endif
 	lp = uap->itv;
 	if (lp != NULL) {
