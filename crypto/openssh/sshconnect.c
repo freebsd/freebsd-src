@@ -666,8 +666,6 @@ try_krb5_authentication(krb5_context *context, krb5_auth_context *auth_context)
   const char *tkfile; 
   struct stat buf;
   krb5_ccache ccache = NULL;
-  krb5_creds req_creds;
-  krb5_creds *new_creds = NULL;
   const char *remotehost;
   krb5_data ap;
   int type, payload_len;
@@ -698,45 +696,10 @@ try_krb5_authentication(krb5_context *context, krb5_auth_context *auth_context)
      goto out;
   }
   
-  memset(&req_creds, 0, sizeof(req_creds));
-  
   remotehost = get_canonical_hostname();
   
-  problem = krb5_sname_to_principal(*context, remotehost, 
-      				    "host", KRB5_NT_SRV_HST,
-				    &req_creds.server);
-  if (problem) { 
-     ret = 0;
-     goto out;
-	
-  }
-  
-  problem = krb5_cc_get_principal(*context, ccache, &req_creds.client);
-  if (problem) { 
-     ret = 0;
-     goto out;
-  }
-  
-  /* creds.session.keytype=ETYPE_DES_CBC_CRC; */
-  
-  problem = krb5_get_credentials(*context, 0, ccache, &req_creds, &new_creds);
-  if (problem) { 
-     ret = 0;
-     goto out;
-  }
-  
-  problem = krb5_auth_con_init(*context, auth_context);
-  if (problem) { 
-     ret = 0;
-     goto out;
-  }
-  
-  /* krb5_auth_con_setflags(ssh_context, auth_context,
-                                  KRB5_AUTH_CONTEXT_RET_TIME); 
-	*/
-  problem = krb5_mk_req_extended(*context, auth_context, 
-    AP_OPTS_MUTUAL_REQUIRED /*| AP_OPTS_USE_SUBKEY*/ ,
-                                NULL, new_creds, &ap);  
+  problem = krb5_mk_req(*context, auth_context, AP_OPTS_MUTUAL_REQUIRED,
+			"host", remotehost, NULL, ccache, &ap);
   if (problem) { 
      ret = 0;
      goto out;
@@ -783,14 +746,8 @@ try_krb5_authentication(krb5_context *context, krb5_auth_context *auth_context)
    }
  
 out:  
-   if (req_creds.server != NULL)
-      krb5_free_principal(*context, req_creds.server);
-   if (req_creds.client != NULL)
-      krb5_free_principal(*context, req_creds.client);
-   if (new_creds != NULL)
-      krb5_free_creds(*context, new_creds);
-   if (ccache != NULL)
-      krb5_cc_close(*context, ccache);
+   if (ccache != NULL) 
+       krb5_cc_close(*context, ccache);
    if (reply != NULL)
       krb5_free_ap_rep_enc_part(*context, reply); 
    if (ap.length > 0)
