@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)umap_vnops.c	8.6 (Berkeley) 5/22/95
- * $Id: umap_vnops.c,v 1.21 1997/10/15 10:04:48 phk Exp $
+ * $Id: umap_vnops.c,v 1.22 1997/10/21 21:08:17 roberto Exp $
  */
 
 /*
@@ -149,7 +149,8 @@ umap_bypass(ap)
 		/* Save old values */
 
 		savecredp = (*credpp);
-		(*credpp) = crdup(savecredp);
+		if (savecredp != NOCRED)
+			(*credpp) = crdup(savecredp);
 		credp = *credpp;
 
 		if (umap_bug_bypass && credp->cr_uid != 0)
@@ -176,7 +177,9 @@ umap_bypass(ap)
 
 		compcredp = (*compnamepp)->cn_cred;
 		savecompcredp = compcredp;
-		compcredp = (*compnamepp)->cn_cred = crdup(savecompcredp);
+		if (savecompcredp != NOCRED)
+			(*compnamepp)->cn_cred = crdup(savecompcredp);
+		compcredp = (*compnamepp)->cn_cred;
 
 		if (umap_bug_bypass && compcredp->cr_uid != 0)
 			printf("umap_bypass: component credit user was %ld, group %ld\n",
@@ -238,11 +241,13 @@ umap_bypass(ap)
 			printf("umap_bypass: returning-user was %ld\n",
 					credp->cr_uid);
 
-		crfree(credp);
-		(*credpp) = savecredp;
-		if (umap_bug_bypass && credpp && (*credpp)->cr_uid != 0)
-		 	printf("umap_bypass: returning-user now %ld\n\n",
-			    (*credpp)->cr_uid);
+		if (savecredp != NOCRED) {
+			crfree(credp);
+			(*credpp) = savecredp;
+			if (umap_bug_bypass && credpp && (*credpp)->cr_uid != 0)
+				printf("umap_bypass: returning-user now %ld\n\n",
+					   (*credpp)->cr_uid);
+		}
 	}
 
 	if (descp->vdesc_componentname_offset != VDESC_NO_OFFSET) {
@@ -250,11 +255,13 @@ umap_bypass(ap)
 		printf("umap_bypass: returning-component-user was %ld\n",
 				compcredp->cr_uid);
 
-		crfree(compcredp);
-		(*compnamepp)->cn_cred = savecompcredp;
-		if (umap_bug_bypass && credpp && (*credpp)->cr_uid != 0)
-		 	printf("umap_bypass: returning-component-user now %ld\n",
-					compcredp->cr_uid);
+		if (savecompcredp != NOCRED) {
+			crfree(compcredp);
+			(*compnamepp)->cn_cred = savecompcredp;
+			if (umap_bug_bypass && credpp && (*credpp)->cr_uid != 0)
+				printf("umap_bypass: returning-component-user now %ld\n",
+					   compcredp->cr_uid);
+		}
 	}
 
 	return (error);
