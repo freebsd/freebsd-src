@@ -196,6 +196,8 @@ cont:
 				continue;
 			}
 		}
+		if (ferror(stdin))
+			err(1, NULL);
 	} while (argc > 0);
 	fflush(stdout);
 	exit(0);
