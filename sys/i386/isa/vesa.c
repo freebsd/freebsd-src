@@ -678,8 +678,7 @@ vesa_bios_init(void)
 		    != (V_MODESUPP | V_MODEOPTINFO))
 			continue;
 #else
-		if ((vmode.v_modeattr & (V_MODEOPTINFO | V_MODENONVGA))
-		    != (V_MODEOPTINFO)) {
+		if ((vmode.v_modeattr & V_MODEOPTINFO) == 0) {
 #if VESA_DEBUG > 1
 			printf(
 		"Rejecting VESA %s mode: %d x %d x %d bpp  attr = %x\n",
