@@ -36,57 +36,85 @@ __FBSDID("$FreeBSD$");
 #include <sys/module.h>
 #include <sys/rman.h>
 #include <sys/systm.h>
+#include <machine/bus.h>
 
 #include <machine/bus.h>
 
 #include <dev/fdc/fdcvar.h>
 #include <dev/fdc/fdcreg.h>
+#include <dev/pccard/pccardvar.h>
+#include "pccarddevs.h"
 
 static void fdctl_wr_pcmcia(fdc_p, u_int8_t);
 static int fdc_pccard_probe(device_t);
+static int fdc_pccard_attach(device_t);
 
+static const struct pccard_product fdc_pccard_products[] = {
+	PCMCIA_CARD(YEDATA, EXTERNAL_FDD, 0),
+};
+	
 static void
 fdctl_wr_pcmcia(fdc_p fdc, u_int8_t v)
 {
 	bus_space_write_1(fdc->portt, fdc->porth, FDCTL+fdc->port_off, v);
 }
 
-/* XXX this is really an attach routine */
+static int
+fdc_pccard_alloc_resources(device_t dev, struct fdc_data *fdc)
+{
+	fdc->rid_ioport = 0;
+	fdc->res_ioport = bus_alloc_resource(dev, SYS_RES_IOPORT,
+	    &fdc->rid_ioport, 0ul, ~0ul, 1, RF_ACTIVE);
+	if (fdc->res_ioport == NULL) {
+		device_printf(dev, "cannot alloc I/O port range\n");
+		return (ENXIO);
+	}
+	fdc->portt = rman_get_bustag(fdc->res_ioport);
+	fdc->porth = rman_get_bushandle(fdc->res_ioport);
+
+	fdc->rid_irq = 0;
+	fdc->res_irq = bus_alloc_resource_any(dev, SYS_RES_IRQ, &fdc->rid_irq,
+	    RF_ACTIVE | RF_SHAREABLE);
+	if (fdc->res_irq == NULL) {
+		device_printf(dev, "cannot reserve interrupt line\n");
+		return (ENXIO);
+	}
+	return (0);
+}
+
 static int
 fdc_pccard_probe(device_t dev)
 {
-	int	error;
+	const struct pccard_product *pp;
+
+	if ((pp = pccard_product_lookup(dev, fdc_pccard_products,
+	    sizeof(fdc_pccard_products[0]), NULL)) != NULL) {
+		if (pp->pp_name != NULL)
+			device_set_desc(dev, pp->pp_name);
+		return (0);
+	}
+	return (ENXIO);
+}
+
+static int
+fdc_pccard_attach(device_t dev)
+{
 	struct	fdc_data *fdc;
 
 	return ENXIO;
 
 	fdc = device_get_softc(dev);
-	fdc->fdc_dev = dev;
 	fdc->fdctl_wr = fdctl_wr_pcmcia;
-	fdc->flags = FDC_ISPCMCIA | FDC_NODMA;
-
-	/* Attempt to allocate our resources for the duration of the probe */
-	error = fdc_alloc_resources(fdc);
-	if (error)
-		goto out;
-
-	/* Check that the controller is working. */
-	error = fdc_initial_reset(fdc);
-	if (error)
-		goto out;
-
-	device_set_desc(dev, "Y-E Data PCMCIA floppy");
+	fdc->flags = FDC_NODMA;
 	fdc->fdct = FDC_NE765;
-
-out:
-	fdc_release_resources(fdc);
-	return (error);
+	fdc_pccard_alloc_resources(dev, fdc);
+	return (fdc_attach(dev));
 }
 
 static device_method_t fdc_pccard_methods[] = {
 	/* Device interface */
 	DEVMETHOD(device_probe,		fdc_pccard_probe),
-	DEVMETHOD(device_attach,	fdc_attach),
+	DEVMETHOD(device_attach,	fdc_pccard_attach),
 	DEVMETHOD(device_detach,	fdc_detach),
 	DEVMETHOD(device_shutdown,	bus_generic_shutdown),
 	DEVMETHOD(device_suspend,	bus_generic_suspend),
