@@ -10186,10 +10186,10 @@ out:
 	return retv;
 }
 
-#undef SET_BIT 0
-#undef CLR_BIT 1
-#undef SET_CLK 2
-#undef CLR_CLK 3
+#undef SET_BIT /* 0 */
+#undef CLR_BIT /* 1 */
+#undef SET_CLK /* 2 */
+#undef CLR_CLK /* 3 */
 
 /*
  *  Try reading Symbios NVRAM.
