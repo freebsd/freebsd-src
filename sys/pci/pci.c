@@ -1295,9 +1295,11 @@ pci_alloc_resource(device_t dev, device_t child, int type, int *rid,
 	 */
 	if (device_get_parent(child) == dev) {
 		if ((type == SYS_RES_IRQ) && (cfg->intline == 255)) {
+#ifdef __i386__
 			cfg->intline = PCIB_ROUTE_INTERRUPT(
 				device_get_parent(dev), pci_get_slot(child),
 				cfg->intpin);
+#endif /* __i386__ */
 			if (cfg->intline != 255) {
 				/* XXX write back to PCI space? */
 				resource_list_add(rl, SYS_RES_IRQ, 0,
