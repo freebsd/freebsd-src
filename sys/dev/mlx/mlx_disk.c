@@ -239,10 +239,10 @@ mlxd_attach(device_t dev)
      * maximum except on v2 cards where the maximum is set to 8 pages.
      */
     if (sc->mlxd_controller->mlx_iftype == MLX_IFTYPE_2)
-	sc->mlxd_disk->d_maxsize = 8 * PAGE_SIZE;
+	sc->mlxd_disk->d_maxsize = 8 * MLX_PAGE_SIZE;
     else {
 	s1 = sc->mlxd_controller->mlx_enq2->me_maxblk * MLX_BLKSIZE;
-	s2 = (sc->mlxd_controller->mlx_enq2->me_max_sg - 1) * PAGE_SIZE;
+	s2 = (sc->mlxd_controller->mlx_enq2->me_max_sg - 1) * MLX_PAGE_SIZE;
 	sc->mlxd_disk->d_maxsize = imin(s1, s2);
     }
 
