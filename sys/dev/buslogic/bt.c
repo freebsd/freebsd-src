@@ -29,7 +29,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *      $Id: bt.c,v 1.20 1999/05/06 20:16:20 ken Exp $
+ *      $Id: bt.c,v 1.21 1999/05/08 21:59:00 dfr Exp $
  */
 
  /*
@@ -1900,6 +1900,7 @@ bt_cmd(struct bt_softc *bt, bt_op_t opcode, u_int8_t *params, u_int param_len,
 		status = bt_inb(bt, STATUS_REG);
 		intstat = bt_inb(bt, INTSTAT_REG);
 		splx(s);
+	
 		if ((intstat & (INTR_PENDING|CMD_COMPLETE))
 		 == (INTR_PENDING|CMD_COMPLETE)) {
 			saved_status = status;
@@ -1913,7 +1914,6 @@ bt_cmd(struct bt_softc *bt, bt_op_t opcode, u_int8_t *params, u_int param_len,
 		}
 		if ((status & DATAIN_REG_READY) != 0)
 			break;
-
 		if ((status & CMD_REG_BUSY) == 0) {
 			bt_outb(bt, COMMAND_REG, *params++);
 			param_len--;
@@ -1936,6 +1936,16 @@ bt_cmd(struct bt_softc *bt, bt_op_t opcode, u_int8_t *params, u_int param_len,
 		s = splcam();
 		status = bt_inb(bt, STATUS_REG);
 		intstat = bt_inb(bt, INTSTAT_REG);
+		/*
+		 * It may be that this command was issued with
+		 * controller interrupts disabled.  We'll never
+		 * get to our command if an incoming mailbox
+		 * interrupt is pending, so take care of completed
+		 * mailbox commands by calling our interrupt handler.
+		 */
+		if ((intstat & (INTR_PENDING|IMB_LOADED))
+		 == (INTR_PENDING|IMB_LOADED))
+			bt_intr(bt);
 		splx(s);
 
 		if (bt->command_cmp != 0) {
@@ -1991,8 +2001,8 @@ bt_cmd(struct bt_softc *bt, bt_op_t opcode, u_int8_t *params, u_int param_len,
 	if (cmd_timeout == 0) {
 		printf("%s: bt_cmd: Timeout waiting for command (%x) "
 		       "to complete.\n%s: status = 0x%x, intstat = 0x%x, "
-		       "rlen %d\n", bt_name(bt), opcode, bt_name(bt),
-		       status, intstat, reply_len);
+		       "rlen %d\n", bt_name(bt), opcode,
+		       bt_name(bt), status, intstat, reply_len);
 		error = (ETIMEDOUT);
 	}
 
