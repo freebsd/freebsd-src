@@ -279,7 +279,5 @@ loop:
 	}
 	splx(s);
 	error = UFS_UPDATE(vp, wait);
-	if (error == 0 && vp->v_mount && (vp->v_mount->mnt_flag & MNT_SOFTDEP))
-		error = softdep_fsync(vp);
 	return (error);
 }
