@@ -32,7 +32,7 @@
 #ifndef _IA64_FPREG_DEFINED
 
 struct ia64_fpreg {
-	u_int64_t	fpr_bits[2];
+	uint64_t	fpr_bits[2];
 } __attribute__ ((aligned (16)));
 
 #define _IA64_FPREG_DEFINED
@@ -40,7 +40,21 @@ struct ia64_fpreg {
 #endif
 
 struct reg {
-	u_int64_t	r_regs[128];
+	uint64_t	r_gr[128];
+	uint64_t	r_br[8];
+	uint64_t	r_cfm;
+	uint64_t	r_ip;		/* Bits 0-3 encode the slot number */
+	uint64_t	r_pr;
+	uint64_t	r_psr;		/* User mask */
+	uint64_t	r_ar_rsc;
+	uint64_t	r_ar_bsp;
+	uint64_t	r_ar_bspstore;
+	uint64_t	r_ar_rnat;
+	uint64_t	r_ar_ccv;
+	uint64_t	r_ar_unat;
+	uint64_t	r_ar_fpsr;
+	uint64_t	r_ar_pfs;
+	uint64_t	r_ar_lc;
 };
 
 struct fpreg {
@@ -48,8 +62,8 @@ struct fpreg {
 };
 
 struct dbreg {
-	u_int64_t	dbr_data[8];
-	u_int64_t	dbr_inst[8];
+	uint64_t	dbr_data[8];
+	uint64_t	dbr_inst[8];
 };
 
 #ifdef _KERNEL
