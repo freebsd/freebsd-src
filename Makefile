@@ -1,9 +1,9 @@
 #
-#	$Id: Makefile,v 1.150 1997/10/05 15:39:47 markm Exp $
+#	$Id: Makefile,v 1.151 1997/10/05 22:28:50 fsmp Exp $
 #
 # Make command line options:
 #	-DCLOBBER will remove /usr/include
-#	-DMAKE_EBONES to build eBones (KerberosIV)
+#	-DMAKE_KERBEROS4 to build KerberosIV
 #	-DALLLANG to build documentation for all languages
 #	  (where available -- see share/doc/Makefile)
 #
@@ -17,6 +17,7 @@
 #	-DNOGAMES do not go into games subdir
 #	-DNOSHARE do not go into share subdir
 #	-DNOINFO do not make or install info files
+#	-DNOLIBC_R do not build libc_r.
 #	LOCAL_DIRS="list of dirs" to add additional dirs to the SUBDIR list
 
 #
@@ -39,7 +40,14 @@
 # Put initial settings here.
 SUBDIR=
 
-# We must do include and lib first so that the perl *.ph generation
+# We must do share/info early so that installation of info `dir'
+# entries works correctly.  Do it first since it is less likely to
+# grow dependencies on include and lib than vice versa.
+.if exists(share/info)
+SUBDIR+= share/info
+.endif
+
+# We must do include and lib early so that the perl *.ph generation
 # works correctly as it uses the header files installed by this.
 .if exists(include)
 SUBDIR+= include
@@ -57,8 +65,8 @@ SUBDIR+= games
 .if exists(gnu)
 SUBDIR+= gnu
 .endif
-.if exists(eBones) && !defined(NOCRYPT) && defined(MAKE_EBONES)
-SUBDIR+= eBones
+.if exists(kerberosIV) && !defined(NOCRYPT) && defined(MAKE_KERBEROS4)
+SUBDIR+= kerberosIV
 .endif
 .if exists(libexec)
 SUBDIR+= libexec
@@ -353,8 +361,8 @@ most:
 	cd ${.CURDIR}/gnu/libexec &&	${MAKE} ${.MAKEFLAGS} all
 	cd ${.CURDIR}/gnu/usr.bin &&	${MAKE} ${.MAKEFLAGS} all
 	cd ${.CURDIR}/gnu/usr.sbin &&	${MAKE} ${.MAKEFLAGS} all
-#.if defined(MAKE_EBONES) && !defined(NOCRYPT)
-#	cd ${.CURDIR}/eBones	&&	${MAKE} ${.MAKEFLAGS} most
+#.if defined(MAKE_KERBEROS4) && !defined(NOCRYPT)
+#	cd ${.CURDIR}/kerberosIV	&&	${MAKE} ${.MAKEFLAGS} most
 #.endif
 #.if !defined(NOSECURE) && !defined(NOCRYPT)
 #	cd ${.CURDIR}/secure	&&	${MAKE} ${.MAKEFLAGS} most
@@ -378,8 +386,8 @@ installmost:
 	cd ${.CURDIR}/gnu/libexec &&	${MAKE} ${.MAKEFLAGS} install
 	cd ${.CURDIR}/gnu/usr.bin &&	${MAKE} ${.MAKEFLAGS} install
 	cd ${.CURDIR}/gnu/usr.sbin &&	${MAKE} ${.MAKEFLAGS} install
-#.if defined(MAKE_EBONES) && !defined(NOCRYPT)
-#	cd ${.CURDIR}/eBones	&&	${MAKE} ${.MAKEFLAGS} installmost
+#.if defined(MAKE_KERBEROS4) && !defined(NOCRYPT)
+#	cd ${.CURDIR}/kerberosIV &&	${MAKE} ${.MAKEFLAGS} installmost
 #.endif
 #.if !defined(NOSECURE) && !defined(NOCRYPT)
 #	cd ${.CURDIR}/secure	&&	${MAKE} ${.MAKEFLAGS} installmost
@@ -451,20 +459,32 @@ includes:
 .endif
 	cd ${.CURDIR}/include &&		${MAKE} -B all install
 	cd ${.CURDIR}/gnu/include &&		${MAKE} install
+	cd ${.CURDIR}/gnu/lib/libmp &&		${MAKE} beforeinstall
+	cd ${.CURDIR}/gnu/lib/libobjc &&	${MAKE} beforeinstall
 	cd ${.CURDIR}/gnu/lib/libreadline &&	${MAKE} beforeinstall
 	cd ${.CURDIR}/gnu/lib/libregex &&	${MAKE} beforeinstall
 	cd ${.CURDIR}/gnu/lib/libstdc++ &&	${MAKE} beforeinstall
 	cd ${.CURDIR}/gnu/lib/libg++ &&		${MAKE} beforeinstall
 	cd ${.CURDIR}/gnu/lib/libdialog &&	${MAKE} beforeinstall
-.if exists(eBones) && !defined(NOCRYPT) && defined(MAKE_EBONES)
-	cd ${.CURDIR}/eBones/include &&		${MAKE} beforeinstall
-	cd ${.CURDIR}/eBones/lib/libkrb &&	${MAKE} beforeinstall
-	cd ${.CURDIR}/eBones/lib/libkadm &&	${MAKE} beforeinstall
+	cd ${.CURDIR}/gnu/lib/libgmp &&		${MAKE} beforeinstall
+.if exists(secure) && !defined(NOCRYPT)
+	cd ${.CURDIR}/secure/lib/libdes &&	${MAKE} beforeinstall
+.endif
+.if exists(kerberosIV) && !defined(NOCRYPT) && defined(MAKE_KERBEROS4)
+	cd ${.CURDIR}/kerberosIV/lib/libacl &&	${MAKE} beforeinstall
+	cd ${.CURDIR}/kerberosIV/lib/libkadm &&	${MAKE} beforeinstall
+	cd ${.CURDIR}/kerberosIV/lib/libkafs &&	${MAKE} beforeinstall
+	cd ${.CURDIR}/kerberosIV/lib/libkdb &&	${MAKE} beforeinstall
+	cd ${.CURDIR}/kerberosIV/lib/libkrb &&	${MAKE} beforeinstall
+	cd ${.CURDIR}/kerberosIV/lib/libtelnet && ${MAKE} beforeinstall
+.else
+	cd ${.CURDIR}/lib/libtelnet &&		${MAKE} beforeinstall
 .endif
 	cd ${.CURDIR}/lib/csu/i386 &&		${MAKE} beforeinstall
 	cd ${.CURDIR}/lib/libalias &&		${MAKE} beforeinstall
 	cd ${.CURDIR}/lib/libc &&		${MAKE} beforeinstall
 	cd ${.CURDIR}/lib/libcurses &&		${MAKE} beforeinstall
+	cd ${.CURDIR}/lib/libdisk &&		${MAKE} beforeinstall
 	cd ${.CURDIR}/lib/libedit &&		${MAKE} beforeinstall
 	cd ${.CURDIR}/lib/libftpio &&		${MAKE} beforeinstall
 	cd ${.CURDIR}/lib/libmd &&		${MAKE} beforeinstall
@@ -473,15 +493,23 @@ includes:
 .if !defined(WANT_CSRG_LIBM)
 	cd ${.CURDIR}/lib/msun &&		${MAKE} beforeinstall
 .endif
+	cd ${.CURDIR}/lib/libopie &&		${MAKE} beforeinstall
 	cd ${.CURDIR}/lib/libpcap &&		${MAKE} beforeinstall
 	cd ${.CURDIR}/lib/librpcsvc &&		${MAKE} beforeinstall
 	cd ${.CURDIR}/lib/libskey &&		${MAKE} beforeinstall
+.if !defined(NOTCL) && exists (${.CURDIR}/contrib/tcl) && \
+	exists(${.CURDIR}/usr.bin/tclsh) && exists (${.CURDIR}/lib/libtcl)
+	cd ${.CURDIR}/lib/libtcl &&		${MAKE} installhdrs
+.endif
 	cd ${.CURDIR}/lib/libtermcap &&		${MAKE} beforeinstall
 	cd ${.CURDIR}/lib/libcom_err &&		${MAKE} beforeinstall
 	cd ${.CURDIR}/lib/libss &&		${MAKE} beforeinstall
 	cd ${.CURDIR}/lib/libscsi &&		${MAKE} beforeinstall
 	cd ${.CURDIR}/lib/libutil &&		${MAKE} beforeinstall
+	cd ${.CURDIR}/lib/libvgl &&		${MAKE} beforeinstall
 	cd ${.CURDIR}/lib/libz &&		${MAKE} beforeinstall
+	cd ${.CURDIR}/usr.bin/f2c &&		${MAKE} beforeinstall
+	cd ${.CURDIR}/usr.bin/lex &&		${MAKE} beforeinstall
 
 #
 # lib-tools - build tools to compile and install the libraries.
