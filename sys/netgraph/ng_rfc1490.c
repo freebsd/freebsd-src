@@ -310,6 +310,7 @@ ng_rfc1490_shutdown(node_p node)
 
 	/* Take down netgraph node */
 	bzero(priv, sizeof(*priv));
+	FREE(priv, M_NETGRAPH);
 	NG_NODE_SET_PRIVATE(node, NULL);
 	NG_NODE_UNREF(node);		/* let the node escape */
 	return (0);
