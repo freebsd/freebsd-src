@@ -506,6 +506,24 @@ netatm/uni/unisig_sigmgr_state.c	optional atm_uni atm_core
 netatm/uni/unisig_subr.c	optional atm_uni atm_core
 netatm/uni/unisig_util.c	optional atm_uni atm_core
 netatm/uni/unisig_vc_state.c	optional atm_uni atm_core
+netgraph/ng_base.c	optional netgraph
+netgraph/ng_async.c	optional netgraph_async
+netgraph/ng_cisco.c	optional netgraph_cisco
+netgraph/ng_echo.c	optional netgraph_echo
+netgraph/ng_frame_relay.c	optional netgraph_frame_relay
+netgraph/ng_hole.c	optional netgraph_hole
+netgraph/ng_iface.c	optional netgraph_iface
+netgraph/ng_ksocket.c	optional netgraph_ksocket
+netgraph/ng_lmi.c	optional netgraph_lmi
+netgraph/ng_ppp.c	optional netgraph_ppp
+netgraph/ng_pppoe.c	optional netgraph_pppoe
+netgraph/ng_rfc1490.c	optional netgraph_rfc1490
+netgraph/ng_socket.c	optional netgraph_socket
+netgraph/ng_tee.c	optional netgraph_tee
+netgraph/ng_tty.c	optional netgraph_tty
+netgraph/ng_UI.c	optional netgraph_UI
+netgraph/ng_vjc.c	optional netgraph_vjc
+net/slcompress.c	optional netgraph_vjc
 netinet/fil.c		optional ipfilter inet
 netinet/if_atm.c	optional atm
 netinet/if_ether.c	optional ether
