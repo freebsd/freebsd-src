@@ -1,6 +1,6 @@
 #	@(#)Makefile	8.1 (Berkeley) 6/4/93
 
-SUBDIR=	atrun bugfiler comsat fingerd ftpd getNAME getty lfs_cleanerd \
+SUBDIR=	atrun comsat fingerd ftpd getNAME getty lfs_cleanerd \
 	mail.local makekey rexecd rlogind rpc.rstatd rpc.rusersd \
 	rpc.rwalld rshd talkd telnetd tftpd uucpd
 
