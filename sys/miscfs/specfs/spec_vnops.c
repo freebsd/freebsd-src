@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)spec_vnops.c	8.14 (Berkeley) 5/21/95
- * $Id: spec_vnops.c,v 1.69 1998/08/24 17:47:21 phk Exp $
+ * $Id: spec_vnops.c,v 1.70 1998/08/24 18:23:18 phk Exp $
  */
 
 #include <sys/param.h>
@@ -57,22 +57,22 @@
 
 #include <miscfs/specfs/specdev.h>
 
-static int	spec_getattr __P((struct  vop_getattr_args *));
+static int	spec_advlock __P((struct vop_advlock_args *));  
 static int	spec_badop __P((void));
-static int	spec_strategy __P((struct vop_strategy_args *));
-static int	spec_print __P((struct vop_print_args *));
+static int	spec_bmap __P((struct vop_bmap_args *));
+static int	spec_close __P((struct vop_close_args *));
+static int	spec_fsync __P((struct  vop_fsync_args *));
+static int	spec_getattr __P((struct  vop_getattr_args *));
+static int	spec_getpages __P((struct vop_getpages_args *));
+static int	spec_inactive __P((struct  vop_inactive_args *));
+static int	spec_ioctl __P((struct vop_ioctl_args *));
 static int	spec_lookup __P((struct vop_lookup_args *));
 static int	spec_open __P((struct vop_open_args *));
-static int	spec_close __P((struct vop_close_args *));
-static int	spec_read __P((struct vop_read_args *));  
-static int	spec_write __P((struct vop_write_args *));
-static int	spec_ioctl __P((struct vop_ioctl_args *));
 static int	spec_poll __P((struct vop_poll_args *));
-static int	spec_inactive __P((struct  vop_inactive_args *));
-static int	spec_fsync __P((struct  vop_fsync_args *));
-static int	spec_bmap __P((struct vop_bmap_args *));
-static int	spec_advlock __P((struct vop_advlock_args *));  
-static int	spec_getpages __P((struct vop_getpages_args *));
+static int	spec_print __P((struct vop_print_args *));
+static int	spec_read __P((struct vop_read_args *));  
+static int	spec_strategy __P((struct vop_strategy_args *));
+static int	spec_write __P((struct vop_write_args *));
 
 struct vnode *speclisth[SPECHSZ];
 vop_t **spec_vnodeop_p;
