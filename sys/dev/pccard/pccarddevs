@@ -279,6 +279,7 @@ product IBM ETHERJET		0x003f IBM EtherJet Ethernet
 /* Intel Products */
 product INTEL PRO_WLAN_2011	0x0001 Intel PRO/Wireless 2011 LAN PC Card
 product INTEL EEPRO100		0x010a Intel EtherExpress PRO/100
+product INTEL ETHEREXP		0x0301 Intel EtherExpress PCMCIA Card
 
 /* Intersil */
 /* Note: The following likely is an OEM card under a different Intersil name */
