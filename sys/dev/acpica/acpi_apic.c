@@ -80,6 +80,10 @@ acpi_apic_identify(driver_t *driver, device_t bus)
     device_t		child;
     int			len;
     void		*private;
+
+#if 1
+    return;
+#else /* broken by new ACPICA update that doesn't support the APIC table */
     
     /*
      * Perform the tedious double-get to fetch the actual table.
@@ -131,6 +135,7 @@ acpi_apic_identify(driver_t *driver, device_t bus)
     }
 
     AcpiOsFree(buf.Pointer);
+#endif
 }
 
 static int

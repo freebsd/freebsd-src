@@ -67,20 +67,20 @@ DRIVER_MODULE(acpi_timer, acpi, acpi_timer_driver, acpi_timer_devclass, 0, 0);
 static void
 acpi_timer_identify(driver_t *driver, device_t parent)
 {
-    static FIXED_ACPI_DESCRIPTION_TABLE	facp;
-    ACPI_BUFFER				buf;
-    ACPI_STATUS				status;
-    device_t				dev;
-    char				desc[40];
+    static FADT_DESCRIPTOR_REV1	fadt;
+    ACPI_BUFFER			buf;
+    ACPI_STATUS			status;
+    device_t			dev;
+    char			desc[40];
 
-    buf.Pointer = &facp;
-    buf.Length = sizeof(facp);
-    if ((status = AcpiGetTable(ACPI_TABLE_FACP, 1, &buf)) != AE_OK) {
-	device_printf(parent, "can't locate FACP - %s\n", acpi_strerror(status));
+    buf.Pointer = &fadt;
+    buf.Length = sizeof(fadt);
+    if ((status = AcpiGetTable(ACPI_TABLE_FADT, 1, &buf)) != AE_OK) {
+	device_printf(parent, "can't locate FADT - %s\n", acpi_strerror(status));
 	return;
     }
-    if (buf.Length != sizeof(facp)) {
-	device_printf(parent, "invalid FACP\n");
+    if (buf.Length != sizeof(fadt)) {
+	device_printf(parent, "invalid FADT\n");
 	return;
     }
 
@@ -93,7 +93,7 @@ acpi_timer_identify(driver_t *driver, device_t parent)
 	return;
     }
 
-    sprintf(desc, "%d-bit timer at 3.579545MHz", facp.TmrValExt ? 32 : 24);
+    sprintf(desc, "%d-bit timer at 3.579545MHz", fadt.TmrValExt ? 32 : 24);
     device_set_desc_copy(dev, desc);
 }
 

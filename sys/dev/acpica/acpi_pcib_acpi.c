@@ -151,6 +151,10 @@ acpi_pcib_attach(device_t dev)
      *     meant to use a private configuration space mechanism for this bus,
      *     so we should dig out our resources and check to see if we have
      *     anything like that.  How do we do this?
+     * XXX If we have the requisite information, and if we don't think the
+     *     default PCI configuration space handlers can deal with this bus,
+     *     we should attach our own handler.
+     * XXX invoke _REG on this for the PCI config space address space?
      */
     if ((status = acpi_EvaluateNumber(sc->ap_handle, "_BBN", &sc->ap_bus)) != AE_OK) {
 	if (status != AE_NOT_FOUND) {
@@ -162,27 +166,26 @@ acpi_pcib_attach(device_t dev)
     }
 
     /*
-     * XXX we should check here to make sure that this bus number hasn't already
-     *     been attached.  It shouldn't really be an issue.
+     * Make sure that this bus hasn't already been found.  If it has, return silently
+     * (should we complain here?).
+     */
+    if (devclass_get_device(devclass_find("pci"), sc->ap_bus) != NULL)
+	return(0);
+
+    /*
+     * Attach the PCI bus proper.
      */
     if ((child = device_add_child(dev, "pci", sc->ap_bus)) == NULL) {
 	device_printf(device_get_parent(dev), "couldn't attach pci bus");
 	return(ENXIO);
     }
-    /*
-     *  XXX If we have the requisite information, and if we don't think the
-     *      default PCI configuration space handlers can deal with this bus,
-     *      we should attach our own handler.
-     */
-    /* XXX invoke _REG on this for the PCI config space address space? */
 
     /*
-     * Now go scan the bus.
-     *
-     * XXX is it possible to defer this and count on the nexus getting to it
-     *     reliably after it's finished with ACPI?  Should we really care?
+     * Note that we defer the actual scan of the child PCI bus; ACPI will call
+     * bus_generic_attach on its children a second time after the first pass
+     * is complete.  This leads to slightly neater output.
      */
-    return(bus_generic_attach(dev));
+    return(0);
 }
 
 static int
