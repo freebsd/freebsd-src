@@ -34,7 +34,7 @@
  * void _start(struct bootinfo *bi, u_long ofw_vec)
  */
 ENTRY(_start)
-	wrpr	%g0, PSTATE_IE|PSTATE_PRIV, %pstate
+	wrpr	%g0, PSTATE_IE | PSTATE_PRIV | PSTATE_PEF, %pstate
 	mov	%o0, %g1
 	mov	%o1, %g2
 	flushw

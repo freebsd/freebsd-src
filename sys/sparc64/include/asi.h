@@ -90,4 +90,15 @@
 #define	ASI_DTLB_TAG_READ_REG			0x5e
 #define	ASI_DMMU_DEMAP				0x5f
 
+#define	ASI_BLK_AUIP				0x70
+#define	ASI_BLK_AIUS				0x71
+#define	ASI_BLK_AIUPL				0x78
+#define	ASI_BLK_AIUSL				0x79
+#define	ASI_BLK_COMMIT_S			0xe0
+#define	ASI_BLK_COMMIT_P			0xe1
+#define	ASI_BLK_P				0xf0
+#define	ASI_BLK_S				0xf1
+#define	ASI_BLK_PL				0xf8
+#define	ASI_BLK_SL				0xf9
+
 #endif /* !_MACHINE_ASI_H_ */

@@ -29,7 +29,12 @@
 #ifndef	_MACHINE_PCB_H_
 #define	_MACHINE_PCB_H_
 
+#include <machine/fp.h>
+#include <machine/pstate.h>
+
+/* NOTE: pcb_fpstate must be aligned on a 64 byte boundary. */
 struct	pcb {
+	struct	fpstate	pcb_fpstate;
 	u_long	pcb_fp;
 	u_long	pcb_pc;
 	caddr_t	pcb_onfault;

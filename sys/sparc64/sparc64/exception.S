@@ -536,6 +536,7 @@ tl1_breakpoint:
 	tl1_reserved	128		! 0x380-0x3ff reserved
 
 ENTRY(tl0_trap)
+	/* In every trap from tl0, we need to set PSTATE.PEF. */
 	illtrap
 END(tl0_trap)
 

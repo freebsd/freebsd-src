@@ -20,6 +20,7 @@ sparc64/sparc64/elf_machdep.c	standard
 # now normal.
 # sparc64/sparc64/locore.s	standard
 sparc64/sparc64/exception.s	standard
+sparc64/sparc64/fp.c		standard
 sparc64/sparc64/machdep.c	standard
 sparc64/sparc64/pmap.c		standard
 sparc64/sparc64/procfs_machdep.c	standard
