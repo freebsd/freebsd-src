@@ -651,9 +651,6 @@ user:
 	userret(td, &frame, sticks);
 	mtx_assert(&Giant, MA_NOTOWNED);
 userout:
-#ifdef DIAGNOSTIC
-	cred_free_thread(td);
-#endif
 out:
 	return;
 }
@@ -1078,10 +1075,6 @@ syscall(frame)
 	 * is not the case, this code will need to be revisited.
 	 */
 	STOPEVENT(p, S_SCX, code);
-
-#ifdef DIAGNOSTIC
-	cred_free_thread(td);
-#endif
 
 #ifdef WITNESS
 	if (witness_list(td)) {

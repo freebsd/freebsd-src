@@ -740,9 +740,6 @@ out:
 	if (user) {
 		userret(td, framep, sticks);
 		mtx_assert(&Giant, MA_NOTOWNED);
-#ifdef DIAGNOSTIC
-		cred_free_thread(td);
-#endif
 	}
 	return;
 
@@ -894,9 +891,6 @@ syscall(int code, u_int64_t *args, struct trapframe *framep)
 	 */
 	STOPEVENT(p, S_SCX, code);
 
-#ifdef DIAGNOSTIC
-	cred_free_thread(td);
-#endif
 #ifdef WITNESS
 	if (witness_list(td)) {
 		panic("system call %s returning with mutex(s) held\n",
@@ -1070,10 +1064,6 @@ ia32_syscall(struct trapframe *framep)
 	 * is not the case, this code will need to be revisited.
 	 */
 	STOPEVENT(p, S_SCX, code);
-
-#ifdef DIAGNOSTIC
-	cred_free_thread(td);
-#endif
 
 #ifdef WITNESS
 	if (witness_list(td)) {
