@@ -41,7 +41,8 @@
 
 #include <net/if.h>
 #include <net/ethernet.h>
-#include <net/if_ieee80211.h>
+#include <net80211/ieee80211.h>
+#include <net80211/ieee80211_ioctl.h>
 
 #include <dev/ray/if_rayreg.h>
 #include <dev/ray/if_raymib.h>
