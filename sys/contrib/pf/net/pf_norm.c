@@ -1,4 +1,4 @@
-/*	$OpenBSD: pf_norm.c,v 1.75.2.1 2004/04/30 23:28:36 brad Exp $ */
+/*	$OpenBSD: pf_norm.c,v 1.80 2004/03/09 21:44:41 mcbride Exp $ */
 
 /*
  * Copyright 2001 Niels Provos <provos@citi.umich.edu>
@@ -374,7 +374,7 @@ pf_reassemble(struct mbuf **m0, struct pf_fragment **frag,
 
 	if (frep != NULL &&
 	    FR_IP_OFF(frep) + ntohs(frep->fr_ip->ip_len) - frep->fr_ip->ip_hl *
-	        4 > off)
+	    4 > off)
 	{
 		u_int16_t	precut;
 
@@ -638,8 +638,10 @@ pf_fragcache(struct mbuf **m0, struct ip *h, struct pf_fragment **frag, int mff,
 				h = mtod(m, struct ip *);
 
 
-				KASSERT((int)m->m_len == ntohs(h->ip_len) - precut);
-				h->ip_off = htons(ntohs(h->ip_off) + (precut >> 3));
+				KASSERT((int)m->m_len ==
+				    ntohs(h->ip_len) - precut);
+				h->ip_off = htons(ntohs(h->ip_off) +
+				    (precut >> 3));
 				h->ip_len = htons(ntohs(h->ip_len) - precut);
 			} else {
 				hosed++;
@@ -693,7 +695,8 @@ pf_fragcache(struct mbuf **m0, struct ip *h, struct pf_fragment **frag, int mff,
 					m->m_pkthdr.len = plen;
 				}
 				h = mtod(m, struct ip *);
-				KASSERT((int)m->m_len == ntohs(h->ip_len) - aftercut);
+				KASSERT((int)m->m_len ==
+				    ntohs(h->ip_len) - aftercut);
 				h->ip_len = htons(ntohs(h->ip_len) - aftercut);
 			} else {
 				hosed++;
@@ -807,7 +810,7 @@ pf_fragcache(struct mbuf **m0, struct ip *h, struct pf_fragment **frag, int mff,
 }
 
 int
-pf_normalize_ip(struct mbuf **m0, int dir, struct ifnet *ifp, u_short *reason)
+pf_normalize_ip(struct mbuf **m0, int dir, struct pfi_kif *kif, u_short *reason)
 {
 	struct mbuf		*m = *m0;
 	struct pf_rule		*r;
@@ -824,7 +827,8 @@ pf_normalize_ip(struct mbuf **m0, int dir, struct ifnet *ifp, u_short *reason)
 	r = TAILQ_FIRST(pf_main_ruleset.rules[PF_RULESET_SCRUB].active.ptr);
 	while (r != NULL) {
 		r->evaluations++;
-		if (r->ifp != NULL && r->ifp != ifp)
+		if (r->kif != NULL &&
+		    (r->kif != kif && r->kif != kif->pfik_parent) == !r->ifnot)
 			r = r->skip[PF_SKIP_IFP].ptr;
 		else if (r->direction && r->direction != dir)
 			r = r->skip[PF_SKIP_DIR].ptr;
@@ -987,13 +991,13 @@ pf_normalize_ip(struct mbuf **m0, int dir, struct ifnet *ifp, u_short *reason)
  no_mem:
 	REASON_SET(reason, PFRES_MEMORY);
 	if (r != NULL && r->log)
-		PFLOG_PACKET(ifp, h, m, AF_INET, dir, *reason, r, NULL, NULL);
+		PFLOG_PACKET(kif, h, m, AF_INET, dir, *reason, r, NULL, NULL);
 	return (PF_DROP);
 
  drop:
 	REASON_SET(reason, PFRES_NORM);
 	if (r != NULL && r->log)
-		PFLOG_PACKET(ifp, h, m, AF_INET, dir, *reason, r, NULL, NULL);
+		PFLOG_PACKET(kif, h, m, AF_INET, dir, *reason, r, NULL, NULL);
 	return (PF_DROP);
 
  bad:
@@ -1005,14 +1009,15 @@ pf_normalize_ip(struct mbuf **m0, int dir, struct ifnet *ifp, u_short *reason)
 
 	REASON_SET(reason, PFRES_FRAG);
 	if (r != NULL && r->log)
-		PFLOG_PACKET(ifp, h, m, AF_INET, dir, *reason, r, NULL, NULL);
+		PFLOG_PACKET(kif, h, m, AF_INET, dir, *reason, r, NULL, NULL);
 
 	return (PF_DROP);
 }
 
 #ifdef INET6
 int
-pf_normalize_ip6(struct mbuf **m0, int dir, struct ifnet *ifp, u_short *reason)
+pf_normalize_ip6(struct mbuf **m0, int dir, struct pfi_kif *kif,
+    u_short *reason)
 {
 	struct mbuf		*m = *m0;
 	struct pf_rule		*r;
@@ -1032,7 +1037,8 @@ pf_normalize_ip6(struct mbuf **m0, int dir, struct ifnet *ifp, u_short *reason)
 	r = TAILQ_FIRST(pf_main_ruleset.rules[PF_RULESET_SCRUB].active.ptr);
 	while (r != NULL) {
 		r->evaluations++;
-		if (r->ifp != NULL && r->ifp != ifp)
+		if (r->kif != NULL &&
+		    (r->kif != kif && r->kif != kif->pfik_parent) == !r->ifnot)
 			r = r->skip[PF_SKIP_IFP].ptr;
 		else if (r->direction && r->direction != dir)
 			r = r->skip[PF_SKIP_DIR].ptr;
@@ -1166,25 +1172,25 @@ pf_normalize_ip6(struct mbuf **m0, int dir, struct ifnet *ifp, u_short *reason)
  shortpkt:
 	REASON_SET(reason, PFRES_SHORT);
 	if (r != NULL && r->log)
-		PFLOG_PACKET(ifp, h, m, AF_INET6, dir, *reason, r, NULL, NULL);
+		PFLOG_PACKET(kif, h, m, AF_INET6, dir, *reason, r, NULL, NULL);
 	return (PF_DROP);
 
  drop:
 	REASON_SET(reason, PFRES_NORM);
 	if (r != NULL && r->log)
-		PFLOG_PACKET(ifp, h, m, AF_INET6, dir, *reason, r, NULL, NULL);
+		PFLOG_PACKET(kif, h, m, AF_INET6, dir, *reason, r, NULL, NULL);
 	return (PF_DROP);
 
  badfrag:
 	REASON_SET(reason, PFRES_FRAG);
 	if (r != NULL && r->log)
-		PFLOG_PACKET(ifp, h, m, AF_INET6, dir, *reason, r, NULL, NULL);
+		PFLOG_PACKET(kif, h, m, AF_INET6, dir, *reason, r, NULL, NULL);
 	return (PF_DROP);
 }
 #endif
 
 int
-pf_normalize_tcp(int dir, struct ifnet *ifp, struct mbuf *m, int ipoff,
+pf_normalize_tcp(int dir, struct pfi_kif *kif, struct mbuf *m, int ipoff,
     int off, void *h, struct pf_pdesc *pd)
 {
 	struct pf_rule	*r, *rm = NULL;
@@ -1197,7 +1203,8 @@ pf_normalize_tcp(int dir, struct ifnet *ifp, struct mbuf *m, int ipoff,
 	r = TAILQ_FIRST(pf_main_ruleset.rules[PF_RULESET_SCRUB].active.ptr);
 	while (r != NULL) {
 		r->evaluations++;
-		if (r->ifp != NULL && r->ifp != ifp)
+		if (r->kif != NULL &&
+		    (r->kif != kif && r->kif != kif->pfik_parent) == !r->ifnot)
 			r = r->skip[PF_SKIP_IFP].ptr;
 		else if (r->direction && r->direction != dir)
 			r = r->skip[PF_SKIP_DIR].ptr;
@@ -1290,7 +1297,7 @@ pf_normalize_tcp(int dir, struct ifnet *ifp, struct mbuf *m, int ipoff,
  tcp_drop:
 	REASON_SET(&reason, PFRES_NORM);
 	if (rm != NULL && r->log)
-		PFLOG_PACKET(ifp, h, m, AF_INET, dir, reason, r, NULL, NULL);
+		PFLOG_PACKET(kif, h, m, AF_INET, dir, reason, r, NULL, NULL);
 	return (PF_DROP);
 }
 
@@ -1331,7 +1338,7 @@ pf_normalize_tcp_init(struct mbuf *m, int off, struct pf_pdesc *pd,
 	 * the connections.  They must all set an enabled bit in pfss_flags
 	 */
 	if ((th->th_flags & TH_SYN) == 0)
-		return 0;
+		return (0);
 
 
 	if (th->th_off > (sizeof(struct tcphdr) >> 2) && src->scrub &&
@@ -1355,8 +1362,8 @@ pf_normalize_tcp_init(struct mbuf *m, int off, struct pf_pdesc *pd,
 				}
 				/* FALLTHROUGH */
 			default:
-				hlen -= MAX(opt[1], 2);
-				opt += MAX(opt[1], 2);
+				hlen -= opt[1];
+				opt += opt[1];
 				break;
 			}
 		}
@@ -1406,7 +1413,7 @@ pf_normalize_tcp_stateful(struct mbuf *m, int off, struct pf_pdesc *pd,
 #endif /* INET */
 #ifdef INET6
 	case AF_INET6: {
-		if (dst->scrub) {
+		if (src->scrub) {
 			struct ip6_hdr *h = mtod(m, struct ip6_hdr *);
 			if (h->ip6_hlim > src->scrub->pfss_ttl)
 				src->scrub->pfss_ttl = h->ip6_hlim;
@@ -1450,11 +1457,13 @@ pf_normalize_tcp_stateful(struct mbuf *m, int off, struct pf_pdesc *pd,
 						    &th->th_sum, ts_value, 0);
 						copyback = 1;
 					}
-					if (dst->scrub &&
+
+					/* Modulate TS reply iff valid (!0) */
+					memcpy(&ts_value, &opt[6],
+					    sizeof(u_int32_t));
+					if (ts_value && dst->scrub &&
 					    (dst->scrub->pfss_flags &
 					    PFSS_TIMESTAMP)) {
-						memcpy(&ts_value, &opt[6],
-						    sizeof(u_int32_t));
 						ts_value = htonl(ntohl(ts_value)
 						    - dst->scrub->pfss_ts_mod);
 						pf_change_a(&opt[6],
@@ -1464,8 +1473,8 @@ pf_normalize_tcp_stateful(struct mbuf *m, int off, struct pf_pdesc *pd,
 				}
 				/* FALLTHROUGH */
 			default:
-				hlen -= MAX(opt[1], 2);
-				opt += MAX(opt[1], 2);
+				hlen -= opt[1];
+				opt += opt[1];
 				break;
 			}
 		}
