@@ -122,7 +122,8 @@ DRIVER_MODULE(acpi_cpu, acpi, acpi_cpu_driver, acpi_cpu_devclass, 0, 0);
 static int
 acpi_cpu_probe(device_t dev)
 {
-    if (acpi_get_type(dev) == ACPI_TYPE_PROCESSOR) {
+    if (!acpi_disabled("cpu") &&
+	(acpi_get_type(dev) == ACPI_TYPE_PROCESSOR)) {
 	device_set_desc(dev, "CPU");	/* XXX get more verbose description? */
 	return(0);
     }
