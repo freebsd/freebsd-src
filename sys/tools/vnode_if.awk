@@ -195,12 +195,12 @@ line: while (<SRC>) {
 
 	# kill trailing ;
 	if ($ln !~ s/;$//) {
-	    &bail("Missing end-of-line ; in \"$ln\".");
+	    die("Missing end-of-line ; in \"$ln\".");
 	}
 
 	# pick off variable name
 	if ($ln !~ s/([A-Za-z0-9_]+)$//) {
-	    &bail("Missing var name \"a_foo\" in \"$ln\".");
+	    die("Missing var name \"a_foo\" in \"$ln\".");
 	}
 	my $arg = $1;
 
