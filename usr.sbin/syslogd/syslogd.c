@@ -59,7 +59,7 @@ __FBSDID("$FreeBSD$");
  *
  * Defined Constants:
  *
- * MAXLINE -- the maximimum line length that can be handled.
+ * MAXLINE -- the maximum line length that can be handled.
  * DEFUPRI -- the default priority for user messages
  * DEFSPRI -- the default priority for kernel messages
  *
@@ -77,7 +77,7 @@ __FBSDID("$FreeBSD$");
 #define DEFUPRI		(LOG_USER|LOG_NOTICE)
 #define DEFSPRI		(LOG_KERN|LOG_CRIT)
 #define TIMERINTVL	30		/* interval for checking flush, mark */
-#define TTYMSGTIME	1		/* timed out passed to ttymsg */
+#define TTYMSGTIME	1		/* timeout passed to ttymsg */
 
 #include <sys/param.h>
 #include <sys/ioctl.h>
