@@ -233,7 +233,7 @@ chn_checkunderflow(pcm_channel *c)
 		b->fl = b->bufsize - b->rl;
 	  	b->underflow = 0;
 	} else {
-		chn_dmaupdate(c);
+		/* chn_dmaupdate(c); */
 	}
 }
 
@@ -540,6 +540,7 @@ chn_rddump(pcm_channel *c, int cnt)
 {
     	snd_dbuf *b = &c->buffer;
 
+	printf("overrun, dumping %d bytes\n", cnt);
 	b->rl -= cnt;
 	b->fl += cnt;
 	b->rp = (b->rp + cnt) % b->bufsize;
@@ -557,6 +558,10 @@ chn_rdfeed(pcm_channel *c)
     	snd_dbuf *bs = &c->buffer2nd;
 	int l, lacc;
 
+	/*
+	printf("b: [rl: %d, rp %d, fl %d, fp %d]; bs: [rl: %d, rp %d, fl %d, fp %d]\n",
+		b->rl, b->rp, b->fl, b->fp, bs->rl, bs->rp, bs->fl, bs->fp);
+	 */
 	/* ensure we always have a whole number of samples */
 	lacc = 0;
 	while (bs->fl >= DMA_ALIGN_THRESHOLD && b->rl >= DMA_ALIGN_THRESHOLD) {
@@ -587,12 +592,11 @@ chn_rdfeed2nd(pcm_channel *c, struct uio *buf)
     	snd_dbuf *bs = &c->buffer2nd;
 	int l, w, wacc;
 
-	/* The DMA buffer may have pcm data. */
-	while(chn_rdfeed(c) > 0);
-
 	/* ensure we always have a whole number of samples */
 	wacc = 0;
-	while (buf->uio_resid > 0 && bs->rl > 0) {
+	while ((buf->uio_resid > 0) && (bs->rl > 0)) {
+		/* The DMA buffer may have pcm data. */
+		/* while (chn_rdfeed(c) > 0); */
 		/*
 		 * The size of the data to move here does not have to be
 		 * aligned. We take care of it upon moving the data to a
@@ -601,7 +605,8 @@ chn_rdfeed2nd(pcm_channel *c, struct uio *buf)
 		l = min(bs->rl, bs->bufsize - bs->rp);
 		/* Move the samples, update the markers and pointers. */
 		w = c->feeder->feed(c->feeder, c, bs->buf + bs->rp, l, buf);
-		if (w == 0) panic("no feed");
+		if (w == 0)
+			panic("no feed");
 		bs->fl += w;
 		bs->rl -= w;
 		bs->rp = (bs->rp + w) % bs->bufsize;
@@ -610,10 +615,6 @@ chn_rdfeed2nd(pcm_channel *c, struct uio *buf)
 		/* Accumulate the total bytes of the moved samples. */
 		bs->total += w;
 		wacc += w;
-
-		/* If any pcm data gets moved, suck up the DMA buffer. */
-		if (w > 0)
-			while (chn_rdfeed(c) > 0);
 	}
 
 	return wacc;
@@ -709,13 +710,16 @@ chn_read(pcm_channel *c, struct uio *buf)
 
 	c->flags |= CHN_F_READING;
 	c->flags &= ~CHN_F_ABORTING;
-	limit = buf->uio_resid - b->blksz;
+
+	/* suck up the DMA and secondary buffers. */
+ 	while (chn_rdfeed2nd(c, buf) > 0);
+
+	if (buf->uio_resid == 0)
+		goto skip;
+
+	limit = res - b->blksz;
 	if (limit < 0)
 		limit = 0;
-
-	/* Update the pointers and suck up the DMA and secondary buffers. */
-	chn_dmaupdate(c);
- 	while (chn_rdfeed2nd(c, buf) > 0);
 
 	/* Start capturing if not yet. */
   	if ((!bs->rl || !b->rl) && !b->dl)
@@ -726,6 +730,7 @@ chn_read(pcm_channel *c, struct uio *buf)
   		while (buf->uio_resid > 0) {
 			/* Suck up the DMA and secondary buffers. */
 			chn_dmaupdate(c);
+			while (chn_rdfeed(c) > 0);
  			while (chn_rdfeed2nd(c, buf) > 0);
 
 			/* Have we finished to feed the uio? */
@@ -735,7 +740,7 @@ chn_read(pcm_channel *c, struct uio *buf)
 			/* Wait for new pcm samples. */
 			/* splx(s); */
 			timeout = (buf->uio_resid - limit >= b->dl)? hz / 20 : 1;
-  			ret = tsleep(b, PRIBIO | PCATCH, "pcmrd", timeout);
+  			ret = tsleep(b, PRIBIO | PCATCH, "pcmrd", 1);
   			/* s = spltty(); */
 			/* if (ret == EINTR) chn_abort(c); */
 			if (ret == EINTR || ret == ERESTART)
@@ -746,6 +751,8 @@ chn_read(pcm_channel *c, struct uio *buf)
 		if (buf->uio_resid == res)
 			ret = EAGAIN;
 	}
+
+skip:
 	c->flags &= ~CHN_F_READING;
   	splx(s);
 	return ret;
@@ -1186,6 +1193,10 @@ chn_setblocksize(pcm_channel *c, int blkcnt, int blksz)
 	/* default to blksz = ~0.25s */
 	if (blksz < 16)
 		blksz = (ss * c->speed) >> 2;
+	if (blksz > CHN_2NDBUFMAXSIZE / 2)
+		blksz = CHN_2NDBUFMAXSIZE / 2;
+	if (blkcnt < 2)
+		blkcnt = 2;
 
 	if (blkcnt * blksz > CHN_2NDBUFMAXSIZE)
 		blkcnt = CHN_2NDBUFMAXSIZE / blksz;
@@ -1206,7 +1217,6 @@ chn_setblocksize(pcm_channel *c, int blkcnt, int blksz)
 	buf_clear(bs, bs->fmt, bs->bufsize);
 	bs->blkcnt = blkcnt;
 	bs->blksz = blksz;
-	RANGE(blksz, 16, b->bufsize / 2);
 	b->blksz = c->setblocksize(c->devinfo, blksz);
 	splx(s);
 
