@@ -41,6 +41,15 @@
  */
 #define setreuid(r, e) seteuid(e)
 #define setregid(r, e) setegid(e)
+#define SET_REAL_PRIV(a, b) {\
+				setgid(b); \
+				setuid(a); \
+			    }
+#else
+#define SET_REAL_PRIV(a. b) {\
+				setregid((b), real_gid); \
+				setreuid((a), real_uid); \
+			    }
 #endif
 
 /* Relinquish privileges temporarily for a setuid or setgid program
@@ -114,7 +123,6 @@ gid_t real_gid, effective_gid;
 			setregid(real_gid, effective_gid); \
 			effective_uid = (a); \
 			effective_gid = (b); \
-			setregid(effective_gid, real_gid); \
-			setreuid(effective_uid, real_uid); \
+			SET_REAL_PRIV(a, b); \
 		    }
 #endif
