@@ -72,6 +72,8 @@
 
 #include <i386/isa/pcvt/pcvt_hdr.h>	/* global include */
 
+#define ISSIGVALID(sig) ((sig) > 0 && (sig) < NSIG)
+
 static int  s3testwritable( void );
 static int  et4000_col( int );
 static int  wd90c11_col( int );
@@ -2505,9 +2507,15 @@ usl_vt_ioctl(Dev_t dev, int cmd, caddr_t data, int flag, struct proc *p)
 			return EBUSY; /* already in use on this VT */
 		}
 
-		vsp->smode = newmode;
-		vsp->proc = p;
-		vsp->pid = p->p_pid;
+		if (ISSIGVALID(newmode->relsig) && ISSIGVALID(newmode->acqsig)
+		    && ISSIGVALID(newmode->frsig)) {
+			vsp->smode = newmode;
+			vsp->proc = p;
+			vsp->pid = p->p_pid;
+		} else {
+			splx(opri);
+			return EINVAL;
+		}
 
 #if PCVT_FREEBSD > 206
 		/*
