@@ -983,14 +983,14 @@ options 	SC_MOUSE_CHAR=0x3	# char code for text mode mouse cursor
 options 	SC_PIXEL_MODE		# add support for the raster text mode
 
 # The following options will let you change the default colors of syscons.
-options		SC_NORM_ATTR="(FG_GREEN|BG_BLACK)"
-options		SC_NORM_REV_ATTR="(FG_YELLOW|BG_GREEN)"
-options		SC_KERNEL_CONS_ATTR="(FG_RED|BG_BLACK)"
-options		SC_KERNEL_CONS_REV_ATTR="(FG_BLACK|BG_RED)"
+options 	SC_NORM_ATTR="(FG_GREEN|BG_BLACK)"
+options 	SC_NORM_REV_ATTR="(FG_YELLOW|BG_GREEN)"
+options 	SC_KERNEL_CONS_ATTR="(FG_RED|BG_BLACK)"
+options 	SC_KERNEL_CONS_REV_ATTR="(FG_BLACK|BG_RED)"
 
 # If you have a two button mouse, you may want to add the following option
 # to use the right button of the mouse to paste text.
-options		SC_TWOBUTTON_MOUSE
+options 	SC_TWOBUTTON_MOUSE
 
 # You can selectively disable features in syscons.
 options 	SC_NO_CUTPASTE
