@@ -35,7 +35,7 @@
 .\"     from: @(#)dca.4	5.2 (Berkeley) 3/27/91
 .\"	from: com.4,v 1.1 1993/08/06 11:19:07 cgd Exp
 .\"	from: sio.4,v 1.15 1994/12/06 20:14:30 bde Exp
-.\"	$Id: dgb.4,v 1.6 1997/02/22 13:25:17 peter Exp $
+.\"	$Id: dgb.4,v 1.7 1997/03/03 18:47:38 bde Exp $
 .\"
 .Dd Oct 13, 1995
 .Dt DGB 4 i386
@@ -45,7 +45,7 @@
 .Nd DigiBoard intelligent serial cards driver
 .Sh SYNOPSIS
 .Cd "options" \&"NDGBPORTS=8\&"
-.Cd "device dgb0 at isa? tty port 0x220 iomem 0xfc0000 iosiz ? flags 0x0
+.Cd "device dgb0 at isa? port 0x220 iomem 0xfc0000 iosiz ? flags 0x0
 All values are just examples.
 .Pp
 The \fBNDGBPORTS\fR option defines the total number of ports on all cards

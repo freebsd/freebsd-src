@@ -34,7 +34,7 @@
 .\"
 .\"     from: @(#)dca.4	5.2 (Berkeley) 3/27/91
 .\"	from: com.4,v 1.1 1993/08/06 11:19:07 cgd Exp
-.\"	$Id: sio.4,v 1.27 1998/06/08 06:11:59 jkoshy Exp $
+.\"	$Id: sio.4,v 1.28 1998/10/22 14:12:55 bde Exp $
 .\"
 .Dd October 10, 1995
 .Dt SIO 4 i386
@@ -45,23 +45,23 @@
 fast interrupt driven asynchronous serial communications interface
 .Sh SYNOPSIS
 For standard ports:
-.Cd "device sio0 at isa? port" \&"IO_COM1\&" tty irq 4
-.Cd "device sio1 at isa? port" \&"IO_COM2\&" tty irq 3
-.Cd "device sio2 at isa? port" \&"IO_COM3\&" tty irq 5
-.Cd "device sio3 at isa? port" \&"IO_COM4\&" tty irq 9
+.Cd "device sio0 at isa? port" \&"IO_COM1\&" irq 4
+.Cd "device sio1 at isa? port" \&"IO_COM2\&" irq 3
+.Cd "device sio2 at isa? port" \&"IO_COM3\&" irq 5
+.Cd "device sio3 at isa? port" \&"IO_COM4\&" irq 9
 .Pp
 For AST compatible multiport cards with 4 ports:
 .Cd "options" \&"COM_MULTIPORT\&"
-.Cd "device sio4 at isa? port 0x2a0 tty flags 0x701"
-.Cd "device sio5 at isa? port 0x2a8 tty flags 0x701"
-.Cd "device sio6 at isa? port 0x2b0 tty flags 0x701"
-.Cd "device sio7 at isa? port 0x2b8 tty flags 0x701 irq 12"
+.Cd "device sio4 at isa? port 0x2a0 flags 0x701"
+.Cd "device sio5 at isa? port 0x2a8 flags 0x701"
+.Cd "device sio6 at isa? port 0x2b0 flags 0x701"
+.Cd "device sio7 at isa? port 0x2b8 flags 0x701 irq 12"
 .Pp
 For Boca Board compatible multiport cards with 8 ports:
 .Cd "options" \&"COM_MULTIPORT\&"
-.Cd "device sio4 at isa? port 0x100 tty flags 0xb05"
+.Cd "device sio4 at isa? port 0x100 flags 0xb05"
 .Cd "..."
-.Cd "device sio11 at isa? port 0x138 tty flags 0xb05 irq 12"
+.Cd "device sio11 at isa? port 0x138 flags 0xb05 irq 12"
 .Pp
 For Hayes ESP cards:
 .Cd "options" \&"COM_ESP\&"
