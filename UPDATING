@@ -8,6 +8,16 @@ A reverse chronology since 4.0 was released is included, followed by
 the common items quick how-tos, followed by entries for versions of
 -current prior to 4.0 Release.
 
+20031022:
+	Support for HyperThread logical CPUs has now been enabled by
+	default.  As a result, the HTT kernel option no longer exists.
+	Instead, the logical CPUs are always started so that they can
+	handle interrupts.  However, the extra logical CPUs are prevented
+	from executing user processes by default.  To enable the logical
+	CPUs, change the value of the machdep.hlt_logical_cpus from 1 to
+	0.  This value can also be set from the loader as a tunable of
+	the same name.
+
 20030923:
 	Fix a bug in arplookup(), whereby a hostile party on a locally
 	attached network could exhaust kernel memory, and cause a system
