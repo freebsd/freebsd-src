@@ -310,7 +310,8 @@ vmspace_free(struct vmspace *vm)
 	if (vm->vm_refcnt == 0)
 		panic("vmspace_free: attempt to free already freed vmspace");
 
-	if (--vm->vm_refcnt == 0 && vm->vm_exitingcnt == 0)
+	--vm->vm_refcnt;
+	if (vm->vm_refcnt == 0 && vm->vm_exitingcnt == 0)
 		vmspace_dofree(vm);
 }
 
@@ -334,7 +335,8 @@ vmspace_exitfree(struct proc *p)
 	 * The last wait on the exiting child's vmspace will clean up
 	 * the remainder of the vmspace.
 	 */
-	if (--vm->vm_exitingcnt == 0 && vm->vm_refcnt == 0)
+	--vm->vm_exitingcnt;
+	if (vm->vm_refcnt == 0 && vm->vm_exitingcnt == 0)
 		vmspace_dofree(vm);
 }
 
