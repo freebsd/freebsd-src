@@ -1,3 +1,4 @@
+#define SC_SPLASH_SCREEN
 /*-
  * Copyright (c) 1992-1995 Sen Schmidt
  * All rights reserved.
@@ -25,7 +26,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *  $Id: syscons.c,v 1.13.2.4 1996/12/08 18:40:08 joerg Exp $
+ *  $Id: syscons.c,v 1.13.2.5 1997/01/04 17:03:55 kato Exp $
  */
 
 #include "sc.h"
@@ -140,9 +141,6 @@ static  u_char      	nlkcnt = 0, slkcnt = 0, alkcnt = 0;
 #else
 static  u_char      	nlkcnt = 0, clkcnt = 0, slkcnt = 0, alkcnt = 0;
 #endif
-	char        	*font_8 = NULL, *font_14 = NULL, *font_16 = NULL;
-	int     	fonts_loaded = 0;
-	char        	*palette;
 static  const u_int     n_fkey_tab = sizeof(fkey_tab) / sizeof(*fkey_tab);
 static  int     	delayed_next_scr = FALSE;
 static  long        	scrn_blank_time = 0;    /* screen saver timeout value */
@@ -151,6 +149,11 @@ static  long       	scrn_time_stamp;
 	u_char      	scr_map[256];
 	u_char      	scr_rmap[256];
 	char        	*video_mode_ptr = NULL;
+	int     	fonts_loaded = 0;
+	char        	font_8[256*8];
+	char		font_14[256*14];
+	char		font_16[256*16];
+	char        	palette[256*3];
 static	char 		*cut_buffer;
 static  u_short 	mouse_and_mask[16] = {
 				0xc000, 0xe000, 0xf000, 0xf800,
@@ -526,14 +529,6 @@ scattach(struct isa_device *dev)
 #ifndef PC98
     if (crtc_vga) {
     	cut_buffer = (char *)malloc(scp->xsize*scp->ysize, M_DEVBUF, M_NOWAIT);
-	font_8 = (char *)malloc(8*256, M_DEVBUF, M_NOWAIT);
-	font_14 = (char *)malloc(14*256, M_DEVBUF, M_NOWAIT);
-	font_16 = (char *)malloc(16*256, M_DEVBUF, M_NOWAIT);
-	copy_font(SAVE, FONT_16, font_16);
-	fonts_loaded = FONT_16;
-	scp->font_size = FONT_16;
-	palette = (char *)malloc(3*256, M_DEVBUF, M_NOWAIT);
-	save_palette();
     }
 #endif
 
@@ -1307,7 +1302,7 @@ scioctl(dev_t dev, int cmd, caddr_t data, int flag, struct proc *p)
 		    copy_font(LOAD, FONT_16, font_16);
 		if (flags & CHAR_CURSOR)
 		    set_destructive_cursor(scp);
-		load_palette();
+		load_palette(palette);
 	    }
 	    /* FALL THROUGH */
 #endif
@@ -1912,7 +1907,7 @@ exchange_scr(void)
     if ((old_scp->status & UNKNOWN_MODE) && crtc_vga) {
 	if (flags & CHAR_CURSOR)
 	    set_destructive_cursor(new_scp);
-	load_palette();
+	load_palette(palette);
     }
 #endif
     if (old_scp->status & KBD_RAW_MODE || new_scp->status & KBD_RAW_MODE)
@@ -3130,9 +3125,8 @@ scinit(void)
 	u_long  segoff;
 
 	crtc_vga = TRUE;
-	/*
-	 * Get the BIOS video mode pointer.
-	 */
+
+	/* Get the BIOS video mode pointer */
 	segoff = *(u_long *)pa_to_va(0x4a8);
 	pa = (((segoff & 0xffff0000) >> 12) + (segoff & 0xffff));
 	if (ISMAPPED(pa, sizeof(u_long))) {
@@ -3169,12 +3163,28 @@ scinit(void)
 	kernel_console.cur_color = kernel_console.std_color =
 	kernel_default.std_color;
     kernel_console.rev_color = kernel_default.rev_color;
+
     /* initialize mapscrn arrays to a one to one map */
     for (i=0; i<sizeof(scr_map); i++) {
 	scr_map[i] = scr_rmap[i] = i;
     }
 #ifdef PC98
 	scr_map[0x5c] = (u_char)0xfc;	/* for backslash */
+#else
+    /* Save font and palette if VGA */
+    if (crtc_vga) {
+	copy_font(SAVE, FONT_16, font_16);
+	fonts_loaded = FONT_16;
+	save_palette();
+    }
+
+#ifdef SC_SPLASH_SCREEN
+    /* 
+     * Now put up a graphics image, and maybe cycle a
+     * couble of palette entries for simple animation.
+     */
+    toggle_splash_screen(cur_console);
+#endif
 #endif
 }
 
@@ -3878,6 +3888,7 @@ toggle_splash_screen(scr_stat *scp)
 	scp->mode = save_mode;
 	scp->status &= ~UNKNOWN_MODE;
 	set_mode(scp);
+	load_palette(palette);
 	toggle = 0;
     }
     else {
@@ -4582,7 +4593,7 @@ save_palette(void)
 }
 
 void
-load_palette(void)
+load_palette(char *palette)
 {
 #ifndef PC98
     int i;
