@@ -1886,7 +1886,7 @@ int
 vcount(vp)
 	struct vnode *vp;
 {
-	struct vnode *vq, *vnext;
+	struct vnode *vq;
 	int count;
 
 	count = 0;
