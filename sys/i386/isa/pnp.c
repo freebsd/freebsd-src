@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *      $Id: pnp.c,v 1.8 1998/11/21 01:54:50 archie Exp $
+ *      $Id: pnp.c,v 1.9 1999/01/14 06:22:07 jdp Exp $
  */
 
 #include <sys/param.h>
@@ -46,7 +46,7 @@ typedef struct _pnp_id {
 } pnp_id;
 
 static int num_pnp_cards = 0;
-pnp_id pnp_devices[MAX_PNP_CARDS];
+static pnp_id pnp_devices[MAX_PNP_CARDS];
 struct pnp_dlist_node *pnp_device_list;
 static struct pnp_dlist_node **pnp_device_list_last_ptr;
 

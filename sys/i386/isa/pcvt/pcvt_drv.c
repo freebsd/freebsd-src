@@ -1392,7 +1392,7 @@ pcparam(struct tty *tp, struct termios *t)
 #define del	0177
 #define cntld	4
 
-int
+static int
 getchar(void)
 {
 	u_char	thechar;

@@ -30,7 +30,7 @@
 
 /* SI2_Z280.C Version, Bootstrap and Download Code Arrays... */
 
-char *si2_z280_ident = "%W%";
+static char *si2_z280_ident = "%W%";
 
 /* SI2_Z280 embedded version... 
 

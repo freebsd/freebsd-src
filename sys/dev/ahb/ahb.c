@@ -25,7 +25,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: ahb.c,v 1.6 1999/01/28 03:30:02 gibbs Exp $
+ *	$Id: ahb.c,v 1.7 1999/03/05 23:37:07 gibbs Exp $
  */
 
 #include "eisa.h"
@@ -1253,7 +1253,7 @@ ahbpoll(struct cam_sim *sim)
 	ahbintr(cam_sim_softc(sim));
 }
 
-void
+static void
 ahbtimeout(void *arg)
 {
 	struct ecb	 *ecb;

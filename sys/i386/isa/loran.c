@@ -6,7 +6,7 @@
  * this stuff is worth it, you can buy me a beer in return.   Poul-Henning Kamp
  * ----------------------------------------------------------------------------
  *
- * $Id: loran.c,v 1.13 1998/12/07 21:58:22 archie Exp $
+ * $Id: loran.c,v 1.14 1998/12/16 11:46:41 phk Exp $
  *
  * This device-driver helps the userland controlprogram for a LORAN-C
  * receiver avoid monopolizing the CPU.
@@ -198,7 +198,7 @@ struct datapoint {
 
 /**********************************************************************/
 
-dphead_t minors[NLORAN], working, holding;
+static dphead_t minors[NLORAN], working, holding;
 
 static struct datapoint dummy[NDUMMY];
 
@@ -242,7 +242,7 @@ loranprobe(struct isa_device *dvp)
 	return (8);
 }
 
-u_short tg_init[] = {			/* stc initialization vector	*/
+static u_short tg_init[] = {		/* stc initialization vector	*/
 	0x0562,      12,         13,	/* counter 1 (p0)  Mode J	*/
 	0x0262,  PGUARD,        GRI,	/* counter 2 (gri) Mode J	*/
 	0x8562,     PCX, 5000 - PCX,	/* counter 3 (pcx)		*/
@@ -250,7 +250,7 @@ u_short tg_init[] = {			/* stc initialization vector	*/
 	0x052a,	      0,          0	/* counter 5 (out)		*/
 };
 
-void
+static void
 init_tgc(void)
 {
 	int i;
