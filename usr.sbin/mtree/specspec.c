@@ -81,6 +81,8 @@ mismatch(NODE *n1, NODE *n2, int differ, char const *path)
 		shownode(n2, differ, path);
 		return (1);
 	}
+	if (!(differ & keys))
+		return(0);
 	printf("\t\t");
 	shownode(n1, differ, path);
 	printf("\t\t");
@@ -93,6 +95,10 @@ compare_nodes(NODE *n1, NODE *n2, char const *path)
 {
 	int differs;
 	
+	if (n1 != NULL && n1->type == F_LINK)
+		n1->flags &= ~F_MODE;
+	if (n2 != NULL && n2->type == F_LINK)
+		n2->flags &= ~F_MODE;
 	differs = 0;
 	if (n1 == NULL && n2 != NULL) {
 		differs = n2->flags;
@@ -184,12 +190,23 @@ walk_in_the_forest(NODE *t1, NODE *t2, char const *path)
 				}
 			}
 		}
-		if (c1 == NULL || c2 == NULL) {
+		if (c1 == NULL && c2->type == F_DIR) {
+			asprintf(&np, "%s%s/", path, c2->name);
+			i = walk_in_the_forest(c1, c2, np);
+			free(np);
 			i = compare_nodes(c1, c2, path);
-		} else if (c1->child != NULL || c2->child != NULL) {
+		} else if (c2 == NULL && c1->type == F_DIR) {
 			asprintf(&np, "%s%s/", path, c1->name);
 			i = walk_in_the_forest(c1, c2, np);
 			free(np);
+			i = compare_nodes(c1, c2, path);
+		} else if (c1 == NULL || c2 == NULL) {
+			i = compare_nodes(c1, c2, path);
+		} else if (c1->type == F_DIR && c2->type == F_DIR) {
+			asprintf(&np, "%s%s/", path, c1->name);
+			i = walk_in_the_forest(c1, c2, np);
+			free(np);
+			i = compare_nodes(c1, c2, path);
 		} else {
 			i = compare_nodes(c1, c2, path);
 		}
@@ -197,7 +214,6 @@ walk_in_the_forest(NODE *t1, NODE *t2, char const *path)
 		c1 = n1;
 		c2 = n2;
 	}
-	i = compare_nodes(t1, t2, path);
 	return (r);	
 }
 
@@ -210,6 +226,7 @@ mtree_specspec(FILE *fi, FILE *fj)
 	root1 = mtree_readspec(fi);
 	root2 = mtree_readspec(fj);
 	rval = walk_in_the_forest(root1, root2, "");
+	rval += compare_nodes(root1, root2, "");
 	if (rval > 0)
 		return (MISMATCHEXIT);
 	return (0);
