@@ -24,7 +24,7 @@
  * the rights to redistribute these changes.
  *
  *	from: Mach, [92/04/03  16:51:14  rvb]
- *	$Id: boot.c,v 1.50 1996/05/11 04:27:24 bde Exp $
+ *	$Id: boot.c,v 1.51 1996/07/05 19:55:03 julian Exp $
  */
 
 
@@ -127,19 +127,19 @@ boot(int drive)
 		}
 #endif
 	}
+#ifdef	NAMEBLOCK
 	/*
 	 * XXX
 	 * DAMN! I don't understand why this is not being set 
 	 * by the code in boot2.S
 	 */
 	dflt_name= (char *)0x0000ffb0;
+	if( (*dflt_name++ == 'D') && (*dflt_name++ == 'N')) {
+		name = dflt_name;
+	} else
+#endif	/*NAMEBLOCK*/
 loadstart:
-	if( (dflt_name[0] == 'D') && (dflt_name[1] == 'N') && dflt_name[2] ) {
-		name = dflt_name+2;
-		dflt_name[0] = 0;
-	} else {
-		name = dflname;		/* re-initialize in case of loop */
-	}
+	name = dflname;		/* re-initialize in case of loop */
 	/* print this all each time.. (saves space to do so) */
 	/* If we have looped, use the previous entries as defaults */
 	printf("\n>> FreeBSD BOOT @ 0x%x: %d/%d k of memory\n"

@@ -41,7 +41,7 @@ boot1 is at block 0.
 4A/ IF the NAMEBLOCK option is compiled into the bootcode, then the 
 boot1 code will load and examine block1 (Usually unused) and
 look for a default boot string to use later.. (if the corrct magic number
-is present). If the option NAMEBLOCKWRITEBACK is also defined, then
+is present). If the option NAMEBLOCK_WRITEBACK is also defined, then
 it will zero out that name after finding it, and write the block back,
 having "used up" that name. The block may contain multiple different
 boot strings which will be "used up" one after the other..  (one per boot)
@@ -169,4 +169,4 @@ Before you do this ensure you have a booting floppy with correct
 disktab and bootblock files on it so that if it doesn't work, you can
 re-disklabel from the floppy.
 
-$Id: README.386BSD,v 1.4 1996/04/07 14:27:57 bde Exp $
+$Id: README.386BSD,v 1.5 1996/07/05 19:55:02 julian Exp $
