@@ -6,15 +6,17 @@ BINOWN=	root
 BINMODE=4555
 .PATH:	${.CURDIR}/../../usr.sbin/pwd_mkdb ${.CURDIR}/../../usr.sbin/vipw
 CFLAGS+=-I${.CURDIR}/../../usr.sbin/pwd_mkdb -I${.CURDIR}/../../usr.sbin/vipw
-LINKS=	${DESTDIR}${BINDIR}/chpass ${DESTDIR}${BINDIR}/chfn
-LINKS+=	${DESTDIR}${BINDIR}/chpass ${DESTDIR}${BINDIR}/chsh
-LINKS+= ${DESTDIR}${BINDIR}/chpass ${DESTDIR}${BINDIR}/ypchpass
-LINKS+=	${DESTDIR}${BINDIR}/chpass ${DESTDIR}${BINDIR}/ypchfn
-LINKS+=	${DESTDIR}${BINDIR}/chpass ${DESTDIR}${BINDIR}/ypchsh
+LINKS=	${BINDIR}/chpass ${BINDIR}/chfn
+LINKS+=	${BINDIR}/chpass ${BINDIR}/chsh
+LINKS+=	${BINDIR}/chpass ${BINDIR}/ypchpass
+LINKS+=	${BINDIR}/chpass ${BINDIR}/ypchfn
+LINKS+=	${BINDIR}/chpass ${BINDIR}/ypchsh
 MLINKS=	chpass.1 chfn.1 chpass.1 chsh.1
-COPTS+=-DYP
-SRCS+= pw_yp.c
-LDADD+=-lrpcsvc -lcrypt
+COPTS+=	-DYP
+SRCS+=	pw_yp.c
+DPADD=	${LIBRPCSVC} ${LIBCRYPT}
+LDADD+=	-lrpcsvc -lcrypt
+
 beforeinstall:
 	[ ! -e ${DESTDIR}${BINDIR}/chpass ] || \
 		chflags noschg ${DESTDIR}${BINDIR}/chpass
