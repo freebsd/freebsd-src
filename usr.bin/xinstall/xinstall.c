@@ -44,7 +44,9 @@ static char sccsid[] = "@(#)xinstall.c	8.1 (Berkeley) 7/21/93";
 #endif
 
 #include <sys/cdefs.h>
+#ifdef __FBSDID
 __FBSDID("$FreeBSD$");
+#endif
 
 #include <sys/param.h>
 #include <sys/mman.h>
