@@ -27,13 +27,14 @@ static const char rcsid[] =
   "$FreeBSD$";
 #endif /* not lint */
 
+#include <sys/types.h>
+#include <sys/ioctl.h>
+#include <sys/socket.h>
+#include <net/if.h>
+#include <machine/cronyx.h>
+
 #include <err.h>
 #include <fcntl.h>
-#include <sys/types.h>
-#include <sys/socket.h>
-#include <sys/ioctl.h>
-#include <machine/cronyx.h>
-#include <net/if.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -48,7 +49,8 @@ cx_stat_t st;
 int aflag;
 int sflag;
 
-char *symbol (unsigned char sym)
+static char *
+symbol(unsigned char sym)
 {
 	static char buf[40];
 
@@ -63,7 +65,8 @@ char *symbol (unsigned char sym)
 	return (buf);
 }
 
-unsigned char atosym (char *s)
+static unsigned char
+atosym(char *s)
 {
 	if (*s == '^')
 		return (*++s & 037);
@@ -72,7 +75,8 @@ unsigned char atosym (char *s)
 	return (*s);
 }
 
-void usage ()
+static void
+usage(void)
 {
 	fprintf (stderr,
 		"Cronyx-Sigma Adapter Configuration Utility, Version 1.0\n");
@@ -81,9 +85,11 @@ void usage ()
 	exit (1);
 }
 
-char *chantype (int type)
+static const char *
+chantype(int type)
 {
 	switch (type) {
+	default:
 	case T_NONE:       return ("none");
 	case T_ASYNC:      return ("RS-232");
 	case T_UNIV_RS232: return ("RS-232");
@@ -95,7 +101,8 @@ char *chantype (int type)
 	}
 }
 
-char *chanmode (int mode)
+static const char *
+chanmode(int mode)
 {
 	switch (mode) {
 	case M_ASYNC:   return ("Async");
@@ -106,7 +113,8 @@ char *chanmode (int mode)
 	}
 }
 
-void getchan (int channel)
+static void
+getchan(int channel)
 {
 	int s = open (CXDEV, 0);
 	if (s < 0)
@@ -121,7 +129,8 @@ void getchan (int channel)
 			o.channel);
 }
 
-int printstats (int channel, int hflag)
+static int
+printstats(int channel, int hflag)
 {
 	int s, res;
 
@@ -143,7 +152,8 @@ int printstats (int channel, int hflag)
 	return (0);
 }
 
-void printallstats ()
+static void
+printallstats(void)
 {
 	int b, c;
 
@@ -153,7 +163,8 @@ void printallstats ()
 			printstats (b*NCHAN + c, 0);
 }
 
-void setchan (int channel)
+static void
+setchan(int channel)
 {
 	int s = open (CXDEV, 0);
 	if (s < 0)
@@ -165,7 +176,8 @@ void setchan (int channel)
 	close (s);
 }
 
-void printopt ()
+static void
+printopt(void)
 {
 	/* Common channel options */
 	/* channel option register 4 */
@@ -376,13 +388,14 @@ void printopt ()
 	}
 }
 
-void printchan (int channel)
+static void
+printchan(int channel)
 {
 	printf ("cx%d (%s) %s", channel, chantype (o.type), chanmode (o.mode));
 	if (o.txbaud == o.rxbaud)
-		printf (" %d", o.rxbaud);
+		printf (" %lu", o.rxbaud);
 	else
-		printf (" ospeed=%d ispeed=%d", o.txbaud, o.rxbaud);
+		printf (" ospeed=%lu ispeed=%lu", o.txbaud, o.rxbaud);
 	if ((o.channel == 0 || o.channel == 8) &&
 	    (o.type == T_UNIV_V35 || o.type == T_UNIV_RS449))
 		printf (" port=%s", o.iftype ? (o.type == T_UNIV_V35 ?
@@ -397,7 +410,8 @@ void printchan (int channel)
 		printopt ();
 }
 
-void printall ()
+static void
+printall(void)
 {
 	struct ifconf ifc;
 	struct ifreq *ifr;
@@ -435,7 +449,8 @@ void printall ()
 	close (s);
 }
 
-void set_interface_type (char *type)
+static void
+set_interface_type(char *type)
 {
 	if (o.channel != 0 && o.channel != 8) {
 		printf ("interface option is applicable only for channels 0 and 8\n");
@@ -451,7 +466,8 @@ void set_interface_type (char *type)
 		o.iftype = 1;
 }
 
-void set_master (char *ifname)
+static void
+set_master(char *ifname)
 {
 	if (o.type == T_ASYNC) {
 		printf ("master option is not applicable for async channels\n");
@@ -460,7 +476,8 @@ void set_master (char *ifname)
 	strcpy (o.master, ifname);
 }
 
-void set_async_opt (char *opt)
+static void
+set_async_opt(char *opt)
 {
 	/* channel option register 1 */
 	if (! strncasecmp (opt, "cs", 2))        o.aopt.cor1.charlen = atoi (opt + 2) - 1;
@@ -539,7 +556,8 @@ void set_async_opt (char *opt)
 		usage ();
 }
 
-void set_hdlc_opt (char *opt)
+static void
+set_hdlc_opt(char *opt)
 {
 	/* hdlc channel option register 1 */
 	if (! strncasecmp (opt, "if", 2))        o.hopt.cor1.ifflags = atoi (opt + 2);
@@ -585,17 +603,20 @@ void set_hdlc_opt (char *opt)
 	else usage ();
 }
 
-void set_bisync_opt (char *opt)
+static void
+set_bisync_opt(char *opt __unused)
 {
 	usage ();
 }
 
-void set_x21_opt (char *opt)
+static void
+set_x21_opt(char *opt __unused)
 {
 	usage ();
 }
 
-int main (int argc, char **argv)
+int
+main(int argc, char **argv)
 {
 	int channel;
 
