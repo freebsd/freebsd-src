@@ -32,18 +32,19 @@
  */
 
 #ifndef lint
-static char const copyright[] =
+static const char copyright[] =
 "@(#) Copyright (c) 1990, 1993, 1994\n\
 	The Regents of the University of California.  All rights reserved.\n";
 #endif /* not lint */
 
-#ifndef lint
 #if 0
+#ifndef lint
 static char sccsid[] = "@(#)ps.c	8.4 (Berkeley) 4/2/94";
-#endif
-static const char rcsid[] =
-  "$FreeBSD$";
 #endif /* not lint */
+#endif
+
+#include <sys/cdefs.h>
+__FBSDID("$FreeBSD$");
 
 #include <sys/param.h>
 #include <sys/user.h>
@@ -55,25 +56,23 @@ static const char rcsid[] =
 
 #include <ctype.h>
 #include <err.h>
-#include <errno.h>
 #include <fcntl.h>
 #include <kvm.h>
 #include <limits.h>
 #include <locale.h>
 #include <nlist.h>
 #include <paths.h>
+#include <pwd.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 #include <unistd.h>
-#include <pwd.h>
-#include <utmp.h>
 
 #include "ps.h"
 
 #define SEP ", \t"		/* username separators */
 
-KINFO *kinfo;
+static KINFO *kinfo;
 struct varent *vhead, *vtail;
 
 int	eval;			/* exit value */
@@ -83,42 +82,46 @@ int	sumrusage;		/* -S */
 int	termwidth;		/* width of screen (0 == infinity) */
 int	totwidth;		/* calculated width of requested variables */
 
+time_t	now;			/* current time(3) value */
+
 static int needuser, needcomm, needenv;
 #if defined(LAZY_PS)
 static int forceuread=0;
-#define PS_ARGS	"aCcefghjLlM:mN:O:o:p:rSTt:U:uvwx"
 #else
 static int forceuread=1;
+#endif
+
+static enum sort { DEFAULT, SORTMEM, SORTCPU } sortby = DEFAULT;
+
+static const	 char *fmt(char **(*)(kvm_t *, const struct kinfo_proc *, int),
+		    KINFO *, char *, int);
+static char	*kludge_oldps_options(char *);
+static int	 pscomp(const void *, const void *);
+static void	 saveuser(KINFO *);
+static void	 scanvars(void);
+static void	 dynsizevars(KINFO *);
+static void	 sizevars(void);
+static void	 usage(void);
+static uid_t	*getuids(const char *, int *);
+
+static char dfmt[] = "pid,tt,state,time,command";
+static char jfmt[] = "user,pid,ppid,pgid,sess,jobc,state,tt,time,command";
+static char lfmt[] = "uid,pid,ppid,cpu,pri,nice,vsz,rss,wchan,state,tt,time,command";
+static char   o1[] = "pid";
+static char   o2[] = "tt,state,time,command";
+static char ufmt[] = "user,pid,%cpu,%mem,vsz,rss,tt,state,start,time,command";
+static char vfmt[] = "pid,state,time,sl,re,pagein,vsz,rss,lim,tsiz,%cpu,%mem,command";
+
+static kvm_t *kd;
+
+#if defined(LAZY_PS)
+#define PS_ARGS	"aCcefghjLlM:mN:O:o:p:rSTt:U:uvwx"
+#else
 #define PS_ARGS	"aCceghjLlM:mN:O:o:p:rSTt:U:uvwx"
 #endif
 
-enum sort { DEFAULT, SORTMEM, SORTCPU } sortby = DEFAULT;
-
-static char	*fmt __P((char **(*)(kvm_t *, const struct kinfo_proc *, int),
-		    KINFO *, char *, int));
-static char	*kludge_oldps_options __P((char *));
-static int	 pscomp __P((const void *, const void *));
-static void	 saveuser __P((KINFO *));
-static void	 scanvars __P((void));
-static void	 dynsizevars __P((KINFO *));
-static void	 sizevars __P((void));
-static void	 usage __P((void));
-static uid_t	*getuids(const char *, int *);
-
-char dfmt[] = "pid tt state time command";
-char jfmt[] = "user pid ppid pgid sess jobc state tt time command";
-char lfmt[] = "uid pid ppid cpu pri nice vsz rss wchan state tt time command";
-char   o1[] = "pid";
-char   o2[] = "tt state time command";
-char ufmt[] = "user pid %cpu %mem vsz rss tt state start time command";
-char vfmt[] = "pid state time sl re pagein vsz rss lim tsiz %cpu %mem command";
-
-kvm_t *kd;
-
 int
-main(argc, argv)
-	int argc;
-	char *argv[];
+main(int argc, char *argv[])
 {
 	struct kinfo_proc *kp;
 	struct varent *vent;
@@ -126,11 +129,14 @@ main(argc, argv)
 	dev_t ttydev;
 	pid_t pid;
 	uid_t *uids;
-	int all, ch, flag, i, fmt, lineno, nentries, nocludge, dropgid;
+	int all, ch, flag, i, _fmt, lineno, nentries, nocludge, dropgid;
 	int prtheader, wflag, what, xflg, uid, nuids;
-	char *cp, *nlistf, *memf, errbuf[_POSIX2_LINE_MAX];
+	char errbuf[_POSIX2_LINE_MAX];
+	const char *cp, *nlistf, *memf;
 
 	(void) setlocale(LC_ALL, "");
+	/* Set the time to what it is right now. */
+	time(&now);
 
 	if ((ioctl(STDOUT_FILENO, TIOCGWINSZ, (char *)&ws) == -1 &&
 	     ioctl(STDERR_FILENO, TIOCGWINSZ, (char *)&ws) == -1 &&
@@ -160,7 +166,7 @@ main(argc, argv)
 			argv[1] = kludge_oldps_options(argv[1]);
 	}
 
-	all = fmt = prtheader = wflag = xflg = 0;
+	all = _fmt = prtheader = wflag = xflg = 0;
 	pid = -1;
 	nuids = 0;
 	uids = NULL;
@@ -188,7 +194,7 @@ main(argc, argv)
 			break;
 		case 'j':
 			parsefmt(jfmt);
-			fmt = 1;
+			_fmt = 1;
 			jfmt[0] = '\0';
 			break;
 		case 'L':
@@ -196,7 +202,7 @@ main(argc, argv)
 			exit(0);
 		case 'l':
 			parsefmt(lfmt);
-			fmt = 1;
+			_fmt = 1;
 			lfmt[0] = '\0';
 			break;
 		case 'M':
@@ -215,11 +221,11 @@ main(argc, argv)
 			parsefmt(optarg);
 			parsefmt(o2);
 			o1[0] = o2[0] = '\0';
-			fmt = 1;
+			_fmt = 1;
 			break;
 		case 'o':
 			parsefmt(optarg);
-			fmt = 1;
+			_fmt = 1;
 			break;
 #if defined(LAZY_PS)
 		case 'f':
@@ -246,7 +252,7 @@ main(argc, argv)
 			char *ttypath, pathbuf[PATH_MAX];
 
 			if (strcmp(optarg, "co") == 0)
-				ttypath = _PATH_CONSOLE;
+				ttypath = strdup(_PATH_CONSOLE);
 			else if (*optarg != '/')
 				(void)snprintf(ttypath = pathbuf,
 				    sizeof(pathbuf), "%s%s", _PATH_TTY, optarg);
@@ -266,13 +272,13 @@ main(argc, argv)
 		case 'u':
 			parsefmt(ufmt);
 			sortby = SORTCPU;
-			fmt = 1;
+			_fmt = 1;
 			ufmt[0] = '\0';
 			break;
 		case 'v':
 			parsefmt(vfmt);
 			sortby = SORTMEM;
-			fmt = 1;
+			_fmt = 1;
 			vfmt[0] = '\0';
 			break;
 		case 'w':
@@ -314,13 +320,13 @@ main(argc, argv)
 	if (kd == 0)
 		errx(1, "%s", errbuf);
 
-	if (!fmt)
+	if (!_fmt)
 		parsefmt(dfmt);
 
 	/* XXX - should be cleaner */
 	if (!all && ttydev == NODEV && pid == -1 && !nuids) {
 		if ((uids = malloc(sizeof (*uids))) == NULL)
-			errx(1, "malloc: %s", strerror(errno));
+			errx(1, "malloc failed");
 		nuids = 1;
 		*uids = getuid();
 	}
@@ -349,10 +355,10 @@ main(argc, argv)
 	/*
 	 * select procs
 	 */
-	if ((kp = kvm_getprocs(kd, what, flag, &nentries)) == 0)
+	if ((kp = kvm_getprocs(kd, what, flag, &nentries)) == 0 || nentries < 0)
 		errx(1, "%s", kvm_geterr(kd));
 	if ((kinfo = malloc(nentries * sizeof(*kinfo))) == NULL)
-		err(1, NULL);
+		errx(1, "malloc failed");
 	for (i = nentries; --i >= 0; ++kp) {
 		kinfo[i].ki_p = kp;
 		if (needuser)
@@ -407,10 +413,11 @@ main(argc, argv)
 uid_t *
 getuids(const char *arg, int *nuids)
 {
-	char name[UT_NAMESIZE + 1];
+	char name[MAXLOGNAME];
 	struct passwd *pwd;
 	uid_t *uids, *moreuids;
-	int l, alloc;
+	int alloc;
+	size_t l;
 
 
 	alloc = 0;
@@ -418,7 +425,7 @@ getuids(const char *arg, int *nuids)
 	uids = NULL;
 	for (; (l = strcspn(arg, SEP)) > 0; arg += l + strspn(arg + l, SEP)) {
 		if (l >= sizeof name) {
-			warnx("%.*s: name too long", l, arg);
+			warnx("%.*s: name too long", (int)l, arg);
 			continue;
 		}
 		strncpy(name, arg, l);
@@ -432,7 +439,7 @@ getuids(const char *arg, int *nuids)
 			moreuids = realloc(uids, alloc * sizeof (*uids));
 			if (moreuids == NULL) {
 				free(uids);
-				errx(1, "realloc: %s", strerror(errno));
+				errx(1, "realloc failed");
 			}
 			uids = moreuids;
 		}
@@ -447,7 +454,7 @@ getuids(const char *arg, int *nuids)
 }
 
 static void
-scanvars()
+scanvars(void)
 {
 	struct varent *vent;
 	VAR *v;
@@ -466,8 +473,7 @@ scanvars()
 }
 
 static void
-dynsizevars(ki)
-	KINFO *ki;
+dynsizevars(KINFO *ki)
 {
 	struct varent *vent;
 	VAR *v;
@@ -486,7 +492,7 @@ dynsizevars(ki)
 }
 
 static void
-sizevars()
+sizevars(void)
 {
 	struct varent *vent;
 	VAR *v;
@@ -502,14 +508,11 @@ sizevars()
 	totwidth--;
 }
 
-static char *
-fmt(fn, ki, comm, maxlen)
-	char **(*fn) __P((kvm_t *, const struct kinfo_proc *, int));
-	KINFO *ki;
-	char *comm;
-	int maxlen;
+static const char *
+fmt(char **(*fn)(kvm_t *, const struct kinfo_proc *, int), KINFO *ki,
+  char *comm, int maxlen)
 {
-	char *s;
+	const char *s;
 
 	if ((s =
 	    fmt_argv((*fn)(kd, ki->ki_p, termwidth), comm, maxlen)) == NULL)
@@ -520,8 +523,7 @@ fmt(fn, ki, comm, maxlen)
 #define UREADOK(ki)	(forceuread || (KI_PROC(ki)->p_flag & P_INMEM))
 
 static void
-saveuser(ki)
-	KINFO *ki;
+saveuser(KINFO *ki)
 {
 	struct usave *usp;
 
@@ -544,16 +546,16 @@ saveuser(ki)
 	 * save arguments if needed
 	 */
 	if (needcomm && (UREADOK(ki) || (KI_PROC(ki)->p_args != NULL))) {
-		ki->ki_args = fmt(kvm_getargv, ki, KI_PROC(ki)->p_comm,
-		    MAXCOMLEN);
+		ki->ki_args = strdup(fmt(kvm_getargv, ki, KI_PROC(ki)->p_comm,
+		    MAXCOMLEN));
 	} else if (needcomm) {
 		ki->ki_args = malloc(strlen(KI_PROC(ki)->p_comm) + 3);
-		sprintf(ki->ki_args, "(%s)", KI_PROC(ki)->p_comm);
+		asprintf(&ki->ki_args, "(%s)", KI_PROC(ki)->p_comm);
 	} else {
 		ki->ki_args = NULL;
 	}
 	if (needenv && UREADOK(ki)) {
-		ki->ki_env = fmt(kvm_getenvv, ki, (char *)NULL, 0);
+		ki->ki_env = strdup(fmt(kvm_getenvv, ki, (char *)NULL, 0));
 	} else if (needenv) {
 		ki->ki_env = malloc(3);
 		strcpy(ki->ki_env, "()");
@@ -563,20 +565,19 @@ saveuser(ki)
 }
 
 static int
-pscomp(a, b)
-	const void *a, *b;
+pscomp(const void *a, const void *b)
 {
 	int i;
 #define VSIZE(k) (KI_EPROC(k)->e_vm.vm_dsize + KI_EPROC(k)->e_vm.vm_ssize + \
 		  KI_EPROC(k)->e_vm.vm_tsize)
 
 	if (sortby == SORTCPU)
-		return (getpcpu((KINFO *)b) - getpcpu((KINFO *)a));
+		return (getpcpu((const KINFO *)b) - getpcpu((const KINFO *)a));
 	if (sortby == SORTMEM)
-		return (VSIZE((KINFO *)b) - VSIZE((KINFO *)a));
-	i =  KI_EPROC((KINFO *)a)->e_tdev - KI_EPROC((KINFO *)b)->e_tdev;
+		return (VSIZE((const KINFO *)b) - VSIZE((const KINFO *)a));
+	i =  (int)KI_EPROC((const KINFO *)a)->e_tdev - (int)KI_EPROC((const KINFO *)b)->e_tdev;
 	if (i == 0)
-		i = KI_PROC((KINFO *)a)->p_pid - KI_PROC((KINFO *)b)->p_pid;
+		i = KI_PROC((const KINFO *)a)->p_pid - KI_PROC((const KINFO *)b)->p_pid;
 	return (i);
 }
 
@@ -592,15 +593,14 @@ pscomp(a, b)
  * feature is available with the option 'T', which takes no argument.
  */
 static char *
-kludge_oldps_options(s)
-	char *s;
+kludge_oldps_options(char *s)
 {
 	size_t len;
 	char *newopts, *ns, *cp;
 
 	len = strlen(s);
 	if ((newopts = ns = malloc(len + 2)) == NULL)
-		err(1, NULL);
+		errx(1, "malloc failed");
 	/*
 	 * options begin with '-'
 	 */
@@ -646,7 +646,7 @@ kludge_oldps_options(s)
 }
 
 static void
-usage()
+usage(void)
 {
 
 	(void)fprintf(stderr, "%s\n%s\n%s\n",

@@ -31,18 +31,21 @@
  * SUCH DAMAGE.
  */
 
-#ifndef lint
 #if 0
+#ifndef lint
 static char sccsid[] = "@(#)nlist.c	8.4 (Berkeley) 4/2/94";
-#endif
-static const char rcsid[] =
-  "$FreeBSD$";
 #endif /* not lint */
+#endif
+
+#include <sys/cdefs.h>
+__FBSDID("$FreeBSD$");
 
 #include <sys/types.h>
 #include <sys/sysctl.h>
 
 #include <stddef.h>
+
+int donlist(void);		/* should come from extern.h via ps.h */
 
 fixpt_t	ccpu;				/* kernel _ccpu variable */
 int	nlistread;			/* if nlist already read. */
@@ -50,7 +53,7 @@ int	mempages;			/* number of pages of phys. memory */
 int	fscale;				/* kernel _fscale variable */
 
 int
-donlist()
+donlist(void)
 {
 	size_t oldlen;
 

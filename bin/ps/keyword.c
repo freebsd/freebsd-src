@@ -31,14 +31,13 @@
  * SUCH DAMAGE.
  */
 
-#ifndef lint
 #if 0
+#ifndef lint
 static char sccsid[] = "@(#)keyword.c	8.5 (Berkeley) 4/2/94";
-#else
-static const char rcsid[] =
-  "$FreeBSD$";
-#endif
 #endif /* not lint */
+#endif
+#include <sys/cdefs.h>
+__FBSDID("$FreeBSD$");
 
 #include <sys/param.h>
 #include <sys/time.h>
@@ -54,12 +53,11 @@ static const char rcsid[] =
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#include <utmp.h>
 
 #include "ps.h"
 
-static VAR *findvar __P((char *));
-static int  vcmp __P((const void *, const void *));
+static VAR *findvar(char *);
+static int  vcmp(const void *, const void *);
 
 #ifdef NOTINUSE
 int	utime(), stime(), ixrss(), idrss(), isrss();
@@ -80,9 +78,9 @@ int	utime(), stime(), ixrss(), idrss(), isrss();
 #define	UIDLEN	5
 #define	PIDFMT	"d"
 #define	PIDLEN	5
-#define USERLEN UT_NAMESIZE
+#define USERLEN (MAXLOGNAME - 1)
 
-VAR var[] = {
+static VAR var[] = {
 	{"%cpu", "%CPU", NULL, 0, pcpu, NULL, 4},
 	{"%mem", "%MEM", NULL, 0, pmem, NULL, 4},
 	{"acflag", "ACFLG",
@@ -193,11 +191,11 @@ VAR var[] = {
 };
 
 void
-showkey()
+showkey(void)
 {
 	VAR *v;
 	int i;
-	char *p, *sep;
+	const char *p, *sep;
 
 	i = 0;
 	sep = "";
@@ -214,23 +212,24 @@ showkey()
 }
 
 void
-parsefmt(p)
-	char *p;
+parsefmt(const char *p)
 {
 	static struct varent *vtail;
+	char *tempstr, *tempstr1;
 
-#define	FMTSEP	" \t,\n"
-	while (p && *p) {
+#define		FMTSEP	" \t,\n"
+	tempstr1 = tempstr = strdup(p);
+	while (tempstr && *tempstr) {
 		char *cp;
 		VAR *v;
 		struct varent *vent;
 
-		while ((cp = strsep(&p, FMTSEP)) != NULL && *cp == '\0')
+		while ((cp = strsep(&tempstr, FMTSEP)) != NULL && *cp == '\0')
 			/* void */;
 		if (cp == NULL || !(v = findvar(cp)))
 			continue;
 		if ((vent = malloc(sizeof(struct varent))) == NULL)
-			err(1, NULL);
+			errx(1, "malloc failed");
 		vent->var = v;
 		vent->next = NULL;
 		if (vhead == NULL)
@@ -240,6 +239,7 @@ parsefmt(p)
 			vtail = vent;
 		}
 	}
+	free(tempstr1);
 	if (!vhead) {
 		warnx("no valid keywords; valid keywords:");
 		showkey();
@@ -248,12 +248,10 @@ parsefmt(p)
 }
 
 static VAR *
-findvar(p)
-	char *p;
+findvar(char *p)
 {
 	VAR *v, key;
 	char *hp;
-	int vcmp();
 
 	hp = strchr(p, '=');
 	if (hp)
@@ -279,8 +277,7 @@ findvar(p)
 }
 
 static int
-vcmp(a, b)
-        const void *a, *b;
+vcmp(const void *a, const void *b)
 {
-        return (strcmp(((VAR *)a)->name, ((VAR *)b)->name));
+        return (strcmp(((const VAR *)a)->name, ((const VAR *)b)->name));
 }

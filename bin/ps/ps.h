@@ -62,27 +62,27 @@ typedef struct varent {
 } VARENT;
 
 typedef struct var {
-	char	*name;		/* name(s) of variable */
-	char	*header;	/* default header */
-	char	*alias;		/* aliases */
+	const char *name;	/* name(s) of variable */
+	const char *header;	/* default header */
+	const char *alias;	/* aliases */
 #define	COMM	0x01		/* needs exec arguments and environment (XXX) */
 #define	LJUST	0x02		/* left adjust on output (trailing blanks) */
 #define	USER	0x04		/* needs user structure */
 #define	DSIZ	0x08		/* field size is dynamic*/
 	u_int	flag;
 				/* output routine */
-	void	(*oproc) __P((struct kinfo *, struct varent *));
+	void	(*oproc)(struct kinfo *, struct varent *);
 				/* sizing routine*/
-	int	(*sproc) __P((struct kinfo *));
+	int	(*sproc)(struct kinfo *);
 	short	width;		/* printing width */
 	/*
 	 * The following (optional) elements are hooks for passing information
 	 * to the generic output routines: pvar, evar, uvar (those which print
 	 * simple elements from well known structures: proc, eproc, usave)
 	 */
-	int	off;		/* offset in structure */
+	size_t	off;		/* offset in structure */
 	enum	type type;	/* type of element */
-	char	*fmt;		/* printf format */
+	const char *fmt;	/* printf format */
 	char	*time;		/* time format */
 	short	dwidth;		/* dynamic printing width */
 	/*

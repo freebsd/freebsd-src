@@ -31,38 +31,40 @@
  * SUCH DAMAGE.
  */
 
-#ifndef lint
 #if 0
+#ifndef lint
 static char sccsid[] = "@(#)fmt.c	8.4 (Berkeley) 4/15/94";
 #endif
-static const char rcsid[] =
-  "$FreeBSD$";
-#endif /* not lint */
+#endif
+
+#include <sys/cdefs.h>
+__FBSDID("$FreeBSD$");
 
 #include <sys/types.h>
 #include <sys/time.h>
 #include <sys/resource.h>
+
 #include <err.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 #include <unistd.h>
 #include <vis.h>
+
 #include "ps.h"
 
-static char *cmdpart __P((char *));
-static char *shquote __P((char **));
+static char *cmdpart(char *);
+static char *shquote(char **);
 
 /*
  * XXX
  * This is a stub until marc does the real one.
  */
 static char *
-shquote(argv)
-	char **argv;
+shquote(char **argv)
 {
 	static long arg_max = -1;
-	long len;
+	size_t len;
 	char **p, *dst, *src;
 	static char *buf = NULL;
 
@@ -73,18 +75,18 @@ shquote(argv)
 			errx(1, "malloc failed");
 	}
 
-	if (*argv == 0) {
-		buf[0] = 0;
+	if (*argv == NULL) {
+		buf[0] = '\0';
 		return (buf);
 	}
 	dst = buf;
-	for (p = argv; (src = *p++) != 0; ) {
-		if (*src == 0)
+	for (p = argv; (src = *p++) != NULL; ) {
+		if (*src == '\0')
 			continue;
 		len = (4 * arg_max - (dst - buf)) / 4;
 		strvisx(dst, src, strlen(src) < len ? strlen(src) : len,
 		    VIS_NL | VIS_CSTYLE);
-		while (*dst)
+		while (*dst != '\0')
 			dst++;
 		if ((4 * arg_max - (dst - buf)) / 4 > 0)
 			*dst++ = ' ';
@@ -97,24 +99,20 @@ shquote(argv)
 }
 
 static char *
-cmdpart(arg0)
-	char *arg0;
+cmdpart(char *arg0)
 {
 	char *cp;
 
 	return ((cp = strrchr(arg0, '/')) != NULL ? cp + 1 : arg0);
 }
 
-char *
-fmt_argv(argv, cmd, maxlen)
-	char **argv;
-	char *cmd;
-	int maxlen;
+const char *
+fmt_argv(char **argv, char *cmd, size_t maxlen)
 {
-	int len;
+	size_t len;
 	char *ap, *cp;
 
-	if (argv == 0 || argv[0] == 0) {
+	if (argv == NULL || argv[0] == NULL) {
 		if (cmd == NULL)
 			return ("");
 		ap = NULL;
@@ -123,12 +121,13 @@ fmt_argv(argv, cmd, maxlen)
 		ap = shquote(argv);
 		len = strlen(ap) + maxlen + 4;
 	}
-	if ((cp = malloc(len)) == NULL)
-		return (NULL);
+	cp = malloc(len);
+	if (cp == NULL)
+		errx(1, "malloc failed");
 	if (ap == NULL)
-		sprintf(cp, " (%.*s)", maxlen, cmd);
+		sprintf(cp, " (%.*s)", (int)maxlen, cmd);
 	else if (strncmp(cmdpart(argv[0]), cmd, maxlen) != 0)
-		sprintf(cp, "%s (%.*s)", ap, maxlen, cmd);
+		sprintf(cp, "%s (%.*s)", ap, (int)maxlen, cmd);
 	else
 		(void) strcpy(cp, ap);
 	return (cp);

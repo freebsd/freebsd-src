@@ -31,13 +31,14 @@
  * SUCH DAMAGE.
  */
 
-#ifndef lint
 #if 0
+#ifndef lint
 static char sccsid[] = "@(#)print.c	8.6 (Berkeley) 4/16/94";
-#endif
-static const char rcsid[] =
-  "$FreeBSD$";
 #endif /* not lint */
+#endif
+
+#include <sys/cdefs.h>
+__FBSDID("$FreeBSD$");
 
 #include <sys/param.h>
 #include <sys/time.h>
@@ -58,8 +59,8 @@ static const char rcsid[] =
 #include <stddef.h>
 #include <stdio.h>
 #include <stdlib.h>
-#include <unistd.h>
 #include <string.h>
+#include <unistd.h>
 #include <vis.h>
 
 #include "ps.h"
@@ -348,36 +349,29 @@ longtname(k, ve)
 }
 
 void
-started(k, ve)
-	KINFO *k;
-	VARENT *ve;
+started(KINFO *k, VARENT *ve)
 {
 	VAR *v;
-	static time_t now;
 	time_t then;
 	struct tm *tp;
+	static int use_ampm = -1;
 	char buf[100];
-	static int  use_ampm = -1;
 
 	v = ve->var;
 	if (!k->ki_u.u_valid) {
 		(void)printf("%-*s", v->width, "-");
 		return;
 	}
-
 	if (use_ampm < 0)
 		use_ampm = (*nl_langinfo(T_FMT_AMPM) != '\0');
-
 	then = k->ki_u.u_start.tv_sec;
 	tp = localtime(&then);
-	if (!now)
-		(void)time(&now);
 	if (now - k->ki_u.u_start.tv_sec < 24 * 3600) {
 		(void)strftime(buf, sizeof(buf) - 1,
-		use_ampm ? "%l:%M%p" : "%k:%M  ", tp);
+		    use_ampm ? "%l:%M%p" : "%k:%M  ", tp);
 	} else if (now - k->ki_u.u_start.tv_sec < 7 * 86400) {
 		(void)strftime(buf, sizeof(buf) - 1,
-		use_ampm ? "%a%I%p" : "%a%H  ", tp);
+		    use_ampm ? "%a%I%p" : "%a%H  ", tp);
 	} else
 		(void)strftime(buf, sizeof(buf) - 1, "%e%b%y", tp);
 	(void)printf("%-*s", v->width, buf);
@@ -505,8 +499,7 @@ cputime(k, ve)
 }
 
 double
-getpcpu(k)
-	KINFO *k;
+getpcpu(const KINFO *k)
 {
 	struct proc *p;
 	static int failure;
@@ -539,9 +532,8 @@ pcpu(k, ve)
 	(void)printf("%*.1f", v->width, getpcpu(k));
 }
 
-double
-getpmem(k)
-	KINFO *k;
+static double
+getpmem(KINFO *k)
 {
 	static int failure;
 	struct proc *p;
@@ -588,10 +580,9 @@ pagein(k, ve)
 	    k->ki_u.u_valid ? k->ki_u.u_ru.ru_majflt : 0);
 }
 
+/* ARGSUSED */
 void
-maxrss(k, ve)
-	KINFO *k;
-	VARENT *ve;
+maxrss(KINFO *k __unused, VARENT *ve)
 {
 	VAR *v;
 
@@ -648,12 +639,11 @@ rtprior(k, ve)
  * structures.
  */
 static void
-printval(bp, v)
-	char *bp;
-	VAR *v;
+printval(void *bp, VAR *v)
 {
 	static char ofmt[32] = "%";
-	char *fcp, *cp;
+	const char *fcp;
+	char *cp;
 
 	cp = ofmt + 1;
 	fcp = v->fmt;
