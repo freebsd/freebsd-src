@@ -37,7 +37,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *      $Id: worm.c,v 1.8 1995/10/09 15:15:01 joerg Exp $
+ *      $Id: worm.c,v 1.9 1995/10/21 23:13:11 phk Exp $
  */
 
 /* XXX This is PRELIMINARY.
@@ -60,8 +60,7 @@
 #include <scsi/scsi_disk.h>
 
 struct scsi_data {
-	struct buf *buf_queue;		/* the queue of pending IO operations */
-
+	struct buf_queue_head buf_queue;
 	u_int32 n_blks;				/* Number of blocks (0 for bogus) */
 	u_int32 blk_size;			/* Size of each blocks */
 };
@@ -130,6 +129,8 @@ static errval
 wormattach(struct scsi_link *sc_link)
 {
 	struct scsi_data *worm = sc_link->sd;
+
+	TAILQ_INIT(&worm->buf_queue);
 
 	printf("- UNTESTED ");
 
@@ -204,10 +205,12 @@ wormstart(unit, flags)
 			wakeup(sc_link);
 			return;
 		}
-		if ((bp = worm->buf_queue) == NULL) {
-			return;	/* no work to bother with */
+
+		bp = worm->buf_queue.tqh_first;
+		if (bp == NULL) {	/* yes, an assign */
+			return;
 		}
-		worm->buf_queue = bp->b_actf;
+		TAILQ_REMOVE( &worm->buf_queue, bp, b_act);
 
 		/*
 		 *  Fill out the scsi command
@@ -289,12 +292,7 @@ worm_strategy(struct buf *bp, struct scsi_link *sc_link)
 	 * Place it in the queue of activities for this device
 	 * at the end.
 	 */
-	dp = &(worm->buf_queue);
-	while (*dp) {
-		dp = &((*dp)->b_actf);
-	}
-	*dp = bp;
-	bp->b_actf = NULL;
+	TAILQ_INSERT_TAIL(&worm->buf_queue, bp, b_act);
 
 	wormstart(unit, 0);
 
