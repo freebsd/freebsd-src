@@ -39,7 +39,7 @@ static const char copyright[] =
 static char sccsid[] = "@(#)syslogd.c	8.3 (Berkeley) 4/4/94";
 */
 static const char rcsid[] =
-	"$Id: syslogd.c,v 1.23 1997/04/26 00:00:33 pst Exp $";
+	"$Id: syslogd.c,v 1.24 1997/04/26 00:03:21 pst Exp $";
 #endif /* not lint */
 
 /*
@@ -94,11 +94,13 @@ static const char rcsid[] =
 #include <ctype.h>
 #include <errno.h>
 #include <fcntl.h>
+#include <regex.h>
 #include <setjmp.h>
 #include <signal.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <sysexits.h>
 #include <unistd.h>
 #include <utmp.h>
 #include "pathnames.h"
@@ -184,6 +186,26 @@ typedef struct deadq_entry *dq_t;
 
 
 /*
+ * Struct to hold records of network addresses that are allowed to log
+ * to us.
+ */
+struct allowedpeer {
+	int isnumeric;
+	u_short port;
+	union {
+		struct {
+			struct in_addr addr;
+			struct in_addr mask;
+		} numeric;
+		char *name;
+	} u;
+#define a_addr u.numeric.addr
+#define a_mask u.numeric.mask
+#define a_name u.name
+};
+
+
+/*
  * Intervals at which we flush out "message repeated" messages,
  * in seconds after previous message is logged.  After each flush,
  * we move to the next interval until we reach the largest.
@@ -226,6 +248,10 @@ int	SecureMode = 0;		/* when true, speak only unix domain socks */
 int     created_lsock = 0;      /* Flag if local socket created */
 char	bootfile[MAXLINE+1];	/* booted kernel file */
 
+struct allowedpeer *AllowedPeers;
+int	NumAllowed = 0;		/* # of AllowedPeer entries */
+
+int	allowaddr __P((char *));
 void	cfline __P((char *, struct filed *, char *));
 char   *cvthname __P((struct sockaddr_in *));
 void	deadq_enter __P((pid_t));
@@ -242,6 +268,7 @@ int	p_open __P((char *, pid_t *));
 void	reapchild __P((int));
 char   *ttymsg __P((struct iovec *, int, char *, int));
 void	usage __P((void));
+int	validate __P((struct sockaddr_in *, const char *));
 void	wallmsg __P((struct filed *, struct iovec *));
 int	waitdaemon __P((int, int, int));
 void	timedout __P((int));
@@ -255,14 +282,18 @@ main(argc, argv)
 	struct sockaddr_un sunx, fromunix;
 	struct sockaddr_in sin, frominet;
 	FILE *fp;
-	char *p, line[MSG_BSIZE + 1];
+	char *p, *hname, line[MSG_BSIZE + 1];
 	struct timeval tv, *tvp;
 	pid_t ppid;
 
-	while ((ch = getopt(argc, argv, "dsf:m:p:")) != -1)
+	while ((ch = getopt(argc, argv, "a:dsf:m:p:")) != -1)
 		switch(ch) {
 		case 'd':		/* debug */
 			Debug++;
+			break;
+		case 'a':		/* allow specific network addresses only */
+			if (allowaddr(optarg) == -1)
+				usage();
 			break;
 		case 'f':		/* configuration file */
 			ConfFile = optarg;
@@ -289,6 +320,9 @@ main(argc, argv)
 			err(1, "could not become daemon");
 	} else
 		setlinebuf(stdout);
+
+	if (NumAllowed)
+		endservent();
 
 	consfile.f_type = F_CONSOLE;
 	(void)strcpy(consfile.f_un.f_fname, ctty + sizeof _PATH_DEV - 1);
@@ -421,7 +455,9 @@ main(argc, argv)
 			    (struct sockaddr *)&frominet, &len);
 			if (i > 0) {
 				line[i] = '\0';
-				printline(cvthname(&frominet), line);
+				hname = cvthname(&frominet);
+				if (validate(&frominet, hname))
+					printline(hname, line);
 			} else if (i < 0 && errno != EINTR)
 				logerror("recvfrom inet");
 		}
@@ -434,7 +470,7 @@ usage()
 
 	fprintf(stderr,
 		"usage: syslogd [-ds] [-f conffile] [-m markinterval]"
-		" [-p logpath]\n");
+		" [-p logpath] [-a allowaddr]\n");
 	exit(1);
 }
 
@@ -1439,6 +1475,174 @@ timedout(sig)
 		errx(1, "timed out waiting for child");
 	else
 		exit(0);
+}
+
+/*
+ * Add `s' to the list of allowable peer addresses to accept messages
+ * from.
+ *
+ * `s' is a string in the form:
+ *
+ *    [*]domainname[:{servicename|portnumber|*}]
+ *
+ * or
+ *
+ *    netaddr/maskbits[:{servicename|portnumber|*}]
+ *
+ * Returns -1 on error, 0 if the argument was valid.
+ */
+int
+allowaddr(s)
+	char *s;
+{
+	char *cp1, *cp2;
+	struct allowedpeer ap;
+	struct servent *se;
+	regex_t re;
+	int i;
+
+	if ((cp1 = strrchr(s, ':'))) {
+		/* service/port provided */
+		*cp1++ = '\0';
+		if (strlen(cp1) == 1 && *cp1 == '*')
+			/* any port allowed */
+			ap.port = htons(0);
+		else if ((se = getservbyname(cp1, "udp")))
+			ap.port = se->s_port;
+		else {
+			ap.port = htons((int)strtol(cp1, &cp2, 0));
+			if (*cp2 != '\0')
+				return -1; /* port not numeric */
+		}
+	} else {
+		if ((se = getservbyname("syslog", "udp")))
+			ap.port = se->s_port;
+		else
+			/* sanity, should not happen */
+			ap.port = htons(514);
+	}
+
+	/* the regexp's are ugly, but the cleanest way */
+
+	if (regcomp(&re, "^[0-9]+\\.[0-9]+\\.[0-9]+\\.[0-9]+(/[0-9]+)?$",
+		    REG_EXTENDED))
+		/* if RE compilation fails, that's an internal error */
+		abort();
+	if (regexec(&re, s, 0, 0, 0) == 0) {
+		/* arg `s' is numeric */
+		ap.isnumeric = 1;
+		if ((cp1 = strchr(s, '/')) != NULL) {
+			*cp1++ = '\0';
+			i = atoi(cp1);
+			if (i < 0 || i > 32)
+				return -1;
+			/* convert masklen to netmask */
+			ap.a_mask.s_addr = htonl(~((1 << (32 - i)) - 1));
+		}
+		if (ascii2addr(AF_INET, s, &ap.a_addr) == -1)
+			return -1;
+		if (cp1 == NULL) {
+			/* use default netmask */
+			if (IN_CLASSA(ntohl(ap.a_addr.s_addr)))
+				ap.a_mask.s_addr = htonl(IN_CLASSA_NET);
+			else if (IN_CLASSB(ntohl(ap.a_addr.s_addr)))
+				ap.a_mask.s_addr = htonl(IN_CLASSB_NET);
+			else
+				ap.a_mask.s_addr = htonl(IN_CLASSC_NET);
+		}
+	} else {
+		/* arg `s' is domain name */
+		ap.isnumeric = 0;
+		ap.a_name = s;
+	}
+	regfree(&re);
+
+	if (Debug) {
+		printf("allowaddr: rule %d: ", NumAllowed);
+		if (ap.isnumeric) {
+			printf("numeric, ");
+			printf("addr = %s, ",
+			       addr2ascii(AF_INET, &ap.a_addr, sizeof(struct in_addr), 0));
+			printf("mask = %s; ",
+			       addr2ascii(AF_INET, &ap.a_mask, sizeof(struct in_addr), 0));
+		} else
+			printf("domainname = %s; ", ap.a_name);
+		printf("port = %d\n", ntohs(ap.port));
+	}
+
+	if ((AllowedPeers = realloc(AllowedPeers,
+				    ++NumAllowed * sizeof(struct allowedpeer)))
+	    == NULL) {
+		fprintf(stderr, "Out of memory!\n");
+		exit(EX_OSERR);
+	}
+	memcpy(&AllowedPeers[NumAllowed - 1], &ap, sizeof(struct allowedpeer));
+	return 0;
+}
+
+/*
+ * Validate that the remote peer has permission to log to us.
+ */
+int
+validate(sin, hname)
+	struct sockaddr_in *sin;
+	const char *hname;
+{
+	int i;
+	size_t l1, l2;
+	char *cp, name[MAXHOSTNAMELEN];
+	struct allowedpeer *ap;
+
+	if (NumAllowed == 0)
+		/* traditional behaviour, allow everything */
+		return 1;
+
+	strncpy(name, hname, sizeof name);
+	if (strchr(name, '.') == NULL) {
+		strncat(name, ".", sizeof name - strlen(name) - 1);
+		strncat(name, LocalDomain, sizeof name - strlen(name) - 1);
+	}
+	dprintf("validate: dgram from IP %s, port %d, name %s;\n",
+		addr2ascii(AF_INET, &sin->sin_addr, sizeof(struct in_addr), 0),
+		ntohs(sin->sin_port), name);
+
+	/* now, walk down the list */
+	for (i = 0, ap = AllowedPeers; i < NumAllowed; i++, ap++) {
+		if (ntohs(ap->port) != 0 && ap->port != sin->sin_port) {
+			dprintf("rejected in rule %d due to port mismatch.\n", i);
+			continue;
+		}
+
+		if (ap->isnumeric) {
+			if ((sin->sin_addr.s_addr & ap->a_mask.s_addr)
+			    != ap->a_addr.s_addr) {
+				dprintf("rejected in rule %d due to IP mismatch.\n", i);
+				continue;
+			}
+		} else {
+			cp = ap->a_name;
+			l1 = strlen(name);
+			if (*cp == '*') {
+				/* allow wildmatch */
+				cp++;
+				l2 = strlen(cp);
+				if (l2 > l1 || memcmp(cp, &name[l1 - l2], l2) != 0) {
+					dprintf("rejected in rule %d due to name mismatch.\n", i);
+					continue;
+				}
+			} else {
+				/* exact match */
+				l2 = strlen(cp);
+				if (l2 != l1 || memcmp(cp, name, l1) != 0) {
+					dprintf("rejected in rule %d due to name mismatch.\n", i);
+					continue;
+				}
+			}
+		}
+		dprintf("accepted in rule %d.\n", i);
+		return 1;	/* hooray! */
+	}
+	return 0;
 }
 
 /*
