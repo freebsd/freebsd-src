@@ -12,7 +12,7 @@
  * on the understanding that TFS is not responsible for the correct
  * functioning of this software in any circumstances.
  *
- *      $Id: aha1542.c,v 1.22 1994/03/20 00:29:58 wollman Exp $
+ *      $Id: aha1542.c,v 1.23 1994/03/23 09:15:26 davidg Exp $
  */
 
 /*
@@ -984,7 +984,7 @@ aha_init(unit)
 		return (EIO);
 	}
 #else
-	printf ("\n");
+	printf (" (bus speed defaulted)\n");
 #endif	/*TUNE_1542*/
 	/*
 	 * Initialize mail box 
