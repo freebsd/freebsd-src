@@ -25,9 +25,12 @@
  * OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT
  * OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
- *
- *	$ANA: pciconf.c,v 1.1.1.1 1996/09/25 21:12:57 wollman Exp $
  */
+
+#ifndef lint
+static const char rcsid[] =
+	"$Id$";
+#endif /* not lint */
 
 #include <sys/types.h>
 #include <sys/fcntl.h>
@@ -51,11 +54,13 @@ static void chkattached(const char *, int);
 static exitstatus = 0;
 
 static void
-usage(const char *argv0) {
-	fprintf(stderr, "usage:\n\t%s -l\n"
-		"\t%s -a sel\n"
-		"\t%s [-r|-w] [-bh] sel addr [value]\n",
-		argv0, argv0, argv0);
+usage()
+{
+	fprintf(stderr, "%s\n%s\n%s\n%s\n",
+		"usage: pciconf -l",
+		"       pciconf -a sel",
+		"       pciconf -r [-b | -h] sel addr",
+		"       pciconf -w [-b | -h] sel addr [value]");
 	exit (1);
 }
 
@@ -95,7 +100,7 @@ main(int argc, char **argv)
 			break;
 
 		default:
-			usage(argv[0]);
+			usage();
 		}
 	}
 
@@ -103,7 +108,7 @@ main(int argc, char **argv)
 	    || (writemode && optind + 3 != argc)
 	    || (readmode && optind + 2 != argc)
 	    || (attachedmode && optind + 1 != argc))
-		usage(argv[0]);
+		usage();
 
 	if (listmode) {
 		list_devs();
@@ -117,7 +122,7 @@ main(int argc, char **argv)
 		writeit(argv[optind], argv[optind + 1], argv[optind + 2],
 		       byte ? 1 : isshort ? 2 : 4);
 	} else {
- 		usage(argv[0]);
+ 		usage();
 	}
 
 	return exitstatus;
