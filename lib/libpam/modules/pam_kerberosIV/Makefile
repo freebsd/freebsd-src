@@ -33,10 +33,8 @@ CFLAGS+=	-I${.CURDIR}/../../libpam
 CFLAGS+=	-DKERBEROS
 DPADD+=		${LIBKRB}
 LDADD+=		-lkrb
-.if !defined(NOSECURE)
 DPADD+=		${LIBCRYPTO}
 LDADD+=		-lcrypto
-.endif
 DPADD+=		${LIBCOM_ERR}
 LDADD+=		-lcom_err
 

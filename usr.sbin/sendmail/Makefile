@@ -62,9 +62,8 @@ LDADD+=	${LIBSMUTIL} ${LIBSM}
 SRCS+=	sm_os.h
 CLEANFILES+=sm_os.h
 
-.if exists(${.CURDIR}/../../secure) && !defined(NOCRYPT) && \
-	!defined(NOSECURE) && !defined(NO_OPENSSL) && \
-	!defined(RELEASE_CRUNCH)
+.if exists(${.CURDIR}/../../crypto) && !defined(NOCRYPT) && \
+	!defined(NO_OPENSSL) && !defined(RELEASE_CRUNCH)
 # STARTTLS support
 DISTRIBUTION=	crypto
 CFLAGS+=	-DSTARTTLS -D_FFR_TLS_1 -D_FFR_DEAL_WITH_ERROR_SSL

@@ -208,7 +208,7 @@ SUBDIR=	alias \
 
 .if defined(RELEASEDIR) || \
     (!exists(${.CURDIR}/../kerberosIV) && !exists(${.CURDIR}/../secure)) || \
-    defined(NOCRYPT) || (defined(NOSECURE) && !defined(MAKE_KERBEROS4))
+    defined(NOCRYPT)
 # Releases need both this non-crypt telnet and the crypt telnet.
 SUBDIR+=telnet
 .endif

@@ -5,7 +5,7 @@ PROG=		fetch
 WARNS?=		2
 DPADD=		${LIBFETCH}
 LDADD=		-lfetch
-.if !defined(NOCRYPT) && !defined(NOSECURE) && !defined(NO_OPENSSL)
+.if !defined(NOCRYPT) && !defined(NO_OPENSSL)
 DPADD+=		${LIBCRYPTO} ${LIBSSL}
 LDADD+=		-lcrypto -lssl
 .endif

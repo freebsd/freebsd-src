@@ -13,7 +13,7 @@ CFLAGS+=	-I${.CURDIR}/../libmd -I${.CURDIR}/../libutil
 CFLAGS+=	-DLIBC_SCCS -Wall
 # Pull in the crypt-des.c source, assuming it is present.
 .if exists(${.CURDIR}/../../secure/lib/libcrypt/crypt-des.c) && \
-    !defined(NOSECURE) && !defined(NOCRYPT)
+    !defined(NOCRYPT)
 .PATH:		${.CURDIR}/../../secure/lib/libcrypt
 SRCS+=		crypt-des.c crypt-blowfish.c blowfish.c
 CFLAGS+=	-I${.CURDIR} -DHAS_DES -DHAS_BLOWFISH
