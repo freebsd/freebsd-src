@@ -1,4 +1,4 @@
-.\"	$OpenBSD: ssh-add.1,v 1.30 2002/02/04 20:41:16 stevesk Exp $
+.\"	$OpenBSD: ssh-add.1,v 1.35 2002/06/19 00:27:55 deraadt Exp $
 .\"
 .\"  -*- nroff -*-
 .\"
@@ -45,7 +45,8 @@
 .Nd adds RSA or DSA identities to the authentication agent
 .Sh SYNOPSIS
 .Nm ssh-add
-.Op Fl lLdD
+.Op Fl lLdDxX
+.Op Fl t Ar life
 .Op Ar
 .Nm ssh-add
 .Fl s Ar reader
@@ -57,7 +58,7 @@ adds RSA or DSA identities to the authentication agent,
 .Xr ssh-agent 1 .
 When run without arguments, it adds the files
 .Pa $HOME/.ssh/id_rsa ,
-.Pa $HOME/.ssh/id_dsa 
+.Pa $HOME/.ssh/id_dsa
 and
 .Pa $HOME/.ssh/identity .
 Alternative file names can be given on the command line.
@@ -83,6 +84,15 @@ Lists public key parameters of all identities currently represented by the agent
 Instead of adding the identity, removes the identity from the agent.
 .It Fl D
 Deletes all identities from the agent.
+.It Fl x
+Lock the agent with a password.
+.It Fl X
+Unlock the agent.
+.It Fl t Ar life
+Set a maximum lifetime when adding identities to an agent.
+The lifetime may be specified in seconds or in a time format
+specified in
+.Xr sshd 8 .
 .It Fl s Ar reader
 Add key in smartcard
 .Ar reader .
@@ -129,6 +139,9 @@ or related script.
 may be necessary to redirect the input from
 .Pa /dev/null
 to make this work.)
+.It Ev SSH_AUTH_SOCK
+Identifies the path of a unix-domain socket used to communicate with the
+agent.
 .El
 .Sh DIAGNOSTICS
 Exit status is 0 on success, 1 if the specified command fails,

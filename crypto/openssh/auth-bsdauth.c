@@ -22,12 +22,13 @@
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 #include "includes.h"
-RCSID("$OpenBSD: auth-bsdauth.c,v 1.2 2001/12/19 07:18:56 deraadt Exp $");
+RCSID("$OpenBSD: auth-bsdauth.c,v 1.4 2002/06/19 00:27:55 deraadt Exp $");
 
 #ifdef BSD_AUTH
 #include "xmalloc.h"
 #include "auth.h"
 #include "log.h"
+#include "monitor_wrap.h"
 
 static void *
 bsdauth_init_ctx(Authctxt *authctxt)
@@ -35,7 +36,7 @@ bsdauth_init_ctx(Authctxt *authctxt)
 	return authctxt;
 }
 
-static int
+int
 bsdauth_query(void *ctx, char **name, char **infotxt,
    u_int *numprompts, char ***prompts, u_int **echo_on)
 {
@@ -56,7 +57,7 @@ bsdauth_query(void *ctx, char **name, char **infotxt,
 		debug3("bsdauth_query: style %s",
 		    authctxt->style ? authctxt->style : "<default>");
 		authctxt->as = auth_userchallenge(authctxt->user,
-		     authctxt->style, "auth-ssh", &challenge);
+		    authctxt->style, "auth-ssh", &challenge);
 		if (authctxt->as == NULL)
 			challenge = NULL;
 		debug2("bsdauth_query: <%s>", challenge ? challenge : "empty");
@@ -65,8 +66,8 @@ bsdauth_query(void *ctx, char **name, char **infotxt,
 	if (challenge == NULL)
 		return -1;
 
-	*name       = xstrdup("");
-	*infotxt    = xstrdup("");
+	*name = xstrdup("");
+	*infotxt = xstrdup("");
 	*numprompts = 1;
 	*prompts = xmalloc(*numprompts * sizeof(char*));
 	*echo_on = xmalloc(*numprompts * sizeof(u_int));
@@ -76,7 +77,7 @@ bsdauth_query(void *ctx, char **name, char **infotxt,
 	return 0;
 }
 
-static int
+int
 bsdauth_respond(void *ctx, u_int numresponses, char **responses)
 {
 	Authctxt *authctxt = ctx;
@@ -111,6 +112,14 @@ KbdintDevice bsdauth_device = {
 	bsdauth_init_ctx,
 	bsdauth_query,
 	bsdauth_respond,
+	bsdauth_free_ctx
+};
+
+KbdintDevice mm_bsdauth_device = {
+	"bsdauth",
+	bsdauth_init_ctx,
+	mm_bsdauth_query,
+	mm_bsdauth_respond,
 	bsdauth_free_ctx
 };
 #endif

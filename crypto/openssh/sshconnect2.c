@@ -23,7 +23,7 @@
  */
 
 #include "includes.h"
-RCSID("$OpenBSD: sshconnect2.c,v 1.97 2002/02/25 16:33:27 markus Exp $");
+RCSID("$OpenBSD: sshconnect2.c,v 1.104 2002/06/19 00:27:55 deraadt Exp $");
 
 #include "ssh.h"
 #include "ssh2.h"
@@ -45,6 +45,8 @@ RCSID("$OpenBSD: sshconnect2.c,v 1.97 2002/02/25 16:33:27 markus Exp $");
 #include "match.h"
 #include "dispatch.h"
 #include "canohost.h"
+#include "msg.h"
+#include "pathnames.h"
 
 /* import */
 extern char *client_version_string;
@@ -154,8 +156,7 @@ struct Authctxt {
 	int last_key_hint;
 	AuthenticationConnection *agent;
 	/* hostbased */
-	Key **keys;
-	int nkeys;
+	Sensitive *sensitive;
 	/* kbd-interactive */
 	int info_req_seen;
 };
@@ -172,6 +173,7 @@ void	input_userauth_banner(int, u_int32_t, void *);
 void	input_userauth_error(int, u_int32_t, void *);
 void	input_userauth_info_req(int, u_int32_t, void *);
 void	input_userauth_pk_ok(int, u_int32_t, void *);
+void	input_userauth_passwd_changereq(int, u_int32_t, void *);
 
 int	userauth_none(Authctxt *);
 int	userauth_pubkey(Authctxt *);
@@ -214,7 +216,7 @@ Authmethod authmethods[] = {
 
 void
 ssh_userauth2(const char *local_user, const char *server_user, char *host,
-    Key **keys, int nkeys)
+    Sensitive *sensitive)
 {
 	Authctxt authctxt;
 	int type;
@@ -254,8 +256,7 @@ ssh_userauth2(const char *local_user, const char *server_user, char *host,
 	authctxt.success = 0;
 	authctxt.method = authmethod_lookup("none");
 	authctxt.authlist = NULL;
-	authctxt.keys = keys;
-	authctxt.nkeys = nkeys;
+	authctxt.sensitive = sensitive;
 	authctxt.info_req_seen = 0;
 	if (authctxt.method == NULL)
 		fatal("ssh_userauth2: internal error: cannot send userauth none request");
@@ -391,10 +392,10 @@ input_userauth_pk_ok(int type, u_int32_t seq, void *ctxt)
 			debug("no key from blob. pkalg %s", pkalg);
 			break;
 		}
-		if (key->type != pktype) { 
+		if (key->type != pktype) {
 			error("input_userauth_pk_ok: type mismatch "
 			    "for decoded key (received %d, expected %d)",
-			     key->type, pktype);
+			    key->type, pktype);
 			break;
 		}
 		fp = key_fingerprint(key, SSH_FP_MD5, SSH_FP_HEX);
@@ -439,7 +440,7 @@ int
 userauth_passwd(Authctxt *authctxt)
 {
 	static int attempt = 0;
-	char prompt[80];
+	char prompt[150];
 	char *password;
 
 	if (attempt++ >= options.number_of_password_prompts)
@@ -461,13 +462,85 @@ userauth_passwd(Authctxt *authctxt)
 	xfree(password);
 	packet_add_padding(64);
 	packet_send();
+
+	dispatch_set(SSH2_MSG_USERAUTH_PASSWD_CHANGEREQ,
+	    &input_userauth_passwd_changereq);
+
 	return 1;
+}
+/*
+ * parse PASSWD_CHANGEREQ, prompt user and send SSH2_MSG_USERAUTH_REQUEST
+ */
+void
+input_userauth_passwd_changereq(int type, uint32_t seqnr, void *ctxt)
+{
+	Authctxt *authctxt = ctxt;
+	char *info, *lang, *password = NULL, *retype = NULL;
+	char prompt[150];
+
+	debug2("input_userauth_passwd_changereq");
+
+	if (authctxt == NULL)
+		fatal("input_userauth_passwd_changereq: "
+		    "no authentication context");
+
+	info = packet_get_string(NULL);
+	lang = packet_get_string(NULL);
+	if (strlen(info) > 0)
+		log("%s", info);
+	xfree(info);
+	xfree(lang);
+	packet_start(SSH2_MSG_USERAUTH_REQUEST);
+	packet_put_cstring(authctxt->server_user);
+	packet_put_cstring(authctxt->service);
+	packet_put_cstring(authctxt->method->name);
+	packet_put_char(1);			/* additional info */
+	snprintf(prompt, sizeof(prompt),
+	    "Enter %.30s@%.128s's old password: ",
+	    authctxt->server_user, authctxt->host);
+	password = read_passphrase(prompt, 0);
+	packet_put_cstring(password);
+	memset(password, 0, strlen(password));
+	xfree(password);
+	password = NULL;
+	while (password == NULL) {
+		snprintf(prompt, sizeof(prompt),
+		    "Enter %.30s@%.128s's new password: ",
+		    authctxt->server_user, authctxt->host);
+		password = read_passphrase(prompt, RP_ALLOW_EOF);
+		if (password == NULL) {
+			/* bail out */
+			return;
+		}
+		snprintf(prompt, sizeof(prompt),
+		    "Retype %.30s@%.128s's new password: ",
+		    authctxt->server_user, authctxt->host);
+		retype = read_passphrase(prompt, 0);
+		if (strcmp(password, retype) != 0) {
+			memset(password, 0, strlen(password));
+			xfree(password);
+			log("Mismatch; try again, EOF to quit.");
+			password = NULL;
+		}
+		memset(retype, 0, strlen(retype));
+		xfree(retype);
+	}
+	packet_put_cstring(password);
+	memset(password, 0, strlen(password));
+	xfree(password);
+	packet_add_padding(64);
+	packet_send();
+
+	dispatch_set(SSH2_MSG_USERAUTH_PASSWD_CHANGEREQ,
+	    &input_userauth_passwd_changereq);
 }
 
 static void
 clear_auth_state(Authctxt *authctxt)
 {
 	/* XXX clear authentication state */
+	dispatch_set(SSH2_MSG_USERAUTH_PASSWD_CHANGEREQ, NULL);
+
 	if (authctxt->last_key != NULL && authctxt->last_key_hint == -1) {
 		debug3("clear_auth_state: key_free %p", authctxt->last_key);
 		key_free(authctxt->last_key);
@@ -820,14 +893,88 @@ input_userauth_info_req(int type, u_int32_t seq, void *ctxt)
 	packet_send();
 }
 
-/*
- * this will be move to an external program (ssh-keysign) ASAP. ssh-keysign
- * will be setuid-root and the sbit can be removed from /usr/bin/ssh.
- */
+static int
+ssh_keysign(
+    Key *key,
+    u_char **sigp, u_int *lenp,
+    u_char *data, u_int datalen)
+{
+	Buffer b;
+	struct stat st;
+	pid_t pid;
+	int to[2], from[2], status, version = 2;
+
+	debug("ssh_keysign called");
+
+	if (stat(_PATH_SSH_KEY_SIGN, &st) < 0) {
+		error("ssh_keysign: no installed: %s", strerror(errno));
+		return -1;
+	}
+	if (fflush(stdout) != 0)
+		error("ssh_keysign: fflush: %s", strerror(errno));
+	if (pipe(to) < 0) {
+		error("ssh_keysign: pipe: %s", strerror(errno));
+		return -1;
+	}
+	if (pipe(from) < 0) {
+		error("ssh_keysign: pipe: %s", strerror(errno));
+		return -1;
+	}
+	if ((pid = fork()) < 0) {
+		error("ssh_keysign: fork: %s", strerror(errno));
+		return -1;
+	}
+	if (pid == 0) {
+		seteuid(getuid());
+		setuid(getuid());
+		close(from[0]);
+		if (dup2(from[1], STDOUT_FILENO) < 0)
+			fatal("ssh_keysign: dup2: %s", strerror(errno));
+		close(to[1]);
+		if (dup2(to[0], STDIN_FILENO) < 0)
+			fatal("ssh_keysign: dup2: %s", strerror(errno));
+		close(from[1]);
+		close(to[0]);
+		execl(_PATH_SSH_KEY_SIGN, _PATH_SSH_KEY_SIGN, (char *) 0);
+		fatal("ssh_keysign: exec(%s): %s", _PATH_SSH_KEY_SIGN,
+		    strerror(errno));
+	}
+	close(from[1]);
+	close(to[0]);
+
+	buffer_init(&b);
+	buffer_put_int(&b, packet_get_connection_in()); /* send # of socket */
+	buffer_put_string(&b, data, datalen);
+	msg_send(to[1], version, &b);
+
+	if (msg_recv(from[0], &b) < 0) {
+		error("ssh_keysign: no reply");
+		buffer_clear(&b);
+		return -1;
+	}
+	close(from[0]);
+	close(to[1]);
+
+	while (waitpid(pid, &status, 0) < 0)
+		if (errno != EINTR)
+			break;
+
+	if (buffer_get_char(&b) != version) {
+		error("ssh_keysign: bad version");
+		buffer_clear(&b);
+		return -1;
+	}
+	*sigp = buffer_get_string(&b, lenp);
+	buffer_clear(&b);
+
+	return 0;
+}
+
 int
 userauth_hostbased(Authctxt *authctxt)
 {
 	Key *private = NULL;
+	Sensitive *sensitive = authctxt->sensitive;
 	Buffer b;
 	u_char *signature, *blob;
 	char *chost, *pkalg, *p;
@@ -836,12 +983,12 @@ userauth_hostbased(Authctxt *authctxt)
 	int ok, i, len, found = 0;
 
 	/* check for a useful key */
-	for (i = 0; i < authctxt->nkeys; i++) {
-		private = authctxt->keys[i];
+	for (i = 0; i < sensitive->nkeys; i++) {
+		private = sensitive->keys[i];
 		if (private && private->type != KEY_RSA1) {
 			found = 1;
 			/* we take and free the key */
-			authctxt->keys[i] = NULL;
+			sensitive->keys[i] = NULL;
 			break;
 		}
 	}
@@ -883,7 +1030,12 @@ userauth_hostbased(Authctxt *authctxt)
 #ifdef DEBUG_PK
 	buffer_dump(&b);
 #endif
-	ok = key_sign(private, &signature, &slen, buffer_ptr(&b), buffer_len(&b));
+	if (sensitive->external_keysign)
+		ok = ssh_keysign(private, &signature, &slen,
+		    buffer_ptr(&b), buffer_len(&b));
+	else
+		ok = key_sign(private, &signature, &slen,
+		    buffer_ptr(&b), buffer_len(&b));
 	key_free(private);
 	buffer_free(&b);
 	if (ok != 0) {

@@ -22,7 +22,7 @@
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 #include "includes.h"
-RCSID("$OpenBSD: auth-skey.c,v 1.16 2002/01/12 13:10:29 markus Exp $");
+RCSID("$OpenBSD: auth-skey.c,v 1.19 2002/06/19 00:27:55 deraadt Exp $");
 
 #ifdef SKEY
 
@@ -30,6 +30,7 @@ RCSID("$OpenBSD: auth-skey.c,v 1.16 2002/01/12 13:10:29 markus Exp $");
 
 #include "xmalloc.h"
 #include "auth.h"
+#include "monitor_wrap.h"
 
 static void *
 skey_init_ctx(Authctxt *authctxt)
@@ -37,9 +38,7 @@ skey_init_ctx(Authctxt *authctxt)
 	return authctxt;
 }
 
-#define PROMPT "\nS/Key Password: "
-
-static int
+int
 skey_query(void *ctx, char **name, char **infotxt,
     u_int* numprompts, char ***prompts, u_int **echo_on)
 {
@@ -51,23 +50,23 @@ skey_query(void *ctx, char **name, char **infotxt,
 	if (skeychallenge(&skey, authctxt->user, challenge) == -1)
 		return -1;
 
-	*name       = xstrdup("");
-	*infotxt    = xstrdup("");
+	*name  = xstrdup("");
+	*infotxt  = xstrdup("");
 	*numprompts = 1;
 	*prompts = xmalloc(*numprompts * sizeof(char*));
 	*echo_on = xmalloc(*numprompts * sizeof(u_int));
 	(*echo_on)[0] = 0;
 
-	len = strlen(challenge) + strlen(PROMPT) + 1;
+	len = strlen(challenge) + strlen(SKEY_PROMPT) + 1;
 	p = xmalloc(len);
 	strlcpy(p, challenge, len);
-	strlcat(p, PROMPT, len);
+	strlcat(p, SKEY_PROMPT, len);
 	(*prompts)[0] = p;
 
 	return 0;
 }
 
-static int
+int
 skey_respond(void *ctx, u_int numresponses, char **responses)
 {
 	Authctxt *authctxt = ctx;
@@ -91,6 +90,14 @@ KbdintDevice skey_device = {
 	skey_init_ctx,
 	skey_query,
 	skey_respond,
+	skey_free_ctx
+};
+
+KbdintDevice mm_skey_device = {
+	"skey",
+	skey_init_ctx,
+	mm_skey_query,
+	mm_skey_respond,
 	skey_free_ctx
 };
 #endif /* SKEY */

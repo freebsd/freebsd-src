@@ -22,7 +22,7 @@
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 #include "includes.h"
-RCSID("$OpenBSD: sftp-server.c,v 1.33 2002/02/13 00:28:13 markus Exp $");
+RCSID("$OpenBSD: sftp-server.c,v 1.35 2002/06/06 17:30:11 markus Exp $");
 
 #include "buffer.h"
 #include "bufaux.h"
@@ -362,7 +362,7 @@ process_init(void)
 {
 	Buffer msg;
 
-	version = buffer_get_int(&iqueue);
+	version = get_int();
 	TRACE("client version %d", version);
 	buffer_init(&msg);
 	buffer_put_char(&msg, SSH2_FXP_VERSION);
@@ -936,10 +936,13 @@ static void
 process(void)
 {
 	u_int msg_len;
+	u_int buf_len;
+	u_int consumed;
 	u_int type;
 	u_char *cp;
 
-	if (buffer_len(&iqueue) < 5)
+	buf_len = buffer_len(&iqueue);
+	if (buf_len < 5)
 		return;		/* Incomplete message. */
 	cp = buffer_ptr(&iqueue);
 	msg_len = GET_32BIT(cp);
@@ -947,9 +950,10 @@ process(void)
 		error("bad message ");
 		exit(11);
 	}
-	if (buffer_len(&iqueue) < msg_len + 4)
+	if (buf_len < msg_len + 4)
 		return;
 	buffer_consume(&iqueue, 4);
+	buf_len -= 4;
 	type = buffer_get_char(&iqueue);
 	switch (type) {
 	case SSH2_FXP_INIT:
@@ -1016,6 +1020,14 @@ process(void)
 		error("Unknown message %d", type);
 		break;
 	}
+	/* discard the remaining bytes from the current packet */
+	if (buf_len < buffer_len(&iqueue))
+		fatal("iqueue grows");
+	consumed = buf_len - buffer_len(&iqueue);
+	if (msg_len < consumed)
+		fatal("msg_len %d < consumed %d", msg_len, consumed);
+	if (msg_len > consumed)
+		buffer_consume(&iqueue, msg_len - consumed);
 }
 
 int

@@ -23,7 +23,7 @@
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 #include "includes.h"
-RCSID("$OpenBSD: auth2-chall.c,v 1.16 2002/01/13 17:57:37 markus Exp $");
+RCSID("$OpenBSD: auth2-chall.c,v 1.18 2002/06/19 00:27:55 deraadt Exp $");
 
 #include "ssh2.h"
 #include "auth.h"
@@ -219,7 +219,7 @@ send_userauth_info_request(Authctxt *authctxt)
 	packet_start(SSH2_MSG_USERAUTH_INFO_REQUEST);
 	packet_put_cstring(name);
 	packet_put_cstring(instr);
-	packet_put_cstring(""); 	/* language not used */
+	packet_put_cstring("");		/* language not used */
 	packet_put_int(numprompts);
 	for (i = 0; i < numprompts; i++) {
 		packet_put_cstring(prompts[i]);
@@ -309,4 +309,23 @@ input_userauth_info_response(int type, u_int32_t seq, void *ctxt)
 	}
 	userauth_finish(authctxt, authenticated, method);
 	xfree(method);
+}
+
+void
+privsep_challenge_enable(void)
+{
+#ifdef BSD_AUTH
+	extern KbdintDevice mm_bsdauth_device;
+#endif
+#ifdef SKEY
+	extern KbdintDevice mm_skey_device;
+#endif
+	/* As long as SSHv1 has devices[0] hard coded this is fine */
+#ifdef BSD_AUTH
+	devices[0] = &mm_bsdauth_device;
+#else
+#ifdef SKEY
+	devices[0] = &mm_skey_device;
+#endif
+#endif
 }

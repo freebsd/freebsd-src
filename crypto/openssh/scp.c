@@ -75,7 +75,7 @@
  */
 
 #include "includes.h"
-RCSID("$OpenBSD: scp.c,v 1.86 2001/12/05 03:56:39 itojun Exp $");
+RCSID("$OpenBSD: scp.c,v 1.91 2002/06/19 00:27:55 deraadt Exp $");
 
 #include "xmalloc.h"
 #include "atomicio.h"
@@ -219,10 +219,9 @@ main(argc, argv)
 	extern int optind;
 
 	args.list = NULL;
-	addargs(&args, "ssh");	 	/* overwritten with ssh_program */
+	addargs(&args, "ssh");		/* overwritten with ssh_program */
 	addargs(&args, "-x");
 	addargs(&args, "-oForwardAgent no");
-	addargs(&args, "-oFallBackToRsh no");
 	addargs(&args, "-oClearAllForwardings yes");
 
 	fflag = tflag = 0;
@@ -354,8 +353,7 @@ toremote(targ, argc, argv)
 		src = colon(argv[i]);
 		if (src) {	/* remote to remote */
 			static char *ssh_options =
-			    "-x -o'FallBackToRsh no' "
-			    "-o'ClearAllForwardings yes'";
+			    "-x -o'ClearAllForwardings yes'";
 			*src++ = 0;
 			if (*src == 0)
 				src = ".";
@@ -756,7 +754,7 @@ sink(argc, argv)
 				cursize = need;
 			}
 			(void) snprintf(namebuf, need, "%s%s%s", targ,
-			    *targ ? "/" : "", cp);
+			    strcmp(targ, "/") ? "/" : "", cp);
 			np = namebuf;
 		} else
 			np = targ;
@@ -931,9 +929,9 @@ void
 usage(void)
 {
 	(void) fprintf(stderr,
-	    "usage: scp [-pqrvBC46] [-F config] [-S ssh] [-P port] [-c cipher] [-i identity]\n"
-	    "           [-o option] f1 f2\n"
-	    "   or: scp [options] f1 ... fn directory\n");
+	    "usage: scp [-pqrvBC46] [-F config] [-S program] [-P port]\n"
+	    "           [-c cipher] [-i identity] [-o option]\n"
+	    "           [[user@]host1:]file1 [...] [[user@]host2:]file2\n");
 	exit(1);
 }
 
@@ -1073,7 +1071,7 @@ progressmeter(int flag)
 	off_t cursize, abbrevsize;
 	double elapsed;
 	int ratio, barlength, i, remaining;
-	char buf[256];
+	char buf[512];
 
 	if (flag == -1) {
 		(void) gettimeofday(&start, (struct timezone *) 0);
@@ -1099,10 +1097,13 @@ progressmeter(int flag)
 		i = barlength * ratio / 100;
 		snprintf(buf + strlen(buf), sizeof(buf) - strlen(buf),
 		    "|%.*s%*s|", i,
-		    "***************************************"
-		    "***************************************"
-		    "***************************************"
-		    "***************************************",
+		    "*******************************************************"
+		    "*******************************************************"
+		    "*******************************************************"
+		    "*******************************************************"
+		    "*******************************************************"
+		    "*******************************************************"
+		    "*******************************************************",
 		    barlength - i, "");
 	}
 	i = 0;

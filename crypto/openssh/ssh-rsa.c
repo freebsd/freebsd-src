@@ -23,7 +23,7 @@
  */
 
 #include "includes.h"
-RCSID("$OpenBSD: ssh-rsa.c,v 1.16 2002/02/24 19:14:59 markus Exp $");
+RCSID("$OpenBSD: ssh-rsa.c,v 1.20 2002/06/10 16:53:06 stevesk Exp $");
 
 #include <openssl/evp.h>
 #include <openssl/err.h>
@@ -35,6 +35,7 @@ RCSID("$OpenBSD: ssh-rsa.c,v 1.16 2002/02/24 19:14:59 markus Exp $");
 #include "key.h"
 #include "ssh-rsa.h"
 #include "compat.h"
+#include "ssh.h"
 
 /* RSASSA-PKCS1-v1_5 (PKCS #1 v2.0 signature) with SHA1 */
 int
@@ -52,10 +53,6 @@ ssh_rsa_sign(
 
 	if (key == NULL || key->type != KEY_RSA || key->rsa == NULL) {
 		error("ssh_rsa_sign: no RSA key");
-		return -1;
-	}
-	if (datafellows & SSH_BUG_SIGBLOB) {
-		error("ssh_rsa_sign: SSH_BUG_SIGBLOB not supported");
 		return -1;
 	}
 	nid = (datafellows & SSH_BUG_RSASIGMD5) ? NID_md5 : NID_sha1;
@@ -118,20 +115,16 @@ ssh_rsa_verify(
 	EVP_MD_CTX md;
 	char *ktype;
 	u_char digest[EVP_MAX_MD_SIZE], *sigblob;
-	u_int len, dlen;
+	u_int len, dlen, modlen;
 	int rlen, ret, nid;
 
 	if (key == NULL || key->type != KEY_RSA || key->rsa == NULL) {
 		error("ssh_rsa_verify: no RSA key");
 		return -1;
 	}
-	if (datafellows & SSH_BUG_SIGBLOB) {
-		error("ssh_rsa_verify: SSH_BUG_SIGBLOB not supported");
-		return -1;
-	}
-	if (BN_num_bits(key->rsa->n) < 768) {
-		error("ssh_rsa_verify: n too small: %d bits",
-		    BN_num_bits(key->rsa->n));
+	if (BN_num_bits(key->rsa->n) < SSH_RSA_MINIMUM_MODULUS_SIZE) {
+		error("ssh_rsa_verify: RSA modulus too small: %d < minimum %d bits",
+		    BN_num_bits(key->rsa->n), SSH_RSA_MINIMUM_MODULUS_SIZE);
 		return -1;
 	}
 	buffer_init(&b);
@@ -151,6 +144,21 @@ ssh_rsa_verify(
 		error("ssh_rsa_verify: remaining bytes in signature %d", rlen);
 		xfree(sigblob);
 		return -1;
+	}
+	/* RSA_verify expects a signature of RSA_size */
+	modlen = RSA_size(key->rsa);
+	if (len > modlen) {
+		error("ssh_rsa_verify: len %d > modlen %d", len, modlen);
+		xfree(sigblob);
+		return -1;
+	} else if (len < modlen) {
+		int diff = modlen - len;
+		debug("ssh_rsa_verify: add padding: modlen %d > len %d",
+		    modlen, len);
+		sigblob = xrealloc(sigblob, modlen);
+		memmove(sigblob + diff, sigblob, len);
+		memset(sigblob, 0, diff);
+		len = modlen;
 	}
 	nid = (datafellows & SSH_BUG_RSASIGMD5) ? NID_md5 : NID_sha1;
 	if ((evp_md = EVP_get_digestbynid(nid)) == NULL) {
