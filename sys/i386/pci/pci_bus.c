@@ -263,6 +263,11 @@ nexus_pcib_is_host_bridge(int bus, int slot, int func,
 		*busnum = nexus_pcib_read_config(0, bus, slot, func, 0x44, 1);
 		break;
 
+	case 0x00101166:
+		s = "ServerWorks CIOB30 host to PCI bridge";
+		*busnum = nexus_pcib_read_config(0, bus, slot, func, 0x44, 1);
+		break;
+
 	case 0x00111166:
 		/* FALLTHROUGH */
 	case 0x03021014: /* IBM re-badged ServerWorks chipset */
