@@ -310,7 +310,7 @@ reduce()
 	case whilestmt:	/* while (...) on top */
 	    if (ps.p_stack[ps.tos - 1] == dohead) {
 		/* it is termination of a do while */
-		ps.p_stack[--ps.tos] = stmt;
+		ps.tos -= 2;
 		break;
 	    }
 	    else
