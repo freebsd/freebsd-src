@@ -122,6 +122,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/sysctl.h>
 #include <sys/uio.h>
 #include <sys/linker.h>
+#include <sys/cons.h>
 #include <net/netisr.h>
 #include <vm/vm.h>
 #include <vm/vm_kern.h>
@@ -585,10 +586,18 @@ alpha_init(pfn, ptb, bim, bip, biv)
 	 * Initalize the real console, so the the bootstrap console is
 	 * no longer necessary.
 	 */
+#ifndef NO_SIO
 	if (platform.cons_init) {
 		platform.cons_init();
 		promcndetach();
 	}
+#else
+	if (platform.cons_init)
+		platform.cons_init();
+	promcndetach();
+	cninit();
+#endif
+
 	/* NO MORE FIRMWARE ACCESS ALLOWED */
 #ifdef _PMAP_MAY_USE_PROM_CONSOLE
 	/*
