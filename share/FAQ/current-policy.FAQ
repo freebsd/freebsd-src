@@ -1,6 +1,6 @@
                         THE FREEBSD CURRENT POLICY 
 
-Last updated: $Date: 1994/05/07 11:39:26 $
+Last updated: $Date: 1994/09/11 10:56:05 $
 
 This document attempts to explain the rationale behind FreeBSD-current,
 what you should expect should you decide to run it, and states some
@@ -86,7 +86,7 @@ FreeBSD-current is made generally available for 3 primary interest groups:
         important information, and will let you know what parts of the
         system are being actively changed.
 
-        To join these lists, send mail to `majordomo@freefall.cdrom.com'
+        To join these lists, send mail to `majordomo@FreeBSD.ORG'
         and say:
 
             subscribe freebsd-hackers
@@ -96,7 +96,7 @@ FreeBSD-current is made generally available for 3 primary interest groups:
         and MajorDomo will send you full help on how to subscribe and
         unsubscribe to the various other mailing lists we support.
 
-    2.  Grab the sources from freebsd.cdrom.com.  You can do this in
+    2.  Grab the sources from ftp.FreeBSD.ORG.  You can do this in
         two ways:
 
         1.  Use the CMU `sup' program (Software Update Protocol).
@@ -109,12 +109,12 @@ FreeBSD-current is made generally available for 3 primary interest groups:
             as the documentation and some sample configuration files,
             look in:
 
-            freefall.cdrom.com:~ftp/pub/sup
+            FreeBSD.ORG:~ftp/pub/sup
 
         2.  Use ftp.  The source tree for FreeBSD-current is always
             "exported" on:
 
-             freebsd.cdrom.com:~ftp/pub/FreeBSD/FreeBSD-current
+             ftp.FreeBSD.ORG:~ftp/pub/FreeBSD/FreeBSD-current
 
             We use `wu-ftpd' which allows compressed/tar'd grabbing
             of whole trees.  e.g. you see:

@@ -1,7 +1,7 @@
                      THE FREEBSD MAILING LIST FAQ 
 
-Last updated: $Date: 1994/09/11 10:56:07 $
-Id: $Id$
+Last updated: $Date: 1994/09/14 09:50:56 $
+Id: $Id: mailing-list.FAQ,v 1.2 1994/09/14 09:50:56 jkh Exp $
 
 --
 Though many of the FreeBSD development members read USENET, we cannot
@@ -54,13 +54,13 @@ memberships limited to a small subset of core team members and developers,
 though anyone is free to send suggestions and commentary to them.  The other
 lists may be freely joined by the general public.
 
-All mailing lists live on `freefall.cdrom.com', so to post to a list you
-simply mail to `<listname>@freefall.cdrom.com'.  It will then be redistributed
+All mailing lists live on `FreeBSD.ORG', so to post to a list you
+simply mail to `<listname>@FreeBSD.ORG'.  It will then be redistributed
 to mailing list members throughout the world.
 
 To subscribe to a list, send mail to:
 
-                majordomo@freefall.cdrom.com
+                      majordomo@FreeBSD.ORG
 
 And include the keyword
 
@@ -69,7 +69,7 @@ And include the keyword
 In the body of your message.  For example, to subscribe yourself to
 freebsd-hackers, you'd do:
 
-                % mail majordomo@freefall.cdrom.com
+                % mail majordomo@FreeBSD.ORG
                 subscribe freebsd-hackers
                 ^D
 
@@ -78,7 +78,7 @@ subscription request for a local mailing list (note: this is more efficient
 if you have several interested parties at one site, and highly appreciated by
 us!), you would do something like:
 
-                % mail majordomo@freefall.cdrom.com
+                % mail majordomo@FreeBSD.ORG
                 subscribe freebsd-hackers local-hackers@somesite.com
                 ^D
 
@@ -87,7 +87,7 @@ list of other list members or see the list of mailing lists again by
 sending other types of control messages to majordomo.  For a complete
 list of available commands, do this:
 
-                % mail majordomo@freefall.cdrom.com
+                % mail majordomo@FreeBSD.ORG
                 help
                 ^D
 
