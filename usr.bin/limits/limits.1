@@ -51,8 +51,9 @@
 .Op Ar name Ns = Ns Ar value ...
 .Op Ar command
 .Sh DESCRIPTION
-.Nm Limits
-either prints or sets kernel resource limits, and may optionally set
+The
+.Nm
+utility either prints or sets kernel resource limits, and may optionally set
 environment variables like
 .Xr env 1
 and run a program with the selected resources.
@@ -300,7 +301,9 @@ When invoked to execute a program, the failure of
 to raise a hard limit is considered a fatal error.
 .El
 .Sh DIAGNOSTICS
-.Nm Limits
+The
+.Nm
+utility
 exits with EXIT_FAILURE if usage is incorrect in any way; i.e. an invalid
 option, or set/display options are selected in the same invocation,
 .Fl e
@@ -321,8 +324,9 @@ will be whatever the executed program returns.
 .Xr login.conf 5 ,
 .Xr sysctl 8
 .Sh BUGS
-.Nm Limits
-does not handle commands with equal (``='') signs in their
+The
+.Nm
+utility does not handle commands with equal (``='') signs in their
 names, for obvious reasons.
 .Pp
 When eval output is selected, the
@@ -340,8 +344,9 @@ in eval mode prior mounting
 may only occur in standard bourne
 shell scripts.
 .Pp
-.Nm Limits
-makes no effort to ensure that resource settings emitted or displayed
+The
+.Nm
+utility makes no effort to ensure that resource settings emitted or displayed
 are valid and settable by the current user.
 Only a superuser account may raise hard limits, and when doing so
 the

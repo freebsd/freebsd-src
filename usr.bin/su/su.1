@@ -45,16 +45,18 @@
 .Op Fl c Ar class
 .Op Ar login Op Ar args
 .Sh DESCRIPTION
-.Nm Su
-requests the Kerberos password for
+The
+.Nm
+utility requests the Kerberos password for
 .Ar login
 (or for
 .Dq Ar login Ns .root ,
 if no login is provided), and switches to
 that user and group ID after obtaining a Kerberos ticket granting ticket.
 A shell is then executed.
-.Nm Su
-will resort to the local password file to find the password for
+The
+.Nm
+utility will resort to the local password file to find the password for
 .Ar login
 if there is a Kerberos error.
 If

@@ -49,15 +49,17 @@
 .Op Fl c
 .Op \-days
 .Sh DESCRIPTION
-.Nm Msgs
-is used to read system messages.
+The
+.Nm
+utility is used to read system messages.
 These messages are
 sent by mailing to the login `msgs' and should be short
 pieces of information which are suitable to be read once by most users
 of the system.
 .Pp
-.Nm Msgs
-is normally invoked each time you login, by placing it in the file
+The
+.Nm
+utility is normally invoked each time you login, by placing it in the file
 .Pa .login
 (or
 .Pa .profile
@@ -99,8 +101,9 @@ is invoked on that mailbox.
 Both `m' and `s' accept a numeric argument in place of the `\-'.
 .El
 .Pp
-.Nm Msgs
-keeps track of the next message you will see by a number in the file
+The
+.Nm
+utility keeps track of the next message you will see by a number in the file
 .Pa \&.msgsrc
 in your home directory.
 In the directory
@@ -203,8 +206,9 @@ you can also go to any specific message by typing its number when
 .Nm
 requests input as to what to do.
 .Sh ENVIRONMENT
-.Nm Msgs
-uses the
+The
+.Nm
+utility uses the
 .Ev HOME
 and
 .Ev TERM

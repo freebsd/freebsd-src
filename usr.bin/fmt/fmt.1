@@ -49,8 +49,9 @@
 .Op Ar goal Oo Ar maximum Oc | Fl Ns Ar width | Fl w Ar width
 .Op Ar
 .Sh DESCRIPTION
+The
 .Nm
-is a simple text formatter which reads the concatenation of input
+utility is a simple text formatter which reads the concatenation of input
 files (or standard input if none are given) and produces on standard
 output a version of its input with lines as close to the
 .Ar goal
@@ -137,7 +138,9 @@ spaces per tab stop.
 The default is 8.
 .El
 .Pp
+The
 .Nm
+utility
 is meant to format mail messages prior to sending, but may also be useful
 for other simple tasks.
 For instance,
@@ -177,6 +180,7 @@ When the first line of an indented paragraph is very long (more than
 about twice the goal length), the indentation in the output can be
 wrong.
 .Pp
+The
 .Nm
-is not infallible in guessing what lines are mail headers and what
+utility is not infallible in guessing what lines are mail headers and what
 lines are not.

@@ -46,8 +46,9 @@
 .Op Fl t Ar time
 .Op Ar file Op command ...
 .Sh DESCRIPTION
-.Nm Script
-makes a typescript of everything printed on your terminal.
+The
+.Nm
+utility makes a typescript of everything printed on your terminal.
 It is useful for students who need a hardcopy record of an interactive
 session as proof of an assignment, as the typescript file
 can be printed out later with
@@ -108,8 +109,9 @@ C-shell,
 Certain interactive commands, such as
 .Xr vi 1 ,
 create garbage in the typescript file.
-.Nm Script
-works best with commands that do not manipulate the screen.
+The
+.Nm
+utility works best with commands that do not manipulate the screen.
 The results are meant to emulate a hardcopy terminal, not an addressable one.
 .Sh ENVIRONMENT
 The following environment variable is utilized by
@@ -138,8 +140,9 @@ The
 command appeared in
 .Bx 3.0 .
 .Sh BUGS
-.Nm Script
-places
+The
+.Nm
+utility places
 .Sy everything
 in the log file, including linefeeds and backspaces.
 This is not what the naive user expects.
