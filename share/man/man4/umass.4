@@ -40,7 +40,7 @@ The
 .Nm
 driver provides support for Mass Storage devices that attach to the USB
 port.
-Supported are
+Supported are:
 .Pp
 .Bl -item -compact
 .It
@@ -48,7 +48,7 @@ Iomega USB Zip 100 drive
 .It
 Iomega USB Zip 250 drive
 .It
-Microtech International, Inc. USB-SCSI-HD 50 USB to SCSI cable.
+Microtech International, Inc. USB-SCSI-HD 50 USB to SCSI cable
 .It
 Panasonic ("Matshita FDD CF-VFDU03")
 .It
@@ -84,7 +84,7 @@ or
 must be configured in the kernel as well.
 Last but not least, support for
 SCSI drives,
-.Nm da
+.Nm da .
 .Sh EXAMPLES
 .Bd -literal -offset indent
 device umass
@@ -114,7 +114,7 @@ LUNs on a single SCSI ID.
 Typically only the first slot will be enabled at boot time.
 Again, this assumes that the flash reader is the first SCSI bus in the system.
 .Bd -literal -offset indent
-disklabel -w -r da0 zip100
+bsdlabel -w da0 zip100
 newfs da0c
 mount -t ufs /dev/da0c /mnt
 .Ed
@@ -135,7 +135,7 @@ Create a new FAT type file system.
 .Xr vpo 4 ,
 .Xr disktab 5 ,
 .Xr camcontrol 8 ,
-.Xr disklabel 8
+.Xr bsdlabel 8
 .\".Sh HISTORY
 .Sh AUTHORS
 .An -nosplit
