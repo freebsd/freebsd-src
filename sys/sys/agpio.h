@@ -43,13 +43,13 @@
 #define AGP_MODE_GET_AGP(x)		(((x) & 0x00000100U) >> 8)
 #define AGP_MODE_GET_4G(x)		(((x) & 0x00000020U) >> 5)
 #define AGP_MODE_GET_FW(x)		(((x) & 0x00000010U) >> 4)
-#define AGP_MODE_GET_RATE(x)		((x) & 0x00000003U)
+#define AGP_MODE_GET_RATE(x)		((x) & 0x00000007U)
 #define AGP_MODE_SET_RQ(x,v)		(((x) & ~0xff000000U) | ((v) << 24))
 #define AGP_MODE_SET_SBA(x,v)		(((x) & ~0x00000200U) | ((v) << 9))
 #define AGP_MODE_SET_AGP(x,v)		(((x) & ~0x00000100U) | ((v) << 8))
 #define AGP_MODE_SET_4G(x,v)		(((x) & ~0x00000020U) | ((v) << 5))
 #define AGP_MODE_SET_FW(x,v)		(((x) & ~0x00000010U) | ((v) << 4))
-#define AGP_MODE_SET_RATE(x,v)		(((x) & ~0x00000003U) | (v))
+#define AGP_MODE_SET_RATE(x,v)		(((x) & ~0x00000007U) | (v))
 #define AGP_MODE_RATE_1x		0x00000001
 #define AGP_MODE_RATE_2x		0x00000002
 #define AGP_MODE_RATE_4x		0x00000004
