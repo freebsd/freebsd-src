@@ -55,6 +55,10 @@ MALLOC_DEFINE(M_SESSION, "session", "session header");
 static MALLOC_DEFINE(M_PROC, "proc", "Proc structures");
 MALLOC_DEFINE(M_SUBPROC, "subproc", "Proc sub-structures");
 
+static int ps_showallprocs = 1;
+SYSCTL_INT(_kern, OID_AUTO, ps_showallprocs, CTLFLAG_RW,
+    &ps_showallprocs, 0, "");
+
 static void pgdelete	__P((struct pgrp *));
 
 /*
@@ -598,6 +602,11 @@ sysctl_kern_proc(SYSCTL_HANDLER_ARGS)
 		else
 			p = LIST_FIRST(&zombproc);
 		for (; p != 0; p = LIST_NEXT(p, p_list)) {
+			/*
+			 * Show a user only their processes.
+			 */
+			if ((!ps_showallprocs) && p_trespass(curproc, p))
+				continue;
 			/*
 			 * Skip embryonic processes.
 			 */
