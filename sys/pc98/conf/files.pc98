@@ -58,8 +58,15 @@ dev/fb/fb.c			optional	fb
 dev/fb/fb.c			optional	gdc
 dev/fb/splash.c			optional	splash
 dev/kbd/kbd.c			optional	kbd
+dev/kbd/kbd.c			optional	ukbd
 dev/kbd/kbd.c			optional	pckbd
 dev/pccard/if_xe.c		optional	xe
+dev/sound/isa/ad1816.c		optional	pcm isa
+dev/sound/isa/es1888.c		optional	pcm isa
+dev/sound/isa/gusc.c		optional	gusc
+dev/sound/isa/mss.c		optional	pcm isa
+dev/sound/isa/sb.c		optional	pcm isa
+dev/sound/isa/sbc.c		optional	sbc
 gnu/i386/fpemul/div_small.s	optional	gpl_math_emulate
 gnu/i386/fpemul/errors.c	optional	gpl_math_emulate
 gnu/i386/fpemul/fpu_arith.c	optional	gpl_math_emulate
@@ -195,7 +202,7 @@ i386/isa/if_le.c		optional	le
 i386/isa/if_lnc.c		optional	lnc
 i386/isa/if_rdp.c		optional	rdp
 i386/isa/if_sr.c		optional	sr
-i386/isa/if_wi.c		optional	wi
+i386/isa/if_wi.c		optional	wi card
 i386/isa/if_wl.c		optional	wl
 i386/isa/if_ze.c		optional	ze
 i386/isa/if_zp.c		optional	zp
