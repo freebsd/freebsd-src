@@ -41,8 +41,8 @@ $CurrentPackagesCommand = '/usr/sbin/pkg_info -aI';
 $CatProgram = "cat ";
 $FetchProgram = "fetch -o - ";
 
-#$indexFile = "ftp://ftp.freebsd.org/pub/FreeBSD/branches/-current/ports/INDEX";
-$IndexFile = 'file:/usr/ports/INDEX';
+#$IndexFile = "ftp://ftp.freebsd.org/pub/FreeBSD/branches/-current/ports/INDEX";
+$IndexFile = '/usr/ports/INDEX';
 $ShowCommandsFlag = 0;
 $DebugFlag = 0;
 $VerboseFlag = 0;
