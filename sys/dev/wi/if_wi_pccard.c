@@ -60,7 +60,8 @@ __FBSDID("$FreeBSD$");
 #include <net/if_dl.h>
 #include <net/if_media.h>
 #include <net/if_types.h>
-#include <net/if_ieee80211.h>
+
+#include <net80211/ieee80211_var.h>
 
 #include <dev/pccard/pccardvar.h>
 #if __FreeBSD_version >= 500000

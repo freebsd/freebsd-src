@@ -116,8 +116,10 @@ __FBSDID("$FreeBSD$");
 #include <net/ethernet.h>
 #include <net/if_dl.h>
 #include <net/if_types.h>
-#include <net/if_ieee80211.h>
 #include <net/if_media.h>
+
+#include <net80211/ieee80211_var.h>
+#include <net80211/ieee80211_ioctl.h>
 
 #ifdef INET
 #include <netinet/in.h>
@@ -788,7 +790,7 @@ an_attach(sc, unit, flags)
 	ADD(IFM_AUTO, IFM_IEEE80211_ADHOC);
 	for (i = 0; i < nrate; i++) {
 		r = sc->an_caps.an_rates[i];
-		mword = ieee80211_rate2media(r, IEEE80211_T_DS);
+		mword = ieee80211_rate2media(NULL, r, IEEE80211_T_DS);
 		if (mword == 0)
 			continue;
 		printf("%s%d%sMbps", (i != 0 ? " " : ""),
@@ -3072,10 +3074,8 @@ an_media_change(ifp)
 	else
 		sc->an_config.an_opmode = AN_OPMODE_INFRASTRUCTURE_STATION;
 
-	sc->an_tx_rate = 
-	    ieee80211_media2rate(
-	        IFM_SUBTYPE(sc->an_ifmedia.ifm_cur->ifm_media),
-		IEEE80211_T_DS);
+	sc->an_tx_rate = ieee80211_media2rate(
+		IFM_SUBTYPE(sc->an_ifmedia.ifm_cur->ifm_media));
 
 	if (orate != sc->an_tx_rate) {
 		/* Read the current configuration */
@@ -3124,8 +3124,8 @@ an_media_status(ifp, imr)
 
 	if (sc->an_config.an_opmode == AN_OPMODE_IBSS_ADHOC)
 		imr->ifm_active |= IFM_IEEE80211_ADHOC;
-	imr->ifm_active |= ieee80211_rate2media(status.an_current_tx_rate,
-	    IEEE80211_T_DS);
+	imr->ifm_active |= ieee80211_rate2media(NULL,
+		status.an_current_tx_rate, IEEE80211_T_DS);
 	imr->ifm_status = IFM_AVALID;
 	if (status.an_opmode & AN_STATUS_OPMODE_ASSOCIATED)
 		imr->ifm_status |= IFM_ACTIVE;

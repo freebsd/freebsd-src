@@ -213,6 +213,24 @@ int awi_init(struct awi_softc *sc);
 int awi_init_region(struct awi_softc *);
 int awi_wicfg(struct ifnet *, u_long, caddr_t);
 
+#ifndef SIOCS80211NWKEY
+/*
+ * This structure is part of the NetBSD public ioctl interface but
+ * used internally by the driver.  Declare it here for non-NetBSD
+ * systems.
+ */
+/* the first member must be matched with struct ifreq */
+struct ieee80211_nwkey {
+	char		i_name[IFNAMSIZ];	/* if_name, e.g. "wi0" */
+	int		i_wepon;		/* wep enabled flag */
+	int		i_defkid;		/* default encrypt key id */
+	struct {
+		int		i_keylen;
+		u_int8_t	*i_keydat;
+	}		i_key[IEEE80211_WEP_NKID];
+};
+#endif
+
 int awi_wep_setnwkey(struct awi_softc *, struct ieee80211_nwkey *);
 int awi_wep_getnwkey(struct awi_softc *, struct ieee80211_nwkey *);
 int awi_wep_getalgo(struct awi_softc *);
