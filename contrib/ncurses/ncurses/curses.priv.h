@@ -34,7 +34,7 @@
 
 
 /*
- * $Id: curses.priv.h,v 1.218 2002/05/18 19:48:38 tom Exp $
+ * $Id: curses.priv.h,v 1.219 2002/05/25 12:22:43 tom Exp $
  *
  *	curses.priv.h
  *
@@ -248,6 +248,7 @@ color_t;
 #endif
 
 #include <curses.h>	/* we'll use -Ipath directive to get the right one! */
+#include <term.h>
 
 struct ldat
 {
@@ -672,6 +673,7 @@ extern NCURSES_EXPORT(WINDOW *) _nc_retrace_win (WINDOW *);
 extern NCURSES_EXPORT(attr_t) _nc_retrace_attr_t (attr_t);
 extern NCURSES_EXPORT(attr_t) _nc_retrace_chtype (chtype);
 extern NCURSES_EXPORT(char *) _nc_retrace_ptr (char *);
+extern NCURSES_EXPORT(char *) _nc_trace_ttymode(TTY *tty);
 extern NCURSES_EXPORT(char *) _nc_varargs (const char *, va_list);
 extern NCURSES_EXPORT(const char *) _nc_altcharset_name(attr_t, chtype);
 extern NCURSES_EXPORT(int) _nc_retrace_int (int);

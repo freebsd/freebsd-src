@@ -1,5 +1,5 @@
 /****************************************************************************
- * Copyright (c) 1998,1999,2000,2001 Free Software Foundation, Inc.         *
+ * Copyright (c) 1998-2001,2002 Free Software Foundation, Inc.              *
  *                                                                          *
  * Permission is hereby granted, free of charge, to any person obtaining a  *
  * copy of this software and associated documentation files (the            *
@@ -34,7 +34,7 @@
 #include <curses.priv.h>
 #include <term.h>		/* cur_term */
 
-MODULE_ID("$Id: lib_tracebits.c,v 1.11 2001/10/20 22:44:32 tom Exp $")
+MODULE_ID("$Id: lib_tracebits.c,v 1.12 2002/05/25 14:35:07 tom Exp $")
 
 #if SVR4_TERMIO && !defined(_POSIX_SOURCE)
 #define _POSIX_SOURCE
@@ -82,7 +82,7 @@ lookup_bits(char *buf, const BITNAMES * table, const char *label, unsigned int v
 }
 
 NCURSES_EXPORT(char *)
-_nc_tracebits(void)
+_nc_trace_ttymode(TTY * tty)
 /* describe the state of the terminal control bits exactly */
 {
     char *buf;
@@ -143,14 +143,14 @@ _nc_tracebits(void)
 			8 + sizeof(lflags) +
 			8);
 
-    if (cur_term->Nttyb.c_iflag & ALLIN)
-	lookup_bits(buf, iflags, "iflags", cur_term->Nttyb.c_iflag);
+    if (tty->c_iflag & ALLIN)
+	lookup_bits(buf, iflags, "iflags", tty->c_iflag);
 
-    if (cur_term->Nttyb.c_oflag & ALLOUT)
-	lookup_bits(buf, oflags, "oflags", cur_term->Nttyb.c_oflag);
+    if (tty->c_oflag & ALLOUT)
+	lookup_bits(buf, oflags, "oflags", tty->c_oflag);
 
-    if (cur_term->Nttyb.c_cflag & ALLCTRL)
-	lookup_bits(buf, cflags, "cflags", cur_term->Nttyb.c_cflag);
+    if (tty->c_cflag & ALLCTRL)
+	lookup_bits(buf, cflags, "cflags", tty->c_cflag);
 
 #if defined(CS5) && defined(CS8)
     {
@@ -176,7 +176,7 @@ _nc_tracebits(void)
 	    },
 	};
 	const char *result = "CSIZE? ";
-	int value = (cur_term->Nttyb.c_cflag & CSIZE);
+	int value = (tty->c_cflag & CSIZE);
 	unsigned n;
 
 	if (value != 0) {
@@ -191,8 +191,8 @@ _nc_tracebits(void)
     }
 #endif
 
-    if (cur_term->Nttyb.c_lflag & ALLLOCAL)
-	lookup_bits(buf, lflags, "lflags", cur_term->Nttyb.c_lflag);
+    if (tty->c_lflag & ALLLOCAL)
+	lookup_bits(buf, lflags, "lflags", tty->c_lflag);
 
 #else
     /* reference: ttcompat(4M) on SunOS 4.1 */
@@ -231,11 +231,17 @@ _nc_tracebits(void)
     buf = _nc_trace_buf(0,
 			8 + sizeof(cflags));
 
-    if (cur_term->Nttyb.sg_flags & ALLCTRL) {
-	lookup_bits(buf, cflags, "cflags", cur_term->Nttyb.sg_flags);
+    if (tty->sg_flags & ALLCTRL) {
+	lookup_bits(buf, cflags, "cflags", tty->sg_flags);
     }
 #endif
     return (buf);
+}
+
+NCURSES_EXPORT(char *)
+_nc_tracebits(void)
+{
+    return _nc_trace_ttymode(&(cur_term->Nttyb));
 }
 #else
 empty_module(_nc_tracebits)

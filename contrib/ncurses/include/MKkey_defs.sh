@@ -1,5 +1,5 @@
 #! /bin/sh
-# $Id: MKkey_defs.sh,v 1.7 2002/01/13 01:36:32 tom Exp $
+# $Id: MKkey_defs.sh,v 1.8 2002/06/01 17:24:28 tom Exp $
 ##############################################################################
 # Copyright (c) 2001,2002 Free Software Foundation, Inc.                     #
 #                                                                            #
@@ -44,6 +44,9 @@ pass3=pass3_$$
 pass4=pass4_$$
 trap 'rm -f $data pass[1234]_$$' 0 1 2 5 15
 sed -e 's/[	]\+/	/g' < $DATA |sort -n +5 >$data
+cat >>$data <<EOF
+key_resize	kr1	str	R1	KEY_RESIZE	+	-----	Terminal resize event
+EOF
 
 cat <<EOF
 /*
@@ -51,8 +54,8 @@ cat <<EOF
  */
 EOF
 
-# KEY_RESIZE
-maxkey=410
+# KEY_RESET
+maxkey=345
 
 for pass in 1 2 3 4
 do

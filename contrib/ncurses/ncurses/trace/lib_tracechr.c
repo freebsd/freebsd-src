@@ -36,7 +36,7 @@
  */
 #include <curses.priv.h>
 
-MODULE_ID("$Id: lib_tracechr.c,v 1.8 2002/02/10 01:26:04 tom Exp $")
+MODULE_ID("$Id: lib_tracechr.c,v 1.9 2002/05/25 23:34:19 tom Exp $")
 
 #ifdef TRACE
 NCURSES_EXPORT(char *)
@@ -44,10 +44,10 @@ _tracechar(int ch)
 {
     static char crep[40];
     (void) sprintf(crep, "'%.30s' = %#03o",
-		   (ch > KEY_MIN)
-		   ? keyname(ch)
-		   : unctrl(ch),
-		   (unsigned) ch);
+		   ((ch > KEY_MIN || ch < 0)
+		    ? keyname(ch)
+		    : unctrl(ch)),
+		   ch);
     return (crep);
 }
 #else

@@ -1,4 +1,4 @@
-# $Id: MKkeyname.awk,v 1.21 2002/02/23 22:36:33 tom Exp $
+# $Id: MKkeyname.awk,v 1.22 2002/05/25 22:25:06 tom Exp $
 ##############################################################################
 # Copyright (c) 1999-2001,2002 Free Software Foundation, Inc.                #
 #                                                                            #
@@ -49,10 +49,12 @@ END {
 	print "char name[20];"
 	print "char *p;"
 	print ""
+	print "\tif (c == -1) return \"-1\";"
+	print ""
 	print "\tfor (i = 0; _nc_key_names[i].name != 0; i++)"
 	print "\t\tif (_nc_key_names[i].code == c)"
 	print "\t\t\treturn (NCURSES_CONST char *)_nc_key_names[i].name;"
-	print "\tif (c >= 256) return \"UNKNOWN KEY\";"
+	print "\tif (c < 0 || c >= 256) return \"UNKNOWN KEY\";"
 	print ""
 	print "\tif (table == 0)"
 	print "\t\ttable = typeCalloc(char *, 256);"
@@ -66,9 +68,7 @@ END {
 	print "\t\t\tp += 2;"
 	print "\t\t\tc -= 128;"
 	print "\t\t}"
-	print "\t\tif (c < 0)"
-	print "\t\t\tsprintf(p, \"%d\", c);"
-	print "\t\telse if (c < 32)"
+	print "\t\tif (c < 32)"
 	print "\t\t\tsprintf(p, \"^%c\", c + '@');"
 	print "\t\telse if (c == 127)"
 	print "\t\t\tstrcpy(p, \"^?\");"
