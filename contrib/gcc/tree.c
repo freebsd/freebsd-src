@@ -558,6 +558,35 @@ build_int_2_wide (low, hi)
   return t;
 }
 
+/* Return a new VECTOR_CST node whose type is TYPE and whose values
+   are in a list pointed by VALS.  */
+
+tree
+build_vector (type, vals)
+     tree type, vals;
+{
+  tree v = make_node (VECTOR_CST);
+  int over1 = 0, over2 = 0;
+  tree link;
+
+  TREE_VECTOR_CST_ELTS (v) = vals;
+  TREE_TYPE (v) = type;
+
+  /* Iterate through elements and check for overflow.  */
+  for (link = vals; link; link = TREE_CHAIN (link))
+    {
+      tree value = TREE_VALUE (link);
+
+      over1 |= TREE_OVERFLOW (value);
+      over2 |= TREE_CONSTANT_OVERFLOW (value);
+    }
+  
+  TREE_OVERFLOW (v) = over1;
+  TREE_CONSTANT_OVERFLOW (v) = over2;
+
+  return v;
+}
+
 /* Return a new REAL_CST node whose type is TYPE and value is D.  */
 
 tree
@@ -2736,6 +2765,16 @@ default_function_attribute_inlinable_p (fndecl)
   return false;
 }
 
+/* Default value of targetm.ms_bitfield_layout_p that always returns
+   false.  */
+bool
+default_ms_bitfield_layout_p (record)
+     tree record ATTRIBUTE_UNUSED;
+{
+  /* By default, GCC does not use the MS VC++ bitfield layout rules.  */
+  return false;
+}
+
 /* Return non-zero if IDENT is a valid name for attribute ATTR,
    or zero if not.
 
@@ -3376,7 +3415,20 @@ tree_int_cst_lt (t1, t2)
   if (t1 == t2)
     return 0;
 
-  if (! TREE_UNSIGNED (TREE_TYPE (t1)))
+  if (TREE_UNSIGNED (TREE_TYPE (t1)) != TREE_UNSIGNED (TREE_TYPE (t2)))
+    {
+      int t1_sgn = tree_int_cst_sgn (t1);
+      int t2_sgn = tree_int_cst_sgn (t2);
+
+      if (t1_sgn < t2_sgn)
+	return 1;
+      else if (t1_sgn > t2_sgn)
+	return 0;
+      /* Otherwise, both are non-negative, so we compare them as
+	 unsigned just in case one of them would overflow a signed
+	 type.  */
+    }
+  else if (! TREE_UNSIGNED (TREE_TYPE (t1)))
     return INT_CST_LT (t1, t2);
 
   return INT_CST_LT_UNSIGNED (t1, t2);
@@ -3397,8 +3449,10 @@ tree_int_cst_compare (t1, t2)
     return 0;
 }
 
-/* Return 1 if T is an INTEGER_CST that can be represented in a single
-   HOST_WIDE_INT value.  If POS is nonzero, the result must be positive.  */
+/* Return 1 if T is an INTEGER_CST that can be manipulated efficiently on
+   the host.  If POS is zero, the value can be represented in a single
+   HOST_WIDE_INT.  If POS is nonzero, the value must be positive and can
+   be represented in a single unsigned HOST_WIDE_INT.  */
 
 int
 host_integerp (t, pos)
@@ -3410,9 +3464,9 @@ host_integerp (t, pos)
 	  && ((TREE_INT_CST_HIGH (t) == 0
 	       && (HOST_WIDE_INT) TREE_INT_CST_LOW (t) >= 0)
 	      || (! pos && TREE_INT_CST_HIGH (t) == -1
-		  && (HOST_WIDE_INT) TREE_INT_CST_LOW (t) < 0)
-	      || (! pos && TREE_INT_CST_HIGH (t) == 0
-		  && TREE_UNSIGNED (TREE_TYPE (t)))));
+		  && (HOST_WIDE_INT) TREE_INT_CST_LOW (t) < 0
+		  && ! TREE_UNSIGNED (TREE_TYPE (t)))
+	      || (pos && TREE_INT_CST_HIGH (t) == 0)));
 }
 
 /* Return the HOST_WIDE_INT least significant bits of T if it is an
@@ -3756,29 +3810,6 @@ build_index_type (maxval)
     return type_hash_canon (tree_low_cst (maxval, 1), itype);
   else
     return itype;
-}
-
-/* Builds a signed or unsigned integer type of precision PRECISION.
-   Used for C bitfields whose precision does not match that of
-   built-in target types.  */
-tree
-build_nonstandard_integer_type (precision, unsignedp)
-     unsigned int precision;
-     int unsignedp;
-{
-  tree itype = make_node (INTEGER_TYPE);
-
-  TYPE_PRECISION (itype) = precision;
-
-  if (unsignedp)
-    fixup_unsigned_type (itype);
-  else
-    fixup_signed_type (itype);
-
-  if (host_integerp (TYPE_MAX_VALUE (itype), 1))
-    return type_hash_canon (tree_low_cst (TYPE_MAX_VALUE (itype), 1), itype);
-
-  return itype;
 }
 
 /* Create a range of some discrete type TYPE (an INTEGER_TYPE,
@@ -4504,16 +4535,23 @@ append_random_chars (template)
 	 compiles since this can cause bootstrap comparison errors.  */
 
       if (stat (main_input_filename, &st) < 0)
-	abort ();
-
-      /* In VMS, ino is an array, so we have to use both values.  We
-	 conditionalize that.  */
+	{
+	  /* This can happen when preprocessed text is shipped between
+	     machines, e.g. with bug reports.  Assume that uniqueness
+	     isn't actually an issue.  */
+	  value = 1;
+	}
+      else
+	{
+	  /* In VMS, ino is an array, so we have to use both values.  We
+	     conditionalize that.  */
 #ifdef VMS
 #define INO_TO_INT(INO) ((int) (INO)[1] << 16 ^ (int) (INO)[2])
 #else
 #define INO_TO_INT(INO) INO
 #endif
-      value = st.st_dev ^ INO_TO_INT (st.st_ino) ^ st.st_mtime;
+	  value = st.st_dev ^ INO_TO_INT (st.st_ino) ^ st.st_mtime;
+	}
     }
 
   template += strlen (template);
@@ -4920,6 +4958,7 @@ build_common_tree_nodes_2 (short_double)
   unsigned_V16QI_type_node
     = make_vector (V16QImode, unsigned_intQI_type_node, 1);
 
+  V16SF_type_node = make_vector (V16SFmode, float_type_node, 0);
   V4SF_type_node = make_vector (V4SFmode, float_type_node, 0);
   V4SI_type_node = make_vector (V4SImode, intSI_type_node, 0);
   V2SI_type_node = make_vector (V2SImode, intSI_type_node, 0);

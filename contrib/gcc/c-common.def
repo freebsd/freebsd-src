@@ -71,8 +71,8 @@ DEFTREECODE (BREAK_STMT, "break_stmt", 'e', 0)
 DEFTREECODE (CONTINUE_STMT, "continue_stmt", 'e', 0)
 
 /* Used to represent a 'switch' statement. The operands are
-   SWITCH_COND and SWITCH_BODY, respectively. */
-DEFTREECODE (SWITCH_STMT, "switch_stmt", 'e', 2)
+   SWITCH_COND, SWITCH_BODY and SWITCH_TYPE, respectively. */
+DEFTREECODE (SWITCH_STMT, "switch_stmt", 'e', 3)
 
 /* Used to represent a 'goto' statement. The operand is GOTO_DESTINATION. */
 DEFTREECODE (GOTO_STMT, "goto_stmt", 'e', 1)
@@ -112,6 +112,11 @@ DEFTREECODE (STMT_EXPR, "stmt_expr", 'e', 1)
    the DECL_INITIAL of that decl is the CONSTRUCTOR that initializes
    the compound literal.  */
 DEFTREECODE (COMPOUND_LITERAL_EXPR, "compound_literal_expr", 'e', 1)
+
+/* A CLEANUP_STMT marks the point at which a declaration is fully
+   constructed.  If, after this point, the CLEANUP_DECL goes out of
+   scope, the CLEANUP_EXPR must be run.  */
+DEFTREECODE (CLEANUP_STMT, "cleanup_stmt", 'e', 2)
 
 /*
 Local variables:

@@ -1,7 +1,7 @@
 /* RTEMS threads compatibily routines for libgcc2 and libobjc.
    by: Rosimildo da Silva( rdasilva@connecttel.com ) */
 /* Compile this one with gcc.  */
-/* Copyright (C) 1997, 1999, 2000 Free Software Foundation, Inc.
+/* Copyright (C) 1997, 1999, 2000, 2002 Free Software Foundation, Inc.
 
 This file is part of GCC.
 
@@ -30,6 +30,9 @@ Software Foundation, 59 Temple Place - Suite 330, Boston, MA
 #ifndef GCC_GTHR_RTEMS_H
 #define GCC_GTHR_RTEMS_H
 
+#ifdef __cplusplus
+extern "C" {
+#endif
 
 #define __GTHREADS 1
 
@@ -48,7 +51,7 @@ typedef void *__gthread_mutex_t;
  */
 
 /* generic per task variables */
-extern int rtems_gxx_once (__gthread_once_t *once, void (*func) ());
+extern int rtems_gxx_once (__gthread_once_t *once, void (*func) (void));
 extern int rtems_gxx_key_create (__gthread_key_t *key, void (*dtor) (void *));
 extern int rtems_gxx_key_dtor (__gthread_key_t key, void *ptr);
 extern int rtems_gxx_key_delete (__gthread_key_t key);
@@ -71,7 +74,7 @@ __gthread_active_p (void)
 
 /* Wrapper calls */
 static inline int
-__gthread_once (__gthread_once_t *once, void (*func) ())
+__gthread_once (__gthread_once_t *once, void (*func) (void))
 {
    return rtems_gxx_once( once, func );
 }
@@ -123,5 +126,9 @@ __gthread_mutex_unlock (__gthread_mutex_t *mutex)
 {
     return rtems_gxx_mutex_unlock( mutex );
 }
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif /* ! GCC_GTHR_RTEMS_H */

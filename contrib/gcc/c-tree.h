@@ -132,6 +132,10 @@ struct lang_type
 /* Record whether a typedef for type `int' was actually `signed int'.  */
 #define C_TYPEDEF_EXPLICITLY_SIGNED(EXP) DECL_LANG_FLAG_1 (EXP)
 
+/* For a FUNCTION_DECL, nonzero if it was defined without an explicit
+   return type.  */
+#define C_FUNCTION_IMPLICIT_INT(EXP) DECL_LANG_FLAG_1 (EXP)
+
 /* Nonzero for a declaration of a built in function if there has been no
    occasion that would declare the function in ordinary C.
    Using the function draws a pedantic warning in this case.  */
@@ -177,7 +181,7 @@ extern tree define_label                        PARAMS ((const char *, int,
 							 tree));
 extern void finish_decl                         PARAMS ((tree, tree, tree));
 extern tree finish_enum                         PARAMS ((tree, tree, tree));
-extern void finish_function                     PARAMS ((int));
+extern void finish_function                     PARAMS ((int, int));
 extern tree finish_struct                       PARAMS ((tree, tree, tree));
 extern tree get_parm_info                       PARAMS ((int));
 extern tree grokfield                           PARAMS ((const char *, int, tree, tree, tree));
@@ -266,6 +270,7 @@ extern void c_finish_case                       PARAMS ((void));
 extern tree simple_asm_stmt			PARAMS ((tree));
 extern tree build_asm_stmt			PARAMS ((tree, tree, tree,
 							 tree, tree));
+extern tree c_convert_parm_for_inlining		PARAMS ((tree, tree, tree));
 
 /* Set to 0 at beginning of a function definition, set to 1 if
    a return statement that specifies a return value is seen.  */
@@ -276,6 +281,11 @@ extern int current_function_returns_value;
    a return statement with no argument is seen.  */
 
 extern int current_function_returns_null;
+
+/* Set to 0 at beginning of a function definition, set to 1 if
+   a call to a noreturn function is seen.  */
+
+extern int current_function_returns_abnormally;
 
 /* Nonzero means the expression being parsed will never be evaluated.
    This is a count, since unevaluated expressions can nest.  */

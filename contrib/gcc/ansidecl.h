@@ -1,5 +1,6 @@
 /* ANSI and traditional C compatability macros
-   Copyright 1991, 1992, 1996 Free Software Foundation, Inc.
+   Copyright 1991, 1992, 1993, 1994, 1995, 1996, 1998, 1999, 2000, 2001
+   Free Software Foundation, Inc.
    This file is part of the GNU C Library.
 
 This program is free software; you can redistribute it and/or modify
@@ -20,144 +21,275 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.  */
 
    ANSI C is assumed if __STDC__ is #defined.
 
-   Macro	ANSI C definition	Traditional C definition
-   -----	---- - ----------	----------- - ----------
-   PTR		`void *'		`char *'
-   LONG_DOUBLE	`long double'		`double'
-   VOLATILE	`volatile'		`'
-   SIGNED	`signed'		`'
-   PTRCONST	`void *const'		`char *'
-   ANSI_PROTOTYPES  1			not defined
+   Macro		ANSI C definition	Traditional C definition
+   -----		---- - ----------	----------- - ----------
+   ANSI_PROTOTYPES	1			not defined
+   PTR			`void *'		`char *'
+   PTRCONST		`void *const'		`char *'
+   LONG_DOUBLE		`long double'		`double'
+   const		not defined		`'
+   volatile		not defined		`'
+   signed		not defined		`'
+   VA_START(ap, var)	va_start(ap, var)	va_start(ap)
 
-   CONST is also defined, but is obsolete.  Just use const.
+   Note that it is safe to write "void foo();" indicating a function
+   with no return value, in all K+R compilers we have been able to test.
 
-   obsolete --     DEFUN (name, arglist, args)
+   For declaring functions with prototypes, we also provide these:
 
-	Defines function NAME.
+   PARAMS ((prototype))
+   -- for functions which take a fixed number of arguments.  Use this
+   when declaring the function.  When defining the function, write a
+   K+R style argument list.  For example:
 
-	ARGLIST lists the arguments, separated by commas and enclosed in
-	parentheses.  ARGLIST becomes the argument list in traditional C.
+	char *strcpy PARAMS ((char *dest, char *source));
+	...
+	char *
+	strcpy (dest, source)
+	     char *dest;
+	     char *source;
+	{ ... }
 
-	ARGS list the arguments with their types.  It becomes a prototype in
-	ANSI C, and the type declarations in traditional C.  Arguments should
-	be separated with `AND'.  For functions with a variable number of
-	arguments, the last thing listed should be `DOTS'.
 
-   obsolete --     DEFUN_VOID (name)
+   VPARAMS ((prototype, ...))
+   -- for functions which take a variable number of arguments.  Use
+   PARAMS to declare the function, VPARAMS to define it.  For example:
 
-	Defines a function NAME, which takes no arguments.
+	int printf PARAMS ((const char *format, ...));
+	...
+	int
+	printf VPARAMS ((const char *format, ...))
+	{
+	   ...
+	}
 
-   obsolete --     EXFUN (name, (prototype))	-- obsolete.
+   For writing functions which take variable numbers of arguments, we
+   also provide the VA_OPEN, VA_CLOSE, and VA_FIXEDARG macros.  These
+   hide the differences between K+R <varargs.h> and C89 <stdarg.h> more
+   thoroughly than the simple VA_START() macro mentioned above.
 
-	Replaced by PARAMS.  Do not use; will disappear someday soon.
-	Was used in external function declarations.
-	In ANSI C it is `NAME PROTOTYPE' (so PROTOTYPE should be enclosed in
-	parentheses).  In traditional C it is `NAME()'.
-	For a function that takes no arguments, PROTOTYPE should be `(void)'.
+   VA_OPEN and VA_CLOSE are used *instead of* va_start and va_end.
+   Immediately after VA_OPEN, put a sequence of VA_FIXEDARG calls
+   corresponding to the list of fixed arguments.  Then use va_arg
+   normally to get the variable arguments, or pass your va_list object
+   around.  You do not declare the va_list yourself; VA_OPEN does it
+   for you.
 
-   obsolete --     PROTO (type, name, (prototype)    -- obsolete.
+   Here is a complete example:
 
-	This one has also been replaced by PARAMS.  Do not use.
+	int
+	printf VPARAMS ((const char *format, ...))
+	{
+	   int result;
 
-   PARAMS ((args))
+	   VA_OPEN (ap, format);
+	   VA_FIXEDARG (ap, const char *, format);
 
-	We could use the EXFUN macro to handle prototype declarations, but
-	the name is misleading and the result is ugly.  So we just define a
-	simple macro to handle the parameter lists, as in:
+	   result = vfprintf (stdout, format, ap);
+	   VA_CLOSE (ap);
 
-	      static int foo PARAMS ((int, char));
+	   return result;
+	}
 
-	This produces:  `static int foo();' or `static int foo (int, char);'
 
-	EXFUN would have done it like this:
+   You can declare variables either before or after the VA_OPEN,
+   VA_FIXEDARG sequence.  Also, VA_OPEN and VA_CLOSE are the beginning
+   and end of a block.  They must appear at the same nesting level,
+   and any variables declared after VA_OPEN go out of scope at
+   VA_CLOSE.  Unfortunately, with a K+R compiler, that includes the
+   argument list.  You can have multiple instances of VA_OPEN/VA_CLOSE
+   pairs in a single function in case you need to traverse the
+   argument list more than once.
 
-	      static int EXFUN (foo, (int, char));
+   For ease of writing code which uses GCC extensions but needs to be
+   portable to other compilers, we provide the GCC_VERSION macro that
+   simplifies testing __GNUC__ and __GNUC_MINOR__ together, and various
+   wrappers around __attribute__.  Also, __extension__ will be #defined
+   to nothing if it doesn't work.  See below.
 
-	but the function is not external...and it's hard to visually parse
-	the function name out of the mess.   EXFUN should be considered
-	obsolete; new code should be written to use PARAMS.
-
-   DOTS is also obsolete.
-
-   Examples:
-
-	extern int printf PARAMS ((const char *format, ...));
-*/
+   This header also defines a lot of obsolete macros:
+   CONST, VOLATILE, SIGNED, PROTO, EXFUN, DEFUN, DEFUN_VOID,
+   AND, DOTS, NOARGS.  Don't use them.  */
 
 #ifndef	_ANSIDECL_H
-
-#define	_ANSIDECL_H	1
-
+#define _ANSIDECL_H	1
 
 /* Every source file includes this file,
    so they will all get the switch for lint.  */
 /* LINTLIBRARY */
 
+/* Using MACRO(x,y) in cpp #if conditionals does not work with some
+   older preprocessors.  Thus we can't define something like this:
+
+#define HAVE_GCC_VERSION(MAJOR, MINOR) \
+  (__GNUC__ > (MAJOR) || (__GNUC__ == (MAJOR) && __GNUC_MINOR__ >= (MINOR)))
+
+and then test "#if HAVE_GCC_VERSION(2,7)".
+
+So instead we use the macro below and test it against specific values.  */
+
+/* This macro simplifies testing whether we are using gcc, and if it
+   is of a particular minimum version. (Both major & minor numbers are
+   significant.)  This macro will evaluate to 0 if we are not using
+   gcc at all.  */
+#ifndef GCC_VERSION
+#define GCC_VERSION (__GNUC__ * 1000 + __GNUC_MINOR__)
+#endif /* GCC_VERSION */
 
 #if defined (__STDC__) || defined (_AIX) || (defined (__mips) && defined (_SYSTYPE_SVR4)) || defined(_WIN32)
 /* All known AIX compilers implement these things (but don't always
    define __STDC__).  The RISC/OS MIPS compiler defines these things
    in SVR4 mode, but does not define __STDC__.  */
 
-#define	PTR		void *
-#define	PTRCONST	void *CONST
-#define	LONG_DOUBLE	long double
+#define ANSI_PROTOTYPES	1
+#define PTR		void *
+#define PTRCONST	void *const
+#define LONG_DOUBLE	long double
 
-#ifndef IN_GCC
-#define	AND		,
-#define	NOARGS		void
-#define	VOLATILE	volatile
-#define	SIGNED		signed
-#endif /* ! IN_GCC */
+#define PARAMS(ARGS)		ARGS
+#define VPARAMS(ARGS)		ARGS
+#define VA_START(VA_LIST, VAR)	va_start(VA_LIST, VAR)
 
-#define PARAMS(paramlist)		paramlist
-#define ANSI_PROTOTYPES			1
+/* variadic function helper macros */
+/* "struct Qdmy" swallows the semicolon after VA_OPEN/VA_FIXEDARG's
+   use without inhibiting further decls and without declaring an
+   actual variable.  */
+#define VA_OPEN(AP, VAR)	{ va_list AP; va_start(AP, VAR); { struct Qdmy
+#define VA_CLOSE(AP)		} va_end(AP); }
+#define VA_FIXEDARG(AP, T, N)	struct Qdmy
+ 
+#undef const
+#undef volatile
+#undef signed
 
-#define VPARAMS(ARGS)			ARGS
-#define VA_START(va_list,var)		va_start(va_list,var)
+/* inline requires special treatment; it's in C99, and GCC >=2.7 supports
+   it too, but it's not in C89.  */
+#undef inline
+#if __STDC_VERSION__ > 199901L
+/* it's a keyword */
+#else
+# if GCC_VERSION >= 2007
+#  define inline __inline__   /* __inline__ prevents -pedantic warnings */
+# else
+#  define inline  /* nothing */
+# endif
+#endif
 
 /* These are obsolete.  Do not use.  */
 #ifndef IN_GCC
-#define CONST				const
-#define DOTS				, ...
+#define CONST		const
+#define VOLATILE	volatile
+#define SIGNED		signed
+
 #define PROTO(type, name, arglist)	type name arglist
 #define EXFUN(name, proto)		name proto
 #define DEFUN(name, arglist, args)	name(args)
 #define DEFUN_VOID(name)		name(void)
+#define AND		,
+#define DOTS		, ...
+#define NOARGS		void
 #endif /* ! IN_GCC */
 
 #else	/* Not ANSI C.  */
 
-#define	PTR		char *
-#define	PTRCONST	PTR
-#define	LONG_DOUBLE	double
+#undef  ANSI_PROTOTYPES
+#define PTR		char *
+#define PTRCONST	PTR
+#define LONG_DOUBLE	double
 
-#ifndef IN_GCC
-#define	AND		;
-#define	NOARGS
-#define	VOLATILE
-#define	SIGNED
-#endif /* !IN_GCC */
+#define PARAMS(args)		()
+#define VPARAMS(args)		(va_alist) va_dcl
+#define VA_START(va_list, var)	va_start(va_list)
 
-#ifndef const /* some systems define it in header files for non-ansi mode */
-#define	const
-#endif
+#define VA_OPEN(AP, VAR)		{ va_list AP; va_start(AP); { struct Qdmy
+#define VA_CLOSE(AP)			} va_end(AP); }
+#define VA_FIXEDARG(AP, TYPE, NAME)	TYPE NAME = va_arg(AP, TYPE)
 
-#define PARAMS(paramlist)		()
+/* some systems define these in header files for non-ansi mode */
+#undef const
+#undef volatile
+#undef signed
+#undef inline
+#define const
+#define volatile
+#define signed
+#define inline
 
-#define VPARAMS(ARGS)			(va_alist) va_dcl
-#define VA_START(va_list,var)		va_start(va_list)
-
-/* These are obsolete.  Do not use.  */
 #ifndef IN_GCC
 #define CONST
-#define DOTS
+#define VOLATILE
+#define SIGNED
+
 #define PROTO(type, name, arglist)	type name ()
 #define EXFUN(name, proto)		name()
 #define DEFUN(name, arglist, args)	name arglist args;
 #define DEFUN_VOID(name)		name()
+#define AND		;
+#define DOTS
+#define NOARGS
 #endif /* ! IN_GCC */
 
 #endif	/* ANSI C.  */
+
+/* Define macros for some gcc attributes.  This permits us to use the
+   macros freely, and know that they will come into play for the
+   version of gcc in which they are supported.  */
+
+#if (GCC_VERSION < 2007)
+# define __attribute__(x)
+#endif
+
+/* Attribute __malloc__ on functions was valid as of gcc 2.96. */
+#ifndef ATTRIBUTE_MALLOC
+# if (GCC_VERSION >= 2096)
+#  define ATTRIBUTE_MALLOC __attribute__ ((__malloc__))
+# else
+#  define ATTRIBUTE_MALLOC
+# endif /* GNUC >= 2.96 */
+#endif /* ATTRIBUTE_MALLOC */
+
+/* Attributes on labels were valid as of gcc 2.93. */
+#ifndef ATTRIBUTE_UNUSED_LABEL
+# if (GCC_VERSION >= 2093)
+#  define ATTRIBUTE_UNUSED_LABEL ATTRIBUTE_UNUSED
+# else
+#  define ATTRIBUTE_UNUSED_LABEL
+# endif /* GNUC >= 2.93 */
+#endif /* ATTRIBUTE_UNUSED_LABEL */
+
+#ifndef ATTRIBUTE_UNUSED
+#define ATTRIBUTE_UNUSED __attribute__ ((__unused__))
+#endif /* ATTRIBUTE_UNUSED */
+
+#ifndef ATTRIBUTE_NORETURN
+#define ATTRIBUTE_NORETURN __attribute__ ((__noreturn__))
+#endif /* ATTRIBUTE_NORETURN */
+
+#ifndef ATTRIBUTE_PRINTF
+#define ATTRIBUTE_PRINTF(m, n) __attribute__ ((__format__ (__printf__, m, n)))
+#define ATTRIBUTE_PRINTF_1 ATTRIBUTE_PRINTF(1, 2)
+#define ATTRIBUTE_PRINTF_2 ATTRIBUTE_PRINTF(2, 3)
+#define ATTRIBUTE_PRINTF_3 ATTRIBUTE_PRINTF(3, 4)
+#define ATTRIBUTE_PRINTF_4 ATTRIBUTE_PRINTF(4, 5)
+#define ATTRIBUTE_PRINTF_5 ATTRIBUTE_PRINTF(5, 6)
+#endif /* ATTRIBUTE_PRINTF */
+
+/* We use __extension__ in some places to suppress -pedantic warnings
+   about GCC extensions.  This feature didn't work properly before
+   gcc 2.8.  */
+#if GCC_VERSION < 2008
+#define __extension__
+#endif
+
+/* Bootstrap support:  Adjust certain macros defined by Autoconf,
+   which are only valid for the stage1 compiler.  If we detect
+   a modern version of GCC, we are probably in stage2 or beyond,
+   so unconditionally reset the values.  Note that const, inline,
+   etc. have been dealt with above.  */
+#if (GCC_VERSION >= 2007)
+# ifndef HAVE_LONG_DOUBLE
+#  define HAVE_LONG_DOUBLE 1
+# endif
+#endif /* GCC >= 2.7 */
 
 #endif	/* ansidecl.h	*/

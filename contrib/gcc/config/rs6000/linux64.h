@@ -1,6 +1,6 @@
 /* Definitions of target machine for GNU compiler,
    for 64 bit powerpc linux.
-   Copyright (C) 2000, 2001 Free Software Foundation, Inc.
+   Copyright (C) 2000, 2001, 2002 Free Software Foundation, Inc.
 
 This file is part of GNU CC.
 
@@ -87,10 +87,6 @@ Boston, MA 02111-1307, USA.  */
 #undef  JUMP_TABLES_IN_TEXT_SECTION
 #define JUMP_TABLES_IN_TEXT_SECTION 1
 
-/* Define cutoff for using external functions to save floating point.  */
-#undef  FP_SAVE_INLINE
-#define FP_SAVE_INLINE(FIRST_REG) ((FIRST_REG) == 62 || (FIRST_REG) == 63)
-
 /* 64-bit PowerPC Linux always has GPR13 fixed.  */
 #define FIXED_R13		1
 
@@ -142,9 +138,29 @@ Boston, MA 02111-1307, USA.  */
 #define LINK_OS_DEFAULT_SPEC "%(link_os_linux)"
 
 #undef  LINK_OS_LINUX_SPEC
+#ifndef CROSS_COMPILE
 #define LINK_OS_LINUX_SPEC "-m elf64ppc %{!shared: %{!static: \
   %{rdynamic:-export-dynamic} \
-  %{!dynamic-linker:-dynamic-linker /lib/ld.so.1}}}"
+  %{!dynamic-linker:-dynamic-linker /lib64/ld.so.1}}}"
+#else
+#define LINK_OS_LINUX_SPEC "-m elf64ppc %{!shared: %{!static: \
+  %{rdynamic:-export-dynamic} \
+  %{!dynamic-linker:-dynamic-linker ld.so.1}}}"
+#endif
+
+#ifndef CROSS_COMPILE
+#undef  STARTFILE_LINUX_SPEC
+#define STARTFILE_LINUX_SPEC "\
+%{!shared: %{pg:/usr/lib64/gcrt1.o%s} %{!pg:%{p:/usr/lib64/gcrt1.o%s} \
+  %{!p:/usr/lib64/crt1.o%s}}} /usr/lib64/crti.o%s \
+%{!shared:crtbegin.o%s} %{shared:crtbeginS.o%s}"
+#endif
+
+#ifndef CROSS_COMPILE
+#undef  ENDFILE_LINUX_SPEC
+#define ENDFILE_LINUX_SPEC "\
+%{!shared:crtend.o%s} %{shared:crtendS.o%s} /usr/lib64/crtn.o%s"
+#endif
 
 #undef  TOC_SECTION_ASM_OP
 #define TOC_SECTION_ASM_OP "\t.section\t\".toc\",\"aw\""
@@ -208,17 +224,6 @@ Boston, MA 02111-1307, USA.  */
       && ! DECL_WEAK (DECL))					\
     SYMBOL_REF_FLAG (XEXP (DECL_RTL (DECL), 0)) = 1;
 
-/* This macro gets just the user-specified name
-   out of the string in a SYMBOL_REF.  Discard
-   a leading * or @.  */
-#define STRIP_NAME_ENCODING(VAR,SYMBOL_NAME)	\
-do {						\
-  const char *_name = (SYMBOL_NAME);		\
-  while (*_name == '*' || *_name == '@')	\
-    _name++;					\
-  (VAR) = _name;				\
-} while (0)
-
 /* This is how to output a reference to a user-level label named NAME.
    `assemble_name' uses this.  */
 
@@ -245,29 +250,36 @@ do {						\
       fputs (DOUBLE_INT_ASM_OP, (FILE));				\
       putc ('.', (FILE));						\
       assemble_name ((FILE), (NAME));					\
-      putc ('\n', (FILE));						\
-      fputs (DOUBLE_INT_ASM_OP, (FILE));				\
-      fputs (".TOC.@tocbase, 0\n\t.previous\n", (FILE));		\
-									\
-      if (TREE_PUBLIC (DECL))						\
+      fputs (",.TOC.@tocbase,0\n\t.previous\n\t.size\t", (FILE));	\
+      assemble_name ((FILE), (NAME));					\
+      fputs (",24\n\t.type\t.", (FILE));				\
+      assemble_name ((FILE), (NAME));					\
+      fputs (",@function\n", (FILE));					\
+      if (TREE_PUBLIC (DECL) && ! DECL_WEAK (DECL))			\
         {								\
-	  if (DECL_WEAK (DECL))						\
-	    fputs ("\t.weak\t", (FILE));				\
-	  else								\
-	    fputs ("\t.globl\t", (FILE));				\
-	  putc ('.', (FILE));						\
+	  fputs ("\t.globl\t.", (FILE));				\
 	  assemble_name ((FILE), (NAME));				\
 	  putc ('\n', (FILE));						\
         }								\
-      fputs (TYPE_ASM_OP, (FILE));					\
-      putc ('.', (FILE));						\
-      assemble_name ((FILE), (NAME));					\
-      putc (',', (FILE));						\
-      fprintf ((FILE), TYPE_OPERAND_FMT, "function");			\
-      putc ('\n', (FILE));						\
       ASM_DECLARE_RESULT ((FILE), DECL_RESULT (DECL));			\
       putc ('.', (FILE));						\
       ASM_OUTPUT_LABEL ((FILE), (NAME));				\
+    }									\
+  while (0)
+
+/* This is how to declare the size of a function.  */
+#undef	ASM_DECLARE_FUNCTION_SIZE
+#define	ASM_DECLARE_FUNCTION_SIZE(FILE, FNAME, DECL)			\
+  do									\
+    {									\
+      if (!flag_inhibit_size_directive)					\
+	{								\
+	  fputs ("\t.size\t.", (FILE));					\
+	  assemble_name ((FILE), (FNAME));				\
+	  fputs (",.-.", (FILE));					\
+	  assemble_name ((FILE), (FNAME));				\
+	  putc ('\n', (FILE));						\
+	}								\
     }									\
   while (0)
 

@@ -193,8 +193,13 @@ setup_callbacks ()
   if (! options->no_output)
     {
       cb->line_change = cb_line_change;
-      cb->ident      = cb_ident;
-      cb->def_pragma = cb_def_pragma;
+      /* Don't emit #pragma or #ident directives if we are processing
+	 assembly language; the assembler may choke on them.  */
+      if (options->lang != CLK_ASM)
+	{
+	  cb->ident      = cb_ident;
+	  cb->def_pragma = cb_def_pragma;
+	}
       if (! options->no_line_commands)
 	cb->file_change = cb_file_change;
     }
@@ -316,8 +321,17 @@ print_line (map, line, special_flags)
   print.line = line;
   if (! options->no_line_commands)
     {
+      size_t to_file_len = strlen (map->to_file);
+      unsigned char *to_file_quoted = alloca (to_file_len * 4 + 1);
+      unsigned char *p;
+      
+      /* cpp_quote_string does not nul-terminate, so we have to do it
+	 ourselves.  */
+      p = cpp_quote_string (to_file_quoted,
+			    (unsigned char *)map->to_file, to_file_len);
+      *p = '\0';
       fprintf (print.outf, "# %u \"%s\"%s",
-	       SOURCE_LINE (map, print.line), map->to_file, special_flags);
+	       SOURCE_LINE (map, print.line), to_file_quoted, special_flags);
 
       if (map->sysp == 2)
 	fputs (" 3 4", print.outf);

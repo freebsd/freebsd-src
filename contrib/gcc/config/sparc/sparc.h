@@ -358,6 +358,11 @@ Unrecognized value in TARGET_CPU_DEFAULT.
   SUBTARGET_EXTRA_SPECS
 
 #define SUBTARGET_EXTRA_SPECS
+
+/* Because libgcc can generate references back to libc (via .umul etc.) we have
+   to list libc again after the second libgcc.  */
+#define LINK_GCC_C_SEQUENCE_SPEC "%G %L %G %L"
+
 
 #ifdef SPARC_BI_ARCH
 #define NO_BUILTIN_PTRDIFF_TYPE
@@ -369,34 +374,11 @@ Unrecognized value in TARGET_CPU_DEFAULT.
 /* ??? This should be 32 bits for v9 but what can we do?  */
 #define WCHAR_TYPE "short unsigned int"
 #define WCHAR_TYPE_SIZE 16
-#define MAX_WCHAR_TYPE_SIZE 16
 
 /* Show we can debug even without a frame pointer.  */
 #define CAN_DEBUG_WITHOUT_FP
 
-/* To make profiling work with -f{pic,PIC}, we need to emit the profiling
-   code into the rtl.  Also, if we are profiling, we cannot eliminate
-   the frame pointer (because the return address will get smashed).  */
-
-#define OVERRIDE_OPTIONS \
-  do {									\
-    if (profile_flag || profile_arc_flag)				\
-      {									\
-	if (flag_pic)							\
-	  {								\
-	    const char *const pic_string = (flag_pic == 1) ? "-fpic" : "-fPIC";\
-	    warning ("%s and profiling conflict: disabling %s",		\
-		     pic_string, pic_string);				\
-	    flag_pic = 0;						\
-	  }								\
-	flag_omit_frame_pointer = 0;					\
-      }									\
-    sparc_override_options ();						\
-    SUBTARGET_OVERRIDE_OPTIONS;						\
-  } while (0)
-
-/* This is meant to be redefined in the host dependent files.  */
-#define SUBTARGET_OVERRIDE_OPTIONS
+#define OVERRIDE_OPTIONS  sparc_override_options ()
 
 /* Generate DBX debugging information.  */
 
@@ -409,11 +391,6 @@ extern int target_flags;
 /* Nonzero if we should generate code to use the fpu.  */
 #define MASK_FPU 1
 #define TARGET_FPU (target_flags & MASK_FPU)
-
-/* Nonzero if we should use function_epilogue().  Otherwise, we
-   use fast return insns, but lose some generality.  */
-#define MASK_EPILOGUE 2
-#define TARGET_EPILOGUE (target_flags & MASK_EPILOGUE)
 
 /* Nonzero if we should assume that double pointers might be unaligned.
    This can happen when linking gcc compiled code with other compilers,
@@ -558,10 +535,6 @@ extern int target_flags;
     {"soft-float", -MASK_FPU,						\
      N_("Do not use hardware fp") },					\
     {"soft-float", MASK_FPU_SET,			NULL },		\
-    {"epilogue", MASK_EPILOGUE,						\
-     N_("Use function_epilogue()") },					\
-    {"no-epilogue", -MASK_EPILOGUE,					\
-     N_("Do not use function_epilogue()") }, 				\
     {"unaligned-doubles", MASK_UNALIGNED_DOUBLES,			\
      N_("Assume possible double misalignment") },			\
     {"no-unaligned-doubles", -MASK_UNALIGNED_DOUBLES,			\
@@ -630,7 +603,7 @@ extern int target_flags;
 /* MASK_APP_REGS must always be the default because that's what
    FIXED_REGISTERS is set to and -ffixed- is processed before
    CONDITIONAL_REGISTER_USAGE is called (where we process -mno-app-regs).  */
-#define TARGET_DEFAULT (MASK_APP_REGS + MASK_EPILOGUE + MASK_FPU)
+#define TARGET_DEFAULT (MASK_APP_REGS + MASK_FPU)
 
 /* This is meant to be redefined in target specific files.  */
 #define SUBTARGET_SWITCHES
@@ -722,7 +695,11 @@ extern struct sparc_cpu_select sparc_select[];
 
 /* Width of a word, in units (bytes).  */
 #define UNITS_PER_WORD		(TARGET_ARCH64 ? 8 : 4)
+#ifdef IN_LIBGCC2
+#define MIN_UNITS_PER_WORD	UNITS_PER_WORD
+#else
 #define MIN_UNITS_PER_WORD	4
+#endif
 
 /* Now define the sizes of the C data types.  */
 
@@ -894,9 +871,10 @@ if (TARGET_ARCH64				\
    accessible.  We still account for them to simplify register computations
    (eg: in CLASS_MAX_NREGS).  There are also 4 fp condition code registers, so
    32+32+32+4 == 100.
-   Register 100 is used as the integer condition code register.  */
+   Register 100 is used as the integer condition code register.
+   Register 101 is used as the soft frame pointer register.  */
 
-#define FIRST_PSEUDO_REGISTER 101
+#define FIRST_PSEUDO_REGISTER 102
 
 #define SPARC_FIRST_FP_REG     32
 /* Additional V9 fp regs.  */
@@ -962,7 +940,7 @@ if (TARGET_ARCH64				\
   0, 0, 0, 0, 0, 0, 0, 0,	\
   0, 0, 0, 0, 0, 0, 0, 0,	\
 				\
-  0, 0, 0, 0, 0}
+  0, 0, 0, 0, 0, 1}
 
 /* 1 for registers not available across function calls.
    These must include the FIXED_REGISTERS and also any
@@ -987,7 +965,7 @@ if (TARGET_ARCH64				\
   1, 1, 1, 1, 1, 1, 1, 1,	\
   1, 1, 1, 1, 1, 1, 1, 1,	\
 				\
-  1, 1, 1, 1, 1}
+  1, 1, 1, 1, 1, 1}
 
 /* If !TARGET_FPU, then make the fp registers and fp cc regs fixed so that
    they won't be allocated.  */
@@ -995,7 +973,7 @@ if (TARGET_ARCH64				\
 #define CONDITIONAL_REGISTER_USAGE				\
 do								\
   {								\
-    if (flag_pic)						\
+    if (PIC_OFFSET_TABLE_REGNUM != INVALID_REGNUM)		\
       {								\
 	fixed_regs[PIC_OFFSET_TABLE_REGNUM] = 1;		\
 	call_used_regs[PIC_OFFSET_TABLE_REGNUM] = 1;		\
@@ -1039,12 +1017,16 @@ do								\
       fixed_regs[4] = 0;					\
     if (TARGET_FLAT)						\
       {								\
+	int regno;						\
 	/* Let the compiler believe the frame pointer is still	\
 	   %fp, but output it as %i7.  */			\
 	fixed_regs[31] = 1;					\
-	reg_names[FRAME_POINTER_REGNUM] = "%i7";		\
+	reg_names[HARD_FRAME_POINTER_REGNUM] = "%i7";		\
 	/* Disable leaf functions */				\
 	memset (sparc_leaf_regs, 0, FIRST_PSEUDO_REGISTER);	\
+	/* Make LEAF_REG_REMAP a noop.  */			\
+	for (regno = 0; regno < FIRST_PSEUDO_REGISTER; regno++)	\
+	  leaf_reg_remap [regno] = regno;			\
       }								\
   }								\
 while (0)
@@ -1062,9 +1044,9 @@ while (0)
 
 #define HARD_REGNO_NREGS(REGNO, MODE) \
   (TARGET_ARCH64							\
-   ?  ((REGNO) < 32							\
-       ? (GET_MODE_SIZE (MODE) + UNITS_PER_WORD - 1) / UNITS_PER_WORD	\
-       : (GET_MODE_SIZE (MODE) + 3) / 4)				\
+   ? ((REGNO) < 32 || (REGNO) == FRAME_POINTER_REGNUM			\
+      ? (GET_MODE_SIZE (MODE) + UNITS_PER_WORD - 1) / UNITS_PER_WORD	\
+      : (GET_MODE_SIZE (MODE) + 3) / 4)					\
    : ((GET_MODE_SIZE (MODE) + UNITS_PER_WORD - 1) / UNITS_PER_WORD))
 
 /* Due to the ARCH64 descrepancy above we must override this next
@@ -1107,27 +1089,32 @@ extern int sparc_mode_class[];
 /* Register to use for pushing function arguments.  */
 #define STACK_POINTER_REGNUM 14
 
+/* The stack bias (amount by which the hardware register is offset by).  */
+#define SPARC_STACK_BIAS ((TARGET_ARCH64 && TARGET_STACK_BIAS) ? 2047 : 0)
+
 /* Actual top-of-stack address is 92/176 greater than the contents of the
    stack pointer register for !v9/v9.  That is:
    - !v9: 64 bytes for the in and local registers, 4 bytes for structure return
      address, and 6*4 bytes for the 6 register parameters.
    - v9: 128 bytes for the in and local registers + 6*8 bytes for the integer
      parameter regs.  */
-#define STACK_POINTER_OFFSET FIRST_PARM_OFFSET(0)
-
-/* The stack bias (amount by which the hardware register is offset by).  */
-#define SPARC_STACK_BIAS ((TARGET_ARCH64 && TARGET_STACK_BIAS) ? 2047 : 0)
-
-/* Is stack biased? */
-#define STACK_BIAS SPARC_STACK_BIAS
+#define STACK_POINTER_OFFSET (FIRST_PARM_OFFSET(0) + SPARC_STACK_BIAS)
 
 /* Base register for access to local variables of the function.  */
-#define FRAME_POINTER_REGNUM 30
+#define HARD_FRAME_POINTER_REGNUM 30
 
-#if 0
-/* Register that is used for the return address for the flat model.  */
-#define RETURN_ADDR_REGNUM 15
-#endif
+/* The soft frame pointer does not have the stack bias applied.  */
+#define FRAME_POINTER_REGNUM 101
+
+/* Given the stack bias, the stack pointer isn't actually aligned.  */
+#define INIT_EXPANDERS							 \
+  do {									 \
+    if (cfun && cfun->emit->regno_pointer_align && SPARC_STACK_BIAS)	 \
+      {									 \
+	REGNO_POINTER_ALIGN (STACK_POINTER_REGNUM) = BITS_PER_UNIT;	 \
+	REGNO_POINTER_ALIGN (HARD_FRAME_POINTER_REGNUM) = BITS_PER_UNIT; \
+      }									 \
+  } while (0)
 
 /* Value should be nonzero if functions must have frame pointers.
    Zero means the frame pointer need not be set up (and parms
@@ -1138,20 +1125,12 @@ extern int sparc_mode_class[];
    Being a non-leaf function does not mean a frame pointer is needed in the
    flat window model.  However, the debugger won't be able to backtrace through
    us with out it.  */
-#define FRAME_POINTER_REQUIRED \
-  (TARGET_FLAT ? (current_function_calls_alloca || current_function_varargs \
-		  || !leaf_function_p ()) \
+#define FRAME_POINTER_REQUIRED				\
+  (TARGET_FLAT						\
+   ? (current_function_calls_alloca			\
+      || current_function_varargs			\
+      || !leaf_function_p ())				\
    : ! (leaf_function_p () && only_leaf_regs_used ()))
-
-/* C statement to store the difference between the frame pointer
-   and the stack pointer values immediately after the function prologue.
-
-   Note, we always pretend that this is a leaf function because if
-   it's not, there's no point in trying to eliminate the
-   frame pointer.  If it is a leaf function, we guessed right!  */
-#define INITIAL_FRAME_POINTER_OFFSET(VAR) \
-  ((VAR) = (TARGET_FLAT ? sparc_flat_compute_frame_size (get_frame_size ()) \
-	    : compute_frame_size (get_frame_size (), 1)))
 
 /* Base register for access to arguments of the function.  */
 #define ARG_POINTER_REGNUM FRAME_POINTER_REGNUM
@@ -1163,7 +1142,7 @@ extern int sparc_mode_class[];
 /* Register which holds offset table for position-independent
    data references.  */
 
-#define PIC_OFFSET_TABLE_REGNUM 23
+#define PIC_OFFSET_TABLE_REGNUM (flag_pic ? 23 : INVALID_REGNUM)
 
 /* Pick a default value we can notice from override_options:
    !v9: Default is on.
@@ -1275,10 +1254,16 @@ enum reg_class { NO_REGS, FPCC_REGS, I64_REGS, GENERAL_REGS, FP_REGS,
    This is an initializer for a vector of HARD_REG_SET
    of length N_REG_CLASSES.  */
 
-#define REG_CLASS_CONTENTS \
-  {{0, 0, 0, 0}, {0, 0, 0, 0xf}, {0xffff, 0, 0, 0}, \
-   {-1, 0, 0, 0}, {0, -1, 0, 0}, {0, -1, -1, 0}, \
-   {-1, -1, 0, 0}, {-1, -1, -1, 0}, {-1, -1, -1, 0x1f}}
+#define REG_CLASS_CONTENTS				\
+  {{0, 0, 0, 0},	/* NO_REGS */			\
+   {0, 0, 0, 0xf},	/* FPCC_REGS */			\
+   {0xffff, 0, 0, 0},	/* I64_REGS */			\
+   {-1, 0, 0, 0x20},	/* GENERAL_REGS */		\
+   {0, -1, 0, 0},	/* FP_REGS */			\
+   {0, -1, -1, 0},	/* EXTRA_FP_REGS */		\
+   {-1, -1, 0, 0x20},	/* GENERAL_OR_FP_REGS */	\
+   {-1, -1, -1, 0x20},	/* GENERAL_OR_EXTRA_FP_REGS */	\
+   {-1, -1, -1, 0x3f}}	/* ALL_REGS */
 
 /* The same information, inverted:
    Return the class number of the smallest class containing
@@ -1310,7 +1295,7 @@ extern enum reg_class sparc_regno_reg_class[FIRST_PSEUDO_REGISTER];
   88, 89, 90, 91, 92, 93, 94, 95,	/* %f56-%f63 */ \
   32, 33,				/* %f0,%f1 */   \
   96, 97, 98, 99, 100,			/* %fcc0-3, %icc */ \
-  1, 4, 5, 6, 7, 0, 14, 30}
+  1, 4, 5, 6, 7, 0, 14, 30, 101}
 
 /* This is the order in which to allocate registers for
    leaf functions.  If all registers can fit in the "gi" registers,
@@ -1331,14 +1316,14 @@ extern enum reg_class sparc_regno_reg_class[FIRST_PSEUDO_REGISTER];
   88, 89, 90, 91, 92, 93, 94, 95,	\
   32, 33,				\
   96, 97, 98, 99, 100,			\
-  0, 14, 30, 31}
+  0, 14, 30, 31, 101}
   
 #define ORDER_REGS_FOR_LOCAL_ALLOC order_regs_for_local_alloc ()
 
 extern char sparc_leaf_regs[];
 #define LEAF_REGISTERS sparc_leaf_regs
 
-extern const char leaf_reg_remap[];
+extern char leaf_reg_remap[];
 #define LEAF_REG_REMAP(REGNO) (leaf_reg_remap[REGNO])
 
 /* The class value for index registers, and the one for base regs.  */
@@ -1379,7 +1364,8 @@ extern const char leaf_reg_remap[];
    `J' is used for the range which is just zero (since that is R0).
    `K' is used for constants which can be loaded with a single sethi insn.
    `L' is used for the range of constants supported by the movcc insns.
-   `M' is used for the range of constants supported by the movrcc insns.  */
+   `M' is used for the range of constants supported by the movrcc insns.
+   `N' is like K, but for constants wider than 32 bits.  */
 
 #define SPARC_SIMM10_P(X) ((unsigned HOST_WIDE_INT) (X) + 0x200 < 0x400)
 #define SPARC_SIMM11_P(X) ((unsigned HOST_WIDE_INT) (X) + 0x400 < 0x800)
@@ -1388,17 +1374,21 @@ extern const char leaf_reg_remap[];
    SMALL_INT is used throughout the port so we continue to use it.  */
 #define SMALL_INT(X) (SPARC_SIMM13_P (INTVAL (X)))
 /* 13 bit immediate, considering only the low 32 bits */
-#define SMALL_INT32(X) (SPARC_SIMM13_P ((int)INTVAL (X) & 0xffffffff))
+#define SMALL_INT32(X) (SPARC_SIMM13_P (trunc_int_for_mode \
+					(INTVAL (X), SImode)))
 #define SPARC_SETHI_P(X) \
-(((unsigned HOST_WIDE_INT) (X) & \
-  (TARGET_ARCH64 ? ~(unsigned HOST_WIDE_INT) 0xfffffc00 : 0x3ff)) == 0)
+  (((unsigned HOST_WIDE_INT) (X) \
+    & ((unsigned HOST_WIDE_INT) 0x3ff - GET_MODE_MASK (SImode) - 1)) == 0)
+#define SPARC_SETHI32_P(X) \
+  (SPARC_SETHI_P ((unsigned HOST_WIDE_INT) (X) & GET_MODE_MASK (SImode)))
 
 #define CONST_OK_FOR_LETTER_P(VALUE, C)  \
   ((C) == 'I' ? SPARC_SIMM13_P (VALUE)			\
    : (C) == 'J' ? (VALUE) == 0				\
-   : (C) == 'K' ? SPARC_SETHI_P (VALUE)			\
+   : (C) == 'K' ? SPARC_SETHI32_P (VALUE)		\
    : (C) == 'L' ? SPARC_SIMM11_P (VALUE)		\
    : (C) == 'M' ? SPARC_SIMM10_P (VALUE)		\
+   : (C) == 'N' ? SPARC_SETHI_P (VALUE)			\
    : 0)
 
 /* Similar, but for floating constants, and defining letters G and H.
@@ -1440,7 +1430,10 @@ extern const char leaf_reg_remap[];
 
    We need a temporary when loading/storing a HImode/QImode value
    between memory and the FPU registers.  This can happen when combine puts
-   a paradoxical subreg in a float/fix conversion insn.  */
+   a paradoxical subreg in a float/fix conversion insn.
+
+   We need a temporary when loading/storing a DFmode value between
+   unaligned memory and the upper FPU registers.  */
 
 #define SECONDARY_INPUT_RELOAD_CLASS(CLASS, MODE, IN)		\
   ((FP_REG_CLASS_P (CLASS)					\
@@ -1449,28 +1442,36 @@ extern const char leaf_reg_remap[];
         || ((GET_CODE (IN) == REG || GET_CODE (IN) == SUBREG)	\
             && true_regnum (IN) == -1)))			\
    ? GENERAL_REGS						\
-   : (((TARGET_CM_MEDANY					\
-        && symbolic_operand ((IN), (MODE)))			\
-       || (TARGET_CM_EMBMEDANY					\
-           && text_segment_operand ((IN), (MODE))))		\
-      && !flag_pic)						\
-     ? GENERAL_REGS						\
-     : NO_REGS)
+   : ((CLASS) == EXTRA_FP_REGS && (MODE) == DFmode		\
+      && GET_CODE (IN) == MEM && TARGET_ARCH32			\
+      && ! mem_min_alignment ((IN), 8))				\
+     ? FP_REGS							\
+     : (((TARGET_CM_MEDANY					\
+	  && symbolic_operand ((IN), (MODE)))			\
+	 || (TARGET_CM_EMBMEDANY				\
+	     && text_segment_operand ((IN), (MODE))))		\
+	&& !flag_pic)						\
+       ? GENERAL_REGS						\
+       : NO_REGS)
 
 #define SECONDARY_OUTPUT_RELOAD_CLASS(CLASS, MODE, IN)		\
-   ((FP_REG_CLASS_P (CLASS)					\
+  ((FP_REG_CLASS_P (CLASS)					\
      && ((MODE) == HImode || (MODE) == QImode)			\
      && (GET_CODE (IN) == MEM					\
          || ((GET_CODE (IN) == REG || GET_CODE (IN) == SUBREG)	\
              && true_regnum (IN) == -1)))			\
-    ? GENERAL_REGS						\
-   : (((TARGET_CM_MEDANY					\
-        && symbolic_operand ((IN), (MODE)))			\
-       || (TARGET_CM_EMBMEDANY					\
-           && text_segment_operand ((IN), (MODE))))		\
-      && !flag_pic)						\
-     ? GENERAL_REGS						\
-     : NO_REGS)
+   ? GENERAL_REGS						\
+   : ((CLASS) == EXTRA_FP_REGS && (MODE) == DFmode		\
+      && GET_CODE (IN) == MEM && TARGET_ARCH32			\
+      && ! mem_min_alignment ((IN), 8))				\
+     ? FP_REGS							\
+     : (((TARGET_CM_MEDANY					\
+	  && symbolic_operand ((IN), (MODE)))			\
+	 || (TARGET_CM_EMBMEDANY				\
+	     && text_segment_operand ((IN), (MODE))))		\
+	&& !flag_pic)						\
+       ? GENERAL_REGS						\
+       : NO_REGS)
 
 /* On SPARC it is not possible to directly move data between 
    GENERAL_REGS and FP_REGS.  */
@@ -1535,7 +1536,7 @@ extern const char leaf_reg_remap[];
    of the first local allocated.  */
 /* This allows space for one TFmode floating point value.  */
 #define STARTING_FRAME_OFFSET \
-  (TARGET_ARCH64 ? (SPARC_STACK_BIAS - 16) \
+  (TARGET_ARCH64 ? -16 \
    : (-SPARC_STACK_ALIGN (LONG_DOUBLE_TYPE_SIZE / BITS_PER_UNIT)))
 
 /* If we generate an insn to push BYTES bytes,
@@ -1548,14 +1549,12 @@ extern const char leaf_reg_remap[];
    even if this function isn't going to use it.
    v9: This is 128 for the ins and locals.  */
 #define FIRST_PARM_OFFSET(FNDECL) \
-  (TARGET_ARCH64 ? (SPARC_STACK_BIAS + 16 * UNITS_PER_WORD) \
-   : (STRUCT_VALUE_OFFSET + UNITS_PER_WORD))
+  (TARGET_ARCH64 ? 16 * UNITS_PER_WORD : STRUCT_VALUE_OFFSET + UNITS_PER_WORD)
 
 /* Offset from the argument pointer register value to the CFA.
    This is different from FIRST_PARM_OFFSET because the register window
    comes between the CFA and the arguments.  */
-
-#define ARG_POINTER_CFA_OFFSET(FNDECL)  SPARC_STACK_BIAS
+#define ARG_POINTER_CFA_OFFSET(FNDECL)  0
 
 /* When a parameter is passed in a register, stack space is still
    allocated for it.
@@ -1567,6 +1566,38 @@ extern const char leaf_reg_remap[];
    registers than we've provided space.  Ugly, ugly.  So for now we retain
    all 6 slots even for v9.  */
 #define REG_PARM_STACK_SPACE(DECL) (6 * UNITS_PER_WORD)
+
+/* Definitions for register elimination.  */
+/* ??? In TARGET_FLAT mode we needn't have a hard frame pointer.  */
+   
+#define ELIMINABLE_REGS \
+  {{ FRAME_POINTER_REGNUM, STACK_POINTER_REGNUM}, \
+   { FRAME_POINTER_REGNUM, HARD_FRAME_POINTER_REGNUM} }
+
+/* The way this is structured, we can't eliminate SFP in favor of SP
+   if the frame pointer is required: we want to use the SFP->HFP elimination
+   in that case.  But the test in update_eliminables doesn't know we are
+   assuming below that we only do the former elimination.  */
+#define CAN_ELIMINATE(FROM, TO) \
+  ((TO) == HARD_FRAME_POINTER_REGNUM || !FRAME_POINTER_REQUIRED)
+
+#define INITIAL_ELIMINATION_OFFSET(FROM, TO, OFFSET) \
+  do {								\
+    (OFFSET) = 0;						\
+    if ((TO) == STACK_POINTER_REGNUM)				\
+      {								\
+	/* Note, we always pretend that this is a leaf function	\
+	   because if it's not, there's no point in trying to	\
+	   eliminate the frame pointer.  If it is a leaf	\
+	   function, we guessed right!  */			\
+	if (TARGET_FLAT)					\
+	  (OFFSET) =						\
+	    sparc_flat_compute_frame_size (get_frame_size ());	\
+	else							\
+	  (OFFSET) = compute_frame_size (get_frame_size (), 1);	\
+      }								\
+    (OFFSET) += SPARC_STACK_BIAS;				\
+  } while (0)
 
 /* Keep the stack pointer constant throughout the function.
    This is both an optimization and a necessity: longjmp
@@ -1828,14 +1859,13 @@ do {									\
 #endif
 
 
-/* Output assembler code to FILE to increment profiler label # LABELNO
-   for profiling a function entry.  */
+/* Emit rtl for profiling.  */
+#define PROFILE_HOOK(LABEL)   sparc_profile_hook (LABEL)
 
-#define FUNCTION_PROFILER(FILE, LABELNO) \
-  sparc_function_profiler(FILE, LABELNO)
+/* All the work done in PROFILE_HOOK, but still required.  */
+#define FUNCTION_PROFILER(FILE, LABELNO) do { } while (0)
 
 /* Set the name of the mcount function for the system.  */
-
 #define MCOUNT_FUNCTION "*mcount"
 
 /* EXIT_IGNORE_STACK should be nonzero if, when returning from a function,
@@ -1899,8 +1929,25 @@ do {									\
 #define STRICT_ARGUMENT_NAMING TARGET_V9
 
 /* We do not allow sibling calls if -mflat, nor
-   we do not allow indirect calls to be optimized into sibling calls.  */
-#define FUNCTION_OK_FOR_SIBCALL(DECL) (DECL && ! TARGET_FLAT)
+   we do not allow indirect calls to be optimized into sibling calls.
+
+   Also, on sparc 32-bit we cannot emit a sibling call when the
+   current function returns a structure.  This is because the "unimp
+   after call" convention would cause the callee to return to the
+   wrong place.  The generic code already disallows cases where the
+   function being called returns a structure.
+
+   It may seem strange how this last case could occur.  Usually there
+   is code after the call which jumps to epilogue code which dumps the
+   return value into the struct return area.  That ought to invalidate
+   the sibling call right?  Well, in the c++ case we can end up passing
+   the pointer to the struct return area to a constructor (which returns
+   void) and then nothing else happens.  Such a sibling call would look
+   valid without the added check here.  */
+#define FUNCTION_OK_FOR_SIBCALL(DECL) \
+	(DECL \
+	 && ! TARGET_FLAT \
+	 && (TARGET_ARCH64 || ! current_function_returns_struct))
 
 /* Generate RTL to flush the register windows so as to make arbitrary frames
    available.  */
@@ -1933,7 +1980,8 @@ do {									\
    ? gen_rtx_REG (Pmode, 31)			\
    : gen_rtx_MEM (Pmode,			\
 		  memory_address (Pmode, plus_constant (frame, \
-							15 * UNITS_PER_WORD))))
+							15 * UNITS_PER_WORD \
+							+ SPARC_STACK_BIAS))))
 
 /* Before the prologue, the return address is %o7 + 8.  OK, sometimes it's
    +12, but always using +8 is close enough for frame unwind purposes.
@@ -1960,14 +2008,27 @@ do {									\
    If assembler and linker properly support .uaword %r_disp32(foo),
    then use PC relative 32-bit relocations instead of absolute relocs
    for shared libraries.  On sparc64, use pc relative 32-bit relocs even
-   for binaries, to save memory.  */
+   for binaries, to save memory.
+
+   binutils 2.12 would emit a R_SPARC_DISP32 dynamic relocation if the
+   symbol %r_disp32() is against was not local, but .hidden.  In that
+   case, we have to use DW_EH_PE_absptr for pic personality.  */
 #ifdef HAVE_AS_SPARC_UA_PCREL
+#ifdef HAVE_AS_SPARC_UA_PCREL_HIDDEN
 #define ASM_PREFERRED_EH_DATA_FORMAT(CODE,GLOBAL)			\
   (flag_pic								\
    ? (GLOBAL ? DW_EH_PE_indirect : 0) | DW_EH_PE_pcrel | DW_EH_PE_sdata4\
    : ((TARGET_ARCH64 && ! GLOBAL)					\
       ? (DW_EH_PE_pcrel | DW_EH_PE_sdata4)				\
       : DW_EH_PE_absptr))
+#else
+#define ASM_PREFERRED_EH_DATA_FORMAT(CODE,GLOBAL)			\
+  (flag_pic								\
+   ? (GLOBAL ? DW_EH_PE_absptr : (DW_EH_PE_pcrel | DW_EH_PE_sdata4))	\
+   : ((TARGET_ARCH64 && ! GLOBAL)					\
+      ? (DW_EH_PE_pcrel | DW_EH_PE_sdata4)				\
+      : DW_EH_PE_absptr))
+#endif
 
 /* Emit a PC-relative relocation.  */
 #define ASM_OUTPUT_DWARF_PCREL(FILE, SIZE, LABEL)	\
@@ -1996,9 +2057,12 @@ do {									\
    has been allocated, which happens in local-alloc.c.  */
 
 #define REGNO_OK_FOR_INDEX_P(REGNO) \
-((REGNO) < 32 || (unsigned) reg_renumber[REGNO] < (unsigned)32)
-#define REGNO_OK_FOR_BASE_P(REGNO) \
-((REGNO) < 32 || (unsigned) reg_renumber[REGNO] < (unsigned)32)
+((REGNO) < 32 || (unsigned) reg_renumber[REGNO] < (unsigned)32	\
+ || (REGNO) == FRAME_POINTER_REGNUM				\
+ || reg_renumber[REGNO] == FRAME_POINTER_REGNUM)
+
+#define REGNO_OK_FOR_BASE_P(REGNO)  REGNO_OK_FOR_INDEX_P (REGNO)
+
 #define REGNO_OK_FOR_FP_P(REGNO) \
   (((unsigned) (REGNO) - 32 < (TARGET_V9 ? (unsigned)64 : (unsigned)32)) \
    || ((unsigned) reg_renumber[REGNO] - 32 < (TARGET_V9 ? (unsigned)64 : (unsigned)32)))
@@ -2079,34 +2143,32 @@ do {									\
        be at least 8 bytes.
 
    `U' handles all pseudo registers or a hard even numbered
-       integer register, needed for ldd/std instructions.  */
+       integer register, needed for ldd/std instructions.
 
-#define EXTRA_CONSTRAINT_BASE(OP, C)   \
-   ((C) == 'Q' ? fp_sethi_p(OP)        \
-    : (C) == 'R' ? fp_mov_p(OP)        \
-    : (C) == 'S' ? fp_high_losum_p(OP) \
-    : 0)
+   'W' handles the memory operand when moving operands in/out
+       of 'e' constraint floating point registers.  */
 
 #ifndef REG_OK_STRICT
 
 /* Nonzero if X is a hard reg that can be used as an index
    or if it is a pseudo reg.  */
 #define REG_OK_FOR_INDEX_P(X) \
-  (((unsigned) REGNO (X)) - 32 >= (FIRST_PSEUDO_REGISTER - 32))
+  (REGNO (X) < 32				\
+   || REGNO (X) == FRAME_POINTER_REGNUM		\
+   || REGNO (X) >= FIRST_PSEUDO_REGISTER)
+
 /* Nonzero if X is a hard reg that can be used as a base reg
    or if it is a pseudo reg.  */
-#define REG_OK_FOR_BASE_P(X) \
-  (((unsigned) REGNO (X)) - 32 >= (FIRST_PSEUDO_REGISTER - 32))
+#define REG_OK_FOR_BASE_P(X)  REG_OK_FOR_INDEX_P (X)
 
-/* 'T', 'U' are for aligned memory loads which aren't needed for arch64.  */
+/* 'T', 'U' are for aligned memory loads which aren't needed for arch64.
+   'W' is like 'T' but is assumed true on arch64.
 
-#define EXTRA_CONSTRAINT(OP, C)				\
-   (EXTRA_CONSTRAINT_BASE(OP, C)                        \
-    || ((! TARGET_ARCH64 && (C) == 'T')			\
-        ? (mem_min_alignment (OP, 8))			\
-        : ((! TARGET_ARCH64 && (C) == 'U')		\
-            ? (register_ok_for_ldd (OP))		\
-            : 0)))
+   Remember to accept pseudo-registers for memory constraints if reload is
+   in progress.  */
+
+#define EXTRA_CONSTRAINT(OP, C) \
+	sparc_extra_constraint_check(OP, C, 0)
 
 #else
 
@@ -2115,16 +2177,8 @@ do {									\
 /* Nonzero if X is a hard reg that can be used as a base reg.  */
 #define REG_OK_FOR_BASE_P(X) REGNO_OK_FOR_BASE_P (REGNO (X))
 
-#define EXTRA_CONSTRAINT(OP, C)				\
-   (EXTRA_CONSTRAINT_BASE(OP, C)                        \
-    || ((! TARGET_ARCH64 && (C) == 'T')			\
-        ? mem_min_alignment (OP, 8) && strict_memory_address_p (Pmode, XEXP (OP, 0)) \
-        : ((! TARGET_ARCH64 && (C) == 'U')		\
-           ? (GET_CODE (OP) == REG			\
-              && (REGNO (OP) < FIRST_PSEUDO_REGISTER	\
-	          || reg_renumber[REGNO (OP)] >= 0)	\
-              && register_ok_for_ldd (OP))		\
-           : 0)))
+#define EXTRA_CONSTRAINT(OP, C) \
+	sparc_extra_constraint_check(OP, C, 1)
 
 #endif
 
@@ -2326,12 +2380,13 @@ do {                                                                    \
   /* Decompose SImode constants into hi+lo_sum.  We do have to 		\
      rerecognize what we produce, so be careful.  */			\
   if (CONSTANT_P (X)							\
-      && (MODE != TFmode || TARGET_V9)					\
+      && (MODE != TFmode || TARGET_ARCH64)				\
       && GET_MODE (X) == SImode						\
       && GET_CODE (X) != LO_SUM && GET_CODE (X) != HIGH			\
       && ! (flag_pic							\
 	    && (symbolic_operand (X, Pmode)				\
-		|| pic_address_needs_scratch (X))))			\
+		|| pic_address_needs_scratch (X)))			\
+      && sparc_cmodel <= CM_MEDLOW)					\
     {									\
       X = gen_rtx_LO_SUM (GET_MODE (X),					\
 			  gen_rtx_HIGH (GET_MODE (X), X), X);		\
@@ -2596,6 +2651,23 @@ do {                                                                    \
     || (CLASS1) == FPCC_REGS || (CLASS2) == FPCC_REGS)		\
    ? (sparc_cpu == PROCESSOR_ULTRASPARC ? 12 : 6) : 2)
 
+/* Provide the cost of a branch.  For pre-v9 processors we use
+   a value of 3 to take into account the potential annulling of
+   the delay slot (which ends up being a bubble in the pipeline slot)
+   plus a cycle to take into consideration the instruction cache
+   effects.
+
+   On v9 and later, which have branch prediction facilities, we set
+   it to the depth of the pipeline as that is the cost of a
+   mispredicted branch.
+
+   ??? Set to 9 when PROCESSOR_ULTRASPARC3 is added  */
+
+#define BRANCH_COST \
+	((sparc_cpu == PROCESSOR_V9 \
+	  || sparc_cpu == PROCESSOR_ULTRASPARC) \
+	 ? 7 : 3)
+
 /* Provide the costs of a rtl expression.  This is in the body of a
    switch on CODE.  The purpose for the cost of MULT is to encourage
    `synth_mult' to find a synthetic multiply when reasonable.
@@ -2623,13 +2695,12 @@ do {                                                                    \
   case FIX:						\
     return 19;
 
-/* Conditional branches with empty delay slots have a length of two.  */
-#define ADJUST_INSN_LENGTH(INSN, LENGTH)				\
-do {									\
-  if (GET_CODE (INSN) == CALL_INSN					\
-      || (GET_CODE (INSN) == JUMP_INSN && ! simplejump_p (insn)))	\
-    LENGTH += 1;							\
-} while (0)
+#define PREFETCH_BLOCK \
+	((sparc_cpu == PROCESSOR_ULTRASPARC) ? 64 : 32)
+
+/* ??? UltraSPARC-III note: Can set this to 8 for ultra3.  */
+#define SIMULTANEOUS_PREFETCHES \
+	((sparc_cpu == PROCESSOR_ULTRASPARC) ? 2 : 3)
 
 /* Control the assembler format that we output.  */
 
@@ -2675,7 +2746,7 @@ do {									\
  "%f40", "%f41", "%f42", "%f43", "%f44", "%f45", "%f46", "%f47",	\
  "%f48", "%f49", "%f50", "%f51", "%f52", "%f53", "%f54", "%f55",	\
  "%f56", "%f57", "%f58", "%f59", "%f60", "%f61", "%f62", "%f63",	\
- "%fcc0", "%fcc1", "%fcc2", "%fcc3", "%icc"}
+ "%fcc0", "%fcc1", "%fcc2", "%fcc3", "%icc", "%sfp" }
 
 /* Define additional names for use in asm clobbers and asm declarations.  */
 
@@ -2944,8 +3015,10 @@ do {									\
 #define PREDICATE_CODES							\
 {"reg_or_0_operand", {SUBREG, REG, CONST_INT, CONST_DOUBLE}},		\
 {"fp_zero_operand", {CONST_DOUBLE}},					\
+{"fp_register_operand", {SUBREG, REG}},					\
 {"intreg_operand", {SUBREG, REG}},					\
 {"fcc_reg_operand", {REG}},						\
+{"fcc0_reg_operand", {REG}},						\
 {"icc_or_fcc_reg_operand", {REG}},					\
 {"restore_operand", {REG}},						\
 {"call_operand", {MEM}},						\
@@ -2963,6 +3036,7 @@ do {									\
 {"eq_or_neq", {EQ, NE}},						\
 {"normal_comp_operator", {GE, GT, LE, LT, GTU, LEU}},			\
 {"noov_compare_op", {NE, EQ, GE, GT, LE, LT, GEU, GTU, LEU, LTU}},	\
+{"noov_compare64_op", {NE, EQ, GE, GT, LE, LT, GEU, GTU, LEU, LTU}},	\
 {"v9_regcmp_op", {EQ, NE, GE, LT, LE, GT}},				\
 {"extend_op", {SIGN_EXTEND, ZERO_EXTEND}},				\
 {"cc_arithop", {AND, IOR, XOR}},					\
