@@ -4,7 +4,7 @@
 #
 #	This kernel is NOT MEANT to be runnable!
 #
-#	$Id: LINT,v 1.93 1994/10/03 22:32:13 phk Exp $
+#	$Id: LINT,v 1.94 1994/10/04 14:11:02 ache Exp $
 #
 
 machine		"i386"
@@ -131,7 +131,7 @@ device		uk0			#unknown scsi devices
 #This is needed here so the isa? below will work
 controller	isa0
 #This is a preliminary PCI bus ``device''
-device		pci0
+controller	pci0
 
 #Driver for Advaced Power Management (also need options APM)
 device		apm0	at isa?
@@ -144,10 +144,6 @@ controller	ahb0	at isa? bio irq 11 vector ahbintr
 controller      aic0    at isa? port 0x340 bio irq 11 vector aicintr
 # driver for the Bustek 742.
 controller	bt0	at isa? port "IO_BT0" bio irq 12 vector btintr
-# Driver for the NCR 53c810 and 53c825 PCI SCSI host adapter chips
-device		ncr0
-# example specification of IRQ for PCI device ID 5 (ncr0 on some MB)
-#device		pci5	at isa? bio irq 9 vector pciintr
 
 controller	fdc0	at isa? port "IO_FD1" bio irq 6 drq 2 vector fdintr
 disk		fd0	at fdc0 drive 0
@@ -178,13 +174,17 @@ device		lpt0	at isa? port "IO_LPT3" tty irq 7 vector lptintr
 device		mcd0	at isa? port 0x300 bio irq 10 vector mcdintr
 # Driver for Logitech and ATI inport bus mice
 device		mse0	at isa? port 0x23c tty irq 5 vector mseintr
+# Driver for the NCR 53c810 and 53c825 PCI SCSI host adapter chips
+controller	ncr0
 device		npx0	at isa? port "IO_NPX" irq 13 vector npxintr
 # Driver for ProAudioSpectrum SCSI, on cards with NCR 5380 chips.
-# The four units correspond to the HW-jumpers.  No intr, No DMA, very slow.
-device		pas0	at isa? port 0x1f88
-device		pas1	at isa? port 0x1f84
-device		pas2	at isa? port 0x1f8c
-device		pas3	at isa? port 0x1e88
+# The four units correspond to the HW-jumpers.  No intr, No DMA, slow.
+controller	pas0	at isa? port 0x1f88
+controller	pas1	at isa? port 0x1f84
+controller	pas2	at isa? port 0x1f8c
+controller	pas3	at isa? port 0x1e88
+# example specification of IRQ for PCI device ID 5 (ncr0 on some MB)
+#device		pci5	at isa? bio irq 9 vector pciintr
 #device		sc0	at isa? port "IO_KBD" tty irq 1 vector scintr
 device		sio0	at isa? port "IO_COM1" tty irq 4 vector siointr
 device		sio1	at isa? port "IO_COM2" tty irq 3 vector siointr
