@@ -1,4 +1,4 @@
-/*	$NetBSD: usbdi_util.h,v 1.22 2000/06/01 14:37:52 augustss Exp $	*/
+/*	$NetBSD: usbdi_util.h,v 1.23 2001/10/26 17:58:22 augustss Exp $	*/
 /*	$FreeBSD$	*/
 
 /*
@@ -56,7 +56,7 @@ usbd_status	usbd_get_device_status(usbd_device_handle, usb_status_t *);
 usbd_status	usbd_get_hub_status(usbd_device_handle, usb_hub_status_t *);
 usbd_status	usbd_set_protocol(usbd_interface_handle dev, int report);
 usbd_status	usbd_get_report_descriptor(usbd_device_handle dev, int ifcno,
-					   int repid, int size, void *d);
+					   int size, void *d);
 struct usb_hid_descriptor *usbd_get_hid_descriptor(usbd_interface_handle ifc);
 usbd_status	usbd_set_report(usbd_interface_handle iface, int type, int id,
 				void *data,int len);
@@ -65,8 +65,8 @@ usbd_status	usbd_set_report_async(usbd_interface_handle iface, int type,
 usbd_status	usbd_get_report(usbd_interface_handle iface, int type, int id,
 				void *data, int len);
 usbd_status	usbd_set_idle(usbd_interface_handle iface, int duration, int id);
-usbd_status	usbd_alloc_report_desc(usbd_interface_handle ifc, void **descp,
-				       int *sizep, usb_malloc_type mem);
+usbd_status	usbd_read_report_desc(usbd_interface_handle ifc, void **descp,
+				      int *sizep, usb_malloc_type mem);
 usbd_status	usbd_get_config(usbd_device_handle dev, u_int8_t *conf);
 usbd_status	usbd_get_string_desc(usbd_device_handle dev, int sindex,
 				     int langid, usb_string_descriptor_t *sdesc);
