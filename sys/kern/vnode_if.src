@@ -110,7 +110,7 @@ vop_whiteout {
 
 #
 #% mknod	dvp	L L L
-#% mknod	vpp	- X -
+#% mknod	vpp	- L -
 #
 vop_mknod {
 	IN struct vnode *dvp;
@@ -305,7 +305,7 @@ vop_rmdir {
 
 #
 #% symlink	dvp	L L L
-#% symlink	vpp	- U -
+#% symlink	vpp	- L -
 #
 vop_symlink {
 	IN struct vnode *dvp;
