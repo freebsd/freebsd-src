@@ -206,7 +206,7 @@ int vm_pageout_page_count = VM_PAGEOUT_PAGE_COUNT;
 int vm_page_max_wired;		/* XXX max # of wired pages system-wide */
 
 #if !defined(NO_SWAPPING)
-typedef void freeer_fcn_t(vm_map_t, vm_object_t, vm_pindex_t, int);
+typedef void freeer_fcn_t(vm_map_t, vm_object_t, vm_pindex_t);
 static void vm_pageout_map_deactivate_pages(vm_map_t, vm_pindex_t);
 static freeer_fcn_t vm_pageout_object_deactivate_pages;
 static void vm_req_vmdaemon(void);
@@ -461,11 +461,10 @@ vm_pageout_flush(mc, count, flags, is_object_locked)
  *	The object and map must be locked.
  */
 static void
-vm_pageout_object_deactivate_pages(map, object, desired, map_remove_only)
+vm_pageout_object_deactivate_pages(map, object, desired)
 	vm_map_t map;
 	vm_object_t object;
 	vm_pindex_t desired;
-	int map_remove_only;
 {
 	vm_page_t p, next;
 	int actcount, rcount, remove_mode;
@@ -480,7 +479,7 @@ vm_pageout_object_deactivate_pages(map, object, desired, map_remove_only)
 		if (object->paging_in_progress)
 			return;
 
-		remove_mode = map_remove_only;
+		remove_mode = 0;
 		if (object->shadow_count > 1)
 			remove_mode = 1;
 		/*
@@ -581,7 +580,7 @@ vm_pageout_map_deactivate_pages(map, desired)
 	}
 
 	if (bigobj)
-		vm_pageout_object_deactivate_pages(map, bigobj, desired, 0);
+		vm_pageout_object_deactivate_pages(map, bigobj, desired);
 
 	/*
 	 * Next, hunt around for other pages to deactivate.  We actually
@@ -594,7 +593,7 @@ vm_pageout_map_deactivate_pages(map, desired)
 		if ((tmpe->eflags & MAP_ENTRY_IS_SUB_MAP) == 0) {
 			obj = tmpe->object.vm_object;
 			if (obj)
-				vm_pageout_object_deactivate_pages(map, obj, desired, 0);
+				vm_pageout_object_deactivate_pages(map, obj, desired);
 		}
 		tmpe = tmpe->next;
 	}
