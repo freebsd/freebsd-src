@@ -57,17 +57,9 @@ struct nlist *symbase;
 #define IS_GLOBAL_DEFINED(sp) \
                   (((sp)->n_type & N_EXT) && ((sp)->n_type & N_TYPE) != N_UNDF)
 
-#ifdef arch_sparc
-/* is the relocation entry dependent on a symbol? */
-#define IS_SYMBOL_RELOC(rp)   \
-	((rp)->r_extern || \
-	((rp)->r_type >= RELOC_BASE10 && (rp)->r_type <= RELOC_BASE22) || \
-	(rp)->r_type == RELOC_JMP_TBL)
-#else
 /* is the relocation entry dependent on a symbol? */
 #define IS_SYMBOL_RELOC(rp)   \
                   ((rp)->r_extern||(rp)->r_baserel||(rp)->r_jmptable)
-#endif
 
 static void check_reloc(const char *filename, struct relocation_info *relp);
 
