@@ -25,7 +25,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *  $Id: linux_ioctl.c,v 1.38 1999/08/14 10:05:50 marcel Exp $
+ *  $Id: linux_ioctl.c,v 1.39 1999/08/14 10:30:38 marcel Exp $
  */
 
 #include <sys/param.h>
@@ -436,24 +436,6 @@ linux_to_bsd_termio(struct linux_termio *linux_termio,
   linux_to_bsd_termios(&tmios, bsd_termios);
 }
 
-static void
-linux_tiocgserial(struct file *fp, struct linux_serial_struct *lss)
-{
-  if (!fp || !lss)
-    return;
-
-  lss->type = LINUX_PORT_16550A;
-  lss->flags = 0;
-  lss->close_delay = 0;
-}
-
-static void
-linux_tiocsserial(struct file *fp, struct linux_serial_struct *lss)
-{
-  if (!fp || !lss)
-    return;
-}
-
 struct linux_cdrom_msf
 {
     u_char	cdmsf_min0;
@@ -803,7 +785,7 @@ linux_ioctl(struct proc *p, struct linux_ioctl_args *args)
 
     case LINUX_TIOCGETD:
 	bsd_line = TTYDISC;
-	error =(*func)(fp, TIOCSETD, (caddr_t)&bsd_line, p);
+	error =(*func)(fp, TIOCGETD, (caddr_t)&bsd_line, p);
 	if (error)
 	    return error;
 	switch (bsd_line) {
@@ -1031,13 +1013,27 @@ linux_ioctl(struct proc *p, struct linux_ioctl_args *args)
 	args->cmd = SOUND_MIXER_READ_DEVMASK;
 	return ioctl(p, (struct ioctl_args *)args);
 
-    case LINUX_TIOCGSERIAL:
-        linux_tiocgserial(fp, (struct linux_serial_struct *)args->arg);
-        return 0;
+    case LINUX_TIOCGSERIAL: {
+	struct linux_serial_struct lss;
 
-    case LINUX_TIOCSSERIAL:
-        linux_tiocsserial(fp, (struct linux_serial_struct *)args->arg);
+	lss.type = LINUX_PORT_16550A;
+	lss.flags = 0;
+	lss.close_delay = 0;
+	return copyout((caddr_t)&lss, (caddr_t)args->arg, sizeof(lss));
+    }
+
+    case LINUX_TIOCSSERIAL: {
+        struct linux_serial_struct lss;
+
+	error = copyin((caddr_t)args->arg, (caddr_t)&lss, sizeof(lss));
+	if (error)
+	    return error;
+	/*
+	 * XXX - It really helps to have an implementation that does nothing.
+	 *       NOT!
+	 */
 	return 0;
+    }
 
     case LINUX_TCXONC:
       switch (args->arg) {
