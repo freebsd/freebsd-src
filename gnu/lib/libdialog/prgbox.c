@@ -34,6 +34,11 @@ int dialog_prgbox(unsigned char *title, const unsigned char *line, int height, i
   FILE *f;
   unsigned char *s, buf[MAX_LEN];
 
+  if (height < 0 || width < 0) {
+    endwin();
+    fprintf(stderr, "\nAutosizing is impossible in dialog_prgbox().\n");
+    exit(-1);
+  }
   /* center dialog box on screen */
   x = (COLS - width)/2;
   y = (LINES - height)/2;
