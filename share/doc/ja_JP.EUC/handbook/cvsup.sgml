@@ -1,6 +1,6 @@
-<!-- $Id: cvsup.sgml,v 1.14 1997/03/21 09:22:20 hanai Exp $ -->
+<!-- $Id: cvsup.sgml,v 1.15 1997/04/08 02:23:27 hanai Exp $ -->
 <!-- The FreeBSD Japanese Documentation Project -->
-<!-- Original revision: 1.14 -->
+<!-- Original revision: 1.15 -->
 
 <sect><heading>CVSup<label id="cvsup"></heading>
 
@@ -443,6 +443,8 @@ cvsup が GUI を使わないようにする必要があります.
     中国語サポート.
     <tag><tt>ports-comms release=cvs</tt></tag>
     通信ソフトウェア.
+    <tag><tt>ports-converters release=cvs</tt></tag>
+    文字コードコンバータ.
     <tag><tt>ports-databases release=cvs</tt></tag>
     データベース.
     <tag><tt>ports-devel release=cvs</tt></tag>
@@ -485,6 +487,8 @@ cvsup が GUI を使わないようにする必要があります.
     コマンドラインシェル.
     <tag><tt>ports-sysutils release=cvs</tt></tag>
     システムユーティリティ.
+    <tag><tt>ports-textproc release=cvs</tt></tag>
+    文書処理ユーティリティ(デスクトップパブリッシングは含まない).
     <tag><tt>ports-vietnamese release=cvs</tt></tag>
     ベトナム語サポート.
     <tag><tt>ports-www release=cvs</tt></tag>
