@@ -54,13 +54,11 @@ struct vt_mode smode;
 
   if (!VGLInitDone)
     return;
-/*
-  while (!VGLOnDisplay) pause(); 
-  VGLCheckSwitch();;
-*/
-  outb(0x3c4, 0x02);
-  outb(0x3c5, 0x0f);
-  bzero(VGLMem, 64*1024);
+  if (VGLOnDisplay && !VGLSwitchPending) {
+    outb(0x3c4, 0x02);
+    outb(0x3c5, 0x0f);
+    bzero(VGLMem, 64*1024);
+  }
   if (VGLOldMode >= M_VESA_BASE) {
     /* ugly, but necessary */
     ioctl(0, _IO('V', VGLOldMode - M_VESA_BASE), 0);
@@ -110,6 +108,7 @@ VGLInit(int mode)
 
   signal(SIGUSR1, VGLSwitch);
   signal(SIGINT, VGLAbort);
+  signal(SIGTERM, VGLAbort);
   signal(SIGSEGV, VGLAbort);
   signal(SIGBUS, VGLAbort);
 
@@ -192,7 +191,7 @@ VGLInit(int mode)
 void
 VGLCheckSwitch()
 {
-  if (VGLSwitchPending) {
+  while (VGLSwitchPending) {
     int i;
 
     VGLSwitchPending = 0;
@@ -236,8 +235,8 @@ VGLCheckSwitch()
       ioctl(0, VT_RELDISP, VT_TRUE);
       VGLDisplay->Bitmap = VGLBuf;
       VGLDisplay->Type = MEMBUF;
+      while (!VGLOnDisplay) pause();
     }
   }
-  while (!VGLOnDisplay) pause();
 }
   
