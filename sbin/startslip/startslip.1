@@ -1,0 +1,105 @@
+.\" Copyright (c) 1990, 1991, 1993
+.\"	The Regents of the University of California.  All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\" 3. All advertising materials mentioning features or use of this software
+.\"    must display the following acknowledgement:
+.\"	This product includes software developed by the University of
+.\"	California, Berkeley and its contributors.
+.\" 4. Neither the name of the University nor the names of its contributors
+.\"    may be used to endorse or promote products derived from this software
+.\"    without specific prior written permission.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE REGENTS AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE REGENTS OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\"     @(#)startslip.1	8.1 (Berkeley) 6/5/93
+.\"
+.Dd June 5, 1993
+.Dt STARTSLIP 1
+.Os BSD 4.4
+.Sh NAME
+.Nm startslip
+.Nd dial up and login to a slip server
+.Sh SYNOPSIS
+.Nm startslip
+.Op Fl d
+.Op Fl s Ar string
+.Op Fl A Ar annexname
+.Op Fl F Ar flowcontrol
+.Ar device user passwd
+.Sh DESCRIPTION
+.Nm Startslip
+opens the specified
+.Ar device .
+.Pp
+Once carrier is asserted
+.Nm startslip
+attempts to login as the specified
+.Ar user
+with the given
+.Ar password .
+If successful, it puts the device into the slip line discipline.
+If carrier drops and a
+.Dv SIGHUP
+is sent to
+.Nm startslip ,
+it closes the device and attempts to repeat the dialup and login sequence.
+.Pp
+Available options:
+.Bl -tag -width Ar
+.It Fl d
+.Nm Startslip
+prints out debugging information about what it is trying to do.
+.It Fl s Ar string
+The optional
+.Ar string
+is written to
+.Ar device .
+For a dialup modem,
+the string is used to specify a dial sequence.
+.It Fl A Ar annexname
+.Nm Startslip
+assumes it is connecting to a Xylogics Annex box and engages in an
+appropriate dialog using the
+.Ar user
+and
+.Ar passwd
+arguments.
+The
+.Ar annexname
+argument is a string that is used to match against the Annex prompt
+to determine when a connection has been established.
+.It Fl F Ar flowcontrol
+Determines the type of flow control used on
+.Ar device .
+Choices for
+.Ar flowcontrol
+are
+``none'' for no flow control (the default),
+``hw'' for hardware RTS/CTS flow control and
+``sw'' for software XON/XOFF flow control.
+.El
+.Sh SEE ALSO
+.Xr sliplogin 8
+.Sh HISTORY
+The
+.Nm startslip
+appeared in
+.Bx 4.4 .
