@@ -210,6 +210,7 @@ wi_pccard_attach(device_t dev)
 	int			error;
 	uint32_t		vendor;
 	uint32_t		product;
+	int			retval;
 
 	sc = device_get_softc(dev);
 
@@ -237,10 +238,13 @@ wi_pccard_attach(device_t dev)
 #else
 		device_printf(dev, 
 		    "Symbol LA4100 needs 'option WI_SYMBOL_FIRMWARE'\n");
+		wi_free(dev);
 		return (ENXIO);
 #endif
 	}
 #endif
-
-	return (wi_attach(dev));
+	retval = wi_attach(dev);
+	if (retval != 0)
+		wi_free(dev);
+	return (retval);
 }
