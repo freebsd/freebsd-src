@@ -28,9 +28,9 @@ CFLAGS+= -I${.CURDIR}/../../common
 CFLAGS+= -I${.CURDIR}/../libski
 CFLAGS+= -DLOADER
 
-LDFLAGS=	-Wl,-T${.CURDIR}/ldscript.ia64 -Wl,-M,-Map,${PROG}.list
+LDFLAGS=	-Wl,-T${.CURDIR}/ldscript.ia64
 
-CLEANFILES=	vers.c ${PROG}.list ${PROG}.help
+CLEANFILES=	vers.c ${PROG}.help
 
 vers.c: ${.CURDIR}/../../common/newvers.sh ${.CURDIR}/version
 	sh ${.CURDIR}/../../common/newvers.sh ${.CURDIR}/version ${NEWVERSWHAT}
