@@ -28,7 +28,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $Id: if_ray.c,v 1.16 2000/03/31 20:12:30 dmlb Exp $
+ * $Id: if_ray.c,v 1.17 2000/04/04 06:43:30 dmlb Exp $
  *
  */
 
@@ -219,16 +219,45 @@
 /*
  * RAY_DEBUG settings
  *
- *	2	Recoverable error's
- *	6	Subroutine entry
- *	11	Startup CM dump
- *	16	State transitions for start/join
- *	21	CCS info
- *	31	IOCTL calls
- *	51	MBUFs dumped/packet types reported
+ *	RECERR		Recoverable error's
+ *	SUBR		Subroutine entry
+ *	BOOTPARAM	Startup CM dump
+ *	STARTJOIN	State transitions for start/join
+ *	CCS		CCS info
+ *	IOCTL		IOCTL calls
+ *	NETPARAM	SSID when rejoining nets
+ *	MBUF		MBUFs dumped
+ *	RX		packet types reported
+ *	CM		common memory re-mapping
+ *	CMD		command scheduler
  */
+#define RAY_DBG_RECERR		0x0001
+#define RAY_DBG_SUBR		0x0002
+#define RAY_DBG_BOOTPARAM	0x0004
+#define RAY_DBG_STARTJOIN	0x0008
+#define RAY_DBG_CCS		0x0010
+#define RAY_DBG_IOCTL		0x0020
+#define RAY_DBG_NETPARAM	0x0040
+#define RAY_DBG_MBUF		0x0080
+#define RAY_DBG_RX		0x0100
+#define RAY_DBG_CM		0x0200
+#define RAY_DBG_CMD		0x0400
+
 #ifndef RAY_DEBUG
-#define RAY_DEBUG		2
+#define RAY_DEBUG	(				\
+ 			   RAY_DBG_RECERR	|   	\
+ 			/* RAY_DBG_SUBR		| */	\
+			   RAY_DBG_BOOTPARAM	|	\
+			   RAY_DBG_STARTJOIN	|	\
+			/* RAY_DBG_CCS		| */	\
+                           RAY_DBG_IOCTL	|   	\
+                        /* RAY_DBG_NETPARAM	| */	\
+                        /* RAY_DBG_MBUF		| */	\
+                        /* RAY_DBG_RX		| */	\
+                        /* RAY_DBG_CM		| */	\
+                           RAY_DBG_CMD		|   	\
+			0				\
+			)
 #endif
 
 #define RAY_CCS_TIMEOUT		(hz/2)	/* Timeout for CCS commands */
@@ -255,7 +284,7 @@
  * Debugging odds and odds
  */
 #ifndef RAY_DEBUG
-#define RAY_DEBUG 0
+#define RAY_DEBUG 		0x0000
 #endif /* RAY_DEBUG */
 
 #if RAY_DEBUG > 0
@@ -263,18 +292,18 @@
 /* XXX This macro assumes that common memory is mapped into kernel space and
  * XXX does not indirect through SRAM macros - it should
  */
-#define RAY_DHEX8(p, l, lev) do { if (RAY_DEBUG > lev) {	\
+#define RAY_DHEX8(p, l, mask) do { if (RAY_DEBUG & mask) {	\
     u_int8_t *i;						\
     for (i = p; i < (u_int8_t *)(p+l); i += 8)			\
     	printf("  0x%08lx %8D\n",				\
 		(unsigned long)i, (unsigned char *)i, " ");	\
 } } while (0)
 
-#define RAY_DPRINTFN(l, x) do { if (RAY_DEBUG > l) {		\
+#define RAY_DPRINTFN(mask, x) do { if (RAY_DEBUG & mask) {	\
     printf x ;							\
 } } while (0)
 
-#define RAY_DNET_DUMP(sc, s) do { if (RAY_DEBUG > 15) {			\
+#define RAY_DNET_DUMP(sc, s) do { if (RAY_DEBUG & RAY_DBG_NETPARAM) {	\
     printf("ray%d: Current network parameters%s\n", (sc)->unit, (s));	\
     printf("  bss_id %6D\n", (sc)->sc_c.np_bss_id, ":");		\
     printf("  inited 0x%02x\n", (sc)->sc_c.np_inited);			\
@@ -304,16 +333,16 @@
 } } while (0)
 
 #else
-#define RAY_DHEX8(p, l, lev)
-#define RAY_DPRINTFN(l,x)
+#define RAY_DHEX8(p, l, mask)
+#define RAY_DPRINTFN(mask, x)
 #define RAY_DNET_DUMP(sc, s)
 #endif /* RAY_DEBUG > 0 */
 
-#if RAY_DEBUG > 50
+#if RAY_DEBUG & RAY_DBG_MBUF
 #define RAY_DMBUF_DUMP(sc, m, s)	ray_dump_mbuf((sc), (m), (s))
 #else
 #define RAY_DMBUF_DUMP(sc, m, s)
-#endif /* RAY_DEBUG > 10 */
+#endif /* RAY_DEBUG & RAY_DBG_MBUF */
 
 #include "ray.h"
 #include "card.h"
@@ -491,6 +520,18 @@ static struct ray_softc ray_softc[NRAY];
 	(SCP_UPD_UPDATEPARAMS | SCP_UPD_STARTUP | SCP_UPD_MCAST | \
 	SCP_UPD_PROMISC)
 
+#define SCP_PRINTFB 			\
+	"\020"				\
+	"\001SCP_UPDATESUBCMD"		\
+	"\002SCP_STARTASSOC"		\
+	"\003SCP_REPORTPARAMS"		\
+	"\004SCP_IFSTART"		\
+	"\011SCP_UPD_STARTUP"		\
+	"\012SCP_UPD_STARTJOIN"		\
+	"\013SCP_UPD_PROMISC"		\
+	"\014SCP_UPD_MCAST"		\
+	"\015SCP_UPD_UPDATEPARAMS"
+
 /*
  * Translation types
  */
@@ -513,9 +554,9 @@ static void	ray_cmd_ran		__P((struct ray_softc *sc, int cmdf));
 static void	ray_cmd_schedule	__P((struct ray_softc *sc, int cmdf));
 static void	ray_download_done	__P((struct ray_softc *sc));
 static void	ray_download_params	__P((struct ray_softc *sc));
-#if RAY_DEBUG > 50
+#if RAY_DEBUG & RAY_DBG_MBUF
 static void	ray_dump_mbuf		__P((struct ray_softc *sc, struct mbuf *m, char *s));
-#endif /* RAY_DEBUG > 50 */
+#endif /* RAY_DEBUG & RAY_DBG_MBUF */
 static u_int8_t	ray_free_ccs 		__P((struct ray_softc *sc, size_t ccs));
 #if XXX_NETBSDTX
 static void	ray_free_ccs_chain	__P((struct ray_softc *sc, u_int ni));
@@ -539,6 +580,7 @@ static void	ray_set_pending		__P((struct ray_softc *sc, u_int cmdf));
 static int	ray_simple_cmd		__P((struct ray_softc *sc, u_int cmd, u_int track));
 static void	ray_start		__P((struct ifnet *ifp));
 static void	ray_start_assoc		__P((struct ray_softc *sc));
+static void	ray_start_assoc_done	__P((struct ray_softc *sc, size_t ccs, u_int8_t status));
 static u_int8_t ray_start_best_antenna	__P((struct ray_softc *sc, u_int8_t *dst));
 static void	ray_start_done		__P((struct ray_softc *sc, size_t ccs, u_int8_t status));
 static void	ray_start_sc		__P((struct ray_softc *sc));
@@ -691,7 +733,7 @@ ray_pccard_init(dev_p)
     struct ray_softc	*sc;
     int			doRemap;
 
-    RAY_DPRINTFN(5, ("ray%d: PCCard probe\n", dev_p->isahd.id_unit));
+    RAY_DPRINTFN(RAY_DBG_SUBR, ("ray%d: PCCard probe\n", dev_p->isahd.id_unit));
 
     if (dev_p->isahd.id_unit >= NRAY)
 	return (ENODEV);
@@ -701,7 +743,7 @@ ray_pccard_init(dev_p)
 #if (RAY_NEED_CM_REMAPPING | RAY_NEED_CM_FIXUP)
     sc->slotnum = dev_p->slt->slotnum;
     ray_attr_getmap(sc);
-    RAY_DPRINTFN(1, ("ray%d: Memory window flags 0x%02x, start %p, size 0x%x, card address 0x%lx\n", sc->unit, sc->md.flags, sc->md.start, sc->md.size, sc->md.card));
+    RAY_DPRINTFN(RAY_DBG_RECERR, ("ray%d: Memory window flags 0x%02x, start %p, size 0x%x, card address 0x%lx\n", sc->unit, sc->md.flags, sc->md.start, sc->md.size, sc->md.card));
 #endif /* (RAY_NEED_CM_REMAPPING | RAY_NEED_CM_FIXUP) */
 
 #if RAY_NEED_CM_FIXUP
@@ -762,13 +804,14 @@ ray_pccard_unload(dev_p)
     struct ray_softc		*sc;
     struct ifnet		*ifp;
 
-    RAY_DPRINTFN(5, ("ray%d: PCCard unload\n", dev_p->isahd.id_unit));
+    RAY_DPRINTFN(RAY_DBG_SUBR, ("ray%d: ray_pccard_unload\n",
+        dev_p->isahd.id_unit));
 
     sc = &ray_softc[dev_p->isahd.id_unit];
     ifp = &sc->arpcom.ac_if;
 
     if (sc->gone) {
-	printf("ray%d: already unloaded\n", sc->unit);
+	printf("ray%d: ray_pccard_unload unloaded!\n", sc->unit);
 	return;
     }
 
@@ -807,7 +850,7 @@ ray_pccard_unload(dev_p)
      * Mark card as gone
      */
     sc->gone = 1;
-    printf("ray%d: unloaded\n", sc->unit);
+    printf("ray%d: ray_pccard_unload unloading complete\n", sc->unit);
 
     return;
 }
@@ -830,7 +873,7 @@ ray_probe(dev_p)
     struct isa_device		*dev_p;
 {
 
-    RAY_DPRINTFN(5, ("ray%d: ISA probe\n", dev_p->id_unit));
+    RAY_DPRINTFN(RAY_DBG_SUBR, ("ray%d: ISA probe\n", dev_p->id_unit));
 
     return (0);
 }
@@ -847,13 +890,13 @@ ray_attach(dev_p)
     struct ifnet		*ifp;
     char			ifname[IFNAMSIZ];
 
-    RAY_DPRINTFN(5, ("ray%d: ISA/PCCard attach\n", dev_p->id_unit));
+    RAY_DPRINTFN(RAY_DBG_SUBR, ("ray%d: ISA/PCCard attach\n", dev_p->id_unit));
 
     sc = &ray_softc[dev_p->id_unit];
     RAY_MAP_CM(sc);
 
     if (sc->gone) {
-	printf("ray%d: unloaded before attach!\n", sc->unit);
+	printf("ray%d: ray_attach unloaded!\n", sc->unit);
 	return (1);
     }
 
@@ -865,17 +908,7 @@ ray_attach(dev_p)
     ray_read_region(sc, RAY_ECF_TO_HOST_BASE, ep, sizeof(sc->sc_ecf_startup));
     if (ep->e_status != RAY_ECFS_CARD_OK) {
 	printf("ray%d: card failed self test: status 0x%b\n", sc->unit,
-	    ep->e_status,
-	    "\020"			/* print in hex */
-	    "\001RESERVED0"
-	    "\002PROC_SELF_TEST"
-	    "\003PROG_MEM_CHECKSUM"
-	    "\004DATA_MEM_TEST"
-	    "\005RX_CALIBRATION"
-	    "\006FW_VERSION_COMPAT"
-	    "\007RERSERVED1"
-	    "\008TEST_COMPLETE"
-	);
+	    ep->e_status, RAY_ECFS_PRINTFB);
 	return (1);
     }
     if (sc->sc_version != RAY_ECFS_BUILD_4 &&
@@ -886,13 +919,13 @@ ray_attach(dev_p)
 	return (1);
     }
 
-    if (bootverbose || RAY_DEBUG) {
+    if (bootverbose || (RAY_DEBUG & RAY_DBG_BOOTPARAM)) {
 	printf("ray%d: Start Up Results\n", sc->unit);
 	if (sc->sc_version == RAY_ECFS_BUILD_4)
 	    printf("  Firmware version 4\n");
 	else
 	    printf("  Firmware version 5\n");
-	printf("  Status 0x%x\n", ep->e_status);
+	printf("  Status 0x%b\n", ep->e_status, RAY_ECFS_PRINTFB);
 	printf("  Ether address %6D\n", ep->e_station_addr, ":");
 	if (sc->sc_version == RAY_ECFS_BUILD_4) {
 	    printf("  Program checksum %0x\n", ep->e_resv0);
@@ -1010,13 +1043,14 @@ ray_init(xsc)
     struct ray_ecf_startup_v5	*ep;
     struct ifnet		*ifp;
     size_t			ccs;
-    int				i;
+    int				i, rv;
 
-    RAY_DPRINTFN(5, ("ray%d: Network init\n", sc->unit));
+    RAY_DPRINTFN(RAY_DBG_SUBR | RAY_DBG_STARTJOIN,
+        ("ray%d: ray_init\n", sc->unit));
     RAY_MAP_CM(sc);
 
     if (sc->gone) {
-	printf("ray%d: unloaded before init!\n", sc->unit);
+	printf("ray%d: ray_init unloaded!\n", sc->unit);
 	return;
     }
 
@@ -1078,17 +1112,7 @@ ray_init(xsc)
     ray_read_region(sc, RAY_ECF_TO_HOST_BASE, ep, sizeof(sc->sc_ecf_startup));
     if (ep->e_status != RAY_ECFS_CARD_OK) {
 	printf("ray%d: card failed self test: status 0x%b\n", sc->unit,
-	    ep->e_status,
-	    "\020"			/* print in hex */
-	    "\001RESERVED0"
-	    "\002PROC_SELF_TEST"
-	    "\003PROG_MEM_CHECKSUM"
-	    "\004DATA_MEM_TEST"
-	    "\005RX_CALIBRATION"
-	    "\006FW_VERSION_COMPAT"
-	    "\007RERSERVED1"
-	    "\008TEST_COMPLETE"
-	);
+	    ep->e_status, RAY_ECFS_PRINTFB);
 	return; /* XXX This doesn't mark the interface as down */
     }
 
@@ -1106,13 +1130,33 @@ ray_init(xsc)
 
     ray_download_params(sc);
 
+    /* XXX is ray_stop is robust enough we can probably dispense with
+     * XXX the tsleep/wakeup stuff and be safe for fast ifconfigs
+     */
+    while (ifp->if_flags & IFF_OACTIVE) {
+	RAY_DPRINTFN(RAY_DBG_STARTJOIN,
+	    ("ray%d: ray_init sleeping\n", sc->unit));
+	rv = tsleep(ray_init, 0|PCATCH, "nwinit", 0);
+	RAY_DPRINTFN(RAY_DBG_STARTJOIN,
+	    ("ray%d: ray_init awakened\n", sc->unit));
+	if (rv) {
+		RAY_DPRINTFN(RAY_DBG_STARTJOIN,
+		    ("ray%d: ray_init tsleep error\n",
+		    sc->unit));
+		break;
+	}
+    }
+printf("ray%d: ray_init scheduled commands 0x%b\n", sc->unit, sc->sc_scheduled, SCP_PRINTFB);
+printf("ray%d: ray_init running commands 0x%b\n", sc->unit, sc->sc_running, SCP_PRINTFB);
+
     return;
 }
 
 /*
  * Network stop.
  *
- * Assumes that a ray_init is used to restart the card.
+ * Assumes that a ray_init is used to restart the card. And called in a
+ * sleepable context.
  *
  */
 static void
@@ -1122,11 +1166,11 @@ ray_stop(sc)
     struct ifnet	*ifp;
     int			s;
 
-    RAY_DPRINTFN(5, ("ray%d: Network stop\n", sc->unit));
+    RAY_DPRINTFN(RAY_DBG_SUBR, ("ray%d: ray_stop\n", sc->unit));
     RAY_MAP_CM(sc);
 
     if (sc->gone) {
-	printf("ray%d: unloaded before stop!\n", sc->unit);
+	printf("ray%d: ray_stop unloaded!\n", sc->unit);
 	return;
     }
 
@@ -1135,6 +1179,27 @@ ray_stop(sc)
     /*
      * Clear out timers and sort out driver state
      */
+printf("ray%d: ray_stop scheduled commands 0x%b\n", sc->unit, sc->sc_scheduled, SCP_PRINTFB);
+printf("ray%d: ray_stop running commands 0x%b\n", sc->unit, sc->sc_running, SCP_PRINTFB);
+printf("ray%d: ray_stop ready %d\n", sc->unit, RAY_ECF_READY(sc));
+#if XXX
+    for (i = 15; i >= 0; i--) {
+	if (sc->scheduled & (1 << i))
+	    ray_cmd_cancel(sc, (1 << i));
+	if (sc->sc_running & (1 << i))
+	    printf("ray%d: ray_stop command 0x%b still running", sc->unit,
+	        (1 << i),
+   	    );
+    }
+#endif /* XXX */
+    if (sc->sc_repreq) {
+	sc->sc_repreq->r_failcause = RAY_FAILCAUSE_EDEVSTOP;
+	wakeup(ray_report_params);
+    }
+    if (sc->sc_updreq) {
+	sc->sc_repreq->r_failcause = RAY_FAILCAUSE_EDEVSTOP;
+	wakeup(ray_update_params);
+    }
 #if RAY_USE_CALLOUT_STOP
     callout_stop(sc->ccs_timerh);
     callout_stop(sc->reset_timerh);
@@ -1185,13 +1250,17 @@ ray_reset(sc)
 {
     struct ifnet	*ifp;
 
-    RAY_DPRINTFN(5, ("ray%d: ray_reset\n", sc->unit));
+    RAY_DPRINTFN(RAY_DBG_SUBR, ("ray%d: ray_reset\n", sc->unit));
     RAY_MAP_CM(sc);
+
+    printf("ray%d: ray_reset skip reset card\n", sc->unit);
+    return;
 
     ifp = &sc->arpcom.ac_if;
 
     if (ifp->if_flags & IFF_RUNNING)
-	ray_stop(sc);
+	printf("ray%d: *** ray_reset skip stop card\n", sc->unit);
+    /* XXX ray_stop(sc); not always in a sleepable context? */
 
     printf("ray%d: resetting card\n", sc->unit);
     ray_attr_write((sc), RAY_COR, RAY_COR_RESET);
@@ -1210,12 +1279,12 @@ ray_reset_timo(xsc)
 {
     struct ray_softc	*sc = xsc;
 
-    RAY_DPRINTFN(5, ("ray%d: ray_reset_timo\n", sc->unit));
+    RAY_DPRINTFN(RAY_DBG_SUBR, ("ray%d: ray_reset_timo\n", sc->unit));
     RAY_MAP_CM(sc);
 
     if (!RAY_ECF_READY(sc)) {
-	RAY_DPRINTFN(1, ("ray%d: ray_reset_timo still busy, re-schedule\n",
-		sc->unit));
+	RAY_DPRINTFN(RAY_DBG_RECERR,
+	    ("ray%d: ray_reset_timo still busy, re-schedule\n", sc->unit));
 	sc->reset_timerh = timeout(ray_reset_timo, sc, RAY_RESET_TIMEOUT);
 	return;
     }
@@ -1232,13 +1301,13 @@ ray_watchdog(ifp)
 {
     struct ray_softc *sc;
 
-    RAY_DPRINTFN(5, ("ray%d: Network watchdog\n", ifp->if_unit));
+    RAY_DPRINTFN(RAY_DBG_SUBR, ("ray%d: ray_watchdog\n", ifp->if_unit));
 
     sc = ifp->if_softc;
     RAY_MAP_CM(sc);
 
     if (sc->gone) {
-	printf("ray%d: unloaded before watchdog!\n", sc->unit);
+	printf("ray%d: ray_watchdog unloaded!\n", sc->unit);
 	return;
     }
 
@@ -1274,13 +1343,13 @@ ray_ioctl(ifp, command, data)
     struct ifreq *ifr;
     int s, error, error2;
 
-    RAY_DPRINTFN(5, ("ray%d: Network ioctl\n", ifp->if_unit));
-
+    RAY_DPRINTFN(RAY_DBG_SUBR | RAY_DBG_IOCTL,
+        ("ray%d: ray_ioctl\n", ifp->if_unit));
     sc = ifp->if_softc;
     RAY_MAP_CM(sc);
 
     if (sc->gone) {
-	printf("ray%d: unloaded before ioctl!\n", sc->unit);
+	printf("ray%d: ray_ioctl unloaded!\n", sc->unit);
 	ifp->if_flags &= ~IFF_RUNNING;
 	return (ENXIO);
     }
@@ -1296,12 +1365,13 @@ ray_ioctl(ifp, command, data)
 	case SIOCSIFADDR:
 	case SIOCGIFADDR:
 	case SIOCSIFMTU:
-	    RAY_DPRINTFN(30, ("ray%d: ioctl SIFADDR/GIFADDR/SIFMTU\n", sc->unit));
+	    RAY_DPRINTFN(RAY_DBG_IOCTL,
+	        ("ray%d: for SIFADDR/GIFADDR/SIFMTU\n", sc->unit));
 	    error = ether_ioctl(ifp, command, data);
 	    break;
 
 	case SIOCSIFFLAGS:
-	    RAY_DPRINTFN(30, ("ray%d: for SIFFLAGS\n", sc->unit));
+	    RAY_DPRINTFN(RAY_DBG_IOCTL, ("ray%d: for SIFFLAGS\n", sc->unit));
 	    /*
 	     * If the interface is marked up and stopped, then start
 	     * it. If it is marked down and running, then stop it.
@@ -1314,17 +1384,19 @@ ray_ioctl(ifp, command, data)
 		if (ifp->if_flags & IFF_RUNNING)
 		    ray_stop(sc);
 	    }
-	    /* XXX DROP THROUGH or not? */
+	    break;
 
 	case SIOCADDMULTI:
 	case SIOCDELMULTI:
-	    RAY_DPRINTFN(30, ("ray%d: ioctl called for ADDMULTI/DELMULTI\n", sc->unit));
+	    RAY_DPRINTFN(RAY_DBG_IOCTL,
+	        ("ray%d: for ADDMULTI/DELMULTI\n", sc->unit));
 	    ray_update_mcast(sc);
 	    error = 0;
 	    break;
 
 	case SIOCSRAYPARAM:
-	    RAY_DPRINTFN(30, ("ray%d: ioctl called for SRAYPARAM\n", sc->unit));
+	    RAY_DPRINTFN(RAY_DBG_IOCTL,
+	        ("ray%d: for SRAYPARAM\n", sc->unit));
 	    if ((error = copyin(ifr->ifr_data, &pr, sizeof(pr))))
 		break;
 	    error = ray_user_update_params(sc, &pr);
@@ -1333,7 +1405,8 @@ ray_ioctl(ifp, command, data)
 	    break;
 
 	case SIOCGRAYPARAM:
-	    RAY_DPRINTFN(30, ("ray%d: ioctl called for GRAYPARAM\n", sc->unit));
+	    RAY_DPRINTFN(RAY_DBG_IOCTL,
+	        ("ray%d: for GRAYPARAM\n", sc->unit));
 	    if ((error = copyin(ifr->ifr_data, &pr, sizeof(pr))))
 		break;
 	    error = ray_user_report_params(sc, &pr);
@@ -1342,46 +1415,53 @@ ray_ioctl(ifp, command, data)
 	    break;
 
 	case SIOCGRAYSTATS:
-	    RAY_DPRINTFN(30, ("ray%d: ioctl called for GRAYSTATS\n", sc->unit));
+	    RAY_DPRINTFN(RAY_DBG_IOCTL,
+	        ("ray%d: for GRAYSTATS\n", sc->unit));
 	    error = ray_user_report_stats(sc, &sr);
 	    error2 = copyout(&sr, ifr->ifr_data, sizeof(sr));
 	    error = error2 ? error2 : error;
 	    break;
 
 	case SIOCGRAYSIGLEV:
-	    RAY_DPRINTFN(30, ("ray%d: ioctl called for GRAYSIGLEV\n",
-	        sc->unit));
+	    RAY_DPRINTFN(RAY_DBG_IOCTL,
+	        ("ray%d: for GRAYSIGLEV\n", sc->unit));
 	    error = copyout(sc->sc_siglevs, ifr->ifr_data,
 	        sizeof(sc->sc_siglevs));
 	    break;
 
 	case SIOCGIFFLAGS:
-	    RAY_DPRINTFN(30, ("ray%d: ioctl called for GIFFLAGS\n", sc->unit));
+	    RAY_DPRINTFN(RAY_DBG_IOCTL,
+	        ("ray%d: for GIFFLAGS\n", sc->unit));
 	    error = EINVAL;
 	    break;
 
 	case SIOCGIFMETRIC:
-	    RAY_DPRINTFN(30, ("ray%d: ioctl called for GIFMETRIC\n", sc->unit));
+	    RAY_DPRINTFN(RAY_DBG_IOCTL,
+	        ("ray%d: for GIFMETRIC\n", sc->unit));
 	    error = EINVAL;
 	    break;
 
 	case SIOCGIFMTU:
-	    RAY_DPRINTFN(30, ("ray%d: ioctl called for GIFMTU\n", sc->unit));
+	    RAY_DPRINTFN(RAY_DBG_IOCTL,
+	        ("ray%d: for GIFMTU\n", sc->unit));
 	    error = EINVAL;
 	    break;
 
 	case SIOCGIFPHYS:
-	    RAY_DPRINTFN(30, ("ray%d: ioctl called for GIFPYHS\n", sc->unit));
+	    RAY_DPRINTFN(RAY_DBG_IOCTL,
+	        ("ray%d: for GIFPYHS\n", sc->unit));
 	    error = EINVAL;
 	    break;
 
 	case SIOCSIFMEDIA:
-	    RAY_DPRINTFN(30, ("ray%d: ioctl called for SIFMEDIA\n", sc->unit));
+	    RAY_DPRINTFN(RAY_DBG_IOCTL,
+	    	("ray%d: for SIFMEDIA\n", sc->unit));
 	    error = EINVAL;
 	break;
 
 	case SIOCGIFMEDIA:
-	    RAY_DPRINTFN(30, ("ray%d: ioctl called for GIFMEDIA\n", sc->unit));
+	    RAY_DPRINTFN(RAY_DBG_IOCTL,
+	    	("ray%d: for GIFMEDIA\n", sc->unit));
 	    error = EINVAL;
 	    break;
 
@@ -1409,7 +1489,7 @@ ray_ioctl(ifp, command, data)
 static void
 ray_start(struct ifnet *ifp)
 {
-	RAY_DPRINTFN(5, ("ray%d: ray_start\n", ifp->if_unit));
+	RAY_DPRINTFN(RAY_DBG_SUBR, ("ray%d: ray_start\n", ifp->if_unit));
 
 	ray_start_sc(ifp->if_softc);
 }
@@ -1425,7 +1505,7 @@ ray_start_sc(sc)
     int				i, pktlen, len;
     u_int8_t			status;
 
-    RAY_DPRINTFN(5, ("ray%d: ray_start_sc\n", sc->unit));
+    RAY_DPRINTFN(RAY_DBG_SUBR, ("ray%d: ray_start_sc\n", sc->unit));
     RAY_MAP_CM(sc);
 
     ifp = &sc->arpcom.ac_if;
@@ -1434,14 +1514,14 @@ ray_start_sc(sc)
      * Some simple checks first
      */
     if (sc->gone) {
-	printf("ray%d: unloaded before start!\n", sc->unit);
+	printf("ray%d: ray_start_sc unloaded!\n", sc->unit);
 	return;
     }
     if ((ifp->if_flags & IFF_RUNNING) == 0 || !sc->sc_havenet)
 	return;
     if (!RAY_ECF_READY(sc)) {
-	RAY_DPRINTFN(1, ("ray%d: ray_start busy, schedule a timeout\n",
-		sc->unit));
+	RAY_DPRINTFN(RAY_DBG_RECERR,
+	    ("ray%d: ray_start busy, schedule a timeout\n", sc->unit));
 	sc->start_timerh = timeout(ray_start_timo, sc, RAY_START_TIMEOUT);
 	return;
     } else
@@ -1497,7 +1577,8 @@ ray_start_sc(sc)
 	ifp->if_flags |= IFF_OACTIVE;
 	return;
     }
-    RAY_DPRINTFN(20, ("ray%d: ray_start using ccs 0x%02x\n", sc->unit, i));
+    RAY_DPRINTFN(RAY_DBG_CCS,
+    	("ray%d: ray_start using ccs 0x%02x\n", sc->unit, i));
 
     /*
      * Reserve and fill the ccs - must do the length later.
@@ -1532,7 +1613,8 @@ ray_start_sc(sc)
 	pktlen += m->m_len;
     }
     if (pktlen > ETHER_MAX_LEN - ETHER_CRC_LEN) {
-	RAY_DPRINTFN(1, ("ray%d: mbuf too long %d\n", sc->unit, pktlen));
+	RAY_DPRINTFN(RAY_DBG_RECERR,
+	    ("ray%d: mbuf too long %d\n", sc->unit, pktlen));
 	RAY_CCS_FREE(sc, ccs);
 	ifp->if_oerrors++;
 	m_freem(m0);
@@ -1565,7 +1647,8 @@ ray_start_sc(sc)
     if (m0->m_len < sizeof(struct ether_header))
     	m = m_pullup(m, sizeof(struct ether_header));
     if (m0 == NULL) {
-	RAY_DPRINTFN(1, ("ray%d: ray_start could not pullup ether\n", sc->unit));
+	RAY_DPRINTFN(RAY_DBG_RECERR,
+	    ("ray%d: ray_start could not pullup ether\n", sc->unit));
 	RAY_CCS_FREE(sc, ccs);
 	ifp->if_oerrors++;
 	return;
@@ -1587,7 +1670,8 @@ ray_start_sc(sc)
 
     }
     if (m0 == NULL) {
-	RAY_DPRINTFN(1, ("ray%d: ray_start could not translate mbuf\n", sc->unit));
+	RAY_DPRINTFN(RAY_DBG_RECERR,
+	    ("ray%d: ray_start could not translate mbuf\n", sc->unit));
 	RAY_CCS_FREE(sc, ccs);
 	ifp->if_oerrors++;
 	return;
@@ -1687,6 +1771,7 @@ netbsd:
 		look at other drivers
 
 		use tsleep/wakeup
+		use asleep await *****
 
 		some form of ring to hold ccs
 
@@ -1709,7 +1794,7 @@ ray_start_done(struct ray_softc *sc, size_t ccs, u_int8_t status)
 	struct ifnet *ifp;
 	char *status_string[] = RAY_CCS_STATUS_STRINGS;
 
-	RAY_DPRINTFN(5, ("ray%d: ray_start_done\n", sc->unit));
+	RAY_DPRINTFN(RAY_DBG_SUBR, ("ray%d: ray_start_done\n", sc->unit));
 	RAY_MAP_CM(sc);
 
 	ifp = &sc->arpcom.ac_if;
@@ -1738,7 +1823,7 @@ ray_start_timo(void *xsc)
 	struct ifnet *ifp;
 	int s;
 
-	RAY_DPRINTFN(5, ("ray%d: ray_start_timo\n", sc->unit));
+	RAY_DPRINTFN(RAY_DBG_SUBR, ("ray%d: ray_start_timo\n", sc->unit));
 	RAY_MAP_CM(sc);
 
 	ifp = &sc->arpcom.ac_if;
@@ -1760,7 +1845,7 @@ ray_start_wrhdr(struct ray_softc *sc, struct ether_header *eh, size_t bufp)
 {
 	struct ieee80211_header header;
 
-	RAY_DPRINTFN(5, ("ray%d: ray_start_wrhdr\n", sc->unit));
+	RAY_DPRINTFN(RAY_DBG_SUBR, ("ray%d: ray_start_wrhdr\n", sc->unit));
 	RAY_MAP_CM(sc);
 
 	bzero(&header, sizeof(struct ieee80211_header));
@@ -1803,7 +1888,7 @@ ray_start_best_antenna(struct ray_softc *sc, u_int8_t *dst)
 	int i;
 	u_int8_t antenna;
 
-	RAY_DPRINTFN(5, ("ray%d: ray_start_best_antenna\n", sc->unit));
+	RAY_DPRINTFN(RAY_DBG_SUBR, ("ray%d: ray_start_best_antenna\n", sc->unit));
 	RAY_MAP_CM(sc);
 
 	if (sc->sc_version == RAY_ECFS_BUILD_4) 
@@ -1850,10 +1935,10 @@ ray_rx(struct ray_softc *sc, size_t rcs)
 	u_int8_t siglev, antenna;
 	u_int first, ni, i;
 
-	RAY_DPRINTFN(5, ("ray%d: ray_rx\n", sc->unit));
+	RAY_DPRINTFN(RAY_DBG_SUBR, ("ray%d: ray_rx\n", sc->unit));
 	RAY_MAP_CM(sc);
 
-	RAY_DPRINTFN(20, ("ray%d: rcs chain - using rcs 0x%x\n",
+	RAY_DPRINTFN(RAY_DBG_CCS, ("ray%d: rcs chain - using rcs 0x%x\n",
 	    sc->unit, rcs));
 
 	ifp = &sc->arpcom.ac_if;
@@ -1870,23 +1955,25 @@ ray_rx(struct ray_softc *sc, size_t rcs)
 	antenna = SRAM_READ_FIELD_1(sc, rcs, ray_cmd_rx, c_antenna);
 
 	if ((pktlen > MCLBYTES) || (pktlen < sizeof(struct ieee80211_header))) {
-		RAY_DPRINTFN(1, ("ray%d: ray_rx packet is too big or too small\n",
-		sc->unit));
+		RAY_DPRINTFN(RAY_DBG_RECERR,
+		    ("ray%d: ray_rx packet is too big or too small\n",
+		    sc->unit));
 		ifp->if_ierrors++;
 		goto skip_read;
 	}
 
 	MGETHDR(m0, M_DONTWAIT, MT_DATA);
 	if (m0 == NULL) {
-		RAY_DPRINTFN(1, ("ray%d: ray_rx MGETHDR failed\n", sc->unit));
+		RAY_DPRINTFN(RAY_DBG_RECERR,
+		    ("ray%d: ray_rx MGETHDR failed\n", sc->unit));
 		ifp->if_ierrors++;
 		goto skip_read;
 	}
 	if (pktlen > MHLEN) {
 		MCLGET(m0, M_DONTWAIT);
 		if ((m0->m_flags & M_EXT) == 0) {
-			RAY_DPRINTFN(1, ("ray%d: ray_rx MCLGET failed\n",
-			    sc->unit));
+			RAY_DPRINTFN(RAY_DBG_RECERR,
+			    ("ray%d: ray_rx MCLGET failed\n", sc->unit));
 			ifp->if_ierrors++;
 			m_freem(m0);
 			m0 = NULL;
@@ -1912,11 +1999,13 @@ ray_rx(struct ray_softc *sc, size_t rcs)
 		ni = SRAM_READ_FIELD_1(sc, rcs, ray_cmd_rx, c_nextfrag);
 		bufp = SRAM_READ_FIELD_2(sc, rcs, ray_cmd_rx, c_bufp);
 		fraglen = SRAM_READ_FIELD_2(sc, rcs, ray_cmd_rx, c_len);
-		RAY_DPRINTFN(50, ("ray%d: ray_rx frag index %d len %d bufp 0x%x ni %d\n",
+		RAY_DPRINTFN(RAY_DBG_RX,
+		    ("ray%d: ray_rx frag index %d len %d bufp 0x%x ni %d\n",
 		    sc->unit, i, fraglen, (int)bufp, ni));
 
 		if (fraglen + readlen > pktlen) {
-			RAY_DPRINTFN(1, ("ray%d: ray_rx bad length current 0x%x pktlen 0x%x\n",
+			RAY_DPRINTFN(RAY_DBG_RECERR,
+			    ("ray%d: ray_rx bad length current 0x%x pktlen 0x%x\n",
 			    sc->unit, fraglen + readlen, pktlen));
 			ifp->if_ierrors++;
 			m_freem(m0);
@@ -1972,8 +2061,8 @@ skip_read:
 	header = mtod(m0, struct ieee80211_header *);
 	fc = header->i_fc[0];
 	if ((fc & IEEE80211_FC0_VERSION_MASK) != IEEE80211_FC0_VERSION_0) {
-		RAY_DPRINTFN(1, ("ray%d: header not version 0 fc 0x%x\n",
-		    sc->unit, fc));
+		RAY_DPRINTFN(RAY_DBG_RECERR,
+		    ("ray%d: header not version 0 fc 0x%x\n", sc->unit, fc));
 		ifp->if_ierrors++;
 		m_freem(m0);
 		return;
@@ -1993,8 +2082,8 @@ skip_read:
 		return;
 
 	case IEEE80211_FC0_TYPE_DATA:
-		RAY_DPRINTFN(50, ("ray%d: ray_rx got a DATA packet\n",
-		    sc->unit));
+		RAY_DPRINTFN(RAY_DBG_MBUF,
+		    ("ray%d: ray_rx got a DATA packet\n", sc->unit));
 		break;
 
 	default:
@@ -2010,26 +2099,29 @@ skip_read:
 	switch (fc & IEEE80211_FC1_DS_MASK) {
 
 	case IEEE80211_FC1_STA_TO_STA:
-		RAY_DPRINTFN(50, ("ray%d: ray_rx packet from sta %6D\n",
+		RAY_DPRINTFN(RAY_DBG_RX,
+		    ("ray%d: ray_rx packet from sta %6D\n",
 		    sc->unit, src, ":"));
 		break;
 
 	case IEEE80211_FC1_STA_TO_AP:
-		RAY_DPRINTFN(1, ("ray%d: ray_rx packet from sta to ap %6D %6D\n",
+		RAY_DPRINTFN(RAY_DBG_RX,
+		    ("ray%d: ray_rx packet from sta to ap %6D %6D\n",
 		    sc->unit, src, ":", header->i_addr3, ":"));
 		ifp->if_ierrors++;
 		m_freem(m0);
 		break;
 
 	case IEEE80211_FC1_AP_TO_STA:
-		RAY_DPRINTFN(1, ("ray%d: ray_rx packet from ap %6D\n",
+		RAY_DPRINTFN(RAY_DBG_RX, ("ray%d: ray_rx packet from ap %6D\n",
 		    sc->unit, src, ":"));
 		ifp->if_ierrors++;
 		m_freem(m0);
 		break;
 
 	case IEEE80211_FC1_AP_TO_AP:
-		RAY_DPRINTFN(1, ("ray%d: ray_rx packet between aps %6D %6D\n",
+		RAY_DPRINTFN(RAY_DBG_RX,
+		    ("ray%d: ray_rx packet between aps %6D %6D\n",
 		    sc->unit, src, ":", header->i_addr2, ":"));
 		ifp->if_ierrors++;
 		m_freem(m0);
@@ -2104,7 +2196,7 @@ ray_rx_update_cache(struct ray_softc *sc, u_int8_t *src, u_int8_t siglev, u_int8
 	struct timeval mint;
 	struct ray_siglev *sl;
 
-	RAY_DPRINTFN(5, ("ray%d: ray_rx_update_cache\n", sc->unit));
+	RAY_DPRINTFN(RAY_DBG_SUBR, ("ray%d: ray_rx_update_cache\n", sc->unit));
 	RAY_MAP_CM(sc);
 
 	/* try to find host */
@@ -2148,11 +2240,9 @@ found:
 static void
 ray_update_params_done(struct ray_softc *sc, size_t ccs, u_int stat)
 {
-	RAY_DPRINTFN(5, ("ray%d: ray_update_params_done\n", sc->unit));
+	RAY_DPRINTFN(RAY_DBG_SUBR | RAY_DBG_CMD,
+	    ("ray%d: ray_update_params_done\n", sc->unit));
 	RAY_MAP_CM(sc);
-
-	RAY_DPRINTFN(20, ("ray%d: ray_update_params_done stat %d\n",
-	    sc->unit, stat));
 
 	/* this will get more complex as we add commands */
 	if (stat == RAY_CCS_STATUS_FAIL) {
@@ -2164,7 +2254,8 @@ ray_update_params_done(struct ray_softc *sc, size_t ccs, u_int stat)
 	if (sc->sc_running & SCP_UPD_PROMISC) {
 		ray_cmd_done(sc, SCP_UPD_PROMISC);
 		sc->sc_promisc = SRAM_READ_1(sc, RAY_HOST_TO_ECF_BASE);
-		RAY_DPRINTFN(20, ("ray%d: new promisc value %d\n", sc->unit,
+		RAY_DPRINTFN(RAY_DBG_IOCTL,
+		    ("ray%d: new promisc value %d\n", sc->unit,
 		    sc->sc_promisc));
 	} else if (sc->sc_updreq) {
 		ray_cmd_done(sc, SCP_UPD_UPDATEPARAMS);
@@ -2189,12 +2280,12 @@ ray_check_scheduled(void *arg)
 	s = splnet();
 	sc = arg;
 
-	RAY_DPRINTFN(5, ("ray%d: ray_check_scheduled\n", sc->unit));
+	RAY_DPRINTFN(RAY_DBG_SUBR, ("ray%d: ray_check_scheduled\n", sc->unit));
 	RAY_MAP_CM(sc);
-
-	RAY_DPRINTFN(20, (
-	    "ray%d: ray_check_scheduled schd 0x%x running 0x%x ready %d\n",
-	    sc->unit, sc->sc_scheduled, sc->sc_running, RAY_ECF_READY(sc)));
+	RAY_DPRINTFN(RAY_DBG_CMD,
+	    ("ray%d: ray_check_scheduled in schd 0x%b running 0x%b ready %d\n",
+	    sc->unit, sc->sc_scheduled, SCP_PRINTFB,
+	    sc->sc_running, SCP_PRINTFB, RAY_ECF_READY(sc)));
 
 	if (sc->sc_timoneed) {
 		untimeout(ray_check_scheduled, sc, sc->ccs_timerh);
@@ -2214,10 +2305,10 @@ ray_check_scheduled(void *arg)
 		if (sc->sc_scheduled & mask)
 			(*ray_cmdtab[i])(sc);
 	}
-
-	RAY_DPRINTFN(20, (
-	    "ray%d: ray_check_scheduled sched 0x%x running 0x%x ready %d\n",
-	    sc->unit, sc->sc_scheduled, sc->sc_running, RAY_ECF_READY(sc)));
+	RAY_DPRINTFN(RAY_DBG_CMD,
+	    ("ray%d: ray_check_scheduled out schd 0x%b running 0x%b ready %d\n",
+	    sc->unit, sc->sc_scheduled, SCP_PRINTFB,
+	    sc->sc_running, SCP_PRINTFB, RAY_ECF_READY(sc)));
 
 	if (sc->sc_scheduled & ~SCP_UPD_MASK)
 		ray_set_pending(sc, sc->sc_scheduled);
@@ -2243,7 +2334,7 @@ ray_check_ccs(void *arg)
 	s = splnet();
 	sc = arg;
 
-	RAY_DPRINTFN(5, ("ray%d: ray_check_ccs\n", sc->unit));
+	RAY_DPRINTFN(RAY_DBG_SUBR, ("ray%d: ray_check_ccs\n", sc->unit));
 	RAY_MAP_CM(sc);
 
 	ccs = 0;
@@ -2259,9 +2350,9 @@ ray_check_ccs(void *arg)
 		case RAY_CMD_UPDATE_MCAST:
 		case RAY_CMD_UPDATE_PARAMS:
 			stat = SRAM_READ_FIELD_1(sc, ccs, ray_cmd, c_status);
-			RAY_DPRINTFN(20, ("ray%d: check ccs idx %d ccs 0x%x "
-			    "cmd 0x%x stat %d\n", sc->unit, i,
-			    ccs, cmd, stat));
+			RAY_DPRINTFN(RAY_DBG_CMD,
+			    ("ray%d: ray_check_ccs ccs 0x%x cmd 0x%x stat %d\n",
+			    sc->unit, i, cmd, stat));
 			goto breakout;
 		}
 	}
@@ -2302,7 +2393,7 @@ ray_update_error_counters(struct ray_softc *sc)
 {
 	size_t csc;
 
-	RAY_DPRINTFN(5, ("ray%d: ray_update_error_counters\n", sc->unit));
+	RAY_DPRINTFN(RAY_DBG_SUBR, ("ray%d: ray_update_error_counters\n", sc->unit));
 	RAY_MAP_CM(sc);
 
 	/* try and update the error counters */
@@ -2331,34 +2422,38 @@ ray_update_error_counters(struct ray_softc *sc)
 static void
 ray_ccs_done(struct ray_softc *sc, size_t ccs)
 {
+	struct ifnet *ifp;
 	u_int cmd, stat;
     
-	RAY_DPRINTFN(5, ("ray%d: ray_ccs_done\n", sc->unit));
+	RAY_DPRINTFN(RAY_DBG_SUBR, ("ray%d: ray_ccs_done\n", sc->unit));
 	RAY_MAP_CM(sc);
+
+	ifp = &sc->arpcom.ac_if;
 
 	cmd = SRAM_READ_FIELD_1(sc, ccs, ray_cmd, c_cmd);
 	stat = SRAM_READ_FIELD_1(sc, ccs, ray_cmd, c_status);
 
-	RAY_DPRINTFN(20, ("ray%d: ccs idx %d ccs 0x%x cmd 0x%x status %d\n",
+	RAY_DPRINTFN(RAY_DBG_CCS,
+	    ("ray%d: ccs idx %d ccs 0x%x cmd 0x%x status %d\n",
 	    sc->unit, RAY_CCS_INDEX(ccs), ccs, cmd, stat));
 
 	switch (cmd) {
 
 	case RAY_CMD_START_PARAMS:
-		RAY_DPRINTFN(20, ("ray%d: ray_ccs_done got START_PARAMS\n",
-		    sc->unit));
+		RAY_DPRINTFN(RAY_DBG_CCS,
+		    ("ray%d: ray_ccs_done got START_PARAMS\n", sc->unit));
 		ray_download_done(sc);
 		break;
 
 	case RAY_CMD_UPDATE_PARAMS:
-		RAY_DPRINTFN(20, ("ray%d: ray_ccs_done got UPDATE_PARAMS\n",
-		    sc->unit));
+		RAY_DPRINTFN(RAY_DBG_CCS,
+		    ("ray%d: ray_ccs_done got UPDATE_PARAMS\n", sc->unit));
 		ray_update_params_done(sc, ccs, stat);
 		break;
 
 	case RAY_CMD_REPORT_PARAMS:
-		RAY_DPRINTFN(20, ("ray%d: ray_ccs_done got REPORT_PARAMS\n",
-		    sc->unit));
+		RAY_DPRINTFN(RAY_DBG_CCS,
+		    ("ray%d: ray_ccs_done got REPORT_PARAMS\n", sc->unit));
 		/* get the reported parameters */
 		ray_cmd_done(sc, SCP_REPORTPARAMS);
 		if (!sc->sc_repreq)
@@ -2374,8 +2469,8 @@ ray_ccs_done(struct ray_softc *sc, size_t ccs)
 		break;
 
 	case RAY_CMD_UPDATE_MCAST:
-		RAY_DPRINTFN(20, ("ray%d: ray_ccs_done got UPDATE_MCAST\n",
-		    sc->unit));
+		RAY_DPRINTFN(RAY_DBG_CCS,
+		    ("ray%d: ray_ccs_done got UPDATE_MCAST\n", sc->unit));
 		ray_cmd_done(sc, SCP_UPD_MCAST);
 		if (stat == RAY_CCS_STATUS_FAIL)
 			ray_reset(sc);
@@ -2383,32 +2478,25 @@ ray_ccs_done(struct ray_softc *sc, size_t ccs)
 
 	case RAY_CMD_START_NET:
 	case RAY_CMD_JOIN_NET:
-		RAY_DPRINTFN(20, ("ray%d: ray_ccs_done got START|JOIN_NET\n",
-		    sc->unit));
+		RAY_DPRINTFN(RAY_DBG_CCS,
+		    ("ray%d: ray_ccs_done got START|JOIN_NET\n", sc->unit));
 		ray_start_join_done(sc, ccs, stat);
 		break;
 
 	case RAY_CMD_TX_REQ:
-		RAY_DPRINTFN(20, ("ray%d: ray_ccs_done got TX_REQ\n",
-		    sc->unit));
+		RAY_DPRINTFN(RAY_DBG_CCS,
+		    ("ray%d: ray_ccs_done got TX_REQ\n", sc->unit));
 		ray_start_done(sc, ccs, stat);
 		goto done;
 
 	case RAY_CMD_START_ASSOC:
-		RAY_DPRINTFN(20, ("ray%d: ray_ccs_done got START_ASSOC\n",
-		    sc->unit));
-		ray_cmd_done(sc, SCP_STARTASSOC);
-		if (stat == RAY_CCS_STATUS_FAIL)
-			ray_start_join_net(sc);	/* XXX check */
-		else {
-			sc->sc_havenet = 1;
-		}
+		RAY_DPRINTFN(RAY_DBG_CCS,
+		    ("ray%d: ray_ccs_done got START_ASSOC\n", sc->unit));
+		ray_start_assoc_done(sc, ccs, stat);
 		break;
 
 	case RAY_CMD_UPDATE_APM:
-		RAY_DPRINTFN(20, ("ray%d: ray_ccs_done got UPDATE_APM\n",
-		    sc->unit));
-		XXX;
+		printf("ray%d: ray_ccs_done got UPDATE_APM - why?\n", sc->unit);
 		break;
 
 	case RAY_CMD_TEST_MEM:
@@ -2452,33 +2540,34 @@ ray_rcs_intr(struct ray_softc *sc, size_t rcs)
 	struct ifnet *ifp;
 	u_int cmd, status;
     
-	RAY_DPRINTFN(5, ("ray%d: ray_rcs_intr\n", sc->unit));
+	RAY_DPRINTFN(RAY_DBG_SUBR, ("ray%d: ray_rcs_intr\n", sc->unit));
 	RAY_MAP_CM(sc);
 
 	ifp = &sc->arpcom.ac_if;
 
 	cmd = SRAM_READ_FIELD_1(sc, rcs, ray_cmd, c_cmd);
 	status = SRAM_READ_FIELD_1(sc, rcs, ray_cmd, c_status);
-	RAY_DPRINTFN(20, ("ray%d: rcs idx %d rcs 0x%x cmd 0x%x status %d\n",
+	RAY_DPRINTFN(RAY_DBG_CCS,
+	    ("ray%d: rcs idx %d rcs 0x%x cmd 0x%x status %d\n",
 	    sc->unit, RAY_CCS_INDEX(rcs), rcs, cmd, status));
 
 	switch (cmd) {
 
 	case RAY_ECMD_RX_DONE:
-		RAY_DPRINTFN(20, ("ray%d: ray_rcs_intr got RX_DONE\n",
+		RAY_DPRINTFN(RAY_DBG_CCS, ("ray%d: ray_rcs_intr got RX_DONE\n",
 		    sc->unit));
 		ray_rx(sc, rcs);
 		break;
 
 	case RAY_ECMD_REJOIN_DONE:
-		RAY_DPRINTFN(20, ("ray%d: ray_rcs_intr got REJOIN_DONE\n",
+		RAY_DPRINTFN(RAY_DBG_CCS, ("ray%d: ray_rcs_intr got REJOIN_DONE\n",
 		    sc->unit));
 		sc->sc_havenet = 1; /* Should not be here but in function */
 		XXX;
 		break;
 
 	case RAY_ECMD_ROAM_START:
-		RAY_DPRINTFN(20, ("ray%d: ray_rcs_intr got ROAM_START\n",
+		RAY_DPRINTFN(RAY_DBG_CCS, ("ray%d: ray_rcs_intr got ROAM_START\n",
 		    sc->unit));
 		sc->sc_havenet = 0; /* Should not be here but in function */
 		XXX;
@@ -2510,13 +2599,13 @@ ray_intr(struct pccard_devinfo *dev_p)
 
 	sc = &ray_softc[dev_p->isahd.id_unit];
 
-	RAY_DPRINTFN(5, ("ray%d: ray_intr\n", sc->unit));
+	RAY_DPRINTFN(RAY_DBG_SUBR, ("ray%d: ray_intr\n", sc->unit));
 	RAY_MAP_CM(sc);
 
 	ifp = &sc->arpcom.ac_if;
 
 	if (sc->gone) {
-		printf("ray%d: unloaded before interrupt!\n", sc->unit);
+		printf("ray%d: ray_intr unloaded!\n", sc->unit);
 		return (0);
 	}
 
@@ -2543,7 +2632,7 @@ ray_intr(struct pccard_devinfo *dev_p)
 	if (count)
 		RAY_HCS_CLEAR_INTR(sc);
 
-	RAY_DPRINTFN(10, ("ray%d: interrupt %s handled\n",
+	RAY_DPRINTFN(RAY_DBG_RX, ("ray%d: interrupt %s handled\n",
 	    sc->unit, count?"was":"not"));
 
 	/* Send any packets lying around */
@@ -2566,7 +2655,8 @@ ray_free_ccs_chain(struct ray_softc *sc, u_int ni)
 {
 	u_int i;
 
-	RAY_DPRINTFN(5, ("ray%d: ray_free_ccs_chain\n", sc->unit));
+	RAY_DPRINTFN(RAY_DBG_SUBR | RAY_DBG_CCS,
+	    ("ray%d: ray_free_ccs_chain\n", sc->unit));
 	RAY_MAP_CM(sc);
 
 	while ((i = ni) != RAY_CCS_LINK_NULL) {
@@ -2585,14 +2675,15 @@ ray_free_ccs(struct ray_softc *sc, size_t ccs)
 {
 	u_int8_t stat;
 
-	RAY_DPRINTFN(5, ("ray%d: ray_free_ccs\n", sc->unit));
+	RAY_DPRINTFN(RAY_DBG_SUBR | RAY_DBG_CCS,
+	    ("ray%d: ray_free_ccs\n", sc->unit));
 	RAY_MAP_CM(sc);
 
 	stat = SRAM_READ_FIELD_1(sc, ccs, ray_cmd, c_status);
 	RAY_CCS_FREE(sc, ccs);
 	if (ccs <= RAY_CCS_ADDRESS(RAY_CCS_LAST))
 		sc->sc_ccsinuse[RAY_CCS_INDEX(ccs)] = 0;
-	RAY_DPRINTFN(20, ("ray%d: ray_free_ccs freed 0x%02x\n",
+	RAY_DPRINTFN(RAY_DBG_CCS, ("ray%d: ray_free_ccs freed 0x%02x\n",
 	    sc->unit, RAY_CCS_INDEX(ccs)));
 
 	return (stat);
@@ -2616,7 +2707,8 @@ ray_alloc_ccs(struct ray_softc *sc, size_t *ccsp, u_int cmd, u_int track)
 	size_t ccs;
 	u_int i;
 
-	RAY_DPRINTFN(5, ("ray%d: ray_alloc_ccs\n", sc->unit));
+	RAY_DPRINTFN(RAY_DBG_SUBR | RAY_DBG_CCS,
+	    ("ray%d: ray_alloc_ccs\n", sc->unit));
 	RAY_MAP_CM(sc);
 
 	/* for tracked commands, if not ready just set pending */
@@ -2639,6 +2731,8 @@ ray_alloc_ccs(struct ray_softc *sc, size_t *ccsp, u_int cmd, u_int track)
 	}
 	sc->sc_ccsinuse[i] = 1;
 	ccs = RAY_CCS_ADDRESS(i);
+	RAY_DPRINTFN(RAY_DBG_CCS,
+	    ("ray%d: ray_alloc_ccs using ccs 0x%0x\n", sc->unit, i));
 	SRAM_WRITE_FIELD_1(sc, ccs, ray_cmd, c_status, RAY_CCS_STATUS_BUSY);
 	SRAM_WRITE_FIELD_1(sc, ccs, ray_cmd, c_cmd, cmd);
 	SRAM_WRITE_FIELD_1(sc, ccs, ray_cmd, c_link, RAY_CCS_LINK_NULL);
@@ -2655,14 +2749,15 @@ ray_alloc_ccs(struct ray_softc *sc, size_t *ccsp, u_int cmd, u_int track)
 static void
 ray_set_pending(struct ray_softc *sc, u_int cmdf)
 {
-	RAY_DPRINTFN(5, ("ray%d: ray_set_pending\n", sc->unit));
+	RAY_DPRINTFN(RAY_DBG_SUBR, ("ray%d: ray_set_pending\n", sc->unit));
 	RAY_MAP_CM(sc);
-	RAY_DPRINTFN(20, ("ray%d: ray_set_pending 0x%0x\n", sc->unit, cmdf));
+	RAY_DPRINTFN(RAY_DBG_CMD,
+	    ("ray%d: ray_set_pending 0x%b\n", sc->unit, cmdf, SCP_PRINTFB));
 
 	sc->sc_scheduled |= cmdf;
 	if (!sc->sc_timoneed) {
-		RAY_DPRINTFN(20, ("ray%d: ray_set_pending new timo\n",
-		    sc->unit));
+		RAY_DPRINTFN(RAY_DBG_CCS,
+		    ("ray%d: ray_set_pending new timo\n", sc->unit));
 		sc->ccs_timerh = timeout(ray_check_scheduled, sc,
 		    RAY_CHECK_SCHED_TIMEOUT);
 		sc->sc_timoneed = 1;
@@ -2677,9 +2772,10 @@ ray_cmd_schedule(struct ray_softc *sc, int cmdf)
 {
 	int track;
 
-	RAY_DPRINTFN(5, ("ray%d: ray_cmd_schedule\n", sc->unit));
+	RAY_DPRINTFN(RAY_DBG_SUBR, ("ray%d: ray_cmd_schedule\n", sc->unit));
 	RAY_MAP_CM(sc);
-	RAY_DPRINTFN(20, ("ray%d: ray_cmd_schedule 0x%x\n", sc->unit, cmdf));
+	RAY_DPRINTFN(RAY_DBG_CMD,
+	    ("ray%d: ray_cmd_schedule 0x%b\n", sc->unit, cmdf, SCP_PRINTFB));
 
 	track = cmdf;
 	if ((cmdf & SCP_UPD_MASK) == 0)
@@ -2697,10 +2793,8 @@ ray_cmd_schedule(struct ray_softc *sc, int cmdf)
 static int
 ray_cmd_is_scheduled(struct ray_softc *sc, int cmdf)
 {
-	RAY_DPRINTFN(5, ("ray%d: ray_cmd_is_scheduled\n", sc->unit));
+	RAY_DPRINTFN(RAY_DBG_SUBR, ("ray%d: ray_cmd_is_scheduled\n", sc->unit));
 	RAY_MAP_CM(sc);
-	RAY_DPRINTFN(20, ("ray%d: ray_cmd_is_scheduled 0x%x\n",
-	    sc->unit, cmdf));
 
 	return ((sc->sc_scheduled & cmdf) ? 1 : 0);
 }
@@ -2711,9 +2805,10 @@ ray_cmd_is_scheduled(struct ray_softc *sc, int cmdf)
 static void
 ray_cmd_cancel(struct ray_softc *sc, int cmdf)
 {
-	RAY_DPRINTFN(5, ("ray%d: ray_cmd_cancel\n", sc->unit));
+	RAY_DPRINTFN(RAY_DBG_SUBR, ("ray%d: ray_cmd_cancel\n", sc->unit));
 	RAY_MAP_CM(sc);
-	RAY_DPRINTFN(20, ("ray%d: ray_cmd_cancel 0x%x\n", sc->unit, cmdf));
+	RAY_DPRINTFN(RAY_DBG_CMD,
+	    ("ray%d: ray_cmd_cancel 0x%b\n", sc->unit, cmdf, SCP_PRINTFB));
 
 	sc->sc_scheduled &= ~cmdf;
 	if ((cmdf & SCP_UPD_MASK) && (sc->sc_scheduled & SCP_UPD_MASK) == 0)
@@ -2732,9 +2827,10 @@ ray_cmd_cancel(struct ray_softc *sc, int cmdf)
 static void
 ray_cmd_ran(struct ray_softc *sc, int cmdf)
 {
-	RAY_DPRINTFN(5, ("ray%d: ray_cmd_ran\n", sc->unit));
+	RAY_DPRINTFN(RAY_DBG_SUBR, ("ray%d: ray_cmd_ran\n", sc->unit));
 	RAY_MAP_CM(sc);
-	RAY_DPRINTFN(20, ("ray%d: ray_cmd_ran 0x%x\n", sc->unit, cmdf));
+	RAY_DPRINTFN(RAY_DBG_CMD,
+	    ("ray%d: ray_cmd_ran 0x%b\n", sc->unit, cmdf, SCP_PRINTFB));
 
 	if (cmdf & SCP_UPD_MASK)
 		sc->sc_running |= cmdf | SCP_UPDATESUBCMD;
@@ -2753,9 +2849,8 @@ ray_cmd_ran(struct ray_softc *sc, int cmdf)
 static int
 ray_cmd_is_running(struct ray_softc *sc, int cmdf)
 {
-	RAY_DPRINTFN(5, ("ray%d: ray_cmd_is_running\n", sc->unit));
+	RAY_DPRINTFN(RAY_DBG_SUBR, ("ray%d: ray_cmd_is_running\n", sc->unit));
 	RAY_MAP_CM(sc);
-	RAY_DPRINTFN(20, ("ray%d: ray_cmd_is_running 0x%x\n", sc->unit, cmdf));
 
 	return ((sc->sc_running & cmdf) ? 1 : 0);
 }
@@ -2766,9 +2861,10 @@ ray_cmd_is_running(struct ray_softc *sc, int cmdf)
 static void
 ray_cmd_done(struct ray_softc *sc, int cmdf)
 {
-	RAY_DPRINTFN(5, ("ray%d: ray_cmd_done\n", sc->unit));
+	RAY_DPRINTFN(RAY_DBG_SUBR, ("ray%d: ray_cmd_done\n", sc->unit));
 	RAY_MAP_CM(sc);
-	RAY_DPRINTFN(20, ("ray%d: ray_cmd_done 0x%x\n", sc->unit, cmdf));
+	RAY_DPRINTFN(RAY_DBG_CMD,
+	    ("ray%d: ray_cmd_done 0x%b\n", sc->unit, cmdf, SCP_PRINTFB));
 
 	sc->sc_running &= ~cmdf;
 	if (cmdf & SCP_UPD_MASK) {
@@ -2780,6 +2876,7 @@ ray_cmd_done(struct ray_softc *sc, int cmdf)
 		untimeout(ray_check_ccs, sc, sc->ccs_timerh);
 		sc->sc_timocheck = 0;
 	}
+	XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
 }
 
 /*
@@ -2791,8 +2888,10 @@ ray_issue_cmd(struct ray_softc *sc, size_t ccs, u_int track)
 {
 	u_int i;
 
-	RAY_DPRINTFN(5, ("ray%d: ray_cmd_issue\n", sc->unit));
+	RAY_DPRINTFN(RAY_DBG_SUBR, ("ray%d: ray_cmd_issue\n", sc->unit));
 	RAY_MAP_CM(sc);
+	RAY_DPRINTFN(RAY_DBG_CMD,
+	    ("ray%d: ray_issue_cmd 0x%b\n", sc->unit, track, SCP_PRINTFB));
 
 	/*
 	 * XXX other drivers did this, but I think 
@@ -2827,8 +2926,10 @@ ray_simple_cmd(struct ray_softc *sc, u_int cmd, u_int track)
 {
 	size_t ccs;
 
-	RAY_DPRINTFN(5, ("ray%d: ray_simple_cmd\n", sc->unit));
+	RAY_DPRINTFN(RAY_DBG_SUBR, ("ray%d: ray_simple_cmd\n", sc->unit));
 	RAY_MAP_CM(sc);
+	RAY_DPRINTFN(RAY_DBG_CMD,
+	    ("ray%d: ray_simple_cmd 0x%b\n", sc->unit, track, SCP_PRINTFB));
 
 	return (ray_alloc_ccs(sc, &ccs, cmd, track) &&
 	    ray_issue_cmd(sc, ccs, track));
@@ -2847,8 +2948,10 @@ ray_update_subcmd(struct ray_softc *sc)
 	struct ifnet *ifp;
 	int submask, i;
 
-	RAY_DPRINTFN(5, ("ray%d: ray_update_subcmd\n", sc->unit));
+	RAY_DPRINTFN(RAY_DBG_SUBR, ("ray%d: ray_update_subcmd\n", sc->unit));
 	RAY_MAP_CM(sc);
+	RAY_DPRINTFN(RAY_DBG_CMD,
+	    ("ray%d: ray_update_subcmd\n", sc->unit));
 
 	ray_cmd_cancel(sc, SCP_UPDATESUBCMD);
 
@@ -2885,7 +2988,7 @@ ray_report_params(struct ray_softc *sc)
 	struct ifnet *ifp;
 	size_t ccs;
 
-	RAY_DPRINTFN(5, ("ray%d: ray_report_params\n", sc->unit));
+	RAY_DPRINTFN(RAY_DBG_SUBR, ("ray%d: ray_report_params\n", sc->unit));
 	RAY_MAP_CM(sc);
 
 	ray_cmd_cancel(sc, SCP_REPORTPARAMS);
@@ -2919,7 +3022,8 @@ ray_start_assoc(struct ray_softc *sc)
 {
 	struct ifnet *ifp;
 
-	RAY_DPRINTFN(5, ("ray%d: ray_start_assoc\n", sc->unit));
+	RAY_DPRINTFN(RAY_DBG_SUBR | RAY_DBG_STARTJOIN,
+	    ("ray%d: ray_start_assoc\n", sc->unit));
 	RAY_MAP_CM(sc);
 
 	ifp = &sc->arpcom.ac_if;
@@ -2930,6 +3034,40 @@ ray_start_assoc(struct ray_softc *sc)
 	else if (ray_cmd_is_running(sc, SCP_STARTASSOC))
 		return;
 	(void)ray_simple_cmd(sc, RAY_CMD_START_ASSOC, SCP_STARTASSOC);
+}
+
+/*
+ * complete association
+ *
+ * Part of ray_init, download, start_join control flow.
+ */
+static void
+ray_start_assoc_done(struct ray_softc *sc, size_t ccs, u_int8_t status)
+{
+	struct ifnet *ifp;
+
+	RAY_DPRINTFN(RAY_DBG_SUBR | RAY_DBG_STARTJOIN,
+	    ("ray%d: ray_start_assoc_done\n", sc->unit));
+	RAY_MAP_CM(sc);
+
+	ifp = &sc->arpcom.ac_if;
+
+	ray_cmd_done(sc, SCP_STARTASSOC);
+
+	if (status == RAY_CCS_STATUS_FAIL) {
+		RAY_DPRINTFN(RAY_DBG_STARTJOIN,
+		    ("ray%d: START_ASSOC failed retrying \n", sc->unit));
+		ray_start_join_net(sc);	/* XXX check */
+	} else {
+		sc->sc_havenet = 1;
+		ifp->if_flags &= ~IFF_OACTIVE;
+		RAY_DPRINTFN(RAY_DBG_STARTJOIN,
+		    ("ray%d: START_ASSOC waking ray_init\n",
+		    sc->unit));
+		wakeup(ray_init);
+	}
+
+	return;
 }
 
 /*
@@ -2948,7 +3086,8 @@ ray_download_params(struct ray_softc *sc)
 	struct ray_mib_4 ray_mib_4_default;
 	struct ray_mib_5 ray_mib_5_default;
 
-	RAY_DPRINTFN(5, ("ray%d: Downloading startup parameters\n", sc->unit));
+	RAY_DPRINTFN(RAY_DBG_SUBR | RAY_DBG_STARTJOIN,
+	    ("ray%d: ray_download_params\n", sc->unit));
 	RAY_MAP_CM(sc);
 
 	ray_cmd_cancel(sc, SCP_UPD_STARTUP);
@@ -3054,9 +3193,12 @@ ray_download_params(struct ray_softc *sc)
 	 MIB5(mib_privacy_can_join)		= sc->sc_d.np_priv_join;
 	 MIB5(mib_basic_rate_set[0])	= sc->sc_d.np_def_txrate;
 
+	/* XXX i think that this can go when ray_stop is fixed or
+	 * XXX do we need it for safety for the case where the card is
+	 * XXX busy but the driver hasn't got the state e.g. over an unload?
+	 * XXX does that mean attach should do this? */
 	if (!RAY_ECF_READY(sc)) {
-	    printf("ray%d: ray_download_params device busy\n",
-		sc->unit);
+	    printf("ray%d: ray_download_params device busy\n", sc->unit);
 	    ray_reset(sc);
 	}
 
@@ -3071,8 +3213,8 @@ ray_download_params(struct ray_softc *sc)
 	    printf("ray%d: ray_download_params can't issue command\n",
 	        sc->unit);
 
-	RAY_DPRINTFN(15, ("ray%d: Download now awaiting completion\n",
-	    sc->unit));
+	RAY_DPRINTFN(RAY_DBG_STARTJOIN,
+	    ("ray%d: ray_download_params awaiting completion\n", sc->unit));
 
 	return;
 }
@@ -3089,7 +3231,8 @@ static void
 ray_download_done(struct ray_softc *sc)
 {
 
-	RAY_DPRINTFN(5, ("ray%d: ray_download_done\n", sc->unit));
+	RAY_DPRINTFN(RAY_DBG_SUBR | RAY_DBG_STARTJOIN,
+	    ("ray%d: ray_download_done\n", sc->unit));
 	RAY_MAP_CM(sc);
 
 	ray_cmd_done(sc, SCP_UPD_STARTUP);
@@ -3116,8 +3259,8 @@ ray_start_join_net(struct ray_softc *sc)
 	size_t ccs;
 	int cmd, update;
 
-
-	RAY_DPRINTFN(5, ("ray%d: ray_start_join_net\n", sc->unit));
+	RAY_DPRINTFN(RAY_DBG_SUBR | RAY_DBG_STARTJOIN,
+	    ("ray%d: ray_start_join_net\n", sc->unit));
 	RAY_MAP_CM(sc);
 
 	ifp = &sc->arpcom.ac_if;
@@ -3128,6 +3271,8 @@ ray_start_join_net(struct ray_softc *sc)
 
 	/* XXX check we may not want to re-issue */
 	if (ray_cmd_is_running(sc, SCP_UPDATESUBCMD)) {
+		RAY_DPRINTFN(RAY_DBG_STARTJOIN,
+		    ("ray%d: ray_start_join_net already running\n", sc->unit));
 		ray_cmd_schedule(sc, SCP_UPD_STARTJOIN);
 		return;
 	}
@@ -3162,13 +3307,17 @@ ray_start_join_net(struct ray_softc *sc)
 	} else
 		SRAM_WRITE_FIELD_1(sc, ccs, ray_cmd_net, c_upd_param, 0);
 
-	RAY_DPRINTFN(15, ("ray%d: ray_start_join_net %s updating nw params\n",
+	RAY_DPRINTFN(RAY_DBG_STARTJOIN,
+	    ("ray%d: ray_start_join_net %s updating nw params\n",
 	    sc->unit, update?"is":"not"));
 
 	if (!ray_issue_cmd(sc, ccs, SCP_UPD_STARTJOIN)) {
 	    printf("ray%d: ray_start_join_net can't issue cmd\n", sc->unit);
 	    ray_reset(sc);
 	}
+
+	RAY_DPRINTFN(RAY_DBG_STARTJOIN,
+	    ("ray%d: ray_start_join_net awaiting completion\n", sc->unit));
 
 #if RAY_NEED_STARTJOIN_TIMO
 	sc->sj_timerh = timeout(ray_start_join_timo, sc, RAY_SJ_TIMEOUT);
@@ -3187,7 +3336,7 @@ ray_start_join_timo(void *xsc)
 {
 	struct ray_softc *sc = xsc;
 
-	RAY_DPRINTFN(5, ("ray%d: ray_start_join_timo\n", sc->unit));
+	RAY_DPRINTFN(RAY_DBG_SUBR, ("ray%d: ray_start_join_timo\n", sc->unit));
 	RAY_MAP_CM(sc);
 
 	panic("ray%d: ray-start_join_timo occured\n", sc->unit);
@@ -3200,7 +3349,7 @@ ray_start_join_timo(void *xsc)
  * XXX NOT KNF FROM HERE DOWN						      *
  ******************************************************************************/
 /*
- * Complete start or join command.
+ * Complete start command or intermediate step in join command.
  *
  * Part of ray_init, download, start_join control flow.
  */
@@ -3213,7 +3362,8 @@ ray_start_join_done(sc, ccs, status)
     struct ifnet	*ifp;
     u_int8_t		o_net_type;
 
-    RAY_DPRINTFN(5, ("ray%d: ray_start_join_done\n", sc->unit));
+    RAY_DPRINTFN(RAY_DBG_SUBR | RAY_DBG_STARTJOIN,
+        ("ray%d: ray_start_join_done\n", sc->unit));
     RAY_MAP_CM(sc);
 
     ifp = &sc->arpcom.ac_if;
@@ -3277,8 +3427,8 @@ ray_start_join_done(sc, ccs, status)
 
     /* card is telling us to update the network parameters */
     if (sc->sc_c.np_upd_param) {
-	RAY_DPRINTFN(1, ("ray%d: sj_done card updating parameters - why?\n",
-		sc->unit));
+	RAY_DPRINTFN(RAY_DBG_RECERR,
+	    ("ray%d: sj_done card updating parameters - why?\n", sc->unit));
 	o_net_type = sc->sc_c.np_net_type; /* XXX this may be wrong? */
 	ray_read_region(sc, RAY_HOST_TO_ECF_BASE,
 		&sc->sc_c.p_2, sizeof(struct ray_net_params));
@@ -3307,6 +3457,10 @@ ray_start_join_done(sc, ccs, status)
     else {
 	sc->sc_havenet = 1;
         ifp->if_flags &= ~IFF_OACTIVE;
+	RAY_DPRINTFN(RAY_DBG_STARTJOIN,
+	    ("ray%d: ray_start_join_done waking ray_init\n",
+	    sc->unit));
+	wakeup(ray_init);
     }
 
     return;
@@ -3326,7 +3480,7 @@ ray_update_promisc(struct ray_softc *sc)
 	size_t ccs;
 	int promisc;
 
-	RAY_DPRINTFN(5, ("ray%d: ray_update_promisc\n", sc->unit));
+	RAY_DPRINTFN(RAY_DBG_SUBR, ("ray%d: ray_update_promisc\n", sc->unit));
 	RAY_MAP_CM(sc);
 
 	ifp = &sc->arpcom.ac_if;
@@ -3358,7 +3512,7 @@ ray_update_params(struct ray_softc *sc)
 	struct ifnet *ifp;
 	size_t ccs;
 
-	RAY_DPRINTFN(5, ("ray%d: ray_update_params\n", sc->unit));
+	RAY_DPRINTFN(RAY_DBG_SUBR, ("ray%d: ray_update_params\n", sc->unit));
 	RAY_MAP_CM(sc);
 
 	ifp = &sc->arpcom.ac_if;
@@ -3399,7 +3553,7 @@ ray_update_mcast(struct ray_softc *sc)
 	size_t ccs, bufp;
 	int count;
 
-	RAY_DPRINTFN(5, ("ray%d: ray_update_mcast\n", sc->unit));
+	RAY_DPRINTFN(RAY_DBG_SUBR, ("ray%d: ray_update_mcast\n", sc->unit));
 	RAY_MAP_CM(sc);
 
 	ifp = &sc->arpcom.ac_if;
@@ -3456,7 +3610,8 @@ ray_user_update_params(struct ray_softc *sc, struct ray_param_req *pr)
 	struct ifnet *ifp;
 	int rv;
 
-	RAY_DPRINTFN(5, ("ray%d: ray_user_update_params\n", sc->unit));
+	RAY_DPRINTFN(RAY_DBG_SUBR,
+	    ("ray%d: ray_user_update_params\n", sc->unit));
 	RAY_MAP_CM(sc);
 
 	ifp = &sc->arpcom.ac_if;
@@ -3545,7 +3700,8 @@ ray_user_report_params(struct ray_softc *sc, struct ray_param_req *pr)
 	int mib_sizes[] = RAY_MIB_SIZES;
 	int rv;
 
-	RAY_DPRINTFN(5, ("ray%d: ray_user_report_params\n", sc->unit));
+	RAY_DPRINTFN(RAY_DBG_SUBR,
+	    ("ray%d: ray_user_report_params\n", sc->unit));
 	RAY_MAP_CM(sc);
 
 	ifp = &sc->arpcom.ac_if;
@@ -3658,7 +3814,8 @@ ray_user_report_stats(struct ray_softc *sc, struct ray_stats_req *sr)
 {
 	struct ifnet *ifp;
 
-	RAY_DPRINTFN(5, ("ray%d: ray_user_report_stats\n", sc->unit));
+	RAY_DPRINTFN(RAY_DBG_SUBR,
+	    ("ray%d: ray_user_report_stats\n", sc->unit));
 	RAY_MAP_CM(sc);
 
 	ifp = &sc->arpcom.ac_if;
@@ -3708,8 +3865,8 @@ ray_attr_getmap(struct ray_softc *sc)
     struct proc		p;
     int			result;
 
-    RAY_DPRINTFN(5, ("ray%d: attempting to get map for common memory\n",
-	    sc->unit));
+    RAY_DPRINTFN(RAY_DBG_SUBR,
+        ("ray%d: attempting to get map for common memory\n", sc->unit));
 
     sc->md.window = 0;
 
@@ -3729,7 +3886,8 @@ ray_attr_cm(struct ray_softc *sc)
     struct pcred pc;
     struct proc p;
 
-    RAY_DPRINTFN(100, ("ray%d: attempting to remap common memory\n", sc->unit));
+    RAY_DPRINTFN(RAY_DBG_CM,
+        ("ray%d: attempting to remap common memory\n", sc->unit));
 
     p.p_cred = &pc;
     p.p_cred->pc_ucred = &uc;
@@ -3807,7 +3965,7 @@ ray_read_reg(sc, reg)
     return (byte);
 }
 
-#if RAY_DEBUG > 50
+#if RAY_DEBUG & RAY_DBG_MBUF
 static void
 ray_dump_mbuf(sc, m, s)
     struct ray_softc	*sc;
@@ -3837,6 +3995,6 @@ ray_dump_mbuf(sc, m, s)
     if ((i - 1) % 16)
 	printf("%s\n", p);
 }
-#endif /* RAY_DEBUG > 50 */
+#endif /* RAY_DEBUG & RAY_DBG_MBUF */
 
 #endif /* NRAY */
