@@ -33,22 +33,19 @@
  * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
- *
- *	$Id: position.c,v 1.5 1997/02/22 14:02:48 peter Exp $
  */
 
 #ifndef lint
+#if 0
 static char const sccsid[] = "@(#)position.c	8.3 (Berkeley) 4/2/94";
+#endif
+static const char rcsid[] =
+	"$Id$";
 #endif /* not lint */
 
-#include <sys/types.h>
-#include <sys/stat.h>
-#include <sys/ioctl.h>
 #include <sys/mtio.h>
 
 #include <err.h>
-#include <errno.h>
-#include <string.h>
 #include <unistd.h>
 
 #include "dd.h"

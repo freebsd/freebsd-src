@@ -29,26 +29,27 @@
  * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
- *
- *	$Id: utils.c,v 1.15 1998/01/16 07:37:05 bde Exp $
  */
 
 #ifndef lint
+#if 0
 static char const sccsid[] = "@(#)utils.c	8.3 (Berkeley) 4/1/94";
+#endif
+static const char rcsid[] =
+	"$Id$";
 #endif /* not lint */
 
 #include <sys/param.h>
 #include <sys/stat.h>
+#ifdef VM_AND_BUFFER_CACHE_SYNCHRONIZED
 #include <sys/mman.h>
-#include <sys/time.h>
+#endif
 
 #include <err.h>
 #include <errno.h>
 #include <fcntl.h>
 #include <fts.h>
 #include <stdio.h>
-#include <stdlib.h>
-#include <string.h>
 #include <unistd.h>
 
 #include "extern.h"
