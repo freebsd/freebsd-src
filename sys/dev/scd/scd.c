@@ -41,7 +41,7 @@
  */
 
 
-/* $Id: scd.c,v 1.37 1998/06/07 17:10:56 dfr Exp $ */
+/* $Id: scd.c,v 1.38 1998/06/08 09:47:36 bde Exp $ */
 
 /* Please send any comments to micke@dynas.se */
 
@@ -186,16 +186,20 @@ struct	isa_driver	scddriver = { scd_probe, scd_attach, "scd" };
 static struct callout_handle tohandle = CALLOUT_HANDLE_INITIALIZER(&tohanle);
 
 static	d_open_t	scdopen;
+static	d_read_t	scdread;
 static	d_close_t	scdclose;
 static	d_ioctl_t	scdioctl;
 static	d_strategy_t	scdstrategy;
 
 #define CDEV_MAJOR 45
 #define BDEV_MAJOR 16
-static struct cdevsw scd_cdevsw;
-static struct bdevsw scd_bdevsw = 
-	{ scdopen,	scdclose,	scdstrategy,	scdioctl,	/*16*/
-	  nodump,	nopsize,	D_DISK, "scd",	&scd_cdevsw,	-1 };
+static struct cdevsw scd_cdevsw = {
+	  scdopen,	scdclose,	scdread,	nowrite,
+	  scdioctl,	nostop,		nullreset,	nodevtotty,
+	  seltrue,	nommap,		scdstrategy,	"scd",
+	  NULL,		-1,		nodump,		nopsize,
+	  D_DISK,	0,		-1 };
+
 
 int scd_attach(struct isa_device *dev)
 {
@@ -223,11 +227,11 @@ int scd_attach(struct isa_device *dev)
 				 DV_CHR, UID_ROOT, GID_OPERATOR, 0640,
 				 "rscd%dc", unit);
 	cd->a_devfs_token = 
-		devfs_add_devswf(&scd_bdevsw, dkmakeminor(unit, 0, 0),
+		devfs_add_devswf(&scd_cdevsw, dkmakeminor(unit, 0, 0),
 				 DV_BLK, UID_ROOT, GID_OPERATOR, 0640,
 				 "scd%da", unit);
 	cd->c_devfs_token = 
-		devfs_add_devswf(&scd_bdevsw, dkmakeminor(unit, 0, RAW_PART),
+		devfs_add_devswf(&scd_cdevsw, dkmakeminor(unit, 0, RAW_PART),
 				 DV_BLK, UID_ROOT, GID_OPERATOR, 0640,
 				 "scd%dc", unit);
 #endif
@@ -313,6 +317,12 @@ scdclose(dev_t dev, int flags, int fmt, struct proc *p)
 	cd->openflag = 0;
 
 	return 0;
+}
+
+static int
+scdread(dev_t dev, struct uio *uio, int ioflag)
+{
+	return (physio(scdstrategy, NULL, dev, 1, minphys, uio));
 }
 
 static	void
@@ -1563,7 +1573,7 @@ static void 	scd_drvinit(void *unused)
 {
 
 	if( ! scd_devsw_installed ) {
-		bdevsw_add_generic(BDEV_MAJOR,CDEV_MAJOR, &scd_bdevsw);
+		cdevsw_add_generic(BDEV_MAJOR,CDEV_MAJOR, &scd_cdevsw);
 		scd_devsw_installed = 1;
     	}
 }

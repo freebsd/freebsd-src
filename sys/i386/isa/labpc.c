@@ -283,6 +283,8 @@ static int labpcprobe(struct isa_device *dev);
 struct isa_driver labpcdriver =
 	{ labpcprobe, labpcattach, "labpc", 0  };
 
+static	d_read_t	labpcread;
+static	d_write_t	labpcwrite;
 static	d_open_t	labpcopen;
 static	d_close_t	labpcclose;
 static	d_ioctl_t	labpcioctl;
@@ -290,8 +292,8 @@ static	d_strategy_t	labpcstrategy;
 
 #define CDEV_MAJOR 66
 static struct cdevsw labpc_cdevsw = 
-	{ labpcopen,	labpcclose,	rawread,	rawwrite,	/*66*/
-	  labpcioctl,	nostop,		nullreset,	nodevtotty,/* labpc */
+	{ labpcopen,	labpcclose,	labpcread,	labpcwrite,
+	  labpcioctl,	nostop,		nullreset,	nodevtotty,
 	  seltrue,	nommap,		labpcstrategy, "labpc",	NULL,	-1 };
 
 static void start(struct ctlr *ctlr);
@@ -756,7 +758,20 @@ labpcclose(dev_t dev, int flags, int fmt, struct proc *p)
 	return 0;
 }
 
-/* Start: Start a frame going in or out.
+static int
+labpcread( dev_t dev, struct uio *uio, int ioflag)
+{
+	return (physio(labpcstrategy, NULL, dev, 1, minphys, uio));
+}
+
+static int
+labpcwrite ( dev_t dev, struct uio *uio, int ioflag)
+{
+	return (physio(labpcstrategy, NULL, dev, 0, minphys, uio));
+}
+
+/*
+ * Start: Start a frame going in or out.
  */
 static void
 start(struct ctlr *ctlr)

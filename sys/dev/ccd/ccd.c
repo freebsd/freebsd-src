@@ -1,4 +1,4 @@
-/* $Id: ccd.c,v 1.33 1998/06/07 17:09:41 dfr Exp $ */
+/* $Id: ccd.c,v 1.34 1998/07/04 20:45:29 julian Exp $ */
 
 /*	$NetBSD: ccd.c,v 1.22 1995/12/08 19:13:26 thorpej Exp $	*/
 
@@ -165,6 +165,8 @@ struct ccdbuf {
 	(makedev(major((dev)), dkmakeminor(ccdunit((dev)), 0, RAW_PART)))
 
 static d_open_t ccdopen;
+static d_read_t	ccdread;
+static d_write_t ccdwrite;
 static d_close_t ccdclose;
 static d_strategy_t ccdstrategy;
 static d_ioctl_t ccdioctl;
@@ -174,12 +176,12 @@ static d_psize_t ccdsize;
 #define CDEV_MAJOR 74
 #define BDEV_MAJOR 21
 
-static struct cdevsw ccd_cdevsw;
-static struct bdevsw ccd_bdevsw = {
-  ccdopen, ccdclose, ccdstrategy, ccdioctl,
-  ccddump, ccdsize, 0,
-  "ccd", &ccd_cdevsw, -1
-};
+static struct cdevsw ccd_cdevsw = {
+	  ccdopen,	ccdclose,	ccdread,	ccdwrite,
+	  ccdioctl,	nostop,		nullreset,	nodevtotty,
+	  seltrue,	nommap,		ccdstrategy,	"ccd",
+	  NULL, 	-1,		ccddump,	ccdsize,
+	  D_DISK,	0,		-1 };
 
 /* Called by main() during pseudo-device attachment */
 static void	ccdattach __P((void *));
@@ -258,7 +260,7 @@ ccdattach(dummy)
 		ccddevs[i].ccd_dk = -1;
 
 	if( ! ccd_devsw_installed ) {
-		bdevsw_add_generic(BDEV_MAJOR,CDEV_MAJOR, &ccd_bdevsw);
+		cdevsw_add_generic(BDEV_MAJOR,CDEV_MAJOR, &ccd_cdevsw);
 		ccd_devsw_installed = 1;
     	}
 	else {
@@ -695,6 +697,18 @@ ccdclose(dev, flags, fmt, p)
 
 	ccdunlock(cs);
 	return (0);
+}
+
+static int
+ccdread(dev_t dev, struct uio *uio, int ioflag)
+{
+	return (physio(ccdstrategy, NULL, dev, 1, minphys, uio));
+}
+
+static int
+ccdwrite(dev_t dev, struct uio *uio, int ioflag)
+{
+	return (physio(ccdstrategy, NULL, dev, 0, minphys, uio));
 }
 
 static void

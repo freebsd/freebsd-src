@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)wd.c	7.2 (Berkeley) 5/9/91
- *	$Id: wd.c,v 1.168 1998/06/07 17:11:05 dfr Exp $
+ *	$Id: wd.c,v 1.169 1998/06/07 19:40:41 dfr Exp $
  */
 
 /* TODO:
@@ -289,6 +289,8 @@ static struct slice_handler slicetype = {
 #ifndef	SLICE
 
 static	d_open_t	wdopen;
+static	d_read_t	wdread;
+static	d_write_t	wdwrite;
 static	d_close_t	wdclose;
 static	d_strategy_t	wdstrategy;
 static	d_ioctl_t	wdioctl;
@@ -297,10 +299,15 @@ static	d_psize_t	wdsize;
 
 #define CDEV_MAJOR 3
 #define BDEV_MAJOR 0
-static struct cdevsw wd_cdevsw;
-static struct bdevsw wd_bdevsw = 
-	{ wdopen,	wdclose,	wdstrategy,	wdioctl,	/*0*/
-	  wddump,	wdsize,		D_DISK,	"wd",	&wd_cdevsw,	-1 };
+
+
+static struct cdevsw wd_cdevsw = {
+	  wdopen,	wdclose,	wdread,		wdwrite,
+	  wdioctl,	nostop,		nullreset,	nodevtotty,
+	  seltrue,	nommap,		wdstrategy,	"wd",
+	  NULL,		-1,		wddump,		wdsize,
+	  D_DISK,	0,		-1 };
+
 #endif /* !SLICE */
 
 #ifdef CMD640
@@ -602,7 +609,7 @@ wdattach(struct isa_device *dvp)
 			config_intrhook_establish(&du->ich);
 #else
 			mynor = dkmakeminor(lunit, WHOLE_DISK_SLICE, RAW_PART);
-			du->dk_bdev = devfs_add_devswf(&wd_bdevsw, mynor,
+			du->dk_bdev = devfs_add_devswf(&wd_cdevsw, mynor,
 						       DV_BLK, UID_ROOT,
 						       GID_OPERATOR, 0640,
 						       "wd%d", lunit);
@@ -712,6 +719,19 @@ wds_init(void *arg)
 #endif
 
 #ifndef	SLICE
+
+static int
+wdread(dev_t dev, struct uio *uio, int ioflag)
+{
+	return (physio(wdstrategy, NULL, dev, 1, minphys, uio));
+}
+
+static int
+wdwrite(dev_t dev, struct uio *uio, int ioflag)
+{
+	return (physio(wdstrategy, NULL, dev, 0, minphys, uio));
+}
+
 /* Read/write routine for a buffer.  Finds the proper unit, range checks
  * arguments, and schedules the transfer.  Does not wait for the transfer
  * to complete.  Multi-page transfers are supported.  All I/O requests must
@@ -1483,7 +1503,7 @@ wdopen(dev_t dev, int flags, int fmt, struct proc *p)
 	label.d_secpercyl = du->dk_dd.d_secpercyl;
 	label.d_secperunit = du->dk_dd.d_secperunit;
 	error = dsopen("wd", dev, fmt, &du->dk_slices, &label, wdstrategy1,
-		       (ds_setgeom_t *)NULL, &wd_bdevsw, &wd_cdevsw);
+		       (ds_setgeom_t *)NULL, &wd_cdevsw, &wd_cdevsw);
 	}
 	du->dk_flags &= ~DKFL_LABELLING;
 	wdsleep(du->dk_ctrlr, "wdopn2");
@@ -2679,9 +2699,9 @@ static void 	wd_drvinit(void *unused)
 {
 
 	if( ! wd_devsw_installed ) {
-		if (wd_bdevsw.d_maxio == 0)
-			wd_bdevsw.d_maxio = 248 * 512;
-		bdevsw_add_generic(BDEV_MAJOR,CDEV_MAJOR, &wd_bdevsw);
+		if (wd_cdevsw.d_maxio == 0)
+			wd_cdevsw.d_maxio = 248 * 512;
+		cdevsw_add_generic(BDEV_MAJOR,CDEV_MAJOR, &wd_cdevsw);
 		wd_devsw_installed = 1;
     	}
 }

@@ -20,7 +20,7 @@
  * the original CMU copyright notice.
  *
  * Version 1.3, Thu Nov 11 12:09:13 MSK 1993
- * $Id: wt.c,v 1.43 1998/01/24 02:54:28 eivind Exp $
+ * $Id: wt.c,v 1.44 1998/06/07 17:11:07 dfr Exp $
  *
  */
 
@@ -163,7 +163,6 @@ typedef struct {
 	unsigned char BUSY, NOEXCEP, RESETMASK, RESETVAL;
 	unsigned char ONLINE, RESET, REQUEST, IEN;
 #ifdef	DEVFS
-	void	*devfs_token;
 	void	*devfs_token_r;
 #endif
 } wtinfo_t;
@@ -185,6 +184,8 @@ static int wtwritefm (wtinfo_t *t);
 static int wtpoll (wtinfo_t *t, int mask, int bits);
 
 static	d_open_t	wtopen;
+static	d_read_t	wtread;
+static	d_write_t	wtwrite;
 static	d_close_t	wtclose;
 static	d_ioctl_t	wtioctl;
 static	d_dump_t	wtdump;
@@ -194,10 +195,12 @@ static	d_strategy_t	wtstrategy;
 #define CDEV_MAJOR 10
 #define BDEV_MAJOR 3
 
-static struct cdevsw wt_cdevsw;
-static struct bdevsw wt_bdevsw = 
-	{ wtopen,	wtclose,	wtstrategy,	wtioctl,	/*3*/
-	  wtdump,	wtsize,		B_TAPE,	"wt",	&wt_cdevsw,	-1 };
+
+static struct cdevsw wt_cdevsw = {
+	  wtopen,	wtclose,	wtread,		wtwrite,
+	  wtioctl,	nostop,		nullreset,	nodevtotty,
+	  seltrue,	nommap,		wtstrategy,	"wt",
+	  NULL,	-1 };
 
 
 /*
@@ -266,9 +269,6 @@ wtattach (struct isa_device *id)
 	t->devfs_token_r = 
 		devfs_add_devswf(&wt_cdevsw, id->id_unit, DV_CHR, 0, 0, 
 				 0600, "rwt%d", id->id_unit);
-	t->devfs_token = 
-		devfs_add_devswf(&wt_bdevsw, id->id_unit, DV_BLK, 0, 0, 
-				 0600, "wt%d", id->id_unit);
 #endif
 	return (1);
 }
@@ -508,6 +508,18 @@ wtioctl (dev_t dev, u_long cmd, caddr_t arg, int flags, struct proc *p)
 		return (0);
 	}
 	return (EINVAL);
+}
+
+static int
+wtread(dev_t dev, struct uio *uio, int ioflag)
+{
+	return (physio(wtstrategy, NULL, dev, 1, minphys, uio));
+}
+
+static int
+wtwrite(dev_t dev, struct uio *uio, int ioflag)
+{
+	return (physio(wtstrategy, NULL, dev, 0, minphys, uio));
 }
 
 /*
@@ -991,7 +1003,10 @@ wt_drvinit(void *unused)
 {
 
 	if( ! wt_devsw_installed ) {
-		bdevsw_add_generic(BDEV_MAJOR,CDEV_MAJOR, &wt_bdevsw);
+		dev_t dev;
+
+		dev = makedev(CDEV_MAJOR, 0);
+		cdevsw_add(&dev, &wt_cdevsw, NULL);
 		wt_devsw_installed = 1;
     	}
 }

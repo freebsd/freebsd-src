@@ -25,7 +25,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *	$Id: wst.c,v 1.6 1998/06/08 09:47:37 bde Exp $
+ *	$Id: wst.c,v 1.7 1998/06/21 18:02:41 bde Exp $
  */
 
 #include "wdc.h"
@@ -49,17 +49,22 @@
 #include <i386/isa/atapi.h>
 
 static  d_open_t    wstopen;
+static	d_read_t    wstread;
+static	d_write_t   wstwrite;
 static  d_close_t   wstclose;
 static  d_ioctl_t   wstioctl;
 static  d_strategy_t    wststrategy;
 
 #define CDEV_MAJOR 90
 #define BDEV_MAJOR 24
-static struct cdevsw wst_cdevsw;
-static struct bdevsw wst_bdevsw = {
-    wstopen,  wstclose,   wststrategy,    wstioctl,
-    nodump,   nopsize,    D_TAPE, "wst",  &wst_cdevsw,    -1
-};
+
+
+
+static struct cdevsw wst_cdevsw = {
+	  wstopen,	wstclose,	wstread,	wstwrite,
+	  wstioctl,	nostop,		nullreset,	nodevtotty,
+	  seltrue,	nommap,		wststrategy,	"wst",
+	  NULL,	-1 };
 
 static int wst_total = 0;
 
@@ -260,8 +265,6 @@ wstattach(struct atapi *ata, int unit, struct atapi_params *ap, int debug)
     wstnlun++;
 
 #ifdef DEVFS
-    t->bdevs = devfs_add_devswf(&wst_bdevsw, 0, DV_BLK, UID_ROOT, GID_OPERATOR,
-				0640, "wst%d", t->lun);
     t->cdevs = devfs_add_devswf(&wst_cdevsw, 0, DV_CHR, UID_ROOT, GID_OPERATOR,
 				0640, "rwst%d", t->lun);
 #endif /* DEVFS */
@@ -387,6 +390,18 @@ wstclose(dev_t dev, int flags, int fmt, struct proc *p)
     if (t->flags & WST_DEBUG)
 	printf("wst%d: %d total bytes transferred\n", t->lun, wst_total);
     return(0);
+}
+
+static int
+wstread(dev_t dev, struct uio *uio, int ioflag)
+{
+	return (physio(wststrategy, NULL, dev, 1, minphys, uio));
+}
+
+static int
+wstwrite(dev_t dev, struct uio *uio, int ioflag)
+{
+	return (physio(wststrategy, NULL, dev, 0, minphys, uio));
 }
 
 void 
@@ -777,7 +792,6 @@ wst_reset(struct wst *t)
 #include <sys/sysent.h>
 #include <sys/lkm.h>
 
-MOD_DEV(wst, LM_DT_BLOCK, BDEV_MAJOR, &wst_bdevsw);
 MOD_DEV(rwst, LM_DT_CHAR, CDEV_MAJOR, &wst_cdevsw);
 
 int 
@@ -853,7 +867,10 @@ static void
 wst_drvinit(void *unused)
 {
     if (!wst_devsw_installed) {
-        bdevsw_add_generic(BDEV_MAJOR, CDEV_MAJOR, &wst_bdevsw);
+	dev_t dev;
+
+	dev = makedev(CDEV_MAJOR, 0);
+        cdevsw_add(&dev, &wst_cdevsw, NULL);
         wst_devsw_installed = 1;
     }
 }
