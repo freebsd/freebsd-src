@@ -15,7 +15,7 @@ MAN9=	CONDSPLASSERT.9 KASSERT.9 MD5.9 SPLASSERT.9 \
 	devfs_add_devswf.9 devfs_link.9 devfs_remove_dev.9 devstat.9 \
 	devtoname.9 fetch.9 ifnet.9 inittodr.9 intro.9 kernacc.9 malloc.9 \
 	make_dev.9 microseq.9 mi_switch.9 mutex.9 namei.9 panic.9 physio.9 \
-	posix4.9 psignal.9 resettodr.9 rtalloc.9 rtentry.9 sleep.9 spl.9 \
+	posix4.9 psignal.9 random.9 resettodr.9 rtalloc.9 rtentry.9 sleep.9 spl.9 \
 	store.9 style.9 suser.9 time.9 timeout.9 uio.9 \
 	vget.9 vnode.9 vput.9 vref.9 vrele.9 vslock.9 \
 	microtime.9 microuptime.9 tvtohz.9
@@ -73,6 +73,7 @@ MLINKS+=namei.9 NDINIT.9
 MLINKS+=namei.9 NDFREE.9
 MLINKS+=posix4.9 p1003_1b.9
 MLINKS+=psignal.9 gsignal.9 psignal.9 pgsignal.9
+MLINKS+=random.9 srandom.9 random.9 arc4random.9 random.9 read_random.9
 MLINKS+=rtalloc.9 rtalloc1.9 rtalloc.9 rtalloc_ign.9
 MLINKS+=sleep.9 tsleep.9 sleep.9 wakeup.9 sleep.9 wakeup_one.9
 MLINKS+=sleep.9 asleep.9 sleep.9 await.9 sleep.9 msleep.9
