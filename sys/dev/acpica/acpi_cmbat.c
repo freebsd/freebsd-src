@@ -44,6 +44,13 @@
 #include <dev/acpica/acpivar.h>
 #include <dev/acpica/acpiio.h>
 
+static void	 acpi_cmbat_get_bst(void *);
+static void	 acpi_cmbat_get_bif(void *);
+static void	 acpi_cmbat_notify_handler(ACPI_HANDLE, UINT32, void *);
+static int	 acpi_cmbat_probe(device_t);
+static int	 acpi_cmbat_attach(device_t);
+static int	 acpi_cmbat_ioctl(u_long, caddr_t, void *);
+
 struct acpi_cmbat_softc {
 	device_t	dev;
 	struct acpi_bif	bif;
@@ -152,9 +159,9 @@ acpi_cmbat_get_bif(void *context)
 retry:
 	if (sc->bif_buffer.Length == 0) {
 		sc->bif_buffer.Pointer = NULL;
-		as = AcpiEvaluateObject(h, "_BST", NULL, &sc->bif_buffer);
+		as = AcpiEvaluateObject(h, "_BIF", NULL, &sc->bif_buffer);
 		if (as != AE_BUFFER_OVERFLOW){
-			device_printf(dev, "CANNOT FOUND _BST (%d)\n", as);
+			device_printf(dev, "CANNOT FOUND _BIF (%d)\n", as);
 			return;
 		}
 
@@ -165,7 +172,7 @@ retry:
 		}
 	}
 
-	as = AcpiEvaluateObject(h, "_BST", NULL, &sc->bif_buffer);
+	as = AcpiEvaluateObject(h, "_BIF", NULL, &sc->bif_buffer);
 
 	if (as == AE_BUFFER_OVERFLOW){
 		if (sc->bif_buffer.Pointer){
@@ -175,7 +182,7 @@ retry:
 		sc->bif_buffer.Length = 0;
 		goto retry;
 	} else if (as != AE_OK){
-		device_printf(dev, "CANNOT FOUND _BST (%d)\n", as);
+		device_printf(dev, "CANNOT FOUND _BIF (%d)\n", as);
 		return;
 	}
 
@@ -240,6 +247,7 @@ acpi_cmbat_probe(device_t dev)
 static int
 acpi_cmbat_attach(device_t dev)
 {
+	int	 error;
 	ACPI_HANDLE handle = acpi_get_handle(dev);
 	struct acpi_cmbat_softc *sc;
 	sc = device_get_softc(dev);
@@ -251,6 +259,20 @@ acpi_cmbat_attach(device_t dev)
 	acpi_cmbat_get_bif(dev);
 	acpi_cmbat_get_bst(dev);
 
+	if (acpi_cmbat_units == 0) {
+		error = acpi_register_ioctl(ACPIIO_CMBAT_GET_UNITS,
+		    acpi_cmbat_ioctl, sc);
+		if (error)
+			return (error);
+		error = acpi_register_ioctl(ACPIIO_CMBAT_GET_BIF,
+		    acpi_cmbat_ioctl, sc);
+		if (error)
+			return (error);
+		error = acpi_register_ioctl(ACPIIO_CMBAT_GET_BST,
+		    acpi_cmbat_ioctl, sc);
+		if (error)
+			return (error);
+	}
 
 	acpi_cmbat_units++;
 
@@ -273,3 +295,65 @@ static driver_t acpi_cmbat_driver = {
 
 static devclass_t acpi_cmbat_devclass;
 DRIVER_MODULE(acpi_cmbat, acpi, acpi_cmbat_driver, acpi_cmbat_devclass, 0, 0);
+
+static int
+acpi_cmbat_ioctl(u_long cmd, caddr_t addr, void *arg)
+{
+	union	 acpi_cmbat_ioctl_arg *ioctl_arg;
+	device_t dev;
+	struct	 acpi_cmbat_softc *sc;
+	struct	 acpi_bif *bifp;
+	struct	 acpi_bst *bstp;
+
+	if (cmd == ACPIIO_CMBAT_GET_UNITS) {
+		ioctl_arg = NULL;
+		dev = NULL;
+		sc = NULL;
+	} else {
+		ioctl_arg = (union acpi_cmbat_ioctl_arg *)addr;
+		dev = devclass_get_device(acpi_cmbat_devclass, ioctl_arg->unit);
+		if (dev == NULL) {
+			return(ENXIO);
+		}
+		
+		sc = device_get_softc(dev);
+		if (sc == NULL) {
+			return(ENXIO);
+		}
+	}
+
+	switch (cmd) {
+	case ACPIIO_CMBAT_GET_UNITS:
+		*(int *)addr = acpi_cmbat_units;
+		break;
+
+	case ACPIIO_CMBAT_GET_BIF:
+		acpi_cmbat_get_bif(dev);
+		bifp = &ioctl_arg->bif;
+		bifp->unit = sc->bif.unit;
+		bifp->dcap = sc->bif.dcap;
+		bifp->lfcap = sc->bif.lfcap;
+		bifp->btech = sc->bif.btech;
+		bifp->dvol = sc->bif.dvol;
+		bifp->wcap = sc->bif.wcap;
+		bifp->lcap = sc->bif.lcap;
+		bifp->gra1 = sc->bif.gra1;
+		bifp->gra2 = sc->bif.gra2;
+		strncpy(bifp->model, sc->bif.model, sizeof(sc->bif.model));
+		strncpy(bifp->serial, sc->bif.serial, sizeof(sc->bif.serial));
+		strncpy(bifp->type, sc->bif.type, sizeof(sc->bif.type));
+		strncpy(bifp->oeminfo, sc->bif.oeminfo, sizeof(sc->bif.oeminfo));
+		break;
+
+	case ACPIIO_CMBAT_GET_BST:
+		acpi_cmbat_get_bst(dev);
+		bstp = &ioctl_arg->bst;
+		bstp->state = sc->bst.state;
+		bstp->rate = sc->bst.rate;
+		bstp->cap = sc->bst.cap;
+		bstp->volt = sc->bst.volt;
+		break;
+	}
+
+	return(0);
+}
