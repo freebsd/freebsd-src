@@ -163,7 +163,6 @@
 /usr/src/libexec/telnetd/telnetd.8
 /usr/src/secure/libexec/telnetd/telnetd.8
 /usr/src/libexec/tftpd/tftpd.8
-/usr/src/usr.sbin/xntpd/doc/tickadj.8
 /usr/src/usr.sbin/timed/timed/timed.8
 /usr/src/usr.sbin/timed/timedc/timedc.8
 /usr/src/usr.sbin/traceroute/traceroute.8
