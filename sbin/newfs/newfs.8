@@ -271,14 +271,14 @@ This option is of historical importance only.  Modern disks perform their own
 bad sector allocation.
 .El
 .Sh EXAMPLES
-.Dl newfs -b 16384 -f 4096 -c 100 /dev/ad3s1a
+.Dl newfs -b 16384 -f 2048 /dev/ad3s1a
 .Pp
 Creates a new ufs file system on
 .Pa ad3s1a .
 .Nm
-will use a block size of 16384 bytes, a fragement size of 4096 bytes
-and have 100 cylinders per cylinder group rather than the defaults.
-These values are tend to produce better performance than the defaults
+will use a block size of 16384 bytes, a fragement size of 2048 bytes
+and the largest possible number of cylinders per group.
+These values tend to produce better performance than the defaults
 for file systems larger than about 5 gigabytes.
 .Sh SEE ALSO
 .Xr fdformat 1 ,
