@@ -35,7 +35,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)machdep.c	7.4 (Berkeley) 6/3/91
- *	$Id: machdep.c,v 1.260 1997/09/01 01:54:50 bde Exp $
+ *	$Id: machdep.c,v 1.261 1997/09/02 20:05:28 bde Exp $
  */
 
 #include "apm.h"
@@ -174,7 +174,6 @@ SYSCTL_PROC(_hw, HW_USERMEM, usermem, CTLTYPE_INT|CTLFLAG_RD,
 	0, 0, sysctl_hw_usermem, "I", "");
 
 int boothowto = 0, bootverbose = 0, Maxmem = 0;
-static int	badpages = 0;
 long dumplo;
 extern int bootdev;
 
@@ -221,17 +220,11 @@ cpu_startup(dummy)
 	/*
 	 * Display any holes after the first chunk of extended memory.
 	 */
-	if (badpages != 0) {
-		int indx = 1;
+	if (bootverbose) {
+		int indx;
 
-		/*
-		 * XXX skip reporting ISA hole & unmanaged kernel memory
-		 */
-		if (phys_avail[0] == PAGE_SIZE)
-			indx += 2;
-
-		printf("Physical memory hole(s):\n");
-		for (; phys_avail[indx + 1] != 0; indx += 2) {
+		printf("Physical memory chunk(s):\n");
+		for (indx = 0; phys_avail[indx + 1] != 0; indx += 2) {
 			int size = phys_avail[indx + 1] - phys_avail[indx];
 
 			printf("0x%08lx - 0x%08lx, %d bytes (%d pages)\n", phys_avail[indx],
@@ -1075,9 +1068,10 @@ init386(first)
 	/* table descriptors - used to load tables by microp */
 	struct region_descriptor r_gdt, r_idt;
 #endif
-	int	pagesinbase, pagesinext;
-	int	target_page, pa_indx;
-	int	off;
+	int pagesinbase, pagesinext;
+	int target_page, pa_indx;
+	int off;
+	int speculative_mtest;
 
 	proc0.p_addr = proc0paddr;
 
@@ -1299,15 +1293,30 @@ init386(first)
 	 * called something like "Maxphyspage".
 	 */
 	Maxmem = pagesinext + 0x100000/PAGE_SIZE;
+	/*
+	 * Indicate that we wish to do a speculative search for memory beyond
+	 * the end of the reported size if the indicated amount is 64MB (0x4000
+	 * pages) - which is the largest amount that the BIOS/bootblocks can
+	 * currently report. If a specific amount of memory is indicated via
+	 * the MAXMEM option or the npx0 "msize", then don't do the speculative
+	 * memory test.
+	 */
+	if (Maxmem == 0x4000)
+		speculative_mtest = TRUE;
+	else
+		speculative_mtest = FALSE;
 
 #ifdef MAXMEM
 	Maxmem = MAXMEM/4;
+	speculative_mtest = FALSE;
 #endif
 
 #if NNPX > 0
 	idp = find_isadev(isa_devtab_null, &npxdriver, 0);
-	if (idp != NULL && idp->id_msize != 0)
+	if (idp != NULL && idp->id_msize != 0) {
 		Maxmem = idp->id_msize / 4;
+		speculative_mtest = FALSE;
+	}
 #endif
 
 #ifdef SMP
@@ -1327,7 +1336,6 @@ init386(first)
 	 * XXX  ...but we probably should.
 	 */
 	pa_indx = 0;
-	badpages = 0;
 	if (pagesinbase > 1) {
 		phys_avail[pa_indx++] = PAGE_SIZE;	/* skip first page of memory */
 		phys_avail[pa_indx] = ptoa(pagesinbase);/* memory up to the ISA hole */
@@ -1338,7 +1346,9 @@ init386(first)
 	}
 
 	for (target_page = avail_start; target_page < ptoa(Maxmem); target_page += PAGE_SIZE) {
-		int tmp, page_bad = FALSE;
+		int tmp, page_bad;
+
+		page_bad = FALSE;
 
 		/*
 		 * map page into kernel: valid, read/write, non-cacheable
@@ -1393,9 +1403,16 @@ init386(first)
 			 * the end pointer. Otherwise start a new chunk.
 			 * Note that "end" points one higher than end,
 			 * making the range >= start and < end.
+			 * If we're also doing a speculative memory
+			 * test and we at or past the end, bump up Maxmem
+			 * so that we keep going. The first bad page
+			 * will terminate the loop.
 			 */
 			if (phys_avail[pa_indx] == target_page) {
 				phys_avail[pa_indx] += PAGE_SIZE;
+				if (speculative_mtest == TRUE &&
+				    phys_avail[pa_indx] >= (64*1024*1024))
+					Maxmem++;
 			} else {
 				pa_indx++;
 				if (pa_indx == PHYS_AVAIL_ARRAY_END) {
@@ -1407,9 +1424,6 @@ init386(first)
 				phys_avail[pa_indx] = target_page + PAGE_SIZE;	/* end */
 			}
 			physmem++;
-		} else {
-			badpages++;
-			page_bad = FALSE;
 		}
 	}
 
