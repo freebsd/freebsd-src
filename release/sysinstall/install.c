@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: install.c,v 1.70.2.22 1995/06/04 11:48:09 jkh Exp $
+ * $Id: install.c,v 1.70.2.23 1995/06/04 22:24:45 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -274,8 +274,14 @@ installCommit(char *str)
     }
     distExtractAll();
 
-    if (access("/kernel", R_OK))
-	vsystem("ln -f /kernel.GENERIC /kernel");
+    if (access("/kernel", R_OK)) {
+	if (vsystem("ln -f /kernel.GENERIC /kernel")) {
+	    msgConfirm("Unable to link /kernel into place!");
+	    return 0;
+	}
+    }
+    if (vsystem("cd /dev; sh MAKEDEV all"))
+	msgConfirm("MAKEDEV returned non-zero status");
 
     dialog_clear();
     msgConfirm("Installation completed successfully, now  press [ENTER] to return\nto the main menu. If you have any network devices you have not yet\nconfigured, see the Interface configuration item on the\nConfiguration menu.");
@@ -327,18 +333,6 @@ make_filesystems(void)
     if (Mount("/mnt", dname)) {
 	msgConfirm("Unable to mount the root file system!  Giving up.");
 	return FALSE;
-    }
-    else if (!RootReadOnly) {
-	extern int makedevs(void);
-
-	msgNotify("Making device files");
-	if (Mkdir("/mnt/dev", NULL) || chdir("/mnt/dev") || makedevs())
-	    msgConfirm("Failed to make some of the devices in /mnt!");
-	if (Mkdir("/mnt/stand", NULL)) {
-	    msgConfirm("Unable to make /mnt/stand directory!");
-	    return FALSE;
-	}
-	chdir("/");
     }
 
     /* Now buzz through the rest of the partitions and mount them too */
@@ -401,13 +395,23 @@ copy_self(void)
 
     msgWeHaveOutput("Copying the boot floppy to /stand on root filesystem");
     i = vsystem("find -x /stand | cpio -pdmV /mnt");
-    if (i)
+    if (i) {
 	msgConfirm("Copy returned error status of %d!", i);
+	return FALSE;
+    }
 
     /* Copy the /etc files into their rightful place */
-    if (!vsystem("cd /mnt/stand; find etc | cpio -pdmv /mnt"))
+    if (vsystem("cd /mnt/stand; find etc | cpio -pdmv /mnt")) {
+	msgConfirm("Couldn't copy up the /etc files!");
 	return TRUE;
-    return FALSE;
+    }
+
+    /* Copy the dev files */
+    if (vsystem("find -x /dev | cpio -pdmv /mnt")) {
+	msgConfirm("Couldn't clone the /dev files!");
+	return FALSE;
+    }
+    return TRUE;
 }
 
 static Boolean loop_on_root_floppy(void);
