@@ -43,27 +43,23 @@
 .Op Fl al
 .Op Fl h | Fl p
 .Op Fl o Ar file
-.Ar command
+.Ar utility Op Ar argument ...
 .Sh DESCRIPTION
 The
 .Nm
 utility
 executes and
-times
-.Ar command
-by initiating a timer and passing the
-.Ar command
-to the
-shell.
+times the specified
+.Ar utility .
 After the
-.Ar command
+.Ar utility
 finishes,
 .Nm
 writes to the standard error stream,
 (in seconds):
 the total time elapsed,
 the time used to execute the
-.Ar command
+.Ar utility
 process and the time consumed by system overhead.
 .Pp
 Available options:
@@ -103,16 +99,16 @@ Consult the
 manual page.
 .Sh DIAGNOSTICS
 If
-.Ar command
+.Ar utility
 could be timed successfully, its exit status is returned.
 If
-.Ar command
+.Ar utility
 terminated abnormally, a warning message is output to stderr.
 If the
-.Ar command
+.Ar utility
 was found but could not be run, the exit status is 126.
 If no
-.Ar command
+.Ar utility
 could be found at all, the exit status is 127.
 If
 .Nm
@@ -131,4 +127,4 @@ utility is expected to conform to ISO/IEC 9945-2:1993 (``POSIX'').
 A
 .Nm
 command appeared in
-.At v6 .
+.At v3 .
