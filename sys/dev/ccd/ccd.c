@@ -1,4 +1,4 @@
-/* $Id: ccd.c,v 1.12 1996/05/13 09:17:42 asami Exp $ */
+/* $Id: ccd.c,v 1.13 1996/06/12 04:58:03 gpalmer Exp $ */
 
 /*	$NetBSD: ccd.c,v 1.22 1995/12/08 19:13:26 thorpej Exp $	*/
 
@@ -190,7 +190,7 @@ static struct bdevsw ccd_bdevsw = {
 };
 
 static struct cdevsw ccd_cdevsw = {
-  ccdopen, ccdclose, ccdread, ccdwrite,
+  ccdopen, ccdclose, rawread, rawwrite,
   ccdioctl, nostop, nullreset, nodevtotty,
   seltrue, nommap, ccdstrategy,
   "ccd", &ccd_bdevsw, -1
@@ -1019,63 +1019,6 @@ ccdiodone(cbp)
 	splx(s);
 }
 
-/* ARGSUSED */
-int
-ccdread(dev, uio, flags)
-	dev_t dev;
-	struct uio *uio;
-	int flags;
-{
-	int unit = ccdunit(dev);
-	struct ccd_softc *cs;
-
-#ifdef DEBUG
-	if (ccddebug & CCDB_FOLLOW)
-		printf("ccdread(%x, %x)\n", dev, uio);
-#endif
-	if (unit >= numccd)
-		return (ENXIO);
-	cs = &ccd_softc[unit];
-
-	if ((cs->sc_flags & CCDF_INITED) == 0)
-		return (ENXIO);
-
-	/*
-	 * XXX: It's not clear that using minphys() is completely safe,
-	 * in particular, for raw I/O.  Underlying devices might have some
-	 * non-obvious limits, because of the copy to user-space.
-	 */
-	return (physio(ccdstrategy, NULL, dev, B_READ, minphys, uio));
-}
-
-/* ARGSUSED */
-int
-ccdwrite(dev, uio, flags)
-	dev_t dev;
-	struct uio *uio;
-	int flags;
-{
-	int unit = ccdunit(dev);
-	struct ccd_softc *cs;
-
-#ifdef DEBUG
-	if (ccddebug & CCDB_FOLLOW)
-		printf("ccdwrite(%x, %x)\n", dev, uio);
-#endif
-	if (unit >= numccd)
-		return (ENXIO);
-	cs = &ccd_softc[unit];
-
-	if ((cs->sc_flags & CCDF_INITED) == 0)
-		return (ENXIO);
-
-	/*
-	 * XXX: It's not clear that using minphys() is completely safe,
-	 * in particular, for raw I/O.  Underlying devices might have some
-	 * non-obvious limits, because of the copy to user-space.
-	 */
-	return (physio(ccdstrategy, NULL, dev, B_WRITE, minphys, uio));
-}
 
 #ifdef CCD_DEBUG
 static void
