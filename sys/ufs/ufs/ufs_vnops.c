@@ -1523,9 +1523,12 @@ ufs_mkdir(ap)
 	if (error)
 		goto bad;
 #ifdef MAC
-	error = vop_stdcreatevnode_ea(dvp, tvp, cnp->cn_cred);
-	if (error)
-		goto bad;
+	if (dvp->v_mount->mnt_flag & MNT_MULTILABEL) {
+		error = mac_create_vnode_extattr(cnp->cn_cred, dvp->v_mount,
+		    dvp, tvp, cnp);
+		if (error)
+			goto bad;
+	}
 #endif
 #ifdef UFS_ACL
 	if (acl != NULL) {
@@ -2459,9 +2462,12 @@ ufs_makeinode(mode, dvp, vpp, cnp)
 	if (error)
 		goto bad;
 #ifdef MAC
-	error = vop_stdcreatevnode_ea(dvp, tvp, cnp->cn_cred);
-	if (error)
-		goto bad;
+	if (dvp->v_mount->mnt_flag & MNT_MULTILABEL) {
+		error = mac_create_vnode_extattr(cnp->cn_cred, dvp->v_mount,
+		    dvp, tvp, cnp);
+		if (error)
+			goto bad;
+	}
 #endif
 #ifdef UFS_ACL
 	if (acl != NULL) {
@@ -2649,9 +2655,6 @@ static struct vnodeopv_entry_desc ufs_vnodeop_entries[] = {
 	{ &vop_readdir_desc,		(vop_t *) ufs_readdir },
 	{ &vop_readlink_desc,		(vop_t *) ufs_readlink },
 	{ &vop_reclaim_desc,		(vop_t *) ufs_reclaim },
-#ifdef MAC
-	{ &vop_refreshlabel_desc,	(vop_t *) vop_stdrefreshlabel_ea },
-#endif
 	{ &vop_remove_desc,		(vop_t *) ufs_remove },
 	{ &vop_rename_desc,		(vop_t *) ufs_rename },
 	{ &vop_rmdir_desc,		(vop_t *) ufs_rmdir },
@@ -2690,9 +2693,6 @@ static struct vnodeopv_entry_desc ufs_specop_entries[] = {
 	{ &vop_print_desc,		(vop_t *) ufs_print },
 	{ &vop_read_desc,		(vop_t *) ufsspec_read },
 	{ &vop_reclaim_desc,		(vop_t *) ufs_reclaim },
-#ifdef MAC
-	{ &vop_refreshlabel_desc,	(vop_t *) vop_stdrefreshlabel_ea },
-#endif
 	{ &vop_setattr_desc,		(vop_t *) ufs_setattr },
 #ifdef MAC
 	{ &vop_setlabel_desc,		(vop_t *) vop_stdsetlabel_ea },
@@ -2727,9 +2727,6 @@ static struct vnodeopv_entry_desc ufs_fifoop_entries[] = {
 	{ &vop_print_desc,		(vop_t *) ufs_print },
 	{ &vop_read_desc,		(vop_t *) ufsfifo_read },
 	{ &vop_reclaim_desc,		(vop_t *) ufs_reclaim },
-#ifdef MAC
-	{ &vop_refreshlabel_desc,	(vop_t *) vop_stdrefreshlabel_ea },
-#endif
 	{ &vop_setattr_desc,		(vop_t *) ufs_setattr },
 #ifdef MAC
 	{ &vop_setlabel_desc,		(vop_t *) vop_stdsetlabel_ea },

@@ -829,7 +829,6 @@ fs/procfs/procfs_ctl.c	optional procfs
 fs/procfs/procfs_dbregs.c	optional procfs
 fs/procfs/procfs_fpregs.c	optional procfs
 fs/procfs/procfs_ioctl.c	optional procfs
-fs/procfs/procfs_mac.c	optional procfs
 fs/procfs/procfs_map.c	optional procfs
 fs/procfs/procfs_mem.c	optional procfs
 fs/procfs/procfs_note.c	optional procfs

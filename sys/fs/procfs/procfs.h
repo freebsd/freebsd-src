@@ -61,9 +61,6 @@ int	 procfs_close(PFS_CLOSE_ARGS);
 /* Attributes */
 int	 procfs_attr(PFS_ATTR_ARGS);
 
-/* MAC */
-int	procfs_piddir_refreshlabel(PFS_REFRESHLABEL_ARGS);
-
 /* Visibility */
 int	 procfs_notsystem(PFS_VIS_ARGS);
 int	 procfs_candebug(PFS_VIS_ARGS);
