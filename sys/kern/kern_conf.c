@@ -71,6 +71,8 @@ devfs_create_t *devfs_create_hook;
 devfs_destroy_t *devfs_destroy_hook;
 int devfs_present;
 
+static int ready_for_devs;
+
 static int free_devt;
 SYSCTL_INT(_debug, OID_AUTO, free_devt, CTLFLAG_RW, &free_devt, 0, "");
 
@@ -288,6 +290,12 @@ make_dev(struct cdevsw *devsw, int minor, uid_t uid, gid_t gid, int perms, const
 	KASSERT(umajor(makeudev(devsw->d_maj, minor)) == devsw->d_maj,
 	    ("Invalid minor (%d) in make_dev", minor));
 
+	if (!ready_for_devs) {
+		printf("WARNING: Driver mistake: make_dev(%s) called before SI_SUB_DRIVERS\n",
+		       fmt);
+		/* XXX panic here once drivers are cleaned up */
+	}
+
 	dev = makedev(devsw->d_maj, minor);
 	if (dev->si_flags & SI_NAMED) {
 		printf( "WARNING: Driver mistake: repeat make_dev(\"%s\")\n",
@@ -454,4 +462,14 @@ sysctl_devname(SYSCTL_HANDLER_ARGS)
 
 SYSCTL_PROC(_kern, OID_AUTO, devname, CTLTYPE_OPAQUE|CTLFLAG_RW|CTLFLAG_ANYBODY,
 	NULL, 0, sysctl_devname, "", "devname(3) handler");
-	
+
+/*
+ * Set ready_for_devs; prior to this point, device creation is not allowed.
+ */	
+static void
+dev_set_ready(void *junk)
+{
+	ready_for_devs = 1;
+}
+
+SYSINIT(dev_ready, SI_SUB_DEVFS, SI_ORDER_FIRST, dev_set_ready, NULL);
