@@ -50,6 +50,9 @@
  * __FreeBSD_version numbers are documented in the Porter's Handbook.
  * If you bump the version for any reason, you should update the documentation
  * there.
+ * Currently this lives here:
+ *
+ *	doc/en_US.ISO8859-1/books/porters-handbook/book.sgml
  */
 #undef __FreeBSD_version
 #define __FreeBSD_version 500034	/* Master, propagated to newvers */
