@@ -25,7 +25,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *	$Id: pc98kbd.c,v 1.5 1999/03/10 14:51:53 kato Exp $
+ *	$Id: pc98kbd.c,v 1.6 1999/04/18 14:42:18 kato Exp $
  */
 
 #include "pckbd.h"
@@ -100,7 +100,6 @@ static device_method_t pckbd_methods[] = {
 static driver_t pckbd_driver = {
 	DRIVER_NAME,
 	pckbd_methods,
-	DRIVER_TYPE_TTY,
 	sizeof(pckbd_softc_t),
 };
 
@@ -153,8 +152,8 @@ pckbdattach(device_t dev)
 
 	res = bus_alloc_resource(dev, SYS_RES_IRQ, &zero, 0ul, ~0ul, 1,
 				 RF_SHAREABLE | RF_ACTIVE);
-	BUS_SETUP_INTR(device_get_parent(dev), dev, res, pckbd_isa_intr,
-		       sc, &ih);
+	BUS_SETUP_INTR(device_get_parent(dev), dev, res, INTR_TYPE_TTY,
+				   pckbd_isa_intr, sc, &ih);
 
 	return (0);
 }
