@@ -76,6 +76,7 @@
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/kernel.h>
+#include <sys/eventhandler.h>
 #include <sys/lock.h>
 #include <sys/mutex.h>
 #include <sys/proc.h>
@@ -678,10 +679,17 @@ vm_pageout_scan(int pass)
 
 	GIANT_REQUIRED;
 	/*
+	 * Decrease registered cache sizes.
+	 */
+	EVENTHANDLER_INVOKE(vm_lowmem, 0);
+	/*
+	 * We do this explicitly after the caches have been drained above.
+	 */
+	uma_reclaim();
+	/*
 	 * Do whatever cleanup that the pmap code can.
 	 */
 	vm_pageout_pmap_collect();
-	uma_reclaim();
 
 	addl_page_shortage_init = vm_pageout_deficit;
 	vm_pageout_deficit = 0;
