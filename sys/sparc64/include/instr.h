@@ -137,7 +137,8 @@
  * Macros to decode instructions
  */
 /* Extract a field */
-#define	IF_EXTRACT(x, s, w)	(((x) >> (s)) & ((1 << (w)) - 1))
+#define	IF_MASK(s, w)		(((1 << (w)) - 1) << (s))
+#define	IF_EXTRACT(x, s, w)	(((x) & IF_MASK((s), (w))) >> (s))
 #define	IF_DECODE(x, f) \
 	IF_EXTRACT((x), IF_ ## f ## _SHIFT, IF_ ## f ## _BITS)
 
@@ -412,69 +413,45 @@
 /*
  * OPF values (floating point instructions, IMPLDEP)
  */
-/* FPop1 */
-#define	INSFP1_FMOVs		0x001
-#define	INSFP1_FMOVd		0x002
-#define	INSFP1_FMOVq		0x003
-#define	INSFP1_FNEGs		0x005
-#define	INSFP1_FNEGd		0x006
-#define	INSFP1_FNEGq		0x007
-#define	INSFP1_FABSs		0x009
-#define	INSFP1_FABSd		0x00a
-#define	INSFP1_FABSq		0x00b
-#define	INSFP1_FSQRTs		0x029
-#define	INSFP1_FSQRTd		0x02a
-#define	INSFP1_FSQRTq		0x02b
-#define	INSFP1_FADDs		0x041
-#define	INSFP1_FADDd		0x042
-#define	INSFP1_FADDq		0x043
-#define	INSFP1_FSUBs		0x045
-#define	INSFP1_FSUBd		0x046
-#define	INSFP1_FSUBq		0x047
-#define	INSFP1_FMULs		0x049
-#define	INSFP1_FMULd		0x04a
-#define	INSFP1_FMULq		0x04b
-#define	INSFP1_FDIVs		0x04d
-#define	INSFP1_FDIVd		0x04e
-#define	INSFP1_FDIVq		0x04f
-#define	INSFP1_FsMULd		0x069
-#define	INSFP1_FdMULq		0x06e
-#define	INSFP1_FsTOx		0x081
-#define	INSFP1_FdTOx		0x082
-#define	INSFP1_FqTOx		0x083
-#define	INSFP1_FxTOs		0x084
-#define	INSFP1_FxTOd		0x088
-#define	INSFP1_FxTOq		0x08c
-#define	INSFP1_FiTOs		0x0c4
-#define	INSFP1_FdTOs		0x0c6
-#define	INSFP1_FqTOs		0x0c7
-#define	INSFP1_FiTOd		0x0c8
-#define	INSFP1_FsTOd		0x0c9
-#define	INSFP1_FqTOd		0x0cb
-#define	INSFP1_FiTOq		0x0cc
-#define	INSFP1_FsTOq		0x0cd
-#define	INSFP1_FdTOq		0x0ce
+/*
+ * These values are or'ed to the FPop values to get the instructions.
+ * They describe the operand type(s).
+ */
+#define	INSFP_i			0x000	/* 32-bit int */
+#define	INSFP_s			0x001	/* 32-bit single */
+#define	INSFP_d			0x002	/* 64-bit double */
+#define	INSFP_q			0x003	/* 128-bit quad */
+/* FPop1. The comments give the types for which this instruction is defined. */
+#define	INSFP1_FMOV		0x000	/* s, d, q */
+#define	INSFP1_FNEG		0x004	/* s, d, q */
+#define	INSFP1_FABS		0x008	/* s, d, q */
+#define	INSFP1_FSQRT		0x028	/* s, d, q */
+#define	INSFP1_FADD		0x040	/* s, d, q */
+#define	INSFP1_FSUB		0x044	/* s, d, q */
+#define	INSFP1_FMUL		0x048	/* s, d, q */
+#define	INSFP1_FDIV		0x04c	/* s, d, q */
+#define	INSFP1_FsMULd		0x068	/* s */
+#define	INSFP1_FdMULq		0x06c	/* d */
+#define	INSFP1_FTOx		0x080	/* s, d, q */
+#define	INSFP1_FxTOs		0x084	/* special: i only */
+#define	INSFP1_FxTOd		0x088	/* special: i only */
+#define	INSFP1_FxTOq		0x08c	/* special: i only */
+#define	INSFP1_FTOs		0x0c4	/* i, d, q */
+#define	INSFP1_FTOd		0x0c8	/* i, s, q */
+#define	INSFP1_FTOq		0x0cc	/* i, s, d */
+#define	INSFP1_FTOi		0x0d0	/* i, s, d */
 
 /* FPop2 */
 #define	INSFP2_FMOV_CCMUL	0x40
-/* use the IFCC_* constants for cc */
-#define	INSFP2_FMOV_CC(i, cc)	(i + (cc) * INSFP2_FMOV_CCMUL)
-#define	INSFP2_FMOVs(cc)	INSFP2_FMOV_CC(0x01, (cc))
-#define	INSFP2_FMOVd(cc)	INSFP2_FMOV_CC(0x02, (cc))
-#define	INSFP2_FMOVq(cc)	INSFP2_FMOV_CC(0x03, (cc))
-
-/* use the IRCOND_* constants for rc */
+#define	INSFP2_FMOV_CCOFFS	0x00
+/* Use the IFCC_* constants for cc. Operand types: s, d, q */
+#define	INSFP2_FMOV_CC(cc)	((cc) * INSFP2_FMOV_CCMUL + INSFP2_FMOV_CCOFFS)
 #define	INSFP2_FMOV_RCMUL	0x20
-#define	INSFP2_FMOV_RC(i, rc)	(i + (rc) * INSFP2_FMOV_RCMUL)
-#define	INSFP2_FMOVRsZ(rc)	INSFP2_FMOV_RC(0x05, (rc))
-#define	INSFP2_FMOVRdZ(rc)	INSFP2_FMOV_RC(0x06, (rc))
-#define	INSFP2_FMOVRqZ(rc)	INSFP2_FMOV_RC(0x07, (rc))
-#define	INSFP2_FCMPs		0x051
-#define	INSFP2_FCMPd		0x052
-#define	INSFP2_FCMPq		0x053
-#define	INSFP2_FCMPEs		0x055
-#define	INSFP2_FCMPEd		0x056
-#define	INSFP2_FCMPEq		0x057
+#define	INSFP2_FMOV_RCOFFS	0x04
+/* Use the IRCOND_* constants for rc. Operand types: s, d, q */
+#define	INSFP2_FMOV_RC(rc)	((rc) * INSFP2_FMOV_RCMUL + INSFP2_FMOV_RCOFFS)
+#define	INSFP2_FCMP		0x050	/* s, d, q */
+#define	INSFP2_FCMPE		0x054	/* s, d, q */
 
 /* IMPLDEP1 for Sun UltraSparc */
 #define	IIDP1_EDGE8		0x00
@@ -592,7 +569,7 @@
 #define	IFCOND_O		0x0f
 
 /* rcond values for BPr, MOVr, FMOVr */
-#define	IRCOND_RZ		0x01
+#define	IRCOND_Z		0x01
 #define	IRCOND_LEZ		0x02
 #define	IRCOND_LZ		0x03
 #define	IRCOND_NZ		0x05
@@ -603,7 +580,9 @@
 #define	IFCC_ICC		0x04
 #define	IFCC_XCC		0x06
 /* if true, the lower 2 bits are the fcc number */
-#define	IFCC_FCC(c)		(((c) & 4) == 0)
+#define	IFCC_FCC(c)		((c) & 3)
+#define	IFCC_GET_FCC(c)		((c) & 3)
+#define	IFCC_ISFCC(c)		(((c) & 4) == 0)
 
 /* cc values for BPc and Tcc */
 #define	IBCC_ICC		0x00
