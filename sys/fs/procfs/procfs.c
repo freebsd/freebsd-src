@@ -64,13 +64,13 @@
 /*
  * Filler function for proc/pid/self
  */
-static int
+int
 procfs_doprocfile(PFS_FILL_ARGS)
 {
 	char *fullpath = "unknown";
 	char *freepath = NULL;
 
-	vn_fullpath(td, td->td_proc->p_textvp, &fullpath, &freepath);
+	vn_fullpath(td, p->p_textvp, &fullpath, &freepath);
 	sbuf_printf(sb, "%s", fullpath);
 	if (freepath)
 		free(freepath, M_TEMP);
@@ -80,7 +80,7 @@ procfs_doprocfile(PFS_FILL_ARGS)
 /*
  * Filler function for proc/curproc
  */
-static int
+int
 procfs_docurproc(PFS_FILL_ARGS)
 {
 	sbuf_printf(sb, "%ld", (long)td->td_proc->p_pid);
