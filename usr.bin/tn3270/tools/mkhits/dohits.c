@@ -101,7 +101,7 @@ int value;
 
     item = &firstentry(second);
     this = (struct thing *) malloc(sizeof *this);
-    memset((void*)this,0,sizeof *this);
+    memset(this, 0, sizeof *this);
     this->next = *item;
     *item = this;
     this->value = value;
