@@ -43,17 +43,21 @@ ungetwc(wint_t wc, FILE *fp)
 	mbstate_t mbs;
 	size_t len;
 
-	ORIENTLOCK(fp, 1);
-
+	FLOCKFILE(fp);
+	ORIENT(fp, 1);
 	if (wc == WEOF)
-		return (WEOF);
-
+		goto error;
 	memset(&mbs, 0, sizeof(mbs));
 	if ((len = wcrtomb(buf, wc, &mbs)) == (size_t)-1)
-		return (WEOF);
+		goto error;
 	while (len-- != 0)
-		if (ungetc((unsigned char)buf[len], fp) == EOF)
-			return (WEOF);
+		if (__ungetc((unsigned char)buf[len], fp) == EOF)
+			goto error;
+	FUNLOCKFILE(fp);
 
 	return (wc);
+
+error:
+	FUNLOCKFILE(fp);
+	return (WEOF);
 }
