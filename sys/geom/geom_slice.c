@@ -99,23 +99,25 @@ g_slice_access(struct g_provider *pp, int dr, int dw, int de)
 	cp = LIST_FIRST(&gp->consumer);
 	KASSERT (cp != NULL, ("g_slice_access but no consumer"));
 	gsp = gp->softc;
-	gsl = &gsp->slices[pp->index];
-	for (u = 0; u < gsp->nslice; u++) {
-		gsl2 = &gsp->slices[u];
-		if (gsl2->length == 0)
-			continue;
-		if (u == pp->index)
-			continue;
-		if (gsl->offset + gsl->length <= gsl2->offset)
-			continue;
-		if (gsl2->offset + gsl2->length <= gsl->offset)
-			continue;
-		/* overlap */
-		pp2 = gsl2->provider;
-		if ((pp->acw + dw) > 0 && pp2->ace > 0)
-			return (EPERM);
-		if ((pp->ace + de) > 0 && pp2->acw > 0)
-			return (EPERM);
+	if (dr > 0 || dw > 0 || de > 0) {
+		gsl = &gsp->slices[pp->index];
+		for (u = 0; u < gsp->nslice; u++) {
+			gsl2 = &gsp->slices[u];
+			if (gsl2->length == 0)
+				continue;
+			if (u == pp->index)
+				continue;
+			if (gsl->offset + gsl->length <= gsl2->offset)
+				continue;
+			if (gsl2->offset + gsl2->length <= gsl->offset)
+				continue;
+			/* overlap */
+			pp2 = gsl2->provider;
+			if ((pp->acw + dw) > 0 && pp2->ace > 0)
+				return (EPERM);
+			if ((pp->ace + de) > 0 && pp2->acw > 0)
+				return (EPERM);
+		}
 	}
 	/* On first open, grab an extra "exclusive" bit */
 	if (cp->acr == 0 && cp->acw == 0 && cp->ace == 0)
