@@ -630,7 +630,7 @@ char *argv[];
 		doupdate();
 		in = wgetch(text_win);
 		if (in == -1)
-			exit(0);
+			continue;
 
 		resize_check();
 
@@ -1877,7 +1877,7 @@ int advance;		/* if true, skip leading spaces and tabs	*/
 		esc_flag = FALSE;
 		in = wgetch(com_win);
 		if (in == -1)
-			exit(0);
+			continue;
 		if (((in == 8) || (in == 127) || (in == KEY_BACKSPACE)) && (g_pos > 0))
 		{
 			tmp_int = g_horz;
@@ -1902,7 +1902,7 @@ int advance;		/* if true, skip leading spaces and tabs	*/
 				esc_flag = TRUE;
 				in = wgetch(com_win);
 				if (in == -1)
-					exit(0);
+					continue;
 			}
 			*nam_str = in;
 			g_pos++;
@@ -3382,10 +3382,7 @@ struct menu_entries menu_list[];
 			wmove(temp_win, (counter + top_offset - off_start), 3);
 
 		wrefresh(temp_win);
-		in = wgetch(temp_win);
-		input = in;
-		if (input == -1)
-			exit(0);
+		input = wgetch(temp_win);
 
 		if (((tolower(input) >= 'a') && (tolower(input) <= 'z')) || 
 		    ((input >= '0') && (input <= '9')))
@@ -3628,8 +3625,6 @@ help()
 	wprintw(com_win, press_any_key_msg);
 	wrefresh(com_win);
 	counter = wgetch(com_win);
-	if (counter == -1)
-		exit(0);
 	werase(com_win);
 	wmove(com_win, 0, 0);
 	werase(help_win);
