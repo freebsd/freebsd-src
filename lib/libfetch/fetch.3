@@ -418,6 +418,14 @@ and message, e.g. "File is not available (404 Not Found)"
 .It Ev FTP_PROXY
 host name of the FTP proxy to use, optionally followed by a port
 number separated from the host name by a colon.
+.Nm libfetch
+will send
+.Ql user@host
+as user name to the proxy, where
+.Ql user
+is the real user name, and
+.Ql host
+is the name of the FTP server.
 .It Ev HTTP_AUTH
 Specifies HTTP authorization parameters, used only if the server
 requires authorization and no user name or password was specified in
@@ -431,10 +439,15 @@ password, in that order.
 host name of the HTTP proxy to use, optionally followed by a port
 number separated from the host name by a colon.
 If no port number is specified, the default is 3128.
+Note that the HTTP proxy will also be used for FTP documents, unless
+the
+.Ev FTP_PROXY
+variable is set.
 .It Ev HTTP_PROXY_AUTH
 Specifies authorization parameters for the HTTP proxy in the same
-format as
-.Ev HTTP_AUTH .
+format as the
+.Ev HTTP_AUTH
+variable.
 The value of this variable is used if and only if connected to an HTTP
 proxy.
 .El
