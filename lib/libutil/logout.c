@@ -48,6 +48,7 @@ static char sccsid[] = "@(#)logout.c	8.1 (Berkeley) 6/4/93";
 #include <unistd.h>
 #include <stdlib.h>
 #include <string.h>
+#include <timeconv.h>
 #include <libutil.h>
 
 typedef struct utmp UTMP;
@@ -68,7 +69,7 @@ logout(line)
 			continue;
 		bzero(ut.ut_name, UT_NAMESIZE);
 		bzero(ut.ut_host, UT_HOSTSIZE);
-		(void)time(&ut.ut_time);
+		ut.ut_time = _time_to_time32(time(NULL));
 		(void)lseek(fd, -(off_t)sizeof(UTMP), L_INCR);
 		(void)write(fd, &ut, sizeof(UTMP));
 		rval = 1;
