@@ -6,7 +6,7 @@
 #	ns	#sectors/track
 #	nt	#tracks/cylinder
 #	nc	#cylinders/disk
-#	sc	#sectors/cylinder, nc*nt default
+#	sc	#sectors/cylinder, ns*nt default
 #	su	#sectors/unit, sc*nc default
 #	se	sector size, DEV_BSIZE default
 #	rm	rpm, 3600 default
