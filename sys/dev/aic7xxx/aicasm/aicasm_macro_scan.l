@@ -38,7 +38,7 @@
  * IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
  * POSSIBILITY OF SUCH DAMAGES.
  *
- * $Id: //depot/aic7xxx/aic7xxx/aicasm/aicasm_macro_scan.l#7 $
+ * $Id: //depot/aic7xxx/aic7xxx/aicasm/aicasm_macro_scan.l#8 $
  *
  * $FreeBSD$
  */
@@ -78,6 +78,7 @@ MCARG		[^(), \t]+
 \n			{
 				++yylineno;
 			}
+\r			;
 <ARGLIST>{SPACE}	;
 <ARGLIST>\(		{
 				parren_count++;
