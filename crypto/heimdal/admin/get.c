@@ -33,7 +33,7 @@
 
 #include "ktutil_locl.h"
 
-RCSID("$Id: get.c,v 1.22 2003/01/16 19:03:23 lha Exp $");
+RCSID("$Id: get.c,v 1.22.2.1 2004/06/21 10:55:46 lha Exp $");
 
 static void*
 open_kadmin_connection(char *principal,
@@ -170,6 +170,10 @@ kt_get(int argc, char **argv)
 	krb5_keytab_entry entry;
 
 	ret = krb5_parse_name(context, argv[i], &princ_ent);
+	if (ret) {
+	    krb5_warn(context, ret, "can't parse principal %s", argv[i]);
+	    continue;
+	}
 	memset(&princ, 0, sizeof(princ));
 	princ.principal = princ_ent;
 	mask |= KADM5_PRINCIPAL;

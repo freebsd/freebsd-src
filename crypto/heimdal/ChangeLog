@@ -1,3 +1,67 @@
+2004-09-13  Johan Danielsson  <joda@pdc.kth.se>
+
+	* Release 0.6.3
+	
+2004-09-05  Love Hörnquist Åstrand  <lha@it.su.se>
+
+	* lib/asn1/der_get.c (decode_enumerated): check that the tag
+	length isn't longer the the length
+
+2004-08-31  Love Hörnquist Åstrand  <lha@it.su.se>
+
+	* lib/krb5/init_creds_pw.c (krb5_get_init_creds_password):
+	kdc_reply can be set in case of failure too, clean on entry and
+	free the exit unconditionally to avoid memory leak
+	
+2004-08-20  Love Hörnquist Åstrand  <lha@it.su.se>
+
+	* lib/krb5/context.c: 1.93: (krb5_get_err_text): if neither of
+	com_right nor strerror finds the error-code, return Unknown error.
+
+2004-08-13  Love Hörnquist Åstrand  <lha@it.su.se>
+
+	* kdc/kerberos5.c: based on 1.162: (get_pa_etype_info): check for
+	dup enctypes from the client and filter them out.
+	
+2004-06-21  Love Hörnquist Åstrand  <lha@it.su.se>
+
+	* admin/get.c: 1.23: (kt_get): catch errors from krb5_parse_name
+	
+2004-06-21  Love Hörnquist Åstrand  <lha@it.su.se>
+
+	* lib/krb5/Makefile.am: man_MANS += krb5_set_password.3
+	
+	* lib/krb5/krb5_set_password.3: 1.1-1.3: change password manpage
+	
+	* lib/krb5/changepw.c: 1.49: implement
+	krb5_set_password_using_ccache 1.47: add tcp support to the set
+	protocol, should be cleaned up to enable sharing code with
+	krb5_sendto 1.46: (process_reply): log into result_string if
+	something goes bad, return 0 (even on failure), not the KPASSWD
+	protocol error code 1.45: krb5_princ_realm ->
+	krb5_principal_get_realm 1.44: (setpw_send_request): free
+	ap_req_data on failure 1.41: ooops, remove cut and paste error
+	1.40: draft-ietf-cat-kerb-chg-password-02 and rfc3244 share the
+	response packet sure more constants now that they exists 1.39:
+	implement rfc3244, partly from shadow@dementia.org
+	
+	* lib/krb5/krb5.h: 1.211: some defines for rfc3244
+	
+	* lib/asn1/Makefile.am: 1.71: (gen_files):
+	asn1_ChangePasswdDataMS.x for RFC3244
+	
+	* lib/asn1/k5.asn1: 1.30: add ChangePasswdDataMS, for RFC3244
+	
+	* kuser/kinit.c: 1.114: move "setpag if (argc < 1)" to common path
+	
+2004-05-06  Johan Danielsson  <joda@pdc.kth.se>
+
+	* Release 0.6.2
+
+2004-04-02  Love Hörnquist Åstrand  <lha@it.su.se>
+
+	* kdc/connect.c: case size_t to unsigned long for LP64 platforms
+	
 2004-04-01  Johan Danielsson  <joda@pdc.kth.se>
 
 	* Release 0.6.1

@@ -1,3 +1,10 @@
+2004-04-29  Love Hörquist Åstrand  <lha@it.su.se>
+
+	* version4.c: 1.30: (handle_v4): make sure length is longer then
+	2, Pointed out by Evgeny Demidov <demidov@gleg.net>
+	
+	* kadmind.c: 1.31: make kerberos4 support default turned off
+	
 2003-04-14  Love Hörquist Åstrand  <lha@it.su.se>
 
 	* util.c: cast argument to tolower to unsigned char, from
