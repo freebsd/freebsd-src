@@ -1290,6 +1290,8 @@ en_reset_ul(struct en_softc *sc)
 
 	if_printf(&sc->ifatm.ifnet, "reset\n");
 
+	sc->ifatm.ifnet.if_flags &= ~IFF_RUNNING;
+
 	if (sc->en_busreset)
 		sc->en_busreset(sc);
 	en_write(sc, MID_RESID, 0x0);	/* reset hardware */
@@ -1380,7 +1382,6 @@ en_init(struct en_softc *sc)
 	if ((sc->ifatm.ifnet.if_flags & IFF_UP) == 0) {
 		DBG(sc, INIT, ("going down"));
 		en_reset(sc);				/* to be safe */
-		sc->ifatm.ifnet.if_flags &= ~IFF_RUNNING;	/* disable */
 		return;
 	}
 
