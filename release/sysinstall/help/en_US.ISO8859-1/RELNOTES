@@ -122,8 +122,8 @@ which would put for instance all ".." entries in the same bucket.  We added
 the parent directory version to frustrate the hash, and improved the 
 management of the cache in various other ways while we were at it.
 
-Owner:			Poul-Henning Kamp (phk@FreeBSD.org)
-			David GreenMan (davidg@FreeBSD.org)
+Owner:                  Poul-Henning Kamp (phk@FreeBSD.org)
+                        David GreenMan (davidg@FreeBSD.org)
 
 
 Less restrictive swap-spaces
@@ -132,8 +132,8 @@ The need to compile the names of the swap devices into the kernel has been
 removed.  Now swapon will accept any block devices, up to the maximum
 number of swap devices configured in the kernel.
 
-Owner:			Poul-Henning Kamp (phk@FreeBSD.org)
-			David GreenMan (davidg@FreeBSD.org)
+Owner:                  Poul-Henning Kamp (phk@FreeBSD.org)
+                        David GreenMan (davidg@FreeBSD.org)
 
 
 Hard Wired SCSI Devices
@@ -171,7 +171,7 @@ fdisk program does NOT know about it however, so make all changes
 using the install program on the boot.flp or the Ontrack Disk Manager
 tool under DOS.
 
-Owner:			Poul-Henning Kamp (phk@FreeBSD.org)
+Owner:                  Poul-Henning Kamp (phk@FreeBSD.org)
 
 
 Bad144 is back and working
@@ -181,7 +181,7 @@ before in that the bad-spots are kept relative to the slice rather
 than absolute on the disk.
 
 Owner:                  Bruce Evans (bde@FreeBSD.org)
-			Poul-Henning Kamp (phk@FreeBSD.org)
+                        Poul-Henning Kamp (phk@FreeBSD.org)
 
 
 NEW DEVICE SUPPORT:
@@ -720,4 +720,4 @@ mentioned, and we sincerely hope you enjoy this release of FreeBSD!
 
                         The FreeBSD Core Team
 
-$Id: RELNOTES,v 1.1 1995/05/31 05:24:23 jkh Exp $
+$Id: RELNOTES,v 1.2 1995/06/04 07:07:23 jkh Exp $
