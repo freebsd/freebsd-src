@@ -28,7 +28,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: aout_imgact.c,v 1.2 1993/12/19 00:51:14 wollman Exp $
+ *	$Id: imgact_aout.c,v 1.1 1993/12/20 16:16:45 wollman Exp $
  */
 
 #include "param.h"
@@ -37,6 +37,7 @@
 #include "exec.h"
 #include "mman.h"
 #include "imgact.h"
+#include "kernel.h"
 
 #include "vm/vm.h"
 
@@ -179,3 +180,12 @@ exec_aout_imgact(iparams)
 	
 	return (0);
 }
+
+/*
+ * Tell kern_execve.c about it, with a little help from the linker.
+ * Since `const' objects end up in the text segment, TEXT_SET is the
+ * correct directive to use.
+ */
+static const struct execsw aout_execsw = { exec_aout_imgact };
+TEXT_SET(execsw_set, aout_execsw);
+

@@ -28,15 +28,22 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: shell_imgact.c,v 1.1 1993/12/12 12:23:20 davidg Exp $
+ *	$Id: imgact_shell.c,v 1.1 1993/12/20 16:16:46 wollman Exp $
  */
 
 #include "param.h"
 #include "systm.h"
 #include "resourcevar.h"
 #include "imgact.h"
+#include "kernel.h"
+#include "machine/endian.h"
 
+#if BYTE_ORDER == LITTLE_ENDIAN
 #define SHELLMAGIC	0x2123 /* #! */
+#else
+#define SHELLMAGIC	0x2321
+#endif
+
 #define MAXSHELLCMDLEN	64
 
 /*
@@ -127,3 +134,11 @@ exec_shell_imgact(iparams)
 
 	return(0);
 }
+
+/*
+ * Tell kern_execve.c about it, with a little help from the linker.
+ * Since `const' objects end up in the text segment, TEXT_SET is the
+ * correct directive to use.
+ */
+static const struct execsw shell_execsw = { exec_shell_imgact };
+TEXT_SET(execsw_set, shell_execsw);
