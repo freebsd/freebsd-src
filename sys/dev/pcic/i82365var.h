@@ -1,4 +1,4 @@
-/*	$NetBSD: i82365var.h,v 1.7 1999/01/21 07:43:33 msaitoh Exp $	*/
+/*	$NetBSD: i82365var.h,v 1.8 1999/10/15 06:07:27 haya Exp $	*/
 /* $FreeBSD$ */
 
 /*
@@ -48,6 +48,12 @@ struct pcic_event {
 
 struct pcic_handle {
 	struct pcic_softc *sc;
+	struct device *ph_parent;
+	bus_space_tag_t ph_bus_t;	/* I/O or MEM?  I don't mind */
+	bus_space_handle_t ph_bus_h;
+	u_int8_t (* ph_read) __P((struct pcic_handle*, int));
+	void (* ph_write) __P((struct pcic_handle *, int, u_int8_t));
+
 	int	vendor;
 	int	sock;
 	int	flags;
@@ -167,6 +173,8 @@ void	pcic_chip_io_unmap __P((pccard_chipset_handle_t, int));
 void	pcic_chip_socket_enable __P((pccard_chipset_handle_t));
 void	pcic_chip_socket_disable __P((pccard_chipset_handle_t));
 
+#if 0
+
 static __inline int pcic_read __P((struct pcic_handle *, int));
 static __inline int
 pcic_read(h, idx)
@@ -191,3 +199,11 @@ pcic_write(h, idx, data)
 		    h->sock + idx);
 	bus_space_write_1(h->sc->iot, h->sc->ioh, PCIC_REG_DATA, (data));
 }
+#else
+#define pcic_read(h, idx) \
+	(*(h)->ph_read)((h), (idx))
+
+#define pcic_write(h, idx, data) \
+	(*(h)->ph_write)((h), (idx), (data))
+
+#endif
