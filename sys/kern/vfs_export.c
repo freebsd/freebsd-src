@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)vfs_subr.c	8.13 (Berkeley) 4/18/94
- * $Id: vfs_subr.c,v 1.14 1995/01/09 16:04:54 davidg Exp $
+ * $Id: vfs_subr.c,v 1.15 1995/01/10 07:32:36 davidg Exp $
  */
 
 /*
@@ -417,7 +417,7 @@ vwakeup(bp)
 		vp->v_numoutput--;
 		if (vp->v_numoutput < 0)
 			panic("vwakeup: neg numoutput");
-		if (vp->v_flag & VBWAIT) {
+		if ((vp->v_numoutput == 0) && (vp->v_flag & VBWAIT)) {
 			vp->v_flag &= ~VBWAIT;
 			wakeup((caddr_t) &vp->v_numoutput);
 		}
