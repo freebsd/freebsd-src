@@ -43,6 +43,8 @@ static char sccsid[] = "@(#)ipx_ntoa.c";
 #include <netipx/ipx.h>
 #include <stdio.h>
 
+static char *spectHex(char *);
+
 char *
 ipx_ntoa(addr)
 	struct ipx_addr addr;
@@ -54,7 +56,6 @@ ipx_ntoa(addr)
 	char *cp2;
 	u_char *up = addr.x_host.c_host;
 	u_char *uplim = up + 6;
-	static char *spectHex();
 
 	net.net_e = addr.x_net;
 	sprintf(obuf, "%lx", (u_long)ntohl(net.long_e));
