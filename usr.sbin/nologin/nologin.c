@@ -34,9 +34,9 @@ __FBSDID("$FreeBSD$");
 #define	MESSAGE	"This account is currently not available.\n"
 
 int
-main(int argc, char *argv[])
+main(void)
 {
-	char *user, *tt;
+	const char *user, *tt;
 
 	if ((tt = ttyname(0)) == NULL)
 		tt = "UNKNOWN";
