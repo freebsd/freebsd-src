@@ -345,10 +345,6 @@ init_stage1() {
 	. ${MY_TREE}/config
     fi
 
-    export MFS_MOUNTPOINT	# used in the makefiles.
-    export PICO_OBJ		# used in the makefiles
-    export SRC			# used in the makefiles.
-
     PICO_OBJ=${OBJ}/picobsd/${TYPE}
 
     if [ ! -d ${BUILDDIR} ]; then
@@ -367,8 +363,8 @@ init_stage1() {
 # Then copy it here and strip as much as possible.
 do_kernel() {		# OK
     log "---> Preparing kernel \"$name\" in $MY_TREE"
-    export name SRC # used in this makefile
-    (cd $MY_TREE; make -v -f ${PICO_TREE}/build/Makefile.conf )
+    (cd $MY_TREE; export name SRC CONFIG # used in this makefile ;
+	make -v -f ${PICO_TREE}/build/Makefile.conf )
     cp -p ${SRC}/sys/compile/PICOBSD-${name}/kernel ${BUILDDIR}/kernel || \
 	fail $? missing_kernel
     (cd ${BUILDDIR};
@@ -493,14 +489,13 @@ populate_mfs() {
     cd ${BUILDDIR}/crunch
     log "---> Making and installing crunch1 from `pwd`..."
     a=${BUILDDIR}/crunch1.conf
-    cat ${MY_TREE}/crunch.conf|sed -e "s@/usr/src@${SRC}@" | \
-	sed -e "s@CWD@${MY_TREE}@" > $a
-    arg=""
-    if [ -f ${MY_TREE}/crunch.inc ] ; then
-	h="-h ${MY_TREE}/crunch.inc"
+    ( export BUILDDIR SRC MY_TREE PICO_OBJ ;
+    make -v -f ${PICO_TREE}/build/Makefile.conf ${BUILDDIR}/crunch.mk )
+    # update crunch.mk for new libs
+    if [ "${LIBS}" != "" ] ; then
+	sed -e "s@^LIBS=@  LIBS= ${LIBS}@" ${BUILDDIR}/crunch.mk > ${BUILDDIR}/crunch1.mk
+	mv ${BUILDDIR}/crunch1.mk ${BUILDDIR}/crunch.mk
     fi
-    crunchgen -p ${PICO_OBJ} -o $arg -m ${BUILDDIR}/crunch.mk $a || true
-    # failure is not critical here
     log "Now make -f crunch.mk"
     make ${makeopts} -f ${BUILDDIR}/crunch.mk
     strip --remove-section=.note --remove-section=.comment crunch1
@@ -510,7 +505,7 @@ populate_mfs() {
     for i in `crunchgen -l $a` ; do
 	ln ${MFS_MOUNTPOINT}/stand/crunch ${MFS_MOUNTPOINT}/stand/${i};
     done
-    rm $a
+    # rm $a # do not remove!
     ) || fail $? crunch
 
     if [ -f ${MFS_MOUNTPOINT}/stand/sshd ] ; then
@@ -668,13 +663,30 @@ while [ true ]; do
 	# accordingly. Note that you will still need the right
 	# libraries...
 
-	#i=${SRC}/usr/include	# the include directory...
-	#if [ \! -d $i ] ; then
-	#    echo "Create \"$i\" as include directory"
-	#    mkdir -p $i
-	#    (cd ${SRC}; DESTDIR=${SRC} make includes )
-	#fi
-	#CFLAGS="-nostdinc -I$i" ; export CFLAGS
+	i=${SRC}/usr/include	# the include directory...
+	if [ \! -d $i ] ; then
+	    echo "Create \"$i\" as include directory"
+	    mkdir -p $i
+	    (cd ${SRC};
+	    INCOWN=`id -un` DESTDIR=${SRC} make includes
+	    )
+	fi
+	CFLAGS="-nostdinc -I$i" ; export CFLAGS
+	i=${SRC}/usr/lib
+	if [ \! -d $i ]; then
+	    echo "Create libraries (this takes long...)"
+	    mkdir -p $i
+	    (cd ${SRC};
+		BINOWN=`id -un` DESTDIR=${SRC} \
+		make -DNOHTML -DNOINFO -DNOMAN -DNOFSCHG libraries
+	    )
+	fi
+	LIBS=" -L$i"
+	(cd ${SRC}/usr.sbin/config ;
+	make
+	)
+	CONFIG=${SRC}/usr.sbin/config/config
+
 	shift
 	;;
     --floppy_size)
