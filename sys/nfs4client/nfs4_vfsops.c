@@ -440,8 +440,6 @@ nfs_mount(struct mount *mp, struct thread *td)
 		return (0);
 	}
 
-	if (error)
-		return (error);
 	error = copyinstr(args.hostname, hst, MNAMELEN-1, &len);
 	if (error)
 		return (error);
