@@ -36,7 +36,7 @@
  *
  */
 
-/* $Id: v.c,v 1.25 1999/03/21 01:18:23 grog Exp grog $ */
+/* $Id: v.c,v 1.16 1999/07/02 07:59:45 grog Exp $ */
 
 #include <ctype.h>
 #include <errno.h>
@@ -483,19 +483,19 @@ make_devices(void)
 
     if (mknod(VINUM_SUPERDEV_NAME,
 	    S_IRWXU | S_IFBLK,				    /* block device, user only */
-	    VINUM_SUPERDEV) < 0)
+	    makedev(BDEV_MAJOR, VINUM_SUPERDEV)) < 0)
 	fprintf(stderr, "Can't create %s: %s\n", VINUM_SUPERDEV_NAME, strerror(errno));
 
     if (mknod(VINUM_WRONGSUPERDEV_NAME,
 	    S_IRWXU | S_IFBLK,				    /* block device, user only */
-	    VINUM_WRONGSUPERDEV) < 0)
+	    makedev(BDEV_MAJOR, VINUM_WRONGSUPERDEV)) < 0)
 	fprintf(stderr, "Can't create %s: %s\n", VINUM_WRONGSUPERDEV_NAME, strerror(errno));
 
     superdev = open(VINUM_SUPERDEV_NAME, O_RDWR);	    /* open the super device */
 
     if (mknod(VINUM_DAEMON_DEV_NAME,			    /* daemon super device */
 	    S_IRWXU | S_IFBLK,				    /* block device, user only */
-	    VINUM_DAEMON_DEV) < 0)
+	    makedev(BDEV_MAJOR, VINUM_DAEMON_DEV)) < 0)
 	fprintf(stderr, "Can't create %s: %s\n", VINUM_DAEMON_DEV_NAME, strerror(errno));
 
     if (ioctl(superdev, VINUM_GETCONFIG, &vinum_conf) < 0) {
