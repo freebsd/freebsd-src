@@ -60,15 +60,8 @@ typedef struct Struct_Objlist_Entry {
 
 typedef STAILQ_HEAD(Struct_Objlist, Struct_Objlist_Entry) Objlist;
 
-/* Lists of init or fini functions */
+/* Types of init and fini functions */
 typedef void (*InitFunc)(void);
-
-typedef struct Struct_Funclist_Entry {
-    STAILQ_ENTRY(Struct_Funclist_Entry) link;
-    InitFunc func;
-} Funclist_Entry;
-
-typedef STAILQ_HEAD(Struct_Funclist, Struct_Funclist_Entry) Funclist;
 
 /* Lists of shared object dependencies */
 typedef struct Struct_Needed_Entry {
@@ -160,6 +153,7 @@ typedef struct Struct_Obj_Entry {
     bool symbolic;		/* True if generated with "-Bsymbolic" */
     bool traced;		/* Already printed in ldd trace output */
     bool jmpslots_done;		/* Already have relocated the jump slots */
+    bool init_done;		/* Already have added object to init list */
 
     struct link_map linkmap;	/* for GDB */
     Objlist dldags;		/* Object belongs to these dlopened DAGs (%) */
