@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)nfs_bio.c	8.9 (Berkeley) 3/30/95
- * $Id: nfs_bio.c,v 1.63 1998/11/09 07:00:14 peter Exp $
+ * $Id: nfs_bio.c,v 1.64 1998/12/07 21:58:43 archie Exp $
  */
 
 
@@ -277,7 +277,8 @@ nfs_bioread(vp, uio, ioflag, cred, getpages)
 	int getpages;
 {
 	register struct nfsnode *np = VTONFS(vp);
-	register int biosize, diff, i;
+	register int biosize, i;
+	off_t diff;
 	struct buf *bp = 0, *rabp;
 	struct vattr vattr;
 	struct proc *p;
@@ -432,7 +433,7 @@ again:
 		bufsize = biosize;
 		if ((off_t)(lbn + 1) * biosize > np->n_size && 
 		    (off_t)(lbn + 1) * biosize - np->n_size < biosize) {
-			bufsize = np->n_size - lbn * biosize;
+			bufsize = np->n_size - (off_t)lbn * biosize;
 			bufsize = (bufsize + DEV_BSIZE - 1) & ~(DEV_BSIZE - 1);
 		}
 		bp = nfs_getcacheblk(vp, lbn, bufsize, p);
@@ -757,8 +758,8 @@ again:
 			vnode_pager_setsize(vp, np->n_size);
 		}
 		bufsize = biosize;
-		if ((lbn + 1) * biosize > np->n_size) {
-			bufsize = np->n_size - lbn * biosize;
+		if ((off_t)(lbn + 1) * biosize > np->n_size) {
+			bufsize = np->n_size - (off_t)lbn * biosize;
 			bufsize = (bufsize + DEV_BSIZE - 1) & ~(DEV_BSIZE - 1);
 		}
 		bp = nfs_getcacheblk(vp, lbn, bufsize, p);
@@ -770,9 +771,8 @@ again:
 		}
 		np->n_flag |= NMODIFIED;
 
-		if ((bp->b_blkno * DEV_BSIZE) + bp->b_dirtyend > np->n_size) {
-			bp->b_dirtyend = np->n_size - (bp->b_blkno * DEV_BSIZE);
-		}
+		if ((off_t)bp->b_blkno * DEV_BSIZE + bp->b_dirtyend > np->n_size)
+			bp->b_dirtyend = np->n_size - (off_t)bp->b_blkno * DEV_BSIZE;
 
 		/*
 		 * If the new write will leave a contiguous dirty
@@ -903,10 +903,10 @@ nfs_getcacheblk(vp, bn, size, p)
 	} else
 		bp = getblk(vp, bn, size, 0, 0);
 
-	if( vp->v_type == VREG) {
+	if (vp->v_type == VREG) {
 		int biosize;
 		biosize = mp->mnt_stat.f_iosize;
-		bp->b_blkno = (bn * biosize) / DEV_BSIZE;
+		bp->b_blkno = bn * (biosize / DEV_BSIZE);
 	}
 
 	return (bp);
@@ -1216,13 +1216,13 @@ nfs_doio(bp, cr, p)
 		bp->b_error = error;
 	    }
 	} else {
-	    if (((bp->b_blkno * DEV_BSIZE) + bp->b_dirtyend) > np->n_size)
-		bp->b_dirtyend = np->n_size - (bp->b_blkno * DEV_BSIZE);
+	    if ((off_t)bp->b_blkno * DEV_BSIZE + bp->b_dirtyend > np->n_size)
+		bp->b_dirtyend = np->n_size - (off_t)bp->b_blkno * DEV_BSIZE;
 
 	    if (bp->b_dirtyend > bp->b_dirtyoff) {
 		io.iov_len = uiop->uio_resid = bp->b_dirtyend
 		    - bp->b_dirtyoff;
-		uiop->uio_offset = ((off_t)bp->b_blkno) * DEV_BSIZE
+		uiop->uio_offset = (off_t)bp->b_blkno * DEV_BSIZE
 		    + bp->b_dirtyoff;
 		io.iov_base = (char *)bp->b_data + bp->b_dirtyoff;
 		uiop->uio_rw = UIO_WRITE;
