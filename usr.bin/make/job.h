@@ -93,6 +93,8 @@
 #define JOB_BUFSIZE	1024
 typedef struct Job {
     int       	pid;	    /* The child's process ID */
+    char	tfile[sizeof(TMPPAT)];
+			    /* Temporary file to use for job */
     GNode    	*node;      /* The target the child is making */
     LstNode 	tailCmds;   /* The node of the first command to be
 			     * saved when the job has been run */
