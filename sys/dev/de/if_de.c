@@ -85,6 +85,7 @@
 #include <vm/pmap.h>
 #include <pci/pcivar.h>
 #include <pci/dc21040reg.h>
+
 #include "opt_bdg.h"
 #ifdef BRIDGE
 #include <net/bridge.h>
@@ -93,7 +94,7 @@
 /*
  * Intel CPUs should use I/O mapped access.
  */
-#if defined(__i386__) || defined(TULIP_EISA)
+#if defined(__i386__)
 #define	TULIP_IOMAPPED
 #endif
 
@@ -128,8 +129,8 @@ static void tulip_intr_shared(void *arg);
 static void tulip_intr_normal(void *arg);
 static void tulip_init(tulip_softc_t * const sc);
 static void tulip_reset(tulip_softc_t * const sc);
-static ifnet_ret_t tulip_ifstart_one(struct ifnet *ifp);
-static ifnet_ret_t tulip_ifstart(struct ifnet *ifp);
+static void tulip_ifstart_one(struct ifnet *ifp);
+static void tulip_ifstart(struct ifnet *ifp);
 static struct mbuf *tulip_txput(tulip_softc_t * const sc, struct mbuf *m);
 static void tulip_txput_setup(tulip_softc_t * const sc);
 static void tulip_rx_intr(tulip_softc_t * const sc);
@@ -2042,7 +2043,7 @@ tulip_identify_dec_nic(
 {
     strcpy(sc->tulip_boardid, "DEC ");
 #define D0	4
-    if (sc->tulip_chipid <= TULIP_DE425)
+    if (sc->tulip_chipid <= TULIP_21040)
 	return;
     if (bcmp(sc->tulip_rombuf + 29, "DE500", 5) == 0
 	|| bcmp(sc->tulip_rombuf + 29, "DE450", 5) == 0) {
@@ -2332,7 +2333,7 @@ tulip_identify_compex_nic(
 	 */
 	sc->tulip_features |= TULIP_HAVE_SHAREDINTR;
 	for (root_unit = sc->tulip_unit - 1; root_unit >= 0; root_unit--) {
-	    root_sc = TULIP_UNIT_TO_SOFTC(root_unit);
+	    root_sc = tulips[root_unit];
 	    if (root_sc == NULL
 		|| !(root_sc->tulip_features & TULIP_HAVE_SLAVEDINTR))
 		break;
@@ -2758,20 +2759,6 @@ tulip_read_macaddr(
 	    sc->tulip_rombuf[idx] = csr & 0xFF;
 	}
 	sc->tulip_boardsw = &tulip_21040_boardsw;
-#if defined(TULIP_EISA)
-    } else if (sc->tulip_chipid == TULIP_DE425) {
-	int cnt;
-	for (idx = 0, cnt = 0; idx < sizeof(testpat) && cnt < 32; cnt++) {
-	    tmpbuf[idx] = TULIP_CSR_READBYTE(sc, csr_enetrom);
-	    if (tmpbuf[idx] == testpat[idx])
-		++idx;
-	    else
-		idx = 0;
-	}
-	for (idx = 0; idx < 32; idx++)
-	    sc->tulip_rombuf[idx] = TULIP_CSR_READBYTE(sc, csr_enetrom);
-	sc->tulip_boardsw = &tulip_21040_boardsw;
-#endif /* TULIP_EISA */
     } else {
 	if (sc->tulip_chipid == TULIP_21041) {
 	    /*
@@ -2871,7 +2858,7 @@ tulip_read_macaddr(
 	    int root_unit;
 	    tulip_softc_t *root_sc = NULL;
 	    for (root_unit = sc->tulip_unit - 1; root_unit >= 0; root_unit--) {
-		root_sc = TULIP_UNIT_TO_SOFTC(root_unit);
+		root_sc = tulips[root_unit];
 		if (root_sc == NULL || (root_sc->tulip_features & (TULIP_HAVE_OKROM|TULIP_HAVE_SLAVEDROM)) == TULIP_HAVE_OKROM)
 		    break;
 		root_sc = NULL;
@@ -3220,7 +3207,7 @@ tulip_reset(
     TULIP_CSR_WRITE(sc, csr_rxlist, TULIP_KVATOPHYS(sc, &sc->tulip_rxinfo.ri_first[0]));
 #endif
     TULIP_CSR_WRITE(sc, csr_busmode,
-		    (1 << (TULIP_BURSTSIZE(sc->tulip_unit) + 8))
+		    (1 << (pci_max_burst_len + 8))
 		    |TULIP_BUSMODE_CACHE_ALIGN8
 		    |TULIP_BUSMODE_READMULTIPLE
 		    |(BYTE_ORDER != LITTLE_ENDIAN ?
@@ -4029,7 +4016,7 @@ tulip_softintr(
      */
     if (tulip_softintr_max_unit == 0) {
 	if (softintr_mask & 1) {
-	    tulip_softc_t * const sc = TULIP_UNIT_TO_SOFTC(0);
+	    tulip_softc_t * const sc = tulips[0];
 	    /*
 	     * Handle the "interrupt" and then reenable interrupts
 	     */
@@ -4053,7 +4040,7 @@ tulip_softintr(
 	    unit += 1; mask <<= 1;
 	}
 	if (softintr_mask & mask) {
-	    tulip_softc_t * const sc = TULIP_UNIT_TO_SOFTC(unit);
+	    tulip_softc_t * const sc = tulips[unit];
 	    /*
 	     * Handle the "interrupt" and then reenable interrupts
 	     */
@@ -4592,7 +4579,7 @@ tulip_txput_setup(
 static int
 tulip_ifioctl(
     struct ifnet * ifp,
-    ioctl_cmd_t cmd,
+    u_long cmd,
     caddr_t data)
 {
     TULIP_PERFSTART(ifioctl)
@@ -4743,7 +4730,7 @@ tulip_ifioctl(
  * device spl from another driver.
  */
 
-static ifnet_ret_t
+static void
 tulip_ifstart(
     struct ifnet * const ifp)
 {
@@ -4770,7 +4757,7 @@ tulip_ifstart(
     TULIP_PERFEND(ifstart);
 }
 
-static ifnet_ret_t
+static void
 tulip_ifstart_one(
     struct ifnet * const ifp)
 {
@@ -5078,9 +5065,6 @@ tulip_initcsrs(
     sc->tulip_csrs.csr_13		= csr_base + 13 * csr_size;
     sc->tulip_csrs.csr_14		= csr_base + 14 * csr_size;
     sc->tulip_csrs.csr_15		= csr_base + 15 * csr_size;
-#if defined(TULIP_EISA)
-    sc->tulip_csrs.csr_enetrom		= csr_base + DE425_ENETROM_OFFSET;
-#endif
 }
 
 static void
@@ -5098,9 +5082,7 @@ tulip_initring(
 }
 
 /*
- * This is the PCI configuration support.  Since the 21040 is available
- * on both EISA and PCI boards, one must be careful in how defines the
- * 21040 in the config file.
+ * This is the PCI configuration support.
  */
 
 #define	PCI_CFID	0x00	/* Configuration ID */
@@ -5111,10 +5093,6 @@ tulip_initring(
 #define	PCI_CBMA	0x14	/* Configuration Base Memory Address */
 #define	PCI_CFIT	0x3c	/* Configuration Interrupt */
 #define	PCI_CFDA	0x40	/* Configuration Driver Area */
-
-#if defined(TULIP_EISA)
-static const int tulip_eisa_irqs[4] = { IRQ5, IRQ9, IRQ10, IRQ11 };
-#endif
 
 static const char*
 tulip_pci_probe(
@@ -5207,7 +5185,7 @@ tulip_pci_attach(pcici_t config_id, int unit)
     if (chipid == TULIP_CHIPID_UNKNOWN)
 	return;
 
-    if ((chipid == TULIP_21040 || chipid == TULIP_DE425) && revinfo < 0x20) {
+    if (chipid == TULIP_21040 && revinfo < 0x20) {
 	printf("de%d", unit);
 	printf(": not configured; 21040 pass 2.0 required (%d.%d found)\n",
 	       revinfo >> 4, revinfo & 0x0f);
@@ -5233,7 +5211,7 @@ tulip_pci_attach(pcici_t config_id, int unit)
 	sc->tulip_features |= TULIP_HAVE_RXBADOVRFLW;
     if (chipid == TULIP_21140)
 	sc->tulip_features |= TULIP_HAVE_BROKEN_HASH;
-    if (chipid != TULIP_21040 && chipid != TULIP_DE425 && chipid != TULIP_21140)
+    if (chipid != TULIP_21040 && chipid != TULIP_21140)
 	sc->tulip_features |= TULIP_HAVE_POWERMGMT;
     if (chipid == TULIP_21041 || chipid == TULIP_21142 || chipid == TULIP_21143) {
 	sc->tulip_features |= TULIP_HAVE_DUALSENSE;
@@ -5259,8 +5237,8 @@ tulip_pci_attach(pcici_t config_id, int unit)
      * force a probe.
      */
     switch ((cfdainfo >> 8) & 0xff) {
-	case 1: media = chipid > TULIP_DE425 ? TULIP_MEDIA_AUI : TULIP_MEDIA_AUIBNC; break;
-	case 2: media = chipid > TULIP_DE425 ? TULIP_MEDIA_BNC : TULIP_MEDIA_UNKNOWN; break;
+	case 1: media = chipid > TULIP_21040 ? TULIP_MEDIA_AUI : TULIP_MEDIA_AUIBNC; break;
+	case 2: media = chipid > TULIP_21040 ? TULIP_MEDIA_BNC : TULIP_MEDIA_UNKNOWN; break;
 	case 3: media = TULIP_MEDIA_10BASET; break;
 	case 4: media = TULIP_MEDIA_10BASET_FD; break;
 	case 5: media = TULIP_MEDIA_100BASETX; break;
