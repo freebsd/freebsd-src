@@ -110,7 +110,7 @@ main(int argc, char *argv[])
 			break;
 		default:
 			fprintf(stderr,
-			    "usage: cat [-benstuv] [-] [file ...]\n");
+			    "usage: cat [-benstuv] [file ...]\n");
 			exit(1);
 		}
 	argv += optind;
