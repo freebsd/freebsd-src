@@ -25,7 +25,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: ahb.c,v 1.12 1999/05/08 21:59:17 dfr Exp $
+ *	$Id: ahb.c,v 1.13 1999/08/01 22:57:08 mdodd Exp $
  */
 
 #include "eisa.h"
@@ -299,7 +299,7 @@ ahbattach(device_t dev)
 	 */
 	/* DMA tag for mapping buffers into device visible space. */
 	/* XXX Should be a child of the EISA bus dma tag */
-	if (bus_dma_tag_create(/*parent*/NULL, /*alignment*/0, /*boundary*/0,
+	if (bus_dma_tag_create(/*parent*/NULL, /*alignment*/1, /*boundary*/0,
 			       /*lowaddr*/BUS_SPACE_MAXADDR_32BIT,
 			       /*highaddr*/BUS_SPACE_MAXADDR,
 			       /*filter*/NULL, /*filterarg*/NULL,
@@ -312,7 +312,7 @@ ahbattach(device_t dev)
 	ahb->init_level++;
 
 	/* DMA tag for our ccb structures and ha inquiry data */
-	if (bus_dma_tag_create(/*parent*/NULL, /*alignment*/0, /*boundary*/0,
+	if (bus_dma_tag_create(/*parent*/NULL, /*alignment*/1, /*boundary*/0,
 			       /*lowaddr*/BUS_SPACE_MAXADDR_32BIT,
 			       /*highaddr*/BUS_SPACE_MAXADDR,
 			       /*filter*/NULL, /*filterarg*/NULL,

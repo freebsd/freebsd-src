@@ -30,7 +30,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *      $Id: adwcam.c,v 1.2 1998/10/15 23:47:14 gibbs Exp $
+ *      $Id: adwcam.c,v 1.3 1999/05/06 20:16:12 ken Exp $
  */
 /*
  * Ported from:
@@ -968,7 +968,7 @@ adw_init(struct adw_softc *adw)
 	printf("Queue Depth %d\n", adw->max_acbs);
 
 	/* DMA tag for mapping buffers into device visible space. */
-	if (bus_dma_tag_create(adw->parent_dmat, /*alignment*/0, /*boundary*/0,
+	if (bus_dma_tag_create(adw->parent_dmat, /*alignment*/1, /*boundary*/0,
 			       /*lowaddr*/BUS_SPACE_MAXADDR,
 			       /*highaddr*/BUS_SPACE_MAXADDR,
 			       /*filter*/NULL, /*filterarg*/NULL,
@@ -982,7 +982,7 @@ adw_init(struct adw_softc *adw)
 	adw->init_level++;
 
 	/* DMA tag for our ccb structures */
-	if (bus_dma_tag_create(adw->parent_dmat, /*alignment*/0, /*boundary*/0,
+	if (bus_dma_tag_create(adw->parent_dmat, /*alignment*/1, /*boundary*/0,
 			       /*lowaddr*/BUS_SPACE_MAXADDR,
 			       /*highaddr*/BUS_SPACE_MAXADDR,
 			       /*filter*/NULL, /*filterarg*/NULL,
@@ -1013,7 +1013,7 @@ adw_init(struct adw_softc *adw)
 	bzero(adw->acbs, adw->max_acbs * sizeof(struct acb)); 
 
 	/* DMA tag for our S/G structures.  We allocate in page sized chunks */
-	if (bus_dma_tag_create(adw->parent_dmat, /*alignment*/0, /*boundary*/0,
+	if (bus_dma_tag_create(adw->parent_dmat, /*alignment*/1, /*boundary*/0,
 			       /*lowaddr*/BUS_SPACE_MAXADDR,
 			       /*highaddr*/BUS_SPACE_MAXADDR,
 			       /*filter*/NULL, /*filterarg*/NULL,

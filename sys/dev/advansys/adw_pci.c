@@ -28,7 +28,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: adw_pci.c,v 1.5 1999/05/09 17:06:36 peter Exp $
+ *	$Id: adw_pci.c,v 1.6 1999/07/03 20:16:58 peter Exp $
  */
 
 #include <sys/param.h>
@@ -136,7 +136,7 @@ adwpciattach(pcici_t config_id, int unit)
 
 	/* Allocate a dmatag for our transfer DMA maps */
 	/* XXX Should be a child of the PCI bus dma tag */
-	error = bus_dma_tag_create(/*parent*/NULL, /*alignment*/0,
+	error = bus_dma_tag_create(/*parent*/NULL, /*alignment*/1,
 				   /*boundary*/0,
 				   /*lowaddr*/ADW_PCI_MAX_DMA_ADDR,
 				   /*highaddr*/BUS_SPACE_MAXADDR,
