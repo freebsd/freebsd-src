@@ -39,7 +39,7 @@
  * SUCH DAMAGE.
  *
  *	from:	@(#)pmap.c	7.7 (Berkeley)	5/12/91
- *	$Id: pmap.c,v 1.203 1998/07/11 07:45:32 bde Exp $
+ *	$Id: pmap.c,v 1.204 1998/07/11 08:29:38 phk Exp $
  */
 
 /*
@@ -2172,8 +2172,8 @@ pmap_enter(pmap_t pmap, vm_offset_t va, vm_offset_t pa, vm_prot_t prot,
 	 * Page Directory table entry not valid, we need a new PT page
 	 */
 	if (pte == NULL) {
-		panic("pmap_enter: invalid page directory, pdir=%p, va=0x%lx\n",
-			pmap->pm_pdir[PTDPTDI], va);
+		panic("pmap_enter: invalid page directory, pdir=%p, va=0x%x\n",
+			(void *)pmap->pm_pdir[PTDPTDI], va);
 	}
 #endif
 
