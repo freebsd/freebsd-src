@@ -291,7 +291,7 @@ isp_print_qentry(isp, msg, idx, arg)
 		for (j = 0; j < (QENTRY_LEN >> 2); j++) {
 			PRINTF(" %02x", ptr[amt++] & 0xff);
 		}
-		printf("\n   ");
+		PRINTF("\n   ");
 	}
 	PRINTF("\n");
 }
