@@ -16,7 +16,7 @@
  * 4. Modifications may be freely made to this file if the above conditions
  *    are met.
  *
- * $Id: sys_pipe.c,v 1.28 1997/04/09 16:53:39 bde Exp $
+ * $Id: sys_pipe.c,v 1.29 1997/08/05 00:01:26 dyson Exp $
  */
 
 /*
@@ -170,14 +170,8 @@ pipe(p, uap, retval)
 			ZONE_WAIT, 4);
 
 	rpipe = zalloc( pipe_zone);
-/*
-	rpipe = malloc( sizeof (*rpipe), M_TEMP, M_WAITOK);
-*/
 	pipeinit(rpipe);
 	rpipe->pipe_state |= PIPE_DIRECTOK;
-/*
-	wpipe = malloc( sizeof (*wpipe), M_TEMP, M_WAITOK);
-*/
 	wpipe = zalloc( pipe_zone);
 	pipeinit(wpipe);
 	wpipe->pipe_state |= PIPE_DIRECTOK;
@@ -1113,8 +1107,5 @@ pipeclose(cpipe)
 		}
 #endif
 		zfree(pipe_zone, cpipe);
-/*
-		free(cpipe, M_TEMP);
-*/
 	}
 }
