@@ -87,7 +87,7 @@ are now available with the GENERIC kernel. [MERGED]
 
 A driver for AGP hardware has been added. [MERGED]
 
-ipfilter has been updated to 3.4.12.
+ipfilter has been updated to 3.4.13.
 
 Various fixes and improvements to the IPv6 code have been merged in
 from the KAME project, including significantly-improved IPSEC
@@ -243,12 +243,17 @@ default.
 The pccard driver and pccardc(8) now support multiple "beep types"
 upon card insertion and removal. [MERGED]
 
+The spic(4) driver, which provides access to the jog dial device on
+some Sony laptops, has been added.
+
+A new netgraph node type ng_one2many(4) for multiplexing and
+demultiplexing packets over multiple links has been added.  [MERGED]
+
+Softupdates for FFS have received some bugfixes and enhancements.
+
 A number of cleanups and enhancements have been applied to the PCI
 subsystem.  /usr/share/misc/pci_vendors now contains a vendor/device
 database, which can be used by pciconf(8).
-
-The spic(4) driver, which provides access to the job dial device on
-some Sony laptops, has been added.
 
 netgraph(4) has received some updates.
 
@@ -271,9 +276,6 @@ controlled by the net.inet.tcp.icmp_admin_prohib_like_rst sysctl.
 PECOFF (WIN32 Execution file format) support has been added.
 
 kernfs(5) is obsolete and has been retired.
-
-pkg_update(1), a utility to update installed packages and update their
-dependencies, has been added.
 
 
 1.2. SECURITY FIXES
@@ -560,11 +562,6 @@ and initialization. [MERGED]
 The lastlogin(1) utility, which prints the last login time of each
 user, has been imported from NetBSD.
 
-A new netgraph node type ng_one2many(4) for multiplexing and
-demultiplexing packets over multiple links has been added.  [MERGED]
-
-Softupdates for FFS have received some bugfixes and enhancements.
-
 newfs(1) now implements write combining, which can make creation of
 new filesystems up to seven times faster. [MERGED]
 
@@ -615,6 +612,9 @@ removed. [MERGED]
 
 lpr(1), lpq(1), and lpd(8) have received a few minor
 enhancements. [MERGED]
+
+pkg_update(1), a utility to update installed packages and update their
+dependencies, has been added.
 
 
 2. Supported Configurations
