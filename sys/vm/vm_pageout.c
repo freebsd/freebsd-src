@@ -65,7 +65,7 @@
  * any improvements or extensions that they make and grant Carnegie the
  * rights to redistribute these changes.
  *
- * $Id: vm_pageout.c,v 1.51.4.6 1996/06/19 07:26:57 davidg Exp $
+ * $Id: vm_pageout.c,v 1.51.4.7 1996/06/26 06:08:45 davidg Exp $
  */
 
 /*
@@ -475,7 +475,7 @@ vm_pageout_map_deactivate_pages(map, entry, count, freeer, recursion)
 	vm_map_t map;
 	vm_map_entry_t entry;
 	int *count;
-	int (*freeer) (vm_map_t, vm_object_t, int, int *);
+	int (*freeer) (vm_map_t, vm_object_t, int, int, int *);
 	int *recursion;
 {
 	vm_map_t tmpm;
@@ -503,7 +503,7 @@ vm_pageout_map_deactivate_pages(map, entry, count, freeer, recursion)
 			tmpe = tmpe->next;
 		};
 	} else if ((obj = entry->object.vm_object) != 0) {
-		*count -= (*freeer) (map, obj, *count, recursion);
+		*count -= (*freeer) (map, obj, *count, TRUE, recursion);
 	}
 	lock_read_done(&map->lock);
 	vm_map_deallocate(map);
