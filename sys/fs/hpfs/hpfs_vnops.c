@@ -1275,8 +1275,6 @@ struct vnodeopv_entry_desc hpfs_vnodeop_entries[] = {
 	{ &vop_readdir_desc, (vop_t *)hpfs_readdir },
 	{ &vop_fsync_desc, (vop_t *)hpfs_fsync },
 	{ &vop_bmap_desc, (vop_t *)hpfs_bmap },
-	{ &vop_getpages_desc, (vop_t *) vop_stdgetpages },
-	{ &vop_putpages_desc, (vop_t *) vop_stdputpages },
 	{ &vop_strategy_desc, (vop_t *)hpfs_strategy },
 	{ &vop_read_desc, (vop_t *)hpfs_read },
 	{ &vop_write_desc, (vop_t *)hpfs_write },
