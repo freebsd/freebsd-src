@@ -30,7 +30,8 @@
 .Nm SMP
 .Nd description of the FreeBSD Symmetric MultiProcessor kernel
 .Sh SYNOPSIS
-.Nm
+.Cd options SMP
+.Cd options APIC_IO
 .Sh DESCRIPTION
 The
 .Nm
@@ -39,12 +40,20 @@ kernel implements symmetric multiprocessor support.
 Support for multi-processor systems is present for all supported
 architectures on FreeBSD.
 Currently, this includes alpha, i386, ia64, and sparc64.
+Support is enabled using
+.Cd options SMP .
+On some, but not all platforms, it is permissible to use the SMP
+kernel configuration on non-SMP equipped motherboards.
 .Pp
 For i386 systems, the
 .Nm
 kernel supports motherboards that follow the Intel MP specification,
 version 1.4.
-On i386 systems, the
+In addition to
+.Cd options SMP ,
+i386 also requires
+.Cd options APIC_IO .
+The
 .Xr mptable 1
 command may be used to view the status of multi-processor support.
 .Sh SEE ALSO
