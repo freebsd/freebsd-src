@@ -258,6 +258,12 @@ SYSCTL_INT(_net_key, KEYCTL_BLOCKACQ_COUNT,	blockacq_count,	CTLFLAG_RW, \
 SYSCTL_INT(_net_key, KEYCTL_BLOCKACQ_LIFETIME,	blockacq_lifetime, CTLFLAG_RW, \
 	&key_blockacq_lifetime,	0,	"");
 
+#ifdef IPSEC_ESP
+/* ESP auth */
+SYSCTL_INT(_net_key, KEYCTL_ESP_AUTH,	esp_auth, CTLFLAG_RW, \
+	&ipsec_esp_auth,	0,	"ESP auth");
+#endif
+
 /* minimum ESP key length */
 SYSCTL_INT(_net_key, KEYCTL_ESP_KEYMIN,	esp_keymin, CTLFLAG_RW, \
 	&ipsec_esp_keymin,	0,	"");
