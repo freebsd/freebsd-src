@@ -155,8 +155,13 @@ struct pf_fragment {
 TAILQ_HEAD(pf_fragqueue, pf_fragment)	pf_fragqueue;
 TAILQ_HEAD(pf_cachequeue, pf_fragment)	pf_cachequeue;
 
+#ifndef __FreeBSD__
 static __inline int	 pf_frag_compare(struct pf_fragment *,
 			    struct pf_fragment *);
+#else
+static int	 pf_frag_compare(struct pf_fragment *,
+			    struct pf_fragment *);
+#endif
 RB_HEAD(pf_frag_tree, pf_fragment)	pf_frag_tree, pf_cache_tree;
 RB_PROTOTYPE(pf_frag_tree, pf_fragment, fr_entry, pf_frag_compare);
 RB_GENERATE(pf_frag_tree, pf_fragment, fr_entry, pf_frag_compare);

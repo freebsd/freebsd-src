@@ -1311,7 +1311,7 @@ pfsync_request_update(struct pfsync_state_upd *up, struct in_addr *src)
 	struct pfsync_header *h;
 	struct pfsync_softc *sc = ifp->if_softc;
 	struct pfsync_state_upd_req *rup;
-	int s, ret = 0;		/* make the compiler happy */
+	int s = 0, ret = 0;	/* make the compiler happy */
 
 #ifdef __FreeBSD__
 	PF_ASSERT(MA_OWNED);

@@ -292,6 +292,7 @@ struct pf_pool_limit pf_pool_limits[PF_LIMIT_MAX] = {
 	((r)->rule_flag & PFRULE_GRBOUND) ? (k)->pfik_parent :	       \
 	(k)->pfik_parent->pfik_parent)
 
+#ifndef __FreeBSD__
 static __inline int pf_src_compare(struct pf_src_node *, struct pf_src_node *);
 static __inline int pf_state_compare_lan_ext(struct pf_state *,
 	struct pf_state *);
@@ -299,6 +300,15 @@ static __inline int pf_state_compare_ext_gwy(struct pf_state *,
 	struct pf_state *);
 static __inline int pf_state_compare_id(struct pf_state *,
 	struct pf_state *);
+#else
+static int pf_src_compare(struct pf_src_node *, struct pf_src_node *);
+static int pf_state_compare_lan_ext(struct pf_state *,
+	struct pf_state *);
+static int pf_state_compare_ext_gwy(struct pf_state *,
+	struct pf_state *);
+static int pf_state_compare_id(struct pf_state *,
+	struct pf_state *);
+#endif
 
 struct pf_src_tree tree_src_tracking;
 
