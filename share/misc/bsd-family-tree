@@ -162,6 +162,8 @@ FreeBSD 4.0  |      |  |  |  | NetBSD 1.4.2    |             |
  |                    |      |                 |
 FreeBSD 5.0-current   |   NetBSD -current  OpenBSD -current
  |                    |      |                 |
+ *---FreeBSD 5.0      |      |                 |
+ |                    |      |                 |
  v                    v      v                 v
 
 Time
@@ -366,6 +368,9 @@ Mac OS X 10.2		2002-08-23 [APL]
 NetBSD 1.6		2002-09-14 [NBD]
 FreeBSD 4.7		2002-10-08 [FBD]
 OpenBSD 3.2		2002-11-01 [OBD]
+FreeBSD 5.0		2002-01-17 [FBD]
+				FreeBSD 5.0 is a sepatate branch off of
+				-current, similar to 3.0.
 
 Bibliography
 ------------------------
