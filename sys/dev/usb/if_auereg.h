@@ -240,6 +240,13 @@ struct aue_cdata {
 #define AUE_INC(x, y)		(x) = (x + 1) % y
 
 struct aue_softc {
+#if defined(__FreeBSD__)
+#define GET_MII(sc) (device_get_softc((sc)->aue_miibus))
+#elif defined(__NetBSD__)
+#define GET_MII(sc) (&(sc)->aue_mii)
+#elif defined(__OpenBSD__)
+#define GET_MII(sc) (&(sc)->aue_mii)
+#endif
 	struct arpcom		arpcom;
 	device_t		aue_miibus;
 	usbd_device_handle	aue_udev;

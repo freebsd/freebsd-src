@@ -75,6 +75,7 @@ typedef struct device *device_ptr_t;
 #define USBDEVUNIT(bdev) ((bdev).dv_unit)
 #define USBDEVPTRNAME(bdevptr) ((bdevptr)->dv_xname)
 #define USBDEVUNIT(bdev) ((bdev).dv_unit)
+#define USBGETSOFTC(d) ((void *)(d))
 
 #define DECLARE_USB_DMA_T \
 	struct usb_dma_block; \
@@ -206,6 +207,7 @@ typedef struct device *device_ptr_t;
 #define USBDEVUNIT(bdev) ((bdev).dv_unit)
 #define USBDEVPTRNAME(bdevptr) ((bdevptr)->dv_xname)
 #define USBDEVUNIT(bdev) ((bdev).dv_unit)
+#define USBGETSOFTC(d) ((void *)(d))
 
 #define DECLARE_USB_DMA_T \
 	struct usb_dma_block; \
@@ -317,6 +319,7 @@ MALLOC_DECLARE(M_USBHC);
 #define USBDEVUNIT(bdev) device_get_unit(bdev)
 #define USBDEVPTRNAME(bdev) device_get_nameunit(bdev)
 #define USBDEVUNIT(bdev) device_get_unit(bdev)
+#define USBGETSOFTC(bdev) (device_get_softc(bdev))
 
 #define DECLARE_USB_DMA_T typedef char * usb_dma_t
 
