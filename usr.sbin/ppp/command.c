@@ -17,7 +17,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: command.c,v 1.124 1997/12/30 23:22:27 brian Exp $
+ * $Id: command.c,v 1.125 1998/01/05 01:35:18 brian Exp $
  *
  */
 #include <sys/param.h>
@@ -177,6 +177,11 @@ DialCommand(struct cmdargs const *arg)
 
   tries = 0;
   do {
+    if (tries) {
+      LogPrintf(LogPHASE, "Enter pause (%d) for redialing.\n",
+                VarRedialNextTimeout);
+      nointr_sleep(VarRedialNextTimeout);
+    }
     if (VarTerm)
       fprintf(VarTerm, "Dial attempt %u of %d\n", ++tries, VarDialTries);
     if (OpenModem() < 0) {
