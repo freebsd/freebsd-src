@@ -629,7 +629,7 @@ ata_intr(void *data)
 #endif
     default:
 	if (ch->active & ATA_WAIT_INTR)
-	    wakeup((caddr_t)ch);
+	    wakeup(ch);
     }
 
     if (ch->active & ATA_CONTROL) {
@@ -1113,7 +1113,7 @@ ata_command(struct ata_device *atadev, u_int8_t command,
 	if (atadev->channel->flags & ATA_QUEUED)
 	    ATA_OUTB(atadev->channel->r_altio, ATA_ALTSTAT, ATA_A_4BIT);
 
-	if (tsleep((caddr_t)atadev->channel, PRIBIO, "atacmd", 10 * hz)) {
+	if (tsleep(atadev->channel, PRIBIO, "atacmd", 10 * hz)) {
 	    ata_prtdev(atadev, "timeout waiting for interrupt\n");
 	    atadev->channel->active &= ~ATA_WAIT_INTR;
 	    error = -1;

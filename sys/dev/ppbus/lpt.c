@@ -444,7 +444,7 @@ lptout(void *arg)
 		lptintr(dev);
 	} else {
 		sc->sc_state &= ~OBUSY;
-		wakeup((caddr_t)dev);
+		wakeup(dev);
 	}
 }
 
@@ -523,7 +523,7 @@ lptopen(dev_t dev, int flags, int fmt, struct thread *td)
 		}
 
 		/* wait 1/4 second, give up if we get a signal */
-		if (tsleep((caddr_t)lptdev, LPPRI|PCATCH, "lptinit", hz/4) !=
+		if (tsleep(lptdev, LPPRI|PCATCH, "lptinit", hz/4) !=
 		    EWOULDBLOCK) {
 			sc->sc_state = 0;
 			splx(s);
@@ -597,7 +597,7 @@ lptclose(dev_t dev, int flags, int fmt, struct thread *td)
 			(LPS_SEL|LPS_OUT|LPS_NBSY|LPS_NERR)) !=
 			(LPS_SEL|LPS_NBSY|LPS_NERR) || sc->sc_xfercnt)
 			/* wait 1/4 second, give up if we get a signal */
-			if (tsleep((caddr_t)lptdev, LPPRI|PCATCH,
+			if (tsleep(lptdev, LPPRI|PCATCH,
 				"lpclose", hz) != EWOULDBLOCK)
 				break;
 
@@ -661,7 +661,7 @@ lpt_pushbytes(device_t dev)
 				 */
 				if (tic > MAX_SLEEP)
 					tic = MAX_SLEEP;
-				err = tsleep((caddr_t)dev, LPPRI,
+				err = tsleep(dev, LPPRI,
 					LPT_NAME "poll", tic);
 				if (err != EWOULDBLOCK) {
 					return (err);
@@ -796,7 +796,7 @@ lptwrite(dev_t dev, struct uio *uio, int ioflag)
 			}
 			lprintf(("W "));
 			if (sc->sc_state & OBUSY)
-				if ((err = tsleep((caddr_t)lptdev,
+				if ((err = tsleep(lptdev,
 					 LPPRI|PCATCH, LPT_NAME "write", 0))) {
 					sc->sc_state |= INTERRUPTED;
 					return(err);
@@ -872,7 +872,7 @@ lpt_intr(void *arg)
 		sc->sc_state &= ~OBUSY;
 
 		if(!(sc->sc_state & INTERRUPTED))
-			wakeup((caddr_t)lptdev);
+			wakeup(lptdev);
 		lprintf(("w "));
 		return;
 	} else	{	/* check for error */

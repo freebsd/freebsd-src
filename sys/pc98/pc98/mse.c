@@ -535,7 +535,7 @@ mseread(dev, uio, ioflag)
 				return (0);
 			}
 			sc->sc_flags |= MSESC_WANT;
-			error = tsleep((caddr_t)sc, MSEPRI | PCATCH,
+			error = tsleep(sc, MSEPRI | PCATCH,
 				"mseread", 0);
 			if (error) {
 				splx(s);
@@ -814,7 +814,7 @@ mseintr(arg)
 	    (sc->sc_obuttons ^ sc->sc_buttons) != 0) {
 		if (sc->sc_flags & MSESC_WANT) {
 			sc->sc_flags &= ~MSESC_WANT;
-			wakeup((caddr_t)sc);
+			wakeup(sc);
 		}
 		selwakeup(&sc->sc_selp);
 	}

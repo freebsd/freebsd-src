@@ -140,7 +140,7 @@ tone(thz, ticks)
      * emitted.
      */
     if (ticks > 0)
-	tsleep((caddr_t)&endtone, SPKRPRI | PCATCH, "spkrtn", ticks);
+	tsleep(&endtone, SPKRPRI | PCATCH, "spkrtn", ticks);
     SPEAKER_OFF;
     sps = splclock();
     TIMER_RELEASE;
@@ -161,7 +161,7 @@ rest(ticks)
     (void) printf("rest: %d\n", ticks);
 #endif /* DEBUG */
     if (ticks > 0)
-	tsleep((caddr_t)&endrest, SPKRPRI | PCATCH, "spkrrs", ticks);
+	tsleep(&endrest, SPKRPRI | PCATCH, "spkrrs", ticks);
 }
 
 /**************** PLAY STRING INTERPRETER BEGINS HERE **********************
@@ -548,8 +548,8 @@ spkrclose(dev, flags, fmt, td)
 	return(ENXIO);
     else
     {
-	wakeup((caddr_t)&endtone);
-	wakeup((caddr_t)&endrest);
+	wakeup(&endtone);
+	wakeup(&endrest);
 	free(spkr_inbuf, M_SPKR);
 	spkr_active = FALSE;
 	return(0);

@@ -692,7 +692,7 @@ meteor_intr(void *arg)
 		 * Wake up the user in single capture mode.
 		 */
 		if(mtr->flags & METEOR_SINGLE)
-			wakeup((caddr_t)mtr);
+			wakeup(mtr);
 		/*
 		 * If the user requested to be notified via signal,
 		 * let them know the frame is complete.
@@ -1145,12 +1145,12 @@ struct	saa7116_regs	*m;
 	m = meteor[unit].base;
 
 	m->cap_cntl = 0x0;
-	tsleep((caddr_t)m, METPRI, "Mreset", hz/50);
+	tsleep(m, METPRI, "Mreset", hz/50);
 
 	m->cap_cntl = 0x8ff0;
 	m->cap_cntl = 0x80c0;
 	m->cap_cntl = 0x8040;
-	tsleep((caddr_t)m, METPRI, "Mreset", hz/10);
+	tsleep(m, METPRI, "Mreset", hz/10);
 	m->cap_cntl = 0x80c0;
 
 	return 0;
@@ -1230,7 +1230,7 @@ meteor_close(dev_t dev, int flags, int fmt, struct thread *td)
 				/* this should not happen, the read capture 
 				  should have completed or in the very least
 				  recieved a signal before close is called. */
-		wakeup((caddr_t)mtr);	/* continue read */
+		wakeup(mtr);	/* continue read */
 	/*
 	 * Turn off capture mode.
 	 */
@@ -1316,7 +1316,7 @@ meteor_read(dev_t dev, struct uio *uio, int ioflag)
 	/* Start capture */
 	start_capture(mtr, METEOR_SINGLE);
 
-	status=tsleep((caddr_t)mtr, METPRI, "capturing", 0);
+	status=tsleep(mtr, METPRI, "capturing", 0);
 	if (!status) 		/* successful capture */
 		status = uiomove((caddr_t)mtr->bigbuf, count, uio);
 	else
@@ -1627,7 +1627,7 @@ meteor_ioctl(dev_t dev, u_long cmd, caddr_t arg, int flag, struct thread *td)
 			start_capture(mtr, METEOR_SINGLE);
 
 			/* wait for capture to complete */
-			error=tsleep((caddr_t)mtr, METPRI, "capturing", 0);
+			error=tsleep(mtr, METPRI, "capturing", 0);
 			if(error)
 				printf("meteor%d: ioctl: tsleep error %d\n",
 					unit, error);

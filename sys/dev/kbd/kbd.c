@@ -578,7 +578,7 @@ genkbdread(dev_t dev, struct uio *uio, int flag)
 			return EWOULDBLOCK;
 		}
 		sc->gkb_flags |= KB_ASLEEP;
-		error = tsleep((caddr_t)sc, PZERO | PCATCH, "kbdrea", 0);
+		error = tsleep(sc, PZERO | PCATCH, "kbdrea", 0);
 		kbd = kbd_get_keyboard(KBD_INDEX(dev));
 		if ((kbd == NULL) || !KBD_IS_VALID(kbd)) {
 			splx(s);
@@ -677,7 +677,7 @@ genkbd_event(keyboard_t *kbd, int event, void *arg)
 		kbd_release(kbd, (void *)sc);
 		if (sc->gkb_flags & KB_ASLEEP) {
 			sc->gkb_flags &= ~KB_ASLEEP;
-			wakeup((caddr_t)sc);
+			wakeup(sc);
 		}
 		selwakeup(&sc->gkb_rsel);
 		return 0;
@@ -748,7 +748,7 @@ genkbd_event(keyboard_t *kbd, int event, void *arg)
 	if (sc->gkb_q.c_cc > 0) {
 		if (sc->gkb_flags & KB_ASLEEP) {
 			sc->gkb_flags &= ~KB_ASLEEP;
-			wakeup((caddr_t)sc);
+			wakeup(sc);
 		}
 		selwakeup(&sc->gkb_rsel);
 	}

@@ -705,7 +705,7 @@ nfsrv_wakenfsd(struct nfssvc_sock *slp)
 				panic("nfsd wakeup");
 			slp->ns_sref++;
 			nd->nfsd_slp = slp;
-			wakeup((caddr_t)nd);
+			wakeup(nd);
 			return;
 		}
 	}

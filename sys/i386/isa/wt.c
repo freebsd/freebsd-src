@@ -614,7 +614,7 @@ wtintr (int u)
 			"rewind busy?\n" : "rewind finished\n"));
 		t->flags &= ~TPREW;             /* Rewind finished. */
 		wtsense (t, 1, TP_WRP);
-		wakeup ((caddr_t)t);
+		wakeup (t);
 		return;
 	}
 
@@ -627,7 +627,7 @@ wtintr (int u)
 		if (! (s & t->NOEXCEP))         /* operation failed */
 			wtsense (t, 1, (t->flags & TPRMARK) ? TP_WRP : 0);
 		t->flags &= ~(TPRMARK | TPWMARK); /* operation finished */
-		wakeup ((caddr_t)t);
+		wakeup (t);
 		return;
 	}
 
@@ -664,7 +664,7 @@ wtintr (int u)
 			t->flags |= TPVOL;      /* end of file */
 		else
 			t->flags |= TPEXCEP;    /* i/o error */
-		wakeup ((caddr_t)t);
+		wakeup (t);
 		return;
 	}
 
@@ -675,7 +675,7 @@ wtintr (int u)
 	}
 	if (t->dmacount > t->dmatotal)          /* short last block */
 		t->dmacount = t->dmatotal;
-	wakeup ((caddr_t)t);	/* wake up user level */
+	wakeup (t);	/* wake up user level */
 	TRACE (("i/o finished, %d\n", t->dmacount));
 }
 
@@ -719,7 +719,7 @@ wtreadfm (wtinfo_t *t)
 static int
 wtwritefm (wtinfo_t *t)
 {
-	tsleep ((caddr_t)wtwritefm, WTPRI, "wtwfm", hz); /* timeout: 1 second */
+	tsleep (wtwritefm, WTPRI, "wtwfm", hz); /* timeout: 1 second */
 	t->flags &= ~(TPRO | TPWO);
 	if (! wtcmd (t, QIC_WRITEFM)) {
 		wtsense (t, 1, 0);
@@ -753,7 +753,7 @@ wtpoll (wtinfo_t *t, int mask, int bits)
 		s = inb (t->STATPORT);
 		if ((s & mask) != bits)
 			return (s);
-		tsleep ((caddr_t)wtpoll, WTPRI, "wtpoll", 1); /* timeout: 1 tick */
+		tsleep (wtpoll, WTPRI, "wtpoll", 1); /* timeout: 1 tick */
 	}
 }
 
@@ -789,7 +789,7 @@ wtwait (wtinfo_t *t, int catch, char *msg)
 
 	TRACE (("wtwait() `%s'\n", msg));
 	while (t->flags & (TPACTIVE | TPREW | TPRMARK | TPWMARK)) {
-		error = tsleep ((caddr_t)t, WTPRI | catch, msg, 0);
+		error = tsleep (t, WTPRI | catch, msg, 0);
 		if (error)
 			return (error);
 	}

@@ -1865,14 +1865,14 @@ ata_pci_serialize(struct ata_channel *ch, int flags)
 	if (scp->locked_ch == ch->unit)
 	    break;
 	while (!atomic_cmpset_acq_int(&scp->locked_ch, -1, ch->unit))
-	    tsleep((caddr_t)ch->locking, PRIBIO, "atalck", 1);
+	    tsleep(ch->locking, PRIBIO, "atalck", 1);
 	break;
 
     case ATA_LF_UNLOCK:
 	if (scp->locked_ch == -1 || scp->locked_ch != ch->unit)
 	    break;
 	atomic_store_rel_int(&scp->locked_ch, -1);
-	wakeup((caddr_t)ch->locking);
+	wakeup(ch->locking);
 	break;
     }
     return;

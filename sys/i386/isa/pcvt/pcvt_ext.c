@@ -2353,13 +2353,13 @@ vgapage(int new_screen)
 		if(old_vsp->vt_status & VT_WAIT_ACT)
 		{
 			old_vsp->vt_status &= ~VT_WAIT_ACT;
-			wakeup((caddr_t)&old_vsp->smode);
+			wakeup(&old_vsp->smode);
 		}
 
 		if(vsp->vt_status & VT_WAIT_ACT)
 		{
 			vsp->vt_status &= ~VT_WAIT_ACT;
-			wakeup((caddr_t)&vsp->smode);
+			wakeup(&vsp->smode);
 		}
 
 		splx(x);
@@ -2514,12 +2514,12 @@ usl_vt_ioctl(dev_t dev, int cmd, caddr_t data, int flag, struct thread *td)
 				if(old_vsp->vt_status & VT_WAIT_ACT)
 				{
 					old_vsp->vt_status &= ~VT_WAIT_ACT;
-					wakeup((caddr_t)&old_vsp->smode);
+					wakeup(&old_vsp->smode);
 				}
 				if(vsp->vt_status & VT_WAIT_ACT)
 				{
 					vsp->vt_status &= ~VT_WAIT_ACT;
-					wakeup((caddr_t)&vsp->smode);
+					wakeup(&vsp->smode);
 				}
 				splx(opri);
 
@@ -2606,7 +2606,7 @@ usl_vt_ioctl(dev_t dev, int cmd, caddr_t data, int flag, struct thread *td)
 			       (error == 0 || error == ERESTART))
 			{
 				vs[i].vt_status |= VT_WAIT_ACT;
-				error = tsleep((caddr_t)&vs[i].smode,
+				error = tsleep(&vs[i].smode,
 					       PZERO | PCATCH, "waitvt", 0);
 			}
 			splx(x);

@@ -850,7 +850,7 @@ sihardclose(struct si_port *pp)
 
 	}
 	pp->sp_active_out = FALSE;
-	wakeup((caddr_t)&pp->sp_active_out);
+	wakeup(&pp->sp_active_out);
 	wakeup(TSA_CARR_ON(tp));
 
 	splx(oldspl);
@@ -1416,7 +1416,7 @@ si_write_enable(struct si_port *pp, int state)
 		if (pp->sp_state & SS_WAITWRITE) {
 			pp->sp_state &= ~SS_WAITWRITE;
 			/* thunder away! */
-			wakeup((caddr_t)pp);
+			wakeup(pp);
 		}
 	} else {
 		pp->sp_state |= SS_BLOCKWRITE;
