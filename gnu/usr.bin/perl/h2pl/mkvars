@@ -2,7 +2,7 @@
 
 require 'sizeof.ph';
 
-$LIB = '/usr/local/lib/perl';
+$LIB = '/usr/share/perl';
 
 foreach $include (@ARGV) {
     printf STDERR "including %s\n", $include;
