@@ -113,7 +113,7 @@ SYSINIT(vm_limits, SI_SUB_VM_CONF, SI_ORDER_FIRST, vm_init_limits, &proc0)
  * Note: run scheduling should be divorced from the vm system.
  */
 static void scheduler(void *);
-SYSINIT(scheduler, SI_SUB_RUN_SCHEDULER, SI_ORDER_FIRST, scheduler, NULL)
+SYSINIT(scheduler, SI_SUB_RUN_SCHEDULER, SI_ORDER_ANY, scheduler, NULL)
 
 #ifndef NO_SWAPPING
 static void swapout(struct proc *);
