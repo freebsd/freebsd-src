@@ -42,7 +42,7 @@
 #include <sys/ucred.h>
 
 void (*shmfork_hook)(struct proc *, struct proc *) = NULL;
-void (*shmexit_hook)(struct proc *) = NULL;
+void (*shmexit_hook)(struct vmspace *) = NULL;
 
 /* called from kern_fork.c */
 void
@@ -57,12 +57,11 @@ shmfork(p1, p2)
 
 /* called from kern_exit.c */
 void
-shmexit(p)
-	struct proc *p;
+shmexit(struct vmspace *vm)
 {
 
 	if (shmexit_hook != NULL)
-		shmexit_hook(p);
+		shmexit_hook(vm);
 	return;
 }
 

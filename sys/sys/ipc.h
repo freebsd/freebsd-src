@@ -115,10 +115,11 @@ struct ipc_perm {
 
 struct thread;
 struct proc;
+struct vmspace;
 
 int	ipcperm(struct thread *, struct ipc_perm *, int);
 extern void (*shmfork_hook)(struct proc *, struct proc *);
-extern void (*shmexit_hook)(struct proc *);
+extern void (*shmexit_hook)(struct vmspace *);
 
 #else /* ! _KERNEL */
 

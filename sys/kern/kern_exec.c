@@ -864,8 +864,7 @@ exec_new_vmspace(imgp, sv)
 	map = &vmspace->vm_map;
 	if (vmspace->vm_refcnt == 1 && vm_map_min(map) == sv->sv_minuser &&
 	    vm_map_max(map) == sv->sv_maxuser) {
-		if (vmspace->vm_shm)
-			shmexit(p);
+		shmexit(vmspace);
 		vm_page_lock_queues();
 		pmap_remove_pages(vmspace_pmap(vmspace), vm_map_min(map),
 		    vm_map_max(map));
