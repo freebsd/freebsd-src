@@ -39,7 +39,7 @@ static char sccsid[] = "@(#)ttyname.c	8.2 (Berkeley) 1/27/94";
 #include <sys/stat.h>
 #include <fcntl.h>
 #include <dirent.h>
-#include <sgtty.h>
+#include <termios.h>
 #include <db.h>
 #include <string.h>
 #include <paths.h>
@@ -52,7 +52,7 @@ ttyname(fd)
 	int fd;
 {
 	struct stat sb;
-	struct sgttyb ttyb;
+	struct termios ttyb;
 	DB *db;
 	DBT data, key;
 	struct {
@@ -61,7 +61,7 @@ ttyname(fd)
 	} bkey;
 
 	/* Must be a terminal. */
-	if (ioctl(fd, TIOCGETP, &ttyb) < 0)
+	if (tcgetattr(fd, &ttyb) < 0)
 		return (NULL);
 	/* Must be a character device. */
 	if (fstat(fd, &sb) || !S_ISCHR(sb.st_mode))
