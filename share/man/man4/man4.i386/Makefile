@@ -19,6 +19,7 @@ MLINKS+=	dgb.4 ../dgb.4
 MLINKS+=	ed.4 ../ed.4
 MLINKS+=	fdc.4 ../fdc.4
 MLINKS+=	fe.4 ../fe.4
+MLINKS+=	gsc.4 ../gsc.4
 MLINKS+=	ie.4 ../ie.4
 MLINKS+=	io.4 ../io.4
 MLINKS+=	joy.4 ../joy.4
