@@ -13,13 +13,24 @@ committing code that was written by someone else, I decided to use the
 
 The template looks like this:
 
-Reviewed by:
-Submitted by:
+Reviewed by:    
+Submitted by:   
+Obtained from:
 CVS: ----------------------------------------------------------------------
-CVS: Delete the ``Reviewed by'' line if this is somebody else's work
-CVS: (you are the reviewer).
-CVS: Delete the ``Submitted by'' line if this is NOT somebody else's
-CVS: work (you are the author).
+CVS: Obtained from:
+CVS:   If this change has been taken from another system, such as NetBSD,
+CVS:   then name the system in this line, otherwise delete it.
+CVS: Reviewed by:
+CVS:   Before committing changes please have someone check your work and
+CVS:   include their name here. If the change is trivial and you have not
+CVS:   had it reviewed then delete this line.
+CVS: Submitted by:
+CVS:   If this code has been contributed to FreeBSD by someone else; i.e.,
+CVS:   they sent us a patch or a new module, then include their name/email
+CVS:   address here. If this is your work then delete this line.
+
+(Note that these lines will also automatically removed now if the tags
+are empty.)
 
 If you are making substantial or possibly controversial changes to the
 code, please talk to someone else who either has commit authority, or
@@ -42,3 +53,13 @@ so that the logs look cleaner.
 
 -GAWollman
 
+
+Importing new stuff is somewhat error-prone since it's easy to create
+unwanted directories or even whole subtrees without noticing it.  The
+script ``easy-import'' has been created to make first-time imports
+easier to handle (vendor-branch imports are not yet supported), and to
+help people avoiding the most common errors.  It is available as
+/usr/local/bin/easy-import on freefall, or in the source tree as
+src/gnu/usr.bin/cvs/contrib/easy-import.pl.
+
+Jörg Wunsch
