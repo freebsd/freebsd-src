@@ -30,6 +30,8 @@
  * $FreeBSD$
  */
 
+#if 0
+/* XXX: not implemented */
 #ifndef _WCTYPE_H_
 #define	_WCTYPE_H_
 
@@ -63,3 +65,4 @@ wint_t	towupper __P((wint_t));
 __END_DECLS
 
 #endif		/* _WCTYPE_H_ */
+#endif
