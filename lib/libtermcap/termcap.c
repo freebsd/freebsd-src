@@ -37,6 +37,7 @@ static char sccsid[] = "@(#)termcap.c	8.1 (Berkeley) 6/4/93";
 
 #define	PBUFSIZ		512	/* max length of filename path */
 #define	PVECSIZ		32	/* max number of names in path */
+#define TBUFSIZ         1024    /* max length of tgetent buffer */
 
 #include <stdio.h>
 #include <ctype.h>
@@ -131,9 +132,54 @@ tgetent(bp, name)
 
 	i = cgetent(&dummy, pathvec, name);      
 	
-	if (i == 0)
-		strcpy(bp, dummy);
-	
+	if (i == 0) {
+		char *pd, *ps, *tok, *s, *tcs;
+		size_t len;
+
+		pd = bp;
+		ps = dummy;
+		if ((tok = strchr(ps, ':')) == NULL) {
+			len = strlen(ps);
+			if (len >= TBUFSIZ)
+				i = -1;
+			else
+				strcpy(pd, ps);
+			goto done;
+		}
+		len = tok - ps + 1;
+		if (pd + len + 1 - bp >= TBUFSIZ) {
+			i = -1;
+			goto done;
+		}
+		memcpy(pd, ps, len);
+		ps += len;
+		pd += len;
+		*pd = '\0';
+		tcs = pd - 1;
+		for (;;) {
+			while ((tok = strsep(&ps, ":")) != NULL &&
+			       (*tok == '\0' || !isgraph(*tok)))
+				;
+			if (tok == NULL)
+				break;
+			for (s = tcs; s != NULL && s[1] != '\0'; s = strchr(s, ':')) {
+				s++;
+				if (s[0] == tok[0] && s[1] == tok[1])
+					goto skip_it;
+			}
+			len = strlen(tok);
+			if (pd + len + 1 - bp >= TBUFSIZ) {
+				i = -1;
+				break;
+			}
+			memcpy(pd, tok, len);
+			pd += len;
+			*pd++ = ':';
+			*pd = '\0';
+		skip_it: ;
+		}
+	}
+done:
 	if (dummy)
 		free(dummy);
 	/* no tc reference loop return code in libterm XXX */
