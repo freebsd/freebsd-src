@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)ufs_disksubr.c	8.5 (Berkeley) 1/21/94
- * $Id: ufs_disksubr.c,v 1.18 1995/08/28 16:09:11 bde Exp $
+ * $Id: ufs_disksubr.c,v 1.19 1995/09/16 17:04:06 bde Exp $
  */
 
 #include <sys/param.h>
@@ -67,6 +67,99 @@
  * field.
  */
 #define	b_cylinder	b_resid
+
+void
+tqdisksort(ap, bp)
+	struct buf_queue_head *ap;
+	register struct buf *bp;
+{
+	register struct buf *bq;
+	struct buf *bn;
+
+	/* If the queue is empty, then it's easy. */
+	if ((bq = ap->tqh_first) == NULL) {
+		TAILQ_INSERT_HEAD(ap, bp, b_act);
+		return;
+	}
+
+#if 1
+	/* Put new writes after all reads */
+	if ((bp->b_flags & B_READ) == 0) {
+		while (bn = bq->b_act.tqe_next) {
+			if ((bq->b_flags & B_READ) == 0)
+				break;
+			bq = bn;
+		}
+	} else {
+		while (bn = bq->b_act.tqe_next) {
+			if ((bq->b_flags & B_READ) == 0) {
+				if (ap->tqh_first != bq) {
+					bq = *bq->b_act.tqe_prev;
+				} 
+				break;
+			}
+			bq = bn;
+		}
+		goto insert;
+	}
+#endif
+
+	/*
+	 * If we lie after the first (currently active) request, then we
+	 * must locate the second request list and add ourselves to it.
+	 */
+	if (bp->b_pblkno < bq->b_pblkno) {
+		while (bn = bq->b_act.tqe_next) {
+			/*
+			 * Check for an ``inversion'' in the normally ascending
+			 * cylinder numbers, indicating the start of the second
+			 * request list.
+			 */
+			if (bn->b_pblkno < bq->b_pblkno) {
+				/*
+				 * Search the second request list for the first
+				 * request at a larger cylinder number.  We go
+				 * before that; if there is no such request, we
+				 * go at end.
+				 */
+				do {
+					if (bp->b_pblkno < bn->b_pblkno)
+						goto insert;
+					bq = bn;
+				} while (bn = bq->b_act.tqe_next);
+				goto insert;		/* after last */
+			}
+			bq = bn;
+		}
+		/*
+		 * No inversions... we will go after the last, and
+		 * be the first request in the second request list.
+		 */
+		goto insert;
+	}
+	/*
+	 * Request is at/after the current request...
+	 * sort in the first request list.
+	 */
+	while (bn = bq->b_act.tqe_next) {
+		/*
+		 * We want to go after the current request if there is an
+		 * inversion after it (i.e. it is the end of the first
+		 * request list), or if the next request is a larger cylinder
+		 * than our request.
+		 */
+		if (bn->b_pblkno < bq->b_pblkno ||
+		    bp->b_pblkno < bn->b_pblkno)
+			goto insert;
+		bq = bn;
+	}
+	/*
+	 * Neither a second list nor a larger request... we go at the end of
+	 * the first list, which is the same as the end of the whole schebang.
+	 */
+insert:
+	TAILQ_INSERT_AFTER(ap, bq, bp, b_act);
+}
 
 void
 disksort(ap, bp)

@@ -41,7 +41,7 @@
  *
  *	@(#)disk.h	8.1 (Berkeley) 6/2/93
  *
- * $Id: disk.h,v 1.2 1994/08/02 07:52:48 davidg Exp $
+ * $Id: disk.h,v 1.3 1994/08/21 04:41:39 paul Exp $
  */
 
 #ifndef _SYS_DISK_H_
@@ -108,6 +108,7 @@ struct disksort_stats {
 
 #ifdef KERNEL
 void	disksort __P((struct buf *, struct buf *));
+void	tqdisksort __P((struct buf_queue_head *, struct buf *));
 char	*readdisklabel __P((struct dkdevice *, int));
 int	setdisklabel __P((struct dkdevice *, struct disklabel *));
 int	writedisklabel __P((struct dkdevice *, int));
