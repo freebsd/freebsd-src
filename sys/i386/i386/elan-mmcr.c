@@ -27,6 +27,7 @@
  * #endif ELAN_PPS
  */
 
+#include "opt_cpu.h"
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/kernel.h>
