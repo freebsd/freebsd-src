@@ -457,6 +457,13 @@ on buildworld elapsed time), a *decrease* for PCI DMA read bandwidth from
 from 149 Mbytes/sec to 115 Mbytes/sec. Something to keep in mind when doing 
 really high speed things with 64 bit PCI adapters.
 
+Keyboard:
+If you experience SRM errors like "ERROR: scancode 0xa3 not supported
+on PCXAL" after halting FreeBSD you should update your SRM firmware
+to V7.2-1 or later. This SRM version is first available on the Firmware
+Update CD V5.7, or on www.compaq.com The problem is fixed on both Miata MX5
+and Miata GL.
+
 USB:
 Does not currently seem to work on FreeBSD/alpha judging from the kernel
 probe messages.
@@ -1294,7 +1301,7 @@ information.
 chip-based), Qlogic family and NCR/Symbios. Be aware of the machine-specific
 bootability issues for the various adapter types.
 
-- FibreChannel: the Qlogic QL2x00 FibreChhannel host adapters are fully
+- FibreChannel: the Qlogic QL2x00 FibreChannel host adapters are fully
 supported.
 
 - graphics console/keyboard/mouse: in general the SRM console emulates 
@@ -1332,7 +1339,7 @@ People who kindly helped me with creating this document:
 - Andrew Gallatin <gallatin@cs.duke.edu>
 - Christian Weisgerber <naddy@mips.rhein-neckar.de>
 - David O'Brien <obrien@NUXI.com>
-- Wim Lemmers
+- Wim Lemmers, Compaq
 - Matthew Jacob <mjacob@feral.com>
 - Eric Schnoebelen <eric@cirr.com>
 - Chuck Robey <chuckr@picnic.mat.net>
