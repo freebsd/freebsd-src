@@ -254,6 +254,14 @@
 	dropped.  This feature provides protection against a class of
 	resource exhaustion attacks.</para>
 
+      <para>The TCP implementation now includes partial (output-only)
+        support for RFC 2385 (TCP-MD5) digest support.  This feature,
+        enabled with the <literal>TCP_SIGNATURE</literal> and
+        <literal>FAST_IPSEC</literal> kernel options, is a TCP option
+        for authenticating TCP sessions.  &man.setkey.8; now includes
+        support for the TCP-MD5 class of security associations.
+        &merged;</para>
+
     </sect3>
 
     <sect3 id="disks">
@@ -307,6 +315,10 @@
       print only the action and comment for each rule, thus omitting
       the rule body.</para>
 
+    <para>A <filename>libarchive</filename> library for manipulation
+      of compressed and uncompressed archive files has been
+      added.  More details can be found in &man.libarchive.3;.</para>
+
     <para arch="pc98"><filename>libdisk</filename> now uses the
       correct PC98 disk partition value for &os;.  This permits the
       &man.sysinstall.8; disk partition editor to correctly create a
@@ -338,10 +350,17 @@
       </note>
     <para>
 
+    <para>&man.killall.1; now supports a <option>-e</option> flag to
+      make the <option>-u</option> operate on effective, rather than
+      real, user ids.</para>
+
     <para>A bugfix has been applied to NSS support, which fixes
       problems when using third-party NSS modules (such as <filename
       role="package">net/nss_ldap</filename>) and groups with large
       membership lists.</para>
+
+    <para>The &man.sdpd.8; Bluetooth Service Discovery Protocol daemon
+      has been added.</para>
 
   </sect2>
 
@@ -351,12 +370,27 @@
     <para>The <application>ACPI-CA</application> code has been updated
       from the 20030619 snapshot to the 20031203 snapshot.</para>
 
+    <para><application>awk</application> from Bell Labs has been
+      updated from the 29 July 2003 release to the 7 February 2004
+      release.</para>
+
     <para>Security improvements from <application>CVS</application>
       1.11.10 and 1.11.11 have been backported.  Specifically, certain
       malformed module requests are now rejected, and when using
       <command>cvs pserver</command> mode, attempts to authenticate as
       <username>root</username> are rejected and recorded via
       &man.syslog.3;.</para>
+
+    <para><application>GNU readline</application> 4.3 has been updated
+      with official patches 001 through 005.</para>
+
+    <para>The <application>GNU tar</application> implementation in the
+      base system is now called <filename>gtar</filename>, with
+      <filename>tar</filename> being a link to
+      <filename>gtar</filename>.</para>
+
+    <para><application>OpenPAM</application> has been updated from the
+      Dogwood release to the Eelgrass release.</para>
 
     <para><application>OpenSSH</application> has been updated from
       3.6.1p1 to 3.7.1p2.</para>
