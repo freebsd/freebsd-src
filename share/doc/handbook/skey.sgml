@@ -1,4 +1,4 @@
-<!-- $Id$ -->
+<!-- $Id: skey.sgml,v 1.1 1995/09/25 18:23:05 wollman Exp $ -->
 <!-- The FreeBSD Documentation Project -->
 <!--
 Copyright 1995 Massachusetts Institute of Technology
@@ -253,7 +253,7 @@ Enter secret password:
 
 The `<tt/-n 25/' requests twenty-five keys in sequence; the `<tt/57/' indicates
 the <em/ending/ iteration number; and the rest is as before.  Note that
-these are printed out in <em/ending/ order of eventual use.  If you're
+these are printed out in <em/reverse/ order of eventual use.  If you're
 really paranoid, you might want to write the results down by hand;
 otherwise you can cut-and-paste into `<tt/lpr/'.  Note that each line shows
 both the iteration count and the one-time password; you may still find
