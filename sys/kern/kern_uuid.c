@@ -110,7 +110,7 @@ uuid_node(uint16_t *node)
 
 	for (i = 0; i < (UUID_NODE_LEN>>1); i++)
 		node[i] = (uint16_t)arc4random();
-	*((uint8_t*)node) |= 0x80;
+	*((uint8_t*)node) |= 0x01;
 }
 
 /*
