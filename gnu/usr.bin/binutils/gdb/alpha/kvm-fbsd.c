@@ -32,7 +32,6 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
  */
 
 #include <sys/param.h>
-#include <sys/lock.h>
 #include <sys/time.h>
 #include <sys/proc.h>
 #include <sys/user.h>
