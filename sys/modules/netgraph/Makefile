@@ -33,13 +33,18 @@ SUBDIR=	async \
 	socket \
 	split \
 	sppp \
-	sync_ar \
-	sync_sr \
+	${_sync_ar} \
+	${_sync_sr} \
 	tee \
 	tty \
 	UI \
 	vjc \
 	vlan
+
+.if ${MACHINE_ARCH} == "i386"
+_sync_ar=	sync_ar
+_sync_sr=	sync_sr
+.endif
 
 .if !defined(NO_BLUETOOTH) || defined(ALL_MODULES)
 _bluetooth=	bluetooth
