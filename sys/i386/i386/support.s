@@ -30,7 +30,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: support.s,v 1.26 1995/12/10 03:11:32 bde Exp $
+ *	$Id: support.s,v 1.27 1995/12/23 16:46:31 davidg Exp $
  */
 
 #include "assym.s"				/* system definitions */
@@ -355,7 +355,7 @@ ENTRY(copyout)					/* copyout(from_kernel, to_user, len) */
 
 #if defined(I386_CPU)
 
-#if defined(I486_CPU) || defined(I586_CPU)
+#if defined(I486_CPU) || defined(I586_CPU) || defined(I686_CPU)
 	cmpl	$CPUCLASS_386,_cpu_class
 	jne	3f
 #endif
@@ -546,10 +546,10 @@ ENTRY(suword)
 
 #if defined(I386_CPU)
 
-#if defined(I486_CPU) || defined(I586_CPU)
+#if defined(I486_CPU) || defined(I586_CPU) || defined(I686_CPU)
 	cmpl	$CPUCLASS_386,_cpu_class
 	jne	2f				/* we only have to set the right segment selector */
-#endif /* I486_CPU || I586_CPU */
+#endif /* I486_CPU || I586_CPU || I686_CPU */
 
 	/* XXX - page boundary crossing is still not handled */
 	movl	%edx,%eax
@@ -588,10 +588,10 @@ ENTRY(susword)
 
 #if defined(I386_CPU)
 
-#if defined(I486_CPU) || defined(I586_CPU)
+#if defined(I486_CPU) || defined(I586_CPU) || defined(I686_CPU)
 	cmpl	$CPUCLASS_386,_cpu_class
 	jne	2f
-#endif /* I486_CPU || I586_CPU */
+#endif /* I486_CPU || I586_CPU || I686_CPU */
 
 	/* XXX - page boundary crossing is still not handled */
 	movl	%edx,%eax
@@ -631,10 +631,10 @@ ENTRY(subyte)
 
 #if defined(I386_CPU)
 
-#if defined(I486_CPU) || defined(I586_CPU)
+#if defined(I486_CPU) || defined(I586_CPU) || defined(I686_CPU)
 	cmpl	$CPUCLASS_386,_cpu_class
 	jne	2f
-#endif /* I486_CPU || I586_CPU */
+#endif /* I486_CPU || I586_CPU || I686_CPU */
 
 	movl	%edx,%eax
 	shrl	$IDXSHIFT,%edx

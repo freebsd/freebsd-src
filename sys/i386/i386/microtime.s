@@ -32,7 +32,7 @@
  * SUCH DAMAGE.
  *
  *	from: Steve McCanne's microtime code
- *	$Id: microtime.s,v 1.10 1995/10/14 04:53:49 bde Exp $
+ *	$Id: microtime.s,v 1.11 1995/11/29 19:57:03 wollman Exp $
  */
 
 #include <machine/asmacros.h>
@@ -44,7 +44,7 @@
 
 ENTRY(microtime)
 
-#ifdef I586_CPU
+#if defined(I586_CPU) || defined(I686_CPU)
 	movl	_i586_ctr_rate, %ecx
 	testl	%ecx, %ecx
 	jne	pentium_microtime
@@ -175,7 +175,7 @@ common_microtime:
 
 	ret
 
-#ifdef I586_CPU
+#if defined(I586_CPU) || defined(I686_CPU)
 	ALIGN_TEXT
 pentium_microtime:
 	cli
