@@ -76,4 +76,4 @@ extern int status;		/* Status file descriptor */
 extern int tw523;		/* tw523 controller */
 extern MONENTRY Monitor[MAXMON];/* Monitor table */
 
-extern char *thedate();
+extern char *thedate(void);
