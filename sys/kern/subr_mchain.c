@@ -55,20 +55,6 @@ MODULE_VERSION(libmchain, 1);
  * Various helper functions
  */
 int
-m_fixhdr(struct mbuf *m0)
-{
-	struct mbuf *m = m0;
-	int len = 0;
-
-	while (m) {
-		len += m->m_len;
-		m = m->m_next;
-	}
-	m0->m_pkthdr.len = len;
-	return len;
-}
-
-int
 mb_init(struct mbchain *mbp)
 {
 	struct mbuf *m;
