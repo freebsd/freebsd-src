@@ -27,7 +27,7 @@
  * Mellon the rights to redistribute these changes without encumbrance.
  * 
  * 	@(#) src/sys/cfs/cfs_subr.c,v 1.1.1.1 1998/08/29 21:14:52 rvb Exp $
- *  $Id: $
+ *  $Id: cfs_subr.c,v 1.2 1998/09/02 19:09:53 rvb Exp $
  * 
   */
 
@@ -46,6 +46,9 @@
 /*
  * HISTORY
  * $Log: cfs_subr.c,v $
+ * Revision 1.2  1998/09/02 19:09:53  rvb
+ * Pass2 complete
+ *
  * Revision 1.1.1.1  1998/08/29 21:14:52  rvb
  * Very Preliminary Coda
  *
@@ -453,6 +456,7 @@ cfs_unmounting(whoIam)
 }
 
 #ifdef	DEBUG
+void
 cfs_checkunmounting(mp)
 	struct mount *mp;
 {	
@@ -474,7 +478,7 @@ loop:
 	}
 }
 
-int
+void
 cfs_cacheprint(whoIam)
 	struct mount *whoIam;
 {	
@@ -483,7 +487,7 @@ cfs_cacheprint(whoIam)
 	int count = 0;
 
 	printf("cfs_cacheprint: cfs_ctlvp %p, cp %p", cfs_ctlvp, VTOC(cfs_ctlvp));
-	cfsnc_name(cfs_ctlvp);
+	cfsnc_name(VTOC(cfs_ctlvp));
 	printf("\n");
 
 	for (hash = 0; hash < CFS_CACHESIZE; hash++) {
