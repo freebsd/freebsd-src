@@ -17,10 +17,12 @@ rc.conf option.  However, if both sendmail_enable and sendmail_submit_enable
 are set to "NO", you must do one of two things for command line submitted
 mail:
 
-1. Designate an alternative MTA for the submission agent to contact
-   by altering /etc/mail/submit.mc and using 'make submit.cf' in
-   /etc/mail/.  Change the FEATURE(msp) line to FEATURE(msp, hostname)
-   where hostname is the fully qualified hostname of the alternative MTA.
+1. Designate an alternative host for the submission agent to contact
+   by altering /etc/mail/freebsd.submit.mc (or setting SENDMAIL_SUBMIT_MC
+   in /etc/make.conf to an alternate .mc file) and using
+   'make install-submit-cf' in /etc/mail/.  Change the FEATURE(msp) line
+   to FEATURE(msp, hostname) where hostname is the fully qualified hostname
+   of the alternative host.
 
 Or:
 
