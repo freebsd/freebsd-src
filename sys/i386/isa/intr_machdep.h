@@ -30,8 +30,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	from: @(#)isa_device.h	7.1 (Berkeley) 5/9/91
- *	$Id: intr_machdep.h,v 1.13 1998/06/18 15:32:06 bde Exp $
+ *	$Id: intr_machdep.h,v 1.14 1999/04/21 07:26:27 peter Exp $
  */
 
 #ifndef _I386_ISA_INTR_MACHDEP_H_
@@ -187,15 +186,12 @@ inthand_t
 #endif /** TEST_TEST1 */
 #endif /* SMP || APIC_IO */
 
-struct isa_device;
-
 void	isa_defaultirq __P((void));
 int	isa_nmi __P((int cd));
 int	icu_setup __P((int intr, inthand2_t *func, void *arg, 
 		       u_int *maskptr, int flags));
 int	icu_unset __P((int intr, inthand2_t *handler));
 int	update_intr_masks __P((void));
-void	register_imask __P((struct isa_device *dvp, u_int mask));
 
 intrmask_t splq __P((intrmask_t mask));
 
