@@ -31,10 +31,12 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)com.c	7.5 (Berkeley) 5/16/91
- *	$Id: sio.c,v 1.131 1995/12/29 12:50:54 bde Exp $
+ *	$Id: sio.c,v 1.132 1995/12/30 03:52:58 bde Exp $
  */
 
 #include "sio.h"
+#include "opt_ddb.h"
+
 /*
  * Serial driver, based on 386BSD-0.1 com driver.
  * Mostly rewritten to use pseudo-DMA.
