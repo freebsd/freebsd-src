@@ -356,7 +356,6 @@ extern int bsd_to_linux_signal[];
 extern int linux_to_bsd_signal[];
 extern struct sysentvec linux_sysvec;
 extern struct sysentvec elf_linux_sysvec;
-void bsd_to_linux_sigset(sigset_t *bss, linux_sigset_t *lss);
 
 /*
  * Pluggable ioctl handlers
