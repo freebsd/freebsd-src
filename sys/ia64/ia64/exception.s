@@ -873,7 +873,7 @@ ia64_vhpt:	.quad 0
  */
 ENTRY(exception_restore, 0)
 
-	rsm	psr.ic|psr.dt		// disable interrupt collection and vm
+	rsm	psr.ic|psr.dt|psr.i	// disable interrupt collection and vm
 	add	r3=16,sp;
 	;;
 	srlz.d
@@ -1358,12 +1358,14 @@ ENTRY(do_syscall, 0)
 (p6)	add	sp=-16,loc1
 (p6)	br.dpnt.many exception_restore
 
-	rsm 	psr.dt|psr.ic		// get ready to restore
+	rsm 	psr.dt|psr.ic|psr.i	// get ready to restore
 	;;
 	srlz.d				// serialise psr.dt and psr.ic
 	dep	r30=0,loc1,61,3		// physical address
 	mov	gp=loc2			// restore user gp
+	add	r16=SIZEOF_TRAPFRAME,loc1
 	;;
+	mov	ar.k6=r16		// restore kernel sp
 	add	r30=TF_R+FRAME_SP*8,r30	// &tf_r[FRAME_SP]
 	mov	r15=loc0		// saved syscall number
 	alloc	r14=ar.pfs,0,0,0,0	// discard register frame
