@@ -1,4 +1,4 @@
-#	$Id: Makefile,v 1.245 1996/10/10 09:22:16 jkh Exp $
+#	$Id: Makefile,v 1.246 1996/10/14 13:29:40 jkh Exp $
 #
 # How to roll a release:
 #
@@ -375,6 +375,7 @@ release.8: write_mfs_in_kernel dumpnlist
 	echo "ftp             21/tcp"		>> ${RD}/mfsfd/stand/etc/services
 	echo "domain          53/tcp          nameserver" >> ${RD}/mfsfd/stand/etc/services
 	echo "domain          53/udp          nameserver" >> ${RD}/mfsfd/stand/etc/services
+	echo "cmd             514/tcp    shell" >> ${RD}/mfsfd/stand/etc/services
 	gzip -c ${.CURDIR}/../COPYRIGHT > ${RD}/mfsfd/stand/help/COPYRIGHT.hlp.gz
 	-test -f ${.CURDIR}/install.cfg && cp ${.CURDIR}/install.cfg ${RD}/mfsfd
 	# make the small bootfd
@@ -586,7 +587,7 @@ doMFSKERN:
 	@mv ${RD}/boot.${FSIMAGE}/kernel.kz ${RD}/boot.${FSIMAGE}/kernel
 	@ls -l ${RD}/boot.${FSIMAGE}/kernel
 	@rm -f ${RD}/floppies/boot${FSIMAGE}.flp
-	cat /usr/mdec/rawboot ${RD}/boot.${FSIMAGE}/kernel | \
+	cat ${RD}/trees/bin/usr/mdec/rawboot ${RD}/boot.${FSIMAGE}/kernel | \
 		dd conv=sync of=${RD}/floppies/boot${FSIMAGE}.flp
 	@echo 'USERCONFIG' > startup_foo
 	@echo 'intro' >> startup_foo
