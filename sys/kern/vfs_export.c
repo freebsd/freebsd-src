@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)vfs_subr.c	8.31 (Berkeley) 5/26/95
- * $Id: vfs_subr.c,v 1.125 1998/01/22 17:29:52 dyson Exp $
+ * $Id: vfs_subr.c,v 1.126 1998/01/24 02:01:22 dyson Exp $
  */
 
 /*
@@ -1458,7 +1458,9 @@ vgonel(vp, p)
 		} else if (vp->v_flag & VTBFREE) {
 			TAILQ_REMOVE(&vnode_tobefree_list, vp, v_freelist);
 			vp->v_flag &= ~VTBFREE;
-		}
+			freevnodes++;
+		} else
+			freevnodes++;
 		vp->v_flag |= VFREE;
 		TAILQ_INSERT_HEAD(&vnode_free_list, vp, v_freelist);
 		simple_unlock(&vnode_free_list_slock);
