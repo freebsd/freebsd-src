@@ -37,9 +37,11 @@ __FBSDID("$FreeBSD$");
 #include <string.h>
 #include <ucontext.h>
 
+#include <machine/sysarch.h>
+
 #include "pthread_md.h"
 
-struct arm_tp *_tp = NULL;
+struct arm_tp **arm_tp = (struct arm_tp **)ARM_TP_ADDRESS;
 
 struct tcb *
 _tcb_ctor(struct pthread *thread, int initial)
