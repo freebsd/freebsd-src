@@ -305,7 +305,7 @@ vm_waitproc(p)
 	pmap_dispose_proc(p);		/* drop per-process resources */
 	FOREACH_THREAD_IN_PROC(p, td)
 		pmap_dispose_thread(td);
-	vmspace_free(p->p_vmspace);	/* and clean-out the vmspace */
+	vmspace_exitfree(p);		/* and clean-out the vmspace */
 }
 
 /*
