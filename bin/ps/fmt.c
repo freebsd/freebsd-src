@@ -51,16 +51,17 @@ __FBSDID("$FreeBSD$");
 
 #include "ps.h"
 
-static char *cmdpart(char *);
-static char *shquote(char **);
+static const char	*cmdpart(const char *);
+static const char	*shquote(const char **);
 
-static char *
-shquote(char **argv)
+static const char *
+shquote(const char **argv)
 {
 	long arg_max;
 	static size_t buf_size;
 	size_t len;
-	char **p, *dst, *src;
+	const char **p, *src;
+	char *dst;
 	static char *buf = NULL;
 
 	if (buf == NULL) {
@@ -96,19 +97,20 @@ shquote(char **argv)
 	return (buf);
 }
 
-static char *
-cmdpart(char *arg0)
+static const char *
+cmdpart(const char *arg0)
 {
-	char *cp;
+	const char *cp;
 
 	return ((cp = strrchr(arg0, '/')) != NULL ? cp + 1 : arg0);
 }
 
 const char *
-fmt_argv(char **argv, char *cmd, size_t maxlen)
+fmt_argv(const char **argv, const char *cmd, size_t maxlen)
 {
 	size_t len;
-	char *ap, *cp;
+	const char *ap;
+	char *cp;
 
 	if (argv == NULL || argv[0] == NULL) {
 		if (cmd == NULL)
