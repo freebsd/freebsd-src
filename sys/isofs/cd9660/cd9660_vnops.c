@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)cd9660_vnops.c	8.3 (Berkeley) 1/23/94
- * $Id: cd9660_vnops.c,v 1.8 1994/09/22 19:37:46 wollman Exp $
+ * $Id: cd9660_vnops.c,v 1.9 1994/09/26 00:32:59 gpalmer Exp $
  */
 
 #include <sys/param.h>
@@ -480,6 +480,8 @@ cd9660_readdir(ap)
 	struct iso_node *ip;
 	struct buf *bp = NULL;
 	u_short tmplen;
+	int ncookies = 0;
+	u_int *cookies = NULL;
 	
 	ip = VTOI(ap->a_vp);
 	imp = ip->i_mnt;
@@ -488,13 +490,17 @@ cd9660_readdir(ap)
 	idp->saveent.d_namlen = 0;
 	idp->assocent.d_namlen = 0;
 	idp->uio = uio;
-#if 0
-	idp->cookiep = cookies;
-	idp->ncookies = ncookies;
-	idp->eof = 1;
-#else
-	idp->cookiep = 0;
-#endif
+	if (ap->a_ncookies != NULL) {
+		/*
+		 * Guess the number of cookies needed.
+		 */
+		ncookies = uio->uio_resid / 16;
+		MALLOC(cookies, u_int *, ncookies * sizeof(u_int), M_TEMP, M_WAITOK);
+		idp->cookiep = cookies;
+		idp->ncookies = ncookies;
+	} else
+		idp->cookiep = 0;
+	idp->eof = 0;
 	idp->curroff = uio->uio_offset;
 	
 	entryoffsetinblock = iso_blkoff(imp, idp->curroff);
@@ -610,14 +616,25 @@ cd9660_readdir(ap)
 	}
 	if (error < 0)
 		error = 0;
+
+	if (ap->a_ncookies != NULL) {
+		if (error)
+			FREE(cookies, M_TEMP);
+		else {
+			/*
+			 * Work out the number of cookies actually used.
+			 */
+			*ap->a_ncookies = ncookies - idp->ncookies;
+			*ap->a_cookies = cookies;
+		}
+	}
 	
 	if (bp)
 		brelse (bp);
 
 	uio->uio_offset = idp->uio_off;
-#if 0
-	*eofflagp = idp->eof;
-#endif
+	if (ap->a_eofflag)
+	    *ap->a_eofflag = idp->eof;
 	
 	FREE(idp,M_TEMP);
 	
