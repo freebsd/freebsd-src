@@ -386,7 +386,7 @@
       <para>There have been reports that you sometimes need to press
       <keycap>Control</keycap>-<keycap>Alt</keycap>-<keycap>Del</keycap> 
       to capture the SRM's attention. I have
-      never seen this myself, but it is worth trying when you are greeted
+      never seen this myself, but it is worth trying if you are greeted
       by a blank screen after powerup.</para>
 
       <para>Make sure you use true 36 bit SIMMs, and only FPM (Fast
@@ -1829,7 +1829,7 @@ cpu	EV5		# depends on the CPU model installed</programlisting>
 	    <para>2 on-board 21143 Fast Ethernet controllers</para>
 	  </listitem>
           <listitem>
-	    <para>AcerLabs M5237 (Aladdin-V) USB controller</para>
+	    <para>AcerLabs M5237 (Aladdin-V) USB controller (disabled)</para>
 	  </listitem>
 	  <listitem>
             <para>AcerLabs M1533 PCI-ISA bridge</para>
@@ -1890,7 +1890,7 @@ cpu	EV5		# depends on the CPU model installed</programlisting>
       <para>On the PCI bus 32 and 64 bit cards are supported, in 3.3V and 
       5V variants.</para>
 
-      <para>The USB interfaces are supported in &os; 4.1 and later.</para>
+      <para>The USB ports are not supported and disabled by Compaq.</para>
 
       <para>The kernel config file must contain:</para>
       <programlisting>options	DEC_ST6600    
