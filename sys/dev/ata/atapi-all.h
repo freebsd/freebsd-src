@@ -169,10 +169,11 @@ struct atapi_request {
     int32_t			flags;		
 #define		ATPR_F_READ		0x0001
 #define		ATPR_F_DMA_USED		0x0002
+#define		ATPR_F_AT_HEAD		0x0004
 
     int8_t			*data;		/* pointer to data buf */
-    struct buf			*bp;		/* associated buf ptr */
     atapi_callback_t		*callback;	/* ptr to callback func */
+    void 			*driver;	/* driver specific */
     TAILQ_ENTRY(atapi_request)	chain;		/* list management */
 };
 
@@ -181,7 +182,7 @@ void atapi_detach(struct atapi_softc *);
 void atapi_start(struct atapi_softc *);
 void atapi_transfer(struct atapi_request *);
 int32_t atapi_interrupt(struct atapi_request *);
-int32_t atapi_queue_cmd(struct atapi_softc *, int8_t [], void *, int32_t, int32_t, int32_t,  atapi_callback_t, struct buf *);
+int32_t atapi_queue_cmd(struct atapi_softc *, int8_t [], void *, int32_t, int32_t, int32_t, atapi_callback_t, void *);
 void atapi_reinit(struct atapi_softc *);
 int32_t atapi_test_ready(struct atapi_softc *);
 int32_t atapi_wait_ready(struct atapi_softc *, int32_t);
