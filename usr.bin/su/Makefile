@@ -6,6 +6,10 @@ PROG=	su
 DPADD+= ${LIBUTIL} ${LIBPAM}
 LDADD+= -lutil ${MINUSLPAM}
 
+# Cannot be enabled because of a truly nasty warning/problem
+# concering execv(2)'s second argument.
+#WARNS?=	2
+
 BINMODE=4555
 INSTALLFLAGS=-fschg
 
