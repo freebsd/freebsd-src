@@ -402,10 +402,13 @@ gv_new_drive(int max, char *token[])
 				errors++;
 				break;
 			}
-			ptr = token[j] + strlen(token[j]);
-			while (ptr != token[j] && *ptr != '/')
-				ptr--;
-			ptr++;
+			ptr = token[j];
+			if (*ptr == '/') {
+				ptr++;
+				while (*ptr != '/')
+					ptr++;
+				ptr++;
+			}
 			strncpy(d->device, ptr, GV_MAXDRIVENAME);
 		} else {
 			/* We assume this is the drive name. */
