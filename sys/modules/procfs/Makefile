@@ -4,11 +4,13 @@
 
 KMOD=		procfs
 SRCS=
+SRCS+=		opt_mac.h
 SRCS+=		vnode_if.h
 SRCS+=		procfs_ctl.c
 SRCS+=		procfs_dbregs.c
 SRCS+=		procfs_fpregs.c
 SRCS+=		procfs_ioctl.c
+SRCS+=		procfs_mac.c
 SRCS+=		procfs_map.c
 SRCS+=		procfs_mem.c
 SRCS+=		procfs_note.c
