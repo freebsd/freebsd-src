@@ -60,6 +60,7 @@ oui NATSEMI			0x080017	National Semiconductor
 oui QUALSEMI			0x006051	Quality Semiconductor
 oui SEEQ			0x00a07d	Seeq
 oui SIS				0x00e006	Silicon Integrated Systems
+oui TDK				0x00c039	TDK
 oui TI				0x080028	Texas Instruments
 oui XAQTI			0x00e0ae	XaQti Corp.
 
@@ -125,6 +126,9 @@ model xxSEEQ 84220		0x0004 Seeq 84220 10/100 media interface
 
 /* Silicon Integrated Systems PHYs */
 model xxSIS 900			0x0000 SiS 900 10/100 media interface
+
+/* TDK */
+model TDK 78Q2120		0x0014 TDK 78Q2120 media interface
 
 /* Texas Instruments PHYs */
 model xxTI TLAN10T		0x0001 ThunderLAN 10baseT media interface
