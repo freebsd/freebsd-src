@@ -17,7 +17,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: hdlc.c,v 1.9.2.1 1997/05/09 17:36:15 brian Exp $
+ * $Id: hdlc.c,v 1.9.2.2 1997/05/10 01:24:35 brian Exp $
  *
  *	TODO:
  */
@@ -26,6 +26,7 @@
 #include "lcpproto.h"
 #include "lcp.h"
 #include "lqr.h"
+#include "loadalias.h"
 #include "vars.h"
 #include "pred.h"
 #include "modem.h"

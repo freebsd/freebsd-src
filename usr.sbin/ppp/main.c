@@ -17,7 +17,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: main.c,v 1.22.2.17 1997/05/24 10:29:28 brian Exp $
+ * $Id: main.c,v 1.22.2.18 1997/05/24 17:34:54 brian Exp $
  *
  *	TODO:
  *		o Add commands for traffic summary, version display, etc.
@@ -37,13 +37,13 @@
 #include <arpa/inet.h>
 #include <netinet/in_systm.h>
 #include <netinet/ip.h>
-#include <alias.h>
 #include "modem.h"
 #include "os.h"
 #include "hdlc.h"
 #include "ccp.h"
 #include "lcp.h"
 #include "ipcp.h"
+#include "loadalias.h"
 #include "vars.h"
 #include "auth.h"
 #include "filter.h"
@@ -289,7 +289,10 @@ ProcessArgs(int argc, char **argv)
     else if (strcmp(cp, "ddial") == 0)
       mode |= MODE_DDIAL|MODE_AUTO;
     else if (strcmp(cp, "alias") == 0) {
-      mode |= MODE_ALIAS;
+      if (loadAliasHandlers(&VarAliasHandlers) == 0)
+        mode |= MODE_ALIAS;
+      else
+        printf("Cannot load alias library\n");
       optc--;             /* this option isn't exclusive */
     }
     else
@@ -330,7 +333,6 @@ char **argv;
   Greetings();
   GetUid();
   IpcpDefAddress();
-  InitPacketAlias();
 
   if (SelectSystem("default", CONFFILE) < 0) {
     fprintf(stderr, "Warning: No default entry is given in config file.\n");
@@ -1026,7 +1028,7 @@ DoLoop()
 	pri = PacketCheck(rbuff, n, FL_DIAL);
 	if (pri >= 0) {
 	  if (mode & MODE_ALIAS) {
-	    PacketAliasOut(rbuff, sizeof rbuff);
+	    VarPacketAliasOut(rbuff, sizeof rbuff);
 	    n = ntohs(((struct ip *)rbuff)->ip_len);
 	  }
 	  IpEnqueue(pri, rbuff, n);
@@ -1037,7 +1039,7 @@ DoLoop()
       pri = PacketCheck(rbuff, n, FL_OUT);
       if (pri >= 0) {
         if (mode & MODE_ALIAS) {
-          PacketAliasOut(rbuff, sizeof rbuff);
+          VarPacketAliasOut(rbuff, sizeof rbuff);
           n = ntohs(((struct ip *)rbuff)->ip_len);
         }
 	IpEnqueue(pri, rbuff, n);

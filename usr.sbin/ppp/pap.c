@@ -18,13 +18,14 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: pap.c,v 1.7.2.1 1997/05/19 02:02:27 brian Exp $
+ * $Id: pap.c,v 1.7.2.2 1997/05/24 17:34:56 brian Exp $
  *
  *	TODO:
  */
 #include "fsm.h"
 #include "lcp.h"
 #include "pap.h"
+#include "loadalias.h"
 #include "vars.h"
 #include "hdlc.h"
 #include "lcpproto.h"

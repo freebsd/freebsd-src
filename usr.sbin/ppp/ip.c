@@ -17,7 +17,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: ip.c,v 1.9.2.7 1997/05/24 10:29:26 brian Exp $
+ * $Id: ip.c,v 1.9.2.8 1997/05/24 17:34:49 brian Exp $
  *
  *	TODO:
  *		o Return ICMP message for filterd packet
@@ -33,6 +33,7 @@
 #include <netinet/tcp.h>
 #include <arpa/inet.h>
 #include <alias.h>
+#include "loadalias.h"
 #include "vars.h"
 #include "filter.h"
 
@@ -337,7 +338,7 @@ struct mbuf *bp;		/* IN: Pointer to IP pakcet */
     int iresult;
     char *fptr;
 
-    iresult = PacketAliasIn(tunbuff, sizeof tunbuff);
+    iresult = VarPacketAliasIn(tunbuff, sizeof tunbuff);
     nb = ntohs(((struct ip *) tunbuff)->ip_len);
 
     if (nb > MAX_MRU) {
@@ -361,8 +362,8 @@ struct mbuf *bp;		/* IN: Pointer to IP pakcet */
         fprintf(stderr, "wrote %d, got %d\r\n", nb, nw);
 
       if (iresult == PKT_ALIAS_FOUND_HEADER_FRAGMENT) {
-        while ((fptr = GetNextFragmentPtr(tunbuff)) != NULL) {
-          FragmentAliasIn(tunbuff, fptr);
+        while ((fptr = VarGetNextFragmentPtr(tunbuff)) != NULL) {
+          VarFragmentAliasIn(tunbuff, fptr);
           nb = ntohs(((struct ip *) fptr)->ip_len);
           nw = write(tun_out, fptr, nb);
           if (nw != nb)
@@ -379,7 +380,7 @@ struct mbuf *bp;		/* IN: Pointer to IP pakcet */
       }
       else {
         memcpy(fptr, tunbuff, nb);
-        SaveFragmentPtr(fptr);
+        VarSaveFragmentPtr(fptr);
       }
     }
   }
