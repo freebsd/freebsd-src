@@ -114,8 +114,8 @@ enum typeid {
 
 static int	__sprint __P((FILE *, struct __suio *));
 static int	__sbprintf __P((FILE *, const char *, va_list)) __printflike(2, 0);
-static char *	__ujtoa __P((uintmax_t, char *, int, int, char *, const char *));
-static char *	__ultoa __P((u_long, char *, int, int, char *, const char *));
+static char *	__ujtoa __P((uintmax_t, char *, int, int, char *, int, char, const char *));
+static char *	__ultoa __P((u_long, char *, int, int, char *, int, char, const char *));
 static void	__find_arguments __P((const char *, va_list, union arg **));
 static void	__grow_type_table __P((int, enum typeid **, int *));
 
@@ -185,7 +185,7 @@ __sbprintf(FILE *fp, const char *fmt, va_list ap)
  */
 static char *
 __ultoa(u_long val, char *endp, int base, int octzero, char *xdigs,
-	const char *thousep)
+	int needgrp, char thousep, const char *grp)
 {
 	register char *cp = endp;
 	register long sval;
@@ -216,9 +216,20 @@ __ultoa(u_long val, char *endp, int base, int octzero, char *xdigs,
 			sval = val;
 		do {
 			*--cp = to_char(sval % 10);
-			if (++ndig == 3 && thousep && *thousep != '\0') {
-				*--cp = *thousep;
+			ndig++;
+			/*
+			 * If (*grp == CHAR_MAX) then no more grouping
+			 * should be performed.
+			 */
+			if (needgrp && ndig == *grp && *grp != CHAR_MAX) {
+				*--cp = thousep;
 				ndig = 0;
+				/*
+				 * If (*(grp+1) == '\0') then we have to
+				 * use *grp character (last grouping rule)
+				 * for all next cases
+				 */
+				if (*(grp+1) != '\0') grp++;
 			}
 			sval /= 10;
 		} while (sval != 0);
@@ -249,7 +260,7 @@ __ultoa(u_long val, char *endp, int base, int octzero, char *xdigs,
 /* Identical to __ultoa, but for intmax_t. */
 static char *
 __ujtoa(uintmax_t val, char *endp, int base, int octzero, char *xdigs, 
-	const char *thousep)
+	int needgrp, char thousep, const char *grp)
 {
 	char *cp = endp;
 	intmax_t sval;
@@ -259,7 +270,7 @@ __ujtoa(uintmax_t val, char *endp, int base, int octzero, char *xdigs,
 	/* (perhaps instead we should run until small, then call __ultoa?) */
 	if (val <= ULONG_MAX)
 		return (__ultoa((u_long)val, endp, base, octzero, xdigs,
-		    thousep));
+		    needgrp, thousep, grp));
 	switch (base) {
 	case 10:
 		if (val < 10) {
@@ -275,10 +286,21 @@ __ujtoa(uintmax_t val, char *endp, int base, int octzero, char *xdigs,
 			sval = val;
 		do {
 			*--cp = to_char(sval % 10);
-			if (++ndig == 3 && thousep && *thousep != '\0') {
-				*--cp = *thousep;
+			ndig++;
+			/*
+			 * If (*grp == CHAR_MAX) then no more grouping
+			 * should be performed.
+			 */
+			if (needgrp && *grp != CHAR_MAX && ndig == *grp) {
+				*--cp = thousep;
 				ndig = 0;
-			}
+				/*
+				 * If (*(grp+1) == '\0') then we have to
+				 * use *grp character (last grouping rule)
+				 * for all next cases
+				 */
+				if (*(grp+1) != '\0') grp++;
+                        }
 			sval /= 10;
 		} while (sval != 0);
 		break;
@@ -323,7 +345,7 @@ vfprintf(FILE *fp, const char *fmt0, va_list ap)
 #include <math.h>
 #include "floatio.h"
 
-#define	BUF		((MAXEXP*4/3)+MAXFRACT+1)	/* + decimal point */
+#define	BUF		((MAXEXP*2)+MAXFRACT+1)		/* + decimal point */
 #define	DEFPREC		6
 
 static char *cvt __P((double, int, int, char *, int *, int, int *, char **));
@@ -331,7 +353,7 @@ static int exponent __P((char *, int, int));
 
 #else /* no FLOATING_POINT */
 
-#define	BUF		90
+#define	BUF		136
 
 #endif /* FLOATING_POINT */
 
@@ -349,11 +371,12 @@ static int exponent __P((char *, int, int));
 #define	SHORTINT	0x040		/* short integer */
 #define	ZEROPAD		0x080		/* zero (as opposed to blank) pad */
 #define FPT		0x100		/* Floating point number */
+#define	GROUPING	0x200		/* use grouping ("'" flag) */
 					/* C99 additional size modifiers: */
-#define	SIZET		0x200		/* size_t */
-#define	PTRDIFFT	0x400		/* ptrdiff_t */
-#define	INTMAXT		0x800		/* intmax_t */
-#define	CHARINT		0x1000		/* print char using int format */
+#define	SIZET		0x400		/* size_t */
+#define	PTRDIFFT	0x800		/* ptrdiff_t */
+#define	INTMAXT		0x1000		/* intmax_t */
+#define	CHARINT		0x2000		/* print char using int format */
 
 /*
  * Non-MT-safe version
@@ -371,7 +394,8 @@ __vfprintf(FILE *fp, const char *fmt0, va_list ap)
 	int width;		/* width from format (%8d), or 0 */
 	int prec;		/* precision from format (%.3d), or -1 */
 	char sign;		/* sign prefix (' ', '+', '-', or \0) */
-	const char *thousands_sep; /* locale specific thousands separator */
+	char thousands_sep;	/* locale specific thousands separator */
+	const char *grouping;	/* locale specific numeric grouping rules */
 #ifdef FLOATING_POINT
 	char *decimal_point;	/* locale specific decimal point */
 	char softsign;		/* temporary negative sign for floats */
@@ -500,9 +524,10 @@ __vfprintf(FILE *fp, const char *fmt0, va_list ap)
         } else { \
 		val = GETARG (int); \
         }
-        
 
-	thousands_sep = NULL;
+        
+	thousands_sep = '\0';
+	grouping = NULL;
 #ifdef FLOATING_POINT
 	dtoaresult = NULL;
 	decimal_point = localeconv()->decimal_point;
@@ -582,7 +607,9 @@ reswitch:	switch (ch) {
 			sign = '+';
 			goto rflag;
 		case '\'':
-			thousands_sep = localeconv()->thousands_sep;
+			flags |= GROUPING;
+			thousands_sep = *(localeconv()->thousands_sep);
+			grouping = localeconv()->grouping;
 			goto rflag;
 		case '.':
 			if ((ch = *fmt++) == '*') {
@@ -686,6 +713,14 @@ reswitch:	switch (ch) {
 #endif
 		case 'e':
 		case 'E':
+			/*
+			 * Grouping apply to %i, %d, %u, %f, %F, %g, %G
+			 * conversion specifiers only. For other conversions
+			 * behavior is undefined.
+			 *	-- POSIX
+			 */
+			flags &= ~GROUPING;
+			/*FALLTHROUGH*/
 		case 'f':
 		case 'F':
 			goto fp_begin;
@@ -851,6 +886,8 @@ hex:
 			    (flags & INTMAX_SIZE ? ujval != 0 : ulval != 0))
 				flags |= HEXPREFIX;
 
+			flags &= ~GROUPING;
+
 			/* unsigned conversions */
 nosign:			sign = '\0';
 			/*
@@ -870,11 +907,15 @@ number:			if ((dprec = prec) >= 0)
 			if (flags & INTMAX_SIZE) {
 				if (ujval != 0 || prec != 0)
 					cp = __ujtoa(ujval, cp, base,
-					    flags & ALT, xdigs, thousands_sep);
+					    flags & ALT, xdigs,
+					    flags & GROUPING, thousands_sep,
+					    grouping);
 			} else {
 				if (ulval != 0 || prec != 0)
 					cp = __ultoa(ulval, cp, base,
-					    flags & ALT, xdigs, thousands_sep);
+					    flags & ALT, xdigs,
+					    flags & GROUPING, thousands_sep,
+					    grouping);
 			}
 			size = buf + BUF - cp;
 			break;
