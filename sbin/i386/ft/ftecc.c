@@ -1,32 +1,41 @@
 /*
- *  ftecc.c  10/30/93 v0.3
- *  Handle error correction for floppy tape drives.
+ *  Copyright (c) 1994 Steve Gerakines
  *
- *  File contents are copyrighted by David L. Brown and falls under the
- *  terms of the GPL version 2 or greater.  See his original release for
- *  the specific terms.
+ *  This is freely redistributable software.  You may do anything you
+ *  wish with it, so long as the above notice stays intact.
  *
- *  Steve Gerakines
- *  steve2@genesis.nred.ma.us
- *  Modified slightly to fit with my tape driver.  I'm not at all happy
- *  with this module and will have it replaced with a more functional one
- *  in the next release(/RSN).  I am close, but progress will continue to
- *  be slow until I can find a book on the subject where the translator
- *  understands both the to and from languages. :-(  For now it will
- *  suffice.
+ *  THIS SOFTWARE IS PROVIDED BY THE AUTHOR(S) ``AS IS'' AND ANY EXPRESS
+ *  OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
+ *  WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
+ *  DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR(S) BE LIABLE FOR ANY DIRECT,
+ *  INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES
+ *  (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR
+ *  SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+ *  HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT,
+ *  STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING
+ *  IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
+ *  POSSIBILITY OF SUCH DAMAGE.
+ *
+ *  ftecc.c - QIC-40/80 Reed-Solomon error correction
+ *  03/22/94 v0.4
+ *  Major re-write.  It can handle everything required by QIC now.
+ *
+ *  09/14/93 v0.2 pl01
+ *  Modified slightly to fit with my driver.  Based entirely upon David
+ *  L. Brown's package.
  */
 #include <sys/ftape.h>
 
-/*
- *  In order to speed up the correction and adjustment, we can compute
- *  a matrix of coefficients for the multiplication.
- */
+/* Inverse matrix */
 struct inv_mat {
-  UCHAR log_denom;      /* The log z of the denominator. */
-  UCHAR zs[3][3];       /* The coefficients for the adjustment matrix. */
+  UCHAR log_denom;      /* Log of the denominator */
+  UCHAR zs[3][3];	/* The matrix */
 };
 
-/* This array is a table of powers of x, from 0 to 254. */
+
+/*
+ *  Powers of x, modulo 255.
+ */
 static UCHAR alpha_power[] = {
   0x01, 0x02, 0x04, 0x08, 0x10, 0x20, 0x40, 0x80,
   0x87, 0x89, 0x95, 0xad, 0xdd, 0x3d, 0x7a, 0xf4,
@@ -59,12 +68,12 @@ static UCHAR alpha_power[] = {
   0xc8, 0x17, 0x2e, 0x5c, 0xb8, 0xf7, 0x69, 0xd2,
   0x23, 0x46, 0x8c, 0x9f, 0xb9, 0xf5, 0x6d, 0xda,
   0x33, 0x66, 0xcc, 0x1f, 0x3e, 0x7c, 0xf8, 0x77,
-  0xee, 0x5b, 0xb6, 0xeb, 0x51, 0xa2, 0xc3
+  0xee, 0x5b, 0xb6, 0xeb, 0x51, 0xa2, 0xc3, 0x01
 };
 
+
 /*
- * This is the reverse lookup table.  There is no log of 0, so the
- * first element is not valid.
+ *  Log table, modulo 255 + 1.
  */
 static UCHAR alpha_log[] = {
   0xff, 0x00, 0x01, 0x63, 0x02, 0xc6, 0x64, 0x6a,
@@ -101,8 +110,12 @@ static UCHAR alpha_log[] = {
   0xf6, 0x87, 0xa5, 0x17, 0x3a, 0xa3, 0x3c, 0xb7
 };
 
-/* Return number of sectors available in a segment. */
-int sect_count(ULONG badmap)
+
+/*
+ *  Return number of sectors available in a segment.
+ */
+int
+sect_count(ULONG badmap)
 {
   int i, amt;
 
@@ -111,8 +124,12 @@ int sect_count(ULONG badmap)
   return(amt);
 }
 
-/* Return number of bytes available in a segment. */
-int sect_bytes(ULONG badmap)
+
+/*
+ *  Return number of bytes available in a segment.
+ */
+int
+sect_bytes(ULONG badmap)
 {
   int i, amt;
 
@@ -121,146 +138,201 @@ int sect_bytes(ULONG badmap)
   return(amt);
 }
 
-/* Multiply two numbers in the field. */
-static UCHAR multiply(UCHAR a, UCHAR b)
-{
-  int tmp;
 
-  if (a == 0 || b == 0) return(0);
-  tmp = (alpha_log[a] + alpha_log[b]);
-  if (tmp > 254) tmp -= 255;
-  return (alpha_power[tmp]);
+/*
+ *  Multiply two numbers in the field.
+ */
+static UCHAR
+multiply(UCHAR a, UCHAR b)
+{
+  if (!a || !b) return(0);
+  return(alpha_power[(alpha_log[a] + alpha_log[b]) % 255]);
 }
 
-static UCHAR divide(UCHAR a, UCHAR b)
+
+/*
+ *  Multiply by an exponent.
+ */
+static UCHAR
+multiply_out(UCHAR a, int b)
+{
+  if (!a) return(0);
+  return(alpha_power[(alpha_log[a] + b) % 255]);
+}
+
+
+/*
+ *  Divide two numbers.
+ */
+static UCHAR
+divide(UCHAR a, UCHAR b)
 {
   int tmp;
 
-  if (a == 0 || b == 0) return(0);
-  tmp = (alpha_log[a] - alpha_log[b]);
+  if (!a || !b) return(0);
+  tmp = alpha_log[a] - alpha_log[b];
   if (tmp < 0) tmp += 255;
   return (alpha_power[tmp]);
 }
 
+
 /*
- * This is just like divide, except we have already looked up the log
- * of the second number.
+ *  Divide using exponent.
  */
-static UCHAR divide_out(UCHAR a, UCHAR b)
+static UCHAR
+divide_out(UCHAR a, UCHAR b)
 {
   int tmp;
 
-  if (a == 0) return 0;
+  if (!a) return 0;
   tmp = alpha_log[a] - b;
   if (tmp < 0) tmp += 255;
   return (alpha_power[tmp]);
 }
 
-/* This returns the value z^{a-b}. */
-static UCHAR z_of_ab(UCHAR a, UCHAR b)
-{
-  int tmp = (int)a - (int)b;
 
-  if (tmp < 0)
-	tmp += 255;
-  else if (tmp >= 255)
-	tmp -= 255;
-  return(alpha_power[tmp]);
+/*
+ *  This returns the value z^{a-b}.
+ */
+static UCHAR
+z_of_ab(UCHAR a, UCHAR b)
+{
+  int tmp = a - b;
+
+  if (tmp < 0) tmp += 255;
+  return(alpha_power[tmp % 255]);
 }
 
-/*  Calculate the inverse matrix.  Returns 1 if the matrix is valid, or
- *  zero if there is no inverse.  The i's are the indices of the bytes
- *  to be corrected.
+
+/*
+ *  Calculate the inverse matrix for two or three errors.  Returns 0
+ *  if there is no inverse or 1 if successful.
  */
-static int calculate_inverse (int *pblk, struct inv_mat *inv)
+static int
+calculate_inverse(int nerrs, int *pblk, struct inv_mat *inv)
 {
   /* First some variables to remember some of the results. */
   UCHAR z20, z10, z21, z12, z01, z02;
   UCHAR i0, i1, i2;
 
+  if (nerrs < 2) return(1);
+  if (nerrs > 3) return(0);
+
   i0 = pblk[0]; i1 = pblk[1]; i2 = pblk[2];
+  if (nerrs == 2) {
+	/* 2 errs */
+	z01 = alpha_power[255 - i0];
+	z02 = alpha_power[255 - i1];
+	inv->log_denom = (z01 ^ z02);
+	if (!inv->log_denom) return(0);
+	inv->log_denom = 255 - alpha_log[inv->log_denom];
 
-  z20 = z_of_ab (i2, i0); z10 = z_of_ab (i1, i0);
-  z21 = z_of_ab (i2, i1); z12 = z_of_ab (i1, i2);
-  z01 = z_of_ab (i0, i1); z02 = z_of_ab (i0, i2);
-  inv->log_denom = (z20 ^ z10 ^ z21 ^ z12 ^ z01 ^ z02);
-  if (inv->log_denom == 0) return 0;
-  inv->log_denom = alpha_log[inv->log_denom];
+	inv->zs[0][0] = multiply_out(  1, inv->log_denom);
+	inv->zs[0][1] = multiply_out(z02, inv->log_denom);
+	inv->zs[1][0] = multiply_out(  1, inv->log_denom);
+	inv->zs[1][1] = multiply_out(z01, inv->log_denom);
+  } else {
+	/* 3 errs */
+	z20 = z_of_ab (i2, i0);
+	z10 = z_of_ab (i1, i0);
+	z21 = z_of_ab (i2, i1);
+	z12 = z_of_ab (i1, i2);
+	z01 = z_of_ab (i0, i1);
+	z02 = z_of_ab (i0, i2);
+	inv->log_denom = (z20 ^ z10 ^ z21 ^ z12 ^ z01 ^ z02);
+	if (!inv->log_denom) return(0);
+	inv->log_denom = 255 - alpha_log[inv->log_denom];
 
-  /* Calculate all of the coefficients on the top. */
-  inv->zs[0][0] = alpha_power[i1] ^ alpha_power[i2];
-  inv->zs[0][1] = z21 ^ z12;
-  inv->zs[0][2] = alpha_power[255-i1] ^ alpha_power[255-i2];
-
-  inv->zs[1][0] = alpha_power[i0] ^ alpha_power[i2];
-  inv->zs[1][1] = z20 ^ z02;
-  inv->zs[1][2] = alpha_power[255-i0] ^ alpha_power[255-i2];
-
-  inv->zs[2][0] = alpha_power[i0] ^ alpha_power[i1];
-  inv->zs[2][1] = z10 ^ z01;
-  inv->zs[2][2] = alpha_power[255-i0] ^ alpha_power[255-i1];
+	inv->zs[0][0] = multiply_out(alpha_power[i1] ^ alpha_power[i2],
+				inv->log_denom);
+	inv->zs[0][1] = multiply_out(z21 ^ z12, inv->log_denom);
+	inv->zs[0][2] = multiply_out(alpha_power[255-i1] ^ alpha_power[255-i2],
+				inv->log_denom);
+	inv->zs[1][0] = multiply_out(alpha_power[i0] ^ alpha_power[i2],
+				inv->log_denom);
+	inv->zs[1][1] = multiply_out(z20 ^ z02, inv->log_denom);
+	inv->zs[1][2] = multiply_out(alpha_power[255-i0] ^ alpha_power[255-i2],
+				inv->log_denom);
+	inv->zs[2][0] = multiply_out(alpha_power[i0] ^ alpha_power[i1],
+				inv->log_denom);
+	inv->zs[2][1] = multiply_out(z10 ^ z01, inv->log_denom);
+	inv->zs[2][2] = multiply_out(alpha_power[255-i0] ^ alpha_power[255-i1],
+				inv->log_denom);
+  }
   return(1);
 }
 
+
 /*
- * Determine the error values for a given inverse matrix and syndromes.
+ *  Determine the error magnitudes for a given matrix and syndromes.
  */
-static void determine3(struct inv_mat *inv, UCHAR *es, UCHAR *ss)
+static void
+determine(int nerrs, struct inv_mat *inv, UCHAR *ss, UCHAR *es)
 {
   UCHAR tmp;
   int i, j;
 
-  for (i = 0; i < 3; i++) {
-	tmp = 0;
-	for (j = 0; j < 3; j++) tmp ^= multiply (ss[j], inv->zs[i][j]);
-	es[i] = divide_out(tmp, inv->log_denom);
+  for (i = 0; i < nerrs; i++) {
+	es[i] = 0;
+	for (j = 0; j < nerrs; j++)
+		es[i] ^= multiply(ss[j], inv->zs[i][j]);
   }
 }
 
 
 /*
- *  Compute the 3 syndrome values.  The data pointer should point to
- *  the offset within the first block of the column to calculate.  The
- *  count of blocks is in blocks.  The three bytes will be placed in
- *  ss[0], ss[1], and ss[2].
+ *  Compute the 3 syndrome values.
  */
-static void compute_syndromes(UCHAR *data, int nblks, int col, UCHAR *ss)
+static int
+compute_syndromes(UCHAR *data, int nblks, int col, UCHAR *ss)
 {
-  int i;
-  UCHAR v;
+  UCHAR r0, r1, r2, t1, t2;
+  UCHAR *rptr;
+  int row;
 
-  ss[0] = 0; ss[1] = 0; ss[2] = 0;
-  for (i = (nblks-1)*QCV_BLKSIZE; i >= 0; i -= QCV_BLKSIZE) {
-	v = data[i+col];
-	if (ss[0] & 0x01) { ss[0] >>= 1; ss[0] ^= 0xc3;	} else ss[0] >>= 1;
-	ss[0] ^= v;
-	ss[1] ^= v;
-	if (ss[2] & 0x80) { ss[2] <<= 1; ss[2] ^= 0x87; } else ss[2] <<= 1;
-	ss[2] ^= v;
+  rptr = &data[col];
+  r0 = r1 = r2 = 0;
+  for (row = 0; row < nblks; row++, rptr += QCV_BLKSIZE) {
+	t1 = *rptr ^ r0;
+	t2 = multiply(0xc0, t1);
+	r0 = t2 ^ r1;
+	r1 = t2 ^ r2;
+	r2 = t1;
   }
+  if (r0 || r1 || r2) {
+	ss[0] = divide_out(r0 ^ divide_out(r1 ^ divide_out(r2, 1), 1), nblks);
+	ss[1] = r0 ^ r1 ^ r2;
+	ss[2] = multiply_out(r0 ^ multiply_out(r1 ^ multiply_out(r2, 1), 1), nblks);
+	return(0);
+  }
+  return(1);
 }
 
+
 /*
- *  Calculate the parity bytes for a segment.  Returns 0 on success.
+ *  Calculate the parity bytes for a segment, returns 0 on success (always).
  */
-int set_parity (UCHAR *data, ULONG badmap)
+int
+set_parity (UCHAR *data, ULONG badmap)
 {
-  int col;
-  struct inv_mat inv;
-  UCHAR ss[3], es[3];
-  int nblks, pblk[3];
+  int col, row, max;
+  UCHAR r0, r1, r2, t1, t2;
+  UCHAR *rptr;
 
-  nblks = sect_count(badmap);
-  pblk[0] = nblks-3; pblk[1] = nblks-2; pblk[2] = nblks-1;
-  if (!calculate_inverse(pblk, &inv)) return(1);
-
-  pblk[0] *= QCV_BLKSIZE; pblk[1] *= QCV_BLKSIZE; pblk[2] *= QCV_BLKSIZE;
-  for (col = 0; col < QCV_BLKSIZE; col++) {
-	compute_syndromes (data, nblks-3, col, ss);
-	determine3(&inv, es, ss);
-	data[pblk[0]+col] = es[0];
-	data[pblk[1]+col] = es[1];
-	data[pblk[2]+col] = es[2];
+  max = sect_count(badmap) - 3;
+  for (col = 0; col < QCV_BLKSIZE; col++, data++) {
+	rptr = data;
+	r0 = r1 = r2 = 0;
+	for (row = 0; row < max; row++, rptr += QCV_BLKSIZE) {
+		t1 = *rptr ^ r0;
+		t2 = multiply(0xc0, t1);
+		r0 = t2 ^ r1;
+		r1 = t2 ^ r2;
+		r2 = t1;
+	}
+	*rptr = r0; rptr += QCV_BLKSIZE;
+	*rptr = r1; rptr += QCV_BLKSIZE;
+	*rptr = r2;
   }
   return(0);
 }
@@ -270,47 +342,81 @@ int set_parity (UCHAR *data, ULONG badmap)
  *  Check and correct errors in a block.  Returns 0 on success,
  *  1 if failed.
  */
-int check_parity(UCHAR *data, ULONG badmap, ULONG crcmap)
+int
+check_parity(UCHAR *data, ULONG badmap, ULONG crcmap)
 {
-  int i, j, col, crcerrs, r, tries, nblks;
-  struct inv_mat inv;
+  int crcerrs, eblk[3];
+  int col, row;
+  int i, j, nblks;
   UCHAR ss[3], es[3];
-  int i1, i2, eblk[3];
+  int i1, i2, saverrs;
+  struct inv_mat inv;
 
   nblks = sect_count(badmap);
+
+  /* Count the number of CRC errors and note their locations. */
   crcerrs = 0;
-  for (i = 0; crcerrs < 3 && i < nblks; i++)
-	if (crcmap & (1 << i)) eblk[crcerrs++] = i;
-
-  for (i = 1, j = crcerrs; j < 3 && i < nblks; i++)
-	if ((crcmap & (1 << i)) == 0) eblk[j++] = i;
-
-  if (!calculate_inverse (eblk, &inv)) return(1);
-
-  eblk[0] *= QCV_BLKSIZE; eblk[1] *= QCV_BLKSIZE; eblk[2] *= QCV_BLKSIZE;
-  r = 0;
-  for (col = 0; col < QCV_BLKSIZE; col++) {
-	compute_syndromes (data, nblks, col, ss);
-
-	if (!ss[0] && !ss[1] && !ss[2]) continue;
-	if (crcerrs) {
-		determine3 (&inv, es, ss);
-		for (j = 0; j < crcerrs; j++)
-			data[eblk[j] + col] ^= es[j];
-		compute_syndromes (data, nblks, col, ss);
-		if (!ss[0] && !ss[1] && !ss[2]) {
-			r = 1;
-			continue;
+  if (crcmap) {
+	for (i = 0; i < nblks; i++) {
+		if (crcmap & (1 << i)) {
+			eblk[crcerrs++] = i;
+			if (crcerrs >= 3) break;
 		}
 	}
-	determine3 (&inv, es, ss);
-	i1 = alpha_log[divide(ss[2], ss[1])];
-	i2 = alpha_log[divide(ss[1], ss[0])];
-	if (i1 != i2 || ((QCV_BLKSIZE * i1) + col) > QCV_SEGSIZE)
-		r = 1;
-	else
-		data[QCV_BLKSIZE * i1 + col] ^= ss[1];
   }
 
-  return(r);
+  /* Calculate the inverse matrix */
+  if (!calculate_inverse(crcerrs, eblk, &inv)) return(1);
+
+  /* Scan each column for problems and attempt to correct. */
+  for (col = 0; col < QCV_BLKSIZE; col++) {
+	if (compute_syndromes(data, nblks, col, ss)) continue;
+	es[0] = es[1] = es[2] = 0;
+
+	/* Analyze the error situation. */
+	switch (crcerrs) {
+	    case 0:	/* 0 errors >0 failures */
+		if (!ss[0]) return(1);
+		eblk[crcerrs] = alpha_log[divide(ss[1], ss[0])];
+		if (eblk[crcerrs] >= nblks) return(1);
+		es[0] = ss[1];
+		crcerrs++;
+		break;
+
+	    case 1:	/* 1 error (+ possible failures) */
+		i1 = ss[2] ^ multiply_out(ss[1], eblk[0]);
+		i2 = ss[1] ^ multiply_out(ss[0], eblk[0]);
+		if (!i1 && !i2) {			/* only 1 error */
+			inv.zs[0][0] = alpha_power[eblk[0]];
+			inv.log_denom = 0;
+		} else if (!i1 || !i2) {		/* too many errors */
+			return(1);
+		} else {				/* add failure */
+			eblk[crcerrs] = alpha_log[divide(i1, i2)];
+			if (eblk[crcerrs] >= nblks) return(1);
+			crcerrs++;
+			if (!calculate_inverse(crcerrs, eblk, &inv)) return(1);
+		}
+		determine(crcerrs, &inv, ss, es);
+		break;
+
+	    case 2:	/* 2 errors */
+	    case 3:	/* 3 errors */
+		determine(crcerrs, &inv, ss, es);
+		break;
+
+	    default:
+		return(1);
+	}
+
+	/* Make corrections. */
+	for (i = 0; i < crcerrs; i++) {
+		data[eblk[i] * QCV_BLKSIZE+col] ^= es[i];
+		ss[0] ^= divide_out(es[i], eblk[i]);
+		ss[1] ^= es[i];
+		ss[2] ^= multiply_out(es[i], eblk[i]);
+	}
+	if (ss[0] || ss[1] || ss[2]) return(1);
+  }
+  return(0);
 }
