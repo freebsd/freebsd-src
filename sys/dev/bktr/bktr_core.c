@@ -138,8 +138,8 @@ __FBSDID("$FreeBSD$");
 #include <sys/bus.h>
 #endif
 
-#include <machine/ioctl_meteor.h>
-#include <machine/ioctl_bt848.h>	/* extensions to ioctl_meteor.h */
+#include <dev/bktr/ioctl_meteor.h>
+#include <dev/bktr/ioctl_bt848.h>	/* extensions to ioctl_meteor.h */
 #include <dev/bktr/bktr_reg.h>
 #include <dev/bktr/bktr_tuner.h>
 #include <dev/bktr/bktr_card.h>

@@ -77,8 +77,8 @@ __FBSDID("$FreeBSD$");
 #include <dev/pci/bktr/bktr_card.h>
 #include <dev/pci/bktr/bktr_audio.h>
 #else
-#include <machine/ioctl_meteor.h>	/* Traditional location for .h files */
-#include <machine/ioctl_bt848.h>        /* extensions to ioctl_meteor.h */
+#include <dev/bktr/ioctl_meteor.h>
+#include <dev/bktr/ioctl_bt848.h>	/* extensions to ioctl_meteor.h */
 #include <dev/bktr/bktr_reg.h>
 #include <dev/bktr/bktr_core.h>
 #include <dev/bktr/bktr_tuner.h>

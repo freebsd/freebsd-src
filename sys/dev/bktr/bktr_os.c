@@ -185,8 +185,8 @@ int bktr_debug = 0;
 #include <dev/pci/bktr/bktr_core.h>
 #include <dev/pci/bktr/bktr_os.h>
 #else					/* Traditional location for .h files */
-#include <machine/ioctl_meteor.h>
-#include <machine/ioctl_bt848.h>	/* extensions to ioctl_meteor.h */
+#include <dev/bktr/ioctl_meteor.h>
+#include <dev/bktr/ioctl_bt848.h>	/* extensions to ioctl_meteor.h */
 #include <dev/bktr/bktr_reg.h>
 #include <dev/bktr/bktr_tuner.h>
 #include <dev/bktr/bktr_card.h>
