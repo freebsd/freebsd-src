@@ -349,7 +349,9 @@ RetryFault:;
 			if ((fs.m->flags & PG_BUSY) || fs.m->busy) {
 				vm_page_unlock_queues();
 				unlock_things(&fs);
-				(void)vm_page_sleep_busy(fs.m, TRUE, "vmpfw");
+				vm_page_lock_queues();
+				if (!vm_page_sleep_if_busy(fs.m, TRUE, "vmpfw"))
+					vm_page_unlock_queues();
 				cnt.v_intrans++;
 				vm_object_deallocate(fs.first_object);
 				goto RetryFault;
@@ -712,7 +714,9 @@ readrest:
 				 */
 				vm_page_rename(fs.m, fs.first_object, fs.first_pindex);
 				fs.first_m = fs.m;
+				vm_page_lock_queues();
 				vm_page_busy(fs.first_m);
+				vm_page_unlock_queues();
 				fs.m = NULL;
 				cnt.v_cow_optim++;
 			} else {
@@ -829,6 +833,7 @@ readrest:
 	 */
 
 	if (prot & VM_PROT_WRITE) {
+		vm_page_lock_queues();
 		vm_page_flag_set(fs.m, PG_WRITEABLE);
 		vm_object_set_writeable_dirty(fs.m->object);
 
@@ -853,6 +858,7 @@ readrest:
 		} else {
 			vm_page_flag_clear(fs.m, PG_NOSYNC);
 		}
+		vm_page_unlock_queues();
 		if (fault_flags & VM_FAULT_DIRTY) {
 			int s;
 			vm_page_dirty(fs.m);
