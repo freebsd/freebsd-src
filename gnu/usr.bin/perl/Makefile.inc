@@ -90,7 +90,6 @@ MAKEMAKER_ARGS=	INSTALLDIRS=perl PERL_SRC=${.OBJDIR} \
 CFLAGS+=	'-DAPPLLIB_EXP="/usr/libdata/perl/BSDPAN"'
 
 .if defined(PERL_THREADED) && ${PERL_THREADED} == "true"
-CFLAGS+=        -pthread
 THREAD=		threads-
 .endif
 
