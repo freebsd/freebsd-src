@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: mp.c,v 1.1.2.21 1998/05/03 22:13:12 brian Exp $
+ *	$Id: mp.c,v 1.1.2.22 1998/05/04 03:00:08 brian Exp $
  */
 
 #include <sys/types.h>
@@ -103,6 +103,13 @@ inc_seq(unsigned is12bit, u_int32_t seq)
   } else if (seq & 0xff000000)
     seq = 0;
   return seq;
+}
+
+static int
+isbefore(unsigned is12bit, u_int32_t seq1, u_int32_t seq2)
+{
+  u_int32_t max = is12bit ? 0xfff : 0xffffff;
+  return seq1 < seq2 || (seq1 > max - 0x200 && seq2 <= 0x200);
 }
 
 static int
@@ -342,7 +349,7 @@ mp_Input(struct mp *mp, struct mbuf *m, struct physical *p)
   q = mp->inbufs;
   while (q) {
     mp_ReadHeader(mp, q, &h);
-    if (m && h.seq > mh.seq) {
+    if (m && isbefore(mp->local_is12bit, mh.seq, h.seq)) {
       /* Our received fragment fits in before this one, so link it in */
       if (last)
         last->pnext = m;
@@ -473,7 +480,7 @@ mp_Input(struct mp *mp, struct mbuf *m, struct physical *p)
     last = NULL;
     for (q = mp->inbufs; q; last = q, q = q->pnext) {
       mp_ReadHeader(mp, q, &h);
-      if (h.seq > mh.seq)
+      if (isbefore(mp->local_is12bit, mh.seq, h.seq))
         break;
     }
     /* Our received fragment fits in here */
