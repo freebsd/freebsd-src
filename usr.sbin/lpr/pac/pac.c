@@ -43,7 +43,7 @@ static const char copyright[] =
 static char sccsid[] = "@(#)pac.c	8.1 (Berkeley) 6/6/93";
 #endif
 static const char rcsid[] =
-	"$Id: pac.c,v 1.7 1997/09/24 06:48:24 charnier Exp $";
+	"$Id: pac.c,v 1.8 1997/12/02 20:46:22 wollman Exp $";
 #endif /* not lint */
 
 /*
@@ -56,9 +56,11 @@ static const char rcsid[] =
 #include <sys/param.h>
 
 #include <dirent.h>
+#include <err.h>
 #include <stdlib.h>
 #include <stdio.h>
 #include <string.h>
+#include <unistd.h>
 #include "lp.h"
 #include "lp.local.h"
 
@@ -94,6 +96,7 @@ struct hent {
 
 static struct	hent	*hashtab[HSHSIZE];	/* Hash table proper */
 
+int		main __P((int, char **));
 static void	account __P((FILE *));
 static int	any __P((int, char []));
 static int	chkprinter __P((char *));

@@ -43,7 +43,7 @@ static const char copyright[] =
 static char sccsid[] = "@(#)lprm.c	8.1 (Berkeley) 6/6/93";
 #endif
 static const char rcsid[] =
-	"$Id: lprm.c,v 1.3 1997/09/24 06:48:17 charnier Exp $";
+	"$Id: lprm.c,v 1.4 1997/12/02 20:46:15 wollman Exp $";
 #endif /* not lint */
 
 /*
@@ -82,6 +82,7 @@ uid_t	 uid, euid;		/* real and effective user id's */
 
 static char	luser[16];	/* buffer for person */
 
+int main __P((int, char *[]));
 static void usage __P((void));
 
 int

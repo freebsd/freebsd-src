@@ -43,7 +43,7 @@ static const char copyright[] =
 static char sccsid[] = "@(#)printjob.c	8.7 (Berkeley) 5/10/95";
 */
 static const char rcsid[] =
-	"$Id: printjob.c,v 1.18 1997/12/02 20:45:58 wollman Exp $";
+	"$Id: printjob.c,v 1.19 1998/08/21 18:08:46 brian Exp $";
 #endif /* not lint */
 
 
@@ -140,8 +140,6 @@ static int        sendfile __P((struct printer *pp, int type, char *file,
 static int        sendit __P((struct printer *pp, char *file));
 static void       sendmail __P((struct printer *pp, char *user, int bombed));
 static void       setty __P((const struct printer *pp));
-
-void		  msearch __P((char *, struct termios *));
 
 void
 printjob(pp)
@@ -1150,7 +1148,7 @@ scnline(key, p, c)
 	register char *p;
 	int c;
 {
-	register scnwidth;
+	register int scnwidth;
 
 	for (scnwidth = WIDTH; --scnwidth;) {
 		key <<= 1;
@@ -1168,7 +1166,7 @@ scan_out(pp, scfd, scsp, dlm)
 	char *scsp;
 {
 	register char *strp;
-	register nchrs, j;
+	register int nchrs, j;
 	char outbuf[LINELEN+1], *sp, c, cc;
 	int d, scnhgt;
 
@@ -1596,7 +1594,7 @@ setty(pp)
 		char *s = strdup(pp->mode_set), *tmp;
 
 		while ((tmp = strsep(&s, ",")) != NULL) {
-			msearch(tmp, &ttybuf);
+			(void) msearch(tmp, &ttybuf);
 		}
 	}
 	if (pp->mode_set != 0 || pp->baud_rate > 0) {

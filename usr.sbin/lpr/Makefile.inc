@@ -1,6 +1,6 @@
-#	$Id: Makefile.inc,v 1.2 1997/12/17 19:38:30 wollman Exp $
+#	$Id: Makefile.inc,v 1.3 1998/03/07 09:47:52 bde Exp $
 
-CWARNFLAGS=	-Werror -Wall -Wnested-externs -Wmissing-prototypes -Wno-unused
+CWARNFLAGS=	-Wall -Wnested-externs -Wmissing-prototypes -Wno-unused -Wredundant-decls -Wstrict-prototypes
 
 .if exists(${.OBJDIR}/../common_source)
 LIBLPR=	${.OBJDIR}/../common_source/liblpr.a

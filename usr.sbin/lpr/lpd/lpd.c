@@ -43,7 +43,7 @@ static const char copyright[] =
 static char sccsid[] = "@(#)lpd.c	8.7 (Berkeley) 5/10/95";
 #endif
 static const char rcsid[] =
-	"$Id: lpd.c,v 1.8 1997/09/24 06:47:54 charnier Exp $";
+	"$Id: lpd.c,v 1.9 1997/12/02 20:45:54 wollman Exp $";
 #endif /* not lint */
 
 /*
@@ -106,6 +106,7 @@ static const char rcsid[] =
 int	lflag;				/* log requests flag */
 int	from_remote;			/* from remote socket */
 
+int		  main __P((int, char **));
 static void       reapchild __P((int));
 static void       mcleanup __P((int));
 static void       doit __P((void));

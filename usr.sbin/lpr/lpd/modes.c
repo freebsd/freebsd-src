@@ -36,12 +36,14 @@
 static char sccsid[] = "@(#)modes.c	8.3 (Berkeley) 4/2/94";
 */
 static const char rcsid[] =
-	"$Id$";
+	"$Id: modes.c,v 1.4 1997/12/02 20:45:56 wollman Exp $";
 #endif /* not lint */
 
 #include <stddef.h>
 #include <string.h>
 #include <termios.h>
+#include "lp.local.h"
+#include "extern.h"
 
 struct modes {
 	char *name;
