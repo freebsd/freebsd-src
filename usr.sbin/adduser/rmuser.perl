@@ -30,7 +30,7 @@
 #
 # Guy Helmer <ghelmer@alpha.dsu.edu>, 07/17/96
 #
-#	$Id: rmuser.perl,v 1.1 1996/11/17 03:51:33 wosch Exp $
+#	$Id: rmuser.perl,v 1.2 1996/12/07 21:25:12 ache Exp $
 
 sub LOCK_SH {0x01;}
 sub LOCK_EX {0x02;}
@@ -101,6 +101,8 @@ if ($< != 0) {
 if ($#ARGV == 0) {
     # Username was given as a parameter
     $login_name = pop(@ARGV);
+    die "Sorry, login name must contain alphanumeric characters only.\n"
+	if ($login_name !~ /^[a-z0-9_][a-z0-9_\-]*$/);
 } else {
     # Get the user name from the user
     $login_name = &get_login_name;
@@ -229,7 +231,7 @@ sub get_login_name {
 	print "Enter login name for user to remove: ";
 	$login_name = <>;
 	chop $login_name;
-	if (!($login_name =~ /[A-Za-z0-9_]/)) {
+	if (!($login_name =~ /^[a-z0-9_][a-z0-9_\-]*$/)) {
 	    print STDERR "Sorry, login name must contain alphanumeric characters only.\n";
 	} elsif (length($login_name) > 16 || length($login_name) == 0) {
 	    print STDERR "Sorry, login name must be 16 characters or less.\n";
