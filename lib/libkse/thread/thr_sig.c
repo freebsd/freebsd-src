@@ -690,14 +690,13 @@ _thr_sig_rundown(struct pthread *curthread, ucontext_t *ucp,
 	KSE_SCHED_LOCK(curkse, curkse->k_kseg);
 	KSE_LOCK_ACQUIRE(curkse, &_thread_signal_lock);
 	curthread->active_priority &= ~THR_SIGNAL_PRIORITY;
-
+	SIGFILLSET(sigmask);
 	while (1) {
 		/*
 		 * For bound thread, we mask all signals and get a fresh
 		 * copy of signal mask from kernel
 		 */
 		if (curthread->attr.flags & PTHREAD_SCOPE_SYSTEM) {
-			SIGFILLSET(sigmask);
 			__sys_sigprocmask(SIG_SETMASK, &sigmask,
 				 &curthread->sigmask);
 		}
@@ -717,8 +716,13 @@ _thr_sig_rundown(struct pthread *curthread, ucontext_t *ucp,
 		}
 		if (i <= _SIG_MAXSIG)
 			thr_sig_invoke_handler(curthread, i, &siginfo, ucp);
-		else
+		else {
+			if (curthread->attr.flags & PTHREAD_SCOPE_SYSTEM) {
+				__sys_sigprocmask(SIG_SETMASK,
+						 &curthread->sigmask, NULL);
+			}
 			break;
+		}
 	}
 
 	if (psf != NULL && psf->psf_valid != 0)
@@ -726,10 +730,25 @@ _thr_sig_rundown(struct pthread *curthread, ucontext_t *ucp,
 	curkse = _get_curkse();
 	KSE_LOCK_RELEASE(curkse, &_thread_signal_lock);
 	KSE_SCHED_UNLOCK(curkse, curkse->k_kseg);
-	if (curthread->attr.flags & PTHREAD_SCOPE_SYSTEM)
-		__sys_sigprocmask(SIG_SETMASK, &curthread->sigmask, NULL);
 	_kse_critical_leave(&curthread->tcb->tcb_tmbx);
-
+	/* repost masked signal to kernel, it hardly happens in real world */
+	if ((curthread->attr.flags & PTHREAD_SCOPE_SYSTEM) &&
+	    !SIGISEMPTY(curthread->sigpend)) { /* dirty read */
+		__sys_sigprocmask(SIG_SETMASK, &sigmask, &curthread->sigmask);
+		for (i = 1; i <= _SIG_MAXSIG; ++i) {
+			if (SIGISMEMBER(curthread->sigpend, i)) {
+				SIGDELSET(curthread->sigpend, i);
+				if (!_kse_isthreaded())
+					kill(getpid(), i);
+				else
+					kse_thr_interrupt(
+						&curthread->tcb->tcb_tmbx,
+						KSE_INTR_SENDSIG,
+						i);
+			}
+		}
+		__sys_sigprocmask(SIG_SETMASK, &curthread->sigmask, NULL);
+	}
 	curthread->interrupted = interrupted;
 	curthread->timeout = timeout;
 
