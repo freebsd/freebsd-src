@@ -1,5 +1,5 @@
 #
-# $Id: Makefile,v 1.1.1.1 1998/03/01 23:41:16 jdp Exp $
+# $Id: Makefile,v 1.2 1998/03/12 02:55:42 jdp Exp $
 #
 
 .include "../Makefile.inc0"
@@ -13,5 +13,8 @@ CFLAGS+=	-I${SRCDIR}/binutils
 LDADD+=		-L${RELTOP}/libbinutils -lbinutils
 LDADD+=		-L${RELTOP}/libbfd -lbfd
 LDADD+=		-L${RELTOP}/libiberty -liberty
+DPADD+=		${RELTOP}/libbinutils/libbinutils.a
+DPADD+=		${RELTOP}/libbfd/libbfd.a
+DPADD+=		${RELTOP}/libiberty/libiberty.a
 
 .include <bsd.prog.mk>
