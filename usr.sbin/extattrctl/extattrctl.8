@@ -1,5 +1,5 @@
 .\"-
-.\" Copyright (c) 2000 Robert N. M. Watson
+.\" Copyright (c) 2000, 2001 Robert N. M. Watson
 .\" All rights reserved.
 .\"
 .\" Redistribution and use in source and binary forms, with or without
@@ -47,11 +47,13 @@
 .Nm
 .Cm enable
 .Ar path
+.Ar namespace
 .Ar attrname
 .Ar attrfile
 .Nm
 .Cm disable
 .Ar path
+.Ar namespace
 .Ar attrname
 .Sh DESCRIPTION
 .Nm
@@ -102,23 +104,29 @@ from denying attribute service.
 .Pp
 This file should not exist before running
 .Cm initattr .
-.It Cm enable Ar path Ar attrname Ar attrfile
+.It Cm enable Ar path Ar namespace Ar attrname Ar attrfile
 Enable an attribute named
 .Ar attrname
+in the namespace
+.Ar namespace
 on the file system identified using
 .Ar path ,
 and backed by initialized attribute file
 .Ar attrfile .
+Available namespaces are "user" and "system".
 The backing file must have been initialized using
 .Cm initattr
 before its first use.
 Attributes must have been started on the file system prior to the
 enabling of any attributes.
-.It Cm disable Ar path Ar attrname
+.It Cm disable Ar path Ar namespace Ar attrname
 Disable the attributed named
 .Ar attrname
+in namespace
+.Ar namespace
 on the file system identified by
 .Ar path .
+Available namespaces are "user" and "system".
 The file system must have attributes started on it, and the attribute
 most have been enabled using
 .Cm enable .
@@ -135,7 +143,7 @@ Create an attribute backing file in /.attribute/md5, and set the maximum
 size of each attribute to 17 bytes, with a sparse file used for storing
 the attributes.
 .Pp
-.Dl extattrctl enable / md5 /.attribute/md5
+.Dl extattrctl enable / system md5 /.attribute/md5
 .Pp
 Enable an attribute named md5 on the root file system, backed from the file
 /.attribute/md5.
