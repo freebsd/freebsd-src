@@ -6,7 +6,7 @@
 Please mail all suggestions and additions to <FAQ@FreeBSD.ORG>
 
 
-Revision: $Id: FreeBSD.FAQ,v 1.20 1995/02/27 08:31:19 phk Exp $
+Revision: $Id: FreeBSD.FAQ,v 1.21 1995/03/02 19:34:05 gclarkii Exp $
 
 All entries are assumed to be relevant to FreeBSD 2.0. 
 Any entries with a <XXX> are under construction.
@@ -550,7 +550,7 @@ also be installed or deinstalled again easily without having to know
 the gory details.  CDROM people will have a packages/ directory on
 their CD, others can get the currently available packages from:
 
-                ftp://ftp.FreeBSD.ORG:pub/FreeBSD/packages
+                ftp://ftp.FreeBSD.ORG/pub/FreeBSD/packages
 
 Note that all ports may not be available as packages, and that new
 packages are constantly being added.  It is always a good idea to
@@ -586,7 +586,7 @@ see 5.6 for more about that.
 To use it, you need to have direct internet connectivity (not just
 mail or news).  First, pick up the sup.tgz package from:
 
-        ftp://ftp.FreeBSD.ORG:pub/FreeBSD/packages/sup.tgz
+        ftp://ftp.FreeBSD.ORG/pub/FreeBSD/packages/sup.tgz
 
 Second, read the file /usr/src/share/FAQ/sup.FAQ.
 
@@ -594,7 +594,7 @@ This file describes how to setup sup on your machine.  You may also
 want to look at /usr/src/share/FAQ/extras/*.supfile, or you may grab updated
 supfiles from:
 
-	ftp://ftp.FreeBSD.ORG:/pub/FreeBSD/FAQ/extras
+	ftp://ftp.FreeBSD.ORG//pub/FreeBSD/FAQ/extras
 
 which are a set of supfiles for supping from FreeBSD.ORG. 
 
@@ -668,7 +668,7 @@ may ftp to phoenix-gw.gbdata.com and grab them from ~/pub/perl/libs.tar.gz.
 
 Please take a look at the FAQ for submiting code to FreeBSD at:
 
-	ftp://ftp.FreeBSD.ORG:/pub/FreeBSD/FAQ/submitters.FAQ
+	ftp://ftp.FreeBSD.ORG/pub/FreeBSD/FAQ/submitters.FAQ
 
 And thanks for the thought.
 
