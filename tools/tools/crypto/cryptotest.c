@@ -215,7 +215,7 @@ rdigit(void)
 }
 
 static void
-runtest(struct alg *alg, int count, int size, int cmd, struct timeval *tv)
+runtest(struct alg *alg, int count, int size, u_long cmd, struct timeval *tv)
 {
 	int i, fd = crget();
 	struct timeval start, stop, dt;
@@ -363,7 +363,7 @@ resetstats()
 	size_t slen;
 
 	slen = sizeof (stats);
-	if (sysctlbyname("kern.crypto_stats", &stats, &slen, NULL, NULL) < 0) {
+	if (sysctlbyname("kern.crypto_stats", &stats, &slen, NULL, 0) < 0) {
 		perror("kern.crypto_stats");
 		return;
 	}
@@ -395,7 +395,7 @@ printt(const char* tag, struct cryptotstat *ts)
 #endif
 
 static void
-runtests(struct alg *alg, int count, int size, int cmd, int threads, int profile)
+runtests(struct alg *alg, int count, int size, u_long cmd, int threads, int profile)
 {
 	int i, status;
 	double t;
@@ -461,7 +461,7 @@ runtests(struct alg *alg, int count, int size, int cmd, int threads, int profile
 		if (sysctlbyname("debug.crypto_timing", NULL, NULL,
 				&otiming, sizeof (otiming)) < 0)
 			perror("debug.crypto_timing");
-		if (sysctlbyname("kern.crypto_stats", &stats, &slen, NULL, NULL) < 0)
+		if (sysctlbyname("kern.crypto_stats", &stats, &slen, NULL, 0) < 0)
 			perror("kern.cryptostats");
 		if (stats.cs_invoke.count) {
 			printt("dispatch->invoke", &stats.cs_invoke);
@@ -480,7 +480,7 @@ main(int argc, char **argv)
 	struct alg *alg = NULL;
 	int count = 1;
 	int sizes[128], nsizes = 0;
-	int cmd = CIOCGSESSION;
+	u_long cmd = CIOCGSESSION;
 	int testall = 0;
 	int maxthreads = 1;
 	int profile = 0;
