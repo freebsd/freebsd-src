@@ -43,7 +43,6 @@
  * $FreeBSD$
  */
 
-#include "opt_kstack_pages.h"
 #include "opt_pmap.h"
 
 #include <sys/param.h>
@@ -158,7 +157,7 @@ cpu_thread_setup(struct thread *td)
 {
 	struct pcb *pcb;
 
-	pcb = (struct pcb *)((td->td_kstack + KSTACK_PAGES * PAGE_SIZE -
+	pcb = (struct pcb *)((td->td_kstack + td->td_kstack_pages * PAGE_SIZE -
 	    sizeof(struct pcb)) & ~0x3fUL);
 	td->td_frame = (struct trapframe *)pcb - 1;
 	td->td_pcb = pcb;
@@ -240,8 +239,8 @@ cpu_fork(struct thread *td1, struct proc *p2, struct thread *td2, int flags)
 
 	/* The pcb must be aligned on a 64-byte boundary. */
 	pcb1 = td1->td_pcb;
-	pcb2 = (struct pcb *)((td2->td_kstack + KSTACK_PAGES * PAGE_SIZE -
-	    sizeof(struct pcb)) & ~0x3fUL);
+	pcb2 = (struct pcb *)((td2->td_kstack + td2->td_kstack_pages *
+	    PAGE_SIZE - sizeof(struct pcb)) & ~0x3fUL);
 	td2->td_pcb = pcb2;
 
 	/*
