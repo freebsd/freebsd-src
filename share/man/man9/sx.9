@@ -68,6 +68,9 @@
 .Fn sx_try_upgrade "struct sx *sx"
 .Ft void
 .Fn sx_downgrade "struct sx *sx"
+.Pp
+.Cd "options INVARIANTS"
+.Cd "options INVARIANT_SUPPORT"
 .Ft void
 .Fn sx_assert "struct sx *sx" "int what"
 .In sys/kernel.h
@@ -121,11 +124,17 @@ will return 0 if the shared lock cannot be upgraded to an exclusive lock
 immediately; otherwise the exclusive lock will be acquired and a non-zero value
 will be returned.
 .Pp
-The
+When compiled with
+.Cd "options INVARIANTS"
+and
+.Cd "options INVARIANT_SUPPORT" ,
+the
 .Fn sx_assert
-function tests specified conditions and panics if they are not met and the
-kernel is compiled with
-.Dv INVARIANTS .
+function tests
+.Ar sx
+for the assertions specified in
+.Ar what
+and panics if they are not met.
 The following assertions are supported:
 .Bl -tag -width ".Dv SX_XLOCKED"
 .It Dv SX_LOCKED
@@ -166,6 +175,7 @@ It is allowed to own a shared lock or an exclusive lock while sleeping.
 .Xr condvar 9 ,
 .Xr mtx_pool 9 ,
 .Xr mutex 9 ,
+.Xr panic 9 ,
 .Xr sema 9
 .Sh BUGS
 Currently there is no way to assert that a lock is not held.
