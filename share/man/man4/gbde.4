@@ -1,0 +1,275 @@
+.\" 
+.\" Copyright (c) 2002 Poul-Henning Kamp
+.\" Copyright (c) 2002 Networks Associates Technology, Inc.
+.\" All rights reserved.
+.\"
+.\" This software was developed for the FreeBSD Project by Poul-Henning Kamp
+.\" and NAI Labs, the Security Research Division of Network Associates, Inc.
+.\" under DARPA/SPAWAR contract N66001-01-C-8035 ("CBOSS"), as part of the
+.\" DARPA CHATS research program.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\" 3. The names of the authors may not be used to endorse or promote
+.\"    products derived from this software without specific prior written
+.\"    permission.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\" $FreeBSD$
+.\" 
+.Dd October 19, 2002
+.Os
+.Dt gbde 4
+.Sh NAME
+.Nm gbde
+.Nd Geom Based Disk Encryption.
+.Sh SYNOPSIS
+options GEOM_BDE
+.Sh DESCRIPTION
+.Pp
+The objective of this facility is to provide a high degree of
+denial of access to the contents of a "cold" storage device.
+.Pp
+Be aware that if the computer is compromised while up and running
+AND the storage device is actively attached and opened with a valid
+pass-phrase, this facility offers no protection or denial of access
+to the contents of the storage device.
+.Pp
+If on the other hand, the device is "cold" it should present an formidable
+challege for an attacker to gain access to the contents in the absense of
+a valid pass-phrase.
+.Pp
+Four cryptographic barriers must be passed to gain access to the data,
+and only a valid pass-phrase will allow yield this access.
+.Pp
+When the pass-phrase is entered, it is used to seed an ARC4 based
+byte oriented PNRG which is used to produce what we call the "key-material".
+This is a way to producing cryptographic usable keys from a typically
+all-ASCII pass-phrase of an unpredictable user-selected length.
+.Ss First barrier: the location of the "master-lock" sector.
+During initialization, up to four indepenent but mutually aware
+"master-key" sectors are written to the device in randomly chosen
+locations.
+These master-keys contain a 2048 random bit key and a number of parameters
+of the layout geometry (more on this later).
+Since the entire device will contain isotropic data, there is no way
+short of trying, to determine which sequence of bytes contain 
+the encrypted master-key.
+.Pp
+To find one of these sectors, a small piece of data called the "lockdata"
+and the key-material must be available.
+The keymaterial decrypts the
+lockdata, which contains the byte offset on the device where the
+master-key is located.
+If the lockdata is lost or unavailable but the key-material is at
+hand, it would be feasible to do a brute force scan where each byte offset
+of the device is checked to see if it contains the master-key data.
+.Ss Second barrier: decryption of the master-key using key-material.
+The master-key is stored in an architecture neutral byte-sequence which
+is scrambled and encrypted with the key-material.
+.Ss Third barrier: decryption of the sector key.
+Using a PNRG like process seeded with the sector address and the 2048 bit key 
+from the master-key a per-sector key is derived which is used to encrypt
+the sector key which is stored on the disk.
+.Ss Fourth barrier: decryption of the sector data.
+The actual payload of the sector is encrypted with a single-use random bits
+key.
+.Ss Examining the reverse path
+Assuming an attacker who knows an amount of plaintext, and has managed to
+locate the corresponding encrypted sectors on the device, gaining access
+to the plaintext context of other sectors is a daunting task:
+First he will have to derive from the encrypted sector and the known plain
+text the sector key(s) used.
+(At the time of writing, it is speculcated that it could maybe be possible
+to do so in only 2^80 operations which is still a staggering number).
+.Pp
+Armed with one or more sector keys, our patient attacker will then go
+through essentially the same exercise, using the sector key and the
+encrypted sector key to find the key used to encrypt the sectorkey.
+.Pp
+Armed with one or more of these "key-keys" our attacker has to derive
+as much information about the the 2048 bit master-key.  To do so, he
+first has to reverse an MD5 hash, and then the PRNG-like algorithm
+which derives the MD5 input from the master-key.
+.Pp
+Any attacker with access to the necessary machine power will probably be
+better off attempting to brute-force the pass-phrase.
+.Ss Postive denial facilities
+Considering the infeasibility of the above attack,
+gaining access to the pass-phrase will be of paramount importance for an
+attacker,
+and a number of scenarios can be imagined where undue pressure will be
+applied to an individual to divulge the pass-phrase.
+.Pp
+A "Blackening" feature, given a moment of opportunity, provides a way
+for the user to destroy the master-key in such a way that the pass-phrase
+will still be acknowleded as good but access to the data will still be
+denied.
+.Ss A practical analogy
+For persons who think cryptography is only slightly more interesting than
+watching silicon sublimate the author humbly offer this analogy to the
+keying scheme for an protected device:
+.Pp
+Imagine an installation with a vault with walls of several hundred meters
+thick solid steel.  This vault can only be feasibly accessed using the
+single key, which has a complexity comparable to a number with 600 digits.
+.Pp
+This key exists in four copies, each of which is stored in one of 
+four small safes, each of which can be opened
+with unique key which has a complexity comparable to a 40 digit
+number.
+.Pp
+In addition to the masterkey each of the four safes also contain
+the exact locations of all four key-safes which are located in a
+randomly chosen places on the outside surface of the vault and they
+are impossible to detect when they are closed.
+.Pp
+Finally, each safe contains four switches which are wire to a bar
+of dynamite inside each of the four safes.
+.Pp
+In addition to this, a keyholder after opening his key-safe is 
+also able to install a copy of the master-key and re-key any of
+key-safes (including his own).
+.Pp
+In normal use, the user will open the safe for which he has the key,
+take out the master-key and access the vault.
+When done, he will lock up the master-key in the safe again.
+.Pp
+If a keyholder-X for some reason distrusts keyholder-Y, she
+has the option of opening her own safe, flipping one of the switches
+and thereby detonate the bar of dynamite in safe-Y.
+This will obliterate the master-key in that safe and thereby deny
+keyholder-Y access to the vault.
+.Pp
+Should the facility come under attack, any of the keyholders can detonate
+all four bars of dynamite and thereby make sure that access to the
+vault is denied to everybody, keyholders and attackers alike.
+Should the facility fall to the enemy, and a keyholder be forced to apply
+his personal key, he can do so in confidence that the contents of his safe
+will not yield access to the vault, and the enemy will hopefully realize
+that applying further pressure on the personel will not give access to
+the vault.
+.Pp
+The final point to make here is that it is perfectly possible to
+make a detattched copy of any one of these keys, including the master
+key, and deposit or hide it as one sees fit.
+.Ss steganography support
+When the device is initialized, it is possible to restrict the encrypted
+data to a single contiguous area of the device.
+If configured with care, this area could masquerade as some sort of
+valid data or as random trash left behind by the systems operation.
+.Pp
+This can be used to offer a plausible deniablity of existence, where
+it will be impossible to prove that this specific area of the device
+is in fact used to store encrypted data and not just random junk.
+.Pp
+The main obstacle in this is that the output from any encryption algorithm
+worth its salt is so totally random looking that it stands out like a sore
+thumb amongst practically any other sort of data which contains at least
+some kind of structure or identifying byte sequences.
+.Pp
+Certain file formats like ELF contain multiple distinct sections, and it
+would be possible to locate things just right in such a way that a device
+contains a parition with a filesystem with a large executable,
+("a backup copy of my kernel") where a non-loaded ELF section is laid out
+consecutively on the device and thereby could be used to contain a
+.Nm
+encrypted device.
+.Pp
+Apart from the ability to instruct
+.Nm
+which those sectors are, no support is provided for creating such a setup.
+.Pp
+.Ss Deployment suggestions
+For personal use, it may be wise to make a backup copy of the masterkey
+or use one of the four keys as a backup.
+Fitting protection of this key is up to yourself, your local circumstances and
+your imagination.
+.Pp
+For company or institutional use, it is strongly advised to make a copy
+of the master-key and put it under whatever protection you have at your
+means.
+If you fail to do this, a disgruntled employee can not deny access to
+the data by accident.
+(The employee can still intentionally deny access by applying another
+encryption scheme to the data, but that problem has no technical solution).
+.Ss Cryptographic strength
+This section lists the specific components which conribute to the cryptographic
+strength of
+.Nm .
+.Pp
+The payload is encrypted with AES in CBC mode using a 128 bit random 
+single-use key ("the skey").
+AES is well documented.
+.Pp
+The random key is produced with
+.Xr arc4rand 9
+which is belived to do a respectable job at producing unpredicatble bytes.
+.Pp
+The skey is stored on the device in a location which can be derived from
+the location of the encrypted payload data.
+The stored copy is encrypted with AES in CBC mode using a 128 bit key
+("the kkey")
+derived
+from the master key using a purpose built PRNG like algorithm seeded
+with the sector address of the data in question.
+The function of the PRNG is to produce a hash of the masterkey
+unique for each of the payload sectors on the device in one-way
+sort of way.
+Up to 12.5% of the masterkey (32 bytes our of 2048 bits) will be involved
+in producing each kkey.
+Since the one-way properties of this algorithm has not been properly
+studied and therefore may have any strength, the output is subsequently
+hashed using MD5 to get the final kkey.
+MD5 is well documented.
+.Pp
+Up to four copies of the master-key and associated geometry information
+is stored on the device in randomly chosen locations.
+Each of these copies are XORed with key-material and subsequently
+encrypted with AES in CBC mode using 128 bit key-material.
+.Pp
+The key-material is derived from the user-entered pass-phrase using
+an ARC4 PRNG.
+ARC4 is a very simple algorithm, the sbox of which can be in up 
+to 2^1700 possible states.
+ARC4 is compatible with RC4, the formal documentation and analysis
+of which is not publically available.
+.Pp
+The ARC4 PRNG is seeded with the pass-phrase as selected and entered
+by the user.
+Each additional byte of pass-phrase after the first 255 adds significantly
+less entropy to the initial state of the ARC4 sbox due to aliasing in
+the ARC4 seeding algorithm.
+.Pp
+No weak is stronger than the weakest link which usually is poor pass-phrases.
+.Sh SEE ALSO
+.Xr gbde 8 .
+.Rs
+.%A Poul-Henning Kamp
+.%T "Making sure data is lost: Spook-strength encryption of on-disk data"
+.%R "Refereed paper, NORDU2003 conference"
+.Re
+.Sh HISTORY
+This software was developed for the FreeBSD Project by Poul-Henning Kamp
+and NAI Labs, the Security Research Division of Network Associates, Inc.
+under DARPA/SPAWAR contract N66001-01-C-8035 ("CBOSS"), as part of the
+DARPA CHATS research program.
+.Sh AUTHORS
+.An "Poul-Henning Kamp" Aq phk@FreeBSD.org
