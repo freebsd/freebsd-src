@@ -2433,6 +2433,13 @@ fwohci_ibr(struct firewire_comm *fc)
 	sc = (struct fwohci_softc *)fc;
 
 	/*
+	 * Make sure our cached values from the config rom are
+	 * initialised.
+	 */
+	OWRITE(sc, OHCI_CROMHDR, ntohl(sc->fc.config_rom[0]));
+	OWRITE(sc, OHCI_BUS_OPT, ntohl(sc->fc.config_rom[2]));
+
+	/*
 	 * Set root hold-off bit so that non cyclemaster capable node
 	 * shouldn't became the root node.
 	 */
