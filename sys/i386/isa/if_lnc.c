@@ -1,15 +1,35 @@
-/*
- * Copyright (c) 1994, Paul Richards. 
+/*-
+ * Copyright (c) 1995
+ *	Paul Richards.  All rights reserved.
  *
- * All rights reserved.
+ * Redistribution and use in source and binary forms, with or without
+ * modification, are permitted provided that the following conditions
+ * are met:
+ * 1. Redistributions of source code must retain the above copyright
+ *    notice, this list of conditions and the following disclaimer, 
+ *    verbatim and that no modifications are made prior to this 
+ *    point in the file.
+ * 2. Redistributions in binary form must reproduce the above copyright
+ *    notice, this list of conditions and the following disclaimer in the
+ *    documentation and/or other materials provided with the distribution.
+ * 3. All advertising materials mentioning features or use of this software
+ *    must display the following acknowledgement:
+ *	This product includes software developed by Paul Richards.
+ * 4. The name Paul Richards may not be used to endorse or promote products
+ *    derived from this software without specific prior written permission.
  *
- * This software may be used, modified, copied, distributed, and
- * sold, in both source and binary form provided that the above
- * copyright and these terms are retained, verbatim, as the first
- * lines of this file.  Under no circumstances is the author
- * responsible for the proper functioning of this software, nor does
- * the author assume any responsibility for damages incurred with
- * its use.
+ * THIS SOFTWARE IS PROVIDED BY PAUL RICHARDS ``AS IS'' AND
+ * ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+ * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+ * ARE DISCLAIMED.  IN NO EVENT SHALL PAUL RICHARDS BE LIABLE
+ * FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+ * DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+ * OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+ * HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+ * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+ * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+ * SUCH DAMAGE.
+ *
  */
 
 /*
@@ -148,7 +168,6 @@ void
 lnc_reset(int unit)
 {
 	int s;
-
 	lnc_init(unit);
 }
 
@@ -228,7 +247,7 @@ chain_mbufs(struct lnc_softc *sc, int start_of_packet, int pkt_len)
 	m = head;
 	do {
 		m = desc->buff.mbuf;
-		m->m_len = min(-(desc->md->md2), pkt_len);
+		m->m_len = min((MCLBYTES - sizeof(struct pkthdr)), pkt_len);
 		pkt_len -= m->m_len;
 		if (alloc_mbuf_cluster(sc, desc))
 			return((struct mbuf *)NULL);
@@ -255,13 +274,14 @@ mbuf_packet(struct lnc_softc *sc, int start_of_packet, int pkt_len)
 	MGETHDR(head, M_DONTWAIT, MT_DATA);
 	if (!head) {
 		LNCSTATS(drop_packet)
-			return(0);
+		return(0);
 	}
 
 	m = head;
 	m->m_len = 0;
 	start = sc->recv_ring + start_of_packet;
-	blen = -(start->md->md2);
+	/*blen = -(start->md->md2);*/
+	blen = RECVBUFSIZE; /* XXX More PCnet-32 crap */
 	data = start->buff.data;
 	mbuf_data = m->m_data;
 
@@ -303,10 +323,12 @@ mbuf_packet(struct lnc_softc *sc, int start_of_packet, int pkt_len)
 		if (blen == 0) {
 			start->md->md1 &= HADR;
 			start->md->md1 |= OWN;
+			start->md->md2 = -RECVBUFSIZE; /* XXX - shouldn't be necessary */
 			INC_MD_PTR(start_of_packet, sc->nrdre)
 			start = sc->recv_ring + start_of_packet;
 			data = start->buff.data;
-			blen = -(start->md->md2);
+			/*blen = -(start->md->md2);*/
+			blen = RECVBUFSIZE; /* XXX More PCnet-32 crap */
 		}
 	}
 	return(head);
@@ -392,7 +414,7 @@ lnc_rint(int unit)
 			}
 		}
 
-		pkt_len = next->md->md3 & MCNT - FCS_LEN;
+		pkt_len = (next->md->md3 & MCNT) - FCS_LEN;
 
 		/* Move pointer onto start of next packet */
 		INC_MD_PTR(sc->recv_next, sc->nrdre)
@@ -409,19 +431,19 @@ lnc_rint(int unit)
 					LNCSTATS(oflo)
 					log(LOG_ERR, "lnc%d: Receive overflow error \n", unit);
 				}
-			} else {
+			} else if (flags & ENP) {
 				/*
-				 * FRAM and CRC are valid only if OFLO is not
-				 * set and ENP is
+				 * FRAM and CRC are valid only if ENP
+				 * is set and OFLO is not.
 				 */
-				if (flags & (FRAM | ENP)) {
+				if (flags & FRAM) {
 					LNCSTATS(fram)
 					log(LOG_ERR, "lnc%d: Framming error\n", unit);
 					/*
 					 * FRAM is only set if there's a CRC
 					 * error so avoid multiple messages
 					 */
-				} else if (flags & (CRC | ENP)) {
+				} else if (flags & CRC) {
 					LNCSTATS(crc)
 					log(LOG_ERR, "lnc%d: Receive CRC error\n", unit);
 				}
@@ -432,6 +454,7 @@ lnc_rint(int unit)
 			sc->arpcom.ac_if.if_ierrors++;
 			while (start_of_packet != sc->recv_next) {
 				start = sc->recv_ring + start_of_packet;
+				start->md->md2 = -RECVBUFSIZE; /* XXX - shouldn't be necessary */
 				start->md->md1 &= HADR;
 				start->md->md1 |= OWN;
 				INC_MD_PTR(start_of_packet, sc->nrdre)
@@ -442,9 +465,9 @@ lnc_rint(int unit)
 
 
 			if (sc->nic.mem_mode == DMA_MBUF)
-				head = chain_mbufs(sc,start_of_packet,pkt_len);
+				head = chain_mbufs(sc, start_of_packet, pkt_len);
 			else
-				head = mbuf_packet(sc,start_of_packet,pkt_len);
+				head = mbuf_packet(sc, start_of_packet, pkt_len);
 
 			if (head) {
 				/*
@@ -753,17 +776,7 @@ lnc_probe(struct isa_device * isa_dev)
 int nports;
 int vsw;
 
-#ifdef DEBUG
-{
-	int i;
-	log(LOG_DEBUG, "Dumping io space for lnc%d starting at %x\n", isa_dev->id_unit, isa_dev->id_iobase);
-	for (i = 0; i < 32; i++)
-		log(LOG_DEBUG, " %x ", inb(isa_dev->id_iobase + i));
-}
-#endif
-
 #ifdef DIAGNOSTIC
-	/* First check the Vendor Specific Word */
 	vsw = inw(isa_dev->id_iobase + PCNET_VSW);
 	printf("Vendor Specific Word = %x\n", vsw);
 #endif
@@ -787,16 +800,19 @@ ne2100_probe(struct isa_device * isa_dev)
 	sc->rap = isa_dev->id_iobase + PCNET_RAP;
 	sc->rdp = isa_dev->id_iobase + PCNET_RDP;
 
-	if (sc->nic.ic = lance_probe(isa_dev->id_unit)) {
+	if (sc->nic.ic = pcnet_probe(isa_dev->id_unit)) {
 		sc->nic.ident = NE2100;
 		sc->nic.mem_mode = DMA_FIXED;
+
+		/* XXX - For now just use the defines */
+		sc->nrdre = NRDRE;
+		sc->ntdre = NTDRE;
 
 		/* Extract MAC address from PROM */
 		for (i = 0; i < ETHER_ADDR_LEN; i++)
 			sc->arpcom.ac_enaddr[i] = inb(isa_dev->id_iobase + i);
 
 		return (NE2100_IOSIZE);
-
 	} else {
 		return (0);
 	}
@@ -926,10 +942,9 @@ pcnet_probe(int unit)
 
 	if (type = lance_probe(unit)) {
 
-		chip_id = read_csr(unit, CSR88);
+		chip_id = read_csr(unit, CSR89);
 		chip_id <<= 16;
-		chip_id |= read_csr(unit, CSR89);
-
+		chip_id |= read_csr(unit, CSR88);
 		if (chip_id & AMD_MASK) {
 			chip_id >>= 12;
 			switch (chip_id & PART_MASK) {
@@ -991,7 +1006,10 @@ lnc_attach(struct isa_device * isa_dev)
 		log(LOG_ERR, "lnc%d: Memory allocated above 16Mb limit\n", isa_dev->id_unit);
 		return (0);
 	}
-	if (sc->nic.mem_mode != SHMEM)
+
+	if ((sc->nic.mem_mode != SHMEM) &&
+		 (sc->nic.ic != PCnet_32) &&
+		 (sc->nic.ic != PCnet_PCI))
 		isa_dmacascade(isa_dev->id_drq);
 
 	/* Set default mode */
@@ -1596,47 +1614,47 @@ lnc_dump_state(int unit)
 	struct lnc_softc *sc = &lnc_softc[unit];
 	int             i;
 
-	log(LOG_DEBUG, "\nDriver/NIC [%d] state dump\n", unit);
-	log(LOG_DEBUG, "Memory access mode: %b\n", sc->nic.mem_mode, MEM_MODES);
-	log(LOG_DEBUG, "Host memory\n");
-	log(LOG_DEBUG, "-----------\n");
+	printf("\nDriver/NIC [%d] state dump\n", unit);
+	printf("Memory access mode: %b\n", sc->nic.mem_mode, MEM_MODES);
+	printf("Host memory\n");
+	printf("-----------\n");
 
-	log(LOG_DEBUG, "Receive ring: base = %x, next = %x\n",
+	printf("Receive ring: base = %x, next = %x\n",
 	    sc->recv_ring, (sc->recv_ring + sc->recv_next));
 	for (i = 0; i < NDESC(sc->nrdre); i++)
-		log(LOG_DEBUG, "\t%d:%x md = %x buff = %x\n",
+		printf("\t%d:%x md = %x buff = %x\n",
 		  i, sc->recv_ring + i, (sc->recv_ring + i)->md,
 		    (sc->recv_ring + i)->buff);
 
-	log(LOG_DEBUG, "Transmit ring: base = %x, next = %x\n",
+	printf("Transmit ring: base = %x, next = %x\n",
 	    sc->trans_ring, (sc->trans_ring + sc->trans_next));
 	for (i = 0; i < NDESC(sc->ntdre); i++)
-		log(LOG_DEBUG, "\t%d:%x md = %x buff = %x\n",
+		printf("\t%d:%x md = %x buff = %x\n",
 		i, sc->trans_ring + i, (sc->trans_ring + i)->md,
 		    (sc->trans_ring + i)->buff);
-	log(LOG_DEBUG, "Lance memory (may be on host(DMA) or card(SHMEM))\n");
-	log(LOG_DEBUG, "Init block = %x\n", sc->init_block);
-	log(LOG_DEBUG, "\tmode = %b rlen:rdra = %x:%x tlen:tdra = %x:%x\n",
+	printf("Lance memory (may be on host(DMA) or card(SHMEM))\n");
+	printf("Init block = %x\n", sc->init_block);
+	printf("\tmode = %b rlen:rdra = %x:%x tlen:tdra = %x:%x\n",
 	    sc->init_block->mode, INIT_MODE, sc->init_block->rlen,
 	  sc->init_block->rdra, sc->init_block->tlen, sc->init_block->tdra);
-	log(LOG_DEBUG, "Receive descriptor ring\n");
+	printf("Receive descriptor ring\n");
 	for (i = 0; i < NDESC(sc->nrdre); i++)
-		log(LOG_DEBUG, "\t%d buffer = 0x%x%x, BCNT = %d,\tMCNT = %u,\tflags = %b\n",
+		printf("\t%d buffer = 0x%x%x, BCNT = %d,\tMCNT = %u,\tflags = %b\n",
 		    i, ((sc->recv_ring + i)->md->md1 & HADR),
 		    (sc->recv_ring + i)->md->md0,
 		    -(short) (sc->recv_ring + i)->md->md2,
 		    (sc->recv_ring + i)->md->md3,
 		    (((sc->recv_ring + i)->md->md1 & ~HADR) >> 8), RECV_MD1);
-	log(LOG_DEBUG, "Transmit descriptor ring\n");
+	printf("Transmit descriptor ring\n");
 	for (i = 0; i < NDESC(sc->ntdre); i++)
-		log(LOG_DEBUG, "\t%d buffer = 0x%x%x, BCNT = %d,\tflags = %b %b\n",
+		printf("\t%d buffer = 0x%x%x, BCNT = %d,\tflags = %b %b\n",
 		    i, ((sc->trans_ring + i)->md->md1 & HADR),
 		    (sc->trans_ring + i)->md->md0,
 		    -(short) (sc->trans_ring + i)->md->md2,
 		    ((sc->trans_ring + i)->md->md1 >> 8), TRANS_MD1,
 		    ((sc->trans_ring + i)->md->md3 >> 10), TRANS_MD3);
-	log(LOG_DEBUG, "\nnext_to_send = %x\n", sc->next_to_send);
-	log(LOG_DEBUG, "\n CSR0 = %b CSR1 = %x CSR2 = %x CSR3 = %x\n\n", read_csr(unit, CSR0), CSR0_FLAGS, read_csr(unit, CSR1), read_csr(unit, CSR2), read_csr(unit, CSR3));
+	printf("\nnext_to_send = %x\n", sc->next_to_send);
+	printf("\n CSR0 = %b CSR1 = %x CSR2 = %x CSR3 = %x\n\n", read_csr(unit, CSR0), CSR0_FLAGS, read_csr(unit, CSR1), read_csr(unit, CSR2), read_csr(unit, CSR3));
 	/* Set RAP back to CSR0 */
 	outw(sc->rap, CSR0);
 }
