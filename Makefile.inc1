@@ -587,6 +587,7 @@ includes:
 	cd ${.CURDIR}/lib/libcalendar;		${MAKE} beforeinstall
 	cd ${.CURDIR}/lib/libcam;		${MAKE} beforeinstall
 	cd ${.CURDIR}/lib/libdisk;		${MAKE} beforeinstall
+	cd ${.CURDIR}/lib/libncp;		${MAKE} beforeinstall
 	cd ${.CURDIR}/lib/libncurses;		${MAKE} beforeinstall
 	cd ${.CURDIR}/lib/libedit;		${MAKE} beforeinstall
 	cd ${.CURDIR}/lib/libftpio;		${MAKE} beforeinstall
