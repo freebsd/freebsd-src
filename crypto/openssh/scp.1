@@ -9,7 +9,7 @@
 .\"
 .\" Created: Sun May  7 00:14:37 1995 ylo
 .\"
-.\" $Id: scp.1,v 1.7 2000/04/12 21:47:50 aaron Exp $
+.\" $Id: scp.1,v 1.10 2000/09/01 15:25:13 deraadt Exp $
 .\"
 .Dd September 25, 1999
 .Dt SCP 1
@@ -20,6 +20,7 @@
 .Sh SYNOPSIS
 .Nm scp
 .Op Fl pqrvC46
+.Op Fl S Ar program
 .Op Fl P Ar port
 .Op Fl c Ar cipher
 .Op Fl i Ar identity_file
@@ -98,6 +99,12 @@ because
 .Fl p
 is already reserved for preserving the times and modes of the file in
 .Xr rcp 1 .
+.It Fl S Ar program
+Name of
+.Ar program
+to use for the encrypted connection. The program must understand
+.Xr ssh 1
+options.
 .It Fl 4
 Forces
 .Nm
@@ -106,6 +113,7 @@ to use IPv4 addresses only.
 Forces
 .Nm
 to use IPv6 addresses only.
+.El
 .Sh AUTHORS
 Timo Rinne <tri@iki.fi> and Tatu Ylonen <ylo@cs.hut.fi>
 .Sh HISTORY
