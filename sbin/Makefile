@@ -17,6 +17,7 @@ SUBDIR=	adjkerntz \
 	dumpfs \
 	dumpon \
 	fsck \
+	fsck_ifs \
 	fsck_ffs \
 	fsdb \
 	fsirand \
@@ -37,6 +38,7 @@ SUBDIR=	adjkerntz \
 	mount \
 	mount_cd9660 \
 	mount_ext2fs \
+	mount_ifs \
 	mount_msdos \
 	mount_nfs \
 	mount_ntfs \
