@@ -143,6 +143,7 @@ vnode_pager_alloc(void *handle, vm_ooffset_t size, vm_prot_t prot,
 		VM_OBJECT_LOCK(object);
 		if ((object->flags & OBJ_DEAD) == 0)
 			break;
+		vm_object_set_flag(object, OBJ_DISCONNECTWNT);
 		msleep(object, VM_OBJECT_MTX(object), PDROP | PVM, "vadead", 0);
 	}
 
@@ -191,6 +192,10 @@ vnode_pager_dealloc(object)
 
 	object->handle = NULL;
 	object->type = OBJT_DEAD;
+	if (object->flags & OBJ_DISCONNECTWNT) {
+		vm_object_clear_flag(object, OBJ_DISCONNECTWNT);
+		wakeup(object);
+	}
 	ASSERT_VOP_LOCKED(vp, "vnode_pager_dealloc");
 	vp->v_object = NULL;
 	vp->v_vflag &= ~(VV_TEXT | VV_OBJBUF);
