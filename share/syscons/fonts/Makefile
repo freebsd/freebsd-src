@@ -1,6 +1,6 @@
 # $FreeBSD$
 
-FONTS=	armscii8-8x8.fnt armscii8-8x14.fnt armscii8-8x16.fnt \
+FILES=	armscii8-8x8.fnt armscii8-8x14.fnt armscii8-8x16.fnt \
 	cp437-8x8.fnt cp437-8x14.fnt cp437-8x16.fnt \
 	cp437-thin-8x8.fnt cp437-thin-8x16.fnt \
 	cp850-8x8.fnt cp850-8x14.fnt cp850-8x16.fnt \
@@ -30,13 +30,8 @@ FONTS=	armscii8-8x8.fnt armscii8-8x14.fnt armscii8-8x16.fnt \
 	swiss-1251-8x16.fnt swiss-1131-8x16.fnt \
 	INDEX.fonts
 
-FONTDIR = ${SHAREDIR}/syscons/fonts
+FILESDIR= ${SHAREDIR}/syscons/fonts
 
-NOMAN = noman
-NOOBJ = noobj
-
-install:
-	${INSTALL} -o ${BINOWN} -g ${BINGRP} -m ${SHAREMODE} ${FONTS} \
-		${DESTDIR}${FONTDIR}
+NOOBJ=	noobj
 
 .include <bsd.prog.mk>
