@@ -4,7 +4,7 @@
  * This is probably the last attempt in the `sysinstall' line, the next
  * generation being slated to essentially a complete rewrite.
  *
- * $Id: media.c,v 1.57 1996/10/02 02:02:18 jkh Exp $
+ * $Id: media.c,v 1.58 1996/10/02 08:25:11 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -283,11 +283,14 @@ mediaSetFTP(dialogMenuItem *self)
 				"A URL looks like this:  ftp://<hostname>/<path>\n"
 				"Where <path> is relative to the anonymous ftp directory or the\n"
 				"home directory of the user being logged in as.");
-	if (!cp || !*cp || !strcmp(cp, "ftp://"))
+	if (!cp || !*cp || !strcmp(cp, "ftp://")) {
+	    variable_unset(VAR_FTP_PATH);
 	    return DITEM_FAILURE | what;
+	}
     }
     if (strncmp("ftp://", cp, 6)) {
 	msgConfirm("Sorry, %s is an invalid URL!", cp);
+	variable_unset(VAR_FTP_PATH);
 	return DITEM_FAILURE | what;
     }
     strcpy(ftpDevice.name, cp);
@@ -295,13 +298,16 @@ mediaSetFTP(dialogMenuItem *self)
     dialog_clear_norefresh();
     if (network_init || msgYesNo("You've already done the network configuration once,\n"
 			       "would you like to skip over it now?")) {
-	if (!tcpDeviceSelect())
+	if (!tcpDeviceSelect()) {
+	    variable_unset(VAR_FTP_PATH);
 	    return DITEM_FAILURE | what;
+	}
 	if (!network_init)
 	    mediaDevice->shutdown(mediaDevice);
 	if (!mediaDevice || !mediaDevice->init(mediaDevice)) {
 	    if (isDebug())
 		msgDebug("mediaSetFTP: Net device init failed.\n");
+	    variable_unset(VAR_FTP_PATH);
 	    return DITEM_FAILURE | what;
 	}
     }
@@ -327,6 +333,7 @@ mediaSetFTP(dialogMenuItem *self)
 		       "name server, gateway and network interface are correctly configured?", hostname);
 	    mediaDevice->shutdown(mediaDevice);
 	    network_init = TRUE;
+	    variable_unset(VAR_FTP_PATH);
 	    return DITEM_FAILURE | what;
 	}
     }
