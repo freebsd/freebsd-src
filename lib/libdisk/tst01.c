@@ -6,7 +6,7 @@
  * this stuff is worth it, you can buy me a beer in return.   Poul-Henning Kamp
  * ----------------------------------------------------------------------------
  *
- * $Id: tst01.c,v 1.14.2.1 1995/06/05 02:24:35 jkh Exp $
+ * $Id: tst01.c,v 1.15.2.1 1995/09/20 10:43:04 jkh Exp $
  *
  */
 
@@ -189,7 +189,11 @@ main(int argc, char **argv)
 			continue;
 		}
 		if (!strcasecmp(*cmds,"allfreebsd")) {
-			All_FreeBSD(d);
+			All_FreeBSD(d, 0);
+			continue;
+		}
+		if (!strcasecmp(*cmds,"dedicate")) {
+			All_FreeBSD(d, 1);
 			continue;
 		}
 		if (!strcasecmp(*cmds,"bios") && ncmd == 4) {
@@ -280,6 +284,7 @@ main(int argc, char **argv)
 			printf("\007ERROR\n");
 		printf("CMDS:\n");
 		printf("\tallfreebsd\n");
+		printf("\tdedicate\n");
 		printf("\tbios cyl hd sect\n");
 		printf("\tboot\n");
 		printf("\tbteasy17\n");

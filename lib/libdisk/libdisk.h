@@ -6,7 +6,7 @@
  * this stuff is worth it, you can buy me a beer in return.   Poul-Henning Kamp
  * ----------------------------------------------------------------------------
  *
- * $Id: libdisk.h,v 1.18.2.2 1995/06/05 02:24:32 jkh Exp $
+ * $Id: libdisk.h,v 1.19.2.2 1995/10/13 08:19:12 jkh Exp $
  *
  */
 
@@ -74,6 +74,10 @@ struct chunk {
 			/* This 'part' is a rootfs, allocate 'a' */
 #		define CHUNK_ACTIVE		32
 			/* This is the active slice in the MBR */
+#		define CHUNK_FORCE_ALL		64
+			/* Force a dedicated disk for FreeBSD, bypassing
+			 * all BIOS geometry considerations
+			 */
 
 	void		(*private_free)(void*);
 	void		*(*private_clone)(void*);
@@ -138,8 +142,10 @@ Create_Chunk(struct disk *disk, u_long offset, u_long size, chunk_e type, int su
 	 */
 
 void
-All_FreeBSD(struct disk *d);
-	/* Make one FreeBSD chunk covering the entire disk
+All_FreeBSD(struct disk *d, int force_all);
+	/* Make one FreeBSD chunk covering the entire disk;
+	 * if force_all is set, bypass all BIOS geometry
+	 * considerations.
 	 */
 
 char *
@@ -211,7 +217,10 @@ Create_Chunk_DWIM(struct disk *d, struct chunk *parent , u_long size, chunk_e ty
 	 * enough is used.
 	 */
 
-void
+int
+MakeDev(struct chunk *c, char *path);
+
+int
 MakeDevDisk(struct disk *d,char *path);
 	/* Make device nodes for all chunks on this disk */
 

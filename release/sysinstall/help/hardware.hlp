@@ -1,11 +1,11 @@
-Hardware Documentation Guide:  $Id: hardware.hlp,v 1.12.2.1 1995/08/14 10:49:29 rgrimes Exp $
+Hardware Documentation Guide:  $Id: hardware.hlp,v 1.1.2.10 1995/11/04 08:48:00 jkh Exp $
 
 Table of Contents
 -----------------
 
 0.  Document Conventions
-1.  Using UserConfig to change FreeBSD kernel settings
-2.  Default Configuration (GENERIC kernel)
+1.  Default Configuration (GENERIC kernel)
+2.  Using UserConfig to change FreeBSD kernel settings
 3.  LINT - other possible configurations.
 4.  Known Hardware Problems.
 
@@ -14,11 +14,114 @@ Table of Contents
 0.      Document Conventions
 --      --------------------
 
-We have `underlined' text which represents user input with `-'
-symbols throughout this document to differentiate it from
-the machine output.
+We have `underlined' text which represents user input with `-' symbols
+throughout this document to differentiate it from the machine output.
 
-1.      Using UserConfig to change FreeBSD kernel settings
+1.      Default (GENERIC) Configuration
+--      -------------------------------
+
+The following table contains a list of all of the devices that are
+present in the GENERIC kernel, that being the kernel (the operating
+system) that was placed in your root partition during the FreeBSD
+installation process.  A compressed version of the GENERIC kernel is
+also used on the installation floppy diskette and DOS boot image.
+
+The table describes the various parameters used by the driver to
+communicate with the hardware in your system.  There are four
+parameters in the table, though not all are used by each and every
+device.
+
+Detail:
+
+   Port   The starting I/O port used by the device, shown in hexadecimal.
+
+   IOMem  The lowest (or starting) memory address used by the device,
+          also shown in hexadecimal.
+
+   IRQ    The interrupt the device uses to alert the driver to an event,
+          given in decimal.
+
+   DRQ    The DMA (direct memory access) channel the device uses to move
+          data to and from main memory, also given in decimal.
+
+If an entry in the table has `n/a' for a value then it means that the
+parameter in question does not apply to that device.  A value of `dyn'
+means that the correct value should be determined automatically by the
+kernel when the system boots.
+
+
+FreeBSD GENERIC kernel:
+
+        Port    IRQ     DRQ     IOMem   Description
+        ----    ---     ---     -----   ---------------------------------
+fdc0    3f0     6       2       n/a     Floppy disk controller
+wdc0    1f0     14      n/a     n/a     IDE/MFM/RLL disk controller
+wdc1    170     15      n/a     n/a     IDE/MFM/RLL disk controller
+
+ncr0    n/a     n/a     n/a     n/a     NCR PCI SCSI controller
+ahc0    n/a     n/a     n/a     n/a     Adaptec 294x PCI SCSI controller
+bt0     330     dyn     dyn     dyn     Buslogic SCSI controller
+uha0    330     dyn     6       dyn     Ultrastore 14f
+ahc1    dyn     dyn     dyn     dyn     Adaptec 274x/284x SCSI controller
+ahb0    dyn     dyn     dyn     dyn     Adaptec 174x SCSI controller
+aha0    330     dyn     5       dyn     Adaptec 154x SCSI controller
+aic0    340     11      dyn     dyn     Adaptec 152x/AIC-6360 SCSI
+                                        controller
+nca0    1f88    10      dyn     dyn     ProAudioSpectrum cards
+nca1    350     5       dyn     dyn     ProAudioSpectrum cards
+sea0    dyn     5       dyn     c8000   Seagate ST01/02 8 bit controller
+
+wt0     300     5       1       dyn     Wangtek and Archive QIC-02/QIC-36
+
+mcd0    300     10      n/a     n/a     Mitsumi CD-ROM
+mcd1    340     11      n/a     n/a     Mitsumi CD-ROM
+
+matcd0  230     n/a     n/a     n/a     Matsushita/Panasonic CD-ROM
+
+scd0    230     n/a     n/a     n/a     Sony CD-ROM
+
+sio0    3f8     4       n/a     n/a     Serial Port 0 (COM1)
+sio1    2f8     3       n/a     n/a     Serial Port 1 (COM2)
+sio2    3e8     5       n/a     n/a     Serial Port 2 (COM3)
+sio3    2e8     9       n/a     n/a     Serial Port 3 (COM4)
+
+lpt0    dyn     7       n/a     n/a     Printer Port 0
+lpt1    dyn     dyn     n/a     n/a     Printer Port 1
+lpt2    dyn     dyn     n/a     n/a     Printer Port 2
+
+de0     n/a     n/a     n/a     n/a     DEC DC21x40 PCI based cards
+                                        (including 21140 100bT cards)
+ed0     280     5       dyn     d8000   WD & SMC 80xx; Novell NE1000 &
+                                        NE2000; 3Com 3C503
+ed1     300     5       dyn     d8000   Same as ed0
+eg0     310     5       dyn     dyn     3Com 3C505
+ep0     300     10      dyn     dyn     3Com 3C509
+ie0     360     7       dyn     d0000   AT&T StarLAN 10 and EN100;
+                                        3Com 3C507; NI5210
+ix0     300     10      dyn     d0000   Intel EtherExpress cards
+le0     300     5       dyn     d0000   Digital Equipment EtherWorks
+                                        2 and EtherWorks 3
+lnc0    280     10      n/a     dyn     Lance/PCnet cards
+                                        (Isolan, Novell NE2100, NE32-VL)
+lnc1    300     10      n/a     dyn     See lnc0
+ze0     300     5       dyn     d8000   IBM/National Semiconductor
+                                        PCMCIA Ethernet Controller
+zp0     300     10      dyn     d8000   3Com PCMCIA Etherlink III
+                                        Ethernet Controller
+--- End of table ---
+
+
+If the hardware in your computer is not set to the same settings as
+those shown in the table and the item in conflict is not marked 'dyn',
+you will have to either reconfigure your hardware or use UserConfig
+('-c' boot option) to reconfigure the kernel to match the way your
+hardware is currently set (see the next section).
+
+If the settings do not match, the kernel may be unable to locate
+or reliably access the devices in your system.
+
+
+2.      Using UserConfig to change FreeBSD kernel settings
 --      --------------------------------------------------
 
 The UserConfig utility allows you to override various settings of
@@ -69,6 +172,7 @@ flags <devname> <mask>  Set device flags
 enable <devname>        Enable device
 probe <devname>         Return results of device probe
 disable <devname>       Disable device (will not be probed)
+visual                  Go to visual mode
 quit                    Exit this configuration utility
 help                    This message
 
@@ -76,13 +180,24 @@ help                    This message
 You may alter nearly all of the default settings present in the FreeBSD
 generic kernel.  This includes reassigning IRQs, disabling troublesome
 devices (or drivers that conflict with the hardware your system has),
-setting special device flags, etc.  
+setting special device flags, etc.
+
+Since people's tastes in user interface design vary widely, we have
+provided two different interfaces to the UserConfig utility.  If you
+type `visual' you will be placed in the "GUI" oriented device
+attributes editor.  If you're someone who's more at home with
+command-line flavored interfaces then simply don't type `visual' at
+any point! :)
+
+Since the visual interface pretty much describes itself, we'll use the
+more verbose command line interface while describing UserConfig in the
+following examples.
 
 The most common use of UserConfig is to adjust or disable a driver
 which is causing trouble.  The "ls" command displays the current
-settings for all the drivers present in the booted kernel, and
-once you have located an entry of interest you may use the displayed
-device name to change its settings or even disable the driver completely.
+settings for all the drivers present in the booted kernel, and once
+you have located an entry of interest you may use the displayed device
+name to change its settings or even disable the driver completely.
 
 For example, to change the memory address of network adapter 'ed0' to
 the address 0xd4000, you would type
@@ -134,109 +249,6 @@ sufficient free disk space to store and compile the kernel sources,
 this is the option we most highly recommend.
 
 
-
-2.      Default (GENERIC) Configuration
---      -------------------------------
-
-The following table contains a list of all of the devices that are present
-in the GENERIC kernel, which is the kernel (the operating system) that was
-placed on your computer during the FreeBSD installation process.
-(A compressed version of the GENERIC kernel is also used on the
-installation floppy diskettes.)
-
-The table describes the various parameters used by the driver to communicate
-with the hardware in your system.  There are four parameters in the
-table, but not all are used by each device.  They are:
-
-   Port   the starting I/O port used by the device, shown in hexadecimal.
-
-   IOMem  the lowest (or starting) memory address used by the device,
-          also shown in hexadecimal.
-
-   IRQ    the interrupt the device uses to alert the driver to an event,
-          given in decimal.
-
-   DRQ    the DMA (direct memory access) channel the device uses to move
-          data to and from main memory, also given in decimal.
-
-If an entry in the table has `n/a' for the value, it means that the
-parameter does not apply to that device.  A value of `dyn' means that the
-correct value should be  determined automatically by the kernel when the
-system boots.
-
-
-FreeBSD GENERIC kernel:
-
-        Port    IRQ     DRQ     IOMem   Description
-        ----    ---     ---     -----   ---------------------------------
-fdc0    3f0     6       2       n/a     Floppy disk controller
-wdc0    1f0     14      n/a     n/a     IDE/MFM/RLL disk controller
-wdc1    170     15      n/a     n/a     IDE/MFM/RLL disk controller
-
-ncr0    n/a     n/a     n/a     n/a     NCR PCI SCSI controller
-ahc0    n/a     n/a     n/a     n/a     Adaptec 294x PCI SCSI controller
-bt0     330     dyn     dyn     dyn     Buslogic SCSI controller
-uha0    330     dyn     6       dyn     Ultrastore 14f
-ahc1    dyn     dyn     dyn     dyn     Adaptec 274x/284x SCSI controller
-ahb0    dyn     dyn     dyn     dyn     Adaptec 174x SCSI controller
-aha0    330     dyn     5       dyn     Adaptec 154x SCSI controller
-aic0    340     11      dyn     dyn     Adaptec 152x/AIC-6360 SCSI
-                                        controller
-nca0    1f88    10      dyn     dyn     ProAudioSpectrum cards
-nca1    350     5       dyn     dyn     ProAudioSpectrum cards
-sea0    dyn     5       dyn     c8000   Seagate ST01/02 8 bit controller
-
-wt0     300     5       1       dyn     Wangtek and Archive QIC-02/QIC-36
-
-mcd0    300     10      n/a     n/a     Mitsumi CD-ROM
-mcd1    340     11      n/a     n/a     Mitsumi CD-ROM
-
-matcd0  dyn     n/a     n/a     n/a     Matsushita/Panasonic CD-ROM
-
-scd0    230     n/a     n/a     n/a     Sony CD-ROM
-
-sio0    3f8     4       n/a     n/a     Serial Port 0 (COM1)
-sio1    2f8     3       n/a     n/a     Serial Port 1 (COM2)
-sio2    3e8     5       n/a     n/a     Serial Port 2 (COM3)
-sio3    2e8     9       n/a     n/a     Serial Port 3 (COM4)
-
-lpt0    dyn     7       n/a     n/a     Printer Port 0
-lpt1    dyn     dyn     n/a     n/a     Printer Port 1
-lpt2    dyn     dyn     n/a     n/a     Printer Port 2
-
-de0                                     DEC DC21x40 PCI based cards
-                                        (including 21140 100bT cards)
-ed0     280     5       dyn     d8000   WD & SMC 80xx; Novell NE1000 &
-                                        NE2000; 3Com 3C503
-ed1     300     5       dyn     d8000   Same as ed0
-eg0     310     5       dyn     dyn     3Com 3C505
-ep0     300     10      dyn     dyn     3Com 3C509
-ie0     360     7       dyn     d0000   AT&T StarLAN 10 and EN100;
-                                        3Com 3C507; NI5210
-ix0     300     10      dyn     d0000   Intel EtherExpress cards
-le0     300     5       dyn     d0000   Digital Equipment EtherWorks
-                                        2 and EtherWorks 3
-lnc0    280     10      n/a     dyn     Lance/PCnet cards
-                                        (Isolan, Novell NE2100, NE32-VL)
-lnc1    300     10      n/a     dyn     See lnc0
-ze0     300     5       dyn     d8000   IBM/National Semiconductor
-                                        PCMCIA Ethernet Controller
-zp0     300     10      dyn     d8000   3Com PCMCIA Etherlink III
-                                        Ethernet Controller
---- End of table ---
-
-
-If the hardware in your computer is not set to the same settings as
-those shown in this table and the item is not marked 'dyn', you will 
-have to either reconfigure your hardware, or use UserConfig ('-c' boot
-option) to reconfigure the kernel to match the way your hardware is
-currently set (see section 1.0).   
-
-If the settings do not match, the kernel may be unable to locate
-or reliably access the devices in your system.
-
-
-
 3.      LINT - other possible configurations
 --      ------------------------------------
 
@@ -265,7 +277,6 @@ fpa:    DEC DEFPA PCI FDDI adapter
 gp:     National Instruments AT-GPIB and AT-GPIB/TNT board
 gsc:    Genius GS-4500 hand scanner
 gus:    Gravis Ultrasound - Ultrasound, Ultrasound 16, Ultrasound MAX
-gusmax: Gravis Ultrasound MAX (currently broken)
 gusxvi: Gravis Ultrasound 16-bit PCM
 joy:    Joystick
 labpc:  National Instrument's Lab-PC and Lab-PC+
@@ -281,7 +292,7 @@ rc:     RISCom/8 multiport card
 sb:     SoundBlaster PCM - SoundBlaster, SB Pro, SB16, ProAudioSpectrum
 sbmidi: SoundBlaster 16 MIDI interface
 sbxvi:  SoundBlaster 16
-spigot: Create Labs Video Spigot video-acquisition board
+spigot: Creative Labs Video Spigot video-acquisition board
 uart:   Stand-alone 6850 UART for MIDI
 wds:    Western Digital WD7000 IDE
 
@@ -303,13 +314,10 @@ Q: The system finds my ed network card, but I keep getting device
    timeout errors.
 
 A: Your card is probably on a different IRQ from what is specified in the
-   kernel configuration.  The ed driver will no longer use the `soft'
-   configuration by default (values entered using EZSETUP in DOS), but it
-   will use the software configuration if you specify `?' in the IRQ field
-   of your kernel config file.  The reason for the change is because the
-   ed driver used to read and try to use the soft configuration information
-   even when the card was jumpered to use a hard configuration, and this
-   caused problems.
+   kernel configuration.  The ed driver does not use the `soft' configuration
+   by default (values entered using EZSETUP in DOS), but it will use the
+   software configuration if you specify `?' in the IRQ field of your kernel
+   config file.  
 
    Either move the jumper on the card to a hard configuration setting
    (altering the kernel settings if necessary), or specify the IRQ as
@@ -318,7 +326,7 @@ A: Your card is probably on a different IRQ from what is specified in the
 
    Another possibility is that your card is at IRQ 9, which is shared
    by IRQ 2 and frequently a cause of problems (especially when you
-   have a VGA card using 2! :).  You should not use IRQ 2 or 9 if at
+   have a VGA card using IRQ 2! :).  You should not use IRQ 2 or 9 if at
    all possible.
 
 
@@ -337,17 +345,47 @@ A: The hard disk geometry was set incorrectly in the Partition editor when
    program will see the DOS partition and try to infer the correct
    geometry from it, which usually works.
 
+   If you are setting up a truly dedicated FreeBSD server or work-
+   station where you don't care for (future) compatibility with DOS,
+   Linux or another operating system, you've also got the option to use
+   the entire disk (`A' in the partition editor), selecting the
+   non-standard option where FreeBSD occupies the entire disk from
+   the very first to the very last sector.  This will leave all geometry
+   considerations aside, but is somewhat limiting unless you're never
+   going to run anything other than FreeBSD on a disk.
 
-Q: I have a Matsushita/Panasonic CD-ROM drive but it isn't recognized
-   by the system, even if I use UserConfig to change the Port address to
-   630, which is what my card uses.
+Q: I have a Matsushita/Panasonic drive but it isn't recognized by the
+   system.
 
-A: Not all of the companies that sell the Matsushita/Panasonic CR-562
-   and CR-563 drives use the same I/O ports and interface that the
-   matcd driver in FreeBSD expects.  The only adapters that are supported
-   at this time are those that are 100% compatible with the Creative
-   Labs (SoundBlaster) host interface.  See matcd.4 documentation for a
-   list of host adapters that are known to work.
+A: Make certain that the I/O port that the matcd driver is set to is
+   correct for the host interface card you have.  (Some SoundBlaster DOS
+   drivers report a hardware I/O port address for the CD-ROM interface
+   that is 0x10 lower than it really is.)
+
+   If you are unable to determine the settings for the card by examining 
+   the board or documentation, you can use UserConfig to change the 'port'
+   address (I/O port) to -1 and start the system.  This setting causes the
+   driver to look at a number of I/O ports that various manufacturers
+   use for their Matsushita/Panasonic/Creative CD-ROM interfaces.
+   Once the driver locates the address, you should run UserConfig again
+   and specify the correct address.  Leaving the 'port' parameter set to -1
+   increases the amount of time that it takes the system to boot, and
+   this could interfere with other devices.
+
+   The double-speed Matsushita CR-562 and CR-563 are the only drives
+   that are supported.
+   
+
+Q: I have a Matsushita/Panasonic CR-522, a Matsushita/Panasonic CR-523 or
+   a TEAC CD55a drive, but it is not recognized even when the correct I/O
+   port is set.
+
+A: These CD-ROM drives are currently not supported by FreeBSD.  The command
+   sets for these drives are not compatible with the double-speed CR-562
+   and CR-563 drives.
+   
+   The single-speed CR-522 and CR-523 drives can be identified by their
+   use of a CD-caddy. 
 
 
 Q: I'm trying to install from a tape drive but all I get is something like:
@@ -381,10 +419,11 @@ A: This is not actually a hang, simply a very LONG "wdc0" probe that
    To eliminate the problem, boot with the -c flag and eliminate the wdc0
    device, or compile a custom kernel.
 
-Q: My sytem can not find an Intel EtherExpress 16 card.
+Q: My system can not find my Intel EtherExpress 16 card.
 
 A: You must set your Intel EtherExpress 16 card to be memory mapped at
    address 0xD0000, and set the amount of mapped memory to 32K using
    the Intel supplied softset.exe program.
 
 [ Please add more hardware tips to this Q&A section! ]
+

@@ -1,15 +1,23 @@
-This is the Main Partition (or ``Slice'') Editor.
+This is the Main Partition (or ``FDISK'') Editor.
 
-Possible commands are printed at the bottom, and the Master Boot Record
-contents are at the top.  You can move up and down with the arrow keys
-and can (C)reate a new partition whenever the "bar" is over a partition
-whose type is set to "unused".
+Possible commands are printed at the bottom and the Master Boot Record
+contents are shown at the top.  You can move up and down with the
+arrow keys and (C)reate a new partition whenever the highlighted
+selection bar is over a partition whose type is marked as "unused."
+
+You are expected to leave this screen with at least one partition
+marked "FreeBSD."  Note that unlike Linux, you don't need to create
+multiple FreeBSD fdisk partition entries for different things like
+swap, file systems, etc.  The usual convention is to create ONE
+FreeBSD partition per drive and then subsection this partition into
+swap and file systems with the Label editor.
+
 
 The flags field has the following legend:
 
-        '='  -- Partition is properly aligned.
-        '>'  -- The partition doesn't end before cylinder 1024
-        'R'  -- Has been marked as containing the root (/) filesystem
+        '='  -- This partition is properly aligned.
+        '>'  -- This partition doesn't end before cylinder 1024
+        'R'  -- This partition contains the root (/) filesystem
         'B'  -- Partition employs BAD144 bad-spot handling
         'C'  -- This is the FreeBSD 2.0-compatibility partition (default)
         'A'  -- This partition is marked active.
@@ -21,8 +29,39 @@ If no partition is marked Active, you will need to either install
 a Boot Manager (the option for which will be presented later in the
 installation) or set one Active before leaving this screen.
 
-To leave this screen, type `Q'.
+To leave the partition editor, type `Q'.
 
 No actual changes will be made to the disk until you (C)ommit from the
-Install menu!  You're working with what is essentially a copy of
-the disk label(s), both here and in the Label Editor.
+Install menu or use the (W)rite option here!  You're working with what
+is essentially a copy of the disk label(s), both here and in the Label
+Editor.
+
+NOTE:  The (W)rite option is HIGHLY DANGEROUS and should NOT BE USED if
+you're installing a new system!  It's only for use in resurrecting
+or changing an existing system, and will cause unpredictable things to
+happen if you use it in any other circumstances.  Don't do it!  Wait
+for the final commit dialog if you're express/novice installing, or
+use the "Commit" menu item if you're custom installing, and do it there.  
+
+If you want to use the entire disk for FreeBSD, type `A'.  You'll be
+asked whether or not you wish to keep the disk (potentially) compatible
+with other operating systems, i.e. the information in the FDISK table
+should be kept valid.  If you select the default of `Yes', slices will be
+aligned to fictitious cylinder boundaries and space will be reserved
+in front of the FreeBSD slice for a [future] possible boot manager.
+
+For the truly dedicated disk case, you can select `No' at the
+compatibility prompt.  In that case, all BIOS geometry considerations
+will no longer be in effect and you can safely ignore any
+``The detected geometry is invalid'' warning messages you may later
+see.  It is also not necessary in this case to set a partition bootable
+or install an MBR boot manager as both things are then irrelevant.
+
+The FreeBSD slice will start at absolute sector 0 of the disk (so that
+FreeBSD's disk label is identical to the Master Boot Record) and
+extend to the very last sector of the disk medium.  Needless to say,
+such a disk cannot have any sort of a boot manager, `disk manager',
+or anything else that has to interact with the BIOS.  This option is
+therefore only considered safe for SCSI disks and most IDE disks and
+is primarily intented for people who are going to set up a dedicated
+FreeBSD server or workstation, not a typical `home PC'.

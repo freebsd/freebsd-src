@@ -4,7 +4,7 @@
  * This is probably the last attempt in the `sysinstall' line, the next
  * generation being slated for what's essentially a complete rewrite.
  *
- * $Id: main.c,v 1.13 1995/06/11 19:30:02 rgrimes Exp $
+ * $Id: main.c,v 1.14 1995/09/18 16:52:29 peter Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -43,12 +43,24 @@
 
 #include "sysinstall.h"
 #include <stdio.h>
+#include <sys/signal.h>
+
+static void
+screech(int sig)
+{
+    fprintf(stderr, "\007Fatal signal %d caught!  I'm dead..\n", sig);
+    pause();
+}
 
 int
 main(int argc, char **argv)
 {
     int choice, scroll, curr, max;
 
+    if (getpid() == 1) {
+	signal(SIGBUS, screech);
+	signal(SIGSEGV, screech);
+    }
     if (geteuid() != 0) {
 	fprintf(stderr, "Warning:  This utility should be run as root.\n");
 	sleep(1);
@@ -64,20 +76,17 @@ main(int argc, char **argv)
     /* Probe for all relevant devices on the system */
     deviceGetAll();
 
-    /* Default to passive mode ftp since it's the only thing we currently support :-( */
-    OptFlags |= OPT_FTP_PASSIVE;
+    /* Set default flag and variable values */
+    installVarDefaults(NULL);
 
     /* Begin user dialog at outer menu */
     while (1) {
 	choice = scroll = curr = max = 0;
 	dmenuOpen(&MenuInitial, &choice, &scroll, &curr, &max);
-	if (getpid() != 1 || !msgYesNo("Are you sure you wish to exit?  System will reboot."))
+	if (getpid() != 1 || !msgYesNo("Are you sure you wish to exit?  The system will reboot\n"
+				       "(be sure to remove any floppies from the drives)."))
 	    break;
     }
-
-    /* Write out any changes to /etc/sysconfig */
-    if (SystemWasInstalled)
-	configSysconfig();
 
     /* Say goodnight, Gracie */
     systemShutdown();

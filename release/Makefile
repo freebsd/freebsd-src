@@ -1,4 +1,4 @@
-#	$Id: Makefile,v 1.193 1995/06/11 19:29:26 rgrimes Exp $
+#	$Id: Makefile,v 1.194 1995/07/25 19:13:20 jkh Exp $
 #
 # How to roll a release:
 #
@@ -11,16 +11,22 @@
 # that on a 14.4 line just yet...
 #
 # SET THIS !!!
-#BUILDNAME=SOME_RANDOM_BUILD
-
+BUILDNAME=2.1.0-RELEASE
+CHROOTDIR=/a/release
 # If this is a RELEASE, then set
-#RELEASETAG=something
+RELEASETAG=RELENG_2_1_0
 
 # Things which without too much trouble can be considered variables
 
 EXPORT_DISTS=	games manpages proflibs dict info
 EXTRA_DISTS=	krb des ${EXPORT_DISTS}
 ALL_DISTS=	bin ${EXTRA_DISTS}
+
+# Extra source tarballs; each argument is a pair of source dir and
+# distribution name.  The dist name should not exceed 7 characters
+# (another "s" for "source" will be prepended).
+EXTRA_SRC+=	usr.sbin/sendmail/cf smailcf
+#EXTRA_SRC+=	usr.sbin/config kconf
 
 BOOT1=	etc/protocols etc/sysconfig
 
@@ -44,8 +50,8 @@ ZIPNSPLIT=		gzip --no-name -9 -c | split -b 240640 -
 
 # Size of the mfs to put in the kernel we boot.
 # You want to keep this as small as possible, it costs dearly in RAM.
-BOOTMFSSIZE=		1075
-MFSINODE=		80000
+BOOTMFSSIZE=		1000
+MFSINODE=		70000
 
 # Things which will get you into trouble if you change them
 DISTRIBUTIONS=		bin ${EXTRA_DISTS}
@@ -64,16 +70,15 @@ release:
 .endif
 .if exists(${CHROOTDIR})
 	chflags -R noschg ${CHROOTDIR}/.
-	rm -rf ${CHROOTDIR}/*
-.else
-	mkdir ${CHROOTDIR}
+	rm -rf ${CHROOTDIR}
 .endif
+	mkdir -p ${CHROOTDIR}
 	cd ${.CURDIR}/../etc ; ${MAKE} distrib-dirs DESTDIR=${CHROOTDIR}
 	cd ${.CURDIR}/../etc ; ${MAKE} distribution DESTDIR=${CHROOTDIR}
 	cd ${.CURDIR}/.. ; ${MAKE} install DESTDIR=${CHROOTDIR}
 	echo "#!/bin/sh"			> ${CHROOTDIR}/mk
 	echo "set -ex"				>> ${CHROOTDIR}/mk
-	echo "CFLAGS='-O2 -pipe'"		>> ${CHROOTDIR}/mk
+	echo "CFLAGS='-O -pipe'"		>> ${CHROOTDIR}/mk
 	echo "export CFLAGS"			>> ${CHROOTDIR}/mk
 	echo "RELEASEDIR=/R"			>> ${CHROOTDIR}/mk
 	echo "export RELEASEDIR"		>> ${CHROOTDIR}/mk
@@ -82,32 +87,30 @@ release:
 	echo "cd /usr/src/release"		>> ${CHROOTDIR}/mk
 	echo "make obj"				>> ${CHROOTDIR}/mk
 	echo "make doRELEASE"			>> ${CHROOTDIR}/mk
+	echo "echo Release Finished"		>> ${CHROOTDIR}/mk
 .if !defined(RELEASETAG)
 	cd ${CHROOTDIR}/usr ; cvs co -P src
 .else
 	cd ${CHROOTDIR}/usr ; cvs co -P -r ${RELEASETAG} src
 .endif
 	( cd ${CHROOTDIR}/usr/src/sys/conf && \
-	mv newvers.sh foo && \
-	sed "s/^RELEASE=.*/RELEASE=${BUILDNAME}/" foo > newvers.sh; rm foo )
-	# To be used in development...
-	#find ${.CURDIR} -print | cpio -dumpv ${CHROOTDIR}
+	  cp newvers.sh foo && \
+	  sed "s/^RELEASE=.*/RELEASE=${BUILDNAME}/" foo > newvers.sh; rm foo )
+	( cd ${CHROOTDIR}/usr/src/release/sysinstall && \
+	  sed "s/__RELEASE/${BUILDNAME}/" version.h > version.h.new && mv version.h.new version.h )
 	chmod 755 ${CHROOTDIR}/mk
 	chroot ${CHROOTDIR} /mk
 
-# Same as above, but assume that a build just fell over, has been corrected
-# and now we just want to pick up where we left off.
+# Same as above but for re-rolling the release after simply changing a few
+# things.
 rerelease:
 .if !defined(CHROOTDIR) || !defined(BUILDNAME)
-	@echo "To make a release you must set CHROOTDIR and BUILDNAME" && false
+	@echo "To make a re-release you must set CHROOTDIR and BUILDNAME" && false
 .endif
 	@if [ ! -d ${CHROOTDIR} ]; then echo "No ${CHROOTDIR} directory to re-release in!"; exit 1; fi
-	cd ${.CURDIR}/../etc ; ${MAKE} distrib-dirs DESTDIR=${CHROOTDIR}
-	cd ${.CURDIR}/../etc ; ${MAKE} distribution DESTDIR=${CHROOTDIR}
-	cd ${.CURDIR}/.. ; ${MAKE} -k install DESTDIR=${CHROOTDIR}
 	echo "#!/bin/sh"			> ${CHROOTDIR}/mk
 	echo "set -ex"				>> ${CHROOTDIR}/mk
-	echo "CFLAGS='-O2 -pipe'"		>> ${CHROOTDIR}/mk
+	echo "CFLAGS='-O -pipe'"		>> ${CHROOTDIR}/mk
 	echo "export CFLAGS"			>> ${CHROOTDIR}/mk
 	echo "RELEASEDIR=/R"			>> ${CHROOTDIR}/mk
 	echo "export RELEASEDIR"		>> ${CHROOTDIR}/mk
@@ -122,6 +125,7 @@ rerelease:
 	echo "cd /usr/src/release"		>> ${CHROOTDIR}/mk
 	echo "make obj"				>> ${CHROOTDIR}/mk
 	echo "make doRELEASE"			>> ${CHROOTDIR}/mk
+	echo "echo Re-Release Finished"		>> ${CHROOTDIR}/mk
 .if !defined(RELEASENOUPDATE)
 .if !defined(RELEASETAG)
 	cd ${CHROOTDIR}/usr ; cvs update -P -d -q src
@@ -130,12 +134,16 @@ rerelease:
 .endif
 .endif
 	( cd ${CHROOTDIR}/usr/src/sys/conf && \
-	mv newvers.sh foo && \
-	sed "s/^RELEASE=.*/RELEASE=${BUILDNAME}/" foo > newvers.sh; rm foo )
-	# To be used in development...
-	#find ${.CURDIR} -print | cpio -dumpv ${CHROOTDIR}
+	  mv newvers.sh foo && \
+	  sed "s/^RELEASE=.*/RELEASE=${BUILDNAME}/" foo > newvers.sh; rm foo )
+	( cd ${CHROOTDIR}/usr/src/release/sysinstall && \
+	  sed "s/__RELEASE/${BUILDNAME}/" version.h > version.h.new && mv version.h.new version.h )
 	chmod 755 ${CHROOTDIR}/mk
 	chroot ${CHROOTDIR} /mk
+
+whap:
+	( cd ${CHROOTDIR}/usr/src/release/sysinstall && \
+	  sed "s/__RELEASE/${BUILDNAME}/" version.h > version.h.new && mv version.h.new version.h )
 
 clean:
 	rm -rf root_crunch boot_crunch release.[0-9] release.1[0]
@@ -179,15 +187,20 @@ release.2:
 	install -m 444 -o bin -g bin libgcc.so.261.0 ${RD}/trees/bin/usr/lib
 	touch release.2
 
-# Make and install a couple of kernels we need.
+# Make and install a couple of kernels we need.  To keep BOOTMFS smaller,
+# we cull out certain options (see fgrep -v) before building it.
 release.3:
 	rm -rf ${RD}/kernels
 	mkdir -p ${RD}/kernels
 	@cd ${.CURDIR} && $(MAKE) ckRELEASEDIR
 	cd ${.CURDIR}/../sys/i386/conf && \
-		sed 's/GENERIC/BOOTMFS/g' GENERIC > BOOTMFS && \
+		fgrep -v SYSV GENERIC | \
+		fgrep -v pty | \
+		fgrep -v PROCFS | \
+		sed 's/GENERIC/BOOTMFS/g' > BOOTMFS && \
 		echo "options  \"MFS_ROOT=${BOOTMFSSIZE}\"" >> BOOTMFS && \
 		echo "options  MFS" >> BOOTMFS
+
 	for i in BOOTMFS GENERIC ; do \
 		cd ${.CURDIR}/../sys/i386/conf && \
 			config $$i && \
@@ -198,7 +211,6 @@ release.3:
 		rm -rf ${.CURDIR}/../sys/compile/$$i ; \
 	done
 	rm -f ${.CURDIR}/../sys/i386/conf/BOOTCDROM
-	cd ${RD}/kernels && kzip GENERIC
 	touch release.3
 
 # Make and install the three crunched binaries which live on the floppies.
@@ -300,6 +312,18 @@ release.7:
 				TD=src ARG="$$i" ; \
 		fi ; \
 	done
+.if defined(EXTRA_SRC)
+	@set ${EXTRA_SRC} ; \
+	while [ $$# -ge 2 ] ; do \
+		if [ -d /usr/src/$$1 -a "$$1" != "CVS" ] ; then \
+			cd ${.CURDIR} ; \
+			$(MAKE) doTARBALL SD=/usr/src \
+				TN="s$$2" \
+				TD=src ARG="$$1" ; \
+		fi ; \
+		shift ; shift ; \
+	done
+.endif
 	( cd ${RD}/dists/src && \
 	if [ -f ssecure.aa ] ; then mv ssecure.* ../des ; fi && \
 	if [ -f sebones.aa ] ; then mv sebones.* ../des ; fi )
@@ -330,11 +354,11 @@ release.8: write_mfs_in_kernel
 	cd ${RD}/mfsfd && \
 		mkdir -p dev mnt stand/help
 	@cd ${.CURDIR} && $(MAKE) installCRUNCH CRUNCH=boot \
-		DIR=${RD}/mfsfd/stand ZIP=false
+		DIR=${RD}/mfsfd/stand ZIP=true
 	( cd ${RD}/trees/bin/dev && \
 		ls console tty ttyv0 ttyv1 ttyv2 ttyv3 null zero \
-		*[sw]d* cuaa[01] fd[01] rfd[01] \
-		cd0a mcd0a scd0a matcd0a rst0 ft0 rwt0 | \
+		*[sw]d* cuaa[01] cuaa[23] fd[01] rfd[01] \
+		cd0a mcd0a scd0a matcd0a wcd0c rst0 rft0 rwt0 | \
 	cpio -dump ${RD}/mfsfd/dev )
 	( cd ${RD}/mfsfd/dev && rm -f *[sw]d*[bdefgh] )
 	cd ${RD}/trees/bin && ls ${BOOT1} | cpio -dump ${RD}/mfsfd/stand
@@ -342,12 +366,9 @@ release.8: write_mfs_in_kernel
 	echo "ftp             21/tcp"		>> ${RD}/mfsfd/stand/etc/services
 	echo "domain          53/tcp          nameserver" >> ${RD}/mfsfd/stand/etc/services
 	echo "domain          53/udp          nameserver" >> ${RD}/mfsfd/stand/etc/services
-	rm -rf ${.CURDIR}/sysinstall/help/ja_JP.JIS
 	tar --exclude CVS -cf - -C ${.CURDIR}/sysinstall help | \
 		tar xvf - -C ${RD}/mfsfd/stand
-	install -c ${.CURDIR}/../COPYRIGHT ${RD}/mfsfd/stand/help/en_US.ISO8859-1/COPYRIGHT
-	(cd ${RD}/mfsfd/stand/help && tar cf - * | gzip -9 > ../help.tgz)
-	(cd ${RD}/mfsfd/stand && rm -rf help)
+	install -c ${.CURDIR}/../COPYRIGHT ${RD}/mfsfd/stand/help/COPYRIGHT.hlp
 	( 								\
 	a=`expr ${BOOTMFSSIZE} \* 2` &&					\
 	echo &&								\
@@ -357,6 +378,8 @@ release.8: write_mfs_in_kernel
 	echo "	:pc#$$a:oc#0:bc#4096:fc#512:" &&			\
 	echo   								\
 	) >> /etc/disktab
+
+	# first the standard boot floppy, with GENERIC kernel
 	cd ${.CURDIR} && ${MAKE} doFS FSSIZE=${BOOTMFSSIZE} \
 		FSPROTO=${RD}/mfsfd FSLABEL=mfs${BOOTMFSSIZE} \
 		FSINODE=${MFSINODE}
@@ -386,7 +409,9 @@ release.9:
 	mv ${RD}/rootfd/stand/info/src/ssecure.inf ${RD}/rootfd/stand/info/des
 	mv ${RD}/rootfd/stand/info/src/sebones.inf ${RD}/rootfd/stand/info/des
 	tar -cf - -C ${RD}/trees/bin/dev MAKEDEV | tar xvf - -C ${RD}/rootfd/stand
-	cd ${RD}/rootfd && ( rm -f OK && find . -print && touch OK && echo OK ) | cpio -H tar -oa | gzip -9 -c | dd conv=osync > ${RD}/floppies/root.tmp
+	cp ${.CURDIR}/sysinstall/power.uu ${RD}/rootfd/stand && \
+		cd ${RD}/rootfd/stand && uudecode power.uu && rm power.uu
+	cd ${RD}/rootfd && ( rm -f OK && find . -print && touch OK && echo OK ) | cpio -H newc -oa | gzip -9 -c | dd conv=osync > ${RD}/floppies/root.tmp
 	mv ${RD}/floppies/root.tmp ${RD}/floppies/root.flp
 	touch release.9
 
@@ -397,23 +422,15 @@ release.10:
 	mkdir ${RD}/fixitfd
 	cd ${RD}/fixitfd && \
 		mkdir stand bin sbin etc mnt mnt1 mnt2 mnt3 mnt4 tmp
-	ln -f ${RD}/kernels/GENERIC.kz ${RD}/fixitfd/kernel
 	@cd ${.CURDIR} && $(MAKE) installCRUNCH CRUNCH=fixit \
 		DIR=${RD}/fixitfd/stand ZIP=true
 	( cd ${RD}/trees/bin/dev && \
-		sh MAKEDEV wd0s5 wd0s6 wd0s7 wd0s8 && \
-		ls console tty ttyv0 ttyv1 null zero \
-		*[sw]d* fd[01] rfd[01] | \
+		sh MAKEDEV all && \
+		find . -print | \
 	cpio -dump ${RD}/fixitfd/dev )
-	ln -f ${RD}/fixitfd/stand/init ${RD}/fixitfd/sbin
-	ln -f ${RD}/fixitfd/stand/sh ${RD}/fixitfd/bin
-	cp ${RD}/trees/bin/usr/mdec/fdboot ${RD}/fixitfd/etc/boot1
-	cp ${RD}/trees/bin/usr/mdec/bootfd ${RD}/fixitfd/etc/boot2
+	cp ${RD}/trees/bin/etc/spwd.db ${RD}/fixitfd/etc
 	cp ${.CURDIR}/fixit.profile ${RD}/fixitfd/.profile
-	echo 'echo /etc/rc'	> ${RD}/fixitfd/etc/rc
-	echo 'exit 1'		>> ${RD}/fixitfd/etc/rc
-	touch ${RD}/fixitfd/etc/spwd.db
-	cd ${.CURDIR} && ${MAKE} doFLOPPY FLOPPY=fixit
+	cd ${.CURDIR} && ${MAKE} doFLOPPY FLOPPY=fixit FDINODE=1024
 	touch release.10
 
 ftp.1:
@@ -421,7 +438,7 @@ ftp.1:
 	mkdir ${FD}
 	cd ${RD} && find floppies -print | cpio -dumpl ${FD}
 	cd ${RD}/dists && find . -print | cpio -dumpl ${FD}
-	cd ${RD}/trees/bin/usr/share/FAQ/Text && ln -f ${FAQS} ${FD}
+	cd ${.CURDIR} && ln -f ${FAQS} ${FD}
 
 	# This rule makes ${CHROOTDIR}/R/ftp a suitable anon ftp for testing.
 ftp.2:
@@ -469,13 +486,14 @@ doTARBALL:
 	)
 
 doRELEASE:  release.1 release.2 release.3 release.4 release.5 release.6 \
-		release.7 release.8 release.9
+		release.7 release.8 release.9 release.10
 	cd ${.CURDIR} && ${MAKE} cdrom.1 ftp.1
 	@echo "Release done"
 
 floppies:
-	rm -f release.4 release.8 release.9
-	cd ${.CURDIR} && ${MAKE} doRELEASE
+	cd ${.CURDIR} && ${MAKE} boot.flp
+	cd ${.CURDIR} && ${MAKE} root.flp
+	cd ${.CURDIR} && ${MAKE} fixit.flp
 
 boot.flp:
 	rm -f release.4 release.8
