@@ -475,8 +475,8 @@ scopen(struct cdev *dev, int flag, int mode, struct thread *td)
 #endif
     int error;
 
-    DPRINTF(5, ("scopen: dev:%d,%d, unit:%d, vty:%d\n",
-		major(dev), minor(dev), unit, SC_VTY(dev)));
+    DPRINTF(5, ("scopen: dev:%s, unit:%d, vty:%d\n",
+		devtoname(dev), unit, SC_VTY(dev)));
 
     tp = dev->si_tty;
     sc = sc_get_softc(unit, (sc_console_unit == unit) ? SC_KERNEL_CONSOLE : 0);

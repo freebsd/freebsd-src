@@ -70,8 +70,8 @@ smopen(struct cdev *dev, int flag, int mode, struct thread *td)
 {
 	struct tty *tp;
 
-	DPRINTF(5, ("smopen: dev:%d,%d, vty:%d\n",
-		major(dev), minor(dev), SC_VTY(dev)));
+	DPRINTF(5, ("smopen: dev:%s, vty:%d\n",
+		devtoname(dev), SC_VTY(dev)));
 
 #if 0
 	if (SC_VTY(dev) != SC_MOUSE)
