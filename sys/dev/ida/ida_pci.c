@@ -140,19 +140,29 @@ static struct ida_access ida_v4_access = {
 };
 
 static struct ida_board board_id[] = {
-	{ 0x40300E11, "Compaq SMART-2/P array controller",    &ida_v3_access },
-	{ 0x40310E11, "Compaq SMART-2SL array controller",    &ida_v3_access },
-	{ 0x40320E11, "Compaq Smart Array 3200 controller",   &ida_v3_access },
-	{ 0x40330E11, "Compaq Smart Array 3100ES controller", &ida_v3_access },
-	{ 0x40340E11, "Compaq Smart Array 221 controller",    &ida_v3_access },
+	{ 0x40300E11, "Compaq SMART-2/P array controller",
+	    &ida_v3_access, 0 },
+	{ 0x40310E11, "Compaq SMART-2SL array controller",
+	    &ida_v3_access, 0 },
+	{ 0x40320E11, "Compaq Smart Array 3200 controller",
+	    &ida_v3_access, 0 },
+	{ 0x40330E11, "Compaq Smart Array 3100ES controller",
+	    &ida_v3_access, 0 },
+	{ 0x40340E11, "Compaq Smart Array 221 controller",
+	    &ida_v3_access, 0 },
 
-	{ 0x40400E11, "Compaq Integrated Array controller",   &ida_v4_access },
-	{ 0x40480E11, "Compaq RAID LC2 controller",           &ida_v4_access },
-	{ 0x40500E11, "Compaq Smart Array 4200 controller",   &ida_v4_access },
-	{ 0x40510E11, "Compaq Smart Array 4250ES controller", &ida_v4_access },
-	{ 0x40580E11, "Compaq Smart Array 431 controller",    &ida_v4_access },
+	{ 0x40400E11, "Compaq Integrated Array controller",
+	    &ida_v4_access, IDA_FIRMWARE },
+	{ 0x40480E11, "Compaq RAID LC2 controller",
+	    &ida_v4_access, IDA_FIRMWARE },
+	{ 0x40500E11, "Compaq Smart Array 4200 controller",
+	    &ida_v4_access, 0 },
+	{ 0x40510E11, "Compaq Smart Array 4250ES controller",
+	    &ida_v4_access, 0 },
+	{ 0x40580E11, "Compaq Smart Array 431 controller",
+	    &ida_v4_access, 0 },
 
-	{ 0, "", 0 },
+	{ 0, "", 0, 0 },
 };
 
 static int ida_pci_probe(device_t dev);
@@ -229,6 +239,7 @@ ida_pci_attach(device_t dev)
 	ida = (struct ida_softc *)device_get_softc(dev);
 	ida->dev = dev;
 	ida->cmd = *board->accessor;
+	ida->flags = board->flags;
 
 	ida->regs_res_type = SYS_RES_MEMORY;
 	ida->regs_res_id = IDA_PCI_MEMADDR;
@@ -270,7 +281,6 @@ ida_pci_attach(device_t dev)
 		return (ENOMEM);
 	}
 
-	ida->flags = 0;
 	error = ida_init(ida);
 	if (error) {
                 ida_free(ida);

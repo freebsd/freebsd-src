@@ -174,13 +174,18 @@ static struct ida_access ida_v2_access = {
 };
 
 static struct ida_board board_id[] = {
-	{ 0x0e114001, "Compaq IDA controller",		    &ida_v1_access },
-	{ 0x0e114002, "Compaq IDA-2 controller",	    &ida_v1_access },	
-	{ 0x0e114010, "Compaq IAES controller",		    &ida_v1_access },
-	{ 0x0e114020, "Compaq SMART array controller",	    &ida_v1_access },
-	{ 0x0e114030, "Compaq SMART-2/E array controller",  &ida_v2_access },
+	{ 0x0e114001, "Compaq IDA controller",
+	    &ida_v1_access, 0 },
+	{ 0x0e114002, "Compaq IDA-2 controller",
+	    &ida_v1_access, 0 },	
+	{ 0x0e114010, "Compaq IAES controller",
+	    &ida_v1_access, 0 },
+	{ 0x0e114020, "Compaq SMART array controller",
+	    &ida_v1_access, 0 },
+	{ 0x0e114030, "Compaq SMART-2/E array controller",
+	    &ida_v2_access, 0 },
 
-	{ 0, "", 0 }
+	{ 0, "", 0, 0 }
 };
 
 static struct 	ida_board *ida_eisa_match(eisa_id_t);
@@ -268,6 +273,7 @@ ida_eisa_attach(device_t dev)
 
 	board = ida_eisa_match(eisa_get_id(dev));
 	ida->cmd = *board->accessor;
+	ida->flags = board->flags;
 
 	ida->regs_res_type = SYS_RES_IOPORT;
 	ida->regs_res_id = 0;
@@ -315,7 +321,6 @@ ida_eisa_attach(device_t dev)
 		return (ENOMEM);
 	}
 
-	ida->flags = 0;
 	error = ida_init(ida);
 	if (error) {
 		ida_free(ida);
