@@ -480,9 +480,9 @@ usbd_get_config(dev, conf)
 	return (usbd_do_request(dev, &req, conf));
 }
 
-static void usbd_bulk_transfer_cb __P((usbd_xfer_handle xfer, 
+Static void usbd_bulk_transfer_cb __P((usbd_xfer_handle xfer, 
 		usbd_private_handle priv, usbd_status status));
-static void
+Static void
 usbd_bulk_transfer_cb(xfer, priv, status)
 	usbd_xfer_handle xfer;
 	usbd_private_handle priv;

@@ -123,7 +123,7 @@ USB_ATTACH(umodem)
 }
 
 #if defined(__FreeBSD__)
-static int
+Static int
 umodem_detach(device_t self)
 {
 	DPRINTF(("%s: disconnected\n", USBDEVNAME(self)));
