@@ -16,7 +16,7 @@
  *
  * NEW command line interface for IP firewall facility
  *
- * $Id: ipfw.c,v 1.59 1998/08/04 14:41:37 thepish Exp $
+ * $Id: ipfw.c,v 1.60 1998/09/28 22:56:37 alex Exp $
  *
  */
 
@@ -25,18 +25,21 @@
 #include <sys/socket.h>
 #include <sys/sockio.h>
 #include <sys/time.h>
+#include <sys/wait.h>
 
 #include <ctype.h>
 #include <err.h>
+#include <errno.h>
 #include <limits.h>
 #include <netdb.h>
+#include <signal.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <stdarg.h>
 #include <string.h>
+#include <sysexits.h>
 #include <time.h>
 #include <unistd.h>
-#include <sysexits.h>
 
 #include <net/if.h>
 #include <netinet/in.h>
@@ -1199,7 +1202,7 @@ ipfw_main(ac,av)
 {
 
 	int 		ch;
-	extern int 	optind;
+	extern int 	optreset; /* XXX should be declared in <unistd.h> */
 
 	if ( ac == 1 ) {
 		show_usage(NULL);
@@ -1208,7 +1211,7 @@ ipfw_main(ac,av)
 	/* Set the force flag for non-interactive processes */
 	do_force = !isatty(STDIN_FILENO);
 
-	optind = 1;
+	optind = optreset = 1;
 	while ((ch = getopt(ac, av, "afqtN")) != -1)
 	switch(ch) {
 		case 'a':
@@ -1289,10 +1292,11 @@ main(ac, av)
 #define MAX_ARGS	32
 #define WHITESP		" \t\f\v\n\r"
 	char	buf[BUFSIZ];
-	char	*a, *args[MAX_ARGS];
+	char	*a, *p, *args[MAX_ARGS], *cmd = NULL;
 	char	linename[10];
-	int 	i, qflag=0;
-	FILE	*f;
+	int 	i, c, qflag, pflag, status;
+	FILE	*f = NULL;
+	pid_t	preproc = 0;
 
 	s = socket( AF_INET, SOCK_RAW, IPPROTO_RAW );
 	if ( s < 0 )
@@ -1300,14 +1304,94 @@ main(ac, av)
 
 	setbuf(stdout,0);
 
-	if (av[1] && (!access(av[1], R_OK) ||
-	    (av[2] && (qflag=!strcmp(av[1],"-q")) && !access(av[2], R_OK)))){
+	if (ac > 1 && access(av[ac - 1], R_OK) == 0) {
+		qflag = pflag = i = 0;
 		lineno = 0;
-		if ((f = fopen(av[ac-1], "r")) == NULL)
-			err(EX_UNAVAILABLE, "fopen: %s", av[ac-1]);
-		while (fgets(buf, BUFSIZ, f)) {
-			char *p;
 
+		while ((c = getopt(ac, av, "D:U:p:q")) != -1)
+			switch(c) {
+			case 'D':
+				if (!pflag)
+					errx(EX_USAGE, "-D requires -p");
+				if (i > MAX_ARGS - 2)
+					errx(EX_USAGE,
+					     "too many -D or -U options");
+				args[i++] = "-D";
+				args[i++] = optarg;
+				break;
+
+			case 'U':
+				if (!pflag)
+					errx(EX_USAGE, "-U requires -p");
+				if (i > MAX_ARGS - 2)
+					errx(EX_USAGE,
+					     "too many -D or -U options");
+				args[i++] = "-U";
+				args[i++] = optarg;
+				break;
+
+			case 'p':
+				pflag = 1;
+				cmd = optarg;
+				args[0] = cmd;
+				i = 1;
+				break;
+
+			case 'q':
+				qflag = 1;
+				break;
+
+			default:
+				show_usage(NULL);
+			}
+
+		av += optind;
+		ac -= optind;
+		if (ac != 1)
+			show_usage("extraneous filename arguments");
+
+		if ((f = fopen(av[0], "r")) == NULL)
+			err(EX_UNAVAILABLE, "fopen: %s", av[0]);
+
+		if (pflag) {
+			/* pipe through preprocessor (cpp or m4) */
+			int pipedes[2];
+
+			args[i] = 0;
+
+			if (pipe(pipedes) == -1)
+				err(EX_OSERR, "cannot create pipe");
+
+			switch((preproc = fork())) {
+			case -1:
+				err(EX_OSERR, "cannot fork");
+
+			case 0:
+				/* child */
+				if (dup2(fileno(f), 0) == -1 ||
+				    dup2(pipedes[1], 1) == -1)
+					err(EX_OSERR, "dup2()");
+				fclose(f);
+				close(pipedes[1]);
+				close(pipedes[0]);
+				execvp(cmd, args);
+				err(EX_OSERR, "execvp(%s) failed", cmd);
+
+			default:
+				/* parent */
+				fclose(f);
+				close(pipedes[1]);
+				if ((f = fdopen(pipedes[0], "r")) == NULL) {
+					int savederrno = errno;
+
+					(void)kill(preproc, SIGTERM);
+					errno = savederrno;
+					err(EX_OSERR, "fdopen()");
+				}
+			}
+		}
+
+		while (fgets(buf, BUFSIZ, f)) {
 			lineno++;
 			sprintf(linename, "Line %d", lineno);
 			args[0] = linename;
@@ -1321,7 +1405,7 @@ main(ac, av)
 			for (a = strtok(buf, WHITESP);
 			    a && i < MAX_ARGS; a = strtok(NULL, WHITESP), i++)
 				args[i] = a;
-			if (i == 1)
+			if (i == (qflag? 2: 1))
 				continue;
 			if (i == MAX_ARGS)
 				errx(EX_USAGE, "%s: too many arguments", linename);
@@ -1330,6 +1414,21 @@ main(ac, av)
 			ipfw_main(i, args); 
 		}
 		fclose(f);
+		if (pflag) {
+			if (waitpid(preproc, &status, 0) != -1) {
+				if (WIFEXITED(status)) {
+					if (WEXITSTATUS(status) != EX_OK)
+						errx(EX_UNAVAILABLE,
+						     "preprocessor exited with status %d",
+						     WEXITSTATUS(status));
+				} else if (WIFSIGNALED(status)) {
+					errx(EX_UNAVAILABLE,
+					     "preprocessor exited with signal %d",
+					     WTERMSIG(status));
+				}
+			}
+		}
+
 	} else
 		ipfw_main(ac,av);
 	return EX_OK;
