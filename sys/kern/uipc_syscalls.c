@@ -1838,7 +1838,7 @@ retry_lookup:
 		 */
 
 		if (!pg->valid || !vm_page_is_valid(pg, pgoff, xfsize)) {
-			int bsize;
+			int bsize, resid;
 
 			/*
 			 * Ensure that our page is still around when the I/O 
@@ -1855,7 +1855,7 @@ retry_lookup:
 			error = vn_rdwr(UIO_READ, vp, NULL, MAXBSIZE,
 			    trunc_page(off), UIO_NOCOPY, IO_NODELOCKED |
 			    IO_VMIO | ((MAXBSIZE / bsize) << 16),
-			    td->td_ucred, NULL, td);
+			    td->td_ucred, &resid, td);
 			VOP_UNLOCK(vp, 0, td);
 			vm_page_lock_queues();
 			vm_page_flag_clear(pg, PG_ZERO);
