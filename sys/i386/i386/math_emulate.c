@@ -6,7 +6,7 @@
  * [expediant "port" of linux 8087 emulator to 386BSD, with apologies -wfj]
  *
  *	from: 386BSD 0.1
- *	$Id: math_emulate.c,v 1.28 1998/10/16 03:54:59 peter Exp $
+ *	$Id: math_emulate.c,v 1.29 1998/10/18 07:40:29 peter Exp $
  */
 
 /*
@@ -117,7 +117,10 @@ math_emulate(struct trapframe * info)
 			(u_long)oldeip);
 		panic("?Math emulation needed in kernel?");
 	}
-	code = get_fs_word((unsigned short *) oldeip);
+	/* completely ignore an operand-size prefix */
+	if (get_fs_byte((char *) info->tf_eip) == 0x66)
+		info->tf_eip++;
+	code = get_fs_word((unsigned short *) info->tf_eip);
 	bswapw(code);
 	code &= 0x7ff;
 	I387.fip = oldeip;
