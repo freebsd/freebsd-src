@@ -461,6 +461,7 @@ buf_countdeps(struct buf *bp, int i)
  * Flags for getblk's last parameter.
  */
 #define	GB_LOCK_NOWAIT	0x0001		/* Fail if we block on a buf lock. */
+#define	GB_NOCREAT	0x0002		/* Don't create a buf if not found. */
 
 #ifdef _KERNEL
 extern int	nbuf;			/* The number of buffer headers */
