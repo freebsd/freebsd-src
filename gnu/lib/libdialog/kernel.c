@@ -320,6 +320,7 @@ void draw_shadow(WINDOW *win, int y, int x, int height, int width)
 void dialog_clear(void)
 {
     attr_clear(stdscr, LINES, COLS, screen_attr);
+    touchwin(stdscr);
 }
 
 void dialog_update(void)
