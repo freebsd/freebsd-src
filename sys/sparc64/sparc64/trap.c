@@ -91,7 +91,15 @@ void syscall(struct trapframe *tf);
 
 static int trap_pfault(struct thread *td, struct trapframe *tf);
 
-extern char fsbail[];
+extern char copy_fault[];
+extern char copy_nofault_begin[];
+extern char copy_nofault_end[];
+
+extern char fs_fault[];
+extern char fs_nofault_begin[];
+extern char fs_nofault_end[];
+extern char fs_nofault_intr_begin[];
+extern char fs_nofault_intr_end[];
 
 extern char *syscallnames[];
 
@@ -303,6 +311,24 @@ if ((type & ~T_KERNEL) != T_BREAKPOINT)
 			goto out;
 		break;
 #endif
+	case T_DATA_EXCEPTION | T_KERNEL:
+	case T_MEM_ADDRESS_NOT_ALIGNED | T_KERNEL:
+		if ((tf->tf_sfsr & MMU_SFSR_FV) == 0 ||
+		    MMU_SFSR_GET_ASI(tf->tf_sfsr) != ASI_AIUP)
+			break;
+		if (tf->tf_tpc >= (u_long)copy_nofault_begin &&
+		    tf->tf_tpc <= (u_long)copy_nofault_end) {
+			tf->tf_tpc = (u_long)copy_fault;
+			tf->tf_tnpc = tf->tf_tpc + 4;
+			goto out;
+		}
+		if (tf->tf_tpc >= (u_long)fs_nofault_begin &&
+		    tf->tf_tpc <= (u_long)fs_nofault_end) {
+			tf->tf_tpc = (u_long)fs_fault;
+			tf->tf_tnpc = tf->tf_tpc + 4;
+			goto out;
+		}
+		break;
 	case T_DATA_MISS | T_KERNEL:
 	case T_DATA_PROTECTION | T_KERNEL:
 	case T_INSTRUCTION_MISS | T_KERNEL:
@@ -439,9 +465,12 @@ trap_pfault(struct thread *td, struct trapframe *tf)
 
 	if (ctx != TLB_CTX_KERNEL) {
 		if ((tf->tf_tstate & TSTATE_PRIV) != 0 &&
-		    (td->td_intr_nesting_level != 0 ||
-		    pcb->pcb_onfault == NULL || pcb->pcb_onfault == fsbail))
-			return (-1);
+		    (tf->tf_tpc >= (u_long)fs_nofault_intr_begin &&
+		     tf->tf_tpc <= (u_long)fs_nofault_intr_end)) {
+			tf->tf_tpc = (u_long)fs_fault;
+			tf->tf_tnpc = tf->tf_tpc + 4;
+			return (0);
+		}
 
 		/*
 		 * This is a fault on non-kernel virtual memory.
@@ -467,9 +496,9 @@ trap_pfault(struct thread *td, struct trapframe *tf)
 		PROC_UNLOCK(p);
 	} else {
 		/*
-		 * This is a fault on kernel virtual memory.  Attempts to access
-		 * kernel memory from user mode cause privileged action traps,
-		 * not page fault.
+		 * This is a fault on kernel virtual memory.  Attempts to
+		 * access kernel memory from user mode cause privileged
+		 * action traps, not page fault.
 		 */
 		KASSERT(tf->tf_tstate & TSTATE_PRIV,
 		    ("trap_pfault: fault on nucleus context from user mode"));
@@ -485,10 +514,16 @@ trap_pfault(struct thread *td, struct trapframe *tf)
 	    td, va, rv);
 	if (rv == KERN_SUCCESS)
 		return (0);
-	if ((tf->tf_tstate & TSTATE_PRIV) != 0) {
-		if (td->td_intr_nesting_level == 0 &&
-		    pcb->pcb_onfault != NULL) {
-			tf->tf_tpc = (u_long)pcb->pcb_onfault;
+	if (ctx != TLB_CTX_KERNEL && (tf->tf_tstate & TSTATE_PRIV) != 0) {
+		if (tf->tf_tpc >= (u_long)fs_nofault_begin &&
+		    tf->tf_tpc <= (u_long)fs_nofault_end) {
+			tf->tf_tpc = (u_long)fs_fault;
+			tf->tf_tnpc = tf->tf_tpc + 4;
+			return (0);
+		}
+		if (tf->tf_tpc >= (u_long)copy_nofault_begin &&
+		    tf->tf_tpc <= (u_long)copy_nofault_end) {
+			tf->tf_tpc = (u_long)copy_fault;
 			tf->tf_tnpc = tf->tf_tpc + 4;
 			return (0);
 		}
