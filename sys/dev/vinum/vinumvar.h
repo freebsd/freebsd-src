@@ -79,7 +79,7 @@ enum constants {
 
 /*
    * Shifts for the second half of raw plex and
-   * subdisk numbers 
+   * subdisk numbers
  */
     VINUM_RAWPLEX_SHIFT = 8,				    /* shift the second half this much */
     VINUM_RAWPLEX_WIDTH = 12,				    /* width of second half */
@@ -202,7 +202,7 @@ enum constants {
 struct devcode {
 /*
  * CARE.  These fields assume a big-endian word.  On a
- * little-endian system, they're the wrong way around 
+ * little-endian system, they're the wrong way around
  */
     unsigned volume:8;					    /* up to 256 volumes */
     unsigned major:8;					    /* this is where the major number fits */
@@ -217,7 +217,7 @@ struct devcode {
      VINUM_SUBDISK = 2,
      VINUM_DRIVE = 3,
      VINUM_SUPERDEV = 4,
-     VINUM_RAWPLEX = 5,                                       
+     VINUM_RAWPLEX = 5,
      VINUM_RAWSD = 6 */
     unsigned signbit:1;					    /* to make 32 bits */
 };
@@ -241,7 +241,7 @@ struct devcode {
 /*
  * Flags for all objects.  Most of them only apply to
  * specific objects, but we have space for all in any
- * 32 bit flags word. 
+ * 32 bit flags word.
  */
 enum objflags {
     VF_LOCKED = 1,					    /* somebody has locked access to this object */
@@ -338,7 +338,7 @@ enum {
  * hostname is 256 bytes long, but we don't need to shlep
  * multiple copies in vinum.  We use the host name just
  * to identify this system, and 32 bytes should be ample
- * for that purpose 
+ * for that purpose
  */
 
 struct vinum_label {
@@ -379,7 +379,7 @@ enum drive_label_info {
 /*
  * A drive corresponds to a disk slice.  We use a different term to show
  * the difference in usage: it doesn't have to be a slice, and could
- * theoretically be a complete, unpartitioned disk 
+ * theoretically be a complete, unpartitioned disk
  */
 
 struct drive {
@@ -427,7 +427,7 @@ struct sd {
      * plexoffset is the offset from the beginning of the
      * plex to the very first part of the subdisk, in
      * sectors.  For striped and RAID-5 plexes, only
-     * the first stripe is located at this offset 
+     * the first stripe is located at this offset
      */
     int64_t plexoffset;					    /* offset in plex */
     u_int64_t sectors;					    /* and length in sectors */
@@ -532,7 +532,7 @@ struct volume {
 /*
  * Table expansion.  Expand table, which contains oldcount
  * entries of type element, by increment entries, and change
- * oldcount accordingly 
+ * oldcount accordingly
  */
 #define EXPAND(table, element, oldcount, increment)         \
 {							    \
@@ -567,7 +567,7 @@ struct mc {
  * Bit 1: Other plexes in the volume are up
  * Bit 2: The current plex is up
  * Maybe they should be local to
- * state.c 
+ * state.c
  */
 enum volplexstate {
     volplex_onlyusdown = 0,				    /* 0: we're the only plex, and we're down */
@@ -583,21 +583,22 @@ enum volplexstate {
 /* state map for plex */
 enum sdstates {
     sd_emptystate = 1,
-    sd_downstate = 2,					    /* found an SD which is down */
-    sd_crashedstate = 4,				    /* found an SD which is crashed */
-    sd_obsoletestate = 8,				    /* found an SD which is obsolete */
-    sd_stalestate = 16,					    /* found an SD which is stale */
-    sd_rebornstate = 32,				    /* found an SD which is reborn */
-    sd_upstate = 64,					    /* found an SD which is up */
-    sd_initstate = 128,					    /* found an SD which is init */
-    sd_otherstate = 256					    /* found an SD in some other state */
+    sd_downstate = 2,					    /* SD is down */
+    sd_crashedstate = 4,				    /* SD is crashed */
+    sd_obsoletestate = 8,				    /* SD is obsolete */
+    sd_stalestate = 16,					    /* SD is stale */
+    sd_rebornstate = 32,				    /* SD is reborn */
+    sd_upstate = 64,					    /* SD is up */
+    sd_initstate = 128,					    /* SD is initializing */
+    sd_initializedstate = 256,				    /* SD is initialized */
+    sd_otherstate = 512,				    /* SD is in some other state */
 };
 
 /*
  * This is really just a parameter to pass to
  * set_<foo>_state, but since it needs to be known
  * in the external definitions, we need to define
- * it here 
+ * it here
  */
 enum setstateflags {
     setstate_none = 0,					    /* no flags */

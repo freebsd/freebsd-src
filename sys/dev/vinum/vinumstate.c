@@ -45,7 +45,7 @@
 
 /* Update drive state */
 /* Return 1 if the state changes, otherwise 0 */
-int 
+int
 set_drive_state(int driveno, enum drivestate newstate, enum setstateflags flags)
 {
     struct drive *drive = &DRIVE[driveno];
@@ -97,7 +97,7 @@ set_drive_state(int driveno, enum drivestate newstate, enum setstateflags flags)
  * if it could be dangerous to data consistency.  It shouldn't allow
  * nonsense.
  */
-int 
+int
 set_sd_state(int sdno, enum sdstate newstate, enum setstateflags flags)
 {
     struct sd *sd = &SD[sdno];
@@ -132,6 +132,12 @@ set_sd_state(int sdno, enum sdstate newstate, enum setstateflags flags)
 		return 0;				    /* don't do it */
 	    break;
 
+	case sd_initialized:
+	    if ((sd->state == sd_initializing)		    /* we were initializing */
+	    ||(flags & setstate_force))			    /* or we forced it */
+		break;
+	    return 0;					    /* can't do it otherwise */
+
 	case sd_up:
 	    if (DRIVE[sd->driveno].state != drive_up)	    /* can't bring the sd up if the drive isn't, */
 		return 0;				    /* not even by force */
@@ -144,19 +150,12 @@ set_sd_state(int sdno, enum sdstate newstate, enum setstateflags flags)
 		/*
 		 * If we're associated with a plex, and
 		 * the plex isn't up, or we're the only
-		 * subdisk in the plex, we can do it
+		 * subdisk in the plex, we can do it.
 		 */
 		if ((sd->plexno >= 0)
 		    && (((PLEX[sd->plexno].state < plex_firstup)
 			    || (PLEX[sd->plexno].subdisks > 1))))
 		    break;				    /* do it */
-		/*
-		 * XXX Get this right: make sure that other plexes in
-		 * the volume cover this address space, otherwise
-		 * we make this one sd_up.
-		 *
-		 * Do we even want this any more?
-		 */
 		if (oldstate != sd_reborn) {
 		    sd->state = sd_reborn;		    /* here it is again */
 		    log(LOG_INFO,
@@ -174,7 +173,6 @@ set_sd_state(int sdno, enum sdstate newstate, enum setstateflags flags)
 		/* otherwise it's like being empty */
 		/* FALLTHROUGH */
 
-	    case sd_initializing:
 	    case sd_empty:
 		/*
 		 * If we're associated with a plex which is down, or which is
@@ -227,11 +225,16 @@ set_sd_state(int sdno, enum sdstate newstate, enum setstateflags flags)
 		if (((vol == NULL)
 			|| (vol->plexes == 1))
 		    && ((plex->organization != plex_raid5)
-			|| (plex->sddowncount > 1)))
-		    return 0;				    /* can't do it */
-		sd->state = sd_reviving;		    /* put in reviving state */
-		sd->revived = 0;			    /* nothing done yet */
-		status = EAGAIN;			    /* need to repeat */
+			|| (plex->sddowncount > 1))) {
+		    if (sd->state == sd_initializing)	    /* it's finished initializing  */
+			sd->state = sd_initialized;
+		    else
+			return 0;			    /* can't do it */
+		} else {
+		    sd->state = sd_reviving;		    /* put in reviving state */
+		    sd->revived = 0;			    /* nothing done yet */
+		    status = EAGAIN;			    /* need to repeat */
+		}
 		break;
 
 	    case sd_reviving:
@@ -243,7 +246,7 @@ set_sd_state(int sdno, enum sdstate newstate, enum setstateflags flags)
 		/*
 		 * There's no way to bring subdisks up directly from
 		 * other states.  First they need to be initialized
-		 * or revived
+		 * or revived.
 		 */
 		return 0;
 	    }
@@ -280,7 +283,7 @@ set_sd_state(int sdno, enum sdstate newstate, enum setstateflags flags)
  * magnitude less complicated.  In particular, ignore
  * the requested state.
  */
-int 
+int
 set_plex_state(int plexno, enum plexstate state, enum setstateflags flags)
 {
     struct plex *plex;					    /* point to our plex */
@@ -363,7 +366,7 @@ set_plex_state(int plexno, enum plexstate state, enum setstateflags flags)
 }
 
 /* Update the state of a plex dependent on its plexes. */
-int 
+int
 set_volume_state(int volno, enum volumestate state, enum setstateflags flags)
 {
     struct volume *vol = &VOL[volno];			    /* point to our volume */
@@ -392,7 +395,7 @@ set_volume_state(int volno, enum volumestate state, enum setstateflags flags)
 }
 
 /* Set the state of a subdisk based on its environment */
-void 
+void
 update_sd_state(int sdno)
 {
     struct sd *sd;
@@ -440,7 +443,7 @@ update_sd_state(int sdno)
  * into an 'up' state.  This is a helper
  * for update_plex_state.
  */
-void 
+void
 forceup(int plexno)
 {
     struct plex *plex;
@@ -459,7 +462,7 @@ forceup(int plexno)
 }
 
 /* Set the state of a plex based on its environment */
-void 
+void
 update_plex_state(int plexno)
 {
     struct plex *plex;					    /* point to our plex */
@@ -475,32 +478,54 @@ update_plex_state(int plexno)
     if (statemap & sd_initstate)			    /* something initializing? */
 	plex->state = plex_initializing;		    /* yup, that makes the plex the same */
     if ((statemap == sd_emptystate)			    /* all subdisks empty */
-&&((vps & volplex_otherup) == 0)			    /* and no other plex is up */ &&((plex->organization == plex_concat) /* and we're not RAID-5 */
-    ||(plex->organization == plex_striped))) {
-	struct volume *vol = &VOL[plex->volno];		    /* possible volume to which it points */
+    ||(statemap == sd_initializedstate)) {		    /* or all initialized */
+	if ((vps & volplex_otherup) == 0) {		    /*  no other plex is up */
+	    struct volume *vol = &VOL[plex->volno];	    /* possible volume to which it points */
 
-	/*
-	 * If we're a striped or concat plex associated with a
-	 * volume, none of whose plexes are up, and we're new and
-	 * untested, and the volume has the setupstate bit set, we
-	 * can pretend to be in a consistent state.
-	 *
-	 * We need to do this in one swell foop: on the next call
-	 * we will no longer be just empty.
-	 *
-	 * This code assumes that all the other plexes are also
-	 * capable of coming up (i.e. all the sds are up), but
-	 * that's OK: we'll come back to this function for the
-	 * remaining plexes in the volume.
-	 */
+	    /*
+	     * If we're a striped or concat plex
+	     * associated with a volume, none of whose
+	     * plexes are up, and we're new and untested,
+	     * and the volume has the setupstate bit set,
+	     * we can pretend to be in a consistent state.
+	     *
+	     * We need to do this in one swell foop: on
+	     * the next call we will no longer be just
+	     * empty.
+	     *
+	     * This code assumes that all the other plexes
+	     * are also capable of coming up (i.e. all the
+	     * sds are up), but that's OK: we'll come back
+	     * to this function for the remaining plexes
+	     * in the volume.
+	     */
+	    if ((plex->state == plex_init)
+		&& (plex->volno >= 0)
+		&& (vol->flags & VF_CONFIG_SETUPSTATE)) {
+		for (plexno = 0; plexno < vol->plexes; plexno++)
+		    forceup(VOL[plex->volno].plex[plexno]);
+	    } else if ((statemap == sd_initializedstate)    /* if it's initialized (not empty) */
+||(plex->organization == plex_concat)			    /* and we're not RAID-5 */
+	    ||(plex->organization == plex_striped))
+		forceup(plexno);			    /* we'll do it */
+	    /*
+	     * This leaves a case where things don't get
+	     * done: the plex is RAID-5, and the subdisks
+	     * are all empty.  They need to be initialized
+	     * first.
+	     */
+	} else {					    /* another plex is up */
+	    int sdno;
 
-	if ((plex->state == plex_init)
-	    && (plex->volno >= 0)
-	    && (vol->flags & VF_CONFIG_SETUPSTATE)) {
-	    for (plexno = 0; plexno < vol->plexes; plexno++)
-		forceup(VOL[plex->volno].plex[plexno]);
-	} else
-	    forceup(plexno);				    /* we'll do it */
+	    plex->state = plex_faulty;			    /* and bring it up */
+	    /* change the subdisks to up state */
+	    for (sdno = 0; sdno < plex->subdisks; sdno++) {
+		SD[plex->sdnos[sdno]].state = sd_reviving;
+		log(LOG_INFO,				    /* tell them about it */
+		    "vinum: %s is reviving\n",
+		    SD[plex->sdnos[sdno]].name);
+	    }
+	}
     } else if (statemap == sd_upstate)
 	/*
 	 * All the subdisks are up.  This also means that
@@ -530,7 +555,7 @@ update_plex_state(int plexno)
 }
 
 /* Set volume state based on its components */
-void 
+void
 update_volume_state(int volno)
 {
     struct volume *vol;					    /* our volume */
@@ -565,7 +590,7 @@ update_volume_state(int volno)
  * don't want to stop when we hit a subdisk which
  * is down.  Return a separate indication instead.
  */
-enum requeststatus 
+enum requeststatus
 sddownstate(struct request *rq)
 {
     if (rq->bp->b_flags & B_READ)			    /* read operation? */
@@ -588,7 +613,7 @@ sddownstate(struct request *rq)
  * and use the subdisk state only.  The last version of
  * this file with the old logic was 2.7. XXX
  */
-enum requeststatus 
+enum requeststatus
 checksdstate(struct sd *sd, struct request *rq, daddr_t diskaddr, daddr_t diskend)
 {
     struct plex *plex = &PLEX[sd->plexno];
@@ -669,7 +694,7 @@ checksdstate(struct sd *sd, struct request *rq, daddr_t diskaddr, daddr_t disken
 }
 
 /* return a state map for the subdisks of a plex */
-enum sdstates 
+enum sdstates
 sdstatemap(struct plex *plex)
 {
     int sdno;
@@ -723,6 +748,11 @@ sdstatemap(struct plex *plex)
 	    (plex->sddowncount)++;			    /* another unusable subdisk */
 	    break;
 
+	case sd_initialized:
+	    statemap |= sd_initializedstate;
+	    (plex->sddowncount)++;			    /* another unusable subdisk */
+	    break;
+
 	case sd_unallocated:
 	case sd_uninit:
 	case sd_reviving:
@@ -735,7 +765,7 @@ sdstatemap(struct plex *plex)
 }
 
 /* determine the state of the volume relative to this plex */
-enum volplexstate 
+enum volplexstate
 vpstate(struct plex *plex)
 {
     struct volume *vol;
@@ -763,14 +793,14 @@ vpstate(struct plex *plex)
 /* Check if all bits b are set in a */
 int allset(int a, int b);
 
-int 
+int
 allset(int a, int b)
 {
     return (a & b) == b;
 }
 
 /* Invalidate the subdisks belonging to a plex */
-void 
+void
 invalidate_subdisks(struct plex *plex, enum sdstate state)
 {
     int sdno;
@@ -783,6 +813,7 @@ invalidate_subdisks(struct plex *plex, enum sdstate state)
 	case sd_uninit:
 	case sd_init:
 	case sd_initializing:
+	case sd_initialized:
 	case sd_empty:
 	case sd_obsolete:
 	case sd_stale:
@@ -804,7 +835,7 @@ invalidate_subdisks(struct plex *plex, enum sdstate state)
  * This is called from vinumioctl (VINUMSTART).
  * Return error indications via ioctl_reply
  */
-void 
+void
 start_object(struct vinum_ioctl_msg *data)
 {
     int status;
@@ -877,7 +908,7 @@ start_object(struct vinum_ioctl_msg *data)
  * This is called from vinumioctl (VINUMSTOP).
  * Return error indications via ioctl_reply.
  */
-void 
+void
 stop_object(struct vinum_ioctl_msg *data)
 {
     int status = 1;
@@ -917,7 +948,7 @@ stop_object(struct vinum_ioctl_msg *data)
  * VINUM_SETSTATE ioctl: set an object state
  * msg is the message passed by the user
  */
-void 
+void
 setstate(struct vinum_ioctl_msg *msg)
 {
     int sdno;
@@ -980,7 +1011,31 @@ setstate(struct vinum_ioctl_msg *msg)
 	}
 	break;
 
+    case object_initialized:
+	if (msg->type == sd_object) {
+	    sd = &SD[msg->index];
+	    if ((msg->index >= vinum_conf.subdisks_allocated)
+		|| (sd->state <= sd_referenced)) {
+		sprintf(ioctl_reply->msg, "Invalid subdisk %d", msg->index);
+		ioctl_reply->error = EFAULT;
+		return;
+	    }
+	    set_sd_state(msg->index, sd_initialized, msg->force);
+	    if (sd->state != sd_initializing) {
+		strcpy(ioctl_reply->msg, "Can't set state");
+		ioctl_reply->error = EBUSY;
+	    } else
+		ioctl_reply->error = 0;
+	} else {
+	    strcpy(ioctl_reply->msg, "Invalid object");
+	    ioctl_reply->error = EINVAL;
+	}
+	break;
+
     case object_up:
 	start_object(msg);
     }
 }
+/* Local Variables: */
+/* fill-column: 50 */
+/* End: */
