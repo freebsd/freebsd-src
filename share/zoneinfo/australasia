@@ -1,4 +1,4 @@
-# @(#)australasia	7.44
+# @(#)australasia	7.45
 # This file also includes Pacific islands.
 
 # Notes are at the end of this file
@@ -110,9 +110,11 @@ Rule	AV	1972	only	-	Feb	27	2:00s	0	-
 Rule	AV	1973	1985	-	Mar	Sun>=1	2:00s	0	-
 Rule	AV	1986	1990	-	Mar	Sun>=15	2:00s	0	-
 Rule	AV	1986	only	-	Oct	19	2:00s	1:00	-
-Rule	AV	1987	max	-	Oct	lastSun	2:00s	1:00	-
+Rule	AV	1987	1999	-	Oct	lastSun	2:00s	1:00	-
 Rule	AV	1991	1994	-	Mar	Sun>=1	2:00s	0	-
 Rule	AV	1995	max	-	Mar	lastSun	2:00s	0	-
+Rule	AV	2000	only	-	Aug	26	2:00s	1:00	-
+Rule	AV	2001	max	-	Oct	lastSun	2:00s	1:00	-
 # Zone	NAME		GMTOFF	RULES	FORMAT	[UNTIL]
 Zone Australia/Melbourne 9:39:52 -	LMT	1895 Feb
 			10:00	-	EST	1917 Jan 1 0:01
@@ -128,9 +130,11 @@ Rule	AN	1982	only	-	Apr	Sun>=1	2:00s	0	-
 Rule	AN	1983	1985	-	Mar	Sun>=1	2:00s	0	-
 Rule	AN	1986	1989	-	Mar	Sun>=15	2:00s	0	-
 Rule	AN	1986	only	-	Oct	19	2:00s	1:00	-
-Rule	AN	1987	max	-	Oct	lastSun	2:00s	1:00	-
+Rule	AN	1987	1999	-	Oct	lastSun	2:00s	1:00	-
 Rule	AN	1990	1995	-	Mar	Sun>=1	2:00s	0	-
 Rule	AN	1996	max	-	Mar	lastSun	2:00s	0	-
+Rule	AN	2000	only	-	Aug	26	2:00s	1:00	-
+Rule	AN	2001	max	-	Oct	lastSun	2:00s	1:00	-
 # Zone	NAME		GMTOFF	RULES	FORMAT	[UNTIL]
 Zone Australia/Sydney	10:04:52 -	LMT	1895 Feb
 			10:00	-	EST	1917 Jan 1 0:01
@@ -197,9 +201,12 @@ Zone Pacific/Rarotonga	-10:39:04 -	LMT	1901		# Avarua
 Zone	Indian/Cocos	6:30	-	CCT	# Cocos Islands Time
 
 # Fiji
+# Rule	NAME	FROM	TO	TYPE	IN	ON	AT	SAVE	LETTER/S
+Rule	Fiji	1998	max	-	Nov	Sun>=1	2:00	1:00	S
+Rule	Fiji	1999	max	-	Feb	lastSun	3:00	0	-
 # Zone	NAME		GMTOFF	RULES	FORMAT	[UNTIL]
 Zone	Pacific/Fiji	11:53:40 -	LMT	1915 Oct 26	# Suva
-			12:00	-	FJT	# Fiji Time
+			12:00	Fiji	FJ%sT	# Fiji Time
 
 # French Polynesia
 # Zone	NAME		GMTOFF	RULES	FORMAT	[UNTIL]
@@ -804,6 +811,10 @@ Zone	Pacific/Wallis	12:15:20 -	LMT	1901
 # This is going to take some time to be negotiated, because the plan is to do
 # this in multiple states due to soccer games (which are not just in Sydney).
 
+# IATA SSIM (1998-09) says that the spring 2000 change for Australian
+# Capital Territory, New South Wales except Lord Howe Island and Broken
+# Hill, and Victoria will be August 26, presumably due to the Sydney Olympics.
+
 # Yancowinna
 
 # From John Basser (1989-01-04):
@@ -888,6 +899,18 @@ Zone	Pacific/Wallis	12:15:20 -	LMT	1901
 # Howse writes (p 162) that in 1879 the British governor of Fiji
 # enacted an ordinance standardizing the islands on +12:00.
 # Perhaps it didn't take.  We go with Shanks's more precise date in 1915.
+
+# From Rives McDow (1998-10-08):
+# Fiji will introduce DST effective 0200 local time, 1998-11-01
+# until 0300 local time 1999-02-28.  Each year the DST period will 
+# be from the first Sunday in November until the last Sunday in February.
+
+# From the BBC World Service (1998-10-31 11:32 UTC):
+# The Fijiian government says the main reasons for the time change is to
+# improve productivity and reduce road accidents.  But correspondents say it
+# also hopes the move will boost Fiji's ability to compete with other pacific
+# islands in the effort to attract tourists to witness the dawning of the new
+# millenium.
 
 # Johnston
 
