@@ -93,7 +93,7 @@ static unsigned long long vals_base2[] = {1, KILO_2_SZ, MEGA_2_SZ, GIGA_2_SZ, TE
 typedef enum {
 	NONE, KILO, MEGA, GIGA, TERA, PETA, UNIT_MAX
 } unit_t;
-static unit_t unit_adjust(off_t *);
+static unit_t unit_adjust(double *);
 
 static int unitp[] = {NONE, KILO, MEGA, GIGA, TERA, PETA};
 
@@ -602,16 +602,18 @@ printlink(FTSENT *p)
 static void
 printsize(size_t width, off_t bytes)
 {
+	double dbytes;
 	unit_t unit;
 
 	if (f_humanval) {
-		unit = unit_adjust(&bytes);
+		dbytes = bytes;
+		unit = unit_adjust(&dbytes);
 
-		if (bytes == 0)
+		if (dbytes == 0)
 			(void)printf("%*s ", width, "0B");
 		else
-			(void)printf("%*lld%c ", width - 1, bytes,
-			    "BKMGTPE"[unit]);
+			(void)printf("%*.*f%c ", width - 1, dbytes > 10 ? 0 : 1,
+			    dbytes, "BKMGTPE"[unit]);
 	} else
 		(void)printf("%*lld ", width, bytes);
 }
@@ -623,13 +625,13 @@ printsize(size_t width, off_t bytes)
  *
  */
 unit_t
-unit_adjust(off_t *val)
+unit_adjust(double *val)
 {
 	double abval;
 	unit_t unit;
 	unsigned int unit_sz;
 
-	abval = fabs((double)*val);
+	abval = fabs(*val);
 
 	unit_sz = abval ? ilogb(abval) / 10 : 0;
 
