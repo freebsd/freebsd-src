@@ -705,6 +705,7 @@ static struct isa_pnp_id sio_ids[] = {
 	{0x12206804, NULL},     /* ACH2012 - 5634BTS 56K Video Ready Modem */
 	{0x7602a904, NULL},	/* AEI0276 - 56K v.90 Fax Modem (LKT) */
 	{0x00007905, NULL},	/* AKY0000 - 56K Plug&Play Modem */
+	{0x21107905, NULL},	/* AKY1021 - 56K Plug&Play Modem */
 	{0x01405407, NULL},	/* AZT4001 - AZT3000 PnP SOUND DEVICE, MODEM */
 	{0x56039008, NULL},	/* BDP0356 - Best Data 56x2 */
 	{0x56159008, NULL},	/* BDP1556 - B.D. Smart One 56SPS,Voice Modem*/
