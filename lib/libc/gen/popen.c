@@ -176,7 +176,6 @@ pclose(iop)
 	FILE *iop;
 {
 	struct pid *cur, *last;
-	int omask;
 	int pstat;
 	pid_t pid;
 
