@@ -52,14 +52,12 @@
 .Nm archive_entry_set_mode
 .Nm archive_entry_set_pathname
 .Nm archive_entry_set_symlink
-.Nm archive_entry_set_tartype
 .Nm archive_entry_set_uid
 .Nm archive_entry_set_uname
 .Nm archive_entry_size
 .Nm archive_entry_stat
 .Nm archive_entry_symlink
 .Nm archive_entry_symlink_w
-.Nm archive_entry_tartype
 .Nm archive_entry_uname
 .Nm archive_entry_uname_w
 .Nd functions for manipulating archive entry descriptions
@@ -114,8 +112,6 @@
 .Ft void
 .Fn archive_entry_set_symlink "struct archive_entry *" "const char *"
 .Ft void
-.Fn archive_entry_set_tartype "struct archive_entry *" "int"
-.Ft void
 .Fn archive_entry_set_uid "struct archive_entry *" "uid_t"
 .Ft void
 .Fn archive_entry_set_uname "struct archive_entry *" "const char *"
@@ -127,8 +123,6 @@
 .Fn archive_entry_symlink "struct archive_entry *"
 .Ft const wchar_t *
 .Fn archive_entry_symlink_w "struct archive_entry *"
-.Ft int
-.Fn archive_entry_tartype "struct archive_entry *"
 .Ft const char *
 .Fn archive_entry_uname "struct archive_entry *"
 .Ft const wchar_t *
@@ -199,12 +193,6 @@ object.
 Allocate and return a blank
 .Tn struct archive_entry
 object.
-.It Fn archive_entry_set_tartype
-Sets the value to be used in a tar-format header
-for this entry.
-Client code should generally not set this; if it
-is left unset, the library will automatically determine
-an appropriate value.
 .El
 .\" .Sh EXAMPLE
 .\" .Sh RETURN VALUES

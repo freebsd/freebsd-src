@@ -36,9 +36,6 @@ __FBSDID("$FreeBSD$");
  */
 
 #include <sys/wait.h>
-#ifdef HAVE_DMALLOC
-#include <dmalloc.h>
-#endif
 #include <limits.h>
 #include <paths.h>
 #include <stdio.h>

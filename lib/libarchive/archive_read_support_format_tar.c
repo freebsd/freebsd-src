@@ -28,9 +28,6 @@
 __FBSDID("$FreeBSD$");
 
 #include <sys/stat.h>
-#ifdef HAVE_DMALLOC
-#include <dmalloc.h>
-#endif
 #include <errno.h>
 /* #include <stdint.h> */ /* See archive_platform.h */
 #include <stdlib.h>
@@ -97,7 +94,11 @@ static int	header_longlink(struct archive *, struct tar *,
 		    struct archive_entry *, struct stat *, const void *h);
 static int	header_longname(struct archive *, struct tar *,
 		    struct archive_entry *, struct stat *, const void *h);
+static int	header_volume(struct archive *, struct tar *,
+		    struct archive_entry *, struct stat *, const void *h);
 static int	header_ustar(struct archive *, struct tar *,
+		    struct archive_entry *, struct stat *, const void *h);
+static int	header_gnutar(struct archive *, struct tar *,
 		    struct archive_entry *, struct stat *, const void *h);
 static int	archive_read_format_tar_bid(struct archive *);
 static int	archive_read_format_tar_cleanup(struct archive *);
@@ -118,6 +119,13 @@ static int64_t	tar_atol8(const char *, unsigned);
 static int	tar_read_header(struct archive *, struct tar *,
 		    struct archive_entry *, struct stat *);
 static int	utf8_decode(wchar_t *, const char *, size_t length);
+
+int
+archive_read_support_format_gnutar(struct archive *a)
+{
+	return (archive_read_support_format_tar(a));
+}
+
 
 int
 archive_read_support_format_tar(struct archive *a)
@@ -185,11 +193,6 @@ archive_read_format_tar_bid(struct archive *a)
 	    ARCHIVE_FORMAT_TAR)
 		bid++;
 
-	/* If last header was my preferred format, bid a bit more. */
-	if (a->archive_format == ARCHIVE_FORMAT_TAR_USTAR ||
-	    a->archive_format == ARCHIVE_FORMAT_TAR_PAX_INTERCHANGE)
-		bid++;
-
 	/* Now let's look at the actual header and see if it matches. */
 	bytes_read = (a->compression_read_ahead)(a, &h, 512);
 	if (bytes_read < 512)
@@ -209,6 +212,11 @@ archive_read_format_tar_bid(struct archive *a)
 	/* This distinguishes POSIX formats from GNU tar formats. */
 	if ((memcmp(header->magic, "ustar\0", 6) == 0)
 	    &&(memcmp(header->version, "00", 2)==0))
+		bid += 56;
+
+	/* Recognize GNU tar format as well. */
+	if ((memcmp(header->magic, "ustar ", 6) == 0)
+	    &&(memcmp(header->version, " \0", 2)==0))
 		bid += 56;
 
 	/* Type flag must be null, digit or A-Z, a-z. */
@@ -280,7 +288,6 @@ tar_read_header(struct archive *a, struct tar *tar,
 
 	/* Check for end-of-archive mark. */
 	if (((*(const char *)h)==0) && archive_block_is_null(h)) {
-		/* TODO: Store file location of start of block */
 		archive_set_error(a, 0, NULL);
 		return (ARCHIVE_EOF);
 	}
@@ -304,11 +311,7 @@ tar_read_header(struct archive *a, struct tar *tar,
 
 	/* Determine the format variant. */
 	header = h;
-	if (memcmp(header->magic, "ustar", 5) != 0) {
-		a->archive_format = ARCHIVE_FORMAT_TAR;
-		a->archive_format_name = "tar (non-POSIX)";
-		err = header_old_tar(a, tar, entry, st, h);
-	} else switch(header->typeflag[0]) {
+	switch(header->typeflag[0]) {
 	case 'A': /* Solaris tar ACL */
 		a->archive_format = ARCHIVE_FORMAT_TAR_PAX_INTERCHANGE;
 		a->archive_format_name = "Solaris tar";
@@ -319,11 +322,14 @@ tar_read_header(struct archive *a, struct tar *tar,
 		a->archive_format_name = "POSIX pax interchange format";
 		err = header_pax_global(a, tar, entry, st, h);
 		break;
-	case 'K': /* Long link name (non-POSIX, but fairly common). */
+	case 'K': /* Long link name (GNU tar, others) */
 		err = header_longlink(a, tar, entry, st, h);
 		break;
-	case 'L': /* Long filename (non-POSIX, but fairly common). */
+	case 'L': /* Long filename (GNU tar, others) */
 		err = header_longname(a, tar, entry, st, h);
+		break;
+	case 'V': /* GNU volume header */
+		err = header_volume(a, tar, entry, st, h);
 		break;
 	case 'X': /* Used by SUN tar; same as 'x'. */
 		a->archive_format = ARCHIVE_FORMAT_TAR_PAX_INTERCHANGE;
@@ -337,12 +343,21 @@ tar_read_header(struct archive *a, struct tar *tar,
 		err = header_pax_extensions(a, tar, entry, st, h);
 		break;
 	default:
-		if (a->archive_format != ARCHIVE_FORMAT_TAR_PAX_INTERCHANGE
-		    && a->archive_format != ARCHIVE_FORMAT_TAR_USTAR) {
-			a->archive_format = ARCHIVE_FORMAT_TAR_USTAR;
-			a->archive_format_name = "POSIX ustar format";
+		if (memcmp(header->magic, "ustar  \0", 8) == 0) {
+			a->archive_format = ARCHIVE_FORMAT_TAR_GNUTAR;
+			a->archive_format_name = "GNU tar format";
+			err = header_gnutar(a, tar, entry, st, h);
+		} else if (memcmp(header->magic, "ustar", 5) == 0) {
+			if (a->archive_format != ARCHIVE_FORMAT_TAR_PAX_INTERCHANGE) {
+				a->archive_format = ARCHIVE_FORMAT_TAR_USTAR;
+				a->archive_format_name = "POSIX ustar format";
+			}
+			err = header_ustar(a, tar, entry, st, h);
+		} else {
+			a->archive_format = ARCHIVE_FORMAT_TAR;
+			a->archive_format_name = "tar (non-POSIX)";
+			err = header_old_tar(a, tar, entry, st, h);
 		}
-		err = header_ustar(a, tar, entry, st, h);
 	}
 	archive_entry_copy_stat(entry, st);
 	--tar->header_recursion_depth;
@@ -418,17 +433,32 @@ header_Solaris_ACL(struct archive *a, struct tar *tar,
     struct archive_entry *entry, struct stat *st, const void *h)
 {
 	int err, err2;
+	char *p;
+	wchar_t *wp;
 
 	err = read_body_to_string(a, &(tar->acl_text), h);
 	err2 = tar_read_header(a, tar, entry, st);
+	err = err_combine(err, err2);
 
-	/* XXX DO SOMETHING WITH THE ACL!!! XXX */
-	{
-		const char *msg = "\nXXX Solaris ACL entries recognized but not yet handled!!\n";
-		write(2, msg, strlen(msg));
+	/* XXX Ensure p doesn't overrun acl_text */
+
+	/* Skip leading octal number. */
+	/* XXX TODO: Parse the octal number and sanity-check it. */
+	p = tar->acl_text.s;
+	while (*p != '\0')
+		p++;
+	p++;
+
+	wp = malloc((strlen(p) + 1) * sizeof(wchar_t));
+	if (wp != NULL) {
+		utf8_decode(wp, p, strlen(p));
+		err2 = __archive_entry_acl_parse_w(entry, wp,
+		    ARCHIVE_ENTRY_ACL_TYPE_ACCESS);
+		err = err_combine(err, err2);
+		free(wp);
 	}
 
-	return (err_combine(err, err2));
+	return (err);
 }
 
 /*
@@ -443,10 +473,8 @@ header_longlink(struct archive *a, struct tar *tar,
 	err = read_body_to_string(a, &(tar->longlink), h);
 	err2 = tar_read_header(a, tar, entry, st);
 	if (err == ARCHIVE_OK && err2 == ARCHIVE_OK) {
-		if (archive_entry_tartype(entry) == '1')
-			archive_entry_set_hardlink(entry, tar->longlink.s);
-		else if (archive_entry_tartype(entry) == '2')
-			archive_entry_set_symlink(entry, tar->longlink.s);
+		/* Set symlink if symlink already set, else hardlink. */
+		archive_entry_set_link(entry, tar->longlink.s);
 	}
 	return (err_combine(err, err2));
 }
@@ -466,6 +494,20 @@ header_longname(struct archive *a, struct tar *tar,
 	if (err == ARCHIVE_OK && err2 == ARCHIVE_OK)
 		archive_entry_set_pathname(entry, tar->longname.s);
 	return (err_combine(err, err2));
+}
+
+
+/*
+ * Interpret 'V' GNU tar volume header.
+ */
+static int
+header_volume(struct archive *a, struct tar *tar,
+    struct archive_entry *entry, struct stat *st, const void *h)
+{
+	(void)h;
+
+	/* Just skip this and read the next header. */
+	return (tar_read_header(a, tar, entry, st));
 }
 
 /*
@@ -535,7 +577,6 @@ header_common(struct archive *a, struct tar *tar, struct archive_entry *entry,
 
 	/* Handle the tar type flag appropriately. */
 	tartype = header->typeflag[0];
-	archive_entry_set_tartype(entry, tartype);
 	st->st_mode &= ~S_IFMT;
 
 	switch (tartype) {
@@ -573,6 +614,31 @@ header_common(struct archive *a, struct tar *tar, struct archive_entry *entry,
 	case '6': /* FIFO device */
 		st->st_mode |= S_IFIFO;
 		st->st_size = 0;
+		break;
+	case 'D': /* GNU incremental directory type */
+		/*
+		 * No special handling is actually required here.
+		 * It might be nice someday to preprocess the file list and
+		 * provide it to the client, though.
+		 */
+		st->st_mode |= S_IFDIR;
+		break;
+	case 'M': /* GNU "Multi-volume" (remainder of file from last archive)*/
+		/*
+		 * As far as I can tell, this is just like a regular file
+		 * entry, except that the contents should be _appended_ to
+		 * the indicated file at the indicated offset.  This may
+		 * require some API work to fully support.
+		 */
+		break;
+	case 'N': /* Old GNU "long filename" entry. */
+		/* The body of this entry is a script for renaming
+		 * previously-extracted entries.  Ugh.  It will never
+		 * be supported by libarchive. */
+		st->st_mode |= S_IFREG;
+		break;
+	case 'S': /* GNU sparse files */
+		/* I would like to support these someday... */
 		break;
 	default: /* Regular file  and non-standard types */
 		/*
@@ -612,7 +678,6 @@ header_old_tar(struct archive *a, struct tar *tar, struct archive_entry *entry,
 	    '/' == tar->entry_name.s[strlen(tar->entry_name.s) - 1]) {
 		st->st_mode &= ~S_IFMT;
 		st->st_mode |= S_IFDIR;
-		archive_entry_set_tartype(entry, '5');
 	}
 
 	a->entry_bytes_remaining = st->st_size;
@@ -951,6 +1016,100 @@ pax_time(const wchar_t *p, struct timespec *t)
 		else
 			break;
 	} while (l /= 10);
+}
+
+/*
+ * Structure of GNU tar header
+ */
+struct archive_entry_header_gnutar {
+	char	name[100];
+	char	mode[8];
+	char	uid[8];
+	char	gid[8];
+	char	size[12];
+	char	mtime[12];
+	char	checksum[8];
+	char	typeflag[1];
+	char	linkname[100];
+	char	magic[8];  /* "ustar  \0" (note blank/blank/null at end) */
+	char	uname[32];
+	char	gname[32];
+	char	devmajor[8];
+	char	devminor[8];
+	char	atime[12];
+	char	ctime[12];
+	char	offset[12];
+	char	longnames[4];
+	char	unused[1];
+	struct {
+	    char	offset[12];
+	    char	numbytes[12];
+	}	sparse[4];
+	char	isextended[1];
+	char	realsize[12];
+	/*
+	 * GNU doesn't use POSIX 'prefix' field; they use the 'L' (longname)
+	 * entry instead.
+	 */
+};
+
+/*
+ * Parse GNU tar header
+ */
+static int
+header_gnutar(struct archive *a, struct tar *tar, struct archive_entry *entry,
+    struct stat *st, const void *h)
+{
+	const struct archive_entry_header_gnutar *header;
+
+	(void)a;
+
+	/*
+	 * GNU header is like POSIX ustar, except 'prefix' is
+	 * replaced with some other fields. This also means the
+	 * filename is stored as in old-style archives.
+	 */
+
+	/* Grab fields common to all tar variants. */
+	header_common(a, tar, entry, st, h);
+
+	/* Copy filename over (to ensure null termination). */
+	header = h;
+	archive_strncpy(&(tar->entry_name), header->name,
+	    sizeof(header->name));
+	archive_entry_set_pathname(entry, tar->entry_name.s);
+
+	/* Fields common to ustar and GNU */
+	/* XXX Can the following be factored out since it's common
+	 * to ustar and gnu tar?  Is it okay to move it down into
+	 * header_common, perhaps?  */
+	archive_strncpy(&(tar->entry_uname),
+	    header->uname, sizeof(header->uname));
+	archive_entry_set_uname(entry, tar->entry_uname.s);
+
+	archive_strncpy(&(tar->entry_gname),
+	    header->gname, sizeof(header->gname));
+	archive_entry_set_gname(entry, tar->entry_gname.s);
+
+	/* Parse out device numbers only for char and block specials */
+	if (header->typeflag[0] == '3' || header->typeflag[0] == '4')
+		st->st_rdev = makedev (
+		    tar_atol(header->devmajor, sizeof(header->devmajor)),
+		    tar_atol(header->devminor, sizeof(header->devminor)));
+	else
+		st->st_rdev = 0;
+
+	/* Grab GNU-specific fields. */
+	/* TODO: FILL THIS IN!!! */
+	st->st_atime = tar_atol(header->atime, sizeof(header->atime));
+	st->st_ctime = tar_atol(header->atime, sizeof(header->ctime));
+
+	/* XXX TODO: Recognize and skip extra GNU header blocks. */
+
+	a->entry_bytes_remaining = st->st_size;
+	a->entry_padding = 0x1ff & (-a->entry_bytes_remaining);
+
+	return (0);
 }
 
 /*-

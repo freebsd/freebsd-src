@@ -79,7 +79,6 @@ const wchar_t		*archive_entry_pathname_w(struct archive_entry *);
 int64_t			 archive_entry_size(struct archive_entry *);
 const struct stat	*archive_entry_stat(struct archive_entry *);
 const char		*archive_entry_symlink(struct archive_entry *);
-int			 archive_entry_tartype(struct archive_entry *);
 const char		*archive_entry_uname(struct archive_entry *);
 
 /*
@@ -99,23 +98,24 @@ void	archive_entry_set_gname(struct archive_entry *, const char *);
 void	archive_entry_copy_gname_w(struct archive_entry *, const wchar_t *);
 void	archive_entry_set_hardlink(struct archive_entry *, const char *);
 void	archive_entry_copy_hardlink_w(struct archive_entry *, const wchar_t *);
+void	archive_entry_set_link(struct archive_entry *, const char *);
 void	archive_entry_set_mode(struct archive_entry *, mode_t);
 void	archive_entry_set_pathname(struct archive_entry *, const char *);
 void	archive_entry_copy_pathname_w(struct archive_entry *, const wchar_t *);
 void	archive_entry_set_size(struct archive_entry *, int64_t);
 void	archive_entry_set_symlink(struct archive_entry *, const char *);
 void	archive_entry_copy_symlink_w(struct archive_entry *, const wchar_t *);
-void	archive_entry_set_tartype(struct archive_entry *, char);
 void	archive_entry_set_uid(struct archive_entry *, uid_t);
 void	archive_entry_set_uname(struct archive_entry *, const char *);
 void	archive_entry_copy_uname_w(struct archive_entry *, const wchar_t *);
 
 /*
  * ACL routines.  This used to simply store and return text-format ACL
- * strings, but that proved insufficient.  The intent here is to allow
- * libarchive internals to fetch/store text-format strings, but
- * clients use the more involved interface that allows them control
- * over uid/uname/gid/gname lookups.
+ * strings, but that proved insufficient for a number of reasons:
+ *   = clients need control over uname/uid and gname/gid mappings
+ *   = there are many different ACL text formats
+ *   = would like to be able to read/convert archives containing ACLs
+ *     on platforms that lack ACL libraries
  */
 
 /*
@@ -138,7 +138,6 @@ void	archive_entry_copy_uname_w(struct archive_entry *, const wchar_t *);
 #define	ARCHIVE_ENTRY_ACL_GROUP_OBJ	10004	/* Group who owns the file. */
 #define	ARCHIVE_ENTRY_ACL_MASK		10005	/* Modify group access. */
 #define	ARCHIVE_ENTRY_ACL_OTHER		10006	/* Public. */
-
 
 /*
  * Set the ACL by clearing it and adding entries one at a time.
@@ -185,6 +184,17 @@ const wchar_t	*archive_entry_acl_text_w(struct archive_entry *, int flags);
 /* Return a count of entries matching 'want_type' */
 int	 archive_entry_acl_count(struct archive_entry *, int want_type);
 
-
+/*
+ * Private ACL parser.  This is private because it handles some
+ * very weird formats that clients should not be messing with.
+ * Clients should only deal with their platform-native formats.
+ * Because of the need to support many formats cleanly, new arguments
+ * are likely to get added on a regular basis.  Clients who try to use
+ * this interface are likely to be surprised when it changes.
+ *
+ * You were warned!
+ */
+int		 __archive_entry_acl_parse_w(struct archive_entry *,
+		     const wchar_t *, int type);
 
 #endif /* !ARCHIVE_ENTRY_H_INCLUDED */
