@@ -592,6 +592,7 @@ bre(struct request *rq,
 
     default:
 	log(LOG_ERR, "vinum: invalid plex type %d in bre\n", plex->organization);
+	status = REQUEST_DOWN;				    /* can't access it */
     }
 
     return status;
