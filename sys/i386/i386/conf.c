@@ -42,7 +42,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)conf.c	5.8 (Berkeley) 5/12/91
- *	$Id: conf.c,v 1.85 1995/05/30 07:59:16 rgrimes Exp $
+ *	$Id: conf.c,v 1.86 1995/07/11 17:20:20 bde Exp $
  */
 
 #include <sys/param.h>
@@ -826,6 +826,22 @@ d_ioctl_t	gscioctl;
 #define gscioctl	nxioctl
 #endif
 
+#include "crd.h"
+#if NCRD > 0
+d_open_t	crdopen;
+d_close_t	crdclose;
+d_rdwr_t	crdread, crdwrite;
+d_ioctl_t	crdioctl;
+d_select_t	crdselect;
+#else
+#define crdopen		nxopen
+#define crdclose	nxclose
+#define crdread		nxread
+#define crdwrite	nxwrite
+#define	crdioctl	nxioctl
+
+#endif
+
 #include "joy.h"
 #if NJOY > 0
 d_open_t	joyopen;
@@ -1178,9 +1194,9 @@ struct cdevsw	cdevsw[] =
 	{ sscopen,	sscclose,	sscread,	sscwrite,	/*49*/
 	  sscioctl,	nostop,		nullreset,	nodevtotty,/* scsi super */
 	  sscselect,	sscmmap,	sscstrategy },
-	{ nxopen,	nxclose,	nxread,		nxwrite,	/*50*/
-	  nxioctl,	nxstop,		nxreset,	nodevtotty,/* pcmcia */
-	  nxselect,	nxmmap,		NULL },
+	{ crdopen,	crdclose,	crdread,	crdwrite,	/*50*/
+	  crdioctl,	nostop,		nullreset,	nodevtotty,/* pcmcia */
+	  crdselect,	nommap,		NULL },
 	{ joyopen,	joyclose,	joyread,	nowrite,	/*51*/
 	  joyioctl,	nostop,		nullreset,	nodevtotty,/*joystick */
 	  seltrue,	nommap,		NULL},
