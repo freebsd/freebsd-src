@@ -25,7 +25,7 @@ SM_UNUSED(static char copyright[]) =
 	The Regents of the University of California.  All rights reserved.\n";
 #endif /* ! lint */
 
-SM_RCSID("@(#)$Id: main.c,v 8.882 2002/05/10 16:20:55 ca Exp $")
+SM_RCSID("@(#)$Id: main.c,v 8.887 2002/06/17 22:25:52 gshapiro Exp $")
 
 
 #if NETINET || NETINET6
@@ -1064,6 +1064,11 @@ main(argc, argv, envp)
 			  default:
 				i = Errors;
 				QueueIntvl = convtime(optarg, 'm');
+				if (QueueIntvl < 0)
+				{
+					usrerr("Invalid -q value");
+					ExitStat = EX_USAGE;
+				}
 
 				/* check for bad conversion */
 				if (i < Errors)
@@ -1188,14 +1193,19 @@ main(argc, argv, envp)
 
 	if (bitset(SUBMIT_MTA, SubmitMode))
 	{
-		macdefine(&BlankEnvelope.e_macro, A_PERM,
-			  macid("{daemon_flags}"), "CC f");
+		/* If set daemon_flags on command line, don't reset it */
+		if (macvalue(macid("{daemon_flags}"), &BlankEnvelope) == NULL)
+			macdefine(&BlankEnvelope.e_macro, A_PERM,
+				  macid("{daemon_flags}"), "CC f");
 	}
 	else if (OpMode == MD_DELIVER || OpMode == MD_SMTP)
 	{
 		SubmitMode = SUBMIT_MSA;
-		macdefine(&BlankEnvelope.e_macro, A_PERM,
-			  macid("{daemon_flags}"), "c u");
+
+		/* If set daemon_flags on command line, don't reset it */
+		if (macvalue(macid("{daemon_flags}"), &BlankEnvelope) == NULL)
+			macdefine(&BlankEnvelope.e_macro, A_PERM,
+				  macid("{daemon_flags}"), "c u");
 	}
 
 	/*
@@ -2243,7 +2253,7 @@ main(argc, argv, envp)
 	**		during startup.
 	*/
 
-	if (OpMode == MD_DAEMON || QueueIntvl != 0)
+	if (OpMode == MD_DAEMON || QueueIntvl > 0)
 	{
 		char dtype[200];
 
@@ -2283,7 +2293,7 @@ main(argc, argv, envp)
 			(void) sm_strlcat(dtype, "+SMTP", sizeof dtype);
 			DaemonPid = CurrentPid;
 		}
-		if (QueueIntvl != 0)
+		if (QueueIntvl > 0)
 		{
 			(void) sm_strlcat2(dtype,
 					   queuepersistent
@@ -2314,7 +2324,7 @@ main(argc, argv, envp)
 		(void) sm_releasesignal(SIGHUP);
 		(void) sm_signal(SIGTERM, sigterm);
 
-		if (QueueIntvl != 0)
+		if (QueueIntvl > 0)
 		{
 			(void) runqueue(true, false, queuepersistent, true);
 

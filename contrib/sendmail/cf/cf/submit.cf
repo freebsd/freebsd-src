@@ -1,5 +1,5 @@
 #
-# Copyright (c) 1998-2001 Sendmail, Inc. and its suppliers.
+# Copyright (c) 1998-2002 Sendmail, Inc. and its suppliers.
 #	All rights reserved.
 # Copyright (c) 1983, 1995 Eric P. Allman.  All rights reserved.
 # Copyright (c) 1988, 1993
@@ -24,7 +24,7 @@
 ######################################################################
 ######################################################################
 
-#####  $Id: cfhead.m4,v 8.107 2001/07/22 03:25:37 ca Exp $  #####
+#####  $Id: cfhead.m4,v 8.108 2002/06/13 18:53:24 ca Exp $  #####
 #####  $Id: cf.m4,v 8.32 1999/02/07 07:26:14 gshapiro Exp $  #####
 #####  $Id: submit.mc,v 8.6 2002/03/26 03:30:58 ca Exp $  #####
 #####  $Id: msp.m4,v 1.32 2002/03/26 22:02:03 ca Exp $  #####
@@ -32,7 +32,7 @@
 #####  $Id: no_default_msa.m4,v 8.2 2001/02/14 05:03:22 gshapiro Exp $  #####
 
 
-#####  $Id: proto.m4,v 8.646 2002/05/19 21:22:40 gshapiro Exp $  #####
+#####  $Id: proto.m4,v 8.649 2002/06/13 18:53:24 ca Exp $  #####
 
 # level 10 config file format
 V10/Berkeley
@@ -110,7 +110,7 @@ D{MTAHost}[localhost]
 
 
 # Configuration version number
-DZ8.12.4/Submit
+DZ8.12.5/Submit
 
 
 ###############
@@ -338,7 +338,7 @@ O TimeZoneSpec=
 #O DelayLA=0
 
 # maximum number of children we allow at one time
-#O MaxDaemonChildren=12
+#O MaxDaemonChildren=0
 
 # maximum number of new connections per second
 #O ConnectionRateThrottle=0
@@ -477,7 +477,6 @@ O PidFile=/var/spool/clientmqueue/sm-client.pid
 
 # Input mail filters
 #O InputMailFilters
-
 
 
 # CA directory
