@@ -102,7 +102,7 @@ lockmgr_init(void *dummy __unused)
 	}
 
 	lock_mtx_array = (struct mtx *)malloc(sizeof(struct mtx) * lock_nmtx,
-	    M_CACHE, M_WAITOK);
+	    M_CACHE, M_WAITOK | M_ZERO);
 	for (i = 0; i < lock_nmtx; i++)
 		mtx_init(&lock_mtx_array[i], "lockmgr interlock", MTX_DEF);
 }
