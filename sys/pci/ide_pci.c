@@ -26,7 +26,7 @@
  * OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: ide_pci.c,v 1.19 1998/12/21 08:55:56 msmith Exp $
+ *	$Id: ide_pci.c,v 1.20 1999/01/11 22:14:23 julian Exp $
  */
 
 #include "pci.h"
@@ -526,7 +526,7 @@ cyrix_5530_status(struct ide_pci_cookie *cookie)
 	pcidi_t type;
 	u_long	PIO_config;
 	u_long	DMA_config;
-	int i, unitno;
+	int unitno;
 
 	iobase_wd = cookie->iobase_wd;
 	unit = cookie->unit;
@@ -548,9 +548,9 @@ cyrix_5530_status(struct ide_pci_cookie *cookie)
 	DMA_config = inl(iobase_bm + (unit * 0x10) + 0x24);
 
 
-	printf("cyrix_5530_status: %s:%d IDE PIO cfg: 0x%08x\n",
+	printf("cyrix_5530_status: %s:%u IDE PIO cfg: 0x%08x\n",
 	       (ctlr ? "Secondary" : "Primary"), unit, PIO_config);
-	printf("cyrix_5530_status: %s:%d IDE DMA cfg: 0x%08x\n",
+	printf("cyrix_5530_status: %s:%u IDE DMA cfg: 0x%08x\n",
 	       (ctlr ? "Secondary" : "Primary"), unit, DMA_config);
 }
 
@@ -566,10 +566,10 @@ cyrix_5530_dmainit(struct ide_pci_cookie *cookie,
 		void *wdinfo)
 {
 	int r;
-	u_long pci_revision;
-	int unitno;
+	u_long	pci_revision;
+	int	unitno;
 	int	iobase_bm;
-	int ctlr, unit;
+	int	unit;
 
 	/*cookie->unit = 0; */	/* XXX */
 	unit = cookie->unit;
@@ -619,7 +619,6 @@ cyrix_5530_dmainit(struct ide_pci_cookie *cookie,
 
 	/* otherwise, try and program it for MW DMA mode 2 */
 	else if (mwdma_mode(wp) >= 2 && pio_mode(wp) >= 4) {
-		u_long workword;
 
 		/* Set multiword DMA mode 2 on drive */
 		if (bootverbose)
