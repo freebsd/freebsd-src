@@ -11,7 +11,7 @@
  */
 
 #ifndef lint
-static char sccsid[] = "@(#)collect.c	8.91 (Berkeley) 8/19/1998";
+static char sccsid[] = "@(#)collect.c	8.93 (Berkeley) 1/26/1999";
 #endif /* not lint */
 
 # include <errno.h>
@@ -78,8 +78,7 @@ collect(fp, smtpmode, hdrp, e)
 	volatile int istate;
 	volatile int mstate;
 	u_char *volatile pbp;
-	int nhdrlines = 0;
-	int hdrlinelen = 0;
+	int hdrslen = 0;
 	u_char peekbuf[8];
 	char dfname[MAXQFNAME];
 	char bufbuf[MAXLINE];
@@ -201,7 +200,6 @@ collect(fp, smtpmode, hdrp, e)
 			switch (istate)
 			{
 			  case IS_BOL:
-				hdrlinelen = 0;
 				if (c == '.')
 				{
 					istate = IS_DOT;
@@ -309,18 +307,18 @@ bufferchar:
 			else if (c != '\0')
 			{
 				*bp++ = c;
-				if (MaxHeaderLineLength > 0 &&
-				    ++hdrlinelen > MaxHeaderLineLength)
+				if (MaxHeadersLength > 0 &&
+				    ++hdrslen > MaxHeadersLength)
 				{
 					sm_syslog(LOG_NOTICE, e->e_id,
-						  "header line too long (%d max) from %s during message collect",
-						  MaxHeaderLineLength,
+						  "headers too large (%d max) from %s during message collect",
+						  MaxHeadersLength,
 						  CurHostName != NULL ? CurHostName : "localhost");
 					errno = 0;
 					e->e_flags |= EF_CLRQUEUE;
 					e->e_status = "5.6.0";
-					usrerr("552 Header line too long (%d max)",
-						MaxHeaderLineLength);
+					usrerr("552 Headers too large (%d max)",
+						MaxHeadersLength);
 					mstate = MS_DISCARD;
 				}
 			}
@@ -354,22 +352,6 @@ nextstate:
 			{
 				mstate = MS_BODY;
 				goto nextstate;
-			}
-
-			if (MaxHeaderLines > 0 &&
-			    ++nhdrlines > MaxHeaderLines)
-			{
-				sm_syslog(LOG_NOTICE, e->e_id,
-					  "too many header lines (%d max) from %s during message collect",
-					  MaxHeaderLines,
-					  CurHostName != NULL ? CurHostName : "localhost");
-				errno = 0;
-				e->e_flags |= EF_CLRQUEUE;
-				e->e_status = "5.6.0";
-				usrerr("552 Too many header lines (%d max)",
-					MaxHeaderLines);
-				mstate = MS_DISCARD;
-				break;
 			}
 
 			/* check for possible continuation line */

@@ -11,7 +11,7 @@
  */
 
 #ifndef lint
-static char sccsid[] = "@(#)deliver.c	8.366 (Berkeley) 12/18/1998";
+static char sccsid[] = "@(#)deliver.c	8.367 (Berkeley) 1/18/1999";
 #endif /* not lint */
 
 #include "sendmail.h"
@@ -2003,7 +2003,7 @@ do_transfer:
 
 		mci->mci_contentlen = 0;
 		putfromline(mci, e);
-		(*e->e_puthdr)(mci, e->e_header, e);
+		(*e->e_puthdr)(mci, e->e_header, e, M87F_OUTER);
 		(*e->e_putbody)(mci, e, NULL);
 
 		/* get the exit status */
@@ -3569,7 +3569,7 @@ mailfile(filename, mailer, ctladdr, sfflags, e)
 #endif
 
 		putfromline(&mcibuf, e);
-		(*e->e_puthdr)(&mcibuf, e->e_header, e);
+		(*e->e_puthdr)(&mcibuf, e->e_header, e, M87F_OUTER);
 		(*e->e_putbody)(&mcibuf, e, NULL);
 		putline("\n", &mcibuf);
 		if (fflush(f) < 0 || ferror(f))
