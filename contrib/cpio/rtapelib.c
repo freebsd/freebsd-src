@@ -372,28 +372,12 @@ __rmt_open (path, oflag, mode, bias)
 
       if (*login)
 	{
-	  execl ("/usr/ucb/rsh", "rsh", system, "-l", login,
-		 "/etc/rmt", (char *) 0);
-	  execl ("/usr/bin/remsh", "remsh", system, "-l", login,
-		 "/etc/rmt", (char *) 0);
-	  execl ("/usr/bin/rsh", "rsh", system, "-l", login,
-		 "/etc/rmt", (char *) 0);
-	  execl ("/usr/bsd/rsh", "rsh", system, "-l", login,
-		 "/etc/rmt", (char *) 0);
-	  execl ("/usr/bin/nsh", "nsh", system, "-l", login,
+	  execl ("/usr/bin/rsh", "rsh", "-l", login, system,
 		 "/etc/rmt", (char *) 0);
 	}
       else
 	{
-	  execl ("/usr/ucb/rsh", "rsh", system,
-		 "/etc/rmt", (char *) 0);
-	  execl ("/usr/bin/remsh", "remsh", system,
-		 "/etc/rmt", (char *) 0);
 	  execl ("/usr/bin/rsh", "rsh", system,
-		 "/etc/rmt", (char *) 0);
-	  execl ("/usr/bsd/rsh", "rsh", system,
-		 "/etc/rmt", (char *) 0);
-	  execl ("/usr/bin/nsh", "nsh", system,
 		 "/etc/rmt", (char *) 0);
 	}
 
