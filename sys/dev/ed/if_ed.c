@@ -13,7 +13,7 @@
  *   the SMC Elite Ultra (8216), the 3Com 3c503, the NE1000 and NE2000,
  *   and a variety of similar clones.
  *
- * $Id: if_ed.c,v 1.59 1994/12/22 21:56:03 wollman Exp $
+ * $Id: if_ed.c,v 1.60 1994/12/31 17:09:56 jkh Exp $
  */
 
 #include "ed.h"
@@ -2154,13 +2154,10 @@ ed_pio_readmem(sc, src, dst, amount)
 	unsigned char *dst;
 	unsigned short amount;
 {
-	unsigned short tmp_amount;
-
 	/* select page 0 registers */
 	outb(sc->nic_addr + ED_P0_CR, ED_CR_RD2 | ED_CR_STA);
 
 	/* round up to a word */
-	tmp_amount = amount;
 	if (amount & 1)
 		++amount;
 
