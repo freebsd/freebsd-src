@@ -453,7 +453,10 @@ request_loop()
 
 			/* Assume work function handled the exception */
 			if ((ccb_h->status & CAM_DEV_QFRZN) != 0) {
-				warnx("Queue frozen receiving CCB, releasing");
+				if (debug) {
+					warnx("Queue frozen receiving CCB, "
+					      "releasing");
+				}
 				rel_simq();
 			}
 
@@ -819,7 +822,7 @@ get_ctio()
 	/* Initialize CTIO, CTIO descr, and AIO */
 	ctio->ccb_h.func_code = XPT_CONT_TARGET_IO;
 	ctio->ccb_h.retry_count = 2;
-	ctio->ccb_h.timeout = 5;
+	ctio->ccb_h.timeout = CAM_TIME_INFINITY;
 	ctio->data_ptr = c_descr->buf;
 	ctio->ccb_h.targ_descr = c_descr;
 	c_descr->aiocb.aio_buf = c_descr->buf;

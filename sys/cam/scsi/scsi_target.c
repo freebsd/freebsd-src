@@ -214,7 +214,7 @@ targclose(dev_t dev, int flag, int fmt, struct thread *td)
 	softc = (struct targ_softc *)dev->si_drv1;
 	TARG_LOCK(softc);
 	error = targdisable(softc);
-	if (error == 0) {
+	if (error == CAM_REQ_CMP) {
 		dev->si_drv1 = 0;
 		mtx_lock(&targ_mtx);
 		if (softc->periph != NULL) {
