@@ -786,6 +786,16 @@ acpi_probe_child(ACPI_HANDLE handle, UINT32 level, void *context, void **status)
 	    acpi_set_handle(child, handle);
 
 	    /*
+	     * Check that the device is present.  If it's not present,
+	     * leave it disabled (so that we have a device_t attached to
+	     * the handle, but we don't probe it).
+	     */
+	    if (!acpi_DeviceIsPresent(child)) {
+		device_disable(child);
+		break;
+	    }
+
+	    /*
 	     * Get the device's resource settings and attach them.
 	     * Note that if the device has _PRS but no _CRS, we need
 	     * to decide when it's appropriate to try to configure the
