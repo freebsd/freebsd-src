@@ -113,11 +113,14 @@ copies:
 	done
 .endif
 .endfor
-.for i in ${LDIRS} ${LSUBDIRS:Ndev/bktr} ${LSUBSUBDIRS}
+.for i in ${LDIRS} ${LSUBDIRS:Ndev/acpica:Ndev/bktr} ${LSUBSUBDIRS}
 	cd ${.CURDIR}/../sys; \
 	${INSTALL} -C -o ${BINOWN} -g ${BINGRP} -m 444 $i/*.h \
 	    ${DESTDIR}${INCLUDEDIR}/$i
 .endfor
+	cd ${.CURDIR}/../sys/dev/acpica; \
+	${INSTALL} -C -o ${BINOWN} -g ${BINGRP} -m 444 acpiio.h \
+	    ${DESTDIR}${INCLUDEDIR}/dev/acpica
 	cd ${.CURDIR}/../sys/dev/bktr; \
 	${INSTALL} -C -o ${BINOWN} -g ${BINGRP} -m 444 ioctl_*.h \
 	    ${DESTDIR}${INCLUDEDIR}/dev/bktr
@@ -150,12 +153,22 @@ symlinks:
 		ln -fs ../../../sys/$i/$$h ${DESTDIR}${INCLUDEDIR}/$i; \
 	done
 .endfor
-.for i in ${LSUBDIRS}
+.for i in ${LSUBDIRS:Ndev/acpica:Ndev/bktr}
 	cd ${.CURDIR}/../sys/$i; \
 	for h in *.h; do \
 		ln -fs ../../../../sys/$i/$$h ${DESTDIR}${INCLUDEDIR}/$i; \
 	done
 .endfor
+	cd ${.CURDIR}/../sys/dev/acpica; \
+	for h in acpiio.h; do \
+		ln -fs ../../../../sys/dev/acpica/$$h \
+		    ${DESTDIR}${INCLUDEDIR}/dev/acpica; \
+	done
+	cd ${.CURDIR}/../sys/dev/bktr; \
+	for h in ioctl_*.h; do \
+		ln -fs ../../../../sys/dev/bktr/$$h \
+		    ${DESTDIR}${INCLUDEDIR}/dev/bktr; \
+	done
 .for i in ${LSUBSUBDIRS}
 	cd ${.CURDIR}/../sys/$i; \
 	for h in *.h; do \
