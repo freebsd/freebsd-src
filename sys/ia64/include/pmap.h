@@ -107,7 +107,6 @@ typedef struct pv_entry {
 
 #ifdef	_KERNEL
 
-extern vm_offset_t avail_end;
 extern vm_offset_t phys_avail[];
 extern vm_offset_t virtual_avail;
 extern vm_offset_t virtual_end;
