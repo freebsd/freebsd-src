@@ -696,11 +696,11 @@ remove_dyn_rule(struct ip_fw *rule, int force)
 	    if (zap)
 		zap = force || TIME_LEQ( q->expire , time_second );
 	    /* do not zap parent in first pass, record we need a second pass */
-	    if (q->dyn_type == DYN_LIMIT_PARENT) {
+	    if (zap && q->dyn_type == DYN_LIMIT_PARENT) {
 		max_pass = 1; /* we need a second pass */
-		if (zap == 1 && (pass == 0 || q->count != 0) ) {
+		if (pass == 0 || q->count != 0) {
 		    zap = 0 ;
-		    if (pass == 1) /* should not happen */
+		    if (pass == 1 && force) /* should not happen */
 			printf("OUCH! cannot remove rule, count %d\n",
 				q->count);
 		}
@@ -987,8 +987,21 @@ install_state(struct ip_fw *rule, struct ip_fw_args *args)
 	}
 	if (parent->count >= conn_limit) {
 	    EXPIRE_DYN_CHAIN(rule); /* try to expire some */
+	    /*
+	     * The expiry might have removed the parent too.
+	     * We lookup again, which will re-create if necessary.
+	     */
+	    parent = lookup_dyn_parent(&id, rule);
+	    if (parent == NULL) {
+		printf("add parent failed\n");
+		return 1;
+	    }
 	    if (parent->count >= conn_limit) {
-		printf("drop session, too many entries\n");
+		if (fw_verbose && last_log != time_second) {
+			last_log = time_second;
+			log(LOG_SECURITY | LOG_INFO,
+			    "drop session, too many entries\n");
+		}
 		return 1;
 	    }
 	}
