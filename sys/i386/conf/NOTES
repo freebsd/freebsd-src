@@ -2,7 +2,7 @@
 # LINT -- config file for checking all the sources, tries to pull in
 #	as much of the source tree as it can.
 #
-#	$Id: LINT,v 1.166 1995/04/08 16:08:35 ache Exp $
+#	$Id: LINT,v 1.167 1995/04/08 21:41:52 phk Exp $
 #
 # NB: You probably don't want to try running a kernel built from this
 # file.  Instead, you should start from GENERIC, and add options from
@@ -498,6 +498,8 @@ device		cy0	at isa? tty irq 10 iomem 0xd4000 vector cyintr
 options		COMCONSOLE		#prefer serial console to video console
 options		COM_MULTIPORT		#code for some cards with shared IRQs
 options		DSI_SOFT_MODEM		#code for DSI Softmodems
+options		BREAK_TO_DEBUGGER	#a BREAK on a comconsole goes to 
+					#DDB, if available.
 
 #
 # Network interfaces: `cx', `ed', `el', `ep', `ie', `is', `le', `lnc'
