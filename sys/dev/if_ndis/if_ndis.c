@@ -508,6 +508,8 @@ ndis_attach(dev)
 	/* Do resource conversion. */
 	if (sc->ndis_iftype == PCMCIABus || sc->ndis_iftype == PCIBus)
 		ndis_convert_res(sc);
+	else
+		sc->ndis_block->nmb_rlist = NULL;
 
 	/* Install our RX and TX interrupt handlers. */
 	sc->ndis_block->nmb_senddone_func = ndis_txeof_wrap;
