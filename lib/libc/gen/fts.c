@@ -44,6 +44,7 @@ static char rcsid[] = "$FreeBSD$";
 #endif /* LIBC_SCCS and not lint */
 
 #include "namespace.h"
+#include <sys/types.h>	
 #include <sys/param.h>
 #include <sys/stat.h>
 
@@ -278,6 +279,7 @@ fts_read(sp)
 	register FTS *sp;
 {
 	register FTSENT *p, *tmp;
+	struct stat sb;
 	register int instr;
 	register char *t;
 	int saved_errno;
@@ -451,10 +453,22 @@ name:		t = sp->fts_path + NAPPEND(p->fts_parent);
 			return (NULL);
 		}
 		(void)_close(p->fts_symfd);
-	} else if (!(p->fts_flags & FTS_DONTCHDIR)) {
-		if (CHDIR(sp, "..")) {
+	} else if (!(p->fts_flags & FTS_DONTCHDIR) &&
+		   !ISSET(FTS_NOCHDIR)) {
+		if (chdir("..")) {
 			SET(FTS_STOP);
 			return (NULL);
+		}
+		if (stat(".", &sb) == -1) {
+			SET(FTS_STOP);
+			return (NULL);
+		} else {
+			if (sb.st_ino != p->fts_parent->fts_ino ||
+			    sb.st_dev != p->fts_parent->fts_dev) {
+				errno = ENOENT;
+				SET(FTS_STOP);
+				return (NULL);
+			}
 		}
 	}
 	p->fts_info = p->fts_errno ? FTS_ERR : FTS_DP;
