@@ -30,7 +30,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: cpufunc.h,v 1.13 1994/08/02 07:38:43 davidg Exp $
+ *	$Id: cpufunc.h,v 1.14 1994/08/04 19:46:57 davidg Exp $
  */
 
 /*
@@ -92,7 +92,7 @@ u_int_inb(u_int port)
 static inline void
 outb(u_int port, u_char data)
 {
-	register u_char	al asm("ax");
+	u_char	al;
 
 	al = data;		/* help gcc-1.40's register allocator */
 	__asm __volatile("outb %0,%%dx" : : "a" (al), "d" (port));
