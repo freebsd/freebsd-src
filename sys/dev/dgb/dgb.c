@@ -1,5 +1,5 @@
 /*-
- *  dgb.c $Id: dgb.c,v 1.31 1995/07/13 09:25:09 root Exp root $
+ *  dgb.c $Id: dgb.c,v 1.1 1995/09/03 19:52:52 jkh Exp $
  *
  *  Copyright (C) 1995 by Serge Babkin <babkin@hq.icb.chel.su>
  *
@@ -57,11 +57,10 @@
 #include "dgbios.h"
 #include "dgfep.h"
 
-void *pmap_mapdev();
-
 /*
  * XXX temporary kludges for 2.0 (XXX TK2.0).
  */
+#if defined (__FreeBSD__) && __FreeBSD__ < 2
 #define	TS_RTS_IFLOW	0
 #define	TSA_CARR_ON(tp)		((void *)&(tp)->t_rawq)
 #define	TSA_OCOMPLETE(tp)	((void *)&(tp)->t_outq)
@@ -69,6 +68,7 @@ void *pmap_mapdev();
 
 #define	TTY_BI		TTY_FE		/* XXX */
 #define	TTY_OE		TTY_PE		/* XXX */
+#endif
 
 #define	CALLOUT_MASK		0x80
 #define	CONTROL_MASK		0x60
@@ -1381,6 +1381,9 @@ void dgbpoll(unit_c)
 				wrapmask=port->txbufsize;
 
 				while( tp->t_outq.c_cc!=0 ) {
+#ifndef TS_ASLEEP	/* post 2.0.5 FreeBSD */
+					ttwwakeup(tp);
+#else
 					if(tp->t_outq.c_cc <= tp->t_lowat) {
 						if(tp->t_state & TS_ASLEEP) {
 							tp->t_state &= ~TS_ASLEEP;
@@ -1388,7 +1391,7 @@ void dgbpoll(unit_c)
 						}
 						selwakeup(&tp->t_wsel);
 					}
-
+#endif
 					setwin(sc,0);
 
 					whead=bc->tin & wrapmask;
@@ -1418,11 +1421,15 @@ void dgbpoll(unit_c)
 					setwin(sc,0);
 					bc->tin=whead;
 				}
+#ifndef TS_ASLEEP	/* post 2.0.5 FreeBSD */
+				ttwwakeup(tp);
+#else
 				if(tp->t_state & TS_ASLEEP) {
 					tp->t_state &= ~TS_ASLEEP;
 					wakeup(TSA_OLOWAT(tp));
 				}
 				tp->t_state &= ~TS_BUSY;
+#endif
 			end_of_buffer:
 			}
 		} else {
@@ -1940,6 +1947,9 @@ dgbstart(tp)
 	s=spltty();
 
 	while( tp->t_outq.c_cc!=0 ) {
+#ifndef TS_ASLEEP	/* post 2.0.5 FreeBSD */
+		ttwwakeup(tp);
+#else
 		if(tp->t_outq.c_cc <= tp->t_lowat) {
 			if(tp->t_state & TS_ASLEEP) {
 				tp->t_state &= ~TS_ASLEEP;
@@ -1947,7 +1957,7 @@ dgbstart(tp)
 			}
 			selwakeup(&tp->t_wsel);
 		}
-
+#endif
 		setwin(sc,0);
 
 		head=bc->tin & wmask;
@@ -1980,12 +1990,15 @@ dgbstart(tp)
 		bc->tin=head;
 	}
 
+#ifndef TS_ASLEEP	/* post 2.0.5 FreeBSD */
+	ttwwakeup(tp);
+#else
 	if(tp->t_state & TS_ASLEEP) {
 		tp->t_state &= ~TS_ASLEEP;
 		wakeup(TSA_OLOWAT(tp));
 	}
 	tp->t_state&=~TS_BUSY;
-
+#endif
 	hidewin(sc);
 	splx(s);
 }
