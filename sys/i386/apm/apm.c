@@ -269,12 +269,21 @@ apm_display(int newstate)
 	sc->bios.r.ebx = PMDV_DISP0;
 	sc->bios.r.ecx = newstate ? PMST_APMENABLED:PMST_SUSPEND;
 	sc->bios.r.edx = 0;
-	if (apm_bioscall()) {
- 		printf("Display off failure: errcode = %d\n",
-		       0xff & (sc->bios.r.eax >> 8));
- 		return 1;
+	if (apm_bioscall() == 0) {
+		return 0;
  	}
- 	return 0;
+
+	/* If failed, then try to blank all display devices instead. */
+	sc->bios.r.eax = (APM_BIOS << 8) | APM_SETPWSTATE;
+	sc->bios.r.ebx = PMDV_DISPALL;	/* all display devices */
+	sc->bios.r.ecx = newstate ? PMST_APMENABLED:PMST_SUSPEND;
+	sc->bios.r.edx = 0;
+	if (apm_bioscall() == 0) {
+		return 0;
+ 	}
+ 	printf("Display off failure: errcode = %d\n",
+	       0xff & (sc->bios.r.eax >> 8));
+ 	return 1;
 }
 
 /*
