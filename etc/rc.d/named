@@ -14,6 +14,7 @@
 name="named"
 rcvar=`set_rcvar`
 start_precmd="named_precmd"
+start_postcmd="make_symlinks"
 required_dirs="$named_chrootdir"	# if it is set, it must exist
 extra_commands="reload"
 
@@ -28,23 +29,16 @@ extra_commands="reload"
 #
 chroot_autoupdate()
 {
-	# If the named-xfer in the system is newer than the one in the
-	# chroot directory or if it (in the chrootdir) doesn't exist
-	# copy it over
-	#
-	if [ ! -x "${named_chrootdir}/usr/libexec/named-xfer" -o \
-	    "${named_chrootdir}/usr/libexec/named-xfer" -ot \
-	    /usr/libexec/named-xfer ]; then
-		rm -f "${named_chrootdir}/usr/libexec/named-xfer"
-		cp -p /usr/libexec/named-xfer "${named_chrootdir}/usr/libexec"
-	fi
-
-	# Copy /dev/null over, if neccessary. Preserve everything (perms,
+	# Copy devices if neccessary. Preserve everything (perms,
 	# ownership, mod times).
 	#
 	if [ ! -c "${named_chrootdir}/dev/null" ]; then
 	rm -f "${named_chrootdir}/dev/null"
 		( cd /dev ; /bin/pax -rw -pe null "${named_chrootdir}/dev" )
+	fi
+	if [ ! -c "${named_chrootdir}/dev/random" ]; then
+	rm -f "${named_chrootdir}/dev/random"
+		( cd /dev ; /bin/pax -rw -pe random "${named_chrootdir}/dev" )
 	fi
 
 	# Copy local timezone information if it's not up-to-date.
@@ -55,21 +49,28 @@ chroot_autoupdate()
 	fi
 }
 
-# Make symlinks to the correct pid and ndc socket files
+# Make symlinks to the correct pid file
 #
 make_symlinks()
 {
-	ln -fs "${named_chrootdir}${named_pidfile}" ${named_pidfile}
-	ln -fs "${named_chrootdir}/var/run/ndc" /var/run/ndc
+	checkyesno named_symlink_enable &&
+	ln -fs "${named_chrootdir}${pidfile}" ${pidfile}
 }
 
 named_precmd()
 {
+	local confgen_chroot
+
 	# Is the user using a sandbox?
 	if [ -n "$named_chrootdir" ]; then
 		rc_flags="$rc_flags -t $named_chrootdir"
+		confgen_chroot="-t${named_chrootdir}"
 		checkyesno named_chroot_autoupdate && chroot_autoupdate
-		checkyesno named_symlink_enable && make_symlinks
+	fi
+
+	# Create an rndc.key file for the user if none exists
+	if [ ! -f "${named_chrootdir}/etc/namedb/rndc.key" ]; then
+		rndc-confgen -a -b256 "${confgen_chroot}"
 	fi
 }
 
