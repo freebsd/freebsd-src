@@ -42,7 +42,7 @@ static const char copyright[] =
 static char sccsid[] = "@(#)ifconfig.c	8.2 (Berkeley) 2/16/94";
 #endif
 static const char rcsid[] =
-	"$Id: ifconfig.c,v 1.38 1998/08/07 06:36:53 phk Exp $";
+	"$Id: ifconfig.c,v 1.39 1999/03/15 01:22:01 wpaul Exp $";
 #endif /* not lint */
 
 #include <sys/param.h>
@@ -701,7 +701,7 @@ setifmtu(val, dummy, s, afp)
 
 
 #define	IFFBITS \
-"\020\1UP\2BROADCAST\3DEBUG\4LOOPBACK\5POINTOPOINT\6b6\7RUNNING" \
+"\020\1UP\2BROADCAST\3DEBUG\4LOOPBACK\5POINTOPOINT\6SMART\7RUNNING" \
 "\10NOARP\11PROMISC\12ALLMULTI\13OACTIVE\14SIMPLEX\15LINK0\16LINK1\17LINK2" \
 "\20MULTICAST"
 
