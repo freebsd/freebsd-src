@@ -40,7 +40,7 @@
  * SUCH DAMAGE.
  *
  *	from:	@(#)fd.c	7.4 (Berkeley) 5/25/91
- *	$Id: fd.c,v 1.36 1994/10/21 16:58:50 joerg Exp $
+ *	$Id: fd.c,v 1.37 1994/10/23 21:27:12 wollman Exp $
  *
  */
 
@@ -1522,7 +1522,7 @@ fdioctl(dev, cmd, addr, flag, p)
 		dl->d_secpercyl = fdt->size / fdt->tracks;
 		dl->d_type = DTYPE_FLOPPY;
 
-		if (readdisklabel(dev, fdstrategy, dl, NULL, 0, 0) == NULL)
+		if (readdisklabel(dev, fdstrategy, dl, NULL, 0) == NULL)
 			error = 0;
 		else
 			error = EINVAL;
@@ -1550,11 +1550,11 @@ fdioctl(dev, cmd, addr, flag, p)
 		dl = (struct disklabel *)addr;
 
 		if ((error =
-		     setdisklabel ((struct disklabel *)buffer, dl, 0, NULL)))
+		     setdisklabel ((struct disklabel *)buffer, dl, 0)))
 			break;
 
 		error = writedisklabel(dev, fdstrategy,
-				       (struct disklabel *)buffer, NULL);
+				       (struct disklabel *)buffer);
 		break;
 
 	case FD_FORM:

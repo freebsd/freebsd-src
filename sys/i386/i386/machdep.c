@@ -35,7 +35,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)machdep.c	7.4 (Berkeley) 6/3/91
- *	$Id: machdep.c,v 1.80 1994/10/25 08:58:33 davidg Exp $
+ *	$Id: machdep.c,v 1.81 1994/10/26 18:35:02 jkh Exp $
  */
 
 #include "npx.h"
@@ -1563,7 +1563,6 @@ Debugger(const char *msg)
 
 #include <sys/disklabel.h>
 #define b_cylin	b_resid
-#define dkpart(dev)              (minor(dev) & 7)
 /*
  * Determine the size of the transfer, and make sure it is
  * within the boundaries of the partition. Adjust transfer

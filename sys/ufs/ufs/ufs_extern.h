@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)ufs_extern.h	8.3 (Berkeley) 4/16/94
- * $Id: ufs_extern.h,v 1.3 1994/08/21 07:16:17 paul Exp $
+ * $Id: ufs_extern.h,v 1.4 1994/09/22 19:38:40 wollman Exp $
  */
 
 #ifndef _UFS_UFS_UFS_EXTERN_H_
@@ -54,14 +54,6 @@ struct vnode;
 struct ufs_args;
 
 __BEGIN_DECLS
-void	 diskerr
-	    __P((struct buf *, char *, char *, int, int, struct disklabel *));
-void	 disksort __P((struct buf *, struct buf *));
-u_int	 dkcksum __P((struct disklabel *));
-char	*readdisklabel __P((dev_t, int (*)(), struct disklabel *));
-int	 setdisklabel __P((struct disklabel *, struct disklabel *, u_long));
-int	 writedisklabel __P((dev_t, int (*)(), struct disklabel *));
-
 int	 ufs_abortop __P((struct vop_abortop_args *));
 int	 ufs_access __P((struct vop_access_args *));
 int	 ufs_advlock __P((struct vop_advlock_args *));
