@@ -62,23 +62,23 @@ When
 .Xr tip 1
 is invoked, an entry for a remote system is looked up in the
 .Pa /etc/remote
-database. 
-If the entry includes an "ACU" type capability (abbreviated at), 
+database.
+If the entry includes an "ACU" type capability (abbreviated at),
 .Xr tip 1
-looks up the specified modem in 
+looks up the specified modem in
 .Pa /etc/modems .
 If a modem entry is found,
-the corresponding capabilities determine how 
+the corresponding capabilities determine how
 .Xr tip 1
 programs the modem when connecting to and disconnecting from the
 remote system.
 .Sh CAPABILITIES
 Capabilities are either strings (str), numbers (num), or boolean
-flags (bool).  A string capability is specified by 
+flags (bool).  A string capability is specified by
 .Em capability Ns Ar = Ns Em value ;
 for example, ``reset_command=ATZ\\r''.  A numeric capability is specified by
 .Em capability Ns Ar # Ns Em value ;
-for example, ``intercharacter_delay#50''.  A boolean capability is specified 
+for example, ``intercharacter_delay#50''.  A boolean capability is specified
 by simply listing the capability.
 .Bl -tag -width intercharacter_delay
 .It Cm \&dial_command
@@ -114,7 +114,7 @@ issued to the modem.
 .It Cm \&lock_baud
 (bool)
 Use a fixed bit rate between the computer and the modem (DTE / DCE). The
-bit rate is specified in 
+bit rate is specified in
 .Pa /etc/remote .
 .It Cm \&reset_command
 (str)

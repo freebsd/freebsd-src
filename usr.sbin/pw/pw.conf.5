@@ -1,6 +1,6 @@
 .\" Copyright (C) 1996
 .\" David L. Nugent.  All rights reserved.
-.\" 
+.\"
 .\" Redistribution and use in source and binary forms, with or without
 .\" modification, are permitted provided that the following conditions
 .\" are met:
@@ -9,7 +9,7 @@
 .\" 2. Redistributions in binary form must reproduce the above copyright
 .\"    notice, this list of conditions and the following disclaimer in the
 .\"    documentation and/or other materials provided with the distribution.
-.\" 
+.\"
 .\" THIS SOFTWARE IS PROVIDED BY DAVID L. NUGENT AND CONTRIBUTORS ``AS IS'' AND
 .\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
 .\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
@@ -26,7 +26,7 @@
 .\"
 .Dd December 9, 1996
 .Dt PW.CONF 5
-.Os 
+.Os
 .Sh NAME
 .Nm pw.conf
 .Nd format of the pw.conf configuration file
@@ -56,7 +56,7 @@ blank lines and lines commencing with a
 character are considered comments, and any remaining lines are
 examined for a leading keyword, followed by corresponding data.
 .Pp
-Keywords recognized by 
+Keywords recognized by
 .Xr pw 8
 are:
 .Bl -tag -width password_days -offset indent -compact
@@ -214,7 +214,7 @@ These shells must exist in one of the directories nominated by
 The
 .Ar defaultshell
 keyword nominates which shell program to use for new users when
-none is specified on the 
+none is specified on the
 .Xr pw 8
 command line.
 .Pp
@@ -228,7 +228,7 @@ is used, then each new user will have a corresponding group of
 their own created automatically.
 This is the recommended procedure for new users as it best secures each
 user's files against interference by other users of the system
-irrespective of the 
+irrespective of the
 .Em umask
 normally used by the user.
 .Pp

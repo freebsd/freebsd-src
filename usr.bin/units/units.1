@@ -28,7 +28,7 @@ result of the single specified conversion.
 .Sh DESCRIPTION
 The
 .Nm
-program converts quantities expressed in various scales to 
+program converts quantities expressed in various scales to
 their equivalents in other scales.  The
 .Nm
 program can only
@@ -60,8 +60,8 @@ the user for input:
 Powers of units can be specified using the '^' character as shown in
 the example, or by simple concatenation: 'cm3' is equivalent to 'cm^3'.
 Multiplication of units can be specified by using spaces, a dash or
-an asterisk.  Division of units is indicated by the slash ('/').  
-Note that multiplication has a higher precedence than division, 
+an asterisk.  Division of units is indicated by the slash ('/').
+Note that multiplication has a higher precedence than division,
 so 'm/s/s' is the same as 'm/s^2' or 'm/s s'.  Division of numbers
 must be indicated using the vertical bar ('|').  To convert half a
 meter, you would write '1|2 meter'.  If you write '1/2 meter' then the
@@ -71,7 +71,7 @@ print a message indicating that the units are not conformable and
 it will display the reduced form for each unit:
 .Bd -literal
     You have: ergs/hour
-    You want: fathoms kg^2 / day 
+    You want: fathoms kg^2 / day
     conformability error
             2.7777778e-11 kg m^2 / sec^3
             2.1166667e-05 kg^2 m / sec
@@ -104,26 +104,26 @@ name, then
 will try to remove a trailing 's' or a
 trailing 'es' and check again for a match.
 .Pp
-To find out what units are available read the standard units file. 
-If you want to add your own units you can supply your own file. 
+To find out what units are available read the standard units file.
+If you want to add your own units you can supply your own file.
 A unit is specified on a single line by
 giving its name and an equivalence.  Be careful to define
 new units in terms of old ones so that a reduction leads to the
-primitive units which are marked with '!' characters.  
+primitive units which are marked with '!' characters.
 The
 .Nm
 program will not detect infinite loops that could be caused
 by careless unit definitions.  Comments in the unit definition file
-begin with a '/' character at the beginning of a line. 
+begin with a '/' character at the beginning of a line.
 .Pp
-Prefixes are defined in the same was as standard units, but with 
+Prefixes are defined in the same was as standard units, but with
 a trailing dash at the end of the prefix name.  If a unit is not found
 even after removing trailing 's' or 'es', then it will be checked
 against the list of prefixes.  Prefixes will be removed until a legal
-base unit is identified.  
+base unit is identified.
 .Pp
 Here is an example of a short units file that defines some basic
-units.  
+units.
 .Pp
 .Bl -inset -offset indent -compact
 .It "m	!a!
@@ -150,7 +150,7 @@ of the units converted and on the length of the data file.
 .Pp
 The program should use a hash table to store units so that
 it doesn't take so long to load the units list and check
-for duplication.  
+for duplication.
 .Sh FILES
 .Bl -tag -width /usr/share/misc/units.lib -compact
 .It Pa /usr/share/misc/units.lib

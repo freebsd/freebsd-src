@@ -52,11 +52,11 @@ used to describe line printers.  The spooling system accesses the
 file every time it is used, allowing dynamic
 addition and deletion of printers.  Each entry in the data base
 is used to describe one printer.  This data base may not be
-substituted for, as is possible for 
+substituted for, as is possible for
 .Xr termcap 5 ,
 because it may allow accounting to be bypassed.
 .Pp
-The default printer is normally 
+The default printer is normally
 .Em lp ,
 though the environment variable
 .Ev PRINTER
@@ -293,14 +293,14 @@ may log either to
 or using
 .Xr syslog 3 ,
 and must not ignore
-.Dv SIGINT . 
+.Dv SIGINT .
 .Sh REMOTE PRINTING
 When printing to a remote printer using
 .Cm rm ,
 it is possible to use either
 .Cm if
 or
-.Cm of . 
+.Cm of .
 If both are specified,
 .Cm of
 is ignored.  Both filters behave the same except that they are passed

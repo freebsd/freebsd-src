@@ -54,7 +54,7 @@ insure it poses no danger to your system's integrity.  Pay particular
 attention to any +INSTALL, +POST-INSTALL, +DEINSTALL, +POST-DEINSTALL,
 +REQUIRE or +MTREE_DIRS files, and inspect the +CONTENTS file for
 .Cm @cwd ,
-.Cm @mode 
+.Cm @mode
 (check for setuid),
 .Cm @dirrm ,
 .Cm @exec ,
@@ -72,7 +72,7 @@ The named packages are installed.  A package name of - will cause
 .Nm
 to read from stdin.
 If the packages are not found in the current
-working directory, 
+working directory,
 .Nm
 will search them in each directory named by
 .Ev PKG_PATH .
@@ -91,7 +91,7 @@ you know what you are doing!
 .It Fl r
 Use the remote fetching feature.
 This will determine the appropriate
-objformat and release and then fetch and install the package. 
+objformat and release and then fetch and install the package.
 .It Fl f
 Force installation to proceed even if prerequisite packages are not
 installed or the requirements script fails.  Although
@@ -123,8 +123,8 @@ options).
 .It Fl t Ar template
 Use
 .Ar template
-as the input to 
-.Xr mktemp 3 
+as the input to
+.Xr mktemp 3
 when creating a
 .Dq staging area .
 By default, this is the string
@@ -239,7 +239,7 @@ final location, otherwise it is extracted into the staging area.
 .It
 If the package contains a
 .Ar require
-file (see 
+file (see
 .Xr pkg_create 1 ) ,
 then execute it with the following arguments:
 .Bd -ragged -offset indent -compact
@@ -275,9 +275,9 @@ The
 keyword will not appear if separate scripts for pre-install and post-install
 are given during package creation time (using the
 .Fl i
-and 
+and
 .Fl I
-flags to 
+flags to
 .Xr pkg_create 1 ) .
 .It
 If
@@ -294,19 +294,19 @@ file (see
 then mtree is invoked as:
 .Bd -ragged -offset indent -compact
 .Cm mtree
-.Fl u 
-.Fl f 
+.Fl u
+.Fl f
 .Ar mtreefile
 .Fl d
-.Fl e 
-.Fl p 
-.Pa prefix 
+.Fl e
+.Fl p
+.Pa prefix
 .Ed
 where
 .Pa prefix
 is either the prefix specified with the
 .Fl p
-flag or, if no 
+flag or, if no
 .Fl p
 flag was specified, the name of the first directory named by a
 .Cm @cwd
@@ -314,11 +314,11 @@ directive within this package.
 .It
 If a
 .Ar post-install
-script exists for the package, it is then executed as 
+script exists for the package, it is then executed as
 .Bd -ragged -offset indent -compact
 .Cm script
 .Ar pkg-name
-.Ar POST-INSTALL 
+.Ar POST-INSTALL
 .Ed
 where
 .Ar pkg-name
@@ -332,9 +332,9 @@ The
 keyword will not appear if separate scripts for pre-install and post-install
 are given during package creation time (using the
 .Fl i
-and 
+and
 .Fl I
-flags to 
+flags to
 .Xr pkg_create 1 ) .
 .Pp
 Reasoning behind passing keywords such as
@@ -355,7 +355,7 @@ script, description, and display files are copied into
 .Pa /var/db/pkg/<pkg-name>
 for subsequent possible use by
 .Xr pkg_delete 1 .
-Any package dependencies are recorded in the other packages' 
+Any package dependencies are recorded in the other packages'
 .Pa /var/db/pkg/<other-pkg>/+REQUIRED_BY
 file
 (if the environment variable PKG_DBDIR is set, this overrides the
@@ -394,27 +394,27 @@ The environment variables
 and
 .Ev TMPDIR ,
 in that order, are taken to name temporary directories where
-.Nm 
+.Nm
 will attempt to create its staging area in.
 If these variables are not present or if the directories named lack
-sufficient space, then 
+sufficient space, then
 .Nm
-will use the first of 
+will use the first of
 .Pa /var/tmp ,
-.Pa /tmp 
+.Pa /tmp
 or
 .Pa /usr/tmp
 with sufficient space.
 .Pp
 The environment variable
 .Ev PACKAGEROOT
-specifies an alternate location for 
+specifies an alternate location for
 .Nm
 to fetch from.
 The fetch URL is built using this environment variable and the automatic
 directory logic that
 .Nm
-uses when the 
+uses when the
 .Fl r
 option is invoked.
 An example setting would be
@@ -422,13 +422,13 @@ An example setting would be
 .Pp
 The environment variable
 .Ev PACKAGESITE
-specifies an alternate location for 
+specifies an alternate location for
 .Nm
 to fetch from.
 This variable subverts the automatic directory logic
 that
 .Nm
-uses when the 
+uses when the
 .Fl r
 option is invoked.
 Thus it should be a complete URL to the remote package file(s).
@@ -445,7 +445,7 @@ Next choice if
 .Pa /var/tmp
 does not exist or has insufficient space.
 .It Pa /usr/tmp
-Last choice if 
+Last choice if
 .Pa /var/tmp
 and
 .Pa /tmp
@@ -471,7 +471,7 @@ Hard links between files in a distribution are only preserved if either
 (1) the staging area is on the same file system as the target directory of
 all the links to the file, or (2) all the links to the file are bracketed by
 .Cm @cwd
-directives in the contents file, 
+directives in the contents file,
 .Em and
 the link names are extracted with a single
 .Cm tar

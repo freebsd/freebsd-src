@@ -1,12 +1,12 @@
 .\" LP (Laptop Package)
-.\" 
+.\"
 .\" Copyright (c) 1994 by Tatsumi Hosokawa <hosokawa@jp.FreeBSD.org>
-.\" 
+.\"
 .\" This software may be used, modified, copied, and distributed, in
 .\" both source and binary form provided that the above copyright and
-.\" these terms are retained. Under no circumstances is the author 
-.\" responsible for the proper functioning of this software, nor does 
-.\" the author assume any responsibility for damages incurred with its 
+.\" these terms are retained. Under no circumstances is the author
+.\" responsible for the proper functioning of this software, nor does
+.\" the author assume any responsibility for damages incurred with its
 .\"
 .\" $FreeBSD$
 .\"
@@ -28,12 +28,12 @@
 .Nm zzz
 .Sh DESCRIPTION
 .Nm Apm
-controls the Intel / Microsoft APM (Advanced Power Management) BIOS and 
+controls the Intel / Microsoft APM (Advanced Power Management) BIOS and
 displays the current status of APM on laptop PCs.
-.Nm Zzz 
+.Nm Zzz
 suspends the system by controlling APM.
 .Pp
-The following options are available for 
+The following options are available for
 .Nm
 (no options are available for
 .Nm zzz
@@ -46,18 +46,18 @@ per line in the order given here.
 .Bl -tag -width indent
 .It Fl a
 Display the current AC-line status as an integer value.  The values
-0 and 1 correspond to the 
+0 and 1 correspond to the
 .Dq off-line
 state or
 .Dq on-line
 state, respectively.
 .It Fl b
 Display an integer value reflecting the current battery status.
-The values 0, 1, 2, 3, correspond to the 
+The values 0, 1, 2, 3, correspond to the
 .Dq high
-status, 
+status,
 .Dq low
-status, 
+status,
 .Dq critical
 status,
 .Dq charging
@@ -87,7 +87,7 @@ See
 .Xr apm 4
 for details.
 .It Fl l
-Display the remaining battery percentage.  If your laptop does not 
+Display the remaining battery percentage.  If your laptop does not
 support this function, 255 is displayed.
 .It Fl r Ar delta
 Enable the resume wakeup timer, if the laptop supports it.  This
@@ -122,14 +122,14 @@ On such systems,
 .Nm
 displays them as unknown.
 .Pp
-Some APM implementations cannot handle events such as pushing the 
+Some APM implementations cannot handle events such as pushing the
 power button or closing the cover.  On such implementations, the system
 .Ar must
 be suspended
 .Ar only
 by using
 .Nm
-or 
+or
 .Nm zzz .
 .Sh NOTES
 .Xr apmconf 8

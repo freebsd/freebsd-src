@@ -63,16 +63,16 @@ Do not supply routing information (opposite of
 .Fl s
 option below).
 .It Fl s
-Forces 
+Forces
 .Nm
 to supply routing information whether it is acting as an internetwork
 router or not.
 .It Fl S
-Do not supply Service Advertizing Protocol 
+Do not supply Service Advertizing Protocol
 (SAP)
 information.
-The default is to supply 
-SAP 
+The default is to supply
+SAP
 information.
 .It Fl t
 All packets sent or received are
@@ -81,7 +81,7 @@ printed on the standard output.  In addition,
 will not divorce itself from the controlling terminal
 so that interrupts from the keyboard will kill the process.
 .It Ar logfile
-Name of file in which 
+Name of file in which
 .Nm Ns 's
 actions should be logged.  This log contains information
 about any changes to the routing tables and a history of
@@ -111,7 +111,7 @@ is ignored).  If multiple interfaces
 are present, it is assumed the host will forward packets
 between networks.
 .Nm
-then transmits a 
+then transmits a
 .Em request
 packet on each interface (using a broadcast packet if
 the interface supports it) and enters a loop, listening
@@ -123,7 +123,7 @@ packets from other hosts.
 .Pp
 When a
 .Em request
-packet is received, 
+packet is received,
 .Nm
 formulates a reply based on the information maintained in its
 internal tables.  The

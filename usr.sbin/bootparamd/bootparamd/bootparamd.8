@@ -18,7 +18,7 @@ is a server process that provides information to
 clients necessary for booting.
 It consults the
 .Pa /etc/bootparams
-file. 
+file.
 .Pp
 This version will allow the use of aliases on the hostname in the
 .Pa /etc/bootparams
@@ -26,7 +26,7 @@ file.
 The returned hostname to the
 .Em whoami
 request done by the booting client
-will be the name that appears in 
+will be the name that appears in
 .Pa /etc/bootparams
 and not the canonical name.
 In this way you can keep the answer short enough
@@ -54,7 +54,7 @@ default boot parameter file
 When netbooting diskless SunOS/Xkernel SPARCstations the booted SunOS kernel
 also broadcasts to the all-0 address.
 The SunOS kernel hangs until it receives a reply.
-To accommodate this behaviour add an alias address 
+To accommodate this behaviour add an alias address
 that responds to an all-0 broadcast.
 So, add something like
 .Ql "ifconfig xl0 192.168.200.254 netmask 255.255.255.255 broadcast 192.168.200.0 alias

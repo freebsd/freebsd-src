@@ -386,7 +386,7 @@ MPPE is Microsoft Point to Point Encryption scheme.
 It is possible to configure
 .Nm
 to participate in Microsoft's Windows VPN.
-For now, 
+For now,
 .Nm
 can only get encryption keys from CHAP 81 authentication.
 .Nm
@@ -1457,7 +1457,7 @@ ppp-in:
  add 10.0.1.0/24 HISADDR
 .Ed
 .Pp
-It is necessary to put the 
+It is necessary to put the
 .Dq add
 command in
 .Pa ppp.linkup
@@ -2796,7 +2796,7 @@ connection.
 .It mppe
 Default: Enabled and Accepted.
 This is Microsoft Point to Point Encryption scheme.
-MPPE key size can be 
+MPPE key size can be
 40-, 56- and 128-bits.
 Refer to
 .Dq set mppe

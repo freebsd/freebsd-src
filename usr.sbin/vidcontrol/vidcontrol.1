@@ -44,7 +44,7 @@
 .Sh DESCRIPTION
 The
 .Nm
-command is used to set various options for the 
+command is used to set various options for the
 .Xr syscons 4
 console driver,
 such as video mode, colors, cursor shape, screen output map, font and screen
@@ -104,14 +104,14 @@ command below to see available colors.
 .It Cm show
 See the supported colors on a given platform.
 .It Fl b Ar color
-Set border color to 
+Set border color to
 .Ar color .
 This option may not be always supported by the video driver.
 .It Fl C
 Clear the history buffer.
 .It Fl c Cm normal | blink | destructive
 Change the cursor appearance.
-The cursor is either an inverting block 
+The cursor is either an inverting block
 .Pq Cm normal
 that can optionally
 .Cm blink ,
@@ -144,7 +144,7 @@ may be omitted, in this case
 .Nm
 will try to guess it from the size of font file.
 .Pp
-Note that older video cards, such as MDA and CGA, do not support 
+Note that older video cards, such as MDA and CGA, do not support
 software font.
 See also
 .Sx Video Mode Support
@@ -188,7 +188,7 @@ Switch the mouse pointer
 .Cm on
 or
 .Cm off .
-Used together with the 
+Used together with the
 .Xr moused 8
 daemon for text mode cut & paste functionality.
 .It Fl p
@@ -209,8 +209,8 @@ ignoring nonprintable characters and information about text
 attributes.
 .It Fl r Ar foreground background
 Change reverse mode colors to
-.Ar foreground 
-and 
+.Ar foreground
+and
 .Ar background .
 .It Fl s Ar number
 Set the current vty to
@@ -260,7 +260,7 @@ will fail if the user attempts to set a new video mode.
 It is better to always load all three sizes (8x8, 8x14 and 8x16)
 of the same font.
 .Pp
-You may set variables in 
+You may set variables in
 .Pa /etc/rc.conf
 or
 .Pa /etc/rc.conf.local
@@ -385,9 +385,9 @@ or
 .Pa /etc/rc.conf.local
 in order to configure the video output at boot time.
 .Pp
-.Bl -tag -width foo_bar_var -compact 
+.Bl -tag -width foo_bar_var -compact
 .It Ar blanktime
-Sets the timeout value for the 
+Sets the timeout value for the
 .Fl t
 option.
 .It Ar font8x16 , font8x14 , font8x8
@@ -398,9 +398,9 @@ option.
 Specifies a screen output map file for the
 .Fl l
 option.
-.El 
-.Pp 
-See 
+.El
+.Pp
+See
 .Xr rc.conf 5
 for more details.
 .Ss Driver Configuration

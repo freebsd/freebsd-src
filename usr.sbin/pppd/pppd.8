@@ -148,7 +148,7 @@ bytes of data).
 Set the MTU [Maximum Transmit Unit] value to \fIn\fR.  Unless the
 peer requests a smaller value via MRU negotiation, pppd will
 request that the kernel networking code send data packets of no more
-than \fIn\fR bytes through the PPP network interface. 
+than \fIn\fR bytes through the PPP network interface.
 .TP
 .B passive
 Enables the "passive" option in the LCP.  With this option, pppd will
@@ -826,9 +826,9 @@ the secret in /etc/ppp/pap-secrets would be "", which will match any
 password supplied by the peer.  This avoids the need to have the same
 secret in two places.
 .LP
-Additional checks are performed when the \fBlogin\fR option is used.  
+Additional checks are performed when the \fBlogin\fR option is used.
 If the file /etc/ppp/ppp.deny exists, and the user is listed in it,
-the authentication fails.  If the file /etc/ppp/ppp.shells exists and 
+the authentication fails.  If the file /etc/ppp/ppp.shells exists and
 the user's normal login shell is not listed, the authentication fails.
 .LP
 Authentication must be satisfactorily completed before IPCP (or any
@@ -1064,7 +1064,7 @@ executed with the parameters
 .IP
 \fIinterface-name tty-device speed network-number local-IPX-node-address
 remote-IPX-node-address local-IPX-routing-protocol remote-IPX-routing-protocol
-local-IPX-router-name remote-IPX-router-name ipparam pppd-pid\fR 
+local-IPX-router-name remote-IPX-router-name ipparam pppd-pid\fR
 .IP
 The local-IPX-routing-protocol and remote-IPX-routing-protocol field
 may be one of the following:

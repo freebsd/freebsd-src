@@ -140,7 +140,7 @@ trace query and as the default for the
 and the response destination.
 .It Fl l
 Loop indefinitely printing packet rate and loss statistics for the
-multicast path every 10 seconds (see 
+multicast path every 10 seconds (see
 .Fl S Ar stat_int ) .
 .It Fl M
 Always request the response using multicast rather than attempting
@@ -361,13 +361,13 @@ output might be:
 .Bd -literal
 oak.isi.edu 80# mtrace -l caraway.lcs.mit.edu 224.2.0.3
 Mtrace from 18.26.0.170 to 128.9.160.100 via group 224.2.0.3
-Querying full reverse path... 
+Querying full reverse path...
   0  oak.isi.edu (128.9.160.100)
- -1  cub.isi.edu (128.9.160.153)  DVMRP  thresh^ 1  3 ms  
- -2  la.dart.net (140.173.128.1)  DVMRP  thresh^ 1  14 ms  
- -3  dc.dart.net (140.173.64.1)  DVMRP  thresh^ 1  50 ms  
- -4  bbn.dart.net (140.173.32.1)  DVMRP  thresh^ 1  63 ms  
- -5  mit.dart.net (140.173.48.2)  DVMRP  thresh^ 1  71 ms  
+ -1  cub.isi.edu (128.9.160.153)  DVMRP  thresh^ 1  3 ms
+ -2  la.dart.net (140.173.128.1)  DVMRP  thresh^ 1  14 ms
+ -3  dc.dart.net (140.173.64.1)  DVMRP  thresh^ 1  50 ms
+ -4  bbn.dart.net (140.173.32.1)  DVMRP  thresh^ 1  63 ms
+ -5  mit.dart.net (140.173.48.2)  DVMRP  thresh^ 1  71 ms
  -6  caraway.lcs.mit.edu (18.26.0.170)
 Round trip time 124 ms; total ttl of 6 required.
 .Ed
@@ -430,23 +430,23 @@ Waiting to accumulate statistics... Results after 101 seconds:
 18.26.0.170    128.9.160.100    Packet    18.26.0.170 To 224.2.0.3
      |       __/ rtt  125 ms     Rate     Lost/Sent = Pct  Rate
      v      /    hop   65 ms    -------   ---------------------
-18.26.0.144    
-140.173.48.2   mit.dart.net          
+18.26.0.144
+140.173.48.2   mit.dart.net
      |     ^     ttl    1         0 pps      0/2  = --%  0 pps
      v     |     hop    8 ms      0 pps      0/18 =  0%  0 pps
-140.173.48.1   
+140.173.48.1
 140.173.32.1   bbn.dart.net
      |     ^     ttl    2         0 pps      0/2  = --%  0 pps
      v     |     hop   12 ms      0 pps      0/18 =  0%  0 pps
-140.173.32.2   
-140.173.64.1   dc.dart.net 
+140.173.32.2
+140.173.64.1   dc.dart.net
      |     ^     ttl    3        27 pps      0/2  = --%  0 pps
      v     |     hop   34 ms     26 pps      0/18 =  0%  0 pps
-140.173.64.2   
+140.173.64.2
 140.173.128.1  la.dart.net
      |     ^     ttl    4        83 pps      0/2  = --%  0 pps
      v     |     hop   11 ms     79 pps      0/18 =  0%  0 pps
-140.173.128.2  
+140.173.128.2
 128.9.160.153  cub.isi.edu
      |      \\__  ttl    5        83 pps      ?/2         0 pps
      v         \\ hop   -8 ms     79 pps      ?/18        0 pps
@@ -500,8 +500,8 @@ Mtrace from 204.62.246.73 to 18.26.0.151 via group 224.2.143.24
 Querying full reverse path... * switching to hop-by-hop:
   0  butter.lcs.mit.edu (18.26.0.151)
  -1  jam.lcs.mit.edu (18.26.0.144)  DVMRP  thresh^ 1  33 ms  Output pruned
- -2  bbn.dart.net (140.173.48.1)  DVMRP  thresh^ 1  36 ms  
- -3  dc.dart.net (140.173.32.2)  DVMRP  thresh^ 1  44 ms  
+ -2  bbn.dart.net (140.173.48.1)  DVMRP  thresh^ 1  36 ms
+ -3  dc.dart.net (140.173.32.2)  DVMRP  thresh^ 1  44 ms
  -4  darpa.dart.net (140.173.240.2)  DVMRP  thresh^ 16  47 ms
  -5  * * * noc.hpc.org (192.187.8.2) [mrouted 2.2] didn't respond
 Round trip time 95 ms
@@ -531,7 +531,7 @@ The option syntax and the output format of
 are modeled after the unicast
 .Nm traceroute
 program written by
-.An Van Jacobson . 
+.An Van Jacobson .
 .Sh SEE ALSO
 .Xr map-mbone 8 ,
 .Xr mrinfo 8 ,

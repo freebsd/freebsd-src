@@ -14,14 +14,14 @@
 .Op Fl d Op Ar debug_level
 .Op Fl p
 .Sh DESCRIPTION
-.Nm Mrouted 
+.Nm Mrouted
 is an implementation of the Distance-Vector Multicast Routing
 Protocol (DVMRP), an earlier version of which is specified in RFC-1075.
 It maintains topological knowledge via a distance-vector routing protocol
 (like RIP, described in RFC-1058), upon which it implements a multicast
 datagram forwarding algorithm called Reverse Path Multicasting.
 .Pp
-.Nm Mrouted 
+.Nm Mrouted
 forwards a multicast datagram along a shortest (reverse) path tree
 rooted at the subnet on which the datagram originates.
 The multicast
@@ -35,42 +35,42 @@ The IP time-to-live of a multicast datagram can be
 used to limit the range of multicast datagrams.
 .Pp
 In order to support multicasting among subnets that are separated by (unicast)
-routers that do not support IP multicasting, 
-.Nm 
+routers that do not support IP multicasting,
+.Nm
 includes support for
-"tunnels", which are virtual point-to-point links between pairs of 
+"tunnels", which are virtual point-to-point links between pairs of
 multicast routers
 located anywhere in an internet.  IP multicast packets are encapsulated for
 transmission through tunnels, so that they look like normal unicast datagrams
-to intervening routers and subnets.  The encapsulation 
+to intervening routers and subnets.  The encapsulation
 is added on entry to a tunnel, and stripped off
 on exit from a tunnel.
 The packets are encapsulated using the IP-in-IP protocol
 (IP protocol number 4).
-Older versions of 
+Older versions of
 .Nm
 tunneled using IP source routing, which puts a heavy load on some
 types of routers.
 This version does not support IP source route tunnelling.
 .Pp
-The tunnelling mechanism allows 
-.Nm 
+The tunnelling mechanism allows
+.Nm
 to establish a virtual internet, for
 the purpose of multicasting only, which is independent of the physical
 internet, and which may span multiple Autonomous Systems.  This capability
 is intended for experimental support of internet multicasting only, pending
 widespread support for multicast routing by the regular (unicast) routers.
-.Nm Mrouted 
+.Nm Mrouted
 suffers from the well-known scaling problems of any distance-vector
 routing protocol, and does not (yet) support hierarchical multicast routing.
 .Pp
-.Nm Mrouted 
+.Nm Mrouted
 handles multicast routing only; there may or may not be unicast routing
-software running on the same machine as 
+software running on the same machine as
 .Nm .
 With the use of tunnels, it
-is not necessary for 
-.Nm 
+is not necessary for
+.Nm
 to have access to more than one physical subnet
 in order to perform multicast forwarding.
 .Pp
@@ -83,12 +83,12 @@ Default is
 .It Fl d Op Ar debug_level
 If no
 .Fl d
-option is given, or if the debug level is specified as 0, 
+option is given, or if the debug level is specified as 0,
 .Nm
 detaches from the invoking terminal.  Otherwise, it remains attached to the
 invoking terminal and responsive to signals from that terminal.
-Regardless of the debug level, 
-.Nm 
+Regardless of the debug level,
+.Nm
 always writes warning and error messages to the system
 log demon.  The
 .Fl debug-level
@@ -131,7 +131,7 @@ writes its pid to the file
 .Pa /var/run/mrouted.pid .
 .El
 .Sh CONFIGURATION
-.Nm Mrouted 
+.Nm Mrouted
 automatically configures itself to forward on all multicast-capable
 interfaces, i.e., interfaces that have the IFF_MULTICAST flag set (excluding
 the loopback "interface"), and it finds other DVMRP routers directly reachable
@@ -290,7 +290,7 @@ In general, all multicast routers
 connected to a particular subnet or tunnel should
 use the same metric and threshold for that subnet or tunnel.
 .It rate_limit Ar r
-The rate_limit option allows the network administrator to specify a 
+The rate_limit option allows the network administrator to specify a
 certain bandwidth in Kbits/second which would be allocated to multicast
 traffic.  It defaults 0 (unlimited).
 .It boundary Ar "boundary-name|scoped-addr/mask-len"
@@ -370,7 +370,7 @@ to routes on both output and input.  Without the
 .Ar bidir
 keyword,
 .Li accept
-and 
+and
 .Li deny
 filters are only applied on input.  Poison reverse routes are never
 filtered out.
@@ -380,7 +380,7 @@ filtered out.
 will not initiate execution if it has fewer than two enabled vifs,
 where a vif (virtual interface) is either a physical multicast-capable
 interface or a tunnel.  It will log a warning if all of its vifs are
-tunnels; such an 
+tunnels; such an
 .Nm
 configuration would be better replaced by more
 direct tunnels (i.e. eliminate the middle man).
@@ -423,7 +423,7 @@ tunnel 192.168.5.4 10.11.12.13 metric 1 threshold 32
 	boundary LOCAL boundary EE
 .Ed
 .Sh SIGNALS
-.Nm Mrouted 
+.Nm Mrouted
 responds to the following signals:
 .Bl -tag -width indent
 .It HUP
@@ -443,8 +443,8 @@ Dump the internal cache tables to
 .Pa /var/tmp/mrouted.cache .
 .It QUIT
 Dump the internal routing tables to stderr (only if
-.Nm 
-was invoked with a non-zero debug level). 
+.Nm
+was invoked with a non-zero debug level).
 .El
 .Pp
 For convenience in sending signals,
@@ -465,13 +465,13 @@ Virtual Interface Table
                   pkts out: 2322323
 
   1   36.11.0.1     subnet: 36.11/16      1       1    querier
-                    groups: 224.0.2.1      
-                            224.0.1.0      
-                            224.0.0.4      
+                    groups: 224.0.2.1
+                            224.0.1.0
+                            224.0.0.4
                    pkts in: 345
                   pkts out: 3456
 
-  2   36.2.0.8      tunnel: 36.8.0.77     3       1   
+  2   36.2.0.8      tunnel: 36.8.0.77     3       1
                      peers: 36.8.0.77 (3.255)
                 boundaries: 239.0.1/24
                           : 239.1.2/24
@@ -493,7 +493,7 @@ Multicast Routing Table (1136 entries)
 In this example, there are four vifs connecting to two subnets and two
 tunnels.  The vif 3 tunnel is not in use (no peer address). The vif 0 and
 vif 1 subnets have some groups present; tunnels never have any groups.  This
-instance of 
+instance of
 .Nm
 is the one responsible for sending periodic group
 membership queries on the vif 0 and vif 1 subnets, as indicated by the
@@ -512,10 +512,10 @@ the outgoing vif is connected to a leaf of the broadcast tree rooted at the
 origin, and a multicast datagram from that origin will be forwarded on that
 outgoing vif only if there are members of the destination group on that leaf.
 .Pp
-.Nm Mrouted 
+.Nm Mrouted
 also maintains a copy of the kernel forwarding cache table.
 Entries
-are created and deleted by 
+are created and deleted by
 .Nm .
 .Pp
 The cache tables look like this:
@@ -523,16 +523,16 @@ The cache tables look like this:
 .Bd -literal
 Multicast Routing Cache Table (147 entries)
  Origin             Mcast-group     CTmr  Age Ptmr IVif Forwvifs
- 13.2.116/22        224.2.127.255     3m   2m    -  0    1 
+ 13.2.116/22        224.2.127.255     3m   2m    -  0    1
 >13.2.116.19
 >13.2.116.196
- 138.96.48/21       224.2.127.255     5m   2m    -  0    1 
+ 138.96.48/21       224.2.127.255     5m   2m    -  0    1
 >138.96.48.108
- 128.9.160/20       224.2.127.255     3m   2m    -  0    1 
+ 128.9.160/20       224.2.127.255     3m   2m    -  0    1
 >128.9.160.45
- 198.106.194/24     224.2.135.190     9m  28s   9m  0P  
+ 198.106.194/24     224.2.135.190     9m  28s   9m  0P
 >198.106.194.22
-.Ed 
+.Ed
 .Pp
 Each entry is characterized by the origin subnet number and mask and the
 destination multicast group.

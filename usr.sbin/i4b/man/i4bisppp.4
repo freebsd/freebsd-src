@@ -41,11 +41,11 @@ none
 .Sh DESCRIPTION
 The
 .Nm
-driver interfaces the IP subsystem of the operating system with the 
+driver interfaces the IP subsystem of the operating system with the
 isdn4bsd package so that a transport of IP packets over an ISDN link
 is possible.
 .Pp
-The driver is just a glue layer between Serge Vakulenko's sppp 
+The driver is just a glue layer between Serge Vakulenko's sppp
 backend and the ISDN4BSD package.
 .Pp
 In case an IP packet for a remote side arrives in the driver and no
@@ -61,14 +61,14 @@ with the
 .Nm isp
 interfaces.
 .Pp
-The 
+The
 .Xr spppcontrol 8
 utility is used to configure all aspects of PPP required to connect to a
 remote site.
 .Sh LINK0 and LINK1
 The
 .Em link0
-and 
+and
 .Em link1
 flags given as parameters to
 .Xr ifconfig 8
@@ -77,17 +77,17 @@ have the following meaning for the
 devices:
 .Bl -tag -width link0 -compact
 .Pp
-.It Li link0 
+.It Li link0
 wait passively for connection
 .Pp
 .It Li link1
 auto-dial on output
 .El
 .Pp
-The 
-.Em link0 
-and 
-.Em link1 
+The
+.Em link0
+and
+.Em link1
 flags are set to
 .Em off
 by default.
@@ -106,10 +106,10 @@ for a more detailed discussion of the flags,
 .An -nosplit
 The
 .Nm
-device driver was written by 
-.An Joerg Wunsch 
-and then added to ISDN4BSD by 
+device driver was written by
+.An Joerg Wunsch
+and then added to ISDN4BSD by
 .An Gary Jennejohn .
 .Pp
-This manpage was written by 
+This manpage was written by
 .An Hellmuth Michaelis Aq hm@kts.org .

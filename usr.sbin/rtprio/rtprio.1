@@ -32,37 +32,37 @@
 .\"
 .Dd July 23, 1994
 .Dt RTPRIO 1
-.Os 
+.Os
 .Sh NAME
 .Nm rtprio ,
 .Nm idprio
-.Nd execute, examine or modify a utility's or process's realtime 
+.Nd execute, examine or modify a utility's or process's realtime
 or idletime scheduling priority
 .Sh SYNOPSIS
 .Nm [id|rt]prio
-.Nm [id|rt]prio 
+.Nm [id|rt]prio
 .Oo Fl Oc Ns Ar pid
-.Nm [id|rt]prio 
+.Nm [id|rt]prio
 .Ar priority
 .Ar command
 .Op args
-.Nm [id|rt]prio 
+.Nm [id|rt]prio
 .Ar priority
 .Fl Ar pid
-.Nm [id|rt]prio 
+.Nm [id|rt]prio
 .Fl t
 .Ar command
 .Op args
-.Nm [id|rt]prio 
+.Nm [id|rt]prio
 .Fl t
 .Fl Ar pid
 .Sh DESCRIPTION
 .Nm Rtprio
-is used for controlling realtime process scheduling. 
+is used for controlling realtime process scheduling.
 .Pp
 .Nm Idprio
 is used for controlling idletime process scheduling, and can be called
-with the same options as 
+with the same options as
 .Nm .
 .Pp
 A process with a realtime priority is not subject to priority
@@ -73,9 +73,9 @@ A process with an idle priority will run only when no other
 process is runnable and then only if its idle priority is equal or
 greater than all other runnable idle priority processes.
 .Pp
-.Nm Rtprio 
+.Nm Rtprio
 or
-.Nm idprio 
+.Nm idprio
 when called without arguments will return the realtime priority
 of the current process.
 .Pp
@@ -85,20 +85,20 @@ is called with 1 argument, it will return the realtime priority
 of the process with the specified
 .Ar pid .
 .Pp
-If 
+If
 .Ar priority
 is specified, the process or program is run at that realtime priority.
-If 
+If
 .Fl t
 is specified, the process or program is run as a normal (non-realtime)
-process. 
+process.
 .Pp
 If
 .Ar -pid
 is specified, the process with the process identifier
 .Ar pid
 will be modified, else if
-.Ar command 
+.Ar command
 is specified, that program is run with its arguments.
 .Pp
 .Ar Priority

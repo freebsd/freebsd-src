@@ -43,14 +43,14 @@
 .Nm
 .Op Fl Scims
 .Op Fl l Ar limit
-.Op Fl d Ar database 
+.Op Fl d Ar database
 .Ar pattern ...
 .Sh DESCRIPTION
 The
 .Nm
 program searches a database for all pathnames which match the specified
 .Ar pattern  .
-The database is recomputed periodically (usually weekly or daily), 
+The database is recomputed periodically (usually weekly or daily),
 and contains the pathnames
 of all files which are publicly accessible.
 .Pp
@@ -99,9 +99,9 @@ Suppress normal output; instead print a count of matching file names.
 Search in
 .Ar database
 instead the default file name database.
-Multiple 
+Multiple
 .Fl d
-options are allowed.  Each additional 
+options are allowed.  Each additional
 .Fl d
 option adds the specified database to the list
 of databases to be searched.
@@ -117,9 +117,9 @@ $ locate -d $HOME/lib/mydb: foo
 .Pp
 will first search string
 .Dq foo
-in 
+in
 .Pa $HOME/lib/mydb
-and then in 
+and then in
 .Pa /var/db/locate.database .
 .Bd -literal
 $ locate -d $HOME/lib/mydb::/cdrom/locate.database foo
@@ -127,11 +127,11 @@ $ locate -d $HOME/lib/mydb::/cdrom/locate.database foo
 .Pp
 will first search string
 .Dq foo
-in 
+in
 .Pa $HOME/lib/mydb
-and then in 
+and then in
 .Pa /var/db/locate.database
-and then in 
+and then in
 .Pa /cdrom/locate.database .
 .Bd -literal
 $ locate -d db1 -d db2 -d db3 pattern
@@ -142,35 +142,35 @@ is the same as
 $ locate -d db1:db2:db3 pattern
 .Ed
 .Pp
-or 
+or
 .Bd -literal
-.Dq $ locate -d db1:db2 -d db3 pattern . 
+.Dq $ locate -d db1:db2 -d db3 pattern .
 .Ed
 .Pp
 If
-.Ar - 
+.Ar -
 is given as the database name, standard input will be read instead.
-For example, you can compress your database 
-and use: 
+For example, you can compress your database
+and use:
 .Bd -literal
 $ zcat database.gz | locate -d - pattern
 .Ed
 .Pp
 This might be useful on machines with a fast CPU and little RAM and slow
-I/O. Note: you can only use 
+I/O. Note: you can only use
 .Ar one
 pattern for stdin.
 .It Fl i
 Ignore case distinctions in both the pattern and the database.
 .It Fl l Ar number
-Limit output to 
+Limit output to
 .Ar number
 of file names and exit.
 .It Fl m
-Use 
-.Xr mmap 2 
-instead of the 
-.Xr stdio 3 
+Use
+.Xr mmap 2
+instead of the
+.Xr stdio 3
 library.
 This is the default behavior.
 Usually faster in most cases.
@@ -192,8 +192,8 @@ Script that starts the database rebuild
 .Sh ENVIRONMENT
 .Bl -tag -width LOCATE_PATH -compact
 .It Pa LOCATE_PATH
-path to the locate database if set and not empty, ignored if the 
-.Fl d 
+path to the locate database if set and not empty, ignored if the
+.Fl d
 option was specified.
 .El
 .Sh SEE ALSO
@@ -213,10 +213,10 @@ option was specified.
 .Sh BUGS
 The
 .Nm
-program may fail to list some files that are present, or may 
+program may fail to list some files that are present, or may
 list files that have been removed from the system.  This is because
 locate only reports files that are present in the database, which is
-typically only regenerated once a week by the 
+typically only regenerated once a week by the
 .Pa /etc/periodic/weekly/310.locate
 script.  Use
 .Xr find 1
@@ -224,18 +224,18 @@ to locate files that are of a more transitory nature.
 .Pp
 The
 .Nm
-database was built by user 
+database was built by user
 .Dq nobody .
 .Xr find 1
 skips directories,
-which are not readable for user 
-.Dq nobody , 
+which are not readable for user
+.Dq nobody ,
 group
 .Dq nobody ,
 or
 world.
 E.g. if your HOME directory is not world-readable, all your
-files are 
+files are
 .Ar not
 in the database.
 .Pp
@@ -244,13 +244,13 @@ The
 database is not byte order independent.
 It is not possible
 to share the databases between machines with different byte order.
-The current 
+The current
 .Nm
 implementation understand databases in host byte order or
-network byte order if both architectures use the same integer size. 
+network byte order if both architectures use the same integer size.
 So you can read on a
 .Fx Ns /i386
-machine 
+machine
 (little endian)
 a locate database which was built on SunOS/sparc machine
 (big endian, net).

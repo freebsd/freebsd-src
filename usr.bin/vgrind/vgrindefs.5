@@ -48,10 +48,10 @@ file
 contains all language definitions for
 .Xr vgrind 1 .
 The data base is
-very similar to 
+very similar to
 .Xr termcap 5 .
 .Sh FIELDS
-The following table names and describes each field.  
+The following table names and describes each field.
 .Pp
 .Bl -column Namexxx Tpexxx
 .It Sy "Name	Type	Description
@@ -81,7 +81,7 @@ while the string
 .Ql $#
 is an operator on an array.
 .Sh EXAMPLES
-The following entry, which describes the C language, is 
+The following entry, which describes the C language, is
 typical of a language entry.
 .Bd -literal
 C|c:\
@@ -107,11 +107,11 @@ are of two types:
 Boolean capabilities which indicate that the language has
 some particular feature
 and string
-capabilities which give a regular expression or 
+capabilities which give a regular expression or
 keyword list.
 .Sh REGULAR  EXPRESSIONS
 .Nm Vgrindefs
-uses regular expression which are very similar to those of 
+uses regular expression which are very similar to those of
 .Xr ex 1
 and
 .Xr lex 1 .
@@ -153,7 +153,7 @@ would match "tramp", "steamer", "trampflies", or "steamerflies".
 .Sh KEYWORD  LIST
 The keyword list is just a list of keywords in the language separated
 by spaces.  If the "oc" boolean is specified, indicating that upper
-and lower case are equivalent, then all the keywords should be 
+and lower case are equivalent, then all the keywords should be
 specified in lower case.
 .Sh FILES
 .Bl -tag -width /usr/share/misc/vgrindefs -compact
