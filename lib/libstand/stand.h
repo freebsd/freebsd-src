@@ -66,6 +66,7 @@
 #include <sys/cdefs.h>
 #include <sys/stat.h>
 #include <sys/dirent.h>
+#include <string.h>
 
 #define CHK(fmt, args...)	printf("%s(%d): " fmt "\n", __FUNCTION__, __LINE__ , ##args)
 #define PCHK(fmt, args...)	{printf("%s(%d): " fmt "\n", __FUNCTION__, __LINE__ , ##args); getchar();}
@@ -136,12 +137,13 @@ struct devsw {
     const char	dv_name[8];
     int		dv_type;		/* opaque type constant, arch-dependant */
     int		(*dv_init)(void);	/* early probe call */
-    int		(*dv_strategy)(void *devdata, int rw, daddr_t blk, size_t size, void *buf, size_t *rsize);
+    int		(*dv_strategy)(void *devdata, int rw, daddr_t blk, size_t size,
+			       char *buf, size_t *rsize);
     int		(*dv_open)(struct open_file *f, ...);
     int		(*dv_close)(struct open_file *f);
     int		(*dv_ioctl)(struct open_file *f, u_long cmd, void *data);
     void	(*dv_print)(int verbose);	/* print device information */
-    void	(*dv_cleanup)();
+    void	(*dv_cleanup)(void);
 };
 
 /*
@@ -227,8 +229,6 @@ extern int	close(int);
 extern void	closeall(void);
 extern ssize_t	read(int, void *, size_t);
 extern ssize_t	write(int, void *, size_t);
-extern off_t	lseek(int, off_t, int);
-extern int	stat(const char *, struct stat *);
 extern struct	dirent *readdirfd(int);
 
 extern void	srandom(u_long seed);
@@ -236,7 +236,6 @@ extern u_long	random(void);
     
 /* imports from stdlib, locally modified */
 extern long	strtol(const char *, char **, int);
-extern char *	strerror(int err);
 extern char	*optarg;			/* getopt(3) external variables */
 extern int	optind, opterr, optopt, optreset;
 extern int	getopt(int, char * const [], const char *);
@@ -273,10 +272,12 @@ struct env_var
 extern struct env_var	*environ;
 
 extern struct env_var	*env_getenv(const char *name);
-extern int		env_setenv(const char *name, int flags, void *value, 
-				   ev_sethook_t sethook, ev_unsethook_t unsethook);
+extern int		env_setenv(const char *name, int flags,
+				   const void *value, ev_sethook_t sethook,
+				   ev_unsethook_t unsethook);
 extern char		*getenv(const char *name);
-extern int		setenv(const char *name, char *value, int overwrite);
+extern int		setenv(const char *name, const char *value,
+			       int overwrite);
 extern int		putenv(const char *string);
 extern int		unsetenv(const char *name);
 
