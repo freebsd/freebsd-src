@@ -944,7 +944,7 @@ syscall(struct trapframe *tf)
 	sticks = td->td_sticks;
 	if (td->td_ucred != p->p_ucred)
 		cred_update_thread(td);
-	if (p->p_flag & P_THREADED)
+	if (p->p_flag & P_SA)
 		thread_user_enter(p, td);
 
 	if (p->p_sysent->sv_prepsyscall) {

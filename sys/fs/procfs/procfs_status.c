@@ -117,7 +117,7 @@ procfs_doprocstatus(PFS_FILL_ARGS)
 	}
 
 	mtx_lock_spin(&sched_lock);
-	if (p->p_flag & P_THREADED)
+	if (p->p_flag & P_SA)
 		wmesg = "-kse- ";
 	else {
 		tdfirst = FIRST_THREAD_IN_PROC(p);
