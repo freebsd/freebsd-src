@@ -13,7 +13,6 @@ SUBDIR=	IPXrouted \
 	amd \
 	ancontrol \
 	arp \
-	atm \
 	bootparamd \
 	burncd \
 	cdcontrol \
@@ -57,7 +56,6 @@ SUBDIR=	IPXrouted \
 	memcontrol \
 	mergemaster \
 	mixer \
-	mld6query \
 	mlxcontrol \
 	mount_portalfs \
 	mountd \
@@ -86,9 +84,7 @@ SUBDIR=	IPXrouted \
 	rarpd \
 	raycontrol \
 	repquota \
-	rip6query \
 	rmt \
-	route6d \
 	rpcbind \
 	rpc.lockd \
 	rpc.statd \
@@ -115,7 +111,6 @@ SUBDIR=	IPXrouted \
 	tcpdump \
 	timed \
 	traceroute \
-	traceroute6 \
 	trpt \
 	tzsetup \
 	ugidfw \
@@ -134,6 +129,17 @@ SUBDIR=	IPXrouted \
 	ypserv \
 	ypset \
 	zic
+
+.if !defined(NOATM)
+SUBDIR+=atm
+.endif
+
+.if !defined(NOINET6)
+SUBDIR+=mld6query \
+	rip6query \
+	route6d \
+	traceroute6 
+.endif
 
 .if !defined(NO_IPFILTER)
 SUBDIR+=ipftest \
