@@ -1125,7 +1125,7 @@ read_toc(struct scd_softc *sc)
 
 	cd = &sc->data;
 
-	rc = send_cmd(sc, CMD_GET_TOC, 1, part+1);
+	rc = send_cmd(sc, CMD_GET_TOC, 1, 1);
 	if (rc < 0)
 		return (rc);
 	if (rc > sizeof(toc)) {
