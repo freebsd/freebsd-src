@@ -179,12 +179,12 @@
 .Op Ar
 .Ar directory
 .Sh DESCRIPTION
-.Nm Pax
-will read, write, and list the members of an archive file,
+The
+.Nm
+utility will read, write, and list the members of an archive file,
 and will copy directory hierarchies.
-.Nm Pax
-operation is independent of the specific archive format,
-and supports a wide variety of different archive formats.
+These operations are independent of the specific archive format,
+and support a wide variety of different archive formats.
 A list of supported archive formats can be found under the description of the
 .Fl x
 option.
@@ -202,8 +202,7 @@ and
 .Bl -tag -width 6n
 .It <none>
 .Em List .
-.Nm Pax
-will write to
+Write to
 .Dv standard output
 a table of contents of the members of the archive file read from
 .Dv standard input ,
@@ -213,8 +212,7 @@ The table of contents contains one filename per line
 and is written using single line buffering.
 .It Fl r
 .Em Read .
-.Nm Pax
-extracts the members of the archive file read from the
+Extract the members of the archive file read from the
 .Dv standard input ,
 with pathnames matching the specified
 .Ar patterns .
@@ -228,8 +226,7 @@ the extracted files are discussed in more detail under the
 option.
 .It Fl w
 .Em Write .
-.Nm Pax
-writes an archive containing the
+Write an archive containing the
 .Ar file
 operands to
 .Dv standard output
@@ -244,8 +241,7 @@ operand is also a directory, the entire file hierarchy rooted
 at that directory will be included.
 .It Fl r Fl w
 .Em Copy .
-.Nm Pax
-copies the
+Copy the
 .Ar file
 operands to the destination
 .Ar directory .
@@ -465,15 +461,17 @@ operand,
 will prompt to
 .Pa /dev/tty
 giving the name of the file, its file mode and its modification time.
-.Nm Pax
-will then read a line from
+The
+.Nm
+utility will then read a line from
 .Pa /dev/tty .
 If this line is blank, the file or archive member is skipped.
 If this line consists of a single period, the
 file or archive member is processed with no modification to its name.
 Otherwise, its name is replaced with the contents of the line.
-.Nm Pax
-will immediately exit with a non-zero exit status if
+The
+.Nm
+utility will immediately exit with a non-zero exit status if
 .Dv <EOF>
 is encountered when reading a response or if
 .Pa /dev/tty
@@ -691,8 +689,9 @@ is not buffered, and is written only after the file has been read or written.
 .It Fl x Ar format
 Specify the output archive format, with the default format being
 .Ar ustar .
-.Nm Pax
-currently supports the following formats:
+The
+.Nm
+utility currently supports the following formats:
 .Bl -tag -width "sv4cpio"
 .It Ar cpio
 The extended cpio interchange format specified in the
@@ -753,8 +752,9 @@ The default blocksize for this format is 10240 bytes.
 Pathnames stored by this format must be 250 characters or less in length.
 .El
 .Pp
-.Nm Pax
-will detect and report any file that it is unable to store or extract
+The
+.Nm
+utility will detect and report any file that it is unable to store or extract
 as the result of any specific archive format restrictions.
 The individual archive formats may impose additional restrictions on use.
 Typical archive format restrictions include (but are not limited to):
@@ -1145,8 +1145,9 @@ utility appeared in
 .An Keith Muller
 at the University of California, San Diego
 .Sh DIAGNOSTICS
-.Nm Pax
-will exit with one of the following values:
+The
+.Nm
+utility will exit with one of the following values:
 .Bl -tag -width 2n
 .It 0
 All files were processed successfully.
