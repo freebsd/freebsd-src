@@ -127,10 +127,10 @@ __FBSDID("$FreeBSD$");
 #endif
 
 #if 0
-static int	nfsfifo_read(struct vop_read_args *);
-static int	nfsfifo_write(struct vop_write_args *);
-static int	nfsfifo_close(struct vop_close_args *);
-static int	nfsspec_access(struct vop_access_args *);
+static vop_read_t	nfsfifo_read;
+static vop_write_t	nfsfifo_write;
+static vop_close_t	nfsfifo_close;
+static vop_access_t	nfsspec_access;
 #endif
 static int	nfs4_flush(struct vnode *, struct ucred *, int, struct thread *,
 		    int);
@@ -138,31 +138,31 @@ static int	nfs4_setattrrpc(struct vnode *, struct vattr *, struct ucred *,
 		    struct thread *);
 static int      nfs4_closerpc(struct vnode *, struct ucred *, struct thread *, int);
 
-static	int	nfs4_lookup(struct vop_lookup_args *);
-static	int	nfs4_create(struct vop_create_args *);
-static	int	nfs4_mknod(struct vop_mknod_args *);
-static	int	nfs4_open(struct vop_open_args *);
-static	int	nfs4_close(struct vop_close_args *);
-static	int	nfs4_access(struct vop_access_args *);
-static	int	nfs4_getattr(struct vop_getattr_args *);
-static	int	nfs4_setattr(struct vop_setattr_args *);
-static	int	nfs4_read(struct vop_read_args *);
-static	int	nfs4_fsync(struct vop_fsync_args *);
-static	int	nfs4_remove(struct vop_remove_args *);
-static	int	nfs4_link(struct vop_link_args *);
-static	int	nfs4_rename(struct vop_rename_args *);
-static	int	nfs4_mkdir(struct vop_mkdir_args *);
-static	int	nfs4_rmdir(struct vop_rmdir_args *);
-static	int	nfs4_symlink(struct vop_symlink_args *);
-static	int	nfs4_readdir(struct vop_readdir_args *);
-static	int	nfs4_strategy(struct vop_strategy_args *);
+static vop_lookup_t	nfs4_lookup;
+static vop_create_t	nfs4_create;
+static vop_mknod_t	nfs4_mknod;
+static vop_open_t	nfs4_open;
+static vop_close_t	nfs4_close;
+static vop_access_t	nfs4_access;
+static vop_getattr_t	nfs4_getattr;
+static vop_setattr_t	nfs4_setattr;
+static vop_read_t	nfs4_read;
+static vop_fsync_t	nfs4_fsync;
+static vop_remove_t	nfs4_remove;
+static vop_link_t	nfs4_link;
+static vop_rename_t	nfs4_rename;
+static vop_mkdir_t	nfs4_mkdir;
+static vop_rmdir_t	nfs4_rmdir;
+static vop_symlink_t	nfs4_symlink;
+static vop_readdir_t	nfs4_readdir;
+static vop_strategy_t	nfs4_strategy;
 static	int	nfs4_lookitup(struct vnode *, const char *, int,
 		    struct ucred *, struct thread *, struct nfsnode **);
 static	int	nfs4_sillyrename(struct vnode *, struct vnode *,
 		    struct componentname *);
-static int	nfs4_readlink(struct vop_readlink_args *);
-static int	nfs4_print(struct vop_print_args *);
-static int	nfs4_advlock(struct vop_advlock_args *);
+static vop_readlink_t	nfs4_readlink;
+static vop_print_t	nfs4_print;
+static vop_advlock_t	nfs4_advlock;
 
 /*
  * Global vfs data structures for nfs
