@@ -1,29 +1,27 @@
 # ex:ts=8
 $FreeBSD$
 
-GNU Texinfo 4.0
+GNU Texinfo 4.1
 	originals can be found at: ftp://ftp.gnu.org/gnu/texinfo/
 
 
 For the import of Texinfo many files and directories were pruned by:
 
-	tar -X FREEBSD-Xlist -xzf texinfo-4.0.tar.gz
+	tar -X FREEBSD-Xlist -xzf texinfo-4.1.tar.gz
 
 
 To reduce the size of import, and to make it so the changes from 3.12
-to 4.0 are easy to determine, the 4.0 directory structure was munged
+to 4.1 are easy to determine, the 4.1 directory structure was munged
 before import:
 
-	cd texinfo-4.0
+	cd texinfo-4.1
 	mv config.in config.h.in
-	mv intl/libgettext.h lib/libintl.h
-	rm -rf intl
 
 
 Then imported by:
 
-	cvs import -m 'Virgin import of GNU texinfo 4.0' \
-		src/contrib/texinfo FSF v4_0
+	cvs import -m 'Import of stripped down GNU texinfo 4.1' \
+		src/contrib/texinfo FSF v4_1
 
 After the import, a separate extraction of texinfo was GNU configured
 in the "normal" way.  The resulting config.h file should be compared
