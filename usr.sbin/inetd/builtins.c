@@ -569,7 +569,7 @@ ident_stream(s, sep)		/* Ident service (AKA "auth") */
 		getcredfail = EAFNOSUPPORT;
 		break;
 	}
-	if (getcredfail != 0) {
+	if (getcredfail != 0 || uc.cr_version != XUCRED_VERSION) {
 		if (*idbuf == '\0')
 			iderror(lport, fport, s,
 			    getcredfail == ENOENT ? ID_NOUSER : ID_UNKNOWN);

@@ -32,6 +32,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/ucred.h>
 #include <sys/un.h>
 
+#include <errno.h>
 #include <unistd.h>
 
 int
@@ -45,6 +46,8 @@ getpeereid(int s, uid_t *euid, gid_t *egid)
 	error = getsockopt(s, LOCAL_PEERCRED, 1, &xuc, &xuclen);
 	if (error != 0)
 		return (error);
+	if (xuc.cr_version != XUCRED_VERSION)
+		return (EINVAL);
 	*euid = xuc.cr_uid;
 	*egid = xuc.cr_gid;
 	return (0);

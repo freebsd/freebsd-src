@@ -265,11 +265,7 @@ lomac_local_connect(struct socket *so, struct sockaddr *nam, struct thread *td)
 		 * from its process structure at the time of connect()
 		 * (which is now).
 		 */
-		memset(&unp3->unp_peercred, '\0', sizeof(unp3->unp_peercred));
-		unp3->unp_peercred.cr_uid = td->td_proc->p_ucred->cr_uid;
-		unp3->unp_peercred.cr_ngroups = td->td_proc->p_ucred->cr_ngroups;
-		memcpy(unp3->unp_peercred.cr_groups, td->td_proc->p_ucred->cr_groups,
-		    sizeof(unp3->unp_peercred.cr_groups));
+		cru2x(td->td_proc->p_ucred, &unp3->unp_peercred);
 		unp3->unp_flags |= UNP_HAVEPC;
 		/*
 		 * The receiver's (server's) credentials are copied
