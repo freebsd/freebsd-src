@@ -648,8 +648,17 @@ trap(int vector, struct trapframe *framep)
 			if (sig == 0)
 				goto out;
 			ucode = framep->tf_special.ifa;	/* VA */
-		} else
+		} else {
+			/* Check for copyin/copyout fault. */
+			if (td != NULL && td->td_pcb->pcb_onfault != 0) {
+				framep->tf_special.iip =
+				    td->td_pcb->pcb_onfault;
+				framep->tf_special.psr &= ~IA64_PSR_RI;
+				td->td_pcb->pcb_onfault = 0;
+				goto out;
+			}
 			trap_panic(vector, framep);
+		}
 		break;
 
 	case IA64_VEC_FLOATING_POINT_FAULT:
