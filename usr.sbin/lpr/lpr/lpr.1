@@ -140,7 +140,7 @@ Usually files are copied to the spool directory.
 The
 .Fl s
 option will use
-.Xr symlink  2
+.Xr symlink 2
 to link data files rather than trying to copy them so large files can be
 printed.
 This means the files should
@@ -158,7 +158,8 @@ For example,
 lpr \-#3 foo.c bar.c more.c
 .Ed
 would result in 3 copies of the file foo.c, followed by 3 copies
-of the file bar.c, etc.\&  On the other hand,
+of the file bar.c, etc.
+On the other hand,
 .Bd -literal -offset indent
 cat foo.c bar.c more.c \&| lpr \-#3
 .Ed
@@ -174,7 +175,7 @@ instead.
 Specifies a
 .Ar font
 to be mounted on font position
-.Ar i  .
+.Ar i .
 The daemon
 will construct a
 .Li .railmag
@@ -189,7 +190,7 @@ lpr \-C EECS foo.c
 .Ed
 .Pp
 causes the system name (the name returned by
-.Xr hostname  1  )
+.Xr hostname 1 )
 to be replaced on the burst page by
 .Tn EECS ,
 and the file foo.c to be printed.
