@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: stand.h,v 1.4 1998/09/18 23:00:57 msmith Exp $
+ *	$Id: stand.h,v 1.5 1998/09/26 01:42:39 msmith Exp $
  * From	$NetBSD: stand.h,v 1.22 1997/06/26 19:17:40 drochner Exp $	
  */
 
@@ -215,6 +215,7 @@ extern u_long	random(void);
     
 /* imports from stdlib, locally modified */
 extern long	strtol(const char *, char **, int);
+extern char *	strerror(int err);
 extern char	*optarg;			/* getopt(3) external variables */
 extern int	optind, opterr, optopt;
 extern int	getopt(int, char * const [], const char *);
@@ -303,9 +304,32 @@ extern int	null_stat(struct open_file *f, struct stat *sb);
 extern int		getchar(void);
 extern int		ischar(void);
 extern void		putchar(int);
-extern int		devopen(struct open_file *, const char *, char **);
+extern int		devopen(struct open_file *, const char *, const char **);
 extern int		devclose(struct open_file *f);
 extern void		panic(const char *, ...) __dead2;
 extern struct fs_ops	*file_system[];
 extern struct devsw	*devsw[];
 
+#if 0
+
+static inline void *
+malloc_debug(size_t size, const char *file, int line)
+{
+    void *p;
+    printf("%s:%d malloc(%ld)", file, line, size);
+    p = malloc(size);
+    printf("=%p\n", p);
+    return p;
+}
+
+static inline void
+free_debug(void *p, const char *file, int line)
+{
+    printf("%s:%d free(%p)\n", file, line, p);
+    free(p);
+}
+
+#define malloc(x)	malloc_debug(x, __FILE__, __LINE__)
+#define free(x)		free_debug(x, __FILE__, __LINE__)
+
+#endif
