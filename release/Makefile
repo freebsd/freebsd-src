@@ -404,7 +404,7 @@ release.4:
 		  ( ( [ -f ${.CURDIR}/${MACHINE}/$${j}_crunch.conf ] && \
 		    crunchgen ${.CURDIR}/${MACHINE}/$${j}_crunch.conf ) || \
 		    ( crunchgen ${.CURDIR}/$${j}_crunch.conf ) ) && \
-		  ${MAKE} -f $${j}_crunch.mk subclean all && \
+		  ${MAKE} -f $${j}_crunch.mk subclean all ) && \
 		mv $${j}_crunch/$${j}_crunch ${RD}/crunch/$${j} && \
 		true || { rm -rf $${j}_crunch ; false ; } ; \
 	done
