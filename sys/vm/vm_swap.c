@@ -350,7 +350,7 @@ swaponvp(td, vp, dev, nblks)
 	 * DEV_BSIZE'd.   aligned_nblks is used to calculate the
 	 * size of the swap bitmap, taking into account the stripe size.
 	 */
-	aligned_nblks = (nblks + dmmax_mask) & ~(u_long)dmmax_mask;
+	aligned_nblks = (nblks + (dmmax -1)) & ~(u_long)(dmmax -1);
 
 	if (aligned_nblks * nswdev > nswap)
 		nswap = aligned_nblks * nswdev;
@@ -469,7 +469,7 @@ found:
 		nblks = max(nblks, sp->sw_nblks);
 	}
 
-	aligned_nblks = (nblks + dmmax_mask) & ~(u_long)dmmax_mask;
+	aligned_nblks = (nblks + (dmmax -1)) & ~(u_long)(dmmax -1);
 	nswap = aligned_nblks * nswdev;
 
 	if (nswap == 0) {
