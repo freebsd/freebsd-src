@@ -44,8 +44,15 @@
 .Sh DESCRIPTION
 The
 .Nm
-utility informs the system whether you want to be notified when mail arrives
-during the current terminal session.
+utility informs the system whether you want to be notified on your terminal
+when mail arrives.
+.Pp
+Affected is the first terminal associated with the standard input,
+standard output or standard error file descriptor, in that order.
+Thus, it is possible to use the redirection facilities of a shell to
+toggle the notification for other terminals than the one
+.Nm
+runs on.
 .Pp
 The following options are available:
 .Bl -tag -width indent
@@ -67,8 +74,15 @@ or
 .Pa \&.profile
 to be executed at each login.
 .Pp
-When bell notification is enabled, only two bell characters (ASCII \\007) 
+When bell notification is enabled, only two bell characters
+.Tn ( ASCII
+\\007)
 will be printed on your terminal whenever mail arrives.
+.Pp
+If no arguments are given,
+.Nm
+displays the present notification status of the terminal to the
+standard output.
 .Pp
 The
 .Nm
@@ -85,7 +99,7 @@ variable of
 The
 .Nm
 utility exits with one of the following values:
-.Bl -tag -width Ds
+.Bl -tag -width indent
 .It 0
 Notification is enabled.
 .It 1
@@ -93,6 +107,11 @@ Notification is disabled.
 .It >1
 An error occurred.
 .El
+.Sh COMPATIBILITY
+Previous versions of the
+.Nm
+utility affected the terminal attached to standard error without first
+trying the standard input or output devices.
 .Sh SEE ALSO
 .Xr csh 1 ,
 .Xr mail 1 ,
