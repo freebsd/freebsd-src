@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)ip_var.h	8.2 (Berkeley) 1/9/95
- *	$Id: ip_var.h,v 1.22 1996/10/15 16:54:47 bde Exp $
+ *	$Id: ip_var.h,v 1.23 1996/10/23 18:35:50 wollman Exp $
  */
 
 #ifndef _NETINET_IP_VAR_H_
@@ -44,7 +44,7 @@ struct ipovly {
 	caddr_t	ih_next, ih_prev;	/* for protocol sequence q's */
 	u_char	ih_x1;			/* (unused) */
 	u_char	ih_pr;			/* protocol */
-	short	ih_len;			/* protocol length */
+	u_short	ih_len;			/* protocol length */
 	struct	in_addr ih_src;		/* source internet address */
 	struct	in_addr ih_dst;		/* destination internet address */
 };
@@ -146,6 +146,7 @@ struct	ipstat {
 	u_long	ips_noroute;		/* packets discarded due to no route */
 	u_long	ips_badvers;		/* ip version != 4 */
 	u_long	ips_rawout;		/* total raw ip packets generated */
+	u_long	ips_toolong;		/* ip length > max ip packet size */
 };
 
 #ifdef KERNEL
