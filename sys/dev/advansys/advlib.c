@@ -28,7 +28,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *      $Id: advlib.c,v 1.9 1998/10/29 17:41:34 gibbs Exp $
+ *      $Id: advlib.c,v 1.10 1998/12/07 21:58:15 archie Exp $
  */
 /*
  * Ported from:
@@ -44,6 +44,7 @@
  */
 
 #include <sys/param.h>
+#include <sys/kernel.h>
 #include <sys/systm.h>
 
 #include <machine/bus_pio.h>
@@ -1004,6 +1005,13 @@ adv_isr_chip_halted(struct adv_softc *adv)
 		scsi_busy = adv_read_lram_8(adv, ADVV_SCSIBUSY_B);
 		scsi_busy &= ~target_mask;
 		adv_write_lram_8(adv, ADVV_SCSIBUSY_B, scsi_busy);
+		/*
+		 * Ensure we have enough time to actually
+		 * retrieve the sense.
+		 */
+		untimeout(adv_timeout, (caddr_t)ccb, ccb->ccb_h.timeout_ch);
+		ccb->ccb_h.timeout_ch =
+		    timeout(adv_timeout, (caddr_t)ccb, 5 * hz);
 	} else if (int_halt_code == ADV_HALT_SDTR_REJECTED) {
 		struct	ext_msg out_msg;
 
