@@ -83,7 +83,7 @@ ends processing
 .Pp
 These lines are formatted as described above.  The output from this
 filter can be passed to
-.Xr troff
+.Xr troff 1
 for output.  There need be no particular ordering with
 .Xr eqn 1
 or
@@ -159,7 +159,7 @@ specifies a point size to use on output (exactly the same as the argument
 of a .ps)
 .It Fl t
 similar to the same option in
-.Xr troff
+.Xr troff 1
 causing formatted text to go to the standard output
 .It Fl x
 outputs the index file in a ``pretty'' format.
@@ -192,7 +192,8 @@ language descriptions
 .Xr getcap 3 ,
 .Xr vgrindefs 5
 .Sh BUGS
-Vfontedpr assumes that a certain programming style is followed:
+The vfontedpr preprocessor assumes that a certain programming style is
+followed:
 .Pp
 For
 .Tn C
