@@ -42,7 +42,7 @@ static const char copyright[] =
 static char sccsid[] = "@(#)from: sysctl.c	8.1 (Berkeley) 6/6/93";
 #endif
 static const char rcsid[] =
-	"$Id$";
+	"$Id: sysctl.c,v 1.15 1997/10/20 12:53:54 charnier Exp $";
 #endif /* not lint */
 
 #include <sys/types.h>
@@ -179,7 +179,8 @@ parse(char *string)
 				break;
 			default:
 				errx(1, "oid '%s' is type %d,"
-					" cannot set that", bufp);
+					" cannot set that", bufp,
+					kind & CTLTYPE);
 		}
 
 		i = show_var(mib, len);
