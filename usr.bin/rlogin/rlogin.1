@@ -39,7 +39,7 @@
 .Nd remote login
 .Sh SYNOPSIS
 .Ar rlogin
-.Op Fl 8EKLdx
+.Op Fl 8DEKLdx
 .Op Fl e Ar char
 .Op Fl k Ar realm
 .Op Fl l Ar username
@@ -63,6 +63,11 @@ option allows an eight-bit input data path at all times; otherwise
 parity bits are stripped except when the remote side's stop and start
 characters are other than
 ^S/^Q .
+.It Fl D
+The
+.Fl D
+option sets the TCP_NODELAY socket option which can improve interactive response
+at the expense of increased network load.
 .It Fl E
 The
 .Fl E
