@@ -22,6 +22,7 @@ ${lib}:	${lib}.gz.uu
 beforeinstall:
 	${INSTALL} ${COPY} -o ${LIBOWN} -g ${LIBGRP} -m ${LIBMODE} ${LIBS} \
 		${DESTDIR}${LIBCOMPATDIR}
+	rm -f ${LIBS:S@^@${DESTDIR}${SHLIBDIR}/@}
 
 # Get all the fruit, even though we don't set PROG.
 # XXX bsd.lib.mk has fruitflies, e.g., it fails if LIBS is empty.
