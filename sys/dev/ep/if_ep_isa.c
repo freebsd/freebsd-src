@@ -49,7 +49,6 @@
 #include <machine/clock.h>
 
 #include <isa/isavar.h>
-#include <isa/pnpvar.h>
 
 #include <dev/ep/if_epreg.h>
 #include <dev/ep/if_epvar.h>

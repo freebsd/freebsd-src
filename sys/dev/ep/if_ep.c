@@ -67,7 +67,6 @@
 #include <sys/socket.h>
 #include <sys/sockio.h>
 
-#include <sys/module.h>
 #include <sys/bus.h>
 
 #include <machine/bus.h>
@@ -80,14 +79,10 @@
 #include <net/ethernet.h>
 #include <net/bpf.h>
 
-#include <netinet/in.h>
-#include <netinet/if_ether.h>
-
 #include <machine/clock.h>
 
 #include <dev/ep/if_epreg.h>
 #include <dev/ep/if_epvar.h>
-#include <i386/isa/elink.h>
 
 /* Exported variables */
 devclass_t ep_devclass;
