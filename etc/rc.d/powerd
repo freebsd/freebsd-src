@@ -1,0 +1,18 @@
+#!/bin/sh
+#
+# $FreeBSD$
+#
+
+# PROVIDE: powerd
+# REQUIRE: DAEMON
+# BEFORE: LOGIN
+# KEYWORD: nojail
+
+. /etc/rc.subr
+
+name="powerd"
+rcvar=`set_rcvar`
+command="/usr/sbin/powerd"
+
+load_rc_config $name
+run_rc_command "$1"
