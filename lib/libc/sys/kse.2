@@ -324,6 +324,7 @@ typedef void	kse_func_t(struct kse_mailbox *);
 
 /* KSE mailbox */
 struct kse_mailbox {
+	int			km_version;	/* Mailbox version */
 	struct kse_thr_mailbox	*km_curthread;	/* Current thread */
 	struct kse_thr_mailbox	*km_completed;	/* Completed threads */
 	sigset_t		km_sigscaught;	/* Caught signals */
@@ -331,9 +332,13 @@ struct kse_mailbox {
 	kse_func_t		*km_func;	/* UTS function */
 	stack_t			km_stack;	/* UTS context */
 	void			*km_udata;	/* For use by the UTS */
+	struct timespec		km_timeofday;	/* Time of upcall */
 };
 .Ed
 .Pp
+.Va km_version
+describes the version of this structure and must be equal to
+.Dv KSE_VER_0 .
 .Va km_udata
 is an opaque pointer ignored by the kernel.
 .Pp
@@ -415,6 +420,10 @@ As long as there exists one or more KSEs with an associated mailbox in
 the user process, signals are delivered this way rather than the
 traditional way.
 .Pp
+.Va km_timeofday
+is set by the kernel to the current system time before performing
+each upcall.
+.Pp
 .Va km_flags
 may contain any of the following bits OR'ed together:
 .Bl -tag -width indent
@@ -433,6 +442,8 @@ struct kse_thr_mailbox {
 	unsigned int		tm_flags;	/* Thread flags */
 	struct kse_thr_mailbox	*tm_next;	/* Next thread in list */
 	void			*tm_udata;	/* For use by the UTS */
+	unsigned int		tm_uticks;	/* User time counter */
+	unsigned int		tm_sticks;	/* Kernel time counter */
 };
 .Ed
 .Pp
@@ -452,6 +463,23 @@ threads together when returned by the kernel with an upcall.
 The end of the list is marked with a
 .Dv NULL
 pointer.
+.Pp
+.Va tm_uticks
+and
+.Va tm_sticks
+are time counters for user mode and kernel mode execution, respectively.
+These counters count ticks of the statistics clock (see
+.Xr clocks 7) .
+While any thread is actively executing in the kernel, the corresponding
+.Va tm_sticks
+counter is incremented.
+While any KSE is executing in user space and that KSE's
+.Va km_curthread
+pointer is not equal to
+.Dv NULL ,
+the corresponding
+.Va tm_uticks
+counter is incremented.
 .Pp
 .Va tm_flags
 may contain any of the following bits OR'ed together:
