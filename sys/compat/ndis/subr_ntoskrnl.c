@@ -431,12 +431,12 @@ ntoskrnl_time(tval)
  */
 
 __stdcall static uint32_t
-ntoskrnl_waitforobj(obj, reason, mode, alertable, timeout)
+ntoskrnl_waitforobj(obj, reason, mode, alertable, duetime)
 	nt_dispatch_header	*obj;
 	uint32_t		reason;
 	uint32_t		mode;
 	uint8_t			alertable;
-	int64_t			*timeout;
+	int64_t			*duetime;
 {
 	struct thread		*td = curthread;
 	kmutant			*km;
@@ -485,22 +485,26 @@ ntoskrnl_waitforobj(obj, reason, mode, alertable, timeout)
 	/*
 	 * The timeout value is specified in 100 nanosecond units
 	 * and can be a positive or negative number. If it's positive,
-	 * then the timeout is absolute, and we need to convert it
+	 * then the duetime is absolute, and we need to convert it
 	 * to an absolute offset relative to now in order to use it.
-	 * If it's negative, then the timeout is relative and we
+	 * If it's negative, then the duetime is relative and we
 	 * just have to convert the units.
 	 */
 
-	if (timeout != NULL) {
-		if (*timeout < 0) {
-			tv.tv_sec = - (*timeout) / 10000000 ;
-			tv.tv_usec = (- (*timeout) / 10) -
+	if (duetime != NULL) {
+		if (*duetime < 0) {
+			tv.tv_sec = - (*duetime) / 10000000;
+			tv.tv_usec = (- (*duetime) / 10) -
 			    (tv.tv_sec * 1000000);
 		} else {
 			ntoskrnl_time(&curtime);
-			tv.tv_sec = ((*timeout) - curtime) / 10000000 ;
-			tv.tv_usec = ((*timeout) - curtime) / 10 -
-			    (tv.tv_sec * 1000000);
+			if (*duetime < curtime)
+				tv.tv_sec = tv.tv_usec = 0;
+			else {
+				tv.tv_sec = ((*duetime) - curtime) / 10000000;
+				tv.tv_usec = ((*duetime) - curtime) / 10 -
+				    (tv.tv_sec * 1000000);
+			}
 		}
 	}
 
@@ -508,10 +512,10 @@ ntoskrnl_waitforobj(obj, reason, mode, alertable, timeout)
 
 	if (td->td_proc->p_flag & P_KTHREAD)
 		error = kthread_suspend(td->td_proc,
-		    timeout == NULL ? 0 : tvtohz(&tv));
+		    duetime == NULL ? 0 : tvtohz(&tv));
 	else
 		error = tsleep(td, PPAUSE|PDROP, "ndisws",
-		    timeout == NULL ? 0 : tvtohz(&tv));
+		    duetime == NULL ? 0 : tvtohz(&tv));
 
 	mtx_pool_lock(ndis_mtxpool, ntoskrnl_dispatchlock);
 
@@ -549,14 +553,14 @@ ntoskrnl_waitforobj(obj, reason, mode, alertable, timeout)
 
 __stdcall static uint32_t
 ntoskrnl_waitforobjs(cnt, obj, wtype, reason, mode,
-	alertable, timeout, wb_array)
+	alertable, duetime, wb_array)
 	uint32_t		cnt;
 	nt_dispatch_header	*obj[];
 	uint32_t		wtype;
 	uint32_t		reason;
 	uint32_t		mode;
 	uint8_t			alertable;
-	int64_t			*timeout;
+	int64_t			*duetime;
 	wait_block		*wb_array;
 {
 	struct thread		*td = curthread;
@@ -622,16 +626,20 @@ ntoskrnl_waitforobjs(cnt, obj, wtype, reason, mode,
 		wcnt++;
 	}
 
-	if (timeout != NULL) {
-		if (*timeout < 0) {
-			tv.tv_sec = - (*timeout) / 10000000 ;
-			tv.tv_usec = (- (*timeout) / 10) -
+	if (duetime != NULL) {
+		if (*duetime < 0) {
+			tv.tv_sec = - (*duetime) / 10000000;
+			tv.tv_usec = (- (*duetime) / 10) -
 			    (tv.tv_sec * 1000000);
 		} else {
 			ntoskrnl_time(&curtime);
-			tv.tv_sec = ((*timeout) - curtime) / 10000000 ;
-			tv.tv_usec = ((*timeout) - curtime) / 10 -
-			    (tv.tv_sec * 1000000);
+			if (*duetime < curtime)
+				tv.tv_sec = tv.tv_usec = 0;
+			else {
+				tv.tv_sec = ((*duetime) - curtime) / 10000000;
+				tv.tv_usec = ((*duetime) - curtime) / 10 -
+				    (tv.tv_sec * 1000000);
+			}
 		}
 	}
 
@@ -641,10 +649,10 @@ ntoskrnl_waitforobjs(cnt, obj, wtype, reason, mode,
 
 		if (td->td_proc->p_flag & P_KTHREAD)
 			error = kthread_suspend(td->td_proc,
-			    timeout == NULL ? 0 : tvtohz(&tv));
+			    duetime == NULL ? 0 : tvtohz(&tv));
 		else
 			error = tsleep(td, PPAUSE|PDROP, "ndisws",
-			    timeout == NULL ? 0 : tvtohz(&tv));
+			    duetime == NULL ? 0 : tvtohz(&tv));
 
 		mtx_pool_lock(ndis_mtxpool, ntoskrnl_dispatchlock);
 		nanotime(&t2);
@@ -670,7 +678,7 @@ ntoskrnl_waitforobjs(cnt, obj, wtype, reason, mode,
 		if (error || wtype == WAITTYPE_ANY)
 			break;
 
-		if (timeout != NULL) {
+		if (duetime != NULL) {
 			tv.tv_sec -= (t2.tv_sec - t1.tv_sec);
 			tv.tv_usec -= (t2.tv_nsec - t1.tv_nsec) / 1000;
 		}
@@ -1658,10 +1666,6 @@ ntoskrnl_timercall(arg)
 
         timer = arg;
 	dpc = timer->k_dpc;
-        timerfunc = (kdpc_func)dpc->k_deferedfunc;
-        timerfunc(dpc, dpc->k_deferredctx, dpc->k_sysarg1, dpc->k_sysarg2);
-
-	ntoskrnl_wakeup(&timer->k_header);
 
 	/*
 	 * If this is a periodic timer, re-arm it
@@ -1674,6 +1678,14 @@ ntoskrnl_timercall(arg)
 		timer->k_handle =
 		    timeout(ntoskrnl_timercall, timer, tvtohz(&tv));
 	}
+
+	if (dpc != NULL) {
+        	timerfunc = (kdpc_func)dpc->k_deferedfunc;
+        	timerfunc(dpc, dpc->k_deferredctx,
+		    dpc->k_sysarg1, dpc->k_sysarg2);
+	}
+
+	ntoskrnl_wakeup(&timer->k_header);
 
 	return;
 }
@@ -1741,9 +1753,10 @@ ntoskrnl_set_timer_ex(timer, duetime, period, dpc)
 		return(FALSE);
 
 	if (timer->k_handle.callout != NULL &&
-	    callout_pending(timer->k_handle.callout))
+	    callout_pending(timer->k_handle.callout)) {
+		untimeout(ntoskrnl_timercall, timer, timer->k_handle);
 		pending = TRUE;
-	else
+	} else
 		pending = FALSE;
 
 	timer->k_duetime = duetime;
@@ -1752,14 +1765,18 @@ ntoskrnl_set_timer_ex(timer, duetime, period, dpc)
 	timer->k_dpc = dpc;
 
 	if (duetime < 0) {
-		tv.tv_sec = - (duetime) / 10000000 ;
+		tv.tv_sec = - (duetime) / 10000000;
 		tv.tv_usec = (- (duetime) / 10) -
 		    (tv.tv_sec * 1000000);
 	} else {
 		ntoskrnl_time(&curtime);
-		tv.tv_sec = ((duetime) - curtime) / 10000000 ;
-		tv.tv_usec = ((duetime) - curtime) / 10 -
-		    (tv.tv_sec * 1000000);
+		if (duetime < curtime)
+			tv.tv_sec = tv.tv_usec = 0;
+		else {
+			tv.tv_sec = ((duetime) - curtime) / 10000000;
+			tv.tv_usec = ((duetime) - curtime) / 10 -
+			    (tv.tv_sec * 1000000);
+		}
 	}
 
 	timer->k_handle = timeout(ntoskrnl_timercall, timer, tvtohz(&tv));
