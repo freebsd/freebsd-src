@@ -126,7 +126,6 @@ Static int axe_detach(device_ptr_t);
 
 Static int axe_tx_list_init(struct axe_softc *);
 Static int axe_rx_list_init(struct axe_softc *);
-Static int axe_newbuf(struct axe_softc *, struct axe_chain *, struct mbuf *);
 Static int axe_encap(struct axe_softc *, struct mbuf *, int);
 Static void axe_rxeof(usbd_xfer_handle, usbd_private_handle, usbd_status);
 Static void axe_txeof(usbd_xfer_handle, usbd_private_handle, usbd_status);
@@ -562,34 +561,6 @@ axe_detach(device_ptr_t dev)
 	return(0);
 }
 
-/*
- * Initialize an RX descriptor and attach an MBUF cluster.
- */
-Static int
-axe_newbuf(struct axe_softc *sc, struct axe_chain *c, struct mbuf *m)
-{
-	struct mbuf		*m_new = NULL;
-
-	if (m == NULL) {
-		m_new = m_getcl(M_DONTWAIT, MT_DATA, M_PKTHDR);
-		if (m_new == NULL) {
-			printf("axe%d: no memory for rx list "
-			    "-- packet dropped!\n", sc->axe_unit);
-			return(ENOBUFS);
-		}
-		m_new->m_len = m_new->m_pkthdr.len = MCLBYTES;
-	} else {
-		m_new = m;
-		m_new->m_len = m_new->m_pkthdr.len = MCLBYTES;
-		m_new->m_data = m_new->m_ext.ext_buf;
-	}
-
-	m_adj(m_new, ETHER_ALIGN);
-	c->axe_mbuf = m_new;
-
-	return(0);
-}
-
 Static int
 axe_rx_list_init(struct axe_softc *sc)
 {
@@ -602,7 +573,8 @@ axe_rx_list_init(struct axe_softc *sc)
 		c = &cd->axe_rx_chain[i];
 		c->axe_sc = sc;
 		c->axe_idx = i;
-		if (axe_newbuf(sc, c, NULL) == ENOBUFS)
+		c->axe_mbuf = usb_ether_newbuf(USBDEVNAME(sc->axe_dev));
+		if (c->axe_mbuf == NULL)
 			return(ENOBUFS);
 		if (c->axe_xfer == NULL) {
 			c->axe_xfer = usbd_alloc_xfer(sc->axe_udev);
@@ -650,7 +622,8 @@ axe_rxstart(struct ifnet *ifp)
 	AXE_LOCK(sc);
 	c = &sc->axe_cdata.axe_rx_chain[sc->axe_cdata.axe_rx_prod];
 
-	if (axe_newbuf(sc, c, NULL) == ENOBUFS) {
+	c->axe_mbuf = usb_ether_newbuf(USBDEVNAME(sc->axe_dev));
+	if (c->axe_mbuf == NULL) {
 		ifp->if_ierrors++;
 		AXE_UNLOCK(sc);
 		return;

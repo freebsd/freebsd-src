@@ -43,5 +43,6 @@ struct usb_qdat {
 void usb_register_netisr	(void);
 void usb_ether_input		(struct mbuf *);
 void usb_tx_done		(struct mbuf *);
+struct mbuf *usb_ether_newbuf	(const char *);
 
 #endif
