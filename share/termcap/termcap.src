@@ -401,7 +401,7 @@ ibm61|ibm3161|3161|IBM 3161-11:\
 	:ce=\EI:cm=\EY%+\040%+\040:nd=\EC:up=\EA:do=\EB:\
 	:dl=\EO:dc=\EQ:kd=\EB:ku=\EA:kl=\ED:kr=\EC:kh=\EH:\
 	:us=\E4\102:ue=\E4\100:so=\E4\110:se=\E4\100:
-#From seth@sirius.ctr.columbia.edu Sun May 20 11:02:34 1990
+# From seth@sirius.ctr.columbia.edu Sun May 20 11:02:34 1990
 ibm3163|ibm63|i3163|3163|IBM 3163:\
 	:al=\EN:am:bs:bt=\E2:cd=\EJ:ce=\EI:cl=\EL:\
 	:cm=\EY%+\040%+\040:co#80:ct=\E 1:dc=\EQ:\
@@ -441,8 +441,8 @@ ibmmono|ibmconsole|ibm5151|IBM workstation monochrome:\
 	:ts=\Ej\EY8%+ \Eo:fs=\Ek:ds=\Ej\EY8\40\EI\Ek:es:hs:sb:tc=ibm3101:
 ibmega-c|ibm5154-c|IBM Enhanced Color Display color termcap:\
 	:se=\EB:so=\EF\Ef3;:ue=\EB:us=\EF\Ef2;:tc=ibmconsole:
-#from marc pawliger--marc@ibminet.awdpa.ibm.com
-#also in /usr/lpp/bos/bsdsysadmin.
+# from marc pawliger--marc@ibminet.awdpa.ibm.com
+# also in /usr/lpp/bos/bsdsysadmin.
 hft-c|ibm8512|ibm8513|IBM High Function Terminal:\
 	:co#80:li#25:am:ht:\
 	:cm=\E[%i%d;%dH:ti=\E[20;4l\E[?7h\Eb:te=\E[20h:\
@@ -472,13 +472,40 @@ hft|AIWS High Function Terminal:\
 	:k1=\E[001q:k2=\E[002q:k3=\E[003q:k4=\E[004q:\
 	:k5=\E[005q:k6=\E[006q:k7=\E[007q:k8=\E[008q:\
 	:k9=\E[009q:ka=\E[010q:
-#From pryor@math.berkeley.edu
+# From pryor@math.berkeley.edu
 ibm5081|ibmmpel|IBM 5081 1024x1024 256/4096 color display:\
 	:ts=\Ej\EYA%+ \Eo:fs=\Ek:ds=\Ej\EYA\40\EI\Ek:es:hs:\
 	:li#33:tc=ibmconsole:
 ibm5081-c|ibmmpel-c|IBM 5081 1024x1024 256/4096 enhanced color display:\
 	:ts=\Ej\EYA%+ \Eo:fs=\Ek:ds=\Ej\EYA\40\EI\Ek:es:hs:\
 	:li#33:tc=ibmega-c:
+# ibm3151 and ibm3151-25 are modified from a Usenet posting
+# from http://www.cs.utk.edu/~shuford/terminal/ibm_3161.termcap.txt
+# Newsgroups: comp.terminals Message-ID: <1rkqgnINNdso@uwm.edu>
+ibm3151|ibm3152|ibm3162|Ibm3162|ibm3151-pc:\
+	:am:mi:ms:\
+	:co#80:li#24:kn#9:\
+	:cd=\EJ:ce=\EI:cl=\EH\EJ:cm=\EY%+ %+ :dc=\EQ:dl=\EO:\
+	:ho=\EH:k1=\Ea\n:k2=\Eb\n:k3=\Ec\n:k4=\Ed\n:k5=\Ee\n:\
+	:k6=\Ef\n:k7=\Eg\n:k8=\Eh\n:k9=\Ei\n:kb=\b:kd=\EB:\
+	:kh=\EH:kl=\ED:kr=\EC:ku=\EA:nd=\EC:se=\E4>b:so=\E4!a:\
+	:te=\E>A:ti=\E>B:ue=\E4=b:up=\EA:us=\E4"a:bc=\ED:\
+	:U8=\E<A:U9=\E<@:\
+	:Us=q:Uv=x:Ux=k:Uw=j:Uz=m:Uy=l:Uu=n:Uq=w:Up=v:Ut=t:Ur=u:\
+	:Ub=\E4$a:Uc=\E4@:Uf=\E4(a:Ug=\E4@:U6=\E r!! 8"P:U7=\E r!! 8$D:\
+	:nl=\EB:ko=le,do,nd,up,dc,dl,cd,ce,ho:
+ibm3151-25|ibm3152-25:\
+	:am:mi:ms:\
+	:co#80:li#25:kn#9:\
+	:cd=\EJ:ce=\EI:cl=\EH\EJ:cm=\EY%+ %+ :dc=\EQ:dl=\EO:\
+	:ho=\EH:k1=\Ea\n:k2=\Eb\n:k3=\Ec\n:k4=\Ed\n:k5=\Ee\n:\
+	:k6=\Ef\n:k7=\Eg\n:k8=\Eh\n:k9=\Ei\n:kb=\b:kd=\EB:\
+	:kh=\EH:kl=\ED:kr=\EC:ku=\EA:nd=\EC:se=\E4>b:so=\E4!a:\
+	:te=\E>A:ti=\E>B:ue=\E4=b:up=\EA:us=\E4"a:bc=\ED:\
+	:U8=\E<A:U9=\E<@:\
+	:Us=q:Uv=x:Ux=k:Uw=j:Uz=m:Uy=l:Uu=n:Uq=w:Up=v:Ut=t:Ur=u:\
+	:Ub=\E4$a:Uc=\E4@:Uf=\E4(a:Ug=\E4@:U6=\E r!! 9"P:U7=\E r!! 9$D:\
+	:nl=\EB:ko=le,do,nd,up,dc,dl,cd,ce,ho:
 # # --------------------------------
 #
 # M: MISCELLANEOUS TERMINALS
@@ -584,7 +611,7 @@ falco-p|falco ts-1sp|falco with paging option:\
 	:kr=\E[C:ku=\E[A:li#24:nd=\E[C:se=\Eg0:so=\Eg4:\
 	:up=\E[A:us=\Eg1:ti=\E_d:te=\E_b:\
 	:ue=\Eg0:do=\E[B:cm=\E=%+ %+ :ms:kh=\E[H:da:mi:bt=\EI:
-#NOTE: bg can scroll, it just would rather not (ns) - rwells 3/13/81.
+# NOTE: bg can scroll, it just would rather not (ns) - rwells 3/13/81.
 # (Shouldn't you take out ns and put in an nl instead? - mrh)
 bitgraph|BBN BitGraph terminal:\
 	:do=^J:al=2*\E[L:bs:cd=150\E[J:ce=2\E[K:\
@@ -598,7 +625,7 @@ d132|datagraphix|datagraphix 132a:\
 soroc|Soroc 120:\
 	:do=^J:cd=\EY:ce=\ET:cl=2\E*:ma=^K^P^R^L^L :\
 	:kl=^H:ku=^K:kr=^L:kd=^J:tc=adm3a:
-#  From: ma179abu%sdcc3@sdcsvax.ucsd.edu (Bill Houle)
+# From: ma179abu%sdcc3@sdcsvax.ucsd.edu (Bill Houle)
 iq140|soroc140|Soroc IQ140 with inverse & dim:\
 	:ic=\EQ:dc=\EW:al=\EE:dl=\ER:ce=\ET:cd=\EY:cl=\E+:cm=\E=%+ %+ :\
 	:up=^K:do=^J:le=^H:nd=^L:ho=^^:ta=\Ei:ma=^Kk^Jj^Hh^Ll^^h:am:bs:\
@@ -631,7 +658,7 @@ ampex|d80|dialogue|dialogue80|ampex dialogue 80:\
 	:am:le=^H:bs:pt:cl=75\E*:cm=\E=%+ %+ :\
 	:al=5*\EE:bt=\EI:ic=\EQ:dl=5*\ER:dc=\EW:\
 	:ce=\Et:cd=\Ey:so=\Ej:se=\Ek:li#24:co#80:nd=^L:up=^K:
-#  From: atd!dsd!rcb@ucbvax.berkeley.edu (Richard Bascove)
+# From: atd!dsd!rcb@ucbvax.berkeley.edu (Richard Bascove)
 a210|210|ampex210|ampex a210:\
 	:am:bs:cl=\E*:cm=\E=%+ %+ :al=\EE:bt=\EI:ic=\EQ:\
 	:dl=\ER:dc=\EW:ho=^^:xn:ce=\Et:cd=\Ey:li#24:co#80:nd=^L:up=^K:\
@@ -682,7 +709,7 @@ cit80|cit 80|Citoh 80:\
 # Alternate cit101 (vt100 em) file used in vt100.
 #	    Uses 23 lines so can run citsys (like h19sys).
 #	24 May 85 (mtxinu!sybase!tim) - removed 2-byte limit on 'cm' cursor
-#	  coordinates otherwise there is garbling on long lines in 
+#	  coordinates otherwise there is garbling on long lines in
 #	  co#132 mode; also added support for multipage	memory on the Itoh.
 citc|Citoh fast vt100:\
 	:co#80:li#23:am:cl=\E[;H\E[2J:bs:cm=\E[%i%d;%dH:nd=\E[C:up=\E[A:\
@@ -727,7 +754,7 @@ daleblit|daleterm|blit running Dale DeJager's ROM:\
 	:da@:db@:tc=oblit:
 datapoint|dp3|dp3360|datapoint 3360:\
 	:do=^J:am:le=^H:bs:cd=^_:ce=^^:cl=^]^_:co#82:ho=^]:li#25:nd=^x:up=^z:
-#From: cbosgd!utcs!romwa@ucbvax.berkeley.edu (mark dornfeld)
+# From: cbosgd!utcs!romwa@ucbvax.berkeley.edu (mark dornfeld)
 #		This termcap is for the LANPAR Technologies VISION 3220
 #	terminal.  The function key definitions k0-k5 represent the
 #	edit keypad: FIND, INSERT HERE, REMOVE, SELECT, PREV SCREEN,
@@ -1621,7 +1648,7 @@ pcvtXX|pcvt vt200 emulator (DEC VT220):\
 	:SF=\E[%dS:\
 	:SR=\E[%dT:\
 	:UP=\E[%dA:\
-        :ac=llmmkkjjuuttvvwwqqxxnnpprr``aa:\
+	:ac=llmmkkjjuuttvvwwqqxxnnpprr``aa:\
 	:ae=^O:\
 	:al=\E[L:\
 	:am:\
@@ -1639,7 +1666,7 @@ pcvtXX|pcvt vt200 emulator (DEC VT220):\
 	:dc=\E[P:\
 	:dl=\E[M:\
 	:do=^J:\
-        :eA=\E)0:\
+	:eA=\E)0:\
 	:ei=\E[4l:\
 	:ho=\E[H:\
 	:im=\E[4h:\
@@ -1743,7 +1770,7 @@ dmd|5620|ttydmd|tty5620|5620	terminal 88 columns:\
 # below try to get around the problem by ignoring the feature or
 # turning it off when inputting a character.  They are said not to
 # work well at 300 baud.  (You could always cut the wire to the bell!)
-#From mike@brl-vgr Mon Nov 14 08:34:29 1983
+# From mike@brl-vgr Mon Nov 14 08:34:29 1983
 vi200|vis200|visual 200 with function keys:\
 	:so=\E4:se=\E3:ms:do=^J:\
 	:al=\EL:am:le=^H:bs:cd=\Ey:ce=\Ex:cl=\Ev:\
@@ -1986,7 +2013,7 @@ regent40+|Adds Regent 40+:is=\EB:tc=regent40:
 regent60|regent200|Adds Regent 60:se=\ER\E0@\EV:so=\ER\E0P\EV:dc=\EE:ei=\EF:\
 	:im=\EF:is=\EV\EB:ko=dc,im,ei:tc=regent40+:
 regent60na|regent 60 w/no arrow keys:\
-	kl@:kr@:ku@:kd@:tc=regent60:
+	:kl@:kr@:ku@:kd@:tc=regent60:
 #
 # adds viewpoint 90 - from cornell
 # Note:  emacs sends ei occasionally to insure the terminal is out of
@@ -2460,7 +2487,7 @@ vt100-nac|dec-vt100-nac|vt100 without pseudographics and padding:\
 	:as@:ae@:ac@:tc=vt100-np:
 gt42|dec gt42:\
 	:do=^J:le=^H:bs:co#72:ns:li#40:os:
-#From ts@pc.ecn.purdue.edu (Thomas Ruschak)
+# From ts@pc.ecn.purdue.edu (Thomas Ruschak)
 vt131|dec vt131:\
 	:cr=^M:do=^J:nl=^J:bl=^G:co#80:li#24:cl=50\E[;H\E[2J:\
 	:le=^H:bs:am:cm=5\E[%i%d;%dH:nd=2\E[C:up=2\E[A:\
@@ -2495,7 +2522,7 @@ gigi|dec gigi terminal:\
 	:ku=\EOA:kd=\EOB:kr=\EOC:kl=\EOD:\
 	:kh=\E[H:k1=\EOP:k2=\EOQ:k3=\EOR:k4=\EOS:pt:sr=200\EM:\
 	:dC=50:dF=200:dN#50:dT=50:
-#From William King <abvax!wrk@uunet.UU.NET>, basic ln03 entries
+# From William King <abvax!wrk@uunet.UU.NET>, basic ln03 entries
 ln03|dec ln03 LaserPrinter:\
 	:co#80:li#66:hc:hu=\EL:hd=\EK:so=\E[1m:se=\E[22m:\
 	:us=\E[4m:ue=\E[24m:
@@ -2630,29 +2657,29 @@ dec-vt320-nac|dec-vt300-nac|dec-vt340-nac|dec vt320 without pseudographics:\
 # (acsc removed to fit entry within 1023 bytes)
 # (terminfo-only capabilities suppressed to fit entry within 1023 bytes)
 vt420|vt420-24|dec-vt420|DEC vt420 7 bit controls 80x24 autowrap:\
-        :am:es:hs:mi:ms:xn:xo:\
-        :co#80:it#8:li#24:ws#80:\
-        :AL=\E[%dL:DC=\E[%dP:DL=\E[%dM:DO=\E[%dB:IC=\E[%d@:\
-        :LE=\E[%dD:RI=\E[%dC:UP=\E[%dA:ae=^O:al=\E[L:as=^N:bl=^G:\
-        :cd=\E[J:ce=\E[K:cl=\E[H\E[J:cm=\E[%i%d;%dH:cr=^M:\
-        :cs=\E[%i%d;%dr:ct=\E[3g:dc=\E[P:dl=\E[M:do=^J:\
-        :ds=\E[2$~\r\E[1$}\E[K\E[$}:ec=\E[%dX:ei=\E[4l:fs=\E[$}:\
-        :ho=\E[H:ic=\E[@:im=\E[4h:is=\E[?7h\E[>\E[?1h\E F\E[?4l:\
-        :k1=\EOP:k2=\EOQ:k3=\EOR:k4=\EOS:k6=\E[17~:k7=\E[18~:\
-        :k8=\E[19~:k9=\E[20~:kD=\E[3~:kI=\E[2~:kN=\E[6~:kP=\E[5~:\
-        :kb=^H:kd=\E[B:kl=\E[D:kr=\E[C:ku=\E[A:le=^H:mb=\E[5m:\
-        :md=\E[1m:me=\E[0m:mr=\E[7m:nd=\E[C:nw=\EE:rc=\E8:sc=\E7:\
-        :se=\E[27m:sf=\ED:so=\E[7m:sr=\EM:st=\EH:ta=^I:\
-        :ts=\E[2$~\E[1$}\E[1;%dH:ue=\E[24m:up=\E[A:us=\E[4m:\
-        :vb=\E[?5h\E[?5l:ve=\E[?25h:vi=\E[?25l:vs=\E[?25h:
+	:am:es:hs:mi:ms:xn:xo:\
+	:co#80:it#8:li#24:ws#80:\
+	:AL=\E[%dL:DC=\E[%dP:DL=\E[%dM:DO=\E[%dB:IC=\E[%d@:\
+	:LE=\E[%dD:RI=\E[%dC:UP=\E[%dA:ae=^O:al=\E[L:as=^N:bl=^G:\
+	:cd=\E[J:ce=\E[K:cl=\E[H\E[J:cm=\E[%i%d;%dH:cr=^M:\
+	:cs=\E[%i%d;%dr:ct=\E[3g:dc=\E[P:dl=\E[M:do=^J:\
+	:ds=\E[2$~\r\E[1$}\E[K\E[$}:ec=\E[%dX:ei=\E[4l:fs=\E[$}:\
+	:ho=\E[H:ic=\E[@:im=\E[4h:is=\E[?7h\E[>\E[?1h\E F\E[?4l:\
+	:k1=\EOP:k2=\EOQ:k3=\EOR:k4=\EOS:k6=\E[17~:k7=\E[18~:\
+	:k8=\E[19~:k9=\E[20~:kD=\E[3~:kI=\E[2~:kN=\E[6~:kP=\E[5~:\
+	:kb=^H:kd=\E[B:kl=\E[D:kr=\E[C:ku=\E[A:le=^H:mb=\E[5m:\
+	:md=\E[1m:me=\E[0m:mr=\E[7m:nd=\E[C:nw=\EE:rc=\E8:sc=\E7:\
+	:se=\E[27m:sf=\ED:so=\E[7m:sr=\EM:st=\EH:ta=^I:\
+	:ts=\E[2$~\E[1$}\E[1;%dH:ue=\E[24m:up=\E[A:us=\E[4m:\
+	:vb=\E[?5h\E[?5l:ve=\E[?25h:vi=\E[?25l:vs=\E[?25h:
 vt400|dec-vt400|DEC VT400 level terminal for telnet alias:\
-        :tc=vt420:
+	:tc=vt420:
 vt420-w|DEC vt420 7 bit controls 132x24 autowrap:\
-        :co#132:tc=vt420:
+	:co#132:tc=vt420:
 vt420-36|DEC vt420 7 bit controls 80x36 autowrap:\
-        :li#36:tc=vt420:
+	:li#36:tc=vt420:
 vt420-36w|DEC vt420 7 bit controls 132x36 autowrap:\
-        :co#132:li#36:tc=vt420:
+	:co#132:li#36:tc=vt420:
 
 # From ftp://gatekeeper.dec.com/pub/DEC/termcaps/ :
 #
@@ -2681,17 +2708,17 @@ vt520|DEC VT520 :\
 	:cl=50\E[;H\E[2J:cm=10\E[%i%d;%dH:cs=\E[%i%d;%dr:\
 	:dc=\E[P:dl=\E[M:ei=\E[4l:ho=\E[H:\
 	:if=/usr/lib/tabset/vt100:\
-        :im=\E[4h:\
+	:im=\E[4h:\
 	:is=\E[1;24r\E[24;1H:\
 	:r3=\E[?67h\E[64;1"p:\
 	:i3=\E[?67h\E[64;1"p:\
 	:k0=\E[29~:\
-        :k1=\EOP:k2=\EOQ:k3=\EOR:k4=\EOS:\
-        :k5=\E[17~:k6=\E[18~:k7=\E[19~:k8=\E[20~:k9=\E[21~:\
-        :kb=\b:kd=\E[B:ke=\E>:kl=\E[D:\
+	:k1=\EOP:k2=\EOQ:k3=\EOR:k4=\EOS:\
+	:k5=\E[17~:k6=\E[18~:k7=\E[19~:k8=\E[20~:k9=\E[21~:\
+	:kb=\b:kd=\E[B:ke=\E>:kl=\E[D:\
 	:kr=\E[C:ks=\E=:ku=\E[A:nd=\E[C:\
 	:rc=\E8:rf=/usr/lib/tabset/vt100:\
-        :se=\E[m:so=\E[7m:\
+	:se=\E[m:so=\E[7m:\
 	:sr=\EM:ue=\E[m:up=\E[A:us=\E[4m:nl=\E[B:ko=do,nd,up:
 #
 vt520nam|vt520-nam|v520n|DEC VT520 with no automargins:\
@@ -2813,7 +2840,7 @@ xterm-mono|monochrome xterm:\
 # Alternate terminal description that "works" for interactive shells such as
 # tcsh and bash.
 xterm-noapp|xterm with cursor keys in normal mode:\
-	kl=\E[D:kd=\E[B:kr=\E[C:ku=\E[A:ks=\E=:ke=\E>:ti@:te@:tc=xterm:
+	:kl=\E[D:kd=\E[B:kr=\E[C:ku=\E[A:ks=\E=:ke=\E>:ti@:te@:tc=xterm:
 #
 # These aliases are for compatibility with the terminfo; termcap cannot provide
 # the extra features, but termcap applications still want the names.
@@ -2930,14 +2957,14 @@ dtterm|dtterm-cde10:\
 	:am:km:mi:ms:xn:\
 	:co#80:li#24:Co#8:it#8:lm#0:pa#8:\
 	:AF=\E[3%dm:AB=\E[4%dm:op=\E[39;49m:\
- 	:ac=``aaffggjjkkllmmnnooppqqrrssttuuvvwwxxyyzz{{||}}~~:\
+	:ac=``aaffggjjkkllmmnnooppqqrrssttuuvvwwxxyyzz{{||}}~~:\
 	:bl=^G:cr=\r:ta=\t:\
 	:cl=\E[H\E[J:cb=\E[1K:ce=\E[K:cd=\E[J:\
 	:cm=\E[%i%d;%dH:ho=\E[H:\
 	:LE=\E[%dD:le=\b:\
 	:DO=\E[%dB:do=\n:\
 	:RI=\E[%dC:nd=\E[C:\
-        :UP=\E[%dA:up=\E[A:\
+	:UP=\E[%dA:up=\E[A:\
 	:DC=\E[%dP:dc=\E[P:DL=\E[%dM:dl=\E[M:\
 	:IC=\E[%d@:ic=\E[@:AL=\E[%dL:al=\E[L:\
 	:sc=\E7:rc=\E8:\
@@ -3056,8 +3083,8 @@ hp2621wl|2621wl|2621-wl|hp2621-wl|hp 2621 w/labels:\
 	:ml=\El:MT:mu=\Em:km:\
 	:mh=\E&dH:mr=\E&dB:us=\E&dD:mb=\E&dA:me=\E&d@:\
 	:ku=\EA:kd=\EB:kl=\ED:kr=\EC:kh=\Eh:ks=\E&s1A:ke=\E&s0A:tc=hp:
-#HP 236 console
-#from ddavis@ic.berkeley.edu
+# HP 236 console
+# from ddavis@ic.berkeley.edu
 236|hp236|HP236 internal terminal emulator:\
 	:am:bs:li#24:co#80:ce=\EK:cl=\EF:cm=\EE%+ %+ :\
 	:dc=\EJ:dl=\EH:ic=\EI:al=\EG:up=^K:\
@@ -3080,7 +3107,7 @@ hp2621wl|2621wl|2621-wl|hp2621-wl|hp 2621 w/labels:\
 	:se=\E&d@:ue=\E&d@:im=\EQ:so=\E&dB:us=\E&dD:me=\E&d@:ei=\ER:\
 	:if=/usr/share/tabset/stdcrt:al=\EL:kb=\b:kd=\EB:kh=\Eh:kl=\ED:\
 	:kr=\EC:ku=\EA:ke=\E&s0A:ks=\E&s1A:sf=\n:ta=\t:
-#From gregc@ernie.berkeley.edu (Greg Couch)
+# From gregc@ernie.berkeley.edu (Greg Couch)
 9837|hp9837|98720|hp98720|98721|hp98721|HP 9000/300 workstations:\
 	:bs:pt:am:xs:da:db:mi:\
 	:co#128:li#46:lm#0:\
@@ -3149,8 +3176,8 @@ h19-a|h19a|heath-ansi|heathkit-a|heathkit h19 ansi mode:\
 	:sr=\EM:is=\E<\E[>1;2;3;4;5;6;7;8;9l\E[0m\E[11m\E[?7h:
 h19-bs|h19bs|heathkit w/keypad shifted:\
 	:ks=\Et:ke=\Eu:tc=h19-b:
-#written by David Shewmake, UCSF Medical Information Science
-#ucbvax!ucsfmis!shewmake
+# written by David Shewmake, UCSF Medical Information Science
+# ucbvax!ucsfmis!shewmake
 h29|heath-29|z29|zenith-29:\
 	:am:bc=\ED:bt=\E-:do=^J:\
 	:al=\EL:le=^H:bs:cd=\EJ:ce=\EK:cl=\EE:cm=\EY%+ %+ :co#80:dc=\EN:\
@@ -3159,7 +3186,7 @@ h29|heath-29|z29|zenith-29:\
 	:kb=^H:ku=\EA:kd=\EB:kl=\ED:kr=\EC:kh=\EH:kn#1:k0=\E~:l0=HOME:\
 	:k1=\ES:k2=\ET:k3=\EU:k4=\EV:k5=\EW:k6=\EP:k7=\EQ:k8=\ER:k9=\E0I:\
 	:es:hs:ts=\Ej\Ex5\Ex1\EY8%+ \Eo:fs=\Ek\Ey5:ds=\Ey1:us=\Es8:ue=\Es0:
-#the z29-e entry sucks...but it works with emacs
+# the z29-e entry sucks...but it works with emacs
 z29-e|zenith 29 hacked for emacs:\
 	:ip=1.5:ks=\Et:ke=\Eu:vs@:ve@:al=1*\EL:am:le=^H:\
 	:bs:cd=\EJ:ce=\EK:cl=\EE:cm=\EY%+ %+ :co#80:dc=\EN:dl=1*\EM:\
@@ -3195,7 +3222,7 @@ z29a-nkc-bc|h29a-nkc-bc:\
 z29a-nkc-uc|h29a-nkc-uc:\
 	:rs=\E<\E[1;24r\E[24;1H\E[?7h\E[>2h\E[>1;3;4;5;6;7;8;9l\E[m\E[11m:\
 	:tc=z29a:
-#z100 entry from Brad Brahms at TRW (Brahms@USC-ECLC)
+# z100 entry from Brad Brahms at TRW (Brahms@USC-ECLC)
 #			   usenet: {decvax,ucbvax}!trwrb!trwspp!brahms
 z100|h100|z110|z-100|h-100|heath/zenith z-100 pc with color monitor:\
 	:vs=\Ex4\Em71:ve=\Ey4\Em70:tc=z100bw:
@@ -3284,7 +3311,7 @@ adm22|22|lsi adm22:\
 	:ko=ho:l1=F1:l2=F2:l3=F3:l4=F4:l5=F5:l6=F6:l7=F7:\
 	:kb=^H:kd=^J:kh=^^:kl=^H:kr=^L:ku=^K:li#24:\
 	:ma=j^Jk^P^K^Pl ^R^L^L :nd=^L:se=\E(:so=\E):ta=\Ei:up=^K:
-#From: stephen%comp.lancs.ac.uk@ucl-cs.arpa
+# From: stephen%comp.lancs.ac.uk@ucl-cs.arpa
 adm11|lsi adm11:\
 	:do=^J:bs:\
 	:cd=\EY:ce=\ET:kb=^H:kh=^^:\
@@ -3440,8 +3467,8 @@ ti800|ti omni 800:\
 	:do=^J:le=^H:bs:co#132:hc:os:
 # From lesleymw@topaz.berkeley.edu
 ti931|ti 931:\
-	al=\EN:am:bs:cd=\EJ:ce=\EI:cl=\EL:cm=\EY%+ %+ :co#80:dl=\EO:do=\EB:\
-	eo:ho=\EH:li#24:ku=\EA:kd=\EB:kr=\EC:kl=\ED:mi:nd:sf=\Eb:sr=\Ea:up=\EA:
+	:al=\EN:am:bs:cd=\EJ:ce=\EI:cl=\EL:cm=\EY%+ %+ :co#80:dl=\EO:do=\EB:\
+	:eo:ho=\EH:li#24:ku=\EA:kd=\EB:kr=\EC:kl=\ED:mi:nd:sf=\Eb:sr=\Ea:up=\EA:
 # # --------------------------------
 #
 # v: TELEVIDEO
@@ -3654,7 +3681,7 @@ ims950|ims televideo 950 emulation:\
 ims950-rv|ims tvi950 rev video:\
 	:k0@:k1@:k2@:k3@:k4@:k5@:k6@:k7@:k8@:k9@:kb@:kd@:kh@:kl@:ko@:kr@:ku@:\
 	:vb@:xn@:tc=tvi950-rv:
-#From Andreas Stolcke <stolcke@icsi.berkeley.edu>
+# From Andreas Stolcke <stolcke@icsi.berkeley.edu>
 tvi955|955|televideo955:\
 	:ct=\E3:st=\E1:do=^J:\
 	:rs=\EDF\EC\Eg\Er\EO\E\047\E(\Ew\EX\Ee ^O\
@@ -3702,30 +3729,30 @@ ims-ansi|ultima2|ultimaII|IMS Ultima II:\
 #
 # Advice on the Wyse 30 and 50 standout mode glitch:
 #			(from steve@omni.com or ...pyramid!koosh!steve)
-# 
+#
 # These terminals support a "PROTECT" sequence on/off that has no
 # standout-glitch (xmc), while the regular "attribute" stuff enabled
 # with <ESC>G'some-character' gives a 1-space glitch.
-# 
+#
 # All but the very old revision firmware on both terminals support a
 # visible PROTECT attribute that's selectable by the ol' SETUP menu.
 # (The older rev. terminals do support PROTECT attribute but only
 #  have the options REGULAR and DIM)
-# 
+#
 # Get into your terminal's SETUP menu, and down-key to the 5'th
 # menu (on a wyse 30; I think 3'rd or 4'th on a wyse 50) and
 # right-key over to the PROTECT item.
-# 
+#
 # Change PROTECT to REVERSE or REVERSE/DIM, and go over to the next
 # item -- ATTRIBUTE and change it to LINE;  then save the changes for
 # power-on.  (ATTRIBUTE change isn't necessary but looks a whole lot
 # nicer to the eye when inverting the remainder of a line rather then
 # the rest of the screen!).
-# 
+#
 # The next thing to do is change your /usr/lib/something?/terminfo/w/wyse50
 # so that it uses the proper escape sequences to turn on/off the protect
 # sequence rather than the very-ugly \EG4 and \EG0.
-# 
+#
 # Change standout to \E), standend to \E(, and glitch to 0, which means
 # changing the so, se, and sg fields to :so=\E):se=\E(:sg#0:
 #
@@ -4037,7 +4064,7 @@ trs2|trsII|trs80II|Radio Shack Model II using P&T CP/M:\
 	:nl=^_:al=^D:am:bs:cd=^B:ce=^A:cl=^L:cm=\EY%+ %+ :co#80:\
 	:dl=^K:do=^_:ho=^F:li#24:nd=^]:ms:pt:se=^O:so=^N:up=^^:\
 	:kb=^H:kd=^_:kl=^\:kr=^]:ku=^^:
-#From: ksb@mentor.cc.purdue.edu (Kevin Braunsdorf)
+# From: ksb@mentor.cc.purdue.edu (Kevin Braunsdorf)
 trs16|trs-80 model 16 console:\
 	:al=\EL:am:bs:cd=\EJ:ce=\EK:cl=^L:cm=\EY%+ %+ :co#80:dc=\EQ:dl=\EM:\
 	:do=\EB:ic=\EP:ho=\EH:kb=^H:kd=\EB:kl=\ED:kn#2:kr=\EC:\
@@ -4048,7 +4075,7 @@ trs16|trs-80 model 16 console:\
 	:BN=\E[?33h:BF=\E[?33l:UC=\E[_\040q:BC=\E[\177\040q:\
 	:PN=\E]=:PS=\E]+:\
 	:CN=\ERC:CF=\ERc:NR=\ERD:NM=\ER@:
-#From {pbrown,ctl}@ocf.berkeley.edu, 12 Mar 90
+# From {pbrown,ctl}@ocf.berkeley.edu, 12 Mar 90
 coco3|os9LII|Tandy CoCo3 24*80 OS9 Level II:\
 	:am:bs:cl=5*^L:li#24:co#80:ho=^A:\
 	:cd=^K:ce=^D:cm=2%r^B%+ %+ :\
@@ -4106,7 +4133,7 @@ o85h|oabm85h|Kimtron ABM 85H, old firmware rev.:\
 	:is=\E}\EC\EX\Ee\En\E%\Er\E(\Ek\Em\Eq\Ed\ET\EC\E9\EF:\
 	:im=\EZ:sg@:ug@:vb=\200\200\200^G\200\200\200:\
 	:mh=\E):mr=\Ej:me=\E(\Ek:tc=abm85:
-#from  malman@bbn-vax.arpa
+# from  malman@bbn-vax.arpa
 kt7|kimtron model kt-7:\
 	:am:bs:co#80:li#24:cm=\E=%+ %+ :cl=^Z:cd=\EY:ce=\ET:is=\El\E":\
 	:al=\EE:dl=\ER:ic=\EQ:dc=\EW:if=/usr/share/tabset/stdcrt:\
@@ -4256,7 +4283,7 @@ go140|graphon go-140:\
 go140w|graphon go-140 in 132 column mode:\
 	:co#132:is=\E<\E=\E[?3h\E[?7h\E(B\E[J\E7\E[;r\E8\E[m\E[q:\
 	:tc=go140:
-#From edm@nwnexus.WA.COM.  Hacked up vt200 termcap to handle GO-225/VT220
+# From edm@nwnexus.WA.COM.  Hacked up vt200 termcap to handle GO-225/VT220
 go225|go-225|Graphon 225:\
 	:im=\E[4h:ei=\E[4l:mi:dc=\E[P:al=\E[L:dl=\E[M:\
 	:cs=\E[%i%d;%dr:sf=\ED:sr=\EM:\
@@ -4272,7 +4299,7 @@ go225|go-225|Graphon 225:\
 sanyo55|sanyo|sanyo mbc-55x pc compatible:\
 	:co#80:li#25:am:cl=\E[H\E[J:bs:cm=\E[%i%d;%dH:nd=\E[C:up=\E[A:\
 	:ce=\E[K:cd=\E[J:so=\E[7m:se=\E[m:us=\E[4m:ue=\E[m:
-#From: Simson L. Garfinkel <simsong@media-lab.mit.edu>
+# From: Simson L. Garfinkel <simsong@media-lab.mit.edu>
 ST|atari st:\
 	:bs:cd=\EJ:ce=\EK:cl=\EH\EJ:cm=\EY%+ %+ :co#80:li#25:nd=\EC:\
 	:pt:sr=\EI:up=\EA:ku=\EA:kd=\EB:kr=\EC:kl=\ED:\
@@ -4373,7 +4400,7 @@ h19k|h19kermit|heathkit emulation provided by Kermit (no auto margin):\
 #     something like a Dnet Fterm with the window sized to some peculiar
 #     dimension larger than 80 columns.
 # :k0=\E9~	map F10 to k0 - could have F0-9 -> k0-9, but ... F10 was 'k;'
-# :F1-FA			removed F11 through F20. 
+# :F1-FA			removed F11 through F20.
 amiga|Amiga ANSI:\
 	:co#80:li#24:am:bs:bw:\
 	:AL=\E[%dL:DC=\E[%dP:DL=\E[%dM:DO=\E[%dB:\
@@ -4396,7 +4423,7 @@ pcplot:\
 # From Joel Rubin, jmrubin@coral, a preliminary TERMCAP for VIDTEX,
 # a terminal program sold by Compuserve.  Line and column numbers are
 # computer-dependent (I have a Commodore '64); you should use the meta-B
-# option to shut off clean-breaking of lines.  No key codes included 
+# option to shut off clean-breaking of lines.  No key codes included
 # since some of them are programmable and most are machine-specific.
 # Works on vi if you don't use clean-breaking.  Very similar to the IBM 3101
 # termcap.  Escape-D used for backspace because control-H is destructive
@@ -4446,7 +4473,7 @@ ifmr|Informer D304:\
 	:am:bs:cd=\E/:ce=\EQ:cl=\EZ:cm=\EY%r%+ %+ :co#80:dc=\E\\:\
 	:do=^J:ic=\E[:li#24:nd=\EC:so=\EJ:se=\EK:up=\EA:\
 	:sr=\En:ho=\EH:
-# From Christian Weisgerber, naddy@mips.inka.de, a TERMCAP entry 
+# From Christian Weisgerber, naddy@mips.inka.de, a TERMCAP entry
 # for Linux consoles.
 linux|Linux Console:\
 	:am:eo:mi:ms:xn:xo:\
@@ -4514,25 +4541,25 @@ rxvt|rxvt terminal emulator (X Window System):\
 
 # Termcap entry for Eterm, taken from the sources of Eterm-0.9.2
 Eterm|Eterm Terminal Emulator (X11 Window System):\
-        :am:bw:eo:km:mi:ms:xn:xo:\
-        :co#80:it#8:li#24:lm#0:pa#64:Co#8:AF=\E[3%dm:AB=\E[4%dm:op=\E[39m\E[49m:\
-        :AL=\E[%dL:DC=\E[%dP:DL=\E[%dM:DO=\E[%dB:IC=\E[%d@:\
-        :K1=\E[7~:K2=\EOu:K3=\E[5~:K4=\E[8~:K5=\E[6~:LE=\E[%dD:\
-        :RI=\E[%dC:UP=\E[%dA:ae=^O:al=\E[L:as=^N:bl=^G:cd=\E[J:\
-        :ce=\E[K:cl=\E[H\E[2J:cm=\E[%i%d;%dH:cr=^M:\
-        :cs=\E[%i%d;%dr:ct=\E[3g:dc=\E[P:dl=\E[M:do=\E[B:\
-        :ec=\E[%dX:ei=\E[4l:ho=\E[H:i1=\E[?47l\E>\E[?1l:ic=\E[@:\
-        :im=\E[4h:is=\E[r\E[m\E[2J\E[H\E[?7h\E[?1;3;4;6l\E[4l:\
-        :k1=\E[11~:k2=\E[12~:k3=\E[13~:k4=\E[14~:k5=\E[15~:\
-        :k6=\E[17~:k7=\E[18~:k8=\E[19~:k9=\E[20~:kD=\E[3~:\
-        :kI=\E[2~:kN=\E[6~:kP=\E[5~:kb=^H:kd=\E[B:ke=:kh=\E[7~:\
-        :kl=\E[D:kr=\E[C:ks=:ku=\E[A:le=^H:mb=\E[5m:md=\E[1m:\
-        :me=\E[m\017:mr=\E[7m:nd=\E[C:rc=\E8:\
-        :sc=\E7:se=\E[27m:sf=^J:so=\E[7m:sr=\EM:st=\EH:ta=^I:\
-        :te=\E[2J\E[?47l\E8:ti=\E7\E[?47h:ue=\E[24m:up=\E[A:\
-        :us=\E[4m:vb=\E[?5h\E[?5l:ve=\E[?25h:vi=\E[?25l:\
-        :ac=``aaffggiijjkkllmmnnooppqqrrssttuuvvwwxxyyzz{{||}}~~:
+	:am:bw:eo:km:mi:ms:xn:xo:\
+	:co#80:it#8:li#24:lm#0:pa#64:Co#8:AF=\E[3%dm:AB=\E[4%dm:op=\E[39m\E[49m:\
+	:AL=\E[%dL:DC=\E[%dP:DL=\E[%dM:DO=\E[%dB:IC=\E[%d@:\
+	:K1=\E[7~:K2=\EOu:K3=\E[5~:K4=\E[8~:K5=\E[6~:LE=\E[%dD:\
+	:RI=\E[%dC:UP=\E[%dA:ae=^O:al=\E[L:as=^N:bl=^G:cd=\E[J:\
+	:ce=\E[K:cl=\E[H\E[2J:cm=\E[%i%d;%dH:cr=^M:\
+	:cs=\E[%i%d;%dr:ct=\E[3g:dc=\E[P:dl=\E[M:do=\E[B:\
+	:ec=\E[%dX:ei=\E[4l:ho=\E[H:i1=\E[?47l\E>\E[?1l:ic=\E[@:\
+	:im=\E[4h:is=\E[r\E[m\E[2J\E[H\E[?7h\E[?1;3;4;6l\E[4l:\
+	:k1=\E[11~:k2=\E[12~:k3=\E[13~:k4=\E[14~:k5=\E[15~:\
+	:k6=\E[17~:k7=\E[18~:k8=\E[19~:k9=\E[20~:kD=\E[3~:\
+	:kI=\E[2~:kN=\E[6~:kP=\E[5~:kb=^H:kd=\E[B:ke=:kh=\E[7~:\
+	:kl=\E[D:kr=\E[C:ks=:ku=\E[A:le=^H:mb=\E[5m:md=\E[1m:\
+	:me=\E[m\017:mr=\E[7m:nd=\E[C:rc=\E8:\
+	:sc=\E7:se=\E[27m:sf=^J:so=\E[7m:sr=\EM:st=\EH:ta=^I:\
+	:te=\E[2J\E[?47l\E8:ti=\E7\E[?47h:ue=\E[24m:up=\E[A:\
+	:us=\E[4m:vb=\E[?5h\E[?5l:ve=\E[?25h:vi=\E[?25l:\
+	:ac=``aaffggiijjkkllmmnnooppqqrrssttuuvvwwxxyyzz{{||}}~~:
 
 #
 # END OF TERMCAP
-#  ------------------------
+# ------------------------
