@@ -70,3 +70,4 @@ SSC_NSECT		opt_ski.h
 
 # Device options
 DEV_SPLASH		opt_splash.h
+DEV_ACPICA		opt_acpica.h
