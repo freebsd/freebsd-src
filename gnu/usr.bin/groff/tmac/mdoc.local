@@ -1,0 +1,63 @@
+.\" Copyright (c) 2001 Ruslan Ermilov <ru@FreeBSD.org>.
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\" $FreeBSD$
+.\"
+.\"     %beginstrip%
+.
+.\" FreeBSD section names
+.ds doc-volume-ds-1 FreeBSD General Commands Manual
+.ds doc-volume-ds-2 FreeBSD System Calls Manual
+.ds doc-volume-ds-3 FreeBSD Library Functions Manual
+.ds doc-volume-ds-4 FreeBSD Kernel Interfaces Manual
+.ds doc-volume-ds-5 FreeBSD File Formats Manual
+.ds doc-volume-ds-6 FreeBSD Games Manual
+.ds doc-volume-ds-7 FreeBSD Miscellaneous Information Manual
+.ds doc-volume-ds-8 FreeBSD System Manager's Manual
+.ds doc-volume-ds-9 FreeBSD Kernel Developer's Manual
+.
+.\" FreeBSD .Lb values
+.ds doc-str-Lb-libc_r      Reentrant C\~Library (libc_r, \-lc_r)
+.ds doc-str-Lb-libcalendar Calendar Arithmetic Library (libcalendar, \-lcalendar)
+.ds doc-str-Lb-libcam      Common Access Method User Library (libcam, \-lcam)
+.ds doc-str-Lb-libcipher   FreeSec Crypt Library (libcipher, \-lcipher)
+.ds doc-str-Lb-libdevinfo  Device and Resource Information Utility Library (libdevinfo, \-ldevinfo)
+.ds doc-str-Lb-libdevstat  Device Statistics Library (libdevstat, \-ldevstat)
+.ds doc-str-Lb-libdisk     Interface to Slice and Partition Labels Library (libdisk, \-ldisk)
+.ds doc-str-Lb-libedit     Line Editor and History Library (libedit, \-ledit)
+.ds doc-str-Lb-libfetch    File Transfer Library (libfetch, \-lfetch)
+.ds doc-str-Lb-libipx      IPX Address Conversion Support Library (libipx, \-lipx)
+.ds doc-str-Lb-libmd       Message Digest (MD4, MD5, etc.) Support Library (libmd, \-lmd)
+.ds doc-str-Lb-libnetgraph Netgraph User Library (libnetgraph, \-lnetgraph)
+.ds doc-str-Lb-librpcsvc   RPC Service Library (librpcsvc, \-lrpcsvc)
+.ds doc-str-Lb-libskey     S/Key Password Control Table Access Library (libskey, \-lskey)
+.ds doc-str-Lb-libusb      USB HID access routines library (libusb, \-lusb)
+.ds doc-str-Lb-libvgl      Video Graphics Library (libvgl, \-lvgl)
+.
+.\" Default .Os value
+.ds doc-operating-system FreeBSD\~5.0
+.
+.
+.\" KOI8-R locale support
+.if "\*[.T]"koi8-r" .mso mdoc/koi8-r

@@ -1,0 +1,149 @@
+.\" Copyright (c) 2001 Ruslan Ermilov <ru@FreeBSD.org>.
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\" $FreeBSD$
+.\"
+.\"     %beginstrip%
+.
+.\" локализация .Dt
+.ds doc-volume-ds-1 Справочник основных команд FreeBSD
+.ds doc-volume-ds-2 Справочник системных вызовов FreeBSD
+.ds doc-volume-ds-3 Справочник библиотечных функций FreeBSD
+.ds doc-volume-ds-4 Справочник интерфейсов ядра FreeBSD
+.ds doc-volume-ds-5 Справочник форматов файлов FreeBSD
+.ds doc-volume-ds-6 Справочник игр FreeBSD
+.ds doc-volume-ds-7 Справочник разной информации FreeBSD
+.ds doc-volume-ds-8 Справочник системного администратора
+.ds doc-volume-ds-9 Справочник разработчика ядра FreeBSD
+.
+.ds doc-volume-ds-USD   Дополнительные документы для пользователя
+.ds doc-volume-ds-PS1   Дополнительные документы для программиста
+.ds doc-volume-ds-AMD   Документы унаследованного справочника
+.ds doc-volume-ds-SMM   Руководство системного администратора
+.ds doc-volume-ds-URM   Справочное руководство
+.ds doc-volume-ds-PRM   Руководство программиста
+.ds doc-volume-ds-KM    Руководство по ядру
+.ds doc-volume-ds-IND   Основной предметный указатель справочника
+.ds doc-volume-ds-LOCAL Локальный справочник
+.ds doc-volume-ds-CON   Справочник по дополнительному ПО
+.
+.ds doc-volume-as-alpha    (архитектура Alpha)
+.ds doc-volume-as-amiga    (архитектура Amiga)
+.ds doc-volume-as-arc      (архитектура Arc)
+.ds doc-volume-as-arm26    (архитектура ARM26)
+.ds doc-volume-as-arm32    (архитектура ARM32)
+.ds doc-volume-as-atari    (архитектура Atari)
+.ds doc-volume-as-bebox    (архитектура BEbox)
+.ds doc-volume-as-cobalt   (архитектура Cobalt)
+.ds doc-volume-as-evbsh3   (архитектура Evbsh3)
+.ds doc-volume-as-hp300    (архитектура HP300)
+.ds doc-volume-as-hpcmips  (архитектура HPcmips)
+.ds doc-volume-as-i386     (архитектура i386)
+.ds doc-volume-as-luna68k  (архитектура luna68k)
+.ds doc-volume-as-m68k     (архитектура m68k)
+.ds doc-volume-as-mac68k   (архитектура mac68k)
+.ds doc-volume-as-macppc   (архитектура macppc)
+.ds doc-volume-as-mips     (архитектура MIPS)
+.ds doc-volume-as-mmeye    (архитектура mmeye)
+.ds doc-volume-as-mvme68k  (архитектура mvme68k)
+.ds doc-volume-as-news68k  (архитектура news68k)
+.ds doc-volume-as-newsmips (архитектура newsmips)
+.ds doc-volume-as-next68k  (архитектура next68k)
+.ds doc-volume-as-ofppc    (архитектура ofppc)
+.ds doc-volume-as-pc532    (архитектура pc532)
+.ds doc-volume-as-pmax     (архитектура pmax)
+.ds doc-volume-as-powerpc  (архитектура powerpc)
+.ds doc-volume-as-prep     (архитектура prep)
+.ds doc-volume-as-sgimips  (архитектура sgimips)
+.ds doc-volume-as-sh3      (архитектура sh3)
+.ds doc-volume-as-sparc    (архитектура SPARC)
+.ds doc-volume-as-sparc64  (архитектура sparc64)
+.ds doc-volume-as-sun3     (архитектура sun3)
+.ds doc-volume-as-tahoe    (архитектура Tahoe)
+.ds doc-volume-as-vax      (архитектура VAX)
+.ds doc-volume-as-x68k     (архитектура x68k)
+.
+.\" локализация .Os
+.ds doc-operating-system-ATT-7    7я\~редакция
+.ds doc-operating-system-BSD-3    3й\~дистрибутив Беркли
+.ds doc-operating-system-BSD-4    4й\~дистрибутив Беркли
+.ds doc-operating-system-BSD-4.1  4.1\~дистрибутив Беркли
+.ds doc-operating-system-BSD-4.2  4.2\~дистрибутив Беркли
+.ds doc-operating-system-BSD-4.3  4.3\~дистрибутив Беркли
+.ds doc-operating-system-BSD-4.3T 4.3-Tahoe дистрибутив Беркли
+.ds doc-operating-system-BSD-4.3R 4.3-Reno дистрибутив Беркли
+.
+.\" локализация .Sh
+.ds doc-section-name        НАЗВАНИЕ
+.ds doc-section-synopsis    СИНТАКСИС
+.ds doc-section-description ОПИСАНИЕ
+.ds doc-section-see-also    СМОТРИ
+.ds doc-section-files       ФАЙЛЫ
+.ds doc-section-authors     АВТОРЫ
+.
+.\" локализация .Lb (XXX)
+.ds doc-str-Lb-libarm32    Библиотека архитектуры ARM32 (libarm32, \-larm32)
+.ds doc-str-Lb-libc        Стандартная библиотека\~C (libc, \-lc)
+.ds doc-str-Lb-libc_r      Реентерабельная библиотека\~C (libc_r, \-pthread)
+.ds doc-str-Lb-libcalendar Библиотека календарной арифметики (libcalendar, \-lcalendar)
+.ds doc-str-Lb-libcam      Пользовательская библиотека CAM (libcam, \-lcam)
+.ds doc-str-Lb-libcipher   Библиотека криптографии FreeSec (libcipher, \-lcipher)
+.ds doc-str-Lb-libcompat   Библиотека совместимости (libcompat, \-lcompat)
+.ds doc-str-Lb-libcrypt    Библиотека криптографии (libcrypt, \-lcrypt)
+.ds doc-str-Lb-libcurses   Curses Library (libcurses, \-lcurses)
+.ds doc-str-Lb-libdevstat  Библиотека статистики устройств (libdevstat, \-ldevstat)
+.ds doc-str-Lb-libdisk     Interface to Slice and Partition Labels Library (libdisk, \-ldisk)
+.ds doc-str-Lb-libedit     Библиотека редактора командной строки (libedit, \-ledit)
+.ds doc-str-Lb-libfetch    Библиотека файловой передачи (libfetch, \-lfetch)
+.ds doc-str-Lb-libi386     Библиотека архитектуры i386 (libi386, \-li386)
+.ds doc-str-Lb-libipsec    Библиотека управления IPsec Policy (libipsec, \-lipsec)
+.ds doc-str-Lb-libipx      Библиотека поддержки конверсии адресов IPX (libipx, \-lipx)
+.ds doc-str-Lb-libkvm      Библиотека доступа к данным ядра (libkvm, \-lkvm)
+.ds doc-str-Lb-libm        Библиотека математических функций (libm, \-lm)
+.ds doc-str-Lb-libmd       Message Digest (MD4, MD5, и т.д.) Support Library (libmd, \-lmd)
+.ds doc-str-Lb-libmenu     Curses Menu Library (libmenu, \-lmenu)
+.ds doc-str-Lb-libnetgraph Пользовательская библиотека Netgraph (libnetgraph, \-lnetgraph)
+.ds doc-str-Lb-libossaudio Библиотека эмуляции OSS Audio (libossaudio, \-lossaudio)
+.ds doc-str-Lb-libposix    Библиотека \*[Px]\-совместимости (libposix, \-lposix)
+.ds doc-str-Lb-libresolv   DNS Resolver Library (libresolv, \-lresolv)
+.ds doc-str-Lb-librpcsvc   Библиотека служб RPC (librpcsvc, \-lrpcsvc)
+.ds doc-str-Lb-libskey     S/Key Password Control Table Access Library (libskey, \-lskey)
+.ds doc-str-Lb-libtermcap  Библиотека доступа к termcap (libtermcap, \-ltermcap)
+.ds doc-str-Lb-libusb      Библиотека функций доступа к USB HID (libusb, \-lusb)
+.ds doc-str-Lb-libutil     Библиотека системных утилит (libutil, \-lutil)
+.ds doc-str-Lb-libvgl      Библиотека видео-графики (libvgl, \-lvgl)
+.ds doc-str-Lb-libz        Библиотека компрессии (libz, \-lz)
+.
+.\" локализация .Rv
+.ds doc-str-Rv-prefix "Функция
+.ds doc-str-Rv-suffix "возвращает\~0 в случае успешного завершения;
+.as doc-str-Rv-suffix " в противном случае она возвращает\~-1,
+.as doc-str-Rv-suffix " а код ошибки сохраняется в глобальной
+.as doc-str-Rv-suffix " переменной \*[doc-Va-font]errno\f[P].
+.
+.\" локализация .Ar
+.ds doc-str-Ar-default "файл\ .\|.\|.
+.
+.\" локализация .%A
+.ds doc-str-dpra "и

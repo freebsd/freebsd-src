@@ -1,0 +1,71 @@
+#!/bin/sh
+#
+# $FreeBSD$
+#
+
+# If there is a global system configuration file, suck it in.
+#
+if [ -r /etc/defaults/periodic.conf ]
+then
+    . /etc/defaults/periodic.conf
+    source_periodic_confs
+fi
+
+case "$daily_status_named_enable" in
+    [Yy][Ee][Ss])
+	if [ "$daily_status_named_logs" -le 0 ]
+	then
+	    echo '$daily_status_named_enable is set but ' \
+		'$daily_status_named_logs is not greater than zero'
+	    rc=2
+	else
+	    echo
+	    echo 'Checking for denied zone transfers (AXFR and IXFR):'
+
+	    start=`date -v-1d '+%b %d' | sed 's/0\(.\)$/ \1/'`
+	    n=$(($daily_status_named_logs - 2))
+	    rc=$({
+		while [ $n -ge 0 ]
+		do
+		    if [ -f /var/log/messages.$n ]
+		    then
+			cat /var/log/messages.$n
+		    elif [ -f /var/log/messages.$n.gz ]
+		    then
+			zcat -fc /var/log/messages.$n.gz
+		    fi
+		    n=$(($n - 1))
+		done
+		cat /var/log/messages
+	    } |
+		perl -ne 'print "$2 from $1\n"
+			if (/$start.*named\[\d+\]: denied [AI]XFR from \[(.*)\]\.\d+ for "(.*)"/);' |
+		sort -f | uniq -ic | 
+		perl -e '
+			use Socket;
+
+			while (<STDIN>) {
+				if (/^.*from (.*)$/) {
+					$ip_addr = $1;
+					chomp;
+					if ($ARGV[0] =~ /^yes$/i) {
+						($host) = gethostbyaddr(inet_aton($ip_addr), AF_INET);
+					} else {
+						$host = "";
+					}
+
+					if ($host) {
+						print "$_ ($host)\n";
+					} else {
+						print "$_\n";
+					}
+				}
+			}
+		' $daily_status_named_usedns | tee /dev/stderr | wc -l)
+	    [ $rc -gt 0 ] && rc=1
+	fi;;
+
+    *)  rc=0;;
+esac
+
+exit $rc
