@@ -211,7 +211,7 @@ runq_choose(struct runq *rq)
 		p = TAILQ_FIRST(rqh);
 		KASSERT(p != NULL, ("runq_choose: no proc on busy queue"));
 		KASSERT(p->p_stat == SRUN,
-		    ("runq_chose: process %d(%s) in state %d", p->p_pid,
+		    ("runq_choose: process %d(%s) in state %d", p->p_pid,
 		    p->p_comm, p->p_stat));
 		CTR3(KTR_RUNQ, "runq_choose: pri=%d p=%p rqh=%p", pri, p, rqh);
 		TAILQ_REMOVE(rqh, p, p_procq);
