@@ -738,6 +738,7 @@ dev/usb/if_aue.c	optional aue
 dev/usb/if_cue.c	optional cue
 dev/usb/if_kue.c	optional kue
 dev/usb/ohci.c		optional ohci
+dev/usb/ohci_pci.c	optional ohci
 dev/usb/ubsa.c		optional ubsa ucom
 dev/usb/ucom.c		optional ucom
 dev/usb/udbp.c		optional udbp
@@ -745,6 +746,7 @@ dev/usb/ufm.c		optional ufm
 dev/usb/uftdi.c		optional uftdi ucom
 dev/usb/ugen.c		optional ugen
 dev/usb/uhci.c		optional uhci
+dev/usb/uhci_pci.c	optional uhci
 dev/usb/uhid.c		optional uhid
 dev/usb/uhub.c		optional usb
 dev/usb/ukbd.c		optional ukbd
@@ -1499,9 +1501,7 @@ pci/if_xl.c		optional xl
 pci/intpm.c		optional intpm
 pci/meteor.c		count meteor pci nowerror
 pci/ncr.c		optional ncr
-pci/ohci_pci.c		optional ohci
 pci/simos.c		optional simos nowerror
-pci/uhci_pci.c		optional uhci
 pci/viapm.c		optional viapm
 pci/xrpu.c		optional xrpu
 posix4/ksched.c	optional _kposix_priority_scheduling
