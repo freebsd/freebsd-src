@@ -1,5 +1,5 @@
 #!/bin/sh
-#	$Id: rc,v 1.169.2.3 1999/02/11 22:03:27 dillon Exp $
+#	$Id: rc,v 1.169.2.4 1999/02/11 23:05:00 jkh Exp $
 #	From: @(#)rc	5.27 (Berkeley) 6/5/91
 
 # System startup script run by init on autoboot
@@ -8,7 +8,7 @@
 # and the console is the controlling terminal.
 
 # Note that almost all the user-configurable behavior is no longer in
-# this file, but rather in /etc/rc.conf.  Please check this file
+# this file, but rather in /etc/defaults/rc.conf.  Please check this file
 # first before contemplating any changes here.
 
 stty status '^T'
@@ -120,12 +120,6 @@ if [ "X$diskless_mount_func" != "X" ]; then
         $diskless_mount_func
 fi
 
-
-# If old file exists, whine until they fix it.
-if [ -f /etc/sysconfig ]; then
-	echo "Warning: /etc/sysconfig has been replaced by /etc/rc.conf."
-	echo "You should switch to /etc/rc.conf ASAP to eliminate this warning."
-fi
 
 adjkerntz -i
 
@@ -285,8 +279,7 @@ if [ -x /sbin/ldconfig ]; then
 
 	# Legacy aout support for i386 only
 	if [ X"`sysctl -n hw.machine`" = X"i386" ]; then
-		# Default the a.out ldconfig path, in case the system's
-		# /etc/rc.conf hasn't been updated.
+		# Default the a.out ldconfig path.
 		: ${ldconfig_paths_aout=${ldconfig_paths}}
 		_LDC=/usr/lib/aout
 		for i in $ldconfig_paths_aout; do
