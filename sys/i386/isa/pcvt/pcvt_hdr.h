@@ -821,8 +821,8 @@ typedef struct video_state {
 	u_short	*sc_G1;			/* save G1 ptr */
 	u_short	*sc_G2;			/* save G2 ptr */
 	u_short	*sc_G3;			/* save G3 ptr */
-	u_short	*sc_GL;			/* save GL ptr */
-	u_short	*sc_GR;			/* save GR ptr */
+	u_short	**sc_GL;		/* save GL ptr */
+	u_short	**sc_GR;		/* save GR ptr */
 	u_char	sc_sel;			/* selective erase state */
 	u_char	ufkl[8][17];		/* user fkey-labels */
 	u_char	sfkl[8][17];		/* system fkey-labels */
@@ -862,8 +862,8 @@ typedef struct video_state {
 	struct sixels sixel;		/* structure for storing char sixels */
 	u_char	selchar;		/* true = selective attribute on */
 	u_int	decsca[MAXDECSCA];	/* Select Character Attrib bit array */
-	u_short *GL;			/* ptr to current GL conversion table*/
-	u_short *GR;			/* ptr to current GR conversion table*/
+	u_short **GL;			/* ptr to current GL conversion table*/
+	u_short **GR;			/* ptr to current GR conversion table*/
 	u_short *G0;			/* ptr to current G0 conversion table*/
 	u_short *G1;			/* ptr to current G1 conversion table*/
 	u_char force24;			/* force 24 lines in DEC 25 and HP 28*/
@@ -873,7 +873,7 @@ typedef struct video_state {
 	u_char	which[DSCS_LENGTH+1];	/* which set to designate */
 	u_char	whichi;			/* index into which ..	*/
 	u_char  ss;			/* flag, single shift G2 / G3 -> GL */
-	u_short *Gs;			/* ptr to cur. G2/G3 conversion table*/
+	u_short **Gs;			/* ptr to cur. G2/G3 conversion table*/
 	u_char	udkbuf[MAXUDKDEF];	/* buffer for user defined keys */
 	struct udkentry ukt;		/* index & length for each udk */
 	u_char	udkff;			/* index into buffer first free entry*/
