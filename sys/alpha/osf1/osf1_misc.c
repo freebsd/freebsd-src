@@ -1498,6 +1498,7 @@ int osf1_gettimeofday(td, uap)
 {
 	int error;
 	struct timeval atv;
+	struct timezone tz;
 	struct osf1_timeval otv;
 
 	error = 0;
@@ -1510,8 +1511,11 @@ int osf1_gettimeofday(td, uap)
 		    sizeof (otv))))
 			return (error);
 	}
-	if (uap->tzp)
+	if (uap->tzp) {
+		tz.tz_minuteswest = tz_minuteswest;
+		tz.tz_dsttime = tz_dsttime;
 		error = copyout((caddr_t)&tz, (caddr_t)uap->tzp, sizeof (tz));
+	}
 	return (error);
 }
 
