@@ -7,7 +7,7 @@ SRCS+=	aout32.c	\
 	elf32-sparc.c	\
 	elf32-target.h	\
 	elf32.c		\
-	elf64-sparc.c	\
+	elf64-sparc%FIXED.c	\
 	elf64-target.h	\
 	elf64.c		\
 	elflink.c	\
@@ -25,3 +25,8 @@ elf32-target.h:	elfxx-target.h
 
 elf64-target.h:	elfxx-target.h
 	sed -e s/NN/64/g ${.ALLSRC} > ${.TARGET}
+
+CLEANFILES+=	elf64-sparc%FIXED.c
+elf64-sparc%FIXED.c: elf64-sparc.c elf64-sparc.c-bad-rtld.diff
+	cp ${.ALLSRC:M*.c} ${.TARGET}
+	patch -b .orig < ${.ALLSRC:M*.diff}
