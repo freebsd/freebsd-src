@@ -105,8 +105,8 @@ static struct resource *acpi_alloc_resource(device_t bus, device_t child,
 			u_long count, u_int flags);
 static int	acpi_release_resource(device_t bus, device_t child, int type,
 			int rid, struct resource *r);
-static u_int32_t acpi_isa_get_logicalid(device_t dev);
-static u_int32_t acpi_isa_get_compatid(device_t dev);
+static uint32_t	acpi_isa_get_logicalid(device_t dev);
+static int	acpi_isa_get_compatid(device_t dev, uint32_t *cids, int count);
 static int	acpi_isa_pnp_probe(device_t bus, device_t child,
 			struct isa_pnp_id *ids);
 static void	acpi_probe_children(device_t bus);
@@ -800,12 +800,12 @@ acpi_bus_alloc_gas(device_t dev, int *rid, ACPI_GENERIC_ADDRESS *gas)
 	 | (PNP_HEXTONUM(s[6]) << 24)		\
 	 | (PNP_HEXTONUM(s[5]) << 28))
 
-static u_int32_t
+static uint32_t
 acpi_isa_get_logicalid(device_t dev)
 {
+    ACPI_DEVICE_INFO	*devinfo;
+    ACPI_BUFFER		buf;
     ACPI_HANDLE		h;
-    ACPI_DEVICE_INFO	devinfo;
-    ACPI_BUFFER		buf = {sizeof(devinfo), &devinfo};
     ACPI_STATUS		error;
     u_int32_t		pnpid;
     ACPI_LOCK_DECL;
@@ -817,50 +817,71 @@ acpi_isa_get_logicalid(device_t dev)
     
     /* Fetch and validate the HID. */
     if ((h = acpi_get_handle(dev)) == NULL)
-	goto out;
+	return (0);
+    buf.Pointer = NULL;
+    buf.Length = ACPI_ALLOCATE_BUFFER;
     error = AcpiGetObjectInfo(h, &buf);
     if (ACPI_FAILURE(error))
-	goto out;
-    if ((devinfo.Valid & ACPI_VALID_HID) == 0)
-	goto out;
+	return (0);
+    devinfo = (ACPI_DEVICE_INFO *)buf.Pointer;
 
-    pnpid = PNP_EISAID(devinfo.HardwareId.Value);
+    if ((devinfo->Valid & ACPI_VALID_HID) != 0)
+	pnpid = PNP_EISAID(devinfo->HardwareId.Value);
 
-out:
+    AcpiOsFree(buf.Pointer);
     ACPI_UNLOCK;
     return_VALUE (pnpid);
 }
 
-static u_int32_t
-acpi_isa_get_compatid(device_t dev)
+static int
+acpi_isa_get_compatid(device_t dev, uint32_t *cids, int count)
 {
+    ACPI_DEVICE_INFO	*devinfo;
+    ACPI_BUFFER		buf;
     ACPI_HANDLE		h;
     ACPI_STATUS		error;
-    u_int32_t		pnpid;
+    uint32_t		*pnpid;
+    int			valid, i;
     ACPI_LOCK_DECL;
 
     ACPI_FUNCTION_TRACE((char *)(uintptr_t)__func__);
 
-    pnpid = 0;
+    pnpid = cids;
+    valid = 0;
     ACPI_LOCK;
     
-    /* Fetch and validate the HID */
+    /* Fetch and validate the CID */
     if ((h = acpi_get_handle(dev)) == NULL)
+	return (0);
+    buf.Pointer = NULL;
+    buf.Length = ACPI_ALLOCATE_BUFFER;
+    error = AcpiGetObjectInfo(h, &buf);
+    if (ACPI_FAILURE(error))
+	return (0);
+    devinfo = (ACPI_DEVICE_INFO *)buf.Pointer;
+    if ((devinfo->Valid & ACPI_VALID_CID) == 0)
 	goto out;
-    if (ACPI_FAILURE(error = acpi_EvaluateInteger(h, "_CID", &pnpid)))
-	goto out;
+
+    if (devinfo->CompatibilityId.Count < count)
+	count = devinfo->CompatibilityId.Count;
+    for (i = 0; i < count; i++) {
+	if (strncmp(devinfo->CompatibilityId.Id[i].Value, "PNP", 3) != 0)
+	    continue;
+	*pnpid++ = PNP_EISAID(devinfo->CompatibilityId.Id[i].Value);
+	valid++;
+    }
 
 out:
+    AcpiOsFree(buf.Pointer);
     ACPI_UNLOCK;
-    return_VALUE (pnpid);
+    return_VALUE (valid);
 }
-
 
 static int
 acpi_isa_pnp_probe(device_t bus, device_t child, struct isa_pnp_id *ids)
 {
-    int			result;
-    u_int32_t		lid, cid;
+    int			result, cid_count, i;
+    uint32_t		lid, cids[8];
 
     ACPI_FUNCTION_TRACE((char *)(uintptr_t)__func__);
 
@@ -873,17 +894,23 @@ acpi_isa_pnp_probe(device_t bus, device_t child, struct isa_pnp_id *ids)
 
     /* Scan the supplied IDs for a match */
     lid = acpi_isa_get_logicalid(child);
-    cid = acpi_isa_get_compatid(child);
+    cid_count = acpi_isa_get_compatid(child, cids, 8);
     while (ids && ids->ip_id) {
-	if (lid == ids->ip_id || cid == ids->ip_id) {
+	if (lid == ids->ip_id) {
 	    result = 0;
 	    goto out;
+	}
+	for (i = 0; i < cid_count; i++) {
+	    if (cids[i] == ids->ip_id) {
+		result = 0;
+		goto out;
+	    }
 	}
 	ids++;
     }
 
  out:
-    return_VALUE(result);
+    return_VALUE (result);
 }
 
 /*
@@ -1092,28 +1119,34 @@ acpi_enable_fixed_events(struct acpi_softc *sc)
 BOOLEAN
 acpi_DeviceIsPresent(device_t dev)
 {
+    ACPI_DEVICE_INFO	*devinfo;
     ACPI_HANDLE		h;
-    ACPI_DEVICE_INFO	devinfo;
-    ACPI_BUFFER		buf = {sizeof(devinfo), &devinfo};
+    ACPI_BUFFER		buf;
     ACPI_STATUS		error;
+    int			ret;
 
     ACPI_ASSERTLOCK;
     
+    ret = FALSE;
     if ((h = acpi_get_handle(dev)) == NULL)
 	return (FALSE);
+    buf.Pointer = NULL;
+    buf.Length = ACPI_ALLOCATE_BUFFER;
     error = AcpiGetObjectInfo(h, &buf);
     if (ACPI_FAILURE(error))
 	return (FALSE);
+    devinfo = (ACPI_DEVICE_INFO *)buf.Pointer;
 
     /* If no _STA method, must be present */
-    if ((devinfo.Valid & ACPI_VALID_STA) == 0)
-	return (TRUE);
+    if ((devinfo->Valid & ACPI_VALID_STA) == 0)
+	ret = TRUE;
 
     /* Return true for 'present' and 'functioning' */
-    if ((devinfo.CurrentStatus & 0x9) == 0x9)
-	return (TRUE);
+    if ((devinfo->CurrentStatus & 0x9) == 0x9)
+	ret = TRUE;
 
-    return (FALSE);
+    AcpiOsFree(buf.Pointer);
+    return (ret);
 }
 
 /*
@@ -1122,28 +1155,34 @@ acpi_DeviceIsPresent(device_t dev)
 BOOLEAN
 acpi_BatteryIsPresent(device_t dev)
 {
+    ACPI_DEVICE_INFO	*devinfo;
     ACPI_HANDLE		h;
-    ACPI_DEVICE_INFO	devinfo;
-    ACPI_BUFFER		buf = {sizeof(devinfo), &devinfo};
+    ACPI_BUFFER		buf;
     ACPI_STATUS		error;
+    int			ret;
 
     ACPI_ASSERTLOCK;
     
+    ret = FALSE;
     if ((h = acpi_get_handle(dev)) == NULL)
 	return (FALSE);
+    buf.Pointer = NULL;
+    buf.Length = ACPI_ALLOCATE_BUFFER;
     error = AcpiGetObjectInfo(h, &buf);
     if (ACPI_FAILURE(error))
 	return (FALSE);
+    devinfo = (ACPI_DEVICE_INFO *)buf.Pointer;
 
     /* If no _STA method, must be present */
-    if ((devinfo.Valid & ACPI_VALID_STA) == 0)
-	return (TRUE);
+    if ((devinfo->Valid & ACPI_VALID_STA) == 0)
+	ret = TRUE;
 
     /* Return true for 'present' and 'functioning' */
-    if ((devinfo.CurrentStatus & 0x19) == 0x19)
-	return (TRUE);
+    if ((devinfo->CurrentStatus & 0x19) == 0x19)
+	ret = TRUE;
 
-    return (FALSE);
+    AcpiOsFree(buf.Pointer);
+    return (ret);
 }
 
 /*
@@ -1152,31 +1191,40 @@ acpi_BatteryIsPresent(device_t dev)
 BOOLEAN
 acpi_MatchHid(device_t dev, char *hid) 
 {
+    ACPI_DEVICE_INFO	*devinfo;
     ACPI_HANDLE		h;
-    ACPI_DEVICE_INFO	devinfo;
-    ACPI_BUFFER		buf = {sizeof(devinfo), &devinfo};
+    ACPI_BUFFER		buf;
     ACPI_STATUS		error;
-    int			cid;
+    int			ret, i;
 
     ACPI_ASSERTLOCK;
 
+    ret = FALSE;
     if (hid == NULL)
 	return (FALSE);
     if ((h = acpi_get_handle(dev)) == NULL)
 	return (FALSE);
+    buf.Pointer = NULL;
+    buf.Length = ACPI_ALLOCATE_BUFFER;
     error = AcpiGetObjectInfo(h, &buf);
     if (ACPI_FAILURE(error))
 	return (FALSE);
-    if ((devinfo.Valid & ACPI_VALID_HID) != 0 &&
-	strcmp(hid, devinfo.HardwareId.Value) == 0)
-	return (TRUE);
+    devinfo = (ACPI_DEVICE_INFO *)buf.Pointer;
 
-    if (ACPI_FAILURE(error = acpi_EvaluateInteger(h, "_CID", &cid)))
-	return (FALSE);
-    if (cid == PNP_EISAID(hid))
-	return (TRUE);
+    if ((devinfo->Valid & ACPI_VALID_HID) != 0) {
+	if (strcmp(hid, devinfo->HardwareId.Value) == 0)
+	    ret = TRUE;
+    } else if ((devinfo->Valid & ACPI_VALID_CID) != 0) {
+	for (i = 0; i < devinfo->CompatibilityId.Count; i++) {
+	    if (strcmp(hid, devinfo->CompatibilityId.Id[i].Value) == 0) {
+		ret = TRUE;
+		break;
+	    }
+	}
+    }
 
-    return (FALSE);
+    AcpiOsFree(buf.Pointer);
+    return (ret);
 }
 
 /*
