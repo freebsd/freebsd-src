@@ -2801,6 +2801,7 @@ Retry:
 			map->size += (addr - stack_entry->end);
 			/* Update the current entry. */
 			stack_entry->end = addr;
+			stack_entry->avail_ssize -= grow_amount;
 			rv = KERN_SUCCESS;
 
 			if (next_entry != &map->header)
