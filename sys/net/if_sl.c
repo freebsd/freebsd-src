@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)if_sl.c	8.6 (Berkeley) 2/1/94
- * $Id: if_sl.c,v 1.31 1995/09/10 12:22:59 bde Exp $
+ * $Id: if_sl.c,v 1.32 1995/09/17 23:38:29 ache Exp $
  */
 
 /*
@@ -243,7 +243,7 @@ slinit(sc)
 	}
 	sc->sc_buf = sc->sc_ep - SLRMAX;
 	sc->sc_mp = sc->sc_buf;
-	sl_compress_init(&sc->sc_comp);
+	sl_compress_init(&sc->sc_comp, -1);
 	return (1);
 }
 

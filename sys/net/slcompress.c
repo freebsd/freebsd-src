@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)slcompress.c	8.2 (Berkeley) 4/16/94
- * $Id: slcompress.c,v 1.4 1994/10/08 22:38:27 phk Exp $
+ * $Id: slcompress.c,v 1.5 1995/05/30 08:08:33 rgrimes Exp $
  */
 
 /*
@@ -67,18 +67,21 @@
 #endif
 
 void
-sl_compress_init(comp)
+sl_compress_init(comp, max_state)
 	struct slcompress *comp;
+	int max_state;
 {
 	register u_int i;
 	register struct cstate *tstate = comp->tstate;
 
+	if (max_state == -1)
+		max_state = MAX_STATES - 1;
 	bzero((char *)comp, sizeof(*comp));
-	for (i = MAX_STATES - 1; i > 0; --i) {
+	for (i = max_state; i > 0; --i) {
 		tstate[i].cs_id = i;
 		tstate[i].cs_next = &tstate[i - 1];
 	}
-	tstate[0].cs_next = &tstate[MAX_STATES - 1];
+	tstate[0].cs_next = &tstate[max_state];
 	tstate[0].cs_id = 0;
 	comp->last_cs = &tstate[0];
 	comp->last_recv = 255;
@@ -401,16 +404,68 @@ sl_uncompress_tcp(bufp, len, type, comp)
 	u_int type;
 	struct slcompress *comp;
 {
+	u_char *hdr, *cp;
+	int hlen, vjlen;
+
+	cp = bufp? *bufp: NULL;
+	vjlen = sl_uncompress_tcp_core(cp, len, len, type, comp, &hdr, &hlen);
+	if (vjlen < 0)
+		return (0);	/* error */
+	if (vjlen == 0)
+		return (len);	/* was uncompressed already */
+
+	cp += vjlen;
+	len -= vjlen;
+
+	/*
+	 * At this point, cp points to the first byte of data in the
+	 * packet.  If we're not aligned on a 4-byte boundary, copy the
+	 * data down so the ip & tcp headers will be aligned.  Then back up
+	 * cp by the tcp/ip header length to make room for the reconstructed
+	 * header (we assume the packet we were handed has enough space to
+	 * prepend 128 bytes of header).
+	 */
+	if ((int)cp & 3) {
+		if (len > 0)
+			(void) ovbcopy(cp, (caddr_t)((int)cp &~ 3), len);
+		cp = (u_char *)((int)cp &~ 3);
+	}
+	cp -= hlen;
+	len += hlen;
+	BCOPY(hdr, cp, hlen);
+
+	*bufp = cp;
+	return (len);
+}
+
+/*
+ * Uncompress a packet of total length total_len.  The first buflen
+ * bytes are at buf; this must include the entire (compressed or
+ * uncompressed) TCP/IP header.  This procedure returns the length
+ * of the VJ header, with a pointer to the uncompressed IP header
+ * in *hdrp and its length in *hlenp.
+ */
+int
+sl_uncompress_tcp_core(buf, buflen, total_len, type, comp, hdrp, hlenp)
+	u_char *buf;
+	int buflen, total_len;
+	u_int type;
+	struct slcompress *comp;
+	u_char **hdrp;
+	u_int *hlenp;
+{
 	register u_char *cp;
 	register u_int hlen, changes;
 	register struct tcphdr *th;
 	register struct cstate *cs;
 	register struct ip *ip;
+	register u_short *bp;
+	register u_int vjlen;
 
 	switch (type) {
 
 	case TYPE_UNCOMPRESSED_TCP:
-		ip = (struct ip *) *bufp;
+		ip = (struct ip *) buf;
 		if (ip->ip_p >= MAX_STATES)
 			goto bad;
 		cs = &comp->rstate[comp->last_recv = ip->ip_p];
@@ -420,10 +475,11 @@ sl_uncompress_tcp(bufp, len, type, comp)
 		hlen += ((struct tcphdr *)&((int *)ip)[hlen])->th_off;
 		hlen <<= 2;
 		BCOPY(ip, &cs->cs_ip, hlen);
-		cs->cs_ip.ip_sum = 0;
 		cs->cs_hlen = hlen;
 		INCR(sls_uncompressedin)
-		return (len);
+		*hdrp = (u_char *) &cs->cs_ip;
+		*hlenp = hlen;
+		return (0);
 
 	default:
 		goto bad;
@@ -433,7 +489,7 @@ sl_uncompress_tcp(bufp, len, type, comp)
 	}
 	/* We've got a compressed packet. */
 	INCR(sls_compressedin)
-	cp = *bufp;
+	cp = buf;
 	changes = *cp++;
 	if (changes & NEW_C) {
 		/* Make sure the state index is in range, then grab the state.
@@ -449,7 +505,7 @@ sl_uncompress_tcp(bufp, len, type, comp)
 		 * explicit state index, we have to toss the packet. */
 		if (comp->flags & SLF_TOSS) {
 			INCR(sls_tossed)
-			return (0);
+			return (-1);
 		}
 	}
 	cs = &comp->rstate[comp->last_recv];
@@ -497,42 +553,34 @@ sl_uncompress_tcp(bufp, len, type, comp)
 
 	/*
 	 * At this point, cp points to the first byte of data in the
-	 * packet.  If we're not aligned on a 4-byte boundary, copy the
-	 * data down so the ip & tcp headers will be aligned.  Then back up
-	 * cp by the tcp/ip header length to make room for the reconstructed
-	 * header (we assume the packet we were handed has enough space to
-	 * prepend 128 bytes of header).  Adjust the length to account for
-	 * the new header & fill in the IP total length.
+	 * packet.  Fill in the IP total length and update the IP
+	 * header checksum.
 	 */
-	len -= (cp - *bufp);
-	if (len < 0)
+	vjlen = cp - buf;
+	buflen -= vjlen;
+	if (buflen < 0)
 		/* we must have dropped some characters (crc should detect
 		 * this but the old slip framing won't) */
 		goto bad;
 
-	if ((int)cp & 3) {
-		if (len > 0)
-			(void) ovbcopy(cp, (caddr_t)((int)cp &~ 3), len);
-		cp = (u_char *)((int)cp &~ 3);
-	}
-	cp -= cs->cs_hlen;
-	len += cs->cs_hlen;
-	cs->cs_ip.ip_len = htons(len);
-	BCOPY(&cs->cs_ip, cp, cs->cs_hlen);
-	*bufp = cp;
+	total_len += cs->cs_hlen - vjlen;
+	cs->cs_ip.ip_len = htons(total_len);
 
 	/* recompute the ip header checksum */
-	{
-		register u_short *bp = (u_short *)cp;
+	bp = (u_short *) &cs->cs_ip;
+	cs->cs_ip.ip_sum = 0;
 		for (changes = 0; hlen > 0; hlen -= 2)
 			changes += *bp++;
 		changes = (changes & 0xffff) + (changes >> 16);
 		changes = (changes & 0xffff) + (changes >> 16);
-		((struct ip *)cp)->ip_sum = ~ changes;
-	}
-	return (len);
+	cs->cs_ip.ip_sum = ~ changes;
+
+	*hdrp = (u_char *) &cs->cs_ip;
+	*hlenp = cs->cs_hlen;
+	return vjlen;
+
 bad:
 	comp->flags |= SLF_TOSS;
 	INCR(sls_errorin)
-	return (0);
+	return (-1);
 }
