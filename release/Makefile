@@ -42,6 +42,16 @@ PORTSRELEASETAG?=	${AUXRELEASETAG}
 
 KERNCONF=GENERIC
 
+ISO_DISC1?=${CHROOTDIR}/${_R}/${BUILDNAME}_disc1.iso
+ISO_DISC2?=${CHROOTDIR}/${_R}/${BUILDNAME}_disc2.iso
+ISOTITLE?="${BUILDNAME} ${MACHINE}"
+ISOCOPYRIGHT?="(c)2001 The FreeBSD Project"
+#	for x86, et. al.
+.if ${MACHINE_ARCH} == "i386"
+ISOBOOTABLE=-b floppies/boot.flp -c floppies/boot.catalog
+.endif
+MKISOFLAGS=${ISOBOOTABLE} -d -N -D -R -T -V ${ISOTITLE} -P ${ISOCOPYRIGHT}
+
 # If you want to pass flags to the world build such as -j X, use
 # WORLD_FLAGS.  Similarly, you can specify make flags for kernel
 # builds via KERNEL_FLAGS.
@@ -1016,5 +1026,15 @@ doMFSKERN:
 		${BOOTINODE} ${BOOTLABEL}
 .endif
 	@echo "Created ${RD}/floppies/${FSIMAGE}.flp"
+
+iso:
+	mkisofs ${MKISOFLAGS} -o ${ISO_DISC1} ${CHROOTDIR}${CD_DISC1}
+	mkisofs ${MKISOFLAGS} -o ${ISO_DISC2} ${CHROOTDIR}${CD_DISC2}
+	# post-processing
+.for disc in ${ISO_DISC1} ${ISO_DISC2}
+.if ${MACHINE_ARCH} == "alpha"
+	setcdboot ${disc} /boot/cdboot
+.endif
+.endfor
 
 .include <bsd.prog.mk>
