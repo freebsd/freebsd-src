@@ -45,6 +45,7 @@
 static int dispatch_shutdown(dialogMenuItem *unused);
 static int dispatch_systemExecute(dialogMenuItem *unused);
 static int dispatch_msgConfirm(dialogMenuItem *unused);
+static int dispatch_mediaClose(dialogMenuItem *unused);
 
 static struct _word {
     char *name;
@@ -94,6 +95,7 @@ static struct _word {
     { "installVarDefaults",	installVarDefaults	},
     { "loadConfig",		dispatch_load_file	},
     { "loadFloppyConfig",	dispatch_load_floppy	},
+    { "mediaClose",		dispatch_mediaClose	},
     { "mediaSetCDROM",		mediaSetCDROM		},
     { "mediaSetFloppy",		mediaSetFloppy		},
     { "mediaSetDOS",		mediaSetDOS		},
@@ -203,6 +205,13 @@ dispatch_msgConfirm(dialogMenuItem *unused)
 
     msgDebug("_msgConfirm: No message passed in `command' variable.\n");
     return DITEM_FAILURE;
+}
+
+static int
+dispatch_mediaClose(dialogMenuItem *unused)
+{
+    mediaClose();
+    return DITEM_SUCCESS;
 }
 
 static int
