@@ -22,7 +22,7 @@
 .\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 .\" SUCH DAMAGE.
 .\"
-.\"     $Id: rc.conf.5,v 1.1.2.7 1998/03/09 02:21:31 jkh Exp $
+.\"     $Id: rc.conf.5,v 1.1.2.8 1998/03/09 08:51:20 jkh Exp $
 .\"
 .Dd April 26, 1997
 .Dt RC.CONF 5
@@ -190,7 +190,7 @@ these are the flags to pass to
 run the
 .Xr named 8
 daemon.
-.It Ar named_program
+.It Ar named_prog
 (str) path to
 .Xr named 8
 (default
@@ -348,6 +348,11 @@ from some standard reference.  An option to set this up initially
 (from a list of known servers) is also provided by the
 .Pa /stand/sysinstall
 program when the system is first installed.
+.It Ar ntpdate_prog
+(str) path to
+.Xr ntpdate 8
+(default
+.Pa /usr/sbin/ntpdate ) .
 .It Ar ntpdate_flags
 (str) If
 .Ar ntpdate_enable
@@ -362,6 +367,11 @@ command (typically a hostname).
 then run the
 .Xr xntpd 8
 command at boot time.
+.It Ar xntpd_prog
+(str) path to
+.Xr xntpd 8
+(default
+.Pa /usr/sbin/xntpd ) .
 .It Ar xntpd_flags
 (str) If
 .Ar xntpd_enable
