@@ -11,6 +11,7 @@ INSTALLFLAGS=	-b
 LOADER_DISK_SUPPORT?=	yes
 LOADER_NET_SUPPORT?=	yes
 
+CFLAGS+=	-ffreestanding
 # load address
 RELOC?=		0x6c0000
 CFLAGS+=	-DRELOC=${RELOC}
@@ -48,7 +49,6 @@ CFLAGS+=	-I${.CURDIR}/../../.. -I.
 
 CLEANFILES+=	vers.c vers.o ${BASE}.list ${BASE}.bin ${BASE}.sym ${BASE}.help
 
-CFLAGS+=	-Wall
 LDFLAGS=	-nostdlib -static -Ttext ${RELOC}
 
 # OpenFirmware standalone support library

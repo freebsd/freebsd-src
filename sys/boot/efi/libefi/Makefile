@@ -15,7 +15,7 @@ SRCS+=	delay.c efifs.c efinet.c elf_freebsd.c bootinfo.c pal.s
 SRCS+=	efifpswa.c
 .endif
 
-CFLAGS+=	-fpic
+CFLAGS+=	-ffreestanding -fpic
 CFLAGS+=	-I${.CURDIR}/../include
 CFLAGS+=	-I${.CURDIR}/../include/${MACHINE_ARCH}
 CFLAGS+=	-I${.CURDIR}/../../../../lib/libstand/
