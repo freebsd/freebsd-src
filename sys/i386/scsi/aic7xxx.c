@@ -5,7 +5,7 @@
  *
  * Product specific probe and attach routines can be found in:
  * i386/isa/aic7770.c	27/284X and aic7770 motherboard controllers
- * /pci/aic7870.c	294x and aic7870 motherboard controllers
+ * /pci/aic7870.c	3940, 2940, aic7870 and aic7850 controllers
  *
  * Portions of this driver are based on the FreeBSD 1742 Driver:
  *
@@ -24,7 +24,7 @@
  *
  * commenced: Sun Sep 27 18:14:01 PDT 1992
  *
- *      $Id: aic7xxx.c,v 1.36 1995/08/15 08:54:21 gibbs Exp $
+ *      $Id: aic7xxx.c,v 1.37 1995/08/23 23:03:17 gibbs Exp $
  */
 /*
  * TODO:
@@ -62,6 +62,7 @@ void    ahc_loadseq __P((u_long iobase));
 int32   ahc_scsi_cmd();
 timeout_t ahc_timeout;
 void    ahc_done __P((int unit, struct scb *scbp));
+void    ahc_timeout_done __P((int unit, struct scb *scbp));
 struct  scb *ahc_get_scb __P((int unit, int flags));
 void    ahc_free_scb();
 void	ahc_scb_timeout __P((int unit, struct ahc_data *ahc, struct scb *scb));
@@ -778,10 +779,11 @@ static int ahc_num_syncrates =
  */
 
 int
-ahcprobe(unit, iobase, type)
+ahcprobe(unit, iobase, type, flags)
 	int unit;
 	u_long iobase;
 	ahc_type type;
+	ahc_flag flags;
 {
 
         /*
@@ -812,6 +814,7 @@ ahcprobe(unit, iobase, type)
         ahcdata[unit] = ahc;
         ahc->baseport = iobase;
 	ahc->type = type;
+	ahc->flags = flags;
 
         /*
          * Try to initialize a unit at this location
@@ -844,22 +847,20 @@ void ahc_scsirate(scsirate, period, offset, unit, target )
 
                 if ((ahc_syncrates[i].period - period) >= 0) {
                         *scsirate = (ahc_syncrates[i].sxfr) | (offset & 0x0f);
-		        printf("ahc%d: target %d synchronous at %sMB/s, "
-			       "offset = 0x%x\n", unit, target,
-				ahc_syncrates[i].rate, offset );
-/* XXX Conditional on bootverbose??? */
-#ifdef AHC_DEBUG
-#endif /* AHC_DEBUG */
+			if(bootverbose) {
+				printf("ahc%d: target %d synchronous at %sMB/s,"
+				       " offset = 0x%x\n", unit, target,
+					ahc_syncrates[i].rate, offset );
+			}
                         return;
                 }
         }
 	/* Default to asyncronous transfers.  Also reject this SDTR request. */
 	*scsirate = 0;
-	printf("ahc%d: target %d using asyncronous transfers\n",
-		unit, target );
-#ifdef AHC_DEBUG
-#endif /* AHC_DEBUG */
-
+	if(bootverbose) {
+		printf("ahc%d: target %d using asyncronous transfers\n",
+			unit, target );
+	}
 }
 
 
@@ -898,7 +899,8 @@ ahc_attach(unit)
 	/*
 	 * ask the adapter what subunits are present
 	 */
-	printf("ahc%d: Probing channel A\n", unit);
+	if(bootverbose)
+		printf("ahc%d: Probing channel A\n", unit);
 	scsi_attachdevs(scbus);
 	scbus = NULL;	/* Upper-level SCSI code owns this now */
 	if(ahc->type & AHC_TWIN) {
@@ -913,7 +915,8 @@ ahc_attach(unit)
 		scbus->adapter_link = &ahc->sc_link_b;
 		if(ahc->type & AHC_WIDE)
 			scbus->maxtarg = 15;
-		printf("ahc%d: Probing Channel B\n", unit);
+		if(bootverbose)
+			printf("ahc%d: Probing Channel B\n", unit);
 		scsi_attachdevs(scbus);
 		scbus = NULL;	/* Upper-level SCSI code owns this now */
 	}
@@ -1050,17 +1053,18 @@ ahcintr(unit)
                     case SEND_REJECT: 
 			{
 				u_char rejbyte = inb(HA_REJBYTE + iobase);
-				printf("ahc%d:%c:%d: Warning - message "
-					"rejected by target: 0x%x\n", 
-					unit, channel, target, rejbyte);
 				if(( rejbyte & 0xf0) == 0x20) {
 					/* Tagged Message */
-					printf("ahc%d:%c:%d: Tagged message "
+					printf("\nahc%d:%c:%d: Tagged message "
 						"rejected.  Disabling tagged "
 						"commands for this target.\n", 
 						unit, channel, target);
 					ahc->tagenable &= ~targ_mask;
 				}
+				else
+					printf("ahc%d:%c:%d: Warning - message "
+						"rejected by target: 0x%x\n", 
+						unit, channel, target, rejbyte);
 				break; 
 			}
                     case NO_IDENT: 
@@ -1168,22 +1172,24 @@ ahcintr(unit)
 					switch(bus_width)
 					{
 						case BUS_8_BIT:
-							scratch &= 0x7f;
-							break;
+						    scratch &= 0x7f;
+						    break;
 						case BUS_16_BIT:
+						    if(bootverbose)
 		        				printf("ahc%d: target "
 							       "%d using 16Bit "
 							       "transfers\n",
 								unit, target);
-							scratch |= 0x80;	
-							break;
+						    scratch |= 0x80;	
+						    break;
+						default:
+						    break;
 					}
 				}
 				else {
 					/*
 					 * Send our own WDTR in reply
 					 */
-					printf("Will Send WDTR!!\n");
 					switch(bus_width)
 					{
 						case BUS_8_BIT:
@@ -1193,12 +1199,15 @@ ahcintr(unit)
 							/* Negotiate 16_BITS */
 							bus_width = BUS_16_BIT;
 						case BUS_16_BIT:
+						    if(bootverbose)
 		        				printf("ahc%d: target "
 							       "%d using 16Bit "
 							       "transfers\n",
 								unit, target);
-							scratch |= 0x80;	
-							break;
+						    scratch |= 0x80;	
+						    break;
+						default:
+						    break;
 					}
 					outb(HA_RETURN_1 + iobase,
 						bus_width | SEND_WDTR);
@@ -1745,7 +1754,7 @@ ahc_init(unit)
 	struct  ahc_data *ahc = ahcdata[unit];
 	u_long	iobase = ahc->baseport;
 	u_char	scsi_conf, sblkctl, i, host_id;
-	int     intdef, max_targ = 16, wait, have_seeprom = 0;
+	int     intdef, max_targ = 15, wait, have_seeprom = 0;
 	int	bios_disabled = 0;
 	struct seeprom_config sc;
 	/*
@@ -1758,7 +1767,8 @@ ahc_init(unit)
 		printf("ahc%d: scb %d bytes; ahc_dma %d bytes\n",
 			unit, sizeof(struct scb), sizeof(struct ahc_dma_seg));
 #endif /* AHC_DEBUG */
-	printf("ahc%d: reading board settings\n", unit);
+	if(bootverbose)
+		printf("ahc%d: reading board settings\n", unit);
 
 	/* Save the IRQ type before we do a chip reset */
 
@@ -1809,17 +1819,19 @@ ahc_init(unit)
 	   case AHC_394:
 	   case AHC_294:
 		host_id = 0x07;  /* default to SCSI ID 7 for 7850 */
-		if (ahc->type != AHC_AIC7850) {
+		if (ahc->type & AHC_AIC7870) {
 			unsigned short *scarray = (u_short *)&sc;
 			unsigned short  checksum = 0;
 
-			printf("ahc%d: Reading SEEPROM...", unit);
+			if(bootverbose)
+				printf("ahc%d: Reading SEEPROM...", unit);
 			have_seeprom = enable_seeprom (iobase + SEECTL,
 				SEECS, SEECK, SEEDO, SEEDI, SEERDY, SEEMS);
 			if (have_seeprom) {
 				have_seeprom = read_seeprom (iobase + SEECTL, 
-					(u_short *)&sc, sizeof(sc)/2, SEECS, 
-					SEECK, SEEDO, SEEDI, SEERDY, SEEMS);
+					(u_short *)&sc, ahc->flags & AHC_CHNLB,
+					sizeof(sc)/2, SEECS, SEECK, SEEDO, 
+					SEEDI, SEERDY, SEEMS);
 				release_seeprom (iobase + SEECTL, SEECS, SEECK,
 					SEEDO, SEEDI, SEERDY, SEEMS);
 				if (have_seeprom) {
@@ -1831,7 +1843,8 @@ ahc_init(unit)
 					have_seeprom = 0;
 				    }
 				    else {
-					printf("done.\n");
+					if(bootverbose)
+						printf("done.\n");
 					host_id = (sc.brtime_id & CFSCSIID);
 				    }
 				}
@@ -1843,18 +1856,16 @@ ahc_init(unit)
 			}
 		}
 		ahc->maxscbs = 0x10;
-		if(ahc->type == AHC_AIC7850){
+		if(ahc->type == AHC_394)
+			printf("ahc%d: 3940 ", unit);
+		else if(ahc->type == AHC_294)
+			printf("ahc%d: 2940 ", unit);
+		else if(ahc->type == AHC_AIC7850){
 			printf("ahc%d: aic7850 ", unit);
 			ahc->maxscbs = 0x03;
 		}
-		else if(ahc->type == AHC_AIC7870)
-			printf("ahc%d: aic7870 ", unit);
-		else if(ahc->type == AHC_394){
-			printf("ahc%d: 3940 ", unit);
-			/* XXX Test this! ahc->maxscbs = 0xff; */
-		}
 		else
-			printf("ahc%d: 2940 ", unit);
+			printf("ahc%d: aic7870 ", unit);
 		outb(DSPCISTATUS + iobase, 0xc0 /* DFTHRSH == 100% */);
 		/*
 		 * XXX Use SCSI ID from SEEPROM if we have it; otherwise
@@ -1871,12 +1882,22 @@ ahc_init(unit)
         switch ( (sblkctl = inb(SBLKCTL + iobase) & 0x0a) ) {
             case 0:
 		ahc->our_id = (inb(HA_SCSICONF + iobase) & HSCSIID);
-                printf("Single Channel, SCSI Id=%d, ", ahc->our_id);
+		if(ahc->type == AHC_394)
+			printf("Channel %c, SCSI Id=%d, ", 
+				ahc->flags & AHC_CHNLB ? 'B' : 'A',
+				ahc->our_id);
+		else
+			printf("Single Channel, SCSI Id=%d, ", ahc->our_id);
 		outb(HA_FLAGS + iobase, SINGLE_BUS);
                 break;
             case 2:
 		ahc->our_id = (inb(HA_SCSICONF + 1 + iobase) & HWSCSIID);
-                printf("Wide Channel, SCSI Id=%d, ", ahc->our_id);
+		if(ahc->type == AHC_394)
+			printf("Wide Channel %c, SCSI Id=%d, ", 
+				ahc->flags & AHC_CHNLB ? 'B' : 'A',
+				ahc->our_id);
+		else
+			printf("Wide Channel, SCSI Id=%d, ", ahc->our_id);
 		ahc->type |= AHC_WIDE;
 		outb(HA_FLAGS + iobase, WIDE_BUS);
                 break;
@@ -1930,9 +1951,27 @@ ahc_init(unit)
 		printf("aic7850, ");
 	else
 		printf("aic7870, ");
+	if(ahc->flags & AHC_EXTSCB) {
+		/*
+		 * This adapter has external SCB memory.
+		 * Walk the SCBs to determine how many there are.
+		 */
+		for(i = 0; i < AHC_SCB_MAX; i++) {
+			outb(SCBPTR + iobase, i);
+			outb(SCBARRAY + iobase, 0xaa);
+			if(inb(SCBARRAY + iobase) == 0xaa){
+				outb(SCBARRAY + iobase, 0x55);
+				if(inb(SCBARRAY + iobase) == 0x55) {
+					continue;
+				}
+			}
+			break;
+		}
+		ahc->maxscbs = i;		
+	}
 	printf("%d SCBs\n", ahc->maxscbs);
 
-	if(!(ahc->type & AHC_AIC78X0)) {
+	if(!(ahc->type & AHC_AIC78X0) && bootverbose) {
 		if(ahc->pause & IRQMS)
 			printf("ahc%d: Using Level Sensitive Interrupts\n",
 				unit);
@@ -1942,7 +1981,7 @@ ahc_init(unit)
 	}
 	if(!(ahc->type & AHC_AIC78X0)){
 	/*
-	 * The 294x cards are PCI, so we get their interrupt from the PCI
+	 * The AIC78X0 cards are PCI, so we get their interrupt from the PCI
 	 * BIOS.
 	 */
 
@@ -1986,7 +2025,7 @@ ahc_init(unit)
 
 		/* Reset the bus */
 		outb(SCSISEQ + iobase, SCSIRSTO);
-		DELAY(10000);
+		DELAY(1000);
 		outb(SCSISEQ + iobase, 0);
 
 		/* Select Channel A */
@@ -1999,7 +2038,7 @@ ahc_init(unit)
 
 	/* Reset the bus */
 	outb(SCSISEQ + iobase, SCSIRSTO);
-	DELAY(10000);
+	DELAY(1000);
 	outb(SCSISEQ + iobase, 0);
 
 	/*
@@ -2026,9 +2065,9 @@ ahc_init(unit)
 		ahc->discenable = ~(inw(HA_DISC_DSB + iobase));
 
 	if(!(ahc->type & AHC_WIDE))
-		max_targ = 8;
+		max_targ = 7;
 
-	for(i = 0; i < max_targ; i++){
+	for(i = 0; i <= max_targ; i++){
 		u_char target_settings;
 		if (have_seeprom) {
 			target_settings = (sc.device_flags[i] & CFXFER) << 4;
@@ -2113,9 +2152,11 @@ ahc_init(unit)
 	 * difference when doing many small block transfers.
          */
 
-        printf("ahc%d: Downloading Sequencer Program...", unit);
+	if(bootverbose)
+		printf("ahc%d: Downloading Sequencer Program...", unit);
 	ahc_loadseq(iobase);
-	printf("Done\n");
+	if(bootverbose)
+		printf("Done\n");
 
         outb(SEQCTL + iobase, FASTMODE);
 	if (!(ahc->type & AHC_AIC78X0))
@@ -2668,37 +2709,57 @@ ahc_scb_timeout(unit, ahc, scb)
 void
 ahc_timeout(void *arg1)
 {
-        struct scb *scb = (struct scb *)arg1;
-        int     unit;
-        struct ahc_data *ahc;
-        int     s = splbio();
+	struct scb *scb = (struct scb *)arg1;
+	int     unit;
+	struct ahc_data *ahc;
+	int     s, h;
+	s = splbio();
 
-        unit = scb->xs->sc_link->adapter_unit;
-        ahc = ahcdata[unit];
-        printf("ahc%d: target %d, lun %d (%s%d) timed out\n", unit
-            ,scb->xs->sc_link->target
-            ,scb->xs->sc_link->lun
-            ,scb->xs->sc_link->device->name
-            ,scb->xs->sc_link->dev_unit);
+	unit = scb->xs->sc_link->adapter_unit;
+	ahc = ahcdata[unit];
+	printf("ahc%d: target %d, lun %d (%s%d) timed out\n", unit
+		,scb->xs->sc_link->target
+		,scb->xs->sc_link->lun
+		,scb->xs->sc_link->device->name
+		,scb->xs->sc_link->dev_unit);
+	h = splhigh();
+	if(ahc->in_timeout){
+		scb->next = ahc->timedout_scb;
+		ahc->timedout_scb = scb;
+		splx(h);
+		splx(s);
+		return;
+	}
+	else
+		ahc->in_timeout = 1;
+	splx(h);
+	while(scb) {
 #ifdef SCSIDEBUG
-	show_scsi_cmd(scb->xs);
+		show_scsi_cmd(scb->xs);
 #endif
 #ifdef  AHC_DEBUG
-        if (ahc_debug & AHC_SHOWSCBS)
-                ahc_print_active_scb(ahc);
+	        if (ahc_debug & AHC_SHOWSCBS)
+			ahc_print_active_scb(ahc);
 #endif /*AHC_DEBUG */
 
-        /*
-         * If it's immediate, don't try to abort it
-         */
-        if (scb->flags & SCB_IMMED) {
-                scb->xs->retries = 0;   /* I MEAN IT ! */
-                ahc_done(unit, scb);
-                splx(s);
-                return;
-        }
-        /* abort the operation that has timed out */
-	ahc_scb_timeout( unit, ahc, scb );
+	        /*
+		 * If it's immediate, don't try to abort it
+		 */
+		if (scb->flags & SCB_IMMED) {
+			scb->xs->retries = 0;   /* I MEAN IT ! */
+	                ahc_timeout_done(unit, scb);
+	        }
+		else {
+			/* abort the operation that has timed out */
+			ahc_scb_timeout( unit, ahc, scb );
+		}
+		h = splhigh();
+		scb = ahc->timedout_scb;
+		if(scb)
+			ahc->timedout_scb = scb->next;
+		splx(h);
+	}
+	ahc->in_timeout = 0;
         splx(s);
 }
 
@@ -2743,7 +2804,7 @@ ahc_reset_device(unit, ahc, target, channel, timedout_scb, xs_error)
 				scbp->xs->error |= xs_error;
 				if(scbp->position != timedout_scb)
 					untimeout(ahc_timeout, (caddr_t)scbp);
-				ahc_done (unit, scbp);
+				ahc_timeout_done (unit, scbp);
 				outb(SCBPTR + iobase, scbp->position);
 				outb(SCBARRAY + iobase, SCB_NEEDDMA);
 				i--;
@@ -2800,7 +2861,7 @@ ahc_reset_device(unit, ahc, target, channel, timedout_scb, xs_error)
 			scbp->xs->error |= xs_error;
 			if(scbp->position != timedout_scb)
 				untimeout(ahc_timeout, (caddr_t)scbp);
-			ahc_done (unit, scbp);
+			ahc_timeout_done (unit, scbp);
 			found++;
 		}
 	}			
@@ -2863,7 +2924,7 @@ ahc_abort_wscb (unit, scbp, prev, iobase, timedout_scb, xs_error)
 	scbp->xs->error |= xs_error;
 	if(scbp->position != timedout_scb)
 		untimeout(ahc_timeout, (caddr_t)scbp);
-	ahc_done (unit, scbp);
+	ahc_timeout_done (unit, scbp);
 	return next;
 }
 
@@ -2993,3 +3054,28 @@ ahc_match_scb (scb, target, channel)
 		return ((chan == channel) && (targ == target));
 }
 
+void
+ahc_timeout_done (unit, scbp)
+	int unit;
+	struct scb *scbp;
+{
+	struct ahc_data *ahc = ahcdata[unit];
+	struct scb **prev_scb;
+	struct scb  *cur_scb;
+	int h;
+
+	h = splhigh();
+	prev_scb = &ahc->timedout_scb;
+	cur_scb = ahc->timedout_scb;
+	
+	while(cur_scb) {
+		if(cur_scb == scbp) {
+			*prev_scb = cur_scb->next;
+			break;
+		}
+		prev_scb = &cur_scb->next;
+		cur_scb = cur_scb->next;
+	}
+	splx(h);
+	ahc_done(unit, scbp);
+}
