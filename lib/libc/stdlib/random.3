@@ -82,15 +82,8 @@ are usable.  For example,
 will produce a random binary
 value.
 .Pp
-Unlike
-.Xr srand ,
-.Fn srandom
-does not return the old seed; the reason for this is that the amount of
-state information used is much more than a single word.  (Two other
-routines are provided to deal with restarting/changing random
-number generators).  Like
+Like
 .Xr rand 3 ,
-however,
 .Fn random
 will by default produce a sequence of numbers that can be duplicated
 by calling
@@ -161,11 +154,29 @@ is called with less than 8 bytes of state information, or if
 detects that the state information has been garbled, error
 messages are printed on the standard error output.
 .Sh SEE ALSO
-.Xr rand 3
+.Xr rand 3 ,
+.Xr srand 3
 .Sh HISTORY
 These
 functions appeared in 
 .Bx 4.2 .
 .Sh BUGS
+.Pp
 About 2/3 the speed of
 .Xr rand 3 .
+.Pp
+The historical implementation used to have a very weak seeding; the
+random sequence did not vary much with the seed.  For compatibility
+reasons, this implementation has been made available until the
+next FreeBSD release
+via the
+functions
+.Fn orandom ,
+.Fn osrandom ,
+.Fn oinitstate
+and
+.Fn osetstate
+from the compatibility library,
+.Em libcompat .
+The current implementation employs a better pseudo-random number
+generator for the initial state calculation.
