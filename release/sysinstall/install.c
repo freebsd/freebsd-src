@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: install.c,v 1.134.2.10 1996/11/16 21:10:03 phk Exp $
+ * $Id: install.c,v 1.143 1996/12/01 12:27:36 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -233,6 +233,7 @@ installInitial(void)
 
     chdir("/");
     variable_set2(RUNNING_ON_ROOT, "yes");
+    configResolv();
 
     /* stick a helpful shell over on the 4th VTY */
     systemCreateHoloshell();
@@ -357,7 +358,6 @@ installExpress(dialogMenuItem *self)
 	installConfigure();
 
 	/* Now write out any changes .. */
-	configResolv();
 	configSysconfig("/etc/sysconfig");
     }
     return i | DITEM_RECREATE;
@@ -505,7 +505,6 @@ installNovice(dialogMenuItem *self)
     installConfigure();
 
     /* Now write out any changes .. */
-    configResolv();
     configSysconfig("/etc/sysconfig");
 
     return DITEM_LEAVE_MENU | DITEM_RECREATE;
@@ -523,7 +522,6 @@ installCustomCommit(dialogMenuItem *self)
 	installConfigure();
 
 	/* Now write out any changes .. */
-	configResolv();
 	configSysconfig("/etc/sysconfig");
 	return i;
     }
