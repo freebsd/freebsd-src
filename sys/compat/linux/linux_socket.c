@@ -452,8 +452,9 @@ linux_sendto_hdrincl(struct thread *td, struct linux_sendto_args *linux_args)
 	struct iovec aiov[1];
 	int error;
 
-	/* Check the packet isn't too small before we mess with it */
-	if (linux_args->len < linux_ip_copysize)
+	/* Check that the packet isn't too big or too small. */
+	if (linux_args->len < linux_ip_copysize ||
+	    linux_args->len > IP_MAXPACKET)
 		return (EINVAL);
 
 	packet = (struct ip *)malloc(linux_args->len, M_TEMP, M_WAITOK);
