@@ -24,7 +24,7 @@
 ** Ported to FreeBSD and hacked all to pieces
 ** by Bill Paul <wpaul@ctr.columbia.edu>
 **
-**	$Id: server.c,v 1.12 1995/09/24 17:21:52 wpaul Exp $
+**	$Id: server.c,v 1.6.4.2 1995/10/05 20:02:57 davidg Exp $
 **
 */
 
@@ -845,6 +845,8 @@ ypresp_xfr *ypproc_xfr_2_svc(ypreq_xfr *xfr,
     static ypresp_xfr result;
     struct sockaddr_in *rqhost;
     char ypxfr_command[MAXPATHLEN];
+    ypresp_master *mres;
+    ypreq_nokey mreq;
 
     rqhost = svc_getcaller(rqstp->rq_xprt);
 
@@ -882,6 +884,20 @@ ypresp_xfr *ypproc_xfr_2_svc(ypreq_xfr *xfr,
 	return &result;
     }
 
+    mreq.domain = xfr->map_parms.domain;
+    mreq.map = xfr->map_parms.map;
+
+    mres = ypproc_master_2_svc(&mreq, rqstp);
+
+    if (mres->stat != YP_TRUE) {
+	Perror("couldn't find master for map %s@%s", xfr->map_parms.map,
+						xfr->map_parms.domain);
+	Perror("host at %s (%s) may be pulling my leg", xfr->map_parms.peer,
+						inet_ntoa(rqhost->sin_addr));
+	result.xfrstat = YPXFR_REFUSED;
+	return &result;
+    }
+
     switch(fork())
     {
 	case 0:
@@ -893,7 +909,7 @@ ypresp_xfr *ypproc_xfr_2_svc(ypreq_xfr *xfr,
 	    sprintf (g, "%u", xfr->prog);
 	    sprintf (p, "%u", xfr->port);
 	    execl(ypxfr_command, "ypxfr", "-d", xfr->map_parms.domain, "-h",
-		xfr->map_parms.peer, "-f", "-C", t, g,
+		mres->peer, "-f", "-C", t, g,
 		inet_ntoa(rqhost->sin_addr), p, xfr->map_parms.map, NULL);
 	    Perror("ypxfr execl(): %s",strerror(errno));
 	    exit(0);
