@@ -320,7 +320,6 @@ char	*prcorequests[] = {
 void	pfctlinput __P((int, struct sockaddr *));
 struct protosw *pffindproto __P((int family, int protocol, int type));
 struct protosw *pffindtype __P((int family, int type));
-extern struct protosw inetsw[];
 #endif
 
 #endif
