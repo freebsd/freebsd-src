@@ -30,6 +30,12 @@
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
+#ifndef lint
+static const char rcsid[] =
+	"$Id: qcamcontrol.c,v 1.6 1997/10/10 06:28:59 charnier Exp $";
+#endif /* not lint */
+
+#include <err.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <sys/fcntl.h>
@@ -55,6 +61,7 @@ void print_data(struct qcam *data)
 			data->qc_contrast);
 }
 
+static void
 usage(void)
 {
 	fprintf(stderr, "usage: qcamcontrol [-p port] [-x xsize] [-y ysize] "
@@ -64,6 +71,7 @@ usage(void)
 	exit(2);
 }
 
+int
 main(int argc, char **argv)
 {
 	struct qcam info;
@@ -91,68 +99,50 @@ main(int argc, char **argv)
 
 	    case 'x':
 		x_size = atoi(optarg);
-		if (x_size > QC_MAX_XSIZE) {
-		    fprintf(stderr, "x size too large (max %d)\n",
-			    QC_MAX_XSIZE);
-		    exit(2);
-		}
+		if (x_size > QC_MAX_XSIZE)
+		    errx(2, "x size too large (max %d)", QC_MAX_XSIZE);
 		break;
 
 	    case 'y':
 		y_size = atoi(optarg);
-		if (y_size > QC_MAX_YSIZE) {
-		    fprintf(stderr, "x size too large (max %d)\n",
-			    QC_MAX_YSIZE);
-		    exit(2);
-		}
+		if (y_size > QC_MAX_YSIZE)
+		    errx(2, "x size too large (max %d)", QC_MAX_YSIZE);
 		break;
 
 	    case 'z':
 		zoom = atoi(optarg);
-		if (zoom > QC_ZOOM_200) {
-		    fprintf(stderr, "zoom too large (max %d)\n", QC_ZOOM_200);
-		    exit(2);
-		}
+		if (zoom > QC_ZOOM_200)
+		    errx(2, "zoom too large (max %d)", QC_ZOOM_200);
 		break;
 
 	    case 'd':
 		depth = atoi(optarg);
-		if (depth != 4 && depth != 6) {
-		    fprintf(stderr, "invalid depth (4 or 6)\n");
-		    exit(2);
-		}
+		if (depth != 4 && depth != 6)
+		    errx(2, "invalid depth (4 or 6)");
 		break;
 
 	    case 'b':
 		brightness = atoi(optarg);
-		if (brightness > 255) {
-		    fprintf(stderr, "bad brightness (max 255)\n");
-		    exit(2);
-		}
+		if (brightness > 255)
+		    errx(2, "bad brightness (max 255)");
 		break;
 
 	    case 'w':
 		whitebalance = atoi(optarg);
-		if (whitebalance > 255) {
-		    fprintf(stderr, "bad white balance (max 255)\n");
-		    exit(2);
-		}
+		if (whitebalance > 255)
+		    errx(2, "bad white balance (max 255)");
 		break;
 
 	    case 'c':
 		contrast = atoi(optarg);
-		if (contrast > 255) {
-		    fprintf(stderr, "bad contrast (max 255)\n");
-		    exit(2);
-		}
+		if (contrast > 255)
+		    errx(2, "bad contrast (max 255)");
 		break;
 
 	    case 'e':
 		exposure = atoi(optarg);
-		if (exposure < 100) {
-		    fprintf(stderr, "bad exposure (min 100)\n");
-		    exit(2);
-		}
+		if (exposure < 100)
+		    errx(2, "bad exposure (min 100)");
 		break;
 
 	    default:
@@ -163,17 +153,13 @@ main(int argc, char **argv)
 	argv += optind;
 
 	/* open device */
-	if ((fd = open(port, O_RDONLY)) < 0) {
-		perror("open");
-		exit(1);
-	}
+	if ((fd = open(port, O_RDONLY)) < 0)
+		err(1, "open");
 
 
 
-	if (ioctl(fd, QC_GET, &info) < 0) {	/* read in default info */
-		perror("ioctl(QC_GET)");
-		exit(1);
-	}
+	if (ioctl(fd, QC_GET, &info) < 0)	/* read in default info */
+		err(1, "ioctl(QC_GET)");
 
 	if (x_size > -1)
 		info.qc_xsize = x_size;
@@ -198,18 +184,14 @@ main(int argc, char **argv)
 	 */
 	info.qc_version = QC_IOCTL_VERSION;
 
-	if (ioctl(fd, QC_SET, &info) < 0) {
-		perror("ioctl(QC_SET)");
-		exit(1);
-	}
+	if (ioctl(fd, QC_SET, &info) < 0)
+		err(1, "ioctl(QC_SET)");
 
 	/*
 	 * Tell us what the kernel thinks we're asking for
 	 */
-	if (ioctl(fd, QC_GET, &info) < 0) {
-		perror("ioctl(QC_SET)");
-		exit(1);
-	}
+	if (ioctl(fd, QC_GET, &info) < 0)
+		err(1, "ioctl(QC_SET)");
 
 	print_data(&info);
 
@@ -220,10 +202,8 @@ main(int argc, char **argv)
 	len = info.qc_xsize * info.qc_ysize;
 	while (len) {
 		bytes = read(fd, buffer, len);
-		if (bytes < 0) {
-			perror("read");
-			exit(1);
-		}
+		if (bytes < 0)
+			err(1, "read");
 		len -= bytes;
 
 		if (bytes == 0)
@@ -237,8 +217,7 @@ main(int argc, char **argv)
 		info.qc_xsize, info.qc_ysize, (1<<info.qc_bpp) - 1);
 	fflush(stdout);
 
-	if (write(1, buffer, info.qc_xsize * info.qc_ysize) < 0) {
-		perror("write");
-		exit(1);
-	}
+	if (write(1, buffer, info.qc_xsize * info.qc_ysize) < 0)
+		err(1, "write");
+	return(0);
 }

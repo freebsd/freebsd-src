@@ -6,11 +6,13 @@
  * Paul Traina, Feburary 1996
  */
 
+#include <err.h>
+#include <nlist.h>
+#include <paths.h>
 #include <stdio.h>
 #include <stdlib.h>
+#include <unistd.h>
 #include <sys/fcntl.h>
-#include <paths.h>
-#include <nlist.h>
 
 #include <machine/qcam.h>
 
@@ -32,21 +34,15 @@ getaddrs(void)
 	int             i;
 
 	if (kmem < 0) {
-		if ((kmem = open(_PATH_KMEM, 0, 0)) < 0) {
-			perror("open kmem");
-			exit(1);
-		}
+		if ((kmem = open(_PATH_KMEM, 0, 0)) < 0)
+			err(1, "open kmem");
 		(void) fcntl(kmem, F_SETFD, 1);
 
 		for (i = 0; i < MAX_SYMBOLS; i++) {
-			if (nlist("/kernel", &names[i]) < 0) {
-				perror("nlist");
-				exit(1);
-			}
-			if (names[i].n_value == 0) {
-				fprintf(stderr, "couldn't find names[%d]\n", i);
-				exit(1);
-			}
+			if (nlist("/kernel", &names[i]) < 0)
+				err(1, "nlist");
+			if (names[i].n_value == 0)
+				errx(1, "couldn't find names[%d]", i);
 		}
 	}
 }
@@ -54,22 +50,14 @@ getaddrs(void)
 void
 getdata(void)
 {
-	if (lseek(kmem, (off_t) names[0].n_value, SEEK_SET) < 0) {
-		perror("lseek high");
-		exit(1);
-	}
-	if (read(kmem, (u_short *) high_times, sizeof(high_times)) < 0) {
-		perror("read high");
-		exit(1);
-	}
-	if (lseek(kmem, (off_t) names[1].n_value, SEEK_SET) < 0) {
-		perror("lseek low");
-		exit(1);
-	}
-	if (read(kmem, (u_short *) low_times, sizeof(low_times)) < 0) {
-		perror("read low");
-		exit(1);
-	}
+	if (lseek(kmem, (off_t) names[0].n_value, SEEK_SET) < 0)
+		err(1, "lseek high");
+	if (read(kmem, (u_short *) high_times, sizeof(high_times)) < 0)
+		err(1, "read high");
+	if (lseek(kmem, (off_t) names[1].n_value, SEEK_SET) < 0)
+		err(1, "lseek low");
+	if (read(kmem, (u_short *) low_times, sizeof(low_times)) < 0)
+		err(1, "read low");
 }
 
 
@@ -99,13 +87,15 @@ printdata(u_short * p, int length)
 		} else
 			i += 16;
 	}
+	return(0);
 }
 
-void
+int
 main(void)
 {
 	getaddrs();
 	getdata();
 	printdata(high_times, FBUFSIZE);
 	printdata(low_times, FBUFSIZE);
+	return(0);
 }
