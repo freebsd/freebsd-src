@@ -129,6 +129,12 @@ pcm_setflags(device_t dev, u_int32_t val)
 	d->flags = val;
 }
 
+void
+pcm_setswap(device_t dev, pcm_swap_t *swap)
+{
+    	snddev_info *d = device_get_softc(dev);
+	d->swap = swap;
+}
 /* This is the generic init routine */
 int
 pcm_register(device_t dev, void *devinfo, int numplay, int numrec)
@@ -172,6 +178,7 @@ pcm_register(device_t dev, void *devinfo, int numplay, int numrec)
 	fkchan_setup(&d->fakechan);
 	chn_init(&d->fakechan, NULL, 0);
 	d->magic = MAGIC(unit); /* debugging... */
+	d->swap = NULL;
 
     	return 0;
 no:

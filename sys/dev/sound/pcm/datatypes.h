@@ -129,6 +129,7 @@ struct _pcm_channel {
 	void *devinfo;
 };
 
+typedef void (pcm_swap_t)(void *data, int dir);
 #define SND_STATUSLEN	64
 /* descriptor of audio device */
 struct _snddev_info {
@@ -138,6 +139,7 @@ struct _snddev_info {
 	u_long magic;
 	unsigned flags;
 	void *devinfo;
+	pcm_swap_t *swap;
 	char status[SND_STATUSLEN];
 };
 
