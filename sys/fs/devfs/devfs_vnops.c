@@ -42,6 +42,7 @@
  */
 
 #include <opt_devfs.h>
+#include <opt_mac.h>
 #ifndef NODEVFS
 
 #include <sys/param.h>
@@ -50,6 +51,7 @@
 #include <sys/dirent.h>
 #include <sys/kernel.h>
 #include <sys/lock.h>
+#include <sys/mac.h>
 #include <sys/malloc.h>
 #include <sys/mount.h>
 #include <sys/namei.h>
@@ -71,9 +73,15 @@ static int	devfs_read(struct vop_read_args *ap);
 static int	devfs_readdir(struct vop_readdir_args *ap);
 static int	devfs_readlink(struct vop_readlink_args *ap);
 static int	devfs_reclaim(struct vop_reclaim_args *ap);
+#ifdef MAC
+static int	devfs_refreshlabel(struct vop_refreshlabel_args *ap);
+#endif
 static int	devfs_remove(struct vop_remove_args *ap);
 static int	devfs_revoke(struct vop_revoke_args *ap);
 static int	devfs_setattr(struct vop_setattr_args *ap);
+#ifdef MAC
+static int	devfs_setlabel(struct vop_setlabel_args *ap);
+#endif
 static int	devfs_symlink(struct vop_symlink_args *ap);
 
 /*
@@ -156,6 +164,9 @@ loop:
 	vp->v_data = de;
 	de->de_vnode = vp;
 	vn_lock(vp, LK_EXCLUSIVE | LK_RETRY, td);
+#ifdef MAC
+	mac_create_devfs_vnode(de, vp);
+#endif
 	*vpp = vp;
 	return (0);
 }
@@ -646,6 +657,20 @@ devfs_reclaim(ap)
 	return (0);
 }
 
+#ifdef MAC
+static int
+devfs_refreshlabel(ap)
+	struct vop_refreshlabel_args /* {
+		struct vnode *a_vp;
+		struct ucred *a_cred;
+	} */ *ap;
+{
+
+	/* Labels are always in sync. */
+	return (0);
+}
+#endif
+
 static int
 devfs_remove(ap)
 	struct vop_remove_args /* {
@@ -666,6 +691,9 @@ devfs_remove(ap)
 		TAILQ_REMOVE(&dd->de_dlist, de, de_list);
 		if (de->de_vnode)
 			de->de_vnode->v_data = NULL;
+#ifdef MAC
+		mac_destroy_devfsdirent(de);
+#endif
 		FREE(de, M_DEVFS);
 	} else {
 		de->de_flags |= DE_WHITEOUT;
@@ -786,6 +814,29 @@ devfs_setattr(ap)
 	return (0);
 }
 
+#ifdef MAC
+static int
+devfs_setlabel(ap)
+	struct vop_setlabel_args /* {
+		struct vnode *a_vp;
+		struct mac *a_label;
+		struct ucred *a_cred;
+		struct thread *a_td;
+	} */ *ap;
+{
+	struct vnode *vp;
+	struct devfs_dirent *de;
+
+	vp = ap->a_vp;
+	de = vp->v_data;
+
+	mac_relabel_vnode(ap->a_cred, vp, ap->a_label);
+	mac_update_devfsdirent(de, vp);
+
+	return (0);
+}
+#endif
+
 static int
 devfs_symlink(ap)
 	struct vop_symlink_args /* {
@@ -818,6 +869,10 @@ devfs_symlink(ap)
 	lockmgr(&dmp->dm_lock, LK_EXCLUSIVE, 0, curthread);
 	TAILQ_INSERT_TAIL(&dd->de_dlist, de, de_list);
 	devfs_allocv(de, ap->a_dvp->v_mount, ap->a_vpp, 0);
+#ifdef MAC
+	mac_create_vnode(ap->a_cnp->cn_cred, ap->a_dvp, *ap->a_vpp);
+	mac_update_devfsdirent(de, *ap->a_vpp);
+#endif /* MAC */
 	lockmgr(&dmp->dm_lock, LK_RELEASE, 0, curthread);
 	return (0);
 }
@@ -839,8 +894,14 @@ static struct vnodeopv_entry_desc devfs_vnodeop_entries[] = {
 	{ &vop_readlink_desc,		(vop_t *) devfs_readlink },
 	{ &vop_reclaim_desc,		(vop_t *) devfs_reclaim },
 	{ &vop_remove_desc,		(vop_t *) devfs_remove },
+#ifdef MAC
+	{ &vop_refreshlabel_desc,	(vop_t *) devfs_refreshlabel },
+#endif
 	{ &vop_revoke_desc,		(vop_t *) devfs_revoke },
 	{ &vop_setattr_desc,		(vop_t *) devfs_setattr },
+#ifdef MAC
+	{ &vop_setlabel_desc,		(vop_t *) devfs_setlabel },
+#endif
 	{ &vop_symlink_desc,		(vop_t *) devfs_symlink },
 	{ &vop_unlock_desc,		(vop_t *) vop_stdunlock },
 	{ NULL, NULL }
@@ -859,9 +920,15 @@ static struct vnodeopv_entry_desc devfs_specop_entries[] = {
 	{ &vop_lock_desc,		(vop_t *) vop_stdlock },
 	{ &vop_print_desc,		(vop_t *) devfs_print },
 	{ &vop_reclaim_desc,		(vop_t *) devfs_reclaim },
+#ifdef MAC
+	{ &vop_refreshlabel_desc,	(vop_t *) devfs_refreshlabel },
+#endif
 	{ &vop_remove_desc,		(vop_t *) devfs_remove },
 	{ &vop_revoke_desc,		(vop_t *) devfs_revoke },
 	{ &vop_setattr_desc,		(vop_t *) devfs_setattr },
+#ifdef MAC
+	{ &vop_setlabel_desc,		(vop_t *) devfs_setlabel },
+#endif
 	{ &vop_unlock_desc,		(vop_t *) vop_stdunlock },
 	{ NULL, NULL }
 };
