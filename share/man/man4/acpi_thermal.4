@@ -25,64 +25,73 @@
 .\"
 .\" $FreeBSD$
 .\"
-
-.Dd July 2, 2001
+.Dd December 27, 2003
 .Dt ACPI_THERMAL 4
 .Os
 .Sh NAME
 .Nm acpi_thermal
-.Nd ACPI Thermal Management Support Subsystem
+.Nd ACPI Thermal Management support subsystem
 .Sh SYNOPSIS
 .Cd "device acpi"
-.Pp
 .Sh DESCRIPTION
 The
 .Nm
-driver provides ACPI thermal handling feature as a part of
-ACPI module. This module has sysctl interface and devd notification
-interface. Sysctls export ACPI objects as is.
+driver provides ACPI thermal handling feature as part of the
+ACPI module.
+This module has the
+.Xr sysctl 8
+interface and the
+.Xr devd 8
+notification interface.
+Sysctls export ACPI objects as is.
 The
 .Nm
-driver also activate active cooling system in accordance with appropriate
-acpi object.
+driver also activates active cooling system in accordance with appropriate
+ACPI object.
 .Sh SYSCTLS
 .Bl -tag -width indent
 .It Va hw.acpi.thermal.tz%d.active
 Current active system running state.
 .It Va hw.acpi.thermal.tz%d.thermal_flags
-Current thermal zone status. This is bit-masked values.
+Current thermal zone status.
+These are bit-masked values.
 .It Va hw.acpi.thermal.tz%d.temperature
-exports _TMP object that means current temperature.
+Current temperature.
 .It Va hw.acpi.thermal.tz%d._PSV
-exports _PSV object that means the temperature to start 
-passive cooling by throtting down CPU etc..
+Temperature to start passive cooling by throttling down CPU, etc.
 .It Va hw.acpi.thermal.tz%d._HOT
-exports _HOT object that means the temperature to 
-start critical suspend to disk 
+Temperature to start critical suspend to disk.
 .It Va hw.acpi.thermal.tz%d._CRT
-exports _CRT object that means the temperature to 
-start critical shutdown.
+Temperature to start critical shutdown.
 .It Va hw.acpi.thermal.tz%d._ACx
-exports _ACx objects that objects that means active 
-cooling start values. The earlier value means the strengest
+Active cooling start values.
+The earlier value means the strengest
 active cooling temperature.
 .El
-All temperature is represents as tenth of Kelvin. For example
-300.0K is represented as by the integer 3000. To convert to Centigrade,
-the formula is (x - 2731.5) / 10.
-.Sh NOTIFYS
-Notifies are passed as a string beginning with 
-"!system=ACPI subsystem=Thermal" the thermal zone instance
-is distingushed by ACPI object path in "type=" argument. The notify
-value is passed in "notify=" argument.
-
-.Bl -tag -width indent
-.It Va 0x80
-	Temperature change.
-.It Va 0x81
-	Trip point change.  
-.It Va 0x82
-	Device Lists change.  
+.Pp
+All temperatures are represented in tenths of Kelvins.
+For example, 300.0K is represented by the integer 3000.
+To convert to Centigrades,
+the formula is
+.Li "(x - 2731.5) / 10" .
+.Sh NOTIFIES
+Notifies are passed as strings beginning with
+.Qq Li "!system=ACPI subsystem=Thermal" ,
+the thermal zone instance is distingushed by
+the ACPI object path in the
+.Qq Li type=
+argument.
+The notify value is passed in the
+.Qq Li notify=
+argument.
+.Pp
+.Bl -tag -width indent -compact
+.It Li 0x80
+Temperature change.
+.It Li 0x81
+Trip point change.
+.It Li 0x82
+Device Lists change.
 .El
 .Sh SEE ALSO
 .Xr acpi 4
@@ -97,8 +106,8 @@ value is passed in "notify=" argument.
 .%O http://acpi.info/spec.htm
 .Re
 .Sh AUTHORS
+.An -nosplit
 .An Michael Smith
 .Pp
 This manual page was written by
-.Pp
-.An Takanori Watanabe
+.An Takanori Watanabe .
