@@ -20,7 +20,7 @@
 # along with GNU GNATS; see the file COPYING.  If not, write to
 # the Free Software Foundation, 675 Mass Ave, Cambridge, MA 02139, USA.
 #
-# $Id: send-pr.sh,v 1.8 1997/02/22 15:48:14 peter Exp $
+# $Id: send-pr.sh,v 1.9 1997/06/07 23:46:48 paul Exp $
 
 # The version of this send-pr.
 VERSION=3.2
@@ -387,8 +387,7 @@ fi
 # This is a "sed-subroutine" with one keyword parameter 
 # (with workaround for Sun sed bug)
 #
-SED_CMD='
-/$PATTERN/{
+SED_CMD='{
 s|||
 s|<.*>||
 s|^[ 	]*||
@@ -404,7 +403,7 @@ while [ -z "$REQUEST_ID" ]; do
   # 1) Confidential
   #
   PATTERN=">Confidential:"
-  CONFIDENTIAL=`eval sed -n -e "\"$SED_CMD\"" $TEMP`
+  CONFIDENTIAL=`eval sed -n -e "\"/$PATTERN/$SED_CMD\"" $TEMP`
   case "$CONFIDENTIAL" in
     ""|yes|no) CNT=`expr $CNT + 1` ;;
     *) echo "$COMMAND: \`$CONFIDENTIAL' is not a valid value for \`Confidential'." ;;
@@ -413,7 +412,7 @@ while [ -z "$REQUEST_ID" ]; do
   # 2) Severity
   #
   PATTERN=">Severity:"
-  SEVERITY=`eval sed -n -e "\"$SED_CMD\"" $TEMP`
+  SEVERITY=`eval sed -n -e "\"/$PATTERN/$SED_CMD\"" $TEMP`
   case "$SEVERITY" in
     ""|non-critical|serious|critical) CNT=`expr $CNT + 1` ;;
     *)  echo "$COMMAND: \`$SEVERITY' is not a valid value for \`Severity'."
@@ -422,7 +421,7 @@ while [ -z "$REQUEST_ID" ]; do
   # 3) Priority
   #
   PATTERN=">Priority:"
-  PRIORITY=`eval sed -n -e "\"$SED_CMD\"" $TEMP`
+  PRIORITY=`eval sed -n -e "\"/$PATTERN/$SED_CMD\"" $TEMP`
   case "$PRIORITY" in
     ""|low|medium|high) CNT=`expr $CNT + 1` ;;
     *)  echo "$COMMAND: \`$PRIORITY' is not a valid value for \`Priority'."
@@ -431,7 +430,7 @@ while [ -z "$REQUEST_ID" ]; do
   # 4) Category
   #
   PATTERN=">Category:"
-  CATEGORY=`eval sed -n -e "\"$SED_CMD\"" $TEMP`
+  CATEGORY=`eval sed -n -e "\"$PATTERN/$SED_CMD\"" $TEMP`
   FOUND=
   for C in $CATEGORIES
   do
@@ -450,7 +449,7 @@ while [ -z "$REQUEST_ID" ]; do
   # 5) Class
   #
   PATTERN=">Class:"
-  CLASS=`eval sed -n -e "\"$SED_CMD\"" $TEMP`
+  CLASS=`eval sed -n -e "\"/$PATTERN/$SED_CMD\"" $TEMP`
   case "$CLASS" in
     ""|sw-bug|doc-bug|change-request) CNT=`expr $CNT + 1` ;;
     *)  echo "$COMMAND: \`$CLASS' is not a valid value for \`Class'."
