@@ -185,6 +185,8 @@ hme_pci_attach(device_t dev)
 
 	sc->sc_pci = 1;
 	sc->sc_dev = dev;
+	mtx_init(&sc->sc_lock, device_get_nameunit(dev), MTX_NETWORK_LOCK,
+	    MTX_DEF);
 
 	/*
 	 * Map five register banks:
@@ -201,7 +203,8 @@ hme_pci_attach(device_t dev)
 	    &hsc->hsc_srid, RF_ACTIVE);
 	if (hsc->hsc_sres == NULL) {
 		device_printf(dev, "could not map device registers\n");
-		return (ENXIO);
+		error = ENXIO;
+		goto fail_mtx;
 	}
 	hsc->hsc_irid = 0;
 	hsc->hsc_ires = bus_alloc_resource_any(dev, SYS_RES_IRQ, 
@@ -347,8 +350,8 @@ fail_children:
 		goto fail_ires;
 	}
 
-	if ((error = bus_setup_intr(dev, hsc->hsc_ires, INTR_TYPE_NET, hme_intr,
-	     sc, &hsc->hsc_ih)) != 0) {
+	if ((error = bus_setup_intr(dev, hsc->hsc_ires, INTR_TYPE_NET |
+	    INTR_MPSAFE, hme_intr, sc, &hsc->hsc_ih)) != 0) {
 		device_printf(dev, "couldn't establish interrupt\n");
 		hme_detach(sc);
 		goto fail_ires;
@@ -359,6 +362,8 @@ fail_ires:
 	bus_release_resource(dev, SYS_RES_IRQ, hsc->hsc_irid, hsc->hsc_ires);
 fail_sres:
 	bus_release_resource(dev, SYS_RES_MEMORY, hsc->hsc_srid, hsc->hsc_sres);
+fail_mtx:
+	mtx_destroy(&sc->sc_lock);
 	return (error);
 }
 
@@ -368,9 +373,8 @@ hme_pci_detach(device_t dev)
 	struct hme_pci_softc *hsc = device_get_softc(dev);
 	struct hme_softc *sc = &hsc->hsc_hme;
 
-	hme_detach(sc);
-
 	bus_teardown_intr(dev, hsc->hsc_ires, hsc->hsc_ih);
+	hme_detach(sc);
 	bus_release_resource(dev, SYS_RES_IRQ, hsc->hsc_irid, hsc->hsc_ires);
 	bus_release_resource(dev, SYS_RES_MEMORY, hsc->hsc_srid, hsc->hsc_sres);
 	return (0);
