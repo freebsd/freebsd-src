@@ -66,7 +66,7 @@
  * any improvements or extensions that they make and grant Carnegie the
  * rights to redistribute these changes.
  *
- * $Id: vm_fault.c,v 1.84 1998/07/11 12:07:52 bde Exp $
+ * $Id: vm_fault.c,v 1.85 1998/07/22 09:38:04 dg Exp $
  */
 
 /*
@@ -241,7 +241,7 @@ RetryFault:;
 	 * they will stay around as well.
 	 */
 	vm_object_reference(fs.first_object);
-	fs.first_object->paging_in_progress++;
+	vm_object_pip_add(fs.first_object, 1);
 
 	fs.vp = vnode_pager_lock(fs.first_object);
 	if ((fault_type & VM_PROT_WRITE) &&
@@ -525,7 +525,7 @@ readrest:
 				vm_object_pip_wakeup(fs.object);
 			}
 			fs.object = next_object;
-			fs.object->paging_in_progress++;
+			vm_object_pip_add(fs.object, 1);
 		}
 	}
 
