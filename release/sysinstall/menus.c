@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: menus.c,v 1.55 1996/04/28 00:37:34 jkh Exp $
+ * $Id: menus.c,v 1.56 1996/04/28 03:27:15 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -535,7 +535,7 @@ media.",
 
 /* The distributions menu */
 DMenu MenuDistributions = {
-    DMENU_CHECKLIST_TYPE,
+    DMENU_CHECKLIST_TYPE | DMENU_SELECTION_RETURNS,
     "Choose Distributions",
     "As a convenience, we provide several \"canned\" distribution sets.\n\
 These select what we consider to be the most reasonable defaults for the\n\
