@@ -172,6 +172,8 @@ static int do_switch_scr(sc_softc_t *sc, int s);
 static int vt_proc_alive(scr_stat *scp);
 static int signal_vt_rel(scr_stat *scp);
 static int signal_vt_acq(scr_stat *scp);
+static int finish_vt_rel(scr_stat *scp, int release, int *s);
+static int finish_vt_acq(scr_stat *scp);
 static void exchange_scr(sc_softc_t *sc);
 static void update_cursor_image(scr_stat *scp);
 static int save_kbd_state(scr_stat *scp);
@@ -511,18 +513,10 @@ scclose(dev_t dev, int flag, int mode, struct proc *p)
 	s = spltty();
 	if ((scp == scp->sc->cur_scp) && (scp->sc->unit == sc_console_unit))
 	    cons_unavail = FALSE;
-	if (scp->status & SWITCH_WAIT_REL) {
-	    /* assert(scp == scp->sc->cur_scp) */
+	if (finish_vt_rel(scp, TRUE, &s) == 0)	/* force release */
 	    DPRINTF(5, ("reset WAIT_REL, "));
-	    scp->status &= ~SWITCH_WAIT_REL;
-	    do_switch_scr(scp->sc, s);
-	}
-	if (scp->status & SWITCH_WAIT_ACQ) {
-	    /* assert(scp == scp->sc->cur_scp) */
+	if (finish_vt_acq(scp) == 0)		/* force acknowledge */
 	    DPRINTF(5, ("reset WAIT_ACQ, "));
-	    scp->status &= ~SWITCH_WAIT_ACQ;
-	    scp->sc->switch_in_progress = 0;
-	}
 #if not_yet_done
 	if (scp == &main_console) {
 	    scp->pid = 0;
@@ -875,18 +869,10 @@ scioctl(dev_t dev, u_long cmd, caddr_t data, int flag, struct proc *p)
 	    if ((scp == sc->cur_scp) && (sc->unit == sc_console_unit))
 		cons_unavail = FALSE;
 	    /* were we in the middle of the vty switching process? */
-	    if (scp->status & SWITCH_WAIT_REL) {
-		/* assert(scp == scp->sc->cur_scp) */
+	    if (finish_vt_rel(scp, TRUE, &s) == 0)
 		DPRINTF(5, ("reset WAIT_REL, "));
-		scp->status &= ~SWITCH_WAIT_REL;
-		s = do_switch_scr(sc, s);
-	    }
-	    if (scp->status & SWITCH_WAIT_ACQ) {
-		/* assert(scp == scp->sc->cur_scp) */
+	    if (finish_vt_acq(scp) == 0)
 		DPRINTF(5, ("reset WAIT_ACQ, "));
-		scp->status &= ~SWITCH_WAIT_ACQ;
-		sc->switch_in_progress = 0;
-	    }
 	} else {
 	    if (!ISSIGVALID(mode->relsig) || !ISSIGVALID(mode->acqsig)
 		|| !ISSIGVALID(mode->frsig)) {
@@ -928,32 +914,17 @@ scioctl(dev_t dev, u_long cmd, caddr_t data, int flag, struct proc *p)
 	error = EINVAL;
 	switch(*(int *)data) {
 	case VT_FALSE:  	/* user refuses to release screen, abort */
-	    if ((scp == sc->old_scp) && (scp->status & SWITCH_WAIT_REL)) {
-		sc->old_scp->status &= ~SWITCH_WAIT_REL;
-		sc->switch_in_progress = 0;
+	    if ((error = finish_vt_rel(scp, FALSE, &s)) == 0)
 		DPRINTF(5, ("sc%d: VT_FALSE\n", sc->unit));
-		error = 0;
-	    }
 	    break;
-
 	case VT_TRUE:   	/* user has released screen, go on */
-	    if ((scp == sc->old_scp) && (scp->status & SWITCH_WAIT_REL)) {
-		scp->status &= ~SWITCH_WAIT_REL;
-		s = do_switch_scr(sc, s);
+	    if ((error = finish_vt_rel(scp, TRUE, &s)) == 0)
 		DPRINTF(5, ("sc%d: VT_TRUE\n", sc->unit));
-		error = 0;
-	    }
 	    break;
-
 	case VT_ACKACQ: 	/* acquire acknowledged, switch completed */
-	    if ((scp == sc->new_scp) && (scp->status & SWITCH_WAIT_ACQ)) {
-		scp->status &= ~SWITCH_WAIT_ACQ;
-		sc->switch_in_progress = 0;
+	    if ((error = finish_vt_acq(scp)) == 0)
 		DPRINTF(5, ("sc%d: VT_ACKACQ\n", sc->unit));
-		error = 0;
-	    }
 	    break;
-
 	default:
 	    break;
 	}
@@ -2084,6 +2055,7 @@ sc_touch_scrn_saver(void)
 int
 sc_switch_scr(sc_softc_t *sc, u_int next_scr)
 {
+    scr_stat *cur_scp;
     struct tty *tp;
     struct proc *p;
     int s;
@@ -2100,13 +2072,14 @@ sc_switch_scr(sc_softc_t *sc, u_int next_scr)
     }
 
     s = spltty();
+    cur_scp = sc->cur_scp;
 
     /* we are in the middle of the vty switching process... */
     if (sc->switch_in_progress
-	&& (sc->cur_scp->smode.mode == VT_PROCESS)
-	&& sc->cur_scp->proc) {
-	p = pfind(sc->cur_scp->pid);
-	if (sc->cur_scp->proc != p) {
+	&& (cur_scp->smode.mode == VT_PROCESS)
+	&& cur_scp->proc) {
+	p = pfind(cur_scp->pid);
+	if (cur_scp->proc != p) {
 	    if (p)
 		PROC_UNLOCK(p);
 	    /* 
@@ -2115,23 +2088,21 @@ sc_switch_scr(sc_softc_t *sc, u_int next_scr)
 	     * are not reset here yet; they will be cleared later.
 	     */
 	    DPRINTF(5, ("cur_scp controlling process %d died, ",
-	       sc->cur_scp->pid));
-	    if (sc->cur_scp->status & SWITCH_WAIT_REL) {
+	       cur_scp->pid));
+	    if (cur_scp->status & SWITCH_WAIT_REL) {
 		/*
 		 * Force the previous switch to finish, but return now 
 		 * with error.
 		 */
 		DPRINTF(5, ("reset WAIT_REL, "));
-		sc->cur_scp->status &= ~SWITCH_WAIT_REL; 
-		s = do_switch_scr(sc, s);
+		finish_vt_rel(cur_scp, TRUE, &s);
 		splx(s);
 		DPRINTF(5, ("finishing previous switch\n"));
 		return EINVAL;
-	    } else if (sc->cur_scp->status & SWITCH_WAIT_ACQ) {
+	    } else if (cur_scp->status & SWITCH_WAIT_ACQ) {
 		/* let's assume screen switch has been completed. */
 		DPRINTF(5, ("reset WAIT_ACQ, "));
-		sc->cur_scp->status &= ~SWITCH_WAIT_ACQ;
-		sc->switch_in_progress = 0;
+		finish_vt_acq(cur_scp);
 	    } else {
 		/* 
 	 	 * We are in between screen release and acquisition, and
@@ -2149,13 +2120,13 @@ sc_switch_scr(sc_softc_t *sc, u_int next_scr)
 	     * The following code is a gross kludge to cope with this
 	     * problem for which there is no clean solution. XXX
 	     */
-	    if (sc->cur_scp->status & SWITCH_WAIT_REL) {
+	    if (cur_scp->status & SWITCH_WAIT_REL) {
 		switch (sc->switch_in_progress++) {
 		case 1:
 		    break;
 		case 2:
 		    DPRINTF(5, ("sending relsig again, "));
-		    signal_vt_rel(sc->cur_scp);
+		    signal_vt_rel(cur_scp);
 		    break;
 		case 3:
 		    break;
@@ -2166,19 +2137,18 @@ sc_switch_scr(sc_softc_t *sc, u_int next_scr)
 		     * VT_FALSE.
 		     */
 		    DPRINTF(5, ("force reset WAIT_REL, "));
-		    sc->cur_scp->status &= ~SWITCH_WAIT_REL; 
-		    sc->switch_in_progress = 0;
+		    finish_vt_rel(cur_scp, FALSE, &s);
 		    splx(s);
 		    DPRINTF(5, ("act as if VT_FALSE was seen\n"));
 		    return EINVAL;
 		}
-	    } else if (sc->cur_scp->status & SWITCH_WAIT_ACQ) {
+	    } else if (cur_scp->status & SWITCH_WAIT_ACQ) {
 		switch (sc->switch_in_progress++) {
 		case 1:
 		    break;
 		case 2:
 		    DPRINTF(5, ("sending acqsig again, "));
-		    signal_vt_acq(sc->cur_scp);
+		    signal_vt_acq(cur_scp);
 		    break;
 		case 3:
 		    break;
@@ -2186,8 +2156,7 @@ sc_switch_scr(sc_softc_t *sc, u_int next_scr)
 		default:
 		     /* clear the flag and finish the previous switch */
 		    DPRINTF(5, ("force reset WAIT_ACQ, "));
-		    sc->cur_scp->status &= ~SWITCH_WAIT_ACQ;
-		    sc->switch_in_progress = 0;
+		    finish_vt_acq(cur_scp);
 		    break;
 		}
 	    }
@@ -2201,7 +2170,7 @@ sc_switch_scr(sc_softc_t *sc, u_int next_scr)
     if ((next_scr < sc->first_vty) || (next_scr >= sc->first_vty + sc->vtys)
 	|| sc->switch_in_progress) {
 	splx(s);
-	sc_bell(sc->cur_scp, bios_value.bell_pitch, BELL_DURATION);
+	sc_bell(cur_scp, bios_value.bell_pitch, BELL_DURATION);
 	DPRINTF(5, ("error 1\n"));
 	return EINVAL;
     }
@@ -2211,13 +2180,13 @@ sc_switch_scr(sc_softc_t *sc, u_int next_scr)
      * if the switch mode is VT_AUTO, unless the next vty is the same 
      * as the current or the current vty has been closed (but showing).
      */
-    tp = VIRTUAL_TTY(sc, sc->cur_scp->index);
-    if ((sc->cur_scp->index != next_scr)
+    tp = VIRTUAL_TTY(sc, cur_scp->index);
+    if ((cur_scp->index != next_scr)
 	&& ISTTYOPEN(tp)
-	&& (sc->cur_scp->smode.mode == VT_AUTO)
-	&& ISGRAPHSC(sc->cur_scp)) {
+	&& (cur_scp->smode.mode == VT_AUTO)
+	&& ISGRAPHSC(cur_scp)) {
 	splx(s);
-	sc_bell(sc->cur_scp, bios_value.bell_pitch, BELL_DURATION);
+	sc_bell(cur_scp, bios_value.bell_pitch, BELL_DURATION);
 	DPRINTF(5, ("error, graphics mode\n"));
 	return EINVAL;
     }
@@ -2232,7 +2201,7 @@ sc_switch_scr(sc_softc_t *sc, u_int next_scr)
 	tp = VIRTUAL_TTY(sc, next_scr);
 	if (!ISTTYOPEN(tp)) {
 	    splx(s);
-	    sc_bell(sc->cur_scp, bios_value.bell_pitch, BELL_DURATION);
+	    sc_bell(cur_scp, bios_value.bell_pitch, BELL_DURATION);
 	    DPRINTF(5, ("error 2, requested vty isn't open!\n"));
 	    return EINVAL;
 	}
@@ -2246,7 +2215,7 @@ sc_switch_scr(sc_softc_t *sc, u_int next_scr)
     /* this is the start of vty switching process... */
     ++sc->switch_in_progress;
     sc->delayed_next_scr = 0;
-    sc->old_scp = sc->cur_scp;
+    sc->old_scp = cur_scp;
     sc->new_scp = SC_STAT(SC_DEV(sc, next_scr));
     if (sc->new_scp == sc->old_scp) {
 	sc->switch_in_progress = 0;
@@ -2353,6 +2322,31 @@ signal_vt_acq(scr_stat *scp)
     PROC_UNLOCK(scp->proc);
     DPRINTF(5, ("sending acqsig to %d\n", scp->pid));
     return TRUE;
+}
+
+static int
+finish_vt_rel(scr_stat *scp, int release, int *s)
+{
+    if (scp == scp->sc->old_scp && scp->status & SWITCH_WAIT_REL) {
+	scp->status &= ~SWITCH_WAIT_REL;
+	if (release)
+	    *s = do_switch_scr(scp->sc, *s);
+	else
+	    scp->sc->switch_in_progress = 0;
+	return 0;
+    }
+    return EINVAL;
+}
+
+static int
+finish_vt_acq(scr_stat *scp)
+{
+    if (scp == scp->sc->new_scp && scp->status & SWITCH_WAIT_ACQ) {
+	scp->status &= ~SWITCH_WAIT_ACQ;
+	scp->sc->switch_in_progress = 0;
+	return 0;
+    }
+    return EINVAL;
 }
 
 static void
