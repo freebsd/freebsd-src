@@ -32,7 +32,7 @@
 .\"     @(#)utmp.5	8.2 (Berkeley) 3/17/94
 .\" $FreeBSD$
 .\"
-.Dd March 17, 1994
+.Dd November 14, 2001
 .Dt UTMP 5
 .Os
 .Sh NAME
@@ -83,20 +83,20 @@ struct utmp {
 The
 .Nm lastlog
 file is a linear array of
-.Fa lastlog
+.Vt lastlog
 structures indexed by a user's
 .Tn UID .
 The
-.Nm utmp
+.Nm
 file is a linear array of
-.Fa utmp
+.Vt utmp
 structures indexed by a terminal line number
 (see
 .Xr ttyslot 3 ) .
 The
 .Nm wtmp
 file consists of
-.Fa utmp
+.Vt utmp
 structures and is a binary log file,
 that is, grows linearly at its end.
 .Pp
@@ -113,12 +113,12 @@ are written to the standard output (unless the login is
 see
 .Xr login 1 ) .
 The
-.Nm login
+.Xr login 1
 program then records the new login time in the file
 .Nm lastlog .
 .Pp
 After the new
-.Fa lastlog
+.Vt lastlog
 record is written,
 .\" the
 .\" .Xr libutil 3
@@ -126,8 +126,8 @@ record is written,
 the file
 .Nm
 is opened and the
-.Fa utmp
-record for the user inserted.
+.Vt utmp
+record for the user is inserted.
 This record remains there until
 the user logs out at which time it is deleted.
 The
@@ -144,19 +144,19 @@ Next, the
 program opens the file
 .Nm wtmp ,
 and appends the user's
-.Fa utmp
+.Vt utmp
 record.
 The user's subsequent logout from the terminal
 line is marked by a special
-.Fa utmp
+.Vt utmp
 record with
-.Fa ut_line
+.Va ut_line
 set accordingly,
-.Fa ut_time
+.Va ut_time
 updated, but
-.Fa ut_name
+.Va ut_name
 and
-.Fa ut_host
+.Va ut_host
 both empty
 (see
 .Xr init 8 ) .
@@ -172,20 +172,20 @@ following items are logged in the
 .Nm wtmp
 file.
 .Pp
-.Bl -tag -width shutdownxx -compact
+.Bl -tag -width ".Li shutdown" -compact
 .It Li reboot
 .It Li shutdown
 A system reboot or shutdown has been initiated.
 The character
 .Ql \&~
 is placed in the field
-.Fa ut_line ,
+.Va ut_line ,
 and
 .Li reboot
 or
 .Li shutdown
 in the field
-.Fa ut_name
+.Va ut_name
 (see
 .Xr shutdown 8
 and
@@ -196,11 +196,11 @@ The system time has been manually or automatically updated
 (see
 .Xr date 1 ) .
 The command name
-.Xr date
+.Li date
 is recorded in the field
-.Fa ut_name .
+.Va ut_name .
 In the field
-.Fa ut_line ,
+.Va ut_line ,
 the character
 .Ql \&|
 indicates the time prior to the change, and the character
@@ -226,13 +226,13 @@ and
 .Xr logwtmp 3
 utility functions should be used to perform
 the standard actions on the
-.Nm utmp
+.Nm
 and
 .Nm wtmp
 files in order to maintain the portability across
 systems with different formats of those files.
 .Sh FILES
-.Bl -tag -width /var/log/lastlog -compact
+.Bl -tag -width ".Pa /var/log/lastlog" -compact
 .It Pa /var/run/utmp
 The
 .Nm
