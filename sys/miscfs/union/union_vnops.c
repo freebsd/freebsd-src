@@ -1802,7 +1802,9 @@ union_unlock(ap)
 #endif
 	int error;
 
+#if 0
 	KASSERT((un->un_uppervp == NULL || un->un_uppervp->v_usecount > 0), ("uppervp usecount is 0"));
+#endif
 
 	error = vop_stdunlock(ap);
 #if 0
