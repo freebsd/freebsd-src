@@ -671,6 +671,7 @@ in6_ifattach(ifp, altifp)
 #endif
 	case IFT_PFLOG:
 	case IFT_PFSYNC:
+	case IFT_CARP:
 		return;
 	}
 

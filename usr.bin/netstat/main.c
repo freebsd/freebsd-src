@@ -136,6 +136,8 @@ static struct nlist nl[] = {
 	{ "_mbuf_lowm" },
 #define	N_CLLO		32
 	{ "_clust_lowm" },
+#define N_CARPSTAT	33
+	{ "_carpstats" },
 	{ "" },
 };
 
@@ -171,6 +173,8 @@ struct protox {
 	  bdg_stats,	NULL,		"bdg",	1 /* bridging... */ },
 	{ -1,		-1,		1,	protopr,
 	  pim_stats,	NULL,		"pim",	IPPROTO_PIM },
+	{ -1,		N_CARPSTAT,	1,	0,
+	  carp_stats,	NULL,		"carp",		0},
 	{ -1,		-1,		0,	NULL,
 	  NULL,		NULL,		NULL,	0 }
 };
