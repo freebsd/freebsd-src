@@ -1106,8 +1106,8 @@ chn_setvolume(pcm_channel *c, int left, int right)
 	return 0;
 }
 
-int
-chn_setspeed(pcm_channel *c, int speed)
+static int
+chn_tryspeed(pcm_channel *c, int speed)
 {
 	pcm_feeder *f;
     	snd_dbuf *b = &c->buffer;
@@ -1171,7 +1171,20 @@ chn_setspeed(pcm_channel *c, int speed)
 }
 
 int
-chn_setformat(pcm_channel *c, u_int32_t fmt)
+chn_setspeed(pcm_channel *c, int speed)
+{
+	int r, oldspeed = c->speed;
+
+	r = chn_tryspeed(c, speed);
+	if (r) {
+		DEB(printf("Failed to set speed %d falling back to %d\n", speed, oldspeed));
+		chn_tryspeed(c, oldspeed);
+	}
+	return r;
+}
+
+static int
+chn_tryformat(pcm_channel *c, u_int32_t fmt)
 {
 	snd_dbuf *b = &c->buffer;
 	snd_dbuf *bs = &c->buffer2nd;
@@ -1198,6 +1211,20 @@ chn_setformat(pcm_channel *c, u_int32_t fmt)
 	c->format = fmt;
 	c->flags |= CHN_F_INIT;
 	return 0;
+}
+
+int
+chn_setformat(pcm_channel *c, u_int32_t fmt)
+{
+	u_int32_t oldfmt = c->format;
+	int r;
+
+	r = chn_tryformat(c, fmt);
+	if (r) {
+		DEB(printf("Format change %d failed, reverting to %d\n", fmt, oldfmt));
+		chn_tryformat(c, oldfmt);
+	}
+	return r;
 }
 
 int
