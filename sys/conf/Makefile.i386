@@ -30,6 +30,8 @@ S=	../../..
 .endif
 .include "$S/conf/kern.pre.mk"
 
+MKMODULESENV+= MACHINE=i386
+
 %BEFORE_DEPEND
 
 %OBJS
