@@ -94,10 +94,14 @@ Set or unset the virtual console.
 When unset, output from the system, such as the kernel
 .Xr printf 9 ,
 always goes out to the real main console.
+When set, it goes to another.
+This is an interface to the tty ioctl
+.Dv TIOCCONS .
 .El
 .Sh SEE ALSO
 .Xr sio 4 ,
 .Xr syscons 4 ,
+.Xr tty 4 ,
 .Xr boot 8 ,
 .Xr loader 8
 .Sh HISTORY
