@@ -1,0 +1,73 @@
+The bin and etc directories contain several scripts (sh and perl) that
+should ease startup and configuration of NTP sites.
+
+	bin/monl is a monitoring script that prints out new, current and
+	         old customers of an NTP timeserver when monitoring is
+		 in effect.
+		 monl has following options:
+		 -i <regexp> (regular expression matchin IP addres to be ignored
+		 -d <directory> where the current state is kept (default /tmp)
+		 -v debug output
+		 -n do not translate IP addresses into hostnames
+		 <host> host to be analyzed
+
+		 monl uses xntpdc for information gathering and is thus
+		 limited to the NTP version xntpdc is compiled for.
+
+	bin/mvstats moves compresses and removes statistics files (useful mainly
+		    for reference servers
+
+	etc/install creates the locally needed directories for NTP (if not residung in /etc)
+
+	etc/rc   starts up daemon with configuration file and key file
+	etc/cron cron called monitor statistic (uses bin/monl)
+	etc/crontab crontab prototype for reference time servers
+	etc/setup   sh script sourced by the other scripts for variable setup
+
+YOU MUST EDIT THESE FILES TO REFLECT YOUR LOCAL SETUP !
+
+READ THIS BEFORE USING THE STARTUP SCRIPTS
+
+The startupscript etc/rc has been written for Suns and HPs. They are not 
+guaranteed to work elsewhere. Following assumptions have been made:
+
+	All NTP related files reside in ONE directory having following structure:
+
+		bin/*	-	all executables (daemon, control, date, scripts)
+		etc/*	-	startup scripts and cron scripts
+		conf/*	-	NTP configuration files
+
+The variable NTPROOT (etc/rc, etc/install) must be edited to reflect 
+the NTP directory (e.g. /usr/local/NTP)
+
+NTP config files are located via Suns arch command and have the name
+conf/`arch`.`arch -k`.
+These are the default configurations (usually clients). If a file with the name
+conf/`arch`.`arch -k`.`hostname` is present this file will be preferred (Reference host,
+gateway). If the arch command is not available no-arch is used. The arch command
+is usually a shell script which echoes a string unique the the current machine
+architecture.
+
+The tickadj command has its own conf/tickconf file which is used to set host
+specific tickadj values. The line with DEFAULT specifies the default tickadj
+parameters, all other lines consists of <hostname> <hostid>
+<tickadj parameters>. These lines need only be entered if the specified host
+needs parameters different from the default parameters.
+
+Reference clock support is provided for DCF77. If you need to initialize
+certain things for reference clock support (e.g. loading STREAMS modules),
+you need to edit etc/rc.
+
+The current config files of Erlangen are included in the conf directory.
+They are just for reference, but might help you a bit in setting up a
+synchronisation network.
+
+The advantage of keeping all config files centralized is the easier 
+administration.
+
+We replicate the NTP directory via NFS and rdist.
+
+When you have set up the local config files (YOUR OWN!) you can call 
+<NTPROOT>/etc/rc for daemon startup.
+
+For more information: time@informatik.uni-erlangen.de
