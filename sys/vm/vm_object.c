@@ -61,7 +61,7 @@
  * any improvements or extensions that they make and grant Carnegie the
  * rights to redistribute these changes.
  *
- * $Id: vm_object.c,v 1.150 1999/02/12 20:42:19 dillon Exp $
+ * $Id: vm_object.c,v 1.151 1999/02/15 02:03:40 dillon Exp $
  */
 
 /*
@@ -1086,11 +1086,12 @@ vm_object_backing_scan(vm_object_t object, int op)
 			/*
 			 * Page does not exist in parent, rename the
 			 * page from the backing object to the main object. 
+			 *
+			 * If the page was mapped to a process, it can remain 
+			 * mapped through the rename.
 			 */
 			if ((p->queue - p->pc) == PQ_CACHE)
 				vm_page_deactivate(p);
-			else
-				vm_page_protect(p, VM_PROT_NONE);
 
 			vm_page_rename(p, object, new_pindex);
 			/* page automatically made dirty by rename */
