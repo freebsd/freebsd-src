@@ -35,7 +35,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)machdep.c	7.4 (Berkeley) 6/3/91
- *	$Id: machdep.c,v 1.11.2.12 1997/09/17 09:09:23 kato Exp $
+ *	$Id: machdep.c,v 1.11.2.13 1997/09/26 09:48:45 kato Exp $
  */
 
 #include "npx.h"
@@ -115,6 +115,7 @@
 #include <i386/isa/isa_device.h>
 #ifdef PC98
 #include <pc98/pc98/pc98_machdep.h>
+#include <pc98/pc98/pc98.h>
 #else
 #include <i386/isa/rtc.h>
 #endif
@@ -1245,7 +1246,27 @@ init386(first)
 		/*
 		 * map page into kernel: valid, read/write, non-cacheable
 		 */
+#ifdef PC98
+		if (pc98_machine_type & M_EPSON_PC98) {
+			switch (epson_machine_id) {
+			case 0x34:				/* PC-486HX */
+			case 0x35:				/* PC-486HG */
+			case 0x3B:				/* PC-486HA */
+				*(int *)CMAP1 = PG_V | PG_RW | target_page;
+				break;
+			default:
+#ifdef WB_CACHE
+				*(int *)CMAP1 = PG_V | PG_RW target_page;
+#else
+				*(int *)CMAP1 =
+				    PG_V | PG_RW | PG_N | target_page;
+#endif
+				break;
+			}
+		}
+#else	/* !PC98 */
 		*(int *)CMAP1 = PG_V | PG_RW | PG_N | target_page;
+#endif
 		invltlb();
 
 		tmp = *(int *)CADDR1;
