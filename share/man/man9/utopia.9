@@ -60,6 +60,8 @@
 .Fn utopia_set_loopback "struct utopia *utp"  "u_int mode"
 .Ft void
 .Fn utopia_intr "struct utopia *utp"
+.Ft void
+.Fn utopia_update_stats "struct utopia *utp"
 .Sh DESCRIPTION
 This module is used by all ATM drivers for cards that use a number of known
 PHY chips to provide uniform functionality.
@@ -116,6 +118,7 @@ struct utopia {
 	u_int		carrier;	/* carrier state */
 	u_int		loopback;	/* loopback mode */
 	const struct utopia_chip *chip;	/* chip operations */
+	struct utopia_stats1 stats;	/* statistics */
 };
 .Ed
 The public accessible fields have the following functions:
@@ -298,6 +301,8 @@ otherwise leaving the previous state.
 Called when an interrupt from the PHY chip is detected. This resets the
 interrupt state by reading all registers and, if the interrupt was from the
 RSOP, checks the carrier state.
+.It Fn utopia_update_stats
+Update the statistics with counters red from the chip.
 .El
 .Sh SEE ALSO
 .Xr utopia 4
