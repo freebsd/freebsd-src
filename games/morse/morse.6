@@ -142,11 +142,6 @@ A capacitor (some nanofarads) between
 base and ground is advisable to keep stray RF away,
 and to suppress the
 minor glitch that is generated during program startup.
-.Sh FILES
-.Bl -tag -width ".Pa /dev/speaker" -compact
-.It Pa /dev/speaker
-speaker device file
-.El
 .Sh ENVIRONMENT
 Your
 .Ev LC_CTYPE
@@ -164,6 +159,11 @@ Interpret characters with the high-order bit set as Cyrillic characters.
 .Pp
 .It Li ISO8859-7
 Interpret characters with the high-order bit set as Greek characters.
+.El
+.Sh FILES
+.Bl -tag -width ".Pa /dev/speaker" -compact
+.It Pa /dev/speaker
+speaker device file
 .El
 .Sh SEE ALSO
 .Xr speaker 4
