@@ -295,7 +295,6 @@ wi_attach(device_t dev)
 		wi_free(dev);
 		return (error);
 	}
-	device_printf(dev, "802.11 address: %6D\n", ic->ic_myaddr, ":");
 
 	/* Read NIC identification */
 	wi_read_nicid(sc);

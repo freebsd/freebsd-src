@@ -316,8 +316,6 @@ awi_attach(struct awi_softc *sc)
 
 	printf("%s: IEEE802.11 %s (firmware %s)\n", ifp->if_xname,
 	    (ic->ic_phytype == IEEE80211_T_FH) ? "FH" : "DS", sc->sc_banner);
-	printf("%s: 802.11 address: %s\n", ifp->if_xname,
-	    ether_sprintf(ic->ic_myaddr));
 
 #ifdef __NetBSD__
 	if_attach(ifp);
