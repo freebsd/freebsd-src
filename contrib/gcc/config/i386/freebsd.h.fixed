@@ -87,8 +87,6 @@ Boston, MA 02111-1307, USA.  */
 #undef DEFAULT_PCC_STRUCT_RETURN
 #define DEFAULT_PCC_STRUCT_RETURN 0
 
-#define SUPPORTS_WEAK	TARGET_ELF
-
 /* Prefix for internally generated assembler labels.  If we aren't using 
    underscores, we are using prefix `.'s to identify labels that should  
    be ignored, as in `i386/gas.h' --karl@cs.umb.edu  */                 
