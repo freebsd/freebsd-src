@@ -26,13 +26,13 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $Id$
+ * $Id: sig.h,v 1.2 1997/02/22 16:10:53 peter Exp $
  *
  *  TODO:
  *
  */
 
-#include <sys/signal.h>
+#include <signal.h>
 
 /* Call this instead of signal() */
 extern __sighandler_t *pending_signal __P((int, __sighandler_t *));
