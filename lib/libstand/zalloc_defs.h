@@ -49,6 +49,10 @@ typedef int saddr_t;		/* signed int same size as pointer	*/
 typedef unsigned long iaddr_t;	/* unsigned int same size as pointer	*/
 typedef long saddr_t;		/* signed int same size as pointer	*/
 #endif
+#ifdef __powerpc__
+typedef unsigned int iaddr_t;	/* unsigned int same size as pointer	*/
+typedef int saddr_t;		/* signed int same size as pointer	*/
+#endif
 
 #include "zalloc_mem.h"
 
