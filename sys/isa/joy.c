@@ -106,6 +106,7 @@ static struct isa_pnp_id joy_ids[] = {
     {0x01007316, "ESS0001 PnP Joystick"},	/* ESS0001 */
     {0x2fb0d041, "Generic PnP Joystick"},	/* PNPb02f */
     {0x2200a865, "YMH0022 PnP Joystick"},	/* YMH0022 */
+    {0x82719304, NULL},    			/* ADS7182 */
     {0}
 };
 
