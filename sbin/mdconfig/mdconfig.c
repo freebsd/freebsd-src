@@ -25,8 +25,6 @@
 #include <sys/linker.h>
 #include <sys/mdioctl.h>
 #include <sys/stat.h>
-#include <sys/sysctl.h>
-#include <sys/queue.h>
 
 int	 list(const int);
 void	 mdmaybeload(void);
@@ -247,13 +245,6 @@ main(int argc, char **argv)
 	return (0);
 }
 
-struct dl {
-	int		unit;
-	SLIST_ENTRY(dl)	slist;
-};
-
-SLIST_HEAD(, dl) dlist = SLIST_HEAD_INITIALIZER(&dlist);
-
 int
 list(const int fd)
 {
@@ -267,7 +258,8 @@ list(const int fd)
 	}
 	if (mdio.md_pad[0] - unit > 0)
 		printf(" ... %d more", mdio.md_pad[0] - unit);
-	printf("\n");
+	if (unit > 0)
+		printf("\n");
 	return (0);
 }
 
