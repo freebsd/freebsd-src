@@ -50,6 +50,7 @@ static const char rcsid[] =
 #include <errno.h>
 #include <fcntl.h>
 #include <fts.h>
+#include <limits.h>
 #include <stdio.h>
 #include <sysexits.h>
 #include <unistd.h>
@@ -209,7 +210,7 @@ copy_link(p, exists)
 	int exists;
 {
 	int len;
-	char link[MAXPATHLEN];
+	char link[PATH_MAX];
 
 	if ((len = readlink(p->fts_path, link, sizeof(link) - 1)) == -1) {
 		warn("readlink: %s", p->fts_path);

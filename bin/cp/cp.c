@@ -69,6 +69,7 @@ static const char rcsid[] =
 #include <err.h>
 #include <errno.h>
 #include <fts.h>
+#include <limits.h>
 #include <stdio.h>
 #include <string.h>
 #include <unistd.h>
@@ -177,9 +178,8 @@ main(argc, argv)
 
 	/* Save the target base in "to". */
 	target = argv[--argc];
-	if (strlen(target) > MAXPATHLEN)
+	if (strlcpy(to.p_path, target, sizeof(to.p_path)) >= sizeof(to.p_path))
 		errx(1, "%s: name too long", target);
-	(void)strcpy(to.p_path, target);
 	to.p_end = to.p_path + strlen(to.p_path);
         if (to.p_path == to.p_end) {
 		*to.p_end++ = '.';
@@ -318,7 +318,7 @@ copy(argv, type, fts_options)
 			if (*p != '/' && target_mid[-1] != '/')
 				*target_mid++ = '/';
 			*target_mid = 0;
-			if (target_mid - to.p_path + nlen > MAXPATHLEN) {
+			if (target_mid - to.p_path + nlen >= PATH_MAX) {
 				warnx("%s%s: name too long (not copied)",
 				    to.p_path, p);
 				badcp = rval = 1;
