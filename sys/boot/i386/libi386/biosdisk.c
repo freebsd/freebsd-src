@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: biosdisk.c,v 1.20.2.1 1999/01/24 00:15:59 msmith Exp $
+ *	$Id: biosdisk.c,v 1.20.2.2 1999/01/24 17:24:34 msmith Exp $
  */
 
 /*
@@ -268,7 +268,7 @@ bd_printslice(struct open_disk *od, int offset, char *prefix)
 	return;
     lp =(struct disklabel *)(&buf[0]);
     if (lp->d_magic != DISKMAGIC) {
-	sprintf(line, "%s: bad disklabel\n");
+	sprintf(line, "bad disklabel\n");
 	pager_output(line);
 	return;
     }
@@ -393,7 +393,7 @@ bd_opendisk(struct open_disk **odp, struct i386_devdesc *dev)
 
     /* Is this a request for the whole disk? */
     if (dev->d_kind.biosdisk.slice == -1) {
-	sector == 0;
+	sector = 0;
 	goto unsliced;
     }
 
