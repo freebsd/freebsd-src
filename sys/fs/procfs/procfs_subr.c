@@ -36,7 +36,7 @@
  *
  *	@(#)procfs_subr.c	8.6 (Berkeley) 5/14/95
  *
- *	$Id: procfs_subr.c,v 1.18 1997/12/06 04:11:12 sef Exp $
+ *	$Id: procfs_subr.c,v 1.19 1997/12/08 01:06:22 sef Exp $
  */
 
 #include <sys/param.h>
@@ -359,7 +359,15 @@ procfs_exit(struct proc *p)
 	pid_t pid = p->p_pid;
 
 	for (pfs = pfshead; pfs ; pfs = pfs->pfs_next) {
-		if (pfs->pfs_pid == pid)
-			vgone(PFSTOV(pfs));
+		struct vnode *vp = PFSTOV(pfs);
+		/*
+		 * XXX - this is probably over-paranoid here --
+		 * for some reason, occasionally the v_tag is
+		 * not VT_PROCFS; this results in a panic.  I'm
+		 * not sure *why* that is happening.
+		 */
+		if (pfs->pfs_pid == pid && vp->v_usecount &&
+		    vp->v_tag == VT_PROCFS)
+			vgone(vp);
 	}
 }
