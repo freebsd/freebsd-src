@@ -43,6 +43,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/systm.h>
 #include <sys/fcntl.h>
 #include <sys/file.h>
+#include <sys/kdb.h>
 #include <sys/stat.h>
 #include <sys/proc.h>
 #include <sys/limits.h>
@@ -799,7 +800,7 @@ vn_ioctl(fp, com, data, active_cred, td)
 		error = VOP_IOCTL(vp, com, data, fp->f_flag, active_cred, td);
 		if (error == ENOIOCTL) {
 #ifdef DIAGNOSTIC
-			Debugger("ENOIOCTL leaked through");
+			kdb_enter("ENOIOCTL leaked through");
 #endif
 			error = ENOTTY;
 		}
