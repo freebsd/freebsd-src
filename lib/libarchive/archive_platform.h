@@ -49,7 +49,7 @@
 #define HAVE_CHFLAGS 1
 #define HAVE_LUTIMES 1
 #define HAVE_LCHMOD 1
-#define HAVE_POSIX_STRERROR_R 1
+#define HAVE_STRERROR_R 1
 #define ARCHIVE_ERRNO_FILE_FORMAT EFTYPE
 #define ARCHIVE_ERRNO_PROGRAMMER EINVAL
 #define ARCHIVE_ERRNO_MISC (-1)
@@ -86,7 +86,8 @@
 #define st_atimespec st_atim
 #define st_mtimespec st_mtim
 #define st_ctimespec st_ctim
-#define HAVE_GLIBC_STRERROR_R 1
+#define HAVE_STRERROR_R 1
+#define STRERROR_R_CHAR_P 1
 #endif
 
 /*
