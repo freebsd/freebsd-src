@@ -13,6 +13,7 @@ KEYMAPS+= estonian.iso.kbd estonian.iso15.kbd estonian.cp850.kbd
 KEYMAPS+= fr.iso.kbd fr.iso.acc.kbd
 KEYMAPS+= fr_CA.iso.acc.kbd
 KEYMAPS+= german.iso.kbd german.cp850.kbd
+KEYMAPS+= gr.elot.acc.kbd gr.us101.acc.kbd
 KEYMAPS+= hr.iso.kbd
 KEYMAPS+= hu.iso2.101keys.kbd hu.iso2.102keys.kbd
 KEYMAPS+= icelandic.iso.kbd icelandic.iso.acc.kbd
