@@ -72,7 +72,6 @@ __FBSDID("$FreeBSD$");
  * Zilog Z8530 Dual UART driver.
  */
 
-#include "opt_ddb.h"
 #include "opt_comconsole.h"
 
 #include <sys/param.h>
@@ -82,6 +81,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/cons.h>
 #include <sys/fcntl.h>
 #include <sys/interrupt.h>
+#include <sys/kdb.h>
 #include <sys/kernel.h>
 #include <sys/ktr.h>
 #include <sys/mutex.h>
@@ -92,8 +92,6 @@ __FBSDID("$FreeBSD$");
 #include <sys/serial.h>
 #include <sys/syslog.h>
 #include <sys/tty.h>
-
-#include <ddb/ddb.h>
 
 #include <dev/zs/z8530reg.h>
 #include <dev/zs/z8530var.h>
@@ -362,9 +360,10 @@ zstty_intr(struct zstty_softc *sc, uint8_t rr3)
 
 			if ((rr1 & (ZSRR1_FE | ZSRR1_DO | ZSRR1_PE)) != 0)
 				ZS_WRITE(sc, sc->sc_csr, ZSWR0_RESET_ERRORS);
-#if defined(DDB) && defined(ALT_BREAK_TO_DEBUGGER)
+#if defined(KDB) && defined(ALT_BREAK_TO_DEBUGGER)
 			if (sc->sc_console != 0)
-				brk = db_alt_break(c, &sc->sc_alt_break_state);
+				brk = kdb_alt_break(c,
+				    &sc->sc_alt_break_state);
 #endif
 			*sc->sc_iput++ = c;
 			*sc->sc_iput++ = rr1;
@@ -376,7 +375,7 @@ zstty_intr(struct zstty_softc *sc, uint8_t rr3)
 	if ((rr3 & ZSRR3_IP_B_STAT) != 0) {
 		rr0 = ZS_READ(sc, sc->sc_csr);
 		ZS_WRITE(sc, sc->sc_csr, ZSWR0_RESET_STATUS);
-#if defined(DDB) && defined(BREAK_TO_DEBUGGER)
+#if defined(KDB) && defined(BREAK_TO_DEBUGGER)
 		if (sc->sc_console != 0 && (rr0 & ZSRR0_BREAK) != 0)
 			brk = 1;
 #endif
