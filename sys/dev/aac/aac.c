@@ -60,6 +60,7 @@ static void	aac_startup(void *arg);
 
 /* Command Processing */
 static void	aac_startio(struct aac_softc *sc);
+static void	aac_timeout(struct aac_command *cm);
 static int	aac_start(struct aac_command *cm);
 static void	aac_complete(void *context, int pending);
 static int	aac_bio_command(struct aac_softc *sc, struct aac_command **cmp);
@@ -163,6 +164,11 @@ static struct cdevsw aac_cdevsw = {
     0,			/* flags */
     -1,			/* bmaj */
 };
+
+/* Timeout for giving up on a command sent to the controller */
+#ifndef AAC_CMD_TIMEOUT
+#define AAC_CMD_TIMEOUT 15
+#endif
 
 /********************************************************************************
  ********************************************************************************
@@ -522,6 +528,9 @@ aac_startio(struct aac_softc *sc)
 	if (cm == NULL)
 	    break;
 
+	/* Set a timeout for this command to be completed by the controller */
+	cm->timeout_handle = timeout((timeout_t*)aac_timeout, cm, AAC_CMD_TIMEOUT * hz);
+
 	/* try to give the command to the controller */
 	if (aac_start(cm) == EBUSY) {
 	    /* put it on the ready queue for later */
@@ -531,6 +540,27 @@ aac_startio(struct aac_softc *sc)
     }
 }
 
+static void
+aac_timeout(struct aac_command *cm)
+{
+	struct aac_softc *sc;
+	struct bio *bp;
+	struct aac_disk  *ad;
+
+	sc = cm->cm_sc;
+	bp = (struct bio*)cm->cm_private;
+	ad = (struct aac_disk *)bp->bio_dev->si_drv1;
+
+	device_printf(sc->aac_dev, "Timeout waiting for controller to respond to command\n");
+
+	/* Should try to requeue the command... is it possible?  Bail for now */
+	bp->bio_error = EIO;
+	bp->bio_flags |= BIO_ERROR;
+	devstat_end_transaction_bio(&ad->ad_stats, bp);
+	biodone(bp);
+	aac_release_command(cm);
+}
+	
 /********************************************************************************
  * Deliver a command to the controller; allocate controller resources at the
  * last moment when possible.
@@ -758,6 +788,9 @@ aac_bio_complete(struct aac_command *cm)
     struct aac_blockwrite_response	*bwr;
     struct bio				*bp;
     AAC_FSAStatus			status;
+
+    /* kill the timeout timer */
+    untimeout((timeout_t *)aac_timeout, cm, cm->timeout_handle);
 
     /* fetch relevant status and then release the command */
     bp = (struct bio *)cm->cm_private;
