@@ -23,7 +23,7 @@
  * any improvements or extensions that they make and grant Carnegie the
  * rights to redistribute these changes.
  *
- *	$Id: db_command.c,v 1.25 1998/02/13 02:19:29 bde Exp $
+ *	$Id: db_command.c,v 1.26 1998/05/19 11:02:22 phk Exp $
  */
 
 /*
@@ -369,7 +369,6 @@ static struct command db_show_cmds[] = {
 	{ "all",	0,			0,	db_show_all_cmds },
 	{ "registers",	db_show_regs,		0,	0 },
 	{ "breaks",	db_listbreak_cmd, 	0,	0 },
-	{ "msgbuf",	db_show_msgbuf,		0,	0 },
 #if 0
 	{ "thread",	db_show_one_thread,	0,	0 },
 #endif
