@@ -36,17 +36,16 @@
  * SUCH DAMAGE.
  *
  *	@(#)stat.h	8.12 (Berkeley) 6/16/95
- * $Id: stat.h,v 1.12 1997/04/09 16:32:23 bde Exp $
+ * $Id: stat.h,v 1.13 1997/06/02 06:24:51 julian Exp $
  */
 
 #ifndef _SYS_STAT_H_
 #define	_SYS_STAT_H_
 
-#ifndef KERNEL
+#if !defined(KERNEL) && !defined(_POSIX_SOURCE)
 /*
  * XXX we need this for struct timespec.  We get miscellaneous namespace
- * pollution with it.  struct timespec itself is namespace pollution if
- * _POSIX_SOURCE is defined.
+ * pollution with it.
  */
 #include <sys/time.h>
 #endif
