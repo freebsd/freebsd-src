@@ -1114,7 +1114,8 @@ apm_attach(device_t dev)
 
 	sc->initialized = 1;
 
-	make_dev(&apm_cdevsw, 0, 0, 0, 0600, "apm");
+	make_dev(&apm_cdevsw, 0, 0, 5, 0660, "apm");
+	make_dev(&apm_cdevsw, 8, 0, 5, 0660, "apmctl");
 	return 0;
 }
 
