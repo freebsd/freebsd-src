@@ -877,7 +877,7 @@ vm_map_insert(vm_map_t map, vm_object_t object, vm_ooffset_t offset,
 #endif
 
 	if (cow & (MAP_PREFAULT|MAP_PREFAULT_PARTIAL)) {
-		vm_map_pmap_enter(map, start,
+		vm_map_pmap_enter(map, start, prot,
 				    object, OFF_TO_IDX(offset), end - start,
 				    cow & MAP_PREFAULT_PARTIAL);
 	}
@@ -1243,19 +1243,19 @@ vm_map_submap(
 /*
  *	vm_map_pmap_enter:
  *
- *	Preload the mappings for the given object into the specified
+ *	Preload read-only mappings for the given object into the specified
  *	map.  This eliminates the soft faults on process startup and
  *	immediately after an mmap(2).
  */
 void
-vm_map_pmap_enter(vm_map_t map, vm_offset_t addr,
+vm_map_pmap_enter(vm_map_t map, vm_offset_t addr, vm_prot_t prot,
     vm_object_t object, vm_pindex_t pindex, vm_size_t size, int flags)
 {
 	vm_offset_t tmpidx;
 	int psize;
 	vm_page_t p, mpte;
 
-	if (object == NULL)
+	if ((prot & VM_PROT_READ) == 0 || object == NULL)
 		return;
 	mtx_lock(&Giant);
 	VM_OBJECT_LOCK(object);
@@ -1547,6 +1547,7 @@ vm_map_madvise(
 			if (behav == MADV_WILLNEED) {
 				vm_map_pmap_enter(map,
 				    useStart,
+				    current->protection,
 				    current->object.vm_object,
 				    pindex,
 				    (count << PAGE_SHIFT),
