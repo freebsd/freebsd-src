@@ -47,6 +47,7 @@ static const char rcsid[] =
 #include <sys/param.h>
 
 #include <err.h>
+#include <errno.h>
 #include <fcntl.h>
 #include <pwd.h>
 #include <stdio.h>
@@ -72,7 +73,7 @@ pw_scan(bp, pw)
 	char *bp;
 	struct passwd *pw;
 {
-	long id;
+	uid_t id;
 	int root;
 	char *p, *sh;
 
@@ -100,13 +101,17 @@ pw_scan(bp, pw)
 			return (0);
 		}
 	}
-	id = atol(p);
+	id = strtoul(p, (char **)NULL, 10);
+	if (errno == ERANGE) {
+		warnx("%s > max uid value (%u)", p, ULONG_MAX);
+		return (0);
+	}
 	if (root && id) {
 		warnx("root uid should be 0");
 		return (0);
 	}
 	if (pw_big_ids_warning && id > USHRT_MAX) {
-		warnx("%s > max uid value (%u)", p, USHRT_MAX);
+		warnx("%s > recommended max uid value (%u)", p, USHRT_MAX);
 		/*return (0);*/ /* THIS SHOULD NOT BE FATAL! */
 	}
 	pw->pw_uid = id;
@@ -114,9 +119,13 @@ pw_scan(bp, pw)
 	if (!(p = strsep(&bp, ":")))			/* gid */
 		goto fmt;
 	if(p[0]) pw->pw_fields |= _PWF_GID;
-	id = atol(p);
+	id = strtoul(p, (char **)NULL, 10);
+	if (errno == ERANGE) {
+		warnx("%s > max gid value (%u)", p, ULONG_MAX);
+		return (0);
+	}
 	if (pw_big_ids_warning && id > USHRT_MAX) {
-		warnx("%s > max gid value (%u)", p, USHRT_MAX);
+		warnx("%s > recommended max gid value (%u)", p, USHRT_MAX);
 		/* return (0); This should not be fatal! */
 	}
 	pw->pw_gid = id;
