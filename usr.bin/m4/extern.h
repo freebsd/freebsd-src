@@ -1,3 +1,6 @@
+/*	$OpenBSD: extern.h,v 1.29 2002/02/16 21:27:48 millert Exp $	*/
+/*	$NetBSD: extern.h,v 1.3 1996/01/13 23:25:24 pk Exp $	*/
+
 /*-
  * Copyright (c) 1991, 1993
  *	The Regents of the University of California.  All rights reserved.
@@ -37,63 +40,119 @@
  * $FreeBSD$
  */
 
-int	expr(char *);
-ndptr	addent(char *);
-void	chrsave(int);
-void	cleanup(int);
-void	dochc(char *[], int);
-void	dochq(char *[], int);
-void	dodefine(char *, char *);
-void	dodefn(char *);
-void	dodiv(int);
-void	dodump(char *[], int);
-void	doifelse(char *[], int);
-int	doincl(char *);
-int	dopaste(char *);
-void	dopushdef(char *, char *);
-void	dosub(char *[], int);
-void	doundiv(char *[], int);
-void	emitline(void);
-void	eval(char *[], int, int);
-void	expand(char *[], int);
-void	getdiv(int);
-int	hash(char *);
-int	indx(char *, char *);
-void	killdiv(void);
-ndptr	lookup(char *);
-void	map(char *, char *, char *, char *);
-void	onintr(int);
-void	pbnum(int);
-void    pbstr(unsigned char *);
-void	putback(int);
-void	remhash(char *, int);
-void	usage(void);
+/* eval.c */
+extern void	eval(const char *[], int, int);
+extern void	dodefine(const char *, const char *);
+extern unsigned long expansion_id;
+
+/* expr.c */
+extern int	expr(const char *);
+
+/* gnum4.c */
+extern void 	addtoincludepath(const char *);
+extern struct input_file *fopen_trypath(struct input_file *, const char *);
+extern void doindir(const char *[], int);
+extern void dobuiltin(const char *[], int);
+extern void dopatsubst(const char *[], int);
+extern void doregexp(const char *[], int);
+
+extern void doprintlineno(struct input_file *);
+extern void doprintfilename(struct input_file *);
+
+extern void doesyscmd(const char *);
+ 
+
+/* look.c */
+extern ndptr	addent(const char *);
+extern unsigned	hash(const char *);
+extern ndptr	lookup(const char *);
+extern void	remhash(const char *, int);
+
+/* main.c */
+extern void outputstr(const char *);
+extern int builtin_type(const char *);
+extern char *builtin_realname(int);
+extern void emitline(void);
+
+/* misc.c */
+extern void	chrsave(int);
+extern char 	*compute_prevep(void);
+extern void	getdiv(int);
+extern ptrdiff_t indx(const char *, const char *);
+extern void 	initspaces(void);
+extern void	killdiv(void);
+extern void	onintr(int);
+extern void	pbnum(int);
+extern void	pbunsigned(unsigned long);
+extern void	pbstr(const char *);
+extern void	putback(int);
+extern void	*xalloc(size_t);
+extern char	*xstrdup(const char *);
+extern void	usage(void);
+extern void	resizedivs(int);
+extern size_t	buffer_mark(void);
+extern void	dump_buffer(FILE *, size_t);
+
+extern int 	obtain_char(struct input_file *);
+extern void	set_input(struct input_file *, FILE *, const char *);
+extern void	release_input(struct input_file *);
+
+/* speeded-up versions of chrsave/putback */
+#define PUTBACK(c)				\
+	do {					\
+		if (bp >= endpbb)		\
+			enlarge_bufspace();	\
+		*bp++ = (c);			\
+	} while(0)
+	
+#define CHRSAVE(c)				\
+	do {					\
+		if (ep >= endest)		\
+			enlarge_strspace();	\
+		*ep++ = (c);			\
+	} while(0)
+
+/* and corresponding exposure for local symbols */
+extern void enlarge_bufspace(void);
+extern void enlarge_strspace(void);
+extern char *endpbb;
+extern char *endest;
+
+/* trace.c */
+extern void mark_traced(const char *, int);
+extern int is_traced(const char *);
+extern void trace_file(const char *);
+extern ssize_t trace(const char **, int, struct input_file *);
+extern void finish_trace(size_t);
+extern int traced_macros;
+extern void set_trace_flags(const char *);
+extern FILE *traceout;
 
 extern ndptr hashtab[];		/* hash table for macros etc. */
-extern stae mstack[];		/* stack of m4 machine */
+extern stae *mstack;		/* stack of m4 machine */
+extern char *sstack;		/* shadow stack, for string space extension */
 extern FILE *active;		/* active output file pointer */
-extern FILE *infile[];		/* input file stack (0=stdin) */
-extern char *inname[];		/* names of these input files  */
-extern int inlineno[];		/* current number in each input*/
-extern FILE *outfile[];		/* diversion array(0=bitbucket) */
+extern struct input_file infile[];/* input file stack (0=stdin) */
+extern char *inname[];		/* names of these input files */
+extern int inlineno[];		/* current number in each input file */
+extern FILE **outfile;		/* diversion array(0=bitbucket) */
+extern int maxout;		/* maximum number of diversions */
 extern int fp; 			/* m4 call frame pointer */
 extern int ilevel;		/* input file stack pointer */
 extern int oindex;		/* diversion index. */
 extern int sp;			/* current m4 stack pointer */
-extern unsigned char *bp;       /* first available character */
-extern unsigned char buf[];     /* push-back buffer */
-extern unsigned char *bufbase;  /* buffer base for this ilevel */
-extern unsigned char *bbase[];  /* buffer base per ilevel */
-extern char ecommt;		/* end character for comment */
-extern char *endest;		/* end of string space */
-extern unsigned char *endpbb;   /* end of push-back buffer */
+extern char *bp;		/* first available character */
+extern char *buf;		/* push-back buffer */
+extern char *bufbase;		/* buffer base for this ilevel */
+extern char *bbase[];		/* buffer base per ilevel */
+extern char ecommt[MAXCCHARS+1];/* end character for comment */
 extern char *ep;		/* first free char in strspace */
-extern char lquote;		/* left quote character (`) */
-extern char *m4dir;		/* directory for temporary files */
-extern char *m4temp;		/* filename for diversions */
+extern char lquote[MAXCCHARS+1];/* left quote character (`) */
 extern char *m4wraps;		/* m4wrap string default. */
 extern char *null;		/* as it says.. just a null. */
-extern char rquote;		/* right quote character (') */
-extern char scommt;		/* start character for comment */
+extern char rquote[MAXCCHARS+1];/* right quote character (') */
+extern char scommt[MAXCCHARS+1];/* start character for comment */
 extern int synccpp;		/* Line synchronisation for C preprocessor */
-extern int chscratch;		/* Scratch space for gpbc() macro */  
+extern int chscratch;		/* Scratch space for gpbc() macro */
+
+extern int mimic_gnu;		/* behaves like gnu-m4 */

@@ -1,7 +1,7 @@
 .\"	@(#) $OpenBSD: m4.1,v 1.24 2002/04/18 18:57:23 espie Exp $
-.\" $FreeBSD$
+.\"	$FreeBSD$
 .\"
-.Dd January 26, 1993
+.Dd April 17, 2002
 .Dt M4 1
 .Os
 .Sh NAME
@@ -11,7 +11,7 @@
 .Nm m4
 .Op Fl d Ar flags
 .Op Fl t Ar name
-.Op Fl g
+.Op Fl gs
 .Oo
 .Fl D Ns Ar name Ns Op Ar =value
 .Oc
@@ -54,6 +54,11 @@ recognized as special when not followed by an open parenthesis.
 .Pp
 The options are as follows:
 .Bl -tag -width Ds
+.It Fl s
+Emit
+.Em #line
+directives for
+.Xr cpp 1 .
 .It Fl D Ns Ar name Ns Oo
 .Ar =value
 .Oc
@@ -332,15 +337,6 @@ Returns the current file's name.
 follows the Single Unix 2 specification, along with a few extensions taken
 from 
 .Nm gnu-m4 .
-.Pp
-The
-.Fl s
-option
-.Po
-.Xr cpp 1 's
-#line directives
-.Pc
-is currently not supported.
 Flags
 .Fl I ,
 .Fl d ,

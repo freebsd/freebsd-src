@@ -1,3 +1,6 @@
+/*	$OpenBSD: expr.c,v 1.12 2002/02/16 21:27:48 millert Exp $	*/
+/*	$NetBSD: expr.c,v 1.7 1995/09/28 05:37:31 tls Exp $	*/
+
 /*
  * Copyright (c) 1989, 1993
  *	The Regents of the University of California.  All rights reserved.
@@ -32,16 +35,20 @@
  * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
- *
- * $FreeBSD$
  */
 
-#ifndef lint
-static char sccsid[] = "@(#)expr.c	8.1 (Berkeley) 6/6/93";
-#endif /* not lint */
-
 #include <sys/cdefs.h>
+__SCCSID("@(#)expr.c      8.2 (Berkeley) 4/29/95");
+__RCSID_SOURCE("$OpenBSD: expr.c,v 1.12 2002/02/16 21:27:48 millert Exp $");
+__FBSDID("$FreeBSD$");
+
+#include <sys/types.h>
+#include <ctype.h>
+#include <err.h>
+#include <stddef.h>
 #include <stdio.h>
+#include "mdef.h"
+#include "extern.h"
 
 /*
  *      expression evaluator: performs a standard recursive
@@ -87,9 +94,6 @@ static char sccsid[] = "@(#)expr.c	8.1 (Berkeley) 6/6/93";
  *                      Bob Harper
  */
 
-#define TRUE    1
-#define FALSE   0
-#define EOS     (char) 0
 #define EQL     0
 #define NEQ     1
 #define LSS     2
@@ -98,8 +102,10 @@ static char sccsid[] = "@(#)expr.c	8.1 (Berkeley) 6/6/93";
 #define GEQ     5
 #define OCTAL   8
 #define DECIMAL 10
+#define HEX	16
 
-static char *nxtch;		       /* Parser scan pointer */
+static const char *nxtch;		       /* Parser scan pointer */
+static const char *where;
 
 static int query(void);
 static int lor(void);
@@ -116,7 +122,7 @@ static int constant(void);
 static int num(void);
 static int geteqrel(void);
 static int skipws(void);
-static void experr(char *);
+static void experr(const char *);
 
 /*
  * For longjmp
@@ -134,11 +140,12 @@ static jmp_buf expjump;
 
 int
 expr(expbuf)
-char *expbuf;
+	const char *expbuf;
 {
-	register int rval;
+	int rval;
 
 	nxtch = expbuf;
+	where = expbuf;
 	if (setjmp(expjump) != 0)
 		return FALSE;
 
@@ -156,7 +163,7 @@ char *expbuf;
 static int
 query()
 {
-	register int bool, true_val, false_val;
+	int bool, true_val, false_val;
 
 	bool = lor();
 	if (skipws() != '?') {
@@ -178,7 +185,7 @@ query()
 static int
 lor()
 {
-	register int c, vl, vr;
+	int c, vl, vr;
 
 	vl = land();
 	while ((c = skipws()) == '|') {
@@ -198,7 +205,7 @@ lor()
 static int
 land()
 {
-	register int c, vl, vr;
+	int c, vl, vr;
 
 	vl = not();
 	while ((c = skipws()) == '&') {
@@ -218,7 +225,7 @@ land()
 static int
 not()
 {
-	register int val, c;
+	int val, c;
 
 	if ((c = skipws()) == '!' && getch() != '=') {
 		ungetch();
@@ -238,7 +245,7 @@ not()
 static int
 eqrel()
 {
-	register int vl, vr, eqrel;
+	int vl, vr, eqrel;
 
 	vl = shift();
 	while ((eqrel = geteqrel()) != -1) {
@@ -276,7 +283,7 @@ eqrel()
 static int
 shift()
 {
-	register int vl, vr, c;
+	int vl, vr, c;
 
 	vl = primary();
 	while (((c = skipws()) == '<' || c == '>') && getch() == c) {
@@ -300,7 +307,7 @@ shift()
 static int
 primary()
 {
-	register int c, vl, vr;
+	int c, vl, vr;
 
 	vl = term();
 	while ((c = skipws()) == '+' || c == '-') {
@@ -322,7 +329,7 @@ primary()
 static int
 term()
 {
-	register int c, vl, vr;
+	int c, vl, vr;
 
 	vl = exp();
 	while ((c = skipws()) == '*' || c == '/' || c == '%') {
@@ -333,10 +340,16 @@ term()
 			vl *= vr;
 			break;
 		case '/':
-			vl /= vr;
+			if (vr == 0)
+				errx(1, "division by zero in eval.");
+			else
+				vl /= vr;
 			break;
 		case '%':
-			vl %= vr;
+			if (vr == 0)
+				errx(1, "modulo zero in eval.");
+			else
+				vl %= vr;
 			break;
 		}
 	}
@@ -350,7 +363,7 @@ term()
 static int
 exp()
 {
-	register c, vl, vr, n;
+	int c, vl, vr, n;
 
 	vl = unary();
 	switch (c = skipws()) {
@@ -379,7 +392,7 @@ exp()
 static int
 unary()
 {
-	register int val, c;
+	int val, c;
 
 	if ((c = skipws()) == '+' || c == '-' || c == '~') {
 		val = unary();
@@ -404,7 +417,7 @@ unary()
 static int
 factor()
 {
-	register int val;
+	int val;
 
 	if (skipws() == '(') {
 		val = query();
@@ -424,9 +437,9 @@ factor()
 static int
 constant()
 {
-	register int i;
-	register int value;
-	register char c;
+	int i;
+	int value;
+	int c;
 	int v[sizeof(int)];
 
 	if (skipws() != '\'') {
@@ -485,25 +498,56 @@ constant()
 static int
 num()
 {
-	register int rval, c, base;
+	int rval, c, base;
 	int ndig;
 
-	base = ((c = skipws()) == '0') ? OCTAL : DECIMAL;
 	rval = 0;
 	ndig = 0;
-	while (c >= '0' && c <= (base == OCTAL ? '7' : '9')) {
-		rval *= base;
-		rval += (c - '0');
+	c = skipws();
+	if (c == '0') {
+		c = skipws();
+		if (c == 'x' || c == 'X') {
+			base = HEX;
+			c = skipws();
+		} else {
+			base = OCTAL;
+			ndig++;
+		}
+	} else
+		base = DECIMAL;
+	for(;;) {
+		switch(c) {
+			case '8': case '9':
+				if (base == OCTAL) 
+					goto bad_digit;
+				/*FALLTHRU*/
+			case '0': case '1': case '2': case '3': 
+			case '4': case '5': case '6': case '7':
+				rval *= base;
+				rval += c - '0';
+				break;
+			case 'A': case 'B': case 'C': case 'D': case 'E': case 'F':
+				c = tolower(c);
+			case 'a': case 'b': case 'c': case 'd': case 'e': case 'f':
+				if (base == HEX) {
+					rval *= base;
+					rval += c - 'a' + 10;
+					break;
+				}
+				/*FALLTHRU*/
+			default:
+				goto bad_digit;
+		}
 		c = getch();
 		ndig++;
 	}
+bad_digit:
 	ungetch();
-
+	
 	if (ndig == 0)
 		experr("bad constant");
-
+	
 	return rval;
-
 }
 
 /*
@@ -512,7 +556,7 @@ num()
 static int
 geteqrel()
 {
-	register int c1, c2;
+	int c1, c2;
 
 	c1 = skipws();
 	c2 = getch();
@@ -556,7 +600,7 @@ geteqrel()
 static int
 skipws()
 {
-	register char c;
+	int c;
 
 	while ((c = getch()) <= ' ' && c > EOS)
 		;
@@ -564,13 +608,13 @@ skipws()
 }
 
 /*
- * resets environment to eval(), prints an error
+ * resets environment to eval(), prints an error 
  * and forces eval to return FALSE.
  */
 static void
 experr(msg)
-char *msg;
+	const char *msg;
 {
-	printf("m4: %s in expr.\n", msg);
+	printf("m4: %s in expr %s.\n", msg, where);
 	longjmp(expjump, -1);
 }
