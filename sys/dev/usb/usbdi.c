@@ -1,4 +1,4 @@
-/*	$NetBSD: usbdi.c,v 1.88 2001/11/22 04:31:01 augustss Exp $	*/
+/*	$NetBSD: usbdi.c,v 1.89 2001/12/02 23:25:25 augustss Exp $	*/
 /*	$FreeBSD$	*/
 
 /*
@@ -1083,22 +1083,6 @@ usbd_get_endpoint_descriptor(usbd_interface_handle iface, u_int8_t address)
 }
 
 /*
- * Search for a vendor/product pair in an array.  The item size is
- * given as an argument.
- */
-const struct usb_devno *
-usb_match_device(const struct usb_devno *tbl, u_int nentries, u_int sz,
-		 u_int16_t vendor, u_int16_t product)
-{
-	while (nentries-- > 0) {
-		if (tbl->ud_vendor == vendor && tbl->ud_product == product)
-			return (tbl);
-		tbl = (const struct usb_devno *)((const char *)tbl + sz);
-	}
-	return (NULL);
-}
-
-/*
  * usbd_ratecheck() can limit the number of error messages that occurs.
  * When a device is unplugged it may take up to 0.25s for the hub driver
  * to notice it.  If the driver continuosly tries to do I/O operations
@@ -1113,6 +1097,22 @@ usbd_ratecheck(struct timeval *last)
 	return (ratecheck(last, &errinterval));
 #endif
 	return (1);
+}
+
+/*
+ * Search for a vendor/product pair in an array.  The item size is
+ * given as an argument.
+ */
+const struct usb_devno *
+usb_match_device(const struct usb_devno *tbl, u_int nentries, u_int sz,
+		 u_int16_t vendor, u_int16_t product)
+{
+	while (nentries-- > 0) {
+		if (tbl->ud_vendor == vendor && tbl->ud_product == product)
+			return (tbl);
+		tbl = (const struct usb_devno *)((const char *)tbl + sz);
+	}
+	return (NULL);
 }
 
 #if defined(__FreeBSD__)
