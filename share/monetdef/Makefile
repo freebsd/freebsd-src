@@ -42,6 +42,8 @@ LOCALES=        af_ZA.ISO8859-1 \
 
 LOCALEDIR=      ${DESTDIR}/usr/share/locale
 
+ASCIILINKS = en_AU en_CA en_GB en_NZ en_US
+
 .SUFFIXES: .src .out
 
 .src.out:
@@ -54,7 +56,9 @@ afterinstall:
 	${INSTALL} ${COPY} -m 644 -o ${BINOWN} -g ${BINGRP} ${lang}.out \
 		${LOCALEDIR}/${lang}/LC_MONETARY
 .endfor
-	ln -fs ../en_US.ISO8859-1/LC_MONETARY \
-		${LOCALEDIR}/en_US.US-ASCII/LC_MONETARY
+.for link in ${ASCIILINKS}
+	ln -fs ../${link}.ISO8859-1/LC_MONETARY \
+		${LOCALEDIR}/${link}.US-ASCII/LC_MONETARY
+.endfor
 
 .include <bsd.prog.mk>
