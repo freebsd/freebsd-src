@@ -635,7 +635,6 @@ gscclose (dev_t dev, int flags, int fmt, struct proc *p)
 
   outb(scu->ctrl, scu->ctrl_byte & ~GSC_POWER_ON);
 
-  scu->sbuf.base = NULL;
   scu->sbuf.size = INVALID;
   scu->sbuf.poi  = INVALID;
 
