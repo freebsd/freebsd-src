@@ -13,6 +13,7 @@ SRCS+= \
 	thr_attr_getschedparam.c \
 	thr_attr_getschedpolicy.c \
 	thr_attr_getscope.c \
+	thr_attr_getstack.c \
 	thr_attr_getstackaddr.c \
 	thr_attr_getstacksize.c \
 	thr_attr_setcreatesuspend_np.c \
@@ -22,6 +23,7 @@ SRCS+= \
 	thr_attr_setschedparam.c \
 	thr_attr_setschedpolicy.c \
 	thr_attr_setscope.c \
+	thr_attr_setstack.c \
 	thr_attr_setstackaddr.c \
 	thr_attr_setstacksize.c \
 	thr_autoinit.c \
