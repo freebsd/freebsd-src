@@ -1,6 +1,6 @@
 /*
- * Copyright (c) 1997 Ted Faber
- * All rights reserved.
+ * Copyright (c) 2001 M. Warner Losh.  All Rights Reserved.
+ * Copyright (c) 1997 Ted Faber All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
