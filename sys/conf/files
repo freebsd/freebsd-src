@@ -860,10 +860,8 @@ dev/sound/pcm/channel.c	optional pcm
 dev/sound/pcm/feeder.c	optional pcm
 dev/sound/pcm/fake.c	optional pcm
 dev/sound/pcm/mixer.c	optional pcm
-dev/sound/isa/ad1816.c	optional pcm isa
-dev/sound/isa/es1888.c	optional pcm isa
-dev/sound/isa/mss.c	optional pcm isa
-dev/sound/isa/sb.c	optional pcm isa
+dev/sound/pci/csa.c	optional csa pcm
+dev/sound/pci/csapcm.c	optional csa pcm
 dev/sound/pci/es137x.c	optional pcm pci
 dev/sound/pci/t4dwave.c	optional pcm pci
 #dev/sound/pci/aureal.c	optional pcm pci
