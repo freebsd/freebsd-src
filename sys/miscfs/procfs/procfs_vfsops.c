@@ -36,7 +36,7 @@
  *
  *	@(#)procfs_vfsops.c	8.7 (Berkeley) 5/10/95
  *
- *	$Id: procfs_vfsops.c,v 1.18 1997/12/08 01:06:24 sef Exp $
+ *	$Id: procfs_vfsops.c,v 1.19 1997/12/30 08:46:44 bde Exp $
  */
 
 /*
@@ -193,6 +193,8 @@ procfs_init(vfsp)
 	    size_t, struct proc *)))eopnotsupp)
 #define procfs_vget ((int (*) __P((struct mount *, ino_t, struct vnode **))) \
 	    eopnotsupp)
+#define procfs_vrele ((int (*) __P((struct mount *, struct vnode *))) \
+	    eopnotsupp)
 #define procfs_vptofh ((int (*) __P((struct vnode *, struct fid *)))einval)
 
 static struct vfsops procfs_vfsops = {
@@ -204,6 +206,7 @@ static struct vfsops procfs_vfsops = {
 	procfs_statfs,
 	procfs_sync,
 	procfs_vget,
+	procfs_vrele,
 	procfs_fhtovp,
 	procfs_vptofh,
 	procfs_init,

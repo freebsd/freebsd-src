@@ -1,4 +1,4 @@
-/*	$Id: msdosfs_vfsops.c,v 1.27 1998/02/23 14:57:50 kato Exp $ */
+/*	$Id: msdosfs_vfsops.c,v 1.28 1998/02/23 16:44:32 ache Exp $ */
 /*	$NetBSD: msdosfs_vfsops.c,v 1.51 1997/11/17 15:36:58 ws Exp $	*/
 
 /*-
@@ -1042,6 +1042,7 @@ static struct vfsops msdosfs_vfsops = {
 	msdosfs_statfs,
 	msdosfs_sync,
 	msdosfs_vget,
+	vfs_vrele,
 	msdosfs_fhtovp,
 	msdosfs_vptofh,
 	msdosfs_init
