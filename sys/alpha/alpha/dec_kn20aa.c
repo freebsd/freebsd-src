@@ -130,20 +130,20 @@ dec_kn20aa_cons_init()
 	case 3:
 		/* display console ... */
 		/* XXX */
-#if	NPCKBD > 0
+#if NSC > 0
 		sccnattach();
 #else
 		panic("not configured to use display && keyboard console");
 		break;
+#endif
 
 	default:
 		printf("ctb->ctb_term_type = 0x%lx\n", ctb->ctb_term_type);
 		printf("ctb->ctb_turboslot = 0x%lx\n", ctb->ctb_turboslot);
 
 		panic("consinit: unknown console type %d\n",
-		    ctb->ctb_term_type);
+		    (int)ctb->ctb_term_type);
 	}
-#endif
 }
 #if 0
 static void

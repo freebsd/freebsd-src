@@ -1,6 +1,6 @@
 /**************************************************************************
 **
-**  $Id: pcisupport.c,v 1.71 1998/07/07 05:00:09 bde Exp $
+**  $Id: pcisupport.c,v 1.72 1998/09/16 20:29:22 msmith Exp $
 **
 **  Device driver for DEC/INTEL PCI chipsets.
 **
@@ -1137,8 +1137,14 @@ static char* vga_probe (pcici_t tag, pcidi_t typea)
 			if ((data & PCI_SUBCLASS_MASK)
 			    == PCI_SUBCLASS_DISPLAY_VGA)
 				type = "VGA-compatible display device";
-			else
+			else {
+				/*
+				 * If it isn't a vga display device,
+				 * don't pretend we found one.
+				 */
 				type = "Display device";
+				return 0;
+			}
 		}
 		break;
 

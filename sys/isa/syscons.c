@@ -25,7 +25,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *  $Id: syscons.c,v 1.273 1998/08/06 09:15:53 dfr Exp $
+ *  $Id: syscons.c,v 1.274 1998/09/17 09:38:35 dfr Exp $
  *  from: i386/isa syscons.c,v 1.278
  */
 
@@ -452,12 +452,12 @@ scprobe(device_t dev)
     if (!scvidprobe(device_get_unit(dev), isa_get_flags(dev))) {
 	if (bootverbose)
 	    printf("sc%d: no video adapter is found.\n", device_get_unit(dev));
-	return (0);
+	return (ENXIO);
     }
     (*biosvidsw.diag)(bootverbose);
 #if defined(VESA) && defined(VM86)
     if (vesa_load())
-	return FALSE;
+	return ENXIO;
     (*biosvidsw.diag)(bootverbose);
 #endif
 
