@@ -489,6 +489,7 @@
 /* Atmel Comp. products */
 #define	USB_PRODUCT_ATMEL_UHB124	0x3301		/* UHB124 hub */
 #define	USB_PRODUCT_ATMEL_DWL120	0x7602		/* DWL-120 Wireless adapter */
+#define	USB_PRODUCT_ATMEL_BW002	0x7605		/* BW002 Wireless adapter */
 
 /* Avision products */
 #define	USB_PRODUCT_AVISION_1200U	0x0268		/* 1200U scanner */

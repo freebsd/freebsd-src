@@ -482,6 +482,7 @@ product ATEN UC232A		0x2008	Serial adapter
 /* Atmel Comp. products */
 product ATMEL UHB124		0x3301	UHB124 hub
 product ATMEL DWL120		0x7602	DWL-120 Wireless adapter
+product ATMEL BW002		0x7605	BW002 Wireless adapter
 
 /* Avision products */
 product AVISION 1200U		0x0268	1200U scanner
