@@ -116,8 +116,6 @@ Print debugging information about conditional evaluation.
 Print debugging information about directory searching and caching.
 .It Ar f
 Print debugging information about the execution of for loops.
-Currently a
-no-op.
 .It Ar "g1"
 Print the input graph before making anything.
 .It Ar "g2"
@@ -902,7 +900,8 @@ has been defined.
 .Pp
 An
 .Ar expression
-may also be an arithmetic or string comparison.
+may also be an arithmetic or string comparison, with the left-hand side
+being a variable expansion.
 Variable expansion is
 performed on both sides of the comparison, after which the integral
 values are compared.
