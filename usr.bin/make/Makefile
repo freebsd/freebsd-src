@@ -6,11 +6,9 @@ PROG=	make
 CFLAGS+=-I${.CURDIR}
 SRCS=	arch.c buf.c compat.c cond.c dir.c for.c hash.c job.c main.c \
 	make.c parse.c str.c suff.c targ.c util.c var.c var_modify.c
-SRCS+=	lstAppend.c lstAtEnd.c lstAtFront.c lstClose.c lstConcat.c \
-	lstDatum.c lstDeQueue.c lstDestroy.c lstDupl.c lstEnQueue.c \
-	lstFind.c lstFindFrom.c lstFirst.c lstForEach.c lstForEachFrom.c \
-	lstInit.c lstInsert.c lstIsAtEnd.c lstLast.c \
-	lstMember.c lstNext.c lstOpen.c lstRemove.c lstReplace.c lstSucc.c
+SRCS+=	lstAppend.c lstClose.c lstConcat.c lstDeQueue.c lstDestroy.c \
+	lstDupl.c lstFindFrom.c lstForEachFrom.c lstInit.c lstInsert.c \
+	lstIsAtEnd.c lstMember.c lstNext.c lstOpen.c lstRemove.c
 .PATH:	${.CURDIR}/lst.lib
 
 WARNS?=	3
