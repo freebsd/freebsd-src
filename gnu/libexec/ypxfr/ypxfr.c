@@ -18,7 +18,7 @@
 
     Modified for use with FreeBSD 2.x by Bill Paul (wpaul@ctr.columbia.edu)
 
-	$Id: ypxfr.c,v 1.2 1995/02/06 23:35:49 wpaul Exp $
+	$Id: ypxfr.c,v 1.3 1995/03/30 04:14:46 wpaul Exp $
 */
 
 #include <stdio.h>
@@ -271,8 +271,7 @@ main (int argc, char **argv)
 		int fd;
 		char logfile[MAXPATHLEN];
 		sprintf (logfile, "%sypxfr.log", _PATH_YP);
-		if ((fd = open("/var/yp/ypxfr.log",
-				O_CREAT|O_WRONLY|O_APPEND, 0644))) {
+		if ((fd = open(logfile, O_CREAT|O_WRONLY|O_APPEND, 0644))) {
 			close(0);
 			dup(fd);
 			close(1);
