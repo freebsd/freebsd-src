@@ -294,8 +294,8 @@ rcsinfo_proc (repository, template)
 
     if ((tfp = fopen (template, "r")) != NULL)
     {
-	char *line;
-	size_t line_chars_allocated;
+	char *line = NULL;
+	size_t line_chars_allocated = 0;
 
 	while (getline (&line, &line_chars_allocated, tfp) >= 0)
 	    (void) fputs (line, fp);
