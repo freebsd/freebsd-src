@@ -3,5 +3,4 @@
 MODULE=		Dumper
 MODULEDIR=	Data/Dumper
 
-.include "../Makefile.inc"
-.include <bsd.obj.mk>
+.include <bsd.prog.mk>
