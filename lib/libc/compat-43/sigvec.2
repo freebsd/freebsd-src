@@ -102,9 +102,9 @@ must arrange to restore the previous context itself.
 When a signal is delivered to a process a new signal mask is
 installed for the duration of the process' signal handler
 (or until a
-.Xr sigblock
+.Xr sigblock 2
 or
-.Xr sigsetmask
+.Xr sigsetmask 2
 call is made).
 This mask is formed by taking the current signal mask,
 adding the signal to be delivered, and 
