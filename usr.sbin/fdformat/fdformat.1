@@ -1,4 +1,4 @@
-.\" Copyright (C) 1993, 1994, 1995 by Joerg Wunsch, Dresden
+.\" Copyright (C) 1993, 1994, 1995, 2001 by Joerg Wunsch, Dresden
 .\" All rights reserved.
 .\"
 .\" Redistribution and use in source and binary forms, with or without
@@ -24,7 +24,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd September 16, 1993
+.Dd July 2, 2001
 .Os
 .Dt FDFORMAT 1
 .Sh NAME
@@ -141,6 +141,8 @@ is printed when the track(s) is being formatted, then a
 while it's being verified, and if an error has been detected, it
 will finally change to
 .Sq Em E .
+Detailed status information (cylinder, head and sector number, and the
+exact cause of the error) will then be printed for up to 10 errors.
 .Pp
 An exit status of 0 is returned upon successful operation.
 Exit status
