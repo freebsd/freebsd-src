@@ -27,6 +27,6 @@ tokdefs.h: ${.CURDIR}/tokens
 	grep -n . <${.CURDIR}/tokens | sed "s/\([^:]*\):\(.*\)/#define \2 \1/" >tokdefs.h
 
 CLEANFILES+=\
-	gram.c tokdefs.h
+	gram.c tokdefs.h y.tab.h
 
 .include <bsd.prog.mk>
