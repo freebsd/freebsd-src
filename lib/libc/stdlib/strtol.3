@@ -36,12 +36,16 @@
 .\"     @(#)strtol.3	8.1 (Berkeley) 6/4/93
 .\" $FreeBSD$
 .\"
-.Dd June 4, 1993
+.Dd November 28, 2001
 .Dt STRTOL 3
 .Os
 .Sh NAME
 .Nm strtol , strtoll , strtoimax , strtoq
-.Nd "convert a string value to a long, long long, intmax_t or quad_t integer"
+.Nd "convert a string value to a"
+.Vt long , "long long" , intmax_t
+or
+.Vt quad_t
+integer
 .Sh LIBRARY
 .Lb libc
 .Sh SYNOPSIS
@@ -66,7 +70,7 @@ function
 converts the string in
 .Fa nptr
 to a
-.Em long
+.Vt long
 value.
 The
 .Fn strtoll
@@ -74,7 +78,7 @@ function
 converts the string in
 .Fa nptr
 to a
-.Em long long
+.Vt "long long"
 value.
 The
 .Fn strtoimax
@@ -82,7 +86,7 @@ function
 converts the string in
 .Fa nptr
 to an
-.Em intmax_t
+.Vt intmax_t
 value.
 The
 .Fn strtoq
@@ -90,7 +94,7 @@ function
 converts the string in
 .Fa nptr
 to a
-.Em quad_t
+.Vt quad_t
 value.
 The conversion is done according to the given
 .Fa base ,
@@ -109,7 +113,7 @@ If
 .Fa base
 is zero or 16,
 the string may then include a
-.Ql 0x
+.Dq Li 0x
 prefix,
 and the number will be read in base 16; otherwise, a zero
 .Fa base
@@ -118,11 +122,9 @@ is taken as 10 (decimal) unless the next character is
 in which case it is taken as 8 (octal).
 .Pp
 The remainder of the string is converted to a
-.Em long ,
-.Em long long ,
-.Em intmax_t
+.Vt long , "long long" , intmax_t
 or
-.Em quad_t
+.Vt quad_t
 value in the obvious manner,
 stopping at the first character which is not a valid digit
 in the given base.
@@ -137,7 +139,8 @@ representing 35.)
 .Pp
 If
 .Fa endptr
-is non nil,
+is not
+.Dv NULL ,
 .Fn strtol
 stores the address of the first invalid character in
 .Fa *endptr .
@@ -161,10 +164,10 @@ The
 .Fn strtol ,
 .Fn strtoll ,
 .Fn strtoimax
-or
+and
 .Fn strtoq
-function
-returns the result of the conversion,
+functions
+return the result of the conversion,
 unless the value would underflow or overflow.
 If no conversion could be performed, 0 is returned and
 the global variable
