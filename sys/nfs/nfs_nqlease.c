@@ -138,7 +138,6 @@ int nqnfs_piggy[NFS_NPROCS] = {
 
 extern nfstype nfsv2_type[9];
 extern nfstype nfsv3_type[9];
-extern struct nfssvc_sock *nfs_udpsock, *nfs_cltpsock;
 extern int nfsd_waiting;
 extern struct nfsstats nfsstats;
 
@@ -380,18 +379,24 @@ nqsrv_addhost(lph, slp, nam)
 	struct nfssvc_sock *slp;
 	struct sockaddr *nam;
 {
-	register struct sockaddr_in *saddr;
+	struct sockaddr_in *saddr;
+	struct socket *nsso;
 
-	if (slp == NQLOCALSLP)
+	if (slp == NQLOCALSLP) {
 		lph->lph_flag |= (LC_VALID | LC_LOCAL);
-	else if (slp == nfs_udpsock) {
+		return;
+	}
+	nsso = slp->ns_so;
+	if (nsso && nsso->so_proto->pr_protocol == IPPROTO_UDP) {
 		saddr = (struct sockaddr_in *)nam;
 		lph->lph_flag |= (LC_VALID | LC_UDP);
 		lph->lph_inetaddr = saddr->sin_addr.s_addr;
 		lph->lph_port = saddr->sin_port;
-	} else if (slp == nfs_cltpsock) {
+#ifdef ISO
+	} else if (nsso && nsso->so_proto->pr_protocol == ISOPROTO_CLTP) {
 		lph->lph_nam = dup_sockaddr(nam, 1);
 		lph->lph_flag |= (LC_VALID | LC_CLTP);
+#endif
 	} else {
 		lph->lph_flag |= (LC_VALID | LC_SREF);
 		lph->lph_slp = slp;
@@ -450,6 +455,7 @@ nqsrv_cmpnam(slp, nam, lph)
 	register struct sockaddr_in *saddr;
 	struct sockaddr *addr;
 	union nethostaddr lhaddr;
+	struct socket *nsso;
 	int ret;
 
 	if (slp == NQLOCALSLP) {
@@ -458,15 +464,21 @@ nqsrv_cmpnam(slp, nam, lph)
 		else
 			return (0);
 	}
-	if (slp == nfs_udpsock || slp == nfs_cltpsock)
+	nsso = slp->ns_so;
+	if (nsso && nsso->so_proto->pr_protocol == IPPROTO_UDP) {
 		addr = nam;
-	else
+#ifdef ISO
+	} else if (nsso && nsso->so_proto->pr_protocol == ISOPROTO_CLTP) {
+		addr = nam;
+#endif
+	} else {
 		addr = slp->ns_nam;
-	if (lph->lph_flag & LC_UDP)
+	}
+	if (lph->lph_flag & LC_UDP) {
 		ret = netaddr_match(AF_INET, &lph->lph_haddr, addr);
-	else if (lph->lph_flag & LC_CLTP)
+	} else if (lph->lph_flag & LC_CLTP) {
 		ret = netaddr_match(AF_ISO, &lph->lph_claddr, addr);
-	else {
+	} else {
 		if ((lph->lph_slp->ns_flag & SLP_VALID) == 0)
 			return (0);
 		saddr = (struct sockaddr_in *)lph->lph_slp->ns_nam;
@@ -517,10 +529,10 @@ nqsrv_send_eviction(vp, lp, slp, nam, cred)
 				saddr->sin_family = AF_INET;
 				saddr->sin_addr.s_addr = lph->lph_inetaddr;
 				saddr->sin_port = lph->lph_port;
-				so = nfs_udpsock->ns_so;
+				so = lph->lph_slp->ns_so;
 			} else if (lph->lph_flag & LC_CLTP) {
 				nam2 = lph->lph_nam;
-				so = nfs_cltpsock->ns_so;
+				so = lph->lph_slp->ns_so;
 			} else if (lph->lph_slp->ns_flag & SLP_VALID) {
 				nam2 = (struct sockaddr *)0;
 				so = lph->lph_slp->ns_so;

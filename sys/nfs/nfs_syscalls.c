@@ -86,7 +86,6 @@ extern int nfsrtton;
 extern struct nfsstats nfsstats;
 extern int nfsrvw_procrastinate;
 extern int nfsrvw_procrastinate_v3;
-struct nfssvc_sock *nfs_udpsock, *nfs_cltpsock;
 static int nuidhash_max = NFS_MAXUIDHASH;
 
 #ifndef NFS_NOSERVER
@@ -323,10 +322,10 @@ nfssvc_addsock(fp, mynam, p)
 	register int siz;
 	register struct nfssvc_sock *slp;
 	register struct socket *so;
-	struct nfssvc_sock *tslp;
 	int error, s;
 
 	so = (struct socket *)fp->f_data;
+#if 0
 	tslp = (struct nfssvc_sock *)0;
 	/*
 	 * Add it to the list, as required.
@@ -348,6 +347,7 @@ nfssvc_addsock(fp, mynam, p)
 		}
 #endif /* ISO */
 	}
+#endif
 	if (so->so_type == SOCK_STREAM)
 		siz = NFS_MAXPACKET + sizeof (u_long);
 	else
@@ -393,16 +393,14 @@ nfssvc_addsock(fp, mynam, p)
 	so->so_rcv.sb_timeo = 0;
 	so->so_snd.sb_flags &= ~SB_NOINTR;
 	so->so_snd.sb_timeo = 0;
-	if (tslp)
-		slp = tslp;
-	else {
-		slp = (struct nfssvc_sock *)
-			malloc(sizeof (struct nfssvc_sock), M_NFSSVC, M_WAITOK);
-		bzero((caddr_t)slp, sizeof (struct nfssvc_sock));
-		STAILQ_INIT(&slp->ns_rec);
-		TAILQ_INIT(&slp->ns_uidlruhead);
-		TAILQ_INSERT_TAIL(&nfssvc_sockhead, slp, ns_chain);
-	}
+
+	slp = (struct nfssvc_sock *)
+		malloc(sizeof (struct nfssvc_sock), M_NFSSVC, M_WAITOK);
+	bzero((caddr_t)slp, sizeof (struct nfssvc_sock));
+	STAILQ_INIT(&slp->ns_rec);
+	TAILQ_INIT(&slp->ns_uidlruhead);
+	TAILQ_INSERT_TAIL(&nfssvc_sockhead, slp, ns_chain);
+
 	slp->ns_so = so;
 	slp->ns_nam = mynam;
 	fp->f_count++;
@@ -861,6 +859,7 @@ nfsrv_init(terminating)
 	TAILQ_INIT(&nfsd_head);
 	nfsd_head_flag &= ~NFSD_CHECKSLP;
 
+#if 0
 	nfs_udpsock = (struct nfssvc_sock *)
 	    malloc(sizeof (struct nfssvc_sock), M_NFSSVC, M_WAITOK);
 	bzero((caddr_t)nfs_udpsock, sizeof (struct nfssvc_sock));
@@ -874,6 +873,7 @@ nfsrv_init(terminating)
 	STAILQ_INIT(&nfs_cltpsock->ns_rec);
 	TAILQ_INIT(&nfs_cltpsock->ns_uidlruhead);
 	TAILQ_INSERT_TAIL(&nfssvc_sockhead, nfs_cltpsock, ns_chain);
+#endif
 }
 
 /*
