@@ -1,5 +1,5 @@
 /*
- * $Id$
+ * $Id: scsiio.h,v 1.2 1994/08/02 07:53:30 davidg Exp $
  */
 #ifndef _SYS_SCSIIO_H_
 #define _SYS_SCSIIO_H_
@@ -60,6 +60,7 @@ struct	scsi_addr {
 #define SCIOCDECONFIG	_IO('Q', 5)	/* please dissappear */
 #define SCIOCRECONFIG	_IO('Q', 6)	/* please check again */
 #define SCIOCRESET	_IO('Q', 7)	/* reset the device */
+#define SCIOCADDR	_IOW('Q', 8, struct scsi_addr) /* Change address */
 
 
 #endif /* _SYS_SCSIIO_H_ */
