@@ -2559,6 +2559,22 @@ options 	NSFBUFS=1024
 #
 options 	DEBUG_LOCKS
 
+
+#####################################################################
+# ABI Emulation
+
+# Enable iBCS2 runtime support for SCO and ISC binaries
+options 	IBCS2
+
+# Emulate spx device for client side of SVR3 local X interface
+options 	SPX_HACK
+
+# Enable Linux ABI emulation
+options 	COMPAT_LINUX
+
+# Linux debugging
+options 	DEBUG_LINUX
+
 #
 # SysVR4 ABI emulation
 #
@@ -2579,11 +2595,8 @@ options		COMPAT_SVR4	# build emulator statically
 options		DEBUG_SVR4	# enable verbose debugging
 device		streams		# STREAMS network driver (required for svr4).
 
-# Enable iBCS2 runtime support for SCO and ISC binaries
-options 	IBCS2
-# Emulate spx device for client side of SVR3 local X interface
-options 	SPX_HACK
-
+
+#####################################################################
 # USB support
 # UHCI controller
 device		uhci
@@ -2715,13 +2728,11 @@ options 	CAM_DEBUG_DELAY
 
 # VFS cluster debugging.
 options 	CLUSTERDEBUG
-options 	COMPAT_LINUX
 
 # Eliminate unneeded cache flush instruction(s).
 options 	CPU_UPGRADE_HW_CACHE
 
 options 	DEBUG
-options 	DEBUG_LINUX
 
 # PECOFF module (Win32 Execution Format)
 options		PECOFF_SUPPORT
