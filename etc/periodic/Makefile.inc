@@ -1,8 +1,6 @@
-#	$Id: Makefile.inc,v 1.1.1.1 1997/08/16 17:04:00 pst Exp $
+#	$Id: Makefile.inc,v 1.2 1998/05/31 11:38:25 bde Exp $
 
 BINDIR=	/etc/periodic/${.CURDIR:T}
-BINOWN=	root
-BINGRP=	wheel
 NOOBJ=
 
 beforeinstall:

@@ -1,5 +1,5 @@
 #	@(#)Makefile	8.1 (Berkeley) 6/5/93
-#	$Id$
+#	$Id: Makefile,v 1.7 1998/08/06 21:40:13 markm Exp $
 
 #	dump.h			header file
 #	itime.c			reads /etc/dumpdates
@@ -17,7 +17,6 @@ PROG=	dump
 LINKS=	${BINDIR}/dump ${BINDIR}/rdump
 CFLAGS+=-DRDUMP
 SRCS=	itime.c main.c optr.c dumprmt.c tape.c traverse.c unctime.c
-BINOWN=	root
 BINGRP=	tty
 BINMODE=2555
 MAN8=	dump.8
