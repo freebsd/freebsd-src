@@ -9,25 +9,28 @@
 # This library should never be installed, and isn't even linked
 # with in the normal way. (See ../rescue/Makefile for details.)
 
+.PATH: ${.CURDIR}/../../lib/libc/gen \
+       ${.CURDIR}/../../lib/libc/net \
+       ${.CURDIR}/../../lib/libc/stdlib \
+       ${.CURDIR}/../../lib/libutil 
+
 LIB=		rescue
-NOPROFILE=	yes	# Don't generate profile version
 INTERNALLIB=	yes	# Don't install this library
+SRCS=		exec.c getusershell.c login_class.c popen.c rcmdsh.c \
+		sysctl.c system.c
 
 CFLAGS+=	-DRESCUE
 # Flags copied from src/lib/libc and src/lib/libutil
-CFLAGS+=	-I${.CURDIR}/../../lib/libc/include
+# libc/db/Makefile.inc
 CFLAGS+=	-D__DBINTERFACE_PRIVATE
+# libc/net/Makefile.inc & libutil/Makefile
 CFLAGS+=	-DINET6
+# libc/regex/Makefile.inc & libc/regex/grot/Makefile
 CFLAGS+=	-DPOSIX_MISTAKE
-CFLAGS+=	-I${.CURDIR}/../../lib/libc/locale
-CFLAGS+=	-DBROKEN_DES
-CFLAGS+=	-DPORTMAP
-CFLAGS+=	-DDES_BUILTIN
-CFLAGS+=	-DYP
-CFLAGS+=	-DHESIOD
-
-.PATH: ${.CURDIR}/../../lib/libc/gen ${.CURDIR}/../../lib/libutil ${.CURDIR}/../../lib/libc/net ${.CURDIR}/../../lib/libc/stdlib
-
-SRCS = exec.c getusershell.c login_class.c popen.c rcmdsh.c sysctl.c system.c
+# libc/rpc/Makefile.inc
+CFLAGS+=	-DBROKEN_DES -DPORTMAP -DDES_BUILTIN
+# libc/Makefile
+CFLAGS+=	-DYP -DHESIOD
+CFLAGS+=	-I${.CURDIR}/../../lib/libc/include
 
 .include <bsd.lib.mk>
