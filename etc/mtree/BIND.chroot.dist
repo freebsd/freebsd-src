@@ -1,0 +1,32 @@
+# $FreeBSD$
+#
+# Please see the file src/etc/mtree/README before making changes to this file.
+#
+
+/set type=dir uname=root gname=wheel mode=0755
+.
+    dev
+    ..
+    etc
+/set type=dir uname=bind gname=wheel mode=0755
+        namedb
+/set type=dir uname=root gname=wheel mode=0755
+            master
+            ..
+/set type=dir uname=bind gname=wheel mode=0755
+            slave
+            ..
+        ..
+    ..
+/set type=dir uname=bind gname=wheel mode=0755
+    var             uname=root
+	dump
+	..
+        log
+        ..
+        run
+	    named
+            ..
+	..
+    ..
+..
