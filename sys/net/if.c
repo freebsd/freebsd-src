@@ -51,11 +51,9 @@
 #include <sys/syslog.h>
 #include <sys/sysctl.h>
 
-#include <net/ethernet.h>
 #include <net/if.h>
 #include <net/if_arp.h>
 #include <net/if_dl.h>
-#include <net/if_types.h>
 #include <net/radix.h>
 #include <net/route.h>
 
@@ -236,18 +234,6 @@ if_detach(ifp)
 	 */
 	s = splnet();
 	if_down(ifp);
-
-	/*
-	 * Do any type-specific detach operation
-	 */
-	switch (ifp->if_type) {
-	case IFT_ETHER:
-		if (ng_ether_detach_p != NULL)
-			(*ng_ether_detach_p)(ifp);
-		break;
-	default:
-		break;
-	}
 
 	/*
 	 * Remove address from ifnet_addrs[] and maybe decrement if_index.
