@@ -255,11 +255,9 @@ devstat_end_transaction_buf(struct devstat *ds, struct buf *bp)
 	else
 		flg = DEVSTAT_WRITE;
 
-	devstat_end_transaction(ds,
-	    bp->b_bcount - bp->b_resid,
-	    (bp->b_flags & B_ORDERED) ?
-	        DEVSTAT_TAG_ORDERED : DEVSTAT_TAG_SIMPLE,
-	    flg);
+	devstat_end_transaction(ds, bp->b_bcount - bp->b_resid,
+				(bp->b_flags & B_ORDERED) ?
+				DEVSTAT_TAG_ORDERED : DEVSTAT_TAG_SIMPLE, flg);
 }
 
 /*
