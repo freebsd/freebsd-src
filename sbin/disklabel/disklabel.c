@@ -256,18 +256,6 @@ main(int argc, char *argv[])
 		break;
 
 	case RESTORE:
-		if (installboot && argc == 3) {
-			makelabel(argv[2], 0, &lab);
-			argc--;
-
-			/*
-			 * We only called makelabel() for its side effect
-			 * of setting the bootstrap file names.  Discard
-			 * all changes to `lab' so that all values in the
-			 * final label come from the ASCII label.
-			 */
-			bzero((char *)&lab, sizeof(lab));
-		}
 		if (argc != 2)
 			usage();
 		if (!(t = fopen(argv[1], "r")))
@@ -312,9 +300,7 @@ main(int argc, char *argv[])
 }
 
 /*
- * Construct a prototype disklabel from /etc/disktab.  As a side
- * effect, set the names of the primary and secondary boot files
- * if specified.
+ * Construct a prototype disklabel from /etc/disktab.
  */
 void
 makelabel(const char *type, const char *name, struct disklabel *lp)
@@ -1522,7 +1508,7 @@ usage(void)
 		"\t\t(to install boot program with existing on-disk label)",
 		"       disklabel -w -B [-n] [ -b bootprog ] disk type [ packid ]",
 		"\t\t(to write label and install boot program)",
-		"       disklabel -R -B [-n] [ -b bootprog ] disk protofile [ type ]",
+		"       disklabel -R -B [-n] [ -b bootprog ] disk protofile",
 		"\t\t(to restore label and install boot program)"
 	);
 	exit(1);
