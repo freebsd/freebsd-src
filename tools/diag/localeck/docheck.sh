@@ -21,20 +21,17 @@ PATH_LOCALE=$LOCALEDIR
 LOCALES=0
 ERRORS=0
 
-echo "Validating locales in $LOCALEDIR" 
+echo "Validating locales in $LOCALEDIR"
 echo
 
 for i in `ls -1 $LOCALEDIR`
 do
-	LOCALES=`expr $LOCALES + 1`
-	./localeck $i
-	if [ $? != 0 ]; then
-		ERRORS=`expr $ERRORS + 1`
-	fi
+	LOCALES=$(($LOCALES + 1))
+	./localeck $i || ERRORS=$(($ERRORS + 1))
 done
 
 echo
-echo "Validation test complete."
-echo "$LOCALES locale(s) were checked"
-echo "$ERRORS invalid locale(s) were found"
+echo "Validation test complete"
+echo "$LOCALES locales were checked"
+echo "$ERRORS invalid locales were found"
 
