@@ -134,8 +134,8 @@ struct FADTbody {
 	struct ACPIgas	reset_reg;
 	u_int8_t	reset_value;
 	u_int8_t	reserved5[3];
-	u_int64_t	x_firmware_ctrl;
-	u_int64_t	x_dsdt;
+	u_int64_t	x_facs_ptr;
+	u_int64_t	x_dsdt_ptr;
 	struct ACPIgas	x_pm1a_evt_blk;
 	struct ACPIgas	x_pm1b_evt_blk;
 	struct ACPIgas	x_pm1a_cnt_blk;

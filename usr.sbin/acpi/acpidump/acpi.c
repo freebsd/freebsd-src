@@ -56,7 +56,7 @@ static void	acpi_print_intr(u_int32_t intr, u_int16_t mps_flags);
 static void	acpi_print_apic(struct MADT_APIC *mp);
 static void	acpi_handle_apic(struct ACPIsdt *sdp);
 static void	acpi_handle_hpet(struct ACPIsdt *sdp);
-static void	acpi_print_sdt(struct ACPIsdt *sdp, int endcomment);
+static void	acpi_print_sdt(struct ACPIsdt *sdp);
 static void	acpi_print_fadt(struct FADTbody *fadt);
 static void	acpi_print_facs(struct FACSbody *facs);
 static void	acpi_print_dsdt(struct ACPIsdt *dsdp);
@@ -64,9 +64,7 @@ static struct ACPIsdt *acpi_map_sdt(vm_offset_t pa);
 static void	acpi_print_rsd_ptr(struct ACPIrsdp *rp);
 static void	acpi_handle_rsdt(struct ACPIsdt *rsdp);
 
-/*
- * Size of an address. 32-bit for ACPI 1.0, 64-bit for ACPI 2.0 and up.
- */
+/* Size of an address. 32-bit for ACPI 1.0, 64-bit for ACPI 2.0 and up. */
 static int addr_size;
 
 static void
@@ -89,30 +87,30 @@ acpi_print_gas(struct ACPIgas *gas)
 {
 	switch(gas->address_space_id) {
 	case ACPI_GAS_MEMORY:
-		printf("0x%08lx:%u[%u] (Memory)\n", (u_long)gas->address,
+		printf("0x%08lx:%u[%u] (Memory)", (u_long)gas->address,
 		       gas->bit_offset, gas->bit_width);
 		break;
 	case ACPI_GAS_IO:
-		printf("0x%08lx:%u[%u] (IO)\n", (u_long)gas->address,
+		printf("0x%08lx:%u[%u] (IO)", (u_long)gas->address,
 		       gas->bit_offset, gas->bit_width);
 		break;
 	case ACPI_GAS_PCI:
-		printf("%x:%x+%#x (PCI)\n", (uint16_t)(gas->address >> 32),
+		printf("%x:%x+%#x (PCI)", (uint16_t)(gas->address >> 32),
 		       (uint16_t)((gas->address >> 16) & 0xffff),
 		       (uint16_t)gas->address);
 		break;
 	/* XXX How to handle these below? */
 	case ACPI_GAS_EMBEDDED:
-		printf("0x%#x:%u[%u] (EC)\n", (uint16_t)gas->address,
+		printf("0x%#x:%u[%u] (EC)", (uint16_t)gas->address,
 		       gas->bit_offset, gas->bit_width);
 		break;
 	case ACPI_GAS_SMBUS:
-		printf("0x%#x:%u[%u] (SMBus)\n", (uint16_t)gas->address,
+		printf("0x%#x:%u[%u] (SMBus)", (uint16_t)gas->address,
 		       gas->bit_offset, gas->bit_width);
 		break;
 	case ACPI_GAS_FIXED:
 	default:
-		printf("0x%08lx (?)\n", (u_long)gas->address);
+		printf("0x%08lx (?)", (u_long)gas->address);
 		break;
 	}
 }
@@ -125,12 +123,27 @@ acpi_handle_fadt(struct FADTbody *fadt)
 
 	acpi_print_fadt(fadt);
 
-	facs = (struct FACSbody *)acpi_map_sdt(fadt->facs_ptr);
+	/*
+	 * My T23 is revision 2 but the 64 bit addresses are invalid.
+	 * If revision 2 and the 32 bit address is non-zero but the 32
+	 * and 64 bit versions don't match, prefer the 32 bit version.
+	 */
+	if (addr_size == 4 ||
+	    (addr_size == 8 && fadt->facs_ptr != 0 &&
+	    (fadt->x_facs_ptr & 0xffffffff) != fadt->facs_ptr))
+		facs = (struct FACSbody *)acpi_map_sdt(fadt->facs_ptr);
+	else
+		facs = (struct FACSbody *)acpi_map_sdt(fadt->x_facs_ptr);
 	if (memcmp(facs->signature, "FACS", 4) != 0 || facs->len < 64)
 		errx(1, "FACS is corrupt");
 	acpi_print_facs(facs);
 
-	dsdp = (struct ACPIsdt *)acpi_map_sdt(fadt->dsdt_ptr);
+	if (addr_size == 4 ||
+	    (addr_size == 8 && fadt->dsdt_ptr != 0 &&
+	    (fadt->x_dsdt_ptr & 0xffffffff) != fadt->dsdt_ptr))
+		dsdp = (struct ACPIsdt *)acpi_map_sdt(fadt->dsdt_ptr);
+	else
+		dsdp = (struct ACPIsdt *)acpi_map_sdt(fadt->x_dsdt_ptr);
 	if (acpi_checksum(dsdp, dsdp->len))
 		errx(1, "DSDT is corrupt");
 	acpi_print_dsdt(dsdp);
@@ -283,7 +296,8 @@ acpi_handle_apic(struct ACPIsdt *sdp)
 	struct MADTbody *madtp;
 	struct MADT_APIC *madt_apicp;
 
-	acpi_print_sdt(sdp, /*endcomment*/0);
+	printf(BEGIN_COMMENT);
+	acpi_print_sdt(sdp);
 	madtp = (struct MADTbody *) sdp->body;
 	printf("\tLocal APIC ADDR=0x%08x\n", madtp->lapic_addr);
 	printf("\tFlags={");
@@ -305,7 +319,8 @@ acpi_handle_hpet(struct ACPIsdt *sdp)
 {
 	struct HPETbody *hpetp;
 
-	acpi_print_sdt(sdp, /*endcomment*/0);
+	printf(BEGIN_COMMENT);
+	acpi_print_sdt(sdp);
 	hpetp = (struct HPETbody *) sdp->body;
 	printf("\tHPET Number=%d\n", hpetp->hpet_number);
 	printf("\tADDR=0x%08x\n", hpetp->base_addr);
@@ -323,9 +338,9 @@ acpi_handle_hpet(struct ACPIsdt *sdp)
 }
 
 static void
-acpi_print_sdt(struct ACPIsdt *sdp, int endcomment)
+acpi_print_sdt(struct ACPIsdt *sdp)
 {
-	printf(BEGIN_COMMENT "  ");
+	printf("  ");
 	acpi_print_string(sdp->signature, 4);
 	printf(": Length=%d, Revision=%d, Checksum=%d,\n",
 	       sdp->len, sdp->rev, sdp->check);
@@ -337,8 +352,6 @@ acpi_print_sdt(struct ACPIsdt *sdp, int endcomment)
 	printf("\tCreator ID=");
 	acpi_print_string(sdp->creator, 4);
 	printf(", Creator Revision=0x%x\n", sdp->crerev);
-	if (endcomment)
-		printf(END_COMMENT);
 }
 
 static void
@@ -347,7 +360,8 @@ acpi_print_rsdt(struct ACPIsdt *rsdp)
 	int	i, entries;
 	u_long	addr;
 
-	acpi_print_sdt(rsdp, /*endcomment*/0);
+	printf(BEGIN_COMMENT);
+	acpi_print_sdt(rsdp);
 	entries = (rsdp->len - SIZEOF_SDT_HDR) / addr_size;
 	printf("\tEntries={ ");
 	for (i = 0; i < entries; i++) {
@@ -477,6 +491,27 @@ acpi_print_fadt(struct FADTbody *fadt)
 		acpi_print_gas(&fadt->reset_reg);
 		printf(", RESET_VALUE=%#x\n", fadt->reset_value);
 	}
+	if (addr_size == 8) {
+		printf("\tX_FACS=0x%08lx, ", (u_long)fadt->x_facs_ptr);
+		printf("X_DSDT=0x%08lx\n", (u_long)fadt->x_dsdt_ptr);
+		printf("\tX_PM1A_EVT_BLK=");
+		acpi_print_gas(&fadt->x_pm1a_evt_blk);
+		printf("\n\tX_PM1B_EVT_BLK=");
+		acpi_print_gas(&fadt->x_pm1b_evt_blk);
+		printf("\n\tX_PM1A_CNT_BLK=");
+		acpi_print_gas(&fadt->x_pm1a_cnt_blk);
+		printf("\n\tX_PM1B_CNT_BLK=");
+		acpi_print_gas(&fadt->x_pm1b_cnt_blk);
+		printf("\n\tX_PM2_CNT_BLK=");
+		acpi_print_gas(&fadt->x_pm2_cnt_blk);
+		printf("\n\tX_PM_TMR_BLK=");
+		acpi_print_gas(&fadt->x_pm_tmr_blk);
+		printf("\n\tX_GPE0_BLK=");
+		acpi_print_gas(&fadt->x_gpe0_blk);
+		printf("\n\tX_GPE1_BLK=");
+		acpi_print_gas(&fadt->x_gpe1_blk);
+		printf("\n");
+	}
 
 	printf(END_COMMENT);
 }
@@ -489,24 +524,25 @@ acpi_print_facs(struct FACSbody *facs)
 	printf("HwSig=0x%08x, ", facs->hw_sig);
 	printf("Firm_Wake_Vec=0x%08x\n", facs->firm_wake_vec);
 
-	printf("\tGlobal_Lock={");
+	printf("\tGlobal_Lock=");
 	if (facs->global_lock != 0) {
 		if (facs->global_lock & FACS_FLAG_LOCK_PENDING)
 			printf("PENDING,");
 		if (facs->global_lock & FACS_FLAG_LOCK_OWNED)
 			printf("OWNED");
 	}
-	printf("}\n");
+	printf("\n");
 
-	printf("\tFlags={");
+	printf("\tFlags=");
 	if (facs->flags & FACS_FLAG_S4BIOS_F)
 		printf("S4BIOS");
-	printf("}\n");
+	printf("\n");
 
 	if (facs->x_firm_wake_vec != 0) {
 		printf("\tX_Firm_Wake_Vec=%08lx\n",
 		       (u_long)facs->x_firm_wake_vec);
 	}
+	printf("\tVersion=%u\n", facs->version);
 
 	printf(END_COMMENT);
 }
@@ -514,7 +550,9 @@ acpi_print_facs(struct FACSbody *facs)
 static void
 acpi_print_dsdt(struct ACPIsdt *dsdp)
 {
-	acpi_print_sdt(dsdp, /*endcomment*/1);
+	printf(BEGIN_COMMENT);
+	acpi_print_sdt(dsdp);
+	printf(END_COMMENT);
 }
 
 int
@@ -547,7 +585,7 @@ acpi_print_rsd_ptr(struct ACPIrsdp *rp)
 	printf(BEGIN_COMMENT);
 	printf("  RSD PTR: OEM=");
 	acpi_print_string(rp->oem, 6);
-	printf(", ACPI_Rev=%s (%d)\n", rp->revision < 2 ? "1.x" : "2.x",
+	printf(", ACPI_Rev=%s (%d)\n", rp->revision < 2 ? "1.0x" : "2.0x",
 	       rp->revision);
 	if (rp->revision < 2) {
 		printf("\tRSDT=0x%08x, cksum=%u\n", rp->rsdt_addr, rp->sum);
@@ -588,8 +626,11 @@ acpi_handle_rsdt(struct ACPIsdt *rsdp)
 			acpi_handle_apic(sdp);
 		else if (!memcmp(sdp->signature, "HPET", 4))
 			acpi_handle_hpet(sdp);
-		else
-			acpi_print_sdt(sdp, /*endcomment*/1);
+		else {
+			printf(BEGIN_COMMENT);
+			acpi_print_sdt(sdp);
+			printf(END_COMMENT);
+		}
 	}
 }
 
