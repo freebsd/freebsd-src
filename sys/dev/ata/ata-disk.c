@@ -182,9 +182,10 @@ ad_attach(struct ata_softc *scp, int32_t device)
 
     }
     else
-	printf("ad%d: %luMB disk <%.40s> at ata%d as %s mode %s\n",
+	printf("ad%d: %luMB <%.40s> [%d/%d/%d] at ata%d-%s using %s\n",
 	       adp->lun, adp->total_secs / ((1024L * 1024L) / DEV_BSIZE),
-	       AD_PARAM->model, scp->lun,
+	       AD_PARAM->model, adp->total_secs / (adp->heads * adp->sectors),
+	       adp->heads, adp->sectors, scp->lun,
 	       (adp->unit == ATA_MASTER) ? "master" : "slave ",
 	       ata_mode2str(adp->controller->mode[ATA_DEV(adp->unit)]));
 
