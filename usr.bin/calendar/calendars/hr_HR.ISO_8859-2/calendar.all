@@ -1,7 +1,7 @@
 /*
  *  hrvatski calendar
  *
- * $Id: calendar.croatian,v 1.2 1996/01/30 23:35:08 wosch Exp $
+ * $Id: calendar.all,v 1.3 1997/02/22 19:28:33 peter Exp $
  */
 
 #ifndef _hr_HR_ISO_8859_2_all

@@ -1,7 +1,7 @@
 /*
  * hrvatski praznici
  *
- * $Id: calendar.praznici,v 1.1 1996/02/09 14:35:02 wosch Exp $
+ * $Id: calendar.praznici,v 1.4 1997/02/22 19:28:33 peter Exp $
  */
 
 #ifndef _hr_HR_ISO_8859_2_praznici

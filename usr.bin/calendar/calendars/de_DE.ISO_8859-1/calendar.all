@@ -1,7 +1,7 @@
 /*
  * deutscher Kalender
  *
- * $Id: calendar.all,v 1.1 1996/01/29 00:34:11 wosch Exp $
+ * $Id: calendar.all,v 1.4 1997/02/22 19:28:29 peter Exp $
  */
 
 #ifndef _de_DE_ISO_8859_1_all_

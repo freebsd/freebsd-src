@@ -1,7 +1,7 @@
 /*
  * History
  *
- * $FreeBSD$
+ * $Id: calendar.history,v 1.7 1997/02/25 01:20:25 mpp Exp $
  */
 
 #ifndef _calendar_history_
@@ -85,6 +85,7 @@
 03/08	Deaths of Denethor & Theoden (LOTR)
 03/13	"Striptease" introduced, Paris, 1894
 03/14	Teddy Roosevelt excludes Japanese laborers from continental US, 1907
+03/15	Day of the 1848 revolution in Hungary
 03/15	Buzzards return to Hinckley OH
 03/15	France assumes protectorate over Vietnam, 1874
 03/15	Watts, Los Angeles, riots kill two, injure 25, 1966
@@ -400,6 +401,7 @@
 10/21	Edison makes the first practical incandescent lamp, 1879
 10/21	Guggenheim Museum opens, 1959
 10/23	Battle of Leyte Gulf begins, 1944
+10/23	Day of the 1956 revolution in Hungary
 10/23	Earth created at 6:30 AM, 4004BC.
 10/23	Swallows leave Capistrano
 10/25	End of War of the Ring (LOTR)

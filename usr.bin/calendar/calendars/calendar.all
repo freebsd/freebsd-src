@@ -1,7 +1,7 @@
 /*
  * International and national calendar files
  *
- * $Id: calendar.all,v 1.2 1996/02/09 14:34:48 wosch Exp $
+ * $Id: calendar.all,v 1.5 1997/02/22 19:28:16 peter Exp $
  */
 
 #ifndef _calendar_all_
