@@ -5,6 +5,10 @@ This file is maintained and copyrighted by M. Warner Losh
 of file for further details.  For commonly done items, please see the
 COMMON ITEMS: section later in the file.
 
+20011209:
+	The bugs in procfs' debugging support code have been fixed,
+	and truss(1) now works again.
+
 20011207:
 	Daily security checks have been split out to use the periodic(8)
 	scripts.  Some change in configuration may be necessary.  Please
