@@ -34,15 +34,15 @@
 int
 venus_root(void *mdp,
 	struct ucred *cred, struct proc *p,
-/*out*/	ViceFid *VFid);
+/*out*/	CodaFid *VFid);
 
 int
-venus_open(void *mdp, ViceFid *fid, int flag,
+venus_open(void *mdp, CodaFid *fid, int flag,
 	struct ucred *cred, struct proc *p,
 /*out*/	dev_t *dev, ino_t *inode);
 
 int
-venus_close(void *mdp, ViceFid *fid, int flag,
+venus_close(void *mdp, CodaFid *fid, int flag,
 	struct ucred *cred, struct proc *p);
 
 void
@@ -52,82 +52,82 @@ void
 venus_write(void);
 
 int
-venus_ioctl(void *mdp, ViceFid *fid,
+venus_ioctl(void *mdp, CodaFid *fid,
 	int com, int flag, caddr_t data,
 	struct ucred *cred, struct proc *p);
 
 int
-venus_getattr(void *mdp, ViceFid *fid,
+venus_getattr(void *mdp, CodaFid *fid,
 	struct ucred *cred, struct proc *p,
 /*out*/	struct vattr *vap);
 
 int
-venus_setattr(void *mdp, ViceFid *fid, struct vattr *vap,
+venus_setattr(void *mdp, CodaFid *fid, struct vattr *vap,
 	struct ucred *cred, struct proc *p);
 
 int
-venus_access(void *mdp, ViceFid *fid, int mode,
+venus_access(void *mdp, CodaFid *fid, int mode,
 	struct ucred *cred, struct proc *p);
 
 int
-venus_readlink(void *mdp, ViceFid *fid,
+venus_readlink(void *mdp, CodaFid *fid,
 	struct ucred *cred, struct proc *p,
 /*out*/	char **str, int *len);
 
 int
-venus_fsync(void *mdp, ViceFid *fid,
+venus_fsync(void *mdp, CodaFid *fid,
 	struct ucred *cred, struct proc *p);
 
 int
-venus_lookup(void *mdp, ViceFid *fid,
+venus_lookup(void *mdp, CodaFid *fid,
     	const char *nm, int len,
 	struct ucred *cred, struct proc *p,
-/*out*/	ViceFid *VFid, int *vtype);
+/*out*/	CodaFid *VFid, int *vtype);
 
 int
-venus_create(void *mdp, ViceFid *fid,
+venus_create(void *mdp, CodaFid *fid,
     	const char *nm, int len, int exclusive, int mode, struct vattr *va,
 	struct ucred *cred, struct proc *p,
-/*out*/	ViceFid *VFid, struct vattr *attr);
+/*out*/	CodaFid *VFid, struct vattr *attr);
 
 int
-venus_remove(void *mdp, ViceFid *fid,
+venus_remove(void *mdp, CodaFid *fid,
         const char *nm, int len,
 	struct ucred *cred, struct proc *p);
 
 int
-venus_link(void *mdp, ViceFid *fid, ViceFid *tfid,
+venus_link(void *mdp, CodaFid *fid, CodaFid *tfid,
         const char *nm, int len,
 	struct ucred *cred, struct proc *p);
 
 int
-venus_rename(void *mdp, ViceFid *fid, ViceFid *tfid,
+venus_rename(void *mdp, CodaFid *fid, CodaFid *tfid,
         const char *nm, int len, const char *tnm, int tlen,
 	struct ucred *cred, struct proc *p);
 
 int
-venus_mkdir(void *mdp, ViceFid *fid,
+venus_mkdir(void *mdp, CodaFid *fid,
     	const char *nm, int len, struct vattr *va,
 	struct ucred *cred, struct proc *p,
-/*out*/	ViceFid *VFid, struct vattr *ova);
+/*out*/	CodaFid *VFid, struct vattr *ova);
 
 int
-venus_rmdir(void *mdp, ViceFid *fid,
+venus_rmdir(void *mdp, CodaFid *fid,
     	const char *nm, int len,
 	struct ucred *cred, struct proc *p);
 
 int
-venus_symlink(void *mdp, ViceFid *fid,
+venus_symlink(void *mdp, CodaFid *fid,
         const char *lnm, int llen, const char *nm, int len, struct vattr *va,
 	struct ucred *cred, struct proc *p);
 
 int
-venus_readdir(void *mdp, ViceFid *fid,
+venus_readdir(void *mdp, CodaFid *fid,
     	int count, int offset,
 	struct ucred *cred, struct proc *p,
 /*out*/	char *buffer, int *len);
 
 int
-venus_fhtovp(void *mdp, ViceFid *fid,
+venus_fhtovp(void *mdp, CodaFid *fid,
 	struct ucred *cred, struct proc *p,
-/*out*/	ViceFid *VFid, int *vtype);
+/*out*/	CodaFid *VFid, int *vtype);

@@ -354,10 +354,8 @@ coda_nc_remove(cncp, dcstat)
 	 * place it at the head of the lru list.
 	 */
         CODA_NC_DEBUG(CODA_NC_REMOVE,
-		    myprintf(("coda_nc_remove %s from parent %lx.%lx.%lx\n",
-			   cncp->name, (cncp->dcp)->c_fid.Volume,
-			   (cncp->dcp)->c_fid.Vnode, (cncp->dcp)->c_fid.Unique));)
-
+		    myprintf(("coda_nc_remove %s from parent %s\n",
+			      cncp->name, coda_f2s(&cncp->dcp->c_fid))); )	
   	CODA_NC_HSHREM(cncp);
 
 	CODA_NC_HSHNUL(cncp);		/* have it be a null chain */
@@ -385,7 +383,7 @@ coda_nc_remove(cncp, dcstat)
  */
 void
 coda_nc_zapParentfid(fid, dcstat)
-	ViceFid *fid;
+	CodaFid *fid;
 	enum dc_status dcstat;
 {
 	/* To get to a specific fid, we might either have another hashing
@@ -397,11 +395,10 @@ coda_nc_zapParentfid(fid, dcstat)
 	int i;
 
 	if (coda_nc_use == 0)			/* Cache is off */
-		return;
+		return;	
 
 	CODA_NC_DEBUG(CODA_NC_ZAPPFID, 
-		myprintf(("ZapParent: fid 0x%lx, 0x%lx, 0x%lx \n",
-			fid->Volume, fid->Vnode, fid->Unique)); )
+		      myprintf(("ZapParent: fid %s\n", coda_f2s(fid))); )
 
 	coda_nc_stat.zapPfids++;
 
@@ -416,9 +413,7 @@ coda_nc_zapParentfid(fid, dcstat)
 		     cncp != (struct coda_cache *)&coda_nc_hash[i];
 		     cncp = ncncp) {
 			ncncp = cncp->hash_next;
-			if ((cncp->dcp->c_fid.Volume == fid->Volume) &&
-			    (cncp->dcp->c_fid.Vnode == fid->Vnode)   &&
-			    (cncp->dcp->c_fid.Unique == fid->Unique)) {
+			if (coda_fid_eq(&(cncp->dcp->c_fid), fid)) {
 			        coda_nc_hash[i].length--;      /* Used for tuning */
 				coda_nc_remove(cncp, dcstat); 
 			}
@@ -432,7 +427,7 @@ coda_nc_zapParentfid(fid, dcstat)
  */
 void
 coda_nc_zapfid(fid, dcstat)
-	ViceFid *fid;
+	CodaFid *fid;
 	enum dc_status dcstat;
 {
 	/* See comment for zapParentfid. This routine will be used
@@ -445,8 +440,7 @@ coda_nc_zapfid(fid, dcstat)
 		return;
 
 	CODA_NC_DEBUG(CODA_NC_ZAPFID, 
-		myprintf(("Zapfid: fid 0x%lx, 0x%lx, 0x%lx \n",
-			fid->Volume, fid->Vnode, fid->Unique)); )
+		      myprintf(("Zapfid: fid %s\n", coda_f2s(fid))); )
 
 	coda_nc_stat.zapFids++;
 
@@ -455,11 +449,9 @@ coda_nc_zapfid(fid, dcstat)
 		     cncp != (struct coda_cache *)&coda_nc_hash[i];
 		     cncp = ncncp) {
 			ncncp = cncp->hash_next;
-			if ((cncp->cp->c_fid.Volume == fid->Volume) &&
-			    (cncp->cp->c_fid.Vnode == fid->Vnode)   &&
-			    (cncp->cp->c_fid.Unique == fid->Unique)) {
-			        coda_nc_hash[i].length--;     /* Used for tuning */
-				coda_nc_remove(cncp, dcstat); 
+			if (coda_fid_eq(&cncp->cp->c_fid, fid)) {
+			    coda_nc_hash[i].length--;     /* Used for tuning */
+			    coda_nc_remove(cncp, dcstat); 
 			}
 		}
 	}
@@ -470,7 +462,7 @@ coda_nc_zapfid(fid, dcstat)
  */
 void
 coda_nc_zapvnode(fid, cred, dcstat)	
-	ViceFid *fid;
+	CodaFid *fid;
 	struct ucred *cred;
 	enum dc_status dcstat;
 {
@@ -478,12 +470,15 @@ coda_nc_zapvnode(fid, cred, dcstat)
 	   want to zap a file with a specific cred from the kernel.
 	   We'll leave this one unimplemented.
 	 */
+
 	if (coda_nc_use == 0)			/* Cache is off */
 		return;
 
-	CODA_NC_DEBUG(CODA_NC_ZAPVNODE, 
-		myprintf(("Zapvnode: fid 0x%lx, 0x%lx, 0x%lx cred %p\n",
-			  fid->Volume, fid->Vnode, fid->Unique, cred)); )
+	CODA_NC_DEBUG(CODA_NC_ZAPVNODE,
+		      myprintf(("Zapvnode: fid %s cred %p\n",
+				coda_f2s(fid), cred)); )
+
+ 
 
 }
 
@@ -533,7 +528,7 @@ coda_nc_zapfile(dcp, name, namelen)
  */
 void
 coda_nc_purge_user(uid, dcstat)
-	vuid_t	uid;
+	uid_t	uid;
 	enum dc_status  dcstat;
 {
 	/* 
@@ -616,7 +611,8 @@ coda_nc_flush(dcstat)
 			if (CTOV(cncp->cp)->v_vflag & VV_TEXT) {
 			    if (coda_vmflush(cncp->cp))
 				CODADEBUG(CODA_FLUSH, 
-					 myprintf(("coda_nc_flush: (%lx.%lx.%lx) busy\n", cncp->cp->c_fid.Volume, cncp->cp->c_fid.Vnode, cncp->cp->c_fid.Unique)); )
+			myprintf(("coda_nc_flush: %s busy\n",
+				 coda_f2s(&cncp->cp->c_fid))); )
 			}
 
 			if ((dcstat == IS_DOWNCALL) 

@@ -761,6 +761,9 @@ options 	NFS_DEBUG		# Enable NFS Debugging
 # Coda stuff:
 options 	CODA			#CODA filesystem.
 device		vcoda	4		#coda minicache <-> venus comm.
+# Use the old Coda 5.x venus<->kernel interface instead of the new       
+# realms-aware 6.x protocol.
+#options 	CODA_COMPAT_5
 
 #
 # Add support for the EXT2FS filesystem of Linux fame.  Be a bit

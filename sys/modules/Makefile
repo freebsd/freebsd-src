@@ -25,6 +25,7 @@ SUBDIR=	accf_data \
 	cam \
 	cd9660 \
 	coda \
+	coda5 \
 	${_crypto} \
 	${_cryptodev} \
 	cue \
