@@ -13,7 +13,7 @@
  *   the SMC Elite Ultra (8216), the 3Com 3c503, the NE1000 and NE2000,
  *   and a variety of similar clones.
  *
- * $Id: if_ed.c,v 1.41 1994/08/08 12:09:04 davidg Exp $
+ * $Id: if_ed.c,v 1.42 1994/08/08 16:45:11 jkh Exp $
  */
 
 #include "ed.h"
@@ -1093,8 +1093,6 @@ ed_attach(isa_dev)
 {
 	struct ed_softc *sc = &ed_softc[isa_dev->id_unit];
 	struct ifnet *ifp = &sc->arpcom.ac_if;
-	struct ifaddr *ifa;
-	struct sockaddr_dl *sdl;
 
 	/*
 	 * Set interface to stopped condition (reset)
@@ -1106,7 +1104,6 @@ ed_attach(isa_dev)
 	 */
 	ifp->if_unit = isa_dev->id_unit;
 	ifp->if_name = "ed";
-	ifp->if_mtu = ETHERMTU;
 	ifp->if_init = ed_init;
 	ifp->if_output = ether_output;
 	ifp->if_start = ed_start;
@@ -1131,31 +1128,6 @@ ed_attach(isa_dev)
 	 * Attach the interface
 	 */
 	if_attach(ifp);
-
-	/*
-	 * Search down the ifa address list looking for the AF_LINK type entry
-	 */
-	ifa = ifp->if_addrlist;
-	while ((ifa != 0) && (ifa->ifa_addr != 0) &&
-	       (ifa->ifa_addr->sa_family != AF_LINK))
-		ifa = ifa->ifa_next;
-
-	/*
-	 * If we find an AF_LINK type entry we fill in the hardware address.
-	 * This is useful for netstat(1) to keep track of which interface is
-	 * which.
-	 */
-	if ((ifa != 0) && (ifa->ifa_addr != 0)) {
-
-		/*
-		 * Fill in the link-level address for this interface
-		 */
-		sdl = (struct sockaddr_dl *) ifa->ifa_addr;
-		sdl->sdl_type = IFT_ETHER;
-		sdl->sdl_alen = ETHER_ADDR_LEN;
-		sdl->sdl_slen = 0;
-		bcopy(sc->arpcom.ac_enaddr, LLADDR(sdl), ETHER_ADDR_LEN);
-	}
 
 	/*
 	 * Print additional info when attached
