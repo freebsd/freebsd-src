@@ -61,6 +61,8 @@ static char sccsid[] = "@(#)syslogd.c	8.3 (Berkeley) 4/4/94";
  * Author: Eric Allman
  * extensive changes by Ralph Campbell
  * more extensive changes by Eric Allman (again)
+ * Extension to log by program name as well as facility and priority
+ *   by Peter da Silva.
  */
 
 #define	MAXLINE		1024		/* maximum line length */
@@ -79,6 +81,8 @@ static char sccsid[] = "@(#)syslogd.c	8.3 (Berkeley) 4/4/94";
 #include <sys/un.h>
 #include <sys/time.h>
 #include <sys/resource.h>
+#include <sys/syslimits.h>
+#include <paths.h>
 
 #include <netinet/in.h>
 #include <netdb.h>
@@ -130,6 +134,7 @@ struct filed {
 	short	f_file;			/* file descriptor */
 	time_t	f_time;			/* time this was last written */
 	u_char	f_pmask[LOG_NFACILITIES+1];	/* priority mask */
+	char	*f_program;		/* program this applies to */
 	union {
 		char	f_uname[MAXUNAMES][UT_NAMESIZE+1];
 		struct {
@@ -186,7 +191,7 @@ int	Initialized = 0;	/* set when we have initialized ourselves */
 int	MarkInterval = 20 * 60;	/* interval between marks in seconds */
 int	MarkSeq = 0;		/* mark sequence number */
 
-void	cfline __P((char *, struct filed *));
+void	cfline __P((char *, struct filed *, char *));
 char   *cvthname __P((struct sockaddr_in *));
 int	decode __P((const char *, CODE *));
 void	die __P((int));
@@ -428,7 +433,8 @@ printsys(msg)
 	int c, pri, flags;
 	char *lp, *p, *q, line[MAXLINE + 1];
 
-	(void)strcpy(line, "kernel: ");
+	(void)strcpy(line, getbootfile());
+	(void)strcat(line, ": ");
 	lp = line + strlen(line);
 	for (p = msg; *p != '\0'; ) {
 		flags = SYNC_FILE | ADDDATE;	/* fsync file after write */
@@ -469,6 +475,8 @@ logmsg(pri, msg, from, flags)
 	struct filed *f;
 	int fac, msglen, omask, prilev;
 	char *timestamp;
+ 	char prog[NAME_MAX+1];
+ 	int i;
 
 	dprintf("logmsg: pri %o, flags %x, from %s, msg %s\n",
 	    pri, flags, from, msg);
@@ -492,12 +500,26 @@ logmsg(pri, msg, from, flags)
 		msglen -= 16;
 	}
 
+	/* skip leading blanks */
+	while(isspace(*msg)) {
+		msg++;
+		msglen--;
+	}
+
 	/* extract facility and priority level */
 	if (flags & MARK)
 		fac = LOG_NFACILITIES;
 	else
 		fac = LOG_FAC(pri);
 	prilev = LOG_PRI(pri);
+
+	/* extract program name */
+	for(i = 0; i < NAME_MAX; i++) {
+		if(!isalnum(msg[i]))
+			break;
+		prog[i] = msg[i];
+	}
+	prog[i] = 0;
 
 	/* log the message to the particular outputs */
 	if (!Initialized) {
@@ -516,6 +538,10 @@ logmsg(pri, msg, from, flags)
 		if (f->f_pmask[fac] < prilev ||
 		    f->f_pmask[fac] == INTERNAL_NOPRI)
 			continue;
+		/* skip messages with the incorrect program name */
+		if(f->f_program)
+			if(strcmp(prog, f->f_program) != 0)
+				continue;
 
 		if (f->f_type == F_CONSOLE && (flags & IGN_CONS))
 			continue;
@@ -866,6 +892,7 @@ init(signo)
 	struct filed *f, *next, **nextp;
 	char *p;
 	char cline[LINE_MAX];
+ 	char prog[NAME_MAX+1];
 
 	dprintf("init\n");
 
@@ -887,6 +914,7 @@ init(signo)
 			break;
 		}
 		next = f->f_next;
+		if(f->f_program) free(f->f_program);
 		free((char *)f);
 	}
 	Files = NULL;
@@ -896,9 +924,9 @@ init(signo)
 	if ((cf = fopen(ConfFile, "r")) == NULL) {
 		dprintf("cannot open %s\n", ConfFile);
 		*nextp = (struct filed *)calloc(1, sizeof(*f));
-		cfline("*.ERR\t/dev/console", *nextp);
+		cfline("*.ERR\t/dev/console", *nextp, "*");
 		(*nextp)->f_next = (struct filed *)calloc(1, sizeof(*f));
-		cfline("*.PANIC\t*", (*nextp)->f_next);
+		cfline("*.PANIC\t*", (*nextp)->f_next, "*");
 		Initialized = 1;
 		return;
 	}
@@ -907,22 +935,44 @@ init(signo)
 	 *  Foreach line in the conf table, open that file.
 	 */
 	f = NULL;
+	strcpy(prog, "*");
 	while (fgets(cline, sizeof(cline), cf) != NULL) {
 		/*
 		 * check for end-of-section, comments, strip off trailing
-		 * spaces and newline character.
+		 * spaces and newline character. #!prog is treated specially:
+		 * following lines apply only to that program.
 		 */
 		for (p = cline; isspace(*p); ++p)
 			continue;
-		if (*p == NULL || *p == '#')
+		if (*p == 0)
 			continue;
+		if(*p == '#') {
+			p++;
+			if(*p!='!')
+				continue;
+		}
+		if(*p=='!') {
+			p++;
+			while(isspace(*p)) p++;
+			if(!*p) {
+				strcpy(prog, "*");
+				continue;
+			}
+			for(i = 0; i < NAME_MAX; i++) {
+				if(!isalnum(p[i]))
+					break;
+				prog[i] = p[i];
+			}
+			prog[i] = 0;
+			continue;
+		}
 		for (p = strchr(cline, '\0'); isspace(*--p);)
 			continue;
 		*++p = '\0';
 		f = (struct filed *)calloc(1, sizeof(*f));
 		*nextp = f;
 		nextp = &f->f_next;
-		cfline(cline, f);
+		cfline(cline, f, prog);
 	}
 
 	/* close the configuration file */
@@ -954,6 +1004,9 @@ init(signo)
 					printf("%s, ", f->f_un.f_uname[i]);
 				break;
 			}
+			if(f->f_program) {
+				printf(" (%s)", f->f_program);
+			}
 			printf("\n");
 		}
 	}
@@ -966,16 +1019,17 @@ init(signo)
  * Crack a configuration file line
  */
 void
-cfline(line, f)
+cfline(line, f, prog)
 	char *line;
 	struct filed *f;
+	char *prog;
 {
 	struct hostent *hp;
 	int i, pri;
 	char *bp, *p, *q;
 	char buf[MAXLINE], ebuf[100];
 
-	dprintf("cfline(%s)\n", line);
+	dprintf("cfline(\"%s\", f, \"%s\")\n", line, prog);
 
 	errno = 0;	/* keep strerror() stuff out of logerror messages */
 
@@ -983,6 +1037,15 @@ cfline(line, f)
 	memset(f, 0, sizeof(*f));
 	for (i = 0; i <= LOG_NFACILITIES; i++)
 		f->f_pmask[i] = INTERNAL_NOPRI;
+
+	/* save program name if any */
+	if(prog && *prog=='*') prog = NULL;
+	if(prog) {
+		f->f_program = calloc(1, strlen(prog)+1);
+		if(f->f_program) {
+			strcpy(f->f_program, prog);
+		}
+	}
 
 	/* scan through the list of selectors */
 	for (p = line; *p && *p != '\t';) {
