@@ -24,7 +24,7 @@
  * the rights to redistribute these changes.
  *
  *	from: Mach, [92/04/03  16:51:14  rvb]
- *	$Id: boot.c,v 1.11 1994/05/01 03:53:29 martin Exp $
+ *	$Id: boot.c,v 1.12 1994/05/30 05:23:53 ache Exp $
  */
 
 
@@ -75,7 +75,7 @@ int drive;
 		ouraddr,
 		argv[7] = memsize(0),
 		argv[8] = memsize(1),
-		"$Revision: 1.11 $");
+		"$Revision: 1.13 $");
 	printf("use hd(1,a)/386bsd to boot sd0 when wd0 is also installed\n");
 	gateA20();
 loadstart:
