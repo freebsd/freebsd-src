@@ -157,9 +157,12 @@ bre5(struct request *rq,
 	m.stripebase = *diskaddr - m.stripeoffset;
 
 	/* subdisk containing the parity stripe */
-	m.psdno = plex->subdisks - 1
-	    - (*diskaddr / (plex->stripesize * (plex->subdisks - 1)))
-	    % plex->subdisks;
+	if (plex->organization == plex_raid5)
+	    m.psdno = plex->subdisks - 1
+		- (*diskaddr / (plex->stripesize * (plex->subdisks - 1)))
+		% plex->subdisks;
+	else						    /* RAID-4 */
+	    m.psdno = plex->subdisks - 1;
 
 	/*
 	 * The number of the subdisk in which
