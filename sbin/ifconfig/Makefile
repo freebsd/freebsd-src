@@ -15,6 +15,10 @@ SRCS+=	ifvlan.c
 CFLAGS+=-DUSE_VLANS
 .endif
 
+#comment out to exclude SIOC[GS]IEEE80211 support
+SRCS+=	ifieee80211.c
+CFLAGS+=-DUSE_IEEE80211
+
 MAN=	ifconfig.8
 DPADD=	${LIBIPX}
 LDADD=	-lipx

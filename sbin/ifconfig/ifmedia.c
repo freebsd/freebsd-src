@@ -152,6 +152,13 @@ media_status(s, info)
 			else
 				printf("no ring");
 			break;
+		case IFM_IEEE80211:
+			/* XXX: Different value for adhoc? */
+			if (ifmr.ifm_status & IFM_ACTIVE)
+				printf("associated");
+			else
+				printf("no carrier");
+			break;
 		}
 	}
 
@@ -318,6 +325,15 @@ static struct ifmedia_description ifm_subtype_fddi_aliases[] =
 static struct ifmedia_description ifm_subtype_fddi_option_descriptions[] =
     IFM_SUBTYPE_FDDI_OPTION_DESCRIPTIONS;
 
+static struct ifmedia_description ifm_subtype_ieee80211_descriptions[] =
+    IFM_SUBTYPE_IEEE80211_DESCRIPTIONS;
+
+static struct ifmedia_description ifm_subtype_ieee80211_aliases[] =
+    IFM_SUBTYPE_IEEE80211_ALIASES;
+
+static struct ifmedia_description ifm_subtype_ieee80211_option_descriptions[] =
+    IFM_SUBTYPE_IEEE80211_OPTION_DESCRIPTIONS;
+
 static struct ifmedia_description ifm_subtype_shared_descriptions[] =
     IFM_SUBTYPE_SHARED_DESCRIPTIONS;
 
@@ -350,7 +366,7 @@ static struct ifmedia_type_to_subtype ifmedia_types_to_subtypes[] = {
 		},
 		{
 			{ &ifm_shared_option_descriptions[0], 0 },
-			{ &ifm_subtype_ethernet_option_descriptions[0], 1 },
+			{ &ifm_subtype_ethernet_option_descriptions[0], 0 },
 			{ NULL, 0 },
 		},
 	},
@@ -364,7 +380,7 @@ static struct ifmedia_type_to_subtype ifmedia_types_to_subtypes[] = {
 		},
 		{
 			{ &ifm_shared_option_descriptions[0], 0 },
-			{ &ifm_subtype_tokenring_option_descriptions[0], 1 },
+			{ &ifm_subtype_tokenring_option_descriptions[0], 0 },
 			{ NULL, 0 },
 		},
 	},
@@ -378,7 +394,21 @@ static struct ifmedia_type_to_subtype ifmedia_types_to_subtypes[] = {
 		},
 		{
 			{ &ifm_shared_option_descriptions[0], 0 },
-			{ &ifm_subtype_fddi_option_descriptions[0], 1 },
+			{ &ifm_subtype_fddi_option_descriptions[0], 0 },
+			{ NULL, 0 },
+		},
+	},
+	{
+		{
+			{ &ifm_subtype_shared_descriptions[0], 0 },
+			{ &ifm_subtype_shared_aliases[0], 1 },
+			{ &ifm_subtype_ieee80211_descriptions[0], 0 },
+			{ &ifm_subtype_ieee80211_aliases[0], 1 },
+			{ NULL, 0 },
+		},
+		{
+			{ &ifm_shared_option_descriptions[0], 0 },
+			{ &ifm_subtype_ieee80211_option_descriptions[0], 0 },
 			{ NULL, 0 },
 		},
 	},

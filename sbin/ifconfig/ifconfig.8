@@ -413,6 +413,111 @@ This may be used to enable an interface after an
 It happens automatically when setting the first address on an interface.
 If the interface was reset when previously marked down,
 the hardware will be re-initialized.
+.It Cm ssid Ar ssid
+For IEEE 802.11 wireless interfaces, set the desired Service Set
+Identifier (aka network name.)  The SSID is a string up to 32 characters
+in length and may be specified as either a normal string or in
+hexadecimal when proceeded by
+.Sq 0x .
+Additionally, the SSID may be cleared by setting it to
+.Sq - .
+.It Cm nwid Ar ssid
+Another name for the 
+.Dq ssid
+parameter.  Included for NetBSD compatibility.
+.It Cm stationname Ar name
+For IEEE 802.11 wireless interfaces, set the name of this station.
+It appears that the station name is not really part of the IEEE 802.11
+protocol though all interfaces seem to support it.  As such it only
+seems to be meaningful to identical or virtually identical equipment.
+Setting the station name is identical in syntax to setting the SSID.
+.It Cm station Ar name
+Another name for the 
+.Dq stationname
+parameter.  Included for BSD/OS compatibility.
+.It Cm channel Ar number
+For IEEE 802.11 wireless interfaces, set the desired channel.
+Channels range from 1 to 14, but the exact selection available
+depends on the region your adaptor was manufactured for.  Setting
+the channel to 0 will give you the default for your adaptor.  Many
+adaptors ignore this setting unless you are in ad-hoc mode.
+.It Cm authmode Ar mode
+For IEEE 802.11 wireless interfaces, set the desired authentication mode
+in infrastructure mode.  Not all adaptors support all modes.  The set of
+valid modes is
+.Dq none ,
+.Dq open ,
+and
+.Dq shared .
+Modes are case insensitive.
+.It Cm powersave
+For IEEE 802.11 wireless interfaces, enable powersave mode.
+.It Cm -powersave
+For IEEE 802.11 wireless interfaces, disable powersave mode.
+.It Cm powersavesleep Ar sleep
+For IEEE 802.11 wireless interfaces, set the desired max powersave sleep
+time in milliseconds.
+.It Cm wepmode Ar mode
+For IEEE 802.11 wireless interfaces, set the desired WEP mode.  Not all
+adaptors support all modes.  The set of valid modes is
+.Dq off ,
+.Dq on ,
+and
+.Dq mixed .
+.Dq Mixed
+mode explicitly tells the adaptor to allow association with access
+points which allow both encrypted and unencrypted traffic.  On these
+adaptors,
+.Dq on
+means that the access point must only allow encrypted connections.  On
+other adaptors,
+.Dq on
+is generally another name for
+.Dq mixed .
+Modes are case insensitive.
+.It Cm weptxkey Ar index
+For IEEE 802.11 wireless interfaces, set the WEP key to be used for
+transmission.
+.It Cm wepkey Ar key|index:key
+For IEEE 802.11 wireless interfaces, set the selected WEP key.  If
+an
+.Ar index
+is not given, key 1 is set.  A WEP key will be either 5 or 13
+characters (40 or 104 bits) depending of the local network and the
+capabilities of the adaptor.  It may be specified either as a plain
+string or as a string of hexadecimal digits proceeded by
+.Sq 0x .
+A key may be cleared by setting it to
+.Sq - .
+If WEP is supported then there are at least four keys.  Some adaptors
+support more then four keys.  If that is the case, then the first four keys
+(1-4) will be the standard temporary keys and any others will be adaptor
+specific keys such as permanent keys stored in NVRAM.
+.It Cm wep
+Another way of saying 
+.Dq wepmode on .
+Included for BSD/OS compatibility.
+.It Cm -wep
+Another way of saying
+.Dq wepmode off .
+Included for BSD/OS compatibility.
+.It Cm nwkey key
+Another way of saying:
+.Pp
+``wepmode on weptxkey 1 wepkey 1:key wepkey 2:- wepkey 3:- wepkey 4:-''.
+.Pp
+Included for NetBSD compatibility.
+.It Cm nwkey n:k1,k2,k3,k4
+Another way of saying
+.Pp
+``wepmode on weptxkey n wepkey 1:k1 wepkey 2:k2 wepkey 3:k3 wepkey 4:k4''.
+.Pp
+Included for NetBSD compatibility.
+.It Cm -nwkey
+Another way of saying
+.Dq wepmode off .
+.Pp
+Included for NetBSD compatibility.
 .El
 .Pp
 .Nm Ifconfig
