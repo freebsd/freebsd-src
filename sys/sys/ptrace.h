@@ -81,6 +81,10 @@ struct ptrace_io_desc {
 int	ptrace_set_pc(struct thread *_td, unsigned long _addr);
 int	ptrace_single_step(struct thread *_td);
 
+#ifdef __HAVE_PTRACE_MACHDEP
+int	cpu_ptrace(struct thread *_td, int _req, void *_addr, int _data);
+#endif
+
 /*
  * These are prototypes for functions that implement some of the
  * debugging functionality exported by procfs / linprocfs and by the
