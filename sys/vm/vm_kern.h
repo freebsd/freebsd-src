@@ -73,6 +73,7 @@ extern vm_map_t kernel_map;
 extern vm_map_t kmem_map;
 extern vm_map_t clean_map;
 extern vm_map_t exec_map;
+extern vm_map_t pipe_map;
 extern u_int vm_kmem_size;
 
 #endif				/* _VM_VM_KERN_H_ */
