@@ -130,7 +130,25 @@ which filesystems can rely on for the canonical stuff.
 Vnode freelist handling has been hauled over.  Vnodes are only on the
 freelist if nobody care about them.
 
-The kernel provides assistance to getcwd() if possible.
+The kernel provides assistance to getcwd() from data stored in the name
+cache if possible.
+
+An interrupt driven configuration hook mechanism has been implemented.
+This allows drivers to postpone part of their configuration until after
+interrupts are fully enabled.  This speeds booting because busy-waiting
+is avoided for things like sub device probing (eg: SCSI bus probes).
+
+The timeout(9) system in the kernel has been overhauled.  This gives
+O(1) insertion and removal of callouts and an O(hash chain length)
+amount of work to be performed in softclock.  The original paper is at:
+	http://www.cs.berkeley.edu/~amc/research/timer/ 
+
+Changes in driver buffer queuing to deal with ordered transactions.  This
+is intended for sequencing data and metadata writes in the filesystem code
+once fully supported.
+
+EISA Shared interrupts are now supported, working with the framework
+originally for supporting PCI shared interrupts.
 
 
 SECURITY CHANGES:
