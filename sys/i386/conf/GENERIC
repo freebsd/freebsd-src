@@ -67,6 +67,10 @@ device		pci
 device		fdc0	at isa? port IO_FD1 irq 6 drq 2
 device		fd0	at fdc0 drive 0
 device		fd1	at fdc0 drive 1
+#
+# If you have a Toshiba Libretto with its Y-E Data PCMCIA floppy,
+# don't use the above line for fdc0 but the following one:
+#device		fdc0
 
 # ATA and ATAPI devices
 device		ata0	at isa? port IO_WD1 irq 14

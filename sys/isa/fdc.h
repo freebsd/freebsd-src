@@ -54,6 +54,8 @@ struct fdc_data
 #define FDC_HAS_FIFO	0x10
 #define FDC_NEEDS_RESET	0x20
 #define FDC_NODMA	0x40
+#define FDC_ISPNP	0x80
+#define FDC_ISPCMCIA	0x100
 	struct	fd_data *fd;
 	int	fdu;		/* the active drive	*/
 	int	state;
@@ -74,7 +76,7 @@ struct fdc_data
 	bus_space_handle_t ctlh;
 	void	*fdc_intr;
 	struct	device *fdc_dev;
-	int	fdc_ispnp;
+	void	(*fdctl_wr)(struct fdc_data *fdc, u_int8_t v);
 };
 
 /***********************************************************************\
