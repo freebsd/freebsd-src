@@ -1,4 +1,4 @@
-# $Id: INDEX.keymaps,v 1.14 1998/01/27 13:36:49 yokota Exp $
+# $Id: INDEX.keymaps,v 1.9.2.1 1998/01/30 10:55:42 yokota Exp $
 #
 # database for kbdmap(8) 
 #
@@ -25,117 +25,154 @@ MENU:da,no,sv:Vælg dit keyboard layout
 MENU:de:Wähle Deine Tastaturbelegung
 MENU:fr:Choisissez la nationalité de votre clavier
 MENU:pl:Wybierz uk³ad klawiatury
+MENU:pt:Escolha o layout do teclado
 #
 FONT:en:cp437-8x16.fnt
-FONT:de,fr,da,no,sv:iso-8x16.fnt
+FONT:de,fr,da,no,sv,pt:iso-8x16.fnt
 FONT:ru:koi8-r-8x16.fnt
 FONT:pl:iso02-8x16.fnt
 # 
 be.iso.kbd:en:Belgian ISO-8859-1
 be.iso.kbd:de:Belgisch ISO-8859-1
+be.iso.kbd:pt:Belga ISO-8859-1
 
 br275.iso.kbd:en:Brazilian 275 keyboard ISO-8859-1
 br275.iso.kbd:de:Brasilianische Tastatur 275 ISO-8859-1
+br275.iso.kbd:pt:Teclado brasileiro 275 ISO-8859-1
+
+br275.iso.acc.kbd:en:Brazilian 275 keyboard ISO-8859-1 (accent keys)
+br275.iso.acc.kbd:de:Brasilianische Tastatur 275 ISO-8859-1 (accent keys)
+br275.iso.acc.kbd:pt:Teclado brasileiro 275 ISO-8859-1 (com acentos)
 
 br275.cp850.kbd:en:Brazilian 275 keyboard Codepage 850
 br275.cp850.kbd:de:Brasilianische Tastatur 275 Codeseite 850
+br275.cp850.kbd:pt:Teclado brasileiro 275 Codepage 850
 
 danish.iso.kbd:en:Danish ISO-8859-1
 danish.iso.kbd:da:Dansk ISO-8859-1
 danish.iso.kbd:de:Dänisch ISO-8859-1
 danish.iso.kbd:fr:Danois ISO-8859-1
+danish.iso.kbd:pt:Dinamarquês ISO-8859-1
 
 danish.cp865.kbd:en:Danish Codepage 865
 danish.cp865.kbd:da:Dansk Code page 865
 danish.cp865.kbd:de:Dänisch Codeseite 865
 danish.cp865.kbd:fr:Danois Code page 865
+danish.cp865.kbd:pt:Dinamarquês Codepage 865
 
 fr.iso.kbd:en:French ISO-8859-1
 fr.iso.kbd:de:Französisch ISO-8859-1
 fr.iso.kbd:fr:Français ISO-8859-1
+fr.iso.kbd:pt:Francês ISO-8859-1
 
 fr.iso.acc.kbd:en:French ISO-8859-1 (accent keys)
 fr.iso.acc.kbd:de:Französisch ISO-8859-1 (accent keys)
 fr.iso.acc.kbd:fr:Français ISO-8859-1 (accent keys)
+fr.iso.acc.kbd:pt:Francês ISO-8859-1 (com acentos)
 
 german.iso.kbd:en:German ISO-8859-1
 german.iso.kbd:de:Deutsch ISO-8859-1
 german.iso.kbd:fr:Allemand ISO-8859-1
+german.iso.kbd:pt:Alemão ISO-8859-1
 
 german.cp850.kbd:en:German Codepage 850
 german.cp850.kbd:de:Deutsch Codeseite 850
 german.cp850.kbd:fr:Allemand Code page 850
+german.cp850.kbd:pt:Alemão Codepage 850
 
 icelandic.iso.kbd:en:Icelandic ISO-8859-1
+icelandic.iso.kbd:pt:Islandês ISO-8859-1
+
 icelandic.iso.acc.kbd:en:Icelandic ISO-8859-1 (accent keys)
+icelandic.iso.acc.kbd:pt:Islandês ISO-8859-1 (com acentos)
 
 it.iso.kbd:en:Italian ISO-8859-1
 it.iso.kbd:de:Italienisch ISO-8859-1
+it.iso.kbd:pt:Italiano ISO-8859-1
 
 jp.106.kbd:en:Japanese 106
 jp.106.kbd:de:Japanisch 106
+jp.106.kbd:pt:Japonês 106
 
 jp.106x.kbd:en:Japanese 106x
 jp.106x.kbd:de:Japanisch 106x
+jp.106x.kbd:pt:Japonês 106x
 
 lat-amer.kbd:en:Latin American
+lat-amer.kbd:pt:América Latina
 
 norwegian.iso.kbd:en:Norwegian ISO-8859-1
 norwegian.iso.kbd:no:Norsk ISO-8859-1
 norwegian.iso.kbd:de:Norwegisch ISO-8859-1
+norwegian.iso.kbd:pt:Norueguês ISO-8859-1
 
 pl_PL.ISO_8859-2.kbd:en:Polish ISO-8859-2 (programmer's)
 pl_PL.ISO_8859-2.kbd:pl:Polska ISO-8859-2 (programisty)
+pl_PL.ISO_8859-2.kbd:pt:Polonês ISO-8859-2 (para programadores)
 
 ru.cp866.kbd:en:Russian Codepage 866 (alternative)
 ru.cp866.kbd:de:Russisch Codeseite 866 (alternativ)
 ru.cp866.kbd:ru:òÕÓÓËÉÊ Codepage 866 (alternative)
 ru.cp866.kbd:fr:Russe Code page 866 (alternative)
+ru.cp866.kbd:pt:Russo Codepage 866 (alternativo)
 
 ru.koi8-r.kbd:en:Russian koi8-r
 ru.koi8-r.kbd:de:Russisch koi8-r
 ru.koi8-r.kbd:ru:òÕÓÓËÉÊ koi8-r
 ru.koi8-r.kbd:fr:Russe koi8-r
+ru.koi8-r.kbd:pt:Russo koi8-r
 
 ru.koi8-r.shift.kbd:en:Russian koi8-r (shift)
 ru.koi8-r.shift.kbd:de:Russisch koi8-r (shift)
 ru.koi8-r.shift.kbd:ru:òÕÓÓËÉÊ koi8-r (shift)
 ru.koi8-r.shift.kbd:fr:Russe koi8-r (shift)
+ru.koi8-r.shift.kbd:pt:Russo koi8-r (shift)
 
 spanish.iso.kbd:en:Spanish ISO-8859-1
 spanish.iso.kbd:de:Spanisch ISO-8859-1
+spanish.iso.kbd:pt:Espanhol ISO-8859-1
 
 spanish.iso.acc.kbd:en:Spanish ISO-8859-1 (accent keys)
 spanish.iso.acc.kbd:de:Spanisch ISO-8859-1 (accent keys)
+spanish.iso.acc.kbd:pt:Espanhol ISO-8859-1 (com acentos)
 
 si.iso.kbd:en:Slovenian ISO-8859-2
+si.iso.kbd:pt:Eslovênio ISO-8859-2
 
 swedish.iso.kbd:en:Swedish ISO-8859-1
 swedish.iso.kbd:de:Schwedisch ISO-8859-1
 swedish.iso.kbd:fr:Suédois ISO-8859-1
+swedish.iso.kbd:pt:Sueco ISO-8859-1
 
 swedish.cp850.kbd:en:Swedish Codepage 850
 swedish.cp850.kbd:de:Schwedisch Codeseite 850
 swedish.cp850.kbd:fr:Suédois Code page 850
+swedish.cp850.kbd:pt:Sueco Codepage 850
 
 swissgerman.iso.kbd:en:Swiss-German ISO-8859-1
+swissgerman.iso.kbd:pt:Suiço-Alemão ISO-8859-1
 
 uk.iso.kbd:en:United Kingdom ISO-8859-1
 uk.iso.kbd:de:Vereinigtes Königreich ISO-8859-1
 uk.iso.kbd:fr:Royaume Uni ISO-8859-1
+uk.iso.kbd:pt:Reino Unido ISO-8859-1
 
 uk.cp850.kbd:en:United Kingdom Codepage 850
 uk.cp850.kbd:de:Vereinigtes Königreich Codeseite 850
 uk.cp850.kbd:fr:Royaume Uni Code page 850
+uk.cp850.kbd:pt:Reino Unido Codepage 850
 
 us.iso.kbd:en:United States of America ISO-8859-1
 us.iso.kbd:de:US-amerikanisch ISO-8859-1
 us.iso.kbd:fr:États Unis  d'Amérique ISO-8859-1
+us.iso.kbd:pt:Estados Unidos da América ISO-8859-1
 
 us.dvorak.kbd:en:United States of America dvorak
 us.dvorak.kbd:de:US-amerikanisch dvorak
 us.dvorak.kbd:fr:États Unis  d'Amérique dvorak
+us.dvorak.kbd:pt:Estados Unidos da América dvorak
 
 us.dvorakx.kbd:en:United States of America dvorakx
 us.dvorakx.kbd:de:US-amerikanisch dvorakx
 us.dvorakx.kbd:fr:États Unis  d'Amérique dvorakx
+us.dvorakx.kbd:pt:Estados Unidos da América dvorakx
