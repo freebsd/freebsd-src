@@ -104,8 +104,6 @@ struct camcontrol_opts {
 	const char	*subopt;
 };
 
-extern int optreset;
-
 static const char scsicmd_opts[] = "c:i:o:";
 static const char readdefect_opts[] = "f:GP";
 static const char negotiate_opts[] = "acD:O:qR:T:UW:";
