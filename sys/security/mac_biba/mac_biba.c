@@ -2750,5 +2750,5 @@ static struct mac_policy_ops mac_biba_ops =
 	.mpo_check_vnode_write = mac_biba_check_vnode_write,
 };
 
-MAC_POLICY_SET(&mac_biba_ops, trustedbsd_mac_biba, "TrustedBSD MAC/Biba",
+MAC_POLICY_SET(&mac_biba_ops, mac_biba, "TrustedBSD MAC/Biba",
     MPC_LOADTIME_FLAG_NOTLATE, &mac_biba_slot);

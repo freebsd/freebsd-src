@@ -2506,5 +2506,5 @@ static struct mac_policy_ops mac_mls_ops =
 	.mpo_check_vnode_write = mac_mls_check_vnode_write,
 };
 
-MAC_POLICY_SET(&mac_mls_ops, trustedbsd_mac_mls, "TrustedBSD MAC/MLS",
+MAC_POLICY_SET(&mac_mls_ops, mac_mls, "TrustedBSD MAC/MLS",
     MPC_LOADTIME_FLAG_NOTLATE, &mac_mls_slot);
