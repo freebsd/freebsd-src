@@ -14,7 +14,7 @@
  *
  * Ported to run under 386BSD by Julian Elischer (julian@tfs.com) Sept 1992
  *
- *      $Id: cd.c,v 1.96 1998/07/11 07:45:56 bde Exp $
+ *      $Id: cd.c,v 1.97 1998/07/30 17:05:10 bde Exp $
  */
 
 #include "opt_bounce.h"
@@ -27,7 +27,6 @@
 #include <sys/dkbad.h>
 #include <sys/systm.h>
 #include <sys/conf.h>
-#include <sys/fcntl.h>
 #include <sys/buf.h>
 #include <sys/cdio.h>
 #include <sys/disklabel.h>
