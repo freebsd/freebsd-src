@@ -33,7 +33,6 @@
  * uuid_is_nil() - return whether the UUID is a nil UUID.
  * See also:
  *	http://www.opengroup.org/onlinepubs/009629399/uuid_is_nil.htm
- *	http://www.transarc.ibm.com/Library/documentation/dce/1.1/uuid_is_nil.html
  */
 int32_t
 uuid_is_nil(uuid_t *u, uint32_t *status)
