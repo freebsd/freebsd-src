@@ -25,7 +25,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *  $Id: syscons.c,v 1.108 1999/01/18 14:48:34 kato Exp $
+ *  $Id: syscons.c,v 1.109 1999/01/19 12:41:26 kato Exp $
  */
 
 #include "sc.h"
@@ -4015,6 +4015,9 @@ init_scp(scr_stat *scp)
     scp->status = 0;
     scp->mode = initial_video_mode;
     scp->scr_buf = NULL;
+#ifdef PC98
+	scp->atr_buf = NULL;
+#endif
     if (info.vi_flags & V_INFO_GRAPHICS) {
 	scp->status |= GRAPHICS_MODE;
 	scp->xpixel = info.vi_width;
