@@ -29,6 +29,7 @@ __FBSDID("$FreeBSD$");
 
 #include <sys/param.h>
 #include <sys/procfs.h>
+#include <sys/queue.h>
 #include <sys/linker_set.h>
 #include <machine/elf.h>
 #include <vm/vm_param.h>
