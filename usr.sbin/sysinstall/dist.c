@@ -86,6 +86,8 @@ static Distribution DistTable[] = {
 { "compat21",	"/",			&Dists,		DIST_COMPAT21,		NULL		},
 { "compat22",	"/",			&Dists,		DIST_COMPAT22,		NULL		},
 { "compat3x",	"/",			&Dists,		DIST_COMPAT3X,		NULL		},
+#endif
+#if defined(__i386__) || defined(__alpha__)
 { "compat4x",	"/",			&Dists,		DIST_COMPAT4X,		NULL		},
 #endif
 { "ports",	"/usr",			&Dists,		DIST_PORTS,		NULL		},
