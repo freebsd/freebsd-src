@@ -116,8 +116,6 @@ static dev_t	status_dev = 0;
 static d_ioctl_t mdctlioctl;
 
 static struct cdevsw mdctl_cdevsw = {
-	.d_open =	nullopen,
-	.d_close =	nullclose,
 	.d_ioctl =	mdctlioctl,
 	.d_name =	MD_NAME,
 	.d_maj =	CDEV_MAJOR

@@ -276,8 +276,8 @@ make_dev(struct cdevsw *devsw, int minor, uid_t uid, gid_t gid, int perms, const
 	KASSERT((minor & ~0xffff00ff) == 0,
 	    ("Invalid minor (0x%x) in make_dev", minor));
 
-	if (devsw->d_open == NULL)	devsw->d_open = noopen;
-	if (devsw->d_close == NULL)	devsw->d_close = noclose;
+	if (devsw->d_open == NULL)	devsw->d_open = nullopen;
+	if (devsw->d_close == NULL)	devsw->d_close = nullclose;
 	if (devsw->d_read == NULL)	devsw->d_read = noread;
 	if (devsw->d_write == NULL)	devsw->d_write = nowrite;
 	if (devsw->d_ioctl == NULL)	devsw->d_ioctl = noioctl;
