@@ -90,8 +90,7 @@ static struct cdevsw nsmb_cdevsw = {
 	.d_open =	nsmb_dev_open,
 	.d_close =	nsmb_dev_close,
 	.d_ioctl =	nsmb_dev_ioctl,
-	.d_name =	NSMB_NAME,
-	.d_maj =	NSMB_MAJOR,
+	.d_name =	NSMB_NAME
 };
 
 static eventhandler_tag nsmb_dev_tag;

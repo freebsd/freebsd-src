@@ -42,7 +42,6 @@
 #include <netsmb/smb.h>
 
 #define	NSMB_NAME		"nsmb"
-#define	NSMB_MAJOR		144
 
 #define NSMB_VERMAJ	1
 #define NSMB_VERMIN	3006
