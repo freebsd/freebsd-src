@@ -25,8 +25,8 @@
  * $FreeBSD$
  */
 
-#ifndef _MACHINE_APIC_H_
-#define _MACHINE_APIC_H_
+#ifndef _MACHINE_APICREG_H_
+#define _MACHINE_APICREG_H_
 
 /*
  * Local && I/O APIC definitions.
@@ -221,10 +221,28 @@ typedef struct IOAPIC ioapic_t;
 /* default physical locations of LOCAL (CPU) APICs */
 #define DEFAULT_APIC_BASE	0xfee00000
 
+/* constants relating to APIC ID registers */
+#define APIC_ID_MASK		0xff000000
+#define	APIC_ID_SHIFT		24
+#define	APIC_ID_CLUSTER		0xf0
+#define	APIC_ID_CLUSTER_ID	0x0f
+#define	APIC_MAX_CLUSTER	0xe
+#define	APIC_MAX_INTRACLUSTER_ID 3
+#define	APIC_ID_CLUSTER_SHIFT	4
+
 /* fields in VER */
 #define APIC_VER_VERSION	0x000000ff
 #define APIC_VER_MAXLVT		0x00ff0000
 #define MAXLVTSHIFT		16
+
+/* fields in LDR */
+#define	APIC_LDR_RESERVED	0x00ffffff
+
+/* fields in DFR */
+#define	APIC_DFR_RESERVED	0x0fffffff
+#define	APIC_DFR_MODEL_MASK	0xf0000000
+#define	APIC_DFR_MODEL_FLAT	0xf0000000
+#define	APIC_DFR_MODEL_CLUSTER	0x00000000
 
 /* fields in SVR */
 #define APIC_SVR_VECTOR		0x000000ff
@@ -289,10 +307,6 @@ typedef struct IOAPIC ioapic_t;
 #define APIC_RESV2_MASK		0xfff00000
 
 #define	APIC_ICRLO_RESV_MASK	(APIC_RESV1_MASK | APIC_RESV2_MASK)
-
-/* fields in ICR_HIGH */
-#define APIC_ID_MASK		0xff000000
-#define	APIC_ID_SHIFT		24
 
 /* fields in LVT1/2 */
 #define APIC_LVT_VECTOR		0x000000ff
@@ -444,4 +458,4 @@ typedef struct IOAPIC ioapic_t;
 
 #define IOART_INTVEC	0x000000ff	/* R/W: INTerrupt vector field */
 
-#endif /* _MACHINE_APIC_H_ */
+#endif /* _MACHINE_APICREG_H_ */

@@ -474,7 +474,6 @@ init_6x86MX(void)
 static void
 init_ppro(void)
 {
-#ifndef SMP
 	u_int64_t	apicbase;
 
 	/*
@@ -483,7 +482,6 @@ init_ppro(void)
 	apicbase = rdmsr(MSR_APICBASE);
 	apicbase &= ~APICBASE_ENABLED;
 	wrmsr(MSR_APICBASE, apicbase);
-#endif
 }
 
 /*
