@@ -1,5 +1,5 @@
 #
-#	$Id: Makefile,v 1.80 1996/06/19 20:48:48 nate Exp $
+#	$Id: Makefile,v 1.81 1996/06/19 21:19:56 nate Exp $
 #
 # Make command line options:
 #	-DCLOBBER will remove /usr/include
@@ -259,7 +259,6 @@ includes:
 	cd ${.CURDIR}/lib/libtermcap &&		${MAKE}	beforeinstall
 	cd ${.CURDIR}/lib/libcom_err &&		${MAKE} beforeinstall
 	cd ${.CURDIR}/lib/libss &&		${MAKE} beforeinstall
-	cd ${.CURDIR}/lib/libforms &&		${MAKE}	beforeinstall
 	cd ${.CURDIR}/lib/libscsi &&		${MAKE}	beforeinstall
 	cd ${.CURDIR}/lib/libutil &&		${MAKE}	beforeinstall
 
