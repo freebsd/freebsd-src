@@ -38,6 +38,23 @@
 
 MALLOC_DEFINE(M_SBUF, "sbuf", "string buffers");
 
+/*
+ * Predicates
+ */
+#define SBUF_ISDYNAMIC(s)	((s)->s_flags & SBUF_DYNAMIC)
+#define SBUF_ISFINISHED(s)	((s)->s_flags & SBUF_FINISHED)
+#define SBUF_HASOVERFLOWED(s)	((s)->s_flags & SBUF_OVERFLOWED)
+#define SBUF_HASROOM(s)		((s)->s_len < (s)->s_size - 1)
+
+/*
+ * Set / clear flags
+ */
+#define SBUF_SETFLAG(s, f)	do { (s)->s_flags |= (f); } while (0)
+#define SBUF_CLEARFLAG(s, f)	do { (s)->s_flags &= ~(f); } while (0)
+
+/*
+ * Debugging support
+ */
 #ifdef INVARIANTS
 static void
 assert_sbuf_integrity(struct sbuf *s)
@@ -68,8 +85,10 @@ assert_sbuf_state(struct sbuf *s, int state)
  * big enough to hold at least length characters.
  */
 int
-sbuf_new(struct sbuf *s, char *buf, size_t length, int flags)
+sbuf_new(struct sbuf *s, char *buf, int length, int flags)
 {
+	KASSERT(length >= 0,
+	    ("attempt to create an sbuf of negative length (%d)", length));
 	KASSERT(flags == 0,
 	    (__FUNCTION__ " called with non-zero flags"));
 	KASSERT(s != NULL,
@@ -89,10 +108,23 @@ sbuf_new(struct sbuf *s, char *buf, size_t length, int flags)
 }
 
 /*
+ * Clear an sbuf and reset its position
+ */
+void
+sbuf_clear(struct sbuf *s)
+{
+	assert_sbuf_integrity(s);
+
+	SBUF_CLEARFLAG(s, SBUF_FINISHED);
+	SBUF_CLEARFLAG(s, SBUF_OVERFLOWED);
+	s->s_len = 0;
+}
+
+/*
  * Set the sbuf's position to an arbitrary value
  */
 int
-sbuf_setpos(struct sbuf *s, size_t pos)
+sbuf_setpos(struct sbuf *s, int pos)
 {
 	assert_sbuf_integrity(s);
 	assert_sbuf_state(s, 0);
@@ -138,7 +170,7 @@ sbuf_cpy(struct sbuf *s, char *str)
 	assert_sbuf_integrity(s);
 	assert_sbuf_state(s, 0);
 	
-	s->s_len = 0;
+	sbuf_clear(s);
 	return (sbuf_cat(s, str));
 }
 
@@ -168,7 +200,7 @@ int
 sbuf_printf(struct sbuf *s, char *fmt, ...)
 {
 	va_list ap;
-	size_t len;
+	int len;
 
 	assert_sbuf_integrity(s);
 	assert_sbuf_state(s, 0);
@@ -212,20 +244,26 @@ sbuf_putc(struct sbuf *s, int c)
 }
 
 /*
- * Finish off an sbuf.
+ * Check if an sbuf overflowed
  */
 int
+sbuf_overflowed(struct sbuf *s)
+{
+    return SBUF_HASOVERFLOWED(s);
+}
+
+/*
+ * Finish off an sbuf.
+ */
+void
 sbuf_finish(struct sbuf *s)
 {
 	assert_sbuf_integrity(s);
 	assert_sbuf_state(s, 0);
 	
-	if (SBUF_HASOVERFLOWED(s))
-		return (-1);
-	
 	s->s_buf[s->s_len++] = '\0';
+	SBUF_CLEARFLAG(s, SBUF_OVERFLOWED);
 	SBUF_SETFLAG(s, SBUF_FINISHED);
-	return (0);
 }
 
 /*
@@ -237,22 +275,20 @@ sbuf_data(struct sbuf *s)
 	assert_sbuf_integrity(s);
 	assert_sbuf_state(s, SBUF_FINISHED);
 	
-	if (SBUF_HASOVERFLOWED(s))
-		return (NULL);
 	return s->s_buf;
 }
 
 /*
  * Return the length of the sbuf data.
  */
-size_t
+int
 sbuf_len(struct sbuf *s)
 {
 	assert_sbuf_integrity(s);
 	assert_sbuf_state(s, SBUF_FINISHED);
 	
 	if (SBUF_HASOVERFLOWED(s))
-		return (0);
+		return (-1);
 	return s->s_len;
 }
 

@@ -37,8 +37,8 @@
 struct sbuf {
 	char		*s_buf;		/* storage buffer */
 	struct sbuf	*s_next;        /* next in chain */
-	size_t		 s_size;	/* size of storage buffer */
-	size_t		 s_len;		/* current length of string */
+	int		 s_size;	/* size of storage buffer */
+	int		 s_len;		/* current length of string */
 #define SBUF_AUTOEXTEND	0x00000001	/* automatically extend buffer */
 #define SBUF_DYNAMIC	0x00010000	/* s_buf must be freed */
 #define SBUF_FINISHED	0x00020000	/* set by sbuf_finish() */
@@ -47,30 +47,19 @@ struct sbuf {
 };
 
 /*
- * Predicates
- */
-#define SBUF_ISDYNAMIC(s)	((s)->s_flags & SBUF_DYNAMIC)
-#define SBUF_ISFINISHED(s)	((s)->s_flags & SBUF_FINISHED)
-#define SBUF_HASOVERFLOWED(s)	((s)->s_flags & SBUF_OVERFLOWED)
-#define SBUF_HASROOM(s)		((s)->s_len < (s)->s_size - 1)
-
-/*
- * Other macros
- */
-#define SBUF_SETFLAG(s, f)	do { (s)->s_flags |= (f); } while (0)
-
-/*
  * API functions
  */
-int	 sbuf_new(struct sbuf *s, char *buf, size_t length, int flags);
-int	 sbuf_setpos(struct sbuf *s, size_t pos);
+int	 sbuf_new(struct sbuf *s, char *buf, int length, int flags);
+void	 sbuf_clear(struct sbuf *s);
+int	 sbuf_setpos(struct sbuf *s, int pos);
 int	 sbuf_cat(struct sbuf *s, char *str);
 int	 sbuf_cpy(struct sbuf *s, char *str);
 int	 sbuf_printf(struct sbuf *s, char *fmt, ...);
 int	 sbuf_putc(struct sbuf *s, int c);
-int	 sbuf_finish(struct sbuf *s);
+int	 sbuf_overflowed(struct sbuf *s);
+void	 sbuf_finish(struct sbuf *s);
 char    *sbuf_data(struct sbuf *s);
-size_t	 sbuf_len(struct sbuf *s);
+int	 sbuf_len(struct sbuf *s);
 void	 sbuf_delete(struct sbuf *s);
 
 #endif
