@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)nfs_vfsops.c	8.12 (Berkeley) 5/20/95
- * $Id: nfs_vfsops.c,v 1.40 1997/05/04 15:04:49 phk Exp $
+ * $Id: nfs_vfsops.c,v 1.41 1997/05/11 18:05:38 tegge Exp $
  */
 
 #include <sys/param.h>
@@ -158,6 +158,8 @@ static int nfs_mountdiskless __P((char *, char *, int,
 				  struct proc *, struct vnode **,
 				  struct mount **));
 void nfs_convert_diskless __P((void));
+static void nfs_convert_oargs __P((struct nfs_args *args,
+				   struct onfs_args *oargs));
 
 static int nfs_iosize(nmp)
 	struct nfsmount* nmp;
@@ -175,12 +177,37 @@ static int nfs_iosize(nmp)
 	return iosize;
 }
 
+static void nfs_convert_oargs(args,oargs)
+     struct nfs_args *args;
+     struct onfs_args *oargs;
+{
+  args->version = NFS_ARGSVERSION;
+  args->addr = oargs->addr;
+  args->addrlen = oargs->addrlen;
+  args->sotype = oargs->sotype;
+  args->proto = oargs->proto;
+  args->fh = oargs->fh;
+  args->fhsize = oargs->fhsize;
+  args->flags = oargs->flags;
+  args->wsize = oargs->wsize;
+  args->rsize = oargs->rsize;
+  args->readdirsize = oargs->readdirsize;
+  args->timeo = oargs->timeo;
+  args->retrans = oargs->retrans;
+  args->maxgrouplist = oargs->maxgrouplist;
+  args->readahead = oargs->readahead;
+  args->leaseterm = oargs->leaseterm;
+  args->deadthresh = oargs->deadthresh;
+  args->hostname = oargs->hostname;
+}
+
 void nfs_convert_diskless()
 {
   bcopy(&nfs_diskless.myif, &nfsv3_diskless.myif,
 	sizeof(struct ifaliasreq));
-  bcopy(&nfs_diskless.swap_args,&nfsv3_diskless.swap_args,
-	sizeof(struct nfs_args));
+  bcopy(&nfs_diskless.mygateway, &nfsv3_diskless.mygateway,
+	sizeof(struct sockaddr_in));
+  nfs_convert_oargs(&nfsv3_diskless.swap_args,&nfs_diskless.swap_args);
   nfsv3_diskless.swap_fhsize = NFSX_V2FH;
   bcopy(nfs_diskless.swap_fh,nfsv3_diskless.swap_fh,NFSX_V2FH);
   bcopy(&nfs_diskless.swap_saddr,&nfsv3_diskless.swap_saddr,
@@ -190,8 +217,7 @@ void nfs_convert_diskless()
   nfsv3_diskless.swap_nblks = nfs_diskless.swap_nblks;
   bcopy(&nfs_diskless.swap_ucred, &nfsv3_diskless.swap_ucred,
 	sizeof(struct ucred));
-  bcopy(&nfs_diskless.root_args,&nfsv3_diskless.root_args,
-	sizeof(struct nfs_args));
+  nfs_convert_oargs(&nfsv3_diskless.root_args,&nfs_diskless.root_args);
   nfsv3_diskless.root_fhsize = NFSX_V2FH;
   bcopy(nfs_diskless.root_fh,nfsv3_diskless.root_fh,NFSX_V2FH);
   bcopy(&nfs_diskless.root_saddr,&nfsv3_diskless.root_saddr,
@@ -554,31 +580,6 @@ nfs_mountdiskless(path, which, mountflag, sin, args, p, vpp, mpp)
 	return (0);
 }
 
-#ifndef NO_COMPAT_PRELITE2
-/*
- * Old arguments to mount NFS
- */
-struct onfs_args {
-	struct sockaddr	*addr;		/* file server address */
-	int		addrlen;	/* length of address */
-	int		sotype;		/* Socket type */
-	int		proto;		/* and Protocol */
-	u_char		*fh;		/* File handle to be mounted */
-	int		fhsize;		/* Size, in bytes, of fh */
-	int		flags;		/* flags */
-	int		wsize;		/* write size in bytes */
-	int		rsize;		/* read size in bytes */
-	int		readdirsize;	/* readdir size in bytes */
-	int		timeo;		/* initial timeout in .1 secs */
-	int		retrans;	/* times to retry send */
-	int		maxgrouplist;	/* Max. size of group list */
-	int		readahead;	/* # of blocks to readahead */
-	int		leaseterm;	/* Term (sec) of lease */
-	int		deadthresh;	/* Retrans threshold */
-	char		*hostname;	/* server's name */
-};
-#endif /* !NO_COMPAT_PRELITE2 */
-
 /*
  * VFS Operations.
  *
@@ -623,24 +624,7 @@ nfs_mount(mp, path, data, ndp, p)
 		error = copyin(data, (caddr_t)&oargs, sizeof (struct onfs_args));
 		if (error)
 			return (error);
-		args.version = NFS_ARGSVERSION;
-		args.addr = oargs.addr;
-		args.addrlen = oargs.addrlen;
-		args.sotype = oargs.sotype;
-		args.proto = oargs.proto;
-		args.fh = oargs.fh;
-		args.fhsize = oargs.fhsize;
-		args.flags = oargs.flags;
-		args.wsize = oargs.wsize;
-		args.rsize = oargs.rsize;
-		args.readdirsize = oargs.readdirsize;
-		args.timeo = oargs.timeo;
-		args.retrans = oargs.retrans;
-		args.maxgrouplist = oargs.maxgrouplist;
-		args.readahead = oargs.readahead;
-		args.leaseterm = oargs.leaseterm;
-		args.deadthresh = oargs.deadthresh;
-		args.hostname = oargs.hostname;
+		nfs_convert_oargs(&args,&oargs);
 #else /* NO_COMPAT_PRELITE2 */
 		return (EPROGMISMATCH);
 #endif /* !NO_COMPAT_PRELITE2 */

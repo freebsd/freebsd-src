@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)nfsdiskless.h	8.2 (Berkeley) 3/30/95
- * $Id$
+ * $Id: nfsdiskless.h,v 1.8 1997/02/22 09:42:47 peter Exp $
  */
 
 
@@ -81,16 +81,39 @@ struct nfsv3_diskless {
 	char		my_hostnam[MAXHOSTNAMELEN]; /* Client host name */
 };
 
+/*
+ * Old arguments to mount NFS
+ */
+struct onfs_args {
+	struct sockaddr	*addr;		/* file server address */
+	int		addrlen;	/* length of address */
+	int		sotype;		/* Socket type */
+	int		proto;		/* and Protocol */
+	u_char		*fh;		/* File handle to be mounted */
+	int		fhsize;		/* Size, in bytes, of fh */
+	int		flags;		/* flags */
+	int		wsize;		/* write size in bytes */
+	int		rsize;		/* read size in bytes */
+	int		readdirsize;	/* readdir size in bytes */
+	int		timeo;		/* initial timeout in .1 secs */
+	int		retrans;	/* times to retry send */
+	int		maxgrouplist;	/* Max. size of group list */
+	int		readahead;	/* # of blocks to readahead */
+	int		leaseterm;	/* Term (sec) of lease */
+	int		deadthresh;	/* Retrans threshold */
+	char		*hostname;	/* server's name */
+};
+
 struct nfs_diskless {
 	struct ifaliasreq myif;			/* Default interface */
 	struct sockaddr_in mygateway;		/* Default gateway */
-	struct nfs_args	swap_args;		/* Mount args for swap file */
+	struct onfs_args swap_args;		/* Mount args for swap file */
 	u_char		swap_fh[NFSX_V2FH];	/* Swap file's file handle */
 	struct sockaddr_in swap_saddr;		/* Address of swap server */
 	char		swap_hostnam[MNAMELEN];	/* Host name for mount pt */
 	int		swap_nblks;		/* Size of server swap file */
 	struct ucred	swap_ucred;		/* Swap credentials */
-	struct nfs_args	root_args;		/* Mount args for root fs */
+	struct onfs_args root_args;		/* Mount args for root fs */
 	u_char		root_fh[NFSX_V2FH];	/* File handle of root dir */
 	struct sockaddr_in root_saddr;		/* Address of root server */
 	char		root_hostnam[MNAMELEN];	/* Host name for mount pt */
