@@ -45,6 +45,7 @@
 #include <sys/systm.h>
 #include <sys/kernel.h>
 #include <sys/ktr.h>
+#include <sys/limits.h>
 #include <sys/lock.h>
 #include <sys/mutex.h>
 #include <sys/proc.h>
@@ -208,6 +209,28 @@ out:
 		mtx_unlock_spin(&sched_lock);
 	}
 	return (error);
+}
+
+/*
+ * Wrapper for uiomove() that validates the arguments against a known-good
+ * kernel buffer.  Currently, uiomove accepts a signed (n) argument, which
+ * is almost definitely a bad thing, so we catch that here as well.  We
+ * return a runtime failure, but it might be desirable to generate a runtime
+ * assertion failure instead.
+ */
+int
+uiomove_frombuf(void *buf, int buflen, struct uio *uio)
+{
+	unsigned int offset, n;
+
+	if (uio->uio_offset < 0 || uio->uio_resid < 0 ||
+	    (offset = uio->uio_offset) != uio->uio_offset)
+		return (EINVAL);
+	if (buflen <= 0 || offset >= buflen)
+		return (0);
+	if ((n = buflen - offset) > INT_MAX)
+		return (EINVAL);
+	return (uiomove((char *)buf + offset, n, uio));
 }
 
 #if defined(ENABLE_VFS_IOOPT) || defined(ZERO_COPY_SOCKETS)

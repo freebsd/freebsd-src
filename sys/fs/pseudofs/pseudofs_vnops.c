@@ -34,6 +34,7 @@
 #include <sys/ctype.h>
 #include <sys/dirent.h>
 #include <sys/fcntl.h>
+#include <sys/limits.h>
 #include <sys/lock.h>
 #include <sys/mount.h>
 #include <sys/mutex.h>
@@ -472,8 +473,8 @@ pfs_read(struct vop_read_args *va)
 	struct uio *uio = va->a_uio;
 	struct proc *proc = NULL;
 	struct sbuf *sb = NULL;
-	char *ps;
-	int error, xlen;
+	int error;
+	unsigned int buflen, offset, resid;
 
 	PFS_TRACE((pn->pn_name));
 
@@ -508,7 +509,16 @@ pfs_read(struct vop_read_args *va)
 		PFS_RETURN (error);
 	}
 
-	sb = sbuf_new(sb, NULL, uio->uio_offset + uio->uio_resid, 0);
+	/* Beaucoup sanity checks so we don't ask for bogus allocation. */
+	if (uio->uio_offset < 0 || uio->uio_resid < 0 ||
+	    (offset = uio->uio_offset) != uio->uio_offset ||
+	    (resid = uio->uio_resid) != uio->uio_resid ||
+	    (buflen = offset + resid) < offset || buflen > INT_MAX) {
+		if (proc != NULL)
+			PRELE(proc);
+		PFS_RETURN (EINVAL);
+	}
+	sb = sbuf_new(sb, NULL, buflen, 0);
 	if (sb == NULL) {
 		if (proc != NULL)
 			PRELE(proc);
@@ -525,12 +535,8 @@ pfs_read(struct vop_read_args *va)
 		PFS_RETURN (error);
 	}
 
-	/* XXX we should possibly detect and handle overflows */
 	sbuf_finish(sb);
-	ps = sbuf_data(sb) + uio->uio_offset;
-	xlen = sbuf_len(sb) - uio->uio_offset;
-	xlen = imin(xlen, uio->uio_resid);
-	error = (xlen <= 0 ? 0 : uiomove(ps, xlen, uio));
+	error = uiomove_frombuf(sbuf_data(sb), sbuf_len(sb), uio);
 	sbuf_delete(sb);
 	PFS_RETURN (error);
 }
@@ -676,9 +682,9 @@ pfs_readlink(struct vop_readlink_args *va)
 	struct pfs_node *pn = pvd->pvd_pn;
 	struct uio *uio = va->a_uio;
 	struct proc *proc = NULL;
-	char buf[MAXPATHLEN], *ps;
+	char buf[MAXPATHLEN];
 	struct sbuf sb;
-	int error, xlen;
+	int error;
 
 	PFS_TRACE((pn->pn_name));
 
@@ -708,12 +714,8 @@ pfs_readlink(struct vop_readlink_args *va)
 		PFS_RETURN (error);
 	}
 
-	/* XXX we should detect and handle overflows */
 	sbuf_finish(&sb);
-	ps = sbuf_data(&sb) + uio->uio_offset;
-	xlen = sbuf_len(&sb) - uio->uio_offset;
-	xlen = imin(xlen, uio->uio_resid);
-	error = (xlen <= 0 ? 0 : uiomove(ps, xlen, uio));
+	error = uiomove_frombuf(sbuf_data(&sb), sbuf_len(&sb), uio);
 	sbuf_delete(&sb);
 	PFS_RETURN (error);
 }
