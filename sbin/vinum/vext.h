@@ -35,7 +35,7 @@
  */
 
 /*
- * $Id: vext.h,v 1.15 2000/02/17 05:10:47 grog Exp grog $
+ * $Id: vext.h,v 1.17 2000/05/07 04:17:12 grog Exp grog $
  * $FreeBSD$
  */
 
@@ -143,6 +143,7 @@ u_int64_t sizespec(char *spec);
 void timestamp();
 
 extern int force;					    /* set to 1 to force some dangerous ops */
+extern int interval;					    /* interval in ms between init/revive */
 extern int vflag;					    /* set verbose operation or verify */
 extern int Verbose;					    /* very verbose operation */
 extern int recurse;					    /* set recursion */

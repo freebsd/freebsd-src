@@ -36,7 +36,7 @@
  * otherwise) arising in any way out of the use of this software, even if
  * advised of the possibility of such damage.
  *
- * $Id: v.c,v 1.27 1999/10/12 05:41:10 grog Exp grog $
+ * $Id: v.c,v 1.30 2000/05/07 04:20:53 grog Exp grog $
  * $FreeBSD$
  */
 
@@ -82,6 +82,7 @@ int inerror;						    /* set to 1 to exit after end of config file */
 int debug = 0;						    /* debug flag, usage varies */
 #endif
 int force = 0;						    /* set to 1 to force some dangerous ops */
+int interval = 0;					    /* interval in ms between init/revive */
 int vflag = 0;						    /* set verbose operation or verify */
 int Verbose = 0;					    /* set very verbose operation */
 int recurse = 0;					    /* set recursion */
@@ -312,6 +313,16 @@ parseline(int args, char *argv[])
 
 	    case 'f':					    /* -f: force */
 		force = 1;
+		break;
+
+	    case 'i':					    /* interval */
+		interval = 0;
+		if (argv[i][j + 1] != '\0')		    /* operand follows, */
+		    interval = atoi(&argv[i][j + 1]);	    /* use it */
+		else if (args > (i + 1))		    /* another following, */
+		    interval = atoi(argv[++i]);		    /* use it */
+		if (interval == 0)			    /* nothing valid, */
+		    fprintf(stderr, "-i: no interval specified\n");
 		break;
 
 	    case 'n':					    /* -n: get name */
@@ -706,6 +717,8 @@ continue_revive(int sdno)
 	setproctitle("reviving %s", sd.name);
 
 	for (reply.error = EAGAIN; reply.error == EAGAIN;) { /* revive the subdisk */
+	    if (interval)
+		usleep(interval * 1000);		    /* pause between each copy */
 	    message->index = sdno;			    /* pass sd number */
 	    message->type = sd_object;			    /* and type of object */
 	    message->state = object_up;
@@ -726,7 +739,7 @@ continue_revive(int sdno)
 	}
     } else if (pid < 0)					    /* couldn't fork? */
 	fprintf(stderr, "Can't continue reviving %s: %s\n", sd.name, strerror(errno));
-    else
+    else						    /* parent */
 	printf("Reviving %s in the background\n", sd.name);
 }
 

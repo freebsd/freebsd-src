@@ -39,7 +39,7 @@
  * otherwise) arising in any way out of the use of this software, even if
  * advised of the possibility of such damage.
  *
- * $Id: list.c,v 1.21 2000/01/03 02:58:07 grog Exp grog $
+ * $Id: list.c,v 1.23 2000/03/01 02:38:55 grog Exp grog $
  * $FreeBSD$
  */
 
@@ -432,16 +432,11 @@ vinum_lpi(int plexno, int recurse)
 		printf("\tStripe size: %s\n", roughlength(plex.stripesize * DEV_BSIZE, 1));
 	    else
 		printf("\n");
-	    if (isparity((&plex))) {
-		if (plex.rebuildblock != 0)
-		    printf("\t\tRebuild block pointer:\t\t%s (%d%%)\n",
-			roughlength(plex.rebuildblock << DEV_BSHIFT, 0),
-			(int) (((u_int64_t) (plex.rebuildblock * 100)) / plex.length / (plex.subdisks - 1)));
-		if (plex.checkblock != 0)
-		    printf("\t\tCheck block pointer:\t\t%s (%d%%)\n",
-			roughlength(plex.checkblock << DEV_BSHIFT, 0),
-			(int) (((u_int64_t) (plex.checkblock * 100)) / plex.length / (plex.subdisks - 1)));
-	    }
+	    if ((isparity((&plex)))
+		&& (plex.checkblock != 0))
+		printf("\t\tCheck block pointer:\t\t%s (%d%%)\n",
+		    roughlength((plex.checkblock << DEV_BSHIFT) * (plex.subdisks - 1), 0),
+		    (int) (((u_int64_t) (plex.checkblock * 100)) * (plex.subdisks - 1) / plex.length));
 	    if (plex.volno >= 0) {
 		get_volume_info(&vol, plex.volno);
 		printf("\t\tPart of volume %s\n", vol.name);
@@ -992,7 +987,7 @@ vinum_info(int argc, char *argv[], char *argv0[])
 		break;
 
 	    case loginfo_sdiodone:			    /* subdisk I/O done */
-		printf("%s %dDN %s %p\t\t  0x%-9x\t%ld\t%d\n",
+		printf("%s %dSD %s %p\t\t  0x%-9x\t%ld\t%d\n",
 		    timetext(&rq.timestamp),
 		    rq.type,
 		    rq.info.b.b_flags & B_READ ? "Read " : "Write",

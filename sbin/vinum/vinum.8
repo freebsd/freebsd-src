@@ -97,7 +97,6 @@ List information about volume manager state.
 .in
 .Cd init
 .Op Fl S Ar size
-.Op Fl v
 .Op Fl w
 .Ar plex | subdisk
 .in +1i
@@ -278,6 +277,7 @@ Set state without influencing other objects, for diagnostic purposes only.
 Read configuration from all vinum drives.
 .in
 .Cd start
+.Op Fl i Ar interval
 .Op Fl S Ar size
 .Op Fl w
 volume | plex | subdisk
@@ -339,6 +339,14 @@ removes
 .Ar myvolume
 even if it is open.  Any subsequent access to the volume will almost certainly
 cause a panic.
+.It Fl i Ar millisecs
+When performing the
+.Nm init
+and
+.Nm start
+commands, wait
+.Ar millisecs
+milliseconds between copying each block.  This lowers the load on the system.
 .It Fl n Ar name
 Use the
 .Fl n
@@ -367,7 +375,7 @@ The
 .if n ("statistics")
 option is used by the list commands to display statistical information.  The
 .Nm mirror
-command also uses this flag to specify that it should create striped plexes.
+command also uses this option to specify that it should create striped plexes.
 .It Fl S Ar size
 The
 .Fl S
@@ -381,10 +389,7 @@ The
 .Fl v
 .if t (``verbose'')
 .if n ("verbose")
-option can be used to request more detailed information.  This flag also means
-``verify'' for the
-.Nm init
-command.
+option can be used to request more detailed information.
 .It Fl V
 The
 .Fl V
@@ -768,7 +773,7 @@ for the range lock.
 .El
 .\" XXX
 .It Nm init Op Fl S 
-.Ar size Op Fl v 
+.Ar size
 .Op Fl w
 .Ar plex | subdisk
 .Pp
@@ -788,9 +793,7 @@ completion of the command, use the
 Specify the
 .Fl S
 option if you want to write blocks of a different size from the default value of
-16 kB.  Specify the
-.Fl v
-if you want to confirm that the initialization is correct.
+16 kB.
 .Nm
 prints a console message when the initialization is complete.
 .It Nm label
@@ -1108,13 +1111,13 @@ respectively.  You can tell
 .Nm
 to remove the object anyway by using the
 .Fl f
-flag, or you can cause
+option, or you can cause
 .Nm
 to remove the subordinate objects as well by using the
 .Fl r
-(recursive) flag.  If you remove a volume with the
+(recursive) option.  If you remove a volume with the
 .Fl r
-flag, it will remove both the plexes and the subdisks which belong to the
+option, it will remove both the plexes and the subdisks which belong to the
 plexes.
 .It Nm saveconfig
 .Pp
@@ -1160,9 +1163,10 @@ the usual consistency mechanism of
 and should be used only for recovery purposes.  It is possible to crash the
 system by incorrect use of this command.
 .It Nm start
+.Op Fl i Ar interval
 .Op Fl S Ar size
 .Op Fl w
-.Op volume | plex | subdisk
+.Op plex | subdisk
 .Pp
 .Nm start
 starts (brings into to the
@@ -1202,8 +1206,7 @@ starts them.  Normally this operation is only of use with subdisks.  The action
 depends on the current state of the object:
 .Bl -bullet
 .It
-If the
-object is already in the
+If the object is already in the
 .Ar up
 state,
 .Nm
@@ -1254,24 +1257,25 @@ state,
 automatically checks the state of any plex and volume to which it may belong and
 changes their state where appropriate.
 .Pp
-If the object is a volume or a plex,
+If the object is a plex,
 .Nm start
-currently has no effect: it checks the state of the subordinate subdisks (and
-plexes in the case of a volume) and sets the state of the object accordingly.
+checks the state of the subordinate subdisks (and plexes in the case of a
+volume) and starts any subdisks which can be started.
 .Pp
 To start a plex in a multi-plex volume, the data must be copied from another
 plex in the volume.  Since this frequently takes a long time, it is normally
 done in the background.  If you want to wait for this operation to complete (for
 example, if you are performing this operation in a script), use the
 .Fl w
-flag.
+option.
 .Pp
 Copying data doesn't just take a long time, it can also place a significant load
-on the system.  You can specify the transfer size with the
+on the system.  You can specify the transfer size in bytes with the
 .Fl S
-flag.  A future change to
-.Nm
-will allow a pause between each block to lessen the load on the system.
+option, and an interval (in milliseconds) to wait between copying each block with
+the
+.Fl i
+option.  Both of these options lessen the load on the system.
 .It Nm stop
 .Op Fl f
 .Op volume | plex | subdisk
@@ -1284,7 +1288,7 @@ kld and stops
 .Xr vinum 8 .
 This can only be done if no objects are active.  In particular, the
 .Fl f
-flag does not override this requirement.  Normally, the
+option does not override this requirement.  Normally, the
 .Nm stop
 command writes the current configuration back to the drives before terminating.
 This will not be possible if configuration updates are disabled, so
@@ -1292,7 +1296,7 @@ This will not be possible if configuration updates are disabled, so
 will not stop if configuration updates are disabled.  You can override this by
 specifying the
 .Fl f
-flag.
+option.
 .Pp
 The
 .Nm stop
@@ -1314,7 +1318,7 @@ the
 .Fl r
 and
 .Fl f
-flags must be specified.  This command does not remove the objects from the
+options must be specified.  This command does not remove the objects from the
 configuration.  They can be accessed again after a
 .Nm start
 command.
@@ -2098,7 +2102,7 @@ and create the volumes.  In this example, the configuration is in the file
 .Pp
 The
 .Fl v
-flag tells
+option tells
 .Nm
 to list the file as it configures.  Subsequently it lists the current
 configuration in the same format as the
@@ -2142,7 +2146,7 @@ command again, you will create additional objects:
 .Pp
 As this example (this time with the
 .Fl f
-flag) shows, re-running the
+option) shows, re-running the
 .Nm create
 has created four new plexes, each with a new subdisk.  If you want to add other
 volumes, create new configuration files for them.  They do not need to reference
@@ -2234,10 +2238,13 @@ broken into several.  This will result in a significant drop in performance: the
 decrease in transfer time per disk is offset by the order of magnitude greater
 increase in latency.
 .Pp
-With modern disk sizes and the FreeBSD block I/O system, you can expect to have
-a reasonably small number of fragmented requests with a stripe size between 256
-kB and 512 kB; with correct RAID implementations there is no obvious reason not
-to increase the size to 2 or 4 MB on a large disk.
+With modern disk sizes and the FreeBSD I/O system, you can expect to have a
+reasonably small number of fragmented requests with a stripe size between 256 kB
+and 512 kB; with correct RAID implementations there is no obvious reason not to
+increase the size to 2 or 4 MB on a large disk.
+.Pp
+When choosing a stripe size, consider that most current ufs file systems have
+cylinder groups 32 MB in size.  
 .Pp
 The easiest way to consider the impact of any transfer in a multi-access system
 is to look at it from the point of view of the potential bottleneck, the disk
@@ -2341,21 +2348,17 @@ You do not need to run
 before creating a file system on a
 .Nm
 volume.  Just run
-.Nm newfs
-against the raw device.  Use the
+.Nm newfs .
+Use the
 .Fl v
 option to state that the device is not divided into partitions.  For example, to
 create a file system on volume
 .Pa mirror ,
 enter the following command:
 .Bd -literal -offset 4n
-# newfs -v /dev/vinum/rmirror
+# newfs -v /dev/vinum/mirror
 .Ed
 .Pp
-Note the name
-.Pa rmirror ,
-indicating the raw device.
-.Ss Other considerations
 A number of other considerations apply to
 .Nm
 configuration:
