@@ -10,7 +10,7 @@
 
 #ifndef lint
 static const char rcsid[] =
-	"$Id$";
+	"$Id: kernbb.c,v 1.3.2.2 1997/09/23 06:29:36 charnier Exp $";
 #endif /* not lint */
 
 #include <err.h>
@@ -55,7 +55,7 @@ int
 main()
 {
 	int i,j;
-	u_long l1,l2,l3;
+	u_long l1,l2,l3,l4;
 	struct bb bb;
 	char buf[128];
 
@@ -82,9 +82,20 @@ main()
 		kvm_read(kv,bb.addr,  addr,   bb.ncounts * sizeof addr[0]);
 		kvm_read(kv,bb.file,  file,   bb.ncounts * sizeof file[0]);
 		kvm_read(kv,bb.func,  func,   bb.ncounts * sizeof func[0]);
+		l4 = 0;
 		for (i=0; i < bb.ncounts; i++) {
-			if (!counts[i])
+			if (counts[i])
+				l4++;
+			if (!func[i] && i+1 < bb.ncounts)
+				func[i] = func[i+1];
+		}
+		if (!l4)
+			continue;
+		for (i=0; i < bb.ncounts; i++) {
+
+			if (0 && !counts[i])
 				continue;
+
 			if (!pn[i] && func[i]) {
 				kvm_read(kv,func[i], buf, sizeof buf);
 				buf[sizeof buf -1] = 0;
@@ -109,8 +120,11 @@ main()
 			}
 			if (!fn[i])
 				fn[i] = "-";
-			printf("%s %5lu %s %lu %lu\n",
-				fn[i],lineno[i],pn[i],addr[i],counts[i]);
+			l4 = 0;
+			if (i+1 < bb.ncounts)
+				l4 = addr[i+1] - addr[i];
+			printf("%s %5lu %s %lu %lu %lu %lu\n",
+				fn[i], lineno[i], pn[i], addr[i], counts[i], l4, counts[i] * l4);
 		}
 		for(i=0;i<bb.ncounts;i++) {
 			if (func[i] && pn[i]) 

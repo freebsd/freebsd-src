@@ -42,7 +42,7 @@ static const char copyright[] =
 static char sccsid[] = "@(#)dev_mkdb.c	8.1 (Berkeley) 6/6/93";
 #endif
 static const char rcsid[] =
-	"$Id$";
+	"$Id: dev_mkdb.c,v 1.1.1.1.8.2 1997/09/18 06:25:39 charnier Exp $";
 #endif /* not lint */
 
 #include <sys/param.h>
@@ -80,7 +80,7 @@ main(argc, argv)
 	u_char buf[MAXNAMLEN + 1];
 	char dbtmp[MAXPATHLEN + 1], dbname[MAXPATHLEN + 1];
 
-	while ((ch = getopt(argc, argv, "")) !=  -1)
+	while ((ch = getopt(argc, argv, "")) != -1)
 		switch((char)ch) {
 		case '?':
 		default:

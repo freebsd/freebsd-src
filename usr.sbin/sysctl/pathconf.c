@@ -42,7 +42,7 @@ static const char copyright[] =
 static char sccsid[] = "@(#)pathconf.c	8.1 (Berkeley) 6/6/93";
 #endif
 static const char rcsid[] =
-	"$Id: pathconf.c,v 1.3 1997/10/20 12:53:53 charnier Exp $";
+	"$Id: pathconf.c,v 1.1.1.1.8.2 1997/11/07 07:27:10 charnier Exp $";
 #endif /* not lint */
 
 #include <sys/param.h>
@@ -94,7 +94,7 @@ main(argc, argv)
 	char *path;
 	int ch;
 
-	while ((ch = getopt(argc, argv, "Aan")) !=  -1) {
+	while ((ch = getopt(argc, argv, "Aan")) != -1) {
 		switch (ch) {
 
 		case 'A':

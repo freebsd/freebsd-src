@@ -24,7 +24,7 @@
 # OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 # SUCH DAMAGE.
 #
-# $Id: adduser.perl,v 1.19.2.8 1997/10/14 17:34:01 wosch Exp $
+# $Id: adduser.perl,v 1.19.2.9 1997/12/29 23:27:29 wosch Exp $
 
 
 # read variables
@@ -33,7 +33,7 @@ sub variables {
     $defaultpasswd = "yes";	# use password for new users
     $dotdir = "/usr/share/skel"; # copy dotfiles from this dir
     $dotdir_bak = $dotdir;
-    $send_message = "no"; # send message to new user
+    $send_message = "/etc/adduser.message"; # send message to new user
     $send_message_bak = '/etc/adduser.message';
     $config = "/etc/adduser.conf"; # config file for adduser
     $config_read = 1;		# read config file
@@ -173,7 +173,7 @@ sub shell_default_valid {
     return $s;
 }
 
-# return default home partition (f.e. "/home")
+# return default home partition (e.g. "/home")
 # create base directory if nesseccary
 sub home_partition {
     local($home) = @_;
@@ -234,6 +234,10 @@ sub passwd_read {
     while(<P>) {
 	chop;
 	push(@passwd_backup, $_);
+	# ignore comments
+	next if /^\s*$/;
+	next if /^\s*#/;
+
 	($p_username, $pw, $p_uid, $p_gid, $sh) = (split(/:/, $_))[0..3,9];
 
 	print "$p_username already exists with uid: $username{$p_username}!\n"
@@ -261,6 +265,10 @@ sub group_read {
     while(<G>) {
 	chop;
 	push(@group_backup, $_);
+	# ignore comments
+	next if /^\s*$/;
+	next if /^\s*#/;
+
 	($g_groupname, $pw, $g_gid, $memb) = (split(/:/, $_))[0..3];
 
 	$groupmembers{$g_gid} = $memb;
@@ -347,6 +355,20 @@ sub new_users_shell {
 
     $sh = &confirm_list("Enter shell", 0, $defaultshell, keys %shell);
     return $shell{$sh};
+}
+
+# return home (full path) for user
+# Note that the home path defaults to $home/$name for batch
+sub new_users_home {
+    local($name) = @_;
+    local($userhome);
+
+    while(1) {
+        $userhome = &confirm_list("Enter home directory (full path)", 1, "$home/$name", "");
+	last if $userhome =~ /^\//;
+	warn qq{Home directory "$userhome" is not a full path\a\n};
+    }
+    return $userhome;
 }
 
 # return free uid and gid
@@ -537,7 +559,7 @@ Uid:	  $u_id
 Gid:	  $g_id ($group_login)
 Class:	  $class
 Groups:	  $group_login $new_groups
-HOME:	  $home/$name
+HOME:     $userhome
 Shell:	  $sh
 EOF
 
@@ -678,12 +700,14 @@ sub new_users {
     # name: Username
     # fullname: Full name
     # sh: shell
+    # userhome: home path for user
     # u_id: user id
     # g_id: group id
     # class: login class
     # group_login: groupname of g_id
     # new_groups: some other groups
     local($name, $group_login, $fullname, $sh, $u_id, $g_id, $class, $new_groups);
+    local($userhome);
     local($groupmembers_bak, $cryptpwd);
     local($new_users_ok) = 1;
 
@@ -695,6 +719,7 @@ sub new_users {
 	$name = &new_users_name;
 	$fullname = &new_users_fullname($name);
 	$sh = &new_users_shell;
+        $userhome = &new_users_home($name);
 	($u_id, $g_id) = &new_users_id($name);
 	$class = &new_users_class($defaultclass);
 	($group_login, $defaultgroup) =
@@ -713,14 +738,14 @@ sub new_users {
 	    $cryptpwd = crypt($password, &salt) if $password ne "";
 	    # obscure perl bug
 	    $new_entry = "$name\:" . "$cryptpwd" .
-		"\:$u_id\:$g_id\:$class\:0:0:$fullname:$home/$name:$sh";
+		"\:$u_id\:$g_id\:$class\:0:0:$fullname:$userhome:$sh";
 	    &append_file($etc_passwd, "$new_entry");
 	    &new_users_pwdmkdb("$new_entry");
 	    &new_users_group_update;
 	    &new_users_passwd_update;  print "Added user ``$name''\n";
 	    &new_users_sendmessage;
 	    &adduser_log("$name:*:$u_id:$g_id($group_login):$fullname");
-	    &home_create($name, $group_login);
+	    &home_create($userhome, $name, $group_login);
 	} else {
 	    $new_users_ok = 0;
 	}
@@ -762,7 +787,7 @@ sub batch {
     &new_users_passwd_update;  print "Added user ``$name''\n";
     &sendmessage($name, @message_buffer) if $send_message ne "no";
     &adduser_log("$name:*:$u_id:$g_id($group_login):$fullname");
-    &home_create($name, $group_login);
+    &home_create("$home/$name", $name, $group_login);
 }
 
 # ask for password usage
@@ -947,17 +972,28 @@ sub adduser_log {
 
 # create HOME directory, copy dotfiles from $dotdir to $HOME
 sub home_create {
-    local($name, $group) = @_;
-    local($homedir) = "$home/$name";
+    local($homedir, $name, $group) = @_;
+    local($rootdir);
 
     if (-e "$homedir") {
 	warn "HOME Directory ``$homedir'' already exist\a\n";
 	return 0;
     }
 
+    # if the home directory prefix doesn't exist, create it
+    # First, split the directory into a list; then remove the user's dir
+    @dir = split('/', $homedir); pop(@dir);
+    # Put back together & strip to get directory prefix
+    $rootdir = &stripdir(join('/', @dir));
+
+    if (!&mkdirhier("$rootdir")) {
+	    # warn already displayed
+	    return 0;
+    }
+
     if ($dotdir eq 'no') {
-	if (!mkdir("$homedir",0755)) {
-	    warn "mkdir $homedir: $!\n"; return 0;
+	if (!mkdir("$homedir", 0755)) {
+	    warn "$dir: $!\n"; return 0;
 	}
 	system 'chown', "$name:$group", $homedir;
 	return !$?;
@@ -992,7 +1028,6 @@ sub mkdir_home {
     $dir = &stripdir($dir);
     local($user_partition) = "/usr";
     local($dirname) = &dirname($dir);
-
 
     -e $dirname || &mkdirhier($dirname);
 

@@ -105,6 +105,32 @@ int     slunit;
 char	loginargs[BUFSIZ];
 char	loginfile[MAXPATHLEN];
 char	loginname[BUFSIZ];
+static char raddr[32];			/* remote address */
+char ifname[IFNAMSIZ];          	/* interface name */
+static 	char pidfilename[MAXPATHLEN];   /* name of pid file */
+static 	char iffilename[MAXPATHLEN];    /* name of if file */
+static	pid_t	pid;			/* our pid */
+
+char *
+make_ipaddr(void)
+{
+static char address[20] ="";
+struct hostent *he;
+unsigned long ipaddr;
+int i;
+
+address[0] = '\0';
+if ((he = gethostbyname(raddr)) != NULL) {
+	ipaddr = ntohl(*(long *)he->h_addr_list[0]);
+	sprintf(address, "%lu.%lu.%lu.%lu",
+		ipaddr >> 24,
+		(ipaddr & 0x00ff0000) >> 16,
+		(ipaddr & 0x0000ff00) >> 8,
+		(ipaddr & 0x000000ff));
+	}
+
+return address;
+}
 
 struct slip_modes {
 	char	*sm_name;
@@ -124,7 +150,6 @@ findid(name)
 	FILE *fp;
 	static char slopt[5][16];
 	static char laddr[16];
-	static char raddr[16];
 	static char mask[16];
 	char   slparmsfile[MAXPATHLEN];
 	char user[16];
@@ -294,6 +319,10 @@ hup_handler(s)
 	}
 	syslog(LOG_INFO, "closed %s slip unit %d (%s)\n", loginname, unit,
 	       sigstr(s));
+	if (unlink(pidfilename) < 0 && errno != ENOENT)
+		syslog(LOG_WARNING, "unable to delete pid file: %m");
+	if (unlink(iffilename) < 0 && errno != ENOENT)
+		syslog(LOG_WARNING, "unable to delete if file: %m");
 	exit(1);
 	/* NOTREACHED */
 }
@@ -342,6 +371,12 @@ main(argc, argv)
 	char logincmd[2*BUFSIZ+32];
 	extern uid_t getuid();
 
+	FILE *pidfile;				/* pid file */
+	FILE *iffile;				/* interfaces file */
+	char *p;
+	int n;
+	char devnam[MAXPATHLEN] = "/dev/tty";   /* Device name */
+
 	if ((name = strrchr(argv[0], '/')) == NULL)
 		name = argv[0];
 	s = getdtablesize();
@@ -386,6 +421,10 @@ main(argc, argv)
 	}
 	(void) fchmod(0, 0600);
 	(void) fprintf(stderr, "starting slip login for %s\n", loginname);
+        (void) fprintf(stderr, "your address is %s\n\n", make_ipaddr());
+
+	(void) fflush(stderr);
+	sleep(1);
 
 	/* set up the line parameters */
 	if (tcgetattr(0, &tios) < 0) {
@@ -428,6 +467,38 @@ main(argc, argv)
 		syslog(LOG_ERR, "ioctl(SLIOCSOUTFILL): %m");
 		exit(1);
 	}
+
+        /* write pid to file */
+	pid = getpid();
+	(void) sprintf(ifname, "sl%d", unit);
+	(void) sprintf(pidfilename, "%s%s.pid", _PATH_VARRUN, ifname);
+	if ((pidfile = fopen(pidfilename, "w")) != NULL) {
+		fprintf(pidfile, "%d\n", pid);
+		(void) fclose(pidfile);
+	} else {
+		syslog(LOG_ERR, "Failed to create pid file %s: %m",
+				pidfilename);
+		pidfilename[0] = 0;
+	}
+
+        /* write interface unit number to file */
+	p = ttyname(0);
+	if (p)
+		strcpy(devnam, p);
+	for (n = strlen(devnam); n > 0; n--) 
+		if (devnam[n] == '/') {
+			n++;
+			break;
+		}
+	(void) sprintf(iffilename, "%s%s.if", _PATH_VARRUN, &devnam[n]);
+	if ((iffile = fopen(iffilename, "w")) != NULL) {
+		fprintf(iffile, "sl%d\n", unit); 
+		(void) fclose(iffile);
+	} else {
+		syslog(LOG_ERR, "Failed to create if file %s: %m", iffilename);
+		iffilename[0] = 0;  
+	}
+
 
 	syslog(LOG_INFO, "attaching slip unit %d for %s\n", unit, loginname);
 	(void)snprintf(logincmd, sizeof(logincmd), "%s %d %ld %s", loginfile, unit, speed,

@@ -17,7 +17,7 @@
 
 #if !defined(lint) && !defined(LINT)
 static const char rcsid[] =
-	"$Id: cron.c,v 1.2.2.2 1997/09/16 07:01:31 charnier Exp $";
+	"$Id: cron.c,v 1.2.2.3 1998/03/09 11:41:39 jkh Exp $";
 #endif
 
 #define	MAIN_PROGRAM
@@ -232,7 +232,7 @@ cron_sleep() {
 	do {
 		seconds_to_wait = (int) (TargetTime - time((time_t*)0));
 		Debug(DSCH, ("[%d] TargetTime=%ld, sec-to-wait=%d\n",
-			getpid(), TargetTime, seconds_to_wait))
+			getpid(), (long)TargetTime, seconds_to_wait))
 
 		/* if we intend to sleep, this means that it's finally
 		 * time to empty the job queue (execute it).

@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: pppctl.c,v 1.1.2.3 1998/01/26 20:00:50 brian Exp $
+ *	$Id: pppctl.c,v 1.1.2.4 1998/03/09 13:52:07 jkh Exp $
  */
 
 #include <sys/types.h>
@@ -364,11 +364,12 @@ main(int argc, char **argv)
                 edit = el_init("pppctl", stdin, stdout);
                 el_source(edit, NULL);
                 el_set(edit, EL_PROMPT, GetPrompt);
-                if ((env = getenv("EL_EDITOR")))
+                if ((env = getenv("EL_EDITOR"))) {
                     if (!strcmp(env, "vi"))
                         el_set(edit, EL_EDITOR, "vi");
                     else if (!strcmp(env, "emacs"))
                         el_set(edit, EL_EDITOR, "emacs");
+                }
                 el_set(edit, EL_SIGNAL, 1);
                 el_set(edit, EL_HIST, history, (const char *)hist);
                 while ((l = smartgets(edit, &len, fd))) {

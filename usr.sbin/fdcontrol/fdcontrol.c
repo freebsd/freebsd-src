@@ -27,12 +27,13 @@
 
 #ifndef lint
 static const char rcsid[] =
-	"$Id: fdcontrol.c,v 1.2.6.2 1997/09/18 06:29:16 charnier Exp $";
+	"$Id: fdcontrol.c,v 1.2.6.3 1998/03/09 13:50:53 jkh Exp $";
 #endif /* not lint */
 
 #include <err.h>
 #include <stdio.h>
 #include <stdlib.h>
+#include <unistd.h>
 #include <machine/ioctl_fd.h>
 #include <sys/file.h>
 
