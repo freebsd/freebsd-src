@@ -38,7 +38,7 @@
  * from: Utah Hdr: vn.c 1.13 94/04/02
  *
  *	from: @(#)vn.c	8.6 (Berkeley) 4/1/94
- *	$Id: vn.c,v 1.41.2.1 1997/08/15 02:38:10 kato Exp $
+ *	$Id: vn.c,v 1.41.2.2 1997/10/20 19:44:39 nate Exp $
  */
 
 /*
@@ -231,7 +231,7 @@ vnstrategy(struct buf *bp)
 	register struct vn_softc *vn = vn_softc[unit];
 	register daddr_t bn;
 	int error;
-	int isvplocked;
+	int isvplocked = 0;
 	long sz;
 	struct uio auio;
 	struct iovec aiov;
