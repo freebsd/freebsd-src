@@ -26,7 +26,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- * $Id: vga_isa.c,v 1.1 1999/01/23 16:53:30 dfr Exp $
+ * $Id: vga_isa.c,v 1.2 1999/02/05 11:52:08 yokota Exp $
  */
 
 #include "vga.h"
@@ -851,10 +851,25 @@ update_adapter_info(video_adapter_t *adp, video_info_t *info)
     	adp->va_buffer = BIOS_PADDRTOVADDR(info->vi_buffer);
     	adp->va_buffer_size = info->vi_buffer_size;
     }
-    if (info->vi_flags & V_INFO_GRAPHICS)
-	adp->va_line_width = info->vi_width/8;
-    else
+    if (info->vi_flags & V_INFO_GRAPHICS) {
+	switch (info->vi_depth/info->vi_planes) {
+	case 1:
+	    adp->va_line_width = info->vi_width/8;
+	    break;
+	case 2:
+	    adp->va_line_width = info->vi_width/4;
+	    break;
+	case 4:
+	    adp->va_line_width = info->vi_width/2;
+	    break;
+	case 8:
+	default: /* shouldn't happen */
+	    adp->va_line_width = info->vi_width;
+	    break;
+	}
+    } else {
 	adp->va_line_width = info->vi_width;
+    }
     bcopy(info, &adp->va_info, sizeof(adp->va_info));
 }
 
