@@ -17,6 +17,8 @@ You should have received a copy of the GNU General Public License
 along with this program; if not, write to the Free Software
 Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.  */
 
+/* $FreeBSD$ */
+
 #include "bfd.h"
 #include "sysdep.h"
 #include "bfdlink.h"
@@ -249,7 +251,7 @@ elf_i386_is_local_label_name (abfd, name)
 /* The name of the dynamic interpreter.  This is put in the .interp
    section.  */
 
-#define ELF_DYNAMIC_INTERPRETER "/usr/lib/libc.so.1"
+#define ELF_DYNAMIC_INTERPRETER "/usr/libexec/ld-elf.so.1"
 
 /* The size in bytes of an entry in the procedure linkage table.  */
 
