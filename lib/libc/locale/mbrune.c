@@ -45,6 +45,7 @@ __FBSDID("$FreeBSD$");
 #include <stddef.h>
 #include <string.h>
 
+__warn_references(mbrune, "warning: mbrune() is deprecated. See mbrune(3).");
 char *
 mbrune(string, c)
 	const char *string;
@@ -62,6 +63,7 @@ mbrune(string, c)
 	return (c == *string ? (char *)string : NULL);
 }
 
+__warn_references(mbrrune, "warning: mbrrune() is deprecated. See mbrrune(3).");
 char *
 mbrrune(string, c)
 	const char *string;
@@ -79,6 +81,7 @@ mbrrune(string, c)
 	return (c == *string ? (char *)string : (char *)last);
 }
 
+__warn_references(mbmb, "warning: mbmb() is deprecated. See mbmb(3).");
 char *
 mbmb(string, pattern)
 	const char *string;

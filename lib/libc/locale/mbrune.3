@@ -54,6 +54,22 @@
 .Ft char *
 .Fn mbmb "const char *string" "char *pattern"
 .Sh DESCRIPTION
+.Bf Em
+The
+.Bx 4.4
+.Dq rune
+functions have been deprecated in favour of the
+.Tn ISO
+C99 extended multibyte and wide character facilities
+and should not be used in new applications.
+.Ef
+Consider working with wide characters instead, and using
+.Xr wcschr 3 ,
+.Xr wcsrchr 3 ,
+and
+.Xr wcsstr 3
+instead of these functions.
+.Pp
 These routines provide the corresponding functionality of
 .Fn strchr ,
 .Fn strrchr
