@@ -17,7 +17,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: command.c,v 1.48 1997/05/23 04:54:01 brian Exp $
+ * $Id: command.c,v 1.49 1997/05/24 17:32:33 brian Exp $
  *
  */
 #include <sys/types.h>
@@ -41,11 +41,11 @@
 #include "command.h"
 #include "alias_cmd.h"
 #include "hdlc.h"
+#include "loadalias.h"
 #include "vars.h"
 #include "systems.h"
 #include "chat.h"
 #include "os.h"
-#include "chat.h"
 
 extern void Cleanup(), TtyTermMode(), PacketMode();
 extern int  EnableCommand(), DisableCommand(), DisplayCommand();
@@ -79,7 +79,6 @@ struct cmdtab *plist;
 {
   struct cmdtab *cmd;
   int n;
-  char c;
 
   if (argc > 0) {
     for (cmd = plist; cmd->name; cmd++) {
@@ -95,8 +94,7 @@ struct cmdtab *plist;
   n = 0;
   for (cmd = plist; cmd->func; cmd++) {
     if (cmd->name && (cmd->lauth & VarLocalAuth)) {
-      c = (n & 1)? '\n' : '\t';
-      printf("  %-8s: %-20s%c", cmd->name, cmd->helpmes, c);
+      printf("  %-8s: %-20s\n", cmd->name, cmd->helpmes);
       n++;
     }
   }
@@ -1272,14 +1270,21 @@ struct cmdtab *list;
 int argc;
 char **argv;
 {
-   if (argc == 1 && strcmp(argv[0], "yes") == 0) {
-      mode |= MODE_ALIAS;
-   } else if (argc == 1 && strcmp(argv[0], "no") == 0) {
-      mode &= ~MODE_ALIAS;
-   } else {
-      printf("Usage: alias %s %s\n", list->name, list->syntax);
-   }
-   return(1);
+    if (argc == 1 && strcmp(argv[0], "yes") == 0) {
+        if (!(mode & MODE_ALIAS))
+            if (loadAliasHandlers(&VarAliasHandlers) == 0)
+                mode |= MODE_ALIAS;
+            else
+                printf("Cannot load alias library\n");
+    } else if (argc == 1 && strcmp(argv[0], "no") == 0) {
+        if (mode & MODE_ALIAS) {
+            unloadAliasHandlers();
+            mode &= ~MODE_ALIAS;
+        }
+    } else {
+        printf("Usage: alias %s %s\n", list->name, list->syntax);
+    }
+    return(1);
 }
 
 
@@ -1291,9 +1296,15 @@ char **argv;
 void* param;
 {
    if (argc == 1 && strcmp(argv[0], "yes") == 0) {
-      SetPacketAliasMode((unsigned)param, (unsigned)param);
+      if (mode & MODE_ALIAS)
+         VarSetPacketAliasMode((unsigned)param, (unsigned)param);
+      else
+         printf("alias not enabled\n");
    } else if (argc == 1 && strcmp(argv[0], "no") == 0) {
-      SetPacketAliasMode(0, (unsigned)param);
+      if (mode & MODE_ALIAS)
+         VarSetPacketAliasMode(0, (unsigned)param);
+      else
+         printf("alias not enabled\n");
    } else {
       printf("Usage: alias %s %s\n", list->name, list->syntax);
    }
