@@ -9,6 +9,6 @@ I18N features to meet various standards.
 Until these improvements are made, you may find it easier to simply
 edit the /etc/sysconfig file yourself once the system is fully
 installed.  There are a number of comments in that file that detail
-just what should be changed as well as a few examples of existing
+just what should be changed, as well as a few examples of existing
 non-english setups.
 
