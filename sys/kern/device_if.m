@@ -23,7 +23,7 @@
 # OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 # SUCH DAMAGE.
 #
-#	$Id: device_if.m,v 1.4 1999/05/10 17:06:13 dfr Exp $
+#	$Id: device_if.m,v 1.5 1999/05/14 11:22:41 dfr Exp $
 #
 
 INTERFACE device;
@@ -50,13 +50,14 @@ CODE {
 
 #
 # Probe to see if the device is present.  Return 0 if the device exists,
-# ENXIO if it cannot be found.  For cases where more than one driver
-# matches a device, a priority value can be returned.  In this case,
-# success codes are values less than or equal to zero with the highest 
-# value representing the best match.  Failure codes are represented by
-# positive values and the regular unix error codes should be used for
-# the purpose.
-#
+# ENXIO if it cannot be found. If some other error happens during the
+# probe (such as a memory allocation failure), an appropriate error code
+# should be returned. For cases where more than one driver matches a
+# device, a priority value can be returned.  In this case, success codes
+# are values less than or equal to zero with the highest value representing
+# the best match.  Failure codes are represented by positive values and
+# the regular unix error codes should be used for the purpose.
+
 # If a driver returns a success code which is less than zero, it must
 # not assume that it will be the same driver which is attached to the
 # device. In particular, it must not assume that any values stored in
