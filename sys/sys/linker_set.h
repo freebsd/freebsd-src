@@ -51,10 +51,10 @@
  * a problem.
  */
 
-#ifdef __alpha__
+#if defined(__alpha__) || defined(__ia64__)
 #define MAKE_SET(set, sym)						\
 	static void const * const __set_##set##_sym_##sym = &sym;	\
-	__asm(".align 3");						\
+	__asm(".p2align 3");						\
 	__asm(".section .set." #set ",\"aw\"");				\
 	__asm(".quad " #sym);						\
 	__asm(".previous")
