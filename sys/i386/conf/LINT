@@ -968,7 +968,7 @@ pseudo-device	splash
 
 # The pcvt console driver (vt220 compatible).
 device		vt0	at isa?
-options 	XSERVER			# support for running an X server.
+options 	XSERVER			# support for running an X server on vt
 options 	FAT_CURSOR		# start with block cursor
 # This PCVT option is for keyboards such as those used on IBM ThinkPad laptops
 options 	PCVT_SCANSET=2 		# IBM keyboards are non-std
