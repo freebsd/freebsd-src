@@ -351,17 +351,17 @@ _posix1e_acl_perm_to_string(acl_perm_t perm, ssize_t buf_len, char *buf)
 
 	buf[3] = 0;	/* null terminate */
 
-	if (perm & ACL_PERM_READ)
+	if (perm & ACL_READ)
 		buf[0] = ACL_STRING_PERM_READ;
 	else
 		buf[0] = ACL_STRING_PERM_NONE;
 
-	if (perm & ACL_PERM_WRITE)
+	if (perm & ACL_WRITE)
 		buf[1] = ACL_STRING_PERM_WRITE;
 	else
 		buf[1] = ACL_STRING_PERM_NONE;
 
-	if (perm & ACL_PERM_EXEC)
+	if (perm & ACL_EXECUTE)
 		buf[2] = ACL_STRING_PERM_EXEC;
 	else
 		buf[2] = ACL_STRING_PERM_NONE;
@@ -382,13 +382,13 @@ _posix1e_acl_string_to_perm(char *string, acl_perm_t *perm)
 	while (*ch) {
 		switch(*ch) {
 		case ACL_STRING_PERM_READ:
-			myperm |= ACL_PERM_READ;
+			myperm |= ACL_READ;
 			break;
 		case ACL_STRING_PERM_WRITE:
-			myperm |= ACL_PERM_WRITE;
+			myperm |= ACL_WRITE;
 			break;
 		case ACL_STRING_PERM_EXEC:
-			myperm |= ACL_PERM_EXEC;
+			myperm |= ACL_EXECUTE;
 			break;
 		case ACL_STRING_PERM_NONE:
 			break;
