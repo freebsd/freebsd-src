@@ -741,6 +741,8 @@ loop:
 			 */
 			vm_waitproc(p);
 			mtx_destroy(&p->p_mtx);
+			KASSERT(FIRST_THREAD_IN_PROC(p),
+			    ("wait1: no residual thread!"));
 			uma_zfree(proc_zone, p);
 			sx_xlock(&allproc_lock);
 			nprocs--;

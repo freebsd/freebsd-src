@@ -136,19 +136,6 @@ proc_ctor(void *mem, int size, void *arg)
 	KASSERT((size == sizeof(struct proc)),
 	    ("size mismatch: %d != %d\n", size, (int)sizeof(struct proc)));
 	p = (struct proc *)mem;
-#if 0
-	/*
-	 * Maybe move these from process creation, but maybe not.
-	 * Moving them here takes them away from their "natural" place
-	 * in the fork process.
-	 */
-	bzero(&p->p_startzero,
-	    (unsigned) RANGEOF(struct proc, p_startzero, p_endzero));
-	p->p_state = PRS_NEW;
-	mtx_init(&p->p_mtx, "process lock", NULL, MTX_DEF | MTX_DUPOK);
-	LIST_INIT(&p->p_children);
-	callout_init(&p->p_itcallout, 0);
-#endif
 	cached_procs--;
 	active_procs++;
 }
@@ -160,14 +147,31 @@ static void
 proc_dtor(void *mem, int size, void *arg)
 {
 	struct proc *p;
+	struct thread *td;
+	struct ksegrp *kg;
+	struct kse *ke;
 
+	/* INVARIANTS checks go here */
 	KASSERT((size == sizeof(struct proc)),
 	    ("size mismatch: %d != %d\n", size, (int)sizeof(struct proc)));
 	p = (struct proc *)mem;
-	/* INVARIANTS checks go here */
-#if 0	/* See comment in proc_ctor about separating things */
-	mtx_destroy(&p->p_mtx);
-#endif
+	KASSERT((p->p_numthreads == 1),
+	    ("bad number of threads in exiting process"));
+        td = FIRST_THREAD_IN_PROC(p);
+	KASSERT((td != NULL), ("proc_dtor: bad thread pointer"));
+        kg = FIRST_KSEGRP_IN_PROC(p);
+	KASSERT((kg != NULL), ("proc_dtor: bad kg pointer"));
+        ke = FIRST_KSE_IN_KSEGRP(kg);
+	KASSERT((ke != NULL), ("proc_dtor: bad ke pointer"));
+	/*
+	 * We want to make sure we know the initial linkages.
+	 * so for now tear them down and remake them.
+	 * his is probably un-needed as we can probably rely
+	 * on the state coming in here from wait4().
+	 */
+	proc_linkup(p, kg, ke, td);
+
+	/* Stats only */
 	active_procs--;
 	cached_procs++;
 }
@@ -179,11 +183,18 @@ static void
 proc_init(void *mem, int size)
 {
 	struct proc *p;
+	struct thread *td;
+	struct ksegrp *kg;
+	struct kse *ke;
 
 	KASSERT((size == sizeof(struct proc)),
 	    ("size mismatch: %d != %d\n", size, (int)sizeof(struct proc)));
 	p = (struct proc *)mem;
 	vm_proc_new(p);
+	td = thread_alloc();
+	ke = &p->p_kse;
+	kg = &p->p_ksegrp;
+	proc_linkup(p, kg, ke, td);
 	cached_procs++;
 	allocated_procs++;
 }
@@ -202,6 +213,7 @@ proc_fini(void *mem, int size)
 	vm_proc_dispose(p);
 	cached_procs--;
 	allocated_procs--;
+	thread_free(FIRST_THREAD_IN_PROC(p));
 }
 
 /* 
@@ -256,6 +268,8 @@ proc_linkup(struct proc *p, struct ksegrp *kg,
 	TAILQ_INIT(&p->p_ksegrps);	     /* all ksegrps in proc */
 	TAILQ_INIT(&p->p_threads);	     /* all threads in proc */
 	TAILQ_INIT(&p->p_suspended);	     /* Threads suspended */
+	p->p_numksegrps = 0;
+	p->p_numthreads = 0;
 
 	ksegrp_link(kg, p);
 	kse_link(ke, kg);
