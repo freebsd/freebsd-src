@@ -91,49 +91,6 @@ g_dev_print(void)
 	printf("\n");
 }
 
-/*
- * XXX: This is disgusting and wrong in every way imaginable:  The only reason
- * XXX: we have a clone function is because of the root-mount hack we currently
- * XXX: employ.  An improvment would be to unregister this cloner once we know
- * XXX: we no longer need it.  Ideally, root-fs would be mounted through DEVFS
- * XXX: eliminating the need for this hack.
- */
-static void
-g_dev_clone(void *arg __unused, char *name, int namelen __unused, struct cdev **dev)
-{
-	struct g_geom *gp;
-
-	if (*dev != NULL)
-		return;
-
-	g_waitidle();
-
-	/* g_topology_lock(); */
-	LIST_FOREACH(gp, &g_dev_class.geom, geom) {
-		if (strcmp(gp->name, name))
-			continue;
-		*dev = gp->softc;
-		g_trace(G_T_TOPOLOGY, "g_dev_clone(%s) = %p", name, *dev);
-		return;
-	}
-	/* g_topology_unlock(); */
-	return;
-}
-
-static void
-g_dev_register_cloner(void *foo __unused)
-{
-	static int once;
-
-	/* XXX: why would this happen more than once ?? */
-	if (!once) {
-		EVENTHANDLER_REGISTER(dev_clone, g_dev_clone, 0, 1000);
-		once++;
-	}
-}
-
-SYSINIT(geomdev,SI_SUB_DRIVERS,SI_ORDER_MIDDLE,g_dev_register_cloner,NULL);
-
 struct g_provider *
 g_dev_getprovider(struct cdev *dev)
 {

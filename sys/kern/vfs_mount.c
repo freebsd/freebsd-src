@@ -1445,21 +1445,63 @@ gets(char *cp)
 }
 
 /*
- * Convert a given name to the struct cdev *of the disk-like device
- * it refers to.
+ * Convert a given name to the cdev pointer of the device, which is probably
+ * but not by definition, a disk.  Mount a DEVFS (on nothing), look the name
+ * up, extract the cdev from the vnode and unmount it again.  Unfortunately
+ * we cannot use the vnode directly (because we unmount the DEVFS again)
+ * so the filesystems still have to do the bdevvp() stunt.
  */
 struct cdev *
-getdiskbyname(char *name) {
-	char *cp;
-	struct cdev *dev;
+getdiskbyname(char *name)
+{
+	char *cp = name;
+	struct cdev *dev = NULL;
+	struct thread *td = curthread;
+	struct vfsconf *vfsp;
+	struct mount *mp = NULL;
+	struct vnode *vroot = NULL;
+	struct nameidata nid;
+	int error;
 
-	cp = name;
 	if (!bcmp(cp, "/dev/", 5))
 		cp += 5;
 
-	dev = NULL;
-	EVENTHANDLER_INVOKE(dev_clone, cp, strlen(cp), &dev);
-	return (dev);
+	for (vfsp = vfsconf; vfsp; vfsp = vfsp->vfc_next)
+		if (!strcmp(vfsp->vfc_name, "devfs"))
+			break;
+	do {
+		if (vfsp == NULL)
+			break;
+		error = vfs_mount_alloc(NULLVP, vfsp, "/dev", td, &mp);
+		if (error)
+			break;
+		mp->mnt_flag |= MNT_RDONLY;
+
+		error = VFS_NMOUNT(mp, NULL, curthread);
+		if (error)
+			break;
+		VFS_START(mp, 0, td);
+		VFS_ROOT(mp, &vroot);
+		VOP_UNLOCK(vroot, 0, td);
+
+		NDINIT(&nid, LOOKUP, NOCACHE|FOLLOW,
+		    UIO_SYSSPACE, cp, curthread);
+		nid.ni_startdir = vroot;
+		nid.ni_pathlen = strlen(cp);
+		nid.ni_cnd.cn_nameptr = cp;
+
+		error = lookup(&nid);
+		if (error)
+			break;
+		dev = vn_todev (nid.ni_vp);
+		NDFREE(&nid, 0);
+	} while (0);
+
+	if (vroot != NULL)
+		VFS_UNMOUNT(mp, 0, td);
+	if (mp != NULL)
+		vfs_mount_destroy(mp, td);
+  	return (dev);
 }
 
 /*
