@@ -56,7 +56,6 @@ In terms of the
 parameter, this is the
 .Dq Li auth
 feature.
-It also provides a null function for session management.
 .Ss Self Authentication Module
 The Self authentication component
 .Pq Fn pam_sm_authenticate ,
@@ -64,11 +63,11 @@ returns success if and only if the target user's user ID is identical
 with the current real user ID.
 If the current real user ID is non-zero, authentication will fail,
 unless the
-.Cm even_root
+.Cm allow_root
 option was specified.
 .Pp
 The following options may be passed to the authentication module:
-.Bl -tag -width ".Cm even_root"
+.Bl -tag -width ".Cm allow_root"
 .It Cm debug
 .Xr syslog 3
 debugging information at
@@ -78,7 +77,7 @@ level.
 suppress warning messages to the user.
 These messages include reasons why the user's authentication attempt
 was declined.
-.It Cm even_root
+.It Cm allow_root
 do not automatically fail if the current real user ID is 0.
 .El
 .Sh SEE ALSO
