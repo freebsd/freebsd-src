@@ -18,10 +18,12 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: pap.c,v 1.13 1997/06/09 03:27:32 brian Exp $
+ * $Id: pap.c,v 1.7.2.5 1997/08/25 00:34:35 brian Exp $
  *
  *	TODO:
  */
+#include <time.h>
+#include <utmp.h>
 #include "fsm.h"
 #include "lcp.h"
 #include "pap.h"
@@ -31,6 +33,11 @@
 #include "lcpproto.h"
 #include "phase.h"
 #include "auth.h"
+#ifdef __OpenBSD__
+#include "util.h"
+#else
+#include "libutil.h"
+#endif
 
 #ifndef NOPASSWDAUTH
 #include "passwdauth.h"
@@ -141,8 +148,24 @@ PapInput(struct mbuf * bp)
 	if (PapValidate(cp, cp + *cp + 1)) {
 	  SendPapCode(php->id, PAP_ACK, "Greetings!!");
 	  lcp->auth_ineed = 0;
-	  if (lcp->auth_iwait == 0)
+	  if (lcp->auth_iwait == 0) {
+	    if ((mode & MODE_DIRECT) && isatty(modem) && Enabled(ConfUtmp))
+	      if (Utmp)
+		LogPrintf(LogERROR, "Oops, already logged in on %s\n",
+			  VarBaseDevice);
+	      else {
+	        struct utmp ut;
+	        memset(&ut, 0, sizeof(ut));
+	        time(&ut.ut_time);
+	        strncpy(ut.ut_name, cp+1, sizeof(ut.ut_name)-1);
+	        strncpy(ut.ut_line, VarBaseDevice, sizeof(ut.ut_line)-1);
+	        if (logout(ut.ut_line))
+		  logwtmp(ut.ut_line, "", "");
+	        login(&ut);
+	        Utmp = 1;
+	      }
 	    NewPhase(PHASE_NETWORK);
+	  }
 	} else {
 	  SendPapCode(php->id, PAP_NAK, "Login incorrect");
 	  reconnect(RECON_FALSE);

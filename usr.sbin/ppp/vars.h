@@ -15,7 +15,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: vars.h,v 1.7.2.12 1997/08/25 00:34:41 brian Exp $
+ * $Id: vars.h,v 1.7.2.13 1997/09/05 23:07:44 brian Exp $
  *
  *	TODO:
  */
@@ -30,6 +30,7 @@ struct confdesc {
   int myside, hisside;
 };
 
+#define	CONF_NONE	-1
 #define	CONF_DISABLE	0
 #define	CONF_ENABLE	1
 
@@ -46,7 +47,8 @@ struct confdesc {
 #define	ConfProxy	7
 #define ConfMSExt	8
 #define ConfPasswdAuth	9
-#define	MAXCONFS	10
+#define ConfUtmp	10
+#define	MAXCONFS	11
 
 #define	Enabled(x)	(pppConfs[x].myside & CONF_ENABLE)
 #define	Acceptable(x)	(pppConfs[x].hisside & CONF_ACCEPT)
@@ -140,6 +142,7 @@ struct pppvars {
 
 extern struct pppvars pppVars;
 
+int Utmp;		/* Are we in /etc/utmp ? */
 int ipInOctets, ipOutOctets, ipKeepAlive;
 int ipConnectSecs, ipIdleSecs;
 
