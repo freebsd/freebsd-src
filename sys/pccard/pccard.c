@@ -350,6 +350,10 @@ slot_resume(void *arg)
 	struct slot *sp = arg;
 	struct pccard_dev *dp;
 
+#ifdef PCIC_RESUME_RESET
+	sp->ctrl->resume(sp);
+#endif
+
 	if (!sp->suspend_power)
 		sp->ctrl->power(sp);
 	if (sp->irq)
