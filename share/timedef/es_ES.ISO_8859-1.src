@@ -63,7 +63,7 @@ sábado
 #
 # c_fmt
 #
-%a %Ex %X %Y
+%a %Ef %X %Y
 #
 # am
 #
@@ -92,6 +92,10 @@ octubre
 noviembre
 diciembre
 #
-# Ex_fmt
+# Ef_fmt
 #
 %e %b
+#
+# EF_fmt
+#
+%e %B

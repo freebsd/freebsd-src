@@ -67,7 +67,7 @@
 #
 # just following tradition...
 # %a %b %e %H:%M:%S %Y
-%a %Ex %T %Y
+%a %Ef %T %Y
 #
 # am
 #
@@ -100,6 +100,10 @@ PM
 11·î
 12·î
 #
-# Ex_fmt
+# Ef_fmt
 #
 %b/%e
+#
+# EF_fmt
+#
+%B %e
