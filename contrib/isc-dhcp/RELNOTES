@@ -46,6 +46,32 @@ Murrell at BC Tel Advanced Communications.  I'd like to express my
 thanks to all of these good people here, both for working on the code
 and for prodding me into improving it.
 
+			Changes since 3.0.1rc10
+
+- Potential buffer overflows in minires repaired.
+
+- A change to the linux client script to use /bin/bash, since /bin/sh may
+  not be bash.
+
+- Some missing va_end cleanups thanks to a patch from Thomas Klausner.
+
+- A correction of boolean parsing syntax validation - some illegal syntaxes
+  that worked before are now detected and produce errs, some legal syntaxes
+  that errored before will now work properly.
+
+- Some search-and-replace errors that caused some options to change their
+  names was repaired.
+
+- Shu-min Chang of the Intel corporation has contributed a perl script and
+  module that converts the MS NT4 DHCP configuration to a ISC DHCP3
+  configuration file.
+
+- Applied the remainder of the dhcpctl memory leak patch provided by Bill
+  Squier at ReefEdge, Inc.  (groo@reefedge.com).
+
+- Missing non-optional failover peer configurations will now result in a soft
+  error rather than a null dereference.
+
 			Changes since 3.0.1rc9
 
 - A format string was corrected to fix compiler warnings.
