@@ -38,6 +38,7 @@
 #define	_SYS_VNODE_H_
 
 #include <sys/queue.h>
+#include <sys/lock.h>
 #include <sys/select.h>
 #include <sys/uio.h>
 #include <sys/acl.h>

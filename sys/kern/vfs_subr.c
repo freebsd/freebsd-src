@@ -1707,10 +1707,7 @@ vclean(vp, flags, p)
 	}
 
 	cache_purge(vp);
-	if (vp->v_vnlock) {
-		FREE(vp->v_vnlock, M_VNODE);
-		vp->v_vnlock = NULL;
-	}
+	vp->v_vnlock = NULL;
 
 	if (VSHOULDFREE(vp))
 		vfree(vp);
