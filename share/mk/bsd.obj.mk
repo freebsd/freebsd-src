@@ -43,7 +43,7 @@
 #		create build directory.
 #
 
-.if defined(MAKEOBJDIRPREFIX)
+.if defined(MAKEOBJDIRPREFIX) && !empty(MAKEOBJDIRPREFIX)
 CANONICALOBJDIR:=${MAKEOBJDIRPREFIX}${.CURDIR}
 .else
 CANONICALOBJDIR:=/usr/obj${.CURDIR}
