@@ -25,6 +25,7 @@ SRCS=	archive_check_magic.c				\
 	archive_read_open_file.c			\
 	archive_read_support_compression_all.c		\
 	archive_read_support_compression_bzip2.c	\
+	archive_read_support_compression_compress.c	\
 	archive_read_support_compression_gzip.c		\
 	archive_read_support_compression_none.c		\
 	archive_read_support_format_all.c		\
@@ -105,11 +106,11 @@ MLINKS+=	archive_read.3 archive_read_open_file.3
 MLINKS+=	archive_read.3 archive_read_set_bytes_per_block.3
 MLINKS+=	archive_read.3 archive_read_support_compression_all.3
 MLINKS+=	archive_read.3 archive_read_support_compression_bzip2.3
+MLINKS+=	archive_read.3 archive_read_support_compression_compress.3
 MLINKS+=	archive_read.3 archive_read_support_compression_gzip.3
 MLINKS+=	archive_read.3 archive_read_support_compression_none.3
 MLINKS+=	archive_read.3 archive_read_support_format_all.3
 MLINKS+=	archive_read.3 archive_read_support_format_cpio.3
-MLINKS+=	archive_read.3 archive_read_support_format_gnutar.3
 MLINKS+=	archive_read.3 archive_read_support_format_tar.3
 MLINKS+=	archive_util.3 archive_compression.3
 MLINKS+=	archive_util.3 archive_compression_name.3
@@ -131,6 +132,7 @@ MLINKS+=	archive_write.3 archive_write_set_callbacks.3
 MLINKS+=	archive_write.3 archive_write_set_compression_bzip2.3
 MLINKS+=	archive_write.3 archive_write_set_compression_gzip.3
 MLINKS+=	archive_write.3 archive_write_set_format_pax.3
+MLINKS+=	archive_write.3 archive_write_set_format_shar.3
 MLINKS+=	archive_write.3 archive_write_set_format_ustar.3
 MLINKS+=	libarchive.3 archive.3
 
