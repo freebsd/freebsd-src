@@ -110,6 +110,9 @@ valid_shells() {
 			;;
 		esac
 	done
+
+	# /sbin/nologin is a special case
+	[ -x "${NOLOGIN_PATH}" ] && echo -n " ${NOLOGIN}"
 }
 
 # fullpath_from_shell shell
@@ -133,7 +136,39 @@ fullpath_from_shell() {
 			;;
 		esac
 	done
+
+	# /sbin/nologin is a special case
+	if [ "$_shell" = "${NOLOGIN}" ]; then
+		echo ${NOLOGIN_PATH}
+		return 0;
+	fi
+
 	return 1
+}
+
+# shell_exists shell
+#	If the given shell is listed in ${ETCSHELLS} or it is
+#	the nologin shell this function will return 0.
+#	Otherwise, it will return 1. If shell is valid but
+#	the path is invalid or it is not executable it
+#	will emit an informational message saying so.
+#
+shell_exists()
+{
+	_sh="$1"
+	_shellchk="${GREPCMD} '^$_sh$' ${ETCSHELLS} > /dev/null 2>&1"
+
+	if ! eval $_shellchk; then
+		# The nologin shell is not listed in /etc/shells.
+		if [ "$_sh" != "${NOLOGIN_PATH}" ]; then
+			err "Invalid shell ($_sh) for user $username."
+			return 1
+		fi
+	fi
+	! [ -x "$_sh" ] &&
+	    warn "The shell ($_sh) does not exist or is not executable."
+
+	return 0
 }
 
 # save_config
@@ -334,11 +369,10 @@ get_shell() {
 	ushell="$defaultshell"
 
 	# Make sure the current value of the shell is a valid one
-	_shellchk="${GREPCMD} '^$ushell$' ${ETCSHELLS} > /dev/null 2>&1"
-	eval $_shellchk || {
-		err "Invalid shell ($ushell). Using default shell ${defaultshell}."
+	if ! shell_exists $ushell ; then
+		info "Using default shell ${defaultshell}."
 		ushell="$defaultshell"
-	}
+	fi
 
 	if [ -z "$fflag" ]; then
 		echo -n "Shell ($shells) [`basename $ushell`]: "
@@ -351,7 +385,8 @@ get_shell() {
 		if [ -n "$_fullpath" ]; then
 			ushell="$_fullpath"
 		else
-			err "Invalid shell selection. Using default shell ${defaultshell}."
+			err "Invalid shell ($_input) for user $username."
+			info "Using default shell ${defaultshell}."
 			ushell="$defaultshell"
 		fi
 	fi
@@ -744,6 +779,8 @@ ADDUSERCONF="${ADDUSERCONF:-/etc/adduser.conf}"
 PWCMD="${PWCMD:-/usr/sbin/pw}"
 MAILCMD="${MAILCMD:-mail}"
 ETCSHELLS="${ETCSHELLS:-/etc/shells}"
+NOLOGIN="nologin"
+NOLOGIN_PATH="/sbin/nologin"
 GREPCMD="/usr/bin/grep"
 DATECMD="/bin/date"
 
