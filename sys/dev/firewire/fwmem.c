@@ -68,31 +68,30 @@ SYSCTL_INT(_debug, OID_AUTO, fwmem_debug, CTLFLAG_RW, &fwmem_debug, 0,
 struct fw_xfer *
 fwmem_read_quad(
 	struct firewire_comm *fc,
+	u_int8_t spd,
 	int dst,
 	u_int16_t dst_hi,
-	u_int32_t dst_lo
-	)
+	u_int32_t dst_lo,
+	void (*hand)(struct fw_xfer *))
 {
 	struct fw_xfer *xfer;
 	struct fw_pkt *fp;
-	int err = 0;
 
 	xfer = fw_xfer_alloc();
-	if (xfer == NULL) {
-		err = ENOMEM;
+	if (xfer == NULL)
 		return NULL;
-	}
+
 	xfer->fc = fc;
 	xfer->dst = FWLOCALBUS | dst;
-	xfer->spd = fwmem_speed; /* XXX */
+	xfer->spd = spd;
 	xfer->send.len = 12;
 	xfer->send.buf = malloc(xfer->send.len, M_DEVBUF, M_NOWAIT | M_ZERO);
-	if (xfer->send.buf == NULL) {
-		err = ENOMEM;
+
+	if (xfer->send.buf == NULL)
 		goto error;
-	}
+
 	xfer->send.off = 0; 
-	xfer->act.hand = fw_asy_callback;
+	xfer->act.hand = hand;
 	xfer->retry_req = fw_asybusy;
 	xfer->sc = NULL;
 
@@ -104,13 +103,10 @@ fwmem_read_quad(
 
 	if (fwmem_debug)
 		printf("fwmem: %d %04x:%08x\n", dst, dst_hi, dst_lo);
-	err = fw_asyreq(fc, -1, xfer);
-	if (err)
-		goto error;
-	err = tsleep((caddr_t)xfer, FWPRI, "fwmem", hz);
-	if (err == 0) {
+
+	if (fw_asyreq(fc, -1, xfer) == 0)
 		return xfer;
-	}
+
 error:
 	fw_xfer_free(xfer);
 	return NULL;
@@ -119,30 +115,29 @@ error:
 struct fw_xfer *
 fwmem_read_block(
 	struct firewire_comm *fc,
+	u_int8_t spd,
 	int dst,
 	u_int16_t dst_hi,
 	u_int32_t dst_lo,
-	int len
-	)
+	int len,
+	void (*hand)(struct fw_xfer *))
 {
 	struct fw_xfer *xfer;
 	struct fw_pkt *fp;
-	int err = 0;
 
 	xfer = fw_xfer_alloc();
-	if (xfer == NULL) {
-		err = ENOMEM;
+	if (xfer == NULL)
 		return NULL;
-	}
+
 	xfer->fc = fc;
 	xfer->dst = FWLOCALBUS | dst;
-	xfer->spd = fwmem_speed;	/* XXX */
+	xfer->spd = spd;
 	xfer->send.len = 16;
 	xfer->send.buf = malloc(xfer->send.len, M_DEVBUF, M_NOWAIT | M_ZERO);
-	if (xfer->send.buf == NULL) {
-		err = ENOMEM;
+
+	if (xfer->send.buf == NULL)
 		goto error;
-	}
+
 	xfer->send.off = 0; 
 	xfer->act.hand = fw_asy_callback;
 	xfer->retry_req = fw_asybusy;
@@ -157,13 +152,9 @@ fwmem_read_block(
 
 	if (fwmem_debug)
 		printf("fwmem: %d %04x:%08x %d\n", dst, dst_hi, dst_lo, len);
-	err = fw_asyreq(fc, -1, xfer);
-	if (err)
-		goto error;
-	err = tsleep((caddr_t)xfer, FWPRI, "fwmem", hz);
-	if (err == 0) {
+	if (fw_asyreq(fc, -1, xfer) == 0)
 		return xfer;
-	}
+
 error:
 	fw_xfer_free(xfer);
 	return NULL;
@@ -210,8 +201,12 @@ fwmem_read (dev_t dev, struct uio *uio, int ioflag)
 		dst_hi = (offset >> 32) & 0xffff;
 		dst_lo = offset & 0xffffffff;
 #if USE_QUAD
-		xfer = fwmem_read_quad(fc, fwmem_node, dst_hi, dst_lo);
-		if (xfer == NULL || xfer->resp != 0 || xfer->recv.buf == NULL)
+		xfer = fwmem_read_quad(fc, fwmem_speed, fwmem_node,
+				dst_hi, dst_lo, fw_asy_callback);
+		if (xfer == NULL)
+			return EINVAL;
+		err = tsleep((caddr_t)xfer, FWPRI, "fwmem", hz);
+		if (err !=0 || xfer->resp != 0 || xfer->recv.buf == NULL)
 			return EINVAL; /* XXX */
 		err = uiomove(xfer->recv.buf + xfer->recv.off + 4*3 + pad,
 			4 - pad, uio);
@@ -219,8 +214,12 @@ fwmem_read (dev_t dev, struct uio *uio, int ioflag)
 		len = uio->uio_resid;
 		if (len > MAXLEN)
 			len = MAXLEN;
-		xfer = fwmem_read_block(fc, fwmem_node, dst_hi, dst_lo, len);
-		if (xfer == NULL || xfer->resp != 0 || xfer->recv.buf == NULL)
+		xfer = fwmem_read_block(fc, fwmem_speed, fwmem_node,
+				dst_hi, dst_lo, len, fw_asy_callback);
+		if (xfer == NULL)
+			return EINVAL;
+		err = tsleep((caddr_t)xfer, FWPRI, "fwmem", hz);
+		if (err != 0 || xfer->resp != 0 || xfer->recv.buf == NULL)
 			return EINVAL; /* XXX */
 		err = uiomove(xfer->recv.buf + xfer->recv.off + 4*4 + pad,
 			len - pad, uio);
