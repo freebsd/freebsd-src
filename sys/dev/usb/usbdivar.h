@@ -123,7 +123,7 @@ struct usbd_device {
 	u_int8_t		address;       /* device addess */
 	u_int8_t		config;	       /* current configuration # */
 	u_int8_t		depth;         /* distance from root hub */
-	u_int8_t		lowspeed;      /* lowspeed flag */
+	u_int8_t		speed;         /* low/full/high speed */
 	u_int8_t		self_powered;  /* flag for self powered */
 	u_int16_t		power;         /* mA the device uses */
 	int16_t			langid;	       /* language for strings */

@@ -905,7 +905,7 @@ usbd_probe_and_attach(device_ptr_t parent, usbd_device_handle dev,
  */
 usbd_status
 usbd_new_device(device_ptr_t parent, usbd_bus_handle bus, int depth,
-		int lowspeed, int port, struct usbd_port *up)
+		int speed, int port, struct usbd_port *up)
 {
 	usbd_device_handle dev;
 	usb_device_descriptor_t *dd;
@@ -913,8 +913,8 @@ usbd_new_device(device_ptr_t parent, usbd_bus_handle bus, int depth,
 	int addr;
 	int i;
 
-	DPRINTF(("usbd_new_device bus=%p port=%d depth=%d lowspeed=%d\n",
-		 bus, port, depth, lowspeed));
+	DPRINTF(("usbd_new_device bus=%p port=%d depth=%d speed=%d\n",
+		 bus, port, depth, speed));
 	addr = usbd_getnewaddr(bus);
 	if (addr < 0) {
 		printf("%s: No free USB addresses, new device ignored.\n", 
@@ -943,10 +943,10 @@ usbd_new_device(device_ptr_t parent, usbd_bus_handle bus, int depth,
 	dev->quirks = &usbd_no_quirk;
 	dev->address = USB_START_ADDR;
 	dev->ddesc.bMaxPacketSize = 0;
-	dev->lowspeed = lowspeed != 0;
 	dev->depth = depth;
 	dev->powersrc = up;
 	dev->langid = USBD_NOLANG;
+	dev->speed = speed;
 	dev->cookie.cookie = ++usb_cookie_no;
 
 	/* Establish the default pipe. */
@@ -975,10 +975,10 @@ usbd_new_device(device_ptr_t parent, usbd_bus_handle bus, int depth,
 	}
 
 	DPRINTF(("usbd_new_device: adding unit addr=%d, rev=%02x, class=%d, "
-		 "subclass=%d, protocol=%d, maxpacket=%d, len=%d, ls=%d\n", 
+		 "subclass=%d, protocol=%d, maxpacket=%d, len=%d, speed=%d\n", 
 		 addr,UGETW(dd->bcdUSB), dd->bDeviceClass, dd->bDeviceSubClass,
 		 dd->bDeviceProtocol, dd->bMaxPacketSize, dd->bLength, 
-		 dev->lowspeed));
+		 dev->speed));
 
 	if (dd->bDescriptorType != UDESC_DEVICE) {
 		/* Illegal device descriptor */
@@ -1169,7 +1169,7 @@ usbd_fill_deviceinfo(usbd_device_handle dev, struct usb_device_info *di,
 	di->protocol = dev->ddesc.bDeviceProtocol;
 	di->config = dev->config;
 	di->power = dev->self_powered ? 0 : dev->power;
-	di->lowspeed = dev->lowspeed;
+	di->speed = dev->speed;
 
 	if (dev->subdevs != NULL) {
 		for (i = 0; dev->subdevs[i] &&

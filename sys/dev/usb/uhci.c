@@ -1634,9 +1634,9 @@ uhci_alloc_std_chain(struct uhci_pipe *upipe, uhci_softc_t *sc, int len,
 	int addr = upipe->pipe.device->address;
 	int endpt = upipe->pipe.endpoint->edesc->bEndpointAddress;
 
-	DPRINTFN(8, ("uhci_alloc_std_chain: addr=%d endpt=%d len=%d ls=%d "
+	DPRINTFN(8, ("uhci_alloc_std_chain: addr=%d endpt=%d len=%d speed=%d "
 		      "flags=0x%x\n", addr, UE_GET_ADDR(endpt), len,
-		      upipe->pipe.device->lowspeed, flags));
+		      upipe->pipe.device->speed, flags));
 	maxp = UGETW(upipe->pipe.endpoint->edesc->wMaxPacketSize);
 	if (maxp == 0) {
 		printf("uhci_alloc_std_chain: maxp=0\n");
@@ -1659,7 +1659,7 @@ uhci_alloc_std_chain(struct uhci_pipe *upipe, uhci_softc_t *sc, int len,
 	lastlink = UHCI_PTR_T;
 	ntd--;
 	status = UHCI_TD_ZERO_ACTLEN(UHCI_TD_SET_ERRCNT(3) | UHCI_TD_ACTIVE);
-	if (upipe->pipe.device->lowspeed)
+	if (upipe->pipe.device->speed == USB_SPEED_LOW)
 		status |= UHCI_TD_LS;
 	if (flags & USBD_SHORT_XFER_OK)
 		status |= UHCI_TD_SPD;
@@ -2100,7 +2100,7 @@ uhci_device_request(usbd_xfer_handle xfer)
 		    UGETW(req->wIndex), UGETW(req->wLength),
 		    addr, endpt));
 
-	ls = dev->lowspeed ? UHCI_TD_LS : 0;
+	ls = dev->speed == USB_SPEED_LOW ? UHCI_TD_LS : 0;
 	isread = req->bmRequestType & UT_READ;
 	len = UGETW(req->wLength);
 
@@ -2167,7 +2167,7 @@ uhci_device_request(usbd_xfer_handle xfer)
 	sqh->intr_info = ii;
 
 	s = splusb();
-	if (dev->lowspeed)
+	if (dev->speed == USB_SPEED_LOW)
 		uhci_add_ls_ctrl(sc, sqh);
 	else
 		uhci_add_hs_ctrl(sc, sqh);
@@ -2590,7 +2590,7 @@ uhci_device_ctrl_done(usbd_xfer_handle xfer)
 
 	LIST_REMOVE(ii, list);	/* remove from active list */
 
-	if (upipe->pipe.device->lowspeed)
+	if (upipe->pipe.device->speed == USB_SPEED_LOW)
 		uhci_remove_ls_ctrl(sc, upipe->u.ctl.sqh);
 	else
 		uhci_remove_hs_ctrl(sc, upipe->u.ctl.sqh);

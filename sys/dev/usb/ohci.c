@@ -1751,7 +1751,8 @@ ohci_open(usbd_pipe_handle pipe)
 			OHCI_ED_SET_FA(addr) |
 			OHCI_ED_SET_EN(ed->bEndpointAddress) |
 			OHCI_ED_DIR_TD |
-			(dev->lowspeed ? OHCI_ED_SPEED : 0) | fmt |
+			(dev->speed == USB_SPEED_LOW ? OHCI_ED_SPEED : 0) |
+			fmt |
 			OHCI_ED_SET_MAXP(UGETW(ed->wMaxPacketSize)));
 		sed->ed.ed_headp = sed->ed.ed_tailp = htole32(tdphys);
 
@@ -2171,6 +2172,7 @@ ohci_root_ctrl_start(usbd_xfer_handle xfer)
 			OWRITE4(sc, port, UPS_OVERCURRENT_INDICATOR);
 			break;
 		case UHF_PORT_POWER:
+			/* Yes, writing to the LOW_SPEED bit clears power. */
 			OWRITE4(sc, port, UPS_LOW_SPEED);
 			break;
 		case UHF_C_PORT_CONNECTION:
