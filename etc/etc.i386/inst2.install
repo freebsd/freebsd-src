@@ -9,7 +9,6 @@
 # Installs balance of basic FreeBSD system.
 #
 
-mount -at ufs
 echo -n "Verbose installation? [n] "
 read resp
 case $resp in
@@ -21,14 +20,17 @@ case $resp in
 		;;
 esac
 
-echo Copying to disk.
+echo "Copying to disk..."
 cd /
-cat mnt/inst2.cpio.gz | mnt/usr/bin/gunzip | cpio -idalmu${cpioverbose}
+cat mnt/inst2.cpio.gz | mnt/usr/bin/gunzip | cpio -idmu${cpioverbose}
 cd /mnt
-ls .profile install | cpio -pdalmu${cpioverbose} /
+ls .profile install usr/bin/* | cpio -pdmu${cpioverbose} /
 cd /dev
+echo " done."
+echo "Building /dev files..."
 sh MAKEDEV all
 cd /
+echo " done."
 
 sync
 
