@@ -1569,25 +1569,21 @@ issignal(p)
 		}
 		if (p->p_flag & P_TRACED && (p->p_flag & P_PPWAIT) == 0) {
 			/*
-			 * If traced, always stop, and stay
-			 * stopped until released by the parent.
+			 * If traced, always stop.
 			 */
 			p->p_xstat = sig;
 			PROC_LOCK(p->p_pptr);
 			psignal(p->p_pptr, SIGCHLD);
 			PROC_UNLOCK(p->p_pptr);
-			do {
-				mtx_lock_spin(&sched_lock);
-				stop(p);
-				PROC_UNLOCK(p);
-				DROP_GIANT();
-				p->p_stats->p_ru.ru_nivcsw++;
-				mi_switch();
-				mtx_unlock_spin(&sched_lock);
-				PICKUP_GIANT();
-				PROC_LOCK(p);
-			} while (!trace_req(p)
-				 && p->p_flag & P_TRACED);
+			mtx_lock_spin(&sched_lock);
+			stop(p);
+			PROC_UNLOCK(p);
+			DROP_GIANT();
+			p->p_stats->p_ru.ru_nivcsw++;
+			mi_switch();
+			mtx_unlock_spin(&sched_lock);
+			PICKUP_GIANT();
+			PROC_LOCK(p);
 
 			/*
 			 * If the traced bit got turned off, go back up
