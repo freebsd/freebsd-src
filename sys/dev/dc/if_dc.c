@@ -47,6 +47,7 @@
  * Accton EN1217 (www.accton.com)
  * Xircom X3201 (www.xircom.com)
  * Abocom FE2500
+ * Conexant LANfinity (www.conexant.com)
  *
  * Datasheets for the 21143 are available at developer.intel.com.
  * Datasheets for the clone parts can be found at their respective sites.
@@ -186,6 +187,8 @@ static struct dc_type dc_devs[] = {
 	  	"Xircom X3201 10/100BaseTX" },
 	{ DC_VENDORID_ABOCOM, DC_DEVICEID_FE2500,
 		"Abocom FE2500 10/100BaseTX" },
+	{ DC_VENDORID_CONEXANT, DC_DEVICEID_RS7112,
+		"Conexant LANfinity MiniPCI 10/100BaseTX" },
 	{ 0, 0, NULL }
 };
 
@@ -363,7 +366,7 @@ static void dc_eeprom_putbyte(sc, addr)
 	 * a 93C46. It uses a different bit sequence for
 	 * specifying the "read" opcode.
 	 */
-	if (DC_IS_CENTAUR(sc))
+	if (DC_IS_CENTAUR(sc) || DC_IS_CONEXANT(sc))
 		d = addr | (DC_EECMD_READ << 2);
 	else
 		d = addr | DC_EECMD_READ;
@@ -719,6 +722,14 @@ static int dc_miibus_readreg(dev, phy, reg)
 	if (DC_IS_ADMTEK(sc) && phy != DC_ADMTEK_PHYADDR)
 		return(0);
 
+	/*
+	 * Note: the ukphy probes of the RS7112 report a PHY at
+	 * MII address 0 (possibly HomePNA?) and 1 (ethernet)
+	 * so we only respond to correct one.
+	 */
+	if (DC_IS_CONEXANT(sc) && phy != DC_CONEXANT_PHYADDR)
+		return(0);
+
 	if (sc->dc_pmode != DC_PMODE_MII) {
 		if (phy == (MII_NPHY - 1)) {
 			switch(reg) {
@@ -823,6 +834,9 @@ static int dc_miibus_writereg(dev, phy, reg, data)
 	bzero((char *)&frame, sizeof(frame));
 
 	if (DC_IS_ADMTEK(sc) && phy != DC_ADMTEK_PHYADDR)
+		return(0);
+
+	if (DC_IS_CONEXANT(sc) && phy != DC_CONEXANT_PHYADDR)
 		return(0);
 
 	if (DC_IS_PNIC(sc)) {
@@ -1283,7 +1297,7 @@ static void dc_setfilt(sc)
 	struct dc_softc		*sc;
 {
 	if (DC_IS_INTEL(sc) || DC_IS_MACRONIX(sc) || DC_IS_PNIC(sc) ||
-	    DC_IS_PNICII(sc) || DC_IS_DAVICOM(sc))
+	    DC_IS_PNICII(sc) || DC_IS_DAVICOM(sc) || DC_IS_CONEXANT(sc))
 		dc_setfilt_21143(sc);
 
 	if (DC_IS_ASIX(sc))
@@ -1465,7 +1479,7 @@ static void dc_reset(sc)
 			break;
 	}
 
-	if (DC_IS_ASIX(sc) || DC_IS_ADMTEK(sc) ||
+	if (DC_IS_ASIX(sc) || DC_IS_ADMTEK(sc) || DC_IS_CONEXANT(sc) ||
 	    DC_IS_XIRCOM(sc) || DC_IS_INTEL(sc)) {
 		DELAY(10000);
 		DC_CLRBIT(sc, DC_BUSCTL, DC_BUSCTL_RESET);
@@ -1928,6 +1942,13 @@ static int dc_attach(dev)
 		 * it to obtain a double word aligned buffer.
 		 */
 		break;
+	case DC_DEVICEID_RS7112:
+		sc->dc_type = DC_TYPE_CONEXANT;
+		sc->dc_flags |= DC_TX_INTR_ALWAYS;
+		sc->dc_flags |= DC_REDUCED_MII_POLL;
+		sc->dc_pmode = DC_PMODE_MII;
+		dc_read_eeprom(sc, (caddr_t)&sc->dc_srom, 0, 256, 0);
+		break;
 	default:
 		printf("dc%d: unknown device: %x\n", sc->dc_unit,
 		    sc->dc_info->dc_did);
@@ -1991,6 +2012,9 @@ static int dc_attach(dev)
 	case DC_TYPE_AL981:
 	case DC_TYPE_AN985:
 		dc_read_eeprom(sc, (caddr_t)&eaddr, DC_AL_EE_NODEADDR, 3, 0);
+		break;
+	case DC_TYPE_CONEXANT:
+		bcopy(sc->dc_srom + DC_CONEXANT_EE_NODEADDR, &eaddr, 6);
 		break;
 	case DC_TYPE_XIRCOM:
 		dc_read_eeprom(sc, (caddr_t)&eaddr, 3, 3, 0);
