@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)isa.c	7.2 (Berkeley) 5/13/91
- *	$Id: isa.c,v 1.51 1995/09/10 21:35:09 bde Exp $
+ *	$Id: isa.c,v 1.52 1995/09/15 03:10:06 davidg Exp $
  */
 
 /*
@@ -869,7 +869,10 @@ isa_strayintr(d)
 /*
  * Find the highest priority enabled display device.  Since we can't
  * distinguish display devices from ttys, depend on display devices
- * being before serial ttys in the table.
+ * being sensitive and before sensitive non-display devices (if any)
+ * in isa_devtab_tty.
+ *
+ * XXX we should add capability flags IAMDISPLAY and ISUPPORTCONSOLES.
  */
 struct isa_device *
 find_display()
@@ -877,7 +880,7 @@ find_display()
 	struct isa_device *dvp;
 
 	for (dvp = isa_devtab_tty; dvp->id_driver != NULL; dvp++)
-		if (dvp->id_enabled)
+		if (dvp->id_driver->sensitive_hw && dvp->id_enabled)
 			return (dvp);
 	return (NULL);
 }
