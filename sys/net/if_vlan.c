@@ -47,8 +47,8 @@
  * one can change the behavior of the vlan interface by setting
  * the LINK0 flag on it (that is setting the vlan interface's LINK0
  * flag, _not_ the parent's LINK0 flag; we try to leave the parent
- * alone). If the interface as the LINK0 flag set, then it will
- * not modify the ethernet header on output because the parent
+ * alone). If the interface has the LINK0 flag set, then it will
+ * not modify the ethernet header on output, because the parent
  * can do that for itself. On input, the parent can call vlan_input_tag()
  * directly in order to supply us with an incoming mbuf and the vlan
  * tag value that goes with it.
