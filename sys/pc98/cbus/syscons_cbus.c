@@ -49,24 +49,13 @@
 
 static devclass_t	sc_devclass;
 
-static int	scprobe(device_t dev);
-static int	scattach(device_t dev);
-static int	scresume(device_t dev);
-
-static device_method_t sc_methods[] = {
-	DEVMETHOD(device_probe,         scprobe),
-	DEVMETHOD(device_attach,        scattach),
-	DEVMETHOD(device_resume,        scresume),
-	{ 0, 0 }
-};
-
-static driver_t sc_driver = {
-	SC_DRIVER_NAME,
-	sc_methods,
-	sizeof(sc_softc_t),
-};
-
 static sc_softc_t main_softc;
+
+static void
+scidentify (driver_t *driver, device_t parent)
+{
+	BUS_ADD_CHILD(parent, ISA_ORDER_SPECULATIVE, "sc", 0);
+}
 
 static int
 scprobe(device_t dev)
@@ -211,5 +200,19 @@ sc_tone(int herz)
 	}
 	return 0;
 }
+
+static device_method_t sc_methods[] = {
+	DEVMETHOD(device_identify,	scidentify),
+	DEVMETHOD(device_probe,         scprobe),
+	DEVMETHOD(device_attach,        scattach),
+	DEVMETHOD(device_resume,        scresume),
+	{ 0, 0 }
+};
+
+static driver_t sc_driver = {
+	SC_DRIVER_NAME,
+	sc_methods,
+	sizeof(sc_softc_t),
+};
 
 DRIVER_MODULE(sc, isa, sc_driver, sc_devclass, 0, 0);
