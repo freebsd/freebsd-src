@@ -61,7 +61,7 @@
  * any improvements or extensions that they make and grant Carnegie the
  * rights to redistribute these changes.
  *
- * $Id: vm_page.h,v 1.52 1999/01/24 01:05:15 dillon Exp $
+ * $Id: vm_page.h,v 1.53 1999/01/24 05:57:50 dillon Exp $
  */
 
 /*
@@ -147,7 +147,6 @@ struct vm_page {
 #define PQ_PRIME2 23	/* Prime number somewhat less than PQ_HASH_SIZE */
 #define PQ_PRIME3 17	/* Prime number somewhat less than PQ_HASH_SIZE */
 #define PQ_L2_SIZE 256	/* A number of colors opt for 1M cache */
-#define PQ_L1_SIZE 4	/* Four page L1 cache */
 #endif
 
 /* Define one of the following */
@@ -156,7 +155,6 @@ struct vm_page {
 #define PQ_PRIME2 23	/* Prime number somewhat less than PQ_HASH_SIZE */
 #define PQ_PRIME3 17	/* Prime number somewhat less than PQ_HASH_SIZE */
 #define PQ_L2_SIZE 128	/* A number of colors opt for 512K cache */
-#define PQ_L1_SIZE 4	/* Four page L1 cache (for PII) */
 #endif
 
 
@@ -168,7 +166,6 @@ struct vm_page {
 #define PQ_PRIME2 1
 #define PQ_PRIME3 1
 #define PQ_L2_SIZE 1
-#define PQ_L1_SIZE 1
 #endif
 
 #if defined(PQ_NORMALCACHE)
@@ -176,7 +173,6 @@ struct vm_page {
 #define PQ_PRIME2 3	/* Prime number somewhat less than PQ_HASH_SIZE */
 #define PQ_PRIME3 11	/* Prime number somewhat less than PQ_HASH_SIZE */
 #define PQ_L2_SIZE 16	/* A reasonable number of colors (opt for 64K cache) */
-#define PQ_L1_SIZE 2	/* Two page L1 cache */
 #endif
 
 #if defined(PQ_MEDIUMCACHE) || !defined(PQ_L2_SIZE)
@@ -184,7 +180,6 @@ struct vm_page {
 #define PQ_PRIME2 7	/* Prime number somewhat less than PQ_HASH_SIZE */
 #define PQ_PRIME3 5	/* Prime number somewhat less than PQ_HASH_SIZE */
 #define PQ_L2_SIZE 64	/* A number of colors opt for 256K cache */
-#define PQ_L1_SIZE 2	/* Two page L1 cache */
 #endif
 
 #define PQ_L2_MASK (PQ_L2_SIZE - 1)
@@ -405,9 +400,8 @@ static __inline boolean_t vm_page_zero_fill __P((vm_page_t));
 int vm_page_is_valid __P((vm_page_t, int, int));
 void vm_page_test_dirty __P((vm_page_t));
 int vm_page_bits __P((int, int));
-vm_page_t vm_page_list_find __P((int, int));
+vm_page_t _vm_page_list_find __P((int, int));
 int vm_page_queue_index __P((vm_offset_t, int));
-vm_page_t vm_page_select __P((vm_object_t, vm_pindex_t, int));
 #if 0
 int vm_page_sleep(vm_page_t m, char *msg, char *busy);
 int vm_page_asleep(vm_page_t m, char *msg, char *busy);
@@ -557,6 +551,20 @@ vm_page_dirty(vm_page_t m)
 	m->dirty = VM_PAGE_BITS_ALL;
 }
 
+static __inline vm_page_t
+vm_page_list_find(int basequeue, int index)
+{
+	vm_page_t m;
+
+#if PQ_L2_SIZE > 1
+	m = TAILQ_FIRST(vm_page_queues[basequeue+index].pl);
+	if (m == NULL)
+		m = _vm_page_list_find(basequeue, index);
+#else
+	m = TAILQ_FIRST(vm_page_queues[basequeue].pl);
+#endif
+	return(m);
+}
 
 #endif				/* KERNEL */
 #endif				/* !_VM_PAGE_ */
