@@ -61,7 +61,7 @@
  * any improvements or extensions that they make and grant Carnegie the
  * rights to redistribute these changes.
  *
- * $Id: vm_map.c,v 1.139.2.5 1999/03/11 05:56:49 alc Exp $
+ * $Id: vm_map.c,v 1.139.2.6 1999/05/09 23:22:18 alc Exp $
  */
 
 /*
@@ -1245,7 +1245,7 @@ vm_map_protect(vm_map_t map, vm_offset_t start, vm_offset_t end,
 			} else
 				pmap_protect(map->pmap, current->start,
 				    current->end,
-				    current->protection & MASK(entry));
+				    current->protection & MASK(current));
 #undef	MASK
 		}
 
