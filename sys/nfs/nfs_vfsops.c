@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)nfs_vfsops.c	8.12 (Berkeley) 5/20/95
- * $Id: nfs_vfsops.c,v 1.60 1998/05/20 07:59:21 peter Exp $
+ * $Id: nfs_vfsops.c,v 1.61 1998/05/20 08:02:24 peter Exp $
  */
 
 #include <sys/param.h>
@@ -710,7 +710,7 @@ mountnfs(argp, mp, nam, pth, hst, vpp)
 	 * no sense in that context.
 	 */
 	if (argp->sotype == SOCK_STREAM)
-		nmp->nm_flags &= ~NFSMNT_NOCONN;
+		nmp->nm_flag &= ~NFSMNT_NOCONN;
 
 	/* Also clear RDIRPLUS if not NFSv3, it crashes some servers */
 	if ((argp->flags & NFSMNT_NFSV3) == 0)
