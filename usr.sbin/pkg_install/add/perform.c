@@ -1,5 +1,5 @@
 #ifndef lint
-static const char *rcsid = "$Id: perform.c,v 1.30 1995/10/25 15:37:49 jkh Exp $";
+static const char *rcsid = "$Id: perform.c,v 1.31 1995/10/31 20:30:15 jkh Exp $";
 #endif
 
 /*
@@ -107,21 +107,7 @@ pkg_do(char *pkg)
 	    fclose(cfile);
 	}
 	else {
-	    if (pkg[0] == '/')	/* full pathname? */
-		strcpy(pkg_fullname, pkg);
-	    else {
-		char cwd[FILENAME_MAX];		
-		sprintf(pkg_fullname, "%s/%s", getwd(cwd),pkg);
-	    }
-	    if (!fexists(pkg_fullname)) {
-		cp = fileFindByPath(NULL, pkg);
-
-		if (!cp) {
-		    whinge("Can't find package `%s'.", pkg);
-		    return 1;
-		}
-		strcpy(pkg_fullname, cp);
-	    }
+	    strcpy(pkg_fullname,pkg);		/* copy for sanity's sake, could remove pkg_fullname */
 	    if (stat(pkg_fullname, &sb) == FAIL) {
 		whinge("Can't stat package file '%s'.", pkg_fullname);
 		goto bomb;
@@ -174,7 +160,7 @@ pkg_do(char *pkg)
 	     * compress an average of 75%, so multiply by 4 for good measure.
 	     */
 
-	    if (min_free(where_to) < sb.st_size * 4) {
+	    if (min_free(playpen) < sb.st_size * 4) {
 		whinge("Projected size of %d exceeds available free space.\n"
 		       "Please set your PKG_TMPDIR variable to point to a location with more\n"
 		       "free space and try again.", sb.st_size * 4);
@@ -236,7 +222,7 @@ pkg_do(char *pkg)
 	if (!Fake && vsystem("pkg_info -e %s", p->name)) {
 	    char path[FILENAME_MAX], *cp = NULL;
 
-	    if (!Fake && !isURL(pkg)) {
+	    if (!Fake && !isURL(pkg) && !getenv("PKG_ADD_BASE")) {
 		snprintf(path, FILENAME_MAX, "%s/%s.tgz", Home, p->name);
 		if (fexists(path))
 		    cp = path;
@@ -255,14 +241,19 @@ pkg_do(char *pkg)
 	    else if (!Fake && (cp = fileGetURL(pkg, p->name)) != NULL) {
 		if (Verbose)
 		    printf("Finished loading %s over FTP.\n", p->name);
-		if (!Fake && (!fexists("+CONTENTS") || vsystem("(pwd; cat +CONTENTS) | pkg_add %s-S"),
-			      Verbose ? "-v " : "")) {
-		    whinge("Autoload of dependency `%s' failed%s", p->name, Force ? " (proceeding anyway)" : "!");
-		    if (!Force)
-			++code;
+		if (!Fake) {
+		    if (!fexists("+CONTENTS"))
+			whinge("Autoloaded package %s has no +CONTENTS file?", p->name);
+		    else
+			if (vsystem("(pwd; cat +CONTENTS) | pkg_add %s-S", Verbose ? "-v " : "")) {
+			    whinge("pkg_add of dependency `%s' failed%s",
+				   p->name, Force ? " (proceeding anyway)" : "!");
+			    if (!Force)
+				++code;
+			}
+			else if (Verbose)
+			    printf("\t`%s' loaded successfully.\n", p->name);
 		}
-		else if (Verbose)
-		    printf("\t`%s' loaded successfully.\n", p->name);
 		/* Nuke the temporary playpen */
 		leave_playpen(cp);
 	    }
