@@ -1,6 +1,6 @@
 # $FreeBSD$
 #
-# Choi Jun Ho <jazz.snu.ac.kr>
+# Originally by CHOI Junho <cjh@FreeBSD.org>
 # 27 Mar 1997
 #
 # WARNING: spaces may be essential at the end of lines
@@ -70,7 +70,7 @@
 #
 # just following tradition...
 # %Y년 %b월 %e일 %a요일 %X
-%a %b %e %H:%M:%S %Y
+%a %b/%e %H:%M:%S %Y
 #
 # am
 #
@@ -86,7 +86,7 @@ PM
 #
 # date_fmt
 #
-%Y년 %b월 %e일 %a요일 %X %Z
+%Y년 %B %e일 %A %X %Z
 #
 # Long months names (alternative)
 #
@@ -105,8 +105,8 @@ PM
 #
 # Ef_fmt
 #
-%b %e
+%b/%e
 #
 # EF_fmt
 #
-%B %e
+%B %e일
