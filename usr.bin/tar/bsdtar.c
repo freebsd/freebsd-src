@@ -67,6 +67,7 @@ static void		 only_mode(struct bsdtar *, char mode, const char *opt,
 static char **		 rewrite_argv(struct bsdtar *,
 			     int *argc, char ** src_argv,
 			     const char *optstring);
+static void		 version(void);
 
 /*
  * The leading '+' here forces the GNU version of getopt() (as well as
@@ -99,6 +100,7 @@ static const char *tar_opts = "+Bb:C:cF:f:HhjkLlmnOoPprtT:UuvW:wX:xyZz";
 #define	OPTION_NO_SAME_PERMISSIONS 6
 #define	OPTION_NULL 7
 #define	OPTION_ONE_FILE_SYSTEM 8
+#define	OPTION_VERSION 9
 
 static const struct option tar_longopts[] = {
 	{ "absolute-paths",     no_argument,       NULL, 'P' },
@@ -141,6 +143,7 @@ static const struct option tar_longopts[] = {
 	{ "unlink-first",	no_argument,       NULL, 'U' },
 	{ "update",             no_argument,       NULL, 'u' },
 	{ "verbose",            no_argument,       NULL, 'v' },
+	{ "version",            no_argument,       NULL, OPTION_VERSION },
 	{ NULL, 0, NULL, 0 }
 };
 
@@ -354,6 +357,9 @@ main(int argc, char **argv)
 			break;
 		case 'v': /* SUSv2 */
 			bsdtar->verbose++;
+			break;
+		case OPTION_VERSION:
+			version();
 			break;
 		case 'w': /* SUSv2 */
 			bsdtar->option_interactive = 1;
@@ -573,6 +579,15 @@ usage(struct bsdtar *bsdtar)
 	exit(1);
 }
 
+static void
+version(void)
+{
+	printf("bsdtar %s, ", PACKAGE_VERSION);
+	printf("%s\n", archive_version());
+	printf("Copyright (C) 2003-2004 Tim Kientzle\n");
+	exit(1);
+}
+
 static const char *long_help_msg =
 	"First option must be a mode specifier:\n"
 	"  -c Create  -r Add/Replace  -t List  -u Update  -x Extract\n"
@@ -622,8 +637,8 @@ long_help(struct bsdtar *bsdtar)
 
 	fflush(stderr);
 
-	p = (strcmp(prog,"bsdtar")!=0) ? "(bsdtar)" : "";
-	fprintf(stdout, "%s%s: manipulate archive files\n", prog, p);
+	p = (strcmp(prog,"bsdtar") != 0) ? "(bsdtar)" : "";
+	printf("%s%s: manipulate archive files\n", prog, p);
 
 	for (p = long_help_msg; *p != '\0'; p++) {
 		if (*p == '%') {
@@ -635,8 +650,8 @@ long_help(struct bsdtar *bsdtar)
 		} else
 			putchar(*p);
 	}
-	fprintf(stdout, "\n%s\n", archive_version());
-	fflush(stderr);
+	printf("\n");
+	version();
 }
 
 static int
