@@ -11,6 +11,7 @@
  * Last modified: 1996/3/5 by AGM
  *
  * $Id: pam_appl.h,v 1.3 2000/11/19 23:54:02 agmorgan Exp $
+ * $FreeBSD$
  */
 
 #ifndef _SECURITY_PAM_APPL_H
@@ -24,28 +25,28 @@ extern "C" {
 
 /* -------------- The Linux-PAM Framework layer API ------------- */
 
-extern int pam_start(const char *service_name, const char *user,
-		     const struct pam_conv *pam_conversation,
-		     pam_handle_t **pamh);
-extern int pam_end(pam_handle_t *pamh, int pam_status);
+extern int pam_start(const char *_service_name, const char *_user,
+		     const struct pam_conv *_pam_conversation,
+		     pam_handle_t **_pamh);
+extern int pam_end(pam_handle_t *_pamh, int _pam_status);
 
 /* Authentication API's */
 
-extern int pam_authenticate(pam_handle_t *pamh, int flags);
-extern int pam_setcred(pam_handle_t *pamh, int flags);
+extern int pam_authenticate(pam_handle_t *_pamh, int _flags);
+extern int pam_setcred(pam_handle_t *_pamh, int _flags);
 
 /* Account Management API's */
 
-extern int pam_acct_mgmt(pam_handle_t *pamh, int flags);
+extern int pam_acct_mgmt(pam_handle_t *_pamh, int _flags);
 
 /* Session Management API's */
 
-extern int pam_open_session(pam_handle_t *pamh, int flags);
-extern int pam_close_session(pam_handle_t *pamh, int flags);
+extern int pam_open_session(pam_handle_t *_pamh, int _flags);
+extern int pam_close_session(pam_handle_t *_pamh, int _flags);
 
 /* Password Management API's */
 
-extern int pam_chauthtok(pam_handle_t *pamh, int flags);
+extern int pam_chauthtok(pam_handle_t *_pamh, int _flags);
 
 #ifdef __cplusplus
 }

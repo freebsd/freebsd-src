@@ -1,5 +1,6 @@
 /*
  * $Id: pam_malloc.h,v 1.2 2000/12/04 19:02:34 baggins Exp $
+ * $FreeBSD$
  */
 
 /*
@@ -28,15 +29,15 @@
 
 #include <sys/types.h>
 
-extern void *pam_malloc(size_t s,const char *,const char *,const int);
-extern void *pam_calloc(size_t n,size_t s,const char *,const char *,const int);
-extern void  pam_free(void *x,const char *,const char *,const int);
-extern void *pam_memalign(size_t a,size_t s
+extern void *pam_malloc(size_t ,const char *,const char *,const int);
+extern void *pam_calloc(size_t ,size_t ,const char *,const char *,const int);
+extern void  pam_free(void *,const char *,const char *,const int);
+extern void *pam_memalign(size_t ,size_t
 			 ,const char *,const char *,const int);
-extern void *pam_realloc(void *x,size_t s,const char *,const char *,const int);
-extern void *pam_valloc(size_t s,const char *,const char *,const int);
-extern void *pam_alloca(size_t s,const char *,const char *,const int);
-extern void  pam_exit(int i,const char *,const char *,const int);
+extern void *pam_realloc(void *,size_t ,const char *,const char *,const int);
+extern void *pam_valloc(size_t ,const char *,const char *,const int);
+extern void *pam_alloca(size_t ,const char *,const char *,const int);
+extern void  pam_exit(int ,const char *,const char *,const int);
 
 /* these are the flags used to turn on and off diagnostics */
 
