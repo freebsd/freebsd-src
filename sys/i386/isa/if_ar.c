@@ -49,7 +49,6 @@
  */
 
 #include "ar.h"
-#include "bpf.h"
 
 #include <sys/param.h>
 #include <sys/systm.h>
@@ -61,9 +60,7 @@
 #include <net/if.h>
 #include <net/if_sppp.h>
 
-#if NBPF > 0
 #include <net/bpf.h>
-#endif
 
 #include <machine/clock.h>
 #include <machine/md_var.h>
@@ -357,9 +354,7 @@ arattach(struct isa_device *id)
 		sppp_attach((struct ifnet *)&sc->ifsppp);
 		if_attach(ifp);
 
-#if NBPF > 0
 		bpfattach(ifp, DLT_PPP, PPP_HEADER_LEN);
-#endif
 	}
 
 	ARC_SET_OFF(hc->iobase);
@@ -537,10 +532,8 @@ top_arstart:
 		txdata += AR_BUF_SIZ;
 		i++;
 
-#if NBPF > 0
 		if(ifp->if_bpf)
 			bpf_mtap(ifp, mtx);
-#endif
 		m_freem(mtx);
 		++sc->ifsppp.pp_if.if_opackets;
 
@@ -1299,10 +1292,8 @@ ar_get_packets(struct ar_softc *sc)
 				}
 			}
 			ar_copy_rxbuf(m, sc, len);
-#if NBPF > 0
 			if(sc->ifsppp.pp_if.if_bpf)
 				bpf_mtap(&sc->ifsppp.pp_if, m);
-#endif
 			sppp_input(&sc->ifsppp.pp_if, m);
 			sc->ifsppp.pp_if.if_ipackets++;
 

@@ -140,10 +140,7 @@
 #include <net/netisr.h>
 #include <netinet/in.h>
 #include <netinet/in_var.h>
-#include "bpf.h"
-#if NBPF > 0
 #include <net/bpf.h>
-#endif
 #endif /* INET */
 
 
@@ -944,9 +941,7 @@ lpattach (struct lpt_softc *sc, int unit)
 	if_attach(ifp);
 	printf("lp%d: TCP/IP capable interface\n", unit);
 
-#if NBPF > 0
 	bpfattach(ifp, DLT_NULL, LPIPHDRLEN);
-#endif
 }
 
 #ifndef PC98
@@ -1218,11 +1213,9 @@ lpintr (int unit)
 		IF_DROP(&ipintrq);
 		goto done;
 	    }
-#if NBPF > 0
 	    if (sc->sc_if.if_bpf) {
 		bpf_tap(&sc->sc_if, sc->sc_ifbuf, len);
 	    }
-#endif
 	    len -= LPIPHDRLEN;
 	    sc->sc_if.if_ipackets++;
 	    sc->sc_if.if_ibytes += len;
@@ -1410,7 +1403,6 @@ lpoutput (struct ifnet *ifp, struct mbuf *m,
     } else {
 	ifp->if_opackets++;
 	ifp->if_obytes += m->m_pkthdr.len;
-#if NBPF > 0
 	if (ifp->if_bpf) {
 	    /*
 	     * We need to prepend the packet type as
@@ -1428,7 +1420,6 @@ lpoutput (struct ifnet *ifp, struct mbuf *m,
 
 	    bpf_mtap(ifp, &m0);
 	}
-#endif
     }
 
     m_freem(m);

@@ -68,10 +68,7 @@
 #include <netinet/if_ether.h>
 #endif
 
-#if NBPF > 0
 #include <net/bpf.h>
-#include <net/bpfdesc.h>
-#endif
 
 #include <machine/clock.h>
 #include <machine/md_var.h>

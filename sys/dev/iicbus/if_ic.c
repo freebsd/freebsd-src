@@ -59,11 +59,7 @@
 #include <netinet/ip.h>
 #include <netinet/if_ether.h>
 
-#include "bpf.h"
-
-#if NBPF > 0
 #include <net/bpf.h>
-#endif
 
 #include <dev/iicbus/iiconf.h>
 #include <dev/iicbus/iicbus.h>
@@ -151,9 +147,7 @@ icattach(device_t dev)
 
 	if_attach(ifp);
 
-#if NBPF > 0
 	bpfattach(ifp, DLT_NULL, ICHDRLEN);
-#endif
 
 	return (0);
 }
@@ -322,10 +316,8 @@ icintr (device_t dev, int event, char *ptr)
 	  sc->ic_if.if_ipackets ++;
 	  sc->ic_if.if_ibytes += len;
 
-#if NBPF > 0
 	if (sc->ic_if.if_bpf)
 		bpf_tap(&sc->ic_if, sc->ic_ifbuf, len + ICHDRLEN);
-#endif
 
 	  top = m_devget(sc->ic_ifbuf + ICHDRLEN, len, 0, &sc->ic_if, 0);
 
@@ -417,7 +409,6 @@ icoutput(struct ifnet *ifp, struct mbuf *m,
 
 	} while ((mm = mm->m_next));
 
-#if NBPF > 0
 	if (ifp->if_bpf) {
 		struct mbuf m0, *n = m;
 
@@ -435,7 +426,6 @@ icoutput(struct ifnet *ifp, struct mbuf *m,
 
 		bpf_mtap(ifp, n);
 	}
-#endif
 
 	sc->ic_sending = 1;
 

@@ -34,8 +34,6 @@
  * Intel EtherExpress Pro/100B PCI Fast Ethernet driver
  */
 
-#include "bpf.h"
-
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/mbuf.h>
@@ -52,9 +50,7 @@
 #include <netns/ns_if.h>
 #endif
 
-#if NBPF > 0
 #include <net/bpf.h>
-#endif
 
 #if defined(__NetBSD__)
 
@@ -419,10 +415,8 @@ fxp_attach(parent, self, aux)
 	 */
 	ifp->if_snd.ifq_maxlen = FXP_NTXCB - 1;
 	ether_ifattach(ifp, enaddr);
-#if NBPF > 0
 	bpfattach(&sc->sc_ethercom.ec_if.if_bpf, ifp, DLT_EN10MB,
 	    sizeof(struct ether_header));
-#endif
 
 	/*
 	 * Add shutdown hook so that DMA is disabled prior to reboot. Not
@@ -603,9 +597,7 @@ fxp_attach(device_t dev)
 	 */
 	ifp->if_snd.ifq_maxlen = FXP_NTXCB - 1;
 	ether_ifattach(ifp);
-#if NBPF > 0
 	bpfattach(ifp, DLT_EN10MB, sizeof(struct ether_header));
-#endif
 
 	splx(s);
 	return 0;
@@ -993,13 +985,11 @@ tbdinit:
 
 		sc->tx_queued++;
 
-#if NBPF > 0
 		/*
 		 * Pass packet to bpf if there is a listener.
 		 */
 		if (ifp->if_bpf)
 			bpf_mtap(FXP_BPFTAP_ARG(ifp), mb_head);
-#endif
 	}
 
 	/*
@@ -1102,12 +1092,10 @@ rcvloop:
 					m->m_pkthdr.len = m->m_len =
 					    total_len ;
 					eh = mtod(m, struct ether_header *);
-#if NBPF > 0
 					if (ifp->if_bpf)
 						bpf_tap(FXP_BPFTAP_ARG(ifp),
 						    mtod(m, caddr_t),
 						    total_len); 
-#endif /* NBPF > 0 */
 #ifdef BRIDGE
                                         if (do_bridge) {
                                             struct ifnet *bdg_ifp ;
