@@ -1,48 +1,7 @@
-/*-
- * Copyright (c) 1990, 1993
- *	The Regents of the University of California.  All rights reserved.
- *
- * This code is derived from software contributed to Berkeley by
- * Van Jacobson.
- *
- * Redistribution and use in source and binary forms, with or without
- * modification, are permitted provided that the following conditions
- * are met:
- * 1. Redistributions of source code must retain the above copyright
- *    notice, this list of conditions and the following disclaimer.
- * 2. Redistributions in binary form must reproduce the above copyright
- *    notice, this list of conditions and the following disclaimer in the
- *    documentation and/or other materials provided with the distribution.
- * 3. All advertising materials mentioning features or use of this software
- *    must display the following acknowledgement:
- *	This product includes software developed by the University of
- *	California, Berkeley and its contributors.
- * 4. Neither the name of the University nor the names of its contributors
- *    may be used to endorse or promote products derived from this software
- *    without specific prior written permission.
- *
- * THIS SOFTWARE IS PROVIDED BY THE REGENTS AND CONTRIBUTORS ``AS IS'' AND
- * ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
- * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
- * ARE DISCLAIMED.  IN NO EVENT SHALL THE REGENTS OR CONTRIBUTORS BE LIABLE
- * FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
- * DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
- * OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
- * HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
- * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
- * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
- * SUCH DAMAGE.
- */
-
 #ifndef lint
-static char copyright[] =
-"@(#) Copyright (c) 1990, 1993\n\
-	The Regents of the University of California.  All rights reserved.\n";
-#endif /* not lint */
-
-#ifndef lint
-static char sccsid[] = "@(#)traceroute.c	8.1 (Berkeley) 6/6/93";
-#endif /* not lint */
+static char *rcsid =
+    "@(#)$Header: traceroute.c,v 1.27 95/10/18 00:17:06 leres Exp $ (LBL)";
+#endif
 
 /*
  * traceroute host  - trace the route ip packets follow going to "host".
@@ -211,43 +170,51 @@ static char sccsid[] = "@(#)traceroute.c	8.1 (Berkeley) 6/6/93";
  * back to yourself.  Unfortunately, SO many gateways botch source
  * routing, the thing is almost worthless.  Maybe one day...
  *
- *  -- Van Jacobson (van@helios.ee.lbl.gov)
+ *  -- Van Jacobson (van@ee.lbl.gov)
  *     Tue Dec 20 03:50:13 PST 1988
  */
 
 #include <sys/param.h>
-#include <sys/time.h>
-#include <sys/socket.h>
 #include <sys/file.h>
 #include <sys/ioctl.h>
+#include <sys/socket.h>
+#include <sys/time.h>
 
 #include <netinet/in_systm.h>
 #include <netinet/in.h>
 #include <netinet/ip.h>
+#include <netinet/ip_var.h>
 #include <netinet/ip_icmp.h>
 #include <netinet/udp.h>
 
 #include <arpa/inet.h>
 
+#include <ctype.h>
+#include <unistd.h>
+#include <errno.h>
 #include <netdb.h>
 #include <stdio.h>
-#include <errno.h>
 #include <stdlib.h>
 #include <string.h>
-#include <unistd.h>
+
+#include "gnuc.h"
+#ifdef HAVE_OS_PROTO_H
+#include "os-proto.h"
+#endif
 
 #define	MAXPACKET	65535	/* max ip packet size */
+
 #ifndef MAXHOSTNAMELEN
 #define MAXHOSTNAMELEN	64
 #endif
 
-#ifndef FD_SET
-#define NFDBITS         (8*sizeof(fd_set))
-#define FD_SETSIZE      NFDBITS
-#define FD_SET(n, p)    ((p)->fds_bits[(n)/NFDBITS] |= (1 << ((n) % NFDBITS)))
-#define FD_CLR(n, p)    ((p)->fds_bits[(n)/NFDBITS] &= ~(1 << ((n) % NFDBITS)))
-#define FD_ISSET(n, p)  ((p)->fds_bits[(n)/NFDBITS] & (1 << ((n) % NFDBITS)))
-#define FD_ZERO(p)      bzero((char *)(p), sizeof(*(p)))
+#if !defined(HAVE_BZERO) && !defined(bzero)
+#define bzero(s, n)     memset(s, 0, n)
+#define bcopy(s, d, n)  memcpy(d, s, n)
+#endif
+
+#if !defined(HAVE_SETLINEBUF) && !defined(setlinebuf)
+#define setlinebuf(f)	setvbuf(f, NULL, _IOLBF, 0)
 #endif
 
 #define Fprintf (void)fprintf
@@ -268,144 +235,201 @@ struct opacket {
 u_char	packet[512];		/* last inbound (icmp) packet */
 struct opacket	*outpacket;	/* last output (udp) packet */
 
-int wait_for_reply __P((int, struct sockaddr_in *, struct timeval *));
-void send_probe __P((int, int));
-double deltaT __P((struct timeval *, struct timeval *));
-int packet_ok __P((u_char *, int, struct sockaddr_in *, int));
-void print __P((u_char *, int, struct sockaddr_in *));
-void tvsub __P((struct timeval *, struct timeval *));
-char *inetname __P((struct in_addr));
-void usage __P(());
-
 int s;				/* receive (icmp) socket file descriptor */
 int sndsock;			/* send (udp) socket file descriptor */
-struct timezone tz;		/* leftover */
 
 struct sockaddr whereto;	/* Who to try to reach */
 int datalen;			/* How much data */
 
 char *source = 0;
 char *hostname;
+char hnamebuf[MAXHOSTNAMELEN];
 
 int nprobes = 3;
 int max_ttl = 30;
 u_short ident;
 u_short port = 32768+666;	/* start udp dest port # for probe packets */
+
 int options;			/* socket options */
 int verbose;
 int waittime = 5;		/* time to wait for response (in seconds) */
 int nflag;			/* print addresses numerically */
 
-int
-main(argc, argv)
-	int argc;
-	char *argv[];
+char usage[] =
+ "Usage: traceroute [-dnrv] [-w wait] [-m max_ttl] [-p port#] [-q nqueries] [-t tos] [-s src_addr] [-g gateway] host [data size]\n";
+
+/* Forwards */
+double	deltaT(struct timeval *, struct timeval *);
+int	main(int, char **);
+int	wait_for_reply(int, struct sockaddr_in *, struct timeval *);
+void	send_probe(int, int, struct timeval *);
+char	*pr_type(u_char);
+int	packet_ok(u_char *, int, struct sockaddr_in *, int);
+void	print(u_char *, int, struct sockaddr_in *);
+void	tvsub(struct timeval *, struct timeval *);
+char	*inetname(struct in_addr);
+
+double
+deltaT(struct timeval *t1p, struct timeval *t2p)
 {
-	extern char *optarg;
-	extern int optind;
-	struct hostent *hp;
+	register double dt;
+
+	dt = (double)(t2p->tv_sec - t1p->tv_sec) * 1000.0 +
+	     (double)(t2p->tv_usec - t1p->tv_usec) / 1000.0;
+	return (dt);
+}
+
+int
+main(int argc, char **argv)
+{
+	struct sockaddr_in from;
+	char **av = argv;
+	struct sockaddr_in *to = (struct sockaddr_in *) &whereto;
+	int on = 1;
 	struct protoent *pe;
-	struct sockaddr_in from, *to;
-	int ch, i, on, probe, seq, tos, ttl;
+	int ttl, probe, i;
+	int seq = 0;
+	int tos = 0;
+	struct hostent *hp;
+	int lsrr = 0;
+	u_long gw;
+	u_char optlist[MAX_IPOPTLEN], *oix;
 
-	on = 1;
-	seq = tos = 0;
-	to = (struct sockaddr_in *)&whereto;
-	while ((ch = getopt(argc, argv, "dm:np:q:rs:t:w:v")) != EOF)
-		switch(ch) {
-		case 'd':
-			options |= SO_DEBUG;
-			break;
-		case 'm':
-			max_ttl = atoi(optarg);
-			if (max_ttl <= 1) {
-				Fprintf(stderr,
-				    "traceroute: max ttl must be >1.\n");
-				exit(1);
-			}
-			break;
-		case 'n':
-			nflag++;
-			break;
-		case 'p':
-			port = atoi(optarg);
-			if (port < 1) {
-				Fprintf(stderr,
-				    "traceroute: port must be >0.\n");
-				exit(1);
-			}
-			break;
-		case 'q':
-			nprobes = atoi(optarg);
-			if (nprobes < 1) {
-				Fprintf(stderr,
-				    "traceroute: nprobes must be >0.\n");
-				exit(1);
-			}
-			break;
-		case 'r':
-			options |= SO_DONTROUTE;
-			break;
-		case 's':
-			/*
-			 * set the ip source address of the outbound
-			 * probe (e.g., on a multi-homed host).
-			 */
-			source = optarg;
-			break;
-		case 't':
-			tos = atoi(optarg);
-			if (tos < 0 || tos > 255) {
-				Fprintf(stderr,
-				    "traceroute: tos must be 0 to 255.\n");
-				exit(1);
-			}
-			break;
-		case 'v':
-			verbose++;
-			break;
-		case 'w':
-			waittime = atoi(optarg);
-			if (waittime <= 1) {
-				Fprintf(stderr,
-				    "traceroute: wait must be >1 sec.\n");
-				exit(1);
-			}
-			break;
-		default:
-			usage();
-		}
-	argc -= optind;
-	argv += optind;
+	oix = optlist;
+	bzero(optlist, sizeof(optlist));
 
-	if (argc < 1)
-		usage();
-
+	argc--, av++;
+	while (argc && *av[0] == '-')  {
+		while (*++av[0])
+			switch (*av[0]) {
+			case 'd':
+				options |= SO_DEBUG;
+				break;
+			case 'g':
+				argc--, av++;
+				if ((lsrr+1) >= ((MAX_IPOPTLEN-IPOPT_MINOFF)/sizeof(u_long))) {
+				  Fprintf(stderr,"No more than %d gateways\n",
+					  (u_int)((MAX_IPOPTLEN-IPOPT_MINOFF)/sizeof(u_long))-1);
+				  exit(1);
+				}
+				if (lsrr == 0) {
+				  *oix++ = IPOPT_LSRR;
+				  oix++;	/* Fill in total length later */
+				  *oix++ = IPOPT_MINOFF; /* Pointer to LSRR addresses */
+				}
+				lsrr++;
+				if (isdigit(*av[0])) {
+				  gw = inet_addr(*av);
+				  if (gw) {
+				    bcopy(&gw, oix, sizeof(u_long));
+				  } else {
+				    Fprintf(stderr, "Unknown host %s\n",av[0]);
+				    exit(1);
+				  }
+				} else {
+				  hp = gethostbyname(av[0]);
+				  if (hp) {
+				    bcopy(hp->h_addr, oix, sizeof(u_long));
+				  } else {
+				    Fprintf(stderr, "Unknown host %s\n",av[0]);
+				    exit(1);
+				  }
+				}
+				oix += sizeof(u_long);
+				goto nextarg;
+			case 'm':
+				argc--, av++;
+				max_ttl = atoi(av[0]);
+				if (max_ttl <= 1) {
+					Fprintf(stderr, "max ttl must be >1\n");
+					exit(1);
+				}
+				goto nextarg;
+			case 'n':
+				nflag++;
+				break;
+			case 'p':
+				argc--, av++;
+				port = atoi(av[0]);
+				if (port < 1) {
+					Fprintf(stderr, "port must be >0\n");
+					exit(1);
+				}
+				goto nextarg;
+			case 'q':
+				argc--, av++;
+				nprobes = atoi(av[0]);
+				if (nprobes < 1) {
+					Fprintf(stderr, "nprobes must be >0\n");
+					exit(1);
+				}
+				goto nextarg;
+			case 'r':
+				options |= SO_DONTROUTE;
+				break;
+			case 's':
+				/*
+				 * set the ip source address of the outbound
+				 * probe (e.g., on a multi-homed host).
+				 */
+				argc--, av++;
+				source = av[0];
+				goto nextarg;
+			case 't':
+				argc--, av++;
+				tos = atoi(av[0]);
+				if (tos < 0 || tos > 255) {
+					Fprintf(stderr, "tos must be 0 to 255\n");
+					exit(1);
+				}
+				goto nextarg;
+			case 'v':
+				verbose++;
+				break;
+			case 'w':
+				argc--, av++;
+				waittime = atoi(av[0]);
+				if (waittime <= 1) {
+					Fprintf(stderr, "wait must be >1 sec\n");
+					exit(1);
+				}
+				goto nextarg;
+			default:
+				Printf(usage);
+				exit(1);
+			}
+	nextarg:
+		argc--, av++;
+	}
+	if (argc != 1)  {
+		Printf(usage);
+		exit(1);
+	}
 	setlinebuf (stdout);
 
-	(void) bzero((char *)&whereto, sizeof(struct sockaddr));
+	bzero((char *)&whereto, sizeof(struct sockaddr));
 	to->sin_family = AF_INET;
-	to->sin_addr.s_addr = inet_addr(*argv);
-	if (to->sin_addr.s_addr != -1)
-		hostname = *argv;
-	else {
-		hp = gethostbyname(*argv);
+	to->sin_addr.s_addr = inet_addr(av[0]);
+	if (to->sin_addr.s_addr != -1) {
+		(void) strcpy(hnamebuf, av[0]);
+		hostname = hnamebuf;
+	} else {
+		hp = gethostbyname(av[0]);
 		if (hp) {
 			to->sin_family = hp->h_addrtype;
 			bcopy(hp->h_addr, (caddr_t)&to->sin_addr, hp->h_length);
 			hostname = strdup(hp->h_name);
 		} else {
-			(void)fprintf(stderr,
-			    "traceroute: unknown host %s\n", *argv);
+			Printf("%s: unknown host %s\n", argv[0], av[0]);
 			exit(1);
 		}
 	}
-	if (*++argv)
-		datalen = atoi(*argv);
+
+	if (argc >= 2)
+		datalen = atoi(av[1]);
 	if (datalen < 0 || datalen >= MAXPACKET - sizeof(struct opacket)) {
-		Fprintf(stderr,
-		    "traceroute: packet size must be 0 <= s < %ld.\n",
-		    MAXPACKET - sizeof(struct opacket));
+		Fprintf(stderr, "traceroute: packet size must be 0 <= s < %d\n",
+			(u_int)(MAXPACKET - sizeof(struct opacket)));
 		exit(1);
 	}
 	datalen += sizeof(struct opacket);
@@ -414,11 +438,11 @@ main(argc, argv)
 		perror("traceroute: malloc");
 		exit(1);
 	}
-	(void) bzero((char *)outpacket, datalen);
+	bzero((char *)outpacket, datalen);
 	outpacket->ip.ip_dst = to->sin_addr;
 	outpacket->ip.ip_tos = tos;
-	outpacket->ip.ip_v = IPVERSION;
-	outpacket->ip.ip_id = 0;
+	outpacket->ip.ip_v   = IPVERSION;
+	outpacket->ip.ip_hl  = sizeof(struct ip) >> 2;
 
 	ident = (getpid() & 0xffff) | 0x8000;
 
@@ -441,6 +465,26 @@ main(argc, argv)
 		perror("traceroute: raw socket");
 		exit(5);
 	}
+
+	if (lsrr > 0) {
+	  lsrr++;
+	  optlist[IPOPT_OLEN]=IPOPT_MINOFF-1+(lsrr*sizeof(u_long));
+	  bcopy((caddr_t)&to->sin_addr, oix, sizeof(u_long));
+	  oix += sizeof(u_long);
+	  while ((oix - optlist)&3) oix++;		/* Pad to an even boundry */
+
+	  if ((pe = getprotobyname("ip")) == NULL) {
+	    perror("traceroute: unknown protocol ip\n");
+	    exit(10);
+	  }
+#ifdef IP_OPTIONS
+	  if ((setsockopt(sndsock, pe->p_proto, IP_OPTIONS, optlist, oix-optlist)) < 0) {
+	    perror("traceroute: lsrr options");
+	    exit(5);
+	  }
+#endif
+	}
+
 #ifdef SO_SNDBUF
 	if (setsockopt(sndsock, SOL_SOCKET, SO_SNDBUF, (char *)&datalen,
 		       sizeof(datalen)) < 0) {
@@ -463,7 +507,7 @@ main(argc, argv)
 				  (char *)&on, sizeof(on));
 
 	if (source) {
-		(void) bzero((char *)&from, sizeof(struct sockaddr));
+		bzero((char *)&from, sizeof(struct sockaddr));
 		from.sin_family = AF_INET;
 		from.sin_addr.s_addr = inet_addr(source);
 		if (from.sin_addr.s_addr == -1) {
@@ -499,8 +543,8 @@ main(argc, argv)
 			struct ip *ip;
 
 			(void) gettimeofday(&t1, &tz);
-			send_probe(++seq, ttl);
-			while (cc = wait_for_reply(s, &from, &t1)) {
+			send_probe(++seq, ttl, &t1);
+			while ((cc = wait_for_reply(s, &from, &t1)) != 0) {
 				(void) gettimeofday(&t2, &tz);
 				if ((i = packet_ok(packet, cc, &from, seq))) {
 					if (from.sin_addr.s_addr != lastaddr) {
@@ -549,13 +593,11 @@ main(argc, argv)
 		if (got_there || unreachable >= nprobes-1)
 			exit(0);
 	}
+	exit(0);
 }
 
 int
-wait_for_reply(sock, from, sent)
-	int sock;
-	struct sockaddr_in *from;
-	struct timeval *sent;
+wait_for_reply(int sock, struct sockaddr_in *from, struct timeval *sent)
 {
 	fd_set fds;
 	struct timeval now, wait;
@@ -566,13 +608,13 @@ wait_for_reply(sock, from, sent)
 	FD_SET(sock, &fds);
 	gettimeofday(&now, NULL);
 	wait.tv_sec = (sent->tv_sec + waittime) - now.tv_sec;
-	wait.tv_usec =  sent->tv_usec - now.tv_usec;
+	wait.tv_usec = sent->tv_usec - now.tv_usec;
 	if (wait.tv_usec < 0) {
-		wait.tv_usec += 1000000;
-		wait.tv_sec--;
+	        wait.tv_usec += 1000000;
+	        wait.tv_sec--;
 	}
 	if (wait.tv_sec < 0)
-		wait.tv_sec = wait.tv_usec = 0;
+	        wait.tv_sec = wait.tv_usec = 0;
 
 	if (select(sock+1, &fds, (fd_set *)0, (fd_set *)0, &wait) > 0)
 		cc=recvfrom(s, (char *)packet, sizeof(packet), 0,
@@ -583,8 +625,7 @@ wait_for_reply(sock, from, sent)
 
 
 void
-send_probe(seq, ttl)
-	int seq, ttl;
+send_probe(int seq, int ttl, struct timeval *tp)
 {
 	struct opacket *op = outpacket;
 	struct ip *ip = &op->ip;
@@ -592,12 +633,9 @@ send_probe(seq, ttl)
 	int i;
 
 	ip->ip_off = 0;
-	ip->ip_hl = sizeof(*ip) >> 2;
 	ip->ip_p = IPPROTO_UDP;
 	ip->ip_len = datalen;
 	ip->ip_ttl = ttl;
-	ip->ip_v = IPVERSION;
-	ip->ip_id = htons(ident+seq);
 
 	up->uh_sport = htons(ident);
 	up->uh_dport = htons(port+seq);
@@ -606,7 +644,7 @@ send_probe(seq, ttl)
 
 	op->seq = seq;
 	op->ttl = ttl;
-	(void) gettimeofday(&op->tv, &tz);
+	op->tv = *tp;
 
 	i = sendto(sndsock, (char *)outpacket, datalen, 0, &whereto,
 		   sizeof(struct sockaddr));
@@ -619,25 +657,11 @@ send_probe(seq, ttl)
 	}
 }
 
-
-double
-deltaT(t1p, t2p)
-	struct timeval *t1p, *t2p;
-{
-	register double dt;
-
-	dt = (double)(t2p->tv_sec - t1p->tv_sec) * 1000.0 +
-	     (double)(t2p->tv_usec - t1p->tv_usec) / 1000.0;
-	return (dt);
-}
-
-
 /*
  * Convert an ICMP "type" field to a printable string.
  */
 char *
-pr_type(t)
-	u_char t;
+pr_type(u_char t)
 {
 	static char *ttab[] = {
 	"Echo Reply",	"ICMP 1",	"ICMP 2",	"Dest Unreachable",
@@ -655,11 +679,7 @@ pr_type(t)
 
 
 int
-packet_ok(buf, cc, from, seq)
-	u_char *buf;
-	int cc;
-	struct sockaddr_in *from;
-	int seq;
+packet_ok(u_char *buf, int cc, struct sockaddr_in *from, int seq)
 {
 	register struct icmp *icp;
 	u_char type, code;
@@ -712,10 +732,7 @@ packet_ok(buf, cc, from, seq)
 
 
 void
-print(buf, cc, from)
-	u_char *buf;
-	int cc;
-	struct sockaddr_in *from;
+print(u_char *buf, int cc, struct sockaddr_in *from)
 {
 	struct ip *ip;
 	int hlen;
@@ -739,10 +756,7 @@ print(buf, cc, from)
 /*
  * Checksum routine for Internet Protocol family headers (C Version)
  */
-u_short
-in_cksum(addr, len)
-	u_short *addr;
-	int len;
+in_cksum(u_short *addr, int len)
 {
 	register int nleft = len;
 	register u_short *w = addr;
@@ -779,8 +793,7 @@ in_cksum(addr, len)
  * Out is assumed to be >= in.
  */
 void
-tvsub(out, in)
-	register struct timeval *out, *in;
+tvsub(register struct timeval *out, register struct timeval *in)
 {
 	if ((out->tv_usec -= in->tv_usec) < 0)   {
 		out->tv_sec--;
@@ -796,8 +809,7 @@ tvsub(out, in)
  * numeric value, otherwise try for symbolic name.
  */
 char *
-inetname(in)
-	struct in_addr in;
+inetname(struct in_addr in)
 {
 	register char *cp;
 	static char line[50];
@@ -808,7 +820,7 @@ inetname(in)
 	if (first && !nflag) {
 		first = 0;
 		if (gethostname(domain, MAXHOSTNAMELEN) == 0 &&
-		    (cp = index(domain, '.')))
+		    (cp = strchr(domain, '.')))
 			(void) strcpy(domain, cp + 1);
 		else
 			domain[0] = 0;
@@ -817,7 +829,7 @@ inetname(in)
 	if (!nflag && in.s_addr != INADDR_ANY) {
 		hp = gethostbyaddr((char *)&in, sizeof (in), AF_INET);
 		if (hp) {
-			if ((cp = index(hp->h_name, '.')) &&
+			if ((cp = strchr(hp->h_name, '.')) &&
 			    !strcmp(cp + 1, domain))
 				*cp = 0;
 			cp = hp->h_name;
@@ -832,13 +844,4 @@ inetname(in)
 			C(in.s_addr >> 16), C(in.s_addr >> 8), C(in.s_addr));
 	}
 	return (line);
-}
-
-void
-usage()
-{
-	(void)fprintf(stderr,
-"usage: traceroute [-dnrv] [-m max_ttl] [-p port#] [-q nqueries]\n\t\
-[-s src_addr] [-t tos] [-w wait] host [data size]\n");
-	exit(1);
 }
