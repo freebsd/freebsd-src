@@ -61,7 +61,7 @@
  * any improvements or extensions that they make and grant Carnegie the
  * rights to redistribute these changes.
  *
- * $Id: pmap.h,v 1.5 1994/11/14 08:19:07 bde Exp $
+ * $Id: pmap.h,v 1.6 1995/01/09 16:05:32 davidg Exp $
  */
 
 /*
@@ -110,6 +110,8 @@ boolean_t pmap_is_referenced __P((vm_offset_t pa));
 void pmap_kenter __P((vm_offset_t, vm_offset_t));
 void pmap_kremove __P((vm_offset_t));
 vm_offset_t pmap_map __P((vm_offset_t, vm_offset_t, vm_offset_t, int));
+void pmap_object_init_pt __P((pmap_t pmap, vm_offset_t addr, vm_object_t object,
+			      vm_pindex_t pindex, vm_offset_t size));
 void pmap_page_protect __P((vm_offset_t, vm_prot_t));
 void pmap_pageable __P((pmap_t, vm_offset_t, vm_offset_t, boolean_t));
 vm_offset_t pmap_phys_address __P((int));
