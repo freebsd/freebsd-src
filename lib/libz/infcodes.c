@@ -11,8 +11,6 @@
 #include "inffast.h"
 
 /* simplify the use of the inflate_huft type with some defines */
-#define base more.Base
-#define next more.Next
 #define exop word.what.Exop
 #define bits word.what.Bits
 
@@ -145,7 +143,7 @@ int r;
       if ((e & 64) == 0)        /* next table */
       {
         c->sub.code.need = e;
-        c->sub.code.tree = t->next;
+        c->sub.code.tree = t + t->base;
         break;
       }
       if (e & 32)               /* end of block */
@@ -183,7 +181,7 @@ int r;
       if ((e & 64) == 0)        /* next table */
       {
         c->sub.code.need = e;
-        c->sub.code.tree = t->next;
+        c->sub.code.tree = t + t->base;
         break;
       }
       c->mode = BADCODE;        /* invalid code */
@@ -223,6 +221,13 @@ int r;
       c->mode = START;
       break;
     case WASH:          /* o: got eob, possibly more output */
+      if (k > 7)        /* return unused byte, if any */
+      {
+        Assert(k < 16, "inflate_codes grabbed too many bytes")
+        k -= 8;
+        n++;
+        p--;            /* can always return one */
+      }
       FLUSH
       if (s->read != s->write)
         LEAVE
