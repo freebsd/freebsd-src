@@ -303,6 +303,7 @@ pam_sm_authenticate(pam_handle_t *pamh, int flags, int argc,
 		if (auth_via_key(pamh, file, dotdir, pwent, pass) ==
 		    PAM_SUCCESS)
 			authenticated++;
+	free(dotdir);
 	free(keyfiles);
 	if (!authenticated)
 		return PAM_AUTH_ERR;
@@ -346,6 +347,7 @@ pam_sm_open_session(pam_handle_t *pamh, int flags, int argc,
 	int no_link;			/* link per-agent file? */
 	char *per_agent;		/* to store env */
 	char *per_session;		/* per-session filename */
+	char *agent_pid;		/* agent pid */
 	const struct passwd *pwent;	/* user's passwd entry */
 	int retval;			/* from calls */
 	uid_t saved_uid;		/* caller's uid */
@@ -416,7 +418,6 @@ pam_sm_open_session(pam_handle_t *pamh, int flags, int argc,
 			    SSH_AGENT);
 			if (env_write >= 0)
 				(void) close(env_write);
-			free(per_agent);
 			return PAM_SESSION_ERR;
 		}
 	}
@@ -448,7 +449,6 @@ pam_sm_open_session(pam_handle_t *pamh, int flags, int argc,
 				(void) close(env_write);
 			if (agent_socket)
 				free(agent_socket);
-			free(per_agent);
 			return PAM_SERVICE_ERR;
 		}
 
@@ -470,12 +470,12 @@ pam_sm_open_session(pam_handle_t *pamh, int flags, int argc,
 				(void) close(env_write);
 			if (agent_socket)
 				free(agent_socket);
-			free(per_agent);
 			return PAM_SERVICE_ERR;
 		} else if (strcmp(&env_string[strlen(env_string) -
 		    strlen(ENV_PID_SUFFIX)], ENV_PID_SUFFIX) == 0 &&
+		    ((agent_pid = strdup(env_value)) == NULL ||
 		    (retval = pam_set_data(pamh, "ssh_agent_pid",
-		    env_value, ssh_cleanup)) != PAM_SUCCESS) {
+		    agent_pid, ssh_cleanup)) != PAM_SUCCESS)) {
 			if (start_agent)
 				(void) pclose(env_read);
 			else
@@ -484,7 +484,8 @@ pam_sm_open_session(pam_handle_t *pamh, int flags, int argc,
 				(void) close(env_write);
 			if (agent_socket)
 				free(agent_socket);
-			free(per_agent);
+			if (agent_pid)
+				free(agent_pid);
 			return retval;
 		}
 
@@ -499,7 +500,6 @@ pam_sm_open_session(pam_handle_t *pamh, int flags, int argc,
 			    SSH_AGENT);
 			if (agent_socket)
 				free(agent_socket);
-			free(per_agent);
 			return PAM_SESSION_ERR;
 		case 0:
 			break;
@@ -508,7 +508,6 @@ pam_sm_open_session(pam_handle_t *pamh, int flags, int argc,
 			    MODULE_NAME, SSH_AGENT);
 			if (agent_socket)
 				free(agent_socket);
-			free(per_agent);
 			return PAM_SESSION_ERR;
 		default:
 			openpam_log(PAM_LOG_ERROR, "%s: %s exited %s %d",
@@ -518,22 +517,17 @@ pam_sm_open_session(pam_handle_t *pamh, int flags, int argc,
 			    WTERMSIG(retval) : WEXITSTATUS(retval));
 			if (agent_socket)
 				free(agent_socket);
-			free(per_agent);
 			return PAM_SESSION_ERR;
 		}
 	} else
 		(void) fclose(env_read);
 
-	if (!agent_socket) {
-		free(per_agent);
+	if (!agent_socket)
 		return PAM_SESSION_ERR;
-	}
 
 	if (start_agent && (retval = add_keys(pamh, agent_socket))
-	    != PAM_SUCCESS) {
-		free(per_agent);
+	    != PAM_SUCCESS)
 		return retval;
-	}
 	free(agent_socket);
 
 	/* if we couldn't access the per-agent file, don't link a
@@ -546,14 +540,11 @@ pam_sm_open_session(pam_handle_t *pamh, int flags, int argc,
 	   well as the hostname */
 
 	if ((retval = pam_get_item(pamh, PAM_TTY, (const void **)&tty))
-	    != PAM_SUCCESS) {
-		free(per_agent);
+	    != PAM_SUCCESS)
 		return retval;
-	}
 	if (asprintf(&per_session, "%s/.ssh/agent-%s-%s", pwent->pw_dir,
 	    hname, tty) == -1) {
 		openpam_log(PAM_LOG_ERROR, "%s: %m", MODULE_NAME);
-		free(per_agent);
 		return PAM_SERVICE_ERR;
 	}
 
@@ -563,14 +554,11 @@ pam_sm_open_session(pam_handle_t *pamh, int flags, int argc,
 	if ((retval = pam_set_data(pamh, "ssh_agent_env_session",
 	    per_session, ssh_cleanup)) != PAM_SUCCESS) {
 		free(per_session);
-		free(per_agent);
 		return retval;
 	}
 
 	(void) unlink(per_session);		/* remove cruft */
 	(void) link(per_agent, per_session);
-	free(per_agent);
-	free(per_session);
 
 	return PAM_SUCCESS;
 }
