@@ -24,6 +24,13 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
+ * 3. The party using or redistributing the source code and binary forms
+ *    agrees to the above disclaimer and the terms and conditions set forth
+ *    herein.
+ *
+ * Additional Copyright (c) 2002 by Eric Moore under same license.
+ * Additional Copyright (c) 2002 LSI Logic Corporation
+ *
  *	$FreeBSD$
  */
 
@@ -203,14 +210,12 @@ amr_attach(struct amr_softc *sc)
 
     debug(2, "controller query complete");
 
-#ifdef AMR_SCSI_PASSTHROUGH
     /*
      * Attach our 'real' SCSI channels to CAM.
      */
     if (amr_cam_attach(sc))
 	return(ENXIO);
     debug(2, "CAM attach done");
-#endif
 
     /*
      * Create the control device.
@@ -307,10 +312,8 @@ amr_free(struct amr_softc *sc)
 {
     struct amr_command_cluster	*acc;
 
-#ifdef AMR_SCSI_PASSTHROUGH
     /* detach from CAM */
     amr_cam_detach(sc);
-#endif
 
     /* cancel status timeout */
     untimeout(amr_periodic, sc, sc->amr_timeout);
@@ -340,7 +343,7 @@ amr_submit_bio(struct amr_softc *sc, struct bio *bio)
  * Accept an open operation on the control device.
  */
 static int
-amr_open(dev_t dev, int flags, int fmt, struct thread *td)
+amr_open(dev_t dev, int flags, int fmt, d_thread_t *td)
 {
     int			unit = minor(dev);
     struct amr_softc	*sc = devclass_get_softc(devclass_find("amr"), unit);
@@ -355,7 +358,7 @@ amr_open(dev_t dev, int flags, int fmt, struct thread *td)
  * Accept the last close on the control device.
  */
 static int
-amr_close(dev_t dev, int flags, int fmt, struct thread *td)
+amr_close(dev_t dev, int flags, int fmt, d_thread_t *td)
 {
     int			unit = minor(dev);
     struct amr_softc	*sc = devclass_get_softc(devclass_find("amr"), unit);
@@ -370,7 +373,7 @@ amr_close(dev_t dev, int flags, int fmt, struct thread *td)
  * Handle controller-specific control operations.
  */
 static int
-amr_ioctl(dev_t dev, u_long cmd, caddr_t addr, int32_t flag, struct thread *td)
+amr_ioctl(dev_t dev, u_long cmd, caddr_t addr, int32_t flag, d_thread_t *td)
 {
     struct amr_softc		*sc = (struct amr_softc *)dev->si_drv1;
     int				*arg = (int *)addr;
@@ -431,6 +434,7 @@ amr_ioctl(dev_t dev, u_long cmd, caddr_t addr, int32_t flag, struct thread *td)
 	    ap->ap_channel		= au->au_cmd[ap->ap_cdb_length + 5];
 	    ap->ap_scsi_id 		= au->au_cmd[ap->ap_cdb_length + 6];
 	    ap->ap_request_sense_length	= 14;
+	    ap->ap_data_transfer_length = au->au_length;
 	    /* XXX what about the request-sense area? does the caller want it? */
 
 	    /* build command */
@@ -478,7 +482,7 @@ amr_ioctl(dev_t dev, u_long cmd, caddr_t addr, int32_t flag, struct thread *td)
 	    debug(2, "%16D", dp, " ");
 	au->au_status = ac->ac_status;
 	break;
-	
+
     default:
 	debug(1, "unknown ioctl 0x%lx", cmd);
 	error = ENOIOCTL;
@@ -719,12 +723,10 @@ amr_startio(struct amr_softc *sc)
 	if (ac == NULL)
 	    (void)amr_bio_command(sc, &ac);
 
-#ifdef AMR_SCSI_PASSTHROUGH
 	/* if that failed, build a command from a ccb */
 	if (ac == NULL)
 	    (void)amr_cam_command(sc, &ac);
-#endif
-	
+
 	/* if we don't have anything to do, give up */
 	if (ac == NULL)
 	    break;
@@ -960,8 +962,10 @@ amr_setup_dmamap(void *arg, bus_dma_segment_t *segs, int nsegments, int error)
     /* decide whether we need to populate the s/g table */
     if (nsegments < 2) {
 	*sgc = 0;
+	ac->ac_mailbox.mb_nsgelem = 0;
 	ac->ac_mailbox.mb_physaddr = ac->ac_dataphys;
     } else {
+        ac->ac_mailbox.mb_nsgelem = nsegments;
 	*sgc = nsegments;
 	ac->ac_mailbox.mb_physaddr = sc->amr_sgbusaddr + (ac->ac_slot * AMR_NSEG * sizeof(struct amr_sgentry));
 	for (i = 0; i < nsegments; i++, sg++) {
@@ -974,31 +978,33 @@ amr_setup_dmamap(void *arg, bus_dma_segment_t *segs, int nsegments, int error)
 static void
 amr_setup_ccbmap(void *arg, bus_dma_segment_t *segs, int nsegments, int error)
 {
-    struct amr_command		*ac = (struct amr_command *)arg;
-    struct amr_softc		*sc = ac->ac_sc;
-    struct amr_sgentry		*sg;
-    struct amr_passthrough	*ap = (struct amr_passthrough *)ac->ac_data;
-    int				i;
+    struct amr_command          *ac = (struct amr_command *)arg;
+    struct amr_softc            *sc = ac->ac_sc;
+    struct amr_sgentry          *sg;
+    struct amr_passthrough      *ap = (struct amr_passthrough *)ac->ac_data;
+    int                         i;
 
     /* get base address of s/g table */
     sg = sc->amr_sgtable + (ac->ac_slot * AMR_NSEG);
 
-    /* save s/g table information in passthrough */
-    ap->ap_no_sg_elements = nsegments;
-    ap->ap_data_transfer_address = sc->amr_sgbusaddr + (ac->ac_slot * AMR_NSEG * sizeof(struct amr_sgentry));
-
-    /* save pointer to passthrough in command   XXX is this already done above? */
-    ac->ac_mailbox.mb_physaddr = ac->ac_dataphys;
+    /* decide whether we need to populate the s/g table */
+    if (nsegments < 2) {
+	ap->ap_no_sg_elements = 0;
+	ap->ap_data_transfer_address =  segs[0].ds_addr;
+    } else {
+        /* save s/g table information in passthrough */
+	ap->ap_no_sg_elements = nsegments;
+	ap->ap_data_transfer_address = sc->amr_sgbusaddr + (ac->ac_slot * AMR_NSEG * sizeof(struct amr_sgentry));
+        /* populate s/g table (overwrites previous call which mapped the passthrough) */
+	for (i = 0; i < nsegments; i++, sg++) {
+		sg->sg_addr = segs[i].ds_addr;
+		sg->sg_count = segs[i].ds_len;
+		debug(3, " %d: 0x%x/%d", i, sg->sg_addr, sg->sg_count);
+	}
+    }
 
     debug(3, "slot %d  %d segments at 0x%x, passthrough at 0x%x", ac->ac_slot,
-	   ap->ap_no_sg_elements, ap->ap_data_transfer_address, ac->ac_dataphys);
-    
-    /* populate s/g table (overwrites previous call which mapped the passthrough) */
-    for (i = 0; i < nsegments; i++, sg++) {
-	sg->sg_addr = segs[i].ds_addr;
-	sg->sg_count = segs[i].ds_len;
-	debug(3, " %d: 0x%x/%d", i, sg->sg_addr, sg->sg_count);
-    }
+           ap->ap_no_sg_elements, ap->ap_data_transfer_address, ac->ac_dataphys);
 }
 
 static void
@@ -1013,7 +1019,7 @@ amr_mapcmd(struct amr_command *ac)
 
 	if (ac->ac_data != NULL) {
 	    /* map the data buffers into bus space and build the s/g list */
-	    bus_dmamap_load(sc->amr_buffer_dmat, ac->ac_dmamap, ac->ac_data, ac->ac_length, 
+	    bus_dmamap_load(sc->amr_buffer_dmat, ac->ac_dmamap, ac->ac_data, ac->ac_length,
 			    amr_setup_dmamap, ac, 0);
 	    if (ac->ac_flags & AMR_CMD_DATAIN)
 		bus_dmamap_sync(sc->amr_buffer_dmat, ac->ac_dmamap, BUS_DMASYNC_PREREAD);
@@ -1022,7 +1028,7 @@ amr_mapcmd(struct amr_command *ac)
 	}
 
 	if (ac->ac_ccb_data != NULL) {
-	    bus_dmamap_load(sc->amr_buffer_dmat, ac->ac_ccb_dmamap, ac->ac_ccb_data, ac->ac_ccb_length, 
+	    bus_dmamap_load(sc->amr_buffer_dmat, ac->ac_ccb_dmamap, ac->ac_ccb_data, ac->ac_ccb_length,
 			    amr_setup_ccbmap, ac, 0);
 	    if (ac->ac_flags & AMR_CMD_CCB_DATAIN)
 		bus_dmamap_sync(sc->amr_buffer_dmat, ac->ac_ccb_dmamap, BUS_DMASYNC_PREREAD);
@@ -1071,7 +1077,7 @@ amr_start(struct amr_command *ac)
 {
     struct amr_softc	*sc = ac->ac_sc;
     int			done, s, i;
-    
+
     debug_called(3);
 
     /* mark command as busy so that polling consumer can tell */
@@ -1541,7 +1547,7 @@ amr_describe_controller(struct amr_softc *sc)
      * Try to get 40LD product info, which tells us what the card is labelled as.
      */
     if ((ap = amr_enquiry(sc, 2048, AMR_CMD_CONFIG, AMR_CONFIG_PRODUCT_INFO, 0)) != NULL) {
-	device_printf(sc->amr_dev, "<%.80s> Firmware %.16s, BIOS %.16s, %dMB RAM\n",
+	device_printf(sc->amr_dev, "<LSILogic %.80s> Firmware %.16s, BIOS %.16s, %dMB RAM\n",
 		      ap->ap_product, ap->ap_firmware, ap->ap_bios,
 		      ap->ap_memsize);
 
