@@ -1,5 +1,3 @@
-#ifndef _SOUNDCARD_H_
-#define _SOUNDCARD_H_
 /*
  * Copyright by Hannu Savolainen 1993
  *
@@ -25,8 +23,11 @@
  * SUCH DAMAGE.
  *
  * 
- * $Id$
+ * $Id: soundcard.h,v 1.6 1994/08/02 07:39:03 davidg Exp $
  */
+
+#ifndef _I386_MACHINE_SOUNDCARD_H_
+#define _I386_MACHINE_SOUNDCARD_H_
 
  /* 
   * If you make modifications to this file, please contact me before
@@ -761,4 +762,4 @@ void seqbuf_dump(void);	/* This function must be provided by programs */
 
 #endif
 long soundcard_init(long mem_start);
-#endif /* _SOUNDCARD_H_ */
+#endif 
