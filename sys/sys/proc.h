@@ -370,7 +370,7 @@ struct thread {
 #define	TDP_SA		0x00000080 /* A scheduler activation based thread. */
 #define	TDP_OWEPREEMPT	0x00000100 /* Thread has a pending preemption. */
 #define	TDP_OWEUPC	0x00000200 /* Call addupc() at next AST. */
-#define	TDP_UNUSED10	0x00000400 /* -- available-- */
+#define	TDP_WAKEPROC0	0x00000400 /* Wants caller to wakeup(&proc0) */
 #define	TDP_CAN_UNBIND	0x00000800 /* Only temporarily bound. */
 #define	TDP_SCHED1	0x00001000 /* Reserved for scheduler private use */
 #define	TDP_SCHED2	0x00002000 /* Reserved for scheduler private use */
