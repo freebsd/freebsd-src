@@ -420,7 +420,14 @@ Invalid URL
 The accompanying error message includes a protocol-specific error code
 and message, e.g. "File is not available (404 Not Found)"
 .Sh ENVIRONMENT
-.Bl -tag -width HTTP_PROXY_AUTH
+.Bl -tag -width FTP_PASSIVE_MODE
+.It Ev FTP_PASSIVE_MODE
+The FTP code selects passive mode by default.
+To force active mode FTP, set this variable to
+.Ql no .
+.It Ev FTP_PASSWORD
+Default FTP password if the remote server requests one and none was
+provided in the URL.
 .It Ev FTP_PROXY
 URL of the proxy to use for FTP requests.
 The document part is ignored.
