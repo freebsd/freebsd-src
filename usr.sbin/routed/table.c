@@ -35,7 +35,7 @@
 static char sccsid[] = "@(#)tables.c	8.1 (Berkeley) 6/5/93";
 #endif /* not lint */
 
-#ident "$Revision: 1.2 $"
+#ident "$Revision: 1.1.3.1 $"
 
 #include "defs.h"
 
@@ -1461,8 +1461,15 @@ rtadd(naddr	dst,
 
 	if (0 == rhead->rnh_addaddr(&rt->rt_dst_sock, &mask_sock,
 				    rhead, rt->rt_nodes)) {
+/*
+ * This will happen if RIP1 and RIP2 routeds talk to one another and
+ * there are variable subnets.  This is only good for filling up your
+ * syslog. -jkh
+ */
+#if 0
 		msglog("rnh_addaddr() failed for %s mask=%#x",
 		       naddr_ntoa(dst), mask);
+#endif
 	}
 }
 
