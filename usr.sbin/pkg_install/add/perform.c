@@ -114,8 +114,10 @@ pkg_do(char *pkg)
 		sprintf(extract_contents, "--fast-read %s", CONTENTS_FNAME);
 		extract = extract_contents;
 	    }
-	    else
+	    else {
 		extract = NULL;
+		sb.st_size = 100000;	/* Make up a plausible average size */
+	    }
 	    Home = make_playpen(playpen, sb.st_size * 4);
 	    if (!Home)
 		whinge("Unable to make playpen for %d bytes.\n", sb.st_size * 4);
