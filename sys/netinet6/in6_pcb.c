@@ -438,6 +438,7 @@ in6_pcbdetach(inp)
 	in_pcbremlists(inp);
 
 	if (so) {
+		SOCK_LOCK(so);
 		so->so_pcb = NULL;
 		sotryfree(so);
 	}
