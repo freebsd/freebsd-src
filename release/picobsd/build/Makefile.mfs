@@ -7,7 +7,7 @@ DESTDIR?=${MFS_MOUNTPOINT}
 STAND_LINKS?= bin sbin usr/local/bin
 USR_LINKS?= bin sbin libexec
 #PL_LOCALE_LINKS?= pl polish
-MY_DEVS?= std tun2 cuaa0 cuaa1 cuaa2 vty10 fd0 wd0s1h pty0 ttyd0 cuaa0 wd1 wd2 wd3 bpf0 bpf1 sa0 sa1
+MY_DEVS?= std tun2 cuaa0 cuaa1 cuaa2 vty10 fd0 ad0 pty0 ttyd0 cuaa0 wd1 wd2 wd3 bpf0 bpf1 sa0 sa1
 
 all: tree links
 
