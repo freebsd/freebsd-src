@@ -418,19 +418,16 @@ c_fstype(arg)
 			new->flags = F_MTTYPE;
 			new->mt_data = MOUNT_MFS;
 			return (new);
+		} else if (!strcmp(arg, "msdos")) {
+			new->flags = F_MTTYPE;
+			new->mt_data = MOUNT_MSDOS;
+			return (new);
 		}
 		break;
 	case 'n':
 		if (!strcmp(arg, "nfs")) {
 			new->flags = F_MTTYPE;
 			new->mt_data = MOUNT_NFS;
-			return (new);
-		}
-		break;
-	case 'p':
-		if (!strcmp(arg, "msdos")) {
-			new->flags = F_MTTYPE;
-			new->mt_data = MOUNT_MSDOS;
 			return (new);
 		}
 		break;
