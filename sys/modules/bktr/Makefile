@@ -14,8 +14,8 @@
 S	= ${.CURDIR}/../..
 .PATH:  $S/pci
 KMOD	= bktr 
-SRCS	= brooktree848.c bktr.h opt_devfs.h opt_bktr.h pci.h smbus.h bus_if.h device_if.h pci_if.h
-CLEANFILES	+= bktr.h opt_devfs.h opt_bktr.h pci.h smbus.h bus_if.h device_if.h pci_if.h
+SRCS	= brooktree848.c bktr.h opt_devfs.h opt_bktr.h pci.h smbus.h bus_if.h device_if.h pci_if.h vnode_if.h
+CLEANFILES	+= bktr.h opt_devfs.h opt_bktr.h pci.h smbus.h bus_if.h device_if.h pci_if.h vnode_if.h
 FLAGS		+= ${DEBUG_FLAGS}
 
 bktr.h:
