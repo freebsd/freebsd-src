@@ -36,7 +36,7 @@
 static char sccsid[] = "@(#)create.c	8.1 (Berkeley) 6/6/93";
 #endif
 static const char rcsid[] =
-	"$Id: create.c,v 1.12 1999/01/12 02:58:23 jkoshy Exp $";
+	"$Id: create.c,v 1.13 1999/01/18 06:58:25 jkoshy Exp $";
 #endif /* not lint */
 
 #include <sys/param.h>
@@ -47,7 +47,15 @@ static const char rcsid[] =
 #include <fcntl.h>
 #include <fts.h>
 #include <grp.h>
+#ifdef MD5
 #include <md5.h>
+#endif
+#ifdef SHA1
+#include <sha.h>
+#endif
+#ifdef RMD160
+#include <ripemd.h>
+#endif
 #include <pwd.h>
 #include <stdio.h>
 #include <time.h>
@@ -203,16 +211,42 @@ statf(indent, p)
 		(void)close(fd);
 		output(indent, &offset, "cksum=%lu", val);
 	}
+#ifdef MD5
 	if (keys & F_MD5 && S_ISREG(p->fts_statp->st_mode)) {
-		char *md5digest, buf[33];
+		char *digest, buf[33];
 
-		md5digest = MD5File(p->fts_accpath,buf);
-		if (!md5digest) {
+		digest = MD5File(p->fts_accpath, buf);
+		if (!digest) {
 			err(1, "line %d: %s", lineno, p->fts_accpath);
 		} else {
-			output(indent, &offset, "md5digest=%s", md5digest);
+			output(indent, &offset, "md5digest=%s", digest);
 		}
 	}
+#endif /* MD5 */
+#ifdef SHA1
+	if (keys & F_SHA1 && S_ISREG(p->fts_statp->st_mode)) {
+		char *digest, buf[41];
+
+		digest = SHA1_File(p->fts_accpath, buf);
+		if (!digest) {
+			err(1, "line %d: %s", lineno, p->fts_accpath);
+		} else {
+			output(indent, &offset, "sha1digest=%s", digest);
+		}
+	}
+#endif /* SHA1 */
+#ifdef RMD160
+	if (keys & F_RMD160 && S_ISREG(p->fts_statp->st_mode)) {
+		char *digest, buf[41];
+
+		digest = RIPEMD160_File(p->fts_accpath, buf);
+		if (!digest) {
+			err(1, "line %d: %s", lineno, p->fts_accpath);
+		} else {
+			output(indent, &offset, "ripemd160digest=%s", digest);
+		}
+	}
+#endif /* RMD160 */
 	if (keys & F_SLINK &&
 	    (p->fts_info == FTS_SL || p->fts_info == FTS_SLNONE))
 		output(indent, &offset, "link=%s", rlink(p->fts_accpath));
