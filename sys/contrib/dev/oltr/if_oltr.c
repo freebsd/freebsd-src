@@ -30,7 +30,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $Id: if_oltr.c,v 1.1 1999/03/10 10:11:38 julian Exp $
+ * $Id: if_oltr.c,v 1.2 1999/03/10 17:45:26 julian Exp $
  */
 
 
@@ -355,7 +355,6 @@ oltr_probe(is)
         if (!is->id_irq) 
             is->id_irq = (1 << sc->config->interruptlevel);         /* Claim our interrupt */
         is->id_intr = (inthand2_t *)oltr_intr;
-        register_intr(ffs(is->id_irq) - 1, is->id_id, is->id_ri_flags, is->id_intr, &net_imask, is->id_unit);
         if ((is->id_drq == 0xffffffff) && (sc->config->dmalevel != TRLLD_DMA_PIO))
             is->id_drq = sc->config->dmalevel;                      /* Claim our dma channel */
         printf("oltr%d: <%s> [%6D]\n", is->id_unit, AdapterName[sc->config->type], sc->config->macaddress, ":");
@@ -374,7 +373,6 @@ oltr_probe(is)
                 if (is->id_irq == 0)
                     is->id_irq = (1 << sc->config->interruptlevel);         /* Claim our interrupt */
                 is->id_intr = (inthand2_t *)oltr_intr;
-                register_intr(ffs(is->id_irq) - 1, is->id_id, is->id_ri_flags, is->id_intr, &net_imask, is->id_unit);
                 if ((is->id_drq == 0xffffffff) && (sc->config->dmalevel != TRLLD_DMA_PIO))
                     is->id_drq = sc->config->dmalevel;                      /* Claim our dma channel */
                 printf("oltr%d: <%s> [%6D]\n", is->id_unit, AdapterName[sc->config->type], sc->config->macaddress, ":");
