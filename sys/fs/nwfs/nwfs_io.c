@@ -148,6 +148,7 @@ nwfs_readvdir(struct vnode *vp, struct uio *uio, struct ucred *cred) {
 			if (!error) {
 				VTONW(newvp)->n_ctime = VTONW(newvp)->n_vattr.va_ctime.tv_sec;
 				cnp->cn_nameptr = dp.d_name;
+				cnp->cn_namelen = dp.d_namlen;
 				ndp->ni_vp = newvp;
 			        cache_enter(ndp->ni_dvp, ndp->ni_vp, cnp);
 				vput(newvp);
