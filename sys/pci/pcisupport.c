@@ -844,6 +844,8 @@ isab_match(device_t dev)
 		return ("Intel 82371SB PCI to ISA bridge");
 	case 0x71108086:
 		return ("Intel 82371AB PCI to ISA bridge");
+	case 0x71988086:
+		return ("Intel 82443MX PCI to X-bus bridge");
 	case 0x24108086:
 		return ("Intel 82801AA (ICH) PCI to LPC bridge");
 	case 0x24208086:
@@ -980,6 +982,8 @@ pci_usb_match(device_t dev)
 		return ("Intel 82371SB (PIIX3) USB controller");
 	case 0x71128086:
 		return ("Intel 82371AB/EB (PIIX4) USB controller");
+	case 0x719a8086:
+		return ("Intel 82443MX USB controller");
 	case 0x24128086:
 		return ("Intel 82801AA (ICH) USB controller");
 	case 0x24228086:
@@ -1116,6 +1120,8 @@ chip_match(device_t dev)
 		return ("Intel 82443BX (440 BX) host to PCI bridge");
 	case 0x71928086:
 		return ("Intel 82443BX host to PCI bridge (AGP disabled)");
+	case 0x71948086:
+		return ("Intel 82443MX (440 MX) host to PCI bridge");
  	case 0x71a08086:
  		return ("Intel 82443GX host to PCI bridge");
  	case 0x71a18086:
@@ -1162,6 +1168,10 @@ chip_match(device_t dev)
 		return ("Intel 82801AA (ICH) AC'97 Audio Controller");
 	case 0x24258086:
 		return ("Intel 82801AB (ICH0) AC'97 Audio Controller");
+	case 0x71958086:
+		return ("Intel 82443MX AC'97 Audio Controller");
+	case 0x719b8086:
+		return ("Intel 82443MX SMBus and power management controller");
 
 	/* Sony -- vendor 0x104d */
 	case 0x8009104d:
