@@ -47,47 +47,18 @@
 
 MALLOC_DEFINE(M_ACPICMBAT, "acpicmbat", "ACPI control method battery data");
 
-#define CMBAT_POLLRATE	(60 * hz)
+#define	CMBAT_POLLRATE	(60 * hz)
 
 /*
  * Hooks for the ACPI CA debugging infrastructure
  */
-#define _COMPONENT	ACPI_BATTERY
+#define	_COMPONENT	ACPI_BATTERY
 MODULE_NAME("BATTERY")
 
-static void	 acpi_cmbat_get_bst(void *);
-static void	 acpi_cmbat_get_bif(void *);
-static void	 acpi_cmbat_notify_handler(ACPI_HANDLE, UINT32, void *);
-static int	 acpi_cmbat_probe(device_t);
-static int	 acpi_cmbat_attach(device_t);
-static int	 acpi_cmbat_ioctl(u_long, caddr_t, void *);
+#define	ACPI_BATTERY_BST_CHANGE 0x80
+#define	ACPI_BATTERY_BIF_CHANGE 0x81
 
-struct acpi_cmbat_softc {
-	device_t	dev;
-	struct acpi_bif	bif;
-	struct acpi_bst bst;
-	ACPI_BUFFER	bif_buffer;
-	ACPI_BUFFER	bst_buffer;
-	struct timespec	bif_lastupdated;
-	struct timespec	bst_lastupdated;
-
-	int		not_present;
-	int		cap;
-	int		min;
-	int		full_charge_time;
-
-	struct callout_handle	cmbat_timeout;
-};
-
-static struct timespec	acpi_cmbat_info_lastupdated;
-
-/* XXX: devclass_get_maxunit() don't give us the current allocated units... */
-static int acpi_cmbat_units = 0;
-
-#define ACPI_BATTERY_BST_CHANGE 0x80
-#define ACPI_BATTERY_BIF_CHANGE 0x81
-
-#define PKG_GETINT(res, tmp, idx, dest, label) do {			\
+#define	PKG_GETINT(res, tmp, idx, dest, label) do {			\
 	tmp = &res->Package.Elements[idx];				\
 	if (tmp == NULL) {						\
 		device_printf(dev, "%s: PKG_GETINT idx = %d\n.",	\
@@ -97,9 +68,9 @@ static int acpi_cmbat_units = 0;
 	if (tmp->Type != ACPI_TYPE_INTEGER)				\
 		goto label;						\
 	dest = tmp->Integer.Value;					\
-} while(0)
+} while (0)
 
-#define PKG_GETSTR(res, tmp, idx, dest, size, label) do {              	\
+#define	PKG_GETSTR(res, tmp, idx, dest, size, label) do {              	\
 	size_t	length;							\
 	length = size;							\
 	tmp = &res->Package.Elements[idx]; 				\
@@ -126,12 +97,47 @@ static int acpi_cmbat_units = 0;
 		goto label;						\
 	}								\
 	dest[sizeof(dest)-1] = '\0';					\
-} while(0)
+} while (0)
 
 #define	CMBAT_DPRINT(dev, x...) do {					\
 	if (acpi_get_verbose(acpi_device_get_parent_softc(dev)))	\
 		device_printf(dev, x);					\
 } while (0)
+
+struct acpi_cmbat_softc {
+	device_t	dev;
+
+	struct acpi_bif	bif;
+	struct acpi_bst	bst;
+	ACPI_BUFFER	bif_buffer;
+	ACPI_BUFFER	bst_buffer;
+	struct timespec	bif_lastupdated;
+	struct timespec	bst_lastupdated;
+
+	int		not_present;
+	int		cap;
+	int		min;
+	int		full_charge_time;
+
+	struct callout_handle cmbat_timeout;
+};
+
+static struct timespec	 acpi_cmbat_info_lastupdated;
+
+/* XXX: devclass_get_maxunit() don't give us the current allocated units... */
+static int		 acpi_cmbat_units = 0;
+
+static void		 acpi_cmbat_timeout(void *);
+static int		 acpi_cmbat_info_expired(struct timespec *);
+static void		 acpi_cmbat_info_updated(struct timespec *);
+static void		 acpi_cmbat_get_bst(void *);
+static void		 acpi_cmbat_get_bif(void *);
+static void		 acpi_cmbat_notify_handler(ACPI_HANDLE, UINT32, void *);
+static int		 acpi_cmbat_probe(device_t);
+static int		 acpi_cmbat_attach(device_t);
+static int		 acpi_cmbat_resume(device_t);
+static int		 acpi_cmbat_ioctl(u_long, caddr_t, void *);
+static int		 acpi_cmbat_get_total_battinfo(struct acpi_battinfo *);
 
 /*
  * Poll the battery info.
@@ -140,7 +146,7 @@ static void
 acpi_cmbat_timeout(void *context)
 {
 	device_t	dev;
-	struct acpi_cmbat_softc	*sc;
+	struct acpi_cmbat_softc *sc;
 
 	dev = (device_t)context;
 	sc = device_get_softc(dev);
@@ -180,11 +186,15 @@ acpi_cmbat_info_updated(struct timespec *lastupdated)
 static void
 acpi_cmbat_get_bst(void *context)
 {
-	device_t	dev = context;
-	struct acpi_cmbat_softc	*sc = device_get_softc(dev);
+	device_t	dev;
+	struct acpi_cmbat_softc *sc;
 	ACPI_STATUS	as;
 	ACPI_OBJECT	*res, *tmp;
-	ACPI_HANDLE	h = acpi_get_handle(dev);
+	ACPI_HANDLE	h;
+
+	dev = context;
+	sc = device_get_softc(dev);
+	h = acpi_get_handle(dev);
 
 	if (!acpi_cmbat_info_expired(&sc->bst_lastupdated)) {
 		return;
@@ -198,7 +208,7 @@ retry:
 			sc->bst_buffer.Pointer = NULL;
 		}
 		as = AcpiEvaluateObject(h, "_BST", NULL, &sc->bst_buffer);
-		if (as != AE_BUFFER_OVERFLOW){
+		if (as != AE_BUFFER_OVERFLOW) {
 			CMBAT_DPRINT(dev, "CANNOT FOUND _BST - %s\n",
 			    AcpiFormatException(as));
 			goto end;
@@ -206,7 +216,7 @@ retry:
 
 		sc->bst_buffer.Pointer = malloc(sc->bst_buffer.Length, M_ACPICMBAT, M_NOWAIT);
 		if (sc->bst_buffer.Pointer == NULL) {
-			device_printf(dev,"malloc failed");
+			device_printf(dev, "malloc failed");
 			goto end;
 		}
 	}
@@ -214,15 +224,15 @@ retry:
 	bzero(sc->bst_buffer.Pointer, sc->bst_buffer.Length);
 	as = AcpiEvaluateObject(h, "_BST", NULL, &sc->bst_buffer);
 
-	if (as == AE_BUFFER_OVERFLOW){
-		if (sc->bst_buffer.Pointer){
+	if (as == AE_BUFFER_OVERFLOW) {
+		if (sc->bst_buffer.Pointer != NULL) {
 			free(sc->bst_buffer.Pointer, M_ACPICMBAT);
 			sc->bst_buffer.Pointer = NULL;
 		}
 		CMBAT_DPRINT(dev, "bst size changed to %d\n", sc->bst_buffer.Length);
 		sc->bst_buffer.Length = 0;
 		goto retry;
-	} else if (as != AE_OK){
+	} else if (as != AE_OK) {
 		CMBAT_DPRINT(dev, "CANNOT FOUND _BST - %s\n",
 		    AcpiFormatException(as));
 		goto end;
@@ -247,11 +257,15 @@ end:
 static void
 acpi_cmbat_get_bif(void *context)
 {
-	device_t	dev = context;
-	struct acpi_cmbat_softc	*sc = device_get_softc(dev);
+	device_t	dev;
+	struct acpi_cmbat_softc *sc;
 	ACPI_STATUS	as;
-	ACPI_HANDLE	h = acpi_get_handle(dev);
 	ACPI_OBJECT	*res, *tmp;
+	ACPI_HANDLE	h;
+
+	dev = context;
+	sc = device_get_softc(dev);
+	h = acpi_get_handle(dev);
 
 	if (!acpi_cmbat_info_expired(&sc->bif_lastupdated)) {
 		return;
@@ -265,7 +279,7 @@ retry:
 			sc->bif_buffer.Pointer = NULL;
 		}
 		as = AcpiEvaluateObject(h, "_BIF", NULL, &sc->bif_buffer);
-		if (as != AE_BUFFER_OVERFLOW){
+		if (as != AE_BUFFER_OVERFLOW) {
 			CMBAT_DPRINT(dev, "CANNOT FOUND _BIF - %s\n",
 			    AcpiFormatException(as));
 			goto end;
@@ -273,7 +287,7 @@ retry:
 
 		sc->bif_buffer.Pointer = malloc(sc->bif_buffer.Length, M_ACPICMBAT, M_NOWAIT);
 		if (sc->bif_buffer.Pointer == NULL) {
-			device_printf(dev,"malloc failed");
+			device_printf(dev, "malloc failed");
 			goto end;
 		}
 	}
@@ -281,15 +295,15 @@ retry:
 	bzero(sc->bif_buffer.Pointer, sc->bif_buffer.Length);
 	as = AcpiEvaluateObject(h, "_BIF", NULL, &sc->bif_buffer);
 
-	if (as == AE_BUFFER_OVERFLOW){
-		if (sc->bif_buffer.Pointer){
+	if (as == AE_BUFFER_OVERFLOW) {
+		if (sc->bif_buffer.Pointer != NULL) {
 			free(sc->bif_buffer.Pointer, M_ACPICMBAT);
 			sc->bif_buffer.Pointer = NULL;
 		}
 		CMBAT_DPRINT(dev, "bif size changed to %d\n", sc->bif_buffer.Length);
 		sc->bif_buffer.Length = 0;
 		goto retry;
-	} else if (as != AE_OK){
+	} else if (as != AE_OK) {
 		CMBAT_DPRINT(dev, "CANNOT FOUND _BIF - %s\n",
 		    AcpiFormatException(as));
 		goto end;
@@ -351,26 +365,30 @@ acpi_cmbat_probe(device_t dev)
 	if ((acpi_get_type(dev) == ACPI_TYPE_DEVICE) &&
 	    acpi_MatchHid(dev, "PNP0C0A")) {
 		/*
-		 * Set device description 
+		 * Set device description.
 		 */
 		device_set_desc(dev, "Control method Battery");
-		return(0);
+		return (0);
 	}
-	return(ENXIO);
+	return (ENXIO);
 }
-  
+
 static int
 acpi_cmbat_attach(device_t dev)
 {
-	int	 error;
-	ACPI_HANDLE handle = acpi_get_handle(dev);
+	int		error;
+	ACPI_HANDLE	handle;
 	struct acpi_cmbat_softc *sc;
 
 	if ((sc = device_get_softc(dev)) == NULL) {
 		return (ENXIO);
 	}
+
+	handle = acpi_get_handle(dev);
+
 	AcpiInstallNotifyHandler(handle, ACPI_DEVICE_NOTIFY,
 				 acpi_cmbat_notify_handler, dev);
+
 	bzero(&sc->bif_buffer, sizeof(sc->bif_buffer));
 	bzero(&sc->bst_buffer, sizeof(sc->bst_buffer));
 	sc->dev = dev;
@@ -398,7 +416,7 @@ acpi_cmbat_attach(device_t dev)
 	timespecclear(&acpi_cmbat_info_lastupdated);
 
 	sc->cmbat_timeout = timeout(acpi_cmbat_timeout, dev, CMBAT_POLLRATE);
-	return(0);
+	return (0);
 }
 
 static int
@@ -408,7 +426,7 @@ acpi_cmbat_resume(device_t dev)
 	AcpiOsQueueForExecution(OSD_PRIORITY_LO, acpi_cmbat_get_bif, dev);
 	return (0);
 }
-  
+
 static device_method_t acpi_cmbat_methods[] = {
 	/* Device interface */
 	DEVMETHOD(device_probe,		acpi_cmbat_probe),
@@ -430,20 +448,20 @@ DRIVER_MODULE(acpi_cmbat, acpi, acpi_cmbat_driver, acpi_cmbat_devclass, 0, 0);
 static int
 acpi_cmbat_ioctl(u_long cmd, caddr_t addr, void *arg)
 {
-	device_t dev;
-	union acpi_battery_ioctl_arg	*ioctl_arg;
-	struct acpi_cmbat_softc	*sc;
+	device_t	dev;
+	union acpi_battery_ioctl_arg *ioctl_arg;
+	struct acpi_cmbat_softc *sc;
 	struct acpi_bif	*bifp;
 	struct acpi_bst	*bstp;
 
 	ioctl_arg = (union acpi_battery_ioctl_arg *)addr;
 	if ((dev = devclass_get_device(acpi_cmbat_devclass,
 			ioctl_arg->unit)) == NULL) {
-		return(ENXIO);
+		return (ENXIO);
 	}
 
 	if ((sc = device_get_softc(dev)) == NULL) {
-		return(ENXIO);
+		return (ENXIO);
 	}
 
 	switch (cmd) {
@@ -475,22 +493,22 @@ acpi_cmbat_ioctl(u_long cmd, caddr_t addr, void *arg)
 		break;
 	}
 
-	return(0);
+	return (0);
 }
 
 static int
 acpi_cmbat_get_total_battinfo(struct acpi_battinfo *battinfo)
 {
-	int	 i;
-	int	 error;
-	int	 batt_stat;
-	int	 valid_rate, valid_units;
-	int	 cap, min;
-	int	 total_cap, total_min, total_full;
-	device_t dev;
-	struct acpi_cmbat_softc	*sc;
-	static int	 bat_units = 0;
-	static struct acpi_cmbat_softc	**bat = NULL;
+	int		i;
+	int		error;
+	int		batt_stat;
+	int		valid_rate, valid_units;
+	int		cap, min;
+	int		total_cap, total_min, total_full;
+	device_t	dev;
+	struct acpi_cmbat_softc *sc;
+	static int	bat_units = 0;
+	static struct acpi_cmbat_softc **bat = NULL;
 
 	cap = min = -1;
 	batt_stat = ACPI_BATT_STAT_NOT_PRESENT;
@@ -514,7 +532,7 @@ acpi_cmbat_get_total_battinfo(struct acpi_battinfo *battinfo)
 		}
 
 		/* Collect softc pointers */
-		for (i = 0; i < acpi_cmbat_units; i++) { 
+		for (i = 0; i < acpi_cmbat_units; i++) {
 			if ((dev = devclass_get_device(acpi_cmbat_devclass, i)) == NULL) {
 				error = ENXIO;
 				goto out;
@@ -532,6 +550,7 @@ acpi_cmbat_get_total_battinfo(struct acpi_battinfo *battinfo)
 	/* Get battery status, valid rate and valid units */
 	batt_stat = valid_rate = valid_units = 0;
 	for (i = 0; i < acpi_cmbat_units; i++) {
+		bat[i]->not_present = 0;
 		acpi_cmbat_get_bst(bat[i]->dev);
 
 		/* If battey not installed, we get strange values */
@@ -541,8 +560,6 @@ acpi_cmbat_get_total_battinfo(struct acpi_battinfo *battinfo)
 		    bat[i]->bif.lfcap == 0) {
 			bat[i]->not_present = 1;
 			continue;
-		} else {
-			bat[i]->not_present = 0;
 		}
 
 		valid_units++;
@@ -558,7 +575,7 @@ acpi_cmbat_get_total_battinfo(struct acpi_battinfo *battinfo)
 			 * one by one, thus bst.rate is set only to the one
 			 * in use. For remaining batteries bst.rate = 0, which
 			 * makes it impossible to calculate remaining time.
-			 * Some other systems may need sum of bst.rate in 
+			 * Some other systems may need sum of bst.rate in
 			 * dis-charging state.
 			 * There for we sum up the bst.rate that is valid
 			 * (in dis-charging state), and use the sum to
@@ -628,9 +645,9 @@ out:
 int
 acpi_cmbat_get_battinfo(int unit, struct acpi_battinfo *battinfo)
 {
-	int	 error;
-	device_t dev;
-	struct acpi_cmbat_softc	*sc;
+	int		error;
+	device_t	dev;
+	struct acpi_cmbat_softc *sc;
 
 	if (unit == -1) {
 		return (acpi_cmbat_get_total_battinfo(battinfo));
