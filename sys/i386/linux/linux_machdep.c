@@ -772,7 +772,7 @@ linux_pause(struct thread *td, struct linux_pause_args *args)
 #endif
 
 	PROC_LOCK(p);
-	sigmask = p->p_sigmask;
+	sigmask = td->td_sigmask;
 	PROC_UNLOCK(p);
 	return (kern_sigsuspend(td, sigmask));
 }

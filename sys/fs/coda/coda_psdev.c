@@ -548,7 +548,7 @@ coda_call(mntinfo, inSize, outSize, buffer)
 	 */
 	i = 0;
 	PROC_LOCK(p);
-	psig_omask = p->p_sigmask;
+	psig_omask = td->td_sigmask;
 	do {
 		error = msleep(&vmp->vm_sleep, &p->p_mtx,
 			       (coda_call_sleep|coda_pcatch), "coda_call",
@@ -563,8 +563,8 @@ coda_call(mntinfo, inSize, outSize, buffer)
 		else {
 			SIGEMPTYSET(tempset);
 			SIGADDSET(tempset, SIGIO);
-			if (SIGSETEQ(p->p_siglist, tempset)) {
-				SIGADDSET(p->p_sigmask, SIGIO);
+			if (SIGSETEQ(td->td_siglist, tempset)) {
+				SIGADDSET(td->td_sigmask, SIGIO);
 #ifdef	CODA_VERBOSE
 				printf("coda_call: tsleep returns %d SIGIO, cnt %d\n",
 				       error, i);
@@ -572,8 +572,8 @@ coda_call(mntinfo, inSize, outSize, buffer)
 			} else {
 				SIGDELSET(tempset, SIGIO);
 				SIGADDSET(tempset, SIGALRM);
-				if (SIGSETEQ(p->p_siglist, tempset)) {
-					SIGADDSET(p->p_sigmask, SIGALRM);
+				if (SIGSETEQ(td->td_siglist, tempset)) {
+					SIGADDSET(td->td_sigmask, SIGALRM);
 #ifdef	CODA_VERBOSE
 					printf("coda_call: tsleep returns %d SIGALRM, cnt %d\n",
 					       error, i);
@@ -584,25 +584,25 @@ coda_call(mntinfo, inSize, outSize, buffer)
 					       error, i);
 
 #if notyet
-					tempset = p->p_siglist;
-					SIGSETNAND(tempset, p->p_sigmask);
+					tempset = td->td_siglist;
+					SIGSETNAND(tempset, td->td_sigmask);
 					printf("coda_call: siglist = %p, sigmask = %p, mask %p\n",
-					       p->p_siglist, p->p_sigmask,
+					       td->td_siglist, td->td_sigmask,
 					       tempset);
 					break;
-					SIGSETOR(p->p_sigmask, p->p_siglist);
-					tempset = p->p_siglist;
-					SIGSETNAND(tempset, p->p_sigmask);
+					SIGSETOR(td->td_sigmask, td->td_siglist);
+					tempset = td->td_siglist;
+					SIGSETNAND(tempset, td->td_sigmask);
 					printf("coda_call: new mask, siglist = %p, sigmask = %p, mask %p\n",
-					       p->p_siglist, p->p_sigmask,
+					       td->td_siglist, td->td_sigmask,
 					       tempset);
 #endif
 				}
 			}
 		}
 	} while (error && i++ < 128 && VC_OPEN(vcp));
-	p->p_sigmask = psig_omask;
-	signotify(p);
+	td->td_sigmask = psig_omask;
+	signotify(td);
 	PROC_UNLOCK(p);
 #else
 	(void) tsleep(&vmp->vm_sleep, coda_call_sleep, "coda_call", 0);

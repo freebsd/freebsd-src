@@ -777,7 +777,7 @@ ttioctl(struct tty *tp, u_long cmd, void *data, int flag)
 		PROC_LOCK(p);
 		while (isbackground(p, tp) && !(p->p_flag & P_PPWAIT) &&
 		    !SIGISMEMBER(p->p_sigignore, SIGTTOU) &&
-		    !SIGISMEMBER(p->p_sigmask, SIGTTOU)) {
+		    !SIGISMEMBER(td->td_sigmask, SIGTTOU)) {
 			pgrp = p->p_pgrp;
 			PROC_UNLOCK(p);
 			if (pgrp->pg_jobc == 0) {
@@ -1571,13 +1571,16 @@ ttread(struct tty *tp, struct uio *uio, int flag)
 	int c;
 	tcflag_t lflag;
 	cc_t *cc = tp->t_cc;
-	struct proc *p = curproc;
+	struct thread *td;
+	struct proc *p;
 	int s, first, error = 0;
 	int has_stime = 0, last_cc = 0;
 	long slp = 0;		/* XXX this should be renamed `timo'. */
 	struct timeval stime;
 	struct pgrp *pg;
 
+	td = curthread;
+	p = td->td_proc;
 loop:
 	s = spltty();
 	lflag = tp->t_lflag;
@@ -1599,7 +1602,7 @@ loop:
 		sx_slock(&proctree_lock);
 		PROC_LOCK(p);
 		if (SIGISMEMBER(p->p_sigignore, SIGTTIN) ||
-		    SIGISMEMBER(p->p_sigmask, SIGTTIN) ||
+		    SIGISMEMBER(td->td_sigmask, SIGTTIN) ||
 		    (p->p_flag & P_PPWAIT) || p->p_pgrp->pg_jobc == 0) {
 			PROC_UNLOCK(p);
 			sx_sunlock(&proctree_lock);
@@ -1847,15 +1850,16 @@ ttycheckoutq(struct tty *tp, int wait)
 {
 	int hiwat, s;
 	sigset_t oldmask;
-	struct proc *p = curproc;
+	struct thread *td;
 
+	td = curthread;
 	hiwat = tp->t_ohiwat;
 	SIGEMPTYSET(oldmask);
 	s = spltty();
 	if (wait) {
-		PROC_LOCK(p);
-		oldmask = p->p_siglist;
-		PROC_UNLOCK(p);
+		PROC_LOCK(td->td_proc);
+		oldmask = td->td_siglist;
+		PROC_UNLOCK(td->td_proc);
 	}
 	if (tp->t_outq.c_cc > hiwat + OBUFSIZ + 100)
 		while (tp->t_outq.c_cc > hiwat) {
@@ -1866,13 +1870,13 @@ ttycheckoutq(struct tty *tp, int wait)
 				splx(s);
 				return (0);
 			}
-			PROC_LOCK(p);
-			if (!SIGSETEQ(p->p_siglist, oldmask)) {
-				PROC_UNLOCK(p);
+			PROC_LOCK(td->td_proc);
+			if (!SIGSETEQ(td->td_siglist, oldmask)) {
+				PROC_UNLOCK(td->td_proc);
 				splx(s);
 				return (0);
 			}
-			PROC_UNLOCK(p);
+			PROC_UNLOCK(td->td_proc);
 			SET(tp->t_state, TS_SO_OLOWAT);
 			tsleep(TSA_OLOWAT(tp), PZERO - 1, "ttoutq", hz);
 		}
@@ -1888,6 +1892,7 @@ ttwrite(struct tty *tp, struct uio *uio, int flag)
 {
 	char *cp = NULL;
 	int cc, ce;
+	struct thread *td;
 	struct proc *p;
 	int i, hiwat, cnt, error, s;
 	char obuf[OBUFSIZ];
@@ -1896,6 +1901,8 @@ ttwrite(struct tty *tp, struct uio *uio, int flag)
 	cnt = uio->uio_resid;
 	error = 0;
 	cc = 0;
+	td = curthread;
+	p = td->td_proc;
 loop:
 	s = spltty();
 	if (ISSET(tp->t_state, TS_ZOMBIE)) {
@@ -1921,13 +1928,12 @@ loop:
 	/*
 	 * Hang the process if it's in the background.
 	 */
-	p = curproc;
 	sx_slock(&proctree_lock);
 	PROC_LOCK(p);
 	if (isbackground(p, tp) &&
 	    ISSET(tp->t_lflag, TOSTOP) && !(p->p_flag & P_PPWAIT) &&
 	    !SIGISMEMBER(p->p_sigignore, SIGTTOU) &&
-	    !SIGISMEMBER(p->p_sigmask, SIGTTOU)) {
+	    !SIGISMEMBER(td->td_sigmask, SIGTTOU)) {
 		if (p->p_pgrp->pg_jobc == 0) {
 			PROC_UNLOCK(p);
 			sx_sunlock(&proctree_lock);

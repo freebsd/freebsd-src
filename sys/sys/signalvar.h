@@ -191,10 +191,10 @@ __sigseteq(sigset_t *set1, sigset_t *set2)
 #ifdef _KERNEL
 
 /* Return nonzero if process p has an unmasked pending signal. */
-#define	SIGPENDING(p)							\
-	(!SIGISEMPTY((p)->p_siglist) &&					\
-	    (!sigsetmasked(&(p)->p_siglist, &(p)->p_sigmask) ||		\
-	    (p)->p_flag & P_TRACED))
+#define	SIGPENDING(td)							\
+	(!SIGISEMPTY((td)->td_siglist) &&				\
+	    (!sigsetmasked(&(td)->td_siglist, &(td)->td_sigmask) ||	\
+	    (td)->td_proc->p_flag & P_TRACED))
 
 /*
  * Return the value of the pseudo-expression ((*set & ~*mask) != 0).  This
@@ -244,10 +244,14 @@ void	pgsigio(struct sigio **, int signum, int checkctty);
 void	pgsignal(struct pgrp *pgrp, int sig, int checkctty);
 void	postsig(int sig);
 void	psignal(struct proc *p, int sig);
+void	tdsignal(struct thread *td, int sig);
 void	sigexit(struct thread *td, int signum) __dead2;
 void	siginit(struct proc *p);
-void	signotify(struct proc *p);
+void	signotify(struct thread *td);
 void	trapsignal(struct thread *td, int sig, u_long code);
+int	do_sigprocmask(struct thread *td, int how,
+			sigset_t *set, sigset_t *oset, int old);
+int	sig_ffs(sigset_t *set);
 
 /*
  * Machine-dependent functions:

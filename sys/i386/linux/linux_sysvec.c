@@ -562,9 +562,9 @@ linux_sigreturn(struct thread *td, struct linux_sigreturn_args *args)
 	for (i = 0; i < (LINUX_NSIG_WORDS-1); i++)
 		lmask.__bits[i+1] = frame.sf_extramask[i];
 	PROC_LOCK(p);
-	linux_to_bsd_sigset(&lmask, &p->p_sigmask);
-	SIG_CANTMASK(p->p_sigmask);
-	signotify(p);
+	linux_to_bsd_sigset(&lmask, &td->td_sigmask);
+	SIG_CANTMASK(td->td_sigmask);
+	signotify(td);
 	PROC_UNLOCK(p);
 
 	/*
@@ -657,9 +657,9 @@ linux_rt_sigreturn(struct thread *td, struct linux_rt_sigreturn_args *args)
 	}
 
 	PROC_LOCK(p);
-	linux_to_bsd_sigset(&uc.uc_sigmask, &p->p_sigmask);
-	SIG_CANTMASK(p->p_sigmask);
-	signotify(p);
+	linux_to_bsd_sigset(&uc.uc_sigmask, &td->td_sigmask);
+	SIG_CANTMASK(td->td_sigmask);
+	signotify(td);
 	PROC_UNLOCK(p);
 
 	/*

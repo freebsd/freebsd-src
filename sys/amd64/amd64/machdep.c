@@ -751,9 +751,9 @@ osigreturn(td, uap)
 	else
 		p->p_sigstk.ss_flags &= ~SS_ONSTACK;
 #endif
-	SIGSETOLD(p->p_sigmask, scp->sc_mask);
-	SIG_CANTMASK(p->p_sigmask);
-	signotify(p);
+	SIGSETOLD(td->td_sigmask, scp->sc_mask);
+	SIG_CANTMASK(td->td_sigmask);
+	signotify(td);
 	PROC_UNLOCK(p);
 	return (EJUSTRETURN);
 }
@@ -859,9 +859,9 @@ freebsd4_sigreturn(td, uap)
 		p->p_sigstk.ss_flags &= ~SS_ONSTACK;
 #endif
 
-	p->p_sigmask = ucp->uc_sigmask;
-	SIG_CANTMASK(p->p_sigmask);
-	signotify(p);
+	td->td_sigmask = ucp->uc_sigmask;
+	SIG_CANTMASK(td->td_sigmask);
+	signotify(td);
 	PROC_UNLOCK(p);
 	return (EJUSTRETURN);
 }
@@ -969,9 +969,9 @@ sigreturn(td, uap)
 		p->p_sigstk.ss_flags &= ~SS_ONSTACK;
 #endif
 
-	p->p_sigmask = ucp->uc_sigmask;
-	SIG_CANTMASK(p->p_sigmask);
-	signotify(p);
+	td->td_sigmask = ucp->uc_sigmask;
+	SIG_CANTMASK(td->td_sigmask);
+	signotify(td);
 	PROC_UNLOCK(p);
 	return (EJUSTRETURN);
 }
