@@ -1,4 +1,5 @@
 /*
+ * Copyright (c) 2004, Robert N. M. Watson
  * Copyright (c) 1995, Mike Mitchell
  * Copyright (c) 1984, 1985, 1986, 1987, 1993
  *	The Regents of the University of California.  All rights reserved.
@@ -455,7 +456,7 @@ ipx_attach(so, proto, td)
 	if (ipxp != NULL)
 		return (EINVAL);
 	s = splnet();
-	error = ipx_pcballoc(so, &ipxpcb, td);
+	error = ipx_pcballoc(so, &ipxpcb_list, td);
 	splx(s);
 	if (error == 0)
 		error = soreserve(so, ipxsendspace, ipxrecvspace);
@@ -616,7 +617,7 @@ ripx_attach(so, proto, td)
 	if (td != NULL && (error = suser(td)) != 0)
 		return (error);
 	s = splnet();
-	error = ipx_pcballoc(so, &ipxrawpcb, td);
+	error = ipx_pcballoc(so, &ipxrawpcb_list, td);
 	splx(s);
 	if (error)
 		return (error);

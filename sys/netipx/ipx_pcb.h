@@ -1,4 +1,5 @@
 /*
+ * Copyright (c) 2004, Robert N. M. Watson
  * Copyright (c) 1995, Mike Mitchell
  * Copyright (c) 1984, 1985, 1986, 1987, 1993
  *	The Regents of the University of California.  All rights reserved.
@@ -43,9 +44,7 @@
  * IPX protocol interface control block.
  */
 struct ipxpcb {
-	struct	ipxpcb *ipxp_next;	/* doubly linked list */
-	struct	ipxpcb *ipxp_prev;
-	struct	ipxpcb *ipxp_head;
+	LIST_ENTRY(ipxpcb) ipxp_list;
 	struct	socket *ipxp_socket;	/* back pointer to socket */
 	struct	ipx_addr ipxp_faddr;	/* destination address */
 	struct	ipx_addr ipxp_laddr;	/* socket's address */
@@ -56,6 +55,13 @@ struct ipxpcb {
 	u_char	ipxp_dpt;		/* default packet type for ipx_output */
 	u_char	ipxp_rpt;		/* last received packet type by ipx_input() */
 };
+
+/*
+ * Additional IPX pcb-related types and variables.
+ */
+LIST_HEAD(ipxpcbhead, ipxpcb);
+extern struct ipxpcbhead ipxpcb_list;
+extern struct ipxpcbhead ipxrawpcb_list;
 
 /* possible flags */
 
@@ -81,7 +87,7 @@ struct ipxpcb {
 #ifdef _KERNEL
 extern struct ipxpcb ipxpcb;			/* head of list */
 
-int	ipx_pcballoc(struct socket *so, struct ipxpcb *head,
+int	ipx_pcballoc(struct socket *so, struct ipxpcbhead *head,
 			  struct thread *p);
 int	ipx_pcbbind(struct ipxpcb *ipxp, struct sockaddr *nam,
 			 struct thread *p);
