@@ -54,7 +54,6 @@ static const char rcsid[] =
 #include <locale.h>
 #include <pwd.h>
 #include <stdio.h>
-#include <stdlib.h>
 #include <string.h>
 #include <time.h>
 #include <unistd.h>
@@ -73,9 +72,6 @@ main(argc, argv)
 	struct passwd *pw;
 	FILE *ufp, *file();
 	char *t;
-
-	if (getopt(argc, argv, "") != -1)
-		usage();
 
 	(void) setlocale(LC_TIME, "");
 
