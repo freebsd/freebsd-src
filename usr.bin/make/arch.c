@@ -35,7 +35,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: arch.c,v 1.8 1997/02/22 19:27:05 peter Exp $
+ *	$Id: arch.c,v 1.9 1998/10/15 13:00:34 jkoshy Exp $
  */
 
 #ifndef lint
@@ -1187,7 +1187,7 @@ Arch_LibOODate (gn)
 	    oodate = TRUE;
 	}
 #else
-	oodate = (gm->mtime == 0); /* out-of-date if not present */
+	oodate = (gn->mtime == 0); /* out-of-date if not present */
 #endif
     }
     return (oodate);
