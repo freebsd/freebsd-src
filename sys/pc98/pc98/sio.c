@@ -33,7 +33,8 @@
 
 #include "opt_comconsole.h"
 #include "opt_compat.h"
-#include "opt_ddb.h"
+#include "opt_gdb.h"
+#include "opt_kdb.h"
 #include "opt_sio.h"
 
 /*
@@ -83,6 +84,7 @@
 #include <sys/conf.h>
 #include <sys/fcntl.h>
 #include <sys/interrupt.h>
+#include <sys/kdb.h>
 #include <sys/kernel.h>
 #include <sys/limits.h>
 #include <sys/lock.h>
@@ -100,9 +102,6 @@
 #include <sys/timepps.h>
 #include <sys/uio.h>
 #include <sys/cons.h>
-#if DDB > 0
-#include <ddb/ddb.h>
-#endif
 
 #include <isa/isavar.h>
 
@@ -438,8 +437,6 @@ SYSCTL_UINT(_machdep, OID_AUTO, gdbspeed, CTLFLAG_RW,
 static	u_int	com_events;	/* input chars + weighted output completions */
 static	Port_t	siocniobase;
 static	int	siocnunit = -1;
-static	Port_t	siogdbiobase;
-static	int	siogdbunit = -1;
 static	void	*sio_slow_ih;
 static	void	*sio_fast_ih;
 static	int	sio_timeout;
@@ -681,6 +678,10 @@ struct {
 	{" (ESP98)", -1, -1, port_table_1, IO_COMSIZE, DEFAULT_RCLK * 4},
 };
 #endif /* PC98 */
+
+#ifdef GDB
+static	Port_t	siogdbiobase = 0;
+#endif
 
 #ifdef COM_ESP
 #ifdef PC98
@@ -1848,7 +1849,7 @@ determined_type: ;
 		}
 		if (ret)
 			device_printf(dev, "could not activate interrupt\n");
-#if defined(DDB) && (defined(BREAK_TO_DEBUGGER) || \
+#if defined(KDB) && (defined(BREAK_TO_DEBUGGER) || \
     defined(ALT_BREAK_TO_DEBUGGER))
 		/*
 		 * Enable interrupts for early break-to-debugger support
@@ -2181,7 +2182,7 @@ comhardclose(com)
 #endif
 	tp = com->tp;
 
-#if defined(DDB) && (defined(BREAK_TO_DEBUGGER) || \
+#if defined(KDB) && (defined(BREAK_TO_DEBUGGER) || \
     defined(ALT_BREAK_TO_DEBUGGER))
 	/*
 	 * Leave interrupts enabled and don't clear DTR if this is the
@@ -2713,13 +2714,13 @@ more_intr:
 				recv_data = 0;
 			else
 				recv_data = inb(com->data_port);
-#ifdef DDB
+#ifdef KDB
 #ifdef ALT_BREAK_TO_DEBUGGER
 			if (com->unit == comconsole &&
-			    db_alt_break(recv_data, &com->alt_brk_state) != 0)
-				breakpoint();
+			    kdb_alt_break(recv_data, &com->alt_brk_state) != 0)
+				kdb_enter("Break sequence on console");
 #endif /* ALT_BREAK_TO_DEBUGGER */
-#endif /* DDB */
+#endif /* KDB */
 			if (line_status & (LSR_BI | LSR_FE | LSR_PE)) {
 				/*
 				 * Don't store BI if IGNBRK or FE/PE if IGNPAR.
@@ -2734,9 +2735,9 @@ more_intr:
 				 * Note: BI together with FE/PE means just BI.
 				 */
 				if (line_status & LSR_BI) {
-#if defined(DDB) && defined(BREAK_TO_DEBUGGER)
+#if defined(KDB) && defined(BREAK_TO_DEBUGGER)
 					if (com->unit == comconsole) {
-						breakpoint();
+						kdb_enter("Line break on console");
 						goto cont;
 					}
 #endif
@@ -3946,35 +3947,20 @@ siocnset(struct consdev *cd, int unit)
 	sprintf(cd->cn_name, "ttyd%d", unit);
 }
 
-#ifndef __alpha__
 static speed_t siocngetspeed(Port_t, u_long rclk);
-#endif
 static void siocnclose(struct siocnstate *sp, Port_t iobase);
 static void siocnopen(struct siocnstate *sp, Port_t iobase, int speed);
 static void siocntxwait(Port_t iobase);
 
-#ifdef __alpha__
-int siocnattach(int port, int speed);
-int siogdbattach(int port, int speed);
-int siogdbgetc(void);
-void siogdbputc(int c);
-#else
 static cn_probe_t siocnprobe;
 static cn_init_t siocninit;
 static cn_term_t siocnterm;
-#endif
 static cn_checkc_t siocncheckc;
 static cn_getc_t siocngetc;
 static cn_putc_t siocnputc;
 
-#ifndef __alpha__
 CONS_DRIVER(sio, siocnprobe, siocninit, siocnterm, siocngetc, siocncheckc,
 	    siocnputc, NULL);
-#endif
-
-#if DDB > 0
-static struct consdev gdbconsdev;
-#endif
 
 static void
 siocntxwait(iobase)
@@ -3992,8 +3978,6 @@ siocntxwait(iobase)
 	       != (LSR_TSRE | LSR_TXRDY) && --timo != 0)
 		;
 }
-
-#ifndef __alpha__
 
 /*
  * Read the serial port specified and try to figure out what speed
@@ -4029,8 +4013,6 @@ siocngetspeed(iobase, rclk)
 		return (CONSPEED);
 	return (rclk / (16UL * divisor));
 }
-
-#endif
 
 static void
 siocnopen(sp, iobase, speed)
@@ -4098,8 +4080,6 @@ siocnclose(sp, iobase)
 	outb(iobase + com_mcr, sp->mcr | MCR_DTR | MCR_RTS);
 	outb(iobase + com_ier, sp->ier);
 }
-
-#ifndef __alpha__
 
 static void
 siocnprobe(cp)
@@ -4176,40 +4156,12 @@ siocnprobe(cp)
 				siocniobase = iobase;
 				siocnunit = unit;
 			}
-			if (COM_DEBUGGER(flags)) {
-				printf("sio%d: gdb debugging port\n", unit);
+#ifdef GDB
+			if (COM_DEBUGGER(flags))
 				siogdbiobase = iobase;
-				siogdbunit = unit;
-#if DDB > 0
-				siocnset(&gdbconsdev, unit);
-				gdb_arg = &gdbconsdev;
-				gdb_getc = siocngetc;
-				gdb_putc = siocnputc;
 #endif
-			}
 		}
 	}
-#ifdef	__i386__
-#if DDB > 0
-	/*
-	 * XXX Ugly Compatability.
-	 * If no gdb port has been specified, set it to be the console
-	 * as some configuration files don't specify the gdb port.
-	 */
-	if (gdb_arg == NULL && (boothowto & RB_GDB)) {
-		printf("Warning: no GDB port specified. Defaulting to sio%d.\n",
-			siocnunit);
-		printf("Set flag 0x80 on desired GDB port in your\n");
-		printf("configuration file (currently sio only).\n");
-		siogdbiobase = siocniobase;
-		siogdbunit = siocnunit;
-		siocnset(&gdbconsdev, siocnunit);
-		gdb_arg = &gdbconsdev;
-		gdb_getc = siocngetc;
-		gdb_putc = siocnputc;
-	}
-#endif
-#endif
 }
 
 static void
@@ -4226,103 +4178,6 @@ siocnterm(cp)
 	comconsole = -1;
 }
 
-#endif
-
-#ifdef __alpha__
-
-CONS_DRIVER(sio, NULL, NULL, NULL, siocngetc, siocncheckc, siocnputc, NULL);
-
-int
-siocnattach(port, speed)
-	int port;
-	int speed;
-{
-	int			s;
-	u_char			cfcr;
-	u_int			divisor;
-	struct siocnstate	sp;
-	int			unit = 0;	/* XXX random value! */
-
-	siocniobase = port;
-	siocnunit = unit;
-	comdefaultrate = speed;
-	sio_consdev.cn_pri = CN_NORMAL;
-	siocnset(&sio_consdev, unit);
-
-	s = spltty();
-
-	/*
-	 * Initialize the divisor latch.  We can't rely on
-	 * siocnopen() to do this the first time, since it 
-	 * avoids writing to the latch if the latch appears
-	 * to have the correct value.  Also, if we didn't
-	 * just read the speed from the hardware, then we
-	 * need to set the speed in hardware so that
-	 * switching it later is null.
-	 */
-	cfcr = inb(siocniobase + com_cfcr);
-	outb(siocniobase + com_cfcr, CFCR_DLAB | cfcr);
-	divisor = siodivisor(comdefaultrclk, comdefaultrate);
-	outb(siocniobase + com_dlbl, divisor & 0xff);
-	outb(siocniobase + com_dlbh, divisor >> 8);
-	outb(siocniobase + com_cfcr, cfcr);
-
-	siocnopen(&sp, siocniobase, comdefaultrate);
-	splx(s);
-
-	cnadd(&sio_consdev);
-	return (0);
-}
-
-int
-siogdbattach(port, speed)
-	int port;
-	int speed;
-{
-	int			s;
-	u_char			cfcr;
-	u_int			divisor;
-	struct siocnstate	sp;
-	int			unit = 1;	/* XXX random value! */
-
-	siogdbiobase = port;
-	gdbdefaultrate = speed;
-
-	printf("sio%d: gdb debugging port\n", unit);
-	siogdbunit = unit;
-#if DDB > 0
-	siocnset(&gdbconsdev, unit);
-	gdb_arg = &gdbconsdev;
-	gdb_getc = siocngetc;
-	gdb_putc = siocnputc;
-#endif
-
-	s = spltty();
-
-	/*
-	 * Initialize the divisor latch.  We can't rely on
-	 * siocnopen() to do this the first time, since it 
-	 * avoids writing to the latch if the latch appears
-	 * to have the correct value.  Also, if we didn't
-	 * just read the speed from the hardware, then we
-	 * need to set the speed in hardware so that
-	 * switching it later is null.
-	 */
-	cfcr = inb(siogdbiobase + com_cfcr);
-	outb(siogdbiobase + com_cfcr, CFCR_DLAB | cfcr);
-	divisor = siodivisor(comdefaultrclk, gdbdefaultrate);
-	outb(siogdbiobase + com_dlbl, divisor & 0xff);
-	outb(siogdbiobase + com_dlbh, divisor >> 8);
-	outb(siogdbiobase + com_cfcr, cfcr);
-
-	siocnopen(&sp, siogdbiobase, gdbdefaultrate);
-	splx(s);
-
-	return (0);
-}
-
-#endif
-
 static int
 siocncheckc(struct consdev *cd)
 {
@@ -4332,12 +4187,16 @@ siocncheckc(struct consdev *cd)
 	struct siocnstate	sp;
 	speed_t	speed;
 
-	if (cd->cn_unit == siocnunit) {
+	if (cd != NULL && cd->cn_unit == siocnunit) {
 		iobase = siocniobase;
 		speed = comdefaultrate;
 	} else {
+#ifdef GDB
 		iobase = siogdbiobase;
 		speed = gdbdefaultrate;
+#else
+		return (-1);
+#endif
 	}
 	s = spltty();
 	siocnopen(&sp, iobase, speed);
@@ -4359,12 +4218,16 @@ siocngetc(struct consdev *cd)
 	struct siocnstate	sp;
 	speed_t	speed;
 
-	if (cd->cn_unit == siocnunit) {
+	if (cd != NULL && cd->cn_unit == siocnunit) {
 		iobase = siocniobase;
 		speed = comdefaultrate;
 	} else {
+#ifdef GDB
 		iobase = siogdbiobase;
 		speed = gdbdefaultrate;
+#else
+		return (-1);
+#endif
 	}
 	s = spltty();
 	siocnopen(&sp, iobase, speed);
@@ -4385,12 +4248,16 @@ siocnputc(struct consdev *cd, int c)
 	Port_t	iobase;
 	speed_t	speed;
 
-	if (cd->cn_unit == siocnunit) {
+	if (cd != NULL && cd->cn_unit == siocnunit) {
 		iobase = siocniobase;
 		speed = comdefaultrate;
 	} else {
+#ifdef GDB
 		iobase = siogdbiobase;
 		speed = gdbdefaultrate;
+#else
+		return;
+#endif
 	}
 	s = spltty();
 	need_unlock = 0;
@@ -4407,58 +4274,58 @@ siocnputc(struct consdev *cd, int c)
 	splx(s);
 }
 
-#ifdef __alpha__
-int
-siogdbgetc()
+/*
+ * Remote gdb(1) support.
+ */
+
+#if defined(GDB)
+
+#include <gdb/gdb.h>
+
+static gdb_probe_f siogdbprobe;
+static gdb_init_f siogdbinit;
+static gdb_term_f siogdbterm;
+static gdb_getc_f siogdbgetc;
+static gdb_checkc_f siogdbcheckc;
+static gdb_putc_f siogdbputc;
+
+GDB_DBGPORT(sio, siogdbprobe, siogdbinit, siogdbterm, siogdbcheckc,
+    siogdbgetc, siogdbputc);
+
+static int
+siogdbprobe(void)
 {
-	int	c;
-	Port_t	iobase;
-	speed_t	speed;
-	int	s;
-	struct siocnstate	sp;
-
-	if (siogdbunit == siocnunit) {
-		iobase = siocniobase;
-		speed = comdefaultrate;
-	} else {
-		iobase = siogdbiobase;
-		speed = gdbdefaultrate;
-	}
-
-	s = spltty();
-	siocnopen(&sp, iobase, speed);
-	while (!(inb(iobase + com_lsr) & LSR_RXRDY))
-		;
-	c = inb(iobase + com_data);
-	siocnclose(&sp, iobase);
-	splx(s);
-	return (c);
+	return ((siogdbiobase != 0) ? 0 : -1);
 }
 
-void
-siogdbputc(c)
-	int	c;
+static void
+siogdbinit(void)
 {
-	Port_t	iobase;
-	speed_t	speed;
-	int	s;
-	struct siocnstate	sp;
-
-	if (siogdbunit == siocnunit) {
-		iobase = siocniobase;
-		speed = comdefaultrate;
-	} else {
-		iobase = siogdbiobase;
-		speed = gdbdefaultrate;
-	}
-
-	s = spltty();
-	siocnopen(&sp, iobase, speed);
-	siocntxwait(siogdbiobase);
-	outb(siogdbiobase + com_data, c);
-	siocnclose(&sp, siogdbiobase);
-	splx(s);
 }
+
+static void
+siogdbterm(void)
+{
+}
+
+static void
+siogdbputc(int c)
+{
+	siocnputc(NULL, c);
+}
+
+static int
+siogdbcheckc(void)
+{
+	return (siocncheckc(NULL));
+}
+
+static int
+siogdbgetc(void)
+{
+	return (siocngetc(NULL));
+}
+
 #endif
 
 #ifdef PC98
