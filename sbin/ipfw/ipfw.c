@@ -106,12 +106,12 @@ struct _flaglist {
 };
 
 static struct _flaglist f_tcpflags[] = {
-	{ "syn", IP_FW_TCPF_SYN },
-	{ "fin", IP_FW_TCPF_FIN },
-	{ "ack", IP_FW_TCPF_ACK },
-	{ "psh", IP_FW_TCPF_PSH },
-	{ "rst", IP_FW_TCPF_RST },
-	{ "urg", IP_FW_TCPF_URG },
+	{ "syn", TH_SYN },
+	{ "fin", TH_FIN },
+	{ "ack", TH_ACK },
+	{ "psh", TH_PUSH },
+	{ "rst", TH_RST },
+	{ "urg", TH_URG },
 	{ "tcp flag", 0 }
 };
 
@@ -159,7 +159,35 @@ static struct _s_x limit_masks[] = {
 	{"dst-port",	DYN_DST_PORT},
 	{NULL,		0} };
 
-static void show_usage(void);
+static struct _s_x ether_types[] = {
+    /*
+     * Note, we cannot use "-:&/" in the names because they are field
+     * separators in the type specifications. Also, we use s = NULL as
+     * end-delimiter, because a type of 0 can be legal.
+     */
+	{ "ip",		0x0800 },
+	{ "ipv4",	0x0800 },
+	{ "ipv6",	0x86dd },
+	{ "arp",	0x0806 },
+	{ "rarp",	0x8035 },
+	{ "vlan",	0x8100 },
+	{ "loop",	0x9000 },
+	{ "trail",	0x1000 },
+	{ "at",		0x809b },
+	{ "atalk",	0x809b },
+	{ "aarp",	0x80f3 },
+	{ "pppoe_disc",	0x8863 },
+	{ "pppoe_sess",	0x8864 },
+	{ "ipx_8022",	0x00E0 },
+	{ "ipx_8023",	0x0000 },
+	{ "ipx_ii",	0x8137 },
+	{ "ipx_snap",	0x8137 },
+	{ "ipx",	0x8137 },
+	{ "ns",		0x0600 },
+	{ NULL,		0 }
+};
+
+	static void show_usage(void);
 
 /*
  * print the arrays of ports. The first two entries can be
@@ -421,10 +449,22 @@ show_ipfw(struct ip_fw *chain)
 		/* type is in net format for all cases but range */
 		if (chain->fw_flg & IP_FW_F_SRNG)
 			printf(" %04x-%04x", *type, *typemask);
+		else if (ntohs(*typemask) == 0)
+			printf(" any");
 		else if (ntohs(*typemask) != 0xffff)
 			printf(" %04x&%04x", ntohs(*type), ntohs(*typemask));
-		else
-			printf(" %04x", ntohs(*type));
+		else {
+			struct _s_x *p = NULL;
+			u_int16_t i = ntohs(*type);
+			if (do_resolv)
+				for (p = ether_types ; p->s != NULL ; p++)
+					if (p->x == i)
+						break;
+			if (p && p->s != NULL)
+				printf(" %s", p->s);
+			else
+				printf(" %04x", i);
+		}
 		
 		goto do_options;
 	}
@@ -548,8 +588,8 @@ do_options:
 
 	if (chain->fw_ipflg & IP_FW_IF_TCPEST)
 		printf(" established");
-	else if (chain->fw_tcpf == IP_FW_TCPF_SYN &&
-		    chain->fw_tcpnf == IP_FW_TCPF_ACK)
+	else if (chain->fw_tcpf == TH_SYN &&
+		    chain->fw_tcpnf == TH_ACK)
 		printf(" setup");
 	else if (chain->fw_ipflg & IP_FW_IF_TCPFLG)
 		printopts("tcpflags", chain->fw_tcpf, chain->fw_tcpnf,
@@ -1655,6 +1695,7 @@ add_mac(struct ip_fw *rule, int ac, char *av[])
 	u_short *type, *typemask;
 	int i;
 	char *p;
+	struct _s_x *pt;
 
 	if (ac <3)
 		errx(EX_DATAERR, "MAC dst src type");
@@ -1678,14 +1719,39 @@ add_mac(struct ip_fw *rule, int ac, char *av[])
 		return;
 	}
 
-	*type = strtol(av[0], &p, 16);
-	/* store in network format for all cases but range */
-	*type = htons(*type);
-	*typemask = htons(0xffff);
+	/*
+	 * the match length is the string up to the first separator
+	 * we know, i.e. any of "\0:/&". Note, we use bcmp instead of
+	 * strcmp as we want an exact match.
+	 */
+	p = strpbrk(av[0], "-:/&");
+	if (p == NULL)
+		i = strlen(av[0]);
+	else
+		i = p - av[0];
+	for (pt = ether_types ; i && pt->s != NULL ; pt++)
+		if (strlen(pt->s) == i && !bcmp(*av, pt->s, i))
+			break;
+	/* store type in network format for all cases but range */
+	if (pt->s != NULL) {
+		*type = htons(pt->x);
+		p = av[0] + i;
+	} else
+		*type = htons( strtol(av[0], &p, 16) );
+	*typemask = htons(0xffff); /* default */
 	if (*p == '-') {
 		rule->fw_flg |= IP_FW_F_SRNG;
-		*type = ntohs(*type);
-		*typemask = strtol(p+1, &p, 16);
+		*type = ntohs(*type);	/* revert to host format */
+		p++;
+		i = strlen(p);
+		for (pt = ether_types ; i && pt->s != NULL ; pt++)
+			if (strlen(pt->s) == i && !bcmp(p, pt->s, i))
+				break;
+		if (pt->s != NULL) {
+			*typemask = pt->x;
+			p += i;
+		} else
+			*typemask = strtol(p, &p, 16);
 	} else if (*p == '/') {
 		i = strtol(p+1, &p, 10);
 		if (i > 16)
@@ -2148,8 +2214,8 @@ badviacombo:
 				rule.fw_ipflg |= IP_FW_IF_TCPEST;
 				av++; ac--;
 			} else if (!strncmp(*av, "setup", strlen(*av))) {
-				rule.fw_tcpf  |= IP_FW_TCPF_SYN;
-				rule.fw_tcpnf  |= IP_FW_TCPF_ACK;
+				rule.fw_tcpf  |= TH_SYN;
+				rule.fw_tcpnf  |= TH_ACK;
 				rule.fw_ipflg |= IP_FW_IF_TCPFLG;
 				av++; ac--;
 			} else if (!strncmp(*av, "tcpflags", strlen(*av))
