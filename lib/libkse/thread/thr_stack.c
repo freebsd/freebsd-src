@@ -200,8 +200,9 @@ _thr_stack_alloc(struct pthread_attr *attr)
 		_kse_critical_leave(crit);
 
 		/* Map the stack, but not the guard page: */
-		if (mmap(attr->stackaddr_attr, stacksize,
-		    PROT_READ | PROT_WRITE, MAP_STACK, -1, 0) == MAP_FAILED)
+		if ((attr->stackaddr_attr = mmap(attr->stackaddr_attr,
+		     stacksize, PROT_READ | PROT_WRITE, MAP_STACK,
+		     -1, 0)) == MAP_FAILED)
 			attr->stackaddr_attr = NULL;
 	}
 	if (attr->stackaddr_attr != NULL)
