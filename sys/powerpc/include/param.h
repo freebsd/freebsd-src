@@ -42,8 +42,6 @@
  * Machine dependent constants for PowerPC (32-bit only currently)
  */
 
-#include <machine/pte.h>
-
 /*
  * Round p (pointer or byte index) up to a correctly-aligned value
  * for all data types (int, long, ...).   The result is unsigned int
