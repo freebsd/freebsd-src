@@ -2,8 +2,7 @@
 
 PROG=	praliases
 MAN8=	praliases.8
-CFLAGS+=-I${.CURDIR}/../src
-DPADD=	${LIBDBM}
+CFLAGS+=-I${.CURDIR}/../src -DNEWDB
 
 .include "../../Makefile.inc"
 .include <bsd.prog.mk>
