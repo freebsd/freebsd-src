@@ -2455,15 +2455,15 @@ ipsec4_logpacketstr(ip, spi)
 
 	p = buf;
 	snprintf(buf, sizeof(buf), "packet(SPI=%u ", (u_int32_t)ntohl(spi));
-	while (p && *p)
+	while (*p)
 		p++;
 	snprintf(p, sizeof(buf) - (p - buf), "src=%u.%u.%u.%u",
 		s[0], s[1], s[2], s[3]);
-	while (p && *p)
+	while (*p)
 		p++;
 	snprintf(p, sizeof(buf) - (p - buf), " dst=%u.%u.%u.%u",
 		d[0], d[1], d[2], d[3]);
-	while (p && *p)
+	while (*p)
 		p++;
 	snprintf(p, sizeof(buf) - (p - buf), ")");
 
