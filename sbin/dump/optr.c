@@ -32,7 +32,11 @@
  */
 
 #ifndef lint
+#if 0
 static char sccsid[] = "@(#)optr.c	8.2 (Berkeley) 1/6/94";
+#endif
+static const char rcsid[] =
+	"$Id$";
 #endif /* not lint */
 
 #include <sys/param.h>
@@ -42,7 +46,6 @@ static char sccsid[] = "@(#)optr.c	8.2 (Berkeley) 1/6/94";
 #include <errno.h>
 #include <fstab.h>
 #include <grp.h>
-#include <signal.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>

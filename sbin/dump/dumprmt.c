@@ -32,12 +32,15 @@
  */
 
 #ifndef lint
+#if 0
 static char sccsid[] = "@(#)dumprmt.c	8.3 (Berkeley) 4/28/95";
+#endif
+static const char rcsid[] =
+	"$Id$";
 #endif /* not lint */
 
 #include <sys/param.h>
 #include <sys/mtio.h>
-#include <sys/ioctl.h>
 #include <sys/socket.h>
 #include <sys/time.h>
 #ifdef sunos
@@ -56,10 +59,8 @@ static char sccsid[] = "@(#)dumprmt.c	8.3 (Berkeley) 4/28/95";
 #include <protocols/dumprestore.h>
 
 #include <ctype.h>
-#include <err.h>
 #include <netdb.h>
 #include <pwd.h>
-#include <signal.h>
 #include <stdio.h>
 #ifdef __STDC__
 #include <stdlib.h>

@@ -11,7 +11,7 @@
 .\"    notice, this list of conditions and the following disclaimer in the
 .\"    documentation and/or other materials provided with the distribution.
 .\" 3. All advertising materials mentioning features or use of this software
-.\"    must display the following acknowledgement:
+.\"    must display the following acknowledgment:
 .\"	This product includes software developed by the University of
 .\"	California, Berkeley and its contributors.
 .\" 4. Neither the name of the University nor the names of its contributors
@@ -31,7 +31,7 @@
 .\" SUCH DAMAGE.
 .\"
 .\"     @(#)dump.8	8.3 (Berkeley) 5/1/95
-.\"	$Id: dump.8,v 1.19 1998/01/03 20:26:15 steve Exp $
+.\"	$Id: dump.8,v 1.20 1998/05/10 16:35:31 steve Exp $
 .\"
 .Dd May 1, 1995
 .Dt DUMP 8
@@ -85,7 +85,7 @@ By default, the same output file name is used for each volume
 after prompting the operator to change media.
 .Pp
 The following options are supported by
-.Nm dump :
+.Nm Ns :
 .Bl -tag -width Ds
 .It Fl 0\-9
 Dump levels.
@@ -154,7 +154,7 @@ If the name of the file is of the form
 .Dq host:file ,
 or
 .Dq user@host:file ,
-.Nm dump
+.Nm
 writes to the named file on the remote host using
 .Xr rmt 8 .
 The default path name of the remote
@@ -167,11 +167,11 @@ this can be overridden by the environment variable
 .It Fl k
 Use Kerberos authentication to talk to remote tape servers.  (Only
 available if this option was enabled when
-.Nm dump
+.Nm
 was compiled.)
 .It Fl n
 Whenever
-.Nm dump
+.Nm
 requires operator attention,
 notify all operators in the group
 .Dq operator
@@ -181,7 +181,7 @@ by means similar to a
 Attempt to calculate the amount of tape needed
 at a particular density.
 If this amount is exceeded,
-.Nm dump
+.Nm
 prompts for a new tape.
 It is recommended to be a bit conservative on this option.
 The default tape length is 2300 feet.
@@ -227,7 +227,7 @@ and
 The
 .Fl W
 option causes
-.Nm dump
+.Nm
 to print out, for each file system in
 .Pa /etc/dumpdates
 the most recent dump date and level,
@@ -235,7 +235,7 @@ and highlights those file systems that should be dumped.
 If the
 .Fl W
 option is set, all other options are ignored, and
-.Nm dump
+.Nm
 exits immediately.
 .It Fl w
 Is like W, but prints only those filesystems which need to be dumped.
@@ -251,15 +251,15 @@ disk read error (if there are more than a threshold of 32).
 In addition to alerting all operators implied by the
 .Fl n
 key,
-.Nm dump
+.Nm
 interacts with the operator on
 .Em dump's
 control terminal at times when
-.Nm dump
+.Nm
 can no longer proceed,
 or if something is grossly wrong.
 All questions
-.Nm dump
+.Nm
 poses
 .Em must
 be answered by typing
@@ -269,10 +269,10 @@ or
 appropriately.
 .Pp
 Since making a dump involves a lot of time and effort for full dumps,
-.Nm dump
+.Nm
 checkpoints itself at the start of each tape volume.
 If writing that volume fails for some reason,
-.Nm dump
+.Nm
 will,
 with operator permission,
 restart itself from the checkpoint
@@ -287,7 +287,7 @@ the time to the tape change.
 The output is verbose,
 so that others know that the terminal
 controlling
-.Nm dump
+.Nm
 is busy,
 and will be for some time.
 .Pp
@@ -364,7 +364,7 @@ Currently,
 .Xr physio 9
 slices all requests into chunks of 64 KB.  Therefore, it is
 impossible to use a larger tape blocksize, so
-.Nm dump
+.Nm
 will prevent this from happening.
 .Pp
 .Nm Dump
@@ -379,7 +379,7 @@ even if listed in
 .Pa /etc/fstab .
 .Pp
 It would be nice if
-.Nm dump
+.Nm
 knew about the dump sequence,
 kept track of the tapes scribbled on,
 told the operator which tape to mount when,
@@ -387,13 +387,14 @@ and provided more assistance
 for the operator running
 .Xr restore .
 .Pp
-.Nm dump
+.Nm Dump
 cannot do remote backups without being run as root, due to its
-security history.  This will be fixed in a later version of FreeBSD.
+security history.  This will be fixed in a later version of
+.Bx Free .
 Presently, it works if you set it setuid (like it used to be), but this
 might constitute a security risk.
 .Sh HISTORY
 A
-.Nm dump
+.Nm
 command appeared in
 .At v6 .
