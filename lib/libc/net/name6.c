@@ -1539,7 +1539,8 @@ _res_search_multi(name, rtl, errp)
 					continue;
 				hp = _hpcopy(&hpbuf, errp);
 				hp0 = _hpmerge(hp0, hp, errp);
-			}
+			} else
+				*errp = h_errno;
 		}
 		free(buf);
 		return (hp0);
