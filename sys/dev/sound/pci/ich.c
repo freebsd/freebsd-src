@@ -628,6 +628,10 @@ ich_pci_probe(device_t dev)
 		device_set_desc(dev, "Nvidia nForce AC97 controller");
 		return 0;
 
+	case 0x006a10de:
+		device_set_desc(dev, "Nvidia nForce2 AC97 controller");
+		return 0;
+
 	default:
 		return ENXIO;
 	}
