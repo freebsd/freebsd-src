@@ -150,9 +150,6 @@ struct linux_mprotect_args {
 	char len_l_[PADL_(l_size_t)]; l_size_t len; char len_r_[PADR_(l_size_t)];
 	char prot_l_[PADL_(l_ulong)]; l_ulong prot; char prot_r_[PADR_(l_ulong)];
 };
-struct linux_madvise_args {
-	register_t dummy;
-};
 struct linux_vhangup_args {
 	register_t dummy;
 };
@@ -612,7 +609,6 @@ int	linux_newlstat(struct thread *, struct linux_newlstat_args *);
 int	linux_mmap(struct thread *, struct linux_mmap_args *);
 int	linux_munmap(struct thread *, struct linux_munmap_args *);
 int	linux_mprotect(struct thread *, struct linux_mprotect_args *);
-int	linux_madvise(struct thread *, struct linux_madvise_args *);
 int	linux_vhangup(struct thread *, struct linux_vhangup_args *);
 int	linux_setgroups(struct thread *, struct linux_setgroups_args *);
 int	linux_getgroups(struct thread *, struct linux_getgroups_args *);
