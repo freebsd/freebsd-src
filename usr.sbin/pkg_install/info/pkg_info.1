@@ -25,7 +25,7 @@
 .Nd a utility for displaying information on software packages
 .Sh SYNOPSIS
 .Nm pkg_info
-.Op Fl cdDfikrRpLqImv
+.Op Fl cdDfikrRpLsqImv
 .Op Fl e Ar package
 .Op Fl l Ar prefix
 .Op Fl t Ar template
@@ -86,6 +86,8 @@ Show the mtree file (if any) for each package.
 Show the files within each package.  This is different from just
 viewing the packing list, since full pathnames for everything
 are generated.
+.It Fl s
+Show the total size occuped by files installed within each package.
 .It Fl e Ar pkg-name
 If the package identified by
 .Ar pkg-name
