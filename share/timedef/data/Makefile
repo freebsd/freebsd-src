@@ -1,4 +1,4 @@
-# $Id: Makefile,v 1.28 1998/10/13 20:20:27 ache Exp $
+# $Id: Makefile,v 1.29 1999/01/21 19:41:37 imp Exp $
 
 NOMAN=YES
 CLEANFILES+= ${LOCALES:S/$/.out/g}
@@ -27,7 +27,8 @@ LOCALES=        da_DK.ISO_8859-1 \
 		ru_SU.KOI8-R     \
 		sl_SI.ISO_8859-2 \
 		sv_SE.ISO_8859-1 \
-		zh_CN.EUC
+		zh_CN.EUC	 \
+		zh_TW.BIG5
 
 LOCALEDIR=      ${DESTDIR}/usr/share/locale
 
