@@ -9,10 +9,6 @@
 
 #include "gzip.h"
 
-uchar inbuf [INBUFSIZ];
-uchar outbuf [OUTBUFSIZ+OUTBUF_EXTRA];
-uchar window [WSIZE];
-
 unsigned outcnt;
 unsigned insize;
 unsigned inptr;
