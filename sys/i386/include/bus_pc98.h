@@ -434,16 +434,9 @@ bus_space_read_region_1(bus_space_tag_t tag, bus_space_handle_t bsh,
 	if (tag == I386_BUS_SPACE_IO_IND)
 #endif
 	{
-		__asm __volatile("				\n\
-			cld					\n\
-		1:	movl bsh.bsh_iat(%l2), %%edx		\n\
-			inb %%dx,%%al				\n\
-			stosb					\n\
-			incl %2					\n\
-			loop 1b"				:
-		    "=D" (addr), "=c" (count), "=b" (offset)	:
-		    "0" (addr), "1" (count), "2" (offset)	:
-		    "%eax", "memory", "cc");
+		int	i;
+		for (i = 0; i < count; i++)
+			addr[i] = inb(bsh.bsh_iat[offset + i]);
 	}
 #endif
 #if defined(_I386_BUS_MEMIO_H_)
@@ -489,16 +482,9 @@ bus_space_read_region_2(bus_space_tag_t tag, bus_space_handle_t bsh,
 	if (tag == I386_BUS_SPACE_IO_IND)
 #endif
 	{
-		__asm __volatile("				\n\
-			cld					\n\
-		1:	movl bsh.bsh_iat(%l2), %%edx		\n\
-			inw %%dx,%%ax				\n\
-			stosw					\n\
-			addl $2,%2				\n\
-			loop 1b"				:
-		    "=D" (addr), "=c" (count), "=b" (offset)	:
-		    "0" (addr), "1" (count), "2" (offset)	:
-		    "%eax", "memory", "cc");
+		int	i;
+		for (i = 0; i < count; i += 2)
+			addr[i] = inw(bsh.bsh_iat[offset + i]);
 	}
 #endif
 #if defined(_I386_BUS_MEMIO_H_)
@@ -544,16 +530,9 @@ bus_space_read_region_4(bus_space_tag_t tag, bus_space_handle_t bsh,
 	if (tag == I386_BUS_SPACE_IO_IND)
 #endif
 	{
-		__asm __volatile("				\n\
-			cld					\n\
-		1:	movl bsh.bsh_iat(%l2), %%edx		\n\
-			inl %%dx,%%eax				\n\
-			stosl					\n\
-			addl $4,%2				\n\
-			loop 1b"				:
-		    "=D" (addr), "=c" (count), "=b" (offset)	:
-		    "0" (addr), "1" (count), "2" (offset)	:
-		    "%eax", "memory", "cc");
+		int	i;
+		for (i = 0; i < count; i += 4)
+			addr[i] = inl(bsh.bsh_iat[offset + i]);
 	}
 #endif
 #if defined(_I386_BUS_MEMIO_H_)
@@ -844,16 +823,9 @@ bus_space_write_region_1(bus_space_tag_t tag, bus_space_handle_t bsh,
 	if (tag == I386_BUS_SPACE_IO_IND)
 #endif
 	{
-		__asm __volatile("				\n\
-			cld					\n\
-		1:	lodsb					\n\
-			movl bsh.bsh_iat(%l0), %%edx		\n\
-			outb %%al,%%dx				\n\
-			incl %0					\n\
-			loop 1b"				:
-		    "=b" (offset), "=S" (addr), "=c" (count)	:
-		    "0" (offset), "1" (addr), "2" (count)	:
-		    "%eax", "memory", "cc");
+		int	i;
+		for (i = 0; i < count; i++)
+			outb(bsh.bsh_iat[offset + i], addr[i]);
 	}
 #endif
 #if defined(_I386_BUS_MEMIO_H_)
@@ -899,16 +871,9 @@ bus_space_write_region_2(bus_space_tag_t tag, bus_space_handle_t bsh,
 	if (tag == I386_BUS_SPACE_IO_IND)
 #endif
 	{
-		__asm __volatile("				\n\
-			cld					\n\
-		1:	lodsw					\n\
-			movl bsh.bsh_iat(%l0), %%edx		\n\
-			outw %%ax,%%dx				\n\
-			addl $2,%0				\n\
-			loop 1b"				:
-		    "=b" (offset), "=S" (addr), "=c" (count)	:
-		    "0" (offset), "1" (addr), "2" (count)	:
-		    "%eax", "memory", "cc");
+		int	i;
+		for (i = 0; i < count; i += 2)
+			outw(bsh.bsh_iat[offset + i], addr[i]);
 	}
 #endif
 #if defined(_I386_BUS_MEMIO_H_)
@@ -954,16 +919,9 @@ bus_space_write_region_4(bus_space_tag_t tag, bus_space_handle_t bsh,
 	if (tag == I386_BUS_SPACE_IO_IND)
 #endif
 	{
-		__asm __volatile("				\n\
-			cld					\n\
-		1:	lodsl					\n\
-			movl bsh.bsh_iat(%l0), %%edx		\n\
-			outl %%eax,%%dx				\n\
-			addl $4,%0				\n\
-			loop 1b"				:
-		    "=b" (offset), "=S" (addr), "=c" (count)	:
-		    "0" (offset), "1" (addr), "2" (count)	:
-		    "%eax", "memory", "cc");
+		int	i;
+		for (i = 0; i < count; i += 4)
+			outl(bsh.bsh_iat[offset + i], addr[i]);
 	}
 #endif
 #if defined(_I386_BUS_MEMIO_H_)
