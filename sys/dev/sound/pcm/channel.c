@@ -1211,17 +1211,20 @@ chn_setblocksize(pcm_channel *c, int blkcnt, int blksz)
 	if (blksz == 0 || blksz == -1) {
 		if (blksz == -1)
 			c->flags &= ~CHN_F_HAS_SIZE;
-		if (c->flags & CHN_F_HAS_SIZE)
-			return 0;
-		blksz = (bs->bps * bs->spd) / CHN_DEFAULT_HZ;
-	      	tmp = 32;
-		while (tmp <= blksz)
-			tmp <<= 1;
-		tmp >>= 1;
-		blksz = tmp;
+		if (!(c->flags & CHN_F_HAS_SIZE)) {
+			blksz = (bs->bps * bs->spd) / CHN_DEFAULT_HZ;
+	      		tmp = 32;
+			while (tmp <= blksz)
+				tmp <<= 1;
+			tmp >>= 1;
+			blksz = tmp;
 
-		RANGE(blksz, 16, CHN_2NDBUFMAXSIZE / 2);
-		RANGE(blkcnt, 2, CHN_2NDBUFMAXSIZE / blksz);
+			RANGE(blksz, 16, CHN_2NDBUFMAXSIZE / 2);
+			RANGE(blkcnt, 2, CHN_2NDBUFMAXSIZE / blksz);
+		} else {
+			blksz = bs->blksz;
+			blkcnt = bs->blkcnt;
+		}
 	} else {
 		if ((blksz < 16) || (blkcnt < 2) || (blkcnt * blksz > CHN_2NDBUFMAXSIZE))
 			return EINVAL;
@@ -1247,8 +1250,7 @@ chn_setblocksize(pcm_channel *c, int blkcnt, int blksz)
 
 	/* adjust for different hw format/speed */
 	irqhz = (bs->bps * bs->spd) / bs->blksz;
-	if (irqhz < 16)
-		irqhz = 16;
+	RANGE(irqhz, 16, 512);
 
 	b->blksz = (b->bps * b->spd) / irqhz;
 
