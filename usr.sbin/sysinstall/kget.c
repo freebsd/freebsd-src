@@ -26,15 +26,6 @@
  * $FreeBSD$
  */
 
-#ifdef __alpha__
-int
-kget(char *out)
-{
-    return -1;
-}
-
-#else
-
 #include "sysinstall.h"
 #include <sys/sysctl.h>
 #include <i386/isa/isa_device.h>
@@ -175,5 +166,3 @@ bail:
     fclose(fout);
     return 0;
 }
-
-#endif	/* !alpha */

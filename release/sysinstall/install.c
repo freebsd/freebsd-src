@@ -533,7 +533,7 @@ nodisks:
 	    dialog_clear_norefresh();
 	    tmp = tcpDeviceSelect();
 	    dialog_clear_norefresh();
-	    if (tmp && !((DevInfo *)tmp->private)->use_dhcp && !msgYesNo("Would you like to bring the %s interface up right now?", tmp->name))
+	    if (tmp && !msgYesNo("Would you like to bring the %s interface up right now?", tmp->name))
 		if (!tmp->init(tmp))
 		    msgConfirm("Initialization of %s device failed.", tmp->name);
 	}
@@ -754,8 +754,6 @@ installFixupBin(dialogMenuItem *self)
 			if ((fp = fopen("/boot/loader.conf", "a")) != NULL) {
 			    fprintf(fp, "# -- sysinstall generated deltas -- #\n");
 			    fprintf(fp, "userconfig_script_load=\"YES\"\n");
-			    if (!OnVTY)
-				fprintf(fp, "console=\"serial\"\n");
 			    fclose(fp);
 			}
 		    }
@@ -1033,7 +1031,6 @@ installVarDefaults(dialogMenuItem *self)
     variable_set2(VAR_TAPE_BLOCKSIZE,		DEFAULT_TAPE_BLOCKSIZE, 0);
     variable_set2(VAR_INSTALL_ROOT,		"/", 0);
     variable_set2(VAR_INSTALL_CFG,		"install.cfg", 0);
-    variable_set2(VAR_TRY_DHCP,			"NO", 0);	/* For now */
     cp = getenv("EDITOR");
     if (!cp)
 	cp = "/usr/bin/ee";
@@ -1042,14 +1039,13 @@ installVarDefaults(dialogMenuItem *self)
     variable_set2(VAR_BROWSER_PACKAGE,		"lynx", 0);
     variable_set2(VAR_BROWSER_BINARY,		"/usr/local/bin/lynx", 0);
     variable_set2(VAR_FTP_STATE,		"passive", 0);
-    variable_set2(VAR_NFS_SECURE,		"NO", -1);
+    variable_set2(VAR_NFS_SECURE,		"YES", 0);
     variable_set2(VAR_PKG_TMPDIR,		"/usr/tmp", 0);
     variable_set2(VAR_MEDIA_TIMEOUT,		itoa(MEDIA_TIMEOUT), 0);
     if (getpid() != 1)
 	variable_set2(SYSTEM_STATE,		"update", 0);
     else
 	variable_set2(SYSTEM_STATE,		"init", 0);
-    variable_set2(VAR_NEWFS_ARGS,		"-b 8192 -f 1024", 0);
     return DITEM_SUCCESS;
 }
 

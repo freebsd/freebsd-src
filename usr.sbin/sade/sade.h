@@ -160,7 +160,6 @@
 #define VAR_SLOW_ETHER			"slowEthernetCard"
 #define VAR_SWAP_SIZE			"swapSize"
 #define VAR_TAPE_BLOCKSIZE		"tapeBlocksize"
-#define VAR_TRY_DHCP			"tryDHCP"
 #define VAR_UFS_PATH			"ufs"
 #define VAR_USR_SIZE			"usrSize"
 #define VAR_VAR_SIZE			"varSize"
@@ -319,7 +318,6 @@ typedef int (*commandFunc)(char *key, void *data);
 
 /* This is the structure that Network devices carry around in their private, erm, structures */
 typedef struct _devPriv {
-    int use_dhcp;
     char ipaddr[IPADDR_FIELD_LEN];
     char netmask[IPADDR_FIELD_LEN];
     char extras[EXTRAS_FIELD_LEN];
@@ -452,10 +450,6 @@ extern Device	*deviceRegister(char *name, char *desc, char *devname, DeviceType 
 extern Boolean	dummyInit(Device *dev);
 extern FILE	*dummyGet(Device *dev, char *dist, Boolean probe);
 extern void	dummyShutdown(Device *dev);
-
-/* dhcp.c */
-extern int	dhcpParseLeases(char *file, char *hostname, char *domain, char *nameserver,
-				char *ipaddr, char *gateway, char *netmask);
 
 /* disks.c */
 extern int	diskPartitionEditor(dialogMenuItem *self);

@@ -254,9 +254,7 @@ DMenu MenuIndex = {
       { "Doc, HTML",		"The HTML documentation menu.",		NULL, docBrowser },
       { "Dump Vars",		"(debugging) dump out internal variables.", NULL, dump_variables },
       { "Emergency shell",	"Start an Emergency Holographic shell.",	NULL, installFixitHoloShell },
-#ifdef __i386__
       { "Fdisk",		"The disk Partition Editor",		NULL, diskPartitionEditor },
-#endif
       { "Fixit",		"Repair mode with CDROM or fixit floppy.",	NULL, dmenuSubmenu, NULL, &MenuFixit },
       { "FTP sites",		"The FTP mirror site listing.",		NULL, dmenuSubmenu, NULL, &MenuMediaFTP },
       { "Gateway",		"Set flag to route packets between interfaces.", dmenuVarCheck, dmenuToggleVariable, NULL, "gateway=YES" },
@@ -297,9 +295,7 @@ DMenu MenuIndex = {
       { "User Management",	"Add user and group information.",	NULL, dmenuSubmenu, NULL, &MenuUsermgmt },
       { "XFree86, Fonts",	"XFree86 Font selection menu.",		NULL, dmenuSubmenu, NULL, &MenuXF86SelectFonts },
       { "XFree86, Server",	"XFree86 Server selection menu.",	NULL, dmenuSubmenu, NULL, &MenuXF86SelectServer },
-#ifdef __i386__
       { "XFree86, PC98 Server",	"XFree86 PC98 Server selection menu.",	NULL, dmenuSubmenu, NULL, &MenuXF86SelectPC98Server },
-#endif
       { NULL } },
 };
 
@@ -432,10 +428,6 @@ DMenu MenuMouse = {
 DMenu MenuXF86Config = {
     DMENU_NORMAL_TYPE | DMENU_SELECTION_RETURNS,
     "Please select the XFree86 configuration tool you want to use.",
-#ifdef __alpha__
-    "Due to problems with the VGA16 server right now, only the\n"
-    "text-mode configuration tool (xf86config) is currently supported.",
-#else
     "The first tool, XF86Setup, is fully graphical and requires the\n"
     "VGA16 server in order to work (should have been selected by\n"
     "default, but if you de-selected it then you won't be able to\n"
@@ -443,20 +435,14 @@ DMenu MenuXF86Config = {
     "a more simplistic shell-script based tool and less friendly to\n"
     "new users, but it may work in situations where the fancier one\n"
     "does not.",
-#endif
     NULL,
     NULL,
-#ifdef __alpha__
-    { { "xf86config",	"Shell-script based XFree86 configuration tool.",
-	NULL, dmenuSetVariable, NULL, VAR_XF86_CONFIG "=xf86config" },
-#else
     { { "XF86Setup",	"Fully graphical XFree86 configuration tool.",
 	NULL, dmenuSetVariable, NULL, VAR_XF86_CONFIG "=XF86Setup" },
       { "xf86config",	"Shell-script based XFree86 configuration tool.",
 	NULL, dmenuSetVariable, NULL, VAR_XF86_CONFIG "=xf86config" },
       { "XF98Setup",	"Fully graphical XFree86 configuration tool (PC98).",
 	NULL, dmenuSetVariable, NULL, VAR_XF86_CONFIG "=XF98Setup" },
-#endif
       { "XDesktop",	"X already set up, just do desktop configuration.",
 	NULL, dmenuSubmenu, NULL, &MenuXDesktops },
       { NULL } },
@@ -650,8 +636,6 @@ DMenu MenuMediaFTP = {
 	VAR_FTP_PATH _AP("=ftp://ftp3.ru.freebsd.org") },
       { "Russia #4",    "ftp4.ru.freebsd.org", NULL, dmenuSetVariable, NULL,
 	VAR_FTP_PATH _AP("=ftp://ftp4.ru.freebsd.org") },
-      { "Slovak Republic",	"ftp.sk.freebsd.org", NULL, dmenuSetVariable, NULL,
-	VAR_FTP_PATH _AP("=ftp://ftp.sk.freebsd.org") },
       { "South Africa",	"ftp.za.freebsd.org", NULL, dmenuSetVariable, NULL,
 	VAR_FTP_PATH _AP("=ftp://ftp.za.freebsd.org") },
       { "South Africa #2", "ftp2.za.freebsd.org", NULL, dmenuSetVariable, NULL,
@@ -804,7 +788,6 @@ DMenu MenuSubDistributions = {
     NULL,
     { { "bin",		"Binary base distribution (required)",
 	dmenuFlagCheck,	dmenuSetFlag, NULL, &Dists, '[', 'X', ']', DIST_BIN },
-#ifdef __i386__
       { "compat1x",	"FreeBSD 1.x binary compatibility",
 	dmenuFlagCheck,	dmenuSetFlag, NULL, &Dists, '[', 'X', ']', DIST_COMPAT1X },
       { "compat20",	"FreeBSD 2.0 binary compatibility",
@@ -816,7 +799,6 @@ DMenu MenuSubDistributions = {
 #if __FreeBSD__ > 3
       { "compat3x",	"FreeBSD 3.x binary compatibility",
 	dmenuFlagCheck,	dmenuSetFlag, NULL, &Dists, '[', 'X', ']', DIST_COMPAT3X },
-#endif
 #endif
       { "DES",		"DES encryption code - NOT FOR EXPORT!",
 	DESFlagCheck,	distSetDES },
@@ -838,8 +820,6 @@ DMenu MenuSubDistributions = {
 	srcFlagCheck,	distSetSrc },
       { "ports",	"The FreeBSD Ports collection",
 	dmenuFlagCheck,	dmenuSetFlag, NULL, &Dists, '[', 'X', ']', DIST_PORTS },
-      { "local",	"Local additions collection",
-	dmenuFlagCheck,	dmenuSetFlag, NULL, &Dists, '[', 'X', ']', DIST_LOCAL},
       { "XFree86",	"The XFree86 3.3.4 distribution",
 	x11FlagCheck,	distSetXF86 },
       { "All",		"All sources, binaries and X Window System binaries",
@@ -954,10 +934,8 @@ DMenu MenuXF86SelectCore = {
 	dmenuFlagCheck,	dmenuSetFlag, NULL, &XF86Dists, '[', 'X', ']', DIST_XF86_HTML },
       { "lib",		"Data files needed at runtime",
 	dmenuFlagCheck,	dmenuSetFlag, NULL, &XF86Dists, '[', 'X', ']', DIST_XF86_LIB },
-#ifdef __i386__
       { "lk98",		"Server link kit for PC98 machines",
 	dmenuFlagCheck,	dmenuSetFlag, NULL, &XF86Dists, '[', 'X', ']', DIST_XF86_LKIT98 },
-#endif
       { "lkit",		"Server link kit for all other machines",
 	dmenuFlagCheck,	dmenuSetFlag, NULL, &XF86Dists, '[', 'X', ']', DIST_XF86_LKIT },
       { "man",		"Manual pages",
@@ -966,10 +944,8 @@ DMenu MenuXF86SelectCore = {
 	dmenuFlagCheck,	dmenuSetFlag, NULL, &XF86Dists, '[', 'X', ']', DIST_XF86_PROG },
       { "set",		"XFree86 Setup Utility",
 	dmenuFlagCheck,	dmenuSetFlag, NULL, &XF86Dists, '[', 'X', ']', DIST_XF86_SET },
-#ifdef __i386__
       { "9set",		"XFree86 Setup Utility for PC98 machines",
 	dmenuFlagCheck,	dmenuSetFlag, NULL, &XF86Dists, '[', 'X', ']', DIST_XF86_9SET },
-#endif
       { "sources",	"XFree86 3.3.4 standard sources",
 	dmenuFlagCheck,	dmenuSetFlag, NULL, &XF86Dists, '[', 'X', ']', DIST_XF86_SRC },
       { "csources",	"XFree86 3.3.4 contrib sources",
@@ -1050,13 +1026,8 @@ DMenu MenuXF86SelectServer = {
 	dmenuFlagCheck,	dmenuSetFlag, NULL, &XF86ServerDists, '[', 'X', ']', DIST_XF86_SERVER_S3V },
       { "W32",		"8-bit ET4000/W32, /W32i and /W32p cards",
 	dmenuFlagCheck,	dmenuSetFlag, NULL, &XF86ServerDists, '[', 'X', ']', DIST_XF86_SERVER_W32 },
-#ifdef __i386__
       { "PC98",		"Select an X server for a NEC PC98 [Submenu]",
 	NULL,		dmenuSubmenu,  NULL, &MenuXF86SelectPC98Server, '>', ' ', '>', 0 },
-#elif __alpha__
-      { "TGA",		"TGA cards (alpha architecture only)",
-	dmenuFlagCheck,	dmenuSetFlag, NULL, &XF86ServerDists, '[', 'X', ']', DIST_XF86_SERVER_TGA },
-#endif
       { "All",		"Select all of the above",
 	NULL,		setX11Servers, NULL, NULL, ' ', ' ', ' ' },
       { "Clear",	"Reset all of the above",
@@ -1066,7 +1037,6 @@ DMenu MenuXF86SelectServer = {
       { NULL } },
 };
 
-#ifdef __i386__
 DMenu MenuXF86SelectPC98Server = {
     DMENU_CHECKLIST_TYPE | DMENU_SELECTION_RETURNS,
     "PC98 X Server selection.",
@@ -1108,7 +1078,6 @@ Mono servers are particularly well-suited to most LCD displays).",
 	checkTrue,	dmenuExit, NULL, NULL, '<', '<', '<' },
       { NULL } }
 };
-#endif
 
 DMenu MenuDiskDevices = {
     DMENU_CHECKLIST_TYPE | DMENU_SELECTION_RETURNS,
@@ -1208,10 +1177,8 @@ DMenu MenuConfigure = {
 	NULL,	dmenuSystemCommand, NULL, "passwd root" },
       { "L Label",	"The disk Label editor",
 	NULL, diskLabelEditor },
-#ifdef __i386__
       { "F Fdisk",	"The disk Slice (PC-style partition) Editor",
 	NULL, diskPartitionEditor },
-#endif
       { "1 User Management",	"Add user and group information",
 	NULL, dmenuSubmenu, NULL, &MenuUsermgmt },
       { "2 Console",	"Customize system console behavior",
@@ -1383,6 +1350,12 @@ DMenu MenuNTP = {
       { "U.S. Midwest",		"ncar.ucar.edu (WWVB clock)",
 	dmenuVarsCheck,	dmenuSetVariables, NULL, 
 	"ntpdate_enable=YES,ntpdate_flags=ncar.ucar.edu" },
+      { "U.S. Pacific",		"chantry.hawaii.net (WWV/H clock)",
+	dmenuVarsCheck,	dmenuSetVariables, NULL, 
+	"ntpdate_enable=YES,ntpdate_flags=chantry.hawaii.net" },
+      { "U.S. Southwest",	"shorty.chpc.utexas.edu (WWV clock)",
+	dmenuVarsCheck,	dmenuSetVariables, NULL, 
+	"ntpdate_enable=YES,ntpdate_flags=shorty.chpc.utexas.edu" },
       { NULL } },
 };
 
