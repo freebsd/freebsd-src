@@ -58,18 +58,18 @@ environment variable in the crontab, if such exists).
 .Pp
 Additionally,
 .Nm
-checks each minute to see if its spool directory's modtime (or the modtime
-on
+checks each minute to see if its spool directory's modification time (or
+the modification time on
 .Pa /etc/crontab )
 has changed, and if it has,
 .Nm
-will then examine the modtime on all crontabs and reload those which have
-changed.  Thus
+will then examine the modification time on all crontabs and reload those
+which have changed.  Thus
 .Nm
 need not be restarted whenever a crontab file is modified.  Note that the
 .Xr crontab 1
-command updates the modtime of the spool directory whenever it changes a
-crontab.
+command updates the modification time of the spool directory whenever it
+changes a crontab.
 .Pp
 Available options:
 .Bl -tag -width indent
