@@ -125,6 +125,14 @@ osf1_ioctl(p, uap)
 		return osf1_ioctl_t(p, &a, cmd, dir, len);
 	case 'f':
 		return osf1_ioctl_f(p, &a, cmd, dir, len);
+	case 'S':
+		/*
+		 * XXX SVR4 Streams IOCTLs are all unimpl.
+		 */
+
+#ifndef IOCTL_DEBUG
+		return (0);
+#endif		
 	default:
 		printf(
 		    "unimplented OSF/1 IOCTL: group = %c, cmd = %d, len = %d, dir = %s\n",
