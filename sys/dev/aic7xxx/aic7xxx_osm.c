@@ -28,7 +28,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $Id: //depot/aic7xxx/freebsd/dev/aic7xxx/aic7xxx_osm.c#11 $
+ * $Id: //depot/aic7xxx/freebsd/dev/aic7xxx/aic7xxx_osm.c#12 $
  *
  * $FreeBSD$
  */
@@ -504,7 +504,8 @@ ahc_action(struct cam_sim *sim, union ccb *ccb)
 				if (ahc->pending_device == lstate)
 					scb->flags |= SCB_TARGET_IMMEDIATE;
 				hscb->control |= TARGET_SCB;
-				tdata->target_phases = IDENTIFY_SEEN;
+				scb->flags |= SCB_TARGET_SCB;
+				tdata->target_phases = 0;
 				if ((ccb->ccb_h.flags & CAM_SEND_STATUS) != 0) {
 					tdata->target_phases |= SPHASE_PENDING;
 					tdata->scsi_status =
@@ -1525,7 +1526,7 @@ bus_reset:
 		saved_scbptr = ahc_inb(ahc, SCBPTR);
 		active_scb_index = ahc_inb(ahc, SCB_TAG);
 
-		if ((ahc_inb(ahc, SEQ_FLAGS) & IDENTIFY_SEEN) != 0
+		if ((ahc_inb(ahc, SEQ_FLAGS) & NOT_IDENTIFIED) == 0
 		  && (active_scb_index < ahc->scb_data->numscbs)) {
 			struct scb *active_scb;
 
@@ -1559,7 +1560,7 @@ bus_reset:
 			} 
 
 			/* It's us */
-			if ((scb->hscb->control & TARGET_SCB) != 0) {
+			if ((scb->flags & SCB_TARGET_SCB) != 0) {
 
 				/*
 				 * Send back any queued up transactions
@@ -1591,7 +1592,7 @@ bus_reset:
 			int	 disconnected;
 
 			/* XXX Shouldn't panic.  Just punt instead? */
-			if ((scb->hscb->control & TARGET_SCB) != 0)
+			if ((scb->flags & SCB_TARGET_SCB) != 0)
 				panic("Timed-out target SCB but bus idle");
 
 			if (last_phase != P_BUSFREE
