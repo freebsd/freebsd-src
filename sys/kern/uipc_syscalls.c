@@ -125,6 +125,7 @@ socket(td, uap)
 	if (error) {
 		if (fdp->fd_ofiles[fd] == fp) {
 			fdp->fd_ofiles[fd] = NULL;
+			fdunused(fdp, fd);
 			FILEDESC_UNLOCK(fdp);
 			fdrop(fp, td);
 		} else
@@ -390,6 +391,7 @@ noconnection:
 		FILEDESC_LOCK(fdp);
 		if (fdp->fd_ofiles[fd] == nfp) {
 			fdp->fd_ofiles[fd] = NULL;
+			fdunused(fdp, fd);
 			FILEDESC_UNLOCK(fdp);
 			fdrop(nfp, td);
 		} else {
@@ -584,6 +586,7 @@ free4:
 	FILEDESC_LOCK(fdp);
 	if (fdp->fd_ofiles[sv[1]] == fp2) {
 		fdp->fd_ofiles[sv[1]] = NULL;
+		fdunused(fdp, sv[1]);
 		FILEDESC_UNLOCK(fdp);
 		fdrop(fp2, td);
 	} else
@@ -593,6 +596,7 @@ free3:
 	FILEDESC_LOCK(fdp);
 	if (fdp->fd_ofiles[sv[0]] == fp1) {
 		fdp->fd_ofiles[sv[0]] = NULL;
+		fdunused(fdp, sv[0]);
 		FILEDESC_UNLOCK(fdp);
 		fdrop(fp1, td);
 	} else
