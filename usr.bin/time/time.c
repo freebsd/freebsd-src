@@ -42,7 +42,7 @@ static const char copyright[] =
 static char sccsid[] = "@(#)time.c	8.1 (Berkeley) 6/6/93";
 #endif
 static const char rcsid[] =
-	"$Id$";
+	"$Id: time.c,v 1.6 1997/08/14 06:48:59 charnier Exp $";
 #endif /* not lint */
 
 #include <sys/types.h>
@@ -56,6 +56,7 @@ static const char rcsid[] =
 #include <err.h>
 #include <stdio.h>
 #include <unistd.h>
+#include <string.h>
 
 static int getstathz __P((void));
 static void usage __P((void));
@@ -65,14 +66,36 @@ main(argc, argv)
 	int argc;
 	char **argv;
 {
+	extern char *optarg;
+	extern int optind;
+
 	register int pid;
 	int ch, status, lflag;
 	struct timeval before, after;
 	struct rusage ru;
+	FILE *out = NULL;
 
 	lflag = 0;
-	while ((ch = getopt(argc, argv, "l")) != -1)
+	while ((ch = getopt(argc, argv, "a:f:l")) != -1)
 		switch((char)ch) {
+		case 'a':
+			if (out)
+				err(1, optarg);
+			out = fopen(optarg, "a");
+			if (!out)
+				err(1, optarg);
+			break;
+		case 'f':
+			if (out)
+				err(1, optarg);
+			if (strcmp(optarg, "-") == 0)
+				out = stdout;
+			else {
+				out = fopen(optarg, "w");
+				if (!out)
+					err(1, optarg);
+			}
+			break;
 		case 'l':
 			lflag = 1;
 			break;
@@ -84,6 +107,9 @@ main(argc, argv)
 	if (!(argc -= optind))
 		exit(0);
 	argv += optind;
+
+	if (!out)
+		out = stderr;
 
 	gettimeofday(&before, (struct timezone *)NULL);
 	switch(pid = vfork()) {
@@ -107,10 +133,10 @@ main(argc, argv)
 	after.tv_usec -= before.tv_usec;
 	if (after.tv_usec < 0)
 		after.tv_sec--, after.tv_usec += 1000000;
-	fprintf(stderr, "%9ld.%02ld real ", after.tv_sec, after.tv_usec/10000);
-	fprintf(stderr, "%9ld.%02ld user ",
+	fprintf(out, "%9ld.%02ld real ", after.tv_sec, after.tv_usec/10000);
+	fprintf(out, "%9ld.%02ld user ",
 	    ru.ru_utime.tv_sec, ru.ru_utime.tv_usec/10000);
-	fprintf(stderr, "%9ld.%02ld sys\n",
+	fprintf(out, "%9ld.%02ld sys\n",
 	    ru.ru_stime.tv_sec, ru.ru_stime.tv_usec/10000);
 	if (lflag) {
 		int hz = getstathz();
@@ -126,33 +152,33 @@ main(argc, argv)
 		if (ticks == 0)
 			ticks = 1;
 
-		fprintf(stderr, "%10ld  %s\n",
+		fprintf(out, "%10ld  %s\n",
 			ru.ru_maxrss, "maximum resident set size");
-		fprintf(stderr, "%10ld  %s\n",
+		fprintf(out, "%10ld  %s\n",
 			ru.ru_ixrss / ticks, "average shared memory size");
-		fprintf(stderr, "%10ld  %s\n",
+		fprintf(out, "%10ld  %s\n",
 			ru.ru_idrss / ticks, "average unshared data size");
-		fprintf(stderr, "%10ld  %s\n",
+		fprintf(out, "%10ld  %s\n",
 			ru.ru_isrss / ticks, "average unshared stack size");
-		fprintf(stderr, "%10ld  %s\n",
+		fprintf(out, "%10ld  %s\n",
 			ru.ru_minflt, "page reclaims");
-		fprintf(stderr, "%10ld  %s\n",
+		fprintf(out, "%10ld  %s\n",
 			ru.ru_majflt, "page faults");
-		fprintf(stderr, "%10ld  %s\n",
+		fprintf(out, "%10ld  %s\n",
 			ru.ru_nswap, "swaps");
-		fprintf(stderr, "%10ld  %s\n",
+		fprintf(out, "%10ld  %s\n",
 			ru.ru_inblock, "block input operations");
-		fprintf(stderr, "%10ld  %s\n",
+		fprintf(out, "%10ld  %s\n",
 			ru.ru_oublock, "block output operations");
-		fprintf(stderr, "%10ld  %s\n",
+		fprintf(out, "%10ld  %s\n",
 			ru.ru_msgsnd, "messages sent");
-		fprintf(stderr, "%10ld  %s\n",
+		fprintf(out, "%10ld  %s\n",
 			ru.ru_msgrcv, "messages received");
-		fprintf(stderr, "%10ld  %s\n",
+		fprintf(out, "%10ld  %s\n",
 			ru.ru_nsignals, "signals received");
-		fprintf(stderr, "%10ld  %s\n",
+		fprintf(out, "%10ld  %s\n",
 			ru.ru_nvcsw, "voluntary context switches");
-		fprintf(stderr, "%10ld  %s\n",
+		fprintf(out, "%10ld  %s\n",
 			ru.ru_nivcsw, "involuntary context switches");
 	}
 	exit (WIFEXITED(status) ? WEXITSTATUS(status) : EXIT_FAILURE);
