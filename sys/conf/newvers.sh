@@ -32,32 +32,28 @@
 # SUCH DAMAGE.
 #
 #	@(#)newvers.sh	8.1 (Berkeley) 4/20/94
-# $Id: newvers.sh,v 1.15 1995/04/22 21:39:15 phk Exp $
+#	$Id: newvers.sh,v 1.16 1995/05/02 22:20:03 phk Exp $
 
 TYPE="FreeBSD"
-RELEASE="2.0-CURRENT"
+REVISION="2.2"
+BRANCH="CURRENT"
+RELEASE="${REVISION}-${BRANCH}"
+VERSION="${TYPE} ${RELEASE}"
+
 RELDATE="199504"
 
-if [ "x$RELEASE" = x2.0-CURRENT ] ; then
-	RELEASE=`date '+2.0-BUILT-%Y%m%d'`
-fi
-
-DISTNAME=${RELEASE}
-
-if [ "x$JUST_TELL_ME" = "x" ]
+if [ ! -r version ]
 then
-	if [ ! -r version ]
-	then
-		echo 0 > version
-	fi
-
-	touch version
-	v=`cat version` u=${USER-root} d=`pwd` h=`hostname` t=`date`
-	echo "char ostype[] = \"${TYPE}\";" > vers.c
-	echo "char osrelease[] = \"${RELEASE}\";" >> vers.c
-	echo "int osreldate = ${RELDATE};" >> vers.c
-	echo "char sccs[4] = { '@', '(', '#', ')' };" >>vers.c
-	echo "char version[] = \"${TYPE} ${RELEASE} #${v}: ${t}\\n    ${u}@${h}:${d}\\n\";" >>vers.c
-
-	echo `expr ${v} + 1` > version
+	echo 0 > version
 fi
+
+touch version
+v=`cat version` u=${USER-root} d=`pwd` h=`hostname` t=`date`
+echo "char ostype[] = \"${TYPE}\";" > vers.c
+echo "char osrelease[] = \"${RELEASE}\";" >> vers.c
+echo "int osreldate = ${RELDATE};" >> vers.c
+echo "char sccs[4] = { '@', '(', '#', ')' };" >>vers.c
+echo "char version[] = \
+	\"${VERSION} #${v}: ${t}\\n    ${u}@${h}:${d}\\n\";" >>vers.c
+
+echo `expr ${v} + 1` > version
