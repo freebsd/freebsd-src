@@ -1512,6 +1512,7 @@ extern int ndis_create_sysctls(void *);
 extern int ndis_add_sysctl(void *, char *, char *, char *, int);
 extern int ndis_flush_sysctls(void *);
 extern int ndis_sched(void (*)(void *), void *, int);
+extern int ndis_unsched(void (*)(void *), void *, int);
 __END_DECLS
 
 #endif /* _NDIS_VAR_H_ */
