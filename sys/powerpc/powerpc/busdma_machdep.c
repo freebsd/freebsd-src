@@ -217,10 +217,12 @@ bus_dmamem_alloc(bus_dma_tag_t dmat, void** vaddr, int flags,
                  *     and handles multi-seg allocations.  Nobody is doing
                  *     multi-seg allocations yet though.
                  */
+		mtx_lock(&Giant);
                 *vaddr = contigmalloc(dmat->maxsize, M_DEVBUF,
                     (flags & BUS_DMA_NOWAIT) ? M_NOWAIT : M_WAITOK,
                     0ul, dmat->lowaddr, dmat->alignment? dmat->alignment : 1ul,
                     dmat->boundary);
+		mtx_unlock(&Giant);
         }
 
         if (*vaddr == NULL)
@@ -240,8 +242,11 @@ bus_dmamem_free(bus_dma_tag_t dmat, void *vaddr, bus_dmamap_t map)
                 panic("bus_dmamem_free: Invalid map freed\n");
         if (dmat->maxsize <= PAGE_SIZE)
 		free(vaddr, M_DEVBUF);
-        else
+        else {
+		mtx_lock(&Giant);
 		contigfree(vaddr, dmat->maxsize, M_DEVBUF);
+		mtx_unlock(&Giant);
+	}
 }
 
 /*
