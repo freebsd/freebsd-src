@@ -6,7 +6,7 @@
 
 T=/tmp/_motd
 rm -f $T
-uname -a > $T
+uname -rs > $T
 echo "" >> $T
 sed '1,/^$/d' < /etc/motd >> $T
 cp $T /etc/motd
