@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)locore.s	7.3 (Berkeley) 5/13/91
- *	$Id: locore.s,v 1.113 1998/09/28 03:26:22 tegge Exp $
+ *	$Id: locore.s,v 1.114 1998/10/08 21:03:41 msmith Exp $
  *
  *		originally from: locore.s, by William F. Jolitz
  *
@@ -569,22 +569,6 @@ got_common_bi_size:
 	rep
 	movsb
 
-	/*
-	 * Fix up the module data and kernel environment pointers.
-	 */
-	movl	R(_bootinfo+BI_ENVP),%eax
-	testl	%eax,%eax
-	je	no_envp
-	movl	$KERNBASE,%eax
-	addl	%eax,R(_bootinfo+BI_ENVP)
-no_envp:
-	movl	R(_bootinfo+BI_MODULEP),%eax
-	testl	%eax,%eax
-	je	no_modulep
-	movl	$KERNBASE,%eax
-	addl	%eax,R(_bootinfo+BI_MODULEP)
-no_modulep:
-	
 #ifdef NFS_ROOT
 #ifndef BOOTP_NFSV3
 	/*
