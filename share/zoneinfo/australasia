@@ -1,4 +1,4 @@
-# @(#)australasia	7.21
+# @(#)australasia	7.25
 # This file also includes Pacific islands.
 
 # Notes are at the end of this file
@@ -31,12 +31,12 @@ Zone Australia/Darwin	 8:43:20 -	LMT	1895 Feb
 # Western Australia
 Zone Australia/Perth	 7:43:24 -	LMT	1895 Dec
 			 8:00	-	WST	1917 Jan 1 0:01
-			 8:00	Aus	WST	1974 Oct lastSun 2:00
-			 8:00	1:00	WST	1975 Mar Sun>=1 3:00
-			 8:00	-	WST	1983 Oct lastSun 2:00
-			 8:00	1:00	WST	1984 Mar Sun>=1 3:00
-			 8:00	-	WST	1991 Nov 17 2:00
-			 8:00	1:00	WST	1992 Mar Sun>=1 3:00
+			 8:00	Aus	WST	1974 Oct lastSun 2:00s
+			 8:00	1:00	WST	1975 Mar Sun>=1 2:00s
+			 8:00	-	WST	1983 Oct lastSun 2:00s
+			 8:00	1:00	WST	1984 Mar Sun>=1 2:00s
+			 8:00	-	WST	1991 Nov 17 2:00s
+			 8:00	1:00	WST	1992 Mar Sun>=1 2:00s
 			 8:00	-	WST
 
 # ZONE-DESCR Australia Perth Australia_ Western_Australia
@@ -44,92 +44,95 @@ Zone Australia/Perth	 7:43:24 -	LMT	1895 Dec
 # Queensland
 Zone Australia/Brisbane	10:12:08 -	LMT	1895
 			10:00	-	EST	1917 Jan 1 0:01
-			10:00	Aus	EST	1971 Oct lastSun 2:00
-			10:00	1:00	EST	1972 Feb lastSun 3:00
-			10:00	-	EST	1989 Oct lastSun 2:00
-			10:00	1:00	EST	1990 Mar Sun>=1 3:00
-			10:00	-	EST	1990 Oct lastSun 2:00
-			10:00	1:00	EST	1991 Mar Sun>=1 3:00
-			10:00	-	EST	1991 Oct lastSun 2:00
-			10:00	1:00	EST	1992 Mar Sun>=1 3:00
+			10:00	Aus	EST	1971 Oct lastSun 2:00s
+			10:00	1:00	EST	1972 Feb lastSun 2:00s
+			10:00	-	EST	1989 Oct lastSun 2:00s
+			10:00	1:00	EST	1990 Mar Sun>=1 2:00s
+			10:00	-	EST	1990 Oct lastSun 2:00s
+			10:00	1:00	EST	1991 Mar Sun>=1 2:00s
+			10:00	-	EST	1991 Oct lastSun 2:00s
+			10:00	1:00	EST	1992 Mar Sun>=1 2:00s
 			10:00	-	EST
 
 # ZONE-DESCR Australia Brisbane Australia_ Queensland
 
 # South Australia
 # Rule	NAME	FROM	TO	TYPE	IN	ON	AT	SAVE	LETTER/S
-Rule	AS	1971	1985	-	Oct	lastSun	2:00	1:00	-
-Rule	AS	1986	only	-	Oct	19	2:00	1:00	-
-Rule	AS	1987	max	-	Oct	lastSun	2:00	1:00	-
-Rule	AS	1972	only	-	Feb	27	3:00	0	-
-Rule	AS	1973	1985	-	Mar	Sun>=1	3:00	0	-
-Rule	AS	1986	1989	-	Mar	Sun>=15	3:00	0	-
-Rule	AS	1990	1994	even	Mar	Sun>=18	3:00	0	-
-Rule	AS	1990	1994	odd	Mar	Sun>=1	3:00	0	-
-Rule	AS	1995	max	-	Mar	lastSun	3:00	0	-
+Rule	AS	1971	1985	-	Oct	lastSun	2:00s	1:00	-
+Rule	AS	1986	only	-	Oct	19	2:00s	1:00	-
+Rule	AS	1987	max	-	Oct	lastSun	2:00s	1:00	-
+Rule	AS	1972	only	-	Feb	27	2:00s	0	-
+Rule	AS	1973	1985	-	Mar	Sun>=1	2:00s	0	-
+Rule	AS	1986	1989	-	Mar	Sun>=15	2:00s	0	-
+Rule	AS	1990	1994	even	Mar	Sun>=18	2:00s	0	-
+Rule	AS	1990	1994	odd	Mar	Sun>=1	2:00s	0	-
+Rule	AS	1995	max	-	Mar	lastSun	2:00s	0	-
 # Zone	NAME		GMTOFF	RULES	FORMAT	[UNTIL]
 Zone Australia/Adelaide	9:14:20 -	LMT	1895 Feb
 			9:00	-	CST	1899 May
 			9:30	-	CST	1917 Jan 1 0:01
-			9:30	Aus	CST	1971 Oct lastSun 2:00
+			9:30	Aus	CST	1971 Oct lastSun 2:00s
 			9:30	AS	CST
 
 # ZONE-DESCR Australia Adelaide Australia_ South Australia
 
 # Tasmania
 # Rule	NAME	FROM	TO	TYPE	IN	ON	AT	SAVE	LETTER/S
-Rule	AT	1967	only	-	Oct	1	2:00	1:00	-
-Rule	AT	1968	only	-	Mar	31	3:00	0	-
-Rule	AT	1968	1985	-	Oct	lastSun	2:00	1:00	-
-Rule	AT	1969	1971	-	Mar	Sun>=8	3:00	0	-
-Rule	AT	1972	only	-	Feb	27	3:00	0	-
-Rule	AT	1973	1981	-	Mar	Sun>=1	3:00	0	-
-Rule	AT	1982	1983	-	Mar	lastSun	3:00	0	-
-Rule	AT	1984	1986	-	Mar	Sun>=1	3:00	0	-
-Rule	AT	1986	only	-	Oct	19	2:00	1:00	-
-Rule	AT	1987	1990	-	Mar	Sun>=15	3:00	0	-
-Rule	AT	1987	1990	-	Oct	lastSun	2:00	1:00	-
-Rule	AT	1991	max	-	Oct	Sun>=1	2:00	1:00	-
-Rule	AT	1991	max	-	Mar	lastSun	3:00	0	-
+Rule	AT	1967	only	-	Oct	1	2:00s	1:00	-
+Rule	AT	1968	only	-	Mar	31	2:00s	0	-
+Rule	AT	1968	1985	-	Oct	lastSun	2:00s	1:00	-
+Rule	AT	1969	1971	-	Mar	Sun>=8	2:00s	0	-
+Rule	AT	1972	only	-	Feb	27	2:00s	0	-
+Rule	AT	1973	1981	-	Mar	Sun>=1	2:00s	0	-
+Rule	AT	1982	1983	-	Mar	lastSun	2:00s	0	-
+Rule	AT	1984	1986	-	Mar	Sun>=1	2:00s	0	-
+Rule	AT	1986	only	-	Oct	19	2:00s	1:00	-
+Rule	AT	1987	1990	-	Mar	Sun>=15	2:00s	0	-
+Rule	AT	1987	1990	-	Oct	lastSun	2:00s	1:00	-
+Rule	AT	1991	max	-	Oct	Sun>=1	2:00s	1:00	-
+Rule	AT	1991	max	-	Mar	lastSun	2:00s	0	-
 # Zone	NAME		GMTOFF	RULES	FORMAT	[UNTIL]
 Zone Australia/Hobart	9:49:16	-	LMT	1895 Sep
 			10:00	-	EST	1917 Jan 1 0:01
-			10:00	Aus	EST	1967 Oct 1 2:00
+			10:00	Aus	EST	1967 Oct 1 2:00s
 			10:00	AT	EST
 
 # ZONE-DESCR Australia Hobart Australia_ Tasmania
 
 # Victoria
 # Rule	NAME	FROM	TO	TYPE	IN	ON	AT	SAVE	LETTER/S
-Rule	AV	1971	1985	-	Oct	lastSun	2:00	1:00	-
-Rule	AV	1972	only	-	Feb	27	3:00	0	-
-Rule	AV	1973	1985	-	Mar	Sun>=1	3:00	0	-
-Rule	AV	1986	1990	-	Mar	Sun>=15	3:00	0	-
-Rule	AV	1986	only	-	Oct	19	2:00	1:00	-
-Rule	AV	1987	max	-	Oct	lastSun	2:00	1:00	-
-Rule	AV	1991	1994	-	Mar	Sun>=1	3:00	0	-
-Rule	AV	1995	max	-	Mar	lastSun	3:00	0	-
+Rule	AV	1971	1985	-	Oct	lastSun	2:00s	1:00	-
+Rule	AV	1972	only	-	Feb	27	2:00s	0	-
+Rule	AV	1973	1985	-	Mar	Sun>=1	2:00s	0	-
+Rule	AV	1986	1990	-	Mar	Sun>=15	2:00s	0	-
+Rule	AV	1986	only	-	Oct	19	2:00s	1:00	-
+Rule	AV	1987	max	-	Oct	lastSun	2:00s	1:00	-
+Rule	AV	1991	1994	-	Mar	Sun>=1	2:00s	0	-
+Rule	AV	1995	max	-	Mar	lastSun	2:00s	0	-
 # Zone	NAME		GMTOFF	RULES	FORMAT	[UNTIL]
 Zone Australia/Melbourne 9:39:52 -	LMT	1895 Feb
 			10:00	-	EST	1917 Jan 1 0:01
-			10:00	Aus	EST	1971 Oct 31 2:00
+			10:00	Aus	EST	1971 Oct 31 2:00s
 			10:00	AV	EST
 
 # ZONE-DESCR Australia Melbourne Australia_ Victoria
 
 # New South Wales
 # Rule	NAME	FROM	TO	TYPE	IN	ON	AT	SAVE	LETTER/S
-Rule	AN	1971	1985	-	Oct	lastSun	2:00	1:00	-
-Rule	AN	1972	only	-	Feb	27	3:00	0	-
-Rule	AN	1973	1985	-	Mar	Sun>=1	3:00	0	-
-Rule	AN	1986	1989	-	Mar	Sun>=15	3:00	0	-
-Rule	AN	1986	only	-	Oct	19	2:00	1:00	-
-Rule	AN	1987	max	-	Oct	lastSun	2:00	1:00	-
-Rule	AN	1990	max	-	Mar	Sun>=1	3:00	0	-
+Rule	AN	1971	1985	-	Oct	lastSun	2:00s	1:00	-
+Rule	AN	1972	only	-	Feb	27	2:00s	0	-
+Rule	AN	1973	1981	-	Mar	Sun>=1	2:00s	0	-
+Rule	AN	1982	only	-	Apr	Sun>=1	2:00s	0	-
+Rule	AN	1983	1985	-	Mar	Sun>=1	2:00s	0	-
+Rule	AN	1986	1989	-	Mar	Sun>=15	2:00s	0	-
+Rule	AN	1986	only	-	Oct	19	2:00s	1:00	-
+Rule	AN	1987	max	-	Oct	lastSun	2:00s	1:00	-
+Rule	AN	1990	1995	-	Mar	Sun>=1	2:00s	0	-
+Rule	AN	1996	max	-	Mar	lastSun	2:00s	0	-
 # Zone	NAME		GMTOFF	RULES	FORMAT	[UNTIL]
 Zone Australia/Sydney	10:04:52 -	LMT	1895 Feb
 			10:00	-	EST	1917 Jan 1 0:01
-			10:00	Aus	EST	1971 Oct 31 2:00
+			10:00	Aus	EST	1971 Oct 31 2:00s
 			10:00	AN	EST
 
 # ZONE-DESCR Australia Sydney Australia_ New South Wales
@@ -138,30 +141,29 @@ Zone Australia/Broken_Hill 9:25:48 -	LMT	1895 Feb
 			10:00	-	EST	1896 Aug 23
 			9:00	-	CST	1899 May
 			9:30	-	CST	1917 Jan 1 0:01
-			9:30	Aus	CST	1971 Oct 31 2:00
+			9:30	Aus	CST	1971 Oct 31 2:00s
 			9:30	AN	CST
 
 # ZONE-DESCR Australia Broken_Hill Australia_ County of Yancowinna, NSW
 
-# Australian Capital Territory
-# Zone	NAME		GMTOFF	RULES	FORMAT	[UNTIL]
-Zone Australia/Canberra	 9:56:32 -	LMT	1895 Feb
-			10:00	-	EST	1917 Jan  1 0:01
-			10:00	Aus	EST	1971 Oct 31 2:00
-			10:00	AN	EST	1981 Oct 25 2:00
-			10:00	1:00	EST	1982 Apr  4 3:00
-			10:00	AN	EST
-
-# ZONE-DESCR Australia Canberra Australia_ Canberra
-
-# Australian miscellany
-# Zone	NAME		GMTOFF	RULES	FORMAT	[UNTIL]
+# Lord Howe Island
+# Rule	NAME	FROM	TO	TYPE	IN	ON	AT	SAVE	LETTER/S
+Rule	LH	1981	1984	-	Oct	lastSun	2:00s	1:00	-
+Rule	LH	1982	1985	-	Mar	Sun>=1	2:00s	0	-
+Rule	LH	1985	only	-	Oct	lastSun	2:00s	0:30	-
+Rule	LH	1986	1989	-	Mar	Sun>=15	2:00s	0	-
+Rule	LH	1986	only	-	Oct	19	2:00s	0:30	-
+Rule	LH	1987	max	-	Oct	lastSun	2:00s	0:30	-
+Rule	LH	1990	1995	-	Mar	Sun>=1	2:00s	0	-
+Rule	LH	1996	max	-	Mar	lastSun	2:00s	0	-
 Zone Australia/Lord_Howe 10:36:20 -	LMT	1895 Feb
 			10:00	-	EST	1981 Mar
-			10:30	AN	LHST
+			10:30	LH	LHST
 
 # ZONE-DESCR Australia Lord_Howe Australia_ Lord Howe Island
 
+# Australian miscellany
+# Zone	NAME		GMTOFF	RULES	FORMAT	[UNTIL]
 Zone Indian/Christmas	7:02:52 -	LMT	1895 Feb
 			7:00	-	JVT
 
@@ -169,7 +171,12 @@ Zone Indian/Christmas	7:02:52 -	LMT	1895 Feb
 
 #
 # Ashmore Is, Cartier
+# no indigenous inhabitants; only seasonal caretakers
 # no information; probably like Australia/Perth
+#
+# Coral Sea Is
+# no indigenous inhabitants; only meteorologists
+# no information
 #
 # Macquarie, Manihiki, Penrhyn, Rakehanga
 # no information
@@ -222,28 +229,78 @@ Zone	Pacific/Guam	 9:39:00 -	LMT	1901		# Agana
 # ZONE-DESCR Pacific Guam United_States Guam
 
 # Howland, Baker
-# no information; probably like Pacific/Samoa
+# uninhabited since World War II
+# no information; was probably like Pacific/Pago_Pago
 
 # Jarvis
-# no information; probably like Pacific/Kiritimati
+# uninhabited since 1958
+# no information; was probably like Pacific/Kiritimati
 
 # Johnston
-# no information; probably like Pacific/Honolulu
+# Zone	NAME		GMTOFF	RULES	FORMAT	[UNTIL]
+Zone Pacific/Johnston	-10:00	-	HST
+
+# ZONE-DESCR Pacific Johnston United_States Johnston Atoll
+
+# Kingman
+# uninhabited
 
 # Kiribati
+# From Paul Eggert (1996-01-22):
+# Today's _Wall Street Journal_ (page 1) reports that Kiribati
+# ``declared it the same day throught the country as of Jan. 1, 1995''
+# as part of the competition to be first into the 21st century.
 # Zone	NAME		GMTOFF	RULES	FORMAT	[UNTIL]
 Zone Pacific/Tarawa	 11:32:04 -	LMT	1901		# Bairiki
 			 12:00	-	NZST
 Zone Pacific/Enderbury	-11:24:20 -	LMT	1901
 			-12:00	-	KJT	1979 Oct
-			-11:00	-	SST
+			-11:00	-	SST	1995
+			 13:00	-	TGT
 Zone Pacific/Kiritimati	-10:29:20 -	LMT	1901
 			-10:40	-	LIT	1979 Oct	# Line Is Time
-			-10:00	-	THT
+			-10:00	-	THT	1995
+			 14:00	-	KRT
+
+# N Mariana Is
+# Zone	NAME		GMTOFF	RULES	FORMAT	[UNTIL]
+Zone Pacific/Saipan	 9:43:00 -	LMT	1901
+			 9:00	-	PLT	1969 Oct
+			10:00	-	GST
+
+# Marshall Is
+# Zone	NAME		GMTOFF	RULES	FORMAT	[UNTIL]
+Zone Pacific/Majuro	11:24:48 -	LMT	1901
+			11:00	-	NCST	1969 Oct
+			12:00	-	NZST
+Zone Pacific/Kwajalein	11:09:20 -	LMT	1901
+			11:00	-	NCST	1969 Oct
+			-12:00	-	KJT	1993 Aug 20
+			12:00	-	NZST
+
+# Micronesia
+# Zone	NAME		GMTOFF	RULES	FORMAT	[UNTIL]
+Zone Pacific/Yap	9:12:32	-	LMT	1901		# Colonia
+			9:00	-	PLT	1969 Oct
+			10:00	-	GST
+Zone Pacific/Truk	10:07:08 -	LMT	1901
+			10:00	-	GST	1978 Oct
+			11:00	-	NCST
+Zone Pacific/Ponape	10:32:52 -	LMT	1901		# Kolonia
+			11:00	-	NCST
+Zone Pacific/Kosrae	10:51:56 -	LMT	1901
+			11:00	-	NCST	1969 Oct
+			12:00	-	NZST
 
 # ZONE-DESCR Pacific Tarawa Kiribati Tarawa
 # ZONE-DESCR Pacific Enderbury Kiribati Enderbury
 # ZONE-DESCR Pacific Kiritimati Kiribati Kiritimati
+# ZONE-DESCR Pacific Truk Fed_States_of_Micronesia Truk state
+# ZONE-DESCR Pacific Ponape Fed_States_of_Micronesia Pohnpei state
+# ZONE-DESCR Pacific Yap Fed_States_of_Micronesia Yap state
+# ZONE-DESCR Pacific Kosrae Fed_States_of_Micronesia Kosrae state
+# ZONE-DESCR Pacific Majuro Marshall_Islands Majuro
+# ZONE-DESCR Pacific Kwajalein Marshall_Islands Kwajalein
 
 # Nauru
 # Zone	NAME		GMTOFF	RULES	FORMAT	[UNTIL]
@@ -274,15 +331,16 @@ Zone	Pacific/Noumea	11:05:48 -	LMT	1912 Jan 13
 Rule	NZ	1868	only	-	Jan	1	0:00	0	S
 # Shanks gives 1927 Nov 6 - 1928 Mar 4, 1928 Oct 14 - 1929 Mar 17,
 # 1929 Oct 13 - 1930 Mar 16; go with Whitman.
-Rule	NZ	1927	only	-	Nov	26	2:00	1:00	D
+Rule	NZ	1927	only	-	Nov	26	2:00	0:30	HD
 Rule	NZ	1928	1929	-	Mar	Sun>=1	2:00	0	S
-Rule	NZ	1928	only	-	Nov	 4	2:00	1:00	D
-Rule	NZ	1929	only	-	Oct	30	2:00	1:00	D
+Rule	NZ	1928	only	-	Nov	 4	2:00	0:30	HD
+Rule	NZ	1929	only	-	Oct	30	2:00	0:30	HD
 Rule	NZ	1930	1933	-	Mar	Sun>=15	2:00	0	S
-Rule	NZ	1930	1933	-	Oct	Sun>=8	2:00	1:00	D
-# Shanks says DST stopped 1940 Sep lastSun; go with Whitman for war years.
-Rule	NZ	1934	1944	-	Apr	lastSun	2:00	0	S
-Rule	NZ	1934	1944	-	Sep	lastSun	2:00	1:00	D
+Rule	NZ	1930	1933	-	Oct	Sun>=8	2:00	0:30	HD
+# Whitman says DST went on and off during war years, and the base GMT offset
+# didn't change until 1945 Apr 30; go with Shanks.
+Rule	NZ	1934	1940	-	Apr	lastSun	2:00	0	S
+Rule	NZ	1934	1939	-	Sep	lastSun	2:00	0:30	HD
 Rule	NZ	1974	only	-	Nov	 3	2:00s	1:00	D
 Rule	NZ	1975	1988	-	Oct	lastSun	2:00s	1:00	D
 Rule	NZ	1989	only	-	Oct	 8	2:00s	1:00	D
@@ -292,12 +350,9 @@ Rule	NZ	1976	1989	-	Mar	Sun>=1	2:00s	0	S
 Rule	NZ	1990	max	-	Mar	Sun>=15	2:00s	0	S
 # Zone	NAME		GMTOFF	RULES	FORMAT	[UNTIL]
 Zone Pacific/Auckland	11:39:04 -	LMT	1868
-						# Shanks gives 1940 Sep 29 2:00;
-						# go with Whitman.
-			11:30	NZ	NZ%sT	1945 Apr 29 2:00
+			11:30	NZ	NZ%sT	1940 Sep 29 2:00
 			12:00	NZ	NZ%sT
-Zone Pacific/Chatham	12:45	-	NZ-CHAT
-
+Zone Pacific/Chatham	12:45	NZ	CH%sT
 
 # ZONE-DESCR Pacific Auckland New_Zealand All points except:
 # ZONE-DESCR Pacific Chatham New_Zealand Chatham
@@ -325,30 +380,6 @@ Zone	Pacific/Norfolk	11:11:52 -	LMT	1901		# Kingston
 
 # ZONE-DESCR Pacific Norfolk Norfolk_Islands All points
 
-# Pacific Islands Trust Territories
-# Zone	NAME		GMTOFF	RULES	FORMAT	[UNTIL]
-Zone Pacific/Majuro	11:24:48 -	LMT	1901
-			11:00	-	NCST	1969 Oct
-			12:00	-	NZST
-Zone Pacific/Kwajalein	11:09:20 -	LMT	1901
-			11:00	-	NCST	1969 Oct
-			-12:00	-	KJT	1993 Aug 20
-			12:00	-	NZST
-Zone Pacific/Truk	10:07:08 -	LMT	1901
-			10:00	-	GST	1978 Oct
-			11:00	-	NCST
-Zone Pacific/Ponape	10:33:00 -	LMT	1901
-			11:00	-	NCST
-Zone Pacific/Yap	9:12:24	-	LMT	1901
-			9:00	-	PLT	1969 Oct
-			10:00	-	GST
-
-# ZONE-DESCR Pacific Truk Fed_States_of_Micronesia Truk state
-# ZONE-DESCR Pacific Ponape Fed_States_of_Micronesia Pohnpei state
-# ZONE-DESCR Pacific Yap Fed_States_of_Micronesia Yap state
-# ZONE-DESCR Pacific Majuro Marshall_Islands Majuro
-# ZONE-DESCR Pacific Kwajalein Marshall_Islands Kwajalein
-
 # Palau
 # Zone	NAME		GMTOFF	RULES	FORMAT	[UNTIL]
 Zone Pacific/Palau	8:57:56 -	LMT	1901		# Koror
@@ -357,7 +388,7 @@ Zone Pacific/Palau	8:57:56 -	LMT	1901		# Koror
 # ZONE-DESCR Pacific Palau Rep_of_Palau Palau
 
 # Palmyra
-# no information; probably like Pacific/Kiritmati
+# uninhabited since World War II; was probably like Pacific/Kiritmati
 
 # Papua New Guinea
 # Zone	NAME		GMTOFF	RULES	FORMAT	[UNTIL]
@@ -373,6 +404,23 @@ Zone Pacific/Pitcairn	-8:40:20 -	LMT	1901		# Adamstown
 			-8:30	-	PIT
 
 # ZONE-DESCR Pacific Pitcairn Pitcairn_Island All points
+
+# American Samoa
+Zone Pacific/Pago_Pago	 12:37:12 -	LMT	1879 Jul  5
+			-11:22:48 -	LMT	1911
+			-11:30	-	SST	1950
+			-11:00	-	NST	1967 Apr	# N=Nome
+			-11:00	-	BST	1983 Nov 30	# B=Bering
+			-11:00	-	SST			# S=Samoa
+
+# W Samoa
+Zone Pacific/Apia	 12:33:04 -	LMT	1879 Jul  5
+			-11:26:56 -	LMT	1911
+			-11:30	-	SST	1950
+			-11:00	-	SST
+
+# ZONE-DESCR Pacific Pago_Pago United_States American Samoa
+# ZONE-DESCR Pacific Apia Western_Samoa All points
 
 # Solomon Is
 # excludes Bougainville, for which see Papua New Guinea
@@ -391,6 +439,10 @@ Zone	Pacific/Fakaofo	-11:24:56 -	LMT	1901
 # ZONE-DESCR Pacific Fakaofo Tokelau_Island All points
 
 # Tonga
+# From Paul Eggert (1996-01-22):
+# Today's _Wall Street Journal_ (page 1) reports that ``Tonga has been plotting
+# to sneak ahead of [New Zealanders] by introducing daylight-saving time.''
+# But since Kiribati has moved the Date Line it's not clear what Tonga will do.
 # Zone	NAME		GMTOFF	RULES	FORMAT	[UNTIL]
 Zone Pacific/Tongatapu	12:19:20 -	LMT	1901
 			12:20	-	TMT	1968 Oct
@@ -409,9 +461,11 @@ Zone Pacific/Funafuti	11:56:52 -	LMT	1901
 # Rule	NAME	FROM	TO	TYPE	IN	ON	AT	SAVE	LETTER/S
 Rule	Vanuatu	1912	only	-	Jan	13	0:00	0	S
 Rule	Vanuatu	1983	only	-	Sep	25	0:00	1:00	D
-Rule	Vanuatu	1984	max	-	Mar	Sun>=23	0:00	0	S
+Rule	Vanuatu	1984	1991	-	Mar	Sun>=23	0:00	0	S
 Rule	Vanuatu	1984	only	-	Oct	23	0:00	1:00	D
-Rule	Vanuatu	1985	max	-	Sep	Sun>=23	0:00	1:00	D
+Rule	Vanuatu	1985	1990	-	Sep	Sun>=23	0:00	1:00	D
+Rule	Vanuatu	1991	max	-	Sep	lastSun	0:00	1:00	D
+Rule	Vanuatu	1992	max	-	Mar	lastSun	0:00	0	S
 # Zone	NAME		GMTOFF	RULES	FORMAT	[UNTIL]
 Zone	Pacific/Efate	11:13:16 -	LMT	1912 Jan 13		# Vila
 			11:00	-	NCST
@@ -432,9 +486,6 @@ Zone	Pacific/Wallis	12:15:20 -	LMT	1901
 
 # ZONE-DESCR Pacific Wallis France Wallis and Futuna
 
-# Western Samoa
-# See Pacific/Samoa in the `northamerica' file, of all places.
-
 ###############################################################################
 
 # NOTES
@@ -443,7 +494,7 @@ Zone	Pacific/Wallis	12:15:20 -	LMT	1901
 # go ahead and edit the file (and please send any changes to
 # tz@elsie.nci.nih.gov for general use in the future).
 
-# From Paul Eggert <eggert@twinsun.com> (August 18, 1994):
+# From Paul Eggert <eggert@twinsun.com> (1996-01-22);
 # A good source for time zone historical data outside the U.S. is
 # Thomas G. Shanks, The International Atlas (3rd edition),
 # San Diego: ACS Publications, Inc. (1991).
@@ -474,17 +525,19 @@ Zone	Pacific/Wallis	12:15:20 -	LMT	1901
 #	 11:00	NCST NCDT New Caledonia*
 #	 11:30	NRFT	Norfolk*
 #	 12:00	NZST NZDT New Zealand
-#	 12:45	NZ-CHAT	Chatham
+#	 12:45	CHST CHDT Chatham*
 #	 13:00	TGT	Tongatapu*
+#	 14:00	KRT	Kiritimati*
 #	-12:00	KJT	Kwajalein (no longer used)*
 #	-11:00	SST	Samoa
 #	-10:40	LIT	Line Is (no longer used)*
 #	-10:00	THT	Tahiti*
+#	-10:00	HST	Hawaii
 #	- 9:30	MQT	Marquesas*
 #	- 9:00	GBT	Gambier*
 #	- 8:30	PIT	Pitcairn*
 #
-# See the `northamerica' file for Hawaii and Samoa.
+# See the `northamerica' file for Hawaii.
 # See the `southamerica' file for Easter I and the Galapagos Is.
 #
 # See the `africa' file for Zone naming conventions.
@@ -517,16 +570,13 @@ Zone	Pacific/Wallis	12:15:20 -	LMT	1901
 #	WST	for any place operating at a GMTOFF of 8:00
 #	EST	for any place operating at a GMTOFF of 10:00
 
-# From Paul Eggert (November 8, 1994):
+# From Paul Eggert (1995-12-19):
 # Shanks reports 2:00 for all autumn changes in Australia and New Zealand.
 # Mark Prior <mrp@itd.adelaide.edu.au> writes that his newspaper
 # reports that NSW's fall 1995 change will occur at 2:00,
 # but Robert Elz says it's been 3:00 in Victoria since 1970
 # and perhaps the newspaper's `2:00' is referring to standard time.
-# And Robert Uzgalis <buz@cs.aukuni.ac.nz> says that the New Zealand Daylight
-# Savings Time Order in Council dated 1990-06-18 specifies 2:00 standard
-# time on both the first Sunday in October and the third Sunday in March.
-# For now we'll continue to assume 3:00 for changes since 1970.
+# For now we'll continue to assume 2:00s for changes since 1960.
 
 # Northern Territory
 
@@ -781,6 +831,10 @@ Zone	Pacific/Wallis	12:15:20 -	LMT	1901
 # Sources differ on whether DST ended March 6 or March 20 in 1988;
 # March 20 (the "confirmed" date) is in the chosen rules.
 
+# From Bradley White (1995-05-20):
+# Prem Bob Carr announced NSW will fall into line with other E states
+# and SA and continue daylight savings to the last Sun in Mar.
+
 # Yancowinna
 
 # From John Basser (January 4, 1989):
@@ -809,6 +863,12 @@ Zone	Pacific/Wallis	12:15:20 -	LMT	1901
 #					[ Dec 1990 ]
 # Lord Howe Island is located off the New South Wales coast, and is half an
 # hour ahead of NSW time.
+
+# From Paul Eggert (1995-12-19):
+# For Lord Howe we use Shanks through its time of publication (1991).
+# Lord Howe is part of NSW, so we'll guess it has used the same transition
+# times as NSW since 1991, even though Shanks writes that Lord Howe went
+# with Victoria when NSW and Victoria disagreed in 1982.
 
 ###############################################################################
 
@@ -839,6 +899,16 @@ Zone	Pacific/Wallis	12:15:20 -	LMT	1901
 # The chosen rules use the Davies October 8 values for the start of DST in 1989
 # rather than the October 1 value.
 
+# From Paul Eggert (1995-12-19);
+# Shanks reports 2:00 for all autumn changes in Australia and New Zealand.
+# Robert Uzgalis <buz@cs.aukuni.ac.nz> writes that the New Zealand Daylight
+# Savings Time Order in Council dated 1990-06-18 specifies 2:00 standard
+# time on both the first Sunday in October and the third Sunday in March.
+# As with Australia, we'll assume the tradition is 2:00s, not 2:00.
+#
+# Shanks gives no data for Chatham, but usno1995 says it's +12:45/+13:45.
+# Guess NZ switchover rules for now.
+
 ###############################################################################
 
 # Fiji
@@ -846,6 +916,10 @@ Zone	Pacific/Wallis	12:15:20 -	LMT	1901
 # Howse writes (p 162) that in 1879 the British governor of Fiji
 # enacted an ordinance standardizing the islands on +12:00.
 # Perhaps it didn't take.  We go with Shanks's more precise date in 1915.
+
+# Johnston
+
+# Johnston data is from usno1995.
 
 # Kwajalein
 
@@ -855,9 +929,16 @@ Zone	Pacific/Wallis	12:15:20 -	LMT	1901
 # respect to the International Date Line, to rejoin its fellow islands,
 # going from 11:59 p.m. Thursday to 12:00 m. Saturday in a blink.
 
-# Pacific Islands Trust Territories
+# N Mariana Is, Guam
 
 # Howse writes (p 162) ``The Spaniards, on the other hand, reached the
 # Philippines and the Ladrones from America,'' and implies that the Ladrones
 # (now called the Marianas) kept American date for quite some time.
 # Ignore this for now, as we have no hard data.  See also Asia/Manila.
+
+# Samoa
+
+# Howse writes that in 1879 the King of Samoa decided to change
+# ``the date in his kingdom from the Antipodean to the American system,
+# ordaining -- by a masterpiece of diplomatic flattery -- that
+# the Fourth of July should be celebrated twice in that year.''
