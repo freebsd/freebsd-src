@@ -145,6 +145,22 @@ shown in the table, and the first matching entry will be used.  If the
 given string and the resulting canonical density name do not match
 exactly, an informational message is printed about what the given
 string has been taken for.
+.It Cm geteotmodel
+Fetch and print out the current EOT filemark model. The model states how
+many filemarks will be written at close if a tape was being written.
+.It Cm seteotmodel
+Set (from the
+.Ar count
+argument)
+and print out the current and EOT filemark model. Typically this will be
+.Ar 2
+filemarks, but some devices (typically QIC cartridge drives) can
+only write
+.Ar 1
+filemark. Currently you can only choose a value of
+.Ar 1
+or
+.Ar 2 .
 .It Cm eom
 Forward space to end of recorded medium
 (Count is ignored).
