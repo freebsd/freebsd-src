@@ -1,5 +1,5 @@
 #	from: @(#)Makefile	5.11 (Berkeley) 5/21/91
-#	$Id: Makefile,v 1.151 1997/06/04 03:58:52 asami Exp $
+#	$Id: Makefile,v 1.152 1997/07/05 19:35:22 pst Exp $
 
 # -rw-r--r--
 BINOWN= root
@@ -22,7 +22,8 @@ BIN2=	motd
 # -rwxr-xr-x root.wheel, for the new cron root.wheel
 BIN3=	daily weekly monthly netstart pccard_ether
 
-MTREE=	BSD.include.dist BSD.local.dist BSD.root.dist BSD.usr.dist BSD.var.dist
+MTREE=	BSD.include.dist BSD.local.dist BSD.root.dist BSD.usr.dist \
+	BSD.var.dist BSD.x11.dist
 NAMEDB=	PROTO.localhost.rev named.boot named.root make-localhost
 PPPCNF= ppp.conf.filter.sample ppp.conf.iij.sample ppp.conf.sample \
 	ppp.conf.server.sample ppp.dialup.sample ppp.linkup.sample \
