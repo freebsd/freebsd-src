@@ -127,7 +127,7 @@ int
 _thr_setmaxconcurrency(void)
 {
 	int vcpu;
-	int len;
+	size_t len;
 	int ret;
 
 	len = sizeof(vcpu);
