@@ -1796,6 +1796,13 @@ lstat(p, uap)
 	return (error);
 }
 
+/*
+ * Implementation of the NetBSD stat() function.
+ * XXX This should probably be collapsed with the FreeBSD version,
+ * as the differences are only due to vn_stat() clearing spares at
+ * the end of the structures.  vn_stat could be split to avoid this,
+ * and thus collapse the following to close to zero code.
+ */
 void
 cvtnstat(sb, nsb)
 	struct stat *sb;
@@ -1855,7 +1862,7 @@ nstat(p, uap)
 }
 
 /*
- * Get file status; this version does not follow links.
+ * NetBSD lstat.  Get file status; this version does not follow links.
  */
 #ifndef _SYS_SYSPROTO_H_
 struct lstat_args {
@@ -1975,6 +1982,9 @@ readlink(p, uap)
 	return (error);
 }
 
+/*
+ * Common implementation code for chflags() and fchflags().
+ */
 static int
 setfflags(p, vp, flags)
 	struct proc *p;
@@ -2063,6 +2073,9 @@ fchflags(p, uap)
 	return setfflags(p, (struct vnode *) fp->f_data, SCARG(uap, flags));
 }
 
+/*
+ * Common implementation code for chmod(), lchmod() and fchmod().
+ */
 static int
 setfmode(p, vp, mode)
 	struct proc *p;
@@ -2171,6 +2184,9 @@ fchmod(p, uap)
 	return setfmode(p, (struct vnode *)fp->f_data, SCARG(uap, mode));
 }
 
+/*
+ * Common implementation for chown(), lchown(), and fchown()
+ */
 static int
 setfown(p, vp, uid, gid)
 	struct proc *p;
@@ -2288,6 +2304,9 @@ fchown(p, uap)
 		SCARG(uap, uid), SCARG(uap, gid));
 }
 
+/*
+ * Common implementation code for utimes(), lutimes(), and futimes().
+ */
 static int
 getutimes(usrtvp, tsp)
 	const struct timeval *usrtvp;
@@ -2309,6 +2328,9 @@ getutimes(usrtvp, tsp)
 	return 0;
 }
 
+/*
+ * Common implementation code for utimes(), lutimes(), and futimes().
+ */
 static int
 setutimes(p, vp, ts, nullflag)
 	struct proc *p;
@@ -3407,6 +3429,9 @@ bad:
 	return (error);
 }
 
+/*
+ * Stat an (NFS) file handle.
+ */
 #ifndef _SYS_SYSPROTO_H_
 struct fhstat_args {
 	struct fhandle *u_fhp;
@@ -3450,6 +3475,9 @@ fhstat(p, uap)
 	return (error);
 }
 
+/*
+ * Implement fstatfs() for (NFS) file handles.
+ */
 #ifndef _SYS_SYSPROTO_H_
 struct fhstatfs_args {
 	struct fhandle *u_fhp;
