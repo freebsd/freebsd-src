@@ -6,7 +6,7 @@
  * this stuff is worth it, you can buy me a beer in return.   Poul-Henning Kamp
  * ----------------------------------------------------------------------------
  *
- * $Id: ctm_pass2.c,v 1.9 1995/07/12 09:16:10 phk Exp $
+ * $Id: ctm_pass2.c,v 1.10 1995/11/10 12:17:23 phk Exp $
  *
  */
 
@@ -44,9 +44,9 @@ Pass2(FILE *fd)
     /* XXX drop or use ? */
 
     for(;;) {
-	if(trash)	{Free(trash), trash = 0;}
-	if(name)	{Free(name), name = 0;}
-	if(md5)		{Free(md5), md5 = 0;}
+	Delete(trash);
+	Delete(name);
+	Delete(md5);
 	cnt = -1;
 
 	GETFIELD(p,' ');
@@ -69,7 +69,7 @@ Pass2(FILE *fd)
 
 	    switch (j & CTM_F_MASK) {
 		case CTM_F_Name:
-		    GETFIELDCOPY(name,sep);
+		    GETNAMECOPY(name,sep,j,0);
 		    /* XXX Check DR DM rec's for parent-dir */
 		    if(j & CTM_Q_Name_New) {
 			/* XXX Check DR FR rec's for item */
@@ -163,7 +163,7 @@ Pass2(FILE *fd)
 			    return ret;
 			}
 			unlink(p);
-			free(p);
+			Free(p);
 		    }
 
 		    break;
@@ -171,6 +171,11 @@ Pass2(FILE *fd)
 	    }
         }
     }
+
+    Delete(trash);
+    Delete(name);
+    Delete(md5);
+
     q = MD5End (&ctx,md5_1);
     GETFIELD(p,'\n');			/* <MD5> */
     if(strcmp(q,p)) WRONG

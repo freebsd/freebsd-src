@@ -6,7 +6,7 @@
  * this stuff is worth it, you can buy me a beer in return.   Poul-Henning Kamp
  * ----------------------------------------------------------------------------
  *
- * $Id: ctm_pass3.c,v 1.10 1995/05/30 03:47:27 rgrimes Exp $
+ * $Id: ctm_pass3.c,v 1.11 1995/07/12 09:16:13 phk Exp $
  *
  */
 
@@ -41,13 +41,13 @@ Pass3(FILE *fd)
     GETFIELD(p,'\n'); if(strcmp(Prefix,p)) WRONG
 
     for(;;) {
-	if(md5)		{Free(md5), md5 = 0;}
-	if(uid)		{Free(uid), uid = 0;}
-	if(gid)		{Free(gid), gid = 0;}
-	if(mode)	{Free(mode), mode = 0;}
-	if(md5before)	{Free(md5before), md5before = 0;}
-	if(trash)	{Free(trash), trash = 0;}
-	if(name)	{Free(name), name = 0;}
+	Delete(md5);
+	Delete(uid);
+	Delete(gid);
+	Delete(mode);
+	Delete(md5before);
+	Delete(trash);
+	Delete(name);
 	cnt = -1;
 
 	GETFIELD(p,' ');
@@ -69,7 +69,7 @@ Pass3(FILE *fd)
 		sep = '\n';
 
 	    switch (j & CTM_F_MASK) {
-		case CTM_F_Name: GETFIELDCOPY(name,sep); break;
+		case CTM_F_Name: GETNAMECOPY(name,sep,j, Verbose); break;
 		case CTM_F_Uid:  GETFIELDCOPY(uid,sep); break;
 		case CTM_F_Gid:  GETFIELDCOPY(gid,sep); break;
 		case CTM_F_Mode: GETFIELDCOPY(mode,sep); break;
@@ -132,7 +132,7 @@ Pass3(FILE *fd)
 	}
 	if(!strcmp(sp->Key,"FN")) {
 	    strcpy(buf,name);
-	    strcat(buf,".ctm");
+	    strcat(buf,TMPSUFF);
 	    i = ctm_edit(trash,cnt,name,buf);
 	    if(i) {
 		fprintf(stderr," %s %s Edit failed with code %d.\n",
@@ -177,6 +177,15 @@ Pass3(FILE *fd)
 	}
 	WRONG
     }
+
+    Delete(md5);
+    Delete(uid);
+    Delete(gid);
+    Delete(mode);
+    Delete(md5before);
+    Delete(trash);
+    Delete(name);
+
     q = MD5End (&ctx,md5_1);
     GETFIELD(p,'\n');
     if(strcmp(q,p)) WRONG
