@@ -35,9 +35,6 @@
  *
  * xe_memwrite -- maybe better handled pccard layer?
  * xe_cem56fix -- need to figure out how to map the extra stuff.
- * xe_activate -- need to write it, and add some stuff to it.  Look at if_sn
- *                for guidance.  resources/interrupts.
- * xe_deactivate -- turn off resources/interrupts.
  */
 
 /*
@@ -141,6 +138,9 @@
 #include <net/if_media.h>
 #include <net/if_mib.h>
 #include <net/bpf.h>
+
+#include <dev/pccard/pccardvar.h>
+#include "card_if.h"
 
 #include <dev/xe/if_xereg.h>
 #include <dev/xe/if_xevar.h>
@@ -331,7 +331,6 @@ xe_probe(device_t dev)
 #endif
 
   /* Map in the CIS */
-  /* XXX This CANNOT work as it needs RF_PCCARD_ATTR support */
   r = bus_alloc_resource(dev, SYS_RES_MEMORY, &rid, 0, ~0, 4 << 10, RF_ACTIVE);
   if (!r) {
 #ifdef XE_DEBUG
@@ -340,6 +339,9 @@ xe_probe(device_t dev)
     return ENOMEM;
   }
   buf = (u_char *) rman_get_start(r);
+
+  CARD_SET_RES_FLAGS(device_get_parent(dev), dev, SYS_RES_MEMORY, rid,
+      PCCARD_A_MEM_ATTR);
 
   /* Grep through CIS looking for relevant tuples */
   offs = 0;
