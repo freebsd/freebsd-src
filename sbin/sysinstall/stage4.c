@@ -6,7 +6,7 @@
  * this stuff is worth it, you can buy me a beer in return.   Poul-Henning Kamp
  * ----------------------------------------------------------------------------
  *
- * $Id: stage4.c,v 1.3 1994/10/29 10:01:37 phk Exp $
+ * $Id: stage4.c,v 1.4 1994/11/02 06:19:49 jkh Exp $
  *
  */
 
@@ -43,6 +43,7 @@ stage4()
 	if (ffd > 0)
 	    break;
     }
+    dialog_clear();
     TellEm("cd /stand ; gunzip < /dev/fd0 | cpio -idum");
     pipe(pfd);
     zpid = fork();
