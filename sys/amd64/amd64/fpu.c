@@ -192,7 +192,6 @@ npx_attach(dev)
 {
 	register_t s;
 
-	device_printf(dev, "INT 16 interface\n");
 	npxinit(__INITIAL_NPXCW__);
 
 	if (npx_cleanstate_ready == 0) {
