@@ -4,9 +4,8 @@
 
 PROG=	fdcontrol
 SRCS=	fdcontrol.c fdutil.c
-MAN=	fdcontrol.8
-
+CFLAGS+= -I${.CURDIR}/../fdread
 WARNS?=	2
-CFLAGS+= -I${.CURDIR}/../fdread -static
+MAN=	fdcontrol.8
 
 .include <bsd.prog.mk>
