@@ -5,7 +5,7 @@
 #
 
 # PROVIDE: rpcbind
-# REQUIRE: NETWORKING ntpd syslogd named
+# REQUIRE: NETWORKING ntpdate syslogd named
 # KEYWORD: FreeBSD
 
 . /etc/rc.subr
