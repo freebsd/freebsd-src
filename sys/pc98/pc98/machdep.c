@@ -1877,7 +1877,9 @@ init386(first)
 	} else {
 		metadata_missing = 1;
 	}
-	if (bootinfo.bi_envp)
+	if (envmode == 1)
+		kern_envp = static_env;
+	else if (bootinfo.bi_envp)
 		kern_envp = (caddr_t)bootinfo.bi_envp + KERNBASE;
 
 	/* Init basic tunables, hz etc */
