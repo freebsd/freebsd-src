@@ -1029,8 +1029,7 @@ sched_sync(void)
 		/*
 		 * Do soft update processing.
 		 */
-		if (bioops.io_sync)
-			(*bioops.io_sync)(NULL);
+		softdep_process_worklist(NULL);
 
 		/*
 		 * The variable rushjob allows the kernel to speed up the

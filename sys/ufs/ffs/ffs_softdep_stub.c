@@ -253,4 +253,20 @@ softdep_sync_metadata(ap)
 
 	return (0);
 }
+
+int
+softdep_fsync(vp)
+	struct vnode *vp;	/* the "in_core" copy of the inode */
+{
+
+	return (0);
+}
+
+int
+softdep_process_worklist(matchmnt)
+	struct mount *matchmnt;
+{
+	return (0);
+}
+
 #endif	/* SOFTUPDATES not configured in */

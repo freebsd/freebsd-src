@@ -2545,10 +2545,7 @@ fsync(p, uap)
 	vn_lock(vp, LK_EXCLUSIVE | LK_RETRY, p);
 	if (vp->v_object)
 		vm_object_page_clean(vp->v_object, 0, 0, 0);
-	if ((error = VOP_FSYNC(vp, fp->f_cred, MNT_WAIT, p)) == 0 &&
-	    vp->v_mount && (vp->v_mount->mnt_flag & MNT_SOFTDEP) &&
-	    bioops.io_fsync)
-		error = (*bioops.io_fsync)(vp);
+	error = VOP_FSYNC(vp, fp->f_cred, MNT_WAIT, p);
 	VOP_UNLOCK(vp, 0, p);
 	return (error);
 }

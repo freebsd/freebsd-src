@@ -222,8 +222,6 @@ struct bio_ops bioops = {
 	softdep_disk_io_initiation,		/* io_start */
 	softdep_disk_write_complete,		/* io_complete */
 	softdep_deallocate_dependencies,	/* io_deallocate */
-	softdep_fsync,				/* io_fsync */
-	softdep_process_worklist,		/* io_sync */
 	softdep_move_dependencies,		/* io_movedeps */
 	softdep_count_dependencies,		/* io_countdeps */
 };
