@@ -34,7 +34,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id$
+ *	$Id: ar_io.c,v 1.2 1994/09/24 02:56:11 davidg Exp $
  */
 
 #ifndef lint
@@ -278,7 +278,7 @@ ar_open(name)
 		break;
 	default:
 		/*
-		 * should never happen, worse case, slow... 
+		 * should never happen, worse case, slow...
 		 */
 		blksz = rdblksz = BLKMULT;
 		break;
@@ -458,8 +458,8 @@ ar_set_wr()
 	 * will stop us if the archive containing the trailer was not written
 	 */
 	wr_trail = 0;
-	
-	/* 
+
+	/*
 	 * Add any device dependent code as required here
 	 */
 	if (artyp != ISREG)
@@ -480,7 +480,7 @@ ar_set_wr()
 /*
  * ar_app_ok()
  *	check if the last volume in the archive allows appends. We cannot check
- *	this until we are ready to write since there is no spec that says all 
+ *	this until we are ready to write since there is no spec that says all
  *	volumes in a single archive have to be of the same type...
  * Return:
  *	0 if we can append, -1 otherwise.
@@ -592,7 +592,7 @@ ar_read(buf, cnt)
 	else
 		warn(0, "End of archive volume %d reached", arvol);
 	return(res);
-} 
+}
 
 /*
  * ar_write()
@@ -710,8 +710,8 @@ ar_write(buf, bsz)
 		warn(1,"Unable to append, trailer re-write failed. Quitting.");
 		return(res);
 	}
-		
-	if (res == 0) 
+
+	if (res == 0)
 		warn(0, "End of archive volume %d reached", arvol);
 	else if (res < 0)
 		syswarn(1, errno, "Failed write to archive volume: %d", arvol);
@@ -791,7 +791,7 @@ ar_rdsync()
 		if ((cpos = lseek(arfd, (off_t)0L, SEEK_CUR)) < 0)
 			break;
 		mpos = fsbz - (cpos % (off_t)fsbz);
-		if (lseek(arfd, mpos, SEEK_CUR) < 0) 
+		if (lseek(arfd, mpos, SEEK_CUR) < 0)
 			break;
 		lstrval = 1;
 		break;
@@ -850,14 +850,14 @@ ar_fow(sksz, skipped)
 	 * number of physical blocks to skip (we do not know physical block
 	 * size at this point), so we must only read foward on tapes!
 	 */
-	if (artyp != ISREG) 
+	if (artyp != ISREG)
 		return(0);
 
 	/*
 	 * figure out where we are in the archive
 	 */
 	if ((cpos = lseek(arfd, (off_t)0L, SEEK_CUR)) >= 0) {
-		/* 
+		/*
 	 	 * we can be asked to move farther than there are bytes in this
 		 * volume, if so, just go to file end and let normal buf_fill()
 		 * deal with the end of file (it will go to next volume by
@@ -898,7 +898,7 @@ ar_rev(sksz)
 {
 	off_t cpos;
         struct mtop mb;
-	register int phyblk; 
+	register int phyblk;
 
 	/*
 	 * make sure we do not have try to reverse on a flawed archive
@@ -908,7 +908,7 @@ ar_rev(sksz)
 
 	switch(artyp) {
 	case ISPIPE:
-		if (sksz <= 0) 
+		if (sksz <= 0)
 			break;
 		/*
 		 * cannot go backwards on these critters
@@ -1017,7 +1017,7 @@ ar_rev(sksz)
 /*
  * get_phys()
  *	Determine the physical block size on a tape drive. We need the physical
- *	block size so we know how many bytes we skip over when we move with 
+ *	block size so we know how many bytes we skip over when we move with
  *	mtio commands. We also make sure we are BEFORE THE TAPE FILEMARK when
  *	return.
  *	This is one really SLOW routine...
@@ -1218,7 +1218,7 @@ ar_next()
 				/*
 				 * we are to continue with the same device
 				 */
-				if (ar_open(arcname) >= 0) 
+				if (ar_open(arcname) >= 0)
 					return(0);
 				tty_prnt("Cannot re-open %s, try again\n",
 					arcname);

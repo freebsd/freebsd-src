@@ -30,7 +30,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id$
+ *	$Id: sem.c,v 1.2 1994/09/24 02:54:15 davidg Exp $
  */
 
 #ifndef lint
@@ -438,7 +438,7 @@ execute(t, wanttty, pipein, pipeout)
     }
     /*
      * Fall through for all breaks from switch
-     * 
+     *
      * If there will be no more executions of this command, flush all file
      * descriptors. Places that turn on the F_REPEAT bit are responsible for
      * doing donefds after the last re-execution
@@ -476,7 +476,7 @@ int i;
  *
  * I don't know what is best to do. I think that Ambiguous is better
  * than restructuring the command vector, because the user can get
- * unexpected results. In any case, the command vector restructuring 
+ * unexpected results. In any case, the command vector restructuring
  * code is present and the user can choose it by setting noambiguous
  */
 static Char *

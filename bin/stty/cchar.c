@@ -30,7 +30,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: cchar.c,v 1.2 1994/09/24 02:58:55 davidg Exp $
+ *	$Id: cchar.c,v 1.3 1995/04/28 19:29:28 ache Exp $
  */
 
 #ifndef lint
@@ -100,7 +100,7 @@ csearch(argvp, ip)
 	struct cchar *cp, tmp;
 	long val;
 	char *arg, *ep, *name;
-		
+
 	name = **argvp;
 
 	tmp.name = name;

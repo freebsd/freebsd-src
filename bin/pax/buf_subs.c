@@ -34,7 +34,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id$
+ *	$Id: buf_subs.c,v 1.2 1994/09/24 02:56:13 davidg Exp $
  */
 
 #ifndef lint
@@ -101,7 +101,7 @@ wr_start()
 	 * archive that might be hard to read elsewhere. If all ok, we then
 	 * open the first archive volume
 	 */
-	if (!wrblksz)  
+	if (!wrblksz)
 		wrblksz = frmt->bsz;
 	if (wrblksz > MAXBLK) {
 		warn(1, "Write block size of %d too large, maximium is: %d",
@@ -115,7 +115,7 @@ wr_start()
 	}
 
 	/*
-	 * we only allow wrblksz to be used with all archive operations 
+	 * we only allow wrblksz to be used with all archive operations
 	 */
 	blksz = rdblksz = wrblksz;
 	if ((ar_open(arcname) < 0) && (ar_next() < 0))
@@ -215,7 +215,7 @@ cp_start()
  *	about the conditions under which they will allow a write to occur.
  *	Often devices restrict the conditions where writes can be made writes,
  *	so it may not be feasable to append archives stored on all types of
- *	devices. 
+ *	devices.
  * Return:
  *	0 for success, -1 for failure
  */
@@ -313,7 +313,7 @@ appnd_start(skcnt)
 	warn(1, "Unable to rewrite archive trailer, cannot append.");
 	return(-1);
 }
-	
+
 /*
  * rd_sync()
  *	A read error occurred on this archive volume. Resync the buffer and
@@ -488,7 +488,7 @@ rd_skip(skcnt)
 	return(0);
 }
 
-/* 
+/*
  * wr_fin()
  *	flush out any data (and pad if required) the last block. We always pad
  *	with zero (even though we do not have to). Padding with 0 makes it a
@@ -517,7 +517,7 @@ wr_fin()
  *	by format specific write routines to pass a file header). On failure we
  *	punt. We do not allow the user to continue to write flawed archives.
  *	We assume these headers are not very large (the memory copy we use is
- *	a bit expensive). 
+ *	a bit expensive).
  * Return:
  *	0 if buffer was filled ok, -1 o.w. (buffer flush failure)
  */
@@ -810,7 +810,7 @@ rd_wrfile(arcn, ofd, left)
 	/*
 	 * if we failed from archive read, we do not want to skip
 	 */
-	if ((size > 0L) && (*left == 0L)) 
+	if ((size > 0L) && (*left == 0L))
 		return(-1);
 
 	/*
@@ -1019,7 +1019,7 @@ buf_flush(bufcnt)
 		/*
 		 * write a block and check if it all went out ok
 		 */
-		cnt = ar_write(buf, blksz); 
+		cnt = ar_write(buf, blksz);
 		if (cnt == blksz) {
 			/*
 			 * the write went ok

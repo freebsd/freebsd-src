@@ -30,7 +30,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id$
+ *	$Id: file.c,v 1.2 1994/09/24 02:54:03 davidg Exp $
  */
 
 #ifndef lint
@@ -521,7 +521,7 @@ again:				/* search for matches */
 	return (numitems);
     }
     else {			/* LIST */
-	qsort((ptr_t) items, numitems, sizeof(items[0]), 
+	qsort((ptr_t) items, numitems, sizeof(items[0]),
 		(int (*) __P((const void *, const void *))) sortscmp);
 	print_by_column(looking_for_lognames ? NULL : tilded_dir,
 			items, numitems);

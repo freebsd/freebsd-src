@@ -33,7 +33,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id$
+ *	$Id: var.c,v 1.2 1994/09/24 02:58:22 davidg Exp $
  */
 
 #ifndef lint
@@ -93,7 +93,7 @@ const struct varinit varinit[] = {
 	{&vmail,	VSTRFIXED|VTEXTFIXED|VUNSET,	"MAIL="},
 	{&vmpath,	VSTRFIXED|VTEXTFIXED|VUNSET,	"MAILPATH="},
 	{&vpath,	VSTRFIXED|VTEXTFIXED,		"PATH=:/bin:/usr/bin"},
-	/* 
+	/*
 	 * vps1 depends on uid
 	 */
 	{&vps2,	VSTRFIXED|VTEXTFIXED,		"PS2=> "},
@@ -586,7 +586,7 @@ unsetcmd(argc, argv)  char **argv; {
 	}
 	if (flg_func == 0 && flg_var == 0)
 		flg_var = 1;
-			
+
 	for (ap = argptr; *ap ; ap++) {
 		if (flg_func)
 			ret |= unsetfunc(*ap);

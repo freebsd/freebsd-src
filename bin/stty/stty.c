@@ -30,7 +30,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: stty.c,v 1.2 1994/09/24 02:59:02 davidg Exp $
+ *	$Id: stty.c,v 1.3 1995/04/29 15:00:34 bde Exp $
  */
 
 #ifndef lint
@@ -58,7 +58,7 @@ static char sccsid[] = "@(#)stty.c	8.3 (Berkeley) 4/2/94";
 #include "extern.h"
 
 int
-main(argc, argv) 
+main(argc, argv)
 	int argc;
 	char *argv[];
 {
@@ -117,7 +117,7 @@ args:	argc -= optind;
 		gprint(&i.t, &i.win, i.ldisc);
 		break;
 	}
-	
+
 	for (i.set = i.wset = 0; *argv; ++argv) {
 		if (ksearch(&argv, &i))
 			continue;

@@ -33,7 +33,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id$
+ *	$Id: error.c,v 1.2 1994/09/24 02:57:27 davidg Exp $
  */
 
 #ifndef lint
@@ -53,7 +53,7 @@ static char sccsid[] = "@(#)error.c	8.1 (Berkeley) 5/31/93";
 #ifdef __STDC__
 #include "stdarg.h"
 #else
-#include <varargs.h>	
+#include <varargs.h>
 #endif
 #include <errno.h>
 

@@ -33,7 +33,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: cp.c,v 1.4 1995/01/25 07:31:01 davidg Exp $
+ *	$Id: cp.c,v 1.5 1995/04/02 00:49:16 bde Exp $
  */
 
 #ifndef lint
@@ -48,11 +48,11 @@ static char sccsid[] = "@(#)cp.c	8.2 (Berkeley) 4/1/94";
 
 /*
  * Cp copies source files to target files.
- * 
+ *
  * The global PATH_T structure "to" always contains the path to the
  * current target file.  Since fts(3) does not change directories,
  * this path can be either absolute or dot-realative.
- * 
+ *
  * The basic algorithm is to initialize "to" and use fts(3) to traverse
  * the file hierarchy rooted in the argument list.  A trivial case is the
  * case of 'cp file1 file2'.  The more interesting case is the case of
@@ -105,7 +105,7 @@ main(argc, argv)
 	char *target;
 
 	Hflag = Lflag = Pflag = Rflag = 0;
-	while ((ch = getopt(argc, argv, "HLPRfipr")) != EOF) 
+	while ((ch = getopt(argc, argv, "HLPRfipr")) != EOF)
 		switch (ch) {
 		case 'H':
 			Hflag = 1;
@@ -188,8 +188,8 @@ main(argc, argv)
 	to.target_end = to.p_end;
 
 	/* Set end of argument list for fts(3). */
-	argv[argc] = NULL;     
-	
+	argv[argc] = NULL;
+
 	/*
 	 * Cp has two distinct cases:
 	 *
@@ -210,7 +210,7 @@ main(argc, argv)
 	if (r == -1 || !S_ISDIR(to_stat.st_mode)) {
 		/*
 		 * Case (1).  Target is not a directory.
-		 */ 
+		 */
 		if (argc > 1) {
 			usage();
 			exit(1);
@@ -227,7 +227,7 @@ main(argc, argv)
 				stat(*argv, &tmp_stat);
 			else
 				lstat(*argv, &tmp_stat);
-			
+
 			if (S_ISDIR(tmp_stat.st_mode) && (Rflag || rflag))
 				type = DIR_TO_DNE;
 			else
@@ -274,8 +274,8 @@ copy(argv, type, fts_options)
 		}
 
 		/*
-		 * If we are in case (2) or (3) above, we need to append the 
-                 * source name to the target name.  
+		 * If we are in case (2) or (3) above, we need to append the
+                 * source name to the target name.
                  */
 		if (type != FILE_TO_FILE) {
 			/*
@@ -300,10 +300,10 @@ copy(argv, type, fts_options)
 			if (curr->fts_level == FTS_ROOTLEVEL)
 				if (type != DIR_TO_DNE) {
 					p = strrchr(curr->fts_path, '/');
-					base = (p == NULL) ? 0 : 
+					base = (p == NULL) ? 0 :
 					    (int)(p - curr->fts_path + 1);
 
-					if (!strcmp(&curr->fts_path[base], 
+					if (!strcmp(&curr->fts_path[base],
 					    ".."))
 						base += 1;
 				} else
@@ -316,7 +316,7 @@ copy(argv, type, fts_options)
 				*target_mid++ = '/';
 			*target_mid = 0;
 			if (target_mid - to.p_path + nlen > MAXPATHLEN) {
-				warnx("%s%s: name too long (not copied)", 
+				warnx("%s%s: name too long (not copied)",
 				    to.p_path, p);
 				rval = 1;
 				continue;
@@ -365,7 +365,7 @@ copy(argv, type, fts_options)
 			 * umask blocks owner writes, we fail..
 			 */
 			if (dne) {
-				if (mkdir(to.p_path, 
+				if (mkdir(to.p_path,
 				    curr->fts_statp->st_mode | S_IRWXU) < 0)
 					err(1, "%s", to.p_path);
 			} else if (!S_ISDIR(to_stat.st_mode)) {
@@ -374,14 +374,14 @@ copy(argv, type, fts_options)
 			}
 			/*
 			 * If not -p and directory didn't exist, set it to be
-			 * the same as the from directory, umodified by the 
-                         * umask; arguably wrong, but it's been that way 
+			 * the same as the from directory, umodified by the
+                         * umask; arguably wrong, but it's been that way
                          * forever.
 			 */
 			if (pflag && setfile(curr->fts_statp, 0))
 				rval = 1;
 			else if (dne)
-				(void)chmod(to.p_path, 
+				(void)chmod(to.p_path,
 				    curr->fts_statp->st_mode);
 			break;
 		case S_IFBLK:

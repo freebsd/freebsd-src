@@ -30,7 +30,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id$
+ *	$Id: exec.c,v 1.2 1994/09/24 02:53:59 davidg Exp $
  */
 
 #ifndef lint
@@ -50,7 +50,7 @@ static char sccsid[] = "@(#)exec.c	8.1 (Berkeley) 5/31/93";
 # include <stdarg.h>
 #else
 # include <varargs.h>
-#endif 
+#endif
 
 #include "csh.h"
 #include "extern.h"
@@ -696,7 +696,7 @@ tellmewhat(lex)
 	if (eq(sp->word, str2short(bptr->bname))) {
 	    if (aliased)
 		prlex(cshout, lex);
-	    (void) fprintf(cshout, "%s: shell built-in command.\n", 
+	    (void) fprintf(cshout, "%s: shell built-in command.\n",
 			   vis_str(sp->word));
 	    sp->word = s0;	/* we save and then restore this */
 	    return;

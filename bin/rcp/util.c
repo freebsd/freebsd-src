@@ -30,7 +30,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: util.c,v 1.2 1994/09/24 02:56:57 davidg Exp $
+ *	$Id: util.c,v 1.3 1995/03/19 13:29:16 joerg Exp $
  */
 
 #ifndef lint
@@ -118,7 +118,7 @@ susystem(s, userid)
 	switch (pid) {
 	case -1:
 		return (127);
-	
+
 	case 0:
 		(void)setuid(userid);
 		execl(_PATH_BSHELL, "sh", "-c", s, NULL);

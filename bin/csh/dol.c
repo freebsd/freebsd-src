@@ -30,7 +30,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id$
+ *	$Id: dol.c,v 1.2 1994/09/24 02:53:56 davidg Exp $
  */
 
 #ifndef lint
@@ -425,7 +425,7 @@ Dgetdol()
 	if (dimen || bitset)
 	    stderror(ERR_SYNTAX);
 	if (backpid != 0) {
-	    if (dolbang) 
+	    if (dolbang)
 		xfree((ptr_t) dolbang);
 	    setDolp(dolbang = putn(backpid));
 	}
@@ -645,13 +645,13 @@ fixDolMod()
 		    dolwcnt = 10000;
 		c = DgetC(0);
 	    }
-	    if ((c == 'g' && dolmcnt != 10000) || 
+	    if ((c == 'g' && dolmcnt != 10000) ||
 		(c == 'a' && dolwcnt != 10000)) {
 		if (c == 'g')
 		    dolmcnt = 10000;
 		else
 		    dolwcnt = 10000;
-		c = DgetC(0); 
+		c = DgetC(0);
 	    }
 
 	    if (c == 's') {	/* [eichin:19910926.0755EST] */
@@ -659,12 +659,12 @@ fixDolMod()
 		int delim = DgetC(0);
 		dolmod[dolnmod++] = c;
 		dolmod[dolnmod++] = delim;
-		
+
 		if (!delim || letter(delim)
 		    || Isdigit(delim) || any(" \t\n", delim)) {
 		    seterror(ERR_BADSUBST);
 		    break;
-		}	
+		}
 		while ((c = DgetC(0)) != (-1)) {
 		    dolmod[dolnmod++] = c;
 		    if(c == delim) delimcnt--;
@@ -708,7 +708,7 @@ setDolp(cp)
 	    Char *lhsub, *rhsub, *np;
 	    size_t lhlen = 0, rhlen = 0;
 	    int didmod = 0;
-		
+
 	    delim = dolmod[++i];
 	    if (!delim || letter(delim)
 		|| Isdigit(delim) || any(" \t\n", delim)) {

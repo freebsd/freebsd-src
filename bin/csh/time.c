@@ -30,7 +30,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: time.c,v 1.3 1995/02/16 09:17:27 jkh Exp $
+ *	$Id: time.c,v 1.4 1995/03/19 13:28:12 joerg Exp $
  */
 
 #ifndef lint
@@ -180,7 +180,7 @@ prusage(r0, r1, e, b)
 		break;
 
 	    case 'X':		/* (average) shared text size */
-		(void) fprintf(cshout, "%ld", t == 0 ? 0L : 
+		(void) fprintf(cshout, "%ld", t == 0 ? 0L :
 			       (r1->ru_ixrss - r0->ru_ixrss) / t);
 		break;
 

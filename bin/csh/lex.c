@@ -30,7 +30,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id$
+ *	$Id: lex.c,v 1.2 1994/09/24 02:54:09 davidg Exp $
  */
 
 #ifndef lint
@@ -575,12 +575,12 @@ getdol()
 		int delimcnt = 2;
 		int delim = getC(0);
 		*np++ = delim;
-		
+
 		if (!delim || letter(delim)
 		    || Isdigit(delim) || any(" \t\n", delim)) {
 		    seterror(ERR_BADSUBST);
 		    break;
-		}	
+		}
 		while ((c = getC(0)) != (-1)) {
 		    *np++ = c;
 		    if(c == delim) delimcnt--;
@@ -877,7 +877,7 @@ dosub(sc, en, global)
 
     wdp = hp;
     while (--i >= 0) {
-	register struct wordent *new = 
+	register struct wordent *new =
 		(struct wordent *) xcalloc(1, sizeof *wdp);
 
 	new->word = 0;
