@@ -56,8 +56,8 @@ struct ng_bpf_hookprog {
 	struct bpf_insn	bpf_prog[0];			/* bpf program */
 };
 
-#define NG_BPF_HOOKPROG_SIZE(hp)	\
-	(sizeof(*(hp)) + (hp)->bpf_prog_len * sizeof((hp)->bpf_prog[0]))
+#define NG_BPF_HOOKPROG_SIZE(numInsn)	\
+	(sizeof(struct ng_bpf_hookprog) + (numInsn) * sizeof(struct bpf_insn))
 
 /* Keep this in sync with the above structure definition */
 #define NG_BPF_HOOKPROG_TYPE_INFO(bptype)	{		\
