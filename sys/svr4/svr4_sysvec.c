@@ -185,6 +185,7 @@ struct sysentvec svr4_sysvec = {
 };
 
 Elf32_Brandinfo svr4_brand = {
+  ELFOSABI_SYSV,
   "SVR4",
   "/compat/svr4",
   "/lib/libc.so.1",
