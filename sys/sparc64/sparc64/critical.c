@@ -22,9 +22,10 @@
 void
 cpu_critical_enter(void)
 {
+	struct thread *td;
 	critical_t pil;
-	struct thread *td = curthread;
 
+	td = curthread;
 	pil = rdpr(pil);
 	wrpr(pil, 0, 14);
 	td->td_md.md_savecrit = pil;
@@ -33,7 +34,9 @@ cpu_critical_enter(void)
 void
 cpu_critical_exit(void)
 {
-	struct thread *td = curthread;
+	struct thread *td;
+
+	td = curthread;
 	wrpr(pil, td->td_md.md_savecrit, 0); 
 }
 
@@ -43,8 +46,9 @@ cpu_critical_exit(void)
 void
 cpu_critical_fork_exit(void)
 {
-	struct thread *td = curthread;
+	struct thread *td;
 
+	td = curthread;
 	td->td_critnest = 1;
 	td->td_md.md_savecrit = 0;
 }
@@ -55,6 +59,7 @@ cpu_critical_fork_exit(void)
 void
 cpu_thread_link(struct thread *td)
 {
+
 	td->td_md.md_savecrit = 0;
 }
 
