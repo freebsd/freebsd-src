@@ -89,6 +89,7 @@
 #include <vm/vm_kern.h>
 #include <vm/vm_extern.h>
 #include <vm/swap_pager.h>
+#include <vm/uma.h>
 
 /*
  *	Virtual memory maps provide for the mapping, protection,
@@ -157,8 +158,11 @@ vm_map_startup(void)
 #endif
 	    vm_map_zinit, vm_map_zfini, UMA_ALIGN_PTR, UMA_ZONE_NOFREE);
 	uma_prealloc(mapzone, MAX_KMAP);
-	kmapentzone = zinit("KMAP ENTRY", sizeof(struct vm_map_entry), 0, 0, 0);	uma_prealloc(kmapentzone, MAX_KMAPENT);
-	mapentzone = zinit("MAP ENTRY", sizeof(struct vm_map_entry), 0, 0, 0);
+	kmapentzone = uma_zcreate("KMAP ENTRY", sizeof(struct vm_map_entry), 
+	    NULL, NULL, NULL, NULL, UMA_ALIGN_PTR, 0);
+	uma_prealloc(kmapentzone, MAX_KMAPENT);
+	mapentzone = uma_zcreate("MAP ENTRY", sizeof(struct vm_map_entry), 
+	    NULL, NULL, NULL, NULL, UMA_ALIGN_PTR, 0);
 	uma_prealloc(mapentzone, MAX_MAPENT);
 }
 

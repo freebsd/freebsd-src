@@ -54,9 +54,9 @@
 #include <sys/sysctl.h>
 #include <vm/vm.h>
 #include <vm/vm_extern.h>
-#include <vm/vm_zone.h>
 #include <vm/vm_param.h>
 #include <vm/swap_pager.h>
+#include <vm/uma.h>
 
 /*
  * Indirect driver for multi-controller paging.
