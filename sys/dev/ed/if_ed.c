@@ -20,7 +20,7 @@
  */
 
 /*
- * $Id: if_ed.c,v 1.28 1994/01/11 23:28:21 ats Exp $
+ * $Id: if_ed.c,v 1.29 1994/01/25 22:52:06 ats Exp $
  */
 
 #include "ed.h"
@@ -1942,6 +1942,15 @@ ed_ioctl(ifp, command, data)
 		default:
 			ed_init(ifp->if_unit);
 			break;
+		}
+		break;
+
+	case SIOCGIFADDR:
+		{
+			struct sockaddr *sa;
+			sa = (struct sockaddr *)&ifr->ifr_data;
+			bcopy((caddr_t)sc->arpcom.ac_enaddr,
+			    (caddr_t) sa->sa_data, ETHER_ADDR_LEN);
 		}
 		break;
 
