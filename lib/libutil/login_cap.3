@@ -175,13 +175,15 @@ function to the authorisation style, according to the requirements
 of the program handling a login itself.
 .Pp
 As noted above, the
-.Fn get*class
+.Fn login_get*class
 functions return a login_cap_t object which is used to access
 the matching or default record in the capabilities database.
 The
-.Fn getclassbyname
+.Fn login_getclassbyname
 function accepts two arguments: the first one is the record identifier of the
-record to be retrieved, the second is an optional directory name.
+record to be retrieved, the second is an optional pointer to a
+.Li passwd
+structure.
 If the first
 .Ar name
 argument is NULL, an empty string, or a class that does not exist
@@ -189,9 +191,17 @@ in the supplemental or system login class database, then the system
 .Em default
 record is returned instead.
 If the second
-.Ar dir
+.Ar pwd
 parameter is NULL, then only the system login class database is
-used, but when not NULL, the named directory is searched for
+used.
+However,
+if the
+.Ar pwd
+parameter and the value of
+.Ar pwd->pw_dir
+are both not NULL, then the directory contained in
+.Ar pwd->pw_dir
+is searched for
 a login database file called ".login_conf", and capability records
 contained within it may override the system defaults.
 This scheme allows users to override some login settings from
@@ -215,6 +225,15 @@ The user's
 .Pa .login_conf
 merely provides a convenient way for a user to set up their preferred
 login environment before the shell is invoked on login.
+Note that access to the
+.Pa /etc/login.conf
+and
+.Pa .login_conf
+files will only be performed subject to the security checks documented in
+.Xr _secure_path 3
+for the uids 0 and
+.Ar pwd->pw_uid
+respectively.
 .Pp
 If the specified record is NULL, empty or does not exist, and the
 system has no "default" record available to fall back to, there is a
