@@ -231,8 +231,8 @@ ng_ipfw_rcvdata(hook_p hook, item_p item)
 	    {
 		struct ip *ip;
 
-		if (m->m_len < sizeof (struct ip) &&
-			(m = m_pullup(m, sizeof (struct ip))) == NULL)
+		if (m->m_len < sizeof(struct ip) &&
+			(m = m_pullup(m, sizeof(struct ip))) == NULL)
 				return(EINVAL);
 
 		ip = mtod(m, struct ip *);
@@ -294,7 +294,8 @@ ng_ipfw_input(struct mbuf **m0, int dir, struct ip_fw_args *fwa, int tee)
 		m_tag_prepend(m, &ngit->mt);
 
 	} else
-		if ((m = m_dup(*m0, M_DONTWAIT)) == NULL)
+		if ((m = m_dup(*m0, M_DONTWAIT)) == NULL ||
+		    (m = m_pullup(m, sizeof(struct ip))) == NULL)
 			return (ENOMEM);	/* which is ignored */
 
 	ip = mtod(m, struct ip *);
