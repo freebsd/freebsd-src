@@ -845,7 +845,7 @@ bdg_forward(struct mbuf *m0, struct ether_header *const eh, struct ifnet *dst)
 	ifp = dst ;
 	once = 1 ;
     }
-    if ( (u_int)(ifp) <= (u_int)BDG_FORWARD )
+    if ((uintptr_t)(ifp) <= (u_int)BDG_FORWARD)
 	panic("bdg_forward: bad dst");
 
     /*
