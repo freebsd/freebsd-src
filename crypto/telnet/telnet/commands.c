@@ -453,7 +453,7 @@ send_tncmd(void (*func)(int, int), const char *cmd, char *name)
     if (isprefix(name, "help") || isprefix(name, "?")) {
 	int col, len;
 
-	printf("Usage: send %s <value|option>\n", cmd);
+	printf("usage: send %s <value|option>\n", cmd);
 	printf("\"value\" must be from 0 to 255\n");
 	printf("Valid options are:\n\t");
 
