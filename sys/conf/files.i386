@@ -321,11 +321,11 @@ i386/isa/vesa.c			optional	vga vesa
 i386/isa/wd.c			optional	wd	\
 	warning "The wd  driver is obsolete.  Please use the atadisk driver!"
 i386/isa/wd.c			optional	wdc
-i386/isa/wd_cd.c		optional	wcd	\
+i386/isa/wd_cd.c		optional	wcd wdc	\
 	warning "The wcd driver is obsolete.  Please use the atapicd driver!"
-i386/isa/wfd.c			optional	wfd	\
+i386/isa/wfd.c			optional	wfd wdc	\
 	warning "The wfd driver is obsolete.  Please use the atapifd driver!"
-i386/isa/wst.c			optional	wst	\
+i386/isa/wst.c			optional	wst wdc	\
 	warning "The wst driver is obsolete.  Please use the atapist driver!"
 i386/isa/wt.c			optional	wt
 i386/linux/imgact_linux.c	optional	compat_linux
