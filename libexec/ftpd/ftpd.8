@@ -42,6 +42,7 @@ Internet File Transfer Protocol server
 .Nm ftpd
 .Op Fl dl
 .Op Fl S
+.Op Fl U
 .Op Fl T Ar maxtimeout
 .Op Fl t Ar timeout
 .Sh DESCRIPTION
@@ -74,6 +75,13 @@ logs all anonymous transfers to the file
 .Pa /var/log/ftpd
 when this file exists.
 .
+.It Fl U
+In previous versions of
+.Nm ftpd ,
+when a passive mode client requested a data connection to the server,
+the server would use data ports in the range 1024..4999.  Now, by default,
+the server will use data ports in the range 40000..44999.  Specifying this
+option will revert to the old behavior.
 .It Fl T
 A client may also request a different timeout period;
 the maximum period allowed may be set to
