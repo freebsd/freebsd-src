@@ -246,7 +246,7 @@ i4bingattach(void *dummy)
 		sc->sc_state = ST_IDLE;
 		
 		sc->sc_fastq.ifq_maxlen = I4BINGMAXQLEN;
-		if(!mtx_initiallized(&sc->sc_fastq.ifq_mtx))
+		if(!mtx_initialized(&sc->sc_fastq.ifq_mtx))
 			mtx_init(&sc->sc_fastq.ifq_mtx, "i4b_ing_fastq", MTX_DEF);
 		
 #if I4BINGACCT
