@@ -32,6 +32,10 @@
 #include <isa/isareg.h>
 #include <isa/isavar.h>
 
+#ifndef MDNSECT
+#define MDNSECT (10000 * 2)
+#endif
+
 MALLOC_DEFINE(M_MD, "MD disk", "Memory Disk");
 MALLOC_DEFINE(M_MDSECT, "MD sectors", "Memory Disk Sectors");
 
@@ -168,18 +172,20 @@ mdstrategy(struct buf *bp)
 
 			if (secno < sc->nsecp) {
 				secpp = &sc->secp[secno];
-				if ((u_int)secpp > 255) {
+				if ((u_int)*secpp > 255) {
 					secp = *secpp;
 					secval = 0;
 				} else {
 					secp = 0;
-					secval = (u_int) secpp;
+					secval = (u_int) *secpp;
 				}
 			} else {
 				secpp = 0;
 				secp = 0;
 				secval = 0;
 			}
+			if (md_debug > 2)
+				printf("%x %p %p %d\n", bp->b_flags, secpp, secp, secval);
 
 			if (bp->b_flags & B_FREEBUF) {
 				if (secpp) {
@@ -234,10 +240,8 @@ mdstrategy(struct buf *bp)
 		}
 
 		bp->b_resid = 0;
+		devstat_end_transaction_buf(&sc->stats, bp);
 		biodone(bp);
-		devstat_end_transaction(&sc->stats, bp->b_bcount,
-		    DEVSTAT_TAG_NONE, dop);
-
 		s = splbio();
 	}
 	sc->busy = 0;
@@ -263,7 +267,7 @@ mdcreate(void)
 	    &md_cdevsw, &mddisk_cdevsw);
 
 	sc->dev->si_drv1 = sc;
-	sc->nsect = 10000 * 2;	/* for now */
+	sc->nsect = MDNSECT;	/* for now */
 	MALLOC(sc->secp, u_char **, sizeof(u_char *), M_MD, M_WAITOK);
 	bzero(sc->secp, sizeof(u_char *));
 	sc->nsecp = 1;
