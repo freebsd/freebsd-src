@@ -196,9 +196,9 @@ pcf_poll(
 	pp->hour = tp->tm_hour;
 	pp->minute = tp->tm_min;
 	pp->second = tp->tm_sec;
-	pp->usec = buf[16] * 31250;
+	pp->nsec = buf[16] * 31250000;
 	if (buf[17] & 1)
-		pp->usec += 500000;
+		pp->nsec += 500000000;
 
 #ifdef DEBUG
 	if (debug)
@@ -216,6 +216,7 @@ pcf_poll(
 		pp->leap = LEAP_NOTINSYNC;
 	else
 		pp->leap = LEAP_NOWARNING;
+	pp->lastref = pp->lastrec;
 	refclock_receive(peer);
 }
 #else

@@ -192,7 +192,7 @@ extern	struct refclock refclock_oncore;
 #define refclock_oncore refclock_none
 #endif
 
-#if defined(CLOCK_JUPITER) && defined(PPS)
+#if defined(CLOCK_JUPITER) && defined(HAVE_PPSAPI)
 extern	struct refclock refclock_jupiter;
 #else
 #define refclock_jupiter refclock_none

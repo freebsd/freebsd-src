@@ -7,6 +7,11 @@
 #include <config.h>
 #endif
 
+#if defined(SYS_WINNT)
+#undef close
+#define close closesocket
+#endif
+
 #if defined(REFCLOCK) && defined(CLOCK_NMEA)
 
 #include "ntpd.h"
@@ -147,14 +152,15 @@ nmea_start(
 	 */
 	(void)sprintf(device, DEVICE, unit);
 
-	if (!(fd = refclock_open(device, SPEED232, LDISC_CLK)))
+	fd = refclock_open(device, SPEED232, LDISC_CLK);
+	if (fd < 0)
 	    return (0);
 
 	/*
 	 * Allocate and initialize unit structure
 	 */
-	if (!(up = (struct nmeaunit *)
-	      emalloc(sizeof(struct nmeaunit)))) {
+	up = (struct nmeaunit *)emalloc(sizeof(struct nmeaunit));
+	if (up == NULL) {
 		(void) close(fd);
 		return (0);
 	}
@@ -380,7 +386,7 @@ nmea_receive(
 	peer = (struct peer *)rbufp->recv_srcclock;
 	pp = peer->procptr;
 	up = (struct nmeaunit *)pp->unitptr;
-	rd_lencode = refclock_gtlin(rbufp, rd_lastcode, BMAX, &rd_tmp);
+	rd_lencode = (u_short)refclock_gtlin(rbufp, rd_lastcode, BMAX, &rd_tmp);
 
 	/*
 	 * There is a case that a <CR><LF> gives back a "blank" line
@@ -433,8 +439,8 @@ nmea_receive(
 
 
 	/* See if I want to process this message type */
-	if ( ((peer->ttlmax == 0) && (cmdtype != GPRMC))
-           || ((peer->ttlmax != 0) && !(cmdtype & peer->ttlmax)) )
+	if ( ((peer->ttl == 0) && (cmdtype != GPRMC))
+           || ((peer->ttl != 0) && !(cmdtype & peer->ttl)) )
 		return;
 
 	pp->lencode = rd_lencode;
@@ -530,21 +536,21 @@ nmea_receive(
 	/* Default to 0 milliseconds, if decimal convert milliseconds in
 	   one, two or three digits
 	*/
-	pp->msec = 0; 
+	pp->nsec = 0; 
 	if (dp[6] == '.') {
 		if (isdigit((int)dp[7])) {
-			pp->msec = (dp[7] - '0') * 100;
+			pp->nsec = (dp[7] - '0') * 100000000;
 			if (isdigit((int)dp[8])) {
-				pp->msec += (dp[8] - '0') * 10;
+				pp->nsec += (dp[8] - '0') * 10000000;
 				if (isdigit((int)dp[9])) {
-					pp->msec += (dp[9] - '0');
+					pp->nsec += (dp[9] - '0') * 1000000;
 				}
 			}
 		}
 	}
 
 	if (pp->hour > 23 || pp->minute > 59 || pp->second > 59
-	  || pp->msec > 1000) {
+	  || pp->nsec > 1000000000) {
 		refclock_report(peer, CEVNT_BADTIME);
 		return;
 	}
@@ -604,7 +610,7 @@ nmea_receive(
 	 */
 	if (nmea_pps(up, &rd_tmp) == 1) {
 		pp->lastrec = up->tstamp = rd_tmp;
-		pp->msec = 0;
+		pp->nsec = 0;
 	}
 #endif /* HAVE_PPSAPI */
 
@@ -630,7 +636,7 @@ nmea_receive(
 	if (!up->polled)
 	    return;
 	up->polled = 0;
-
+	pp->lastref = pp->lastrec;
 	refclock_receive(peer);
 
         /* If we get here - what we got from the clock is OK, so say so */

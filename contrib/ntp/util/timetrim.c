@@ -1,4 +1,4 @@
-#ifdef sgi
+#if defined(sgi) || defined(_UNICOSMP)
 /*
  * timetrim.c
  * 
@@ -31,6 +31,9 @@
 #ifdef HAVE_SYS_SYSSGI_H
 # include <sys/syssgi.h>
 #endif
+#ifdef HAVE_SYS_SYSTUNE_H
+# include <sys/systune.h>
+#endif
 
 #define abs(X) (((X) < 0) ? -(X) : (X))
 #define USAGE "usage: timetrim [-n] [[-i] value]\n"
@@ -62,10 +65,18 @@ main(
 		}
 	}
 
+#ifdef HAVE_SYS_SYSSGI_H
 	if (syssgi(SGI_GETTIMETRIM, &timetrim) < 0) {
 		perror("syssgi");
 		exit(2);
 	}
+#endif
+#ifdef HAVE_SYS_SYSTUNE_H
+	if (systune(SYSTUNE_GET, "timetrim", &timetrim) < 0) {
+		perror("systune");
+		exit(2);
+	}
+#endif
 
 	if (argc == 0) {
 		if (ntpunits)
@@ -87,10 +98,18 @@ main(
 		    timetrim += value;
 		else
 		    timetrim = value;
+#ifdef HAVE_SYS_SYSSGI_H
 		if (syssgi(SGI_SETTIMETRIM, timetrim) < 0) {
 			perror("syssgi");
 			exit(2);
 		}
+#endif
+#ifdef HAVE_SYS_SYSTUNE_H
+		if (systune(SYSTUNE_SET, "timer", "timetrim", &timetrim) < 0) {
+			perror("systune");
+			exit(2);
+		}
+#endif
 	}
 	return 0;
 }

@@ -10,10 +10,16 @@
 #include "ntp_io.h"
 #include "ntp_select.h"
 #include "ntp_stdlib.h"
+/* Don't include ISC's version of IPv6 variables and structures */
+#define ISC_IPV6_H 1
+#include "isc/net.h"
+#include "isc/result.h"
 
 #include <ctype.h>
 #include <signal.h>
 #include <setjmp.h>
+#include <sys/types.h>
+#include <sys/time.h>
 #include <netdb.h>
 #ifdef SYS_WINNT
 # include <io.h>
@@ -21,10 +27,10 @@
 #define closesocket close
 #endif /* SYS_WINNT */
 
-#ifdef HAVE_LIBREADLINE
+#if defined(HAVE_LIBREADLINE) || defined(HAVE_LIBEDIT)
 # include <readline/readline.h>
 # include <readline/history.h>
-#endif /* HAVE_LIBREADLINE */
+#endif /* HAVE_LIBREADLINE || HAVE_LIBEDIT */
 
 #ifdef SYS_VXWORKS
 /* vxWorks needs mode flag -casey*/
@@ -43,12 +49,11 @@ const char *prompt = "ntpq> ";	/* prompt to ask him about */
 /*
  * Keyid used for authenticated requests.  Obtained on the fly.
  */
-u_long info_auth_keyid = NTP_MAXKEY;
+u_long info_auth_keyid = 0;
 
 /*
- * Type of key md5 or des
+ * Type of key md5
  */
-#define	KEY_TYPE_DES	3
 #define	KEY_TYPE_MD5	4
 
 static	int info_auth_keytype = KEY_TYPE_MD5;	/* MD5 */
@@ -166,7 +171,6 @@ struct ctl_var peer_var[] = {
 	{ CP_FILTERROR,	AR,	"filtdisp" },	/* 34 */
 	{ CP_FLASH,     FX,	"flash" },	/* 35 */ 
 	{ CP_TTL,	UI,	"ttl" },	/* 36 */
-	{ CP_TTLMAX,	UI,	"ttlmax" },	/* 37 */
 	/*
 	 * These are duplicate entries so that we can
 	 * process deviant version of the ntp protocol.
@@ -292,8 +296,8 @@ struct xcmd builtins[] = {
 	{ "delay",	auth_delay,	{ OPT|INT, NO, NO, NO },
 	  { "msec", "", "", "" },
 	  "set the delay added to encryption time stamps" },
-	{ "host",	host,		{ OPT|STR, NO, NO, NO },
-	  { "hostname", "", "", "" },
+	{ "host",	host,		{ OPT|STR, OPT|STR, NO, NO },
+	  { "-4|-6", "hostname", "", "" },
 	  "specify the host whose NTP server we talk to" },
 	{ "poll",	ntp_poll,	{ OPT|UINT, OPT|STR, NO, NO },
 	  { "n", "verbose", "", "" },
@@ -345,7 +349,7 @@ struct xcmd builtins[] = {
 #define	DEFTIMEOUT	(5)		/* 5 second time out */
 #define	DEFSTIMEOUT	(2)		/* 2 second time out after first */
 #define	DEFDELAY	0x51EB852	/* 20 milliseconds, l_fp fraction */
-#define	DEFHOST		"127.0.0.1"	/* default host name */
+#define	DEFHOST		"localhost"	/* default host name */
 #define	LENHOSTNAME	256		/* host name is 256 characters long */
 #define	MAXCMDS		100		/* maximum commands on cmd line */
 #define	MAXHOSTS	200		/* maximum hosts on cmd line */
@@ -365,13 +369,14 @@ char currenthost[LENHOSTNAME];			/* current host name */
 struct sockaddr_in hostaddr = { 0 };		/* host address */
 int showhostnames = 1;				/* show host names by default */
 
-int sockfd;					/* fd socket is opened on */
+int ai_fam_templ;				/* address family */
+int ai_fam_default;				/* default address family */
+SOCKET sockfd;					/* fd socket is opened on */
 int havehost = 0;				/* set to 1 when host open */
+int s_port = 0;
 struct servent *server_entry = NULL;		/* server entry for ntp */
 
 #ifdef SYS_WINNT
-WORD wVersionRequested;
-WSADATA wsaData;
 DWORD NumberOfBytesWritten;
 
 HANDLE	TimerThreadHandle = NULL;	/* 1998/06/03 - Used in ntplib/machines.c */
@@ -496,9 +501,29 @@ ntpqmain(
 	delay_time.l_ui = 0;
 	delay_time.l_uf = DEFDELAY;
 
+#ifdef SYS_WINNT
+	if (!Win32InitSockets())
+	{
+		fprintf(stderr, "No useable winsock.dll:");
+		exit(1);
+	}
+#endif /* SYS_WINNT */
+
+	/* Check to see if we have IPv6. Otherwise force the -4 flag */
+	if (isc_net_probeipv6() != ISC_R_SUCCESS) {
+		ai_fam_default = AF_INET;
+	}
+
 	progname = argv[0];
-	while ((c = ntp_getopt(argc, argv, "c:dinp")) != EOF)
+	ai_fam_templ = ai_fam_default;
+	while ((c = ntp_getopt(argc, argv, "46c:dinp")) != EOF)
 	    switch (c) {
+		case '4':
+		    ai_fam_templ = AF_INET;
+		    break;
+		case '6':
+		    ai_fam_templ = AF_INET6;
+		    break;
 		case 'c':
 		    ADDCMD(ntp_optarg);
 		    break;
@@ -520,7 +545,7 @@ ntpqmain(
 	    }
 	if (errflg) {
 		(void) fprintf(stderr,
-			       "usage: %s [-dinp] [-c cmd] host ...\n",
+			       "usage: %s [-46dinp] [-c cmd] host ...\n",
 			       progname);
 		exit(2);
 	}
@@ -539,14 +564,6 @@ ntpqmain(
 #ifndef SYS_WINNT /* Under NT cannot handle SIGINT, WIN32 spawns a handler */
 	if (interactive)
 	    (void) signal_no_reset(SIGINT, abortcmd);
-#endif /* SYS_WINNT */
-
-#ifdef SYS_WINNT
-	wVersionRequested = MAKEWORD(1,1);
-	if (WSAStartup(wVersionRequested, &wsaData)) {
-		fprintf(stderr, "No useable winsock.dll");
-		exit(1);
-	}
 #endif /* SYS_WINNT */
 
 	if (numcmds == 0) {
@@ -577,29 +594,69 @@ openhost(
 	const char *hname
 	)
 {
-	u_int32 netnum;
 	char temphost[LENHOSTNAME];
+	int a_info, i;
+	struct addrinfo hints, *ai = NULL;
+	register const char *cp;
+	char name[LENHOSTNAME];
+	char service[5];
 
-	if (server_entry == NULL) {
-		server_entry = getservbyname("ntp", "udp");
-		if (server_entry == NULL) {
-#ifdef VMS /* UCX getservbyname() doesn't work [yet], but we do know better */
-			server_entry = (struct servent *)
-				malloc(sizeof(struct servent));
-			server_entry->s_port = htons(NTP_PORT);
-#else
-			(void) fprintf(stderr, "%s: ntp/udp: unknown service\n",
-				       progname);
-			exit(1);
-#endif /* VMS & UCX */
-		}
-		if (debug > 2)
-		    printf("Got ntp/udp service entry\n");
+	/*
+	 * We need to get by the [] if they were entered
+	 */
+	
+	cp = hname;
+	
+	if(*cp == '[') {
+		cp++;
+		for(i = 0; *cp != ']'; cp++, i++)
+			name[i] = *cp;
+	name[i] = '\0';
+	hname = name;
 	}
 
-	if (!getnetnum(hname, &netnum, temphost))
-	    return 0;
-	
+	/*
+	 * First try to resolve it as an ip address and if that fails,
+	 * do a fullblown (dns) lookup. That way we only use the dns
+	 * when it is needed and work around some implementations that
+	 * will return an "IPv4-mapped IPv6 address" address if you
+	 * give it an IPv4 address to lookup.
+	 */
+	strcpy(service, "ntp");
+	memset((char *)&hints, 0, sizeof(struct addrinfo));
+	hints.ai_family = ai_fam_templ;
+	hints.ai_protocol = IPPROTO_UDP;
+	hints.ai_socktype = SOCK_DGRAM;
+	hints.ai_flags = AI_NUMERICHOST;
+
+	a_info = getaddrinfo(hname, service, &hints, &ai);
+	if (a_info == EAI_NONAME || a_info == EAI_NODATA) {
+		hints.ai_flags = AI_CANONNAME;
+#ifdef AI_ADDRCONFIG
+		hints.ai_flags |= AI_ADDRCONFIG;
+#endif
+		a_info = getaddrinfo(hname, service, &hints, &ai);	
+	}
+	/* Some older implementations don't like AI_ADDRCONFIG. */
+	if (a_info == EAI_BADFLAGS) {
+		hints.ai_flags = AI_CANONNAME;
+		a_info = getaddrinfo(hname, service, &hints, &ai);	
+	}
+	if (a_info != 0) {
+		(void) fprintf(stderr, "%s\n", gai_strerror(a_info));
+		return 0;
+	}
+
+	if (ai->ai_canonname == NULL) {
+		strncpy(temphost, stoa((struct sockaddr_storage *)ai->ai_addr),
+		    LENHOSTNAME);
+		temphost[LENHOSTNAME-1] = '\0';
+
+	} else {
+		strncpy(temphost, ai->ai_canonname, LENHOSTNAME);
+		temphost[LENHOSTNAME-1] = '\0';
+	}
+
 	if (debug > 2)
 	    printf("Opening host %s\n", temphost);
 
@@ -611,13 +668,17 @@ openhost(
 	}
 	(void) strcpy(currenthost, temphost);
 
-	hostaddr.sin_family = AF_INET;
-#ifndef SYS_VXWORKS
-	hostaddr.sin_port = server_entry->s_port;
-#else
-    hostaddr.sin_port = htons(SERVER_PORT_NUM);
-#endif
-	hostaddr.sin_addr.s_addr = netnum;
+	/* port maps to the same location in both families */
+	s_port = ((struct sockaddr_in6 *)ai->ai_addr)->sin6_port;
+#ifdef SYS_VXWORKS
+	((struct sockaddr_in6 *)&hostaddr)->sin6_port = htons(SERVER_PORT_NUM);
+	if (ai->ai_family == AF_INET)
+		*(struct sockaddr_in *)&hostaddr=
+			*((struct sockaddr_in *)ai->ai_addr);
+	else
+		*(struct sockaddr_in6 *)&hostaddr=
+			*((struct sockaddr_in6 *)ai->ai_addr);
+#endif /* SYS_VXWORKS */
 
 #ifdef SYS_WINNT
 	{
@@ -629,18 +690,12 @@ openhost(
 			exit(1);
 		}
 	}
+#endif /* SYS_WINNT */
 
-
-	sockfd = socket(AF_INET, SOCK_DGRAM, 0);
+	sockfd = socket(ai->ai_family, SOCK_DGRAM, 0);
 	if (sockfd == INVALID_SOCKET) {
 		error("socket", "", "");
-		exit(-1);
 	}
-#else
-	sockfd = socket(AF_INET, SOCK_DGRAM, 0);
-	if (sockfd == -1)
-	    error("socket", "", "");
-#endif /* SYS_WINNT */
 
 	
 #ifdef NEED_RCVBUF_SLOP
@@ -653,10 +708,16 @@ openhost(
 # endif
 #endif
 
+#ifdef SYS_VXWORKS
 	if (connect(sockfd, (struct sockaddr *)&hostaddr,
 		    sizeof(hostaddr)) == -1)
+#else
+	if (connect(sockfd, (struct sockaddr *)ai->ai_addr,
+		    ai->ai_addrlen) == -1)
+#endif /* SYS_VXWORKS */
 	    error("connect", "", "");
-	
+	if (a_info == 0)
+		freeaddrinfo(ai);
 	havehost = 1;
 	return 1;
 }
@@ -1069,7 +1130,7 @@ sendrequest(
 	 * Fill in the packet
 	 */
 	qpkt.li_vn_mode = PKT_LI_VN_MODE(0, pktversion, MODE_CONTROL);
-	qpkt.r_m_e_op = (u_char)opcode & CTL_OP_MASK;
+	qpkt.r_m_e_op = (u_char)(opcode & CTL_OP_MASK);
 	qpkt.sequence = htons(sequence);
 	qpkt.status = 0;
 	qpkt.associd = htons((u_short)associd);
@@ -1115,23 +1176,22 @@ sendrequest(
 		 * Get the keyid and the password if we don't have one.
 		 */
 		if (info_auth_keyid == 0) {
-			maclen = getkeyid("Keyid: ");
-			if (maclen == 0) {
+			int u_keyid = getkeyid("Keyid: ");
+			if (u_keyid == 0 || u_keyid > NTP_MAXKEY) {
 				(void) fprintf(stderr,
 				   "Invalid key identifier\n");
 				return 1;
 			}
+			info_auth_keyid = u_keyid;
 		}
 		if (!authistrusted(info_auth_keyid)) {
-			pass = getpass((info_auth_keytype == KEY_TYPE_DES)
-			    ? "DES Password: " : "MD5 Password: ");
+			pass = getpass("MD5 Password: ");
 			if (*pass == '\0') {
 				(void) fprintf(stderr,
 				  "Invalid password\n");
 				return (1);
 			}
 		}
-		info_auth_keyid = maclen;
 		authusekey(info_auth_keyid, info_auth_keytype, (const u_char *)pass);
 		authtrust(info_auth_keyid, 1);
 
@@ -1264,7 +1324,7 @@ doquery(
 static void
 getcmds(void)
 {
-#ifdef HAVE_LIBREADLINE
+#if defined(HAVE_LIBREADLINE) || defined(HAVE_LIBEDIT)
         char *line;
 
         for (;;) {
@@ -1273,7 +1333,7 @@ getcmds(void)
                 docmd(line);
                 free(line);
         }
-#else /* not HAVE_LIBREADLINE */
+#else /* not (HAVE_LIBREADLINE || HAVE_LIBEDIT) */
         char line[MAXLINE];
 
         for (;;) {
@@ -1290,10 +1350,10 @@ getcmds(void)
 
                 docmd(line);
         }
-#endif /* not HAVE_LIBREADLINE */
+#endif /* not (HAVE_LIBREADLINE || HAVE_LIBEDIT) */
 }
 
-
+#ifndef SYS_WINNT /* Under NT cannot handle SIGINT, WIN32 spawns a handler */
 /*
  * abortcmd - catch interrupts and abort the current command
  */
@@ -1308,7 +1368,7 @@ abortcmd(
 	(void) fflush(stderr);
 	if (jump) longjmp(interrupt_buf, 1);
 }
-
+#endif	/* SYS_WINNT */
 
 /*
  * docmd - decode the command line and execute a command
@@ -1521,7 +1581,7 @@ getarg(
 		argp->string = str;
 		break;
 	    case ADD:
-		if (!getnetnum(str, &(argp->netnum), (char *)0)) {
+		if (!getnetnum(str, &(argp->netnum), (char *)0, 0)) {
 			return 0;
 		}
 		break;
@@ -1538,10 +1598,14 @@ getarg(
 				return 0;
 			}
 			if (isneg > numassoc) {
-				(void) fprintf(stderr,
-					       "***Association for `%s' unknown (max &%d)\n",
-					       str, numassoc);
-				return 0;
+				if (numassoc == 0) {
+					(void) fprintf(stderr,
+						       "***Association for `%s' unknown (max &%d)\n",
+						       str, numassoc);
+					return 0;
+				} else {
+					isneg = numassoc;
+				}
 			}
 			argp->uval = assoc_cache[isneg-1].assid;
 			break;
@@ -1573,6 +1637,17 @@ getarg(
 			argp->ival = -argp->ival;
 		}
 		break;
+	     case IP_VERSION:
+		if (!strcmp("-6", str))
+			argp->ival = 6 ;
+		else if (!strcmp("-4", str))
+			argp->ival = 4 ;
+		else {
+			(void) fprintf(stderr,
+			    "***Version must be either 4 or 6\n");
+			return 0;
+		}
+		break;
 	}
 
 	return 1;
@@ -1586,25 +1661,37 @@ getarg(
 int
 getnetnum(
 	const char *hname,
-	u_int32 *num,
-	char *fullhost
+	struct sockaddr_storage *num,
+	char *fullhost,
+	int af
 	)
 {
-	struct hostent *hp;
+	int err;
+	int sockaddr_len;
+	struct addrinfo hints, *ai = NULL;
 
+	sockaddr_len = (af == AF_INET)
+			   ? sizeof(struct sockaddr_in)
+			   : sizeof(struct sockaddr_in6);
+	memset((char *)&hints, 0, sizeof(struct addrinfo));
+	hints.ai_flags = AI_CANONNAME;
+#ifdef AI_ADDRCONFIG
+	hints.ai_flags |= AI_ADDRCONFIG;
+#endif
+	
+	/* decodenetnum works with addresses only */
 	if (decodenetnum(hname, num)) {
 		if (fullhost != 0) {
-			(void) sprintf(fullhost, "%lu.%lu.%lu.%lu",
-				       (u_long)((htonl(*num) >> 24) & 0xff),
-				       (u_long)((htonl(*num) >> 16) & 0xff),
-				       (u_long)((htonl(*num) >> 8) & 0xff),
-				       (u_long)(htonl(*num) & 0xff));
+			getnameinfo((struct sockaddr *)num, sockaddr_len,
+					fullhost, sizeof(fullhost), NULL, 0,
+					NI_NUMERICHOST);
+
 		}
 		return 1;
-	} else if ((hp = gethostbyname(hname)) != 0) {
-		memmove((char *)num, hp->h_addr, sizeof(u_int32));
-		if (fullhost != 0)
-		    (void) strcpy(fullhost, hp->h_name);
+	} else if ((err = getaddrinfo(hname, "ntp", &hints, &ai)) == 0) {
+		memmove((char *)num, ai->ai_addr, ai->ai_addrlen);
+		if (ai->ai_canonname != 0)
+		    (void) strcpy(fullhost, ai->ai_canonname);
 		return 1;
 	} else {
 		(void) fprintf(stderr, "***Can't find host %s\n", hname);
@@ -1619,14 +1706,14 @@ getnetnum(
  */
 char *
 nntohost(
-	u_int32 netnum
+	struct sockaddr_storage *netnum
 	)
 {
 	if (!showhostnames)
-	    return numtoa(netnum);
-	if ((ntohl(netnum) & REFCLOCK_MASK) == REFCLOCK_ADDR)
-	    return refnumtoa(netnum);
-	return numtohost(netnum);
+	    return stoa(netnum);
+	if ((netnum->ss_family == AF_INET) && ISREFCLOCKADR(netnum))
+    		return refnumtoa(netnum);
+	return socktohost(netnum);
 }
 
 
@@ -1671,10 +1758,10 @@ rtdatetolfp(
 		return 0;
 	}
 
-	cal.monthday = *cp++ - '0';	/* ascii dependent */
+	cal.monthday = (u_char) (*cp++ - '0');	/* ascii dependent */
 	if (isdigit((int)*cp)) {
-		cal.monthday = (cal.monthday << 3) + (cal.monthday << 1);
-		cal.monthday += *cp++ - '0';
+		cal.monthday = (u_char)((cal.monthday << 3) + (cal.monthday << 1));
+		cal.monthday = (u_char)(cal.monthday + *cp++ - '0');
 	}
 
 	if (*cp++ != '-')
@@ -1689,25 +1776,25 @@ rtdatetolfp(
 		break;
 	if (i == 12)
 	    return 0;
-	cal.month = i + 1;
+	cal.month = (u_char)(i + 1);
 
 	if (*cp++ != '-')
 	    return 0;
 	
 	if (!isdigit((int)*cp))
 	    return 0;
-	cal.year = *cp++ - '0';
+	cal.year = (u_short)(*cp++ - '0');
 	if (isdigit((int)*cp)) {
-		cal.year = (cal.year << 3) + (cal.year << 1);
-		cal.year += *cp++ - '0';
+		cal.year = (u_short)((cal.year << 3) + (cal.year << 1));
+		cal.year = (u_short)(*cp++ - '0');
 	}
 	if (isdigit((int)*cp)) {
-		cal.year = (cal.year << 3) + (cal.year << 1);
-		cal.year += *cp++ - '0';
+		cal.year = (u_short)((cal.year << 3) + (cal.year << 1));
+		cal.year = (u_short)(cal.year + *cp++ - '0');
 	}
 	if (isdigit((int)*cp)) {
-		cal.year = (cal.year << 3) + (cal.year << 1);
-		cal.year += *cp++ - '0';
+		cal.year = (u_short)((cal.year << 3) + (cal.year << 1));
+		cal.year = (u_short)(cal.year + *cp++ - '0');
 	}
 
 	/*
@@ -1720,26 +1807,26 @@ rtdatetolfp(
 
 	if (*cp++ != ' ' || !isdigit((int)*cp))
 	    return 0;
-	cal.hour = *cp++ - '0';
+	cal.hour = (u_char)(*cp++ - '0');
 	if (isdigit((int)*cp)) {
-		cal.hour = (cal.hour << 3) + (cal.hour << 1);
-		cal.hour += *cp++ - '0';
+		cal.hour = (u_char)((cal.hour << 3) + (cal.hour << 1));
+		cal.hour = (u_char)(cal.hour + *cp++ - '0');
 	}
 
 	if (*cp++ != ':' || !isdigit((int)*cp))
 	    return 0;
-	cal.minute = *cp++ - '0';
+	cal.minute = (u_char)(*cp++ - '0');
 	if (isdigit((int)*cp)) {
-		cal.minute = (cal.minute << 3) + (cal.minute << 1);
-		cal.minute += *cp++ - '0';
+		cal.minute = (u_char)((cal.minute << 3) + (cal.minute << 1));
+		cal.minute = (u_char)(cal.minute + *cp++ - '0');
 	}
 
 	if (*cp++ != ':' || !isdigit((int)*cp))
 	    return 0;
-	cal.second = *cp++ - '0';
+	cal.second = (u_char)(*cp++ - '0');
 	if (isdigit((int)*cp)) {
-		cal.second = (cal.second << 3) + (cal.second << 1);
-		cal.second += *cp++ - '0';
+		cal.second = (u_char)((cal.second << 3) + (cal.second << 1));
+		cal.second = (u_char)(cal.second + *cp++ - '0');
 	}
 
 	/*
@@ -1828,8 +1915,8 @@ decodeint(
 {
 	if (*str == '0') {
 		if (*(str+1) == 'x' || *(str+1) == 'X')
-		    return hextoint(str+2, (u_long *)&val);
-		return octtoint(str, (u_long *)&val);
+		    return hextoint(str+2, (void *)&val);
+		return octtoint(str, (void *)&val);
 	}
 	return atoint(str, val);
 }
@@ -1975,8 +2062,8 @@ helpsort(
 	const void *t2
 	)
 {
-	const char **name1 = (const char **)t1;
-	const char **name2 = (const char **)t2;
+	char const * const * name1 = (char const * const *)t1;
+	char const * const * name2 = (char const * const *)t2;
 
 	return strcmp(*name1, *name2);
 }
@@ -2079,12 +2166,34 @@ host(
 	FILE *fp
 	)
 {
+	int i;
+
 	if (pcmd->nargs == 0) {
 		if (havehost)
 		    (void) fprintf(fp, "current host is %s\n", currenthost);
 		else
 		    (void) fprintf(fp, "no current host\n");
-	} else if (openhost(pcmd->argval[0].string)) {
+		return;
+	}
+
+	i = 0;
+	ai_fam_templ = ai_fam_default;
+	if (pcmd->nargs == 2) {
+		if (!strcmp("-4", pcmd->argval[i].string))
+			ai_fam_templ = AF_INET;
+		else if (!strcmp("-6", pcmd->argval[i].string))
+			ai_fam_templ = AF_INET6;
+		else {
+			if (havehost)
+				(void) fprintf(fp,
+				    "current host remains %s\n", currenthost);
+			else
+				(void) fprintf(fp, "still no current host\n");
+			return;
+		}
+		i = 1;
+	}
+	if (openhost(pcmd->argval[i].string)) {
 		(void) fprintf(fp, "current host set to %s\n", currenthost);
 		numassoc = 0;
 	} else {
@@ -2121,11 +2230,14 @@ keyid(
 	)
 {
 	if (pcmd->nargs == 0) {
-		if (info_auth_keyid > NTP_MAXKEY)
+		if (info_auth_keyid == 0)
 		    (void) fprintf(fp, "no keyid defined\n");
 		else
 		    (void) fprintf(fp, "keyid is %lu\n", (u_long)info_auth_keyid);
 	} else {
+		/* allow zero so that keyid can be cleared. */
+		if(pcmd->argval[0].uval > NTP_MAXKEY)
+		    (void) fprintf(fp, "Invalid key identifier\n");
 		info_auth_keyid = pcmd->argval[0].uval;
 	}
 }
@@ -2141,7 +2253,7 @@ keytype(
 {
 	if (pcmd->nargs == 0)
 	    fprintf(fp, "keytype is %s\n",
-		    (info_auth_keytype == KEY_TYPE_MD5) ? "MD5" : "DES");
+		    (info_auth_keytype == KEY_TYPE_MD5) ? "MD5" : "???");
 	else
 	    switch (*(pcmd->argval[0].string)) {
 		case 'm':
@@ -2149,13 +2261,8 @@ keytype(
 		    info_auth_keytype = KEY_TYPE_MD5;
 		    break;
 
-		case 'd':
-		case 'D':
-		    info_auth_keytype = KEY_TYPE_DES;
-		    break;
-
 		default:
-		    fprintf(fp, "keytype must be 'md5' or 'des'\n");
+		    fprintf(fp, "keytype must be 'md5'\n");
 	    }
 }
 
@@ -2173,21 +2280,21 @@ passwd(
 {
 	char *pass;
 
-	if (info_auth_keyid > NTP_MAXKEY) {
-		info_auth_keyid = getkeyid("Keyid: ");
-		if (info_auth_keyid > NTP_MAXKEY) {
-			(void)fprintf(fp, "Keyid must be defined\n");
+	if (info_auth_keyid == 0) {
+		int u_keyid = getkeyid("Keyid: ");
+		if (u_keyid == 0 || u_keyid > NTP_MAXKEY) {
+			(void)fprintf(fp, "Invalid key identifier\n");
 			return;
 		}
+		info_auth_keyid = u_keyid;
 	}
-	pass = getpass((info_auth_keytype == KEY_TYPE_DES)
-		       ? "DES Password: "
-		       : "MD5 Password: "
-		       );
+	pass = getpass("MD5 Password: ");
 	if (*pass == '\0')
 	    (void) fprintf(fp, "Password unchanged\n");
-	else
+	else {
 	    authusekey(info_auth_keyid, info_auth_keytype, (u_char *)pass);
+	    authtrust(info_auth_keyid, 1);
+	}
 }
 
 
@@ -2412,7 +2519,7 @@ getkeyid(
 	fprintf(stderr, "%s", keyprompt); fflush(stderr);
 	for (p=pbuf; (c = getc(fi))!='\n' && c!=EOF;) {
 		if (p < &pbuf[18])
-		    *p++ = c;
+		    *p++ = (char)c;
 	}
 	*p = '\0';
 	if (fi != stdin)
@@ -2460,7 +2567,7 @@ atoascii(
 
 		if (c < ' ') {
 			*ocp++ = '^';
-			*ocp++ = c + '@';
+			*ocp++ = (u_char)(c + '@');
 		} else if (c == 0177) {
 			*ocp++ = '^';
 			*ocp++ = '?';
@@ -2885,12 +2992,12 @@ cookedprint(
 	register int varid;
 	char *name;
 	char *value;
-	int output_raw;
+	char output_raw;
 	int fmt;
 	struct ctl_var *varlist;
 	l_fp lfp;
 	long ival;
-	u_int32 hval;
+	struct sockaddr_storage hval;
 	u_long uval;
 	l_fp lfparr[8];
 	int narr;
@@ -2969,10 +3076,11 @@ cookedprint(
 			    case NA:
 				if (!decodenetnum(value, &hval))
 				    output_raw = '?';
-				else if (fmt == HA)
-				    output(fp, name, nntohost(hval));
-				else
-				    output(fp, name, numtoa(hval));
+				else if (fmt == HA){
+				    output(fp, name, nntohost(&hval));
+				} else {
+				    output(fp, name, stoa(&hval));
+				}
 				break;
 			
 			    case ST:
@@ -2980,9 +3088,14 @@ cookedprint(
 				break;
 			
 			    case RF:
-				if (decodenetnum(value, &hval))
-				    output(fp, name, nntohost(hval));
-				else if ((int)strlen(value) <= 4)
+				if (decodenetnum(value, &hval)) {
+					if ((hval.ss_family == AF_INET) &&
+					    ISREFCLOCKADR(&hval))
+    						output(fp, name,
+						    refnumtoa(&hval));
+					else
+				    		output(fp, name, stoa(&hval));
+				} else if ((int)strlen(value) <= 4)
 				    output(fp, name, value);
 				else
 				    output_raw = '?';

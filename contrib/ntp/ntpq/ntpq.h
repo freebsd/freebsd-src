@@ -22,6 +22,7 @@
 #define	UINT	0x2		/* unsigned integer */
 #define	INT	0x3		/* signed integer */
 #define	ADD	0x4		/* IP network address */
+#define	IP_VERSION 0x5		/* IP address family */
 
 /*
  * Arguments are returned in a union
@@ -30,7 +31,7 @@ typedef union {
 	char *string;
 	long ival;
 	u_long uval;
-	u_int32 netnum;
+	struct sockaddr_storage netnum;
 } arg_v;
 
 /*
@@ -76,10 +77,10 @@ struct ctl_var {
 };
 
 extern	void	asciize		P((int, char *, FILE *));
-extern	int	getnetnum	P((const char *, u_int32 *, char *));
+extern	int	getnetnum	P((const char *, struct sockaddr_storage *, char *, int));
 extern	void	sortassoc	P((void));
 extern	int	doquery		P((int, int, int, int, char *, u_short *, int *, char **));
-extern	char *	nntohost	P((u_int32));
+extern	char *	nntohost	P((struct sockaddr_storage *));
 extern	int	decodets	P((char *, l_fp *));
 extern	int	decodeuint	P((char *, u_long *));
 extern	int	nextvar		P((int *, char **, char **, char **));

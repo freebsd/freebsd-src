@@ -6,7 +6,7 @@
 char *
 fptoms(
 	s_fp fpv,
-	int ndec
+	short ndec
 	)
 {
 	u_fp plusfp;

@@ -248,8 +248,6 @@ ulink_receive(
 	 * proper format, we declare bad format and exit.
 	 */
 	syncchar = leapchar = modechar = ' ';
-	pp->msec = 0;
-
 	switch (pp->lencode ) {
 		case LEN33X:
 		/*
@@ -347,11 +345,11 @@ ulink_receive(
 		 * T  = DST <-> STD transition indicators
 		 *
         	 */
-		if (sscanf(pp->a_lastcode, "%c%1d%c%4d%3d%*c%2d:%2d:%2d.%2d%c",
+		if (sscanf(pp->a_lastcode, "%c%1d%c%4d%3d%*c%2d:%2d:%2d.%2ld%c",
 	               &syncchar, &quality, &modechar, &pp->year, &pp->day,
         	       &pp->hour, &pp->minute, &pp->second,
-			&pp->msec,&leapchar) == 10) {
-		pp->msec *= 10; /* M320 returns 10's of msecs */
+			&pp->nsec, &leapchar) == 10) {
+		pp->nsec *= 10000000; /* M320 returns 10's of msecs */
 		if (leapchar == 'I' ) leapchar = '+';
 		if (leapchar == 'D' ) leapchar = '-';
 		if (syncchar != '?' ) syncchar = ':';
@@ -487,8 +485,9 @@ ulink_poll(
                 refclock_report(peer, CEVNT_TIMEOUT);
                 return;
         }
-        record_clock_stats(&peer->srcadr, pp->a_lastcode);
-        refclock_receive(peer);
+        pp->lastref = pp->lastrec;
+	refclock_receive(peer);
+	record_clock_stats(&peer->srcadr, pp->a_lastcode);
         peer->burst = NSTAGE;
 
 }
