@@ -6,7 +6,7 @@
  * this stuff is worth it, you can buy me a beer in return.   Poul-Henning Kamp
  * ----------------------------------------------------------------------------
  *
- * $Id: imgact_gzip.c,v 1.13 1995/03/16 18:12:27 bde Exp $
+ * $Id: imgact_gzip.c,v 1.14 1995/05/30 08:05:18 rgrimes Exp $
  *
  * This module handles execution of a.out files which have been run through
  * "gzip".  This saves diskspace, but wastes cpu-cycles and VM.
@@ -53,11 +53,11 @@ static int do_aout_hdr __P((struct imgact_gzip *));
 static int Flush __P((void *vp, u_char *, u_long siz));
 
 int
-exec_gzip_imgact(iparams)
-	struct image_params *iparams;
+exec_gzip_imgact(imgp)
+	struct image_params *imgp;
 {
 	int             error, error2 = 0;
-	u_char         *p = (u_char *) iparams->image_header;
+	u_char         *p = (u_char *) imgp->image_header;
 	struct imgact_gzip igz;
 	struct inflate  infl;
 
@@ -88,7 +88,7 @@ exec_gzip_imgact(iparams)
 	infl.gz_input = NextByte;
 	infl.gz_output = Flush;
 
-	igz.ip = iparams;
+	igz.ip = imgp;
 	igz.idx = 10;
 
 	if (p[3] & 0x08) {	/* skip a filename */
@@ -299,7 +299,7 @@ NextByte(void *vp)
 			VM_PROT_READ,	/* protection */
 			VM_PROT_READ,	/* max protection */
 			0,	/* flags */
-			(caddr_t) igz->ip->vnodep,	/* vnode */
+			(caddr_t) igz->ip->vp,	/* vnode */
 			igz->offset);	/* offset */
 	if (error) {
 		igz->where = __LINE__;
