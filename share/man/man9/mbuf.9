@@ -522,6 +522,17 @@ In case of failure, it returns
 .Dv NULL
 and attempts to restore the chain to its original state.
 .El
+.Sh STRESS TESTING
+When running a kernel compiled with the option MBUF_STRESS_TEST,
+the following sysctl-controlled options may be used to create
+various failure / extreme cases for testing of network drivers
+and other mbuf-reliant parts of the kernel.
+.Pp
+.Va net.inet.ip.mbuf_frag_size
+causes ip_output to fragment outgoing mbuf chains into fragments of
+the specified size.  Setting this option to 1 is an excellent way to
+test the long mbuf chain handling ability of network drivers.
+.El
 .Sh RETURN VALUES
 See above.
 .Sh HISTORY
