@@ -30,7 +30,7 @@
 .\" SUCH DAMAGE.
 .\"
 .\"	@(#)telnet.1	8.5 (Berkeley) 3/1/94
-.\"	$Id$
+.\"	$Id: telnet.1,v 1.6 1997/02/22 19:57:24 peter Exp $
 .\"
 .Dd March 1, 1994
 .Dt TELNET 1
@@ -41,7 +41,7 @@
 .Tn TELNET
 protocol
 .Sh SYNOPSIS
-.Nm telnet
+.Nm
 .Op Fl 8EFKLacdfrx
 .Op Fl S Ar tos
 .Op Fl X Ar authtype
@@ -55,13 +55,13 @@ protocol
 .Oc
 .Sh DESCRIPTION
 The
-.Nm telnet
+.Nm
 command
 is used to communicate with another host using the 
 .Tn TELNET
 protocol.
 If
-.Nm telnet
+.Nm
 is invoked without the
 .Ar host
 argument, it enters command mode,
@@ -91,14 +91,17 @@ have already been forwarded into the local environment.
 Specifies no automatic login to the remote system.
 .It Fl L
 Specifies an 8-bit data path on output.  This causes the
-BINARY option to be negotiated on output.
+.Dv BINARY
+option to be negotiated on output.
 .It Fl S Ar tos
 Sets the IP type-of-service (TOS) option for the telnet
 connection to the value
 .Ar tos,
 which can be a numeric TOS value
 or, on systems that support it, a symbolic
-TOS name found in the /etc/iptos file.
+TOS name found in the
+.Pa /etc/iptos
+file.
 .It Fl X Ar atype 
 Disables the
 .Ar atype
@@ -129,7 +132,6 @@ toggle to
 .It Fl e Ar escape char 
 Sets the initial
 .Nm
-.Nm telnet
 escape character to
 .Ar escape char.
 If
@@ -143,7 +145,9 @@ option allows the local credentials to be forwarded to the remote system.
 .It Fl k Ar realm
 If Kerberos authentication is being used, the
 .Fl k
-option requests that telnet obtain tickets for the remote host in
+option requests that
+.Nm
+obtain tickets for the remote host in
 realm realm instead of the remote host's realm, as determined
 by
 .Xr krb_realmofhost 3 .
@@ -153,7 +157,8 @@ understands the
 .Ev ENVIRON
 option, then
 .Ar user
-will be sent to the remote system as the value for the variable USER.
+will be sent to the remote system as the value for the variable
+.Ev USER .
 This option implies the
 .Fl a
 option.
@@ -183,14 +188,20 @@ of a remote host.
 .It Ar port
 Indicates a port number (address of an application).  If a number is
 not specified, the default
-.Nm telnet
+.Nm
 port is used.
 .El
 .Pp
 When in rlogin mode, a line of the form ~.  disconnects from the
-remote host; ~ is the telnet escape character.
-Similarly, the line ~^Z suspends the telnet session.
-The line ~^] escapes to the normal telnet escape prompt.
+remote host; ~ is the
+.Nm
+escape character.
+Similarly, the line ~^Z suspends the
+.Nm
+session.
+The line ~^] escapes to the normal
+.Nm
+escape prompt.
 .Pp
 Once a connection has been opened,
 .Nm telnet
@@ -198,7 +209,7 @@ will attempt to enable the
 .Dv TELNET LINEMODE
 option.
 If this fails, then
-.Nm telnet
+.Nm
 will revert to one of two input modes:
 either \*(Lqcharacter at a time\*(Rq
 or \*(Lqold line by line\*(Rq
@@ -270,14 +281,14 @@ and
 .Ic intr  ) .
 .Pp
 While connected to a remote host,
-.Nm telnet
+.Nm
 command mode may be entered by typing the
-.Nm telnet
+.Nm
 \*(Lqescape character\*(Rq (initially \*(Lq^]\*(Rq).
 When in command mode, the normal terminal editing conventions are available.
 .Pp
 The following
-.Nm telnet
+.Nm
 commands are available.
 Only enough of each command to uniquely identify it need be typed
 (this is also true for arguments to the
@@ -533,7 +544,7 @@ command.
 Open a connection to the named host.
 If no port number
 is specified,
-.Nm telnet
+.Nm
 will attempt to contact a
 .Tn TELNET
 server at the default port.
@@ -562,10 +573,10 @@ without white space are the start of a machine entry.  The
 first thing on the line is the name of the machine that is
 being connected to.  The rest of the line, and successive
 lines that begin with white space are assumed to be
-.Nm telnet
+.Nm
 commands and are processed as if they had been typed
 in manually to the
-.Nm telnet
+.Nm
 command prompt.
 .It Ic quit
 Close any open
@@ -628,7 +639,7 @@ Sends the
 sequence.
 .It Ic escape
 Sends the current
-.Nm telnet
+.Nm
 escape character (initially \*(Lq^\*(Rq).
 .It Ic ga
 Sends the
@@ -746,7 +757,7 @@ of entered characters (for normal processing), and suppressing
 echoing of entered characters (for entering, say, a password).
 .It Ic eof
 If
-.Nm telnet
+.Nm
 is operating in
 .Dv LINEMODE
 or \*(Lqold line by line\*(Rq mode, entering this character
@@ -757,7 +768,7 @@ The initial value of the eof character is taken to be the terminal's
 character.
 .It Ic erase
 If
-.Nm telnet
+.Nm
 is in
 .Ic localchars
 mode (see
@@ -766,7 +777,7 @@ mode (see
 below),
 .Sy and
 if
-.Nm telnet
+.Nm
 is operating in \*(Lqcharacter at a time\*(Rq mode, then when this
 character is typed, a
 .Dv TELNET EC
@@ -781,14 +792,14 @@ the terminal's
 character.
 .It Ic escape
 This is the
-.Nm telnet
+.Nm
 escape character (initially \*(Lq^[\*(Rq) which causes entry
 into
-.Nm telnet
+.Nm
 command mode (when connected to a remote system).
 .It Ic flushoutput
 If
-.Nm telnet
+.Nm
 is in
 .Ic localchars
 mode (see
@@ -821,7 +832,7 @@ the forwarding characters are taken from the terminal's
 eol and eol2 characters.
 .It Ic interrupt
 If
-.Nm telnet
+.Nm
 is in
 .Ic localchars
 mode (see
@@ -843,7 +854,7 @@ the terminal's
 character.
 .It Ic kill
 If
-.Nm telnet
+.Nm
 is in
 .Ic localchars
 mode (see
@@ -880,7 +891,7 @@ the terminal's
 character.
 .It Ic quit
 If
-.Nm telnet
+.Nm
 is in
 .Ic localchars
 mode (see
@@ -902,7 +913,7 @@ the terminal's
 character.
 .It Ic reprint
 If
-.Nm telnet
+.Nm
 is operating in
 .Dv LINEMODE
 or \*(Lqold line by line\*(Lq mode, then this character is taken to
@@ -916,13 +927,17 @@ character.
 .It Ic rlogin
 This is the rlogin escape character.
 If set, the normal
-.Tn TELNET
+.Nm
 escape character is ignored unless it is
 preceded by this character at the beginning of a line.
 This character, at the beginning of a line followed by
 a "."  closes the connection; when followed by a ^Z it
-suspends the telnet command.  The initial state is to
-disable the rlogin escape character.
+suspends the
+.Nm
+command.  The initial state is to
+disable the
+.Nm rlogin
+escape character.
 .It Ic start
 If the
 .Dv TELNET TOGGLE-FLOW-CONTROL
@@ -949,7 +964,7 @@ the terminal's
 character.
 .It Ic susp
 If
-.Nm telnet
+.Nm
 is in
 .Ic localchars
 mode, or
@@ -979,7 +994,7 @@ will be written.  If it is set to
 then tracing information will be written to standard output (the default).
 .It Ic worderase
 If
-.Nm telnet
+.Nm
 is operating in
 .Dv LINEMODE
 or \*(Lqold line by line\*(Lq mode, then this character is taken to
@@ -1026,7 +1041,7 @@ the local side, the local side will switch to the remote value.
 Switch to the local defaults for the special characters.  The
 local default characters are those of the local terminal at
 the time when
-.Nm telnet
+.Nm
 was started.
 .It Ic import
 Switch to the remote defaults for the special characters.
@@ -1050,7 +1065,7 @@ Toggle (between
 and
 .Dv FALSE )
 various flags that control how
-.Nm telnet
+.Nm
 responds to events.
 These flags may be set explicitly to
 .Dv TRUE
@@ -1085,7 +1100,7 @@ characters are recognized (and transformed into
 sequences; see
 .Ic set
 above for details),
-.Nm telnet
+.Nm
 refuses to display any data on the user's terminal
 until the remote system acknowledges (via a
 .Dv TELNET TIMING MARK
@@ -1117,7 +1132,7 @@ option is not supported outside the United States and Canada.
 If the remote side supports the
 .Dv TELNET AUTHENTICATION
 option
-.Tn TELNET
+.Nm
 attempts to use it to perform automatic authentication.  If the
 .Dv AUTHENTICATION
 option is not supported, the user's login
@@ -1258,7 +1273,7 @@ The initial value for this toggle is
 .Dv FALSE .
 .It Ic options
 Toggles the display of some internal
-.Nm telnet
+.Nm
 protocol processing (having to do with
 .Tn TELNET
 options).
@@ -1274,7 +1289,7 @@ is enabled the output from the
 command will be formatted in a more user readable format.
 Spaces are put between each character in the output, and the
 beginning of any
-.Tn TELNET
+.Nm
 escape sequence is preceded by a '*' to aid in locating them.
 .It Ic skiprc
 When the skiprc toggle is
@@ -1319,10 +1334,10 @@ is omitted, then an interactive
 subshell is invoked.
 .It Ic \&? Op Ar command 
 Get help.  With no arguments,
-.Nm telnet
+.Nm
 prints a help summary.
 If a command is specified,
-.Nm telnet
+.Nm
 will print the help information for just that command.
 .El
 .Sh ENVIRONMENT
@@ -1338,7 +1353,6 @@ Other environment variables may be propagated
 to the other side via the
 .Dv TELNET ENVIRON
 option.
-
 .Sh SEE ALSO
 .Xr rlogin 1 ,
 .Xr rsh 1 ,
@@ -1352,7 +1366,7 @@ user customized telnet startup values
 .El
 .Sh HISTORY
 The
-.Nm Telnet
+.Nm
 command appeared in
 .Bx 4.2 .
 .Sh NOTES
