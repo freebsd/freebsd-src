@@ -296,12 +296,6 @@ gv_drive_orphan(struct g_consumer *cp)
 	g_wither_geom(gp, error);
 }
 
-static void
-gv_drive_taste_orphan(struct g_consumer *cp)
-{
-	KASSERT(1 == 0, ("gv_drive_taste_orphan called: %s", cp->geom->name));
-}
-
 static struct g_geom *
 gv_drive_taste(struct g_class *mp, struct g_provider *pp, int flags __unused)
 {
@@ -331,7 +325,10 @@ gv_drive_taste(struct g_class *mp, struct g_provider *pp, int flags __unused)
 	sc = gp2->softc;
 
 	gp = g_new_geomf(mp, "%s.vinumdrive", pp->name);
-	gp->orphan = gv_drive_taste_orphan;
+	gp->start = gv_drive_start;
+	gp->orphan = gv_drive_orphan;
+	gp->access = gv_drive_access;
+	gp->start = gv_drive_start;
 
 	cp = g_new_consumer(gp);
 	g_attach(cp, pp);
@@ -371,15 +368,15 @@ gv_drive_taste(struct g_class *mp, struct g_provider *pp, int flags __unused)
 		gv_parse_config(sc, buf, 1);
 		g_free(buf);
 
-		g_access(cp, -1, 0, 0);
-		g_detach(cp);
-		g_wither_geom(gp, ENXIO);
-		gp = NULL;
-
 		d = gv_find_drive(sc, vhdr->label.name);
 
 		/* We already know about this drive. */
 		if (d != NULL) {
+			/* Check if this drive already has a geom. */
+			if (d->geom != NULL) {
+				g_topology_unlock();
+				break;
+			}
 			bcopy(vhdr, d->hdr, sizeof(*vhdr));
 
 		/* This is a new drive. */
@@ -405,22 +402,7 @@ gv_drive_taste(struct g_class *mp, struct g_provider *pp, int flags __unused)
 			LIST_INSERT_HEAD(&sc->drives, d, drive);
 		}
 
-		gp = g_new_geomf(mp, "%s.vinumdrive", pp->name);
-		gp->start = gv_drive_start;
-		gp->orphan = gv_drive_orphan;
-		gp->access = gv_drive_access;
-		gp->start = gv_drive_start;
-
-		cp = g_new_consumer(gp);
-		g_attach(cp, pp);
-		error = g_access(cp, 1, 1, 1);
-		if (error) {
-			g_free(vhdr);
-			g_detach(cp);
-			g_destroy_consumer(cp);
-			g_destroy_geom(gp);
-			return (NULL);
-		}
+		g_access(cp, -1, 0, 0);
 
 		gp->softc = d;
 		d->geom = gp;
