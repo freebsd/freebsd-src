@@ -71,11 +71,13 @@ Clear the dump, so that future invocations of
 .Nm
 will ignore it.
 .It Fl f
-Force a dump to be taken even if the dump was cleared.
+Force a dump to be taken even if either the dump was cleared or if the
+dump header information is inconsistent.
 .It Fl k
 Do not clear the dump after saving it.
 .It Fl v
 Print out some additional debugging information.
+Speicify twice for more information.
 .It Fl z
 Compress the core dump and kernel (see
 .Xr gzip 1 ) .
