@@ -259,7 +259,7 @@ hpfs_ioctl (
 		break;
 	}
 	default:
-		error = EOPNOTSUPP;
+		error = ENOTTY;
 		break;
 	}
 	return (error);
