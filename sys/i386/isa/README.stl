@@ -136,8 +136,31 @@ older boards. It also supports speeds up to 115200 baud.
 Stallion Technologies has offices all over the world, as well as many more
 distributors and resellers. To find out about local availability please
 contact the nearest Stallion office and they can give you all the information
-you need. Look in the "Offices" file in the driver package for a current list
-of Stallion Technologies offices.
+you need.
+
+	Stallion Technologies Sales and Support Offices
+	===============================================
+
+	Stallion Technologies Pty. Ltd.
+	P.O. Box 954
+	Toowong, QLD 4066, Australia
+	Tel. +61 7 3270 4242
+	Fax. +61 7 3270 4245
+	Email: support@stallion.oz.au
+
+	Stallion Technologies Inc.
+	2880 Research Park Drive,
+	Soquel,  CA 95073,  USA.
+	Tel. +1 408 477 0440
+	Fax. +1 408 477 0444
+	Email: support@staltec.com
+
+	Stallion Technologies Deutschland GmbH.
+	Martin-Behaim-Strasse 12
+	63263 Neu-Isenburg
+	Germany
+	Tel. +49 6102 73970
+	Fax. +49 6102 739710
 
 Another good source of information about the Stallion range of boards and
 local availability is on the Stallion Web page. Check it out at
@@ -161,6 +184,9 @@ the intelligent any combination of EasyConnection 8/64, ONboard, Brumby or
 original Stallion. So there is a theoretical maximum of 512 ports.
 (Off-course I have not tested a system with this many!)
 
+
+[[[ The install instructions are obsolete, it is now standard ]]]
+[[[ Skip forward to item 4, editing your kernel config file   ]]]
 
 2.1 Instructions to install:
 
