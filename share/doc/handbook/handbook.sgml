@@ -1,4 +1,4 @@
-<!-- $Id: handbook.sgml,v 1.50 1996/07/02 23:16:15 wosch Exp $ -->
+<!-- $Id: handbook.sgml,v 1.51 1996/07/07 02:00:46 jfieber Exp $ -->
 <!-- The FreeBSD Documentation Project -->
 
 <!DOCTYPE linuxdoc PUBLIC "-//FreeBSD//DTD linuxdoc//EN" [
@@ -105,7 +105,7 @@ name="FreeBSD FTP server"> or one of the numerous
     <chapt><heading>Basic Networking</heading>
       <sect><heading>* Ethernet basics</heading>
       <sect><heading>* Serial basics</heading>
-      <sect><heading>* Hardwired Terminals</heading>
+      &term;
       &dialup;
 
     <chapt><heading>PPP and SLIP</heading>

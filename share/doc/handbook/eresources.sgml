@@ -1,4 +1,4 @@
-<!-- $Id: eresources.sgml,v 1.24 1996/05/22 19:48:59 jkh Exp $ -->
+<!-- $Id: eresources.sgml,v 1.25 1996/07/12 16:18:49 jfieber Exp $ -->
 <!-- The FreeBSD Documentation Project -->
 
 <chapt>
@@ -67,11 +67,13 @@ freebsd-emulation        Emulation of other systems such as Linux/DOS/Windows
 freebsd-fs               Filesystems
 freebsd-hackers          General technical discussion
 freebsd-hardware         General discussion of hardware for running FreeBSD
+freebsd-mobile           Discussions about mobile computing
 freebsd-multimedia       Multimedia discussion
 freebsd-platforms        Concerning ports to non-Intel architecture platforms
 freebsd-ports            Discussion of the ports collection
 freebsd-security         Security issues
 freebsd-scsi             The SCSI subsystem
+freebsd-smp              Design discussions for [A]Symmetric MultiProcessing
 </verb>
 
 <bf>Limited lists:</bf> The following lists require approval to join,
@@ -84,6 +86,7 @@ List                     Purpose
 freebsd-admin            Administrative issues
 freebsd-arch             Architecture and design discussions
 freebsd-core             FreeBSD core team
+freebsd-hubs             People running mirror sites (infrastructural support)
 freebsd-install          Installation development
 freebsd-user-groups      User group coordination
 </verb>
