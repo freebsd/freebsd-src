@@ -130,7 +130,6 @@ main(argc, argv, envp)
 		closelog();
 		execve(_PATH_DEFAULTMTA, al.argv, envp);
 		freearg(&al, 0);
-		free(line);
 		err(1, "execing %s", _PATH_DEFAULTMTA);
 		/*NOTREACHED*/
 	}
