@@ -522,13 +522,13 @@ release.1:
 		mtree -deU -f ${MTREEFILES}/BSD.var.dist \
 		    -p ${RD}/trees/$$i/var > /dev/null ; \
 	done
-	touch release.1
+	touch ${.TARGET}
 
 # Install the system into the various distributions.
 release.2:
 	cd ${.CURDIR}/../etc && make distrib-dirs DESTDIR=${RD}/trees/base
 	cd ${.CURDIR}/.. && ${CROSSMAKE} distributeworld DISTDIR=${RD}/trees
-	touch release.2
+	touch ${.TARGET}
 
 # Build and install crypto distributions.
 release.3:
@@ -538,7 +538,7 @@ release.3:
 	    SUBDIR_OVERRIDE="${FIXCRYPTO}" \
 	    buildworld distributeworld DISTDIR=${RD}/trees
 	-chflags -R noschg ${RD}/trees
-	touch release.3
+	touch ${.TARGET}
 
 # Make and install the generic kernel(s).
 release.4:
@@ -557,7 +557,7 @@ release.4:
 	${CROSSMAKE} ${KERNEL_FLAGS} -DNO_MODULES \
 	    reinstallkernel -DINSTALL_DEBUG \
 	    DESTDIR=${RD}/trees/base
-	touch release.4
+	touch ${.TARGET}
 
 # Make and install the three crunched binaries which live on the floppies.
 # You are not supposed to like this :-)
@@ -579,7 +579,7 @@ release.5:
 	${WMAKEENV} strip -R .comment ${j}_crunch/${j}_crunch
 	mv ${j}_crunch/${j}_crunch ${RD}/crunch/${j}
 .endfor
-	touch release.5
+	touch ${.TARGET}
 
 #
 # --==## Fix up the distributions. ##==--
@@ -597,7 +597,7 @@ release.6:
 	# Remove all the directories we don't need.
 	-cd ${RD}/trees && \
 		find ${OTHER_DISTS} ${COMPAT_DISTS} ${CRYPTO_DISTS} -depth -type d -print | xargs rmdir
-	touch release.6
+	touch ${.TARGET}
 
 #
 # --==## Package up the tarballs from assembled trees ##==--
@@ -614,7 +614,7 @@ release.7:
 			echo "$${i} distribution is finished."; \
 		fi ; \
 	done
-	touch release.7
+	touch ${.TARGET}
 
 
 #
@@ -651,7 +651,7 @@ release.8:
 	(cd ${RD}/dists/src; rm -f CHECKSUM.MD5; md5 * > CHECKSUM.MD5)
 	@echo "src distribution is finished."
 .endif
-	touch release.8
+	touch ${.TARGET}
 
 # Complete the bootfd
 #
@@ -777,7 +777,7 @@ release.9:
 	@rm mfsroot mfsroot.gz
 	@echo "Regular and MFS boot floppies made."
 .endif
-	touch release.9
+	touch ${.TARGET}
 
 #
 # --==## Create a fixit floppy ##==--
@@ -822,7 +822,7 @@ release.10:
 	@(cd ${RD}/floppies; md5 *.flp > CHECKSUM.MD5)
 .endif
 .endif
-	touch release.10
+	touch ${.TARGET}
 
 #
 # --==## Setup a suitable ftp-area ##==--
@@ -854,7 +854,7 @@ ftp.1:
 .if !defined(NOPORTS)
 	@tar --exclude CVS -cBf - -C ${CD_DISC1} ports | tar -xBf - -C ${FD}
 .endif
-	touch ftp.1
+	touch ${.TARGET}
 
 #
 # --==## Setup a suitable cdrom-area ##==--
@@ -915,7 +915,7 @@ cdrom.1:
 	  cp ${.CURDIR}/scripts/ports-install.sh ${CD_DISC1}/ports/install.sh \
 	  && (cd ${CD_DISC1}/ports; md5 * > CHECKSUM.MD5)
 .endif
-	touch cdrom.1
+	touch ${.TARGET}
 
 iso.1:
 .if exists(${.CURDIR}/${TARGET_ARCH}/mkisoimages.sh)
@@ -933,7 +933,7 @@ iso.1:
 	    ${CD_EXTRA_BITS} \
 	    && false
 .endif
-	touch iso.1
+	touch ${.TARGET}
 .else
 	@echo "Do not know how to create an ISO for ${TARGET_ARCH}."
 .endif
@@ -950,7 +950,7 @@ doc.1:
 		WITHOUT_PYTHON=yes FORCE_PKG_REGISTER=yes; \
 	done
 	@cd /usr/doc && make all install 'FORMATS=html html-split txt' INSTALL_COMPRESSED='' DOCDIR=${RD}/trees/base/usr/share/doc
-	touch doc.1
+	touch ${.TARGET}
 
 #
 # --==## RELNOTESng:  Next-generation replacements for *.TXT files ##==--
@@ -958,7 +958,7 @@ doc.1:
 doc.2:
 	@echo "Making release documentation..."
 	@cd ${.CURDIR}/doc && make all install clean 'FORMATS=html txt' INSTALL_COMPRESSED='' DOCDIR=${RND}
-	touch doc.2
+	touch ${.TARGET}
 
 # Various "subroutine" and other supporting targets.
 
