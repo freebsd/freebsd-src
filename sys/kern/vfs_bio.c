@@ -493,7 +493,6 @@ void
 bufinit(void)
 {
 	struct buf *bp;
-	vm_offset_t bogus_offset;
 	int i;
 
 	GIANT_REQUIRED;
@@ -586,12 +585,8 @@ bufinit(void)
  * from buf_daemon.
  */
 
-	bogus_offset = kmem_alloc_pageable(kernel_map, PAGE_SIZE);
-	VM_OBJECT_LOCK(kernel_object);
-	bogus_page = vm_page_alloc(kernel_object,
-			((bogus_offset - VM_MIN_KERNEL_ADDRESS) >> PAGE_SHIFT),
+	bogus_page = vm_page_alloc(NULL, 0, VM_ALLOC_NOOBJ |
 	    VM_ALLOC_NORMAL | VM_ALLOC_WIRED);
-	VM_OBJECT_UNLOCK(kernel_object);
 }
 
 /*
