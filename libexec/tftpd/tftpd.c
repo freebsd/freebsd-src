@@ -30,7 +30,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: tftpd.c,v 1.7 1997/02/22 14:22:36 peter Exp $
+ *	$Id: tftpd.c,v 1.8 1997/03/24 06:04:08 imp Exp $
  */
 
 #ifndef lint
@@ -121,7 +121,7 @@ main(argc, argv)
 	struct passwd *nobody;
 
 	openlog("tftpd", LOG_PID, LOG_FTP);
-	while ((ch = getopt(argc, argv, "lns:")) != EOF) {
+	while ((ch = getopt(argc, argv, "lns:")) != -1) {
 		switch (ch) {
 		case 'l':
 			logging = 1;

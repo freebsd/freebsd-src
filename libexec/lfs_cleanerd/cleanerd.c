@@ -30,7 +30,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id$
+ *	$Id: cleanerd.c,v 1.6 1997/02/22 14:21:44 peter Exp $
  */
 
 #ifndef lint
@@ -160,7 +160,7 @@ main(argc, argv)
 	extern int optind;
 
 	cmd_err = nodaemon = 0;
-	while ((opt = getopt(argc, argv, "smd")) != EOF) {
+	while ((opt = getopt(argc, argv, "smd")) != -1) {
 		switch (opt) {
 			case 's':	/* small writes */
 				do_small = 1;
