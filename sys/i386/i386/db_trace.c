@@ -40,8 +40,8 @@
 #include <vm/vm.h>
 #include <vm/vm_param.h>
 #include <vm/pmap.h>
-#include <ddb/ddb.h>
 
+#include <ddb/ddb.h>
 #include <ddb/db_access.h>
 #include <ddb/db_sym.h>
 #include <ddb/db_variables.h>
@@ -166,7 +166,7 @@ db_print_stack_entry(name, narg, argnp, argp, callpc)
 		argp++;
 		if (--narg != 0)
 			db_printf(",");
-  	}
+	}
 	db_printf(") at ");
 	db_printsym(callpc, DB_STGY_PROC);
 	db_printf("\n");
@@ -191,7 +191,7 @@ decode_syscall(number, p)
 			db_printf(", %s, %s", p->p_sysent->sv_name, symname);
 		}
 	}
-	db_printf(")");	
+	db_printf(")");
 }
 
 /*
@@ -215,22 +215,18 @@ db_nextframe(fp, ip, p)
 	/*
 	 * Figure out frame type.
 	 */
-
 	frame_type = NORMAL;
-
 	sym = db_search_symbol(eip, DB_STGY_ANY, &offset);
 	db_symbol_values(sym, &name, NULL);
 	if (name != NULL) {
-		if (!strcmp(name, "calltrap")) {
+		if (strcmp(name, "calltrap") == 0)
 			frame_type = TRAP;
-		} else if (!strncmp(name, "Xintr", 5) ||
-		    !strncmp(name, "Xfastintr", 9)) {
+		else if (strncmp(name, "Xintr", 5) == 0 ||
+		    strncmp(name, "Xfastintr", 9) == 0)
 			frame_type = INTERRUPT;
-		} else if (!strcmp(name, "Xlcall_syscall")) {
+		else if (strcmp(name, "Xlcall_syscall") == 0 ||
+		    strcmp(name, "Xint0x80_syscall") == 0)
 			frame_type = SYSCALL;
-		} else if (!strcmp(name, "Xint0x80_syscall")) {
-			frame_type = SYSCALL;
-		}
 	}
 
 	/*
@@ -258,7 +254,6 @@ db_nextframe(fp, ip, p)
 		    tf->tf_esp : (int)&tf->tf_esp;
 		eip = tf->tf_eip;
 		ebp = tf->tf_ebp;
-	       
 		switch (frame_type) {
 		case TRAP:
 			db_printf("--- trap %#r", tf->tf_trapno);
@@ -288,14 +283,14 @@ db_stack_trace_cmd(addr, have_addr, count, modif)
 	db_expr_t count;
 	char *modif;
 {
-	struct i386_frame *frame;
 	int *argp;
-	db_addr_t callpc;
-	boolean_t first;
-	struct pcb *pcb;
+	struct i386_frame *frame;
 	struct proc *p;
+	struct pcb *pcb;
 	struct thread *td;
+	db_addr_t callpc;
 	pid_t pid;
+	boolean_t first;
 
 	if (count == -1)
 		count = 1024;
@@ -404,7 +399,7 @@ db_stack_trace_cmd(addr, have_addr, count, modif)
 					actframe = (struct i386_frame *)
 					    (ddb_regs.tf_esp - 4);
 				}
-			} else if (!strcmp(name, "fork_trampoline")) {
+			} else if (strcmp(name, "fork_trampoline") == 0) {
 				/*
 				 * Don't try to walk back on a stack for a
 				 * process that hasn't actually been run yet.
@@ -446,6 +441,15 @@ db_stack_trace_cmd(addr, have_addr, count, modif)
 	}
 }
 
+void
+db_print_backtrace(void)
+{
+	register_t ebp;
+
+	__asm __volatile("movl %%ebp,%0" : "=r" (ebp));
+	db_stack_trace_cmd(ebp, 1, -1, NULL);
+}
+
 #define DB_DRX_FUNC(reg)		\
 int					\
 db_ ## reg (vp, valuep, op)		\
@@ -457,8 +461,7 @@ db_ ## reg (vp, valuep, op)		\
 		*valuep = r ## reg ();	\
 	else				\
 		load_ ## reg (*valuep); \
-					\
-	return(0);			\
+	return (0);			\
 } 
 
 DB_DRX_FUNC(dr0)
@@ -469,16 +472,6 @@ DB_DRX_FUNC(dr4)
 DB_DRX_FUNC(dr5)
 DB_DRX_FUNC(dr6)
 DB_DRX_FUNC(dr7)
-
-
-void
-db_print_backtrace(void)
-{
-	register_t ebp;
-
-	__asm __volatile("mov %%ebp,%0\n" : "=r" (ebp));
-	db_stack_trace_cmd(ebp, 1, -1, NULL);
-}
 
 int
 i386_set_watch(watchnum, watchaddr, size, access, d)
@@ -641,8 +634,8 @@ db_md_list_watchpoints()
 	fill_dbregs(NULL, &d);
 
 	db_printf("\nhardware watchpoints:\n");
-	db_printf("  watch    status        type  len     address\n"
-		  "  -----  --------  ----------  ---  ----------\n");
+	db_printf("  watch    status        type  len     address\n");
+	db_printf("  -----  --------  ----------  ---  ----------\n");
 	for (i=0; i<4; i++) {
 		if (d.dr7 & (0x03 << (i*2))) {
 			unsigned type, len;
