@@ -42,6 +42,9 @@
 #include <pthread.h>
 #include "pthread_private.h"
 
+/* Prototypes: */
+static void	_thread_signal(pthread_t pthread, int sig);
+
 /* Static variables: */
 static spinlock_t	signal_lock = _SPINLOCK_INITIALIZER;
 unsigned int		pending_sigs[NSIG];
@@ -62,6 +65,9 @@ _thread_sig_init(void)
 
 	/* Clear the lock: */
 	signal_lock.access_lock = 0;
+
+	/* Clear the process pending signals: */
+	sigemptyset(&_process_sigpending);
 }
 
 void
@@ -155,6 +161,7 @@ _thread_sig_handle(int sig, ucontext_t * scp)
 {
 	int		i;
 	pthread_t	pthread, pthread_next;
+	pthread_t	suspended_thread, signaled_thread;
 
 	/* Check if the signal requires a dump of thread information: */
 	if (sig == SIGINFO)
@@ -203,12 +210,15 @@ _thread_sig_handle(int sig, ucontext_t * scp)
 		}
 
 		/*
-		 * Enter a loop to process each thread in the waiting
-		 * list that is sigwait-ing on a signal.  Since POSIX
-		 * doesn't specify which thread will get the signal
-		 * if there are multiple waiters, we'll give it to the
-		 * first one we find.
+		 * Enter a loop to look for threads that have the
+		 * signal unmasked.  POSIX specifies that a thread
+		 * in a sigwait will get the signal over any other
+		 * threads.  Second preference will be threads in
+		 * in a sigsuspend.  If none of the above, then the
+		 * signal is delivered to the first thread we find.
 		 */
+		suspended_thread = NULL;
+		signaled_thread = NULL;
 		for (pthread = TAILQ_FIRST(&_waitingq);
 		    pthread != NULL; pthread = pthread_next) {
 			/*
@@ -226,21 +236,45 @@ _thread_sig_handle(int sig, ucontext_t * scp)
 				pthread->signo = sig;
 
 				/*
+				 * POSIX doesn't doesn't specify which thread
+				 * will get the signal if there are multiple
+				 * waiters, so we give it to the first thread
+				 * we find.
+				 *
 				 * Do not attempt to deliver this signal
 				 * to other threads.
 				 */
 				return;
 			}
+			else if (!sigismember(&pthread->sigmask, sig)) {
+				if (pthread->state == PS_SIGSUSPEND) {
+					if (suspended_thread == NULL)
+						suspended_thread = pthread;
+				} else if (signaled_thread == NULL)
+					signaled_thread = pthread;
+			}
 		}
 
 		/* Check if the signal is not being ignored: */
-		if (_thread_sigact[sig - 1].sa_handler != SIG_IGN)
-			/*
-			 * Enter a loop to process each thread in the linked
-			 * list: 
-			 */
-			TAILQ_FOREACH(pthread, &_thread_list, tle) {
+		if (_thread_sigact[sig - 1].sa_handler != SIG_IGN) {
+			if (suspended_thread == NULL &&
+			    signaled_thread == NULL)
+				/*
+				 * Add it to the set of signals pending
+				 * on the process:
+				 */
+				sigaddset(&_process_sigpending, sig);
+			else {
 				pthread_t pthread_saved = _thread_run;
+
+				/*
+				 * We only deliver the signal to one thread;
+				 * give preference to the suspended thread:
+				 */
+				if (suspended_thread != NULL)
+					pthread = suspended_thread;
+				else
+					pthread = signaled_thread;
 
 				/* Current thread inside critical region? */
 				if (_thread_run->sig_defer_count > 0)
@@ -260,6 +294,8 @@ _thread_sig_handle(int sig, ucontext_t * scp)
 				if (_thread_run->sig_defer_count > 0)
 					pthread->sig_defer_count--;
 			}
+
+		}
 	}
 
 	/* Returns nothing. */
@@ -267,7 +303,7 @@ _thread_sig_handle(int sig, ucontext_t * scp)
 }
 
 /* Perform thread specific actions in response to a signal: */
-void
+static void
 _thread_signal(pthread_t pthread, int sig)
 {
 	/*
@@ -284,6 +320,7 @@ _thread_signal(pthread_t pthread, int sig)
 	 */
 	case PS_COND_WAIT:
 	case PS_DEAD:
+	case PS_DEADLOCK:
 	case PS_FDLR_WAIT:
 	case PS_FDLW_WAIT:
 	case PS_FILE_WAIT:
@@ -293,6 +330,7 @@ _thread_signal(pthread_t pthread, int sig)
 	case PS_STATE_MAX:
 	case PS_SIGTHREAD:
 	case PS_SIGWAIT:
+	case PS_SPINBLOCK:
 	case PS_SUSPENDED:
 		/* Nothing to do here. */
 		break;
@@ -326,8 +364,9 @@ _thread_signal(pthread_t pthread, int sig)
 	case PS_POLL_WAIT:
 	case PS_SLEEP_WAIT:
 	case PS_SELECT_WAIT:
-		if (sig != SIGCHLD ||
-		    _thread_sigact[sig - 1].sa_handler != SIG_DFL) {
+		if ((_thread_sigact[sig - 1].sa_flags & SA_RESTART) == 0 &&
+		    (sig != SIGCHLD ||
+		     _thread_sigact[sig - 1].sa_handler != SIG_DFL)) {
 			/* Flag the operation as interrupted: */
 			pthread->interrupted = 1;
 
@@ -344,11 +383,10 @@ _thread_signal(pthread_t pthread, int sig)
 
 	case PS_SIGSUSPEND:
 		/*
-		 * Only wake up the thread if the signal is unblocked
-		 * and there is a handler installed for the signal.
+		 * Only wake up the thread if there is a handler installed
+		 * for the signal.
 		 */
-		if (!sigismember(&pthread->sigmask, sig) &&
-		    _thread_sigact[sig - 1].sa_handler != SIG_DFL) {
+		if (_thread_sigact[sig - 1].sa_handler != SIG_DFL) {
 			/* Change the state of the thread to run: */
 			PTHREAD_NEW_STATE(pthread,PS_RUNNING);
 
@@ -368,9 +406,10 @@ _dispatch_signals()
 
 	/*
 	 * Check if there are pending signals for the running
-	 * thread that aren't blocked:
+	 * thread or process that aren't blocked:
 	 */
 	sigset = _thread_run->sigpend;
+	SIGSETOR(sigset, _process_sigpending);
 	SIGSETNAND(sigset, _thread_run->sigmask);
 	if (SIGNOTEMPTY(sigset))
 		/* Look for all possible pending signals: */
@@ -381,10 +420,13 @@ _dispatch_signals()
 			 */
 			if (_thread_sigact[i - 1].sa_handler != SIG_DFL &&
 			    _thread_sigact[i - 1].sa_handler != SIG_IGN &&
-			    sigismember(&_thread_run->sigpend,i) &&
-			    !sigismember(&_thread_run->sigmask,i)) {
-				/* Clear the pending signal: */
-				sigdelset(&_thread_run->sigpend,i);
+			    sigismember(&sigset, i)) {
+				if (sigismember(&_thread_run->sigpend,i))
+					/* Clear the thread pending signal: */
+					sigdelset(&_thread_run->sigpend,i);
+				else
+					/* Clear the process pending signal: */
+					sigdelset(&_process_sigpending,i);
 
 				/*
 				 * Dispatch the signal via the custom signal

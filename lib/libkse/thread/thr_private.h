@@ -858,7 +858,12 @@ SCLASS	pthread_cond_t  _gc_cond
 /*
  * Array of signal actions for this process.
  */
-struct  sigaction _thread_sigact[NSIG];
+SCLASS struct  sigaction _thread_sigact[NSIG];
+
+/*
+ * Pending signals for this process.
+ */
+SCLASS sigset_t	_process_sigpending;
 
 /*
  * Scheduling queues:
@@ -944,7 +949,6 @@ int     _thread_create(pthread_t *,const pthread_attr_t *,void *(*start_routine)
 int     _thread_fd_lock(int, int, struct timespec *);
 int     _thread_fd_lock_debug(int, int, struct timespec *,char *fname,int lineno);
 void    _dispatch_signals(void);
-void    _thread_signal(pthread_t, int);
 int	_mutex_cv_lock(pthread_mutex_t *);
 int	_mutex_cv_unlock(pthread_mutex_t *);
 void	_mutex_notify_priochange(pthread_t);
