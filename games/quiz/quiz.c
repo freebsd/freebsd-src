@@ -69,14 +69,13 @@ static u_int qsize;
 
 char	*appdstr(char *, char *, size_t);
 void	 downcase(char *);
-void	 err(const char *, ...);
+void	 err(const char *, ...) __printflike(1, 2);
 void	 get_cats(char *, char *);
 void	 get_file(char *);
 char	*next_cat(char *);
 void	 quiz(void);
 void	 score(u_int, u_int, u_int);
 void	 show_index(void);
-void	 usage(void);
 
 int
 main(argc, argv)
