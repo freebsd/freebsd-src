@@ -64,11 +64,15 @@ By default, or if the
 flag is specified,
 one or more users may be specified on the command line.
 For each user a temporary file is created
-with an ASCII representation of the current
+with an
+.Tn ASCII
+representation of the current
 disk quotas for that user.
 The list of filesystems with user quotas is determined from
 .Pa /etc/fstab .
-An editor is invoked on the ASCII file.
+An editor is invoked on the
+.Tn ASCII
+file.
 The editor invoked is
 .Xr vi 1
 unless the environment variable
@@ -107,7 +111,7 @@ will duplicate the quotas of the prototypical user
 for each uid in the range specified.  This allows
 for easy setup of default quotas for a group of users.
 The uids in question do not have to be currently assigned in
-.Pa /etc/passwd
+.Pa /etc/passwd .
 .Pp
 If the
 .Fl g
