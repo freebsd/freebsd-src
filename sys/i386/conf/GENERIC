@@ -11,7 +11,7 @@
 # device lines is present in the ./LINT configuration file. If you are 
 # in doubt as to the purpose or necessity of a line, check first in LINT.
 #
-#	$Id: GENERIC,v 1.93 1997/07/22 08:33:52 jkh Exp $
+#	$Id: GENERIC,v 1.94 1997/09/14 18:57:01 joerg Exp $
 
 machine		"i386"
 cpu		"I386_CPU"
@@ -21,7 +21,7 @@ cpu		"I686_CPU"
 ident		GENERIC
 maxusers	10
 
-options		MATH_EMULATE		#Support for x87 emulation
+#options		MATH_EMULATE		#Support for x87 emulation
 options		INET			#InterNETworking
 options		FFS			#Berkeley Fast Filesystem
 options		NFS			#Network Filesystem
@@ -35,6 +35,7 @@ options		UCONSOLE		#Allow users to grab the console
 options		FAILSAFE		#Be conservative
 options		USERCONFIG		#boot -c editor
 options		VISUAL_USERCONFIG	#visual boot -c editor
+options		DDB
 
 config		kernel	root on wd0
 
@@ -56,9 +57,9 @@ controller	wdc1	at isa? port "IO_WD2" bio irq 15 vector wdintr
 disk		wd2	at wdc1 drive 0
 disk		wd3	at wdc1 drive 1
 
-options		ATAPI		#Enable ATAPI support for IDE bus
-options		ATAPI_STATIC	#Don't do it as an LKM
-device		wcd0	#IDE CD-ROM
+#options		ATAPI		#Enable ATAPI support for IDE bus
+#options		ATAPI_STATIC	#Don't do it as an LKM
+#device		wcd0	#IDE CD-ROM
 
 # A single entry for any of these controllers (ncr, ahb, ahc, amd) is
 # sufficient for any number of installed devices.
@@ -121,27 +122,27 @@ device		sio3	at isa? disable port "IO_COM4" tty irq 9 vector siointr
 
 device		lpt0	at isa? port? tty irq 7 vector lptintr
 device		lpt1	at isa? port? tty
-device		mse0	at isa? port 0x23c tty irq 5 vector mseintr
+#device		mse0	at isa? port 0x23c tty irq 5 vector mseintr
 
-device		psm0	at isa? disable port "IO_KBD" conflicts tty irq 12 vector psmintr
+#device		psm0	at isa? disable port "IO_KBD" conflicts tty irq 12 vector psmintr
 
 # Order is important here due to intrusive probes, do *not* alphabetize
 # this list of network interfaces until the probes have been fixed.
 # Right now it appears that the ie0 must be probed before ep0. See
 # revision 1.20 of this file.
-device de0
-device fxp0
-device vx0
+#device de0
+#device fxp0
+#device vx0
 
-device ed0 at isa? port 0x280 net irq 10 iomem 0xd8000 vector edintr
-device ie0 at isa? port 0x300 net irq 10 iomem 0xd0000 vector ieintr
+#device ed0 at isa? port 0x280 net irq 10 iomem 0xd8000 vector edintr
+#device ie0 at isa? port 0x300 net irq 10 iomem 0xd0000 vector ieintr
 device ep0 at isa? port 0x300 net irq 10 vector epintr
-device ex0 at isa? port? net irq? vector exintr
-device fe0 at isa? port 0x300 net irq ? vector feintr
-device le0 at isa? port 0x300 net irq 5 iomem 0xd0000 vector le_intr
-device lnc0 at isa? port 0x280 net irq 10 drq 0 vector lncintr
-device ze0 at isa? port 0x300 net irq 10 iomem 0xd8000 vector zeintr
-device zp0 at isa? port 0x300 net irq 10 iomem 0xd8000 vector zpintr
+#device ex0 at isa? port? net irq? vector exintr
+#device fe0 at isa? port 0x300 net irq ? vector feintr
+#device le0 at isa? port 0x300 net irq 5 iomem 0xd0000 vector le_intr
+#device lnc0 at isa? port 0x280 net irq 10 drq 0 vector lncintr
+#device ze0 at isa? port 0x300 net irq 10 iomem 0xd8000 vector zeintr
+#device zp0 at isa? port 0x300 net irq 10 iomem 0xd8000 vector zpintr
 
 pseudo-device	loop
 pseudo-device	ether
