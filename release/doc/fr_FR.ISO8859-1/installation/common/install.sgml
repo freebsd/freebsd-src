@@ -12,7 +12,7 @@ from {alpha,i386}/INSTALL.TXT.
 -->
 
 <sect1>
-  <title>***En cours de traduction***Installation de &os;</title>
+  <title>Installation de &os;</title>
 
   <para>Cette sections documente le processus pour l'installation 
   d'une nouvelle version de &os;. Ces instructions mettent un accent
@@ -780,7 +780,7 @@ pqb0.0.1.4.0               PQB0                       PCI EIDE</screen>
 
 	  <screen><userinput>boot -h</userinput></screen>
 
-	  <para>Et vous deviez enfin voir des choses sur le port
+	  <para>Et vous devriez enfin voir des choses sur le port
           s&eacute;rie. Si cela ne fonctionne pas, v&eacute;rifier
           votre cablage s&eacute;rie et vos pr&eacute;f&eacute;rences
           de l'&eacute;mulateur de terminal ou le
@@ -794,85 +794,91 @@ pqb0.0.1.4.0               PQB0                       PCI EIDE</screen>
   </sect2>
 
   <sect2>
-    <title>Question and Answer Section for &arch.print; Architecture Users</title>
+    <title>Questions et réponses pour les utilisateurs d'architecture &arch.print;</title>
 
     <qandaset arch="i386">
       <qandaentry>
         <question>
-	  <para>Help!  I have no space!  Do I need to delete
-	  everything first?</para>
+	  <para>De l'aide!  Je n'ai pas de place disponible!  Dois-je
+          effacer quelque chose pour commencer ?</para>
 	</question>
 	<answer>
-	  <para>If your machine is already running DOS and has little
-	  or no free space available for &os;'s installation, all is
-	  not lost!  You may find the <application>FIPS</application>
-	  utility, provided in the <filename>tools/</filename>
-	  subdirectory on the &os; CDROM or on the various &os; ftp
-	  sites, to be quite useful.</para>
+	  <para>Si votre machine fonctionne actuellement sous DOS et
+          ne dispose pas ou peu de place libre pour l'installation de
+          &os;, tout n'est perdu! Vous trouverez l'utilitaire
+          <application>FIPS</application>, dans le répertoire
+          <filename>tools/</filename> du CDROM de &os; ou sur un des
+          site FTP mirroir de &os;, très util.</para>
 
-	  <para><application>FIPS</application> allows you to split an
-	  existing DOS partition into two pieces, preserving the
-	  original partition and allowing you to install onto the
-	  second free piece.  You first <quote>defrag</quote> your DOS
-	  partition, using the DOS 6.xx <filename>DEFRAG</filename>
-	  utility or the <application>Norton Disk Tools</application>,
-	  then run FIPS.  It will
-	  prompt you for the rest of the information it needs.
-	  Afterwards, you can reboot and install &os; on the new
-	  partition.  Also note that FIPS will create the second
-	  partition as a <quote>clone</quote> of the first, so you'll
-	  actually see that you now have two DOS Primary partitions
-	  where you formerly had one.  Don't be alarmed!  You can
-	  simply delete the extra DOS Primary partition (making sure
-	  it's the right one by examining its size).</para>
+	  <para><application>FIPS</application> vous permet de coupe
+          les partitions DOS existantes en plusieurs parties, tout en
+          préservant la partition originale, cela vous permettra
+          d'effectuer l'installation sur l'autre. Vous devez, avant
+          tout, <quote>defragmenter</quote> votre partition DOS en
+          utilisant l'utilitaire DOS 6.xx <filename>DEFRAG</filename>
+          ou l'utilitaire <application>Norton Disk
+          Tools</application>, puis lancez
+          <application>FIPS</application>. Il vous demandera
+          l'ensemble des informations nécessaires. Après vous pourrez
+          redémarrer et installer &os; sur la nouvelle partition. Vous
+          remarquerez que <application>FIPS</application> crée la
+          deuxième partition comme un <quote>clone</quote> de la
+          première, vous verrez donc deux partitions primaire DOS
+          apparaître alors que vous n'en avez qu'une. Ne soyez donc
+          pas surpris ! Vous pourrez tout simplement effacer la
+          partition DOS supplémentaire (en faisant bien attention en
+          vérifiant sa taille).</para>
 
-	  <para><application>FIPS</application> does NOT currently
-          work with NTFS style partitions.  To split up such a
-          partition, you will need a commercial product such as
-          <application>Partition Magic</application>.  Sorry, but this
-          is just the breaks if you've got a Windows partition hogging
-          your whole disk and you don't want to reinstall from
-          scratch.</para>
+	  <para><application>FIPS</application> ne fonctionne pas
+          actuellement avec les partitions NTFS. Pour les couper, il
+          est nécessaire d'utiliser un produit commercial tel que 
+          <application>Partition Magic</application>.  Nous sommes
+          désolé, mais si vous l'utilisez sur une partition Windows,
+          vous perdrez l'ensemble des données et seriez obliger de
+          ré-installer votre système.</para>
 	  
 	</answer>
       </qandaentry>
 
       <qandaentry>
         <question>
-	  <para>Can I use compressed DOS filesystems from
-	  &os;?</para>
+	  <para>Puis-je utilisez des systèmes de fichiers DOS
+          compressés pour &os;?</para>
 	</question>
 
 	<answer>
-	  <para>No.  If you are using a utility such as
-	  <application>Stacker</application>(tm) or
-	  <application>DoubleSpace</application>(tm), &os; will only
-	  be able to use whatever portion of the filesystem you leave
-	  uncompressed.  The rest of the filesystem will show up as
-	  one large file (the stacked/dblspaced file!).  <emphasis>Do
-	  not remove that file</emphasis> as you will probably regret
-	  it greatly!</para>
+	  <para>Non. Si vous utilisez un programme tel que
+          <application>Stacker</application>(tm) ou
+          <application>DoubleSpace</application>(tm), &os; ne sera
+          capable d'utiliser que les portions des systèmes de fichier
+          non compressé. Le reste du système de fichier sera vu comme
+          un seul et unique fichier (le fichier compressé
+          correspondant au disque!). N'effacez pas ce fichier, ou vous
+          auriez à le regretter!</para>
 
-	  <para>It is probably better to create another uncompressed DOS
-	  extended partition and use this for communications between
-	  DOS and &os; if such is your desire.</para>
+	  <para>Il est plus sur de créer une autre partition DOS
+          étendue non compressée et l'utiliser pour assurer la
+          communication entre DOS et &os; si cela est votre
+          désir.</para>
 	</answer>
       </qandaentry>
 
       <qandaentry>
         <question>
-	  <para>Can I mount my DOS extended partitions?</para>
+	  <para>Peut-on monter des partitions DOS étendues?</para>
 	</question>
 
 	<answer>
-	  <para>Yes.  DOS extended partitions are mapped in at the end
-	  of the other <quote>slices</quote> in &os;, e.g. your <devicename>D:</devicename> drive might
-	  be <filename>/dev/da0s5</filename>, your <devicename>E:</devicename> drive <filename>/dev/da0s6</filename>, and so on. This
-	  example assumes, of course, that your extended partition is
-	  on SCSI drive 0. For IDE drives, substitute <literal>ad</literal> for
-	  <literal>da</literal> appropriately. You otherwise mount extended
-	  partitions exactly like you would mount any other DOS drive,
-	  e.g.:</para>
+	  <para>Oui. Les partitions DOS étendues sont mappées à la fin
+          des autres <quote>slices</quote> dans &os;, e.g. votre
+          disque <devicename>D:</devicename> peut être
+          <filename>/dev/da0s5</filename>, votre disque
+          <devicename>E:</devicename> <filename>/dev/da0s6</filename>,
+          etc... Cet exemple assume que votre partition étendue se
+          trouve sur le disque SCSI 0. Pour les disques IDE,
+          substituez <literal>da</literal> par
+          <literal>ad</literal>. Montez ensuite la partition comme une
+          partition DOS standard, e.g.:</para>
 
 	  <screen>&prompt.root; <userinput>mount -t msdos /dev/da0s5 /dos_d</userinput></screen>
 	</answer>
@@ -880,21 +886,21 @@ pqb0.0.1.4.0               PQB0                       PCI EIDE</screen>
 
       <qandaentry>
         <question>
-	  <para>Can I run DOS binaries under &os;?</para>
+	  <para>Puis-je faire tourner les applications DOS binaries sou &os;?</para>
 	</question>
 
 	<answer>
-	  <para>Ongoing work with BSDI's &man.doscmd.1; utility will
-	  suffice in many cases, though
-	  it still has some rough edges.  If you're interested in
-	  working on this, please send mail to the &a.emulation;
-	  and indicate that you're interested in joining this ongoing
-	  effort!</para>
+	  <para>L'utilitaire &man.doscmd.1; de BSDI doit suffir la
+          plupart du temps. Si vous êtes interessés pour travailler
+          dessus, envoyez un mail à la liste &a.emulation; et indiquez
+          votre intérêt à joindre l'effort d'émulation DOS!</para>
 
-	  <para>The <filename role="package">emulators/pcemu</filename> port/package in the
-	  &os; Ports Collection which emulates an 8088 and enough BIOS
-	  services to run DOS text mode applications.  It requires the
-	  X Window System (XFree86) to operate.</para>
+	  <para>La pacquetage/port <filename
+          role="package">emulators/pcemu</filename> de la collection
+          des ports de &os; qui émule un 8088 et pas mal de services
+          du BIOS permet de faire fonctionner les applications DOS en
+          mode texte. Il nécessite le système X Windows (Xfree86) pour
+          fonctionner.</para>
 	</answer>
       </qandaentry>
     </qandaset>
@@ -902,67 +908,69 @@ pqb0.0.1.4.0               PQB0                       PCI EIDE</screen>
     <qandaset arch="alpha">
       <qandaentry>
         <question>
-	  <para>Can I boot from the ARC or Alpha BIOS Console?</para>
+	  <para>Puis-je démarrer depuis la console  ARC ou Alpha BIOS?</para>
 	</question>
 
 	<answer>
-	  <para>No.  &os;, like Compaq Tru64 and VMS, will only boot
-	  from the SRM console.</para>
+	  <para>Non.  &os;, comme Compaq Tru64 et VMS, ne peut
+          démarrer que depuis une console SRM.</para>
 	</answer>
       </qandaentry>
 
       <qandaentry>
         <question>
-	  <para>Help!  I have no space!  Do I need to delete
-	  everything first?</para>
+	  <para>De l'aide!  Je n'ai pas de place disponible!  Dois-je
+          effacer quelque chose pour commencer ?</para>
 	</question>
 
 	<answer>
-	  <para>Unfortunately, yes.</para>
+	  <para>Malheureusement, oui.</para>
 	</answer>
       </qandaentry>
 
       <qandaentry>
         <question>
-	  <para>Can I mount my Compaq Tru64 or VMS extended partitions?</para>
+	  <para>Puis-je monter les partitions étendues Compaq Tru64 ou VMS?</para>
 	</question>
 
 	<answer>
-	  <para>No, not at this time.</para>
+	  <para>Désolé, pas encore.</para>
 	</answer>
       </qandaentry>
 
       <qandaentry>
         <question>
-	  <para>What about support for Compaq Tru64 (OSF/1) binaries?</para>
+	  <para>Quel est le support des binaires Compaq Tru64 (OSF/1)?</para>
 	</question>
 
 	<answer>
-	  <para>&os; can run Tru64 applications very well using the
-	  <filename role="package">emulators/osf1_base</filename> port/package.</para>
+	  <para>&os; peut faire tourner les applications Tru64 en
+          utilisant le port/pacquetage
+	  <filename role="package">emulators/osf1_base</filename>.</para>
 	</answer>
       </qandaentry>
 
       <qandaentry>
         <question>
-	  <para>What about support for Linux binaries?</para>
+	  <para>Quel est le support des binaires Linux?</para>
 	</question>
 
 	<answer>
-	  <para>&os; can run AlphaLinux binaries with the assistance
-	  of the <filename role="package">emulators/linux_base</filename>
-	  port/package.</para>
+	  <para>&os; peut faire fonctionner les binaires AlphaLinux en
+          utilisant le pacquetage/port <filename
+          role="package">emulators/linux_base</filename>.</para>
 	</answer>
       </qandaentry>
 
       <qandaentry>
         <question>
-	  <para>What about support for NT Alpha binaries?</para>
+	  <para>Quel est le support des binaires NT Alpha?</para>
 	</question>
 
 	<answer>
-	  <para>&os; is not able to run NT applications natively,
-	  although it has the ability to mount NT partitions.</para>
+	  <para>&os; n'est pas capable de faire fonctionner les
+          applications natives NT, mais il dispose de la capacité à
+          monter les partitions NT.</para>
 	</answer>
       </qandaentry>
     </qandaset>
