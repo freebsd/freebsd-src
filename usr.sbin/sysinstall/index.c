@@ -102,7 +102,9 @@ static char *descrs[] = {
     "german", "Ported software for Germanic countries.",
     "graphics", "Graphics libraries and utilities.",
     "gnome", "Components of the Gnome Desktop environment.",
+    "irc", "Internet Relay Chat utilities.",
     "japanese", "Ported software for the Japanese market.",
+    "java", "Java language support.",
     "kde", "Software for the K Desktop Environment.",
     "korean", "Ported software for the Korean market.",
     "lang", "Computer languages.",
@@ -146,6 +148,7 @@ static char *descrs[] = {
     "x11-clocks", "X Window System based clocks.",
     "x11-fm", "X Window System based file managers.",
     "x11-fonts", "X Window System fonts and font utilities.",
+    "x11-servers", "X Window System servers.",
     "x11-toolkits", "X Window System based development toolkits.",
     "x11-wm", "X Window System window managers.",
     NULL, NULL,
@@ -417,7 +420,6 @@ index_search(PkgNodePtr top, char *str, PkgNodePtr *tp)
 		*tp = top;
 		return p;
 	    }
-
 	}
 	else if (p->kids) {
 	    /* The usual recursion-out-of-laziness ploy */

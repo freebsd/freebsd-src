@@ -455,20 +455,16 @@ diskPartition(Device *dev)
 		 * disk (i.e., the disklabel starts at sector 0), even in cases where the user has requested
 		 * booteasy or a "standard" MBR -- both would be fatal in this case.
 		 */
-#if 0
-		if ((d->chunks->part->flags & CHUNK_FORCE_ALL) != CHUNK_FORCE_ALL
-		    && (mbrContents = getBootMgr(d->name)) != NULL)
-		    Set_Boot_Mgr(d, mbrContents);
-#else
 		/*
 		 * Don't offer to update the MBR on this disk if the first "real" chunk looks like
 		 * a FreeBSD "all disk" partition, or the disk is entirely FreeBSD.
 		 */
-		if (((d->chunks->part->type != freebsd) || (d->chunks->part->offset > 1)) &&
-		    (mbrContents = getBootMgr(d->name)) != NULL)
-		    Set_Boot_Mgr(d, mbrContents);
-#endif
-		
+		if (((d->chunks->part->type != freebsd) || (d->chunks->part->offset > 1)))
+		    mbrContents = getBootMgr(d->name);
+		else
+		    mbrContents = NULL;
+		Set_Boot_Mgr(d, mbrContents);
+
 		if (DITEM_STATUS(diskPartitionWrite(NULL)) != DITEM_SUCCESS)
 		    msgConfirm("Disk partition write returned an error status!");
 		else
