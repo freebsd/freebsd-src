@@ -44,7 +44,6 @@ wint_t
 __fputwc(wchar_t wc, FILE *fp)
 {
 	char buf[MB_LEN_MAX];
-	mbstate_t mbs;
 	size_t i, len;
 
 	if (MB_CUR_MAX == 1 && wc > 0 && wc <= UCHAR_MAX) {
@@ -56,8 +55,7 @@ __fputwc(wchar_t wc, FILE *fp)
 		*buf = (unsigned char)wc;
 		len = 1;
 	} else {
-		memset(&mbs, 0, sizeof(mbs));
-		if ((len = wcrtomb(buf, wc, &mbs)) == (size_t)-1) {
+		if ((len = wcrtomb(buf, wc, NULL)) == (size_t)-1) {
 			fp->_flags |= __SERR;
 			return (WEOF);
 		}
