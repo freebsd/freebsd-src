@@ -95,7 +95,6 @@ struct rc_chans  {
 	u_char           rc_pendcmd;            /* special cmd pending  */
 	u_int            rc_dtrwait;            /* dtr timeout          */
 	u_int            rc_dcdwaits;           /* how many waits DCD in open */
-	u_char		 rc_hotchar;		/* end packed optimize */
 	struct tty       rc_tp;                 /* tty struct           */
 	u_char          *rc_iptr;               /* Chars input buffer         */
 	u_char          *rc_hiwat;              /* hi-water mark        */
@@ -491,7 +490,7 @@ rc_intr(void *arg)
 						optr[INPUT_FLAGS_SHIFT] = 0;
 						optr++;
 						sc->sc_scheduled_event++;
-						if (val != 0 && val == rc->rc_hotchar)
+						if (val != 0 && val == rc->rc_tp.t_hotchar)
 							swi_sched(sc->sc_swicookie, 0);
 					}
 				} else {
@@ -522,7 +521,7 @@ rc_intr(void *arg)
 							    ||  ((iack & RCSR_PE)
 							    &&  (rc->rc_tp.t_iflag & INPCK))))
 								val = 0;
-							else if (val != 0 && val == rc->rc_hotchar)
+							else if (val != 0 && val == rc->rc_tp.t_hotchar)
 								swi_sched(sc->sc_swicookie, 0);
 							optr[0] = val;
 							optr[INPUT_FLAGS_SHIFT] = iack;
@@ -935,7 +934,7 @@ again:
 		goto again;
 	}
 	error = ttyld_open(tp, dev);
-	rc->rc_hotchar = ttyldoptim(tp);
+	ttyldoptim(tp);
 	if ((tp->t_state & TS_ISOPEN) && CALLOUT(dev))
 		rc->rc_flags |= RC_ACTOUT;
 out:
@@ -964,7 +963,7 @@ rcclose(struct cdev *dev, int flag, int mode, d_thread_t *td)
 #endif
 	s = spltty();
 	ttyld_close(tp, flag);
-	rc->rc_hotchar = ttyldoptim(tp);
+	ttyldoptim(tp);
 	rc_hardclose(rc);
 	ttyclose(tp);
 	splx(s);
@@ -1154,7 +1153,7 @@ rc_param(struct tty *tp, struct termios *ts)
 
 	CCRCMD(sc, rc->rc_chan, CCR_CORCHG1 | CCR_CORCHG2 | CCR_CORCHG3);
 
-	rc->rc_hotchar = ttyldoptim(tp);
+	ttyldoptim(tp);
 
 	/* modem ctl */
 	val = cflag & CLOCAL ? 0 : MCOR1_CDzd;
@@ -1211,7 +1210,7 @@ rcioctl(struct cdev *dev, u_long cmd, caddr_t data, int flag, d_thread_t *td)
 	rc = DEV_TO_RC(dev);
 	tp = &rc->rc_tp;
 	error = ttyioctl(dev, cmd, data, flag, td);
-	rc->rc_hotchar = ttyldoptim(tp);
+	ttyldoptim(tp);
 	if (error != ENOTTY)
 		return (error);
 	s = spltty();

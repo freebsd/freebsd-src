@@ -477,7 +477,7 @@ open_top:
 	}
 
 	error = ttyld_open(tp, dev);
-	pp->sp_hotchar = ttyldoptim(tp);
+	ttyldoptim(tp);
 	if (tp->t_state & TS_ISOPEN && DEV_IS_CALLOUT(mynor))
 		pp->sp_active_out = TRUE;
 
@@ -812,7 +812,7 @@ sxioctl(
 	}
 
 	error = ttyioctl(dev, cmd, data, flag, p);
-	pp->sp_hotchar = ttyldoptim(tp);
+	ttyldoptim(tp);
 	if (error != ENOTTY)
 		goto out;
 

@@ -2899,7 +2899,7 @@ ttyioctl(struct cdev *dev, u_long cmd, caddr_t data, int flag, struct thread *td
 	return (ENOTTY);
 }
 
-int
+void
 ttyldoptim(struct tty *tp)
 {
 	struct termios	*t;
@@ -2914,7 +2914,6 @@ ttyldoptim(struct tty *tp)
 		tp->t_state |= TS_CAN_BYPASS_L_RINT;
 	else
 		tp->t_state &= ~TS_CAN_BYPASS_L_RINT;
-	return (tp->t_hotchar);
 }
 
 

@@ -212,6 +212,7 @@ pppopen(dev, tp)
     sc->sc_if.if_baudrate = tp->t_ospeed;
 
     tp->t_sc = (caddr_t) sc;
+    tp->t_hotchar = PPP_FLAG;
     ttyflush(tp, FREAD | FWRITE);
 
     /*
