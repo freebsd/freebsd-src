@@ -48,6 +48,9 @@ __FBSDID("$FreeBSD$");
 
 #include <sys/param.h>
 #include <sys/systm.h>
+#include <sys/bio.h>
+#include <sys/buf.h>
+#include <sys/bus.h>
 #include <sys/cpu.h>
 #include <sys/sysproto.h>
 #include <sys/signalvar.h>
@@ -61,8 +64,6 @@ __FBSDID("$FreeBSD$");
 #include <sys/proc.h>
 #include <sys/ptrace.h>
 #include <sys/cons.h>
-#include <sys/bio.h>
-#include <sys/buf.h>
 #include <sys/exec.h>
 #include <sys/sysent.h>
 #include <sys/uio.h>
