@@ -1,11 +1,14 @@
+#
+#$FreeBSD$
+#
 
 # PROVIDE: diskless
 # REQUIRE: initdiskless mountcritlocal
 	if [ -n "$4" ]; then
 		bpi="-i $4"
-if [ -f /etc/defaults/rc.conf ]; then
+	fi
 	/sbin/mdconfig -a -t malloc -s $1 -u $3
-elif [ -f /etc/rc.conf ]; then
+	/sbin/newfs $bpi /dev/md$3c
 	/sbin/mount /dev/md$3c $2
 }
 
@@ -29,10 +32,9 @@ mkdir /var/spool/output/lpd
 chown -R root.daemon /var/spool/output
 chgrp daemon /var/spool/lpd
 
-( cd /; find -x dev | cpio -o -H newc ) > /tmp/dev.tmp
+(cd /; find -x dev | cpio -o -H newc) > /tmp/dev.tmp
 mount_mfs -s 4096 -i 512 -T qp120at dummy /dev
-( cd /; cpio -i -H newc -d < /tmp/dev.tmp )
-
+(cd /; cpio -i -H newc -d < /tmp/dev.tmp)
 	# extract a list of device entries, then copy them to a writable fs
 	(cd /; find -x dev | cpio -o -H newc) > /tmp/dev.tmp
 	mount_md 4096 /dev 3 512

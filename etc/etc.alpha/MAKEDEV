@@ -280,7 +280,7 @@ mach-4)
 wt*)
 	umask $tape_umask
 	u=`expr $i : '..\(.*\)'`
-	if [ x$u = x ]; then u=0; fi
+	if [ -z "${u}" ]; then u=0; fi
 	mknod rwt${u}   c 10 `expr  0 + $u`	# default density, 512b blocks
 	mknod nrwt${u}  c 10 `expr  4 + $u`
 #	mknod rWt${u}   c 10 `expr 64 + $u`	# default density, 1024b blocks
@@ -517,7 +517,7 @@ ccd*)
 	[0-9]|[0-9][0-9]|[0-4][0-9][0-9]|50[0-9]|51[0-1])
 		for part in 0 1 2 3 4 5 6 7
 		do
-			minor=`dkminor 0 $unit 0 $part` 
+			minor=`dkminor 0 $unit 0 $part`
 			partname=`dkitop $part`
 			mknod  $name$unit$partname b $blk $minor
 			mknod r$name$unit$partname c $chr $minor
@@ -540,7 +540,7 @@ pt[0-9]*)
 	chr=61
 	name=pt
 	unit=`expr $i : 'pt\([0-9][0-9]*\)'`
-	if [ "X${unit}" = "X" ]; then
+	if [ -z "${unit}" ]; then
 		unit=0
 	fi
 	unit=`expr $unit + 1 - 1`
@@ -552,7 +552,7 @@ targ[0-9]*)
 	chr=65
 	name=targ
 	unit=`expr $i : 'targ\([0-9][0-9]*\)'`
-	if [ "X${unit}" = "X" ]; then
+	if [ -z "${unit}" ]; then
 		unit=0
 	fi
 	unit=`expr $unit + 1 - 1`
@@ -567,7 +567,7 @@ xpt*)
 	chr=104
 	name=xpt
 	units=`expr $i : 'xpt\(.*\)'`
-	if [ "X${units}" = "X" ]; then
+	if [ -z "${units}" ]; then
 		units=1
 	fi
 	eval `echo ${chr} ${units} ${name} |awk \
@@ -585,7 +585,7 @@ pass*|uk*)
 	chr=31
 	name=pass
 	units=`expr $i : 'pass\(.*\)'`
-	if [ "X${units}" = "X" ]; then
+	if [ -z "${units}" ]; then
 		units=1
 	fi
 	eval `echo ${chr} ${units} ${name} |awk \
@@ -698,7 +698,7 @@ acd*|cd*|mcd*|scd*)
 	mcd*) units=`expr $i : '...\(.*\)'`; name=mcd; blk=7; chr=29;;
 	scd*) units=`expr $i : '...\(.*\)'`; name=scd; blk=16; chr=45;;
 	esac
-	if [ "X${units}" = "X" -o ${units} -le 0 ]; then
+	if [ -z "${units}" -o ${units} -le 0 ]; then
 		units=1
 	fi
 	if [ "${units}" -le 31 ]; then
@@ -717,7 +717,6 @@ acd*|cd*|mcd*|scd*)
 					name, i, c, (i * 8),
 					name, i, c, (i * 8) + 2,
 					name, i, name, i); }}'`
-		
 	else
 		echo "$i is invalid -- can't have more than 32 cd devices"
 	fi
@@ -825,14 +824,14 @@ ulpt*)
 ugen*)
 	unit=`expr $i : 'ugen\([0-9][0-9]*\)'`
 	endpoint=`expr $i : 'ugen.*\.\([0-9][0-9]*\)'`
-	if [ "x$unit" = "x" ]; then
-		echo $i - Invalid unit number 
+	if [ -z "${unit}" ]; then
+		echo $i - Invalid unit number
 	fi
-	if [ "x$endpoint" = "x" ]; then
-		minor=`expr $unit \* 16` 
+	if [ -z "${endpoint}" ]; then
+		minor=`expr $unit \* 16`
 		mknod ugen$unit c 114 $minor
 	else
-		minor=`expr $unit \* 16 + $endpoint` 
+		minor=`expr $unit \* 16 + $endpoint`
 		mknod ugen$unit.$endpoint c 114 $minor
 	fi
 	;;
@@ -954,7 +953,7 @@ ttyA*)
 	port=1
 	while [ $port -le $nports ]; do
 		minor=`expr $port - 1`
-		name=`expr $port + 1000 | cut -c 3-4` 
+		name=`expr $port + 1000 | cut -c 3-4`
 		mknod ttyA$name c $major $minor
 		mknod ttyiA$name c $major `expr $minor + 65536`
 		mknod ttylA$name c $major `expr $minor + 131072`
@@ -971,7 +970,7 @@ cuaA*)
 	port=1
 	while [ $port -le $nports ]; do
 		minor=`expr $port - 1`
-		name=`expr $port + 1000 | cut -c 3-4` 
+		name=`expr $port + 1000 | cut -c 3-4`
 		mknod cuaA$name c $major `expr $minor + 128`
 		mknod cuaiA$name c $major `expr $minor + 128 + 65536`
 		mknod cualA$name c $major `expr $minor + 128 + 131072`
@@ -1086,9 +1085,9 @@ ttyR?)
  	   ndevices=`grep ^$i /tmp/rp_list | sed -e 's/.* \([0-9]*\) ports/\1/'`
 	   echo -n "Creating $ndevices devices for $i: "
 	   for dev in `jot $ndevices 0`;do
-		   mknod /dev/ttyR$Rnum c $major $MINOR 
+		   mknod /dev/ttyR$Rnum c $major $MINOR
 		   mknod /dev/ttylR$Rnum c $major `expr $MINOR + 32`
-		   mknod /dev/ttyiR$Rnum c $major `expr $MINOR + 64` 
+		   mknod /dev/ttyiR$Rnum c $major `expr $MINOR + 64`
 		   Rnum=`expr $Rnum + 1`
 		   MINOR=`expr $MINOR + 1`
 	   done
@@ -1111,7 +1110,7 @@ cuaR?)
 	   for dev in `jot $ndevices 0`;do
 		   mknod /dev/cuaR$Rnum c  $major `expr $MINOR + 128`
 		   mknod /dev/cualR$Rnum c $major `expr $MINOR + 128 + 32`
-		   mknod /dev/cuaiR$Rnum c $major `expr $MINOR + 128 + 64` 
+		   mknod /dev/cuaiR$Rnum c $major `expr $MINOR + 128 + 64`
 		   Rnum=`expr $Rnum + 1`
 		   MINOR=`expr $MINOR + 1`
 	   done
@@ -1316,7 +1315,7 @@ labpc*)
 		die 3 "Don't know LabPC type $i"
 		;;
 	esac
-	if [ "X${unit}" = "X" ]; then
+	if [ -z "${unit}" ]; then
 		unit=all
 	fi
 	case $unit in
