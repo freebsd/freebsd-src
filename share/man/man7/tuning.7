@@ -414,7 +414,27 @@ Such services can include web caches, large mail systems, and news systems.
 Turning on this option will generally not reduce performance even with the
 wasted memory but you should experiment to find out.
 .Pp
-There are various buffer-cache and VM page cache related sysctls.
+The
+.Va vfs.write_behind
+sysctl defaults to 1 (on).  This tells the filesystem to issue media
+writes as full clusters are collected, which typically occurs when writing
+large sequential files.  The idea is to avoid saturating the buffer
+cache with dirty buffers when it would not benefit I/O performance.  However,
+this may stall processes and under certain circumstances you may wish to turn
+it off.
+.Pp
+The
+.Va vfs.hirunningspace
+sysctl determines how much outstanding write I/O may be queued to
+disk controllers system wide at any given instance.  The default is
+usually sufficient but on machines with lots of disks you may want to bump
+it up to four or five megabytes.  Note that setting too high a value
+(exceeding the buffer cache's write threshold) can lead to extremely
+bad clustering performance.  Do not set this value arbitrarily high!  Also,
+higher write queueing values may add latency to reads occuring at the same
+time.
+.Pp
+There are various other buffer-cache and VM page cache related sysctls.
 We do not recommend modifying these values.
 As of
 .Fx 4.3 ,
