@@ -276,7 +276,7 @@ sortq(a, b)
 
 	d1 = (struct dirent **)a;
 	d2 = (struct dirent **)b;
-	if (c1 = strcmp((*d1)->d_name + 3, (*d2)->d_name + 3))
+	if ((c1 = strcmp((*d1)->d_name + 3, (*d2)->d_name + 3)))
 		return(c1);
 	c1 = (*d1)->d_name[0];
 	c2 = (*d2)->d_name[0];
@@ -304,7 +304,7 @@ cleanpr()
 		SD = _PATH_DEFSPOOL;
 	printf("%s:\n", printer);
 
-	for (lp = line, cp = SD; *lp++ = *cp++; )
+	for (lp = line, cp = SD; (*lp++ = *cp++); )
 		;
 	lp[-1] = '/';
 
@@ -591,7 +591,7 @@ putmsg(argc, argv)
 	cp1 = buf;
 	while (--argc >= 0) {
 		cp2 = *argv++;
-		while (*cp1++ = *cp2++)
+		while ((*cp1++ = *cp2++))
 			;
 		cp1[-1] = ' ';
 	}
@@ -814,7 +814,7 @@ prstat()
 	fd = open(line, O_RDONLY);
 	if (fd < 0 || flock(fd, LOCK_SH|LOCK_NB) == 0) {
 		(void) close(fd);	/* unlocks as well */
-		printf("\tno daemon present\n");
+		printf("\tprinter idle\n");
 		return;
 	}
 	(void) close(fd);
