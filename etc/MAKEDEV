@@ -76,7 +76,7 @@
 #	tun	Tunneling IP device
 #	spigot	Video Spigot video aquisition card
 #
-#	$Id: MAKEDEV,v 1.66 1995/02/09 11:10:02 jkh Exp $
+#	$Id: MAKEDEV,v 1.67 1995/02/10 20:08:25 bde Exp $
 #
 
 PATH=/sbin:/bin/:/usr/bin:/usr/sbin:
@@ -720,6 +720,14 @@ tun?)
 	rm -f tun$unit
 	mknod tun$unit c 52 $unit
 	chown uucp.dialer tun$unit
+	;;
+
+snp?)
+	unit=`expr $i : 'snp\(.*\)'`
+	rm -f snp$unit
+	mknod snp$unit c 53 $unit
+	chown root.wheel snp$unit
+	chmod 600 snp$unit
 	;;
 
 local)
