@@ -435,7 +435,7 @@ intpr(interval, ifnetaddr, pfunc)
 			/*
 			 * Print family's multicast addresses
 			 */
-			struct ifmultiaddr *multiaddr;
+			u_long multiaddr;
 			struct ifmultiaddr ifma;
 			union {
 				struct sockaddr sa;
@@ -447,8 +447,10 @@ intpr(interval, ifnetaddr, pfunc)
 			} msa;
 			const char *fmt;
 
-			LIST_FOREACH(multiaddr, &ifnet.if_multiaddrs, ifma_link) {
-				if (kread(*(u_long *)multiaddr, (char *)&ifma,
+			for(multiaddr = (u_long)ifnet.if_multiaddrs.lh_first;
+			    multiaddr;
+			    multiaddr = (u_long)ifma.ifma_link.le_next) {
+				if (kread(multiaddr, (char *)&ifma,
 					  sizeof ifma))
 					break;
 				if (kread((u_long)ifma.ifma_addr, (char *)&msa,
