@@ -34,15 +34,13 @@
  * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
+ *
+ * @(#)str.c	5.8 (Berkeley) 6/1/90
  */
 
 #ifndef lint
-#if 0
-static char sccsid[] = "@(#)str.c	5.8 (Berkeley) 6/1/90";
-#else
-static const char rcsid[] =
-  "$FreeBSD$";
-#endif
+#include <sys/cdefs.h>
+__RCSID("$FreeBSD$");
 #endif /* not lint */
 
 #include "make.h"
