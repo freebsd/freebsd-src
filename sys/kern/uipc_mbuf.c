@@ -951,3 +951,19 @@ m_copyback(m0, off, len, cp)
 out:	if (((m = m0)->m_flags & M_PKTHDR) && (m->m_pkthdr.len < totlen))
 		m->m_pkthdr.len = totlen;
 }
+
+void
+m_print(const struct mbuf *m)
+{
+	int len;
+	struct mbuf *m2;
+
+	len = m->m_pkthdr.len;
+	m2 = m;
+	while (len) {
+		printf("%p %*D\n", m2, m2->m_len, (u_char *)m2->m_data, "-");
+		len -= m2->m_len;
+		m2 = m2->m_next;
+	}
+	return;
+}

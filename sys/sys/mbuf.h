@@ -418,6 +418,7 @@ struct	mbuf *m_get __P((int, int));
 struct	mbuf *m_getclr __P((int, int));
 struct	mbuf *m_gethdr __P((int, int));
 struct	mbuf *m_prepend __P((struct mbuf *,int,int));
+void	m_print __P((const struct mbuf *m));
 struct	mbuf *m_pullup __P((struct mbuf *, int));
 struct	mbuf *m_retry __P((int, int));
 struct	mbuf *m_retryhdr __P((int, int));
