@@ -89,7 +89,7 @@ char *cvtstoa __P((time_t));
 int editit __P((char *));
 void freeprivs __P((struct quotause *));
 int getentry __P((char *, int));
-struct quotause *getprivs __P((long, int));
+struct quotause *getprivs __P((long, int, char *));
 int hasquota __P((struct fstab *, int, char **));
 void putprivs __P((long, int, struct quotause *));
 int readprivs __P((struct quotause *, char *));
@@ -109,6 +109,7 @@ main(argc, argv)
 	register uid_t startuid, enduid;
 	char *protoname, *cp, ch;
 	int tflag = 0, pflag = 0;
+	char *fspath = NULL;
 	char buf[30];
 
 	if (argc < 2)
@@ -116,8 +117,11 @@ main(argc, argv)
 	if (getuid())
 		errx(1, "permission denied");
 	quotatype = USRQUOTA;
-	while ((ch = getopt(argc, argv, "ugtp:")) != -1) {
+	while ((ch = getopt(argc, argv, "ugtf:p:")) != -1) {
 		switch(ch) {
+		case 'f':
+			fspath = optarg;
+			break;
 		case 'p':
 			protoname = optarg;
 			pflag++;
@@ -140,7 +144,7 @@ main(argc, argv)
 	if (pflag) {
 		if ((protoid = getentry(protoname, quotatype)) == -1)
 			exit(1);
-		protoprivs = getprivs(protoid, quotatype);
+		protoprivs = getprivs(protoid, quotatype, fspath);
 		for (qup = protoprivs; qup; qup = qup->next) {
 			qup->dqblk.dqb_btime = 0;
 			qup->dqblk.dqb_itime = 0;
@@ -173,7 +177,7 @@ main(argc, argv)
 	tmpfd = mkstemp(tmpfil);
 	fchown(tmpfd, getuid(), getgid());
 	if (tflag) {
-		protoprivs = getprivs(0, quotatype);
+		protoprivs = getprivs(0, quotatype, fspath);
 		if (writetimes(protoprivs, tmpfd, quotatype) == 0)
 			exit(1);
 		if (editit(tmpfil) && readtimes(protoprivs, tmpfil))
@@ -186,7 +190,7 @@ main(argc, argv)
 	for ( ; argc > 0; argc--, argv++) {
 		if ((id = getentry(*argv, quotatype)) == -1)
 			continue;
-		curprivs = getprivs(id, quotatype);
+		curprivs = getprivs(id, quotatype, fspath);
 		if (writeprivs(curprivs, tmpfd, *argv, quotatype) == 0)
 			continue;
 		if (editit(tmpfil) && readprivs(curprivs, tmpfil))
@@ -202,10 +206,10 @@ static void
 usage()
 {
 	fprintf(stderr, "%s\n%s\n%s\n%s\n",
-		"usage: edquota [-u] [-p username] username ...",
-		"       edquota -g [-p groupname] groupname ...",
-		"       edquota [-u] -t",
-		"       edquota -g -t");
+		"usage: edquota [-u] [-f fspath] [-p username] username ...",
+		"       edquota -g [-f fspath] [-p groupname] groupname ...",
+		"       edquota [-u] -t [-f fspath]",
+		"       edquota -g -t [-f fspath]");
 	exit(1);
 }
 
@@ -247,9 +251,10 @@ getentry(name, quotatype)
  * Collect the requested quota information.
  */
 struct quotause *
-getprivs(id, quotatype)
+getprivs(id, quotatype, fspath)
 	register long id;
 	int quotatype;
+	char *fspath;
 {
 	register struct fstab *fs;
 	register struct quotause *qup, *quptail;
@@ -262,6 +267,9 @@ getprivs(id, quotatype)
 	quphead = (struct quotause *)0;
 	qcmd = QCMD(Q_GETQUOTA, quotatype);
 	while ((fs = getfsent())) {
+		if (fspath && *fspath && strcmp(fspath, fs->fs_spec) &&
+		    strcmp(fspath, fs->fs_file))
+			continue;
 		if (strcmp(fs->fs_vfstype, "ufs"))
 			continue;
 		if (!hasquota(fs, quotatype, &qfpathname))
