@@ -413,37 +413,52 @@ static driver_t tsunami_driver = {
 static void
 pchip_init(volatile tsunami_pchip *pchip, int index)
 {
-#if 0
 
-	/* 
-	 *  The code below, if active, would attempt to
-	 *  setup the DMA base and size registers of Window 0 
-	 *  to emulate the  placement of the direct-mapped window 
-         *  on previous chipsets.
+	int i;
+	
+	/*
+	 * initialize the direct map DMA windows.
 	 *
-	 *  HOWEVER: doing this means that a 64-bit card at device 11
-	 *  would not be able to be setup for DMA.
-	 * 
-	 *  For now, we just trust the SRM console to set things up
-	 *  properly.  This works on the xp1000, but may need to be
-	 *  to be revisited for other systems.
- 	 */ 
-
-	printf("initializing pchip%d\n", index);	
-	pchip->wsba[0].reg = 1L | (1024*1024*1024U & 0xfff00000U);
-	pchip->wsm[0].reg = (1024*1024*1024U - 1) & 0xfff00000UL;
-	pchip->tba[0].reg = 0;
-	/* 
-	 * disable windows 1, 2 and 3 
+	 * leave window 0 untouched; we'll set that up for S/G DMA for 
+	 * isa devices later in the boot process
+	 *
+	 * window 1 goes at 2GB and has a length of 1 GB. It maps
+	 * physical address 0 - 1GB. The SRM console typically sets
+	 * this window up here.
 	 */
-
-
-	pchip->wsba[1].reg = 0;
-	pchip->wsba[2].reg = 0;
-	pchip->wsba[3].reg = 0;
-
-	alpha_mb();
-#endif	
+	
+        pchip->wsba[1].reg = (2UL*1024*1024*1024) | WINDOW_ENABLE;
+        pchip->wsm[1].reg  = (1UL*1024*1024*1024 - 1) & 0xfff00000UL;
+        pchip->tba[1].reg  = 0;
+	
+	/*
+	 * window 2 goes at 3GB and has a length of 1 GB.  It maps
+	 * physical address 1GB-2GB. 
+	 */
+	
+        pchip->wsba[2].reg = (3UL*1024*1024*1024) | WINDOW_ENABLE;
+        pchip->wsm[2].reg  = (1UL*1024*1024*1024 - 1) & 0xfff00000UL;
+        pchip->tba[2].reg  = 1UL*1024*1024*1024;
+	
+	/*
+	 * window 3 is disabled.  The SRM console typically leaves it
+	 * disabled
+	 */
+	
+        pchip->wsba[3].reg = 0;
+        alpha_mb();
+	
+	if(bootverbose) {
+		printf("pchip%d:\n", index);
+		for (i = 0; i < 4; i++) {
+			printf("\twsba[%d].reg = 0x%lx\n", 
+			       i, pchip->wsba[i].reg);
+			printf("\t wsm[%d].reg = 0x%lx\n", 
+			       i, pchip->wsm[i].reg);
+			printf("\t tba[%d].reg = 0x%lx\n", 
+			       i, pchip->tba[i].reg);
+		}
+	}
 }	
 
 #define TSUNAMI_SGMAP_BASE		(8*1024*1024)
