@@ -28,7 +28,7 @@
  */
 
 #ifndef LINT
-static char *rcsid = "$Id: yplib.c,v 1.10.4.2 1995/10/05 20:22:00 davidg Exp $";
+static char *rcsid = "$Id: yplib.c,v 1.10.4.5 1996/06/05 02:52:10 jkh Exp $";
 #endif
 
 #include <sys/param.h>
@@ -296,7 +296,16 @@ skipit:
 		client = clnttcp_create(&clnt_sin, YPBINDPROG, YPBINDVERS, &clnt_sock,
 			0, 0);
 		if(client==NULL) {
-			clnt_pcreateerror("clnttcp_create");
+			/*
+			 * These conditions indicate ypbind just isn't
+			 * alive -- we probably don't want to shoot our
+			 * mouth off in this case; instead generate error
+			 * messages only for really exotic problems.
+			 */
+			if (rpc_createerr.cf_stat != RPC_PROGNOTREGISTERED &&
+			   (rpc_createerr.cf_stat != RPC_SYSTEMERROR &&
+			   rpc_createerr.cf_error.re_errno == ECONNREFUSED))
+				clnt_pcreateerror("clnttcp_create");
 			if(new)
 				free(ysd);
 			return (YPERR_YPBIND);
