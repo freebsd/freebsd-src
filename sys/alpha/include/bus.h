@@ -233,18 +233,18 @@ extern struct alpha_busspace *busspace_isa_mem;
 #define writel(o, v)	bus_space_write_4(busspace_isa_mem, o, 0, v)
 
 #define insb(o, a, c)	bus_space_read_multi_1(busspace_isa_io, o, 0, \
-					       (void*)a, c)
+					       (void*)(a), c)
 #define insw(o, a, c)	bus_space_read_multi_2(busspace_isa_io, o, 0, \
-					       (void*)a, c)
+					       (void*)(a), c)
 #define insl(o, a, c)	bus_space_read_multi_4(busspace_isa_io, o, 0, \
-					       (void*)a, c)
+					       (void*)(a), c)
 
 #define outsb(o, a, c)	bus_space_write_multi_1(busspace_isa_io, o, 0, \
-						(void*)a, c)
+						(void*)(a), c)
 #define outsw(o, a, c)	bus_space_write_multi_2(busspace_isa_io, o, 0, \
-						(void*)a, c)
+						(void*)(a), c)
 #define outsl(o, a, c)	bus_space_write_multi_4(busspace_isa_io, o, 0, \
-						(void*)a, c)
+						(void*)(a), c)
 
 #define memcpy_fromio(d, s, c) \
 	bus_space_read_region_1(busspace_isa_mem, s, 0, d, c)
