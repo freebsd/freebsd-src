@@ -1,5 +1,5 @@
 # $FreeBSD$
 
-SUBDIR=	ipropd-master ipropd-slave hpropd k5admind kdc k5passwdd telnetd
+SUBDIR=	ipropd-master ipropd-slave hpropd kadmind kdc kpasswdd telnetd
 
 .include <bsd.subdir.mk>

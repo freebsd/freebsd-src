@@ -1,6 +1,6 @@
 # $FreeBSD$
 
-PROG=		k5passwdd
+PROG=		kpasswdd
 SRCS=		kpasswdd.c krb5_err.h heim_err.h hdb_err.h \
 		kadm5/admin.h kadm5/private.h
 CFLAGS+=	-I${KRB5DIR}/include \
@@ -13,16 +13,11 @@ CFLAGS+=	-I${KRB5DIR}/include \
 		-I${ASN1OBJDIR} \
 		-I${HDBOBJDIR} \
 		-I${.OBJDIR}
-.if defined(MAKE_KERBEROS4)
-_krb4libs=	-lkrb -lkafs
-_krb4deps=	${LIBKRB} ${LIBKAFS}
-.endif
 LDADD=		-L${KRB5OBJDIR} -lkrb5 -L${ROKENOBJDIR} -lroken \
 		-L${VERSOBJDIR} -lvers \
-		${_krb4libs} \
 		-L${KADM5SOBJDIR} -lkadm5srv -L${HDBOBJDIR} -lhdb \
 		-L${ASN1OBJDIR} -lasn1 -lcrypto -lcrypt -lcom_err
-DPADD=		${LIBKRB5} ${LIBROKEN} ${_krb4deps} \
+DPADD=		${LIBKRB5} ${LIBROKEN} \
 		${LIBASN1} ${LIBCRYPTO} ${LIBCRYPT} ${LIBCOM_ERR}
 MAN=		kpasswdd.8
 
