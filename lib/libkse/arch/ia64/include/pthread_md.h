@@ -34,8 +34,14 @@
 #include <ucontext.h>
 
 #define	THR_GETCONTEXT(ucp)	_ia64_save_context(&(ucp)->uc_mcontext)
-#define	THR_SETCONTEXT(ucp)	_ia64_restore_context(&(ucp)->uc_mcontext, \
-				    0, NULL)
+#define	THR_SETCONTEXT(ucp)	\
+	do {								\
+		if ((ucp)->uc_mcontext.mc_flags & _MC_FLAGS_ASYNC_CONTEXT) \
+			_ia64_break_setcontext(ucp);			\
+		else							\
+			_ia64_restore_context(&(ucp)->uc_mcontext, 0,	\
+			    NULL);					\
+	} while (0)
 
 #define	PER_THREAD
 
@@ -194,6 +200,7 @@ _get_curkse(void)
 	return (_tcb->tcb_curkcb->kcb_kse);
 }
 
+void _ia64_break_setcontext(ucontext_t *ucp);
 void _ia64_enter_uts(kse_func_t uts, struct kse_mailbox *km, void *stack,
     size_t stacksz);
 int _ia64_restore_context(mcontext_t *mc, intptr_t val, intptr_t *loc);
@@ -218,14 +225,25 @@ _thread_enter_uts(struct tcb *tcb, struct kcb *kcb)
 static __inline int
 _thread_switch(struct kcb *kcb, struct tcb *tcb, int setmbox)
 {
+	mcontext_t *mc;
+
 	_tcb_set(kcb, tcb);
-	if (setmbox != 0)
-		_ia64_restore_context(&tcb->tcb_tmbx.tm_context.uc_mcontext,
-		    (intptr_t)&tcb->tcb_tmbx,
-		    (intptr_t *)&kcb->kcb_kmbx.km_curthread);
-	else
-		_ia64_restore_context(&tcb->tcb_tmbx.tm_context.uc_mcontext,
-		    0, NULL);
+	mc = &tcb->tcb_tmbx.tm_context.uc_mcontext;
+	if (mc->mc_flags & _MC_FLAGS_ASYNC_CONTEXT) {
+		if (setmbox) {
+			mc->mc_flags |= _MC_FLAGS_KSE_SET_MBOX;
+			mc->mc_special.ifa =
+			    (intptr_t)&kcb->kcb_kmbx.km_curthread;
+			mc->mc_special.isr = (intptr_t)&tcb->tcb_tmbx;
+		}
+		_ia64_break_setcontext(&tcb->tcb_tmbx.tm_context);
+	} else {
+		if (setmbox)
+			_ia64_restore_context(mc, (intptr_t)&tcb->tcb_tmbx,
+			    (intptr_t *)&kcb->kcb_kmbx.km_curthread);
+		else
+			_ia64_restore_context(mc, 0, NULL);
+	}
 	/* We should not reach here. */
 	return (-1);
 }
