@@ -91,6 +91,7 @@ ia64_sal_init(struct sal_system_table *saltab)
 		case 5: {
 			struct sal_ap_wakeup_descriptor *dp;
 			struct ia64_sal_result sal;
+			struct ia64_fdesc *fptr = (void*)os_boot_rendez;
 			int ipi;
 
 			dp = (struct sal_ap_wakeup_descriptor*)p;
@@ -105,7 +106,7 @@ ia64_sal_init(struct sal_system_table *saltab)
 
 			sal = ia64_sal_entry(SAL_SET_VECTORS,
 			    SAL_OS_BOOT_RENDEZ,
-			    ia64_tpa((vm_offset_t)os_boot_rendez), 0, 0,
+			    ia64_tpa(fptr->func), ia64_tpa(fptr->gp), 0,
 			    0, 0, 0);
 
 			mp_hardware = 1;
