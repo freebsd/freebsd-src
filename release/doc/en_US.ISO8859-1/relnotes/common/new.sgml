@@ -112,6 +112,9 @@
       added.  &man.moused.8; support for this device has also been
       added.</para>
 
+    <para arch="i386">The &man.viapm.4; driver for VIA SMBus
+      power management controllers has been added.</para>
+
 <!-- Above this line, kernel changes ordered by manpage/variable name -->
 
     <sect3>
@@ -146,6 +149,9 @@
 
       <para>The &man.dc.4; driver now has support for VLANs.</para>
 
+      <para>The my driver, which supports the Myson Fast Ethernet and
+	Gigabit Ethernet adapters, has been added.</para>
+
       <para>The &man.wi.4; driver now has support for Prism II and
 	Prism 2.5-based NICs.  104/128-bit WEP now works on Prism
 	cards.</para>
@@ -179,6 +185,10 @@ options HZ=1000 # not compulsory but strongly recommended</programlisting>
 
       <para>A bug in the IPSec processing for IPv4, which caused the
 	inbound SPD checks to be ignored, has been fixed.</para>
+
+      <para>A new &man.ng.etf.4; netgraph node allows Ethernet type
+	packets to be filtered to different hooks depending on
+	ethertype.</para>
 
       <para>The &man.tcp.4; syncache implementation had a bug that
 	could cause kernel panics; this has been fixed.</para>
@@ -308,6 +318,10 @@ options HZ=1000 # not compulsory but strongly recommended</programlisting>
 
     <para>&man.ldd.1; can now be used on shared libraries, in addition
       to executables.</para>
+
+    <para><filename>libstand</filename> now has support for loading
+      large kernels and modules split across several physical
+      media.</para>
 
     <para><filename>libusb</filename> has been renamed as
       <filename>libusbhid</filename>, following NetBSD's naming

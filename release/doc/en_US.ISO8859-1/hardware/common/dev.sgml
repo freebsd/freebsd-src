@@ -1626,6 +1626,17 @@
       </note>
 
     </para>
+
+    <para arch="i386">Myson Ethernet NICs (my driver)
+      <itemizedlist>
+        <listitem>
+	  <para>Myson MTD80X Based Fast Ethernet Card</para>
+	</listitem>
+        <listitem>
+	  <para>Myson MTD89X Based Gigabit Ethernet Card</para>
+	</listitem>
+      </itemizedlist>
+    </para>
   </sect2>
 
   <sect2>
