@@ -25,7 +25,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *	$Id: console.h,v 1.13 1994/10/17 22:11:52 sos Exp $
+ *	$Id: console.h,v 1.14 1995/01/12 11:42:58 sos Exp $
  */
 
 #ifndef	_CONSOLE_H_
@@ -61,12 +61,14 @@
 #define GIO_COLOR	_IOR('c', 0, int)
 #define CONS_CURRENT	_IOR('c', 1, int)
 #define CONS_GET	_IOR('c', 2, int)
-#define CONS_IO		_IO('c', 3, int)
+#define CONS_IO		_IO('c', 3)
 #define CONS_BLANKTIME	_IOW('c', 4, int)
 #define CONS_SSAVER	_IOW('c', 5, ssaver_t)
 #define CONS_GSAVER	_IOWR('c', 6, ssaver_t)
 #define CONS_CURSORTYPE	_IOW('c', 7, int)
 #define CONS_BELLTYPE	_IOW('c', 8, int)
+#define CONS_HISTORY	_IOW('c', 9, int)
+#define CONS_MOUSECTL	_IOWR('c', 10, mouse_info_t)
 #define PIO_FONT8x8	_IOW('c', 64, fnt8_t)
 #define GIO_FONT8x8	_IOR('c', 65, fnt8_t)
 #define PIO_FONT8x14	_IOW('c', 66, fnt14_t)
@@ -91,12 +93,6 @@
 #define VT_AUTO		0		/* switching is automatic 	*/
 #define VT_PROCESS	1		/* switching controlled by prog */
 
-/* compatibility to old pccons & X386 about to go away */
-/*
-#define CONSOLE_X_MODE_ON	_IO('t', 121)
-#define CONSOLE_X_MODE_OFF	_IO('t', 122)
-#define CONSOLE_X_BELL		_IOW('t',123,int[2])
-*/
 struct vt_mode {
 	char	mode;
 	char	waitv;			/* not implemented yet 	SOS	*/
@@ -105,6 +101,17 @@ struct vt_mode {
 	short	frsig;			/* not implemented yet	SOS	*/
 };
 
+#define MOUSE_SHOW	0x01
+#define MOUSE_HIDE	0x02
+#define MOUSE_MOVEABS	0x03
+#define MOUSE_MOVEREL	0x04
+#define MOUSE_GETPOS	0x05
+
+struct mouse_info {
+	int	operation;
+	int	x;
+	int 	y;
+};
 
 #define KD_MONO		1		/* monochrome adapter        	*/
 #define KD_HERCULES	2		/* hercules adapter          	*/
@@ -196,6 +203,7 @@ typedef struct fkeytab fkeytab_t;
 typedef struct fkeyarg fkeyarg_t;
 typedef struct vid_info vid_info_t;
 typedef struct vt_mode vtmode_t;
+typedef struct mouse_info mouse_info_t;
 typedef struct {char scrmap[256];} scrmap_t;
 typedef struct {char fnt8x8[8*256];} fnt8_t;
 typedef struct {char fnt8x14[14*256];} fnt14_t;
