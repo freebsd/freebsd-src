@@ -238,9 +238,6 @@ DPADD		Additional dependencies for the program.  Usually used for
 			LIBUTIL		/usr/lib/libutil.a
 			LIBY		/usr/lib/liby.a
 
-SHAREDSTRINGS	If defined, a new .c.o rule is used that results in shared
-		strings, using xstr(1).
-
 STRIP		The flag passed to the install program to cause the binary
 		to be stripped.
 
