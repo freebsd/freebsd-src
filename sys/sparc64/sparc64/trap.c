@@ -42,6 +42,7 @@
 
 #include "opt_ddb.h"
 #include "opt_ktr.h"
+#include "opt_ktrace.h"
 
 #include <sys/param.h>
 #include <sys/bus.h>
@@ -609,7 +610,7 @@ syscall(struct trapframe *tf)
 	 * we are ktracing
 	 */
 	if (KTRPOINT(p, KTR_SYSCALL)) {
-		ktrsyscall(p->p_tracep, code, narg, args);
+		ktrsyscall(p->p_tracep, code, narg, argp);
 	}
 #endif
 	td->td_retval[0] = 0;
