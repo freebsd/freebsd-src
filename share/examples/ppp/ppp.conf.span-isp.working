@@ -50,16 +50,16 @@ default:
   set lqrperiod 15
 
 isp1:
-  set authname isp1name
-  set authkey isp1key
+  set authname "isp1name"
+  set authkey "isp1key"
 
 isp2:
-  set authname isp2name
-  set authkey isp2key
+  set authname "isp2name"
+  set authkey "isp2key"
 
 isp3:
-  set authname isp3name
-  set authkey isp3key
+  set authname "isp3name"
+  set authkey "isp3key"
 
 
 vpn:
@@ -67,8 +67,8 @@ vpn:
   set speed sync
   set mrru 1500
   set mru 1504			# Room for the MP header
-  set authname vpnname
-  set authkey vpnkey
+  set authname "vpnname"
+  set authkey "vpnkey"
   add! default HISADDR
   disable deflate pred1 lqr
   deny deflate pred1
