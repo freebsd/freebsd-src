@@ -20,10 +20,12 @@ troffrc!X100 troffrc!X100-12
 .do tr \[char160]
 .\" Set the hyphenation language to `us'.
 .\" Load hyphenation patterns from `hyphen.us' (in the tmac directory).
-.ie "\*[.T]"koi8-r" \
+.ie "\*[.T]"koi8-r" \{\
 .do	hla us-ru
 .do	hpf hyphen.us-ru
-.el \
+.   \}
+.el \{\
 .do	hla us
 .do	hpf hyphen.us
+.   \}
 .\" Don't let blank lines creep in here.
