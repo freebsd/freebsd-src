@@ -249,13 +249,15 @@ ksegrp_link(struct ksegrp *kg, struct proc *p)
 	TAILQ_INIT(&kg->kg_runq);	/* links with td_runq */
 	TAILQ_INIT(&kg->kg_slpq);	/* links with td_runq */
 	TAILQ_INIT(&kg->kg_kseq);	/* all kses in ksegrp */
-	TAILQ_INIT(&kg->kg_iq);		/* all kses in ksegrp */
+	TAILQ_INIT(&kg->kg_iq);		/* idle kses in ksegrp */
+	TAILQ_INIT(&kg->kg_lq);		/* loan kses in ksegrp */
 	kg->kg_proc	= p;
 /* the following counters are in the -zero- section and may not need clearing */
 	kg->kg_numthreads = 0;
 	kg->kg_runnable = 0;
 	kg->kg_kses = 0;
 	kg->kg_idle_kses = 0;
+	kg->kg_loan_kses = 0;
 	kg->kg_runq_kses = 0; /* XXXKSE change name */
 /* link it in now that it's consistent */
 	p->p_numksegrps++;

@@ -849,6 +849,11 @@ mi_switch(void)
 		 */
 		td->td_kse = NULL;
 		kse_reassign(ke);
+	} else if (p->p_flag & P_KSES) {
+		KASSERT(((ke->ke_bound == NULL) || (ke->ke_bound == td)),
+			("mi_switch: bad bound state"));
+		ke->ke_bound = td;
+		kse_reassign(ke);
 	}
 
 	cpu_switch();		/* SHAZAM!!*/

@@ -466,6 +466,8 @@ thread_exit(void)
 		ke->ke_thread = NULL;
 		td->td_kse = NULL;
 		ke->ke_state = KES_UNQUEUED;
+		if (ke->ke_bound == td)
+			ke->ke_bound = NULL;
 		kse_reassign(ke);
 
 		/* Unlink this thread from its proc. and the kseg */
@@ -706,6 +708,13 @@ thread_userret(struct thread *td, struct trapframe *frame)
 	int error;
 	int unbound;
 	struct kse *ke;
+
+	if (td->td_kse->ke_bound) {
+		thread_export_context(td);
+		PROC_LOCK(td->td_proc);
+		mtx_lock_spin(&sched_lock);
+		thread_exit();
+	}
 
 	/* Make the thread bound from now on, but remember what it was. */
 	unbound = td->td_flags & TDF_UNBOUND;
