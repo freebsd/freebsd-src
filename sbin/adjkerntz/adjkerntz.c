@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *		$Id: adjkerntz.c,v 1.18.2.1 1997/06/11 06:55:53 charnier Exp $
+ *		$Id: adjkerntz.c,v 1.21 1998/02/25 09:40:21 ache Exp $
  */
 
 #ifndef lint
@@ -257,8 +257,10 @@ recalculate:
 #ifdef DEBUG
 			fprintf(stderr, "Final diff: %ld secs\n", diff);
 #endif
-			tv.tv_sec += diff;
-			tv.tv_usec = 0;       /* we are restarting here... */
+			/*
+			 * stv is abused as a flag.  The important value
+			 * is in `diff'.
+			 */
 			stv = &tv;
 		}
 	}
@@ -293,13 +295,28 @@ recalculate:
 		}
 	}
 
-	if (   (   (init && (stv != NULL || stz != NULL))
-		|| (stz != NULL && stv == NULL)
-	       )
-	    && settimeofday(stv, stz)
+	if (   (init && (stv != NULL || stz != NULL))
+	    || (stz != NULL && stv == NULL)
 	   ) {
-		syslog(LOG_ERR, "settimeofday: %m");
-		return 1;
+		if (stv != NULL) {
+			/*
+			 * Get the time again, as close as possible to
+			 * adjusting it, to minimise drift.
+			 * XXX we'd better not fail between here and
+			 * restoring disrtcset, since we don't clean up
+			 * anything.
+			 */
+			if (gettimeofday(&tv, (struct timezone *)NULL)) {
+				syslog(LOG_ERR, "gettimeofday: %m");
+				return 1;
+			}
+			tv.tv_sec += diff;
+			stv = &tv;
+		}
+		if (settimeofday(stv, stz)) {
+			syslog(LOG_ERR, "settimeofday: %m");
+			return 1;
+		}
 	}
 
 	/* setting CPU_ADJKERNTZ have a side effect: resettodr(), which */
