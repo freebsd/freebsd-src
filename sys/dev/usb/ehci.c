@@ -1437,7 +1437,7 @@ ehci_open(usbd_pipe_handle pipe)
 		EHCI_QH_SET_MULT(1) |
 		EHCI_QH_SET_HUBA(hshubaddr) |
 		EHCI_QH_SET_PORT(hshubport) |
-		EHCI_QH_SET_CMASK(0xf0) | /* XXX */
+		EHCI_QH_SET_CMASK(0x1c) |
 		EHCI_QH_SET_SMASK(xfertype == UE_INTERRUPT ? 0x01 : 0)
 		);
 	sqh->qh.qh_curqtd = EHCI_NULL;
