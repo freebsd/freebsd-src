@@ -238,6 +238,7 @@ draw:
 		if (st & DITEM_RESTORE) {
 		    touchwin(save);
 		    wrefresh(save);
+		    wmove(dialog, cur_y, cur_x);
 		}
 		delwin(save);
 	    }
@@ -316,6 +317,7 @@ draw:
 			save = dupwin(newscr);
 			st = ditems[scroll + choice].fire(&ditems[scroll + choice]);
 			if (st & DITEM_REDRAW) {
+			    wmove(dialog, cur_y, cur_x);  /* Restore cursor to previous position */
 			    for (i = 0; i < item_no; i++)
 				status[i] = ditems[i].checked ? ditems[i].checked(&ditems[i]) : FALSE;
 			    for (i = 0; i < max_choice; i++) {
@@ -457,11 +459,17 @@ draw:
 	case '\r':
 	    if (!button && result) {
 		if (ditems && ditems[button ? CANCEL_BUTTON : OK_BUTTON].fire) {
-		    if (ditems[button ? CANCEL_BUTTON : OK_BUTTON].fire(&ditems[button ? CANCEL_BUTTON : OK_BUTTON]) ==
-			DITEM_FAILURE) {
-			wrefresh(dialog);
-			continue;
+		    int st;
+		    WINDOW *save = dupwin(newscr);
+
+		    st = ditems[button ? CANCEL_BUTTON : OK_BUTTON].fire(&ditems[button ? CANCEL_BUTTON : OK_BUTTON]);
+		    if (st & DITEM_RESTORE) {
+			touchwin(save);
+			wrefresh(save);
 		    }
+		    delwin(save);
+		    if (st == DITEM_FAILURE)
+			continue;
 		}
 		else {
 		    *result = '\0';
