@@ -68,6 +68,7 @@ struct i386_vm86_args {
 #include <sys/cdefs.h>
 
 union descriptor;
+struct dbreg;
 
 __BEGIN_DECLS
 int i386_get_ldt __P((int, union descriptor *, int));
@@ -75,6 +76,9 @@ int i386_set_ldt __P((int, union descriptor *, int));
 int i386_get_ioperm __P((unsigned int, unsigned int *, int *));
 int i386_set_ioperm __P((unsigned int, unsigned int, int));
 int i386_vm86 __P((int, void *));
+int i386_set_watch __P((int watchnum, unsigned int watchaddr, int size,
+                        int access, struct dbreg * d));
+int i386_clr_watch __P((int watchnum, struct dbreg * d));
 __END_DECLS
 #endif
 
