@@ -1,129 +1,183 @@
-/**************************************************************************
-**
-**  $Id$
-**
-**  Declarations for pci device drivers.
-**
-**  FreeBSD
-**
-**-------------------------------------------------------------------------
-**
-** Copyright (c) 1994 Wolfgang Stanglmeier.  All rights reserved.
-**
-** Redistribution and use in source and binary forms, with or without
-** modification, are permitted provided that the following conditions
-** are met:
-** 1. Redistributions of source code must retain the above copyright
-**    notice, this list of conditions and the following disclaimer.
-** 2. Redistributions in binary form must reproduce the above copyright
-**    notice, this list of conditions and the following disclaimer in the
-**    documentation and/or other materials provided with the distribution.
-** 3. The name of the author may not be used to endorse or promote products
-**    derived from this software without specific prior written permission.
-**
-** THIS SOFTWARE IS PROVIDED BY THE AUTHOR ``AS IS'' AND ANY EXPRESS OR
-** IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES
-** OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED.
-** IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR ANY DIRECT, INDIRECT,
-** INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT
-** NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
-** DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
-** THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
-** (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
-** THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
-**
-***************************************************************************
-*/
+#ifndef PCI_COMPAT
+#define PCI_COMPAT
+#endif
+/*
+ * Copyright (c) 1997, Stefan Esser <se@freebsd.org>
+ * All rights reserved.
+ *
+ * Redistribution and use in source and binary forms, with or without
+ * modification, are permitted provided that the following conditions
+ * are met:
+ * 1. Redistributions of source code must retain the above copyright
+ *    notice unmodified, this list of conditions, and the following
+ *    disclaimer.
+ * 2. Redistributions in binary form must reproduce the above copyright
+ *    notice, this list of conditions and the following disclaimer in the
+ *    documentation and/or other materials provided with the distribution.
+ *
+ * THIS SOFTWARE IS PROVIDED BY THE AUTHOR ``AS IS'' AND ANY EXPRESS OR
+ * IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES
+ * OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED.
+ * IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR ANY DIRECT, INDIRECT,
+ * INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT
+ * NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
+ * DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
+ * THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
+ * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
+ * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+ *
+ * $Id$
+ *
+ */
 
-#ifndef __PCI_VAR_H__
-#define __PCI_VAR_H__ "pl2 95/03/21"
+/* some PCI bus constants */
 
-/*-----------------------------------------------------------------
-**
-**	main pci initialization function.
-**	called at boot time from autoconf.c
-**
-**-----------------------------------------------------------------
-*/
+#define PCI_BUSMAX	255	/* highest supported bus number */
+#define PCI_SLOTMAX	31	/* highest supported slot number */
+#define PCI_FUNCMAX	7	/* highest supported function number */
+#define PCI_REGMAX	255	/* highest supported config register addr. */
 
-void pci_configure (void);
+#define PCI_MAXMAPS_0	6	/* max. no. of memory/port maps */
+#define PCI_MAXMAPS_1	2	/* max. no. of maps for PCI to PCI bridge */
+#define PCI_MAXMAPS_2	1	/* max. no. of maps for CardBus bridge */
 
-/*-----------------------------------------------------------------
-**
-**	The pci configuration id describes a pci device on the bus.
-**	It is constructed from: bus, device & function numbers.
-**
-**-----------------------------------------------------------------
-*/
+/* pci_addr_t covers this system's PCI bus address space: 32 or 64 bit */
 
-typedef union {
-	u_long	 cfg1;
-	struct {
-		 u_char   enable;
-		 u_char   forward;
-		 u_short  port;
-	       } cfg2;
-	unsigned tag;
-	} pcici_t;
+#ifdef PCI_A64
+typedef u_int64_t pci_addr_t;	/* u_int64_t for system with 64bit addresses */
+#else
+typedef u_int32_t pci_addr_t;	/* u_int64_t for system with 64bit addresses */
+#endif
 
-#define sametag(x,y)  ((x).tag == (y).tag)
+/* map register information */
 
-/*-----------------------------------------------------------------
-**
-**	Each pci device has an unique device id.
-**	It is used to find a matching driver.
-**
-**-----------------------------------------------------------------
-*/
+typedef struct {
+    u_int32_t	base;
+    u_int8_t	type;
+#define PCI_MAPMEM	0x01	/* memory map */
+#define PCI_MAPMEMP	0x02	/* prefetchable memory map */
+#define PCI_MAPPORT	0x04	/* port map */
+    u_int8_t	ln2size;
+    u_int8_t	ln2range;
+/*    u_int8_t	dummy;*/
+} pcimap;
 
-typedef u_long pcidi_t;
+/* config header information common to all header types */
 
-/*-----------------------------------------------------------------
-**
-**	The following functions are provided for the device driver
-**	to read/write the configuration space.
-**
-**	pci_conf_read():
-**		Read a long word from the pci configuration space.
-**		Requires a tag (from pcitag) and the register
-**		number (should be a long word alligned one).
-**
-**	pci_conf_write():
-**		Writes a long word to the pci configuration space.
-**		Requires a tag (from pcitag), the register number
-**		(should be a long word alligned one), and a value.
-**
-**-----------------------------------------------------------------
-*/
+typedef struct pcicfg {
+    struct pcicfg *parent;
+    struct pcicfg *next;
+    pcimap	*map;		/* pointer to array of PCI maps */
+    void	*hdrspec;	/* pointer to header type specific data */
 
-u_long pci_conf_read  (pcici_t tag, u_long reg		   );
+    u_int16_t	subvendor;	/* card vendor ID */
+    u_int16_t	subdevice;	/* card device ID, assigned by card vendor */
+    u_int16_t	vendor;		/* chip vendor ID */
+    u_int16_t	device;		/* chip device ID, assigned by chip vendor */
 
-void   pci_conf_write (pcici_t tag, u_long reg, u_long data);
+    u_int16_t	cmdreg;		/* disable/enable chip and PCI options */
+    u_int16_t	statreg;	/* supported PCI features and error state */
 
-/*-----------------------------------------------------------------
-**
-**	The pci driver structure.
-**
-**	name:	The short device name.
-**
-**	probe:	Checks if the driver can support a device
-**		with this type. The tag may be used to get
-**		more info with pci_read_conf(). See below.
-**		It returns a string with the devices name,
-**		or a NULL pointer, if the driver cannot
-**		support this device.
-**
-**	attach:	Allocate a control structure and prepare
-**		it. This function may use the pci mapping
-**		functions. See below.
-**		(configuration id) or type.
-**
-**	count:	A pointer to a unit counter.
-**		It's used by the pci configurator to
-**		allocate unit numbers.
-**
-**-----------------------------------------------------------------
-*/
+    u_int8_t	class;		/* chip PCI class */
+    u_int8_t	subclass;	/* chip PCI subclass */
+    u_int8_t	progif;		/* chip PCI programming interface */
+    u_int8_t	revid;		/* chip revision ID */
+
+    u_int8_t	hdrtype;	/* chip config header type */
+    u_int8_t	cachelnsz;	/* cache line size in 4byte units */
+    u_int8_t	intpin;		/* PCI interrupt pin */
+    u_int8_t	intline;	/* interrupt line (IRQ for PC arch) */
+
+    u_int8_t	mingnt;		/* min. useful bus grant time in 250ns units */
+    u_int8_t	maxlat;		/* max. tolerated bus grant latency in 250ns */
+    u_int8_t	lattimer;	/* latency timer in units of 30ns bus cycles */
+
+    u_int8_t	mfdev;		/* multi-function device (from hdrtype reg) */
+    u_int8_t	nummaps;	/* actual number of PCI maps used */
+
+    u_int8_t	bus;		/* config space bus address */
+    u_int8_t	slot;		/* config space slot address */
+    u_int8_t	func;		/* config space function number */
+
+    u_int8_t	secondarybus;	/* bus on secondary side of bridge, if any */
+    u_int8_t	subordinatebus;	/* topmost bus number behind bridge, if any */
+} pcicfgregs;
+
+/* additional type 1 device config header information (PCI to PCI bridge) */
+
+#ifdef PCI_A64
+#define PCI_PPBMEMBASE(h,l)  ((((pci_addr_t)(h) << 32) + ((l)<<16)) & ~0xfffff)
+#define PCI_PPBMEMLIMIT(h,l) ((((pci_addr_t)(h) << 32) + ((l)<<16)) | 0xfffff)
+#else
+#define PCI_PPBMEMBASE(h,l)  (((l)<<16) & ~0xfffff)
+#define PCI_PPBMEMLIMIT(h,l) (((l)<<16) | 0xfffff)
+#endif /* PCI_A64 */
+
+#define PCI_PPBIOBASE(h,l)   ((((h)<<16) + ((l)<<8)) & ~0xfff)
+#define PCI_PPBIOLIMIT(h,l)  ((((h)<<16) + ((l)<<8)) | 0xfff)
+
+typedef struct {
+    pci_addr_t	pmembase;	/* base address of prefetchable memory */
+    pci_addr_t	pmemlimit;	/* topmost address of prefetchable memory */
+    u_int32_t	membase;	/* base address of memory window */
+    u_int32_t	memlimit;	/* topmost address of memory window */
+    u_int32_t	iobase;		/* base address of port window */
+    u_int32_t	iolimit;	/* topmost address of port window */
+    u_int16_t	secstat;	/* secondary bus status register */
+    u_int16_t	bridgectl;	/* bridge control register */
+    u_int8_t	seclat;		/* CardBus latency timer */
+} pcih1cfgregs;
+
+/* additional type 2 device config header information (CardBus bridge) */
+
+typedef struct {
+    u_int32_t	membase0;	/* base address of memory window */
+    u_int32_t	memlimit0;	/* topmost address of memory window */
+    u_int32_t	membase1;	/* base address of memory window */
+    u_int32_t	memlimit1;	/* topmost address of memory window */
+    u_int32_t	iobase0;	/* base address of port window */
+    u_int32_t	iolimit0;	/* topmost address of port window */
+    u_int32_t	iobase1;	/* base address of port window */
+    u_int32_t	iolimit1;	/* topmost address of port window */
+    u_int32_t	pccardif;	/* PC Card 16bit IF legacy more base addr. */
+    u_int16_t	secstat;	/* secondary bus status register */
+    u_int16_t	bridgectl;	/* bridge control register */
+    u_int8_t	seclat;		/* CardBus latency timer */
+} pcih2cfgregs;
+
+/* PCI bus attach definitions (there could be multiple PCI bus *trees* ... */
+
+typedef struct pciattach {
+    int		unit;
+    int		pcibushigh;
+    struct pciattach *next;
+} pciattach;
+
+/* externally visible functions */
+
+int pci_probe (pciattach *attach);
+void pci_drvattach(pcicfgregs *cfg);
+
+/* low level PCI config register functions provided by pcibus.c */
+
+int pci_cfgopen (void);
+int pci_cfgread (pcicfgregs *cfg, int reg, int bytes);
+void pci_cfgwrite (pcicfgregs *cfg, int reg, int data, int bytes);
+
+/* for compatibility to FreeBSD-2.2 version of PCI code */
+
+#ifdef PCI_COMPAT
+
+typedef pcicfgregs *pcici_t;
+typedef unsigned pcidi_t;
+typedef void pci_inthand_t(void *arg);
+
+#define pci_max_burst_len (3)
+
+/* just copied from old PCI code for now ... */
+
+extern struct linker_set pcidevice_set;
+extern int pci_mechanism;
 
 struct pci_device {
     char*    pd_name;
@@ -133,97 +187,17 @@ struct pci_device {
     int    (*pd_shutdown) (int, int);
 };
 
-/*-----------------------------------------------------------------
-**
-**	This table includes pointers to all pci device drivers.
-**	It should be generated by the linker.
-**
-**-----------------------------------------------------------------
-*/
-
-extern struct linker_set pcidevice_set;
-
-extern unsigned pci_max_burst_len;  /* log2 of safe burst transfer length */
-extern unsigned pci_mechanism;
-extern unsigned pci_maxdevice;
-
-/*-----------------------------------------------------------------
-**
-**	Map a pci device to physical and virtual memory.
-**
-**      Entry selects the register in the pci configuration
-**	space, which supplies the size of the region, and
-**	receives the physical address.
-**
-**	In case of success the function sets the addresses
-**	in *va and *pa, and returns 1.
-**	In case of errors a message is written,
-**	and the function returns 0.
-**
-**-----------------------------------------------------------------
-*/
-
-int pci_map_mem (pcici_t tag, u_long entry, vm_offset_t *va, vm_offset_t *pa);
-
-/*-----------------------------------------------------------------
-**
-**	Map a pci device to an io port area.
-**
-**	Entry selects the register in the pci configuration
-**	space, which supplies the size of the region, and
-**	receives the port number.
-**
-**	In case of success the function sets the port number in pa,
-**	and returns 1.
-**	In case of errors a message is written,
-**	and the function returns 0.
-**
-**-----------------------------------------------------------------
-*/
-
-int pci_map_port (pcici_t tag, u_long entry, u_short * pa);
-
-/*-----------------------------------------------------------------
-**
-**	Map a pci interrupt to an isa irq line, and enable the interrupt.
-**
-**      -----------------
-**
-**      func is the interrupt handler, arg is the argument
-**      to the handler (usually a pointer to a softc).
-**
-**      The maskptr argument should be  &bio_imask,
-**      &net_imask etc. or NULL.
-**
-**      If there is any error, a message is written, and
-**      the function returns with zero.
-**      Else it returns with a value different to zero.
-**
-**      -----------------
-**
-**	The irq number is read from the configuration space.
-**	(Should have been set by the bios).
-**
-**	Supports multiple handlers per irq (shared interrupts).
-**
-**-----------------------------------------------------------------
-*/
-
-typedef void pci_inthand_t(void *arg);
-
-struct pci_int_desc {
-	struct pci_int_desc * pcid_next;
-	pcici_t 	      pcid_tag;
-	pci_inthand_t	     *pcid_handler;
-	void*		      pcid_argument;
-	unsigned *	      pcid_maskptr;
-	unsigned	      pcid_tally;
-	unsigned	      pcid_mask;
+struct pci_lkm {
+	struct pci_device *dvp;
+	struct pci_lkm	*next;
 };
 
-int pci_map_int (pcici_t tag, pci_inthand_t *func, void *arg,
-		 unsigned *maskptr);
-
+u_long pci_conf_read (pcici_t tag, u_long reg);
+void pci_conf_write (pcici_t tag, u_long reg, u_long data);
+int pci_map_port (pcici_t tag, u_long reg, u_short* pa);
+int pci_map_mem (pcici_t tag, u_long reg, vm_offset_t* va, vm_offset_t* pa);
+int pci_map_int (pcici_t tag, pci_inthand_t *func, void *arg, unsigned *maskptr);
 int pci_unmap_int (pcici_t tag);
+int pci_register_lkm (struct pci_device *dvp, int if_revision);
 
-#endif
+#endif /* PCI_COMPAT */
