@@ -54,6 +54,8 @@
 
 #include <vm/uma.h>
 
+SYSCTL_NODE(_hw, OID_AUTO, bus, CTLFLAG_RW, NULL, NULL);
+
 /*
  * Used to attach drivers to devclasses.
  */
@@ -200,6 +202,13 @@ void print_devclass_list(void);
  * tested since 3.4 or 2.2.8!
  */
 
+static int sysctl_devctl_disable(SYSCTL_HANDLER_ARGS);
+static int devctl_disable = 0;
+TUNABLE_INT("hw.bus.devctl_disable", &devctl_disable);
+SYSCTL_PROC(_hw_bus, OID_AUTO, devctl_disable,
+    CTLTYPE_INT|CTLFLAG_RW|CTLFLAG_PRISON, 0, 0, sysctl_devctl_disable,
+    "I", "devctl disable");
+
 static d_open_t		devopen;
 static d_close_t	devclose;
 static d_read_t		devread;
@@ -235,7 +244,6 @@ struct dev_softc
 {
 	int	inuse;
 	int 	nonblock;
-	int	async;
 	struct mtx mtx;
 	struct cv cv;
 	struct selinfo sel;
@@ -261,27 +269,17 @@ devopen(dev_t dev, int oflags, int devtype, d_thread_t *td)
 		return (EBUSY);
 	/* move to init */
 	devsoftc.inuse = 1;
+	devsoftc.nonblock = 0;
+	devsoftc.async_td = NULL;
 	return (0);
 }
 
 static int
 devclose(dev_t dev, int fflag, int devtype, d_thread_t *td)
 {
-	struct dev_event_info *n1;
-
 	devsoftc.inuse = 0;
 	mtx_lock(&devsoftc.mtx);
 	cv_broadcast(&devsoftc.cv);
-	/*
-	 * See note in devread.  If we deside to keep data until read, then
-	 * remove the following while loop. XXX
-	 */
-	while (!TAILQ_EMPTY(&devsoftc.devq)) {
-		n1 = TAILQ_FIRST(&devsoftc.devq);
-		TAILQ_REMOVE(&devsoftc.devq, n1, dei_link);
-		free(n1->dei_data, M_BUS);
-		free(n1, M_BUS);
-	}
 	mtx_unlock(&devsoftc.mtx);
 
 	return (0);
@@ -337,14 +335,10 @@ devioctl(dev_t dev, u_long cmd, caddr_t data, int fflag, d_thread_t *td)
 			devsoftc.nonblock = 0;
 		return (0);
 	case FIOASYNC:
-		if (*(int*)data) {
-			devsoftc.async = 1;
+		if (*(int*)data)
 			devsoftc.async_td = td;
-		}
-		else {
-			devsoftc.async = 0;
+		else
 			devsoftc.async_td = NULL;
-		}
 		return (0);
 
 		/* (un)Support for other fcntl() calls. */
@@ -408,7 +402,7 @@ devaddq(const char *type, const char *what, device_t dev)
 	char *loc;
 	const char *parstr;
 
-	if (!devsoftc.inuse)
+	if (devctl_disable)
 		return;
 	n1 = malloc(sizeof(*n1), M_BUS, M_NOWAIT);
 	if (n1 == NULL)
@@ -485,6 +479,30 @@ devnomatch(device_t dev)
 	devaddq("?", pnp, dev);
 	free(pnp, M_BUS);
 	return;
+}
+
+static int
+sysctl_devctl_disable(SYSCTL_HANDLER_ARGS)
+{
+	struct dev_event_info *n1;
+	int dis, error;
+
+	dis = devctl_disable;
+	error = sysctl_handle_int(oidp, &dis, 0, req);
+	if (error || !req->newptr)
+		return (error);
+	mtx_lock(&devsoftc.mtx);
+	devctl_disable = dis;
+	if (dis) {
+		while (!TAILQ_EMPTY(&devsoftc.devq)) {
+			n1 = TAILQ_FIRST(&devsoftc.devq);
+			TAILQ_REMOVE(&devsoftc.devq, n1, dei_link);
+			free(n1->dei_data, M_BUS);
+			free(n1, M_BUS);
+		}
+	}
+	mtx_unlock(&devsoftc.mtx);
+	return (0);
 }
 
 /* End of /dev/devctl code */
@@ -2458,7 +2476,6 @@ print_devclass_list(void)
  * We might like to add the ability to scan devclasses and/or drivers to
  * determine what else is currently loaded/available.
  */
-SYSCTL_NODE(_hw, OID_AUTO, bus, CTLFLAG_RW, NULL, NULL);
 
 static int
 sysctl_bus(SYSCTL_HANDLER_ARGS)
