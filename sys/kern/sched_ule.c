@@ -74,6 +74,11 @@ SYSCTL_INT(_kern_sched, OID_AUTO, slice_max, CTLFLAG_RW, &slice_max, 0, "");
 int realstathz;
 int tickincr = 1;
 
+#ifdef SMP
+/* Callout to handle load balancing SMP systems. */
+static struct callout kseq_lb_callout;
+#endif
+
 /*
  * These datastructures are allocated within their parent datastructure but
  * are scheduler specific.
@@ -239,6 +244,8 @@ static void kseq_nice_rem(struct kseq *kseq, int nice);
 void kseq_print(int cpu);
 #ifdef SMP
 struct kseq * kseq_load_highest(void);
+void kseq_balance(void *arg);
+void kseq_move(struct kseq *from, int cpu);
 #endif
 
 void
@@ -333,6 +340,75 @@ kseq_nice_rem(struct kseq *kseq, int nice)
 }
 
 #ifdef SMP
+/*
+ * kseq_balance is a simple CPU load balancing algorithm.  It operates by
+ * finding the least loaded and most loaded cpu and equalizing their load
+ * by migrating some processes.
+ *
+ * Dealing only with two CPUs at a time has two advantages.  Firstly, most
+ * installations will only have 2 cpus.  Secondly, load balancing too much at
+ * once can have an unpleasant effect on the system.  The scheduler rarely has
+ * enough information to make perfect decisions.  So this algorithm chooses
+ * algorithm simplicity and more gradual effects on load in larger systems.
+ *
+ * It could be improved by considering the priorities and slices assigned to
+ * each task prior to balancing them.  There are many pathological cases with
+ * any approach and so the semi random algorithm below may work as well as any.
+ *
+ */
+void
+kseq_balance(void *arg)
+{
+	struct kseq *kseq;
+	int high_load;
+	int low_load;
+	int high_cpu;
+	int low_cpu;
+	int move;
+	int diff;
+	int i;
+
+	high_cpu = 0;
+	low_cpu = 0;
+	high_load = 0;
+	low_load = -1;
+
+	mtx_lock_spin(&sched_lock);
+	for (i = 0; i < mp_maxid; i++) {
+		if (CPU_ABSENT(i))
+			continue;
+		kseq = KSEQ_CPU(i);
+		if (kseq->ksq_load > high_load) {
+			high_load = kseq->ksq_load;
+			high_cpu = i;
+		}
+		if (low_load == -1 || kseq->ksq_load < low_load) {
+			low_load = kseq->ksq_load;
+			low_cpu = i;
+		}
+	}
+
+	/*
+	 * Nothing to do.
+	 */
+	if (high_load < 2 || low_load == high_load)
+		goto out;
+
+	diff = high_load - low_load;
+	move = diff / 2;
+	if (diff & 0x1)
+		move++;
+
+	for (i = 0; i < move; i++)
+		kseq_move(KSEQ_CPU(high_cpu), low_cpu);
+
+out:
+	mtx_unlock_spin(&sched_lock);
+	callout_reset(&kseq_lb_callout, hz, kseq_balance, NULL);
+
+	return;
+}
+
 struct kseq *
 kseq_load_highest(void)
 {
@@ -358,6 +434,20 @@ kseq_load_highest(void)
 		return (KSEQ_CPU(cpu));
 
 	return (NULL);
+}
+
+void
+kseq_move(struct kseq *from, int cpu)
+{
+	struct kse *ke;
+
+	ke = kseq_choose(from);
+	runq_remove(ke->ke_runq, ke);
+	ke->ke_state = KES_THREAD;
+	kseq_rem(from, ke);
+
+	ke->ke_cpu = cpu;
+	sched_add(ke);
 }
 #endif
 
@@ -436,6 +526,10 @@ sched_setup(void *dummy)
 
 	kseq_add(KSEQ_SELF(), &kse0);
 	mtx_unlock_spin(&sched_lock);
+#ifdef SMP
+	callout_init(&kseq_lb_callout, 1);
+	kseq_balance(NULL);
+#endif
 }
 
 /*
@@ -1053,13 +1147,7 @@ retry:
 		 * on the current processor.  Then we will dequeue it
 		 * normally above.
 		 */
-		ke = kseq_choose(kseq);
-		runq_remove(ke->ke_runq, ke);
-		ke->ke_state = KES_THREAD;
-		kseq_rem(kseq, ke);
-
-		ke->ke_cpu = PCPU_GET(cpuid);
-		sched_add(ke);
+		kseq_move(kseq, PCPU_GET(cpuid));
 		goto retry;
 	}
 #endif
