@@ -110,3 +110,98 @@ trash_fini(void *mem, int size)
 {
 	trash_ctor(mem, size, NULL);
 }
+
+static uma_slab_t
+uma_dbg_getslab(uma_zone_t zone, void *item)
+{
+	uma_slab_t slab;
+	u_int8_t *mem;
+
+	mem = (u_int8_t *)((unsigned long)item & (~UMA_SLAB_MASK));
+	if (zone->uz_flags & UMA_ZFLAG_MALLOC) {
+		slab = hash_sfind(mallochash, mem);
+	} else if (zone->uz_flags & UMA_ZFLAG_OFFPAGE) {
+		ZONE_LOCK(zone);
+		slab = hash_sfind(&zone->uz_hash, mem);
+		ZONE_UNLOCK(zone);
+	} else {
+		mem += zone->uz_pgoff;
+		slab = (uma_slab_t)mem;
+	}
+
+	return (slab);
+}
+
+/*
+ * Set up the slab's freei data such that uma_dbg_free can function.
+ *
+ */
+
+void
+uma_dbg_alloc(uma_zone_t zone, uma_slab_t slab, void *item)
+{
+	int freei;
+
+	if (slab == NULL) {
+		slab = uma_dbg_getslab(zone, item);
+		if (slab == NULL) 
+			panic("uma: item %p did not belong to zone %s\n",
+			    item, zone->uz_name);
+	}
+
+	freei = ((unsigned long)item - (unsigned long)slab->us_data)
+	    / zone->uz_rsize;
+
+	slab->us_freelist[freei] = 255;
+
+	return;
+}
+
+/*
+ * Verifies freed addresses.  Checks for alignment, valid slab membership
+ * and duplicate frees.
+ *
+ */
+
+void
+uma_dbg_free(uma_zone_t zone, uma_slab_t slab, void *item)
+{
+	int freei;
+
+	return;
+
+	if (slab == NULL) {
+		slab = uma_dbg_getslab(zone, item);
+		if (slab == NULL) 
+			panic("uma: Freed item %p did not belong to zone %s\n",
+			    item, zone->uz_name);
+	}
+
+	freei = ((unsigned long)item - (unsigned long)slab->us_data)
+	    / zone->uz_rsize;
+
+	if (freei >= zone->uz_ipers)
+		panic("zone: %s(%p) slab %p freelist %i out of range 0-%d\n",
+		    zone->uz_name, zone, slab, freei, zone->uz_ipers-1);
+
+	if (((freei * zone->uz_rsize) + slab->us_data) != item) {
+		printf("zone: %s(%p) slab %p freed address %p unaligned.\n",
+		    zone->uz_name, zone, slab, item);
+		panic("should be %p\n",
+		    (freei * zone->uz_rsize) + slab->us_data);
+	}
+
+	if (slab->us_freelist[freei] != 255) {
+		printf("Slab at %p, freei %d = %d.\n",
+		    slab, freei, slab->us_freelist[freei]);
+		panic("Duplicate free of item %p from zone %p(%s)\n",
+		    item, zone, zone->uz_name);
+	}
+
+	/*
+	 * When this is actually linked into the slab this will change.
+	 * Until then the count of valid slabs will make sure we don't
+	 * accidentally follow this and assume it's a valid index.
+	 */
+	slab->us_freelist[freei] = 0;
+}
