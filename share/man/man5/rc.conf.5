@@ -2223,6 +2223,21 @@ If not set to
 this is the actual screen saver to use
 .Li ( blank , snake , daemon ,
 etc).
+.It Va moused_nondefault_enable
+.Pq Vt str
+If set to
+.Dq Li NO
+the mouse device specified on
+the command line is not automatically treated as enabled by the
+.Pa /etc/rc.d/moused
+script.
+Having this variable set to
+.Dq Li YES
+allows a
+.Xr usb 4
+mouse,
+for example,
+to be enabled as soon as it is plugged in.
 .It Va moused_enable
 .Pq Vt str
 If set to
