@@ -35,6 +35,7 @@
  */
 
 #include "sysinstall.h"
+#include <signal.h>
 #include <netdb.h>
 #include <sys/socket.h>
 #include <sys/param.h>
@@ -515,6 +516,11 @@ mediaExtractDistEnd(int zpid, int cpid)
     return TRUE;
 }
 
+static void
+media_timeout(int sig)
+{
+    AlarmWentOff = TRUE;
+}
 
 Boolean
 mediaExtractDist(char *dir, char *dist, FILE *fp)
@@ -522,6 +528,7 @@ mediaExtractDist(char *dir, char *dist, FILE *fp)
     int i, j, total, seconds, zpid, cpid, pfd[2], qfd[2];
     char buf[BUFSIZ];
     struct timeval start, stop;
+    struct sigaction new, old;
 
     if (!dir)
 	dir = "/";
@@ -582,7 +589,19 @@ mediaExtractDist(char *dir, char *dist, FILE *fp)
     total = 0;
     (void)gettimeofday(&start, (struct timezone *)0);
 
+    /* Make ^C fake a sudden timeout */
+    new.sa_handler = media_timeout;
+    new.sa_flags = 0;
+    new.sa_mask = 0;
+    sigaction(SIGINT, &new, &old);
+
+    alarm_set(MEDIA_TIMEOUT, media_timeout);
     while ((i = fread(buf, 1, BUFSIZ, fp)) > 0) {
+	alarm_clear();
+	if (AlarmWentOff) {
+	    msgDebug("Failure to read from media - timeout or user abort.\n");
+	    break;
+	}
 	if (write(qfd[1], buf, i) != i) {
 	    msgDebug("Write error on transfer to cpio process, try of %d bytes\n", i);
 	    break;
@@ -600,7 +619,10 @@ mediaExtractDist(char *dir, char *dist, FILE *fp)
 	    msgInfo("%10d bytes read from %s dist @ %.1f KB/sec.",
 		    total, dist, (total / seconds) / 1024.0);
 	}
+	alarm_set(MEDIA_TIMEOUT, media_timeout);
     }
+    alarm_clear();
+    sigaction(SIGINT, &old, NULL);	/* restore sigint */
     close(qfd[1]);
 
     i = waitpid(zpid, &j, 0);
