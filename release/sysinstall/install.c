@@ -373,7 +373,7 @@ installFixitCDROM(dialogMenuItem *self)
 	symlink("/mnt2/usr/bin/vi", "/usr/bin/vi");
     fixit_common();
     mediaClose();
-    msgConfirm("Please remove the FreeBSD fixit CDROM now.");
+    msgConfirm("Please remove the FreeBSD fixit CDROM/DVD now.");
     return DITEM_SUCCESS;
 }
 
