@@ -949,106 +949,7 @@
 
     &hwlist.uscanner;
 
-    <para arch="i386,pc98,alpha,amd64">Storage (&man.umass.4; driver)
-      <itemizedlist>
-        <listitem>
-	  <para>ADTEC Stick Drive AD-UST32M, 64M, 128M, 256M</para>
-	</listitem>
-        <listitem>
-	  <para>Denno FireWire/USB2 Removable
-            2.5-inch HDD Case MIFU-25CB20</para>
-	</listitem>
-        <listitem>
-	  <para>FujiFilm Zip USB Drive ZDR100 USB A</para>
-	</listitem>
-        <listitem>
-	  <para>GREEN HOUSE USB Flash Memory <quote>PicoDrive</quote>
-            GH-UFD32M, 64M, 128M</para>
-	</listitem>
-        <listitem>
-	  <para>IBM 32MB USB Memory Key (P/N 22P5296)</para>
-	</listitem>
-        <listitem>
-	  <para>IBM ThinkPad USB Portable CD-ROM Drive (P/N 33L5151)</para>
-	</listitem>
-        <listitem>
-	  <para>I-O DATA USB x6 CD-RW Drive CDRW-i64/USB (CDROM only)</para>
-	</listitem>
-        <listitem>
-	  <para>I-O DATA USB CD/CD-R/CD-RW/DVD-R/DVD-RW/DVD-RAM/DVD-ROM Drive DVR-iUH2
-            (CDROM, DVD-RAM only)</para>
-	</listitem>
-        <listitem arch="i386,pc98">
-	  <para>Iomega USB Zip 100Mb (primitive support still)</para>
-	</listitem>
-        <listitem>
-	  <para>Iomega Zip750 USB2.0 Drive</para>
-	</listitem>
-        <listitem>
-	  <para>Keian USB1.1/2.0 3.5-inch HDD Case KU350A</para>
-	</listitem>
-        <listitem>
-	  <para>Kurouto Shikou USB 2.5-inch HDD Case GAWAP2.5PS-USB2.0</para>
-	</listitem>
-        <listitem>
-	  <para>Logitec USB1.1/2.0 HDD Unit SHD-E60U2</para>
-	</listitem>
-        <listitem>
-	  <para>Logitec Mobile USB Memory LMC-256UD</para>
-	</listitem>
-        <listitem>
-	  <para>Logitec USB Double-Speed Floppy Drive LFD-31U2</para>
-	</listitem>
-        <listitem>
-	  <para>Logitec USB/IEEE1394 DVD-RAM/R/RW Unit LDR-N21FU2 (CDROM only)</para>
-	</listitem>
-        <listitem>
-	  <para>Matshita CF-VFDU03 floppy drive</para>
-	</listitem>
-        <listitem>
-	  <para>MELCO USB2.0 MO Drive MO-CH640U2</para>
-	</listitem>
-        <listitem>
-	  <para>I-O DATA USB/IEEE1394 Portable HD Drive HDP-i30P/CI, HDP-i40P/CI</para>
-	</listitem>
-        <listitem>
-	  <para>MELCO USB Flash Disk <quote>PetitDrive</quote>,
-            RUF-32M, -64M, -128M, -256M</para>
-	</listitem>
-        <listitem>
-	  <para>MELCO USB2.0 Flash Disk <quote>PetitDrive2</quote>,
-            RUF-256M/U2, -512M/U2</para>
-	</listitem>
-        <listitem>
-	  <para>MELCO USB Flash Disk <quote>ClipDrive</quote>,
-            RUF-C32M, -C64M, -C128M, -C256M, -C512M</para>
-	</listitem>
-        <listitem>
-	  <para>Microtech USB-SCSI-HD 50 USB to SCSI cable</para>
-	</listitem>
-        <listitem>
-	  <para>NOVAC USB2.0 2.5/3.5-inch HDD Case NV-HD351U</para>
-	</listitem>
-        <listitem>
-	  <para>Panasonic floppy drive</para>
-	</listitem>
-        <listitem>
-	  <para>Panasonic USB2.0 Portable CD-RW Drive KXL-RW40AN (CDROM only)</para>
-	</listitem>
-        <listitem>
-	  <para>RATOC Systems USB2.0 Removable HDD Case U2-MDK1, U2-MDK1B</para>
-	</listitem>
-        <listitem>
-	  <para>Sony Portable CD-R/RW Drive CRX10U (CDROM only)</para>
-	</listitem>
-        <listitem>
-	  <para>TEAC Portable USB CD-ROM Unit CD-110PU/210PU</para>
-	</listitem>
-        <listitem>
-	  <para>Y-E Data floppy drive (720/1.44/2.88Mb)</para>
-	</listitem>
-      </itemizedlist>
-    </para>
+    &hwlist.umass;
 
     <para arch="i386,pc98,amd64">Audio Devices (&man.uaudio.4; driver)
     </para>
@@ -1070,13 +971,7 @@
   <sect2 id="bluetooth">
     <title>Bluetooth Devices</title>
 
-    <para arch="i386,pc98,amd64">PCCARD Host Controllers (&man.ng.bt3c.4; driver)
-      <itemizedlist>
-        <listitem>
-	  <para>3Com/HP 3CRWB6096-A PCCARD adapter</para>
-	</listitem>
-      </itemizedlist>
-    </para>
+    &hwlist.ng.bt3c;
 
     &hwlist.ng.ubt;
 
