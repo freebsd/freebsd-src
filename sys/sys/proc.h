@@ -714,10 +714,8 @@ MALLOC_DECLARE(M_ZOMBIE);
 
 #define	SESS_LEADER(p)	((p)->p_session->s_leader == (p))
 #define	SESSHOLD(s)	((s)->s_count++)
-#define	SESSRELE(s) {							\
-	if (--(s)->s_count == 0)					\
-		FREE(s, M_SESSION);					\
-}
+#define	SESSRELE(s)	sessrele(s)
+
 
 #define	STOPEVENT(p, e, v) do {						\
 	if ((p)->p_stops & (e))	{					\
@@ -860,6 +858,7 @@ void	pstats_fork(struct pstats *src, struct pstats *dst);
 void	pstats_free(struct pstats *ps);
 int	securelevel_ge(struct ucred *cr, int level);
 int	securelevel_gt(struct ucred *cr, int level);
+void	sessrele(struct session *);
 void	setrunnable(struct thread *);
 void	setrunqueue(struct thread *, int flags);
 void	setsugid(struct proc *p);
