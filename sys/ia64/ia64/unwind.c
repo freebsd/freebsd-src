@@ -649,7 +649,7 @@ parse_spill_base(struct ia64_unwind_state *us, int pspoff)
 }
 
 static void
-parse_spill_mask(struct ia64_unwind_state *us, u_int8_t *imask)
+parse_spill_mask(struct ia64_unwind_state *us, int rlen, u_int8_t *imask)
 {
 	int i, reg;
 	u_int8_t b;
@@ -658,9 +658,9 @@ parse_spill_mask(struct ia64_unwind_state *us, u_int8_t *imask)
 		23, 24, 25, 26, 27, 28, 29, 30, 31
 	};
 
-	for (i = 0; i < us->us_pc; i++) {
+	for (i = 0; i < rlen; i++) {
 		b = imask[i / 4];
-		b = (b >> (2 * (i & 3))) & 3;
+		b = (b >> (2 * (3-(i & 3)))) & 3;
 		switch (b) {
 		case 0:
 			break;
@@ -1237,7 +1237,7 @@ ia64_unwind_state_previous_frame(struct ia64_unwind_state *us)
 					p += 2;
 				} else if ((b >> 0) == 184) {
 					/* P4 */
-					parse_spill_mask(us, p+1);
+					parse_spill_mask(us, rlen, p+1);
 					p += 1 + (rlen + 3) / 4;
 				} else if ((b >> 0) == 185) {
 					/* P5 - frgr_mem */
