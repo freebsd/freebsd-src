@@ -55,7 +55,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *      $Id: aha.c,v 1.16 1998/12/15 02:51:54 imp Exp $
+ *      $Id: aha.c,v 1.17 1998/12/22 18:14:50 gibbs Exp $
  */
 
 #include <sys/param.h>
@@ -1406,7 +1406,7 @@ ahadone(struct aha_softc *aha, struct aha_ccb *accb, aha_mbi_comp_code_t comp_co
 			panic("%s: Inavlid Action code", aha_name(aha));
 			break;
 		case AHASTAT_INVALID_OPCODE:
-			panic("%s: Inavlid CCB Opcode code %x hccb = %p",
+			panic("%s: Invalid CCB Opcode code %x hccb = %p",
 			      aha_name(aha), accb->hccb.opcode, &accb->hccb);
 			break;
 		case AHASTAT_LINKED_CCB_LUN_MISMATCH:
