@@ -31,12 +31,12 @@
 #include <sys/systm.h>
 #include <sys/bus.h>
 #include <sys/interrupt.h>
+#include <sys/pcpu.h>
 #include <sys/timetc.h>
 #ifdef SMP
 #include <sys/ktr.h>
 #include <sys/lock.h>
 #include <sys/mutex.h>
-#include <sys/pcpu.h>
 #include <sys/proc.h>
 #endif
 
