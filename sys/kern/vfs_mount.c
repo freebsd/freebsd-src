@@ -632,30 +632,6 @@ mount(td, uap)
 }
 
 /*
- * vfs_mount(): actually attempt a filesystem mount.
- *
- * This routine is designed to be a "generic" entry point for routines
- * that wish to mount a filesystem. All parameters except `fsdata' are
- * pointers into kernel space. `fsdata' is currently still a pointer
- * into userspace.
- */
-int
-vfs_mount(td, fstype, fspath, fsflags, fsdata)
-	struct thread *td;
-	const char *fstype;
-	char *fspath;
-	int fsflags;
-	void *fsdata;
-{
-	int error;
-
-	mtx_lock(&Giant);
-	error = vfs_domount(td, fstype, fspath, fsflags, fsdata, 1);
-	mtx_unlock(&Giant);
-	return (error);
-}
-
-/*
  * vfs_domount(): actually attempt a filesystem mount.
  */
 static int
