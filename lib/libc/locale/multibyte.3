@@ -1,4 +1,4 @@
-.\" Copyright (c) 2002, 2003 Tim J. Robbins. All rights reserved.
+.\" Copyright (c) 2002-2004 Tim J. Robbins. All rights reserved.
 .\" Copyright (c) 1993
 .\"	The Regents of the University of California.  All rights reserved.
 .\"
@@ -36,7 +36,7 @@
 .\"	@(#)multibyte.3	8.1 (Berkeley) 6/4/93
 .\" $FreeBSD$
 .\"
-.Dd December 7, 2003
+.Dd April 8, 2004
 .Dt MULTIBYTE 3
 .Os
 .Sh NAME
@@ -118,7 +118,7 @@ Null bytes are not permitted within multibyte characters.
 The C library provides the following functions for dealing with
 multibyte characters:
 .Bl -column "Description"
-.It Sy "Function        Description"
+.It Sy "Function       Description"
 .It "mblen	get number of bytes in a character"
 .It "mbrlen	get number of bytes in a character (restartable)"
 .It "mbrtowc	convert a character to a wide-character code (restartable)"
@@ -144,9 +144,4 @@ multibyte characters:
 .Xr utf8 5
 .Sh STANDARDS
 These functions conform to
-.St -isoC
-and
-.St -isoC-99
-as documented in their individual manual pages.
-.Sh BUGS
-The current implementation does not support shift states.
+.St -isoC-99 .
