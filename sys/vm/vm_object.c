@@ -1196,6 +1196,7 @@ vm_object_split(vm_map_entry_t entry)
 			orig_object->backing_object_offset + offset;
 		new_object->backing_object = source;
 	}
+	VM_OBJECT_LOCK(new_object);
 	VM_OBJECT_LOCK(orig_object);
 	for (idx = 0; idx < size; idx++) {
 	retry:
@@ -1211,15 +1212,22 @@ vm_object_split(vm_map_entry_t entry)
 		 * not be changed by this operation.
 		 */
 		vm_page_lock_queues();
-		if (vm_page_sleep_if_busy(m, TRUE, "spltwt"))
+		if ((m->flags & PG_BUSY) || m->busy) {
+			vm_page_flag_set(m, PG_WANTED | PG_REFERENCED);
+			VM_OBJECT_UNLOCK(orig_object);
+			VM_OBJECT_UNLOCK(new_object);
+			msleep(m, &vm_page_queue_mtx, PDROP | PVM, "spltwt", 0);
+			VM_OBJECT_LOCK(new_object);
+			VM_OBJECT_LOCK(orig_object);
 			goto retry;
-			
+		}
 		vm_page_busy(m);
 		vm_page_rename(m, new_object, idx);
 		/* page automatically made dirty by rename and cache handled */
 		vm_page_busy(m);
 		vm_page_unlock_queues();
 	}
+	VM_OBJECT_UNLOCK(new_object);
 	if (orig_object->type == OBJT_SWAP) {
 		vm_object_pip_add(orig_object, 1);
 		VM_OBJECT_UNLOCK(orig_object);
@@ -1828,6 +1836,7 @@ vm_object_set_writeable_dirty(vm_object_t object)
 {
 	struct vnode *vp;
 
+	VM_OBJECT_LOCK_ASSERT(object, MA_OWNED);
 	vm_object_set_flag(object, OBJ_WRITEABLE|OBJ_MIGHTBEDIRTY);
 	if (object->type == OBJT_VNODE &&
 	    (vp = (struct vnode *)object->handle) != NULL) {
