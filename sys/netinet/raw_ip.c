@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)raw_ip.c	8.2 (Berkeley) 1/4/94
- * $Id: raw_ip.c,v 1.8 1994/11/16 10:17:11 jkh Exp $
+ * $Id: raw_ip.c,v 1.9 1994/12/12 17:20:55 ugen Exp $
  */
 
 #include <sys/param.h>
@@ -231,6 +231,7 @@ rip_ctloutput(op, so, level, optname, m)
 #ifdef IPACCT
 	case IP_ACCT_DEL:
 	case IP_ACCT_ADD:
+	case IP_ACCT_CLR:
 	case IP_ACCT_FLUSH:
 	case IP_ACCT_ZERO: 
 	
