@@ -34,10 +34,10 @@ from {alpha,i386}/INSTALL.TXT.
     Web browser to read the installed FAQ (Frequently Asked Questions)
     and Handbook HTML documentation sets for &os;.  Note that on-line
     versions of the <ulink
-    url="http://www.freebsd.org/faq/">FAQ</ulink> and <ulink
-    url="http://www.freebsd.org/handbook/">Handbook</ulink> are also
+    url="http://www.FreeBSD.org/faq/">FAQ</ulink> and <ulink
+    url="http://www.FreeBSD.org/handbook/">Handbook</ulink> are also
     available from the <ulink
-    url="http://www.freebsd.org/">FreeBSD Project Web
+    url="http://www.FreeBSD.org/">FreeBSD Project Web
     site</ulink>, if you have an Internet connection. See
     <filename>README.TXT</filename> for more information on the
     resources available to you.</para>
