@@ -24,10 +24,9 @@
  * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
+ *
+ * $FreeBSD$
  */
-
-#include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
 
 #include <dev/ips/ips.h>
 
@@ -57,13 +56,17 @@ static int ips_pci_attach(device_t dev)
 {
         u_int32_t command;
         ips_softc_t *sc;
+	int tval;
 
 
-	if (resource_disabled(device_get_name(dev), device_get_unit(dev))) {
+	tval = 0;
+	if (resource_int_value(device_get_name(dev), device_get_unit(dev),
+	    "disabled", &tval) == 0 && tval) {
 		device_printf(dev, "device is disabled\n");
 		/* but return 0 so the !$)$)*!$*) unit isn't reused */
 		return (0);
 	}
+
         DEVICE_PRINTF(1, dev, "in attach.\n");
         sc = (ips_softc_t *)device_get_softc(dev);
         if(!sc){
@@ -100,15 +103,15 @@ static int ips_pci_attach(device_t dev)
 		else
 			sc->rid = PCIR_BAR(0);
                 sc->iotype = SYS_RES_MEMORY;
-                sc->iores = bus_alloc_resource_any(dev, sc->iotype,
-			&sc->rid, RF_ACTIVE);
+                sc->iores = bus_alloc_resource(dev, sc->iotype, &sc->rid,
+			0, ~0, 1, RF_ACTIVE);
         }
         if(!sc->iores && command & PCIM_CMD_PORTEN){
                 PRINTF(10, "trying PORTIO\n");
                 sc->rid = PCIR_BAR(0);
                 sc->iotype = SYS_RES_IOPORT;
-                sc->iores = bus_alloc_resource_any(dev, sc->iotype, 
-			&sc->rid, RF_ACTIVE);
+                sc->iores = bus_alloc_resource(dev, sc->iotype, &sc->rid,
+			0, ~0, 1, RF_ACTIVE);
         }
         if(sc->iores == NULL){
                 device_printf(dev, "resource allocation failed\n");
@@ -118,8 +121,8 @@ static int ips_pci_attach(device_t dev)
         sc->bushandle = rman_get_bushandle(sc->iores);
         /*allocate an interrupt. when does the irq become active? after leaving attach? */
         sc->irqrid = 0;
-        if(!(sc->irqres = bus_alloc_resource_any(dev, SYS_RES_IRQ,
-		&sc->irqrid, RF_SHAREABLE | RF_ACTIVE))){
+        if(!(sc->irqres = bus_alloc_resource(dev, SYS_RES_IRQ, &sc->irqrid,
+		0, ~0, 1, RF_SHAREABLE | RF_ACTIVE))){
                 device_printf(dev, "irq allocation failed\n");
                 goto error;
         }
@@ -138,16 +141,13 @@ static int ips_pci_attach(device_t dev)
 				/* numsegs   */	IPS_MAX_SG_ELEMENTS,
 				/* maxsegsize*/	BUS_SPACE_MAXSIZE_32BIT,
 				/* flags     */	0,
-				/* lockfunc  */ busdma_lock_mutex,
-				/* lockarg   */ &Giant,
 				&sc->adapter_dmatag) != 0) {
                 printf("IPS can't alloc dma tag\n");
                 goto error;
         }
 	sc->ips_ich.ich_func = ips_intrhook;
 	sc->ips_ich.ich_arg = sc;
-	mtx_init(&sc->queue_mtx, "IPS bioqueue lock", MTX_DEF, 0);
-	bioq_init(&sc->queue);
+	bufq_init(&sc->queue);
 	if (config_intrhook_establish(&sc->ips_ich) != 0) {
 		printf("IPS can't establish configuration hook\n");
 		goto error;
@@ -195,7 +195,9 @@ static int ips_pci_detach(device_t dev)
 		if(ips_adapter_free(sc))
 			return EBUSY;
 		ips_pci_free(sc);
+#if 0	/* XXX */
 		bioq_flush(&sc->queue, NULL, ENXIO);
+#endif
 	}
 	return 0;
 }

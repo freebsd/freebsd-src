@@ -37,10 +37,8 @@
 #include <sys/conf.h>
 #include <sys/types.h>
 #include <sys/queue.h>
-#include <sys/bio.h>
+#include <sys/buf.h>
 #include <sys/malloc.h>
-#include <sys/mutex.h>
-#include <sys/sema.h>
 #include <sys/time.h>
 
 #include <machine/bus_memio.h>
@@ -48,8 +46,8 @@
 #include <sys/rman.h>
 #include <machine/resource.h>
 
-#include <dev/pci/pcireg.h>
-#include <dev/pci/pcivar.h>
+#include <pci/pcireg.h>
+#include <pci/pcivar.h>
 
 MALLOC_DECLARE(M_IPSBUF);
 
@@ -205,7 +203,7 @@ MALLOC_DECLARE(M_IPSBUF);
 /* this is ugly.  It zeros the end elements in an ips_command_t struct starting with the status element */
 #define clear_ips_command(command)	bzero(&((command)->status), (unsigned long)(&(command)[1])-(unsigned long)&((command)->status))
 
-#define ips_read_request(iobuf)		((iobuf)->bio_cmd == BIO_READ)
+#define ips_read_request(iobuf)		((iobuf)->b_flags & B_READ)
 
 #define COMMAND_ERROR(status)		(((status)->fields.basic_status & 0x0f) >= IPS_MIN_ERROR)
 
@@ -382,7 +380,6 @@ typedef struct ips_command{
 	bus_dmamap_t		command_dmamap;
 	void *			command_buffer;
 	u_int32_t		command_phys_addr;/*WARNING! must be changed if 64bit addressing ever used*/	
-	struct sema		cmd_sema;
 	ips_cmd_status_t	status;
 	SLIST_ENTRY(ips_command)	next;
 	bus_dma_tag_t		data_dmatag;
@@ -414,7 +411,7 @@ typedef struct ips_softc{
 	bus_dma_tag_t		command_dmatag;
 	bus_dma_tag_t		sg_dmatag;
         device_t                dev;
-        struct cdev *device_file;
+        dev_t			device_file;
 	struct callout_handle	timer;
 	u_int16_t		adapter_type;
 	ips_adapter_info_t	adapter_info;
@@ -434,8 +431,7 @@ typedef struct ips_softc{
         void                    (* ips_adapter_intr)(void *sc);
 	void			(* ips_issue_cmd)(ips_command_t *command);
 	ips_copper_queue_t *	copper_queue;
-	struct mtx		queue_mtx;
-	struct bio_queue_head	queue;
+	struct buf_queue_head	queue;
 
 }ips_softc_t;
 
@@ -443,7 +439,7 @@ typedef struct ips_softc{
 extern int ips_ioctl_request(ips_softc_t *sc, u_long ioctl_cmd, caddr_t addr, 
 				int32_t flags);
 /* function defines from ips_disk.c */
-extern void ipsd_finish(struct bio *iobuf);
+extern void ipsd_finish(struct buf *iobuf);
 
 /* function defines from ips_commands.c */
 extern int ips_flush_cache(ips_softc_t *sc);

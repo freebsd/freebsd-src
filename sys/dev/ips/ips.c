@@ -23,10 +23,10 @@
  * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
+ *
+ * $FreeBSD$
  */
 
-#include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
 
 #include <dev/ips/ips.h>
 #include <sys/stat.h>
@@ -40,12 +40,20 @@ static d_ioctl_t ips_ioctl;
 MALLOC_DEFINE(M_IPSBUF, "ipsbuf","IPS driver buffer");
 
 static struct cdevsw ips_cdevsw = {
-	.d_version =	D_VERSION,
-	.d_flags =	D_NEEDGIANT,
-	.d_open =	ips_open,
-	.d_close =	ips_close,
-	.d_ioctl =	ips_ioctl,
-	.d_name =	"ips",
+	ips_open,
+	ips_close,
+	noread,
+	nowrite,
+	ips_ioctl,
+	nopoll,
+	nommap,
+	nostrategy,
+	"ips",
+	175,
+	nodump,
+	nopsize,
+	0,
+	-1
 };
 
 static const char* ips_adapter_name[] = {
@@ -68,14 +76,14 @@ static const char* ips_adapter_name[] = {
 };
 
 
-static int ips_open(struct cdev *dev, int flags, int fmt, struct thread *td)
+static int ips_open(dev_t dev, int flags, int fmt, struct proc *p)
 {
 	ips_softc_t *sc = dev->si_drv1;
 	sc->state |= IPS_DEV_OPEN;
         return 0;
 }
 
-static int ips_close(struct cdev *dev, int flags, int fmt, struct thread *td)
+static int ips_close(dev_t dev, int flags, int fmt, struct proc *p)
 {
 	ips_softc_t *sc = dev->si_drv1;
 	sc->state &= ~IPS_DEV_OPEN;
@@ -83,7 +91,7 @@ static int ips_close(struct cdev *dev, int flags, int fmt, struct thread *td)
         return 0;
 }
 
-static int ips_ioctl(struct cdev *dev, u_long command, caddr_t addr, int32_t flags, struct thread *td)
+static int ips_ioctl(dev_t dev, u_long command, caddr_t addr, int32_t flags, struct proc *p)
 {
 	ips_softc_t *sc;
 
@@ -112,7 +120,6 @@ static __inline__ int ips_cmdqueue_free(ips_softc_t *sc)
 		for(i = 0; i < sc->max_cmds; i++){
 
 			command = &sc->commandarray[i];
-			sema_destroy(&command->cmd_sema);
 
 			if(command->command_phys_addr == 0)
 				continue;
@@ -154,7 +161,6 @@ static __inline__ int ips_cmdqueue_init(ips_softc_t *sc)
 			goto error;
 		}
 
-		sema_init(&command->cmd_sema, 0, "IPS Command Semaphore");
 		SLIST_INSERT_HEAD(&sc->free_cmd_list, command, next);	
 	}
 	sc->state &= ~IPS_OFFLINE;
@@ -263,9 +269,6 @@ void ips_insert_free_cmd(ips_softc_t *sc, ips_command_t *command)
 {
 	intrmask_t mask;
 	mask = splbio();
-
-	if (sema_value(&command->cmd_sema) != 0)
-		panic("ips: command returned non-zero semaphore");
 
 	SLIST_INSERT_HEAD(&sc->free_cmd_list, command, next);
 	(sc->used_commands)--;
@@ -402,8 +405,6 @@ int ips_adapter_init(ips_softc_t *sc)
 				/* maxsegsize*/	IPS_COMMAND_LEN + 
 						    IPS_MAX_SG_LEN,
 				/* flags     */	0,
-				/* lockfunc  */ busdma_lock_mutex,
-				/* lockarg   */ &Giant,
 				&sc->command_dmatag) != 0) {
                 device_printf(sc->dev, "can't alloc command dma tag\n");
 		goto error;
@@ -419,8 +420,6 @@ int ips_adapter_init(ips_softc_t *sc)
 				/* numsegs   */	IPS_MAX_SG_ELEMENTS,
 				/* maxsegsize*/	IPS_MAX_IOBUF_SIZE,
 				/* flags     */	0,
-				/* lockfunc  */ busdma_lock_mutex,
-				/* lockarg   */ &Giant,
 				&sc->sg_dmatag) != 0) {
 		device_printf(sc->dev, "can't alloc SG dma tag\n");
 		goto error;
@@ -463,8 +462,9 @@ int ips_adapter_init(ips_softc_t *sc)
 		device_printf(sc->dev, "failed to initialize command buffers\n");
 		goto error;
 	}
-        sc->device_file = make_dev(&ips_cdevsw, device_get_unit(sc->dev), UID_ROOT, GID_OPERATOR,
-                                        S_IRUSR | S_IWUSR, "ips%d", device_get_unit(sc->dev));
+        sc->device_file = make_dev(&ips_cdevsw, device_get_unit(sc->dev),
+	    UID_ROOT, GID_OPERATOR, S_IRUSR | S_IWUSR, "ips%d",
+	    device_get_unit(sc->dev));
 	sc->device_file->si_drv1 = sc;
 	ips_diskdev_init(sc);
 	sc->timer = timeout(ips_timeout, sc, 10*hz);
@@ -622,8 +622,6 @@ static int ips_copperhead_queue_init(ips_softc_t *sc)
 				/* numsegs   */	1,
 				/* maxsegsize*/	sizeof(ips_copper_queue_t),
 				/* flags     */	0,
-				/* lockfunc  */ busdma_lock_mutex,
-				/* lockarg   */ &Giant,
 				&dmatag) != 0) {
                 device_printf(sc->dev, "can't alloc dma tag for statue queue\n");
 		error = ENOMEM;

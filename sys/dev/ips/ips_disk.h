@@ -37,17 +37,13 @@
 #include <sys/types.h>
 #include <sys/queue.h>
 #include <sys/disk.h>
-#include <sys/bio.h>
-#include <sys/disk.h>
-#include <geom/geom_disk.h>
+#include <sys/buf.h>
+#include <sys/devicestat.h>
 
 #include <machine/bus_memio.h>
 #include <machine/bus.h>
 #include <sys/rman.h>
 #include <machine/resource.h>
-
-#include <dev/pci/pcireg.h>
-#include <dev/pci/pcivar.h>
 
 #define IPS_MAX_IO_SIZE		0x10000
 
@@ -58,9 +54,16 @@
 
 typedef struct ipsdisk_softc {
 	device_t 	dev;
+	dev_t		ipsd_dev;
 	int		unit;
 	int		disk_number;
 	u_int32_t 	state;
-	struct disk 	*ipsd_disk;
+	struct disk 	ipsd_disk;
+	struct devstat	stats;
+	struct disklabel label;
 	ips_softc_t	*sc;
+	int		cylinders;
+	int		heads;
+	int		sectors;
+	uint32_t	size;
 }ipsdisk_softc_t;
