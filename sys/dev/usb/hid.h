@@ -1,4 +1,4 @@
-/*	$NetBSD: hid.h,v 1.5 2000/04/27 15:26:46 augustss Exp $	*/
+/*	$NetBSD: hid.h,v 1.6 2000/06/01 14:28:57 augustss Exp $	*/
 /*	$FreeBSD$ */
 
 /*

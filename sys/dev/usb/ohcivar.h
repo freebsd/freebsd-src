@@ -1,4 +1,4 @@
-/*	$NetBSD: ohcivar.h,v 1.21 2000/03/29 01:46:27 augustss Exp $	*/
+/*	$NetBSD: ohcivar.h,v 1.22 2000/04/25 09:20:55 augustss Exp $	*/
 /*	$FreeBSD$	*/
 
 /*
