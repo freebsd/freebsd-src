@@ -73,13 +73,13 @@ int	nofinalnl;		/* normally append \n to each output line */
 char	line[BIGBUFSIZ];
 char	*linep;
 
-char	*gatherline (struct openfile *);
-void	 getargs (char **);
-char	*pad (struct openfile *);
-static void usage (void);
+char	*gatherline(struct openfile *);
+void	 getargs(char *[]);
+char	*pad(struct openfile *);
+static void	usage(void);
 
 int
-main(int argc, char **argv)
+main(int argc, char *argv[])
 {
 	struct	openfile *ip;
 
@@ -100,7 +100,7 @@ main(int argc, char **argv)
 }
 
 void
-getargs(char **av)
+getargs(char *av[])
 {
 	struct	openfile *ip = input;
 	char *p, *c;
