@@ -86,9 +86,8 @@ docBrowser(dialogMenuItem *self)
 int
 docShowDocument(dialogMenuItem *self)
 {
-    char tmp[512], target[512];
-    char *where = NULL;
-    char *browser = variable_get(VAR_BROWSER_BINARY);
+    char *tmp[512], target[512];
+    char *where, *browser = variable_get(VAR_BROWSER_BINARY);
     char *str = self->prompt;
 
     if (!file_executable(browser)) {
@@ -96,24 +95,25 @@ docShowDocument(dialogMenuItem *self)
 		   "properly set in the Options editor.", browser);
 	return DITEM_FAILURE;
     }
-    if (!strstr(str, "Home"))
-	where = "http://www.freebsd.org";
-    else if (!strstr(str, "Other"))
+    /* Default to Home */
+    where = strcpy(target, "http://www.freebsd.org");
+    if (strstr(str, "Other")) {
 	where = msgGetInput("http://www.freebsd.org", "Please enter the URL of the location you wish to visit.");
-    else if (!strstr(str, "FAQ")) {
-	strcpy(target, "/usr/share/doc/faq/index.html");
-	if (!file_readable(target))
-	    strcpy(target, "http://www.freebsd.org/FAQ");
-	where = target;
+	if (where)
+	    strcpy(target, where);
     }
-    else if (!strstr(str, "Handbook")) {
-	strcpy(target, "/usr/share/doc/handbook/index.html");
+    else if (strstr(str, "FAQ")) {
+	where = strcpy(target, "/usr/share/doc/faq/index.html");
 	if (!file_readable(target))
-	    strcpy(target, "http://www.freebsd.org/handbook");
-	where = target;
+	    where = strcpy(target, "http://www.freebsd.org/FAQ");
+    }
+    else if (strstr(str, "Handbook")) {
+	where = strcpy(target, "/usr/share/doc/handbook/index.html");
+	if (!file_readable(target))
+	    where = strcpy(target, "http://www.freebsd.org/handbook");
     }
     if (where) {
-	sprintf(tmp, "%s %s", browser, where);
+	sprintf(tmp, "%s %s", browser, target);
 	systemExecute(tmp);
 	return DITEM_SUCCESS;
     }
