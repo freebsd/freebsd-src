@@ -5,13 +5,15 @@
  * <Copyright.MIT>.
  *
  *	from: add_ticket.c,v 4.7 88/10/07 06:06:26 shanzer Exp $
- *	$Id: add_ticket.c,v 1.2 1994/07/19 19:24:54 g89r4222 Exp $
+ *	$Id: add_ticket.c,v 1.3 1995/07/18 16:38:04 mark Exp $
  */
 
+#if 0
 #ifndef lint
 static char rcsid[] =
-"$Id: add_ticket.c,v 1.2 1994/07/19 19:24:54 g89r4222 Exp $";
+"$Id: add_ticket.c,v 1.3 1995/07/18 16:38:04 mark Exp $";
 #endif /* lint */
+#endif
 
 #include <krb.h>
 #include <prot.h>

@@ -1,4 +1,4 @@
-#	$Id: Makefile,v 1.1 1995/01/20 02:47:48 wollman Exp $
+#	$Id: Makefile,v 1.1 1995/07/18 16:36:53 mark Exp $
 
 BINDIR=	/usr/bin
 PROG=	kadmin

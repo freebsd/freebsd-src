@@ -7,12 +7,12 @@
  * already exists.
  *
  *	from: kdb_init.c,v 4.0 89/01/24 21:50:45 jtkohl Exp $
- *	$Id: kdb_init.c,v 1.1.1.1 1994/09/30 14:49:56 csgr Exp $
+ *	$Id: kdb_init.c,v 1.4 1995/07/18 16:37:35 mark Exp $
  */
 
 #ifndef	lint
 static char rcsid[] =
-"$Id: kdb_init.c,v 1.1.1.1 1994/09/30 14:49:56 csgr Exp $";
+"$Id: kdb_init.c,v 1.4 1995/07/18 16:37:35 mark Exp $";
 #endif	lint
 
 #include <stdio.h>
@@ -119,9 +119,6 @@ add_principal(name, instance, aap_op)
     Principal principal;
     char    datestring[50];
     char    pw_str[255];
-    void    read_pw_string();
-    void    string_to_key();
-    void    random_key();
     struct tm *tm, *localtime();
     C_Block new_key;
 

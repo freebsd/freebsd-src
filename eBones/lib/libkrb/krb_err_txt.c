@@ -4,13 +4,15 @@
  * <Copyright.MIT>.
  *
  *	from: krb_err_txt.c,v 4.7 88/12/01 14:10:14 jtkohl Exp $
- *	$Id: krb_err_txt.c,v 1.2 1994/07/19 19:25:45 g89r4222 Exp $
+ *	$Id: krb_err_txt.c,v 1.3 1995/07/18 16:39:02 mark Exp $
  */
 
+#if 0
 #ifndef	lint
 static char rcsid[] =
-"$Id: krb_err_txt.c,v 1.2 1994/07/19 19:25:45 g89r4222 Exp $";
+"$Id: krb_err_txt.c,v 1.3 1995/07/18 16:39:02 mark Exp $";
 #endif	lint
+#endif
 
 /*
  * This file contains an array of error text strings.

@@ -1,6 +1,6 @@
 /*
- * $Source: /home/ncvs/src/eBones/kdb/krb_lib.c,v $
- * $Author: csgr $
+ * $Source: /usr/cvs/src/eBones/kdb/krb_lib.c,v $
+ * $Author: mark $
  *
  * Copyright 1988 by the Massachusetts Institute of Technology.
  *
@@ -8,12 +8,15 @@
  * <mit-copyright.h>.
  */
 
+#if 0
 #ifndef	lint
 static char rcsid[] =
-"$Id: krb_lib.c,v 1.1.1.1 1994/09/30 14:49:55 csgr Exp $";
+"$Id: krb_lib.c,v 1.3 1995/07/18 16:37:17 mark Exp $";
 #endif	lint
+#endif
 
 #include <stdio.h>
+#include <stdlib.h>
 #include <sys/types.h>
 #include <netinet/in.h>
 #include <sys/uio.h>
@@ -30,10 +33,6 @@ extern char *progname;
 long    kerb_debug;
 #endif
 
-extern char *strncpy();
-extern char *ctime();
-extern char *getenv();
-
 static  init = 0;
 
 /*
@@ -47,7 +46,7 @@ kerb_init()
     if (!init) {
 	char *dbg = getenv("KERB_DBG");
 	if (dbg)
-	    sscanf(dbg, "%d", &kerb_debug);
+	    sscanf(dbg, "%ld", &kerb_debug);
 	init = 1;
     }
 #endif
@@ -67,7 +66,7 @@ kerb_init()
  * caches, if they're ever really implemented.
  */
 
-int
+void
 kerb_fini()
 {
     kerb_db_fini();
@@ -79,13 +78,8 @@ kerb_fini()
  */
 
 int
-kerb_get_principal(name, inst, principal, max, more)
-    char   *name;		/* could have wild card */
-    char   *inst;		/* could have wild card */
-    Principal *principal;
-    unsigned int max;		/* max number of name structs to return */
-    int    *more;		/* more tuples than room for */
-
+kerb_get_principal(char *name, char *inst, Principal *principal,
+    unsigned int max, int *more)
 {
     int     found = 0;
 #ifdef CACHE
@@ -137,9 +131,7 @@ kerb_get_principal(name, inst, principal, max, more)
 }
 
 /* principals */
-kerb_put_principal(principal, n)
-    Principal *principal;
-    unsigned int n;		/* number of principal structs to write */
+int kerb_put_principal(Principal *principal, unsigned int n)
 {
     long time();
     struct tm *tp, *localtime();
@@ -184,13 +176,7 @@ kerb_put_principal(principal, n)
 }
 
 int
-kerb_get_dba(name, inst, dba, max, more)
-    char   *name;		/* could have wild card */
-    char   *inst;		/* could have wild card */
-    Dba    *dba;
-    unsigned int max;		/* max number of name structs to return */
-    int    *more;		/* more tuples than room for */
-
+kerb_get_dba(char *name, char *inst, Dba *dba, unsigned int max, int *more)
 {
     int     found = 0;
 #ifdef CACHE

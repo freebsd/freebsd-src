@@ -5,13 +5,15 @@
  * <Copyright.MIT>.
  *
  *	from: kntoln.c,v 4.7 89/01/23 09:25:15 jtkohl Exp $
- *	$Id: kntoln.c,v 1.2 1994/07/19 19:25:40 g89r4222 Exp $
+ *	$Id: kntoln.c,v 1.3 1995/07/18 16:38:56 mark Exp $
  */
 
+#if 0
 #ifndef lint
 static char *rcsid =
-"$Id: kntoln.c,v 1.2 1994/07/19 19:25:40 g89r4222 Exp $";
+"$Id: kntoln.c,v 1.3 1995/07/18 16:38:56 mark Exp $";
 #endif /* lint */
+#endif
 
 #include <krb.h>
 #include <strings.h>
@@ -42,9 +44,7 @@ static char *rcsid =
  * KSUCCESS if all goes well, otherwise KFAILURE.
  */
 
-krb_kntoln(ad,lname)
-    AUTH_DAT *ad;
-    char *lname;
+int krb_kntoln(AUTH_DAT *ad, char *lname)
 {
     static char lrealm[REALM_SZ] = "";
 

@@ -1,12 +1,12 @@
-#	$Source: /mit/kerberos/src/kadmin/RCS/kadmin_cmds.ct,v $
-#	$Author: jtkohl $
-#	$Header: /mit/kerberos/src/kadmin/RCS/kadmin_cmds.ct,v 4.1 89/07/25 17:02:28 jtkohl Exp $
+#	$Source: /usr/cvs/src/eBones/kadmin/kadmin_cmds.ct,v $
+#	$Author: mark $
+#	$Header: /usr/cvs/src/eBones/kadmin/kadmin_cmds.ct,v 1.1 1995/07/18 16:36:56 mark Exp $
 #
 # Copyright 1988 by the Massachusetts Institute of Technology.
-# 
+#
 # For copying and distribution information, please see the file
 # <mit-copyright.h>.
-# 
+#
 # Command table for Kerberos administration tool
 #
 	command_table	admin_cmds;

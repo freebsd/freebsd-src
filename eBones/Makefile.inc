@@ -1,5 +1,5 @@
 #	From: @(#)Makefile.inc	5.1 (Berkeley) 6/25/90
-#	$Id: Makefile.inc,v 1.3 1995/01/14 20:50:37 wollman Exp $
+#	$Id: Makefile.inc,v 1.4 1995/07/18 16:34:21 mark Exp $
 
 BINDIR?=	/usr/sbin
 SHLIB_MAJOR?=	2

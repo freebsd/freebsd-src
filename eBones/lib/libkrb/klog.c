@@ -5,13 +5,15 @@
  * <Copyright.MIT>.
  *
  *	from: klog.c,v 4.6 88/12/01 14:06:05 jtkohl Exp $
- *	$Id: klog.c,v 1.2 1994/07/19 19:25:37 g89r4222 Exp $
+ *	$Id: klog.c,v 1.3 1995/07/18 16:38:52 mark Exp $
  */
 
+#if 0
 #ifndef lint
 static char *rcsid =
-"$Id: klog.c,v 1.2 1994/07/19 19:25:37 g89r4222 Exp $";
+"$Id: klog.c,v 1.3 1995/07/18 16:38:52 mark Exp $";
 #endif /* lint */
+#endif
 
 #include <sys/time.h>
 #include <stdio.h>
@@ -48,14 +50,11 @@ static char logtxt[1000];
  * text string "logtxt".
  */
 
-char * klog(type,format,a1,a2,a3,a4,a5,a6,a7,a8,a9,a0)
-    int type;
-    char *format;
-    int a1,a2,a3,a4,a5,a6,a7,a8,a9,a0;
+char *klog(int type, char *format, int a1, int a2, int a3, int a4, int a5,
+    int a6, int a7, int a8, int a9, int a0)
 {
-    FILE *logfile, *fopen();
+    FILE *logfile;
     long time(),now;
-    char *month_sname();
     struct tm *tm;
     static int logtype_array[NLOGTYPE] = {0,0};
     static int array_initialized;
@@ -100,8 +99,7 @@ char * klog(type,format,a1,a2,a3,a4,a5,a6,a7,a8,a9,a0)
  * the logfile defaults to KRBLOG, defined in "krb.h".
  */
 
-kset_logfile(filename)
-    char *filename;
+void kset_logfile(char *filename)
 {
     log_name = filename;
     is_open = 0;

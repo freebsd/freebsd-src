@@ -5,13 +5,15 @@
  * <Copyright.MIT>.
  *
  *	from: get_admhst.c,v 4.0 89/01/23 10:08:55 jtkohl Exp $
- *	$Id: get_admhst.c,v 1.2 1994/07/19 19:25:13 g89r4222 Exp $
+ *	$Id: get_admhst.c,v 1.3 1995/07/18 16:38:27 mark Exp $
  */
 
+#if 0
 #ifndef lint
 static char *rcsid =
-"$Id: get_admhst.c,v 1.2 1994/07/19 19:25:13 g89r4222 Exp $";
+"$Id: get_admhst.c,v 1.3 1995/07/18 16:38:27 mark Exp $";
 #endif /* lint */
+#endif
 
 #include <stdio.h>
 #include <krb.h>
@@ -37,10 +39,7 @@ static char *rcsid =
  * provided by a nameserver.
  */
 
-krb_get_admhst(h, r, n)
-    char *h;
-    char *r;
-    int n;
+int krb_get_admhst(char *h, char *r, int n)
 {
     FILE *cnffile;
     char tr[REALM_SZ];

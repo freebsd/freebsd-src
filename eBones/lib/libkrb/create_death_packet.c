@@ -5,13 +5,15 @@
  * <Copyright.MIT>.
  *
  *	from: create_death_packet.c,v 4.9 89/01/17 16:05:59 rfrench Exp $
- *	$Id: create_death_packet.c,v 1.1.1.1 1994/09/30 14:49:59 csgr Exp $
+ *	$Id: create_death_packet.c,v 1.3 1995/07/18 16:38:09 mark Exp $
  */
 
+#if 0
 #ifndef lint
 static char *rcsid =
-"$Id: create_death_packet.c,v 1.1.1.1 1994/09/30 14:49:59 csgr Exp $";
+"$Id: create_death_packet.c,v 1.3 1995/07/18 16:38:09 mark Exp $";
 #endif /* lint */
+#endif
 
 #include <krb.h>
 #include <prot.h>

@@ -6,7 +6,7 @@
  * Include file for kparse routines.
  *
  *	from: kparse.h,v 4.5 89/01/11 12:05:53 steiner Exp $
- *	$Id: kparse.h,v 1.1.1.1 1994/09/30 14:49:54 csgr Exp $
+ *	$Id: kparse.h,v 1.3 1995/07/18 16:36:32 mark Exp $
  */
 
 #ifndef KPARSE_DEFS

@@ -10,25 +10,27 @@
  * Jon Rochlis, MIT Telecom, March 1988
  *
  *	from: krb_kdb_utils.c,v 4.1 89/07/26 11:01:12 jtkohl Exp $
- *	$Id: krb_kdb_utils.c,v 1.1.1.1 1994/09/30 14:49:55 csgr Exp $
+ *	$Id: krb_kdb_utils.c,v 1.3 1995/07/18 16:37:15 mark Exp $
  */
 
+#if 0
 #ifndef	lint
 static char rcsid[] =
-"$Id: krb_kdb_utils.c,v 1.1.1.1 1994/09/30 14:49:55 csgr Exp $";
+"$Id: krb_kdb_utils.c,v 1.3 1995/07/18 16:37:15 mark Exp $";
 #endif	lint
+#endif
 
-#include <des.h>
+#include <stdio.h>
+#include <stdlib.h>
+#include <unistd.h>
+#include <string.h>
+#include <sys/file.h>
 #include <krb.h>
 #include <krb_db.h>
 #include <kdc.h>
-#include <stdio.h>
-#include <sys/file.h>
 
-long kdb_get_master_key(prompt, master_key, master_key_sched)
-     int prompt;
-     C_Block master_key;
-     Key_schedule master_key_sched;
+long kdb_get_master_key(int prompt, C_Block master_key,
+     Key_schedule master_key_sched)
 {
   int kfile;
 
@@ -37,7 +39,7 @@ long kdb_get_master_key(prompt, master_key, master_key_sched)
       placebo_read_password(master_key,
 			    "\nEnter Kerberos master key: ", 0);
 #else
-      des_read_password(master_key,
+      des_read_password((C_Block *)master_key,
 			     "\nEnter Kerberos master key: ", 0);
 #endif
       printf ("\n");
@@ -55,9 +57,24 @@ long kdb_get_master_key(prompt, master_key, master_key_sched)
   }
 
 #ifndef NOENCRYPTION
-  key_sched(master_key,master_key_sched);
+  key_sched((C_Block *)master_key,master_key_sched);
 #endif
   return (0);
+}
+
+/* The old algorithm used the key schedule as the initial vector which
+   was byte order depedent ... */
+
+void kdb_encrypt_key (C_Block in, C_Block out, C_Block master_key,
+     Key_schedule master_key_sched, int e_d_flag)
+{
+
+#ifdef NOENCRYPTION
+  bcopy(in, out, sizeof(C_Block));
+#else
+  pcbc_encrypt((C_Block *)in,(C_Block *)out,(long)sizeof(C_Block),
+	master_key_sched,(C_Block *)master_key, e_d_flag);
+#endif
 }
 
 /* The caller is reasponsible for cleaning up the master key and sched,
@@ -65,10 +82,8 @@ long kdb_get_master_key(prompt, master_key, master_key_sched)
 
 /* Returns master key version if successful, otherwise -1 */
 
-long kdb_verify_master_key (master_key, master_key_sched, out)
-     C_Block master_key;
-     Key_schedule master_key_sched;
-     FILE *out;  /* setting this to non-null be do output */
+long kdb_verify_master_key (C_Block master_key, Key_schedule master_key_sched,
+     FILE *out)
 {
   C_Block key_from_db;
   Principal principal_data[1];
@@ -121,21 +136,4 @@ long kdb_verify_master_key (master_key, master_key_sched, out)
   }
 
   return (master_key_version);
-}
-
-/* The old algorithm used the key schedule as the initial vector which
-   was byte order depedent ... */
-
-kdb_encrypt_key (in, out, master_key, master_key_sched, e_d_flag)
-     C_Block in, out, master_key;
-     Key_schedule master_key_sched;
-     int e_d_flag;
-{
-
-#ifdef NOENCRYPTION
-  bcopy(in, out, sizeof(C_Block));
-#else
-  pcbc_encrypt(in,out,(long)sizeof(C_Block),master_key_sched,master_key,
- 	e_d_flag);
-#endif
 }

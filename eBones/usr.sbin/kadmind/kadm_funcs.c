@@ -13,7 +13,7 @@ static char rcsid_kadm_funcs_c[] =
 "Id: kadm_funcs.c,v 4.3 90/03/20 01:39:51 jon Exp ";
 #endif
 static const char rcsid[] =
-	"$Id: kadm_funcs.c,v 1.1 1995/01/20 03:12:55 wollman Exp $";
+	"$Id: kadm_funcs.c,v 1.1 1995/07/18 16:37:02 mark Exp $";
 #endif	lint
 
 /*

@@ -1,14 +1,11 @@
 #	From: @(#)Makefile	5.1 (Berkeley) 6/25/90
-#	$Id: Makefile,v 1.12 1995/06/11 19:28:20 rgrimes Exp $
+#	$Id: Makefile,v 1.14 1995/07/18 16:34:20 mark Exp $
 
-SUBDIR=	include des acl kdb krb libkadm
+SUBDIR=	include acl kdb krb libkadm
 
 SUBDIR+= ext_srvtab kdb_destroy kdb_edit \
 	 kdb_init kdb_util kdestroy kerberos kinit klist ksrvtgt \
-	 kstash kadmin kadmind ksrvutil man
-#
-# MISSING AND PROBABLY BOGUS: register registerd make_keypair
-#
+	 kstash kadmin kadmind ksrvutil man register registerd make_keypair
 
 SDIR= ${.CURDIR}/..
 

@@ -6,7 +6,7 @@
  * Include file for the Kerberos Key Distribution Center.
  *
  *	from: kdc.h,v 4.1 89/01/24 17:54:04 jon Exp $
- *	$Id: kdc.h,v 1.1.1.1 1994/09/30 14:49:54 csgr Exp $
+ *	$Id: kdc.h,v 1.3 1995/07/18 16:36:29 mark Exp $
  */
 
 #ifndef KDC_DEFS

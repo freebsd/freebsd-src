@@ -6,13 +6,15 @@
  * Miscellaneous debug printing utilities
  *
  *	from: util.c,v 4.8 89/01/17 22:02:08 wesommer Exp $
- *	$Id: util.c,v 1.2 1994/07/19 19:26:31 g89r4222 Exp $
+ *	$Id: util.c,v 1.3 1995/07/18 16:39:54 mark Exp $
  */
 
+#if 0
 #ifndef	lint
 static char rcsid[] =
-"$Id: util.c,v 1.2 1994/07/19 19:26:31 g89r4222 Exp $";
+"$Id: util.c,v 1.3 1995/07/18 16:39:54 mark Exp $";
 #endif	lint
+#endif
 
 #include <krb.h>
 #include <des.h>
@@ -28,14 +30,13 @@ static char rcsid[] =
  * pname, pinst, prealm, netaddr, flags, cksum, timestamp, session
  */
 
-ad_print(x)
-AUTH_DAT	*x;
+void ad_print(AUTH_DAT *x)
 {
 	struct in_addr	in;
 
 	/* Print the contents of an auth_dat struct. */
 	in.s_addr = x->address;
-	printf("\n%s %s %s %s flags %u cksum 0x%X\n\ttkt_tm 0x%X sess_key",
+	printf("\n%s %s %s %s flags %u cksum 0x%lX\n\ttkt_tm 0x%lX sess_key",
            x->pname, x->pinst, x->prealm, inet_ntoa(in), x->k_flags,
            x->checksum, x->time_sec);
 
@@ -43,7 +44,7 @@ AUTH_DAT	*x;
 #ifdef NOENCRYPTION
 	placebo_cblock_print(x->session);
 #else
-	des_cblock_print_file(x->session,stdout);
+	des_cblock_print_file((des_cblock *)x->session,stdout);
 #endif
 	/* skip reply for now */
 }

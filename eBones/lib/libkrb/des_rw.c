@@ -35,7 +35,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $Id: des_rw.c,v 1.1.1.1 1994/09/30 14:49:59 csgr Exp $
+ * $Id: des_rw.c,v 1.6 1995/07/18 16:38:17 mark Exp $
  */
 
 /*
@@ -100,18 +100,11 @@
 #include <sys/param.h>
 #include <sys/types.h>
 
-#include <kerberosIV/des.h>
-#include <kerberosIV/krb.h>
-
-extern int krb_net_read(int fd, void * data, size_t length);
-extern int des_pcbc_encrypt(des_cblock *input, des_cblock *output,
-			    register long length,
-			    des_key_schedule schedule,
-			    des_cblock *ivec,
-			    int encrypt);
+#include <krb.h>
+#include <des.h>
 
 static bit_64		des_key;
-static des_key_schedule	key_sched;
+static des_key_schedule	key_schedule;
 
 /*
  * Buffer for storing extra data when more data is received, then was
@@ -127,12 +120,10 @@ static u_char		*buff_ptr = buffer;
  * inkey is the initial vector for the DES encryption, while insched is
  * the DES key, in unwrapped form.
  */
-void des_set_key(inkey, insched)
-	bit_64	*inkey;
-	u_char	*insched;
+void des_set_key(bit_64 *inkey, u_char *insched)
 {
 	bcopy(inkey, &des_key, sizeof(bit_64));
-	bcopy(insched, &key_sched, sizeof(des_key_schedule));
+	bcopy(insched, &key_schedule, sizeof(des_key_schedule));
 }
 
 /*
@@ -142,13 +133,10 @@ void des_set_key(inkey, insched)
 void des_clear_key()
 {
 	bzero(&des_key, sizeof(des_cblock));
-	bzero(&key_sched, sizeof(des_key_schedule));
+	bzero(&key_schedule, sizeof(des_key_schedule));
 }
 
-int des_read(fd, buf, len)
-	int fd;
-	register char * buf;
-	int len;
+int des_read(int fd, char *buf, int len)
 {
 	int	msg_length;	/* length of actual message data */
 	int	pad_length;	/* length of padded message */
@@ -173,7 +161,7 @@ int des_read(fd, buf, len)
 		}
 	}
 
-	nread = krb_net_read(fd, &msg_length, sizeof(msg_length));
+	nread = krb_net_read(fd,(char *)&msg_length, sizeof(msg_length));
 	if(nread != (int)(sizeof(msg_length)))
 		return(0);
 
@@ -186,7 +174,7 @@ int des_read(fd, buf, len)
 
 	des_pcbc_encrypt((des_cblock*) des_buff, (des_cblock*) buff_ptr,
 		(msg_length < 8 ? 8 : msg_length),
-		key_sched, (des_cblock*) &des_key, DES_DECRYPT);
+		key_schedule, (des_cblock*) &des_key, DES_DECRYPT);
 
 
 	if(msg_length < 8)
@@ -212,17 +200,13 @@ int des_read(fd, buf, len)
  * Write a message onto a file descriptor (generally a socket), using
  * DES to encrypt the message.
  */
-int des_write(fd, buf, len)
-	int fd;
-	char * buf;
-	int len;
+int des_write(int fd, char *buf, int len)
 {
 	static	int seeded = 0;
 	char	garbage[8];
 	long	rnd;
 	int	pad_len;
 	int	write_len;
-	int	nwritten = 0;
 	int	i;
 	char	*data;
 
@@ -249,7 +233,7 @@ int des_write(fd, buf, len)
 	}
 
 	des_pcbc_encrypt((des_cblock*) data, (des_cblock*) des_buff,
-		(len < 8)?8:len, key_sched, (des_cblock*) &des_key, DES_ENCRYPT);
+		(len < 8)?8:len, key_schedule, (des_cblock*) &des_key, DES_ENCRYPT);
 
 
 	write_len = htonl(len);

@@ -4,13 +4,19 @@
  * <Copyright.MIT>.
  *
  *	from: netwrite.c,v 4.1 88/11/15 16:48:58 jtkohl Exp $";
- *	$Id: netwrite.c,v 1.2 1994/07/19 19:26:04 g89r4222 Exp $
+ *	$Id: netwrite.c,v 1.3 1995/07/18 16:39:22 mark Exp $
  */
 
+#if 0
 #ifndef	lint
 static char rcsid[] =
-"$Id: netwrite.c,v 1.2 1994/07/19 19:26:04 g89r4222 Exp $";
+"$Id: netwrite.c,v 1.3 1995/07/18 16:39:22 mark Exp $";
 #endif	lint
+#endif
+
+#include <stdio.h>
+#include <unistd.h>
+#include <krb.h>
 
 /*
  * krb_net_write() writes "len" bytes from "buf" to the file
@@ -21,11 +27,7 @@ static char rcsid[] =
  * XXX must not use non-blocking I/O
  */
 
-int
-krb_net_write(fd, buf, len)
-int fd;
-register char *buf;
-int len;
+int krb_net_write(int fd, char *buf, int len)
 {
     int cc;
     register int wrlen = len;

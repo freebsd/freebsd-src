@@ -4,13 +4,15 @@
  * <Copyright.MIT>.
  *
  *	from: fgetst.c,v 4.0 89/01/23 10:08:31 jtkohl Exp $
- *	$Id: fgetst.c,v 1.1.1.1 1994/09/30 14:49:59 csgr Exp $
+ *	$Id: fgetst.c,v 1.3 1995/07/18 16:38:23 mark Exp $
  */
 
+#if 0
 #ifndef lint
 static char rcsid[] =
-"$Id: fgetst.c,v 1.1.1.1 1994/09/30 14:49:59 csgr Exp $";
+"$Id: fgetst.c,v 1.3 1995/07/18 16:38:23 mark Exp $";
 #endif	/* lint */
+#endif
 
 #include <stdio.h>
 
@@ -23,10 +25,7 @@ static char rcsid[] =
  * returns the number of characters read, including the null terminator.
  */
 
-fgetst(f, s, n)
-    FILE   *f;
-    register char *s;
-    int     n;
+int fgetst(FILE *f, char *s, int n)
 {
     register count = n;
     int     ch;		/* NOT char; otherwise you don't see EOF */

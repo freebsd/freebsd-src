@@ -8,7 +8,7 @@
  * i.e., users or services.
  *
  *	from: kdb_edit.c,v 4.2 90/01/09 16:05:09 raeburn Exp $
- *	$Id: kdb_edit.c,v 1.2 1995/05/30 06:40:41 rgrimes Exp $
+ *	$Id: kdb_edit.c,v 1.5 1995/08/03 17:15:54 mark Exp $
  */
 
 /*
@@ -17,7 +17,7 @@
 
 #ifndef	lint
 static char rcsid[] =
-"$Id: kdb_edit.c,v 1.2 1995/05/30 06:40:41 rgrimes Exp $";
+"$Id: kdb_edit.c,v 1.5 1995/08/03 17:15:54 mark Exp $";
 #endif	lint
 
 #include <stdio.h>

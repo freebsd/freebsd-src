@@ -4,13 +4,15 @@
  * <Copyright.MIT>.
  *
  *	from: get_tf_realm.c,v 4.2 90/01/02 13:40:19 jtkohl Exp $
- *	$Id: get_tf_realm.c,v 1.1.1.1 1994/09/30 14:50:00 csgr Exp $
+ *	$Id: get_tf_realm.c,v 1.3 1995/07/18 16:38:44 mark Exp $
  */
 
+#if 0
 #ifndef lint
 static char rcsid[] =
-"$Id: get_tf_realm.c,v 1.1.1.1 1994/09/30 14:50:00 csgr Exp $";
+"$Id: get_tf_realm.c,v 1.3 1995/07/18 16:38:44 mark Exp $";
 #endif /* lint */
+#endif
 
 #include <krb.h>
 #include <strings.h>
@@ -26,9 +28,7 @@ static char rcsid[] =
  *
  */
 
-krb_get_tf_realm(ticket_file, realm)
-  char *ticket_file;
-  char *realm;
+int krb_get_tf_realm(char *ticket_file, char *realm)
 {
     return(krb_get_tf_fullname(ticket_file, 0, 0, realm));
 }

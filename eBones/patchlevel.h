@@ -1,5 +1,5 @@
 /*-
- *	$Id: patchlevel.h,v 1.2 1994/07/19 19:21:10 g89r4222 Exp $
+ *	$Id: patchlevel.h,v 1.3 1995/07/18 16:34:26 mark Exp $
  */
 
 #define PATCHLEVEL	9

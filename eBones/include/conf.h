@@ -12,7 +12,7 @@
  * /usr/include/krb.h?)
  *
  *	from: conf.h,v 4.0 89/01/23 09:58:40 jtkohl Exp $
- *	$Id: conf.h,v 1.2 1994/07/19 19:23:05 g89r4222 Exp $
+ *	$Id: conf.h,v 1.3 1995/07/18 16:36:24 mark Exp $
  */
 
 #ifndef _CONF_H_

@@ -6,13 +6,15 @@
  * This is where a cache would be implemented, if it were necessary.
  *
  *	from: krb_cache.c,v 4.5 89/01/24 18:12:34 jon Exp $
- *	$Id: krb_cache.c,v 1.1.1.1 1994/09/30 14:49:55 csgr Exp $
+ *	$Id: krb_cache.c,v 1.3 1995/07/18 16:37:12 mark Exp $
  */
 
+#if 0
 #ifndef	lint
 static char rcsid[] =
-"$Id: krb_cache.c,v 1.1.1.1 1994/09/30 14:49:55 csgr Exp $";
+"$Id: krb_cache.c,v 1.3 1995/07/18 16:37:12 mark Exp $";
 #endif	lint
+#endif
 
 #include <stdio.h>
 #include <sys/types.h>
@@ -24,8 +26,6 @@ static char rcsid[] =
 #include <des.h>
 #include <krb.h>
 #include <krb_db.h>
-
-extern char *strncpy();
 
 #ifdef DEBUG
 extern int debug;
@@ -49,15 +49,10 @@ kerb_cache_init()
  */
 
 int
-kerb_cache_get_principal(serv, inst, principal, max)
-    char   *serv;		/* could have wild card */
-    char   *inst;		/* could have wild card */
-    Principal *principal;
-    unsigned int max;		/* max number of name structs to return */
-
+kerb_cache_get_principal(char *serv, char *inst, Principal *principal,
+    unsigned int max)
 {
     int     found = 0;
-    u_long  i;
 
     if (!init)
 	kerb_cache_init();
@@ -70,7 +65,7 @@ kerb_cache_get_principal(serv, inst, principal, max)
 #ifdef DEBUG
     if (kerb_debug & 2) {
 	if (found) {
-	    fprintf(stderr, "cache get %s %s found %s %s sid = %d\n",
+	    fprintf(stderr, "cache get %s %s found %s %s\n",
 		serv, inst, principal->name, principal->instance);
 	} else {
 	    fprintf(stderr, "cache %s %s not found\n", serv,
@@ -87,13 +82,8 @@ kerb_cache_get_principal(serv, inst, principal, max)
  */
 
 int
-kerb_cache_put_principal(principal, max)
-    Principal *principal;
-    unsigned int max;		/* max number of principal structs to
-				 * insert */
-
+kerb_cache_put_principal(Principal *principal, unsigned int max)
 {
-    int     found = 0;
     u_long  i;
     int     count = 0;
 
@@ -125,15 +115,9 @@ kerb_cache_put_principal(principal, max)
  */
 
 int
-kerb_cache_get_dba(serv, inst, dba, max)
-    char   *serv;		/* could have wild card */
-    char   *inst;		/* could have wild card */
-    Dba    *dba;
-    unsigned int max;		/* max number of name structs to return */
-
+kerb_cache_get_dba(char *serv, char *inst, Dba *dba, unsigned int max)
 {
     int     found = 0;
-    u_long  i;
 
     if (!init)
 	kerb_cache_init();
@@ -147,7 +131,7 @@ kerb_cache_get_dba(serv, inst, dba, max)
 #ifdef DEBUG
     if (kerb_debug & 2) {
 	if (found) {
-	    fprintf(stderr, "cache get %s %s found %s %s sid = %d\n",
+	    fprintf(stderr, "cache get %s %s found %s %s\n",
 		serv, inst, dba->name, dba->instance);
 	} else {
 	    fprintf(stderr, "cache %s %s not found\n", serv, inst);
@@ -162,12 +146,8 @@ kerb_cache_get_dba(serv, inst, dba, max)
  */
 
 int
-kerb_cache_put_dba(dba, max)
-    Dba    *dba;
-    unsigned int max;		/* max number of dba structs to insert */
-
+kerb_cache_put_dba(Dba *dba, unsigned int max)
 {
-    int     found = 0;
     u_long  i;
     int     count = 0;
 
@@ -190,4 +170,3 @@ kerb_cache_put_dba(dba, max)
     }
     return count;
 }
-

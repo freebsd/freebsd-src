@@ -7,14 +7,14 @@
  * Support functions for Kerberos administration server & clients
  */
 
-#ifndef	lint
 #if 0
+#ifndef	lint
 static char rcsid_kadm_supp_c[] =
 "Header: /afs/athena.mit.edu/astaff/project/kerberos/src/lib/kadm/RCS/kadm_supp.c,v 4.1 89/09/26 09:21:07 jtkohl Exp ";
-#endif
 static const char rcsid[] =
-	"$Id: kadm_supp.c,v 1.1 1995/01/20 02:02:54 wollman Exp $";
+	"$Id: kadm_supp.c,v 1.1 1995/07/18 16:40:28 mark Exp $";
 #endif	lint
+#endif
 
 /*
   kadm_supp.c
@@ -26,6 +26,8 @@ static const char rcsid[] =
            structure
 */
 
+#include <time.h>
+#include <string.h>
 #include "kadm.h"
 #include "krb_db.h"
 
@@ -33,19 +35,17 @@ static const char rcsid[] =
 prin_vals:
   recieves    : a vals structure
 */
-prin_vals(vals)
-Kadm_vals *vals;
+void prin_vals(Kadm_vals *vals)
 {
    printf("Info in Database for %s.%s:\n", vals->name, vals->instance);
    printf("   Max Life: %d   Exp Date: %s\n",vals->max_life,
 	  asctime(localtime((long *)&vals->exp_date)));
-   printf("   Attribs: %.2x  key: %u %u\n",vals->attributes,
+   printf("   Attribs: %.2x  key: %lu %lu\n",vals->attributes,
 	  vals->key_low, vals->key_high);
 }
 
 #ifdef notdef
-nierror(s)
-int s;
+int nierror(int s)
 {
     extern char *error_message();
     printf("Kerberos admin server loses..... %s\n",error_message(s));
@@ -57,10 +57,7 @@ int s;
    it copies the fields in Principal specified by fields into Kadm_vals,
    i.e from old to new */
 
-kadm_prin_to_vals(fields, new, old)
-u_char fields[FLDSZ];
-Kadm_vals *new;
-Principal *old;
+void kadm_prin_to_vals(u_char fields[], Kadm_vals *new, Principal *old)
 {
   bzero((char *)new, sizeof(*new));
   if (IS_FIELD(KADM_NAME,fields)) {
@@ -90,10 +87,7 @@ Principal *old;
   }
 }
 
-kadm_vals_to_prin(fields, new, old)
-u_char fields[FLDSZ];
-Principal *new;
-Kadm_vals *old;
+void kadm_vals_to_prin(u_char fields[], Principal *new, Kadm_vals *old)
 {
 
   bzero((char *)new, sizeof(*new));

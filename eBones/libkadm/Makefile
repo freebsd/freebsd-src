@@ -1,9 +1,9 @@
-#	$Id$
+#	$Id: Makefile,v 1.1 1995/07/18 16:40:20 mark Exp $
 
 LIB=	kadm
 
 SRCS=	kadm_err.c kadm_stream.c kadm_supp.c kadm_cli_wrap.c
-CFLAGS+=	-I. -I${.CURDIR} -I${.CURDIR}/../include -I${KRBOBJDIR} -DPOSIX
+CFLAGS+=	-I. -I${.CURDIR} -I${.CURDIR}/../include -I${KRBOBJDIR} -DPOSIX -Wall
 CLEANFILES+=	kadm_err.c kadm_err.h
 
 kadm_err.c kadm_err.h:	kadm_err.et

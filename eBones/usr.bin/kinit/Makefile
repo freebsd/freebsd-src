@@ -1,5 +1,5 @@
 #	From: @(#)Makefile	5.1 (Berkeley) 6/25/90
-#	$Id: Makefile,v 1.2 1994/07/19 19:24:31 g89r4222 Exp $
+#	$Id: Makefile,v 1.3 1995/07/18 16:37:53 mark Exp $
 
 PROG=	kinit
 CFLAGS+=-DKERBEROS -DDEBUG -I${.CURDIR}/../include -DBSD42
