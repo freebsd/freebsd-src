@@ -81,6 +81,7 @@ static int	  int64width(int64_t);
 static char	 *makenetvfslist(void);
 static void	  prthuman(const struct statfs *, int64_t);
 static void	  prthumanval(int64_t);
+static intmax_t	  fsbtoblk(int64_t, uint64_t, u_long);
 static void	  prtstat(struct statfs *, struct maxwidths *);
 static size_t	  regetmntinfo(struct statfs **, long, const char **);
 static void	  update_maxwidths(struct maxwidths *, const struct statfs *);
@@ -345,10 +346,15 @@ prthumanval(int64_t bytes)
  * Convert statfs returned file system size into BLOCKSIZE units.
  * Attempts to avoid overflow for large file systems.
  */
-#define fsbtoblk(num, fsbs, bs) \
-	(((fsbs) != 0 && (fsbs) < (bs)) ? \
-		(num) / (intmax_t)((bs) / (fsbs)) : \
-		(num) * (intmax_t)((fsbs) / (bs)))
+static intmax_t
+fsbtoblk(int64_t num, uint64_t fsbs, u_long bs)
+{
+
+	if (fsbs != 0 && fsbs < bs)
+		return (num / (intmax_t)(bs / fsbs));
+	else
+		return (num * (intmax_t)(fsbs / bs));
+}
 
 /*
  * Print out status about a file system.
@@ -392,11 +398,10 @@ prtstat(struct statfs *sfsp, struct maxwidths *mwp)
 		prthuman(sfsp, used);
 	} else {
 		(void)printf(" %*jd %*jd %*jd",
-		    mwp->total, (intmax_t)fsbtoblk(sfsp->f_blocks,
+		    mwp->total, fsbtoblk(sfsp->f_blocks,
 		    sfsp->f_bsize, blocksize),
-		    mwp->used, (intmax_t)fsbtoblk(used, sfsp->f_bsize,
-		    blocksize),
-		    mwp->avail, (intmax_t)fsbtoblk(sfsp->f_bavail,
+		    mwp->used, fsbtoblk(used, sfsp->f_bsize, blocksize),
+		    mwp->avail, fsbtoblk(sfsp->f_bavail,
 		    sfsp->f_bsize, blocksize));
 	}
 	(void)printf(" %5.0f%%",
