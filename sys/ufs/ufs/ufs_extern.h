@@ -31,15 +31,14 @@
  * SUCH DAMAGE.
  *
  *	@(#)ufs_extern.h	8.3 (Berkeley) 4/16/94
- * $Id: ufs_extern.h,v 1.4 1994/09/22 19:38:40 wollman Exp $
+ * $Id: ufs_extern.h,v 1.5 1994/10/27 20:45:13 jkh Exp $
  */
 
-#ifndef _UFS_UFS_UFS_EXTERN_H_
-#define _UFS_UFS_UFS_EXTERN_H_
+#ifndef _UFS_UFS_EXTERN_H_
+#define	_UFS_UFS_EXTERN_H_
 
 struct buf;
 struct direct;
-struct disklabel;
 struct fid;
 struct flock;
 struct inode;
@@ -118,4 +117,4 @@ int	ufsfifo_write __P((struct vop_write_args *));
 int	ufsfifo_close __P((struct vop_close_args *));
 __END_DECLS
 
-#endif
+#endif /* !_UFS_UFS_EXTERN_H_ */
