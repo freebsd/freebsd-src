@@ -108,7 +108,7 @@ main(argc, argv)
 	char *host;
 	int estat;
 
-	while ((ch = getopt(argc, argv, "ade3")) != EOF)
+	while ((ch = getopt(argc, argv, "ade3")) != -1)
 		switch((char)ch) {
 		case 'a':
 			if (type == 0) {
@@ -325,7 +325,7 @@ xdr_exports(xdrsp, exp)
 
 usage()
 {
-	fprintf(stderr, "usage: showmount [-ade] host\n");
+	fprintf(stderr, "usage: showmount [-ade3] host\n");
 	exit(1);
 }
 
