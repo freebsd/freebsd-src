@@ -68,8 +68,12 @@ char *Editor = EDITOR_DFLT;
 List *root_directories = NULL;
 
 /* We step through the above values.  This variable is set to reflect
-   the currently active value. */
-char *current_root = NULL;
+ * the currently active value.
+ *
+ * Now static.  FIXME - this variable should be removable (well, localizable)
+ * with a little more work.
+ */
+static char *current_root = NULL;
 
 
 static const struct cmd
@@ -100,47 +104,50 @@ static const struct cmd
     char *nick2;
     
     int (*func) ();		/* Function takes (argc, argv) arguments. */
+    unsigned long attr;		/* Attributes. */
 } cmds[] =
 
 {
-    { "add",      "ad",       "new",       add },
-    { "admin",    "adm",      "rcs",       admin },
-    { "annotate", "ann",      NULL,        annotate },
-    { "checkout", "co",       "get",       checkout },
-    { "commit",   "ci",       "com",       commit },
-    { "diff",     "di",       "dif",       diff },
-    { "edit",     NULL,	      NULL,	   edit },
-    { "editors",  NULL,       NULL,	   editors },
-    { "export",   "exp",      "ex",        checkout },
-    { "history",  "hi",       "his",       history },
-    { "import",   "im",       "imp",       import },
-    { "init",     NULL,       NULL,        init },
+    { "add",      "ad",       "new",       add,       CVS_CMD_MODIFIES_REPOSITORY | CVS_CMD_USES_WORK_DIR },
+    { "admin",    "adm",      "rcs",       admin,     CVS_CMD_MODIFIES_REPOSITORY | CVS_CMD_USES_WORK_DIR },
+    { "annotate", "ann",      NULL,        annotate,  CVS_CMD_USES_WORK_DIR },
+    { "checkout", "co",       "get",       checkout,  0 },
+    { "commit",   "ci",       "com",       commit,    CVS_CMD_MODIFIES_REPOSITORY | CVS_CMD_USES_WORK_DIR },
+    { "diff",     "di",       "dif",       diff,      CVS_CMD_USES_WORK_DIR },
+    { "edit",     NULL,       NULL,        edit,      CVS_CMD_MODIFIES_REPOSITORY | CVS_CMD_USES_WORK_DIR },
+    { "editors",  NULL,       NULL,        editors,   CVS_CMD_USES_WORK_DIR },
+    { "export",   "exp",      "ex",        checkout,  CVS_CMD_USES_WORK_DIR },
+    { "history",  "hi",       "his",       history,   CVS_CMD_USES_WORK_DIR },
+    { "import",   "im",       "imp",       import,    CVS_CMD_MODIFIES_REPOSITORY | CVS_CMD_USES_WORK_DIR | CVS_CMD_IGNORE_ADMROOT},
+    { "init",     NULL,       NULL,        init,      CVS_CMD_MODIFIES_REPOSITORY },
 #if defined (HAVE_KERBEROS) && defined (SERVER_SUPPORT)
-    { "kserver",  NULL,       NULL,        server }, /* placeholder */
+    { "kserver",  NULL,       NULL,        server,    CVS_CMD_MODIFIES_REPOSITORY | CVS_CMD_USES_WORK_DIR }, /* placeholder */
 #endif
-    { "log",      "lo",       "rlog",      cvslog },
+    { "log",      "lo",       NULL,        cvslog,    CVS_CMD_USES_WORK_DIR },
 #ifdef AUTH_CLIENT_SUPPORT
-    { "login",    "logon",    "lgn",       login },
-    { "logout",   NULL,       NULL,        logout },
+    { "login",    "logon",    "lgn",       login,     0 },
+    { "logout",   NULL,       NULL,        logout,    0 },
 #endif /* AUTH_CLIENT_SUPPORT */
 #if (defined(AUTH_SERVER_SUPPORT) || defined (HAVE_GSSAPI)) && defined(SERVER_SUPPORT)
-    { "pserver",  NULL,       NULL,        server }, /* placeholder */
+    { "pserver",  NULL,       NULL,        server,    CVS_CMD_MODIFIES_REPOSITORY | CVS_CMD_USES_WORK_DIR }, /* placeholder */
 #endif
-    { "rdiff",    "patch",    "pa",        patch },
-    { "release",  "re",       "rel",       release },
-    { "remove",   "rm",       "delete",    cvsremove },
-    { "rtag",     "rt",       "rfreeze",   rtag },
+    { "rannotate","rann",     "ra",        annotate,  0 },
+    { "rdiff",    "patch",    "pa",        patch,     0 },
+    { "release",  "re",       "rel",       release,   0 },
+    { "remove",   "rm",       "delete",    cvsremove, CVS_CMD_MODIFIES_REPOSITORY | CVS_CMD_USES_WORK_DIR },
+    { "rlog",     "rl",       NULL,        cvslog,    0 },
+    { "rtag",     "rt",       "rfreeze",   cvstag,    CVS_CMD_MODIFIES_REPOSITORY },
 #ifdef SERVER_SUPPORT
-    { "server",   NULL,       NULL,        server },
+    { "server",   NULL,       NULL,        server,    CVS_CMD_MODIFIES_REPOSITORY | CVS_CMD_USES_WORK_DIR },
 #endif
-    { "status",   "st",       "stat",      cvsstatus },
-    { "tag",      "ta",       "freeze",    cvstag },
-    { "unedit",   NULL,	      NULL,	   unedit },
-    { "update",   "up",       "upd",       update },
-    { "version",  "ve",       "ver",       version },
-    { "watch",    NULL,	      NULL,	   watch },
-    { "watchers", NULL,	      NULL,	   watchers },
-    { NULL, NULL, NULL, NULL },
+    { "status",   "st",       "stat",      cvsstatus, CVS_CMD_USES_WORK_DIR },
+    { "tag",      "ta",       "freeze",    cvstag,    CVS_CMD_MODIFIES_REPOSITORY | CVS_CMD_USES_WORK_DIR },
+    { "unedit",   NULL,       NULL,        unedit,    CVS_CMD_MODIFIES_REPOSITORY | CVS_CMD_USES_WORK_DIR },
+    { "update",   "up",       "upd",       update,    CVS_CMD_USES_WORK_DIR },
+    { "version",  "ve",       "ver",       version,   0 },
+    { "watch",    NULL,       NULL,        watch,     CVS_CMD_MODIFIES_REPOSITORY | CVS_CMD_USES_WORK_DIR },
+    { "watchers", NULL,       NULL,        watchers,  CVS_CMD_USES_WORK_DIR },
+    { NULL, NULL, NULL, NULL, 0 },
 };
 
 static const char *const usg[] =
@@ -215,9 +222,11 @@ static const char *const cmd_usage[] =
 #if (defined(AUTH_SERVER_SUPPORT) || defined (HAVE_GSSAPI)) && defined(SERVER_SUPPORT)
     "        pserver      Password server mode\n",
 #endif
+    "        rannotate    Show last revision where each line of module was modified\n",
     "        rdiff        Create 'patch' format diffs between releases\n",
     "        release      Indicate that a Module is no longer in use\n",
     "        remove       Remove an entry from the repository\n",
+    "        rlog         Print out history information for a module\n",
     "        rtag         Add a symbolic tag to a module\n",
 #ifdef SERVER_SUPPORT
     "        server       Server mode\n",
@@ -226,6 +235,7 @@ static const char *const cmd_usage[] =
     "        tag          Add a symbolic tag to checked out version of files\n",
     "        unedit       Undo an edit command\n",
     "        update       Bring work tree in sync with repository\n",
+    "        version      Show current CVS version(s)\n",
     "        watch        Set watches\n",
     "        watchers     See who is watching a file\n",
     "(Specify the --help option for a list of other help options)\n",
@@ -321,51 +331,14 @@ unsigned long int
 lookup_command_attribute (cmd_name)
      char *cmd_name;
 {
-    unsigned long int ret = 0;
+    const struct cmd *cm;
 
-    if (strcmp (cmd_name, "import") != 0)
+    for (cm = cmds; cm->fullname; cm++)
     {
-        ret |= CVS_CMD_IGNORE_ADMROOT;
+	if (strcmp (cmd_name, cm->fullname) == 0)
+	    break;
     }
-
-
-    /* The following commands do not use a checked-out working
-       directory.  We conservatively assume that everything else does.
-       Feel free to add to this list if you are _certain_ something
-       something doesn't use the WD. */
-    if ((strcmp (cmd_name, "checkout") != 0) &&
-        (strcmp (cmd_name, "init") != 0) &&
-        (strcmp (cmd_name, "login") != 0) &&
-	(strcmp (cmd_name, "logout") != 0) &&
-        (strcmp (cmd_name, "rdiff") != 0) &&
-        (strcmp (cmd_name, "release") != 0) &&
-        (strcmp (cmd_name, "rtag") != 0))
-    {
-        ret |= CVS_CMD_USES_WORK_DIR;
-    }
-
-
-    /* The following commands do not modify the repository; we
-       conservatively assume that everything else does.  Feel free to
-       add to this list if you are _certain_ something is safe. */
-    if ((strcmp (cmd_name, "annotate") != 0) &&
-        (strcmp (cmd_name, "checkout") != 0) &&
-        (strcmp (cmd_name, "diff") != 0) &&
-        (strcmp (cmd_name, "rdiff") != 0) &&
-        (strcmp (cmd_name, "update") != 0) &&
-        (strcmp (cmd_name, "editors") != 0) &&
-        (strcmp (cmd_name, "export") != 0) &&
-        (strcmp (cmd_name, "history") != 0) &&
-        (strcmp (cmd_name, "log") != 0) &&
-        (strcmp (cmd_name, "noop") != 0) &&
-        (strcmp (cmd_name, "watchers") != 0) &&
-        (strcmp (cmd_name, "release") != 0) &&
-        (strcmp (cmd_name, "status") != 0))
-    {
-        ret |= CVS_CMD_MODIFIES_REPOSITORY;
-    }
-
-    return ret;
+    return cm->attr;
 }
 
 
@@ -593,7 +566,7 @@ main (argc, argv)
 		version (0, (char **) NULL);    
 		(void) fputs ("\n", stdout);
 		(void) fputs ("\
-Copyright (c) 1989-2000 Brian Berliner, david d `zoo' zuhn, \n\
+Copyright (c) 1989-2001 Brian Berliner, david d `zoo' zuhn, \n\
                         Jeff Polk, and other authors\n", stdout);
 		(void) fputs ("\n", stdout);
 		(void) fputs ("CVS may be copied only under the terms of the GNU General Public License,\n", stdout);
@@ -624,6 +597,8 @@ Copyright (c) 1989-2000 Brian Berliner, david d `zoo' zuhn, \n\
 		if (CVSroot_cmdline != NULL)
 		    free (CVSroot_cmdline);
 		CVSroot_cmdline = xstrdup (optarg);
+		if (free_CVSroot)
+		    free (CVSroot);
 		CVSroot = xstrdup (optarg);
 		free_CVSroot = 1;
 		cvs_update_env = 1;	/* need to update environment */
@@ -703,15 +678,6 @@ Copyright (c) 1989-2000 Brian Berliner, david d `zoo' zuhn, \n\
     }
     else
 	command_name = cm->fullname;	/* Global pointer for later use */
-
-    /* This should probably remain a warning, rather than an error,
-       for quite a while.  For one thing the version of VC distributed
-       with GNU emacs 19.34 invokes 'cvs rlog' instead of 'cvs log'.  */
-    if (strcmp (argv[0], "rlog") == 0)
-    {
-	error (0, 0, "warning: the rlog command is deprecated");
-	error (0, 0, "use the synonymous log command instead");
-    }
 
     if (help)
     {
@@ -867,8 +833,7 @@ Copyright (c) 1989-2000 Brian Berliner, david d `zoo' zuhn, \n\
 	       specify a different repository than the one we are
 	       importing to.  */
 
-	    if ((lookup_command_attribute (command_name)
-		 & CVS_CMD_IGNORE_ADMROOT)
+	    if (!(cm->attr & CVS_CMD_IGNORE_ADMROOT)
 
 		/* -d overrides CVS/Root, so don't give an error if the
 		   latter points to a nonexistent repository.  */
@@ -960,25 +925,29 @@ Copyright (c) 1989-2000 Brian Berliner, david d `zoo' zuhn, \n\
 		   variable.  Parse it to see if we're supposed to do
 		   remote accesses or use a special access method. */
 
-		if (parse_cvsroot (current_root))
+		if (current_parsed_root != NULL)
+		    free_cvsroot_t (current_parsed_root);
+		if ((current_parsed_root = parse_cvsroot (current_root)) == NULL)
 		    error (1, 0, "Bad CVSROOT.");
 
 		if (trace)
-		    error (0, 0, "notice: main loop with CVSROOT=%s",
-			   current_root);
+		    fprintf (stderr, "%s-> main loop with CVSROOT=%s\n",
+			   CLIENT_SERVER_STR, current_root);
 
 		/*
 		 * Check to see if the repository exists.
 		 */
-		if (!client_active)
+#ifdef CLIENT_SUPPORT
+		if (!current_parsed_root->isremote)
+#endif	/* CLIENT_SUPPORT */
 		{
 		    char *path;
 		    int save_errno;
 
-		    path = xmalloc (strlen (CVSroot_directory)
+		    path = xmalloc (strlen (current_parsed_root->directory)
 				    + sizeof (CVSROOTADM)
-				    + 20);
-		    (void) sprintf (path, "%s/%s", CVSroot_directory, CVSROOTADM);
+				    + 2);
+		    (void) sprintf (path, "%s/%s", current_parsed_root->directory, CVSROOTADM);
 		    if (!isaccessible (path, R_OK | X_OK))
 		    {
 			save_errno = errno;
@@ -1023,7 +992,7 @@ Copyright (c) 1989-2000 Brian Berliner, david d `zoo' zuhn, \n\
 		&& !server_active
 #endif
 #ifdef CLIENT_SUPPORT
-		&& !client_active
+		&& !current_parsed_root->isremote
 #endif
 		)
 	    {
@@ -1031,14 +1000,18 @@ Copyright (c) 1989-2000 Brian Berliner, david d `zoo' zuhn, \n\
 		   already printed an error.  We keep going.  Why?  Because
 		   if we didn't, then there would be no way to check in a new
 		   CVSROOT/config file to fix the broken one!  */
-		parse_config (CVSroot_directory);
+		parse_config (current_parsed_root->directory);
 
 		/* Now is a convenient time to read CVSROOT/options */
-		parseopts(CVSroot_directory);
+		parseopts(current_parsed_root->directory);
 	    }
 
 #ifdef CLIENT_SUPPORT
-	    if (client_active)
+	    /* Need to check for current_parsed_root != NULL here since
+	     * we could still be in server mode before the server function
+	     * gets called below and sets the root
+	     */
+	    if (current_parsed_root != NULL && current_parsed_root->isremote)
 	    {
 		/* Create a new list for directory names that we've
 		   sent to the server. */
@@ -1156,31 +1129,55 @@ date_from_time_t (unixtime)
 void
 date_to_internet (dest, source)
     char *dest;
-    char *source;
+    const char *source;
 {
-    int year, month, day, hour, minute, second;
+    struct tm date;
 
-    /* Just to reiterate, these strings are from RFC822 and do not vary
-       according to locale.  */
-    static const char *const month_names[] =
-      {"Jan", "Feb", "Mar", "Apr", "May", "Jun",
-	 "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"};
+    date_to_tm (&date, source);
+    tm_to_internet (dest, &date);
+}
 
+void
+date_to_tm (dest, source)
+    struct tm *dest;
+    const char *source;
+{
     if (sscanf (source, SDATEFORM,
-		&year, &month, &day, &hour, &minute, &second)
-	!= 6)
+		&dest->tm_year, &dest->tm_mon, &dest->tm_mday,
+		&dest->tm_hour, &dest->tm_min, &dest->tm_sec)
+	    != 6)
 	/* Is there a better way to handle errors here?  I made this
 	   non-fatal in case we are called from the code which can't
 	   deal with fatal errors.  */
 	error (0, 0, "internal error: bad date %s", source);
 
-    /* Always send a four digit year.  */
-    if (year < 100)
-	year += 1900;
+    if (dest->tm_year > 100)
+	dest->tm_year -= 1900;
 
-    sprintf (dest, "%d %s %d %02d:%02d:%02d -0000", day,
-	     month < 1 || month > 12 ? "???" : month_names[month - 1],
-	     year, hour, minute, second);
+    dest->tm_mon -= 1;
+}
+
+/* Convert a date to RFC822/1123 format.  This is used in contexts like
+   dates to send in the protocol; it should not vary based on locale or
+   other such conventions for users.  We should have another routine which
+   does that kind of thing.
+
+   The SOURCE date is a pointer to a struct tm.  DEST should point to
+   storage managed by the caller, at least MAXDATELEN characters.  */
+void
+tm_to_internet (dest, source)
+    char *dest;
+    const struct tm *source;
+{
+    /* Just to reiterate, these strings are from RFC822 and do not vary
+       according to locale.  */
+    static const char *const month_names[] =
+      {"Jan", "Feb", "Mar", "Apr", "May", "Jun",
+	 "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"};
+    
+    sprintf (dest, "%d %s %d %02d:%02d:%02d -0000", source->tm_mday,
+	     source->tm_mon < 0 || source->tm_mon > 11 ? "???" : month_names[source->tm_mon],
+	     source->tm_year + 1900, source->tm_hour, source->tm_min, source->tm_sec);
 }
 
 void

@@ -11,6 +11,9 @@
  * the Entries file.
  */
 
+/*
+ * $FreeBSD$
+ */
 #include "cvs.h"
 #include "getline.h"
 
@@ -381,7 +384,9 @@ fgetentent(fpin, cmd, sawdir)
 	    if (strlen (ts) > 30 && CVS_STAT (user, &sb) == 0)
 	    {
 		char *c = ctime (&sb.st_mtime);
-		
+		/* Fix non-standard format.  */
+		if (c[8] == '0') c[8] = ' ';
+
 		if (!strncmp (ts + 25, c, 24))
 		    ts = time_stamp (user);
 		else

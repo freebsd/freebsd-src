@@ -13,13 +13,13 @@ doc/*.ps
 doc/*.info*
 doc/*.aux*
 doc/CVSvn.texi
+doc/texinfo.tex
 lib/getdate.c
 cvsnt.*
-cvs.spec
+cvs.spec*
 build.com
 */*.com
 */*.dsp
-.cvsignore
 */.cvsignore
 README.VMS
 

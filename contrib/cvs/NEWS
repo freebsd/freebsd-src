@@ -1,3 +1,45 @@
+Changes since 1.11.1:
+
+* Read only access was broken - now fixed.
+
+Changes since 1.11:
+
+* There was a bug in the diff code which caused conflicts to be flagged which shouldn't
+have been.  This has been fixed.
+
+* New "cvs rlog" and "cvs rannotate" commands have been added to get log
+messages and annotations without having to have a checked-out copy.
+
+* The VMS client now accepts wildcards if you're running VMS 7.x.
+
+* ZLIB has been updated to version 1.1.3, the most current version.  This
+includes mostly some optimizations and minor bug fixes.
+
+* The ~/.cvspass file has a slightly modified format.  CVSROOTs are now
+stored in a new canonical form - hostnames are now case insensitive and port
+numbers are always stored in the new format.  Until a new login for a
+particular CVSROOT is performed with the new version of CVS, new and old
+versions of CVS should interoperate invisibly.  After that point, an extra login
+using the old version of CVS may be necessary to continue to allow the new and
+old versions of CVS to interoperate using the same ~/.cvspass file and CVSROOT.
+The exception to this rule occurs when the CVSROOTs used with the different
+versions use case insensitively different hostnames, for example, "empress",
+and "empress.2-wit.com".
+
+* A password and a port number may now be specified in CVSROOT for pserver
+connections.  The new format is:
+
+    :pserver:[[user][:password]@]host[:[port]]/path
+
+Note that passwords specified in a checkout command will be saved in the clear
+in the CVS/Root file in each created directory, so this is not recommended,
+except perhaps when accessing anonymous repositories or the like.
+
+* The distribution has been converted to use Automake.  This shouldn't affect
+most users except to ease some portability concerns, but if you are building
+from the repository and encounter problems with the makefiles, you might try
+running ./noautoconf.sh after a fresh update -AC.
+
 Changes since 1.10:
 
 * The new "cvs version" command gives a short version message.  If

@@ -77,7 +77,7 @@ cvsremove (argc, argv)
     wrap_setup ();
 
 #ifdef CLIENT_SUPPORT
-    if (client_active) {
+    if (current_parsed_root->isremote) {
 	/* Call expand_wild so that the local removal of files will
            work.  It's ok to do it always because we have to send the
            file names expanded anyway.  */
@@ -115,7 +115,7 @@ cvsremove (argc, argv)
 			   argc, argv,
                            local, W_LOCAL, 0, 1, (char *) NULL, 1);
 
-    if (removed_files)
+    if (removed_files && !really_quiet)
 	error (0, 0, "use '%s commit' to remove %s permanently", program_name,
 	       (removed_files == 1) ? "this file" : "these files");
 

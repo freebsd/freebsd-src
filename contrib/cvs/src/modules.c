@@ -65,14 +65,15 @@ open_module ()
     char *mfile;
     DBM *retval;
 
-    if (CVSroot_original == NULL)
+    if (current_parsed_root == NULL)
     {
 	error (0, 0, "must set the CVSROOT environment variable");
 	error (1, 0, "or specify the '-d' global option");
     }
-    mfile = xmalloc (strlen (CVSroot_directory) + sizeof (CVSROOTADM)
-		     + sizeof (CVSROOTADM_MODULES) + 20);
-    (void) sprintf (mfile, "%s/%s/%s", CVSroot_directory,
+    mfile = xmalloc (strlen (current_parsed_root->directory)
+		     + sizeof (CVSROOTADM)
+		     + sizeof (CVSROOTADM_MODULES) + 3);
+    (void) sprintf (mfile, "%s/%s/%s", current_parsed_root->directory,
 		    CVSROOTADM, CVSROOTADM_MODULES);
     retval = dbm_open (mfile, O_RDONLY, 0666);
     free (mfile);
@@ -96,8 +97,8 @@ close_module (db)
  * It runs the post checkout or post tag proc from the modules file
  */
 int
-do_module (db, mname, m_type, msg, callback_proc, where,
-	   shorten, local_specified, run_module_prog, extra_arg)
+do_module (db, mname, m_type, msg, callback_proc, where, shorten,
+	   local_specified, run_module_prog, build_dirs, extra_arg)
     DBM *db;
     char *mname;
     enum mtype m_type;
@@ -107,6 +108,7 @@ do_module (db, mname, m_type, msg, callback_proc, where,
     int shorten;
     int local_specified;
     int run_module_prog;
+    int build_dirs;
     char *extra_arg;
 {
     char *checkin_prog = NULL;
@@ -211,19 +213,21 @@ do_module (db, mname, m_type, msg, callback_proc, where,
 	int is_found = 0;
 
 	/* check to see if mname is a directory or file */
-	file = xmalloc (strlen (CVSroot_directory) + strlen (mname) + 10);
-	(void) sprintf (file, "%s/%s", CVSroot_directory, mname);
-	attic_file = xmalloc (strlen (CVSroot_directory) + strlen (mname)
-			      + sizeof (CVSATTIC) + sizeof (RCSEXT) + 15);
+	file = xmalloc (strlen (current_parsed_root->directory)
+			+ strlen (mname) + sizeof(RCSEXT) + 2);
+	(void) sprintf (file, "%s/%s", current_parsed_root->directory, mname);
+	attic_file = xmalloc (strlen (current_parsed_root->directory)
+			      + strlen (mname)
+			      + sizeof (CVSATTIC) + sizeof (RCSEXT) + 3);
 	if ((acp = strrchr (mname, '/')) != NULL)
 	{
 	    *acp = '\0';
-	    (void) sprintf (attic_file, "%s/%s/%s/%s%s", CVSroot_directory,
+	    (void) sprintf (attic_file, "%s/%s/%s/%s%s", current_parsed_root->directory,
 			    mname, CVSATTIC, acp + 1, RCSEXT);
 	    *acp = '/';
 	}
 	else
-	    (void) sprintf (attic_file, "%s/%s/%s%s", CVSroot_directory,
+	    (void) sprintf (attic_file, "%s/%s/%s%s", current_parsed_root->directory,
 			    CVSATTIC, mname, RCSEXT);
 
 	if (isdir (file))
@@ -400,7 +404,7 @@ do_module (db, mname, m_type, msg, callback_proc, where,
      */
 
     /* Put the value on a line with XXX prepended for getopt to eat */
-    line = xmalloc (strlen (value) + 10);
+    line = xmalloc (strlen (value) + 5);
     strcpy(line, "XXX ");
     strcpy(line + 4, value);
 
@@ -502,7 +506,7 @@ do_module (db, mname, m_type, msg, callback_proc, where,
 	    else
 		err += do_module (db, modargv[i], m_type, msg, callback_proc,
 				  where, shorten, local_specified,
-				  run_module_prog, extra_arg);
+				  run_module_prog, build_dirs, extra_arg);
 	}
 	goto do_module_return;
     }
@@ -530,9 +534,7 @@ module `%s' is a request for a file in a module which is not a directory",
 	 */
 	char *dir;
 
-	/* XXX - XXX - MAJOR HACK - DO NOT SHIP - this needs to
-	   be !pipeout, but we don't know that here yet */
-	if (!run_module_prog)
+	if (!build_dirs)
 	    goto do_special;
 
 	dir = where ? where : (mwhere ? mwhere : mname);
@@ -643,7 +645,7 @@ module `%s' is a request for a file in a module which is not a directory",
 	else
 	    err += do_module (db, spec_opt, m_type, msg, callback_proc,
 			      (char *) NULL, 0, local_specified,
-			      run_module_prog, extra_arg);
+			      run_module_prog, build_dirs, extra_arg);
 	spec_opt = next_opt;
     }
 

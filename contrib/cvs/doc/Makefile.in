@@ -1,6 +1,20 @@
-# Makefile for GNU CVS documentation.
-# Do not use this makefile directly, but only from `../Makefile'.
-# Copyright (C) 1986, 1988-1990 Free Software Foundation, Inc.
+# Makefile.in generated automatically by automake 1.4e from Makefile.am.
+
+# Copyright 1994, 1995, 1996, 1997, 1998, 1999, 2000, 2001
+# Free Software Foundation, Inc.
+# This Makefile.in is free software; the Free Software Foundation
+# gives unlimited permission to copy and/or distribute it,
+# with or without modifications, as long as this notice is preserved.
+
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY, to the extent permitted by law; without
+# even the implied warranty of MERCHANTABILITY or FITNESS FOR A
+# PARTICULAR PURPOSE.
+
+@SET_MAKE@
+
+# Makefile for GNU CVS documentation (excluding man pages - see ../man).
+# Copyright (C) 1986, 1988-1990, 2000 Free Software Foundation, Inc.
 
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -12,186 +26,465 @@
 # MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
 # GNU General Public License for more details.
 
-SHELL = /bin/sh
+#DISTFILES = \
+#	.cvsignore \
+#	RCSFILES \
+
+# AUTOMAKE_OPTIONS = no-texinfo.tex
+
+# FIXME - these rebuild every 'make dist' with some BSD makes due to a bug
+# that prevents make from searching VPATH for targets.  There is some
+# machinery in place in configure.in to work around this for some targets
+# (see the CVSvn.texi target below) now, but fixing the two info_TEXINFOS
+# targets below is probably going to require work on Automake
+
+
+SHELL = @SHELL@
 
 srcdir = @srcdir@
 top_srcdir = @top_srcdir@
 VPATH = @srcdir@
-
 prefix = @prefix@
 exec_prefix = @exec_prefix@
 
+bindir = @bindir@
+sbindir = @sbindir@
+libexecdir = @libexecdir@
+datadir = @datadir@
+sysconfdir = @sysconfdir@
+sharedstatedir = @sharedstatedir@
+localstatedir = @localstatedir@
+libdir = @libdir@
 infodir = @infodir@
+mandir = @mandir@
+includedir = @includedir@
+oldincludedir = /usr/include
 
-INSTALL	= @INSTALL@
+pkgdatadir = $(datadir)/@PACKAGE@
+pkglibdir = $(libdir)/@PACKAGE@
+pkgincludedir = $(includedir)/@PACKAGE@
+
+top_builddir = ..
+
+ACLOCAL = @ACLOCAL@
+AUTOCONF = @AUTOCONF@
+AUTOMAKE = @AUTOMAKE@
+AUTOHEADER = @AUTOHEADER@
+
+INSTALL = @INSTALL@
+INSTALL_PROGRAM = @INSTALL_PROGRAM@
 INSTALL_DATA = @INSTALL_DATA@
+INSTALL_SCRIPT = @INSTALL_SCRIPT@
+INSTALL_HEADER = $(INSTALL_DATA)
+transform = @program_transform_name@
 
-DISTFILES = \
-	.cvsignore ChangeLog ChangeLog.fsf Makefile.in \
+NORMAL_INSTALL = :
+PRE_INSTALL = :
+POST_INSTALL = :
+NORMAL_UNINSTALL = :
+PRE_UNINSTALL = :
+POST_UNINSTALL = :
+AMTAR = @AMTAR@
+AWK = @AWK@
+CC = @CC@
+CSH = @CSH@
+DEPDIR = @DEPDIR@
+ETAGS = @ETAGS@
+ETAGS_INCLUDE_OPTION = @ETAGS_INCLUDE_OPTION@
+INSTALL_STRIP_PROGRAM = @INSTALL_STRIP_PROGRAM@
+INSTALL_STRIP_PROGRAM_ENV = @INSTALL_STRIP_PROGRAM_ENV@
+KRB4 = @KRB4@
+LN_S = @LN_S@
+MAKEINFO = @MAKEINFO@
+PACKAGE = @PACKAGE@
+PERL = @PERL@
+PR = @PR@
+PS2PDF = @PS2PDF@
+RANLIB = @RANLIB@
+ROFF = @ROFF@
+STRIP = @STRIP@
+TEXI2DVI = @TEXI2DVI@
+VERSION = @VERSION@
+YACC = @YACC@
+_am_include = @_am_include@
+_am_quote = @_am_quote@
+includeopt = @includeopt@
+install_sh = @install_sh@
+
+info_TEXINFOS = cvs.texinfo cvsclient.texi
+cvs_TEXINFOS = CVSvn.texi
+cvsclient_TEXINFOS = CVSvn.texi
+
+POSTSCRIPTS = \
+	cvs.ps \
+	cvs-paper.ps \
+	cvsclient.ps
+
+
+PDFS = \
+	cvs-paper.pdf \
+	cvs.pdf \
+	cvsclient.pdf
+
+
+TXTS = \
+	cvs.txt \
+	cvsclient.txt
+
+
+EXTRA_DIST = \
+	$(POSTSCRIPTS) \
+	.cvsignore \
+	CVSvn.texi.in \
+	ChangeLog.fsf \
 	RCSFILES \
-	cvs-paper.ms cvs-paper.ps \
-	cvs.texinfo \
-	cvsclient.texi
+	cvs-paper.ms \
+	cvs.aux \
+	cvsclient.aux
 
-OBJDIR_DISTFILES = cvs.ps cvs.info cvs.aux \
-	cvsclient.ps cvsclient.info cvsclient.aux CVSvn.texi
 
-# these are part of the texinfo distribution
-MAKEINFO=makeinfo
-TEXI2DVI = texi2dvi
+# Listing cvs.cps & cvs.fns here is a workaround for an Automake deficiency
+MOSTLYCLEANFILES = \
+	cvs.cps \
+	cvs.fns
 
-# where to find texinfo;
-TEXIDIR=${gdbdir}/../texinfo
 
-SET_TEXINPUTS = TEXINPUTS=.:$(srcdir):$$TEXINPUTS
+CLEANFILES = \
+	$(PDFS) \
+	$(TXTS)
 
-# Don Knuth's TeX formatter
-TEX = tex
 
-# auxiliary program for sorting Texinfo indices
-TEXINDEX = texindex
+MAINTAINERCLEANFILES = \
+	cvs-paper.ps
+
+
+SUFFIXES = .aux .txt .pdf
+EXEEXT =
+OBJEXT = o
+subdir = doc
+mkinstalldirs = $(SHELL) $(top_srcdir)/mkinstalldirs
+CONFIG_HEADER = $(top_builddir)/config.h $(top_builddir)/src/options.h
+CONFIG_CLEAN_FILES =
+CFLAGS = @CFLAGS@
+COMPILE = $(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) \
+	$(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS)
+CCLD = $(CC)
+LINK = $(CCLD) $(AM_CFLAGS) $(CFLAGS) $(AM_LDFLAGS) $(LDFLAGS) -o $@
+DIST_SOURCES =
+INFO_DEPS = cvs.info cvsclient.info
+DVIS = cvs.dvi cvsclient.dvi
+TEXINFOS = cvs.texinfo cvsclient.texi
+DIST_COMMON = $(cvs_TEXINFOS) $(cvsclient_TEXINFOS) ChangeLog \
+	Makefile.am Makefile.in texinfo.tex
+all: all-am
+
+.SUFFIXES:
+.SUFFIXES: .aux .txt .pdf .dvi .info .ps .texi .texinfo .txi
+
+$(srcdir)/Makefile.in:  Makefile.am  $(top_srcdir)/configure.in $(ACLOCAL_M4)
+	cd $(top_srcdir) && \
+	  $(AUTOMAKE) --gnu  doc/Makefile
+
+Makefile:  $(srcdir)/Makefile.in  $(top_builddir)/config.status
+	cd $(top_builddir) && \
+	  CONFIG_HEADERS= CONFIG_LINKS= \
+	  CONFIG_FILES=$(subdir)/$@ $(SHELL) ./config.status
+
+cvs.info: cvs.texinfo $(cvs_TEXINFOS)
+cvs.dvi: cvs.texinfo $(cvs_TEXINFOS)
+
+cvsclient.info: cvsclient.texi $(cvsclient_TEXINFOS)
+cvsclient.dvi: cvsclient.texi $(cvsclient_TEXINFOS)
+
+.texi.info:
+	@cd $(srcdir) && rm -f $@ $@-[0-9] $@-[0-9][0-9]
+	cd $(srcdir) \
+	  && $(MAKEINFO) `echo $< | sed 's,.*/,,'`
+
+.texi.dvi:
+	TEXINPUTS=$(srcdir):$$TEXINPUTS \
+	  MAKEINFO='$(MAKEINFO) -I $(srcdir)' $(TEXI2DVI) $<
+
+.texi:
+	@cd $(srcdir) && rm -f $@ $@-[0-9] $@-[0-9][0-9]
+	cd $(srcdir) \
+	  && $(MAKEINFO) `echo $< | sed 's,.*/,,'`
+
+.texinfo.info:
+	@cd $(srcdir) && rm -f $@ $@-[0-9] $@-[0-9][0-9]
+	cd $(srcdir) \
+	  && $(MAKEINFO) `echo $< | sed 's,.*/,,'`
+
+.texinfo.dvi:
+	TEXINPUTS=$(srcdir):$$TEXINPUTS \
+	  MAKEINFO='$(MAKEINFO) -I $(srcdir)' $(TEXI2DVI) $<
+
+.texinfo:
+	@cd $(srcdir) && rm -f $@ $@-[0-9] $@-[0-9][0-9]
+	cd $(srcdir) \
+	  && $(MAKEINFO) `echo $< | sed 's,.*/,,'`
 
 DVIPS = dvips
-DVIPSFLAGS = 
+.dvi.ps:
+	$(DVIPS) $< -o $@
 
-ROFF = groff
-
-# CYGNUS LOCAL: all does not depend upon info
-all:
-.PHONY: all
-
-# CYGNUS LOCAL: install does not depend on install-info
-install: all
-.PHONY: install
-
-doc: cvs.ps cvs-paper.ps cvsclient.ps
-
-info: cvs.info cvsclient.info
-
-cvs.info: cvs.texinfo CVSvn.texi
-	if [ ! -f ./CVSvn.texi ]; then \
-		ln -s $(srcdir)/CVSvn.texi . || \
-		ln $(srcdir)/CVSvn.texi . || \
-		cp $(srcdir)/CVSvn.texi . ; else true; fi
-	$(MAKEINFO) $(srcdir)/cvs.texinfo -o cvs.info
-
-cvsclient.info: cvsclient.texi CVSvn.texi
-	if [ ! -f ./CVSvn.texi ]; then \
-		ln -s $(srcdir)/CVSvn.texi . || \
-		ln $(srcdir)/CVSvn.texi . || \
-		cp $(srcdir)/CVSvn.texi . ; else true; fi
-	$(MAKEINFO) $(srcdir)/cvsclient.texi -o cvsclient.info
-
-# Version of the protocol suitable for emailing
-cvsclient.txt: cvsclient.texi CVSvn.texi
-	if [ ! -f ./CVSvn.texi ]; then \
-		ln -s $(srcdir)/CVSvn.texi . || \
-		ln $(srcdir)/CVSvn.texi . || \
-		cp $(srcdir)/CVSvn.texi . ; else true; fi
-	$(MAKEINFO) $(srcdir)/cvsclient.texi --no-headers -o cvsclient.txt
-
-# If the user gets a distribution (which contains *.info), unpacks
-# it, and builds it in a seperate build dir, then *.info* are in srcdir.
-# If the user builds *.info (e.g. after editing *.texi), then *.info* are
-# in the build dir.
-# (Note: don't solve this problem with "cd"; INSTALL_DATA might be a
-# relative path to install-sh).
-install-info: info installdirs
-	if test -f cvs.info ; then docdir=.; else docdir=$(srcdir);fi; \
-	for i in $$docdir/*.info* ; do \
-	  $(INSTALL_DATA) $$i $(infodir)/`basename $$i` ; \
+uninstall-info-am:
+	$(PRE_UNINSTALL)
+	@if $(SHELL) -c 'install-info --version | sed 1q | fgrep -s -v -i debian' >/dev/null 2>&1; then \
+	  list='$(INFO_DEPS)'; \
+	  for file in $$list; do \
+	    echo " install-info --info-dir=$(DESTDIR)$(infodir) --remove $(DESTDIR)$(infodir)/$$file"; \
+	    install-info --info-dir=$(DESTDIR)$(infodir) --remove $(DESTDIR)$(infodir)/$$file; \
+	  done; \
+	else :; fi
+	@$(NORMAL_UNINSTALL)
+	@list='$(INFO_DEPS)'; \
+	for file in $$list; do \
+	  (if cd $(DESTDIR)$(infodir); then \
+	     echo " rm -f $$file $$file-[0-9] $$file-[0-9][0-9])"; \
+	     rm -f $$file $$file-[0-9] $$file-[0-9][0-9]; \
+	   else :; fi); \
 	done
 
-installdirs: 
-	$(SHELL) $(top_srcdir)/mkinstalldirs $(infodir)
-.PHONY: installdirs
+dist-info: $(INFO_DEPS)
+	list='$(INFO_DEPS)'; \
+	for base in $$list; do \
+	  d=$(srcdir); \
+	  for file in `CDPATH=: && cd $$d && eval echo $$base*`; do \
+	    test -f $(distdir)/$$file \
+	    || cp -p $$d/$$file $(distdir)/$$file; \
+	  done; \
+	done
+
+mostlyclean-aminfo:
+	-rm -f cvs.aux cvs.cp cvs.cps cvs.dvi cvs.fn cvs.fns cvs.ky cvs.log cvs.pg \
+	  cvs.ps cvs.toc cvs.tp cvs.vr cvsclient.aux cvsclient.cp \
+	  cvsclient.dvi cvsclient.fn cvsclient.ky cvsclient.log \
+	  cvsclient.pg cvsclient.ps cvsclient.toc cvsclient.tp \
+	  cvsclient.vr
+
+maintainer-clean-aminfo:
+	cd $(srcdir) && \
+	for i in $(INFO_DEPS); do \
+	  rm -f $$i; \
+	  if test "`echo $$i-[0-9]*`" != "$$i-[0-9]*"; then \
+	    rm -f $$i-[0-9]*; \
+	  fi; \
+	done
+tags: TAGS
+TAGS:
+
+
+DISTFILES = $(DIST_COMMON) $(DIST_SOURCES) $(TEXINFOS) $(EXTRA_DIST)
+
+top_distdir = ..
+distdir = $(top_distdir)/$(PACKAGE)-$(VERSION)
+
+distdir: $(DISTFILES)
+	@for file in $(DISTFILES); do \
+	  d=$(srcdir); \
+	  if test -d $$d/$$file; then \
+	    cp -pR $$d/$$file $(distdir) \
+	    || exit 1; \
+	  else \
+	    test -f $(distdir)/$$file \
+	    || cp -p $$d/$$file $(distdir)/$$file \
+	    || exit 1; \
+	  fi; \
+	done
+	$(MAKE) $(AM_MAKEFLAGS) \
+	  top_distdir="${top_distdir}" distdir="$(distdir)" \
+	  dist-info
+check-am: all-am
+check: check-am
+all-am: Makefile $(INFO_DEPS)
+
+installdirs:
+	$(mkinstalldirs) $(DESTDIR)$(infodir)
+
+install: install-am
+install-exec: install-exec-am
+install-data: install-data-am
+uninstall: uninstall-am
+
+install-am: all-am
+	@$(MAKE) $(AM_MAKEFLAGS) install-exec-am install-data-am
+
+installcheck: installcheck-am
+
+install-strip:
+	$(MAKE) $(AM_MAKEFLAGS) INSTALL_PROGRAM="$(INSTALL_STRIP_PROGRAM)" \
+	  INSTALL_PROGRAM_ENV='$(INSTALL_STRIP_PROGRAM_ENV)' install
+
+mostlyclean-generic:
+	-test -z "$(MOSTLYCLEANFILES)" || rm -f $(MOSTLYCLEANFILES)
+
+clean-generic:
+	-test -z "$(CLEANFILES)" || rm -f $(CLEANFILES)
+
+distclean-generic:
+	-rm -f Makefile $(CONFIG_CLEAN_FILES)
+	-rm -f config.cache config.log stamp-h stamp-h[0-9]*
+
+maintainer-clean-generic:
+	@echo "This command is intended for maintainers to use"
+	@echo "it deletes files that may require special tools to rebuild."
+	-rm -f Makefile.in
+	-test -z "$(MAINTAINERCLEANFILES)" || rm -f $(MAINTAINERCLEANFILES)
+clean: clean-am
+
+clean-am: clean-generic mostlyclean-am
+
+distclean: distclean-am
+
+distclean-am: clean-am distclean-generic
+
+dvi: dvi-am
+
+dvi-am: $(DVIS)
+
+info: info-am
+
+info-am: $(INFO_DEPS)
+
+install-data-am: install-info-am
+
+install-exec-am:
+
+install-info: install-info-am
+
+install-info-am: $(INFO_DEPS)
+	@$(NORMAL_INSTALL)
+	$(mkinstalldirs) $(DESTDIR)$(infodir)
+	@list='$(INFO_DEPS)'; \
+	for file in $$list; do \
+	  d=$(srcdir); \
+	  for ifile in `CDPATH=: && cd $$d && echo $$file $$file-[0-9] $$file-[0-9][0-9]`; do \
+	    if test -f $$d/$$ifile; then \
+	      echo " $(INSTALL_DATA) $$d/$$ifile $(DESTDIR)$(infodir)/$$ifile"; \
+	      $(INSTALL_DATA) $$d/$$ifile $(DESTDIR)$(infodir)/$$ifile; \
+	    else : ; fi; \
+	  done; \
+	done
+	@$(POST_INSTALL)
+	@if $(SHELL) -c 'install-info --version | sed 1q | fgrep -s -v -i debian' >/dev/null 2>&1; then \
+	  list='$(INFO_DEPS)'; \
+	  for file in $$list; do \
+	    echo " install-info --info-dir=$(DESTDIR)$(infodir) $(DESTDIR)$(infodir)/$$file";\
+	    install-info --info-dir=$(DESTDIR)$(infodir) $(DESTDIR)$(infodir)/$$file || :;\
+	  done; \
+	else : ; fi
+install-man:
+
+installcheck-am:
+
+maintainer-clean: maintainer-clean-am
+
+maintainer-clean-am: distclean-am maintainer-clean-aminfo \
+	maintainer-clean-generic
+
+mostlyclean: mostlyclean-am
+
+mostlyclean-am: mostlyclean-aminfo mostlyclean-generic
+
+uninstall-am: uninstall-info-am
+
+uninstall-info: uninstall-info-am
+
+.PHONY: all all-am check check-am clean clean-generic dist-info \
+	distclean distclean-generic distdir dvi dvi-am info info-am \
+	install install-am install-data install-data-am install-exec \
+	install-exec-am install-info install-info-am install-man \
+	install-strip installcheck installcheck-am installdirs \
+	maintainer-clean maintainer-clean-aminfo \
+	maintainer-clean-generic mostlyclean mostlyclean-aminfo \
+	mostlyclean-generic uninstall uninstall-am uninstall-info-am
+
+
+doc ps: $(POSTSCRIPTS)
+.PHONY: doc ps
+
+pdf: $(PDFS)
+.PHONY: pdf
+
+txt: $(TXTS)
+.PHONY: txt
 
 dvi: cvs.dvi cvsclient.dvi
+.PHONY: dvi
 
-CVSvn.texi: $(top_srcdir)/src/version.c
-	echo "@set CVSVN `sed < $(top_srcdir)/src/version.c \
-		    -e '/version_string/!d' \
-		    -e 's/[^0-9.]*\([0-9.]*\).*/\1/' \
-		    -e q`" >CVSvn.new
-	mv CVSvn.new CVSvn.texi
+cvs.aux cvs.pdf cvs.txt: cvs.texinfo $(cvs_TEXINFOS)
+cvsclient.aux cvsclient.pdf cvsclient.txt: cvsclient.texi $(cvsclient_TEXINFOS)
 
-cvs.dvi cvs.aux: cvs.texinfo CVSvn.texi
-	if [ ! -f ./CVSvn.texi ]; then \
-		ln -s $(srcdir)/CVSvn.texi . || \
-		ln $(srcdir)/CVSvn.texi . || \
-		cp $(srcdir)/CVSvn.texi . ; else true; fi
-	$(TEXI2DVI) $(srcdir)/cvs.texinfo
-
-cvsclient.dvi cvsclient.aux: cvsclient.texi CVSvn.texi
-	if [ ! -f ./CVSvn.texi ]; then \
-		ln -s $(srcdir)/CVSvn.texi . || \
-		ln $(srcdir)/CVSvn.texi . || \
-		cp $(srcdir)/CVSvn.texi . ; else true; fi
-	$(TEXI2DVI) $(srcdir)/cvsclient.texi
-	rm -f cvsclient.?? cvsclient.log cvsclient.toc cvsclient.??s
-
-cvs.ps: cvs.dvi
-	$(DVIPS) $(DVIPSFLAGS) cvs.dvi -o cvs.ps
-
-cvs-paper.ps: cvs-paper.ms
-	$(ROFF) -t -p -ms -Tps $(srcdir)/cvs-paper.ms > $@-t
+# These targets need to be very specific so that the other PDFs get generated correctly.
+# If they are more generic and cvs.ps is made before cvs.pdf, then cvs.pdf will be
+# generated from the generic target and the PS source, which contains less information
+# than the usual texinfo source.
+cvs-paper.pdf: cvs-paper.ps
+	$(ROFF) -t -p -ms -Tps $< > $@-t
 	mv $@-t $@
 
-cvsclient.ps: cvsclient.dvi
-	$(DVIPS) $(DVIPSFLAGS) cvsclient.dvi -o cvsclient.ps
+cvs-paper.ps: cvs-paper.ms
+	$(PS2PDF) $< $@
 
-tags:
-.PHONY: tags
+# texinfo based targets automake neglects to include
+.texinfo.pdf:
+	TEXINPUTS=$(srcdir):$$TEXINPUTS \
+	  MAKEINFO='$(MAKEINFO) -I $(srcdir)' $(TEXI2DVI) --pdf $<
+.txi.pdf:
+	TEXINPUTS=$(srcdir):$$TEXINPUTS \
+	  MAKEINFO='$(MAKEINFO) -I $(srcdir)' $(TEXI2DVI) --pdf $<
+.texi.pdf:
+	TEXINPUTS=$(srcdir):$$TEXINPUTS \
+	  MAKEINFO='$(MAKEINFO) -I $(srcdir)' $(TEXI2DVI) --pdf $<
 
-TAGS:
-.PHONY: TAGS
+.texinfo.aux:
+	TEXINPUTS=$(srcdir):$$TEXINPUTS \
+	  MAKEINFO='$(MAKEINFO) -I $(srcdir)' $(TEXI2DVI) $<
+.txi.aux:
+	TEXINPUTS=$(srcdir):$$TEXINPUTS \
+	  MAKEINFO='$(MAKEINFO) -I $(srcdir)' $(TEXI2DVI) $<
+.texi.aux:
+	TEXINPUTS=$(srcdir):$$TEXINPUTS \
+	  MAKEINFO='$(MAKEINFO) -I $(srcdir)' $(TEXI2DVI) $<
 
-ls:
-	@echo $(DISTFILES)
-.PHONY: ls
+.texinfo.txt:
+	TEXINPUTS=$(srcdir):$$TEXINPUTS \
+	  MAKEINFO='$(MAKEINFO) -I $(srcdir)' $(MAKEINFO) $< --no-headers -o $@
+.txi.txt:
+	TEXINPUTS=$(srcdir):$$TEXINPUTS \
+	  MAKEINFO='$(MAKEINFO) -I $(srcdir)' $(MAKEINFO) $< --no-headers -o $@
+.texi.txt:
+	TEXINPUTS=$(srcdir):$$TEXINPUTS \
+	  MAKEINFO='$(MAKEINFO) -I $(srcdir)' $(MAKEINFO) $< --no-headers -o $@
 
-clean:
-	rm -f *.o core
-	rm -f cvs.cp cvs.fn cvs.ky cvs.pg cvs.tp cvs.vr
-	rm -f cvs.cps cvs.fns cvs.kys cvs.pgs cvs.tps cvs.vrs
-	rm -f cvs.aux cvs.dvi cvs.log cvs.toc
-	rm -f cvsclient.cp cvsclient.fn cvsclient.ky cvsclient.pg
-	rm -f cvsclient.tp cvsclient.vr cvsclient.cps cvsclient.fns
-	rm -f cvsclient.kys cvsclient.pgs cvsclient.tps cvsclient.vrs
-	rm -f cvsclient.aux cvsclient.dvi cvsclient.log cvsclient.toc
+# - CVSvn.texi needs to be updated only once, since it depends on
+#   configure.in, not on the results of a 'configure' run.
+# - It is guaranteed (with GNU Make) that when the version in configure.in
+#   is changed, acversion.m4 is built only after the new version number is
+#   propagated to the Makefile.  (Libtool uses the same guarantee.)
+# - Of the next three targets, only the next one or the following two should be
+#   enabled, not all three
+# - This is the target for systems without the BSD VPATH bug in make or with
+#   $(srcdir) = $(builddir)
+@MAKE_TARGETS_IN_VPATH_TRUE@CVSvn.texi: $(srcdir)/CVSvn.texi.in $(top_srcdir)/configure.in
+@MAKE_TARGETS_IN_VPATH_TRUE@	sed 's,@VERSION\@,$(VERSION),g' $(srcdir)/CVSvn.texi.in >$(srcdir)/CVSvn.ttexi
+@MAKE_TARGETS_IN_VPATH_TRUE@	mv $(srcdir)/CVSvn.ttexi $(srcdir)/CVSvn.texi
+# - The next two targets are a workaround for the fact that some BSD makes
+#   don't look through VPATH for targets, but only for sources.
+# - They should be disabled on systems without the bug and in environments
+#   where $(srcdir) = $(builddir)
+@MAKE_TARGETS_IN_VPATH_FALSE@CVSvn.texi: $(srcdir)/CVSvn.texi
+@MAKE_TARGETS_IN_VPATH_FALSE@	# use cat so the time stamp gets set properly
+@MAKE_TARGETS_IN_VPATH_FALSE@	cat $(srcdir)/CVSvn.texi >$@
+@MAKE_TARGETS_IN_VPATH_FALSE@$(srcdir)/CVSvn.texi: $(srcdir)/CVSvn.texi.in $(top_srcdir)/configure.in
+@MAKE_TARGETS_IN_VPATH_FALSE@	sed 's,@VERSION\@,$(VERSION),g' $(srcdir)/CVSvn.texi.in >$(srcdir)/CVSvn.ttexi
+@MAKE_TARGETS_IN_VPATH_FALSE@	mv $(srcdir)/CVSvn.ttexi $(srcdir)/CVSvn.texi
 
-.PHONY: clean
-
-distclean: clean
-	rm -f Makefile
-.PHONY: distclean
-
-realclean: distclean
-	rm -f cvs.info* cvs.ps cvs-paper.ps cvsclient.info* cvsclient.ps
+# for backwards compatibility with the old makefiles
+realclean: maintainer-clean
 .PHONY: realclean
 
-dist-dir: $(DISTFILES) $(OBJDIR_DISTFILES)
-	mkdir ${DISTDIR}
-	for i in ${DISTFILES}; do \
-	  ln $(srcdir)/$${i} ${DISTDIR}; \
-	done
-	ln ${OBJDIR_DISTFILES} ${DISTDIR}
-	if [ -f cvs.info-1 ]; \
-	  then ln -f cvs.info-* ${DISTDIR}; \
-	  else : Pacify Ultrix sh; \
-	fi
-	if [ -f cvsclient.info-1 ]; \
-	  then ln -f cvsclient.info-* ${DISTDIR}; \
-	  else : Pacify Ultrix sh; \
-	fi
-.PHONY: dist-dir
-
-subdir = doc
-Makefile: ../config.status Makefile.in
-	cd .. && CONFIG_FILES=$(subdir)/$@ CONFIG_HEADERS= ./config.status
-
-#../config.status: ../configure
-#	cd .. ; $(SHELL) config.status --recheck
-
-#../configure: ../configure.in
-#	cd $(top_srcdir) ; autoconf
+# Tell versions [3.59,3.63) of GNU make to not export all variables.
+# Otherwise a system limit (for SysV at least) may be exceeded.
+.NOEXPORT:

@@ -10,6 +10,10 @@
    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
    GNU General Public License for more details.  */
 
+/*
+ * $FreeBSD$
+ */
+
 int do_update PROTO((int argc, char *argv[], char *xoptions, char *xtag,
 	       char *xdate, int xforce, int local, int xbuild,
 	       int xaflag, int xprune, int xpipeout, int which,

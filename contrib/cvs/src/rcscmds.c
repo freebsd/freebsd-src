@@ -532,9 +532,11 @@ RCS file: ", 0);
    message on stderr.  */
 
 int
-diff_exec (file1, file2, options, out)
+diff_exec (file1, file2, label1, label2, options, out)
     char *file1;
     char *file2;
+    char *label1;
+    char *label2;
     char *options;
     char *out;
 {
@@ -577,6 +579,10 @@ diff_exec (file1, file2, options, out)
     /* The first word in this string is used only for error reporting. */
     sprintf (args, "diff %s", options);
     call_diff_setup (args);
+    if (label1)
+	call_diff_arg (label1);
+    if (label2)
+	call_diff_arg (label2);
     call_diff_arg (file1);
     call_diff_arg (file2);
     free (args);

@@ -181,6 +181,9 @@ typedef void (*RCSCHECKOUTPROC) PROTO ((void *, const char *, size_t));
 struct rcsbuffer;
 #endif
 
+/* What RCS_deltas is supposed to do.  */
+enum rcs_delta_op {RCS_ANNOTATE, RCS_FETCH};
+
 /*
  * exported interfaces
  */
@@ -225,8 +228,8 @@ int RCS_cmp_file PROTO ((RCSNode *, char *, char *, const char *));
 int RCS_settag PROTO ((RCSNode *, const char *, const char *));
 int RCS_deltag PROTO ((RCSNode *, const char *));
 int RCS_setbranch PROTO((RCSNode *, const char *));
-int RCS_lock PROTO ((RCSNode *, const char *, int));
-int RCS_unlock PROTO ((RCSNode *, const char *, int));
+int RCS_lock PROTO ((RCSNode *, char *, int));
+int RCS_unlock PROTO ((RCSNode *, char *, int));
 int RCS_delete_revs PROTO ((RCSNode *, char *, char *, int));
 void RCS_addaccess PROTO ((RCSNode *, char *));
 void RCS_delaccess PROTO ((RCSNode *, char *));
@@ -236,8 +239,10 @@ void RCS_rewrite PROTO ((RCSNode *, Deltatext *, char *));
 void RCS_abandon PROTO ((RCSNode *));
 int rcs_change_text PROTO ((const char *, char *, size_t, const char *,
 			    size_t, char **, size_t *));
+void RCS_deltas PROTO ((RCSNode *, FILE *, struct rcsbuffer *, char *,
+			enum rcs_delta_op, char **, size_t *,
+			char **, size_t *));
 void RCS_setincexc PROTO ((const char *arg));
-
 void RCS_setlocalid PROTO ((const char *arg));
 char *make_file_label PROTO ((char *, char *, RCSNode *));
 
