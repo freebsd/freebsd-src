@@ -39,6 +39,7 @@
 .Nd "generate the password databases"
 .Sh SYNOPSIS
 .Nm pwd_mkdb
+.Op Fl c
 .Op Fl p
 .Op Fl d Ar directory
 .Ar file
@@ -61,6 +62,9 @@ different from the historic Version 7 style format.
 .Pp
 The options are as follows:
 .Bl -tag -width flag
+.It Fl c
+Check if the password file is in the correct format. Do not
+change, add, or remove any files.
 .It Fl p
 Create a Version 7 style password file and install it into
 .Dq Pa /etc/passwd .
