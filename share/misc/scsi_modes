@@ -229,3 +229,29 @@
 	{Output Port 3 Channel Selection} t4
 	{Output Port 3 Volume} i1
 }
+
+0x10 {
+	{Reserved} *t1
+	{Change Active Partition} t1
+	{Change Active Format} t1
+	{Active Format} t5
+	{Active Partition} i1
+	{Write Buffer Full Ratio} i1
+	{Write Buffer Empty Ratio} i1
+	{Write Delay Time} i2
+	{Data Buffer Recovery} t1
+	{Block Identifiers Support} t1
+	{Report Setmarks} t1
+	{AAutomatic Velocity Control} t1
+	{Stop on Consecutive Filemarks} t2
+	{Recover Buffer Order} t1
+	{Report Early-Warning} t1
+	{Gap Size} i1
+	{EOD Defined} t3
+	{Enable EOD Generation} t1
+	{Synchronize at Early-Warning} t1
+	{Reserved} *t3
+	{Buffer Size at Early-Warning} i3
+	{Select Data Compression Algorithm} i1
+	{Reserved} *i1
+}
