@@ -83,8 +83,8 @@ DispPkt(rconn, direct)
 	RMPCONN *rconn;
 	int direct;
 {
-	static char BootFmt[] = "\t\tRetCode:%u SeqNo:%lx SessID:%x Vers:%u";
-	static char ReadFmt[] = "\t\tRetCode:%u Offset:%lx SessID:%x\n";
+	static const char BootFmt[] = "\t\tRetCode:%u SeqNo:%lx SessID:%x Vers:%u";
+	static const char ReadFmt[] = "\t\tRetCode:%u Offset:%lx SessID:%x\n";
 
 	struct tm *tmp;
 	struct rmp_packet *rmp;
