@@ -176,45 +176,56 @@ cluster_read(vp, filesize, lblkno, size, cred, totread, seqcount, bpp)
 			lblkno += i;
 		}
 		reqbp = bp = NULL;
+	/*
+	 * If it isn't in the cache, then get a chunk from
+	 * disk if sequential, otherwise just get the block.
+	 */
 	} else {
 		off_t firstread = bp->b_offset;
+		int nblks;
+		int ncontigafter;
 
 		KASSERT(bp->b_offset != NOOFFSET,
 		    ("cluster_read: no buffer offset"));
+
+		ncontigafter = 0;
+
+		/*
+		 * Compute the total number of blocks that we should read
+		 * synchronously.
+		 */
 		if (firstread + totread > filesize)
 			totread = filesize - firstread;
-		if (totread > size) {
-			int nblks = 0;
-			int ncontigafter;
-			while (totread > 0) {
-				nblks++;
-				totread -= size;
-			}
-			if (nblks == 1)
-				goto single_block_read;
-			if (nblks > racluster)
-				nblks = racluster;
+		nblks = howmany(totread, size);
+		if (nblks > racluster)
+			nblks = racluster;
 
+		/*
+		 * Now compute the number of contiguous blocks.
+		 */
+		if (nblks > 1) {
 	    		error = VOP_BMAP(vp, lblkno, NULL,
 				&blkno, &ncontigafter, NULL);
-			if (error)
-				goto single_block_read;
-			if (blkno == -1)
-				goto single_block_read;
-			if (ncontigafter == 0)
-				goto single_block_read;
-			if (ncontigafter + 1 < nblks)
-				nblks = ncontigafter + 1;
+			/*
+			 * If this failed to map just do the original block.
+			 */
+			if (error || blkno == -1)
+				ncontigafter = 0;
+		}
 
+		/*
+		 * If we have contiguous data available do a cluster
+		 * otherwise just read the requested block.
+		 */
+		if (ncontigafter) {
+			/* Account for our first block. */
+			ncontigafter++;
+			if (ncontigafter < nblks)
+				nblks = ncontigafter;
 			bp = cluster_rbuild(vp, filesize, lblkno,
 				blkno, size, nblks, bp);
 			lblkno += (bp->b_bufsize / size);
 		} else {
-single_block_read:
-			/*
-			 * if it isn't in the cache, then get a chunk from
-			 * disk if sequential, otherwise just get the block.
-			 */
 			bp->b_flags |= B_RAM;
 			bp->b_iocmd = BIO_READ;
 			lblkno += 1;
@@ -396,31 +407,11 @@ cluster_rbuild(vp, filesize, lbn, blkno, size, run, fbp)
 				break;
 			}
 
-			/*
-			 * Shortcut some checks and try to avoid buffers that
-			 * would block in the lock.  The same checks have to
-			 * be made again after we officially get the buffer.
-			 */
-			if ((tbp = incore(vp, lbn + i)) != NULL &&
-			    (tbp->b_flags & B_INVAL) == 0) {
-				if (BUF_LOCK(tbp,
-				    LK_EXCLUSIVE | LK_NOWAIT, NULL))
-					break;
-				BUF_UNLOCK(tbp);
+			tbp = getblk(vp, lbn + i, size, 0, 0, GB_LOCK_NOWAIT);
 
-				for (j = 0; j < tbp->b_npages; j++) {
-					if (tbp->b_pages[j]->valid)
-						break;
-				}
-				
-				if (j != tbp->b_npages)
-					break;
-	
-				if (tbp->b_bcount != size)
-					break;
-			}
-
-			tbp = getblk(vp, lbn + i, size, 0, 0, 0);
+			/* Don't wait around for locked bufs. */
+			if (tbp == NULL)
+				break;
 
 			/*
 			 * Stop scanning if the buffer is fully valid
@@ -793,9 +784,24 @@ cluster_wbuild(vp, size, start_lbn, len)
 		 * is delayed-write but either locked or inval, it cannot
 		 * partake in the clustered write.
 		 */
-		if (((tbp = incore(vp, start_lbn)) == NULL) ||
-		  ((tbp->b_flags & (B_LOCKED | B_INVAL | B_DELWRI)) != B_DELWRI) ||
-		  BUF_LOCK(tbp, LK_EXCLUSIVE | LK_NOWAIT, NULL)) {
+		VI_LOCK(vp);
+		if ((tbp = gbincore(vp, start_lbn)) == NULL) {
+			VI_UNLOCK(vp);
+			++start_lbn;
+			--len;
+			splx(s);
+			continue;
+		}
+		if (BUF_LOCK(tbp,
+		    LK_EXCLUSIVE | LK_NOWAIT | LK_INTERLOCK, VI_MTX(vp))) {
+			++start_lbn;
+			--len;
+			splx(s);
+			continue;
+		}
+		if ((tbp->b_flags & (B_LOCKED | B_INVAL | B_DELWRI)) !=
+		    B_DELWRI) {
+			BUF_UNLOCK(tbp);
 			++start_lbn;
 			--len;
 			splx(s);
@@ -867,7 +873,9 @@ cluster_wbuild(vp, size, start_lbn, len)
 				 * If the adjacent data is not even in core it
 				 * can't need to be written.
 				 */
-				if ((tbp = incore(vp, start_lbn)) == NULL) {
+				VI_LOCK(vp);
+				if ((tbp = gbincore(vp, start_lbn)) == NULL) {
+					VI_UNLOCK(vp);
 					splx(s);
 					break;
 				}
@@ -879,14 +887,20 @@ cluster_wbuild(vp, size, start_lbn, len)
 				 * I/O or be in a weird state), then don't
 				 * cluster with it.
 				 */
+				if (BUF_LOCK(tbp,
+				    LK_EXCLUSIVE | LK_NOWAIT | LK_INTERLOCK,
+				    VI_MTX(vp))) {
+					splx(s);
+					break;
+				}
+
 				if ((tbp->b_flags & (B_VMIO | B_CLUSTEROK |
 				    B_INVAL | B_DELWRI | B_NEEDCOMMIT))
-				  != (B_DELWRI | B_CLUSTEROK |
+				    != (B_DELWRI | B_CLUSTEROK |
 				    (bp->b_flags & (B_VMIO | B_NEEDCOMMIT))) ||
 				    (tbp->b_flags & B_LOCKED) ||
-				    tbp->b_wcred != bp->b_wcred ||
-				    BUF_LOCK(tbp, LK_EXCLUSIVE | LK_NOWAIT,
-				    NULL)) {
+				    tbp->b_wcred != bp->b_wcred) {
+					BUF_UNLOCK(bp);
 					splx(s);
 					break;
 				}
