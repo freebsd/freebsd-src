@@ -180,8 +180,6 @@
 .ds Ba \f[R]|\f[]
 .ds Am &
 .
-.nr gX 0
-.
 .
 .\" NS doc-header-string global string
 .\" NS   the final string used for the manual page header
@@ -203,12 +201,8 @@
 .  wh 0 doc-header
 .  wh -1.25i doc-footer
 .
-.  if \n[gX] \
-.    ds doc-command-name
-.
 .  br
 .
-.  nr gX 0
 .  e@ doc-end-macro
 ..
 .

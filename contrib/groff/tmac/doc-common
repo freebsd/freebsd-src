@@ -551,10 +551,6 @@
 .ds doc-date-12 December
 .
 .de Dd
-.  \" XXX: why do we need gX?
-.  if "\*[doc-date-string]"" \
-.    nr gX 1
-.
 .  ie \n[.$] \{\
 .    ie (\n[.$] == 3) \
 .      ds doc-date-string \$1\~\$2 \$3
