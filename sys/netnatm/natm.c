@@ -299,7 +299,7 @@ natm_usr_send(struct socket *so, int flags, struct mbuf *m,
      * send the data.   we must put an atm_pseudohdr on first
      */
 
-    M_PREPEND(m, sizeof(*aph), M_WAITOK);
+    M_PREPEND(m, sizeof(*aph), M_TRYWAIT);
     if (m == NULL) {
         error = ENOBUFS;
 	goto out;
@@ -598,7 +598,7 @@ struct proc *p;
        * send the data.   we must put an atm_pseudohdr on first
        */
 
-      M_PREPEND(m, sizeof(*aph), M_WAITOK);
+      M_PREPEND(m, sizeof(*aph), M_TRYWAIT);
       if (m == NULL) {
         error = ENOBUFS;
 	break;
