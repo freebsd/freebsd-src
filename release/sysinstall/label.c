@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: label.c,v 1.32.2.19 1995/10/20 21:57:21 jkh Exp $
+ * $Id: label.c,v 1.32.2.20 1995/10/22 01:32:49 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -106,11 +106,14 @@ labelHook(char *str)
 	}
 	devs = deviceFind(str, DEVICE_TYPE_DISK);
 	if (!devs) {
+	    dialog_clear();
 	    msgConfirm("Unable to find disk %s!", str);
 	    return 0;
 	}
-	else if (devs[1])
+	else if (devs[1]) {
+	    dialog_clear();
 	    msgConfirm("Bizarre multiple match for %s!", str);
+	}
 	devs[0]->enabled = TRUE;
 	str = cp;
     }
@@ -129,6 +132,7 @@ diskLabelEditor(char *str)
     devs = deviceFind(cp, DEVICE_TYPE_DISK);
     cnt = deviceCount(devs);
     if (!cnt) {
+	dialog_clear();
 	msgConfirm("No disks found!  Please verify that your disk controller is being\n"
 		   "properly probed at boot time.  See the Hardware Guide on the\n"
 		   "Documentation menu for clues on diagnosing this type of problem.");
@@ -144,6 +148,7 @@ diskLabelEditor(char *str)
     else {
 	menu = deviceCreateMenu(&MenuDiskDevices, DEVICE_TYPE_DISK, labelHook);
 	if (!menu) {
+	    dialog_clear();
 	    msgConfirm("No devices suitable for installation found!\n\n"
 		       "Please verify that your disk controller (and attached drives)\n"
 		       "were detected properly.  This can be done by pressing the\n"
@@ -172,6 +177,7 @@ diskLabelCommit(char *str)
     if ((cp = variable_get(DISK_LABELLED)) && strcmp(cp, "yes"))
 	i = RET_SUCCESS;
     else if (!cp) {
+	dialog_clear();
 	msgConfirm("You must assign disk labels before this option can be used.");
 	i = RET_FAIL;
     }
@@ -409,12 +415,14 @@ scriptLabel(char *str)
     status = RET_SUCCESS;
     cp = variable_get(VAR_DISK);
     if (!cp) {
+	dialog_clear();
 	msgConfirm("scriptLabel:  No disk selected - can't label automatically.");
 	return RET_FAIL;
     }
 
     devs = deviceFind(cp, DEVICE_TYPE_DISK);
     if (!devs) {
+	dialog_clear();
 	msgConfirm("scriptLabel: No disk device %s found!", cp);
 	return RET_FAIL;
     }
@@ -430,6 +438,7 @@ scriptLabel(char *str)
 		char typ[10], mpoint[50];
 
 		if (sscanf(cp, "%s %d %s", typ, &sz, mpoint) != 3) {
+		    dialog_clear();
 		    msgConfirm("For slice entry %s, got an invalid detail entry of: %s",  c1->name, cp);
 		    status = RET_FAIL;
 		    continue;
@@ -438,6 +447,7 @@ scriptLabel(char *str)
 		    if (!sz)
 			sz = space_free(c1);
 		    if (sz < space_free(c1)) {
+			dialog_clear();
 			msgConfirm("Not enough free space to create partition: %s", mpoint);
 			status = RET_FAIL;
 			continue;
@@ -458,6 +468,7 @@ scriptLabel(char *str)
 			    flags |= CHUNK_IS_ROOT;
 		    }
 		    if (!Create_Chunk_DWIM(d, c1, sz, part, (type == PART_SWAP) ? FS_SWAP : FS_BSDFFS, flags)) {
+			dialog_clear();
 			msgConfirm("Unable to create from partition spec: %s. Too big?", cp);
 			status = RET_FAIL;
 			break;
@@ -474,6 +485,7 @@ scriptLabel(char *str)
 
 		nwfs[0] = '\0';
 		if (sscanf(cp, "%s %s", mpoint, nwfs) != 2) {
+		    dialog_clear();
 		    msgConfirm("For slice entry %s, got an invalid detail entry of: %s", c1->name, cp);
 		    status = RET_FAIL;
 		    continue;
@@ -624,6 +636,7 @@ diskLabel(char *str)
 
     devs = deviceFind(NULL, DEVICE_TYPE_DISK);
     if (!devs) {
+	dialog_clear();
 	msgConfirm("No disks found!");
 	return RET_FAIL;
     }
@@ -694,6 +707,7 @@ diskLabel(char *str)
 		if (label_chunk_info[i++].type != PART_SLICE)
 		    cnt++;
 	    if (cnt == (CHUNK_COLUMN_MAX * 2) + 4) {
+		dialog_clear();
 		msgConfirm("Sorry, I can't fit any more partitions on the screen!  You can get around\n"
 			   "this limitation by partitioning your disks individually rather than all\n"
 			   "at once.  This will be fixed just as soon as we get a scrolling partition\n"
@@ -720,6 +734,7 @@ diskLabel(char *str)
 				    CHUNK_IS_ROOT);
 	    
 	    if (!tmp) {
+		dialog_clear();
 		msgConfirm("Unable to create the root partition. Too big?");
 		break;
 	    }
@@ -742,6 +757,7 @@ diskLabel(char *str)
 				    swsize,
 				    part, FS_SWAP, 0);
 	    if (!tmp) {
+		dialog_clear();
 		msgConfirm("Unable to create the swap partition. Too big?");
 		break;
 	    }
@@ -755,6 +771,7 @@ diskLabel(char *str)
 				    label_chunk_info[here].c,
 				    (cp ? atoi(cp) : VAR_MIN_SIZE) * ONE_MEG, part, FS_BSDFFS, 0);
 	    if (!tmp) {
+		dialog_clear();
 		msgConfirm("Less than %dMB free for /var - you will need to\n"
 			   "partition your disk manually with a custom install!", (cp ? atoi(cp) : VAR_MIN_SIZE));
 		break;
@@ -769,6 +786,7 @@ diskLabel(char *str)
 	    else
 		sz = space_free(label_chunk_info[here].c);
 	    if (!sz || sz < (USR_MIN_SIZE * ONE_MEG)) {
+		dialog_clear();
 		msgConfirm("Less than %dMB free for /usr - you will need to\n"
 			   "partition your disk manually with a custom install!", USR_MIN_SIZE);
 		break;
@@ -778,6 +796,7 @@ diskLabel(char *str)
 				    label_chunk_info[here].c,
 				    sz, part, FS_BSDFFS, 0);
 	    if (!tmp) {
+		dialog_clear();
 		msgConfirm("Unable to create the /usr partition.  Not enough space?\n"
 			   "You will need to partition your disk manually with a custom install!");
 		break;
@@ -803,6 +822,7 @@ diskLabel(char *str)
 		    if (label_chunk_info[i++].type != PART_SLICE)
 			cnt++;
 		if (cnt == (CHUNK_COLUMN_MAX * 2)) {
+		    dialog_clear();
 		    msgConfirm("Sorry, I can't fit any more partitions on the screen!  You can get around\n"
 			       "this limitation by partitioning your disks individually rather than all\n"
 			       "at once.  This will be fixed just as soon as we get a scrolling partition\n"
@@ -855,10 +875,10 @@ diskLabel(char *str)
 
 		if ((flags & CHUNK_IS_ROOT)) {
 		    if (!(label_chunk_info[here].c->flags & CHUNK_BSD_COMPAT)) {
-msgConfirm("This region cannot be used for your root partition as the\n"
-	   "FreeBSD boot code cannot deal with a root partition created\n"
-	   "in that location.  Please choose another location or smaller\n"
-	   "size for your root partition and try again!");
+			msgConfirm("This region cannot be used for your root partition as the\n"
+				   "FreeBSD boot code cannot deal with a root partition created\n"
+				   "in that location.  Please choose another location or smaller\n"
+				   "size for your root partition and try again!");
 			break;
 		    }
 		    if (size < (ROOT_MIN_SIZE * ONE_MEG)) 
@@ -1008,6 +1028,7 @@ msgConfirm("This region cannot be used for your root partition as the\n"
 		DialogActive = FALSE;
 		devs = deviceFind(NULL, DEVICE_TYPE_DISK);
 		if (!devs) {
+		    dialog_clear();
 		    msgConfirm("Can't find any disk devicse!");
 		    break;
 		}

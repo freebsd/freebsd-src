@@ -4,7 +4,7 @@
  * This is probably the last attempt in the `sysinstall' line, the next
  * generation being slated to essentially a complete rewrite.
  *
- * $Id: tape.c,v 1.6.2.7 1995/10/22 01:33:01 jkh Exp $
+ * $Id: tape.c,v 1.6.2.8 1995/10/22 08:33:22 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -79,8 +79,10 @@ mediaInitTape(Device *dev)
 	msgDebug("Tape initialized successfully.\n");
 	return TRUE;
     }
-    else
+    else {
+	dialog_clear();
 	msgConfirm("Tape extract command failed with status %d!", i);
+    }
     return FALSE;
 }
 

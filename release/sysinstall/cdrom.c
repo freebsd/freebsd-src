@@ -4,7 +4,7 @@
  * This is probably the last attempt in the `sysinstall' line, the next
  * generation being slated to essentially a complete rewrite.
  *
- * $Id: cdrom.c,v 1.7.2.8 1995/10/18 00:11:47 jkh Exp $
+ * $Id: cdrom.c,v 1.7.2.9 1995/10/22 01:32:37 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -78,6 +78,7 @@ mediaInitCDROM(Device *dev)
     args.flags = 0;
 
     if (mount(MOUNT_CD9660, "/cdrom", MNT_RDONLY, (caddr_t) &args) == -1) {
+	dialog_clear();
 	msgConfirm("Error mounting %s on /cdrom: %s (%u)\n", dev->devname, strerror(errno), errno);
 	return FALSE;
     }
@@ -89,12 +90,14 @@ mediaInitCDROM(Device *dev)
     snprintf(specialrel, 80, "/cdrom/%s/dists", variable_get(VAR_RELNAME));
     if (stat("/cdrom/dists", &sb) && stat(specialrel, &sb)) {
 	if (errno == ENOENT) {
+	    dialog_clear();
 	    msgConfirm("Couldn't locate the directory `dists' anywhere on the CD.\n"
 		       "Is this a FreeBSD CDROM?  Is the release version set properly\n"
 		       "in the Options editor?");
 	    return FALSE;
 	}
 	else {
+	    dialog_clear();
 	    msgConfirm("Error trying to stat the CDROM's dists directory: %s", strerror(errno));
 	    return FALSE;
 	}
@@ -129,8 +132,10 @@ mediaShutdownCDROM(Device *dev)
     if (!RunningAsInit || !cdromMounted)
 	return;
     msgDebug("Unmounting %s from /cdrom\n", dev->devname);
-    if (unmount("/cdrom", MNT_FORCE) != 0)
+    if (unmount("/cdrom", MNT_FORCE) != 0) {
+	dialog_clear();
 	msgConfirm("Could not unmount the CDROM from /cdrom: %s\n", strerror(errno));
+    }
     msgDebug("Unmount successful\n");
     cdromMounted = FALSE;
     return;

@@ -4,7 +4,7 @@
  * This is probably the last attempt in the `sysinstall' line, the next
  * generation being slated to essentially a complete rewrite.
  *
- * $Id: ftp_strat.c,v 1.7.2.25 1995/10/22 10:25:14 jkh Exp $
+ * $Id: ftp_strat.c,v 1.7.2.27 1995/10/22 12:04:06 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -72,6 +72,7 @@ get_new_host(Device *dev, Boolean tentative)
      */
     ++reselectCount;
 
+    dialog_clear();
     msgConfirm("One of the distributions or packages you specified failed to load from\n"
 	       "the FTP site you selected.  Please select another one from the FTP menu.");
     MenuMediaFTP.title = "Request failed - please select another site";
@@ -137,6 +138,7 @@ mediaInitFTP(Device *dev)
 	return FALSE;
 
     if (!ftp && (ftp = FtpInit()) == NULL) {
+	dialog_clear();
 	msgConfirm("FTP initialisation failed!");
 	return FALSE;
     }
@@ -145,6 +147,7 @@ mediaInitFTP(Device *dev)
 
     cp = variable_get(VAR_FTP_PATH);
     if (!cp) {
+	dialog_clear();
 	msgConfirm("%s is not set!", VAR_FTP_PATH);
 	return FALSE;
     }
@@ -152,6 +155,7 @@ mediaInitFTP(Device *dev)
 	msgDebug("Attempting to open connection for URL: %s\n", cp);
     hostname = variable_get(VAR_HOSTNAME);
     if (strncmp("ftp://", cp, 6) != NULL) {
+	dialog_clear();
 	msgConfirm("Invalid URL: %s\n(A URL must start with `ftp://' here)", cp);
 	return FALSE;
     }
@@ -174,6 +178,7 @@ mediaInitFTP(Device *dev)
     }
     msgNotify("Looking up host %s..", hostname);
     if ((gethostbyname(hostname) == NULL) && (inet_addr(hostname) == INADDR_NONE)) {
+	dialog_clear();
 	msgConfirm("Cannot resolve hostname `%s'!  Are you sure that your\n"
 		   "name server, gateway and network interface are configured?", hostname);
 	return FALSE;
@@ -193,8 +198,10 @@ retry:
     if (FtpOpen(ftp, hostname, login_name, password) != 0) {
 	if (variable_get(VAR_NO_CONFIRM))
 	    msgNotify("Couldn't open FTP connection to %s\n", hostname);
-	else
+	else {
+	    dialog_clear();
 	    msgConfirm("Couldn't open FTP connection to %s\n", hostname);
+	}
 	if (ftpShouldAbort(dev, ++retries) || !get_new_host(dev, FALSE))
 	    return FALSE;
 	goto retry;

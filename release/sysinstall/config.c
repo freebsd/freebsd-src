@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: config.c,v 1.16.2.20 1995/10/20 21:56:58 jkh Exp $
+ * $Id: config.c,v 1.16.2.21 1995/10/22 01:32:38 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -144,14 +144,17 @@ configFstab(void)
     if (!RunningAsInit) {
 	if (file_readable("/etc/fstab"))
 	    return RET_SUCCESS;
-	else
-	    msgConfirm("Attempting to rebuild your /etc/fstab file.\n"
-		       "Warning: If you had any CD devices in use before running\n"
-		       "sysinstall then they may NOT be found in this run!");
+	else {
+	    dialog_clear();
+	    msgConfirm("Attempting to rebuild your /etc/fstab file.  Warning: If you had\n"
+		       "any CD devices in use before running sysinstall then they may NOT\n"
+		       "be found by this run!");
+	}
     }
 
     devs = deviceFind(NULL, DEVICE_TYPE_DISK);
     if (!devs) {
+	dialog_clear();
 	msgConfirm("No disks found!");
 	return RET_FAIL;
     }
@@ -180,8 +183,9 @@ configFstab(void)
 
     fstab = fopen("/etc/fstab", "w");
     if (!fstab) {
-	msgConfirm("Unable to create a new /etc/fstab file!\n"
-		   "Manual intervention will be required.");
+	dialog_clear();
+	msgConfirm("Unable to create a new /etc/fstab file!  Manual intervention\n"
+		   "will be required.");
 	return RET_FAIL;
     }
 
@@ -199,8 +203,10 @@ configFstab(void)
 
     /* Write the first one out as /cdrom */
     if (cnt) {
-	if (Mkdir("/cdrom", NULL))
+	if (Mkdir("/cdrom", NULL)) {
+	    dialog_clear();
 	    msgConfirm("Unable to make mount point for: /cdrom\n");
+	}
 	else
 	    fprintf(fstab, "/dev/%s\t\t\t/cdrom\t\tcd9660\tro 0 0\n", devs[0]->name);
     }
@@ -210,8 +216,10 @@ configFstab(void)
 	char cdname[10];
 
 	sprintf(cdname, "/cdrom%d", i);
-	if (Mkdir(cdname, NULL))
+	if (Mkdir(cdname, NULL)) {
+	    dialog_clear();
 	    msgConfirm("Unable to make mount point for: %s\n", cdname);
+	}
 	else
 	    fprintf(fstab, "/dev/%s\t\t\t%s\t\tcd9660\tro 0 0\n", devs[i]->name, cdname);
     }
@@ -236,6 +244,7 @@ configSysconfig(void)
 
     fp = fopen("/etc/sysconfig", "r");
     if (!fp) {
+	dialog_clear();
 	msgConfirm("Unable to open /etc/sysconfig file!  Things may work\n"
 		   "rather strangely as a result of this.");
 	return;
@@ -268,6 +277,7 @@ configSysconfig(void)
     }
     fp = fopen("/etc/sysconfig", "w");
     if (!fp) {
+	dialog_clear();
 	msgConfirm("Unable to re-write /etc/sysconfig file!  Things may work\n"
 		   "rather strangely as a result of this.");
 	return;
@@ -320,18 +330,22 @@ configResolv(void)
 	return;
 
     if (!variable_get(VAR_NAMESERVER)) {
-	if (mediaDevice && (mediaDevice->type == DEVICE_TYPE_NFS || mediaDevice->type == DEVICE_TYPE_FTP))
+	if (mediaDevice && (mediaDevice->type == DEVICE_TYPE_NFS || mediaDevice->type == DEVICE_TYPE_FTP)) {
+	    dialog_clear();
 	    msgConfirm("Warning:  Missing name server value - network operations\n"
 		       "may fail as a result!");
+	}
 	goto skip;
     }
     if (Mkdir("/etc", NULL)) {
+	dialog_clear();
 	msgConfirm("Unable to create /etc directory.  Network configuration\n"
 		   "files will therefore not be written!");
 	return;
     }
     fp = fopen("/etc/resolv.conf", "w");
     if (!fp) {
+	dialog_clear();
 	msgConfirm("Unable to open /etc/resolv.conf!  You will need to do this manually.");
 	return;
     }
@@ -377,12 +391,19 @@ configPackages(char *str)
     msgNotify("Attempting to fetch packages/INDEX file from selected media.");
     fd = mediaDevice->get(mediaDevice, "packages/INDEX", TRUE);
     if (fd < 0) {
+	dialog_clear();
 	msgConfirm("Unable to get packages/INDEX file from selected media.\n"
-		   "Please verify media (or path to media) and try again.");
+		   "This may be because the packages collection is not available at\n"
+		   "on the distribution media you've chosen (most likely an FTP site\n"
+		   "without the packages collection mirrored).  Please verify media\n"
+		   "(or path to media) and try again.  If your local site does not\n"
+		   "carry the packages collection, then we recommend either a CD\n"
+		   "distribution or the master distribution on ftp.freebsd.org.");
 	return RET_FAIL;
     }
     index_init(&top, &plist);
     if (index_read(fd, &top)) {
+	dialog_clear();
 	msgConfirm("I/O or format error on packages/INDEX file.\n"
 		   "Please verify media (or path to media) and try again.");
 	mediaDevice->close(mediaDevice, fd);
@@ -409,6 +430,7 @@ configPackages(char *str)
 	    }
 	}
 	else {
+	    dialog_clear();
 	    msgConfirm("No packages were selected for extraction.");
 	    break;
 	}
@@ -441,24 +463,29 @@ configPorts(char *str)
 	    if (!cp || !*cp)
 		return RET_FAIL;
 	    if (Mkdir(cp, NULL)) {
+		dialog_clear();
 		msgConfirm("Unable to make the %s directory!", cp);
 		return RET_FAIL;
 	    }
 	    else {
 		msgNotify("Making link tree from %s to %s area.", dist, cp);
-		if (vsystem("/usr/X11R6/bin/lndir %s %s", dist, cp))
+		if (vsystem("/usr/X11R6/bin/lndir %s %s", dist, cp)) {
+		    dialog_clear();
 		    msgConfirm("The lndir command returned an error status and may not have.\n"
 			       "successfully generated the link tree.  You may wish to inspect\n"
 			       "%s carefully for any missing link files.");
+		}
 	    }
 	}
 	else
 	    return RET_FAIL;
     }
-    else
+    else {
+	dialog_clear();
 	msgConfirm("You are missing the lndir command from /usr/X11R6/bin and\n"
 		   "cannot run this utility.  You may wish to do this manually\n"
 		   "later by extracting just lndir from the X distribution and\n"
 		   "using it to create the link tree.");
+    }
     return RET_SUCCESS;
 }
