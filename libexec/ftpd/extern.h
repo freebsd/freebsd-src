@@ -37,41 +37,41 @@
 #include <sys/types.h>
 #include <sys/socket.h>
 
-void	blkfree __P((char **));
-char  **copyblk __P((char **));
-void	cwd __P((char *));
-void	delete __P((char *));
-void	dologout __P((int));
-void	fatalerror __P((char *));
-void    ftpd_logwtmp __P((char *, char *, struct sockaddr *addr));
-int	ftpd_pclose __P((FILE *));
-FILE   *ftpd_popen __P((char *, char *));
-char   *getline __P((char *, int, FILE *));
-void	lreply __P((int, const char *, ...));
-void	makedir __P((char *));
-void	nack __P((char *));
-void	pass __P((char *));
-void	passive __P((void));
-void	long_passive __P((char *, int));
-void	perror_reply __P((int, char *));
-void	pwd __P((void));
-void	removedir __P((char *));
-void	renamecmd __P((char *, char *));
-char   *renamefrom __P((char *));
-void	reply __P((int, const char *, ...));
-void	retrieve __P((char *, char *));
-void	send_file_list __P((char *));
+void	blkfree(char **);
+char  **copyblk(char **);
+void	cwd(char *);
+void	delete(char *);
+void	dologout(int);
+void	fatalerror(char *);
+void    ftpd_logwtmp(char *, char *, struct sockaddr *addr);
+int	ftpd_pclose(FILE *);
+FILE   *ftpd_popen(char *, char *);
+char   *getline(char *, int, FILE *);
+void	lreply(int, const char *, ...);
+void	makedir(char *);
+void	nack(char *);
+void	pass(char *);
+void	passive(void);
+void	long_passive(char *, int);
+void	perror_reply(int, char *);
+void	pwd(void);
+void	removedir(char *);
+void	renamecmd(char *, char *);
+char   *renamefrom(char *);
+void	reply(int, const char *, ...);
+void	retrieve(char *, char *);
+void	send_file_list(char *);
 #ifdef OLD_SETPROCTITLE
-void	setproctitle __P((const char *, ...));
+void	setproctitle(const char *, ...);
 #endif
-void	statcmd __P((void));
-void	statfilecmd __P((char *));
-void	store __P((char *, char *, int));
-void	upper __P((char *));
-void	user __P((char *));
-void	yyerror __P((char *));
-int	yyparse __P((void));
-int	ls_main __P((int, char **));
+void	statcmd(void);
+void	statfilecmd(char *);
+void	store(char *, char *, int);
+void	upper(char *);
+void	user(char *);
+void	yyerror(char *);
+int	yyparse(void);
+int	ls_main(int, char **);
 
 struct sockaddr_in;
 struct sockaddr_in6;

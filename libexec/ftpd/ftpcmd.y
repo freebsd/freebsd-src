@@ -1133,21 +1133,19 @@ struct tab sitetab[] = {
 	{ NULL,   0,    0,    0,	0 }
 };
 
-static char	*copy __P((char *));
-static void	 help __P((struct tab *, char *));
+static char	*copy(char *);
+static void	 help(struct tab *, char *);
 static struct tab *
-		 lookup __P((struct tab *, char *));
-static int	 port_check __P((const char *));
-static int	 port_check_v6 __P((const char *));
-static void	 sizecmd __P((char *));
-static void	 toolong __P((int));
-static void	 v4map_data_dest __P((void));
-static int	 yylex __P((void));
+		 lookup(struct tab *, char *);
+static int	 port_check(const char *);
+static int	 port_check_v6(const char *);
+static void	 sizecmd(char *);
+static void	 toolong(int);
+static void	 v4map_data_dest(void);
+static int	 yylex(void);
 
 static struct tab *
-lookup(p, cmd)
-	struct tab *p;
-	char *cmd;
+lookup(struct tab *p, char *cmd)
 {
 
 	for (; p->name != NULL; p++)
@@ -1162,10 +1160,7 @@ lookup(p, cmd)
  * getline - a hacked up version of fgets to ignore TELNET escape codes.
  */
 char *
-getline(s, n, iop)
-	char *s;
-	int n;
-	FILE *iop;
+getline(char *s, int n, FILE *iop)
 {
 	int c;
 	register char *cs;
@@ -1238,8 +1233,7 @@ getline(s, n, iop)
 }
 
 static void
-toolong(signo)
-	int signo;
+toolong(int signo)
 {
 
 	reply(421,
@@ -1251,7 +1245,7 @@ toolong(signo)
 }
 
 static int
-yylex()
+yylex(void)
 {
 	static int cpos;
 	char *cp, *cp2;
@@ -1471,8 +1465,7 @@ yylex()
 }
 
 void
-upper(s)
-	char *s;
+upper(char *s)
 {
 	while (*s != '\0') {
 		if (islower(*s))
@@ -1482,8 +1475,7 @@ upper(s)
 }
 
 static char *
-copy(s)
-	char *s;
+copy(char *s)
 {
 	char *p;
 
@@ -1495,9 +1487,7 @@ copy(s)
 }
 
 static void
-help(ctab, s)
-	struct tab *ctab;
-	char *s;
+help(struct tab *ctab, char *s)
 {
 	struct tab *c;
 	int width, NCMDS;
@@ -1560,8 +1550,7 @@ help(ctab, s)
 }
 
 static void
-sizecmd(filename)
-	char *filename;
+sizecmd(char *filename)
 {
 	switch (type) {
 	case TYPE_L:
@@ -1611,8 +1600,7 @@ sizecmd(filename)
 
 /* Return 1, if port check is done. Return 0, if not yet. */
 static int
-port_check(pcmd)
-	const char *pcmd;
+port_check(const char *pcmd)
 {
 	if (his_addr.su_family == AF_INET) {
 		if (data_dest.su_family != AF_INET) {
@@ -1641,7 +1629,7 @@ port_check(pcmd)
 }
 
 static int
-check_login1()
+check_login1(void)
 {
 	if (logged_in)
 		return 1;
@@ -1654,8 +1642,7 @@ check_login1()
 #ifdef INET6
 /* Return 1, if port check is done. Return 0, if not yet. */
 static int
-port_check_v6(pcmd)
-	const char *pcmd;
+port_check_v6(const char *pcmd)
 {
 	if (his_addr.su_family == AF_INET6) {
 		if (IN6_IS_ADDR_V4MAPPED(&his_addr.su_sin6.sin6_addr))
@@ -1687,7 +1674,7 @@ port_check_v6(pcmd)
 }
 
 static void
-v4map_data_dest()
+v4map_data_dest(void)
 {
 	struct in_addr savedaddr;
 	int savedport;
