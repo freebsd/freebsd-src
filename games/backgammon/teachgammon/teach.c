@@ -152,7 +152,7 @@ char	**argv;
 }
 
 leave()  {
-        register int i;
+	register int i;
 	if (tflag)
 		clear();
 	else
@@ -163,7 +163,7 @@ leave()  {
 	args[acnt] = 0;
 	execv (EXEC,args);
 	for (i = 0; i < acnt; i++)
-	    free(args[i]);
+	    free (args[i]);
 	writel ("Help! Backgammon program is missing\007!!\n");
 	exit (-1);
 }

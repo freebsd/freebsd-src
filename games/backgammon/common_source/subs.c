@@ -311,7 +311,7 @@ register char	**argv;
 	/* process arguments here.  dashes are ignored, nbrw are ignored
 	   if the game is being recovered */
 
-	while ((ch = getopt(argc, argv, "nbrwp:t:s:")) != EOF) {
+	while ((ch = getopt (argc, argv, "nbrwp:t:s:")) != -1) {
 		switch (ch)  {
 
 		/* don't ask if rules or instructions needed */
@@ -319,7 +319,7 @@ register char	**argv;
 			if (rflag)
 				break;
 			aflag = 0;
-			args[acnt++] = strdup("-n");
+			args[acnt++] = strdup ("-n");
 			break;
 
 		/* player is both read and white */
@@ -328,7 +328,7 @@ register char	**argv;
 				break;
 			pnum = 0;
 			aflag = 0;
-			args[acnt++] = strdup("-b");
+			args[acnt++] = strdup ("-b");
 			break;
 
 		/* player is red */
@@ -337,7 +337,7 @@ register char	**argv;
 				break;
 			pnum = -1;
 			aflag = 0;
-			args[acnt++] = strdup("-r");
+			args[acnt++] = strdup ("-r");
 			break;
 
 		/* player is white */
@@ -346,14 +346,14 @@ register char	**argv;
 				break;
 			pnum = 1;
 			aflag = 0;
-			args[acnt++] = strdup("-w");
+			args[acnt++] = strdup ("-w");
 			break;
 
 		/* print board after move according to following character */
 		case 'p':
 			if (optarg[0] != 'r' && optarg[0] != 'w' && optarg[0] != 'b')
 				break;
-			args[acnt] = strdup("-p ");
+			args[acnt] = strdup ("-p ");
 			args[acnt++][2] = optarg[0];
 			if (optarg[0] == 'r')
 				bflag = 1;

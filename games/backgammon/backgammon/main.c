@@ -140,7 +140,7 @@ char	**argv;
 	t = time(0);
 	srandom(t);					/* 'random' seed */
 
-        getarg (argc, argv);
+	getarg (argc, argv);
 	args[acnt] = NULL;
 	if (tflag)  {					/* clear screen */
 		noech &= ~(CRMOD|XTABS);
@@ -171,7 +171,7 @@ char	**argv;
 			if (yorn(0))  {
 
 				fixtty (old);		/* restore tty */
-				args[0] = strdup("teachgammon");
+				args[0] = strdup ("teachgammon");
 				execv (TEACH,args);
 
 				tflag = 0;		/* error! */
@@ -188,7 +188,7 @@ char	**argv;
 		}
 
 		for (i = 0; i < acnt; i++)
-		    free(args[i]);
+			free (args[i]);
 
 		init();					/* initialize board */
 
