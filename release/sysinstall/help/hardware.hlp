@@ -59,7 +59,7 @@ fdc0    3f0     6       2       n/a     Floppy disk controller
 wdc0    1f0     14      n/a     n/a     IDE/MFM/RLL disk controller
 wdc1    170     15      n/a     n/a     IDE/MFM/RLL disk controller
 
-adv0	n/a	n/a	n/a	n/a	AdvanSys ADP-9xx SCSI controller
+adv0    n/a     n/a     n/a     n/a     AdvanSys ADP-9xx SCSI controller
 ncr0    n/a     n/a     n/a     n/a     NCR PCI SCSI controller
 bt0     330     dyn     dyn     dyn     Buslogic SCSI controller
 uha0    330     dyn     6       dyn     Ultrastore 14f
@@ -69,7 +69,7 @@ ahc0    dyn     dyn     dyn     dyn     Adaptec 274x/284x/294x SCSI controller
 aic0*   340     11      dyn     dyn     Adaptec 152x/AIC-6360 SCSI
                                         controller
 amd0    n/a     n/a     n/a     n/a     Tekram DC-390(T) / AMD 53c974 PCI SCSI
-dpt	n/a	n/a	n/a	n/a	DPT RAID SCSI controllers.
+dpt     n/a     n/a     n/a     n/a     DPT RAID SCSI controllers.
 nca0*   1f88    10      dyn     dyn     ProAudioSpectrum cards
 sea0*   dyn     5       dyn     c8000   Seagate ST01/02 8 bit controller
 
@@ -108,8 +108,8 @@ lnc0    280     10      n/a     dyn     Lance/PCnet cards
                                         (Isolan, Novell NE2100, NE32-VL,
 					 some PCnet-PCI cards)
 vx0     dyn     dyn     n/a     dyn     3Com 3c59x ((Fast) Etherlink III)
-xl0	dyn	dyn	n/a	dyn	3Com 3c900, 3c905 and 3c905B
-					((Fast) Etherlink XL)
+xl0     dyn     dyn     n/a     dyn     3Com 3c900, 3c905 and 3c905B
+                                        ((Fast) Etherlink XL)
 cs0     0x300   dyn     n/a     n/a     Crystal Semiconductor CS89x0-based
                                         cards.
 ze0     300     5       n/a     d8000   IBM/National Semiconductor
@@ -271,6 +271,8 @@ gp:     National Instruments AT-GPIB and AT-GPIB/TNT board
 gsc:    Genius GS-4500 hand scanner
 gus:    Gravis Ultrasound - Ultrasound, Ultrasound 16, Ultrasound MAX
 gusxvi: Gravis Ultrasound 16-bit PCM
+hea:    Efficient ENI-155p ATM PCI adapter
+hfa:    FORE PCA-200E ATM PCI adapter
 joy:    Joystick
 labpc:  National Instrument's Lab-PC and Lab-PC+
 meteor: Matrox Meteor frame-grabber card
@@ -395,8 +397,8 @@ The following CD-ROM type systems are supported at this time:
 (wcd)   ATAPI IDE interface.
 
 
-4.2.    Ethernet cards
-----    --------------
+4.2.    Network cards
+----    -------------
 
 Allied-Telesis AT1700 and RE2000 cards
 
@@ -416,6 +418,10 @@ DEC EtherWORKS III NICs (DE203, DE204, and DE205)
 DEC EtherWORKS II NICs (DE200, DE201, DE202, and DE422)
 DEC DC21040, DC21041, or DC21140 based NICs (SMC Etherpower 8432T, DE245, etc)
 DEC FDDI (DEFPA/DEFEA) NICs
+
+Efficient ENI-155p ATM PCI
+
+FORE PCA-200E ATM PCI
 
 Fujitsu MB86960A/MB86965A
 
