@@ -55,7 +55,7 @@ strtol(nptr, endptr, base)
 {
 	register const char *s = nptr;
 	register unsigned long acc;
-	register int c;
+	register unsigned char c;
 	register unsigned long cutoff;
 	register int neg = 0, any, cutlim;
 
@@ -102,6 +102,8 @@ strtol(nptr, endptr, base)
 	cutlim = cutoff % (unsigned long)base;
 	cutoff /= (unsigned long)base;
 	for (acc = 0, any = 0;; c = *s++) {
+		if (!isascii(c))
+			break;
 		if (isdigit(c))
 			c -= '0';
 		else if (isalpha(c))

@@ -16,7 +16,7 @@
 
 #ifndef lint
 #ifndef NOID
-static char	tzfilehid[] = "@(#)tzfile.h	7.4";
+/*static char	tzfilehid[] = "@(#)tzfile.h	7.6";*/
 #endif /* !defined NOID */
 #endif /* !defined lint */
 
@@ -41,7 +41,8 @@ static char	tzfilehid[] = "@(#)tzfile.h	7.4";
 */
 
 struct tzhead {
-	char	tzh_reserved[24];	/* reserved for future use */
+	char	tzh_reserved[20];	/* reserved for future use */
+	char	tzh_ttisgmtcnt[4];	/* coded number of trans. time flags */
 	char	tzh_ttisstdcnt[4];	/* coded number of trans. time flags */
 	char	tzh_leapcnt[4];		/* coded number of leap seconds */
 	char	tzh_timecnt[4];		/* coded number of transition times */
@@ -67,6 +68,11 @@ struct tzhead {
 **					transition time is wall clock time
 **					if absent, transition times are
 **					assumed to be wall clock time
+**	tzh_ttisgmtcnt (char)s		indexed by type; if TRUE, transition
+**					time is GMT, if FALSE,
+**					transition time is local time
+**					if absent, transition times are
+**					assumed to be local time
 */
 
 /*
@@ -89,7 +95,11 @@ struct tzhead {
 #define TZ_MAX_TYPES	256 /* Limited by what (unsigned char)'s can hold */
 #endif /* !defined NOSOLAR */
 #ifdef NOSOLAR
-#define TZ_MAX_TYPES	10	/* Maximum number of local time types */
+/*
+** Must be at least 14 for Europe/Riga as of Jan 12 1995,
+** as noted by Earl Chew <earl@hpato.aus.hp.com>.
+*/
+#define TZ_MAX_TYPES	20	/* Maximum number of local time types */
 #endif /* !defined NOSOLAR */
 #endif /* !defined TZ_MAX_TYPES */
 

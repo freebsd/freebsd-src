@@ -81,33 +81,44 @@ Each conversion specification is replaced by the characters as
 follows which are then copied into the buffer.
 .Bl -tag -width "xxxx"
 .It Cm \&%A
-is replaced by the full weekday name.
+is replaced by national representation of the full weekday name.
 .It Cm %a
-is replaced by the abbreviated weekday name, where the abbreviation
+is replaced by national representation of
+the abbreviated weekday name, where the abbreviation
 is the first three characters.
 .It Cm \&%B
-is replaced by the full month name.
-.It Cm %b  or  %h
-is replaced by the abbreviated month name, where the abbreviation is
+is replaced by national representation of the full month name.
+.It Cm %b
+is replaced by national representation of
+the abbreviated month name, where the abbreviation is
 the first three characters.
 .It Cm \&%C
-is equivalent to
-.Dq Li %a %b %e %H:%M:%S %Y
-(the format produced by
-.Xr asctime 3 .
+is replaced by (year / 100) as decimal number; single
+digits are preceded by a zero.
 .It Cm %c
+is replaced by national representation of time and date
+(the format is similar with produced by
+.Xr asctime 3 ) .
+.It Cm \&%D
 is equivalent to
 .Dq Li %m/%d/%y .
-.It Cm \&%D
-is replaced by the date in the format
-.Dq Ql mm/dd/yy .
 .It Cm %d
 is replaced by the day of the month as a decimal number (01-31).
+.It Cm \&%E*
+POSIX locale extensions.
+The sequences
+%Ec %EC %Ex %Ey %EY
+%Od %Oe %OH %OI %Om %OM
+%OS %Ou %OU %OV %Ow %OW %Oy
+are supposed to provide alternate
+representations.
 .It Cm %e
 is replaced by the day of month as a decimal number (1-31); single
 digits are preceded by a blank.
 .It Cm \&%H
 is replaced by the hour (24-hour clock) as a decimal number (00-23).
+.It Cm %h
+the same as %b.
 .It Cm \&%I
 is replaced by the hour (12-hour clock) as a decimal number (01-12).
 .It Cm %j
@@ -124,46 +135,63 @@ is replaced by the minute as a decimal number (00-59).
 is replaced by the month as a decimal number (01-12).
 .It Cm %n
 is replaced by a newline.
+.It Cm \&%O*
+the same as %E*.
 .It Cm %p
-is replaced by either
-.Dq Tn AM
+is replaced by national representation of either
+"ante meridiem"
 or
-.Dq Tn PM
+"post meridiem"
 as appropriate.
 .It Cm \&%R
 is equivalent to
-.Dq Li %H:%M
+.Dq Li %H:%M .
 .It Cm %r
 is equivalent to
 .Dq Li %I:%M:%S %p .
-.It Cm %t
-is replaced by a tab.
 .It Cm \&%S
 is replaced by the second as a decimal number (00-60).
 .It Cm %s
 is replaced by the number of seconds since the Epoch, UTC (see
 .Xr mktime 3 ) .
-.It Cm \&%T No or Cm \&%X
+.It Cm \&%T
 is equivalent to
 .Dq Li %H:%M:%S .
+.It Cm %t
+is replaced by a tab.
 .It Cm \&%U
 is replaced by the week number of the year (Sunday as the first day of
 the week) as a decimal number (00-53).
+.It Cm %u
+is replaced by the weekday (Monday as the first day of the week)
+as a decimal number (1-7).
+.It Cm \&%V
+is replaced by the week number of the year (the first
+Monday as the first day of week 1) as a
+decimal number (01-53).
+.It Cm %v
+is equivalent to
+.Dq Li %e-%b-%Y .
 .It Cm \&%W
 is replaced by the week number of the year (Monday as the first day of
 the week) as a decimal number (00-53).
 .It Cm %w
 is replaced by the weekday (Sunday as the first day of the week)
 as a decimal number (0-6).
+.It Cm \&%X
+is replaced by national representation of the time.
 .It Cm %x
-is equivalent to
-.Dq Li %m/%d/%y %H:%M:%S .
+is replaced by national representation of the date.
 .It Cm \&%Y
 is replaced by the year with century as a decimal number.
 .It Cm %y
 is replaced by the year without century as a decimal number (00-99).
 .It Cm \&%Z
 is replaced by the time zone name.
+.It Cm %+
+is replaced by national representation of the date and time
+(the format is similar with produced by
+.Xr date 1 ) .
 .It Cm %%
 is replaced by
 .Ql % .

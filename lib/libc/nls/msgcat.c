@@ -1,4 +1,4 @@
-/*	$Id: msgcat.c,v 1.1 1995/03/30 12:47:26 jkh Exp $ */
+/*	$Id: msgcat.c,v 1.2 1995/05/30 05:40:59 rgrimes Exp $ */
 
 /***********************************************************
 Copyright 1990, by Alfalfa Software Incorporated, Cambridge, Massachusetts.
@@ -101,7 +101,7 @@ int type;
     } else {
 	if ((lang = (char *) getenv("LANG")) == NULL) lang = "C";
 	if ((nlspath = (char *) getenv("NLSPATH")) == NULL) {
-	    nlspath = "/usr/share/nls/%L/%N.cat:/usr/share/nls/%N/%L";
+	    nlspath = "/usr/share/nls/%L/%N.cat:/usr/share/nls/%N/%L:/usr/local/share/nls/%L/%N.cat:/usr/local/share/nls/%N/%L";
 	}
 
 	len = strlen(nlspath);
