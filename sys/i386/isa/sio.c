@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)com.c	7.5 (Berkeley) 5/16/91
- *	$Id: sio.c,v 1.152 1996/11/30 15:19:19 bde Exp $
+ *	$Id: sio.c,v 1.153 1996/11/30 15:29:31 bde Exp $
  */
 
 #include "opt_comconsole.h"
@@ -1366,33 +1366,38 @@ siointr1(com)
 				recv_data = 0;
 			else
 				recv_data = inb(com->data_port);
-			if (line_status & (LSR_PE|LSR_FE|LSR_BI)) {
-#ifdef DDB
-#ifdef BREAK_TO_DEBUGGER
-				if (line_status & LSR_BI
-				    && com->unit == comconsole)	{
-					Debugger("serial console break");
-					goto cont;
-				}
-#endif
-#endif
+			if (line_status & (LSR_BI | LSR_FE | LSR_PE)) {
 				/*
-				  Don't store PE if IGNPAR and BI if IGNBRK,
-				  this hack allows "raw" tty optimization
-				  works even if IGN* is set.
-				*/
-				if (   com->tp == NULL
-				    || !(com->tp->t_state & TS_ISOPEN)
-				    || (line_status & (LSR_PE|LSR_FE))
-				    &&  (com->tp->t_iflag & IGNPAR)
-				    || (line_status & LSR_BI)
-				    &&  (com->tp->t_iflag & IGNBRK))
-					goto cont;
-				if (   (line_status & (LSR_PE|LSR_FE))
-				    && (com->tp->t_state & TS_CAN_BYPASS_L_RINT)
-				    && ((line_status & LSR_FE)
-				    ||  (line_status & LSR_PE)
-				    &&  (com->tp->t_iflag & INPCK)))
+				 * Don't store BI if IGNBRK or FE/PE if IGNPAR.
+				 * Otherwise, push the work to a higher level
+				 * (to handle PARMRK) if we're bypassing.
+				 * Otherwise, convert BI/FE and PE+INPCK to 0.
+				 *
+				 * This makes bypassing work right in the
+				 * usual "raw" case (IGNBRK set, and IGNPAR
+				 * and INPCK clear).
+				 *
+				 * Note: BI together with FE/PE means just BI.
+				 */
+				if (line_status & LSR_BI) {
+#if defined(DDB) && defined(BREAK_TO_DEBUGGER)
+					if (com->unit == comconsole) {
+						Debugger(
+						    "serial console break");
+						goto cont;
+					}
+#endif
+					if (com->tp == NULL
+					    || com->tp->t_iflag & IGNBRK)
+						goto cont;
+				} else {
+					if (com->tp == NULL
+					    || com->tp->t_iflag & IGNPAR)
+						goto cont;
+				}
+				if (com->tp->t_state & TS_CAN_BYPASS_L_RINT
+				    && (line_status & (LSR_BI | LSR_FE)
+					|| com->tp->t_iflag & INPCK))
 					recv_data = 0;
 			}
 			++com->bytes_in;
