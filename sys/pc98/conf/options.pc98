@@ -1,4 +1,4 @@
-#	$Id: options.pc98,v 1.78.2.3 1999/03/25 08:55:34 kato Exp $
+#	$Id: options.pc98,v 1.78.2.4 1999/05/09 12:57:10 kato Exp $
 
 DISABLE_PSE
 IDE_DELAY
@@ -164,6 +164,13 @@ AVM_A1_PCMCIA		opt_i4b.h
 I4B_SMP_WORKAROUND      opt_i4b.h
 # enable VJ compression code for ipr i/f
 IPR_VJ			opt_i4b.h
+# -------------------------------
+# oltr: build options
+# -------------------------------
+# Exclude microcode options
+OLTR_NO_TMS_MAC         opt_oltr.h
+OLTR_NO_HAWKEYE_MAC     opt_oltr.h
+OLTR_NO_BULLSEYE_MAC    opt_oltr.h
 
 # Total number of ports controlled by the dgb(4) driver.
 # Defaults to NDGB*16.
