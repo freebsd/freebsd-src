@@ -1,4 +1,4 @@
-/*	$NetBSD: uscanner.c,v 1.6 2000/10/13 18:16:36 augustss Exp $	*/
+/*	$NetBSD: uscanner.c,v 1.9 2000/11/14 13:57:16 augustss Exp $	*/
 /*	$FreeBSD$	*/
 
 /*
@@ -143,6 +143,7 @@ static const struct scanner_id {
 	{ USB_VENDOR_EPSON, USB_PRODUCT_EPSON_610 },
 	{ USB_VENDOR_EPSON, USB_PRODUCT_EPSON_1200 },
 	{ USB_VENDOR_EPSON, USB_PRODUCT_EPSON_1600 },
+	{ USB_VENDOR_EPSON, USB_PRODUCT_EPSON_1640 },
 
 	/* UMAX */
 	{ USB_VENDOR_UMAX, USB_PRODUCT_UMAX_ASTRA1220U },
@@ -196,6 +197,7 @@ d_open_t  uscanneropen;
 d_close_t uscannerclose;
 d_read_t  uscannerread;
 d_write_t uscannerwrite;
+d_ioctl_t uscannerioctl;
 d_poll_t  uscannerpoll;
 
 #define USCANNER_CDEV_MAJOR	156
@@ -205,7 +207,7 @@ Static struct cdevsw uscanner_cdevsw = {
 	/* close */	uscannerclose,
 	/* read */	uscannerread,
 	/* write */	uscannerwrite,
-	/* ioctl */	noioctl,
+	/* ioctl */	uscannerioctl,
 	/* poll */	uscannerpoll,
 	/* mmap */	nommap,
 	/* strategy */	nostrategy,
@@ -259,7 +261,7 @@ USB_ATTACH(uscanner)
 
 	sc->sc_udev = uaa->device;
 
-	err = usbd_set_config_no(uaa->device, 1, 0); /* XXX */
+	err = usbd_set_config_no(uaa->device, 1, 1); /* XXX */
 	if (err) {
 		printf("%s: setting config no failed\n",
 		    USBDEVNAME(sc->sc_dev));
@@ -338,6 +340,8 @@ uscanneropen(dev, flag, mode, p)
 	if (sc->sc_state & USCANNER_OPEN)
 		return (EBUSY);
 
+	sc->sc_state |= USCANNER_OPEN;
+
 	sc->sc_bulkin_buffer = malloc(USCANNER_BUFFERSIZE, M_USBDEV, M_WAITOK);
 	sc->sc_bulkout_buffer = malloc(USCANNER_BUFFERSIZE, M_USBDEV, M_WAITOK);
 	/* No need to check buffers for NULL since we have WAITOK */
@@ -400,7 +404,7 @@ uscannerclose(dev, flag, mode, p)
 
 	uscanner_do_close(sc);
 
-	return 0;
+	return (0);
 }
 
 void
@@ -651,6 +655,12 @@ uscannerpoll(dev, events, p)
 		   (POLLIN | POLLRDNORM | POLLOUT | POLLWRNORM);
 
 	return (revents);
+}
+
+int
+uscannerioctl(dev_t dev, u_long cmd, caddr_t addr, int flag, struct proc *p)
+{
+	return (EINVAL);
 }
 
 #if defined(__FreeBSD__)
