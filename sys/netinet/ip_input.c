@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)ip_input.c	8.2 (Berkeley) 1/4/94
- * $Id: ip_input.c,v 1.43 1996/06/08 08:18:57 bde Exp $
+ * $Id: ip_input.c,v 1.44 1996/06/12 19:34:33 gpalmer Exp $
  */
 
 #include "opt_ipfw.h"
@@ -128,6 +128,15 @@ static	struct ip_srcrt {
 	char	srcopt[IPOPT_OFFSET + 1];	/* OPTVAL, OLEN and OFFSET */
 	struct	in_addr route[MAX_IPOPTLEN/sizeof(struct in_addr)];
 } ip_srcrt;
+
+#ifdef IPDIVERT
+/*
+ * Shared variable between ip_input() and ip_reass() to communicate
+ * about which packets, once assembled from fragments, get diverted,
+ * and to which port.
+ */
+static u_short	frag_divert_port;
+#endif
 
 static void save_rte __P((u_char *, struct in_addr));
 static void	 ip_deq __P((struct ipasfrag *));
@@ -255,14 +264,31 @@ ip_input(struct mbuf *m)
 	 * Right now when no processing on packet has done
 	 * and it is still fresh out of network we do our black
 	 * deals with it.
-	 * - Firewall: deny/allow
+	 * - Firewall: deny/allow/divert
 	 * - Wrap: fake packet's addr/port <unimpl.>
 	 * - Encapsulate: put it in another IP and send out. <unimp.>
  	 */
 
-	if (ip_fw_chk_ptr &&
-	    !(*ip_fw_chk_ptr)(&ip, hlen, m->m_pkthdr.rcvif, 0, &m))
-		return;
+	if (ip_fw_chk_ptr) {
+		int action;
+
+#ifdef IPDIVERT
+		action = (*ip_fw_chk_ptr)(&ip, hlen,
+				m->m_pkthdr.rcvif, ip_divert_ignore, &m);
+#else
+		action = (*ip_fw_chk_ptr)(&ip, hlen, m->m_pkthdr.rcvif, 0, &m);
+#endif
+		if (action == -1)
+			return;
+		if (action != 0) {
+#ifdef IPDIVERT
+			frag_divert_port = action;
+			goto ours;
+#else
+			goto bad;	/* ipfw said divert but we can't */
+#endif
+		}
+	}
 
 	/*
 	 * Process options and, if not destined for us,
@@ -386,6 +412,9 @@ ours:
 		if (m->m_flags & M_EXT) {		/* XXX */
 			if ((m = m_pullup(m, sizeof (struct ip))) == 0) {
 				ipstat.ips_toosmall++;
+#ifdef IPDIVERT
+				frag_divert_port = 0;
+#endif
 				return;
 			}
 			ip = mtod(m, struct ip *);
@@ -431,6 +460,18 @@ found:
 				ip_freef(fp);
 	} else
 		ip->ip_len -= hlen;
+
+#ifdef IPDIVERT
+	/*
+	 * Divert packets here to the divert protocol if required
+	 */
+	if (frag_divert_port) {
+		ip_divert_port = frag_divert_port;
+		frag_divert_port = 0;
+		(*inetsw[ip_protox[IPPROTO_DIVERT]].pr_input)(m, hlen);
+		return;
+	}
+#endif
 
 	/*
 	 * Switch out to protocol's input routine.
@@ -501,6 +542,9 @@ ip_reass(ip, fp)
 		fp->ipq_next = fp->ipq_prev = (struct ipasfrag *)fp;
 		fp->ipq_src = ((struct ip *)ip)->ip_src;
 		fp->ipq_dst = ((struct ip *)ip)->ip_dst;
+#ifdef IPDIVERT
+		fp->ipq_divert = 0;
+#endif
 		q = (struct ipasfrag *)fp;
 		goto insert;
 	}
@@ -546,6 +590,16 @@ ip_reass(ip, fp)
 	}
 
 insert:
+
+#ifdef IPDIVERT
+	/*
+	 * Any fragment diverting causes the whole packet to divert
+	 */
+	if (frag_divert_port != 0)
+		fp->ipq_divert = frag_divert_port;
+	frag_divert_port = 0;
+#endif
+
 	/*
 	 * Stick new segment in its place;
 	 * check for complete reassembly.
@@ -574,6 +628,13 @@ insert:
 		q = q->ipf_next;
 		m_cat(m, t);
 	}
+
+#ifdef IPDIVERT
+	/*
+	 * Record divert port for packet, if any
+	 */
+	frag_divert_port = fp->ipq_divert;
+#endif
 
 	/*
 	 * Create header for new ip packet by

@@ -52,24 +52,38 @@ command.
 .Pp
 The ipfw code works by going through the rule-list for each packet,
 until a match is found.
-All rules have two counters associated with them, a packet count and
+All rules have two associated counters, a packet count and
 a byte count.
 These counters are updated when a packet matches the rule.
 .Pp
-The rules are ordered by a ``line-number'' that is used to order and
-delete rules.
-If a rule is added without a number, it is put at the end, just before
-the terminal ``policy-rule'', and numbered 100 higher than the previous
-rule.
+The rules are ordered by a ``line-number'' from 1 to 65534 that is used
+to order and delete rules. Rules are tried in increasing order, and the
+first rule that matches a packet applies.
+Multiple rules may share the same number and apply in
+the order in which they were added.
+.Pp
+If a rule is added without a number, it numbered 100 higher
+than the previous rule. If the highest defined rule number is
+greater than 65434, new rules are appended to the last rule.
+.Pp
+The delete operation deletes the first rule with number
+.Ar number ,
+if any.
+.Pp
+The list command prints out the current rule set.
+.Pp
+The zero operation zeroes the counters associated with rule number
+.Ar number .
+.Pp
+The flush operation removes all rules.
 .Pp
 One rule is always present:
 .Bd -literal -offset center
 65535 deny all from any to any
 .Ed
 
-this rule is the default policy, ie. don't allow anything at all.
-Your job in setting up rules is to modify this policy to match your
-needs.
+This rule is the default policy, i.e., don't allow anything at all.
+Your job in setting up rules is to modify this policy to match your needs.
 .Pp
 The following options are available:
 .Bl -tag -width flag
@@ -93,12 +107,16 @@ Same as allow.
 Same as allow.
 .It Nm count
 Update counters for all packets that match rule.
-The search continues with next rule.
+The search continues with the next rule.
 .It Nm deny
 Discard packets that match this rule.
 The search terminates.
 .It Nm reject
-Discard packets that match this rule, try to send ICMP notice.
+Discard packets that match this rule, and try to send an ICMP notice.
+The search terminates.
+.It Nm divert port
+Divert packets that match this rule to the divert socket bound to port
+.Ar port .
 The search terminates.
 .El
 .Pp
@@ -145,7 +163,7 @@ Only this exact ip number match the rule.
 An ipnumber with a mask width of the form 1.2.3.4/24.
 In this case all ip numbers from 1.2.3.0 to 1.2.3.255 will match.
 .It Ar ipno:mask
-An ipnumber with a mask width of the form 1.2.3.4:255.255.240.0
+An ipnumber with a mask width of the form 1.2.3.4:255.255.240.0.
 In this case all ip numbers from 1.2.0.0 to 1.2.15.255 will match.
 .El
 .Pp
@@ -270,6 +288,12 @@ ipfw flush
 .Ed
 
 in similar surroundings is also a bad idea.
+.Sh PACKET DIVERSION
+A divert socket bound to the specified port will receive all packets diverted
+to that port; see
+.Xr divert 4 .
+If no socket is bound to the destination port, or if the kernel
+wasn't compiled with divert socket support, diverted packets are dropped.
 .Sh EXAMPLES
 This command adds an entry which denies all tcp packets from
 .Em hacker.evil.org
@@ -292,12 +316,16 @@ or in short form
 .Pp
 .Dl ipfw -a l
 .Pp
+This rule diverts all incoming packets from 192.168.2.0/24 to divert port 5000:
+.Pp
+.Dl ipfw divert 5000 all from 192.168.2.0/24 to any in
 .Sh SEE ALSO
 .Xr gethostbyname 3 ,
 .Xr getservbyport 3 ,
 .Xr ip 4 ,
 .Xr ipfirewall 4 ,
 .Xr ipaccounting 4 ,
+.Xr divert 4 ,
 .Xr reboot 8 ,
 .Xr syslogd 8
 .Sh BUGS
@@ -323,3 +351,5 @@ The FreeBSD version is written completely by:
 .Pp
 This has all been extensively rearranged by Poul-Henning Kamp and
 Alex Nash.
+.Pp
+Packet diversion added by Archie Cobbs <archie@whistle.com>.
