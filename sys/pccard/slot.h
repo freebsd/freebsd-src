@@ -42,12 +42,16 @@
  * Normally we shouldn't include stuff here, but we're trying to be
  * compatible with the long, dark hand of the past.
  */
+#include <sys/param.h>
 #include <sys/bus.h>
 #include <machine/bus.h>
 #include <sys/rman.h>
 #include <machine/resource.h>
-
+#if __FreeBSD_version >= 500000
 #include <sys/selinfo.h>
+#else
+#include <sys/select.h>
+#endif
 
 /*
  *	Controller data - Specific to each slot controller.
