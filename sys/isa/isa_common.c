@@ -1025,6 +1025,7 @@ static driver_t isa_driver = {
  * ISA can be attached to a PCI-ISA bridge or directly to the nexus.
  */
 DRIVER_MODULE(isa, isab, isa_driver, isa_devclass, 0, 0);
+DRIVER_MODULE(isa, eisab, isa_driver, isa_devclass, 0, 0);
 #ifdef __i386__
 DRIVER_MODULE(isa, nexus, isa_driver, isa_devclass, 0, 0);
 #endif
