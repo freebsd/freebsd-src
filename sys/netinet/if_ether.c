@@ -444,7 +444,7 @@ arpintr()
 			panic("arpintr");
 	
                 if (m->m_len < sizeof(struct arphdr) &&
-                    (m = m_pullup(m, sizeof(struct arphdr)) == NULL)) {
+                    ((m = m_pullup(m, sizeof(struct arphdr))) == NULL)) {
 			log(LOG_ERR, "arp: runt packet -- m_pullup failed.");
 			continue;
 		}
