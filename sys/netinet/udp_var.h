@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)udp_var.h	8.1 (Berkeley) 6/10/93
- * $Id: udp_var.h,v 1.14 1997/09/07 05:26:51 bde Exp $
+ * $Id: udp_var.h,v 1.15 1998/05/15 20:11:36 wollman Exp $
  */
 
 #ifndef _NETINET_UDP_VAR_H_
@@ -44,8 +44,6 @@ struct	udpiphdr {
 	struct 	ipovly ui_i;		/* overlaid ip structure */
 	struct	udphdr ui_u;		/* udp header */
 };
-#define	ui_next		ui_i.ih_next
-#define	ui_prev		ui_i.ih_prev
 #define	ui_x1		ui_i.ih_x1
 #define	ui_pr		ui_i.ih_pr
 #define	ui_len		ui_i.ih_len
