@@ -303,8 +303,10 @@ cia_pcib_swiz_read_config(int b, int s, int f, int reg, int width)
 	switch (width) {
 	case 1:
 		SWIZ_CFGREAD(b, s, f, reg, BYTE, u_int8_t);
+		break;
 	case 2:
 		SWIZ_CFGREAD(b, s, f, reg, WORD, u_int16_t);
+		break;
 	case 4:
 		SWIZ_CFGREAD(b, s, f, reg, LONG, u_int32_t);
 	}
@@ -318,8 +320,10 @@ cia_pcib_swiz_write_config(int b, int s, int f, int reg,
 	switch (width) {
 	case 1:
 		SWIZ_CFGWRITE(b, s, f, reg, val, BYTE, u_int8_t);
+		break;
 	case 2:
 		SWIZ_CFGWRITE(b, s, f, reg, val, WORD, u_int16_t);
+		break;
 	case 4:
 		SWIZ_CFGWRITE(b, s, f, reg, val, LONG, u_int32_t);
 	}
@@ -331,8 +335,10 @@ cia_pcib_bwx_read_config(int b, int s, int f, int reg, int width)
 	switch (width) {
 	case 1:
 		BWX_CFGREAD(b, s, f, reg, 1, u_int8_t, ldbu);
+		break;
 	case 2:
 		BWX_CFGREAD(b, s, f, reg, 2, u_int16_t, ldwu);
+		break;
 	case 4:
 		BWX_CFGREAD(b, s, f, reg, 4, u_int32_t, ldl);
 	}
@@ -346,8 +352,10 @@ cia_pcib_bwx_write_config(int b, int s, int f, int reg,
 	switch (width) {
 	case 1:
 		BWX_CFGWRITE(b, s, f, reg, val, 1, u_int8_t, stb);
+		break;
 	case 2:
 		BWX_CFGWRITE(b, s, f, reg, val, 2, u_int16_t, stw);
+		break;
 	case 4:
 		BWX_CFGWRITE(b, s, f, reg, val, 4, u_int32_t, stl);
 	}

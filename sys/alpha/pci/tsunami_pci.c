@@ -224,8 +224,10 @@ tsunami_pcib_read_config(device_t dev, int b, int s, int f,
 	switch (width) {
 	case 1:
 		CFGREAD(h, b, s, f, reg, ldbu, 1, u_int8_t);
+		break;
 	case 2:
 		CFGREAD(h, b, s, f, reg, ldwu, 2, u_int16_t);
+		break;
 	case 4:
 		CFGREAD(h, b, s, f, reg, ldl, 4, u_int32_t);
 	}
@@ -240,8 +242,10 @@ tsunami_pcib_write_config(device_t dev, int b, int s, int f,
 	switch (width) {
 	case 1:
 		CFGWRITE(h, b, s, f, reg, val, stb, 1);
+		break;
 	case 2:
 		CFGWRITE(h, b, s, f, reg, val, stw, 2);
+		break;
 	case 4:
 		CFGWRITE(h, b, s, f, reg, val, stl, 4);
 	}
