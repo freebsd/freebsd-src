@@ -37,7 +37,7 @@
  * IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
  * POSSIBILITY OF SUCH DAMAGES.
  *
- * $Id: //depot/aic7xxx/aic7xxx/aic79xx.h#101 $
+ * $Id: //depot/aic7xxx/aic7xxx/aic79xx.h#106 $
  *
  * $FreeBSD$
  */
@@ -75,8 +75,7 @@ struct scb_platform_data;
 #define INITIATOR_WILDCARD	(~0)
 #define	SCB_LIST_NULL		0xFF00
 #define	SCB_LIST_NULL_LE	(aic_htole16(SCB_LIST_NULL))
-#define QOUTFIFO_ENTRY_VALID 0x8000
-#define QOUTFIFO_ENTRY_VALID_LE (aic_htole16(0x8000))
+#define QOUTFIFO_ENTRY_VALID 0x80
 #define SCBID_IS_NULL(scbid) (((scbid) & 0xFF00 ) == SCB_LIST_NULL)
 
 #define SCSIID_TARGET(ahd, scsiid)	\
@@ -202,6 +201,8 @@ do {								\
 #define AHD_BUSRESET_DELAY	25
 
 /******************* Chip Characteristics/Operating Settings  *****************/
+extern uint32_t ahd_attach_to_HostRAID_controllers;
+
 /*
  * Chip Type
  * The chip order is from least sophisticated to most sophisticated.
@@ -376,7 +377,8 @@ typedef enum {
 	AHD_UPDATE_PEND_CMDS  = 0x400000,
 	AHD_RUNNING_QOUTFIFO  = 0x800000,
 	AHD_HAD_FIRST_SEL     = 0x1000000,
-	AHD_SHUTDOWN_RECOVERY = 0x2000000 /* Terminate recovery thread. */
+	AHD_SHUTDOWN_RECOVERY = 0x2000000, /* Terminate recovery thread. */
+	AHD_HOSTRAID_BOARD    = 0x4000000
 } ahd_flag;
 
 /************************* Hardware  SCB Definition ***************************/
@@ -1059,6 +1061,14 @@ typedef uint8_t ahd_mode_state;
 
 typedef void ahd_callback_t (void *);
 
+struct ahd_completion
+{
+	uint16_t	tag;
+	uint8_t		sg_status;
+	uint8_t		pad[4];
+	uint8_t		valid_tag;
+};
+
 struct ahd_softc {
 	bus_space_tag_t           tags[2];
 	bus_space_handle_t        bshs[2];
@@ -1152,16 +1162,23 @@ struct ahd_softc {
 	ahd_flag		  flags;
 	struct seeprom_config	 *seep_config;
 
-	/* Values to store in the SEQCTL register for pause and unpause */
-	uint8_t			  unpause;
-	uint8_t			  pause;
-
 	/* Command Queues */
+	struct ahd_completion    *qoutfifo;
 	uint16_t		  qoutfifonext;
 	uint16_t		  qoutfifonext_valid_tag;
 	uint16_t		  qinfifonext;
 	uint16_t		  qinfifo[AHD_SCB_MAX];
-	uint16_t		 *qoutfifo;
+
+	/*
+	 * Our qfreeze count.  The sequencer compares
+	 * this value with its own counter to determine
+	 * whether to allow selections to occur.
+	 */
+	uint16_t		  qfreeze_cnt;
+
+	/* Values to store in the SEQCTL register for pause and unpause */
+	uint8_t			  unpause;
+	uint8_t			  pause;
 
 	/* Critical Section Data */
 	struct cs		 *critical_sections;
