@@ -461,9 +461,7 @@ struct vx_softc {
 
 #define VX_CONNECTORS 8
 
-extern struct vx_softc *vx_softc[];
 extern u_long vx_count;
-extern struct vx_softc *vxalloc(int);
 extern void vxfree(struct vx_softc *);
 extern int vxattach(struct vx_softc *);
 extern void vxstop(struct vx_softc *);
