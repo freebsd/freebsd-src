@@ -44,16 +44,14 @@
 #include <dev/vinum/request.h>
 
 /*
- * revive a block of a subdisk.  Return an error
+ * Revive a block of a subdisk.  Return an error
  * indication.  EAGAIN means successful copy, but
- * that more blocks remain to be copied.  EINVAL means
- * that the subdisk isn't associated with a plex (which
- * means a programming error if we get here at all;
- * FIXME)
- * XXX We should specify a block size here.  At the moment,
- * just take a default value.  FIXME 
+ * that more blocks remain to be copied.  EINVAL
+ * means that the subdisk isn't associated with a
+ * plex (which means a programming error if we get
+ * here at all; FIXME).
  */
-int 
+int
 revive_block(int sdno)
 {
     struct sd *sd;
@@ -67,9 +65,11 @@ revive_block(int sdno)
     int psd;						    /* parity subdisk number */
     int stripe;						    /* stripe number */
     int isparity = 0;					    /* set if this is the parity stripe */
+    struct rangelock *lock;				    /* for locking */
 
     plexblkno = 0;					    /* to keep the compiler happy */
     sd = &SD[sdno];
+    lock = NULL;
     if (sd->plexno < 0)					    /* no plex? */
 	return EINVAL;
     plex = &PLEX[sd->plexno];				    /* point to plex */
@@ -100,7 +100,7 @@ revive_block(int sdno)
 
     /*
      * Amount to transfer: block size, unless it
-     * would overlap the end 
+     * would overlap the end
      */
     bp->b_bufsize = size;
     bp->b_bcount = bp->b_bufsize;
@@ -120,6 +120,7 @@ revive_block(int sdno)
 	plexblkno = sd->plexoffset			    /* base */
 	    + (sd->revived - stripeoffset) * plex->subdisks /* offset to beginning of stripe */
 	    + sd->revived % plex->stripesize;		    /* offset from beginning of stripe */
+	lock = lockrange(plexblkno << DEV_BSHIFT, bp, plex); /* lock it */
 	break;
 
     case plex_raid5:
@@ -130,13 +131,16 @@ revive_block(int sdno)
 	stripe = (sd->revived / plex->stripesize);	    /* stripe number */
 	psd = plex->subdisks - 1 - stripe % plex->subdisks; /* parity subdisk for this stripe */
 	isparity = plex->sdnos[psd] == sdno;		    /* note if it's the parity subdisk */
+
 	/*
-	 * Now adjust for the strangenesses 
-	 * in RAID-5 striping 
+	 * Now adjust for the strangenesses
+	 * in RAID-5 striping.
 	 */
 	if (sd->plexsdno > psd)				    /* beyond the parity stripe, */
 	    plexblkno -= plex->stripesize;		    /* one stripe less */
+	lock = lockrange(plexblkno << DEV_BSHIFT, bp, plex); /* lock it */
 	break;
+
     case plex_disorg:					    /* to keep the compiler happy */
     }
 
@@ -149,16 +153,17 @@ revive_block(int sdno)
 
 	tbuf = (int *) Malloc(size);
 	isize = size / (sizeof(int));			    /* number of ints in the buffer */
+
 	/*
 	 * We have calculated plexblkno assuming it
 	 * was a data block.  Go back to the beginning
-	 * of the band 
+	 * of the band.
 	 */
 	plexblkno -= plex->stripesize * sd->plexsdno;
 
 	/*
-	 * Read each subdisk in turn, except for
-	 * this one, and xor them together 
+	 * Read each subdisk in turn, except for this
+	 * one, and xor them together.
 	 */
 	parity_buf = bp->b_data;			    /* save the buffer getblk gave us */
 	bzero(parity_buf, size);			    /* start with nothing */
@@ -167,8 +172,9 @@ revive_block(int sdno)
 	    if (mysdno != sdno) {			    /* not our subdisk */
 		if (vol != NULL)			    /* it's part of a volume, */
 		    /*
-		       * First, read the data from the volume.  We don't
-		       * care which plex, that's the driver's job 
+		       * First, read the data from the volume.
+		       * We don't care which plex, that's the
+		       * driver's job.
 		     */
 		    bp->b_dev = VINUMBDEV(plex->volno, 0, 0, VINUM_VOLUME_TYPE); /* create the device number */
 		else					    /* it's an unattached plex */
@@ -182,16 +188,16 @@ revive_block(int sdno)
 		biowait(bp);
 		if (bp->b_flags & B_ERROR)		    /* can't read, */
 		    /*
-		       * If we have a read error, there's nothing
-		       * we can do.  By this time, the daemon has
-		       * already run out of magic 
+		       * If we have a read error, there's
+		       * nothing we can do.  By this time, the
+		       * daemon has already run out of magic.
 		     */
 		    break;
 		/*
-		 * To save time, we do the XOR wordwise.  This
-		 * requires sectors to be a multiple of the
-		 * length of an int, which is currently always
-		 * the case 
+		 * To save time, we do the XOR wordwise.
+		 * This requires sectors to be a multiple
+		 * of the length of an int, which is
+		 * currently always the case.
 		 */
 		for (i = 0; i < isize; i++)
 		    ((int *) parity_buf)[i] ^= tbuf[i];	    /* xor in the buffer */
@@ -204,8 +210,8 @@ revive_block(int sdno)
 	bp->b_blkno = plexblkno;			    /* start here */
 	if (vol != NULL)				    /* it's part of a volume, */
 	    /*
-	       * First, read the data from the volume.  We don't
-	       * care which plex, that's bre's job 
+	       * First, read the data from the volume.  We
+	       * don't care which plex, that's bre's job.
 	     */
 	    bp->b_dev = VINUMBDEV(plex->volno, 0, 0, VINUM_VOLUME_TYPE); /* create the device number */
 	else						    /* it's an unattached plex */
@@ -245,6 +251,8 @@ revive_block(int sdno)
 		error = 0;				    /* we're done */
 	    }
 	}
+	if (lock)					    /* we took a lock, */
+	    unlockrange(sd->plexno, lock);		    /* give it back */
 	while (sd->waitlist) {				    /* we have waiting requests */
 #if VINUMDEBUG
 	    struct request *rq = sd->waitlist;
@@ -268,3 +276,6 @@ revive_block(int sdno)
 	brelse(bp);					    /* is this kosher? */
     return error;
 }
+/* Local Variables: */
+/* fill-column: 50 */
+/* End: */
