@@ -2778,7 +2778,7 @@ done:
 	/*
 	 * put back the have_state command as last opcode
 	 */
-	if (have_state) {
+	if (have_state && have_state->opcode != O_CHECK_STATE) {
 		i = F_LEN(have_state);
 		bcopy(have_state, dst, i * sizeof(u_int32_t));
 		dst += i;
