@@ -1,4 +1,4 @@
-<!-- $Id: kernelconfig.sgml,v 1.12 1996/05/16 23:18:03 mpp Exp $ -->
+<!-- $Id: kernelconfig.sgml,v 1.13 1996/08/15 09:45:30 asami Exp $ -->
 <!-- The FreeBSD Documentation Project -->
 <!-- <!DOCTYPE linuxdoc PUBLIC '-//FreeBSD//DTD linuxdoc//EN'> -->
   <chapt><heading>Configuring the FreeBSD Kernel<label id="kernelconfig"></heading>
@@ -616,7 +616,7 @@
 
 	<tag>controller ncr0</tag>
 
-	<p>NCR 53C810 and 53C825 PCI SCSI controller
+	<p>NCR 53C810, 53C815, 53C825, 53C860, 53C875 PCI SCSI controller
 
 	      </descrip>
 
@@ -805,7 +805,16 @@
 
 		<tag>device de0</tag>
 
-		<p>Digital Equipment DC21040 PCI Ethernet adapter
+		<p>Ethernet adapters based on Digital Equipment DC21040,
+		   DC21041 or DC21140 chips
+
+		<tag>device fxp0</tag>
+
+		<p>Intel EtherExpress Pro/100B
+
+		<tag>device vx0</tag>
+
+		<p>3Com 3C590 and 3C595 (buggy)
 
 		<tag>device cx0 at isa? port 0x240 net irq 15 drq 7 vector cxintr</tag>
 
@@ -814,7 +823,7 @@
 
 		<tag>device ed0 at isa? port 0x280 net irq 5 iomem 0xd8000 vector edintr</tag>
 
-		<p>Western Digital and SMC 80xx; Novell NE1000
+		<p>Western Digital and SMC 80xx and 8216; Novell NE1000
 		  and NE2000; 3Com 3C503
 
 		<tag>device el0 at isa? port 0x300 net irq 9 vector elintr</tag>
@@ -1081,6 +1090,16 @@
 	      useful for manipulating floppy disk images and
 	      using a file as a swap device (e.g. an MS Windows
 	      swap file). Optional.
+
+	    <tag>pseudo-device ccd <em>number</em></tag>
+
+	    <p>Concatenated disks.  This pseudo-device allows you to
+	      concatenate multiple disk partitions into one large
+	      ``meta''-disk.  The <em>number</em> after ccd is the
+	      total number of concatenated disks (not total number of
+	      disks that can be concatenated) that can be created.
+	      (See <tt>ccd(4)</tt> and <tt>ccdconfig(8)</tt> man pages
+	      for more details.)  Optional.
 
 	  </descrip>
 
