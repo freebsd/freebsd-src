@@ -1326,6 +1326,8 @@ falloc(td, resultfp, resultfd)
 		fp->f_count++;
 	fp->f_cred = crhold(td->td_ucred);
 	fp->f_ops = &badfileops;
+	fp->f_data = NULL;
+	fp->f_vnode = NULL;
 	FILEDESC_LOCK(p->p_fd);
 	if ((fq = p->p_fd->fd_ofiles[0])) {
 		LIST_INSERT_AFTER(fq, fp, f_list);
@@ -2360,6 +2362,7 @@ sysctl_kern_file(SYSCTL_HANDLER_ARGS)
 			xf.xf_fd = n;
 			xf.xf_file = fp;
 			xf.xf_data = fp->f_data;
+			xf.xf_vnode = fp->f_vnode;
 			xf.xf_type = fp->f_type;
 			xf.xf_count = fp->f_count;
 			xf.xf_msgcount = fp->f_msgcount;
