@@ -33,7 +33,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)vfs_cluster.c	8.7 (Berkeley) 2/13/94
- * $Id: vfs_cluster.c,v 1.72 1998/11/13 01:01:40 dg Exp $
+ * $Id: vfs_cluster.c,v 1.73 1998/11/15 14:11:06 bde Exp $
  */
 
 #include "opt_debug_cluster.h"
@@ -823,6 +823,7 @@ cluster_collectbufs(vp, last_bp)
 	struct buf *last_bp;
 {
 	struct cluster_save *buflist;
+	struct buf *bp;
 	daddr_t lbn;
 	int i, len;
 
@@ -831,9 +832,13 @@ cluster_collectbufs(vp, last_bp)
 	    M_SEGMENT, M_WAITOK);
 	buflist->bs_nchildren = 0;
 	buflist->bs_children = (struct buf **) (buflist + 1);
-	for (lbn = vp->v_cstart, i = 0; i < len; lbn++, i++)
-		(void) bread(vp, lbn, last_bp->b_bcount, NOCRED,
-		    &buflist->bs_children[i]);
+	for (lbn = vp->v_cstart, i = 0; i < len; lbn++, i++) {
+		(void) bread(vp, lbn, last_bp->b_bcount, NOCRED, &bp);
+		buflist->bs_children[i] = bp;
+		if (bp->b_blkno == bp->b_lblkno)
+			VOP_BMAP(bp->b_vp, bp->b_lblkno, NULL, &bp->b_blkno,
+				NULL, NULL);
+	}
 	buflist->bs_children[i] = last_bp;
 	buflist->bs_nchildren = i + 1;
 	return (buflist);
