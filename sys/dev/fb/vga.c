@@ -2854,7 +2854,8 @@ get_palette(video_adapter_t *adp, int base, int count,
     u_char *g;
     u_char *b;
 
-    if ((base < 0) || (base >= 256) || (base + count > 256))
+    if (count < 0 || base < 0 || count > 256 || base > 256 ||
+	base + count > 256)
 	return EINVAL;
 
     r = malloc(count*3, M_DEVBUF, M_WAITOK);
@@ -2885,7 +2886,8 @@ set_palette(video_adapter_t *adp, int base, int count,
     u_char *b;
     int err;
 
-    if ((base < 0) || (base >= 256) || (base + count > 256))
+    if (count < 0 || base < 0 || count > 256 || base > 256 ||
+	base + count > 256)
 	return EINVAL;
 
     r = malloc(count*3, M_DEVBUF, M_WAITOK);
