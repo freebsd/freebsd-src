@@ -24,7 +24,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: if_ed.c,v 1.100 1996/06/18 01:22:18 bde Exp $
+ *	$Id: if_ed.c,v 1.101 1996/06/25 20:30:05 bde Exp $
  */
 
 /*
@@ -133,7 +133,7 @@ static struct ed_softc ed_softc[NED];
 static int ed_attach		__P((struct ed_softc *, int, int));
 static int ed_attach_isa	__P((struct isa_device *));
 
-static void ed_init		__P((struct ifnet *));
+static void ed_init		__P((struct ed_softc *));
 static int ed_ioctl		__P((struct ifnet *, int, caddr_t));
 static int ed_probe		__P((struct isa_device *));
 static void ed_start		__P((struct ifnet *));
@@ -1464,6 +1464,7 @@ ed_attach(sc, unit, flags)
 		ifp->if_start = ed_start;
 		ifp->if_ioctl = ed_ioctl;
 		ifp->if_watchdog = ed_watchdog;
+		ifp->if_init = (if_init_f_t *)ed_init;
 		ifp->if_snd.ifq_maxlen = IFQ_MAXLEN;
 
 		/*
@@ -1562,7 +1563,7 @@ ed_reset(ifp)
 	 * Stop interface and re-initialize.
 	 */
 	ed_stop(sc);
-	ed_init(ifp);
+	ed_init(sc);
 
 	(void) splx(s);
 }
@@ -1613,10 +1614,10 @@ ed_watchdog(ifp)
  * Initialize device.
  */
 static void
-ed_init(ifp)
-	struct ifnet *ifp;
+ed_init(sc)
+	struct ed_softc *sc;
 {
-	struct ed_softc *sc = ifp->if_softc;
+	struct ifnet *ifp = &sc->arpcom.ac_if;
 	int     i, s;
 
 	if (sc->gone)
@@ -2326,7 +2327,6 @@ ed_ioctl(ifp, command, data)
 	int     command;
 	caddr_t data;
 {
-	register struct ifaddr *ifa = (struct ifaddr *) data;
 	struct ed_softc *sc = ifp->if_softc;
 	struct ifreq *ifr = (struct ifreq *) data;
 	int     s, error = 0;
@@ -2340,79 +2340,8 @@ ed_ioctl(ifp, command, data)
 	switch (command) {
 
 	case SIOCSIFADDR:
-		ifp->if_flags |= IFF_UP;
-		/* netifs are BUSY when UP */
-		sc->kdc.kdc_state = DC_BUSY;
-
-		switch (ifa->ifa_addr->sa_family) {
-#ifdef INET
-		case AF_INET:
-			ed_init(ifp);	/* before arpwhohas */
-			arp_ifinit((struct arpcom *)ifp, ifa);
-			break;
-#endif
-#ifdef IPX
-		/*
-		 * XXX - This code is probably wrong
-		 */
-		case AF_IPX:
-			{
-				register struct ipx_addr *ina = &(IA_SIPX(ifa)->sipx_addr);
-
-				if (ipx_nullhost(*ina))
-					ina->x_host =
-					    *(union ipx_host *) (sc->arpcom.ac_enaddr);
-				else {
-					bcopy((caddr_t) ina->x_host.c_host,
-					      (caddr_t) sc->arpcom.ac_enaddr,
-					      sizeof(sc->arpcom.ac_enaddr));
-				}
-
-				/*
-				 * Set new address
-				 */
-				ed_init(ifp);
-				break;
-			}
-#endif
-#ifdef NS
-		/*
-		 * XXX - This code is probably wrong
-		 */
-		case AF_NS:
-			{
-				register struct ns_addr *ina = &(IA_SNS(ifa)->sns_addr);
-
-				if (ns_nullhost(*ina))
-					ina->x_host =
-					    *(union ns_host *) (sc->arpcom.ac_enaddr);
-				else {
-					bcopy((caddr_t) ina->x_host.c_host,
-					      (caddr_t) sc->arpcom.ac_enaddr,
-					      sizeof(sc->arpcom.ac_enaddr));
-				}
-
-				/*
-				 * Set new address
-				 */
-				ed_init(ifp);
-				break;
-			}
-#endif
-		default:
-			ed_init(ifp);
-			break;
-		}
-		break;
-
 	case SIOCGIFADDR:
-		{
-			struct sockaddr *sa;
-
-			sa = (struct sockaddr *) & ifr->ifr_data;
-			bcopy((caddr_t) sc->arpcom.ac_enaddr,
-			      (caddr_t) sa->sa_data, ETHER_ADDR_LEN);
-		}
+		ether_ioctl(ifp, command, data);
 		break;
 
 	case SIOCSIFFLAGS:
@@ -2423,7 +2352,7 @@ ed_ioctl(ifp, command, data)
 		 */
 		if (ifp->if_flags & IFF_UP) {
 			if ((ifp->if_flags & IFF_RUNNING) == 0)
-				ed_init(ifp);
+				ed_init(ifp->if_softc);
 		} else {
 			if (ifp->if_flags & IFF_RUNNING) {
 				ed_stop(sc);
