@@ -32,7 +32,7 @@ atm_pass1() {
 
 	# Load microcode into FORE adapters (if needed)
 	if [ `expr "${atmdev}" : '.*hfa.*'` -ne 0 ]; then
-		fore_dnld -d /etc
+		fore_dnld
 	fi
 
 	# Configure physical interfaces
