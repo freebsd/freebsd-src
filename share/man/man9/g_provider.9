@@ -104,9 +104,7 @@ The topology lock has to be held.
 .El
 .Sh RETURN VALUES
 .Fn g_new_providerf
-returns a pointer to the newly created provider or
-.Dv NULL
-if an error occured.
+returns a pointer to the newly created provider.
 .Sh EXAMPLES
 Create an example provider, set its parameters and make it usable.
 .Bd -literal -offset indent
@@ -117,12 +115,10 @@ create_example_provider(struct g_geom *gp)
 
 	g_topology_lock();
 	pp = g_new_providerf(gp, "example_provider");
+	pp->mediasize = 65536;
+	pp->sectorsize = 512;
+	g_error_provider(pp, 0);
 	g_topology_unlock();
-	if (pp != NULL) {
-		pp->mediasize = 65536;
-		pp->sectorsize = 512;
-		g_error_provider(pp, 0);
-	}
 
 	return (pp);
 }

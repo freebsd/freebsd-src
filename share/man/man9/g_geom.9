@@ -112,9 +112,7 @@ The topology lock has to be held.
 .El
 .Sh RETURN VALUES
 .Fn g_new_geomf
-returns a pointer to the newly created geom or
-.Dv NULL
-if an error occured.
+returns a pointer to the newly created geom.
 .Sh EXAMPLES
 Create an example geom.
 .Bd -literal -offset indent
@@ -158,13 +156,11 @@ create_example_geom(struct g_class *myclass)
 	g_topology_lock();
 	gp = g_new_geomf(myclass, "example_geom");
 	g_topology_unlock();
-	if (gp != NULL) {
-		gp->start = g_example_start;
-		gp->orphan = g_example_orphan;
-		gp->spoiled = g_example_spoiled;
-		gp->access = g_example_access;
-		gp->softc = NULL;
-	}
+	gp->start = g_example_start;
+	gp->orphan = g_example_orphan;
+	gp->spoiled = g_example_spoiled;
+	gp->access = g_example_access;
+	gp->softc = NULL;
 
 	return (gp);
 }
