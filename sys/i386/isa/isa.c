@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)isa.c	7.2 (Berkeley) 5/13/91
- *	$Id$
+ *	$Id: isa.c,v 1.4 1993/10/13 15:59:28 rgrimes Exp $
  */
 
 /*
@@ -75,7 +75,7 @@
 /*
 **  Register definitions for DMA controller 2 (channels 4..7):
 */
-#define	DMA2_CHN(c)	(IO_DMA1 + 2*(2*(c)))	/* addr reg for channel c */
+#define	DMA2_CHN(c)	(IO_DMA2 + 2*(2*(c)))	/* addr reg for channel c */
 #define	DMA2_SMSK	(IO_DMA2 + 2*10)	/* single mask register */
 #define	DMA2_MODE	(IO_DMA2 + 2*11)	/* mode register */
 #define	DMA2_FFC	(IO_DMA2 + 2*12)	/* clear first/last FF */
