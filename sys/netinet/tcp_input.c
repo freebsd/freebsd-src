@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)tcp_input.c	8.12 (Berkeley) 5/24/95
- *	$Id: tcp_input.c,v 1.54 1996/10/11 19:26:42 pst Exp $
+ *	$Id: tcp_input.c,v 1.54.2.1 1996/11/11 23:40:57 phk Exp $
  */
 
 #ifndef TUBA_INCLUDE
@@ -603,7 +603,7 @@ findpcb:
 	win = sbspace(&so->so_rcv);
 	if (win < 0)
 		win = 0;
-	tp->rcv_wnd = max(win, (int)(tp->rcv_adv - tp->rcv_nxt));
+	tp->rcv_wnd = imax(win, (int)(tp->rcv_adv - tp->rcv_nxt));
 	}
 
 	switch (tp->t_state) {
