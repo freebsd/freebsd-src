@@ -351,7 +351,8 @@ pam_sm_chauthtok(pam_handle_t *pamh, int flags, int argc, const char **argv)
 		PAM_LOG("Encrypted password 1 is: %s", encrypted);
 		PAM_LOG("Encrypted password 2 is: %s", pwd->pw_passwd);
 
-		if (strcmp(encrypted, pwd->pw_passwd) != 0)
+		if (strcmp(encrypted, pwd->pw_passwd) != 0 ||
+		    (pwd->pw_expire && time(NULL) >= pwd->pw_expire))
 			PAM_RETURN(PAM_AUTH_ERR);
 
 		retval = pam_set_item(pamh, PAM_OLDAUTHTOK, (const void *)pass);
@@ -504,15 +505,14 @@ local_passwd(const char *user, const char *pass)
 		syslog(LOG_ERR, "cannot set password cipher");
 	login_close(lc);
 	/* Salt suitable for anything */
-	srandomdev();
 	gettimeofday(&tv, 0);
-	to64(&salt[0], random(), 3);
+	to64(&salt[0], arc4random(), 3);
 	to64(&salt[3], tv.tv_usec, 3);
 	to64(&salt[6], tv.tv_sec, 2);
-	to64(&salt[8], random(), 5);
-	to64(&salt[13], random(), 5);
-	to64(&salt[17], random(), 5);
-	to64(&salt[22], random(), 5);
+	to64(&salt[8], arc4random(), 5);
+	to64(&salt[13], arc4random(), 5);
+	to64(&salt[17], arc4random(), 5);
+	to64(&salt[22], arc4random(), 5);
 	salt[27] = '\0';
 
 	pwd->pw_passwd = crypt(pass, salt);
@@ -598,15 +598,14 @@ yp_passwd(const char *user, const char *pass)
 		syslog(LOG_ERR, "cannot set password cipher");
 	login_close(lc);
 	/* Salt suitable for anything */
-	srandomdev();
 	gettimeofday(&tv, 0);
-	to64(&salt[0], random(), 3);
+	to64(&salt[0], arc4random(), 3);
 	to64(&salt[3], tv.tv_usec, 3);
 	to64(&salt[6], tv.tv_sec, 2);
-	to64(&salt[8], random(), 5);
-	to64(&salt[13], random(), 5);
-	to64(&salt[17], random(), 5);
-	to64(&salt[22], random(), 5);
+	to64(&salt[8], arc4random(), 5);
+	to64(&salt[13], arc4random(), 5);
+	to64(&salt[17], arc4random(), 5);
+	to64(&salt[22], arc4random(), 5);
 	salt[27] = '\0';
 
 	if (suser_override)
