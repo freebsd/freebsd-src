@@ -354,7 +354,7 @@ cs4281chan_setblocksize(kobj_t obj, void *data, u_int32_t blocksize)
 
     DEB(printf("cs4281chan_setblocksize: bufsz %d Setting %d\n", blocksize, ch->blksz));
 
-    return sndbuf_getsize(ch->buffer);
+    return ch->blksz;
 }
 
 static int

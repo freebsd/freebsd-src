@@ -251,7 +251,7 @@ alschan_setblocksize(kobj_t obj, void *data, u_int32_t blocksize)
 		blocksize = ALS_BUFFER_SIZE / 2;
 	}
 	sndbuf_resize(ch->buffer, 2, blocksize);
-	return sndbuf_getsize(ch->buffer);
+	return blocksize;
 }
 
 static int

@@ -216,7 +216,7 @@ svchan_setblocksize(kobj_t obj, void *data, u_int32_t blocksize)
 	RANGE(blocksize, SV_MIN_BUFFER, SV_MAX_BUFFER / SV_INTR_PER_BUFFER);
 	sndbuf_resize(ch->buffer, SV_INTR_PER_BUFFER, blocksize);
 	DEB(printf("svchan_setblocksize: %d\n", blocksize));
-	return sndbuf_getsize(ch->buffer);
+	return blocksize;
 }
 
 static int
