@@ -11,7 +11,7 @@
 # device lines is present in the ./LINT configuration file. If you are 
 # in doubt as to the purpose or necessity of a line, check first in LINT.
 #
-#	$Id: PCCARD,v 1.5 1998/09/15 22:38:50 gibbs Exp $
+#	$Id: PCCARD,v 1.6 1998/09/25 17:34:48 peter Exp $
 
 machine		"i386"
 cpu		"I386_CPU"
@@ -53,15 +53,15 @@ options		ATAPI		#Enable ATAPI support for IDE bus
 options		ATAPI_STATIC	#Don't do it as an LKM
 device		wcd0	#IDE CD-ROM
 
-controller	aic0	at isa? port 0x340 bio irq 11 vector aicintr
+#controller	aic0	at isa? port 0x340 cam irq 11 vector aicintr
 
-controller	scbus0
+#controller	scbus0
 
-device		da0
+#device		da0
 
-device		sa0
+#device		sa0
 
-device		cd0	#Only need one of these, the code dynamically grows
+#device		cd0	#Only need one of these, the code dynamically grows
 
 # syscons is the default console driver, resembling an SCO console
 device		sc0	at isa? port "IO_KBD" tty irq 1 vector scintr
