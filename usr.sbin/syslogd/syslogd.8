@@ -32,7 +32,7 @@
 .\"     @(#)syslogd.8	8.1 (Berkeley) 6/6/93
 .\" $FreeBSD$
 .\"
-.Dd October 12, 1995
+.Dd November 24, 2001
 .Dt SYSLOGD 8
 .Os
 .Sh NAME
@@ -40,7 +40,7 @@
 .Nd log systems messages
 .Sh SYNOPSIS
 .Nm
-.Op Fl 46Adknsuv
+.Op Fl 46Adknosuv
 .Op Fl a Ar allowed_peer
 .Op Fl b Ar bind_address
 .Op Fl f Ar config_file
@@ -181,6 +181,11 @@ Select the number of minutes between
 messages; the default is 20 minutes.
 .It Fl n
 Disable dns query for every request.
+.It Fl o
+Prefix kernel messages with the full kernel boot file as determined by
+.Xr getbootfile 3 .
+Without this, the kernel message prefix is always
+.Dq kernel: .
 .It Fl p
 Specify the pathname of an alternate log socket to be used instead;
 the default is
