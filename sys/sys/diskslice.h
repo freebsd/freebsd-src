@@ -63,6 +63,7 @@ typedef int ds_setgeom_t __P((struct disklabel *lp));
 
 int	dscheck __P((struct buf *bp, struct diskslices *ssp));
 void	dsclose __P((dev_t dev, int mode, struct diskslices *ssp));
+void	dsgone __P((struct diskslices **sspp));
 int	dsinit __P((char *dname, dev_t dev, d_strategy_t *strat,
 		    struct disklabel *lp, struct diskslices **sspp));
 int	dsioctl __P((dev_t dev, int cmd, caddr_t data, int flags,
@@ -71,7 +72,6 @@ int	dsioctl __P((dev_t dev, int cmd, caddr_t data, int flags,
 int	dsopen __P((char *dname, dev_t dev, int mode, struct diskslices **sspp,
 		    struct disklabel *lp, d_strategy_t *strat,
 		    ds_setgeom_t *setgeom));
-int	dswlabel __P((dev_t dev, struct diskslices *ssp, int wlabel));
 
 #endif /* KERNEL */
 
