@@ -103,7 +103,12 @@
 #include <netns/ns_if.h>
 #endif
 
+#include "bpfilter.h"
+
+#if NBPFILTER > 0
 #include <net/bpf.h>
+#include <net/bpfdesc.h>
+#endif
 
 /* This struct describes one address family */
 struct iffam {
@@ -174,7 +179,9 @@ static void	ng_iface_start(struct ifnet *ifp);
 static int	ng_iface_ioctl(struct ifnet *ifp, u_long cmd, caddr_t data);
 static int	ng_iface_output(struct ifnet *ifp, struct mbuf *m0,
 		struct sockaddr *dst, struct rtentry *rt0);
+#if NBPFILTER > 0
 static void	ng_iface_bpftap(struct ifnet *ifp, struct mbuf *m, u_int af);
+#endif
 #ifdef DEBUG
 static void	ng_iface_print_ioctl(struct ifnet *ifp, int cmd, caddr_t data);
 #endif
@@ -367,7 +374,9 @@ ng_iface_output(struct ifnet *ifp, struct mbuf *m,
 	}
 
 	/* Berkeley packet filter */
+#if NBPFILTER > 0
 	ng_iface_bpftap(ifp, m, dst->sa_family);
+#endif
 
 	/* Check address family to determine hook (if known) */
 	if (iffam == NULL) {
@@ -401,6 +410,7 @@ ng_iface_start(struct ifnet *ifp)
 	printf("%s%d: %s called?", ifp->if_name, ifp->if_unit, __FUNCTION__);
 }
 
+#if NBPFILTER > 0
 /*
  * Flash a packet by the BPF (requires prepending 4 byte AF header)
  * Note the phoney mbuf; this is OK because BPF treats it read-only.
@@ -410,21 +420,20 @@ ng_iface_bpftap(struct ifnet *ifp, struct mbuf *m, u_int af)
 {
 	struct mbuf m2;
 
-	if (ifp->if_bpf) {
-		if (af == AF_UNSPEC) {
-			af = *(mtod(m, int *));
-			m->m_len -= sizeof(int);
-			m->m_pkthdr.len -= sizeof(int);
-			m->m_data += sizeof(int);
-		}
-		if (!ifp->if_bpf)
-			return;
-		m2.m_next = m;
-		m2.m_len = 4;
-		m2.m_data = (char *) &af;
-		bpf_mtap(ifp, &m2);
+	if (af == AF_UNSPEC) {
+		af = *(mtod(m, int *));
+		m->m_len -= sizeof(int);
+		m->m_pkthdr.len -= sizeof(int);
+		m->m_data += sizeof(int);
 	}
+	if (!ifp->if_bpf)
+		return;
+	m2.m_next = m;
+	m2.m_len = 4;
+	m2.m_data = (char *) &af;
+	bpf_mtap(ifp, &m2);
 }
+#endif /* NBPFILTER > 0 */
 
 #ifdef DEBUG
 /*
@@ -528,7 +537,9 @@ ng_iface_constructor(node_p *nodep)
 
 	/* Attach the interface */
 	if_attach(ifp);
+#if NBPFILTER > 0
 	bpfattach(ifp, DLT_NULL, sizeof(u_int));
+#endif
 
 	/* Done */
 	return (0);
@@ -703,8 +714,10 @@ ng_iface_rcvdata(hook_p hook, struct mbuf *m, meta_p meta)
 	/* Note receiving interface */
 	m->m_pkthdr.rcvif = ifp;
 
+#if NBPFILTER > 0
 	/* Berkeley packet filter */
 	ng_iface_bpftap(ifp, m, iffam->af);
+#endif
 
 	/* Ignore any meta-data */
 	NG_FREE_META(meta);

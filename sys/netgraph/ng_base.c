@@ -115,6 +115,7 @@ ng_make_node(const char *typename, node_p *nodepp)
 
 	/* Locate the node type */
 	if ((type = ng_findtype(typename)) == NULL) {
+#if 0
 		char *path, filename[NG_TYPELEN + 4];
 		linker_file_t lf;
 		int error;
@@ -131,6 +132,7 @@ ng_make_node(const char *typename, node_p *nodepp)
 
 		/* Try again, as now the type should have linked itself in */
 		if ((type = ng_findtype(typename)) == NULL)
+#endif
 			return (ENXIO);
 	}
 
