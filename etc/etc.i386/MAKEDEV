@@ -134,7 +134,7 @@ dkitos() {
 # Convert disk (type, unit, slice, partition) to minor number
 dkminor()
 {
-	echo $((512 * 65536 * $1 + $2 / 32 * 2097152 + $2 % 32 * 8 + 65536 * $3 + $4))
+	echo $(($1 << 25 | ($2 / 32) << 21 | ($2 % 32) << 3 | $3 << 16 | $4))
 }
 
 # Convert the last character of a tty name to a minor number.
@@ -161,7 +161,7 @@ dkcompatslice=0
 dkrawslice=1
 
 # Control bit for SCSI
-scsictl=536870912
+scsictl=$((1 << 29))
 
 # Standard umasks
 disk_umask=037			# allow group operator to read disks
@@ -428,7 +428,8 @@ od*|sd*|vn*|wd*)
 		case $name in
 		od|sd)
 			rm -f r${name}${unit}.ctl
-			mknod r${name}${unit}.ctl c $chr `expr $unit / 32 '*' 2097152 + $unit % 32 '*' 8 + $scsictl `
+			minor=`dkminor 0 $unit 0 0`
+			mknod r${name}${unit}.ctl c $chr $(($minor | $scsictl))
 			chmod 600 r${name}${unit}.ctl
 			;;
 		esac
@@ -448,7 +449,8 @@ ccd*)
 	case $unit in
 	[0-9]|[0-9][0-9]|[0-4][0-9][0-9]|50[0-9]|51[0-1])
 		rm -f r${name}${unit}.ctl
-		mknod r${name}${unit}.ctl c $chr `expr $unit / 32 '*' 2097152 + $unit % 32 '*' 8 + $scsictl `
+		minor=`dkminor 0 $unit 0 0`
+		mknod r${name}${unit}.ctl c $chr $(($minor | $scsictl))
 		chmod 600 r${name}${unit}.ctl
 		for part in 0 1 2 3 4 5 6 7
 		do
