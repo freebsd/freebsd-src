@@ -72,14 +72,31 @@
 
 /* Node private data */
 struct ng_ksocket_private {
+	node_p		node;
 	hook_p		hook;
 	struct socket	*so;
+	LIST_HEAD(, ng_ksocket_private)	embryos;
+	LIST_ENTRY(ng_ksocket_private)	siblings;
 	u_int32_t	flags;
+	u_int32_t	response_token;
+	char		response_addr[NG_PATHLEN+1];
 };
 typedef struct ng_ksocket_private *priv_p;
 
 /* Flags for priv_p */
+#define	KSF_CONNECTING	0x00000001	/* Waiting for connection complete */
+#define	KSF_ACCEPTING	0x00000002	/* Waiting for accept complete */
+#define	KSF_EOFSEEN	0x00000004	/* Have sent 0-length EOF mbuf */
+#define	KSF_CLONED	0x00000008	/* Cloned from an accepting socket */
+#define	KSF_EMBRYONIC	0x00000010	/* Cloned node with no hooks yet */
 #define	KSF_SENDING	0x00000020	/* Sending on socket */
+
+/* Internal commands which we send to ourselves */
+#define	NGM_KSOCKET_INTERNAL_COOKIE	(NGM_KSOCKET_COOKIE + 1)
+
+enum {
+	NGM_KSOCKET_INTERNAL_UPCALL = 1
+};
 
 /* Netgraph node methods */
 static ng_constructor_t	ng_ksocket_constructor;
@@ -137,6 +154,8 @@ static const struct ng_ksocket_alias ng_ksocket_protos[] = {
 };
 
 /* Helper functions */
+static int	ng_ksocket_check_accept(priv_p);
+static void	ng_ksocket_finish_accept(priv_p, struct ng_mesg **);
 static void	ng_ksocket_incoming(struct socket *so, void *arg, int waitflag);
 static int	ng_ksocket_parse(const struct ng_ksocket_alias *aliases,
 			const char *s, int family);
@@ -401,6 +420,14 @@ static const struct ng_parse_type ng_ksocket_sockopt_type = {
 	&ng_ksocket_sockopt_type_info,
 };
 
+/* Parse type for struct ng_ksocket_accept */
+static const struct ng_parse_struct_info ng_ksocket_accept_type_info
+	= NGM_KSOCKET_ACCEPT_INFO;
+static const struct ng_parse_type ng_ksocket_accept_type = {
+	&ng_parse_struct_type,
+	&ng_ksocket_accept_type_info
+};
+
 /* List of commands and how to convert arguments to/from ASCII */
 static const struct ng_cmdlist ng_ksocket_cmds[] = {
 	{
@@ -422,14 +449,14 @@ static const struct ng_cmdlist ng_ksocket_cmds[] = {
 	  NGM_KSOCKET_ACCEPT,
 	  "accept",
 	  NULL,
-	  &ng_ksocket_sockaddr_type
+	  &ng_ksocket_accept_type
 	},
 	{
 	  NGM_KSOCKET_COOKIE,
 	  NGM_KSOCKET_CONNECT,
 	  "connect",
 	  &ng_ksocket_sockaddr_type,
-	  NULL
+	  &ng_parse_int32_type
 	},
 	{
 	  NGM_KSOCKET_COOKIE,
@@ -458,6 +485,15 @@ static const struct ng_cmdlist ng_ksocket_cmds[] = {
 	  "getopt",
 	  &ng_ksocket_sockopt_type,
 	  &ng_ksocket_sockopt_type
+	},
+
+	/* Internal commands */
+	{
+	  NGM_KSOCKET_INTERNAL_COOKIE,
+	  NGM_KSOCKET_INTERNAL_UPCALL,
+	  "upcall",
+	  NULL,
+	  NULL
 	},
 	{ 0 }
 };
@@ -507,6 +543,8 @@ ng_ksocket_constructor(node_p *nodep)
 		return (error);
 	}
 	(*nodep)->private = priv;
+	priv->node = *nodep;
+	LIST_INIT(&priv->embryos);
 
 	/* Done */
 	return (0);
@@ -525,6 +563,7 @@ ng_ksocket_newhook(node_p node, hook_p hook, const char *name0)
 {
 	struct proc *p = curproc ? curproc : &proc0;	/* XXX broken */
 	const priv_p priv = node->private;
+	struct ng_mesg *msg;
 	char *s1, *s2, name[NG_HOOKLEN+1];
 	int family, type, protocol, error;
 
@@ -532,37 +571,68 @@ ng_ksocket_newhook(node_p node, hook_p hook, const char *name0)
 	if (priv->hook != NULL)
 		return (EISCONN);
 
-	/* Extract family, type, and protocol from hook name */
-	snprintf(name, sizeof(name), "%s", name0);
-	s1 = name;
-	if ((s2 = index(s1, '/')) == NULL)
-		return (EINVAL);
-	*s2++ = '\0';
-	if ((family = ng_ksocket_parse(ng_ksocket_families, s1, 0)) == -1)
-		return (EINVAL);
-	s1 = s2;
-	if ((s2 = index(s1, '/')) == NULL)
-		return (EINVAL);
-	*s2++ = '\0';
-	if ((type = ng_ksocket_parse(ng_ksocket_types, s1, 0)) == -1)
-		return (EINVAL);
-	s1 = s2;
-	if ((protocol = ng_ksocket_parse(ng_ksocket_protos, s1, family)) == -1)
-		return (EINVAL);
+	if (priv->flags & KSF_CLONED) {
+		if (priv->flags & KSF_EMBRYONIC) {
+			/* Remove ourselves from our parent's embryo list */
+			LIST_REMOVE(priv, siblings);
+			priv->flags &= ~KSF_EMBRYONIC;
+		}
+	} else {
+		/* Extract family, type, and protocol from hook name */
+		snprintf(name, sizeof(name), "%s", name0);
+		s1 = name;
+		if ((s2 = index(s1, '/')) == NULL)
+			return (EINVAL);
+		*s2++ = '\0';
+		family = ng_ksocket_parse(ng_ksocket_families, s1, 0);
+		if (family == -1)
+			return (EINVAL);
+		s1 = s2;
+		if ((s2 = index(s1, '/')) == NULL)
+			return (EINVAL);
+		*s2++ = '\0';
+		type = ng_ksocket_parse(ng_ksocket_types, s1, 0);
+		if (type == -1)
+			return (EINVAL);
+		s1 = s2;
+		protocol = ng_ksocket_parse(ng_ksocket_protos, s1, family);
+		if (protocol == -1)
+			return (EINVAL);
 
-	/* Create the socket */
-	if ((error = socreate(family, &priv->so, type, protocol, p)) != 0)
-		return (error);
+		/* Create the socket */
+		error = socreate(family, &priv->so, type, protocol, p);
+		if (error != 0)
+			return (error);
 
-	/* XXX call soreserve() ? */
+		/* XXX call soreserve() ? */
 
-	/* Add our hook for incoming data */
-	priv->so->so_upcallarg = (caddr_t)node;
-	priv->so->so_upcall = ng_ksocket_incoming;
-	priv->so->so_rcv.sb_flags |= SB_UPCALL;
+		/* Add our hook for incoming data and other events */
+		priv->so->so_upcallarg = (caddr_t)node;
+		priv->so->so_upcall = ng_ksocket_incoming;
+		priv->so->so_rcv.sb_flags |= SB_UPCALL;
+		priv->so->so_snd.sb_flags |= SB_UPCALL;
+		priv->so->so_state |= SS_NBIO;
+	}
 
 	/* OK */
 	priv->hook = hook;
+
+	/*
+	 * On a cloned socket we may have already received one or more
+	 * upcalls which we couldn't handle without a hook.  Handle
+	 * those now.  We cannot call the upcall function directly
+	 * from here, because until this function has returned our
+	 * hook isn't connected.  So we queue a message to ourselves
+	 * which will cause the upcall function to be called a bit
+	 * later.
+	 */
+	if (priv->flags & KSF_CLONED) {
+		NG_MKMESSAGE(msg, NGM_KSOCKET_INTERNAL_COOKIE,
+		    NGM_KSOCKET_INTERNAL_UPCALL, 0, M_NOWAIT);
+		if (msg != NULL)
+			ng_queue_msg(node, msg, ".:");
+	}
+
 	return (0);
 }
 
@@ -601,18 +671,13 @@ ng_ksocket_rcvmsg(node_p node, struct ng_mesg *msg,
 		case NGM_KSOCKET_LISTEN:
 		    {
 			/* Sanity check */
-			if (msg->header.arglen != sizeof(int))
+			if (msg->header.arglen != sizeof(int32_t))
 				ERROUT(EINVAL);
 			if (so == NULL)
 				ERROUT(ENXIO);
 
 			/* Listen */
-			if ((error = solisten(so, *((int *)msg->data), p)) != 0)
-				break;
-
-			/* Notify sender when we get a connection attempt */
-				/* XXX implement me */
-			error = ENODEV;
+			error = solisten(so, *((int32_t *)msg->data), p);
 			break;
 		    }
 
@@ -624,14 +689,28 @@ ng_ksocket_rcvmsg(node_p node, struct ng_mesg *msg,
 			if (so == NULL)
 				ERROUT(ENXIO);
 
-			/* Accept on the socket in a non-blocking way */
-			/* Create a new ksocket node for the new connection */
-			/* Return a response with the peer's sockaddr and
-			   the absolute name of the newly created node */
-			   
-				/* XXX implement me */
+			/* Make sure the socket is capable of accepting */
+			if (!(so->so_options & SO_ACCEPTCONN))
+				ERROUT(EINVAL);
+			if (priv->flags & KSF_ACCEPTING)
+				ERROUT(EALREADY);
 
-			error = ENODEV;
+			error = ng_ksocket_check_accept(priv);
+			if (error != 0 && error != EWOULDBLOCK)
+				ERROUT(error);
+
+			/*
+			 * If a connection is already complete, take it.
+			 * Otherwise let the upcall function deal with
+			 * the connection when it comes in.
+			 */
+			priv->response_token = msg->header.token;
+			strcpy(priv->response_addr, raddr);
+			if (error == 0) {
+				ng_ksocket_finish_accept(priv,
+				    rptr != NULL ? &resp : NULL);
+			} else
+				priv->flags |= KSF_ACCEPTING;
 			break;
 		    }
 
@@ -655,8 +734,10 @@ ng_ksocket_rcvmsg(node_p node, struct ng_mesg *msg,
 				ERROUT(error);
 			}
 			if ((so->so_state & SS_ISCONNECTING) != 0)
-				/* Notify sender when we connect */
-				/* XXX implement me */
+				/* We will notify the sender when we connect */
+				priv->response_token = msg->header.token;
+				strcpy(priv->response_addr, raddr);
+				priv->flags |= KSF_CONNECTING;
 				ERROUT(EINPROGRESS);
 			break;
 		    }
@@ -769,6 +850,18 @@ ng_ksocket_rcvmsg(node_p node, struct ng_mesg *msg,
 			break;
 		}
 		break;
+	case NGM_KSOCKET_INTERNAL_COOKIE:
+		switch (msg->header.cmd) {
+		case NGM_KSOCKET_INTERNAL_UPCALL:
+			if (so == NULL)
+				ERROUT(ENXIO);
+			(*priv->so->so_upcall)(so, so->so_upcallarg, M_NOWAIT);
+			break;
+		default:
+			error = EINVAL;
+			break;
+		}
+		break;
 	default:
 		error = EINVAL;
 		break;
@@ -836,14 +929,27 @@ static int
 ng_ksocket_rmnode(node_p node)
 {
 	const priv_p priv = node->private;
+	priv_p embryo;
 
 	/* Close our socket (if any) */
 	if (priv->so != NULL) {
-
 		priv->so->so_upcall = NULL;
 		priv->so->so_rcv.sb_flags &= ~SB_UPCALL;
+		priv->so->so_snd.sb_flags &= ~SB_UPCALL;
 		soclose(priv->so);
 		priv->so = NULL;
+	}
+
+	/* If we are an embryo, take ourselves out of the parent's list */
+	if (priv->flags & KSF_EMBRYONIC) {
+		LIST_REMOVE(priv, siblings);
+		priv->flags &= ~KSF_EMBRYONIC;
+	}
+
+	/* Remove any embryonic children we have */
+	while (!LIST_EMPTY(&priv->embryos)) {
+		embryo = LIST_FIRST(&priv->embryos);
+		ng_rmnode(embryo->node);
 	}
 
 	/* Take down netgraph node */
@@ -875,6 +981,7 @@ ng_ksocket_disconnect(hook_p hook)
 
 /*
  * When incoming data is appended to the socket, we get notified here.
+ * This is also called whenever a significant event occurs for the socket.
  */
 static void
 ng_ksocket_incoming(struct socket *so, void *arg, int waitflag)
@@ -882,6 +989,7 @@ ng_ksocket_incoming(struct socket *so, void *arg, int waitflag)
 	const node_p node = arg;
 	const priv_p priv = node->private;
 	struct mbuf *m;
+	struct ng_mesg *response;
 	struct uio auio;
 	int s, flags, error;
 
@@ -893,7 +1001,51 @@ ng_ksocket_incoming(struct socket *so, void *arg, int waitflag)
 		return;
 	}
 	KASSERT(so == priv->so, ("%s: wrong socket", __FUNCTION__));
-	KASSERT(priv->hook != NULL, ("%s: no hook", __FUNCTION__));
+
+	/* Check whether a pending connect operation has completed */
+	if (priv->flags & KSF_CONNECTING) {
+		if ((error = so->so_error) != 0) {
+			so->so_error = 0;
+			so->so_state &= ~SS_ISCONNECTING;
+		}
+		if (!(so->so_state & SS_ISCONNECTING)) {
+			NG_MKMESSAGE(response, NGM_KSOCKET_COOKIE,
+			    NGM_KSOCKET_CONNECT, sizeof(int32_t), waitflag);
+			if (response != NULL) {
+				response->header.flags |= NGF_RESP;
+				response->header.token = priv->response_token;
+				*(int32_t *)response->data = error;
+				/*
+				 * XXX We use ng_queue_msg here because we are
+				 * being called from deep in the bowels of the TCP
+				 * stack.  Is this right, or should we let the
+				 * receiver of the message worry about that?
+				 */
+				ng_queue_msg(node, response,
+				    priv->response_addr);
+			}
+			priv->flags &= ~KSF_CONNECTING;
+		}
+	}
+
+	/* Check whether a pending accept operation has completed */
+	if (priv->flags & KSF_ACCEPTING) {
+		error = ng_ksocket_check_accept(priv);
+		if (error != EWOULDBLOCK)
+			priv->flags &= ~KSF_ACCEPTING;
+		if (error == 0)
+			ng_ksocket_finish_accept(priv, NULL);
+	}
+
+	/*
+	 * If we don't have a hook, we must handle data events later.  When
+	 * the hook gets created and is connected, this upcall function
+	 * will be called again.
+	 */
+	if (priv->hook == NULL) {
+		splx(s);
+		return;
+	}
 
 	/* Read and forward available mbuf's */
 	auio.uio_procp = NULL;
@@ -944,11 +1096,127 @@ ng_ksocket_incoming(struct socket *so, void *arg, int waitflag)
 			bcopy(sa, mhead->data, sa->sa_len);
 			FREE(sa, M_SONAME);
 		}
-
 sendit:		/* Forward data with optional peer sockaddr as meta info */
 		NG_SEND_DATA(error, priv->hook, m, meta);
 	}
+
+	/*
+	 * If the peer has closed the connection, forward a 0-length mbuf
+	 * to indicate end-of-file.
+	 */
+	if (so->so_state & SS_CANTRCVMORE && !(priv->flags & KSF_EOFSEEN)) {
+		MGETHDR(m, waitflag, MT_DATA);
+		if (m != NULL) {
+			m->m_len = m->m_pkthdr.len = 0;
+			NG_SEND_DATA_ONLY(error, priv->hook, m);
+		}
+		priv->flags |= KSF_EOFSEEN;
+	}
+
 	splx(s);
+}
+
+/*
+ * Check for a completed incoming connection and return 0 if one is found.
+ * Otherwise return the appropriate error code.
+ */
+static int
+ng_ksocket_check_accept(priv_p priv)
+{
+	struct socket *const head = priv->so;
+	int error;
+
+	if ((error = head->so_error) != 0) {
+		head->so_error = 0;
+		return error;
+	}
+	if (TAILQ_EMPTY(&head->so_comp)) {
+		if (head->so_state & SS_CANTRCVMORE)
+			return ECONNABORTED;
+		return EWOULDBLOCK;
+	}
+	return 0;
+}
+
+/*
+ * Handle the first completed incoming connection, assumed to be already
+ * on the socket's so_comp queue.
+ */
+static void
+ng_ksocket_finish_accept(priv_p priv, struct ng_mesg **rptr)
+{
+	struct socket *const head = priv->so;
+	struct socket *so;
+	struct sockaddr *sa = NULL;
+	struct ng_mesg *resp;
+	struct ng_ksocket_accept *resp_data;
+	node_p node2;
+	priv_p priv2;
+	int len;
+
+	so = TAILQ_FIRST(&head->so_comp);
+	if (so == NULL)		/* Should never happen */
+		return;
+	TAILQ_REMOVE(&head->so_comp, so, so_list);
+	head->so_qlen--;
+
+	/* XXX KNOTE(&head->so_rcv.sb_sel.si_note, 0); */
+
+	so->so_state &= ~SS_COMP;
+	so->so_state |= SS_NBIO;
+	so->so_head = NULL;
+
+	soaccept(so, &sa);
+
+	len = OFFSETOF(struct ng_ksocket_accept, addr);
+	if (sa != NULL)
+		len += sa->sa_len;
+
+	NG_MKMESSAGE(resp, NGM_KSOCKET_COOKIE, NGM_KSOCKET_ACCEPT, len,
+	    M_NOWAIT);
+	if (resp == NULL) {
+		soclose(so);
+		goto out;
+	}
+	resp->header.flags |= NGF_RESP;
+	resp->header.token = priv->response_token;
+
+	/* Clone a ksocket node to wrap the new socket */
+	if (ng_ksocket_constructor(&node2) != 0) {
+		FREE(resp, M_NETGRAPH);
+		soclose(so);
+		goto out;
+	}
+	priv2 = (priv_p)node2->private;
+	priv2->so = so;
+	priv2->flags |= KSF_CLONED | KSF_EMBRYONIC;
+
+	/*
+	 * Insert the cloned node into a list of embryonic children
+	 * on the parent node.  When a hook is created on the cloned
+	 * node it will be removed from this list.  When the parent
+	 * is destroyed it will destroy any embryonic children it has.
+	 */
+	LIST_INSERT_HEAD(&priv->embryos, priv2, siblings);
+
+	so->so_upcallarg = (caddr_t)node2;
+	so->so_upcall = ng_ksocket_incoming;
+	so->so_rcv.sb_flags |= SB_UPCALL;
+	so->so_snd.sb_flags |= SB_UPCALL;
+
+	/* Fill in the response data and send it or return it to the caller */
+	resp_data = (struct ng_ksocket_accept *)resp->data;
+	resp_data->nodeid = node2->ID;
+	if (sa != NULL)
+		bcopy(sa, &resp_data->addr, sa->sa_len);
+	if (rptr != NULL)
+		*rptr = resp;
+	else
+		ng_queue_msg(priv->node, resp, priv->response_addr);
+
+out:
+	if (sa != NULL)
+		FREE(sa, M_SONAME);
 }
 
 /*
