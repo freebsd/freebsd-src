@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: vm86.c,v 1.23 1999/03/18 18:43:03 jlemon Exp $
+ *	$Id: vm86.c,v 1.24 1999/04/28 01:03:27 luoqi Exp $
  */
 
 #include "opt_vm86.h"
@@ -49,9 +49,6 @@
 #include <machine/specialreg.h>
 
 extern int i386_extend_pcb	__P((struct proc *));
-#ifndef SMP
-extern struct segment_descriptor common_tssd;
-#endif
 extern int vm86paddr, vm86pa;
 extern struct pcb *vm86pcb;
 
