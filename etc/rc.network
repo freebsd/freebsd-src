@@ -812,34 +812,6 @@ network_pass3() {
 		;;
 	esac
 
-	# Kerberos servers run ONLY on the Kerberos server machine
-	case ${kerberos4_server_enable} in
-	[Yy][Ee][Ss])
-		case ${kerberos_stash} in
-		[Yy][Ee][Ss])
-			stash=-n
-			;;
-		*)
-			stash=
-			;;
-		esac
-
-		echo -n ' kerberosIV'
-		${kerberos4_server} ${stash} >> /var/log/kerberos.log &
-
-		case ${kadmind4_server_enable} in
-		[Yy][Ee][Ss])
-			echo -n ' kadmindIV'
-			(
-				sleep 20;
-				${kadmind4_server} ${stash} >/dev/null 2>&1 &
-			) &
-			;;
-		esac
-		unset stash_flag
-		;;
-	esac
-
 	case ${kerberos5_server_enable} in
 	[Yy][Ee][Ss])
 		echo -n ' kerberos5'
