@@ -25,7 +25,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *  $Id: syscons.c,v 1.248 1998/02/11 14:56:02 yokota Exp $
+ *  $Id: syscons.c,v 1.249 1998/02/11 14:58:15 yokota Exp $
  */
 
 #include "sc.h"
@@ -139,6 +139,7 @@ static  int		sc_port = IO_KBD;
 static  KBDC		sc_kbdc = NULL;
 static  char        	init_done = COLD;
 static  u_short		sc_buffer[ROW*COL];
+static  char        	font_loading_in_progress = FALSE;
 static  char        	switch_in_progress = FALSE;
 static  char        	write_in_progress = FALSE;
 static  char        	blink_in_progress = FALSE;
@@ -1520,22 +1521,26 @@ scioctl(dev_t dev, int cmd, caddr_t data, int flag, struct proc *p)
 		return EINVAL;
 	    scp->xsize = 80;
 	    scp->ysize = 60;
+	    scp->font_size = 8;
 	    break;
 	case M_VGA_C80x50: case M_VGA_M80x50:
 	    if (!(fonts_loaded & FONT_8))
 		return EINVAL;
 	    scp->xsize = 80;
 	    scp->ysize = 50;
+	    scp->font_size = 8;
 	    break;
 	case M_ENH_B80x43: case M_ENH_C80x43:
 	    if (!(fonts_loaded & FONT_8))
 		return EINVAL;
 	    scp->xsize = 80;
 	    scp->ysize = 43;
+	    scp->font_size = 8;
 	    break;
 	case M_VGA_C80x30: case M_VGA_M80x30:
 	    scp->xsize = 80;
 	    scp->ysize = 30;
+	    scp->font_size = mp[2];
 	    break;
 	case M_ENH_C40x25: case M_ENH_B40x25:
 	case M_ENH_C80x25: case M_ENH_B80x25:
@@ -1548,6 +1553,7 @@ scioctl(dev_t dev, int cmd, caddr_t data, int flag, struct proc *p)
 		return EINVAL;
             scp->xsize = mp[0];
             scp->ysize = mp[1] + rows_offset;
+	    scp->font_size = mp[2];
 	    break;
 	}
 	scp->mode = cmd & 0xff;
@@ -1603,6 +1609,7 @@ scioctl(dev_t dev, int cmd, caddr_t data, int flag, struct proc *p)
 	scp->mode = cmd & 0xFF;
 	scp->xpixel = mp[0] * 8;
 	scp->ypixel = (mp[1] + rows_offset) * mp[2];
+	scp->font_size = FONT_NONE;
 	if (scp == cur_console)
 	    set_mode(scp);
 	scp->status |= UNKNOWN_MODE;    /* graphics mode */
@@ -2149,7 +2156,7 @@ sccncheckc(dev_t dev)
 static void
 sccnupdate(scr_stat *scp)
 {
-    if (scp == cur_console) {
+    if (scp == cur_console && !font_loading_in_progress) {
 	if (scrn_blanked > 0)
             stop_scrn_saver(current_saver);
 	if (!(scp->status & UNKNOWN_MODE) && scrn_blanked <= 0 
@@ -2184,7 +2191,14 @@ static void
 scrn_timer(void *arg)
 {
     scr_stat *scp = cur_console;
-    int s = spltty();
+    int s;
+
+    /* don't do anything when we are touching font */
+    if (font_loading_in_progress) {
+	timeout(scrn_timer, NULL, hz / 10);
+	return;
+    }
+    s = spltty();
 
     /* 
      * With release 2.1 of the Xaccel server, the keyboard is left
@@ -4326,6 +4340,8 @@ set_font_mode(u_char *buf)
 {
     int s = splhigh();
 
+    font_loading_in_progress = TRUE;
+
     /* save register values */
     outb(TSIDX, 0x02); buf[0] = inb(TSREG);
     outb(TSIDX, 0x04); buf[1] = inb(TSREG);
@@ -4335,24 +4351,24 @@ set_font_mode(u_char *buf)
     inb(crtc_addr + 6);
     outb(ATC, 0x10); buf[5] = inb(ATC + 1);
 
-    /* setup vga for loading fonts (graphics plane mode) */
+    /* setup vga for loading fonts */
     inb(crtc_addr+6);           		/* reset flip-flop */
-    outb(ATC, 0x10); outb(ATC, 0x01);
+    outb(ATC, 0x10); outb(ATC, buf[5] & ~0x01);
     inb(crtc_addr+6);               		/* reset flip-flop */
     outb(ATC, 0x20);            		/* enable palette */
 
 #if SLOW_VGA
     outb(TSIDX, 0x02); outb(TSREG, 0x04);
-    outb(TSIDX, 0x04); outb(TSREG, 0x06);
+    outb(TSIDX, 0x04); outb(TSREG, 0x07);
     outb(GDCIDX, 0x04); outb(GDCREG, 0x02);
     outb(GDCIDX, 0x05); outb(GDCREG, 0x00);
-    outb(GDCIDX, 0x06); outb(GDCREG, 0x05);
+    outb(GDCIDX, 0x06); outb(GDCREG, 0x04);
 #else
     outw(TSIDX, 0x0402);
-    outw(TSIDX, 0x0604);
+    outw(TSIDX, 0x0704);
     outw(GDCIDX, 0x0204);
     outw(GDCIDX, 0x0005);
-    outw(GDCIDX, 0x0506);               /* addr = a0000, 64kb */
+    outw(GDCIDX, 0x0406);               /* addr = a0000, 64kb */
 #endif
     splx(s);
 }
@@ -4389,6 +4405,8 @@ set_normal_mode(u_char *buf)
     else
         outw(GDCIDX, 0x0006 | (((buf[4] & 0x03) | 0x0c)<<8));
 #endif
+
+    font_loading_in_progress = FALSE;
     splx(s);
 }
 
