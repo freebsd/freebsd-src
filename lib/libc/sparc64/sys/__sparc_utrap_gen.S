@@ -24,17 +24,14 @@
  * SUCH DAMAGE.
  */
 
-#if defined(SYSLIBC_RCS) && !defined(lint)
-	.text
-	.asciz "$FreeBSD$"
-#endif /* SYSLIBC_RCS and not lint */
+#include <machine/asm.h>
+__FBSDID("$FreeBSD$");
 
 	.register	%g2, #ignore
 	.register	%g3, #ignore
 	.register	%g6, #ignore
 	.register	%g7, #ignore
 
-#include <machine/asm.h>
 #include <machine/tstate.h>
 #include <machine/utrap.h>
 
