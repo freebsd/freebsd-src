@@ -59,6 +59,13 @@ static int nextid = 1;
 
 static void module_shutdown(void*, int);
 
+static int
+modevent_nop(module_t mod, int what, void* arg)
+{
+	return 0;
+}
+
+
 static void
 module_init(void* arg)
 {
@@ -129,7 +136,7 @@ module_register(const moduledata_t *data, linker_file_t container)
     newmod->id = nextid++;
     newmod->name = (char *) (newmod + 1);
     strcpy(newmod->name, data->name);
-    newmod->handler = data->evhand;
+    newmod->handler = data->evhand ? data->evhand : modevent_nop;
     newmod->arg = data->priv;
     bzero(&newmod->data, sizeof(newmod->data));
     TAILQ_INSERT_TAIL(&modules, newmod, link);
