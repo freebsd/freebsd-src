@@ -611,8 +611,10 @@ write_file(int fd, struct track_info *track_info)
 	size = 0;
 
 	while ((count = read(track_info->file, buf,
-			     MIN((track_info->file_size - size),
-				 track_info->block_size * BLOCKS))) > 0) {	
+			     track_info->file_size == -1
+				? track_info->block_size * BLOCKS
+				: MIN((track_info->file_size - size),
+				      track_info->block_size * BLOCKS))) > 0) {	
 		int res;
 
 		if (count % track_info->block_size) {
@@ -641,7 +643,8 @@ write_file(int fd, struct track_info *track_info)
 			fprintf(stderr, " total %jd KB\r", 
 			    (intmax_t)tot_size / 1024);
 		}
-		if (size >= track_info->file_size)
+		if (track_info->file_size != -1
+		    && size >= track_info->file_size)
 			break;
 	}
 
