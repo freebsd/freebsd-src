@@ -27,6 +27,9 @@ SRCS=	c-common.c c-dump.c c-format.c c-opts.c \
 	attribs.c cselib.c debug.c rtl-error.c tree-dump.c tree-inline.c
 
 SRCS+=	${GCC_CPU}.c
+.if exists(${GCCDIR}/config/${GCC_CPU}/${GCC_CPU}-c.c)
+SRCS+=	${GCC_CPU}-c.c
+.endif
 
 SRCS+=	bb-reorder.c conflict.c ggc-common.c \
 	ggc-page.c ifcvt.c lists.c predict.c regrename.c resource.c sibcall.c \
