@@ -1,4 +1,3 @@
-/* $FreeBSD$ */
 /*	$NetBSD: open.c,v 1.16 1997/01/28 09:41:03 pk Exp $	*/
 
 /*-
@@ -64,6 +63,9 @@
  * any improvements or extensions that they make and grant Carnegie the
  * rights to redistribute these changes.
  */
+
+#include <sys/cdefs.h>
+__FBSDID("$FreeBSD$");
 
 #include "stand.h"
 
