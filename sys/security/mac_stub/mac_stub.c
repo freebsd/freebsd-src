@@ -263,7 +263,7 @@ stub_create_socket(struct ucred *cred, struct socket *socket,
 }
 
 static void
-stub_create_pipe(struct ucred *cred, struct pipe *pipe,
+stub_create_pipe(struct ucred *cred, struct pipepair *pp,
     struct label *pipelabel)
 {
 
@@ -285,7 +285,7 @@ stub_relabel_socket(struct ucred *cred, struct socket *socket,
 }
 
 static void
-stub_relabel_pipe(struct ucred *cred, struct pipe *pipe,
+stub_relabel_pipe(struct ucred *cred, struct pipepair *pp,
     struct label *pipelabel, struct label *newlabel)
 {
 
@@ -595,7 +595,7 @@ stub_check_mount_stat(struct ucred *cred, struct mount *mp,
 }
 
 static int
-stub_check_pipe_ioctl(struct ucred *cred, struct pipe *pipe,
+stub_check_pipe_ioctl(struct ucred *cred, struct pipepair *pp,
     struct label *pipelabel, unsigned long cmd, void /* caddr_t */ *data)
 {
 
@@ -603,7 +603,7 @@ stub_check_pipe_ioctl(struct ucred *cred, struct pipe *pipe,
 }
 
 static int
-stub_check_pipe_poll(struct ucred *cred, struct pipe *pipe,
+stub_check_pipe_poll(struct ucred *cred, struct pipepair *pp,
     struct label *pipelabel)
 {
 
@@ -611,7 +611,7 @@ stub_check_pipe_poll(struct ucred *cred, struct pipe *pipe,
 }
 
 static int
-stub_check_pipe_read(struct ucred *cred, struct pipe *pipe,
+stub_check_pipe_read(struct ucred *cred, struct pipepair *pp,
     struct label *pipelabel)
 {
 
@@ -619,7 +619,7 @@ stub_check_pipe_read(struct ucred *cred, struct pipe *pipe,
 }
 
 static int
-stub_check_pipe_relabel(struct ucred *cred, struct pipe *pipe,
+stub_check_pipe_relabel(struct ucred *cred, struct pipepair *pp,
     struct label *pipelabel, struct label *newlabel)
 {
 
@@ -627,7 +627,7 @@ stub_check_pipe_relabel(struct ucred *cred, struct pipe *pipe,
 }
 
 static int
-stub_check_pipe_stat(struct ucred *cred, struct pipe *pipe,
+stub_check_pipe_stat(struct ucred *cred, struct pipepair *pp,
     struct label *pipelabel)
 {
 
@@ -635,7 +635,7 @@ stub_check_pipe_stat(struct ucred *cred, struct pipe *pipe,
 }
 
 static int
-stub_check_pipe_write(struct ucred *cred, struct pipe *pipe,
+stub_check_pipe_write(struct ucred *cred, struct pipepair *pp,
     struct label *pipelabel)
 {
 
