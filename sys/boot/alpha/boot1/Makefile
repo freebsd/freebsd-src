@@ -15,17 +15,13 @@ CFLAGS+=	-I${.CURDIR}/..
 CFLAGS+=	-DSECONDARY_LOAD_ADDRESS=${SECONDARY_LOAD_ADDRESS} -DMINIMAL
 NOMAN=1
 STRIP=
-BINDIR?=	/usr/mdec
+BINDIR?=	/boot
 
 BOOT_RELOC = ${PRIMARY_LOAD_ADDRESS}
 
 CLEANFILES+= ${PROG}.sym ${PROG}.nosym ${PROG}.list
 
 all:	${PROG}
-
-afterinstall:
-	ln -sf boot1 /usr/mdec/daboot
-	ln -sf boot1 /usr/mdec/fdboot
 
 ${PROG}.nosym: ${PROG}.sym
 	cp ${PROG}.sym ${PROG}.nosym
