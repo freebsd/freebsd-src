@@ -63,6 +63,12 @@ typedef unsigned char bool;
 #define false	0
 #define true	1
 
+extern size_t tls_last_offset;
+extern size_t tls_last_size;
+extern size_t tls_static_space;
+extern int tls_dtv_generation;
+extern int tls_max_index;
+
 struct stat;
 struct Struct_Obj_Entry;
 
@@ -137,6 +143,14 @@ typedef struct Struct_Obj_Entry {
     size_t phsize;		/* Size of program header in bytes */
     const char *interp;		/* Pathname of the interpreter, if any */
 
+    /* TLS information */
+    int tlsindex;		/* Index in DTV for this module */
+    void *tlsinit;		/* Base address of TLS init block */
+    size_t tlsinitsize;		/* Size of TLS init block for this module */
+    size_t tlssize;		/* Size of TLS block for this module */
+    size_t tlsoffset;		/* Offset of static TLS block for this module */
+    size_t tlsalign;		/* Alignment of static TLS block */
+
     /* Items from the dynamic section. */
     Elf_Addr *pltgot;		/* PLT or GOT, depending on architecture */
     const Elf_Rel *rel;		/* Relocation entries */
@@ -170,6 +184,7 @@ typedef struct Struct_Obj_Entry {
     bool traced;		/* Already printed in ldd trace output */
     bool jmpslots_done;		/* Already have relocated the jump slots */
     bool init_done;		/* Already have added object to init list */
+    bool tls_done;		/* Already allocated offset for static TLS */
 
     struct link_map linkmap;	/* for GDB and dlinfo() */
     Objlist dldags;		/* Object belongs to these dlopened DAGs (%) */
@@ -181,6 +196,8 @@ typedef struct Struct_Obj_Entry {
 
 #define RTLD_MAGIC	0xd550b87a
 #define RTLD_VERSION	1
+
+#define RTLD_STATIC_TLS_EXTRA	64
 
 /*
  * Symbol cache entry used during relocation to avoid multiple lookups
@@ -216,6 +233,11 @@ Obj_Entry *obj_new(void);
 void _rtld_bind_start(void);
 const Elf_Sym *symlook_obj(const char *, unsigned long,
   const Obj_Entry *, bool);
+void *tls_get_addr_common(Elf_Addr** dtvp, int index, size_t offset);
+void *allocate_tls(Obj_Entry *, void *, size_t, size_t);
+void free_tls(void *, size_t, size_t);
+void *allocate_module_tls(int index);
+bool allocate_tls_offset(Obj_Entry *obj);
 
 /*
  * MD function declarations.
@@ -224,5 +246,6 @@ int do_copy_relocations(Obj_Entry *);
 int reloc_non_plt(Obj_Entry *, Obj_Entry *);
 int reloc_plt(Obj_Entry *);
 int reloc_jmpslots(Obj_Entry *);
+void allocate_initial_tls(Obj_Entry *);
 
 #endif /* } */

@@ -33,6 +33,8 @@
 
 #include <sys/param.h>
 #include <sys/mman.h>
+#include <machine/segments.h>
+#include <machine/sysarch.h>
 
 #include <dlfcn.h>
 #include <err.h>
@@ -202,6 +204,64 @@ reloc_non_plt(Obj_Entry *obj, Obj_Entry *obj_rtld)
 		*where += (Elf_Addr) obj->relocbase;
 		break;
 
+	    case R_386_TLS_TPOFF:
+		{
+		    const Elf_Sym *def;
+		    const Obj_Entry *defobj;
+
+		    def = find_symdef(ELF_R_SYM(rel->r_info), obj, &defobj,
+		      false, cache);
+		    if (def == NULL)
+			goto done;
+
+		    /*
+		     * We lazily allocate offsets for static TLS as we
+		     * see the first relocation that references the
+		     * TLS block. This allows us to support (small
+		     * amounts of) static TLS in dynamically loaded
+		     * modules. If we run out of space, we generate an
+		     * error.
+		     */
+		    if (!defobj->tls_done) {
+			if (!allocate_tls_offset((Obj_Entry*) defobj)) {
+			    _rtld_error("%s: No space available for static "
+					"Thread Local Storage", obj->path);
+			    goto done;
+			}
+		    }
+
+		    *where += (Elf_Addr) (def->st_value - defobj->tlsoffset);
+		}
+		break;
+
+	    case R_386_TLS_DTPMOD32:
+		{
+		    const Elf_Sym *def;
+		    const Obj_Entry *defobj;
+
+		    def = find_symdef(ELF_R_SYM(rel->r_info), obj, &defobj,
+		      false, cache);
+		    if (def == NULL)
+			goto done;
+
+		    *where += (Elf_Addr) defobj->tlsindex;
+		}
+		break;
+
+	    case R_386_TLS_DTPOFF32:
+		{
+		    const Elf_Sym *def;
+		    const Obj_Entry *defobj;
+
+		    def = find_symdef(ELF_R_SYM(rel->r_info), obj, &defobj,
+		      false, cache);
+		    if (def == NULL)
+			goto done;
+
+		    *where += (Elf_Addr) def->st_value;
+		}
+		break;
+
 	    default:
 		_rtld_error("%s: Unsupported relocation type %d"
 		  " in non-PLT relocations\n", obj->path,
@@ -261,4 +321,58 @@ reloc_jmpslots(Obj_Entry *obj)
     }
     obj->jmpslots_done = true;
     return 0;
+}
+
+void
+allocate_initial_tls(Obj_Entry *objs)
+{
+    void* tls;
+    union descriptor ldt;
+    int sel;
+
+    /*
+     * Fix the size of the static TLS block by using the maximum
+     * offset allocated so far and adding a bit for dynamic modules to
+     * use.
+     */
+    tls_static_space = tls_last_offset + RTLD_STATIC_TLS_EXTRA;
+    tls = allocate_tls(objs, NULL, 2*sizeof(Elf_Addr), sizeof(Elf_Addr));
+
+    memset(&ldt, 0, sizeof(ldt));
+    ldt.sd.sd_lolimit = 0xffff;	/* 4G limit */
+    ldt.sd.sd_lobase = ((Elf_Addr)tls) & 0xffffff;
+    ldt.sd.sd_type = SDT_MEMRWA;
+    ldt.sd.sd_dpl = SEL_UPL;
+    ldt.sd.sd_p = 1;		/* present */
+    ldt.sd.sd_hilimit = 0xf;	/* 4G limit */
+    ldt.sd.sd_def32 = 1;	/* 32 bit */
+    ldt.sd.sd_gran = 1;		/* limit in pages */
+    ldt.sd.sd_hibase = (((Elf_Addr)tls) >> 24) & 0xff;
+    sel = i386_set_ldt(LDT_AUTO_ALLOC, &ldt, 1);
+    __asm __volatile("movl %0,%%gs" : : "rm" ((sel << 3) | 7));
+}
+
+/* GNU ABI */
+__attribute__((__regparm__(1)))
+void *___tls_get_addr(tls_index *ti)
+{
+    Elf_Addr** segbase;
+    Elf_Addr* dtv;
+
+    __asm __volatile("movl %%gs:0, %0" : "=r" (segbase));
+    dtv = segbase[1];
+
+    return tls_get_addr_common(&segbase[1], ti->ti_module, ti->ti_offset);
+}
+
+/* Sun ABI */
+void *__tls_get_addr(tls_index *ti)
+{
+    Elf_Addr** segbase;
+    Elf_Addr* dtv;
+
+    __asm __volatile("movl %%gs:0, %0" : "=r" (segbase));
+    dtv = segbase[1];
+
+    return tls_get_addr_common(&segbase[1], ti->ti_module, ti->ti_offset);
 }

@@ -717,3 +717,24 @@ install_plt(Elf_Half *pltgot, Elf_Addr proc)
 	pltgot[7] = MOV_g1_o0;
 	flush(pltgot, 28);
 }
+
+void
+allocate_initial_tls(Obj_Entry *objs)
+{
+    register Elf_Addr** tp __asm__("%g7");
+
+    /*
+     * Fix the size of the static TLS block by using the maximum
+     * offset allocated so far and adding a bit for dynamic modules to
+     * use.
+     */
+    tls_static_space = tls_last_offset + RTLD_STATIC_TLS_EXTRA;
+    tp = allocate_tls(objs, NULL, 2*sizeof(Elf_Addr), sizeof(Elf_Addr));
+}
+
+void *__tls_get_addr(tls_index *ti)
+{
+    register Elf_Addr** tp __asm__("%g7");
+
+    return tls_get_addr_common(tp, ti->ti_module, ti->ti_offset);
+}

@@ -63,6 +63,7 @@ map_object(int fd, const char *path, const struct stat *sb)
     Elf_Phdr *phdyn;
     Elf_Phdr *phphdr;
     Elf_Phdr *phinterp;
+    Elf_Phdr *phtls;
     caddr_t mapbase;
     size_t mapsize;
     Elf_Off base_offset;
@@ -96,7 +97,7 @@ map_object(int fd, const char *path, const struct stat *sb)
     phdr = (Elf_Phdr *) ((char *)hdr + hdr->e_phoff);
     phlimit = phdr + hdr->e_phnum;
     nsegs = -1;
-    phdyn = phphdr = phinterp = NULL;
+    phdyn = phphdr = phinterp = phtls = NULL;
     segs = alloca(sizeof(segs[0]) * hdr->e_phnum);
     while (phdr < phlimit) {
 	switch (phdr->p_type) {
@@ -120,6 +121,10 @@ map_object(int fd, const char *path, const struct stat *sb)
 
 	case PT_DYNAMIC:
 	    phdyn = phdr;
+	    break;
+
+	case PT_TLS:
+	    phtls = phdr;
 	    break;
 	}
 
@@ -228,7 +233,14 @@ map_object(int fd, const char *path, const struct stat *sb)
     }
     if (phinterp != NULL)
 	obj->interp = (const char *) (obj->relocbase + phinterp->p_vaddr);
-
+    if (phtls != NULL) {
+	tls_dtv_generation++;
+	obj->tlsindex = ++tls_max_index;
+	obj->tlssize = phtls->p_memsz;
+	obj->tlsalign = phtls->p_align;
+	obj->tlsinitsize = phtls->p_filesz;
+	obj->tlsinit = mapbase + phtls->p_vaddr;
+    }
     return obj;
 }
 
