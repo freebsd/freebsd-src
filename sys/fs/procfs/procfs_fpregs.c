@@ -57,12 +57,12 @@ procfs_doprocfpregs(PFS_FILL_ARGS)
 	struct fpreg r;
 
 	PROC_LOCK(p);
+	KASSERT(p->p_lock > 0, ("proc not held"));
 	if (p_candebug(td, p)) {
 		PROC_UNLOCK(p);
 		return (EPERM);
 	}
 
-	_PHOLD(p);
 	/* XXXKSE: */
 	error = proc_read_fpregs(FIRST_THREAD_IN_PROC(p), &r);
 	if (error == 0) {
@@ -77,7 +77,6 @@ procfs_doprocfpregs(PFS_FILL_ARGS)
 			/* XXXKSE: */
 			error = proc_write_fpregs(FIRST_THREAD_IN_PROC(p), &r);
 	}
-	_PRELE(p);
 	PROC_UNLOCK(p);
 
 	uio->uio_offset = 0;
