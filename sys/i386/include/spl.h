@@ -30,7 +30,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: spl.h,v 1.5 1994/09/20 05:07:32 bde Exp $
+ *	$Id: spl.h,v 1.6 1994/12/30 12:42:15 bde Exp $
  */
 
 #ifndef _MACHINE_IPL_H_
@@ -76,7 +76,6 @@ extern	unsigned bio_imask;	/* group of interrupts masked with splbio() */
 extern	unsigned cpl;		/* current priority level mask */
 extern	volatile unsigned ipending;	/* active interrupts masked by cpl */
 extern	unsigned net_imask;	/* group of interrupts masked with splimp() */
-extern	volatile unsigned netisr;
 extern	unsigned stat_imask;	/* interrupts masked with splstatclock() */
 extern	unsigned tty_imask;	/* group of interrupts masked with spltty() */
 

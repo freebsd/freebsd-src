@@ -35,7 +35,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)machdep.c	7.4 (Berkeley) 6/3/91
- *	$Id: machdep.c,v 1.121 1995/04/18 23:55:26 rgrimes Exp $
+ *	$Id: machdep.c,v 1.122 1995/04/22 03:58:46 wpaul Exp $
  */
 
 #include "npx.h"
@@ -184,10 +184,13 @@ vm_offset_t	phys_avail[6];
 int cpu_class;
 
 void dumpsys __P((void));
+void setup_netisrs __P((struct linker_set *)); /* XXX declare elsewhere */
+
 vm_offset_t buffer_sva, buffer_eva;
 vm_offset_t clean_sva, clean_eva;
 vm_offset_t pager_sva, pager_eva;
 extern int pager_map_size;
+extern struct linker_set netisr_set;
 
 #define offsetof(type, member)	((size_t)(&((type *)0)->member))
 
@@ -228,26 +231,13 @@ cpu_startup()
 	/*
 	 * Quickly wire in netisrs.
 	 */
-#define DONET(isr, n) do { netisrs[n] = isr; } while(0)
-#ifdef INET
-#if NETHER > 0
-	DONET(arpintr, NETISR_ARP);
-#endif
-	DONET(ipintr, NETISR_IP);
-#endif
-#ifdef NS
-	DONET(nsintr, NETISR_NS);
-#endif
-#ifdef ISO
-	DONET(clnlintr, NETISR_ISO);
-#endif
-#ifdef CCITT
-	DONET(ccittintr, NETISR_CCITT);
-#endif
+	setup_netisrs(&netisr_set);
+
+/*
 #ifdef ISDN
 	DONET(isdnintr, NETISR_ISDN);
 #endif
-#undef DONET
+*/
 
 	/*
 	 * Allocate space for system data structures.
@@ -405,6 +395,18 @@ again:
 	}
 }
 
+void
+setup_netisrs(struct linker_set *ls)
+{
+	int i;
+	const struct netisrtab *nit;
+
+	for(i = 0; ls->ls_items[i]; i++) {
+		nit = (const struct netisrtab *)ls->ls_items[i];
+		printf("setup_netisrs %d\n", nit->nit_num);
+		netisrs[nit->nit_num] = nit->nit_isr;
+	}
+}
 
 struct cpu_nameclass i386_cpus[] = {
 	{ "Intel 80286",	CPUCLASS_286 },		/* CPU_286   */

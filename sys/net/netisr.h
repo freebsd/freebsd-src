@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)netisr.h	8.1 (Berkeley) 6/10/93
- * $Id: netisr.h,v 1.4 1994/08/21 05:11:44 paul Exp $
+ * $Id: netisr.h,v 1.5 1995/01/05 19:51:47 se Exp $
  */
 
 #ifndef _NET_NETISR_H_
@@ -68,7 +68,19 @@
 
 #ifndef LOCORE
 #ifdef KERNEL
-volatile unsigned int	netisr;				/* scheduling bits for network */
+extern volatile unsigned int	netisr;	/* scheduling bits for network */
+
+typedef void netisr_t(void);
+
+struct netisrtab {
+	int nit_num;
+	netisr_t *nit_isr;
+};
+
+#define NETISR_SET(num, isr) \
+	static struct netisrtab mod_nit = { num, isr }; \
+	DATA_SET(netisr_set, mod_nit);
+
 #endif
 #endif
 

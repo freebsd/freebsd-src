@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)uipc_domain.c	8.2 (Berkeley) 10/18/93
- * $Id: uipc_domain.c,v 1.3 1994/08/02 07:43:00 davidg Exp $
+ * $Id: uipc_domain.c,v 1.4 1995/01/05 19:51:43 se Exp $
  */
 
 #include <sys/param.h>
@@ -49,42 +49,38 @@
 void	pffasttimo __P((void *));
 void	pfslowtimo __P((void *));
 
+struct domain *domains;
+
 #define	ADDDOMAIN(x)	{ \
 	extern struct domain __CONCAT(x,domain); \
 	__CONCAT(x,domain.dom_next) = domains; \
 	domains = &__CONCAT(x,domain); \
 }
 
+extern struct linker_set domain_set;
+
 void
 domaininit()
 {
-	register struct domain *dp;
+	register struct domain *dp, **dpp;
 	register struct protosw *pr;
 
-#undef unix
-#ifndef lint
-	ADDDOMAIN(unix);
-	ADDDOMAIN(route);
-#ifdef INET
-	ADDDOMAIN(inet);
-#endif
-#ifdef NS
-	ADDDOMAIN(ns);
-#endif
-#ifdef ISO
-	ADDDOMAIN(iso);
-#endif
-#ifdef CCITT
-	ADDDOMAIN(ccitt);
-#endif
+	/*
+	 * NB - local domain is always present.
+	 */
+	ADDDOMAIN(local);
+
+	for (dpp = (struct domain **)domain_set.ls_items; *dpp; dpp++) {
+		printf("domaininit %s\n", (**dpp).dom_name);
+		(**dpp).dom_next = domains;
+		domains = *dpp;
+	}
+
+/* - not in our sources
 #ifdef ISDN
 	ADDDOMAIN(isdn);
 #endif
-#include "imp.h"
-#if NIMP > 0
-	ADDDOMAIN(imp);
-#endif
-#endif
+*/
 
 	for (dp = domains; dp; dp = dp->dom_next) {
 		if (dp->dom_init)
@@ -94,8 +90,8 @@ domaininit()
 				(*pr->pr_init)();
 	}
 
-if (max_linkhdr < 16)		/* XXX */
-max_linkhdr = 16;
+	if (max_linkhdr < 16)		/* XXX */
+		max_linkhdr = 16;
 	max_hdr = max_linkhdr + max_protohdr;
 	max_datalen = MHLEN - max_hdr;
 	timeout(pffasttimo, (void *)0, 1);

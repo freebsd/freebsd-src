@@ -36,10 +36,11 @@
  * SUCH DAMAGE.
  *
  *	@(#)ccitt_proto.c	8.1 (Berkeley) 6/10/93
- * $Id$
+ * $Id: ccitt_proto.c,v 1.2 1994/08/02 07:46:54 davidg Exp $
  */
 
 #include <sys/param.h>
+#include <sys/kernel.h>
 #include <sys/socket.h>
 #include <sys/protosw.h>
 #include <sys/domain.h>
@@ -92,3 +93,5 @@ struct domain ccittdomain =
 	{ AF_CCITT, "ccitt", 0, 0, 0, ccittsw,
 		&ccittsw[sizeof(ccittsw)/sizeof(ccittsw[0])], 0,
 		rn_inithead, 32, sizeof (struct sockaddr_x25) };
+
+DOMAIN_SET(ccitt);
