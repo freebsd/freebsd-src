@@ -26,7 +26,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: scsi_all.c,v 1.6 1998/10/15 19:08:58 ken Exp $
+ *	$Id: scsi_all.c,v 1.7 1998/12/04 22:54:43 archie Exp $
  */
 
 #include <sys/param.h>
@@ -2295,7 +2295,7 @@ scsi_print_inquiry(struct scsi_inquiry_data *inq_data)
 {
 	u_int8_t type;
 	char *dtype, *qtype;
-	char vendor[16], product[48], revision[16];
+	char vendor[16], product[48], revision[16], rstr[4];
 
 	type = SID_TYPE(inq_data);
 
@@ -2375,10 +2375,14 @@ scsi_print_inquiry(struct scsi_inquiry_data *inq_data)
 	cam_strvis(revision, inq_data->revision, sizeof(inq_data->revision),
 		   sizeof(revision));
 
-	printf("<%s %s %s> %s %s SCSI%d device %s\n",
+	if (SID_ANSI_REV(inq_data) == SCSI_REV_CCS)
+		bcopy("CCS", rstr, 4);
+	else
+		snprintf(rstr, sizeof (rstr), "%d", SID_ANSI_REV(inq_data));
+	printf("<%s %s %s> %s %s SCSI-%s device %s\n",
 	       vendor, product, revision,
 	       SID_IS_REMOVABLE(inq_data) ? "Removable" : "Fixed",
-	       dtype, SID_ANSI_REV(inq_data), qtype);
+	       dtype, rstr, qtype);
 }
 
 /*
