@@ -90,6 +90,8 @@
 
 #include <i386/isa/pcvt/pcvt_conf.h>
 
+#include <machine/bus.h>
+
 #include <dev/kbd/kbdreg.h>
 #include <dev/kbd/atkbdcreg.h>
 

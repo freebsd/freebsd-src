@@ -36,6 +36,9 @@
 #include <sys/proc.h>
 #include <sys/malloc.h>
 
+#include <machine/bus.h>
+#include <machine/resource.h>
+
 #ifdef __i386__
 #include <machine/md_var.h>
 #include <machine/psl.h>
@@ -55,7 +58,7 @@
 static timeout_t	atkbd_timeout;
 
 int
-atkbd_probe_unit(int unit, int port, int irq, int flags)
+atkbd_probe_unit(int unit, int ctlr, int irq, int flags)
 {
 	keyboard_switch_t *sw;
 	int args[2];
@@ -65,7 +68,7 @@ atkbd_probe_unit(int unit, int port, int irq, int flags)
 	if (sw == NULL)
 		return ENXIO;
 
-	args[0] = port;
+	args[0] = ctlr;
 	args[1] = irq;
 	error = (*sw->probe)(unit, args, flags);
 	if (error)
@@ -74,7 +77,7 @@ atkbd_probe_unit(int unit, int port, int irq, int flags)
 }
 
 int
-atkbd_attach_unit(int unit, keyboard_t **kbd, int port, int irq, int flags)
+atkbd_attach_unit(int unit, keyboard_t **kbd, int ctlr, int irq, int flags)
 {
 	keyboard_switch_t *sw;
 	int args[2];
@@ -85,7 +88,7 @@ atkbd_attach_unit(int unit, keyboard_t **kbd, int port, int irq, int flags)
 		return ENXIO;
 
 	/* reset, initialize and enable the device */
-	args[0] = port;
+	args[0] = ctlr;
 	args[1] = irq;
 	*kbd = NULL;
 	error = (*sw->probe)(unit, args, flags);
@@ -311,7 +314,7 @@ static int
 atkbd_probe(int unit, void *arg, int flags)
 {
 	KBDC kbdc;
-	int *data = (int *)arg;
+	int *data = (int *)arg;	/* data[0]: controller, data[1]: irq */
 
 	/* XXX */
 	if (unit == ATKBD_DEFAULT) {
@@ -319,7 +322,7 @@ atkbd_probe(int unit, void *arg, int flags)
 			return 0;
 	}
 
-	kbdc = kbdc_open(data[0]);
+	kbdc = atkbdc_open(data[0]);
 	if (kbdc == NULL)
 		return ENXIO;
 	if (probe_keyboard(kbdc, flags)) {
@@ -340,7 +343,7 @@ atkbd_init(int unit, keyboard_t **kbdp, void *arg, int flags)
 	fkeytab_t *fkeymap;
 	int fkeymap_size;
 	int delay[2];
-	int *data = (int *)arg;
+	int *data = (int *)arg;	/* data[0]: controller, data[1]: irq */
 
 	/* XXX */
 	if (unit == ATKBD_DEFAULT) {
@@ -390,11 +393,11 @@ atkbd_init(int unit, keyboard_t **kbdp, void *arg, int flags)
 	}
 
 	if (!KBD_IS_PROBED(kbd)) {
-		state->kbdc = kbdc_open(data[0]);
+		state->kbdc = atkbdc_open(data[0]);
 		if (state->kbdc == NULL)
 			return ENXIO;
 		kbd_init_struct(kbd, ATKBD_DRIVER_NAME, KB_OTHER, unit, flags,
-				data[0], IO_KBDSIZE);
+				0, 0);
 		bcopy(&key_map, keymap, sizeof(key_map));
 		bcopy(&accent_map, accmap, sizeof(accent_map));
 		bcopy(fkey_tab, fkeymap,

@@ -38,9 +38,9 @@
 
 #ifdef _KERNEL
 
-int		atkbd_probe_unit(int unit, int port, int irq, int flags);
+int		atkbd_probe_unit(int unit, int ctlr, int irq, int flags);
 int		atkbd_attach_unit(int unit, keyboard_t **kbd,
-				 int port, int irq, int flags);
+				 int ctlr, int irq, int flags);
 
 #endif
 
