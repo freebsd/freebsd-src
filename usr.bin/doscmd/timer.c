@@ -8,6 +8,17 @@
 static void
 int08(regcontext_t *REGS)
 {
+    struct timeval tv;
+    time_t tv_sec;
+    struct timezone tz;
+    struct tm tm;
+
+    gettimeofday(&tv, &tz);
+    tv_sec = tv.tv_sec;
+    tm = *localtime(&tv_sec);
+    *(u_long *)&BIOSDATA[0x6c] =
+        (((tm.tm_hour * 60 + tm.tm_min) * 60) + tm.tm_sec) * 182 / 10;
+
     softint(0x1c);
 }
 
