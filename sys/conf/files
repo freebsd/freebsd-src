@@ -447,6 +447,7 @@ dev/firewire/fwmem.c	optional firewire
 dev/firewire/fwohci.c	optional firewire
 dev/firewire/fwohci_pci.c	optional firewire pci
 dev/firewire/if_fwe.c	optional fwe
+dev/firewire/if_fwip.c	optional fwip
 dev/firewire/sbp.c	optional sbp
 dev/firewire/sbp_targ.c	optional sbp_targ
 dev/fxp/if_fxp.c	optional fxp
@@ -1216,6 +1217,7 @@ net/if_ef.c		optional ef
 net/if_ethersubr.c	optional ether
 net/if_faith.c		optional faith
 net/if_fddisubr.c	optional fddi
+net/if_fwsubr.c		optional firewire
 net/if_gif.c		optional gif
 net/if_gre.c		optional gre
 net/if_iso88025subr.c	optional token
