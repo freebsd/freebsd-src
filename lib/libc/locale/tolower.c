@@ -32,6 +32,8 @@
  * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
+ *
+ * $FreeBSD$
  */
 
 #include <stdio.h>
@@ -41,7 +43,6 @@ _BSD_CT_RUNE_T_
 ___tolower(c)
 	_BSD_CT_RUNE_T_ c;
 {
-#ifdef XPG4
 	int x;
 	_RuneRange *rr = &_CurrentRuneLocale->maplower_ext;
 	_RuneEntry *re = rr->ranges;
@@ -55,6 +56,6 @@ ___tolower(c)
 		if (c <= re->max)
 			return(re->map + c - re->min);
 	}
-#endif
+
 	return(c);
 }
