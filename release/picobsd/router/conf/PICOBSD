@@ -1,5 +1,5 @@
 #
-#	$Id: PICOBSD,v 1.2 1998/08/10 19:17:42 abial Exp $
+#	$Id: PICOBSD,v 1.1.1.1 1998/08/27 17:38:44 abial Exp $
 #
 
 machine		"i386"
@@ -69,9 +69,7 @@ device		sio3	at isa? disable port "IO_COM4" tty irq 9 vector siointr
 # Right now it appears that the ie0 must be probed before ep0. See
 # revision 1.20 of this file.
 device de0
-device de1
 device fxp0
-device fxp1
 
 device ed0 at isa? port 0x280 net irq 10 iomem 0xd8000 vector edintr
 device ed1 at isa? port 0x300 net irq 5 iomem 0xd0000 vector edintr
