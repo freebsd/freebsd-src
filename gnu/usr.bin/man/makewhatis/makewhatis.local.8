@@ -1,0 +1,55 @@
+.\" (c) Wolfram Schneider, Berlin. April 1996. Public Domain.
+.\"
+.\" $Id: makewhatis.local.8,v 1.1 1996/05/14 10:27:26 wosch Exp $
+
+.Dd April, 26, 1996
+.Dt MAKEWHATIS.LOCAL 8
+.Os FreeBSD 2.2
+
+.Sh NAME
+.Nm makewhatis.local , catman.local
+.Nd start makewhatis for local file systems
+
+.Sh SYNOPSIS
+.Nm /usr/libexec/makewhatis.local
+.Op options
+.Ar directories ...
+.Nm /usr/libexec/catman.local
+.Op options
+.Ar directories ...
+
+
+.Sh DESCRIPTION 
+.Nm
+start 
+.Xr makewhatis 1
+only for file systems physically mounted on the system
+where the 
+.Nm
+is being executed. Running makewhatis
+from 
+.Pa /etc/weekly 
+for rw nfs-mounted /usr may kill
+your NFS server -- all NFS clients start makewhatis at the same time!
+So use this wrapper for 
+.Xr cron 8
+instead calling makewhatis directly.
+
+.Sh FILES
+.Bl -tag -width /etc/weekly.XXX -compact
+.It Pa /etc/weekly 
+run
+.Nm
+every week
+.El
+
+.Sh SEE ALSO
+.Xr makewhatis 1 ,
+.Xr catman 1 ,
+.Xr find 1 ,
+.Xr cron 8 .
+
+.Sh HISTORY
+The
+.Nm
+command appeared in FreeBSD 2.2.
