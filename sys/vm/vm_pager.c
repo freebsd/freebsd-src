@@ -61,7 +61,7 @@
  * any improvements or extensions that they make and grant Carnegie the
  * rights to redistribute these changes.
  *
- * $Id: vm_pager.c,v 1.7 1994/08/18 22:36:09 wollman Exp $
+ * $Id: vm_pager.c,v 1.8 1994/10/09 01:52:16 phk Exp $
  */
 
 /*
@@ -412,6 +412,9 @@ relpbuf(bp)
 	if (bp->b_vp)
 		brelvp(bp);
 
+	if (bp->b_flags & B_WANTED)
+		wakeup((caddr_t)bp);
+
 	TAILQ_INSERT_HEAD(&bswlist, bp, b_freelist);
 
 	if (bswneeded) {
@@ -420,5 +423,3 @@ relpbuf(bp)
 	}
 	splx(s);
 }
-
-
