@@ -38,6 +38,9 @@
 __FBSDID("$FreeBSD$");
 
 #include <sys/param.h>
+#include <sys/types.h>
+#include <sys/socket.h>
+#include <netdb.h>
 #include <pwd.h>
 #include <radlib.h>
 #include <stdlib.h>
@@ -54,12 +57,14 @@ __FBSDID("$FreeBSD$");
 #define PAM_OPT_CONF		"conf"
 #define PAM_OPT_TEMPLATE_USER	"template_user"
 #define PAM_OPT_NAS_ID		"nas_id"
+#define PAM_OPT_NAS_IPADDR	"nas_ipaddr"
 
 #define	MAX_CHALLENGE_MSGS	10
 #define	PASSWORD_PROMPT		"RADIUS Password:"
 
 static int	 build_access_request(struct rad_handle *, const char *,
-		    const char *, const char *, const void *, size_t);
+		    const char *, const char *, const char *, const void *,
+		    size_t);
 static int	 do_accept(pam_handle_t *, struct rad_handle *);
 static int	 do_challenge(pam_handle_t *, struct rad_handle *,
 		    const char *);
@@ -70,16 +75,28 @@ static int	 do_challenge(pam_handle_t *, struct rad_handle *,
  */
 static int
 build_access_request(struct rad_handle *radh, const char *user,
-    const char *pass, const char *nas_id, const void *state, size_t state_len)
+    const char *pass, const char *nas_id, const char *nas_ipaddr,
+    const void *state, size_t state_len)
 {
-	char	 host[MAXHOSTNAMELEN];
+	int error;
+	char host[MAXHOSTNAMELEN];
+	struct sockaddr_in *haddr;
+	struct addrinfo hints;
+	struct addrinfo *res;
 
 	if (rad_create_request(radh, RAD_ACCESS_REQUEST) == -1) {
 		syslog(LOG_CRIT, "rad_create_request: %s", rad_strerror(radh));
 		return (-1);
 	}
-	if (nas_id == NULL && gethostname(host, sizeof host) != -1)
-		nas_id = host;
+	if (nas_id == NULL ||
+	    (nas_ipaddr != NULL && strlen(nas_ipaddr) == 0)) {
+		if (gethostname(host, sizeof host) != -1) {
+			if (nas_id == NULL)
+				nas_id = host;
+			if (nas_ipaddr != NULL && strlen(nas_ipaddr) == 0)
+				nas_ipaddr = host;
+		}
+	}
 	if ((user != NULL &&
 	    rad_put_string(radh, RAD_USER_NAME, user) == -1) ||
 	    (pass != NULL &&
@@ -88,6 +105,22 @@ build_access_request(struct rad_handle *radh, const char *user,
 	    rad_put_string(radh, RAD_NAS_IDENTIFIER, nas_id) == -1)) {
 		syslog(LOG_CRIT, "rad_put_string: %s", rad_strerror(radh));
 		return (-1);
+	}
+	if (nas_ipaddr != NULL) {
+		memset(&hints, 0, sizeof(hints));
+		hints.ai_family = PF_INET;
+		if (getaddrinfo(nas_ipaddr, NULL, &hints, &res) == 0 &&
+		    res != NULL) {
+			haddr = (struct sockaddr_in *)res->ai_addr;
+			error = rad_put_addr(radh, RAD_NAS_IP_ADDRESS,
+			    haddr->sin_addr);
+			freeaddrinfo(res);
+			if (error == -1) {
+				syslog(LOG_CRIT, "rad_put_addr: %s",
+				    rad_strerror(radh));
+				return (-1);
+			}
+		}
 	}
 	if (state != NULL && rad_put_attr(radh, RAD_STATE, state,
 	    state_len) == -1) {
@@ -197,7 +230,7 @@ do_challenge(pam_handle_t *pamh, struct rad_handle *radh, const char *user)
 	    conv->appdata_ptr)) != PAM_SUCCESS)
 		return (retval);
 	if (build_access_request(radh, user, resp[num_msgs-1].resp, NULL,
-	    state, statelen) == -1)
+	    NULL, state, statelen) == -1)
 		return (PAM_SERVICE_ERR);
 	memset(resp[num_msgs-1].resp, 0, strlen(resp[num_msgs-1].resp));
 	free(resp[num_msgs-1].resp);
@@ -213,13 +246,14 @@ pam_sm_authenticate(pam_handle_t *pamh, int flags __unused,
 {
 	struct rad_handle *radh;
 	const char *user, *tmpuser, *pass;
-	const char *conf_file, *template_user, *nas_id;
+	const char *conf_file, *template_user, *nas_id, *nas_ipaddr;
 	int retval;
 	int e;
 
 	conf_file = openpam_get_option(pamh, PAM_OPT_CONF);
 	template_user = openpam_get_option(pamh, PAM_OPT_TEMPLATE_USER);
 	nas_id = openpam_get_option(pamh, PAM_OPT_NAS_ID);
+	nas_ipaddr = openpam_get_option(pamh, PAM_OPT_NAS_IPADDR);
 
 	retval = pam_get_user(pamh, &user, NULL);
 	if (retval != PAM_SUCCESS)
@@ -249,7 +283,8 @@ pam_sm_authenticate(pam_handle_t *pamh, int flags __unused,
 
 	PAM_LOG("Radius config file read");
 
-	if (build_access_request(radh, user, pass, nas_id, NULL, 0) == -1) {
+	if (build_access_request(radh, user, pass, nas_id, nas_ipaddr, NULL,
+	    0) == -1) {
 		rad_close(radh);
 		return (PAM_SERVICE_ERR);
 	}
