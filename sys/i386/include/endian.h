@@ -31,17 +31,19 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)endian.h	7.8 (Berkeley) 4/3/91
- *	$Id: endian.h,v 1.6 1995/02/12 08:31:31 jkh Exp $
+ *	$Id: endian.h,v 1.7 1996/10/21 17:15:05 nate Exp $
  */
 
 #ifndef _MACHINE_ENDIAN_H_
-#define _MACHINE_ENDIAN_H_ 1
+#define	_MACHINE_ENDIAN_H_
 
 /*
  * Define the order of 32-bit words in 64-bit words.
  */
 #define	_QUAD_HIGHWORD 1
 #define	_QUAD_LOWWORD 0
+
+#ifndef _POSIX_SOURCE
 
 /*
  * Definitions for byte order, according to byte significance from low
@@ -56,6 +58,13 @@
 #ifndef KERNEL
 #include <sys/cdefs.h>
 #endif
+
+__BEGIN_DECLS
+unsigned long	htonl __P((unsigned long));
+unsigned short	htons __P((unsigned short));
+unsigned long	ntohl __P((unsigned long));
+unsigned short	ntohs __P((unsigned short));
+__END_DECLS
 
 #define __word_swap_long(x) \
 ({ register u_long __X = (x); \
@@ -94,27 +103,18 @@ __extension__ ({ register u_short __X = (x); \
 /*
  * Macros for network/external number representation conversion.
  */
-#if BYTE_ORDER == BIG_ENDIAN && !defined(lint)
-#define	ntohl(x)	(x)
-#define	ntohs(x)	(x)
-#define	htonl(x)	(x)
-#define	htons(x)	(x)
-
-#define	NTOHL(x)	(x)
-#define	NTOHS(x)	(x)
-#define	HTONL(x)	(x)
-#define	HTONS(x)	(x)
-
-#else
-
+#ifdef __GNUC__
 #define	ntohl	__byte_swap_long
 #define	ntohs	__byte_swap_word
 #define	htonl	__byte_swap_long
 #define	htons	__byte_swap_word
-
-#define	NTOHL(x)	(x) = ntohl((u_long)x)
-#define	NTOHS(x)	(x) = ntohs((u_short)x)
-#define	HTONL(x)	(x) = htonl((u_long)x)
-#define	HTONS(x)	(x) = htons((u_short)x)
 #endif
-#endif /* _MACHINE_ENDIAN_H_ */
+
+#define	NTOHL(x)	((x) = ntohl((u_long)(x)))
+#define	NTOHS(x)	((x) = ntohs((u_short)(x)))
+#define	HTONL(x)	((x) = htonl((u_long)(x)))
+#define	HTONS(x)	((x) = htons((u_short)(x)))
+
+#endif /* ! _POSIX_SOURCE */
+
+#endif /* !_MACHINE_ENDIAN_H_ */
