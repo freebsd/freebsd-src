@@ -23,8 +23,14 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: autoconf.c,v 1.9 1998/09/26 12:22:53 dfr Exp $
+ *	$Id: autoconf.c,v 1.10 1998/09/26 14:48:19 dfr Exp $
  */
+
+#include "opt_bootp.h"
+#include "opt_ffs.h"
+#include "opt_cd9660.h"
+#include "opt_mfs.h"
+#include "opt_nfsroot.h"
 
 #include <sys/param.h>
 #include <sys/systm.h>
@@ -209,29 +215,43 @@ configure(void *dummy)
 void
 cpu_rootconf()
 {
-    static char rootname[] = "da0a";
+#ifdef MFS_ROOT
+	if (!mountrootfsname) {
+		if (bootverbose)
+			printf("Considering MFS root f/s.\n");
+		mountrootfsname = "mfs";
+	}
+#endif
 
-    mountrootfsname = "ufs";
+#if defined(FFS) || defined(FFS_ROOT)
+	if (!mountrootfsname) {
+		static char rootname[] = "da0a";
 
-    if (boot_sim) {
-	    struct cam_path *path;
-	    struct cam_periph *periph;
+		if (bootverbose)
+			printf("Considering UFS root f/s.\n");
+		mountrootfsname = "ufs";
+
+		if (boot_sim) {
+			struct cam_path *path;
+			struct cam_periph *periph;
 	    
-	    xpt_create_path(&path, NULL,
-			    cam_sim_path(boot_sim),
-			    bootdev_unit() / 100, 0);
-	    periph = cam_periph_find(path, "da");
+			xpt_create_path(&path, NULL,
+					cam_sim_path(boot_sim),
+					bootdev_unit() / 100, 0);
+			periph = cam_periph_find(path, "da");
 
-	    if (periph)
-		    rootdev = makedev(4, dkmakeminor(periph->unit_number,
-						     COMPATIBILITY_SLICE, 0));
+			if (periph)
+				rootdev = makedev(4, dkmakeminor(periph->unit_number,
+								 COMPATIBILITY_SLICE, 0));
 
-	    xpt_free_path(path);
-    }
+			xpt_free_path(path);
+		}
 
-    rootdevs[0] = rootdev;
-    rootname[2] += dkunit(minor(rootdev));
-    rootdevnames[0] = rootname;
+		rootdevs[0] = rootdev;
+		rootname[2] += dkunit(minor(rootdev));
+		rootdevnames[0] = rootname;
+	}
+#endif
 }
 
 void
