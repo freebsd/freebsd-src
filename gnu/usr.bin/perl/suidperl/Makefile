@@ -22,6 +22,17 @@ STATIC_EXT=	DynaLoader/DynaLoader
 
 .include <bsd.prog.mk>
 
+PERL_THREADED?= no
+.if ${PERL_THREADED} == "true"
+CFLAGS+=        -pthread
+LDADD+=         -pthread
+.endif
+     
+PERL_DEBUGGING?=        no
+.if ${PERL_DEBUGGING} == "true"
+CFLAGS+=        -DDEBUGGING
+.endif
+
 ${PROG}: linkfarm Config.pm autosplit lib/auto/DynaLoader/DynaLoader.a
 
 sperl.c: perl.c

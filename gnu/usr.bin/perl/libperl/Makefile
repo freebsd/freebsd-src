@@ -19,6 +19,16 @@ CLEANFILES+=	config.h config.sh config_h.sh
 
 .include <bsd.lib.mk>
 
+PERL_THREADED?= no
+.if ${PERL_THREADED} == "true"
+CFLAGS+=        -pthread
+.endif
+
+PERL_DEBUGGING?=        no
+.if ${PERL_DEBUGGING} == "true"
+CFLAGS+=        -DDEBUGGING
+.endif
+
 .SUFFIXES:
 
 .SUFFIXES: .o .po .So .s .S .c
@@ -28,8 +38,13 @@ CLEANFILES+=	config.h config.sh config_h.sh
 config.h: config_h.sh config.sh
 	sh config_h.sh
 
+.if ${PERL_THREADED} == "true"
+config.sh: config.SH-threads-${OBJFORMAT}.${MACHINE_ARCH}
+	ln -sf ${.OODATE} ${.TARGET}
+.else
 config.sh: config.SH-${OBJFORMAT}.${MACHINE_ARCH}
 	ln -sf ${.OODATE} ${.TARGET}
+.endif
 
 config_h.sh: config_h.SH
 	ln -sf ${.OODATE} ${.TARGET}
