@@ -118,6 +118,7 @@ main(int ac, char **av)
 	int		zflag = 0;
 	uid_t		uid = 0;
 	dev_t		tdev = 0;
+	pid_t		mypid;
 	char		thiscmd[MAXCOMLEN + 1];
 	pid_t		thispid;
 	uid_t		thisuid;
@@ -303,6 +304,7 @@ main(int ac, char **av)
 	nprocs = size / sizeof(struct kinfo_proc);
 	if (dflag)
 		printf("nprocs %d\n", nprocs);
+	mypid = getpid();
 
 	for (i = 0; i < nprocs; i++) {
 		if ((procs[i].ki_stat & SZOMB) == SZOMB && !zflag)
@@ -313,6 +315,8 @@ main(int ac, char **av)
 		thistdev = procs[i].ki_tdev;
 		thisuid = procs[i].ki_ruid;	/* real uid */
 
+		if (thispid == mypid)
+			continue;
 		matched = 1;
 		if (user) {
 			if (thisuid != uid)
