@@ -350,7 +350,7 @@ void do_order()
 	Tbl.str_flags |= STR_ORDERED;
 }
 
-/* static */ int collate_range_cmp (c1, c2)
+static int collate_range_cmp (c1, c2)
 	int c1, c2;
 {
 	static char s1[2], s2[2];
