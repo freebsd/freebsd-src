@@ -1311,6 +1311,7 @@
 	0009	NV1 EDGE 3D Multimedia
 	0010	Mutara V08 (NV2)
 	0018	Riva 128 Riva 128 accelerator
+	0019	Riva 128 ZX
 	0020	Riva TNT AGP
 	0028	Riva TNT2 Riva TNT2
 	0029	Riva TNT2 Ultra
@@ -1323,14 +1324,20 @@
 	00A0	RIVA TNT2 Aladdin
 	0100	GeForce 256
 	0101	GeForce 256 DDR
+	0102	NV10 GeForce 256 Ultra
 	0103	GeForce 256 GL Quadro
 	0110	NV11 GeForce 2 MX
 	0111	NV11 DDR
+	0112	NV11 GeForce2 Go
 	0113	NV11 GL
 	0150	NV15 GeForce2 GTS
 	0151	NV15 DDR GeForce2 GTS
 	0152	NV15 Bladerunner GeForce2 GTS
 	0153	NV15 GL Quadro2
+	0200	NV20 GeForce3
+	0202	NV20BR GeForce 3 Ultra
+	0203	NV20GL Quadro DCC
+	02A0	NV2A GeForce 3 Integrated (Xbox)
 10DF	Emulex Corporation
 	10DF	Light Pulse Fibre Channel Adapter
 	1AE5	LP6000 Fibre Channel Host Adapter
