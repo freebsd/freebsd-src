@@ -28,6 +28,7 @@
  */
 
 #include "opt_bus.h"
+#include "opt_pci.h"
 
 #include "opt_simos.h"
 
