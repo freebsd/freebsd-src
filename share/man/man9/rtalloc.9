@@ -76,7 +76,7 @@ and has
 .Dv RTF_WASCLONED
 flag set.
 .Dv RTF_PRCLONING
-flag is obsoleted and thus ignored by facility.
+flag is obsolete and thus ignored by facility.
 If the
 .Dv RTF_XRESOLVE
 flag is set, then the
@@ -175,12 +175,12 @@ is a set of flags to ignore, as in
 .Fn rtalloc_ign .
 The
 .Fn rtalloc1
-returns a pointer to a locked
+function returns a pointer to a locked
 .Vt "struct rtentry" .
 .Pp
 The
 .Fn rtfree
-function frees a locked route entry, e.g. a previously allocated by
+function frees a locked route entry, e.g., a previously allocated by
 .Fn rtalloc1 .
 .Pp
 The
