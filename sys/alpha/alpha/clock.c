@@ -210,6 +210,8 @@ clockattach(device_t dev)
 out:
 #ifdef EVCNT_COUNTERS
 	evcnt_attach(dev, "intr", &clock_intr_evcnt);
+#else
+	/* nothing */ ;
 #endif
 }
 
