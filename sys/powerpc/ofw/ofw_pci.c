@@ -94,7 +94,7 @@ ofw_pci_fixup(device_t dev, u_int bus, phandle_t parentnode)
 static void
 fixup_node(device_t dev, phandle_t node)
 {
-	u_int32_t	csr, intr, irqs[4];
+	u_int32_t	csr, intr, irqs[4], npintr, paddr[4];
 	struct		ofw_pci_register addr[8];
 	int		len, i;
 
@@ -123,7 +123,19 @@ fixup_node(device_t dev, phandle_t node)
 	    OFW_PCI_PHYS_HI_DEVICE(addr[0].phys_hi),
 	    OFW_PCI_PHYS_HI_FUNCTION(addr[0].phys_hi), PCIR_COMMAND, csr, 4);
 
-	if (find_node_intr(node, &addr[0].phys_hi, irqs) != -1) {
+	/*
+	 * Create PCI interrupt-map array element. pci-mid/pci-lo
+	 * aren't required, but the 'interrupts' property needs
+	 * to be appended
+	 */
+	npintr = 0;
+	OF_getprop(node, "interrupts", &npintr, 4);
+	paddr[0] = addr[0].phys_hi;
+	paddr[1] = 0;
+	paddr[2] = 0;
+	paddr[3] = npintr;
+
+	if (find_node_intr(node, paddr, irqs) != -1) {
 		intr = PCIB_READ_CONFIG(dev,
 		    OFW_PCI_PHYS_HI_BUS(addr[0].phys_hi),
 		    OFW_PCI_PHYS_HI_DEVICE(addr[0].phys_hi),
@@ -159,9 +171,8 @@ find_node_intr(phandle_t node, u_int32_t *addr, u_int32_t *intr)
 	if (len == -1 || mlen == -1)
 		goto nomap;
 
-	/* mask addr by "interrupt-map-mask" */
-	bcopy(addr, maskedaddr, mlen);
-	for (i = 0; i < mlen / 4; i++)
+	memcpy(maskedaddr, addr, mlen);
+	for (i = 0; i < mlen/4; i++)
 		maskedaddr[i] &= imask[i];
 
 	mp = map;
@@ -209,14 +220,9 @@ nomap:
 		len = OF_getprop(parent, "interrupt-map", map, sizeof(map));
 		if (len >= 36) {
 			addr = &map[5];
+			/* XXX Use 0 for 'interrupts' for compat */
 			return (find_node_intr(parent, addr, intr));
 		}
-	}
-
-	/* XXX This may be wrong... */
-	len = OF_getprop(node, "interrupts", intr, 4);
-	if (len == 4) {
-		return (len);
 	}
 
 	return (-1);
