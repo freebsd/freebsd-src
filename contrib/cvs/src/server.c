@@ -1648,8 +1648,18 @@ serve_unchanged (arg)
 	    && strncmp (arg, name, cp - name) == 0)
 	{
 	    timefield = strchr (cp + 1, '/') + 1;
+	    /* If the time field is not currently empty, then one of
+	     * serve_modified, serve_is_modified, & serve_unchanged were
+	     * already called for this file.  We would like to ignore the
+	     * reinvocation silently or, better yet, exit with an error
+	     * message, but we just avoid the copy-forward and overwrite the
+	     * value from the last invocation instead.  See the comment below
+	     * for more.
+	     */
 	    if (*timefield == '/')
 	    {
+		/* Copy forward one character.  Space was allocated for this
+		 * already in serve_entry().  */
 		cp = timefield + strlen (timefield);
 		cp[1] = '\0';
 		while (cp > timefield)
@@ -1657,8 +1667,17 @@ serve_unchanged (arg)
 		    *cp = cp[-1];
 		    --cp;
 		}
-		*timefield = '=';
 	    }
+	    /* If *TIMEFIELD wasn't "/", we assume that it was because of
+	     * multiple calls to Is-Modified & Unchanged by the client and
+	     * just overwrite the value from the last call.  Technically, we
+	     * should probably either ignore calls after the first or send the
+	     * client an error, since the client/server protocol specification
+	     * specifies that only one call to either Is-Modified or Unchanged
+	     * is allowed, but broken versions of WinCVS & TortoiseCVS rely on
+	     * this behavior.
+	     */
+	    *timefield = '=';
 	    break;
 	}
     }
@@ -1692,8 +1711,18 @@ serve_is_modified (arg)
 	    && strncmp (arg, name, cp - name) == 0)
 	{
 	    timefield = strchr (cp + 1, '/') + 1;
+	    /* If the time field is not currently empty, then one of
+	     * serve_modified, serve_is_modified, & serve_unchanged were
+	     * already called for this file.  We would like to ignore the
+	     * reinvocation silently or, better yet, exit with an error
+	     * message, but we just avoid the copy-forward and overwrite the
+	     * value from the last invocation instead.  See the comment below
+	     * for more.
+	     */
 	    if (*timefield == '/')
 	    {
+		/* Copy forward one character.  Space was allocated for this
+		 * already in serve_entry().  */
 		cp = timefield + strlen (timefield);
 		cp[1] = '\0';
 		while (cp > timefield)
@@ -1701,8 +1730,17 @@ serve_is_modified (arg)
 		    *cp = cp[-1];
 		    --cp;
 		}
-		*timefield = 'M';
 	    }
+	    /* If *TIMEFIELD wasn't "/", we assume that it was because of
+	     * multiple calls to Is-Modified & Unchanged by the client and
+	     * just overwrite the value from the last call.  Technically, we
+	     * should probably either ignore calls after the first or send the
+	     * client an error, since the client/server protocol specification
+	     * specifies that only one call to either Is-Modified or Unchanged
+	     * is allowed, but broken versions of WinCVS & TortoiseCVS rely on
+	     * this behavior.
+	     */
+	    *timefield = 'M';
 	    if (kopt != NULL)
 	    {
 		if (alloc_pending (strlen (name) + 80))
