@@ -220,6 +220,11 @@ CLEANFILES+= $(CONF) *.o *.lo *.c *.mk *.cache *.a *.h
 # except for those that get suppressed.
 .for D in $(CRUNCH_SRCDIRS)
 .for P in $(CRUNCH_PROGS_$(D))
+.ifdef CRUNCH_SRCDIR_${P}
+$(OUTPUTS): $(CRUNCH_SRCDIR_${P})/Makefile
+.else
+$(OUTPUTS): $(.CURDIR)/../../$(D)/$(P)/Makefile
+.endif
 .ifndef CRUNCH_SUPPRESS_LINK_${P}
 LINKS+= $(BINDIR)/$(PROG) $(BINDIR)/$(P)
 .endif
@@ -262,7 +267,7 @@ $(CONF): Makefile
 
 .ORDER: $(OUTPUTS) objs
 $(OUTPUTS): $(CONF)
-	MAKEFLAGS= MAKEOBJDIRPREFIX=${CRUNCHOBJS} crunchgen -q -m $(OUTMK) \
+	MAKEFLAGS= MAKEOBJDIRPREFIX=${CRUNCHOBJS} crunchgen -fq -m $(OUTMK) \
 	    -c $(OUTC) $(CONF)
 
 $(PROG): $(OUTPUTS) objs
