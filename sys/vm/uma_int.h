@@ -396,7 +396,7 @@ vsetslab(vm_offset_t va, uma_slab_t slab)
 {
 	vm_page_t p;
 
-	p = PHYS_TO_VM_PAGE(pmap_kextract((vm_offset_t)va));
+	p = PHYS_TO_VM_PAGE(pmap_kextract(va));
 	p->object = (vm_object_t)slab;
 	p->flags |= PG_SLAB;
 }
@@ -406,7 +406,7 @@ vsetobj(vm_offset_t va, vm_object_t obj)
 {
 	vm_page_t p;
 
-	p = PHYS_TO_VM_PAGE(pmap_kextract((vm_offset_t)va));
+	p = PHYS_TO_VM_PAGE(pmap_kextract(va));
 	p->object = obj;
 	p->flags &= ~PG_SLAB;
 }
