@@ -46,7 +46,7 @@
  ** (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  ** THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  **
- **      $Id: userconfig.c,v 1.145 1999/05/21 04:37:30 wpaul Exp $
+ **      $Id: userconfig.c,v 1.146 1999/06/28 12:07:36 peter Exp $
  **/
 
 /**
@@ -2542,7 +2542,7 @@ visuserconfig(void)
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *      $Id: userconfig.c,v 1.145 1999/05/21 04:37:30 wpaul Exp $
+ *      $Id: userconfig.c,v 1.146 1999/06/28 12:07:36 peter Exp $
  */
 
 #include "scbus.h"
@@ -3619,8 +3619,7 @@ save_resource(struct isa_device *idev)
     name = idev->id_driver->name;
     unit = idev->id_unit;
     resource_set_int(name, unit, "port", idev->id_iobase);
-    resource_set_int(name, unit, "irq",
-		     1 << (idev->id_irq < 0 ? 0 : idev->id_irq));
+    resource_set_int(name, unit, "irq", ffs(idev->id_irq) - 1);
     resource_set_int(name, unit, "drq", idev->id_drq);
     resource_set_int(name, unit, "maddr", (int)idev->id_maddr);
     resource_set_int(name, unit, "msize", idev->id_msize);
