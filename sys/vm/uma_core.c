@@ -939,11 +939,20 @@ zone_small_init(uma_zone_t zone)
 	zone->uz_ipers = (UMA_SLAB_SIZE - sizeof(struct uma_slab)) / rsize;
 	zone->uz_ppera = 1;
 
+	KASSERT(zone->uz_ipers != 0, ("zone_small_init: ipers is 0, uh-oh!"));
 	memused = zone->uz_ipers * zone->uz_rsize;
 
 	/* Can we do any better? */
 	if ((UMA_SLAB_SIZE - memused) >= UMA_MAX_WASTE) {
-		if (zone->uz_flags & UMA_ZFLAG_INTERNAL) 
+		/*
+		 * We can't do this if we're internal or if we've been
+		 * asked to not go to the VM for buckets.  If we do this we
+		 * may end up going to the VM (kmem_map) for slabs which we
+		 * do not want to do if we're UMA_ZFLAG_CACHEONLY as a
+		 * result of UMA_ZONE_VM, which clearly forbids it.
+		 */
+		if ((zone->uz_flags & UMA_ZFLAG_INTERNAL) ||
+		    (zone->uz_flags & UMA_ZFLAG_CACHEONLY))
 			return;
 		ipers = UMA_SLAB_SIZE / zone->uz_rsize;
 		if (ipers > zone->uz_ipers) {
@@ -971,6 +980,9 @@ static void
 zone_large_init(uma_zone_t zone)
 {	
 	int pages;
+
+	KASSERT((zone->uz_flags & UMA_ZFLAG_CACHEONLY) == 0,
+	    ("zone_large_init: Cannot large-init a UMA_ZFLAG_CACHEONLY zone"));
 
 	pages = zone->uz_size / UMA_SLAB_SIZE;
 
@@ -1031,9 +1043,16 @@ zone_ctor(void *mem, int size, void *udata)
 		zone->uz_flags |= UMA_ZFLAG_NOFREE;
 
 	if (arg->flags & UMA_ZONE_VM)
-		zone->uz_flags |= UMA_ZFLAG_BUCKETCACHE;
+		zone->uz_flags |= UMA_ZFLAG_CACHEONLY;
 
-	if (zone->uz_size > UMA_SLAB_SIZE)
+	/*
+	 * XXX:
+	 * The +1 byte added to uz_size is to account for the byte of
+	 * linkage that is added to the size in zone_small_init().  If
+	 * we don't account for this here then we may end up in
+	 * zone_small_init() with a calculated 'ipers' of 0.
+	 */
+	if ((zone->uz_size+1) > (UMA_SLAB_SIZE - sizeof(struct uma_slab)))
 		zone_large_init(zone);
 	else
 		zone_small_init(zone);
@@ -1574,7 +1593,7 @@ uma_zalloc_bucket(uma_zone_t zone, int flags)
 		int bflags;
 
 		bflags = flags;
-		if (zone->uz_flags & UMA_ZFLAG_BUCKETCACHE)
+		if (zone->uz_flags & UMA_ZFLAG_CACHEONLY)
 			bflags |= M_NOVM;
 
 		ZONE_UNLOCK(zone);
@@ -1802,7 +1821,7 @@ zfree_start:
 #endif
 	bflags = M_NOWAIT;
 
-	if (zone->uz_flags & UMA_ZFLAG_BUCKETCACHE)
+	if (zone->uz_flags & UMA_ZFLAG_CACHEONLY)
 		bflags |= M_NOVM;
 #ifdef INVARIANTS
 	bflags |= M_ZERO;
