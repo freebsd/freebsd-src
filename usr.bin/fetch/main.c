@@ -24,7 +24,7 @@
  * SUCH DAMAGE.
  */
 
-/* $Id: main.c,v 1.5 1996/06/24 01:03:05 jmz Exp $ */
+/* $Id: main.c,v 1.6 1996/06/25 21:33:18 ache Exp $ */
 
 #include <stdlib.h>
 #include <stdio.h>
@@ -281,7 +281,7 @@ ftpget ()
 
 	display (size, size0);
 	while (1) {
-		n = status = fread (buffer, 1, BUFFER_SIZE, fp);
+		n = status = read (fileno (fp), buffer, BUFFER_SIZE);
 		if (status <= 0) 
 		    break;
 		display (size, n);
