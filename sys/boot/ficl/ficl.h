@@ -873,6 +873,10 @@ extern void ficlGetenv(FICL_VM *pVM);
 extern void ficlUnsetenv(FICL_VM *pVM);
 extern void ficlCopyin(FICL_VM *pVM);
 extern void ficlCopyout(FICL_VM *pVM);
+extern void ficlFindfile(FICL_VM *pVM);
+extern void ficlPnpdevices(FICL_VM *pVM);
+extern void ficlPnphandlers(FICL_VM *pVM);
+extern void ficlCcall(FICL_VM *pVM);
 #endif
 
 #ifdef __cplusplus
