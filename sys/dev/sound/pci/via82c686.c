@@ -572,7 +572,9 @@ via_attach(device_t dev)
 	if (bus_dmamap_load(via->sgd_dmat, via->sgd_dmamap, via->sgd_table, NSEGS * sizeof(struct via_dma_op), dma_cb, via, 0))
 		goto bad;
 
-	snprintf(status, SND_STATUSLEN, "at io 0x%lx irq %ld", rman_get_start(via->reg), rman_get_start(via->irq));
+	snprintf(status, SND_STATUSLEN, "at io 0x%lx irq %ld %s",
+		 rman_get_start(via->reg), rman_get_start(via->irq),
+		 PCM_KLDSTRING(snd_via82c686));
 
 	/* Register */
 	if (pcm_register(dev, via, 1, 1)) goto bad;

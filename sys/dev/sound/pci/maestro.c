@@ -1033,8 +1033,8 @@ agg_attach(device_t dev)
 	ess->irqid = irqid;
 	ess->ih = ih;
 
-	snprintf(status, SND_STATUSLEN, "at I/O port 0x%lx irq %ld",
-	    rman_get_start(reg), rman_get_start(irq));
+	snprintf(status, SND_STATUSLEN, "at I/O port 0x%lx irq %ld %s",
+	    rman_get_start(reg), rman_get_start(irq),PCM_KLDSTRING(snd_maestro));
 
 	if (pcm_register(dev, ess, AGG_MAXPLAYCH, 1))
 		goto bad;

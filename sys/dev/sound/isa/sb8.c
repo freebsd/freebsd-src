@@ -730,8 +730,9 @@ sb_attach(device_t dev)
 		goto no;
     	}
 
-    	snprintf(status, SND_STATUSLEN, "at io 0x%lx irq %ld drq %ld bufsz %u",
-    	     	rman_get_start(sb->io_base), rman_get_start(sb->irq), rman_get_start(sb->drq), sb->bufsize);
+    	snprintf(status, SND_STATUSLEN, "at io 0x%lx irq %ld drq %ld bufsz %u %s",
+    	     	rman_get_start(sb->io_base), rman_get_start(sb->irq),
+		rman_get_start(sb->drq), sb->bufsize, PCM_KLDSTRING(snd_sb8));
 
     	if (pcm_register(dev, sb, 1, 1))
 		goto no;
