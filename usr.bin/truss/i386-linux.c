@@ -183,6 +183,7 @@ i386_linux_syscall_entry(struct trussinfo *trussinfo, int nargs) {
 
   if (!strcmp(lsc.name, "linux_execve") || !strcmp(lsc.name, "exit")) {
     print_syscall(trussinfo, lsc.name, lsc.nargs, lsc.s_args);
+    fprintf(trussinfo->outfile, "\n");
   }
 
   return;

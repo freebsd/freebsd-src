@@ -234,6 +234,7 @@ i386_syscall_entry(struct trussinfo *trussinfo, int nargs) {
 
   if (!strcmp(fsc.name, "execve") || !strcmp(fsc.name, "exit")) {
     print_syscall(trussinfo, fsc.name, fsc.nargs, fsc.s_args);
+    fprintf(trussinfo->outfile, "\n");
   }
 
   return;
