@@ -143,6 +143,14 @@
   <sect2>
     <title>Security Fixes</title>
 
+    <para>The security fix mentioned in security advisory
+    FreeBSD-SA-01:39, which governs initial sequence number generation
+    for TCP connections, has raised some possible compatability
+    issues.  To mitigate this effect, the fix can now be enabled or
+    disabled using the
+    <varname>net.inet.tcp.tcp_seq_genscheme</varname> sysctl
+    variable.</para>
+
     <para>A vulnerability in the &man.fts.3; routines (used by
     applications for recursively traversing a filesystem) could
     allow a program to operate on files outside the intended directory
