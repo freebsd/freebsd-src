@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: bootstrap.h,v 1.16 1998/11/02 23:28:10 msmith Exp $
+ *	$Id: bootstrap.h,v 1.17 1999/01/15 00:31:45 abial Exp $
  */
 
 #include <sys/types.h>
@@ -202,57 +202,7 @@ extern vm_offset_t	aout_findsym(char *name, struct loaded_module *mp);
 extern int	elf_loadmodule(char *filename, vm_offset_t dest, struct loaded_module **result);
 
 #ifndef NEW_LINKER_SET
-#if defined(__ELF__)
-
-/*
- * Alpha GAS needs an align before the section change.  It seems to assume
- * that after the .previous, it is aligned, so the following .align 3 is
- * ignored.  Since the previous instructions often contain strings, this is
- * a problem.
- */
-
-#ifdef __alpha__
-#define MAKE_SET(set, sym)			\
-	static void const * const __set_##set##_sym_##sym = &sym; \
-	__asm(".align 3");			\
-	__asm(".section .set." #set ",\"aw\"");	\
-	__asm(".quad " #sym);			\
-	__asm(".previous")
-#else
-#define MAKE_SET(set, sym)			\
-	static void const * const __set_##set##_sym_##sym = &sym; \
-	__asm(".section .set." #set ",\"aw\"");	\
-	__asm(".long " #sym);			\
-	__asm(".previous")
-#endif
-#define TEXT_SET(set, sym) MAKE_SET(set, sym)
-#define DATA_SET(set, sym) MAKE_SET(set, sym)
-#define BSS_SET(set, sym)  MAKE_SET(set, sym)
-#define ABS_SET(set, sym)  MAKE_SET(set, sym)
-
-#else
-
-/*
- * Linker set support, directly from <sys/kernel.h>
- * 
- * NB: the constants defined below must match those defined in
- * ld/ld.h.  Since their calculation requires arithmetic, we
- * can't name them symbolically (e.g., 23 is N_SETT | N_EXT).
- */
-#define MAKE_SET(set, sym, type) \
-	static void const * const __set_##set##_sym_##sym = &sym; \
-	__asm(".stabs \"_" #set "\", " #type ", 0, 0, _" #sym)
-#define TEXT_SET(set, sym) MAKE_SET(set, sym, 23)
-#define DATA_SET(set, sym) MAKE_SET(set, sym, 25)
-#define BSS_SET(set, sym)  MAKE_SET(set, sym, 27)
-#define ABS_SET(set, sym)  MAKE_SET(set, sym, 21)
-
-#endif
-
-struct linker_set {
-    int             ls_length;
-    const void      *ls_items[1];	/* really ls_length of them, trailing NULL */
-};
+#include <sys/linker_set.h>
 
 /* XXX just for conversion's sake, until we move to the new linker set code */
 
