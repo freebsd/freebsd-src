@@ -11,6 +11,7 @@
 
 #include "debug.h"
 #include "rtld.h"
+#include "libmap.h"
 
 #ifndef _PATH_LIBMAP_CONF
 #define	_PATH_LIBMAP_CONF	"/etc/libmap.conf"
