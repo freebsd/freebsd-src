@@ -290,7 +290,8 @@ struct inpcb *
 			       struct in_addr, u_int, struct in_addr, u_int,
 			       int, struct ifnet *));
 void	in_pcbnotify __P((struct inpcbhead *, struct sockaddr *,
-	    u_int, struct in_addr, u_int, int, void (*)(struct inpcb *, int)));
+	    u_int, struct in_addr, u_int, int, void (*)(struct inpcb *, int),
+		u_int32_t, int));
 void	in_pcbrehash __P((struct inpcb *));
 int	in_setpeeraddr __P((struct socket *so, struct sockaddr **nam));
 int	in_setsockaddr __P((struct socket *so, struct sockaddr **nam));

@@ -512,9 +512,9 @@ udp_ctlinput(cmd, sa, vip)
 	if (ip) {
 		uh = (struct udphdr *)((caddr_t)ip + (ip->ip_hl << 2));
 		in_pcbnotify(&udb, sa, uh->uh_dport, ip->ip_src, uh->uh_sport,
-			cmd, udp_notify);
+			cmd, udp_notify, 0, 0);
 	} else
-		in_pcbnotify(&udb, sa, 0, zeroin_addr, 0, cmd, udp_notify);
+		in_pcbnotify(&udb, sa, 0, zeroin_addr, 0, cmd, udp_notify, 0, 0);
 }
 
 static int
