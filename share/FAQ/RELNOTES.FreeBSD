@@ -270,6 +270,14 @@ Adaptec 152x series ISA SCSI controllers
 Adaptec 154x series ISA SCSI controllers
 Adaptec 174x series EISA SCSI controller in standard and enhanced mode.
 Adaptec 2742/2842 series ISA/EISA SCSI controllers
+Adaptec AIC-6260 and AIC-6360 based boards, which includes
+the AHA-152x and SoundBlaster SCSI cards.
+
+** Note: You cannot boot from the Soundblaster cards
+as they have no on-board BIOS, which is necessary.
+They're perfectly usable for external tapes, CDROMs, etc,
+however.  The same goes for any other AIC-6x60 based card
+without a boot ROM.
 
 [Note that Buslogic was formerly known as "Bustec"]
 Buslogic 545S & 545c
@@ -515,4 +523,4 @@ hope you enjoy this release of FreeBSD!
 
 			The FreeBSD Core Team
 
-$Id: RELNOTES.FreeBSD,v 1.13 1994/11/17 12:35:22 jkh Exp $
+$Id: RELNOTES.FreeBSD,v 1.14 1994/11/18 01:12:13 jkh Exp $
