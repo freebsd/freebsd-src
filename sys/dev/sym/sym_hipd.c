@@ -58,7 +58,9 @@
 
 /* $FreeBSD$ */
 
-#define SYM_DRIVER_NAME	"sym-1.2.0-20000108"
+#define SYM_DRIVER_NAME	"sym-1.3.2-20000206"
+
+/* #define	SYM_DEBUG_PM_WITH_WSR (current debugging) */
 
 #include <pci.h>
 #include <stddef.h>	/* For offsetof */
@@ -124,12 +126,15 @@ typedef u_int16_t u16;
 typedef	u_int32_t u32;
 
 /* Driver configuration and definitions */
+#if 1
 #include "opt_sym.h"
 #include <dev/sym/sym_conf.h>
 #include <dev/sym/sym_defs.h>
-
-/* We want to know if the ncr has been configured */
-#include "ncr.h"
+#else
+#include "ncr.h"	/* To know if the ncr has been configured */
+#include <pci/sym_conf.h>
+#include <pci/sym_defs.h>
+#endif
 
 /*
  *  On x86 architecture, write buffers management does not 
@@ -781,7 +786,12 @@ struct sym_nvram {
 #define	SIR_RESEL_ABORTED	(18)
 #define	SIR_MSG_OUT_DONE	(19)
 #define	SIR_COMPLETE_ERROR	(20)
+#ifdef	SYM_DEBUG_PM_WITH_WSR
+#define	SIR_PM_WITH_WSR		(21)
+#define	SIR_MAX			(21)
+#else
 #define	SIR_MAX			(20)
+#endif
 
 /*
  *  Extended error bit codes.
@@ -1133,6 +1143,7 @@ struct dsb {
 	struct sym_tblmove smsg_ext;
 	struct sym_tblmove cmd;
 	struct sym_tblmove sense;
+	struct sym_tblmove wresid;
 	struct sym_tblmove data [SYM_CONF_MAX_SG];
 
 	/*
@@ -1471,19 +1482,13 @@ struct sym_scr {
 	u32 select2		[  2];
 #endif
 	u32 command		[  2];
-#ifdef	SYM_CONF_BROKEN_U3EN_SUPPORT
-	u32 dispatch		[ 18];
-#else
 	u32 dispatch		[ 30];
-#endif
 	u32 sel_no_cmd		[ 10];
 	u32 init		[  6];
 	u32 clrack		[  4];
-	u32 disp_msg_in		[  2];
 	u32 disp_status		[  4];
-	u32 datai_done		[ 16];
-	u32 datao_done		[ 10];
-	u32 ign_i_w_r_msg	[  4];
+	u32 datai_done		[ 26];
+	u32 datao_done		[ 12];
 	u32 dataphase		[  2];
 	u32 msg_in		[  2];
 	u32 msg_in2		[ 10];
@@ -1514,26 +1519,21 @@ struct sym_scr {
 	u32 reselected		[ 20];
 	u32 resel_scntl4	[ 28];
 #if   SYM_CONF_MAX_TASK*4 > 512
-	u32 resel_tag		[ 24];
+	u32 resel_tag		[ 26];
 #elif SYM_CONF_MAX_TASK*4 > 256
-	u32 resel_tag		[ 18];
+	u32 resel_tag		[ 20];
 #else
-	u32 resel_tag		[ 14];
+	u32 resel_tag		[ 16];
 #endif
 	u32 resel_dsa		[  2];
 	u32 resel_dsa1		[  6];
-	u32 resel_no_tag	[  8];
+	u32 resel_no_tag	[  6];
 	u32 data_in		[SYM_CONF_MAX_SG * 2];
 	u32 data_in2		[  4];
 	u32 data_out		[SYM_CONF_MAX_SG * 2];
 	u32 data_out2		[  4];
-#ifdef	SYM_CONF_BROKEN_U3EN_SUPPORT
-	u32 pm0_data		[ 28];
-	u32 pm1_data		[ 28];
-#else
 	u32 pm0_data		[ 16];
 	u32 pm1_data		[ 16];
-#endif
 };
 
 /*
@@ -1542,6 +1542,7 @@ struct sym_scr {
  */
 struct sym_scrh {
 	u32 start64		[  2];
+	u32 no_data		[  2];
 	u32 sel_for_abort	[ 18];
 	u32 sel_for_abort_1	[  2];
 	u32 select_no_atn	[  8];
@@ -1564,20 +1565,13 @@ struct sym_scrh {
 	u32 nego_bad_phase	[  4];
 	u32 msg_out		[  4];
 	u32 msg_out_done	[  4];
-#ifdef	SYM_CONF_BROKEN_U3EN_SUPPORT
-	u32 no_data		[ 38];
-#else
-	u32 no_data		[ 30];
-#endif
+	u32 data_ovrun		[ 18];
+	u32 data_ovrun1		[ 20];
 	u32 abort_resel		[ 16];
 	u32 resend_ident	[  4];
 	u32 ident_break		[  4];
 	u32 ident_break_atn	[  4];
-#ifdef	SYM_CONF_BROKEN_U3EN_SUPPORT
-	u32 sdata_in		[ 12];
-#else
 	u32 sdata_in		[  6];
-#endif
 	u32 resel_bad_lun	[  4];
 	u32 bad_i_t_l		[  4];
 	u32 bad_i_t_l_q		[  4];
@@ -1588,26 +1582,17 @@ struct sym_scrh {
 	u32 pm0_save		[ 14];
 	u32 pm1_save		[ 14];
 
-	/* SWIDE handling */
-	u32 swide_ma_32		[  4];
-	u32 swide_ma_64		[  6];
-	u32 swide_scr_64	[ 26];
-	u32 swide_scr_64_1	[ 12];
-	u32 swide_com_64	[  6];
-	u32 swide_common	[ 10];
-	u32 swide_fin_32	[ 24];
-
-#ifdef	SYM_CONF_BROKEN_U3EN_SUPPORT
-	u32 dt_data_in		[SYM_CONF_MAX_SG * 2];
-	u32 dt_data_in2		[  4];
-	u32 dt_data_out		[SYM_CONF_MAX_SG * 2];
-	u32 dt_data_out2	[  4];
+	/* WSR handling */
+#ifdef	SYM_DEBUG_PM_WITH_WSR
+	u32 pm_wsr_handle	[ 44];
+#else
+	u32 pm_wsr_handle	[ 42];
 #endif
+	u32 wsr_ma_helper	[  4];
 
 	/* Data area */
 	u32 zero		[  1];
 	u32 scratch		[  1];
-	u32 scratch1		[  1];
 	u32 pm0_data_addr	[  1];
 	u32 pm1_data_addr	[  1];
 	u32 saved_dsa		[  1];
@@ -1934,12 +1919,6 @@ static struct sym_scr script0 = {
 	SCR_JUMP ^ IFTRUE (IF (SCR_MSG_OUT)),
 		PADDRH (msg_out),
 
-#ifdef	SYM_CONF_BROKEN_U3EN_SUPPORT
-	SCR_JUMP ^ IFTRUE (IF (SCR_DT_DATA_OUT)),
-		PADDR (dataphase),
-	SCR_JUMP ^ IFTRUE (IF (SCR_DT_DATA_IN)),
-		PADDR (dataphase),
-#else
 	/*
 	 *  Set the extended error flag.
 	 */
@@ -1962,7 +1941,6 @@ static struct sym_scr script0 = {
 		8,
 	SCR_MOVE_ABS (1) ^ SCR_ILG_IN,
 		NADDR (scratch),
-#endif	/* SYM_CONF_BROKEN_U3EN_SUPPORT */
 
 	SCR_JUMP,
 		PADDR (dispatch),
@@ -2013,16 +1991,6 @@ static struct sym_scr script0 = {
 		0,
 	SCR_JUMP,
 		PADDR (dispatch),
-}/*-------------------------< DISP_MSG_IN >----------------------*/,{
-	/*
-	 *  Anticipate MSG_IN phase then STATUS phase.
-	 *
-	 *  May spare 2 SCRIPTS instructions when we have 
-	 *  completed the OUTPUT of the data and the device 
-	 *  goes directly to STATUS phase.
-	 */
-	SCR_JUMP ^ IFTRUE (WHEN (SCR_MSG_IN)),
-		PADDR (msg_in),
 }/*-------------------------< DISP_STATUS >----------------------*/,{
 	/*
 	 *  Anticipate STATUS phase.
@@ -2036,10 +2004,14 @@ static struct sym_scr script0 = {
 		PADDR (dispatch),
 }/*-------------------------< DATAI_DONE >-------------------*/,{
 	/*
+	 *  If the device still wants to send us data,
+	 *  we must count the extra bytes.
+	 */
+	SCR_JUMP ^ IFTRUE (WHEN (SCR_DATA_IN)),
+		PADDRH (data_ovrun),
+	/*
 	 *  If the SWIDE is not full, jump to dispatcher.
 	 *  We anticipate a STATUS phase.
-	 *  If we get later an IGNORE WIDE RESIDUE, we 
-	 *  will alias it as a MODIFY DP (-1).
 	 */
 	SCR_FROM_REG (scntl2),
 		0,
@@ -2052,30 +2024,49 @@ static struct sym_scr script0 = {
 	SCR_REG_REG (scntl2, SCR_OR, WSR),
 		0,
 	/*
-	 *  Since the device is required to send any 
-	 *  IGNORE WIDE RESIDUE message prior to any
-	 *  other information, we just snoop the SCSI 
-	 *  BUS to check for such a message.
+	 *  We are expecting an IGNORE RESIDUE message 
+	 *  from the device, otherwise we are in data 
+	 *  overrun condition. Check against MSG_IN phase.
 	 */
-	SCR_JUMPR ^ IFFALSE (WHEN (SCR_MSG_IN)),
-		16,
-	SCR_FROM_REG (sbdl),
-		0,
-	SCR_JUMP ^ IFTRUE (DATA (M_IGN_RESIDUE)),
-		PADDR (disp_msg_in),
-	/*
-	 *  We have been ODD at the end of the transfer, 
-	 *  but the device hasn't be so.
-	 *  Signal a DATA OVERRUN condition to the C code.
-	 */
-	SCR_INT,
+	SCR_INT ^ IFFALSE (WHEN (SCR_MSG_IN)),
 		SIR_SWIDE_OVERRUN,
+	SCR_JUMP ^ IFFALSE (WHEN (SCR_MSG_IN)),
+		PADDR (disp_status),
+	/*
+	 *  We are in MSG_IN phase,
+	 *  Read the first byte of the message.
+	 *  If it is not an IGNORE RESIDUE message,
+	 *  signal overrun and jump to message 
+	 *  processing.
+	 */
+	SCR_MOVE_ABS (1) ^ SCR_MSG_IN,
+		NADDR (msgin[0]),
+	SCR_INT ^ IFFALSE (DATA (M_IGN_RESIDUE)),
+		SIR_SWIDE_OVERRUN,
+	SCR_JUMP ^ IFFALSE (DATA (M_IGN_RESIDUE)),
+		PADDR (msg_in2),
+	/*
+	 *  We got the message we expected.
+	 *  Read the 2nd byte, and jump to dispatcher.
+	 */
+	SCR_CLR (SCR_ACK),
+		0,
+	SCR_MOVE_ABS (1) ^ SCR_MSG_IN,
+		NADDR (msgin[1]),
+	SCR_CLR (SCR_ACK),
+		0,
 	SCR_JUMP,
-		PADDR (dispatch),
+		PADDR (disp_status),
 }/*-------------------------< DATAO_DONE >-------------------*/,{
 	/*
+	 *  If the device wants us to send more data,
+	 *  we must count the extra bytes.
+	 */
+	SCR_JUMP ^ IFTRUE (WHEN (SCR_DATA_OUT)),
+		PADDRH (data_ovrun),
+	/*
 	 *  If the SODL is not full jump to dispatcher.
-	 *  We anticipate a MSG IN phase or a STATUS phase.
+	 *  We anticipate a STATUS phase.
 	 */
 	SCR_FROM_REG (scntl2),
 		0,
@@ -2094,21 +2085,6 @@ static struct sym_scr script0 = {
 		SIR_SODL_UNDERRUN,
 	SCR_JUMP,
 		PADDR (dispatch),
-}/*-------------------------< IGN_I_W_R_MSG >--------------*/,{
-	/*
-	 *  We jump here from the phase mismatch interrupt, 
-	 *  When we have a SWIDE and the device has presented 
-	 *  a IGNORE WIDE RESIDUE message on the BUS.
-	 *  We just have to throw away this message and then 
-	 *  to jump to dispatcher.
-	 */
-	SCR_MOVE_ABS (2) ^ SCR_MSG_IN,
-		NADDR (scratch),
-	/*
-	 *  Clear ACK and jump to dispatcher.
-	 */
-	SCR_JUMP,
-		PADDR (clrack),
 }/*-------------------------< DATAPHASE >------------------*/,{
 	SCR_RETURN,
  		0,
@@ -2438,30 +2414,29 @@ static struct sym_scr script0 = {
 	SCR_NO_OP,
 		0,
 	/*
-	 *  If MESSAGE IN phase as expected,
-	 *  Read the data directly from the BUS DATA lines.
-	 *  This helps to support very old SCSI devices that 
-	 *  may reselect without sending an IDENTIFY.
+	 *  We expect MESSAGE IN phase.
+	 *  If not, get help from the C code.
 	 */
 	SCR_INT ^ IFFALSE (WHEN (SCR_MSG_IN)),
 		SIR_RESEL_NO_MSG_IN,
-	SCR_FROM_REG (sbdl),
-		0,
+	SCR_MOVE_ABS (1) ^ SCR_MSG_IN,
+		NADDR (msgin),
 	/*
-	 *  If message phase but not an IDENTIFY,
-	 *  get some help from the C code.
-	 *  Old SCSI device may behave so.
+	 *  If IDENTIFY LUN #0, use a faster path 
+	 *  to find the LCB structure.
+	 */
+	SCR_JUMPR ^ IFTRUE (MASK (0x80, 0xbf)),
+		56,
+	/*
+	 *  If message isn't an IDENTIFY, 
+	 *  tell the C code about.
 	 */
 	SCR_INT ^ IFFALSE (MASK (0x80, 0x80)),
 		SIR_RESEL_NO_IDENTIFY,
 	/*
 	 *  It is an IDENTIFY message,
 	 *  Load the LUN control block address.
-	 *  If LUN 0, avoid a PCI BUS ownership by loading 
-	 *  directly 'lun0_sa' from the TCB.
 	 */
-	SCR_JUMPR ^ IFTRUE (MASK (0x0, 0x3f)),
-		48,
 	SCR_LOAD_REL (dsa, 4),
 		offsetof(struct sym_tcb, luntbl_sa),
 	SCR_SFBR_REG (dsa, SCR_SHL, 0),
@@ -2489,12 +2464,17 @@ static struct sym_scr script0 = {
 	/* In normal situations, we jump to RESEL_TAG or RESEL_NO_TAG */
 }/*-------------------------< RESEL_TAG >-------------------*/,{
 	/*
+	 *  ACK the IDENTIFY or TAG previously received.
+	 */
+	SCR_CLR (SCR_ACK),
+		0,
+	/*
 	 *  It shall be a tagged command.
-	 *  Read IDENTIFY+SIMPLE+TAG.
+	 *  Read SIMPLE+TAG.
 	 *  The C code will deal with errors.
 	 *  Agressive optimization, is'nt it? :)
 	 */
-	SCR_MOVE_ABS (3) ^ SCR_MSG_IN,
+	SCR_MOVE_ABS (2) ^ SCR_MSG_IN,
 		NADDR (msgin),
 	/*
 	 *  Load the pointer to the tagged task 
@@ -2563,11 +2543,6 @@ static struct sym_scr script0 = {
 		PADDR (dispatch),
 }/*-------------------------< RESEL_NO_TAG >-------------------*/,{
 	/*
-	 *  Throw away the IDENTIFY.
-	 */
-	SCR_MOVE_ABS (1) ^ SCR_MSG_IN,
-		NADDR (msgin),
-	/*
 	 *  Load the DSA with the unique ITL task.
 	 */
 	SCR_LOAD_REL (dsa, 4),
@@ -2596,7 +2571,7 @@ static struct sym_scr script0 = {
 	SCR_CALL,
 		PADDR (datai_done),
 	SCR_JUMP,
-		PADDRH (no_data),
+		PADDRH (data_ovrun),
 }/*-------------------------< DATA_OUT >--------------------*/,{
 /*
  *  Because the size depends on the
@@ -2613,7 +2588,7 @@ static struct sym_scr script0 = {
 	SCR_CALL,
 		PADDR (datao_done),
 	SCR_JUMP,
-		PADDRH (no_data),
+		PADDRH (data_ovrun),
 }/*-------------------------< PM0_DATA >--------------------*/,{
 	/*
 	 *  Keep track we are executing the PM0 DATA 
@@ -2625,28 +2600,6 @@ static struct sym_scr script0 = {
 	 *  MOVE the data according to the actual 
 	 *  DATA direction.
 	 */
-#ifdef	SYM_CONF_BROKEN_U3EN_SUPPORT
-	SCR_JUMPR ^ IFFALSE (WHEN (SCR_DATA_IN)),
-		16,
-	SCR_CHMOV_TBL ^ SCR_DATA_IN,
-		offsetof (struct sym_ccb, phys.pm0.sg),
-	SCR_JUMPR,
-		56,
-	SCR_JUMPR ^ IFFALSE (WHEN (SCR_DATA_OUT)),
-		16,
-	SCR_CHMOV_TBL ^ SCR_DATA_OUT,
-		offsetof (struct sym_ccb, phys.pm0.sg),
-	SCR_JUMPR,
-		32,
-	SCR_JUMPR ^ IFFALSE (WHEN (SCR_DT_DATA_IN)),
-		16,
-	SCR_CHMOV_TBL ^ SCR_DT_DATA_IN,
-		offsetof (struct sym_ccb, phys.pm0.sg),
-	SCR_JUMPR,
-		8,
-	SCR_CHMOV_TBL ^ SCR_DT_DATA_OUT,
-		offsetof (struct sym_ccb, phys.pm0.sg),
-#else
 	SCR_JUMPR ^ IFFALSE (WHEN (SCR_DATA_IN)),
 		16,
 	SCR_CHMOV_TBL ^ SCR_DATA_IN,
@@ -2655,7 +2608,6 @@ static struct sym_scr script0 = {
 		8,
 	SCR_CHMOV_TBL ^ SCR_DATA_OUT,
 		offsetof (struct sym_ccb, phys.pm0.sg),
-#endif
 	/*
 	 *  Clear the flag that told we were in 
 	 *  the PM0 DATA mini-script.
@@ -2682,28 +2634,6 @@ static struct sym_scr script0 = {
 	 *  MOVE the data according to the actual 
 	 *  DATA direction.
 	 */
-#ifdef	SYM_CONF_BROKEN_U3EN_SUPPORT
-	SCR_JUMPR ^ IFFALSE (WHEN (SCR_DATA_IN)),
-		16,
-	SCR_CHMOV_TBL ^ SCR_DATA_IN,
-		offsetof (struct sym_ccb, phys.pm1.sg),
-	SCR_JUMPR,
-		56,
-	SCR_JUMPR ^ IFFALSE (WHEN (SCR_DATA_OUT)),
-		16,
-	SCR_CHMOV_TBL ^ SCR_DATA_OUT,
-		offsetof (struct sym_ccb, phys.pm1.sg),
-	SCR_JUMPR,
-		32,
-	SCR_JUMPR ^ IFFALSE (WHEN (SCR_DT_DATA_IN)),
-		16,
-	SCR_CHMOV_TBL ^ SCR_DT_DATA_IN,
-		offsetof (struct sym_ccb, phys.pm1.sg),
-	SCR_JUMPR,
-		8,
-	SCR_CHMOV_TBL ^ SCR_DT_DATA_OUT,
-		offsetof (struct sym_ccb, phys.pm1.sg),
-#else
 	SCR_JUMPR ^ IFFALSE (WHEN (SCR_DATA_IN)),
 		16,
 	SCR_CHMOV_TBL ^ SCR_DATA_IN,
@@ -2712,7 +2642,6 @@ static struct sym_scr script0 = {
 		8,
 	SCR_CHMOV_TBL ^ SCR_DATA_OUT,
 		offsetof (struct sym_ccb, phys.pm1.sg),
-#endif
 	/*
 	 *  Clear the flag that told we were in 
 	 *  the PM1 DATA mini-script.
@@ -2740,6 +2669,9 @@ static struct sym_scrh scripth0 = {
 	 */
 	SCR_JUMP,
 		PADDR (init),
+}/*-------------------------< NO_DATA >-------------------*/,{
+	SCR_JUMP,
+		PADDRH (data_ovrun),
 }/*-----------------------< SEL_FOR_ABORT >------------------*/,{
 	/*
 	 *  We are jumped here by the C code, if we have 
@@ -3016,29 +2948,38 @@ static struct sym_scrh scripth0 = {
 
 }/*-------------------------< NO_DATA >--------------------*/,{
 	/*
-	 *  The target wants to tranfer too much data
-	 *  or in the wrong direction.
-	 *  Discard one data byte, if required.
-	 *  Count all discarded bytes.
+	 *  The target may want to transfer too much data.
+	 *
+	 *  If phase is DATA OUT write 1 byte and count it.
 	 */
 	SCR_JUMPR ^ IFFALSE (WHEN (SCR_DATA_OUT)),
-		8,
-	SCR_MOVE_ABS (1) ^ SCR_DATA_OUT,
+		16,
+	SCR_CHMOV_ABS (1) ^ SCR_DATA_OUT,
 		NADDR (scratch),
-	SCR_JUMPR ^ IFFALSE (IF (SCR_DATA_IN)),
-		8,
-	SCR_MOVE_ABS (1) ^ SCR_DATA_IN,
+	SCR_JUMP,
+		PADDRH (data_ovrun1),
+	/*
+	 *  If WSR is set, clear this condition, and 
+	 *  count this byte.
+	 */
+	SCR_FROM_REG (scntl2),
+		0,
+	SCR_JUMPR ^ IFFALSE (MASK (WSR, WSR)),
+		16,
+	SCR_REG_REG (scntl2, SCR_OR, WSR),
+		0,
+	SCR_JUMP,
+		PADDRH (data_ovrun1),
+	/*
+	 *  Finally check against DATA IN phase.
+	 *  Jump to dispatcher if not so.
+	 *  Read 1 byte otherwise and count it.
+	 */
+	SCR_JUMP ^ IFFALSE (IF (SCR_DATA_IN)),
+		PADDR (dispatch),
+	SCR_CHMOV_ABS (1) ^ SCR_DATA_IN,
 		NADDR (scratch),
-#ifdef	SYM_CONF_BROKEN_U3EN_SUPPORT
-	SCR_JUMPR ^ IFFALSE (IF (SCR_DT_DATA_OUT)),
-		8,
-	SCR_MOVE_ABS (1) ^ SCR_DT_DATA_OUT,
-		NADDR (scratch),
-	SCR_JUMPR ^ IFFALSE (IF (SCR_DT_DATA_IN)),
-		8,
-	SCR_MOVE_ABS (1) ^ SCR_DT_DATA_IN,
-		NADDR (scratch),
-#endif
+}/*-------------------------< NO_DATA1 >--------------------*/,{
 	/*
 	 *  Set the extended error flag.
 	 */
@@ -3052,7 +2993,7 @@ static struct sym_scrh scripth0 = {
 		offsetof (struct sym_ccb, xerr_status),
 	/*
 	 *  Count this byte.
-	 *  This will allow to return a positive 
+	 *  This will allow to return a negative 
 	 *  residual to user.
 	 */
 	SCR_LOAD_REL (scratcha, 4),
@@ -3068,10 +3009,8 @@ static struct sym_scrh scripth0 = {
 	/*
 	 *  .. and repeat as required.
 	 */
-	SCR_CALL,
-		PADDR (dispatch),
 	SCR_JUMP,
-		PADDRH (no_data),
+		PADDRH (data_ovrun),
 
 }/*-------------------------< ABORT_RESEL >----------------*/,{
 	SCR_SET (SCR_ATN),
@@ -3116,23 +3055,12 @@ static struct sym_scrh scripth0 = {
 	SCR_JUMP,
 		PADDR (select2),
 }/*-------------------------< SDATA_IN >-------------------*/,{
-#ifdef	SYM_CONF_BROKEN_U3EN_SUPPORT
-	SCR_JUMPR ^ IFFALSE (WHEN (SCR_DATA_IN)),
-		16,
 	SCR_CHMOV_TBL ^ SCR_DATA_IN,
 		offsetof (struct dsb, sense),
-	SCR_JUMPR,
-		8,
-	SCR_CHMOV_TBL ^ SCR_DT_DATA_IN,
-		offsetof (struct dsb, sense),
-#else
-	SCR_CHMOV_TBL ^ SCR_DATA_IN,
-		offsetof (struct dsb, sense),
-#endif
 	SCR_CALL,
-		PADDR (dispatch),
+		PADDR (datai_done),
 	SCR_JUMP,
-		PADDRH (no_data),
+		PADDRH (data_ovrun),
 
 }/*-------------------------< RESEL_BAD_LUN >---------------*/,{
 	/*
@@ -3256,12 +3184,12 @@ static struct sym_scrh scripth0 = {
 	/*
 	 *  If WSR bit is set, either UA and RBC may 
 	 *  have to be changed whether the device wants 
-	 *  to ignore this residue ot not.
+	 *  to ignore this residue or not.
 	 */
 	SCR_FROM_REG (scntl2),
 		0,
 	SCR_CALL ^ IFTRUE (MASK (WSR, WSR)),
-		PADDRH (swide_scr_64),
+		PADDRH (pm_wsr_handle),
 	/*
 	 *  Save the remaining byte count, the updated 
 	 *  address and the return address.
@@ -3282,13 +3210,13 @@ static struct sym_scrh scripth0 = {
 		offsetof(struct sym_ccb, phys.pm1.ret),
 	/*
 	 *  If WSR bit is set, either UA and RBC may 
-	 *  have been changed whether the device wants 
+	 *  have to be changed whether the device wants 
 	 *  to ignore this residue or not.
 	 */
 	SCR_FROM_REG (scntl2),
 		0,
 	SCR_CALL ^ IFTRUE (MASK (WSR, WSR)),
-		PADDRH (swide_scr_64),
+		PADDRH (pm_wsr_handle),
 	/*
 	 *  Save the remaining byte count, the updated 
 	 *  address and the return address.
@@ -3304,100 +3232,33 @@ static struct sym_scrh scripth0 = {
 		PADDRH (pm1_data_addr),
 	SCR_JUMP,
 		PADDR (dispatch),
-}/*--------------------------< SWIDE_MA_32 >-----------------------*/,{
+
+}/*--------------------------< PM_WSR_HANDLE >-----------------------*/,{
 	/*
-	 *  Handling of the SWIDE for 32 bit chips.
+	 *  Phase mismatch handling from SCRIPT with WSR set.
+	 *  Such a condition can occur if the chip wants to 
+	 *  execute a CHMOV(size > 1) when the WSR bit is 
+	 *  set and the target changes PHASE.
+	 */
+#ifdef	SYM_DEBUG_PM_WITH_WSR
+	/*
+	 *  Some debugging may still be needed.:)
+	 */ 
+	SCR_INT,
+		SIR_PM_WITH_WSR,
+#endif
+	/*
+	 *  We must move the residual byte to memory.
 	 *
-	 *  We jump here from the C code with SCRATCHA 
-	 *  containing the address to write the SWIDE.
-	 *  - Save 32 bit address in <scratch>.
+	 *  UA contains bit 0..31 of the address to 
+	 *  move the residual byte.
+	 *  Move it to the table indirect.
 	 */
-	SCR_STORE_ABS (scratcha, 4),
-		PADDRH (scratch),
-	SCR_JUMP,
-		PADDRH (swide_common),
-}/*--------------------------< SWIDE_MA_64 >-----------------------*/,{
+	SCR_STORE_REL (ua, 4),
+		offsetof (struct sym_ccb, phys.wresid.addr),
 	/*
-	 *  Handling of the SWIDE for 64 bit chips when the 
-	 *  hardware handling of phase mismatch is disabled.
-	 *
-	 *  We jump here from the C code with SCRATCHA 
-	 *  containing the address to write the SWIDE and 
-	 *  SBR containing bit 32..39 of this address.
-	 *  - Save 32 bit address in <scratch>.
-	 *  - Move address bit 32..39 to SFBR.
+	 *  Increment UA (move address to next position).
 	 */
-	SCR_STORE_ABS (scratcha, 4),
-		PADDRH (scratch),
-	SCR_FROM_REG (sbr),
-		0,
-	SCR_JUMP,
-		PADDRH (swide_com_64),
-}/*--------------------------< SWIDE_SCR_64 >-----------------------*/,{
-	/*
-	 *  Handling of the SWIDE for 64 bit chips when 
-	 *  hardware phase mismatch is enabled.
-	 *  We are entered with a SCR_CALL from PMO_SAVE 
-	 *  and PM1_SAVE sub-scripts.
-	 *
-	 *  Snoop the SCSI BUS in case of the device 
-	 *  willing to ignore this residue.
-	 *  If it does, we must only increment the RBC, 
-	 *  since this register does reflect all bytes 
-	 *  received from the SCSI BUS including the SWIDE.
-	 */
-	SCR_JUMP ^ IFFALSE (WHEN (SCR_MSG_IN)),
-		PADDRH (swide_scr_64_1),
-	SCR_FROM_REG (sbdl),
-		0,
-	SCR_JUMP ^ IFFALSE (DATA (M_IGN_RESIDUE)),
-		PADDRH (swide_scr_64_1),
-	SCR_REG_REG (rbc, SCR_ADD, 1),
-		0,
-	SCR_REG_REG (rbc1, SCR_ADDC, 0),
-		0,
-	SCR_REG_REG (rbc2, SCR_ADDC, 0),
-		0,
-	/*
-	 *  Save UA and RBC, since the PM0/1_SAVE 
-	 *  sub-scripts haven't moved them to the 
-	 *  context yet and the below MOV may just 
-	 *  change their value.
-	 */
-	SCR_STORE_ABS (ua, 4),
-		PADDRH (scratch),
-	SCR_STORE_ABS (rbc, 4),
-		PADDRH (scratch1),
-	/*
-	 *  Throw away the IGNORE WIDE RESIDUE message.
-	 *  since we just did take care of it.
-	 */
-	SCR_MOVE_ABS (2) ^ SCR_MSG_IN,
-		NADDR (scratch),
-	SCR_CLR (SCR_ACK),
-		0,
-	/*
-	 *  Restore UA and RBC registers and return.
-	 */
-	SCR_LOAD_ABS (ua, 4),
-		PADDRH (scratch),
-	SCR_LOAD_ABS (rbc, 4),
-		PADDRH (scratch1),
-	SCR_RETURN,
-		0,
-}/*--------------------------< SWIDE_SCR_64_1 >---------------------*/,{
-	/*
-	 *  We must grab the SWIDE and move it to 
-	 *  memory.
-	 *
-	 *  - Save UA (32 bit address) in <scratch>.
-	 *  - Move address bit 32..39 to SFBR.
-	 *  - Increment UA (updated address).
-	 */
-	SCR_STORE_ABS (ua, 4),
-		PADDRH (scratch),
-	SCR_FROM_REG (rbc3),
-		0,
 	SCR_REG_REG (ua, SCR_ADD, 1),
 		0,
 	SCR_REG_REG (ua1, SCR_ADDC, 0),
@@ -3406,69 +3267,44 @@ static struct sym_scrh scripth0 = {
 		0,
 	SCR_REG_REG (ua3, SCR_ADDC, 0),
 		0,
-}/*--------------------------< SWIDE_COM_64 >-----------------------*/,{
 	/*
-	 *  - Save DRS.
-	 *  - Load DRS with address bit 32..39 of the
-	 *    location to write the SWIDE.
-	 *    SFBR has been loaded with these bits.
-	 *    (Look above).
+	 *  Compute SCRATCHA as:
+	 *  - size to transfer = 1 byte.
+	 *  - bit 24..31 = high address bit [32...39].
 	 */
-	SCR_STORE_ABS (drs, 4),
-		PADDRH (saved_drs),
-	SCR_LOAD_ABS (drs, 4),
+	SCR_LOAD_ABS (scratcha, 4),
 		PADDRH (zero),
-	SCR_TO_REG (drs),
+	SCR_REG_REG (scratcha, SCR_OR, 1),
 		0,
-}/*--------------------------< SWIDE_COMMON >-----------------------*/,{
-	/*
-	 *  - Save current DSA
-	 *  - Load DSA with bit 0..31 of the memory 
-	 *    location to write the SWIDE.
-	 */
-	SCR_STORE_ABS (dsa, 4),
-		PADDRH (saved_dsa),
-	SCR_LOAD_ABS (dsa, 4),
-		PADDRH (scratch),
-	/*
-	 *  Move the SWIDE to memory.
-	 *  Clear the WSR bit.
-	 */
-	SCR_STORE_REL (swide, 1),
+	SCR_FROM_REG (rbc3),
 		0,
-	SCR_REG_REG (scntl2, SCR_OR, WSR),
+	SCR_TO_REG (scratcha3),
 		0,
 	/*
-	 *  Restore the original DSA.
+	 *  Move this value to the table indirect.
 	 */
-	SCR_LOAD_ABS (dsa, 4),
-		PADDRH (saved_dsa),
-}/*--------------------------< SWIDE_FIN_32 >-----------------------*/,{
+	SCR_STORE_REL (scratcha, 4),
+		offsetof (struct sym_ccb, phys.wresid.size),
 	/*
-	 *  For 32 bit chip, the following SCRIPTS 
-	 *  instruction is patched with a JUMP to dispatcher.
-	 *  (Look into the C code).
+	 *  Wait for a valid phase.
+	 *  While testing with bogus QUANTUM drives, the C1010 
+	 *  sometimes raised a spurious phase mismatch with 
+	 *  WSR and the CHMOV(1) triggered another PM.
+	 *  Waiting explicitely for the PHASE seemed to avoid 
+	 *  the nested phase mismatch. Btw, this didn't happen 
+	 *  using my IBM drives.
 	 */
-	SCR_LOAD_ABS (drs, 4),
-		PADDRH (saved_drs),
-	/*
-	 *  64 bit chip only.
-	 *  If PM handling from SCRIPTS, we are just 
-	 *  a helper for the C code, so jump to 
-	 *  dispatcher now.
-	 */
-	SCR_FROM_REG (ccntl0),
+	SCR_JUMPR ^ IFFALSE (WHEN (SCR_DATA_IN)),
 		0,
-	SCR_JUMP ^ IFFALSE (MASK (ENPMJ, ENPMJ)),
-		PADDR (dispatch),
 	/*
-	 *  64 bit chip with hardware PM handling enabled.
-	 *
-	 *  Since we are paranoid:), we donnot want 
-	 *  a SWIDE followed by a CHMOV(1) to lead to 
-	 *  a CHMOV(0) in our PM context.
-	 *  We check against such a condition.
-	 *  Also does the C code.
+	 *  Perform the move of the residual byte.
+	 */
+	SCR_CHMOV_TBL ^ SCR_DATA_IN,
+		offsetof (struct sym_ccb, phys.wresid),
+	/*
+	 *  We can now handle the phase mismatch with UA fixed.
+	 *  RBC[0..23]=0 is a special case that does not require 
+	 *  a PM context. The C code also checks against this.
 	 */
 	SCR_FROM_REG (rbc),
 		0,
@@ -3483,11 +3319,13 @@ static struct sym_scrh scripth0 = {
 	SCR_RETURN ^ IFFALSE (DATA (0)),
 		0,
 	/*
-	 *  If we are there, RBC(0..23) is zero, 
-	 *  and we just have to load the current 
-	 *  DATA SCRIPTS address (register TEMP) 
-	 *  with the IA and go to dispatch.
-	 *  No PM context is needed.
+	 *  RBC[0..23]=0.
+	 *  Not only we donnot need a PM context, but this would 
+	 *  lead to a bogus CHMOV(0). This condition means that 
+	 *  the residual was the last byte to move from this CHMOV.
+	 *  So, we just have to move the current data script pointer 
+	 *  (i.e. TEMP) to the SCRIPTS address following the 
+	 *  interrupted CHMOV and jump to dispatcher.
 	 */
 	SCR_STORE_ABS (ia, 4),
 		PADDRH (scratch),
@@ -3495,49 +3333,19 @@ static struct sym_scrh scripth0 = {
 		PADDRH (scratch),
 	SCR_JUMP,
 		PADDR (dispatch),
-#ifdef	SYM_CONF_BROKEN_U3EN_SUPPORT
-}/*-------------------------< DT_DATA_IN >--------------------*/,{
-/*
- *  Because the size depends on the
- *  #define SYM_CONF_MAX_SG parameter,
- *  it is filled in at runtime.
- *
- *  ##===========< i=0; i<SYM_CONF_MAX_SG >=========
- *  ||	SCR_CHMOV_TBL ^ SCR_DT_DATA_IN,
- *  ||		offsetof (struct dsb, data[ i]),
- *  ##==========================================
- */
-0
-}/*-------------------------< DT_DATA_IN2 >-------------------*/,{
-	SCR_CALL,
-		PADDR (datai_done),
+}/*--------------------------< WSR_MA_HELPER >-----------------------*/,{
+	/*
+	 *  Helper for the C code when WSR bit is set.
+	 *  Perform the move of the residual byte.
+	 */
+	SCR_CHMOV_TBL ^ SCR_DATA_IN,
+		offsetof (struct sym_ccb, phys.wresid),
 	SCR_JUMP,
-		PADDRH (no_data),
-}/*-------------------------< DT_DATA_OUT >--------------------*/,{
-/*
- *  Because the size depends on the
- *  #define SYM_CONF_MAX_SG parameter,
- *  it is filled in at runtime.
- *
- *  ##===========< i=0; i<SYM_CONF_MAX_SG >=========
- *  ||	SCR_CHMOV_TBL ^ SCR_DT_DATA_OUT,
- *  ||		offsetof (struct dsb, data[ i]),
- *  ##==========================================
- */
-0
-}/*-------------------------< DT_DATA_OUT2 >-------------------*/,{
-	SCR_CALL,
-		PADDR (datao_done),
-	SCR_JUMP,
-		PADDRH (no_data),
-
-#endif	/* SYM_CONF_BROKEN_U3EN_SUPPORT */
+		PADDR (dispatch),
 
 }/*-------------------------< ZERO >------------------------*/,{
 	SCR_DATA_ZERO,
 }/*-------------------------< SCRATCH >---------------------*/,{
-	SCR_DATA_ZERO,
-}/*-------------------------< SCRATCH1 >--------------------*/,{
 	SCR_DATA_ZERO,
 }/*-------------------------< PM0_DATA_ADDR >---------------*/,{
 	SCR_DATA_ZERO,
@@ -3594,24 +3402,6 @@ static void sym_fill_scripts (script_p scr, scripth_p scrh)
 		*p++ =offsetof (struct dsb, data[i]);
 	};
 	assert ((u_long)p == (u_long)&scr->data_out + sizeof (scr->data_out));
-
-#ifdef	SYM_CONF_BROKEN_U3EN_SUPPORT
-	p = scrh->dt_data_in;
-	for (i=0; i<SYM_CONF_MAX_SG; i++) {
-		*p++ =SCR_CHMOV_TBL ^ SCR_DT_DATA_IN;
-		*p++ =offsetof (struct dsb, data[i]);
-	};
-	assert ((u_long)p ==
-		(u_long)&scrh->dt_data_in + sizeof (scrh->dt_data_in));
-
-	p = scrh->dt_data_out;
-	for (i=0; i<SYM_CONF_MAX_SG; i++) {
-		*p++ =SCR_CHMOV_TBL ^ SCR_DATA_OUT;
-		*p++ =offsetof (struct dsb, data[i]);
-	};
-	assert ((u_long)p ==
-		(u_long)&scrh->dt_data_out + sizeof (scrh->dt_data_out));
-#endif
 }
 
 /*
@@ -4323,10 +4113,8 @@ static int sym_prepare_nego(hcb_p np, ccb_p cp, int nego, u_char *msgptr)
 	 *  Early C1010 chips need a work-around for DT 
 	 *  data transfer to work.
 	 */
-#ifndef	SYM_CONF_BROKEN_U3EN_SUPPORT
 	if (!(np->features & FE_U3EN))
 		tp->tinfo.goal.options = 0;
-#endif
 	/*
 	 *  negotiate using PPR ?
 	 */
@@ -4991,83 +4779,6 @@ static void sym_setpprot(hcb_p np, ccb_p cp, u_char dt, u_char ofs,
 	xpt_async(AC_TRANSFER_NEG, ccb->ccb_h.path, &neg);
 }
 
-#ifdef	SYM_CONF_BROKEN_U3EN_SUPPORT
-/*
- *  Patch a script address if it points to a data script to 
- *  the same position within another data script.
- *  Accept up to endp + 8, due to the SCR_CALL 
- *  after end data script that moves to goalp.
- */
-static u32 sym_chgp(u32 scrp, u32 old_endp, u32 new_endp)
-{
-	scrp = scr_to_cpu(scrp);
-	if (old_endp != new_endp && 
-	    old_endp + 8 - scrp <= SYM_CONF_MAX_SG*8 + 8)
-		scrp = new_endp + 8 - (old_endp + 8 - scrp);
-	return cpu_to_scr(scrp);
-}
-
-/*
- *  Called on negotiation, since the device may have 
- *  changed mind about DT versus ST data transfers.
- *  Patches all data scripts address for a CCB, to fit 
- *  the new data script, if needed.
- */
-static u32 sym_chg_ccb_scrp(hcb_p np, u_char dt, ccb_p cp, u32 scrp)
-{
-	u32 old_endp  = scr_to_cpu(cp->phys.goalp) - 8;
-	u32 new_endp  = 0;
-
-	/*
-	 *  Locate the data script we have to move to:
-	 *  Given the end data script pointer value (old) 
-	 *  and the new type of transfert (DT/ST) deduce 
-	 *  the new end data script pointer(s).
-	 */
-	if (dt) {
-		if	(old_endp == SCRIPT_BA(np, data_in2))
-			new_endp  =  SCRIPTH_BA(np, dt_data_in2);
-		else if	(old_endp == SCRIPT_BA(np, data_out2))
-			new_endp  =  SCRIPTH_BA(np, dt_data_out2);
-	}
-	else {
-		if	(old_endp == SCRIPTH_BA(np, dt_data_in2))
-			new_endp  =  SCRIPT_BA(np, data_in2);
-		else if	(old_endp == SCRIPTH_BA(np, dt_data_out2))
-			new_endp  =  SCRIPT_BA(np, data_out2);
-	}
-	/*
-	 *  If the end data script pointer was not 
-	 *  inside a data script or if we must stay 
-	 *  in the same data script, we are done.
-	 */
-	if (!new_endp || new_endp == old_endp)
-		goto out;
-
-	/*
-	 *  Move to new data script all data script pointers 
-	 *  that point inside the previous data script.
-	 */
-	cp->phys.savep	 = sym_chgp(cp->phys.savep,   old_endp, new_endp);
-	cp->phys.lastp	 = sym_chgp(cp->phys.lastp,   old_endp, new_endp);
-	cp->phys.goalp	 = sym_chgp(cp->phys.goalp,   old_endp, new_endp);
-	cp->phys.pm0.ret = sym_chgp(cp->phys.pm0.ret, old_endp, new_endp);
-	cp->phys.pm1.ret = sym_chgp(cp->phys.pm1.ret, old_endp, new_endp);
-	cp->startp	 = sym_chgp(cp->startp,	      old_endp, new_endp);
-
-	/*
-	 *  Also move an additionnal script pointer 
-	 *  if passed by user. For the current CCB, 
-	 *  this is useful to know the new value for  
-	 *  TEMP register (current data script address).
-	 */
-	if (scrp)
-		scrp = scr_to_cpu(sym_chgp(scrp, old_endp, new_endp));
-out:
-	return scrp;
-}
-#endif	/* SYM_CONF_BROKEN_U3EN_SUPPORT */
-
 /*
  *  Switch trans mode for current job and it's target.
  */
@@ -5091,8 +4802,9 @@ static void sym_settrans(hcb_p np, ccb_p cp, u_char dt, u_char ofs,
 	sval = tp->sval;
 	wval = tp->wval;
 	uval = tp->uval;
+
 #if 0
-	printf("XXXXX sval=%x wval=%x uval=%x (%x)\n", 
+	printf("XXXX sval=%x wval=%x uval=%x (%x)\n", 
 		sval, wval, uval, np->rv_scntl3);
 #endif
 	/*
@@ -5129,12 +4841,10 @@ static void sym_settrans(hcb_p np, ccb_p cp, u_char dt, u_char ofs,
 	 */
 	if (np->features & FE_C10) {
 		uval = uval & ~U3EN;
-#ifndef	SYM_CONF_BROKEN_U3EN_SUPPORT
 		if (dt)	{
 			assert(np->features & FE_U3EN);
 			uval |= U3EN;
 		}
-#endif
 	}
 	else {
 		wval = wval & ~ULTRA;
@@ -5163,13 +4873,6 @@ static void sym_settrans(hcb_p np, ccb_p cp, u_char dt, u_char ofs,
 	OUTB (nc_scntl3, tp->wval);
 
 	if (np->features & FE_C10) {
-#ifdef	SYM_CONF_BROKEN_U3EN_SUPPORT
-		if (!(np->features & FE_U3EN)) {
-			u32 temp = INL (nc_temp);
-			temp = sym_chg_ccb_scrp(np, dt, cp, temp);
-			OUTL (nc_temp, temp);
-		}
-#endif
 		OUTB (nc_scntl4, tp->uval);
 	}
 
@@ -5184,10 +4887,6 @@ static void sym_settrans(hcb_p np, ccb_p cp, u_char dt, u_char ofs,
 		cp->phys.select.sel_sxfer  = tp->sval;
 		if (np->features & FE_C10) {
 			cp->phys.select.sel_scntl4 = tp->uval;
-#ifdef	SYM_CONF_BROKEN_U3EN_SUPPORT
-			if (!(np->features & FE_U3EN))
-				(void) sym_chg_ccb_scrp(np, dt, cp, 0);
-#endif
 		}
 	}
 }
@@ -5956,42 +5655,37 @@ static void sym_int_ma (hcb_p np)
 	nxtdsp = SCRIPT_BA (np, dispatch);
 	if ((cmd & 7) == 1 && cp && (cp->phys.select.sel_scntl3 & EWS) &&
 	    (INB (nc_scntl2) & WSR)) {
+		u32 tmp;
+#ifdef	SYM_DEBUG_PM_WITH_WSR
+		PRINT_ADDR(cp);
+		printf ("MA interrupt with WSR set - "
+			"pm->sg.addr=%x - pm->sg.size=%d\n",
+			pm->sg.addr, pm->sg.size);
+#endif
 		/*
-		 *  Hmmm... The device may want to also ignore 
-		 *  this residue but it must send immediately the
-		 *  appropriate message. We snoop the SCSI BUS 
-		 *  and will just throw away this message from 
-		 *  SCRIPTS if the SWIDE is to be ignored.
+		 *  Set up the table indirect for the MOVE
+		 *  of the residual byte and adjust the data 
+		 *  pointer context.
 		 */
-		if ((INB (nc_sbcl) & 7) == 7 && 
-		    INB (nc_sbdl) == M_IGN_RESIDUE) {
-			nxtdsp = SCRIPT_BA (np, ign_i_w_r_msg);
-		}
+		tmp = scr_to_cpu(pm->sg.addr);
+		cp->phys.wresid.addr = cpu_to_scr(tmp);
+		pm->sg.addr = cpu_to_scr(tmp + 1);
+		tmp = scr_to_cpu(pm->sg.size);
+		cp->phys.wresid.size = cpu_to_scr((tmp&0xff000000) | 1);
+		pm->sg.size = cpu_to_scr(tmp - 1);
+
 		/*
-		 *  We must grab the SWIDE.
-		 *  We will use some complex SCRIPTS for that.
+		 *  If only the residual byte is to be moved, 
+		 *  no PM context is needed.
 		 */
-		else {
-			OUTL (nc_scratcha, pm->sg.addr);
-			nxtdsp = SCRIPTH_BA (np, swide_ma_32);
-			if (np->features & FE_64BIT) {
-				OUTB (nc_sbr, (pm->sg.size >> 24));
-				nxtdsp = SCRIPTH_BA (np, swide_ma_64);
-			}
-			/*
-			 *  Adjust our data pointer context.
-			 */
-			++pm->sg.addr;
-			--pm->sg.size;
-			/*
-			 *  Hmmm... Could it be possible that a SWIDE that 
-			 *  is followed by a 1 byte CHMOV would lead to 
-			 *  a CHMOV(0). Anyway, we handle it by just 
-			 *  skipping context that would attempt a CHMOV(0).
-			 */
-			if (!pm->sg.size)
-				newcmd = pm->ret;
-		}
+		if ((tmp&0xffffff) == 1)
+			newcmd = pm->ret;
+
+		/*
+		 *  Prepare the address of SCRIPTS that will 
+		 *  move the residual byte to memory.
+		 */
+		nxtdsp = SCRIPTH_BA (np, wsr_ma_helper);
 	}
 
 	if (DEBUG_FLAGS & DEBUG_PHASE) {
@@ -6319,11 +6013,7 @@ static void sym_sir_bad_scsi_status(hcb_p np, int num, ccb_p cp)
 		startp = SCRIPTH_BA (np, sdata_in);
 
 		cp->phys.savep	= cpu_to_scr(startp);
-#ifdef	SYM_CONF_BROKEN_U3EN_SUPPORT
-		cp->phys.goalp	= cpu_to_scr(startp + 40);
-#else
 		cp->phys.goalp	= cpu_to_scr(startp + 16);
-#endif
 		cp->phys.lastp	= cpu_to_scr(startp);
 		cp->startp	= cpu_to_scr(startp);
 
@@ -6402,7 +6092,7 @@ sym_clear_tasks(hcb_p np, int cam_status, int target, int lun, int task)
 			sym_set_cam_status(ccb, cam_status);
 		++i;
 #if 0
-printf("XXXXX TASK @%p CLEARED\n", cp);
+printf("XXXX TASK @%p CLEARED\n", cp);
 #endif
 	}
 	return i;
@@ -6903,6 +6593,11 @@ static int sym_evaluate_dp(hcb_p np, ccb_p cp, u32 scr, int *ofs)
 	return dp_sg;
 
 out_err:
+#ifdef	SYM_DEBUG_PM_WITH_WSR
+	printf("XXXX dp_sg=%d dp_sgmin=%d dp_ofs=%d, SYM_CONF_MAX_SG=%d\n",
+		dp_sg, dp_sgmin, dp_ofs, SYM_CONF_MAX_SG);
+#endif
+
 	return -1;
 }
 
@@ -7016,7 +6711,7 @@ out_reject:
 
 static int sym_compute_residual(hcb_p np, ccb_p cp)
 {
-	int dp_sg, dp_sgmin, resid;
+	int dp_sg, dp_sgmin, resid = 0;
 	int dp_ofs = 0;
 
 	/*
@@ -7027,7 +6722,6 @@ static int sym_compute_residual(hcb_p np, ccb_p cp)
 	 *  than our residual be zero. :-)
 	 */
 	if (cp->xerr_status & (XE_EXTRA_DATA|XE_SODL_UNRUN|XE_SWIDE_OVRUN)) {
-		resid = 0;
 		if (cp->xerr_status & XE_EXTRA_DATA)
 			resid -= scr_to_cpu(cp->phys.extra_bytes);
 		if (cp->xerr_status & XE_SODL_UNRUN)
@@ -7041,7 +6735,7 @@ static int sym_compute_residual(hcb_p np, ccb_p cp)
 	 *  there is no residual.
 	 */
 	if (cp->phys.lastp == cp->phys.goalp)
-		return 0;
+		return resid;
 
 	/*
 	 *  If no data transfer occurs, or if the data
@@ -7291,10 +6985,10 @@ static void sym_ppr_nego(hcb_p np, tcb_p tp, ccb_p cp)
 		if (wide > tp->tinfo.user.width)
 			{chg = 1; wide = tp->tinfo.user.width;}
 	}
-#ifndef	SYM_CONF_BROKEN_U3EN_SUPPORT
+
 	if (!(np->features & FE_U3EN))	/* Broken U3EN bit not supported */
 		dt &= ~PPR_OPT_DT;
-#endif
+
 	if (dt != (np->msgin[7] & PPR_OPT_MASK)) chg = 1;
 
 	if (ofs) {
@@ -7529,6 +7223,18 @@ void sym_int_sir (hcb_p np)
 	if (DEBUG_FLAGS & DEBUG_TINY) printf ("I#%d", num);
 
 	switch (num) {
+#ifdef	SYM_DEBUG_PM_WITH_WSR
+	case SIR_PM_WITH_WSR:
+		printf ("%s:%d: HW PM with WSR bit set - ",
+			sym_name (np), target);
+		tmp =
+		(vtobus(&cp->phys.data[SYM_CONF_MAX_SG]) - INL (nc_esa))/8;
+		printf("RBC=%d - SEG=%d - SIZE=%d - OFFS=%d\n",
+		INL (nc_rbc), cp->segments - tmp,
+		cp->phys.data[SYM_CONF_MAX_SG - tmp].size,
+		INL (nc_ua) - cp->phys.data[SYM_CONF_MAX_SG - tmp].addr);
+		goto out;
+#endif
 	/*
 	 *  Command has been completed with error condition 
 	 *  or has been auto-sensed.
@@ -7559,21 +7265,17 @@ void sym_int_sir (hcb_p np)
 	 *  having reseleted the initiator.
 	 */
 	case SIR_RESEL_NO_MSG_IN:
+		printf ("%s:%d: No MSG IN phase after reselection.\n",
+			sym_name (np), target);
+		goto out_stuck;
 	/*
 	 *  After reselection, the device sent a message that wasn't 
 	 *  an IDENTIFY.
 	 */
 	case SIR_RESEL_NO_IDENTIFY:
-		/*
-		 *  If devices reselecting without sending an IDENTIFY 
-		 *  message still exist, this should help.
-		 *  We just assume lun=0, 1 CCB, no tag.
-		 */
-		if (tp->lun0p) { 
-			OUTL (nc_dsa, scr_to_cpu(tp->lun0p->itl_task_sa));
-			OUTL (nc_dsp, SCRIPT_BA (np, resel_dsa1));
-			return;
-		}
+		printf ("%s:%d: No IDENTIFY after reselection.\n",
+			sym_name (np), target);
+		goto out_stuck;
 	/*
 	 *  The device reselected a LUN we donnot know about.
 	 */
@@ -8727,6 +8429,13 @@ static void sym_complete_ok (hcb_p np, ccb_p cp)
 	 */
 	if (!SYM_CONF_RESIDUAL_SUPPORT)
 		csio->resid  = 0;
+#ifdef	SYM_DEBUG_PM_WITH_WSR
+if (csio->resid) {
+	printf("XXXX %d %d %d\n", csio->dxfer_len,  csio->resid,
+				  csio->dxfer_len - csio->resid);
+	csio->resid = 0;
+}
+#endif
 
 	/*
 	 *  Set status and complete the command.
@@ -9198,24 +8907,10 @@ end_scatter:
 	switch(dir) {
 	case CAM_DIR_OUT:
 		goalp = SCRIPT_BA (np, data_out2) + 8;
-#ifdef	SYM_CONF_BROKEN_U3EN_SUPPORT
-		if ((np->features & (FE_C10|FE_U3EN)) == FE_C10) {
-			tcb_p tp = &np->target[cp->target];
-			if (tp->tinfo.current.options & PPR_OPT_DT)
-				goalp = SCRIPTH_BA (np, dt_data_out2) + 8;
-		}
-#endif
 		lastp = goalp - 8 - (cp->segments * (2*4));
 		break;
 	case CAM_DIR_IN:
 		goalp = SCRIPT_BA (np, data_in2) + 8;
-#ifdef	SYM_CONF_BROKEN_U3EN_SUPPORT
-		if ((np->features & (FE_C10|FE_U3EN)) == FE_C10) {
-			tcb_p tp = &np->target[cp->target];
-			if (tp->tinfo.current.options & PPR_OPT_DT)
-				goalp = SCRIPTH_BA (np, dt_data_in2) + 8;
-		}
-#endif
 		lastp = goalp - 8 - (cp->segments * (2*4));
 		break;
 	case CAM_DIR_NONE:
@@ -9252,6 +8947,9 @@ sym_scatter_virtual(hcb_p np, ccb_p cp, vm_offset_t vaddr, vm_size_t len)
 	u_long	pe, pn;
 	u_long	n, k; 
 	int s;
+#ifdef	SYM_DEBUG_PM_WITH_WSR
+	int k0 = 0;
+#endif
 
 	cp->data_len += len;
 
@@ -9262,6 +8960,22 @@ sym_scatter_virtual(hcb_p np, ccb_p cp, vm_offset_t vaddr, vm_size_t len)
 	while (n && s >= 0) {
 		pn = (pe - 1) & ~PAGE_MASK;
 		k = pe - pn;
+#ifdef	SYM_DEBUG_PM_WITH_WSR
+		if (len < 20 && k >= 2) {
+			k = (k0&1) ? 1 : 2;
+			pn = pe - k;
+			++k0;
+			if (k0 == 1) printf("[%d]:", (int)len);
+		}
+#if 0
+		if (len > 512 && len < 515 && k > 512) {
+			k = 512;
+			pn = pe - k;
+			++k0;
+			if (k0 == 1) printf("[%d]:", (int)len);
+		}
+#endif
+#endif
 		if (k > n) {
 			k  = n;
 			pn = pe - n;
@@ -9275,9 +8989,17 @@ sym_scatter_virtual(hcb_p np, ccb_p cp, vm_offset_t vaddr, vm_size_t len)
 		pe = pn;
 		n -= k;
 		--s;
+#ifdef	SYM_DEBUG_PM_WITH_WSR
+		if (k0)
+			printf(" %d", (int)k);
+#endif
 	}
 	cp->segments = SYM_CONF_MAX_SG - 1 - s;
 
+#ifdef	SYM_DEBUG_PM_WITH_WSR
+	if (k0)
+		printf("\n");
+#endif
 	return n ? -1 : 0;
 }
 
@@ -10069,15 +9791,6 @@ sym_pci_attach2(pcici_t pci_tag, int unit)
 			    (u32 *) np->script0, sizeof(struct sym_scr));
 	sym_bind_script(np, (u32 *) &scripth0,
 			    (u32 *) np->scripth0, sizeof(struct sym_scrh));
-
-	/*
-	 *  If not 64 bit chip, patch some places in SCRIPTS.
-	 */
-	if (!(np->features & FE_64BIT)) {
-		np->scripth0->swide_fin_32[0] = cpu_to_scr(SCR_JUMP);
-		np->scripth0->swide_fin_32[1] = 
-				cpu_to_scr(SCRIPT_BA(np, dispatch));
-	}
 
 	/*
 	 *  Patch some variables in SCRIPTS.
