@@ -545,7 +545,6 @@ dounmount(mp, flags, p)
 		error = VFS_UNMOUNT(mp, flags, p);
 	}
 	vn_finished_write(mp);
-	mtx_lock(&mountlist_mtx);
 	if (error) {
 		/* Undo cdir/rdir and rootvnode changes made above. */
 		if (VFS_ROOT(mp, &fsrootvp) == 0) {
@@ -559,24 +558,26 @@ dounmount(mp, flags, p)
 		}
 		if ((mp->mnt_flag & MNT_RDONLY) == 0 && mp->mnt_syncer == NULL)
 			(void) vfs_allocate_syncvnode(mp);
+		mtx_lock(&mountlist_mtx);
 		mp->mnt_kern_flag &= ~MNTK_UNMOUNT;
 		mp->mnt_flag |= async_flag;
-		lockmgr(&mp->mnt_lock, LK_RELEASE | LK_INTERLOCK | LK_REENABLE,
+		lockmgr(&mp->mnt_lock, LK_RELEASE | LK_INTERLOCK,
 		    &mountlist_mtx, p);
 		if (mp->mnt_kern_flag & MNTK_MWAIT)
 			wakeup((caddr_t)mp);
 		return (error);
 	}
+	mtx_lock(&mountlist_mtx);
 	TAILQ_REMOVE(&mountlist, mp, mnt_list);
-	if ((coveredvp = mp->mnt_vnodecovered) != NULLVP) {
-		coveredvp->v_mountedhere = (struct mount *)0;
-		vrele(coveredvp);
-	}
+	if ((coveredvp = mp->mnt_vnodecovered) != NULL)
+		coveredvp->v_mountedhere = NULL;
 	mp->mnt_vfc->vfc_refcount--;
 	if (!LIST_EMPTY(&mp->mnt_vnodelist))
 		panic("unmount: dangling vnode");
 	lockmgr(&mp->mnt_lock, LK_RELEASE | LK_INTERLOCK, &mountlist_mtx, p);
 	lockdestroy(&mp->mnt_lock);
+	if (coveredvp != NULL)
+		vrele(coveredvp);
 	if (mp->mnt_kern_flag & MNTK_MWAIT)
 		wakeup((caddr_t)mp);
 	free((caddr_t)mp, M_MOUNT);
