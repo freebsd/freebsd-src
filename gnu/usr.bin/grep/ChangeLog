@@ -1,3 +1,107 @@
+2000-01-28  Alain Magloire
+
+	* src/grep.c (usage):  The example "%s -i 'hello.*world' could
+	lead to confusion when progname is 'fgrep.
+	Noted by Akim Demaille.
+
+	* configure.in: Reenable, jm_INCLUDE_REGEX() since we now
+	track GNU lib C.
+	* src/Makefile.am: EXTRA_DIST new macros with regex.c regex.h. 
+	Requested By Ulrich Drepper.
+  
+2000-01-25  Paul Eggert
+
+	* src/grep.c (grep): If the final byte of an input file is not
+	a newline, grep now silently supplies one.
+	* doc/grep.texi, NEWS: Likewise.  
+
+2000-01-25  Paul Eggert
+
+	* NEWS, doc/grep.1, doc/grep.texi: Add -I option.
+	* src/grep.c (short_options, usage, main): Likewise.
+
+	* doc/grep.texi: Fix some incorrect references to ASCII.
+
+2000-01-25  Paul Eggert
+
+	* doc/grep.1: Simplify synopsis; sort options; mention
+	environment variables; clean up some minor gaffes.
+
+2000-01-25  Paul Eggert
+
+	* doc/grep.texi:
+	Fix some errors in description of [:print:] and the like.
+
+2000-01-23  Paul Eggert
+
+	* src/dfa.c (FETCH, lex): Put brackets around if-body to avoid
+	GCC warning about ambiguous if-then-else.
+
+2000-01-23  Paul Eggert
+
+	* src/regex.c (GET_UNSIGNED_NUMBER): Allow only ASCII digits.
+	* src/dfa.c (ISASCIIDIGIT): New macro.
+	(lex): Use it instead of ISDIGIT.
+
+2000-01-23  Paul Eggert
+
+	The bug is that regular expression ranges like [a-z] compare raw
+	byte codes to the range boundaries, whereas POSIX says that they
+	should use the current collating sequence instead.  For example,
+	in Solaris 7 with LC_ALL=en_US, the command
+	echo x | grep '[ -~]'
+	outputs 'x', but it shouldn't output anything since ' ' and '~'
+	sort before all letters in that locale.
+
+	* src/regex.c (compile_range): When matching a character
+	range, use the current collating sequence, as POSIX requires.
+	* src/dfa.c (lex): Likewise.
+
+2000-01-20  Alain Magloire
+
+	* tests/Makefile.am (dist-hook): Added new rule to make sure
+	that the shell scripts have the right permissions.
+	* src/posix/Makefile.am (EXTRA_DIST): added regex.h in the
+	distribution.
+	* THANKS: updated.
+
+2000-01-18  Alain Magloire
+
+	* Rectification the initial patch to add --binary-file option
+	was done by Ruslan Ermilov.
+
+2000-01-17  Paul Eggert
+
+	Sync with sources of fileutils 4.0n, tar 1.13.17, glibc 2.1.3a1.
+	Convert to ANSI C prototypes (using ansi2knr for backwards
+	compatibility), as this makes it easier to sync.
+
+	* configure.in (AC_OBJEXT): Spell in a funny way, to work around
+	a bug in automake 1.4 with ansi2knr.
+	(LIBOBJS): Add assignment so that .o files in LIBOBJS are also built
+	via the ANSI2KNR-filtering rules.
+	(AC_OUTPUT): Add src/posix/Makefile.
+	* src/Makefile.am (AUTOMAKE_OPTIONS): Add ansi2knr.
+	(SUBDIRS): New macro.
+	* src/ansi2knr.1, src/ansi2knr.c, src/posix/Makefile.am: New files.
+	* src/dfa.c, src/dosbuf.c, src/grep.c, src/kwset.c, src/search.c,
+	src/vms_fab.c:
+	Use prototypes for function definitions.
+	* src/grep.c (main): Use int counter for default context,
+	fixing an ANSI portability bug uncovered by the above changes.
+
+	* config.guess, config.sub, install-sh, missing, src/alloca.c,
+	src/getpagesize.h, src/memchr.c, src/savedir.c, src/savedir.h,
+	src/stpcpy.c:
+	Upgrade to latest version from fileutils 4.0n.
+
+	* src/getopt.c, src/getopt.h, src/getopt1.c: Upgrade to latest
+	version from tar 1.13.17.
+
+	* src/obstack.c, src/obstack.h, src/regex.c, src/regex.h:
+	Upgrade to glibc 2.1.3 alpha 1, with K&R C portability fix.
+	* src/posix/regex.h: New file, from glibc 2.1.3 alpha 1.
+
 2000-01-04  Paul Eggert
 
 	Inititial patch from David O'Brien.
