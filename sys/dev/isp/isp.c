@@ -3800,7 +3800,7 @@ isp_parse_status(struct ispsoftc *isp, ispstatusreq_t *sp, XS_T *xs)
 		break;
 
 	case RQCS_PHASE_SKIPPED:
-		isp_prt(isp, ISP_LOGERR, pskip, XS_CHANNEL(xs)
+		isp_prt(isp, ISP_LOGERR, pskip, XS_CHANNEL(xs),
 		    XS_TGT(xs), XS_LUN(xs));
 		break;
 
