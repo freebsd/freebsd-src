@@ -18,7 +18,10 @@ CFLAGS          += -std=iso9899:1990
 CFLAGS          += -std=iso9899:199409
 .  elif ${CSTD} == "c99"
 CFLAGS          += -std=iso9899:1999
+.  else
+CFLAGS		+= -std=${CSTD}
 .  endif
+CFLAGS		+= -pedantic
 . endif
 . if defined(WARNS)
 .  if ${WARNS} > 0
@@ -38,7 +41,7 @@ CFLAGS		+=	-Wreturn-type -Wcast-qual -Wwrite-strings -Wswitch -Wshadow -Wcast-al
 .  endif
 # BDECFLAGS
 .  if ${WARNS} > 5
-CFLAGS		+=	-pedantic -Wno-long-long -Wbad-function-cast -Wchar-subscripts -Winline -Wnested-externs -Wredundant-decls
+CFLAGS		+=	-Wbad-function-cast -Wchar-subscripts -Winline -Wnested-externs -Wredundant-decls
 .  endif
 .  if ${WARNS} > 1 && ${WARNS} < 5
 # XXX Delete -Wuninitialized by default for now -- the compiler doesn't
