@@ -35,8 +35,6 @@
  *
  */
 
-#include "opt_user_ldt.h"
-
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/sysproto.h>
@@ -68,10 +66,8 @@
 
 
 
-#ifdef USER_LDT
 static int i386_get_ldt	__P((struct proc *, char *));
 static int i386_set_ldt	__P((struct proc *, char *));
-#endif
 static int i386_get_ioperm	__P((struct proc *, char *));
 static int i386_set_ioperm	__P((struct proc *, char *));
 int i386_extend_pcb	__P((struct proc *));
@@ -91,7 +87,6 @@ sysarch(p, uap)
 	int error = 0;
 
 	switch(uap->op) {
-#ifdef	USER_LDT
 	case I386_GET_LDT:
 		error = i386_get_ldt(p, uap->parms);
 		break;
@@ -99,7 +94,6 @@ sysarch(p, uap)
 	case I386_SET_LDT:
 		error = i386_set_ldt(p, uap->parms);
 		break;
-#endif
 	case I386_GET_IOPERM:
 		error = i386_get_ioperm(p, uap->parms);
 		break;
@@ -242,10 +236,9 @@ done:
 	return (error);
 }
 
-#ifdef USER_LDT
 /*
  * Update the GDT entry pointing to the LDT to point to the LDT of the
- * current process.  Do not staticize.
+ * current process.
  */   
 void
 set_user_ldt(struct pcb *pcb)
@@ -499,4 +492,3 @@ i386_set_ldt(p, args)
 	splx(s);
 	return(error);
 }
-#endif	/* USER_LDT */
