@@ -46,18 +46,12 @@
 #include <stdlib.h>
 #include <string.h>
 #include <ctype.h>
+#include <limits.h>
 #include <netdb.h>
 #include <stdarg.h>
 #include <errno.h>
 #include <err.h>
 #include <ifaddrs.h>
-
-#if defined(__FreeBSD__)
-#include <inttypes.h>
-#else
-#define	PRIu64	"llu"
-#define	PRId64	"lld"
-#endif
 
 #include "pfctl_parser.h"
 #include "pfctl.h"
@@ -511,30 +505,32 @@ print_status(struct pf_status *s)
 	if (s->ifname[0] != 0) {
 		printf("Interface Stats for %-16s %5s %16s\n",
 		    s->ifname, "IPv4", "IPv6");
-		printf("  %-25s %14"PRIu64" %16"PRIu64"\n", "Bytes In",
-		    s->bcounters[0][0], s->bcounters[1][0]);
-		printf("  %-25s %14"PRIu64" %16"PRIu64"\n", "Bytes Out",
-		    s->bcounters[0][1], s->bcounters[1][1]);
+		printf("  %-25s %14llu %16llu\n", "Bytes In",
+		    (unsigned long long)s->bcounters[0][0],
+		    (unsigned long long)s->bcounters[1][0]);
+		printf("  %-25s %14llu %16llu\n", "Bytes Out",
+		    (unsigned long long)s->bcounters[0][1],
+		    (unsigned long long)s->bcounters[1][1]);
 		printf("  Packets In\n");
-		printf("    %-23s %14"PRIu64" %16"PRIu64"\n", "Passed",
-		    s->pcounters[0][0][PF_PASS],
-		    s->pcounters[1][0][PF_PASS]);
-		printf("    %-23s %14"PRIu64" %16"PRIu64"\n", "Blocked",
-		    s->pcounters[0][0][PF_DROP],
-		    s->pcounters[1][0][PF_DROP]);
+		printf("    %-23s %14llu %16llu\n", "Passed",
+		    (unsigned long long)s->pcounters[0][0][PF_PASS],
+		    (unsigned long long)s->pcounters[1][0][PF_PASS]);
+		printf("    %-23s %14llu %16llu\n", "Blocked",
+		    (unsigned long long)s->pcounters[0][0][PF_DROP],
+		    (unsigned long long)s->pcounters[1][0][PF_DROP]);
 		printf("  Packets Out\n");
-		printf("    %-23s %14"PRIu64" %16"PRIu64"\n", "Passed",
-		    s->pcounters[0][1][PF_PASS],
-		    s->pcounters[1][1][PF_PASS]);
-		printf("    %-23s %14"PRIu64" %16"PRIu64"\n\n", "Blocked",
-		    s->pcounters[0][1][PF_DROP],
-		    s->pcounters[1][1][PF_DROP]);
+		printf("    %-23s %14llu %16llu\n", "Passed",
+		    (unsigned long long)s->pcounters[0][1][PF_PASS],
+		    (unsigned long long)s->pcounters[1][1][PF_PASS]);
+		printf("    %-23s %14llu %16llu\n\n", "Blocked",
+		    (unsigned long long)s->pcounters[0][1][PF_DROP],
+		    (unsigned long long)s->pcounters[1][1][PF_DROP]);
 	}
 	printf("%-27s %14s %16s\n", "State Table", "Total", "Rate");
 	printf("  %-25s %14u %14s\n", "current entries", s->states, "");
 	for (i = 0; i < FCNT_MAX; i++) {
-		printf("  %-25s %14"PRIu64" ", pf_fcounters[i],
-			    s->fcounters[i]);
+		printf("  %-25s %14llu ", pf_fcounters[i],
+			    (unsigned long long)s->fcounters[i]);
 		if (runtime > 0)
 			printf("%14.1f/s\n",
 			    (double)s->fcounters[i] / (double)runtime);
@@ -543,8 +539,8 @@ print_status(struct pf_status *s)
 	}
 	printf("Counters\n");
 	for (i = 0; i < PFRES_MAX; i++) {
-		printf("  %-25s %14"PRIu64" ", pf_reasons[i],
-		    s->counters[i]);
+		printf("  %-25s %14llu ", pf_reasons[i],
+		    (unsigned long long)s->counters[i]);
 		if (runtime > 0)
 			printf("%14.1f/s\n",
 			    (double)s->counters[i] / (double)runtime);
