@@ -495,17 +495,32 @@ rl_yank_pop (count, key)
     }
 }
 
-/* Yank the COUNTth argument from the previous history line. */
-int
-rl_yank_nth_arg (count, ignore)
-     int count, ignore;
+/* Yank the COUNTh argument from the previous history line, skipping
+   HISTORY_SKIP lines before looking for the `previous line'. */
+static int
+rl_yank_nth_arg_internal (count, ignore, history_skip)
+     int count, ignore, history_skip;
 {
   register HIST_ENTRY *entry;
   char *arg;
+  int i;
+
+  if (history_skip)
+    {
+      for (i = 0; i < history_skip; i++)
+	entry = previous_history ();
+    }
 
   entry = previous_history ();
   if (entry)
-    next_history ();
+    {
+      if (history_skip)
+	{
+	  for (i = 0; i < history_skip; i++)
+	    next_history ();
+	}
+      next_history ();
+    }
   else
     {
       ding ();
@@ -538,6 +553,14 @@ rl_yank_nth_arg (count, ignore)
   return 0;
 }
 
+/* Yank the COUNTth argument from the previous history line. */
+int
+rl_yank_nth_arg (count, ignore)
+     int count, ignore;
+{
+  return (rl_yank_nth_arg_internal (count, ignore, 0));
+}
+
 /* Yank the last argument from the previous history line.  This `knows'
    how rl_yank_nth_arg treats a count of `$'.  With an argument, this
    behaves the same as rl_yank_nth_arg. */
@@ -545,8 +568,67 @@ int
 rl_yank_last_arg (count, key)
      int count, key;
 {
-  if (rl_explicit_arg)
-    return (rl_yank_nth_arg (count, key));
+  static int history_skip = 0;
+  static int explicit_arg_p = 0;
+  static int count_passed = 1;
+  static int direction = 1;
+
+  if (rl_last_func != rl_yank_last_arg)
+    {
+      history_skip = 0;
+      explicit_arg_p = rl_explicit_arg;
+      count_passed = count;
+      direction = 1;
+    }
   else
-    return (rl_yank_nth_arg ('$', key));
+    {
+      rl_do_undo ();
+      if (count < 1)
+        direction = -direction;
+      history_skip += direction;
+      if (history_skip < 0)
+	history_skip = 0;
+      count_passed = count;
+    }
+ 
+  if (explicit_arg_p)
+    return (rl_yank_nth_arg_internal (count, key, history_skip));
+  else
+    return (rl_yank_nth_arg_internal ('$', key, history_skip));
 }
+
+/* A special paste command for users of Cygnus's cygwin32. */
+#if defined (__CYGWIN32__)
+#include <windows.h>
+
+int
+rl_paste_from_clipboard (count, key)
+     int count, key;
+{
+  char *data, *ptr;
+  int len;
+
+  if (OpenClipboard (NULL) == 0)
+    return (0);
+
+  data = (char *)GetClipboardData (CF_TEXT);
+  if (data)
+    {
+      ptr = strchr (data, '\r');
+      if (ptr)
+	{
+	  len = ptr - data;
+	  ptr = xmalloc (len + 1);
+	  ptr[len] = '\0';
+	  strncpy (ptr, data, len);
+	}
+      else
+        ptr = data;
+      rl_insert_text (ptr);
+      if (ptr != data)
+	free (ptr);
+      CloseClipboard ();
+    }
+  return (0);
+}
+#endif /* __CYGWIN32__ */

@@ -42,17 +42,7 @@
 #  include <sgtty.h>
 #endif
 
-/* Stuff for `struct winsize' on various systems. */
-#if defined (HAVE_SYS_STREAM_H)
-#  include <sys/stream.h>
-#endif /* HAVE_SYS_STREAM_H */
-#if defined (HAVE_SYS_PTEM_H)
-#  include <sys/ptem.h>
-#  define _IO_PTEM_H		/* work around SVR4.2 1.1.4 bug */
-#endif /* HAVE_SYS_PTEM_H */
-#if defined (HAVE_SYS_PTE_H)
-#  include <sys/pte.h>
-#endif /* HAVE_SYS_PTE_H */
+#include "rlwinsize.h"
 
 /* Define _POSIX_VDISABLE if we are not using the `new' tty driver and
    it is not already defined.  It is used both to determine if a

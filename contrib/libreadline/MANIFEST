@@ -8,13 +8,14 @@ COPYING		f
 README		f
 MANIFEST	f
 INSTALL		f
+CHANGELOG	f
+CHANGES		f
 aclocal.m4	f
 acconfig.h	f
 config.h.in	f
 configure	f
 configure.in	f
 Makefile.in	f
-ChangeLog	f
 ansi_stdlib.h	f
 chardefs.h	f
 history.h	f
@@ -27,6 +28,7 @@ readline.h	f
 rlconf.h	f
 rldefs.h	f
 rltty.h		f
+rlwinsize.h	f
 tcap.h		f
 tilde.h		f
 bind.c		f
