@@ -53,7 +53,7 @@ int	ext2_alloc __P((struct inode *,
 	    daddr_t, daddr_t, int, struct ucred *, daddr_t *));
 int	ext2_balloc __P((struct inode *,
 	    daddr_t, int, struct ucred *, struct buf **, int));
-int	ext2_blkatoff __P((struct vop_blkatoff_args *));
+int	ext2_blkatoff __P((struct vnode *, off_t, char **, struct buf **));
 void	ext2_blkfree __P((struct inode *, daddr_t, long));
 daddr_t	ext2_blkpref __P((struct inode *, daddr_t, int, daddr_t *, daddr_t));
 int	ext2_bmap __P((struct vop_bmap_args *));
@@ -61,10 +61,10 @@ int	ext2_init __P((struct vfsconf *));
 int	ext2_reallocblks __P((struct vop_reallocblks_args *));
 int	ext2_reclaim __P((struct vop_reclaim_args *));
 void	ext2_setblock __P((struct ext2_sb_info *, u_char *, daddr_t));
-int	ext2_truncate __P((struct vop_truncate_args *));
+int	ext2_truncate __P((struct vnode *, off_t, int, struct ucred *, struct proc *));
 int	ext2_update __P((struct vop_update_args *));
-int	ext2_valloc __P((struct vop_valloc_args *));
-int	ext2_vfree __P((struct vop_vfree_args *));
+int	ext2_valloc __P((struct vnode *, int, struct ucred *, struct vnode **));
+int	ext2_vfree __P((struct vnode *, ino_t, int));
 int 	ext2_lookup __P((struct vop_cachedlookup_args *));
 int 	ext2_readdir __P((struct vop_readdir_args *));
 void	ext2_print_dinode __P((struct dinode *));

@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)ffs_vnops.c	8.15 (Berkeley) 5/14/95
- * $Id: ffs_vnops.c,v 1.33 1997/10/15 10:05:17 phk Exp $
+ * $Id: ffs_vnops.c,v 1.34 1997/10/15 13:23:47 phk Exp $
  */
 
 #include <sys/param.h>
@@ -73,15 +73,11 @@ static int	ffs_write __P((struct vop_write_args *));
 vop_t **ffs_vnodeop_p;
 static struct vnodeopv_entry_desc ffs_vnodeop_entries[] = {
 	{ &vop_default_desc,		(vop_t *) ufs_vnoperate },
-	{ &vop_blkatoff_desc,		(vop_t *) ffs_blkatoff },
 	{ &vop_fsync_desc,		(vop_t *) ffs_fsync },
 	{ &vop_getpages_desc,		(vop_t *) ffs_getpages },
 	{ &vop_read_desc,		(vop_t *) ffs_read },
 	{ &vop_reallocblks_desc,	(vop_t *) ffs_reallocblks },
-	{ &vop_truncate_desc,		(vop_t *) ffs_truncate },
 	{ &vop_update_desc,		(vop_t *) ffs_update },
-	{ &vop_valloc_desc,		(vop_t *) ffs_valloc },
-	{ &vop_vfree_desc,		(vop_t *) ffs_vfree },
 	{ &vop_write_desc,		(vop_t *) ffs_write },
 	{ NULL, NULL }
 };
@@ -93,7 +89,6 @@ static struct vnodeopv_entry_desc ffs_specop_entries[] = {
 	{ &vop_default_desc,		(vop_t *) ufs_vnoperatespec },
 	{ &vop_fsync_desc,		(vop_t *) ffs_fsync },
 	{ &vop_update_desc,		(vop_t *) ffs_update },
-	{ &vop_vfree_desc,		(vop_t *) ffs_vfree },
 	{ NULL, NULL }
 };
 static struct vnodeopv_desc ffs_specop_opv_desc =
@@ -104,7 +99,6 @@ static struct vnodeopv_entry_desc ffs_fifoop_entries[] = {
 	{ &vop_default_desc,		(vop_t *) ufs_vnoperatefifo },
 	{ &vop_fsync_desc,		(vop_t *) ffs_fsync },
 	{ &vop_update_desc,		(vop_t *) ffs_update },
-	{ &vop_vfree_desc,		(vop_t *) ffs_vfree },
 	{ NULL, NULL }
 };
 static struct vnodeopv_desc ffs_fifoop_opv_desc =

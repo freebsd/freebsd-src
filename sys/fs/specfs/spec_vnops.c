@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)spec_vnops.c	8.14 (Berkeley) 5/21/95
- * $Id: spec_vnops.c,v 1.45 1997/10/15 10:04:43 phk Exp $
+ * $Id: spec_vnops.c,v 1.46 1997/10/15 13:23:18 phk Exp $
  */
 
 #include <sys/param.h>
@@ -81,12 +81,9 @@ struct vnode *speclisth[SPECHSZ];
 vop_t **spec_vnodeop_p;
 static struct vnodeopv_entry_desc spec_vnodeop_entries[] = {
 	{ &vop_default_desc,		(vop_t *) vn_default_error },
-	{ &vop_abortop_desc,		(vop_t *) spec_badop },
 	{ &vop_access_desc,		(vop_t *) spec_ebadf },
 	{ &vop_advlock_desc,		(vop_t *) spec_advlock },
-	{ &vop_blkatoff_desc,		(vop_t *) spec_badop },
 	{ &vop_bmap_desc,		(vop_t *) spec_bmap },
-	{ &vop_bwrite_desc,		(vop_t *) nullop },
 	{ &vop_close_desc,		(vop_t *) spec_close },
 	{ &vop_create_desc,		(vop_t *) spec_badop },
 	{ &vop_fsync_desc,		(vop_t *) spec_fsync },
@@ -113,17 +110,13 @@ static struct vnodeopv_entry_desc spec_vnodeop_entries[] = {
 	{ &vop_reclaim_desc,		(vop_t *) nullop },
 	{ &vop_remove_desc,		(vop_t *) spec_badop },
 	{ &vop_rename_desc,		(vop_t *) spec_badop },
-	{ &vop_revoke_desc,		(vop_t *) vop_revoke },
 	{ &vop_rmdir_desc,		(vop_t *) spec_badop },
 	{ &vop_seek_desc,		(vop_t *) spec_badop },
 	{ &vop_setattr_desc,		(vop_t *) spec_ebadf },
 	{ &vop_strategy_desc,		(vop_t *) spec_strategy },
 	{ &vop_symlink_desc,		(vop_t *) spec_badop },
-	{ &vop_truncate_desc,		(vop_t *) nullop },
 	{ &vop_unlock_desc,		(vop_t *) vop_nounlock },
 	{ &vop_update_desc,		(vop_t *) nullop },
-	{ &vop_valloc_desc,		(vop_t *) spec_badop },
-	{ &vop_vfree_desc,		(vop_t *) spec_badop },
 	{ &vop_write_desc,		(vop_t *) spec_write },
 	{ NULL, NULL }
 };
@@ -480,7 +473,7 @@ spec_poll(ap)
 		dev = ap->a_vp->v_rdev;
 		return (*cdevsw[major(dev)]->d_poll)(dev, ap->a_events, ap->a_p);
 	default:
-		return (vop_nopoll(ap));
+		return (vn_defaultop((struct vop_generic_args *)ap));
 
 	}
 }

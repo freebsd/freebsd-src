@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)nfs_vnops.c	8.16 (Berkeley) 5/27/95
- * $Id: nfs_vnops.c,v 1.65 1997/10/15 10:05:10 phk Exp $
+ * $Id: nfs_vnops.c,v 1.66 1997/10/15 13:23:35 phk Exp $
  */
 
 
@@ -148,10 +148,10 @@ static struct vnodeopv_entry_desc nfsv2_vnodeop_entries[] = {
 	{ &vop_getpages_desc,		(vop_t *) nfs_getpages },
 	{ &vop_inactive_desc,		(vop_t *) nfs_inactive },
 	{ &vop_ioctl_desc,		(vop_t *) nfs_ioctl },
-	{ &vop_islocked_desc,		(vop_t *) nfs_islocked },
-	{ &vop_lease_desc,		(vop_t *) nfs_lease_check },
+	{ &vop_islocked_desc,		(vop_t *) vop_noislocked },
+	{ &vop_lease_desc,		(vop_t *) nullop },
 	{ &vop_link_desc,		(vop_t *) nfs_link },
-	{ &vop_lock_desc,		(vop_t *) nfs_lock },
+	{ &vop_lock_desc,		(vop_t *) vop_sharedlock },
 	{ &vop_lookup_desc,		(vop_t *) nfs_lookup },
 	{ &vop_mkdir_desc,		(vop_t *) nfs_mkdir },
 	{ &vop_mknod_desc,		(vop_t *) nfs_mknod },
@@ -166,13 +166,12 @@ static struct vnodeopv_entry_desc nfsv2_vnodeop_entries[] = {
 	{ &vop_reclaim_desc,		(vop_t *) nfs_reclaim },
 	{ &vop_remove_desc,		(vop_t *) nfs_remove },
 	{ &vop_rename_desc,		(vop_t *) nfs_rename },
-	{ &vop_revoke_desc,		(vop_t *) nfs_revoke },
 	{ &vop_rmdir_desc,		(vop_t *) nfs_rmdir },
-	{ &vop_seek_desc,		(vop_t *) nfs_seek },
+	{ &vop_seek_desc,		(vop_t *) nullop },
 	{ &vop_setattr_desc,		(vop_t *) nfs_setattr },
 	{ &vop_strategy_desc,		(vop_t *) nfs_strategy },
 	{ &vop_symlink_desc,		(vop_t *) nfs_symlink },
-	{ &vop_unlock_desc,		(vop_t *) nfs_unlock },
+	{ &vop_unlock_desc,		(vop_t *) vop_nounlock },
 	{ &vop_write_desc,		(vop_t *) nfs_write },
 	{ NULL, NULL }
 };
@@ -187,18 +186,17 @@ vop_t **spec_nfsv2nodeop_p;
 static struct vnodeopv_entry_desc spec_nfsv2nodeop_entries[] = {
 	{ &vop_default_desc,		(vop_t *) spec_vnoperate },
 	{ &vop_access_desc,		(vop_t *) nfsspec_access },
-	{ &vop_bwrite_desc,		(vop_t *) vn_bwrite },
 	{ &vop_close_desc,		(vop_t *) nfsspec_close },
 	{ &vop_fsync_desc,		(vop_t *) nfs_fsync },
 	{ &vop_getattr_desc,		(vop_t *) nfs_getattr },
 	{ &vop_inactive_desc,		(vop_t *) nfs_inactive },
-	{ &vop_islocked_desc,		(vop_t *) nfs_islocked },
-	{ &vop_lock_desc,		(vop_t *) nfs_lock },
+	{ &vop_islocked_desc,		(vop_t *) vop_noislocked },
+	{ &vop_lock_desc,		(vop_t *) vop_sharedlock },
 	{ &vop_print_desc,		(vop_t *) nfs_print },
 	{ &vop_read_desc,		(vop_t *) nfsspec_read },
 	{ &vop_reclaim_desc,		(vop_t *) nfs_reclaim },
 	{ &vop_setattr_desc,		(vop_t *) nfs_setattr },
-	{ &vop_unlock_desc,		(vop_t *) nfs_unlock },
+	{ &vop_unlock_desc,		(vop_t *) vop_nounlock },
 	{ &vop_write_desc,		(vop_t *) nfsspec_write },
 	{ NULL, NULL }
 };
@@ -210,18 +208,17 @@ vop_t **fifo_nfsv2nodeop_p;
 static struct vnodeopv_entry_desc fifo_nfsv2nodeop_entries[] = {
 	{ &vop_default_desc,		(vop_t *) fifo_vnoperate },
 	{ &vop_access_desc,		(vop_t *) nfsspec_access },
-	{ &vop_bwrite_desc,		(vop_t *) vn_bwrite },
 	{ &vop_close_desc,		(vop_t *) nfsfifo_close },
 	{ &vop_fsync_desc,		(vop_t *) nfs_fsync },
 	{ &vop_getattr_desc,		(vop_t *) nfs_getattr },
 	{ &vop_inactive_desc,		(vop_t *) nfs_inactive },
-	{ &vop_islocked_desc,		(vop_t *) nfs_islocked },
-	{ &vop_lock_desc,		(vop_t *) nfs_lock },
+	{ &vop_islocked_desc,		(vop_t *) vop_noislocked },
+	{ &vop_lock_desc,		(vop_t *) vop_sharedlock },
 	{ &vop_print_desc,		(vop_t *) nfs_print },
 	{ &vop_read_desc,		(vop_t *) nfsfifo_read },
 	{ &vop_reclaim_desc,		(vop_t *) nfs_reclaim },
 	{ &vop_setattr_desc,		(vop_t *) nfs_setattr },
-	{ &vop_unlock_desc,		(vop_t *) nfs_unlock },
+	{ &vop_unlock_desc,		(vop_t *) vop_nounlock },
 	{ &vop_write_desc,		(vop_t *) nfsfifo_write },
 	{ NULL, NULL }
 };

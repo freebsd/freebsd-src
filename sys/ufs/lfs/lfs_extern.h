@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)lfs_extern.h	8.6 (Berkeley) 5/8/95
- * $Id: lfs_extern.h,v 1.16 1997/10/10 18:17:20 phk Exp $
+ * $Id: lfs_extern.h,v 1.17 1997/10/12 20:26:15 phk Exp $
  */
 
 #ifndef _UFS_LFS_LFS_EXTERN_H_
@@ -39,15 +39,17 @@
 
 #ifdef KERNEL
 
+#ifdef MALLOC_DECLARE
 MALLOC_DECLARE(M_LFSNODE);
 MALLOC_DECLARE(M_SEGMENT); /* XXX should be M_LFSSEGMENT ?? */
+#endif
 
 struct inode;
 struct mount;
 struct nameidata;
 
 int	 lfs_balloc __P((struct vnode *, int, u_long, ufs_daddr_t, struct buf **));
-int	 lfs_blkatoff __P((struct vop_blkatoff_args *));
+int	 lfs_blkatoff __P((struct vnode *, off_t, char **, struct buf **));
 int	 lfs_bwrite __P((struct vop_bwrite_args *));
 int	 lfs_check __P((struct vnode *, ufs_daddr_t));
 void	 lfs_free_buffer __P((caddr_t, int));
@@ -65,12 +67,12 @@ void	 lfs_segunlock __P((struct lfs *));
 int	 lfs_segwrite __P((struct mount *, int));
 #define	 lfs_sysctl ((int (*) __P((int *, u_int, void *, size_t *, void *, \
                                     size_t, struct proc *)))eopnotsupp)
-int	 lfs_truncate __P((struct vop_truncate_args *));
+int	 lfs_truncate __P((struct vnode *, off_t, int, struct ucred *, struct proc *));
 int	 lfs_update __P((struct vop_update_args *));
 void	 lfs_updatemeta __P((struct segment *));
-int	 lfs_valloc __P((struct vop_valloc_args *));
+int	 lfs_valloc __P((struct vnode *, int, struct ucred *, struct vnode **));
 int	 lfs_vcreate __P((struct mount *, ino_t, struct vnode **));
-int	 lfs_vfree __P((struct vop_vfree_args *));
+int	 lfs_vfree __P((struct vnode *, ino_t, int));
 int	 lfs_vflush __P((struct vnode *));
 int	 lfs_vref __P((struct vnode *));
 void	 lfs_vunref __P((struct vnode *));

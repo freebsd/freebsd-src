@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)fifo_vnops.c	8.10 (Berkeley) 5/27/95
- * $Id: fifo_vnops.c,v 1.30 1997/10/15 10:04:18 phk Exp $
+ * $Id: fifo_vnops.c,v 1.31 1997/10/15 13:23:12 phk Exp $
  */
 
 #include <sys/param.h>
@@ -82,9 +82,7 @@ static struct vnodeopv_entry_desc fifo_vnodeop_entries[] = {
 	{ &vop_abortop_desc,		(vop_t *) fifo_badop },
 	{ &vop_access_desc,		(vop_t *) fifo_ebadf },
 	{ &vop_advlock_desc,		(vop_t *) fifo_advlock },
-	{ &vop_blkatoff_desc,		(vop_t *) fifo_badop },
 	{ &vop_bmap_desc,		(vop_t *) fifo_bmap },
-	{ &vop_bwrite_desc,		(vop_t *) nullop },
 	{ &vop_close_desc,		(vop_t *) fifo_close },
 	{ &vop_create_desc,		(vop_t *) fifo_badop },
 	{ &vop_fsync_desc,		(vop_t *) nullop },
@@ -110,17 +108,12 @@ static struct vnodeopv_entry_desc fifo_vnodeop_entries[] = {
 	{ &vop_reclaim_desc,		(vop_t *) nullop },
 	{ &vop_remove_desc,		(vop_t *) fifo_badop },
 	{ &vop_rename_desc,		(vop_t *) fifo_badop },
-	{ &vop_revoke_desc,		(vop_t *) vop_revoke },
 	{ &vop_rmdir_desc,		(vop_t *) fifo_badop },
 	{ &vop_seek_desc,		(vop_t *) fifo_badop },
 	{ &vop_setattr_desc,		(vop_t *) fifo_ebadf },
-	{ &vop_strategy_desc,		(vop_t *) fifo_badop },
 	{ &vop_symlink_desc,		(vop_t *) fifo_badop },
-	{ &vop_truncate_desc,		(vop_t *) fifo_badop },
 	{ &vop_unlock_desc,		(vop_t *) vop_nounlock },
 	{ &vop_update_desc,		(vop_t *) nullop },
-	{ &vop_valloc_desc,		(vop_t *) fifo_badop },
-	{ &vop_vfree_desc,		(vop_t *) fifo_badop },
 	{ &vop_write_desc,		(vop_t *) fifo_write },
 	{ NULL, NULL }
 };

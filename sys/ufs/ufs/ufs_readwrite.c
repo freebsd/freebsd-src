@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)ufs_readwrite.c	8.11 (Berkeley) 5/8/95
- * $Id: ufs_readwrite.c,v 1.30 1997/08/25 08:18:39 kato Exp $
+ * $Id: ufs_readwrite.c,v 1.31 1997/09/27 13:40:20 kato Exp $
  */
 
 #ifdef LFS_READWRITE
@@ -305,7 +305,7 @@ WRITE(ap)
 		ip->i_mode &= ~(ISUID | ISGID);
 	if (error) {
 		if (ioflag & IO_UNIT) {
-			(void)VOP_TRUNCATE(vp, osize,
+			(void)UFS_TRUNCATE(vp, osize,
 			    ioflag & IO_SYNC, ap->a_cred, uio->uio_procp);
 			uio->uio_offset -= resid - uio->uio_resid;
 			uio->uio_resid = resid;

@@ -621,6 +621,10 @@ ext2_mountfs(devvp, mp, p)
 	ump = bsd_malloc(sizeof *ump, M_UFSMNT, M_WAITOK);
 	bzero((caddr_t)ump, sizeof *ump);
 	ump->um_malloctype = M_EXT2NODE;
+	ump->um_blkatoff = ext2_blkatoff;
+	ump->um_truncate = ext2_truncate;
+	ump->um_valloc = ext2_valloc;
+	ump->um_vfree = ext2_vfree;
 	/* I don't know whether this is the right strategy. Note that
 	   we dynamically allocate both a ext2_sb_info and a ext2_super_block
 	   while Linux keeps the super block in a locked buffer

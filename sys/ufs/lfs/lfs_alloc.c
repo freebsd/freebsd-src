@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)lfs_alloc.c	8.7 (Berkeley) 5/14/95
- * $Id: lfs_alloc.c,v 1.16 1997/10/14 14:22:29 phk Exp $
+ * $Id: lfs_alloc.c,v 1.17 1997/10/14 18:46:43 phk Exp $
  */
 
 #include "opt_quota.h"
@@ -60,13 +60,11 @@ extern u_long nextgennumber;
 /* Allocate a new inode. */
 /* ARGSUSED */
 int
-lfs_valloc(ap)
-	struct vop_valloc_args /* {
-		struct vnode *a_pvp;
-		int a_mode;
-		struct ucred *a_cred;
-		struct vnode **a_vpp;
-	} */ *ap;
+lfs_valloc(pvp, mode, cred, vpp)
+	struct vnode *pvp;
+	int mode;
+	struct ucred *cred;
+	struct vnode **vpp;
 {
 	struct lfs *fs;
 	struct buf *bp;
@@ -79,7 +77,7 @@ lfs_valloc(ap)
 	int error;
 
 	/* Get the head of the freelist. */
-	fs = VTOI(ap->a_pvp)->i_lfs;
+	fs = VTOI(pvp)->i_lfs;
 	new_ino = fs->lfs_free;
 #ifdef ALLOCPRINT
 	printf("lfs_ialloc: allocate inode %d\n", new_ino);
@@ -120,7 +118,7 @@ lfs_valloc(ap)
 	}
 
 	/* Create a vnode to associate with the inode. */
-	if (error = lfs_vcreate(ap->a_pvp->v_mount, new_ino, &vp))
+	if (error = lfs_vcreate(pvp->v_mount, new_ino, &vp))
 		return (error);
 
 
@@ -139,11 +137,11 @@ lfs_valloc(ap)
 
 	if (error = ufs_vinit(vp->v_mount, lfs_specop_p, LFS_FIFOOPS, &vp)) {
 		vput(vp);
-		*ap->a_vpp = NULL;
+		*vpp = NULL;
 		return (error);
 	}
 
-	*ap->a_vpp = vp;
+	*vpp = vp;
 	vp->v_flag |= VDIROP;
 	VREF(ip->i_devvp);
 
@@ -206,12 +204,10 @@ lfs_vcreate(mp, ino, vpp)
 /* Free an inode. */
 /* ARGUSED */
 int
-lfs_vfree(ap)
-	struct vop_vfree_args /* {
-		struct vnode *a_pvp;
-		ino_t a_ino;
-		int a_mode;
-	} */ *ap;
+lfs_vfree(pvp, ino, mode)
+	struct vnode *pvp;
+	ino_t ino;
+	int mode;
 {
 	SEGUSE *sup;
 	struct buf *bp;
@@ -222,7 +218,7 @@ lfs_vfree(ap)
 	ino_t ino;
 
 	/* Get the inode number and file system. */
-	ip = VTOI(ap->a_pvp);
+	ip = VTOI(pvp);
 	fs = ip->i_lfs;
 	ino = ip->i_number;
 	if (ip->i_flag & IN_MODIFIED) {
