@@ -18,7 +18,7 @@
  */
 
 #ifndef lint
-static char rcsid[] = "$Id$";
+static char rcsid[] = "$Id: options.c,v 1.14 1997/08/22 15:50:09 peter Exp $";
 #endif
 
 #include <ctype.h>
@@ -133,7 +133,6 @@ pcap_t  pc;			/* Fake struct pcap so we can compile expr */
  * Prototypes
  */
 static int setdevname __P((char *, int));
-static int setipaddr __P((char *));
 static int setspeed __P((char *));
 static int setdebug __P((char **));
 static int setkdebug __P((char **));
@@ -375,6 +374,10 @@ static struct cmd {
     {"papcrypt", 0, setpapcrypt},	/* PAP passwords encrypted */
     {"idle", 1, setidle},		/* idle time limit (seconds) */
     {"holdoff", 1, setholdoff},		/* set holdoff time (seconds) */
+/* backwards compat hack */
+    {"dns1", 1, setdnsaddr},		/* DNS address for the peer's use */
+    {"dns2", 1, setdnsaddr},		/* DNS address for the peer's use */
+/* end compat hack */
     {"ms-dns", 1, setdnsaddr},		/* DNS address for the peer's use */
     {"ms-wins", 1, setwinsaddr},	/* Nameserver for SMB over TCP/IP for peer */
     {"noipx",  0, resetipxproto},	/* Disable IPXCP (and IPX) */
@@ -1684,7 +1687,7 @@ setdevname(cp, quiet)
 /*
  * setipaddr - Set the IP address
  */
-static int
+int
 setipaddr(arg)
     char *arg;
 {

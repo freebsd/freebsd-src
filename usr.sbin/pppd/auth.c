@@ -33,7 +33,7 @@
  */
 
 #ifndef lint
-static char rcsid[] = "$Id: auth.c,v 1.17 1997/08/19 17:52:31 peter Exp $";
+static char rcsid[] = "$Id: auth.c,v 1.18 1997/08/22 12:03:52 peter Exp $";
 #endif
 
 #include <stdio.h>
@@ -103,6 +103,9 @@ static int auth_pending[NUM_PPP];
 /* Set if we have successfully called login() */
 static int logged_in;
 
+/* Set if not wild or blank */
+static int non_wildclient;
+
 /* Set if we have run the /etc/ppp/auth-up script. */
 static int did_authup;
 
@@ -141,6 +144,7 @@ static int  ip_addr_check __P((u_int32_t, struct wordlist *));
 static int  scan_authfile __P((FILE *, char *, char *, u_int32_t, char *,
 			       struct wordlist **, char *));
 static void free_wordlist __P((struct wordlist *));
+static void auth_set_ip_addr __P((int));
 static void auth_script __P((char *));
 static void set_allowed_addrs __P((int, struct wordlist *));
 #ifdef CBCP_SUPPORT
@@ -364,6 +368,12 @@ auth_peer_success(unit, protocol, name, namelen)
     peer_authname[namelen] = 0;
 
     /*
+     * If we have overridden addresses based on auth info
+     * then set that information now before continuing.
+     */
+    auth_set_ip_addr(unit);
+
+    /*
      * If there is no more authentication still to be done,
      * proceed to the network (or callback) phase.
      */
@@ -410,6 +420,12 @@ auth_withpeer_success(unit, protocol)
 	       protocol);
 	bit = 0;
     }
+
+    /*
+     * If we have overridden addresses based on auth info
+     * then set that information now before continuing.
+     */
+    auth_set_ip_addr(unit);
 
     /*
      * If there is no more authentication still being done,
@@ -1150,6 +1166,23 @@ set_allowed_addrs(unit, addrs)
     }
 }
 
+static void
+auth_set_ip_addr(unit)
+    int unit;
+{
+    struct wordlist *addrs;
+
+    if (non_wildclient && (addrs = addresses[unit]) != NULL) {
+	for (; addrs != NULL; addrs = addrs->next) {
+	    /* Look for address overrides, and set them if we have any */
+	    if (strchr(addrs->word, ':') != NULL) {
+		if (setipaddr(addrs->word))
+		    break;
+	    }
+	}
+    }
+}
+
 /*
  * auth_ip_addr - check whether the peer is authorized to use
  * a given IP address.  Returns 1 if authorized, 0 otherwise.
@@ -1167,6 +1200,7 @@ ip_addr_check(addr, addrs)
     u_int32_t addr;
     struct wordlist *addrs;
 {
+    int x, y;
     u_int32_t a, mask, ah;
     int accept;
     char *ptr_word, *ptr_mask;
@@ -1180,13 +1214,23 @@ ip_addr_check(addr, addrs)
     if (addrs == NULL)
 	return !auth_required;		/* no addresses authorized */
 
+    x = y = 0;
     for (; addrs != NULL; addrs = addrs->next) {
+	y++;
 	/* "-" means no addresses authorized, "*" means any address allowed */
 	ptr_word = addrs->word;
 	if (strcmp(ptr_word, "-") == 0)
 	    break;
 	if (strcmp(ptr_word, "*") == 0)
 	    return 1;
+
+	/*
+	 * A colon in the string means that we wish to force a specific
+	 * local:remote address, but we ignore these for now.
+	 */
+	if (strchr(addrs->word, ':') != NULL)
+	    x++;
+	else {
 
 	accept = 1;
 	if (*ptr_word == '!') {
@@ -1244,8 +1288,9 @@ ip_addr_check(addr, addrs)
 	       and mask is in host order. */
 	    if (((addr ^ a) & htonl(mask)) == 0)
 		return accept;
+    }	/* else */
     }
-    return 0;			/* not in list => can't have it */
+    return x == y;			/* not in list => can't have it */
 }
 
 /*
@@ -1430,6 +1475,7 @@ scan_authfile(f, client, server, ipaddr, secret, addrs, filename)
     else if (addr_list != NULL)
 	free_wordlist(addr_list);
 
+    non_wildclient = (best_flag & NONWILD_CLIENT) && *client != '\0';
     return best_flag;
 }
 
