@@ -1,4 +1,4 @@
-$Id: majors.pc98,v 1.23 1998/02/18 12:34:32 kato Exp $
+$Id: majors.pc98,v 1.24 1998/02/19 08:43:25 kato Exp $
 
 Hopefully, this list will one day be obsoleted by DEVFS, but for now
 this is the current allocation of device major numbers.
@@ -39,6 +39,7 @@ blkdev	name		comments
 23	worm		SCSI "worm type"
 24	wstb		ATAPI tape client of "ata"
 25	vinum		RAID fs
+26	sw		VM internal swap device
 chrdev	name		comments
 0	cn		console
 1	ctty		/dev/tty
@@ -132,3 +133,4 @@ chrdev	name		comments
 89	pps		Pulse-Per-Second timing interface
 90	wst		ATAPI tape client of "ata"
 91	vinum		RAID fs
+92      bktr            Bt848 video capture driver (hasty@star-gate.com)
