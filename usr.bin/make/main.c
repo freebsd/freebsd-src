@@ -60,8 +60,6 @@ __FBSDID("$FreeBSD$");
  *				the .MFLAGS target.
  */
 
-#include <sys/types.h>
-#include <sys/time.h>
 #include <sys/param.h>
 #include <sys/resource.h>
 #include <sys/signal.h>
@@ -69,18 +67,22 @@ __FBSDID("$FreeBSD$");
 #if defined(__i386__)
 #include <sys/sysctl.h>
 #endif
+#include <sys/time.h>
 #ifndef MACHINE
 #include <sys/utsname.h>
 #endif
 #include <sys/wait.h>
+
 #include <err.h>
-#include <stdlib.h>
 #include <errno.h>
 #include <fcntl.h>
-#include <stdio.h>
-#include <sysexits.h>
+#include <signal.h>
 #include <stdarg.h>
+#include <stdio.h>
+#include <stdlib.h>
+#include <sysexits.h>
 #include <unistd.h>
+
 #include "make.h"
 #include "hash.h"
 #include "dir.h"
