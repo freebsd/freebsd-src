@@ -71,6 +71,7 @@ fwohci	i386,sparc64,ia64,amd64
 gem	sparc64
 gx	i386,pc98,alpha,amd64
 hifn	i386,pc98,amd64
+hptmv	i386
 ida	i386
 ie	i386
 iir	i386,ia64,amd64
@@ -101,6 +102,7 @@ sk	i386,pc98,alpha,amd64
 sn	i386,amd64
 snc	pc98
 snd_ad1816	i386,amd64
+snd_audiocs	sparc64
 snd_cmi	i386,amd64
 snd_cs4281	i386,amd64
 snd_csa	i386,amd64
@@ -112,6 +114,7 @@ snd_gusc	i386,amd64
 snd_ich	i386,amd64
 snd_maestro	i386,alpha,amd64
 snd_maestro3	i386,alpha,amd64
+snd_neomagic	i386,amd64
 snd_sbc	i386,alpha,amd64
 snd_solo	i386,amd64
 ste	i386,pc98,alpha,amd64
