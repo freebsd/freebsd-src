@@ -30,7 +30,7 @@
 .\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 .\" SUCH DAMAGE.
 .\"
-.\"	@(#)op.me	8.105 (Berkeley) 7/3/97
+.\"	@(#)op.me	8.106 (Berkeley) 10/20/97
 .\"
 .\" eqn op.me | pic | troff -me
 .eh 'SMM:08-%''Sendmail Installation and Operation Guide'
@@ -67,7 +67,7 @@
 Eric Allman
 eric@Sendmail.ORG
 .sp
-Version 8.105
+Version 8.106
 .sp
 For Sendmail Version 8.8
 .)l
@@ -4128,6 +4128,8 @@ macro).
 .ip h
 Upper case should be preserved in host names
 for this mailer.
+.ip i
+Do User Database rewriting on envelope sender address.
 .ip I
 This mailer will be speaking SMTP
 to another
@@ -8185,7 +8187,7 @@ replace it with a blank sheet for double-sided output.
 .\".sz 10
 .\"Eric Allman
 .\".sp
-.\"Version 8.105
+.\"Version 8.106
 .\".ce 0
 .bp 3
 .ce

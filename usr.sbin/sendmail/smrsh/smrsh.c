@@ -33,7 +33,7 @@
  */
 
 #ifndef lint
-static char sccsid[] = "@(#)smrsh.c	8.4 (Berkeley) 11/11/95";
+static char sccsid[] = "@(#)smrsh.c	8.5 (Berkeley) 10/19/97";
 #endif /* not lint */
 
 /*
@@ -76,6 +76,7 @@ static char sccsid[] = "@(#)smrsh.c	8.4 (Berkeley) 11/11/95";
 #endif
 #include <sysexits.h>
 #include <syslog.h>
+#include <stdlib.h>
 
 /* directory in which all commands must reside */
 #ifndef CMDDIR

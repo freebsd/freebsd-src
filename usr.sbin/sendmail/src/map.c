@@ -33,7 +33,7 @@
  */
 
 #ifndef lint
-static char sccsid[] = "@(#)map.c	8.181 (Berkeley) 7/9/97";
+static char sccsid[] = "@(#)map.c	8.186 (Berkeley) 10/21/97";
 #endif /* not lint */
 
 #include "sendmail.h"
@@ -402,8 +402,8 @@ map_rewrite(map, s, slen, av)
 **
 **	Side Effects:
 **		initializes aliases:
-**		if NDBM:  opens the database.
-**		if ~NDBM: reads the aliases into the symbol table.
+**		if alias database:  opens the database.
+**		if no database available: reads aliases into the symbol table.
 */
 
 void
@@ -417,25 +417,20 @@ initmaps(rebuild, e)
 	checkfd012("entering initmaps");
 #endif
 	CurEnv = e;
-	if (rebuild)
-	{
-		stabapply(map_init, 1);
-		stabapply(map_init, 2);
-	}
-	else
-	{
-		stabapply(map_init, 0);
-	}
+
+	stabapply(map_init, 0);
+	stabapply(map_init, rebuild ? 2 : 1);
 #if XDEBUG
 	checkfd012("exiting initmaps");
 #endif
 }
 
 void
-map_init(s, rebuild)
+map_init(s, pass)
 	register STAB *s;
-	int rebuild;
+	int pass;
 {
+	bool rebuildable;
 	register MAP *map;
 
 	/* has to be a map */
@@ -452,13 +447,23 @@ map_init(s, rebuild)
 				map->map_class->map_cname,
 			map->map_mname == NULL ? "NULL" : map->map_mname,
 			map->map_file == NULL ? "NULL" : map->map_file,
-			rebuild);
+			pass);
 
-	if (rebuild == (bitset(MF_ALIAS, map->map_mflags) &&
-		    bitset(MCF_REBUILDABLE, map->map_class->map_cflags) ? 1 : 2))
+	/*
+	** Pass 0 opens all non-rebuildable maps.
+	** Pass 1 opens all rebuildable maps for read.
+	** Pass 2 rebuilds all rebuildable maps.
+	*/
+
+	rebuildable = (bitset(MF_ALIAS, map->map_mflags) &&
+		       bitset(MCF_REBUILDABLE, map->map_class->map_cflags));
+
+	if ((pass == 0 && rebuildable) ||
+	    ((pass == 1 || pass == 2) && !rebuildable))
 	{
 		if (tTd(38, 3))
-			printf("\twrong pass\n");
+			printf("\twrong pass (pass = %d, rebuildable = %d)\n",
+			       pass, rebuildable);
 		return;
 	}
 
@@ -468,43 +473,42 @@ map_init(s, rebuild)
 		map->map_class->map_close(map);
 		map->map_mflags &= ~(MF_OPEN|MF_WRITABLE);
 	}
-
-	if (rebuild == 2)
+		
+	if (pass == 2)
 	{
 		rebuildaliases(map, FALSE);
+		return;
+	}
+
+	if (map->map_class->map_open(map, O_RDONLY))
+	{
+		if (tTd(38, 4))
+			printf("\t%s:%s %s: valid\n",
+				map->map_class->map_cname == NULL ? "NULL" :
+					map->map_class->map_cname,
+				map->map_mname == NULL ? "NULL" :
+					map->map_mname,
+				map->map_file == NULL ? "NULL" :
+					map->map_file);
+		map->map_mflags |= MF_OPEN;
 	}
 	else
 	{
-		if (map->map_class->map_open(map, O_RDONLY))
+		if (tTd(38, 4))
+			printf("\t%s:%s %s: invalid: %s\n",
+				map->map_class->map_cname == NULL ? "NULL" :
+					map->map_class->map_cname,
+				map->map_mname == NULL ? "NULL" :
+					map->map_mname,
+				map->map_file == NULL ? "NULL" :
+					map->map_file,
+				errstring(errno));
+		if (!bitset(MF_OPTIONAL, map->map_mflags))
 		{
-			if (tTd(38, 4))
-				printf("\t%s:%s %s: valid\n",
-					map->map_class->map_cname == NULL ? "NULL" :
-						map->map_class->map_cname,
-					map->map_mname == NULL ? "NULL" :
-						map->map_mname,
-					map->map_file == NULL ? "NULL" :
-						map->map_file);
-			map->map_mflags |= MF_OPEN;
-		}
-		else
-		{
-			if (tTd(38, 4))
-				printf("\t%s:%s %s: invalid: %s\n",
-					map->map_class->map_cname == NULL ? "NULL" :
-						map->map_class->map_cname,
-					map->map_mname == NULL ? "NULL" :
-						map->map_mname,
-					map->map_file == NULL ? "NULL" :
-						map->map_file,
-					errstring(errno));
-			if (!bitset(MF_OPTIONAL, map->map_mflags))
-			{
-				extern MAPCLASS BogusMapClass;
+			extern MAPCLASS BogusMapClass;
 
-				map->map_class = &BogusMapClass;
-				map->map_mflags |= MF_OPEN;
-			}
+			map->map_class = &BogusMapClass;
+			map->map_mflags |= MF_OPEN;
 		}
 	}
 }
@@ -781,14 +785,6 @@ ndbm_map_open(map, mode)
 	if (std.st_mode == ST_MODE_NOFILE)
 		mode |= O_CREAT|O_EXCL;
 
-	/* heuristic: if files are linked, this is actually gdbm */
-	if (std.st_dev == stp.st_dev && std.st_ino == stp.st_ino)
-	{
-		syserr("dbm map \"%s\": cannot support GDBM",
-			map->map_mname);
-		return FALSE;
-	}
-
 #if LOCK_ON_OPEN
 	if (mode == O_RDONLY)
 		mode |= O_SHLOCK;
@@ -891,6 +887,20 @@ ndbm_map_open(map, mode)
 	}
 	dfd = dbm_dirfno(dbm);
 	pfd = dbm_pagfno(dbm);
+	if (dfd == pfd)
+	{
+		/* heuristic: if files are linked, this is actually gdbm */
+		dbm_close(dbm);
+#if !LOCK_ON_OPEN && !NOFTRUNCATE
+		if (map->map_lockfd >= 0)
+			close(map->map_lockfd);
+#endif
+		errno = 0;
+		syserr("dbm map \"%s\": cannot support GDBM",
+			map->map_mname);
+		return FALSE;
+	}
+
 	if (filechanged(dirfile, dfd, &std, sff) ||
 	    filechanged(pagfile, pfd, &stp, sff))
 	{
@@ -944,6 +954,7 @@ ndbm_map_lookup(map, name, av, statp)
 	datum key, val;
 	int fd;
 	char keybuf[MAXNAME + 1];
+	struct stat stbuf;
 
 	if (tTd(38, 20))
 		printf("ndbm_map_lookup(%s, %s)\n",
@@ -960,9 +971,40 @@ ndbm_map_lookup(map, name, av, statp)
 		makelower(keybuf);
 		key.dptr = keybuf;
 	}
+lockdbm:
 	fd = dbm_dirfno((DBM *) map->map_db1);
 	if (fd >= 0 && !bitset(MF_LOCKED, map->map_mflags))
 		(void) lockfile(fd, map->map_file, ".dir", LOCK_SH);
+	if (fd < 0 || fstat(fd, &stbuf) < 0 || stbuf.st_mtime > map->map_mtime) 
+	{
+		/* Reopen the database to sync the cache */
+		int omode = bitset(map->map_mflags, MF_WRITABLE) ? O_RDWR
+								 : O_RDONLY;
+
+		map->map_class->map_close(map);
+		map->map_mflags &= ~(MF_OPEN|MF_WRITABLE);
+		if (map->map_class->map_open(map, omode)) 
+		{
+			map->map_mflags |= MF_OPEN;
+			if ((omode && O_ACCMODE) == O_RDWR)
+				map->map_mflags |= MF_WRITABLE;
+			goto lockdbm;
+		}
+		else
+		{
+			if (!bitset(MF_OPTIONAL, map->map_mflags)) 
+			{
+				extern MAPCLASS BogusMapClass;
+
+				*statp = EX_TEMPFAIL;
+				map->map_class = &BogusMapClass;
+				map->map_mflags |= MF_OPEN;
+				syserr("Cannot reopen NDBM database %s",
+					map->map_file);
+			}
+			return NULL;
+		}
+	}
 	val.dptr = NULL;
 	if (bitset(MF_TRY0NULL, map->map_mflags))
 	{
@@ -2489,7 +2531,7 @@ ldap_map_lookup(map, name, av, statp)
 					filter, map->map_mname);
 			}
 			result = NULL;
-			*statp = EX_UNAVAILABLE;
+			*statp = EX_TEMPFAIL;
 			goto quick_exit;
 		}
 	}
