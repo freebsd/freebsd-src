@@ -242,10 +242,9 @@ ufs_getacl(ap)
 		    POSIX1E_ACL_ACCESS_EXTATTR_NAME, &len, (char *) ap->a_aclp,
 		    ap->a_td);
 		switch (error) {
-		/* XXX: Will be ENOATTR. */
 		/* XXX: If ufs_getacl() should work on file systems without
 		 * the EA configured, add case EOPNOTSUPP here. */
-		case ENOENT:
+		case ENOATTR:
 			/*
 			 * Legitimately no ACL set on object, purely
 			 * emulate it through the inode.  These fields will
@@ -302,10 +301,9 @@ ufs_getacl(ap)
 		 * and an empty ACL, as required by POSIX.1e.
 		 */
 		switch (error) {
-		/* XXX: Will be ENOATTR. */
 		/* XXX: If ufs_getacl() should work on file systems without
 		 * the EA configured, add case EOPNOTSUPP here. */
-		case ENOENT:
+		case ENOATTR:
 			bzero(ap->a_aclp, sizeof(*ap->a_aclp));
 			ap->a_aclp->acl_cnt = 0;
 			error = 0;
@@ -420,10 +418,9 @@ ufs_setacl(ap)
 			 * XXX: Note that since we can't distinguish
 			 * "that EA is not supported" from "that EA is not
 			 * defined", the success case here overlaps the
-			 * the ENOENT->EOPNOTSUPP case below.
+			 * the ENOATTR->EOPNOTSUPP case below.
 		 	 */
-			/* XXX: the ENOENT here will eventually be ENOATTR. */
-			if (error == ENOENT)
+			if (error == ENOATTR)
 				error = 0;
 		} else
 			error = vn_extattr_set(ap->a_vp, IO_NODELOCKED,
@@ -439,8 +436,7 @@ ufs_setacl(ap)
 	 * Map lack of attribute definition in UFS_EXTATTR into lack of
 	 * support for ACLs on the file system.
 	 */
-	/* XXX: ENOENT here will eventually be ENOATTR. */
-	if (error == ENOENT)
+	if (error == ENOATTR)
 		return (EOPNOTSUPP);
 	if (error != 0)
 		return (error);
