@@ -1605,6 +1605,7 @@ sf_buf_free(void *addr, void *args)
 	sf = dtosf(addr);
 	pmap_qremove((vm_offset_t)addr, 1);
 	m = sf->m;
+	vm_page_lock_queues();
 	vm_page_unwire(m, 0);
 	/*
 	 * Check for the object going away on us. This can
@@ -1613,6 +1614,7 @@ sf_buf_free(void *addr, void *args)
 	 */
 	if (m->wire_count == 0 && m->object == NULL)
 		vm_page_free(m);
+	vm_page_unlock_queues();
 	sf->m = NULL;
 	mtx_lock(&sf_freelist.sf_lock);
 	SLIST_INSERT_HEAD(&sf_freelist.sf_head, sf, free_list);
@@ -1795,7 +1797,9 @@ retry_lookup:
 		 * us. 
 		 */
 
+		vm_page_lock_queues();
 		vm_page_wire(pg);
+		vm_page_unlock_queues();
 
 		/*
 		 * If page is not valid for what we need, initiate I/O
@@ -1823,6 +1827,7 @@ retry_lookup:
 			vm_page_flag_clear(pg, PG_ZERO);
 			vm_page_io_finish(pg);
 			if (error) {
+				vm_page_lock_queues();
 				vm_page_unwire(pg, 0);
 				/*
 				 * See if anyone else might know about this page.
@@ -1834,6 +1839,7 @@ retry_lookup:
 					vm_page_busy(pg);
 					vm_page_free(pg);
 				}
+				vm_page_unlock_queues();
 				sbunlock(&so->so_snd);
 				goto done;
 			}
@@ -1845,9 +1851,11 @@ retry_lookup:
 		 * but this wait can be interrupted.
 		 */
 		if ((sf = sf_buf_alloc()) == NULL) {
+			vm_page_lock_queues();
 			vm_page_unwire(pg, 0);
 			if (pg->wire_count == 0 && pg->object == NULL)
 				vm_page_free(pg);
+			vm_page_unlock_queues();
 			sbunlock(&so->so_snd);
 			error = EINTR;
 			goto done;
