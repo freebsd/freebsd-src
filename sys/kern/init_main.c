@@ -39,7 +39,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)init_main.c	8.9 (Berkeley) 1/21/94
- * $Id: init_main.c,v 1.103 1999/01/07 21:23:39 julian Exp $
+ * $Id: init_main.c,v 1.104 1999/01/26 02:38:10 julian Exp $
  */
 
 #include "opt_devfs.h"
@@ -569,7 +569,7 @@ SYSINIT(retrofit, SI_SUB_ROOT_FDTAB, SI_ORDER_FIRST, xxx_vfs_root_fdtab, NULL)
  ***************************************************************************
  */
 
-static void kthread_init __P((void *dummy));
+static void kthread_init __P((const void *dummy));
 SYSINIT_KP(init,SI_SUB_KTHREAD_INIT, SI_ORDER_FIRST, kthread_init, NULL)
 
 
@@ -579,7 +579,7 @@ static void start_init __P((struct proc *p));
 /* ARGSUSED*/
 static void
 kthread_init(dummy)
-	void *dummy;
+	const void *dummy;
 {
 	/* Create process 1 (init(8)). */
 	start_init(curproc);
