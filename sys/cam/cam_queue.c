@@ -242,8 +242,8 @@ cam_devq_init(struct cam_devq *devq, int devices, int openings)
 void
 cam_devq_free(struct cam_devq *devq)
 {
-	camq_free(&devq->alloc_queue);
-	camq_free(&devq->send_queue);
+	camq_fini(&devq->alloc_queue);
+	camq_fini(&devq->send_queue);
 	free(devq, M_DEVBUF);
 }
 
