@@ -948,7 +948,7 @@ aio_qphysio(struct proc *p, struct aiocblist *aiocbe)
 	struct aio_liojob *lj;
 	int fd;
 	int s;
-	int cnt, notify;
+	int notify;
 
 	cb = &aiocbe->uaiocb;
 	fdp = p->p_fd;
@@ -975,23 +975,12 @@ aio_qphysio(struct proc *p, struct aiocblist *aiocbe)
  	if (cb->aio_nbytes % vp->v_rdev->si_bsize_phys)
 		return (-1);
 
-	if ((cb->aio_nbytes > MAXPHYS) && (num_buf_aio >= max_buf_aio))
+	if (cb->aio_nbytes > MAXPHYS)
 		return (-1);
 
 	ki = p->p_aioinfo;
 	if (ki->kaio_buffer_count >= ki->kaio_ballowed_count) 
 		return (-1);
-
-	cnt = cb->aio_nbytes;
-	if (cnt > MAXPHYS) 
-		return (-1);
-
-	/*
-	 * Physical I/O is charged directly to the process, so we don't have to
-	 * fake it.
-	 */
-	aiocbe->inputcharge = 0;
-	aiocbe->outputcharge = 0;
 
 	ki->kaio_buffer_count++;
 
@@ -1199,7 +1188,7 @@ _aio_aqueue(struct proc *p, struct aiocb *job, struct aio_liojob *lj, int type)
 	unsigned int fd;
 	struct socket *so;
 	int s;
-	int error = 0;
+	int error;
 	int opcode;
 	struct aiocblist *aiocbe;
 	struct aioproclist *aiop;
@@ -1307,6 +1296,7 @@ _aio_aqueue(struct proc *p, struct aiocb *job, struct aio_liojob *lj, int type)
 	{
 		struct kevent kev, *kevp;
 		struct kqueue *kq;
+		struct file *kq_fp;
 
 		kevp = (struct kevent *)job->aio_lio_opcode;
 		if (kevp == NULL)
@@ -1317,12 +1307,12 @@ _aio_aqueue(struct proc *p, struct aiocb *job, struct aio_liojob *lj, int type)
 			goto aqueue_fail;
 
 		if ((u_int)kev.ident >= fdp->fd_nfiles ||
-		    (fp = fdp->fd_ofiles[kev.ident]) == NULL ||
-		    (fp->f_type != DTYPE_KQUEUE)) {
+		    (kq_fp = fdp->fd_ofiles[kev.ident]) == NULL ||
+		    (kq_fp->f_type != DTYPE_KQUEUE)) {
 			error = EBADF;
 			goto aqueue_fail;
 		}
-        	kq = (struct kqueue *)fp->f_data;
+        	kq = (struct kqueue *)kq_fp->f_data;
 		kev.ident = (u_long)aiocbe;
 		kev.filter = EVFILT_AIO;
 		kev.flags = EV_ADD | EV_ENABLE | EV_FLAG1;
@@ -2197,12 +2187,8 @@ aio_physwakeup(struct buf *bp)
 	struct proc *p;
 	struct kaioinfo *ki;
 	struct aio_liojob *lj;
-	int s;
-	s = splbio();
 
 	wakeup((caddr_t)bp);
-	bp->b_flags &= ~B_CALL;
-	bp->b_flags |= B_DONE;
 
 	aiocbe = (struct aiocblist *)bp->b_spc;
 	if (aiocbe) {
@@ -2255,7 +2241,6 @@ aio_physwakeup(struct buf *bp)
 		if (aiocbe->uaiocb.aio_sigevent.sigev_notify == SIGEV_SIGNAL)
 			timeout(process_signal, aiocbe, 0);
 	}
-	splx(s);
 }
 #endif /* VFS_AIO */
 
