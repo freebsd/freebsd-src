@@ -1487,7 +1487,8 @@ init(int signo)
 			if (*p == '@')
 				p = LocalHostName;
 			for (i = 1; i < MAXHOSTNAMELEN - 1; i++) {
-				if (!isalnum(*p) && *p != '.' && *p != '-')
+				if (!isalnum(*p) && *p != '.' && *p != '-'
+                                    && *p != ',')
 					break;
 				host[i] = *p++;
 			}
