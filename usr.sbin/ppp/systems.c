@@ -323,14 +323,9 @@ ReadSystem(struct bundle *bundle, const char *name, const char *file,
       break;
 
     default:
-      if ((wp = findblank(cp, 0)) != NULL) {
-        while (issep(*wp))
-          *wp++ = '\0';
-        if (*wp != '#' && *wp != '\0') {
-	  log_Printf(LogWARN, "Bad label in %s (line %d) - too many words.\n",
-		    filename, linenum);
-	  continue;
-        }
+      if ((wp = findblank(cp, 0)) != NULL && *wp == '#') {
+        *wp = '\0';
+        cp = strip(cp);
       }
       wp = strchr(cp, ':');
       if (wp == NULL || wp[1] != '\0') {
@@ -368,8 +363,8 @@ ReadSystem(struct bundle *bundle, const char *name, const char *file,
             log_Printf(LogWARN, "%s: %d: Syntax error\n", filename, linenum);
           else {
             allowcmd = argc > 0 && !strcasecmp(argv[0], "allow");
-            if ((!(how == SYSTEM_EXEC) && allowcmd) ||
-                ((how == SYSTEM_EXEC) && !allowcmd)) {
+            if ((how != SYSTEM_EXEC && allowcmd) ||
+                (how == SYSTEM_EXEC && !allowcmd)) {
               /*
                * Disable any context so that warnings are given to everyone,
                * including syslog.
