@@ -12,3 +12,6 @@ __FBSDID("$FreeBSD$");
 
 /* bytes for +Infinity on a sparc */
 const union __infinity_un __infinity = { { 0x7f, 0xf0, 0, 0, 0, 0, 0, 0 } };
+
+/* bytes for NaN */
+const union __nan_un __nan = { { 0xff, 0xc0, 0, 0 } };

@@ -17,6 +17,8 @@
 #ifndef _MATH_H_
 #define	_MATH_H_
 
+#include <sys/_types.h>
+
 /*
  * ANSI/POSIX
  */
@@ -24,7 +26,33 @@ extern const union __infinity_un {
 	unsigned char	__uc[8];
 	double		__ud;
 } __infinity;
+
+extern const union __nan_un {
+	unsigned char	__uc[sizeof(float)];
+	float		__uf;
+} __nan;
+
+#define	FP_ILOGB0	(-0x7fffffff - 1)	/* INT_MIN */
+#define	FP_ILOGBNAN	0x7fffffff		/* INT_MAX */
 #define HUGE_VAL	(__infinity.__ud)
+#define	HUGE_VALF	(float)HUGE_VAL
+#define	HUGE_VALL	(long double)HUGE_VAL
+#define	INFINITY	HUGE_VALF
+#define	NAN		(__nan.__uf)
+
+/* Symbolic constants to classify floating point numbers. */
+#define	FP_INFINITE	1
+#define	FP_NAN		2
+#define	FP_NORMAL	3
+#define	FP_SUBNORMAL	4
+#define	FP_ZERO		5
+#define	fpclassify(x) \
+    ((sizeof (x) == sizeof (float)) ? __fpclassifyf(x) \
+    : (sizeof (x) == sizeof (double)) ? __fpclassifyd(x) \
+    : __fpclassifyl(x))
+
+typedef	__double_t	double_t;
+typedef	__float_t	float_t;
 
 /*
  * XOPEN/SVID
@@ -116,6 +144,10 @@ __BEGIN_DECLS
 /*
  * ANSI/POSIX
  */
+int	__fpclassifyd(double);
+int	__fpclassifyf(float);
+int	__fpclassifyl(long double);
+
 double	acos(double);
 double	asin(double);
 double	atan(double);
