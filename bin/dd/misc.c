@@ -34,11 +34,11 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: misc.c,v 1.3 1996/11/12 23:09:15 phk Exp $
+ *	$Id: misc.c,v 1.4 1996/11/13 20:00:03 phk Exp $
  */
 
 #ifndef lint
-static char sccsid[] = "@(#)misc.c	8.3 (Berkeley) 4/2/94";
+static char const sccsid[] = "@(#)misc.c	8.3 (Berkeley) 4/2/94";
 #endif /* not lint */
 
 #include <sys/types.h>

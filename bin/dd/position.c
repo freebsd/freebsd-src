@@ -34,11 +34,11 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id$
+ *	$Id: position.c,v 1.2 1994/09/24 02:55:03 davidg Exp $
  */
 
 #ifndef lint
-static char sccsid[] = "@(#)position.c	8.3 (Berkeley) 4/2/94";
+static char const sccsid[] = "@(#)position.c	8.3 (Berkeley) 4/2/94";
 #endif /* not lint */
 
 #include <sys/types.h>
