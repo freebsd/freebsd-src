@@ -3,6 +3,8 @@
 
 PROG=	ls
 SRCS=	cmp.c lomac.c ls.c print.c util.c
+NO_WERROR=1
+WFORMAT=0
 DPADD=	${LIBM}
 LDADD=	-lm
 
@@ -11,7 +13,5 @@ CFLAGS+= -DCOLORLS
 DPADD+=	${LIBTERMCAP}
 LDADD+=	-ltermcap
 .endif
-WFORMAT=0
-NO_WERROR=1
 
 .include <bsd.prog.mk>

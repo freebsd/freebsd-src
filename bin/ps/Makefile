@@ -10,12 +10,11 @@ SRCS=	fmt.c keyword.c nlist.c print.c ps.c lomac.c
 # on large systems.
 #
 CFLAGS+=-DLAZY_PS
-NO_WERROR=yes
+NO_WERROR=1
+WFORMAT=0
 DPADD=	${LIBM} ${LIBKVM}
 LDADD=	-lm -lkvm
 #BINGRP=	kmem
 #BINMODE=2555
-
-WFORMAT?=	0
 
 .include <bsd.prog.mk>
