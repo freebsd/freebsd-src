@@ -337,7 +337,6 @@ ufs_access(ap)
 	int error;
 #ifdef UFS_ACL
 	struct acl *acl;
-	size_t len;
 #endif
 
 	/*
@@ -369,7 +368,6 @@ ufs_access(ap)
 #ifdef UFS_ACL
 	if ((vp->v_mount->mnt_flag & MNT_ACLS) != 0) {
 		MALLOC(acl, struct acl *, sizeof(*acl), M_ACL, M_WAITOK);
-		len = sizeof(*acl);
 		error = VOP_GETACL(vp, ACL_TYPE_ACCESS, acl, ap->a_cred,
 		    ap->a_td);
 		switch (error) {

@@ -4423,7 +4423,6 @@ ncr_complete (ncb_p np, nccb_p cp)
 {
 	union ccb *ccb;
 	tcb_p tp;
-	lcb_p lp;
 
 	/*
 	**	Sanity check
@@ -4455,7 +4454,6 @@ ncr_complete (ncb_p np, nccb_p cp)
 	ccb = cp->ccb;
 	cp->ccb = NULL;
 	tp = &np->target[ccb->ccb_h.target_id];
-	lp = tp->lp[ccb->ccb_h.target_lun];
 
 	/*
 	**	We do not queue more than 1 nccb per target 
