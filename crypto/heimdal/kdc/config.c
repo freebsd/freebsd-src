@@ -64,6 +64,8 @@ krb5_boolean encode_as_rep_as_tgs_rep; /* bug compatibility */
 krb5_boolean check_ticket_addresses;
 krb5_boolean allow_null_ticket_addresses;
 krb5_boolean allow_anonymous;
+int trpolicy;
+static const char *trpolicy_str;
 
 static struct getarg_strings addresses_str;	/* addresses to listen on */
 krb5_addresses explicit_addresses;
@@ -287,9 +289,8 @@ configure(int argc, char **argv)
 
     get_dbinfo();
     
-    if(max_request_str){
+    if(max_request_str)
 	max_request = parse_bytes(max_request_str, NULL);
-    }
 
     if(max_request == 0){
 	p = krb5_config_get_string (context,
@@ -352,6 +353,23 @@ configure(int argc, char **argv)
     allow_anonymous = 
 	krb5_config_get_bool(context, NULL, "kdc", 
 			     "allow-anonymous", NULL);
+    trpolicy_str = 
+	krb5_config_get_string_default(context, NULL, "always-check", "kdc", 
+				       "transited-policy", NULL);
+    if(strcasecmp(trpolicy_str, "always-check") == 0)
+	trpolicy = TRPOLICY_ALWAYS_CHECK;
+    else if(strcasecmp(trpolicy_str, "allow-per-principal") == 0)
+	trpolicy = TRPOLICY_ALLOW_PER_PRINCIPAL;
+    else if(strcasecmp(trpolicy_str, "always-honour-request") == 0)
+	trpolicy = TRPOLICY_ALWAYS_HONOUR_REQUEST;
+    else {
+	kdc_log(0, "unknown transited-policy: %s, reverting to always-check", 
+		trpolicy_str);
+	trpolicy = TRPOLICY_ALWAYS_CHECK;
+    }
+	
+	krb5_config_get_bool_default(context, NULL, TRUE, "kdc", 
+				     "enforce-transited-policy", NULL);
 #ifdef KRB4
     if(v4_realm == NULL){
 	p = krb5_config_get_string (context, NULL, 
