@@ -272,7 +272,7 @@ ns_resp(u_char *msg, int msglen, struct sockaddr_in from, struct qstream *qsp)
 	u_int qtype, qclass;
 	int restart;	/* flag for processing cname response */
 	int validanswer, dbflags;
-	int cname, lastwascname, externalcname;
+	int cname, lastwascname, externalcname, cachenegative;
 	int count, founddata, foundname;
 	int buflen;
 	int newmsglen;
@@ -912,6 +912,7 @@ tcp_retry:
 	cname = 0;
 	lastwascname = 0;
 	externalcname = 0;
+	cachenegative = 1;
 	strcpy(aname, qname);
 
 	if (count) {
@@ -981,6 +982,7 @@ tcp_retry:
 						 name);
 				db_detach(&dp);
 				validanswer = 0;
+				cachenegative = 0;
 				continue;
 			}
 			if (type == T_CNAME &&
@@ -1011,6 +1013,7 @@ tcp_retry:
 				 "last was cname, ignoring auth. and add.");
 				db_detach(&dp);
 				validanswer = 0;
+				cachenegative = 0;
 				break;
 			}
 			if (i < arfirst) {
@@ -1026,6 +1029,7 @@ tcp_retry:
 							sin_ntoa(from));
 						db_detach(&dp);
 						validanswer = 0;
+						cachenegative = 0;
 						continue;
 					} else if (!ns_samedomain(name,
 							       qp->q_domain)) {
@@ -1039,6 +1043,7 @@ tcp_retry:
 							 sin_ntoa(from));
 						db_detach(&dp);
 						validanswer = 0;
+						cachenegative = 0;
 						continue;
 					}
 					if (type == T_NS) {
@@ -1231,8 +1236,9 @@ tcp_retry:
 	     )
 	    )
 	{
-		cache_n_resp(msg, msglen, from, qp->q_name,
-			     qp->q_class, qp->q_type);
+		if (cachenegative)
+			cache_n_resp(msg, msglen, from, qp->q_name,
+				     qp->q_class, qp->q_type);
 
 		if (!qp->q_cmsglen && validanswer) {
 			ns_debug(ns_log_default, 3,
