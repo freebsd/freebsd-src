@@ -48,9 +48,9 @@
 .Fd #include <kvm.h>
 .br
 .Ft kvm_t *
-.Fn kvm_open "const char *execfile" "const char *corefile" "char *swapfile" "int flags" "const char *errstr"
+.Fn kvm_open "const char *execfile" "const char *corefile" "const char *swapfile" "int flags" "const char *errstr"
 .Ft kvm_t *
-.Fn kvm_openfiles "const char *execfile" "const char *corefile" "char *swapfile" "int flags" "char *errbuf"
+.Fn kvm_openfiles "const char *execfile" "const char *corefile" "const char *swapfile" "int flags" "char *errbuf"
 .Ft int
 .Fn kvm_close "kvm_t *kd"
 .Sh DESCRIPTION
