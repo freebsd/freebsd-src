@@ -17,4 +17,4 @@ setenv MANPATH "/usr/share/man:/usr/X11R6/man:/usr/local/man"
 # A rightous umask
 umask 22
 
-[ -x /usr/games/fortune ] && /usr/games/fortune
+[ -x /usr/games/fortune ] && /usr/games/fortune -s
