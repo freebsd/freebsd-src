@@ -85,6 +85,7 @@ int dialog_inputbox(unsigned char *title, unsigned char *prompt, int height, int
   print_button(dialog, "  OK  ", y, x, TRUE);
 
   first = 1;
+  strcpy(instr, result);
   while (key != ESC) {
 
     if (button == -1) {    /* Input box selected */
