@@ -77,7 +77,7 @@ private ttyperm_t ttyperm = {
 		     C_SH(C_PGOFF)|C_SH(C_PAGE)|C_SH(C_STATUS)), 0 }
     },
     {
-	{ "iflag:", 0, IXON | IXOFF },
+	{ "iflag:", 0, IXON | IXOFF | INLCR | ICRNL },
 	{ "oflag:", 0, 0 },
 	{ "cflag:", 0, 0 },
 	{ "lflag:", 0, ISIG | IEXTEN },
@@ -793,7 +793,7 @@ protected int
 tty_rawmode(el)
     EditLine *el;
 {
-    if (el->el_tty.t_mode == ED_IO)
+    if (el->el_tty.t_mode == ED_IO || el->el_tty.t_mode == QU_IO)
 	return (0);
 
     if (tty_getty(el, &el->el_tty.t_ts) == -1) {
