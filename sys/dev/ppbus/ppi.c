@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 1997 Nicolas Souchu
+ * Copyright (c) 1997, 1998 Nicolas Souchu, Michael Smith
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: ppi.c,v 1.4 1997/08/28 10:15:16 msmith Exp $
+ *	$Id: ppi.c,v 1.5 1997/09/01 00:51:49 bde Exp $
  *
  */
 #include "ppi.h"
@@ -35,19 +35,24 @@
 #include <sys/conf.h>
 #include <sys/kernel.h>
 #include <sys/malloc.h>
+#include <sys/fcntl.h>
 
 #include <dev/ppbus/ppbconf.h>
+#include <dev/ppbus/ppi.h>
+
 
 struct ppi_data {
 
-	int ppi_unit;
+    int		ppi_unit;
+    int		ppi_flags;
+#define HAVE_PPBUS	(1<<0)
 
-	struct ppb_device ppi_dev;
+    struct ppb_device ppi_dev;
 };
 
-#define MAXPPI	8			/* XXX not much better! */
-static int 	nppi = 0;
-static struct ppi_data *ppidata[MAXPPI];
+#define MAXPPI		8			/* XXX not much better! */
+static int 		nppi = 0;
+static struct ppi_data	*ppidata[MAXPPI];
 
 /*
  * Make ourselves visible as a ppbus driver
@@ -61,7 +66,6 @@ static struct ppb_driver ppidriver = {
     ppiprobe, ppiattach, "ppi"
 };
 DATA_SET(ppbdriver_set, ppidriver);
-
 
 static	d_open_t	ppiopen;
 static	d_close_t	ppiclose;
@@ -133,25 +137,86 @@ static int
 ppiopen(dev_t dev, int flags, int fmt, struct proc *p)
 {
 	u_int unit = minor(dev);
+	struct ppi_data *ppi = ppidata[unit];
+	int res;
 
 	if (unit >= nppi)
 		return (ENXIO);
 
-	printf("ppi open!\n");
+	if (!(ppi->ppi_flags & HAVE_PPBUS))
+		if ((res = ppb_request_bus(&ppi->ppi_dev, (flags & O_NONBLOCK) ? PPB_DONTWAIT : (PPB_WAIT | PPB_INTR))))
+			return (res);
 
-	return (EOPNOTSUPP);
+	ppi->ppi_flags |= HAVE_PPBUS;
+	return (0);
 }
 
 static int
 ppiclose(dev_t dev, int flags, int fmt, struct proc *p)
 {
-	return (EOPNOTSUPP);
+	u_int unit = minor(dev);
+	struct ppi_data *ppi = ppidata[unit];
+
+	if (ppi->ppi_flags & HAVE_PPBUS)
+		ppb_release_bus(&ppi->ppi_dev);
+	ppi->ppi_flags &= ~HAVE_PPBUS;
+	return (0);
 }
 
 static int
 ppiioctl(dev_t dev, int cmd, caddr_t data, int flags, struct proc *p)
 {
-	return (EOPNOTSUPP);
+	u_int unit = minor(dev);
+	struct ppi_data *ppi = ppidata[unit];
+	int error = 0;
+	u_int8_t *val = (u_int8_t *)data;
+
+	switch (cmd) {
+
+	case PPIGDATA:			/* get data register */
+		*val = ppb_rdtr(&ppi->ppi_dev);
+		break;
+	case PPIGSTATUS:		/* get status bits */
+		*val = ppb_rstr(&ppi->ppi_dev);
+		break;
+	case PPIGCTRL:			/* get control bits */
+		*val = ppb_rctr(&ppi->ppi_dev);
+		break;
+	case PPIGEPP:			/* get EPP bits */
+		*val = ppb_repp(&ppi->ppi_dev);
+		break;
+	case PPIGECR:			/* get ECP bits */
+		*val = ppb_recr(&ppi->ppi_dev);
+		break;
+	case PPIGFIFO:			/* read FIFO */
+		*val = ppb_rfifo(&ppi->ppi_dev);
+		break;
+
+	case PPISDATA:			/* set data register */
+		ppb_wdtr(&ppi->ppi_dev, *val);
+		break;
+	case PPISSTATUS:		/* set status bits */
+		ppb_wstr(&ppi->ppi_dev, *val);
+		break;
+	case PPISCTRL:			/* set control bits */
+		ppb_wctr(&ppi->ppi_dev, *val);
+		break;
+	case PPISEPP:			/* set EPP bits */
+		ppb_wepp(&ppi->ppi_dev, *val);
+		break;
+	case PPISECR:			/* set ECP bits */
+		ppb_wecr(&ppi->ppi_dev, *val);
+		break;
+	case PPISFIFO:			/* write FIFO */
+		ppb_wfifo(&ppi->ppi_dev, *val);
+		break;
+	
+	default:
+		error = ENOTTY;
+		break;
+	}
+    
+	return (error);
 }
 
 #ifdef PPI_MODULE
