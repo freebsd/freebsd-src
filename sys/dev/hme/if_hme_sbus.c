@@ -308,6 +308,7 @@ hme_sbus_detach(device_t dev)
 
 	bus_teardown_intr(dev, hsc->hsc_ires, hsc->hsc_ih);
 	hme_detach(sc);
+	bus_release_resource(dev, SYS_RES_IRQ, hsc->hsc_irid, hsc->hsc_ires);
 	if (hsc->hsc_mif_res != NULL) {
 		bus_release_resource(dev, SYS_RES_MEMORY, hsc->hsc_mif_rid,
 		    hsc->hsc_mif_res);
