@@ -6,7 +6,7 @@
 
 <!-- Version of the OS we're describing.  This needs to be updated
      with each new release. -->
-<!ENTITY release.current "5.0-CURRENT">
+<!ENTITY release.current "5.0-RC">
 
 <!-- The previous version used for comparison in the "What's New"
      section.  For -CURRENT, we might point back to the last
@@ -16,7 +16,7 @@
 <!-- The previous stable release, useful for pointing user's at the
      release they SHOULD be running if they don't want the bleeding
      edge. -->
-<!ENTITY release.prev.stable "4.5-RELEASE">
+<!ENTITY release.prev.stable "4.7-RELEASE">
 
 <!-- The previous historical release.  Used only to tell what was
      the cutoff point for "historic" release notes. -->
