@@ -3,4 +3,10 @@
 PROG=	sysctl
 MAN8=	sysctl.8
 
+BINDIR=	/sbin
+NOSHARED?=	yes
+
+LINKS=	${BINDIR}/sysctl /usr/sbin/sysctl
+LN_FLAGS= -s
+
 .include <bsd.prog.mk>
