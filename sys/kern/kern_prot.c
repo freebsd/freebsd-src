@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)kern_prot.c	8.6 (Berkeley) 1/21/94
- * $Id: kern_prot.c,v 1.6 1995/04/23 08:30:44 bde Exp $
+ * $Id: kern_prot.c,v 1.7 1995/04/23 12:20:48 ache Exp $
  */
 
 /*
@@ -397,19 +397,29 @@ setreuid(p, uap, retval)
 {
 	register struct pcred *pc = p->p_cred;
 	struct seteuid_args args;
+	int rerr, eerr;
 
-	/*
-	 * we assume that the intent of setting ruid is to be able to get
-	 * back ruid priviledge. So we make sure that we will be able to
-	 * do so, but do not actually set the ruid.
-	 */
 	if (uap->ruid != (uid_t)-1 && uap->ruid != pc->p_ruid &&
-	    uap->ruid != pc->p_svuid)
-		return (EPERM);
-	if (uap->euid == (uid_t)-1)
-		return (0);
-	args.euid = uap->euid;
-	return (seteuid(p, &args, retval));
+	    uap->ruid != pc->p_svuid &&
+	    (rerr = suser(pc->pc_ucred, &p->p_acflag)))
+		;
+	else
+		rerr = 0;
+	if (uap->euid != (uid_t)-1 && pc->pc_ucred->cr_uid != uap->euid) {
+		args.euid = uap->euid;
+		eerr = seteuid(p, &args, retval);
+		if (!eerr && pc->pc_ucred->cr_uid != pc->p_ruid)
+			pc->p_svuid = pc->pc_ucred->cr_uid;
+	} else
+		eerr = 0;
+	if (!rerr && uap->ruid != (uid_t)-1 && uap->ruid != pc->p_ruid) {
+		(void)chgproccnt(pc->p_ruid, -1);
+		(void)chgproccnt(uap->ruid, 1);
+		pc->p_ruid = uap->ruid;
+		pc->p_svuid = pc->pc_ucred->cr_uid;
+		p->p_flag |= P_SUGID;
+	}
+	return (rerr ? rerr : eerr);
 }
 
 struct setregid_args {
@@ -425,19 +435,27 @@ setregid(p, uap, retval)
 {
 	register struct pcred *pc = p->p_cred;
 	struct setegid_args args;
+	int rerr, eerr;
 
-	/*
-	 * we assume that the intent of setting rgid is to be able to get
-	 * back rgid priviledge. So we make sure that we will be able to
-	 * do so, but do not actually set the rgid.
-	 */
 	if (uap->rgid != (gid_t)-1 && uap->rgid != pc->p_rgid &&
-	    uap->rgid != pc->p_svgid)
-		return (EPERM);
-	if (uap->egid == (gid_t)-1)
-		return (0);
-	args.egid = uap->egid;
-	return (setegid(p, &args, retval));
+	    uap->rgid != pc->p_svgid &&
+	    (rerr = suser(pc->pc_ucred, &p->p_acflag)))
+		;
+	else
+		rerr = 0;
+	if (uap->egid != (gid_t)-1 && pc->pc_ucred->cr_groups[0] != uap->egid) {
+		args.egid = uap->egid;
+		eerr = setegid(p, &args, retval);
+		if (!eerr && pc->pc_ucred->cr_groups[0] != pc->p_rgid)
+			pc->p_svgid = pc->pc_ucred->cr_groups[0];
+	} else
+		eerr = 0;
+	if (!rerr && uap->rgid != (gid_t)-1 && uap->rgid != pc->p_rgid) {
+		pc->p_rgid = uap->rgid;
+		pc->p_svgid = pc->pc_ucred->cr_groups[0];
+		p->p_flag |= P_SUGID;
+	}
+	return (rerr ? rerr : eerr);
 }
 
 /*
