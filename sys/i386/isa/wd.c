@@ -37,7 +37,7 @@ static int wdtest = 0;
  * SUCH DAMAGE.
  *
  *	from: @(#)wd.c	7.2 (Berkeley) 5/9/91
- *	$Id: wd.c,v 1.42 1994/08/13 03:50:18 wollman Exp $
+ *	$Id: wd.c,v 1.43 1994/08/23 07:52:26 paul Exp $
  */
 
 /* TODO:
@@ -98,7 +98,7 @@ static int wdtest = 0;
 #define wdunit(dev)	((minor(dev) & 0x38) >> 3)
 #define wdpart(dev)	(minor(dev) & 0x7)
 #define makewddev(maj, unit, part)	(makedev(maj,((unit<<3)+part)))
-#define WDRAW	3		/* 'd' partition isn't a partition! */
+#define WDRAW   2               /* 'c' partition isn't a partition! */
 
 /* Cylinder number for doing IO to.  Shares an entry in the buf struct. */
 #define b_cylin	b_resid
