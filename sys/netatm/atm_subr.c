@@ -384,7 +384,7 @@ atm_stack_enq(cmd, func, token, cvp, arg1, arg2)
 	/*
 	 * Get a new queue entry for this call
 	 */
-	sqp = uma_zalloc(atm_stackq_zone, M_ZERO);
+	sqp = uma_zalloc(atm_stackq_zone, M_NOWAIT | M_ZERO);
 	if (sqp == NULL) {
 		(void) splx(s);
 		return (ENOMEM);
