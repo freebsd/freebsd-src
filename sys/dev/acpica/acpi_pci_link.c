@@ -191,8 +191,8 @@ acpi_pci_link_entry_dump(struct acpi_prt_entry *entry)
 static ACPI_STATUS
 acpi_pci_link_get_object_status(ACPI_HANDLE handle, UINT32 *sta)
 {
-	ACPI_DEVICE_INFO	devinfo;
-	ACPI_BUFFER		buf = {sizeof(devinfo), &devinfo};
+	ACPI_DEVICE_INFO	*devinfo;
+	ACPI_BUFFER		buf;
 	ACPI_STATUS		error;
 
 	ACPI_FUNCTION_TRACE((char *)(uintptr_t)__func__);
@@ -203,6 +203,8 @@ acpi_pci_link_get_object_status(ACPI_HANDLE handle, UINT32 *sta)
 		return_ACPI_STATUS (AE_BAD_PARAMETER);
 	}
 
+	buf.Pointer = NULL;
+	buf.Length = ACPI_ALLOCATE_BUFFER;
 	error = AcpiGetObjectInfo(handle, &buf);
 	if (ACPI_FAILURE(error)) {
 		ACPI_DEBUG_PRINT((ACPI_DB_ERROR,
@@ -210,22 +212,25 @@ acpi_pci_link_get_object_status(ACPI_HANDLE handle, UINT32 *sta)
 		    acpi_name(handle), AcpiFormatException(error)));
 		return_ACPI_STATUS (error);
 	}
+	devinfo = (ACPI_DEVICE_INFO *)buf.Pointer;
 
-	if ((devinfo.Valid & ACPI_VALID_HID) == 0 ||
-	    strcmp(devinfo.HardwareId.Value, "PNP0C0F") != 0) {
+	if ((devinfo->Valid & ACPI_VALID_HID) == 0 ||
+	    strcmp(devinfo->HardwareId.Value, "PNP0C0F") != 0) {
 		ACPI_DEBUG_PRINT((ACPI_DB_ERROR, "invalid hardware ID - %s\n",
 		    acpi_name(handle)));
+		AcpiOsFree(buf.Pointer);
 		return_ACPI_STATUS (AE_TYPE);
 	}
 
-	if ((devinfo.Valid & ACPI_VALID_STA) != 0) {
-		*sta = devinfo.CurrentStatus;
+	if ((devinfo->Valid & ACPI_VALID_STA) != 0) {
+		*sta = devinfo->CurrentStatus;
 	} else {
 		ACPI_DEBUG_PRINT((ACPI_DB_WARN, "invalid status - %s\n",
 		    acpi_name(handle)));
 		*sta = 0;
 	}
 
+	AcpiOsFree(buf.Pointer);
 	return_ACPI_STATUS (AE_OK);
 }
 

@@ -113,10 +113,9 @@ acpi_pcib_route_interrupt(device_t pcib, device_t dev, int pin,
 {
     ACPI_PCI_ROUTING_TABLE	*prt;
     ACPI_HANDLE			lnkdev;
-    ACPI_BUFFER			crsbuf, prsbuf;
+    ACPI_BUFFER			crsbuf, prsbuf, buf;
     ACPI_RESOURCE		*crsres, *prsres, resbuf;
-    ACPI_DEVICE_INFO		devinfo;
-    ACPI_BUFFER			buf = {sizeof(devinfo), &devinfo};
+    ACPI_DEVICE_INFO		*devinfo;
     ACPI_STATUS			status;
     UINT32			NumberOfInterrupts;
     UINT32			*Interrupts;
@@ -126,6 +125,7 @@ acpi_pcib_route_interrupt(device_t pcib, device_t dev, int pin,
 
     ACPI_FUNCTION_TRACE((char *)(uintptr_t)__func__);
     
+    buf.Pointer = NULL;
     crsbuf.Pointer = NULL;
     prsbuf.Pointer = NULL;
     interrupt = 255;
@@ -187,17 +187,23 @@ acpi_pcib_route_interrupt(device_t pcib, device_t dev, int pin,
     /*
      * Verify that this is a PCI link device, and that it's present.
      */
+    buf.Length = ACPI_ALLOCATE_BUFFER;
     if (ACPI_FAILURE(AcpiGetObjectInfo(lnkdev, &buf))) {
 	device_printf(pcib, "couldn't validate PCI interrupt link device %s\n",
 	    prt->Source);
 	goto out;
     }
-    if (!(devinfo.Valid & ACPI_VALID_HID) || strcmp("PNP0C0F", devinfo.HardwareId.Value)) {
+    devinfo = (ACPI_DEVICE_INFO *)buf.Pointer;
+    if ((devinfo->Valid & ACPI_VALID_HID) == 0 ||
+	strcmp("PNP0C0F", devinfo->HardwareId.Value) != 0) {
+
 	device_printf(pcib, "PCI interrupt link device %s has wrong _HID (%s)\n",
-		      prt->Source, devinfo.HardwareId.Value);
+		      prt->Source, devinfo->HardwareId.Value);
 	goto out;
     }
-    if (devinfo.Valid & ACPI_VALID_STA && (devinfo.CurrentStatus & 0x9) != 0x9) {
+    if ((devinfo->Valid & ACPI_VALID_STA) != 0 &&
+	(devinfo->CurrentStatus & 0x9) != 0x9) {
+
 	device_printf(pcib, "PCI interrupt link device %s not present\n",
 		      prt->Source);
 	goto out;
@@ -361,6 +367,8 @@ acpi_pcib_route_interrupt(device_t pcib, device_t dev, int pin,
 	AcpiOsFree(crsbuf.Pointer);
     if (prsbuf.Pointer != NULL)
 	AcpiOsFree(prsbuf.Pointer);
+    if (buf.Pointer != NULL)
+	AcpiOsFree(buf.Pointer);
 
     /* XXX APIC_IO interrupt mapping? */
     return_VALUE(interrupt);
