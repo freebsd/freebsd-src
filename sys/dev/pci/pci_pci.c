@@ -286,7 +286,9 @@ pcib_alloc_resource(device_t dev, device_t child, int type, int *rid,
 			      " (decoding 0x%x-0x%x)\n",
 			      device_get_name(child), device_get_unit(child), start, end,
 			      sc->iobase, sc->iolimit);
+#ifndef PCI_ALLOW_UNSUPPORTED_IO_RANGE
 		return(NULL);
+#endif
 	    }
 	    if (bootverbose)
 		device_printf(sc->dev, "device %s%d requested decoded I/O range 0x%lx-0x%lx\n",
@@ -306,7 +308,9 @@ pcib_alloc_resource(device_t dev, device_t child, int type, int *rid,
 			      " (decoding 0x%x-0x%x, 0x%x-0x%x)\n",
 			      device_get_name(child), device_get_unit(child), start, end,
 			      sc->membase, sc->memlimit, sc->pmembase, sc->pmemlimit);
+#ifndef PCI_ALLOW_UNSUPPORTED_IO_RANGE
 		return(NULL);
+#endif
 	    }
 	    if (bootverbose)
 		device_printf(sc->dev, "device %s%d requested decoded memory range 0x%lx-0x%lx\n",
