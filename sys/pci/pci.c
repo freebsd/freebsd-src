@@ -1,6 +1,6 @@
 /**************************************************************************
 **
-**  $Id: pci.c,v 1.23.4.4 1995/10/09 06:35:59 davidg Exp $
+**  $Id: pci.c,v 1.23.4.5 1996/01/19 19:21:03 se Exp $
 **
 **  General subroutines for the PCI bus.
 **  pci_configure ()
@@ -36,7 +36,7 @@
 ***************************************************************************
 */
 
-#include <pci.h>
+#include "pci.h"
 #if NPCI > 0
 
 /*========================================================
@@ -121,8 +121,11 @@ not_supported (pcici_t tag, u_long type);
 static void
 pci_bus_config (void);
 
-static void
+static int
 pci_bridge_config (void);
+
+static int
+pci_mfdev (int bus, int device);
 
 /*========================================================
 **
@@ -155,59 +158,39 @@ static	struct pcicb	pcibus0 = {
     0, 0, 0, 0,
     0, 0, 0, 0, 0, 0, 0, 0,	/* real allocation */
     0, 0xFFFF,			/* iobase/limit */
-    0x4000000, 0xFFFFFFFFu,	/* nonprefetch membase/limit */
-    0x4000000, 0xFFFFFFFFu	/* prefetch membase/limit */
+    0x2000000, 0xFFFFFFFFu,	/* nonprefetch membase/limit */
+    0x2000000, 0xFFFFFFFFu	/* prefetch membase/limit */
 };
 static	struct pcicb   *pcicb;
 
-/*========================================================
+/*-----------------------------------------------------------------
 **
-**	pci_configure ()
+**	The following functions are provided for the device driver
+**	to read/write the configuration space.
 **
-**      Autoconfiguration of pci devices.
+**	pci_conf_read():
+**		Read a long word from the pci configuration space.
+**		Requires a tag (from pcitag) and the register
+**		number (should be a long word alligned one).
 **
-**      May be called more than once.
-**      Any device is attached only once.
+**	pci_conf_write():
+**		Writes a long word to the pci configuration space.
+**		Requires a tag (from pcitag), the register number
+**		(should be a long word alligned one), and a value.
 **
-**      Has to take care of mirrored devices, which are
-**      entailed by incomplete decoding of pci address lines.
-**
-**========================================================
+**-----------------------------------------------------------------
 */
 
-void pci_configure()
+u_long
+pci_conf_read  (pcici_t tag, u_long reg)
 {
-	struct pcibus **pbp = (struct pcibus**) pcibus_set.ls_items;
+    return (pcibus->pb_read (tag, reg));
+}
 
-	/*
-	**	check pci bus present
-	*/
-
-	while (!pci_maxdevice && (pcibus = *pbp++)) {
-		(*pcibus->pb_setup)();
-	}
-
-	if (!pci_maxdevice) return;
-
-	/*
-	**	hello world ..
-	*/
-
-	for (pcicb = &pcibus0; pcicb != NULL;) {
-		pci_bus_config ();
-
-		if (pcicb->pcicb_down) {
-			pcicb = pcicb->pcicb_down;
-			continue;
-		};
-
-		while (pcicb && !pcicb->pcicb_next)
-			pcicb = pcicb->pcicb_up;
-
-		if (pcicb)
-			pcicb = pcicb->pcicb_next;
-	}
-	pci_conf_count++;
+void
+pci_conf_write (pcici_t tag, u_long reg, u_long data)
+{
+    pcibus->pb_write (tag, reg, data);
 }
 
 /*========================================================
@@ -336,6 +319,70 @@ done:
 
 /*========================================================
 **
+**	pci_bridge_config()
+**
+**	Configuration of a pci bridge.
+**
+**========================================================
+*/
+
+static int
+pci_bridge_config (void)
+{
+	pcici_t tag;
+	struct pcicb* parent;
+
+	tag = pcicb->pcicb_bridge;
+	if (tag.tag) {
+
+	    if (!pcicb->pcicb_bus) {
+		u_int data;
+		/*
+		**	Get the lowest available bus number.
+		*/
+		pcicb->pcicb_bus = ++pcibus0.pcicb_subordinate;
+
+		/*
+		**	and configure the bridge
+		*/
+		data = pci_conf_read (tag, PCI_PCI_BRIDGE_BUS_REG);
+		data = PCI_PRIMARY_BUS_INSERT(data, pcicb->pcicb_up->pcicb_bus);
+		data = PCI_SECONDARY_BUS_INSERT(data, pcicb->pcicb_bus);
+		data = PCI_SUBORDINATE_BUS_INSERT(data, pcicb->pcicb_bus);
+		pci_conf_write (tag, PCI_PCI_BRIDGE_BUS_REG, data);
+
+		/*
+		**	Propagate the new upper bus number limit.
+		*/
+		for (parent = pcicb->pcicb_up; parent != NULL;
+			parent = parent->pcicb_up)
+		{
+			if (parent->pcicb_subordinate >= pcicb->pcicb_bus)
+				continue;
+			parent->pcicb_subordinate = pcicb->pcicb_bus;
+			if (!parent->pcicb_bridge.tag)
+				continue;
+			data = pci_conf_read
+				(parent->pcicb_bridge, PCI_PCI_BRIDGE_BUS_REG);
+			data = PCI_SUBORDINATE_BUS_INSERT
+				(data, pcicb->pcicb_bus);
+			pci_conf_write (parent->pcicb_bridge,
+				PCI_PCI_BRIDGE_BUS_REG, data);
+		}
+	    }
+
+	    if (!pcicb->pcicb_membase) {
+		u_int size = 0x100000;
+		pcicb->pcicb_membase = pci_memalloc (pcicb->pcicb_up, 0, size);
+		if (pcicb->pcicb_membase)
+			pcicb->pcicb_memlimit = pcicb->pcicb_membase+size-1;
+	    }
+	}
+	return pcicb->pcicb_bus;
+}
+
+/*========================================================
+**
 **	pci_bus_config()
 **
 **	Autoconfiguration of one pci bus.
@@ -343,28 +390,69 @@ done:
 **========================================================
 */
 
+static int
+pci_mfdev (int bus, int device)
+{
+    pcici_t tag0,tag1;
+    int	pci_id0, pci_id1;
+
+    /*
+    ** Detect a multi-function device that complies to the PCI 2.0 spec
+    */
+    tag0 = pcibus->pb_tag  (bus, device, 0);
+    if (pci_conf_read (tag0, PCI_HEADER_MISC) & PCI_HEADER_MULTIFUNCTION)
+	return 1;
+
+    /*
+    ** Well, as always: Theory and implementation of PCI ...
+    **
+    ** If there is a valid device ID returned for function 1 AND
+    **		the device ID of function 0 and 1 is different OR
+    **		the first mapping register of 0 and 1 differs,
+    ** then assume a multi-function device anyway ...
+    **
+    ** Example of such a broken device: ISA and IDE chip i83371FB (Triton)
+    */
+    tag1 = pcibus->pb_tag  (bus, device, 1);
+    pci_id1 = pci_conf_read (tag1, PCI_ID_REG);
+
+    if (pci_id1 != 0xffffffff) {
+
+	pci_id0 = pci_conf_read (tag0, PCI_ID_REG);
+
+	if (pci_id0 != pci_id1)
+	    return 1;
+
+	if (pci_conf_read (tag0, PCI_MAP_REG_START) 
+			!= pci_conf_read (tag1, PCI_MAP_REG_START))
+	    return 1;
+    }
+    return 0;
+}
+
 static void
 pci_bus_config (void)
 {
+	int	bus_no;
 	u_char  device;
 	u_char	reg;
 	pcici_t tag, mtag;
 	pcidi_t type;
 	u_long  data;
 	int     unit;
-	int     pciint;
-	int     irq;
+	u_char	pciint;
+	u_char	irq;
 
-	struct pci_device *dvp;
+	struct	pci_device *dvp;
 
-	struct pci_devconf *pdcp;
+	struct	pci_devconf *pdcp;
 
 	/*
 	**	first initialize the bridge (bus controller chip)
 	*/
-	pci_bridge_config ();
+	bus_no = pci_bridge_config ();
 
-	printf ("Probing for devices on PCI bus %d:\n", pcicb->pcicb_bus);
+	printf ("Probing for devices on PCI bus %d:\n", bus_no);
 #ifndef PCI_QUIET
 	if (bootverbose && !pci_info_done) {
 		pci_info_done=1;
@@ -373,14 +461,16 @@ pci_bus_config (void)
 	};
 #endif
 	for (device=0; device<pci_maxdevice; device ++) {
-		char *name = NULL;
-		struct pci_device **dvpp;
+	    char *name = NULL;
+	    struct pci_device **dvpp;
+	    int func, maxfunc = 0;
 
-		if ((pcicb->pcicb_seen >> device) & 1)
-			continue;
+	    if ((pcicb->pcicb_seen >> device) & 1)
+	    	continue;
 
-		tag  = pcibus->pb_tag  (pcicb->pcicb_bus, device, 0);
-		type = pcibus->pb_read (tag, PCI_ID_REG);
+	    for (func=0; func <= maxfunc; func++) {
+		tag  = pcibus->pb_tag  (bus_no, device, func);
+		type = pci_conf_read (tag, PCI_ID_REG);
 
 		if ((!type) || (type==0xfffffffful)) continue;
 
@@ -399,37 +489,61 @@ pci_bus_config (void)
 		/*
 		**	check for mirrored devices.
 		*/
+		if (func != 0) {
+			goto real_device;
+		}
 		if (device & 0x10) {
-			mtag=pcibus->pb_tag (pcicb->pcicb_bus,
+			mtag=pcibus->pb_tag (bus_no,
 				(u_char)(device & ~0x10), 0);
 		} else if (device & 0x08) {
-			mtag=pcibus->pb_tag (pcicb->pcicb_bus,
+			mtag=pcibus->pb_tag (bus_no,
 				(u_char)(device & ~0x08), 0);
 		} else goto real_device;
 
-		if (type!=pcibus->pb_read (mtag, PCI_ID_REG))
+		if (type!=pci_conf_read (mtag, PCI_ID_REG))
 			goto real_device;
 
 		for (reg=PCI_MAP_REG_START;reg<PCI_MAP_REG_END;reg+=4)
-			if (pcibus->pb_read(tag,reg)!=pcibus->pb_read(mtag,reg))
+			if (pci_conf_read(tag,reg)!=pci_conf_read(mtag,reg))
 				goto real_device;
 
 #ifndef PCI_QUIET
 		if (dvp==NULL) continue;
 		if (bootverbose)
 			printf ("%s? <%s> mirrored on pci%d:%d\n",
-				dvp->pd_name, name, pcicb->pcicb_bus, device);
+				dvp->pd_name, name, bus_no, device);
 #endif
 		continue;
 
 	real_device:
 
+#ifndef PCI_QUIET
+#ifdef PCI_BRIDGE_DEBUG
+		if (bootverbose) {
+		    printf ("\tconfig header: 0x%08x 0x%08x 0x%08x 0x%08x\n",
+			    pci_conf_read (tag, 0),
+			    pci_conf_read (tag, 4),
+			    pci_conf_read (tag, 8),
+			    pci_conf_read (tag, 12));
+		}
+#endif
+#endif
+
+		if (func == 0 && pci_mfdev (bus_no, device)) {
+			maxfunc = 7;
+		}
+
 		if (dvp==NULL) {
 #ifndef PCI_QUIET
 			if (pci_conf_count)
 				continue;
-			printf("%s%d:%d: ", pcibus->pb_name,
-				pcicb->pcicb_bus, device);
+
+			if (maxfunc == 0)
+				printf("%s%d:%d:    ", 
+				       pcibus->pb_name, bus_no, device);
+			else
+				printf("%s%d:%d:%d: ", 
+				       pcibus->pb_name, bus_no, device, func);
 			not_supported (tag, type);
 #endif
 			continue;
@@ -461,7 +575,7 @@ pci_bus_config (void)
 		**	from the pci configuration space.
 		*/
 
-		data = pcibus->pb_read (tag, PCI_INTERRUPT_REG);
+		data = pci_conf_read (tag, PCI_INTERRUPT_REG);
 		pciint = PCI_INTERRUPT_PIN_EXTRACT(data);
 
 		if (pciint) {
@@ -475,13 +589,16 @@ pci_bus_config (void)
 			**	and we cannot bind the pci interrupt.
 			*/
 
-			if (irq)
+			if (irq && (irq != 0xff))
 				printf ("%d", irq);
 			else
 				printf ("??");
 		};
 
-		printf (" on pci%d:%d\n", pcicb->pcicb_bus, device);
+		if (maxfunc == 0)
+			printf (" on pci%d:%d\n", bus_no, device);
+		else
+			printf (" on pci%d:%d:%d\n", bus_no, device, func);
 
 		/*
 		**	Read the current mapping,
@@ -497,13 +614,13 @@ pci_bus_config (void)
 				continue;
 			};
 
-			map = pcibus->pb_read (tag, reg);
+			map = pci_conf_read (tag, reg);
 			if (!(map & PCI_MAP_MEMORY_ADDRESS_MASK))
 				continue;
 
-			pcibus->pb_write (tag, reg, 0xffffffff);
-			data = pcibus->pb_read (tag, reg);
-			pcibus->pb_write (tag, reg, map);
+			pci_conf_write (tag, reg, 0xffffffff);
+			data = pci_conf_read (tag, reg);
+			pci_conf_write (tag, reg, map);
 
 			switch (data & 7) {
 
@@ -511,8 +628,9 @@ pci_bus_config (void)
 				continue;
 			case 1:
 			case 5:
-				size = -(data & PCI_MAP_IO_ADDRESS_MASK);
 				addr = map & PCI_MAP_IO_ADDRESS_MASK;
+				size = -(data & PCI_MAP_IO_ADDRESS_MASK);
+				size &= ~(addr ^ -addr);
 
 				pci_register_io (pcicb, addr, addr+size-1);
 				pcicb->pcicb_pamount += size;
@@ -548,8 +666,9 @@ pci_bus_config (void)
 			malloc (sizeof (struct pci_devconf),M_DEVBUF,M_WAITOK);
 		bzero(pdcp, sizeof(struct pci_devconf));
 
-		pdcp -> pdc_pi.pi_bus    = pcicb->pcicb_bus;
+		pdcp -> pdc_pi.pi_bus    = bus_no;
 		pdcp -> pdc_pi.pi_device = device;
+		pdcp -> pdc_pi.pi_func   = func;
 
 		pdcp -> pdc_kdc.kdc_name = dvp->pd_name;
 		pdcp -> pdc_kdc.kdc_unit = unit;
@@ -612,14 +731,15 @@ pci_bus_config (void)
 			/*
 			**	check for uninitialized bridge.
 			*/
-			if (secondary == 0 || secondary < primary ||
-				pcicb->pcicb_bus != primary)
+			if (!(primary < secondary 
+			      && secondary <= subordinate
+			      && bus_no == primary))
 			{
 				printf ("\tINCORRECTLY or NEVER CONFIGURED.\n");
 				/*
 				**	disable this bridge
 				*/
-				pcibus->pb_write (tag, PCI_COMMAND_STATUS_REG,
+				pci_conf_write (tag, PCI_COMMAND_STATUS_REG,
 							0xffff0000);
 				secondary   = 0;
 				subordinate = 0;
@@ -629,7 +749,8 @@ pci_bus_config (void)
 			**  allocate bus descriptor for bus behind the bridge
 			*/
 			link = &pcicb->pcicb_down;
-			while (*link) link = &(*link)->pcicb_next;
+			while (*link && (*link)->pcicb_bus < secondary)
+				link = &(*link)->pcicb_next;
 
 			this = malloc (sizeof (*this), M_DEVBUF, M_WAITOK);
 
@@ -639,6 +760,7 @@ pci_bus_config (void)
 			**	scanning the bus behind the bridge.
 			*/
 			bzero (this, sizeof(*this));
+			this->pcicb_next        = *link;
 			this->pcicb_up		= pcicb;
 			this->pcicb_bridge      = tag;
 			this->pcicb_bus 	= secondary;
@@ -750,23 +872,24 @@ pci_bus_config (void)
 
 			break;
 		}
+	    }
 	}
 
 #ifndef PCI_QUIET
 	if (bootverbose) {
 	    if (pcicb->pcicb_mamount)
 		printf ("%s%d: uses %d bytes of memory from %x upto %x.\n",
-			pcibus->pb_name, pcicb->pcicb_bus,
+			pcibus->pb_name, bus_no,
 			pcicb->pcicb_mamount,
 			pcicb->pcicb_mfrom, pcicb->pcicb_mupto);
 	    if (pcicb->pcicb_pamount)
 		printf ("%s%d: uses %d bytes of I/O space from %x upto %x.\n",
-			pcibus->pb_name, pcicb->pcicb_bus,
+			pcibus->pb_name, bus_no,
 			pcicb->pcicb_pamount,
 			pcicb->pcicb_pfrom, pcicb->pcicb_pupto);
 	    if (pcicb->pcicb_bfrom)
 		printf ("%s%d: subordinate busses from %x upto %x.\n",
-			pcibus->pb_name, pcicb->pcicb_bus,
+			pcibus->pb_name, bus_no,
 			pcicb->pcicb_bfrom, pcicb->pcicb_bupto);
 	}
 #endif
@@ -774,94 +897,52 @@ pci_bus_config (void)
 
 /*========================================================
 **
-**	pci_bridge_config()
+**	pci_configure ()
 **
-**	Configuration of a pci bridge.
+**      Autoconfiguration of pci devices.
+**
+**      May be called more than once.
+**      Any device is attached only once.
+**
+**      Has to take care of mirrored devices, which are
+**      entailed by incomplete decoding of pci address lines.
 **
 **========================================================
 */
 
-static void
-pci_bridge_config (void)
+void pci_configure()
 {
-	pcici_t tag;
-	struct pcicb* parent;
+	struct pcibus **pbp = (struct pcibus**) pcibus_set.ls_items;
 
-	tag = pcicb->pcicb_bridge;
-	if (!tag.tag) return;
+	/*
+	**	check pci bus present
+	*/
 
-	if (!pcicb->pcicb_bus) {
-		u_int data;
-		/*
-		**	Get the lowest available bus number.
-		*/
-		pcicb->pcicb_bus = ++pcibus0.pcicb_subordinate;
-
-		/*
-		**	and configure the bridge
-		*/
-		data = pci_conf_read (tag, PCI_PCI_BRIDGE_BUS_REG);
-		data = PCI_PRIMARY_BUS_INSERT(data, pcicb->pcicb_up->pcicb_bus);
-		data = PCI_SECONDARY_BUS_INSERT(data, pcicb->pcicb_bus);
-		data = PCI_SUBORDINATE_BUS_INSERT(data, pcicb->pcicb_bus);
-		pci_conf_write (tag, PCI_PCI_BRIDGE_BUS_REG, data);
-
-		/*
-		**	Propagate the new upper bus number limit.
-		*/
-		for (parent = pcicb->pcicb_up; parent != NULL;
-			parent = parent->pcicb_up)
-		{
-			if (parent->pcicb_subordinate >= pcicb->pcicb_bus)
-				continue;
-			parent->pcicb_subordinate = pcicb->pcicb_bus;
-			if (!parent->pcicb_bridge.tag)
-				continue;
-			data = pci_conf_read
-				(parent->pcicb_bridge, PCI_PCI_BRIDGE_BUS_REG);
-			data = PCI_SUBORDINATE_BUS_INSERT
-				(data, pcicb->pcicb_bus);
-			pci_conf_write (parent->pcicb_bridge,
-				PCI_PCI_BRIDGE_BUS_REG, data);
-		}
+	while (!pci_maxdevice && (pcibus = *pbp++)) {
+		(*pcibus->pb_setup)();
 	}
 
-	if (!pcicb->pcicb_membase) {
-		u_int size = 0x100000;
-		pcicb->pcicb_membase = pci_memalloc (pcicb->pcicb_up, 0, size);
-		if (pcicb->pcicb_membase)
-			pcicb->pcicb_memlimit = pcicb->pcicb_membase+size-1;
+	if (!pci_maxdevice) return;
+
+	/*
+	**	hello world ..
+	*/
+
+	for (pcicb = &pcibus0; pcicb != NULL;) {
+		pci_bus_config ();
+
+		if (pcicb->pcicb_down) {
+			pcicb = pcicb->pcicb_down;
+			continue;
+		};
+
+		while (pcicb && !pcicb->pcicb_next)
+			pcicb = pcicb->pcicb_up;
+
+		if (pcicb)
+			pcicb = pcicb->pcicb_next;
 	}
-}
-
-/*-----------------------------------------------------------------
-**
-**	The following functions are provided for the device driver
-**	to read/write the configuration space.
-**
-**	pci_conf_read():
-**		Read a long word from the pci configuration space.
-**		Requires a tag (from pcitag) and the register
-**		number (should be a long word alligned one).
-**
-**	pci_conf_write():
-**		Writes a long word to the pci configuration space.
-**		Requires a tag (from pcitag), the register number
-**		(should be a long word alligned one), and a value.
-**
-**-----------------------------------------------------------------
-*/
-
-u_long
-pci_conf_read  (pcici_t tag, u_long reg)
-{
-	return (pcibus->pb_read (tag, reg));
-}
-
-void
-pci_conf_write (pcici_t tag, u_long reg, u_long data)
-{
-	pcibus->pb_write (tag, reg, data);
+	pci_conf_count++;
 }
 
 /*-----------------------------------------------------------------------
@@ -905,15 +986,15 @@ int pci_map_port (pcici_t tag, u_long reg, u_short* pa)
 	**	n-2 bits are hardwired as 0.
 	*/
 
-	ioaddr = pcibus->pb_read (tag, reg) & PCI_MAP_IO_ADDRESS_MASK;
-	if (!ioaddr || ioaddr > 0xfffful) {
+	ioaddr = pci_conf_read (tag, reg) & PCI_MAP_IO_ADDRESS_MASK;
+	if (!ioaddr) {
 		printf ("pci_map_port failed: not configured by bios.\n");
 		return (0);
 	};
 
-	pcibus->pb_write (tag, reg, 0xfffffffful);
-	data = pcibus->pb_read (tag, reg);
-	pcibus->pb_write (tag, reg, ioaddr);
+	pci_conf_write (tag, reg, 0xfffffffful);
+	data = pci_conf_read (tag, reg);
+	pci_conf_write (tag, reg, ioaddr);
 
 	if ((data & 0x03) != PCI_MAP_IO) {
 		printf ("pci_map_port failed: bad port type=0x%x\n",
@@ -921,8 +1002,9 @@ int pci_map_port (pcici_t tag, u_long reg, u_short* pa)
 		return (0);
 	};
 	iosize = -(data &  PCI_MAP_IO_ADDRESS_MASK);
+	iosize &= ~(ioaddr ^ -ioaddr);
 	if (ioaddr < pcicb->pcicb_iobase
-		|| ioaddr + iosize > pcicb->pcicb_iolimit) {
+		|| ioaddr + iosize -1 > pcicb->pcicb_iolimit) {
 		printf ("pci_map_port failed: device's iorange 0x%x-0x%x "
 			"is incompatible with its bridge's range 0x%x-0x%x\n",
 			(unsigned) ioaddr, (unsigned) ioaddr + iosize - 1,
@@ -944,9 +1026,9 @@ int pci_map_port (pcici_t tag, u_long reg, u_short* pa)
 	*/
 
 	for (;;) {
-		data =	pcibus->pb_read (tag, PCI_COMMAND_STATUS_REG) & 0xffff;
+		data =	pci_conf_read (tag, PCI_COMMAND_STATUS_REG) & 0xffff;
 		data |= PCI_COMMAND_IO_ENABLE | PCI_COMMAND_MASTER_ENABLE;
-		(void)	pcibus->pb_write(tag, PCI_COMMAND_STATUS_REG, data);
+		(void)	pci_conf_write(tag, PCI_COMMAND_STATUS_REG, data);
 		if ((link = link->pcicb_up) == NULL)
 			break;
 		tag = link->pcicb_bridge;
@@ -994,10 +1076,10 @@ int pci_map_mem (pcici_t tag, u_long reg, vm_offset_t* va, vm_offset_t* pa)
 	**	n-4 bits are read as 0.
 	*/
 
-	paddr = pcibus->pb_read (tag, reg) & PCI_MAP_MEMORY_ADDRESS_MASK;
-	pcibus->pb_write (tag, reg, 0xfffffffful);
-	data = pcibus->pb_read (tag, reg);
-	pcibus->pb_write (tag, reg, paddr);
+	paddr = pci_conf_read (tag, reg) & PCI_MAP_MEMORY_ADDRESS_MASK;
+	pci_conf_write (tag, reg, 0xfffffffful);
+	data = pci_conf_read (tag, reg);
+	pci_conf_write (tag, reg, paddr);
 
 	/*
 	**	check the type
@@ -1038,7 +1120,7 @@ int pci_map_mem (pcici_t tag, u_long reg, vm_offset_t* va, vm_offset_t* pa)
  * an der CPU-PCI-Bridge haengen (Siehe Compaq Prolinea Problem) ???
  */
 	}
-	pcibus->pb_write (tag, reg, paddr);
+	pci_conf_write (tag, reg, paddr);
 
 	/*
 	**	Truncate paddr to page boundary.
@@ -1069,9 +1151,9 @@ int pci_map_mem (pcici_t tag, u_long reg, vm_offset_t* va, vm_offset_t* pa)
 	*/
 
 	for (;;) {
-		data =  pcibus->pb_read (tag, PCI_COMMAND_STATUS_REG) & 0xffff;
+		data =  pci_conf_read (tag, PCI_COMMAND_STATUS_REG) & 0xffff;
 		data |= PCI_COMMAND_MEM_ENABLE | PCI_COMMAND_MASTER_ENABLE;
-		(void)  pcibus->pb_write(tag, PCI_COMMAND_STATUS_REG, data);
+		(void)  pci_conf_write(tag, PCI_COMMAND_STATUS_REG, data);
 		if ((link = link->pcicb_up) == NULL)
 			break;
 		tag = link->pcicb_bridge;
@@ -1102,12 +1184,12 @@ pci_externalize (struct proc *p, struct kern_devconf *kdcp, void *u, size_t l)
 		return ENOMEM;
 	};
 
-	tag = pcibus->pb_tag (pip->pi_bus, pip->pi_device, 0);
+	tag = pcibus->pb_tag (pip->pi_bus, pip->pi_device, pip->pi_func);
 
 	buffer.peb_pci_info	= *pip;
 
 	for (i=0; i<PCI_EXT_CONF_LEN; i++) {
-		buffer.peb_config[i] = pcibus->pb_read (tag, i*4);
+		buffer.peb_config[i] = pci_conf_read (tag, i*4);
 	};
 
 	return copyout(&buffer, u, sizeof buffer);
@@ -1200,7 +1282,7 @@ getirq (pcici_t tag)
 	u_int irq;
 
 	irq = PCI_INTERRUPT_LINE_EXTRACT(
-		pcibus->pb_read (tag, PCI_INTERRUPT_REG));
+		pci_conf_read (tag, PCI_INTERRUPT_REG));
 
 	if (irq <= 0) {
 		printf ("\tint line register not set by bios\n");
@@ -1508,7 +1590,7 @@ static struct vt VendorTable[] = {
 };
 
 typedef struct {
-	const char 	subclass;
+	const int	subclass;
 	const char	*name;
 } subclass_name;
 
@@ -1604,9 +1686,13 @@ static const char *const majclasses[] = {
 
 void not_supported (pcici_t tag, u_long type)
 {
-	u_char	reg;
+	u_long	reg;
 	u_long	data;
+	u_char	class;
+	u_char	subclass;
 	struct vt * vp;
+	int	pciint;
+	int	irq;
 
 	/*
 	**	lookup the names.
@@ -1625,47 +1711,86 @@ void not_supported (pcici_t tag, u_long type)
 
 	printf (", device=0x%04lx", type >> 16);
 
-	data = (pcibus->pb_read(tag, PCI_CLASS_REG) >> 24) & 0xff;
-	if (data < sizeof(majclasses) / sizeof(majclasses[0]))
-		printf(", class=%s", majclasses[data]);
-	if (data < sizeof(subclasses) / sizeof(subclasses[0])) {
-		const subclass_name *p = subclasses[data];
+	data = pci_conf_read(tag, PCI_CLASS_REG);
+	class = (data >> 24) & 0xff;
+	subclass = (data >> 16) & 0xff;
 
-		data = (pcibus->pb_read(tag, PCI_CLASS_REG) >> 16) & 0xff;
-		while (p->name && (p->subclass != data)) 
+	if (class < sizeof(majclasses) / sizeof(majclasses[0])) {
+		printf(", class=%s", majclasses[class]);
+	} else {
+		printf(", class=0x%02x", class);
+	}
+
+	if (class < sizeof(subclasses) / sizeof(subclasses[0])) {
+		const subclass_name *p = subclasses[class];
+		while (p->name && (p->subclass != subclass)) 
 			p++;
 		if (p->name) {
 			printf(" (%s)", p->name);
 		} else {
-			printf(" (unknown subclass 0x%02lx)", data);
+			printf(" (unknown subclass 0x%02lx)", subclass);
 		}
+	} else {
+		printf(", subclass=0x%02x", subclass);
 	}
 
-	printf (" [no driver assigned]\n");
+	data = pci_conf_read (tag, PCI_INTERRUPT_REG);
+	pciint = PCI_INTERRUPT_PIN_EXTRACT(data);
+
+	if (pciint) {
+
+		printf (" int %c irq ", 0x60+pciint);
+
+		irq = PCI_INTERRUPT_LINE_EXTRACT(data);
+
+		/*
+		**	If it's zero, the isa irq number is unknown,
+		**	and we cannot bind the pci interrupt.
+		*/
+
+		if (irq && (irq != 0xff))
+			printf ("%d", irq);
+		else
+			printf ("??");
+	};
+
+	if (class != (PCI_CLASS_BRIDGE >> 24))
+	    printf (" [no driver assigned]");
+	printf ("\n");
 
 	if (bootverbose) {
-	    for (reg=PCI_MAP_REG_START; reg<PCI_MAP_REG_END; reg+=4) {
-		data = pcibus->pb_read (tag, reg);
-		if ((data&~7)==0) continue;
-		switch (data&7) {
+	    if (class == (PCI_CLASS_BRIDGE >> 24)) {
+		printf ("configuration space registers:");
+		for (reg = 0; reg < 0x100; reg+=4) {
+		    if ((reg & 0x0f) == 0) printf ("\n%02x:\t", reg);
+		    printf ("%08x ", pci_conf_read (tag, reg));
+		}
+		printf ("\n");
+	    } else {
+		for (reg=PCI_MAP_REG_START; reg<PCI_MAP_REG_END; reg+=4) {
+		    data = pci_conf_read (tag, reg);
+		    if ((data&~7)==0) continue;
+		    switch (data&7) {
 
 		case 1:
 		case 5:
-			printf ("	map(%x): io(%lx)\n",
+			printf ("\tmap(%x): io(%04lx)\n",
 				reg, data & ~3);
 			break;
 		case 0:
-			printf ("	map(%x): mem32(%lx)\n",
+			printf ("\tmap(%x): mem32(%08lx)\n",
 				reg, data & ~7);
 			break;
 		case 2:
-			printf ("	map(%x): mem20(%lx)\n",
+			printf ("\tmap(%x): mem20(%05lx)\n",
 				reg, data & ~7);
 			break;
 		case 4:
-			printf ("	map(%x): mem64(%lx)\n",
-				reg, data & ~7);
+			printf ("\tmap(%x): mem64(%08x%08lx)\n",
+				reg, pci_conf_read (tag, reg +4), data & ~7);
+			reg += 4;
 			break;
+		    }
 		}
 	    }
 	}

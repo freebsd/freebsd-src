@@ -1,6 +1,6 @@
 /**************************************************************************
 **
-**  $Id: pcibus.c,v 1.8.4.4 1995/10/20 22:12:53 davidg Exp $
+**  $Id: pcibus.c,v 1.8.4.5 1995/11/03 08:07:20 davidg Exp $
 **
 **  pci bus subroutines for i386 architecture.
 **
@@ -168,7 +168,7 @@ pcibus_check (void)
 		if (bootverbose) 
 			printf ("%d ", device);
 		id = pcibus_read (pcibus_tag (0,device,0), 0);
-		if (id != 0xfffffffful) {
+		if (id && id != 0xfffffffful) {
 			if (bootverbose) printf ("is there (id=%08lx)\n", id);
 			return 1;
 		}
