@@ -618,7 +618,7 @@ USB_MATCH(aue)
 	USB_MATCH_START(aue, uaa);
 	struct aue_type			*t;
 
-	if (uaa->iface == NULL)
+	if (uaa->iface != NULL)
 		return (UMATCH_NONE);
 
 	t = aue_devs;
@@ -643,6 +643,8 @@ USB_ATTACH(aue)
 	char			devinfo[1024];
 	u_char			eaddr[ETHER_ADDR_LEN];
 	struct ifnet		*ifp;
+	usbd_interface_handle	iface;
+	usbd_status		err;
 	usb_interface_descriptor_t	*id;
 	usb_endpoint_descriptor_t	*ed;
 	int			i;
@@ -652,7 +654,6 @@ USB_ATTACH(aue)
 
 	usbd_devinfo(uaa->device, 0, devinfo);
 
-	sc->aue_iface = uaa->iface;
 	sc->aue_udev = uaa->device;
 	sc->aue_unit = device_get_unit(self);
 
@@ -661,6 +662,15 @@ USB_ATTACH(aue)
 		    sc->aue_unit);
 		USB_ATTACH_ERROR_RETURN;
 	}
+
+	err = usbd_device2interface_handle(uaa->device, AUE_IFACE_IDX, &iface);
+	if (err) {
+		printf("aue%d: getting interface handle failed\n",
+		    sc->aue_unit);
+		USB_ATTACH_ERROR_RETURN;
+	}
+
+	sc->aue_iface = iface;
 
 	t = aue_devs;
 	while(t->aue_vid) {
@@ -680,7 +690,7 @@ USB_ATTACH(aue)
 
 	/* Find endpoints. */
 	for (i = 0; i < id->bNumEndpoints; i++) {
-		ed = usbd_interface2endpoint_descriptor(uaa->iface, i);
+		ed = usbd_interface2endpoint_descriptor(iface, i);
 		if (ed == NULL) {
 			printf("aue%d: couldn't get ep %d\n",
 			    sc->aue_unit, i);
