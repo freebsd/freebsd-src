@@ -6,12 +6,13 @@ use and modify. Please send modifications and/or suggestions + bug fixes to
         Klas Heggemann <klas@nada.kth.se>
 
 
-	$Id: main.c,v 1.1.1.1 1995/02/26 23:40:52 wpaul Exp $
+	$Id: main.c,v 1.2 1995/05/30 03:46:28 rgrimes Exp $
 
 */
 
-#include <syslog.h>
 #include <stdio.h>
+#include <string.h>
+#include <syslog.h>
 #include <sys/ioctl.h>
 #include <rpc/rpc.h>
 #include "bootparam_prot.h"
@@ -38,8 +39,7 @@ int argc;
 char **argv;
 {
 	SVCXPRT *transp;
-	int i,s, pid;
-	char  *rindex();
+	int i;
 	struct hostent *he;
 	struct stat buf;
 	char *optstring;
@@ -82,7 +82,7 @@ char **argv;
 	    break;
 	  default:
 	    fprintf(stderr,
-		    "Usage: %s [-d ] [ -s ] [ -r router ] [ -f bootparmsfile ]\n");
+		    "Usage: %s [-d ] [ -s ] [ -r router ] [ -f bootparmsfile ]\n", progname);
 	    exit(1);
 	  }
 
@@ -99,22 +99,9 @@ char **argv;
 	}
 
 	if (!debug) {
-	  pid = fork();
-	  if ( pid < 0) {
+	  if (daemon(0,0)) {
 	    perror("bootparamd: fork");
 	    exit(1);
-	  }
-	  if (pid) exit(0); /* parent */
-
-	  /* child */
-	  for ( s = 0; s < 20 ; s++) close(s);
-	  open("/", 0);
-	  dup2(0, 1);
-	  dup2(0, 2);
-	  s = open("/dev/tty",2);
-	  if ( s >= 0 ) {
-	    ioctl(s, TIOCNOTTY, 0);
-	    close(s);
 	  }
 	}
 
