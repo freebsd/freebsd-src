@@ -47,8 +47,9 @@ __FBSDID("$FreeBSD$");
 #include <sys/kthread.h>
 #include <sys/lock.h>
 #include <sys/mutex.h>
-#include <sys/sx.h>
 #include <sys/sbuf.h>
+#include <sys/sched.h>
+#include <sys/sx.h>
 #include <geom/geom.h>
 #include <geom/geom_int.h>
 
@@ -87,7 +88,9 @@ g_up_procbody(void)
 	struct thread *tp = FIRST_THREAD_IN_PROC(p);
 
 	mtx_assert(&Giant, MA_NOTOWNED);
-	tp->td_base_pri = PRIBIO;
+	mtx_lock_spin(&sched_lock);
+	sched_prio(tp, PRIBIO);
+	mtx_unlock_spin(&sched_lock);
 	for(;;) {
 		g_io_schedule_up(tp);
 	}
@@ -108,7 +111,9 @@ g_down_procbody(void)
 	struct thread *tp = FIRST_THREAD_IN_PROC(p);
 
 	mtx_assert(&Giant, MA_NOTOWNED);
-	tp->td_base_pri = PRIBIO;
+	mtx_lock_spin(&sched_lock);
+	sched_prio(tp, PRIBIO);
+	mtx_unlock_spin(&sched_lock);
 	for(;;) {
 		g_io_schedule_down(tp);
 	}
@@ -129,7 +134,9 @@ g_event_procbody(void)
 	struct thread *tp = FIRST_THREAD_IN_PROC(p);
 
 	mtx_assert(&Giant, MA_NOTOWNED);
-	tp->td_base_pri = PRIBIO;
+	mtx_lock_spin(&sched_lock);
+	sched_prio(tp, PRIBIO);
+	mtx_unlock_spin(&sched_lock);
 	for(;;) {
 		g_run_events();
 		tsleep(&g_wait_event, PRIBIO, "-", hz/10);
