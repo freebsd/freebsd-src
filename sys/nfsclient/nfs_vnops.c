@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)nfs_vnops.c	8.16 (Berkeley) 5/27/95
- * $Id: nfs_vnops.c,v 1.44 1997/03/22 06:53:12 bde Exp $
+ * $Id: nfs_vnops.c,v 1.45 1997/03/29 12:40:20 bde Exp $
  */
 
 
@@ -1603,7 +1603,7 @@ nfs_rename(ap)
 	 */
 	if (tvp && tvp->v_usecount > 1 && !VTONFS(tvp)->n_sillyrename &&
 		tvp->v_type != VDIR && !nfs_sillyrename(tdvp, tvp, tcnp)) {
-		vrele(tvp);
+		vput(tvp);
 		tvp = NULL;
 	}
 
