@@ -4,7 +4,8 @@
 
 # Sometimes this is .include'd several times...
 .if !defined(GCCDIR)
-GCCDIR=		${.CURDIR}/../../../../contrib/gcc
+#GCCDIR=		${.CURDIR}/../../../../contrib/gcc
+GCCDIR=		/usr/src/contrib/gcc
 
 .if ${MACHINE_ARCH} == "mipsel" || ${MACHINE_ARCH} == "mipseb"
 GCC_ARCH=mips
@@ -49,13 +50,13 @@ CFLAGS+=	-I${.CURDIR}/../cc_tools
 CFLAGS+=	-I${GCCDIR} -I${GCCDIR}/config
 
 .if exists(${.OBJDIR}/../cc_int)
-LIBDESTDIR=	${.OBJDIR}/../cc_int
-LIBCC_DRV=	${.OBJDIR}/../cc_drv/libcc_drv.a
+LIBDESTDIR=	${.OBJDIR}/..
 .else
-LIBDESTDIR=	${.CURDIR}/../cc_int
-LIBCC_DRV=	${.CURDIR}/../cc_drv/libcc_drv.a
+LIBDESTDIR=	${.CURDIR}/..
 .endif
 
-LIBCC_INT=	${LIBDESTDIR}/libcc_int.a
+LIBCC_INT=	${LIBDESTDIR}/cc_int/libcc_int.a
+LIBCC_DRV=	${LIBDESTDIR}/cc_drv/libcc_drv.a
+LIBCC_FBSD=	${LIBDESTDIR}/cc_fbsd/libcc_fbsd.a
 
 .endif # !GCCDIR
