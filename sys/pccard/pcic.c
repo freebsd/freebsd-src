@@ -358,7 +358,7 @@ build_freelist(u_int pcic_mask)
 	freemask = 0; 
  
 	/* Walk through all of the IRQ's and find any that aren't allocated. */ 
-	for (irq = 0; irq < ICU_LEN; irq++) { 
+	for (irq = 1; irq < ICU_LEN; irq++) { 
 		/* 
 		 * If the PCIC controller can't generate it, don't
 		 * bother checking to see if it it's free. 
