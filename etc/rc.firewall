@@ -54,12 +54,13 @@ fi
 # If you don't know enough about packet filtering, we suggest that you
 # take time to read this book:
 #
-#	Building Internet Firewalls
+#	Building Internet Firewalls, 2nd Edition
 #	Brent Chapman and Elizabeth Zwicky
 #
 #	O'Reilly & Associates, Inc
-#	ISBN 1-56592-124-0
+#	ISBN 1-56592-871-7
 #	http://www.ora.com/
+#	http://www.oreilly.com/catalog/fire2/
 #
 # For a more advanced treatment of Internet Security read:
 #
@@ -68,8 +69,9 @@ fi
 #	William R. Cheswick, Steven M. Bellowin
 #
 #	Addison-Wesley
-#	ISBN 0-201-6337-4
+#	ISBN 0-201-63357-4
 #	http://www.awl.com/
+#	http://www.awlonline.com/product/0%2C2627%2C0201633574%2C00.html
 #
 
 if [ -n "${1}" ]; then
