@@ -129,6 +129,7 @@ static char *msgpool;		/* MSGMAX byte long msg buffer pool */
 static struct msgmap *msgmaps;	/* MSGSEG msgmap structures */
 static struct msg *msghdrs;	/* MSGTQL msg headers */
 static struct msqid_ds *msqids;	/* MSGMNI msqid_ds struct's */
+static struct mtx msq_mtx;	/* global mutex for message queues. */
 
 static void
 msginit()
@@ -203,6 +204,7 @@ msginit()
 		msqids[i].msg_perm.seq = 0;	/* reset to a known value */
 		msqids[i].msg_perm.mode = 0;
 	}
+	mtx_init(&msq_mtx, "msq", NULL, MTX_DEF);
 }
 
 static int
@@ -230,6 +232,7 @@ msgunload()
 	free(msgmaps, M_MSG);
 	free(msghdrs, M_MSG);
 	free(msqids, M_MSG);
+	mtx_destroy(&msq_mtx);
 	return (0);
 }
 
@@ -295,9 +298,7 @@ msgsys(td, uap)
 		return (ENOSYS);
 	if (uap->which >= sizeof(msgcalls)/sizeof(msgcalls[0]))
 		return (EINVAL);
-	mtx_lock(&Giant);
 	error = (*msgcalls[uap->which])(td, &uap->a2);
-	mtx_unlock(&Giant);
 	return (error);
 }
 
@@ -352,18 +353,20 @@ msgctl(td, uap)
 	if (!jail_sysvipc_allowed && jailed(td->td_ucred))
 		return (ENOSYS);
 
-	mtx_lock(&Giant);
 	msqid = IPCID_TO_IX(msqid);
 
 	if (msqid < 0 || msqid >= msginfo.msgmni) {
 		DPRINTF(("msqid (%d) out of range (0<=msqid<%d)\n", msqid,
 		    msginfo.msgmni));
-		error = EINVAL;
-		goto done2;
+		return (EINVAL);
 	}
+	if (cmd == IPC_SET &&
+	    (error = copyin(user_msqptr, &msqbuf, sizeof(msqbuf))) != 0)
+		return (error);
 
 	msqptr = &msqids[msqid];
 
+	mtx_lock(&msq_mtx);
 	if (msqptr->msg_qbytes == 0) {
 		DPRINTF(("no such msqid\n"));
 		error = EINVAL;
@@ -413,8 +416,6 @@ msgctl(td, uap)
 	case IPC_SET:
 		if ((error = ipcperm(td, &msqptr->msg_perm, IPC_M)))
 			goto done2;
-		if ((error = copyin(user_msqptr, &msqbuf, sizeof(msqbuf))) != 0)
-			goto done2;
 		if (msqbuf.msg_qbytes > msqptr->msg_qbytes) {
 			error = suser(td);
 			if (error)
@@ -443,7 +444,6 @@ msgctl(td, uap)
 			DPRINTF(("requester doesn't have read access\n"));
 			goto done2;
 		}
-		error = copyout(msqptr, user_msqptr, sizeof(struct msqid_ds));
 		break;
 
 	default:
@@ -455,7 +455,9 @@ msgctl(td, uap)
 	if (error == 0)
 		td->td_retval[0] = rval;
 done2:
-	mtx_unlock(&Giant);
+	mtx_unlock(&msq_mtx);
+	if (cmd == IPC_STAT && error == 0)
+		error = copyout(msqptr, user_msqptr, sizeof(struct msqid_ds));
 	return(error);
 }
 
@@ -485,7 +487,7 @@ msgget(td, uap)
 	if (!jail_sysvipc_allowed && jailed(td->td_ucred))
 		return (ENOSYS);
 
-	mtx_lock(&Giant);
+	mtx_lock(&msq_mtx);
 	if (key != IPC_PRIVATE) {
 		for (msqid = 0; msqid < msginfo.msgmni; msqid++) {
 			msqptr = &msqids[msqid];
@@ -557,7 +559,7 @@ found:
 	/* Construct the unique msqid */
 	td->td_retval[0] = IXSEQ_TO_IPCID(msqid, msqptr->msg_perm);
 done2:
-	mtx_unlock(&Giant);
+	mtx_unlock(&msq_mtx);
 	return (error);
 }
 
@@ -592,7 +594,7 @@ msgsnd(td, uap)
 	if (!jail_sysvipc_allowed && jailed(td->td_ucred))
 		return (ENOSYS);
 
-	mtx_lock(&Giant);
+	mtx_lock(&msq_mtx);
 	msqid = IPCID_TO_IX(msqid);
 
 	if (msqid < 0 || msqid >= msginfo.msgmni) {
@@ -674,7 +676,7 @@ msgsnd(td, uap)
 				we_own_it = 1;
 			}
 			DPRINTF(("goodnight\n"));
-			error = tsleep(msqptr, (PZERO - 4) | PCATCH,
+			error = msleep(msqptr, &msq_mtx, (PZERO - 4) | PCATCH,
 			    "msgwait", 0);
 			DPRINTF(("good morning, error=%d\n", error));
 			if (we_own_it)
@@ -759,14 +761,17 @@ msgsnd(td, uap)
 	 * Copy in the message type
 	 */
 
+	mtx_unlock(&msq_mtx);
 	if ((error = copyin(user_msgp, &msghdr->msg_type,
 	    sizeof(msghdr->msg_type))) != 0) {
+		mtx_lock(&msq_mtx);
 		DPRINTF(("error %d copying the message type\n", error));
 		msg_freehdr(msghdr);
 		msqptr->msg_perm.mode &= ~MSG_LOCKED;
 		wakeup(msqptr);
 		goto done2;
 	}
+	mtx_lock(&msq_mtx);
 	user_msgp = (char *)user_msgp + sizeof(msghdr->msg_type);
 
 	/*
@@ -797,8 +802,10 @@ msgsnd(td, uap)
 			panic("next too low #2");
 		if (next >= msginfo.msgseg)
 			panic("next out of range #2");
+		mtx_unlock(&msq_mtx);
 		if ((error = copyin(user_msgp, &msgpool[next * msginfo.msgssz],
 		    tlen)) != 0) {
+			mtx_lock(&msq_mtx);
 			DPRINTF(("error %d copying in message segment\n",
 			    error));
 			msg_freehdr(msghdr);
@@ -806,6 +813,7 @@ msgsnd(td, uap)
 			wakeup(msqptr);
 			goto done2;
 		}
+		mtx_lock(&msq_mtx);
 		msgsz -= tlen;
 		user_msgp = (char *)user_msgp + tlen;
 		next = msgmaps[next].next;
@@ -851,7 +859,7 @@ msgsnd(td, uap)
 	wakeup(msqptr);
 	td->td_retval[0] = 0;
 done2:
-	mtx_unlock(&Giant);
+	mtx_unlock(&msq_mtx);
 	return (error);
 }
 
@@ -890,17 +898,16 @@ msgrcv(td, uap)
 	if (!jail_sysvipc_allowed && jailed(td->td_ucred))
 		return (ENOSYS);
 
-	mtx_lock(&Giant);
 	msqid = IPCID_TO_IX(msqid);
 
 	if (msqid < 0 || msqid >= msginfo.msgmni) {
 		DPRINTF(("msqid (%d) out of range (0<=msqid<%d)\n", msqid,
 		    msginfo.msgmni));
-		error = EINVAL;
-		goto done2;
+		return (EINVAL);
 	}
 
 	msqptr = &msqids[msqid];
+	mtx_lock(&msq_mtx);
 	if (msqptr->msg_qbytes == 0) {
 		DPRINTF(("no such message queue id\n"));
 		error = EINVAL;
@@ -1020,7 +1027,8 @@ msgrcv(td, uap)
 		 */
 
 		DPRINTF(("msgrcv:  goodnight\n"));
-		error = tsleep(msqptr, (PZERO - 4) | PCATCH, "msgwait", 0);
+		error = msleep(msqptr, &msq_mtx, (PZERO - 4) | PCATCH,
+		    "msgwait", 0);
 		DPRINTF(("msgrcv:  good morning (error=%d)\n", error));
 
 		if (error != 0) {
@@ -1067,8 +1075,10 @@ msgrcv(td, uap)
 	 * Return the type to the user.
 	 */
 
+	mtx_unlock(&msq_mtx);
 	error = copyout(&(msghdr->msg_type), user_msgp,
 	    sizeof(msghdr->msg_type));
+	mtx_lock(&msq_mtx);
 	if (error != 0) {
 		DPRINTF(("error (%d) copying out message type\n", error));
 		msg_freehdr(msghdr);
@@ -1093,8 +1103,10 @@ msgrcv(td, uap)
 			panic("next too low #3");
 		if (next >= msginfo.msgseg)
 			panic("next out of range #3");
+		mtx_unlock(&msq_mtx);
 		error = copyout(&msgpool[next * msginfo.msgssz],
 		    user_msgp, tlen);
+		mtx_lock(&msq_mtx);
 		if (error != 0) {
 			DPRINTF(("error (%d) copying out message segment\n",
 			    error));
@@ -1114,7 +1126,7 @@ msgrcv(td, uap)
 	wakeup(msqptr);
 	td->td_retval[0] = msgsz;
 done2:
-	mtx_unlock(&Giant);
+	mtx_unlock(&msq_mtx);
 	return (error);
 }
 
