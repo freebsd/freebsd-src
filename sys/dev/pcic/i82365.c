@@ -1524,6 +1524,14 @@ pcic_detach(device_t dev)
 	ret = bus_generic_detach(dev);
 	if (ret != 0)
 		return (ret);
+	/*
+	 * Normally, one wouldn't delete the children.  However, detach
+	 * merely detaches the children w/o deleting them.  So if
+	 * we were to reattach, we add additional children and wind up
+	 * with duplicates.  So, we remove them here following the
+	 * implicit "if you add it in attach, you should delete it in
+	 * detach" rule that may or may not be documented.
+	 */
 	device_get_children(dev, &kids, &nkids);
 	for (i = 0; i < nkids; i++) {
 		if ((ret = device_delete_child(dev, kids[i])) != 0)
