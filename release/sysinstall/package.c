@@ -181,9 +181,11 @@ package_extract(Device *dev, char *name, Boolean depended)
 	    setenv("BATCH", "t", 1);
 
 	    if (isDebug())
-		i = execl("/usr/sbin/pkg_add", "/usr/sbin/pkg_add", "-v", "-", 0);
+		i = execl("/usr/sbin/pkg_add", "/usr/sbin/pkg_add", "-v", "-",
+		    (char *)0);
 	    else
-		i = execl("/usr/sbin/pkg_add", "/usr/sbin/pkg_add", "-", 0);
+		i = execl("/usr/sbin/pkg_add", "/usr/sbin/pkg_add", "-",
+		    (char *)0);
 	}
 	else {
 	    char buf[BUFSIZ];
