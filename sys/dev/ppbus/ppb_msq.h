@@ -106,53 +106,53 @@
  */
 
 /* register operations */
-#define MS_RSET(reg,assert,clear) { MS_OP_RSET, {{ reg }, { assert }, { clear }}}
-#define MS_RASSERT(reg,byte)	  { MS_OP_RASSERT, { { reg }, { byte }}}
-#define MS_RCLR(reg,clear)	  { MS_OP_RSET, {{ reg }, { MS_ASSERT_NONE }, { clear }}}
+#define MS_RSET(reg,assert,clear) { MS_OP_RSET, {{ (reg) }, { (assert) }, { (clear) }}}
+#define MS_RASSERT(reg,byte)	  { MS_OP_RASSERT, { { (reg) }, { (byte) }}}
+#define MS_RCLR(reg,clear)	  { MS_OP_RSET, {{ (reg) }, { MS_ASSERT_NONE }, { (clear) }}}
 
-#define MS_RFETCH(reg,mask,ptr) { MS_OP_RFETCH, {{ reg }, { mask }, { ptr }}}
+#define MS_RFETCH(reg,mask,ptr) { MS_OP_RFETCH, {{ (reg) }, { (mask) }, { (ptr) }}}
 
 /* trigger the port with array[char, delay,...] */
-#define MS_TRIG(reg,len,array)	{ MS_OP_TRIG, {{ reg }, { len }, { array }}}
+#define MS_TRIG(reg,len,array)	{ MS_OP_TRIG, {{ (reg) }, { (len) }, { (array) }}}
 
 /* assert/fetch from/to ptr */
-#define MS_RASSERT_P(n,reg)	  { MS_OP_RASSERT_P, {{ n }, { reg }}}
-#define MS_RFETCH_P(n,reg,mask)	  { MS_OP_RFETCH_P, {{ n }, { reg }, { mask }}}
+#define MS_RASSERT_P(n,reg)	  { MS_OP_RASSERT_P, {{ (n) }, { (reg) }}}
+#define MS_RFETCH_P(n,reg,mask)	  { MS_OP_RFETCH_P, {{ (n) }, { (reg) }, { (mask) }}}
 
 /* ptr manipulation */
-#define MS_PTR(ptr)	{ MS_OP_PTR, {{ ptr }}}
+#define MS_PTR(ptr)	{ MS_OP_PTR, {{ (ptr) }}}
 
 #define MS_DASS(byte) MS_RASSERT(MS_REG_DTR,byte)
 #define MS_SASS(byte) MS_RASSERT(MS_REG_STR,byte)
 #define MS_CASS(byte) MS_RASSERT(MS_REG_CTR,byte)
 
-#define MS_SET(accum)		{ MS_OP_SET, {{ accum }}}
-#define MS_BRSET(mask,offset)	{ MS_OP_BRSET, {{ mask }, { offset }}}
-#define MS_DBRA(offset)		{ MS_OP_DBRA, {{ offset }}}
-#define MS_BRCLEAR(mask,offset)	{ MS_OP_BRCLEAR, {{ mask }, { offset }}}
+#define MS_SET(accum)		{ MS_OP_SET, {{ (accum) }}}
+#define MS_BRSET(mask,offset)	{ MS_OP_BRSET, {{ (mask) }, { (offset) }}}
+#define MS_DBRA(offset)		{ MS_OP_DBRA, {{ (offset) }}}
+#define MS_BRCLEAR(mask,offset)	{ MS_OP_BRCLEAR, {{ (mask) }, { (offset) }}}
 #define MS_BRSTAT(mask_set,mask_clr,offset) \
-		{ MS_OP_BRSTAT, {{ mask_set }, { mask_clr }, { offset }}}
+		{ MS_OP_BRSTAT, {{ mask_set }, { mask_clr }, { (offset) }}}
 
 /* C function or submicrosequence call */
 #define MS_C_CALL(function,parameter) \
-		{ MS_OP_C_CALL, {{ function }, { parameter }}}
-#define MS_CALL(microseq) { MS_OP_CALL, {{ microseq }}}
+		{ MS_OP_C_CALL, {{ (function) }, { (parameter) }}}
+#define MS_CALL(microseq) { MS_OP_CALL, {{ (microseq) }}}
 
 /* mode dependent read/write operations
  * ppb_MS_xxx_init() call required otherwise default is
  * IEEE1284 operating mode */
-#define MS_PUT(ptr,len) { MS_OP_PUT, {{ ptr }, { len }}}
-#define MS_GET(ptr,len) { MS_OP_GET, {{ ptr }, { len }}}
+#define MS_PUT(ptr,len) { MS_OP_PUT, {{ (ptr) }, { (len) }}}
+#define MS_GET(ptr,len) { MS_OP_GET, {{ (ptr) }, { (len) }}}
 
 /* delay in microseconds */
-#define MS_DELAY(udelay) { MS_OP_DELAY, {{ udelay }}}
+#define MS_DELAY(udelay) { MS_OP_DELAY, {{ (udelay) }}}
 
 /* asynchroneous delay in ms */
-#define MS_ADELAY(mdelay) { MS_OP_ADELAY, {{ mdelay }}}
+#define MS_ADELAY(mdelay) { MS_OP_ADELAY, {{ (mdelay) }}}
 
 /* return from submicrosequence execution or microseqence execution */
-#define MS_SUBRET(code)	{ MS_OP_SUBRET,	{{ code }}}
-#define MS_RET(code)	{ MS_OP_RET, {{ code }}}
+#define MS_SUBRET(code)	{ MS_OP_SUBRET,	{{ (code) }}}
+#define MS_RET(code)	{ MS_OP_RET, {{ (code) }}}
 
 /*
  * Function abstraction level

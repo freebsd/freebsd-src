@@ -127,8 +127,8 @@ struct fatcache {
  * Set a slot in the fat cache.
  */
 #define	fc_setcache(dep, slot, frcn, fsrcn) \
-	(dep)->de_fc[slot].fc_frcn = frcn; \
-	(dep)->de_fc[slot].fc_fsrcn = fsrcn;
+	(dep)->de_fc[(slot)].fc_frcn = (frcn); \
+	(dep)->de_fc[(slot)].fc_fsrcn = (fsrcn);
 
 /*
  * This is the in memory variant of a dos directory entry.  It is usually
