@@ -46,10 +46,7 @@ extern int
   rl_restart_output (), rl_re_read_init_file (), rl_dump_functions (),
   rl_delete_horizontal_space ();
 
-/* #define PAREN_MATCHING */
-#if defined (PAREN_MATCHING)
 extern int rl_insert_close ();
-#endif /* PAREN_MATCHING */
 
 /* These are *both* defined even when VI_MODE is not. */
 extern int rl_vi_editing_mode (), rl_emacs_editing_mode ();
@@ -59,7 +56,6 @@ extern int
   rl_noninc_forward_search (), rl_noninc_reverse_search (),
   rl_noninc_forward_search_again (), rl_noninc_reverse_search_again ();
 
-#if defined (VI_MODE)
 /* Things for vi mode. */
 extern int
   rl_vi_redo (), rl_vi_tilde_expand (),
@@ -75,7 +71,6 @@ extern int
   rl_vi_overstrike_delete (), rl_vi_replace(), rl_vi_column (),
   rl_vi_delete_to (), rl_vi_change_to (), rl_vi_yank_to (),
   rl_vi_complete (), rl_vi_fetch_history ();
-#endif /* VI_MODE */
 
 /* Keyboard macro commands. */
 extern int

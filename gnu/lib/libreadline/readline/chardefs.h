@@ -3,21 +3,10 @@
 #define _CHARDEFS_
 
 #include <ctype.h>
-
-#ifndef HAVE_STRING_H
-#define HAVE_STRING_H
-#endif
-
-#if defined (HAVE_STRING_H)
-#  include <string.h>
-#else
-#  include <strings.h>
-#endif /* HAVE_STRING_H */
+#include <string.h>
 
 #ifndef savestring
-#ifndef STATIC_MALLOC
 extern char *xmalloc ();
-#endif
 #define savestring(x) strcpy (xmalloc (1 + strlen (x)), (x))
 #endif
 
