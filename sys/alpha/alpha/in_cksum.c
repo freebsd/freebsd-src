@@ -69,6 +69,7 @@
 	sum = l_util.s[0] + l_util.s[1];				  \
 	ADDCARRY(sum);							  \
     }
+#define INVERT		sum == 0xffff ? sum : ~sum & 0xffff
 
 static const u_int32_t in_masks[] = {
 	/*0 bytes*/ /*1 byte*/	/*2 bytes*/ /*3 bytes*/
@@ -173,6 +174,27 @@ in_cksumdata(buf, len)
 	return sum;
 }
 
+u_short
+in_addword(u_short a, u_short b)
+{
+	u_int64_t sum = a + b;
+
+	ADDCARRY(sum);
+	return (sum);
+}
+
+u_short
+in_pseudo(u_int32_t a, u_int32_t b, u_int32_t c)
+{
+	u_int64_t sum;
+	union q_util q_util;
+	union l_util l_util;
+		    
+	sum = (u_int64_t) a + b + c;
+	REDUCE16;
+	return (sum);
+}
+
 int
 in_cksum(m, len)
 	register struct mbuf *m;
@@ -202,6 +224,50 @@ in_cksum(m, len)
 	}
 	REDUCE16;
 	return (~sum & 0xffff);
+}
+
+u_short
+in_cksum_skip(m, len, skip)
+	struct mbuf *m;
+	int len;
+	int skip;
+{
+	u_int64_t sum = 0;
+	int mlen = 0;
+	int clen = 0;
+	caddr_t addr;
+	union q_util q_util;
+	union l_util l_util;
+
+        len -= skip;
+        for (; skip && m; m = m->m_next) {
+                if (m->m_len > skip) {
+                        mlen = m->m_len - skip;
+			addr = mtod(m, caddr_t) + skip;
+                        goto skip_start;
+                } else {
+                        skip -= m->m_len;
+                }
+        }
+
+	for (; m && len; m = m->m_next) {
+		if (m->m_len == 0)
+			continue;
+		mlen = m->m_len;
+		addr = mtod(m, caddr_t);
+skip_start:
+		if (len < mlen)
+			mlen = len;
+		if ((clen ^ (long) addr) & 1)
+		    sum += in_cksumdata(addr, mlen) << 8;
+		else
+		    sum += in_cksumdata(addr, mlen);
+
+		clen += mlen;
+		len -= mlen;
+	}
+	REDUCE16;
+	return (INVERT);
 }
 
 u_int in_cksum_hdr(ip)
