@@ -16,7 +16,7 @@ unix		?=	We run FreeBSD, not UNIX.
 .if defined(%POSIX)
 .SUFFIXES:	.o .c .y .l .a .sh .f
 .else
-.SUFFIXES:	.out .a .ln .o .c .cc .cpp .cxx .C .m .F .f .e .r .y .l .S .s .cl .p .h .sh
+.SUFFIXES:	.out .a .ln .o .c .cc .cpp .cxx .C .m .F .f .e .r .y .l .S .s .asm .cl .p .h .sh
 .endif
 
 .LIBS:		.a
@@ -205,6 +205,9 @@ HTAGSFLAGS=
 	${CC} ${CFLAGS} -c ${.IMPSRC}
 
 .s.o:
+	${AS} ${AFLAGS} -o ${.TARGET} ${.IMPSRC}
+
+.asm.o:
 	${AS} ${AFLAGS} -o ${.TARGET} ${.IMPSRC}
 
 # XXX not -j safe
