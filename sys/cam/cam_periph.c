@@ -638,9 +638,6 @@ cam_periph_mapmem(union ccb *ccb, struct cam_periph_map_info *mapinfo)
 		/* set the transfer length, we know it's < DFLTPHYS */
 		mapinfo->bp[i]->b_bufsize = lengths[i];
 
-		/* set the flags */
-		mapinfo->bp[i]->b_flags = B_PHYS;
-
 		/* set the direction */
 		mapinfo->bp[i]->b_iocmd = flags[i];
 
@@ -656,10 +653,8 @@ cam_periph_mapmem(union ccb *ccb, struct cam_periph_map_info *mapinfo)
 			for (j = 0; j < i; ++j) {
 				*data_ptrs[j] = mapinfo->bp[j]->b_saveaddr;
 				vunmapbuf(mapinfo->bp[j]);
-				mapinfo->bp[j]->b_flags &= ~B_PHYS;
 				relpbuf(mapinfo->bp[j], NULL);
 			}
-			mapinfo->bp[i]->b_flags &= ~B_PHYS;
 			relpbuf(mapinfo->bp[i], NULL);
 			PRELE(curproc);
 			return(EACCES);
@@ -719,9 +714,6 @@ cam_periph_unmapmem(union ccb *ccb, struct cam_periph_map_info *mapinfo)
 
 		/* unmap the buffer */
 		vunmapbuf(mapinfo->bp[i]);
-
-		/* clear the flags we set above */
-		mapinfo->bp[i]->b_flags &= ~B_PHYS;
 
 		/* release the buffer */
 		relpbuf(mapinfo->bp[i], NULL);
