@@ -30,7 +30,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: cpufunc.h,v 1.28 1994/11/09 00:51:38 bde Exp $
+ *	$Id: cpufunc.h,v 1.29 1994/11/14 15:04:06 bde Exp $
  */
 
 /*
@@ -425,6 +425,7 @@ int	susword		__P((void *base, int word));
 /*
  * These functions are NOT in support.s and should be declared elsewhere.
  */
+void	Debugger	__P((const char *msg));
 u_long	kvtop		__P((void *addr));
 typedef void alias_for_inthand_t __P((u_int cs, u_int ef, u_int esp,
 				      u_int ss));
