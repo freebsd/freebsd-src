@@ -547,6 +547,7 @@ sv_mix_setrecsrc(struct snd_mixer *m, u_int32_t mask)
 		}
 	}
 	DEB(printf("sv_mix_setrecsrc: mask 0x%08x adc_input 0x%02x\n", mask, v));
+	sv_indirect_set(sc, SV_REG_ADC_INPUT, v);
 	return mask;
 }
 
