@@ -485,8 +485,12 @@
             ..
 	    la_LN.ISO_8859-2
             ..
+	    la_LN.ISO_8859-4
+	    ..
 	    la_LN.DIS_8859-15
             ..
+	    lt_LT.ISO_8859-4
+	    ..
             nl_BE.ISO_8859-1
             ..
             nl_BE.DIS_8859-15
@@ -729,8 +733,12 @@
             ..
 	    la_LN.ISO_8859-2
             ..
+	    la_LN.ISO_8859-4
+	    ..
 	    la_LN.DIS_8859-15
             ..
+	    lt_LT.ISO_8859-4
+	    ..
             nl_BE.ISO_8859-1
             ..
             nl_NL.ISO_8859-1
