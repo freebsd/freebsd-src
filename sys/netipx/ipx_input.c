@@ -33,7 +33,7 @@
  *
  *	@(#)ipx_input.c
  *
- * $Id: ipx_input.c,v 1.5 1995/11/24 11:43:52 bde Exp $
+ * $Id: ipx_input.c,v 1.6 1995/12/16 02:14:33 bde Exp $
  */
 
 #include <sys/param.h>
@@ -47,6 +47,7 @@
 #include <sys/errno.h>
 #include <sys/time.h>
 #include <sys/kernel.h>
+#include <sys/sysctl.h>
 
 #include <net/if.h>
 #include <net/route.h>
@@ -60,29 +61,22 @@
 #include <netipx/ipx_var.h>
 #include <netipx/ipx_error.h>
 
-#ifndef	IPXFORWARDING
-#ifdef GATEWAY
-#define	IPXFORWARDING	1	/* forward IPX packets not for us */
-#else
-#define	IPXFORWARDING	0	/* don't forward IPX packets not for us */
-#endif
-#endif
 #ifndef IPXPRINTFS
 #define IPXPRINTFS	1	/* printing forwarding information */
 #endif
 
-#ifndef IPXCKSUM
-#define IPXCKSUM	0	/* perform IPX checksum */
-#endif
+int ipxcksum = 0;
+SYSCTL_INT(_net_ipx_ipx, OID_AUTO, checksum, CTLFLAG_RW,
+	   &ipxcksum, 0, "");
 
-#ifndef IXDONOSOCKS
-#define IPXDONOSOCKS	0	/* return no socket errors */
-#endif
-
-int ipxcksum = IPXCKSUM;
 int ipxprintfs = IPXPRINTFS;
-int ipxdonosocks = IPXDONOSOCKS;
-int ipxforwarding = IPXFORWARDING;
+int ipxdonosocks = 0;
+SYSCTL_INT(_net_ipx_ipx, OID_AUTO, donosocks, CTLFLAG_RW,
+	   &ipxdonosocks, 0, "");
+
+int ipxforwarding = 0;
+SYSCTL_INT(_net_ipx_ipx, OID_AUTO, ipxforwarding, CTLFLAG_RW,
+	    &ipxforwarding, 0, "");
 
 union ipx_host	ipx_thishost;
 union ipx_net	ipx_zeronet;

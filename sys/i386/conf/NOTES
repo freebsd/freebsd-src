@@ -2,7 +2,7 @@
 # LINT -- config file for checking all the sources, tries to pull in
 #	as much of the source tree as it can.
 #
-#	$Id: LINT,v 1.230 1995/12/29 02:04:20 jkh Exp $
+#	$Id: LINT,v 1.231 1995/12/29 12:51:09 bde Exp $
 #
 # NB: You probably don't want to try running a kernel built from this
 # file.  Instead, you should start from GENERIC, and add options from
@@ -187,11 +187,6 @@ options		HDLC			#X.25 link layer for serial lines
 # 4.2BSD.  This option should not be used unless you have a 4.2BSD
 # machine and TCP connections fail.
 #
-# GATEWAY allows the machine to forward packets, and also configures
-# larger static sizes of a number of system tables.  It is largely
-# replaced by the more dynamic behavior of
-#	sysctl -w net.inet.ip.forwarding=1
-#
 # MROUTING enables the kernel multicast packet forwarder, which works
 # with mrouted(8).
 #
@@ -203,7 +198,6 @@ options		HDLC			#X.25 link layer for serial lines
 # TCPDEBUG is undocumented.
 #
 options		"TCP_COMPAT_42"		#emulate 4.2BSD TCP bugs
-options		GATEWAY			#internetwork gateway
 options		MROUTING		# Multicast routing
 options         IPFIREWALL              #firewall
 options         IPFIREWALL_VERBOSE      #print information about
