@@ -92,8 +92,6 @@ int	pmap_protect_tte(struct pmap *pm1, struct pmap *pm2, struct tte *tp,
 
 void	pmap_map_tsb(void);
 
-void	pmap_remove_all(vm_page_t m);
-
 void	pmap_clear_write(vm_page_t m);
 
 #define	vtophys(va)	pmap_kextract(((vm_offset_t)(va)))

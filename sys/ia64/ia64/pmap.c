@@ -257,7 +257,6 @@ static pv_entry_t get_pv_entry(void);
 static void	ia64_protection_init(void);
 
 static void	pmap_invalidate_all(pmap_t pmap);
-static void	pmap_remove_all(vm_page_t m);
 static void	pmap_enter_quick(pmap_t pmap, vm_offset_t va, vm_page_t m);
 
 vm_offset_t
@@ -1537,7 +1536,7 @@ pmap_remove(pmap_t pmap, vm_offset_t sva, vm_offset_t eva)
  *		pmap_remove (slow...)
  */
 
-static void
+void
 pmap_remove_all(vm_page_t m)
 {
 	pmap_t oldpmap;
