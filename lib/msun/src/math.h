@@ -19,6 +19,7 @@
 
 #include <sys/cdefs.h>
 #include <sys/_types.h>
+#include <machine/_limits.h>
 
 /*
  * ANSI/POSIX
@@ -36,8 +37,8 @@ extern const union __nan_un {
 #define	HUGE_VAL	(__infinity.__ud)
 
 #if __ISO_C_VISIBLE >= 1999
-#define	FP_ILOGB0	(-0x7fffffff - 1)	/* INT_MIN */
-#define	FP_ILOGBNAN	0x7fffffff		/* INT_MAX */
+#define	FP_ILOGB0	(-__INT_MAX)
+#define	FP_ILOGBNAN	__INT_MAX
 #define	HUGE_VALF	(float)HUGE_VAL
 #define	HUGE_VALL	(long double)HUGE_VAL
 #define	INFINITY	HUGE_VALF
