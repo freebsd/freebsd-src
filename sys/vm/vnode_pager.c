@@ -38,7 +38,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)vnode_pager.c	7.5 (Berkeley) 4/20/91
- *	$Id: vnode_pager.c,v 1.46 1995/09/04 04:44:25 dyson Exp $
+ *	$Id: vnode_pager.c,v 1.47 1995/09/06 05:37:41 dyson Exp $
  */
 
 /*
@@ -215,8 +215,13 @@ vnode_pager_haspage(object, offset, before, after)
 		*before += poff;
 	}
 	if (after) {
+		int numafter;
 		*after *= pagesperblock;
-		*after += (pagesperblock - (poff + 1));
+		numafter = pagesperblock - (poff + 1);
+		if (offset + numafter * PAGE_SIZE > object->un_pager.vnp.vnp_size) {
+			numafter = (object->un_pager.vnp.vnp_size - offset)/PAGE_SIZE;
+		}
+		*after += numafter;
 	}
 	return TRUE;
 }
@@ -463,12 +468,13 @@ vnode_pager_input_smlfs(object, m)
 
 			vm_page_set_validclean(m, (i * bsize) & (PAGE_SIZE-1), bsize);
 		} else {
-			vm_page_set_clean(m, (i * bsize) & (PAGE_SIZE-1), bsize);
+			vm_page_set_validclean(m, (i * bsize) & (PAGE_SIZE-1), bsize);
 			bzero((caddr_t) kva + i * bsize, bsize);
 		}
 	}
 	vm_pager_unmap_page(kva);
 	pmap_clear_modify(VM_PAGE_TO_PHYS(m));
+	m->flags &= ~PG_ZERO;
 	if (error) {
 		return VM_PAGER_ERROR;
 	}
@@ -532,6 +538,7 @@ vnode_pager_input_old(object, m)
 	}
 	pmap_clear_modify(VM_PAGE_TO_PHYS(m));
 	m->dirty = 0;
+	m->flags &= ~PG_ZERO;
 	return error ? VM_PAGER_ERROR : VM_PAGER_OK;
 }
 
@@ -747,6 +754,7 @@ vnode_pager_leaf_getpages(object, m, count, reqpage)
 		pmap_clear_modify(VM_PAGE_TO_PHYS(m[i]));
 		m[i]->dirty = 0;
 		m[i]->valid = VM_PAGE_BITS_ALL;
+		m[i]->flags &= ~PG_ZERO;
 		if (i != reqpage) {
 
 			/*
