@@ -12,7 +12,7 @@
  *
  * This software is provided ``AS IS'' without any warranties of any kind.
  *
- *	$Id: ip_fw.c,v 1.73 1998/01/08 23:41:52 eivind Exp $
+ *	$Id: ip_fw.c,v 1.74 1998/02/04 22:33:07 eivind Exp $
  */
 
 /*
@@ -310,16 +310,24 @@ ipfw_report(struct ip_fw *f, struct ip *ip,
 	case IPPROTO_TCP:
 		printf("TCP ");
 		print_ip(ip->ip_src);
-		printf(":%d ", ntohs(tcp->th_sport));
+		if ((ip->ip_off & IP_OFFMASK) == 0)
+			printf(":%d ", ntohs(tcp->th_sport));
+		else
+			printf(" ");
 		print_ip(ip->ip_dst);
-		printf(":%d", ntohs(tcp->th_dport));
+		if ((ip->ip_off & IP_OFFMASK) == 0)
+			printf(":%d", ntohs(tcp->th_dport));
 		break;
 	case IPPROTO_UDP:
 		printf("UDP ");
 		print_ip(ip->ip_src);
-		printf(":%d ", ntohs(udp->uh_sport));
+		if ((ip->ip_off & IP_OFFMASK) == 0)
+			printf(":%d ", ntohs(udp->uh_sport));
+		else
+			printf(" ");
 		print_ip(ip->ip_dst);
-		printf(":%d", ntohs(udp->uh_dport));
+		if ((ip->ip_off & IP_OFFMASK) == 0)
+			printf(":%d", ntohs(udp->uh_dport));
 		break;
 	case IPPROTO_ICMP:
 		printf("ICMP:%u.%u ", icmp->icmp_type, icmp->icmp_code);
