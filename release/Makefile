@@ -1,4 +1,4 @@
-#	$Id: Makefile,v 1.79 1995/01/14 10:28:11 jkh Exp $
+#	$Id: Makefile,v 1.80 1995/01/14 12:44:23 jkh Exp $
 #
 
 FLOPPY=		fd0
@@ -220,12 +220,12 @@ beforetarballs:
 	-cd ${RELEASEDIR} ; \
 	find ${EXTRADISTRIBUTIONS} -depth -type d -print | xargs rmdir
 	mkdir -p ${RELEASEDIR}/secure/usr
+
+	mkdir -p ${RELEASEDIR}/src/usr
+	cd ${RELEASEDIR}/src/usr ; cvs export -r ${RELEASETAG} src
+	cd ${RELEASEDIR}/src/usr/src ; rm -rf secure eBones
 	cd ${RELEASEDIR}/secure/usr ; cvs export -r ${RELEASETAG} ${SECRSRC}
 	( cd ${.CURDIR}/../etc ; ${MAKE} src-tarball )
-
-#	mkdir -p ${RELEASEDIR}/src/usr
-#	cd ${RELEASEDIR}/src/usr ; cvs export -r ${RELEASETAG} src
-#	cd ${RELEASEDIR}/src/usr/src ; rm -rf secure eBones
 
 tarballs:
 	rm -rf ${RELEASEDIR}/tarballs
