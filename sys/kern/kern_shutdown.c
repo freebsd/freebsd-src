@@ -556,7 +556,11 @@ panic(const char *fmt, ...)
 /*
  * Support for poweroff delay.
  */
-static int poweroff_delay = 0;
+#ifndef POWEROFF_DELAY
+# define POWEROFF_DELAY 5000
+#endif
+static int poweroff_delay = POWEROFF_DELAY;
+
 SYSCTL_INT(_kern_shutdown, OID_AUTO, poweroff_delay, CTLFLAG_RW,
 	&poweroff_delay, 0, "");
 
