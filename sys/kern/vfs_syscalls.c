@@ -1524,15 +1524,21 @@ access(p, uap)
 		syscallarg(int) flags;
 	} */ *uap;
 {
-	register struct ucred *cred = p->p_ucred;
+	struct ucred *cred, *tmpcred;
 	register struct vnode *vp;
-	int error, flags, t_gid, t_uid;
+	int error, flags;
 	struct nameidata nd;
 
-	t_uid = cred->cr_uid;
-	t_gid = cred->cr_groups[0];
-	cred->cr_uid = p->p_cred->p_ruid;
-	cred->cr_groups[0] = p->p_cred->p_rgid;
+	cred = p->p_ucred;
+	/*
+	 * Create and modify a temporary credential instead of one that
+	 * is potentially shared.  This could also mess up socket
+	 * buffer accounting which can run in an interrupt context.
+	 */
+	tmpcred = crdup(cred);
+	tmpcred->cr_uid = p->p_cred->p_ruid;
+	tmpcred->cr_groups[0] = p->p_cred->p_rgid;
+	p->p_ucred = tmpcred;
 	NDINIT(&nd, LOOKUP, FOLLOW | LOCKLEAF | NOOBJ, UIO_USERSPACE,
 	    SCARG(uap, path), p);
 	if ((error = namei(&nd)) != 0)
@@ -1554,8 +1560,8 @@ access(p, uap)
 	NDFREE(&nd, NDF_ONLY_PNBUF);
 	vput(vp);
 out1:
-	cred->cr_uid = t_uid;
-	cred->cr_groups[0] = t_gid;
+	p->p_ucred = cred;
+	crfree(tmpcred);
 	return (error);
 }
 
