@@ -36,7 +36,7 @@
 static char sccsid[] = "From: @(#)route.c	8.6 (Berkeley) 4/28/95";
 #endif
 static const char rcsid[] =
-	"$Id: route.c,v 1.29 1998/04/19 18:18:25 phk Exp $";
+	"$Id: route.c,v 1.30 1998/04/22 06:54:31 phk Exp $";
 #endif /* not lint */
 
 #include <sys/param.h>
@@ -573,9 +573,10 @@ routename(in)
 			trimdomain(cp);
 		}
 	}
-	if (cp)
+	if (cp) {
 		strncpy(line, cp, sizeof(line) - 1);
-	else {
+		line[sizeof(line) - 1] = '\0';
+	} else {
 #define C(x)	((x) & 0xff)
 		in = ntohl(in);
 		sprintf(line, "%lu.%lu.%lu.%lu",
@@ -754,14 +755,16 @@ ipx_print(sa)
 	if (port) {
 		if (strcmp(host, "*") == 0)
 			host = "";
-		if (sp)
-			sprintf(cport, "%s%s", *host ? "." : "", sp->s_name);
-		else
-			sprintf(cport, "%s%x", *host ? "." : "", port);
+		if (sp)	
+			snprintf(cport, sizeof(cport),
+				"%s%s", *host ? "." : "", sp->s_name);
+		else	
+			snprintf(cport, sizeof(cport),
+				"%s%x", *host ? "." : "", port);
 	} else
 		*cport = 0;
 
-	sprintf(mybuf,"%s.%s%s", net, host, cport);
+	snprintf(mybuf, sizeof(mybuf), "%s.%s%s", net, host, cport);
 	return(mybuf);
 }
 
