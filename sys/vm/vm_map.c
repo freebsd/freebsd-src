@@ -61,7 +61,7 @@
  * any improvements or extensions that they make and grant Carnegie the
  * rights to redistribute these changes.
  *
- * $Id: vm_map.c,v 1.22.4.2 1996/04/26 04:12:18 davidg Exp $
+ * $Id: vm_map.c,v 1.22.4.3 1996/06/15 12:29:19 davidg Exp $
  */
 
 /*
@@ -381,12 +381,16 @@ vm_map_entry_dispose(map, entry)
 	vm_map_t map;
 	vm_map_entry_t entry;
 {
+	int s;
+
 	if ((kentry_count < KENTRY_LOW_WATER) ||
 	    ((vm_offset_t) entry >= kentry_data && (vm_offset_t) entry < (kentry_data + kentry_data_size)) ||
 	    ((vm_offset_t) entry >= mapvm_start && (vm_offset_t) entry < mapvmmax)) {
+		s = splimp();
 		entry->next = kentry_free;
 		kentry_free = entry;
 		++kentry_count;
+		splx(s);
 		return;
 	} else {
 		if (mappoolcnt < MAPENTRY_LOW_WATER) {
