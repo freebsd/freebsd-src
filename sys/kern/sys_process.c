@@ -53,34 +53,95 @@
 #include <vm/vm_object.h>
 #include <vm/vm_page.h>
 
-#define	PROC_REG_ACTION(name, action, type)				\
-int									\
-proc_##name##_##type##s(struct thread *td, struct type *regs)		\
-{									\
+/*
+ * Functions implemented using PROC_ACTION():
+ *
+ * proc_read_regs(proc, regs)
+ *	Get the current user-visible register set from the process
+ *	and copy it into the regs structure (<machine/reg.h>).
+ *	The process is stopped at the time read_regs is called.
+ *
+ * proc_write_regs(proc, regs)
+ *	Update the current register set from the passed in regs
+ *	structure.  Take care to avoid clobbering special CPU
+ *	registers or privileged bits in the PSL.
+ *	Depending on the architecture this may have fix-up work to do,
+ *	especially if the IAR or PCW are modified.
+ *	The process is stopped at the time write_regs is called.
+ *
+ * proc_read_fpregs, proc_write_fpregs
+ *	deal with the floating point register set, otherwise as above.
+ *
+ * proc_read_dbregs, proc_write_dbregs
+ *	deal with the processor debug register set, otherwise as above.
+ *
+ * proc_sstep(proc)
+ *	Arrange for the process to trap after executing a single instruction.
+ */
+
+#define	PROC_ACTION(action) do {					\
 	int error;							\
 									\
 	mtx_lock_spin(&sched_lock);					\
-	error = (action##_##type##s(td, regs));				\
+	if ((td->td_proc->p_sflag & PS_INMEM) == 0)			\
+		error = EIO;						\
+	else								\
+		error = (action);					\
 	mtx_unlock_spin(&sched_lock);					\
 	return (error);							\
+} while(0)
+	
+int
+proc_read_regs(struct thread *td, struct reg *regs)
+{
+
+	PROC_ACTION(fill_regs(td, regs));
 }
 
-PROC_REG_ACTION(read, fill, reg);
-PROC_REG_ACTION(write, set, reg);
-PROC_REG_ACTION(read, fill, dbreg);
-PROC_REG_ACTION(write, set, dbreg);
-PROC_REG_ACTION(read, fill, fpreg);
-PROC_REG_ACTION(write, set, fpreg);
+int
+proc_write_regs(struct thread *td, struct reg *regs)
+{
+
+	PROC_ACTION(set_regs(td, regs));
+}
+
+int
+proc_read_dbregs(struct thread *td, struct dbreg *dbregs)
+{
+
+	PROC_ACTION(fill_dbregs(td, dbregs));
+}
+
+int
+proc_write_dbregs(struct thread *td, struct dbreg *dbregs)
+{
+
+	PROC_ACTION(set_dbregs(td, dbregs));
+}
+
+/*
+ * Ptrace doesn't support fpregs at all, and there are no security holes
+ * or translations for fpregs, so we can just copy them.
+ */
+int
+proc_read_fpregs(struct thread *td, struct fpreg *fpregs)
+{
+
+	PROC_ACTION(fill_fpregs(td, fpregs));
+}
+
+int
+proc_write_fpregs(struct thread *td, struct fpreg *fpregs)
+{
+
+	PROC_ACTION(set_fpregs(td, fpregs));
+}
 
 int
 proc_sstep(struct thread *td)
 {
-	int error;
 
-	mtx_lock_spin(&sched_lock);
-	error = ptrace_single_step(td);
-	mtx_unlock_spin(&sched_lock);
-	return (error);
+	PROC_ACTION(ptrace_single_step(td));
 }
 
 int
