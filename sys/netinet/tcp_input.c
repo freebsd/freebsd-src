@@ -130,13 +130,13 @@ struct inpcbhead tcb;
 #define	tcb6	tcb  /* for KAME src sync over BSD*'s */
 struct inpcbinfo tcbinfo;
 
-static void	 tcp_dooptions __P((struct tcpopt *, u_char *, int, int));
-static void	 tcp_pulloutofband __P((struct socket *,
-		     struct tcphdr *, struct mbuf *, int));
-static int	 tcp_reass __P((struct tcpcb *, struct tcphdr *, int *,
-				struct mbuf *));
-static void	 tcp_xmit_timer __P((struct tcpcb *, int));
-static int	 tcp_newreno __P((struct tcpcb *, struct tcphdr *));
+static void	 tcp_dooptions(struct tcpopt *, u_char *, int, int);
+static void	 tcp_pulloutofband(struct socket *,
+		     struct tcphdr *, struct mbuf *, int);
+static int	 tcp_reass(struct tcpcb *, struct tcphdr *, int *,
+		     struct mbuf *);
+static void	 tcp_xmit_timer(struct tcpcb *, int);
+static int	 tcp_newreno(struct tcpcb *, struct tcphdr *);
 
 /* Neighbor Discovery, Neighbor Unreachability Detection Upper layer hint. */
 #ifdef INET6
@@ -215,7 +215,7 @@ tcp_reass(tp, th, tlenp, m)
 				tcpstat.tcps_rcvduppack++;
 				tcpstat.tcps_rcvdupbyte += *tlenp;
 				m_freem(m);
-				FREE(te, M_TSEGQ);
+				free(te, M_TSEGQ);
 				/*
 				 * Try to present any queued data
 				 * at the left window edge to the user.
@@ -250,7 +250,7 @@ tcp_reass(tp, th, tlenp, m)
 		nq = LIST_NEXT(q, tqe_q);
 		LIST_REMOVE(q, tqe_q);
 		m_freem(q->tqe_m);
-		FREE(q, M_TSEGQ);
+		free(q, M_TSEGQ);
 		q = nq;
 	}
 
@@ -284,7 +284,7 @@ present:
 			m_freem(q->tqe_m);
 		else
 			sbappend(&so->so_rcv, q->tqe_m);
-		FREE(q, M_TSEGQ);
+		free(q, M_TSEGQ);
 		q = nq;
 	} while (q && q->tqe_th->th_seq == tp->rcv_nxt);
 	ND6_HINT(tp);
@@ -334,7 +334,7 @@ tcp_input(m, off0, proto)
 	register struct tcphdr *th;
 	register struct ip *ip = NULL;
 	register struct ipovly *ipov;
-	register struct inpcb *inp;
+	register struct inpcb *inp = NULL;
 	u_char *optp = NULL;
 	int optlen = 0;
 	int len, tlen, off;
@@ -354,8 +354,14 @@ tcp_input(m, off0, proto)
 	struct ip6_hdr *ip6 = NULL;
 	int isipv6;
 #endif /* INET6 */
+	struct sockaddr_in *next_hop = NULL;
 	int rstreason; /* For badport_bandlim accounting purposes */
 
+	/* Grab info from MT_TAG mbufs prepended to the chain. */
+	for (;m && m->m_type == MT_TAG; m = m->m_next) {
+		if (m->m_tag_id == PACKET_TAG_IPFORWARD)
+			next_hop = (struct sockaddr_in *)m->m_hdr.mh_data;
+	}
 #ifdef INET6
 	isipv6 = (mtod(m, struct ip *)->ip_v == 6) ? 1 : 0;
 #endif
@@ -423,7 +429,7 @@ tcp_input(m, off0, proto)
 		len = sizeof (struct ip) + tlen;
 		bzero(ipov->ih_x1, sizeof(ipov->ih_x1));
 		ipov->ih_len = (u_short)tlen;
-		HTONS(ipov->ih_len);
+		ipov->ih_len = htons(ipov->ih_len);
 		th->th_sum = in_cksum(m, len);
 	}
 	if (th->th_sum) {
@@ -485,10 +491,10 @@ tcp_input(m, off0, proto)
 	/*
 	 * Convert TCP protocol specific fields to host format.
 	 */
-	NTOHL(th->th_seq);
-	NTOHL(th->th_ack);
-	NTOHS(th->th_win);
-	NTOHS(th->th_urp);
+	th->th_seq = ntohl(th->th_seq);
+	th->th_ack = ntohl(th->th_ack);
+	th->th_win = ntohs(th->th_win);
+	th->th_urp = ntohs(th->th_urp);
 
 	/*
 	 * Delay droping TCP, IP headers, IPv6 ext headers, and TCP options,
@@ -506,14 +512,14 @@ tcp_input(m, off0, proto)
 	 * Locate pcb for segment.
 	 */
 findpcb:
-#ifdef IPFIREWALL_FORWARD
-	if (ip_fw_fwd_addr != NULL
+	/* IPFIREWALL_FORWARD section */
+	if (next_hop != NULL
 #ifdef INET6
 	    && isipv6 == NULL /* IPv6 support is not yet */
 #endif /* INET6 */
 	    ) {
 		/*
-		 * Diverted. Pretend to be the destination.
+		 * Transparently forwarded. Pretend to be the destination.
 		 * already got one like this? 
 		 */
 		inp = in_pcblookup_hash(&tcbinfo, ip->ip_src, th->th_sport,
@@ -522,21 +528,19 @@ findpcb:
 			/* 
 			 * No, then it's new. Try find the ambushing socket
 			 */
-			if (!ip_fw_fwd_addr->sin_port) {
+			if (!next_hop->sin_port) {
 				inp = in_pcblookup_hash(&tcbinfo, ip->ip_src,
-				    th->th_sport, ip_fw_fwd_addr->sin_addr,
+				    th->th_sport, next_hop->sin_addr,
 				    th->th_dport, 1, m->m_pkthdr.rcvif);
 			} else {
 				inp = in_pcblookup_hash(&tcbinfo,
 				    ip->ip_src, th->th_sport,
-	    			    ip_fw_fwd_addr->sin_addr,
-				    ntohs(ip_fw_fwd_addr->sin_port), 1,
+	    			    next_hop->sin_addr,
+				    ntohs(next_hop->sin_port), 1,
 				    m->m_pkthdr.rcvif);
 			}
 		}
-		ip_fw_fwd_addr = NULL;
 	} else
-#endif	/* IPFIREWALL_FORWARD */
       {
 #ifdef INET6
 	if (isipv6)
@@ -709,7 +713,7 @@ findpcb:
 				tp = intotcpcb(inp);
 				/*
 				 * This is what would have happened in
-				 * tcp_ouput() when the SYN,ACK was sent.
+				 * tcp_output() when the SYN,ACK was sent.
 				 */
 				tp->snd_up = tp->snd_una;
 				tp->snd_max = tp->snd_nxt = tp->iss + 1;
@@ -2249,7 +2253,7 @@ tcp_dooptions(to, cp, cnt, is_syn)
 			to->to_flags |= TOF_MSS;
 			bcopy((char *)cp + 2,
 			    (char *)&to->to_mss, sizeof(to->to_mss));
-			NTOHS(to->to_mss);
+			to->to_mss = ntohs(to->to_mss);
 			break;
 		case TCPOPT_WINDOW:
 			if (optlen != TCPOLEN_WINDOW)
@@ -2265,10 +2269,10 @@ tcp_dooptions(to, cp, cnt, is_syn)
 			to->to_flags |= TOF_TS;
 			bcopy((char *)cp + 2,
 			    (char *)&to->to_tsval, sizeof(to->to_tsval));
-			NTOHL(to->to_tsval);
+			to->to_tsval = ntohl(to->to_tsval);
 			bcopy((char *)cp + 6,
 			    (char *)&to->to_tsecr, sizeof(to->to_tsecr));
-			NTOHL(to->to_tsecr);
+			to->to_tsecr = ntohl(to->to_tsecr);
 			break;
 		case TCPOPT_CC:
 			if (optlen != TCPOLEN_CC)
@@ -2276,7 +2280,7 @@ tcp_dooptions(to, cp, cnt, is_syn)
 			to->to_flags |= TOF_CC;
 			bcopy((char *)cp + 2,
 			    (char *)&to->to_cc, sizeof(to->to_cc));
-			NTOHL(to->to_cc);
+			to->to_cc = ntohl(to->to_cc);
 			break;
 		case TCPOPT_CCNEW:
 			if (optlen != TCPOLEN_CC)
@@ -2286,7 +2290,7 @@ tcp_dooptions(to, cp, cnt, is_syn)
 			to->to_flags |= TOF_CCNEW;
 			bcopy((char *)cp + 2,
 			    (char *)&to->to_cc, sizeof(to->to_cc));
-			NTOHL(to->to_cc);
+			to->to_cc = ntohl(to->to_cc);
 			break;
 		case TCPOPT_CCECHO:
 			if (optlen != TCPOLEN_CC)
@@ -2296,7 +2300,7 @@ tcp_dooptions(to, cp, cnt, is_syn)
 			to->to_flags |= TOF_CCECHO;
 			bcopy((char *)cp + 2,
 			    (char *)&to->to_ccecho, sizeof(to->to_ccecho));
-			NTOHL(to->to_ccecho);
+			to->to_ccecho = ntohl(to->to_ccecho);
 			break;
 		default:
 			continue;

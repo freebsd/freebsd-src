@@ -33,6 +33,8 @@
 #endif /* INET */
 #endif
 
+#if !(IPFW2)
+
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/malloc.h>
@@ -85,7 +87,6 @@ static int fw_verbose_limit = 0;
  */
 
 static u_int64_t counter;	/* counter for ipfw_report(NULL...) */
-struct ipfw_flow_id last_pkt ;
 
 #define	IPFW_DEFAULT_RULE	((u_int)(u_short)~0)
 
@@ -218,16 +219,13 @@ static __inline int
 				int range_flag, int mask);
 static int	tcpflg_match (struct tcphdr *tcp, struct ip_fw *f);
 static int	icmptype_match (struct icmp *  icmp, struct ip_fw * f);
-static void	ipfw_report (struct ip_fw *f, struct ip *ip, int offset,
+static void	ipfw_report (struct ip_fw *f, struct ip *ip, int ip_off,
 				int ip_len, struct ifnet *rif,
 				struct ifnet *oif);
 
 static void	flush_rule_ptrs(void);
 
-static int	ip_fw_chk (struct ip **pip, int hlen,
-			struct ifnet *oif, u_int16_t *cookie, struct mbuf **m,
-			struct ip_fw **flow_id,
-			struct sockaddr_in **next_hop);
+static ip_fw_chk_t ip_fw_chk;
 static int	ip_fw_ctl (struct sockopt *sopt);
 
 ip_dn_ruledel_t *ip_dn_ruledel_ptr = NULL;
@@ -478,7 +476,7 @@ iface_match(struct ifnet *ifp, union ip_fw_if *ifu, int byname)
 }
 
 static void
-ipfw_report(struct ip_fw *f, struct ip *ip, int offset, int ip_len,
+ipfw_report(struct ip_fw *f, struct ip *ip, int ip_off, int ip_len,
 	struct ifnet *rif, struct ifnet *oif)
 {
     struct tcphdr *const tcp = (struct tcphdr *) ((u_int32_t *) ip+ ip->ip_hl);
@@ -488,6 +486,7 @@ ipfw_report(struct ip_fw *f, struct ip *ip, int offset, int ip_len,
     char *action;
     char action2[32], proto[47], name[18], fragment[27];
     int len;
+    int offset = ip_off & IP_OFFMASK;
 
     count = f ? f->fw_pcnt : ++counter;
     if ((f == NULL && fw_verbose_limit != 0 && count > fw_verbose_limit) ||
@@ -539,7 +538,7 @@ ipfw_report(struct ip_fw *f, struct ip *ip, int offset, int ip_len,
 		    snprintf(SNPARGS(action2, 0), "Queue %d",
 			f->fw_skipto_rule);
 		    break;
-#ifdef IPFIREWALL_FORWARD
+
 	    case IP_FW_F_FWD:
 		    if (f->fw_fwd_ip.sin_port)
 			    snprintf(SNPARGS(action2, 0),
@@ -550,7 +549,7 @@ ipfw_report(struct ip_fw *f, struct ip *ip, int offset, int ip_len,
 			    snprintf(SNPARGS(action2, 0), "Forward to %s",
 				inet_ntoa(f->fw_fwd_ip.sin_addr));
 		    break;
-#endif
+
 	    default:	
 		    action = "UNKNOWN";
 		    break;
@@ -603,11 +602,11 @@ ipfw_report(struct ip_fw *f, struct ip *ip, int offset, int ip_len,
 	    break;
     }
 
-    if (ip->ip_off & (IP_MF | IP_OFFMASK))
+    if (ip_off & (IP_MF | IP_OFFMASK))
 	    snprintf(SNPARGS(fragment, 0), " (frag %d:%d@%d%s)",
 		     ntohs(ip->ip_id), ip_len - (ip->ip_hl << 2),
 		     offset << 3,
-		     (ip->ip_off & IP_MF) ? "+" : "");
+		     (ip_off & IP_MF) ? "+" : "");
     else
 	    fragment[0] = '\0';
     if (oif)
@@ -926,7 +925,7 @@ lookup_dyn_parent(struct ipfw_flow_id *pkt, struct ip_fw *rule)
  * session limitations are enforced.
  */
 static int
-install_state(struct ip_fw *rule)
+install_state(struct ip_fw *rule, struct ip_fw_args *args)
 {
     struct ipfw_dyn_rule *q ;
     static int last_log ;
@@ -935,10 +934,10 @@ install_state(struct ip_fw *rule)
 
     DEB(printf("-- install state type %d 0x%08x %u -> 0x%08x %u\n",
        type,
-       (last_pkt.src_ip), (last_pkt.src_port),
-       (last_pkt.dst_ip), (last_pkt.dst_port) );)
+       (args->f_id.src_ip), (args->f_id.src_port),
+       (args->f_id.dst_ip), (args->f_id.dst_port) );)
 
-    q = lookup_dyn_rule(&last_pkt, NULL) ;
+    q = lookup_dyn_rule(&args->f_id, NULL) ;
     if (q != NULL) { /* should never occur */
 	if (last_log != time_second) {
 	    last_log = time_second ;
@@ -958,7 +957,7 @@ install_state(struct ip_fw *rule)
 
     switch (type) {
     case DYN_KEEP_STATE: /* bidir rule */
-	add_dyn_rule(&last_pkt, DYN_KEEP_STATE, rule);
+	add_dyn_rule(&args->f_id, DYN_KEEP_STATE, rule);
 	break ;
     case DYN_LIMIT: /* limit number of sessions */
 	{
@@ -971,16 +970,16 @@ install_state(struct ip_fw *rule)
 
 	id.dst_ip = id.src_ip = 0;
 	id.dst_port = id.src_port = 0 ;
-	id.proto = last_pkt.proto ;
+	id.proto = args->f_id.proto ;
 
 	if (limit_mask & DYN_SRC_ADDR)
-	    id.src_ip = last_pkt.src_ip;
+	    id.src_ip = args->f_id.src_ip;
 	if (limit_mask & DYN_DST_ADDR)
-	    id.dst_ip = last_pkt.dst_ip;
+	    id.dst_ip = args->f_id.dst_ip;
 	if (limit_mask & DYN_SRC_PORT)
-	    id.src_port = last_pkt.src_port;
+	    id.src_port = args->f_id.src_port;
 	if (limit_mask & DYN_DST_PORT)
-	    id.dst_port = last_pkt.dst_port;
+	    id.dst_port = args->f_id.dst_port;
 	parent = lookup_dyn_parent(&id, rule);
 	if (parent == NULL) {
 	    printf("add parent failed\n");
@@ -993,14 +992,14 @@ install_state(struct ip_fw *rule)
 		return 1;
 	    }
 	}
-	add_dyn_rule(&last_pkt, DYN_LIMIT, (struct ip_fw *)parent);
+	add_dyn_rule(&args->f_id, DYN_LIMIT, (struct ip_fw *)parent);
 	}
 	break ;
     default:
 	printf("unknown dynamic rule type %u\n", type);
 	return 1 ;
     }
-    lookup_dyn_rule(&last_pkt, NULL) ; /* XXX just set the lifetime */
+    lookup_dyn_rule(&args->f_id, NULL) ; /* XXX just set the lifetime */
     return 0;
 }
 
@@ -1030,13 +1029,11 @@ lookup_next_rule(struct ip_fw *me)
 /*
  * Parameters:
  *
- *	pip	Pointer to packet header (struct ip **)
- *	hlen	Packet header length
+ *	*m	The packet; we set to NULL when/if we nuke it.
  *	oif	Outgoing interface, or NULL if packet is incoming
  *	*cookie Skip up to the first rule past this rule number;
  *		upon return, non-zero port number for divert or tee.
  *		Special case: cookie == NULL on input for bridging.
- *	*m	The packet; we set to NULL when/if we nuke it.
  *	*flow_id pointer to the last matching rule (in/out)
  *	*next_hop socket we are forwarding to (in/out).
  *
@@ -1056,34 +1053,46 @@ lookup_next_rule(struct ip_fw *me)
  */
 
 static int 
-ip_fw_chk(struct ip **pip, int hlen,
-	struct ifnet *oif, u_int16_t *cookie, struct mbuf **m,
-	struct ip_fw **flow_id,
-        struct sockaddr_in **next_hop)
+ip_fw_chk(struct ip_fw_args *args)
 {
+	/*
+	 * grab things into variables to minimize diffs.
+	 * XXX this has to be cleaned up later.
+	 */
+	struct mbuf **m = &(args->m);
+	struct ifnet *oif = args->oif;
+	u_int16_t *cookie = &(args->divert_rule);
+	struct ip_fw **flow_id = &(args->rule);
+	struct sockaddr_in **next_hop = &(args->next_hop);
+
 	struct ip_fw *f = NULL;		/* matching rule */
-	struct ip *ip = *pip;
+	struct ip *ip = mtod(*m, struct ip *);
 	struct ifnet *const rif = (*m)->m_pkthdr.rcvif;
 	struct ifnet *tif;
+	u_int hlen = ip->ip_hl << 2;
+	struct ether_header * eh = NULL;
 
-	u_short offset = 0 ;
+	u_short ip_off=0, offset = 0;
+	/* local copy of addresses for faster matching */
 	u_short src_port = 0, dst_port = 0;
-	struct in_addr src_ip, dst_ip; /* XXX */
-	u_int8_t proto= 0, flags = 0 ; /* XXX */
-	u_int16_t skipto, bridgeCookie;
-	u_int16_t ip_len;
+	struct in_addr src_ip, dst_ip;
+	u_int8_t proto= 0, flags = 0;
+	u_int16_t skipto;
+	u_int16_t ip_len=0;
 
 	int dyn_checked = 0 ; /* set after dyn.rules have been checked. */
 	int direction = MATCH_FORWARD ; /* dirty trick... */
 	struct ipfw_dyn_rule *q = NULL ;
 
 	/* Special hack for bridging (as usual) */
-	if (cookie == NULL) {
-		bridgeCookie = 0;
-		cookie = &bridgeCookie;
-#define BRIDGED	(cookie == &bridgeCookie)
+#define BRIDGED		(args->eh != NULL)
+	if (BRIDGED) {	/* this is a bridged packet */
+		eh = args->eh;
+		if ( (*m)->m_pkthdr.len >= sizeof(struct ip) &&
+			    ntohs(eh->ether_type) == ETHERTYPE_IP)
+			hlen = ip->ip_hl << 2;
+	} else
 		hlen = ip->ip_hl << 2;
-	}
 
 	/* Grab and reset cookie */
 	skipto = *cookie;
@@ -1091,27 +1100,27 @@ ip_fw_chk(struct ip **pip, int hlen,
 
 #define PULLUP_TO(len)	do {						\
 			    if ((*m)->m_len < (len)) {			\
-				ip = NULL ;				\
 				if ((*m = m_pullup(*m, (len))) == 0)	\
 				    goto bogusfrag;			\
 				ip = mtod(*m, struct ip *);		\
-				*pip = ip;				\
 			    }						\
 			} while (0)
 
+    if (hlen > 0) { /* this is an IP packet */
 	/*
 	 * Collect parameters into local variables for faster matching.
 	 */
 	proto = ip->ip_p;
 	src_ip = ip->ip_src;
 	dst_ip = ip->ip_dst;
-	if (0 && BRIDGED) { /* not yet... */
-	    offset = (ntohs(ip->ip_off) & IP_OFFMASK);
+	if (BRIDGED) { /* bridged packets are as on the wire */
+	    ip_off = ntohs(ip->ip_off);
 	    ip_len = ntohs(ip->ip_len);
 	} else {
-	    offset = (ip->ip_off & IP_OFFMASK);
+	    ip_off = ip->ip_off;
 	    ip_len = ip->ip_len;
 	}
+	offset = ip_off & IP_OFFMASK;
 	if (offset == 0) {
 	    switch (proto) {
 	    case IPPROTO_TCP : {
@@ -1145,13 +1154,14 @@ ip_fw_chk(struct ip **pip, int hlen,
 		break;
 	    }
 	}
+    }
 #undef PULLUP_TO
-	last_pkt.src_ip = ntohl(src_ip.s_addr);
-	last_pkt.dst_ip = ntohl(dst_ip.s_addr);
-	last_pkt.proto = proto;
-	last_pkt.src_port = ntohs(src_port);
-	last_pkt.dst_port = ntohs(dst_port);
-	last_pkt.flags = flags;
+	args->f_id.src_ip = ntohl(src_ip.s_addr);
+	args->f_id.dst_ip = ntohl(dst_ip.s_addr);
+	args->f_id.proto = proto;
+	args->f_id.src_port = ntohs(src_port);
+	args->f_id.dst_port = ntohs(dst_port);
+	args->f_id.flags = flags;
 
 	if (*flow_id) {
 	    /*
@@ -1194,7 +1204,7 @@ again:
 		if (f->fw_flg & (IP_FW_F_KEEP_S|IP_FW_F_CHECK_S) &&
 			 dyn_checked == 0 ) {
 		    dyn_checked = 1 ;
-		    q = lookup_dyn_rule(&last_pkt, &direction);
+		    q = lookup_dyn_rule(&args->f_id, &direction);
 		    if (q != NULL) {
 			DEB(printf("-- dynamic match 0x%08x %d %s 0x%08x %d\n",
 			    (q->id.src_ip), (q->id.src_port),
@@ -1424,8 +1434,8 @@ check_ports:
 
 bogusfrag:
 		if (fw_verbose) {
-			if (ip != NULL)
-				ipfw_report(NULL, ip, offset, ip_len, rif, oif);
+			if (m != NULL)
+				ipfw_report(NULL, ip, ip_off, ip_len, rif, oif);
 			else
 				printf("pullup failed\n");
 		}
@@ -1442,7 +1452,7 @@ got_match:
 		 * a new dynamic entry.
 		 */
 		if (q == NULL && f->fw_flg & IP_FW_F_KEEP_S) {
-		    if (install_state(f)) /* error or limit violation */
+		    if (install_state(f, args)) /* error or limit violation */
 			goto dropit;
 		}
 		/* Update statistics */
@@ -1451,7 +1461,7 @@ got_match:
 		f->timestamp = time_second;
 
 		/* Log to console if desired */
-		if ((f->fw_flg & IP_FW_F_PRN) && fw_verbose)
+		if ((f->fw_flg & IP_FW_F_PRN) && fw_verbose && hlen > 0)
 			ipfw_report(f, ip, offset, ip_len, rif, oif);
 
 		/* Take appropriate action */
@@ -1480,7 +1490,7 @@ got_match:
 		case IP_FW_F_QUEUE:
 			*flow_id = f ; /* XXX set flow id */
 			return(f->fw_pipe_nr | IP_FW_PORT_DYNT_FLAG);
-#ifdef IPFIREWALL_FORWARD
+
 		case IP_FW_F_FWD:
 			/* Change the next-hop address for this packet.
 			 * Initially we'll only worry about directly
@@ -1499,7 +1509,7 @@ got_match:
 			    && (q == NULL || direction == MATCH_FORWARD) )
 				*next_hop = &(f->fw_fwd_ip);
 			return(0); /* Allow the packet */
-#endif
+
 		}
 
 		/* Deny/reject this packet using this rule */
@@ -1579,6 +1589,17 @@ flush_rule_ptrs()
 
     LIST_FOREACH(fcp, &ip_fw_chain_head, next) {
 	fcp->next_rule_ptr = NULL ;
+    }
+}
+
+void
+flush_pipe_ptrs(struct dn_flow_set *match)
+{
+    struct ip_fw *fcp ;
+
+    LIST_FOREACH(fcp, &ip_fw_chain_head, next) {
+	if (match == NULL || fcp->pipe_ptr == match)
+		fcp->pipe_ptr = NULL;
     }
 }
 
@@ -1862,9 +1883,7 @@ check_ipfw_struct(struct ip_fw *frwl)
 	case IP_FW_F_ACCEPT:
 	case IP_FW_F_COUNT:
 	case IP_FW_F_SKIPTO:
-#ifdef IPFIREWALL_FORWARD
 	case IP_FW_F_FWD:
-#endif
 	case IP_FW_F_UID:
 	case IP_FW_F_GID:
 		break;
@@ -2069,11 +2088,7 @@ ip_fw_init(void)
 #else
 		"divert disabled, "
 #endif
-#ifdef IPFIREWALL_FORWARD
 		"rule-based forwarding enabled, "
-#else
-		"rule-based forwarding disabled, "
-#endif
 #ifdef IPFIREWALL_DEFAULT_TO_ACCEPT
 		"default to accept, ");
 #else
@@ -2138,3 +2153,4 @@ static moduledata_t ipfwmod = {
 	0
 };
 DECLARE_MODULE(ipfw, ipfwmod, SI_SUB_PSEUDO, SI_ORDER_ANY);
+#endif /* !IPFW2 */

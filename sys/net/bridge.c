@@ -1,6 +1,8 @@
 /*
  * Copyright (c) 1998-2002 Luigi Rizzo
  *
+ * Work partly supported by: Cisco Systems, Inc. - NSITE lab, RTP, NC
+ *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
  * are met:
@@ -89,14 +91,19 @@
 #include <sys/param.h>
 #include <sys/mbuf.h>
 #include <sys/malloc.h>
+#include <sys/protosw.h>
 #include <sys/systm.h>
 #include <sys/socket.h> /* for net/if.h */
 #include <sys/ctype.h>	/* string functions */
 #include <sys/kernel.h>
 #include <sys/sysctl.h>
 
+#if 0	/* XXX does not work yet */
+#include <net/pfil.h>	/* for ipfilter */
+#endif
 #include <net/if.h>
 #include <net/if_types.h>
+#include <net/if_var.h>
 
 #include <netinet/in.h> /* for struct arpcom */
 #include <netinet/in_systm.h>
@@ -151,6 +158,9 @@ struct cluster_softc {
 };
 
 
+extern struct protosw inetsw[];			/* from netinet/ip_input.c */
+extern u_char ip_protox[];			/* from netinet/ip_input.c */
+
 static int n_clusters;				/* number of clusters */
 static struct cluster_softc *clusters;
 
@@ -193,7 +203,8 @@ static struct cluster_softc *clusters;
 static int bdginit(void);
 static void parse_bdg_cfg(void);
 
-static int bdg_ipfw = 0 ;
+static int bdg_ipf;		/* IPFilter enabled in bridge */
+static int bdg_ipfw;
 
 #if 0 /* debugging only */
 static char *bdg_dst_names[] = {
@@ -387,7 +398,7 @@ reconfigure_bridge(void)
     }
 }
 
-static char bridge_cfg[1024] = { "" } ;
+static char bridge_cfg[1024]; /* in BSS so initialized to all NULs */
 
 /*
  * parse the config string, set IFF_USED, name and cluster_id
@@ -427,10 +438,10 @@ parse_bdg_cfg()
 	 * now search in interface list for a matching name
 	 */
 	TAILQ_FOREACH(ifp, &ifnet, if_link) {
-	    char buf[32];
+	    char buf[IFNAMSIZ];
 
-	    sprintf(buf, "%s%d", ifp->if_name, ifp->if_unit);
-	    if (!strncmp(beg, buf, l)) {
+	    snprintf(buf, sizeof(buf), "%s%d", ifp->if_name, ifp->if_unit);
+	    if (!strncmp(beg, buf, max(l, strlen(buf)))) {
 		struct bdg_softc *b = &ifp2sc[ifp->if_index];
 		if (ifp->if_type != IFT_ETHER && ifp->if_type != IFT_L2VLAN) {
 		    printf("%s is not an ethernet, continue\n", buf);
@@ -522,6 +533,9 @@ SYSCTL_PROC(_net_link_ether, OID_AUTO, bridge, CTLTYPE_INT|CTLFLAG_RW,
 SYSCTL_INT(_net_link_ether, OID_AUTO, bridge_ipfw, CTLFLAG_RW,
 	    &bdg_ipfw,0,"Pass bridged pkts through firewall");
 
+SYSCTL_INT(_net_link_ether, OID_AUTO, bridge_ipf, CTLFLAG_RW,
+	    &bdg_ipf, 0,"Pass bridged pkts through IPFilter");
+
 /*
  * The follow macro declares a variable, and maps it to
  * a SYSCTL_INT entry with the same name.
@@ -569,7 +583,7 @@ static int bdg_loops ;
 static void
 bdg_timeout(void *dummy)
 {
-    static int slowtimer = 0 ;
+    static int slowtimer;	/* in BSS so initialized to 0 */
 
     if (do_bridge) {
 	static int age_index = 0 ; /* index of table position to age */
@@ -781,13 +795,16 @@ bridge_in(struct ifnet *ifp, struct ether_header *eh)
 static struct mbuf *
 bdg_forward(struct mbuf *m0, struct ether_header *const eh, struct ifnet *dst)
 {
-    struct ifnet *src = m0->m_pkthdr.rcvif; /* NULL when called by *_output */
-    struct ifnet *ifp, *last = NULL ;
-    int s ;
+    struct ifnet *src;
+    struct ifnet *ifp, *last;
     int shared = bdg_copy ; /* someone else is using the mbuf */
     int once = 0;      /* loop only once */
     struct ifnet *real_dst = dst ; /* real dst from ether_output */
-    struct ip_fw *rule = NULL ; /* did we match a firewall rule ? */
+    struct ip_fw_args args;
+#ifdef PFIL_HOOKS
+    struct packet_filter_hook *pfh;
+    int rv;
+#endif /* PFIL_HOOKS */
 
     /*
      * XXX eh is usually a pointer within the mbuf (some ethernet drivers
@@ -798,16 +815,18 @@ bdg_forward(struct mbuf *m0, struct ether_header *const eh, struct ifnet *dst)
 
     DEB(quad_t ticks; ticks = rdtsc();)
 
-    if (m0->m_type == MT_DUMMYNET) {
-	/* extract info from dummynet header */
-	rule = (struct ip_fw *)(m0->m_data) ;
-	m0 = m0->m_next ;
-	src = m0->m_pkthdr.rcvif;
-	shared = 0 ; /* For sure this is our own mbuf. */
-    } else
-	bdg_thru++; /* count packet, only once */
+    args.rule = NULL;		/* did we match a firewall rule ? */
+    /* Fetch state from dummynet tag, ignore others */
+    for (;m0->m_type == MT_TAG; m0 = m0->m_next)
+	if (m0->m_tag_id == PACKET_TAG_DUMMYNET) {
+	    args.rule = ((struct dn_pkt *)m0)->rule;
+	    shared = 0;		/* For sure this is our own mbuf. */
+	}
+    if (args.rule == NULL)
+	bdg_thru++; /* first time through bdg_forward, count packet */
 
-    if (src == NULL) /* packet from ether_output */
+    src = m0->m_pkthdr.rcvif;
+    if (src == NULL)			/* packet from ether_output */
 	dst = bridge_dst_lookup(eh, ifp2sc[real_dst->if_index].cluster);
 
     if (dst == BDG_DROP) { /* this should not happen */
@@ -838,16 +857,16 @@ bdg_forward(struct mbuf *m0, struct ether_header *const eh, struct ifnet *dst)
      * Additional restrictions may apply e.g. non-IP, short packets,
      * and pkts already gone through a pipe.
      */
-    if (IPFW_LOADED && bdg_ipfw != 0 && src != NULL) {
-	struct ip *ip ;
+    if (src != NULL && (
+#ifdef PFIL_HOOKS
+	((pfh = pfil_hook_get(PFIL_IN, &inetsw[ip_protox[IPPROTO_IP]].pr_pfh)) != NULL && bdg_ipf !=0) ||
+#endif
+	(IPFW_LOADED && bdg_ipfw != 0))) {
+
 	int i;
 
-	if (rule != NULL) /* dummynet packet, already partially processed */
+	if (args.rule != NULL) /* packet already partially processed */
 	    goto forward; /* HACK! I should obey the fw_one_pass */
-	if (ntohs(save_eh.ether_type) != ETHERTYPE_IP)
-	    goto forward ; /* not an IP packet, ipfw is not appropriate */
-	if (m0->m_pkthdr.len < sizeof(struct ip) )
-	    goto forward ; /* header too short for an IP pkt, cannot filter */
 	/*
 	 * i need some amt of data to be contiguous, and in case others need
 	 * the packet (shared==1) also better be in the first mbuf.
@@ -861,30 +880,60 @@ bdg_forward(struct mbuf *m0, struct ether_header *const eh, struct ifnet *dst)
 	    }
 	}
 
+#ifdef PFIL_HOOKS
 	/*
-	 * before calling the firewall, swap fields the same as IP does.
-	 * here we assume the pkt is an IP one and the header is contiguous
+	 * NetBSD-style generic packet filter, pfil(9), hooks.
+	 * Enables ipf(8) in bridging.
 	 */
-	ip = mtod(m0, struct ip *);
-	NTOHS(ip->ip_len);
-	NTOHS(ip->ip_off);
+	if (m0->m_pkthdr.len >= sizeof(struct ip) &&
+		ntohs(save_eh.ether_type) == ETHERTYPE_IP) {
+	    /*
+	     * before calling the firewall, swap fields the same as IP does.
+	     * here we assume the pkt is an IP one and the header is contiguous
+	     */
+	    struct ip *ip = mtod(m0, struct ip *);
+
+	    ip->ip_len = ntohs(ip->ip_len);
+	    ip->ip_off = ntohs(ip->ip_off);
+
+	    for (; pfh; pfh = TAILQ_NEXT(pfh, pfil_link))
+		if (pfh->pfil_func) {
+		    rv = pfh->pfil_func(ip, ip->ip_hl << 2, src, 0, &m0);
+		    if (rv != 0 || m0 == NULL)
+			return m0;
+		    ip = mtod(m0, struct ip *);
+		}
+	    /*
+	     * If we get here, the firewall has passed the pkt, but the mbuf
+	     * pointer might have changed. Restore ip and the fields ntohs()'d.
+	     */
+	    ip = mtod(m0, struct ip *);
+	    ip->ip_len = htons(ip->ip_len);
+	    ip->ip_off = htons(ip->ip_off);
+	}
+#endif /* PFIL_HOOKS */
 
 	/*
-	 * The third parameter to the firewall code is the dst. interface.
-	 * Since we apply checks only on input pkts we use NULL.
-	 * The firewall knows this is a bridged packet as the cookie ptr
-	 * is NULL.
+	 * Prepare arguments and call the firewall.
 	 */
-	i = ip_fw_chk_ptr(&ip, 0, NULL, NULL /* cookie */, &m0, &rule, NULL);
+	if (!IPFW_LOADED || bdg_ipfw == 0)
+	    goto forward;	/* not using ipfw, accept the packet */
+
+	/*
+	 * XXX The following code is very similar to the one in
+	 * if_ethersubr.c:ether_ipfw_chk()
+	 */
+
+	args.m = m0;		/* the packet we are looking at		*/
+	args.oif = NULL;	/* this is an input packet		*/
+	args.divert_rule = 0;	/* we do not support divert yet		*/
+	args.next_hop = NULL;	/* we do not support forward yet	*/
+	args.eh = &save_eh;	/* MAC header for bridged/MAC packets	*/
+	i = ip_fw_chk_ptr(&args);
+	m0 = args.m;		/* in case the firewall used the mbuf	*/
+
 	if ( (i & IP_FW_PORT_DENY_FLAG) || m0 == NULL) /* drop */
 	    return m0 ;
-	/*
-	 * If we get here, the firewall has passed the pkt, but the mbuf
-	 * pointer might have changed. Restore ip and the fields NTOHS()'d.
-	 */
-	ip = mtod(m0, struct ip *);
-	HTONS(ip->ip_len);
-	HTONS(ip->ip_off);
 
 	if (i == 0) /* a PASS rule.  */
 	    goto forward ;
@@ -892,20 +941,21 @@ bdg_forward(struct mbuf *m0, struct ether_header *const eh, struct ifnet *dst)
 	    /*
 	     * Pass the pkt to dummynet, which consumes it.
 	     * If shared, make a copy and keep the original.
-	     * Need to prepend the ethernet header, optimize the common
-	     * case of eh pointing already into the original mbuf.
 	     */
 	    struct mbuf *m ;
+
 	    if (shared) {
 		m = m_copypacket(m0, M_DONTWAIT);
-		if (m == NULL) {
-		    printf("bdg_fwd: copy(1) failed\n");
+		if (m == NULL)	/* copy failed, give up */
 		    return m0;
-		}
 	    } else {
 		m = m0 ; /* pass the original to dummynet */
 		m0 = NULL ; /* and nothing back to the caller */
 	    }
+	    /*
+	     * Prepend the header, optimize for the common case of
+	     * eh pointing into the mbuf.
+	     */
 	    if ( (void *)(eh + 1) == (void *)m->m_data) {
 		m->m_data -= ETHER_HDR_LEN ;
 		m->m_len += ETHER_HDR_LEN ;
@@ -913,21 +963,20 @@ bdg_forward(struct mbuf *m0, struct ether_header *const eh, struct ifnet *dst)
 		bdg_predict++;
 	    } else {
 		M_PREPEND(m, ETHER_HDR_LEN, M_DONTWAIT);
-		if (!m && verbose)
-		    printf("M_PREPEND failed\n");
 		if (m == NULL) /* nope... */
 		    return m0 ;
 		bcopy(&save_eh, mtod(m, struct ether_header *), ETHER_HDR_LEN);
 	    }
-	    ip_dn_io_ptr((i & 0xffff),DN_TO_BDG_FWD,m,real_dst,NULL,0,rule,0);
+
+	    args.oif = real_dst;
+	    ip_dn_io_ptr(m, (i & 0xffff),DN_TO_BDG_FWD, &args);
 	    return m0 ;
 	}
 	/*
-	 * XXX add divert/forward actions...
+	 * XXX at some point, add support for divert/forward actions.
+	 * If none of the above matches, we have to drop the packet.
 	 */
-	/* if none of the above matches, we have to drop the pkt */
 	bdg_ipfw_drops++ ;
-	printf("bdg_forward: No rules match, so dropping packet!\n");
 	return m0 ;
     }
 forward:
@@ -939,14 +988,20 @@ forward:
 	int i = min(m0->m_pkthdr.len, max_protohdr) ;
 
 	m0 = m_pullup(m0, i) ;
-	if (m0 == NULL) {
-	    printf("-- bdg: pullup2 failed.\n") ;
+	if (m0 == NULL)
 	    return NULL ;
-	}
     }
-    /* now real_dst is used to determine the cluster where to forward */
-    if (src != NULL) /* pkt comes from ether_input */
+    /*
+     * now real_dst is used to determine the cluster where to forward.
+     * For packets coming from ether_input, this is the one of the 'src'
+     * interface, whereas for locally generated packets (src==NULL) it
+     * is the cluster of the original destination interface, which
+     * was already saved into real_dst.
+     */
+    if (src != NULL)
 	real_dst = src ;
+
+    last = NULL;
     for (;;) {
 	if (last) { /* need to forward packet leftover from previous loop */
 	    struct mbuf *m ;
@@ -972,31 +1027,16 @@ forward:
 		bdg_predict++;
 	    } else {
 		M_PREPEND(m, ETHER_HDR_LEN, M_DONTWAIT);
-	        if (!m && verbose)
+		if (!m && verbose)
 		    printf("M_PREPEND failed\n");
 		if (m == NULL)
 		    return m0;
 		bcopy(&save_eh, mtod(m, struct ether_header *), ETHER_HDR_LEN);
 	    }
-	    s = splimp();
-	    if (IF_QFULL(&last->if_snd)) {
-		IF_DROP(&last->if_snd);
+	    if (!IF_HANDOFF(&last->if_snd, m, last)) {
 #if 0
 		BDG_MUTE(last); /* should I also mute ? */
 #endif
-		splx(s);
-		m_freem(m); /* consume the pkt anyways */
-	    } else {
-		last->if_obytes += m->m_pkthdr.len ;
-		if (m->m_flags & M_MCAST)
-		    last->if_omcasts++;
-		if (m->m_pkthdr.len != m->m_len) /* this pkt is on >1 bufs */
-		    bdg_split_pkts++;
-
-		IF_ENQUEUE(&last->if_snd, m);
-		if ((last->if_flags & IFF_OACTIVE) == 0)
-		    (*last->if_start)(last);
-		splx(s);
 	    }
 	    BDG_STAT(last, BDG_OUT);
 	    last = NULL ;
@@ -1010,7 +1050,7 @@ forward:
 	 * up and running, is not the source interface, and belongs to
 	 * the same cluster as the 'real_dst', then send here.
 	 */
-	if ( BDG_USED(ifp) && !BDG_MUTED(ifp) && !IF_QFULL(&ifp->if_snd)  &&
+	if ( BDG_USED(ifp) && !BDG_MUTED(ifp) && !_IF_QFULL(&ifp->if_snd)  &&
 	     (ifp->if_flags & (IFF_UP|IFF_RUNNING)) == (IFF_UP|IFF_RUNNING) &&
 	     ifp != src && BDG_SAMECLUSTER(ifp, real_dst) )
 	    last = ifp ;
