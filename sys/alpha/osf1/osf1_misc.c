@@ -1111,7 +1111,7 @@ osf1_setgid(td, uap)
 	gid = SCARG(uap, gid);
 	oldcred = p->p_ucred;
 
-	if (((error = suser(p->p_ucred, NULL, PRISON_ROOT)) != 0 ) &&
+	if (((error = suser_xxx(p->p_ucred, NULL, PRISON_ROOT)) != 0 ) &&
 		gid != oldcred->cr_rgid && gid != oldcred->cr_svgid)
 		return (error);
 
