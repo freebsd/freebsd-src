@@ -46,5 +46,8 @@ struct sapic	*sapic_create(int id, int base, u_int64_t address);
 void		sapic_enable(struct sapic *sa, int input, int vector,
 			     int trigger_mode, int polarity);
 void		sapic_eoi(struct sapic *sa, int vector);
+#ifdef DDB
+void		sapic_print(struct sapic *sa, int input);
+#endif
 
 #endif /* ! _MACHINE_SAPICVAR_H_ */
