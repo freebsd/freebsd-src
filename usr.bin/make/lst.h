@@ -35,7 +35,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	@(#)lst.h	8.1 (Berkeley) 6/6/93
+ *	from: @(#)lst.h	8.1 (Berkeley) 6/6/93
  */
 
 /*-
@@ -46,7 +46,7 @@
 #define _LST_H_
 
 #include	<sprite.h>
-#include	<sys/cdefs.h>
+#include	<sys/param.h>
 #if __STDC__
 #include	<stdlib.h>
 #endif

@@ -63,7 +63,7 @@ static char sccsid[] = "@(#)buf.c	8.1 (Berkeley) 6/6/93";
 #define BufExpand(bp,nb) \
  	if (bp->left < (nb)+1) {\
 	    int newSize = (bp)->size + max((nb)+1,BUF_ADD_INC); \
-	    Byte  *newBuf = (Byte *) realloc((bp)->buffer, newSize); \
+	    Byte  *newBuf = (Byte *) erealloc((bp)->buffer, newSize); \
 	    \
 	    (bp)->inPtr = newBuf + ((bp)->inPtr - (bp)->buffer); \
 	    (bp)->outPtr = newBuf + ((bp)->outPtr - (bp)->buffer);\

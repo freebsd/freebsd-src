@@ -55,11 +55,11 @@ static char sccsid[] = "@(#)compat.c	8.2 (Berkeley) 3/19/94";
 
 #include    <stdio.h>
 #include    <sys/types.h>
-#include    <sys/signal.h>
-#include    <sys/wait.h>
-#include    <sys/errno.h>
 #include    <sys/stat.h>
+#include    <sys/wait.h>
 #include    <ctype.h>
+#include    <errno.h>
+#include    <signal.h>
 #include    "make.h"
 #include    "hash.h"
 #include    "dir.h"
@@ -105,10 +105,8 @@ CompatInterrupt (signo)
     if ((curTarg != NILGNODE) && !Targ_Precious (curTarg)) {
 	char	  *p1;
 	char 	  *file = Var_Value (TARGET, curTarg, &p1);
-	struct stat st;
 
-	if (!noExecute && lstat(file, &st) != -1 && !S_ISDIR(st.st_mode) &&
-	    unlink(file) != -1) {
+	if (!noExecute && eunlink(file) != -1) {
 	    printf ("*** %s removed\n", file);
 	}
 	if (p1)
@@ -151,7 +149,7 @@ CompatRunCommand (cmdp, gnp)
     register char *cp;
     Boolean 	  silent,   	/* Don't print command */
 		  errCheck; 	/* Check errors */
-    union wait 	  reason;   	/* Reason for child's death */
+    int 	  reason;   	/* Reason for child's death */
     int	    	  status;   	/* Description of child's death */
     int	    	  cpid;	    	/* Child actually found */
     ReturnStatus  stat;	    	/* Status of fork */
@@ -292,7 +290,7 @@ CompatRunCommand (cmdp, gnp)
      */
     while (1) {
 
-	while ((stat = wait((int *)&reason)) != cpid) {
+	while ((stat = wait(&reason)) != cpid) {
 	    if (stat == -1 && errno != EINTR) {
 		break;
 	    }
@@ -300,14 +298,14 @@ CompatRunCommand (cmdp, gnp)
 
 	if (stat > -1) {
 	    if (WIFSTOPPED(reason)) {
-		status = reason.w_stopval;		/* stopped */
+		status = WSTOPSIG(reason);		/* stopped */
 	    } else if (WIFEXITED(reason)) {
-		status = reason.w_retcode;		/* exited */
+		status = WEXITSTATUS(reason);		/* exited */
 		if (status != 0) {
 		    printf ("*** Error code %d", status);
 		}
 	    } else {
-		status = reason.w_termsig;		/* signaled */
+		status = WTERMSIG(reason);		/* signaled */
 		printf ("*** Signal %d", status);
 	    }
 

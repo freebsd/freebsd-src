@@ -38,7 +38,7 @@
 
 #ifndef lint
 /* from: static char     sccsid[] = "@(#)str.c	5.8 (Berkeley) 6/1/90"; */
-static char *rcsid = "$Id: str.c,v 1.4 1995/05/30 06:32:05 rgrimes Exp $";
+static char *rcsid = "$Id: str.c,v 1.5 1995/06/18 12:34:12 ache Exp $";
 #endif				/* not lint */
 
 #include "make.h"
@@ -55,7 +55,7 @@ void
 str_init()
 {
     char *p1;
-    argv = (char **)emalloc((argmax = 50) * sizeof(char *));
+    argv = (char **)emalloc(((argmax = 50) + 1) * sizeof(char *));
     argv[0] = Var_Value(".MAKE", VAR_GLOBAL, &p1);
 }
 
@@ -202,9 +202,8 @@ brk_string(str, store_argc, expand)
 			*t++ = '\0';
 			if (argc == argmax) {
 				argmax *= 2;		/* ramp up fast */
-				if (!(argv = (char **)realloc(argv,
-				    argmax * sizeof(char *))))
-				enomem();
+				argv = (char **)erealloc(argv,
+				    (argmax + 1) * sizeof(char *));
 			}
 			argv[argc++] = start;
 			start = (char *)NULL;
