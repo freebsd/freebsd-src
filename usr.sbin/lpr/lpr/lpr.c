@@ -320,7 +320,7 @@ main(argc, argv)
 	seteuid(uid);
 	card('H', host);
 	card('P', person);
-	if (hdr) {
+	if (hdr && !pp->no_header) {
 		if (jobname == NULL) {
 			if (argc == 0)
 				jobname = "stdin";
