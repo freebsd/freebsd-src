@@ -30,15 +30,12 @@ CFLAGS+= -I${.CURDIR} -I../lib -DHAVE_CONFIG_H \
 DPADD+=	${LIBCVS} ${LIBDIFF} ${LIBGNUREGEX} ${LIBMD} ${LIBCRYPT} ${LIBZ}
 LDADD+=	${LIBCVS} ${LIBDIFF} -lgnuregex -lmd -lcrypt -lz
 
-.if defined(MAKE_KERBEROS4) && !defined(NO_OPENSSL) && !defined(NOCRYPT)
-CFLAGS+=-DHAVE_KERBEROS -DHAVE_KRB_GET_ERR_TEXT
-LDADD+=	-lkrb -lcrypto -lcom_err
-DPADD+=	${LIBKRB} ${LIBCRYPTO} ${LIBCOM_ERR}
-DISTRIBUTION=	krb4
-# XXX do we want to mess with this?  It's probably not really worth it for
-# the public freebsd stuff, but others might want it.  It's an optional
-# feature anyway, the -x switch is needed to activate it.
-CFLAGS+= -DENCRYPTION
+.if !defined(NO_KERBEROS) && !defined(NO_OPENSSL) && !defined(NOCRYPT)
+CFLAGS+= -DHAVE_GSSAPI -DHAVE_GSSAPI_H -DENCRYPTION
+LDADD+= -lgssapi -lkrb5 -lasn1 -lcrypto -lroken -lcrypt -lcom_err
+DPADD+= ${LIBGSSAPI} ${LIBKRB5} ${LIBASN1} ${LIBCRYPTO} ${LIBROKEN}
+DPADD+= ${LIBCRYPT} ${LIBCOM_ERR}
+DISTRIBUTION=	crypto
 .endif
 
 #
