@@ -452,7 +452,7 @@ boot:</screen>
           only a problem if you are not using the BootEasy boot
           manager.  Slice the disk in <quote>compatible</quote>mode
           and install BootEasy during the &os; installation to
-          avoid the bug, or upgrade the BIOS (see Intel's website for
+          avoid the bug, or upgrade the BIOS (see Intel's web site for
           details).</para>
 	</answer>
       </qandaentry>
