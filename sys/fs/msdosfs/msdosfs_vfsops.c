@@ -318,7 +318,16 @@ mountmsdosfs(devvp, mp, td, argp)
 
 	ronly = (mp->mnt_flag & MNT_RDONLY) != 0;
 	vn_lock(devvp, LK_EXCLUSIVE | LK_RETRY, td);
+	/*
+	 * XXX Open the device with write access even if the filesystem
+	 * is read-only: someone may remount it read-write later, and
+	 * we don't VOP_OPEN the device again in that case.
+	 */
+#ifdef notyet
 	error = VOP_OPEN(devvp, ronly ? FREAD : FREAD|FWRITE, FSCRED, td);
+#else
+	error = VOP_OPEN(devvp, FREAD|FWRITE, FSCRED, td);
+#endif
 	VOP_UNLOCK(devvp, 0, td);
 	if (error)
 		return (error);
@@ -607,7 +616,12 @@ mountmsdosfs(devvp, mp, td, argp)
 error_exit:
 	if (bp)
 		brelse(bp);
+	/* XXX See comment at VOP_OPEN call */
+#ifdef notyet
 	(void) VOP_CLOSE(devvp, ronly ? FREAD : FREAD | FWRITE, NOCRED, td);
+#else
+	(void) VOP_CLOSE(devvp, FREAD | FWRITE, NOCRED, td);
+#endif
 	if (pmp) {
 		if (pmp->pm_inusemap)
 			free(pmp->pm_inusemap, M_MSDOSFSFAT);
@@ -662,9 +676,14 @@ msdosfs_unmount(mp, mntflags, td)
 		VI_UNLOCK(vp);
 	}
 #endif
+	/* XXX See comment at VOP_OPEN call */
+#ifdef notyet
 	error = VOP_CLOSE(pmp->pm_devvp,
 		    (pmp->pm_flags&MSDOSFSMNT_RONLY) ? FREAD : FREAD | FWRITE,
 		    NOCRED, td);
+#else
+	error = VOP_CLOSE(pmp->pm_devvp, FREAD | FWRITE, NOCRED, td);
+#endif
 	vrele(pmp->pm_devvp);
 	free(pmp->pm_inusemap, M_MSDOSFSFAT);
 	free(pmp, M_MSDOSFSMNT);
