@@ -1,10 +1,5 @@
 #!/stand/sh
 #
-# bininst - perform the last stage of installation by somehow getting
-# a bindist onto the user's disk and unpacking it.  The name bininst
-# is actually something of a misnomer, since this utility will install
-# more than just the bindist set.
-#
 # Written:  November 11th, 1994
 # Copyright (C) 1994 by Jordan K. Hubbard
 #
@@ -13,14 +8,7 @@
 # putting your name on top after doing something trivial like reindenting
 # it, just to make it look like you wrote it!).
 #
-# $Id: setup.sh,v 1.1 1995/01/14 13:34:37 jkh Exp $
-
-if [ "${_SETUP_LOADED_}" = "yes" ]; then
-        error "Error, $0 loaded more than once!"
-        return 1
-else
-        _SETUP_LOADED_=yes
-fi
+# $Id: setup.sh,v 1.2 1995/01/28 01:18:44 jkh Exp $
 
 # Grab the miscellaneous functions.
 . /stand/scripts/miscfuncs.sh
@@ -31,11 +19,10 @@ setup()
 	while [ "${DONE}" = "" ]; do
 	dialog --title "Configuration Menu" --menu \
 "Configure your system for basic single user, network or\n\
-development workstation usage.  Please select one of the
+development workstation usage.  Please select one of the\n\
 following options.  When you are finished setting up your\n\
 system, select \"done\".  To invoke this configuration tool \n\
 again, type \`/stand/scripts/setup.sh\'." -1 -1 5 \
-"help" "Help!  What does all this mean?" \
 "tzsetup" "Configure your system's time zone" \
 "network" "Configure basic networking parameters" \
 "user" "Add a user name for yourself to the system" \
