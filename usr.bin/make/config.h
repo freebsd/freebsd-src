@@ -42,15 +42,10 @@
 
 /*
  * DEFMAXJOBS
- * DEFMAXLOCAL
- *	These control the default concurrency. On no occasion will more
+ *	This control the default concurrency. On no occasion will more
  *	than DEFMAXJOBS targets be created at once.
- *	DEFMAXLOCAL is the highest number of targets which will be
- *	created on the local machine at once. Note that if you set this
- *	to 0, nothing will ever happen...
  */
-#define	DEFMAXJOBS	4
-#define	DEFMAXLOCAL	1
+#define	DEFMAXJOBS	1
 
 /*
  * INCLUDES
