@@ -53,6 +53,7 @@ sed	-e '/	pci$/d' \
 	-e '/SOFTUPDATES/d' \
 	-e '/MFS/d' \
 	-e '/NFS_ROOT/d' \
+	-e '/pcm/d' \
 	-e '/atapist/d' \
 	-e '/ugen/d' \
 	-e '/uhid/d' \
@@ -80,6 +81,7 @@ sed	-e '/pty/d' \
 	-e '/MFS/d' \
 	-e '/NFS_ROOT/d' \
 	-e '/ncr/d' \
+	-e '/pcm/d' \
 	-e '/atapist/d' \
 	-e '/wds/d' \
 	-e '/lpt/d' \
@@ -119,6 +121,7 @@ sed	-e '/pty/d' \
 	-e '/NFS_ROOT/d' \
 	-e '/MSDOSFS/d' \
 	-e '/ncr/d' \
+	-e '/pcm/d' \
 	-e '/atapist/d' \
 	-e '/lpt/d' \
 	-e '/ppi/d' \
