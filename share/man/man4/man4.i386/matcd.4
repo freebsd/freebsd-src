@@ -91,9 +91,11 @@
 .Nm matcd
 .Nd Matsushita (Panasonic) CD-ROM driver
 .Sh SYNOPSIS
-.Cd "device matcd[0-4] at isa? port [?| addr]"
-.Cd "/dev/[r]matcd[0-15][a|c]
-.Cd "/dev/[r]matcd[0-15]l[a|c]
+.Cd "device matcd 1"
+.Pp
+In
+.Pa /boot/device.hints :
+.Cd hint.matcd.0.at="isa"
 .Sh DESCRIPTION
 The
 .Nm
@@ -122,17 +124,16 @@ to support and delete the device entries that you don't want.
 .Pp
 In this file, you will find an entry like:
 .Bd -literal -offset indent
-device  matcd0  at  isa?  port  ?
+device  matcd 1
 .Ed
 .Pp
 To support two host interfaces, change the file so it reads:
 .Bd -literal -offset indent
-device  matcd0  at  isa?  port  ?
-device  matcd1  at  isa?  port  ?
+device  matcd 2
 .Ed
 .Pp
-(If you want to support up to three or four host interfaces, add
-additional entries).
+(If you want to support up to three or four host interfaces,
+increase the number at the end of the line).
 .Pp
 Note that the kernel configuration does not need to be modified to support
 up to four drives on a single host interface.  It is also not necessary to
@@ -153,29 +154,26 @@ where the CD-ROM host interfaces are located.  For example, by default most
 SoundBlaster cards have the Matsushita CD-ROM host interface
 located at I/O port 0x230.  (This is 0x10 above the I/O port for the
 audio section of the card.)  If this is the case for your system, you could
-change where the kernel looks for the hardware by using the -c option at
-the kernel boot prompt.  This will load the kernel and then give you the
-opportunity to change settings for any of the devices included the kernel.
+change where the kernel looks for the hardware by entering a line in
+.Pa /boot/device.hints .
 For example, to change the I/O port for
 .Nm
-adapter zero to 0x340, you would type
+adapter zero to 0x340, you would put
 .Pp
-.Dl "config> port matcd0c 0x340"
+.Dl hint.matcd.0.port="0x340"
 .Pp
-If you recompile the kernel, you can change the entry in the kernel
-configuration file to specify a specific address by changing an entry
-like this:
-.Pp
-.Dl "device  matcd0  at  isa?  port  0x230"
+in the file.
 .Pp
 With this change, the
 .Nm
-driver will only look at I/O port 0x230 for the first CD-ROM host interface
+driver will only look at I/O port 0x340 for the first CD-ROM host interface
 and will not disturb any other I/O ports.
 .Pp
-Once you have adjusted the kernel configuration file, it is necessary
-to configure and recompile the kernel, install it and reboot for the
-changes to take effect.
+You can specify the I/O port for the second, third, and fourth
+adapters in the same fashion:
+.Pp
+.Dl hint.matcd.0.port="0x230"
+.Dl hint.matcd.1.port="0x340"
 .Sh SUPPORTED HARDWARE
 At this time, there are only two known drive models that work with the
 .Nm

@@ -8,11 +8,19 @@
 .Nm cx
 .Nd asynchronous/synchronous Cronyx-Sigma adapter driver
 .Sh SYNOPSIS
-.Cd "device cx0 at isa? port 0x240 irq 15 drq 7"
-.Cd "device cx1 at isa? port 0x260 irq 12 drq 6"
+.Cd "device cx 1"
 .Cd device sppp
 .Pp
-The base i/o port address should be set by jumpers on the board.
+In
+.Pa /boot/device.hints :
+.Cd hint.cx.0.at="isa"
+.Cd hint.cx.0.port="0x240"
+.Cd hint.cx.0.irq="15"
+.Cd hint.cx.0.drq="7"
+.Pp
+The base i/o port address specified in
+.Pa /boot/device.hints
+must match the port address set by jumpers on the board.
 The DMA i/o channel and interrupt request numbers are configured
 by software at adapter initialization.  Legal values are:
 .Pp

@@ -32,11 +32,15 @@
 .Nm sbc
 .Nd Creative Sound Blaster ISA and compatible bridge device driver
 .Sh SYNOPSIS
-For PnP cards:
 .Cd "device sbc"
 .Pp
-For non-PnP cards:
-.Cd "device sbc0 at isa? port 0x220 irq 5 drq 1 flags 0x15"
+Non-PnP cards requires the following lines in
+.Pa /boot/device.hints :
+.Cd hint.sbc.0.at="isa"
+.Cd hint.sbc.0.port="0x220"
+.Cd hint.sbc.0.irq="5"
+.Cd hint.sbc.0.drq="1"
+.Cd hint.sbc.0.flags="0x15"
 .Sh DESCRIPTION
 The
 .Nm

@@ -37,7 +37,14 @@
 .Nm asc
 .Nd device driver for a GI1904-based hand scanner
 .Sh SYNOPSIS
-.Cd "device asc0 at isa? port IO_ASC1 drq 3 irq 10"
+.Cd "device asc 1"
+.Pp
+In
+.Pa /boot/device.hints :
+.Cd hint.asc.0.at="isa"
+.Cd hint.asc.0.port="0x3EB"
+.Cd hint.asc.0.drq="3"
+.Cd hint.asc.0.irq="10"
 .Sh DESCRIPTION
 The
 .Nm

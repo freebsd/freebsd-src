@@ -40,7 +40,11 @@
 .Cd "options VGA_NO_MODE_CHANGE"
 .Cd "options VGA_SLOW_IOACCESS"
 .Cd "options VGA_WIDTH90"
-.Cd "device vga0 at isa? port ? conflicts"
+.Cd "device vga"
+.Pp
+In
+.Pa /boot/device.hints :
+.Cd hint.vga.0.at="isa"
 .Sh DESCRIPTION
 The
 .Nm
@@ -131,13 +135,18 @@ This option prevents the driver from changing video modes.
 .Sh EXAMPLES
 Your kernel configuration should normally have:
 .Pp
-.Dl "device vga0 at isa? port ? conflicts"
+.Dl "device vga"
+.Pp
+And you need the following line in
+.Pa /boot/device.hints .
+.Pp
+.Dl hint.vga.0.at="isa"
 .Pp
 The following lines should be included in the kernel configuration file
 in order to enable the VESA BIOS Extension support.
 .Pp
 .Dl "options VESA"
-.Dl "device vga0 at isa? port ? conflicts"
+.Dl "device vga"
 .Pp
 If you do not want VESA support included in the kernel, but
 want to use occasionally, do not add the

@@ -36,8 +36,13 @@
 For a card with bridge driver support, and a PnP card:
 .Cd "device pcm"
 .Pp
-For a card without bridge driver support, and a non-PnP card:
-.Cd "device pcm0 at isa? port? irq 5 drq 1 flags 0x15"
+For a card without bridge driver support, and a non-PnP card,
+the following lines may be required in
+.Pa /boot/device.hints :
+.Cd hint.pcm.0.at="isa"
+.Cd hint.pcm.0.irq="5"
+.Cd hint.pcm.0.drq="1"
+.Cd hint.pcm.0.flags="0x0"
 .Sh DESCRIPTION
 The
 .Nm
@@ -63,13 +68,15 @@ They also happen to be
 among the cheapest audio cards on the market.
 .Pp
 The driver does its best to recognize the installed hardware and drive
-it correctly, so that you don't have to give too many details in the
-kernel config files.
+it correctly, so that you don't have to give too many details in
+.Pa /boot/device.hints .
 For PCI and ISA PnP cards this is actually easy
 since they identify themselves.
 For legacy ISA cards, the driver looks
 for MSS cards at addresses 0x530 and 0x604 (obviously, unless overridden
-in the kernel config file by specifying an address).
+in
+.Pa /boot/device.hints
+).
 .Sh IOCTL
 The driver supports most of the Voxware ioctls(), and most
 applications work unmodified (including popular mpeg players and linux

@@ -32,8 +32,14 @@
 .Nm cs
 .Nd ethernet device driver
 .Sh SYNOPSIS
-.Cd "device cs0 at isa? port 0x300 irq ?"
-.Cd "device cs1 at isa? port 0x300 irq 10 iomem 0xd0000"
+.Cd "device cs"
+.Pp
+In
+.Pa /boot/device.hints :
+.Cd hint.cs.0.at="isa"
+.Cd hint.cs.0.port="0x300"
+.Cd hint.cs.0.irq="10"
+.Cd hint.cs.0.maddr="0xd000"
 .Sh DESCRIPTION
 The
 .Nm
@@ -48,9 +54,14 @@ size and low cost of the CS89x0 family compensate for their drawbacks.
 .Pp
 The
 .Nm
-driver will obtain configuration parameters either from the configuration entry
-or from the card.  Parameters specified in the configuration entry will be
-used if present; the card may be soft-configured so these may be any valid
+driver will obtain configuration parameters either from
+.Pa /boot/device.hints
+or from the card.
+At least the I/O port number must be specified.
+Other parameters specified in
+.Pa /boot/device.hints
+will be used if present;
+the card may be soft-configured so these may be any valid
 value.  Adapters based on the CS8920 normally offer PnP configuration and the driver
 will detect the
 .Tn IBM EtherJet

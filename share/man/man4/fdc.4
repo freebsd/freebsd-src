@@ -33,9 +33,19 @@
 .Nm fdc
 .Nd PC architecture floppy disk controller driver
 .Sh SYNOPSIS
-.Cd "device fdc0 at isa? port IO_FD1 flags 0x1 irq 6 drq 2"
-.Cd device fd0 at fdc0 drive 0
-.Cd device fd1 at fdc0 drive 1
+.Cd device fdc
+.Cd device fd
+.Pp
+In
+.Pa /boot/device.hints :
+.Cd hint.fdc.0.at="isa"
+.Cd hint.fdc.0.port="0x3F0"
+.Cd hint.fdc.0.irq="6"
+.Cd hint.fdc.0.drq="2"
+.Cd hint.fd.0.at="fdc0"
+.Cd hint.fd.0.drive="0"
+.Cd hint.fd.1.at="fdc0"
+.Cd hint.fd.1.drive="1"
 .Sh DESCRIPTION
 This driver provides access to floppy disk drives.
 In /dev for each floppy device a number of minor devices are present.

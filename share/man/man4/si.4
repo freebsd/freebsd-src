@@ -7,13 +7,15 @@
 .Nd "driver for Specialix International SI/XIO or SX intelligent serial card"
 .Sh SYNOPSIS
 .Cd "device si"
-.Cd "device si0 at isa? irq 12 iomem 0xd0000"
+.Pp
+For ISA host cards put the following lines in
+.Pa /boot/device.hints :
+.Cd hint.si.0.at="isa"
+.Cd hint.si.0.maddr="0xd0000"
+.Cd hint.si.0.irq="12"
 .Sh DESCRIPTION
 The Specialix SI/XIO and SX hardware makes up an 8 to 32 port RS-232 serial
 multiplexor.
-.Pp
-The first instance of the device lines above is for EISA and PCI host cards,
-the second is for ISA host cards.
 .Pp
 The system uses two components:  A "Host adapter", which is plugged into
 an ISA, EISA or PCI slot and provides intelligence and buffering/processing
