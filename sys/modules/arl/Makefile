@@ -6,7 +6,7 @@
 KMOD=	if_arl
 SRCS=	if_arl.c if_arl_isa.c
 SRCS+=	opt_inet.h device_if.h bus_if.h isa_if.h
-CFLAGS=	-I${.CURDIR}/../..
+CFLAGS+= -I${.CURDIR}/../..
 
 opt_inet.h:
 	echo "#define INET 1" > opt_inet.h
