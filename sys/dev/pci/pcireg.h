@@ -1,6 +1,6 @@
 /**************************************************************************
 **
-**  $Id: pcireg.h,v 1.4 1995/02/02 22:01:40 se Exp $
+**  $Id: pcireg.h,v 1.5 1995/03/21 23:01:04 se Exp $
 **
 **  Names for PCI configuration space registers.
 **
@@ -158,9 +158,9 @@
 #define PCI_SECONDARY_BUS_MASK		0x0000ff00
 #define PCI_PRIMARY_BUS_MASK		0x000000ff
 
-#define PCI_SUBORDINATE_BUS_EXTRACT(x)	(((x) > 16) & 0xff)
-#define PCI_SECONDARY_BUS_EXTRACT(x)	(((x) >  8) & 0xff)
-#define PCI_PRIMARY_BUS_EXTRACT(x)	(((x)	  ) & 0xff)
+#define PCI_SUBORDINATE_BUS_EXTRACT(x)	(((x) >> 16) & 0xff)
+#define PCI_SECONDARY_BUS_EXTRACT(x)	(((x) >>  8) & 0xff)
+#define PCI_PRIMARY_BUS_EXTRACT(x)	(((x)      ) & 0xff)
 
 #define	PCI_PRIMARY_BUS_INSERT(x, y)	(((x) & ~PCI_PRIMARY_BUS_MASK) | ((y) <<  0))
 #define	PCI_SECONDARY_BUS_INSERT(x, y)	(((x) & ~PCI_SECONDARY_BUS_MASK) | ((y) <<  8))
