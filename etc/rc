@@ -58,7 +58,7 @@ swapon -a
 
 case $1 in
 autoboot)
-	echo Automatic reboot in progress...
+	echo Automatic boot in progress...
 	fsck -p
 	case $? in
 	0)
