@@ -300,6 +300,7 @@ uint32_t g_dec_be4(u_char *p);
 uint16_t g_dec_le2(u_char *p);
 uint32_t g_dec_le4(u_char *p);
 uint64_t g_dec_le8(u_char *p);
+void g_enc_le2(u_char *p, uint16_t u);
 void g_enc_le4(u_char *p, uint32_t u);
 void g_enc_le8(u_char *p, uint64_t u);
 

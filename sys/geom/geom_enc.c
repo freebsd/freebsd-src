@@ -82,6 +82,14 @@ g_dec_le2(u_char *p)
 	return((p[1] << 8) | p[0]);
 }
 
+void
+g_enc_le2(u_char *p, uint16_t u)
+{
+
+	p[0] = u & 0xff;
+	p[1] = (u >> 8) & 0xff;
+}
+
 uint32_t
 g_dec_le4(u_char *p)
 {
