@@ -574,15 +574,14 @@ LcpDecodeConfig(struct fsm *fp, u_char *cp, int plen, int mode_type,
             /* Ignore his previous reject so that we REQ next time */
 	    lcp->his_reject &= ~(1 << type);
 
-          mtu = lcp->fsm.bundle->cfg.mtu;
-          if (mru < MIN_MRU || mru < mtu) {
-            /* Push him up to MTU or MIN_MRU */
-            lcp->his_mrru = mru < mtu ? mtu : MIN_MRU;
+          if (mru < MIN_MRU) {
+            /* Push him up to MIN_MRU */
+            lcp->his_mrru = MIN_MRU;
 	    memcpy(dec->nakend, cp, 2);
             ua_htons(&lcp->his_mrru, dec->nakend + 2);
 	    dec->nakend += 4;
 	  } else {
-            lcp->his_mrru = mtu ? mtu : mru;
+            lcp->his_mrru = mru;
 	    memcpy(dec->ackend, cp, 4);
 	    dec->ackend += 4;
 	  }
