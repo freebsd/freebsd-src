@@ -291,12 +291,8 @@ strfmon(char * __restrict s, size_t maxsize, const char * __restrict format,
 		while (pad_size-- > 0)
 			PRINT(' ');
 
-		if (sign_posn == 0) {
-			if (flags & IS_NEGATIVE)
-				PRINT('(');
-			else
-				PRINT(' ');
-		}
+		if (sign_posn == 0 && (flags & IS_NEGATIVE))
+			PRINT('(');
 
 		if (cs_precedes == 1) {
 			if (sign_posn == 1 || sign_posn == 3) {
