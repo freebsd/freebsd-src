@@ -4,6 +4,7 @@ SUBDIR=			\
 	atm 		\
 	atmbase		\
 	atmpif		\
+	ccatm		\
 	sscfu		\
 	sscop		\
 	uni
