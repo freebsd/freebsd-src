@@ -1236,7 +1236,7 @@ ata_reset(struct ata_softc *scp, int *mask)
     DELAY(1);
     inb(scp->ioaddr + ATA_STATUS);
     outb(scp->altioaddr, ATA_A_IDS | ATA_A_RESET);
-    DELAY(10000); 
+    DELAY(100000); 
     outb(scp->altioaddr, ATA_A_IDS);
     DELAY(10000);
     inb(scp->ioaddr + ATA_ERROR);
@@ -1462,9 +1462,6 @@ ata_command(struct ata_softc *scp, int device, u_int8_t command,
 
     switch (flags) {
     case ATA_WAIT_INTR:
-	if (scp->active != ATA_IDLE)
-	    ata_printf(scp, device, "WARNING: WAIT_INTR active=%s\n",
-		       active2str(scp->active));
 	scp->active = ATA_WAIT_INTR;
 	asleep((caddr_t)scp, PRIBIO, "atacmd", 10 * hz);
 	outb(scp->ioaddr + ATA_CMD, command);
@@ -1481,9 +1478,6 @@ ata_command(struct ata_softc *scp, int device, u_int8_t command,
 	break;
     
     case ATA_WAIT_READY:
-	if (scp->active != ATA_IDLE && scp->active != ATA_REINITING)
-	    ata_printf(scp, device, "WARNING: WAIT_READY active=%s\n",
-		       active2str(scp->active));
 	if (scp->active != ATA_REINITING)
 	    scp->active = ATA_WAIT_READY;
 	outb(scp->ioaddr + ATA_CMD, command);
