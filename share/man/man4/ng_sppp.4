@@ -12,7 +12,7 @@
 .\" Cronyx Id: ng_sppp.4,v 1.1.2.3 2004/03/30 14:28:34 rik Exp $
 .\" $FreeBSD$
 .\"
-.Dd March 29, 2004
+.Dd February 3, 2005
 .Dt NG_SPPP 4
 .Os
 .Sh NAME
@@ -101,13 +101,11 @@ The connection to the synchronous line.
 This node type supports the generic control messages, plus the following:
 .Bl -tag -width indent
 .It Dv NGM_IFACE_GET_IFNAME
-Returns the name of the interface corresponding to this node in a
-.Vt "struct ng_iface_ifname" :
-.Bd -literal -offset indent
-struct ng_iface_ifname {
-  char  ngif_name[NG_SPPP_IFACE_NAME_MAX + 1];
-};
-.Ed
+Returns the name of the associated interface as a
+.Dv NUL Ns -terminated
+.Tn ASCII
+string.
+Normally this is the same as the name of the node.
 .El
 .Sh SHUTDOWN
 This node shuts down upon receipt of a
