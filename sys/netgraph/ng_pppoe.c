@@ -1144,7 +1144,8 @@ AAA
 			 * wants us to offer service.
 			 */
 			neg = sp->neg;
-			m_pullup(m, sizeof(*wh)); /* Checks length */
+			if (m->m_len < sizeof(*wh))
+				m_pullup(m, sizeof(*wh));
 			if (m == NULL) {
 				LEAVE(ENOBUFS);
 			}
