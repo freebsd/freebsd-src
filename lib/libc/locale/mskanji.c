@@ -67,22 +67,25 @@ _MSKanji_sgetrune(string, n, result)
 {
 	rune_t rune = 0;
 
-	if (n < 1 ) {
-		rune = _INVALID_RUNE;
-	} else {
-		rune = *( string++ ) & 0xff;
-		if ( ( rune > 0x80 && rune < 0xa0 )
-		|| ( rune >= 0xe0 && rune < 0xfa ) ) {
-			if ( n < 2 ) {
-				rune = (rune_t)_INVALID_RUNE;
-				--string;
-			} else {
-				rune = ( rune << 8 ) | ( *( string++ ) & 0xff );
-			}
-		}
+	if (n < 1) {
+		if (result != NULL)
+			*result = string;
+		return (_INVALID_RUNE);
 	}
-	if (result) *result = string;
-	return rune;
+
+	rune = *string++ & 0xff;
+	if ((rune > 0x80 && rune < 0xa0) ||
+	    (rune >= 0xe0 && rune < 0xfa)) {
+		if (n < 2) {
+			rune = _INVALID_RUNE;
+			--string;
+		} else
+			rune = (rune << 8) | (*string++ & 0xff);
+	}
+	if (result != NULL)
+		*result = string;
+
+	return (rune);
 }
 
 int
@@ -91,16 +94,18 @@ _MSKanji_sputrune(c, string, n, result)
 	char *string, **result;
 	size_t n;
 {
-	int	len, i;
+	int len, i;
 
-	len = ( c > 0x100 ) ? 2 : 1;
-	if ( n < len ) {
-		if ( result ) *result = (char *) 0;
+	len = (c > 0x100) ? 2 : 1;
+	if (n < len) {
+		if (result != NULL)
+			*result = NULL;
 	} else {
-		if ( result ) *result = string + len;
-		for ( i = len; i-- > 0; ) {
-			*( string++ ) = c >> ( i << 3 );
-		}
+		if (result != NULL)
+			*result = string + len;
+		for (i = len; i-- > 0; )
+			*string++ = c >> (i << 3);
 	}
-	return len;
+
+	return (len);
 }
