@@ -98,9 +98,9 @@ struct winentry {
 #define	WIN_CHARS	13	/* Number of chars per winentry */
 
 /*
- * Maximum number of winentries for a filename
+ * Maximum number of winentries for a filename.
  */
-#define WIN_MAXSUBENTRIES 20
+#define	WIN_MAXSUBENTRIES 20
 
 /*
  * Maximum filename length in Win95
@@ -134,18 +134,24 @@ struct winentry {
 
 #ifdef _KERNEL
 struct dirent;
-void unix2dostime(struct timespec *tsp, u_int16_t *ddp, 
-	     u_int16_t *dtp, u_int8_t *dhp);
-void dos2unixtime(u_int dd, u_int dt, u_int dh, struct timespec *tsp);
-int dos2unixfn(u_char dn[11], u_char *un, int lower, struct msdosfsmount *pmp);
-int unix2dosfn(const u_char *un, u_char dn[12], int unlen, u_int gen, struct msdosfsmount *pmp);
-int unix2winfn(const u_char *un, int unlen, struct winentry *wep, int cnt, int chksum, struct msdosfsmount *pmp);
-int winChkName(const u_char *un, int unlen, int chksum, struct msdosfsmount *pmp);
-int win2unixfn(struct winentry *wep, int chksum, struct msdosfsmount *pmp);
+struct msdosfsmount;
+
+char	*mbnambuf_flush(struct dirent *dp);
+void	mbnambuf_init(void);
+void	mbnambuf_write(char *name, int id);
+void	unix2dostime(struct timespec *tsp, u_int16_t *ddp, 
+	    u_int16_t *dtp, u_int8_t *dhp);
+void	dos2unixtime(u_int dd, u_int dt, u_int dh, struct timespec *tsp);
+int	dos2unixfn(u_char dn[11], u_char *un, int lower,
+	    struct msdosfsmount *pmp);
+int	unix2dosfn(const u_char *un, u_char dn[12], int unlen, u_int gen,
+	    struct msdosfsmount *pmp);
+int	unix2winfn(const u_char *un, int unlen, struct winentry *wep, int cnt,
+	    int chksum, struct msdosfsmount *pmp);
+int	winChkName(const u_char *un, int unlen, int chksum,
+	    struct msdosfsmount *pmp);
+int	win2unixfn(struct winentry *wep, int chksum, struct msdosfsmount *pmp);
 u_int8_t winChksum(u_int8_t *name);
-int winSlotCnt(const u_char *un, int unlen, struct msdosfsmount *);
-int winLenFixup(const u_char *un, int unlen);
-void mbnambuf_init(void);
-void mbnambuf_write(char *name, int id);
-char * mbnambuf_flush(struct dirent *dp);
+int	winSlotCnt(const u_char *un, int unlen, struct msdosfsmount *pmp);
+int	winLenFixup(const u_char *un, int unlen);
 #endif	/* _KERNEL */
