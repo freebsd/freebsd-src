@@ -30,7 +30,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id$
+ *	$Id: fmt.c,v 1.3 1994/09/24 02:56:43 davidg Exp $
  */
 
 #ifndef lint
@@ -38,6 +38,7 @@ static char sccsid[] = "@(#)fmt.c	8.4 (Berkeley) 4/15/94";
 #endif /* not lint */
 
 #include <sys/param.h>
+#include <sys/syslimits.h>
 #include <sys/time.h>
 #include <sys/resource.h>
 #include <ctype.h>
@@ -59,7 +60,7 @@ shquote(argv)
 	char **argv;
 {
 	char **p, *dst, *src;
-	static char buf[4096];		/* XXX */
+	static char buf[ARG_MAX];		/* XXX */
 
 	if (*argv == 0) {
 		buf[0] = 0;
