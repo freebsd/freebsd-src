@@ -33,7 +33,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: expand.c,v 1.7 1996/09/01 10:20:07 peter Exp $
+ *	$Id$
  */
 
 #ifndef lint
@@ -97,8 +97,8 @@ STATIC char *exptilde __P((char *, int));
 STATIC void expbackq __P((union node *, int, int));
 STATIC int subevalvar __P((char *, char *, int, int, int));
 STATIC char *evalvar __P((char *, int));
-STATIC int varisset __P((int));
-STATIC void varvalue __P((int, int, int));
+STATIC int varisset __P((char *));
+STATIC void varvalue __P((char *, int, int));
 STATIC void recordregion __P((int, int, int));
 STATIC void ifsbreakup __P((char *, struct arglist *));
 STATIC void expandmeta __P((struct strlist *, int));
@@ -547,7 +547,7 @@ evalvar(p, flag)
 	p = strchr(p, '=') + 1;
 again: /* jump here after setting a variable with ${var=text} */
 	if (special) {
-		set = varisset(*var);
+		set = varisset(var);
 		val = NULL;
 	} else {
 		val = lookupvar(var);
@@ -563,7 +563,7 @@ again: /* jump here after setting a variable with ${var=text} */
 		/* insert the value of the variable */
 		if (special) {
 			char *exp, *oexpdest = expdest;
-			varvalue(*var, varflags & VSQUOTE, flag & EXP_FULL);
+			varvalue(var, varflags & VSQUOTE, flag & EXP_FULL);
 			if (subtype == VSLENGTH) {
 				for (exp = oexpdest;exp != expdest; exp++)
 					varlen++;
@@ -677,22 +677,23 @@ record:
 
 STATIC int
 varisset(name)
-	char name;
+	char *name;
 	{
 	char **ap;
+	int num;
 
-	if (name == '!') {
+	if (*name == '!') {
 		if (backgndpid == -1)
 			return 0;
-	} else if (name == '@' || name == '*') {
+	} else if (*name == '@' || *name == '*') {
 		if (*shellparam.p == NULL)
 			return 0;
-	} else if ((unsigned)(name -= '1') <= '9' - '1') {
+	} else if (is_digit(*name)) {
+		num = atoi(name);
 		ap = shellparam.p;
-		do {
+		while (num-- > 0)
 			if (*ap++ == NULL)
 				return 0;
-		} while (--name >= 0);
 	}
 	return 1;
 }
@@ -705,7 +706,7 @@ varisset(name)
 
 STATIC void
 varvalue(name, quoted, allow_split)
-	char name;
+	char *name;
 	int quoted;
 	int allow_split;
 {
@@ -732,7 +733,7 @@ varvalue(name, quoted, allow_split)
 	} while (0)
 
 
-	switch (name) {
+	switch (*name) {
 	case '$':
 		num = rootpid;
 		goto numvar;
@@ -773,9 +774,12 @@ allargs:
 		STRTODEST(p);
 		break;
 	default:
-		if ((unsigned)(name -= '1') <= '9' - '1') {
-			p = shellparam.p[name];
-			STRTODEST(p);
+		if (is_digit(*name)) {
+			num = atoi(name);
+			if (num > 0 && num <= shellparam.nparam) {
+				p = shellparam.p[num - 1];
+				STRTODEST(p);
+			}
 		}
 		break;
 	}
