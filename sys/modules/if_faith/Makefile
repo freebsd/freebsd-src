@@ -4,6 +4,7 @@
 
 KMOD=	if_faith
 SRCS=	if_faith.c opt_inet.h opt_inet6.h
+CFLAGS+= -DNFAITH=0
 NOMAN=
 
 opt_inet.h:

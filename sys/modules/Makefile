@@ -22,6 +22,7 @@ SUBDIR=	accf_data \
 	gx \
 	if_disc \
 	if_ef \
+	if_faith \
 	if_gif \
 	if_ppp \
 	if_sl \
