@@ -1,4 +1,4 @@
-<!-- $Id: contrib.sgml,v 1.164 1996/12/07 23:20:04 asami Exp $ -->
+<!-- $Id: contrib.sgml,v 1.165 1996/12/08 13:30:05 max Exp $ -->
 <!-- The FreeBSD Documentation Project -->
 
 <!-- Please try to keep the file 'avail' (from CVSROOT) 
@@ -174,10 +174,10 @@
 	  <item>Adrian T. Filipi-Martin &lt;atf3r@agate.cs.virginia.edu&gt;
 	  <item>Akito Fujita &lt;fujita@zoo.ncl.omron.co.jp&gt;
 	  <item>Alain Kalker &lt;A.C.P.M.Kalker@student.utwente.nl&gt;
+	  <item>Andreas Kohout &lt;shanee@rabbit.augusta.de&gt;
 	  <item>Andreas Lohr &lt;andreas@marvin.RoBIN.de&gt;
 	  <item>Andrew Gordon &lt;andrew.gordon@net-tel.co.uk&gt;
 	  <item>Andrew Herbert &lt;andrew@werple.apana.org.au&gt;
-	  <item>Andreas Kohout &lt;shanee@rabbit.augusta.de&gt;
 	  <item>Andrew McRae &lt;amcrae@cisco.com&gt;
 	  <item>Andrew Moore &lt;alm@FreeBSD.org&gt;
 	  <item>Andrew Stevenson &lt;andrew@ugh.net.au&gt;
