@@ -570,13 +570,14 @@ pmap_init(phys_start, phys_end)
 	if (initial_pvs < MINPV)
 		initial_pvs = MINPV;
 	pvzone = uma_zcreate("PV ENTRY", sizeof (struct pv_entry), NULL, NULL, 
-	    NULL, NULL, UMA_ALIGN_PTR, UMA_ZONE_VM);
+	    NULL, NULL, UMA_ALIGN_PTR, UMA_ZONE_VM | UMA_ZONE_NOFREE);
 	uma_zone_set_allocf(pvzone, pmap_pv_allocf);
 	uma_prealloc(pvzone, initial_pvs);
 
 #ifdef PAE
 	pdptzone = uma_zcreate("PDPT", NPGPTD * sizeof(pdpt_entry_t), NULL,
-	    NULL, NULL, NULL, (NPGPTD * sizeof(pdpt_entry_t)) - 1, 0);
+	    NULL, NULL, NULL, (NPGPTD * sizeof(pdpt_entry_t)) - 1,
+	    UMA_ZONE_VM | UMA_ZONE_NOFREE);
 	uma_zone_set_allocf(pdptzone, pmap_pdpt_allocf);
 #endif
 
