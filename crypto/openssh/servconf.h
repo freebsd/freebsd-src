@@ -11,7 +11,7 @@
  * called by a name other than "ssh" or "Secure Shell".
  */
 
-/* RCSID("$OpenBSD: servconf.h,v 1.28 2000/09/07 20:27:53 deraadt Exp $"); */
+/* RCSID("$OpenBSD: servconf.h,v 1.30 2000/10/14 12:12:09 markus Exp $"); */
 /* $FreeBSD$ */
 
 #ifndef SERVCONF_H
@@ -84,6 +84,7 @@ typedef struct {
 #endif
 	int     password_authentication;	/* If true, permit password
 						 * authentication. */
+	int     kbd_interactive_authentication;	/* If true, permit */
 #ifdef SKEY
 	int     skey_authentication;	/* If true, permit s/key
 					 * authentication. */
@@ -91,6 +92,7 @@ typedef struct {
 	int     permit_empty_passwd;	/* If false, do not permit empty
 					 * passwords. */
 	int     use_login;	/* If true, login(1) is used */
+	int	allow_tcp_forwarding;
 	unsigned int num_allow_users;
 	char   *allow_users[MAX_ALLOW_USERS];
 	unsigned int num_deny_users;
