@@ -19,7 +19,7 @@
 #include <sys/ioctl.h>
 #include <machine/apm_bios.h>
 
-#define APMDEV	"/dev/apm0"
+#define APMDEV	"/dev/apm"
 
 int main_argc;
 char **main_argv;
