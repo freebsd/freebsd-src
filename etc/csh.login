@@ -2,6 +2,8 @@
 # Uncomment this to give you the default 4.2 behavior, where disk 
 # information is shown in K-Blocks
 # setenv BLOCKSIZE	K
-# Uncomment next lines, if you want to setup your locale (russian example)
+# Uncomment this line if you want to setup your locale at program
+# startup automatically
 # setenv ENABLE_STARTUP_LOCALE
+# Uncomment this line to activate russian locale
 # setenv LANG ru_SU.KOI8-R
