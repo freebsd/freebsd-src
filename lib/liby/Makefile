@@ -19,7 +19,7 @@ NOPIC=	true
 # off to a compat dist (like compat22).
 #
 beforeinstall:
-	rm -f ${DESTDIR}/usr/lib/compat/lib${LIB}.so \
+	-rm -f ${DESTDIR}/usr/lib/compat/lib${LIB}.so \
 	 ${DESTDIR}${ORIG_SHLIBDIR}/lib${LIB}.so.${SHLIB_MAJOR}.${SHLIB_MINOR} \
 	 ${DESTDIR}/usr/lib/compat/lib${LIB}.so.${SHLIB_MAJOR}.${SHLIB_MINOR} \
 	 ${DESTDIR}/usr/lib/compat/lib${LIB}.so.${SHLIB_MAJOR}
