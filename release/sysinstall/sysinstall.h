@@ -4,7 +4,7 @@
  * This is probably the last attempt in the `sysinstall' line, the next
  * generation being slated to essentially a complete rewrite.
  *
- * $Id: sysinstall.h,v 1.139 1997/07/31 11:08:41 jkh Exp $
+ * $Id: sysinstall.h,v 1.140 1997/09/16 18:57:17 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -106,7 +106,8 @@
 #define VAR_DOMAINNAME			"domainname"
 #define VAR_EDITOR			"editor"
 #define VAR_EXTRAS			"ifconfig_"
-#define VAR_CONFIG_FILE		"configFile"
+#define VAR_COMMAND			"command"
+#define VAR_CONFIG_FILE			"configFile"
 #define VAR_FTP_DIR			"ftpDirectory"
 #define VAR_FTP_PASS			"ftpPass"
 #define VAR_FTP_PATH			"ftp"
@@ -123,11 +124,13 @@
 #define VAR_INSTALL_CFG			"installConfig"
 #define VAR_INSTALL_ROOT		"installRoot"
 #define VAR_IPADDR			"ipaddr"
+#define VAR_KEYMAP			"keymap"
 #define VAR_LABEL			"label"
 #define VAR_LABEL_COUNT			"labelCount"
 #define VAR_MEDIA_TYPE			"mediaType"
 #define VAR_MEDIA_TIMEOUT		"MEDIA_TIMEOUT"
 #define VAR_NAMESERVER			"nameserver"
+#define VAR_NETINTERACTIVE		"netInteractive"
 #define VAR_NETMASK			"netmask"
 #define VAR_NETWORK_DEVICE		"netDev"
 #define VAR_NFS_PATH			"nfs"
@@ -139,6 +142,8 @@
 #define VAR_NO_WARN			"noWarn"
 #define VAR_NONINTERACTIVE		"nonInteractive"
 #define VAR_NOVELL			"novell"
+#define VAR_NTPDATE_FLAGS		"ntpdate_flags"
+#define VAR_PACKAGE			"package"
 #define VAR_PARTITION			"partition"
 #define VAR_PCNFSD			"pcnfsd"
 #define VAR_PCNFSD_PKG			"pcnfsd_pkg"
