@@ -1,4 +1,4 @@
-/*	$Id: main.c,v 1.13 1997/06/25 08:56:42 msmith Exp $ */
+/*	$Id: main.c,v 1.14 1997/06/27 09:30:13 ache Exp $ */
 /*	$NetBSD: main.c,v 1.22 1997/06/10 07:04:43 lukem Exp $	*/
 
 /*
@@ -44,7 +44,7 @@ static char copyright[] =
 #if 0
 static char sccsid[] = "@(#)main.c	8.6 (Berkeley) 10/9/94";
 #else
-static char rcsid[] = "$Id: main.c,v 1.13 1997/06/25 08:56:42 msmith Exp $";
+static char rcsid[] = "$Id: main.c,v 1.14 1997/06/27 09:30:13 ache Exp $";
 #endif
 #endif /* not lint */
 
@@ -76,7 +76,7 @@ main(argc, argv)
 	char *cp, homedir[MAXPATHLEN];
 	int dumbterm;
 
-	(void) setlocale(LC_CTYPE, "");
+	(void) setlocale(LC_ALL, "");
 
 	sp = getservbyname("ftp", "tcp");
 	if (sp == 0)

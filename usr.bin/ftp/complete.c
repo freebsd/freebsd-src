@@ -1,4 +1,4 @@
-/*	$Id: complete.c,v 1.1 1997/06/25 08:56:36 msmith Exp $ */
+/*	$Id: complete.c,v 1.2 1997/06/27 09:30:04 ache Exp $ */
 /*	$NetBSD: complete.c,v 1.8 1997/05/24 16:34:30 lukem Exp $	*/
 
 /*-
@@ -39,7 +39,7 @@
 
 #ifndef SMALL
 #ifndef lint
-static char rcsid[] = "$Id: complete.c,v 1.1 1997/06/25 08:56:36 msmith Exp $";
+static char rcsid[] = "$Id: complete.c,v 1.2 1997/06/27 09:30:04 ache Exp $";
 #endif /* not lint */
 
 /*
@@ -60,7 +60,7 @@ static int
 comparstr(a, b)
 	const void *a, *b;
 {
-	return (strcmp(*(char **)a, *(char **)b));
+	return (strcoll(*(char **)a, *(char **)b));
 }
 
 /*
