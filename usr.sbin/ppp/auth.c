@@ -17,7 +17,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: auth.c,v 1.29 1998/05/21 21:44:00 brian Exp $
+ * $Id: auth.c,v 1.30 1998/06/15 19:06:35 brian Exp $
  *
  *	TODO:
  *		o Implement check against with registered IP addresses.
@@ -104,23 +104,20 @@ auth_Select(struct bundle *bundle, const char *name, struct physical *physical)
     while (fgets(buff, sizeof buff, fp)) {
       if (buff[0] == '#')
         continue;
-      buff[strlen(buff) - 1] = 0;
+      buff[strlen(buff) - 1] = '\0';
       memset(vector, '\0', sizeof vector);
       n = MakeArgs(buff, vector, VECSIZE(vector));
       if (n < 2)
         continue;
-      if (strcmp(vector[0], name) == 0)
+      if (strcmp(vector[0], name) == 0) {
 	CloseSecret(fp);
-/*
-	memset(&bundle->ncp.ipcp.cfg.peer_range, '\0',
-               sizeof bundle->ncp.ipcp.cfg.peer_range);
-*/
 	if (n > 2 && !ipcp_UseHisaddr(bundle, vector[2], 1))
 	  return 0;
 	ipcp_Setup(&bundle->ncp.ipcp);
 	if (n > 3)
 	  bundle_SetLabel(bundle, vector[3]);
 	return 1;		/* Valid */
+      }
     }
     CloseSecret(fp);
   }
