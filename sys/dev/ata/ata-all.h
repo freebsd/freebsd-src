@@ -100,6 +100,7 @@
 #define		ATA_S_BUSY		0x80	/* busy */
 
 #define ATA_ALTOFFSET			0x206	/* alternate registers offset */
+#define ATA_PCCARD_ALTOFFSET		0x0e	/* do for PCCARD devices */
 #define ATA_ALTIOSIZE			0x01	/* alternate registers size */
 #define		ATA_A_IDS		0x02	/* disable interrupts */
 #define		ATA_A_RESET		0x04	/* RESET controller */
@@ -306,8 +307,9 @@ struct ata_softc {
 #define		ATA_DMA_ACTIVE		0x01
 #define		ATA_ATAPI_DMA_RO	0x02
 #define		ATA_USE_16BIT		0x04
-#define		ATA_ATTACHED		0x08
-#define		ATA_QUEUED		0x10
+#define		ATA_NO_SLAVE		0x08
+#define		ATA_ATTACHED		0x10
+#define		ATA_QUEUED		0x20
 
     int				devices;	/* what is present */
 #define		ATA_ATA_MASTER		0x01

@@ -181,7 +181,7 @@ ata_pccard_probe(device_t dev)
     }
     bus_release_resource(dev, SYS_RES_IOPORT, 0, port);
     scp->channel = 0;
-    scp->flags |= ATA_USE_16BIT;
+    scp->flags |= (ATA_USE_16BIT | ATA_NO_SLAVE);
     return ata_probe(dev);
 }
 
@@ -794,7 +794,7 @@ ata_probe(device_t dev)
 	    altioaddr = rman_get_start(altio) + 0x02;
     }
     else
-	altioaddr = ioaddr + ATA_IOSIZE;
+	altioaddr = ioaddr + ATA_PCCARD_ALTOFFSET;
 
     rid = ATA_BMADDR_RID;
     bmio = bus_alloc_resource(dev, SYS_RES_IOPORT, &rid, 0, ~0, 1, RF_ACTIVE);
@@ -1240,6 +1240,10 @@ ata_reset(struct ata_softc *scp, int *mask)
     DELAY(10000);
     inb(scp->ioaddr + ATA_ERROR);
     DELAY(3000);
+
+    /* in some setups we dont want to test for a slave */
+    if (scp->flags & ATA_NO_SLAVE)
+	*mask &= ~0x02;
 
     /* wait for BUSY to go inactive */
     for (timeout = 0; timeout < 310000; timeout++) {
