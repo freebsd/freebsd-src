@@ -31,8 +31,6 @@
  * $FreeBSD$
  */
 
-#include "opt_ebus.h"
-
 /*
  * UltraSPARC 5 and beyond ebus support.
  *
