@@ -92,7 +92,7 @@ int maxout;
 FILE *active;			/* active output file pointer  */
 int ilevel = 0; 		/* input file stack pointer    */
 int oindex = 0; 		/* diversion index..	       */
-const char *null = "";          /* as it says.. just a null..  */
+char null[] = "";		/* as it says.. just a null..  */
 const char *m4wraps = "";       /* m4wrap string default..     */
 char lquote[MAXCCHARS+1] = {LQUOTE};	/* left quote character  (`)   */
 char rquote[MAXCCHARS+1] = {RQUOTE};	/* right quote character (')   */
@@ -578,7 +578,7 @@ initkwds(void)
 		p->nxtptr = hashtab[h % HASHSIZE];
 		hashtab[h % HASHSIZE] = p;
 		p->name = xstrdup(keywrds[i].knam);
-		p->defn = xstrdup(null);
+		p->defn = null;
 		p->hv = h;
 		p->type = keywrds[i].ktyp & TYPEMASK;
 		if ((keywrds[i].ktyp & NOARGS) == 0)

@@ -149,7 +149,7 @@ extern char ecommt[MAXCCHARS+1];/* end character for comment */
 extern char *ep;		/* first free char in strspace */
 extern char lquote[MAXCCHARS+1];/* left quote character (`) */
 extern const char *m4wraps;	/* m4wrap string default. */
-extern const char *null;	/* as it says.. just a null. */
+extern char null[];		/* as it says.. just a null. */
 extern char rquote[MAXCCHARS+1];/* right quote character (') */
 extern char scommt[MAXCCHARS+1];/* start character for comment */
 extern int synccpp;		/* Line synchronisation for C preprocessor */
