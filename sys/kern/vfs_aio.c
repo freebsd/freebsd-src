@@ -1640,7 +1640,7 @@ aio_suspend(struct thread *td, struct aio_suspend_args *uap)
 	cbptr = uap->aiocbp;
 
 	for (i = 0; i < uap->nent; i++) {
-		cbp = (struct aiocb *)(intptr_t)fuword((caddr_t)&cbptr[i]);
+		cbp = (struct aiocb *)fuword((caddr_t)(uintptr_t)&cbptr[i]);
 		if (cbp == 0)
 			continue;
 		ujoblist[njoblist] = cbp;
@@ -1995,7 +1995,7 @@ lio_listio(struct thread *td, struct lio_listio_args *uap)
 	nentqueued = 0;
 	cbptr = uap->acb_list;
 	for (i = 0; i < uap->nent; i++) {
-		iocb = (struct aiocb *)(intptr_t)fuword((caddr_t)&cbptr[i]);
+		iocb = (struct aiocb *)fuword((caddr_t)(uintptr_t)&cbptr[i]);
 		if (((intptr_t)iocb != -1) && ((intptr_t)iocb != NULL)) {
 			error = _aio_aqueue(td, iocb, lj, 0);
 			if (error == 0)
@@ -2028,7 +2028,8 @@ lio_listio(struct thread *td, struct lio_listio_args *uap)
 				 * Fetch address of the control buf pointer in
 				 * user space.
 				 */
-				iocb = (struct aiocb *)(intptr_t)fuword((caddr_t)&cbptr[i]);
+				iocb = (struct aiocb *)
+				    fuword((caddr_t)(uintptr_t)&cbptr[i]);
 				if (((intptr_t)iocb == -1) || ((intptr_t)iocb
 				    == 0))
 					continue;
@@ -2198,7 +2199,6 @@ aio_waitcomplete(struct thread *td, struct aio_waitcomplete_args *uap)
 	struct proc *p = td->td_proc;
 	struct timeval atv;
 	struct timespec ts;
-	struct aiocb **cbptr;
 	struct kaioinfo *ki;
 	struct aiocblist *cb = NULL;
 	int error, s, timo;
@@ -2224,8 +2224,6 @@ aio_waitcomplete(struct thread *td, struct aio_waitcomplete_args *uap)
 	ki = p->p_aioinfo;
 	if (ki == NULL)
 		return EAGAIN;
-
-	cbptr = uap->aiocbp;
 
 	for (;;) {
 		if ((cb = TAILQ_FIRST(&ki->kaio_jobdone)) != 0) {
