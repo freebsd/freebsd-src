@@ -43,7 +43,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: if_ie.c,v 1.20 1994/12/22 21:56:09 wollman Exp $
+ *	$Id: if_ie.c,v 1.21 1995/03/19 14:28:45 davidg Exp $
  */
 
 /*
@@ -136,6 +136,8 @@ iomem, and to make 16-pointers, we subtract iomem and and with 0xffff.
 #include <netns/ns.h>
 #include <netns/ns_if.h>
 #endif
+
+#include <machine/clock.h>
 
 #include <i386/isa/isa.h>
 #include <i386/isa/isa_device.h>

@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)lfs_extern.h	8.2 (Berkeley) 4/16/94
- * $Id: lfs_extern.h,v 1.3 1994/08/21 07:16:09 paul Exp $
+ * $Id: lfs_extern.h,v 1.4 1994/09/22 19:38:34 wollman Exp $
  */
 
 #ifndef _UFS_LFS_LFS_EXTERN_H_
@@ -57,7 +57,9 @@ int	 lfs_close __P((struct vop_close_args *));
 int	 lfs_create __P((struct vop_create_args *));
 int	 lfs_fhtovp __P((struct mount *, struct fid *, struct mbuf *,
 	    struct vnode **, int *, struct ucred **));
+void	 lfs_free_buffer __P((caddr_t, int));
 int	 lfs_fsync __P((struct vop_fsync_args *));
+int	 lfs_gatherblock __P((struct segment *, struct buf *, int *));
 int	 lfs_getattr __P((struct vop_getattr_args *));
 struct dinode *
 	 lfs_ifind __P((struct lfs *, ino_t, struct dinode *));
@@ -86,6 +88,7 @@ int	 lfs_sync __P((struct mount *, int, struct ucred *, struct proc *));
 int	 lfs_truncate __P((struct vop_truncate_args *));
 int	 lfs_unmount __P((struct mount *, int, struct proc *));
 int	 lfs_update __P((struct vop_update_args *));
+void	 lfs_updatemeta __P((struct segment *));
 int	 lfs_valloc __P((struct vop_valloc_args *));
 int	 lfs_vcreate __P((struct mount *, ino_t, struct vnode **));
 int	 lfs_vfree __P((struct vop_vfree_args *));
@@ -95,6 +98,9 @@ int	 lfs_vptofh __P((struct vnode *, struct fid *));
 int	 lfs_vref __P((struct vnode *));
 void	 lfs_vunref __P((struct vnode *));
 int	 lfs_write __P((struct vop_write_args *));
+int	 lfs_writeinode __P((struct lfs *, struct segment *, struct inode *));
+int	 lfs_writeseg __P((struct lfs *, struct segment *));
+void	 lfs_writesuper __P((struct lfs *));
 #ifdef DEBUG
 void	lfs_dump_dinode __P((struct dinode *));
 void	lfs_dump_super __P((struct lfs *));

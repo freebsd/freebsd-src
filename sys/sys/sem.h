@@ -1,4 +1,4 @@
-/* $Id: sem.h,v 1.1 1994/09/13 14:47:35 dfr Exp $ */
+/* $Id: sem.h,v 1.2 1994/09/17 13:24:28 davidg Exp $ */
 /*	$NetBSD: sem.h,v 1.5 1994/06/29 06:45:15 cgd Exp $	*/
 
 /*
@@ -163,6 +163,8 @@ typedef enum {
 	SEM_CONFIG_FREEZE,	/* Freeze the semaphore facility. */
 	SEM_CONFIG_THAW		/* Thaw the semaphore facility. */
 } semconfig_ctl_t;
+
+void seminit __P((void));
 #endif /* KERNEL */
 
 #ifndef KERNEL

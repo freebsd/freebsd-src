@@ -2,7 +2,7 @@
  * Written by grefen@?????
  * Based on scsi drivers by Julian Elischer (julian@tfs.com)
  *
- *      $Id: ch.c,v 1.15 1995/03/04 20:50:45 dufault Exp $
+ *      $Id: ch.c,v 1.16 1995/03/15 14:22:04 dufault Exp $
  */
 
 #include	<sys/types.h>
@@ -24,7 +24,13 @@
 #include <scsi/scsiconf.h>
 #include <sys/devconf.h>
 
-static errval ch_mode_sense(u_int32, u_int32);
+errval ch_getelem __P((u_int32 unit, short *stat, int type, u_int32 from,
+		       void *data, u_int32 flags));
+errval ch_move __P((u_int32 unit, short *stat, u_int32 chm, u_int32 from,
+		   u_int32 to, u_int32 flags));
+static errval ch_mode_sense __P((u_int32 unit, u_int32 flags));
+errval ch_position __P((u_int32 unit, short *stat, u_int32 chm, u_int32 to,
+			u_int32 flags));
 
 #define	CHRETRIES	2
 
@@ -278,7 +284,7 @@ ch_getelem(unit, stat, type, from, data, flags)
 	u_int32 unit, from, flags;
 	int type;
 	short  *stat;
-	char   *data;
+	void   *data;		/* XXX `struct untagged *' - see chio.h */
 {
 	struct scsi_read_element_status scsi_cmd;
 	char    elbuf[32];

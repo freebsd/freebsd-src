@@ -21,9 +21,12 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- * $Id: if_le.c,v 1.10 1994/11/24 14:29:24 davidg Exp $
+ * $Id: if_le.c,v 1.12 1994/12/22 21:56:11 wollman Exp $
  *
  * $Log: if_le.c,v $
+ * Revision 1.12  1994/12/22  21:56:11  wollman
+ * Move ARP interface initialization into if_ether.c:arp_ifinit().
+ *
  * Revision 1.10  1994/11/24  14:29:24  davidg
  * Moved conversion of ether_type to host byte order out of ethernet drivers
  * and into ether_input(). It was silly to have bpf want this one way and
@@ -109,6 +112,8 @@
 #include <netns/ns.h>
 #include <netns/ns_if.h>
 #endif
+
+#include <machine/clock.h>
 
 #include <i386/isa/isa.h>
 #include <i386/isa/isa_device.h>
@@ -833,7 +838,6 @@ le_multi_op(
 #define LEMAC_32K_MODE(mbase)	(((mbase) >= 0x14) && ((mbase) <= 0x1F))
 #define LEMAC_2K_MODE(mbase)	( (mbase) >= 0x40)
 
-static int  lemac_probe(le_softc_t *sc, const le_board_t *bd, int *msize);
 static void lemac_init(int unit);
 static void lemac_start(struct ifnet *ifp);
 static void lemac_reset(IF_RESET_ARGS);
@@ -1353,7 +1357,6 @@ lemac_init_adapmem(
  * Start of DEPCA (DE200/DE201/DE202/DE422 etal) support.
  *
  */
-static int  depca_probe(le_softc_t *sc, const le_board_t *bd, int *msize);
 static void depca_intr(le_softc_t *sc);
 static int  lance_init_adapmem(le_softc_t *sc);
 static int  lance_init_ring(le_softc_t *sc, ln_ring_t *rp, lance_ring_t *ri,

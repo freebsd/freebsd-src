@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)isa_device.h	7.1 (Berkeley) 5/9/91
- *	$Id: isa_device.h,v 1.18 1995/03/12 13:23:10 ugen Exp $
+ *	$Id: isa_device.h,v 1.19 1995/03/16 17:31:19 se Exp $
  */
 
 #ifndef _I386_ISA_ISA_DEVICE_H_
@@ -126,6 +126,7 @@ inthand_t
 	IDTVEC(intr4), IDTVEC(intr5), IDTVEC(intr6), IDTVEC(intr7),
 	IDTVEC(intr8), IDTVEC(intr9), IDTVEC(intr10), IDTVEC(intr11),
 	IDTVEC(intr12), IDTVEC(intr13), IDTVEC(intr14), IDTVEC(intr15);
+
 void isa_configure __P((void));
 void isa_defaultirq __P((void));
 void isa_dmacascade __P((unsigned chan));
@@ -133,6 +134,7 @@ void isa_dmadone __P((int, caddr_t, int, int));
 void isa_dmastart __P((int, caddr_t, unsigned, unsigned));
 int isa_irq_pending __P((struct isa_device *dvp));
 int isa_nmi __P((int cd));
+void reconfig_isadev __P((struct isa_device *isdp, u_int *mp));
 int register_intr __P((int intr, int device_id, u_int flags,
 		       inthand2_t *handler, u_int *maskptr, int unit));
 int unregister_intr __P((int intr, inthand2_t *handler));

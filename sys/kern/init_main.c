@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)init_main.c	8.9 (Berkeley) 1/21/94
- * $Id: init_main.c,v 1.18 1995/02/20 22:23:09 davidg Exp $
+ * $Id: init_main.c,v 1.19 1995/03/16 18:12:27 bde Exp $
  */
 
 #include <sys/param.h>
@@ -58,8 +58,11 @@
 #include <sys/buf.h>
 #include <sys/clist.h>
 #include <sys/device.h>
+#include <sys/msg.h>
 #include <sys/protosw.h>
 #include <sys/reboot.h>
+#include <sys/sem.h>
+#include <sys/shm.h>
 #include <sys/user.h>
 
 #include <ufs/ufs/quota.h>

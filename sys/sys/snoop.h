@@ -13,8 +13,8 @@
  * Snoop stuff.
  */
 
-#ifndef SNOOP_H
-#define SNOOP_H		
+#ifndef _SNOOP_H_
+#define	_SNOOP_H_
 
 #define SNOOP_MINLEN		(4*1024)	/* This should be power of 2.
 						 * 4K tested to be the minimum
@@ -68,4 +68,18 @@ struct snoop {
 #define SNP_TTYCLOSE		-2
 #define SNP_DETACH		-3
 
-#endif
+#ifdef KERNEL
+/* XXX several wrong storage classes and types here. */
+int	snpclose __P((dev_t dev, int flag));
+int	snp_detach __P((struct snoop *snp));
+int	snpdown __P((struct snoop *snp));
+int	snpin __P((struct snoop *snp, char *buf, int n));
+int	snpinc __P((struct snoop *snp, char c));
+int	snpioctl __P((dev_t dev, int cmd, caddr_t data, int flag));
+int	snpopen __P((dev_t dev, int flag, int mode, struct proc *p));
+int	snpread __P((dev_t dev, struct uio *uio, int flag));
+int	snpselect __P((dev_t dev, int rw, struct proc *p));
+int	snpwrite __P((dev_t dev, struct uio *uio, int flag));
+#endif /* KERNEL */
+
+#endif /* _SNOOP_H_ */

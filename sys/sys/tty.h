@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)tty.h	8.6 (Berkeley) 1/21/94
- * $Id: tty.h,v 1.12 1995/02/28 00:21:11 pst Exp $
+ * $Id: tty.h,v 1.13 1995/03/16 18:16:33 bde Exp $
  */
 
 #ifndef _SYS_TTY_H_
@@ -237,6 +237,15 @@ int	 ttywait __P((struct tty *tp));
 int	 ttywflush __P((struct tty *tp));
 struct tty *ttymalloc __P((void));
 void     ttyfree __P((struct tty *));
+
+/* From tty_tty.c. */
+int	cttyioctl __P((dev_t dev, int cmd, caddr_t addr, int flag,
+		       struct proc *p));
+int	cttyopen __P((dev_t dev, int flag, int mode, struct proc *p));
+int	cttyread __P((dev_t dev, struct uio *uio, int flag));
+int	cttyselect __P((dev_t dev, int flag, struct proc *p));
+int	cttywrite __P((dev_t dev, struct uio *uio, int flag));
+
 #endif /* KERNEL */
 
 #endif /* !_SYS_TTY_H_ */
