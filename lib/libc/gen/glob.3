@@ -34,7 +34,7 @@
 .\"     @(#)glob.3	8.3 (Berkeley) 4/16/94
 .\" $FreeBSD$
 .\"
-.Dd July 18, 2004
+.Dd August 23, 2004
 .Dt GLOB 3
 .Os
 .Sh NAME
@@ -197,9 +197,9 @@ If
 .Dv GLOB_NOESCAPE
 is set, backslash escaping is disabled.
 .It Dv GLOB_NOSORT
-By default, the pathnames are sorted in ascending
-.Tn ASCII
-order;
+By default, the pathnames are sorted in ascending order
+according to the current setting of
+.Ev LC_COLLATE ;
 this flag prevents that sorting (speeding up
 .Fn glob ) .
 .El
