@@ -80,7 +80,7 @@ sysctl_msec_to_ticks(SYSCTL_HANDLER_ARGS)
 		return (EINVAL);
 
 	*(int *)oidp->oid_arg1 = tt;
-        return (0);
+	return (0);
 }
 
 int	tcp_keepinit;
@@ -99,7 +99,7 @@ int	tcp_delacktime;
 SYSCTL_PROC(_net_inet_tcp, TCPCTL_DELACKTIME, delacktime,
     CTLTYPE_INT|CTLFLAG_RW, &tcp_delacktime, 0, sysctl_msec_to_ticks, "I",
     "Time before a delayed ACK is sent");
- 
+
 int	tcp_msl;
 SYSCTL_PROC(_net_inet_tcp, OID_AUTO, msl, CTLTYPE_INT|CTLFLAG_RW,
     &tcp_msl, 0, sysctl_msec_to_ticks, "I", "Maximum segment lifetime");
@@ -113,7 +113,7 @@ SYSCTL_PROC(_net_inet_tcp, OID_AUTO, rexmit_slop, CTLTYPE_INT|CTLFLAG_RW,
     &tcp_rexmit_slop, 0, sysctl_msec_to_ticks, "I", "Retransmission Timer Slop");
 
 static int	always_keepalive = 1;
-SYSCTL_INT(_net_inet_tcp, OID_AUTO, always_keepalive, CTLFLAG_RW, 
+SYSCTL_INT(_net_inet_tcp, OID_AUTO, always_keepalive, CTLFLAG_RW,
     &always_keepalive , 0, "Assume SO_KEEPALIVE on all TCP connections");
 
 static int	tcp_keepcnt = TCPTV_KEEPCNT;
@@ -299,7 +299,7 @@ tcp_timer_2msl_tw(int reuse)
 	struct tcptw *tw, *tw_tail;
 	struct twlist *twl;
 	int i;
-	
+
 	for (i = 0; i < 2; i++) {
 		twl = tw_2msl_list[i];
 		tw_tail = &twl->tw_tail;
@@ -517,10 +517,10 @@ tcp_timer_rexmt(xtp)
 	if (tp->t_rxtshift == 1) {
 		/*
 		 * first retransmit; record ssthresh and cwnd so they can
-	 	 * be recovered if this turns out to be a "bad" retransmit.
-		 * A retransmit is considered "bad" if an ACK for this 
+		 * be recovered if this turns out to be a "bad" retransmit.
+		 * A retransmit is considered "bad" if an ACK for this
 		 * segment is received within RTT/2 interval; the assumption
-		 * here is that the ACK was already in flight.  See 
+		 * here is that the ACK was already in flight.  See
 		 * "On Estimating End-to-End Network Path Properties" by
 		 * Allman and Paxson for more details.
 		 */
@@ -542,9 +542,9 @@ tcp_timer_rexmt(xtp)
 		      tp->t_rttmin, TCPTV_REXMTMAX);
 	/*
 	 * Disable rfc1323 and rfc1644 if we havn't got any response to
-	 * our third SYN to work-around some broken terminal servers 
-	 * (most of which have hopefully been retired) that have bad VJ 
-	 * header compression code which trashes TCP segments containing 
+	 * our third SYN to work-around some broken terminal servers
+	 * (most of which have hopefully been retired) that have bad VJ
+	 * header compression code which trashes TCP segments containing
 	 * unknown-to-them TCP options.
 	 */
 	if ((tp->t_state == TCPS_SYN_SENT) && (tp->t_rxtshift == 3))

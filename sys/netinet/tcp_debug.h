@@ -57,7 +57,7 @@ struct	tcp_debug {
 	struct	tcpcb td_cb;
 };
 
-#define	TA_INPUT 	0
+#define	TA_INPUT	0
 #define	TA_OUTPUT	1
 #define	TA_USER		2
 #define	TA_RESPOND	3

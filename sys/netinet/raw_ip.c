@@ -94,7 +94,7 @@ int (*ip_mrouter_set)(struct socket *, struct sockopt *);
 int (*ip_mrouter_get)(struct socket *, struct sockopt *);
 int (*ip_mrouter_done)(void);
 int (*ip_mforward)(struct ip *, struct ifnet *, struct mbuf *,
-                   struct ip_moptions *);
+		   struct ip_moptions *);
 int (*mrt_ioctl)(int, caddr_t);
 int (*legal_vif_num)(int);
 u_long (*ip_mcast_src)(int);
@@ -207,10 +207,10 @@ rip_input(struct mbuf *m, int off)
 			goto docontinue;
 #endif
 		if (inp->inp_laddr.s_addr &&
-                    inp->inp_laddr.s_addr != ip->ip_dst.s_addr)
+		    inp->inp_laddr.s_addr != ip->ip_dst.s_addr)
 			goto docontinue;
 		if (inp->inp_faddr.s_addr &&
-                    inp->inp_faddr.s_addr != ip->ip_src.s_addr)
+		    inp->inp_faddr.s_addr != ip->ip_src.s_addr)
 			goto docontinue;
 		if (jailed(inp->inp_socket->so_cred))
 			if (htonl(prison_getip(inp->inp_socket->so_cred)) !=

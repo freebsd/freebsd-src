@@ -243,27 +243,27 @@ struct tcpopt {
 	tcp_cc		to_cc;		/* holds CC or CCnew */
 	tcp_cc		to_ccecho;
 	u_int16_t	to_mss;
-	u_int8_t 	to_requested_s_scale;
-	u_int8_t 	to_pad;
+	u_int8_t	to_requested_s_scale;
+	u_int8_t	to_pad;
 };
 
 #ifdef _NETINET_IN_PCB_H_
 struct syncache {
 	inp_gen_t	sc_inp_gencnt;		/* pointer check */
-	struct 		tcpcb *sc_tp;		/* tcb for listening socket */
+	struct		tcpcb *sc_tp;		/* tcb for listening socket */
 	struct		mbuf *sc_ipopts;	/* source route */
-	struct 		in_conninfo sc_inc;	/* addresses */
+	struct		in_conninfo sc_inc;	/* addresses */
 	u_int32_t	sc_tsrecent;
 	u_int32_t	sc_flowlabel;		/* IPv6 flowlabel */
 	tcp_cc		sc_cc_send;		/* holds CC or CCnew */
 	tcp_cc		sc_cc_recv;
-	tcp_seq 	sc_irs;			/* seq from peer */
-	tcp_seq 	sc_iss;			/* our ISS */
+	tcp_seq		sc_irs;			/* seq from peer */
+	tcp_seq		sc_iss;			/* our ISS */
 	u_long		sc_rxttime;		/* retransmit time */
-	u_int16_t	sc_rxtslot; 		/* retransmit counter */
+	u_int16_t	sc_rxtslot;		/* retransmit counter */
 	u_int16_t	sc_peer_mss;		/* peer's MSS */
 	u_int16_t	sc_wnd;			/* advertised window */
-	u_int8_t 	sc_requested_s_scale:4,
+	u_int8_t	sc_requested_s_scale:4,
 			sc_request_r_scale:4;
 	u_int8_t	sc_flags;
 #define SCF_NOOPT	0x01			/* no TCP options */
@@ -307,12 +307,12 @@ struct tcptw {
 	u_short		last_win;	/* cached window value */
 	u_short		tw_so_options;	/* copy of so_options */
 	struct ucred	*tw_cred;	/* user credentials */
-	u_long 		t_recent;
+	u_long		t_recent;
 	u_long		t_starttime;
 	int		tw_time;
 	LIST_ENTRY(tcptw) tw_2msl;
 };
- 
+
 /*
  * The TAO cache entry which is stored in the tcp hostcache.
  */
@@ -462,7 +462,7 @@ struct	tcpstat {
 	/* SACK related stats */
 	u_long	tcps_sack_recovery_episode; /* SACK recovery episodes */
 	u_long  tcps_sack_rexmits;	    /* SACK rexmit segments   */
-	u_long  tcps_sack_rexmit_bytes;	    /* SACK rexmit bytes      */	
+	u_long  tcps_sack_rexmit_bytes;	    /* SACK rexmit bytes      */
 	u_long  tcps_sack_rcv_blocks;	    /* SACK blocks (options) received */
 	u_long  tcps_sack_send_blocks;	    /* SACK blocks (options) sent     */
 };
@@ -560,7 +560,7 @@ u_long	 tcp_maxmtu(struct in_conninfo *);
 u_long	 tcp_maxmtu6(struct in_conninfo *);
 void	 tcp_mss(struct tcpcb *, int);
 int	 tcp_mssopt(struct in_conninfo *);
-struct inpcb *	 
+struct inpcb *
 	 tcp_drop_syn_sent(struct inpcb *, int);
 struct inpcb *
 	 tcp_mtudisc(struct inpcb *, int);
@@ -623,7 +623,7 @@ void	 tcp_free_sackholes(struct tcpcb *tp);
 int	 tcp_newreno(struct tcpcb *, struct tcphdr *);
 u_long	 tcp_seq_subtract(u_long, u_long );
 #ifdef TCP_SACK_DEBUG
-void 	 tcp_print_holes(struct tcpcb *tp);
+void	 tcp_print_holes(struct tcpcb *tp);
 #endif /* TCP_SACK_DEBUG */
 
 #endif /* _KERNEL */

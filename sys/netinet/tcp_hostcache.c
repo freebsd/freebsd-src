@@ -182,11 +182,11 @@ SYSCTL_PROC(_net_inet_tcp_hostcache, OID_AUTO, list,
 static MALLOC_DEFINE(M_HOSTCACHE, "hostcache", "TCP hostcache");
 
 #define HOSTCACHE_HASH(ip) \
-	(((ip)->s_addr ^ ((ip)->s_addr >> 7) ^ ((ip)->s_addr >> 17)) & 	\
+	(((ip)->s_addr ^ ((ip)->s_addr >> 7) ^ ((ip)->s_addr >> 17)) &	\
 	  tcp_hostcache.hashmask)
 
 /* XXX: What is the recommended hash to get good entropy for IPv6 addresses? */
-#define HOSTCACHE_HASH6(ip6)	 			\
+#define HOSTCACHE_HASH6(ip6)				\
 	(((ip6)->s6_addr32[0] ^				\
 	  (ip6)->s6_addr32[1] ^				\
 	  (ip6)->s6_addr32[2] ^				\
@@ -211,16 +211,16 @@ tcp_hc_init(void)
 	    tcp_hostcache.hashsize * tcp_hostcache.bucket_limit;
 	tcp_hostcache.expire = TCP_HOSTCACHE_EXPIRE;
 
-        TUNABLE_INT_FETCH("net.inet.tcp.hostcache.hashsize",
+	TUNABLE_INT_FETCH("net.inet.tcp.hostcache.hashsize",
 	    &tcp_hostcache.hashsize);
-        TUNABLE_INT_FETCH("net.inet.tcp.hostcache.cachelimit",
+	TUNABLE_INT_FETCH("net.inet.tcp.hostcache.cachelimit",
 	    &tcp_hostcache.cache_limit);
-        TUNABLE_INT_FETCH("net.inet.tcp.hostcache.bucketlimit",
+	TUNABLE_INT_FETCH("net.inet.tcp.hostcache.bucketlimit",
 	    &tcp_hostcache.bucket_limit);
 	if (!powerof2(tcp_hostcache.hashsize)) {
-                printf("WARNING: hostcache hash size is not a power of 2.\n");
+		printf("WARNING: hostcache hash size is not a power of 2.\n");
 		tcp_hostcache.hashsize = 512;	/* safe default */
-        }
+	}
 	tcp_hostcache.hashmask = tcp_hostcache.hashsize - 1;
 
 	/*
@@ -311,7 +311,7 @@ tcp_hc_lookup(struct in_conninfo *inc)
 /*
  * Internal function: insert an entry into the hostcache or return NULL
  * if unable to allocate a new one.
- * 
+ *
  * If an entry has been returned, the caller becomes responsible for
  * unlocking the bucket row after he is done reading/modifying the entry.
  */
@@ -545,7 +545,7 @@ tcp_hc_update(struct in_conninfo *inc, struct hc_metrics_lite *hcml)
 	}
 	if (hcml->rmx_rttvar != 0) {
 	        if (hc_entry->rmx_rttvar == 0)
-        	        hc_entry->rmx_rttvar = hcml->rmx_rttvar;
+			hc_entry->rmx_rttvar = hcml->rmx_rttvar;
 		else
 			hc_entry->rmx_rttvar =
 			    (hc_entry->rmx_rttvar + hcml->rmx_rttvar) / 2;
@@ -581,8 +581,8 @@ tcp_hc_update(struct in_conninfo *inc, struct hc_metrics_lite *hcml)
 		else
 			hc_entry->rmx_sendpipe =
 			    (hc_entry->rmx_sendpipe + hcml->rmx_sendpipe) /2;
-                /* tcpstat.tcps_cachedsendpipe++; */
-        }
+		/* tcpstat.tcps_cachedsendpipe++; */
+	}
 	if (hcml->rmx_recvpipe != 0) {
 		if (hc_entry->rmx_recvpipe == 0)
 			hc_entry->rmx_recvpipe = hcml->rmx_recvpipe;
