@@ -217,5 +217,4 @@ static driver_t cbb_isa_driver = {
 };
 
 DRIVER_MODULE(cbb, isa, cbb_isa_driver, cbb_devclass, 0, 0);
-MODULE_VERSION(cbb, 1);
 MODULE_DEPEND(cbb, exca, 1, 1, 1);
