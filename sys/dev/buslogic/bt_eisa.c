@@ -162,25 +162,18 @@ bt_match(eisa_id_t type)
 	switch(type) {
 		case EISA_DEVICE_ID_BUSLOGIC_74X_B:
 			return ("Buslogic 74xB SCSI host adapter");
-			break;
 		case EISA_DEVICE_ID_BUSLOGIC_74X_C:
 			return ("Buslogic 74xC SCSI host adapter");
-			break;
 		case EISA_DEVICE_ID_SDC3222B:
 			return ("Storage Dimensions SDC3222B SCSI host adapter");
-			break;
 		case EISA_DEVICE_ID_SDC3222F:
 			return ("Storage Dimensions SDC3222F SCSI host adapter");
-			break;
 		case EISA_DEVICE_ID_SDC3222WS:
 			return ("Storage Dimensions SDC3222WS SCSI host adapter");
-			break;
 		case EISA_DEVICE_ID_SDC3222WB:
 			return ("Storage Dimensions SDC3222WB SCSI host adapter");
-			break;
 		case EISA_DEVICE_ID_AMI_4801:
 			return ("AMI Series 48 SCSI host adapter");
-			break;
 		default:
 			break;
 	}
