@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: install.c,v 1.70.2.38 1995/06/06 05:18:31 jkh Exp $
+ * $Id: install.c,v 1.70.2.39 1995/06/06 23:51:48 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -320,6 +320,9 @@ installCommit(char *str)
     /* BOGON #1:  XFree86 extracting /usr/X11R6 with root-only perms */
     if (file_readable("/usr/X11R6"))
 	(void)system("chmod 755 /usr/X11R6");
+
+    /* BOGON #2: We leave /etc in a bad state */
+    (void)system("chmod 755 /etc");
 
     dialog_clear();
     if (Dists)
