@@ -119,6 +119,9 @@ Boston, MA 02111-1307, USA.  */
           fprintf (FILE, "\t.version\t\"01.01\"\n");			\
   } while (0)
 
+/* don't override the defauts, in case gdb gets upset */
+#undef ASM_IDENTIFY_GCC
+
 /* This is how to store into the string BUF
    the symbol_ref name of an internal numbered label where      
    PREFIX is the class of label and NUM is the number within the class.  
@@ -163,12 +166,6 @@ Boston, MA 02111-1307, USA.  */
 #define ASM_OUTPUT_LOOP_ALIGN(FILE) \
   fprintf ((FILE), "\t.p2align %d,0x90\n", i386_align_loops)
 
-
-/* A C statement to output assembler commands which will identify the object
-  file as having been compile with GNU CC. We don't need or want this for
-  GDB. */
-#undef ASM_IDENTIFY_GCC
-#define ASM_IDENTIFY_GCC(FILE)
 
 /* conditionalize the use of ".section rodata" on elf mode - otherwise .text */
 #undef USE_CONST_SECTION
@@ -282,6 +279,9 @@ do {									\
     fprintf (file, "\t%s %d,0,%d\n", ASM_STABD_OP, N_SLINE, lineno);	\
   }									\
 } while (0)
+
+#undef DBX_FUNCTION_FIRST
+#define DBX_CHECK_FUNCTION_FIRST TARGET_ELF
 
 /* stabs-in-elf has offsets relative to function beginning */
 #undef DBX_OUTPUT_LBRAC

@@ -2494,6 +2494,11 @@ dbxout_begin_function (decl)
 {
 #ifdef DBX_FUNCTION_FIRST
   dbxout_really_begin_function (decl);
+#else
+#ifdef DBX_CHECK_FUNCTION_FIRST
+  if (DBX_CHECK_FUNCTION_FIRST)
+    dbxout_really_begin_function (decl);
+#endif
 #endif
 }
 
@@ -2509,6 +2514,11 @@ dbxout_function (decl)
 {
 #ifndef DBX_FUNCTION_FIRST
   dbxout_really_begin_function (decl);
+#else
+#ifdef DBX_CHECK_FUNCTION_FIRST
+  if (!(DBX_CHECK_FUNCTION_FIRST))
+    dbxout_really_begin_function (decl);
+#endif
 #endif
   dbxout_block (DECL_INITIAL (decl), 0, DECL_ARGUMENTS (decl));
 #ifdef DBX_OUTPUT_FUNCTION_END
