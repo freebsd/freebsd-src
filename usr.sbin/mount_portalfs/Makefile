@@ -6,7 +6,7 @@ SRCS=	mount_portalfs.c activate.c conf.c getmntopts.c pt_conf.c \
 	pt_exec.c pt_file.c pt_tcp.c pt_tcplisten.c
 MAN=	mount_portalfs.8
 
-MOUNT=	${.CURDIR}/../mount
+MOUNT=	${.CURDIR}/../../sbin/mount
 CFLAGS+=-I${MOUNT}
 WARNS=	0
 
