@@ -448,8 +448,6 @@ vnode_print(avnode, vp)
 		*fp++ = 'D';
 	if (flag & VFREE)
 		*fp++ = 'F';
-	if (flag & VTBFREE)
-		*fp++ = 'b';
 	if (flag & VONWORKLST)
 		*fp++ = 'O';
 	if (flag & VMOUNT)
