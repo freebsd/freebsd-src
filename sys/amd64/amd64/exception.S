@@ -109,8 +109,6 @@ __CONCAT(__CONCAT(bdb_,name),_ljmp): \
 #define BDBTRAP(name)
 #endif
 
-#define BPTTRAP(a)	testl $PSL_I,4+8(%esp) ; je 1f ; sti ; 1: ; TRAP(a)
-
 MCOUNT_LABEL(user)
 MCOUNT_LABEL(btrap)
 
@@ -118,12 +116,12 @@ IDTVEC(div)
 	pushl $0; TRAP(T_DIVIDE)
 IDTVEC(dbg)
 	BDBTRAP(dbg)
-	pushl $0; BPTTRAP(T_TRCTRAP)
+	pushl $0; TRAP(T_TRCTRAP)
 IDTVEC(nmi)
 	pushl $0; TRAP(T_NMI)
 IDTVEC(bpt)
 	BDBTRAP(bpt)
-	pushl $0; BPTTRAP(T_BPTFLT)
+	pushl $0; TRAP(T_BPTFLT)
 IDTVEC(ofl)
 	pushl $0; TRAP(T_OFLOW)
 IDTVEC(bnd)
