@@ -47,7 +47,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: if_ie.c,v 1.56 1998/08/10 17:21:48 bde Exp $
+ *	$Id: if_ie.c,v 1.57 1998/10/22 05:58:39 bde Exp $
  */
 
 /*
@@ -2261,7 +2261,9 @@ static int
 ieioctl(struct ifnet *ifp, u_long command, caddr_t data)
 {
 	struct ifaddr *ifa = (struct ifaddr *) data;
+#if defined(IPX) || defined(NS)
 	struct ie_softc *ie = ifp->if_softc;
+#endif
 	struct ifreq *ifr = (struct ifreq *) data;
 	int	s, error = 0;
 
