@@ -75,7 +75,7 @@ static const char sccsid[] = "@(#)commands.c	8.4 (Berkeley) 5/30/95";
 
 #ifndef       MAXHOSTNAMELEN
 #define       MAXHOSTNAMELEN 256
-#endif        MAXHOSTNAMELEN
+#endif
 
 typedef int (*intrtn_t)(int, char **);
 

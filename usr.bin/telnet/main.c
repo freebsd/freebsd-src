@@ -55,10 +55,6 @@ static const char sccsid[] = "@(#)main.c	8.3 (Berkeley) 5/30/95";
 #define OPTS_FORWARD_CREDS	0x00000002
 #define OPTS_FORWARDABLE_CREDS	0x00000001
 
-#if 0
-#define FORWARD
-#endif
-
 #if defined(IPSEC) && defined(IPSEC_POLICY_IPSEC)
 char *ipsec_policy_in = NULL;
 char *ipsec_policy_out = NULL;
