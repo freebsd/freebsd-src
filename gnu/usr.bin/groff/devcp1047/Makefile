@@ -1,6 +1,6 @@
 # $FreeBSD$
 
-DEV=		latin1
+DEV=		cp1047
 
 .include "../Makefile.tty"
 .include "../Makefile.dev"

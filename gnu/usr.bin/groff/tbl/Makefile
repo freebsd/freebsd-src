@@ -1,13 +1,11 @@
-# Makefile for tbl
+# $FreeBSD$
 
 PROG=		tbl
 SRCS=		main.cc table.cc
-CFLAGS+=	-I${.CURDIR}/../include
 LDADD+=		${LIBGROFF} -lm
 DPADD+=		${LIBGROFF} ${LIBM}
 
-MANDEPEND=	tbl.1
-CLEANFILES+=	${MANDEPEND}
+CLEANFILES+=	${MAN1}
 
 .include "../Makefile.cfg"
 .include <bsd.prog.mk>

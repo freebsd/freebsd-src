@@ -1,7 +1,7 @@
 # $FreeBSD$
 
-PROG=		grodvi
-SRCS=		dvi.cc
+PROG=		grolbp
+SRCS=		lbp.cc
 LDADD+=		${LIBDRIVER} ${LIBGROFF} -lm
 DPADD+=		${LIBDRIVER} ${LIBGROFF} ${LIBM}
 
