@@ -68,16 +68,15 @@ LIBPAM+=	${LIBKRB}
 MINUSLPAM+=	-lkrb
 .endif
 .ifdef MAKE_KERBEROS5
-LIBPAM+=	${LIBKRB5} ${LIBASN1}
-MINUSLPAM+=	-lkrb5 -lasn1 -L${.OBJDIR}/../../kerberos5/lib/libroken/ -lroken
+LIBPAM+=	${LIBKRB5} ${LIBASN1} ${LIBROKEN}
+MINUSLPAM+=	-lkrb5 -lasn1 -lroken
 .endif
-LIBPAM+=	${LIBCRYPTO} ${LIBCOM_ERR}
+LIBPAM+=	${LIBCOM_ERR}
 MINUSLPAM+=	-lcom_err
 .endif
 LIBPAM+=	${LIBRADIUS} ${LIBTACPLUS} ${LIBSKEY} ${LIBCRYPT} ${LIBMD} \
-		${LIBUTIL} ${LIBOPIE} ${LIBCRYPTO}
-MINUSLPAM+=	-lradius -ltacplus -lskey -lcrypt -lmd -lutil -lopie \
-		-lcrypto
+		${LIBUTIL} ${LIBOPIE}
+MINUSLPAM+=	-lradius -ltacplus -lcrypt -lmd -lutil -lopie
 .endif
 
 LIBPANEL?=	${DESTDIR}${LIBDIR}/libpanel.a
@@ -88,6 +87,7 @@ LIBPLOT?=	${DESTDIR}${LIBDIR}/libplot.a	# XXX doesn't exist
 LIBRADIUS?=	${DESTDIR}${LIBDIR}/libradius.a
 LIBREADLINE?=	${DESTDIR}${LIBDIR}/libreadline.a
 LIBRESOLV?=	${DESTDIR}${LIBDIR}/libresolv.a	# XXX doesn't exist
+LIBROKEN?=	${DESTDIR}${LIBDIR}/libroken.a	# XXX in secure dist, not base
 LIBRPCSVC?=	${DESTDIR}${LIBDIR}/librpcsvc.a
 LIBSBUF?=	${DESTDIR}${LIBDIR}/libsbuf.a
 LIBSKEY?=	${DESTDIR}${LIBDIR}/libskey.a
