@@ -128,7 +128,8 @@ interrupt(u_int64_t vector, struct trapframe *framep)
 		/* Only the BSP runs the real clock */
 		if (PCPU_GET(cpuid) == 0) {
 #endif
-			handleclock(framep);
+			ia64_set_itm(ia64_get_itc() + itm_reload);
+			hardclock((struct clockframe *)framep);
 			/* divide hz (1024) by 8 to get stathz (128) */
 			if ((++schedclk2 & 0x7) == 0)
 				statclock((struct clockframe *)framep);
