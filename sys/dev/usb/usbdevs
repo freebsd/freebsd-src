@@ -418,6 +418,7 @@ product ACERP ACERSCAN_C310U	0x12a6	Acerscan C310U
 product ACERP ACERSCAN_320U	0x2022	Acerscan 320U
 product ACERP ACERSCAN_640U	0x2040	Acerscan 640U
 product ACERP ACERSCAN_620U	0x2060	Acerscan 620U
+product ACERP AWL300		0x9000	AWL300 Wireless adapte
 
 /* ActiveWire, Inc. products */
 product ACTIVEWIRE IOBOARD	0x0100	I/O Board
@@ -492,8 +493,9 @@ product ATEN UC232A		0x2008	Serial adapter
 
 /* Atmel Comp. products */
 product ATMEL UHB124		0x3301	UHB124 hub
-product ATMEL DWL120		0x7602	DWL-120 Wireless adapter
+product ATMEL DWL120		0x7603	DWL-120 Wireless adapter
 product ATMEL BW002		0x7605	BW002 Wireless adapter
+product ATMEL AT76C505A		0x7614	AT76c505a Wireless adapter
 
 /* Avision products */
 product AVISION 1200U		0x0268	1200U scanner
@@ -874,6 +876,7 @@ product LINKSYS USB100H1	0x2204	USB100H1 Ethernet/HPNA
 product LINKSYS USB10TA		0x2206	USB10TA Ethernet
 product LINKSYS USB10TX2	0x400b	USB10TX
 product LINKSYS USB200M		0x2226  USB 2.0 10/100 ethernet controller
+product LINKSYS2 WUSB11		0x2219	WUSB11 Wireless adapter
 
 /* Logitech products */
 product LOGITECH M2452		0x0203	M2452 keyboard
