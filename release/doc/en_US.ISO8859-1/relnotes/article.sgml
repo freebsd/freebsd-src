@@ -155,7 +155,7 @@
       XFree86 4.3.0 but also including some additional
       bug fixes.</para>
 
-    <para arch="i386,ia64">An ehci driver has been added; it supports
+    <para arch="i386,ia64,pc98">An ehci driver has been added; it supports
       the USB Enhanced Host Controller Interface used by USB 2.0
       controllers.</para>
 
