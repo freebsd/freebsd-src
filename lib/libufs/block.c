@@ -92,7 +92,7 @@ bwrite(struct uufsd *disk, ufs2_daddr_t blockno, const void *data, size_t size)
 
 	cnt = pwrite(disk->d_fd, data, size, (off_t)(blockno * disk->d_bsize));
 	if (cnt == -1) {
-		ERROR(disk, "read write to block device");
+		ERROR(disk, "write error to block device");
 		return -1;
 	}
 	if ((size_t)cnt != size) {
