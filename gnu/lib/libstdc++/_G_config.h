@@ -74,7 +74,12 @@ typedef int _G_wchar_t;
 #endif
 typedef int _G_ssize_t;
 typedef int /* default */ _G_wint_t;
+#ifdef __i386__
 typedef char * _G_va_list;
+#else
+#define _G_NEED_STDARG_H
+#define _G_va_list va_list
+#endif /* __i386__ */
 #define _G_signal_return_type void
 #define _G_sprintf_return_type int
 #define _G_HAVE_ATEXIT 1
