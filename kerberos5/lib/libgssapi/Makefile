@@ -65,6 +65,51 @@ INCS=	gssapi.h			\
 	${.OBJDIR}/krb5_err.h		\
 	${.OBJDIR}/k524_err.h
 
+MAN=	\
+	gss_acquire_cred.3		\
+	gssapi.3
+
+MLINKS=	\
+	gss_acquire_cred.3 gss_accept_sec_context.3	\
+	gss_acquire_cred.3 gss_add_cred.3	\
+	gss_acquire_cred.3 gss_add_oid_set_member.3	\
+	gss_acquire_cred.3 gss_canonicalize_name.3	\
+	gss_acquire_cred.3 gss_compare_name.3	\
+	gss_acquire_cred.3 gss_context_time.3	\
+	gss_acquire_cred.3 gss_create_empty_oid_set.3	\
+	gss_acquire_cred.3 gss_delete_sec_context.3	\
+	gss_acquire_cred.3 gss_display_name.3	\
+	gss_acquire_cred.3 gss_display_status.3	\
+	gss_acquire_cred.3 gss_duplicate_name.3	\
+	gss_acquire_cred.3 gss_export_name.3	\
+	gss_acquire_cred.3 gss_export_sec_context.3	\
+	gss_acquire_cred.3 gss_get_mic.3	\
+	gss_acquire_cred.3 gss_import_name.3	\
+	gss_acquire_cred.3 gss_import_sec_context.3	\
+	gss_acquire_cred.3 gss_indicate_mechs.3	\
+	gss_acquire_cred.3 gss_init_sec_context.3	\
+	gss_acquire_cred.3 gss_inquire_context.3	\
+	gss_acquire_cred.3 gss_inquire_cred.3	\
+	gss_acquire_cred.3 gss_inquire_cred_by_mech.3	\
+	gss_acquire_cred.3 gss_inquire_mechs_for_name.3	\
+	gss_acquire_cred.3 gss_inquire_names_for_mech.3	\
+	gss_acquire_cred.3 gss_krb5_compat_des3_mic.3	\
+	gss_acquire_cred.3 gss_krb5_copy_ccache.3	\
+	gss_acquire_cred.3 gss_process_context_token.3	\
+	gss_acquire_cred.3 gss_release_buffer.3	\
+	gss_acquire_cred.3 gss_release_cred.3	\
+	gss_acquire_cred.3 gss_release_name.3	\
+	gss_acquire_cred.3 gss_release_oid_set.3	\
+	gss_acquire_cred.3 gss_seal.3	\
+	gss_acquire_cred.3 gss_sign.3	\
+	gss_acquire_cred.3 gss_test_oid_set_member.3	\
+	gss_acquire_cred.3 gss_unseal.3	\
+	gss_acquire_cred.3 gss_unwrap.3	\
+	gss_acquire_cred.3 gss_verify.3	\
+	gss_acquire_cred.3 gss_verify_mic.3	\
+	gss_acquire_cred.3 gss_wrap.3	\
+	gss_acquire_cred.3 gss_wrap_size_limit.3
+
 .include <bsd.lib.mk>
 
 .PATH:		${KRB5DIR}/lib/gssapi
