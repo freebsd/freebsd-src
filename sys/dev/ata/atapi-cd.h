@@ -308,10 +308,6 @@ struct acd_softc {
     struct bio_queue_head	queue;		/* queue of i/o requests */
     TAILQ_HEAD(, acd_devlist)   dev_list;	/* list of "track" devices */
     struct toc			toc;		/* table of disc contents */
-    struct {
-	u_int32_t	volsize;		/* volume size in blocks */
-	u_int32_t	blksize;		/* block size in bytes */
-    } info;
     struct audiopage		au;		/* audio page info */
     struct audiopage		aumask;		/* audio page mask */
     struct cappage		cap;		/* capabilities page info */
@@ -330,6 +326,7 @@ struct acd_softc {
     struct acd_softc		**driver;	/* softc's of changer slots */
     int				slot;		/* this instance slot number */
     time_t			timestamp;	/* this instance timestamp */
+    int				disk_size;	/* size of current media */
     int				block_size;	/* blocksize currently used */
     struct disklabel		disklabel;	/* fake disk label */
     struct devstat		*stats;		/* devstat entry */
