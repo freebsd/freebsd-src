@@ -14,7 +14,7 @@
  *
  * Ported to run under 386BSD by Julian Elischer (julian@tfs.com) Sept 1992
  *
- *      $Id: scsiconf.c,v 1.8 1993/12/19 00:54:54 wollman Exp $
+ *      $Id: scsiconf.c,v 1.9 1994/09/28 20:16:40 se Exp $
  */
 
 #include <sys/types.h>
@@ -727,7 +727,7 @@ scsi_probedev(sc_link, maybe_more)
 		strncpy(model, "unknown", 16);
 		strncpy(version, "????", 4);
 	}
-	printf("%s%d targ %d lun %d: type %d(%s) %s SCSI%d\n"
+	printf("%s%d targ %d lun %d: type %ld(%s) %s SCSI%d\n"
 	    ,scsi_adapter->name
 	    ,unit
 	    ,target
@@ -747,7 +747,7 @@ scsi_probedev(sc_link, maybe_more)
 	    ,version
 	    );
 	if (qtype[0]) {
-		printf("%s%d targ %d lun %d: qualifier %d(%s)\n"
+		printf("%s%d targ %d lun %d: qualifier %ld(%s)\n"
 		    ,scsi_adapter->name
 		    ,unit
 		    ,target
