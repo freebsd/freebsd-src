@@ -240,7 +240,7 @@ static int	cbb_cardbus_deactivate_resource(device_t brdev,
 		    device_t child, int type, int rid, struct resource *res);
 static struct resource	*cbb_cardbus_alloc_resource(device_t brdev,
 		    device_t child, int type, int *rid, u_long start,
-		    u_long end, u_long count, uint flags);
+		    u_long end, u_long count, u_int flags);
 static int	cbb_cardbus_release_resource(device_t brdev, device_t child,
 		    int type, int rid, struct resource *res);
 static int	cbb_power_enable_socket(device_t brdev, device_t child);
@@ -251,7 +251,7 @@ static int	cbb_deactivate_resource(device_t brdev, device_t child,
 		    int type, int rid, struct resource *r);
 static struct resource	*cbb_alloc_resource(device_t brdev, device_t child,
 		    int type, int *rid, u_long start, u_long end, u_long count,
-		    uint flags);
+		    u_int flags);
 static int	cbb_release_resource(device_t brdev, device_t child,
 		    int type, int rid, struct resource *r);
 static int	cbb_read_ivar(device_t brdev, device_t child, int which,
@@ -1515,7 +1515,7 @@ cbb_cardbus_deactivate_resource(device_t brdev, device_t child, int type,
 
 static struct resource *
 cbb_cardbus_alloc_resource(device_t brdev, device_t child, int type,
-    int *rid, u_long start, u_long end, u_long count, uint flags)
+    int *rid, u_long start, u_long end, u_long count, u_int flags)
 {
 	struct cbb_softc *sc = device_get_softc(brdev);
 	int tmp;
@@ -1663,7 +1663,7 @@ cbb_pcic_deactivate_resource(device_t brdev, device_t child, int type,
 
 static struct resource *
 cbb_pcic_alloc_resource(device_t brdev, device_t child, int type, int *rid,
-    u_long start, u_long end, u_long count, uint flags)
+    u_long start, u_long end, u_long count, u_int flags)
 {
 	struct resource *res = NULL;
 	struct cbb_softc *sc = device_get_softc(brdev);
@@ -1800,7 +1800,7 @@ cbb_deactivate_resource(device_t brdev, device_t child, int type,
 
 static struct resource *
 cbb_alloc_resource(device_t brdev, device_t child, int type, int *rid,
-    u_long start, u_long end, u_long count, uint flags)
+    u_long start, u_long end, u_long count, u_int flags)
 {
 	struct cbb_softc *sc = device_get_softc(brdev);
 

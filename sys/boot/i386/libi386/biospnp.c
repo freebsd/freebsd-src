@@ -263,7 +263,7 @@ biospnp_call(int func, const char *fmt, ...)
 	switch(*p) {
 
 	case 'w':
-	    i = va_arg(ap, uint);
+	    i = va_arg(ap, u_int);
 	    *(u_int16_t *)argp = i;
 	    argp += sizeof(u_int16_t);
 	    break;

@@ -620,8 +620,8 @@ cd9660_statfs(mp, sbp, td)
  */
 
 struct ifid {
-	ushort	ifid_len;
-	ushort	ifid_pad;
+	u_short	ifid_len;
+	u_short	ifid_pad;
 	int	ifid_ino;
 	long	ifid_start;
 };

@@ -1165,7 +1165,7 @@ thread_update_usr_ticks(struct thread *td, int user)
 	struct kse_upcall *ku;
 	struct ksegrp *kg;
 	caddr_t addr;
-	uint uticks;
+	u_int uticks;
 
 	if ((ku = td->td_upcall) == NULL)
 		return (-1);

@@ -168,7 +168,7 @@ LIST_HEAD(rbuf_list, rbuf);
 struct card_vcc {
 	struct atmio_vcc param;		/* traffic parameters */
 	void		*rxhand;
-	uint		vflags;
+	u_int		vflags;
 	uint32_t	ipackets;
 	uint32_t	opackets;
 	uint32_t	ibytes;

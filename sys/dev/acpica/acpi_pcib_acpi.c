@@ -132,7 +132,7 @@ acpi_pcib_acpi_attach(device_t dev)
 {
     struct acpi_hpcib_softc	*sc;
     ACPI_STATUS			status;
-    uint addr, slot, func, busok;
+    u_int addr, slot, func, busok;
     uint8_t busno;
 
     ACPI_FUNCTION_TRACE((char *)(uintptr_t)__func__);
