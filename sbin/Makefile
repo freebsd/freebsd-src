@@ -2,18 +2,23 @@
 
 # XXX MISSING:		icheck ncheck
 
-SUBDIR= adjkerntz badsect ccdconfig clri disklabel dmesg dset dump dumpfs \
+SUBDIR= disklabel dmesg dset dump dumpfs \
 	dumpon fsck fsdb fsirand ifconfig init ipfw \
-	kldload kldstat kldunload md5 mknod modload \
-	modunload mount mount_cd9660 mount_ext2fs \
+	md5 mknod \
+	mount mount_cd9660 mount_ext2fs \
 	mount_nfs mount_null mount_portal mount_std \
 	mount_umap mount_union mountd newfs nfsd nfsiod \
-	nologin ping quotacheck reboot restore route routed savecore scsi \
-	scsiformat shutdown slattach startslip spppcontrol swapon tunefs \
+	nologin quotacheck reboot restore route routed \
+	scsiformat shutdown slattach startslip spppcontrol tunefs \
 	umount
 
 .if exists(${.CURDIR}/${MACHINE})
 SUBDIR+= ${MACHINE}
+.endif
+
+.if ${MACHINE_ARCH} == "i386"
+SUBDIR+=adjkerntz badsect ccdconfig clri kldload kldstat kldunload ping
+SUBDIR+=modload modunload savecore scsi swapon
 .endif
 
 .include <bsd.subdir.mk>
