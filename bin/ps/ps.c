@@ -110,6 +110,7 @@ char   o1[] = "pid";
 char   o2[] = "tt state time command";
 char ufmt[] = "user pid %cpu %mem vsz rss tt state start time command";
 char vfmt[] = "pid state time sl re pagein vsz rss lim tsiz %cpu %mem command";
+char Zfmt[] = "lvl";
 
 kvm_t *kd;
 
@@ -150,9 +151,9 @@ main(argc, argv)
 	memf = nlistf = swapf = _PATH_DEVNULL;
 	while ((ch = getopt(argc, argv,
 #if defined(LAZY_PS)
-	    "aCcefghjLlM:mN:O:o:p:rSTt:U:uvW:wx")) != -1)
+	    "aCcefghjLlM:mN:O:o:p:rSTt:U:uvW:wxZ")) != -1)
 #else
-	    "aCceghjLlM:mN:O:o:p:rSTt:U:uvW:wx")) != -1)
+	    "aCceghjLlM:mN:O:o:p:rSTt:U:uvW:wxZ")) != -1)
 #endif
 		switch((char)ch) {
 		case 'a':
@@ -275,6 +276,10 @@ main(argc, argv)
 		case 'x':
 			xflg = 1;
 			break;
+		case 'Z':
+			parsefmt(Zfmt);
+			Zfmt[0] = '\0';
+			break;
 		case '?':
 		default:
 			usage();
@@ -391,6 +396,7 @@ main(argc, argv)
 		}
 	}
 	free(uids);
+	lomac_stop();
 
 	exit(eval);
 }

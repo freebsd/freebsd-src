@@ -82,4 +82,5 @@ void	 uname __P((KINFO *, VARENT *));
 int	 s_uname __P((KINFO *));
 void	 vsize __P((KINFO *, VARENT *));
 void	 wchan __P((KINFO *, VARENT *));
+void	 lattr __P((KINFO *, VARENT *));
 __END_DECLS
