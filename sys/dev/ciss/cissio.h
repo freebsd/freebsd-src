@@ -122,27 +122,27 @@ typedef union {
     } LogUnit __packed;
 } SCSI3Addr_struct;
 
-typedef struct {
+struct PhysDevAddr {
     u_int32_t		TargetId:24;
     u_int32_t		Bus:6;
     u_int32_t		Mode:2;
     SCSI3Addr_struct	Target[2];
-} PhysDevAddr_struct __packed;
+} __packed;
   
-typedef struct {
+struct LogDevAddr {
     u_int32_t		VolId:30;
     u_int32_t		Mode:2;
     u_int8_t		reserved[4];
-} LogDevAddr_struct __packed;
+} __packed;
 
 typedef union {
     u_int8_t		LunAddrBytes[8];
     SCSI3Addr_struct	SCSI3Lun[4];
-    PhysDevAddr_struct	PhysDev;
-    LogDevAddr_struct	LogDev;
-} LUNAddr_struct __packed;
+    struct PhysDevAddr	PhysDev;
+    struct LogDevAddr	LogDev;
+} LUNAddr_struct;
 
-typedef struct {
+struct RequestBlock {
     u_int8_t	CDBLen;
     struct {
 	u_int8_t	Type:3;
@@ -151,7 +151,8 @@ typedef struct {
     } Type __packed;
     u_int16_t	Timeout;
     u_int8_t	CDB[16];
-} RequestBlock_struct __packed;
+} __packed;
+typedef struct RequestBlock RequestBlock_struct;
 
 typedef union {
     struct {
@@ -165,24 +166,26 @@ typedef union {
 	u_int8_t	offense_num;
 	u_int32_t	offense_value;
     } Invalid_Cmd __packed;
-} MoreErrInfo_struct __packed;
+} MoreErrInfo_struct;
 
-typedef struct {
+struct ErrorInfo {
     u_int8_t		ScsiStatus;
     u_int8_t		SenseLen;
     u_int16_t		CommandStatus;
     u_int32_t		ResidualCnt;
     MoreErrInfo_struct	MoreErrInfo;
     u_int8_t		SenseInfo[SENSEINFOBYTES];
-} ErrorInfo_struct __packed;
+} __packed;
+typedef struct ErrorInfo ErrorInfo_struct;
 
-typedef struct {
+struct IOCTL_Command {
     LUNAddr_struct	LUN_info;	/* 8 */
     RequestBlock_struct	Request;	/* 20 */
     ErrorInfo_struct	error_info;	/* 48 */
     u_int16_t		buf_size;	/* 2 */
     u_int8_t		*buf;		/* 4 */
-} IOCTL_Command_struct __packed;
+} __packed;
+typedef struct IOCTL_Command IOCTL_Command_struct;
 
 /*
  * Note that we'd normally pass the struct in directly, but
