@@ -62,6 +62,7 @@
 #include <netinet/ip_var.h>
 
 #define	IPFLOW_TIMER		(5 * PR_SLOWHZ)
+#define IPFLOW_HASHBITS		6	/* should not be a multiple of 8 */
 #define	IPFLOW_HASHSIZE		(1 << IPFLOW_HASHBITS)
 static LIST_HEAD(ipflowhead, ipflow) ipflows[IPFLOW_HASHSIZE];
 static int ipflow_inuse;
