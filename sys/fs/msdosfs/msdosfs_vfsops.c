@@ -71,6 +71,9 @@
 #include <fs/msdosfs/denode.h>
 #include <fs/msdosfs/fat.h>
 
+#include <geom/geom.h>
+#include <geom/geom_vfs.h>
+
 #include "opt_msdosfs.h"
 
 #define MSDOSFS_DFLTBSIZE       4096
@@ -209,7 +212,8 @@ msdosfs_omount(mp, path, data, td)
 	if (mp->mnt_flag & MNT_UPDATE) {
 		pmp = VFSTOMSDOSFS(mp);
 		error = 0;
-		if (!(pmp->pm_flags & MSDOSFSMNT_RONLY) && (mp->mnt_flag & MNT_RDONLY)) {
+		if (!(pmp->pm_flags & MSDOSFSMNT_RONLY) &&
+		    (mp->mnt_flag & MNT_RDONLY)) {
 			error = VFS_SYNC(mp, MNT_WAIT, td->td_ucred, td);
 			if (error)
 				return (error);
@@ -217,13 +221,19 @@ msdosfs_omount(mp, path, data, td)
 			if (mp->mnt_flag & MNT_FORCE)
 				flags |= FORCECLOSE;
 			error = vflush(mp, 0, flags, td);
+			DROP_GIANT();
+			g_topology_lock();
+			g_access(pmp->pm_cp, 0, -1, 0);
+			g_topology_unlock();
+			PICKUP_GIANT();
 		}
 		if (!error && (mp->mnt_flag & MNT_RELOAD))
 			/* not yet implemented */
 			error = EOPNOTSUPP;
 		if (error)
 			return (error);
-		if ((pmp->pm_flags & MSDOSFSMNT_RONLY) && (mp->mnt_kern_flag & MNTK_WANTRDWR)) {
+		if ((pmp->pm_flags & MSDOSFSMNT_RONLY) &&
+		    (mp->mnt_kern_flag & MNTK_WANTRDWR)) {
 			/*
 			 * If upgrade to read-write by non-root, then verify
 			 * that user has necessary permissions on the device.
@@ -239,6 +249,13 @@ msdosfs_omount(mp, path, data, td)
 				}
 				VOP_UNLOCK(devvp, 0, td);
 			}
+			DROP_GIANT();
+			g_topology_lock();
+			error = g_access(pmp->pm_cp, 0, 1, 0);
+			g_topology_unlock();
+			PICKUP_GIANT();
+			if (error)
+				return (error);
 			pmp->pm_flags &= ~MSDOSFSMNT_RONLY;
 
 			/* Now that the volume is modifiable, mark it dirty. */
@@ -344,41 +361,21 @@ mountmsdosfs(devvp, mp, td, argp)
 	u_int8_t SecPerClust;
 	u_long clusters;
 	int	ronly, error;
-
-	/*
-	 * Disallow multiple mounts of the same device.
-	 * Disallow mounting of a device that is currently in use
-	 * (except for root, which might share swap device for miniroot).
-	 * Flush out any old buffers remaining from a previous use.
-	 */
-	error = vfs_mountedon(devvp);
-	if (error)
-		return (error);
-	if (vcount(devvp) > 1)
-		return (EBUSY);
-	vn_lock(devvp, LK_EXCLUSIVE | LK_RETRY, td);
-	error = vinvalbuf(devvp, V_SAVE, td->td_ucred, td, 0, 0);
-	if (error) {
-		VOP_UNLOCK(devvp, 0, td);
-		return (error);
-	}
+	struct g_consumer *cp;
+	struct bufobj *bo;
 
 	ronly = (mp->mnt_flag & MNT_RDONLY) != 0;
-	/*
-	 * XXX: open the device with read and write access even if only
-	 * read access is needed now.  Write access is needed if the
-	 * filesystem is ever mounted read/write, and we don't change the
-	 * access mode for remounts.
-	 */
-#ifdef notyet
-	error = VOP_OPEN(devvp, ronly ? FREAD : FREAD | FWRITE, FSCRED, td, -1);
-#else
-	error = VOP_OPEN(devvp, FREAD | FWRITE, FSCRED, td, -1);
-#endif
+	/* XXX: use VOP_ACCESS to check FS perms */
+	DROP_GIANT();
+	g_topology_lock();
+	error = g_vfs_open(devvp, &cp, "msdos", ronly ? 0 : 1);
+	g_topology_unlock();
+	PICKUP_GIANT();
 	VOP_UNLOCK(devvp, 0, td);
 	if (error)
 		return (error);
 
+	bo = &devvp->v_bufobj;
 	bp  = NULL; /* both used in error_exit */
 	pmp = NULL;
 
@@ -407,6 +404,8 @@ mountmsdosfs(devvp, mp, td, argp)
 
 	pmp = malloc(sizeof *pmp, M_MSDOSFSMNT, M_WAITOK | M_ZERO);
 	pmp->pm_mountp = mp;
+	pmp->pm_cp = cp;
+	pmp->pm_bo = bo;
 
 	/*
 	 * Compute several useful quantities from the bpb in the
@@ -663,7 +662,6 @@ mountmsdosfs(devvp, mp, td, argp)
 	mp->mnt_stat.f_fsid.val[0] = dev2udev(dev);
 	mp->mnt_stat.f_fsid.val[1] = mp->mnt_vfc->vfc_typenum;
 	mp->mnt_flag |= MNT_LOCAL;
-	devvp->v_rdev->si_mountpoint = mp;
 
 #ifdef MSDOSFS_LARGE
 	msdosfs_fileno_init(mp);
@@ -674,12 +672,13 @@ mountmsdosfs(devvp, mp, td, argp)
 error_exit:
 	if (bp)
 		brelse(bp);
-	/* XXX: see comment above VOP_OPEN. */
-#ifdef notyet
-	(void)VOP_CLOSE(devvp, ronly ? FREAD : FREAD | FWRITE, NOCRED, td);
-#else
-	(void)VOP_CLOSE(devvp, FREAD | FWRITE, NOCRED, td);
-#endif
+	if (cp != NULL) {
+		DROP_GIANT();
+		g_topology_lock();
+		g_wither_geom_close(cp->geom, ENXIO);
+		g_topology_unlock();
+		PICKUP_GIANT();
+	}
 	if (pmp) {
 		if (pmp->pm_inusemap)
 			free(pmp->pm_inusemap, M_MSDOSFSFAT);
@@ -718,7 +717,6 @@ msdosfs_unmount(mp, mntflags, td)
 		if (pmp->pm_u2d)
 			msdosfs_iconv->close(pmp->pm_u2d);
 	}
-	pmp->pm_devvp->v_rdev->si_mountpoint = NULL;
 
 	/* If the volume was mounted read/write, mark it clean now. */
 	if ((pmp->pm_flags & MSDOSFSMNT_RONLY) == 0) {
@@ -751,14 +749,11 @@ msdosfs_unmount(mp, mntflags, td)
 		VI_UNLOCK(vp);
 	}
 #endif
-	/* XXX: see comment above VOP_OPEN. */
-#ifdef notyet
-	error = VOP_CLOSE(pmp->pm_devvp,
-	    (pmp->pm_flags & MSDOSFSMNT_RONLY) ? FREAD : FREAD | FWRITE,
-	    NOCRED, td);
-#else
-	error = VOP_CLOSE(pmp->pm_devvp, FREAD | FWRITE, NOCRED, td);
-#endif
+	DROP_GIANT();
+	g_topology_lock();
+	g_wither_geom_close(pmp->pm_cp->geom, ENXIO);
+	g_topology_unlock();
+	PICKUP_GIANT();
 	vrele(pmp->pm_devvp);
 	free(pmp->pm_inusemap, M_MSDOSFSFAT);
 #ifdef MSDOSFS_LARGE

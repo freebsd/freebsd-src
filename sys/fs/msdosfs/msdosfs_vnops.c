@@ -1772,8 +1772,8 @@ msdosfs_strategy(ap)
 	} */ *ap;
 {
 	struct buf *bp = ap->a_bp;
-	struct vnode *vp;
 	struct denode *dep = VTODE(ap->a_vp);
+	struct bufobj *bo;
 	int error = 0;
 	daddr_t blkno;
 
@@ -1803,10 +1803,9 @@ msdosfs_strategy(ap)
 	 * Read/write the block from/to the disk that contains the desired
 	 * file block.
 	 */
-	vp = dep->de_devvp;
-	bp->b_dev = vp->v_rdev;
 	bp->b_iooffset = dbtob(bp->b_blkno);
-	VOP_SPECSTRATEGY(vp, bp);
+	bo = dep->de_pmp->pm_bo;
+	bo->bo_ops->bop_strategy(bo, bp);
 	return (0);
 }
 
