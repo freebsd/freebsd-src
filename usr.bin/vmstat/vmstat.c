@@ -42,7 +42,7 @@ static const char copyright[] =
 static char sccsid[] = "@(#)vmstat.c	8.1 (Berkeley) 6/6/93";
 #endif
 static const char rcsid[] =
-	"$Id: vmstat.c,v 1.15.2.2 1997/08/29 05:30:11 imp Exp $";
+	"$Id: vmstat.c,v 1.15.2.3 1997/10/07 05:39:54 dima Exp $";
 #endif /* not lint */
 
 #include <sys/param.h>
@@ -426,7 +426,7 @@ dovmstat(interval, reps)
 		    total.t_rq - 1, total.t_dw + total.t_pw, total.t_sw);
 #define pgtok(a) ((a) * sum.v_page_size >> 10)
 #define	rate(x)	(((x) + halfuptime) / uptime)	/* round */
-		(void)printf("%6ld%6ld ",
+		(void)printf("%8ld%6ld ",
 		    (long)pgtok(total.t_avm), (long)pgtok(total.t_free));
 		(void)printf("%4lu ", rate(sum.v_vm_faults - osum.v_vm_faults));
 		(void)printf("%3lu ",
@@ -466,13 +466,13 @@ printhdr()
 {
 	register int i;
 
-	(void)printf(" procs   memory     page%*s", 20, "");
+	(void)printf(" procs      memory     page%*s", 20, "");
 	if (ndrives > 1)
 		(void)printf("disks %*s  faults      cpu\n",
 		   ndrives * 3 - 6, "");
 	else
 		(void)printf("%*s  faults      cpu\n", ndrives * 3, "");
-	(void)printf(" r b w   avm   fre  flt  re  pi  po  fr  sr ");
+	(void)printf(" r b w     avm   fre  flt  re  pi  po  fr  sr ");
 	for (i = 0; i < dk_ndrive; i++)
 		if (dr_select[i])
 			(void)printf("%c%c ", dr_name[i][0],
