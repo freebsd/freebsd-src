@@ -303,6 +303,8 @@
             ..
         ..
         examples
+            BSD_daemon
+            ..
             FreeBSD_version
             ..
             IPv6
