@@ -29,7 +29,7 @@
  *
  * $FreeBSD$
  *
- *      last edit-date: [Sat Mar  9 19:46:26 2002]
+ *      last edit-date: [Sun Aug 11 12:43:14 2002]
  *
  *---------------------------------------------------------------------------*/
 
@@ -367,6 +367,7 @@ i4b_l4_connect_ind(call_desc_t *cd)
 		mp->controller = cd->controller;
 		mp->channel = cd->channelid;
 		mp->bprot = cd->bprot;
+		mp->bcap = cd->bcap;		
 
 		cd->dir = DIR_INCOMING;
 

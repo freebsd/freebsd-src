@@ -29,7 +29,7 @@
  *
  * $FreeBSD$
  *
- *      last edit-date: [Sat Mar  9 19:48:32 2002]
+ *      last edit-date: [Sun Aug 11 12:42:01 2002]
  *
  *---------------------------------------------------------------------------*/
 
@@ -368,6 +368,7 @@ i4b_print_cdp(call_desc_t *cdp)
 	printf("       crflag = %d\n", cdp->crflag);
 	printf("    channelid = %d\n", cdp->channelid);
 	printf("        bprot = %d\n", cdp->bprot);
+	printf("         bcap = %d\n", cdp->bcap);	
 	printf("       driver = %d\n", cdp->driver);
 	printf("  driver_unit = %d\n", cdp->driver_unit);
 	printf("   call_state = %d\n", cdp->call_state);

@@ -24,7 +24,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.\"     last edit-date: [Tue Mar 26 14:35:02 2002]
+.\"     last edit-date: [Sun Aug 11 13:03:49 2002]
 .\"
 .Dd March 26, 2002
 .Dt ISDND.RC 5
@@ -347,6 +347,25 @@ The currently configurable values are:
 HDLC framing.
 .It Ar raw
 No framing at all (used for telephony).
+.El
+.It Li bcap
+Use a special bearer capability for this connection.
+The keyword is optional.
+.Pp
+Any other value than
+.Em dov
+sets the bearer capability as configured by the
+.Em b1protocol
+keyword (see above).
+The currently configurable values are:
+.Pp
+.Bl -tag -width Ds -compact
+.It Ar dov
+This connection is a 
+.Em Dov (Data over Voice)
+connection. The b1protocol keyword must be set to
+.Em hdlc .
+This feature is experimental and does work on outgoing calls only.
 .El
 .It Li budget-calloutperiod
 is used to specify a time period in seconds.

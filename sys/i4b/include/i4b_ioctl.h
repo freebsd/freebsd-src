@@ -29,7 +29,7 @@
  *
  * $FreeBSD$
  *
- *      last edit-date: [Tue Mar 26 14:44:15 2002]
+ *      last edit-date: [Sun Aug 11 12:39:58 2002]
  *
  *---------------------------------------------------------------------------*/
 
@@ -40,7 +40,7 @@
  *	version and release number for isdn4bsd package
  *---------------------------------------------------------------------------*/
 #define	VERSION		1		/* version number	*/
-#define	REL		2		/* release number	*/
+#define	REL		3		/* release number	*/
 #define STEP		0		/* release step		*/
 
 /*---------------------------------------------------------------------------*
@@ -199,6 +199,12 @@
 #define BPROT_RHDLC	1	/* raw HDLC: flag, data, crc, flag	*/
 
 /*---------------------------------------------------------------------------*
+ * special bearer capability settings (i.e. Data over Voice)
+ *---------------------------------------------------------------------------*/
+#define BCAP_NONE	0	/* no special bearer capability		*/
+#define BCAP_DOV	1	/* Data over Voice			*/
+
+/*---------------------------------------------------------------------------*
  * causes data type
  *---------------------------------------------------------------------------*/
 typedef	unsigned int cause_t;		/* 32 bit unsigned int	*/
@@ -333,6 +339,7 @@ typedef struct {
 #define  CHAN_ANY (-1)		/* outgoing, not possible for incoming	*/
 #define  CHAN_NO  (-2)		/* call waiting (CW) for incoming	*/
 	int		bprot;	/* b channel protocot, see BPROT_XXX	*/
+	int		bcap;	/* special bearer capability, see BCAP_XXX */
 	char		dst_telno[TELNO_MAX];	/* destination telno	*/
 	char		dst_subaddr[SUBADDR_MAX];	/* dest subaddr */
 	char		src_telno[TELNO_MAX];	/* source telno		*/
@@ -562,6 +569,7 @@ typedef struct {
 	int		channel;	/* channel to use		     */
 	int		txdelay;	/* tx delay after connect	     */
 	int		bprot;		/* b channel protocol		     */
+	int		bcap;		/* special bearer capability	     */	
 	int		driver;		/* driver to route b channel data to */
 	int		driver_unit;	/*      unit number for above driver */
 	msg_shorthold_t	shorthold_data;	/* the shorthold data		     */
@@ -591,6 +599,7 @@ typedef struct {
 		/* the following are only used for SETUP_RESP_ACCEPT !! */
 	int	txdelay;	/* tx delay after connect		*/
 	int	bprot;		/* B chan protocol			*/
+	int	bcap;		/* special bearer capability		*/	
 	int	driver;		/* driver to route b channel data to	*/
 	int	driver_unit;	/*      unit number for above driver	*/
 	int	max_idle_time;	/* max time without activity on b ch	*/	

@@ -29,7 +29,7 @@
  *
  * $FreeBSD$
  *
- *      last edit-date: [Tue Mar 26 15:03:59 2002]
+ *      last edit-date: [Sun Aug 11 12:48:41 2002]
  *
  *---------------------------------------------------------------------------*/
 
@@ -480,9 +480,19 @@ i4b_l3_tx_setup(call_desc_t *cd)
 			break;
 
 		case BPROT_RHDLC:	/* raw HDLC */
-			*ptr++ = IEI_BEARERCAP_LEN;
-			*ptr++ = IT_CAP_UNR_DIG_INFO;
-			*ptr++ = IT_RATE_64K;
+			if (cd->bcap == BCAP_DOV) /* Data over Voice */
+			{
+				*ptr++ = IEI_BEARERCAP_LEN+1;
+				*ptr++ = IT_CAP_SPEECH;
+				*ptr++ = IT_RATE_64K;
+				*ptr++ = IT_UL1_G711A;
+			}
+			else
+			{
+				*ptr++ = IEI_BEARERCAP_LEN;
+				*ptr++ = IT_CAP_UNR_DIG_INFO;
+				*ptr++ = IT_RATE_64K;
+			}
 			break;
 
 		default:

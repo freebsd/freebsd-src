@@ -29,7 +29,7 @@
  *
  * $FreeBSD$
  *
- *      last edit-date: [Tue Mar 26 14:37:25 2002]
+ *      last edit-date: [Sun Aug 11 12:37:16 2002]
  *
  *---------------------------------------------------------------------------*/
 
@@ -1201,6 +1201,7 @@ sendm_connect_req(cfg_entry_t *cep)
 	mcr.txdelay = cep->isdntxdelout;
 
 	mcr.bprot = cep->b1protocol;
+	mcr.bcap = cep->bcap;
 
 	mcr.driver = cep->usrdevicename;
 	mcr.driver_unit = cep->usrdeviceunit;
@@ -1271,6 +1272,7 @@ sendm_connect_resp(cfg_entry_t *cep, int cdid, int response, cause_t cause)
 		mcr.txdelay = cep->isdntxdelin;
 
 		mcr.bprot = cep->b1protocol;
+		mcr.bcap = cep->bcap;
 
 		mcr.driver = cep->usrdevicename;
 		mcr.driver_unit = cep->usrdeviceunit;

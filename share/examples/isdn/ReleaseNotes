@@ -1,7 +1,15 @@
 $FreeBSD$
 
-ReleaseNotes for isdn4bsd             last edit-date: [Tue Mar 26 15:11:33 2002]
+ReleaseNotes for isdn4bsd             last edit-date: [Sun Aug 11 17:39:06 2002]
 ================================================================================
+
+release 1.03
+--------------------------------------------------------------------------------
+
+- add support for Data over Voice (DoV) outgoing calls, see entry keywork 
+  bcap in isdnd.rc(5).
+  based on patches received from Guy Ellis (guy@traverse.com.au),
+  Chris Collins (xfire@xware.cx) and Phillip Musumeci (phillip@cs.jcu.edu.au).
 
 release 1.02
 --------------------------------------------------------------------------------

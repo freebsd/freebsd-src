@@ -29,7 +29,7 @@
  *
  * $FreeBSD$
  *
- *      last edit-date: [Sun Mar 17 09:54:22 2002]
+ *      last edit-date: [Sun Aug 11 12:42:46 2002]
  *
  *---------------------------------------------------------------------------*/
 
@@ -264,6 +264,7 @@ i4bioctl(dev_t dev, u_long cmd, caddr_t data, int flag, struct thread *td)
 
 			cd->controller = mcr->controller;	/* fill cd */
 			cd->bprot = mcr->bprot;
+			cd->bcap = mcr->bcap;			
 			cd->driver = mcr->driver;
 			cd->driver_unit = mcr->driver_unit;
 			cd->cr = get_rand_cr(ctrl_desc[cd->controller].unit);
