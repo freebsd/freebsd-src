@@ -31,13 +31,14 @@
  * SUCH DAMAGE.
  */
 
-#include <sys/cdefs.h>
-
-__FBSDID("$FreeBSD$");
-
+#if 0
 #ifndef lint
-static const char sccsid[] = "@(#)tftp.c	8.1 (Berkeley) 6/6/93";
+static char sccsid[] = "@(#)tftp.c	8.1 (Berkeley) 6/6/93";
+#endif /* not lint */
 #endif
+
+#include <sys/cdefs.h>
+__FBSDID("$FreeBSD$");
 
 /* Many bug fixes are from Jim Guyton <guyton@rand-unix> */
 
@@ -50,6 +51,7 @@ static const char sccsid[] = "@(#)tftp.c	8.1 (Berkeley) 6/6/93";
 
 #include <netinet/in.h>
 
+#include <arpa/inet.h>
 #include <arpa/tftp.h>
 
 #include <err.h>
