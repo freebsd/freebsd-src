@@ -158,8 +158,11 @@ FreeBSD 4.0  |      |  |  |  | NetBSD 1.4.2    |             |
  |      |             |   NetBSD 1.6       OpenBSD 3.2       |
  |   FreeBSD 4.8      |      |    |            |             |
  |      |             |      | NetBSD 1.6.1    |             |
- |   FreeBSD 4.9      |      |    |            |             |
- |      v             |      |    |        OpenBSD 3.3       |
+ |      |             |      |    |        OpenBSD 3.3       |
+ |      |             |      |    |            |             |
+ |   FreeBSD 4.9      |      |    |        OpenBSD 3.4       |
+ |      |             |      |    |            |             |
+ |      v             |      |    |            |             |
  |                    |      |    v            |             |
 FreeBSD 5.0	      |      |                 |             |
  |                    |      |                 |            BSD/OS 5.0
@@ -383,6 +386,7 @@ BSD/OS 5.0		2003-05-?? [WRS]
 FreeBSD 5.1		2003-06-09 [FBD]
 Mac OS X 10.3		2003-10-24 [APL]
 FreeBSD 4.9		2003-10-28 [FBD]
+OpenBSD 3.4		2003-11-01 [OBD]
 
 Bibliography
 ------------------------
@@ -436,7 +440,7 @@ original BSD announcements from Usenet or tapes.
 Steven M. Schultz for providing 2.8BSD, 2.10BSD, 2.11BSD manual pages.
 
 --
-Copyright (c) 1997-2001 Wolfram Schneider <wosch@FreeBSD.ORG>
-URL: ftp://ftp.freebsd.org/pub/FreeBSD/branches/-current/src/share/misc/bsd-family-tree
+Copyright (c) 1997-2003 Wolfram Schneider <wosch@FreeBSD.ORG>
+URL: http://cvsweb.freebsd.org/src/share/misc/bsd-family-tree
 
 $FreeBSD$
