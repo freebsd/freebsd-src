@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)nfs_vfsops.c	8.12 (Berkeley) 5/20/95
- * $Id: nfs_vfsops.c,v 1.46 1997/09/02 01:19:41 bde Exp $
+ * $Id: nfs_vfsops.c,v 1.47 1997/09/07 12:56:44 bde Exp $
  */
 
 #include <sys/param.h>
@@ -275,15 +275,7 @@ nfs_statfs(mp, sbp, p)
 	} else
 		goto nfsmout;
 
-#ifdef __NetBSD__
-#ifdef COMPAT_09
-	sbp->f_type = 2;
-#else
-	sbp->f_type = 0;
-#endif
-#else
 	sbp->f_type = MOUNT_NFS;
-#endif
 	sbp->f_flags = nmp->nm_flag;
 	sbp->f_iosize = nfs_iosize(nmp);
 	if (v3) {

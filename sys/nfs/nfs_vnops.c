@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)nfs_vnops.c	8.16 (Berkeley) 5/27/95
- * $Id: nfs_vnops.c,v 1.55 1997/06/25 08:32:33 dfr Exp $
+ * $Id: nfs_vnops.c,v 1.56 1997/08/26 07:32:43 phk Exp $
  */
 
 
@@ -190,9 +190,7 @@ static struct vnodeopv_entry_desc nfsv2_vnodeop_entries[] = {
 };
 static struct vnodeopv_desc nfsv2_vnodeop_opv_desc =
 	{ &nfsv2_vnodeop_p, nfsv2_vnodeop_entries };
-#ifdef __FreeBSD__
 VNODEOP_SET(nfsv2_vnodeop_opv_desc);
-#endif
 
 /*
  * Special device vnode ops
@@ -247,9 +245,7 @@ static struct vnodeopv_entry_desc spec_nfsv2nodeop_entries[] = {
 };
 static struct vnodeopv_desc spec_nfsv2nodeop_opv_desc =
 	{ &spec_nfsv2nodeop_p, spec_nfsv2nodeop_entries };
-#ifdef __FreeBSD__
 VNODEOP_SET(spec_nfsv2nodeop_opv_desc);
-#endif
 
 vop_t **fifo_nfsv2nodeop_p;
 static struct vnodeopv_entry_desc fifo_nfsv2nodeop_entries[] = {
@@ -301,9 +297,7 @@ static struct vnodeopv_entry_desc fifo_nfsv2nodeop_entries[] = {
 };
 static struct vnodeopv_desc fifo_nfsv2nodeop_opv_desc =
 	{ &fifo_nfsv2nodeop_p, fifo_nfsv2nodeop_entries };
-#ifdef __FreeBSD__
 VNODEOP_SET(fifo_nfsv2nodeop_opv_desc);
-#endif
 
 static int	nfs_commit __P((struct vnode *vp, u_quad_t offset, int cnt,
 				struct ucred *cred, struct proc *procp));
@@ -3003,7 +2997,6 @@ nfs_advlock(ap)
 		int  a_flags;
 	} */ *ap;
 {
-#ifdef __FreeBSD__
 	register struct nfsnode *np = VTONFS(ap->a_vp);
 
 	/*
@@ -3012,9 +3005,6 @@ nfs_advlock(ap)
 	 * that this is a local lock.
 	 */
 	return (lf_advlock(ap, &(np->n_lockf), np->n_size));
-#else
-	return (EOPNOTSUPP);
-#endif
 }
 
 /*

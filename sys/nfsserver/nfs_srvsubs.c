@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)nfs_subs.c	8.3 (Berkeley) 1/4/94
- * $Id: nfs_subs.c,v 1.40 1997/07/22 15:35:57 dfr Exp $
+ * $Id: nfs_subs.c,v 1.41 1997/08/16 19:15:59 wollman Exp $
  */
 
 /*
@@ -1170,7 +1170,6 @@ nfs_init(vfsp)
 	nfs_timer(0);
 
 
-#ifdef __FreeBSD__
 	/*
 	 * Set up lease_check and lease_updatetime so that other parts
 	 * of the system can call us, if we are loadable.
@@ -1186,7 +1185,6 @@ nfs_init(vfsp)
 #ifndef NFS_NOSERVER
 	sysent[SYS_getfh].sy_narg = 2;
 	sysent[SYS_getfh].sy_call = getfh;
-#endif
 #endif
 #endif
 
@@ -1455,10 +1453,7 @@ nfs_namei(ndp, fhp, len, slp, nam, mdp, dposp, retdirp, p, kerbflag, pubflag)
 	tocp = cnp->cn_pnbuf;
 	md = *mdp;
 	rem = mtod(md, caddr_t) + md->m_len - fromcp;
-#ifdef __FreeBSD__
-	/* XXX why is this in FreeBSD but not in NetBSD? */
 	cnp->cn_hash = 0;
-#endif
 	for (i = 0; i < len; i++) {
 		while (rem == 0) {
 			md = md->m_next;
@@ -1473,10 +1468,7 @@ nfs_namei(ndp, fhp, len, slp, nam, mdp, dposp, retdirp, p, kerbflag, pubflag)
 			error = EACCES;
 			goto out;
 		}
-#ifdef __FreeBSD__
-	/* XXX why is this in FreeBSD but not in NetBSD? */
 		cnp->cn_hash += (unsigned char)*fromcp;
-#endif
 		*tocp++ = *fromcp++;
 		rem--;
 	}
