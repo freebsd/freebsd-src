@@ -454,17 +454,16 @@ static int
 pcic_ioctl(struct slot *slt, int cmd, caddr_t data)
 {
 	struct pcic_slot *sp = slt->cdata;
+	struct pcic_reg *preg = (struct pcic_reg *) data;
 
 	switch(cmd) {
 	default:
 		return (ENOTTY);
 	case PIOCGREG:			/* Get pcic register */
-		((struct pcic_reg *)data)->value =
-			sp->getb(sp, ((struct pcic_reg *)data)->reg);
+		preg->value = sp->getb(sp, preg->reg);
 		break;			/* Set pcic register */
 	case PIOCSREG:
-		sp->putb(sp, ((struct pcic_reg *)data)->reg,
-			((struct pcic_reg *)data)->value);
+		sp->putb(sp, preg->reg, preg->value);
 		break;
 	case PIOCSRESOURCE:		/* Can I use this resource? */
 		pcic_sresource(slt, data);
