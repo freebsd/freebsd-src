@@ -187,10 +187,22 @@ arstrategy(struct bio *bp)
 	else if (rdp->flags & AR_F_RAID_0) {
 	    plba = lba / rdp->interleave;
 	    chunk = lba % rdp->interleave;
-	    buf1->drive = plba % rdp->num_subdisks;
-	    buf1->bp.bio_pblkno = 
-		((plba / rdp->num_subdisks) * rdp->interleave) + chunk;
-	    chunk = min(rdp->interleave - chunk, count);
+	    if (plba == rdp->total_secs / rdp->interleave) {
+		int lastblksize = 
+		    (rdp->total_secs-(plba*rdp->interleave))/rdp->num_subdisks;
+
+		buf1->drive = chunk / lastblksize;
+		buf1->bp.bio_pblkno =
+		    ((plba / rdp->num_subdisks) * rdp->interleave) +
+		    chunk % lastblksize;
+		chunk = min(count, lastblksize);
+	    }
+	    else {
+		buf1->drive = plba % rdp->num_subdisks;
+		buf1->bp.bio_pblkno = 
+		    ((plba / rdp->num_subdisks) * rdp->interleave) + chunk;
+		chunk = min(count, rdp->interleave - chunk);
+	    }
 	}
 	else {
 	    buf1->bp.bio_pblkno = lba;
