@@ -29,6 +29,9 @@
  * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
+ *
+ * $FreeBSD$
+ *
  */
 
 #if defined(LIBC_SCCS) && !defined(lint)
@@ -37,6 +40,11 @@ static char sccsid[] = "@(#)readdir.c	8.3 (Berkeley) 9/29/94";
 
 #include <sys/param.h>
 #include <dirent.h>
+#include <errno.h>
+#ifdef _THREAD_SAFE
+#include <pthread.h>
+#include "pthread_private.h"
+#endif _THREAD_SAFE
 
 /*
  * get next entry in a directory.
@@ -72,4 +80,46 @@ readdir(dirp)
 			continue;
 		return (dp);
 	}
+}
+
+int
+readdir_r(dirp, entry, result)
+	DIR *dirp;
+	struct dirent *entry;
+	struct dirent **result;
+{
+	struct dirent *dp;
+	int ret, saved_errno;
+
+#ifdef _THREAD_SAFE
+	if ((ret = _FD_LOCK(dirp->dd_fd, FD_READ, NULL)) != 0)
+		return (ret);
+#endif
+
+	saved_errno = errno;
+	errno = 0;
+	dp = readdir(dirp);
+	if (errno != 0) {
+		if (dp == NULL) {
+#ifdef _THREAD_SAFE
+			_FD_UNLOCK(dirp->dd_fd, FD_READ);
+#endif
+			return (errno);
+		}
+	} else
+		errno = saved_errno;
+
+	if (dp != NULL)
+		memcpy(entry, dp, sizeof *entry);
+
+#ifdef _THREAD_SAFE
+	_FD_UNLOCK(dirp->dd_fd, FD_READ);
+#endif
+
+	if (dp != NULL)
+		*result = entry;
+	else
+		*result = NULL;
+
+	return (0);
 }
