@@ -76,7 +76,7 @@ struct aic_softc {
 
 	struct cam_sim		*sim;
 	struct cam_path		*path;
-	TAILQ_HEAD(, struct ccb_hdr)	pending_ccbs, nexus_ccbs;
+	TAILQ_HEAD(,ccb_hdr)	pending_ccbs, nexus_ccbs;
 	struct aic_scb		*nexus;
 
 	u_int32_t		flags;

@@ -44,7 +44,7 @@
  * to tie a socket to the generic raw interface.
  */
 struct rawcb {
-	LIST_ENTRY(struct rawcb) list;
+	LIST_ENTRY(rawcb) list;
 	struct	socket *rcb_socket;	/* back pointer to socket */
 	struct	sockaddr *rcb_faddr;	/* destination address */
 	struct	sockaddr *rcb_laddr;	/* socket's address */
@@ -60,7 +60,7 @@ struct rawcb {
 #define	RAWRCVQ		8192
 
 #ifdef _KERNEL
-extern LIST_HEAD(rawcb_list_head, struct rawcb) rawcb_list;
+extern LIST_HEAD(rawcb_list_head, rawcb) rawcb_list;
 
 int	 raw_attach __P((struct socket *, int));
 void	 raw_ctlinput __P((int, struct sockaddr *, void *));

@@ -37,18 +37,18 @@
 typedef struct driverlink *driverlink_t;
 struct driverlink {
     driver_t		*driver;
-    TAILQ_ENTRY(struct driverlink) link; /* list of drivers in devclass */
+    TAILQ_ENTRY(driverlink) link; /* list of drivers in devclass */
 };
 
 /*
  * Forward declarations
  */
-typedef TAILQ_HEAD(devclass_list, struct devclass) devclass_list_t;
-typedef TAILQ_HEAD(driver_list, struct driverlink) driver_list_t;
-typedef TAILQ_HEAD(device_list, struct device) device_list_t;
+typedef TAILQ_HEAD(devclass_list, devclass) devclass_list_t;
+typedef TAILQ_HEAD(driver_list, driverlink) driver_list_t;
+typedef TAILQ_HEAD(device_list, device) device_list_t;
 
 struct devclass {
-    TAILQ_ENTRY(struct devclass) link;
+    TAILQ_ENTRY(devclass) link;
     driver_list_t	drivers; /* bus devclasses store drivers for bus */
     char		*name;
     device_t		*devices; /* array of devices indexed by unit */
@@ -92,7 +92,7 @@ struct device {
     /*
      * Device hierarchy.
      */
-    TAILQ_ENTRY(struct device)	link;	/* list of devices in parent */
+    TAILQ_ENTRY(device)	link;	/* list of devices in parent */
     device_t		parent;
     device_list_t	children; /* list of subordinate devices */
 

@@ -54,21 +54,21 @@ struct Struct_Obj_Entry;
 
 /* Lists of shared objects */
 typedef struct Struct_Objlist_Entry {
-    STAILQ_ENTRY(struct Struct_Objlist_Entry) link;
+    STAILQ_ENTRY(Struct_Objlist_Entry) link;
     struct Struct_Obj_Entry *obj;
 } Objlist_Entry;
 
-typedef STAILQ_HEAD(Struct_Objlist, struct Struct_Objlist_Entry) Objlist;
+typedef STAILQ_HEAD(Struct_Objlist, Struct_Objlist_Entry) Objlist;
 
 /* Lists of init or fini functions */
 typedef void (*InitFunc)(void);
 
 typedef struct Struct_Funclist_Entry {
-    STAILQ_ENTRY(struct Struct_Funclist_Entry) link;
+    STAILQ_ENTRY(Struct_Funclist_Entry) link;
     InitFunc func;
 } Funclist_Entry;
 
-typedef STAILQ_HEAD(Struct_Funclist, struct Struct_Funclist_Entry) Funclist;
+typedef STAILQ_HEAD(Struct_Funclist, Struct_Funclist_Entry) Funclist;
 
 /* Lists of shared object dependencies */
 typedef struct Struct_Needed_Entry {

@@ -52,8 +52,8 @@
  * up (to a socket structure) and down (to a protocol-specific)
  * control block.
  */
-LIST_HEAD(inpcbhead, struct inpcb);
-LIST_HEAD(inpcbporthead, struct inpcbport);
+LIST_HEAD(inpcbhead, inpcb);
+LIST_HEAD(inpcbporthead, inpcbport);
 typedef	u_quad_t	inp_gen_t;
 
 /*
@@ -75,10 +75,10 @@ struct in_addr_4in6 {
 struct	icmp6_filter;
 
 struct inpcb {
-	LIST_ENTRY(struct inpcb) inp_hash; /* hash list */
+	LIST_ENTRY(inpcb) inp_hash; /* hash list */
 	u_short	inp_fport;		/* foreign port */
 	u_short	inp_lport;		/* local port */
-	LIST_ENTRY(struct inpcb) inp_list; /* list for all PCBs of this proto */
+	LIST_ENTRY(inpcb) inp_list; /* list for all PCBs of this proto */
 	u_int32_t	inp_flow;
 
 	/* protocol dependent part, local and foreign addr */
@@ -140,7 +140,7 @@ struct inpcb {
 		short	inp6_hops;
 		u_int8_t	inp6_hlim;
 	} inp_depend6;
-	LIST_ENTRY(struct inpcb) inp_portlist;
+	LIST_ENTRY(inpcb) inp_portlist;
 	struct	inpcbport *inp_phd;	/* head of this list */
 	inp_gen_t	inp_gencnt;	/* generation count of this instance */
 #define	in6p_faddr	inp_dependfaddr.inp6_foreign
@@ -191,7 +191,7 @@ struct	xinpgen {
 #endif /* _SYS_SOCKETVAR_H_ */
 
 struct inpcbport {
-	LIST_ENTRY(struct inpcbport) phd_hash;
+	LIST_ENTRY(inpcbport) phd_hash;
 	struct inpcbhead phd_pcblist;
 	u_short phd_port;
 };

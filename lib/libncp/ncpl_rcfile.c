@@ -49,7 +49,7 @@
 
 struct rcfile *ncp_rc = NULL;
 
-SLIST_HEAD(rcfile_head, struct rcfile);
+SLIST_HEAD(rcfile_head, rcfile);
 static struct rcfile_head pf_head = {NULL};
 
 int rc_merge(char *filename,struct rcfile **rcfile);
@@ -123,7 +123,7 @@ rc_close(struct rcfile *rcp) {
 		rc_sect_free(n);
 	}
 	free(rcp->rf_name);
-	SLIST_REMOVE(&pf_head, rcp, struct rcfile, rf_next);
+	SLIST_REMOVE(&pf_head, rcp, rcfile, rf_next);
 	free(rcp);
 	return 0;
 }
@@ -206,7 +206,7 @@ rc_sect_addkey(struct rcsection *rsp, char *name, char *value) {
 void
 rc_sect_delkey(struct rcsection *rsp, struct rckey *p) {
 
-	SLIST_REMOVE(&rsp->rs_keys,p,struct rckey,rk_next);
+	SLIST_REMOVE(&rsp->rs_keys,p,rckey,rk_next);
 	rc_key_free(p);
 	return;
 }

@@ -162,7 +162,7 @@ struct	pv_entry;
 struct md_page {
 	int pv_list_count;
 	int			pv_flags;
-	TAILQ_HEAD(, struct pv_entry)	pv_list;
+	TAILQ_HEAD(,pv_entry)	pv_list;
 };
 
 #define PV_TABLE_MOD		0x01 /* modified */
@@ -171,7 +171,7 @@ struct md_page {
 struct pmap {
 	pt_entry_t		*pm_lev1;	/* KVA of lev0map */
 	vm_object_t		pm_pteobj;	/* Container for pte's */
-	TAILQ_HEAD(, struct pv_entry)	pm_pvlist;/* list of mappings in pmap */
+	TAILQ_HEAD(,pv_entry)	pm_pvlist;	/* list of mappings in pmap */
 	int			pm_count;	/* reference count */
 	int			pm_flags;	/* pmap flags */
 	int			pm_active;	/* active flag */
@@ -199,8 +199,8 @@ extern pmap_t		kernel_pmap;
 typedef struct pv_entry {
 	pmap_t		pv_pmap;	/* pmap where mapping lies */
 	vm_offset_t	pv_va;		/* virtual address for mapping */
-	TAILQ_ENTRY(struct pv_entry)	pv_list;
-	TAILQ_ENTRY(struct pv_entry)	pv_plist;
+	TAILQ_ENTRY(pv_entry)	pv_list;
+	TAILQ_ENTRY(pv_entry)	pv_plist;
 	vm_page_t	pv_ptem;	/* VM page for pte */
 } *pv_entry_t;
 

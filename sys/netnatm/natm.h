@@ -75,7 +75,7 @@ struct sockaddr_natm {
  */
 
 struct natmpcb {
-  LIST_ENTRY(struct natmpcb) pcblist;		/* list pointers */
+  LIST_ENTRY(natmpcb) pcblist;		/* list pointers */
   u_int	npcb_inq;			/* # of our pkts in proto q */
   struct socket	*npcb_socket;		/* backpointer to socket */
   struct ifnet *npcb_ifp;		/* pointer to hardware */
@@ -106,7 +106,7 @@ struct natmpcb {
 
 #define NPCB_RAWCC (1024*1024)		/* 1MB */
 
-LIST_HEAD(npcblist, struct natmpcb);
+LIST_HEAD(npcblist, natmpcb);
 
 /* global data structures */
 

@@ -64,9 +64,9 @@ MALLOC_DEFINE(M_DEVT, "dev_t", "dev_t storage");
 
 static struct specinfo devt_stash[DEVT_STASH];
 
-static LIST_HEAD(, struct specinfo) dev_hash[DEVT_HASH];
+static LIST_HEAD(, specinfo) dev_hash[DEVT_HASH];
 
-static LIST_HEAD(, struct specinfo) dev_free;
+static LIST_HEAD(, specinfo) dev_free;
 
 devfs_create_t *devfs_create_hook;
 devfs_remove_t *devfs_remove_hook;

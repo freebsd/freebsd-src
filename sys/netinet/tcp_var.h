@@ -42,12 +42,12 @@
 
 /* TCP segment queue entry */
 struct tseg_qent {
-	LIST_ENTRY(struct tseg_qent) tqe_q;
+	LIST_ENTRY(tseg_qent) tqe_q;
 	int	tqe_len;		/* TCP segment data length */
 	struct	tcphdr *tqe_th;		/* a pointer to tcp header */
 	struct	mbuf	*tqe_m;		/* mbuf contains packet */
 };
-LIST_HEAD(tsegqe_head, struct tseg_qent);
+LIST_HEAD(tsegqe_head, tseg_qent);
 #ifdef MALLOC_DECLARE
 MALLOC_DECLARE(M_TSEGQ);
 #endif

@@ -64,7 +64,7 @@ sc_clear_screen(scr_stat *scp)
 
 /* terminal emulator manager routines */
 
-static LIST_HEAD(, struct sc_term_sw) sc_term_list = 
+static LIST_HEAD(, sc_term_sw) sc_term_list = 
 	LIST_HEAD_INITIALIZER(sc_term_list);
 
 int

@@ -69,7 +69,7 @@ struct amr_logdrive
  */
 struct amr_command
 {
-    TAILQ_ENTRY(struct amr_command)	ac_link;
+    TAILQ_ENTRY(amr_command)	ac_link;
 
     struct amr_softc		*ac_sc;
     u_int8_t			ac_slot;
@@ -140,9 +140,9 @@ struct amr_softc
     int				amr_waitbufs;
     struct amr_command		*amr_busycmd[AMR_MAXCMD];
     int				amr_busycmdcount;
-    TAILQ_HEAD(, struct amr_command)	amr_work;
+    TAILQ_HEAD(,amr_command)	amr_work;
     int				amr_workcount;
-    TAILQ_HEAD(, struct amr_command)	amr_freecmds;
+    TAILQ_HEAD(,amr_command)	amr_freecmds;
 
     int				amr_locks;		/* reentrancy avoidance */
 

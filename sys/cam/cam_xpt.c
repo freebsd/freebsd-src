@@ -69,16 +69,16 @@
  * SIMs and peripherals to the async callback lists.
  */
 struct async_node {
-	SLIST_ENTRY(struct async_node)	links;
+	SLIST_ENTRY(async_node)	links;
 	u_int32_t	event_enable;	/* Async Event enables */
 	void		(*callback)(void *arg, u_int32_t code,
 				    struct cam_path *path, void *args);
 	void		*callback_arg;
 };
 
-SLIST_HEAD(async_list, struct async_node);
-SLIST_HEAD(periph_list, struct cam_periph);
-static STAILQ_HEAD(highpowerlist, struct ccb_hdr) highpowerq;
+SLIST_HEAD(async_list, async_node);
+SLIST_HEAD(periph_list, cam_periph);
+static STAILQ_HEAD(highpowerlist, ccb_hdr) highpowerq;
 
 /*
  * This is the maximum number of high powered commands (e.g. start unit)
@@ -107,7 +107,7 @@ struct cam_ed_qinfo {
  * cam_ed structure for each device on the bus.
  */
 struct cam_ed {
-	TAILQ_ENTRY(struct cam_ed) links;
+	TAILQ_ENTRY(cam_ed) links;
 	struct	cam_ed_qinfo alloc_ccb_entry;
 	struct	cam_ed_qinfo send_ccb_entry;
 	struct	cam_et	 *target;
@@ -155,8 +155,8 @@ struct cam_ed {
  * of retries, or a bus rescan finds the device missing.
  */
 struct cam_et { 
-	TAILQ_HEAD(, struct cam_ed) ed_entries;
-	TAILQ_ENTRY(struct cam_et) links;
+	TAILQ_HEAD(, cam_ed) ed_entries;
+	TAILQ_ENTRY(cam_et) links;
 	struct	cam_eb	*bus;	
 	target_id_t	target_id;
 	u_int32_t	refcount;	
@@ -170,8 +170,8 @@ struct cam_et {
  * xpt_bus_deregister.
  */
 struct cam_eb { 
-	TAILQ_HEAD(, struct cam_et) et_entries;
-	TAILQ_ENTRY(struct cam_eb)  links;
+	TAILQ_HEAD(, cam_et) et_entries;
+	TAILQ_ENTRY(cam_eb)  links;
 	path_id_t	     path_id;
 	struct cam_sim	     *sim;
 	struct timeval	     last_reset;
@@ -515,12 +515,12 @@ typedef int	xpt_pdrvfunc_t (struct periph_driver **pdrv, void *arg);
 static struct xpt_softc xsoftc;
 
 /* Queues for our software interrupt handler */
-typedef TAILQ_HEAD(cam_isrq, struct ccb_hdr) cam_isrq_t;
+typedef TAILQ_HEAD(cam_isrq, ccb_hdr) cam_isrq_t;
 static cam_isrq_t cam_bioq;
 static cam_isrq_t cam_netq;
 
 /* "Pool" of inactive ccbs managed by xpt_alloc_ccb and xpt_free_ccb */
-static SLIST_HEAD(, struct ccb_hdr) ccb_freeq;
+static SLIST_HEAD(,ccb_hdr) ccb_freeq;
 static u_int xpt_max_ccbs;	/*
 				 * Maximum size of ccb pool.  Modified as
 				 * devices are added/removed or have their
@@ -575,7 +575,7 @@ static struct cdevsw xpt_cdevsw = {
 static struct intr_config_hook *xpt_config_hook;
 
 /* Registered busses */
-static TAILQ_HEAD(, struct cam_eb) xpt_busses;
+static TAILQ_HEAD(,cam_eb) xpt_busses;
 static u_int bus_generation;
 
 /* Storage for debugging datastructures */
@@ -1395,8 +1395,7 @@ xpt_remove_periph(struct cam_periph *periph)
 
 		device->generation++;
 
-		SLIST_REMOVE(periph_head, periph, struct cam_periph,
-			     periph_links);
+		SLIST_REMOVE(periph_head, periph, cam_periph, periph_links);
 
 		splx(s);
 	}
@@ -3131,7 +3130,7 @@ xpt_action(union ccb *start_ccb)
 			added &= ~cur_entry->event_enable;
 			if (csa->event_enable == 0) {
 				SLIST_REMOVE(async_head, cur_entry,
-					     struct async_node, links);
+					     async_node, links);
 				csa->ccb_h.path->device->refcount--;
 				free(cur_entry, M_DEVBUF);
 			} else {
@@ -5039,7 +5038,7 @@ typedef enum {
 } probe_flags;
 
 typedef struct {
-	TAILQ_HEAD(, struct ccb_hdr) request_ccbs;
+	TAILQ_HEAD(, ccb_hdr) request_ccbs;
 	probe_action	action;
 	union ccb	saved_ccb;
 	probe_flags	flags;

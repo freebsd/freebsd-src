@@ -146,12 +146,12 @@ struct country {
 	int nzones;
 	char *filename;		/* use iff nzones < 0 */
 	struct continent *continent; /* use iff nzones < 0 */
-	TAILQ_HEAD(, struct zone) zones; /* use iff nzones > 0 */
+	TAILQ_HEAD(, zone) zones; /* use iff nzones > 0 */
 	dialogMenuItem *submenu; /* use iff nzones > 0 */
 };
 
 struct zone {
-	TAILQ_ENTRY(struct zone) link;
+	TAILQ_ENTRY(zone) link;
 	char *descr;
 	char *filename;
 	struct continent *continent;

@@ -76,10 +76,10 @@ SYSCTL_INT(_kern, OID_AUTO, fast_vfork, CTLFLAG_RW, &fast_vfork, 0, "");
  */
 struct forklist {
 	forklist_fn function;
-	TAILQ_ENTRY(struct forklist) next;
+	TAILQ_ENTRY(forklist) next;
 };
 
-TAILQ_HEAD(forklist_head, struct forklist);
+TAILQ_HEAD(forklist_head, forklist);
 static struct forklist_head fork_list = TAILQ_HEAD_INITIALIZER(fork_list);
 
 #ifndef _SYS_SYSPROTO_H_

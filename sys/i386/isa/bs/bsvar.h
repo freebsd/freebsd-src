@@ -261,7 +261,7 @@ struct sc_p {
 #define	BSCFLAGSMASK	(0xffff)
 
 struct bsccb {
-	TAILQ_ENTRY(struct bsccb) ccb_chain;
+	TAILQ_ENTRY(bsccb) ccb_chain;
 
 	union ccb *ccb;			/* upper drivers info */
 
@@ -296,9 +296,9 @@ GENERIC_CCB_ASSERT(bs, bsccb)
 
 /* target info */
 struct targ_info {
-/*0*/	TAILQ_ENTRY(struct targ_info) ti_tchain;	/* targ_info link */
+/*0*/	TAILQ_ENTRY(targ_info) ti_tchain;	/* targ_info link */
 
-/*4*/	TAILQ_ENTRY(struct targ_info) ti_wchain;	/* wait link */
+/*4*/	TAILQ_ENTRY(targ_info) ti_wchain;	/* wait link */
 
 /*8*/	struct bs_softc *ti_bsc;		/* our controller */
 /*c*/	u_int ti_id;				/* scsi id */
@@ -364,7 +364,7 @@ struct targ_info {
 	struct scsi_sense_data sense;
 };
 
-TAILQ_HEAD(titab, struct targ_info);
+TAILQ_HEAD(titab, targ_info);
 struct bshw;
 
 struct bs_softc {

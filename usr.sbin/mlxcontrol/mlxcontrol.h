@@ -58,7 +58,7 @@ extern void	mlx_print_phys_drv(struct mlx_phys_drv *drv, int channel, int target
 
 struct conf_phys_drv
 {
-    TAILQ_ENTRY(struct conf_phys_drv)	pd_link;
+    TAILQ_ENTRY(conf_phys_drv)	pd_link;
     int				pd_bus;
     int				pd_target;
     struct mlx_phys_drv		pd_drv;
@@ -66,23 +66,23 @@ struct conf_phys_drv
 
 struct conf_span 
 {
-    TAILQ_ENTRY(struct conf_span)	s_link;
+    TAILQ_ENTRY(conf_span)	s_link;
     struct conf_phys_drv	*s_drvs[8];
     struct mlx_sys_drv_span	s_span;
 };
 
 struct conf_sys_drv
 {
-    TAILQ_ENTRY(struct conf_sys_drv)	sd_link;
+    TAILQ_ENTRY(conf_sys_drv)	sd_link;
     struct conf_span		*sd_spans[4];
     struct mlx_sys_drv		sd_drv;
 };
 
 struct conf_config
 {
-    TAILQ_HEAD(, struct conf_phys_drv)	cc_phys_drvs;
-    TAILQ_HEAD(, struct conf_span)	cc_spans;
-    TAILQ_HEAD(, struct conf_sys_drv)	cc_sys_drvs;
+    TAILQ_HEAD(,conf_phys_drv)	cc_phys_drvs;
+    TAILQ_HEAD(,conf_span)	cc_spans;
+    TAILQ_HEAD(,conf_sys_drv)	cc_sys_drvs;
     struct conf_sys_drv		*cc_drives[32];
     struct mlx_core_cfg		cc_cfg;
 };

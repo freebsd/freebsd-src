@@ -44,13 +44,13 @@
 
 #include <sys/queue.h>
 
-SLIST_HEAD(callout_list, struct callout);
-TAILQ_HEAD(callout_tailq, struct callout);
+SLIST_HEAD(callout_list, callout);
+TAILQ_HEAD(callout_tailq, callout);
 
 struct callout {
 	union {
-		SLIST_ENTRY(struct callout) sle;
-		TAILQ_ENTRY(struct callout) tqe;
+		SLIST_ENTRY(callout) sle;
+		TAILQ_ENTRY(callout) tqe;
 	} c_links;
 	int	c_time;				/* ticks to the event */
 	void	*c_arg;				/* function argument */

@@ -38,9 +38,9 @@ MALLOC_DECLARE(M_ISADEV);
 /*
  * PNP configurations are kept in a tailq.
  */
-TAILQ_HEAD(isa_config_list, struct isa_config_entry);
+TAILQ_HEAD(isa_config_list, isa_config_entry);
 struct isa_config_entry {
-	TAILQ_ENTRY(struct isa_config_entry) ice_link;
+	TAILQ_ENTRY(isa_config_entry) ice_link;
 	int			ice_priority;
 	struct isa_config	ice_config;
 };

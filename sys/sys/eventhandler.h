@@ -33,18 +33,18 @@
 
 struct eventhandler_entry 
 {
-    TAILQ_ENTRY(struct eventhandler_entry)	ee_link;
+    TAILQ_ENTRY(eventhandler_entry)	ee_link;
     int					ee_priority;
     void				*ee_arg;
 };
 
 struct eventhandler_list 
 {
-    TAILQ_ENTRY(struct eventhandler_list)	el_link;
+    TAILQ_ENTRY(eventhandler_list)	el_link;
     char				*el_name;
     int					el_flags;
 #define EHE_INITTED	(1<<0)
-    TAILQ_HEAD(, struct eventhandler_entry)	el_entries;
+    TAILQ_HEAD(,eventhandler_entry)	el_entries;
 };
 
 typedef struct eventhandler_entry	*eventhandler_tag;

@@ -67,7 +67,7 @@ struct ad_request {
     int8_t			*data;		/* pointer to data buf */
     struct bio			*bp;		/* associated bio ptr */
     u_int8_t			tag;		/* tag ID of this request */
-    TAILQ_ENTRY(struct ad_request)	chain;	/* list management */
+    TAILQ_ENTRY(ad_request)	chain;		/* list management */
 };
 
 void ad_attach(struct ata_softc *, int32_t);

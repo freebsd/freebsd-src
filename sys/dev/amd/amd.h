@@ -154,7 +154,7 @@ typedef struct _EEprom {
  * SCSI Request Block
  */
 struct amd_srb {
-	TAILQ_ENTRY(struct amd_srb) links;
+	TAILQ_ENTRY(amd_srb) links;
 	u_int8_t	 CmdBlock[12];
 	union		 ccb *pccb;
 	bus_dmamap_t	 dmamap;
@@ -187,7 +187,7 @@ struct amd_srb {
 	u_int8_t	 ScsiCmdLen;
 };
 
-TAILQ_HEAD(srb_queue, struct amd_srb);
+TAILQ_HEAD(srb_queue, amd_srb);
 
 /*
  * Per-adapter, software configuration.

@@ -52,7 +52,7 @@ typedef struct genkbd_softc {
 	struct selinfo	gkb_rsel;
 } genkbd_softc_t;
 
-static	SLIST_HEAD(, struct keyboard_driver) keyboard_drivers =
+static	SLIST_HEAD(, keyboard_driver) keyboard_drivers =
  	SLIST_HEAD_INITIALIZER(keyboard_drivers);
 
 /* local arrays */
@@ -164,7 +164,7 @@ kbd_add_driver(keyboard_driver_t *driver)
 int
 kbd_delete_driver(keyboard_driver_t *driver)
 {
-	SLIST_REMOVE(&keyboard_drivers, driver, struct keyboard_driver, link);
+	SLIST_REMOVE(&keyboard_drivers, driver, keyboard_driver, link);
 	SLIST_NEXT(driver, link) = NULL;
 	return 0;
 }

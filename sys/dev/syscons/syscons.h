@@ -325,7 +325,7 @@ typedef void	sc_term_notify_t(scr_stat *scp, int event);
 typedef int	sc_term_input_t(scr_stat *scp, int c, struct tty *tp);
 
 typedef struct sc_term_sw {
-	LIST_ENTRY(struct sc_term_sw)	link;
+	LIST_ENTRY(sc_term_sw)	link;
 	char 			*te_name;	/* name of the emulator */
 	char 			*te_desc;	/* description */
 	char 			*te_renderer;	/* matching renderer */
@@ -395,7 +395,7 @@ typedef struct sc_renderer {
 	char			*name;
 	int			mode;
 	sc_rndr_sw_t		*rndrsw;
-	LIST_ENTRY(struct sc_renderer)	link;
+	LIST_ENTRY(sc_renderer)	link;
 } sc_renderer_t;
 
 extern struct linker_set scrndr_set;

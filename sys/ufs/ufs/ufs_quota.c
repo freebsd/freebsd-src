@@ -701,14 +701,14 @@ again:
  */
 #define DQHASH(dqvp, id) \
 	(&dqhashtbl[((((intptr_t)(dqvp)) >> 8) + id) & dqhash])
-static LIST_HEAD(dqhash, struct dquot) *dqhashtbl;
+static LIST_HEAD(dqhash, dquot) *dqhashtbl;
 static u_long dqhash;
 
 /*
  * Dquot free list.
  */
 #define	DQUOTINC	5	/* minimum free dquots desired */
-static TAILQ_HEAD(dqfreelist, struct dquot) dqfreelist;
+static TAILQ_HEAD(dqfreelist, dquot) dqfreelist;
 static long numdquot, desireddquot = DQUOTINC;
 
 /*

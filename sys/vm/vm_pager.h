@@ -48,7 +48,7 @@
 
 #include <sys/queue.h>
 
-TAILQ_HEAD(pagerlst, struct vm_object);
+TAILQ_HEAD(pagerlst, vm_object);
 
 struct bio;
 
