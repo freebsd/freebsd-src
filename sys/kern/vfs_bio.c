@@ -11,7 +11,7 @@
  * 2. Absolutely no warranty of function or purpose is made by the author
  *		John S. Dyson.
  *
- * $Id: vfs_bio.c,v 1.152 1998/03/01 04:18:42 dyson Exp $
+ * $Id: vfs_bio.c,v 1.153 1998/03/04 03:17:30 dyson Exp $
  */
 
 /*
@@ -138,7 +138,7 @@ SYSCTL_INT(_vfs, OID_AUTO, kvafreespace, CTLFLAG_RD,
 	&kvafreespace, 0, "");
 
 static LIST_HEAD(bufhashhdr, buf) bufhashtbl[BUFHSZ], invalhash;
-static TAILQ_HEAD(bqueues, buf) bufqueues[BUFFER_QUEUES];
+struct bqueues bufqueues[BUFFER_QUEUES] = {0};
 
 extern int vm_swap_size;
 
@@ -520,7 +520,7 @@ brelse(struct buf * bp)
 		relpbuf(bp);
 		return;
 	}
-	/* anyone need a "free" block? */
+
 	s = splbio();
 
 	/* anyone need this block? */
@@ -538,10 +538,11 @@ brelse(struct buf * bp)
 		if (bp->b_flags & B_DELWRI)
 			--numdirtybuffers;
 		bp->b_flags &= ~(B_DELWRI | B_CACHE);
-		if (((bp->b_flags & B_VMIO) == 0) && bp->b_vp) {
+		if ((bp->b_flags & B_VMIO) == 0) {
 			if (bp->b_bufsize)
 				allocbuf(bp, 0);
-			brelvp(bp);
+			if (bp->b_vp)
+				brelvp(bp);
 		}
 	}
 
@@ -571,78 +572,72 @@ brelse(struct buf * bp)
 		    && bp->b_validend == bp->b_bufsize))
 #endif
 	    ) {
-		vm_ooffset_t foff;
-		vm_object_t obj;
-		int i, resid;
+
+		int i, j, resid;
 		vm_page_t m;
+		off_t foff;
+		vm_pindex_t poff;
+		vm_object_t obj;
 		struct vnode *vp;
-		int iototal = bp->b_bufsize;
+		int blksize;
 
 		vp = bp->b_vp;
 
-#if !defined(MAX_PERF)
-		if (!vp) 
-			panic("brelse: missing vp");
-#endif
+		if (vp->v_type == VBLK)
+			blksize = DEV_BSIZE;
+		else
+			blksize = vp->v_mount->mnt_stat.f_iosize;
 
-		if (bp->b_npages) {
-			vm_pindex_t poff;
-			obj = (vm_object_t) vp->v_object;
-			if (vp->v_type == VBLK)
-				foff = ((vm_ooffset_t) bp->b_lblkno) << DEV_BSHIFT;
-			else
-				foff = (vm_ooffset_t) vp->v_mount->mnt_stat.f_iosize * bp->b_lblkno;
-			poff = OFF_TO_IDX(foff);
-			for (i = 0; i < bp->b_npages; i++) {
-				m = bp->b_pages[i];
-				if (m == bogus_page) {
-					m = vm_page_lookup(obj, poff + i);
+		resid = bp->b_bufsize;
+		foff = -1LL;
+
+		for (i = 0; i < bp->b_npages; i++) {
+			m = bp->b_pages[i];
+			if (m == bogus_page) {
+
+				obj = (vm_object_t) vp->v_object;
+
+				foff = (off_t) bp->b_lblkno * blksize;
+				poff = OFF_TO_IDX(foff);
+
+				for (j = i; j < bp->b_npages; j++) {
+					m = bp->b_pages[j];
+					if (m == bogus_page) {
+						m = vm_page_lookup(obj, poff + j);
 #if !defined(MAX_PERF)
-					if (!m) {
-						panic("brelse: page missing\n");
-					}
+						if (!m) {
+							panic("brelse: page missing\n");
+						}
 #endif
-					bp->b_pages[i] = m;
-					pmap_qenter(trunc_page(bp->b_data),
-						bp->b_pages, bp->b_npages);
-				}
-				resid = IDX_TO_OFF(m->pindex+1) - foff;
-				if (resid > iototal)
-					resid = iototal;
-				if (resid > 0) {
-					/*
-					 * Don't invalidate the page if the local machine has already
-					 * modified it.  This is the lesser of two evils, and should
-					 * be fixed.
-					 */
-					if (bp->b_flags & (B_NOCACHE | B_ERROR)) {
-						vm_page_test_dirty(m);
-						if (m->dirty == 0) {
-							vm_page_set_invalid(m, (vm_offset_t) foff, resid);
-							if (m->valid == 0)
-								vm_page_protect(m, VM_PROT_NONE);
-						}
-					}
-					if (resid >= PAGE_SIZE) {
-						if ((m->valid & VM_PAGE_BITS_ALL) != VM_PAGE_BITS_ALL) {
-							bp->b_flags |= B_INVAL;
-						}
-					} else {
-						if (!vm_page_is_valid(m,
-							(((vm_offset_t) bp->b_data) & PAGE_MASK), resid)) {
-							bp->b_flags |= B_INVAL;
-						}
+						bp->b_pages[j] = m;
 					}
 				}
-				foff += resid;
-				iototal -= resid;
+
+				if ((bp->b_flags & B_INVAL) == 0) {
+					pmap_qenter(trunc_page(bp->b_data), bp->b_pages, bp->b_npages);
+				}
+				break;
 			}
+			if (bp->b_flags & (B_NOCACHE|B_ERROR)) {
+				if ((blksize & PAGE_MASK) == 0) {
+					vm_page_set_invalid(m, 0, resid);
+				} else {
+					if (foff == -1LL)
+						foff = (off_t) bp->b_lblkno * blksize;
+					vm_page_set_invalid(m, (vm_offset_t) foff, resid);
+				}
+			}
+			resid -= PAGE_SIZE;
 		}
+
 		if (bp->b_flags & (B_INVAL | B_RELBUF))
 			vfs_vmio_release(bp);
+
 	} else if (bp->b_flags & B_VMIO) {
+
 		if (bp->b_flags & (B_INVAL | B_RELBUF))
 			vfs_vmio_release(bp);
+
 	}
 			
 #if !defined(MAX_PERF)
@@ -755,6 +750,7 @@ vfs_vmio_release(bp)
 		m = bp->b_pages[i];
 		bp->b_pages[i] = NULL;
 		vm_page_unwire(m);
+
 		/*
 		 * We don't mess with busy pages, it is
 		 * the responsibility of the process that
@@ -764,11 +760,6 @@ vfs_vmio_release(bp)
 			continue;
 			
 		if (m->wire_count == 0) {
-
-			if (m->flags & PG_WANTED) {
-				m->flags &= ~PG_WANTED;
-				wakeup(m);
-			}
 
 			/*
 			 * If this is an async free -- we cannot place
@@ -895,33 +886,6 @@ vfs_bio_awrite(struct buf * bp)
 			return nwritten;
 		}
 	}
-#if 0
-   	else if ((vp->v_flag & VOBJBUF) && (vp->v_type == VBLK) &&
-		((size = bp->b_bufsize) >= PAGE_SIZE)) {
-		maxcl = MAXPHYS / size;
-		for (i = 1; i < maxcl; i++) {
-			if ((bpa = gbincore(vp, lblkno + i)) &&
-			    ((bpa->b_flags & (B_BUSY | B_DELWRI | B_CLUSTEROK | B_INVAL)) ==
-			    (B_DELWRI | B_CLUSTEROK)) &&
-			    (bpa->b_bufsize == size)) {
-				    if (bpa->b_blkno !=
-						bp->b_blkno + ((i * size) >> DEV_BSHIFT))
-							break;
-			} else {
-				break;
-			}
-		}
-		ncl = i;
-		/*
-		 * this is a possible cluster write
-		 */
-		if (ncl != 1) {
-			nwritten = cluster_wbuild(vp, size, lblkno, ncl);
-			splx(s);
-			return nwritten;
-		}
-	}
-#endif
 
 	bremfree(bp);
 	splx(s);
@@ -1362,7 +1326,7 @@ struct buf *
 getblk(struct vnode * vp, daddr_t blkno, int size, int slpflag, int slptimeo)
 {
 	struct buf *bp;
-	int s;
+	int i, s;
 	struct bufhashhdr *bh;
 	int maxsize;
 	int generation;
@@ -1474,9 +1438,10 @@ loop1:
 		} else {
 			bp->b_flags &= ~B_VMIO;
 		}
-		splx(s);
 
 		allocbuf(bp, size);
+
+		splx(s);
 #ifdef	PC98
 		/*
 		 * 1024byte/sector support
@@ -1660,6 +1625,8 @@ allocbuf(struct buf * bp, int size)
 			int pageindex, curbpnpages;
 			struct vnode *vp;
 			int bsize;
+			int orig_validoff = bp->b_validoff;
+			int orig_validend = bp->b_validend;
 
 			vp = bp->b_vp;
 
@@ -1676,8 +1643,9 @@ allocbuf(struct buf * bp, int size)
 				off = (vm_ooffset_t) bp->b_lblkno * bsize;
 				curbpnpages = bp->b_npages;
 		doretry:
+				bp->b_validoff = orig_validoff;
+				bp->b_validend = orig_validend;
 				bp->b_flags |= B_CACHE;
-				bp->b_validoff = bp->b_validend = 0;
 				for (toff = 0; toff < newbsize; toff += tinc) {
 					int bytesinpage;
 
@@ -1705,14 +1673,11 @@ allocbuf(struct buf * bp, int size)
 							vm_pageout_deficit += (desiredpages - bp->b_npages);
 							goto doretry;
 						}
-						/*
-						 * Normally it is unwise to clear PG_BUSY without
-						 * PAGE_WAKEUP -- but it is okay here, as there is
-						 * no chance for blocking between here and vm_page_alloc
-						 */
-						m->flags &= ~PG_BUSY;
+
 						vm_page_wire(m);
+						m->flags &= ~PG_BUSY;
 						bp->b_flags &= ~B_CACHE;
+
 					} else if (m->flags & PG_BUSY) {
 						s = splvm();
 						if (m->flags & PG_BUSY) {
@@ -1935,14 +1900,13 @@ biodone(register struct buf * bp)
 #endif
 				panic("biodone: page busy < 0\n");
 			}
-			m->flags |= PG_BUSY;
-			--m->busy;
-			PAGE_WAKEUP(m);
+			PAGE_BWAKEUP(m);
 			--obj->paging_in_progress;
 			foff += resid;
 			iosize -= resid;
 		}
-		if (obj && obj->paging_in_progress == 0 &&
+		if (obj &&
+			(obj->paging_in_progress == 0) &&
 		    (obj->flags & OBJ_PIPWNT)) {
 			obj->flags &= ~OBJ_PIPWNT;
 			wakeup(obj);
@@ -2038,9 +2002,7 @@ vfs_unbusy_pages(struct buf * bp)
 				pmap_qenter(trunc_page(bp->b_data), bp->b_pages, bp->b_npages);
 			}
 			--obj->paging_in_progress;
-			m->flags |= PG_BUSY;
-			--m->busy;
-			PAGE_WAKEUP(m);
+			PAGE_BWAKEUP(m);
 		}
 		if (obj->paging_in_progress == 0 &&
 		    (obj->flags & OBJ_PIPWNT)) {
@@ -2271,6 +2233,7 @@ tryagain:
 			goto tryagain;
 		}
 		vm_page_wire(p);
+		p->valid = VM_PAGE_BITS_ALL;
 		pmap_kenter(pg, VM_PAGE_TO_PHYS(p));
 		bp->b_pages[index] = p;
 		PAGE_WAKEUP(p);

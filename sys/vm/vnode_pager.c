@@ -38,7 +38,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)vnode_pager.c	7.5 (Berkeley) 4/20/91
- *	$Id: vnode_pager.c,v 1.87 1998/02/26 06:39:58 msmith Exp $
+ *	$Id: vnode_pager.c,v 1.88 1998/03/01 04:18:31 dyson Exp $
  */
 
 /*
@@ -557,7 +557,7 @@ vnode_pager_generic_getpages(vp, m, bytecount, reqpage)
 {
 	vm_object_t object;
 	vm_offset_t kva;
-	off_t foff;
+	off_t foff, tfoff, nextoff;
 	int i, size, bsize, first, firstaddr;
 	struct vnode *dp;
 	int runpg;
@@ -749,11 +749,22 @@ vnode_pager_generic_getpages(vp, m, bytecount, reqpage)
 	 */
 	relpbuf(bp);
 
-	for (i = 0; i < count; i++) {
-		pmap_clear_modify(VM_PAGE_TO_PHYS(m[i]));
-		m[i]->dirty = 0;
-		m[i]->valid = VM_PAGE_BITS_ALL;
-		m[i]->flags &= ~PG_ZERO;
+	for (i = 0, tfoff = foff; i < count; i++, tfoff = nextoff) {
+		vm_page_t mt;
+
+		nextoff = tfoff + PAGE_SIZE;
+		mt = m[i];
+
+		if (nextoff <= size) {
+			mt->valid = VM_PAGE_BITS_ALL;
+			mt->dirty = 0;
+			pmap_clear_modify(VM_PAGE_TO_PHYS(mt));
+		} else {
+			int nvalid = ((size + DEV_BSIZE - 1) - tfoff) & ~(DEV_BSIZE - 1);
+			vm_page_set_validclean(mt, 0, nvalid);
+		}
+		
+		mt->flags &= ~PG_ZERO;
 		if (i != reqpage) {
 
 			/*
@@ -769,13 +780,13 @@ vnode_pager_generic_getpages(vp, m, bytecount, reqpage)
 			 * now tell them that it is ok to use
 			 */
 			if (!error) {
-				if (m[i]->flags & PG_WANTED)
-					vm_page_activate(m[i]);
+				if (mt->flags & PG_WANTED)
+					vm_page_activate(mt);
 				else
-					vm_page_deactivate(m[i]);
-				PAGE_WAKEUP(m[i]);
+					vm_page_deactivate(mt);
+				PAGE_WAKEUP(mt);
 			} else {
-				vnode_pager_freepage(m[i]);
+				vnode_pager_freepage(mt);
 			}
 		}
 	}
@@ -814,11 +825,11 @@ vnode_pager_putpages(object, m, count, sync, rtvals)
  * own vnodes if they fail to implement VOP_GETPAGES.
  */
 int
-vnode_pager_generic_putpages(vp, m, bytecount, sync, rtvals)
+vnode_pager_generic_putpages(vp, m, bytecount, flags, rtvals)
 	struct vnode *vp;
 	vm_page_t *m;
 	int bytecount;
-	boolean_t sync;
+	int flags;
 	int *rtvals;
 {
 	int i;
@@ -830,6 +841,7 @@ vnode_pager_generic_putpages(vp, m, bytecount, sync, rtvals)
 	struct uio auio;
 	struct iovec aiov;
 	int error;
+	int ioflags;
 
 	object = vp->v_object;
 	count = bytecount / PAGE_SIZE;
@@ -838,7 +850,8 @@ vnode_pager_generic_putpages(vp, m, bytecount, sync, rtvals)
 		rtvals[i] = VM_PAGER_AGAIN;
 
 	if ((int) m[0]->pindex < 0) {
-		printf("vnode_pager_putpages: attempt to write meta-data!!! -- 0x%x(%x)\n", m[0]->pindex, m[0]->dirty);
+		printf("vnode_pager_putpages: attempt to write meta-data!!! -- 0x%x(%x)\n",
+			m[0]->pindex, m[0]->dirty);
 		rtvals[0] = VM_PAGER_BAD;
 		return VM_PAGER_BAD;
 	}
@@ -857,21 +870,12 @@ vnode_pager_generic_putpages(vp, m, bytecount, sync, rtvals)
 			for (i = ncount; i < count; i++) {
 				rtvals[i] = VM_PAGER_BAD;
 			}
-#ifdef BOGUS
-			if (ncount == 0) {
-				printf("vnode_pager_putpages: write past end of file: %d, %lu\n",
-					poffset,
-					(unsigned long) object->un_pager.vnp.vnp_size);
-				return rtvals[0];
-			}
-#endif
 		}
 	}
 
-	for (i = 0; i < count; i++) {
-		m[i]->busy++;
-		m[i]->flags &= ~PG_BUSY;
-	}
+	ioflags = IO_VMIO;
+	ioflags |= (flags & (VM_PAGER_PUT_SYNC | VM_PAGER_PUT_INVAL)) ? IO_SYNC: 0;
+	ioflags |= (flags & VM_PAGER_PUT_INVAL) ? IO_INVAL: 0;
 
 	aiov.iov_base = (caddr_t) 0;
 	aiov.iov_len = maxsize;
@@ -882,7 +886,7 @@ vnode_pager_generic_putpages(vp, m, bytecount, sync, rtvals)
 	auio.uio_rw = UIO_WRITE;
 	auio.uio_resid = maxsize;
 	auio.uio_procp = (struct proc *) 0;
-	error = VOP_WRITE(vp, &auio, IO_VMIO|(sync?IO_SYNC:0), curproc->p_ucred);
+	error = VOP_WRITE(vp, &auio, ioflags, curproc->p_ucred);
 	cnt.v_vnodeout++;
 	cnt.v_vnodepgsout += ncount;
 

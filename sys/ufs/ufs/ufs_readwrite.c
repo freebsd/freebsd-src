@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)ufs_readwrite.c	8.11 (Berkeley) 5/8/95
- * $Id: ufs_readwrite.c,v 1.42 1998/02/05 03:32:33 dyson Exp $
+ * $Id: ufs_readwrite.c,v 1.43 1998/02/26 06:39:50 msmith Exp $
  */
 
 #define	BLKSIZE(a, b, c)	blksize(a, b, c)
@@ -74,6 +74,7 @@ READ(ap)
 	int error;
 	u_short mode;
 	int seqcount;
+	int ioflag;
 	vm_object_t object;
 
 	vp = ap->a_vp;
@@ -81,6 +82,7 @@ READ(ap)
 	ip = VTOI(vp);
 	mode = ip->i_mode;
 	uio = ap->a_uio;
+	ioflag = ap->a_ioflag;
 
 #ifdef DIAGNOSTIC
 	if (uio->uio_rw != UIO_READ)
@@ -106,7 +108,7 @@ READ(ap)
 	if (object)
 		vm_object_reference(object);
 #if 1
-	if ((vfs_ioopt > 1) && object) {
+	if ((ioflag & IO_VMIO) == 0 && (vfs_ioopt > 1) && object) {
 		int nread, toread;
 		toread = uio->uio_resid;
 		if (toread > bytesinfile)
@@ -128,7 +130,7 @@ READ(ap)
 		if ((bytesinfile = ip->i_size - uio->uio_offset) <= 0)
 			break;
 #if 1
-		if ((vfs_ioopt > 1) && object) {
+		if ((ioflag & IO_VMIO) == 0 && (vfs_ioopt > 1) && object) {
 			int nread, toread;
 			toread = uio->uio_resid;
 			if (toread > bytesinfile)
@@ -208,10 +210,23 @@ READ(ap)
 		if (error)
 			break;
 
-		bqrelse(bp);
+		if (ioflag & IO_VMIO) {
+			bp->b_flags |= B_RELBUF;
+			brelse(bp);
+		} else {
+			bqrelse(bp);
+		}
 	}
-	if (bp != NULL)
-		bqrelse(bp);
+
+	if (bp != NULL) {
+		if (ioflag & IO_VMIO) {
+			bp->b_flags |= B_RELBUF;
+			brelse(bp);
+		} else {
+			bqrelse(bp);
+		}
+	}
+
 	if (object)
 		vm_object_vndeallocate(object);
 	if (!(vp->v_mount->mnt_flag & MNT_NOATIME))
@@ -397,8 +412,10 @@ ffs_getpages(ap)
 {
 	off_t foff, physoffset;
 	int i, size, bsize;
-	struct vnode *dp;
+	struct vnode *dp, *vp;
 	vm_object_t obj;
+	vm_pindex_t pindex, firstindex;
+	vm_page_t m, mreq;
 	int bbackwards, bforwards;
 	int pbackwards, pforwards;
 	int firstpage;
@@ -411,56 +428,92 @@ ffs_getpages(ap)
 
 
 	pcount = round_page(ap->a_count) / PAGE_SIZE;
+	mreq = ap->a_m[ap->a_reqpage];
+	firstindex = ap->a_m[0]->pindex;
+
 	/*
 	 * if ANY DEV_BSIZE blocks are valid on a large filesystem block
 	 * then, the entire page is valid --
 	 */
-	if (ap->a_m[ap->a_reqpage]->valid) {
-		ap->a_m[ap->a_reqpage]->valid = VM_PAGE_BITS_ALL;
+	if (mreq->valid) {
+		mreq->valid = VM_PAGE_BITS_ALL;
 		for (i = 0; i < pcount; i++) {
-			if (i != ap->a_reqpage)
-				vnode_pager_freepage(ap->a_m[i]);
+			if (i != ap->a_reqpage) {
+				vm_page_free(ap->a_m[i]);
+			}
 		}
 		return VM_PAGER_OK;
 	}
 
-	obj = ap->a_m[ap->a_reqpage]->object;
-	bsize = ap->a_vp->v_mount->mnt_stat.f_iosize;
+	vp = ap->a_vp;
+	obj = vp->v_object;
+	bsize = vp->v_mount->mnt_stat.f_iosize;
+	pindex = mreq->pindex;
+	foff = IDX_TO_OFF(pindex) /* + ap->a_offset should be zero */;
 
-	if (obj->behavior == OBJ_SEQUENTIAL) {
+	if (firstindex == 0)
+		vp->v_lastr = 0;
+
+	if ((obj->behavior != OBJ_RANDOM) &&
+		((firstindex != 0) && (firstindex <= vp->v_lastr) &&
+		 ((firstindex + pcount) > vp->v_lastr)) ||
+		(obj->behavior == OBJ_SEQUENTIAL)) {
 		struct uio auio;
 		struct iovec aiov;
 		int error;
-		vm_page_t m;
 
 		for (i = 0; i < pcount; i++) {
-			if (i != ap->a_reqpage) {
-				vnode_pager_freepage(ap->a_m[i]);
-			}
+			m = ap->a_m[i];
+			vm_page_activate(m);
+			m->busy++;
+			m->flags &= ~PG_BUSY;
 		}
-		m = ap->a_m[ap->a_reqpage];
-
-		m->busy++;
-		m->flags &= ~PG_BUSY;
 
 		auio.uio_iov = &aiov;
 		auio.uio_iovcnt = 1;
 		aiov.iov_base = 0;
 		aiov.iov_len = MAXBSIZE;
 		auio.uio_resid = MAXBSIZE;
-		auio.uio_offset = IDX_TO_OFF(m->pindex);
+		auio.uio_offset = foff;
 		auio.uio_segflg = UIO_NOCOPY;
 		auio.uio_rw = UIO_READ;
 		auio.uio_procp = curproc;
-		error = VOP_READ(ap->a_vp, &auio,
-			((MAXBSIZE / bsize) << 16), curproc->p_ucred);
+		error = VOP_READ(vp, &auio,
+			IO_VMIO | ((MAXBSIZE / bsize) << 16), curproc->p_ucred);
 
-		m->flags |= PG_BUSY;
-		m->busy--;
+		for (i = 0; i < pcount; i++) {
+			m = ap->a_m[i];
+			m->busy--;
 
-		if (error && (auio.uio_resid == MAXBSIZE))
+			if ((m != mreq) && (m->wire_count == 0) && (m->hold_count == 0) &&
+				(m->valid == 0) && (m->busy == 0) &&
+				(m->flags & PG_BUSY) == 0) {
+				m->flags |= PG_BUSY;
+				vm_page_free(m);
+			} else if (m == mreq) {
+				while (m->flags & PG_BUSY) {
+					vm_page_sleep(m, "ffspwt", NULL);
+				}
+				m->flags |= PG_BUSY;
+				vp->v_lastr = m->pindex + 1;
+			} else {
+				if (m->wire_count == 0) {
+					if (m->busy || (m->flags & PG_MAPPED) ||
+						(m->flags & (PG_WANTED | PG_BUSY)) == PG_WANTED) {
+						vm_page_activate(m);
+					} else {
+						vm_page_deactivate(m);
+					}
+				}
+				vp->v_lastr = m->pindex + 1;
+			}
+		}
+
+		if (mreq->valid == 0) 
 			return VM_PAGER_ERROR;
-		return 0;
+
+		mreq->valid = VM_PAGE_BITS_ALL;
+		return VM_PAGER_OK;
 	}
 
 	/*
@@ -468,21 +521,20 @@ ffs_getpages(ap)
 	 * reqlblkno is the logical block that contains the page
 	 * poff is the index of the page into the logical block
 	 */
-	foff = IDX_TO_OFF(ap->a_m[ap->a_reqpage]->pindex) + ap->a_offset;
 	reqlblkno = foff / bsize;
 	poff = (foff % bsize) / PAGE_SIZE;
 
-	if ( VOP_BMAP( ap->a_vp, reqlblkno, &dp, &reqblkno,
+	if ( VOP_BMAP( vp, reqlblkno, &dp, &reqblkno,
 		&bforwards, &bbackwards) || (reqblkno == -1)) {
 		for(i = 0; i < pcount; i++) {
 			if (i != ap->a_reqpage)
-				vnode_pager_freepage(ap->a_m[i]);
+				vm_page_free(ap->a_m[i]);
 		}
 		if (reqblkno == -1) {
-			if ((ap->a_m[ap->a_reqpage]->flags & PG_ZERO) == 0)
-				vm_page_zero_fill(ap->a_m[ap->a_reqpage]);
-			ap->a_m[ap->a_reqpage]->dirty = 0;
-			ap->a_m[ap->a_reqpage]->valid = VM_PAGE_BITS_ALL;
+			if ((mreq->flags & PG_ZERO) == 0)
+				vm_page_zero_fill(mreq);
+			mreq->dirty = 0;
+			mreq->valid = VM_PAGE_BITS_ALL;
 			return VM_PAGER_OK;
 		} else {
 			return VM_PAGER_ERROR;
@@ -502,7 +554,7 @@ ffs_getpages(ap)
 		if (ap->a_reqpage > pbackwards) {
 			firstpage = ap->a_reqpage - pbackwards;
 			for(i=0;i<firstpage;i++)
-				vnode_pager_freepage(ap->a_m[i]);
+				vm_page_free(ap->a_m[i]);
 		}
 
 	/*
@@ -513,7 +565,7 @@ ffs_getpages(ap)
 			bforwards * pagesperblock;
 		if (pforwards < (pcount - (ap->a_reqpage + 1))) {
 			for( i = ap->a_reqpage + pforwards + 1; i < pcount; i++)
-				vnode_pager_freepage(ap->a_m[i]);
+				vm_page_free(ap->a_m[i]);
 			pcount = ap->a_reqpage + pforwards + 1;
 		}
 
@@ -529,11 +581,13 @@ ffs_getpages(ap)
 	 */
 
 	size = pcount * PAGE_SIZE;
-	if ((IDX_TO_OFF(ap->a_m[firstpage]->pindex) + size) >
-		((vm_object_t) ap->a_vp->v_object)->un_pager.vnp.vnp_size)
-		size = ((vm_object_t) ap->a_vp->v_object)->un_pager.vnp.vnp_size - IDX_TO_OFF(ap->a_m[firstpage]->pindex);
+	vp->v_lastr = mreq->pindex + pcount;
 
-	physoffset -= IDX_TO_OFF(ap->a_m[ap->a_reqpage]->pindex);
+	if ((IDX_TO_OFF(ap->a_m[firstpage]->pindex) + size) >
+		obj->un_pager.vnp.vnp_size)
+		size = obj->un_pager.vnp.vnp_size - foff;
+
+	physoffset -= foff;
 	rtval = VOP_GETPAGES(dp, &ap->a_m[firstpage], size,
 		(ap->a_reqpage - firstpage), physoffset);
 

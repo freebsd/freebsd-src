@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)ffs_vfsops.c	8.31 (Berkeley) 5/20/95
- * $Id: ffs_vfsops.c,v 1.73 1998/03/01 22:46:46 msmith Exp $
+ * $Id: ffs_vfsops.c,v 1.74 1998/03/07 14:59:44 bde Exp $
  */
 
 #include "opt_quota.h"
@@ -559,10 +559,7 @@ ffs_mountfs(devvp, mp, p, malloctype)
 	if (error)
 		return (error);
 	ncount = vcount(devvp);
-/*
-	if (devvp->v_object)
-		ncount -= 1;
-*/
+
 	if (ncount > 1 && devvp != rootvp)
 		return (EBUSY);
 	if (error = vinvalbuf(devvp, V_SAVE, cred, p, 0, 0))
@@ -983,8 +980,9 @@ ffs_vget(mp, ino, vpp)
 	ump = VFSTOUFS(mp);
 	dev = ump->um_dev;
 restart:
-	if ((*vpp = ufs_ihashget(dev, ino)) != NULL)
+	if ((*vpp = ufs_ihashget(dev, ino)) != NULL) {
 		return (0);
+	}
 
 	/*
 	 * Lock out the creation of new entries in the FFS hash table in

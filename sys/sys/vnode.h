@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)vnode.h	8.7 (Berkeley) 2/4/94
- * $Id: vnode.h,v 1.65 1998/01/17 09:16:39 dyson Exp $
+ * $Id: vnode.h,v 1.66 1998/01/24 02:01:31 dyson Exp $
  */
 
 #ifndef _SYS_VNODE_H_
@@ -197,6 +197,7 @@ struct vattr {
 #define	IO_NODELOCKED	0x08		/* underlying node already locked */
 #define	IO_NDELAY	0x10		/* FNDELAY flag set in file table */
 #define	IO_VMIO		0x20		/* data already in VMIO space */
+#define	IO_INVAL	0x40		/* invalidate after I/O */
 
 /*
  *  Modes.  Some values same as Ixxx entries from inode.h for now.

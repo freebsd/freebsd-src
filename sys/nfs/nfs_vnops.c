@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)nfs_vnops.c	8.16 (Berkeley) 5/27/95
- * $Id: nfs_vnops.c,v 1.78 1998/02/06 12:13:58 eivind Exp $
+ * $Id: nfs_vnops.c,v 1.79 1998/03/06 09:46:48 msmith Exp $
  */
 
 
@@ -3000,6 +3000,9 @@ nfs_writebp(bp, force)
 	if(!(bp->b_flags & B_BUSY))
 		panic("bwrite: buffer is not busy???");
 
+	if (bp->b_flags & B_INVAL)
+		bp->b_flags |= B_INVAL | B_NOCACHE;
+
 	if (bp->b_flags & B_DELWRI) {
 		--numdirtybuffers;
 		if (needsbuffer)
@@ -3045,6 +3048,7 @@ nfs_writebp(bp, force)
 		if (oldflags & B_DELWRI) {
 			reassignbuf(bp, bp->b_vp);
 		}
+
 		brelse(bp);
 		return (rtval);
 	} 
