@@ -6,7 +6,7 @@
  * to the original author and the contributors.
  *
  * @(#)ip_fil.h	1.35 6/5/96
- * $Id: ip_fil.h,v 2.0.2.39.2.10 1997/12/03 10:02:30 darrenr Exp $
+ * $Id: ip_fil.h,v 1.1.1.5 1998/03/21 10:11:12 peter Exp $
  */
 
 #ifndef	__IP_FIL_H__
@@ -373,6 +373,7 @@ typedef	struct	ipflog	{
 #endif
 
 #ifndef	_KERNEL
+struct ifnet;
 extern	int	fr_check __P((ip_t *, int, void *, int, mb_t **));
 extern	int	(*fr_checkp) __P((ip_t *, int, void *, int, mb_t **));
 extern	int	send_reset __P((ip_t *, struct ifnet *));
