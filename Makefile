@@ -69,6 +69,7 @@ TGTS=	all all-man buildkernel buildworld checkdpadd clean \
 
 BITGTS=	files includes
 BITGTS:=${BITGTS} ${BITGTS:S/^/build/} ${BITGTS:S/^/install/}
+TGTS+=	${BITGTS}
 
 .ORDER: buildworld installworld
 .ORDER: buildworld distributeworld
@@ -93,7 +94,7 @@ _MAKE=	PATH=${PATH} ${BINMAKE} -f Makefile.inc1
 # for all targets.
 #
 .if defined(ALWAYS_CHECK_MAKE)
-${TGTS} ${BITGTS}: upgrade_checks
+${TGTS}: upgrade_checks
 .else
 buildworld: upgrade_checks
 .endif
@@ -102,7 +103,7 @@ buildworld: upgrade_checks
 # Handle the user-driven targets, using the source relative mk files.
 #
 
-${TGTS} ${BITGTS}:
+${TGTS}:
 	@cd ${.CURDIR}; \
 		${_MAKE} ${.TARGET}
 
