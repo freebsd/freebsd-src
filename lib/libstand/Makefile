@@ -1,5 +1,4 @@
 # $FreeBSD$
-#
 # Originally from	$NetBSD: Makefile,v 1.21 1997/10/26 22:08:38 lukem Exp $
 #
 # Notes:
@@ -12,8 +11,7 @@ NOPROFILE=	YES
 NOPIC=		YES
 MAN=		libstand.3
 
-# Mostly OK, some of the libc imports are a bit noisy
-CFLAGS+=	-Wall
+CFLAGS+=	-ffreestanding
 
 .if ${MACHINE_ARCH} == "alpha"
 CFLAGS+=	-mno-fp-regs
