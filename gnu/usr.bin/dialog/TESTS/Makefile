@@ -5,7 +5,7 @@ FILES=	README checklist ftreebox infobox inputbox menubox msgbox \
 
 beforeinstall:
 .for file in ${FILES}
-	${INSTALL} -c -o ${BINOWN} -g ${BINGRP} -m 444 ${file} \
+	${INSTALL} -c -o ${BINOWN} -g ${BINGRP} -m 444 ${.CURDIR}/${file} \
 		${DESTDIR}/usr/share/examples/dialog
 .endfor
 
