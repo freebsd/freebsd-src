@@ -287,7 +287,7 @@ mi_switch(int flags, struct thread *newtd)
 #endif
 	KASSERT(td->td_critnest == 1 || (td->td_critnest == 2 &&
 	    (td->td_pflags & TDP_OWEPREEMPT) != 0 && (flags & SW_INVOL) != 0 &&
-	    newtd == NULL),
+	    newtd == NULL) || panicstr,
 	    ("mi_switch: switch in a critical section"));
 	KASSERT((flags & (SW_INVOL | SW_VOL)) != 0,
 	    ("mi_switch: switch must be voluntary or involuntary"));
