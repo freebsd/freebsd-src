@@ -54,7 +54,6 @@ usage(void)
 int
 main(int argc, char *argv[])
 {
-	struct iovec	iov_buf;
 	char	*attrname;
 	char	buf[BUFSIZE];
 	char	visbuf[BUFSIZE*4];
@@ -93,12 +92,14 @@ main(int argc, char *argv[])
 	argc--;
 	argv++;
 
-	iov_buf.iov_base = buf;
-	iov_buf.iov_len = BUFSIZE;
-
+	/*
+	 * XXX: Note: now that EAs support querying the size, we could
+	 * actually allocate a buffer of the right size, rather than
+	 * truncating at BUFSIZE.
+	 */
 	for (arg_counter = 1; arg_counter < argc; arg_counter++) {
 		error = extattr_get_file(argv[arg_counter], attrnamespace,
-		    attrname, &iov_buf, 1);
+		    attrname, buf, BUFSIZE);
 
 		if (error == -1)
 			perror(argv[arg_counter]);
