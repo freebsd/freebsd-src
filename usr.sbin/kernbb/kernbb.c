@@ -10,7 +10,7 @@
 
 #ifndef lint
 static const char rcsid[] =
-	"$Id$";
+	"$Id: kernbb.c,v 1.9 1997/09/22 06:30:04 charnier Exp $";
 #endif /* not lint */
 
 #include <err.h>
@@ -37,7 +37,7 @@ struct bb {
 };
 
 struct nlist namelist[] = {
-	{ "bbset" },
+	{ "bbhead" },
 	{ NULL }
 };
 
@@ -68,10 +68,10 @@ main()
 
 	l1 = namelist[0].n_value;
 	kvm_read(kv,l1,&l2,sizeof l2);
-	while(l2--) {
+	while(l2) {
 		l1 += sizeof l1;
-		kvm_read(kv,l1,&l3,sizeof l3);
-		kvm_read(kv,l3,&bb,sizeof bb);
+		kvm_read(kv,l2,&bb,sizeof bb);
+		l2 = bb.next;
 		if (!bb.ncounts)
 			continue;
 		if (bb.ncounts > MAXBB)
