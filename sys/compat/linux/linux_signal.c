@@ -231,19 +231,18 @@ static int
 linux_do_sigprocmask(struct proc *p, int how, linux_sigset_t *new,
 		     linux_sigset_t *old)
 {
-	int error, s;
+	int error;
 	sigset_t mask;
 
 	error = 0;
 	p->p_retval[0] = 0;
 
+	PROC_LOCK(p);
 	if (old != NULL)
 		bsd_to_linux_sigset(&p->p_sigmask, old);
 
 	if (new != NULL) {
 		linux_to_bsd_sigset(new, &mask);
-
-		s = splhigh();
 
 		switch (how) {
 		case LINUX_SIG_BLOCK:
@@ -261,9 +260,8 @@ linux_do_sigprocmask(struct proc *p, int how, linux_sigset_t *new,
 			error = EINVAL;
 			break;
 		}
-
-		splx(s);
 	}
+	PROC_UNLOCK(p);
 
 	return (error);
 }
@@ -343,7 +341,9 @@ linux_siggetmask(struct proc *p, struct linux_siggetmask_args *args)
 	printf("Linux-emul(%d): siggetmask()\n", p->p_pid);
 #endif
 
+	PROC_LOCK(p);
 	bsd_to_linux_sigset(&p->p_sigmask, &mask);
+	PROC_UNLOCK(p);
 	p->p_retval[0] = mask.__bits[0];
 	return (0);
 }
@@ -353,22 +353,21 @@ linux_sigsetmask(struct proc *p, struct linux_sigsetmask_args *args)
 {
 	linux_sigset_t lset;
 	sigset_t bset;
-	int s;
 
 #ifdef DEBUG
 	printf("Linux-emul(%ld): sigsetmask(%08lx)\n",
 	       (long)p->p_pid, (unsigned long)args->mask);
 #endif
 
+	PROC_LOCK(p);
 	bsd_to_linux_sigset(&p->p_sigmask, &lset);
 	p->p_retval[0] = lset.__bits[0];
 	LINUX_SIGEMPTYSET(lset);
 	lset.__bits[0] = args->mask;
 	linux_to_bsd_sigset(&lset, &bset);
-	s = splhigh();
 	p->p_sigmask = bset;
 	SIG_CANTMASK(p->p_sigmask);
-	splx(s);
+	PROC_UNLOCK(p);
 	return (0);
 }
 
@@ -383,9 +382,11 @@ linux_sigpending(struct proc *p, struct linux_sigpending_args *args)
 	printf("Linux-emul(%d): sigpending(*)\n", p->p_pid);
 #endif
 
+	PROC_LOCK(p);
 	bset = p->p_siglist;
 	SIGSETAND(bset, p->p_sigmask);
 	bsd_to_linux_sigset(&bset, &lset);
+	PROC_UNLOCK(p);
 	mask = lset.__bits[0];
 	return (copyout(&mask, args->mask, sizeof(mask)));
 }
