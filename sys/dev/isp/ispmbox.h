@@ -113,6 +113,8 @@
 #define		FW_FEATURE_LVD_NOTIFY	0x2
 #define		FW_FEATURE_FAST_POST	0x1
 
+#define	MBOX_ENABLE_TARGET_MODE		0x55
+
 /* These are for the ISP2100 FC cards */
 #define	MBOX_GET_LOOP_ID		0x20
 #define	MBOX_EXEC_COMMAND_IOCB_A64	0x54
