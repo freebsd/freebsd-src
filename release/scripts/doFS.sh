@@ -49,7 +49,11 @@ do
 
 	mount /dev/${VNDEVICE}c ${MNT}
 
-	( set -e && cd ${FSPROTO} && find . -print | cpio -dump ${MNT} )
+	if [ -d ${FSPROTO} ]; then
+		(set -e && cd ${FSPROTO} && find . -print | cpio -dump ${MNT})
+	else
+		cp -p ${FSPROTO} ${MNT}
+	fi
 
 	df -ki /mnt
 
