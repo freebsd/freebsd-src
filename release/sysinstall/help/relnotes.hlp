@@ -438,6 +438,7 @@ The FreeBSD Development Team, excluding core team members
 	David E. O'Brien <obrien@FreeBSD.org>
         Andras Olah <olah@FreeBSD.org>
 	Steve Passe <smp@FreeBSD.org>
+	Sujal Patel <smpatel@FreeBSD.org>
         Bill Paul <wpaul@FreeBSD.org>
         Joshua Peck Macdonald <jmacd@FreeBSD.org>
         John Polstra <jdp@FreeBSD.org>
@@ -494,4 +495,4 @@ We sincerely hope you enjoy this release of FreeBSD!
 
                         The FreeBSD Core Team
 
-$Id: relnotes.hlp,v 1.17.2.1 1996/11/13 11:49:42 jkh Exp $
+$Id: relnotes.hlp,v 1.18 1996/11/13 12:35:15 jkh Exp $
