@@ -5,4 +5,4 @@
 #
 
 # auth
-csshd	auth	required	pam_opie.so	no_warn
+auth		required	pam_opie.so	no_warn
