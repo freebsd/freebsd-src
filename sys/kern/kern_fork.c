@@ -51,6 +51,7 @@
 #include <sys/malloc.h>
 #include <sys/mutex.h>
 #include <sys/proc.h>
+#include <sys/pioctl.h>
 #include <sys/resourcevar.h>
 #include <sys/syscall.h>
 #include <sys/vnode.h>
@@ -756,6 +757,15 @@ again:
 	while (p2->p_flag & P_PPWAIT)
 		msleep(p1, &p2->p_mtx, PWAIT, "ppwait", 0);
 	PROC_UNLOCK(p2);
+
+	/*
+	 * If PF_FORK is set, the child process inherits the
+	 * procfs ioctl flags from its parent.
+	 */
+	if (p1->p_pfsflags & PF_FORK) {
+		p2->p_stops = p1->p_stops;
+		p2->p_pfsflags = p1->p_pfsflags;
+	}
 
 	/*
 	 * Return child proc pointer to parent.
