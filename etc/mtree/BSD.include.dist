@@ -45,6 +45,8 @@
     ..
     netkey
     ..
+    netnatm
+    ..
     netncp
     ..
     netns
