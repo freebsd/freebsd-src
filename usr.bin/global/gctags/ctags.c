@@ -100,6 +100,8 @@ main(argc, argv)
 	int	step;				/* step through args */
 	int	ch;				/* getopts char */
 	char	cmd[100];			/* too ugly to explain */
+	extern char *optarg;
+	extern int optind;
 
 #ifndef lint
 	copyright[0] = copyright[0];		/* to satisfy compiler */

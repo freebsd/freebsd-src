@@ -28,7 +28,7 @@
 .\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 .\" SUCH DAMAGE.
 .\"
-.Dd April 21, 1996
+.Dd April 21, 1997
 .Dt BTREEOP 1
 .Os BSD 4
 .Sh NAME
@@ -36,7 +36,9 @@
 .Nd btree database maintenance tool
 .Sh SYNOPSIS
 .Nm btreeop
+.Op Fl A
 .Op Fl C
+.Op Fl D Ar key
 .Op Fl K Ar key
 .Op Fl b
 .Op Fl c Ar cashesize
@@ -49,16 +51,21 @@ execute simple operations for
 .Xr btree 3
 database.
 .Nm Btreeop
-can create database and read (sequential or index) from it .
+can create database, write record, read record (sequential or index) and
+delete record from it.
 Duplicate entries are allowed.
 .Sh OPTIONS
 A capital letter means a command. If no command specified
 then it assume sequential read operation.
 .Bl -tag -width Ds
+.It Fl A
+append records. If database doesn't exist, btreeop creates it.
 .It Fl C
-create database.
+create database and write records to it.
+.It Fl D Ar key
+delete records by the key.
 .It Fl K Ar key
-search data by the key.
+search records by the key.
 .It Fl b
 assume BIG_ENDIAN byte order. default is LITTLE_ENDIAN.
 .It Fl c Ar cashesize
@@ -74,7 +81,7 @@ of BTREEINFO. (see btree(3))
 .It Ar dbname
 database name. default is 'btree'.
 .Sh DATA FORMAT
-To creat database,
+To creat (or append) database,
 .Nm btreeop
 read data from stdin.
 The format of the data is the following.
@@ -96,6 +103,10 @@ Key cannot include blank.
 Data can include blank.
 .It
 Null Data not allowed.
+.It
+Additionally, META record is available. META record has a key that start with
+a blank. You can read this record only by indexed search (with -K option).
+Usage is unlimited by Btreeop.
 .El
 .Sh EXAMPLES
 Create database.
@@ -103,8 +114,15 @@ Create database.
   % btreeop -C
   key1	data1
   key2	data2
-  key2	data2-2
   key3	data3
+  ^D
+  %
+
+Append records.
+
+  % btreeop -A
+   __.VERSION 2
+  key2	data2-2
   ^D
   %
 
@@ -122,6 +140,14 @@ Indexed read.
   % btreeop -K key2
   key2  data2-2
   key2  data2
+  % btreeop -K ' __.VERSION'
+   __.VERSION 2
+  %
+
+Delete record.
+
+  % btreeop -D ' __.VERSION'
+  % btreeop -K ' __.VERSION'
   %
 
 .Sh FILES
@@ -133,10 +159,10 @@ default database name.
 .Nm Btreeop
 exits with a value of 1 if an error occurred, 0 otherwise.
 .Sh SEE ALSO
-.Xr btree 3 ,
-.Sh BUGS
-.Nm btreeop
-cannot utilize all features of
 .Xr btree 3
 .Sh AUTHOR
 Shigio Yamaguchi (shigio@wafu.netgate.net)
+.Sh HISTORY
+The
+.Nm
+command appeared in FreeBSD 2.2.
