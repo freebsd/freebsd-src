@@ -41,7 +41,7 @@
 #include <unistd.h>
 #include <sys/types.h>
 #include <pthread.h>
-#include "pthread_private.h"
+#include "thr_private.h"
 
 pthread_addr_t
 _thread_gc(pthread_addr_t arg)

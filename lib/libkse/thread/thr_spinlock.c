@@ -42,7 +42,7 @@
 
 #include <libc_private.h>
 
-#include "pthread_private.h"
+#include "thr_private.h"
 
 /*
  * Lock a location for the running thread. Yield to allow other

@@ -29,7 +29,7 @@
 #include <sys/types.h>
 #include <sys/acl.h>
 #include <pthread.h>
-#include "pthread_private.h"
+#include "thr_private.h"
 
 __weak_reference(___acl_aclcheck_fd, __acl_aclcheck_fd);
 

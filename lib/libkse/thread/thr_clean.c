@@ -35,7 +35,7 @@
 #include <errno.h>
 #include <stdlib.h>
 #include <pthread.h>
-#include "pthread_private.h"
+#include "thr_private.h"
 
 __weak_reference(_pthread_cleanup_push, pthread_cleanup_push);
 __weak_reference(_pthread_cleanup_pop, pthread_cleanup_pop);

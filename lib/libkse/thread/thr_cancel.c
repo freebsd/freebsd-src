@@ -4,7 +4,7 @@
  */
 #include <sys/errno.h>
 #include <pthread.h>
-#include "pthread_private.h"
+#include "thr_private.h"
 
 static void	finish_cancellation(void *arg);
 

@@ -34,8 +34,8 @@
  * $FreeBSD$
  */
 
-#ifndef _PTHREAD_PRIVATE_H
-#define _PTHREAD_PRIVATE_H
+#ifndef _THR_PRIVATE_H
+#define _THR_PRIVATE_H
 
 /*
  * Evaluate the storage class specifier.
@@ -1332,4 +1332,4 @@ extern void	___longjmp(jmp_buf, int) __dead2;
 #endif
 __END_DECLS
 
-#endif  /* !_PTHREAD_PRIVATE_H */
+#endif  /* !_THR_PRIVATE_H */

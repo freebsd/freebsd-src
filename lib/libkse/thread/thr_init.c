@@ -65,7 +65,7 @@
 #include <unistd.h>
 #include "un-namespace.h"
 
-#include "pthread_private.h"
+#include "thr_private.h"
 
 /*
  * All weak references used within libc should be in this table.
