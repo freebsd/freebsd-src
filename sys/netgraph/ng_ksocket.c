@@ -220,7 +220,7 @@ ng_ksocket_sockaddr_parse(const struct ng_parse_type *type,
 		int toklen, pathlen;
 		char *path;
 
-		if ((path = ng_get_string_token(s, off, &toklen)) == NULL)
+		if ((path = ng_get_string_token(s, off, &toklen, NULL)) == NULL)
 			return (EINVAL);
 		pathlen = strlen(path);
 		if (pathlen > SOCK_MAXADDRLEN) {
@@ -306,8 +306,7 @@ ng_ksocket_sockaddr_unparse(const struct ng_parse_type *type,
 		char *pathtoken;
 
 		bcopy(sun->sun_path, pathbuf, pathlen);
-		pathbuf[pathlen] = '\0';
-		if ((pathtoken = ng_encode_string(pathbuf)) == NULL)
+		if ((pathtoken = ng_encode_string(pathbuf, pathlen)) == NULL)
 			return (ENOMEM);
 		slen += snprintf(cbuf, cbuflen, "local/%s", pathtoken);
 		FREE(pathtoken, M_NETGRAPH);
