@@ -101,7 +101,6 @@
 
 
 #include <sys/param.h>
-#include <sys/types.h>
 #include <sys/errno.h>
 #include <sys/dkstat.h>
 
@@ -171,7 +170,6 @@ main(int argc, char **argv)
 	struct devstat_match *matches;
 	int num_matches = 0;
         char errbuf[_POSIX2_LINE_MAX];
-	char *err_str;
 	kvm_t	 *kd;
 	int hz, stathz;
 	int headercount;

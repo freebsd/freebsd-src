@@ -48,7 +48,6 @@ static const char rcsid[] =
 #include <fcntl.h>
 #include <sys/ioctl.h>
 #include <sys/stat.h>
-#include <sys/ttycom.h> /* TIOCNOTTY */
 #ifdef __cplusplus
 #include <sysent.h> /* getdtablesize, open */
 #endif /* __cplusplus */
@@ -164,7 +163,6 @@ main(argc, argv)
 	int ch;
 	char *mastername;
 	char myname[MAXHOSTNAMELEN + 2];
-	extern int errno;
 	extern int debug;
 
 	debug = 1;
