@@ -30,7 +30,7 @@
 .\" SUCH DAMAGE.
 .\"
 .\"     from: @(#)inetd.8	8.3 (Berkeley) 4/13/94
-.\"	$Id$
+.\"	$Id: inetd.8,v 1.3 1994/09/11 11:16:30 csgr Exp $
 .\"
 .Dd April 13, 1994
 .Dt INETD 8
@@ -295,12 +295,16 @@ routines within itself.  These services are
 .Dq daytime
 (human readable time), and
 .Dq time
-(machine readable time,
-in the form of the number of seconds since midnight, January
-1, 1900).  All of these services are tcp based.  For
-details of these services, consult the appropriate
+(machine readable time, in the form of the number of seconds since
+midnight, January 1, 1900).  All of these services are available in
+both TCP and UDP versions; the UDP versions will refuse service if the
+request specifies a reply port corresponding to any internal service.
+(This is done as a defense against looping attacks; the remote IP address
+is logged.)
+For details of these services, consult the
+appropriate
 .Tn RFC
-from the Network Information Center.
+document.
 .Pp
 When given the
 .Fl l
