@@ -64,7 +64,7 @@ g_simdisk_xml_save(char *name, char *file)
 	FILE *f;
 	u_char *p;
 
-	LIST_FOREACH(gp, &g_simdisk_method.geom, geom) {
+	LIST_FOREACH(gp, &g_simdisk_class.geom, geom) {
 		if (strcmp(name, gp->name))
 			continue;
 		sc = gp->softc;
@@ -76,7 +76,7 @@ g_simdisk_xml_save(char *name, char *file)
 #if 0
 		{
 		struct sbuf *sb;
-		sb = g_conf_specific(&g_simdisk_method, gp, NULL, NULL);
+		sb = g_conf_specific(&g_simdisk_class, gp, NULL, NULL);
 		fprintf(f, "  <config>%s</config>\n", sbuf_data(sb));
 		}
 #endif

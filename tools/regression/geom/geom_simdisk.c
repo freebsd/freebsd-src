@@ -47,13 +47,13 @@
 
 #include "geom_simdisk.h"
 
-struct g_method g_simdisk_method = {
-	"SIMDISK-method",
+struct g_class g_simdisk_class = {
+	"SIMDISK-class",
 	NULL,
 	g_std_access,
 	NULL,
 	NULL,
-	G_METHOD_INITSTUFF
+	G_CLASS_INITSTUFF
 };
 
 static void
@@ -125,7 +125,7 @@ g_simdisk_start(struct bio *bp)
 void
 g_simdisk_init(void)
 {
-	g_add_method(&g_simdisk_method);
+	g_add_class(&g_simdisk_class);
 }
 
 struct g_geom *
@@ -137,7 +137,7 @@ g_simdisk_create(char *name, struct simdisk_softc *sc)
 
 	printf("g_simdisk_create(\"%s\", %p)\n", name, sc);
 	g_topology_lock();
-	gp = g_new_geomf(&g_simdisk_method, "%s", name);
+	gp = g_new_geomf(&g_simdisk_class, "%s", name);
 	gp->start = g_simdisk_start;
 	gp->softc = sc;
 
@@ -169,7 +169,7 @@ g_simdisk_destroy(char *name)
 {
 	struct g_geom *gp;
 
-	LIST_FOREACH(gp, &g_simdisk_method.geom, geom) {
+	LIST_FOREACH(gp, &g_simdisk_class.geom, geom) {
 		if (strcmp(name, gp->name))
 			continue;
 		gp->flags |= G_GEOM_WITHER;
@@ -228,7 +228,7 @@ g_simdisk_stop(char *name)
 	struct simdisk_softc *sc;
 
 	g_trace(G_T_TOPOLOGY, "g_simdisk_stop(%s)", name);
-	LIST_FOREACH(gp, &g_simdisk_method.geom, geom) {
+	LIST_FOREACH(gp, &g_simdisk_class.geom, geom) {
 		if (strcmp(name, gp->name))
 			continue;
 		sc = gp->softc;
@@ -245,7 +245,7 @@ g_simdisk_restart(char *name)
 	struct bio *bp;
 
 	g_trace(G_T_TOPOLOGY, "g_simdisk_restart(%s)", name);
-	LIST_FOREACH(gp, &g_simdisk_method.geom, geom) {
+	LIST_FOREACH(gp, &g_simdisk_class.geom, geom) {
 		if (strcmp(name, gp->name))
 			continue;
 		sc = gp->softc;

@@ -65,7 +65,7 @@ thread_sim(void *ptr __unused)
 	rattle();
 	cp = g_dev_opendev("ad0", 1, 0, 0);
 	g_topology_lock();
-	gp = g_insert_geom("BSD-method", cp);
+	gp = g_insert_geom("BSD-class", cp);
 	g_topology_unlock();
 	printf("gp = %p\n", gp);
 	rattle();
