@@ -22,7 +22,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: smptests.h,v 1.28 1997/12/08 22:56:49 fsmp Exp $
+ *	$Id: smptests.h,v 1.29 1998/03/03 22:56:26 tegge Exp $
  */
 
 #ifndef _MACHINE_SMPTESTS_H_
@@ -278,7 +278,7 @@
  * while still using the slow interrupt handler. Only effective when 
  * APIC_INTR_REORDER is defined.
  */
-#define APIC_INTR_HIGHPRI_CLOCK
+/* #define APIC_INTR_HIGHPRI_CLOCK */
 
 #endif /* APIC_IO */
 
