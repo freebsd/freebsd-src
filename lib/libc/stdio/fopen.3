@@ -36,7 +36,7 @@
 .\"     @(#)fopen.3	8.1 (Berkeley) 6/4/93
 .\" $FreeBSD$
 .\"
-.Dd June 4, 1993
+.Dd January 26, 2003
 .Dt FOPEN 3
 .Os
 .Sh NAME
@@ -158,6 +158,41 @@ The
 argument is used just as in the
 .Fn fopen
 function.
+.Pp
+If the
+.Fa path
+argument is
+.Dv NULL ,
+.Fn freopen
+attempts to re-open the file associated with
+.Fa stream
+with a new mode.
+The new mode must be compatible with the mode that the stream was originally
+opened with:
+.Bl -bullet -offset indent
+.It
+Streams originally opened with mode
+.Dq Li r
+can only be reopened with that same mode.
+.It
+Streams originally opened with mode
+.Dq Li a
+can be reopened with the same mode, or mode
+.Dq Li w .
+.It
+Streams originally opened with mode
+.Dq Li w
+can be reopened with the same mode, or mode
+.Dq Li a .
+.It
+Streams originally opened with mode
+.Dq Li r+ ,
+.Dq Li w+ ,
+or
+.Dq Li a+
+can be reopened with any mode.
+.El
+.Pp
 The primary use of the
 .Fn freopen
 function
