@@ -48,8 +48,8 @@
 #include "sio.h"
 #include "sc.h"
 
-#ifndef CONSPEED
-#define CONSPEED TTYDEF_SPEED
+#ifndef	CONSPEED
+#define	CONSPEED TTYDEF_SPEED
 #endif
 static int comcnrate = CONSPEED;
 
@@ -96,7 +96,7 @@ st6600_cons_init()
 	ctb = (struct ctb *)(((caddr_t)hwrpb) + hwrpb->rpb_ctb_off);
 
 	switch (ctb->ctb_term_type) {
-	case 2: 
+	case 2:
 		/* serial console ... */
 		/* XXX */
 		{
@@ -136,20 +136,20 @@ st6600_cons_init()
 static void
 st6600_intr_init()
 {
-
 	int i;
+
 	for(i = ST6600_PCI_IRQ_BEGIN; i <= ST6600_PCI_MAX_IRQ; i++)
 		platform.pci_intr_disable(i);
 	/* From Linux... */
 
 	platform.pci_intr_enable(55);	
 	platform.pci_intr_enable(2);	
-
 }
 
 static void
 st6600_intr_map(void *arg)
 {
+
 	return;
 }
 
