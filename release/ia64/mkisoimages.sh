@@ -70,20 +70,20 @@ fi
 EFIPART=efipart.sys
 
 # To create a bootable CD under EFI, the boot image should be an EFI
-# system partition. Since we already made that on the boot floppy,
-# we sneakily extract that.
+# system partition.
 if [ $bootable = yes ]; then
-    EFISZ=20480
+    EFISZ=32768
     MNT=/mnt
     dd if=/dev/zero of=$BASE/$EFIPART count=$EFISZ
     md=`mdconfig -a -t vnode -f $BASE/$EFIPART`
     newfs_msdos -F 12 -S 512 -h 4 -o 0 -s $EFISZ -u 16 $md
-    mount -t msdos /dev/$md $MNT
+    mount -t msdosfs /dev/$md $MNT
     mkdir -p $MNT/efi/boot $MNT/boot $MNT/boot/kernel
     cp -R $BASE/boot/defaults $MNT/boot
     cp $BASE/boot/kernel/kernel $MNT/boot/kernel
     cp $BASE/boot/device.hints $MNT/boot
     cp $BASE/boot/loader.* $MNT/boot
+    cp $BASE/boot/mfsroot.gz $MNT/boot
     cp $BASE/boot/support.4th $MNT/boot
     mv $MNT/boot/loader.efi $MNT/efi/boot/bootia64.efi
     umount $MNT
