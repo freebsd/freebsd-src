@@ -1,6 +1,6 @@
 /**************************************************************************
 **
-**  $Id: pcisupport.c,v 1.69 1998/06/08 04:07:51 dyson Exp $
+**  $Id: pcisupport.c,v 1.70 1998/06/30 08:13:27 jmg Exp $
 **
 **  Device driver for DEC/INTEL PCI chipsets.
 **
@@ -1108,7 +1108,7 @@ static char* vga_probe (pcici_t tag, pcidi_t typea)
 		}
 #endif
 
-#if defined(i386)
+#ifdef __i386__
 		pmap_setvidram();
 #endif
 		
