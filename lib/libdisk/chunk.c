@@ -6,7 +6,7 @@
  * this stuff is worth it, you can buy me a beer in return.   Poul-Henning Kamp
  * ----------------------------------------------------------------------------
  *
- * $Id: chunk.c,v 1.14.2.2 1995/06/05 02:24:25 jkh Exp $
+ * $Id: chunk.c,v 1.15 1995/06/11 19:29:32 rgrimes Exp $
  *
  */
 
@@ -75,8 +75,8 @@ void
 Free_Chunk(struct chunk *c1)
 {
 	if(!c1) return;
-	if(c1->private && c1->private_free)
-		(*c1->private_free)(c1->private);
+	if(c1->private_data && c1->private_free)
+		(*c1->private_free)(c1->private_data);
 	if(c1->part)
 		Free_Chunk(c1->part);
 	if(c1->next)
@@ -94,8 +94,8 @@ Clone_Chunk(struct chunk *c1)
 	c2 = new_chunk();
 	if (!c2) err(1,"malloc failed");
 	*c2 = *c1;
-	if (c1->private && c1->private_clone)
-		c2->private = c2->private_clone(c2->private);
+	if (c1->private_data && c1->private_clone)
+		c2->private_data = c2->private_clone(c2->private_data);
 	c2->name = strdup(c2->name);
 	c2->next = Clone_Chunk(c2->next);
 	c2->part = Clone_Chunk(c2->part);
@@ -103,7 +103,8 @@ Clone_Chunk(struct chunk *c1)
 }
 
 int
-Insert_Chunk(struct chunk *c2, u_long offset, u_long size, char *name, chunk_e type, int subtype, u_long flags)
+Insert_Chunk(struct chunk *c2, u_long offset, u_long size, const char *name,
+	chunk_e type, int subtype, u_long flags)
 {
 	struct chunk *ct,*cs;
 
@@ -176,8 +177,8 @@ Insert_Chunk(struct chunk *c2, u_long offset, u_long size, char *name, chunk_e t
 }
 
 int
-Add_Chunk(struct disk *d, long offset, u_long size, char *name, chunk_e type,
-	int subtype, u_long flags)
+Add_Chunk(struct disk *d, long offset, u_long size, const char *name,
+	chunk_e type, int subtype, u_long flags)
 {
 	struct chunk *c1,*c2,ct;
 	u_long end = offset + size - 1;
