@@ -105,7 +105,6 @@ static char patchlevel[6];
 static char *nrs = "\n";
 static int nrschar = '\n';      /* final char of rs, or 0777 if none */
 static int nrslen = 1;
-static int fdscript = -1;
 
 main(argc,argv,env)
 register int argc;
@@ -120,7 +119,6 @@ register char **env;
 #ifdef DOSUID
     char *validarg = "";
 #endif
-    int which;
 
 #ifdef SETUID_SCRIPTS_ARE_SECURE_NOW
 #ifdef IAMSUID
@@ -368,27 +366,11 @@ setuid perl scripts securely.\n");
     fdpid = anew(Nullstab);	/* for remembering popen pids by fd */
     pidstatus = hnew(COEFFSIZE);/* for remembering status of dead pids */
 
-    if (strnEQ(scriptname, "/dev/fd/", 8) && isDIGIT(scriptname[8]) ) {
-	char *s = scriptname + 8;
-	fdscript = atoi(s);
-	while (isDIGIT(*s))
-	    s++;
-	if (*s)
-	    scriptname = s + 1;
-    }
-    else
-	fdscript = -1;
     origfilename = savestr(scriptname);
     curcmd->c_filestab = fstab(origfilename);
     if (strEQ(origfilename,"-"))
 	scriptname = "";
-    if (fdscript >= 0) {
-	rsfp = fdopen(fdscript,"r");
-#if defined(HAS_FCNTL) && defined(F_SETFD)
-	fcntl(fileno(rsfp),F_SETFD,1);	/* ensure close-on-exec */
-#endif
-    }
-    else if (preprocess) {
+    if (preprocess) {
 	char *cpp = CPPSTDIN;
 
 	if (strEQ(cpp,"cppstdin"))
@@ -465,12 +447,8 @@ sed %s -e \"/^[^#]/b\" \
 #endif
 	rsfp = stdin;
     }
-    else {
+    else
 	rsfp = fopen(scriptname,"r");
-#if defined(HAS_FCNTL) && defined(F_SETFD)
-	fcntl(fileno(rsfp),F_SETFD,1);	/* ensure close-on-exec */
-#endif
-    }
     if ((FILE*)rsfp == Nullfp) {
 #ifdef DOSUID
 #ifndef IAMSUID		/* in case script is not readable before setuid */
@@ -518,7 +496,7 @@ sed %s -e \"/^[^#]/b\" \
 #ifdef DOSUID
     if (fstat(fileno(rsfp),&statbuf) < 0)	/* normal stat is insecure */
 	fatal("Can't stat script \"%s\"",origfilename);
-    if (fdscript < 0 && statbuf.st_mode & (S_ISUID|S_ISGID)) {
+    if (statbuf.st_mode & (S_ISUID|S_ISGID)) {
 	int len;
 
 #ifdef IAMSUID
@@ -661,28 +639,8 @@ FIX YOUR KERNEL, PUT A C WRAPPER AROUND THIS SCRIPT, OR USE -u AND UNDUMP!\n");
 #ifdef IAMSUID
     else if (preprocess)
 	fatal("-P not allowed for setuid/setgid script\n");
-    else if (fdscript >= 0)
-	fatal("fd script not allowed in suidperl\n");
     else
 	fatal("Script is not setuid/setgid in suidperl\n");
-
-    /* We absolutely must clear out any saved ids here, so we */
-    /* exec taintperl, substituting fd script for scriptname. */
-    /* (We pass script name as "subdir" of fd, which taintperl will grok.) */
-    rewind(rsfp);
-    for (which = 1; origargv[which] && origargv[which] != scriptname; which++) ;
-    if (!origargv[which])
-	fatal("Permission denied");
-    (void)sprintf(buf, "/dev/fd/%d/%.127s", fileno(rsfp), origargv[which]);
-    origargv[which] = buf;
-
-#if defined(HAS_FCNTL) && defined(F_SETFD)
-    fcntl(fileno(rsfp),F_SETFD,0);	/* ensure no close-on-exec */
-#endif
-
-    (void)sprintf(tokenbuf, "%s/tperl%s", BIN, patchlevel);
-    execv(tokenbuf, origargv);	/* try again */
-    fatal("Can't do setuid\n");
 #else
 #ifndef TAINT		/* we aren't taintperl or suidperl */
     /* script has a wrapper--can't run suidperl or we lose euid */
@@ -1440,7 +1398,6 @@ char *s;
     case 'v':
 	fputs("\nThis is perl, version 4.0\n\n",stdout);
 	fputs(rcsid,stdout);
-	fputs("+ suidperl security patch\n", stdout);
 	fputs("\nCopyright (c) 1989, 1990, 1991, Larry Wall\n",stdout);
 #ifdef MSDOS
 	fputs("MS-DOS port Copyright (c) 1989, 1990, Diomidis Spinellis\n",
@@ -1508,3 +1465,4 @@ my_unexec()
 #endif /* ! MSDOS */
 #endif
 }
+
