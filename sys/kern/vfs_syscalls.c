@@ -187,7 +187,6 @@ vfs_mount(td, fstype, fspath, fsflags, fsdata)
 	int error, flag = 0, flag2 = 0;
 	struct vattr va;
 	struct nameidata nd;
-	struct proc *p = td->td_proc;
 
 	/*
 	 * Be ultra-paranoid about making sure the type and fspath
@@ -214,7 +213,7 @@ vfs_mount(td, fstype, fspath, fsflags, fsdata)
 	/*
 	 * Silently enforce MNT_NOSUID and MNT_NODEV for non-root users
 	 */
-	if (suser_xxx(p->p_ucred, 0, 0)) 
+	if (suser_xxx(td->td_proc->p_ucred, 0, 0)) 
 		fsflags |= MNT_NOSUID | MNT_NODEV;
 	/*
 	 * Get vnode to be covered
@@ -245,7 +244,7 @@ vfs_mount(td, fstype, fspath, fsflags, fsdata)
 		 * Only root, or the user that did the original mount is
 		 * permitted to update it.
 		 */
-		if (mp->mnt_stat.f_owner != p->p_ucred->cr_uid) {
+		if (mp->mnt_stat.f_owner != td->td_proc->p_ucred->cr_uid) {
 			error = suser_td(td);
 			if (error) {
 				vput(vp);
@@ -275,19 +274,20 @@ vfs_mount(td, fstype, fspath, fsflags, fsdata)
 	 * If the user is not root, ensure that they own the directory
 	 * onto which we are attempting to mount.
 	 */
-	error = VOP_GETATTR(vp, &va, p->p_ucred, td);
+	error = VOP_GETATTR(vp, &va, td->td_proc->p_ucred, td);
 	if (error) {
 		vput(vp);
 		return (error);
 	}
-	if (va.va_uid != p->p_ucred->cr_uid) {
+	if (va.va_uid != td->td_proc->p_ucred->cr_uid) {
 		error = suser_td(td);
 		if (error) {
 			vput(vp);
 			return (error);
 		}
 	}
-	if ((error = vinvalbuf(vp, V_SAVE, p->p_ucred, td, 0, 0)) != 0) {
+	if ((error = vinvalbuf(vp, V_SAVE, td->td_proc->p_ucred, td, 0, 0))
+	    != 0) {
 		vput(vp);
 		return (error);
 	}
@@ -351,7 +351,7 @@ vfs_mount(td, fstype, fspath, fsflags, fsdata)
 	strncpy(mp->mnt_stat.f_fstypename, fstype, MFSNAMELEN);
 	mp->mnt_stat.f_fstypename[MFSNAMELEN - 1] = '\0';
 	mp->mnt_vnodecovered = vp;
-	mp->mnt_stat.f_owner = p->p_ucred->cr_uid;
+	mp->mnt_stat.f_owner = td->td_proc->p_ucred->cr_uid;
 	strncpy(mp->mnt_stat.f_mntonname, fspath, MNAMELEN);
 	mp->mnt_stat.f_mntonname[MNAMELEN - 1] = '\0';
 	mp->mnt_iosize_max = DFLTPHYS;
