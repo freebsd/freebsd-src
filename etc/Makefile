@@ -16,7 +16,6 @@ BIN1=   aliases amd.map apmd.conf auth.conf \
 	etc.${MACHINE_ARCH}/disktab \
 	etc.${MACHINE_ARCH}/rc.${MACHINE_ARCH} \
 	etc.${MACHINE_ARCH}/ttys \
-	mail/mailer.conf \
 	${.CURDIR}/../gnu/usr.bin/man/manpath/manpath.config \
 	${.CURDIR}/../usr.bin/mail/misc/mail.rc \
 	${.CURDIR}/../usr.bin/locate/locate/locate.rc
@@ -29,7 +28,7 @@ MTREE=	BSD.include.dist BSD.local.dist BSD.root.dist BSD.usr.dist \
 NAMEDB= PROTO.localhost.rev named.conf named.root make-localhost
 PPPCNF= ppp.deny ppp.shells.sample
 PPPCF2= ppp.conf
-NOSPAM=	Makefile README
+NOSPAM=	Makefile README mailer.conf
 
 
 # Special top level files for FreeBSD
