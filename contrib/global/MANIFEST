@@ -1,3 +1,4 @@
+COPYING			Copyright notice.
 HISTORY			Histroy of GLOBAL.
 INSTALL			Installation method
 MANIFEST		This file.
@@ -10,6 +11,7 @@ VERSION			Version number.
 btreeop/		Btreeop command directory.
 global/			Global command directory.
 gozilla/		Gozilla command directory.
+gctags/			Extended ctags command directory.
 gtags/			Gtags command directory.
 htags/			Htags command directory.
 systags/		Script for kernel.

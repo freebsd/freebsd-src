@@ -29,7 +29,7 @@
 # OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 # SUCH DAMAGE.
 #
-#	htags.pl				31-Oct-97
+#	htags.pl				20-Jan-98
 #
 $com = $0;
 $com =~ s/.*\///;
@@ -429,7 +429,6 @@ sub makeline {
 	$_[0] =~ s/^$tag/<A HREF=..\/$SRCS\/$filename.html#$lno>$tag<\/A>/;
 }
 sub makedupindex {
-	local($expand) = &'usable('expand') ? 'expand' : 'cat';
 	local($count) = 0;
 
 	foreach $db ('GRTAGS', 'GTAGS') {
@@ -774,10 +773,10 @@ sub makehtml {
 
 		$count++;
 		chop;
-		s/^\.\///;
 		local($path) = $_;
+		$path =~ s/^\.\///;
+		print STDERR " [$count/$total] converting $path\n" if ($vflag);
 		$path =~ s/\//$SEP/g;
-		print STDERR " [$count/$total] converting $_\n" if ($vflag);
 		&convert'src2html($_, "$html/$SRCS/$path.html");
 	}
 	close(FIND);
@@ -805,12 +804,12 @@ sub src2html {
 	#
 	# load tags belonging to this file.
 	#
-	$file =~ s/^\.\///;
 	&anchor'load($file);
 	open(C, "$expand '$file' |") || &'error("cannot open file '$file'.");
 	#
 	# print the header
 	#
+	$file =~ s/^\.\///;
 	print "<HTML>\n<HEAD><TITLE>$file</TITLE></HEAD>\n";
 	print "<BODY><A NAME=TOP><H2>$file</H2>\n";
 	print &link_format(&anchor'getlinks(0));
@@ -891,7 +890,7 @@ sub src2html {
 					$href = "<A HREF=../$dir/$TAG.html>$TAG</A>";
 				}
 				# set tag marks and save hyperlink into @links
-				if (s/\b$TAG\b/\005$count\005/) {
+				if (s/\b$TAG\b/\005$count\005/ || s/\b_$TAG\b/_\005$count\005/) {
 					$count++;
 					push(@links, $href);
 				} else {

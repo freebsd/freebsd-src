@@ -1,7 +1,7 @@
 
-Installation of GLOBAL 2.21
+Installation of GLOBAL
 
-						11-Dec-1997 Shigio Yamaguchi
+						20-Jan-1998 Shigio Yamaguchi
 ---------------------------------------------------------------------------
 Guide line (C style)
 ---------------------------------------------------------------------------
@@ -49,8 +49,10 @@ Install procedure
 
 0. Extracting
 
-	% tar xzvf global-2.21.tar.gz
-	% cd global-2.21
+	% tar xzvf global-XXX.tar.gz
+	% cd global-XXX
+
+	(XXX is version number.)
 
 1. Preparation for generic UNIX
 
