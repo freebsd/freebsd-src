@@ -1,2 +1,5 @@
+# $FreeBSD$
 STAND_LINKS="bin sbin usr/bin usr/sbin usr/libexec"
 o_no_devfs=""	# we have devfs
+#fd_size=2880
+#import_files="/usr/libexec/ld-elf.so.1 /usr/lib/libc.so.4 /usr/lib/libm.so.2"
