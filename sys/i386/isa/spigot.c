@@ -40,7 +40,7 @@
  *
  *	ftp.cs.uwm.edu://pub/FreeBSD/spigot/spigot.tar.gz
  *
- * Version 1.5, August 30, 1995.
+ * Version 1.6, Novemeber 21, 1995.
  *
  */
 
@@ -225,9 +225,11 @@ struct	spigot_info	*info;
 		ss->signal_num = *((int *)data);
 		break;
 	case	SPIGOT_IOPL_ON:	/* allow access to the IO PAGE */
+#if !defined(SPIGOT_UNSECURE)
 		error = suser(p->p_ucred, &p->p_acflag);
 		if (error != 0)
 			return error;
+#endif
 		fp=(struct trapframe *)p->p_md.md_regs;
 		fp->tf_eflags |= PSL_IOPL;
 		break;
