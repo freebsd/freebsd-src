@@ -1,9 +1,8 @@
 # from BSDI Makefile,v 2.6 1996/04/08 20:06:40 bostic Exp
 #
-# $Id: Makefile,v 1.6 1997/08/18 18:48:33 jlemon Exp $
+# $Id: Makefile,v 1.8 1997/09/30 22:03:34 jlemon Exp $
 
 PROG=	doscmd
-MAN1=   doscmd.1
 SRCS=	AsyncIO.c ParseBuffer.c bios.c callback.c cpu.c dos.c cmos.c config.c \
 	cwd.c debug.c disktab.c doscmd.c ems.c emuint.c exe.c i386-pinsn.c \
 	int.c int10.c int13.c int14.c int16.c int17.c int1a.c int2f.c intff.c \
@@ -19,16 +18,15 @@ EXEMODE=444
 
 .if exists(${X11BASE}/include) && exists(${X11BASE}/lib/libX11.a)
 CFLAGS+= -I. -I${X11BASE}/include -DDISASSEMBLER
-LDFLAGS+= -L${X11BASE}/lib
-LDADD+=	-lX11 -lgcc -lc
-DPADD+= ${X11BASE}/lib/libX11.a ${LIBC}
+LDADD= -L${X11BASE}/lib -lX11
+DPADD= ${X11BASE}/lib/libX11.a
 .else
 CFLAGS+= -I. -DDISASSEMBLER -DNO_X
-LDADD+= -lgcc -lc
-DPADD+= ${LIBC}
 .endif
+LDADD+= -lgcc -lc
+DPADD+= ${LIBGCC} ${LIBC}
 
-afterinstall:
+beforeinstall:
 	install ${COPY} -o ${BINOWN} -g ${EXEGRP} -m ${EXEMODE} \
 		doscmd.kernel ${DESTDIR}/usr/libexec/doscmd.kernel
 	install -c -o ${BINOWN} -g ${EXEGRP} -m ${EXEMODE} \
@@ -36,8 +34,14 @@ afterinstall:
 	install -c -o ${BINOWN} -g ${EXEGRP} -m ${EXEMODE} \
 		emsdriv.sys ${DESTDIR}/usr/libdata/doscmd/
 
-doscmd: doscmd.kernel ${LIBCRT0} doscmd_loader.o redir.com emsdriv.sys
-	ld -e start -dc -dp -o doscmd /usr/lib/crt0.o doscmd_loader.o -lgcc -lc
+doscmd: ${LIBCRT0} doscmd_loader.o ${LIBGCC} ${LIBC}
+	ld -e start -dc -dp -o doscmd ${LIBCRT0} doscmd_loader.o -lgcc -lc
+
+# Bogusly generated dependency to get doscmd_loader.c looked at by mkdep.
+.depend: doscmd_loader.c
+
+# Bogus dependencies to get more than one binary created by `make all'.
+doscmd: doscmd.kernel emsdriv.sys redir.com
 
 redir.com: redir.com.uu
 	uudecode ${.CURDIR}/redir.com.uu
@@ -45,10 +49,15 @@ redir.com: redir.com.uu
 emsdriv.sys: emsdriv.sys.uu
 	uudecode ${.CURDIR}/emsdriv.sys.uu
 
+# Make sure the library names are defined.  We want to specify the full
+# path to the standard crt0.o, and building two binaries in one directory
+# breaks the automatic generation of dependencies for binaries.
+.include <bsd.libnames.mk>
+
 .include <bsd.prog.mk>
 
-.depend: doscmd_loader.c
-
-doscmd.kernel: crt0.o ${OBJS}
+# This must be after bsd.prog.mk is included so that ${OBJS} in the
+# dependency gets expanded.
+doscmd.kernel: crt0.o ${OBJS} ${DPADD}
 	ld -N -Bstatic -T 110000 -o doscmd.kernel ${LDFLAGS} \
 		crt0.o ${OBJS} ${LDADD}
