@@ -3,7 +3,9 @@
 PROG=	rmt
 MAN8=	rmt.8
 
-beforeinstall:
-	-ln -s ${BINDIR}/rmt ${DESTDIR}/etc/rmt
+# called from /usr/src/etc/Makefile
+etc-rmt:
+	rm -f ${DESTDIR}/etc/rmt
+	ln -s ${BINDIR}/rmt ${DESTDIR}/etc/rmt
 
 .include <bsd.prog.mk>
