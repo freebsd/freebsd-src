@@ -1165,9 +1165,6 @@ thread_exit(void)
 		td->td_standin = NULL;
 	}
 
-	if (p->p_tracee == td)
-		p->p_tracee = 0;
-
 	cpu_thread_exit(td);	/* XXXSMP */
 
 	/*
