@@ -459,7 +459,7 @@ man_getopt (argc, argv)
 #endif /* __FreeBSD__ */
 
   if (pager == NULL || *pager == '\0')
-    if ((pager = getenv ("PAGER")) == NULL || *pager == NULL)
+    if ((pager = getenv ("PAGER")) == NULL || *pager == '\0')
       pager = strdup (PAGER);
 
   if (debug)
