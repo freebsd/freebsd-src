@@ -1444,7 +1444,8 @@ fxp_init(xsc)
 	 * zero and must be one bits in this structure and this is the easiest
 	 * way to initialize them all to proper values.
 	 */
-	bcopy(fxp_cb_config_template, (volatile void *)&cbp->cb_status,
+	bcopy(fxp_cb_config_template,
+		(void *)(uintptr_t)(volatile void *)&cbp->cb_status,
 		sizeof(fxp_cb_config_template));
 
 	cbp->cb_status =	0;
@@ -1501,7 +1502,8 @@ fxp_init(xsc)
 #if defined(__NetBSD__)
 	bcopy(LLADDR(ifp->if_sadl), (void *)cb_ias->macaddr, 6);
 #else
-	bcopy(sc->arpcom.ac_enaddr, (volatile void *)cb_ias->macaddr,
+	bcopy(sc->arpcom.ac_enaddr,
+	    (void *)(uintptr_t)(volatile void *)cb_ias->macaddr,
 	    sizeof(sc->arpcom.ac_enaddr));
 #endif /* __NetBSD__ */
 
@@ -2019,7 +2021,8 @@ fxp_mc_setup(sc)
 				break;
 			}
 			bcopy(LLADDR((struct sockaddr_dl *)ifma->ifma_addr),
-			    (volatile void *) &sc->mcsp->mc_addr[nmcasts][0], 6);
+			    (void *)(uintptr_t)(volatile void *)
+				&sc->mcsp->mc_addr[nmcasts][0], 6);
 			nmcasts++;
 		}
 	}
