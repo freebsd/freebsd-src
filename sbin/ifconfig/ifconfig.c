@@ -135,6 +135,7 @@ static	int ip6lifetime;
 struct	afswtch;
 
 int supmedia = 0;
+int listcloners = 0;
 
 #ifdef INET6
 char	addr_buf[MAXHOSTNAMELEN *2 + 1];	/*for getnameinfo()*/
@@ -144,6 +145,7 @@ void	Perror __P((const char *cmd));
 void	checkatrange __P((struct sockaddr_at *));
 int	ifconfig __P((int argc, char *const *argv, const struct afswtch *afp));
 void	notealias __P((const char *, int, int, const struct afswtch *afp));
+void	list_cloners __P((void));
 void	printb __P((const char *s, unsigned value, const char *bits));
 void	rt_xaddrs __P((caddr_t, caddr_t, struct rt_addrinfo *));
 void	status __P((const struct afswtch *afp, int addrcount,
@@ -175,6 +177,10 @@ c_func2	setip6lifetime;
 #endif
 c_func	setifipdst;
 c_func	setifflags, setifmetric, setifmtu, setiflladdr;
+c_func	clone_destroy;
+
+
+void clone_create __P((void));
 
 
 #define	NEXTARG		0xffffff
@@ -239,6 +245,13 @@ struct	cmd {
 	{ "vlandev",	NEXTARG,	setvlandev },
 	{ "-vlandev",	NEXTARG,	unsetvlandev },
 #endif
+#if 0
+	/* XXX `create' special-cased below */
+	{"create",	0,		clone_create },
+	{"plumb",	0,		clone_create },
+#endif
+	{"destroy",	0,		clone_destroy },
+	{"unplumb",	0,		clone_destroy },
 #ifdef USE_IEEE80211
 	{ "ssid",	NEXTARG,	set80211ssid },
 	{ "nwid",	NEXTARG,	set80211ssid },
@@ -364,16 +377,20 @@ void
 usage()
 {
 #ifndef INET6
-	fprintf(stderr, "%s\n%s\n%s\n%s\n%s\n",
+	fprintf(stderr, "%s\n%s\n%s\n%s\n%s\n%s\n%s\n",
 	"usage: ifconfig interface address_family [address [dest_address]]",
 	"                [parameters]",
+	"       ifconfig -C",
+	"       ifconfig interface create",
 	"       ifconfig -a [-d] [-m] [-u] [address_family]",
 	"       ifconfig -l [-d] [-u] [address_family]",
 	"       ifconfig [-d] [-m] [-u]");
 #else
-	fprintf(stderr, "%s\n%s\n%s\n%s\n%s\n",
+	fprintf(stderr, "%s\n%s\n%s\n%s\n%s\n%s\n%s\n",
 	"usage: ifconfig [-L] interface address_family [address [dest_address]]",
 	"                [parameters]",
+	"       ifconfig -C",
+	"       ifconfig interface create",
 	"       ifconfig -a [-L] [-d] [-m] [-u] [address_family]",
 	"       ifconfig -l [-d] [-u] [address_family]",
 	"       ifconfig [-L] [-d] [-m] [-u]");
@@ -402,7 +419,7 @@ main(argc, argv)
 
 	/* Parse leading line options */
 	all = downonly = uponly = namesonly = 0;
-	while ((c = getopt(argc, argv, "adlmu"
+	while ((c = getopt(argc, argv, "adlmuC"
 #ifdef INET6
 					"L"
 #endif
@@ -411,23 +428,26 @@ main(argc, argv)
 		case 'a':	/* scan all interfaces */
 			all++;
 			break;
+		case 'd':	/* restrict scan to "down" interfaces */
+			downonly++;
+			break;
+		case 'l':	/* scan interface names only */
+			namesonly++;
+			break;
+		case 'm':	/* show media choices in status */
+			supmedia = 1;
+			break;
+		case 'u':	/* restrict scan to "up" interfaces */
+			uponly++;
+			break;
+		case 'C':
+			listcloners = 1;
+			break;
 #ifdef INET6
 		case 'L':
 			ip6lifetime++;	/* print IPv6 address lifetime */
 			break;
 #endif
-		case 'l':	/* scan interface names only */
-			namesonly++;
-			break;
-		case 'd':	/* restrict scan to "down" interfaces */
-			downonly++;
-			break;
-		case 'u':	/* restrict scan to "up" interfaces */
-			uponly++;
-			break;
-		case 'm':	/* show media choices in status */
-			supmedia = 1;
-			break;
 		default:
 			usage();
 			break;
@@ -435,6 +455,16 @@ main(argc, argv)
 	}
 	argc -= optind;
 	argv += optind;
+
+	if (listcloners) {
+		/* -C must be solitary */
+		if (all || supmedia || uponly || downonly || namesonly ||
+		    argc > 0)
+			usage();
+		
+		list_cloners();
+		exit(0);
+	}
 
 	/* -l cannot be used with -a or -m */
 	if (namesonly && (all || supmedia))
@@ -473,6 +503,18 @@ main(argc, argv)
 
 		/* check and maybe load support for this interface */
 		ifmaybeload(name);
+
+		/*
+		 * NOTE:  We must special-case the `create' command right
+		 * here as we would otherwise fail when trying to find
+		 * the interface.
+		 */
+		if (argc > 0 && strcmp(argv[0], "create") == 0) {
+			clone_create();
+			argc--, argv++;
+			if (argc == 0)
+				exit(0);
+		}
 	}
 
 	/* Check for address family */
@@ -1861,7 +1903,8 @@ ifmaybeload(name)
 
 	/* turn interface and unit into module name */
 	strcpy(ifkind, "if_");
-	for (cp = name, dp = ifkind + 3; (*cp != 0) && !isdigit(*cp); cp++, dp++)
+	for (cp = name, dp = ifkind + 3;
+	    (*cp != 0) && !isdigit(*cp); cp++, dp++)
 		*dp = *cp;
 	*dp = 0;
 
@@ -1887,4 +1930,82 @@ ifmaybeload(name)
 
 	/* not present, we should try to load it */
 	kldload(ifkind);
+}
+
+void
+list_cloners(void)
+{
+	struct if_clonereq ifcr;
+	char *cp, *buf;
+	int idx;
+	int s;
+
+	s = socket(AF_INET, SOCK_DGRAM, 0);
+	if (s == -1)
+		err(1, "socket");
+
+	memset(&ifcr, 0, sizeof(ifcr));
+
+	if (ioctl(s, SIOCIFGCLONERS, &ifcr) < 0)
+		err(1, "SIOCIFGCLONERS for count");
+
+	buf = malloc(ifcr.ifcr_total * IFNAMSIZ);
+	if (buf == NULL)
+		err(1, "unable to allocate cloner name buffer");
+
+	ifcr.ifcr_count = ifcr.ifcr_total;
+	ifcr.ifcr_buffer = buf;
+
+	if (ioctl(s, SIOCIFGCLONERS, &ifcr) < 0)
+		err(1, "SIOCIFGCLONERS for names");
+
+	/*
+	 * In case some disappeared in the mean time, clamp it down.
+	 */
+	if (ifcr.ifcr_count > ifcr.ifcr_total)
+		ifcr.ifcr_count = ifcr.ifcr_total;
+
+	for (cp = buf, idx = 0; idx < ifcr.ifcr_count; idx++, cp += IFNAMSIZ) {
+		if (idx > 0)
+			putchar(' ');
+		printf("%s", cp);
+	}
+
+	putchar('\n');
+	free(buf);
+}
+
+void
+clone_create()
+{
+	int s;
+
+	s = socket(AF_INET, SOCK_DGRAM, 0);
+	if (s == -1)
+		err(1, "socket");
+
+	memset(&ifr, 0, sizeof(ifr));
+	(void) strlcpy(ifr.ifr_name, name, sizeof(ifr.ifr_name));
+	if (ioctl(s, SIOCIFCREATE, &ifr) < 0)
+		err(1, "SIOCIFCREATE");
+
+	if (strcmp(name, ifr.ifr_name) != 0) {
+		printf("%s\n", ifr.ifr_name);
+		strlcpy(name, ifr.ifr_name, sizeof(name));
+	}
+
+	close(s);
+}
+
+void
+clone_destroy(val, d, s, rafp)
+	const char *val;
+	int d;
+	int s;
+	const struct afswtch *rafp;
+{
+
+	(void) strncpy(ifr.ifr_name, name, sizeof(ifr.ifr_name));
+	if (ioctl(s, SIOCIFDESTROY, &ifr) < 0)
+		err(1, "SIOCIFDESTROY");
 }
