@@ -112,6 +112,7 @@ static const struct pccard_product an_pccard_products[] = {
 	PCMCIA_CARD(AIRONET, PC4800, 0),
 	PCMCIA_CARD(AIRONET, PC4500, 0),
 	PCMCIA_CARD(AIRONET, 350, 0),
+	PCMCIA_CARD(XIRCOM, CWE1130, 0), 
 	{ NULL }
 };
 
