@@ -4,7 +4,7 @@
 #
 #	This kernel is NOT MEANT to be runnable!
 #
-#	$Id: LINT,v 1.39 1994/01/10 18:53:52 ats Exp $
+#	$Id: LINT,v 1.40 1994/01/16 12:01:32 ats Exp $
 #
 
 machine		"i386"
@@ -16,7 +16,7 @@ maxusers	10
 maxfdescs	2048			#Max file descriptors per process
 options		MATH_EMULATE		#Support for x87 emulation
 
-config		"386bsd"	at 0xFE100000 root on wd0 swap on wd0 and sd0 dumps on wd0
+config		"386bsd"	root on wd0 swap on wd0 and sd0 dumps on wd0
 
 #
 # options that appear as inline #ifdef's
