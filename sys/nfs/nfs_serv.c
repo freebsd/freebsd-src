@@ -3032,11 +3032,13 @@ nfsrv_readdir(nfsd, slp, procp, mrq)
 	nqsrv_getl(vp, ND_READ);
 	if (v3) {
 		error = getret = VOP_GETATTR(vp, &at, cred, procp);
+#if 0
 		/*
 		 * XXX This check may be too strict for Solaris 2.5 clients.
 		 */
 		if (!error && toff && verf && verf != at.va_filerev)
 			error = NFSERR_BAD_COOKIE;
+#endif
 	}
 	if (!error)
 		error = nfsrv_access(vp, VEXEC, cred, rdonly, procp, 0);
@@ -3312,11 +3314,13 @@ nfsrv_readdirplus(nfsd, slp, procp, mrq)
 		goto nfsmout;
 	}
 	error = getret = VOP_GETATTR(vp, &at, cred, procp);
+#if 0
 	/*
 	 * XXX This check may be too strict for Solaris 2.5 clients.
 	 */
 	if (!error && toff && verf && verf != at.va_filerev)
 		error = NFSERR_BAD_COOKIE;
+#endif
 	if (!error) {
 		nqsrv_getl(vp, ND_READ);
 		error = nfsrv_access(vp, VEXEC, cred, rdonly, procp, 0);
