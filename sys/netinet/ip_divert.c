@@ -228,12 +228,14 @@ divert_packet(struct mbuf *m, int incoming)
 		/* XXX why does only one socket match? */
 		if (inp->inp_lport == nport) {
 			sa = inp->inp_socket;
-			if (sbappendaddr(&sa->so_rcv,
+			SOCKBUF_LOCK(&sa->so_rcv);
+			if (sbappendaddr_locked(&sa->so_rcv,
 			    (struct sockaddr *)&divsrc, m,
-			    (struct mbuf *)0) == 0)
+			    (struct mbuf *)0) == 0) {
 				sa = NULL;	/* force mbuf reclaim below */
-			else
-				sorwakeup(sa);
+				SOCKBUF_UNLOCK(&sa->so_rcv);
+			} else
+				sorwakeup_locked(sa);
 			INP_UNLOCK(inp);
 			break;
 		}

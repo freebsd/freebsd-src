@@ -447,6 +447,7 @@ udp_append(last, ip, n, off)
 	int off;
 {
 	struct sockaddr *append_sa;
+	struct socket *so;
 	struct mbuf *opts = 0;
 
 	INP_LOCK_ASSERT(last);
@@ -496,13 +497,17 @@ udp_append(last, ip, n, off)
 #endif
 	append_sa = (struct sockaddr *)&udp_in;
 	m_adj(n, off);
-	if (sbappendaddr(&last->inp_socket->so_rcv, append_sa, n, opts) == 0) {
+
+	so = last->inp_socket;
+	SOCKBUF_LOCK(&so->so_rcv);
+	if (sbappendaddr_locked(&so->so_rcv, append_sa, n, opts) == 0) {
 		m_freem(n);
 		if (opts)
 			m_freem(opts);
 		udpstat.udps_fullsock++;
+		SOCKBUF_UNLOCK(&so->so_rcv);
 	} else
-		sorwakeup(last->inp_socket);
+		sorwakeup_locked(so);
 }
 
 /*
