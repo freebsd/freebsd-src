@@ -240,7 +240,7 @@ static struct passwd *
 		 sgetpwnam(char *);
 static char	*sgetsave(char *);
 static void	 reapchild(int);
-static void	 appendf(char **, char *, ...);
+static void	 appendf(char **, char *, ...) __printflike(2, 3);
 static void	 logcmd(char *, char *, char *, off_t);
 static void      logxfer(char *, off_t, time_t);
 static char	*doublequote(char *);
