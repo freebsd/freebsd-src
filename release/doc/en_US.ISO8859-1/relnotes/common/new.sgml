@@ -609,7 +609,7 @@
   <sect2 id="userland">
     <title>Userland Changes</title>
 
-    <para arch="i386">The last bits of the i386-only, a.out compiler
+    <para arch="i386,pc98">The last bits of the i386-only, a.out compiler
       toolchain have been removed.</para>
 
     <para>&man.acpiconf.8; now supports a <option>-i</option> option
