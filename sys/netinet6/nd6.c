@@ -40,10 +40,12 @@
 
 #include "opt_inet.h"
 #include "opt_inet6.h"
+#include "opt_mac.h"
 
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/callout.h>
+#include <sys/mac.h>
 #include <sys/malloc.h>
 #include <sys/mbuf.h>
 #include <sys/socket.h>
@@ -2015,6 +2017,9 @@ nd6_output(ifp, origifp, m0, dst, rt0)
 	
   sendpkt:
 
+#ifdef MAC
+	mac_create_mbuf_linklayer(ifp, m);
+#endif
 	if ((ifp->if_flags & IFF_LOOPBACK) != 0) {
 		return((*ifp->if_output)(origifp, m, (struct sockaddr *)dst,
 					 rt));
