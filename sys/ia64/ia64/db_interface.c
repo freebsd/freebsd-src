@@ -50,10 +50,9 @@
 
 #include <vm/vm.h>
 
+#include <machine/inst.h>
 #include <machine/db_machdep.h>
 #include <machine/mutex.h>
-
-#include <machine/inst.h>
 
 #include <ddb/ddb.h>
 
@@ -487,10 +486,7 @@ db_read_bundle(db_addr_t addr, struct ia64_bundle *bp)
 	db_read_bytes(addr, 8, (caddr_t) &low);
 	db_read_bytes(addr+8, 8, (caddr_t) &high);
 
-	bp->template = low & 0x1f;
-	bp->slot[0] = (low >> 5) & ((1L<<41) - 1);
-	bp->slot[1] = (low >> 46) | ((high & ((1L<<23) - 1)) << 18);
-	bp->slot[2] = (high >> 23);
+	ia64_unpack_bundle(low, high, bp);
 }
 
 void
@@ -498,8 +494,7 @@ db_write_bundle(db_addr_t addr, struct ia64_bundle *bp)
 {
 	u_int64_t low, high;
 
-	low = bp->template | (bp->slot[0] << 5) | (bp->slot[1] << 46);
-	high = (bp->slot[1] >> 18) | (bp->slot[2] << 23);
+	ia64_pack_bundle(&low, &high, bp);
 
 	db_write_bytes(addr, 8, (caddr_t) &low);
 	db_write_bytes(addr+8, 8, (caddr_t) &high);
