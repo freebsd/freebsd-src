@@ -925,7 +925,7 @@ cd /
 cpio -pdamu${cpioverbose} /mnt <filelist
 echo -n "Copying more to disk... "
 cd /mnt
-gzcat < /inst1.cpio.gz | cpio -idmu
+gzcat < /inst1.cpio.gz | cpio -idmu${cpioverbose}
 
 echo -n "Building /etc/fstab... "
 echo "proc		/proc	procfs	rw 0 0" >etc/fstab
