@@ -316,8 +316,10 @@ struct state * const	sp;
 		     	return -1;
 		if ((fid = _open(name, OPEN_MODE)) == -1)
 			return -1;
-		if ((_fstat(fid, &stab) < 0) || !S_ISREG(stab.st_mode))
+		if ((_fstat(fid, &stab) < 0) || !S_ISREG(stab.st_mode)) {
+			_close(fid);
 			return -1;
+		}
 	}
 	{
 		struct tzhead *	tzhp;
