@@ -28,7 +28,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: eisaconf.c,v 1.33 1997/11/07 08:52:24 phk Exp $
+ *	$Id: eisaconf.c,v 1.34 1998/02/09 06:08:09 eivind Exp $
  */
 
 #include "opt_eisa.h"
@@ -452,10 +452,14 @@ eisa_release_intr(e_dev, irq, func)
 	cur_irq = TAILQ_FIRST(&e_dev->ioconf.irqs);
        	while (cur_irq != NULL) {
 		if (cur_irq->irq_no == irq) {
+			struct	irq_node *next_irq;
+
+			next_irq = TAILQ_NEXT(cur_irq, links);
 			if (cur_irq->idesc != NULL)
 				intr_destroy(cur_irq->idesc);
-			cur_irq = TAILQ_NEXT(cur_irq, links);
 			TAILQ_REMOVE(&e_dev->ioconf.irqs, cur_irq, links);
+			free(cur_irq, M_DEVBUF);
+			cur_irq = next_irq;
 			result = 0;
 		} else {
 			cur_irq = TAILQ_NEXT(cur_irq, links);
