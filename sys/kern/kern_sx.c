@@ -348,8 +348,12 @@ _sx_assert(struct sx *sx, int what, const char *file, int line)
 #ifdef WITNESS
 		witness_assert(&sx->sx_object, what, file, line);
 #else
+		/*
+		 * We are able to check only exclusive lock here,
+		 * we cannot assert that *this* thread owns slock.
+		 */
 		mtx_lock(sx->sx_lock);
-		if (sx->sx_cnt != 0 && sx->sx_xholder == curthread)
+		if (sx->sx_xholder == curthread)
 			printf("Lock %s locked @ %s:%d\n",
 			    sx->sx_object.lo_name, file, line);
 		mtx_unlock(sx->sx_lock);
