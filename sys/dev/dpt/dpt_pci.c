@@ -106,7 +106,8 @@ dpt_pci_attach (device_t dev)
 	}
 
 	rid = 0;
-	irq = bus_alloc_resource(dev, SYS_RES_IRQ, &rid, 0, ~0, 1, RF_ACTIVE);
+	irq = bus_alloc_resource(dev, SYS_RES_IRQ, &rid, 0, ~0, 1,
+				 RF_ACTIVE | RF_SHAREABLE);
 	if (!irq) {
 		device_printf(dev, "No irq?!\n");
 		error = ENOMEM;
