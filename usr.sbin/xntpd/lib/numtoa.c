@@ -9,9 +9,9 @@
 
 char *
 numtoa(num)
-	u_long num;
+	u_int32_t num;
 {
-	register u_long netnum;
+	register u_int32_t netnum;
 	register char *buf;
 
 	netnum = ntohl(num);
