@@ -97,7 +97,7 @@
  */
 
 #ifdef RCSID
-static char rcsid[] = "$Id$";
+static char rcsid[] = "$Id: inflate.c,v 1.6 1997/02/22 15:45:58 peter Exp $";
 #endif
 
 #include <sys/types.h>
@@ -767,6 +767,8 @@ int inflate_dynamic()
     return i;                   /* incomplete code set */
   }
 
+  if (tl == NULL) /* Grrrhhh */
+	return 2;
 
   /* read in literal and distance code lengths */
   n = nl + nd;
