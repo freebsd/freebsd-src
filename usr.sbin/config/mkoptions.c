@@ -194,7 +194,7 @@ do_option(name)
 		for (ol = otab; ol != 0; ol = ol->o_next)
 			if (eq(inw, ol->o_name))
 				break;
-		if (!seen && !ol) {
+		if (!eq(inw, name) && !ol) {
 			printf("WARNING: unknown option `%s' removed from %s\n",
 				inw, file);
 			tidy++;
