@@ -407,6 +407,10 @@
                   Tidy up a few tables with tabs and PLL selection code.
                   Restore Video Highway Xtreme PLL code.
 
-2.01   4 Oct 1999 Peter Wemm <peter@netplex.com.au>
+2.02   4 Oct 1999 Peter Wemm <peter@netplex.com.au>
 		  Updated Australian Channel Set.
 		  Added Tuner and Mute values for LeadTek Winfast 2000 card
+
+2.03   5 Oct 1999 Thomas Runge <runge@rostock.zgdv.de>
+		  Found FM radio bug mute introduced in release 2.00
+
