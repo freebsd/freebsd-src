@@ -8,7 +8,7 @@
  * file.
  *
  * Written by Julian Elischer (julian@dialix.oz.au)
- *      $Id: scsi_base.c,v 1.35 1996/01/05 20:12:45 wollman Exp $
+ *      $Id: scsi_base.c,v 1.36 1996/03/10 07:13:07 gibbs Exp $
  */
 
 #include "opt_bounce.h"
@@ -755,6 +755,7 @@ sc_err1(xs)
 		return sc_done(xs, SCSIRET_DO_RETRY);
 
 		/* fall through */
+	case XS_SELTIMEOUT:
 	case XS_DRIVER_STUFFUP:
 		return sc_done(xs, EIO);
 
