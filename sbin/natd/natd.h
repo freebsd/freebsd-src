@@ -20,5 +20,5 @@
 extern void Quit (const char* msg);
 extern void Warn (const char* msg);
 extern int SendNeedFragIcmp (int sock, struct ip* failedDgram, int mtu);
-
+extern struct libalias *mla;
 
