@@ -1644,9 +1644,9 @@ umass_bbb_get_max_lun(struct umass_softc *sc)
 	err = usbd_do_request(udev, &req, &buf);
 	switch (err) {
 	case USBD_NORMAL_COMPLETION:
+		maxlun = buf;
 		DPRINTF(UDMASS_BBB, ("%s: Max Lun is %d\n",
 		    USBDEVNAME(sc->sc_dev), maxlun));
-		maxlun = buf;
 		break;
 	case USBD_STALLED:
 	case USBD_SHORT_XFER:
