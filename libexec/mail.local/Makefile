@@ -21,4 +21,10 @@ LIBSMUTIL:=	${LIBSMUTILDIR}/libsmutil.a
 DPADD+=	${LIBSMUTIL}
 LDADD+=	${LIBSMUTIL}
 
+# User customizations to the sendmail build environment
+CFLAGS+=${SENDMAIL_CFLAGS}
+LDFLAGS+=${SENDMAIL_LDFLAGS}
+LDADD+=${SENDMAIL_LDADD}
+DPADD+=${SENDMAIL_DPADD}
+
 .include <bsd.prog.mk>
