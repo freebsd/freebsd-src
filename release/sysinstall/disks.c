@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: disks.c,v 1.70.2.10 1997/03/11 16:22:22 joerg Exp $
+ * $Id: disks.c,v 1.70.2.11 1997/05/05 05:17:42 pst Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -248,13 +248,13 @@ diskPartition(Device *dev, Disk *d)
 
 	case 'A':
 	    cp = variable_get(VAR_DEDICATE_DISK);
-	    if (!strcasecmp(cp, "always"))
+	    if (cp && !strcasecmp(cp, "always"))
 		rv = 1;
 	    else {
 		rv = msgYesNo("Do you want to do this with a true partition entry\n"
 			      "so as to remain cooperative with any future possible\n"
 			      "operating systems on the drive(s)?");
-		if (rv != 0 && strcasecmp(cp, "nowarn")) {
+		if (rv != 0 && (!cp || strcasecmp(cp, "nowarn"))) {
 		    rv = !msgYesNo("This is dangerous in that it will make the drive totally\n"
 				   "uncooperative with other potential operating systems on the\n"
 				   "same disk.  It will lead instead to a totally dedicated disk,\n"
