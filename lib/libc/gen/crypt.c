@@ -37,12 +37,13 @@
 #if defined(LIBC_SCCS) && !defined(lint)
 /* from static char sccsid[] = "@(#)crypt.c	5.11 (Berkeley) 6/25/91"; */
 #endif /* LIBC_SCCS and not lint */
+
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
-#include <unistd.h>
 #include <stdio.h>
 #include <string.h>
+#include <unistd.h>
 
 /*
  * UNIX password, and DES, encryption.
@@ -55,8 +56,7 @@ __warn_references(des_setkey,
 	"WARNING!  des_setkey(3) not present in the system!");
 
 int
-des_setkey(key)
-	const char *key;
+des_setkey(const char *key __unused)
 {
 	fprintf(stderr, "WARNING!  des_setkey(3) not present in the system!\n");
 	return (0);
@@ -66,11 +66,7 @@ __warn_references(des_cipher,
 	"WARNING!  des_cipher(3) not present in the system!");
 
 int
-des_cipher(in, out, salt, num_iter)
-	const char     *in;
-	char           *out;
-	long            salt;
-	int             num_iter;
+des_cipher(const char *in, char *out, long salt __unused, int num_iter __unused)
 {
 	fprintf(stderr, "WARNING!  des_cipher(3) not present in the system!\n");
 	bcopy(in, out, 8);
@@ -81,8 +77,7 @@ __warn_references(setkey,
 	"WARNING!  setkey(3) not present in the system!");
 
 int
-setkey(key)
-	const char *key;
+setkey(const char *key __unused)
 {
 	fprintf(stderr, "WARNING!  setkey(3) not present in the system!\n");
 	return (0);
@@ -92,9 +87,7 @@ __warn_references(encrypt,
 	"WARNING!  encrypt(3) not present in the system!");
 
 int
-encrypt(block, flag)
-	char  *block;
-	int             flag;
+encrypt(char *block __unused, int flag __unused)
 {
 	fprintf(stderr, "WARNING!  encrypt(3) not present in the system!\n");
 	return (0);
