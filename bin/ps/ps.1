@@ -47,8 +47,9 @@
 .Op Fl o Ar fmt
 .Op Fl p Ar pid
 .Op Fl t Ar tty
-.Oo Fl U Ar username Ns
+.Oo Fl U Ar username Ns Xo
 .Op , Ns Ar username Ns No ...
+.Xc
 .Oc
 .Op Fl W Ar swap
 .Nm
@@ -226,7 +227,7 @@ The name of the
 .Xr mutex 9
 that the process is currently blocked on.
 If the name is invalid or unknown, then
-.Dq ???
+.Dq ???\&
 is displayed.
 .It nice
 The process scheduling increment (see
