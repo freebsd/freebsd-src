@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)tcp_var.h	8.3 (Berkeley) 4/10/94
- * $Id: tcp_var.h,v 1.10 1995/03/16 18:15:07 bde Exp $
+ * $Id: tcp_var.h,v 1.11 1995/04/09 01:29:29 davidg Exp $
  */
 
 #ifndef _NETINET_TCP_VAR_H_
@@ -277,6 +277,9 @@ struct	tcpstat {
 	u_long	tcps_predack;		/* times hdr predict ok for acks */
 	u_long	tcps_preddat;		/* times hdr predict ok for data pkts */
 	u_long	tcps_pcbcachemiss;
+	u_long	tcps_cachedrtt;		/* times cached RTT in route updated */
+	u_long	tcps_cachedrttvar;	/* times cached rttvar updated */
+	u_long	tcps_cachedssthresh;	/* times cached ssthresh updated */
 };
 
 /*

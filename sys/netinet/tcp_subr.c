@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)tcp_subr.c	8.1 (Berkeley) 6/10/93
- * $Id: tcp_subr.c,v 1.10 1995/04/09 01:29:26 davidg Exp $
+ * $Id: tcp_subr.c,v 1.11 1995/05/30 08:09:58 rgrimes Exp $
  */
 
 #include <sys/param.h>
@@ -333,6 +333,7 @@ tcp_close(tp)
 				    (rt->rt_rmx.rmx_rtt + i) / 2;
 			else
 				rt->rt_rmx.rmx_rtt = i;
+			tcpstat.tcps_cachedrtt++;
 		}
 		if ((rt->rt_rmx.rmx_locks & RTV_RTTVAR) == 0) {
 			i = tp->t_rttvar *
@@ -342,6 +343,7 @@ tcp_close(tp)
 				    (rt->rt_rmx.rmx_rttvar + i) / 2;
 			else
 				rt->rt_rmx.rmx_rttvar = i;
+			tcpstat.tcps_cachedrttvar++;
 		}
 		/*
 		 * update the pipelimit (ssthresh) if it has been updated
@@ -366,6 +368,7 @@ tcp_close(tp)
 				    (rt->rt_rmx.rmx_ssthresh + i) / 2;
 			else
 				rt->rt_rmx.rmx_ssthresh = i;
+			tcpstat.tcps_cachedssthresh++;
 		}
 	}
 #endif /* RTV_RTT */
