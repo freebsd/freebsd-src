@@ -361,7 +361,8 @@ globtilde(pattern, patbuf, patbuf_len, pglob)
 		 * handle a plain ~ or ~/ by expanding $HOME
 		 * first and then trying the password file
 		 */
-		if ((h = getenv("HOME")) == NULL) {
+		if (getuid() != geteuid() || getgid() != getegid() ||
+		    (h = getenv("HOME")) == NULL) {
 			if ((pwd = getpwuid(getuid())) == NULL)
 				return pattern;
 			else
