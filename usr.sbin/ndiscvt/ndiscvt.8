@@ -40,6 +40,7 @@
 .Nm
 .Op Fl i Ar <inffile>
 .Fl s Ar <sysfile>
+.Op Fl n Ar devname
 .Op Fl o Ar <outfile>
 .Sh DESCRIPTION
 The
@@ -93,6 +94,14 @@ a Windows(r) driver image. The
 utility will perform some manipulation of the sections within the
 executable file to make runtime linking within the kernel a little
 easier and then convert the image into a data array.
+.It Op Fl n Ar devname
+Specify an alternate name for the network device/interface which will
+be created when the driver is instantiated. If you need to load more
+than one NDIS driver into your system (i.e. if you have two different
+network cards in your system which require NDIS driver support), each
+module you create must have a unique name. Device can not be larger
+than IFNAMSIZ. If no name is specified, the driver will use the
+default a default name (``ndis'').
 .It Op Fl o Ar <outfile>
 Specify the output file in which to place the resulting data. This
 can be any file pathname. If

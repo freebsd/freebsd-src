@@ -769,12 +769,13 @@ ndis_syslog(ndis_handle adapter, ndis_error_code code,
 
 	block = (ndis_miniport_block *)adapter;
 
-	printf ("NDIS ERROR: %x\n", code);
-	printf ("NDIS NUMERRORS: %x\n", numerrors);
+	device_printf (block->nmb_dev, "NDIS ERROR: %x\n", code);
+	device_printf (block->nmb_dev, "NDIS NUMERRORS: %x\n", numerrors);
 
 	va_start(ap, numerrors);
 	for (i = 0; i < numerrors; i++)
-		printf ("argptr: %p\n", va_arg(ap, void *));
+		device_printf (block->nmb_dev, "argptr: %p\n",
+		    va_arg(ap, void *));
 	va_end(ap);
 
 	return;
@@ -1829,7 +1830,7 @@ ndis_assign_pcirsrc(adapter, slot, list)
 	block = (ndis_miniport_block *)adapter;
 	*list = block->nmb_rlist;
 
-	printf ("assign PCI resources...\n");
+	device_printf (block->nmb_dev, "assign PCI resources...\n");
 	return (NDIS_STATUS_SUCCESS);
 }
 
