@@ -42,7 +42,7 @@ static const char copyright[] =
 static char sccsid[] = "@(#)timed.c	8.1 (Berkeley) 6/6/93";
 #endif
 static const char rcsid[] =
-	"$Id: timed.c,v 1.6 1997/10/29 07:32:30 charnier Exp $";
+	"$Id: timed.c,v 1.7 1997/10/31 12:33:06 charnier Exp $";
 #endif /* not lint */
 
 #define TSPTYPES
@@ -736,8 +736,8 @@ setstatus()
 	status &= ~IGNORE;
 	if (trace)
 		fprintf(fd,
-			"\tnets=%d masters=%d slaves=%d ignored=%d delay2=%d\n",
-			nnets, nmasternets, nslavenets, nignorednets, delay2);
+		    "\tnets=%d masters=%d slaves=%d ignored=%d delay2=%ld\n",
+		    nnets, nmasternets, nslavenets, nignorednets, delay2);
 }
 
 void
@@ -821,9 +821,11 @@ date()
 	return (tm);
 #else
 	struct	timeval tv;
+	time_t	tv_sec;
 
 	(void)gettimeofday(&tv, (struct timezone *)0);
-	return (ctime(&tv.tv_sec));
+	tv_sec = tv.tv_sec;
+	return (ctime(&tv_sec));
 #endif /* sgi */
 }
 
