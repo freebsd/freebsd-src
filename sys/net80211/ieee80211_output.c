@@ -66,20 +66,41 @@ __FBSDID("$FreeBSD$");
 #include <netinet/if_ether.h>
 #endif
 
-int
+/*
+ * Send a management frame to the specified node.  The node pointer
+ * must have a reference as the pointer will be passed to the driver
+ * and potentially held for a long time.  If the frame is successfully
+ * dispatched to the driver, then it is responsible for freeing the
+ * reference (and potentially free'ing up any associated storage).
+ */
+static int
 ieee80211_mgmt_output(struct ifnet *ifp, struct ieee80211_node *ni,
     struct mbuf *m, int type)
 {
 	struct ieee80211com *ic = (void *)ifp;
 	struct ieee80211_frame *wh;
 
-	/* XXX this probably shouldn't be permitted */
-	KASSERT(ni != NULL, ("%s: null node", __func__));
+	KASSERT(ni != NULL, ("null node"));
 	ni->ni_inact = 0;
 
+	/*
+	 * Yech, hack alert!  We want to pass the node down to the
+	 * driver's start routine.  If we don't do so then the start
+	 * routine must immediately look it up again and that can
+	 * cause a lock order reversal if, for example, this frame
+	 * is being sent because the station is being timedout and
+	 * the frame being sent is a DEAUTH message.  We could stick
+	 * this in an m_tag and tack that on to the mbuf.  However
+	 * that's rather expensive to do for every frame so instead
+	 * we stuff it in the rcvif field since outbound frames do
+	 * not (presently) use this.
+	 */
 	M_PREPEND(m, sizeof(struct ieee80211_frame), M_DONTWAIT);
 	if (m == NULL)
 		return ENOMEM;
+	KASSERT(m->m_pkthdr.rcvif == NULL, ("rcvif not null"));
+	m->m_pkthdr.rcvif = (void *)ni;
+
 	wh = mtod(m, struct ieee80211_frame *);
 	wh->i_fc[0] = IEEE80211_FC0_VERSION_0 | IEEE80211_FC0_TYPE_MGT | type;
 	wh->i_fc[1] = IEEE80211_FC1_DIR_NODS;
@@ -106,31 +127,57 @@ ieee80211_mgmt_output(struct ifnet *ifp, struct ieee80211_node *ni,
 			    ether_sprintf(ni->ni_macaddr),
 			    ieee80211_chan2ieee(ic, ni->ni_chan));
 	}
+
 	IF_ENQUEUE(&ic->ic_mgtq, m);
 	ifp->if_timer = 1;
 	(*ifp->if_start)(ifp);
 	return 0;
 }
 
+/*
+ * Encapsulate an outbound data frame.  The mbuf chain is updated and
+ * a reference to the destination node is returned.  If an error is
+ * encountered NULL is returned and the node reference will also be NULL.
+ * 
+ * NB: The caller is responsible for free'ing a returned node reference.
+ *     The convention is ic_bss is not reference counted; the caller must
+ *     maintain that.
+ */
 struct mbuf *
-ieee80211_encap(struct ifnet *ifp, struct mbuf *m)
+ieee80211_encap(struct ifnet *ifp, struct mbuf *m, struct ieee80211_node **pni)
 {
 	struct ieee80211com *ic = (void *)ifp;
 	struct ether_header eh;
 	struct ieee80211_frame *wh;
+	struct ieee80211_node *ni = NULL;
 	struct llc *llc;
-	struct ieee80211_node *ni;
 
 	if (m->m_len < sizeof(struct ether_header)) {
 		m = m_pullup(m, sizeof(struct ether_header));
-		if (m == NULL)
-			return NULL;
+		if (m == NULL) {
+			/* XXX statistic */
+			goto bad;
+		}
 	}
 	memcpy(&eh, mtod(m, caddr_t), sizeof(struct ether_header));
 
-	ni = ieee80211_find_node(ic, eh.ether_dhost);
-	if (ni == NULL)			/*ic_opmode?? XXX*/
-		ni = ieee80211_ref_node(ic->ic_bss);
+	if (ic->ic_opmode != IEEE80211_M_STA) {
+		ni = ieee80211_find_node(ic, eh.ether_dhost);
+		if (ni == NULL) {
+			/*
+			 * When not in station mode the
+			 * destination address should always be
+			 * in the node table unless this is a
+			 * multicast/broadcast frame.
+			 */
+			if (!IEEE80211_IS_MULTICAST(eh.ether_dhost)) {
+				/* ic->ic_stats.st_tx_nonode++; XXX statistic */
+				goto bad;
+			}
+			ni = ic->ic_bss;
+		}
+	} else
+		ni = ic->ic_bss;
 	ni->ni_inact = 0;
 
 	m_adj(m, sizeof(struct ether_header) - sizeof(struct llc));
@@ -142,10 +189,8 @@ ieee80211_encap(struct ifnet *ifp, struct mbuf *m)
 	llc->llc_snap.org_code[2] = 0;
 	llc->llc_snap.ether_type = eh.ether_type;
 	M_PREPEND(m, sizeof(struct ieee80211_frame), M_DONTWAIT);
-	if (m == NULL) {
-		ieee80211_unref_node(&ni);
-		return NULL;
-	}
+	if (m == NULL)
+		goto bad;
 	wh = mtod(m, struct ieee80211_frame *);
 	wh->i_fc[0] = IEEE80211_FC0_VERSION_0 | IEEE80211_FC0_TYPE_DATA;
 	*(u_int16_t *)wh->i_dur = 0;
@@ -173,11 +218,17 @@ ieee80211_encap(struct ifnet *ifp, struct mbuf *m)
 		IEEE80211_ADDR_COPY(wh->i_addr3, eh.ether_shost);
 		break;
 	case IEEE80211_M_MONITOR:
-		m_freem(m), m = NULL;
-		break;
+		goto bad;
 	}
-	ieee80211_unref_node(&ni);
+	*pni = ni;
 	return m;
+bad:
+	if (m != NULL)
+		m_freem(m);
+	if (ni && ni != ic->ic_bss)
+		ieee80211_free_node(ic, ni);
+	*pni = NULL;
+	return NULL;
 }
 
 /*
@@ -240,10 +291,16 @@ ieee80211_getmbuf(int flags, int type, u_int pktlen)
 	return m;
 }
 
+/*
+ * Send a management frame.  The node is for the destination (or ic_bss
+ * when in station mode).  Nodes other than ic_bss have their reference
+ * count bumped to reflect our use for an indeterminant time.
+ */
 int
 ieee80211_send_mgmt(struct ieee80211com *ic, struct ieee80211_node *ni,
 	int type, int arg)
 {
+#define	senderr(_x)	do { ret = _x; goto bad; } while (0)
 	struct ifnet *ifp = &ic->ic_if;
 	struct mbuf *m;
 	u_int8_t *frm;
@@ -251,6 +308,15 @@ ieee80211_send_mgmt(struct ieee80211com *ic, struct ieee80211_node *ni,
 	u_int16_t capinfo;
 	int ret, timer;
 
+	KASSERT(ni != NULL, ("null node"));
+
+	/*
+	 * Hold a reference on the node so it doesn't go away until after
+	 * the xmit is complete all the way in the driver.  On error we
+	 * will remove our reference.
+	 */
+	if (ni != ic->ic_bss)
+		ieee80211_ref_node(ni);
 	timer = 0;
 	switch (type) {
 	case IEEE80211_FC0_SUBTYPE_PROBE_REQ:
@@ -265,7 +331,7 @@ ieee80211_send_mgmt(struct ieee80211com *ic, struct ieee80211_node *ni,
 		       + 2 + IEEE80211_RATE_SIZE
 		       + 2 + (IEEE80211_RATE_MAXSIZE - IEEE80211_RATE_SIZE));
 		if (m == NULL)
-			return ENOMEM;
+			senderr(ENOMEM);
 		m->m_data += sizeof(struct ieee80211_frame);
 		frm = mtod(m, u_int8_t *);
 		frm = ieee80211_add_ssid(frm, ic->ic_des_essid, ic->ic_des_esslen);
@@ -295,7 +361,7 @@ ieee80211_send_mgmt(struct ieee80211com *ic, struct ieee80211_node *ni,
 		       + 6
 		       + 2 + (IEEE80211_RATE_MAXSIZE - IEEE80211_RATE_SIZE));
 		if (m == NULL)
-			return ENOMEM;
+			senderr(ENOMEM);
 		m->m_data += sizeof(struct ieee80211_frame);
 		frm = mtod(m, u_int8_t *);
 
@@ -336,7 +402,7 @@ ieee80211_send_mgmt(struct ieee80211com *ic, struct ieee80211_node *ni,
 	case IEEE80211_FC0_SUBTYPE_AUTH:
 		MGETHDR(m, M_DONTWAIT, MT_DATA);
 		if (m == NULL)
-			return ENOMEM;
+			senderr(ENOMEM);
 		MH_ALIGN(m, 2 * 3);
 		m->m_pkthdr.len = m->m_len = 6;
 		frm = mtod(m, u_int8_t *);
@@ -354,7 +420,7 @@ ieee80211_send_mgmt(struct ieee80211com *ic, struct ieee80211_node *ni,
 			    ether_sprintf(ni->ni_macaddr), arg);
 		MGETHDR(m, M_DONTWAIT, MT_DATA);
 		if (m == NULL)
-			return ENOMEM;
+			senderr(ENOMEM);
 		MH_ALIGN(m, 2);
 		m->m_pkthdr.len = m->m_len = 2;
 		*mtod(m, u_int16_t *) = htole16(arg);	/* reason */
@@ -379,7 +445,7 @@ ieee80211_send_mgmt(struct ieee80211com *ic, struct ieee80211_node *ni,
 		       + 2 + IEEE80211_RATE_SIZE
 		       + 2 + (IEEE80211_RATE_MAXSIZE - IEEE80211_RATE_SIZE));
 		if (m == NULL)
-			return ENOMEM;
+			senderr(ENOMEM);
 		m->m_data += sizeof(struct ieee80211_frame);
 		frm = mtod(m, u_int8_t *);
 
@@ -430,7 +496,7 @@ ieee80211_send_mgmt(struct ieee80211com *ic, struct ieee80211_node *ni,
 		       + 2 + IEEE80211_RATE_SIZE
 		       + 2 + (IEEE80211_RATE_MAXSIZE - IEEE80211_RATE_SIZE));
 		if (m == NULL)
-			return ENOMEM;
+			senderr(ENOMEM);
 		m->m_data += sizeof(struct ieee80211_frame);
 		frm = mtod(m, u_int8_t *);
 
@@ -443,19 +509,12 @@ ieee80211_send_mgmt(struct ieee80211com *ic, struct ieee80211_node *ni,
 		*(u_int16_t *)frm = htole16(arg);	/* status */
 		frm += 2;
 
-		if (arg == IEEE80211_STATUS_SUCCESS && ni != NULL)
+		if (arg == IEEE80211_STATUS_SUCCESS)
 			*(u_int16_t *)frm = htole16(ni->ni_associd);
-		else
-			*(u_int16_t *)frm = htole16(0);
 		frm += 2;
 
-		if (ni != NULL) {
-			frm = ieee80211_add_rates(frm, &ni->ni_rates);
-			frm = ieee80211_add_xrates(frm, &ni->ni_rates);
-		} else {
-			frm = ieee80211_add_rates(frm, &ic->ic_bss->ni_rates);
-			frm = ieee80211_add_xrates(frm, &ic->ic_bss->ni_rates);
-		}
+		frm = ieee80211_add_rates(frm, &ni->ni_rates);
+		frm = ieee80211_add_xrates(frm, &ni->ni_rates);
 		m->m_pkthdr.len = m->m_len = frm - mtod(m, u_int8_t *);
 		break;
 
@@ -465,7 +524,7 @@ ieee80211_send_mgmt(struct ieee80211com *ic, struct ieee80211_node *ni,
 			    ether_sprintf(ni->ni_macaddr), arg);
 		MGETHDR(m, M_DONTWAIT, MT_DATA);
 		if (m == NULL)
-			return ENOMEM;
+			senderr(ENOMEM);
 		MH_ALIGN(m, 2);
 		m->m_pkthdr.len = m->m_len = 2;
 		*mtod(m, u_int16_t *) = htole16(arg);	/* reason */
@@ -474,11 +533,19 @@ ieee80211_send_mgmt(struct ieee80211com *ic, struct ieee80211_node *ni,
 	default:
 		IEEE80211_DPRINTF(("%s: invalid mgmt frame type %u\n",
 			__func__, type));
-		return EINVAL;
+		senderr(EINVAL);
+		/* NOTREACHED */
 	}
 
 	ret = ieee80211_mgmt_output(ifp, ni, m, type);
-	if (ret == 0 && timer)
-		ic->ic_mgt_timer = timer;
+	if (ret == 0) {
+		if (timer)
+			ic->ic_mgt_timer = timer;
+	} else {
+bad:
+		if (ni != ic->ic_bss)		/* remove ref we added */
+			ieee80211_free_node(ic, ni);
+	}
 	return ret;
+#undef senderr
 }

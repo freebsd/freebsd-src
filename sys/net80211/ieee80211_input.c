@@ -66,12 +66,21 @@ __FBSDID("$FreeBSD$");
 #include <netinet/if_ether.h>
 #endif
 
+/*
+ * Process a received frame.  The node associated with the sender
+ * should be supplied.  If nothing was found in the node table then
+ * the caller is assumed to supply a reference to ic_bss instead.
+ * The RSSI and a timestamp are also supplied.  The RSSI data is used
+ * during AP scanning to select a AP to associate with; it can have
+ * any units so long as values have consistent units and higher values
+ * mean ``better signal''.  The receive timestamp is currently not used
+ * by the 802.11 layer.
+ */
 void
-ieee80211_input(struct ifnet *ifp, struct mbuf *m,
-	int rssi, u_int32_t rstamp, u_int rantenna)
+ieee80211_input(struct ifnet *ifp, struct mbuf *m, struct ieee80211_node *ni,
+	int rssi, u_int32_t rstamp)
 {
 	struct ieee80211com *ic = (void *)ifp;
-	struct ieee80211_node *ni = NULL;
 	struct ieee80211_frame *wh;
 	struct ether_header *eh;
 	struct mbuf *m1;
@@ -79,6 +88,8 @@ ieee80211_input(struct ifnet *ifp, struct mbuf *m,
 	u_int8_t dir, subtype;
 	u_int8_t *bssid;
 	u_int16_t rxseq;
+
+	KASSERT(ni != NULL, ("null node"));
 
 	/* trim CRC here for WEP can find its own CRC at the end of packet. */
 	if (m->m_flags & M_HASFCS) {
@@ -92,6 +103,7 @@ ieee80211_input(struct ifnet *ifp, struct mbuf *m,
 		if (ifp->if_flags & IFF_DEBUG)
 			if_printf(ifp, "receive packet with wrong version: %x\n",
 			    wh->i_fc[0]);
+		ieee80211_unref_node(&ni);
 		goto err;
 	}
 
@@ -100,13 +112,11 @@ ieee80211_input(struct ifnet *ifp, struct mbuf *m,
 	if (ic->ic_state != IEEE80211_S_SCAN) {
 		switch (ic->ic_opmode) {
 		case IEEE80211_M_STA:
-			ni = ieee80211_ref_node(ic->ic_bss);
 			if (!IEEE80211_ADDR_EQ(wh->i_addr2, ni->ni_bssid)) {
 				IEEE80211_DPRINTF2(("%s: discard frame from "
 					"bss %s\n", __func__,
 					ether_sprintf(wh->i_addr2)));
 				/* not interested in */
-				ieee80211_unref_node(&ni);
 				goto out;
 			}
 			break;
@@ -124,19 +134,6 @@ ieee80211_input(struct ifnet *ifp, struct mbuf *m,
 					__func__, ether_sprintf(wh->i_addr3)));
 				goto out;
 			}
-			ni = ieee80211_find_node(ic, wh->i_addr2);
-			if (ni == NULL) {
-				IEEE80211_DPRINTF2(("%s: warning, unknown src "
-					"%s\n", __func__,
-					ether_sprintf(wh->i_addr2)));
-				/*
-				 * NB: Node allocation is handled in the
-				 * management handling routines.  Just fake
-				 * up a reference to the hosts's node to do
-				 * the stuff below.
-				 */
-				ni = ieee80211_ref_node(ic->ic_bss);
-			}
 			break;
 		case IEEE80211_M_MONITOR:
 			/* NB: this should collect everything */
@@ -147,7 +144,6 @@ ieee80211_input(struct ifnet *ifp, struct mbuf *m,
 		}
 		ni->ni_rssi = rssi;
 		ni->ni_rstamp = rstamp;
-		ni->ni_rantenna = rantenna;
 		rxseq = ni->ni_rxseq;
 		ni->ni_rxseq =
 		    le16toh(*(u_int16_t *)wh->i_seq) >> IEEE80211_SEQ_SEQ_SHIFT;
@@ -155,11 +151,9 @@ ieee80211_input(struct ifnet *ifp, struct mbuf *m,
 		if ((wh->i_fc[1] & IEEE80211_FC1_RETRY) &&
 		    rxseq == ni->ni_rxseq) {
 			/* duplicate, silently discarded */
-			ieee80211_unref_node(&ni);
 			goto out;
 		}
 		ni->ni_inact = 0;
-		ieee80211_unref_node(&ni);
 	}
 
 	switch (wh->i_fc[0] & IEEE80211_FC0_TYPE_MASK) {
@@ -189,11 +183,11 @@ ieee80211_input(struct ifnet *ifp, struct mbuf *m,
 			if (dir != IEEE80211_FC1_DIR_TODS)
 				goto out;
 			/* check if source STA is associated */
-			ni = ieee80211_find_node(ic, wh->i_addr2);
-			if (ni == NULL) {
+			if (ni == ic->ic_bss) {
 				IEEE80211_DPRINTF(("%s: data from unknown src "
 					"%s\n", __func__,
 					ether_sprintf(wh->i_addr2)));
+				/* NB: caller deals with reference */
 				ni = ieee80211_dup_bss(ic, wh->i_addr2);
 				if (ni != NULL) {
 					IEEE80211_SEND_MGMT(ic, ni,
@@ -213,7 +207,6 @@ ieee80211_input(struct ifnet *ifp, struct mbuf *m,
 				ieee80211_unref_node(&ni);
 				goto err;
 			}
-			ieee80211_unref_node(&ni);
 			break;
 		case IEEE80211_M_MONITOR:
 			break;
@@ -240,7 +233,7 @@ ieee80211_input(struct ifnet *ifp, struct mbuf *m,
 		if (ic->ic_opmode == IEEE80211_M_HOSTAP) {
 			eh = mtod(m, struct ether_header *);
 			if (ETHER_IS_MULTICAST(eh->ether_dhost)) {
-				m1 = m_copym(m, 0, M_COPYALL, M_DONTWAIT);
+				m1 = m_copypacket(m, M_DONTWAIT);
 				if (m1 == NULL)
 					ifp->if_oerrors++;
 				else
@@ -318,7 +311,7 @@ ieee80211_input(struct ifnet *ifp, struct mbuf *m,
 		}
 		if (ic->ic_rawbpf)
 			bpf_mtap(ic->ic_rawbpf, m);
-		(*ic->ic_recv_mgmt)(ic, m, subtype, rssi, rstamp, rantenna);
+		(*ic->ic_recv_mgmt)(ic, m, ni, subtype, rssi, rstamp);
 		m_freem(m);
 		return;
 
@@ -499,13 +492,13 @@ ieee80211_setup_rates(struct ieee80211com *ic, struct ieee80211_node *ni,
 } while (0)
 
 void
-ieee80211_recv_mgmt(struct ieee80211com *ic, struct mbuf *m0, int subtype,
-	int rssi, u_int32_t rstamp, u_int rantenna)
+ieee80211_recv_mgmt(struct ieee80211com *ic, struct mbuf *m0,
+	struct ieee80211_node *ni,
+	int subtype, int rssi, u_int32_t rstamp)
 {
 #define	ISPROBE(_st)	((_st) == IEEE80211_FC0_SUBTYPE_PROBE_RESP)
 	struct ifnet *ifp = &ic->ic_if;
 	struct ieee80211_frame *wh;
-	struct ieee80211_node *ni;
 	u_int8_t *frm, *efrm;
 	u_int8_t *ssid, *rates, *xrates;
 	int reassoc, resp, newassoc, allocbs;
@@ -672,7 +665,6 @@ ieee80211_recv_mgmt(struct ieee80211com *ic, struct mbuf *m0, int subtype,
 		IEEE80211_ADDR_COPY(ni->ni_bssid, wh->i_addr3);
 		ni->ni_rssi = rssi;
 		ni->ni_rstamp = rstamp;
-		ni->ni_rantenna = rantenna;
 		memcpy(ni->ni_tstamp, tstamp, sizeof(ni->ni_tstamp));
 		ni->ni_intval = le16toh(*(u_int16_t *)bintval);
 		ni->ni_capinfo = le16toh(*(u_int16_t *)capinfo);
@@ -731,8 +723,7 @@ ieee80211_recv_mgmt(struct ieee80211com *ic, struct mbuf *m0, int subtype,
 			return;
 		}
 
-		ni = ieee80211_find_node(ic, wh->i_addr2);
-		if (ni == NULL) {
+		if (ni == ic->ic_bss) {
 			ni = ieee80211_dup_bss(ic, wh->i_addr2);
 			if (ni == NULL)
 				return;
@@ -743,7 +734,6 @@ ieee80211_recv_mgmt(struct ieee80211com *ic, struct mbuf *m0, int subtype,
 			allocbs = 0;
 		ni->ni_rssi = rssi;
 		ni->ni_rstamp = rstamp;
-		ni->ni_rantenna = rantenna;
 		rate = ieee80211_setup_rates(ic, ni, rates, xrates,
 				IEEE80211_F_DOSORT | IEEE80211_F_DOFRATE
 				| IEEE80211_F_DONEGO | IEEE80211_F_DODEL);
@@ -751,13 +741,16 @@ ieee80211_recv_mgmt(struct ieee80211com *ic, struct mbuf *m0, int subtype,
 			IEEE80211_DPRINTF(("%s: rate negotiation failed: %s\n",
 				__func__,ether_sprintf(wh->i_addr2)));
 		} else {
-			IEEE80211_SEND_MGMT(ic, ni, IEEE80211_FC0_SUBTYPE_PROBE_RESP,
-			    0);
+			IEEE80211_SEND_MGMT(ic, ni,
+				IEEE80211_FC0_SUBTYPE_PROBE_RESP, 0);
 		}
-		if (allocbs && ic->ic_opmode == IEEE80211_M_HOSTAP)
-			ieee80211_free_node(ic, ni);
-		else
-			ieee80211_unref_node(&ni);
+		if (allocbs) {
+			/* XXX just use free? */
+			if (ic->ic_opmode == IEEE80211_M_HOSTAP)
+				ieee80211_free_node(ic, ni);
+			else
+				ieee80211_unref_node(&ni);
+		}
 		break;
 	}
 
@@ -795,25 +788,23 @@ ieee80211_recv_mgmt(struct ieee80211com *ic, struct mbuf *m0, int subtype,
 		case IEEE80211_M_HOSTAP:
 			if (ic->ic_state != IEEE80211_S_RUN || seq != 1)
 				return;
-			allocbs = 0;
-			ni = ieee80211_find_node(ic, wh->i_addr2);
-			if (ni == NULL) {
+			if (ni == ic->ic_bss) {
 				ni = ieee80211_alloc_node(ic, wh->i_addr2);
 				if (ni == NULL)
 					return;
 				IEEE80211_ADDR_COPY(ni->ni_bssid, ic->ic_bss->ni_bssid);
 				ni->ni_rssi = rssi;
 				ni->ni_rstamp = rstamp;
-				ni->ni_rantenna = rantenna;
 				ni->ni_chan = ic->ic_bss->ni_chan;
 				allocbs = 1;
-			}
-			IEEE80211_SEND_MGMT(ic, ni, IEEE80211_FC0_SUBTYPE_AUTH, 2);
+			} else
+				allocbs = 0;
+			IEEE80211_SEND_MGMT(ic, ni,
+				IEEE80211_FC0_SUBTYPE_AUTH, 2);
 			if (ifp->if_flags & IFF_DEBUG)
 				if_printf(ifp, "station %s %s authenticated\n",
 				    (allocbs ? "newly" : "already"),
 				    ether_sprintf(ni->ni_macaddr));
-			ieee80211_unref_node(&ni);
 			break;
 
 		case IEEE80211_M_STA:
@@ -824,11 +815,8 @@ ieee80211_recv_mgmt(struct ieee80211com *ic, struct mbuf *m0, int subtype,
 				    "authentication failed (reason %d) for %s\n",
 				    status,
 				    ether_sprintf(wh->i_addr3));
-				ni = ieee80211_find_node(ic, wh->i_addr2);
-				if (ni != NULL) {
+				if (ni != ic->ic_bss)
 					ni->ni_fails++;
-					ieee80211_unref_node(&ni);
-				}
 				return;
 			}
 			ieee80211_new_state(ic, IEEE80211_S_ASSOC,
@@ -902,16 +890,16 @@ ieee80211_recv_mgmt(struct ieee80211com *ic, struct mbuf *m0, int subtype,
 #endif
 			return;
 		}
-		ni = ieee80211_find_node(ic, wh->i_addr2);
-		if (ni == NULL) {
+		if (ni == ic->ic_bss) {
 			IEEE80211_DPRINTF(("%s: not authenticated for %s\n",
 				__func__, ether_sprintf(wh->i_addr2)));
 			ni = ieee80211_dup_bss(ic, wh->i_addr2);
-			if (ni == NULL)
-				return;
-			IEEE80211_SEND_MGMT(ic, ni, IEEE80211_FC0_SUBTYPE_DEAUTH,
-			    IEEE80211_REASON_ASSOC_NOT_AUTHED);
-			ieee80211_free_node(ic, ni);
+			if (ni != NULL) {
+				IEEE80211_SEND_MGMT(ic, ni,
+				    IEEE80211_FC0_SUBTYPE_DEAUTH,
+				    IEEE80211_REASON_ASSOC_NOT_AUTHED);
+				ieee80211_free_node(ic, ni);
+			}
 			return;
 		}
 		/* XXX per-node cipher suite */
@@ -924,8 +912,8 @@ ieee80211_recv_mgmt(struct ieee80211com *ic, struct mbuf *m0, int subtype,
 			IEEE80211_DPRINTF(("%s: capability mismatch %x for %s\n",
 				__func__, capinfo, ether_sprintf(wh->i_addr2)));
 			ni->ni_associd = 0;
-			IEEE80211_SEND_MGMT(ic, ni, resp, IEEE80211_STATUS_CAPINFO);
-			ieee80211_unref_node(&ni);
+			IEEE80211_SEND_MGMT(ic, ni, resp,
+				IEEE80211_STATUS_CAPINFO);
 			return;
 		}
 		ieee80211_setup_rates(ic, ni, rates, xrates,
@@ -935,13 +923,12 @@ ieee80211_recv_mgmt(struct ieee80211com *ic, struct mbuf *m0, int subtype,
 			IEEE80211_DPRINTF(("%s: rate unmatch for %s\n",
 				__func__, ether_sprintf(wh->i_addr2)));
 			ni->ni_associd = 0;
-			IEEE80211_SEND_MGMT(ic, ni, resp, IEEE80211_STATUS_BASIC_RATE);
-			ieee80211_unref_node(&ni);
+			IEEE80211_SEND_MGMT(ic, ni, resp,
+				IEEE80211_STATUS_BASIC_RATE);
 			return;
 		}
 		ni->ni_rssi = rssi;
 		ni->ni_rstamp = rstamp;
-		ni->ni_rantenna = rantenna;
 		ni->ni_intval = bintval;
 		ni->ni_capinfo = capinfo;
 		ni->ni_chan = ic->ic_bss->ni_chan;
@@ -964,7 +951,6 @@ ieee80211_recv_mgmt(struct ieee80211com *ic, struct mbuf *m0, int subtype,
 		/* give driver a chance to setup state like ni_txrate */
 		if (ic->ic_newassoc)
 			(*ic->ic_newassoc)(ic, ni, newassoc);
-		ieee80211_unref_node(&ni);
 		break;
 	}
 
@@ -994,11 +980,8 @@ ieee80211_recv_mgmt(struct ieee80211com *ic, struct mbuf *m0, int subtype,
 		if (status != 0) {
 			if_printf(ifp, "association failed (reason %d) for %s\n",
 			    status, ether_sprintf(wh->i_addr3));
-			ni = ieee80211_find_node(ic, wh->i_addr2);
-			if (ni != NULL) {
+			if (ni != ic->ic_bss)
 				ni->ni_fails++;
-				ieee80211_unref_node(&ni);
-			}
 			return;
 		}
 		ni->ni_associd = le16toh(*(u_int16_t *)frm);
@@ -1041,13 +1024,13 @@ ieee80211_recv_mgmt(struct ieee80211com *ic, struct mbuf *m0, int subtype,
 			    wh->i_fc[0] & IEEE80211_FC0_SUBTYPE_MASK);
 			break;
 		case IEEE80211_M_HOSTAP:
-			ni = ieee80211_find_node(ic, wh->i_addr2);
-			if (ni != NULL) {
+			if (ni != ic->ic_bss) {
 				if (ifp->if_flags & IFF_DEBUG)
 					if_printf(ifp, "station %s deauthenticated"
 					    " by peer (reason %d)\n",
 					    ether_sprintf(ni->ni_macaddr), reason);
-				ieee80211_free_node(ic, ni);
+				/* node will be free'd on return */
+				ieee80211_unref_node(&ni);
 			}
 			break;
 		default:
@@ -1070,14 +1053,13 @@ ieee80211_recv_mgmt(struct ieee80211com *ic, struct mbuf *m0, int subtype,
 			    wh->i_fc[0] & IEEE80211_FC0_SUBTYPE_MASK);
 			break;
 		case IEEE80211_M_HOSTAP:
-			ni = ieee80211_find_node(ic, wh->i_addr2);
-			if (ni != NULL) {
+			if (ni != ic->ic_bss) {
 				if (ifp->if_flags & IFF_DEBUG)
 					if_printf(ifp, "station %s disassociated"
 					    " by peer (reason %d)\n",
 					    ether_sprintf(ni->ni_macaddr), reason);
 				ni->ni_associd = 0;
-				ieee80211_unref_node(&ni);
+				/* XXX node reclaimed how? */
 			}
 			break;
 		default:

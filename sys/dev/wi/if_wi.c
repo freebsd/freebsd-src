@@ -805,10 +805,11 @@ wi_start(struct ifnet *ifp)
 {
 	struct wi_softc	*sc = ifp->if_softc;
 	struct ieee80211com *ic = &sc->sc_ic;
+	struct ieee80211_node *ni;
 	struct ieee80211_frame *wh;
 	struct mbuf *m0;
 	struct wi_frame frmhdr;
-	int cur, fid, off;
+	int cur, fid, off, error;
 	WI_LOCK_DECL();
 
 	WI_LOCK(sc);
@@ -832,6 +833,18 @@ wi_start(struct ifnet *ifp)
 				break;
 			}
 			IF_DEQUEUE(&ic->ic_mgtq, m0);
+			/*
+			 * Hack!  The referenced node pointer is in the
+			 * rcvif field of the packet header.  This is
+			 * placed there by ieee80211_mgmt_output because
+			 * we need to hold the reference with the frame
+			 * and there's no other way (other than packet
+			 * tags which we consider too expensive to use)
+			 * to pass it along.
+			 */
+			ni = (struct ieee80211_node *) m0->m_pkthdr.rcvif;
+			m0->m_pkthdr.rcvif = NULL;
+
 			m_copydata(m0, 4, ETHER_ADDR_LEN * 2,
 			    (caddr_t)&frmhdr.wi_ehdr);
 			frmhdr.wi_ehdr.ether_type = 0;
@@ -854,26 +867,12 @@ wi_start(struct ifnet *ifp)
 			BPF_MTAP(ifp, m0);
 #endif
 
-			if ((m0 = ieee80211_encap(ifp, m0)) == NULL) {
+			m0 = ieee80211_encap(ifp, m0, &ni);
+			if (m0 == NULL) {
 				ifp->if_oerrors++;
 				continue;
 			}
                         wh = mtod(m0, struct ieee80211_frame *);
-			if (ic->ic_opmode == IEEE80211_M_HOSTAP &&
-			    !IEEE80211_IS_MULTICAST(wh->i_addr1) &&
-			    (wh->i_fc[0] & IEEE80211_FC0_TYPE_MASK) ==
-			    IEEE80211_FC0_TYPE_DATA) {
-				struct ieee80211_node *ni =
-					ieee80211_find_node(ic, wh->i_addr1);
-			        int err = (ni == NULL || ni->ni_associd == 0);
-				if (ni != NULL)
-					ieee80211_unref_node(&ni);
-			        if (err) {
-					m_freem(m0);
-					ifp->if_oerrors++;
-					continue;
-				}
-			}
 			if (ic->ic_flags & IEEE80211_F_WEPON)
 				wh->i_fc[1] |= IEEE80211_FC1_WEP;
 
@@ -887,6 +886,8 @@ wi_start(struct ifnet *ifp)
 		    (wh->i_fc[1] & IEEE80211_FC1_WEP)) {
 			if ((m0 = ieee80211_wep_crypt(ifp, m0, 1)) == NULL) {
 				ifp->if_oerrors++;
+				if (ni && ni != ic->ic_bss)
+					ieee80211_free_node(ic, ni);
 				continue;
 			}
 			frmhdr.wi_tx_ctl |= htole16(WI_TXCNTL_NOCRYPT);
@@ -915,13 +916,15 @@ wi_start(struct ifnet *ifp)
 			wi_dump_pkt(&frmhdr, NULL, -1);
 		fid = sc->sc_txd[cur].d_fid;
 		off = sizeof(frmhdr);
-		if (wi_write_bap(sc, fid, 0, &frmhdr, sizeof(frmhdr)) != 0 ||
-		    wi_mwrite_bap(sc, fid, off, m0, m0->m_pkthdr.len) != 0) {
+		error = wi_write_bap(sc, fid, 0, &frmhdr, sizeof(frmhdr)) != 0
+		     || wi_mwrite_bap(sc, fid, off, m0, m0->m_pkthdr.len) != 0;
+		m_freem(m0);
+		if (ni && ni != ic->ic_bss)
+			ieee80211_free_node(ic, ni);
+		if (error) {
 			ifp->if_oerrors++;
-			m_freem(m0);
 			continue;
 		}
-		m_freem(m0);
 		sc->sc_txd[cur].d_len = off;
 		if (sc->sc_txcur == cur) {
 			if (wi_cmd(sc, WI_CMD_TX | WI_RECLAIM, fid, 0, 0)) {
@@ -1355,6 +1358,7 @@ wi_rx_intr(struct wi_softc *sc)
 	struct wi_frame frmhdr;
 	struct mbuf *m;
 	struct ieee80211_frame *wh;
+	struct ieee80211_node *ni;
 	int fid, len, off, rssi;
 	u_int8_t dir;
 	u_int16_t status;
@@ -1471,7 +1475,32 @@ wi_rx_intr(struct wi_softc *sc)
 	if (ic->ic_opmode == IEEE80211_M_IBSS && dir == IEEE80211_FC1_DIR_NODS)
 		wi_sync_bssid(sc, wh->i_addr3);
 
-	ieee80211_input(ifp, m, rssi, rstamp, 0);
+	/*
+	 * Locate the node for sender, track state, and
+	 * then pass this node (referenced) up to the 802.11
+	 * layer for its use.  We are required to pass
+	 * something so we fallback to ic_bss when this frame
+	 * is from an unknown sender.
+	 */
+	if (ic->ic_opmode != IEEE80211_M_STA) {
+		ni = ieee80211_find_node(ic, wh->i_addr2);
+		if (ni == NULL)
+			ni = ieee80211_ref_node(ic->ic_bss);
+	} else
+		ni = ieee80211_ref_node(ic->ic_bss);
+	/*
+	 * Send frame up for processing.
+	 */
+	ieee80211_input(ifp, m, ni, rssi, rstamp);
+	/*
+	 * The frame may have caused the node to be marked for
+	 * reclamation (e.g. in response to a DEAUTH message)
+	 * so use free_node here instead of unref_node.
+	 */
+	if (ni == ic->ic_bss)
+		ieee80211_unref_node(&ni);
+	else
+		ieee80211_free_node(ic, ni);
 }
 
 static void
