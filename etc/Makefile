@@ -11,7 +11,7 @@ BIN1=   amd.map apmd.conf auth.conf \
 	hosts hosts.allow hosts.equiv hosts.lpd \
 	inetd.conf login.access login.conf \
 	motd modems netconfig networks newsyslog.conf \
-	pam.conf phones printcap profile protocols \
+	phones printcap profile protocols \
 	rc rc.atm rc.devfs rc.diskless1 rc.diskless2 rc.firewall rc.firewall6 \
 	rc.network rc.network6 rc.pccard rc.serial rc.shutdown \
 	rc.syscons rc.sysctl remote rpc services shells sysctl.conf \
