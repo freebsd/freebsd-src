@@ -29,7 +29,7 @@
  * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF
  * THE POSSIBILITY OF SUCH DAMAGE.
  *
- *	$Id: if_ti.c,v 1.111 1999/05/24 14:34:33 wpaul Exp $
+ *	$Id: if_ti.c,v 1.4.2.2 1999/05/24 15:02:12 wpaul Exp $
  */
 
 /*
@@ -128,7 +128,7 @@
 
 #if !defined(lint)
 static const char rcsid[] =
-	"$Id: if_ti.c,v 1.111 1999/05/24 14:34:33 wpaul Exp $";
+	"$Id: if_ti.c,v 1.4.2.2 1999/05/24 15:02:12 wpaul Exp $";
 #endif
 
 /*
@@ -1065,6 +1065,7 @@ static void ti_free_tx_ring(sc)
 static int ti_init_tx_ring(sc)
 	struct ti_softc		*sc;
 {
+	sc->ti_txcnt = 0;
 	sc->ti_tx_saved_considx = 0;
 	CSR_WRITE_4(sc, TI_MB_SENDPROD_IDX, 0);
 	return(0);
@@ -1920,6 +1921,7 @@ static void ti_txeof(sc)
 			m_freem(sc->ti_cdata.ti_tx_chain[idx]);
 			sc->ti_cdata.ti_tx_chain[idx] = NULL;
 		}
+		sc->ti_txcnt--;
 		TI_INC(sc->ti_tx_saved_considx, TI_TX_RING_CNT);
 		ifp->if_timer = 0;
 	}
@@ -1996,7 +1998,7 @@ static int ti_encap(sc, m_head, txidx)
 {
 	struct ti_tx_desc	*f = NULL;
 	struct mbuf		*m;
-	u_int32_t		frag, cur;
+	u_int32_t		frag, cur, cnt = 0;
 #if NVLAN > 0
 	struct ifvlan		*ifv = NULL;
 
@@ -2045,8 +2047,15 @@ static int ti_encap(sc, m_head, txidx)
 				f->ti_vlan_tag = 0;
 			}
 #endif
+			/*
+			 * Sanity check: avoid coming within 16 descriptors
+			 * of the end of the ring.
+			 */
+			if ((TI_TX_RING_CNT - (sc->ti_txcnt + cnt)) < 16)
+				return(ENOBUFS);
 			cur = frag;
 			TI_INC(frag, TI_TX_RING_CNT);
+			cnt++;
 		}
 	}
 
@@ -2062,6 +2071,7 @@ static int ti_encap(sc, m_head, txidx)
 	else
 		sc->ti_rdata->ti_tx_ring[cur].ti_flags |= TI_BDFLAG_END;
 	sc->ti_cdata.ti_tx_chain[cur] = m_head;
+	sc->ti_txcnt += cnt;
 
 	*txidx = frag;
 
