@@ -130,7 +130,11 @@
     <sect3>
       <title>Processor/Motherboard Support</title>
 
-      <para></para>
+      <para arch="i386">&os; now has rudimentary support for
+	HyperThreading (HTT).  SMP kernels will detect and start up
+	the logical processors on HTT-capable machines.  The logical
+	processors will be treated like additional physical processors
+	for the purposes of process scheduling. &merged;</para>
 
     </sect3>
 
@@ -177,10 +181,29 @@
 	fast recovery when NewReno was enabled, has been
 	fixed. &merged;</para>
 
+      <para>It is now possible to specify the range of
+        <quote>privileged ports</quote> (TCP and UDP ports that
+        require superuser access to &man.bind.2; to).  The range is
+        now specified with the
+        <varname>net.inet.ip.portrange.reservedlow</varname> and
+        <varname>net.inet.ip.portrange.reservedhigh</varname> sysctl
+        variables, defaulting to the traditional UNIX behavior.  This
+        feature is intended to help network servers bind
+        to traditionally privileged ports without requiring superuser
+        access.  &man.ip.4; has more details.</para>
+
     </sect3>
 
     <sect3>
       <title>Disks and Storage</title>
+
+      <para>The &man.ata.4; driver now supports all known SiS
+	chipsets.  (More details can be found in the Hardware
+	Notes.)</para>
+
+      <para>A number of changes have been made to the &man.cd.4;
+        driver.  The primary user-visible change is improved
+        compatability with ATAPI/USB/Firewire CDROM drives.</para>
 
       <para>&man.geom.4; is now mandatory; the
         <literal>NO_GEOM</literal> has been removed from the set of
@@ -353,6 +376,13 @@
       administration of <application>Samba</application>
       services. &merged;</para>
 
+    <para>A bug in &man.rand.3; that could cause a sequence to remain
+      stuck at <literal>0</literal> has been fixed.  (&man.rand.3;
+      remains unsuitable for all but trivial uses.)</para>
+
+    <para>The seeding algorithm used by &man.srandom.3; has been
+      strengthened.</para>
+
     <para arch="sparc64">The sunlabel utility, a program analogous to
       &man.disklabel.8; that works on Sun disk labels, has been
       added.</para>
@@ -440,7 +470,11 @@
   <sect2>
     <title>Release Engineering and Integration</title>
 
-    <para></para>
+    <para>&man.sysinstall.8; once again supports installing individual
+      components of <application>XFree86</application>.  Supporting
+      changes (not user-visible) generalize the concept of installing
+      parts of distributions as packages.</para>
+
   </sect2>
 
   <sect2>
