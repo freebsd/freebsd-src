@@ -29,7 +29,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: aic7870.c,v 1.30 1996/05/10 16:26:41 gibbs Exp $
+ *	$Id: aic7870.c,v 1.31 1996/05/12 01:46:11 gibbs Exp $
  */
 
 #include <pci.h>
@@ -398,6 +398,7 @@ aic7870_attach(config_id, unit)
 		   default:
 		   {
 			printf("ahc: Unknown controller type.  Ignoring.\n");
+			ahc_free(ahc);
 			splx(opri);
 			return;
 		   }
