@@ -51,6 +51,7 @@ char	*whoami = "gprof";
 char	*defaultEs[] = { "mcount" , "__mcleanup" , 0 };
 
 static struct gmonhdr	gmonhdr;
+static	bool	uflag;
 
 main(argc, argv)
     int argc;
@@ -124,6 +125,9 @@ main(argc, argv)
 	    break;
 	case 's':
 	    sflag = TRUE;
+	    break;
+	case 'u':
+	    uflag = TRUE;
 	    break;
 	case 'z':
 	    zflag = TRUE;
@@ -704,8 +708,6 @@ bool
 funcsymbol( nlistp )
     struct nlist	*nlistp;
 {
-    extern char	*strtab;	/* string table from a.out */
-    extern int	aflag;		/* if static functions aren't desired */
     char	*name, c;
 
 	/*
@@ -717,6 +719,7 @@ funcsymbol( nlistp )
 	return FALSE;
     }
 	/*
+	 *	name must start with an underscore if uflag is set.
 	 *	can't have any `funny' characters in name,
 	 *	where `funny' includes	`.', .o file names
 	 *			and	`$', pascal labels.
@@ -724,6 +727,8 @@ funcsymbol( nlistp )
 	 *	perhaps we should just drop this code entirely...
 	 */
     name = strtab + nlistp -> n_un.n_strx;
+    if ( uflag && *name != '_' )
+	return FALSE;
 #ifdef sparc
     if ( *name == '.' ) {
 	char *p = name + 1;
