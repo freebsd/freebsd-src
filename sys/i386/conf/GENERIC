@@ -154,6 +154,11 @@ device		sio2	at isa? disable port "IO_COM3" tty irq 5
 device		sio3	at isa? disable port "IO_COM4" tty irq 9
 
 # Parallel port
+#
+# Note:	The ppc0 entry is configured to support networking over the 
+#	parallel port.  If you will be using it for printing, change
+#	"net" to "tty", and review ppc(4) to ensure you have the 
+#	correct flags value.
 device		ppc0	at isa? port? flags 0x40 net irq 7
 controller	ppbus0			# Parallel port bus (required)
 device		lpt0	at ppbus?	# Printer
