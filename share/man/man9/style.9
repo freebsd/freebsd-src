@@ -22,7 +22,7 @@
 .\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 .\" SUCH DAMAGE.
 .\"
-.\"	$Id: style.9,v 1.15 1997/02/22 13:26:28 peter Exp $
+.\"	$Id: style.9,v 1.16 1997/03/21 20:14:15 mpp Exp $
 .\"
 .Dd December 14, 1995
 .Dt STYLE 9
@@ -41,7 +41,7 @@ source tree.
  *
  *	@(#)style	1.14 (Berkeley) 4/28/95
  *
- *	$Id: style.9,v 1.15 1997/02/22 13:26:28 peter Exp $
+ *	$Id: style.9,v 1.16 1997/03/21 20:14:15 mpp Exp $
  *
  */
 
@@ -188,7 +188,7 @@ cascade should have a FALLTHROUGH comment.  Numerical arguments
 should be checked for accuracy.  Code that cannot be reached should
 have a NOTREACHED comment.
 .Bd -literal -offset 0i
-	while ((ch = getopt(argc, argv, "abn")) != EOF)
+	while ((ch = getopt(argc, argv, "abn")) != -1)
 		switch (ch) {		/* Indent the switch. */
 		case 'a':		/* Don't indent the case. */
 			aflag = 1;
