@@ -326,7 +326,7 @@ ath_rate_ctl_start(struct ath_softc *sc, struct ieee80211_node *ni)
 static void
 ath_rate_cb(void *arg, struct ieee80211_node *ni)
 {
-	ath_rate_update(ni->ni_ic->ic_ifp->if_softc, ni, (int) arg);
+	ath_rate_update(ni->ni_ic->ic_ifp->if_softc, ni, (int)(uintptr_t) arg);
 }
 
 /*
@@ -468,7 +468,7 @@ ath_ratectl(void *arg)
 		if (ic->ic_opmode == IEEE80211_M_STA)
 			ath_rate_ctl(sc, ic->ic_bss);	/* NB: no reference */
 		else if (ic->ic_sta != NULL)
-			ieee80211_iterate_nodes(ic, ath_rate_ctl, sc);
+			ieee80211_iterate_nodes(ic->ic_sta, ath_rate_ctl, sc);
 	}
 	interval = ath_rateinterval;
 	if (ic->ic_opmode == IEEE80211_M_STA)
