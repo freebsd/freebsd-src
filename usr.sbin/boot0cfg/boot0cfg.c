@@ -44,6 +44,7 @@ static const char rcsid[] =
 
 #define MBRSIZE         512     /* master boot record size */
 
+#define OFF_VERSION	0x1b0	/* offset: version number */
 #define OFF_DRIVE	0x1ba	/* offset: setdrv drive */
 #define OFF_FLAGS       0x1bb   /* offset: option flags */
 #define OFF_TICKS       0x1bc   /* offset: clock ticks */
@@ -72,6 +73,10 @@ static const char fmt0[] = "#   flag     start chs   type"
 static const char fmt1[] = "%d   0x%02x   %4u:%3u:%2u   0x%02x"
     "   %4u:%3u:%2u   %10u   %10u\n";
 
+static int read_mbr(const char *, u_int8_t **, int);
+static void write_mbr(const char *, int, u_int8_t *, int);
+static void display_mbr(u_int8_t *);
+static int boot0version(const u_int8_t *);
 static int boot0bs(const u_int8_t *);
 static void stropt(const char *, int *, int *);
 static char *mkrdev(const char *);
@@ -84,14 +89,13 @@ static void usage(void);
 int
 main(int argc, char *argv[])
 {
-    u_int8_t buf[MBRSIZE];
-    struct dos_partition part[4];
+    u_int8_t *mbr, *boot0;
+    int boot0_size, mbr_size;
     const char *bpath, *fpath, *disk;
-    ssize_t n;
     int B_flag, v_flag, o_flag;
     int d_arg, m_arg, t_arg;
     int o_and, o_or;
-    int fd, fd1, up, c, i;
+    int up, c;
 
     bpath = "/boot/boot0";
     fpath = NULL;
@@ -135,7 +139,76 @@ main(int argc, char *argv[])
         usage();
     disk = mkrdev(*argv);
     up = B_flag || d_arg != -1 || m_arg != -1 || o_flag || t_arg != -1;
-    if ((fd = open(disk, up ? O_RDWR : O_RDONLY)) == -1)
+
+    /* open the disk and read in the existing mbr */
+    mbr_size = read_mbr(disk, &mbr, !B_flag);
+
+    /* save the existing MBR if we are asked to do so */
+    if (fpath)
+	write_mbr(fpath, O_CREAT | O_TRUNC, mbr, mbr_size);
+
+    /*
+     * If we are installing the boot loader, read it from disk and copy the
+     * slice table over from the existing MBR.  If not, then point boot0
+     * back at the MBR we just read in.  After this, boot0 is the data to
+     * write back to disk if we are going to do a write.
+     */
+    if (B_flag) {
+	boot0_size = read_mbr(bpath, &boot0, 1);
+        memcpy(boot0 + OFF_PTBL, mbr + OFF_PTBL,
+	    sizeof(struct dos_partition) * NDOSPART);
+    } else {
+	boot0 = mbr;
+	boot0_size = mbr_size;
+    }
+
+    /* set the drive */
+    if (d_arg != -1)
+	boot0[OFF_DRIVE] = d_arg;
+
+    /* set various flags */
+    if (m_arg != -1) {
+	boot0[OFF_FLAGS] &= 0xf0;
+	boot0[OFF_FLAGS] |= m_arg;
+    }
+    if (o_flag) {
+        boot0[OFF_FLAGS] &= o_and;
+        boot0[OFF_FLAGS] |= o_or;
+    }
+
+    /* set the timeout */
+    if (t_arg != -1)
+        mk2(boot0 + OFF_TICKS, t_arg);
+
+    /* write the MBR back to disk */
+    if (up)
+	write_mbr(disk, 0, boot0, boot0_size);
+
+    /* display the MBR */
+    if (v_flag)
+	display_mbr(boot0);
+
+    /* clean up */
+    if (mbr != boot0)
+	free(boot0);
+    free(mbr);
+
+    return 0;
+}
+
+/*
+ * Read in the MBR of the disk.  If it is boot0, then use the version to
+ * read in all of it if necessary.  Use pointers to return a malloc'd
+ * buffer containing the MBR and then return its size.
+ */
+static int
+read_mbr(const char *disk, u_int8_t **mbr, int check_version)
+{
+    u_int8_t buf[MBRSIZE];
+    int mbr_size, fd;
+    ssize_t n;
+
+    if ((fd = open(disk, O_RDONLY)) == -1)
         err(1, "%s", disk);
     if ((n = read(fd, buf, MBRSIZE)) == -1)
         err(1, "%s", disk);
@@ -143,76 +216,92 @@ main(int argc, char *argv[])
         errx(1, "%s: short read", disk);
     if (cv2(buf + OFF_MAGIC) != 0xaa55)
         errx(1, "%s: bad magic", disk);
-    if (!B_flag && !boot0bs(buf))
-	errx(1, "%s: unknown or incompatible boot code", disk);
-    if (fpath) {
-        if ((fd1 = open(fpath, O_WRONLY | O_CREAT | O_TRUNC,
-                        0666)) == -1 ||
-            (n = write(fd1, buf, MBRSIZE)) == -1 || close(fd1))
-            err(1, "%s", fpath);
-        if (n != MBRSIZE)
-            errx(1, "%s: short write", fpath);
+
+    if (!boot0bs(buf)) {
+	if (check_version)
+	    errx(1, "%s: unknown or incompatible boot code", disk);
+    } else if (boot0version(buf) == 0x101) {
+	mbr_size = 1024;
+	if ((*mbr = malloc(mbr_size)) == NULL)
+	    errx(1, "%s: unable to allocate read buffer", disk);
+	if (lseek(fd, 0, SEEK_SET) == -1 ||
+	    (n = read(fd, *mbr, mbr_size)) == -1)
+	    err(1, "%s", disk);
+	if (n != mbr_size)
+	    errx(1, "%s: short read", disk);
+	return (mbr_size);
     }
-    memcpy(part, buf + OFF_PTBL, sizeof(part));
-    if (B_flag) {
-        if ((fd1 = open(bpath, O_RDONLY)) == -1 ||
-            (n = read(fd1, buf, MBRSIZE)) == -1 || close(fd1))
-            err(1, "%s", bpath);
-        if (n != MBRSIZE)
-            errx(1, "%s: short read", bpath);
-        if (!boot0bs(buf))
-            errx(1, "%s: unknown or incompatible boot code", bpath);
-        memcpy(buf + OFF_PTBL, part, sizeof(part));
+    *mbr = malloc(sizeof(buf));
+    memcpy(*mbr, buf, sizeof(buf));
+
+    return sizeof(buf);
+}
+
+/*
+ * Write out the mbr to the specified file.
+ */
+static void
+write_mbr(const char *fname, int flags, u_int8_t *mbr, int mbr_size)
+{
+    int fd;
+    ssize_t n;
+    
+    if ((fd = open(fname, O_WRONLY | flags, 0666)) == -1 ||
+	(n = write(fd, mbr, mbr_size)) == -1 || close(fd))
+	err(1, "%s", fname);
+    if (n != mbr_size)
+	errx(1, "%s: short write", fname);
+}
+
+/*
+ * Outputs an informative dump of the data in the MBR to stdout.
+ */
+static void
+display_mbr(u_int8_t *mbr)
+{
+    struct dos_partition *part;
+    int i, version;
+
+    part = (struct dos_partition *)(mbr + DOSPARTOFF);
+    printf(fmt0);
+    for (i = 0; i < NDOSPART; i++)
+	if (part[i].dp_typ)
+	    printf(fmt1, 1 + i, part[i].dp_flag,
+		part[i].dp_scyl + ((part[i].dp_ssect & 0xc0) << 2),
+		part[i].dp_shd, part[i].dp_ssect & 0x3f, part[i].dp_typ,
+                part[i].dp_ecyl + ((part[i].dp_esect & 0xc0) << 2),
+                part[i].dp_ehd, part[i].dp_esect & 0x3f, part[i].dp_start,
+                part[i].dp_size);
+    printf("\n");
+    version = boot0version(mbr);
+    printf("version=%d.%d  drive=0x%x  mask=0x%x  ticks=%u\noptions=",
+	version >> 8, version & 0xff, mbr[OFF_DRIVE],
+	mbr[OFF_FLAGS] & 0xf, cv2(mbr + OFF_TICKS));
+    for (i = 0; i < nopt; i++) {
+	if (i)
+	    printf(",");
+	if (!(mbr[OFF_FLAGS] & 1 << (7 - i)) ^ opttbl[i].def)
+	    printf("no");
+	printf("%s", opttbl[i].tok);
     }
-    if (d_arg != -1)
-	buf[OFF_DRIVE] = d_arg;
-    if (m_arg != -1) {
-	buf[OFF_FLAGS] &= 0xf0;
-	buf[OFF_FLAGS] |= m_arg;
-    }
-    if (o_flag) {
-        buf[OFF_FLAGS] &= o_and;
-        buf[OFF_FLAGS] |= o_or;
-    }
-    if (t_arg != -1)
-        mk2(buf + OFF_TICKS, t_arg);
-    if (up) {
-        if (lseek(fd, 0, SEEK_SET) == -1 ||
-            (n = write(fd, buf, MBRSIZE)) == -1 || close(fd))
-            err(1, "%s", disk);
-        if (n != MBRSIZE)
-            errx(1, "%s: short write", disk);
-    }
-    if (v_flag) {
-        printf(fmt0);
-        for (i = 0; i < 4; i++)
-            if (part[i].dp_typ) {
-                printf(fmt1,
-                       1 + i,
-                       part[i].dp_flag,
-                  part[i].dp_scyl + ((part[i].dp_ssect & 0xc0) << 2),
-                       part[i].dp_shd,
-                       part[i].dp_ssect & 0x3f,
-                       part[i].dp_typ,
-                  part[i].dp_ecyl + ((part[i].dp_esect & 0xc0) << 2),
-                       part[i].dp_ehd,
-                       part[i].dp_esect & 0x3f,
-                       part[i].dp_start,
-                       part[i].dp_size);
-            }
-        printf("\n");
-        printf("drive=0x%x  mask=0x%x  options=", buf[OFF_DRIVE],
-	       buf[OFF_FLAGS] & 0xf);
-        for (i = 0; i < nopt; i++) {
-            if (i)
-                printf(",");
-            if (!(buf[OFF_FLAGS] & 1 << (7 - i)) ^ opttbl[i].def)
-                printf("no");
-            printf("%s", opttbl[i].tok);
-        }
-        printf("  ticks=%u\n", cv2(buf + OFF_TICKS));
-    }
-    return 0;
+    printf("\n");
+}
+
+/*
+ * Return the boot0 version with the minor revision in the low byte, and
+ * the major revision in the next higher byte.
+ */
+static int
+boot0version(const u_int8_t *bs)
+{
+    static u_int8_t idold[] = {0xfe, 0x45, 0xf2, 0xe9, 0x00, 0x8a};
+
+    /* Check for old version, and return 0x100 if found. */
+    if (memcmp(bs + 0x1c, idold, sizeof(idold)) == 0)
+        return 0x100;
+
+    /* We have a newer boot0, so extract the version number and return it. */
+    return *(int *)(bs + OFF_VERSION) & 0xffff;
 }
 
 /*
@@ -222,20 +311,21 @@ main(int argc, char *argv[])
 static int
 boot0bs(const u_int8_t *bs)
 {
-    static u_int8_t id0[] = {0xfe, 0x45, 0xf2, 0xe9, 0x00, 0x8a};
+    static u_int8_t id0[] = {0xfc, 0x31, 0xc0, 0x8e, 0xc0, 0x8e, 0xd8,
+			     0x8e, 0xd0, 0xbc, 0x00, 0x7c };
     static u_int8_t id1[] = {'D', 'r', 'i', 'v', 'e', ' '};
     static struct {
 	unsigned off;
 	unsigned len;
 	u_int8_t *key;
     } ident[2] = {
-        {0x1c,  sizeof(id0), id0},
+        {0x0,   sizeof(id0), id0},
         {0x1b2, sizeof(id1), id1}
     };
     int i;
 
     for (i = 0; i < sizeof(ident) / sizeof(ident[0]); i++)
-	if (memcmp(bs + ident[i].off, ident[i].key, ident[i].len))
+        if (memcmp(bs + ident[i].off, ident[i].key, ident[i].len))
 	    return 0;
     return 1;
 };
@@ -278,14 +368,11 @@ static char *
 mkrdev(const char *fname)
 {
     char buf[MAXPATHLEN];
-    struct stat sb;
     char *s;
 
     s = (char *)fname;
     if (!strchr(fname, '/')) {
-        snprintf(buf, sizeof(buf), "%sr%s", _PATH_DEV, fname);
-        if (stat(buf, &sb))
-            snprintf(buf, sizeof(buf), "%s%s", _PATH_DEV, fname);
+	snprintf(buf, sizeof(buf), "%s%s", _PATH_DEV, fname);
         if (!(s = strdup(buf)))
             err(1, NULL);
     }
