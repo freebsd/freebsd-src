@@ -462,6 +462,11 @@ was executed with
 A path to the directory where
 .Nm
 was executed.
+.Nm
+sets
+.Va .CURDIR
+to the canonical path given by
+.Xr getcwd 3 .
 .It Va .OBJDIR
 A path to the directory where the targets are built.
 At startup,
@@ -501,6 +506,12 @@ If they are undefined and
 .Nm
 is unable to change into any of the remaining three directories,
 then the current directory is used.
+.Pp
+.Nm
+sets
+.Va .OBJDIR
+to the canonical path given by
+.Xr getcwd 3 .
 .It Va .MAKEFLAGS
 The environment variable
 .Ev MAKEFLAGS
@@ -526,29 +537,6 @@ executes.
 A synonym for
 .Va .MAKEFLAGS
 provided for backward compatibility.
-.It Ev PWD
-Alternate path to the current directory.
-Supported if built with WANT_ENV_PWD defined.
-.Nm
-normally sets
-.Ql Va .CURDIR
-to the canonical path given by
-.Xr getcwd 3 .
-However, if the environment variable
-.Ev PWD
-is set and gives a path to the current directory, then
-.Nm
-sets
-.Ql Va .CURDIR
-to the value of
-.Ev PWD
-instead.
-.Ev PWD
-is always set to the value of
-.Ql Va .OBJDIR
-for all programs which
-.Nm
-executes.
 .It Va .TARGETS
 List of targets
 .Nm
@@ -1172,9 +1160,8 @@ uses the following environment variables, if they exist:
 .Ev MAKE ,
 .Ev MAKEFLAGS ,
 .Ev MAKEOBJDIR ,
-.Ev MAKEOBJDIRPREFIX ,
 and
-.Ev PWD .
+.Ev MAKEOBJDIRPREFIX .
 .Sh FILES
 .Bl -tag -width /usr/share/doc/psd/12.make -compact
 .It Pa .depend
