@@ -41,10 +41,10 @@ static const char rcsid[] =
 
 #include <sys/types.h>
 
-#include <ufs/ufs/dinode.h>
-
 #include <stdio.h>
 #include <string.h>
+
+#include <ufs/ufs/dinode.h>
 
 #include "restore.h"
 #include "extern.h"

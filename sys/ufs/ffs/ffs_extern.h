@@ -49,26 +49,30 @@ struct sockaddr;
 struct statfs;
 struct ucred;
 struct vnode;
-struct vop_balloc_args;
 struct vop_fsync_args;
 struct vop_reallocblks_args;
 struct vop_copyonwrite_args;
 
 int	ffs_alloc(struct inode *,
-	    ufs_daddr_t, ufs_daddr_t, int, struct ucred *, ufs_daddr_t *);
-int	ffs_balloc(struct vnode *a_vp, off_t a_startoffset, int a_size,
+	    ufs2_daddr_t, ufs2_daddr_t, int, struct ucred *, ufs2_daddr_t *);
+int	ffs_balloc_ufs1(struct vnode *a_vp, off_t a_startoffset, int a_size,
+            struct ucred *a_cred, int a_flags, struct buf **a_bpp);
+int	ffs_balloc_ufs2(struct vnode *a_vp, off_t a_startoffset, int a_size,
             struct ucred *a_cred, int a_flags, struct buf **a_bpp);
 int	ffs_blkatoff(struct vnode *, off_t, char **, struct buf **);
-void	ffs_blkfree(struct fs *, struct vnode *, ufs_daddr_t, long, ino_t);
-ufs_daddr_t ffs_blkpref(struct inode *, ufs_daddr_t, int, ufs_daddr_t *);
-void	ffs_clrblock(struct fs *, u_char *, ufs_daddr_t);
-void	ffs_clusteracct	(struct fs *, struct cg *, ufs_daddr_t, int);
+void	ffs_blkfree(struct fs *, struct vnode *, ufs2_daddr_t, long, ino_t);
+ufs2_daddr_t ffs_blkpref_ufs1(struct inode *, ufs_lbn_t, int, ufs1_daddr_t *);
+ufs2_daddr_t ffs_blkpref_ufs2(struct inode *, ufs_lbn_t, int, ufs2_daddr_t *);
+void	ffs_clrblock(struct fs *, u_char *, ufs1_daddr_t);
+void	ffs_clusteracct	(struct fs *, struct cg *, ufs1_daddr_t, int);
 int	ffs_fhtovp(struct mount *, struct fid *, struct vnode **);
 int	ffs_flushfiles(struct mount *, int, struct thread *);
 void	ffs_fragacct(struct fs *, int, int32_t [], int);
 int	ffs_freefile(struct fs *, struct vnode *, ino_t, int );
-int	ffs_isblock(struct fs *, u_char *, ufs_daddr_t);
-int	ffs_isfreeblock(struct fs *, unsigned char *, ufs_daddr_t);
+int	ffs_isblock(struct fs *, u_char *, ufs1_daddr_t);
+int	ffs_isfreeblock(struct fs *, unsigned char *, ufs1_daddr_t);
+void	ffs_load_inode(struct buf *, struct inode *, struct malloc_type *,
+	    struct fs *, ino_t);
 int	ffs_mountfs(struct vnode *, struct mount *, struct thread *,
 	     struct malloc_type *);
 int	ffs_mountroot(void);
@@ -76,9 +80,9 @@ int	ffs_mount(struct mount *, char *, caddr_t, struct nameidata *,
 	    struct thread *);
 int	ffs_reallocblks(struct vop_reallocblks_args *);
 int	ffs_realloccg(struct inode *,
-	    ufs_daddr_t, ufs_daddr_t, int, int, struct ucred *, struct buf **);
-void	ffs_setblock(struct fs *, u_char *, ufs_daddr_t);
-int	ffs_snapblkfree(struct fs *, struct vnode *, ufs_daddr_t, long, ino_t);
+	    ufs2_daddr_t, ufs2_daddr_t, int, int, struct ucred *, struct buf **);
+void	ffs_setblock(struct fs *, u_char *, ufs1_daddr_t);
+int	ffs_snapblkfree(struct fs *, struct vnode *, ufs2_daddr_t, long, ino_t);
 void	ffs_snapremove(struct vnode *vp);
 int	ffs_snapshot(struct mount *mp, char *snapfile);
 void	ffs_snapshot_mount(struct mount *mp);
@@ -112,13 +116,13 @@ void	softdep_freefile(struct vnode *, ino_t, int);
 int	softdep_request_cleanup(struct fs *, struct vnode *);
 void	softdep_setup_freeblocks(struct inode *, off_t);
 void	softdep_setup_inomapdep(struct buf *, struct inode *, ino_t);
-void	softdep_setup_blkmapdep(struct buf *, struct fs *, ufs_daddr_t);
-void	softdep_setup_allocdirect(struct inode *, ufs_lbn_t, ufs_daddr_t,
-	    ufs_daddr_t, long, long, struct buf *);
+void	softdep_setup_blkmapdep(struct buf *, struct fs *, ufs2_daddr_t);
+void	softdep_setup_allocdirect(struct inode *, ufs_lbn_t, ufs2_daddr_t,
+	    ufs2_daddr_t, long, long, struct buf *);
 void	softdep_setup_allocindir_meta(struct buf *, struct inode *,
-	    struct buf *, int, ufs_daddr_t);
+	    struct buf *, int, ufs2_daddr_t);
 void	softdep_setup_allocindir_page(struct inode *, ufs_lbn_t,
-	    struct buf *, int, ufs_daddr_t, ufs_daddr_t, struct buf *);
+	    struct buf *, int, ufs2_daddr_t, ufs2_daddr_t, struct buf *);
 void	softdep_fsync_mountdev(struct vnode *);
 int	softdep_sync_metadata(struct vop_fsync_args *);
 /* XXX incorrectly moved to mount.h - should be indirect function */

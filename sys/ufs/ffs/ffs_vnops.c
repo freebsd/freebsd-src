@@ -126,7 +126,7 @@ ffs_fsync(ap)
 	struct buf *bp;
 	struct buf *nbp;
 	int s, error, wait, passes, skipmeta;
-	daddr_t lbn;
+	ufs_lbn_t lbn;
 
 	wait = (ap->a_waitfor == MNT_WAIT);
 	if (vn_isdisk(vp, NULL)) {

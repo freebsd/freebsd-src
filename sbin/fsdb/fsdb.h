@@ -30,9 +30,9 @@
  * $FreeBSD$
  */
 
-extern int bread(int fd, char *buf, ufs_daddr_t blk, long size);
-extern void bwrite(int fd, char *buf, ufs_daddr_t blk, long size);
-extern void rwerror(char *mesg, ufs_daddr_t blk);
+extern int bread(int fd, char *buf, ufs2_daddr_t blk, long size);
+extern void bwrite(int fd, char *buf, ufs2_daddr_t blk, long size);
+extern void rwerror(char *mesg, ufs2_daddr_t blk);
 extern int reply(char *question);
 
 extern long dev_bsize;
@@ -50,13 +50,13 @@ struct cmdtable {
 #define	FL_WR	0x0001		/* wants to write */
 	int (*handler)(int argc, char *argv[]);
 };
-extern struct dinode *curinode;
+extern union dinode *curinode;
 extern ino_t curinum;
 
 int argcount(struct cmdtable *cmdp, int argc, char *argv[]);
 char **crack(char *line, int *argc);
 char **recrack(char *line, int *argc, int argc_max);
-void printstat(const char *cp, ino_t inum, struct dinode *dp);
+void printstat(const char *cp, ino_t inum, union dinode *dp);
 int printactive(int doblocks);
 int checkactive(void);
 int checkactivedir(void);

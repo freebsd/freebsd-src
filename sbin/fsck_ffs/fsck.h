@@ -1,4 +1,16 @@
 /*
+ * Copyright (c) 2002 Networks Associates Technology, Inc.
+ * All rights reserved.
+ *
+ * This software was developed for the FreeBSD Project by Marshall
+ * Kirk McKusick and Network Associates Laboratories, the Security
+ * Research Division of Network Associates, Inc. under DARPA/SPAWAR
+ * contract N66001-01-C-8035 ("CBOSS"), as part of the DARPA CHATS
+ * research program
+ *
+ * Copyright (c) 1982, 1989, 1993
+ *	The Regents of the University of California.  All rights reserved.
+ * (c) UNIX System Laboratories, Inc.
  * Copyright (c) 1980, 1986, 1993
  *	The Regents of the University of California.  All rights reserved.
  *
@@ -43,6 +55,14 @@
 #define	MAXBUFSPACE	40*1024	/* maximum space to allocate to buffers */
 #define	INOBUFSIZE	56*1024	/* size of buffer to read inodes in pass1 */
 
+union dinode {
+	struct ufs1_dinode dp1;
+	struct ufs2_dinode dp2;
+};
+#define	DIP(dp, field) \
+	((sblock.fs_magic == FS_UFS1_MAGIC) ? \
+	(dp)->dp1.field : (dp)->dp2.field)
+
 /*
  * Each inode on the filesystem is described by the following structure.
  * The linkcnt is initially set to the value in the inode. Each time it
@@ -79,19 +99,24 @@ struct inostatlist {
 struct bufarea {
 	struct bufarea *b_next;		/* free list queue */
 	struct bufarea *b_prev;		/* free list queue */
-	ufs_daddr_t b_bno;
+	ufs2_daddr_t b_bno;
 	int b_size;
 	int b_errs;
 	int b_flags;
 	union {
 		char *b_buf;			/* buffer space */
-		ufs_daddr_t *b_indir;		/* indirect block */
+		ufs1_daddr_t *b_indir1;		/* UFS1 indirect block */
+		ufs2_daddr_t *b_indir2;		/* UFS2 indirect block */
 		struct fs *b_fs;		/* super block */
 		struct cg *b_cg;		/* cylinder group */
-		struct dinode *b_dinode;	/* inode block */
+		struct ufs1_dinode *b_dinode1;	/* UFS1 inode block */
+		struct ufs2_dinode *b_dinode2;	/* UFS2 inode block */
 	} b_un;
 	char b_dirty;
 };
+#define	IBLK(bp, i) \
+	((sblock.fs_magic == FS_UFS1_MAGIC) ? \
+	(bp)->b_un.b_indir1[i] : (bp)->b_un.b_indir2[i])
 
 #define	B_INUSE 1
 
@@ -110,7 +135,7 @@ struct bufarea *pbp;		/* current inode block */
 } while (0)
 #define	initbarea(bp) do { \
 	(bp)->b_dirty = 0; \
-	(bp)->b_bno = (ufs_daddr_t)-1; \
+	(bp)->b_bno = (ufs2_daddr_t)-1; \
 	(bp)->b_flags = 0; \
 } while (0)
 
@@ -127,12 +152,12 @@ struct inodesc {
 	int (*id_func)();	/* function to be applied to blocks of inode */
 	ino_t id_number;	/* inode number described */
 	ino_t id_parent;	/* for DATA nodes, their parent */
-	int id_lbn;		/* logical block number of current block */
-	ufs_daddr_t id_blkno;	/* current block number being examined */
+	ufs_lbn_t id_lbn;	/* logical block number of current block */
+	ufs2_daddr_t id_blkno;	/* current block number being examined */
 	int id_numfrags;	/* number of frags contained in block */
-	quad_t id_filesize;	/* for DATA nodes, the size of the directory */
+	off_t id_filesize;	/* for DATA nodes, the size of the directory */
+	ufs2_daddr_t id_entryno;/* for DATA nodes, current entry number */
 	int id_loc;		/* for DATA nodes, current location in dir */
-	int id_entryno;		/* for DATA nodes, current entry number */
 	struct direct *id_dirp;	/* for DATA nodes, ptr to current entry */
 	char *id_name;		/* for DATA nodes, name to find or enter */
 	char id_type;		/* type of descriptor, DATA or ADDR */
@@ -165,7 +190,7 @@ struct inodesc {
  */
 struct dups {
 	struct dups *next;
-	ufs_daddr_t dup;
+	ufs2_daddr_t dup;
 };
 struct dups *duplist;		/* head of dup list */
 struct dups *muldup;		/* end of unique duplicate dup block numbers */
@@ -189,7 +214,7 @@ struct inoinfo {
 	ino_t	i_dotdot;		/* inode number of `..' */
 	size_t	i_isize;		/* size of inode */
 	u_int	i_numblks;		/* size of block array in bytes */
-	ufs_daddr_t i_blks[1];		/* actually longer */
+	ufs2_daddr_t i_blks[1];		/* actually longer */
 } **inphead, **inpsort;
 long numdirs, dirhash, listmax, inplast;
 long countdirs;			/* number of directories we actually found */
@@ -223,7 +248,7 @@ int	fsmodified;		/* 1 => write done to filesystem */
 int	fsreadfd;		/* file descriptor for reading filesystem */
 int	fswritefd;		/* file descriptor for writing filesystem */
 
-ufs_daddr_t maxfsblock;		/* number of blocks in the filesystem */
+ufs2_daddr_t maxfsblock;	/* number of blocks in the filesystem */
 char	*blockmap;		/* ptr to primary blk allocation map */
 ino_t	maxino;			/* number of inodes in filesystem */
 
@@ -231,13 +256,19 @@ ino_t	lfdir;			/* lost & found directory inode number */
 char	*lfname;		/* lost & found directory name */
 int	lfmode;			/* lost & found directory creation mode */
 
-ufs_daddr_t n_blks;		/* number of blocks in use */
-ufs_daddr_t n_files;		/* number of files in use */
+ufs2_daddr_t n_blks;		/* number of blocks in use */
+ino_t n_files;			/* number of files in use */
 
 int	got_siginfo;		/* received a SIGINFO */
 
-#define	clearinode(dp)	(*(dp) = zino)
-struct	dinode zino;
+#define	clearinode(dp) \
+	if (sblock.fs_magic == FS_UFS1_MAGIC) { \
+		(dp)->dp1 = ufs1_zino; \
+	} else { \
+		(dp)->dp2 = ufs2_zino; \
+	}
+struct	ufs1_dinode ufs1_zino;
+struct	ufs2_dinode ufs2_zino;
 
 #define	setbmap(blkno)	setbit(blockmap, blkno)
 #define	testbmap(blkno)	isset(blockmap, blkno)
@@ -255,44 +286,44 @@ struct fstab;
 
 
 void		adjust(struct inodesc *, int lcnt);
-ufs_daddr_t	allocblk(long frags);
+ufs2_daddr_t	allocblk(long frags);
 ino_t		allocdir(ino_t parent, ino_t request, int mode);
 ino_t		allocino(ino_t request, int type);
-void		blkerror(ino_t ino, char *type, ufs_daddr_t blk);
+void		blkerror(ino_t ino, char *type, ufs2_daddr_t blk);
 char	       *blockcheck(char *name);
-int		bread(int fd, char *buf, ufs_daddr_t blk, long size);
+int		bread(int fd, char *buf, ufs2_daddr_t blk, long size);
 void		bufinit(void);
-void		bwrite(int fd, char *buf, ufs_daddr_t blk, long size);
-void		cacheino(struct dinode *dp, ino_t inumber);
+void		bwrite(int fd, char *buf, ufs2_daddr_t blk, long size);
+void		cacheino(union dinode *dp, ino_t inumber);
 void		catch(int);
 void		catchquit(int);
 int		changeino(ino_t dir, char *name, ino_t newnum);
-int		chkrange(ufs_daddr_t blk, int cnt);
+int		chkrange(ufs2_daddr_t blk, int cnt);
 void		ckfini(int markclean);
-int		ckinode(struct dinode *dp, struct inodesc *);
+int		ckinode(union dinode *dp, struct inodesc *);
 void		clri(struct inodesc *, char *type, int flag);
 int		clearentry(struct inodesc *);
 void		direrror(ino_t ino, char *errmesg);
 int		dirscan(struct inodesc *);
 int		dofix(struct inodesc *, char *msg);
-void		ffs_clrblock(struct fs *, u_char *, ufs_daddr_t);
+void		ffs_clrblock(struct fs *, u_char *, ufs1_daddr_t);
 void		ffs_fragacct(struct fs *, int, int32_t [], int);
-int		ffs_isblock(struct fs *, u_char *, ufs_daddr_t);
-void		ffs_setblock(struct fs *, u_char *, ufs_daddr_t);
+int		ffs_isblock(struct fs *, u_char *, ufs1_daddr_t);
+void		ffs_setblock(struct fs *, u_char *, ufs1_daddr_t);
 void		fileerror(ino_t cwd, ino_t ino, char *errmesg);
 int		findino(struct inodesc *);
 int		findname(struct inodesc *);
 void		flush(int fd, struct bufarea *bp);
-void		freeblk(ufs_daddr_t blkno, long frags);
+void		freeblk(ufs2_daddr_t blkno, long frags);
 void		freeino(ino_t ino);
 void		freeinodebuf(void);
-int		ftypeok(struct dinode *dp);
-void		getblk(struct bufarea *bp, ufs_daddr_t blk, long size);
-struct bufarea *getdatablk(ufs_daddr_t blkno, long size);
+int		ftypeok(union dinode *dp);
+void		getblk(struct bufarea *bp, ufs2_daddr_t blk, long size);
+struct bufarea *getdatablk(ufs2_daddr_t blkno, long size);
 struct inoinfo *getinoinfo(ino_t inumber);
-struct dinode  *getnextinode(ino_t inumber);
+union dinode   *getnextinode(ino_t inumber);
 void		getpathname(char *namebuf, ino_t curdir, ino_t ino);
-struct dinode  *ginode(ino_t inumber);
+union dinode   *ginode(ino_t inumber);
 void		infohandler(int sig);
 void		inocleanup(void);
 void		inodirty(void);
@@ -314,7 +345,7 @@ void		propagate(void);
 void		pwarn(const char *fmt, ...) __printflike(1, 2);
 int		readsb(int listerr);
 int		reply(char *question);
-void		rwerror(char *mesg, ufs_daddr_t blk);
+void		rwerror(char *mesg, ufs2_daddr_t blk);
 void		sblock_init(void);
 void		setinodebuf(ino_t);
 int		setup(char *dev);

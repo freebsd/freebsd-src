@@ -280,7 +280,7 @@ cmdloop(void)
     return rval;
 }
 
-struct dinode *curinode;
+union dinode *curinode;
 ino_t curinum, ocurrent;
 
 #define GETINUM(ac,inum)    inum = strtoul(argv[ac], &cp, 0); \
@@ -317,7 +317,7 @@ CMDFUNCSTART(back)
 CMDFUNCSTART(zapi)
 {
     ino_t inum;
-    struct dinode *dp;
+    union dinode *dp;
     char *cp;
 
     GETINUM(1,inum);
@@ -350,7 +350,8 @@ CMDFUNCSTART(uplink)
 {
     if (!checkactive())
 	return 1;
-    printf("inode %d link count now %d\n", curinum, ++curinode->di_nlink);
+    DIP(curinode, di_nlink) += 1;
+    printf("inode %d link count now %d\n", curinum, DIP(curinode, di_nlink));
     inodirty();
     return 0;
 }
@@ -359,7 +360,8 @@ CMDFUNCSTART(downlink)
 {
     if (!checkactive())
 	return 1;
-    printf("inode %d link count now %d\n", curinum, --curinode->di_nlink);
+    DIP(curinode, di_nlink) -= 1;
+    printf("inode %d link count now %d\n", curinum, DIP(curinode, di_nlink));
     inodirty();
     return 0;
 }
@@ -617,7 +619,7 @@ CMDFUNCSTART(newtype)
 
     if (!checkactive())
 	return 1;
-    type = curinode->di_mode & IFMT;
+    type = DIP(curinode, di_mode) & IFMT;
     for (tp = typenamemap;
 	 tp < &typenamemap[sizeof(typenamemap)/sizeof(*typenamemap)];
 	 tp++) {
@@ -632,8 +634,8 @@ CMDFUNCSTART(newtype)
 	warnx("try one of `file', `dir', `socket', `fifo'");
 	return 1;
     }
-    curinode->di_mode &= ~IFMT;
-    curinode->di_mode |= type;
+    DIP(curinode, di_mode) &= ~IFMT;
+    DIP(curinode, di_mode) |= type;
     inodirty();
     printactive(0);
     return 0;
@@ -654,7 +656,7 @@ CMDFUNCSTART(chlen)
 	return 1;
     }
     
-    curinode->di_size = len;
+    DIP(curinode, di_size) = len;
     inodirty();
     printactive(0);
     return rval;
@@ -675,8 +677,8 @@ CMDFUNCSTART(chmode)
 	return 1;
     }
     
-    curinode->di_mode &= ~07777;
-    curinode->di_mode |= modebits;
+    DIP(curinode, di_mode) &= ~07777;
+    DIP(curinode, di_mode) |= modebits;
     inodirty();
     printactive(0);
     return rval;
@@ -701,7 +703,7 @@ CMDFUNCSTART(chaflags)
 	warnx("flags set beyond 32-bit range of field (%lx)\n", flags);
 	return(1);
     }
-    curinode->di_flags = flags;
+    DIP(curinode, di_flags) = flags;
     inodirty();
     printactive(0);
     return rval;
@@ -726,7 +728,7 @@ CMDFUNCSTART(chgen)
 	warnx("gen set beyond 32-bit range of field (%lx)\n", gen);
 	return(1);
     }
-    curinode->di_gen = gen;
+    DIP(curinode, di_gen) = gen;
     inodirty();
     printactive(0);
     return rval;
@@ -751,7 +753,7 @@ CMDFUNCSTART(linkcount)
 	return 1;
     }
     
-    curinode->di_nlink = lcnt;
+    DIP(curinode, di_nlink) = lcnt;
     inodirty();
     printactive(0);
     return rval;
@@ -778,7 +780,7 @@ CMDFUNCSTART(chowner)
 	}
     }
     
-    curinode->di_uid = uid;
+    DIP(curinode, di_uid) = uid;
     inodirty();
     printactive(0);
     return rval;
@@ -804,18 +806,17 @@ CMDFUNCSTART(chgroup)
 	}
     }
     
-    curinode->di_gid = gid;
+    DIP(curinode, di_gid) = gid;
     inodirty();
     printactive(0);
     return rval;
 }
 
 int
-dotime(char *name, struct timespec *rts)
+dotime(char *name, time_t *secp, int32_t *nsecp)
 {
     char *p, *val;
     struct tm t;
-    int32_t sec;
     int32_t nsec;
     p = strchr(name, '.');
     if (p) {
@@ -832,6 +833,7 @@ badformat:
 	warnx("date format: YYYYMMDDHHMMSS[.nsec]");
 	return 1;
     }
+    *nsecp = nsec;
 
     for (p = name; *p; p++)
 	if (*p < '0' || *p > '9')
@@ -855,20 +857,26 @@ badformat:
     t.tm_sec = VAL() + t.tm_sec * 10;
     t.tm_isdst = -1;
 
-    sec = mktime(&t);
-    if (sec == -1) {
+    *secp = mktime(&t);
+    if (*secp == -1) {
 	warnx("date/time out of range");
 	return 1;
     }
-    rts->tv_sec = sec;
-    rts->tv_nsec = nsec;
     return 0;
 }
 
 CMDFUNCSTART(chmtime)
 {
-    if (dotime(argv[1], &curinode->di_ctime))
+    time_t secs;
+    int32_t nsecs;
+
+    if (dotime(argv[1], &secs, &nsecs))
 	return 1;
+    if (sblock.fs_magic == FS_UFS1_MAGIC)
+	curinode->dp1.di_mtime = _time_to_time32(secs);
+    else
+	curinode->dp2.di_mtime = _time_to_time64(secs);
+    DIP(curinode, di_mtimensec) = nsecs;
     inodirty();
     printactive(0);
     return 0;
@@ -876,8 +884,16 @@ CMDFUNCSTART(chmtime)
 
 CMDFUNCSTART(chatime)
 {
-    if (dotime(argv[1], &curinode->di_ctime))
+    time_t secs;
+    int32_t nsecs;
+
+    if (dotime(argv[1], &secs, &nsecs))
 	return 1;
+    if (sblock.fs_magic == FS_UFS1_MAGIC)
+	curinode->dp1.di_atime = _time_to_time32(secs);
+    else
+	curinode->dp2.di_atime = _time_to_time64(secs);
+    DIP(curinode, di_atimensec) = nsecs;
     inodirty();
     printactive(0);
     return 0;
@@ -885,8 +901,16 @@ CMDFUNCSTART(chatime)
 
 CMDFUNCSTART(chctime)
 {
-    if (dotime(argv[1], &curinode->di_ctime))
+    time_t secs;
+    int32_t nsecs;
+
+    if (dotime(argv[1], &secs, &nsecs))
 	return 1;
+    if (sblock.fs_magic == FS_UFS1_MAGIC)
+	curinode->dp1.di_ctime = _time_to_time32(secs);
+    else
+	curinode->dp2.di_ctime = _time_to_time64(secs);
+    DIP(curinode, di_ctimensec) = nsecs;
     inodirty();
     printactive(0);
     return 0;

@@ -73,7 +73,8 @@ ufs_inactive(ap)
 	struct vnode *vp = ap->a_vp;
 	struct inode *ip = VTOI(vp);
 	struct thread *td = ap->a_td;
-	int mode, error = 0;
+	mode_t mode;
+	int error = 0;
 
 	if (prtactive && vp->v_usecount != 0)
 		vprint("ufs_inactive: pushing active", vp);
@@ -101,9 +102,10 @@ ufs_inactive(ap)
 		 * So, rather than creating a new entry point to do the
 		 * same thing, we just use softdep_change_linkcnt().
 		 */
-		ip->i_rdev = 0;
+		DIP(ip, i_rdev) = 0;
 		mode = ip->i_mode;
 		ip->i_mode = 0;
+		DIP(ip, i_mode) = 0;
 		ip->i_flag |= IN_CHANGE | IN_UPDATE;
 		if (DOINGSOFTDEP(vp))
 			softdep_change_linkcnt(ip);
@@ -139,15 +141,15 @@ ufs_reclaim(ap)
 		struct thread *a_td;
 	} */ *ap;
 {
-	struct inode *ip;
 	struct vnode *vp = ap->a_vp;
+	struct inode *ip = VTOI(vp);
+	struct ufsmount *ump = ip->i_ump;
 #ifdef QUOTA
 	int i;
 #endif
 
 	if (prtactive && vp->v_usecount != 0)
 		vprint("ufs_reclaim: pushing active", vp);
-	ip = VTOI(vp);
 	if (ip->i_flag & IN_LAZYMOD) {
 		ip->i_flag |= IN_MODIFIED;
 		UFS_UPDATE(vp, 0);
@@ -177,7 +179,11 @@ ufs_reclaim(ap)
 	if (ip->i_dirhash != NULL)
 		ufsdirhash_free(ip);
 #endif
-	FREE(vp->v_data, VFSTOUFS(vp->v_mount)->um_malloctype);
+	if (ump->um_fstype == UFS1)
+		FREE(ip->i_din1, ump->um_malloctype);
+	else
+		FREE(ip->i_din2, ump->um_malloctype);
+	FREE(vp->v_data, ump->um_malloctype);
 	vp->v_data = 0;
 	return (0);
 }

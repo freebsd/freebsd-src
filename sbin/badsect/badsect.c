@@ -59,8 +59,8 @@ static const char rcsid[] =
 #include <sys/stat.h>
 #include <sys/disklabel.h>
 
-#include <ufs/ffs/fs.h>
 #include <ufs/ufs/dinode.h>
+#include <ufs/ffs/fs.h>
 
 #include <err.h>
 #include <dirent.h>
@@ -73,7 +73,7 @@ static const char rcsid[] =
 
 union {
 	struct	fs fs;
-	char	fsx[SBSIZE];
+	char	fsx[SBLOCKSIZE];
 } ufs;
 #define sblock	ufs.fs
 union {
@@ -90,6 +90,11 @@ char buf[MAXBSIZE];
 
 void	rdfs(daddr_t, int, char *);
 int	chkuse(daddr_t, int);
+
+/*
+ * Possible superblock locations ordered from most to least likely.
+ */
+static int sblock_try[] = SBLOCKSEARCH;
 
 static void
 usage(void)
@@ -108,6 +113,7 @@ main(int argc, char *argv[])
 	DIR *dirp;
 	char name[2 * MAXPATHLEN];
 	char *name_dir_end;
+	int i;
 
 	if (argc < 3)
 		usage();
@@ -134,7 +140,19 @@ main(int argc, char *argv[])
 	if ((fsi = open(name, O_RDONLY)) < 0)
 		err(6, "%s", name);
 	fs = &sblock;
-	rdfs(SBOFF, SBSIZE, (char *)fs);
+	for (i = 0; sblock_try[i] != -1; i++) {
+		rdfs(sblock_try[i] / dev_bsize, SBLOCKSIZE, (char *)fs);
+		if ((fs->fs_magic == FS_UFS1_MAGIC ||
+		     (fs->fs_magic == FS_UFS2_MAGIC &&
+		      fs->fs_sblockloc == numfrags(fs, sblock_try[i]))) &&
+		    fs->fs_bsize <= MAXBSIZE &&
+		    fs->fs_bsize >= sizeof(struct fs))
+			break;
+	}
+	if (sblock_try[i] == -1) {
+		printf("Cannot find filesystem\n");
+		exit(7);
+	}
 	dev_bsize = fs->fs_fsize / fsbtodb(fs, 1);
 	for (argc -= 2, argv += 2; argc > 0; argc--, argv++) {
 		number = atol(*argv);

@@ -109,8 +109,9 @@ struct stat {
 	u_int32_t st_blksize;		/* optimal blocksize for I/O */
 	fflags_t  st_flags;		/* user defined flags for file */
 	u_int32_t st_gen;		/* file generation number */
+	struct timespec st_createtimespec; /* time of file creation */
 	int32_t	  st_lspare;
-	int64_t	  st_qspare[2];
+	int64_t	  st_qspare;
 };
 
 #ifndef _POSIX_SOURCE
@@ -139,7 +140,8 @@ struct nstat {
 	u_int32_t st_blksize;		/* optimal blocksize for I/O */
 	fflags_t  st_flags;		/* user defined flags for file */
 	u_int32_t st_gen;		/* file generation number */
-	int64_t	  st_qspare[2];
+	struct timespec st_createtimespec; /* time of file creation */
+	int64_t	  st_qspare;
 };
 #endif
 

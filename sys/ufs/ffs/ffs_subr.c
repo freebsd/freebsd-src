@@ -35,15 +35,18 @@
  */
 
 #include <sys/param.h>
-#include <ufs/ffs/fs.h>
 
 #ifndef _KERNEL
 #include <ufs/ufs/dinode.h>
+#include <ufs/ffs/fs.h>
 #else
 #include "opt_ddb.h"
 
 #include <sys/systm.h>
+#include <sys/stdint.h>
 #include <sys/lock.h>
+#include <sys/malloc.h>
+#include <sys/mount.h>
 #include <sys/vnode.h>
 #include <sys/bio.h>
 #include <sys/buf.h>
@@ -51,7 +54,11 @@
 
 #include <ufs/ufs/quota.h>
 #include <ufs/ufs/inode.h>
+#include <ufs/ufs/extattr.h>
+#include <ufs/ufs/ufsmount.h>
+#include <ufs/ufs/ufs_extern.h>
 #include <ufs/ffs/ffs_extern.h>
+#include <ufs/ffs/fs.h>
 
 #ifdef DDB
 void	ffs_checkoverlap(struct buf *, struct inode *);
@@ -72,7 +79,7 @@ ffs_blkatoff(vp, offset, res, bpp)
 	struct inode *ip;
 	struct fs *fs;
 	struct buf *bp;
-	ufs_daddr_t lbn;
+	ufs_lbn_t lbn;
 	int bsize, error;
 
 	ip = VTOI(vp);
@@ -91,7 +98,49 @@ ffs_blkatoff(vp, offset, res, bpp)
 	*bpp = bp;
 	return (0);
 }
-#endif
+
+/*
+ * Load up the contents of an inode and copy the appropriate pieces
+ * to the incore copy.
+ */
+void
+ffs_load_inode(bp, ip, mtype, fs, ino)
+	struct buf *bp;
+	struct inode *ip;
+	struct malloc_type *mtype;
+	struct fs *fs;
+	ino_t ino;
+{
+
+	if (ip->i_ump->um_fstype == UFS1) {
+		if (mtype != NULL)
+			MALLOC(ip->i_din1, struct ufs1_dinode *,
+			    sizeof(struct ufs1_dinode), mtype, M_WAITOK);
+		*ip->i_din1 =
+		    *((struct ufs1_dinode *)bp->b_data + ino_to_fsbo(fs, ino));
+		ip->i_mode = ip->i_din1->di_mode;
+		ip->i_nlink = ip->i_din1->di_nlink;
+		ip->i_size = ip->i_din1->di_size;
+		ip->i_flags = ip->i_din1->di_flags;
+		ip->i_gen = ip->i_din1->di_gen;
+		ip->i_uid = ip->i_din1->di_uid;
+		ip->i_gid = ip->i_din1->di_gid;
+	} else {
+		if (mtype != NULL)
+			MALLOC(ip->i_din2, struct ufs2_dinode *,
+			    sizeof(struct ufs2_dinode), mtype, M_WAITOK);
+		*ip->i_din2 =
+		    *((struct ufs2_dinode *)bp->b_data + ino_to_fsbo(fs, ino));
+		ip->i_mode = ip->i_din2->di_mode;
+		ip->i_nlink = ip->i_din2->di_nlink;
+		ip->i_size = ip->i_din2->di_size;
+		ip->i_flags = ip->i_din2->di_flags;
+		ip->i_gen = ip->i_din2->di_gen;
+		ip->i_uid = ip->i_din2->di_uid;
+		ip->i_gid = ip->i_din2->di_gid;
+	}
+}
+#endif /* KERNEL */
 
 /*
  * Update the frsum fields to reflect addition or deletion
@@ -135,7 +184,7 @@ ffs_checkoverlap(bp, ip)
 	struct inode *ip;
 {
 	struct buf *ebp, *ep;
-	ufs_daddr_t start, last;
+	ufs2_daddr_t start, last;
 	struct vnode *vp;
 
 	ebp = &buf[nbuf];
@@ -151,9 +200,9 @@ ffs_checkoverlap(bp, ip)
 		    ep->b_blkno + btodb(ep->b_bcount) <= start)
 			continue;
 		vprint("Disk overlap", vp);
-		(void)printf("\tstart %lu, end %lu overlap start %lu, end %lu\n",
-			(u_long)start, (u_long)last, (u_long)ep->b_blkno,
-			(u_long)(ep->b_blkno + btodb(ep->b_bcount) - 1));
+		printf("\tstart %llu, end %llu overlap start %llu, end %llu\n",
+		    (intmax_t)start, (intmax_t)last, (intmax_t)ep->b_blkno,
+		    (intmax_t)(ep->b_blkno + btodb(ep->b_bcount) - 1));
 		panic("ffs_checkoverlap: Disk buffer overlap");
 	}
 }
@@ -168,7 +217,7 @@ int
 ffs_isblock(fs, cp, h)
 	struct fs *fs;
 	unsigned char *cp;
-	ufs_daddr_t h;
+	ufs1_daddr_t h;
 {
 	unsigned char mask;
 
@@ -197,7 +246,7 @@ int
 ffs_isfreeblock(fs, cp, h)
 	struct fs *fs;
 	unsigned char *cp;
-	ufs_daddr_t h;
+	ufs1_daddr_t h;
 {
 
 	switch ((int)fs->fs_frag) {
@@ -222,7 +271,7 @@ void
 ffs_clrblock(fs, cp, h)
 	struct fs *fs;
 	u_char *cp;
-	ufs_daddr_t h;
+	ufs1_daddr_t h;
 {
 
 	switch ((int)fs->fs_frag) {
@@ -250,7 +299,7 @@ void
 ffs_setblock(fs, cp, h)
 	struct fs *fs;
 	unsigned char *cp;
-	ufs_daddr_t h;
+	ufs1_daddr_t h;
 {
 
 	switch ((int)fs->fs_frag) {

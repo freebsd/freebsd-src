@@ -68,10 +68,6 @@ static const char rcsid[] =
 #include "dump.h"
 #include "pathnames.h"
 
-#ifndef SBOFF
-#define SBOFF (SBLOCK * DEV_BSIZE)
-#endif
-
 int	notify = 0;	/* notify operator flag */
 int	blockswritten = 0;	/* number of blocks written on current tape */
 int	tapeno = 0;	/* current tape number */
@@ -83,6 +79,11 @@ long	dev_bsize = 1;	/* recalculated below */
 long	blocksperfile;	/* output blocks per file */
 char	*host = NULL;	/* remote host (if any) */
 
+/*
+ * Possible superblock locations ordered from most to least likely.
+ */
+static int sblock_try[] = SBLOCKSEARCH;
+
 static long numarg(const char *, long, long);
 static void obsolete(int *, char **[]);
 static void usage(void) __dead2;
@@ -93,17 +94,17 @@ main(int argc, char *argv[])
 	struct stat sb;
 	ino_t ino;
 	int dirty;
-	struct dinode *dp;
+	union dinode *dp;
 	struct	fstab *dt;
 	char *map;
-	int ch;
+	int ch, mode;
 	int i, anydirskipped, bflag = 0, Tflag = 0, honorlevel = 1;
 	int just_estimate = 0;
 	ino_t maxino;
 	char *tmsg;
 	time_t t;
 
-	spcl.c_date = _time_to_time32(time(NULL));
+	spcl.c_date = _time_to_time64(time(NULL));
 
 	tsize = 0;	/* Default later, based on 'c' option for cart tapes */
 	if ((tape = getenv("TAPE")) == NULL)
@@ -316,14 +317,14 @@ main(int argc, char *argv[])
 	if (spcl.c_date == 0) {
 		tmsg = "the epoch\n";
 	} else {
-		time_t t = _time32_to_time(spcl.c_date);
+		time_t t = _time64_to_time(spcl.c_date);
 		tmsg = ctime(&t);
 	}
 	msg("Date of this level %c dump: %s", level, tmsg);
 	if (spcl.c_ddate == 0) {
 		tmsg = "the epoch\n";
 	} else {
-		time_t t = _time32_to_time(spcl.c_ddate);
+		time_t t = _time64_to_time(spcl.c_ddate);
 		tmsg = ctime(&t);
 	}
  	msg("Date of last level %c dump: %s", lastlevel, tmsg);
@@ -343,9 +344,18 @@ main(int argc, char *argv[])
 		errx(X_STARTUP, "%s: unknown filesystem", disk);
 	sync();
 	sblock = (struct fs *)sblock_buf;
-	bread(SBOFF, (char *) sblock, SBSIZE);
-	if (sblock->fs_magic != FS_MAGIC)
-		quit("bad sblock magic number\n");
+	for (i = 0; sblock_try[i] != -1; i++) {
+		bread(sblock_try[i] >> dev_bshift, (char *) sblock, SBLOCKSIZE);
+		if ((sblock->fs_magic == FS_UFS1_MAGIC ||
+		     (sblock->fs_magic == FS_UFS2_MAGIC &&
+		      sblock->fs_sblockloc ==
+			  numfrags(sblock, sblock_try[i]))) &&
+		    sblock->fs_bsize <= MAXBSIZE &&
+		    sblock->fs_bsize >= sizeof(struct fs))
+			break;
+	}
+	if (sblock_try[i] == -1)
+		quit("Cannot find filesystem superblock\n");
 	dev_bsize = sblock->fs_fsize / fsbtodb(sblock, 1);
 	dev_bshift = ffs(dev_bsize) - 1;
 	if (dev_bsize != (1 << dev_bshift))
@@ -353,10 +363,6 @@ main(int argc, char *argv[])
 	tp_bshift = ffs(TP_BSIZE) - 1;
 	if (TP_BSIZE != (1 << tp_bshift))
 		quit("TP_BSIZE (%d) is not a power of 2", TP_BSIZE);
-#ifdef FS_44INODEFMT
-	if (sblock->fs_inodefmt >= FS_44INODEFMT)
-		spcl.c_flags |= DR_NEWINODEFMT;
-#endif
 	maxino = sblock->fs_ipg * sblock->fs_ncg;
 	mapsize = roundup(howmany(maxino, NBBY), TP_BSIZE);
 	usedinomap = (char *)calloc((unsigned) mapsize, sizeof(char));
@@ -456,8 +462,8 @@ main(int argc, char *argv[])
 		/*
 		 * Skip directory inodes deleted and maybe reallocated
 		 */
-		dp = getino(ino);
-		if ((dp->di_mode & IFMT) != IFDIR)
+		dp = getino(ino, &mode);
+		if (mode != IFDIR)
 			continue;
 		(void)dumpino(dp, ino);
 	}
@@ -466,8 +472,6 @@ main(int argc, char *argv[])
 	setproctitle("%s: pass 4: regular files", disk);
 	msg("dumping (Pass IV) [regular files]\n");
 	for (map = dumpinomap, ino = 1; ino < maxino; ino++) {
-		int mode;
-
 		if (((ino - 1) % NBBY) == 0)	/* map is offset by 1 */
 			dirty = *map++;
 		else
@@ -477,8 +481,7 @@ main(int argc, char *argv[])
 		/*
 		 * Skip inodes deleted and reallocated as directories.
 		 */
-		dp = getino(ino);
-		mode = dp->di_mode & IFMT;
+		dp = getino(ino, &mode);
 		if (mode == IFDIR)
 			continue;
 		(void)dumpino(dp, ino);
@@ -489,9 +492,9 @@ main(int argc, char *argv[])
 	for (i = 0; i < ntrec; i++)
 		writeheader(maxino - 1);
 	if (pipeout)
-		msg("DUMP: %ld tape blocks\n", spcl.c_tapea);
+		msg("DUMP: %qd tape blocks\n", spcl.c_tapea);
 	else
-		msg("DUMP: %ld tape blocks on %d volume%s\n",
+		msg("DUMP: %qd tape blocks on %d volume%s\n",
 		    spcl.c_tapea, spcl.c_volume,
 		    (spcl.c_volume == 1) ? "" : "s");
 
@@ -499,7 +502,7 @@ main(int argc, char *argv[])
 	if (tend_writing - tstart_writing == 0)
 		msg("finished in less than a second\n");
 	else
-		msg("finished in %d seconds, throughput %d KBytes/sec\n",
+		msg("finished in %d seconds, throughput %qd KBytes/sec\n",
 		    tend_writing - tstart_writing,
 		    spcl.c_tapea / (tend_writing - tstart_writing));
 

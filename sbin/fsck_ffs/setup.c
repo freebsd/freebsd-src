@@ -210,7 +210,8 @@ setup(char *dev)
 			sbdirty();
 		}
 	}
-	if (sblock.fs_inodefmt < FS_44INODEFMT) {
+	if (sblock.fs_magic == FS_UFS1_MAGIC &&
+	    sblock.fs_old_inodefmt < FS_44INODEFMT) {
 		pwarn("Format of filesystem is too old.\n");
 		pwarn("Must update to modern format using a version of fsck\n");
 		pfatal("from before 2002 with the command ``fsck -c 2''\n");
@@ -286,28 +287,43 @@ badsb:
 }
 
 /*
+ * Possible superblock locations ordered from most to least likely.
+ */
+static int sblock_try[] = SBLOCKSEARCH;
+
+/*
  * Read in the super block and its summary info.
  */
 int
 readsb(int listerr)
 {
-	ufs_daddr_t super = bflag ? bflag : SBOFF / dev_bsize;
+	ufs2_daddr_t super;
+	int i;
 
-	if (bread(fsreadfd, (char *)&sblock, super, (long)SBSIZE) != 0)
-		return (0);
-	sblk.b_bno = super;
-	sblk.b_size = SBSIZE;
-	/*
-	 * run a few consistency checks of the super block
-	 */
-	if (sblock.fs_magic != FS_MAGIC)
-		{ badsb(listerr, "MAGIC NUMBER WRONG"); return (0); }
-	if (sblock.fs_ncg < 1)
-		{ badsb(listerr, "NCG OUT OF RANGE"); return (0); }
-	if (sblock.fs_cpg < 1)
-		{ badsb(listerr, "CPG OUT OF RANGE"); return (0); }
-	if (sblock.fs_sbsize > SBSIZE)
-		{ badsb(listerr, "SIZE PREPOSTEROUSLY LARGE"); return (0); }
+	if (bflag) {
+		super = bflag;
+		if ((bread(fsreadfd, (char *)&sblock, super, (long)SBLOCKSIZE)))
+			return (0);
+	} else {
+		for (i = 0; sblock_try[i] != -1; i++) {
+			super = sblock_try[i] / dev_bsize;
+			if ((bread(fsreadfd, (char *)&sblock, super,
+			    (long)SBLOCKSIZE)))
+				return (0);
+			if ((sblock.fs_magic == FS_UFS1_MAGIC ||
+			     (sblock.fs_magic == FS_UFS2_MAGIC &&
+			      sblock.fs_sblockloc ==
+				  numfrags(&sblock, sblock_try[i]))) &&
+			    sblock.fs_ncg >= 1 &&
+			    sblock.fs_bsize >= SBLOCKSIZE &&
+			    sblock.fs_bsize >= sizeof(struct fs))
+				break;
+		}
+		if (sblock_try[i] == -1) {
+			fprintf(stderr, "Cannot find filesystem superblock\n");
+			return (0);
+		}
+	}
 	/*
 	 * Compute block size that the filesystem is based on,
 	 * according to fsbtodb, and adjust superblock block number
@@ -316,6 +332,7 @@ readsb(int listerr)
 	super *= dev_bsize;
 	dev_bsize = sblock.fs_fsize / fsbtodb(&sblock, 1);
 	sblk.b_bno = super / dev_bsize;
+	sblk.b_size = SBLOCKSIZE;
 	if (bflag) {
 		havesb = 1;
 		return (1);
@@ -331,8 +348,6 @@ readsb(int listerr)
 	    altsblock.fs_cblkno != sblock.fs_cblkno ||
 	    altsblock.fs_iblkno != sblock.fs_iblkno ||
 	    altsblock.fs_dblkno != sblock.fs_dblkno ||
-	    altsblock.fs_cgoffset != sblock.fs_cgoffset ||
-	    altsblock.fs_cgmask != sblock.fs_cgmask ||
 	    altsblock.fs_ncg != sblock.fs_ncg ||
 	    altsblock.fs_bsize != sblock.fs_bsize ||
 	    altsblock.fs_fsize != sblock.fs_fsize ||
@@ -347,13 +362,27 @@ readsb(int listerr)
 	    altsblock.fs_nindir != sblock.fs_nindir ||
 	    altsblock.fs_inopb != sblock.fs_inopb ||
 	    altsblock.fs_cssize != sblock.fs_cssize ||
-	    altsblock.fs_cpg != sblock.fs_cpg ||
 	    altsblock.fs_ipg != sblock.fs_ipg ||
 	    altsblock.fs_fpg != sblock.fs_fpg ||
 	    altsblock.fs_magic != sblock.fs_magic) {
 		badsb(listerr,
 		"VALUES IN SUPER BLOCK DISAGREE WITH THOSE IN FIRST ALTERNATE");
 		return (0);
+	}
+	/*
+	 * If not yet done, update UFS1 superblock with new wider fields.
+	 */
+	if (sblock.fs_magic == FS_UFS1_MAGIC &&
+	    sblock.fs_maxbsize != sblock.fs_bsize) {
+		sblock.fs_maxbsize = sblock.fs_bsize;
+		sblock.fs_time = sblock.fs_old_time;
+		sblock.fs_size = sblock.fs_old_size;
+		sblock.fs_dsize = sblock.fs_old_dsize;
+		sblock.fs_csaddr = sblock.fs_old_csaddr;
+		sblock.fs_cstotal.cs_ndir = sblock.fs_old_cstotal.cs_ndir;
+		sblock.fs_cstotal.cs_nbfree = sblock.fs_old_cstotal.cs_nbfree;
+		sblock.fs_cstotal.cs_nifree = sblock.fs_old_cstotal.cs_nifree;
+		sblock.fs_cstotal.cs_nffree = sblock.fs_old_cstotal.cs_nffree;
 	}
 	havesb = 1;
 	return (1);
@@ -380,8 +409,8 @@ sblock_init(void)
 	lfdir = 0;
 	initbarea(&sblk);
 	initbarea(&asblk);
-	sblk.b_un.b_buf = malloc(SBSIZE);
-	asblk.b_un.b_buf = malloc(SBSIZE);
+	sblk.b_un.b_buf = malloc(SBLOCKSIZE);
+	asblk.b_un.b_buf = malloc(SBLOCKSIZE);
 	if (sblk.b_un.b_buf == NULL || asblk.b_un.b_buf == NULL)
 		errx(EEXIT, "cannot allocate space for superblock");
 	if ((lp = getdisklabel(NULL, fsreadfd)))
@@ -402,7 +431,7 @@ calcsb(char *dev, int devfd, struct fs *fs)
 	struct disklabel *lp;
 	struct partition *pp;
 	char *cp;
-	int i;
+	int i, nspf;
 
 	cp = strchr(dev, '\0') - 1;
 	if (cp == (char *)-1 || ((*cp < 'a' || *cp > 'h') && !isdigit(*cp))) {
@@ -430,24 +459,30 @@ calcsb(char *dev, int devfd, struct fs *fs)
 	memset(fs, 0, sizeof(struct fs));
 	fs->fs_fsize = pp->p_fsize;
 	fs->fs_frag = pp->p_frag;
-	fs->fs_cpg = pp->p_cpg;
 	fs->fs_size = pp->p_size;
-	fs->fs_ntrak = lp->d_ntracks;
-	fs->fs_nsect = lp->d_nsectors;
-	fs->fs_spc = lp->d_secpercyl;
-	fs->fs_nspf = fs->fs_fsize / lp->d_secsize;
-	fs->fs_cgmask = 0xffffffff;
-	for (i = fs->fs_ntrak; i > 1; i >>= 1)
-		fs->fs_cgmask <<= 1;
-	if (!POWEROF2(fs->fs_ntrak))
-		fs->fs_cgmask <<= 1;
-	fs->fs_cgoffset = roundup(
-		howmany(fs->fs_nsect, NSPF(fs)), fs->fs_frag);
-	fs->fs_fpg = (fs->fs_cpg * fs->fs_spc) / NSPF(fs);
-	fs->fs_ncg = howmany(fs->fs_size / fs->fs_spc, fs->fs_cpg);
-	for (fs->fs_fsbtodb = 0, i = NSPF(fs); i > 1; i >>= 1)
+	fs->fs_sblkno = roundup(
+		howmany(lp->d_bbsize + lp->d_sbsize, fs->fs_fsize),
+		fs->fs_frag);
+	nspf = fs->fs_fsize / lp->d_secsize;
+	for (fs->fs_fsbtodb = 0, i = nspf; i > 1; i >>= 1)
 		fs->fs_fsbtodb++;
 	dev_bsize = lp->d_secsize;
+	if (fs->fs_magic == FS_UFS2_MAGIC) {
+		fs->fs_fpg = pp->p_cpg;
+		fs->fs_ncg = howmany(fs->fs_size, fs->fs_fpg);
+	} else /* if (fs->fs_magic == FS_UFS1_MAGIC) */ {
+		fs->fs_old_cpg = pp->p_cpg;
+		fs->fs_old_cgmask = 0xffffffff;
+		for (i = lp->d_ntracks; i > 1; i >>= 1)
+			fs->fs_old_cgmask <<= 1;
+		if (!POWEROF2(lp->d_ntracks))
+			fs->fs_old_cgmask <<= 1;
+		fs->fs_old_cgoffset = roundup(howmany(lp->d_nsectors, nspf),
+		    fs->fs_frag);
+		fs->fs_fpg = (fs->fs_old_cpg * lp->d_secpercyl) / nspf;
+		fs->fs_ncg = howmany(fs->fs_size / lp->d_secpercyl,
+		    fs->fs_old_cpg);
+	}
 	return (1);
 }
 

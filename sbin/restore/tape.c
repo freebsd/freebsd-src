@@ -74,20 +74,19 @@ static int	numtrec;
 static char	*tapebuf;
 static union	u_spcl endoftapemark;
 static long	blksread;		/* blocks read since last header */
-static long	tapeaddr = 0;		/* current TP_BSIZE tape record */
+static int64_t	tapeaddr = 0;		/* current TP_BSIZE tape record */
 static long	tapesread;
 static jmp_buf	restart;
 static int	gettingfile = 0;	/* restart has a valid frame */
 static char	*host = NULL;
+static int	readmapflag;
 
 static int	ofile;
 static char	*map;
 static char	lnkbuf[MAXPATHLEN + 1];
 static int	pathlen;
 
-int		oldinofmt;	/* old inode format conversion required */
-int		Bcvt;		/* Swap Bytes (for CCI or sun) */
-static int	Qcvt;		/* Swap quads (for sun) */
+int		Bcvt;		/* Swap Bytes */
 
 #define	FLUSHTAPEBUF()	blkcnt = ntrec + 1
 
@@ -108,8 +107,6 @@ static void	 xtrlnkskip(char *, long);
 static void	 xtrmap(char *, long);
 static void	 xtrmapskip(char *, long);
 static void	 xtrskip(char *, long);
-
-static int readmapflag;
 
 /*
  * Set up an input source
@@ -207,17 +204,11 @@ setup(void)
 	if (!pipein && !bflag)
 		findtapeblksize();
 	if (gethead(&spcl) == FAIL) {
-		blkcnt--; /* push back this block */
-		blksread--;
-		cvtflag++;
-		if (gethead(&spcl) == FAIL) {
-			fprintf(stderr, "Tape is not a dump tape\n");
-			done(1);
-		}
-		fprintf(stderr, "Converting to new filesystem format.\n");
+		fprintf(stderr, "Tape is not a dump tape\n");
+		done(1);
 	}
 	if (pipein) {
-		endoftapemark.s_spcl.c_magic = cvtflag ? OFS_MAGIC : NFS_MAGIC;
+		endoftapemark.s_spcl.c_magic = FS_UFS2_MAGIC;
 		endoftapemark.s_spcl.c_type = TS_END;
 		ip = (int *)&endoftapemark;
 		j = sizeof(union u_spcl) / sizeof(int);
@@ -229,8 +220,8 @@ setup(void)
 	}
 	if (vflag || command == 't')
 		printdumpinfo();
-	dumptime = _time32_to_time(spcl.c_ddate);
-	dumpdate = _time32_to_time(spcl.c_date);
+	dumptime = _time64_to_time(spcl.c_ddate);
+	dumpdate = _time64_to_time(spcl.c_date);
 	if (stat(".", &stbuf) < 0) {
 		fprintf(stderr, "cannot stat .: %s\n", strerror(errno));
 		done(1);
@@ -279,8 +270,7 @@ setup(void)
 	 * whiteout inode exists, so that the whiteout entries can be
 	 * extracted.
 	 */
-	if (oldinofmt == 0)
-		SETINO(WINO, dumpmap);
+	SETINO(WINO, dumpmap);
 	/* 'r' restores don't call getvol() for tape 1, so mark it as read. */
 	if (command == 'r')
 		tapesread = 1;
@@ -296,7 +286,8 @@ setup(void)
 void
 getvol(long nextvol)
 {
-	long newvol, prevtapea, savecnt, i;
+	int64_t prevtapea;
+	long i, newvol, savecnt;
 	union u_spcl tmpspcl;
 #	define tmpbuf tmpspcl.s_spcl
 	char buf[TP_BSIZE];
@@ -403,9 +394,9 @@ gethdr:
 		volno = 0;
 		goto again;
 	}
-	if (_time32_to_time(tmpbuf.c_date) != dumpdate ||
-	    _time32_to_time(tmpbuf.c_ddate) != dumptime) {
-		time_t t = _time32_to_time(tmpbuf.c_date);
+	if (_time64_to_time(tmpbuf.c_date) != dumpdate ||
+	    _time64_to_time(tmpbuf.c_ddate) != dumptime) {
+		time_t t = _time64_to_time(tmpbuf.c_date);
 		fprintf(stderr, "Wrong dump date\n\tgot: %s", ctime(&t));
 		fprintf(stderr, "\twanted: %s", ctime(&dumpdate));
 		volno = 0;
@@ -420,9 +411,9 @@ gethdr:
  	 * If coming to this volume at random, skip to the beginning
  	 * of the next record.
  	 */
-	dprintf(stdout, "last rec %ld, tape starts with %ld\n", prevtapea,
+	dprintf(stdout, "last rec %qd, tape starts with %qd\n", prevtapea,
 	    tmpbuf.c_tapea);
- 	if (tmpbuf.c_type == TS_TAPE && (tmpbuf.c_flags & DR_NEWHEADER)) {
+ 	if (tmpbuf.c_type == TS_TAPE) {
  		if (curfile.action != USING) {
 			/*
 			 * XXX Dump incorrectly sets c_count to 1 in the
@@ -475,7 +466,7 @@ terminateinput(void)
 	}
 	curfile.name = "<name unknown>";
 	curfile.action = UNKNOWN;
-	curfile.dip = NULL;
+	curfile.mode = 0;
 	curfile.ino = maxino;
 	if (gettingfile) {
 		gettingfile = 0;
@@ -513,9 +504,9 @@ void
 printdumpinfo(void)
 {
 	time_t t;
-	t = _time32_to_time(spcl.c_date);
+	t = _time64_to_time(spcl.c_date);
 	fprintf(stdout, "Dump   date: %s", ctime(&t));
-	t = _time32_to_time(spcl.c_ddate);
+	t = _time64_to_time(spcl.c_ddate);
 	fprintf(stdout, "Dumped from: %s",
 	    (spcl.c_ddate == 0) ? "the epoch\n" : ctime(&t));
 	if (spcl.c_host[0] == '\0')
@@ -529,22 +520,18 @@ int
 extractfile(char *name)
 {
 	int flags;
-	uid_t uid;
-	gid_t gid;
 	mode_t mode;
 	struct timeval timep[2];
 	struct entry *ep;
 
 	curfile.name = name;
 	curfile.action = USING;
-	timep[0].tv_sec = curfile.dip->di_atime;
-	timep[0].tv_usec = curfile.dip->di_atimensec / 1000;
-	timep[1].tv_sec = curfile.dip->di_mtime;
-	timep[1].tv_usec = curfile.dip->di_mtimensec / 1000;
-	uid = curfile.dip->di_uid;
-	gid = curfile.dip->di_gid;
-	mode = curfile.dip->di_mode;
-	flags = curfile.dip->di_flags;
+	timep[0].tv_sec = curfile.atime_sec;
+	timep[0].tv_usec = curfile.atime_nsec / 1000;
+	timep[1].tv_sec = curfile.mtime_sec;
+	timep[1].tv_usec = curfile.mtime_nsec / 1000;
+	mode = curfile.mode;
+	flags = curfile.file_flags;
 	switch (mode & IFMT) {
 
 	default:
@@ -578,7 +565,7 @@ extractfile(char *name)
 			return (GOOD);
 		}
 		if (linkit(lnkbuf, name, SYMLINK) == GOOD) {
-			(void) lchown(name, uid, gid);
+			(void) lchown(name, curfile.uid, curfile.gid);
 			(void) lchmod(name, mode);
 			(void) lutimes(name, timep);
 			return (GOOD);
@@ -599,7 +586,7 @@ extractfile(char *name)
 			skipfile();
 			return (FAIL);
 		}
-		(void) chown(name, uid, gid);
+		(void) chown(name, curfile.uid, curfile.gid);
 		(void) chmod(name, mode);
 		(void) utimes(name, timep);
 		(void) chflags(name, flags);
@@ -615,13 +602,13 @@ extractfile(char *name)
 		}
 		if (uflag)
 			(void)unlink(name);
-		if (mknod(name, mode, (int)curfile.dip->di_rdev) < 0) {
+		if (mknod(name, mode, (int)curfile.rdev) < 0) {
 			fprintf(stderr, "%s: cannot create special file: %s\n",
 			    name, strerror(errno));
 			skipfile();
 			return (FAIL);
 		}
-		(void) chown(name, uid, gid);
+		(void) chown(name, curfile.uid, curfile.gid);
 		(void) chmod(name, mode);
 		(void) utimes(name, timep);
 		(void) chflags(name, flags);
@@ -643,7 +630,7 @@ extractfile(char *name)
 			skipfile();
 			return (FAIL);
 		}
-		(void) fchown(ofile, uid, gid);
+		(void) fchown(ofile, curfile.uid, curfile.gid);
 		(void) fchmod(ofile, mode);
 		getfile(xtrfile, xtrskip);
 		(void) close(ofile);
@@ -687,14 +674,14 @@ getfile(void (*fill)(char *, long), void (*skip)(char *, long))
 {
 	int i;
 	int curblk = 0;
-	quad_t size = spcl.c_dinode.di_size;
+	quad_t size = spcl.c_size;
 	static char clearedbuf[MAXBSIZE];
 	char buf[MAXBSIZE / TP_BSIZE][TP_BSIZE];
 	char junk[TP_BSIZE];
 
 	if (spcl.c_type == TS_END)
 		panic("ran off end of tape\n");
-	if (spcl.c_magic != NFS_MAGIC)
+	if (spcl.c_magic != FS_UFS2_MAGIC)
 		panic("not at beginning of a file\n");
 	if (!gettingfile && setjmp(restart) != 0)
 		return;
@@ -1000,106 +987,43 @@ closemt(void)
 
 /*
  * Read the next block from the tape.
- * Check to see if it is one of several vintage headers.
- * If it is an old style header, convert it to a new style header.
  * If it is not any valid header, return an error.
  */
 static int
 gethead(struct s_spcl *buf)
 {
 	long i;
-	union {
-		quad_t	qval;
-		int32_t	val[2];
-	} qcvt;
-	union u_ospcl {
-		char dummy[TP_BSIZE];
-		struct	s_ospcl {
-			int32_t	c_type;
-			int32_t	c_date;
-			int32_t	c_ddate;
-			int32_t	c_volume;
-			int32_t	c_tapea;
-			u_short	c_inumber;
-			int32_t	c_magic;
-			int32_t	c_checksum;
-			struct odinode {
-				unsigned short odi_mode;
-				u_short	odi_nlink;
-				u_short	odi_uid;
-				u_short	odi_gid;
-				int32_t	odi_size;
-				int32_t	odi_rdev;
-				char	odi_addr[36];
-				int32_t	odi_atime;
-				int32_t	odi_mtime;
-				int32_t	odi_ctime;
-			} c_dinode;
-			int32_t	c_count;
-			char	c_addr[256];
-		} s_ospcl;
-	} u_ospcl;
 
-	if (!cvtflag) {
-		readtape((char *)buf);
-		if (buf->c_magic != NFS_MAGIC) {
-			if (swabl(buf->c_magic) != NFS_MAGIC)
-				return (FAIL);
-			if (!Bcvt) {
-				vprintf(stdout, "Note: Doing Byte swapping\n");
-				Bcvt = 1;
-			}
-		}
-		if (checksum((int *)buf) == FAIL)
+	readtape((char *)buf);
+	if (buf->c_magic != FS_UFS2_MAGIC && buf->c_magic != NFS_MAGIC) {
+		if (buf->c_magic == OFS_MAGIC) {
+			fprintf(stderr,
+			    "Format of dump tape is too old. Must use\n");
+			fprintf(stderr,
+			    "a version of restore from before 2002.\n");
 			return (FAIL);
-		if (Bcvt) {
-			swabst((u_char *)"8l4s31l", (u_char *)buf);
-			swabst((u_char *)"l",(u_char *) &buf->c_level);
-			swabst((u_char *)"2l",(u_char *) &buf->c_flags);
 		}
-		goto good;
-	}
-	readtape((char *)(&u_ospcl.s_ospcl));
-	memset(buf, 0, (long)TP_BSIZE);
-	buf->c_type = u_ospcl.s_ospcl.c_type;
-	buf->c_date = u_ospcl.s_ospcl.c_date;
-	buf->c_ddate = u_ospcl.s_ospcl.c_ddate;
-	buf->c_volume = u_ospcl.s_ospcl.c_volume;
-	buf->c_tapea = u_ospcl.s_ospcl.c_tapea;
-	buf->c_inumber = u_ospcl.s_ospcl.c_inumber;
-	buf->c_checksum = u_ospcl.s_ospcl.c_checksum;
-	buf->c_magic = u_ospcl.s_ospcl.c_magic;
-	buf->c_dinode.di_mode = u_ospcl.s_ospcl.c_dinode.odi_mode;
-	buf->c_dinode.di_nlink = u_ospcl.s_ospcl.c_dinode.odi_nlink;
-	buf->c_dinode.di_uid = u_ospcl.s_ospcl.c_dinode.odi_uid;
-	buf->c_dinode.di_gid = u_ospcl.s_ospcl.c_dinode.odi_gid;
-	buf->c_dinode.di_size = u_ospcl.s_ospcl.c_dinode.odi_size;
-	buf->c_dinode.di_rdev = u_ospcl.s_ospcl.c_dinode.odi_rdev;
-	buf->c_dinode.di_atime = u_ospcl.s_ospcl.c_dinode.odi_atime;
-	buf->c_dinode.di_mtime = u_ospcl.s_ospcl.c_dinode.odi_mtime;
-	buf->c_dinode.di_ctime = u_ospcl.s_ospcl.c_dinode.odi_ctime;
-	buf->c_count = u_ospcl.s_ospcl.c_count;
-	memmove(buf->c_addr, u_ospcl.s_ospcl.c_addr, (long)256);
-	if (u_ospcl.s_ospcl.c_magic != OFS_MAGIC ||
-	    checksum((int *)(&u_ospcl.s_ospcl)) == FAIL)
-		return(FAIL);
-	buf->c_magic = NFS_MAGIC;
-
-good:
-	if ((buf->c_dinode.di_size == 0 || buf->c_dinode.di_size > 0xfffffff) &&
-	    (buf->c_dinode.di_mode & IFMT) == IFDIR && Qcvt == 0) {
-		qcvt.qval = buf->c_dinode.di_size;
-		if (qcvt.val[0] || qcvt.val[1]) {
-			printf("Note: Doing Quad swapping\n");
-			Qcvt = 1;
+		if (swabl(buf->c_magic) != FS_UFS2_MAGIC &&
+		    buf->c_magic != NFS_MAGIC) {
+			if (buf->c_magic == OFS_MAGIC) {
+				fprintf(stderr,
+				  "Format of dump tape is too old. Must use\n");
+				fprintf(stderr,
+				  "a version of restore from before 2002.\n");
+			}
+			return (FAIL);
+		}
+		if (!Bcvt) {
+			vprintf(stdout, "Note: Doing Byte swapping\n");
+			Bcvt = 1;
 		}
 	}
-	if (Qcvt) {
-		qcvt.qval = buf->c_dinode.di_size;
-		i = qcvt.val[1];
-		qcvt.val[1] = qcvt.val[0];
-		qcvt.val[0] = i;
-		buf->c_dinode.di_size = qcvt.qval;
+	if (checksum((int *)buf) == FAIL)
+		return (FAIL);
+	if (Bcvt) {
+		swabst((u_char *)"8l4s1q8l2q17l", (u_char *)buf);
+		swabst((u_char *)"l",(u_char *) &buf->c_level);
+		swabst((u_char *)"2l4q",(u_char *) &buf->c_flags);
 	}
 	readmapflag = 0;
 
@@ -1111,7 +1035,7 @@ good:
 		 * Have to patch up missing information in bit map headers
 		 */
 		buf->c_inumber = 0;
-		buf->c_dinode.di_size = buf->c_count * TP_BSIZE;
+		buf->c_size = buf->c_count * TP_BSIZE;
 		if (buf->c_count > TP_NINDIR)
 			readmapflag = 1;
 		else 
@@ -1120,14 +1044,25 @@ good:
 		break;
 
 	case TS_TAPE:
-		if ((buf->c_flags & DR_NEWINODEFMT) == 0)
-			oldinofmt = 1;
-		/* fall through */
 	case TS_END:
 		buf->c_inumber = 0;
 		break;
 
 	case TS_INODE:
+		/*
+		 * For old dump tapes, have to copy up old fields to
+		 * new locations.
+		 */
+		if (buf->c_magic == NFS_MAGIC) {
+			buf->c_tapea = buf->c_old_tapea;
+			buf->c_firstrec = buf->c_old_firstrec;
+			buf->c_date = _time32_to_time(buf->c_old_date);
+			buf->c_ddate = _time32_to_time(buf->c_old_ddate);
+			buf->c_atime = _time32_to_time(buf->c_old_atime);
+			buf->c_mtime = _time32_to_time(buf->c_old_mtime);
+		}
+		break;
+
 	case TS_ADDR:
 		break;
 
@@ -1135,14 +1070,7 @@ good:
 		panic("gethead: unknown inode type %d\n", buf->c_type);
 		break;
 	}
-	/*
-	 * If we are restoring a filesystem with old format inodes,
-	 * copy the uid/gid to the new location.
-	 */
-	if (oldinofmt) {
-		buf->c_dinode.di_uid = buf->c_dinode.di_ouid;
-		buf->c_dinode.di_gid = buf->c_dinode.di_ogid;
-	}
+	buf->c_magic = FS_UFS2_MAGIC;
 	tapeaddr = buf->c_tapea;
 	if (dflag)
 		accthdr(buf);
@@ -1161,10 +1089,9 @@ accthdr(struct s_spcl *header)
 	long blks, i;
 
 	if (header->c_type == TS_TAPE) {
-		fprintf(stderr, "Volume header (%s inode format) ",
-		    oldinofmt ? "old" : "new");
+		fprintf(stderr, "Volume header ");
  		if (header->c_firstrec)
- 			fprintf(stderr, "begins with record %ld",
+ 			fprintf(stderr, "begins with record %qd",
  				header->c_firstrec);
  		fprintf(stderr, "\n");
 		previno = 0x7fffffff;
@@ -1219,15 +1146,9 @@ findinode(struct s_spcl *header)
 
 	curfile.name = "<name unknown>";
 	curfile.action = UNKNOWN;
-	curfile.dip = NULL;
+	curfile.mode = 0;
 	curfile.ino = 0;
 	do {
-		if (header->c_magic != NFS_MAGIC) {
-			skipcnt++;
-			while (gethead(header) == FAIL ||
-			    _time32_to_time(header->c_date) != dumpdate)
-				skipcnt++;
-		}
 		htype = header->c_type;
 		switch (htype) {
 
@@ -1239,12 +1160,21 @@ findinode(struct s_spcl *header)
 				if (header->c_addr[i])
 					readtape(buf);
 			while (gethead(header) == FAIL ||
-			    _time32_to_time(header->c_date) != dumpdate)
+			    _time64_to_time(header->c_date) != dumpdate)
 				skipcnt++;
 			break;
 
 		case TS_INODE:
-			curfile.dip = &header->c_dinode;
+			curfile.mode = header->c_mode;
+			curfile.uid = header->c_uid;
+			curfile.gid = header->c_gid;
+			curfile.file_flags = header->c_file_flags;
+			curfile.rdev = header->c_rdev;
+			curfile.atime_sec = header->c_atime;
+			curfile.atime_nsec = header->c_atimensec;
+			curfile.mtime_sec = header->c_mtime;
+			curfile.mtime_nsec = header->c_mtimensec;
+			curfile.size = header->c_size;
 			curfile.ino = header->c_inumber;
 			break;
 
@@ -1288,7 +1218,7 @@ checksum(int *buf)
 
 	j = sizeof(union u_spcl) / sizeof(int);
 	i = 0;
-	if(!Bcvt) {
+	if (!Bcvt) {
 		do
 			i += *buf++;
 		while (--j);
@@ -1346,6 +1276,21 @@ swablong(u_char *sp, int n)
 	return (sp);
 }
 
+static u_char *
+swabquad(u_char *sp, int n)
+{
+	char c;
+
+	while (--n >= 0) {
+		c = sp[0]; sp[0] = sp[7]; sp[7] = c;
+		c = sp[1]; sp[1] = sp[6]; sp[6] = c;
+		c = sp[2]; sp[2] = sp[5]; sp[5] = c;
+		c = sp[3]; sp[3] = sp[4]; sp[4] = c;
+		sp += 8;
+	}
+	return (sp);
+}
+
 void
 swabst(u_char *cp, u_char *sp)
 {
@@ -1370,10 +1315,22 @@ swabst(u_char *cp, u_char *sp)
 			sp = swablong(sp, n);
 			break;
 
-		default: /* Any other character, like 'b' counts as byte. */
+		case 'q':
+			if (n == 0)
+				n = 1;
+			sp = swabquad(sp, n);
+			break;
+
+		case 'b':
 			if (n == 0)
 				n = 1;
 			sp += n;
+			break;
+
+		default:
+			fprintf(stderr, "Unknown conversion character: %c\n",
+			    *cp);
+			done(0);
 			break;
 		}
 		cp++;
