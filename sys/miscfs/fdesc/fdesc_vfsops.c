@@ -84,7 +84,7 @@ fdesc_mount(mp, path, data, ndp, p)
 	if (mp->mnt_flag & MNT_UPDATE)
 		return (EOPNOTSUPP);
 
-	error = fdesc_allocvp(Froot, FD_ROOT, mp, &rvp);
+	error = fdesc_allocvp(Froot, FD_ROOT, mp, &rvp, p);
 	if (error)
 		return (error);
 
