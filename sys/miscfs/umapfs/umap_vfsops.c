@@ -35,7 +35,7 @@
  *
  *	@(#)umap_vfsops.c	8.8 (Berkeley) 5/14/95
  *
- * $Id: umap_vfsops.c,v 1.18 1998/01/01 08:28:26 bde Exp $
+ * $Id: umap_vfsops.c,v 1.19 1998/02/03 14:30:01 kato Exp $
  */
 
 /*
@@ -168,7 +168,7 @@ umapfs_mount(mp, path, data, ndp, p)
 #endif
 
 	error = copyin(args.gmapdata, (caddr_t)amp->info_gmapdata,
-	    2*sizeof(u_long)*args.nentries);
+	    2*sizeof(u_long)*args.gnentries);
 	if (error)
 		return (error);
 
