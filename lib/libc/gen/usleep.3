@@ -39,7 +39,7 @@
 .Nd suspend execution for interval of microseconds
 .Sh SYNOPSIS
 .Fd #include <unistd.h>
-.Ft void
+.Ft int
 .Fn usleep "u_int microseconds"
 .Sh DESCRIPTION
 The
@@ -51,6 +51,10 @@ for
 of time.
 System activity or time spent in processing the
 call may lengthen the sleep slightly.
+.Pp
+The
+.Fa microseconds
+argument must be less than 1000000.
 .Pp
 If a timer is already running on the process its state is unaltered by
 this
@@ -67,6 +71,25 @@ This function is implemented using
 by pausing for
 .Fa microseconds
 of time or until any signal occurse.
+.Sh RETURN VALUES
+The
+.Fn usleep
+function returns 0 on successful completion. Otherwise, it returns -1
+and sets
+.Va errno
+to indicate the error.
+.Sh ERRORS
+The
+.Fn usleep
+function
+will fail if:
+.Bl -tag -width [EINVAL]
+.It Bq Er EINTR
+Some signal occurse.
+.It Bq Er EINVAL
+The
+.Fa microseconds
+argument specified 1000000 or more microseconds.
 .Sh NOTES
 .Pp
 A microsecond is 0.000001 seconds.
