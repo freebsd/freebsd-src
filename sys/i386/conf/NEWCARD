@@ -146,8 +146,8 @@ device		npx0	at nexus? port IO_NPX irq 13
 device		apm0    at nexus? disable flags 0x31 # Advanced Power Management
 
 # PCCARD (PCMCIA) support
-controller	pcicx0	at isa?
-controller	pcicx1	at isa?
+controller	pcic0	at isa?
+controller	pcic1	at isa?
 # controller	pccbb0
 
 # Serial (COM) ports
