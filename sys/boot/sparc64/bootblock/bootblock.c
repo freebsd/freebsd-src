@@ -275,7 +275,7 @@ ofw_seek(ofwh_t devh, u_int64_t off)
 		1,
 		(u_ofwh_t)devh,
 		off >> 32,
-		off & ((1UL << 32) - 1),
+		off,
 		0
 	};
 
@@ -511,6 +511,8 @@ lookup(const char *path)
 
 	ino = ROOTINO;
 	dt = DT_DIR;
+	name[0] = '/';
+	name[1] = '\0';
 	for (;;) {
 		if (*path == '/')
 			path++;
@@ -523,6 +525,10 @@ lookup(const char *path)
 		ls = *path == '?' && n == 1 && !*s;
 		memcpy(name, path, n);
 		name[n] = 0;
+		if (dt != DT_DIR) {
+			printf("%s: not a directory.\n", name);
+			return (0);
+		}
 		if ((dt = fsfind(name, &ino)) <= 0)
 			break;
 		path = s;
@@ -639,21 +645,29 @@ printf(const char *fmt,...)
 	char buf[10];
 	char *s;
 	unsigned long int r, u;
-	int c;
+	int c, longp;
 
 	va_start(ap, fmt);
+	longp = 0;
 	while ((c = *fmt++)) {
-		if (c == '%') {
-			c = *fmt++;
+		if (c == '%' || longp) {
+			if (c == '%')
+				c = *fmt++;
 			switch (c) {
 			case 'c':
+				if (longp)
+					break;
 				putchar(va_arg(ap, int));
 				continue;
 			case 's':
+				if (longp)
+					break;
 				for (s = va_arg(ap, char *); *s; s++)
 					putchar(*s);
 				continue;
 			case 'p':
+				if (longp)
+					break;
 				if (c == 'p') {
 					putchar('0');
 					putchar('x');
@@ -661,7 +675,8 @@ printf(const char *fmt,...)
 			case 'u':
 			case 'x':
 				r = c == 'u' ? 10U : 16U;
-				u = c == 'p' ? va_arg(ap, unsigned long) :
+				u = (c == 'p' || longp) ?
+				    va_arg(ap, unsigned long) :
 				    va_arg(ap, unsigned int);
 				s = buf;
 				do
@@ -669,8 +684,15 @@ printf(const char *fmt,...)
 				while (u /= r);
 				while (--s >= buf)
 					putchar(*s);
+				longp = 0;
+				continue;
+			case 'l':
+				if (longp)
+					break;
+				longp = 1;
 				continue;
 			}
+			longp = 0;
 		}
 		putchar(c);
 	}
