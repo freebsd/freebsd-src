@@ -25,7 +25,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd November 5, 1998
+.Dd October 16, 2004
 .Dt SENDFILE 2
 .Os
 .Sh NAME
@@ -51,6 +51,10 @@ out a stream socket specified by descriptor
 The
 .Fa offset
 argument specifies where to begin in the file.
+Should
+.Fa offset
+fall beyond the end of file, the system will return
+success and report 0 bytes sent as described below.
 The
 .Fa nbytes
 argument specifies how many bytes of the file should be sent, with 0 having the special
@@ -209,7 +213,7 @@ is not a SOCK_STREAM type socket.
 The
 .Fa offset
 argument
-is negative or out of range.
+is invalid, i.e. negative.
 .It Bq Er ENOTCONN
 The
 .Fa s
