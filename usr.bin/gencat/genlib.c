@@ -42,9 +42,9 @@ up-to-date.  Many thanks.
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#ifdef SYSV
 #include <sys/types.h>
 #include <unistd.h>
+#ifdef SYSV
 #define L_SET SEEK_SET
 #define L_INCR SEEK_CUR
 #include <memory.h>
@@ -241,6 +241,10 @@ char quote;
 		break;
 	      case 'f':
 		*tptr++ = '\f';
+		++cptr;
+		break;
+	      case '"':
+		*tptr++ = '"';
 		++cptr;
 		break;
 	      case '\\':

@@ -42,6 +42,7 @@ up-to-date.  Many thanks.
 
 #include <stdio.h>
 #include <sys/types.h>
+#include <unistd.h>
 #ifdef SYSV
 #include <sys/fcntl.h>
 #define L_SET SEEK_SET
