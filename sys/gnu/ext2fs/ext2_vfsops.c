@@ -51,6 +51,9 @@
 #include <sys/stat.h>
 #include <sys/mutex.h>
 
+#include <geom/geom.h>
+#include <geom/geom_vfs.h>
+
 #include <gnu/ext2fs/ext2_mount.h>
 #include <gnu/ext2fs/inode.h>
 
@@ -92,6 +95,7 @@ static struct vfsops ext2fs_vfsops = {
 };
 
 VFS_SET(ext2fs_vfsops, ext2fs, 0);
+
 #define bsd_malloc malloc
 #define bsd_free free
 
@@ -202,6 +206,9 @@ ext2_mount(mp, td)
 		fs = ump->um_e2fs;
 		error = 0;
 		if (fs->s_rd_only == 0 && (mp->mnt_flag & MNT_RDONLY)) {
+			error = VFS_SYNC(mp, MNT_WAIT, td->td_ucred, td);
+			if (error)
+				return (error);
 			flags = WRITECLOSE;
 			if (mp->mnt_flag & MNT_FORCE)
 				flags |= FORCECLOSE;
@@ -214,6 +221,11 @@ ext2_mount(mp, td)
 				ext2_sbupdate(ump, MNT_WAIT);
 			}
 			fs->s_rd_only = 1;
+			DROP_GIANT();
+			g_topology_lock();
+			g_access(ump->um_cp, 0, -1, 0);
+			g_topology_unlock();
+			PICKUP_GIANT();
 		}
 		if (!error && (mp->mnt_flag & MNT_RELOAD))
 			error = ext2_reload(mp, td->td_ucred, td);
@@ -237,6 +249,13 @@ ext2_mount(mp, td)
 				}
 				VOP_UNLOCK(devvp, 0, td);
 			}
+			DROP_GIANT();
+			g_topology_lock();
+			error = g_access(ump->um_cp, 0, 1, 0);
+			g_topology_unlock();
+			PICKUP_GIANT();
+			if (error)
+				return (error);
 
 			if ((fs->s_es->s_state & EXT2_VALID_FS) == 0 ||
 			    (fs->s_es->s_state & EXT2_ERROR_FS)) {
@@ -632,41 +651,24 @@ ext2_mountfs(devvp, mp, td)
 	struct ext2_sb_info *fs;
 	struct ext2_super_block * es;
 	struct cdev *dev = devvp->v_rdev;
+	struct g_consumer *cp;
+	struct bufobj *bo;
 	int error;
 	int ronly;
 
-	/*
-	 * Disallow multiple mounts of the same device.
-	 * Disallow mounting of a device that is currently in use
-	 * (except for root, which might share swap device for miniroot).
-	 * Flush out any old buffers remaining from a previous use.
-	 */
-	if ((error = vfs_mountedon(devvp)) != 0)
-		return (error);
-	if (vcount(devvp) > 1)
-		return (EBUSY);
-	vn_lock(devvp, LK_EXCLUSIVE | LK_RETRY, td);
-	error = vinvalbuf(devvp, V_SAVE, td->td_ucred, td, 0, 0);
-	if (error) {
-		VOP_UNLOCK(devvp, 0, td);
-		return (error);
-	}
-
 	ronly = (mp->mnt_flag & MNT_RDONLY) != 0;
-	/*
-	 * XXX: open the device with read and write access even if only
-	 * read access is needed now.  Write access is needed if the
-	 * filesystem is ever mounted read/write, and we don't change the
-	 * access mode for remounts.
-	 */
-#ifdef notyet
-	error = VOP_OPEN(devvp, ronly ? FREAD : FREAD | FWRITE, FSCRED, td, -1);
-#else
-	error = VOP_OPEN(devvp, FREAD | FWRITE, FSCRED, td, -1);
-#endif
+	/* XXX: use VOP_ACESS to check FS perms */
+	DROP_GIANT();
+	g_topology_lock();
+	error = g_vfs_open(devvp, &cp, "ext2fs", ronly ? 0 : 1);
+	g_topology_unlock();
+	PICKUP_GIANT();
 	VOP_UNLOCK(devvp, 0, td);
 	if (error)
 		return (error);
+	bo = &devvp->v_bufobj;
+	bo->bo_private = cp;
+	bo->bo_ops = g_vfs_bufops;
 	if (devvp->v_rdev->si_iosize_max != 0)
 		mp->mnt_iosize_max = devvp->v_rdev->si_iosize_max;
 	if (mp->mnt_iosize_max > MAXPHYS)
@@ -736,19 +738,19 @@ ext2_mountfs(devvp, mp, td)
 	ump->um_nindir = EXT2_ADDR_PER_BLOCK(fs);
 	ump->um_bptrtodb = fs->s_es->s_log_block_size + 1;
 	ump->um_seqinc = EXT2_FRAGS_PER_BLOCK(fs);
-	devvp->v_rdev->si_mountpoint = mp;
 	if (ronly == 0) 
 		ext2_sbupdate(ump, MNT_WAIT);
 	return (0);
 out:
 	if (bp)
 		brelse(bp);
-	/* XXX: see comment above VOP_OPEN. */
-#ifdef notyet
-	(void)VOP_CLOSE(devvp, ronly ? FREAD : FREAD | FWRITE, NOCRED, td);
-#else
-	(void)VOP_CLOSE(devvp, FREAD | FWRITE, NOCRED, td);
-#endif
+	if (cp != NULL) {
+		DROP_GIANT();
+		g_topology_lock();
+		g_wither_geom_close(cp->geom, ENXIO);
+		g_topology_unlock();
+		PICKUP_GIANT();
+	}
 	if (ump) {
 		bsd_free(ump->um_e2fs->s_es, M_EXT2MNT);
 		bsd_free(ump->um_e2fs, M_EXT2MNT);
@@ -802,14 +804,11 @@ ext2_unmount(mp, mntflags, td)
                 if (fs->s_block_bitmap[i])
 			ULCK_BUF(fs->s_block_bitmap[i])
 
-	ump->um_devvp->v_rdev->si_mountpoint = NULL;
-	/* XXX: see comment above VOP_OPEN. */
-#ifdef notyet
-	error = VOP_CLOSE(ump->um_devvp, ronly ? FREAD : FREAD | FWRITE,
-	    NOCRED, td);
-#else
-	error = VOP_CLOSE(ump->um_devvp, FREAD | FWRITE, NOCRED, td);
-#endif
+	DROP_GIANT();
+	g_topology_lock();
+	g_wither_geom_close(ump->um_gp, ENXIO);
+	g_topology_unlock();
+	PICKUP_GIANT();
 	vrele(ump->um_devvp);
 	bsd_free(fs->s_es, M_EXT2MNT);
 	bsd_free(fs, M_EXT2MNT);
