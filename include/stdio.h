@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)stdio.h	8.4 (Berkeley) 1/4/94
- *	$Id$
+ *	$Id: stdio.h,v 1.8 1996/10/27 18:13:33 wosch Exp $
  */
 
 #ifndef	_STDIO_H_
@@ -280,6 +280,30 @@ FILE	*fdopen __P((int, const char *));
 int	 fileno __P((FILE *));
 __END_DECLS
 #endif /* not ANSI */
+
+/*
+ * Portability hacks.  See <sys/types.h>.
+ */
+#if !defined (_ANSI_SOURCE) && !defined(_POSIX_SOURCE)
+__BEGIN_DECLS
+#ifndef _FTRUNCATE_DECLARED
+#define	_FTRUNCATE_DECLARED
+int	 ftruncate __P((int, _BSD_OFF_T_));
+#endif
+#ifndef _LSEEK_DECLARED
+#define	_LSEEK_DECLARED
+_BSD_OFF_T_ lseek __P((int, _BSD_OFF_T_, int));
+#endif
+#ifndef _MMAP_DECLARED
+#define	_MMAP_DECLARED
+char	*mmap __P((char *, size_t, int, int, int, _BSD_OFF_T_));
+#endif
+#ifndef _TRUNCATE_DECLARED
+#define	_TRUNCATE_DECLARED
+int	 truncate __P((const char *, _BSD_OFF_T_));
+#endif
+__END_DECLS
+#endif /* !_ANSI_SOURCE && !_POSIX_SOURCE */
 
 /*
  * Routines that are purely local.

@@ -77,7 +77,10 @@ pid_t	 getppid __P((void));
 uid_t	 getuid __P((void));
 int	 isatty __P((int));
 int	 link __P((const char *, const char *));
+#ifndef _LSEEK_DECLARED
+#define	_LSEEK_DECLARED
 off_t	 lseek __P((int, off_t, int));
+#endif
 long	 pathconf __P((const char *, int));
 int	 pause __P((void));
 int	 pipe __P((int *));
@@ -113,7 +116,10 @@ int	 exect __P((const char *, char * const *, char * const *));
 int	 fchdir __P((int));
 int	 fchown __P((int, uid_t, gid_t));
 int	 fsync __P((int));
+#ifndef _FTRUNCATE_DECLARED
+#define	_FTRUNCATE_DECLARED
 int	 ftruncate __P((int, off_t));
+#endif
 int	 getdomainname __P((char *, int));
 int	 getdtablesize __P((void));
 int	 getgrouplist __P((const char *, int, int *, int *));
@@ -167,7 +173,10 @@ int	 symlink __P((const char *, const char *));
 void	 sync __P((void));
 int	 syscall __P((int, ...));
 off_t	 __syscall __P((quad_t, ...));
+#ifndef _TRUNCATE_DECLARED
+#define	_TRUNCATE_DECLARED
 int	 truncate __P((const char *, off_t));
+#endif
 int	 ttyslot __P((void));
 unsigned int	 ualarm __P((unsigned int, unsigned int));
 void	 usleep __P((unsigned int));
