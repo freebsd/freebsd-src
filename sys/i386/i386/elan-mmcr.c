@@ -60,13 +60,15 @@ __FBSDID("$FreeBSD$");
 
 #include <dev/led/led.h>
 #include <machine/md_var.h>
+#include <machine/elan_mmcr.h>
 
 #include <vm/vm.h>
 #include <vm/pmap.h>
 
 static char gpio_config[33];
 
-uint16_t *elan_mmcr;
+static volatile uint16_t *mmcrptr;
+volatile struct elan_mmcr * elan_mmcr;
 
 #ifdef CPU_ELAN_PPS
 static struct pps_state elan_pps;
@@ -86,7 +88,7 @@ gpio_led(void *cookie, int state)
 	u >>= 16;
 	if (!state)
 		v ^= 0xc;
-	elan_mmcr[v / 2] = u;
+	mmcrptr[v / 2] = u;
 }
 
 static int
@@ -142,14 +144,14 @@ sysctl_machdep_elan_gpio_config(SYSCTL_HANDLER_ARGS)
 		if (buf[i] != 'l' && buf[i] != 'L' && led_dev[i] != NULL) {
 			led_destroy(led_dev[i]);	
 			led_dev[i] = NULL;
-			elan_mmcr[(0xc2a + v) / 2] &= ~u;
+			mmcrptr[(0xc2a + v) / 2] &= ~u;
 		}
 		switch (buf[i]) {
 #ifdef CPU_ELAN_PPS
 		case 'P':
 			pps_d = u;
 			pps_a = 0xc30 + v;
-			elan_mmcr[(0xc2a + v) / 2] &= ~u;
+			mmcrptr[(0xc2a + v) / 2] &= ~u;
 			gpio_config[i] = buf[i];
 			break;
 		case 'e':
@@ -159,7 +161,7 @@ sysctl_machdep_elan_gpio_config(SYSCTL_HANDLER_ARGS)
 				echo_a = 0xc34 + v;
 			else
 				echo_a = 0xc38 + v;
-			elan_mmcr[(0xc2a + v) / 2] |= u;
+			mmcrptr[(0xc2a + v) / 2] |= u;
 			gpio_config[i] = buf[i];
 			break;
 #endif /* CPU_ELAN_PPS */
@@ -174,7 +176,7 @@ sysctl_machdep_elan_gpio_config(SYSCTL_HANDLER_ARGS)
 			sprintf(tmp, "gpio%d", i);
 			led_dev[i] =
 			    led_create(gpio_led, &led_cookie[i], tmp);
-			elan_mmcr[(0xc2a + v) / 2] |= u;
+			mmcrptr[(0xc2a + v) / 2] |= u;
 			gpio_config[i] = buf[i];
 			break;
 		case '.':
@@ -206,13 +208,13 @@ elan_poll_pps(struct timecounter *tc)
 	 * harmlessly read the REVID register and the contents of pps_d is
 	 * of no concern.
 	 */
-	i = elan_mmcr[pps_a / 2] & pps_d;
+	i = mmcrptr[pps_a / 2] & pps_d;
 
 	/*
 	 * Subtract timer1 from timer2 to compensate for time from the
 	 * edge until now.
 	 */
-	u = elan_mmcr[0xc84 / 2] - elan_mmcr[0xc7c / 2];
+	u = elan_mmcr->GPTMR2CNT - elan_mmcr->GPTMR1CNT;
 
 	/* If state did not change or we don't have a GPIO pin, return */
 	if (i == state || pps_a == 0)
@@ -223,7 +225,7 @@ elan_poll_pps(struct timecounter *tc)
 	/* If the state is "low", flip the echo GPIO and return.  */
 	if (!i) {
 		if (echo_a)
-			elan_mmcr[(echo_a ^ 0xc) / 2] = echo_d;
+			mmcrptr[(echo_a ^ 0xc) / 2] = echo_d;
 		return;
 	}
 
@@ -234,7 +236,7 @@ elan_poll_pps(struct timecounter *tc)
 
 	/* Twiddle echo bit */
 	if (echo_a)
-		elan_mmcr[echo_a / 2] = echo_d;
+		mmcrptr[echo_a / 2] = echo_d;
 }
 #endif /* CPU_ELAN_PPS */
 
@@ -243,7 +245,7 @@ elan_get_timecount(struct timecounter *tc)
 {
 
 	/* Read timer2, end of story */
-	return (elan_mmcr[0xc84 / 2]);
+	return (elan_mmcr->GPTMR2CNT);
 }
 
 /*
@@ -289,7 +291,8 @@ init_AMD_Elan_sc520(void)
 	u_int new;
 	int i;
 
-	elan_mmcr = pmap_mapdev(0xfffef000, 0x1000);
+	mmcrptr = pmap_mapdev(0xfffef000, 0x1000);
+	elan_mmcr = (volatile struct elan_mmcr *)mmcrptr;
 
 	/*-
 	 * The i8254 is driven with a nonstandard frequency which is
@@ -305,15 +308,15 @@ init_AMD_Elan_sc520(void)
 		printf("sysctl machdep.i8254_freq=%d returns %d\n", new, i);
 
 	/* Start GP timer #2 and use it as timecounter, hz permitting */
-	elan_mmcr[0xc8e / 2] = 0x0;
-	elan_mmcr[0xc82 / 2] = 0xc001;
+	elan_mmcr->GPTMR2MAXCMPA = 0;
+	elan_mmcr->GPTMR2CTL = 0xc001;
 
 #ifdef CPU_ELAN_PPS
 	/* Set up GP timer #1 as pps counter */
-	elan_mmcr[0xc24 / 2] &= ~0x10;
-	elan_mmcr[0xc7a / 2] = 0x8000 | 0x4000 | 0x10 | 0x1;
-	elan_mmcr[0xc7e / 2] = 0x0;
-	elan_mmcr[0xc80 / 2] = 0x0;
+	elan_mmcr->CSPFS &= ~0x10;
+	elan_mmcr->GPTMR1CTL = 0x8000 | 0x4000 | 0x10 | 0x1;
+	elan_mmcr->GPTMR1MAXCMPA = 0x0;
+	elan_mmcr->GPTMR1MAXCMPB = 0x0;
 	elan_pps.ppscap |= PPS_CAPTUREASSERT;
 	pps_init(&elan_pps);
 #endif
@@ -334,11 +337,11 @@ elan_drvinit(void)
 {
 
 	/* If no elan found, just return */
-	if (elan_mmcr == NULL)
+	if (mmcrptr == NULL)
 		return;
 
 	printf("Elan-mmcr driver: MMCR at %p.%s\n", 
-	    elan_mmcr,
+	    mmcrptr,
 #ifdef CPU_ELAN_PPS
 	    " PPS support."
 #else
@@ -398,35 +401,36 @@ elan_watchdog(u_int spec)
 		 * for other reasons.  Save and restore the GP echo mode
 		 * around our hardware tom-foolery.
 		 */
-		u = elan_mmcr[0xc00 / 2];
-		elan_mmcr[0xc00 / 2] = 0;
+		u = elan_mmcr->GPECHO;
+		elan_mmcr->GPECHO = 0;
 		if (v != cur) {
 			/* Clear the ENB bit */
-			elan_mmcr[0xcb0 / 2] = 0x3333;
-			elan_mmcr[0xcb0 / 2] = 0xcccc;
-			elan_mmcr[0xcb0 / 2] = 0;
+			elan_mmcr->WDTMRCTL = 0x3333;
+			elan_mmcr->WDTMRCTL = 0xcccc;
+			elan_mmcr->WDTMRCTL = 0;
 
 			/* Set new value */
-			elan_mmcr[0xcb0 / 2] = 0x3333;
-			elan_mmcr[0xcb0 / 2] = 0xcccc;
-			elan_mmcr[0xcb0 / 2] = v;
+			elan_mmcr->WDTMRCTL = 0x3333;
+			elan_mmcr->WDTMRCTL = 0xcccc;
+			elan_mmcr->WDTMRCTL = v;
 			cur = v;
 		} else {
 			/* Just reset timer */
-			elan_mmcr[0xcb0 / 2] = 0xaaaa;
-			elan_mmcr[0xcb0 / 2] = 0x5555;
+			elan_mmcr->WDTMRCTL = 0xaaaa;
+			elan_mmcr->WDTMRCTL = 0x5555;
 		}
-		elan_mmcr[0xc00 / 2] = u;
+		elan_mmcr->GPECHO = u;
 		return (0);
 	case WD_PASSIVE:
 		return (EOPNOTSUPP);
 	case 0:
-		u = elan_mmcr[0xc00 / 2];
-		elan_mmcr[0xc00 / 2] = 0;
-		elan_mmcr[0xcb0 / 2] = 0x3333;
-		elan_mmcr[0xcb0 / 2] = 0xcccc;
-		elan_mmcr[0xcb0 / 2] = 0x4080;
-		elan_mmcr[0xc00 / 2] = u;
+		u = elan_mmcr->GPECHO;
+		elan_mmcr->GPECHO = 0;
+		elan_mmcr->WDTMRCTL = 0x3333;
+		elan_mmcr->WDTMRCTL = 0xcccc;
+		elan_mmcr->WDTMRCTL = 0x4080;
+		elan_mmcr->WDTMRCTL = u;
+		elan_mmcr->GPECHO = u;
 		cur = 0;
 		return (0);
 	default:
