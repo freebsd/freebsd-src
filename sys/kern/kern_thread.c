@@ -1867,13 +1867,12 @@ thread_single(int force_exit)
 		 * In the mean time we suspend as well.
 		 */
 		thread_suspend_one(td);
-		/* XXX If you recursed this is broken. */
-		mtx_unlock(&Giant);
+		DROP_GIANT();
 		PROC_UNLOCK(p);
 		p->p_stats->p_ru.ru_nvcsw++;
 		mi_switch();
 		mtx_unlock_spin(&sched_lock);
-		mtx_lock(&Giant);
+		PICKUP_GIANT();
 		PROC_LOCK(p);
 	}
 	if (force_exit == SINGLE_EXIT) { 
