@@ -1082,7 +1082,7 @@ radius_Account(struct radius *r, struct radacct *ac, struct datalink *dl,
   switch (ac->proto) {
   case PROTO_IPCP:
     if (rad_put_addr(r->cx.rad, RAD_FRAMED_IP_ADDRESS,
-		     ac->peer.ip.addr) != 0 || \
+		     ac->peer.ip.addr) != 0 ||
 	rad_put_addr(r->cx.rad, RAD_FRAMED_IP_NETMASK,
 		     ac->peer.ip.mask) != 0) {
       log_Printf(LogERROR, "rad_put: %s\n", rad_strerror(r->cx.rad));
