@@ -35,11 +35,13 @@ static char *rcsid = "$NetBSD: stringlist.c,v 1.2 1997/01/17 07:26:20 lukem Exp 
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
+#include "namespace.h"
 #include <stdio.h>
 #include <string.h>
 #include <err.h>
 #include <stdlib.h>
 #include <stringlist.h>
+#include "un-namespace.h"
 
 #define _SL_CHUNKSIZE	20
 
