@@ -5,6 +5,9 @@
  * $FreeBSD$
  */
 
-#include "spinlock.h"
+#include <pthread.h>
 
-spinlock_t __gdtoa_locks[2];
+pthread_mutex_t __gdtoa_locks[] = {
+	PTHREAD_MUTEX_INITIALIZER,
+	PTHREAD_MUTEX_INITIALIZER
+};
