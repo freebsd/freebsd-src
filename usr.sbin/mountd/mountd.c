@@ -2144,7 +2144,8 @@ parsecred(namelist, cr)
 	char *names;
 	struct passwd *pw;
 	struct group *gr;
-	int ngroups, groups[NGROUPS + 1];
+	gid_t groups[NGROUPS + 1];
+	int ngroups;
 
 	cr->cr_version = XUCRED_VERSION;
 	/*
@@ -2175,7 +2176,7 @@ parsecred(namelist, cr)
 		if (getgrouplist(pw->pw_name, pw->pw_gid, groups, &ngroups))
 			syslog(LOG_ERR, "too many groups");
 		/*
-		 * Convert from int's to gid_t's and compress out duplicate
+		 * Compress out duplicate.
 		 */
 		cr->cr_ngroups = ngroups - 1;
 		cr->cr_groups[0] = groups[0];

@@ -274,7 +274,8 @@ user(struct passwd *pw)
 {
 	struct group *gr;
 	const char *fmt;
-	int cnt, gid, lastgid, ngroups, groups[NGROUPS + 1];
+	gid_t gid, lastgid, groups[NGROUPS + 1];
+	int cnt, ngroups;
 
 	(void)printf("uid=%u(%s)", pw->pw_uid, pw->pw_name);
 	gid = pw->pw_gid;
