@@ -4,6 +4,7 @@
 SUBDIR=	UI \
 	async \
 	atm \
+	${_bluetooth} \
 	bpf \
 	bridge \
 	cisco \
@@ -21,6 +22,7 @@ SUBDIR=	UI \
 	ksocket \
 	l2tp \
 	lmi \
+	${_mppc} \
 	netgraph \
 	one2many \
 	ppp \
@@ -36,12 +38,12 @@ SUBDIR=	UI \
 	vjc
 
 .if !defined(NOCRYPT) && exists(${.CURDIR}/../../crypto/rc4/rc4.c)
-SUBDIR+=	mppc
+_mppc=		mppc
 .endif
 
 .if ${MACHINE_ARCH} == "i386"
 # Things that don't compile on alpha or are aout specific:
-SUBDIR+= bluetooth
+_bluetooth=	bluetooth
 .endif
 
 .include <bsd.subdir.mk>
