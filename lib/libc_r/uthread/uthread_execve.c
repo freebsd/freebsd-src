@@ -31,6 +31,7 @@
  *
  */
 #include <errno.h>
+#include <fcntl.h>
 #include <unistd.h>
 #ifdef _THREAD_SAFE
 #include <pthread.h>
@@ -39,14 +40,38 @@
 int 
 execve(const char *name, char *const * argv, char *const * envp)
 {
+	int		flags;
 	int             i;
 	int             ret;
 	struct sigaction act;
 	struct sigaction oact;
+	struct itimerval itimer;
+
+	/* Disable the interval timer: */
+	itimer.it_interval.tv_sec  = 0;
+	itimer.it_interval.tv_usec = 0;
+	itimer.it_value.tv_sec     = 0;
+	itimer.it_value.tv_usec    = 0;
+	setitimer(ITIMER_VIRTUAL, &itimer, NULL);
 
 	/* Close the pthread kernel pipe: */
 	_thread_sys_close(_thread_kern_pipe[0]);
 	_thread_sys_close(_thread_kern_pipe[1]);
+
+	/*
+	 * Enter a loop to set all file descriptors to blocking
+	 * if they were not created as non-blocking:
+	 */
+	for (i = 0; i < _thread_dtablesize; i++) {
+		/* Check if this file descriptor is in use: */
+		if (_thread_fd_table[i] != NULL &&
+			!(_thread_fd_table[i]->flags & O_NONBLOCK)) {
+			/* Get the current flags: */
+			flags = _thread_sys_fcntl(i, F_GETFL, NULL);
+			/* Clear the nonblocking file descriptor flag: */
+			_thread_sys_fcntl(i, F_SETFL, flags & ~O_NONBLOCK);
+		}
+	}
 
 	/* Enter a loop to adopt the signal actions for the running thread: */
 	for (i = 1; i < NSIG; i++) {

@@ -35,7 +35,7 @@
  *
  *	from: @(#)SYS.h	5.5 (Berkeley) 5/7/91
  *
- *	$Id: SYS.h,v 1.3 1996/01/22 00:00:51 julian Exp $
+ *	$Id: SYS.h,v 1.4 1996/05/05 07:56:03 peter Exp $
  */
 
 #include <sys/syscall.h>
@@ -64,19 +64,37 @@
 #define	SYSCALL(x)	2: PIC_PROLOGUE; jmp PIC_PLT(HIDENAME(cerror)); ENTRY(x); lea __CONCAT(SYS_,x),%eax; KERNCALL; jb 2b
 #define	RSYSCALL(x)	SYSCALL(x); ret
 
-/*
- * For the thread_safe versions, we prepend _thread_sys_ to the function
- * name so that the 'C' wrapper can go around the real name.
- */
-#ifdef _THREAD_SAFE	/* in case */
-#define	PSYSCALL(x,y)	2: PIC_PROLOGUE; jmp PIC_PLT(HIDENAME(cerror)); ENTRY(y); lea __CONCAT(SYS_,x),%eax; KERNCALL; jb 2b
-#define	PRSYSCALL(x,y)	PSYSCALL(x,y); ret
-#endif
-
 #define	PSEUDO(x,y)	ENTRY(x); lea __CONCAT(SYS_,y), %eax; KERNCALL; ret
 #define	CALL(x,y)	call CNAME(y); addl $4*x,%esp
 /* gas fucks up offset -- although we don't currently need it, do for BCS */
 #define	LCALL(x,y)	.byte 0x9a ; .long y; .word x
+
+/*
+ * Design note:
+ *
+ * The macros PSYSCALL() and PRSYSCALL() are intended for use where a
+ * syscall needs to be renamed in the threaded library. When building
+ * a normal library, they default to the traditional SYSCALL() and
+ * RSYSCALL(). This avoids the need to #ifdef _THREAD_SAFE everywhere
+ * that the renamed function needs to be called.
+ */
+#ifdef _THREAD_SAFE	/* in case */
+/*
+ * For the thread_safe versions, we prepend _thread_sys_ to the function
+ * name so that the 'C' wrapper can go around the real name.
+ */
+#define	PSYSCALL(x)	2: PIC_PROLOGUE; jmp PIC_PLT(HIDENAME(cerror)); ENTRY(_thread_sys_/**/x); lea __CONCAT(SYS_,x),%eax; KERNCALL; jb 2b
+#define	PRSYSCALL(x)	PSYSCALL(x); ret
+#define	PPSEUDO(x,y)	ENTRY(_thread_sys_/**/x); lea __CONCAT(SYS_,y), %eax; KERNCALL; ret
+#else
+/*
+ * The non-threaded library defaults to traditional syscalls where
+ * the function name matches the syscall name.
+ */
+#define	PSYSCALL(x)	SYSCALL(x)
+#define	PRSYSCALL(x)	RSYSCALL(x)
+#define	PPSEUDO(x,y)	PSEUDO(x,y)
+#endif
 
 #ifdef __ELF__
 #define KERNCALL	int $0x80	/* Faster */

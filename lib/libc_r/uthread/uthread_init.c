@@ -202,18 +202,6 @@ _thread_main(int argc, char *argv[], char *env)
 	_thread_init();
 	return (main(argc, argv, env));
 }
-#else
-/*
- * Force our auto-initialization module to be pulled in from the library,
- * by referencing a symbol that is defined in it.
- *
- * The auto-initialization module is a small C++ module.  It has a static
- * constructor that calls _thread_init() automatically, at the beginning
- * of program execution.  That eliminates the need for any special hooks
- * in crt0.o.
- */
-extern int _thread_autoinit_dummy_decl;
-static int *_thread_autoinit_dummy_ref = &_thread_autoinit_dummy_decl;
 #endif
 #else
 /*

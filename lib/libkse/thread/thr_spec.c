@@ -39,12 +39,12 @@
 #include "pthread_private.h"
 
 /* Static variables: */
-static struct pthread_key key_table[PTHREAD_DATAKEYS_MAX];
+static struct pthread_key key_table[PTHREAD_KEYS_MAX];
 
 int
-pthread_keycreate(pthread_key_t * key, void (*destructor) (void *))
+pthread_key_create(pthread_key_t * key, void (*destructor) (void *))
 {
-	for ((*key) = 0; (*key) < PTHREAD_DATAKEYS_MAX; (*key)++) {
+	for ((*key) = 0; (*key) < PTHREAD_KEYS_MAX; (*key)++) {
 		if (key_table[(*key)].count == 0) {
 			key_table[(*key)].count++;
 			key_table[(*key)].destructor = destructor;
@@ -63,7 +63,7 @@ pthread_key_delete(pthread_key_t key)
 	/* Block signals: */
 	_thread_kern_sig_block(&status);
 
-	if (key < PTHREAD_DATAKEYS_MAX) {
+	if (key < PTHREAD_KEYS_MAX) {
 		switch (key_table[key].count) {
 		case 1:
 			key_table[key].destructor = NULL;
@@ -94,8 +94,8 @@ _thread_cleanupspecific(void)
 	/* Block signals: */
 	_thread_kern_sig_block(&status);
 
-	for (itr = 0; itr < _POSIX_THREAD_DESTRUTOR_ITERATIONS; itr++) {
-		for (key = 0; key < PTHREAD_DATAKEYS_MAX; key++) {
+	for (itr = 0; itr < PTHREAD_DESTRUCTOR_ITERATIONS; itr++) {
+		for (key = 0; key < PTHREAD_KEYS_MAX; key++) {
 			if (_thread_run->specific_data_count) {
 				if (_thread_run->specific_data[key]) {
 					data = (void *) _thread_run->specific_data[key];
@@ -125,8 +125,8 @@ static inline const void **
 pthread_key_allocate_data(void)
 {
 	const void    **new_data;
-	if ((new_data = (const void **) malloc(sizeof(void *) * PTHREAD_DATAKEYS_MAX)) != NULL) {
-		memset((void *) new_data, 0, sizeof(void *) * PTHREAD_DATAKEYS_MAX);
+	if ((new_data = (const void **) malloc(sizeof(void *) * PTHREAD_KEYS_MAX)) != NULL) {
+		memset((void *) new_data, 0, sizeof(void *) * PTHREAD_KEYS_MAX);
 	}
 	return (new_data);
 }
@@ -154,7 +154,7 @@ pthread_setspecific(pthread_key_t key, const void *value)
 	}
 
 	if ((pthread->specific_data) || (pthread->specific_data = pthread_key_allocate_data())) {
-		if ((key < PTHREAD_DATAKEYS_MAX) && (key_table)) {
+		if ((key < PTHREAD_KEYS_MAX) && (key_table)) {
 			if (key_table[key].count) {
 				if (pthread->specific_data[key] == NULL) {
 					if (value != NULL) {
@@ -213,7 +213,7 @@ pthread_getspecific(pthread_key_t key, void **p_data)
 		rval = -1;
 	}
 	/* Check if there is specific data: */
-	else if (pthread->specific_data != NULL && (key < PTHREAD_DATAKEYS_MAX) && (key_table)) {
+	else if (pthread->specific_data != NULL && (key < PTHREAD_KEYS_MAX) && (key_table)) {
 		/* Check if this key has been used before: */
 		if (key_table[key].count) {
 			/* Return the value: */
