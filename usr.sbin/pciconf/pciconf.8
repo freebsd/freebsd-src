@@ -1,4 +1,4 @@
-.\"	$Id: pciconf.8,v 1.2 1997/02/22 16:09:06 peter Exp $
+.\"	$Id: pciconf.8,v 1.3 1997/10/06 11:38:29 charnier Exp $
 .\" Copyright (c) 1997
 .\"	Stefan Esser <se@freebsd.org>. All rights reserved.
 .\"
@@ -50,14 +50,22 @@ With the
 .Fl l
 option, it lists all devices found by the boot probe in the following format:
 .Bd -literal
-pci0:4:0: class=0x010000 card=0x00000000 chip=0x000f1000 rev=0x01 hdr=0x00
-pci0:5:0: class=0x000100 card=0x00000000 chip=0x88c15333 rev=0x00 hdr=0x00
-pci0:6:0: class=0x020000 card=0x00000000 chip=0x802910ec rev=0x00 hdr=0x00
+foo0@pci0:4:0: class=0x010000 card=0x00000000 chip=0x000f1000 rev=0x01 hdr=0x00
+bar0@pci0:5:0: class=0x000100 card=0x00000000 chip=0x88c15333 rev=0x00 hdr=0x00
+none0@pci0:6:0: class=0x020000 card=0x00000000 chip=0x802910ec rev=0x00 hdr=0x00
 .Ed
 .Pp
 The first column gives the 
+device name, unit number, and
+.Ar selector .
+If there is no device configured in the kernel for the
+.Tn PCI
+device in question, the device name will be
+.Dq none .
+Unit numbers for unconfigured devices start at zero and are incremented for
+each unconfigured device that is encountered.  The
 .Ar selector
-in a form which may directly be used for the other forms of the command.
+is in a form which may directly be used for the other forms of the command.
 The second column is the class code, with the class byte printed as two
 hex digits, followed by the sub-class and the interface bytes.
 The third column gives the contents of the subvendorid register, introduced 
