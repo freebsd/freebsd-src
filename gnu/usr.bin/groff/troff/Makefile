@@ -19,6 +19,8 @@ majorminor.cc: ${.CURDIR}/../VERSION
 afterinstall:
 	install -c -o bin -g bin -m 444 ${.CURDIR}/hyphen.us \
 		${DESTDIR}${tmacdir}/hyphen.us
+	install -c -o bin -g bin -m 444 ${.CURDIR}/hyphen.us-ru \
+		${DESTDIR}${tmacdir}/hyphen.us-ru
 
 .include "../Makefile.cfg"
 .include <bsd.prog.mk>
