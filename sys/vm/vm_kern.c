@@ -61,7 +61,7 @@
  * any improvements or extensions that they make and grant Carnegie the
  * rights to redistribute these changes.
  *
- * $Id: vm_kern.c,v 1.27 1996/07/02 02:08:02 dyson Exp $
+ * $Id: vm_kern.c,v 1.28 1996/11/17 02:38:29 dyson Exp $
  */
 
 /*
@@ -200,11 +200,6 @@ kmem_alloc(map, size)
 	 */
 
 	(void) vm_map_pageable(map, (vm_offset_t) addr, addr + size, FALSE);
-
-	/*
-	 * Try to coalesce the map
-	 */
-	vm_map_simplify(map, addr);
 
 	return (addr);
 }
@@ -370,6 +365,8 @@ retry:
 		panic("kmem_malloc: entry not found or misaligned");
 	entry->wired_count++;
 
+	vm_map_simplify_entry(map, entry);
+
 	/*
 	 * Loop thru pages, entering them in the pmap. (We cannot add them to
 	 * the wired count without wrapping the vm_page_queue_lock in
@@ -385,7 +382,6 @@ retry:
 	}
 	vm_map_unlock(map);
 
-	vm_map_simplify(map, addr);
 	return (addr);
 }
 
