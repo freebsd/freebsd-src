@@ -30,10 +30,8 @@
 
 #define EXT2_MAX_GROUP_LOADED	8
 
-#if defined(LITES) || defined(__FreeBSD__)
 #define buffer_head buf
 #define MAXMNTLEN	512
-#endif
 
 /*
  * second extended-fs super-block data in memory
@@ -59,14 +57,10 @@ struct ext2_sb_info {
 	unsigned long s_block_bitmap_number[EXT2_MAX_GROUP_LOADED];
 	struct buffer_head * s_block_bitmap[EXT2_MAX_GROUP_LOADED];
 	int s_rename_lock;
-#if !defined(LITES) && !defined(__FreeBSD__)
-	struct wait_queue * s_rename_wait;
-#endif
 	unsigned long  s_mount_opt;
 	unsigned short s_resuid;
 	unsigned short s_resgid;
 	unsigned short s_mount_state;
-#if defined(LITES) || defined(__FreeBSD__)
 	/* 
 	   stuff that FFS keeps in its super block or that linux
 	   has in its non-ext2 specific super block and which is
@@ -81,7 +75,6 @@ struct ext2_sb_info {
 	char    s_dirt;                         /* fs modified flag */
 
 	char    fs_fsmnt[MAXMNTLEN];            /* name mounted on */
-#endif
 };
 
 #endif	/* _LINUX_EXT2_FS_SB */

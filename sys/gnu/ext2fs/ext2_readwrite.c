@@ -39,10 +39,6 @@
  *	@(#)ufs_readwrite.c	8.7 (Berkeley) 1/21/94
  */
 
-#if !defined(__FreeBSD__)
-#include "diagnostic.h"
-#endif
-
 #define	BLKSIZE(a, b, c)	blksize(a, b, c)
 #define	FS			struct ext2_sb_info
 #define	I_FS			i_e2fs
@@ -146,11 +142,6 @@ READ(ap)
 		    uiomove((char *)bp->b_data + blkoffset, (int)xfersize, uio);
 		if (error)
 			break;
-#if !defined(__FreeBSD__)
-		if (S_ISREG(mode) && (xfersize + blkoffset == fs->s_frag_size ||
-		    uio->uio_offset == ip->i_size))
-			bp->b_flags |= B_AGE;
-#endif
 
 		bqrelse(bp);
 	}
@@ -240,10 +231,8 @@ WRITE(ap)
 		if (uio->uio_resid < xfersize)
 			xfersize = uio->uio_resid;
 
-#if defined(__FreeBSD__)
 		if (uio->uio_offset + xfersize > ip->i_size)
 			vnode_pager_setsize(vp, uio->uio_offset + xfersize);
-#endif
 
 		if (fs->s_frag_size > xfersize)
 			flags |= B_CLRBUF;
@@ -257,13 +246,7 @@ WRITE(ap)
 
 		if (uio->uio_offset + xfersize > ip->i_size) {
 			ip->i_size = uio->uio_offset + xfersize;
-#if !defined(__FreeBSD__)
-			vnode_pager_setsize(vp, (u_long)ip->i_size);
-#endif
 		}
-#if !defined(__FreeBSD__)
-		(void)vnode_pager_uncache(vp);
-#endif
 
 		size = BLKSIZE(fs, ip, lbn) - bp->b_resid;
 		if (size < xfersize)
@@ -278,20 +261,13 @@ WRITE(ap)
 			(void)bwrite(bp);
 		} else if (xfersize + blkoffset == fs->s_frag_size) {
 			if ((vp->v_mount->mnt_flag & MNT_NOCLUSTERW) == 0) {
-#if defined(__FreeBSD__)
 				bp->b_flags |= B_CLUSTEROK;
-#endif
 				cluster_write(bp, ip->i_size);
 			} else {
-#if !defined(__FreeBSD__)
-				bp->b_flags |= B_AGE;
-#endif
 				bawrite(bp);
 			}
 		} else {
-#if defined(__FreeBSD__)
 			bp->b_flags |= B_CLUSTEROK;
-#endif
 			bdwrite(bp);
 		}
 		if (error || xfersize == 0)

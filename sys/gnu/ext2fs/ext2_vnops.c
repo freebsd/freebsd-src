@@ -41,11 +41,6 @@
 
 #include "opt_quota.h"
 
-#if !defined(__FreeBSD__)
-#include "fifo.h"
-#include "diagnostic.h"
-#endif
-
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/resourcevar.h>
@@ -62,11 +57,7 @@
 #include <vm/vm.h>
 #include <vm/vm_extern.h>
 
-#if !defined(__FreeBSD__)
-#include <ufs/ufs/lockf.h>
-#else
 #include <sys/signalvar.h>
-#endif
 #include <ufs/ufs/dir.h>
 #include <ufs/ufs/quota.h>
 #include <ufs/ufs/inode.h>
@@ -136,11 +127,9 @@ static struct vnodeopv_entry_desc ext2_fifoop_entries[] = {
 static struct vnodeopv_desc ext2fs_fifoop_opv_desc =
 	{ &ext2_fifoop_p, ext2_fifoop_entries };
 
-#if defined(__FreeBSD__)
 	VNODEOP_SET(ext2fs_vnodeop_opv_desc);
 	VNODEOP_SET(ext2fs_specop_opv_desc);
 	VNODEOP_SET(ext2fs_fifoop_opv_desc);
-#endif
 
 #include <gnu/ext2fs/ext2_readwrite.c>
 
@@ -186,13 +175,8 @@ ext2_fsync(ap)
 	int s;
 
 	/* 
-	 * Clean memory object.
-	 * XXX add this to all file systems.
 	 * XXX why is all this fs specific?
 	 */
-#if !defined(__FreeBSD__)
-	vn_pager_sync(vp, ap->a_waitfor);
-#endif
 
 	/*
 	 * Flush all dirty buffers associated with a vnode.
@@ -223,11 +207,7 @@ loop:
 	if (ap->a_waitfor == MNT_WAIT) {
 		while (vp->v_numoutput) {
 			vp->v_flag |= VBWAIT;
-#if !defined(__FreeBSD__)
-			sleep((caddr_t)&vp->v_numoutput, PRIBIO + 1);
-#else
 			tsleep((caddr_t)&vp->v_numoutput, PRIBIO + 1, "extfsn", 0);
-#endif
 		}
 #if DIAGNOSTIC
 		if (vp->v_dirtyblkhd.lh_first) {

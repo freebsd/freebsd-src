@@ -66,17 +66,8 @@ ext2_print_dinode( di )
 	printf( "Links: %3d Blockcount: %d\n",
 		di->di_nlink, di->di_blocks);
 	printf( "ctime: 0x%x", di->di_ctime); 
-#if !defined(__FreeBSD__)
-	print_time(" -- %s\n", di->di_ctime);
-#endif
 	printf( "atime: 0x%x", di->di_atime); 
-#if !defined(__FreeBSD__)
-	print_time(" -- %s\n", di->di_atime);
-#endif
 	printf( "mtime: 0x%x", di->di_mtime); 
-#if !defined(__FreeBSD__)
-	print_time(" -- %s\n", di->di_mtime);
-#endif
 	printf( "BLOCKS: ");
 	for(i=0; i < (di->di_blocks <= 24 ? ((di->di_blocks+1)/2): 12); i++)
 		printf("%d ", di->di_db[i]);

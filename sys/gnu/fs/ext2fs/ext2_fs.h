@@ -23,16 +23,6 @@
 
 #include <sys/types.h>
 
-#ifdef __i386__
-#if defined(__FreeBSD__)
-#include <machine/types.h>
-#else
-#include <i386/types.h>
-#endif
-#else
-#error need processor specific types
-#endif
-
 #define __u32 u_int32_t
 #define u32   u_int32_t
 #define __u16 u_int16_t
