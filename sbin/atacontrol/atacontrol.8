@@ -80,7 +80,7 @@ is a control program that provides the user access and control to the
 subsystem.
 .Pp
 .Nm
-can cause severe system crashes and loss of data if used improperly, please
+can cause severe system crashes and loss of data if used improperly.  Please
 exercise caution when using this command!
 .Pp
 The
@@ -90,13 +90,13 @@ The following commands are supported:
 .Bl -tag -width "rebuild"
 .It Ic attach
 Attach an ATA
-.Ar channel ,
-devices on the channel are probed and attached as
+.Ar channel .
+Devices on the channel are probed and attached as
 is done on boot.
 .It Ic detach
 Detach an ATA
-.Ar channel ,
-devices on the channel are removed from the kernel,
+.Ar channel .
+Devices on the channel are removed from the kernel,
 and all outstanding transfers etc. are returned back to the system marked
 as failed.
 .It Ic reinit
@@ -104,8 +104,8 @@ Reinitialize an ATA
 .Ar channel .
 Both devices on the channel are reset and
 initialized to the parameters the ATA driver has stored internally.
-Devices that has gone bad and no longer responds to the probe, or devices
-that has physically been removed are removed from the kernel.
+Devices that have gone bad and no longer respond to the probe, or devices
+that have physically been removed, are removed from the kernel.
 Likewise are devices that show up during a reset, probed and attached.
 .It Ic create
 Create a
@@ -117,7 +117,7 @@ must be specified in number of sectors. The RAID will be created
 of the individual disks named
 .Ar disk0 ... diskN.    
 .Pp
-Allthough the ATA driver allows for creating an ATA RAID on disks on any
+Although the ATA driver allows for creating an ATA RAID on disks with any
 controller, there are restrictions. It is only possible to boot on
 an array if its either located on a "real" ATA RAID controller like
 the Promise or Highpoint controllers, or if the RAID declared is of
@@ -147,14 +147,14 @@ as argument (i.e.\&
 and the mode will remain unchanged.
 .It Ic info
 Show info about the attached devices on the
-.Ar channel ,
-the device name and manufacture/version strings are shown.
+.Ar channel .
+The device name and manufacture/version strings are shown.
 .It Ic cap
 Show detailed info about the device on
 .Ar channel device
 where device is 0 for master and 1 for slave.
 .It Ic enclosure
-Show detailed info about the encolsure on
+Show detailed info about the enclosure on
 .Ar channel device
 where device is 0 for master and 1 for slave.
 Fan RPM speed, enclosure temperature, 5V and 12V levels are shown.
