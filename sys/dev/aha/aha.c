@@ -330,8 +330,7 @@ aha_probe(struct aha_softc* aha)
 	 * looking at a BusLogic.
 	 */
 	if ((error = ahareset(aha, /*hard_reset*/TRUE)) != 0) {
-		if (bootverbose)
-			printf("%s: Failed Reset\n", aha_name(aha));
+		PRVERB(("%s: Failed Reset\n", aha_name(aha)));
 		return (ENXIO);
 	}
 
@@ -1704,7 +1703,8 @@ aha_cmd(struct aha_softc *aha, aha_op_t opcode, u_int8_t *params,
 			 */
 			cmd_complete = 1;
 			saved_status = status;
-		} else if ((status & DATAIN_REG_READY) != 0) {
+		}
+		if ((status & DATAIN_REG_READY) != 0) {
 			u_int8_t data;
 
 			data = aha_inb(aha, DATAIN_REG);
@@ -1767,11 +1767,16 @@ aha_cmd(struct aha_softc *aha, aha_op_t opcode, u_int8_t *params,
 
 	if (param_len > 0) {
 		/* The controller did not accept the full argument list */
+		PRVERB(("%s: Controller did not accept full argument list "
+			"(%d > 0)\n",
+			aha_name(aha), param_len));
 	 	return (E2BIG);
 	}
 
 	if (reply_len != reply_buf_size) {
 		/* Too much or too little data received */
+		PRVERB(("%s: Too much or too little data received (%d != %d)\n",
+			aha_name(aha), reply_len, reply_buf_size));
 		return (EMSGSIZE);
 	}
 
