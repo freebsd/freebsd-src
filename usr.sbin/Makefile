@@ -26,7 +26,6 @@ SUBDIR=	IPXrouted \
 	crunch \
 	ctm \
 	daemon \
-	dev_mkdb \
 	devinfo \
 	digictl \
 	diskinfo \
