@@ -1,0 +1,152 @@
+.de Id
+.ds Rv \\$3
+.ds Dt \\$4
+..
+.Id $Id: rcsdiff.1,v 5.3 1991/04/21 12:00:46 eggert Exp $
+.ds r \&\s-1RCS\s0
+.if n .ds - \%--
+.if t .ds - \(em
+.TH RCSDIFF 1 \*(Dt GNU
+.SH NAME
+rcsdiff \- compare RCS revisions
+.SH SYNOPSIS
+.B rcsdiff
+[
+.BI \-k subst
+] [
+.B \-q
+] [
+.BI \-r rev1
+[
+.BI \-r rev2
+] ] [
+.BI \-V n
+] [
+.BI \-x suffixes
+] [
+.I "diff options"
+]
+.I "file .\|.\|."
+.SH DESCRIPTION
+.B rcsdiff
+runs
+.BR diff (1)
+to compare two revisions of each \*r file given.
+.PP
+Pathnames matching an \*r suffix denote \*r files;
+all others denote working files.
+Names are paired as explained in
+.BR ci (1).
+.PP
+The option
+.B \-q
+suppresses diagnostic output.
+Zero, one, or two revisions may be specified with
+.BR \-r .
+The option
+.BI \-k subst
+affects keyword substitution when extracting
+revisions, as described in
+.BR co (1);
+for example,
+.B "\-kk\ \-r1.1\ \-r1.2"
+ignores differences in keyword values when comparing revisions
+.B 1.1
+and
+.BR 1.2 .
+To avoid excess output from locker name substitution,
+.B \-kkvl
+is assumed if (1) at most one revision option is given,
+(2) no
+.B \-k
+option is given, (3)
+.B \-kkv
+is the default keyword substitution, and
+(4) the working file's mode would be produced by
+.BR "co\ \-l".
+See
+.BR co (1)
+for details
+about
+.B \-V
+and
+.BR \-x .
+Otherwise, all options of
+.BR diff (1)
+that apply to regular files are accepted, with the same meaning as for
+.BR diff .
+.PP
+If both
+.I rev1
+and
+.I rev2
+are omitted,
+.B rcsdiff
+compares the latest revision on the
+default branch (by default the trunk)
+with the contents of the corresponding working file.  This is useful
+for determining what you changed since the last checkin.
+.PP
+If
+.I rev1
+is given, but
+.I rev2
+is omitted,
+.B rcsdiff
+compares revision
+.I rev1
+of the \*r file with
+the contents of the corresponding working file.
+.PP
+If both
+.I rev1
+and
+.I rev2
+are given,
+.B rcsdiff
+compares revisions
+.I rev1
+and
+.I rev2
+of the \*r file.
+.PP
+Both
+.I rev1
+and
+.I rev2
+may be given numerically or symbolically.
+.SH EXAMPLE
+The command
+.LP
+.B "        rcsdiff  f.c"
+.LP
+compares the latest revision on the default branch of the \*r file
+to the contents of the working file
+.BR f.c .
+.SH ENVIRONMENT
+.TP
+.B \s-1RCSINIT\s0
+options prepended to the argument list, separated by spaces.
+See
+.BR ci (1)
+for details.
+.SH DIAGNOSTICS
+Exit status is 0 for no differences during any comparison,
+1 for some differences, 2 for trouble.
+.SH IDENTIFICATION
+Author: Walter F. Tichy.
+.br
+Revision Number: \*(Rv; Release Date: \*(Dt.
+.br
+Copyright \(co 1982, 1988, 1989 by Walter F. Tichy.
+.br
+Copyright \(co 1990, 1991 by Paul Eggert.
+.SH "SEE ALSO"
+ci(1), co(1), diff(1), ident(1), rcs(1), rcsintro(1), rcsmerge(1), rlog(1)
+.br
+Walter F. Tichy,
+\*r\*-A System for Version Control,
+.I "Software\*-Practice & Experience"
+.BR 15 ,
+7 (July 1985), 637-654.
+.br

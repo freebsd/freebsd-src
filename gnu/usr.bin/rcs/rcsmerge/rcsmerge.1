@@ -1,0 +1,140 @@
+.de Id
+.ds Rv \\$3
+.ds Dt \\$4
+..
+.Id $Id: rcsmerge.1,v 5.3 1991/08/19 03:13:55 eggert Exp $
+.ds r \&\s-1RCS\s0
+.if n .ds - \%--
+.if t .ds - \(em
+.TH RCSMERGE 1 \*(Dt GNU
+.SH NAME
+rcsmerge \- merge RCS revisions
+.SH SYNOPSIS
+.B rcsmerge
+.RI [ options ] " file"
+.SH DESCRIPTION
+.B rcsmerge
+incorporates the changes between two revisions
+of an \*r file into the corresponding working file.
+.PP
+Pathnames matching an \*r suffix denote \*r files;
+all others denote working files.
+Names are paired as explained in
+.BR ci (1).
+.PP
+At least one revision must be specified with one of the options
+described below, usually
+.BR \-r .
+At most two revisions may be specified.
+If only one revision is specified, the latest
+revision on the default branch (normally the highest branch on the trunk)
+is assumed for the second revision.
+Revisions may be specified numerically or symbolically.
+.PP
+.B rcsmerge
+prints a warning if there are overlaps, and delimits
+the overlapping regions as explained in
+.BR merge (1).
+The command is useful for incorporating changes into a checked-out revision.
+.SH OPTIONS
+.TP
+.BI \-k subst
+Use
+.I subst
+style keyword substitution.
+See
+.BR co (1)
+for details.
+For example,
+.B "\-kk\ \-r1.1\ \-r1.2"
+ignores differences in keyword values when merging the changes from
+.B 1.1
+to
+.BR 1.2 .
+.TP
+.BR \-p [\f2rev\fP]
+Send the result to standard output instead of overwriting the working file.
+.TP
+.BR \-q [\f2rev\fP]
+Run quietly; do not print diagnostics.
+.TP
+.BR \-r [\f2rev\fP]
+Merge with respect to revision
+.IR rev .
+Here an empty
+.I rev
+stands for the latest revision on the default branch, normally the head.
+.TP
+.BI \-V n
+Emulate \*r version
+.IR n .
+See
+.BR co (1)
+for details.
+.TP
+.BI \-x "suffixes"
+Use
+.I suffixes
+to characterize \*r files.
+See
+.BR ci (1)
+for details.
+.SH EXAMPLES
+Suppose you have released revision 2.8 of
+.BR f.c .
+Assume
+furthermore that after you complete an unreleased revision 3.4, you receive
+updates to release 2.8 from someone else.
+To combine the updates to 2.8 and your changes between 2.8 and 3.4,
+put the updates to 2.8 into file f.c and execute
+.LP
+.B "    rcsmerge  \-p  \-r2.8  \-r3.4  f.c  >f.merged.c"
+.PP
+Then examine
+.BR f.merged.c .
+Alternatively, if you want to save the updates to 2.8 in the \*r file,
+check them in as revision 2.8.1.1 and execute
+.BR "co \-j":
+.LP
+.B "    ci  \-r2.8.1.1  f.c"
+.br
+.B "    co  \-r3.4  \-j2.8:2.8.1.1  f.c"
+.PP
+As another example, the following command undoes the changes
+between revision 2.4 and 2.8 in your currently checked out revision
+in
+.BR f.c .
+.LP
+.B "    rcsmerge  \-r2.8  \-r2.4  f.c"
+.PP
+Note the order of the arguments, and that
+.B f.c
+will be
+overwritten.
+.SH ENVIRONMENT
+.TP
+.B \s-1RCSINIT\s0
+options prepended to the argument list, separated by spaces.
+See
+.BR ci (1)
+for details.
+.SH DIAGNOSTICS
+Exit status is 0 for no overlaps, 1 for some overlaps, 2 for trouble.
+.SH IDENTIFICATION
+Author: Walter F. Tichy.
+.br
+Revision Number: \*(Rv; Release Date: \*(Dt.
+.br
+Copyright \(co 1982, 1988, 1989 by Walter F. Tichy.
+.br
+Copyright \(co 1990, 1991 by Paul Eggert.
+.SH "SEE ALSO"
+ci(1), co(1), ident(1), merge(1), rcs(1), rcsdiff(1), rcsintro(1), rlog(1),
+rcsfile(5)
+.br
+Walter F. Tichy,
+\*r\*-A System for Version Control,
+.I "Software\*-Practice & Experience"
+.BR 15 ,
+7 (July 1985), 637-654.
+.br
