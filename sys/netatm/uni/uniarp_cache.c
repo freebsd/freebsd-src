@@ -419,11 +419,7 @@ uniarp_validate_ip(uip, ip, origin)
 	 * Can't be multicast or broadcast address
 	 */
 	if (IN_MULTICAST(ntohl(ip->s_addr)) ||
-#if (defined(BSD) && (BSD >= 199306))
 	    in_broadcast(*ip, &uip->uip_ipnif->inf_nif->nif_if))
-#else
-	    in_broadcast(*ip))
-#endif
 		return (1);
 
 	/*

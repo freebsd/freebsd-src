@@ -112,11 +112,7 @@ struct protosw atmsw[] = {
 struct domain atmdomain = {
 	AF_ATM,
 	"atm",
-#if defined(__FreeBSD__)
 	atm_initialize,
-#else
-	0,
-#endif
 	0,
 	0, 
 	atmsw,
@@ -126,7 +122,6 @@ struct domain atmdomain = {
 DOMAIN_SET(atm);
 
 
-#if (defined(__FreeBSD__) && (BSD >= 199506))
 /*
  * Protocol request not supported
  *
@@ -213,6 +208,3 @@ atm_proto_notsupp4(so, i, m, addr, m2, td)
 {
 	return (EOPNOTSUPP);
 }
-
-#endif	/* (defined(__FreeBSD__) && (BSD >= 199506)) */
-
