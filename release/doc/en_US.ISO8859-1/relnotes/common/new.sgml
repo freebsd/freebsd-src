@@ -2054,7 +2054,9 @@ options HZ=1000 # not compulsory but strongly recommended</programlisting>
     <filename>libc</filename>. &merged;</para>
 
     <para>&man.sh.1; now implements <command>test</command> as a
-    built-in command for improved efficiency.  &man.sh.1; no longer
+    built-in command for improved efficiency. &merged;</para>
+
+    <para>&man.sh.1; no longer
     implements <command>printf</command> as a built-in command because
     it was considered less valuable compared to the other built-in
     commands (this functionality is, of course, still available
