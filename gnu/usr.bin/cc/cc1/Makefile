@@ -27,7 +27,7 @@ c-parse.c c-parse.h: c-parse.in
 	    ${.ALLSRC} > c-parse.y
 	${YACC} -d -o c-parse.c c-parse.y
 
-CLEANFILES+=	c-parse.c c-parse.h c-parse.y 		# insurance
+CLEANFILES+=	c-parse.c c-parse.h c-parse.y		# insurance
 
 #-----------------------------------------------------------------------
 
