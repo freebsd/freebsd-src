@@ -39,7 +39,7 @@ static char sccsid[] = "@(#)tags.c	8.1 (Berkeley) 6/6/93";
 
 #ifndef lint
 static const char rcsid[] =
-        "$Id: tags.c,v 1.5 1999/06/04 19:35:22 hoek Exp $";
+        "$Id: tags.c,v 1.3.2.1 1999/07/28 06:09:52 hoek Exp $";
 #endif /* not lint */
 
 #include <sys/types.h>

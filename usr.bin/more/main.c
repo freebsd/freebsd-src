@@ -45,7 +45,7 @@ static char sccsid[] = "@(#)main.c	8.1 (Berkeley) 6/7/93";
 
 #ifndef lint
 static const char rcsid[] =
-	"$Id: main.c,v 1.12 1999/06/01 20:02:33 hoek Exp $";
+	"$Id: main.c,v 1.10.2.1 1999/07/28 06:09:51 hoek Exp $";
 #endif /* not lint */
 
 /*
