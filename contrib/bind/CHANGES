@@ -1,14 +1,14 @@
+	--- 8.3.4-REL released --- (Thu Nov 14 05:45:26 PST 2002)
+
 1469.	[bug]		buffer length calculation for PX was wrong.
 
 1468.	[bug]		ns_name_ntol() could overwite a zero length buffer.
-
-1467.	[bug]		off by one bug in ns_makecannon().
 
 1466.	[bug]		large ENDS UDP buffer size could trigger a assertion.
 
 1465.	[bug]		possible NULL pointer dereference in db_sec.c
 
-1464.	[bug]      	the buffer used to construct the -ve record was not
+1464.	[bug]		the buffer used to construct the -ve record was not
 			big enough for all possible SOA records.  use pointer
 			arithmetic to calculate the remaining size in this
 			buffer.
