@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)in.c	8.2 (Berkeley) 11/15/93
- * $Id: in.c,v 1.3 1994/08/02 07:48:12 davidg Exp $
+ * $Id: in.c,v 1.4 1994/08/18 22:35:28 wollman Exp $
  */
 
 #include <sys/param.h>
@@ -49,6 +49,7 @@
 #include <netinet/in.h>
 #include <netinet/in_var.h>
 #include <netinet/if_ether.h>
+#include <ether.h>
 
 #ifdef INET
 /*
@@ -424,10 +425,12 @@ in_ifinit(ifp, ia, sin, scrub)
 		ia->ia_addr = oldaddr;
 		return (error);
 	}
+#if NETHER > 0
 	if (ifp->if_output == ether_output) { /* XXX: Another Kludge */
 		ia->ia_ifa.ifa_rtrequest = arp_rtrequest;
 		ia->ia_ifa.ifa_flags |= RTF_CLONING;
 	}
+#endif
 	splx(s);
 	if (scrub) {
 		ia->ia_ifa.ifa_addr = (struct sockaddr *)&oldaddr;
