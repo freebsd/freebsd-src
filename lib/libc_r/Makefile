@@ -1,4 +1,4 @@
-#	$Id$
+#	$Id: Makefile,v 1.6 1997/05/03 03:57:21 jb Exp $
 #
 # All library objects contain rcsid strings by default; they may be
 # excluded as a space-saving measure.  To produce a library that does
@@ -8,10 +8,23 @@
 LIB=c_r
 SHLIB_MAJOR= 3
 SHLIB_MINOR= 0
-CFLAGS+=-DLIBC_RCS -DSYSLIBC_RCS
+CFLAGS+=-DLIBC_RCS -DSYSLIBC_RCS -I${.CURDIR}/../libc/include
 CFLAGS+=-DPTHREAD_KERNEL -D_THREAD_SAFE -I${.CURDIR}/uthread
-AINC=	-I${.CURDIR}/../libc/${MACHINE} -I${.CURDIR}/uthread
+AINC=	-I${.CURDIR}/../libc/${MACHINE_ARCH} -I${.CURDIR}/uthread
 PRECIOUSLIB=	yes
+
+#
+# This is a list of syscalls that are renamed as _thread_sys_{syscall}
+# so that libc_r can provide replacement functions.
+#
+HIDDEN_SYSCALLS= accept.o bind.o close.o connect.o dup.o dup2.o \
+	execve.o fchdir.o fchflags.o fchmod.o fchown.o fcntl.o \
+	flock.o fpathconf.o fstat.o fstatfs.o fsync.o getdirentries.o \
+	getpeername.o getsockname.o getsockopt.o ioctl.o listen.o \
+	mkfifo.o mknod.o nanosleep.o nfssvc.o open.o read.o readv.o \
+	recvfrom.o recvmsg.o select.o sendmsg.o sendto.o setsockopt.o \
+	shutdown.o sigaction.o sigaltstack.o signanosleep.o socket.o \
+	socketpair.o wait4.o write.o writev.o
 
 .include "${.CURDIR}/../libc/Makefile.inc"
 .include "${.CURDIR}/man/Makefile.inc"
