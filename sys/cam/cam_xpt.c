@@ -26,7 +26,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *      $Id: cam_xpt.c,v 1.42.2.4 1999/03/11 11:03:00 jkh Exp $
+ *      $Id: cam_xpt.c,v 1.42.2.5 1999/03/14 05:17:49 ken Exp $
  */
 #include <sys/param.h>
 #include <sys/systm.h>
@@ -3292,12 +3292,8 @@ xpt_schedule(struct cam_periph *perph, u_int32_t new_priority)
 		/* New entry on the queue */
 		CAM_DEBUG(perph->path, CAM_DEBUG_SUBTRACE,
 			  ("   added periph to queue\n"));
-		if (device->drvq.generation++ == 0) {
-			/* Generation wrap, regen all entries */
-			camq_regen(&device->drvq);
-		}
 		perph->pinfo.priority = new_priority;
-		perph->pinfo.generation = device->drvq.generation;
+		perph->pinfo.generation = ++device->drvq.generation;
 		camq_insert(&device->drvq, &perph->pinfo);
 		runq = xpt_schedule_dev_allocq(perph->path->bus, device);
 	}
@@ -3350,11 +3346,7 @@ xpt_schedule_dev(struct camq *queue, cam_pinfo *pinfo,
 
 		CAM_DEBUG_PRINT(CAM_DEBUG_XPT,
 				("Inserting onto queue\n"));
-		if (queue->generation++ == 0) {
-			/* Generation wrap, regen all entries */
-			camq_regen(queue);
-		}
-		pinfo->generation = queue->generation;
+		pinfo->generation = ++queue->generation;
 		camq_insert(queue, pinfo);
 		retval = 1;
 	}
@@ -3611,12 +3603,8 @@ xpt_setup_ccb(struct ccb_hdr *ccb_h, struct cam_path *path, u_int32_t priority)
 	else
 		ccb_h->target_id = CAM_TARGET_WILDCARD;
 	if (path->device) {
-		if (path->device->ccbq.queue.generation++ == 0) {
-			/* Generation wrap, regen all entries */
-			cam_ccbq_regen(&path->device->ccbq);
-		}
 		ccb_h->target_lun = path->device->lun_id;
-		ccb_h->pinfo.generation = path->device->ccbq.queue.generation;
+		ccb_h->pinfo.generation = ++path->device->ccbq.queue.generation;
 	} else {
 		ccb_h->target_lun = CAM_TARGET_WILDCARD;
 	}
@@ -5588,7 +5576,8 @@ xpt_set_transfer_settings(struct ccb_trans_settings *cts, struct cam_ed *device,
 	}
 
 	qfrozen = FALSE;
-	if ((cts->valid & CCB_TRANS_TQ_VALID) != 0) {
+	if ((cts->valid & CCB_TRANS_TQ_VALID) != 0
+	 && (async_update == FALSE)) {
 		int device_tagenb;
 
 		/*
@@ -5629,15 +5618,24 @@ xpt_set_transfer_settings(struct ccb_trans_settings *cts, struct cam_ed *device,
 				device->flags &= ~CAM_DEV_TAG_AFTER_COUNT;
 				device->tag_delay_count = 0;
 			}
-		} else if ((cts->flags & (CCB_TRANS_SYNC_RATE_VALID|
-					  CCB_TRANS_SYNC_OFFSET_VALID|
-					  CCB_TRANS_BUS_WIDTH_VALID)) != 0) {
-			xpt_toggle_tags(cts->ccb_h.path);
 		}
 	}
 
-	if (async_update == FALSE)
+	if (async_update == FALSE) {
+		/*
+		 * If we are currently performing tagged transactions to
+		 * this device and want to change its negotiation parameters,
+		 * go non-tagged for a bit to give the controller a chance to
+		 * negotiate unhampered by tag messages.
+		 */
+		if ((device->inq_flags & SID_CmdQue) != 0
+		 && (cts->flags & (CCB_TRANS_SYNC_RATE_VALID|
+				   CCB_TRANS_SYNC_OFFSET_VALID|
+				   CCB_TRANS_BUS_WIDTH_VALID)) != 0)
+			xpt_toggle_tags(cts->ccb_h.path);
+
 		(*(sim->sim_action))(sim, (union ccb *)cts);
+	}
 
 	if (qfrozen) {
 		struct ccb_relsim crs;
