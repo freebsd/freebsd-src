@@ -1,6 +1,5 @@
-/* Invoke unistd functions, but avoid some glitches.
-
-   Copyright (C) 2001, 2003 Free Software Foundation, Inc.
+/* __fpending.c -- return the number of pending output bytes on a stream
+   Copyright (C) 2000 Free Software Foundation, Inc.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -16,6 +15,16 @@
    along with this program; if not, write to the Free Software Foundation,
    Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.  */
 
-/* Written by Paul Eggert.  */
+/* Written by Jim Meyering. */
 
-int dup_safer (int);
+#if HAVE_CONFIG_H
+# include <config.h>
+#endif
+
+#include "__fpending.h"
+
+size_t
+__fpending (FILE *fp)
+{
+  return PENDING_OUTPUT_N_BYTES;
+}

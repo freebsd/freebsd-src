@@ -1,5 +1,7 @@
 /* A more useful interface to strtol.
-   Copyright 1995, 1996, 1998, 1999, 2001 Free Software Foundation, Inc.
+
+   Copyright (C) 1995, 1996, 1998, 1999, 2001, 2002, 2003, 2004 Free
+   Software Foundation, Inc.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -18,30 +20,36 @@
 #ifndef XSTRTOL_H_
 # define XSTRTOL_H_ 1
 
-# if HAVE_INTTYPES_H
-#  include <inttypes.h> /* for uintmax_t */
-# endif
+# include "exitfail.h"
 
-# ifndef PARAMS
-#  if defined PROTOTYPES || (defined __STDC__ && __STDC__)
-#   define PARAMS(Args) Args
-#  else
-#   define PARAMS(Args) ()
+/* Get uintmax_t.  */
+# if HAVE_INTTYPES_H
+#  include <inttypes.h>
+# else
+#  if HAVE_STDINT_H
+#   include <stdint.h>
 #  endif
 # endif
 
 # ifndef _STRTOL_ERROR
 enum strtol_error
   {
-    LONGINT_OK, LONGINT_INVALID, LONGINT_INVALID_SUFFIX_CHAR, LONGINT_OVERFLOW
+    LONGINT_OK = 0,
+
+    /* These two values can be ORed together, to indicate that both
+       errors occurred.  */
+    LONGINT_OVERFLOW = 1,
+    LONGINT_INVALID_SUFFIX_CHAR = 2,
+
+    LONGINT_INVALID_SUFFIX_CHAR_WITH_OVERFLOW = (LONGINT_INVALID_SUFFIX_CHAR
+						 | LONGINT_OVERFLOW),
+    LONGINT_INVALID = 4
   };
 typedef enum strtol_error strtol_error;
 # endif
 
 # define _DECLARE_XSTRTOL(name, type) \
-  strtol_error \
-    name PARAMS ((const char *s, char **ptr, int base, \
-		  type *val, const char *valid_suffixes));
+  strtol_error name (const char *, char **, int, type *, const char *);
 _DECLARE_XSTRTOL (xstrtol, long int)
 _DECLARE_XSTRTOL (xstrtoul, unsigned long int)
 _DECLARE_XSTRTOL (xstrtoimax, intmax_t)
@@ -52,7 +60,7 @@ _DECLARE_XSTRTOL (xstrtoumax, uintmax_t)
     {									\
       switch ((Err))							\
 	{								\
-	case LONGINT_OK:						\
+	default:							\
 	  abort ();							\
 									\
 	case LONGINT_INVALID:						\
@@ -61,6 +69,7 @@ _DECLARE_XSTRTOL (xstrtoumax, uintmax_t)
 	  break;							\
 									\
 	case LONGINT_INVALID_SUFFIX_CHAR:				\
+	case LONGINT_INVALID_SUFFIX_CHAR | LONGINT_OVERFLOW:		\
 	  error ((Exit_code), 0, "invalid character following %s in `%s'", \
 		 (Argument_type_string), (Str));			\
 	  break;							\
@@ -74,7 +83,7 @@ _DECLARE_XSTRTOL (xstrtoumax, uintmax_t)
   while (0)
 
 # define STRTOL_FATAL_ERROR(Str, Argument_type_string, Err)		\
-  _STRTOL_ERROR (2, Str, Argument_type_string, Err)
+  _STRTOL_ERROR (exit_failure, Str, Argument_type_string, Err)
 
 # define STRTOL_FAIL_WARN(Str, Argument_type_string, Err)		\
   _STRTOL_ERROR (0, Str, Argument_type_string, Err)
