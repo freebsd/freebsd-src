@@ -1,0 +1,102 @@
+.\"
+.\" Copyright (c) 1997, 1998 Hellmuth Michaelis. All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\"	$Id: isdndebug.8,v 1.4 1998/12/05 18:03:47 hm Exp $
+.\"
+.\"	last edit-date: [Sat Dec  5 18:13:34 1998]
+.\"
+.\"	-hm	writing manual pages
+.\"	-hm	getting uptodate
+.\"
+.\"
+.Dd July 9, 1998
+.Dt isdndebug 8
+.Sh NAME
+.Nm isdndebug
+.Nd control debugging handling inside isdn4bsd kernel
+.Sh SYNOPSIS
+.Nm
+.Op Fl e
+.Op Fl g
+.Op Fl h
+.Op Fl l Ar layer
+.Op Fl m
+.Op Fl r
+.Op Fl s Ar value
+.Op Fl u Ar unit
+.Op Fl z
+.Op Fl H
+.Sh DESCRIPTION
+.Nm isdndebug
+is part of the isdn4bsd package and is used to control debugging output
+of the isdn4bsd kernel part. Every layer of the isdn4bsd kernel uses a
+debugging mask which can be manipulated using this utility.
+.Pp
+A second usage of
+.Nm
+is to display and reset the HSCX error counters.
+.Pp
+The following options are available:
+.Bl -tag -width Ds
+.It Fl e
+Set debugging mask for the selected layer(s) to display errors only.
+.It Fl g
+Get the debugging mask for the selected layer(s).
+.It Fl h
+Display the the HSCX error counters.
+.It Fl l
+Specify the layer for which a command applies. Default is all layers.
+.It Fl m
+Set debugging mask for the selected layer(s) to display all possible
+debugging messages (maximum output).
+.It Fl r
+Set debugging mask for the selected layer(s) to the compiled in default
+(reset).
+.It Fl s
+Set debugging mask for the selected layer(s) to value. Value can be
+specified in any number base supported by
+.Xr sscanf 3 .
+.It Fl u
+Set the unit numbers for the -h and -H flags.
+.It Fl z
+Set debugging mask for the selected layer(s) to no output at all (zero).
+.It Fl H
+Reset the HSCX error counters to zero.
+.Pp
+.Sh FILES
+/dev/i4bctl
+
+.Sh EXAMPLES
+The command:
+.Bd -literal -offset indent
+isdndebug -g
+.Ed
+.Pp
+displays the current debugging level for all ISDN layers
+
+.Sh AUTHOR
+The
+.Nm
+utility and this manpage were written by Hellmuth Michaelis. He can be
+contacted at hm@kts.org.
