@@ -63,9 +63,9 @@ __RCSID("@(#) $FreeBSD$");
 /*
  * Local functions
  */
-static int	vcc_compare __P((const void *, const void *));
-static int	ip_vcc_compare __P((const void *, const void *));
-static int	arp_compare __P((const void *, const void *));
+static int	vcc_compare(const void *, const void *);
+static int	ip_vcc_compare(const void *, const void *);
+static int	arp_compare(const void *, const void *);
 
 
 /*

@@ -65,7 +65,7 @@ __RCSID("@(#) $FreeBSD$");
 #endif
 
 
-static int scsp_parse_atmarp __P((char *, int, Scsp_atmarp_csa **));
+static int scsp_parse_atmarp(char *, int, Scsp_atmarp_csa **);
 
 
 /*

@@ -69,26 +69,26 @@ __RCSID("@(#) $FreeBSD$");
  * CA FSM actions
  */
 #define	CA_ACTION_CNT	20
-int	scsp_ca_act_00 __P((Scsp_dcs *, void *));
-int	scsp_ca_act_01 __P((Scsp_dcs *, void *));
-int	scsp_ca_act_02 __P((Scsp_dcs *, void *));
-int	scsp_ca_act_03 __P((Scsp_dcs *, void *));
-int	scsp_ca_act_04 __P((Scsp_dcs *, void *));
-int	scsp_ca_act_05 __P((Scsp_dcs *, void *));
-int	scsp_ca_act_06 __P((Scsp_dcs *, void *));
-int	scsp_ca_act_07 __P((Scsp_dcs *, void *));
-int	scsp_ca_act_08 __P((Scsp_dcs *, void *));
-int	scsp_ca_act_09 __P((Scsp_dcs *, void *));
-int	scsp_ca_act_10 __P((Scsp_dcs *, void *));
-int	scsp_ca_act_11 __P((Scsp_dcs *, void *));
-int	scsp_ca_act_12 __P((Scsp_dcs *, void *));
-int	scsp_ca_act_13 __P((Scsp_dcs *, void *));
-int	scsp_ca_act_14 __P((Scsp_dcs *, void *));
-int	scsp_ca_act_15 __P((Scsp_dcs *, void *));
-int	scsp_ca_act_16 __P((Scsp_dcs *, void *));
-int	scsp_ca_act_17 __P((Scsp_dcs *, void *));
-int	scsp_ca_act_18 __P((Scsp_dcs *, void *));
-int	scsp_ca_act_19 __P((Scsp_dcs *, void *));
+int	scsp_ca_act_00(Scsp_dcs *, void *);
+int	scsp_ca_act_01(Scsp_dcs *, void *);
+int	scsp_ca_act_02(Scsp_dcs *, void *);
+int	scsp_ca_act_03(Scsp_dcs *, void *);
+int	scsp_ca_act_04(Scsp_dcs *, void *);
+int	scsp_ca_act_05(Scsp_dcs *, void *);
+int	scsp_ca_act_06(Scsp_dcs *, void *);
+int	scsp_ca_act_07(Scsp_dcs *, void *);
+int	scsp_ca_act_08(Scsp_dcs *, void *);
+int	scsp_ca_act_09(Scsp_dcs *, void *);
+int	scsp_ca_act_10(Scsp_dcs *, void *);
+int	scsp_ca_act_11(Scsp_dcs *, void *);
+int	scsp_ca_act_12(Scsp_dcs *, void *);
+int	scsp_ca_act_13(Scsp_dcs *, void *);
+int	scsp_ca_act_14(Scsp_dcs *, void *);
+int	scsp_ca_act_15(Scsp_dcs *, void *);
+int	scsp_ca_act_16(Scsp_dcs *, void *);
+int	scsp_ca_act_17(Scsp_dcs *, void *);
+int	scsp_ca_act_18(Scsp_dcs *, void *);
+int	scsp_ca_act_19(Scsp_dcs *, void *);
 
 static int (*scsp_ca_act_vec[CA_ACTION_CNT])() = {
 	scsp_ca_act_00,

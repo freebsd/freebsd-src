@@ -70,7 +70,7 @@ __RCSID("@(#) $FreeBSD$");
 #endif
 
 
-void	yyerror __P((char *));
+void	yyerror(char *);
 %}
 
 

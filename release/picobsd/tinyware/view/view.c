@@ -48,7 +48,7 @@ extern char *optarg;
 extern int optind;
 
 /* Prototypes */
-int kbd_action __P((int x, int y, char hotkey));
+int kbd_action(int x, int y, char hotkey);
 
 struct action {
 	int zoom;
