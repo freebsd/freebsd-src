@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)vfs_subr.c	8.31 (Berkeley) 5/26/95
- * $Id: vfs_subr.c,v 1.104 1997/09/16 11:43:38 bde Exp $
+ * $Id: vfs_subr.c,v 1.105 1997/09/24 07:46:53 phk Exp $
  */
 
 /*
@@ -95,7 +95,7 @@ int vttoif_tab[9] = {
 	(bp)->b_vnbufs.le_next = NOLIST;				\
 }
 TAILQ_HEAD(freelst, vnode) vnode_free_list;	/* vnode free list */
-static u_long wantfreevnodes = 0;
+static u_long wantfreevnodes = 25;
 SYSCTL_INT(_debug, OID_AUTO, wantfreevnodes, CTLFLAG_RW, &wantfreevnodes, 0, "");
 static u_long freevnodes = 0;
 SYSCTL_INT(_debug, OID_AUTO, freevnodes, CTLFLAG_RD, &freevnodes, 0, "");
