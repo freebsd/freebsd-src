@@ -1,4 +1,4 @@
-/*	$Id: msdosfs_vnops.c,v 1.68 1998/05/07 04:58:42 msmith Exp $ */
+/*	$Id: msdosfs_vnops.c,v 1.69 1998/05/17 21:03:35 dt Exp $ */
 /*	$NetBSD: msdosfs_vnops.c,v 1.68 1998/02/10 14:10:04 mrg Exp $	*/
 
 /*-
@@ -433,7 +433,7 @@ msdosfs_setattr(ap)
 			return (error);
 		/*
 		 * We are very inconsistent about handling unsupported
-		 * attributes.  We ignored the the access time and the
+		 * attributes.  We ignored the access time and the
 		 * read and execute bits.  We were strict for the other
 		 * attributes.
 		 *
