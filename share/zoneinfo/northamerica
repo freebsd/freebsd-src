@@ -1,4 +1,4 @@
-# @(#)northamerica	7.30
+# @(#)northamerica	7.32
 # also includes Central America and the Caribbean
 
 # This data is by no means authoritative; if you think you know better,
@@ -1141,14 +1141,14 @@ Rule	Cuba	1969	1971	-	Oct	lastSun	0:00	0	S
 Rule	Cuba	1972	1974	-	Oct	8	0:00	0	S
 Rule	Cuba	1975	1977	-	Oct	lastSun	0:00	0	S
 Rule	Cuba	1978	only	-	May	7	0:00	1:00	D
-Rule	Cuba	1978	1980	-	Oct	Sun>=8	0:00	0	S
+Rule	Cuba	1978	1990	-	Oct	Sun>=8	0:00	0	S
 Rule	Cuba	1979	1980	-	Mar	Sun>=15	0:00	1:00	D
 Rule	Cuba	1981	1985	-	May	Sun>=5	0:00	1:00	D
-Rule	Cuba	1981	1990	-	Oct	Sun>=8	0:00	0	S
 Rule	Cuba	1986	1989	-	Mar	Sun>=14	0:00	1:00	D
 Rule	Cuba	1990	max	-	Apr	Sun>=1	0:00	1:00	D
 Rule	Cuba	1991	1995	-	Oct	Sun>=8	0:00s	0	S
-Rule	Cuba	1996	max	-	Oct	Sun>=1	0:00s	0	S
+Rule	Cuba	1996	only	-	Oct	Sun>=1	0:00s	0	S
+Rule	Cuba	1997	max	-	Oct	Sun>=8	0:00s	0	S
 
 # Zone	NAME		GMTOFF	RULES	FORMAT	[UNTIL]
 Zone	America/Havana	-5:29:28 -	LMT	1890
@@ -1249,8 +1249,11 @@ Zone America/Martinique	-4:04:20 -      LMT	1890		# Fort-de-France
 			-4:00	-	AST
 
 # Montserrat
+# From Paul Eggert (1997-08-31):
+# Recent volcanic eruptions have forced evacuation of Plymouth, the capital.
+# Luckily, Olveston, the current de facto capital, has the same longitude.
 # Zone	NAME		GMTOFF	RULES	FORMAT	[UNTIL]
-Zone America/Montserrat	-4:08:52 -	LMT	1911 Jul 1 0:01   # Plymouth
+Zone America/Montserrat	-4:08:52 -	LMT	1911 Jul 1 0:01   # Olveston
 			-4:00	-	AST
 
 # Nicaragua
