@@ -26,23 +26,30 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *       $FreeBSD$
+ * $FreeBSD$
  */
 /*
  * Developed by the TrustedBSD Project.
  * Support for POSIX.1e process capabilities.
  *
- * XXX Currently just syscall stubs
+ * XXX: Currently just syscall stubs.
  */
 
 #include <sys/types.h>
 #include <sys/param.h>
+#include <sys/kernel.h>
 #include <sys/systm.h>
 #include <sys/proc.h>
 #include <sys/sysproto.h>
 #include <sys/sysent.h>
 #include <sys/capability.h>
 #include <sys/acct.h>
+#include <sys/namei.h>
+#include <sys/vnode.h>
+#include <sys/file.h>
+#include <sys/sysctl.h>
+
+#include "opt_cap.h"
 
 /*
  * Syscall to allow a process to get it's currently capability set

@@ -37,28 +37,31 @@ int
 cap_set_flag(cap_t cap_p, cap_flag_t flag, int ncap, cap_value_t caps[],
 	     cap_flag_value_t value)
 {
-	u_int	*mask;
+	u_int64_t	*mask;
 	int	i;
 
 	switch(flag) {
 	case CAP_EFFECTIVE:
-		mask = &cap_p->c_effective[0];
+		mask = &cap_p->c_effective;
 		break;
 	case CAP_INHERITABLE:
-		mask = &cap_p->c_inheritable[0];
+		mask = &cap_p->c_inheritable;
 		break;
 	case CAP_PERMITTED:
-		mask = &cap_p->c_permitted[0];
+		mask = &cap_p->c_permitted;
 		break;
 	default:
 		return (EINVAL);
 	}
 
+	if (value != CAP_SET && value != CAP_CLEAR)
+		return (EINVAL);
+
 	for (i = 0; i < ncap; i++)
 		if (value == CAP_SET)
-			SET_CAPABILITY(mask, caps[i]);
+			SET_CAPABILITY(*mask, caps[i]);
 		else
-			UNSET_CAPABILITY(mask, caps[i]);
+			UNSET_CAPABILITY(*mask, caps[i]);
 	
 	return (0);
 }
