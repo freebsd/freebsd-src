@@ -70,7 +70,7 @@ main(int argc, char *argv[])
 	struct sigaction	 sa;
 	struct sockaddr_rfcomm	 ra;
 	bdaddr_t		 addr;
-	int			 n, background, channel, s, amaster, aslave;
+	int			 n, background, channel, s, amaster, aslave, fd;
 	fd_set			 rfd;
 	char			*tty = NULL, buf[SPPD_BUFFER_SIZE];
 
@@ -114,7 +114,7 @@ main(int argc, char *argv[])
 	}
 
 	/* Check if we have everything we need */
-	if (tty == NULL || memcmp(&addr, NG_HCI_BDADDR_ANY, sizeof(addr)) == 0)
+	if (memcmp(&addr, NG_HCI_BDADDR_ANY, sizeof(addr)) == 0)
 		usage();
 		/* NOT REACHED */
 
@@ -146,8 +146,19 @@ main(int argc, char *argv[])
 		errx(1, "Invalid RFCOMM channel number %d", channel);
 
 	/* Open TTYs */
-	if (sppd_ttys_open(tty, &amaster, &aslave) < 0)
-		exit(1);
+	if (tty == NULL) {
+		if (background)
+			usage();
+
+		amaster = STDIN_FILENO;
+		fd = STDOUT_FILENO;
+	} else {
+		if (sppd_ttys_open(tty, &amaster, &aslave) < 0)
+			exit(1);
+		
+		fd = amaster;
+	}		
+
 
 	/* Open RFCOMM connection */
 	memset(&ra, 0, sizeof(ra));
@@ -186,7 +197,7 @@ main(int argc, char *argv[])
 	}
 
 	openlog(SPPD_IDENT, LOG_NDELAY|LOG_PERROR|LOG_PID, LOG_DAEMON);
-	syslog(LOG_INFO, "Starting on %s...", tty);
+	syslog(LOG_INFO, "Starting on %s...", (tty != NULL)? tty : "stdin/stdout");
 
 	for (done = 0; !done; ) {
 		FD_ZERO(&rfd);
@@ -236,21 +247,24 @@ main(int argc, char *argv[])
 			if (n == 0)
 				break;
 
-			if (sppd_write(amaster, buf, n) < 0) {
+			if (sppd_write(fd, buf, n) < 0) {
 				syslog(LOG_ERR, "Could not write to master " \
 					"pty, fd=%d, size=%d. %s",
-					amaster, n, strerror(errno));
+					fd, n, strerror(errno));
 				exit(1);
 			}
 		}
 	}
 
-	syslog(LOG_INFO, "Completed on %s", tty);
+	syslog(LOG_INFO, "Completed on %s", (tty != NULL)? tty : "stdin/stdout");
 	closelog();
 
 	close(s);
-	close(aslave);
-	close(amaster);
+
+	if (tty != NULL) {
+		close(aslave);
+		close(amaster);
+	}	
 
 	return (0);
 }
@@ -394,7 +408,7 @@ usage(void)
 "\t-a address Address to connect to (required)\n" \
 "\t-b         Run in background\n" \
 "\t-c channel RFCOMM channel to connect to\n" \
-"\t-t tty     TTY name\n" \
+"\t-t tty     TTY name (required in background mode)\n" \
 "\t-h         Display this message\n", SPPD_IDENT);
 
 	exit(255);
