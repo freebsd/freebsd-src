@@ -32,7 +32,7 @@
 # SUCH DAMAGE.
 #
 #	@(#)vnode_if.sh	8.1 (Berkeley) 6/10/93
-# $Id: vnode_if.sh,v 1.6 1995/09/11 16:05:16 bde Exp $
+# $Id: vnode_if.sh,v 1.7 1995/10/29 15:31:27 phk Exp $
 #
 
 # Script to produce VFS front-end sugar.
@@ -71,9 +71,6 @@ cat << END_OF_LEADING_COMMENT > $HEADER
  */
 
 extern struct vnodeop_desc vop_default_desc;
-
-#include <vm/vm.h>
-#include <vm/vm_page.h>
 END_OF_LEADING_COMMENT
 
 # Awk script to take vnode_if.src and turn it into vnode_if.h.
@@ -190,8 +187,6 @@ cat << END_OF_LEADING_COMMENT > $CFILE
 #include <sys/param.h>
 #include <sys/mount.h>
 #include <sys/vnode.h>
-#include <vm/vm.h>
-#include <vm/vm_page.h>
 
 struct vnodeop_desc vop_default_desc = {
 	0,
