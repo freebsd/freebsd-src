@@ -660,10 +660,10 @@ main(int argc, char **argv)
 
 #if	defined(IPSEC) && defined(IPSEC_POLICY_IPSEC)
 	if (setpolicy(s, "in bypass") < 0)
-		errx(1, ipsec_strerror());
+		errx(1, "%s", ipsec_strerror());
 
 	if (setpolicy(s, "out bypass") < 0)
-		errx(1, ipsec_strerror());
+		errx(1, "%s", ipsec_strerror());
 #endif	/* defined(IPSEC) && defined(IPSEC_POLICY_IPSEC) */
 
 	if (sndsock < 0) {
@@ -740,10 +740,10 @@ main(int argc, char **argv)
 
 #if	defined(IPSEC) && defined(IPSEC_POLICY_IPSEC)
 	if (setpolicy(sndsock, "in bypass") < 0)
-		errx(1, ipsec_strerror());
+		errx(1, "%s", ipsec_strerror());
 
 	if (setpolicy(sndsock, "out bypass") < 0)
-		errx(1, ipsec_strerror());
+		errx(1, "%s", ipsec_strerror());
 #endif	/* defined(IPSEC) && defined(IPSEC_POLICY_IPSEC) */
 
 	Fprintf(stderr, "%s to %s (%s)",
@@ -923,7 +923,7 @@ setpolicy(so, policy)
 
 	buf = ipsec_set_policy(policy, strlen(policy));
 	if (buf == NULL) {
-		warnx(ipsec_strerror());
+		warnx("%s", ipsec_strerror());
 		return -1;
 	}
 	(void)setsockopt(so, IPPROTO_IP, IP_IPSEC_POLICY,
