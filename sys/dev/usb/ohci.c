@@ -542,6 +542,9 @@ ohci_intr(p)
 	u_int32_t intrs, eintrs;
 	ohci_physaddr_t done;
 
+	if ((sc == NULL) || (sc->sc_hcca == NULL))
+		return (0);
+
 	done = sc->sc_hcca->hcca_done_head;
 	if (done != 0) {
 		intrs = OHCI_WDH;
