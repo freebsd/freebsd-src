@@ -251,13 +251,3 @@ _RuneLocale _DefaultRuneLocale = {
 
 _RuneLocale *_CurrentRuneLocale = &_DefaultRuneLocale;
 
-int __mb_cur_max = 1;
-size_t (*__mbrtowc)(wchar_t * __restrict, const char * __restrict, size_t,
-    mbstate_t * __restrict) = _none_mbrtowc;
-int (*__mbsinit)(const mbstate_t *) = _none_mbsinit;
-size_t (*__mbsnrtowcs)(wchar_t * __restrict, const char ** __restrict,
-    size_t, size_t, mbstate_t * __restrict) = _none_mbsnrtowcs;
-size_t (*__wcrtomb)(char * __restrict, wchar_t, mbstate_t * __restrict) =
-    _none_wcrtomb;
-size_t (*__wcsnrtombs)(char * __restrict, const wchar_t ** __restrict,
-    size_t, size_t, mbstate_t * __restrict) = _none_wcsnrtombs;

@@ -35,14 +35,16 @@ __FBSDID("$FreeBSD$");
 #include <wchar.h>
 #include "mblocal.h"
 
-size_t	_UTF8_mbrtowc(wchar_t * __restrict, const char * __restrict, size_t,
-	    mbstate_t * __restrict);
-int	_UTF8_mbsinit(const mbstate_t *);
-size_t	_UTF8_mbsnrtowcs(wchar_t * __restrict, const char ** __restrict,
-	    size_t, size_t, mbstate_t * __restrict);
-size_t	_UTF8_wcrtomb(char * __restrict, wchar_t, mbstate_t * __restrict);
-size_t	_UTF8_wcsnrtombs(char * __restrict, const wchar_t ** __restrict,
-	    size_t, size_t, mbstate_t * __restrict);
+static size_t	_UTF8_mbrtowc(wchar_t * __restrict, const char * __restrict,
+		    size_t, mbstate_t * __restrict);
+static int	_UTF8_mbsinit(const mbstate_t *);
+static size_t	_UTF8_mbsnrtowcs(wchar_t * __restrict,
+		    const char ** __restrict, size_t, size_t,
+		    mbstate_t * __restrict);
+static size_t	_UTF8_wcrtomb(char * __restrict, wchar_t,
+		    mbstate_t * __restrict);
+static size_t	_UTF8_wcsnrtombs(char * __restrict, const wchar_t ** __restrict,
+		    size_t, size_t, mbstate_t * __restrict);
 
 typedef struct {
 	wchar_t	ch;
@@ -65,14 +67,14 @@ _UTF8_init(_RuneLocale *rl)
 	return (0);
 }
 
-int
+static int
 _UTF8_mbsinit(const mbstate_t *ps)
 {
 
 	return (ps == NULL || ((const _UTF8State *)ps)->want == 0);
 }
 
-size_t
+static size_t
 _UTF8_mbrtowc(wchar_t * __restrict pwc, const char * __restrict s, size_t n,
     mbstate_t * __restrict ps)
 {
@@ -194,7 +196,7 @@ _UTF8_mbrtowc(wchar_t * __restrict pwc, const char * __restrict s, size_t n,
 	return (wch == L'\0' ? 0 : want);
 }
 
-size_t
+static size_t
 _UTF8_mbsnrtowcs(wchar_t * __restrict dst, const char ** __restrict src,
     size_t nms, size_t len, mbstate_t * __restrict ps)
 {
@@ -276,7 +278,7 @@ _UTF8_mbsnrtowcs(wchar_t * __restrict dst, const char ** __restrict src,
 	return (nchr);
 }
 
-size_t
+static size_t
 _UTF8_wcrtomb(char * __restrict s, wchar_t wc, mbstate_t * __restrict ps)
 {
 	_UTF8State *us;
@@ -344,7 +346,7 @@ _UTF8_wcrtomb(char * __restrict s, wchar_t wc, mbstate_t * __restrict ps)
 	return (len);
 }
 
-size_t
+static size_t
 _UTF8_wcsnrtombs(char * __restrict dst, const wchar_t ** __restrict src,
     size_t nwc, size_t len, mbstate_t * __restrict ps)
 {

@@ -35,9 +35,10 @@
  * SUCH DAMAGE.
  */
 
-#include <sys/param.h>
+#include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
+#include <sys/types.h>
 #include <errno.h>
 #include <runetype.h>
 #include <stdlib.h>
@@ -45,11 +46,11 @@ __FBSDID("$FreeBSD$");
 #include <wchar.h>
 #include "mblocal.h"
 
-int	_GBK_init(_RuneLocale *);
-size_t	_GBK_mbrtowc(wchar_t * __restrict, const char * __restrict, size_t,
-	    mbstate_t * __restrict);
-int	_GBK_mbsinit(const mbstate_t *);
-size_t	_GBK_wcrtomb(char * __restrict, wchar_t, mbstate_t * __restrict);
+static size_t	_GBK_mbrtowc(wchar_t * __restrict, const char * __restrict,
+		    size_t, mbstate_t * __restrict);
+static int	_GBK_mbsinit(const mbstate_t *);
+static size_t	_GBK_wcrtomb(char * __restrict, wchar_t,
+		    mbstate_t * __restrict);
 
 typedef struct {
 	wchar_t	ch;
@@ -67,7 +68,7 @@ _GBK_init(_RuneLocale *rl)
 	return (0);
 }
 
-int
+static int
 _GBK_mbsinit(const mbstate_t *ps)
 {
 
@@ -82,7 +83,7 @@ _gbk_check(u_int c)
 	return ((c >= 0x81 && c <= 0xfe) ? 2 : 1);
 }
 
-size_t
+static size_t
 _GBK_mbrtowc(wchar_t * __restrict pwc, const char * __restrict s, size_t n,
     mbstate_t * __restrict ps)
 {
@@ -143,7 +144,7 @@ _GBK_mbrtowc(wchar_t * __restrict pwc, const char * __restrict s, size_t n,
 	}
 }
 
-size_t
+static size_t
 _GBK_wcrtomb(char * __restrict s, wchar_t wc, mbstate_t * __restrict ps)
 {
 	_GBKState *gs;
