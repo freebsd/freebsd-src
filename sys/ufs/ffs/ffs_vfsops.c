@@ -430,6 +430,7 @@ ffs_reload(struct mount *mp, struct thread *td)
 	vn_lock(devvp, LK_EXCLUSIVE | LK_RETRY, td);
 	if (vinvalbuf(devvp, 0, td->td_ucred, td, 0, 0) != 0)
 		panic("ffs_reload: dirty1");
+	vfs_object_create(devvp, td, td->td_ucred);
 	VOP_UNLOCK(devvp, 0, td);
 
 	/*
@@ -574,6 +575,7 @@ ffs_mountfs(devvp, mp, td)
 	cred = td ? td->td_ucred : NOCRED;
 
 
+	vfs_object_create(devvp, td, td->td_ucred);
 	ronly = (mp->mnt_flag & MNT_RDONLY) != 0;
 #if 0
 	/*
