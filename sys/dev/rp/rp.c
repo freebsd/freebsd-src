@@ -1132,7 +1132,6 @@ rpclose(dev, flag, mode, td)
 	oldspl = spltty();
 	(*linesw[tp->t_line].l_close)(tp, flag);
 	rp_disc_optim(tp, &tp->t_termios);
-	rpstop(tp, FREAD | FWRITE);
 	rphardclose(rp);
 
 	tp->t_state &= ~TS_BUSY;

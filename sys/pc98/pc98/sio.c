@@ -2105,7 +2105,6 @@ sioclose(dev, flag, mode, td)
 	com->modem_checking = 0;
 #endif
 	disc_optim(tp, &tp->t_termios, com);
-	comstop(tp, FREAD | FWRITE);
 	comhardclose(com);
 	ttyclose(tp);
 	siosettimeout();

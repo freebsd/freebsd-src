@@ -795,7 +795,6 @@ sioclose(dev, flag, mode, td)
 	cd_etc(com, CD1400_ETC_STOPBREAK);
 	(*linesw[tp->t_line].l_close)(tp, flag);
 	disc_optim(tp, &tp->t_termios, com);
-	comstop(tp, FREAD | FWRITE);
 	comhardclose(com);
 	ttyclose(tp);
 	siosettimeout();
