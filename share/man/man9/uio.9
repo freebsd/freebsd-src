@@ -68,7 +68,7 @@ appropriate driver
 or
 .Em write
 entry will be called with a pointer to a
-.Li struct uio
+.Fa "struct uio"
 being passed.  The transfer request is encoded in this structure.
 The driver itself should use
 .Fn uiomove
@@ -133,7 +133,7 @@ fooread(dev_t dev, struct uio *uio, int flag)
 
 	while (uio->uio_resid > 0) {
 		if (data_available > 0) {
-			amnt = MIN(uio->uio_resid, data_availabe);
+			amnt = MIN(uio->uio_resid, data_available);
 			if ((rv = uiomove((caddr_t)buffer, amnt, uio))
 			    != 0)
 				goto error;
