@@ -49,11 +49,31 @@
  * ACTION, ARISING OUT OF OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS
  * SOFTWARE.
  * -
- * --Copyright--
+ * Portions Copyright (c) 1995 by International Business Machines, Inc.
+ *
+ * International Business Machines, Inc. (hereinafter called IBM) grants
+ * permission under its copyrights to use, copy, modify, and distribute this
+ * Software with or without fee, provided that the above copyright notice and
+ * all paragraphs of this notice appear in all copies, and that the name of IBM
+ * not be used in connection with the marketing of any product incorporating
+ * the Software or modifications thereof, without specific, written prior
+ * permission.
+ *
+ * To the extent it has a right to do so, IBM grants an immunity from suit
+ * under its patents, if any, for the use, sale or manufacture of products to
+ * the extent that such products are used for performing Domain Name System
+ * dynamic updates in TCP/IP networks by means of the Software.  No immunity is
+ * granted for any product per se or for any other function of any product.
+ * THE SOFTWARE IS PROVIDED "AS IS", AND IBM DISCLAIMS ALL WARRANTIES,
+ * INCLUDING ALL IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A
+ * PARTICULAR PURPOSE.  IN NO EVENT SHALL IBM BE LIABLE FOR ANY SPECIAL,
+ * DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES WHATSOEVER ARISING
+ * OUT OF OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE, EVEN
+ * IF IBM IS APPRISED OF THE POSSIBILITY OF SUCH DAMAGES.
  *
  *      @(#)nameser.h	8.2 (Berkeley) 2/16/94
- *	From Id: nameser.h,v 4.9.1.15 1994/07/19 22:51:24 vixie Exp
- *	$Id: nameser.h,v 1.7 1996/01/30 23:31:16 mpp Exp $
+ *	From Id: nameser.h,v 8.11 1996/10/08 04:51:02 vixie Exp
+ *	$Id: nameser.h,v 1.8 1996/08/29 20:01:00 peter Exp $
  */
 
 #ifndef _ARPA_NAMESER_H_
@@ -62,7 +82,6 @@
 #include <sys/param.h>
 #include <sys/types.h>
 #include <sys/cdefs.h>
-#include <machine/endian.h>
 
 
 /*
@@ -73,13 +92,13 @@
  * is new enough to contain a certain feature.
  */
 
-#define	__BIND		19950621	/* interface version stamp */
+#define	__BIND		19960801	/* interface version stamp */
 
 /*
  * Define constants based on rfc883
  */
 #define	PACKETSZ	512		/* maximum packet size */
-#define	MAXDNAME	256		/* maximum domain name */
+#define MAXDNAME	1025		/* maximum presentation domain name */
 #define	MAXCDNAME	255		/* maximum compressed domain name */
 #define	MAXLABEL	63		/* maximum length of domain label */
 #define	HFIXEDSZ	12		/* #/bytes of fixed data in header */
@@ -89,7 +108,6 @@
 #define	INT16SZ		2		/* for systems without 16-bit ints */
 #define INADDRSZ	4		/* IPv4 T_A */
 #define IN6ADDRSZ	16		/* IPv6 T_AAAA */
-
 
 /*
  * Internet nameserver port number
@@ -104,17 +122,6 @@
 #define	STATUS		0x2		/* nameserver status query */
 /*#define xxx		0x3 */		/* 0x3 reserved */
 #define	NS_NOTIFY_OP	0x4		/* notify secondary of SOA change */
-#ifdef ALLOW_UPDATES
-	/* non standard - supports ALLOW_UPDATES stuff from Mike Schwartz */
-# define UPDATEA	0x9		/* add resource record */
-# define UPDATED	0xa		/* delete a specific resource record */
-# define UPDATEDA	0xb		/* delete all named resource record */
-# define UPDATEM	0xc		/* modify a specific resource record */
-# define UPDATEMA	0xd		/* modify all named resource record */
-# define ZONEINIT	0xe		/* initial zone transfer */
-# define ZONEREF	0xf		/* incremental zone referesh */
-#endif
-
 /*
  * Currently defined response codes
  */
@@ -124,10 +131,6 @@
 #define	NXDOMAIN	3		/* non existent domain */
 #define	NOTIMP		4		/* not implemented */
 #define	REFUSED		5		/* query refused */
-#ifdef ALLOW_UPDATES
-	/* non standard */
-# define NOCHANGE	0xf		/* update failed to change db */
-#endif
 
 /*
  * Type values for resources and queries
@@ -161,12 +164,19 @@
 #define	T_GPOS		27		/* geographical position (withdrawn) */
 #define	T_AAAA		28		/* IP6 Address */
 #define	T_LOC		29		/* Location Information */
+#define T_NXT		30		/* Next Valid Name in Zone */
+#define T_EID		31		/* Endpoint identifier */
+#define T_NIMLOC	32		/* Nimrod locator */
+#define T_SRV		33		/* Server selection */
+#define T_ATMA		34		/* ATM Address */
+#define T_NAPTR		35		/* Naming Authority PoinTeR */
 	/* non standard */
 #define	T_UINFO		100		/* user (finger) information */
 #define	T_UID		101		/* user ID */
 #define	T_GID		102		/* group ID */
 #define	T_UNSPEC	103		/* Unspecified format (binary data) */
 	/* Query type values which do not appear in resource records */
+#define T_IXFR		251		/* incremental zone transfer */
 #define	T_AXFR		252		/* transfer zone of authority */
 #define	T_MAILB		253		/* transfer mailbox records */
 #define	T_MAILA		254		/* transfer mail agent records */
@@ -183,6 +193,48 @@
 #define	C_ANY		255		/* wildcard match */
 
 /*
+ * Flags field of the KEY RR rdata
+ */
+#define	KEYFLAG_TYPEMASK	0xC000	/* Mask for "type" bits */
+#define	KEYFLAG_TYPE_AUTH_CONF	0x0000	/* Key usable for both */
+#define	KEYFLAG_TYPE_CONF_ONLY	0x8000	/* Key usable for confidentiality */
+#define	KEYFLAG_TYPE_AUTH_ONLY	0x4000	/* Key usable for authentication */
+#define	KEYFLAG_TYPE_NO_KEY	0xC000	/* No key usable for either; no key */
+/* The type bits can also be interpreted independently, as single bits: */
+#define	KEYFLAG_NO_AUTH		0x8000	/* Key not usable for authentication */
+#define	KEYFLAG_NO_CONF		0x4000	/* Key not usable for confidentiality */
+
+#define	KEYFLAG_EXPERIMENTAL	0x2000	/* Security is *mandatory* if bit=0 */
+#define	KEYFLAG_RESERVED3	0x1000  /* reserved - must be zero */
+#define	KEYFLAG_RESERVED4	0x0800  /* reserved - must be zero */
+#define	KEYFLAG_USERACCOUNT	0x0400	/* key is assoc. with a user acct */
+#define	KEYFLAG_ENTITY		0x0200	/* key is assoc. with entity eg host */
+#define	KEYFLAG_ZONEKEY		0x0100	/* key is zone key for the zone named */
+#define	KEYFLAG_IPSEC		0x0080  /* key is for IPSEC use (host or user)*/
+#define	KEYFLAG_EMAIL		0x0040  /* key is for email (MIME security) */
+#define	KEYFLAG_RESERVED10	0x0020  /* reserved - must be zero */
+#define	KEYFLAG_RESERVED11	0x0010  /* reserved - must be zero */
+#define	KEYFLAG_SIGNATORYMASK	0x000F	/* key can sign DNS RR's of same name */
+
+#define  KEYFLAG_RESERVED_BITMASK ( KEYFLAG_RESERVED3 | \
+				    KEYFLAG_RESERVED4 | \
+				    KEYFLAG_RESERVED10| KEYFLAG_RESERVED11) 
+
+/* The Algorithm field of the KEY and SIG RR's is an integer, {1..254} */
+#define	ALGORITHM_MD5RSA	1	/* MD5 with RSA */
+#define	ALGORITHM_EXPIRE_ONLY	253	/* No alg, no security */
+#define	ALGORITHM_PRIVATE_OID	254	/* Key begins with OID indicating alg */
+
+/* Signatures */
+					/* Size of a mod or exp in bits */
+#define	MIN_MD5RSA_KEY_PART_BITS	 512
+#define	MAX_MD5RSA_KEY_PART_BITS	2552
+					/* Total of binary mod and exp, bytes */
+#define	MAX_MD5RSA_KEY_BYTES		((MAX_MD5RSA_KEY_PART_BITS+7/8)*2+3)
+					/* Max length of text sig block */
+#define	MAX_KEY_BASE64			(((MAX_MD5RSA_KEY_BYTES+2)/3)*4)
+
+/*
  * Status return codes for T_UNSPEC conversion routines
  */
 #define	CONV_SUCCESS	0
@@ -190,6 +242,8 @@
 #define	CONV_BADFMT	(-2)
 #define	CONV_BADCKSUM	(-3)
 #define	CONV_BADBUFLEN	(-4)
+
+#include <machine/endian.h>
 
 /*
  * Structure for query header.  The order of the fields is machine- and
@@ -209,7 +263,9 @@ typedef struct {
 	unsigned	rd: 1;		/* recursion desired */
 			/* fields in fourth byte */
 	unsigned	ra: 1;		/* recursion available */
-	unsigned	unused :3;	/* unused bits (MBZ as of 4.9.3a3) */
+	unsigned	unused :1;	/* unused bits (MBZ as of 4.9.3a3) */
+	unsigned	ad: 1;		/* authentic data from named */
+	unsigned	cd: 1;		/* checking disabled by resolver */
 	unsigned	rcode :4;	/* response code */
 #endif
 #if BYTE_ORDER == LITTLE_ENDIAN || BYTE_ORDER == PDP_ENDIAN
@@ -221,7 +277,9 @@ typedef struct {
 	unsigned	qr :1;		/* response flag */
 			/* fields in fourth byte */
 	unsigned	rcode :4;	/* response code */
-	unsigned	unused :3;	/* unused bits (MBZ as of 4.9.3a3) */
+	unsigned	cd: 1;		/* checking disabled by resolver */
+	unsigned	ad: 1;		/* authentic data from named */
+	unsigned	unused :1;	/* unused bits (MBZ as of 4.9.3a3) */
 	unsigned	ra :1;		/* recursion available */
 #endif
 			/* remaining bytes */
@@ -235,18 +293,6 @@ typedef struct {
  * Defines for handling compressed domain names
  */
 #define	INDIR_MASK	0xc0
-
-/*
- * Structure for passing resource records around.
- */
-struct rrec {
-	int16_t		r_zone;			/* zone number */
-	int16_t		r_class;		/* class number */
-	int16_t		r_type;			/* type number */
-	u_int32_t	r_ttl;			/* time to live */
-	int		r_size;			/* size of data area */
-	char		*r_data;		/* pointer to data */
-};
 
 extern	u_int16_t	_getshort __P((const u_char *));
 extern	u_int32_t	_getlong __P((const u_char *));

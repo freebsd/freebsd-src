@@ -29,9 +29,28 @@
  * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
+ * -
+ * Portions Copyright (c) 1993 by Digital Equipment Corporation.
+ *
+ * Permission to use, copy, modify, and distribute this software for any
+ * purpose with or without fee is hereby granted, provided that the above
+ * copyright notice and this permission notice appear in all copies, and that
+ * the name of Digital Equipment Corporation not be used in advertising or
+ * publicity pertaining to distribution of the document or software without
+ * specific, written prior permission.
+ * 
+ * THE SOFTWARE IS PROVIDED "AS IS" AND DIGITAL EQUIPMENT CORP. DISCLAIMS ALL
+ * WARRANTIES WITH REGARD TO THIS SOFTWARE, INCLUDING ALL IMPLIED WARRANTIES
+ * OF MERCHANTABILITY AND FITNESS.   IN NO EVENT SHALL DIGITAL EQUIPMENT
+ * CORPORATION BE LIABLE FOR ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL
+ * DAMAGES OR ANY DAMAGES WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR
+ * PROFITS, WHETHER IN AN ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS
+ * ACTION, ARISING OUT OF OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS
+ * SOFTWARE.
  *
  *	@(#)inet.h	8.1 (Berkeley) 6/2/93
- *	$Id: inet.h,v 1.3 1996/06/13 20:44:50 wollman Exp $
+ *	From: inet.h,v 8.6 1996/08/08 06:54:29 vixie Exp
+ *	$Id: inet.h,v 1.4 1996/08/29 20:01:00 peter Exp $
  */
 
 #ifndef _ARPA_INET_H_
@@ -39,6 +58,7 @@
 
 /* External definitions for functions in inet(3), addr2ascii(3) */
 
+#include <sys/types.h>
 #include <sys/cdefs.h>
 
 struct in_addr;
@@ -50,14 +70,16 @@ unsigned long	 inet_addr __P((const char *));
 int		 inet_aton __P((const char *, struct in_addr *));
 unsigned long	 inet_lnaof __P((struct in_addr));
 struct in_addr	 inet_makeaddr __P((u_long , u_long));
+char *		 inet_neta __P((u_long, char *, size_t));
 unsigned long	 inet_netof __P((struct in_addr));
 unsigned long	 inet_network __P((const char *));
+char		*inet_net_ntop __P((int, const void *, int, char *, size_t));
+int		 inet_net_pton __P((int, const char *, void *, size_t));
 char		*inet_ntoa __P((struct in_addr));
-int              inet_pton __P((int af, const char *src, void *dst));
-const char	*inet_ntop __P((int af, const void *src, char *dst, size_t s));
-u_int		 inet_nsap_addr __P((const char *, u_char *, int maxlen));
-char		*inet_nsap_ntoa __P((int, const u_char *, char *ascii));
-
+int              inet_pton __P((int, const char *, void *));
+const char	*inet_ntop __P((int, const void *, char *, size_t));
+u_int		 inet_nsap_addr __P((const char *, u_char *, int));
+char		*inet_nsap_ntoa __P((int, const u_char *, char *));
 __END_DECLS
 
 #endif /* !_INET_H_ */
