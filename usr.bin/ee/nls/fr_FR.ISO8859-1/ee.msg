@@ -3,7 +3,7 @@ $ ee.i18n.guide for more information
 $ 
 $ For ee patchlevel 3
 $
-$ $Id: ee.msg,v 1.1 1995/09/09 15:06:08 jmz Exp $
+$ $Id: ee.msg,v 1.2 1996/05/27 21:00:06 joerg Exp $
 $ 
 $set 1
 $quote "
@@ -129,7 +129,7 @@ $quote "
 120 "FICHIER"
 121 "CARACTERE"
 122 "RAFRAICHIR"
-23 "menu divers"
+123 "RESEQUENCE"
 124 "AUTEUR"
 125 "VERSION"
 126 "MINMAJ"
@@ -168,3 +168,15 @@ $quote "
 159 "EMACS"
 160 "PASEMACS"
 161 "       +#   positionne le curseur sur la ligne #\n"
+162 "unable to open .init.ee for writing, no configuration saved!"
+163 "ee configuration saved in file %s"
+164 "save editor configuration"
+165 "save ee configuration"
+166 "save in current directory"
+167 "save in home directory"
+168 "ee configuration not saved"
+169 "must specify a file when invoking ree"
+170 "press Esc to cancel"
+180 "menu too large for window"
+181 "^^more^^"
+182 "VVmoreVV"
