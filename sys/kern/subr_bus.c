@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: subr_bus.c,v 1.12 1998/12/12 11:30:04 n_hibma Exp $
+ *	$Id: subr_bus.c,v 1.13 1999/01/10 22:04:05 n_hibma Exp $
  */
 
 #include <sys/param.h>
@@ -33,6 +33,7 @@
 #include <sys/module.h>
 #include <sys/bus_private.h>
 #include <sys/systm.h>
+#include <machine/stdarg.h>	/* for device_printf() */
 
 #include "opt_bus.h"
 
@@ -641,6 +642,35 @@ device_get_parent(device_t dev)
     return dev->parent;
 }
 
+int
+device_get_children(device_t dev, device_t **devlistp, int *devcountp)
+{
+    int count;
+    device_t child;
+    device_t *list;
+    
+    count = 0;
+    for (child = TAILQ_FIRST(&dev->children); child;
+	 child = TAILQ_NEXT(child, link))
+	count++;
+
+    list = malloc(count * sizeof(device_t), M_TEMP, M_NOWAIT);
+    if (!list)
+	return ENOMEM;
+
+    count = 0;
+    for (child = TAILQ_FIRST(&dev->children); child;
+	 child = TAILQ_NEXT(child, link)) {
+	list[count] = child;
+	count++;
+    }
+
+    *devlistp = list;
+    *devcountp = count;
+
+    return 0;
+}
+
 driver_t *
 device_get_driver(device_t dev)
 {
@@ -681,6 +711,17 @@ device_print_prettyname(device_t dev)
 	if (name == 0)
 		name = "(no driver assigned)";
 	printf("%s%d: ", name, device_get_unit(dev));
+}
+
+void
+device_printf(device_t dev, const char * fmt, ...)
+{
+	va_list ap;
+
+	device_print_prettyname(dev);
+	va_start(ap, fmt);
+	vprintf(fmt, ap);
+	va_end(ap);
 }
 
 void
@@ -1065,6 +1106,7 @@ bus_generic_resume(device_t dev)
 void
 bus_generic_print_child(device_t dev, device_t child)
 {
+	printf(" on %s%d", device_get_name(dev), device_get_unit(dev));
 }
 
 int
@@ -1087,7 +1129,7 @@ bus_generic_setup_intr(device_t dev, device_t child, struct resource *irq,
 {
 	/* Propagate up the bus hierarchy until someone handles it. */
 	if (dev->parent)
-		return (BUS_SETUP_INTR(dev->parent, dev, irq, intr, arg, 
+		return (BUS_SETUP_INTR(dev->parent, child, irq, intr, arg, 
 				       cookiep));
 	else
 		return (EINVAL);
@@ -1099,7 +1141,31 @@ bus_generic_teardown_intr(device_t dev, device_t child, struct resource *irq,
 {
 	/* Propagate up the bus hierarchy until someone handles it. */
 	if (dev->parent)
-		return (BUS_TEARDOWN_INTR(dev->parent, dev, irq, cookie));
+		return (BUS_TEARDOWN_INTR(dev->parent, child, irq, cookie));
+	else
+		return (EINVAL);
+}
+
+struct resource *
+bus_generic_alloc_resource(device_t dev, device_t child, int type, int *rid,
+			   u_long start, u_long end, u_long count, u_int flags)
+{
+	/* Propagate up the bus hierarchy until someone handles it. */
+	if (dev->parent)
+		return (BUS_ALLOC_RESOURCE(dev->parent, child, type, rid, 
+					   start, end, count, flags));
+	else
+		return (NULL);
+}
+
+int
+bus_generic_release_resource(device_t dev, device_t child, int type, int rid,
+			     struct resource *r)
+{
+	/* Propagate up the bus hierarchy until someone handles it. */
+	if (dev->parent)
+		return (BUS_RELEASE_RESOURCE(dev->parent, child, type, rid, 
+					     r));
 	else
 		return (EINVAL);
 }
@@ -1170,6 +1236,11 @@ bus_release_resource(device_t dev, int type, int rid, struct resource *r)
 				     type, rid, r));
 }
 
+static void
+root_print_child(device_t dev, device_t child)
+{
+}
+
 static int
 root_setup_intr(device_t dev, device_t child, driver_intr_t *intr, void *arg,
 		void **cookiep)
@@ -1186,7 +1257,7 @@ static device_method_t root_methods[] = {
 	DEVMETHOD(device_resume,	bus_generic_resume),
 
 	/* Bus interface */
-	DEVMETHOD(bus_print_child,	bus_generic_print_child),
+	DEVMETHOD(bus_print_child,	root_print_child),
 	DEVMETHOD(bus_read_ivar,	bus_generic_read_ivar),
 	DEVMETHOD(bus_write_ivar,	bus_generic_write_ivar),
 	DEVMETHOD(bus_setup_intr,	root_setup_intr),

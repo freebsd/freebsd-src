@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: bus.h,v 1.6 1998/07/31 09:18:52 dfr Exp $
+ *	$Id: bus.h,v 1.7 1998/11/14 21:58:41 wollman Exp $
  */
 
 #ifndef _SYS_BUS_H_
@@ -71,6 +71,7 @@ struct driver {
     device_method_t	*methods;	/* method table */
     driver_type_t	type;
     size_t		softc;		/* size of device softc struct */
+    void		*priv;		/* driver private data */
     TAILQ_ENTRY(driver) link;		/* list of devices on bus */
     device_ops_t	ops;		/* compiled method table */
 };
@@ -97,6 +98,10 @@ struct	resource;
 
 int	bus_generic_activate_resource(device_t dev, device_t child, int type,
 				      int rid, struct resource *r);
+struct resource *bus_generic_alloc_resource(device_t bus, device_t child,
+					    int type, int *rid,
+					    u_long start, u_long end,
+					    u_long count, u_int flags);
 int	bus_generic_attach(device_t dev);
 int	bus_generic_deactivate_resource(device_t dev, device_t child, int type,
 					int rid, struct resource *r);
@@ -104,6 +109,8 @@ int	bus_generic_detach(device_t dev);
 void	bus_generic_print_child(device_t dev, device_t child);
 int	bus_generic_read_ivar(device_t dev, device_t child, int which,
 			      uintptr_t *result);
+int	bus_generic_release_resource(device_t bus, device_t child,
+				     int type, int rid, struct resource *r);
 int	bus_generic_resume(device_t dev);
 int	bus_generic_setup_intr(device_t dev, device_t child,
 			       struct resource *irq,
@@ -147,6 +154,7 @@ const char 	*device_get_desc(device_t dev);
 devclass_t	device_get_devclass(device_t dev);
 driver_t	*device_get_driver(device_t dev);
 device_t	device_get_parent(device_t dev);
+int	device_get_children(device_t dev, device_t **listp, int *countp);
 void	*device_get_ivars(device_t dev);
 const	char *device_get_name(device_t dev);
 void	*device_get_softc(device_t dev);
@@ -155,6 +163,7 @@ int	device_get_unit(device_t dev);
 int	device_is_enabled(device_t dev);
 int	device_is_alive(device_t dev); /* did probe succeed? */
 void	device_print_prettyname(device_t dev);
+void	device_printf(device_t dev, const char *, ...) __printflike(2, 3);
 int	device_probe_and_attach(device_t dev);
 void	device_set_desc(device_t dev, const char* desc);
 int	device_set_devclass(device_t dev, const char *classname);
