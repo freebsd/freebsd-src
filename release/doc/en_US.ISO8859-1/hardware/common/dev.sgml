@@ -1593,7 +1593,7 @@
     (&man.bge.4; driver)
       <itemizedlist>
         <listitem>
-	  <para>3Com 3c996-T</para>
+	  <para>3Com 3c996-SX, 3c996-T</para>
         </listitem>
         <listitem>
 	  <para>Netgear GA302T</para>
