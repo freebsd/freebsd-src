@@ -6,7 +6,7 @@
  * this stuff is worth it, you can buy me a beer in return.   Poul-Henning Kamp
  * ----------------------------------------------------------------------------
  *
- * $Id: write_disk.c,v 1.8 1995/05/06 03:28:32 phk Exp $
+ * $Id: write_disk.c,v 1.9 1995/05/08 02:08:33 phk Exp $
  *
  */
 
@@ -50,8 +50,6 @@ Write_FreeBSD(int fd, struct disk *new, struct disk *old, struct chunk *c1)
 
 	dl = (struct disklabel *) (buf+512*LABELSECTOR+LABELOFFSET);
 	memset(dl,0,sizeof *dl);
-
-	printf("--> Write_FreeBSD()\n");
 
 	for(c2=c1->part;c2;c2=c2->next) {
 		if (c2->type == unused) continue;
@@ -101,7 +99,6 @@ Write_FreeBSD(int fd, struct disk *new, struct disk *old, struct chunk *c1)
 int
 Write_Extended(int fd, struct disk *new, struct disk *old, struct chunk *c1)
 {
-	printf("--> Write_Extended()\n");
 	return 0;
 }
 
