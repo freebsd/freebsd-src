@@ -39,6 +39,8 @@ static const char rcsid[] =
   "$FreeBSD$";
 #endif /* not lint */
 
+#include <sys/time.h>
+
 #include "rcv.h"
 #include "extern.h"
 
