@@ -1,9 +1,9 @@
-#	$Id: Makefile,v 1.3 1995/01/14 22:29:29 wollman Exp $
+#	$Id: Makefile,v 1.4 1995/01/14 22:30:32 wollman Exp $
 
 PROG=	compile_et
 SRCS=	compile_et.c error_table.y
 CFLAGS+=	-I. -I${.CURDIR}/../../lib/libcom_err
-CLEANFILES+=	et_lex.lex.c
+CLEANFILES+=	et_lex.lex.c y.tab.h
 DPADD+=	${LIBL}
 LDADD+=	-ll
 
