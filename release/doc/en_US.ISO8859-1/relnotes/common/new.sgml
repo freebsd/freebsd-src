@@ -396,8 +396,9 @@
       <para>&man.ipfw.8; now filters correctly in the presence of ECN bits in TCP
       segments. &merged;</para>
 
-      <para>&man.ipfw.8; now has a <option>-d</option> flag to prevent
-      the display of dynamic firewall rules.</para>
+      <para>&man.ipfw.8; will now avoid the display of dynamic
+      firewall rules unless the <option>-d</option> flag is passed to
+      it.  The <option>-e</option> lists expired dynamic rules.</para>
 
       <para>&man.bridge.4; and &man.dummynet.4; have received some
       enhancements and bug fixes.</para>
@@ -814,6 +815,9 @@
     hierarchy.  This bug has been fixed (see security advisory
     FreeBSD-SA-01:40). &merged;</para>
 
+    <para>&os;'s TCP implementation has been made more resistant to
+    SYN floods, by eliminating the RST segment normally sent when
+    removing a connection from the listen queue.</para>
   </sect2>
   <sect2>
     <title>Userland Changes</title>
@@ -1408,6 +1412,12 @@
     be controlled by the <varname>diskcheckd_enable</varname> variable
     in &man.rc.conf.5;.</para>
 
+    <para>&man.fmt.1; has been rewritten; the rewrite fixes a number
+    of bugs compared to its prior behavior.</para>
+
+    <para>&man.df.1; now takes a <option>-l</option> option to only
+    display information about locally-mounted filesystems.</para>
+
     <sect3>
       <title>Contributed Software</title>
 
@@ -1503,6 +1513,10 @@
       although it can still be run as <command>csh</command>.
       <application>tcsh</application> has been updated to version
       6.10. &merged;</para>
+
+      <para>&man.traceroute.8; now takes its default maximum TTL value
+      from the <varname>net.inet.ip.ttl</varname> sysctl
+      variable.</para>
 
       <sect4>
         <title>OpenSSH</title>
