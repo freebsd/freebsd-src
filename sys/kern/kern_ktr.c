@@ -141,8 +141,9 @@ sysctl_debug_ktr_alq_enable(SYSCTL_HANDLER_ARGS)
 		error = suser(curthread);
 		if (error)
 			return (error);
-		error = alq_open(&ktr_alq, (const char *)ktr_alq_file, 
-		    sizeof(struct ktr_entry), ktr_alq_depth);
+		error = alq_open(&ktr_alq, (const char *)ktr_alq_file,
+		    req->td->td_ucred, sizeof(struct ktr_entry),
+		    ktr_alq_depth);
 		if (error == 0) {
 			ktr_mask &= ~KTR_ALQ_MASK;
 			ktr_alq_cnt = 0;
