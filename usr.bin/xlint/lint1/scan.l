@@ -1,5 +1,5 @@
 %{
-/*	$NetBSD: scan.l,v 1.8 1995/10/23 13:38:51 jpo Exp $	*/
+/* $NetBSD: scan.l,v 1.8 1995/10/23 13:38:51 jpo Exp $	*/
 
 /*
  * Copyright (c) 1994, 1995 Jochen Pohl

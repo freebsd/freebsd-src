@@ -1,4 +1,4 @@
-/*	$NetBSD: param.h,v 1.4 1995/07/23 18:14:41 ragge Exp $	*/
+/* $NetBSD: param.h,v 1.4 1995/07/23 18:14:41 ragge Exp $	*/
 
 /*
  * Copyright (c) 1994, 1995 Jochen Pohl
