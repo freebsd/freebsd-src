@@ -354,7 +354,7 @@ wep_encrypt(struct ieee80211_key *key, struct mbuf *m0, int hdrlen)
 			if (data_len != 0) {		/* out of data */
 				IEEE80211_DPRINTF(ctx->wc_ic,
 				    IEEE80211_MSG_CRYPTO,
-				    "[%s] out of data for WEP (data_len %u)\n",
+				    "[%s] out of data for WEP (data_len %zu)\n",
 				    ether_sprintf(mtod(m0,
 					struct ieee80211_frame *)->i_addr2),
 				    data_len);
@@ -438,7 +438,7 @@ wep_decrypt(struct ieee80211_key *key, struct mbuf *m0, int hdrlen)
 			if (data_len != 0) {		/* out of data */
 				IEEE80211_DPRINTF(ctx->wc_ic,
 				    IEEE80211_MSG_CRYPTO,
-				    "[%s] out of data for WEP (data_len %u)\n",
+				    "[%s] out of data for WEP (data_len %zu)\n",
 				    ether_sprintf(mtod(m0,
 					struct ieee80211_frame *)->i_addr2),
 				    data_len);
