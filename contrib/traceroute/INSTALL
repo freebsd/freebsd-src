@@ -1,4 +1,4 @@
-@(#) $Header: INSTALL,v 1.7 96/09/18 21:09:56 leres Exp $ (LBL)
+@(#) $Id: INSTALL,v 1.13 2000/11/23 20:07:29 leres Exp $ (LBL)
 
 Traceroute is known to build and run under SunOS 4.1.4 and Solaris 5.4.
 If you are running a really old kernel, see the instructions under the
@@ -19,6 +19,20 @@ will abort if your compiler is not ANSI compliant. If this happens, use
 the GNU C compiler, available via anonymous ftp:
 
         ftp://prep.ai.mit.edu/pub/gnu/gcc-*.tar.gz
+
+If you get the error message:
+
+	traceroute: unknown protocol icmp
+
+it usually means you're missing the icmp line in /etc/protocols.
+
+If you are using Solaris 2.5.1 (and possibly higher), traceroute cannot
+calculate checksums; configure automatically changes the default to
+reflect this. The kernel updates the ip_id field with some unknown
+value and the ip_off field with the IP_DF bit. Also, if the the udp
+uh_sum field is non-zero, it gets updated with the value of the uh_ulen
+field... This means that the icmp echo option (-I flag) is not as
+useful.
 
 KERNEL MODIFICATIONS
 --------------------
@@ -65,18 +79,27 @@ INSTALL         - this file
 Makefile.in	- compilation rules (input to the configure script)
 README		- description of distribution
 VERSION		- version of this release
-acsite.m4	- autoconf macros
+aclocal.m4	- autoconf macros
 config.guess	- autoconf support
 config.sub	- autoconf support
 configure	- configure script (run this first)
 configure.in	- configure script source
+findsaddr-generic.c - generic source address code
+findsaddr-linux.c - linux source address code
+findsaddr-socket.c - socket based soruce address code
+findsaddr.h	- source address prototypes
+ifaddrlist.c	- inet address routines
+ifaddrlist.h	- inet address prototypes
 install-sh	- BSD style install script
 lbl/gnuc.h	- gcc macros and defines
 lbl/os-*.h	- os dependent defines and prototypes
+linux-include/*	- network include files missing on Linux
 mean.awk	- awk script to print out the mean time along a route
 median.awk	- awk script to print out the median time along a route
 mkdep		- construct Makefile dependency list
 rip_output.c	- sample rip_output() from  /sys/netinet/raw_ip.c
+strerror.c	- emulation routine
 traceroute.8	- manual entry
 traceroute.c	- main program
-strerror.c	- emulation routine
+traceroute.h	- global prototypes
+usleep.c	- missing system call emulation

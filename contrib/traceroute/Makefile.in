@@ -1,4 +1,4 @@
-#  Copyright (c) 1988, 1989, 1990, 1991, 1992, 1995, 1996
+#  Copyright (c) 1988, 1989, 1990, 1991, 1992, 1995, 1996, 1997, 1998, 1999, 2000
 # 	The Regents of the University of California.  All rights reserved.
 #
 #  Redistribution and use in source and binary forms, with or without
@@ -17,7 +17,7 @@
 #  WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED WARRANTIES OF
 #  MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE.
 #
-# @(#) $Header: Makefile.in,v 1.21 96/09/16 18:49:46 leres Exp $ (LBL)
+# @(#) $Id: Makefile.in,v 1.28 2000/11/23 20:05:14 leres Exp $ (LBL)
 
 #
 # Various configurable paths (remember to edit Makefile.in, not Makefile)
@@ -57,25 +57,28 @@ INSTALL = @INSTALL@
 # problem if you don't own the file but can write to the directory.
 .c.o:
 	@rm -f $@
-	$(CC) $(CFLAGS) -c $*.c
+	$(CC) $(CFLAGS) -c $(srcdir)/$*.c
 
-CSRC =	traceroute.c
+CSRC =	traceroute.c ifaddrlist.c @V_FINDSADDR@
 GENSRC = version.c
 
 SRC =	$(CSRC) $(GENSRC)
+HDR =	findsaddr.h ifaddrlist.h
 
 TAGHDR = \
 	/usr/include/netinet/in.h \
 	/usr/include/netinet/ip_icmp.h \
 	/usr/include/netinet/udp.h
 
-TAGFILES = $(SRC) $(TAGHDR)
+TAGFILES = $(SRC) $(HDR) $(TAGHDR)
 
 # We would like to say "OBJ = $(SRC:.c=.o)" but Ultrix's make cannot
 # hack the extra indirection
 OBJ =	$(CSRC:.c=.o) $(GENSRC:.c=.o) @LIBOBJS@
 
 CLEANFILES = $(OBJ) traceroute $(GENSRC)
+
+all: traceroute
 
 traceroute: $(OBJ)
 	@rm -f $@
@@ -92,7 +95,7 @@ install: force
 install-man: force
 	$(INSTALL) -m 444 -o bin -g bin traceroute.8 $(DESTDIR)$(MANDEST)/man8
 
-lint:	$(GENSRC) force
+lint: $(GENSRC) force
 	lint -hbxn $(SRC) | \
 	    grep -v 'struct/union .* never defined' | \
 	    grep -v 'possible pointer alignment problem'
@@ -104,23 +107,23 @@ distclean: force
 	rm -f $(CLEANFILES) Makefile config.cache config.log config.status \
 	    gnuc.h os-proto.h
 
-tags:	$(TAGFILES)
+tags: $(TAGFILES)
 	ctags -wtd $(TAGFILES)
 
-tar:	force
-	@cwd=`pwd` ; dir=`basename $$cwd` ; name=traceroute-`cat VERSION` ; \
-	    list="" ; tar="tar chFFf" ; \
+tar: force
+	@cwd=`pwd` ; name=traceroute-`cat VERSION` ; \
+	    list="" ; tar="tar chf" ; temp="$$name.tar.gz" ; \
 	    for i in `cat FILES` ; do list="$$list $$name/$$i" ; done; \
 	    echo \
-	    "rm -f ../$$name; ln -s $$dir ../$$name" ; \
-	     rm -f ../$$name; ln -s $$dir ../$$name ; \
+	    "rm -f $$name; ln -s . $$name" ; \
+	     rm -f $$name; ln -s . $$name ; \
 	    echo \
-	    "(cd .. ; $$tar - [lots of files]) | compress > /tmp/$$name.tar.Z" ; \
-	     (cd .. ; $$tar - $$list) | compress > /tmp/$$name.tar.Z ; \
+	    "$$tar - [lots of files] | gzip > $$temp" ; \
+	     $$tar - $$list | gzip > $$temp ; \
 	    echo \
-	    "rm -f ../$$name" ; \
-	     rm -f ../$$name
+	    "rm -f $$name" ; \
+	     rm -f $$name
 
-force:	/tmp
-depend:	$(GENSRC) force
+force: /tmp
+depend: $(GENSRC) force
 	./mkdep -c $(CC) $(DEFS) $(INCLS) $(SRC)
