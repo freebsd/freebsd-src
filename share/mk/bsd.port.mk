@@ -6,7 +6,7 @@
 #	bsd.port.mk - 940820 Jordan K. Hubbard.
 #	This file is in the public domain.
 #
-# $Id: bsd.port.mk,v 1.233 1996/12/04 05:53:17 asami Exp $
+# $Id: bsd.port.mk,v 1.234 1996/12/08 05:40:38 obrien Exp $
 #
 # Please view me with 4 column tabs!
 
@@ -398,6 +398,9 @@ PKG_ARGS+=		-k ${PKGDIR}/DEINSTALL
 .if exists(${PKGDIR}/REQ)
 PKG_ARGS+=		-r ${PKGDIR}/REQ
 .endif
+.if exists(${PKGDIR}/DISPLAY)
+PKG_ARGS+=		-D ${PKGDIR}/DISPLAY
+.endif
 .if !defined(NO_MTREE) && defined(MTREE_LOCAL)
 PKG_ARGS+=		-m ${MTREE_LOCAL}
 .endif
@@ -581,19 +584,11 @@ IGNORE=	"is not an interactive port"
 .elif (defined(REQUIRES_MOTIF) && !defined(HAVE_MOTIF))
 IGNORE=	"requires Motif"
 .elif (defined(NO_CDROM) && defined(FOR_CDROM))
-.if ${NO_CDROM} == yes
-IGNORE=	"may not be placed on a CDROM"
-.else
 IGNORE=	"may not be placed on a CDROM: ${NO_CDROM}"
-.endif
 .elif (defined(RESTRICTED) && defined(NO_RESTRICTED))
 IGNORE=	"is restricted: ${RESTRICTED}"
 .elif defined(BROKEN)
-.if ${BROKEN} == yes
-IGNORE=	"is marked as broken"
-.else
 IGNORE=	"is marked as broken: ${BROKEN}"
-.endif
 .endif
 
 .if defined(IGNORE)
@@ -693,7 +688,11 @@ install: build
 # Disable package
 .if defined(NO_PACKAGE) && !target(package)
 package:
+.if defined(IGNORE_SILENT)
 	@${DO_NADA}
+.else
+	@${ECHO_MSG} "===>  ${PKGNAME} may not be packaged: ${NO_PACKAGE}."
+.endif
 .endif
 
 # Disable describe
@@ -1370,13 +1369,18 @@ misc-depends:
 
 .if !target(clean-depends)
 clean-depends:
-	@for i in ${FETCH_DEPENDS} ${BUILD_DEPENDS} ${LIB_DEPENDS}; do \
+.if defined(FETCH_DEPENDS) || defined(BUILD_DEPENDS) || defined(LIB_DEPENDS) \
+	|| defined(RUN_DEPENDS)
+	@for i in ${FETCH_DEPENDS} ${BUILD_DEPENDS} ${LIB_DEPENDS} ${RUN_DEPENDS}; do \
 		dir=`${ECHO} $$i | ${SED} -e 's/.*://'`; \
 		if [ -d $$dir ] ; then (cd $$dir; ${MAKE} clean); fi \
 	done
+.endif
+.if defined(DEPENDS)
 	@for dir in ${DEPENDS}; do \
 		if [ -d $$dir ] ; then (cd $$dir; ${MAKE} clean); fi \
 	done
+.endif
 .endif
 
 .if !target(depends-list)
