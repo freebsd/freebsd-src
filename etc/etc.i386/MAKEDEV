@@ -81,7 +81,10 @@
 #	bpf*	packet filter
 #	speaker	pc speaker
 #	tw*	xten power controller
-#	snd*	various sound cards
+#	snd*	various sound cards (generic entries)
+#	gusmax	A GUS MAX sound card (does various snd* entries)
+#	pas16	A ProAudio Spectrum 16 card (does various snd* entries)
+#	sb	A sound blaster card (any type)
 #	pcaudio PCM audio driver
 #	socksys iBCS2 socket system driver
 #	vat	VAT compatibility audio driver (requires snd*)
@@ -93,7 +96,7 @@
 #	isdn*	ISDN devices
 #	labpc*	National Instrument's Lab-PC and LAB-PC+
 #
-#	$Id: MAKEDEV,v 1.95.4.5 1995/10/17 21:42:38 davidg Exp $
+#	$Id: MAKEDEV,v 1.95.4.6 1995/10/30 02:59:41 jkh Exp $
 #
 
 PATH=/sbin:/bin/:/usr/bin:/usr/sbin:
@@ -938,6 +941,17 @@ snd*)
 
 				# minor numbers 10-15 are unused
 	umask 77
+	;;
+
+# More specialized cases of snd driver.
+gusmax)
+	sh /dev/MAKEDEV snd0 snd1 snd2
+	;;
+pas16)
+	sh /dev/MAKEDEV snd0 snd1
+	;;
+sb)
+	sh /dev/MAKEDEV snd0
 	;;
 
 vat)
