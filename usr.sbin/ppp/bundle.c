@@ -526,11 +526,11 @@ bundle_DescriptorRead(struct fdescriptor *d, struct bundle *bundle,
   if (FD_ISSET(bundle->dev.fd, fdset)) {
     struct tun_data tun;
     int n, pri;
-    char *data;
+    u_char *data;
     size_t sz;
 
     if (bundle->dev.header) {
-      data = (char *)&tun;
+      data = (u_char *)&tun;
       sz = sizeof tun;
     } else {
       data = tun.data;
