@@ -256,6 +256,8 @@ vop_stdpoll(ap)
 		struct proc *a_p;
 	} */ *ap;
 {
+	if ((ap->a_events & ~POLLSTANDARD) == 0)
+		return (ap->a_events & (POLLRDNORM|POLLWRNORM));
 	return (vn_pollrecord(ap->a_vp, ap->a_p, ap->a_events));
 }
 
