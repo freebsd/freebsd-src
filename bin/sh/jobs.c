@@ -259,6 +259,7 @@ jobscmd(int argc, char *argv[])
 	int ch, sformat, lformat;
 
 	optind = optreset = 1;
+	opterr = 0;
 	sformat = lformat = 0;
 	while ((ch = getopt(argc, argv, "ls")) != -1) {
 		switch (ch) {
