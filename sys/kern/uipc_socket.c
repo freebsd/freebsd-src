@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)uipc_socket.c	8.3 (Berkeley) 4/15/94
- *	$Id: uipc_socket.c,v 1.44 1998/08/31 15:34:55 wollman Exp $
+ *	$Id: uipc_socket.c,v 1.45 1998/08/31 18:07:23 wollman Exp $
  */
 
 #include <sys/param.h>
@@ -218,6 +218,7 @@ soclose(so)
 	int s = splnet();		/* conservative */
 	int error = 0;
 
+	funsetown(so->so_sigio);
 	if (so->so_options & SO_ACCEPTCONN) {
 		struct socket *sp, *sonext;
 
@@ -1182,10 +1183,8 @@ sohasoutofband(so)
 {
 	struct proc *p;
 
-	if (so->so_pgid < 0)
-		gsignal(-so->so_pgid, SIGURG);
-	else if (so->so_pgid > 0 && (p = pfind(so->so_pgid)) != 0)
-		psignal(p, SIGURG);
+	if (so->so_sigio != NULL)
+		pgsigio(so->so_sigio, SIGURG, 0);
 	selwakeup(&so->so_rcv.sb_sel);
 }
 

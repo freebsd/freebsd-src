@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)tty.c	8.8 (Berkeley) 1/21/94
- * $Id: tty.c,v 1.105 1998/07/11 10:41:15 bde Exp $
+ * $Id: tty.c,v 1.106 1998/08/19 04:01:00 bde Exp $
  */
 
 /*-
@@ -90,6 +90,7 @@
 #include <sys/signalvar.h>
 #include <sys/resourcevar.h>
 #include <sys/malloc.h>
+#include <sys/filedesc.h>
 #if NSNP > 0
 #include <sys/snoop.h>
 #endif
@@ -230,6 +231,7 @@ ttyclose(tp)
 {
 	int s;
 
+	funsetown(tp->t_sigio);
 	s = spltty();
 	if (constty == tp)
 		constty = NULL;
@@ -756,6 +758,25 @@ ttioctl(tp, cmd, data, flag)
 		*(int *)data = ttnread(tp);
 		splx(s);
 		break;
+
+	case FIOSETOWN:
+		/*
+		 * Policy -- Don't allow FIOSETOWN on someone else's 
+		 *           controlling tty
+		 */
+		if (tp->t_session != NULL && !isctty(p, tp))
+			return (ENOTTY);
+
+		error = fsetown(*(int *)data, &tp->t_sigio);
+		if (error)
+			return (error);
+		break;
+	case FIOGETOWN:
+		if (tp->t_session != NULL && !isctty(p, tp))
+			return (ENOTTY);
+		*(int *)data = fgetown(tp->t_sigio);
+		break;
+
 	case TIOCEXCL:			/* set exclusive use of tty */
 		s = spltty();
 		SET(tp->t_state, TS_XCLUDE);
@@ -2082,8 +2103,8 @@ ttwakeup(tp)
 
 	if (tp->t_rsel.si_pid != 0)
 		selwakeup(&tp->t_rsel);
-	if (ISSET(tp->t_state, TS_ASYNC))
-		pgsignal(tp->t_pgrp, SIGIO, 1);
+	if (ISSET(tp->t_state, TS_ASYNC) && tp->t_sigio != NULL)
+		pgsigio(tp->t_sigio, SIGIO, (tp->t_session != NULL));
 	wakeup(TSA_HUP_OR_INPUT(tp));
 }
 

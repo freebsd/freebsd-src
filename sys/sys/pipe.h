@@ -18,7 +18,7 @@
  * 5. Modifications may be freely made to this file if the above conditions
  *    are met.
  *
- * $Id: pipe.h,v 1.9 1997/04/09 16:53:45 bde Exp $
+ * $Id: pipe.h,v 1.10 1998/03/26 20:53:26 phk Exp $
  */
 
 #ifndef _SYS_PIPE_H_
@@ -102,7 +102,7 @@ struct pipe {
 	struct	timespec pipe_atime;	/* time of last access */
 	struct	timespec pipe_mtime;	/* time of last modify */
 	struct	timespec pipe_ctime;	/* time of status change */
-	int	pipe_pgid;		/* process/group for async I/O */
+	struct	sigio *pipe_sigio;	/* information for SIGIO */
 	struct	pipe *pipe_peer;	/* link with other direction */
 	u_int	pipe_state;		/* pipe status info */
 	int	pipe_busy;		/* busy flag, mostly to handle rundown sanely */

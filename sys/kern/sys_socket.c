@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)sys_socket.c	8.1 (Berkeley) 6/10/93
- * $Id: sys_socket.c,v 1.17 1998/03/28 10:33:07 bde Exp $
+ * $Id: sys_socket.c,v 1.18 1998/06/07 17:11:40 dfr Exp $
  */
 
 #include <sys/param.h>
@@ -44,6 +44,7 @@
 #include <sys/sockio.h>
 #include <sys/stat.h>
 #include <sys/uio.h>
+#include <sys/filedesc.h>
 
 #include <net/if.h>
 #include <net/route.h>
@@ -114,12 +115,18 @@ soo_ioctl(fp, cmd, data, p)
 		*(int *)data = so->so_rcv.sb_cc;
 		return (0);
 
-	case SIOCSPGRP:
-		so->so_pgid = *(int *)data;
+	case FIOSETOWN:
+		return (fsetown(*(int *)data, &so->so_sigio));
+
+	case FIOGETOWN:
+		*(int *)data = fgetown(so->so_sigio);
 		return (0);
 
+	case SIOCSPGRP:
+		return (fsetown(-(*(int *)data), &so->so_sigio));
+
 	case SIOCGPGRP:
-		*(int *)data = so->so_pgid;
+		*(int *)data = -fgetown(so->so_sigio);
 		return (0);
 
 	case SIOCATMARK:
