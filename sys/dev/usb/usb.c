@@ -1,4 +1,4 @@
-/*	$NetBSD: usb.c,v 1.57 2001/11/20 13:48:04 augustss Exp $	*/
+/*	$NetBSD: usb.c,v 1.58 2001/11/20 23:53:26 augustss Exp $	*/
 /*	$FreeBSD$	*/
 
 /*
@@ -117,13 +117,12 @@ struct usb_softc {
 	usbd_bus_handle sc_bus;		/* USB controller */
 	struct usbd_port sc_port;	/* dummy port for root hub */
 
-	TAILQ_HEAD(, usb_task) sc_tasks;
 	struct proc    *sc_event_thread;
-
-	struct usb_task sc_exp_task;
 
 	char		sc_dying;
 };
+
+TAILQ_HEAD(, usb_task) usb_all_tasks;
 
 #if defined(__NetBSD__) || defined(__OpenBSD__)
 cdev_decl(usb);
@@ -157,6 +156,8 @@ struct cdevsw usb_cdevsw = {
 Static void	usb_discover(void *);
 Static void	usb_create_event_thread(void *);
 Static void	usb_event_thread(void *);
+Static void	usb_task_thread(void *);
+Static struct proc *usb_task_thread_proc = NULL;
 
 #define USB_MAX_EVENTS 100
 struct usb_event_q {
@@ -214,9 +215,6 @@ USB_ATTACH(usb)
 	sc->sc_bus = aux;
 	sc->sc_bus->usbctl = sc;
 	sc->sc_port.power = USB_MAX_POWER;
-	TAILQ_INIT(&sc->sc_tasks);
-
-	usb_init_task(&sc->sc_exp_task, usb_discover, sc);
 
 #if defined(__FreeBSD__)
 	printf("%s", USBDEVNAME(sc->sc_dev));
@@ -318,12 +316,22 @@ void
 usb_create_event_thread(void *arg)
 {
 	struct usb_softc *sc = arg;
+	static int created = 0;
 
 	if (usb_kthread_create1(usb_event_thread, sc, &sc->sc_event_thread,
 			   "%s", USBDEVNAME(sc->sc_dev))) {
 		printf("%s: unable to create event thread for\n",
 		       USBDEVNAME(sc->sc_dev));
 		panic("usb_create_event_thread");
+	}
+	if (!created) {
+		created = 1;
+		TAILQ_INIT(&usb_all_tasks);
+		if (usb_kthread_create2(usb_task_thread, NULL,
+					&usb_task_thread_proc, "usbtask")) {
+			printf("unable to create task thread\n");
+			panic("usb_create_event_thread task");
+		}
 	}
 }
 
@@ -335,29 +343,27 @@ usb_create_event_thread(void *arg)
 void
 usb_add_task(usbd_device_handle dev, struct usb_task *task)
 {
-	struct usb_softc *sc = dev->bus->usbctl;
 	int s;
 
 	s = splusb();
 	if (!task->onqueue) {
-		DPRINTFN(2,("usb_add_task: sc=%p task=%p\n", sc, task));
-		TAILQ_INSERT_TAIL(&sc->sc_tasks, task, next);
+		DPRINTFN(2,("usb_add_task: task=%p\n", task));
+		TAILQ_INSERT_TAIL(&usb_all_tasks, task, next);
 		task->onqueue = 1;
 	} else
-		DPRINTFN(3,("usb_add_task: sc=%p task=%p on q\n", sc, task));
-	wakeup(&sc->sc_tasks);
+		DPRINTFN(3,("usb_add_task: task=%p on q\n", task));
+	wakeup(&usb_all_tasks);
 	splx(s);
 }
 
 void
 usb_rem_task(usbd_device_handle dev, struct usb_task *task)
 {
-	struct usb_softc *sc = dev->bus->usbctl;
 	int s;
 
 	s = splusb();
 	if (task->onqueue) {
-		TAILQ_REMOVE(&sc->sc_tasks, task, next);
+		TAILQ_REMOVE(&usb_all_tasks, task, next);
 		task->onqueue = 0;
 	}
 	splx(s);
@@ -367,8 +373,6 @@ void
 usb_event_thread(void *arg)
 {
 	struct usb_softc *sc = arg;
-	struct usb_task *task;
-	int s;
 
 #ifdef __FreeBSD__
 	mtx_lock(&Giant);
@@ -382,20 +386,18 @@ usb_event_thread(void *arg)
 	config_pending_decr();
 
 	while (!sc->sc_dying) {
-		s = splusb();
-		task = TAILQ_FIRST(&sc->sc_tasks);
-		if (task == NULL) {
-			tsleep(&sc->sc_tasks, PWAIT, "usbevt", 0);
-			task = TAILQ_FIRST(&sc->sc_tasks);
-		}
-		DPRINTFN(2,("usb_event_thread: woke up task=%p\n", task));
-		if (task != NULL && !sc->sc_dying) {
-			TAILQ_REMOVE(&sc->sc_tasks, task, next);
-			task->onqueue = 0;
-			splx(s);
-			task->fun(task->arg);
-		} else
-			splx(s);
+#ifdef USB_DEBUG
+		if (usb_noexplore < 2)
+#endif
+		usb_discover(sc);
+#ifdef USB_DEBUG
+		(void)tsleep(&sc->sc_bus->needs_explore, PWAIT, "usbevt",
+		    usb_noexplore ? 0 : hz * 60);
+#else
+		(void)tsleep(&sc->sc_bus->needs_explore, PWAIT, "usbevt",
+		    hz * 60);
+#endif
+		DPRINTFN(2,("usb_event_thread: woke up\n"));
 	}
 	sc->sc_event_thread = NULL;
 
@@ -404,6 +406,32 @@ usb_event_thread(void *arg)
 
 	DPRINTF(("usb_event_thread: exit\n"));
 	kthread_exit(0);
+}
+
+void
+usb_task_thread(void *arg)
+{
+	struct usb_task *task;
+	int s;
+
+	DPRINTF(("usb_task_thread: start\n"));
+
+	s = splusb();
+	for (;;) {
+		task = TAILQ_FIRST(&usb_all_tasks);
+		if (task == NULL) {
+			tsleep(&usb_all_tasks, PWAIT, "usbevt", 0);
+			task = TAILQ_FIRST(&usb_all_tasks);
+		}
+		DPRINTFN(2,("usb_task_thread: woke up task=%p\n", task));
+		if (task != NULL) {
+			TAILQ_REMOVE(&usb_all_tasks, task, next);
+			task->onqueue = 0;
+			splx(s);
+			task->fun(task->arg);
+			s = splusb();
+		}
+	}
 }
 
 #if defined(__NetBSD__) || defined(__OpenBSD__)
@@ -685,7 +713,7 @@ usb_needs_explore(usbd_device_handle dev)
 {
 	DPRINTFN(2,("usb_needs_explore\n"));
 	dev->bus->needs_explore = 1;
-	usb_add_task(dev, &dev->bus->usbctl->sc_exp_task);
+	wakeup(&dev->bus->needs_explore);
 }
 
 /* Called at splusb() */
@@ -836,7 +864,7 @@ usb_detach(device_ptr_t self, int flags)
 
 	/* Kill off event thread. */
 	if (sc->sc_event_thread) {
-		wakeup(&sc->sc_tasks);
+		wakeup(&sc->sc_bus->needs_explore);
 		if (tsleep(sc, PWAIT, "usbdet", hz * 60))
 			printf("%s: event thread didn't die\n",
 			       USBDEVNAME(sc->sc_dev));
