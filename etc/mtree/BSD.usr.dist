@@ -1,4 +1,4 @@
-#	$Id: BSD.usr.dist,v 1.74.2.11 1997/08/18 00:21:49 jdp Exp $
+#	$Id: BSD.usr.dist,v 1.74.2.12 1997/08/21 04:49:01 peter Exp $
 #
 
 /set type=dir uname=bin gname=bin mode=0755
@@ -278,6 +278,8 @@
 	    it_IT.ISO_8859-1
             ..
             ja_JP.EUC
+            ..
+            ja_JP.SJIS
             ..
 	    ko_KR.EUC
             ..
