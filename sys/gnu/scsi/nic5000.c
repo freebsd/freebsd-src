@@ -1,4 +1,4 @@
-static char     rcsid[] = "@(#)$Id: nic5000.c,v 1.1 1995/01/25 14:06:18 jkr Exp jkr $";
+static char     rcsid[] = "@(#)$Id: nic5000.c,v 1.1 1995/02/14 15:00:37 jkh Exp $";
 /*******************************************************************************
  *  II - Version 0.1 $Revision: 1.1 $   $State: Exp $
  *
@@ -10,6 +10,15 @@ static char     rcsid[] = "@(#)$Id: nic5000.c,v 1.1 1995/01/25 14:06:18 jkr Exp 
  *
  *******************************************************************************
  * $Log: nic5000.c,v $
+ * Revision 1.1  1995/02/14  15:00:37  jkh
+ * An ISDN driver that supports the EDSS1 and the 1TR6 ISDN interfaces.
+ * EDSS1 is the "Euro-ISDN", 1TR6 is the soon obsolete german ISDN Interface.
+ * Obtained from: Dietmar Friede <dfriede@drnhh.neuhaus.de> and
+ * 	Juergen Krause <jkr@saarlink.de>
+ *
+ * This is only one part - the rest to follow in a couple of hours.
+ * This part is a benign import, since it doesn't affect anything else.
+ *
  *
  ******************************************************************************/
 
@@ -36,9 +45,9 @@ static char     rcsid[] = "@(#)$Id: nic5000.c,v 1.1 1995/01/25 14:06:18 jkr Exp 
 
 #include "scsi/scsi_all.h"
 #include "scsi/scsiconf.h"
-#include "isdn/isdn_ioctl.h"
-#include "i386/isa/niccyreg.h"
-#include "scsi/scsi_nic.h"
+#include "gnu/isdn/isdn_ioctl.h"
+#include "gnu/i386/isa/niccyreg.h"
+#include "gnu/scsi/scsi_nic.h"
 /* #define NETBSD */
 
 #undef	SCSI_NOMASK
