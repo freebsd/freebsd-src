@@ -54,7 +54,7 @@
       supported that particular driver.</para>
   </note>
 
-  <sect2>
+  <sect2 id="disk">
     <title>Disk Controllers</title>
 
     <para arch="i386,alpha,sparc64,ia64,pc98,amd64">IDE/ATA controllers (&man.ata.4; driver)</para>
@@ -746,13 +746,13 @@
 
   </sect2>
 
-  <sect2>
+  <sect2 id="fddi">
     <title>FDDI Interfaces</title>
     <para arch="i386,pc98,alpha">DEC DEFPA PCI (&man.fpa.4; driver)</para>
     <para arch="i386">DEC DEFEA EISA (&man.fpa.4; driver)</para>
   </sect2>
 
-  <sect2>
+  <sect2 id="atm">
     <title>ATM Interfaces</title>
 
     <para arch="i386,pc98">Midway-based ATM interfaces (&man.en.4;
@@ -771,7 +771,7 @@
       driver)</para>
 
   </sect2>
-  <sect2>
+  <sect2 id="wlan">
     <title>Wireless Network Interfaces</title>
 
     <para arch="i386">NCR / AT&amp;T / Lucent Technologies WaveLan T1-speed
@@ -798,7 +798,7 @@
 
   </sect2>
 
-  <sect2>
+  <sect2 id="misc-network">
     <title>Miscellaneous Networks</title>
 
     &hwlist.cx;
@@ -847,7 +847,7 @@
 
   </sect2>
 
-  <sect2>
+  <sect2 id="isdn">
     <title>ISDN Interfaces</title>
     <para arch="i386">AcerISDN P10 ISA PnP (experimental)</para>
     <para arch="i386">Asuscom ISDNlink 128K ISA</para>
@@ -941,7 +941,7 @@
     <para arch="i386">Winbond W6692 based PCI cards</para>
   </sect2>
 
-  <sect2>
+  <sect2 id="serial">
     <title>Serial Interfaces</title>
 
     <para arch="i386,alpha,ia64,amd64"><quote>PC standard</quote> 8250, 16450, and 16550-based serial ports (&man.sio.4; driver)</para>
@@ -1138,7 +1138,7 @@
       </note>
 
   </sect2>
-  <sect2>
+  <sect2 id="audio">
     <title>Audio Devices</title>
 
     <para arch="i386,amd64">Advance (&man.sbc.4; driver)
@@ -1293,7 +1293,7 @@
     </para>
   </sect2>
 
-  <sect2>
+  <sect2 id="camera">
     <title>Camera and Video Capture Devices</title>
     <para arch="i386,pc98">Brooktree Bt848/849/878/879-based frame grabbers (&man.bktr.4;
     driver)
@@ -1567,7 +1567,7 @@
 
   </sect2>
 
-  <sect2>
+  <sect2 id="crypto-accel">
     <title>Cryptographic Accelerators</title>
 
     <para arch="i386,pc98,amd64">Accelerators based on
@@ -1588,7 +1588,7 @@
 
   </sect2>
 
-  <sect2>
+  <sect2 id="misc">
     <title>Miscellaneous</title>
 
     <para arch="i386,pc98,amd64">FAX-Modem/PCCARD
