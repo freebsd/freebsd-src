@@ -31,7 +31,7 @@
 .\"
 .\"     @(#)bad144.8	8.1 (Berkeley) 6/6/93
 .\"
-.Dd June 6, 1993
+.Dd May 13, 1995
 .Dt BAD144 8
 .Os BSD 4
 .Sh NAME
@@ -54,6 +54,10 @@
 .Op Fl v
 .Ar disk
 .Op Ar bad ...
+.Nm bad144
+.Op Fl s
+.Op Fl v
+.Ar disk
 .Sh DESCRIPTION
 .Nm Bad144
 can be used to inspect the information stored on a disk that is used by
@@ -86,6 +90,8 @@ the sectors have already been marked bad,
 or the system will not be notified that it should use the replacement sector.
 This option may be used while running multiuser; it is no longer necessary
 to perform format operations while running single-user.
+.It Fl s
+The entire disk is scanned for bad blocks.
 .It Fl v
 The entire process is described as it happens in gory detail if
 .Fl v
