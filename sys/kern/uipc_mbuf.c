@@ -412,6 +412,8 @@ m_prepend(m, len, how)
  * Make a copy of an mbuf chain starting "off0" bytes from the beginning,
  * continuing for "len" bytes.  If len is M_COPYALL, copy to end of mbuf.
  * The wait parameter is a choice of M_WAIT/M_DONTWAIT from caller.
+ * Note that the copy is read-only, because clusters are not copied,
+ * only their reference counts are incremented.
  */
 #define MCFail (mbstat.m_mcfail)
 
@@ -489,6 +491,8 @@ nospace:
 /*
  * Copy an entire packet, including header (which must be present).
  * An optimization of the common case `m_copym(m, 0, M_COPYALL, how)'.
+ * Note that the copy is read-only, because clusters are not copied,
+ * only their reference counts are incremented.
  */
 struct mbuf *
 m_copypacket(m, how)
@@ -582,6 +586,80 @@ m_copydata(m, off, len, cp)
 		off = 0;
 		m = m->m_next;
 	}
+}
+
+/*
+ * Copy a packet header mbuf chain into a completely new chain, including
+ * copying any mbuf clusters.  Use this instead of m_copypacket() when
+ * you need a writable copy of an mbuf chain.
+ */
+struct mbuf *
+m_dup(m, how)
+	struct mbuf *m;
+	int how;
+{
+	struct mbuf **p, *top = NULL;
+	int remain, moff, nsize;
+
+	/* Sanity check */
+	if (m == NULL)
+		return (0);
+	KASSERT((m->m_flags & M_PKTHDR) != 0, ("%s: !PKTHDR", __FUNCTION__));
+
+	/* While there's more data, get a new mbuf, tack it on, and fill it */
+	remain = m->m_pkthdr.len;
+	moff = 0;
+	p = &top;
+	while (remain > 0 || top == NULL) {	/* allow m->m_pkthdr.len == 0 */
+		struct mbuf *n;
+
+		/* Get the next new mbuf */
+		MGET(n, how, m->m_type);
+		if (n == NULL)
+			goto nospace;
+		if (top == NULL) {		/* first one, must be PKTHDR */
+			M_COPY_PKTHDR(n, m);
+			nsize = MHLEN;
+		} else				/* not the first one */
+			nsize = MLEN;
+		if (remain >= MINCLSIZE) {
+			MCLGET(n, how);
+			if ((n->m_flags & M_EXT) == 0) {
+				(void)m_free(n);
+				goto nospace;
+			}
+			nsize = MCLBYTES;
+		}
+		n->m_len = 0;
+
+		/* Link it into the new chain */
+		*p = n;
+		p = &n->m_next;
+
+		/* Copy data from original mbuf(s) into new mbuf */
+		while (n->m_len < nsize && m != NULL) {
+			int chunk = min(nsize - n->m_len, m->m_len - moff);
+
+			bcopy(m->m_data + moff, n->m_data + n->m_len, chunk);
+			moff += chunk;
+			n->m_len += chunk;
+			remain -= chunk;
+			if (moff == m->m_len) {
+				m = m->m_next;
+				moff = 0;
+			}
+		}
+
+		/* Check correct total mbuf length */
+		KASSERT((remain > 0 && m != NULL) || (remain == 0 && m == NULL),
+		    	("%s: bogus m_pkthdr.len", __FUNCTION__));
+	}
+	return (top);
+
+nospace:
+	m_freem(top);
+	MCFail++;
+	return (0);
 }
 
 /*
