@@ -490,12 +490,10 @@ in6_pcbconnect(inp, nam, p)
 	 * but if this line is missing, the garbage value remains.
 	 */
 	inp->in6p_flowinfo = sin6->sin6_flowinfo;
-#ifdef INET6
 	if ((inp->in6p_flowinfo & IPV6_FLOWLABEL_MASK) == 0 &&
 	    ip6_auto_flowlable != 0)
 		inp->in6p_flowinfo |=
 			(htonl(ip6_flow_seq++) & IPV6_FLOWLABEL_MASK);
-#endif
 
 	in_pcbrehash(inp);
 	return (0);
