@@ -549,32 +549,31 @@ ohci_alloc_std_chain(struct ohci_pipe *opipe, ohci_softc_t *sc,
 		 *
 		 * If/when dma has multiple segments, this will need to
 		 * properly handle fragmenting TD's.
-		 *
-		 * We can describe the above using maxsegsz = 4k and nsegs = 2
-		 * in the future.
+		 * 
+		 * Note that if we are gathering data from multiple SMALL
+		 * segments, e.g. mbufs, we need to do special gymnastics,
+		 * e.g. bounce buffering or data aggregation,
+		 * BEFORE WE GET HERE because a bulk USB transfer must
+		 * consist of maximally sized packets right up to the end.
+		 * A shorter than maximal packet means that it is the end
+		 * of the transfer. If the data transfer length is a
+		 * multiple of the packet size, then a 0 byte
+		 * packet will be the signal of the end of transfer.
+		 * Since packets can't cross TDs this means that
+		 * each TD except the last one must cover an exact multiple
+		 * of the maximal packet length.
 		 */
-		if ((OHCI_PAGE_OFFSET(dataphys) + len) <=
-		    (2 * OHCI_PAGE_SIZE)) {
-			/* we can handle it in this TD */
+		if (OHCI_PAGE_OFFSET(dataphys) + len <= (2 * OHCI_PAGE_SIZE)) {
+			/* We can handle all that remains in this TD */
 			curlen = len;
 		} else {
-			/* XXX The calculation below is wrong and could
-			 * result in a packet that is not a multiple of the
-			 * MaxPacketSize in the case where the buffer does not
-			 * start on an appropriate address (like for example in
-			 * the case of an mbuf cluster). You'll get an early
-			 * short packet.
-			 */
 			/* must use multiple TDs, fill as much as possible. */
 			curlen = 2 * OHCI_PAGE_SIZE -
 				 OHCI_PAGE_OFFSET(dataphys);
 			/* the length must be a multiple of the max size */
 			curlen -= curlen %
 			    UGETW(opipe->pipe.endpoint->edesc->wMaxPacketSize);
-#ifdef DIAGNOSTIC
-			if (curlen == 0)
-				panic("ohci_alloc_std: curlen == 0");
-#endif
+			KASSERT ((curlen == 0), ("ohci_alloc_std: curlen == 0"));
 		}
 		DPRINTFN(4,("ohci_alloc_std_chain: dataphys=0x%08x "
 			    "len=%d curlen=%d\n",
