@@ -662,8 +662,8 @@ int	vn_rdwr(enum uio_rw rw, struct vnode *vp, caddr_t base,
 	    struct ucred *active_cred, struct ucred *file_cred, int *aresid,
 	    struct thread *td);
 int	vn_rdwr_inchunks(enum uio_rw rw, struct vnode *vp, caddr_t base,
-	    int len, off_t offset, enum uio_seg segflg, int ioflg,
-	    struct ucred *active_cred, struct ucred *file_cred, int *aresid,
+	    size_t len, off_t offset, enum uio_seg segflg, int ioflg,
+	    struct ucred *active_cred, struct ucred *file_cred, size_t *aresid,
 	    struct thread *td);
 int	vn_stat(struct vnode *vp, struct stat *sb, struct ucred *active_cred,
 	    struct ucred *file_cred, struct thread *td);

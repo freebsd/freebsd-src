@@ -970,7 +970,7 @@ __elfN(coredump)(td, vp, limit)
 			error = vn_rdwr_inchunks(UIO_WRITE, vp,
 			    (caddr_t)(uintptr_t)php->p_vaddr,
 			    php->p_filesz, offset, UIO_USERSPACE,
-			    IO_UNIT | IO_DIRECT, cred, NOCRED, (int *)NULL,
+			    IO_UNIT | IO_DIRECT, cred, NOCRED, NULL,
 			    curthread); /* XXXKSE */
 			if (error != 0)
 				break;
