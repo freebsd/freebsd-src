@@ -23,7 +23,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- * $Id: atkbdc_isa.c,v 1.4 1999/05/08 21:59:29 dfr Exp $
+ * $Id: atkbdc_isa.c,v 1.5 1999/05/09 20:45:53 peter Exp $
  */
 
 #include "atkbdc.h"
@@ -65,6 +65,8 @@ static int	atkbdc_write_ivar(device_t bus, device_t dev, int index,
 static device_method_t atkbdc_methods[] = {
 	DEVMETHOD(device_probe,		atkbdc_probe),
 	DEVMETHOD(device_attach,	atkbdc_attach),
+	DEVMETHOD(device_suspend,	bus_generic_suspend),
+	DEVMETHOD(device_resume,	bus_generic_resume),
 
 	DEVMETHOD(bus_print_child,	atkbdc_print_child),
 	DEVMETHOD(bus_read_ivar,	atkbdc_read_ivar),
@@ -88,31 +90,12 @@ static driver_t atkbdc_driver = {
 static int
 atkbdc_probe(device_t dev)
 {
-	atkbdc_softc_t *sc;
-	int unit;
 	int error;
 
-	unit = device_get_unit(dev);
-	sc = *(atkbdc_softc_t **)device_get_softc(dev);
-	if (sc == NULL) {
-		/*
-		 * We have to maintain two copies of the kbdc_softc struct,
-		 * as the low-level console needs to have access to the
-		 * keyboard controller before kbdc is probed and attached. 
-		 * kbdc_soft[] contains the default entry for that purpose.
-		 * See atkbdc.c. XXX
-		 */
-		sc = atkbdc_get_softc(unit);
-		if (sc == NULL)
-			return ENOMEM;
-	}
-
 	device_set_desc(dev, "keyboard controller (i8042)");
-
-	error = atkbdc_probe_unit(sc, unit, isa_get_port(dev));
+	error = atkbdc_probe_unit(device_get_unit(dev), isa_get_port(dev));
 	if (error == 0)
-		*(atkbdc_softc_t **)device_get_softc(dev) = sc;
-
+		isa_set_portsize(dev, IO_KBDSIZE);
 	return error;
 }
 
@@ -148,11 +131,29 @@ static int
 atkbdc_attach(device_t dev)
 {
 	atkbdc_softc_t	*sc;
+	int		unit;
+	int		error;
 	int		i;
 
+	unit = device_get_unit(dev);
 	sc = *(atkbdc_softc_t **)device_get_softc(dev);
-	if ((sc == NULL) || (sc->port <= 0))
-		return ENXIO;
+	if (sc == NULL) {
+		/*
+		 * We have to maintain two copies of the kbdc_softc struct,
+		 * as the low-level console needs to have access to the
+		 * keyboard controller before kbdc is probed and attached. 
+		 * kbdc_soft[] contains the default entry for that purpose.
+		 * See atkbdc.c. XXX
+		 */
+		sc = atkbdc_get_softc(unit);
+		if (sc == NULL)
+			return ENOMEM;
+	}
+
+	error = atkbdc_attach_unit(unit, sc, isa_get_port(dev));
+	if (error)
+		return error;
+	*(atkbdc_softc_t **)device_get_softc(dev) = sc;
 
 	/*
 	 * Add all devices configured to be attached to atkbdc0.
