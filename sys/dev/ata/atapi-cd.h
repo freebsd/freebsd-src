@@ -312,10 +312,9 @@ struct acd_softc {
     int32_t			lun;		/* logical device unit */
     int32_t			flags;		/* device state flags */
 #define 	F_LOCKED		0x0001	/* this unit is locked */
-#define 	F_WRITING		0x0002	/* this unit is writing */
-#define 	F_WRITTEN		0x0004	/* medium has been written to */
-#define 	F_DISK_OPEN		0x0008	/* disk open for writing */
-#define 	F_TRACK_OPEN		0x0010	/* track open for writing */
+#define 	F_WRITTEN		0x0002	/* medium has been written to */
+#define 	F_DISK_OPEN		0x0004	/* disk open for writing */
+#define 	F_TRACK_OPEN		0x0008	/* track open for writing */
 
     struct buf_queue_head	buf_queue;	/* Queue of i/o requests */
     struct toc			toc;		/* table of disc contents */
@@ -340,6 +339,7 @@ struct acd_softc {
     struct changer		*changer_info;	/* changer info */
     int32_t			slot;		/* this lun's slot number */
     u_int32_t			block_size;	/* blocksize currently used */
+    struct disklabel		disklabel;	/* fake disk label */
     struct devstat		*stats;		/* devstat entry */
     dev_t			dev1, dev2;	/* device place holders */
 };
