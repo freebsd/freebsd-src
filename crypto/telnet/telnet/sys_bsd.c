@@ -616,6 +616,12 @@ TerminalNewMode(f)
     }
 
     if (f != -1) {
+#ifdef	SIGINT
+	SIG_FUNC_RET intr();
+#endif	/* SIGINT */
+#ifdef	SIGQUIT
+	SIG_FUNC_RET intr2();
+#endif	/* SIGQUIT */
 #ifdef	SIGTSTP
 	SIG_FUNC_RET susp();
 #endif	/* SIGTSTP */
@@ -623,6 +629,12 @@ TerminalNewMode(f)
 	SIG_FUNC_RET ayt();
 #endif
 
+#ifdef  SIGINT
+	(void) signal(SIGINT, intr);
+#endif
+#ifdef  SIGQUIT
+        (void) signal(SIGQUIT, intr2);
+#endif
 #ifdef	SIGTSTP
 	(void) signal(SIGTSTP, susp);
 #endif	/* SIGTSTP */
@@ -672,6 +684,12 @@ TerminalNewMode(f)
 	SIG_FUNC_RET ayt_status();
 
 	(void) signal(SIGINFO, ayt_status);
+#endif
+#ifdef  SIGINT
+	(void) signal(SIGINT, SIG_DFL);
+#endif
+#ifdef  SIGQUIT
+	(void) signal(SIGQUIT, SIG_DFL);
 #endif
 #ifdef	SIGTSTP
 	(void) signal(SIGTSTP, SIG_DFL);
