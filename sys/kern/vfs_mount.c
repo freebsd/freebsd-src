@@ -311,9 +311,9 @@ int
 nmount(td, uap)
 	struct thread *td;
 	struct nmount_args /* {
-		syscallarg(struct iovec *) iovp;
-		syscallarg(unsigned int) iovcnt;
-		syscallarg(int) flags;
+		struct iovec *iovp;
+		unsigned int iovcnt;
+		int flags;
 	} */ *uap;
 {
 	struct uio auio;
@@ -323,7 +323,7 @@ nmount(td, uap)
 	int error;
 	u_int iovlen, iovcnt;
 
-	iovcnt = SCARG(uap, iovcnt);
+	iovcnt = uap->iovcnt;
 	iovlen = iovcnt * sizeof (struct iovec);
 	/*
 	 * Check that we have an even number of iovec's
@@ -352,7 +352,7 @@ nmount(td, uap)
 		}
 		iov++;
 	}
-	error = vfs_nmount(td, SCARG(uap, flags), &auio);
+	error = vfs_nmount(td, uap->flags, &auio);
 finish:
 	if (needfree != NULL)
 		free(needfree, M_TEMP);
@@ -794,10 +794,10 @@ int
 mount(td, uap)
 	struct thread *td;
 	struct mount_args /* {
-		syscallarg(char *) type;
-		syscallarg(char *) path;
-		syscallarg(int) flags;
-		syscallarg(caddr_t) data;
+		char *type;
+		char *path;
+		int flags;
+		caddr_t data;
 	} */ *uap;
 {
 	char *fstype;
@@ -811,12 +811,12 @@ mount(td, uap)
 	 * vfs_mount() actually takes a kernel string for `type' and
 	 * `path' now, so extract them.
 	 */
-	error = copyinstr(SCARG(uap, type), fstype, MFSNAMELEN, NULL);
+	error = copyinstr(uap->type, fstype, MFSNAMELEN, NULL);
 	if (error == 0)
-		error = copyinstr(SCARG(uap, path), fspath, MNAMELEN, NULL);
+		error = copyinstr(uap->path, fspath, MNAMELEN, NULL);
 	if (error == 0)
-		error = vfs_mount(td, fstype, fspath, SCARG(uap, flags),
-		    SCARG(uap, data));
+		error = vfs_mount(td, fstype, fspath, uap->flags,
+		    uap->data);
 	free(fstype, M_TEMP);
 	free(fspath, M_TEMP);
 	return (error);
@@ -1189,8 +1189,8 @@ int
 unmount(td, uap)
 	struct thread *td;
 	register struct unmount_args /* {
-		syscallarg(char *) path;
-		syscallarg(int) flags;
+		char *path;
+		int flags;
 	} */ *uap;
 {
 	register struct vnode *vp;
@@ -1199,7 +1199,7 @@ unmount(td, uap)
 	struct nameidata nd;
 
 	NDINIT(&nd, LOOKUP, FOLLOW | LOCKLEAF, UIO_USERSPACE,
-	    SCARG(uap, path), td);
+	    uap->path, td);
 	if ((error = namei(&nd)) != 0)
 		return (error);
 	vp = nd.ni_vp;
@@ -1234,7 +1234,7 @@ unmount(td, uap)
 		return (EINVAL);
 	}
 	vput(vp);
-	return (dounmount(mp, SCARG(uap, flags), td));
+	return (dounmount(mp, uap->flags, td));
 }
 
 /*
