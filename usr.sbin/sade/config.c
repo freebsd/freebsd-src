@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: config.c,v 1.18 1995/12/07 10:33:35 peter Exp $
+ * $Id: config.c,v 1.19 1996/03/18 15:27:44 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -381,7 +381,7 @@ skip:
     if (cp && *cp != '0' && (hp = variable_get(VAR_HOSTNAME))) {
 	char cp2[255];
 
-	(void)vsystem("hostname %s", hp);
+	(void)vsystem("/bin/hostname %s", hp);
 	fp = fopen("/etc/hosts", "w");
 	if (!index(hp, '.'))
 	    cp2[0] = '\0';
