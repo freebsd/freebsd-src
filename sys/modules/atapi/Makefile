@@ -1,12 +1,12 @@
-#	$Id: Makefile,v 1.3 1996/05/07 23:19:28 wosch Exp $
+#	$Id: Makefile,v 1.4 1996/06/23 14:58:08 bde Exp $
 
 .PATH:          ${.CURDIR}/../../sys/i386/isa
 KMOD            = atapi_mod
-SRCS            = atapi.c wdc.h #wcd.h
+SRCS            = atapi.c wdc.h opt_atapi.h #wcd.h 
 NOMAN           =
 BINDIR          = /lkm
-CFLAGS         += -nostdinc -I. -DATAPI -DATAPI_MODULE
-CLEANFILES     += $(KMOD) machine wdc.h wcd.h *.b
+CFLAGS         += -nostdinc -I. -DATAPI_MODULE
+CLEANFILES     += $(KMOD) machine wdc.h wcd.h opt_atapi.h *.b
 LN              = ln -f -s
 EXPORT_SYMS	= _atapi_mod _atapi_debug_ptr _atapi_intr_ptr \
 		  _atapi_request_callback_ptr _atapi_request_immediate_ptr \
@@ -25,6 +25,9 @@ wdc.h:
 
 wcd.h:
 		echo "#define NWCD 1" > wcd.h
+
+opt_atapi.h:
+		echo "#define ATAPI 1"> opt_atapi.h
 
 .c.o:
 		-@$(LN) /sys/i386/include machine

@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)wd.c	7.2 (Berkeley) 5/9/91
- *	$Id: wd.c,v 1.115 1996/08/23 02:52:44 dyson Exp $
+ *	$Id: wd.c,v 1.116 1996/09/06 23:08:13 phk Exp $
  */
 
 /* TODO:
@@ -61,6 +61,8 @@
 #endif
 
 #include "wdc.h"
+#include "opt_atapi.h"
+
 #if     NWDC > 0
 
 #include <sys/param.h>

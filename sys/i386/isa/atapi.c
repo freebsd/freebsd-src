@@ -100,6 +100,8 @@
 #undef DEBUG
 
 #include "wdc.h"
+#include "opt_atapi.h"
+
 #ifndef ATAPI_MODULE
 # include "wcd.h"
 /* # include "wmt.h" -- add your driver here */
