@@ -1950,20 +1950,25 @@ options 	POWERFAIL_NMI	# make it beep instead of panicing
 #
 # SMB bus
 #
-# System Management Bus support provided by the 'smbus' device.
+# System Management Bus support is provided by the 'smbus' device.
+# Access to the SMBus device is via the 'smb' device (/dev/smb*),
+# which is a child of the 'smbus' device.
 #
 # Supported devices:
-# smb	standard io
+# smb		standard io through /dev/smb*
 #
-# Supported interfaces:
-# iicsmb I2C to SMB bridge with any iicbus interface
-# bktr	brooktree848 I2C hardware interface
-# intpm	Intel PIIX4 Power Management Unit
-# alpm	Acer Aladdin-IV/V/Pro2 Power Management Unit
+# Supported SMB interfaces:
+# iicsmb	I2C to SMB bridge with any iicbus interface
+# bktr		brooktree848 I2C hardware interface
+# intpm		Intel PIIX4 Power Management Unit
+# alpm		Acer Aladdin-IV/V/Pro2 Power Management Unit
+# ichsmb	Intel ICH SMBus controller chips (82801AA, 82801AB, 82801BA)
 #
 device		smbus		# Bus support, required for smb below.
+
 device		intpm
 device		alpm
+device		ichsmb
 
 device		smb
 
