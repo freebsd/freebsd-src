@@ -7,7 +7,7 @@
  */
 #if !defined(lint) && defined(LIBC_SCCS)
 static	char	sccsid[] = "@(#)ip_state.c	1.8 6/5/96 (C) 1993-1995 Darren Reed";
-static	char	rcsid[] = "$Id: ip_state.c,v 1.1.1.3 1997/04/03 10:11:29 darrenr Exp $";
+static	char	rcsid[] = "$Id: ip_state.c,v 2.0.2.12 1997/05/24 07:34:10 darrenr Exp $";
 #endif
 
 #if !defined(_KERNEL) && !defined(KERNEL)
@@ -19,12 +19,11 @@ static	char	rcsid[] = "$Id: ip_state.c,v 1.1.1.3 1997/04/03 10:11:29 darrenr Exp
 #include <sys/param.h>
 #include <sys/time.h>
 #include <sys/file.h>
-#if defined(__FreeBSD__) && (__FreeBSD__ >= 3)
-#include <sys/ioccom.h>
-#include <sys/filio.h>
-#include <sys/fcntl.h>
+#if defined(KERNEL) && (__FreeBSD_version >= 220000)
+# include <sys/filio.h>
+# include <sys/fcntl.h>
 #else
-#include <sys/ioctl.h>
+# include <sys/ioctl.h>
 #endif
 #include <sys/uio.h>
 #include <sys/protosw.h>
@@ -35,6 +34,7 @@ static	char	rcsid[] = "$Id: ip_state.c,v 1.1.1.3 1997/04/03 10:11:29 darrenr Exp
 #if !defined(__SVR4) && !defined(__svr4__)
 # include <sys/mbuf.h>
 #else
+# include <sys/filio.h>
 # include <sys/byteorder.h>
 # include <sys/dditypes.h>
 # include <sys/stream.h>
@@ -55,9 +55,10 @@ static	char	rcsid[] = "$Id: ip_state.c,v 1.1.1.3 1997/04/03 10:11:29 darrenr Exp
 #include <netinet/udp.h>
 #include <netinet/tcpip.h>
 #include <netinet/ip_icmp.h>
-#include "ip_compat.h"
-#include "ip_fil.h"
-#include "ip_state.h"
+#include "netinet/ip_compat.h"
+#include "netinet/ip_fil.h"
+#include "netinet/ip_nat.h"
+#include "netinet/ip_state.h"
 #ifndef	MIN
 #define	MIN(a,b)	(((a)<(b))?(a):(b))
 #endif
@@ -67,11 +68,8 @@ static	char	rcsid[] = "$Id: ip_state.c,v 1.1.1.3 1997/04/03 10:11:29 darrenr Exp
 ipstate_t *ips_table[IPSTATE_SIZE];
 int	ips_num = 0;
 ips_stat_t ips_stats;
-#if	SOLARIS
+#if	SOLARIS && defined(_KERNEL)
 extern	kmutex_t	ipf_state;
-# if	!defined(_KERNEL)
-#define	bcopy(a,b,c)	memmove(b,a,c)
-# endif
 #endif
 
 
@@ -94,10 +92,27 @@ ips_stat_t *fr_statetstats()
 }
 
 
-#define	PAIRS(s1,d1,s2,d2)	((((s1) == (s2)) && ((d1) == (d2))) ||\
-				 (((s1) == (d2)) && ((d1) == (s2))))
-#define	IPPAIR(s1,d1,s2,d2)	PAIRS((s1).s_addr, (d1).s_addr, \
-				      (s2).s_addr, (d2).s_addr)
+int fr_state_ioctl(data, cmd, mode)
+caddr_t data;
+int cmd;
+int mode;
+{
+	switch (cmd)
+	{
+	case SIOCGIPST :
+		IWCOPY((caddr_t)fr_statetstats(), data, sizeof(ips_stat_t));
+		break;
+	case FIONREAD :
+#ifdef	IPFILTER_LOG
+		*(int *)data = iplused[IPL_LOGSTATE];
+#endif
+		break;
+	default :
+		return -1;
+	}
+	return 0;
+}
+
 
 /*
  * Create a new ipstate structure and hang it off the hash table.
@@ -212,6 +227,8 @@ u_int pass;
 	ipstate_log(is, ISL_NEW);
 #endif
 	MUTEX_EXIT(&ipf_state);
+	if (fin->fin_fi.fi_fl & FI_FRAG)
+		ipfr_newfrag(ip, fin, pass ^ FR_KEEPSTATE);
 	return 0;
 }
 
@@ -346,8 +363,9 @@ fr_info_t *fin;
 				is->is_pkts++;
 				is->is_bytes += ip->ip_len;
 				ips_stats.iss_hits++;
+				pass = is->is_pass;
 				MUTEX_EXIT(&ipf_state);
-				return is->is_pass;
+				return pass;
 			}
 		MUTEX_EXIT(&ipf_state);
 		break;
@@ -364,10 +382,10 @@ fr_info_t *fin;
 			    PAIRS(sport, dport, is->is_sport, is->is_dport) &&
 			    IPPAIR(src, dst, is->is_src, is->is_dst))
 				if (fr_tcpstate(is, fin, ip, tcp, sport)) {
+					pass = is->is_pass;
 #ifdef	_KERNEL
 					MUTEX_EXIT(&ipf_state);
 #else
-					int pass = is->is_pass;
 
 					if (tcp->th_flags & TCP_CLOSE) {
 						*isp = is->is_next;
