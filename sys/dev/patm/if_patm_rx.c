@@ -216,7 +216,7 @@ patm_rx(struct patm_softc *sc, struct idt_rsqe *rsqe)
 			patm_debug(sc, VCC, "%u.%u RX closed", vcc->vcc.vpi,
 			    vcc->vcc.vci);
 			vcc->vflags &= ~PATM_VCC_RX_CLOSING;
-			if (vcc->vflags & PATM_VCC_ASYNC) {
+			if (vcc->vcc.flags & ATMIO_FLAG_ASYNC) {
 				patm_rx_vcc_closed(sc, vcc);
 				if (!(vcc->vflags & PATM_VCC_OPEN))
 					patm_vcc_closed(sc, vcc);
@@ -323,7 +323,7 @@ patm_rx(struct patm_softc *sc, struct idt_rsqe *rsqe)
 
 #ifdef ENABLE_BPF
 	if (!(vcc->vcc.flags & ATMIO_FLAG_NG) &&
-	    (vcc->vcc.flags & ATM_PH_AAL5) &&
+	    (vcc->vcc.aal == ATMIO_AAL_5) &&
 	    (vcc->vcc.flags & ATM_PH_LLCSNAP))
 		BPF_MTAP(&sc->ifatm.ifnet, m);
 #endif
