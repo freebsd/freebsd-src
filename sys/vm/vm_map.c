@@ -2155,6 +2155,10 @@ vmspace_fork(vm1)
 					&old_entry->offset,
 					atop(old_entry->end - old_entry->start));
 				old_entry->eflags &= ~MAP_ENTRY_NEEDS_COPY;
+				/* Transfer the second reference too. */
+				vm_object_reference(
+				    old_entry->object.vm_object);
+				vm_object_deallocate(object);
 				object = old_entry->object.vm_object;
 			}
 			vm_object_clear_flag(object, OBJ_ONEMAPPING);
