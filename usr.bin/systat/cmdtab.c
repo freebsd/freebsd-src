@@ -70,7 +70,7 @@ struct	cmdtab cmdtab[] = {
 	  resetip,	CF_LOADAV },
 	{ "tcp",	showtcp,	fetchtcp,	labeltcp,
 	  inittcp,	opentcp,	closetcp,	cmdmode,
-	  resettcp,	CF_LOADAV },
+	  resettcp,	0 },
         { 0 }
 };
 struct  cmdtab *curcmd = &cmdtab[0];
