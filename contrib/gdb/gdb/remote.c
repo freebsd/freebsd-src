@@ -998,6 +998,23 @@ show_remote_protocol_qPart_auxv_packet_cmd (char *args, int from_tty,
   show_packet_config_cmd (&remote_protocol_qPart_auxv);
 }
 
+/* Should we try the 'qPart:dirty' (target dirty register read) request? */
+static struct packet_config remote_protocol_qPart_dirty;
+
+static void
+set_remote_protocol_qPart_dirty_packet_cmd (char *args, int from_tty,
+					    struct cmd_list_element *c)
+{
+  update_packet_config (&remote_protocol_qPart_dirty);
+}
+
+static void
+show_remote_protocol_qPart_dirty_packet_cmd (char *args, int from_tty,
+					     struct cmd_list_element *c)
+{
+  show_packet_config_cmd (&remote_protocol_qPart_dirty);
+}
+
 
 /* Tokens for use by the asynchronous signal handlers for SIGINT */
 static void *sigint_remote_twice_token;
@@ -2088,6 +2105,7 @@ init_all_packet_configs (void)
      downloading. */
   update_packet_config (&remote_protocol_binary_download);
   update_packet_config (&remote_protocol_qPart_auxv);
+  update_packet_config (&remote_protocol_qPart_dirty);
 }
 
 /* Symbol look-up. */
@@ -4925,6 +4943,23 @@ remote_xfer_partial (struct target_ops *ops, enum target_object object,
 	}
       return -1;
 
+    case TARGET_OBJECT_DIRTY:
+      if (remote_protocol_qPart_dirty.support != PACKET_DISABLE)
+	{
+	  snprintf (buf2, rs->remote_packet_size, "qPart:dirty:read::%lx",
+		    (long)(offset >> 3));
+	  i = putpkt (buf2);
+	  if (i < 0)
+	    return i;
+	  buf2[0] = '\0';
+	  getpkt (buf2, rs->remote_packet_size, 0);
+	  if (packet_ok (buf2, &remote_protocol_qPart_dirty) != PACKET_OK)
+	    return -1;
+	  i = hex2bin (buf2, readbuf, len);
+	  return i;
+	}
+      return -1;
+
     default:
       return -1;
     }
@@ -5423,6 +5458,7 @@ show_remote_cmd (char *args, int from_tty)
   show_remote_protocol_vcont_packet_cmd (args, from_tty, NULL);
   show_remote_protocol_binary_download_cmd (args, from_tty, NULL);
   show_remote_protocol_qPart_auxv_packet_cmd (args, from_tty, NULL);
+  show_remote_protocol_qPart_dirty_packet_cmd (args, from_tty, NULL);
 }
 
 static void
@@ -5670,6 +5706,13 @@ in a memory packet.\n",
 			 "qPart_auxv", "read-aux-vector",
 			 set_remote_protocol_qPart_auxv_packet_cmd,
 			 show_remote_protocol_qPart_auxv_packet_cmd,
+			 &remote_set_cmdlist, &remote_show_cmdlist,
+			 0);
+
+  add_packet_config_cmd (&remote_protocol_qPart_dirty,
+			 "qPart_dirty", "read-dirty-registers",
+			 set_remote_protocol_qPart_dirty_packet_cmd,
+			 show_remote_protocol_qPart_dirty_packet_cmd,
 			 &remote_set_cmdlist, &remote_show_cmdlist,
 			 0);
 
