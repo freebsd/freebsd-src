@@ -339,7 +339,7 @@ checkfilesys(filesys, mntpt, auxdata, child)
 		resolved = 0;
 
 	/*
-	 * Check to see if the filesystem if mounted read-write.
+	 * Check to see if the filesystem is mounted read-write.
 	 */
 	if (mntbuf != NULL && (mntbuf->f_flags & MNT_RDONLY) == 0)
 		resolved = 0;
@@ -409,7 +409,7 @@ getmntpt(name)
 			strcat(device, devname);
 			devname = device;
 		}
-		if (stat(device, &mntdevstat) == 0 &&
+		if (stat(devname, &mntdevstat) == 0 &&
 		    mntdevstat.st_rdev == devstat.st_rdev)
 			return (&mntbuf[i]);
 	}
