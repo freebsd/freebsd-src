@@ -68,5 +68,6 @@ typedef struct fwohci_softc {
 } fwohci_softc_t;
 void fwohci_intr __P((void *arg));
 int fwohci_init __P((struct fwohci_softc *, device_t));
+void fwohci_reset __P((struct fwohci_softc *, device_t));
 int fwohci_detach __P((struct fwohci_softc *, device_t));
 int fwohci_shutdown __P((device_t dev));
