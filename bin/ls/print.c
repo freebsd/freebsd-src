@@ -241,6 +241,19 @@ printcol(dp)
 			    dp->s_block);
 			if ((base += numrows) >= num)
 				break;
+#ifdef COLORLS
+			/*
+			 * We can't put tabs and color sequences together:
+			 * column number will be incremented incorrectly
+			 * for "stty oxtabs" mode.
+			 */
+			if (f_color)
+				while ((cnt = (chcnt + 1)) <= endcol) {
+					(void)putchar(' ');
+					chcnt = cnt;
+				}
+			else
+#endif
 			while ((cnt = ((chcnt + tabwidth) & ~(tabwidth - 1)))
 			    <= endcol){
 				(void)putchar(f_notabs ? ' ' : '\t');
