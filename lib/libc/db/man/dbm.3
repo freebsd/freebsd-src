@@ -1,0 +1,200 @@
+.\" Copyright (c) 1999 Tim Singletary
+.\" No copyright is claimed.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\" $FreeBSD$
+.\"
+.\" Note: The date here should be updated whenever a non-trivial
+.\" change is made to the manual page.
+.Dd July 7, 1999
+.Dt dbm 3
+.Sh NAME
+.Nm dbm_clearerr Ns No ,
+.Nm dbm_close Ns No ,
+.Nm dbm_delete Ns No ,
+.Nm dbm_dirfno Ns No ,
+.Nm dbm_error Ns No ,
+.Nm dbm_fetch Ns No ,
+.Nm dbm_firstkey Ns No ,
+.Nm dbm_nextkey Ns No ,
+.Nm dbm_open Ns No ,
+.Nm dbm_store
+.Nd database access functions
+.Sh SYNOPSIS
+.Fd #include <fcntl.h>
+.Fd #include <ndbm.h>
+.Ft DBM *
+.Fn dbm_open "const char *base" "int flags" "int mode"
+.Ft void
+.Fn dbm_close "DBM *db"
+.Ft int
+.Fn dbm_store "DBM *db" "datum key" "datum data" "int flags"
+.Ft datum
+.Fn dbm_fetch "DBM *db" "datum key"
+.Ft int
+.Fn dbm_delete "DBM *db" "datum key"
+.Ft datum
+.Fn dbm_firstkey "DBM *db"
+.Ft datum
+.Fn dbm_nextkey "DBM *db"
+.Ft int
+.Fn dbm_error "DBM *db"
+.Ft int
+.Fn dbm_clearerr "DBM *db"
+.Ft int
+.Fn dbm_dirfno "DBM *db"
+
+.Sh DESCRIPTION
+Database access functions.
+These functions are implemented using 
+.Fn dbopen 
+(see
+.Xr dbopen 3 Ns No )
+with a 
+.Nm hash 
+(see
+.Xr hash 3 Ns No )
+database.
+
+.Fa datum
+is declared in
+.Pa ndbm.h Ns No :
+.Bd -literal
+typedef struct {
+        char *dptr;
+        int dsize;
+} datum;
+.Ed
+
+
+.Fn dbm_open base flags mode
+opens or creates a database.
+.Fa base No is the basename of the file containing 
+the database; the actual database has a
+.Sq .db 
+suffix.  I.e., if
+.Fa base
+is
+.Pa /home/me/mystuff
+then the actual database is in the file
+.Pa /home/me/mystuff.db Ns No .
+.Fa flags No and
+.Fa mode No are passed to
+.Fn open No (see
+.Xr open 2 Ns No ).
+.Li O_RDWR | O_CREAT
+is a typical value for
+.Fa flags Ns No ;
+.Li 0660
+is a typical value for
+.Fa mode Ns No .
+.Li O_WRONLY 
+is not allowed in
+.Fa flags Ns No .
+The pointer returned by
+.Fn dbm_open
+identifies the database and is the
+.Fa db
+argument to the other functions.
+.Fn dbm_open 
+returns 
+.Li NULL 
+and sets 
+.Va errno
+if there are any errors.
+
+.Fn dbm_close db
+closes the database.
+.Fn dbm_close
+normally returns zero.
+
+.Fn dbm_store db key data flags
+inserts or replaces an entry in the database.  
+.Fa flags No is either 
+.Li DBM_INSERT 
+or 
+.Li DBM_REPLACE Ns No .  
+If 
+.Fa flags 
+is
+.Li DBM_INSERT 
+and the database already contains an entry for
+.Fa key Ns No , 
+that entry is not replaced.  Otherwise the entry is replaced or inserted.  
+.Fn dbm_store
+normally returns returns zero but returns 1 if the entry could not be
+inserted (because 
+.Fa flags
+is
+.Li DBM_INSERT 
+and an entry with
+.Fa key
+already exists) or returns -1 and sets
+.Va errno
+if there were any errors.
+
+.Fn dbm_fetch db key
+returns 
+.Li NULL 
+or the
+.Fa data 
+corresponding to 
+.Fa key Ns No .
+
+.Fn dbm_delete db key
+deletes the entry for
+.Fa key Ns No .
+.Fn dbm_delete
+normally returns zero but returns 1 if there was no entry with
+.Fa key
+in the database or returns -1 and sets 
+.Va errno 
+if there were any errors.
+
+.Fn dbm_firstkey db
+returns the first key in the database.
+.Fn dbm_nextkey db
+returns subsequent keys.  
+.Fn db_firstkey 
+must be called before 
+.Fn dbm_nextkey.
+The order in which keys are returned is unspecified and may appear
+random.
+.Fn dbm_nextkey
+returns 
+.Li NULL 
+after all keys have been returned.
+
+.Fn dbm_error db
+returns the 
+.Va errno
+value of the most recent error.
+.Fn dbm_clearerr db
+resets this value to 0 and returns 0.
+
+.Fn dbm_dirfno db
+returns the file descriptor to the database.
+
+
+.Sh SEE ALSO
+.Xr dbopen 3 Ns ,
+.Xr hash 3 Ns ,
+.Xr open 2
+
+.Sh STANDARDS
+These functions (except 
+.Fn dbm_dirfno Ns No )
+are included in the Single Unix Specification for Unix 98.  
+
+
