@@ -27,9 +27,11 @@
  *	i4b_ioctl.h - messages kernel <--> userland
  *	-------------------------------------------
  *
- * $FreeBSD$ 
+ *	$Id: i4b_ioctl.h,v 1.150 1999/12/13 21:25:28 hm Exp $ 
  *
- *      last edit-date: [Fri Jul 30 08:53:47 1999]
+ * $FreeBSD$
+ *
+ *      last edit-date: [Mon Dec 13 22:12:16 1999]
  *
  *---------------------------------------------------------------------------*/
 
@@ -46,8 +48,8 @@
  *	version and release number for isdn4bsd package
  *---------------------------------------------------------------------------*/
 #define	VERSION		0		/* version number	*/
-#define	REL		83		/* release number	*/
-#define STEP		0		/* release step		*/
+#define	REL		90		/* release number	*/
+#define STEP		1 		/* release step		*/
 
 /*---------------------------------------------------------------------------*
  * date/time format in i4b log messages
@@ -66,6 +68,12 @@
  *	max number of controllers in system
  *---------------------------------------------------------------------------*/
 #define	MAX_CONTROLLERS	8		/* max number of controllers	*/
+
+/*---------------------------------------------------------------------------*
+ *	ISDN D-channel protocols 
+ *---------------------------------------------------------------------------*/
+#define PROTOCOL_DSS1	0		/* default, Euro-ISDN/DSS1 */
+#define PROTOCOL_D64S	1		/* 64k leased line, no protocol */
 
 /*---------------------------------------------------------------------------*
  *	controller types
@@ -278,6 +286,7 @@ typedef struct {
 #define	MSG_NEGCOMP_IND		'n'
 #define	MSG_IFSTATE_CHANGED_IND	'o'
 #define MSG_DIALOUTNUMBER_IND	'p'
+#define MSG_PACKET_IND		'q'
 	int		cdid;		/* call descriptor id		*/
 } msg_hdr_t;
 
@@ -428,6 +437,21 @@ typedef struct {
 	int		driver;		/* driver type		*/
 	int		driver_unit;	/* driver unit number	*/
 } msg_drvrdisc_req_t;
+
+/*---------------------------------------------------------------------------*
+ *	connect packet logging
+ *---------------------------------------------------------------------------*/
+
+typedef struct {
+	msg_hdr_t	header;		/* common header	*/
+	int		driver;		/* driver type		*/
+	int		driver_unit;	/* driver unit number	*/
+	int		direction;	/* 0=in 1=out		*/
+#define DIRECTION_IN	0		/* sending packet to remote	*/
+#define DIRECTION_OUT	1		/* received packet from remote	*/
+#define MAX_PACKET_LOG	40		/* space for IP and TCP header	*/
+	u_int8_t	pktdata[MAX_PACKET_LOG];
+} msg_packet_ind_t;
 
 /*---------------------------------------------------------------------------*
  *	state of layer 1/2
@@ -604,6 +628,16 @@ typedef struct {
 } msg_vr_req_t;
 
 #define I4B_VR_REQ              _IOR('4', 9, msg_vr_req_t)
+
+/*---------------------------------------------------------------------------*
+ *	set ISDN protocol used by a controller
+ *---------------------------------------------------------------------------*/
+typedef struct {
+	int	controller;	/* controller number		*/
+	int	protocol;	/* ISDN D-channel protocol type	*/
+} msg_prot_ind_t;
+
+#define I4B_PROT_IND		_IOW('4', 10, msg_prot_ind_t)
 
 /*---------------------------------------------------------------------------*
  *	Protocol download to active cards

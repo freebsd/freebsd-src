@@ -27,9 +27,11 @@
  *	i4b_cause.h - causes and cause handling for i4b
  *	-----------------------------------------------
  *
+ *	$Id: i4b_cause.h,v 1.11 1999/12/13 21:25:28 hm Exp $
+ *
  * $FreeBSD$
  *
- *      last edit-date: [Sun Feb 14 10:37:46 1999]
+ *      last edit-date: [Mon Dec 13 22:06:51 1999]
  *
  *---------------------------------------------------------------------------*/
 
@@ -66,8 +68,10 @@
 #define CAUSE_I4B_OOO		5	/* destination out of order	*/
 #define CAUSE_I4B_TMPFAIL	6	/* temporary failure		*/
 #define CAUSE_I4B_L1ERROR	7	/* L1 error / persistent deact	*/
-#define CAUSE_I4B_MAX		8
-
+#define CAUSE_I4B_LLDIAL	8	/* no dialout on leased line	*/
+#define CAUSE_I4B_MAX		9
+		/* NOTE: update isdnd/pcause.c when adding causes !!!!! */
+	
 /* CAUSET_Q850 - causes defined in Q.850 */
 
 #define	CAUSE_Q850_SHUTDN	0x00	/* normal D-channel shutdown */
