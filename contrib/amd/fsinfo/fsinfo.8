@@ -33,69 +33,49 @@
 .\" SUCH DAMAGE.
 .\"
 .\"     from: @(#)fsinfo.8	8.1 (Berkeley) 6/28/93
-.\"	$Id: fsinfo.8,v 1.2 1994/06/13 20:50:18 mycroft Exp $
+.\"	$Id: fsinfo.8,v 1.1.1.1 1998/08/23 22:07:20 obrien Exp $
 .\"
-.TH FSINFO 8 "June 28, 1993"
-.SH NAME
-fsinfo \- co-ordinate site-wide filesystem information
-.SH SYNOPSIS
-.B fsinfo
-[
-.B \-v
-] [
-.B \-a
-.I autodir
-] [
-.B \-b
-.I bootparams
-] [
-.B \-d
-.I dumpsets
-] [
-.B \-e
-.I exports
-] [
-.B \-f
-.I fstabs
-] [
-.B \-h
-.I hostname
-] [
-.B \-m
-.I automounts
-] [
-.B \-I
-.I dir
-] [
-.B \-D
-.I string[=string]]
-] [
-.B \-U
-.I string[=string]]
-]
-.I config
-.I ...
-.SH DESCRIPTION
+.Dd June 28, 1993
+.Dt FSINFO 8
+.Os
+.Sh NAME
+.Nm fsinfo
+.Nd co-ordinate site-wide filesystem information
+.Sh SYNOPSIS
+.Nm \&fsinfo
+.Op Fl v
+.Op Fl a Ar autodir
+.Op Fl b Ar bootparams
+.Op Fl d Ar dumpsets
+.Op Fl e Ar exports
+.Op Fl f Ar fstabs
+.Op Fl h Ar hostname
+.Op Fl m Ar automounts
+.Op Fl I Ar dir
+.Op Fl D Ar string[=string]]
+.Op Fl U Ar string[=string]]
+.Ar config 
+\&...
+.Sh DESCRIPTION
 The
-.B fsinfo
+.Nm
 utility takes a set of system configuration information, and generates
 a co-ordinated set of
-.I amd
-,
-.I mount
+.Xr amd ,
+.Xr mount ,
 and
-.I mountd
+.Xr mountd
 configuration files.
-.PP
+.Pp
 The
-.B fsinfo
+.Nm
 command is fully described in the document
-.I "Amd - The 4.4BSD Automounter"
-.SH "SEE ALSO"
-.BR amd (8),
-.BR mount (8),
-.BR mountd (8).
-.SH HISTORY
+.%T "Amd - The 4.4BSD Automounter"
+.Sh "SEE ALSO"
+.Xr amd 8 ,
+.Xr mount 8 ,
+.Xr mountd 8 .
+.Sh HISTORY
 The
-.B fsinfo
+.Nm
 command first appeared in 4.4BSD.

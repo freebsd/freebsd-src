@@ -38,33 +38,44 @@
 .\"
 .\"	%W% (Berkeley) %G%
 .\"
-.\" $Id: fixmount.8,v 5.2.2.1 1992/02/09 15:11:15 jsp beta $
+.\" $Id: wire-test.8,v 1.1.1.1 1998/08/23 22:07:21 obrien Exp $
 .\"
-.TH WIRE-TEST 8L "26 Feb 1993"
-.SH NAME
-wire-test \- test your network interfaces and local IP address
-.SH SYNOPSIS
-.B wire-test
-[
-.I host
-]
-.SH DESCRIPTION
-.LP
-.B wire-test
-is used to find out what amd thinks are the first two network
-interfaces and network names/numbers used, as well as the IP address
-used for amd to NFS-mount itself.
-
+.Dd February 26, 1993
+.Dt WIRE-TEST 8
+.Os
+.Sh NAME
+.Nm wire-test
+.Nd test your network interfaces and local IP address
+.Sh SYNOPSIS
+.Nm
+.Op Ar host
+.Sh DESCRIPTION
+.Nm
+is used to find out what
+.Nm Amd
+thinks are the first two network interfaces and network names/numbers
+used, as well as the IP address used for
+.Nm Amd
+to NFS-mount itself.
+.Pp
 If
-.I host
+.Ar host
 is specified, then
-.B wire-test
-will test for the working combinations of NFS protocol and version from
-the current client to the NFS server
-.I host.
+.Nm
+will test for the working combinations of
+.Tn NFS
+protocol and version from the current client to the
+.Tn NFS
+server
+.Ar host .
 If not specified,
-.I host
-defaults to "localhost".
-
-.SH "SEE ALSO"
-.BR amd (8).
+.Ar host
+defaults to
+.Dq localhost .
+.Sh SEE ALSO
+.Xr amd 8 
+.Sh HISTORY
+The
+.Nm
+utility appeared in
+.Fx 3.0 .

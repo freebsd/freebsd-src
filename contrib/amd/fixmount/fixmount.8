@@ -38,122 +38,141 @@
 .\"
 .\"	%W% (Berkeley) %G%
 .\"
-.\" $Id: fixmount.8,v 1.1.1.1 1998/08/23 22:07:20 obrien Exp $
+.\" $Id: fixmount.8,v 1.2 1998/09/05 06:56:36 obrien Exp $
 .\"
-.TH FIXMOUNT 8L "26 Feb 1993"
-.SH NAME
-fixmount \- fix remote mount entries
-.SH SYNOPSIS
-.B fixmount
-[
-.B \-adervq
-]
-[
-.B \-h
-.I name
-]
-.I host
+.Dd February 26, 1993
+.Dt FIXMOUNT 8
+.Os
+.Sh NAME
+.Nm fixmount
+.Nd fix remote mount entries
+.Sh SYNOPSIS
+.Nm
+.Op Fl adervq
+.Op Fl h Ar name
+.Ar host
 \&...
-.SH DESCRIPTION
-.IX  "fixmount command"  ""  "\fLfixmount\fP \(em fix remote mount entries"
-.LP
-.B fixmount
-is a variant of
-.BR showmount (8)
+.Sh DESCRIPTION
+.Nm
+is a variant of 
+.Xr showmount 8
 that can delete bogus mount entries in remote
-.BR mountd (8C)
-daemons.
-The actions specified by the options are performed for each
-.I host
+.Xr mountd 8
+daemons.  The actions specified by the options are performed for each
+.Ar host 
 in turn.
-.SH OPTIONS
-.TP
-.B \-a \-d \-e
+.Sh OPTIONS
+.Bl -tag -width Ds
+.It Fl a Fl d Fl e
 These options work as in
-.BR showmount (8)
+.Xr showmount 8
 except that only entries pertaining to the local host are printed.
-.TP
-.B \-r
+.It Fl r
 Removes those remote mount entries on
-.I host
+.Ar host
 that do not correspond to current mounts, i.e., which are left-over
 from a crash or are the result of improper mount protocol.
 The actuality of mounts is verified using the entries in
-.BR /etc/mtab .
-.TP
-.B \-v
+.Pa /etc/mtab .
+.It Fl v
 Verify remote mounts.  Similar to
-.B \-r
+.Fl r
 except that only a notification message is printed for each bogus entry
 found.  The remote mount table is not changed.
-.TP
-.B \-A
-Issues a command to the remote mountd declaring that ALL of its filesystems 
-have been unmounted.  This should be used with caution, as it removes all
-remote mount entries pertaining to the local system, whether or not any
-filesystems are still mounted locally.
-.TP
-.B \-q
-Be quiet.
-Suppresses error messages due to timeouts and "Program not registered",
-i.e., due to remote hosts not supporting RPC or not running mountd.
-.TP
-.BI \-h \ name
+.It Fl A
+Issues a command to the remote mountd declaring that
+.Em all
+of its filesystems have been unmounted.  This should be used with caution, as
+it removes all remote mount entries pertaining to the local system, whether or
+not any filesystems are still mounted locally.
+.It Fl v
+Be quiet.  Suppresses error messages due to timeouts and
+.Dq Program not Registered ,
+i.e., due to remote hosts not supporting RPC or not running
+.Nm mountd .
+.It Fl h Ar name
 Pretend the local hostname is
-.IR name .
+.Ar name .
 This is useful after the local hostname has been changed and rmtab entries
 using the old name remain on a remote machine.
 Unfortunately, most mountd's won't be able to successfully handle removal
 of such entries, so this option is useful in combination with
-.B \-v
+.Fl v
 only.
-.br
+.Pp
 This option also saves time as comparisons of remotely recorded and local
 hostnames by address are avoided.
-.SH FILES
-.PD 0
-.TP 20
-.B /etc/mtab
+.Sh FILES
+.Bl -tag -width /axx
+.It Pa /etc/mtab
 List of current mounts.
-.TP
-.B /etc/rmtab
-Backup file for remote mount entries on NFS server.
-.PD
-.SH "SEE ALSO"
-.BR mtab (5),
-.BR rmtab (5),
-.BR mountd (8),
-.BR showmount (8).
-.SH BUGS
+.It Pa /etc/rmtab
+Backup file for remote mount entries on
+.Tn NFS
+server.
+.El
+.Sh SEE ALSO
+.Xr mtab 5 ,
+.Xr rmtab 5 ,
+.Xr mountd 8 ,
+.Xr showmount 8 .
+.Sh BUGS
 No attempt is made to verify the information in
-.B /etc/mtab
+.Pa /etc/mtab
 itself.
-.PP
+.Pp
 Since swap file mounts are not recorded in
-.BR /etc/mtab ,
+.Pa /etc/mtab ,
 a heuristic specific to SunOS is used to determine whether such a mount
-is actual (replacing the string "swap" with "root" and verifying the resulting
-path).
-.PP
+is actual (replacing the string 
+.Ql swap 
+with 
+.Ql root
+and verifying the resulting path).
+.Pp
 Symbolic links on the server will cause the path in the remote entry to differ
-from the one in
-.BR /etc/mtab .
+from the one in 
+.Pa /etc/mtab .
 To catch those cases, a filesystem is also deemed mounted if its
-.I local
+.Em local
 mount point is identical to the remote entry.
 I.e., on a SunOS diskless client,
-.B server:/export/share/sunos.4.1.1
+.Ic server:/export/share/sunos.4.1.1
 is actually
-.BR /usr/share .
+.Pa /usr/share .
 Since the local mount point is
-.B /usr/share
+.Pa /usr/share
 as well this will be handled correctly.
-.PP
-There is no way to clear a stale entry in a remote mountd after the
-local hostname (or whatever reverse name resolution returns for it)
-has been changed.  To take care of these cases,
-the remote /etc/rmtab file has to be edited and mountd restarted.
-.PP
-The RPC timeouts for mountd calls can only be changed by recompiling.
-The defaults are 2 seconds for client handle creation and 5 seconds for
-RPC calls.
+.Pp
+There is no way to clear a stale entry in a remote 
+.Nm mountd 
+after the local hostname (or whatever reverse name resolution 
+returns for it) has been changed.  To take care of these cases,
+the remote
+.Pa /etc/rmtab
+file has to be edited and
+.Mn mountd
+restarted.
+.Pp
+The RPC timeouts for
+.Nm mountd
+calls can only be changed by recompiling. The defaults are 2 seconds 
+for client handle creation and 5 seconds for RPC calls.
+.Sh AUTHORS
+.An Jan-Simon Pendry Aq jsp@doc.ic.ac.uk ,
+Department of Computing, Imperial College, London, UK.
+.Pp
+.An Erez Zadok Aq ezk@cs.columbia.edu ,
+Department of Computer Science, Columbia University, New York, USA.
+.Pp
+.An Other authors and contributors to 
+.Nm am-utils
+are listed in the
+.Nm AUTHORS 
+file distributed with
+.Nm am-utils .
+.Sh HISTORY
+The
+.Nm
+utility appeared in
+.Fx 3.0 .
