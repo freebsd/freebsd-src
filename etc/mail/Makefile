@@ -232,3 +232,6 @@ restart restart-mta restart-mspq:
 .if exists(Makefile.local)
 .include "Makefile.local"
 .endif
+
+# For the definition of $SHAREMODE
+.include <bsd.own.mk>
