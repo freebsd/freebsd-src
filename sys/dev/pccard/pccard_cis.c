@@ -916,7 +916,10 @@ pccard_parse_cis_tuple(struct pccard_tuple *tuple, void *arg)
 			if (num != state->default_cfe->number) {
 				cfe = (struct pccard_config_entry *)
 				    malloc(sizeof(*cfe), M_DEVBUF, M_NOWAIT);
-
+				if (cfe == NULL) {
+					DPRINTF(("no memory for config entry\n"));
+					goto abort_cfe;
+				}
 				*cfe = *state->default_cfe;
 
 				STAILQ_INSERT_TAIL(&state->pf->cfe_head,
