@@ -25,7 +25,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *  $Id: syscons.c,v 1.274 1998/08/14 06:32:03 sos Exp $
+ *  $Id: syscons.c,v 1.275 1998/08/18 07:36:47 sos Exp $
  */
 
 #include "sc.h"
@@ -336,11 +336,14 @@ static	d_ioctl_t	scioctl;
 static	d_devtotty_t	scdevtotty;
 static	d_mmap_t	scmmap;
 
-#define CDEV_MAJOR 12
-static	struct cdevsw	scdevsw = {
+#define	CDEV_MAJOR	12
+static	struct cdevsw	sc_cdevsw = {
 	scopen,		scclose,	scread,		scwrite,
 	scioctl,	nullstop,	noreset,	scdevtotty,
-	ttpoll,		scmmap,		nostrategy,	"sc",	NULL,	-1 };
+	ttpoll,		scmmap,		nostrategy,	"sc",
+	NULL,		-1,		nodump,		nopsize,
+	D_TTY,
+};
 
 /*
  * These functions need to be before calls to them so they can be inlined.
@@ -833,16 +836,16 @@ scattach(struct isa_device *dev)
 
     at_shutdown(scshutdown, NULL, SHUTDOWN_PRE_SYNC);
 
-    cdevsw_add(&cdev, &scdevsw, NULL);
+    cdevsw_add(&cdev, &sc_cdevsw, NULL);
 
 #ifdef DEVFS
     for (vc = 0; vc < MAXCONS; vc++)
-        sc_devfs_token[vc] = devfs_add_devswf(&scdevsw, vc, DV_CHR,
+        sc_devfs_token[vc] = devfs_add_devswf(&sc_cdevsw, vc, DV_CHR,
 				UID_ROOT, GID_WHEEL, 0600, "ttyv%r", vc);
     sc_vga_devfs_token = devfs_link(sc_devfs_token[0], "vga");
-    sc_mouse_devfs_token = devfs_add_devswf(&scdevsw, SC_MOUSE, DV_CHR,
+    sc_mouse_devfs_token = devfs_add_devswf(&sc_cdevsw, SC_MOUSE, DV_CHR,
 				UID_ROOT, GID_WHEEL, 0600, "sysmouse");
-    sc_console_devfs_token = devfs_add_devswf(&scdevsw, SC_CONSOLE, DV_CHR,
+    sc_console_devfs_token = devfs_add_devswf(&sc_cdevsw, SC_CONSOLE, DV_CHR,
 				UID_ROOT, GID_WHEEL, 0600, "consolectl");
 #endif
     return 0;
@@ -886,7 +889,6 @@ scopen(dev_t dev, int flag, int mode, struct proc *p)
 	tp->t_lflag = TTYDEF_LFLAG;
 	tp->t_ispeed = tp->t_ospeed = TTYDEF_SPEED;
 	scparam(tp, &tp->t_termios);
-	ttsetwater(tp);
 	(*linesw[tp->t_line].l_modem)(tp, 1);
     	if (minor(dev) == SC_MOUSE)
 	    mouse_level = 0;		/* XXX */

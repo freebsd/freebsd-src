@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)cons.c	7.2 (Berkeley) 5/9/91
- *	$Id: cons.c,v 1.57 1998/03/28 10:32:56 bde Exp $
+ *	$Id: cons.c,v 1.58 1998/06/07 17:09:58 dfr Exp $
  */
 
 #include "opt_devfs.h"
@@ -81,11 +81,14 @@ static	d_write_t	cnwrite;
 static	d_ioctl_t	cnioctl;
 static	d_poll_t	cnpoll;
 
-#define CDEV_MAJOR 0
-static struct cdevsw cn_cdevsw = 
-	{ cnopen,	cnclose,	cnread,		cnwrite,	/*0*/
-	  cnioctl,	nullstop,	nullreset,	nodevtotty,/* console */
-	  cnpoll,	nommap,		NULL,	"console",	NULL,	-1 };
+#define	CDEV_MAJOR	0
+static	struct cdevsw	cn_cdevsw = {
+	cnopen,		cnclose,	cnread,		cnwrite,
+	cnioctl,	nullstop,	nullreset,	nodevtotty,
+	cnpoll,		nommap,		NULL,		"console",
+	NULL,		-1,		nodump,		nopsize,
+	D_TTY,
+};
 
 static dev_t	cn_dev_t; 	/* seems to be never really used */
 SYSCTL_OPAQUE(_machdep, CPU_CONSDEV, consdev, CTLTYPE_OPAQUE|CTLFLAG_RD,

@@ -1,5 +1,5 @@
 /*-
- *	$Id: dgm.c,v 1.3 1998/08/12 17:38:09 bde Exp $
+ *	$Id: dgm.c,v 1.4 1998/08/16 01:21:49 bde Exp $
  *
  *  This driver and the associated header files support the ISA PC/Xem
  *  Digiboards.  Its evolutionary roots are described below.
@@ -227,11 +227,14 @@ static	d_ioctl_t	dgmioctl;
 static	d_stop_t	dgmstop;
 static	d_devtotty_t	dgmdevtotty;
 
-#define CDEV_MAJOR 101
-static struct cdevsw dgm_cdevsw = 
-	{ dgmopen,	dgmclose,	dgmread,	dgmwrite,	
-	  dgmioctl,	dgmstop,	noreset,	dgmdevtotty, /* dgm */
-	  ttpoll,	nommap,		NULL,	"dgm",	NULL,	-1 };
+#define	CDEV_MAJOR	101
+static	struct cdevsw	dgm_cdevsw = {
+	dgmopen,	dgmclose,	dgmread,	dgmwrite,
+	dgmioctl,	dgmstop,	noreset,	dgmdevtotty,
+	ttpoll,		nommap,		NULL,		"dgm",
+	NULL,		-1,		nodump,		nopsize,
+	D_TTY,
+};
 
 static	speed_t	dgmdefaultrate = TTYDEF_SPEED;
 
@@ -875,8 +878,6 @@ open_top:
 			DPRINT4(DB_OPEN,"dgm%d: port%d: dgmparam error=%d\n",unit,pnum,error);
 			goto out;
 		}
-
-		ttsetwater(tp);
 
 		/* handle fake DCD for callout devices */
 		/* and initial DCD */
