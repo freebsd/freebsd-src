@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: interp.c,v 1.1.1.1 1998/08/21 03:17:41 msmith Exp $
+ *	$Id: interp.c,v 1.2 1998/09/01 00:41:24 msmith Exp $
  */
 /*
  * Simple commandline interpreter, toplevel and misc.
@@ -82,6 +82,24 @@ interact(void)
     char	input[256];			/* big enough? */
     int		argc;
     char	**argv;
+
+    /*
+     * Read our default configuration
+     */
+    source("/boot/boot.conf");
+    printf("\n");
+    /*
+     * Before interacting, we might want to autoboot
+     */
+    if (getenv("no_autoboot") == NULL)
+	autoboot(10, NULL);		/* try to boot automatically */
+
+    /*
+     * Not autobooting, go manual
+     */
+    printf("\nType '?' for a list of commands, 'help' for more detailed help.\n");
+    setenv("prompt", "${currdev}>", 1);
+    
 
     for (;;) {
 	input[0] = '\0';
@@ -149,32 +167,29 @@ source(char *filename)
 }
 
 /*
- * Emit the current prompt; support primitive embedding of
- * environment variables.
- * We're a little rude here, modifying the return from getenv().
+ * Emit the current prompt; use the same syntax as the parser
+ * for embedding environment variables.
  */
 static void
 prompt(void) 
 {
-    char	*p, *cp, *ev, c;
+    char	*p, *cp, *ev;
     
-    if ((p = getenv("prompt")) == NULL)
-	p = ">";
+    if ((cp = getenv("prompt")) == NULL)
+	cp = ">";
+    p = strdup(cp);
 
     while (*p != 0) {
-	if (*p == '$') {
-	    for (cp = p + 1; (*cp != 0) && isalpha(*cp); cp++)
+	if ((*p == '$') && (*(p+1) == '{')) {
+	    for (cp = p + 2; (*cp != 0) && (*cp != '}'); cp++)
 		;
-	    c = *cp;
 	    *cp = 0;
-	    ev = getenv(p + 1);
-	    *cp = c;
+	    ev = getenv(p + 2);
 	    
-	    if (ev != NULL) {
+	    if (ev != NULL)
 		printf(ev);
-		p = cp;
-		continue;
-	    }
+	    p = cp + 1;
+	    continue;
 	}
 	putchar(*p++);
     }

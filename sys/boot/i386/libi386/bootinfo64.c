@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id$
+ *	$Id: bootinfo.c,v 1.1.1.1 1998/08/21 03:17:41 msmith Exp $
  */
 
 #include <sys/reboot.h>
@@ -191,7 +191,8 @@ bi_copymodules(vm_offset_t addr)
 	MOD_ADDR(addr, mp->m_addr);
 	MOD_SIZE(addr, mp->m_size);
 	for (md = mp->m_metadata; md != NULL; md = md->md_next)
-	    MOD_METADATA(addr, md);
+	    if (!(md->md_type & MODINFOMD_NOCOPY))
+		MOD_METADATA(addr, md);
     }
     return(addr);
 }

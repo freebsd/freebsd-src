@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: libi386.h,v 1.1.1.1 1998/08/21 03:17:41 msmith Exp $
+ *	$Id: libi386.h,v 1.2 1998/08/31 21:10:43 msmith Exp $
  */
 
 
@@ -64,20 +64,18 @@ extern struct devdesc	currdev;	/* our current device */
 extern struct devsw biosdisk;
 
 /* from crt module */
-extern void		vpbcopy(void*, vm_offset_t, int);
-extern void		pvbcopy(vm_offset_t, void*, int);
-extern void		pbzero(vm_offset_t, int);
-extern vm_offset_t	vtophys(void*);
+extern void		vpbcopy(void *src, vm_offset_t dest, size_t size);
+extern void		pvbcopy(vm_offset_t src, void *dest, size_t size);
+extern void		pbzero(vm_offset_t dest, size_t size);
+extern vm_offset_t	vtophys(void *addr);
 
 extern int		i386_copyin(void *src, vm_offset_t dest, size_t len);
+extern int		i386_copyout(vm_offset_t src, void *dest, size_t len);
 extern int		i386_readin(int fd, vm_offset_t dest, size_t len);
 
-/* XXX pread deprecated */
-extern int		pread(int, vm_offset_t, int);
+extern void		startprog(vm_offset_t entry, int argc, u_int32_t *argv, vm_offset_t stack);
 
-extern void		startprog(vm_offset_t, int, u_int32_t *, vm_offset_t);
-
-extern void		delay(int);
+extern void		delay(int delay);
 extern int		getbasemem(void);
 extern int		getextmem(void);
 

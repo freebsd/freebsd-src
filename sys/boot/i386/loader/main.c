@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: main.c,v 1.1.1.1 1998/08/21 03:17:41 msmith Exp $
+ *	$Id: main.c,v 1.2 1998/08/31 21:10:43 msmith Exp $
  */
 
 /*
@@ -102,19 +102,14 @@ main(void)
     archsw.arch_autoload = i386_autoload;
     archsw.arch_getdev = i386_getdev;
     archsw.arch_copyin = i386_copyin;
+    archsw.arch_copyout = i386_copyout;
     archsw.arch_readin = i386_readin;
     /*
      * XXX should these be in the MI source?
      */
-    source("/boot/boot.conf");
 #if 0
     legacy_config();		/* read old /boot.config file */
 #endif
-    printf("\n");
-    autoboot(10, NULL);		/* try to boot automatically */
-    printf("\nType '?' for a list of commands, 'help' for more detailed help.\n");
-    setenv("prompt", "$currdev>", 1);
-    
     interact();			/* doesn't return */
 }
 
