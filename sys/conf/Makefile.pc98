@@ -45,6 +45,6 @@ MKMODULESENV+=	MACHINE=pc98
 
 %CLEAN
 
-.include "$S/conf/kern.post.mk"
-
 %RULES
+
+.include "$S/conf/kern.post.mk"
