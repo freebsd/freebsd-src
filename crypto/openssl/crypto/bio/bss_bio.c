@@ -7,9 +7,18 @@
  * for which no specific BIO method is available.
  * See ssl/ssltest.c for some hints on how this can be used. */
 
+/* BIO_DEBUG implies BIO_PAIR_DEBUG */
+#ifdef BIO_DEBUG
+# ifndef BIO_PAIR_DEBUG
+#  define BIO_PAIR_DEBUG
+# endif
+#endif
+
+/* disable assert() unless BIO_PAIR_DEBUG has been defined */
 #ifndef BIO_PAIR_DEBUG
-# undef NDEBUG /* avoid conflicting definitions */
-# define NDEBUG
+# ifndef NDEBUG
+#  define NDEBUG
+# endif
 #endif
 
 #include <assert.h>
@@ -23,7 +32,12 @@
 #include <openssl/crypto.h>
 
 #include "openssl/e_os.h"
-#ifndef SSIZE_MAX
+
+/* VxWorks defines SSiZE_MAX with an empty value causing compile errors */
+#if defined(VXWORKS)
+# undef SSIZE_MAX
+# define SSIZE_MAX INT_MAX
+#elif !defined(SSIZE_MAX)
 # define SSIZE_MAX INT_MAX
 #endif
 
@@ -474,7 +488,8 @@ static long bio_ctrl(BIO *bio, int cmd, long num, void *ptr)
 		break;
 
 	case BIO_C_GET_WRITE_BUF_SIZE:
-		num = (long) b->size;
+		ret = (long) b->size;
+		break;
 
 	case BIO_C_MAKE_BIO_PAIR:
 		{

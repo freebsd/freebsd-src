@@ -90,6 +90,7 @@ static const char* lock_names[CRYPTO_NUM_LOCKS] =
 	"ssl_sess_cert",
 	"ssl",
 	"rand",
+	"rand2",
 	"debug_malloc",
 	"BIO",
 	"gethostbyname",
@@ -100,7 +101,7 @@ static const char* lock_names[CRYPTO_NUM_LOCKS] =
 	"debug_malloc2",
 	"dso",
 	"dynlock",
-#if CRYPTO_NUM_LOCKS != 28
+#if CRYPTO_NUM_LOCKS != 29
 # error "Inconsistency between crypto.h and cryptlib.c"
 #endif
 	};
@@ -227,7 +228,10 @@ void CRYPTO_destroy_dynlockid(int i)
 	CRYPTO_w_lock(CRYPTO_LOCK_DYNLOCK);
 
 	if (dyn_locks == NULL || i >= sk_CRYPTO_dynlock_num(dyn_locks))
+		{
+		CRYPTO_w_unlock(CRYPTO_LOCK_DYNLOCK);
 		return;
+		}
 	pointer = sk_CRYPTO_dynlock_value(dyn_locks, i);
 	if (pointer != NULL)
 		{
@@ -240,7 +244,7 @@ void CRYPTO_destroy_dynlockid(int i)
 			}
 		else
 #endif
-			if (--(pointer->references) <= 0)
+			if (pointer->references <= 0)
 				{
 				sk_CRYPTO_dynlock_set(dyn_locks, i, NULL);
 				}
@@ -399,7 +403,7 @@ void CRYPTO_lock(int mode, int type, const char *file, int line)
 		struct CRYPTO_dynlock_value *pointer
 			= CRYPTO_get_dynlock_value(i);
 
-		if (pointer)
+		if (pointer && dynlock_lock_callback)
 			{
 			dynlock_lock_callback(mode, pointer, file, line);
 			}
@@ -430,7 +434,6 @@ int CRYPTO_add_lock(int *pointer, int amount, int type, const char *file,
 			CRYPTO_get_lock_name(type),
 			file,line);
 #endif
-		*pointer=ret;
 		}
 	else
 		{
@@ -488,3 +491,11 @@ BOOL WINAPI DLLEntryPoint(HINSTANCE hinstDLL, DWORD fdwReason,
 #endif
 
 #endif
+
+void OpenSSLDie(const char *file,int line,const char *assertion)
+    {
+    fprintf(stderr,"%s(%d): OpenSSL internal error, assertion failed: %s\n",
+	    file,line,assertion);
+    abort();
+    }
+
