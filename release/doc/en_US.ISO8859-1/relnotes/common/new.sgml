@@ -488,6 +488,10 @@
       mode, settable via the <option>-M</option> option to
       &man.ancontrol.8;. &merged;</para>
 
+      <para>The &man.an.4; driver now supports Cisco LEAP, as well as
+      the <quote>Home</quote> WEP key.  The Linux Aironet
+      utilities are now supported under emulation.</para>
+
       <para arch="i386">Generic support for ARCNET token-based
       networks has been added.</para>
 
@@ -2361,6 +2365,10 @@ options HZ=1000 # not compulsory but strongly recommended</programlisting>
 
     <para>&man.units.1; has received some updates and bugfixes. &merged;</para>
 
+    <para>&man.uudecode.1; now accepts a <option>-o</option> option to
+    set its output file.  The <option>-p</option> option to send
+    output to stdout is now deprecated.</para>
+
     <para>&man.vidcontrol.1; now accepts a <option>-g</option>
     parameter to select custom text geometry in the
     <literal>VESA_800x600</literal> raster text mode. &merged;</para>
@@ -2461,7 +2469,7 @@ options HZ=1000 # not compulsory but strongly recommended</programlisting>
       8.2.4-REL. &merged;</para>
 
       <para><application>Binutils</application> have been updated to
-      a 31 October 2001 snapshot from the FSF 2.11 branch.</para>
+      a 27 January 2002 snapshot from the FSF 2.12 branch.</para>
 
       <para><application>bzip2</application> 1.0.1 has been imported; this
       brings the &man.bzip2.1; program and the <filename>libbz2</filename>
@@ -2574,6 +2582,9 @@ options HZ=1000 # not compulsory but strongly recommended</programlisting>
       incorporates this functionality), this may be useful for
       &man.inetd.8; replacements such as
       <application>xinetd</application>.</para>
+
+      <para><application>top</application> has been updated to version
+      3.5b12.</para>
 
       <para>&man.traceroute.8; now takes its default maximum TTL value
       from the <varname>net.inet.ip.ttl</varname> sysctl
@@ -2715,7 +2726,7 @@ options HZ=1000 # not compulsory but strongly recommended</programlisting>
         <title>OpenSSL</title>
 
 	<para><application>OpenSSL</application> has been updated to
-	0.9.6b.</para>
+	0.9.6c.</para>
 
 	<para><application>OpenSSL</application> now has support for
 	machine-dependent ASM optimizations, activated by the new
