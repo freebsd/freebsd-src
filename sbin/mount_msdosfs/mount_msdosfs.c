@@ -29,7 +29,7 @@
  */
 
 #ifndef lint
-static char rcsid[] = "$Id: mount_msdos.c,v 1.8 1994/07/16 21:32:08 cgd Exp $";
+static char rcsid[] = "$Id: mount_msdos.c,v 1.1 1994/09/19 15:30:36 dfr Exp $";
 #endif /* not lint */
 
 #include <sys/cdefs.h>
@@ -67,6 +67,7 @@ main(argc, argv)
 	struct stat sb;
 	int c, mntflags, set_gid, set_uid, set_mask;
 	char *dev, *dir, ndir[MAXPATHLEN+1];
+	struct vfsconf *vfc;
 
 	mntflags = set_gid = set_uid = set_mask = 0;
 	(void)memset(&args, '\0', sizeof(args));
@@ -128,7 +129,15 @@ main(argc, argv)
 			args.mask = sb.st_mode & (S_IRWXU | S_IRWXG | S_IRWXO);
 	}
 
-	if (mount(MOUNT_MSDOS, dir, mntflags, &args) < 0)
+	vfc = getvfsbyname("msdos");
+	if(!vfc && vfsisloadable("msdos")) {
+		if(vfsload("msdos"))
+			err(1, "vfsload(msdos)");
+		endvfsent();	/* clear cache */
+		vfc = getvfsbyname("msdos");
+	}
+
+	if (mount(vfc ? vfc->vfc_index : MOUNT_MSDOS, dir, mntflags, &args) < 0)
 		err(1, "mount");
 
 	exit (0);

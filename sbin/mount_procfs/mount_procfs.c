@@ -69,6 +69,7 @@ main(argc, argv)
 	char *argv[];
 {
 	int ch, mntflags;
+	struct vfsconf *vfc;
 
 	mntflags = 0;
 	while ((ch = getopt(argc, argv, "o:")) != EOF)
@@ -86,7 +87,15 @@ main(argc, argv)
 	if (argc != 2)
 		usage();
 
-	if (mount(MOUNT_PROCFS, argv[1], mntflags, NULL))
+	vfc = getvfsbyname("procfs");
+	if(!vfc && vfsisloadable("procfs")) {
+		if(vfsload("procfs"))
+			err(1, "vfsload(procfs)");
+		endvfsent();	/* flush cache */
+		vfc = getvfsbyname("procfs");
+	}
+
+	if (mount(vfc ? vfc->vfc_index : MOUNT_PROCFS, argv[1], mntflags, NULL))
 		err(1, NULL);
 	exit(0);
 }

@@ -38,11 +38,13 @@
 static char copyright[] =
 "@(#) Copyright (c) 1989, 1993\n\
 	The Regents of the University of California.  All rights reserved.\n";
-#endif not lint
+#endif /*not lint*/
 
 #ifndef lint
-static char sccsid[] = "@(#)mountd.c	8.8 (Berkeley) 2/20/94";
-#endif not lint
+/*static char sccsid[] = "From: @(#)mountd.c	8.8 (Berkeley) 2/20/94";*/
+static const char rcsid[] =
+	"$Id$";
+#endif /*not lint*/
 
 #include <sys/param.h>
 #include <sys/file.h>
@@ -235,6 +237,18 @@ main(argc, argv)
 {
 	SVCXPRT *transp;
 	int c;
+	struct vfsconf *vfc;
+
+	vfc = getvfsbyname("nfs");
+	if(!vfc && vfsisloadable("nfs")) {
+		if(vfsload("nfs"))
+			err(1, "vfsload(nfs)");
+		endvfsent();	/* flush cache */
+		vfc = getvfsbyname("nfs");
+	}
+	if(!vfc) {
+		errx(1, "NFS support is not available in the running kernel");
+	}
 
 	while ((c = getopt(argc, argv, "n")) != EOF)
 		switch (c) {
