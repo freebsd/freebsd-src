@@ -1,4 +1,7 @@
 INFO = regex
+INFOSECTION= "Programming & development tools."
+INFOENTRY_regex= "* Regex: (regex).		Regular expression library."
+
 CLEANFILES += regex.texi
 
 regex.texi: xregex.texi ../regex.h
