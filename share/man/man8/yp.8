@@ -68,7 +68,8 @@ if it has been initialized in
 .Pa /etc/rc.conf
 and if the directory
 .Pa /var/yp
-exists (which it does in the default distribution). The default
+exists (which it does in the default distribution).
+The default
 .Tn NIS
 domain must also be set with the
 .Xr domainname 1
@@ -93,15 +94,17 @@ The canonical copies of all
 .Tn NIS
 information are stored on a single machine
 called the
-.Tn NIS Em master server .
+.Tn NIS
+.Em "master server" .
 The databases used to store the information are called
-.Tn NIS Em maps .
+.Tn NIS
+.Em maps .
 In
 .Fx ,
 these maps are stored in
-.Pa /var/yp/[domainname]
+.Pa /var/yp/ Ns Aq Ar domainname
 where
-.Pa [domainname]
+.Aq Ar domainname
 is the name of the
 .Tn NIS
 domain being served.
@@ -120,20 +123,27 @@ the
 maps are Berkeley DB hashed database files (the
 same format used for the
 .Xr passwd 5
-database files). Other operating systems that support
+database files).
+Other operating systems that support
 .Tn NIS
 use old-style
-ndbm databases instead (largely because Sun Microsystems originally based
+.Nm ndbm
+databases instead (largely because Sun Microsystems originally based
 their
 .Tn NIS
-implementation on ndbm, and other vendors have simply licensed
+implementation on
+.Nm ndbm ,
+and other vendors have simply licensed
 Sun's code rather than design their own implementation with a different
-database format). On these systems, the databases are generally split
+database format).
+On these systems, the databases are generally split
 into
-.Em .dir
+.Pa .dir
 and
-.Em .pag
-files which the ndbm code uses to hold separate parts of the hash
+.Pa .pag
+files which the
+.Nm ndbm
+code uses to hold separate parts of the hash
 database.
 The Berkeley DB hash method instead uses a single file for
 both pieces of information.
@@ -164,7 +174,7 @@ form.
 There are three main types of
 .Tn NIS
 systems:
-.Bl -enum -offset indent
+.Bl -enum
 .It
 .Tn NIS
 clients,
@@ -186,7 +196,7 @@ maps that are periodically
 updated by the master.
 .El
 .Pp
-An
+A
 .Tn NIS
 client establishes what is called a
 .Em binding
@@ -218,7 +228,9 @@ on, the client system will direct all of its
 .Tn NIS
 requests to that server.
 .Xr Ypbind 8
-will occasionally ``ping'' the server to make sure it's still up
+will occasionally
+.Dq ping
+the server to make sure it is still up
 and running.
 If it fails to receive a reply to one of its pings
 within a reasonable amount of time,
@@ -243,26 +255,21 @@ There is a specific set of requests that
 .Xr ypserv 8
 is designed to handle, most of which are implemented as functions
 within the standard C library:
-.Bl -bullet -offset indent
-.It
-.Fn yp_order
--- check the creation date of a particular map
-.It
-.Fn yp_master
--- obtain the name of the
+.Bl -tag -width ".Fn yp_master"
+.It Fn yp_order
+check the creation date of a particular map
+.It Fn yp_master
+obtain the name of the
 .Tn NIS
 master server for a given
 map/domain
-.It
-.Fn yp_match
--- lookup the data corresponding to a given in key in a particular
+.It Fn yp_match
+lookup the data corresponding to a given in key in a particular
 map/domain
-.It
-.Fn yp_first
--- obtain the first key/data pair in a particular map/domain
-.It
-.Fn yp_next
--- pass
+.It Fn yp_first
+obtain the first key/data pair in a particular map/domain
+.It Fn yp_next
+pass
 .Xr ypserv 8
 a key in a particular map/domain and have it return the
 key/data pair immediately following it (the functions
@@ -272,16 +279,18 @@ and
 can be used to do a sequential search of an
 .Tn NIS
 map)
-.It
-.Fn yp_all
--- retrieve the entire contents of a map
+.It Fn yp_all
+retrieve the entire contents of a map
 .El
 .Pp
 There are a few other requests which
 .Xr ypserv 8
 is capable of handling (i.e. acknowledge whether or not you can handle
-a particular domain (YPPROC_DOMAIN), or acknowledge only if you can
-handle the domain and be silent otherwise (YPPROC_DOMAIN_NONACK)) but
+a particular domain
+.Pq Dv YPPROC_DOMAIN ,
+or acknowledge only if you can handle the domain and be silent otherwise
+.Pq Dv YPPROC_DOMAIN_NONACK )
+but
 these requests are usually generated only by
 .Xr ypbind 8
 and are not meant to be used by standard utilities.
@@ -296,15 +305,17 @@ data should be propagated to the slave systems using the
 command.
 The
 .Tn NIS
-Makefile
-.Pf ( Pa /var/yp/Makefile )
+.Pa Makefile
+.Pq Pa /var/yp/Makefile
 will do this automatically if the administrator comments out the
 line which says
-.Em NOPUSH=true
-(NOPUSH is set to true by default because the default configuration is
+.Dq Li NOPUSH=true
+.Va ( NOPUSH
+is set to true by default because the default configuration is
 for a small network with only one
 .Tn NIS
-server). The
+server).
+The
 .Xr yppush 8
 command will initiate a transaction between the master and slave
 during which the slave will transfer the specified maps from the
@@ -323,8 +334,7 @@ slave servers helps improve
 .Tn NIS
 performance on large
 networks by:
-.Pp
-.Bl -bullet -offset indent
+.Bl -bullet
 .It
 Providing backup services in the event that the
 .Tn NIS
@@ -381,7 +391,7 @@ To help prevent this,
 .Fx Ns 's
 .Tn NIS
 server handles the shadow password maps
-.Pf ( Pa master.passwd.byname
+.Pa ( master.passwd.byname
 and
 .Pa master.passwd.byuid )
 in a special way: the server will only provide access to these
@@ -394,7 +404,9 @@ ports will receive only an error code from the server.
 Additionally,
 .Fx Ns 's
 .Xr ypserv 8
-includes support for Wietse Venema's tcp wrapper package; with tcp
+includes support for
+.An Wietse Venema Ns 's
+tcp wrapper package; with tcp
 wrapper support enabled, the administrator can configure
 .Xr ypserv 8
 to respond only to selected client machines.
@@ -408,29 +420,36 @@ the shadow password maps.
 .Pp
 On the client side,
 .Fx Ns 's
-.Fn getpwent 3
+.Xr getpwent 3
 functions will automatically search for the
 .Pa master.passwd
 maps and use them if they exist.
 If they do, they will be used, and
 all fields in these special maps (class, password age and account
 expiration) will be decoded.
-If they aren't found, the standard
+If they are not found, the standard
 .Pa passwd
 maps will be used instead.
 .Sh COMPATIBILITY
 When using a
 .No non- Ns Fx
-NIS server for
+.Tn NIS
+server for
 .Xr passwd 5
 files, it is unlikely that the default MD5-based format that
 .Fx
 uses for passwords will be accepted by it.
-If this is the case, the value of the "passwd_format" setting in
+If this is the case, the value of the
+.Va passwd_format
+setting in
 .Xr login.conf 5
-should be changed to "des" for compatibility.
+should be changed to
+.Qq Li des
+for compatibility.
 .Pp
-Some systems, such as SunOS 4.x, need
+Some systems, such as
+.Tn SunOS
+4.x, need
 .Tn NIS
 to be running in order
 for their hostname resolution functions
@@ -442,7 +461,7 @@ On these systems,
 performs
 .Tn DNS
 lookups when asked to return information about
-a host that doesn't exist in its
+a host that does not exist in its
 .Pa hosts.byname
 or
 .Pa hosts.byaddr
@@ -451,10 +470,10 @@ maps.
 resolver uses
 .Tn DNS
 by default (it can be made to use
-.Tn NIS Ns ,
+.Tn NIS ,
 if desired), therefore its
 .Tn NIS
-server doesn't do
+server does not do
 .Tn DNS
 lookups
 by default.
@@ -480,7 +499,8 @@ including
 .Xr ypserv 8
 does not actually handle
 .Tn NIS
-v1 requests, but this ``kludge mode''
+v1 requests, but this
+.Dq "kludge mode"
 is useful for silencing stubborn systems that search for both
 a v1 and v2 server.
 .Pp
@@ -499,10 +519,10 @@ or the
 .Fn yp_update
 function.
 Both of these require secure
-.Tn RPC Ns ,
+.Tn RPC ,
 which
 .Fx
-doesn't
+does not
 support yet either.
 .Pp
 The
@@ -513,7 +533,7 @@ functions do not yet have
 .Tn NIS
 support.
 Fortunately, these files
-don't need to be updated that often.
+do not need to be updated that often.
 .Pp
 Many more manual pages should be written, especially
 .Xr ypclnt 3 .
@@ -533,7 +553,7 @@ Bug fixes, improvements
 and
 .Tn NIS
 server support were later added by
-.An Bill Paul Ns .
+.An Bill Paul .
 The server-side code was originally written by
 .An Peter Eriksson
 and
