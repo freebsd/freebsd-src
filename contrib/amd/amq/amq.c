@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997-1998 Erez Zadok
+ * Copyright (c) 1997-1999 Erez Zadok
  * Copyright (c) 1990 Jan-Simon Pendry
  * Copyright (c) 1990 Imperial College of Science, Technology & Medicine
  * Copyright (c) 1990 The Regents of the University of California.
@@ -38,7 +38,7 @@
  *
  *      %W% (Berkeley) %G%
  *
- * $Id: amq.c,v 1.3.2.1 1999/08/25 20:07:52 obrien Exp $
+ * $Id: amq.c,v 1.6 1999/09/08 23:36:40 ezk Exp $
  * $FreeBSD$
  *
  */
@@ -49,13 +49,13 @@
 
 #ifndef lint
 char copyright[] = "\
-@(#)Copyright (c) 1997-1998 Erez Zadok\n\
+@(#)Copyright (c) 1997-1999 Erez Zadok\n\
 @(#)Copyright (c) 1990 Jan-Simon Pendry\n\
 @(#)Copyright (c) 1990 Imperial College of Science, Technology & Medicine\n\
 @(#)Copyright (c) 1990 The Regents of the University of California.\n\
 @(#)All rights reserved.\n";
 #if __GNUC__ < 2
-static char rcsid[] = "$Id: amq.c,v 1.3.2.1 1999/08/25 20:07:52 obrien Exp $";
+static char rcsid[] = "$Id: amq.c,v 1.6 1999/09/08 23:36:40 ezk Exp $";
 static char sccsid[] = "%W% (Berkeley) %G%";
 #endif /* __GNUC__ < 2 */
 #endif /* not lint */
@@ -67,9 +67,6 @@ static char sccsid[] = "%W% (Berkeley) %G%";
 #include <amq.h>
 
 /* locals */
-#if 0
-char *progname;
-#endif
 static int flush_flag;
 static int minfo_flag;
 static int getpid_flag;
@@ -96,15 +93,6 @@ static int amq_bind_resv_port(int td, u_short *pp);
 #else /* not HAVE_TRANSPORT_TYPE_TLI */
 static int privsock(int ty);
 #endif /* not HAVE_TRANSPORT_TYPE_TLI */
-
-/* dummy variables */
-#if 0
-char hostname[MAXHOSTNAMELEN];
-pid_t mypid;
-serv_state amd_state;
-int foreground, orig_umask;
-int debug_flags;
-#endif
 
 /* structures */
 enum show_opt {
@@ -248,7 +236,11 @@ show_mi(amq_mount_info_list *ml, enum show_opt e, int *mwid, int *dwid, int *twi
 	if (mi->mi_error > 0) {
 	  extern int sys_nerr;
 	  if (mi->mi_error < sys_nerr)
+#ifdef HAVE_STRERROR
+	    printf(" (%s)", strerror(mi->mi_error));
+#else /* not HAVE_STRERROR */
 	    printf(" (%s)", sys_errlist[mi->mi_error]);
+#endif /* not HAVE_STRERROR */
 	  else
 	    printf(" (Error %d)", mi->mi_error);
 	} else if (mi->mi_error < 0) {
@@ -340,9 +332,9 @@ main(int argc, char *argv[])
    */
 #ifdef ENABLE_AMQ_MOUNT
   while ((opt_ch = getopt(argc, argv, "fh:l:msuvx:D:M:pP:TU")) != -1)
-#else
+#else /* not ENABLE_AMQ_MOUNT */
   while ((opt_ch = getopt(argc, argv, "fh:l:msuvx:D:pP:TU")) != -1)
-#endif
+#endif /* not ENABLE_AMQ_MOUNT */
     switch (opt_ch) {
     case 'f':
       flush_flag = 1;
@@ -425,10 +417,19 @@ main(int argc, char *argv[])
   show_usage:
     fprintf(stderr, "\
 Usage: %s [-h host] [[-f] [-m] [-p] [-v] [-s]] | [[-u] directory ...]]\n\
-\t[-l logfile|\"syslog\"] [-x log_flags] [-D dbg_opts] [-M mapent]\n\
-\t[-P prognum] [-T] [-U]\n", am_get_progname());
+\t[-l logfile|\"syslog\"] [-x log_flags] [-D dbg_opts]%s\n\
+\t[-P prognum] [-T] [-U]\n",
+	    am_get_progname(),
+#ifdef ENABLE_AMQ_MOUNT
+	    " [-M mapent]"
+#else /* not ENABLE_AMQ_MOUNT */
+	    ""
+#endif /* not ENABLE_AMQ_MOUNT */
+    );
     exit(1);
   }
+
+
 
   /* set use_udp and use_tcp flags both to on if none are defined */
   if (!use_tcp_flag && !use_udp_flag)

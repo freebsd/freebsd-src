@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997-1998 Erez Zadok
+ * Copyright (c) 1997-1999 Erez Zadok
  * Copyright (c) 1990 Jan-Simon Pendry
  * Copyright (c) 1990 Imperial College of Science, Technology & Medicine
  * Copyright (c) 1990 The Regents of the University of California.
@@ -38,7 +38,7 @@
  *
  *      %W% (Berkeley) %G%
  *
- * $Id: amfs_auto.c,v 1.1.1.1 1998/11/05 02:04:46 ezk Exp $
+ * $Id: amfs_auto.c,v 1.5 1999/09/30 21:01:29 ezk Exp $
  *
  */
 
@@ -60,10 +60,11 @@
 /* DEVELOPERS: turn this on for special debugging of readdir code */
 #undef DEBUG_READDIR
 
+#define DOT_DOT_COOKIE (u_int) 1
+
 /****************************************************************************
  *** STRUCTURES                                                           ***
  ****************************************************************************/
-
 
 
 /****************************************************************************
@@ -448,59 +449,59 @@ try_mount(voidp mvp)
  * Pick a file system to try mounting and
  * do that in the background if necessary
  *
- For each location:
- if it is new -defaults then
- extract and process
- continue;
- fi
- if it is a cut then
- if a location has been tried then
- break;
- fi
- continue;
- fi
- parse mount location
- discard previous mount location if required
- find matching mounted filesystem
- if not applicable then
- this_error = No such file or directory
- continue
- fi
- if the filesystem failed to be mounted then
- this_error = error from filesystem
- elif the filesystem is mounting or unmounting then
- this_error = -1
- elif the fileserver is down then
- this_error = -1
- elif the filesystem is already mounted
- this_error = 0
- break
- fi
- if no error on this mount then
- this_error = initialize mount point
- fi
- if no error on this mount and mount is delayed then
- this_error = -1
- fi
- if this_error < 0 then
- retry = true
- fi
- if no error on this mount then
- make mount point if required
- fi
- if no error on this mount then
- if mount in background then
- run mount in background
- return -1
- else
- this_error = mount in foreground
- fi
- fi
- if an error occurred on this mount then
- update stats
- save error in mount point
- fi
- endfor
+For each location:
+	if it is new -defaults then
+		extract and process
+		continue;
+	fi
+	if it is a cut then
+		if a location has been tried then
+			break;
+		fi
+		continue;
+	fi
+	parse mount location
+	discard previous mount location if required
+	find matching mounted filesystem
+	if not applicable then
+		this_error = No such file or directory
+		continue
+	fi
+	if the filesystem failed to be mounted then
+		this_error = error from filesystem
+	elif the filesystem is mounting or unmounting then
+		this_error = -1
+	elif the fileserver is down then
+		this_error = -1
+	elif the filesystem is already mounted
+		this_error = 0
+		break
+	fi
+	if no error on this mount then
+		this_error = initialize mount point
+	fi
+	if no error on this mount and mount is delayed then
+		this_error = -1
+	fi
+	if this_error < 0 then
+		retry = true
+	fi
+	if no error on this mount then
+		make mount point if required
+	fi
+	if no error on this mount then
+		if mount in background then
+			run mount in background
+			return -1
+		else
+			this_error = mount in foreground
+		fi
+	fi
+	if an error occurred on this mount then
+		update stats
+		save error in mount point
+	fi
+endfor
  */
 static int
 amfs_auto_bgmount(struct continuation * cp, int mpe)
@@ -609,8 +610,8 @@ amfs_auto_bgmount(struct continuation * cp, int mpe)
 	 * Don't try logging the string from mf, since it may be bad!
 	 */
 	if (cp->fs_opts.opt_fs != mf->mf_fo->opt_fs)
-	  plog(XLOG_ERROR, "use %s instead of 0x%x",
-	       cp->fs_opts.opt_fs, mf->mf_fo->opt_fs);
+	  plog(XLOG_ERROR, "use %s instead of 0x%lx",
+	       cp->fs_opts.opt_fs, (unsigned long) mf->mf_fo->opt_fs);
 
 	mp->am_link = str3cat((char *) 0,
 			      cp->fs_opts.opt_fs, "/", link_dir);
@@ -695,7 +696,7 @@ amfs_auto_bgmount(struct continuation * cp, int mpe)
       int i = atoi(mf->mf_fo->opt_delay);
       if (i > 0 && clocktime() < (cp->start + i)) {
 #ifdef DEBUG
-	dlog("Mount of %s delayed by %ds", mf->mf_mount, i - clocktime() + cp->start);
+	dlog("Mount of %s delayed by %lds", mf->mf_mount, (long) (i - clocktime() + cp->start));
 #endif /* DEBUG */
 	this_error = -1;
       }
@@ -705,6 +706,10 @@ amfs_auto_bgmount(struct continuation * cp, int mpe)
       if (!mf_retry)
 	mf_retry = dup_mntfs(mf);
       cp->retry = TRUE;
+#ifdef DEBUG
+      dlog("will retry ...\n");
+#endif /* DEBUG */
+      break;
     }
 
     if (!this_error) {
@@ -764,8 +769,9 @@ amfs_auto_bgmount(struct continuation * cp, int mpe)
      * Rewind the location vector and
      * reset the default options.
      */
-    cp->ivec = cp->xivec;
-    cp->def_opts = strealloc(cp->def_opts, cp->auto_opts);
+#ifdef DEBUG
+    dlog("(skipping rewind)\n");
+#endif /* DEBUG */
     /*
      * Arrange that amfs_auto_bgmount is called
      * after anything else happens.
@@ -992,7 +998,7 @@ amfs_auto_lookuppn(am_node *mp, char *fname, int *error_return, int op)
   if (error) {
 #ifdef DEBUG
     errno = error;		/* XXX */
-    dlog("Returning error: %m", error);
+    dlog("Returning error: %m");
 #endif /* DEBUG */
     XFREE(fname);
     ereturn(error);
@@ -1321,7 +1327,7 @@ amfs_auto_readdir(am_node *mp, nfscookie cookie, nfsdirlist *dp, nfsentry *ep, i
      * fairly unbelievable) then tough.
      */
 #ifdef DEBUG
-    dlog("default search");
+    dlog("amfs_auto_readdir: default search");
 #endif /* DEBUG */
     /*
      * Check for enough room.  This is extremely approximate but is more
@@ -1350,8 +1356,7 @@ amfs_auto_readdir(am_node *mp, nfscookie cookie, nfsdirlist *dp, nfsentry *ep, i
       ep[1].ne_fileid = mp->am_gen;
     ep[1].ne_name = "..";
     ep[1].ne_nextentry = 0;
-    *(u_int *) ep[1].ne_cookie =
-      xp ? xp->am_gen : ~(u_int) 0;
+    *(u_int *) ep[1].ne_cookie = (xp ? xp->am_gen : DOT_DOT_COOKIE);
 
     if (!xp)
       dp->dl_eof = TRUE;	/* by default assume readdir done */
@@ -1359,12 +1364,12 @@ amfs_auto_readdir(am_node *mp, nfscookie cookie, nfsdirlist *dp, nfsentry *ep, i
     return 0;
   }
 #ifdef DEBUG
-  dlog("real child");
+  dlog("amfs_auto_readdir: real child");
 #endif /* DEBUG */
 
-  if (gen == ~(u_int) 0) {
+  if (gen == DOT_DOT_COOKIE) {
 #ifdef DEBUG
-    dlog("End of readdir in %s", mp->am_path);
+    dlog("amfs_auto_readdir: End of readdir in %s", mp->am_path);
 #endif /* DEBUG */
     dp->dl_eof = TRUE;
     dp->dl_entries = 0;
@@ -1379,6 +1384,7 @@ amfs_auto_readdir(am_node *mp, nfscookie cookie, nfsdirlist *dp, nfsentry *ep, i
   if (xp) {
     int nbytes = count / 2;	/* conservative */
     int todo = MAX_READDIR_ENTRIES;
+
     dp->dl_entries = ep;
     do {
       am_node *xp_next = next_nonerror_node(xp->am_osib);
@@ -1386,7 +1392,7 @@ amfs_auto_readdir(am_node *mp, nfscookie cookie, nfsdirlist *dp, nfsentry *ep, i
       if (xp_next) {
 	*(u_int *) ep->ne_cookie = xp_next->am_gen;
       } else {
-	*(u_int *) ep->ne_cookie = ~(u_int) 0;
+	*(u_int *) ep->ne_cookie = DOT_DOT_COOKIE;
 	dp->dl_eof = TRUE;
       }
 
@@ -1444,7 +1450,7 @@ amfs_auto_readdir_browsable(am_node *mp, nfscookie cookie, nfsdirlist *dp, nfsen
      * fairly unbelievable) then tough.
      */
 #ifdef DEBUG
-    dlog("default search");
+    dlog("amfs_auto_readdir_browsable: default search");
 #endif /* DEBUG */
     /*
      * Check for enough room.  This is extremely approximate but is more
@@ -1484,7 +1490,7 @@ amfs_auto_readdir_browsable(am_node *mp, nfscookie cookie, nfsdirlist *dp, nfsen
       ep[1].ne_fileid = mp->am_gen;
     ep[1].ne_name = "..";
     ep[1].ne_nextentry = 0;
-    *(u_int *) ep[1].ne_cookie = ~(u_int) 0;
+    *(u_int *) ep[1].ne_cookie = DOT_DOT_COOKIE;
 
     /*
      * If map is browsable, call a function make_entry_chain() to construct
@@ -1496,8 +1502,7 @@ amfs_auto_readdir_browsable(am_node *mp, nfscookie cookie, nfsdirlist *dp, nfsen
     if (!te)
       return 0;
 #ifdef DEBUG_READDIR
-    j = 0;
-    for (ne=te; ne; ne=ne->ne_nextentry)
+    for (j=0,ne=te; ne; ne=ne->ne_nextentry)
       plog(XLOG_INFO, "gen1 key %4d \"%s\"", j++, ne->ne_name);
 #endif /* DEBUG_READDIR */
 
@@ -1518,19 +1523,23 @@ amfs_auto_readdir_browsable(am_node *mp, nfscookie cookie, nfsdirlist *dp, nfsen
     }
     ep[1].ne_nextentry = te;	/* append this chunk of "te" chain */
 #ifdef DEBUG_READDIR
-    for (ne=te; ne; ne=ne->ne_nextentry)
+    for (j=0,ne=te; ne; ne=ne->ne_nextentry)
       plog(XLOG_INFO, "gen2 key %4d \"%s\"", j++, ne->ne_name);
+    for (j=0,ne=ep; ne; ne=ne->ne_nextentry)
+      plog(XLOG_INFO, "gen2+ key %4d \"%s\" fi=%d ck=%d",
+	   j++, ne->ne_name, ne->ne_fileid, *(u_int *)ne->ne_cookie);
+    plog(XLOG_INFO, "EOF is %d", dp->dl_eof);
 #endif /* DEBUG_READDIR */
     return 0;
   } /* end of "if (gen == 0)" statement */
 
 #ifdef DEBUG
-  dlog("real child");
+  dlog("amfs_auto_readdir_browsable: real child");
 #endif /* DEBUG */
 
-  if (gen == ~(u_int) 0) {
+  if (gen == DOT_DOT_COOKIE) {
 #ifdef DEBUG
-    dlog("End of readdir in %s", mp->am_path);
+    dlog("amfs_auto_readdir_browsable: End of readdir in %s", mp->am_path);
 #endif /* DEBUG */
     dp->dl_eof = TRUE;
     dp->dl_entries = 0;
@@ -1572,7 +1581,7 @@ amfs_auto_readdir_browsable(am_node *mp, nfscookie cookie, nfsdirlist *dp, nfsen
   dp->dl_entries = ep;
 #ifdef DEBUG_READDIR
   plog(XLOG_INFO, "dl_entries=0x%x, te_next=0x%x, dl_eof=%d",
-       dp->dl_entries, te_next, dp->dl_eof);
+       (int) dp->dl_entries, (int) te_next, dp->dl_eof);
   for (ne=te; ne; ne=ne->ne_nextentry)
     plog(XLOG_INFO, "gen3 key %4d \"%s\"", j++, ne->ne_name);
 #endif /* DEBUG_READDIR */

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997-1998 Erez Zadok
+ * Copyright (c) 1997-1999 Erez Zadok
  * Copyright (c) 1990 Jan-Simon Pendry
  * Copyright (c) 1990 Imperial College of Science, Technology & Medicine
  * Copyright (c) 1990 The Regents of the University of California.
@@ -38,7 +38,8 @@
  *
  *      %W% (Berkeley) %G%
  *
- * $Id: mk-amd-map.c,v 1.5 1998/11/14 03:13:32 obrien Exp $
+ * $Id: mk-amd-map.c,v 1.4 1999/02/04 07:24:50 ezk Exp $
+ * $FreeBSD$
  */
 
 /*
@@ -49,16 +50,6 @@
 # include <config.h>
 #endif /* HAVE_CONFIG_H */
 #include <am_defs.h>
-
-/* dummy variables */
-#if 0
-char *progname;
-pid_t mypid;
-serv_state amd_state;
-int foreground, orig_umask;
-int debug_flags;
-#endif
-char hostname[MAXHOSTNAMELEN];
 
 /* (libdb version 2) uses .db extensions but an old dbm API */
 /* check for libgdbm to distinguish it from linux systems */

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997-1998 Erez Zadok
+ * Copyright (c) 1997-1999 Erez Zadok
  * Copyright (c) 1990 Jan-Simon Pendry
  * Copyright (c) 1990 Imperial College of Science, Technology & Medicine
  * Copyright (c) 1990 The Regents of the University of California.
@@ -38,7 +38,7 @@
  *
  *      %W% (Berkeley) %G%
  *
- * $Id: ops_ufs.c,v 1.1.1.1 1998/11/05 02:04:51 ezk Exp $
+ * $Id: ops_ufs.c,v 1.2 1999/01/10 21:53:51 ezk Exp $
  *
  */
 
@@ -132,7 +132,7 @@ mount_ufs(char *dir, char *fs_name, char *opts)
 #endif /* HAVE_FIELD_UFS_ARGS_T_FLAGS */
 
 #ifdef HAVE_FIELD_UFS_ARGS_T_UFS_FLAGS
-  ufs_args.ufs_flags = genflags; /* XXX: is this correct? */
+  ufs_args.ufs_flags = genflags;
 #endif /* HAVE_FIELD_UFS_ARGS_T_UFS_FLAGS */
 
 #ifdef HAVE_FIELD_UFS_ARGS_T_FSPEC

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997-1998 Erez Zadok
+ * Copyright (c) 1997-1999 Erez Zadok
  * Copyright (c) 1989 Jan-Simon Pendry
  * Copyright (c) 1989 Imperial College of Science, Technology & Medicine
  * Copyright (c) 1989 The Regents of the University of California.
@@ -38,7 +38,7 @@
  *
  *	%W% (Berkeley) %G%
  *
- * $Id: fsi_gram.y,v 1.1.1.1 1998/11/05 02:04:54 ezk Exp $
+ * $Id: fsi_gram.y,v 1.3 1999/04/16 14:21:14 ezk Exp $
  *
  */
 
@@ -49,6 +49,22 @@
 #include <am_defs.h>
 #include <fsi_data.h>
 #include <fsinfo.h>
+
+/* AIX requires this to be the first thing in the file. */
+#ifndef __GNUC__
+# if HAVE_ALLOCA_H
+#  include <alloca.h>
+# else /* not HAVE_ALLOCA_H */
+#  ifdef _AIX
+#pragma alloca
+#  else /* not _AIX */
+#   ifndef alloca
+  /* predefined by HP cc +Olibcalls */
+voidp alloca();
+#   endif /* not alloca */
+#  endif /* not _AIX */
+# endif /* not HAVE_ALLOCA_H */
+#endif /* not __GNUC__ */
 
 extern qelem *list_of_hosts, *list_of_automounts;
 %}

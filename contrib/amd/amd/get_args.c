@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997-1998 Erez Zadok
+ * Copyright (c) 1997-1999 Erez Zadok
  * Copyright (c) 1990 Jan-Simon Pendry
  * Copyright (c) 1990 Imperial College of Science, Technology & Medicine
  * Copyright (c) 1990 The Regents of the University of California.
@@ -38,7 +38,8 @@
  *
  *      %W% (Berkeley) %G%
  *
- * $Id: get_args.c,v 1.2 1998/09/05 06:06:00 obrien Exp $
+ * $Id: get_args.c,v 1.4 1999/09/30 21:01:31 ezk Exp $
+ * $FreeBSD$
  *
  */
 
@@ -85,7 +86,7 @@ get_version_string(void)
 
   vers = xmalloc(2048 + wire_buf_len);
   sprintf(vers, "%s\n%s\n%s\n%s\n",
-	  "Copyright (c) 1997-1998 Erez Zadok",
+	  "Copyright (c) 1997-1999 Erez Zadok",
 	  "Copyright (c) 1990 Jan-Simon Pendry",
 	  "Copyright (c) 1990 Imperial College of Science, Technology & Medicine",
 	  "Copyright (c) 1990 The Regents of the University of California.");
@@ -99,7 +100,7 @@ get_version_string(void)
 	  cpu, endian, gopt.arch, gopt.karch);
   strcat(vers, tmpbuf);
   sprintf(tmpbuf, "full_os=%s, os=%s, osver=%s, vendor=%s.\n",
-	  HOST_OS, gopt.op_sys, gopt.op_sys_ver, HOST_VENDOR);
+	  gopt.op_sys_full, gopt.op_sys, gopt.op_sys_ver, gopt.op_sys_vendor);
   strcat(vers, tmpbuf);
 
   strcat(vers, "Map support for: ");

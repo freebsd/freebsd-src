@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997-1998 Erez Zadok
+ * Copyright (c) 1997-1999 Erez Zadok
  * Copyright (c) 1989 Jan-Simon Pendry
  * Copyright (c) 1989 Imperial College of Science, Technology & Medicine
  * Copyright (c) 1989 The Regents of the University of California.
@@ -38,7 +38,7 @@
  *
  *      %W% (Berkeley) %G%
  *
- * $Id: amfs_inherit.c,v 1.1.1.1 1998/11/05 02:04:47 ezk Exp $
+ * $Id: amfs_inherit.c,v 1.2 1999/01/10 21:53:41 ezk Exp $
  *
  */
 

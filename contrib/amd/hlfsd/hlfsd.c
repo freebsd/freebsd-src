@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997-1998 Erez Zadok
+ * Copyright (c) 1997-1999 Erez Zadok
  * Copyright (c) 1989 Jan-Simon Pendry
  * Copyright (c) 1989 Imperial College of Science, Technology & Medicine
  * Copyright (c) 1989 The Regents of the University of California.
@@ -38,7 +38,8 @@
  *
  *      %W% (Berkeley) %G%
  *
- * $Id: hlfsd.c,v 1.3 1998/11/14 03:13:31 obrien Exp $
+ * $Id: hlfsd.c,v 1.5 1999/09/08 23:36:51 ezk Exp $
+ * $FreeBSD$
  *
  * HLFSD was written at Columbia University Computer Science Department, by
  * Erez Zadok <ezk@cs.columbia.edu> and Alexander Dupuy <dupuy@cs.columbia.edu>
@@ -83,10 +84,6 @@ char *alt_spooldir = ALT_SPOOLDIR;
 char *home_subdir = HOME_SUBDIR;
 char *logfile = DEFAULT_LOGFILE;
 char *passwdfile = NULL;	/* alternate passwd file to use */
-#if 0
-char *progname;
-int foreground = 1;		/* This is the top-level server */
-#endif
 char *slinkname = 0;
 char hostname[MAXHOSTNAMELEN + 1] = "localhost";
 int cache_interval = DEFAULT_CACHE_INTERVAL;
@@ -96,10 +93,6 @@ int noverify = 0;
 int orig_umask = 022;
 int serverpid = 0;
 nfstime startup;
-#if 0
-pid_t mypid;			/* Current process id */
-#endif
-serv_state amd_state;
 u_short nfs_port;
 
 /* symbol must be available always */
@@ -108,12 +101,6 @@ char *mnttab_file_name = MNTTAB_FILE_NAME;
 #else /* not MOUNT_TABLE_ON_FILE */
 char *mnttab_file_name = NULL;
 #endif /* not MOUNT_TABLE_ON_FILE */
-
-#if 0
-#ifdef DEBUG
-int debug_flags = 0;
-#endif /* DEBUG */
-#endif
 
 /* forward declarations */
 void hlfsd_going_down(int rc);
@@ -949,8 +936,13 @@ fatal(char *mess)
       lessmess[messlen - 4] = '\0';
 
       if (errno < sys_nerr)
-	fprintf(stderr, "%s: %s: %s\n", am_get_progname(),
-		lessmess, sys_errlist[errno]);
+	fprintf(stderr, "%s: %s: %s\n", am_get_progname(), lessmess,
+#ifdef HAVE_STRERROR
+		strerror(errno)
+#else /* not HAVE_STRERROR */
+		sys_errlist[errno]
+#endif /* not HAVE_STRERROR */
+		);
       else
 	fprintf(stderr, "%s: %s: Error %d\n",
 		am_get_progname(), lessmess, errno);

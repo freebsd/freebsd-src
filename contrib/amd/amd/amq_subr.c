@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997-1998 Erez Zadok
+ * Copyright (c) 1997-1999 Erez Zadok
  * Copyright (c) 1990 Jan-Simon Pendry
  * Copyright (c) 1990 Imperial College of Science, Technology & Medicine
  * Copyright (c) 1990 The Regents of the University of California.
@@ -38,7 +38,8 @@
  *
  *      %W% (Berkeley) %G%
  *
- * $Id: amq_subr.c,v 1.3 1999/01/13 20:03:54 obrien Exp $
+ * $Id: amq_subr.c,v 1.5 1999/08/24 21:31:06 ezk Exp $
+ * $FreeBSD$
  *
  */
 /*
@@ -187,7 +188,7 @@ ok_security(struct svc_req *rqstp)
     return(0);			/* assume security is therefore not OK */
   }
 
-  if (ntohs(sin->sin_port) >= 1024 ||
+  if (ntohs(sin->sin_port) >= IPPORT_RESERVED ||
       !(sin->sin_addr.s_addr == htonl(0x7f000001) ||
 	sin->sin_addr.s_addr == myipaddr.s_addr)) {
     char dq[20];
@@ -253,21 +254,7 @@ amqproc_mount_1_svc(voidp argp, struct svc_req *rqstp)
     return 0;
   return &rc;
 }
-
-#else /* not ENABLE_AMQ_MOUNT */
-
-int *
-amqproc_mount_1_svc(voidp argp, struct svc_req *rqstp)
-{
-  static int rc;
-  char *s = *(amq_string *) argp;
-
-  plog(XLOG_ERROR, "amq requested mount of %s, but code is disabled", s);
-
-  rc = EINVAL;
-  return &rc;
-}
-#endif /* not ENABLE_AMQ_MOUNT */
+#endif /* ENABLE_AMQ_MOUNT */
 
 
 amq_string *

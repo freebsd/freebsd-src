@@ -5,9 +5,11 @@
 # Package:	am-utils-6.0
 # Author:	Erez Zadok <ezk@cs.columbia.edu>
 #
-# chkconfig: 345 73 7
+# chkconfig: - 72 28
 # description: hlfsd is a daemon similar to amd, used to redirect user
 #              mail to home directory of the user
+# processname: hlfsd
+#
 
 # set path
 prefix=@prefix@

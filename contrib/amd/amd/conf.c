@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997-1998 Erez Zadok
+ * Copyright (c) 1997-1999 Erez Zadok
  * Copyright (c) 1990 Jan-Simon Pendry
  * Copyright (c) 1990 Imperial College of Science, Technology & Medicine
  * Copyright (c) 1990 The Regents of the University of California.
@@ -38,7 +38,7 @@
  *
  *      %W% (Berkeley) %G%
  *
- * $Id: conf.c,v 1.2 1998/12/27 06:24:46 ezk Exp $
+ * $Id: conf.c,v 1.5 1999/09/30 21:01:30 ezk Exp $
  *
  */
 
@@ -82,6 +82,7 @@ static int gopt_cache_duration(const char *val);
 static int gopt_cluster(const char *val);
 static int gopt_debug_options(const char *val);
 static int gopt_dismount_interval(const char *val);
+static int gopt_full_os(const char *val);
 static int gopt_fully_qualified_hosts(const char *val);
 static int gopt_hesiod_base(const char *val);
 static int gopt_karch(const char *val);
@@ -111,6 +112,7 @@ static int gopt_search_path(const char *val);
 static int gopt_selectors_on_default(const char *val);
 static int gopt_show_statfs_entries(const char *val);
 static int gopt_unmount_on_exit(const char *val);
+static int gopt_vendor(const char *val);
 static int process_global_option(const char *key, const char *val);
 static int process_regular_map(cf_map_t *cfm);
 static int process_regular_option(const char *section, const char *key, const char *val, cf_map_t *cfm);
@@ -137,6 +139,7 @@ static struct _func_map glob_functable[] = {
   {"debug_options",		gopt_debug_options},
   {"dismount_interval",		gopt_dismount_interval},
   {"fully_qualified_hosts",	gopt_fully_qualified_hosts},
+  {"full_os",			gopt_full_os},
   {"hesiod_base",		gopt_hesiod_base},
   {"karch",			gopt_karch},
   {"ldap_base",			gopt_ldap_base},
@@ -165,6 +168,7 @@ static struct _func_map glob_functable[] = {
   {"selectors_on_default",	gopt_selectors_on_default},
   {"show_statfs_entries",	gopt_show_statfs_entries},
   {"unmount_on_exit",		gopt_unmount_on_exit},
+  {"vendor",			gopt_vendor},
   {NULL, NULL}
 };
 
@@ -390,6 +394,14 @@ gopt_dismount_interval(const char *val)
 
 
 static int
+gopt_full_os(const char *val)
+{
+  gopt.op_sys_full = strdup((char *)val);
+  return 0;
+}
+
+
+static int
 gopt_fully_qualified_hosts(const char *val)
 {
   if (STREQ(val, "yes")) {
@@ -550,6 +562,7 @@ gopt_mount_type(const char *val)
   if (STREQ(val, "autofs")) {
 #ifdef HAVE_FS_AUTOFS
     gopt.flags |= CFM_MOUNT_TYPE_AUTOFS;
+    amd_use_autofs++;
     return 0;
 #else /* not HAVE_FS_AUTOFS */
     fprintf(stderr, "conf: no autofs support available\n");
@@ -766,6 +779,14 @@ gopt_unmount_on_exit(const char *val)
 }
 
 
+static int
+gopt_vendor(const char *val)
+{
+  gopt.op_sys_vendor = strdup((char *)val);
+  return 0;
+}
+
+
 /*
  * Collect one entry for a regular map
  */
@@ -867,6 +888,7 @@ ropt_mount_type(const char *val, cf_map_t *cfm)
   if (STREQ(val, "autofs")) {
 #ifdef HAVE_FS_AUTOFS
     cfm->cfm_flags |= CFM_MOUNT_TYPE_AUTOFS;
+    amd_use_autofs++;
     return 0;
 #else /* not HAVE_FS_AUTOFS */
     fprintf(stderr, "conf: no autofs support available\n");

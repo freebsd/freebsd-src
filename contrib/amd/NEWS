@@ -1,3 +1,89 @@
+# -*- text -*-
+
+*** Notes specific to am-utils version 6.0.2:
+
+- safe map reloads: when a map needs to be reloaded, it is reloaded into a
+  temporary copy first.  Only if the reload was completely successful, Amd
+  discards the old map and uses the new one.  Otherwise Amd continues to use
+  the old maps.  This should help a lot with transient NIS problems.
+
+- amq -f now also forces a (safe) map reload, but only if the timestamp on
+  the maps was updated.
+
+- two new selector variables: ${vendor} and ${full_os}, which are the same
+  as the output seen in "amd -v".
+
+- documentation fixes and updates
+
+- updated or minor new ports:
+	i386-unknown-freebsdelf3.3
+
+- support 'ignore' flags (automntfs) in bsdi-4.1
+
+- bugs fixed:
+	expn.pl uses correct sockaddr_in() not, pack()
+	make sure configure --enable-*args take an argument
+	don't busy-loop trying to rebind to ldap servers
+	use vsnprintf, not vsprintf (security)
+
+*** Notes specific to am-utils version 6.0.1:
+
+- updated or minor new ports:
+	i386-pc-bsdi4.0.1
+	i386-unknown-freebsdelf3.0
+	i386-unknown-freebsdelf3.1
+	i386-unknown-freebsdelf3.2
+	i386-unknown-freebsdelf4.0
+	i386-unknown-netbsd1.4
+	i386-unknown-openbsd2.5
+	powerpc-unknown-linux-gnu
+
+- automount2amd added, a new script to convert Sun automount maps to Amd maps
+
+- new map function netgrpd(ARG), same as netgrp() but matches FQHN
+
+- 'ignore' is a generic mount option
+
+- hesiod info service isup() function to check if service is up
+
+- more Y2K fixes (see README.y2k for the full story)
+
+- using alloca.c on systems that don't have it (hpux9 with /bin/cc)
+
+- configure script reduced in size by using M4/sh loops instead of repeated
+  entries
+
+- documentation updates
+
+- too many bugs fixed to list here:
+	'addopts' option works with 'remopts' as well as 'opts'
+	AIX can perform NFS V.3 mounts explicitly
+	NIS is_up fixed, especially for NIS+ running in compatibility mode
+	amd -v incorrectly listing file systems that don't really work
+	amd's own mounts use reserved ports if possible
+	browsable directories works for Linux 2.3 (NFS cookies)
+	bsd44 systems check for isofs flags
+	bsd44 systems check for new options: norrio, gens, and extatt
+	buildall works better on Ultrix's /bin/sh
+	compile and build on Linux kernels 2.2 and newer
+	compile and build on RedHat Linux 6.0 (glibc 2.1)
+	compile and build on Solaris 7 (with or without vendor LDAP)
+	completely eliminate all of amd's amq -M code, when not enabled
+	correctly interpret failure code of unmount of type:=program
+	don't create autofs listener service unless used
+	don't list or process amq's -M option unless feature was turned on
+	don't turn on/off noconn option if it was already in that state
+	ldap info service: don't strcmp null strings
+	lostaltmail correctly sets struct sockaddr_in
+	make sure Linux systems have configured kernel headers
+	test for bsize/namlen fields in nfs_args (linux mount versions 2/3)
+	turn off broken NFS V.3 support for HPUX
+	use getifaddrs() on bsd44 systems makes wire.c more reliable
+	use matching NFS rsize/wsize on Linux 2.0 and 2.[123] kernels.
+	verify that RPC requests come from reserved, privileged local ports
+	warn when Linux kernel headers mismatch with running kernel
+	pawd works for type:=nfsl too
+
 *** Notes specific to am-utils version 6.0:
 
 - updated or minor new ports:

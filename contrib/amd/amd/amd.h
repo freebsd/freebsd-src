@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997-1998 Erez Zadok
+ * Copyright (c) 1997-1999 Erez Zadok
  * Copyright (c) 1990 Jan-Simon Pendry
  * Copyright (c) 1990 Imperial College of Science, Technology & Medicine
  * Copyright (c) 1990 The Regents of the University of California.
@@ -38,7 +38,7 @@
  *
  *      %W% (Berkeley) %G%
  *
- * $Id: amd.h,v 1.1.1.1 1998/11/05 02:04:51 ezk Exp $
+ * $Id: amd.h,v 1.4 1999/09/30 21:01:29 ezk Exp $
  *
  */
 
@@ -106,8 +106,10 @@ struct amu_global_options {
   char *cluster;		/* cluster name */
   char *karch;			/* kernel architecture */
   char *logfile;		/* amd log file */
-  char *op_sys;			/* operating system name */
-  char *op_sys_ver;		/* OS version */
+  char *op_sys;			/* operating system name ${os} */
+  char *op_sys_ver;		/* OS version ${osver} */
+  char *op_sys_full;		/* full OS name ${full_os} */
+  char *op_sys_vendor;		/* name of OS vendor ${vendor} */
   char *pid_file;		/* PID file */
   char *sub_domain;		/* local domain */
   char *map_options;		/* global map options */
@@ -163,6 +165,7 @@ struct mnt_map {
   short flags;                  /* Allocation flags */
   short alloc;                  /* Allocation mode */
   time_t modify;                /* Modify time of map */
+  u_int reloads;		/* Number of times map was reloaded */
   char *map_name;               /* Name of this map */
   char *wildcard;               /* Wildcard value */
   reload_fn *reload;            /* Function to be used for reloads */
@@ -280,6 +283,7 @@ extern bool_t xdr_mountres3(XDR *xdrs, mountres3 *objp);
 #ifdef HAVE_FS_AUTOFS
 extern SVCXPRT *autofsxprt;
 extern u_short autofs_port;
+extern int amd_use_autofs;
 
 extern int autofs_mount(am_node *mp);
 extern int autofs_umount(am_node *mp);
