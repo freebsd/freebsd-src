@@ -2888,6 +2888,18 @@ atm_cm_cpcs_upper(cmd, tok, arg1, arg2)
 		}
 
 		/*
+		 * Send the packet to the interface's bpf if this
+		 * vc has one.
+		 */
+		if (cvp->cvc_vcc != NULL &&
+		    cvp->cvc_vcc->vc_nif != NULL) {
+			struct ifnet *ifp =
+			    (struct ifnet *)cvp->cvc_vcc->vc_nif;
+
+			BPF_MTAP(ifp, m);
+		}
+
+		/*
 		 * Locate packet's connection
 		 */
 		cop = cvp->cvc_conn;
@@ -2900,17 +2912,6 @@ atm_cm_cpcs_upper(cmd, tok, arg1, arg2)
 			break;
 
 		case ATM_ENC_LLC:
-			/*
-			 * Send the packet to the interface's bpf if this
-			 * vc has one.
-			 */
-			if (cvp->cvc_vcc != NULL &&
-			    cvp->cvc_vcc->vc_nif != NULL) {
-				struct ifnet *ifp =
-				    (struct ifnet *)cvp->cvc_vcc->vc_nif;
-
-				BPF_MTAP(ifp, m);
-			}
 			/*
 			 * Find connection with matching LLC header
 			 */
