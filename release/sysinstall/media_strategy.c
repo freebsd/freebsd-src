@@ -4,7 +4,7 @@
  * This is probably the last attempt in the `sysinstall' line, the next
  * generation being slated to essentially a complete rewrite.
  *
- * $Id: media_strategy.c,v 1.14 1995/05/24 01:27:11 jkh Exp $
+ * $Id: media_strategy.c,v 1.15 1995/05/24 09:00:44 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -567,14 +567,18 @@ mediaGetFTP(char *dist)
 	while (chunk < numchunks)
 	{
 	    int n;
-	    char *buffer;
-	    
-	    buffer = safe_malloc(1024);
+	    char *buffer = safe_malloc(10240);
 	    
 	    snprintf(buf, 512, "%s.%c%c", dist, (chunk / 26) + 'a', (chunk % 26) + 'a');
 	    fd = FtpGet(ftp, buf);
+
+	    if (fd < 0)
+	    {
+		msgConfirm("FtpGet returned %d\n", fd);
+		exit(1);
+	    }
 	    
-	    while ((n = read(fd, buffer, 1024))>0)
+	    while ((n = read(fd, buffer, 10240))>0)
 	    {
 		retval = write(1, buffer, n);
 		if (retval != n)
@@ -584,10 +588,10 @@ mediaGetFTP(char *dist)
 		    exit(1);
 		}
 		
-		close(fd);
-		++chunk;
 	    }
 	    FtpEOF(ftp);
+	    close(fd);
+	    ++chunk;
 	}
 	close(1);
 	msgDebug("Extract of %s finished!!!\n", dist);
