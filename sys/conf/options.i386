@@ -1,4 +1,4 @@
-#	$Id: options.i386,v 1.14 1996/06/11 16:02:51 pst Exp $
+#	$Id: options.i386,v 1.15 1996/09/06 23:33:45 pst Exp $
 BOUNCEPAGES		opt_bounce.h
 USER_LDT
 MATH_EMULATE		opt_math_emulate.h
@@ -28,7 +28,10 @@ CLK_CALIBRATION_LOOP	  opt_clock.h
 CLK_USE_I8254_CALIBRATION opt_clock.h
 CLK_USE_I586_CALIBRATION  opt_clock.h
 
-SC_KEYBOARD_PROBE_WORKS	opt_syscons.h
+SC_KBD_PROBE_WORKS	opt_syscons.h
+MAXCONS			opt_syscons.h
+SLOW_VGA		opt_syscons.h
+XT_KEYBOARD		opt_syscons.h
 
 ATAPI			opt_atapi.h
 ATAPI_STATIC		opt_atapi.h
