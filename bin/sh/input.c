@@ -33,7 +33,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id$
+ *	$Id: input.c,v 1.9 1997/02/22 13:58:28 peter Exp $
  */
 
 #ifndef lint
@@ -106,7 +106,7 @@ int whichprompt;		/* 1 == PS1, 2 == PS2 */
 EditLine *el;			/* cookie for editline package */
 
 STATIC void pushfile __P((void));
-static int pread __P((void));
+static int preadfd __P((void));
 
 #ifdef mkinit
 INCLUDE "input.h"
@@ -139,7 +139,7 @@ pfgets(line, len)
 	char *line;
 	int len;
 {
-	register char *p = line;
+	char *p = line;
 	int nleft = len;
 	int c;
 
@@ -173,12 +173,13 @@ pgetc()
 
 
 static int
-pread()
+preadfd()
 {
 	int nr;
 	parsenextc = parsefile->buf;
 
 retry:
+#ifndef NO_HISTORY
 	if (parsefile->fd == 0 && el) {
 		const char *rl_cp;
 
@@ -189,9 +190,9 @@ retry:
 			/* XXX - BUFSIZE should redesign so not necessary */
 			(void) strcpy(parsenextc, rl_cp);
 		}
-	} else {
+	} else
+#endif
 		nr = read(parsefile->fd, parsenextc, BUFSIZ - 1);
-	}
 
 	if (nr <= 0) {
                 if (nr < 0) {
@@ -244,7 +245,7 @@ preadbuffer()
 
 again:
 	if (parselleft <= 0) {
-		if ((parselleft = pread()) == -1) {
+		if ((parselleft = preadfd()) == -1) {
 			parselleft = parsenleft = EOF_NLEFT;
 			return PEOF;
 		}
@@ -403,6 +404,7 @@ void
 setinputfd(fd, push)
 	int fd, push;
 {
+	(void)fcntl(fd, F_SETFD, FD_CLOEXEC);
 	if (push) {
 		pushfile();
 		parsefile->buf = ckmalloc(BUFSIZ);
