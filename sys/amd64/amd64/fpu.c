@@ -32,7 +32,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)npx.c	7.2 (Berkeley) 5/12/91
- *	$Id: npx.c,v 1.3 1993/10/13 15:59:30 rgrimes Exp $
+ *	$Id: npx.c,v 1.4 1993/11/03 00:29:19 paul Exp $
  */
 
 #include "npx.h"
@@ -138,11 +138,11 @@ _probeintr:
 	ss
 	incl	_npx_intrs_while_probing
 	pushl	%eax
-	movb	$0x20,%al
-	outb	%al,$0xa0
-	outb	%al,$0x20
+	movb	$0x20,%al	# EOI (asm in strings loses cpp features)
+	outb	%al,$0xa0	# IO_ICU2
+	outb	%al,$0x20	#IO_ICU1
 	movb	$0,%al
-	outb	%al,$0xf0
+	outb	%al,$0xf0	# clear BUSY# latch
 	popl	%eax
 	iret
 ");
