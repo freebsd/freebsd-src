@@ -78,15 +78,6 @@
 #define	RECHECK
 
 /*
- * POSIX
- *	Adhere to the POSIX 1003.2 draft for the make(1) program.
- *	- Use MAKEFLAGS instead of MAKE to pick arguments from the
- *	  environment.
- *	- Allow empty command lines if starting with tab.
- */
-#define	POSIX
-
-/*
  * SYSVINCLUDE
  *	Recognize system V like include directives [include "filename"]
  * SYSVVARSUB
