@@ -39,6 +39,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/bus.h>
 #include <sys/kernel.h>
 #include <sys/pcpu.h>
+#include <sys/proc.h>
 
 #include <vm/vm.h>
 #include <vm/pmap.h>
@@ -171,8 +172,7 @@ lapic_init(uintptr_t addr)
 	KASSERT(trunc_page(addr) == addr,
 	    ("local APIC not aligned on a page boundary"));
 	lapic = (lapic_t *)pmap_mapdev(addr, sizeof(lapic_t));
-	setidt(APIC_SPURIOUS_INT, IDTVEC(spuriousint), SDT_SYS386IGT, SEL_KPL,
-	    GSEL(GCODE_SEL, SEL_KPL));
+	setidt(APIC_SPURIOUS_INT, IDTVEC(spuriousint), SDT_SYSIGT, SEL_KPL, 0);
 
 	/* Perform basic initialization of the BSP's local APIC. */
 	value = lapic->svr;
@@ -242,8 +242,7 @@ lapic_enable_intr(u_int irq)
 	KASSERT(vector != IDT_SYSCALL, ("Attempt to overwrite syscall entry"));
 	KASSERT(ioint_handlers[vector / 32] != NULL,
 	    ("No ISR handler for IRQ %u", irq));
-	setidt(vector, ioint_handlers[vector / 32], SDT_SYS386IGT, SEL_KPL,
-	    GSEL(GCODE_SEL, SEL_KPL));
+	setidt(vector, ioint_handlers[vector / 32], SDT_SYSIGT, SEL_KPL,  0);
 }
 
 void
@@ -478,13 +477,14 @@ lapic_eoi(void)
 }
 
 void
-lapic_handle_intr(struct intrframe frame)
+lapic_handle_intr(void *cookie, struct intrframe frame)
 {
 	struct intsrc *isrc;
+	int vec = (uintptr_t)cookie;
 
-	if (frame.if_vec == -1)
+	if (vec == -1)
 		panic("Couldn't get vector from ISR!");
-	isrc = intr_lookup_source(apic_idt_to_irq(frame.if_vec));
+	isrc = intr_lookup_source(apic_idt_to_irq(vec));
 	intr_execute_handlers(isrc, &frame);
 }
 
@@ -589,21 +589,9 @@ static void
 apic_setup_local(void *dummy __unused)
 {
 	int retval;
-	uint64_t apic_base;
 
 	if (best_enum == NULL)
 		return;
-	/*
-	 * To work around an errata, we disable the local APIC on some
-	 * CPUs during early startup.  We need to turn the local APIC back
-	 * on on such CPUs now.
-	 */
-	if (cpu == CPU_686 && strcmp(cpu_vendor, "GenuineIntel") == 0 &&
-	    (cpu_id & 0xff0) == 0x610) {
-		apic_base = rdmsr(MSR_APICBASE);
-		apic_base |= APICBASE_ENABLED;
-		wrmsr(MSR_APICBASE, apic_base);
-	}
 	retval = best_enum->apic_setup_local();
 	if (retval != 0)
 		printf("%s: Failed to setup the local APIC: returned %d\n",

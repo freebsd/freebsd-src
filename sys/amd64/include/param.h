@@ -83,7 +83,11 @@
 #define	MACHINE_ARCH	"amd64"
 #endif
 
+#ifdef SMP
+#define MAXCPU		8
+#else
 #define MAXCPU		1
+#endif
 
 #define	ALIGNBYTES		_ALIGNBYTES
 #define	ALIGN(p)		_ALIGN(p)

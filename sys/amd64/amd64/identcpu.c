@@ -55,12 +55,13 @@ __FBSDID("$FreeBSD$");
 #include <machine/asmacros.h>
 #include <machine/clock.h>
 #include <machine/cputypes.h>
+#include <machine/frame.h>
+#include <machine/intr_machdep.h>
 #include <machine/segments.h>
 #include <machine/specialreg.h>
 #include <machine/md_var.h>
 
 #include <amd64/isa/icu.h>
-#include <amd64/isa/intr_machdep.h>
 
 /* XXX - should be in header file: */
 void printcpuinfo(void);

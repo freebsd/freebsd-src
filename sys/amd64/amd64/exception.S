@@ -35,13 +35,10 @@
  */
 
 #include <machine/asmacros.h>
-#include <sys/mutex.h>
 #include <machine/psl.h>
 #include <machine/trap.h>
 
 #include "assym.s"
-
-#define	SEL_RPL_MASK	0x0003
 
 	.text
 
@@ -72,8 +69,6 @@
  * %ss segment registers, but does not mess with %ds, %es, or %fs.  Thus we
  * must load them with appropriate values for supervisor mode operation.
  */
-#define	IDTVEC(name)	ALIGN_TEXT; .globl __CONCAT(X,name); \
-			.type __CONCAT(X,name),@function; __CONCAT(X,name):
 
 MCOUNT_LABEL(user)
 MCOUNT_LABEL(btrap)
@@ -223,7 +218,7 @@ IDTVEC(page)
 IDTVEC(fast_syscall)
 	swapgs
 	movq	%rsp,PCPU(SCRATCH_RSP)
-	movq	common_tss+COMMON_TSS_RSP0,%rsp
+	movq	PCPU(RSP0),%rsp
 	/* Now emulate a trapframe. Make the 8 byte alignment odd for call. */
 	subq	$TF_SIZE,%rsp
 	/* defer TF_RSP till we have a spare register */
@@ -296,14 +291,6 @@ ENTRY(fork_trampoline)
 	movq	%rsp, %rdx		/* trapframe pointer */
 	call	fork_exit
 	jmp	doreti			/* Handle any ASTs */
-
-
-/*
- * Include what was once config+isa-dependent code.
- * XXX it should be in a stand-alone file.  It's still icu-dependent and
- * belongs in i386/isa.
- */
-#include "amd64/isa/vector.S"
 
 	.data
 	ALIGN_DATA
@@ -406,5 +393,3 @@ doreti_iret_fault:
 	movq	$T_PROTFLT,TF_TRAPNO(%rsp)
 	movq	$0,TF_ERR(%rsp)	/* XXX should be the error code */
 	jmp	alltraps_with_regs_pushed
-
-#include "amd64/isa/icu_ipl.S"

@@ -1,5 +1,6 @@
 /*-
  * Copyright (c) 1996, by Steve Passe
+ * Copyright (c) 2003, by Peter Wemm
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -26,30 +27,12 @@
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
-#include "opt_apic.h"
 #include "opt_cpu.h"
 #include "opt_kstack_pages.h"
-
-#if !defined(lint)
-#if !defined(SMP)
-#error How did you get here?
-#endif
-
-#if defined(I386_CPU) && !defined(COMPILING_LINT)
-#error SMP not supported with I386_CPU
-#endif
-#ifndef DEV_APIC
-#error The apic device is required for SMP, add "device apic" to your config file.
-#endif
-#if defined(CPU_DISABLE_CMPXCHG) && !defined(COMPILING_LINT)
-#error SMP not supported with CPU_DISABLE_CMPXCHG
-#endif
-#endif /* not lint */
 
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/bus.h>
-#include <sys/cons.h>	/* cngetc() */
 #ifdef GPROF 
 #include <sys/gmon.h>
 #endif
@@ -75,9 +58,8 @@ __FBSDID("$FreeBSD$");
 #include <machine/md_var.h>
 #include <machine/pcb.h>
 #include <machine/smp.h>
-#include <machine/smptests.h>	/** COUNT_XINVLTLB_HITS */
 #include <machine/specialreg.h>
-#include <machine/privatespace.h>
+#include <machine/tss.h>
 
 #define WARMBOOT_TARGET		0
 #define WARMBOOT_OFF		(KERNBASE + 0x0467)
@@ -88,66 +70,8 @@ __FBSDID("$FreeBSD$");
 #define BIOS_RESET		(0x0f)
 #define BIOS_WARM		(0x0a)
 
-/*
- * this code MUST be enabled here and in mpboot.s.
- * it follows the very early stages of AP boot by placing values in CMOS ram.
- * it NORMALLY will never be needed and thus the primitive method for enabling.
- *
-#define CHECK_POINTS
- */
-
-#if defined(CHECK_POINTS) && !defined(PC98)
-#define CHECK_READ(A)	 (outb(CMOS_REG, (A)), inb(CMOS_DATA))
-#define CHECK_WRITE(A,D) (outb(CMOS_REG, (A)), outb(CMOS_DATA, (D)))
-
-#define CHECK_INIT(D);				\
-	CHECK_WRITE(0x34, (D));			\
-	CHECK_WRITE(0x35, (D));			\
-	CHECK_WRITE(0x36, (D));			\
-	CHECK_WRITE(0x37, (D));			\
-	CHECK_WRITE(0x38, (D));			\
-	CHECK_WRITE(0x39, (D));
-
-#define CHECK_PRINT(S);				\
-	printf("%s: %d, %d, %d, %d, %d, %d\n",	\
-	   (S),					\
-	   CHECK_READ(0x34),			\
-	   CHECK_READ(0x35),			\
-	   CHECK_READ(0x36),			\
-	   CHECK_READ(0x37),			\
-	   CHECK_READ(0x38),			\
-	   CHECK_READ(0x39));
-
-#else				/* CHECK_POINTS */
-
-#define CHECK_INIT(D)
-#define CHECK_PRINT(S)
-#define CHECK_WRITE(A, D)
-
-#endif				/* CHECK_POINTS */
-
-/*
- * Values to send to the POST hardware.
- */
-#define MP_BOOTADDRESS_POST	0x10
-#define MP_PROBE_POST		0x11
-#define MPTABLE_PASS1_POST	0x12
-
-#define MP_START_POST		0x13
-#define MP_ENABLE_POST		0x14
-#define MPTABLE_PASS2_POST	0x15
-
-#define START_ALL_APS_POST	0x16
-#define INSTALL_AP_TRAMP_POST	0x17
-#define START_AP_POST		0x18
-
-#define MP_ANNOUNCE_POST	0x19
-
 /* lock region used by kernel profiling */
 int	mcount_lock;
-
-/** XXX FIXME: where does this really belong, isa.h/isa.c perhaps? */
-int	current_postcode;
 
 int	mp_naps;		/* # of Applications processors */
 int	boot_cpu_id = -1;	/* designated BSP */
@@ -164,6 +88,9 @@ struct cpu_top *smp_topology;
 char *bootSTK;
 static int bootAP;
 
+/* Free these after use */
+void *bootstacks[MAXCPU];
+
 /* Hotwire a 0->4MB V==P mapping */
 extern pt_entry_t *KPTphys;
 
@@ -177,6 +104,8 @@ vm_offset_t smp_tlb_addr1;
 vm_offset_t smp_tlb_addr2;
 volatile int smp_tlb_wait;
 struct mtx smp_tlb_mtx;
+
+extern inthand_t IDTVEC(fast_syscall), IDTVEC(fast_syscall32);
 
 /*
  * Local data and functions.
@@ -201,17 +130,17 @@ struct cpu_info {
 } static cpu_info[MAXCPU];
 static int cpu_apic_ids[MAXCPU];
 
-static u_int boot_address;
+static u_int	boot_address;
 
 static void	set_logical_apic_ids(void);
 static int	start_all_aps(void);
-static void	install_ap_tramp(void);
 static int	start_ap(int apic_id);
 static void	release_aps(void *dummy);
 
 static int	hlt_cpus_mask;
 static int	hlt_logical_cpus;
 static struct	sysctl_ctx_list logical_cpu_clist;
+static u_int	bootMP_size;
 
 /*
  * Calculate usable address in base memory for AP trampoline code.
@@ -219,13 +148,15 @@ static struct	sysctl_ctx_list logical_cpu_clist;
 u_int
 mp_bootaddress(u_int basemem)
 {
-	POSTCODE(MP_BOOTADDRESS_POST);
 
-	boot_address = trunc_page(basemem);	/* round down to 4k boundary */
+	bootMP_size = mptramp_end - mptramp_start;
+	boot_address = trunc_page(basemem * 1024); /* round down to 4k boundary */
 	if ((basemem - boot_address) < bootMP_size)
 		boot_address -= PAGE_SIZE;	/* not enough, lower by 4k */
+	/* 3 levels of page table pages */
+	mptramp_pagetables = boot_address - (PAGE_SIZE * 3);
 
-	return boot_address;
+	return mptramp_pagetables;
 }
 
 void
@@ -302,43 +233,34 @@ cpu_mp_start(void)
 {
 	int i;
 
-	POSTCODE(MP_START_POST);
-
 	/* Initialize the logical ID to APIC ID table. */
 	for (i = 0; i < MAXCPU; i++)
 		cpu_apic_ids[i] = -1;
 
 	/* Install an inter-CPU IPI for TLB invalidation */
-	setidt(IPI_INVLTLB, IDTVEC(invltlb),
-	       SDT_SYS386IGT, SEL_KPL, GSEL(GCODE_SEL, SEL_KPL));
-	setidt(IPI_INVLPG, IDTVEC(invlpg),
-	       SDT_SYS386IGT, SEL_KPL, GSEL(GCODE_SEL, SEL_KPL));
-	setidt(IPI_INVLRNG, IDTVEC(invlrng),
-	       SDT_SYS386IGT, SEL_KPL, GSEL(GCODE_SEL, SEL_KPL));
+	setidt(IPI_INVLTLB, IDTVEC(invltlb), SDT_SYSIGT, SEL_KPL, 0);
+	setidt(IPI_INVLPG, IDTVEC(invlpg), SDT_SYSIGT, SEL_KPL, 0);
+	setidt(IPI_INVLRNG, IDTVEC(invlrng), SDT_SYSIGT, SEL_KPL, 0);
 
 	/* Install an inter-CPU IPI for forwarding hardclock() */
-	setidt(IPI_HARDCLOCK, IDTVEC(hardclock),
-	       SDT_SYS386IGT, SEL_KPL, GSEL(GCODE_SEL, SEL_KPL));
+	setidt(IPI_HARDCLOCK, IDTVEC(hardclock), SDT_SYSIGT, SEL_KPL, 0);
 	
 	/* Install an inter-CPU IPI for forwarding statclock() */
-	setidt(IPI_STATCLOCK, IDTVEC(statclock),
-	       SDT_SYS386IGT, SEL_KPL, GSEL(GCODE_SEL, SEL_KPL));
+	setidt(IPI_STATCLOCK, IDTVEC(statclock), SDT_SYSIGT, SEL_KPL, 0);
 	
+#ifdef LAZY_SWITCH
 	/* Install an inter-CPU IPI for lazy pmap release */
-	setidt(IPI_LAZYPMAP, IDTVEC(lazypmap),
-	       SDT_SYS386IGT, SEL_KPL, GSEL(GCODE_SEL, SEL_KPL));
+	setidt(IPI_LAZYPMAP, IDTVEC(lazypmap), SDT_SYSIGT, SEL_KPL, 0);
+#endif
 
 	/* Install an inter-CPU IPI for all-CPU rendezvous */
-	setidt(IPI_RENDEZVOUS, IDTVEC(rendezvous),
-	       SDT_SYS386IGT, SEL_KPL, GSEL(GCODE_SEL, SEL_KPL));
+	setidt(IPI_RENDEZVOUS, IDTVEC(rendezvous), SDT_SYSIGT, SEL_KPL, 0);
 
 	/* Install an inter-CPU IPI for forcing an additional software trap */
-	setidt(IPI_AST, IDTVEC(cpuast),
-	       SDT_SYS386IGT, SEL_KPL, GSEL(GCODE_SEL, SEL_KPL));
+	setidt(IPI_AST, IDTVEC(cpuast), SDT_SYSIGT, SEL_KPL, 0);
 
 	/* Install an inter-CPU IPI for CPU stop/restart */
-	setidt(IPI_STOP, IDTVEC(cpustop),
-	       SDT_SYS386IGT, SEL_KPL, GSEL(GCODE_SEL, SEL_KPL));
+	setidt(IPI_STOP, IDTVEC(cpustop), SDT_SYSIGT, SEL_KPL, 0);
 
 	mtx_init(&smp_tlb_mtx, "tlb", NULL, MTX_SPIN);
 
@@ -371,8 +293,6 @@ cpu_mp_announce(void)
 {
 	int i, x;
 
-	POSTCODE(MP_ANNOUNCE_POST);
-
 	/* List CPUs */
 	printf(" cpu0 (BSP): APIC ID: %2d\n", boot_cpu_id);
 	for (i = 1, x = 0; x < MAXCPU; x++) {
@@ -390,38 +310,41 @@ cpu_mp_announce(void)
 void
 init_secondary(void)
 {
-	int	gsel_tss;
-	int	x, myid;
-	u_int	cr0;
+	struct pcpu *pc;
+	u_int64_t msr, cr0;
+	int cpu, gsel_tss;
 
-	/* bootAP is set in start_ap() to our ID. */
-	myid = bootAP;
-	gdt_segs[GPRIV_SEL].ssd_base = (int) &SMP_prvspace[myid];
-	gdt_segs[GPROC0_SEL].ssd_base =
-		(int) &SMP_prvspace[myid].pcpu.pc_common_tss;
-	SMP_prvspace[myid].pcpu.pc_prvspace =
-		&SMP_prvspace[myid].pcpu;
+	/* Set by the startup code for us to use */
+	cpu = bootAP;
 
-	for (x = 0; x < NGDT; x++) {
-		ssdtosd(&gdt_segs[x], &gdt[myid * NGDT + x].sd);
-	}
+	/* Init tss */
+	common_tss[cpu] = common_tss[0];
+	common_tss[cpu].tss_rsp0 = 0;   /* not used until after switch */
 
-	r_gdt.rd_limit = NGDT * sizeof(gdt[0]) - 1;
-	r_gdt.rd_base = (int) &gdt[myid * NGDT];
+	gdt_segs[GPROC0_SEL].ssd_base = (long) &common_tss[cpu];
+	ssdtosyssd(&gdt_segs[GPROC0_SEL],
+	   (struct system_segment_descriptor *)&gdt[GPROC0_SEL]);
+
 	lgdt(&r_gdt);			/* does magic intra-segment return */
+
+	/* Get per-cpu data */
+	pc = &__pcpu[cpu];
+
+	/* prime data page for it to use */
+	pcpu_init(pc, cpu, sizeof(struct pcpu));
+	pc->pc_apic_id = cpu_apic_ids[cpu];
+	pc->pc_prvspace = pc;
+	pc->pc_curthread = 0;
+	pc->pc_tssp = &common_tss[cpu];
+	pc->pc_rsp0 = 0;
+
+	wrmsr(MSR_FSBASE, 0);		/* User value */
+	wrmsr(MSR_GSBASE, (u_int64_t)pc);
+	wrmsr(MSR_KGSBASE, (u_int64_t)pc);	/* XXX User value while we're in the kernel */
 
 	lidt(&r_idt);
 
-	lldt(_default_ldt);
-	PCPU_SET(currentldt, _default_ldt);
-
 	gsel_tss = GSEL(GPROC0_SEL, SEL_KPL);
-	gdt[myid * NGDT + GPROC0_SEL].sd.sd_type = SDT_SYS386TSS;
-	PCPU_SET(common_tss.tss_esp0, 0); /* not used until after switch */
-	PCPU_SET(common_tss.tss_ss0, GSEL(GDATA_SEL, SEL_KPL));
-	PCPU_SET(common_tss.tss_ioopt, (sizeof (struct i386tss)) << 16);
-	PCPU_SET(tss_gdt, &gdt[myid * NGDT + GPROC0_SEL].sd);
-	PCPU_SET(common_tssd, *PCPU_GET(tss_gdt));
 	ltr(gsel_tss);
 
 	/*
@@ -432,32 +355,32 @@ init_secondary(void)
 	cr0 = rcr0();
 	cr0 &= ~(CR0_CD | CR0_NW | CR0_EM);
 	load_cr0(cr0);
-	CHECK_WRITE(0x38, 5);
-	
-	/* Disable local APIC just to be sure. */
+
+	/* Set up the fast syscall stuff */
+	msr = rdmsr(MSR_EFER) | EFER_SCE;
+	wrmsr(MSR_EFER, msr);
+	wrmsr(MSR_LSTAR, (u_int64_t)IDTVEC(fast_syscall));
+	wrmsr(MSR_CSTAR, (u_int64_t)IDTVEC(fast_syscall32));
+	msr = ((u_int64_t)GSEL(GCODE_SEL, SEL_KPL) << 32) |
+	      ((u_int64_t)GSEL(GUCODE32_SEL, SEL_UPL) << 48);
+	wrmsr(MSR_STAR, msr);
+	wrmsr(MSR_SF_MASK, PSL_NT|PSL_T|PSL_I|PSL_C|PSL_D);
+
+	/* Disable local apic just to be sure. */
 	lapic_disable();
 
 	/* signal our startup to the BSP. */
 	mp_naps++;
-	CHECK_WRITE(0x39, 6);
 
 	/* Spin until the BSP releases the AP's. */
 	while (!aps_ready)
 		ia32_pause();
 
-	/* BSP may have changed PTD while we were waiting */
-	invltlb();
-	pmap_invalidate_range(kernel_pmap, 0, NKPT * NBPDR - 1);
-
-#if defined(I586_CPU) && !defined(NO_F00F_HACK)
-	lidt(&r_idt);
-#endif
-
 	/* set up CPU registers and state */
 	cpu_setregs();
 
 	/* set up FPU state on the AP */
-	npxinit(__INITIAL_NPXCW__);
+	fpuinit();
 
 	/* set up SSE registers */
 	enable_sse();
@@ -467,7 +390,6 @@ init_secondary(void)
 		printf("SMP: cpuid = %d\n", PCPU_GET(cpuid));
 		printf("SMP: actual apic_id = %d\n", lapic_id());
 		printf("SMP: correct apic_id = %d\n", PCPU_GET(apic_id));
-		printf("PTD[MPPTDI] = %#jx\n", (uintmax_t)PTD[MPPTDI]);
 		panic("cpuid mismatch! boom!!");
 	}
 
@@ -559,39 +481,51 @@ set_logical_apic_ids(void)
 static int
 start_all_aps(void)
 {
-#ifndef PC98
 	u_char mpbiosreason;
-#endif
-	u_long mpbioswarmvec;
-	struct pcpu *pc;
-	char *stack;
-	uintptr_t kptbase;
-	int i, pg, apic_id, cpu;
-
-	POSTCODE(START_ALL_APS_POST);
+	u_int32_t mpbioswarmvec;
+	int apic_id, cpu, i;
+	u_int64_t *pt4, *pt3, *pt2;
 
 	mtx_init(&ap_boot_mtx, "ap boot", NULL, MTX_SPIN);
 
 	/* install the AP 1st level boot code */
-	install_ap_tramp();
+	pmap_kenter(boot_address + KERNBASE, boot_address);
+	bcopy(mptramp_start, (void *)((uintptr_t)boot_address + KERNBASE), bootMP_size);
+
+	/* Locate the page tables, they'll be below the trampoline */
+	pt4 = (u_int64_t *)(uintptr_t)(mptramp_pagetables + KERNBASE);
+	pt3 = pt4 + (PAGE_SIZE) / sizeof(u_int64_t);
+	pt2 = pt3 + (PAGE_SIZE) / sizeof(u_int64_t);
+
+	/* Create the initial 1GB replicated page tables */
+	for (i = 0; i < 512; i++) {
+		/* Each slot of the level 4 pages points to the same level 3 page */
+		pt4[i] = (u_int64_t)(uintptr_t)(mptramp_pagetables + PAGE_SIZE);
+		pt4[i] |= PG_V | PG_RW | PG_U;
+
+		/* Each slot of the level 3 pages points to the same level 2 page */
+		pt3[i] = (u_int64_t)(uintptr_t)(mptramp_pagetables + (2 * PAGE_SIZE));
+		pt3[i] |= PG_V | PG_RW | PG_U;
+
+		/* The level 2 page slots are mapped with 2MB pages for 1GB. */
+		pt2[i] = i * (2 * 1024 * 1024);
+		pt2[i] |= PG_V | PG_RW | PG_PS | PG_U;
+	}
 
 	/* save the current value of the warm-start vector */
-	mpbioswarmvec = *((u_long *) WARMBOOT_OFF);
-#ifndef PC98
+	mpbioswarmvec = *((u_int32_t *) WARMBOOT_OFF);
 	outb(CMOS_REG, BIOS_RESET);
 	mpbiosreason = inb(CMOS_DATA);
-#endif
 
-	/* set up temporary P==V mapping for AP boot */
-	/* XXX this is a hack, we should boot the AP on its own stack/PTD */
-	kptbase = (uintptr_t)(void *)KPTphys;
-	for (i = 0; i < NKPT; i++)
-		PTD[i] = (pd_entry_t)(PG_V | PG_RW |
-		    ((kptbase + i * PAGE_SIZE) & PG_FRAME));
-	invltlb();
+	/* setup a vector to our boot code */
+	*((volatile u_short *) WARMBOOT_OFF) = WARMBOOT_TARGET;
+	*((volatile u_short *) WARMBOOT_SEG) = (boot_address >> 4);
+	outb(CMOS_REG, BIOS_RESET);
+	outb(CMOS_DATA, BIOS_WARM);	/* 'warm-start' */
 
 	/* start each AP */
-	for (cpu = 0, apic_id = 0; apic_id < MAXCPU; apic_id++) {
+	cpu = 0;
+	for (apic_id = 0; apic_id < MAXCPU; apic_id++) {
 		if (!cpu_info[apic_id].cpu_present ||
 		    cpu_info[apic_id].cpu_bsp)
 			continue;
@@ -600,48 +534,18 @@ start_all_aps(void)
 		/* save APIC ID for this logical ID */
 		cpu_apic_ids[cpu] = apic_id;
 
-		/* first page of AP's private space */
-		pg = cpu * i386_btop(sizeof(struct privatespace));
-
-		/* allocate a new private data page */
-		pc = (struct pcpu *)kmem_alloc(kernel_map, PAGE_SIZE);
-
-		/* wire it into the private page table page */
-		SMPpt[pg] = (pt_entry_t)(PG_V | PG_RW | vtophys(pc));
-
 		/* allocate and set up an idle stack data page */
-		stack = (char *)kmem_alloc(kernel_map, KSTACK_PAGES * PAGE_SIZE); /* XXXKSE */
-		for (i = 0; i < KSTACK_PAGES; i++)
-			SMPpt[pg + 1 + i] = (pt_entry_t)
-			    (PG_V | PG_RW | vtophys(PAGE_SIZE * i + stack));
+		bootstacks[cpu] = (char *)kmem_alloc(kernel_map, KSTACK_PAGES * PAGE_SIZE);
 
-		/* prime data page for it to use */
-		pcpu_init(pc, cpu, sizeof(struct pcpu));
-		pc->pc_apic_id = apic_id;
-
-		/* setup a vector to our boot code */
-		*((volatile u_short *) WARMBOOT_OFF) = WARMBOOT_TARGET;
-		*((volatile u_short *) WARMBOOT_SEG) = (boot_address >> 4);
-#ifndef PC98
-		outb(CMOS_REG, BIOS_RESET);
-		outb(CMOS_DATA, BIOS_WARM);	/* 'warm-start' */
-#endif
-
-		bootSTK = &SMP_prvspace[cpu].idlekstack[KSTACK_PAGES *
-		    PAGE_SIZE];
+		bootSTK = (char *)bootstacks[cpu] + KSTACK_PAGES * PAGE_SIZE - 8;
 		bootAP = cpu;
 
 		/* attempt to start the Application Processor */
-		CHECK_INIT(99);	/* setup checkpoints */
 		if (!start_ap(apic_id)) {
-			printf("AP #%d (PHY# %d) failed!\n", cpu, apic_id);
-			CHECK_PRINT("trace");	/* show checkpoints */
-			/* better panic as the AP may be running loose */
-			printf("panic y/n? [y] ");
-			if (cngetc() != 'n')
-				panic("bye-bye");
+			/* restore the warmstart vector */
+			*(u_int32_t *) WARMBOOT_OFF = mpbioswarmvec;
+			panic("AP #%d (PHY# %d) failed!", cpu, apic_id);
 		}
-		CHECK_PRINT("trace");		/* show checkpoints */
 
 		all_cpus |= (1 << cpu);		/* record AP in CPU map */
 	}
@@ -650,92 +554,15 @@ start_all_aps(void)
 	PCPU_SET(other_cpus, all_cpus & ~PCPU_GET(cpumask));
 
 	/* restore the warmstart vector */
-	*(u_long *) WARMBOOT_OFF = mpbioswarmvec;
-#ifndef PC98
+	*(u_int32_t *) WARMBOOT_OFF = mpbioswarmvec;
+
 	outb(CMOS_REG, BIOS_RESET);
 	outb(CMOS_DATA, mpbiosreason);
-#endif
-
-	/*
-	 * Set up the idle context for the BSP.  Similar to above except
-	 * that some was done by locore, some by pmap.c and some is implicit
-	 * because the BSP is cpu#0 and the page is initially zero and also
-	 * because we can refer to variables by name on the BSP..
-	 */
-
-	/* Allocate and setup BSP idle stack */
-	stack = (char *)kmem_alloc(kernel_map, KSTACK_PAGES * PAGE_SIZE);
-	for (i = 0; i < KSTACK_PAGES; i++)
-		SMPpt[1 + i] = (pt_entry_t)
-		    (PG_V | PG_RW | vtophys(PAGE_SIZE * i + stack));
-
-	for (i = 0; i < NKPT; i++)
-		PTD[i] = 0;
-	pmap_invalidate_range(kernel_pmap, 0, NKPT * NBPDR - 1);
 
 	/* number of APs actually started */
 	return mp_naps;
 }
 
-/*
- * load the 1st level AP boot code into base memory.
- */
-
-/* targets for relocation */
-extern void bigJump(void);
-extern void bootCodeSeg(void);
-extern void bootDataSeg(void);
-extern void MPentry(void);
-extern u_int MP_GDT;
-extern u_int mp_gdtbase;
-
-static void
-install_ap_tramp(void)
-{
-	int     x;
-	int     size = *(int *) ((u_long) & bootMP_size);
-	u_char *src = (u_char *) ((u_long) bootMP);
-	u_char *dst = (u_char *) boot_address + KERNBASE;
-	u_int   boot_base = (u_int) bootMP;
-	u_int8_t *dst8;
-	u_int16_t *dst16;
-	u_int32_t *dst32;
-
-	POSTCODE(INSTALL_AP_TRAMP_POST);
-
-	pmap_kenter(boot_address + KERNBASE, boot_address);
-	for (x = 0; x < size; ++x)
-		*dst++ = *src++;
-
-	/*
-	 * modify addresses in code we just moved to basemem. unfortunately we
-	 * need fairly detailed info about mpboot.s for this to work.  changes
-	 * to mpboot.s might require changes here.
-	 */
-
-	/* boot code is located in KERNEL space */
-	dst = (u_char *) boot_address + KERNBASE;
-
-	/* modify the lgdt arg */
-	dst32 = (u_int32_t *) (dst + ((u_int) & mp_gdtbase - boot_base));
-	*dst32 = boot_address + ((u_int) & MP_GDT - boot_base);
-
-	/* modify the ljmp target for MPentry() */
-	dst32 = (u_int32_t *) (dst + ((u_int) bigJump - boot_base) + 1);
-	*dst32 = ((u_int) MPentry - KERNBASE);
-
-	/* modify the target for boot code segment */
-	dst16 = (u_int16_t *) (dst + ((u_int) bootCodeSeg - boot_base));
-	dst8 = (u_int8_t *) (dst16 + 1);
-	*dst16 = (u_int) boot_address & 0xffff;
-	*dst8 = ((u_int) boot_address >> 16) & 0xff;
-
-	/* modify the target for boot data segment */
-	dst16 = (u_int16_t *) (dst + ((u_int) bootDataSeg - boot_base));
-	dst8 = (u_int8_t *) (dst16 + 1);
-	*dst16 = (u_int) boot_address & 0xffff;
-	*dst8 = ((u_int) boot_address >> 16) & 0xff;
-}
 
 /*
  * This function starts the AP (application processor) identified
@@ -749,8 +576,6 @@ start_ap(int apic_id)
 {
 	int vector, ms;
 	int cpus;
-
-	POSTCODE(START_AP_POST);
 
 	/* calculate the vector */
 	vector = (boot_address >> 12) & 0xff;
@@ -810,49 +635,13 @@ start_ap(int apic_id)
 	DELAY(200);		/* wait ~200uS */
 
 	/* Wait up to 5 seconds for it to start. */
-	for (ms = 0; ms < 5000; ms++) {
+	for (ms = 0; ms < 50; ms++) {
 		if (mp_naps > cpus)
 			return 1;	/* return SUCCESS */
-		DELAY(1000);
+		DELAY(100000);
 	}
 	return 0;		/* return FAILURE */
 }
-
-#ifdef COUNT_XINVLTLB_HITS
-u_int xhits_gbl[MAXCPU];
-u_int xhits_pg[MAXCPU];
-u_int xhits_rng[MAXCPU];
-SYSCTL_NODE(_debug, OID_AUTO, xhits, CTLFLAG_RW, 0, "");
-SYSCTL_OPAQUE(_debug_xhits, OID_AUTO, global, CTLFLAG_RW, &xhits_gbl,
-    sizeof(xhits_gbl), "IU", "");
-SYSCTL_OPAQUE(_debug_xhits, OID_AUTO, page, CTLFLAG_RW, &xhits_pg,
-    sizeof(xhits_pg), "IU", "");
-SYSCTL_OPAQUE(_debug_xhits, OID_AUTO, range, CTLFLAG_RW, &xhits_rng,
-    sizeof(xhits_rng), "IU", "");
-
-u_int ipi_global;
-u_int ipi_page;
-u_int ipi_range;
-u_int ipi_range_size;
-SYSCTL_INT(_debug_xhits, OID_AUTO, ipi_global, CTLFLAG_RW, &ipi_global, 0, "");
-SYSCTL_INT(_debug_xhits, OID_AUTO, ipi_page, CTLFLAG_RW, &ipi_page, 0, "");
-SYSCTL_INT(_debug_xhits, OID_AUTO, ipi_range, CTLFLAG_RW, &ipi_range, 0, "");
-SYSCTL_INT(_debug_xhits, OID_AUTO, ipi_range_size, CTLFLAG_RW, &ipi_range_size,
-    0, "");
-
-u_int ipi_masked_global;
-u_int ipi_masked_page;
-u_int ipi_masked_range;
-u_int ipi_masked_range_size;
-SYSCTL_INT(_debug_xhits, OID_AUTO, ipi_masked_global, CTLFLAG_RW,
-    &ipi_masked_global, 0, "");
-SYSCTL_INT(_debug_xhits, OID_AUTO, ipi_masked_page, CTLFLAG_RW,
-    &ipi_masked_page, 0, "");
-SYSCTL_INT(_debug_xhits, OID_AUTO, ipi_masked_range, CTLFLAG_RW,
-    &ipi_masked_range, 0, "");
-SYSCTL_INT(_debug_xhits, OID_AUTO, ipi_masked_range_size, CTLFLAG_RW,
-    &ipi_masked_range_size, 0, "");
-#endif /* COUNT_XINVLTLB_HITS */
 
 /*
  * Flush the TLB on all other CPU's
@@ -966,69 +755,49 @@ smp_targeted_tlb_shootdown(u_int mask, u_int vector, vm_offset_t addr1, vm_offse
 void
 smp_invltlb(void)
 {
-	if (smp_started) {
+
+	if (smp_started)
 		smp_tlb_shootdown(IPI_INVLTLB, 0, 0);
-#ifdef COUNT_XINVLTLB_HITS
-		ipi_global++;
-#endif
-	}
 }
 
 void
 smp_invlpg(vm_offset_t addr)
 {
-	if (smp_started) {
+
+	if (smp_started)
 		smp_tlb_shootdown(IPI_INVLPG, addr, 0);
-#ifdef COUNT_XINVLTLB_HITS
-		ipi_page++;
-#endif
-	}
 }
 
 void
 smp_invlpg_range(vm_offset_t addr1, vm_offset_t addr2)
 {
-	if (smp_started) {
+
+	if (smp_started)
 		smp_tlb_shootdown(IPI_INVLRNG, addr1, addr2);
-#ifdef COUNT_XINVLTLB_HITS
-		ipi_range++;
-		ipi_range_size += (addr2 - addr1) / PAGE_SIZE;
-#endif
-	}
 }
 
 void
 smp_masked_invltlb(u_int mask)
 {
-	if (smp_started) {
+
+	if (smp_started)
 		smp_targeted_tlb_shootdown(mask, IPI_INVLTLB, 0, 0);
-#ifdef COUNT_XINVLTLB_HITS
-		ipi_masked_global++;
-#endif
-	}
 }
 
 void
 smp_masked_invlpg(u_int mask, vm_offset_t addr)
 {
-	if (smp_started) {
+
+	if (smp_started)
 		smp_targeted_tlb_shootdown(mask, IPI_INVLPG, addr, 0);
-#ifdef COUNT_XINVLTLB_HITS
-		ipi_masked_page++;
-#endif
-	}
 }
 
 void
 smp_masked_invlpg_range(u_int mask, vm_offset_t addr1, vm_offset_t addr2)
 {
-	if (smp_started) {
+
+	if (smp_started)
 		smp_targeted_tlb_shootdown(mask, IPI_INVLRNG, addr1, addr2);
-#ifdef COUNT_XINVLTLB_HITS
-		ipi_masked_range++;
-		ipi_masked_range_size += (addr2 - addr1) / PAGE_SIZE;
-#endif
-	}
 }
 
 

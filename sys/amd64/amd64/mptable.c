@@ -27,7 +27,6 @@
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
-#include "opt_mptable_force_htt.h"
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/bus.h>
@@ -57,13 +56,8 @@ __FBSDID("$FreeBSD$");
 
 #define	NAPICID			32	/* Max number of I/O APIC's */
 
-#ifdef PC98
-#define BIOS_BASE		(0xe8000)
-#define BIOS_SIZE		(0x18000)
-#else
 #define BIOS_BASE		(0xf0000)
 #define BIOS_SIZE		(0x10000)
-#endif
 #define BIOS_COUNT		(BIOS_SIZE/4)
 
 typedef	void mptable_entry_handler(u_char *entry, void *arg);
@@ -226,11 +220,12 @@ static int
 mptable_probe(void)
 {
 	int     x;
-	u_long  segment;
+	u_int32_t segment;
 	u_int32_t target;
 
 	/* see if EBDA exists */
-	if ((segment = (u_long) * (u_short *) (KERNBASE + 0x40e)) != 0) {
+	segment = (u_int32_t) *(u_short *)(KERNBASE + 0x40e);
+	if (segment != 0) {
 		/* search first 1K of EBDA */
 		target = (u_int32_t) (segment << 4);
 		if ((x = search_for_sig(target, 1024 / 4)) >= 0)
