@@ -48,6 +48,9 @@ kernels="LINT GENERIC GENERIC98"
 # Which includes you want to check
 includes="*/*.h i386/*/*.h dev/*/*.h cam/scsi/*.h ufs/*/*.h pc98/*/*.h netatm/*/*.h i4b/*/*.h"
 
+NO_MODULES=yes
+export NO_MODULES
+
 check_it ()
 {
 	if [ -f ::$2 ] ; then
@@ -122,7 +125,7 @@ check_it ()
 
 	if [ $m1 != $m2 ] ; then
 		echo " MD5 changed"
-		exit 0
+		#exit 0
 	fi
 }
 
@@ -144,25 +147,17 @@ if $init ; then
 	ls | grep -v CVS | xargs rm -rf
 	)
 
-	( 
 	echo "Configuring kernels"
-	for d in i386/conf pc98/conf
-	do
-		(
-		cd $d
-		for i in $kernels
-		do
-			if [ ! -f $i ] ; then
-				continue
-			fi
-			if [ $i = "LINT" ] ; then
-				config -r -p $i
-			else
-				config -r $i
-			fi
-		done
-		)
-	done
+	(
+		cd i386/conf
+		perl ./makeLINT.pl < NOTES > LINT
+		config -r -p LINT
+		config -r GENERIC
+	)
+	(
+		cd pc98/conf
+		cp -f GENERIC GENERIC98
+		config -r GENERIC98
 	)
 
 	for i in $kernels
@@ -259,12 +254,16 @@ do
 			exit 0
 		fi
 		echo -n " ($src)"
-		echo " BINGO!"
 		echo "$incl $src" >> _incl
 		(
 		cd compile/LINT
-		grep -v "#[ 	]*include[ 	]*.$incl." $src > ${src}_
-		mv ${src}_ $src
+		if [ -f $src ] ; then
+			grep -v "#[ 	]*include[ 	]*.$incl." $src > ${src}_
+			mv ${src}_ $src
+			echo " BINGO!"
+		else
+			echo " BINGO!, but not in LINT"
+		fi
 		)
 		)
 	done
