@@ -365,6 +365,7 @@ sortq(const void *a, const void *b)
 	cat_X = cat_other;    \
 	ch = *(fname_X + 2);  \
 	jnum_X = fname_X + 3; \
+	seq_X = 0;            \
 	if ((*(fname_X + 1) == 'f') && (isalpha(ch))) { \
 		seq_X = ch; \
 		if (*fname_X == 'c') \
