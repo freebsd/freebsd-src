@@ -182,6 +182,24 @@ i386_linux_syscall_entry(struct trussinfo *trussinfo, int nargs) {
   }
 
   if (!strcmp(lsc.name, "linux_execve") || !strcmp(lsc.name, "exit")) {
+
+    /* XXX
+     * This could be done in a more general
+     * manner but it still wouldn't be very pretty.
+     */
+    if (!strcmp(lsc.name, "linux_execve")) {
+        if ((trussinfo->flags & EXECVEARGS) == 0)
+          if (lsc.s_args[1]) {
+            free(lsc.s_args[1]);
+            lsc.s_args[1] = NULL;
+          }
+        if ((trussinfo->flags & EXECVEENVS) == 0)
+          if (lsc.s_args[2]) {
+            free(lsc.s_args[2]);
+            lsc.s_args[2] = NULL;
+          }
+    }
+
     print_syscall(trussinfo, lsc.name, lsc.nargs, lsc.s_args);
     fprintf(trussinfo->outfile, "\n");
   }

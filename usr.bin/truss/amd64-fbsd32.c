@@ -233,6 +233,24 @@ i386_syscall_entry(struct trussinfo *trussinfo, int nargs) {
    */
 
   if (!strcmp(fsc.name, "execve") || !strcmp(fsc.name, "exit")) {
+
+    /* XXX
+     * This could be done in a more general
+     * manner but it still wouldn't be very pretty.
+     */
+    if (!strcmp(fsc.name, "execve")) {
+        if ((trussinfo->flags & EXECVEARGS) == 0)
+	  if (fsc.s_args[1]) {
+            free(fsc.s_args[1]);
+            fsc.s_args[1] = NULL;
+          }
+        if ((trussinfo->flags & EXECVEENVS) == 0)
+	  if (fsc.s_args[2]) {
+            free(fsc.s_args[2]);
+            fsc.s_args[2] = NULL;
+          }
+    }
+
     print_syscall(trussinfo, fsc.name, fsc.nargs, fsc.s_args);
     fprintf(trussinfo->outfile, "\n");
   }

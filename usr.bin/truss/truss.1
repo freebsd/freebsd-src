@@ -8,11 +8,11 @@
 .Nd trace system calls
 .Sh SYNOPSIS
 .Nm
-.Op Fl fdDS
+.Op Fl faedDS
 .Op Fl o Ar file
 .Fl p Ar pid
 .Nm
-.Op Fl fdDS
+.Op Fl faedDS
 .Op Fl o Ar file
 command
 .Op args
@@ -29,6 +29,10 @@ The options are as follows:
 .It Fl f
 Trace decendants of the original traced process created by fork(),
 vfork, etc.
+.It Fl a
+Show the argument strings that are passed in each execve() system call.
+.It Fl e
+Show the environment strings that are passed in each execve() system call.
 .It Fl d
 Include timestamps in the output showing the time elapsed
 since the trace was started.
