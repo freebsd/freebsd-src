@@ -298,6 +298,7 @@ getclnthandle(host, nconf, targaddr)
 /* VARIABLES PROTECTED BY rpcbaddr_cache_lock:  ad_cache */
 
 	/* Get the address of the rpcbind.  Check cache first */
+	client = NULL;
 	addr_to_delete.len = 0;
 	rwlock_rdlock(&rpcbaddr_cache_lock);
 	ad_cache = check_cache(host, nconf->nc_netid);
@@ -938,6 +939,8 @@ done:
 	} else if (client) {
 		CLNT_DESTROY(client);
 	}
+	if (parms.r_addr != NULL && parms.r_addr != nullstring)
+		free(parms.r_addr);
 	return (address);
 }
 
@@ -1056,7 +1059,7 @@ rpcb_rmtcall(nconf, host, prog, vers, proc, xdrargs, argsp,
 	struct r_rpcb_rmtcallres r;
 	rpcvers_t rpcb_vers;
 
-
+	stat = 0;
 	client = getclnthandle(host, nconf, NULL);
 	if (client == NULL) {
 		return (RPC_FAILED);
