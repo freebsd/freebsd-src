@@ -322,8 +322,7 @@ dofiles(struct kinfo_proc *kp)
 {
 	int i;
 	struct file file;
-	struct filedesc0 filed0;
-#define	filed	filed0.fd_fd
+	struct filedesc filed;
 
 	Uname = user_from_uid(kp->ki_uid, 0);
 	Pid = kp->ki_pid;
@@ -331,7 +330,7 @@ dofiles(struct kinfo_proc *kp)
 
 	if (kp->ki_fd == NULL)
 		return;
-	if (!KVM_READ(kp->ki_fd, &filed0, sizeof (filed0))) {
+	if (!KVM_READ(kp->ki_fd, &filed, sizeof (filed))) {
 		dprintf(stderr, "can't read filedesc at %p for pid %d\n",
 		    (void *)kp->ki_fd, Pid);
 		return;
@@ -360,16 +359,13 @@ dofiles(struct kinfo_proc *kp)
 	 */
 #define FPSIZE	(sizeof (struct file *))
 	ALLOC_OFILES(filed.fd_lastfile+1);
-	if (filed.fd_nfiles > NDFILE) {
-		if (!KVM_READ(filed.fd_ofiles, ofiles,
-		    (filed.fd_lastfile+1) * FPSIZE)) {
-			dprintf(stderr,
-			    "can't read file structures at %p for pid %d\n",
-			    (void *)filed.fd_ofiles, Pid);
-			return;
-		}
-	} else
-		bcopy(filed0.fd_dfiles, ofiles, (filed.fd_lastfile+1) * FPSIZE);
+	if (!KVM_READ(filed.fd_ofiles, ofiles,
+	    (filed.fd_lastfile+1) * FPSIZE)) {
+		dprintf(stderr,
+		    "can't read file structures at %p for pid %d\n",
+		    (void *)filed.fd_ofiles, Pid);
+		return;
+	}
 	for (i = 0; i <= filed.fd_lastfile; i++) {
 		if (ofiles[i] == NULL)
 			continue;
