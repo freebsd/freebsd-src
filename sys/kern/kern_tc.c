@@ -50,6 +50,8 @@ TC_STATS(ngetbintime);   TC_STATS(ngetnanotime);   TC_STATS(ngetmicrotime);
 
 #undef TC_STATS
 
+static void tc_windup(void);
+
 /*
  * Implement a dummy timecounter which we can use until we get a real one
  * in the air.  This allows the console and other early stuff to use
@@ -332,7 +334,7 @@ switch_timecounter(struct timecounter *newtc)
 	splx(s);
 }
 
-void
+static void
 tc_windup(void)
 {
 	struct timecounter *tc, *tco;
@@ -547,3 +549,39 @@ pps_event(struct pps_state *pps, struct timecounter *tc, unsigned count, int eve
 	}
 #endif
 }
+
+/*-
+ * Timecounters need to be updated every so often to prevent the hardware
+ * counter from overflowing.  Updating also recalculates the cached values
+ * used by the get*() family of functions, so their precision depends on
+ * the update frequency.
+ * Don't update faster than approx once per millisecond, if people want
+ * better timestamps they should use the non-"get" functions.
+ */
+
+static int tc_tick;
+SYSCTL_INT(_kern_timecounter, OID_AUTO, tick, CTLFLAG_RD, &tick, 0, "");
+
+static void
+tc_ticktock(void *dummy)
+{
+
+	tc_windup();
+	timeout(tc_ticktock, NULL, tc_tick);
+}
+
+static void 
+inittimecounter(void *dummy)
+{
+	u_int p;
+
+	if (hz > 1000)
+		tc_tick = (hz + 500) / 1000;
+	else
+		tc_tick = 1;
+	p = (tc_tick * 1000000) / hz;
+	printf("Timecounters tick every %d.%03u msec\n", p / 1000, p % 1000);
+	tc_ticktock(NULL);
+}
+
+SYSINIT(timecounter, SI_SUB_CLOCKS, SI_ORDER_FIRST, inittimecounter, NULL)
