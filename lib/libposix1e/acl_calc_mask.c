@@ -41,7 +41,7 @@
  *
  * acl_calc_mask(): calculate an ACL_MASK entry for the ACL, then either
  * insert into the ACL if there is none already, or replace the existing
- * one.
+ * one.  This will act up if called on a non-POSIX.1e semantics ACL.
  */
 int
 acl_calc_mask(acl_t *acl_p)
@@ -51,9 +51,6 @@ acl_calc_mask(acl_t *acl_p)
 	int	mask_entry = -1;
 	int	i;
 
-	if (!acl_posix1e(acl))
-		return (0);
-	
 	/* search for ACL_MASK */
 	for (i = 0; i < acl->acl_cnt; i++)
 		if (acl->acl_entry[i].ae_tag == ACL_MASK)

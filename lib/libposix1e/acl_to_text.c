@@ -40,14 +40,12 @@
 
 #include "acl_support.h"
 
-
 /*
  * acl_to_text - generate a text form of an acl
  * spec says nothing about output ordering, so leave in acl order
  *
- * For the time-being, reject the printing of ACLs that aren't an
- * understood semantic.  Later on, we might want to try and have a
- * generic printing mechanism...
+ * This function will not produce nice results if it is called with
+ * a non-POSIX.1e semantics ACL.
  */
 char *
 acl_to_text(acl_t acl, ssize_t *len_p)
@@ -60,11 +58,6 @@ acl_to_text(acl_t acl, ssize_t *len_p)
 	uid_t	ae_id;
 	acl_tag_t	ae_tag;
 	acl_perm_t	ae_perm, effective_perm, mask_perm;
-
-	if (!acl_posix1e(acl)) {
-		errno = EINVAL;
-		return (0);
-	}
 
 	buf = strdup("");
 
@@ -238,7 +231,3 @@ error_label:
 	if (buf) free(buf);
 	return (0);
 }
-
-
-
-
