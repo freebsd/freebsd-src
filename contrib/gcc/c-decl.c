@@ -19,6 +19,7 @@ along with GNU CC; see the file COPYING.  If not, write to
 the Free Software Foundation, 59 Temple Place - Suite 330,
 Boston, MA 02111-1307, USA.  */
 
+/* $FreeBSD$ */
 
 /* Process declarations and symbol lookup for C front end.
    Also constructs types; the standard scalar types at initialization,
@@ -558,6 +559,7 @@ int warn_nested_externs = 0;
 /* Warn about *printf or *scanf format/argument anomalies.  */
 
 int warn_format;
+int warn_format_extra_args;
 
 /* Warn about a subscript that has type char.  */
 
@@ -809,10 +811,17 @@ c_decode_option (argc, argv)
     warn_traditional = 1;
   else if (!strcmp (p, "-Wno-traditional"))
     warn_traditional = 0;
+  else if (!strcmp (p, "-Wnon-const-format"))
+    warn_format = MAX(warn_format, 2);
   else if (!strcmp (p, "-Wformat"))
-    warn_format = 1;
+    {
+      warn_format_extra_args = 1;
+      warn_format = MAX(warn_format, 1);
+    }
   else if (!strcmp (p, "-Wno-format"))
     warn_format = 0;
+  else if (!strcmp (p, "-Wno-format-extra-args"))
+    warn_format_extra_args = 0;
   else if (!strcmp (p, "-Wchar-subscripts"))
     warn_char_subscripts = 1;
   else if (!strcmp (p, "-Wno-char-subscripts"))
@@ -883,7 +892,7 @@ c_decode_option (argc, argv)
       warn_return_type = 1;
       warn_unused = 1;
       warn_switch = 1;
-      warn_format = 1;
+      warn_format = MAX(warn_format, 1);
       warn_char_subscripts = 1;
       warn_parentheses = 1;
       warn_missing_braces = 1;
@@ -6481,7 +6490,8 @@ start_function (declspecs, declarator, prefix_attributes, attributes, nested)
   /* Optionally warn of old-fashioned def with no previous prototype.  */
   if (warn_strict_prototypes
       && TYPE_ARG_TYPES (TREE_TYPE (decl1)) == 0
-      && !(old_decl != 0 && TYPE_ARG_TYPES (TREE_TYPE (old_decl)) != 0))
+      && !(old_decl != 0 && TYPE_ARG_TYPES (TREE_TYPE (old_decl)) != 0)
+      && strcmp ("main", IDENTIFIER_POINTER (DECL_NAME (decl1))))
     warning ("function declaration isn't a prototype");
   /* Optionally warn of any global def with no previous prototype.  */
   else if (warn_missing_prototypes
