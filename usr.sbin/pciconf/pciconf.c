@@ -53,6 +53,7 @@ usage(const char *argv0) {
 	fprintf(stderr, "usage:\n\t%s -l\n"
 		"\t%s [-r|-w] [-bh] sel addr [value]\n",
 		argv0, argv0);
+	exit (1);
 }
 
 int
@@ -131,10 +132,10 @@ list_devs(void)
 	close(fd);
 
 	for (p = conf; p < &conf[pc.pci_len / sizeof conf[0]]; p++) {
-	    printf("pci%d:%d:%d:\tclass=0x%06x card=0x%08lx chip=0x%08lx rev=0x%02x\n",
+	    printf("pci%d:%d:%d:\tclass=0x%06x card=0x%08lx chip=0x%08lx rev=0x%02x hdr=0x%02x\n",
 		   p->pc_sel.pc_bus, p->pc_sel.pc_dev, p->pc_sel.pc_func, 
 		   p->pc_class >> 8, p->pc_subid,
-		   p->pc_devid, p->pc_class & 0xff);
+		   p->pc_devid, p->pc_class & 0xff, p->pc_hdr);
 	}
 }
 
