@@ -414,7 +414,7 @@ in6_control(so, cmd, data, ifp, p)
 	int privileged;
 
 	privileged = 0;
-	if (p && !suser(p))
+	if (p == NULL || !suser(p))
 		privileged++;
 
 	/*
