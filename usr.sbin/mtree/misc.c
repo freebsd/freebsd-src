@@ -88,9 +88,7 @@ static KEY keylist[] = {
 int keycompare(const void *, const void *);
 
 u_int
-parsekey(name, needvaluep)
-	char *name;
-	int *needvaluep;
+parsekey(char *name, int *needvaluep)
 {
 	KEY *k, tmp;
 
@@ -106,15 +104,13 @@ parsekey(name, needvaluep)
 }
 
 int
-keycompare(a, b)
-	const void *a, *b;
+keycompare(const void *a, const void *b)
 {
 	return (strcmp(((const KEY *)a)->name, ((const KEY *)b)->name));
 }
 
 char *
-flags_to_string(fflags)
-	u_long fflags;
+flags_to_string(u_long fflags)
 {
 	char *string;
 
