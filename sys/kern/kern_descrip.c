@@ -1366,6 +1366,10 @@ retry:
 	return (newfdp);
 }
 
+/* A mutex to protect the association between a proc and filedesc. */
+struct mtx	fdesc_mtx;
+MTX_SYSINIT(fdesc, &fdesc_mtx, "fdesc", MTX_DEF);
+
 /*
  * Release a filedesc structure.
  */
@@ -1381,6 +1385,10 @@ fdfree(td)
 	fdp = td->td_proc->p_fd;
 	if (fdp == NULL)
 		return;
+
+	mtx_lock(&fdesc_mtx);
+	td->td_proc->p_fd = NULL;
+	mtx_unlock(&fdesc_mtx);
 
 	FILEDESC_LOCK(fdp);
 	if (--fdp->fd_refcnt > 0) {
@@ -1398,7 +1406,6 @@ fdfree(td)
 		if (*fpp)
 			(void) closef(*fpp, td);
 	}
-	td->td_proc->p_fd = NULL;
 	if (fdp->fd_nfiles > NDFILE)
 		FREE(fdp->fd_ofiles, M_FILEDESC);
 	if (fdp->fd_cdir)
@@ -2105,7 +2112,9 @@ sysctl_kern_file(SYSCTL_HANDLER_ARGS)
 		xf.xf_pid = p->p_pid;
 		xf.xf_uid = p->p_ucred->cr_uid;
 		PROC_UNLOCK(p);
+		mtx_lock(&fdesc_mtx);
 		if ((fdp = p->p_fd) == NULL) {
+			mtx_unlock(&fdesc_mtx);
 			continue;
 		}
 		FILEDESC_LOCK(fdp);
@@ -2125,6 +2134,7 @@ sysctl_kern_file(SYSCTL_HANDLER_ARGS)
 				break;
 		}
 		FILEDESC_UNLOCK(fdp);
+		mtx_unlock(&fdesc_mtx);
 		if (error)
 			break;
 	}
