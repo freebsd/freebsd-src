@@ -1,6 +1,6 @@
 <!-- This is an SGML document in the linuxdoc DTD of the Tutorial for
      Configuring a FreeBSD for Dialup Services by Guy Helmer.
-     $Id: dialup.sgml,v 1.5 1996/01/31 14:26:02 mpp Exp $
+     $Id: dialup.sgml,v 1.6 1996/03/26 21:33:09 joerg Exp $
 
 <!DOCTYPE linuxdoc PUBLIC "-//Linux//DTD linuxdoc//EN">
 
@@ -234,7 +234,9 @@ probably need to configure a custom FreeBSD kernel for your system.
 Please see the BSD System Manager's Manual chapter on ``Building
 Berkeley Kernels with Config'' &lsqb;the source for which is in
 <tt>/usr/src/share/doc/smm</tt>&rsqb; and ``FreeBSD Configuration
-Options'' &lsqb;in <tt>/sys/doc/options.doc</tt>&rsqb; for more
+Options'' &lsqb;in <tt>/sys/conf/options</tt> and in
+<tt>/sys/<em>arch</em>/conf/options.<em>arch</em></tt>, with
+<em>arch</em> for example being <tt>i386</tt>&rsqb; for more
 information on configuring and building kernels.  You may have to
 unpack the kernel source distribution if haven't installed the system
 sources already (<tt>srcdist/srcsys.??</tt> in FreeBSD 1.1,
