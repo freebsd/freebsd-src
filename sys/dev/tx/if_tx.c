@@ -1240,8 +1240,8 @@ epic_set_tx_mode(sc)
 
 /*
  * Synopsis: Program multicast filter honoring IFF_ALLMULTI and IFF_PROMISC
- * flags. (Note, that setting PROMISC bit in EPIC's RXCON will only touch
- * individual frames, multicast filter must be manually programmed)
+ * flags (note that setting PROMISC bit in EPIC's RXCON will only touch
+ * individual frames, multicast filter must be manually programmed).
  *
  * Note: EPIC must be in idle state.
  */
@@ -1344,7 +1344,7 @@ epic_stop_activity(sc)
 	    COMMAND_STOP_RX | COMMAND_STOP_RDMA | COMMAND_STOP_TDMA);
 
 	/* Wait Rx and Tx DMA to stop (why 1 ms ??? XXX). */
-	for (i=0; i<0x1000; i++) {
+	for (i = 0; i < 0x1000; i++) {
 		status = CSR_READ_4(sc, INTSTAT) &
 		    (INTSTAT_TXIDLE | INTSTAT_RXIDLE);
 		if (status == (INTSTAT_TXIDLE | INTSTAT_RXIDLE))
@@ -1589,7 +1589,7 @@ epic_write_eepromreg(sc, val)
 
 	CSR_WRITE_1(sc, EECTL, val);
 
-	for (i=0; i<0xFF; i++) {
+	for (i = 0; i < 0xFF; i++) {
 		if ((CSR_READ_1(sc, EECTL) & 0x20) == 0)
 			break;
 	}
