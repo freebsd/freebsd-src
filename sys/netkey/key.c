@@ -498,6 +498,7 @@ static void key_sa_chgstate(struct secasvar *, u_int8_t);
 static void key_sp_dead(struct secpolicy *);
 static void key_sp_unlink(struct secpolicy *);
 static struct mbuf *key_alloc_mbuf(int);
+static struct callout key_timehandler_ch;
 
 /* %%% IPsec policy management */
 /*
@@ -4537,7 +4538,7 @@ key_timehandler(arg)
 	 * should set timeout based on the most closest timer expiration.
 	 * we don't bother to do that yet.
 	 */
-	(void)timeout(key_timehandler, (void *)0, hz);
+	callout_reset(&key_timehandler_ch, hz, key_timehandler, (void *)0);
 
 	splx(s);
 	return;
@@ -7325,6 +7326,8 @@ key_init()
 
 	bzero((caddr_t)&key_cb, sizeof(key_cb));
 
+	callout_init(&key_timehandler_ch, 0);
+
 	for (i = 0; i < IPSEC_DIR_MAX; i++)
 		LIST_INIT(&sptree[i]);
 
@@ -7366,7 +7369,7 @@ key_init()
 	ip6_def_policy->persist = 1;
 #endif
 
-	timeout(key_timehandler, (void *)0, hz);
+	callout_reset(&key_timehandler_ch, hz, key_timehandler, (void *)0);
 
 	/* initialize key statistics */
 	keystat.getspi_count = 1;
