@@ -32,7 +32,7 @@ char copyright[] =
  All rights reserved.\n";
 #endif /* not lint */
 
-/* $Header: /home/ncvs/src/usr.bin/lex/main.c,v 1.1.1.2 1996/06/19 20:26:16 nate Exp $ */
+/* $Header: /home/ncvs/src/usr.bin/lex/main.c,v 1.3 1996/06/19 20:47:29 nate Exp $ */
 
 
 #include "flexdef.h"
@@ -1006,7 +1006,7 @@ _( "Variable trailing context rules entail a large performance penalty\n" ) );
 
 	if ( C_plus_plus )
 		{
-		outn( "\n#include <FlexLexer.h>" );
+		outn( "\n#include <g++/FlexLexer.h>" );
 
 		if ( yyclass )
 			{
