@@ -25,7 +25,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *	$Id: linux.c,v 1.4 1995/11/14 07:34:18 bde Exp $
+ *	$Id: linux.c,v 1.5 1996/03/10 08:42:32 sos Exp $
  */
 
 #include <sys/param.h>
@@ -41,11 +41,7 @@ extern const struct execsw linux_execsw;
 
 MOD_EXEC(linux, -1, (struct execsw*)&linux_execsw);
 
-static Elf32_Interp_info linux_interp = {
-						&elf_linux_sysvec,
-						"/lib/ld-linux.so.1",
-						"/compat/linux"
-					};
+extern Elf32_Interp_info linux_interp;
 
 static int
 linux_load(struct lkm_table *lkmtp, int cmd)
