@@ -1,7 +1,8 @@
 #ifndef lint
 /*static char sccsid[] = "from: @(#)rpcinfo.c 1.22 87/08/12 SMI";*/
 /*static char sccsid[] = "from: @(#)rpcinfo.c	2.2 88/08/11 4.0 RPCSRC";*/
-static char rcsid[] = "$Id: rpcinfo.c,v 1.1 1994/08/07 18:23:25 wollman Exp $";
+static char rcsid[] =
+	"$Id: rpcinfo.c,v 1.2 1995/05/30 06:33:23 rgrimes Exp $";
 #endif
 
 /*
@@ -42,6 +43,8 @@ static char rcsid[] = "$Id: rpcinfo.c,v 1.1 1994/08/07 18:23:25 wollman Exp $";
  * Mountain View, California  94043
  */
 
+#include <err.h>
+#include <ctype.h>
 #include <rpc/rpc.h>
 #include <stdio.h>
 #include <sys/socket.h>
@@ -49,7 +52,6 @@ static char rcsid[] = "$Id: rpcinfo.c,v 1.1 1994/08/07 18:23:25 wollman Exp $";
 #include <rpc/pmap_prot.h>
 #include <rpc/pmap_clnt.h>
 #include <signal.h>
-#include <ctype.h>
 
 #define MAXHOSTLEN 256
 
@@ -591,27 +593,24 @@ deletereg(argc, argv)
 		usage() ;
 		exit(1) ;
 	}
-	if (getuid()) { /* This command allowed only to root */
-		fprintf(stderr, "Sorry. You are not root\n") ;
-		exit(1) ;
-	}
+	if (getuid()) /* This command allowed only to root */
+		errx(1, "sorry, you are not root") ;
 	prog_num = getprognum(argv[0]);
 	version_num = getvers(argv[1]);
-	if ((pmap_unset(prog_num, version_num)) == 0) {
-		fprintf(stderr, "rpcinfo: Could not delete registration for prog %s version %s\n",
+	if ((pmap_unset(prog_num, version_num)) == 0)
+		errx(1, "could not delete registration for prog %s version %s",
 			argv[0], argv[1]) ;
-		exit(1) ;
-	}
 }
 
 static void
 usage()
 {
-	fprintf(stderr, "Usage: rpcinfo [ -n portnum ] -u host prognum [ versnum ]\n");
-	fprintf(stderr, "       rpcinfo [ -n portnum ] -t host prognum [ versnum ]\n");
-	fprintf(stderr, "       rpcinfo -p [ host ]\n");
-	fprintf(stderr, "       rpcinfo -b prognum versnum\n");
-	fprintf(stderr, "       rpcinfo -d prognum versnum\n") ;
+	fprintf(stderr, "%s\n%s\n%s\n%s\n%s\n",
+		"usage: rpcinfo [-n portnum] -u host prognum [versnum]",
+		"       rpcinfo [-n portnum] -t host prognum [versnum]",
+		"       rpcinfo -p [host]",
+		"       rpcinfo -b prognum versnum",
+		"       rpcinfo -d prognum versnum");
 }
 
 static u_long
@@ -623,11 +622,8 @@ getprognum(arg)
 
 	if (isalpha(*arg)) {
 		rpc = getrpcbyname(arg);
-		if (rpc == NULL) {
-			fprintf(stderr, "rpcinfo: %s is unknown service\n",
-			    arg);
-			exit(1);
-		}
+		if (rpc == NULL)
+			errx(1, "%s is unknown service", arg);
 		prognum = rpc->r_number;
 	} else {
 		prognum = (u_long) atoi(arg);
@@ -656,10 +652,8 @@ get_inet_address(addr, host)
 	bzero((char *)addr, sizeof *addr);
 	addr->sin_addr.s_addr = (u_long) inet_addr(host);
 	if (addr->sin_addr.s_addr == -1 || addr->sin_addr.s_addr == 0) {
-		if ((hp = gethostbyname(host)) == NULL) {
-			fprintf(stderr, "rpcinfo: %s is unknown host\n", host);
-			exit(1);
-		}
+		if ((hp = gethostbyname(host)) == NULL)
+			errx(1, "%s is unknown host", host);
 		bcopy(hp->h_addr, (char *)&addr->sin_addr, hp->h_length);
 	}
 	addr->sin_family = AF_INET;
