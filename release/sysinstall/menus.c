@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: menus.c,v 1.180.2.19 1999/05/12 04:53:11 jkh Exp $
+ * $Id: menus.c,v 1.180.2.20 1999/05/12 06:59:37 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -1318,9 +1318,9 @@ DMenu MenuNTP = {
       { "Netherlands",		"ntp0.nl.net (GPS clock)",
 	dmenuVarsCheck,	dmenuSetVariables, NULL, 
 	"ntpdate_enable=YES,ntpdate_flags=ntp0.nl.net" },
-      { "Norway",		"timer.unik.no (NTP clock)",
+      { "Norway",		"timehost.ifi.uio.no (NTP clock)",
 	dmenuVarsCheck,	dmenuSetVariables, NULL, 
-	"ntpdate_enable=YES,ntpdate_flags=timer.unik.no" },
+	"ntpdate_enable=YES,ntpdate_flags=timehost.ifi.uio.no" },
       { "Sweden",		"Time1.Stupi.SE (Cesium/GPS)",
 	dmenuVarsCheck,	dmenuSetVariables, NULL, 
 	"ntpdate_enable=YES,ntpdate_flags=Time1.Stupi.SE" },
