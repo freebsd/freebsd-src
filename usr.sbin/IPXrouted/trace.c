@@ -35,7 +35,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: trace.c,v 1.6 1995/10/11 18:57:33 jhay Exp $
+ *	$Id: trace.c,v 1.1 1995/10/26 21:28:29 julian Exp $
  */
 
 #ifndef lint
@@ -376,6 +376,34 @@ dumpsaptable(fd, sh)
 				     ntohs(sap->sap.ipx.x_port),
 				     (sap->clone ? 'C' : ' '),
 				     ntohs(sap->sap.hops));
+		}
+	}
+	fprintf(fd, "\n");
+}
+
+void
+dumpriptable(fd)
+	FILE *fd;
+{
+	register struct rt_entry *rip;
+	struct rthash *hash;
+	int x;
+	struct rthash *rh = nethash;
+
+	fprintf(fd, "------- RIP table dump. -------\n");
+	x = 0;
+	fprintf(fd, "Network table.\n");
+
+	for (hash = rh; hash < &rh[ROUTEHASHSIZ]; hash++, x++) {
+		fprintf(fd, "HASH %d\n", x);
+		rip = hash->rt_forw;
+		for (; rip != (struct rt_entry *)hash; rip = rip->rt_forw) {
+			fprintf(fd, "  dest %s\t", 
+				ipxdp_ntoa(&satoipx_addr(rip->rt_dst)));
+			fprintf(fd, "%s metric %d, ticks %d\n",
+				ipxdp_ntoa(&satoipx_addr(rip->rt_router)),
+				rip->rt_metric,
+				rip->rt_ticks);
 		}
 	}
 	fprintf(fd, "\n");

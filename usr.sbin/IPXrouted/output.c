@@ -35,7 +35,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: output.c,v 1.1 1995/10/26 21:28:20 julian Exp $
+ *	$Id: output.c,v 1.2 1995/12/05 04:59:54 julian Exp $
  */
 
 #ifndef lint
@@ -143,7 +143,8 @@ again:
 	for (rh = base; rh < &base[ROUTEHASHSIZ]; rh++)
 	for (rt = rh->rt_forw; rt != (struct rt_entry *)rh; rt = rt->rt_forw) {
 		size = (char *)n - (char *)msg;
-		if (size > MAXPACKETSIZE - sizeof (struct netinfo)) {
+		if (size >= ((MAXRIPNETS * sizeof (struct netinfo)) +
+				sizeof (msg->rip_cmd))) {
 			(*output)(ripsock, flags, dst, size);
 			TRACE_OUTPUT(ifp, dst, size);
 			n = msg->rip_nets;
