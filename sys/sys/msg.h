@@ -100,6 +100,15 @@ struct mymsg {
 
 #ifdef _KERNEL
 
+struct msg {
+	struct	msg *msg_next;  /* next msg in the chain */
+	long	msg_type; 	/* type of this message */
+				/* >0 -> type of this message */
+				/* 0 -> free header */
+	u_short	msg_ts;		/* size of this message */
+	short	msg_spot;	/* location of start of msg in buffer */
+};
+
 /*
  * Based on the configuration parameters described in an SVR2 (yes, two)
  * config(1m) man page.
