@@ -74,7 +74,7 @@ typedef	int32_t		segsz_t;	/* segment size */
 typedef	int32_t		swblk_t;	/* swap offset */
 typedef	u_int32_t	uid_t;		/* user id */
 
-typedef quad_t		rlim_t; 	/* resource limits */
+typedef	quad_t		rlim_t; 	/* resource limits */
 
 #ifdef KERNEL
 typedef	int		boolean_t;
