@@ -63,11 +63,8 @@ upper(const char *str)
 
 	strncpy(buf, str, sizeof(buf));
 	buf[sizeof(buf) - 1] = '\0';
-	s = buf;
-	while (*s) {
+	for (s = buf; *s; s++)
 		*s = toupper(*s);
-		s++;
-	}
 	return buf;
 }
 
