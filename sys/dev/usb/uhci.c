@@ -1945,6 +1945,7 @@ uhci_abort_xfer(usbd_xfer_handle xfer, usbd_status status)
 		s = splusb();
 		xfer->status = status;	/* make software ignore it */
 		usb_uncallout(xfer->timeout_handle, uhci_timeout, xfer);
+		usb_transfer_complete(xfer);
 		usb_rem_task(xfer->pipe->device, &UXFER(xfer)->abort_task);
 		splx(s);
 		return;
