@@ -1,4 +1,3 @@
-/* $FreeBSD$ */
 /* doc.c -- Generated structure containing function names and doc strings.
 
    This file was automatically made from various source files with the
