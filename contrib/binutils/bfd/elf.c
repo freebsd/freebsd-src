@@ -3964,11 +3964,6 @@ Error: First section in segment (%s) starts at 0x%x whereas the segment starts a
 	}
     }
 
-  /* If additional nonloadable filepos adjustments are required,
-     do them now. */
-  if (bed->set_nonloadable_filepos)
-    (*bed->set_nonloadable_filepos) (abfd, phdrs);
-
   /* Clear out any program headers we allocated but did not use.  */
   for (; count < alloc; count++, p++)
     {
@@ -4566,13 +4561,6 @@ copy_private_bfd_data (ibfd, obfd)
    && (section->lma + section->_raw_size				\
        <= SEGMENT_END (segment, base)))
 
-  /* Returns true if the given section is contained within the
-     given segment.  Filepos addresses are compared in an elf
-     backend function. */
-#define IS_CONTAINED_BY_FILEPOS(sec, seg, bed)				\
-  (bed->is_contained_by_filepos						\
-   && (*bed->is_contained_by_filepos) (sec, seg))
-
   /* Special case: corefile "NOTE" section containing regs, prpsinfo etc.  */
 #define IS_COREFILE_NOTE(p, s)						\
   (p->p_type == PT_NOTE							\
@@ -4608,9 +4596,7 @@ copy_private_bfd_data (ibfd, obfd)
       ? IS_CONTAINED_BY_LMA (section, segment, segment->p_paddr)	\
       : IS_CONTAINED_BY_VMA (section, segment))				\
      && (section->flags & SEC_ALLOC) != 0)				\
-    || IS_COREFILE_NOTE (segment, section)				\
-    || (IS_CONTAINED_BY_FILEPOS (section, segment, bed)			\
-        && (section->flags & SEC_ALLOC) == 0))				\
+    || IS_COREFILE_NOTE (segment, section))				\
    && section->output_section != NULL					\
    && ! section->segment_mark)
 
@@ -4855,7 +4841,6 @@ copy_private_bfd_data (ibfd, obfd)
 	      /* Match up the physical address of the segment with the
 		 LMA address of the output section.  */
 	      if (IS_CONTAINED_BY_LMA (output_section, segment, map->p_paddr)
-		  || IS_CONTAINED_BY_FILEPOS (section, segment, bed)
 		  || IS_COREFILE_NOTE (segment, section)
 		  || (bed->want_p_paddr_set_to_zero &&
 		      IS_CONTAINED_BY_VMA (output_section, segment))
@@ -5092,7 +5077,6 @@ copy_private_bfd_data (ibfd, obfd)
 #undef SEGMENT_END
 #undef IS_CONTAINED_BY_VMA
 #undef IS_CONTAINED_BY_LMA
-#undef IS_CONTAINED_BY_FILEPOS
 #undef IS_COREFILE_NOTE
 #undef IS_SOLARIS_PT_INTERP
 #undef INCLUDE_SECTION_IN_SEGMENT
@@ -5112,26 +5096,12 @@ _bfd_elf_copy_private_section_data (ibfd, isec, obfd, osec)
      asection *osec;
 {
   Elf_Internal_Shdr *ihdr, *ohdr;
-  const struct elf_backend_data *bed = get_elf_backend_data (ibfd);
 
   if (ibfd->xvec->flavour != bfd_target_elf_flavour
       || obfd->xvec->flavour != bfd_target_elf_flavour)
     return true;
 
-  /* Copy over private BFD data if it has not already been copied.
-     This must be done here, rather than in the copy_private_bfd_data
-     entry point, because the latter is called after the section
-     contents have been set, which means that the program headers have
-     already been worked out.  The backend function provides a way to
-     override the test conditions and code path for the call to
-     copy_private_bfd_data.  */
-  if (bed->copy_private_bfd_data_p)
-    {
-      if ((*bed->copy_private_bfd_data_p) (ibfd, isec, obfd, osec))
-        if (! copy_private_bfd_data (ibfd, obfd))
-          return false;
-    }
-  else if (elf_tdata (obfd)->segment_map == NULL && elf_tdata (ibfd)->phdr != NULL)
+  if (elf_tdata (obfd)->segment_map == NULL && elf_tdata (ibfd)->phdr != NULL)
     {
 	asection *s;
 
