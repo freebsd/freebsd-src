@@ -470,8 +470,18 @@ Interface capabilities are specialized features an interface may
 or may not support.
 These capabilities are very hardware-specific
 and allow, when enabled,
-to offload specific network processing to the interface.
-.Bl -tag -width ".Dv IFCAP_NETCONS" -offset indent
+to offload specific network processing to the interface
+or to offer a particular feature for use by upper layers.
+.Pp
+It should be noted that a capability can be completely
+uncontrolled (i.e., stay always enabled with no way to disable it)
+or allow limited control over itself (e.g., depend on another
+capability's state.)
+Such peculiarities are determined solely by the hardware and driver
+of a particular interface.
+.Pp
+The following capabilities are currently supported by the system:
+.Bl -tag -width ".Dv IFCAP_VLAN_HWTAGGING" -offset indent
 .It Dv IFCAP_NETCONS
 This interface can be a network console.
 .It Dv IFCAP_RXCSUM
@@ -482,7 +492,74 @@ The driver for the interface might disable hardware checksum validation
 if the MTU is set above the hardcoded limit.
 .It Dv IFCAP_TXCSUM
 This interface can do checksum calculation on transmitting data.
+.It Dv IFCAP_HWCSUM
+A shorthand for
+.Dq Dv IFCAP_RXCSUM | Dv IFCAP_TXCSUM .
+.It Dv IFCAP_VLAN_HWTAGGING
+This interface can do VLAN tagging on output and
+demultiplex frames by their VLAN tag on input.
+.It Dv IFCAP_VLAN_MTU
+The
+.Xr vlan 4
+driver can operate over this interface in software tagging mode
+without having to decrease MTU on
+.Xr vlan 4
+interfaces below 1500 bytes.
+This implies the ability of this interface to cope with frames somewhat
+longer than permitted by the Ethernet specification.
+.It Dv IFCAP_JUMBO_MTU
+This Ethernet interface can transmit and receive frames up to
+9000 bytes long.
 .El
+.Pp
+The ability of advanced network interfaces to offload certain
+computational tasks from the host CPU to the board is limited
+mostly to TCP/IP.
+Therefore a separate field associated with an interface
+(see
+.Va ifnet.if_data.ifi_hwassist
+below)
+keeps a detailed description of its enabled capabilities
+specific to TCP/IP processing.
+The TCP/IP module consults the field to see which tasks
+can be done on an
+.Em outgoing
+packet by the interface.
+The flags defined for that field are a superset of those for
+.Va mbuf.m_pkthdr.csum_flags ,
+namely:
+.Bl -tag -width ".Dv CSUM_FRAGMENT" -offset indent
+.It Dv CSUM_IP
+The interface will compute IP checksums.
+.It Dv CSUM_TCP
+The interface will compute TCP checksums.
+.It Dv CSUM_UDP
+The interface will compute UDP checksums.
+.It Dv CSUM_IP_FRAGS
+The interface can compute a TCP or UDP checksum for a packet
+fragmented by the host CPU.
+Makes sense only along with
+.Dv CSUM_TCP
+or
+.Dv CSUM_UDP .
+.It Dv CSUM_FRAGMENT
+The interface will do the fragmentation of IP packets if necessary.
+The host CPU doesn't need to care about MTU on this interface
+as long as a packet to transmit through it is an IP one and it
+doesn't exceed the size of the hardware buffer.
+.El
+.Pp
+An interface notifies the TCP/IP module about the tasks
+the former has performed on an
+.Em incoming
+packet by setting the corresponding flags in the field
+.Va mbuf.m_pkthdr.csum_flags
+of the
+.Vt mbuf chain
+containing the packet.
+See
+.Xr mbuf 9
+for details.
 .Ss The Vt if_data Ss Structure
 In
 .Bx 4.4 ,
@@ -549,6 +626,15 @@ A dimensionless metric interpreted by a user-mode routing process.
 .It Va ifi_baudrate
 .Pq Vt u_long
 The line rate of the interface, in bits per second.
+.It Va ifi_hwassist
+.Pq Vt u_long
+A detailed interpretation of the capabilities
+to offload computational tasks for
+.Em outgoing
+packets.
+The interface driver must keep this field in accord with
+the current value of
+.Va if_capenable .
 .El
 .Pp
 The structure additionally contains generic statistics applicable to a
@@ -873,7 +959,7 @@ Get interface capabilities, flags, metric, MTU, medium selection.
 (No call-down to driver.)
 .Pp
 .It Dv SIOCSIFCAP
-Enable interface capabilities.
+Enable or disable interface capabilities.
 Caller must have appropriate privilege.
 .Pp
 .It Dv SIOCSIFFLAGS
@@ -1068,7 +1154,7 @@ if one is found, else it returns a null pointer.
 .Xr netintro 4 ,
 .Xr config 8 ,
 .Xr ppp 8 ,
-.\" .Xr mbuf 9 ,
+.Xr mbuf 9 ,
 .Xr rtentry 9
 .Rs
 .%A Gary R. Wright
