@@ -81,7 +81,8 @@ static void catchalarm __P((int));
 void
 bdg_stats(u_long dummy, char *name) /* print bridge statistics */
 {
-    int i, slen ;
+    int i;
+    size_t slen ;
     struct bdg_stats s ;
     int mib[4] ;
 
@@ -353,14 +354,14 @@ intpr(interval, ifnetaddr)
 #define	MAXIF	10
 struct	iftot {
 	char	ift_name[16];		/* interface name */
-	u_int	ift_ip;			/* input packets */
-	u_int	ift_ie;			/* input errors */
-	u_int	ift_op;			/* output packets */
-	u_int	ift_oe;			/* output errors */
-	u_int	ift_co;			/* collisions */
+	u_long	ift_ip;			/* input packets */
+	u_long	ift_ie;			/* input errors */
+	u_long	ift_op;			/* output packets */
+	u_long	ift_oe;			/* output errors */
+	u_long	ift_co;			/* collisions */
 	u_int	ift_dr;			/* drops */
-	u_int	ift_ib;			/* input bytes */
-	u_int	ift_ob;			/* output bytes */
+	u_long	ift_ib;			/* input bytes */
+	u_long	ift_ob;			/* output bytes */
 } iftot[MAXIF];
 
 u_char	signalled;			/* set if alarm goes off "early" */
@@ -493,7 +494,7 @@ loop:
 			off = (u_long) ifnet.if_link.tqe_next;
 		}
 		if (!first) {
-			printf("%10u %5u %10u %10u %5u %10u %5u",
+			printf("%10lu %5lu %10lu %10lu %5lu %10lu %5lu",
 				sum->ift_ip - total->ift_ip,
 				sum->ift_ie - total->ift_ie,
 				sum->ift_ib - total->ift_ib,
