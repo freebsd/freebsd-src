@@ -49,10 +49,10 @@ OBJS=	commands.o main.o network.o ring.o sys_bsd.o \
 	telnet.o terminal.o tn3270.o utilities.o
 
 .c.o:
-	${CC} -c ${CFLAGS} ${XCFLAGS} $<
+	${CC} -c ${CFLAGS} ${XCFLAGS} ${.IMPSRC}
 
 telprog.o:	${OBJS} ${LIBC}
-	${LD} ${LDFLAGS} -o $@ ${OBJS}
+	${LD} ${LDFLAGS} -o ${.TARGET} ${OBJS}
 
 clean: FRC
 	rm -f telprog.o ${OBJS} core telnet
