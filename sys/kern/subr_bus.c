@@ -240,7 +240,7 @@ struct dev_event_info
 
 TAILQ_HEAD(devq, dev_event_info);
 
-struct dev_softc 
+struct dev_softc
 {
 	int	inuse;
 	int 	nonblock;
@@ -996,7 +996,7 @@ device_delete_child(device_t dev, device_t child)
 	TAILQ_REMOVE(&dev->children, child, link);
 	TAILQ_REMOVE(&bus_data_devices, child, devlink);
 	device_set_desc(child, NULL);
-	free(child, M_BUS);
+	kobj_delete((kobj_t) child, M_BUS);
 
 	bus_data_generation_update();
 	return (0);
@@ -1417,6 +1417,7 @@ device_set_driver(device_t dev, driver_t *driver)
 			dev->softc = malloc(driver->size, M_BUS,
 			    M_NOWAIT | M_ZERO);
 			if (!dev->softc) {
+				kobj_delete((kobj_t) dev, 0);
 				kobj_init((kobj_t) dev, &null_class);
 				dev->driver = NULL;
 				return (ENOMEM);
