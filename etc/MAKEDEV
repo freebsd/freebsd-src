@@ -113,7 +113,7 @@
 #	pci	PCI configuration-space access from user mode
 #	ipl	ipfilter control devices (ipl, ipnat, ipstate, ipauth)
 #
-#	$Id: MAKEDEV,v 1.176 1998/10/31 05:27:02 obrien Exp $
+#	$Id: MAKEDEV,v 1.177 1998/11/12 22:45:24 nsouch Exp $
 #
 
 PATH=/sbin:/bin/:/usr/bin:/usr/sbin:$PATH
@@ -750,7 +750,7 @@ smb*)
 
 ppi*)
 	unit=`expr $i : 'ppi\(.*\)'`
-	mknod smb$unit c 82 $unit
+	mknod ppi$unit c 82 $unit
 	;;
 
 lpt*)
