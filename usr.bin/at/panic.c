@@ -37,7 +37,7 @@
 
 /* File scope variables */
 
-static char rcsid[] = "$Id$";
+static char rcsid[] = "$Id: panic.c,v 1.6 1997/02/22 19:54:06 peter Exp $";
 
 /* External variables */
 
@@ -70,9 +70,8 @@ perr(char *a)
 void
 usage(void)
 {
-/* Print usage and exit.
-*/
-    fprintf(stderr, "Usage: at [-V] [-q x] [-f file] [-m] time\n"
+	/* Print usage and exit. */
+    fprintf(stderr, "usage: at [-V] [-q x] [-f file] [-m] time\n"
 		    "       at [-V] -c job [job ...]\n"
 		    "       atq [-V] [-q x] [-v]\n"
 		    "       atrm [-V] job [job ...]\n"
