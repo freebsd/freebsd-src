@@ -4,7 +4,7 @@
 #
 #	  Written by Toshiharu OHNO
 #
-# $Id: ppp.conf.sample,v 1.5.2.4 1997/04/07 20:22:04 brian Exp $
+# $Id: ppp.conf.sample,v 1.13 1997/05/08 01:45:48 brian Exp $
 #
 #################################################################
 
@@ -104,16 +104,15 @@ pmdemand:
  set phone 1234567
  set login "TIMEOUT 5 login:-\\r-login: ppp word: ppp"
  set timeout 120
- set ifaddr 10.10.10.10/0 10.10.11.11/0 255.255.255.0
+ set ifaddr 10.0.0.1/0 10.0.0.2/0 255.255.255.0
  delete ALL
- add 0 0 10.10.11.11
+ add 0 0 10.0.0.2
  set openmode active
 
 # Examples to connect using a null-modem cable from one machine to another.
-# The important thing here is to get the lqr packets going properly.
-# We disable them on the client side and enable them on the server side.
-# Without them enabled on the server side, we can't tell if the line's
-# dropped - there should always be carrier on a direct connection.
+# The important thing here is to allow the lqr packets on both sides.
+# Without them enabled, we can't tell if the line's dropped - there
+# should always be carrier on a direct connection.
 # Here, the server sends lqr's every 10 seconds and quits if three in a
 # row fail.
 #
@@ -123,9 +122,8 @@ direct-client:
  set dial ""
  set line /dev/cuaa0
  set sp 115200
- disable lqr
  set timeout 900
- set debug Phase
+ set debug Phase Chat LQM
  set login "TIMEOUT 5 -\\r-login:-\\r-login: ppp word: ppp HELLO"
  set ifaddr 10.0.4.2 10.0.4.1
  add 10.0.4.2 255.255.255.255 127.0.0.1
@@ -133,7 +131,6 @@ direct-client:
 direct-server:
  set timeout 900 10 3
  set debug Phase LQM
- enable lqr
  set ifaddr 10.0.4.1 10.0.4.2
  add 10.0.4.1 255.255.255.255 127.0.0.1
 
