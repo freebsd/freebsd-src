@@ -292,6 +292,7 @@ cpu_set_upcall_kse(struct thread *td, struct kse_upcall *ku)
 	 */
 	td->td_frame->tf_rsp =
 	    ((register_t)ku->ku_stack.ss_sp + ku->ku_stack.ss_size) & ~0x0f;
+	td->td_frame->tf_rsp -= 8;
 	td->td_frame->tf_rip = (register_t)ku->ku_func;
 
 	/*
