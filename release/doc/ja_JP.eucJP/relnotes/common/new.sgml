@@ -3,7 +3,7 @@
 
     $FreeBSD$
 
-    Original revision: 1.22.2.188
+    Original revision: 1.22.2.192
 -->
 
 <articleinfo>
@@ -140,7 +140,7 @@
     <para>カーネル設定パラメータ
       <varname>maxusers</varname> に <literal>0</literal>
       を指定した場合, 起動時に自動的に適切な値が
-      (搭載メモリ量に応じて 32 から 512 の間で)
+      (搭載メモリ量に応じて 32 から 384 の間で)
       設定されるようになりました.
       すべてのアーキテクチャの <filename>GENERIC</filename>
       カーネルにおいて, この <literal>0</literal>
@@ -381,7 +381,20 @@
         ネットワークの混雑を緩和するため,
         sysctl 変数
         <varname>net.inet.tcp.local_slowstart_flightsize</varname>
-        の標準値は無限大から 4 に変更されています.</para>
+        の標準値は無限大から 4 に変更されています.
+
+        <note>
+          <para>この標準バッファサイズが増加したことにより,
+            ネットワーク負荷の高いホストでは,
+            カーネルコンフィグファイルもしくは
+            ローダから変更できる sysctl 変数
+            <varname>kern.ipc.nmbclusters</varname> を用いて
+            <varname>NMBCLUSTERS</varname>
+            パラメータを手動で増加させる必要があるかも知れません.
+            mbuf クラスタの状態は <command>netstat -mb</command>
+            コマンドで監視することが可能です.</para>
+        </note>
+      </para>
 
       <para>TCP 実装において, 送信側で 0
         のウィンドウサイズを受けとった場合,
@@ -745,6 +758,16 @@
     <para>&man.sysinstall.8; に対して, インストール中に KLD
       をロードする機能が新しく追加されました.</para>
 
+    <para>&man.sysinstall.8; がインストールメディアから実行された場合,
+      <literal>mfsroot</literal>
+      フロッピイメージなどのインストール用ファイルシステムイメージの
+      <filename>/stand/modules</filename>
+      ディレクトリにあるすべてのデバイスドライバが,
+      自動的にロードされるようになりました.
+      ただし, そのようにロードされたドライバは
+      カーネルの起動メッセージには現れません.
+      詳しい情報は, &man.sysinstall.8; のデバッグスクリーンに表示されます.</para>
+
     <para>&man.sysinstall.8;
       で新規作成されるファイルシステムすべて
       (ただしルートファイルシステムを除く) において,
@@ -862,6 +885,12 @@
     
     <sect3>
       <title>Ports/Packages Collection</title>
+
+      <para>認定の作業が遅れているため, &os; 用ネイティブ版
+        <application>JDK</application> は 4.5-RELEASE
+        のリリース後にまもなく行なわれることになりました.
+        配布開始のアナウンスは &os; のウェブサイトと
+        &a.announce; で行なわれる予定です.</para>
 
       <para>&man.pkg.create.1; に新しく <option>-b</option>
         オプションが追加されました.
