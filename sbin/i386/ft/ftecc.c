@@ -17,6 +17,11 @@
  *  POSSIBILITY OF SUCH DAMAGE.
  *
  *  ftecc.c - QIC-40/80 Reed-Solomon error correction
+ *  05/30/94 v1.0 ++sg
+ *  Did some minor optimization.  The multiply by 0xc0 was a dog so it
+ *  was replaced with a table lookup.  Fixed a couple of places where
+ *  bad sectors could go unnoticed.  Moved to release.
+ *
  *  03/22/94 v0.4
  *  Major re-write.  It can handle everything required by QIC now.
  *
@@ -112,6 +117,45 @@ static UCHAR alpha_log[] = {
 
 
 /*
+ *  Multiplication table for 0xc0.
+ */
+static UCHAR mult_c0[] = {
+  0x00, 0xc0, 0x07, 0xc7, 0x0e, 0xce, 0x09, 0xc9,
+  0x1c, 0xdc, 0x1b, 0xdb, 0x12, 0xd2, 0x15, 0xd5,
+  0x38, 0xf8, 0x3f, 0xff, 0x36, 0xf6, 0x31, 0xf1,
+  0x24, 0xe4, 0x23, 0xe3, 0x2a, 0xea, 0x2d, 0xed,
+  0x70, 0xb0, 0x77, 0xb7, 0x7e, 0xbe, 0x79, 0xb9,
+  0x6c, 0xac, 0x6b, 0xab, 0x62, 0xa2, 0x65, 0xa5,
+  0x48, 0x88, 0x4f, 0x8f, 0x46, 0x86, 0x41, 0x81,
+  0x54, 0x94, 0x53, 0x93, 0x5a, 0x9a, 0x5d, 0x9d,
+  0xe0, 0x20, 0xe7, 0x27, 0xee, 0x2e, 0xe9, 0x29,
+  0xfc, 0x3c, 0xfb, 0x3b, 0xf2, 0x32, 0xf5, 0x35,
+  0xd8, 0x18, 0xdf, 0x1f, 0xd6, 0x16, 0xd1, 0x11,
+  0xc4, 0x04, 0xc3, 0x03, 0xca, 0x0a, 0xcd, 0x0d,
+  0x90, 0x50, 0x97, 0x57, 0x9e, 0x5e, 0x99, 0x59,
+  0x8c, 0x4c, 0x8b, 0x4b, 0x82, 0x42, 0x85, 0x45,
+  0xa8, 0x68, 0xaf, 0x6f, 0xa6, 0x66, 0xa1, 0x61,
+  0xb4, 0x74, 0xb3, 0x73, 0xba, 0x7a, 0xbd, 0x7d,
+  0x47, 0x87, 0x40, 0x80, 0x49, 0x89, 0x4e, 0x8e,
+  0x5b, 0x9b, 0x5c, 0x9c, 0x55, 0x95, 0x52, 0x92,
+  0x7f, 0xbf, 0x78, 0xb8, 0x71, 0xb1, 0x76, 0xb6,
+  0x63, 0xa3, 0x64, 0xa4, 0x6d, 0xad, 0x6a, 0xaa,
+  0x37, 0xf7, 0x30, 0xf0, 0x39, 0xf9, 0x3e, 0xfe,
+  0x2b, 0xeb, 0x2c, 0xec, 0x25, 0xe5, 0x22, 0xe2,
+  0x0f, 0xcf, 0x08, 0xc8, 0x01, 0xc1, 0x06, 0xc6,
+  0x13, 0xd3, 0x14, 0xd4, 0x1d, 0xdd, 0x1a, 0xda,
+  0xa7, 0x67, 0xa0, 0x60, 0xa9, 0x69, 0xae, 0x6e,
+  0xbb, 0x7b, 0xbc, 0x7c, 0xb5, 0x75, 0xb2, 0x72,
+  0x9f, 0x5f, 0x98, 0x58, 0x91, 0x51, 0x96, 0x56,
+  0x83, 0x43, 0x84, 0x44, 0x8d, 0x4d, 0x8a, 0x4a,
+  0xd7, 0x17, 0xd0, 0x10, 0xd9, 0x19, 0xde, 0x1e,
+  0xcb, 0x0b, 0xcc, 0x0c, 0xc5, 0x05, 0xc2, 0x02,
+  0xef, 0x2f, 0xe8, 0x28, 0xe1, 0x21, 0xe6, 0x26,
+  0xf3, 0x33, 0xf4, 0x34, 0xfd, 0x3d, 0xfa, 0x3a
+};
+
+
+/*
  *  Return number of sectors available in a segment.
  */
 int
@@ -142,29 +186,37 @@ sect_bytes(ULONG badmap)
 /*
  *  Multiply two numbers in the field.
  */
-static UCHAR
+static inline UCHAR
 multiply(UCHAR a, UCHAR b)
 {
+  int tmp;
+
   if (!a || !b) return(0);
-  return(alpha_power[(alpha_log[a] + alpha_log[b]) % 255]);
+  tmp = alpha_log[a] + alpha_log[b];
+  if (tmp > 254) tmp -= 255;
+  return(alpha_power[tmp]);
 }
 
 
 /*
  *  Multiply by an exponent.
  */
-static UCHAR
+static inline UCHAR
 multiply_out(UCHAR a, int b)
 {
+  int tmp;
+
   if (!a) return(0);
-  return(alpha_power[(alpha_log[a] + b) % 255]);
+  tmp = alpha_log[a] + b;
+  if (tmp > 254) tmp -= 255;
+  return(alpha_power[tmp]);
 }
 
 
 /*
  *  Divide two numbers.
  */
-static UCHAR
+static inline UCHAR
 divide(UCHAR a, UCHAR b)
 {
   int tmp;
@@ -179,7 +231,7 @@ divide(UCHAR a, UCHAR b)
 /*
  *  Divide using exponent.
  */
-static UCHAR
+static inline UCHAR
 divide_out(UCHAR a, UCHAR b)
 {
   int tmp;
@@ -194,13 +246,13 @@ divide_out(UCHAR a, UCHAR b)
 /*
  *  This returns the value z^{a-b}.
  */
-static UCHAR
+static inline UCHAR
 z_of_ab(UCHAR a, UCHAR b)
 {
   int tmp = a - b;
 
   if (tmp < 0) tmp += 255;
-  return(alpha_power[tmp % 255]);
+  return(alpha_power[tmp]);
 }
 
 
@@ -208,12 +260,13 @@ z_of_ab(UCHAR a, UCHAR b)
  *  Calculate the inverse matrix for two or three errors.  Returns 0
  *  if there is no inverse or 1 if successful.
  */
-static int
+static inline int
 calculate_inverse(int nerrs, int *pblk, struct inv_mat *inv)
 {
   /* First some variables to remember some of the results. */
   UCHAR z20, z10, z21, z12, z01, z02;
   UCHAR i0, i1, i2;
+  UCHAR iv0, iv1, iv2;
 
   if (nerrs < 2) return(1);
   if (nerrs > 3) return(0);
@@ -243,21 +296,21 @@ calculate_inverse(int nerrs, int *pblk, struct inv_mat *inv)
 	if (!inv->log_denom) return(0);
 	inv->log_denom = 255 - alpha_log[inv->log_denom];
 
-	inv->zs[0][0] = multiply_out(alpha_power[i1] ^ alpha_power[i2],
-				inv->log_denom);
+	iv0 = alpha_power[255 - i0];
+	iv1 = alpha_power[255 - i1];
+	iv2 = alpha_power[255 - i2];
+	i0 = alpha_power[i0];
+	i1 = alpha_power[i1];
+	i2 = alpha_power[i2];
+	inv->zs[0][0] = multiply_out(i1 ^ i2, inv->log_denom);
 	inv->zs[0][1] = multiply_out(z21 ^ z12, inv->log_denom);
-	inv->zs[0][2] = multiply_out(alpha_power[255-i1] ^ alpha_power[255-i2],
-				inv->log_denom);
-	inv->zs[1][0] = multiply_out(alpha_power[i0] ^ alpha_power[i2],
-				inv->log_denom);
+	inv->zs[0][2] = multiply_out(iv1 ^ iv2, inv->log_denom);
+	inv->zs[1][0] = multiply_out(i0 ^ i2, inv->log_denom);
 	inv->zs[1][1] = multiply_out(z20 ^ z02, inv->log_denom);
-	inv->zs[1][2] = multiply_out(alpha_power[255-i0] ^ alpha_power[255-i2],
-				inv->log_denom);
-	inv->zs[2][0] = multiply_out(alpha_power[i0] ^ alpha_power[i1],
-				inv->log_denom);
+	inv->zs[1][2] = multiply_out(iv0 ^ iv2, inv->log_denom);
+	inv->zs[2][0] = multiply_out(i0 ^ i1, inv->log_denom);
 	inv->zs[2][1] = multiply_out(z10 ^ z01, inv->log_denom);
-	inv->zs[2][2] = multiply_out(alpha_power[255-i0] ^ alpha_power[255-i1],
-				inv->log_denom);
+	inv->zs[2][2] = multiply_out(iv0 ^ iv1, inv->log_denom);
   }
   return(1);
 }
@@ -266,7 +319,7 @@ calculate_inverse(int nerrs, int *pblk, struct inv_mat *inv)
 /*
  *  Determine the error magnitudes for a given matrix and syndromes.
  */
-static void
+static inline void
 determine(int nerrs, struct inv_mat *inv, UCHAR *ss, UCHAR *es)
 {
   UCHAR tmp;
@@ -283,21 +336,22 @@ determine(int nerrs, struct inv_mat *inv, UCHAR *ss, UCHAR *es)
 /*
  *  Compute the 3 syndrome values.
  */
-static int
+static inline int
 compute_syndromes(UCHAR *data, int nblks, int col, UCHAR *ss)
 {
   UCHAR r0, r1, r2, t1, t2;
   UCHAR *rptr;
-  int row;
 
-  rptr = &data[col];
+  rptr = data + col;
+  data += nblks << 10;
   r0 = r1 = r2 = 0;
-  for (row = 0; row < nblks; row++, rptr += QCV_BLKSIZE) {
+  while (rptr < data) {
 	t1 = *rptr ^ r0;
-	t2 = multiply(0xc0, t1);
+	t2 = mult_c0[t1];
 	r0 = t2 ^ r1;
 	r1 = t2 ^ r2;
 	r2 = t1;
+	rptr += QCV_BLKSIZE;
   }
   if (r0 || r1 || r2) {
 	ss[0] = divide_out(r0 ^ divide_out(r1 ^ divide_out(r2, 1), 1), nblks);
@@ -315,24 +369,28 @@ compute_syndromes(UCHAR *data, int nblks, int col, UCHAR *ss)
 int
 set_parity (UCHAR *data, ULONG badmap)
 {
-  int col, row, max;
   UCHAR r0, r1, r2, t1, t2;
   UCHAR *rptr;
+  int max, row, col;
 
   max = sect_count(badmap) - 3;
-  for (col = 0; col < QCV_BLKSIZE; col++, data++) {
+  col = QCV_BLKSIZE;
+  while (col--) {
 	rptr = data;
 	r0 = r1 = r2 = 0;
-	for (row = 0; row < max; row++, rptr += QCV_BLKSIZE) {
+	row = max;
+	while (row--) {
 		t1 = *rptr ^ r0;
-		t2 = multiply(0xc0, t1);
+		t2 = mult_c0[t1];
 		r0 = t2 ^ r1;
 		r1 = t2 ^ r2;
 		r2 = t1;
+		rptr += QCV_BLKSIZE;
 	}
 	*rptr = r0; rptr += QCV_BLKSIZE;
 	*rptr = r1; rptr += QCV_BLKSIZE;
 	*rptr = r2;
+	data++;
   }
   return(0);
 }
@@ -359,8 +417,8 @@ check_parity(UCHAR *data, ULONG badmap, ULONG crcmap)
   if (crcmap) {
 	for (i = 0; i < nblks; i++) {
 		if (crcmap & (1 << i)) {
+			if (crcerrs == 3) return(1);
 			eblk[crcerrs++] = i;
-			if (crcerrs >= 3) break;
 		}
 	}
   }
@@ -380,7 +438,7 @@ check_parity(UCHAR *data, ULONG badmap, ULONG crcmap)
 		eblk[crcerrs] = alpha_log[divide(ss[1], ss[0])];
 		if (eblk[crcerrs] >= nblks) return(1);
 		es[0] = ss[1];
-		crcerrs++;
+		if (++crcerrs > 3) return(1);
 		break;
 
 	    case 1:	/* 1 error (+ possible failures) */
@@ -394,7 +452,7 @@ check_parity(UCHAR *data, ULONG badmap, ULONG crcmap)
 		} else {				/* add failure */
 			eblk[crcerrs] = alpha_log[divide(i1, i2)];
 			if (eblk[crcerrs] >= nblks) return(1);
-			crcerrs++;
+			if (++crcerrs > 3) return(1);
 			if (!calculate_inverse(crcerrs, eblk, &inv)) return(1);
 		}
 		determine(crcerrs, &inv, ss, es);
@@ -411,7 +469,7 @@ check_parity(UCHAR *data, ULONG badmap, ULONG crcmap)
 
 	/* Make corrections. */
 	for (i = 0; i < crcerrs; i++) {
-		data[eblk[i] * QCV_BLKSIZE+col] ^= es[i];
+		data[(eblk[i] << 10) | col] ^= es[i];
 		ss[0] ^= divide_out(es[i], eblk[i]);
 		ss[1] ^= es[i];
 		ss[2] ^= multiply_out(es[i], eblk[i]);
