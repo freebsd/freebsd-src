@@ -86,9 +86,13 @@ __FBSDID("$FreeBSD$");
 #define PCI_EHCI_VENDORID_SIS		0x1039
 #define PCI_EHCI_VENDORID_NVIDIA	0x12D2
 #define PCI_EHCI_VENDORID_NVIDIA2	0x10DE
+#define PCI_EHCI_VENDORID_VIA		0x1106
 
 #define PCI_EHCI_DEVICEID_NEC		0x00e01033
 static const char *ehci_device_nec = "NEC uPD 720100 USB 2.0 controller";
+
+#define PCI_EHCI_DEVICEID_VIA		0x31041106
+static const char *ehci_device_via = "VIA VT6202 USB 2.0 controller";
 
 static const char *ehci_device_generic = "EHCI (generic) USB 2.0 controller";
 
@@ -106,6 +110,8 @@ ehci_pci_match(device_t self)
 	switch (device_id) {
 	case PCI_EHCI_DEVICEID_NEC:
 		return (ehci_device_nec);
+	case PCI_EHCI_DEVICEID_VIA:
+		return (ehci_device_via);
 	default:
 		if (pci_get_class(self) == PCIC_SERIALBUS
 		    && pci_get_subclass(self) == PCIS_SERIALBUS_USB
@@ -219,6 +225,9 @@ ehci_pci_attach(device_t self)
 	case PCI_EHCI_VENDORID_NVIDIA:
 	case PCI_EHCI_VENDORID_NVIDIA2:
 		sprintf(sc->sc_vendor, "nVidia");
+		break;
+	case PCI_EHCI_VENDORID_VIA:
+		sprintf(sc->sc_vendor, "VIA");
 		break;
 	default:
 		if (bootverbose)
