@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)conf.h	8.5 (Berkeley) 1/9/95
- * $Id: conf.h,v 1.68 1999/08/08 18:42:59 phk Exp $
+ * $Id: conf.h,v 1.69 1999/08/09 18:45:20 jdp Exp $
  */
 
 #ifndef _SYS_CONF_H_
@@ -73,8 +73,8 @@ struct specinfo {
 /*
  * Exported shorthand
  */
-#define v_hashchain v_specinfo->si_hlist
-#define v_specmountpoint v_specinfo->si_mountpoint
+#define v_hashchain v_rdev->si_hlist
+#define v_specmountpoint v_rdev->si_mountpoint
 
 /*
  * Special device management

@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)vnode.h	8.7 (Berkeley) 2/4/94
- * $Id: vnode.h,v 1.92 1999/07/26 06:25:53 alc Exp $
+ * $Id: vnode.h,v 1.93 1999/08/08 18:43:00 phk Exp $
  */
 
 #ifndef _SYS_VNODE_H_
@@ -135,7 +135,6 @@ struct vnode {
 };
 #define	v_mountedhere	v_un.vu_mountedhere
 #define	v_socket	v_un.vu_socket
-#define	v_specinfo	v_un.vu_spec.vu_specinfo
 #define	v_rdev		v_un.vu_spec.vu_specinfo
 #define	v_specnext	v_un.vu_spec.vu_specnext
 #define	v_fifoinfo	v_un.vu_fifoinfo

@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)spec_vnops.c	8.14 (Berkeley) 5/21/95
- * $Id: spec_vnops.c,v 1.90 1999/07/20 09:47:45 phk Exp $
+ * $Id: spec_vnops.c,v 1.91 1999/08/08 18:42:52 phk Exp $
  */
 
 #include <sys/param.h>
@@ -288,7 +288,7 @@ spec_read(ap)
 		 * be larger then the physical minimum.
 		 */
 
-		bsize = vp->v_specinfo->si_bsize_best;
+		bsize = vp->v_rdev->si_bsize_best;
 
 		if ((ioctl = bdevsw(dev)->d_ioctl) != NULL &&
 		    (*ioctl)(dev, DIOCGPART, (caddr_t)&dpart, FREAD, p) == 0 &&
@@ -372,7 +372,7 @@ spec_write(ap)
 		 * Calculate block size for block device.  The block size must
 		 * be larger then the physical minimum.
 		 */
-		bsize = vp->v_specinfo->si_bsize_best;
+		bsize = vp->v_rdev->si_bsize_best;
 
 		if ((*bdevsw(vp->v_rdev)->d_ioctl)(vp->v_rdev, DIOCGPART,
 		    (caddr_t)&dpart, FREAD, p) == 0) {
@@ -784,11 +784,11 @@ spec_getpages(ap)
 	 * size for the device itself.
 	 *
 	 * We can't use v_specmountpoint because it only exists when the
-	 * block device is mounted.  However, we can use v_specinfo.
+	 * block device is mounted.  However, we can use v_rdev.
 	 */
 
 	if (vp->v_type == VBLK)
-		blksiz = vp->v_specinfo->si_bsize_phys;
+		blksiz = vp->v_rdev->si_bsize_phys;
 	else
 		blksiz = DEV_BSIZE;
 
@@ -943,7 +943,7 @@ spec_getattr(ap)
 	bzero(vap, sizeof (*vap));
 
 	if (vp->v_type == VBLK) {
-		if (vp->v_specinfo)
+		if (vp->v_rdev)
 			vap->va_blocksize = vp->v_specmountpoint->mnt_stat.f_iosize;
 		else
 			vap->va_blocksize = BLKDEV_IOSIZE;
