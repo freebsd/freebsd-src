@@ -157,7 +157,9 @@ struct sbp_dev{
 		 timeout:4;
 	u_int8_t type;
 	u_int16_t lun_id;
-	int freeze;
+	u_int16_t freeze;
+#define	ORB_LINK_DEAD 1
+	u_int16_t flags;
 	struct cam_path *path;
 	struct sbp_target *target;
 	struct fwdma_alloc dma;
@@ -194,8 +196,6 @@ struct sbp_softc {
 	struct sbp_target targets[SBP_NUM_TARGETS];
 	struct fw_bind fwb;
 	bus_dma_tag_t	dmat;
-#define SBP_RESOURCE_SHORTAGE 0x10
-	unsigned char flags;
 };
 static void sbp_post_explore __P((void *));
 static void sbp_recv __P((struct fw_xfer *));
@@ -811,6 +811,10 @@ SBP_DEBUG(2)
 	sbp_show_sdev_info(sdev, 2);
 	printf("sbp_cmd_callback\n");
 END_DEBUG
+	if (xfer->resp != 0) {
+		/* XXX */
+		printf("%s: xfer->resp != 0\n", __FUNCTION__);
+	}
 	sbp_xfer_free(xfer);
 	return;
 }
@@ -1536,6 +1540,7 @@ END_DEBUG
 		switch(ocb->flags) {
 		case OCB_ACT_MGM:
 			orb_fun = ntohl(ocb->orb[4]) & ORB_FUN_MSK;
+			reset_agent = 0;
 			switch(orb_fun) {
 			case ORB_FUN_LGI:
 				fwdma_sync(&sdev->dma, BUS_DMASYNC_POSTREAD);
@@ -1953,7 +1958,8 @@ sbp_mgm_timeout(void *arg)
 	struct sbp_target *target = sdev->target;
 
 	sbp_show_sdev_info(sdev, 2);
-	printf("management ORB timeout\n");
+	printf("request timeout(mgm orb:0x%08x) ... ",
+	    (u_int32_t)ocb->bus_addr);
 	target->mgm_ocb_cur = NULL;
 	sbp_free_ocb(sdev, ocb);
 #if 0
@@ -1972,7 +1978,8 @@ sbp_timeout(void *arg)
 	struct sbp_dev *sdev = ocb->sdev;
 
 	sbp_show_sdev_info(sdev, 2);
-	printf("request timeout ... ");
+	printf("request timeout(cmd orb:0x%08x) ... ",
+	    (u_int32_t)ocb->bus_addr);
 
 	sdev->timeout ++;
 	switch(sdev->timeout) {
@@ -2366,8 +2373,10 @@ END_DEBUG
 			BUS_DMASYNC_PREREAD : BUS_DMASYNC_PREWRITE);
 	prev = sbp_enqueue_ocb(ocb->sdev, ocb);
 	fwdma_sync(&ocb->sdev->dma, BUS_DMASYNC_PREWRITE);
-	if (prev == NULL)
+	if (prev == NULL || (ocb->sdev->flags & ORB_LINK_DEAD) != 0) {
+		ocb->sdev->flags &= ~ORB_LINK_DEAD;
 		sbp_orb_pointer(ocb->sdev, ocb); 
+	}
 }
 
 static void
@@ -2413,8 +2422,18 @@ END_DEBUG
 				bus_dmamap_unload(sdev->target->sbp->dmat,
 					ocb->dmamap);
 			}
-			if (next != NULL && sbp_status->src == 1)
-				sbp_orb_pointer(sdev, next); 
+			if (sbp_status->src == SRC_NO_NEXT) {
+				if (next != NULL)
+					sbp_orb_pointer(sdev, next); 
+				else if (order > 0) {
+					/*
+					 * Unordered execution
+					 * We need to send pointer for
+					 * next ORB
+					 */
+					sdev->flags |= ORB_LINK_DEAD;
+				}
+			}
 			break;
 		} else
 			order ++;
@@ -2451,13 +2470,14 @@ END_DEBUG
 		ocb->ccb->ccb_h.timeout_ch = timeout(sbp_timeout, (caddr_t)ocb,
 					(ocb->ccb->ccb_h.timeout * hz) / 1000);
 
-	if (prev != NULL ) {
+	if (prev != NULL) {
 SBP_DEBUG(1)
 #if __FreeBSD_version >= 500000
-	printf("linking chain 0x%jx -> 0x%jx\n",
-		(uintmax_t)prev->bus_addr, (uintmax_t)ocb->bus_addr);
+		printf("linking chain 0x%jx -> 0x%jx\n",
+		    (uintmax_t)prev->bus_addr, (uintmax_t)ocb->bus_addr);
 #else
-	printf("linking chain 0x%x -> 0x%x\n", prev->bus_addr, ocb->bus_addr);
+		printf("linking chain 0x%x -> 0x%x\n",
+		    prev->bus_addr, ocb->bus_addr);
 #endif
 END_DEBUG
 		prev->orb[1] = htonl(ocb->bus_addr);
