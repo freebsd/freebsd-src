@@ -35,8 +35,8 @@
 .Nm VOP_RENAME
 .Nd rename a file
 .Sh SYNOPSIS
-.Fd #include <sys/param.h>
-.Fd #include <sys/vnode.h>
+.In sys/param.h
+.In sys/vnode.h
 .Ft int
 .Fn VOP_RENAME "struct vnode *fdvp" "struct vnode *fvp" "struct componentname *fcnp" "struct vnode *tdvp" "struct vnode *tvp" "struct componentname *tcnp"
 .Sh DESCRIPTION

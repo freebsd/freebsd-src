@@ -38,9 +38,9 @@
 .Nm vn_lock
 .Nd serialize access to a vnode
 .Sh SYNOPSIS
-.Fd #include <sys/param.h>
-.Fd #include <sys/lock.h>
-.Fd #include <sys/vnode.h>
+.In sys/param.h
+.In sys/lock.h
+.In sys/vnode.h
 .Ft int
 .Fn VOP_LOCK "struct vnode *vp" "int flags" "struct proc *p"
 .Ft int

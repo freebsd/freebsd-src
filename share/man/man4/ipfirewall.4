@@ -8,10 +8,10 @@
 .Nm ipfirewall
 .Nd IP packet filter and traffic accounting
 .Sh SYNOPSIS
-.Fd #include <sys/types.h>
-.Fd #include <sys/queue.h>
-.Fd #include <netinet/in.h>
-.Fd #include <netinet/ip_fw.h>
+.In sys/types.h
+.In sys/queue.h
+.In netinet/in.h
+.In netinet/ip_fw.h
 .Ft int
 .Fn setsockopt raw_socket IPPROTO_IP "ipfw option" "struct ipfw" size
 .Sh DESCRIPTION

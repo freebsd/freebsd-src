@@ -35,9 +35,9 @@
 .Nm VFS_STATFS
 .Nd return filesystem status
 .Sh SYNOPSIS
-.Fd #include <sys/param.h>
-.Fd #include <sys/mount.h>
-.Fd #include <sys/vnode.h>
+.In sys/param.h
+.In sys/mount.h
+.In sys/vnode.h
 .Ft int
 .Fn VFS_STATFS "struct mount *mp" "struct statfs *sbp" "struct proc *p"
 .Sh DESCRIPTION

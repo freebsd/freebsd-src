@@ -22,7 +22,7 @@
 .Sh LIBRARY
 .Lb libc
 .Sh SYNOPSIS
-.Fd #include <rpc/rpc.h>
+.In rpc/rpc.h
 .Ft "enum clnt_stat"
 .Fn clnt_call "CLIENT *clnt" "const rpcproc_t procnum" "const xdrproc_t inproc" "const caddr_t in" "const xdrproc_t outproc" "caddr_t out" "const struct timeval tout"
 .Ft bool_t

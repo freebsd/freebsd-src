@@ -36,8 +36,8 @@
 .Nm BUS_WRITE_IVAR
 .Nd manipulate bus-specific device instance variables
 .Sh SYNOPSIS
-.Fd #include <sys/param.h>
-.Fd #include <sys/bus.h>
+.In sys/param.h
+.In sys/bus.h
 .Ft int
 .Fn BUS_READ_IVAR "device_t dev" "device_t child" "int index" "uintptr_t *result"
 .Ft int
