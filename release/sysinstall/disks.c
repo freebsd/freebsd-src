@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: disks.c,v 1.44 1996/04/28 03:26:49 jkh Exp $
+ * $Id: disks.c,v 1.45 1996/04/28 20:53:54 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -492,6 +492,8 @@ diskPartitionWrite(dialogMenuItem *self)
 	msgConfirm("Unable to find any disks to write to??");
 	return DITEM_FAILURE;
     }
+    if (isDebug())
+	msgDebug("diskPartitionWrite: Examining %d devices\n", deviceCount(devs));
 
     for (i = 0; devs[i]; i++) {
 	Chunk *c1;
