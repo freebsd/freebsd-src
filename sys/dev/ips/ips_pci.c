@@ -50,8 +50,17 @@ static int ips_pci_probe(device_t dev)
 static int ips_pci_attach(device_t dev)
 {
         u_int32_t command;
+        int tval;
         ips_softc_t *sc;
 
+
+	tval = 0;
+	if (resource_int_value(device_get_name(dev), device_get_unit(dev),
+	    "disable", &tval) == 0 && tval) {
+		device_printf(dev, "device is disabled\n");
+		/* but return 0 so the !$)$)*!$*) unit isn't reused */
+		return (0);
+	}
         DEVICE_PRINTF(1, dev, "in attach.\n");
         sc = (ips_softc_t *)device_get_softc(dev);
         if(!sc){
@@ -125,6 +134,7 @@ static int ips_pci_attach(device_t dev)
         }
 	if(ips_adapter_init(sc))
 		goto error;
+        sc->configured = 1;
         return 0;
 error:
 	ips_pci_free(sc);
@@ -141,6 +151,7 @@ static int ips_pci_free(ips_softc_t *sc)
                bus_release_resource(sc->dev, SYS_RES_IRQ, sc->irqrid, sc->irqres);
         if(sc->iores)
                 bus_release_resource(sc->dev, sc->iotype, sc->rid, sc->iores);
+	sc->configured = 0;
 	return 0;
 }
 
@@ -149,18 +160,23 @@ static int ips_pci_detach(device_t dev)
         ips_softc_t *sc;
         DEVICE_PRINTF(1, dev, "detaching ServeRaid\n");
         sc = (ips_softc_t *) device_get_softc(dev);
-	ips_flush_cache(sc);
-	if(ips_adapter_free(sc))
-		return EBUSY;
-        ips_pci_free(sc);
-	mtx_destroy(&sc->cmd_mtx);
+	if (sc->configured) {
+		sc->configured = 0;
+		ips_flush_cache(sc);
+		if(ips_adapter_free(sc))
+			return EBUSY;
+		ips_pci_free(sc);
+		mtx_destroy(&sc->cmd_mtx);
+	}
 	return 0;
 }
 
 static int ips_pci_shutdown(device_t dev)
 {
 	ips_softc_t *sc = (ips_softc_t *) device_get_softc(dev);
-	ips_flush_cache(sc);
+	if (sc->configured) {
+		ips_flush_cache(sc);
+	}
 	return 0;
 }
 
