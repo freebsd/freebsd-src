@@ -1,3 +1,4 @@
+/* $FreeBSD$ */
 /*
  * Copyright (c) 1999, Traakan Software
  * All rights reserved.
@@ -24,7 +25,6 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $FreeBSD$
  */
 
 /*
@@ -56,7 +56,7 @@
  * Since the includes are a mess, they'll all be in if_wxvar.h
  */
 
-#if	defined(__NetBSD__)
+#if	defined(__NetBSD__) || defined(__OpenBSD__)
 #include <dev/pci/if_wxvar.h>
 #elif	defined(__FreeBSD__)
 #include <pci/if_wxvar.h>
@@ -115,8 +115,8 @@ static void wx_dring_teardown	__P((wx_softc_t *));
 #define	WX_MAXMTU	ETHERMTU
 #endif
 
-#if	defined(__NetBSD__)
-#ifdef	__BROKEN_INDIRECT_CONFIG
+#if defined(__NetBSD__) || defined(__OpenBSD__)
+#if defined(__BROKEN_INDIRECT_CONFIG) || defined(__OpenBSD__)
 #define	MATCHARG	void *
 #else
 #define	MATCHARG	struct cfdata *
@@ -160,6 +160,12 @@ static wx_softc_t *wxlist;
 struct cfattach wx_ca = {
 	sizeof (wx_softc_t), wx_match, wx_attach
 };
+
+#ifdef __OpenBSD__
+struct cfdriver wx_cd = {
+	0, "wx", DV_IFNET
+};
+#endif
 
 /*
  * Check if a device is an 82452.
@@ -220,7 +226,12 @@ wx_attach(parent, self, aux)
 		return;
 	}
 	intrstr = pci_intr_string(pc, ih);
+#if defined(__OpenBSD__)
+	sc->w.ih = pci_intr_establish(pc, ih, IPL_NET, wx_intr, sc,
+	    self->dv_xname);
+#else
 	sc->w.ih = pci_intr_establish(pc, ih, IPL_NET, wx_intr, sc);
+#endif
 	if (sc->w.ih == NULL) {
 		printf("%s: couldn't establish interrupt", sc->wx_name);
 		if (intrstr != NULL)
@@ -230,7 +241,7 @@ wx_attach(parent, self, aux)
 	}
 	printf("%s: interrupting at %s\n", sc->wx_name, intrstr);
 	sc->wx_idnrev = (PCI_PRODUCT(pa->pa_id) << 16) |
-		pci_conf_read(pa->pa_pc, pa->pa_tag, PCI_CLASS_REG) & 0xff;
+		(pci_conf_read(pa->pa_pc, pa->pa_tag, PCI_CLASS_REG) & 0xff);
 
 	data = pci_conf_read(pa->pa_pc, pa->pa_tag, PCI_BHLC_REG);
 	data &= ~(PCI_CACHELINE_MASK << PCI_CACHELINE_SHIFT);
@@ -244,7 +255,7 @@ wx_attach(parent, self, aux)
 	printf("%s: Ethernet address %s\n",
 	    sc->wx_name, ether_sprintf(sc->wx_enaddr));
 
-	ifp = &sc->w.ethercom.ec_if;
+	ifp = &sc->wx_if;
 	bcopy(sc->wx_name, ifp->if_xname, IFNAMSIZ);
 	ifp->if_mtu = WX_MAXMTU;
 	ifp->if_softc = sc;
@@ -256,8 +267,17 @@ wx_attach(parent, self, aux)
 	/*
 	 * Attach the interface.
 	 */
+	if_attach(ifp);
+#ifdef __OpenBSD__
+	ether_ifattach(ifp);
+#else
 	ether_ifattach(ifp, sc->wx_enaddr);
+#endif
 
+#if	NBPFILTER > 0
+	bpfattach(&ifp->if_bpf, ifp, DLT_EN10MB,
+	    sizeof (struct ether_header));
+#endif
 	/*
 	 * Add shutdown hook so that DMA is disabled prior to reboot. Not
 	 * doing do could allow DMA to corrupt kernel memory during the
@@ -308,7 +328,11 @@ wx_ether_ioctl(ifp, cmd, data)
 		switch (ifa->ifa_addr->sa_family) {
 #ifdef INET
 		case AF_INET:
+#ifdef __OpenBSD__
+			arp_ifinit(&sc->w.arpcom, ifa);
+#else
 			arp_ifinit(ifp, ifa);
+#endif
 			break;
 #endif
 #ifdef NS
@@ -365,7 +389,12 @@ wx_mc_setup(sc)
 		return (wx_init(sc));
 	}
 
+#ifdef __OpenBSD__
+	ETHER_FIRST_MULTI(step, &sc->w.arpcom, enm);
+#else
 	ETHER_FIRST_MULTI(step, &sc->w.ethercom, enm);
+#endif
+
 	while (enm != NULL) {
 		if (memcmp(enm->enm_addrlo, enm->enm_addrhi, 6) != 0)
 			continue;
@@ -567,7 +596,10 @@ wx_attach(device_t dev)
 		}
 	}
 
-        mtx_init(&sc->wx_mtx, device_get_nameunit(dev), MTX_DEF);
+#ifdef	SMPNG
+	mtx_init(&sc->wx_mtx, device_get_nameunit(dev), MTX_DEF);
+#endif
+
 	WX_LOCK(sc);
 	/*
  	 * get revision && id...
@@ -1190,7 +1222,7 @@ wx_intr(arg)
 	wx_softc_t *sc = arg;
 	int claimed = 0;
 
-	WX_LOCK(sc);
+	WX_ILOCK(sc);
 	/*
 	 * Read interrupt cause register. Reading it clears bits.
 	 */
@@ -1211,7 +1243,7 @@ wx_intr(arg)
 		}
 		WX_ENABLE_INT(sc);
 	}
-	WX_UNLOCK(sc);
+	WX_IUNLK(sc);
 	return (claimed);
 }
 
@@ -1247,11 +1279,13 @@ wx_handle_link_intr(sc)
 
 	if (sc->wx_icr & WXISR_LSC) {
 		if (READ_CSR(sc, WXREG_DSR) & WXDSR_LU) {
-			printf("%s: gigabit link now up\n", sc->wx_name);
+			if (sc->wx_debug)
+				printf("%s: gigabit link up\n", sc->wx_name);
 			sc->linkup = 1;
 			sc->wx_dcr |= (WXDCR_SWDPIO0|WXDCR_SWDPIN0);
 		} else {
-			printf("%s: gigabit link now down\n", sc->wx_name);
+			if (sc->wx_debug)
+				printf("%s: gigabit link down\n", sc->wx_name);
 			sc->linkup = 0;
 			sc->wx_dcr &= ~(WXDCR_SWDPIO0|WXDCR_SWDPIN0);
 		}
@@ -1437,17 +1471,12 @@ wx_handle_rxint(sc)
 		mb->m_len -= WX_CRC_LENGTH;
 
 		eh = mtod(m0, struct ether_header *);
-		if ((ifp->if_flags & IFF_PROMISC) &&
-		    (bcmp(eh->ether_dhost, sc->wx_enaddr, ETHER_ADDR_LEN) &&
-		    (eh->ether_dhost[0] & 1) == 0)) {
-			m_freem(m0);
-			if (sc->rpending) {
-				m_freem(sc->rpending);
-				sc->rpending = NULL;
-			}
-                } else {
-			pending[npkts++] = m0;
-		}
+		/*
+		 * No need to check for promiscous mode since 
+		 * the decision to keep or drop the packet is
+		 * handled by ether_input()
+		 */
+		pending[npkts++] = m0;
 		m0 = NULL;
 		tlen = 0;
 	}
@@ -1463,17 +1492,15 @@ wx_handle_rxint(sc)
 
 	for (idx = 0; idx < npkts; idx++) {
 		mb = pending[idx];
-#ifndef	__FreeBSD__
                 if (ifp->if_bpf) {
                         bpf_mtap(WX_BPFTAP_ARG(ifp), mb);
 		}
-#endif
                 ifp->if_ipackets++;
 		if (sc->wx_debug) {
 			printf("%s: RECV packet length %d\n",
 			    sc->wx_name, mb->m_pkthdr.len);
 		}
-#ifdef	__FreeBSD__
+#if defined(__FreeBSD__) || defined(__OpenBSD__)
 		eh = mtod(mb, struct ether_header *);
 		m_adj(mb, sizeof (struct ether_header));
 		ether_input(ifp, eh, mb);
@@ -1542,12 +1569,16 @@ wx_gc(sc)
 
 			td = &sc->tdescriptors[cidx];
 			if (td->status & TXSTS_EC) {
-				printf("%s: excess collisions\n", sc->wx_name);
+				if (sc->wx_debug)
+					printf("%s: excess collisions\n",
+					    sc->wx_name);
 				ifp->if_collisions++;
 				ifp->if_oerrors++;
 			}
 			if (td->status & TXSTS_LC) {
-				printf("%s: lost carrier\n", sc->wx_name);
+				if (sc->wx_debug)
+					printf("%s: lost carrier\n",
+					    sc->wx_name);
 				ifp->if_oerrors++;
 			}
 			tmp = &sc->tbase[cidx];
@@ -1593,7 +1624,7 @@ wx_watchdog(arg)
 	/*
 	 * Schedule another timeout one second from now.
 	 */
-	TIMEOUT(sc, wx_watchdog, sc, hz);
+	VTIMEOUT(sc, wx_watchdog, sc, hz);
 }
 
 /*
@@ -1913,7 +1944,6 @@ wx_init(xsc)
 	WRITE_CSR(sc, WXREG_RDT1, 0);
 
 	if (ifp->if_mtu > ETHERMTU) {
-		printf("%s: enabling for jumbo packets\n", sc->wx_name);
 		bflags = WXRCTL_EN | WXRCTL_LPE | WXRCTL_2KRBUF;
 	} else {
 		bflags = WXRCTL_EN | WXRCTL_2KRBUF;
@@ -2008,13 +2038,13 @@ wx_ioctl(ifp, command, data)
 	WX_LOCK(sc);
 	switch (command) {
 	case SIOCSIFADDR:
-#if !defined(__NetBSD__)
+#if !defined(__NetBSD__) && !defined(__OpenBSD__)
 	case SIOCGIFADDR:
 #endif
 		error = ether_ioctl(ifp, command, data);
 		break;
 
-#ifdef	SIOCGIFMTU
+#ifdef	SIOCSIFMTU
 	case SIOCSIFMTU:
 		if (ifr->ifr_mtu > WX_MAXMTU || ifr->ifr_mtu < ETHERMIN) {
 			error = EINVAL;
