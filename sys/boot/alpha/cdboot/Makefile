@@ -1,4 +1,4 @@
-#	$FreeBSD$
+# $FreeBSD$
 
 BASE= 		cdboot
 PROG= 		${BASE}
@@ -8,4 +8,4 @@ LOAD_ADDRESS=	${PRIMARY_LOAD_ADDRESS}
 
 CFLAGS+=	-DLOADER_CDROM_SUPPORT
 
-.include	<${.CURDIR}/../common/Makefile.common>
+.include <${.CURDIR}/../common/Makefile.common>
