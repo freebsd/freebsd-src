@@ -16,7 +16,7 @@
  *
  * NEW command line interface for IP firewall facility
  *
- * $Id: ipfw.c,v 1.34.2.11 1998/02/02 11:48:05 danny Exp $
+ * $Id: ipfw.c,v 1.34.2.12 1998/02/02 22:04:26 danny Exp $
  *
  */
 
@@ -441,7 +441,7 @@ show_usage(const char *fmt, ...)
 "    src: from [not] {any|ip[{/bits|:mask}]} [{port|port-port},[port],...]\n"
 "    dst: to [not] {any|ip[{/bits|:mask}]} [{port|port-port},[port],...]\n"
 "  extras:\n"
-"    fragment\n"
+"    fragment     (may not be used with ports or tcpflags)\n"
 "    in\n"
 "    out\n"
 "    {xmit|recv|via} {iface|ip|any}\n"
@@ -1046,6 +1046,15 @@ badviacombo:
 			rule.fw_flg |= IP_FW_F_OIFACE;
 	} else if ((rule.fw_flg & IP_FW_F_OIFACE) && (rule.fw_flg & IP_FW_F_IN))
 		show_usage("can't check xmit interface of incoming packets");
+
+	/* frag may not be used in conjunction with ports or TCP flags */
+	if (rule.fw_flg & IP_FW_F_FRAG) {
+		if (rule.fw_tcpf || rule.fw_tcpnf)
+			show_usage("can't mix 'frag' and tcpflags");
+
+		if (rule.fw_nports)
+			show_usage("can't mix 'frag' and port specifications");
+	}
 
 	if (!do_quiet)
 		show_ipfw(&rule);
