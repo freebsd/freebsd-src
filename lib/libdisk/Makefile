@@ -3,6 +3,8 @@ OBJS=	tst01.o blocks.o disklabel.o dkcksum.o chunk.o disk.o change.o \
 	create_chunk.o rules.o write_disk.o data.o
 CFLAGS+= -Wall -g
 
+all:	tst01
+
 test:	tst01
 	cp tst01 /0
 	./tst01 wd1
