@@ -1248,218 +1248,291 @@ ParseModifier(const char input[], const char tstr[],
 	tstr++;
 	while (*tstr != endc) {
 		char	*newStr;	/* New value to return */
-		char	termc;		/* Character which terminated scan */
-		Boolean	readonly = FALSE;
 		size_t	consumed = 0;
 
 		DEBUGF(VAR, ("Applying :%c to \"%s\"\n", *tstr, value));
 		switch (*tstr) {
 		case 'N':
 		case 'M':
-			readonly = TRUE;
 			newStr = modifier_M(tstr, value, endc, &consumed);
 			tstr += consumed;
 			break;
 		case 'S':
-			readonly = TRUE;
 			newStr = modifier_S(tstr, value, v, vp, &consumed);
 			tstr += consumed;
 			break;
 		case 'C':
-			readonly = TRUE;
 			newStr = modifier_C(tstr, value, v, vp, &consumed);
 			tstr += consumed;
 			break;
-		case 'L':
-			if (tstr[1] == endc || tstr[1] == ':') {
-				Buffer *buf;
-				buf = Buf_Init(MAKE_BSIZE);
-				for (cp = value; *cp; cp++)
-					Buf_AddByte(buf, (Byte)tolower(*cp));
-
-				Buf_AddByte(buf, (Byte)'\0');
-				newStr = (char *)Buf_GetAll(buf, (size_t *)NULL);
-				Buf_Destroy(buf, FALSE);
-
-				cp = tstr + 1;
-				termc = *cp;
-				break;
-			}
-			/* FALLTHROUGH */
-		case 'O':
-			if (tstr[1] == endc || tstr[1] == ':') {
-				newStr = VarSortWords(value, SortIncreasing);
-				cp = tstr + 1;
-				termc = *cp;
-				break;
-			}
-			/* FALLTHROUGH */
-		case 'Q':
-			if (tstr[1] == endc || tstr[1] == ':') {
-				newStr = Var_Quote(value);
-				cp = tstr + 1;
-				termc = *cp;
-				break;
-			}
-			/* FALLTHRU */
-		case 'T':
-			if (tstr[1] == endc || tstr[1] == ':') {
-				newStr = VarModify(value, VarTail, (void *)NULL);
-				cp = tstr + 1;
-				termc = *cp;
-				break;
-			}
-			/* FALLTHRU */
-		case 'U':
-			if (tstr[1] == endc || tstr[1] == ':') {
-				Buffer *buf;
-				buf = Buf_Init(MAKE_BSIZE);
-				for (cp = value; *cp; cp++)
-					Buf_AddByte(buf, (Byte)toupper(*cp));
-
-				Buf_AddByte(buf, (Byte)'\0');
-				newStr = (char *)Buf_GetAll(buf, (size_t *)NULL);
-				Buf_Destroy(buf, FALSE);
-
-				cp = tstr + 1;
-				termc = *cp;
-				break;
-			}
-			/* FALLTHROUGH */
-		case 'H':
-			if (tstr[1] == endc || tstr[1] == ':') {
-				newStr = VarModify(value, VarHead, (void *)NULL);
-				cp = tstr + 1;
-				termc = *cp;
-				break;
-			}
-			/* FALLTHRU */
-		case 'E':
-			if (tstr[1] == endc || tstr[1] == ':') {
-				newStr = VarModify(value, VarSuffix, (void *)NULL);
-				cp = tstr + 1;
-				termc = *cp;
-				break;
-			}
-			/* FALLTHRU */
-		case 'R':
-			if (tstr[1] == endc || tstr[1] == ':') {
-				newStr = VarModify(value, VarRoot, (void *)NULL);
-				cp = tstr + 1;
-				termc = *cp;
-				break;
-			}
-			/* FALLTHRU */
-#ifdef SUNSHCMD
-		case 's':
-			if (tstr[1] == 'h' && (tstr[2] == endc || tstr[2] == ':')) {
-				const char *error;
-				Buffer *buf;
-
-				buf = Cmd_Exec(value, &error);
-				newStr = Buf_GetAll(buf, NULL);
-				Buf_Destroy(buf, FALSE);
-
-				if (error)
-					Error(error, value);
-				cp = tstr + 2;
-				termc = *cp;
-				break;
-			}
-			/* FALLTHRU */
-#endif
 		default:
-		    {
+			if (tstr[1] == endc || tstr[1] == ':') {
+				char	termc;
+				Buffer	*buf;
+
+				switch (*tstr) {
+				case 'L':
+					buf = Buf_Init(MAKE_BSIZE);
+					for (cp = value; *cp; cp++)
+						Buf_AddByte(buf, (Byte)tolower(*cp));
+
+					newStr = (char *)Buf_GetAll(buf, (size_t *)NULL);
+					Buf_Destroy(buf, FALSE);
+
+					cp = tstr + 1;
+					termc = *cp;
+					break;
+				case 'O':
+					newStr = VarSortWords(value, SortIncreasing);
+					cp = tstr + 1;
+					termc = *cp;
+					break;
+				case 'Q':
+					newStr = Var_Quote(value);
+					cp = tstr + 1;
+					termc = *cp;
+					break;
+				case 'T':
+					newStr = VarModify(value, VarTail, (void *)NULL);
+					cp = tstr + 1;
+					termc = *cp;
+					break;
+				case 'U':
+					buf = Buf_Init(MAKE_BSIZE);
+					for (cp = value; *cp; cp++)
+						Buf_AddByte(buf, (Byte)toupper(*cp));
+
+					newStr = (char *)Buf_GetAll(buf, (size_t *)NULL);
+					Buf_Destroy(buf, FALSE);
+
+					cp = tstr + 1;
+					termc = *cp;
+					break;
+				case 'H':
+					newStr = VarModify(value, VarHead, (void *)NULL);
+					cp = tstr + 1;
+					termc = *cp;
+					break;
+				case 'E':
+					newStr = VarModify(value, VarSuffix, (void *)NULL);
+					cp = tstr + 1;
+					termc = *cp;
+					break;
+				case 'R':
+					newStr = VarModify(value, VarRoot, (void *)NULL);
+					cp = tstr + 1;
+					termc = *cp;
+					break;
+				default:
+				    {
 #ifdef SYSVVARSUB
-			/*
-			 * This can either be a bogus modifier or a
-			 * System-V substitution command.
-			 */
-			VarPattern	pattern;
-			Boolean		eqFound;
-			int		cnt;
+					/*
+					 * This can either be a bogus modifier or a
+					 * System-V substitution command.
+					 */
+					VarPattern	pattern;
+					Boolean		eqFound;
+					int		cnt;
 
-			pattern.flags = 0;
-			eqFound = FALSE;
-			/*
-			 * First we make a pass through the string
-			 * trying to verify it is a SYSV-make-style
-			 * translation: it must be:
-			 * <string1>=<string2>)
-			 */
-			cp = tstr;
-			cnt = 1;
-			while (*cp != '\0' && cnt) {
-				if (*cp == '=') {
-					eqFound = TRUE;
-					/* continue looking for endc */
-				} else if (*cp == endc)
-					cnt--;
-				else if (*cp == startc)
-					cnt++;
-				if (cnt)
-					cp++;
-			}
-			if (*cp == endc && eqFound) {
-				int	delim;
+					pattern.flags = 0;
+					eqFound = FALSE;
+					/*
+					 * First we make a pass through the string
+					 * trying to verify it is a SYSV-make-style
+					 * translation: it must be:
+					 * <string1>=<string2>)
+					 */
+					cp = tstr;
+					cnt = 1;
+					while (*cp != '\0' && cnt) {
+						if (*cp == '=') {
+							eqFound = TRUE;
+							/* continue looking for endc */
+						} else if (*cp == endc)
+							cnt--;
+						else if (*cp == startc)
+							cnt++;
+						if (cnt)
+							cp++;
+					}
+					if (*cp == endc && eqFound) {
+						int	delim;
 
-				/*
-				 * Now we break this sucker into the
-				 * lhs and rhs. We must null
-				 * terminate them of course.
-				 */
-				cp = tstr;
+						/*
+						 * Now we break this sucker into the
+						 * lhs and rhs. We must null
+						 * terminate them of course.
+						 */
+						cp = tstr;
 
-				delim = '=';
-				if ((pattern.lhs = VarGetPattern(vp,
-								 &cp, delim, &pattern.flags, &pattern.leftLen,
-						   NULL)) == NULL) {
-					*lengthPtr = cp - input + 1;
-					if (*freePtr)
-						free(value);
-					if (delim != '\0')
-						Fatal("Unclosed substitution for %s (%c missing)",
-						    v->name, delim);
-					return (var_Error);
-				}
-				delim = endc;
+						delim = '=';
+						if ((pattern.lhs = VarGetPattern(vp, &cp, delim, &pattern.flags, &pattern.leftLen, NULL)) == NULL) {
+							*lengthPtr = cp - input + 1;
+							if (*freePtr)
+								free(value);
+							if (delim != '\0')
+								Fatal("Unclosed substitution for %s (%c missing)",
+								    v->name, delim);
+							return (var_Error);
+						}
+						delim = endc;
 
-				pattern.rhs = VarGetPattern(vp, &cp,
-				     delim, NULL, &pattern.rightLen, &pattern);
-				if (pattern.rhs == NULL) {
-					*lengthPtr = cp - input + 1;
-					if (*freePtr)
-						free(value);
-					if (delim != '\0')
-						Fatal("Unclosed substitution for %s (%c missing)",
-						    v->name, delim);
-					return (var_Error);
-				}
-				/*
-				 * SYSV modifications happen through
-				 * the whole string. Note the pattern
-				 * is anchored at the end.
-				 */
-				termc = *--cp;
-				delim = '\0';
-				newStr = VarModify(value, VarSYSVMatch, &pattern);
+						pattern.rhs = VarGetPattern(vp, &cp, delim, NULL, &pattern.rightLen, &pattern);
+						if (pattern.rhs == NULL) {
+							*lengthPtr = cp - input + 1;
+							if (*freePtr)
+								free(value);
+							if (delim != '\0')
+								Fatal("Unclosed substitution for %s (%c missing)",
+								    v->name, delim);
+							return (var_Error);
+						}
+						/*
+						 * SYSV modifications happen through
+						 * the whole string. Note the pattern
+						 * is anchored at the end.
+						 */
+						termc = *--cp;
+						delim = '\0';
+						newStr = VarModify(value, VarSYSVMatch, &pattern);
 
-				free(pattern.lhs);
-				free(pattern.rhs);
+						free(pattern.lhs);
+						free(pattern.rhs);
 
-				termc = endc;
-			} else
+						termc = endc;
+					} else
 #endif
-			{
-				Error("Unknown modifier '%c'\n", *tstr);
-				for (cp = tstr + 1;
-				     *cp != ':' && *cp != endc && *cp != '\0';
-				     cp++)
-					continue;
-				termc = *cp;
-				newStr = var_Error;
+					{
+						Error("Unknown modifier '%c'\n", *tstr);
+						for (cp = tstr + 1;
+						     *cp != ':' && *cp != endc && *cp != '\0';
+						     cp++)
+							continue;
+						termc = *cp;
+						newStr = var_Error;
+					}
+				    }
+				    break;
+				}
+				if (termc == '\0') {
+					Error("Unclosed variable specification for %s",
+					      v->name);
+				}
+				tstr = (termc == ':') ? (cp + 1) : cp;
+			} else {
+				char	termc;
+#ifdef SUNSHCMD
+				if ((tstr[0] == 's') &&
+				    (tstr[1] == 'h') &&
+				    (tstr[2] == endc || tstr[2] == ':')) {
+					const char *error;
+					Buffer *buf;
+
+					buf = Cmd_Exec(value, &error);
+					newStr = Buf_GetAll(buf, NULL);
+					Buf_Destroy(buf, FALSE);
+
+					if (error)
+						Error(error, value);
+					cp = tstr + 2;
+					termc = *cp;
+				} else
+#endif
+				{
+#ifdef SYSVVARSUB
+					/*
+					 * This can either be a bogus modifier or a
+					 * System-V substitution command.
+					 */
+					VarPattern	pattern;
+					Boolean		eqFound;
+					int		cnt;
+
+					pattern.flags = 0;
+					eqFound = FALSE;
+					/*
+					 * First we make a pass through the string
+					 * trying to verify it is a SYSV-make-style
+					 * translation: it must be:
+					 * <string1>=<string2>)
+					 */
+					cp = tstr;
+					cnt = 1;
+					while (*cp != '\0' && cnt) {
+						if (*cp == '=') {
+							eqFound = TRUE;
+							/* continue looking for endc */
+						} else if (*cp == endc)
+							cnt--;
+						else if (*cp == startc)
+							cnt++;
+						if (cnt)
+							cp++;
+					}
+					if (*cp == endc && eqFound) {
+						int	delim;
+
+						/*
+						 * Now we break this sucker into the
+						 * lhs and rhs. We must null
+						 * terminate them of course.
+						 */
+						cp = tstr;
+
+						delim = '=';
+						if ((pattern.lhs = VarGetPattern(vp, &cp, delim, &pattern.flags, &pattern.leftLen, NULL)) == NULL) {
+							*lengthPtr = cp - input + 1;
+							if (*freePtr)
+								free(value);
+							if (delim != '\0')
+								Fatal("Unclosed substitution for %s (%c missing)",
+								    v->name, delim);
+							return (var_Error);
+						}
+						delim = endc;
+
+						pattern.rhs = VarGetPattern(vp, &cp, delim, NULL, &pattern.rightLen, &pattern);
+						if (pattern.rhs == NULL) {
+							*lengthPtr = cp - input + 1;
+							if (*freePtr)
+								free(value);
+							if (delim != '\0')
+								Fatal("Unclosed substitution for %s (%c missing)",
+								    v->name, delim);
+							return (var_Error);
+						}
+						/*
+						 * SYSV modifications happen through
+						 * the whole string. Note the pattern
+						 * is anchored at the end.
+						 */
+						termc = *--cp;
+						delim = '\0';
+						newStr = VarModify(value, VarSYSVMatch, &pattern);
+
+						free(pattern.lhs);
+						free(pattern.rhs);
+
+						termc = endc;
+					} else
+#endif
+					{
+						Error("Unknown modifier '%c'\n", *tstr);
+						for (cp = tstr + 1;
+						     *cp != ':' && *cp != endc && *cp != '\0';
+						     cp++)
+							continue;
+						termc = *cp;
+						newStr = var_Error;
+					}
+				}
+				if (termc == '\0') {
+					Error("Unclosed variable specification for %s",
+					      v->name);
+				}
+				tstr = (termc == ':') ? (cp + 1) : cp;
 			}
-		    }
+			break;
 		}
 
 		DEBUGF(VAR, ("Result is \"%s\"\n", newStr));
@@ -1471,17 +1544,6 @@ ParseModifier(const char input[], const char tstr[],
 			*freePtr = TRUE;
 		} else {
 			*freePtr = FALSE;
-		}
-
-		if (readonly == FALSE) {
-			if (termc == '\0') {
-				Error("Unclosed variable specification for %s",
-				      v->name);
-			} else if (termc == ':') {
-				cp++;
-			} else {
-			}
-			tstr = cp;
 		}
 	}
 
