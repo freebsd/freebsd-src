@@ -418,35 +418,34 @@ npx_attach(dev)
 	if (resource_int_value("npx", 0, "flags", &flags) != 0)
 		flags = 0;
 
-	device_print_prettyname(dev);
 	if (flags)
-		printf("flags 0x%x ", flags);
+		device_printf(dev, "flags 0x%x ", flags);
 	if (npx_irq13) {
-		printf("using IRQ 13 interface\n");
+		device_printf(dev, "using IRQ 13 interface\n");
 	} else {
 #if defined(MATH_EMULATE) || defined(GPL_MATH_EMULATE)
 		if (npx_ex16) {
 			if (!(flags & NPX_PREFER_EMULATOR))
-				printf("INT 16 interface\n");
+				device_printf(dev, "INT 16 interface\n");
 			else {
-				printf("FPU exists, but flags request "
+				device_printf(dev, "FPU exists, but flags request "
 				    "emulator\n");
 				hw_float = npx_exists = 0;
 			}
 		} else if (npx_exists) {
-			printf("error reporting broken; using 387 emulator\n");
+			device_printf(dev, "error reporting broken; using 387 emulator\n");
 			hw_float = npx_exists = 0;
 		} else
-			printf("387 emulator\n");
+			device_printf(dev, "387 emulator\n");
 #else
 		if (npx_ex16) {
-			printf("INT 16 interface\n");
+			device_printf(dev, "INT 16 interface\n");
 			if (flags & NPX_PREFER_EMULATOR) {
-				printf("emulator requested, but none compiled "
+				device_printf(dev, "emulator requested, but none compiled "
 				    "into kernel, using FPU\n");
 			}
 		} else
-			printf("no 387 emulator in kernel and no FPU!\n");
+			device_printf(dev, "no 387 emulator in kernel and no FPU!\n");
 #endif
 	}
 	npxinit(__INITIAL_NPXCW__);
