@@ -1,5 +1,5 @@
 /*
-** Copyright (C) 1991, 1997 Free Software Foundation, Inc.
+** Copyright (C) 1991, 1997-2000 Free Software Foundation, Inc.
 ** 
 ** This file is part of TACK.
 ** 
@@ -21,7 +21,7 @@
 
 #include <tack.h>
 
-MODULE_ID("$Id: charset.c,v 1.2 1999/05/09 18:30:49 tom Exp $")
+MODULE_ID("$Id: charset.c,v 1.4 2000/03/04 20:30:52 tom Exp $")
 
 /*
 	Menu definitions for alternate character set and SGR tests.
@@ -40,7 +40,7 @@ static void charset_smacs(struct test_list *t, int *state, int *ch);
 static void charset_attributes(struct test_list *t, int *state, int *ch);
 static void charset_sgr(struct test_list *t, int *state, int *ch);
 
-const struct test_list acs_test_list[] = {
+struct test_list acs_test_list[] = {
 	{0, 0, 0, 0, "e) edit terminfo", 0, &edit_menu},
 	{MENU_NEXT, 3, "bel", 0, 0, charset_bel, 0},
 	{MENU_NEXT, 3, "flash", 0, 0, charset_flash, 0},
@@ -369,7 +369,7 @@ charset_attributes(
 /*
 **	charset_smacs(test_list, status, ch)
 **
-**	display all posible acs characters
+**	display all possible acs characters
 **	(smacs) (rmacs)
 */
 static void

@@ -28,7 +28,7 @@ dnl***************************************************************************
 dnl
 dnl Author: Thomas E. Dickey <dickey@clark.net> 1996,1997,1998
 dnl
-dnl $Id: configure.in,v 1.27 1999/10/23 20:01:42 tom Exp $
+dnl $Id: configure.in,v 1.29 1999/12/19 03:12:13 tom Exp $
 dnl This is a simple configuration-script for the ncurses test programs that
 dnl allows the test-directory to be separately configured against a reference
 dnl system (i.e., sysvr4 curses)
@@ -129,13 +129,31 @@ unistd.h \
 )
 
 AC_CHECK_FUNCS( \
-curses_version \
 gettimeofday \
 napms \
 resizeterm \
 strdup \
+use_default_colors \
 vsscanf \
+wresize \
 )
+
+dnl Solaris has a data item 'curses_version', which confuses AC_CHECK_FUNCS.
+dnl It's a character string "SVR4", not documented.
+AC_CACHE_CHECK(for function curses_version, cf_cv_func_curses_version,[
+AC_TRY_RUN([
+#include <curses.h>
+int main()
+{
+	char temp[1024];
+	sprintf(temp, "%s\n", curses_version());
+	exit(0);
+}]
+,[cf_cv_func_curses_version=yes]
+,[cf_cv_func_curses_version=no]
+,[cf_cv_func_curses_version=unknown])
+rm -f core])
+test "$cf_cv_func_curses_version" = yes && AC_DEFINE(HAVE_CURSES_VERSION)
 
 dnl ---------------------------------------------------------------------------
 dnl [CF_SYS_TIME_SELECT]

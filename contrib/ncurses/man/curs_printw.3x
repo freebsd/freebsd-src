@@ -1,5 +1,5 @@
 .\"***************************************************************************
-.\" Copyright (c) 1998 Free Software Foundation, Inc.                        *
+.\" Copyright (c) 1998,2000 Free Software Foundation, Inc.                   *
 .\"                                                                          *
 .\" Permission is hereby granted, free of charge, to any person obtaining a  *
 .\" copy of this software and associated documentation files (the            *
@@ -26,12 +26,14 @@
 .\" authorization.                                                           *
 .\"***************************************************************************
 .\"
-.\" $Id: curs_printw.3x,v 1.8 1998/12/26 20:09:36 tom Exp $
+.\" $Id: curs_printw.3x,v 1.11 2000/07/01 20:11:32 tom Exp $
 .TH curs_printw 3X ""
 .SH NAME
-\fBprintw\fR, \fBwprintw\fR, \fBmvprintw\fR,
-\fBmvwprintw\fR, \fBvwprintw\fR - print formatted output in
-\fBcurses\fR windows
+\fBprintw\fR,
+\fBwprintw\fR,
+\fBmvprintw\fR,
+\fBmvwprintw\fR,
+\fBvwprintw\fR, \fBvw_printw\fR - print formatted output in \fBcurses\fR windows
 .SH SYNOPSIS
 \fB#include <curses.h>\fR
 
@@ -47,6 +49,8 @@
 \fB#include <varargs.h>\fR
 .br
 \fBint vwprintw(WINDOW *win, char *fmt, varglist);\fR
+.br
+\fBint vw_printw(WINDOW *win, char *fmt, varglist);\fR
 .br
 .SH DESCRIPTION
 The \fBprintw\fR, \fBwprintw\fR, \fBmvprintw\fR and \fBmvwprintw\fR

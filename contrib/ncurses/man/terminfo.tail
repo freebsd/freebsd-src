@@ -1,4 +1,4 @@
-.\" $Id: terminfo.tail,v 1.29 1999/03/07 02:09:07 tom Exp $
+.\" $Id: terminfo.tail,v 1.32 2000/04/15 20:04:58 tom Exp $
 .\" Beginning of terminfo.tail file
 .ps +1
 .PP
@@ -310,7 +310,8 @@ The \fB%\fR encodings have the following meanings:
 	\s-1%%	outputs `%'
 	%\fI[[\fP:\fI]flags][width[.precision]][\fPdoxXs\fI]\fP
 		as in \fBprintf\fP, flags are [-+#] and space
-	%c	print pop() gives %c
+	%c	print pop() like %c in printf()
+	%s	print pop() like %s in printf()
 
 	%p[1-9]	push \fIi\fP'th parm
 	%P[a-z]	set dynamic variable [a-z] to pop()
@@ -327,7 +328,7 @@ The \fB%\fR encodings have the following meanings:
 	%= %> %<	logical operations: push(pop() op pop())
 	%A, %O	logical and & or operations (for conditionals)
 	%! %~	unary operations push(op pop())
-	%i	add 1 to first two parms (for ANSI terminals)
+	%i	add 1 to first two parameters (for ANSI terminals)
 
 	%? expr %t thenpart %e elsepart %;
 		if-then-else, %e elsepart is optional.
@@ -1326,16 +1327,20 @@ capabilities of the form \fBx\fR\fIx\fR.
 .PP
 .SS Similar Terminals
 .PP
-If there are two very similar terminals,
-one can be defined as being just like the other with certain exceptions.
-The string capability \fBuse\fR can be given
-with the name of the similar terminal.
-The capabilities given before
+If there are two very similar terminals, one (the variant) can be defined as
+being just like the other (the base) with certain exceptions.  In the
+definition of the variant, the string capability \fBuse\fR can be given with
+the name of the base terminal.  The capabilities given before
 .B use
-override those in the terminal type invoked by
+override those in the base type named by
 .BR use .
+If there are multiple \fBuse\fR capabilities, they are merged in reverse order.
+That is, the rightmost \fBuse\fR reference is processed first, then the one to
+its left, and so forth.  Capabilities given explicitly in the entry override
+those brought in by \fBuse\fR references.
+.PP
 A capability can be canceled by placing \fBxx@\fR to the left of the
-capability definition, where xx is the capability.
+use reference that imports it, where \fIxx\fP is the capability.
 For example, the entry
 .PP
 	2621-nl, smkx@, rmkx@, use=2621,
@@ -1425,10 +1430,6 @@ of terminfo (under HP-UX and AIX) which diverged from System V terminfo after
 SVr1, and have added extension capabilities to the string table that (in the
 binary format) collide with System V and XSI Curses extensions.
 .SH EXTENSIONS
-The %x operator in parameterized strings is unique to the ncurses implementation
-of \fBtparm\fR (it is required in order to support an unfortunate choice of
-\fBinitc\fR format on the Linux console).
-.PP
 Some SVr4 \fBcurses\fR implementations, and all previous to SVr4, don't
 interpret the %A and %O operators in parameter strings.
 .PP

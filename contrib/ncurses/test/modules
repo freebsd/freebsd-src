@@ -1,7 +1,7 @@
 # Test-Program modules
-# $Id: modules,v 1.11 1999/10/23 00:41:02 tom Exp $
+# $Id: modules,v 1.13 2000/02/13 01:05:13 tom Exp $
 ##############################################################################
-# Copyright (c) 1999 Free Software Foundation, Inc.                          #
+# Copyright (c) 1998,1999,2000 Free Software Foundation, Inc.                #
 #                                                                            #
 # Permission is hereby granted, free of charge, to any person obtaining a    #
 # copy of this software and associated documentation files (the "Software"), #
@@ -49,6 +49,7 @@ lrtest		progs		$(srcdir)
 ncurses		progs		$(srcdir)	../include/panel.h ../include/menu.h ../include/form.h
 newdemo		progs		$(srcdir)
 rain		progs		$(srcdir)	../include/term.h
+railroad	progs		$(srcdir)	../include/termcap.h
 tclock		progs		$(srcdir)
 testaddch	progs		$(srcdir)
 testcurs	progs		$(srcdir)

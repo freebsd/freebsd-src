@@ -1,5 +1,14 @@
--- $Id: README,v 1.1 1999/04/18 01:41:31 tom Exp $
+-- $Id: README,v 1.2 2000/03/12 02:39:12 Daniel.Weaver Exp $
 
-The 'tack' program is distributed with ncurses, but is not an integral
-part of ncurses (the two are licensed differently, and the tack directory
-may be removed without causing ncurses to configure or build properly).
+The 'tack' program is a diagnostic that is designed to create and
+verify the correctness of terminfo's.  This program can be used to
+create new terminal descriptions that are not included in the standard
+release.  Although 'tack' is distributed with ncurses, it is not an
+integral part of ncurses.  It may be removed from the release without
+limiting the usefulness of ncurses on those terminals described in the
+terminfo data base.  The best way to remove 'tack' from the build is
+to delete or rename the 'tack' directory before running the configure
+script.
+
+Unlike most of ncurses the 'tack' program is covered under the GNU
+Public License.
