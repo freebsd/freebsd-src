@@ -269,7 +269,7 @@ __hashpw(key)
 	 * at some point since __hashpw() can be called several times in
 	 * a single program. If we leave here after the second invokation
 	 * with garbage data in pw_fields, it can totally screw up NIS
-	 * lookups (the pw_breakout functions only populate the pw_passwd
+	 * lookups (the pw_breakout_yp function only populates the pw_passwd
 	 * structure if the pw_fields bits are clear).
 	 */
 	if ((_pw_db->get)(_pw_db, key, &data, 0)) {
@@ -307,7 +307,7 @@ __hashpw(key)
 
 #ifdef YP
 static void
-_pw_breakout_yp(struct passwd *pw, char *result)
+_pw_breakout_yp(struct passwd *pw, char *result, int master)
 {
 	char *s;
 
@@ -335,70 +335,24 @@ _pw_breakout_yp(struct passwd *pw, char *result)
 		pw->pw_fields |= _PWF_GID;
 	}
 
-	s = strsep(&result, ":"); /* gecos */
-	if(!(pw->pw_fields & _PWF_GECOS)) {
-		pw->pw_gecos = s;
-		pw->pw_fields |= _PWF_GECOS;
-	}
+	if (master) {
+		s = strsep(&result, ":"); /* class */
+		if(!(pw->pw_fields & _PWF_CLASS))  {
+			pw->pw_class = s;
+			pw->pw_fields |= _PWF_CLASS;
+		}
 
-	s = strsep(&result, ":"); /* dir */
-	if(!(pw->pw_fields & _PWF_DIR)) {
-		pw->pw_dir = s;
-		pw->pw_fields |= _PWF_DIR;
-	}
+		s = strsep(&result, ":"); /* change */
+		if(!(pw->pw_fields & _PWF_CHANGE))  {
+			pw->pw_change = atol(s);
+			pw->pw_fields |= _PWF_CHANGE;
+		}
 
-	s = strsep(&result, ":"); /* shell */
-	if(!(pw->pw_fields & _PWF_SHELL)) {
-		pw->pw_shell = s;
-		pw->pw_fields |= _PWF_SHELL;
-	}
-}
-
-static void
-_masterpw_breakout_yp(struct passwd *pw, char *result)
-{
-	char *s;
-
-	s = strsep(&result, ":"); /* name */
-	if(!(pw->pw_fields & _PWF_NAME) || (pw->pw_name[0] == '+')) {
-		pw->pw_name = s;
-		pw->pw_fields |= _PWF_NAME;
-	}
-
-	s = strsep(&result, ":"); /* password */
-	if(!(pw->pw_fields & _PWF_PASSWD)) {
-		pw->pw_passwd = s;
-		pw->pw_fields |= _PWF_PASSWD;
-	}
-
-	s = strsep(&result, ":"); /* uid */
-	if(!(pw->pw_fields & _PWF_UID)) {
-		pw->pw_uid = atoi(s);
-		pw->pw_fields |= _PWF_UID;
-	}
-
-	s = strsep(&result, ":"); /* gid */
-	if(!(pw->pw_fields & _PWF_GID))  {
-		pw->pw_gid = atoi(s);
-		pw->pw_fields |= _PWF_GID;
-	}
-
-	s = strsep(&result, ":"); /* class */
-	if(!(pw->pw_fields & _PWF_CLASS))  {
-		pw->pw_class = s;
-		pw->pw_fields |= _PWF_CLASS;
-	}
-
-	s = strsep(&result, ":"); /* change */
-	if(!(pw->pw_fields & _PWF_CHANGE))  {
-		pw->pw_change = atol(s);
-		pw->pw_fields |= _PWF_CHANGE;
-	}
-
-	s = strsep(&result, ":"); /* expire */
-	if(!(pw->pw_fields & _PWF_EXPIRE))  {
-		pw->pw_expire = atol(s);
-		pw->pw_fields |= _PWF_EXPIRE;
+		s = strsep(&result, ":"); /* expire */
+		if(!(pw->pw_fields & _PWF_EXPIRE))  {
+			pw->pw_expire = atol(s);
+			pw->pw_fields |= _PWF_EXPIRE;
+		}
 	}
 
 	s = strsep(&result, ":"); /* gecos */
@@ -470,10 +424,7 @@ _getyppass(struct passwd *pw, const char *name, const char *map)
 	if(resultlen >= sizeof resultbuf) return 0;
 	strcpy(resultbuf, result);
 	result = resultbuf;
-	if (gotmaster)
-		_masterpw_breakout_yp(pw, resultbuf);
-	else
-		_pw_breakout_yp(pw, resultbuf);
+	_pw_breakout_yp(pw, resultbuf, gotmaster);
 
 	return 1;
 }
@@ -531,10 +482,7 @@ unpack:
 		strcpy(resultbuf, result);
 		free(result);
 		if(result = strchr(resultbuf, '\n')) *result = '\0';
-		if (gotmaster)
-			_masterpw_breakout_yp(pw, resultbuf);
-		else
-			_pw_breakout_yp(pw, resultbuf);
+		_pw_breakout_yp(pw, resultbuf, gotmaster);
 	}
 	return 1;
 }
