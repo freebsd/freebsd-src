@@ -7,15 +7,7 @@
 #include <sys/types.h>
 #include <sys/param.h>
 #include <sys/systm.h>
-#if defined( __FreeBSD__ )
 #include <sys/proc.h>
-#endif __FreeBSD__
-#ifdef ibm032
-#include <sys/dir.h>
-#endif ibm032
-#ifndef	__FreeBSD__
-#include <sys/user.h>
-#endif
 #include <sys/mbuf.h>
 #include <sys/ioctl.h>
 #include <sys/socket.h>
@@ -25,9 +17,6 @@
 #include <net/route.h>
 #include <netinet/in.h>
 #include <netinet/if_ether.h>
-#ifdef _IBMR2
-#include <net/spl.h>
-#endif _IBMR2
 
 #include "at.h"
 #include "at_var.h"
@@ -53,9 +42,7 @@ int
 ddp_usrreq( struct socket *so, int req, struct mbuf *m,
 		struct mbuf  *addr, struct mbuf *rights)
 {
-#if defined( __FreeBSD__ )
     struct proc *p = curproc;           /* XXX */
-#endif __FreeBSD__
     struct ddpcb	*ddp;
     int			error = 0;
 
@@ -63,11 +50,7 @@ ddp_usrreq( struct socket *so, int req, struct mbuf *m,
 
     if ( req == PRU_CONTROL ) {
 	return( at_control( (int) m, (caddr_t) addr,
-		(struct ifnet *) rights
-#if defined( __FreeBSD__ )
-			    , (struct proc *)p
-#endif __FreeBSD__
-	    ));
+		(struct ifnet *) rights, (struct proc *)p ));
     }
 
     if ( rights && rights->m_len ) {
@@ -97,11 +80,7 @@ ddp_usrreq( struct socket *so, int req, struct mbuf *m,
 	break;
 
     case PRU_BIND :
-	error = at_pcbsetaddr( ddp, addr
-#if defined( __FreeBSD__ )
-			       , p 
-#endif __FreeBSD__
-	    );
+	error = at_pcbsetaddr( ddp, addr, p );
 	break;
     
     case PRU_SOCKADDR :
@@ -114,11 +93,7 @@ ddp_usrreq( struct socket *so, int req, struct mbuf *m,
 	    break;
 	}
 
-	error = at_pcbconnect( ddp, addr
-#if defined( __FreeBSD__ )
-	    , p
-#endif __FreeBSD__
-	    );
+	error = at_pcbconnect( ddp, addr, p );
 	if ( error == 0 )
 	    soisconnected( so );
 	break;
@@ -146,11 +121,7 @@ ddp_usrreq( struct socket *so, int req, struct mbuf *m,
 	    }
 
 	    s = splnet();
-	    error = at_pcbconnect( ddp, addr
-#if defined( __FreeBSD__ )
-		, p
-#endif __FreeBSD__
-		);
+	    error = at_pcbconnect( ddp, addr, p );
 	    if ( error ) {
 		splx( s );
 		break;
@@ -260,29 +231,16 @@ at_pcbsetaddr( struct ddpcb *ddp, struct mbuf *addr, struct proc *p )
 		    sat->sat_port >= ATPORT_LAST ) {
 		return( EINVAL );
 	    }
-#ifdef BSD4_4
 	    if ( sat->sat_port < ATPORT_RESERVED &&
-#if defined( __FreeBSD__ )
-		 suser( p->p_ucred, &p->p_acflag )
-#else
-		    suser( u.u_cred, &u.u_acflag )
-#endif __FreeBSD__
-		) {
+		 suser( p->p_ucred, &p->p_acflag ) ) {
 		return( EACCES );
 	    }
-#else BSD4_4
-	    if ( sat->sat_port < ATPORT_RESERVED && ( !suser())) {
-		return( EACCES );
-	    }
-#endif BSD4_4
 	}
     } else {
 	bzero( (caddr_t)&lsat, sizeof( struct sockaddr_at ));
-#ifdef BSD4_4
 	lsat.sat_len = sizeof(struct sockaddr_at);
 	lsat.sat_addr.s_node = ATADDR_ANYNODE;
 	lsat.sat_addr.s_net = ATADDR_ANYNET;
-#endif BSD4_4
 	lsat.sat_family = AF_APPLETALK;
 	sat = &lsat;
     }
@@ -386,11 +344,7 @@ at_pcbconnect( struct ddpcb *ddp, struct mbuf *addr, struct proc *p)
 		( hintnet ? hintnet : sat->sat_addr.s_net ) ||
 		satosat( &ro->ro_dst )->sat_addr.s_node !=
 		sat->sat_addr.s_node )) {
-#ifdef ultrix
-	    rtfree( ro->ro_rt );
-#else ultrix
 	    RTFREE( ro->ro_rt );
-#endif ultrix
 	    ro->ro_rt = (struct rtentry *)0;
 	}
     }
@@ -400,9 +354,7 @@ at_pcbconnect( struct ddpcb *ddp, struct mbuf *addr, struct proc *p)
      */
     if ( ro->ro_rt == (struct rtentry *)0 ||
 	 ro->ro_rt->rt_ifp == (struct ifnet *)0 ) {
-#ifdef BSD4_4
 	ro->ro_dst.sa_len = sizeof( struct sockaddr_at );
-#endif BSD4_4
 	ro->ro_dst.sa_family = AF_APPLETALK;
 	if ( hintnet ) {
 	    satosat( &ro->ro_dst )->sat_addr.s_net = hintnet;
@@ -430,11 +382,7 @@ at_pcbconnect( struct ddpcb *ddp, struct mbuf *addr, struct proc *p)
 
     ddp->ddp_fsat = *sat;
     if ( ddp->ddp_lsat.sat_port == ATADDR_ANYPORT ) {
-	return( at_pcbsetaddr( ddp, (struct mbuf *)0
-#if defined( __FreeBSD__ )
-			       , p
-#endif __FreeBSD__
-	    ));
+	return( at_pcbsetaddr( ddp, (struct mbuf *)0, p ));
     }
     return( 0 );
 }
@@ -566,6 +514,7 @@ ddp_init(void )
     atintrq2.ifq_maxlen = IFQ_MAXLEN;
 }
 
+#if 0
 static void 
 ddp_clean(void )
 {
@@ -575,3 +524,4 @@ ddp_clean(void )
 	at_pcbdetach( ddp->ddp_socket, ddp );
     }
 }
+#endif
