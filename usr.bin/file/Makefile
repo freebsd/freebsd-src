@@ -24,31 +24,48 @@
 #
 # Hacked and dismembered for bmake (Geoff Rehmet).
 
-MAGICDIR=	/usr/share/misc
+MAGICFILE=	/usr/share/misc/magic
 MAGICMODE=	444
 
-CFLAGS+=	-DMAGIC='"$(MAGICDIR)/magic"' -DBUILTIN_ELF
+SRCDIR=		${.CURDIR}/../../contrib/file
+.PATH:		${SRCDIR}
+
+CFLAGS+=	-DMAGIC='"$(MAGICFILE)"' -DBUILTIN_ELF -DELFCORE -DHAVE_CONFIG_H
+CFLAGS+=	-I${.CURDIR}
 
 PROG=		file
 SRCS=		file.c apprentice.c fsmagic.c softmagic.c ascmagic.c \
-		compress.c is_tar.c  readelf.c internat.c print.c
+		compress.c is_tar.c  readelf.c print.c
+#		compress.c is_tar.c  readelf.c internat.c print.c
 
 MAN1=		file.1
 MAN5=		magic.5
 
-CLEANFILES+=	magic
+CLEANFILES+=	magic file.1 magic.5 version
 
-MAGFILES=	$(.CURDIR)/Magdir/Header\
-		$(.CURDIR)/Magdir/Localstuff\
-		$(.CURDIR)/Magdir/[a-z]*
+MAGFILES=	${SRCDIR}/Header\
+		${SRCDIR}/Localstuff\
+		${SRCDIR}/Magdir/[a-z]*
 
 all:	file magic
 
 magic:	$(MAGFILES)
 	cat $(MAGFILES) > $(.TARGET)
 
+version: Makefile.std
+	@sed '/.*VERSION.*=[ 	]*/s///w ${.TARGET}' ${.ALLSRC} > /dev/null
+
+.for MP in file.1 magic.5
+${MP}: ${SRCDIR}/${MP:C/[0-9]$/man/} version
+	sed -e 's|__CSECTION__|1|g'\
+	    -e 's|__FSECTION__|5|g'\
+	    -e 's|__MAGIC__|${MAGICFILE}|g'\
+	    -e "s|__VERSION__|`cat version`|g"\
+	    ${SRCDIR}/${MP:C/[0-9]$/man/} > ${.TARGET}
+.endfor
+
 beforeinstall:
 	$(INSTALL) $(COPY) -o $(BINOWN) -g $(BINGRP) -m $(MAGICMODE) \
-	    magic $(DESTDIR)$(MAGICDIR)/magic
+	    magic $(DESTDIR)$(MAGICFILE)
 
 .include <bsd.prog.mk>
