@@ -49,7 +49,7 @@
  |	proprietary information which is protected by
  |	copyright.  All rights are reserved.
  |
- |	$Header: /home/ncvs/src/usr.bin/ee/ee.c,v 1.3 1995/08/30 17:42:28 ache Exp $
+ |	$Header: /home/ncvs/src/usr.bin/ee/ee.c,v 1.4 1995/10/22 14:10:08 jkh Exp $
  |
  */
 
@@ -62,7 +62,7 @@ char *ee_long_notice[] = {
 	"copyright.  All rights are reserved."
 	};
 
-char *version = "@(#) ee, version 1.2.4  $Revision: 1.3 $";
+char *version = "@(#) ee, version 1.2.4  $Revision: 1.4 $";
 
 #ifdef NCURSE
 #include "new_curse.h"
@@ -890,13 +890,13 @@ int column;
 		}
 		else
 		{
-			waddch(window, character & 0xFF);
+			waddch(window, (unsigned char)character );
 			return(1);
 		}
 	}
 	else
 	{
-		waddch(window, character);
+		waddch(window, (unsigned char)character);
 		return(1);
 	}
 	for (i2 = 0; (string[i2] != (char) NULL) && (((column+i2+1)-horiz_offset) < last_col); i2++)
@@ -1768,14 +1768,13 @@ int advance;		/* if true, skip leading spaces and tabs	*/
 	clear_com_win = TRUE;
 	g_horz = g_position = scan(prompt, strlen(prompt), 0);
 	g_pos = 0;
-	keypad(com_win, FALSE);
 	do
 	{
 		esc_flag = FALSE;
 		in = wgetch(com_win);
 		if (in == -1)
 			exit(0);
-		if (((in == 8) || (in == 127)) && (g_pos > 0))
+		if (((in == 8) || (in == 127) || (in == KEY_BACKSPACE)) && (g_pos > 0))
 		{
 			tmp_int = g_horz;
 			g_pos--;
@@ -1792,7 +1791,7 @@ int advance;		/* if true, skip leading spaces and tabs	*/
 			}
 			nam_str--;
 		}
-		else if ((in != 8) && (in != 127) && (in != '\n') && (in != '\r'))
+		else if ((in != 8) && (in != 127) && (in != '\n') && (in != '\r') && (in < 256))
 		{
 			if (in == '\026')	/* control-v, accept next character verbatim	*/
 			{			/* allows entry of ^m, ^j, and ^h	*/
@@ -1817,7 +1816,6 @@ int advance;		/* if true, skip leading spaces and tabs	*/
 		if (esc_flag)
 			in = (char) NULL;
 	} while ((in != '\n') && (in != '\r'));
-	keypad(com_win, TRUE);
 	*nam_str = (char) NULL;
 	nam_str = tmp_string;
 	if (((*nam_str == ' ') || (*nam_str == 9)) && (advance))
