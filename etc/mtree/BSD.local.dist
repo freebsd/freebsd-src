@@ -15,6 +15,26 @@
     ..
     lib
         perl5
+            5.00503
+                man
+                    man3
+                    ..
+                ..
+            ..
+            site_perl
+                5.005
+                    alpha-freebsd
+                        auto
+                        ..
+                    ..
+                    auto
+                    ..
+                    i386-freebsd
+                        auto
+                        ..
+                    ..
+                ..
+            ..
         ..
     ..
     libexec
@@ -164,9 +184,13 @@
     sbin
     ..
     share
+        aclocal
+        ..
         dict
         ..
         doc
+            ja
+            ..
         ..
         emacs
             site-lisp
