@@ -370,8 +370,10 @@ cache_lookup(dvp, vpp, cnp)
 
 	numneghits++;
 	/*
-	 * We found a "negative" match, ENOENT notifies client of this match.
-	 * The nc_vpid field records whether this is a whiteout.
+	 * We found a "negative" match, so we shift it to the end of
+	 * the "negative" cache entries queue to satisfy LRU.  Also,
+	 * check to see if the entry is a whiteout; indicate this to
+	 * the componentname, if so.
 	 */
 	TAILQ_REMOVE(&ncneg, ncp, nc_dst);
 	TAILQ_INSERT_TAIL(&ncneg, ncp, nc_dst);
@@ -427,10 +429,9 @@ cache_enter(dvp, vp, cnp)
 	}
 
 	/*
-	 * Fill in cache info, if vp is NULL this is a "negative" cache entry.
-	 * For negative entries, we have to record whether it is a whiteout.
-	 * the whiteout flag is stored in the nc_vpid field which is
-	 * otherwise unused.
+	 * Set the rest of the namecache entry elements, calculate it's
+	 * hash key and insert it into the appropriate chain within
+	 * the cache entries table.
 	 */
 	ncp->nc_vp = vp;
 	ncp->nc_dvp = dvp;
@@ -445,6 +446,11 @@ cache_enter(dvp, vp, cnp)
 		numcachehv++;
 	}
 	LIST_INSERT_HEAD(&dvp->v_cache_src, ncp, nc_src);
+	/*
+	 * If the entry is "negative", we place it into the
+	 * "negative" cache queue, otherwise, we place it into the
+	 * destination vnode's cache entries queue.
+	 */
 	if (vp) {
 		TAILQ_INSERT_HEAD(&vp->v_cache_dst, ncp, nc_dst);
 	} else {
