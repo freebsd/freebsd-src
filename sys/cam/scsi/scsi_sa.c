@@ -158,6 +158,14 @@ typedef enum {
 	SA_QUIRK_1FM		= 0x10	/* No more than 1 File Mark at EOD */
 } sa_quirks;
 
+/* units are bits 4-7, 16-21 (1024 units) */
+#define SAUNIT(DEV) \
+	(((minor(DEV) & 0xF0) >> 4) |  ((minor(DEV) & 0x3f0000) >> 16))
+
+#define SAMODE(z) ((minor(z) & 0x3))
+#define SADENSITY(z) (((minor(z) >> 2) & 0x3))
+#define	SA_IS_CTRL(z) (minor(z) & (1 << 29))
+
 #define SA_NOT_CTLDEV	0
 #define SA_CTLDEV	1
 
@@ -166,8 +174,8 @@ typedef enum {
 #define SA_ATYPE_ER	2
 
 #define SAMINOR(ctl, unit, mode, access) \
-	((ctl << 29) | ((unit & 0x3f0) << 16) | (unit & 0xf) | \
-	(mode << 2) | access)
+	((ctl << 29) | ((unit & 0x3f0) << 16) | ((unit & 0xf) << 4) | \
+	(mode << 0x2) | (access & 0x3))
 
 #define SA_NUM_MODES	4
 struct sa_devs {
@@ -369,14 +377,6 @@ static struct periph_driver sadriver =
 };
 
 DATA_SET(periphdriver_set, sadriver);
-
-/* units are bits 4-7, 16-21 (1024 units) */
-#define SAUNIT(DEV) \
-	(((minor(DEV) & 0xF0) >> 4) |  ((minor(DEV) & 0x3f0000) >> 16))
-
-#define SAMODE(z) ((minor(z) & 0x3))
-#define SADENSITY(z) (((minor(z) >> 2) & 0x3))
-#define	SA_IS_CTRL(z) (minor(z) & (1 << 29))
 
 /* For 2.2-stable support */
 #ifndef D_TAPE
@@ -1350,8 +1350,7 @@ saregister(struct cam_periph *periph, void *arg)
 		return(CAM_REQ_CMP_ERR);
 	}
 
-	softc = (struct sa_softc *)malloc(sizeof(*softc),M_DEVBUF,M_NOWAIT);
-
+	softc = (struct sa_softc *)malloc(sizeof (*softc), M_DEVBUF, M_NOWAIT);
 	if (softc == NULL) {
 		printf("saregister: Unable to probe new device. "
 		       "Unable to allocate softc\n");				
@@ -1414,16 +1413,19 @@ saregister(struct cam_periph *periph, void *arg)
 	    0660, "er%s%d", periph->periph_name, periph->unit_number);
 
 	for (i = 0; i < SA_NUM_MODES; i++) {
+
 		softc->devs.mode_devs[i].r_dev = make_dev(&sa_cdevsw,
 		    SAMINOR(SA_NOT_CTLDEV, periph->unit_number, i, SA_ATYPE_R),
 		    UID_ROOT, GID_OPERATOR, 0660, "r%s%d.%d",
 		    periph->periph_name, periph->unit_number, i);
+
 		softc->devs.mode_devs[i].nr_dev = make_dev(&sa_cdevsw,
 		    SAMINOR(SA_NOT_CTLDEV, periph->unit_number, i, SA_ATYPE_NR),
 		    UID_ROOT, GID_OPERATOR, 0660, "nr%s%d.%d",
 		    periph->periph_name, periph->unit_number, i);
 
-		softc->devs.mode_devs[i].nr_dev = make_dev(&sa_cdevsw,
+
+		softc->devs.mode_devs[i].er_dev = make_dev(&sa_cdevsw,
 		    SAMINOR(SA_NOT_CTLDEV, periph->unit_number, i, SA_ATYPE_ER),
 		    UID_ROOT, GID_OPERATOR, 0660, "er%s%d.%d",
 		    periph->periph_name, periph->unit_number, i);
