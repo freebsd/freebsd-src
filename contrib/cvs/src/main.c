@@ -40,6 +40,7 @@ int really_quiet = FALSE;
 int quiet = FALSE;
 int trace = FALSE;
 int noexec = FALSE;
+int readonlyfs = FALSE;
 int logoff = FALSE;
 mode_t cvsumask = UMASK_DFLT;
 
@@ -399,6 +400,10 @@ main (argc, argv)
     }
     if (getenv (CVSREAD_ENV) != NULL)
 	cvswrite = FALSE;
+    if (getenv (CVSREADONLYFS_ENV) != NULL) {
+	readonlyfs = TRUE;
+	logoff = TRUE;
+    }
 
     /* I'm not sure whether this needs to be 1 instead of 0 anymore.  Using
        1 used to accomplish what passing "+" as the first character to
@@ -729,7 +734,7 @@ main (argc, argv)
 		}
 		(void) strcat (path, "/");
 		(void) strcat (path, CVSROOTADM_HISTORY);
-		if (isfile (path) && !isaccessible (path, R_OK | W_OK))
+		if (readonlyfs == 0 && isfile (path) && !isaccessible (path, R_OK | W_OK))
 		{
 		    save_errno = errno;
 		    error (0, 0, "Sorry, you don't have read/write access to the history file");
