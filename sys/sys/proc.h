@@ -532,10 +532,6 @@ struct proc {
 	struct plimit	*p_limit;	/* (c*) Process limits. */
 	struct vm_object *p_upages_obj; /* (a) Upages object. */
 	struct sigacts	*p_sigacts;	/* (x) Signal actions, state (CPU). */
-
-	/*struct ksegrp	p_ksegrp;
-	struct kse	p_kse; */
-
 	/*
 	 * The following don't make too much sense..
 	 * See the td_ or ke_ versions of the same flags
