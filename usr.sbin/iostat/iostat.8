@@ -25,7 +25,7 @@
 .\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 .\" SUCH DAMAGE.
 .\"
-.\"	$Id: iostat.8,v 1.5 1998/09/15 08:16:45 gibbs Exp $
+.\"	$Id: iostat.8,v 1.6 1998/09/16 18:03:44 dillon Exp $
 .\"
 .\" Copyright (c) 1985, 1991, 1993
 .\"	The Regents of the University of California.  All rights reserved.
@@ -109,12 +109,12 @@ Put iostat in
 .Sq top
 mode.  In this mode, iostat will show devices in order from highest to 
 lowest bytes per measurement cycle.
-.It Fl K
-In the blocks transfered display (-o), display block count in kilobytes rather
-then the device native block size.
 .It Fl I
 Display total statstics for a given time period, rather than average
 statistics for each second during that time period.
+.It Fl K
+In the blocks transfered display (-o), display block count in kilobytes rather
+then the device native block size.
 .It Fl M
 Extract values associated with the name list from the specified core
 instead of the default

@@ -25,7 +25,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: iostat.c,v 1.9 1998/09/15 08:16:45 gibbs Exp $
+ *	$Id: iostat.c,v 1.10 1998/09/16 18:03:44 dillon Exp $
  */
 /*
  * Parts of this program are derived from the original FreeBSD iostat
@@ -184,7 +184,7 @@ main(int argc, char **argv)
 	matches = NULL;
 	maxshowdevs = 3;
 
-	while ((c = getopt(argc, argv, "c:CdhKIM:n:N:ot:Tw:?")) != -1) {
+	while ((c = getopt(argc, argv, "c:CdhIKM:n:N:ot:Tw:?")) != -1) {
 		switch(c) {
 			case 'c':
 				cflag++;
@@ -201,11 +201,11 @@ main(int argc, char **argv)
 			case 'h':
 				hflag++;
 				break;
-			case 'K':
-				Kflag++;
-				break;
 			case 'I':
 				Iflag++;
+				break;
+			case 'K':
+				Kflag++;
 				break;
 			case 'M':
 				memf = optarg;
@@ -621,7 +621,8 @@ devstats(int perf_select)
 
 		if (Kflag) {
 			int block_size = cur.dinfo->devices[di].block_size;
-			total_blocks = total_blocks * (block_size ? block_size : 512) / 1024;
+			total_blocks = total_blocks * (block_size ?
+						       block_size : 512) / 1024;
 		}
 
 		if (oflag > 0) {
