@@ -1,4 +1,4 @@
-<!-- $Id: kerberos.sgml,v 1.2 1995/05/11 22:31:28 jfieber Exp $ -->
+<!-- $Id: kerberos.sgml,v 1.3 1995/06/30 17:37:40 jfieber Exp $ -->
 <!-- The FreeBSD Documentation Project -->
 
 <sect><heading>Kerberos<label id="kerberos"></heading>
@@ -293,7 +293,7 @@ Master key entered.  BEWARE!
 
 Current Kerberos master key version is 1
 Local realm: GRONDAR.ZA
-grunt# kadmin -n &
+grunt# kadmind -n &
 grunt# KADM Server KADM0.0A initializing
 Please do not use 'kill -9' to kill this job, use a
 regular kill instead
