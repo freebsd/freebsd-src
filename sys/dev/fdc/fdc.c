@@ -2622,10 +2622,14 @@ fdioctl(dev_t dev, u_long cmd, caddr_t addr, int flag, struct thread *td)
 	switch (cmd) {
 
 	case DIOCGMEDIASIZE:
+		if (fd->ft == 0)
+			return ((fd->flags & FD_NONBLOCK) ? EAGAIN : ENXIO);
 		*(off_t *)addr = (128 << (fd->ft->secsize)) * fd->ft->size;
 		return (0);
 
 	case DIOCGSECTORSIZE:
+		if (fd->ft == 0)
+			return ((fd->flags & FD_NONBLOCK) ? EAGAIN : ENXIO);
 		*(u_int *)addr = 128 << (fd->ft->secsize);
 		return (0);
 
