@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)ufs_disksubr.c	8.5 (Berkeley) 1/21/94
- * $Id: ufs_disksubr.c,v 1.36 1998/09/15 08:55:03 gibbs Exp $
+ * $Id: ufs_disksubr.c,v 1.37 1998/10/16 10:14:21 jkh Exp $
  */
 
 #include <sys/param.h>
@@ -269,17 +269,12 @@ writedisklabel(dev, strat, lp)
 {
 	struct buf *bp;
 	struct disklabel *dlp;
-	int labelpart;
 	int error = 0;
 
-	labelpart = dkpart(dev);
-	if (lp->d_partitions[labelpart].p_offset != 0) {
-		if (lp->d_partitions[0].p_offset != 0)
-			return (EXDEV);			/* not quite right */
-		labelpart = 0;
-	}
+	if (lp->d_partitions[RAW_PART].p_offset != 0)
+		return (EXDEV);			/* not quite right */
 	bp = geteblk((int)lp->d_secsize);
-	bp->b_dev = dkmodpart(dev, labelpart);
+	bp->b_dev = dkmodpart(dev, RAW_PART);
 	bp->b_blkno = LABELSECTOR * ((int)lp->d_secsize/DEV_BSIZE);
 	bp->b_bcount = lp->d_secsize;
 #if 1
