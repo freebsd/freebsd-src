@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)kern_exit.c	8.7 (Berkeley) 2/12/94
- * $Id: kern_exit.c,v 1.27 1996/01/19 03:58:03 dyson Exp $
+ * $Id: kern_exit.c,v 1.29 1996/02/25 09:49:57 hsu Exp $
  */
 
 #include "opt_ktrace.h"
@@ -60,6 +60,7 @@
 #include <sys/resourcevar.h>
 #include <sys/signalvar.h>
 #include <sys/ptrace.h>
+#include <sys/acct.h>		/* for acct_process() function prototype */
 #include <sys/filedesc.h>
 #include <sys/shm.h>
 #include <sys/sem.h>
