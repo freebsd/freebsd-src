@@ -4,7 +4,7 @@
  * This is probably the last attempt in the `sysinstall' line, the next
  * generation being slated to essentially a complete rewrite.
  *
- * $Id: floppy.c,v 1.24 1997/03/19 10:09:16 jkh Exp $
+ * $Id: floppy.c,v 1.25 1997/04/03 13:44:57 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -143,8 +143,8 @@ mediaInitFloppy(Device *dev)
     memset(&u_args, 0, sizeof(u_args));
     u_args.fspec = dev->devname;
 
-    if (mount(MOUNT_MSDOS, mountpoint, MNT_RDONLY, (caddr_t)&dosargs) == -1) {
-	if (mount(MOUNT_UFS, mountpoint, MNT_RDONLY, (caddr_t)&u_args) == -1) {
+    if (mount("msdos", mountpoint, MNT_RDONLY, (caddr_t)&dosargs) == -1) {
+	if (mount("ufs", mountpoint, MNT_RDONLY, (caddr_t)&u_args) == -1) {
 	    msgConfirm("Error mounting floppy %s (%s) on %s : %s", dev->name, dev->devname, mountpoint,
 		       strerror(errno));
 	    return FALSE;
