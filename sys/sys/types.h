@@ -178,6 +178,11 @@ typedef	__key_t		key_t;		/* IPC key (for Sys V IPC) */
 #define	_KEY_T_DECLARED
 #endif
 
+#ifndef _LWPID_T_DECLARED
+typedef	__lwpid_t	lwpid_t;	/* Thread ID (a.k.a. LWP) */
+#define	_LWPID_T_DECLARED
+#endif
+
 #ifndef _MODE_T_DECLARED
 typedef	__mode_t	mode_t;		/* permissions */
 #define	_MODE_T_DECLARED
