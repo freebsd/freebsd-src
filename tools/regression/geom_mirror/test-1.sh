@@ -10,9 +10,9 @@ us2=`expr $us0 + 2`
 mdconfig -a -t malloc -s 1M -u $us0 || exit 1
 mdconfig -a -t malloc -s 2M -u $us1 || exit 1
 mdconfig -a -t malloc -s 3M -u $us2 || exit 1
-sleep 1
 
 gmirror label $name /dev/md${us0} /dev/md${us1} /dev/md${us2} || exit 1
+sleep 1
 
 # Size of created device should be 1MB - 512b.
 
