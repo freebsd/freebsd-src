@@ -75,8 +75,14 @@ to the output stream pointed to by
 .Pp
 The
 .Fn putc
-function acts essentially identically to
-.Fn fputc .
+macro acts essentially identically to
+.Fn fputc ,
+but is a macro that expands in-line.
+It may evaluate
+.Fa stream
+more than once, so arguments given to
+.Fn putc
+should not be expressions with potential side effects.
 .Pp
 The
 .Fn putchar
