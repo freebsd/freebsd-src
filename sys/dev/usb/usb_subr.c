@@ -947,10 +947,9 @@ usbd_new_device(device_ptr_t parent, usbd_bus_handle bus, int depth,
 		return (USBD_NO_ADDR);
 	}
 
-	dev = malloc(sizeof *dev, M_USB, M_NOWAIT);
+	dev = malloc(sizeof *dev, M_USB, M_NOWAIT|M_ZERO);
 	if (dev == NULL)
 		return (USBD_NOMEM);
-	memset(dev, 0, sizeof(*dev));
 
 	dev->bus = bus;
 
