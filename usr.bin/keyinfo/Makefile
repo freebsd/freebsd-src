@@ -1,12 +1,10 @@
 #	@(#)Makefile	5.5 (Berkeley) 7/1/90
 # $FreeBSD$
 
+PROG=	keyinfo
+DPADD=	${LIBSKEY} ${LIBCRYPT} ${LIBMD}
+LDADD=	-lskey -lcrypt -lmd
 BINMODE=4555
-
-MAN=	keyinfo.1
-
-beforeinstall:
-	${INSTALL} -c -o ${BINOWN} -g ${BINGRP} -m ${BINMODE} \
-	    ${.CURDIR}/keyinfo.pl ${DESTDIR}${BINDIR}/keyinfo
+WARNS?=1
 
 .include <bsd.prog.mk>
