@@ -39,7 +39,7 @@
  * SUCH DAMAGE.
  *
  *	from:	@(#)pmap.c	7.7 (Berkeley)	5/12/91
- *	$Id: pmap.c,v 1.122 1996/09/28 22:37:38 dyson Exp $
+ *	$Id: pmap.c,v 1.123 1996/10/09 19:47:19 bde Exp $
  */
 
 /*
@@ -133,6 +133,9 @@ static void	init_pv_entries __P((int));
 #define pte_prot(m, p)	(protection_codes[p])
 static int protection_codes[8];
 
+#define	pa_index(pa)		atop((pa) - vm_first_phys)
+#define	pa_to_pvh(pa)		(&pv_table[pa_index(pa)])
+
 static struct pmap kernel_pmap_store;
 pmap_t kernel_pmap;
 
@@ -165,6 +168,7 @@ static int npvvapg;
  */
 pt_entry_t *CMAP1;
 static pt_entry_t *CMAP2, *ptmmap;
+static pv_table_t *pv_table;
 caddr_t CADDR1, ptvmmap;
 static caddr_t CADDR2;
 static pt_entry_t *msgbufmap;
@@ -173,14 +177,14 @@ struct msgbuf *msgbufp;
 pt_entry_t *PMAP1;
 unsigned *PADDR1;
 
-static void	free_pv_entry __P((pv_entry_t pv));
+static PMAP_INLINE void	free_pv_entry __P((pv_entry_t pv));
 static unsigned * get_ptbase __P((pmap_t pmap));
 static pv_entry_t get_pv_entry __P((void));
 static void	i386_protection_init __P((void));
 static void	pmap_alloc_pv_entry __P((void));
 static void	pmap_changebit __P((vm_offset_t pa, int bit, boolean_t setem));
 
-static int	pmap_is_managed __P((vm_offset_t pa));
+static PMAP_INLINE int	pmap_is_managed __P((vm_offset_t pa));
 static void	pmap_remove_all __P((vm_offset_t pa));
 static vm_page_t pmap_enter_quick __P((pmap_t pmap, vm_offset_t va,
 				      vm_offset_t pa, vm_page_t mpte));
@@ -199,9 +203,11 @@ static int pmap_release_free_page __P((pmap_t pmap, vm_page_t p));
 static vm_page_t _pmap_allocpte __P((pmap_t pmap, unsigned ptepindex));
 static unsigned * pmap_pte_quick __P((pmap_t pmap, vm_offset_t va));
 static vm_page_t pmap_page_alloc __P((vm_object_t object, vm_pindex_t pindex));
+static vm_page_t pmap_page_lookup __P((vm_object_t object, vm_pindex_t pindex));
 static PMAP_INLINE void pmap_lock __P((pmap_t pmap));
 static PMAP_INLINE void pmap_unlock __P((pmap_t pmap));
 static void pmap_lock2 __P((pmap_t pmap1, pmap_t pmap2));
+static int pmap_unuse_pt __P((pmap_t, vm_offset_t, vm_page_t));
 
 #define PDSTACKMAX 6
 static vm_offset_t pdstack[PDSTACKMAX];
@@ -524,7 +530,7 @@ pmap_pte(pmap, va)
  * to do an entire invltlb for checking a single mapping.
  */
 
-unsigned * 
+static unsigned * 
 pmap_pte_quick(pmap, va)
 	register pmap_t pmap;
 	vm_offset_t va;
@@ -694,7 +700,7 @@ pmap_page_alloc(object, pindex)
 	return m;
 }
 
-vm_page_t
+static vm_page_t
 pmap_page_lookup(object, pindex)
 	vm_object_t object;
 	vm_pindex_t pindex;
@@ -782,7 +788,7 @@ pmap_unwire_pte_hold(pmap_t pmap, vm_page_t m) {
  * After removing a page table entry, this routine is used to
  * conditionally free the page, and manage the hold/wire counts.
  */
-int
+static int
 pmap_unuse_pt(pmap, va, mpte)
 	pmap_t pmap;
 	vm_offset_t va;
