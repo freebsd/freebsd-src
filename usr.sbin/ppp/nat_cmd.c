@@ -424,7 +424,7 @@ nat_LayerPull(struct bundle *bundle, struct link *l, struct mbuf *bp,
       break;
 
     default:
-      log_Printf(LogWARN, "nat_LayerPull: Dropped a packet....\n");
+      log_Printf(LogWARN, "nat_LayerPull: Dropped a packet (%d)....\n", ret);
       m_freem(bp);
       bp = NULL;
       break;
