@@ -252,6 +252,9 @@ STB 4 port card using shared IRQ.
 SDL Communications Riscom/8 Serial Board.
 SDL Communications RISCom/N2 and N2pci high-speed sync serial boards.
 
+Stallion multiport serial boards: EasyIO, EasyConnection 8/32 & 8/64,
+ONboard 4/16 and Brumby.
+
 Adlib, SoundBlaster, SoundBlaster Pro, ProAudioSpectrum, Gravis UltraSound
 and Roland MPU-401 sound cards.
 
@@ -513,4 +516,4 @@ We sincerely hope you enjoy this release of FreeBSD!
 
                         The FreeBSD Core Team
 
-$Id: relnotes.hlp,v 1.19 1996/11/14 05:47:39 jkh Exp $
+$Id: relnotes.hlp,v 1.20 1996/11/14 14:50:29 jkh Exp $
