@@ -1,5 +1,5 @@
 /*
- * $Id$
+ * $Id: pas.h,v 1.4 1994/08/02 07:40:19 davidg Exp $
  */
 /* 																*/
 /*	Port addresses and bit fields for the Media Vision Pro AudioSpectrum second generation sound cards.			*/
@@ -138,25 +138,25 @@
 #define PAS_16D		4
 
 #ifdef DEFINE_TRANSLATIONS
-	char I_C_2_PCM_DMA_translate[] = 		/* R W  PCM		PCM DMA channel value translations		*/
+	unsigned char I_C_2_PCM_DMA_translate[] = 		/* R W  PCM		PCM DMA channel value translations		*/
 			{ 4, 1, 2, 3, 0, 5, 6, 7 };
-	char I_C_3_PCM_IRQ_translate[] = 		/* R W	PCM		PCM IRQ level value translation			*/
+	unsigned char I_C_3_PCM_IRQ_translate[] = 		/* R W	PCM		PCM IRQ level value translation			*/
 		{ 0,  0,  1,  2,  3,  4,  5,  6, 0,  1,  7,  8,  9,  0, 10, 11 };  
-	char E_C_MPU401_IRQ_translate[] = 		/* R W	MIDI		MPU401 emulation IRQ value translation		*/
+	unsigned char E_C_MPU401_IRQ_translate[] = 		/* R W	MIDI		MPU401 emulation IRQ value translation		*/
 		{ 0x00, 0x00, 0x01, 0x02, 0x00, 0x03, 0x00, 0x04, 0x00, 0x01, 0x05, 0x06, 0x07 };
-	char E_C_SB_IRQ_translate[] = 			/* R W	PCM		SB emulation IRQ translate			*/
+	unsigned char E_C_SB_IRQ_translate[] = 			/* R W	PCM		SB emulation IRQ translate			*/
 		{ 0x00, 0x00, 0x08, 0x10, 0x00, 0x18, 0x00, 0x20, 0x00, 0x08, 0x28, 0x30, 0x38, 0, 0 };
-	char E_C_SB_DMA_translate[] = 			/* R W	PCM		SB emulation DMA translate			*/
+	unsigned char E_C_SB_DMA_translate[] = 			/* R W	PCM		SB emulation DMA translate			*/
 		{ 0x00, 0x40, 0x80, 0xC0, 0, 0, 0, 0 };
-	char O_M_1_to_card[] = 				/* R W	Control		Translate (OM1 & 0x0f) to card type		*/
+	unsigned char O_M_1_to_card[] = 				/* R W	Control		Translate (OM1 & 0x0f) to card type		*/
 		{ 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 4, 0, 2, 3 };   
 #else
-	extern char I_C_2_PCM_DMA_translate[];		/* R W  PCM		PCM DMA channel value translations		*/
-	extern char I_C_3_PCM_IRQ_translate[];		/* R W	PCM		PCM IRQ level value translation			*/
-	extern char E_C_MPU401_IRQ_translate[];		/* R W	MIDI		MPU401 emulation IRQ value translation		*/
-	extern char E_C_SB_IRQ_translate[];		/* R W	PCM		SB emulation IRQ translate			*/
-	extern char E_C_SB_DMA_translate[];		/* R W	PCM		SB emulation DMA translate			*/
-	extern char O_M_1_to_card[];			/* R W	Control		Translate (OM1 & 0x0f) to card type		*/
+	extern unsigned char I_C_2_PCM_DMA_translate[];		/* R W  PCM		PCM DMA channel value translations		*/
+	extern unsigned char I_C_3_PCM_IRQ_translate[];		/* R W	PCM		PCM IRQ level value translation			*/
+	extern unsigned char E_C_MPU401_IRQ_translate[];		/* R W	MIDI		MPU401 emulation IRQ value translation		*/
+	extern unsigned char E_C_SB_IRQ_translate[];		/* R W	PCM		SB emulation IRQ translate			*/
+	extern unsigned char E_C_SB_DMA_translate[];		/* R W	PCM		SB emulation DMA translate			*/
+	extern unsigned char O_M_1_to_card[];			/* R W	Control		Translate (OM1 & 0x0f) to card type		*/
 #endif
 
 #define PARALLEL_MIXER			0x078B		/*   W	Mixer		Documented for MVD101 as FM Mono Right decode?? */

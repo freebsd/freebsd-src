@@ -37,7 +37,7 @@
  * before making the changes. It's possible that I have already made the
  * change. 
  *
- * $Id: os.h,v 1.11 1994/08/02 07:40:16 davidg Exp $
+ * $Id: os.h,v 1.12 1994/09/27 17:58:21 davidg Exp $
  */
 
 /*
@@ -290,7 +290,8 @@ extern unsigned long get_time(void);
  * memory area. The type is the type of the mem_ptr.
  */
 #define PERMANENT_MALLOC(typecast, mem_ptr, size, linux_ptr) \
-	(mem_ptr) = (typecast)malloc((size), M_TEMP, M_WAITOK)
+  {(mem_ptr) = (typecast)malloc((size), M_DEVBUF, M_NOWAIT); \
+   if (!(mem_ptr))panic("SOUND: Cannot allocate memory\n");}
 
 /*
  * The macro DEFINE_TIMER defines variables for the ACTIVATE_TIMER if

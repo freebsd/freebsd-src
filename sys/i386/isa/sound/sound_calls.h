@@ -1,15 +1,14 @@
 /*
- * $Id: sound_calls.h,v 1.5 1994/08/02 07:40:51 davidg Exp $
- */
-/*
  *	DMA buffer calls
+ *
+ * $Id: sound_calls.h,v 1.6 1994/09/27 17:58:28 davidg Exp $
  */
+
 #ifndef _MACHINE_ISA_SOUND_H_
 #define _MACHINE_ISA_SOUND_H_
 
 int DMAbuf_open(int dev, int mode);
 int DMAbuf_release(int dev, int mode);
-int DMAbuf_read (int dev, snd_rw_buf *user_buf, int count);
 int DMAbuf_getwrbuffer(int dev, char **buf, int *size);
 int DMAbuf_getrdbuffer(int dev, char **buf, int *len);
 int DMAbuf_rmchars(int dev, int buff_no, int c);
@@ -51,6 +50,8 @@ long sequencer_init (long mem_start);
 void sequencer_timer(void);
 int note_to_freq(int note_num);
 unsigned long compute_finetune(unsigned long base_freq, int bend, int range);
+void seq_input_event(unsigned char *event, int len);
+void seq_copy_to_input (unsigned char *event, int len);
 
 #ifdef ALLOW_SELECT
 int sequencer_select(int dev, struct fileinfo *file, int sel_type, select_table * wait);
@@ -69,6 +70,10 @@ int MIDIbuf_ioctl (int dev, struct fileinfo *file,
 int MIDIbuf_lseek (int dev, struct fileinfo *file, off_t offset, int orig);
 void MIDIbuf_bytes_received(int dev, unsigned char *buf, int count);
 long MIDIbuf_init(long mem_start);
+
+#ifdef ALLOW_SELECT
+int MIDIbuf_select(int dev, struct fileinfo *file, int sel_type, select_table * wait);
+#endif
 
 /*
  *	System calls for the generic midi interface.
@@ -130,10 +135,10 @@ int sb16_dsp_detect(struct address_info *hw_config);
 void sb16midiintr (int unit);
 long attach_sb16midi(long mem_start, struct address_info * hw_config);
 int probe_sb16midi(struct address_info *hw_config);
+void sb_midi_interrupt(int dummy);
 
 /*	From sb_midi.c	*/
 void sb_midi_init(int model);
-void sb_midi_interrupt(int dummy);
 
 /*	From sb_mixer.c	*/
 void sb_setmixer (unsigned int port, unsigned int value);
@@ -177,6 +182,8 @@ long attach_gus_card(long mem_start, struct address_info * hw_config);
 int probe_gus(struct address_info *hw_config);
 int gus_set_midi_irq(int num);
 void gusintr(int);
+long attach_gus_db16(long mem_start, struct address_info * hw_config);
+int probe_gus_db16(struct address_info *hw_config);
 
 /*	From gus_wave.c */
 int gus_wave_detect(int baseaddr);
@@ -196,6 +203,10 @@ void gus_midi_interrupt(int dummy);
 long attach_mpu401(long mem_start, struct address_info * hw_config);
 int probe_mpu401(struct address_info *hw_config);
 
+/*	From uart6850.c */
+long attach_uart6850(long mem_start, struct address_info * hw_config);
+int probe_uart6850(struct address_info *hw_config);
+
 /*	From opl3.c */
 void enable_opl3_mode(int left, int right, int both);
 
@@ -211,4 +222,28 @@ int pmgr_inform(int dev, int event, unsigned long parm1, unsigned long parm2,
 /* 	From ics2101.c */
 long ics2101_mixer_init(long mem_start);
 
-#endif
+/*	From sound_timer.c */
+void sound_timer_init(int io_base);
+void sound_timer_interrupt(void);
+
+/*	From ad1848.c */
+void ad1848_init (char *name, int io_base, int irq, int dma_playback, int dma_capture);
+int ad1848_detect (int io_base);
+void     ad1848_interrupt (int dev);
+long attach_ms_sound(long mem_start, struct address_info * hw_config);
+int probe_ms_sound(struct address_info *hw_config);
+
+/* 	From pss.c */
+int probe_pss (struct address_info *hw_config);
+long attach_pss (long mem_start, struct address_info *hw_config);
+
+int pss_read (int dev, struct fileinfo *file, snd_rw_buf *buf, int count);
+int pss_write (int dev, struct fileinfo *file, snd_rw_buf *buf, int count);
+int pss_open (int dev, struct fileinfo *file);
+void pss_release (int dev, struct fileinfo *file);
+int pss_ioctl (int dev, struct fileinfo *file,
+	   unsigned int cmd, unsigned int arg);
+int pss_lseek (int dev, struct fileinfo *file, off_t offset, int orig);
+long pss_init(long mem_start);
+
+#endif /* _MACHINE_ISA_SOUND_H_ */

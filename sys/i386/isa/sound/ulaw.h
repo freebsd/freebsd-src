@@ -1,6 +1,3 @@
-/*
- * $Id$
- */
 static unsigned char ulaw_dsp[] = {
      0,    0,    0,    0,    0,    0,    0,    0, 
      0,    0,    0,    0,    0,    0,    0,    0, 
