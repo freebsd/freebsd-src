@@ -81,7 +81,7 @@ static tree lookup_tag_reverse PARAMS ((tree, tree));
 static tree lookup_name_real PARAMS ((tree, int, int, int));
 static void push_local_name PARAMS ((tree));
 static void warn_extern_redeclared_static PARAMS ((tree, tree));
-static tree grok_reference_init PARAMS ((tree, tree, tree));
+static tree grok_reference_init PARAMS ((tree, tree, tree, tree *));
 static tree grokfndecl PARAMS ((tree, tree, tree, tree, int,
 			      enum overload_flags, tree,
 			      tree, int, int, int, int, int, int, tree));
@@ -132,7 +132,7 @@ static void pop_labels PARAMS ((tree));
 static void maybe_deduce_size_from_array_init PARAMS ((tree, tree));
 static void layout_var_decl PARAMS ((tree));
 static void maybe_commonize_var PARAMS ((tree));
-static tree check_initializer (tree, tree, int);
+static tree check_initializer (tree, tree, int, tree *);
 static void make_rtl_for_nonlocal_decl PARAMS ((tree, tree, const char *));
 static void save_function_data PARAMS ((tree));
 static void check_function_type PARAMS ((tree, tree));
@@ -470,7 +470,7 @@ binding_table_reverse_maybe_remap (binding_table table, tree type, tree name)
 {
   const size_t chain_count = table->chain_count;
   binding_entry entry = NULL;
-  binding_entry *p;
+  binding_entry *p = NULL;
   size_t i;
 
   for (i = 0; i < chain_count && entry == NULL; ++i)
@@ -929,6 +929,14 @@ kept_level_p ()
 	  || current_binding_level->names != NULL_TREE
 	  || (current_binding_level->type_decls != NULL
 	      && !current_binding_level->tag_transparent));
+}
+
+/* Returns the kind of the innermost scope.  */
+
+bool
+innermost_scope_is_class_p ()
+{
+  return current_binding_level->parm_flag == 2;
 }
 
 static void
@@ -3389,9 +3397,9 @@ duplicate_decls (newdecl, olddecl)
           if (DECL_ANTICIPATED (olddecl))
             ;  /* Do nothing yet.  */
 	  else if ((DECL_EXTERN_C_P (newdecl)
-	       && DECL_EXTERN_C_P (olddecl))
-	      || compparms (TYPE_ARG_TYPES (TREE_TYPE (newdecl)),
-			    TYPE_ARG_TYPES (TREE_TYPE (olddecl))))
+		    && DECL_EXTERN_C_P (olddecl))
+		   || compparms (TYPE_ARG_TYPES (TREE_TYPE (newdecl)),
+				 TYPE_ARG_TYPES (TREE_TYPE (olddecl))))
 	    {
 	      /* A near match; override the builtin.  */
 
@@ -3417,6 +3425,10 @@ duplicate_decls (newdecl, olddecl)
 	 for anitipated built-ins, for exception lists, etc...  */
       else if (DECL_ANTICIPATED (olddecl))
 	TREE_TYPE (olddecl) = TREE_TYPE (newdecl);
+
+      /* Whether or not the builtin can throw exceptions has no
+	 bearing on this declarator.  */
+      TREE_NOTHROW (olddecl) = 0;
 
       if (DECL_THIS_STATIC (newdecl) && !DECL_THIS_STATIC (olddecl))
 	{
@@ -5407,8 +5419,7 @@ check_goto (decl)
 }
 
 /* Define a label, specifying the location in the source file.
-   Return the LABEL_DECL node for the label, if the definition is valid.
-   Otherwise return 0.  */
+   Return the LABEL_DECL node for the label.  */
 
 tree
 define_label (filename, line, name)
@@ -5435,10 +5446,7 @@ define_label (filename, line, name)
     pedwarn ("label named wchar_t");
 
   if (DECL_INITIAL (decl) != NULL_TREE)
-    {
-      error ("duplicate label `%D'", decl);
-      POP_TIMEVAR_AND_RETURN (TV_NAME_LOOKUP, NULL_TREE);
-    }
+    error ("duplicate label `%D'", decl);
   else
     {
       /* Mark label as having been defined.  */
@@ -5452,9 +5460,10 @@ define_label (filename, line, name)
 	  ent->binding_level = current_binding_level;
 	}
       check_previous_gotos (decl);
-      POP_TIMEVAR_AND_RETURN (TV_NAME_LOOKUP, decl);
     }
+
   timevar_pop (TV_NAME_LOOKUP);
+  return decl;
 }
 
 struct cp_switch
@@ -7908,15 +7917,18 @@ start_decl_1 (decl)
     DECL_INITIAL (decl) = NULL_TREE;
 }
 
-/* Handle initialization of references.
-   These three arguments are from `cp_finish_decl', and have the
-   same meaning here that they do there.
+/* Handle initialization of references.  DECL, TYPE, and INIT have the
+   same meaning as in cp_finish_decl.  *CLEANUP must be NULL on entry,
+   but will be set to a new CLEANUP_STMT if a temporary is created
+   that must be destroeyd subsequently.
+
+   Returns an initializer expression to use to initialize DECL, or
+   NULL if the initialization can be performed statically.
 
    Quotes on semantics can be found in ARM 8.4.3.  */
-
+  
 static tree
-grok_reference_init (decl, type, init)
-     tree decl, type, init;
+grok_reference_init (tree decl, tree type, tree init, tree *cleanup)
 {
   tree tmp;
 
@@ -7958,7 +7970,7 @@ grok_reference_init (decl, type, init)
      DECL_INITIAL for local references (instead assigning to them
      explicitly); we need to allow the temporary to be initialized
      first.  */
-  tmp = initialize_reference (type, init, decl);
+  tmp = initialize_reference (type, init, decl, cleanup);
 
   if (tmp == error_mark_node)
     return NULL_TREE;
@@ -8389,13 +8401,14 @@ reshape_init (tree type, tree *initp)
 }
 
 /* Verify INIT (the initializer for DECL), and record the
-   initialization in DECL_INITIAL, if appropriate.  
+   initialization in DECL_INITIAL, if appropriate.  CLEANUP is as for
+   grok_reference_init.
 
    If the return value is non-NULL, it is an expression that must be
    evaluated dynamically to initialize DECL.  */
 
 static tree
-check_initializer (tree decl, tree init, int flags)
+check_initializer (tree decl, tree init, int flags, tree *cleanup)
 {
   tree type = TREE_TYPE (decl);
 
@@ -8445,7 +8458,7 @@ check_initializer (tree decl, tree init, int flags)
       init = NULL_TREE;
     }
   else if (!DECL_EXTERNAL (decl) && TREE_CODE (type) == REFERENCE_TYPE)
-    init = grok_reference_init (decl, type, init);
+    init = grok_reference_init (decl, type, init, cleanup);
   else if (init)
     {
       if (TREE_CODE (init) == CONSTRUCTOR && TREE_HAS_CONSTRUCTOR (init))
@@ -8754,8 +8767,9 @@ cp_finish_decl (decl, init, asmspec_tree, flags)
      tree asmspec_tree;
      int flags;
 {
-  register tree type;
+  tree type;
   tree ttype = NULL_TREE;
+  tree cleanup;
   const char *asmspec = NULL;
   int was_readonly = 0;
 
@@ -8765,6 +8779,9 @@ cp_finish_decl (decl, init, asmspec_tree, flags)
 	error ("assignment (not initialization) in declaration");
       return;
     }
+
+  /* Assume no cleanup is required.  */
+  cleanup = NULL_TREE;
 
   /* If a name was specified, get the string.  */
   if (global_scope_p (current_binding_level))
@@ -8866,7 +8883,7 @@ cp_finish_decl (decl, init, asmspec_tree, flags)
       make_decl_rtl (decl, asmspec);
     }
   else if (TREE_CODE (decl) == RESULT_DECL)
-    init = check_initializer (decl, init, flags);
+    init = check_initializer (decl, init, flags, &cleanup);
   else if (TREE_CODE (decl) == VAR_DECL)
     {
       /* Only PODs can have thread-local storage.  Other types may require
@@ -8883,7 +8900,7 @@ cp_finish_decl (decl, init, asmspec_tree, flags)
 	     is *not* defined.  */
 	  && (!DECL_EXTERNAL (decl) || init))
 	{
-	  init = check_initializer (decl, init, flags);
+	  init = check_initializer (decl, init, flags, &cleanup);
 	  /* Thread-local storage cannot be dynamically initialized.  */
 	  if (DECL_THREAD_LOCAL (decl) && init)
 	    {
@@ -9001,6 +9018,11 @@ cp_finish_decl (decl, init, asmspec_tree, flags)
 	  pop_nested_class ();
       }
     }
+
+  /* If a CLEANUP_STMT was created to destroy a temporary bound to a
+     reference, insert it in the statement-tree now.  */
+  if (cleanup)
+    add_stmt (cleanup);
 
  finish_end:
 
@@ -12324,7 +12346,10 @@ grokdeclarator (declarator, declspecs, decl_context, initialized, attrlist)
 	       members of other classes.  */
 	    /* All method decls are public, so tell grokfndecl to set
 	       TREE_PUBLIC, also.  */
-	    decl = grokfndecl (ctype, type, declarator, declarator,
+	    decl = grokfndecl (ctype, type,
+			       TREE_CODE (declarator) != TEMPLATE_ID_EXPR
+			       ? declarator : dname,
+			       declarator,
 			       virtualp, flags, quals, raises,
 			       friendp ? -1 : 0, friendp, 1, 0, funcdef_flag,
 			       template_count, in_namespace);
@@ -14273,7 +14298,7 @@ start_function (declspecs, declarator, attrs, flags)
     }
   else
     {
-      decl1 = grokdeclarator (declarator, declspecs, FUNCDEF, 1, NULL);
+      decl1 = grokdeclarator (declarator, declspecs, FUNCDEF, 1, &attrs);
       /* If the declarator is not suitable for a function definition,
 	 cause a syntax error.  */
       if (decl1 == NULL_TREE || TREE_CODE (decl1) != FUNCTION_DECL)
