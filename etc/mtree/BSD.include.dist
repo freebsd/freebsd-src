@@ -1,4 +1,4 @@
-#	$Id: BSD.include.dist,v 1.10 1997/03/02 14:37:32 bde Exp $
+#	$Id: BSD.include.dist,v 1.11 1997/03/09 06:57:00 bde Exp $
 #
 
 /set type=dir uname=bin gname=bin mode=0755
@@ -9,33 +9,9 @@
         std
         ..
     ..
-    isofs
-        cd9660
-        ..
-    ..
     kerberosIV
     ..
-    machine
-    ..
-    msdosfs
-    ..
-    net
-    ..
-    netatalk
-    ..
-    netinet
-    ..
-    netipx
-    ..
-    netkey
-    ..
-    netns
-    ..
-    nfs
-    ..
     objc
-    ..
-    pccard
     ..
     protocols
     ..
@@ -47,24 +23,10 @@
     ..
     ss
     ..
-    sys
-    ..
     tcl
         generic
         ..
         unix
         ..
-    ..
-    ufs
-        ffs
-        ..
-        lfs
-        ..
-        mfs
-        ..
-        ufs
-        ..
-    ..
-    vm
     ..
 ..
