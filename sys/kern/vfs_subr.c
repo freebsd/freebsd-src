@@ -1705,11 +1705,8 @@ reassignbuf(bp, newvp)
 				delay = dirdelay;
 				break;
 			case VCHR:
-				if (newvp->v_rdev->si_mountpoint != NULL) {
-					delay = metadelay;
-					break;
-				}
-				/* FALLTHROUGH */
+				delay = metadelay;
+				break;
 			default:
 				delay = filedelay;
 			}
