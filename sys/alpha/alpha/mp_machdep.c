@@ -379,7 +379,7 @@ cpu_mp_start(void)
 			}
 			continue;
 		}
-		if (resource_disabled("cpu", i))
+		if (resource_disabled("cpu", i)) {
 			printf("CPU %d disabled by loader.\n", i);
 			continue;
 		}
