@@ -557,7 +557,6 @@ getpmem(k)
 {
 	static int failure;
 	double fracmem;
-	int szptudot;
 
 	if (!nlistread)
 		failure = donlist();
@@ -567,9 +566,8 @@ getpmem(k)
 	if ((k->ki_p->ki_sflag & PS_INMEM) == 0)
 		return (0.0);
 	/* XXX want pmap ptpages, segtab, etc. (per architecture) */
-	szptudot = UPAGES;
 	/* XXX don't have info about shared */
-	fracmem = ((float)k->ki_p->ki_rssize + szptudot)/mempages;
+	fracmem = ((float)k->ki_p->ki_rssize)/mempages;
 	return (100.0 * fracmem);
 }
 
