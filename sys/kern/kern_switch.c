@@ -69,11 +69,6 @@ setrunqueue(struct thread *td)
 	runq_add(&runq, td->td_kse);
 }
 
-/*
- * XXX temporary until these routines are moved fully into MD areas
- */
-#ifndef MACHINE_CRITICAL_ENTER
-
 /* Critical sections that prevent preemption. */
 void
 critical_enter(void)
@@ -98,8 +93,6 @@ critical_exit(void)
 	} else
 		td->td_critnest--;
 }
-
-#endif
 
 /*
  * Clear the status bit of the queue corresponding to priority level pri,

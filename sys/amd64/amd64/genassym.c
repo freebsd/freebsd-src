@@ -89,8 +89,6 @@ ASSYM(TD_PCB, offsetof(struct thread, td_pcb));
 ASSYM(TD_KSE, offsetof(struct thread, td_kse));
 ASSYM(TD_PROC, offsetof(struct thread, td_proc));
 ASSYM(TD_INTR_NESTING_LEVEL, offsetof(struct thread, td_intr_nesting_level));
-ASSYM(TD_CRITNEST, offsetof(struct thread, td_critnest));
-ASSYM(TD_SAVECRIT, offsetof(struct thread, td_savecrit));
 
 ASSYM(P_MD, offsetof(struct proc, p_md));
 ASSYM(MD_LDT, offsetof(struct mdproc, md_ldt));
@@ -136,7 +134,6 @@ ASSYM(PCB_DR2, offsetof(struct pcb, pcb_dr2));
 ASSYM(PCB_DR3, offsetof(struct pcb, pcb_dr3));
 ASSYM(PCB_DR6, offsetof(struct pcb, pcb_dr6));
 ASSYM(PCB_DR7, offsetof(struct pcb, pcb_dr7));
-ASSYM(PCB_PSL, offsetof(struct pcb, pcb_psl));
 ASSYM(PCB_DBREGS, PCB_DBREGS);
 ASSYM(PCB_EXT, offsetof(struct pcb, pcb_ext));
 
@@ -179,10 +176,6 @@ ASSYM(BI_KERNEND, offsetof(struct bootinfo, bi_kernend));
 ASSYM(PC_SIZEOF, sizeof(struct pcpu));
 ASSYM(PC_PRVSPACE, offsetof(struct pcpu, pc_prvspace));
 ASSYM(PC_CURTHREAD, offsetof(struct pcpu, pc_curthread));
-ASSYM(PC_INT_PENDING, offsetof(struct pcpu, pc_int_pending));
-ASSYM(PC_IPENDING, offsetof(struct pcpu, pc_ipending));
-ASSYM(PC_FPENDING, offsetof(struct pcpu, pc_fpending));
-ASSYM(PC_SPENDING, offsetof(struct pcpu, pc_spending));
 ASSYM(PC_FPCURTHREAD, offsetof(struct pcpu, pc_fpcurthread));
 ASSYM(PC_IDLETHREAD, offsetof(struct pcpu, pc_idlethread));
 ASSYM(PC_CURPCB, offsetof(struct pcpu, pc_curpcb));
