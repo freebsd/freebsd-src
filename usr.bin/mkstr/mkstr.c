@@ -41,11 +41,13 @@ static const char copyright[] =
 #if 0
 static char sccsid[] = "@(#)mkstr.c	8.1 (Berkeley) 6/6/93";
 #endif
-static const char rcsid[] =
-  "$FreeBSD$";
 #endif /* not lint */
 
+#include <sys/cdefs.h>
+__FBSDID("$FreeBSD$");
+
 #include <err.h>
+#include <errno.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -81,21 +83,20 @@ static const char rcsid[] =
 FILE	*mesgread, *mesgwrite;
 char	name[100], *np;
 
-void copystr __P((void));
-int fgetNUL __P((char *, int, FILE *));
-unsigned hashit __P((char *, char, unsigned));
-void inithash __P((void));
-int match __P((char *));
-int octdigit __P((char));
-void process __P((void));
-static void usage __P((void));
+void copystr(void);
+int fgetNUL(char *, int, FILE *);
+unsigned hashit(char *, int, unsigned);
+void inithash(void);
+int match(const char *);
+int octdigit(char);
+void process(void);
+void usage(void);
 
 int
-main(argc, argv)
-	int argc;
-	char *argv[];
+main(int argc, char *argv[])
 {
 	char addon = 0;
+	size_t namelen;
 
 	argc--, argv++;
 	if (argc > 1 && argv[0][0] == '-')
@@ -110,11 +111,19 @@ main(argc, argv)
 		err(1, "%s", argv[0]);
 	inithash();
 	argc--, argv++;
-	strcpy(name, argv[0]);
-	np = name + strlen(name);
+	namelen = strlcpy(name, argv[0], sizeof(name));
+	if (namelen >= sizeof(name)) {
+		errno = ENAMETOOLONG;
+		err(1, "%s", argv[0]);
+	}
+	np = name + namelen;
 	argc--, argv++;
 	do {
-		strcpy(np, argv[0]);
+		if (strlcpy(np, argv[0], sizeof(name) - namelen) >=
+		    sizeof(name) - namelen) {
+			errno = ENAMETOOLONG;
+			err(1, "%s%s", name, argv[0]);
+		}
 		if (freopen(name, "w", stdout) == NULL)
 			err(1, "%s", name);
 		if (freopen(argv[0], "r", stdin) == NULL)
@@ -125,17 +134,17 @@ main(argc, argv)
 	exit(0);
 }
 
-static void
-usage()
+void
+usage(void)
 {
-	fprintf(stderr, "usage: mkstr [ - ] mesgfile prefix file ...\n");
+	fprintf(stderr, "usage: mkstr [-] mesgfile prefix file ...\n");
 	exit(1);
 }
 
 void
-process()
+process(void)
 {
-	register c;
+	int c;
 
 	for (;;) {
 		c = getchar();
@@ -157,11 +166,10 @@ process()
 }
 
 int
-match(ocp)
-	char *ocp;
+match(const char *ocp)
 {
-	register char *cp;
-	register c;
+	const char *cp;
+	int c;
 
 	for (cp = ocp + 1; *cp; cp++) {
 		c = getchar();
@@ -176,13 +184,15 @@ match(ocp)
 }
 
 void
-copystr()
+copystr(void)
 {
-	register c, ch;
+	int c, ch;
 	char buf[512];
-	register char *cp = buf;
+	char *cp = buf;
 
 	for (;;) {
+		if (cp == buf + sizeof(buf) - 2)
+			errx(1, "message too long");
 		c = getchar();
 		if (c == EOF)
 			break;
@@ -240,15 +250,14 @@ out:
 }
 
 int
-octdigit(c)
-	char c;
+octdigit(char c)
 {
 
 	return (c >= '0' && c <= '7');
 }
 
 void
-inithash()
+inithash(void)
 {
 	char buf[512];
 	int mesgpt = 0;
@@ -269,16 +278,13 @@ struct	hash {
 } *bucket[NBUCKETS];
 
 unsigned
-hashit(str, really, fakept)
-	char *str;
-	char really;
-	unsigned fakept;
+hashit(char *str, int really, unsigned fakept)
 {
 	int i;
-	register struct hash *hp;
+	struct hash *hp;
 	char buf[512];
 	long hashval = 0;
-	register char *cp;
+	char *cp;
 
 	if (really)
 		fflush(mesgwrite);
@@ -300,6 +306,8 @@ hashit(str, really, fakept)
 		}
 	if (!really || hp == 0) {
 		hp = (struct hash *) calloc(1, sizeof *hp);
+		if (hp == NULL)
+			err(1, NULL);
 		hp->hnext = bucket[i];
 		hp->hval = hashval;
 		hp->hpt = really ? ftell(mesgwrite) : fakept;
@@ -315,17 +323,11 @@ hashit(str, really, fakept)
 	return (hp->hpt);
 }
 
-#include <sys/types.h>
-#include <sys/stat.h>
-
 int
-fgetNUL(obuf, rmdr, file)
-	char *obuf;
-	register int rmdr;
-	FILE *file;
+fgetNUL(char *obuf, int rmdr, FILE *file)
 {
-	register c;
-	register char *buf = obuf;
+	int c;
+	char *buf = obuf;
 
 	while (--rmdr > 0 && (c = getc(file)) != 0 && c != EOF)
 		*buf++ = c;
