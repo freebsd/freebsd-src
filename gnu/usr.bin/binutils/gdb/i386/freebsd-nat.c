@@ -17,7 +17,7 @@ You should have received a copy of the GNU General Public License
 along with this program; if not, write to the Free Software
 Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
 
-	$Id: freebsd-nat.c,v 1.2 1994/12/30 23:25:44 jkh Exp $
+	$Id: freebsd-nat.c,v 1.3 1994/12/31 17:00:09 bde Exp $
 */
 
 #include <sys/types.h>
@@ -296,6 +296,18 @@ i386_float_info ()
   fpstatep = (struct fpstate *)(buf + skip);
   print_387_status (fpstatep->sv_ex_sw, (struct env387 *)fpstatep);
 }
+
+#ifdef SETUP_ARBITRARY_FRAME
+FRAME
+setup_arbitrary_frame (numargs, args)
+int numargs;
+unsigned int *args;
+{
+      if (numargs > 2)
+                    error ("Too many args in frame specification");
+      return create_new_frame ((CORE_ADDR)args[0], (CORE_ADDR)args[1]);
+}
+#endif
 
 #ifdef KERNEL_DEBUG
 #include <sys/proc.h>
