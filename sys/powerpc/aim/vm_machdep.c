@@ -355,7 +355,7 @@ cpu_thread_setup(struct thread *td)
 {
 	struct pcb *pcb;
 
-	pcb = (struct pcb *)((td->td_kstack + td2->td_kstack_pages * PAGE_SIZE -
+	pcb = (struct pcb *)((td->td_kstack + td->td_kstack_pages * PAGE_SIZE -
 	    sizeof(struct pcb)) & ~0x2fU);
 	td->td_pcb = pcb;
 	td->td_frame = (struct trapframe *)pcb - 1;
