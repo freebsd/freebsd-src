@@ -70,6 +70,14 @@ struct uio {
 
 /*
  * Limits
+ *
+ * N.B.: UIO_MAXIOV must be no less than IOV_MAX from <sys/syslimits.h>
+ * which in turn must be no less than _XOPEN_IOV_MAX from <limits.h>.  If
+ * we ever make this tunable (probably pointless), then IOV_MAX should be
+ * removed from <sys/syslimits.h> and applications would be expected to use
+ * sysconf(3) to find out the correct value, or else assume the worst
+ * (_XOPEN_IOV_MAX).  Perhaps UIO_MAXIOV should be simply defined as
+ * IOV_MAX.
  */
 #define UIO_MAXIOV	1024		/* max 1K of iov's */
 #define UIO_SMALLIOV	8		/* 8 on stack, else malloc */

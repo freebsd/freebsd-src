@@ -48,6 +48,7 @@
 #include <sys/proc.h>
 #include <sys/malloc.h>
 #include <sys/resourcevar.h>
+#include <sys/sysctl.h>
 #include <sys/vnode.h>
 
 #include <vm/vm.h>
@@ -55,6 +56,9 @@
 #include <vm/vm_map.h>
 
 static void	uio_yield __P((void));
+
+SYSCTL_INT(_kern, KERN_IOV_MAX, iov_max, CTLFLAG_RD, NULL, UIO_MAXIOV, 
+	"Maximum number of elements in an I/O vector; sysconf(_SC_IOV_MAX)");
 
 int
 uiomove(cp, n, uio)
