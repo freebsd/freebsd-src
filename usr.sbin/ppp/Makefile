@@ -1,4 +1,4 @@
-#	$Id: Makefile,v 1.55 1999/05/15 19:21:15 phk Exp $
+#	$Id: Makefile,v 1.56 1999/08/06 20:04:00 brian Exp $
 
 MAINTAINER=brian@FreeBSD.org
 
@@ -49,7 +49,7 @@ DPADD+= ${LIBRADIUS}
 .endif
 .endif
 
-.if defined(NOI4B)
+.if defined(NOI4B)|| ${MACHINE_ARCH} == "alpha"
 CFLAGS+=-DNOI4B
 .else
 SRCS+=	i4b.c
