@@ -366,7 +366,7 @@ ENTRY(fuword32)
 	cmpq	%rax,%rdi			/* verify address is valid */
 	ja	fusufault
 
-# XXX use the 64 extend
+/* XXX use the 64 extend */
 	xorq	%rax, %rax
 	movl	(%rdi),%eax
 	movq	$0,PCB_ONFAULT(%rcx)
@@ -397,7 +397,7 @@ ENTRY(fuword16)
 	cmpq	%rax,%rdi
 	ja	fusufault
 
-# XXX use the 64 extend
+/* XXX use the 64 extend */
 	xorq	%rax, %rax
 	movzwl	(%rdi),%eax
 	movq	$0,PCB_ONFAULT(%rcx)
@@ -414,7 +414,7 @@ ENTRY(fubyte)
 	cmpq	%rax,%rdi
 	ja	fusufault
 
-# XXX use the 64 extend
+/* XXX use the 64 extend */
 	xorq	%rax, %rax
 	movzbl	(%rdi),%eax
 	movq	$0,PCB_ONFAULT(%rcx)
