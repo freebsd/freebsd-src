@@ -65,19 +65,27 @@ only forth also support-functions also builtins definitions
     c@ [char] - <> if
       0 1 unload drop
     else
+      s" kernelname" getenv? 0= if ( no kernel has been loaded )
+	load_conf
+	?dup if exit then
+      then
       1 boot exit
     then
   else
+    s" kernelname" getenv? 0= if ( no kernel has been loaded )
+      load_conf
+      ?dup if exit then
+    then
     1 boot exit
   then
-  load-conf
+  load_conf
   ?dup 0= if 0 1 boot then
 ;
 
 : boot-conf
   0= if ( interpreted ) get-arguments then
   0 1 unload drop
-  load-conf
+  load_conf
   ?dup 0= if 0 1 autoboot then
 ;
 
