@@ -5,6 +5,5 @@ KMOD=	fdesc
 SRCS=	vnode_if.h \
 	fdesc_vfsops.c fdesc_vnops.c
 NOMAN=
-CFLAGS+= -DFDESC
 
 .include "${.CURDIR}/../../conf/kmod.mk"
