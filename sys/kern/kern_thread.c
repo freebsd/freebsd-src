@@ -358,6 +358,7 @@ kse_release(struct thread *td, struct kse_release_args *uap)
 		} else {
 			mtx_unlock_spin(&sched_lock);
 			PROC_UNLOCK(p);
+			return EWOULDBLOCK;
 		}
 	}
 	return (EINVAL);
