@@ -30,7 +30,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: glob.c,v 1.2 1994/09/24 02:54:05 davidg Exp $
+ *	$Id: glob.c,v 1.3 1995/05/30 00:06:35 rgrimes Exp $
  */
 
 #ifndef lint
@@ -93,6 +93,7 @@ static int	pmatch __P((Char *, Char *));
 static void	pword __P((void));
 static void	psave __P((int));
 static void	backeval __P((Char *, bool));
+static int      collcmp __P((int, int));
 
 
 static Char *
@@ -832,6 +833,38 @@ Gmatch(string, pattern)
 }
 
 static int
+collcmp (c1, c2)
+int c1, c2;
+{
+	static char s1[2], s2[2];
+
+	if (c1 == c2)
+		return (0);
+	if (   (isascii(c1) && isascii(c2))
+	    || (!isalpha(c1) && !isalpha(c2))
+	   )
+		return (c1 - c2);
+	if (isalpha(c1) && !isalpha(c2)) {
+		if (isupper(c1))
+			return ('A' - c2);
+		else
+			return ('a' - c2);
+	} else if (isalpha(c2) && !isalpha(c1)) {
+		if (isupper(c2))
+			return (c1 - 'A');
+		else
+			return (c1 - 'a');
+	}
+	if (isupper(c1) && islower(c2))
+		return (-1);
+	else if (islower(c1) && isupper(c2))
+		return (1);
+	s1[0] = c1;
+	s2[0] = c2;
+	return strcoll(s1, s2);
+}
+
+static int
 pmatch(string, pattern)
     register Char *string, *pattern;
 {
@@ -866,8 +899,9 @@ pmatch(string, pattern)
 		if (match)
 		    continue;
 		if (rangec == '-' && *(pattern-2) != '[' && *pattern  != ']') {
-		    match = (stringc <= (*pattern & TRIM) &&
-			      (*(pattern-2) & TRIM) <= stringc);
+		    match = (   collcmp(stringc, *pattern & TRIM) <= 0
+			     && collcmp(*(pattern-2) & TRIM, stringc) <= 0
+			    );
 		    pattern++;
 		}
 		else
