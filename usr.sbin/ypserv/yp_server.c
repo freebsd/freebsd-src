@@ -45,7 +45,7 @@
 #include <rpc/rpc.h>
 
 #ifndef lint
-static const char rcsid[] = "$Id: yp_server.c,v 1.21 1997/04/10 14:12:51 wpaul Exp $";
+static const char rcsid[] = "$Id: yp_server.c,v 1.22 1997/04/28 14:18:38 wpaul Exp $";
 #endif /* not lint */
 
 int forked = 0;
@@ -159,21 +159,19 @@ ypproc_match_2_svc(ypreq_key *argp, struct svc_req *rqstp)
 #else
 	if (do_dns && result.stat != YP_TRUE && strstr(argp->map, "hosts")) {
 #endif
+		char			nbuf[YPMAXRECORD];
 	
 		/* NUL terminate! NUL terminate!! NUL TERMINATE!!! */
-		argp->key.keydat_val[argp->key.keydat_len] = '\0';
+		bcopy(argp->key.keydat_val, nbuf, argp->key.keydat_len);
+		nbuf[argp->key.keydat_len] = '\0';
 
 		if (debug)
-			yp_error("Doing DNS lookup of %.*s",
-			 	  argp->key.keydat_len,
-				  argp->key.keydat_val);
+			yp_error("Doing DNS lookup of %s", nbuf);
 
 		if (!strcmp(argp->map, "hosts.byname"))
-			result.stat = yp_async_lookup_name(rqstp,
-					(char *)argp->key.keydat_val);
+			result.stat = yp_async_lookup_name(rqstp, nbuf);
 		else if (!strcmp(argp->map, "hosts.byaddr"))
-			result.stat = yp_async_lookup_addr(rqstp,
-					(char *)argp->key.keydat_val);
+			result.stat = yp_async_lookup_addr(rqstp, nbuf);
 
 		if (result.stat == YP_TRUE)
 			return(NULL);
