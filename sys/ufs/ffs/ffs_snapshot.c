@@ -652,9 +652,9 @@ out1:
 	space = devvp->v_rdev->si_snapblklist;
 	devvp->v_rdev->si_snapblklist = snapblklist;
 	devvp->v_rdev->si_snaplistsize = snaplistsize;
+	VI_UNLOCK(devvp);
 	if (space != NULL)
 		FREE(space, M_UFSMNT);
-	VI_UNLOCK(devvp);
 done:
 	free(copy_fs->fs_csp, M_UFSMNT);
 	bawrite(sbp);
