@@ -116,7 +116,7 @@
 
 #define NGE_USEIOSPACE
 
-#include <pci/if_ngereg.h>
+#include <dev/nge/if_ngereg.h>
 
 MODULE_DEPEND(nge, miibus, 1, 1, 1);
 
