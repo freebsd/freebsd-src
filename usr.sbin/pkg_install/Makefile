@@ -2,12 +2,7 @@ SUBDIR=lib add create delete info
 
 .include <bsd.subdir.mk>
 
-dists:  bin_dist src_dist 
-
-src_dist: clean
-	@echo "CVS" > /tmp/excludeXXX
-	pkg_create -X /tmp/excludeXXX -d +DESC -c +COMMENT -f +CONTENTS pkg_install_src
-	@rm -f /tmp/excludeXXX
+dists:  bin_dist
 
 bin_dist: all install
 	tar czf pkg_install.tar.gz -C /	\
