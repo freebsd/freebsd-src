@@ -31,6 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)fts.h	8.3 (Berkeley) 8/14/94
+ * $FreeBSD$
  */
 
 #ifndef	_FTS_H_
@@ -45,7 +46,8 @@ typedef struct {
 	int fts_rfd;			/* fd for root */
 	int fts_pathlen;		/* sizeof(path) */
 	int fts_nitems;			/* elements in the sort array */
-	int (*fts_compar)();		/* compare function */
+	int (*fts_compar)		/* compare function */
+	    __P((const struct _ftsent **, const struct _ftsent **));
 
 #define	FTS_COMFOLLOW	0x001		/* follow command line symlinks */
 #define	FTS_LOGICAL	0x002		/* logical walk */
