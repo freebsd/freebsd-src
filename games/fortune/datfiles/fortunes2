@@ -2707,6 +2707,13 @@ audience, either."
 
 -- Reverse the bits in a word.
 %
+	n = (n & 0x55555555) + ((n & 0xaaaaaaaa) >> 1);
+	n = (n & 0x33333333) + ((n & 0xcccccccc) >> 2);
+	n = (n & 0x0f0f0f0f) + ((n & 0xf0f0f0f0) >> 4);
+	n = (n & 0x00ff00ff) + ((n & 0xff00ff00) >> 8);
+	n = (n & 0x0000ffff) + ((n & 0xffff0000) >> 16);
+-- Count the bits in a word.
+%
 	Never ask your lover if he'd dive in front of an oncoming train for
 you.  He doesn't know.  Never ask your lover if she'd dive in front of an
 oncoming band of Hell's Angels for you.  She doesn't know.  Never ask how many
