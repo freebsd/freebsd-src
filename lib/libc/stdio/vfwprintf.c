@@ -1268,7 +1268,7 @@ __find_arguments (const wchar_t *fmt0, va_list ap, union arg **argtable)
 	 */
 #define ADDTYPE(type) \
 	((nextarg >= tablesize) ? \
-		__grow_type_table(nextarg, &typetable, &tablesize) : 0, \
+		__grow_type_table(nextarg, &typetable, &tablesize) : (void)0, \
 	(nextarg > tablemax) ? tablemax = nextarg : 0, \
 	typetable[nextarg++] = type)
 
