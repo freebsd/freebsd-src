@@ -5,7 +5,7 @@
 
 # PROVIDE: network1
 # REQUIRE: atm1 ipfilter mountcritlocal pccard serial sppp sysctl tty
-# KEYWORD: FreeBSD
+# KEYWORD: FreeBSD nostart
 
 . /etc/rc.subr
 

@@ -1,67 +1,121 @@
-#!/bin/sh -x
+#
+# Copyright (c) 2003 The FreeBSD Project. All rights reserved.
+#
+# Redistribution and use in source and binary forms, with or without
+# modification, are permitted provided that the following conditions
+# are met:
+# 1. Redistributions of source code must retain the above copyright
+#    notice, this list of conditions and the following disclaimer.
+# 2. Redistributions in binary form must reproduce the above copyright
+#    notice, this list of conditions and the following disclaimer in the
+#    documentation and/or other materials provided with the distribution.
+#
+# THIS SOFTWARE IS PROVIDED BY THE PROJECT AND CONTRIBUTORS ``AS IS'' AND
+# ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+# IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+# ARE DISCLAIMED.  IN NO EVENT SHALL THE PROJECT OR CONTRIBUTORS BE LIABLE
+# FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+# DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+# OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+# HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+# LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+# OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+# SUCH DAMAGE.
 #
 # $FreeBSD$
 #
 
-# PROVIDE: network1
-# REQUIRE: atm1 ipfilter mountcritlocal pccard serial sppp sysctl tty
-# KEYWORD: FreeBSD
+#
+# Subroutines commonly used from network startup scripts.
+# Requires that rc.conf be loaded first.
+#
 
-. /etc/rc.subr
-
-name="network1"
-start_cmd="network_start"
-stop_cmd="network_stop"
-
-convert_host_conf()
+# ifconfig_up if
+#	Evaluate ifconfig(8) arguments for interface $if and
+#	run ifconfig(8) with those arguments. It returns 0 if
+#	arguments were found and executed or 1 if the interface
+#	had no arguments.
+#
+ifconfig_up()
 {
-	host_conf=$1; shift;
-	nsswitch_conf=$1; shift;
-	awk '                                                               \
-	/^[:blank:]*#/       { next }                                       \
-	/(hosts|local|file)/ { nsswitch[c] = "files"; c++; next }           \
-	/(dns|bind)/         { nsswitch[c] = "dns";   c++; next }           \
-	/nis/                { nsswitch[c] = "nis";   c++; next }           \
-	{ printf "Warning: unrecognized line [%s]", $0 > "/dev/stderr" }    \
-	END {                                                               \
-		printf "hosts: ";                                           \
-		for (i in nsswitch) printf "%s ", nsswitch[i];              \
-		printf "\n";                                                \
-	}' < $host_conf > $nsswitch_conf
+	eval ifconfig_args=\$ifconfig_$1
+	if [ -n "${ifconfig_args}" ]; then
+		ifconfig $1 ${ifconfig_args}
+		return 0
+	fi
+	return 1
 }
 
-generate_host_conf()
+# ifalias_up if
+#	Configure aliases for network interface $if.
+#	It returns 0 if at least one alias was configured or
+#	1 if there were none.
+#
+ifalias_up()
 {
-	nsswitch_conf=$1; shift;
-	host_conf=$1; shift;
-
-	awk '
-	BEGIN {
-		xlat["files"] = "hosts";
-		xlat["dns"] = "bind";
-		xlat["nis"] = "nis";
-		cont = 0;
-	}
-	sub(/^[\t ]*hosts:/, "") || cont {
-		if (!cont)
-			srcs = ""
-		sub(/#.*/, "")
-		gsub(/[][]/, " & ")
-		cont = sub(/\\$/, "")
-		srcs = srcs " " $0
-	}
-	END {
-		print "# Auto-generated from nsswitch.conf, do not edit"
-		ns = split(srcs, s)
-		for (n = 1; n <= ns; ++n) {
-			if (s[n] in xlat)
-			    print xlat[s[n]]
-		}
-	}
-	' <$nsswitch_conf >$host_conf
+	_ret=1
+	alias=0
+	while : ; do
+		eval ifconfig_args=\$ifconfig_$1_alias${alias}
+		if [ -n "${ifconfig_args}" ]; then
+			ifconfig $1 ${ifconfig_args} alias
+			alias=$((${alias} + 1))
+			_ret=0
+		else
+			break
+		fi
+	done
+	return $_ret
 }
 
-network_gif_setup() {
+# ifscript_up if
+#	Evaluate a startup script for the $if interface.
+#	It returns 0 if a script was found and processed or
+#	1 if no script was found.
+#
+ifscript_up()
+{
+	if [ -r /etc/start_if.$1 ]; then
+		. /etc/start_if.$1
+		return 0
+	fi
+	return 1
+}
+
+# Create cloneable interfaces.
+#
+clone_up()
+{
+	_prefix=
+	_list=
+	for ifn in ${cloned_interfaces}; do
+		ifconfig ${ifn} create
+		if $? ; then
+			_list="${_list}${_prefix}${ifn}"
+			[ -z "$_prefix" ] && _prefix=' '
+		fi
+	done
+	debug "Cloned: ${_list}"
+}
+
+# Destroy cloned interfaces. Destroyed interfaces are echoed
+# to standard output.
+#
+clone_down()
+{
+	_prefix=
+	_list=
+	for ifn in ${cloned_interfaces}; do
+		ifconfig ${ifn} destroy
+		if $? ; then
+			_list="${_list}${_prefix}${ifn}"
+			[ -z "$_prefix" ] && _prefix=' '
+		fi
+	done
+	debug "Destroyed clones: ${_list}"
+}
+
+gif_up() {
 	case ${gif_interfaces} in
 	[Nn][Oo] | '')
 		;;
@@ -83,144 +137,78 @@ network_gif_setup() {
 	esac
 }
 
-network_start()
+#
+# ipx_up ifn
+# Configure any IPX addresses for interface $ifn. Returns 0 if IPX
+# arguments were found and configured; returns 1 otherwise.
+#
+ipx_up()
 {
-	# set hostname, turn on network
-	#
-	echo -n "Doing initial network setup:"
-
-	# Generate host.conf for compatibility
-	#
-	if [ -f "/etc/nsswitch.conf" ]; then
-		echo -n ' host.conf'
-		generate_host_conf /etc/nsswitch.conf /etc/host.conf
+	ifn="$1"
+	eval ifconfig_args=\$ifconfig_${ifn}_ipx
+	if [ -n "${ifconfig_args}" ]; then
+		ifconfig ${ifn} ${ifconfig_args}
+		return 0
 	fi
+	return 1
+}
 
-	# Convert host.conf to nsswitch.conf if necessary
-	#
-	if [ -f "/etc/host.conf" -a ! -f "/etc/nsswitch.conf" ]; then
-		echo ''
-		echo 'Warning: /etc/host.conf is no longer used'
-		echo '  /etc/nsswitch.conf will be created for you'
-		convert_host_conf /etc/host.conf /etc/nsswitch.conf
-	fi
+#
+# list_net_interfaces type
+#	List all network interfaces. The type of interface returned
+#	can be controlled by the type argument. The type
+#	argument can be any of the following:
+#		nodhcp - all interfaces, excluding DHCP configured interfaces
+#		dhcp   - list only DHCP configured interfaces
+#	If no argument is specified all network interfaces are output.
+#	Note that the list always includes cloned interfaces.
+#
+list_net_interfaces()
+{
+	type=$1
 
-	# Set the host name if it is not already set
-	#
-	if [ -z "`hostname -s`" ]; then
-		hostname ${hostname}
-		echo -n ' hostname'
-	fi
-
-	# Set the domainname if we're using NIS
-	#
-	case ${nisdomainname} in
-	[Nn][Oo]|'')
-		;;
-	*)
-		domainname ${nisdomainname}
-		echo -n ' domain'
-		;;
-	esac
-
-	echo '.'
-
-	# Attempt to create cloned interfaces.
-	for ifn in ${cloned_interfaces}; do
-		ifconfig ${ifn} create
-	done
-
-	# gifconfig
-	network_gif_setup
-
-	# Set up all the network interfaces, calling startup scripts if needed
+	# Get a list of ALL the interfaces
 	#
 	case ${network_interfaces} in
 	[Aa][Uu][Tt][Oo])
-		network_interfaces="`ifconfig -l`"
+		_tmplist="`ifconfig -l`"
 		;;
 	*)
-		network_interfaces="${network_interfaces} ${cloned_interfaces}"
+		_tmplist="${network_interfaces}"
 		;;
 	esac
+	_tmplist="${_tmplist} ${cloned_interfaces}"
 
-	dhcp_interfaces=""
-	for ifn in ${network_interfaces}; do
-		if [ -r /etc/start_if.${ifn} ]; then
-			. /etc/start_if.${ifn}
-			eval showstat_$ifn=1
-		fi
+	if [ -z "$type" ]; then
+		echo $_tmplist
+		return 0
+	fi
 
-		# Do the primary ifconfig if specified
-		#
-		eval ifconfig_args=\$ifconfig_${ifn}
-
-		case ${ifconfig_args} in
-		'')
-			;;
+	# Separate out dhcp and non-dhcp intefraces
+	#
+	_aprefix=
+	_brefix=
+	for _if in ${_tmplist} ; do
+		eval _ifarg="\$ifconfig_${_if}"
+		case "$_ifarg" in
 		[Dd][Hh][Cc][Pp])
-			# DHCP inits are done all in one go below
-			dhcp_interfaces="$dhcp_interfaces $ifn"
-			eval showstat_$ifn=1
+			_dhcplist="${_dhcplist}${_aprefix}${_if}"
+			[ -z "$_aprefix" ] && _aprefix=' '
 			;;
-		*)
-			ifconfig ${ifn} ${ifconfig_args}
-			eval showstat_$ifn=1
+		''|*)
+			_nodhcplist="${_nodhcplist}${_bprefix}${_if}"
+			[ -z "$_bprefix" ] && _bprefix=' '
 			;;
 		esac
 	done
 
-	if [ ! -z "${dhcp_interfaces}" ]; then
-		${dhcp_program:-/sbin/dhclient} ${dhcp_flags} ${dhcp_interfaces}
-	fi
-
-	for ifn in ${network_interfaces}; do
-		# Check to see if aliases need to be added
-		#
-		alias=0
-		while : ; do
-			eval ifconfig_args=\$ifconfig_${ifn}_alias${alias}
-			if [ -n "${ifconfig_args}" ]; then
-				ifconfig ${ifn} ${ifconfig_args} alias
-				eval showstat_$ifn=1
-				alias=$((${alias} + 1))
-			else
-				break;
-			fi
-		done
-
-		# Do ipx address if specified
-		#
-		eval ifconfig_args=\$ifconfig_${ifn}_ipx
-		if [ -n "${ifconfig_args}" ]; then
-			ifconfig ${ifn} ${ifconfig_args}
-			eval showstat_$ifn=1
-		fi
-	done
-
-	# Display ifconfiged interfaces
-	for ifn in ${network_interfaces}; do
-		eval showstat=\$showstat_${ifn}
-		if [ ! -z ${showstat} ]; then
-			ifconfig ${ifn}
-		fi
-	done
-
-	# Resync ipfilter
-	/etc/rc.d/ipfilter resync
+	case "$type" in
+	nodhcp)
+		echo $_nodhcplist
+		;;
+	dhcp)
+		echo $_dhcplist
+		;;
+	esac
+	return 0			
 }
-
-network_stop()
-{
-	echo -n "Stopping network:"
-
-	# flush routes
-	#
-	echo -n " flush routes"
-	route -n flush
-
-	echo '.'
-}
-
-load_rc_config $name
-run_rc_command "$1"
