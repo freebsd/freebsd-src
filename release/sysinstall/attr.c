@@ -4,7 +4,7 @@
  * This is probably the last attempt in the `sysinstall' line, the next
  * generation being slated to essentially a complete rewrite.
  *
- * $Id: attr.c,v 1.8.2.5 1997/03/28 02:25:13 jkh Exp $
+ * $Id: attr.c,v 1.8.2.6 1997/03/28 09:30:12 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -62,9 +62,9 @@ attr_parse(Attribs *attr, FILE *fp)
     char hold_v[MAX_VALUE+1];
     char buf[BUFSIZ];
     int bp, n, v, max;
-    enum { LOOK, COMMENT, NAME, VALUE, COMMIT, FILL, STOP } state;
+    enum { LOOK, COMMENT, NAME, VALUE, MVALUE, COMMIT, FILL, STOP } state;
     int num_attribs;
-    int ch;
+    int ch = 0;
 
     n = v = num_attribs = bp = max = 0;
     state = LOOK;
@@ -76,7 +76,8 @@ attr_parse(Attribs *attr, FILE *fp)
 	switch(state) {
 	case FILL:
 	    if ((max = fread(buf, 1, sizeof buf, fp)) <= 0) {
-		state = STOP;
+		if (state != COMMIT)
+		    state = STOP;
 		break;
 	    }
 	    else {
@@ -138,22 +139,8 @@ attr_parse(Attribs *attr, FILE *fp)
 	case VALUE:
 	    if (v == 0 && isspace(ch))
 		continue;
-	    else if (ch == '{') {
-		/* multiline value */
-		while (fread(&ch, 1, 1, fp) == 1 && ch != '}') {
-		    if (v >= MAX_VALUE) {
-			msgDebug("Value length overflow at character %d\n", v);
-			state = COMMENT;
-			n = v = 0;
-			break;
-		    }
-		    else
-			hold_v[v++] = ch;
-		}
-		hold_v[v] = '\0';
-		v = n = 0;
-		state = COMMIT;
-	    }
+	    else if (ch == '{')
+		state = MVALUE;
 	    else if (ch == '\n' || !ch) {
 		hold_v[v] = '\0';
 		v = n = 0;
@@ -169,6 +156,22 @@ attr_parse(Attribs *attr, FILE *fp)
 		else
 		    hold_v[v++] = ch;
 	    }
+	    break;
+
+	case MVALUE:
+	    /* multiline value */
+	    if (v >= MAX_VALUE) {
+		msgDebug("Value length overflow at character %d\n", v);
+		state = COMMENT;
+		n = v = 0;
+	    }
+	    else if (ch == '}') {
+		hold_v[v] = '\0';
+		v = n = 0;
+		state = COMMIT;
+	    }
+	    else
+		hold_v[v++] = ch;
 	    break;
 
 	case COMMIT:
