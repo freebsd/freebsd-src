@@ -17,7 +17,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: command.c,v 1.158 1998/07/31 19:50:24 brian Exp $
+ * $Id: command.c,v 1.159 1998/08/07 18:42:48 brian Exp $
  *
  */
 #include <sys/types.h>
@@ -106,6 +106,7 @@
 #define	VAR_MODE	23
 #define	VAR_CALLBACK	24
 #define	VAR_CBCP	25
+#define	VAR_CHOKED	26
 
 /* ``accept|deny|disable|enable'' masks */
 #define NEG_HISMASK (1)
@@ -125,7 +126,7 @@
 #define NEG_DNS		50
 
 const char Version[] = "2.0";
-const char VersionDate[] = "$Date: 1998/07/31 19:50:24 $";
+const char VersionDate[] = "$Date: 1998/08/07 18:42:48 $";
 
 static int ShowCommand(struct cmdargs const *);
 static int TerminalCommand(struct cmdargs const *);
@@ -1497,6 +1498,13 @@ SetVariable(struct cmdargs const *arg)
       }
     }
     break;
+
+  case VAR_CHOKED:
+    arg->bundle->cfg.choked.timeout = atoi(argp);
+    if (arg->bundle->cfg.choked.timeout <= 0)
+      arg->bundle->cfg.choked.timeout = CHOKED_TIMEOUT;
+    break;
+ 
   }
 
   return err ? 1 : 0;
@@ -1537,6 +1545,8 @@ static struct cmdtab const SetCommands[] = {
   "FSM retry period", "set ccpretry value", (const void *)VAR_CCPRETRY},
   {"chapretry", NULL, SetVariable, LOCAL_AUTH | LOCAL_CX,
   "CHAP retry period", "set chapretry value", (const void *)VAR_CHAPRETRY},
+  {"choked", NULL, SetVariable, LOCAL_AUTH,
+  "choked timeout", "set choked [secs]", (const void *)VAR_CHOKED},
   {"ctsrts", "crtscts", SetCtsRts, LOCAL_AUTH | LOCAL_CX,
   "Use hardware flow control", "set ctsrts [on|off]"},
   {"deflate", NULL, SetVariable, LOCAL_AUTH | LOCAL_CX_OPT,

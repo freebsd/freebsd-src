@@ -16,7 +16,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- *  $Id: physical.c,v 1.4 1998/06/27 14:18:09 brian Exp $
+ *  $Id: physical.c,v 1.5 1998/08/07 18:42:50 brian Exp $
  *
  */
 
@@ -226,4 +226,14 @@ physical_SetMode(struct physical *p, int mode)
   }
   p->type = mode;
   return 1;
+}
+
+void
+physical_DeleteQueue(struct physical *p)
+{
+  if (p->out) {
+    mbuf_Free(p->out);
+    p->out = NULL;
+  }
+  link_DeleteQueue(&p->link);
 }

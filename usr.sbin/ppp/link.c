@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *  $Id: link.c,v 1.3 1998/06/27 23:48:49 brian Exp $
+ *  $Id: link.c,v 1.4 1998/08/07 18:42:49 brian Exp $
  *
  */
 
@@ -65,6 +65,16 @@ link_SequenceQueue(struct link *l)
   log_Printf(LogDEBUG, "link_SequenceQueue\n");
   while (l->Queue[PRI_NORMAL].qlen)
     mbuf_Enqueue(l->Queue + PRI_LINK, mbuf_Dequeue(l->Queue + PRI_NORMAL));
+}
+
+void
+link_DeleteQueue(struct link *l)
+{
+  struct mqueue *queue;
+
+  for (queue = l->Queue; queue < l->Queue + LINK_QUEUES; queue++)
+    while (queue->top)
+      mbuf_Free(mbuf_Dequeue(queue));
 }
 
 int

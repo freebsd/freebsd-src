@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *  $Id: link.h,v 1.2 1998/05/21 21:46:14 brian Exp $
+ *  $Id: link.h,v 1.3 1998/05/23 17:05:27 brian Exp $
  *
  */
 
@@ -55,6 +55,7 @@ extern void link_AddInOctets(struct link *, int);
 extern void link_AddOutOctets(struct link *, int);
 
 extern void link_SequenceQueue(struct link *);
+extern void link_DeleteQueue(struct link *);
 extern int link_QueueLen(struct link *);
 extern int link_QueueBytes(struct link *);
 extern struct mbuf *link_Dequeue(struct link *);
