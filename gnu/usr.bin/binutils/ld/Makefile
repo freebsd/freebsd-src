@@ -11,6 +11,8 @@ SRCS+=	ldcref.c ldctor.c ldemul.c ldemul-list.h ldexp.c ldfile.c \
 	ldver.c ldwrite.c lexsup.c mri.c
 
 WARNS?=	0	# ldemul.h problem (`struct option' declared inside parameter list)
+CFLAGS+= -DTARGET=\"${TARGET_TUPLE}\"
+CFLAGS+= -DDEFAULT_EMULATION=\"${NATIVE_EMULATION}\"
 CFLAGS+= -DSCRIPTDIR=\"${TOOLS_PREFIX}/usr/libdata\"
 CFLAGS+= -DBFD_VERSION_STRING=\"${VERSION}\"
 CFLAGS+= -DBINDIR=\"${BINDIR}\" -DTARGET_SYSTEM_ROOT=\"${TOOLS_PREFIX}\"
@@ -24,14 +26,14 @@ LDADD=	${DPADD}
 CLEANDIRS+=	ldscripts
 CLEANFILES+=	ldemul-list.h stringify.sed
 
-# If set, BINUTILSDISTDIR is the path to a directory containing the full GNU
-# binutils release. FreeBSD only distributes the bits that are required to
-# build native architectures. BINUTILSDISTDIR is needed to build cross tools.
-.if defined(BINUTILSDISTDIR) && exists(${BINUTILSDISTDIR})
-.PATH: ${BINUTILSDISTDIR}/ld
-CFLAGS+= -I${BINUTILSDISTDIR}/ld
-.endif
+HOST=		${TARGET_TUPLE}
+LIBSERACHPATH=	\"${TOOLS_PREFIX}/lib\":\"${TOOLS_PREFIX}/usr/lib\"
+ELF_SCR_EXT=	x xbn xn xr xs xu xc xsc xd xdc
+.for ext in ${ELF_SCR_EXT}
+LDSCRIPTS+=	${NATIVE_EMULATION}.${ext}
+.endfor
 
+EMS+=	 ${NATIVE_EMULATION}
 EMXFR=
 EMLST=
 .for _e in ${EMS}

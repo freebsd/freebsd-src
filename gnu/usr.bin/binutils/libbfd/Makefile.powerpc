@@ -2,8 +2,7 @@
 
 DEFAULT_VECTOR=	bfd_elf32_powerpc_vec
 
-SRCS+=	\
-	cpu-powerpc.c	\
+SRCS+=	cpu-powerpc.c	\
 	cpu-rs6000.c	\
 	elf32.c		\
 	elf32-gen.c	\
@@ -11,13 +10,8 @@ SRCS+=	\
 	elf32-target.h	\
 	elflink.c	\
 	ppcboot.c	\
-	#xcofflink.c
+	xcofflink.c
+
 VECS+=	${DEFAULT_VECTOR} \
 	bfd_elf32_powerpcle_vec	\
 	ppcboot_vec
-
-.if ${TARGET_ARCH} == "powerpc"
-CFLAGS+= -DDEFAULT_VECTOR=${DEFAULT_VECTOR}
-.endif
-
-CLEANFILES+=	elf32-target.h

@@ -7,11 +7,13 @@ I386_VECS:=	${DEFAULT_VECTOR} # ${VECS}
 
 DEFAULT_VECTOR=	bfd_elf64_x86_64_vec
 
-VECS=	bfd_elf64_x86_64_vec ${I386_VECS}
+SRCS+=	elf64-amd64-fbsd.c \
+	elf64.c \
+	elf64-gen.c \
+	elf64-target.h
 
-SRCS+=	elf64-amd64-fbsd.c elf64-target.h elf64-gen.c elf64.c
-
-CLEANFILES+=	elf64-target.h
+VECS=	bfd_elf64_x86_64_vec \
+	${I386_VECS}
 
 CLEANFILES+=	elf64-amd64-fbsd.c
 

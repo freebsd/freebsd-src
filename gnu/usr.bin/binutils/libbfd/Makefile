@@ -46,6 +46,7 @@ SELVEC+= ,&${_v}
 .endif
 .endfor
 CFLAGS+= -DSELECT_VECS="${SELVEC}"
+CFLAGS+= -DDEFAULT_VECTOR=${DEFAULT_VECTOR}
 
 # XXX:DEO should grab BFD_VERSION_DATE from ${VERSION}...
 bfdver.h: Makefile
@@ -63,6 +64,7 @@ config.h: config.h.fbsd
 	sed -e 's,!!TRAD_HEADER!!,,g' ${.ALLSRC} > ${.TARGET}
 .endif
 
+CLEANFILES+=	elf32-target.h elf64-target.h
 elf32-target.h: elfxx-target.h
 	sed -e s/NN/32/g ${.ALLSRC} > ${.TARGET}
 
