@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)tty_pty.c	8.2 (Berkeley) 9/23/93
- * $Id: tty_pty.c,v 1.30 1995/12/08 23:21:34 phk Exp $
+ * $Id: tty_pty.c,v 1.31 1995/12/10 15:55:17 bde Exp $
  */
 
 /*
@@ -647,7 +647,7 @@ ptyioctl(dev, cmd, data, flag, p)
 		}
 		return(0);
 	} else
-	if (cdevsw[major(dev)].d_open == ptcopen)
+	if (cdevsw[major(dev)]->d_open == ptcopen)
 		switch (cmd) {
 
 		case TIOCGPGRP:
