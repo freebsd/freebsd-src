@@ -61,7 +61,7 @@
  * any improvements or extensions that they make and grant Carnegie the
  * rights to redistribute these changes.
  *
- * $Id: pmap.h,v 1.14 1996/07/30 03:08:04 dyson Exp $
+ * $Id: pmap.h,v 1.15 1996/09/08 20:44:31 dyson Exp $
  */
 
 /*
@@ -126,6 +126,10 @@ void		 pmap_zero_page __P((vm_offset_t));
 void		 pmap_prefault __P((pmap_t pmap, vm_offset_t addra,
 		    vm_map_entry_t entry, vm_object_t object));
 int		 pmap_mincore __P((pmap_t pmap, vm_offset_t addr));
+void		 pmap_new_proc __P((struct proc *p));
+void		 pmap_dispose_proc __P((struct proc *p));
+void		 pmap_swapout_proc __P((struct proc *p));
+void		 pmap_swapin_proc __P((struct proc *p));
 
 #endif /* KERNEL */
 
