@@ -57,6 +57,8 @@ struct pcb {
 	register_t	pcb_rbx;
 	register_t	pcb_rip;
 	register_t	pcb_rflags;
+	register_t	pcb_fsbase;
+	register_t	pcb_gsbase;
 
 	struct	savefpu	pcb_save;
 	u_long	pcb_flags;
