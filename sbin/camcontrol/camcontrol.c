@@ -3336,7 +3336,7 @@ main(int argc, char **argv)
 
 		/*
 		 * First catch people who try to do things like:
-		 * camcontrol tur /dev/rsd0.ctl
+		 * camcontrol tur /dev/da0 
 		 * camcontrol doesn't take device nodes as arguments.
 		 */
 		if (argv[2][0] == '/') {
