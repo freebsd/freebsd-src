@@ -1,4 +1,4 @@
-#	$Id: BSD.usr.dist,v 1.74.2.1 1996/11/16 21:03:17 phk Exp $
+#	$Id: BSD.usr.dist,v 1.74.2.2 1996/11/28 08:07:26 phk Exp $
 #
 
 /set type=dir uname=bin gname=bin mode=0755
@@ -434,6 +434,8 @@
             FreeBSD
             ..
             ISO
+            ..
+            docbook
             ..
             transpec
             ..
