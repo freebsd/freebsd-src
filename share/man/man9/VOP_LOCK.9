@@ -46,7 +46,7 @@
 .Ft int
 .Fn VOP_UNLOCK "struct vnode *vp" "int flags" "struct proc *p"
 .Ft int
-.Fn VOP_ISLOCKED "struct vnode *vp"
+.Fn VOP_ISLOCKED "struct vnode *vp" "struct proc *p"
 .Ft int
 .Fn vn_lock "struct vnode *vp" "int flags" "struct proc *p"
 .Sh DESCRIPTION
