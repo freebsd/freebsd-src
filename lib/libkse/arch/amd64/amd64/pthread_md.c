@@ -61,6 +61,7 @@ _kcb_ctor(struct kse *kse)
 	if ((kcb = malloc(sizeof(struct kcb))) != NULL) {
 		bzero(kcb, sizeof(struct kcb));
 		kcb->kcb_kse = kse;
+		kcb->kcb_self = kcb;
 	}
 	return (kcb);
 }
