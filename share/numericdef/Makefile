@@ -42,12 +42,13 @@ LOCALEDIR=	${DESTDIR}/usr/share/locale
 
 ASCIILINKS=	en_US
 LATIN15LINKS=	af_ZA da_DK de_DE en_US es_ES fi_FI fr_FR is_IS \
-		it_IT nl_NL no_NO pt_PT sv_SE
+		it_CH it_IT nl_NL no_NO pt_PT sv_SE
 
 US_LINKS=	en_CA en_GB
 GB_LINKS=	en_AU en_NZ
 FR_LINKS=	fr_CA fr_CH
 DE_LINKS=	de_AT de_CH
+IT_LINKS=	it_CH
 
 .SUFFIXES: .src .out
 
@@ -91,6 +92,12 @@ afterinstall:
 	ln -sf ../de_DE.ISO8859-1/LC_NUMERIC \
 		${LOCALEDIR}/${link}.ISO8859-1/LC_NUMERIC
 	ln -sf ../de_DE.ISO8859-1/LC_NUMERIC \
+		${LOCALEDIR}/${link}.ISO8859-15/LC_NUMERIC
+.endfor
+.for link in ${IT_LINKS}
+	ln -sf ../it_IT.ISO8859-1/LC_NUMERIC \
+		${LOCALEDIR}/${link}.ISO8859-1/LC_NUMERIC
+	ln -sf ../it_IT.ISO8859-1/LC_NUMERIC \
 		${LOCALEDIR}/${link}.ISO8859-15/LC_NUMERIC
 .endfor
 .for link in ${ASCIILINKS}
