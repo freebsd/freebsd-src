@@ -58,6 +58,8 @@
 #include <geom/geom.h>
 #include <geom/geom_slice.h>
 
+#include "opt_geom.h"
+
 #define MBR_CLASS_NAME "MBR"
 #define MBREXT_CLASS_NAME "MBREXT"
 
@@ -197,13 +199,28 @@ g_mbr_taste(struct g_class *mp, struct g_provider *pp, int insist)
 		if (!error && sectorsize != 512)
 			break;
 		gsp->frontstuff = sectorsize * fwsectors;
+#ifdef GEOM_GPT
+		/*
+		 * XXX: GPT hack: Read the second sector as well and back-off
+		 * if it has the GPT signature. The ultimate behaviour would
+		 * be to back-off if we detect a protective MBR (PMBR).
+		 */
+		buf = g_read_data(cp, 0, 2 * sectorsize, &error);
+#else
 		buf = g_read_data(cp, 0, sectorsize, &error);
+#endif
 		if (buf == NULL || error != 0)
 			break;
 		if (buf[0x1fe] != 0x55 && buf[0x1ff] != 0xaa) {
 			g_free(buf);
 			break;
 		}
+#ifdef GEOM_GPT
+		if (!memcmp(buf + 512, "EFI PART", 8)) {
+			g_free(buf);
+			break;
+		}
+#endif
 		for (i = 0; i < NDOSPART; i++) 
 			g_dec_dos_partition(
 			    buf + DOSPARTOFF + i * sizeof(struct dos_partition),
