@@ -42,7 +42,7 @@ static char const copyright[] =
 static char sccsid[] = "@(#)mkdir.c	8.2 (Berkeley) 1/25/94";
 #endif
 static const char rcsid[] =
-	"$Id: mkdir.c,v 1.13 1998/10/20 08:04:15 msmith Exp $";
+	"$Id: mkdir.c,v 1.15 1998/10/23 06:28:40 msmith Exp $";
 #endif /* not lint */
 
 #include <sys/types.h>
@@ -93,6 +93,7 @@ main(argc, argv)
 		if ((set = setmode(mode)) == NULL)
 			errx(1, "invalid file mode: %s", mode);
 		omode = getmode(set, S_IRWXU | S_IRWXG | S_IRWXO);
+		free(set);
 	}
 
 	for (exitval = 0; *argv != NULL; ++argv) {

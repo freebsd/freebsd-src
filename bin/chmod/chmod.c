@@ -42,7 +42,7 @@ static char const copyright[] =
 static char sccsid[] = "@(#)chmod.c	8.8 (Berkeley) 4/1/94";
 #endif
 static const char rcsid[] =
-	"$Id: chmod.c,v 1.10 1998/05/06 06:50:08 charnier Exp $";
+	"$Id: chmod.c,v 1.11 1998/05/13 07:22:11 charnier Exp $";
 #endif /* not lint */
 
 #include <sys/types.h>
@@ -195,6 +195,7 @@ done:	argv += optind;
 	}
 	if (errno)
 		err(1, "fts_read");
+	free(set);
 	exit(rval);
 }
 
