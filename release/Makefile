@@ -187,6 +187,13 @@ BOOTLABEL=		fd1440
 FIXITLABEL=		minimum2
 MFSLABEL=		auto
 BIGBOOTLABEL=		minimum2
+.elif ${TARGET_ARCH} == "sparc64"
+BIGBOOTSIZE=		4096
+MFSSIZE=		4096
+BOOTINODE=		8192
+MFSINODE=		8192
+BIGBOOTLABEL=		auto
+MFSLABEL=		auto
 .endif
 
 ZIPNSPLIT=		gzip --no-name -9 -c | split -b 240640 -
@@ -221,8 +228,17 @@ CD_DISC2=		${CD}/disc2
 # Where the bootstrap ports (see DOCPORTS) get installed.
 LOCALDIR=		/usr/local/bin
 
+.if ${TARGET_ARCH} == "sparc64"
+CRUNCH_TARGETS= boot
+FIXIT_TARGET=
+.endif
+
 .if !defined(CRUNCH_TARGETS)
 CRUNCH_TARGETS=	boot fixit
+.endif
+
+.if !defined(FIXIT_TARGET)
+FIXIT_TARGET= release.10
 .endif
 
 EXTRAS= cdrom.1 ftp.1
@@ -674,9 +690,11 @@ release.9:
 	sh -e ${.CURDIR}/scripts/doFS.sh -s mfsroot ${RD} ${MNT} \
 		${MFSSIZE} ${RD}/mfsfd ${MFSINODE} ${MFSLABEL}
 	@gzip -9vc mfsroot > mfsroot.gz
+.if ${TARGET_ARCH} != "sparc64"
 	@sh -e ${.CURDIR}/scripts/doFS.sh ${RD}/floppies/mfsroot.flp \
 		${RD} ${MNT} ${BOOTSIZE} mfsroot.gz ${BOOTINODE} ${BOOTLABEL}
 	@cd ${.CURDIR} && ${MAKE} doMFSKERN FSIMAGE=kern
+.endif
 	@cd ${.CURDIR} && ${MAKE} doMFSKERN FSIMAGE=boot FDSIZE=BIG
 .endif
 	@rm mfsroot mfsroot.gz
@@ -882,7 +900,7 @@ doTARBALL:
 	)
 
 doRELEASE:  release.1 release.2 release.3 ${DOCREL} release.4 release.5 \
-		release.6 release.7 release.8 release.9 release.10
+		release.6 release.7 release.8 release.9 ${FIXIT_TARGET}
 	@cd ${.CURDIR} && ${MAKE} ${EXTRAS}
 	@echo "Release done"
 
