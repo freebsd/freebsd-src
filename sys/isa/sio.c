@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)com.c	7.5 (Berkeley) 5/16/91
- *	$Id: sio.c,v 1.149 1996/11/13 18:31:51 bde Exp $
+ *	$Id: sio.c,v 1.150 1996/11/30 14:51:04 bde Exp $
  */
 
 #include "opt_comconsole.h"
@@ -1758,7 +1758,8 @@ repeat:
 			enable_intr();
 			(*linesw[tp->t_line].l_start)(tp);
 		}
-		if (incc <= 0 || !(tp->t_state & TS_ISOPEN))
+		if (incc <= 0 || !(tp->t_state & TS_ISOPEN) ||
+		    !(tp->t_cflag & CREAD))
 			continue;
 		/*
 		 * Avoid the grotesquely inefficient lineswitch routine
