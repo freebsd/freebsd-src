@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: menus.c,v 1.130 1997/03/27 01:44:11 jkh Exp $
+ * $Id: menus.c,v 1.131 1997/04/20 16:46:32 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -466,8 +466,14 @@ DMenu MenuMediaFTP = {
     "install",
     { { "Primary Site",	"ftp.freebsd.org", NULL, dmenuSetVariable, NULL,
 	VAR_FTP_PATH "=ftp://ftp.freebsd.org/pub/FreeBSD/" },
-      { "URL",		"Specify some other ftp site by URL", NULL, dmenuSetVariable, NULL,
+      { "URL", "Specify some other ftp site by URL", NULL, dmenuSetVariable, NULL,
 	VAR_FTP_PATH "=other" },
+      { "3.0 SNAP Server", "current.freebsd.org", NULL, dmenuSetVariable, NULL,
+	VAR_FTP_PATH "=ftp://ftp.freebsd.org/pub/FreeBSD/" },
+      { "2.2 SNAP Server", "releng22.freebsd.org", NULL, dmenuSetVariable, NULL,
+	VAR_FTP_PATH "=ftp://ftp.freebsd.org/pub/FreeBSD/" },
+      { "2.1 SNAP Server", "releng210.freebsd.org", NULL, dmenuSetVariable, NULL,
+	VAR_FTP_PATH "=ftp://ftp.freebsd.org/pub/FreeBSD/" },
       { "Argentina",	"ftp.ar.freebsd.org", NULL, dmenuSetVariable, NULL,
 	VAR_FTP_PATH "=ftp://ftp.ar.freebsd.org/pub/FreeBSD/" },
       { "Australia",	"ftp.au.freebsd.org", NULL, dmenuSetVariable, NULL,
