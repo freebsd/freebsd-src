@@ -44,20 +44,7 @@
 struct rp_port {
 	struct tty *		rp_tty; /* cross reference */
 
-/* Initial state */
-	struct termios		it_in;
-	struct termios		it_out;
-
-/* Lock state */
-	struct termios		lt_in;
-	struct termios		lt_out;
-
-/* Nonzero if callout device is open */
-	unsigned char		active_out;
 	unsigned char		state;	/* state of dtr */
-
-/* Time to hold DTR down on close */
-	int			wopeners;	/* processes waiting for DCD */
 
 	int			rp_port;
 	int			rp_flags;
