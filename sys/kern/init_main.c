@@ -39,7 +39,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)init_main.c	8.9 (Berkeley) 1/21/94
- * $Id: init_main.c,v 1.86 1998/04/04 13:25:08 phk Exp $
+ * $Id: init_main.c,v 1.87 1998/04/06 15:51:22 peter Exp $
  */
 
 #include "opt_devfs.h"
@@ -422,19 +422,21 @@ static void
 proc0_post(dummy)
 	void *dummy;
 {
-	struct timeval tv;
 	struct timespec ts;
 
 	/*
 	 * Now can look at time, having had a chance to verify the time
 	 * from the file system.  Reset p->p_rtime as it may have been
-	 * munched in mi_switch() after the time got set.
+	 * munched in mi_switch() after the time got set.  Set
+	 * p->p_runtime to be consistent with this unmunching.
 	 */
-	proc0.p_stats->p_start = boottime;
-	proc0.p_rtime.tv_sec = proc0.p_rtime.tv_usec = 0;
+	microtime(&proc0.p_stats->p_start);
+	timevalclear(&proc0.p_rtime);
+	microruntime(&proc0.p_runtime);
 
 	/*
 	 * Give the ``random'' number generator a thump.
+	 * XXX: Does read_random() contain enough bits to be used here ?
 	 */
 	nanotime(&ts);
 	srandom(ts.tv_sec ^ ts.tv_nsec);
