@@ -112,7 +112,7 @@ procfs_ioctl(PFS_IOCTL_ARGS)
 		error = (ENOTTY);
 	}
 	PROC_UNLOCK(p);
-	
+
 	return (error);
 }
 
