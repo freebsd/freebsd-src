@@ -107,10 +107,11 @@ Pass3(FILE *fd)
 	    continue;
 	} 
 	if(!strcmp(sp->Key,"FE")) {
-	    ed = popen("ed -s","w");
+	    ed = popen("ed","w");
 	    if(!ed) {
 		WRONG
 	    }
+	    fprintf(ed,"e %s\n",name);
 	    if(cnt != fwrite(trash,1,cnt,ed)) {
 		perror(name);
 		pclose(ed);

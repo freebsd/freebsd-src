@@ -75,14 +75,14 @@ Pass2(FILE *fd)
 			if(-1 != stat(name,&st)) {
 			    fprintf(stderr,"  %s: %s exists.\n",
 				sp->Key,name);
-			    ret |= 8;
+			    ret |= Exit_Forcible;
 			}
 			break;
 		    }
 		    if(-1 == stat(name,&st)) {
 			fprintf(stderr,"  %s: %s doesn't exists.\n",
 			    sp->Key,name);
-		        ret |= 8;
+		        ret |= Exit_NotOK;
 			break;
 		    } 
 		    if (j & CTM_Q_Name_Dir) {
@@ -90,7 +90,7 @@ Pass2(FILE *fd)
 			    fprintf(stderr,
 				"  %s: %s exist, but isn't dir.\n",
 				sp->Key,name);
-			    ret |= 8;
+			    ret |= Exit_NotOK;
 			}
 			break;
 		    } 
@@ -99,7 +99,7 @@ Pass2(FILE *fd)
 			    fprintf(stderr,
 				"  %s: %s exist, but isn't file.\n",
 				sp->Key,name);
-			    ret |= 8;
+			    ret |= Exit_NotOK;
 			}
 			break;
 		    }
@@ -117,8 +117,15 @@ Pass2(FILE *fd)
 			  strcmp(MD5File(name),p)) {
 			    fprintf(stderr,"  %s: %s md5 mismatch.\n",
 				sp->Key,name);
-			    ret |= 8;
-
+			    if(j & CTM_Q_MD5_Force) {
+				if(Force)
+				    fprintf(stderr,"  Can and will force.\n");
+				else
+				    fprintf(stderr,"  Could have forced.n");
+				ret |= Exit_Forcible;
+			    } else {
+				ret |= Exit_NotOK;
+			    }
 			}
 			break;
 		    }
@@ -127,7 +134,7 @@ Pass2(FILE *fd)
 			break;
 		    }
 		    /* Unqualified MD5 */
-		    ret = 32;
+		    WRONG
 		    break;
 		case CTM_F_Count:
 		    GETBYTECNT(cnt,sep);
@@ -146,7 +153,7 @@ Pass2(FILE *fd)
 			} else if(strcmp(md5,MD5File(p))) {
 			    fprintf(stderr,"  %s: %s edit fails.\n",
 				sp->Key,name);
-			    ret |= 32;
+			    ret |= Exit_Mess;
 			    return ret;
 			}
 			unlink(p);
