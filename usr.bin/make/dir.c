@@ -986,7 +986,7 @@ Dir_MTime (gn)
 	/*
 	 * Only do this once -- the second time folks are checking to
 	 * see if the file was actually updated, so we need to actually go
-	 * to the file system.
+	 * to the filesystem.
 	 */
 	if (DEBUG(DIR)) {
 	    printf("Using cached time %s for %s\n",
