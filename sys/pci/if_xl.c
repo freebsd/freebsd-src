@@ -57,6 +57,8 @@
  * 3Com 3c450-TX	10/100Mbps/RJ-45 (Tornado ASIC)
  * 3Com 3c556		10/100Mbps/RJ-45 (MiniPCI, Hurricane ASIC)
  * 3Com 3c556B		10/100Mbps/RJ-45 (MiniPCI, Hurricane ASIC)
+ * 3Com 3c575B		10/100Mbps/RJ-45 (Cardbus, Hurricane ASIC)
+ * 3Com 3c575C		10/100Mbps/RJ-45 (Cardbus, Hurricane ASIC)
  * Dell Optiplex GX1 on-board 3c918 10/100Mbps/RJ-45
  * Dell on-board 3c920 10/100Mbps/RJ-45
  * Dell Precision on-board 3c905B 10/100Mbps/RJ-45
@@ -191,6 +193,10 @@ static struct xl_type xl_devs[] = {
 		"3Com 3c556 Fast Etherlink XL" },
 	{ TC_VENDORID, TC_DEVICEID_HURRICANE_556B,
 		"3Com 3c556B Fast Etherlink XL" },
+	{ TC_VENDORID, TC_DEVICEID_HURRICANE_575B,
+		"3Com 3c575B Fast Etherlink XL" },
+	{ TC_VENDORID, TC_DEVICEID_HURRICANE_575C,
+		"3Com 3c575C Fast Etherlink XL" },
 	{ 0, 0, NULL }
 };
 
@@ -287,6 +293,7 @@ static driver_t xl_driver = {
 
 static devclass_t xl_devclass;
 
+DRIVER_MODULE(if_xl, cardbus, xl_driver, xl_devclass, 0, 0);
 DRIVER_MODULE(if_xl, pci, xl_driver, xl_devclass, 0, 0);
 DRIVER_MODULE(miibus, xl, miibus_driver, miibus_devclass, 0, 0);
 
@@ -699,6 +706,7 @@ static int xl_read_eeprom(sc, dest, off, cnt, swap)
 	int			err = 0, i;
 	u_int16_t		word = 0, *ptr;
 #define EEPROM_5BIT_OFFSET(A) ((((A) << 2) & 0x7F00) | ((A) & 0x003F))
+#define EEPROM_8BIT_OFFSET(A) ((A) & 0x003F)
 	/* WARNING! DANGER!
 	 * It's easy to accidentally overwrite the rom content!
 	 * Note: the 3c575 uses 8bit EEPROM offsets.
@@ -713,7 +721,8 @@ static int xl_read_eeprom(sc, dest, off, cnt, swap)
 
 	for (i = 0; i < cnt; i++) {
 		if (sc->xl_flags & XL_FLAG_8BITROM)
-			CSR_WRITE_2(sc, XL_W0_EE_CMD, (2<<8) | (off + i));
+			CSR_WRITE_2(sc, XL_W0_EE_CMD, 
+			    XL_EE_8BIT_READ | EEPROM_8BIT_OFFSET(off + i));
 		else
 			CSR_WRITE_2(sc, XL_W0_EE_CMD,
 			    XL_EE_READ | EEPROM_5BIT_OFFSET(off + i));
@@ -1028,10 +1037,14 @@ static void xl_reset(sc)
 	CSR_WRITE_2(sc, XL_COMMAND, XL_CMD_TX_RESET);
 	xl_wait(sc);
 
-	if (sc->xl_flags & XL_FLAG_WEIRDRESET) {
+	if (sc->xl_flags & XL_FLAG_INVERT_LED_PWR || 
+	    sc->xl_flags & XL_FLAG_INVERT_MII_PWR) {
 		XL_SEL_WIN(2);
 		CSR_WRITE_2(sc, XL_W2_RESET_OPTIONS, CSR_READ_2(sc,
-		    XL_W2_RESET_OPTIONS) | 0x4010);
+		    XL_W2_RESET_OPTIONS) 
+		    | ((sc->xl_flags & XL_FLAG_INVERT_LED_PWR)?XL_RESETOPT_INVERT_LED:0)
+		    | ((sc->xl_flags & XL_FLAG_INVERT_MII_PWR)?XL_RESETOPT_INVERT_MII:0)
+		    );
 	}
 
 	/* Wait a little while for the chip to get its brains in order. */
@@ -1159,6 +1172,8 @@ static void xl_choose_xcvr(sc, verbose)
 	case TC_DEVICEID_BOOMERANG_10_100BT:	/* 3c905-TX */
 	case TC_DEVICEID_HURRICANE_556:		/* 3c556 */
 	case TC_DEVICEID_HURRICANE_556B:	/* 3c556B */
+	case TC_DEVICEID_HURRICANE_575B:	/* 3c575B */
+	case TC_DEVICEID_HURRICANE_575C:	/* 3c575C */
 		sc->xl_media = XL_MEDIAOPT_MII;
 		sc->xl_xcvr = XL_XCVR_MII;
 		if (verbose)
@@ -1220,9 +1235,19 @@ static int xl_attach(dev)
 	if (pci_get_device(dev) == TC_DEVICEID_HURRICANE_556 ||
 	    pci_get_device(dev) == TC_DEVICEID_HURRICANE_556B)
 		sc->xl_flags |= XL_FLAG_FUNCREG | XL_FLAG_PHYOK |
-		    XL_FLAG_EEPROM_OFFSET_30 | XL_FLAG_WEIRDRESET;
+		    XL_FLAG_EEPROM_OFFSET_30 | XL_FLAG_WEIRDRESET |
+		    XL_FLAG_INVERT_LED_PWR | XL_FLAG_INVERT_MII_PWR;
 	if (pci_get_device(dev) == TC_DEVICEID_HURRICANE_556)
 		sc->xl_flags |= XL_FLAG_8BITROM;
+
+	if (pci_get_device(dev) == TC_DEVICEID_HURRICANE_575B ||
+	    pci_get_device(dev) == TC_DEVICEID_HURRICANE_575C)
+		sc->xl_flags |= XL_FLAG_FUNCREG | XL_FLAG_PHYOK |
+		    XL_FLAG_EEPROM_OFFSET_30 | XL_FLAG_8BITROM;
+	if (pci_get_device(dev) == TC_DEVICEID_HURRICANE_575B)
+		sc->xl_flags |= XL_FLAG_INVERT_LED_PWR;
+	if (pci_get_device(dev) == TC_DEVICEID_HURRICANE_575C)
+		sc->xl_flags |= XL_FLAG_INVERT_MII_PWR;
 
 	/*
 	 * If this is a 3c905B, we have to check one extra thing.
@@ -2037,7 +2062,7 @@ static void xl_intr(arg)
 	XL_LOCK(sc);
 	ifp = &sc->arpcom.ac_if;
 
-	while((status = CSR_READ_2(sc, XL_STATUS)) & XL_INTRS) {
+	while((status = CSR_READ_2(sc, XL_STATUS)) & XL_INTRS && status != 0xFFFF) {
 
 		CSR_WRITE_2(sc, XL_COMMAND,
 		    XL_CMD_INTR_ACK|(status & XL_INTRS));
