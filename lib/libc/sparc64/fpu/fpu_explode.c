@@ -248,16 +248,21 @@ __fpu_explode(fe, fp, type, reg)
 	struct fpn *fp;
 	int type, reg;
 {
-	u_int s;
-	u_int64_t l;
+	u_int32_t s, *sp;
+	u_int64_t l[2];
 
-	l = __fpu_getreg64(reg & ~1);
-	s = __fpu_getreg(reg);
-	fp->fp_sign = s >> 31;
+	if (type == FTYPE_LNG || type == FTYPE_DBL || type == FTYPE_EXT) {
+		l[0] = __fpu_getreg64(reg & ~1);
+		sp = (u_int32_t *)l;
+		fp->fp_sign = sp[0] >> 31;
+	} else {
+		s = __fpu_getreg(reg);
+		fp->fp_sign = s >> 31;
+	}
 	fp->fp_sticky = 0;
 	switch (type) {
 	case FTYPE_LNG:
-		s = __fpu_xtof(fp, l);
+		s = __fpu_xtof(fp, l[0]);
 		break;
 
 	case FTYPE_INT:
@@ -269,13 +274,12 @@ __fpu_explode(fe, fp, type, reg)
 		break;
 
 	case FTYPE_DBL:
-		s = __fpu_dtof(fp, s, __fpu_getreg(reg + 1));
+		s = __fpu_dtof(fp, sp[0], sp[1]);
 		break;
 
 	case FTYPE_EXT:
-		s = __fpu_qtof(fp, s, __fpu_getreg(reg + 1),
-		    __fpu_getreg(reg + 2),
-		    __fpu_getreg(reg + 3));
+		l[1] = __fpu_getreg64((reg & ~1) + 2);
+		s = __fpu_qtof(fp, sp[0], sp[1], sp[2], sp[3]);
 		break;
 
 	default:
