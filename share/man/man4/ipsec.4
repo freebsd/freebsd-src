@@ -65,10 +65,10 @@ Transport mode is for protecting peer-to-peer commuication between end nodes.
 Tunnel mode includes IP-in-IP encapsulation operation
 and is designed for security gateways, like VPN configurations.
 .\"
-.Sh KERNEL INTERFACE
+.Ss Kernel interface
 .Nm
-is controlled by key management engine, and policy engine in the
-operating system kernel.
+is controlled by key management engine and policy engine,
+in the operating system kernel.
 .Pp
 Key management engine can be accessed from the userland by using
 .Dv PF_KEY
@@ -100,7 +100,7 @@ That should be implemented as userland programs
 .Pq usually as daemons ,
 by using the above described APIs.
 .\"
-.Sh POLICY MANAGEMENT
+.Ss Policy management
 The kernel implements experimental policy management code.
 You can manage the IPsec policy in two ways.
 One is to configure per-socket policy using 
@@ -207,16 +207,22 @@ routines from looking into IP payload.
 .Xr ip6 4 ,
 .Xr setkey 8 ,
 .Xr sysctl 8 ,
-.Xr racoon 8 .
+.Xr racoon 8
 .Pp
 .Rs
-.%T RFC2367
+.%A Daniel L. McDonald
+.%A Craig Metz
+.%A Bao G. Phan
+.%T "PF_KEY Key Management API, Version 2"
+.%R RFC
+.%N 2367
 .Re
 .Rs
 .%A "D. L. McDonald"
 .%T "A Simple IP Security API Extension to BSD Sockets"
+.%R internet draft
 .%N "draft-mcdonald-simple-ipsec-api-03.txt"
-.%O "internet draft"
+.%O work in progress material
 .Re
 .Sh CAVEAT
 The IPsec support is subject to change as the IPsec protocols develop.
