@@ -104,15 +104,15 @@ auth_via_key(pam_handle_t *pamh, int type, const char *file,
 		syslog(LOG_CRIT, "%s: %m", MODULE_NAME);
 		return PAM_SERVICE_ERR;
 	}
-	saved_uid = getuid();
+	saved_uid = geteuid();
 	/*
 	 * Try to decrypt the private key with the passphrase provided.
 	 * If success, the user is authenticated.
 	 */
-	setreuid(user->pw_uid, saved_uid);
+	seteuid(user->pw_uid);
 	key = key_load_private_type(type, path, pass, &comment);
 	free(path);
-	setuid(saved_uid);
+	seteuid(saved_uid);
 	if (key == NULL)
 		return PAM_AUTH_ERR;
 	/*
