@@ -12,8 +12,8 @@ SUBDIR=	accf_data accf_http agp aha amr an aue \
 
 # XXX some of these can move to the general case when de-i386'ed
 .if ${MACHINE_ARCH} == "i386"
-SUBDIR+=aac asr bktr coff fpu gnufpu ibcs2 linprocfs mly ray splash streams \
-	svr4 vesa wi
+SUBDIR+=aac asr bktr coff fpu gnufpu ibcs2 linprocfs mly ray smbfs splash \
+	streams svr4 vesa wi
 .endif
 
 .if ${MACHINE} == "pc98"

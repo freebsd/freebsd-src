@@ -39,8 +39,6 @@
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/proc.h>
-#include <sys/bio.h>
-#include <sys/buf.h>
 #include <sys/kernel.h>
 #include <sys/sysctl.h>
 #include <sys/vnode.h>
@@ -57,6 +55,8 @@
 #include <fs/smbfs/smbfs.h>
 #include <fs/smbfs/smbfs_node.h>
 #include <fs/smbfs/smbfs_subr.h>
+
+#include <sys/buf.h>
 
 int smbfs_debuglevel = 0;
 
@@ -116,12 +116,7 @@ static struct vfsops smbfs_vfsops = {
 #endif
 	smbfs_init,
 	smbfs_uninit,
-#ifndef FB_RELENG3
-	vfs_stdextattrctl,
-#else
-#define	M_USE_RESERVE	M_KERNEL
-	&sysctl___vfs_smbfs
-#endif
+	vfs_stdextattrctl
 };
 
 
@@ -142,9 +137,7 @@ smbfs_mount(struct mount *mp, char *path, caddr_t data,
 	struct smb_share *ssp = NULL;
 	struct vnode *vp;
 	struct smb_cred scred;
-#ifndef	FB_CURRENT
 	size_t size;
-#endif
 	int error;
 	char *pc, *pe;
 
@@ -200,12 +193,10 @@ smbfs_mount(struct mount *mp, char *path, caddr_t data,
 			    (S_IRWXU|S_IRWXG|S_IRWXO)) | S_IFDIR;
 
 /*	simple_lock_init(&smp->sm_npslock);*/
-#ifndef	FB_CURRENT
 	error = copyinstr(path, mp->mnt_stat.f_mntonname, MNAMELEN - 1, &size);
 	if (error)
 		goto bad;
 	bzero(mp->mnt_stat.f_mntonname + size, MNAMELEN - size);
-#endif
 	pc = mp->mnt_stat.f_mntfromname;
 	pe = pc + sizeof(mp->mnt_stat.f_mntfromname);
 	bzero(pc, MNAMELEN);
@@ -254,6 +245,7 @@ static int
 smbfs_unmount(struct mount *mp, int mntflags, struct proc *p)
 {
 	struct smbmount *smp = VFSTOSMBFS(mp);
+	struct vnode *vp;
 	struct smb_cred scred;
 	int error, flags;
 
@@ -261,10 +253,22 @@ smbfs_unmount(struct mount *mp, int mntflags, struct proc *p)
 	flags = 0;
 	if (mntflags & MNT_FORCE)
 		flags |= FORCECLOSE;
-	/* There is 1 extra root vnode reference from smbfs_mount(). */
-	error = vflush(mp, 1, flags);
+	error = VFS_ROOT(mp, &vp);
 	if (error)
+		return (error);
+	if (vp->v_usecount > 2) {
+		printf("smbfs_unmount: usecnt=%d\n", vp->v_usecount);
+		vput(vp);
+		return EBUSY;
+	}
+	error = vflush(mp, vp, flags);
+	if (error) {
+		vput(vp);
 		return error;
+	}
+	vput(vp);
+	vrele(vp);
+	vgone(vp);
 	smb_makescred(&scred, p, p->p_ucred);
 	smb_share_put(smp->sm_share, &scred);
 	mp->mnt_data = (qaddr_t)0;
@@ -352,16 +356,7 @@ smbfs_quotactl(mp, cmd, uid, arg, p)
 int
 smbfs_init(struct vfsconf *vfsp)
 {
-#ifndef SMP
-	int name[2];
-	int olen, ncpu, plen, error;
-
-	name[0] = CTL_HW;
-	name[1] = HW_NCPU;
-	error = kernel_sysctl(curproc, name, 2, &ncpu, &olen, NULL, 0, &plen);
-	if (error == 0 && ncpu > 1)
-		printf("warning: smbfs module compiled without SMP support.");
-#endif
+	smb_checksmp();
 
 #ifdef SMBFS_USEZONE
 	smbfsmount_zone = zinit("SMBFSMOUNT", sizeof(struct smbmount), 0, 0, 1);
@@ -443,11 +438,7 @@ loop:
 		 */
 		if (vp->v_mount != mp)
 			goto loop;
-#ifndef FB_RELENG3
 		if (VOP_ISLOCKED(vp, NULL) || TAILQ_EMPTY(&vp->v_dirtyblkhd) ||
-#else
-		if (VOP_ISLOCKED(vp) || TAILQ_EMPTY(&vp->v_dirtyblkhd) ||
-#endif
 		    waitfor == MNT_LAZY)
 			continue;
 		if (vget(vp, LK_EXCLUSIVE, p))

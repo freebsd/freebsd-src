@@ -409,8 +409,16 @@ options 	NETATALK		#Appletalk communications protocols
 #options 	NS			#Xerox NS protocols
 #options 	NSIP			#XNS over IP
 
+#
+# SMB/CIFS requester
+# NETSMB enables support for SMB protocol, it requires LIBMCHAIN and LIBICONV
+# options.
+# NETSMBCRYPTO enables support for encrypted passwords.
+options 	NETSMB			#SMB/CIFS requester
+options 	NETSMBCRYPTO		#encrypted password support for SMB
+
 # mchain library. It can be either loaded as KLD or compiled into kernel
-options 	LIBMCHAIN
+options 	LIBMCHAIN		#mbuf management library
 
 # netgraph(4). Enable the base netgraph code with the NETGRAPH option.
 # Individual node types can be enabled with the corresponding option
@@ -656,6 +664,7 @@ options 	NULLFS			#NULL filesystem
 options 	NWFS			#NetWare filesystem
 options 	PORTAL			#Portal filesystem
 options 	PROCFS			#Process filesystem
+options		SMBFS			#SMB/CIFS filesystem
 options 	UMAPFS			#UID map filesystem
 options 	UNION			#Union filesystem
 # The xFS_ROOT options REQUIRE the associated ``options xFS''

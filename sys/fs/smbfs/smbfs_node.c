@@ -34,23 +34,21 @@
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/kernel.h>
-#include <sys/lock.h>
-#include <sys/malloc.h>
-#include <sys/mount.h>
-#include <sys/proc.h>
-#include <sys/queue.h>
-#include <sys/sysctl.h>
 #include <sys/time.h>
+#include <sys/proc.h>
+#include <sys/mount.h>
 #include <sys/vnode.h>
-
-#include <netsmb/smb.h>
-#include <netsmb/smb_conn.h>
-#include <netsmb/smb_subr.h>
-
+#include <sys/malloc.h>
+#include <sys/sysctl.h>
 #include <vm/vm.h>
 #include <vm/vm_extern.h>
 /*#include <vm/vm_page.h>
 #include <vm/vm_object.h>*/
+#include <sys/queue.h>
+
+#include <netsmb/smb.h>
+#include <netsmb/smb_conn.h>
+#include <netsmb/smb_subr.h>
 
 #include <fs/smbfs/smbfs.h>
 #include <fs/smbfs/smbfs_node.h>
@@ -244,7 +242,7 @@ loop:
 	} else if (vp->v_type == VREG)
 		SMBERROR("new vnode '%s' born without parent ?\n", np->n_name);
 
-	lockinit(&vp->v_lock, PINOD, "smbnode", 0, LK_CANRECURSE);
+	lockinit(&np->n_lock, PINOD, "smbnode", 0, LK_CANRECURSE);
 	vn_lock(vp, LK_EXCLUSIVE | LK_RETRY, p);
 
 	smbfs_hash_lock(smp, p);

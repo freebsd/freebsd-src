@@ -631,11 +631,7 @@ smb_iod_main(struct smbiod *iod)
 	return;
 }
 
-#ifndef FB_CURRENT
 #define	kthread_create_compat	kthread_create2
-#else
-#define	kthread_create_compat	kthread_create
-#endif
 
 
 void
@@ -643,17 +639,14 @@ smb_iod_thread(void *arg)
 {
 	struct smbiod *iod = arg;
 
-	mtx_lock(&Giant);
 	smb_makescred(&iod->iod_scred, iod->iod_p, NULL);
 	while ((iod->iod_flags & SMBIOD_SHUTDOWN) == 0) {
 		smb_iod_main(iod);
 		SMBIODEBUG("going to sleep for %d ticks\n", iod->iod_sleeptimo);
-/*		mtx_unlock(&Giant, MTX_DEF);*/
 		if (iod->iod_flags & SMBIOD_SHUTDOWN)
 			break;
 		tsleep(&iod->iod_flags, PWAIT, "90idle", iod->iod_sleeptimo);
 	}
-/*	mtx_lock(&Giant, MTX_DEF);*/
 	kthread_exit(0);
 }
 
@@ -689,8 +682,8 @@ int
 smb_iod_destroy(struct smbiod *iod)
 {
 	smb_iod_request(iod, SMBIOD_EV_SHUTDOWN | SMBIOD_EV_SYNC, NULL);
-	mtx_destroy(&iod->iod_rqlock);
-	mtx_destroy(&iod->iod_evlock);
+	smb_sl_destroy(&iod->iod_rqlock);
+	smb_sl_destroy(&iod->iod_evlock);
 	free(iod, M_SMBIOD);
 	return 0;
 }

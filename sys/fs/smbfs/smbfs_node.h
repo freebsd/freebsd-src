@@ -46,9 +46,7 @@
 struct smbfs_fctx;
 
 struct smbnode {
-#ifndef FB_CURRENT
 	struct lock		n_lock;		/* smbnode lock. (mbf) */
-#endif
 	int			n_flag;
 	struct smbnode *	n_parent;
 	struct vnode *		n_vnode;

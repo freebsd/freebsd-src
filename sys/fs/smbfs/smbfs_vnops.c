@@ -36,8 +36,6 @@
 #include <sys/namei.h>
 #include <sys/kernel.h>
 #include <sys/proc.h>
-#include <sys/bio.h>
-#include <sys/buf.h>
 #include <sys/fcntl.h>
 #include <sys/mount.h>
 #include <sys/unistd.h>
@@ -56,6 +54,8 @@
 #include <fs/smbfs/smbfs.h>
 #include <fs/smbfs/smbfs_node.h>
 #include <fs/smbfs/smbfs_subr.h>
+
+#include <sys/buf.h>
 
 /*
  * Prototypes for SMBFS vnode operations
@@ -78,19 +78,19 @@ static int smbfs_mkdir(struct vop_mkdir_args *);
 static int smbfs_rmdir(struct vop_rmdir_args *);
 static int smbfs_symlink(struct vop_symlink_args *);
 static int smbfs_readdir(struct vop_readdir_args *);
+static int smbfs_bmap(struct vop_bmap_args *);
 static int smbfs_strategy(struct vop_strategy_args *);
 static int smbfs_print(struct vop_print_args *);
 static int smbfs_pathconf(struct vop_pathconf_args *ap);
 static int smbfs_advlock(struct vop_advlock_args *);
-#ifndef FB_RELENG3
 static int smbfs_getextattr(struct vop_getextattr_args *ap);
-#endif
 
 vop_t **smbfs_vnodeop_p;
 static struct vnodeopv_entry_desc smbfs_vnodeop_entries[] = {
 	{ &vop_default_desc,		(vop_t *) vop_defaultop },
 	{ &vop_access_desc,		(vop_t *) smbfs_access },
 	{ &vop_advlock_desc,		(vop_t *) smbfs_advlock },
+	{ &vop_bmap_desc,		(vop_t *) smbfs_bmap },
 	{ &vop_close_desc,		(vop_t *) smbfs_close },
 	{ &vop_create_desc,		(vop_t *) smbfs_create },
 	{ &vop_fsync_desc,		(vop_t *) smbfs_fsync },
@@ -119,10 +119,8 @@ static struct vnodeopv_entry_desc smbfs_vnodeop_entries[] = {
 	{ &vop_symlink_desc,		(vop_t *) smbfs_symlink },
 	{ &vop_unlock_desc,		(vop_t *) vop_stdunlock },
 	{ &vop_write_desc,		(vop_t *) smbfs_write },
-#ifndef FB_RELENG3
 	{ &vop_getextattr_desc, 	(vop_t *) smbfs_getextattr },
 /*	{ &vop_setextattr_desc,		(vop_t *) smbfs_setextattr },*/
-#endif
 	{ NULL, NULL }
 };
 
@@ -836,7 +834,7 @@ int smbfs_print (ap)
 	printf("tag VT_SMBFS, name = %s, parent = %p, opencount = %d",
 	    np->n_name, np->n_parent ? SMBTOV(np->n_parent) : NULL,
 	    np->n_opencount);
-	lockmgr_printinfo(&vp->v_lock);
+	lockmgr_printinfo(&np->n_lock);
 	printf("\n");
 	return (0);
 }
@@ -888,7 +886,7 @@ smbfs_strategy (ap)
 		p = (struct proc *)0;
 	else
 		p = curproc;	/* XXX */
-	if (bp->b_iocmd == BIO_READ)
+	if (bp->b_flags & B_READ)
 		cr = bp->b_rcred;
 	else
 		cr = bp->b_wcred;
@@ -896,6 +894,30 @@ smbfs_strategy (ap)
 	if ((bp->b_flags & B_ASYNC) == 0 )
 		error = smbfs_doio(bp, cr, p);
 	return error;
+}
+
+static int
+smbfs_bmap(ap)
+	struct vop_bmap_args /* {
+		struct vnode *a_vp;
+		daddr_t  a_bn;
+		struct vnode **a_vpp;
+		daddr_t *a_bnp;
+		int *a_runp;
+		int *a_runb;
+	} */ *ap;
+{
+	struct vnode *vp = ap->a_vp;
+
+	if (ap->a_vpp != NULL)
+		*ap->a_vpp = vp;
+	if (ap->a_bnp != NULL)
+		*ap->a_bnp = ap->a_bn * btodb(vp->v_mount->mnt_stat.f_iosize);
+	if (ap->a_runp != NULL)
+		*ap->a_runp = 0;
+	if (ap->a_runb != NULL)
+		*ap->a_runb = 0;
+	return (0);
 }
 
 int
@@ -1080,10 +1102,6 @@ smbfs_pathcheck(struct smbmount *smp, const char *name, int nmlen, int nameiop)
 			return error;
 	return 0;
 }
-
-#ifndef PDIRUNLOCK
-#define	PDIRUNLOCK	0
-#endif
 
 /*
  * Things go even weird without fixed inode numbers...

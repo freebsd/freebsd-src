@@ -42,15 +42,11 @@
 MALLOC_DECLARE(M_SMBTEMP);
 #endif
 
-#if __FreeBSD_version > 500000
-#define	FB_CURRENT
-#else
-#  if __FreeBSD_version > 400000
-#  define	FB_RELENG4
-#  else
-#  error "Unsupported version of FreeBSD"
-#  endif
-#endif
+/*
+ * For compatibility with 5.x
+ */
+#define	MODULE_VERSION(name, ver)
+#define	PDROP	0x200	/* OR'd with pri to stop re-entry of interlock mutex */
 
 #define SMBERROR(format, args...) printf("%s: "format, __FUNCTION__ ,## args)
 #define SMBPANIC(format, args...) printf("%s: "format, __FUNCTION__ ,## args)
@@ -73,24 +69,12 @@ void m_dumpm(struct mbuf *m);
 #define m_dumpm(m)
 #endif
 
-#if __FreeBSD_version > 400009
 #define	SMB_SIGMASK(set) 						\
 	(SIGISMEMBER(set, SIGINT) || SIGISMEMBER(set, SIGTERM) ||	\
 	 SIGISMEMBER(set, SIGHUP) || SIGISMEMBER(set, SIGKILL) ||	\
 	 SIGISMEMBER(set, SIGQUIT))
 
 #define	smb_suser(cred)	suser_xxx(cred, NULL, 0)
-#else
-#define	SMB_SIGMASK	(sigmask(SIGINT)|sigmask(SIGTERM)|sigmask(SIGKILL)| \
-			 sigmask(SIGHUP)|sigmask(SIGQUIT))
-
-#define	smb_suser(cred)	suser((cred), NULL)
-#endif
-
-/*
- * Compatibility wrappers for simple locks
- */
-#if __FreeBSD_version < 500000
 
 #include <sys/lock.h>
 
@@ -100,24 +84,6 @@ void m_dumpm(struct mbuf *m);
 #define	smb_sl_destroy(mtx)
 #define	smb_sl_lock(mtx)		simple_lock(mtx)
 #define	smb_sl_unlock(mtx)		simple_unlock(mtx)
-/*
-#define	mtx				lock
-#define	mtx_init(mtx, desc, flags)	lockinit(mtx, PWAIT, desc, 0, 0)
-#define	mtx_lock(mtx)			lockmgr(mtx, LK_EXCLUSIVE, NULL, curproc)
-#define	mtx_unlock(mtx)			lockmgr(mtx, LK_RELEASE, NULL, curproc)
-#define	mtx_destroy(mtx)
-*/
-#else
-
-#include <sys/mutex.h>
-
-#define	smb_slock			mtx
-#define	smb_sl_init(mtx, desc)		mtx_init(mtx, desc, MTX_DEF)
-#define	smb_sl_destroy(mtx)		mtx_destroy(mtx)
-#define	smb_sl_lock(mtx)		mtx_lock(mtx)
-#define	smb_sl_unlock(mtx)		mtx_unlock(mtx)
-
-#endif
 
 #define SMB_STRFREE(p)	do { if (p) smb_strfree(p); } while(0)
 
@@ -171,8 +137,11 @@ struct smb_cred {
 extern smb_unichar smb_unieol;
 
 struct mbchain;
+struct proc;
+struct simplelock;
 struct smb_vc;
 struct smb_rq;
+
 
 void smb_makescred(struct smb_cred *scred, struct proc *p, struct ucred *cred);
 int  smb_proc_intr(struct proc *);
@@ -194,5 +163,14 @@ int  smb_put_dstring(struct mbchain *mbp, struct smb_vc *vcp,
 	const char *src, int caseopt);
 int  smb_put_string(struct smb_rq *rqp, const char *src);
 int  smb_put_asunistring(struct smb_rq *rqp, const char *src);
+int  smb_checksmp(void);
+
+/*
+ * Compatibilty with 5.x functions
+ */
+int kthread_create2(void (*func)(void *), void *arg,
+    struct proc **newpp, int flags, const char *fmt, ...);
+int msleep(void *chan, struct simplelock *mtx, int pri, const char *wmesg, int timo);
+
 
 #endif /* !_NETSMB_SMB_SUBR_H_ */

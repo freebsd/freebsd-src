@@ -38,8 +38,6 @@
 #include <sys/kernel.h>
 #include <sys/proc.h>
 #include <sys/fcntl.h>
-#include <sys/bio.h>
-#include <sys/buf.h>
 #include <sys/mount.h>
 #include <sys/namei.h>
 #include <sys/vnode.h>
@@ -48,9 +46,6 @@
 #include <sys/sysctl.h>
 
 #include <vm/vm.h>
-#if __FreeBSD_version < 400000
-#include <vm/vm_prot.h>
-#endif
 #include <vm/vm_page.h>
 #include <vm/vm_extern.h>
 #include <vm/vm_object.h>
@@ -66,6 +61,8 @@
 #include <fs/smbfs/smbfs.h>
 #include <fs/smbfs/smbfs_node.h>
 #include <fs/smbfs/smbfs_subr.h>
+
+#include <sys/buf.h>
 
 /*#define SMBFS_RWGENERIC*/
 
@@ -310,7 +307,7 @@ smbfs_doio(struct buf *bp, struct ucred *cr, struct proc *p)
 
 	smb_makescred(&scred, p, cr);
 
-	if (bp->b_iocmd == BIO_READ) {
+	if (bp->b_flags & B_READ) {
 	    io.iov_len = uiop->uio_resid = bp->b_bcount;
 	    io.iov_base = bp->b_data;
 	    uiop->uio_rw = UIO_READ;
@@ -333,7 +330,7 @@ smbfs_doio(struct buf *bp, struct ucred *cr, struct proc *p)
 	    };
 	    if (error) {
 		bp->b_error = error;
-		bp->b_ioflags |= BIO_ERROR;
+		bp->b_flags |= B_ERROR;
 	    }
 	} else { /* write */
 	    if (((bp->b_blkno * DEV_BSIZE) + bp->b_dirtyend) > np->n_size)
@@ -378,19 +375,19 @@ smbfs_doio(struct buf *bp, struct ucred *cr, struct proc *p)
 			splx(s);
 	    	} else {
 			if (error) {
-				bp->b_ioflags |= BIO_ERROR;
+				bp->b_flags |= B_ERROR;
 				bp->b_error = error;
 			}
 			bp->b_dirtyoff = bp->b_dirtyend = 0;
 		}
 	    } else {
 		bp->b_resid = 0;
-		bufdone(bp);
+		biodone(bp);
 		return 0;
 	    }
 	}
 	bp->b_resid = uiop->uio_resid;
-	bufdone(bp);
+	biodone(bp);
 	return error;
 }
 
@@ -409,7 +406,8 @@ smbfs_getpages(ap)
 	} */ *ap;
 {
 #ifdef SMBFS_RWGENERIC
-	return vop_stdgetpages(ap);
+	return vnode_pager_generic_getpages(ap->a_vp, ap->a_m, ap->a_count,
+		ap->a_reqpage);
 #else
 	int i, error, nextoff, size, toff, npages, count;
 	struct uio uio;
@@ -438,11 +436,7 @@ smbfs_getpages(ap)
 	}
 	smb_makescred(&scred, p, cred);
 
-#if __FreeBSD_version >= 400000
 	bp = getpbuf(&smbfs_pbuf_freecnt);
-#else
-	bp = getpbuf();
-#endif
 	npages = btoc(count);
 	kva = (vm_offset_t) bp->b_data;
 	pmap_qenter(kva, pages, npages);
@@ -460,17 +454,13 @@ smbfs_getpages(ap)
 	error = smb_read(smp->sm_share, np->n_fid, &uio, &scred);
 	pmap_qremove(kva, npages);
 
-#if __FreeBSD_version >= 400000
 	relpbuf(bp, &smbfs_pbuf_freecnt);
-#else
-	relpbuf(bp);
-#endif
 
 	if (error && (uio.uio_resid == count)) {
 		printf("smbfs_getpages: error %d\n",error);
 		for (i = 0; i < npages; i++) {
 			if (ap->a_reqpage != i)
-				vm_page_free(pages[i]);
+				vnode_pager_freepage(pages[i]);
 		}
 		return VM_PAGER_ERROR;
 	}
@@ -512,7 +502,7 @@ smbfs_getpages(ap)
 					vm_page_deactivate(m);
 				vm_page_wakeup(m);
 			} else {
-				vm_page_free(m);
+				vnode_pager_freepage(m);
 			}
 		}
 	}
@@ -546,7 +536,8 @@ smbfs_putpages(ap)
 	p = curproc;			/* XXX */
 	cred = p->p_ucred;		/* XXX */
 	VOP_OPEN(vp, FWRITE, cred, p);
-	error = vop_stdputpages(ap);
+	error = vnode_pager_generic_putpages(ap->a_vp, ap->a_m, ap->a_count,
+		ap->a_sync, ap->a_rtvals);
 	VOP_CLOSE(vp, FWRITE, cred, p);
 	return error;
 #else
@@ -575,11 +566,7 @@ smbfs_putpages(ap)
 		rtvals[i] = VM_PAGER_AGAIN;
 	}
 
-#if __FreeBSD_version >= 400000
 	bp = getpbuf(&smbfs_pbuf_freecnt);
-#else
-	bp = getpbuf();
-#endif
 	kva = (vm_offset_t) bp->b_data;
 	pmap_qenter(kva, pages, npages);
 
@@ -600,11 +587,7 @@ smbfs_putpages(ap)
 	SMBVDEBUG("paged write done: %d\n", error);
 
 	pmap_qremove(kva, npages);
-#if __FreeBSD_version >= 400000
 	relpbuf(bp, &smbfs_pbuf_freecnt);
-#else
-	relpbuf(bp);
-#endif
 
 	if (!error) {
 		int nwritten = round_page(count - uio.uio_resid) / PAGE_SIZE;

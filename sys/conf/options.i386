@@ -196,6 +196,13 @@ NDGBPORTS		opt_dgb.h
 # Temporary options for moving to pnpbios
 PNPBIOS			opt_pnp.h
 
+# SMB/CIFS requester
+NETSMB			opt_netsmb.h
+NETSMBCRYPTO		opt_netsmb.h
+
+# SMB/CIFS filesystem
+SMBFS
+
 # -------------------------------
 # EOF
 # -------------------------------

@@ -43,7 +43,6 @@
 #include <sys/poll.h>
 #include <sys/uio.h>
 #include <sys/sysctl.h>
-#include <sys/condvar.h>
 
 #include <net/if.h>
 #include <net/route.h>
@@ -101,60 +100,43 @@ static int
 nbssn_rselect(struct nbpcb *nbp, struct timeval *tv, int events, struct proc *p)
 {
 	struct timeval atv, rtv, ttv;
-	int timo, error;
+	int s, timo, error;
 
 	if (tv) {
 		atv = *tv;
 		if (itimerfix(&atv)) {
 			error = EINVAL;
-			goto done_noproclock;
+			goto done;
 		}
 		getmicrouptime(&rtv);
 		timevaladd(&atv, &rtv);
 	}
 	timo = 0;
-	PROC_LOCK(p);
+retry:
 	p->p_flag |= P_SELECT;
-	PROC_UNLOCK(p);
 	error = nb_poll(nbp, events, p);
-	PROC_LOCK(p);
 	if (error) {
 		error = 0;
 		goto done;
 	}
 	if (tv) {
 		getmicrouptime(&rtv);
-		if (timevalcmp(&rtv, &atv, >=)) {
-			/*
-			 * An event of our interest may occur during locking a process.
-			 * In order to avoid missing the event that occured during locking
-			 * the process, test P_SELECT and rescan file descriptors if
-			 * necessary.
-			 */
-			if ((p->p_flag & P_SELECT) == 0) {
-				p->p_flag |= P_SELECT;
-				PROC_UNLOCK(p);
-				error = nb_poll(nbp, events, p);
-				PROC_LOCK(p);
-			}
+		if (timevalcmp(&rtv, &atv, >=))
 			goto done;
-		}
 		ttv = atv;
 		timevalsub(&ttv, &rtv);
 		timo = tvtohz(&ttv);
 	}
-	p->p_flag &= ~P_SELECT;
-	if (timo > 0)
-		error = cv_timedwait(&selwait, &p->p_mtx, timo);
-	else {
-		cv_wait(&selwait, &p->p_mtx);
-		error = 0;
+	s = splhigh();
+	if ((p->p_flag & P_SELECT) == 0) {
+		splx(s);
+		goto retry;
 	}
-
-done:
-	PROC_UNLOCK(p);
 	p->p_flag &= ~P_SELECT;
-done_noproclock:
+	error = tsleep((caddr_t)&selwait, PSOCK, "nbsel", timo);
+	splx(s);
+done:
+	p->p_flag &= ~P_SELECT;
 	if (error == ERESTART)
 		return 0;
 	return error;
