@@ -57,6 +57,12 @@ specifically marked as [MERGED] features.
 1.3. USERLAND CHANGES
 ---------------------
 
+When using ipfw(8) with the syntax of the first synopsis line from the
+man page (i. e., with a rules file), it can now optionally be run through
+a preprocessor (m4, cpp) so it's possible to use symbolic names and other
+constructs that make maintenance easier.
+
+
 2. Supported Configurations
 ---------------------------
 FreeBSD currently runs on a wide variety of ISA, VLB, EISA and PCI bus
