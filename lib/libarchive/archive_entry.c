@@ -598,6 +598,12 @@ archive_entry_set_pathname(struct archive_entry *entry, const char *name)
 }
 
 void
+archive_entry_copy_pathname(struct archive_entry *entry, const char *name)
+{
+	aes_copy_mbs(&entry->ae_pathname, name);
+}
+
+void
 archive_entry_copy_pathname_w(struct archive_entry *entry, const wchar_t *name)
 {
 	aes_copy_wcs(&entry->ae_pathname, name);

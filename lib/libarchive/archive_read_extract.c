@@ -125,11 +125,11 @@ static int	extract_symlink(struct archive *, struct archive_entry *, int);
 static unsigned int	hash(const char *);
 static gid_t	lookup_gid(struct archive *, const char *uname, gid_t);
 static uid_t	lookup_uid(struct archive *, const char *uname, uid_t);
+static int	create_dir(struct archive *, const char *, int flags);
+static int	create_dir_mutable(struct archive *, char *, int flags);
+static int	create_dir_recursive(struct archive *, char *, int flags);
 static int	create_parent_dir(struct archive *, const char *, int flags);
-static int	create_parent_dir_internal(struct archive *, char *,
-		    int flags);
-static int	create_parent_dir_recursive(struct archive *, char *,
-		    int flags);
+static int	create_parent_dir_mutable(struct archive *, char *, int flags);
 static int	restore_metadata(struct archive *, struct archive_entry *,
 		    int flags);
 #ifdef HAVE_POSIX_ACL
@@ -164,6 +164,7 @@ archive_read_extract(struct archive *a, struct archive_entry *entry, int flags)
 	struct extract *extract;
 	int ret;
 	int restore_pwd;
+	char *original_filename;
 
 	if (a->extract == NULL) {
 		a->extract = malloc(sizeof(*a->extract));
@@ -180,16 +181,53 @@ archive_read_extract(struct archive *a, struct archive_entry *entry, int flags)
 	extract->pst = NULL;
 	extract->current_fixup = NULL;
 	restore_pwd = -1;
+	original_filename = NULL;
 
 	/*
-	 * TODO: If pathname is longer than PATH_MAX, record starting
-	 * directory and move to a suitable intermediate dir, which
-	 * might require creating them!
+	 * If pathname is longer than PATH_MAX, record starting directory
+	 * and move to a suitable intermediate dir.
 	 */
 	if (strlen(archive_entry_pathname(entry)) > PATH_MAX) {
+		/*
+		 * Yes, the copy here is necessary because we edit
+		 * the pathname in-place to create intermediate dirnames.
+		 */
+		original_filename = strdup(archive_entry_pathname(entry));
+		char *intdir, *tail;
+
 		restore_pwd = open(".", O_RDONLY);
-		/* XXX chdir() to a suitable intermediate dir XXX */
-		/* XXX Update pathname in 'entry' XXX */
+		/*
+		 * "intdir" points to the initial dir section we're going
+		 * to remove, "tail" points to the remainder of the path.
+		 */
+		intdir = tail = original_filename;
+		while (strlen(tail) > PATH_MAX) {
+			intdir = tail;
+			tail = intdir + PATH_MAX - 8;
+			while (tail > intdir && *tail != '/')
+				tail--;
+			if (tail <= intdir) {
+				close(restore_pwd);
+				archive_set_error(a, EPERM,
+				    "Path element too long");
+				return (ARCHIVE_WARN);
+			}
+			*tail = '\0'; /* Terminate dir portion */
+			if (create_dir(a, intdir, flags) != ARCHIVE_OK) {
+				fchdir(restore_pwd);
+				close(restore_pwd);
+				return (ARCHIVE_WARN);
+			}
+			if (chdir(intdir) != 0) {
+				archive_set_error(a, errno, "Couldn't chdir");
+				fchdir(restore_pwd);
+				close(restore_pwd);
+				return (ARCHIVE_WARN);
+			}
+			*tail = '/'; /* Restore the / we removed. */
+			tail++;
+		}
+		archive_entry_set_pathname(entry, tail);
 	}
 
 	if (stat(archive_entry_pathname(entry), &extract->st) == 0)
@@ -229,8 +267,11 @@ archive_read_extract(struct archive *a, struct archive_entry *entry, int flags)
 	}
 
 	/* If we changed directory above, restore it here. */
-	if (restore_pwd >= 0)
+	if (restore_pwd >= 0 && original_filename != NULL) {
 		fchdir(restore_pwd);
+		archive_entry_copy_pathname(entry, original_filename);
+		free(original_filename);
+	}
 
 	return (ret);
 }
@@ -364,6 +405,9 @@ sort_dir_list(struct fixup_entry *p)
 
 /*
  * Returns a new, initialized fixup entry.
+ *
+ * TODO: Reduce the memory requirements for this list by using a tree
+ * structure rather than a simple list of names.
  */
 static struct fixup_entry *
 new_fixup(struct archive *a, const char *pathname)
@@ -496,7 +540,7 @@ extract_dir(struct archive *a, struct archive_entry *entry, int flags)
 			unlink(path);
 	} else {
 		/* Doesn't already exist; try building the parent path. */
-		if (create_parent_dir_internal(a, path, flags) != ARCHIVE_OK)
+		if (create_parent_dir_mutable(a, path, flags) != ARCHIVE_OK)
 			return (ARCHIVE_WARN);
 	}
 
@@ -533,27 +577,36 @@ success:
 static int
 create_parent_dir(struct archive *a, const char *path, int flags)
 {
-	struct extract *extract;
 	int r;
 
-	extract = a->extract;
-
 	/* Copy path to mutable storage. */
-	archive_strcpy(&(extract->create_parent_dir), path);
-
-	r = create_parent_dir_internal(a, extract->create_parent_dir.s, flags);
+	archive_strcpy(&(a->extract->create_parent_dir), path);
+	r = create_parent_dir_mutable(a, a->extract->create_parent_dir.s, flags);
 	return (r);
 }
 
 /*
- * Handle remaining setup for create_parent_dir_recursive(), assuming
- * path is already in mutable storage.
+ * Like create_parent_dir, but creates the dir actually requested, not
+ * the parent.
  */
 static int
-create_parent_dir_internal(struct archive *a, char *path, int flags)
+create_dir(struct archive *a, const char *path, int flags)
+{
+	int r;
+	/* Copy path to mutable storage. */
+	archive_strcpy(&(a->extract->create_parent_dir), path);
+	r = create_dir_mutable(a, a->extract->create_parent_dir.s, flags);
+	return (r);
+}
+
+/*
+ * Create the parent directory of the specified path, assuming path
+ * is already in mutable storage.
+ */
+static int
+create_parent_dir_mutable(struct archive *a, char *path, int flags)
 {
 	char *slash;
-	mode_t old_umask;
 	int r;
 
 	/* Remove tail element to obtain parent name. */
@@ -561,10 +614,24 @@ create_parent_dir_internal(struct archive *a, char *path, int flags)
 	if (slash == NULL)
 		return (ARCHIVE_OK);
 	*slash = '\0';
-	old_umask = umask(~SECURE_DIR_MODE);
-	r = create_parent_dir_recursive(a, path, flags);
-	umask(old_umask);
+	r = create_dir_mutable(a, path, flags);
 	*slash = '/';
+	return (r);
+}
+
+/*
+ * Create the specified dir, assuming path is already in
+ * mutable storage.
+ */
+static int
+create_dir_mutable(struct archive *a, char *path, int flags)
+{
+	mode_t old_umask;
+	int r;
+
+	old_umask = umask(~SECURE_DIR_MODE);
+	r = create_dir_recursive(a, path, flags);
+	umask(old_umask);
 	return (r);
 }
 
@@ -575,7 +642,7 @@ create_parent_dir_internal(struct archive *a, char *path, int flags)
  * Otherwise, returns ARCHIVE_WARN.
  */
 static int
-create_parent_dir_recursive(struct archive *a, char *path, int flags)
+create_dir_recursive(struct archive *a, char *path, int flags)
 {
 	struct stat st;
 	struct extract *extract;
@@ -600,7 +667,7 @@ create_parent_dir_recursive(struct archive *a, char *path, int flags)
 		/* Don't bother trying to create null path, '.', or '..'. */
 		if (slash != NULL) {
 			*slash = '\0';
-			r = create_parent_dir_recursive(a, path, flags);
+			r = create_dir_recursive(a, path, flags);
 			*slash = '/';
 			return (r);
 		}
@@ -632,7 +699,7 @@ create_parent_dir_recursive(struct archive *a, char *path, int flags)
 		return (ARCHIVE_WARN);
 	} else if (slash != NULL) {
 		*slash = '\0';
-		r = create_parent_dir_recursive(a, path, flags);
+		r = create_dir_recursive(a, path, flags);
 		*slash = '/';
 		if (r != ARCHIVE_OK)
 			return (r);
@@ -1011,9 +1078,12 @@ set_perm(struct archive *a, struct archive_entry *entry, int mode, int flags)
 			le = current_fixup(a, archive_entry_pathname(entry));
 			le->fixup |= FIXUP_FFLAGS;
 			le->fflags_set = set;
+			/* Store the mode if it's not already there. */
+			if ((le->fixup & FIXUP_MODE) == 0)
+				le->mode = mode;
 		} else {
 			r = set_fflags(a, archive_entry_pathname(entry),
-			    archive_entry_mode(entry), set, clear);
+			    mode, set, clear);
 			if (r != ARCHIVE_OK)
 				return (r);
 		}
