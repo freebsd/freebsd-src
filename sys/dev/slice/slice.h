@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  * 
- *	$Id: slice.h,v 1.1 1998/04/19 23:31:10 julian Exp $
+ *	$Id: slice.h,v 1.2 1998/05/06 22:14:33 julian Exp $
  */
 
 typedef struct slice_handler *sh_p;
@@ -114,7 +114,7 @@ struct slice {
  * prototypes for slice methods
  */
 typedef void	sl_h_IO_req_t(void *private, struct buf * buf);
-typedef int	sl_h_ioctl_t(void *private, int cmd, caddr_t data,
+typedef int	sl_h_ioctl_t(void *private, u_long cmd, caddr_t data,
 	     			int fflag, struct proc * p);
 typedef int	sl_h_constructor_t(sl_p slice);
 typedef int	sl_h_open_t(void *private, int flags, int mode, struct proc * p);
@@ -184,7 +184,7 @@ int dkl_geom_hack(struct slice * slice, struct ide_geom *geom);
  * Lives in disklabel.c because that's where everyhting is in scope,
  * but is used in slice_device.c.  XXX hack.
  */
-int dkl_dummy_ioctl(struct slice *slice, int cmd, caddr_t addr,
+int dkl_dummy_ioctl(struct slice *slice, u_long cmd, caddr_t addr,
 					int flag, struct proc * p);
 
 /*

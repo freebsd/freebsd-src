@@ -43,7 +43,7 @@
  * SUCH DAMAGE.
  *
  *	from:	@(#)fd.c	7.4 (Berkeley) 5/25/91
- *	$Id: fd.c,v 1.112 1998/05/06 23:35:36 julian Exp $
+ *	$Id: fd.c,v 1.113 1998/06/07 17:10:20 dfr Exp $
  *
  */
 
@@ -2074,7 +2074,7 @@ fdioctl(dev, cmd, addr, flag, p)
  * Slice ioctls come here
  */
 static int
-fdsioctl( void *private, int cmd, caddr_t addr, int flag, struct proc *p)
+fdsioctl( void *private, u_long cmd, caddr_t addr, int flag, struct proc *p)
 {
 	struct	subdev *sd = private;
  	fd_p	fd	= sd->drive;
