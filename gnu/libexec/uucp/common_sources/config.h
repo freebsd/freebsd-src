@@ -124,7 +124,7 @@
 
 /* Set HAVE_SIG_ATOMIC_T_IN_SIGNAL_H if the type sig_atomic_t is defined
    in <signal.h> as required by ANSI C.  */
-#define HAVE_SIG_ATOMIC_T_IN_SIGNAL_H 0
+#define HAVE_SIG_ATOMIC_T_IN_SIGNAL_H 1
 
 /* Set HAVE_SIG_ATOMIC_T_IN_TYPES_H if the type sig_atomic_t is defined
    in <sys/types.h>.  This is ignored if HAVE_SIG_ATOMIC_T_IN_SIGNAL_H is
@@ -185,8 +185,8 @@
    STAT_DISK_SPACE	 disk_space function (QNX)
    STAT_USTAT            the ustat function with 512 byte blocks.  */
 #define STAT_STATVFS 0
-#define STAT_STATFS2_BSIZE 0
-#define STAT_STATFS2_FSIZE 1
+#define STAT_STATFS2_BSIZE 1
+#define STAT_STATFS2_FSIZE 0
 #define STAT_STATFS2_FS_DATA 0
 #define STAT_STATFS4 0
 #define STAT_DUSTAT 0
