@@ -296,17 +296,33 @@ Dir_HasWildcards (name)
     char          *name;	/* name to check */
 {
     char *cp;
+    int wild = 0, brace = 0, bracket = 0;
 
     for (cp = name; *cp; cp++) {
 	switch(*cp) {
 	case '{':
+		brace++;
+		wild = 1;
+		break;
+	case '}':
+		brace--;
+		break;
 	case '[':
+		bracket++;
+		wild = 1;
+		break;
+	case ']':
+		bracket--;
+		break;
 	case '?':
 	case '*':
-	    return (TRUE);
+		wild = 1;
+		break;
+	default:
+		break;
 	}
     }
-    return (FALSE);
+    return wild && bracket == 0 && brace == 0;
 }
 
 /*-
