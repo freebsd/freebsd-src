@@ -486,7 +486,8 @@ es1371_init(struct es_info *es, device_t dev)
 	es->ctrl = 0;
 	es->sctrl = 0;
 	/* initialize the chips */
-	if (revid == 7 || revid >= 9 || (devid == ES1371_PCI_ID3 && revid == 2)) {
+	if (revid == 7 || revid >= 9 ||
+	    (devid == ES1371_PCI_ID3 && (revid == 2 || revid == 3))) {
 #define ES1371_BINTSUMM_OFF 0x04
 		bus_space_write_4(es->st, es->sh, ES1371_BINTSUMM_OFF, 0x20000000);
 		DELAY(20000);
