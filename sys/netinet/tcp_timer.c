@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)tcp_timer.c	8.2 (Berkeley) 5/24/95
- *	$Id: tcp_timer.c,v 1.17 1996/06/03 15:37:52 jdp Exp $
+ *	$Id: tcp_timer.c,v 1.18 1996/07/11 16:32:35 wollman Exp $
  */
 
 #ifndef TUBA_INCLUDE
@@ -63,6 +63,9 @@
 #include <netinet/tcp_timer.h>
 #include <netinet/tcp_var.h>
 #include <netinet/tcpip.h>
+#ifdef TCPDEBUG
+#include <netinet/tcp_debug.h>
+#endif
 
 int	tcp_keepidle = TCPTV_KEEP_IDLE;
 SYSCTL_INT(_net_inet_tcp, TCPCTL_KEEPIDLE, keepidle,
