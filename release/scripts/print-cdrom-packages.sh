@@ -150,6 +150,7 @@ else
 	CDROM_SET_1="${CDROM_SET_1} print/ghostscript-gnu-nox11"
 	CDROM_SET_1="${CDROM_SET_1} print/gv"
 	CDROM_SET_1="${CDROM_SET_1} print/psutils-letter"
+	CDROM_SET_1="${CDROM_SET_1} sysutils/portsnap"
 	CDROM_SET_1="${CDROM_SET_1} security/freebsd-update"
 	CDROM_SET_1="${CDROM_SET_1} security/sudo"
 	CDROM_SET_1="${CDROM_SET_1} shells/bash2"
