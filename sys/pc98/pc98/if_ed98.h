@@ -279,7 +279,9 @@ static void pc98_set_register __P((struct isa_device *dev, int type));
  * C-NET(98)
  */
 #define ED_CNET98_INIT_ADDR	0xaaed          /* 0xaaed reset register  */
-                                            /* 0xaaef i/o address set */
+											/* 0xaaef i/o address set */
+#define ED_CNET98_IO_PORTS      32
+
 /* offset NIC address */
 #define ED_CNET98_MAP_REG0L	 1              /* MAPPING register0 Low  */
 #define ED_CNET98_MAP_REG1L	 3              /* MAPPING register1 Low  */
@@ -298,6 +300,12 @@ static void pc98_set_register __P((struct isa_device *dev, int type));
 #define ED_CNET98_RESERVE1	(0x400 + 11)
 #define ED_CNET98_RESERVE2	(0x400 + 13)
 #define ED_CNET98_RESERVE3	(0x400 + 15)
+#define ED_CNET98_INT_IRQ3      0x01            /* INT 0 */
+#define ED_CNET98_INT_IRQ5      0x02            /* INT 1 */
+#define ED_CNET98_INT_IRQ6      0x04            /* INT 2 */
+#define ED_CNET98_INT_IRQ9      0x08            /* INT 3 */
+#define ED_CNET98_INT_IRQ12     0x20            /* INT 5 */
+#define ED_CNET98_INT_IRQ13     0x40            /* INT 6 */
 
 
 /*
