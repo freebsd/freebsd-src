@@ -188,43 +188,31 @@
 #define	MAX(a,b) (((a)>(b))?(a):(b))
 #endif
 
-#ifdef _KERNEL
 /*
- * Extended byte order support functions, for kernel use only currently.
- * First, generic implementation of the byte swapping functions for those
- * architectures that do not have optimized variants of each.
+ * Basic byte order function prototypes for non-inline functions.
+ *
+ * XXX temporarily exposed to userland for bogus software.
  */
-#ifndef _BSWAP16_DEFINED
-#define	_BSWAP16_DEFINED
-static __inline __uint16_t
-__bswap16(__uint16_t x)
-{
-	return ((x >> 8) | ((x << 8) & 0xff00U));
-}
+#ifndef _BYTEORDER_PROTOTYPED
+#define	_BYTEORDER_PROTOTYPED
+__BEGIN_DECLS
+__uint32_t	 htonl __P((__uint32_t));
+__uint16_t	 htons __P((__uint16_t));
+__uint32_t	 ntohl __P((__uint32_t));
+__uint16_t	 ntohs __P((__uint16_t));
+__END_DECLS
 #endif
 
-#ifndef _BSWAP32_DEFINED
-#define	_BSWAP32_DEFINED
-static __inline __uint32_t
-__bswap32(__uint32_t x)
-{
-	return ((x >> 24) | ((x >> 8) & 0xff00U) | ((x << 8) & 0xff0000U) |
-	    ((x << 24) & 0xff000000U));
-}
-#endif
+/* XXX temporarily exposed to userland for bogus software. */
+#ifndef _BYTEORDER_FUNC_DEFINED
+#define	_BYTEORDER_FUNC_DEFINED
+#define	htonl(x)	__htonl(x)
+#define	htons(x)	__htons(x)
+#define	ntohl(x)	__ntohl(x)
+#define	ntohs(x)	__ntohs(x)
+#endif /* !_BYTEORDER_FUNC_DEFINED */
 
-#ifndef _BSWAP64_DEFINED
-#define	_BSWAP64_DEFINED
-static __inline __uint64_t
-__bswap64(__uint64_t x)
-{
-	return ((x >> 56) | ((x >> 40) & 0xff00UL) | ((x >> 24) & 0xff0000UL) |
-	    ((x >> 8) & 0xff000000UL) | ((x << 8) & 0xff00000000UL) |
-	    ((x << 24) & 0xff0000000000UL) | ((x << 40) & 0xff000000000000UL) |
-	    ((x << 56)));
-}
-#endif
-
+#ifdef _KERNEL
 #define	bswap16(x)	__bswap16(x)
 #define	bswap32(x)	__bswap32(x)
 #define	bswap64(x)	__bswap64(x)
@@ -258,11 +246,6 @@ __bswap64(__uint64_t x)
 #define	le32toh(x)	bswap32((x))
 #define	le64toh(x)	bswap64((x))
 #endif /* BYTE_ORDER */
-
-#define	htonl(x)	htobe32((x))
-#define	htons(x)	htobe16((x))
-#define	ntohl(x)	be32toh((x))
-#define	ntohs(x)	be16toh((x))
 
 #endif /* _KERNEL */
 
