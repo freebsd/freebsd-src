@@ -19,6 +19,8 @@ You should have received a copy of the GNU General Public License
 along with GDB; see the file COPYING.  If not, write to
 the Free Software Foundation, 675 Mass Ave, Cambridge, MA 02139, USA.  */
 
+/* $FreeBSD$ */
+
 /*
  * 80386 instruction printer by Pace Willisson (pace@prep.ai.mit.edu)
  * July 1988
@@ -35,6 +37,12 @@ the Free Software Foundation, 675 Mass Ave, Cambridge, MA 02139, USA.  */
 
 #include <stdio.h>
 #include <ctype.h>
+
+#include "doscmd.h"
+
+static void	dofloat(void);
+static void	oappend(char *);
+static void	putop(char *);
 
 #define Eb OP_E, b_mode
 #define indirEb OP_indirE, b_mode
@@ -845,7 +853,8 @@ struct dis386 grps[][8] = {
 
 static int prefixes;
 
-ckprefix ()
+static void
+ckprefix(void)
 {
   prefixes = 0;
   while (1)
@@ -914,6 +923,7 @@ static unsigned long start_pc;
  *   100 bytes is certainly enough, unless symbol printing is added later
  * The function returns the length of this instruction in bytes.
  */
+int
 i386dis (ucs, uip, inbuf, outbuf, mode)
      unsigned short ucs;
      unsigned short uip;
@@ -921,7 +931,6 @@ i386dis (ucs, uip, inbuf, outbuf, mode)
      char *outbuf;
 {
   struct dis386 *dp;
-  char *p;
   int i;
   int enter_instruction;
   char *first, *second, *third;
@@ -1287,6 +1296,7 @@ char *fgrps[][8] = {
 };
 
 
+static void
 dofloat ()
 {
   struct dis386 *dp;
@@ -1338,8 +1348,9 @@ OP_STi (ignore)
 
 
 /* capital letters in template are macros */
+static void
 putop (template)
-     char *template;
+    char *template;
 {
   char *p;
   
@@ -1370,8 +1381,8 @@ putop (template)
   *obufp = 0;
 }
 
-oappend (s)
-char *s;
+static void
+oappend(char *s)
 {
   strcpy (obufp, s);
   obufp += strlen (s);

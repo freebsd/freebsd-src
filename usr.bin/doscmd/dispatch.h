@@ -56,16 +56,16 @@ struct intfunc_table
 ** that the handler listed with IFT_NOSUBFUNC should be last.
 */
 static inline void
-intfunc_init(struct intfunc_table table[], int index[])
+intfunc_init(struct intfunc_table table[], int idx[])
 {
     int		hn;
 
     for (hn = 0; hn < 256; hn++)		/* initialise all no-handler state */
-	index[hn] = -1;				/* default to no handler */
+	idx[hn] = -1;				/* default to no handler */
 
     for (hn = 0; table[hn].func >= 0; hn++)	/* walk list of handlers and add references */
-	if (index[table[hn].func] == -1 )	/* reference first handler */
-	    index[table[hn].func] = hn;
+	if (idx[table[hn].func] == -1 )	/* reference first handler */
+	    idx[table[hn].func] = hn;
 }
 
 /*
@@ -73,9 +73,9 @@ intfunc_init(struct intfunc_table table[], int index[])
 ** described by (sc), or -1 if none exist
 */
 static inline int
-intfunc_find(struct intfunc_table table[], int index[], int func, int subfunc)
+intfunc_find(struct intfunc_table table[], int idx[], int func, int subfunc)
 {
-    int	ent = index[func];				/* look for handler */
+    int	ent = idx[func];				/* look for handler */
     
     while ((ent >= 0) &&				/* scan entries for function */
 	   (table[ent].func == func)) {

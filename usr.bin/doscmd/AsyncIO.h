@@ -28,6 +28,8 @@
  * SUCH DAMAGE.
  *
  *	BSDI AsyncIO.h,v 2.2 1996/04/08 19:32:12 bostic Exp
+ *
+ * $FreeBSD$
  */
 
 #if defined(__cplusplus)

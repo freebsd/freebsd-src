@@ -32,9 +32,12 @@
  * $FreeBSD$
  */
 
-#include "doscmd.h"
-
 #include <sys/ioctl.h>
+#include <sys/types.h>
+#include <sys/uio.h>
+#include <unistd.h>
+
+#include "doscmd.h"
 
 #define	FDCHANGED	_IOR('F', 64, int)
 
@@ -108,7 +111,7 @@ cylsize(struct diskinfo *di)
 static u_long ftable = 0xF1000;	/* Floppy table */
 static u_long htable = 0xF1020;	/* Hard disk table */
 
-static struct diskinfo diskinfo[26] = { 0 };
+static struct diskinfo diskinfo[26];
 
 static struct diskinfo floppyinfo[] = {
     {    0,  9,   40,  1, 512, -1, 0, 0, }, /* Probably not correct */
@@ -324,7 +327,7 @@ init_hdisk(int drive, int cyl, int head, int tracksize, char *file, char *fake_p
     return(drive);
 }
 
-static inline
+static inline int
 bps(int size)
 {
     switch (size) {
@@ -336,6 +339,8 @@ bps(int size)
 	fprintf(stderr, "Invalid sector size: %d\n", size);
 	quit(1);
     }
+    /* keep `gcc -Wall' happy */
+    return(0);
 }
 
 int
@@ -440,8 +445,6 @@ search_floppy(int i)
 {
     return(i < nfloppies ? diskinfo[i].type : 0);
 }
-
-static int icnt = 0;
 
 #define	seterror(err)	{			\
     if (drive & 0x80)				\

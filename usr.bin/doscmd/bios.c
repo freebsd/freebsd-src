@@ -64,13 +64,6 @@
 #define	BIOS_date_stamp        0xffff5
 #define	BIOS_hardware_id       0xffffe
 
-static u_char video_parms[] = {
-    0x38, 40, 0x2d, 10, 0x1f, 6, 0x19, 0x1c, 2,  7,  6,  7, 0, 0, 0, 0,
-    0x71, 80, 0x5a, 10, 0x1f, 6, 0x19, 0x1c, 2,  7,  6,  7, 0, 0, 0, 0,
-    0x38, 40, 0x2d, 10, 0x7f, 6, 0x64, 0x70, 2,  1,  6,  7, 0, 0, 0, 0,
-    0x61, 80, 0x52, 15, 0x19, 6, 0x19, 0x19, 2, 13, 11, 12, 0, 0, 0, 0,
-};
-
 static u_char disk_params[] = {
     0xdf, 2, 0x25, 2, 0x0f, 0x1b, 0xff, 0x54, 0xf6, 0x0f, 8,
 };
@@ -116,9 +109,6 @@ int12(regcontext_t *REGS)
 static void
 int15(regcontext_t *REGS)
 {
-    int cond;
-    int count;
-
     R_FLAGS &= ~PSL_C;
 
     switch (R_AH) {
@@ -277,7 +267,7 @@ bios_init(void)
 	(1 << 1) |		/* Math co-processor */
 	(nmice << 2) |		/* No pointing device */
 	(2 << 4) |		/* Initial video (80 x 25 C) */
-	(nfloppies - 1 << 6) |	/* Number of floppies - 1 */
+	((nfloppies - 1) << 6) |	/* Number of floppies - 1 */
 	(nserial << 9) |	/* Number of serial devices */
 	(nparallel << 14);	/* Number of parallel devices */
 

@@ -32,12 +32,18 @@
  * $FreeBSD$
  */
 
-#include <stdio.h>
-#include <ctype.h>
-#include <string.h>
 #include <sys/types.h>
+#include <sys/uio.h>
+#include <ctype.h>
+#include <stdio.h>
+#include <string.h>
+#include <unistd.h>
 
 #include "doscmd.h"
+#include "com.h"
+#include "cwd.h"
+#include "tty.h"
+#include "video.h"
 
 /*
 ** doscmdrc parser
@@ -52,7 +58,7 @@ read_config(FILE *fp)
     int ac;
     int bootdrive = -1;
 
-    while (buffer = fgets(_buffer, sizeof(_buffer), fp)) {
+    while ((buffer = fgets(_buffer, sizeof(_buffer), fp)) != 0) {
 	char *comment = strchr(buffer, '#');
 	char *equal;
 
@@ -195,7 +201,6 @@ init_hard:
                 int port;
                 int addr;
                 unsigned char irq;
-                int i;
  
                 if ((ac != 5) || (!isdigit(av[1][3]))) {
                     fprintf(stderr, "Usage: assign com[1-4] path addr irq\n");

@@ -33,6 +33,7 @@
  */
 
 #include "doscmd.h"
+#include "trap.h"
 
 static void	(*handler[NSIG])(struct sigframe *);
 static char	signal_stack[16 * 1024];
