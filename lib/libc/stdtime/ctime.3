@@ -196,7 +196,18 @@ The original values of the
 and
 .Fa tm_yday
 components of the structure are ignored, and the original values of the
-other components are not restricted to their normal ranges.
+other components are not restricted to their normal ranges, and will be
+normalized if needed.
+For example,
+October 40 is changed into November 9,
+a
+.Fa tm_hour
+of \-1 means 1 hour before midnight,
+.Fa tm_mday
+of 0 means the day preceding the current month, and
+.Fa tm_mon
+of \-2 means 2 months before January of
+.Fa tm_year .
 (A positive or zero value for
 .Fa tm_isdst
 causes
