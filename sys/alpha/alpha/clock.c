@@ -63,6 +63,7 @@
 #include <machine/clockvar.h>
 #include <isa/isareg.h>
 #include <alpha/alpha/timerreg.h>
+#include <machine/rpb.h>	/* for CPU definitions, etc */
 
 #define	SECMIN	((unsigned)60)			/* seconds per minute */
 #define	SECHOUR	((unsigned)(60*SECMIN))		/* seconds per hour */
@@ -151,8 +152,8 @@ static u_int32_t max_cycles_per_tick;
 static u_int32_t last_time;
 
 static void handleclock(void* arg);
-static void calibrate_clocks(u_int32_t firmware_freq,
-			     u_int32_t *pcc, u_int32_t *timer);
+static void
+calibrate_clocks(u_int32_t firmware_freq, u_int32_t *pcc, u_int32_t *timer);
 static void set_timer_freq(u_int freq, int intr_freq);
 
 void
@@ -170,6 +171,14 @@ clockattach(device_t dev)
 	calibrate_clocks(cycles_per_sec, &pcc, &freq);
 	cycles_per_sec = pcc;
 
+	/*
+	 * XXX: TurboLaser doesn't have an i8254 counter.
+	 * XXX: A replacement is needed, and another method
+	 * XXX: of determining this would be nice.
+	 */
+	if (hwrpb->rpb_type == ST_DEC_21000) {
+		goto out;
+	}
 	/*
 	 * Use the calibrated i8254 frequency if it seems reasonable.
 	 * Otherwise use the default, and don't use the calibrated i586
@@ -193,6 +202,7 @@ clockattach(device_t dev)
 	set_timer_freq(timer_freq, hz);
 	i8254_timecounter.tc_frequency = timer_freq;
 
+out:
 #ifdef EVCNT_COUNTERS
 	evcnt_attach(dev, "intr", &clock_intr_evcnt);
 #endif
@@ -250,7 +260,14 @@ cpu_initclocks()
 	scaled_ticks_per_cycle = ((u_int64_t)hz << FIX_SHIFT) / freq;
 	max_cycles_per_tick = 2*freq / hz;
 
-	tc_init(&i8254_timecounter);
+	/*
+	 * XXX: TurboLaser doesn't have an i8254 counter.
+	 * XXX: A replacement is needed, and another method
+	 * XXX: of determining this would be nice.
+	 */
+	if (hwrpb->rpb_type != ST_DEC_21000) {
+		tc_init(&i8254_timecounter);
+	}
 
 	if (ncpus == 1) {
 		alpha_timecounter.tc_frequency = freq;
@@ -266,8 +283,10 @@ cpu_initclocks()
 	CLOCK_INIT(clockdev);
 }
 
-static int
-getit(void)
+static __inline int get_8254_ctr(void);
+
+static __inline int
+get_8254_ctr(void)
 {
 	int high, low;
 
@@ -290,6 +309,19 @@ calibrate_clocks(u_int32_t firmware_freq, u_int32_t *pcc, u_int32_t *timer)
 	u_int count, prev_count, tot_count;
 	int sec, start_sec;
 
+	/*
+	 * XXX: TurboLaser doesn't have an i8254 counter.
+	 * XXX: A replacement is needed, and another method
+	 * XXX: of determining this would be nice.
+	 */
+	if (hwrpb->rpb_type == ST_DEC_21000) {
+		if (bootverbose)
+			printf("No i8254- using firmware default of %u Hz\n",
+			    firmware_freq);
+		*pcc = firmware_freq;
+		*timer = 0;
+		return;
+	}
 	if (bootverbose)
 	        printf("Calibrating clock(s) ... ");
 
@@ -309,7 +341,7 @@ calibrate_clocks(u_int32_t firmware_freq, u_int32_t *pcc, u_int32_t *timer)
 	}
 
 	/* Start keeping track of the PCC and i8254. */
-	prev_count = getit();
+	prev_count = get_8254_ctr();
 	if (prev_count == 0)
 		goto fail;
 	tot_count = 0;
@@ -322,7 +354,7 @@ calibrate_clocks(u_int32_t firmware_freq, u_int32_t *pcc, u_int32_t *timer)
 	 * costs a few usec of inaccuracy. The timing of the final reads
 	 * of the counters almost matches the timing of the initial reads,
 	 * so the main cause of inaccuracy is the varying latency from 
-	 * inside getit() or rtcin(RTC_STATUSA) to the beginning of the
+	 * inside get_8254_ctr() or rtcin(RTC_STATUSA) to the beginning of the
 	 * rtcin(RTC_SEC) that returns a changed seconds count.  The
 	 * maximum inaccuracy from this cause is < 10 usec on 486's.
 	 */
@@ -330,7 +362,7 @@ calibrate_clocks(u_int32_t firmware_freq, u_int32_t *pcc, u_int32_t *timer)
 	for (;;) {
 		if (CLOCK_GETSECS(clockdev, &sec))
 			goto fail;
-		count = getit();
+		count = get_8254_ctr();
 		if (count == 0)
 			goto fail;
 		if (count > prev_count)
@@ -386,18 +418,24 @@ set_timer_freq(u_int freq, int intr_freq)
 static void
 handleclock(void* arg)
 {
-	if (timecounter->tc_get_timecount == i8254_get_timecount) {
-		mtx_lock_spin(&clock_lock);
-		if (i8254_ticked)
-			i8254_ticked = 0;
-		else {
-			i8254_offset += timer0_max_count;
-			i8254_lastcount = 0;
+	/*
+	 * XXX: TurboLaser doesn't have an i8254 counter.
+	 * XXX: A replacement is needed, and another method
+	 * XXX: of determining this would be nice.
+	 */
+	if (hwrpb->rpb_type != ST_DEC_21000) {
+		if (timecounter->tc_get_timecount == i8254_get_timecount) {
+			mtx_lock_spin(&clock_lock);
+			if (i8254_ticked)
+				i8254_ticked = 0;
+			else {
+				i8254_offset += timer0_max_count;
+				i8254_lastcount = 0;
+			}
+			clkintr_pending = 0;
+			mtx_unlock_spin(&clock_lock);
 		}
-		clkintr_pending = 0;
-		mtx_unlock_spin(&clock_lock);
 	}
-
 	hardclock(arg);
 }
 
@@ -591,12 +629,20 @@ i8254_get_timecount(struct timecounter *tc)
 static unsigned
 alpha_get_timecount(struct timecounter* tc)
 {
-    return alpha_rpcc();
+	return alpha_rpcc();
 }
 
 int
 acquire_timer2(int mode)
 {
+	/*
+	 * XXX: TurboLaser doesn't have an i8254 counter.
+	 * XXX: A replacement is needed, and another method
+	 * XXX: of determining this would be nice.
+	 */
+	if (hwrpb->rpb_type == ST_DEC_21000) {
+		return (0);
+	}
 
 	if (timer2_state != RELEASED)
 		return (-1);
@@ -615,8 +661,16 @@ acquire_timer2(int mode)
 }
 
 int
-release_timer2()
+release_timer2(void)
 {
+	/*
+	 * XXX: TurboLaser doesn't have an i8254 counter.
+	 * XXX: A replacement is needed, and another method
+	 * XXX: of determining this would be nice.
+	 */
+	if (hwrpb->rpb_type == ST_DEC_21000) {
+		return (0);
+	}
 
 	if (timer2_state != ACQUIRED)
 		return (-1);
@@ -636,6 +690,14 @@ sysbeepstop(void *chan)
 int
 sysbeep(int pitch, int period)
 {
+	/*
+	 * XXX: TurboLaser doesn't have an i8254 counter.
+	 * XXX: A replacement is needed, and another method
+	 * XXX: of determining this would be nice.
+	 */
+	if (hwrpb->rpb_type == ST_DEC_21000) {
+		return (0);
+	}
 
 	mtx_lock_spin(&clock_lock);
 
