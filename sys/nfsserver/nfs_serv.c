@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)nfs_serv.c	8.3 (Berkeley) 1/12/94
- * $Id: nfs_serv.c,v 1.28 1996/01/13 23:27:48 phk Exp $
+ * $Id: nfs_serv.c,v 1.29 1996/04/30 23:23:07 bde Exp $
  */
 
 /*
@@ -1907,6 +1907,7 @@ out:
 			nqsrv_getl(tvp, ND_WRITE);
 			if ((tvp->v_flag & VVMIO) && tvp->v_object)
 				deallocobjto = 1;
+			(void) vnode_pager_uncache(tvp);
 		}
 		if ((fvp->v_flag & VVMIO) && fvp->v_object)
 			deallocobjfrom = 1;
