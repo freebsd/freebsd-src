@@ -97,8 +97,9 @@ ata_queue_request(struct ata_request *request)
 	return;
 
     /* if this is not a callback and we havn't seen DONE yet -> sleep */
-    if (!request->callback && !(request->flags & ATA_R_DONE)) {
-	while (tsleep(request, PRIBIO, "atareq", 60*10*hz)) ;
+    if (!request->callback) {
+	while (!(request->flags & ATA_R_DONE))
+	    tsleep(request, PRIBIO, "atareq", hz/10);
     }
 }
 
