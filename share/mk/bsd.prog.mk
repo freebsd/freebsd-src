@@ -60,7 +60,10 @@ ${PROG}: ${OBJS}
 	!defined(MAN4) && !defined(MAN5) && !defined(MAN6) && \
 	!defined(MAN7) && !defined(MAN8) && !defined(MAN9) && \
 	!defined(NOMAN) && !defined(MAN1aout)
-MAN1=	${PROG}.1
+MANSECT?=	1
+.for sect in ${MANSECT}
+MAN${sect}=	${PROG}.${sect}
+.endfor
 .endif
 .endif
 
