@@ -688,8 +688,8 @@ kse_create(struct thread *td, struct kse_create_args *uap)
 
 	mtx_lock_spin(&sched_lock);
 	if (newkg->kg_numupcalls >= ncpus) {
-		upcall_free(newku);
 		mtx_unlock_spin(&sched_lock);
+		upcall_free(newku);
 		return (EPROCLIM);
 	}
 	upcall_link(newku, newkg);
