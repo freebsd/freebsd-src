@@ -250,8 +250,6 @@ ithread_add_handler(struct ithd* ithread, const char *name,
 
 	if (ithread == NULL || name == NULL || handler == NULL)
 		return (EINVAL);
-	if ((flags & INTR_FAST) !=0)
-		flags |= INTR_EXCL;
 
 	ih = malloc(sizeof(struct intrhand), M_ITHREAD, M_WAITOK | M_ZERO);
 	ih->ih_handler = handler;
@@ -260,7 +258,7 @@ ithread_add_handler(struct ithd* ithread, const char *name,
 	ih->ih_ithread = ithread;
 	ih->ih_pri = pri;
 	if (flags & INTR_FAST)
-		ih->ih_flags = IH_FAST | IH_EXCLUSIVE;
+		ih->ih_flags = IH_FAST;
 	else if (flags & INTR_EXCL)
 		ih->ih_flags = IH_EXCLUSIVE;
 	if (flags & INTR_MPSAFE)
@@ -269,11 +267,17 @@ ithread_add_handler(struct ithd* ithread, const char *name,
 		ih->ih_flags |= IH_ENTROPY;
 
 	mtx_lock(&ithread->it_lock);
-	if ((flags & INTR_EXCL) !=0 && !TAILQ_EMPTY(&ithread->it_handlers))
+	if ((flags & INTR_EXCL) != 0 && !TAILQ_EMPTY(&ithread->it_handlers))
 		goto fail;
-	if (!TAILQ_EMPTY(&ithread->it_handlers) &&
-	    (TAILQ_FIRST(&ithread->it_handlers)->ih_flags & IH_EXCLUSIVE) != 0)
-		goto fail;
+	if (!TAILQ_EMPTY(&ithread->it_handlers)) {
+		temp_ih = TAILQ_FIRST(&ithread->it_handlers);
+		if (temp_ih->ih_flags & IH_EXCLUSIVE)
+			goto fail;
+		if ((ih->ih_flags & IH_FAST) && !(temp_ih->ih_flags & IH_FAST))
+			goto fail;
+		if (!(ih->ih_flags & IH_FAST) && (temp_ih->ih_flags & IH_FAST))
+			goto fail;
+	}
 
 	TAILQ_FOREACH(temp_ih, &ithread->it_handlers, ih_next)
 	    if (temp_ih->ih_pri > ih->ih_pri)
