@@ -156,6 +156,8 @@ struct ipx {
 
 #ifdef KERNEL
 
+#include <net/route.h>
+
 extern int ipxcksum;
 extern struct domain ipxdomain;
 extern struct sockaddr_ipx ipx_netmask;
@@ -171,16 +173,28 @@ extern long ipx_pexseq;
 extern u_char ipxctlerrmap[];
 extern struct ipxpcb ipxrawpcb;
 
+#include <sys/cdefs.h>
 
-u_short ipx_cksum();
-void ipx_input(), ipx_abort(), ipx_drop();
-int ipx_output(), ipx_ctloutput(), ipx_usrreq();
-int ipx_raw_usrreq(), ipx_control(), ipx_do_route();
-void ipx_init(), ipxintr(), ipx_ctlinput(), ipx_forward();
-void ipx_undo_route(), ipx_watch_output();
-int ipx_outputfl();
+__BEGIN_DECLS
+u_short ipx_cksum __P((struct mbuf *m, int len));
+void ipx_input __P((struct mbuf *m, struct ipxpcb *ipxp));
+void ipx_abort __P((struct ipxpcb *ipxp));
+void ipx_drop __P((struct ipxpcb *ipxp, int errno));
+int ipx_output __P((struct ipxpcb *ipxp, struct mbuf *m0));
+int ipx_ctloutput __P((int req, struct socket *so, int level, int name, struct mbuf **value));
+int ipx_usrreq __P((struct socket *so, int req, struct mbuf *m, struct mbuf *nam, struct mbuf *control));
+int ipx_raw_usrreq __P((struct socket *so, int req, struct mbuf *m, struct mbuf *nam, struct mbuf *control));
+int ipx_control __P((struct socket *so, int cmd, caddr_t data, struct ifnet *ifp));
+void ipx_init __P((void));
+void ipxintr __P((void));
+void ipx_ctlinput __P((int cmd, caddr_t arg));
+void ipx_forward __P((struct mbuf *m));
+void ipx_watch_output __P((struct mbuf *m, struct ifnet *ifp));
+int ipx_do_route __P((struct ipx_addr *src, struct route *ro));
+void ipx_undo_route __P((struct route *ro));
+int ipx_outputfl __P((struct mbuf *m0, struct route *ro, int flags));
+__END_DECLS
 
-int ipxip_route();
 #else
 
 #include <sys/cdefs.h>
@@ -188,7 +202,6 @@ int ipxip_route();
 __BEGIN_DECLS
 extern struct ipx_addr ipx_addr __P((const char *));
 extern char *ipx_ntoa __P((struct ipx_addr));
-extern char *_ns_spectHex __P((const char *));
 __END_DECLS
 
 #endif

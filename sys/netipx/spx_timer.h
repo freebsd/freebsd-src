@@ -41,8 +41,6 @@
  * Definitions of the SPX timers.  These timers are counted
  * down PR_SLOWHZ times a second.
  */
-#define	SPXT_NTIMERS	4
-
 #define	SPXT_REXMT	0		/* retransmit */
 #define	SPXT_PERSIST	1		/* retransmit persistance */
 #define	SPXT_KEEP	2		/* keep alive */
