@@ -7,7 +7,7 @@
  * Leland Stanford Junior University.
  *
  *
- * $Id: defs.h,v 1.8 1994/08/24 23:53:23 thyagara Exp $
+ * $Id: defs.h,v 1.2 1994/09/08 02:51:13 wollman Exp $
  */
 
 
@@ -45,7 +45,7 @@
 
 #define PROTOCOL_VERSION 3  /* increment when packet format/content changes */
 
-#define MROUTED_VERSION  3  /* increment on local changes or bug fixes, */
+#define MROUTED_VERSION  4  /* increment on local changes or bug fixes, */
 			    /* reset to 0 whever PROTOCOL_VERSION increments */
 
 #define MROUTED_LEVEL ( (MROUTED_VERSION << 8) | PROTOCOL_VERSION )
