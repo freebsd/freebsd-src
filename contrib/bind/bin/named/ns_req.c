@@ -777,11 +777,6 @@ req_query(HEADER *hp, u_char **cpp, u_char *eom, struct qstream *qsp,
 		 np == NULL ? "missed" : "found",
 		 dname, fname, cname);
 
-
-	ns_debug(ns_log_default, 1, "req: %s '%s' as '%s' (cname=%d)",
-		 np == NULL ? "missed" : "found",
-		 dname, fname, cname);
-
 #ifdef YPKLUDGE
 	/* Some braindamaged resolver software will not 
 	   recognize internet addresses in dot notation and 
