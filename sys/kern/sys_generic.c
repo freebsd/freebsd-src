@@ -496,7 +496,8 @@ writev(p, uap)
 	}
 #endif
 	cnt = auio.uio_resid;
-	bwillwrite();
+	if (fp->f_type == DTYPE_VNODE)
+		bwillwrite();
 	if ((error = fo_write(fp, &auio, fp->f_cred, 0, p))) {
 		if (auio.uio_resid != cnt && (error == ERESTART ||
 		    error == EINTR || error == EWOULDBLOCK))
