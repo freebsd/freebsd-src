@@ -52,8 +52,8 @@
 #include <machine/clock.h>
 #include <sys/rman.h>
 
-#include <pci/pcireg.h>
-#include <pci/pcivar.h>
+#include <dev/pci/pcireg.h>
+#include <dev/pci/pcivar.h>
 
 #include <net/if.h>
 #include <net/if_arp.h>

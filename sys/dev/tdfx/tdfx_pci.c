@@ -55,8 +55,8 @@
 #include <sys/systm.h>
 #include <sys/uio.h>
 
-#include <pci/pcivar.h>
-#include <pci/pcireg.h>
+#include <dev/pci/pcivar.h>
+#include <dev/pci/pcireg.h>
 
 #include <vm/vm.h>
 #include <vm/vm_kern.h>

@@ -52,8 +52,8 @@
 #include <sys/bus.h>
 #include <sys/rman.h>
 
-#include <pci/pcireg.h>
-#include <pci/pcivar.h>
+#include <dev/pci/pcireg.h>
+#include <dev/pci/pcivar.h>
 
 #include <dev/sbsh/if_sbshreg.h>
 

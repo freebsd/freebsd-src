@@ -79,8 +79,8 @@ __FBSDID("$FreeBSD$");
 #include <vm/vm.h>
 #include <vm/pmap.h>
 
-#include <pci/pcivar.h>
-#include <pci/pcireg.h>
+#include <dev/pci/pcivar.h>
+#include <dev/pci/pcireg.h>
 #include <machine/resource.h>
 #include <machine/bus_pio.h>
 #include <machine/bus.h>
