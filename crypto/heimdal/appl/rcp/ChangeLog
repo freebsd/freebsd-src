@@ -1,0 +1,29 @@
+2001-01-29  Assar Westerlund  <assar@sics.se>
+
+	* util.c (roundup): add fallback definition
+
+	* rcp.c: remove non-STDC code
+	* rcp_locl.h: add sys/types.h and sys/wait.h
+
+	* rcp.c: no calls to err with NULL
+
+2001-01-28  Assar Westerlund  <assar@sics.se>
+
+	* rcp_locl.h: add
+
+	* Makefile.am (LDADD): remove unused libraries
+
+2001-01-27  Assar Westerlund  <assar@sics.se>
+
+	* util.c: replace vfork by fork
+
+	* rcp.c: add RCSID S_ISTXT -> S_ISVTX printf sizes of files with
+ 	%lu instead of %q (which is not portable)
+
+	* util.c: add RCSID do not use sig_t
+	* rcp.c: remove __P, use st_mtime et al from struct stat
+	* extern.h: remove __P
+
+	* initial import of port of bsd rcp changed to use existing rsh,
+	contributed by Richard Nyberg <rnyberg@it.su.se>
+
