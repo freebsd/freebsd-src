@@ -159,7 +159,7 @@ do_entry(struct conf_entry * ent)
 		if (verbose)
 			printf("does not exist.\n");
 	} else {
-		if (ent->flags & CE_TRIMAT) {
+		if (ent->flags & CE_TRIMAT && !force) {
 			if (timenow < ent->trim_at
 			    || difftime(timenow, ent->trim_at) >= 60 * 60) {
 				if (verbose)
