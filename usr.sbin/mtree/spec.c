@@ -238,7 +238,7 @@ set(char *t, NODE *ip)
 				lineno, val);
 			break;
 		case F_SLINK:
-			ip->slink = malloc(strlen(val));
+			ip->slink = malloc(strlen(val) + 1);
 			if (ip->slink == NULL)
 				errx(1, "malloc");
 			if (strunvis(ip->slink, val) == -1)
