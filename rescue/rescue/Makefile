@@ -102,8 +102,8 @@ CRUNCH_SUPPRESS_LINK_-tcsh= 1
 # headers in addition to the standard 'paths.h' header.
 #
 CRUNCH_SRCDIRS+= sbin
-CRUNCH_PROGS_sbin= atm atacontrol badsect bsdlabel camcontrol 		\
-	ccdconfig clri devfs dmesg dump					\
+CRUNCH_PROGS_sbin= atm atmconfig atacontrol badsect bsdlabel		\
+	camcontrol ccdconfig clri devfs dmesg dump			\
 	dumpfs dumpon fore_dnld fsck fsck_ffs fsck_msdosfs fsdb		\
 	fsirand gbde ifconfig ilmid init 				\
 	kldconfig kldload kldstat kldunload ldconfig 			\
@@ -153,6 +153,7 @@ CRUNCH_ALIAS_bsdlabel= disklabel
 .endif
 
 CRUNCH_SRCDIR_atm= $(.CURDIR)/../../sbin/atm/atm
+CRUNCH_SRCDIR_atmconfig= $(.CURDIR)/../../sbin/atm/atmconfig
 CRUNCH_SRCDIR_fore_dnld= $(.CURDIR)/../../sbin/atm/fore_dnld
 CRUNCH_SRCDIR_ilmid= $(.CURDIR)/../../sbin/atm/ilmid
 CRUNCH_SRCDIR_rtquery= $(.CURDIR)/../../sbin/routed/rtquery
