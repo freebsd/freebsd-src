@@ -193,7 +193,7 @@ trap(struct trapframe *tf)
 			cred_update_thread(td);
 		if ((p->p_flag & P_WEXIT) && (p->p_singlethread != td)) {
 			mtx_lock_spin(&sched_lock);
-			thread_exit();
+			thread_exit(); /* XXXKSE need proc lock? */
 			/* NOTREACHED */
 		}
  	} else {
