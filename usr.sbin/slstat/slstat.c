@@ -50,9 +50,9 @@ static const char rcsid[] =
 #include <net/slcompress.h>
 #include <net/if_slvar.h>
 
-static	void usage __P((void));
-static	void intpr __P((void));
-static	void catchalarm __P((int));
+static	void usage(void);
+static	void intpr(void);
+static	void catchalarm(int);
 
 #define INTERFACE_PREFIX        "sl%d"
 char    interface[IFNAMSIZ];
@@ -64,9 +64,7 @@ int	unit;
 int	name[6];
 
 int
-main(argc, argv)
-	int argc;
-	char *argv[];
+main(int argc, char *argv[])
 {
 	int c, i;
 	size_t len;
@@ -241,7 +239,7 @@ intpr()
  */
 static void
 catchalarm(sig)
-	int sig;
+	int sig __unused;
 {
 	signalled = 1;
 }
