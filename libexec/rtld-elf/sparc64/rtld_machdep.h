@@ -29,6 +29,7 @@
 #ifndef RTLD_MACHDEP_H
 #define RTLD_MACHDEP_H	1
 
+#include <sys/types.h>
 #include <machine/atomic.h>
 
 #define	atomic_incr_int(p)	atomic_add_int((p), 1)
