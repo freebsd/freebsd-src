@@ -1,0 +1,42 @@
+
+Configuring FreeBSD to run diskless		Oct 15/1994
+===================================
+
+1) Find a machine that will be your server.  This machine will require
+   enough disk space to hold the FreeBSD 2.0 binaries and have bootp and
+   tftp services available.
+
+2) Create a bootptab entry for the diskless FreeBSD machine.
+
+	sample entry:
+
+		diskless:\
+        		:ht=ether:\
+        		:ha=0000c01f848a:\
+        		:sm=255.255.255.0:\
+        		:hn:\
+        		:ds=192.1.2.3:\
+        		:ip=192.1.2.4:\
+        		:vm=rfc1048:
+
+
+3) Create a cfg.x.x.x.x file for your diskless machine.  This is now an
+   ASCII file with netboot commands in it.
+
+	sample cfg.x.x.x.x:
+
+		hostname diskless.freebsd.com
+		rootfs server.freebsd.com:/var/rootfs/diskless
+		swapfs server.freebsd.com:/var/swap/diskless
+
+4) On the server, export the root and swap filesystems to the client.  This
+   usually involves putting them in the /etc/exports file and one some
+   machines running /usr/etc/exportfs -av
+
+5) Make a BOOTROM by copying netboot.rom to an EPROM, or copy netboot.com to
+   a DOS diskette.
+
+6) Boot the diskless machine and run netboot.com if you're using DOS.
+
+
+Martin Renters				martin@innovus.com
