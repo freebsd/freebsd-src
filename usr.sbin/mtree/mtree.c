@@ -77,7 +77,7 @@ main(argc, argv)
 	keys = KEYDEFAULT;
 	init_excludes();
 
-	while ((ch = getopt(argc, argv, "cdef:iK:k:np:Prs:UuxX:")) != -1)
+	while ((ch = getopt(argc, argv, "cdef:iK:k:Lnp:rs:UuxX:")) != -1)
 		switch((char)ch) {
 		case 'c':
 			cflag = 1;
