@@ -24,7 +24,7 @@
  * SUCH DAMAGE.
  */
 
-/* $Id: main.c,v 1.17 1996/08/22 21:30:51 jkh Exp $ */
+/* $Id: main.c,v 1.18 1996/08/22 23:25:24 jkh Exp $ */
 
 #include <stdlib.h>
 #include <stdio.h>
@@ -201,9 +201,6 @@ main(int argc, char **argv)
     
     if (mirror && restart)
 	errx(1, "-m and -r are mutually exclusive.");
-    
-    if ((ftp || http) && linkfile)
-	warnx("-l flag is meaningless with http or ftp URL specifications");
     
     output_file_name();
     
