@@ -31,7 +31,7 @@
  * SUCH DAMAGE. 
  */
 
-/* $Id: kpasswd_locl.h,v 1.9 2000/08/04 11:22:51 joda Exp $ */
+/* $Id: kpasswd_locl.h,v 1.10 2001/02/15 04:20:54 assar Exp $ */
 
 #ifndef __KPASSWD_LOCL_H__
 #define __KPASSWD_LOCL_H__
@@ -95,7 +95,11 @@
 #include <err.h>
 #include <roken.h>
 #include <getarg.h>
+#ifdef HAVE_OPENSSL_DES_H
+#include <openssl/des.h>
+#else
 #include <des.h>
+#endif
 #include <krb5.h>
 
 #endif /* __KPASSWD_LOCL_H__ */

@@ -1,0 +1,34 @@
+
+KSTASH(8)                UNIX System Manager's Manual                KSTASH(8)
+
+NNAAMMEE
+     kkssttaasshh - store the KDC master password in a file
+
+SSYYNNOOPPSSIISS
+     kkssttaasshh [--ee _s_t_r_i_n_g | ----eennccttyyppee==_s_t_r_i_n_g] [--kk _f_i_l_e | ----kkeeyy--ffiillee==_f_i_l_e]
+     [----ccoonnvveerrtt--ffiillee] [----mmaasstteerr--kkeeyy--ffdd==_f_d] [--hh | ----hheellpp] [----vveerrssiioonn]
+
+DDEESSCCRRIIPPTTIIOONN
+     kkssttaasshh reads the Kerberos master key and stores it in a file that will be
+     used by the KDC.
+
+     Supported options:
+
+     --ee _s_t_r_i_n_g, ----eennccttyyppee==_s_t_r_i_n_g
+             the encryption type to use, defaults to DES3-CBC-SHA1
+
+     --kk _f_i_l_e, ----kkeeyy--ffiillee==_f_i_l_e
+             the name of the master key file
+
+     ----ccoonnvveerrtt--ffiillee
+             don't ask for a new master key, just read an old master key file,
+             and writes it back in the new keyfile format
+
+     ----mmaasstteerr--kkeeyy--ffdd==_f_d
+             filedescriptor to read passphrase from, if not specified the
+             passphrase will be read from the terminal
+
+SSEEEE AALLSSOO
+     kdc(8)
+
+ HEIMDAL                       September 1, 2000                             1

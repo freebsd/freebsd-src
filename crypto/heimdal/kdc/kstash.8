@@ -1,4 +1,4 @@
-.\" $Id: kstash.8,v 1.3 2000/09/01 16:37:52 joda Exp $
+.\" $Id: kstash.8,v 1.5 2001/06/08 21:35:32 joda Exp $
 .\"
 .Dd September  1, 2000
 .Dt KSTASH 8
@@ -9,11 +9,13 @@
 .Sh SYNOPSIS
 .Nm
 .Oo Fl e Ar string \*(Ba Xo
-.Fl -enctype= Ns Ar string Oc
+.Fl -enctype= Ns Ar string
 .Xc
+.Oc
 .Oo Fl k Ar file \*(Ba Xo
-.Fl -key-file= Ns Ar file Oc
+.Fl -key-file= Ns Ar file
 .Xc
+.Oc
 .Op Fl -convert-file
 .Op Fl -master-key-fd= Ns Ar fd
 .Op Fl h | Fl -help

@@ -1,0 +1,59 @@
+This is a set of patches and files to get a DFS ticket from a k5 ticket.
+This code comes from Doug Engert, Argonne Nat. Lab (See dce/README.original
+for more info)
+
+The files in dce are;
+testpag: for testing if this is at all possible.
+k5dfspag: included in libkrb5
+k5dcecon: Creates (or searches for) the actual DFSPAG ticketfile.
+dpagaix: An AIX syscall stub.
+README.original: Original README file from Doug Engert
+
+
+Certain applications (rshd/telnetd) have been patched to call the
+functions in k5dfspag when the situation is right. They are ifdef
+with DCE. The patches are also originally from Doug but they
+where against MIT krb5 code and have been merged into heimdal by me.
+I will try to fix ftpd soon...
+
+There is also an ifdefs for DCE && AIX that can be used to make AIX
+use DCE for getting group/passwd entries. This is needed if one is running
+with a bare bones passwd/group file and AUTHSTATE set to DCE (This will be
+more or less clear to people doing this...) I have forced this on for now.
+
+k5dfspag.c is in lib/krb5
+k5dfspag.c is dependent on DCE only.
+It is also POSIX systems only. There are defines for the location of
+k5dcecon and dpagaix that needs a correct configure setting.
+
+k5dcecon needs no special things for the compile except whatever is needed
+on the target system to compile dce programs.
+(On aix the dce compile flags are: -D_THREAD_SAFE -D_AIX32_THREADS=1 -D_AIX41 -D_AES_SOURCE or one can use xlc_r4 if it is version 3.6.4 or later)
+
+k5dcecon wants the following libs (on aix 4.3):
+-ldce (and setenv from somewhere)
+
+dpagaix is only needed on AIX (see k5dfspag.c).
+dpagaix needs dfspag.exp and is linked with
+ld -edpagaix -o dpagaix dpagaix.o dfspag.exp
+
+
+Hope to get this into heimdal soon :-) although I know that you will have to
+change some things to get it cleanly into configure. Since I don't know the
+structure of the code (heimdal), nor enough of configure, good enough I
+just won't try it myself.
+
+One more thing, to get this to work one has to put fcache_version = x in
+krb5.conf where x = whatever the DCE implementation understands, (usually
+1 or 2).
+Thanks for adding that...
+
+
+Åke Sandgren (ake@hpc2n.umu.se)
+HPC2N
+Umeå University
+Sweden
+
+PS
+I have now added patches for configure.in and some Makefile.am's to get this
+all cleanly (I hope) into heimdal.

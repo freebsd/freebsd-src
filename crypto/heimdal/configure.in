@@ -1,7 +1,7 @@
 dnl Process this file with autoconf to produce a configure script.
-AC_REVISION($Revision: 1.270 $)
+AC_REVISION($Revision: 1.278 $)
 AC_PREREQ(2.14.-1.1)dnl 2.14a
-AC_INIT(heimdal, 0.3e, heimdal-bugs@pdc.kth.se)
+AC_INIT(heimdal, 0.3f, heimdal-bugs@pdc.kth.se)
 AM_CONFIG_HEADER(include/config.h)
 
 dnl Checks for programs.
@@ -9,7 +9,7 @@ AC_PROG_CC
 AC_PROG_CPP
 AC_PROG_CC_STDC
 
-AM_INIT_AUTOMAKE(heimdal,0.3e)
+AM_INIT_AUTOMAKE(heimdal,0.3f)
 
 AC_PREFIX_DEFAULT(/usr/heimdal)
 
@@ -77,7 +77,10 @@ dnl AC_ROKEN(10,[/usr/heimdal /usr/athena],[lib/roken],[$(top_builddir)/lib/roke
 rk_ROKEN(lib/roken)
 LIB_roken="\$(top_builddir)/lib/vers/libvers.la $LIB_roken"
 
-AC_TEST_PACKAGE_NEW(openldap,[#include <ldap.h>],[-lldap -llber],,,OPENLDAP)
+AC_TEST_PACKAGE_NEW(openldap,
+[#include <lber.h>
+#include <ldap.h>],
+[-lldap -llber],,,OPENLDAP)
 
 if test "$openldap_libdir"; then
 	LIB_openldap="-R $openldap_libdir $LIB_openldap"
@@ -153,6 +156,7 @@ if test "$with_krb4" != "no"; then
 	LIBS="$save_LIBS"
 	CFLAGS="$save_CFLAGS"
 	LIB_kdb="-lkdb -lkrb"
+	test_LIB_krb4="$LIB_krb4"
 	if test "$krb4_libdir"; then
 		LIB_krb4="-R $krb4_libdir $LIB_krb4"
 		LIB_kdb="-R $krb4_libdir -L$krb4_libdir $LIB_kdb"
@@ -173,11 +177,12 @@ AM_CONDITIONAL(DCE, test "$enable_dce" = yes)
 
 ## XXX quite horrible:
 if test -f /etc/ibmcxx.cfg; then
-	dpagaix_LDADD=`sed -n '/^xlc_r4/,/^$/p' /etc/ibmcxx.cfg | sed -n -e '/libraries/{;s/^[^=]*=\(.*\)/\1/;s/,/ /gp;}'`
-	dpagaix_CFLAGS=`sed -n '/^xlc_r4/,/^$/p' /etc/ibmcxx.cfg | sed -n -e '/options/{;s/^[^=]*=\(.*\)/\1/;s/-q[^,]*//;s/,/ /gp;}'`
+	dpagaix_LDADD=`sed -n '/^xlc_r4/,/^$/p' /etc/ibmcxx.cfg | sed -n -e '/libraries/{;s/^[[^=]]*=\(.*\)/\1/;s/,/ /gp;}'`
+	dpagaix_CFLAGS=`sed -n '/^xlc_r4/,/^$/p' /etc/ibmcxx.cfg | sed -n -e '/options/{;s/^[[^=]]*=\(.*\)/\1/;s/-q[^,]*//;s/,/ /gp;}'`
 else
 	dpagaix_CFLAGS="-D_THREAD_SAFE -D_AIX_PTHREADS_D7 -D_AIX32_THREADS=1 -D_AES_SOURCE -D_AIX41 -I/usr/include/dce"
 	dpagaix_LDADD="-L/usr/lib/threads -ldcelibc_r -ldcepthreads -lpthreads_compat lpthreads -lc_r"
+	dpagaix_LDFLAGS="-Wl,-bI:dfspag.exp"
 fi
 AC_SUBST(dpagaix_CFLAGS)
 AC_SUBST(dpagaix_LDADD)
@@ -555,18 +560,22 @@ AC_CHECK_HEADERS([				\
 	openssl/rc4.h				\
 ])
 
-AC_FIND_FUNC_NO_LIBS2(MD4_Init, crypto des, [], [], [], [$LIB_krb4])
-AC_FIND_FUNC_NO_LIBS2(MD5_Init, crypto des, [], [], [], [$LIB_krb4])
-AC_FIND_FUNC_NO_LIBS2(SHA1_Init, crypto des, [], [], [], [$LIB_krb4])
-AC_FIND_FUNC_NO_LIBS2(des_cbc_encrypt, crypto des, [], [], [], [$LIB_krb4])
-AC_FIND_FUNC_NO_LIBS2(RC4, crypto des, [], [], [], [$LIB_krb4])
+AC_FIND_FUNC_NO_LIBS2(MD4_Init, crypto des, [], [], [], [$test_LIB_krb4])
+AC_FIND_FUNC_NO_LIBS2(MD5_Init, crypto des, [], [], [], [$test_LIB_krb4])
+AC_FIND_FUNC_NO_LIBS2(SHA1_Init, crypto des, [], [], [], [$test_LIB_krb4])
+AC_FIND_FUNC_NO_LIBS2(des_cbc_encrypt, crypto des, [], [], [], [$test_LIB_krb4])
+AC_FIND_FUNC_NO_LIBS2(RC4, crypto des, [], [], [], [$test_LIB_krb4])
 if test "$ac_cv_func_des_cbc_encrypt" = "yes" -a \
 "$ac_cv_func_MD4_Init"  = "yes" -a \
 "$ac_cv_func_MD5_Init"  = "yes" -a \
 "$ac_cv_func_SHA1_Init" = "yes" -a \
 "$ac_cv_func_RC4" = "yes"; then
   DIR_des=''
-  LIB_des="-R $krb4_libdir -L$krb4_libdir $ac_cv_funclib_MD4_Init"
+  LIB_des=''
+  if test "$krb4_libdir" != ""; then
+    LIB_des="-R $krb4_libdir -L$krb4_libdir"
+  fi
+  LIB_des="$LIB_des $ac_cv_funclib_MD4_Init"
   LIB_des_appl="$LIB_des"
 else
   DIR_des='des'

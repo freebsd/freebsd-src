@@ -1,3 +1,46 @@
+2001-05-17  Assar Westerlund  <assar@sics.se>
+
+	* kadm_conn.c (start_server): fix krb5_eai_to_heim_errno call
+
+2001-05-15  Assar Westerlund  <assar@sics.se>
+
+	* kadmin.c (main): some error cleaning required
+
+2001-05-14  Assar Westerlund  <assar@sics.se>
+
+	* kadmind.c: new krb5_config_parse_file
+	* kadmin.c: new krb5_config_parse_file
+	* kadm_conn.c: update to new krb5_sockaddr2address
+
+2001-05-07  Assar Westerlund  <assar@sics.se>
+
+	* kadmin_locl.h (foreach_principal): update prototype
+	* get.c (getit): new foreach_principal
+	* ext.c (ext_keytab): new foreach_principal
+	* del.c (del_entry): new foreach_principal
+	* cpw.c (cpw_entry): new foreach_principal
+	* util.c (foreach_principal): add `funcname' and try printing the
+	error string
+
+2001-05-04  Johan Danielsson  <joda@pdc.kth.se>
+
+	* rename.c: fix argument number test
+	
+2001-04-19  Johan Danielsson  <joda@pdc.kth.se>
+
+	* del_enctype.c: fix argument count check after getarg change;
+	spotted by mark@MCS.VUW.AC.NZ
+
+2001-02-15  Assar Westerlund  <assar@sics.se>
+
+	* kadmind.c (main): use a `struct sockaddr_storage' to be able to
+	store all types of addresses
+
+2001-02-07  Assar Westerlund  <assar@sics.se>
+
+	* kadmin.c: add --keytab / _K, from Leif Johansson
+	<leifj@it.su.se>
+
 2001-01-29  Assar Westerlund  <assar@sics.se>
 
 	* kadm_conn.c (spawn_child): close the newly created socket in the

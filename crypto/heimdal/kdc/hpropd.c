@@ -33,7 +33,7 @@
 
 #include "hprop.h"
 
-RCSID("$Id: hpropd.c,v 1.31 2001/01/25 12:37:39 assar Exp $");
+RCSID("$Id: hpropd.c,v 1.32 2001/02/20 01:44:50 assar Exp $");
 
 #ifdef KRB4
 static des_cblock mkey4;
@@ -213,7 +213,7 @@ main(int argc, char **argv)
     int fd_out = -1;
 #endif
 
-    set_progname(argv[0]);
+    setprogname(argv[0]);
 
     ret = krb5_init_context(&context);
     if(ret)

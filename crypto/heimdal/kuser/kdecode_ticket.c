@@ -33,7 +33,7 @@
 
 #include "kuser_locl.h"
 
-RCSID("$Id: kdecode_ticket.c,v 1.4 2000/12/31 07:50:19 assar Exp $");
+RCSID("$Id: kdecode_ticket.c,v 1.5 2001/02/20 01:44:51 assar Exp $");
 
 static char *etype_str;
 static int version_flag;
@@ -103,7 +103,7 @@ main(int argc, char **argv)
     krb5_creds in, *out;
     int optind = 0;
 
-    set_progname (argv[0]);
+    setprogname (argv[0]);
 
     ret = krb5_init_context (&context);
     if (ret)

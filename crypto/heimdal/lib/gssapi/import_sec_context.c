@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1999 - 2000 Kungliga Tekniska Högskolan
+ * Copyright (c) 1999 - 2001 Kungliga Tekniska Högskolan
  * (Royal Institute of Technology, Stockholm, Sweden). 
  * All rights reserved. 
  *
@@ -33,7 +33,7 @@
 
 #include "gssapi_locl.h"
 
-RCSID("$Id: import_sec_context.c,v 1.3 2000/07/08 11:56:03 assar Exp $");
+RCSID("$Id: import_sec_context.c,v 1.5 2001/05/11 09:16:46 assar Exp $");
 
 OM_uint32
 gss_import_sec_context (
@@ -53,6 +53,7 @@ gss_import_sec_context (
     krb5_keyblock keyblock;
     int32_t tmp;
     int32_t flags;
+    OM_uint32 minor;
 
     gssapi_krb5_init ();
 
@@ -69,10 +70,12 @@ gss_import_sec_context (
 	krb5_storage_free (sp);
 	return GSS_S_FAILURE;
     }
+    memset (*context_handle, 0, sizeof(**context_handle));
 
     kret = krb5_auth_con_init (gssapi_krb5_context,
 			       &(*context_handle)->auth_context);
     if (kret) {
+	gssapi_krb5_set_error_string ();
 	*minor_status = kret;
 	ret = GSS_S_FAILURE;
 	goto failure;
@@ -153,30 +156,36 @@ gss_import_sec_context (
     buffer.value  = data.data;
     buffer.length = data.length;
 
-    gss_import_name (minor_status, &buffer, GSS_C_NO_OID,
-		     &(*context_handle)->source);
+    ret = gss_import_name (minor_status, &buffer, GSS_C_NO_OID,
+			   &(*context_handle)->source);
     krb5_data_free (&data);
+    if (ret)
+	goto failure;
 
     krb5_ret_data (sp, &data);
     buffer.value  = data.data;
     buffer.length = data.length;
 
-    gss_import_name (minor_status, &buffer, GSS_C_NO_OID,
-		     &(*context_handle)->target);
+    ret = gss_import_name (minor_status, &buffer, GSS_C_NO_OID,
+			   &(*context_handle)->target);
     krb5_data_free (&data);
+    if (ret)
+	goto failure;
 
     krb5_ret_int32 (sp, &tmp);
     (*context_handle)->flags = tmp;
     krb5_ret_int32 (sp, &tmp);
     (*context_handle)->more_flags = tmp;
 
-    (*context_handle)->ticket = NULL;
-
     return GSS_S_COMPLETE;
 
 failure:
     krb5_auth_con_free (gssapi_krb5_context,
 			(*context_handle)->auth_context);
+    if ((*context_handle)->source != NULL)
+	gss_release_name(&minor, &(*context_handle)->source);
+    if ((*context_handle)->target != NULL)
+	gss_release_name(&minor, &(*context_handle)->target);
     free (*context_handle);
     *context_handle = GSS_C_NO_CONTEXT;
     return ret;

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997 - 2000 Kungliga Tekniska Högskolan
+ * Copyright (c) 1997 - 2001 Kungliga Tekniska Högskolan
  * (Royal Institute of Technology, Stockholm, Sweden). 
  * All rights reserved. 
  *
@@ -33,12 +33,13 @@
 
 #include "ktutil_locl.h"
 
-RCSID("$Id: add.c,v 1.1 2000/01/02 04:41:00 assar Exp $");
+RCSID("$Id: add.c,v 1.2 2001/05/10 15:39:15 assar Exp $");
 
 int
 kt_add(int argc, char **argv)
 {
     krb5_error_code ret;
+    krb5_keytab keytab;
     krb5_keytab_entry entry;
     char buf[128];
     char *principal_string = NULL;
@@ -71,30 +72,47 @@ kt_add(int argc, char **argv)
 
     if(getarg(args, num_args, argc, argv, &optind)) {
 	arg_printusage(args, num_args, "ktutil add", "");
-	return 0;
+	return 1;
     }
     if(help_flag) {
 	arg_printusage(args, num_args, "ktutil add", "");
-	return 0;
+	return 1;
     }
+    if (keytab_string == NULL) {
+	ret = krb5_kt_default_modify_name (context, keytab_buf,
+					   sizeof(keytab_buf));
+	if (ret) {
+	    krb5_warn(context, ret, "krb5_kt_default_modify_name");
+	    return 1;
+	}
+	keytab_string = keytab_buf;
+    }
+    ret = krb5_kt_resolve(context, keytab_string, &keytab);
+    if (ret) {
+	krb5_warn(context, ret, "resolving keytab %s", keytab_string);
+	return 1;
+    }
+
+    if (verbose_flag)
+	fprintf (stderr, "Using keytab %s\n", keytab_string);
+	
+    memset(&entry, 0, sizeof(entry));
     if(principal_string == NULL) {
 	printf("Principal: ");
 	if (fgets(buf, sizeof(buf), stdin) == NULL)
-	    return 0;
+	    return 1;
 	buf[strcspn(buf, "\r\n")] = '\0';
 	principal_string = buf;
     }
     ret = krb5_parse_name(context, principal_string, &entry.principal);
     if(ret) {
 	krb5_warn(context, ret, "%s", principal_string);
-	return 0;
+	goto out;
     }
     if(enctype_string == NULL) {
 	printf("Encryption type: ");
-	if (fgets(buf, sizeof(buf), stdin) == NULL) {
-	    krb5_free_principal (context, entry.principal);
-	    return 0;
-	}
+	if (fgets(buf, sizeof(buf), stdin) == NULL)
+	    goto out;
 	buf[strcspn(buf, "\r\n")] = '\0';
 	enctype_string = buf;
     }
@@ -105,24 +123,19 @@ kt_add(int argc, char **argv)
 	    enctype = t;
 	else {
 	    krb5_warn(context, ret, "%s", enctype_string);
-	    krb5_free_principal(context, entry.principal);
-	    return 0;
+	    goto out;
 	}
     }
     if(kvno == -1) {
 	printf("Key version: ");
-	if (fgets(buf, sizeof(buf), stdin) == NULL) {
-	    krb5_free_principal (context, entry.principal);
-	    return 0;
-	}
+	if (fgets(buf, sizeof(buf), stdin) == NULL)
+	    goto out;
 	buf[strcspn(buf, "\r\n")] = '\0';
 	kvno = atoi(buf);
     }
     if(password_string == NULL && random_flag == 0) {
-	if(des_read_pw_string(buf, sizeof(buf), "Password: ", 1)) {
-	    krb5_free_principal (context, entry.principal);
-	    return 0;
-	}
+	if(des_read_pw_string(buf, sizeof(buf), "Password: ", 1))
+	    goto out;
 	password_string = buf;
     }
     if(password_string) {
@@ -150,6 +163,8 @@ kt_add(int argc, char **argv)
     ret = krb5_kt_add_entry(context, keytab, &entry);
     if(ret)
 	krb5_warn(context, ret, "add");
+ out:
     krb5_kt_free_entry(context, &entry);
+    krb5_kt_close(context, keytab);
     return 0;
 }

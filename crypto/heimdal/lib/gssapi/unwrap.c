@@ -33,7 +33,7 @@
 
 #include "gssapi_locl.h"
 
-RCSID("$Id: unwrap.c,v 1.15 2001/01/29 02:08:58 assar Exp $");
+RCSID("$Id: unwrap.c,v 1.17 2001/05/11 09:16:47 assar Exp $");
 
 OM_uint32
 gss_krb5_getsomekey(const gss_ctx_id_t context_handle,
@@ -86,8 +86,10 @@ unwrap_des
   ret = gssapi_krb5_verify_header (&p,
 				   input_message_buffer->length,
 				   "\x02\x01");
-  if (ret)
+  if (ret) {
+      *minor_status = 0;
       return ret;
+  }
 
   if (memcmp (p, "\x00\x00", 2) != 0)
     return GSS_S_BAD_SIG;
@@ -249,6 +251,7 @@ unwrap_des3
       ret = krb5_crypto_init(gssapi_krb5_context, key,
 			     ETYPE_DES3_CBC_NONE, &crypto);
       if (ret) {
+	  gssapi_krb5_set_error_string ();
 	  *minor_status = ret;
 	  return GSS_S_FAILURE;
       }
@@ -256,6 +259,7 @@ unwrap_des3
 			 p, input_message_buffer->length - len, &tmp);
       krb5_crypto_destroy(gssapi_krb5_context, crypto);
       if (ret) {
+	  gssapi_krb5_set_error_string ();
 	  *minor_status = ret;
 	  return GSS_S_FAILURE;
       }
@@ -292,6 +296,7 @@ unwrap_des3
   ret = krb5_crypto_init(gssapi_krb5_context, key,
 			 ETYPE_DES3_CBC_NONE_IVEC, &crypto);
   if (ret) {
+      gssapi_krb5_set_error_string ();
       *minor_status = ret;
       return GSS_S_FAILURE;
   }
@@ -307,6 +312,7 @@ unwrap_des3
   }
   krb5_crypto_destroy (gssapi_krb5_context, crypto);
   if (ret) {
+      gssapi_krb5_set_error_string ();
       *minor_status = ret;
       return GSS_S_FAILURE;
   }
@@ -337,6 +343,7 @@ unwrap_des3
 
   ret = krb5_crypto_init(gssapi_krb5_context, key, 0, &crypto);
   if (ret) {
+      gssapi_krb5_set_error_string ();
       *minor_status = ret;
       return GSS_S_FAILURE;
   }
@@ -348,6 +355,7 @@ unwrap_des3
 			      &csum);
   krb5_crypto_destroy (gssapi_krb5_context, crypto);
   if (ret) {
+      gssapi_krb5_set_error_string ();
       *minor_status = ret;
       return GSS_S_FAILURE;
   }
@@ -380,6 +388,7 @@ OM_uint32 gss_unwrap
 
   ret = gss_krb5_getsomekey(context_handle, &key);
   if (ret) {
+      gssapi_krb5_set_error_string ();
       *minor_status = ret;
       return GSS_S_FAILURE;
   }

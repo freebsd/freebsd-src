@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997 - 2000 Kungliga Tekniska Högskolan
+ * Copyright (c) 1997 - 2001 Kungliga Tekniska Högskolan
  * (Royal Institute of Technology, Stockholm, Sweden). 
  * All rights reserved. 
  *
@@ -33,7 +33,7 @@
 
 #include "krb5_locl.h"
 
-RCSID("$Id: context.c,v 1.59 2000/12/15 17:11:51 joda Exp $");
+RCSID("$Id: context.c,v 1.64 2001/05/16 22:24:42 assar Exp $");
 
 #define INIT_FIELD(C, T, E, D, F)					\
     (C)->E = krb5_config_get_ ## T ## _default ((C), NULL, (D), 	\
@@ -60,6 +60,7 @@ set_etypes (krb5_context context,
 	etypes = malloc((i+1) * sizeof(*etypes));
 	if (etypes == NULL) {
 	    krb5_config_free_strings (etypes_str);
+	    krb5_set_error_string (context, "malloc: out of memory");
 	    return ENOMEM;
 	}
 	for(j = 0, k = 0; j < i; j++) {
@@ -93,6 +94,9 @@ init_context_from_config_file(krb5_context context)
     /* default keytab name */
     INIT_FIELD(context, string, default_keytab, 
 	       KEYTAB_DEFAULT, "default_keytab_name");
+
+    INIT_FIELD(context, string, default_keytab_modify, 
+	       KEYTAB_DEFAULT_MODIFY, "default_keytab_modify_name");
 
     INIT_FIELD(context, string, time_fmt, 
 	       "%Y-%m-%dT%H:%M:%S", "time_format");
@@ -144,6 +148,8 @@ init_context_from_config_file(krb5_context context)
     krb5_kt_register (context, &krb5_mkt_ops);
     krb5_kt_register (context, &krb5_akf_ops);
     krb5_kt_register (context, &krb4_fkt_ops);
+    krb5_kt_register (context, &krb5_srvtab_fkt_ops);
+    krb5_kt_register (context, &krb5_any_ops);
     return 0;
 }
 
@@ -168,7 +174,7 @@ krb5_init_context(krb5_context *context)
     if (config_file == NULL)
 	config_file = krb5_config_file;
 
-    ret = krb5_config_parse_file (config_file, &tmp_cf);
+    ret = krb5_config_parse_file (p, config_file, &tmp_cf);
 
     if (ret == 0)
 	p->cf = tmp_cf;
@@ -210,7 +216,7 @@ krb5_free_context(krb5_context context)
  */
 
 static krb5_error_code
-default_etypes(krb5_enctype **etype)
+default_etypes(krb5_context context, krb5_enctype **etype)
 {
     krb5_enctype p[] = {
 	ETYPE_DES3_CBC_SHA1,
@@ -221,9 +227,12 @@ default_etypes(krb5_enctype **etype)
 	ETYPE_DES_CBC_CRC,
 	ETYPE_NULL
     };
+
     *etype = malloc(sizeof(p));
-    if(*etype == NULL)
+    if(*etype == NULL) {
+	krb5_set_error_string (context, "malloc: out of memory");
 	return ENOMEM;
+    }
     memcpy(*etype, p, sizeof(p));
     return 0;
 }
@@ -236,14 +245,18 @@ krb5_set_default_in_tkt_etypes(krb5_context context,
     krb5_enctype *p = NULL;
 
     if(etypes) {
-	i = 0;
-	while(etypes[i])
-	    if(!krb5_enctype_valid(context, etypes[i++]))
+	for (i = 0; etypes[i]; ++i)
+	    if(!krb5_enctype_valid(context, etypes[i])) {
+		krb5_set_error_string(context, "enctype %d not supported",
+				      etypes[i]);
 		return KRB5_PROG_ETYPE_NOSUPP;
+	    }
 	++i;
 	ALLOC(p, i);
-	if(!p)
+	if(!p) {
+	    krb5_set_error_string (context, "malloc: out of memory");
 	    return ENOMEM;
+	}
 	memmove(p, etypes, i * sizeof(krb5_enctype));
     }
     if(context->etypes)
@@ -259,17 +272,22 @@ krb5_get_default_in_tkt_etypes(krb5_context context,
 {
   krb5_enctype *p;
   int i;
+  krb5_error_code ret;
 
   if(context->etypes) {
     for(i = 0; context->etypes[i]; i++);
     ++i;
     ALLOC(p, i);
-    if(!p)
+    if(!p) {
+      krb5_set_error_string (context, "malloc: out of memory");
       return ENOMEM;
+    }
     memmove(p, context->etypes, i * sizeof(krb5_enctype));
-  } else
-    if(default_etypes(&p))
-      return ENOMEM;
+  } else {
+    ret = default_etypes(context, &p);
+    if (ret)
+      return ret;
+  }
   *etypes = p;
   return 0;
 }
@@ -287,9 +305,9 @@ void
 krb5_init_ets(krb5_context context)
 {
     if(context->et_list == NULL){
-	initialize_krb5_error_table_r(&context->et_list);
-	initialize_asn1_error_table_r(&context->et_list);
-	initialize_heim_error_table_r(&context->et_list);
+	krb5_add_et_list(context, initialize_krb5_error_table_r);
+	krb5_add_et_list(context, initialize_asn1_error_table_r);
+	krb5_add_et_list(context, initialize_heim_error_table_r);
     }
 }
 
@@ -325,8 +343,10 @@ krb5_set_extra_addresses(krb5_context context, const krb5_addresses *addresses)
     }
     if(context->extra_addresses == NULL) {
 	context->extra_addresses = malloc(sizeof(*context->extra_addresses));
-	if(context->extra_addresses == NULL)
+	if(context->extra_addresses == NULL) {
+	    krb5_set_error_string (context, "malloc: out of memory");
 	    return ENOMEM;
+	}
     }
     return krb5_copy_addresses(context, addresses, context->extra_addresses);
 }

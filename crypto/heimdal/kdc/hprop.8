@@ -1,4 +1,4 @@
-.\" $Id: hprop.8,v 1.8 2001/01/30 04:18:41 assar Exp $
+.\" $Id: hprop.8,v 1.10 2001/06/08 21:35:31 joda Exp $
 .\"
 .Dd June 19, 2000
 .Dt HPROP 8
@@ -9,27 +9,33 @@
 .Sh SYNOPSIS
 .Nm
 .Oo Fl m Ar file \*(Ba Xo
-.Fl -master-key= Ns Pa file Oc
+.Fl -master-key= Ns Pa file
 .Xc
+.Oc
 .Oo Fl d Ar file \*(Ba Xo
-.Fl -database= Ns Pa file Oc
+.Fl -database= Ns Pa file
 .Xc
+.Oc
 .Op Fl -source= Ns Ar heimdal|mit-dump|krb4-db|krb4-dump
 .Op Fl 4 | Fl -v4-db
 .Op Fl K | Fl -ka-db
 .Oo Fl c Ar cell \*(Ba Xo
-.Fl -cell= Ns Ar cell Oc
+.Fl -cell= Ns Ar cell
 .Xc
+.Oc
 .Op Fl S | Fl -kaspecials
 .Oo Fl r Ar string \*(Ba Xo
-.Fl -v4-realm= Ns Ar string Oc
+.Fl -v4-realm= Ns Ar string
 .Xc
+.Oc
 .Oo Fl k Ar keytab \*(Ba Xo
-.Fl -keytab= Ns Ar keytab Oc
+.Fl -keytab= Ns Ar keytab
 .Xc
+.Oc
 .Oo Fl R Ar string \*(Ba Xo
-.Fl -v5-realm= Ns Ar string Oc
+.Fl -v5-realm= Ns Ar string
 .Xc
+.Oc
 .Op Fl D | Fl -decrypt
 .Op Fl E | Fl -encrypt
 .Op Fl n | Fl -stdout

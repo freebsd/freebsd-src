@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997-2000 Kungliga Tekniska Högskolan
+ * Copyright (c) 1997-2001 Kungliga Tekniska Högskolan
  * (Royal Institute of Technology, Stockholm, Sweden). 
  * All rights reserved. 
  *
@@ -33,7 +33,7 @@
 
 #include "krb5_locl.h"
 
-RCSID("$Id: cache.c,v 1.45 2000/12/05 09:18:29 joda Exp $");
+RCSID("$Id: cache.c,v 1.47 2001/05/14 06:14:45 assar Exp $");
 
 /*
  * Add a new ccache type with operations `ops', overwriting any
@@ -46,32 +46,42 @@ krb5_cc_register(krb5_context context,
 		 const krb5_cc_ops *ops, 
 		 krb5_boolean override)
 {
+    char *prefix_copy;
     int i;
 
     for(i = 0; i < context->num_cc_ops && context->cc_ops[i].prefix; i++) {
 	if(strcmp(context->cc_ops[i].prefix, ops->prefix) == 0) {
 	    if(override)
 		free(context->cc_ops[i].prefix);
-	    else
+	    else {
+		krb5_set_error_string(context,
+				      "ccache type %s already exists",
+				      ops->prefix);
 		return KRB5_CC_TYPE_EXISTS;
+	    }
 	}
+    }
+    prefix_copy = strdup(ops->prefix);
+    if (prefix_copy == NULL) {
+	krb5_set_error_string(context, "malloc: out of memory");
+	return KRB5_CC_NOMEM;
     }
     if(i == context->num_cc_ops) {
 	krb5_cc_ops *o = realloc(context->cc_ops,
 				 (context->num_cc_ops + 1) *
 				 sizeof(*context->cc_ops));
-	if(o == NULL)
+	if(o == NULL) {
+	    krb5_set_error_string(context, "malloc: out of memory");
+	    free(prefix_copy);
 	    return KRB5_CC_NOMEM;
+	}
 	context->num_cc_ops++;
 	context->cc_ops = o;
 	memset(context->cc_ops + i, 0, 
 	       (context->num_cc_ops - i) * sizeof(*context->cc_ops));
     }
     memcpy(&context->cc_ops[i], ops, sizeof(context->cc_ops[i]));
-    context->cc_ops[i].prefix = strdup(ops->prefix);
-    if(context->cc_ops[i].prefix == NULL)
-	return KRB5_CC_NOMEM;
-    
+    context->cc_ops[i].prefix = prefix_copy;
     return 0;
 }
 
@@ -91,8 +101,10 @@ allocate_ccache (krb5_context context,
     krb5_ccache p;
 
     p = malloc(sizeof(*p));
-    if(p == NULL)
+    if(p == NULL) {
+	krb5_set_error_string(context, "malloc: out of memory");
 	return KRB5_CC_NOMEM;
+    }
     p->ops = ops;
     *id = p;
     ret = p->ops->resolve(context, id, residual);
@@ -126,8 +138,10 @@ krb5_cc_resolve(krb5_context context,
     }
     if (strchr (name, ':') == NULL)
 	return allocate_ccache (context, &krb5_fcc_ops, name, id);
-    else
+    else {
+	krb5_set_error_string(context, "unknown ccache type %s", name);
 	return KRB5_CC_UNKNOWN_TYPE;
+    }
 }
 
 /*
@@ -143,8 +157,10 @@ krb5_cc_gen_new(krb5_context context,
     krb5_ccache p;
 
     p = malloc (sizeof(*p));
-    if (p == NULL)
+    if (p == NULL) {
+	krb5_set_error_string(context, "malloc: out of memory");
 	return KRB5_CC_NOMEM;
+    }
     p->ops = ops;
     *id = p;
     return p->ops->gen_new(context, id);
@@ -281,7 +297,7 @@ krb5_cc_retrieve_cred(krb5_context context,
     krb5_error_code ret;
     krb5_cc_cursor cursor;
     krb5_cc_start_seq_get(context, id, &cursor);
-    while((ret = krb5_cc_next_cred(context, id, creds, &cursor)) == 0){
+    while((ret = krb5_cc_next_cred(context, id, &cursor, creds)) == 0){
 	if(krb5_compare_creds(context, whichfields, mcreds, creds)){
 	    ret = 0;
 	    break;
@@ -328,8 +344,8 @@ krb5_cc_start_seq_get (krb5_context context,
 krb5_error_code
 krb5_cc_next_cred (krb5_context context,
 		   const krb5_ccache id,
-		   krb5_creds *creds,
-		   krb5_cc_cursor *cursor)
+		   krb5_cc_cursor *cursor,
+		   krb5_creds *creds)
 {
     return id->ops->get_next(context, id, cursor, creds);
 }
@@ -356,8 +372,12 @@ krb5_cc_remove_cred(krb5_context context,
 		    krb5_flags which,
 		    krb5_creds *cred)
 {
-    if(id->ops->remove_cred == NULL)
+    if(id->ops->remove_cred == NULL) {
+	krb5_set_error_string(context,
+			      "ccache %s does not support remove_cred",
+			      id->ops->prefix);
 	return EACCES; /* XXX */
+    }
     return (*id->ops->remove_cred)(context, id, which, cred);
 }
 
@@ -400,7 +420,7 @@ krb5_cc_copy_cache(krb5_context context,
 	krb5_free_principal(context, princ);
 	return ret;
     }
-    while(ret == 0 && krb5_cc_next_cred(context, from, &cred, &cursor) == 0){
+    while(ret == 0 && krb5_cc_next_cred(context, from, &cursor, &cred) == 0){
 	ret = krb5_cc_store_cred(context, to, &cred);
 	krb5_free_creds_contents (context, &cred);
     }

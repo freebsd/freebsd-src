@@ -1,4 +1,4 @@
-@c $Id: setup.texi,v 1.21 2001/01/29 04:39:46 assar Exp $
+@c $Id: setup.texi,v 1.22 2001/02/11 17:10:34 assar Exp $
 
 @node Setting up a realm, Things in search for a better place, Building and Installing, Top
 
@@ -417,7 +417,7 @@ is the same thing as no salt at all).
 
 Common types of salting includes
 
-@itemize
+@itemize @bullet
 @item @code{v4} (or @code{des:pw-salt:})
 
 The Kerberos 4 salting is using no salt att all. Reson there is colon

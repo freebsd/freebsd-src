@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1999 Kungliga Tekniska Högskolan
+ * Copyright (c) 1999 - 2001 Kungliga Tekniska Högskolan
  * (Royal Institute of Technology, Stockholm, Sweden).
  * All rights reserved.
  * 
@@ -33,7 +33,7 @@
 
 #ifdef HAVE_CONFIG_H
 #include <config.h>
-RCSID("$Id: getnameinfo.c,v 1.2 1999/12/03 04:10:07 assar Exp $");
+RCSID("$Id: getnameinfo.c,v 1.3 2001/02/09 14:45:30 assar Exp $");
 #endif
 
 #include "roken.h"
@@ -64,7 +64,7 @@ doit (int af,
 		}
 	    } else if (flags & NI_NAMEREQD) {
 		return EAI_NONAME;
-	    } else if (inet_ntop (AF_INET, addr, host, hostlen) == NULL)
+	    } else if (inet_ntop (af, addr, host, hostlen) == NULL)
 		return EAI_SYSTEM;
 	}
     }

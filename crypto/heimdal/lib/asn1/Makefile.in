@@ -1,6 +1,7 @@
-# Makefile.in generated automatically by automake 1.4a from Makefile.am
+# Makefile.in generated automatically by automake 1.4b from Makefile.am
 
-# Copyright (C) 1994, 1995-9, 2000 Free Software Foundation, Inc.
+# Copyright 1994, 1995, 1996, 1997, 1998, 1999, 2000
+# Free Software Foundation, Inc.
 # This Makefile.in is free software; the Free Software Foundation
 # gives unlimited permission to copy and/or distribute it,
 # with or without modifications, as long as this notice is preserved.
@@ -113,13 +114,13 @@ dpagaix_CFLAGS = @dpagaix_CFLAGS@
 dpagaix_LDADD = @dpagaix_LDADD@
 install_sh = @install_sh@
 
-# $Id: Makefile.am,v 1.59 2001/01/30 01:46:53 assar Exp $
+# $Id: Makefile.am,v 1.63 2001/05/16 23:49:27 assar Exp $
 
 
 # $Id: Makefile.am.common,v 1.3 1999/04/01 14:58:43 joda Exp $
 
 
-# $Id: Makefile.am.common,v 1.23 2000/12/05 09:11:09 joda Exp $
+# $Id: Makefile.am.common,v 1.26 2001/05/21 13:27:48 joda Exp $
 
 
 AUTOMAKE_OPTIONS = foreign no-dependencies
@@ -185,12 +186,14 @@ NROFF_MAN = groff -mandoc -Tascii
 @KRB5_TRUE@	$(top_builddir)/lib/asn1/libasn1.la
 @KRB5_TRUE@LIB_gssapi = @KRB5_TRUE@$(top_builddir)/lib/gssapi/libgssapi.la
 
+@DCE_TRUE@LIB_kdfs = @DCE_TRUE@$(top_builddir)/lib/kdfs/libkdfs.la
+
 CHECK_LOCAL = $(PROGRAMS)
 
 YFLAGS = -d
 
 lib_LTLIBRARIES = libasn1.la
-libasn1_la_LDFLAGS = -version-info 4:0:2
+libasn1_la_LDFLAGS = -version-info 5:0:0
 
 BUILT_SOURCES = \
 	$(gen_files:.x=.c)	\
@@ -208,6 +211,7 @@ gen_files = \
 	asn1_AuthorizationData.x		\
 	asn1_CKSUMTYPE.x			\
 	asn1_Checksum.x				\
+	asn1_ENCTYPE.x				\
 	asn1_ETYPE_INFO.x			\
 	asn1_ETYPE_INFO_ENTRY.x			\
 	asn1_EncAPRepPart.x			\
@@ -233,6 +237,7 @@ gen_files = \
 	asn1_KerberosTime.x			\
 	asn1_KrbCredInfo.x			\
 	asn1_LastReq.x				\
+	asn1_LR_TYPE.x				\
 	asn1_MESSAGE_TYPE.x			\
 	asn1_METHOD_DATA.x			\
 	asn1_NAME_TYPE.x			\
@@ -255,18 +260,28 @@ check_PROGRAMS = check-der
 
 TESTS = check-der
 
-asn1_compile_SOURCES = parse.y lex.l main.c hash.c symbol.c gen.c \
-	gen_encode.c gen_decode.c gen_free.c gen_length.c gen_copy.c \
-	gen_glue.c
+asn1_compile_SOURCES = \
+	gen.c					\
+	gen_copy.c				\
+	gen_decode.c				\
+	gen_encode.c				\
+	gen_free.c				\
+	gen_glue.c				\
+	gen_length.c				\
+	hash.c					\
+	lex.l					\
+	main.c					\
+	parse.y					\
+	symbol.c
 
 
 libasn1_la_SOURCES = \
-	der_get.c \
-	der_put.c \
-	der_free.c \
-	der_length.c \
-	der_copy.c \
-	timegm.c \
+	der_get.c				\
+	der_put.c				\
+	der_free.c				\
+	der_length.c				\
+	der_copy.c				\
+	timegm.c				\
 	$(BUILT_SOURCES)
 
 
@@ -282,11 +297,11 @@ check_der_LDADD = \
 
 asn1_print_LDADD = $(check_der_LDADD)
 
-CLEANFILES = lex.c parse.c parse.h asn1.h $(BUILT_SOURCES) \
+CLEANFILES = lex.c parse.c parse.h krb5_asn1.h $(BUILT_SOURCES) \
 	$(gen_files) asn1_files
 
 
-include_HEADERS = asn1.h asn1_err.h der.h
+include_HEADERS = krb5_asn1.h asn1_err.h der.h
 
 EXTRA_DIST = asn1_err.et
 subdir = lib/asn1
@@ -308,28 +323,29 @@ am_libasn1_la_OBJECTS =  der_get.lo der_put.lo der_free.lo der_length.lo \
 der_copy.lo timegm.lo asn1_APOptions.lo asn1_AP_REP.lo asn1_AP_REQ.lo \
 asn1_AS_REP.lo asn1_AS_REQ.lo asn1_Authenticator.lo \
 asn1_AuthorizationData.lo asn1_CKSUMTYPE.lo asn1_Checksum.lo \
-asn1_ETYPE_INFO.lo asn1_ETYPE_INFO_ENTRY.lo asn1_EncAPRepPart.lo \
-asn1_EncASRepPart.lo asn1_EncKDCRepPart.lo asn1_EncKrbCredPart.lo \
-asn1_EncKrbPrivPart.lo asn1_EncTGSRepPart.lo asn1_EncTicketPart.lo \
-asn1_EncryptedData.lo asn1_EncryptionKey.lo asn1_HostAddress.lo \
-asn1_HostAddresses.lo asn1_KDCOptions.lo asn1_KDC_REP.lo \
-asn1_KDC_REQ.lo asn1_KDC_REQ_BODY.lo asn1_KRB_CRED.lo asn1_KRB_ERROR.lo \
-asn1_KRB_PRIV.lo asn1_KRB_SAFE.lo asn1_KRB_SAFE_BODY.lo \
-asn1_KerberosTime.lo asn1_KrbCredInfo.lo asn1_LastReq.lo \
-asn1_MESSAGE_TYPE.lo asn1_METHOD_DATA.lo asn1_NAME_TYPE.lo \
-asn1_PADATA_TYPE.lo asn1_PA_DATA.lo asn1_PA_ENC_TS_ENC.lo \
-asn1_Principal.lo asn1_PrincipalName.lo asn1_Realm.lo asn1_TGS_REP.lo \
-asn1_TGS_REQ.lo asn1_Ticket.lo asn1_TicketFlags.lo \
-asn1_TransitedEncoding.lo asn1_UNSIGNED.lo asn1_err.lo
+asn1_ENCTYPE.lo asn1_ETYPE_INFO.lo asn1_ETYPE_INFO_ENTRY.lo \
+asn1_EncAPRepPart.lo asn1_EncASRepPart.lo asn1_EncKDCRepPart.lo \
+asn1_EncKrbCredPart.lo asn1_EncKrbPrivPart.lo asn1_EncTGSRepPart.lo \
+asn1_EncTicketPart.lo asn1_EncryptedData.lo asn1_EncryptionKey.lo \
+asn1_HostAddress.lo asn1_HostAddresses.lo asn1_KDCOptions.lo \
+asn1_KDC_REP.lo asn1_KDC_REQ.lo asn1_KDC_REQ_BODY.lo asn1_KRB_CRED.lo \
+asn1_KRB_ERROR.lo asn1_KRB_PRIV.lo asn1_KRB_SAFE.lo \
+asn1_KRB_SAFE_BODY.lo asn1_KerberosTime.lo asn1_KrbCredInfo.lo \
+asn1_LastReq.lo asn1_LR_TYPE.lo asn1_MESSAGE_TYPE.lo \
+asn1_METHOD_DATA.lo asn1_NAME_TYPE.lo asn1_PADATA_TYPE.lo \
+asn1_PA_DATA.lo asn1_PA_ENC_TS_ENC.lo asn1_Principal.lo \
+asn1_PrincipalName.lo asn1_Realm.lo asn1_TGS_REP.lo asn1_TGS_REQ.lo \
+asn1_Ticket.lo asn1_TicketFlags.lo asn1_TransitedEncoding.lo \
+asn1_UNSIGNED.lo asn1_err.lo
 libasn1_la_OBJECTS =  $(am_libasn1_la_OBJECTS)
 check_PROGRAMS =  check-der$(EXEEXT)
 noinst_PROGRAMS =  asn1_compile$(EXEEXT) asn1_print$(EXEEXT)
 PROGRAMS =  $(noinst_PROGRAMS)
 
-am_asn1_compile_OBJECTS =  parse.$(OBJEXT) lex.$(OBJEXT) main.$(OBJEXT) \
-hash.$(OBJEXT) symbol.$(OBJEXT) gen.$(OBJEXT) gen_encode.$(OBJEXT) \
-gen_decode.$(OBJEXT) gen_free.$(OBJEXT) gen_length.$(OBJEXT) \
-gen_copy.$(OBJEXT) gen_glue.$(OBJEXT)
+am_asn1_compile_OBJECTS =  gen.$(OBJEXT) gen_copy.$(OBJEXT) \
+gen_decode.$(OBJEXT) gen_encode.$(OBJEXT) gen_free.$(OBJEXT) \
+gen_glue.$(OBJEXT) gen_length.$(OBJEXT) hash.$(OBJEXT) lex.$(OBJEXT) \
+main.$(OBJEXT) parse.$(OBJEXT) symbol.$(OBJEXT)
 asn1_compile_OBJECTS =  $(am_asn1_compile_OBJECTS)
 asn1_compile_DEPENDENCIES = 
 asn1_compile_LDFLAGS = 
@@ -364,7 +380,7 @@ OBJECTS = $(am_libasn1_la_OBJECTS) $(am_asn1_compile_OBJECTS) asn1_print.$(OBJEX
 
 all: all-redirect
 .SUFFIXES:
-.SUFFIXES: .1 .3 .5 .8 .c .cat1 .cat3 .cat5 .cat8 .et .h .l .lo .o .obj .x .y
+.SUFFIXES: .et .h .1 .3 .5 .8 .cat1 .cat3 .cat5 .cat8 .x .c .l .lo .o .obj .y
 $(srcdir)/Makefile.in: Makefile.am $(top_srcdir)/configure.in $(ACLOCAL_M4) $(top_srcdir)/Makefile.am.common $(top_srcdir)/cf/Makefile.am.common
 	cd $(top_srcdir) && $(AUTOMAKE) --foreign lib/asn1/Makefile
 
@@ -510,6 +526,11 @@ TAGS:  $(HEADERS) $(SOURCES)  $(TAGS_DEPENDENCIES) \
 	test -z "$(ETAGS_ARGS)$$unique$(LISP)$$tags" \
 	  || etags $(ETAGS_ARGS) $$tags  $$unique $(LISP)
 
+GTAGS:
+	here=`CDPATH=: && cd $(top_builddir) && pwd` \
+	  && cd $(top_srcdir) \
+	  && gtags -i $$here
+
 mostlyclean-tags:
 
 clean-tags:
@@ -598,6 +619,9 @@ check-am: all-am
 check: check-am
 installcheck-am:
 installcheck: installcheck-am
+all-recursive-am: $(BUILT_SOURCES)
+	$(MAKE) $(AM_MAKEFLAGS) all-recursive
+
 install-exec-am: install-libLTLIBRARIES
 	@$(NORMAL_INSTALL)
 	$(MAKE) $(AM_MAKEFLAGS) install-exec-hook
@@ -674,12 +698,12 @@ distclean-noinstPROGRAMS clean-noinstPROGRAMS \
 maintainer-clean-noinstPROGRAMS uninstall-includeHEADERS \
 install-includeHEADERS tags mostlyclean-tags distclean-tags clean-tags \
 maintainer-clean-tags check-TESTS distdir info-am info dvi-am dvi \
-check-local check check-am installcheck-am installcheck install-exec-am \
-install-exec install-data-local install-data-am install-data install-am \
-install uninstall-am uninstall all-local all-redirect all-am all \
-install-strip installdirs mostlyclean-generic distclean-generic \
-clean-generic maintainer-clean-generic clean mostlyclean distclean \
-maintainer-clean
+check-local check check-am installcheck-am installcheck \
+all-recursive-am install-exec-am install-exec install-data-local \
+install-data-am install-data install-am install uninstall-am uninstall \
+all-local all-redirect all-am all install-strip installdirs \
+mostlyclean-generic distclean-generic clean-generic \
+maintainer-clean-generic clean mostlyclean distclean maintainer-clean
 
 
 install-suid-programs:
@@ -812,14 +836,14 @@ check-local::
 
 $(asn1_compile_OBJECTS): parse.h
 
-$(gen_files) asn1.h: asn1_files
+$(gen_files) krb5_asn1.h: asn1_files
 
 asn1_files: asn1_compile$(EXEEXT) $(srcdir)/k5.asn1
-	./asn1_compile$(EXEEXT) $(srcdir)/k5.asn1
+	./asn1_compile$(EXEEXT) $(srcdir)/k5.asn1 krb5_asn1
 
-$(libasn1_la_OBJECTS): asn1.h asn1_err.h
+$(libasn1_la_OBJECTS): krb5_asn1.h asn1_err.h
 
-$(asn1_print_OBJECTS): asn1.h
+$(asn1_print_OBJECTS): krb5_asn1.h
 
 # Tell versions [3.59,3.63) of GNU make to not export all variables.
 # Otherwise a system limit (for SysV at least) may be exceeded.

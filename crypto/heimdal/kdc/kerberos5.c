@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997-2000 Kungliga Tekniska Högskolan
+ * Copyright (c) 1997-2001 Kungliga Tekniska Högskolan
  * (Royal Institute of Technology, Stockholm, Sweden). 
  * All rights reserved. 
  *
@@ -33,7 +33,7 @@
 
 #include "kdc_locl.h"
 
-RCSID("$Id: kerberos5.c,v 1.123 2001/01/30 01:44:08 assar Exp $");
+RCSID("$Id: kerberos5.c,v 1.133 2001/05/22 20:16:22 assar Exp $");
 
 #define MAX_TIME ((time_t)((1U << 31) - 1))
 
@@ -415,7 +415,7 @@ check_addresses(HostAddresses *addresses, const struct sockaddr *from)
     if(addresses == NULL)
 	return allow_null_ticket_addresses;
     
-    ret = krb5_sockaddr2address (from, &addr);
+    ret = krb5_sockaddr2address (context, from, &addr);
     if(ret)
 	return FALSE;
 
@@ -630,7 +630,8 @@ as_rep(KDC_REQ *req,
 		      &foo_data,
 		      client_princ,
 		      server_princ,
-		      0,
+		      NULL,
+		      NULL,
 		      reply);
 	free(buf);
 	kdc_log(0, "No PA-ENC-TIMESTAMP -- %s", client_name);
@@ -804,17 +805,17 @@ as_rep(KDC_REQ *req,
     if (client->pw_end
 	&& (kdc_warn_pwexpire == 0
 	    || kdc_time + kdc_warn_pwexpire <= *client->pw_end)) {
-	ek.last_req.val[ek.last_req.len].lr_type  = 6;
+	ek.last_req.val[ek.last_req.len].lr_type  = LR_PW_EXPTIME;
 	ek.last_req.val[ek.last_req.len].lr_value = *client->pw_end;
 	++ek.last_req.len;
     }
     if (client->valid_end) {
-	ek.last_req.val[ek.last_req.len].lr_type  = 7;
+	ek.last_req.val[ek.last_req.len].lr_type  = LR_ACCT_EXPTIME;
 	ek.last_req.val[ek.last_req.len].lr_value = *client->valid_end;
 	++ek.last_req.len;
     }
     if (ek.last_req.len == 0) {
-	ek.last_req.val[ek.last_req.len].lr_type  = 0;
+	ek.last_req.val[ek.last_req.len].lr_type  = LR_NONE;
 	ek.last_req.val[ek.last_req.len].lr_value = 0;
 	++ek.last_req.len;
     }
@@ -862,7 +863,8 @@ out:
 		      NULL,
 		      client_princ,
 		      server_princ,
-		      0,
+		      NULL,
+		      NULL,
 		      reply);
 	ret = 0;
     }
@@ -978,7 +980,9 @@ check_tgs_flags(KDC_REQ_BODY *b, EncTicketPart *tgt, EncTicketPart *et)
 	    old_life -= *tgt->starttime;
 	else
 	    old_life -= tgt->authtime;
-	et->endtime = min(*et->renew_till, *et->starttime + old_life);
+	et->endtime = *et->starttime + old_life;
+	if (et->renew_till != NULL)
+	    et->endtime = min(*et->renew_till, et->endtime);
     }	    
     
     /* checks for excess flags */
@@ -1006,7 +1010,8 @@ fix_transited_encoding(TransitedEncoding *tr,
 			tr->tr_type);
 		return KRB5KDC_ERR_TRTYPE_NOSUPP;
 	    }
-	    ret = krb5_domain_x500_decode(tr->contents,
+	    ret = krb5_domain_x500_decode(context, 
+					  tr->contents,
 					  &realms, 
 					  &num_realms,
 					  client_realm,
@@ -1285,10 +1290,15 @@ out:
     return ret;
 }
 
+/*
+ * return the realm of a krbtgt-ticket or NULL
+ */
+
 static Realm 
-is_krbtgt(PrincipalName *p)
+get_krbtgt_realm(const PrincipalName *p)
 {
-    if(p->name_string.len == 2 && strcmp(p->name_string.val[0], "krbtgt") == 0)
+    if(p->name_string.len == 2
+       && strcmp(p->name_string.val[0], KRB5_TGS_NAME) == 0)
 	return p->name_string.val[1];
     else
 	return NULL;
@@ -1307,12 +1317,25 @@ find_rpath(Realm r)
 }
 	    
 
+static krb5_boolean
+need_referral(krb5_principal server, krb5_realm **realms)
+{
+    if(server->name.name_type != KRB5_NT_SRV_INST ||
+       server->name.name_string.len != 2)
+	return FALSE;
+ 
+    return krb5_get_host_realm_int(context, server->name.name_string.val[1],
+				   FALSE, realms) == 0;
+}
+
 static krb5_error_code
 tgs_rep2(KDC_REQ_BODY *b,
 	 PA_DATA *tgs_req,
 	 krb5_data *reply,
 	 const char *from,
-	 struct sockaddr *from_addr)
+	 const struct sockaddr *from_addr,
+	 time_t **csec,
+	 int **cusec)
 {
     krb5_ap_req ap_req;
     krb5_error_code ret;
@@ -1332,6 +1355,9 @@ tgs_rep2(KDC_REQ_BODY *b,
     krb5_principal sp = NULL;
     AuthorizationData *auth_data = NULL;
 
+    *csec  = NULL;
+    *cusec = NULL;
+
     memset(&ap_req, 0, sizeof(ap_req));
     ret = krb5_decode_ap_req(context, &tgs_req->padata_value, &ap_req);
     if(ret){
@@ -1340,7 +1366,7 @@ tgs_rep2(KDC_REQ_BODY *b,
 	goto out2;
     }
     
-    if(!is_krbtgt(&ap_req.ticket.sname)){
+    if(!get_krbtgt_realm(&ap_req.ticket.sname)){
 	/* XXX check for ticket.sname == req.sname */
 	kdc_log(0, "PA-DATA is not a ticket-granting ticket");
 	ret = KRB5KDC_ERR_POLICY; /* ? */
@@ -1407,6 +1433,29 @@ tgs_rep2(KDC_REQ_BODY *b,
 	kdc_log(0, "Failed to verify AP-REQ: %s", 
 		krb5_get_err_text(context, ret));
 	goto out2;
+    }
+
+    {
+	krb5_authenticator auth;
+
+	ret = krb5_auth_getauthenticator(context, ac, &auth);
+	if (ret == 0) {
+	    *csec   = malloc(sizeof(**csec));
+	    if (*csec == NULL) {
+		krb5_free_authenticator(context, &auth);
+		kdc_log(0, "malloc failed");
+		goto out2;
+	    }
+	    **csec  = auth->ctime;
+	    *cusec  = malloc(sizeof(**cusec));
+	    if (*cusec == NULL) {
+		krb5_free_authenticator(context, &auth);
+		kdc_log(0, "malloc failed");
+		goto out2;
+	    }
+	    **csec  = auth->cusec;
+	    krb5_free_authenticator(context, &auth);
+	}
     }
 
     cetype = ap_req.authenticator.etype;
@@ -1506,7 +1555,7 @@ tgs_rep2(KDC_REQ_BODY *b,
 		goto out;
 	    }
 	    t = &b->additional_tickets->val[0];
-	    if(!is_krbtgt(&t->sname)){
+	    if(!get_krbtgt_realm(&t->sname)){
 		kdc_log(0, "Additional ticket is not a ticket-granting ticket");
 		ret = KRB5KDC_ERR_POLICY;
 		goto out2;
@@ -1548,18 +1597,36 @@ tgs_rep2(KDC_REQ_BODY *b,
 
 	if(ret){
 	    Realm req_rlm, new_rlm;
-	    if(loop++ < 2 && (req_rlm = is_krbtgt(&sp->name))){
-		new_rlm = find_rpath(req_rlm);
-		if(new_rlm) {
-		    kdc_log(5, "krbtgt for realm %s not found, trying %s", 
-			    req_rlm, new_rlm);
+	    krb5_realm *realms;
+
+	    if ((req_rlm = get_krbtgt_realm(&sp->name)) != NULL) {
+		if(loop++ < 2) {
+		    new_rlm = find_rpath(req_rlm);
+		    if(new_rlm) {
+			kdc_log(5, "krbtgt for realm %s not found, trying %s", 
+				req_rlm, new_rlm);
+			krb5_free_principal(context, sp);
+			free(spn);
+			krb5_make_principal(context, &sp, r, 
+					    KRB5_TGS_NAME, new_rlm, NULL);
+			krb5_unparse_name(context, sp, &spn);	
+			goto server_lookup;
+		    }
+		}
+	    } else if(need_referral(sp, &realms)) {
+		if (strcmp(realms[0], sp->realm) != 0) {
+		    kdc_log(5, "returning a referral to realm %s for "
+			    "server %s that was not found",
+			    realms[0], spn);
 		    krb5_free_principal(context, sp);
 		    free(spn);
-		    krb5_make_principal(context, &sp, r, 
-					"krbtgt", new_rlm, NULL);
-		    krb5_unparse_name(context, sp, &spn);	
+		    krb5_make_principal(context, &sp, r, KRB5_TGS_NAME,
+					realms[0], NULL);
+		    krb5_unparse_name(context, sp, &spn);
+		    krb5_free_host_realm(context, realms);
 		    goto server_lookup;
 		}
+		krb5_free_host_realm(context, realms);
 	    }
 	    kdc_log(0, "Server not found in database: %s: %s", spn,
 		    krb5_get_err_text(context, ret));
@@ -1624,15 +1691,21 @@ tgs_rep2(KDC_REQ_BODY *b,
 	    free_ent(client);
     }
 out2:
-    if(ret)
+    if(ret) {
 	krb5_mk_error(context,
 		      ret,
 		      e_text,
 		      NULL,
 		      cp,
 		      sp,
-		      0,
+		      NULL,
+		      NULL,
 		      reply);
+	free(*csec);
+	free(*cusec);
+	*csec  = NULL;
+	*cusec = NULL;
+    }
     krb5_free_principal(context, cp);
     krb5_free_principal(context, sp);
     if (ticket) {
@@ -1647,6 +1720,7 @@ out2:
 
     if(krbtgt)
 	free_ent(krbtgt);
+
     return ret;
 }
 
@@ -1660,6 +1734,8 @@ tgs_rep(KDC_REQ *req,
     krb5_error_code ret;
     int i = 0;
     PA_DATA *tgs_req = NULL;
+    time_t *csec = NULL;
+    int *cusec = NULL;
 
     if(req->padata == NULL){
 	ret = KRB5KDC_ERR_PREAUTH_REQUIRED; /* XXX ??? */
@@ -1675,7 +1751,8 @@ tgs_rep(KDC_REQ *req,
 	kdc_log(0, "TGS-REQ from %s without PA-TGS-REQ", from);
 	goto out;
     }
-    ret = tgs_rep2(&req->req_body, tgs_req, data, from, from_addr);
+    ret = tgs_rep2(&req->req_body, tgs_req, data, from, from_addr,
+		   &csec, &cusec);
 out:
     if(ret && data->data == NULL){
 	krb5_mk_error(context,
@@ -1684,8 +1761,11 @@ out:
 		      NULL,
 		      NULL,
 		      NULL,
-		      0,
+		      csec,
+		      cusec,
 		      data);
     }
+    free(csec);
+    free(cusec);
     return 0;
 }

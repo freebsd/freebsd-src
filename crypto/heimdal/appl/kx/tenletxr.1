@@ -1,0 +1,61 @@
+.\" $Id: tenletxr.1,v 1.2 1997/03/31 03:43:33 assar Exp $
+.\"
+.Dd March 31, 1997
+.Dt TENLETXR 1
+.Os KTH_KRB
+.Sh NAME
+.Nm tenletxr
+.Nd
+forward X-connections backwards.
+.Sh SYNOPSIS
+.Nm tenletxr
+.Op Fl l Ar username
+.Op Fl k
+.Ar host
+.Op Ar port
+.Sh DESCRIPTION
+The
+.Nm
+program
+enables forwarding of X-connections from this machine to host
+.Ar host .
+If
+.Ar port
+is given, that port will be used instead of the default.
+.Pp
+The supported options are:
+.Bl -tag -width Ds
+.It Fl l
+Log in on the remote host as user
+.Ar username
+.It Fl k
+Disables keep-alives.
+.El
+.Sh EXAMPLE
+To login from host
+.Va foo
+to host
+.Va bar
+(where your display is),
+you might do the following.
+.Bl -enum
+.It
+On foo: 
+.Nm
+.Va bar
+.It
+You will get a new shell where you will be able to start X clients
+that will show their windows on
+.Va bar .
+.El
+.Sh BUGS
+It currently checks if you have permission to run it by checking if
+you own
+.Pa /dev/console
+on the remote host.
+.Sh SEE ALSO
+.Xr rxtelnet 1 ,
+.Xr rxterm 1 ,
+.Xr kx 1 ,
+.Xr kxd 8 ,
+.Xr telnet 1

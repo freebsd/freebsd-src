@@ -1,3 +1,43 @@
+2001-05-17  Assar Westerlund  <assar@sics.se>
+
+	* Makefile.am: bump version to 3:1:2
+
+2001-05-14  Assar Westerlund  <assar@sics.se>
+
+	* address_to_krb5addr.c: adapt to new address functions
+
+2001-05-11  Assar Westerlund  <assar@sics.se>
+
+	* try to return the error string from libkrb5 where applicable
+
+2001-05-08  Assar Westerlund  <assar@sics.se>
+
+	* delete_sec_context.c (gss_delete_sec_context): remember to free
+	the memory used by the ticket itself. from <tmartin@mirapoint.com>
+
+2001-05-04  Assar Westerlund  <assar@sics.se>
+
+	* gssapi_locl.h: add config.h for completeness
+	* gssapi.h: remove config.h, this is an installed header file
+	sys/types.h is not needed either
+	
+2001-03-12  Assar Westerlund  <assar@sics.se>
+
+	* acquire_cred.c (gss_acquire_cred): remove memory leaks.  from
+	Jason R Thorpe <thorpej@zembu.com>
+
+2001-02-18  Assar Westerlund  <assar@sics.se>
+
+	* accept_sec_context.c (gss_accept_sec_context): either return
+	gss_name NULL-ed or set
+
+	* import_name.c: set minor_status in some cases where it was not
+	done
+
+2001-02-15  Assar Westerlund  <assar@sics.se>
+
+	* wrap.c: use krb5_generate_random_block for the confounders
+
 2001-01-30  Assar Westerlund  <assar@sics.se>
 
 	* Makefile.am (libgssapi_la_LDFLAGS): bump version to 3:0:2

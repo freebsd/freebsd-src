@@ -2,7 +2,7 @@
 
 #include "login_locl.h"
 
-RCSID("$Id: utmpx_login.c,v 1.24 1999/08/04 17:03:15 assar Exp $");
+RCSID("$Id: utmpx_login.c,v 1.25 2001/02/08 16:08:47 assar Exp $");
 
 /* utmpx_login - update utmp and wtmp after login */
 
@@ -21,7 +21,7 @@ utmpx_update(struct utmpx *ut, char *line, const char *user, const char *host)
     strncpy(ut->ut_id, make_id(clean_tty), sizeof(ut->ut_id));
 #endif
     strncpy(ut->ut_user, user, sizeof(ut->ut_user));
-    strncpy(ut->ut_host, host, sizeof(ut->ut_host));
+    shrink_hostname (host, ut->ut_host, sizeof(ut->ut_host));
 #ifdef HAVE_STRUCT_UTMPX_UT_SYSLEN
     ut->ut_syslen = strlen(host) + 1;
     if (ut->ut_syslen > sizeof(ut->ut_host))

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997 - 2000 Kungliga Tekniska Högskolan
+ * Copyright (c) 1997 - 2001 Kungliga Tekniska Högskolan
  * (Royal Institute of Technology, Stockholm, Sweden). 
  * All rights reserved. 
  *
@@ -33,7 +33,7 @@
 
 #include "ktutil_locl.h"
 
-RCSID("$Id: purge.c,v 1.3 2000/06/29 08:31:47 joda Exp $");
+RCSID("$Id: purge.c,v 1.5 2001/05/11 00:54:01 assar Exp $");
 
 /*
  * keep track of the highest version for every principal.
@@ -97,8 +97,9 @@ delete_list (struct e *head)
 int
 kt_purge(int argc, char **argv)
 {
-    krb5_error_code ret;
+    krb5_error_code ret = 0;
     krb5_kt_cursor cursor;
+    krb5_keytab keytab;
     krb5_keytab_entry entry;
     int help_flag = 0;
     char *age_str = "1 week";
@@ -117,26 +118,44 @@ kt_purge(int argc, char **argv)
     args[i++].value = &help_flag;
 
     if(getarg(args, num_args, argc, argv, &optind)) {
-	arg_printusage(args, num_args, "ktutil remove", "");
-	return 0;
+	arg_printusage(args, num_args, "ktutil purge", "");
+	return 1;
     }
     if(help_flag) {
-	arg_printusage(args, num_args, "ktutil remove", "");
-	return 0;
+	arg_printusage(args, num_args, "ktutil purge", "");
+	return 1;
     }
 
     age = parse_time(age_str, "s");
     if(age < 0) {
 	krb5_warnx(context, "unparasable time `%s'", age_str);
-	return 0;
+	return 1;
+    }
+
+    if (keytab_string == NULL) {
+	ret = krb5_kt_default_modify_name (context, keytab_buf,
+					   sizeof(keytab_buf));
+	if (ret) {
+	    krb5_warn(context, ret, "krb5_kt_default_modify_name");
+	    return 1;
+	}
+	keytab_string = keytab_buf;
+    }
+    ret = krb5_kt_resolve(context, keytab_string, &keytab);
+    if (ret) {
+	krb5_warn(context, ret, "resolving keytab %s", keytab_string);
+	return 1;
     }
 
     ret = krb5_kt_start_seq_get(context, keytab, &cursor);
     if(ret){
 	krb5_warn(context, ret, "krb5_kt_start_seq_get %s", keytab_string);
-	return 1;
+	goto out;
     }
 
+    if (verbose_flag)
+	fprintf (stderr, "Using keytab %s\n", keytab_string);
+	
     while((ret = krb5_kt_next_entry(context, keytab, &entry, &cursor)) == 0) {
 	add_entry (entry.principal, entry.vno, &head);
 	krb5_kt_free_entry(context, &entry);
@@ -148,7 +167,7 @@ kt_purge(int argc, char **argv)
     ret = krb5_kt_start_seq_get(context, keytab, &cursor);
     if(ret){
 	krb5_warn(context, ret, "krb5_kt_start_seq_get, %s", keytab_string);
-	return 1;
+	goto out;
     }
 
     while((ret = krb5_kt_next_entry(context, keytab, &entry, &cursor)) == 0) {
@@ -178,5 +197,7 @@ kt_purge(int argc, char **argv)
 
     delete_list (head);
 
-    return 0;
+ out:
+    krb5_kt_close (context, keytab);
+    return ret != 0;
 }

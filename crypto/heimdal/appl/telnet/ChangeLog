@@ -1,3 +1,36 @@
+2001-04-25  Assar Westerlund  <assar@sics.se>
+
+	* telnetd/sys_term.c (start_login): give the correct error if exec
+	fails
+	* telnetd/utility.c (fatalperror_errno): add a new function with
+	explicit errno parameter
+
+2001-03-07  Assar Westerlund  <assar@sics.se>
+
+	* telnetd/sys_term.c: some minimal more amount of
+ 	const-correctness
+
+2001-02-24  Assar Westerlund  <assar@sics.se>
+
+	* libtelnet/enc_des.c: learn to live with libcrypto (from openssl)
+
+2001-02-20  Assar Westerlund  <assar@sics.se>
+
+	* telnet/commands.c (tn): copy the hostname so it doesn't get
+	overwritten while reading ~/.telnetrc
+	(*): removed some unneeded externs
+
+2001-02-08  Assar Westerlund  <assar@sics.se>
+
+	* telnetd/sys_term.c (startslave, start_login): re-write code to
+	keep track both of remote hostname and utmp string to be used
+	* telnetd/telnetd.c (doit, my_telnet): re-write code to keep track
+	both of remote hostname and utmp string to be used
+
+2001-02-07  Assar Westerlund  <assar@sics.se>
+
+	* telnet/Makefile.am, telnetd/Makefile.am: add LIB_kdfs
+
 2001-01-09  Assar Westerlund  <assar@sics.se>
 
 	* libtelnet/kerberos5.c (kerberos5_is): use krb5_rd_cred2 instead
@@ -20,6 +53,9 @@
 	variables
 
 2000-12-07  Assar Westerlund  <assar@sics.se>
+
+	* telnetd/telnetd.h: move include files around to avoid getting SE
+	from sys/*.h on HP to override SE from telnet.h
 
 	* telnetd/sys_term.c (scrub_env): remove some const-ness
 	* telnetd/sys_term.c (scrub_env): add LOGNAME and POSIXLY_CORRECT

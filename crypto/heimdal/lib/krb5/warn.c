@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997 - 2000 Kungliga Tekniska Högskolan
+ * Copyright (c) 1997 - 2001 Kungliga Tekniska Högskolan
  * (Royal Institute of Technology, Stockholm, Sweden). 
  * All rights reserved. 
  *
@@ -34,8 +34,12 @@
 #include "krb5_locl.h"
 #include <err.h>
 
-RCSID("$Id: warn.c,v 1.11 2000/08/16 07:37:41 assar Exp $");
+RCSID("$Id: warn.c,v 1.13 2001/05/07 21:04:34 assar Exp $");
 
+static krb5_error_code _warnerr(krb5_context context, int do_errtext, 
+	 krb5_error_code code, int level, const char *fmt, va_list ap)
+	__attribute__((__format__(__printf__, 5, 0)));
+	
 static krb5_error_code
 _warnerr(krb5_context context, int do_errtext, 
 	 krb5_error_code code, int level, const char *fmt, va_list ap)
@@ -43,6 +47,7 @@ _warnerr(krb5_context context, int do_errtext,
     char xfmt[7] = "";
     const char *args[2], **arg;
     char *msg = NULL;
+    char *err_str = NULL;
     
     args[0] = args[1] = NULL;
     arg = args;
@@ -60,11 +65,16 @@ _warnerr(krb5_context context, int do_errtext,
 
 	strcat(xfmt, "%s");
 
-	err_msg = krb5_get_err_text(context, code);
-	if (err_msg)
-	    *arg++ = err_msg;
-	else
-	    *arg++ = "<unknown error>";
+	err_str = krb5_get_error_string(context);
+	if (err_str != NULL) {
+	    *arg++ = err_str;
+	} else {
+	    err_msg = krb5_get_err_text(context, code);
+	    if (err_msg)
+		*arg++ = err_msg;
+	    else
+		*arg++ = "<unknown error>";
+	}
     }
 	
     if(context && context->warn_dest)
@@ -72,6 +82,7 @@ _warnerr(krb5_context context, int do_errtext,
     else
 	warnx(xfmt, args[0], args[1]);
     free(msg);
+    free(err_str);
     return 0;
 }
 
