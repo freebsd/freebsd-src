@@ -545,8 +545,10 @@ char *makenetvfslist()
 			}
 		}
 
-	if ((str = malloc(sizeof(char)*(32*cnt+cnt+2))) == NULL) {
-		warnx("malloc failed");
+	if (cnt == 0 ||
+	    (str = malloc(sizeof(char) * (32 * cnt + cnt + 2))) == NULL) {
+		if (cnt > 0)
+			warnx("malloc failed");
 		free(listptr);
 		return (NULL);
 	}
