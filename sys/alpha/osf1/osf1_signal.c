@@ -592,7 +592,7 @@ osf1_sendsig(sig_t catcher, int sig, sigset_t *mask, u_long code)
 
 	td = curthread;
 	p = td->td_proc;
-	PROC_LOCK_ASSERT(td, MA_OWNED);
+	PROC_LOCK_ASSERT(p, MA_OWNED);
 	psp = p->p_sigacts;
 
 	frame = td->td_frame;
