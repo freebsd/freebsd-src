@@ -22,7 +22,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *      $Id: rtld.c,v 1.1.1.1 1998/03/07 19:24:35 jdp Exp $
+ *      $Id: rtld.c,v 1.2 1998/04/30 07:48:00 dfr Exp $
  */
 
 /*
@@ -93,6 +93,7 @@ static void unref_object_dag(Obj_Entry *);
 void r_debug_state(void);
 static void linkmap_add(Obj_Entry *);
 static void linkmap_delete(Obj_Entry *);
+static void trace_loaded_objects(Obj_Entry *obj);
 
 void xprintf(const char *, ...);
 
@@ -124,6 +125,7 @@ static bool trust;		/* False for setuid and setgid programs */
 static char *ld_bind_now;	/* Environment variable for immediate binding */
 static char *ld_debug;		/* Environment variable for debugging */
 static char *ld_library_path;	/* Environment variable for search path */
+static char *ld_tracing;	/* Called from ldd to print libs */
 static Obj_Entry *obj_list;	/* Head of linked list of shared objects */
 static Obj_Entry **obj_tail;	/* Link field of last object in list */
 static Obj_Entry *obj_main;	/* The main program shared object */
@@ -216,6 +218,7 @@ _rtld(Elf32_Word *sp, func_ptr_type *exit_proc)
 	ld_debug = getenv("LD_DEBUG");
 	ld_library_path = getenv("LD_LIBRARY_PATH");
     }
+    ld_tracing = getenv("LD_TRACE_LOADED_OBJECTS");
 
     if (ld_debug != NULL && *ld_debug != '\0')
 	debug = 1;
@@ -265,6 +268,11 @@ _rtld(Elf32_Word *sp, func_ptr_type *exit_proc)
     dbg("loading needed objects");
     if (load_needed_objects(obj_main) == -1)
 	die();
+
+    if (ld_tracing) {		/* We're done */
+	trace_loaded_objects(obj_main);
+	exit(0);
+    }
 
     dbg("relocating objects");
     if (relocate_objects(obj_main,
@@ -831,12 +839,15 @@ load_needed_objects(Obj_Entry *first)
 	    const char *name = obj->strtab + needed->name;
 	    char *path = find_library(name, obj);
 
-	    if (path == NULL)
+	    needed->obj = NULL;
+	    if (path == NULL && !ld_tracing)
 		return -1;
 
-	    needed->obj = load_object(path);
-	    if (needed->obj == NULL)
-		return -1;		/* XXX - cleanup */
+	    if (path) {
+		needed->obj = load_object(path);
+		if (needed->obj == NULL && !ld_tracing)
+		    return -1;		/* XXX - cleanup */
+	    }
 	}
     }
 
@@ -1365,4 +1376,94 @@ void linkmap_delete(Obj_Entry *obj)
 
     if ((l->l_prev->l_next = l->l_next) != NULL)
 	l->l_next->l_prev = l->l_prev;
+}
+
+void trace_loaded_objects(Obj_Entry *obj)
+{
+    char	*fmt1, *fmt2, *fmt, *main_local;
+    int		c;
+
+    if ((main_local = getenv("LD_TRACE_LOADED_OBJECTS_PROGNAME")) == NULL)
+	main_local = "";
+
+    if ((fmt1 = getenv("LD_TRACE_LOADED_OBJECTS_FMT1")) == NULL)
+	fmt1 = "\t%o => %p (%x)\n";
+
+    if ((fmt2 = getenv("LD_TRACE_LOADED_OBJECTS_FMT2")) == NULL)
+	fmt2 = "\t%o (%x)\n";
+
+    for (; obj; obj = obj->next) {
+	Needed_Entry		*needed;
+	char			*name, *path;
+	bool			is_lib;
+
+	for (needed = obj->needed; needed; needed = needed->next) {
+	    name = (char *)obj->strtab + needed->name;
+	    if (!strncmp(name, "lib", 3)) {
+		is_lib = true;	/* XXX bogus */
+	    } else {
+		is_lib = false;
+	    }
+
+	    if (needed->obj == NULL)
+		path = "not found";
+	    else
+		path = needed->obj->path;
+
+	    fmt = is_lib ? fmt1 : fmt2;
+	    while ((c = *fmt++) != '\0') {
+		switch (c) {
+		default:
+		    putchar(c);
+		    continue;
+		case '\\':
+		    switch (c = *fmt) {
+		    case '\0':
+			continue;
+		    case 'n':
+			putchar('\n');
+			break;
+		    case 't':
+			putchar('\t');
+			break;
+		    }
+		    break;
+		case '%':
+		    switch (c = *fmt) {
+		    case '\0':
+			continue;
+		    case '%':
+		    default:
+			putchar(c);
+			break;
+		    case 'A':
+			printf("%s", main_local);
+			break;
+		    case 'a':
+			printf("%s", obj_main->path);
+			break;
+		    case 'o':
+			printf("%s", name);
+			break;
+#if 0
+		    case 'm':
+			printf("%d", sodp->sod_major);
+			break;
+		    case 'n':
+			printf("%d", sodp->sod_minor);
+			break;
+#endif
+		    case 'p':
+			printf("%s", path);
+			break;
+		    case 'x':
+			printf("%p", needed->obj ? needed->obj->mapbase : 0);
+			break;
+		    }
+		    break;
+		}
+		++fmt;
+	    }
+	}
+    }
 }
