@@ -27,13 +27,12 @@ BIN1=   amd.map apmd.conf auth.conf \
 BIN1+=	rc.isdn
 .endif
 
-.if exists(${.CURDIR}/../crypto) && !defined(NO_OPENSSH)
+.if exists(${.CURDIR}/../crypto) && !defined(NO_OPENSSL)
+.if !defined(NO_OPENSSH)
 SSH=	${.CURDIR}/../crypto/openssh/ssh_config \
 	${.CURDIR}/../crypto/openssh/sshd_config \
 	moduli
 .endif
-
-.if exists(${.CURDIR}/../crypto) && !defined(NO_OPENSSL)
 SSL=	${.CURDIR}/../crypto/openssl/apps/openssl.cnf
 .endif
 
@@ -92,11 +91,11 @@ distribution:
 .if !defined(NOUUCP)
 	( cd ${.CURDIR}/../gnu/libexec/uucp/sample; ${MAKE} install )
 .endif
-.if exists(${.CURDIR}/../crypto) && !defined(NO_OPENSSH)
+.if exists(${.CURDIR}/../crypto) && !defined(NO_OPENSSL)
+.if !defined(NO_OPENSSH)
 	(cd ${.CURDIR}; ${INSTALL} -o ${BINOWN} -g ${BINGRP} -m 644 ${SSH} \
 	    ${DESTDIR}/etc/ssh )
 .endif
-.if exists(${.CURDIR}/../crypto) && !defined(NO_OPENSSL)
 	(cd ${.CURDIR}; ${INSTALL} -o ${BINOWN} -g ${BINGRP} -m 644 ${SSL} \
 	    ${DESTDIR}/etc/ssl )
 .endif
