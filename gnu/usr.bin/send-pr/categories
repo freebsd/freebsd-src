@@ -15,4 +15,5 @@ ports
 powerpc
 sparc64
 standards
+threads
 www
