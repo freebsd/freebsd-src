@@ -389,6 +389,7 @@ extern int trace;		/* Show all commands */
 extern int noexec;		/* Don't modify disk anywhere */
 extern int readonlyfs;		/* fail on all write locks; succeed all read locks */
 extern int logoff;		/* Don't write history entry */
+extern int require_real_user;	/* skip CVSROOT/passwd, /etc/passwd users only*/
 
 #ifdef AUTH_SERVER_SUPPORT
 extern char *Pserver_Repos;     /* used to check that same repos is
