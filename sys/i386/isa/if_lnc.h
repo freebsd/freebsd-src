@@ -41,7 +41,7 @@
 #define PCNET_RDP    0x10        /* Register Data Port */
 #define PCNET_RAP    0x12        /* Register Address Port */
 #define PCNET_RESET  0x14
-#define PCNET_IDP    0x16
+#define PCNET_BDP    0x16
 #define PCNET_VSW    0x18
 
 /* DEPCA port addresses */
@@ -72,18 +72,25 @@
 #define LANCE           1        /* Am7990   */
 #define C_LANCE         2        /* Am79C90  */
 #define PCnet_ISA       3        /* Am79C960 */
-#define PCnet_ISAplus  4        /* Am79C961 */
-#define PCnet_32        5        /* Am79C965 */
-#define PCnet_PCI       6        /* Am79C970 */
+#define PCnet_ISAplus   4        /* Am79C961 */
+#define PCnet_ISA_II    5        /* Am79C961A */
+#define PCnet_32        6        /* Am79C965 */
+#define PCnet_PCI       7        /* Am79C970 */
+#define PCnet_PCI_II    8        /* Am79C970A */
+#define PCnet_FAST      9        /* Am79C971 */
+#define PCnet_FASTplus  10       /* Am79C972 */
 
 /* CSR88-89: Chip ID masks */
 #define AMD_MASK  0x003
 #define PART_MASK 0xffff
 #define Am79C960  0x0003
 #define Am79C961  0x2260
+#define Am79C961A 0x2261
 #define Am79C965  0x2430
 #define Am79C970  0x0242
-#define HITACHI_Am79C970  0x2621
+#define Am79C970A 0x2621
+#define Am79C971  0x2623
+#define Am79C972  0x2624
 
 /* Board types */
 #define UNKNOWN         0
