@@ -183,7 +183,7 @@ quotactl(td, uap)
 		caddr_t arg;
 	} */ *uap;
 {
-	struct mount *mp;
+	struct mount *mp, *vmp;
 	int error;
 	struct nameidata nd;
 
@@ -193,14 +193,13 @@ quotactl(td, uap)
 	if ((error = namei(&nd)) != 0)
 		return (error);
 	NDFREE(&nd, NDF_ONLY_PNBUF);
-	error = vn_start_write(nd.ni_vp, &mp, V_WAIT | PCATCH);
+	error = vn_start_write(nd.ni_vp, &vmp, V_WAIT | PCATCH);
+	mp = nd.ni_vp->v_mount;
 	vrele(nd.ni_vp);
 	if (error)
 		return (error);
-	if (mp == NULL)
-		return (EOPNOTSUPP);
 	error = VFS_QUOTACTL(mp, uap->cmd, uap->uid, uap->arg, td);
-	vn_finished_write(mp);
+	vn_finished_write(vmp);
 	return (error);
 }
 
