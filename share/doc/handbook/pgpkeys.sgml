@@ -1,4 +1,4 @@
-<!-- $Id: pgpkeys.sgml,v 1.1 1996/05/01 20:10:58 phk Exp $ -->
+<!-- $Id: pgpkeys.sgml,v 1.2 1996/05/22 19:24:49 jkh Exp $ -->
 <!-- The FreeBSD Documentation Project -->
 
 <chapt><heading>PGP keys<label id="pgpkeys"></heading>
@@ -99,6 +99,23 @@ XjiM95PQS+9PM//llDtPvkSxgpiJiQCVAwUQMOavJADy2QnruxtBAQE92wQAsKPq
 BAMgHl74rrlD+Hp0Ltb9oOyRl3riPG0TOdfaS3T8w6vw52wOKzUrZ/0pB+2sDHzU
 qZXBbhOq3OXs1ZMNe3jh8w62JsLBWry/YMWRMnI=
 =MDQ9
+-----END PGP PUBLIC KEY BLOCK-----
+</verb></tscreen>
+
+  <sect1><heading>&a.joerg</heading><p>
+
+<tscreen><verb>
+Joerg Wunsch &lt;j@uriah.heep.sax.de&gt;
+Fingerprint = DC 47 E6 E4 FF A6 E9 8F  93 21 E0 7D F9 12 D6 4E
+
+-----BEGIN PGP PUBLIC KEY BLOCK-----
+Version: 2.6.2i
+
+mQCNAzGCFeAAAAEEAKmRBU2Nvc7nZy1Ouid61HunA/5hF4O91cXm71/KPaT7dskz
+q5sFXvPJPpawwvqHPHfEbAK42ZaywyFp59L1GaYj87Pda+PlAYRJyY2DJl5/7JPe
+ziq+7B8MdvbX6D526sdmcR+jPXPbHznASjkx9DPmK+7TgFujyXW7bjh2o/exAAUR
+tCJKb2VyZyBXdW5zY2ggPGpAdXJpYWguaGVlcC5zYXguZGU+
+=UwPv
 -----END PGP PUBLIC KEY BLOCK-----
 </verb></tscreen>
 
