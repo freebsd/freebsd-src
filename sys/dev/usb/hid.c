@@ -125,7 +125,8 @@ hid_get_item(s, h)
 	struct hid_item *h;
 {
 	struct hid_item *c = &s->cur;
-	int bTag, bType, bSize;
+	unsigned int bTag, bType, bSize;
+	struct hid_location oldloc;
 	u_char *data;
 	int32_t dval;
 	u_char *p;
@@ -299,7 +300,9 @@ hid_get_item(s, h)
 				break;
 			case 11: /* Pop */
 				hi = c->next;
+				oldloc = c->loc;
 				s->cur = *hi;
+				c->loc = oldloc;
 				free(hi, M_TEMP);
 				break;
 			default:
