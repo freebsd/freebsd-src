@@ -106,9 +106,7 @@
 
 #include <net/net_osdep.h>
 
-#ifdef IPV6FIREWALL
 #include <netinet6/ip6_fw.h>
-#endif
 
 #include <netinet6/ip6protosw.h>
 
@@ -803,11 +801,10 @@ skip_ipsec2:;
 			ip6->ip6_dst.s6_addr16[1] = 0;
 	}
 
-#ifdef IPV6FIREWALL
 	/*
 	 * Check with the firewall...
 	 */
-	if (ip6_fw_chk_ptr) {
+	if (ip6_fw_enable && ip6_fw_chk_ptr) {
 		u_short port = 0;
 		m->m_pkthdr.rcvif = NULL;	/*XXX*/
 		/* If ipfw says divert, we have to just drop packet */
@@ -820,7 +817,6 @@ skip_ipsec2:;
 			goto done;
 		}
 	}
-#endif
 
 	/*
 	 * If the outgoing packet contains a hop-by-hop options header,
@@ -1388,7 +1384,6 @@ ip6_ctloutput(so, sopt)
 				break;
 #endif /* IPSEC */
 
-#ifdef IPV6FIREWALL
 			case IPV6_FW_ADD:
 			case IPV6_FW_DEL:
 			case IPV6_FW_FLUSH:
@@ -1409,7 +1404,6 @@ ip6_ctloutput(so, sopt)
 				m = *mp;
 			    }
 				break;
-#endif
 
 			default:
 				error = ENOPROTOOPT;
@@ -1543,7 +1537,6 @@ ip6_ctloutput(so, sopt)
 			  }
 #endif /* IPSEC */
 
-#ifdef IPV6FIREWALL
 			case IPV6_FW_GET:
 			  {
 				struct mbuf *m;
@@ -1560,7 +1553,6 @@ ip6_ctloutput(so, sopt)
 					m_freem(m);
 			  }
 				break;
-#endif
 
 			default:
 				error = ENOPROTOOPT;
