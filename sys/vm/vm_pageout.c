@@ -65,7 +65,7 @@
  * any improvements or extensions that they make and grant Carnegie the
  * rights to redistribute these changes.
  *
- * $Id: vm_pageout.c,v 1.4 1994/08/01 11:25:45 davidg Exp $
+ * $Id: vm_pageout.c,v 1.5 1994/08/02 07:55:33 davidg Exp $
  */
 
 /*
@@ -108,6 +108,7 @@ extern int swap_pager_ready();
 #define LOWATER ((2048*1024)/NBPG)
 
 #define VM_PAGEOUT_PAGE_COUNT 8
+int vm_pageout_page_count = VM_PAGEOUT_PAGE_COUNT;
 static vm_offset_t vm_space_needed;
 int vm_pageout_req_do_stats;
 
@@ -190,7 +191,7 @@ vm_pageout_clean(m, sync)
 	ms[0] = m;
 
 	if( pager = object->pager) {
-		for(i=1;i<VM_PAGEOUT_PAGE_COUNT;i++) {
+		for(i=1;i<vm_pageout_page_count;i++) {
 			if( ms[i] = vm_page_lookup( object, offset+i*NBPG)) {
 				if((((ms[i]->flags & (PG_CLEAN|PG_INACTIVE|PG_BUSY)) == PG_INACTIVE)
 					|| (( ms[i]->flags & PG_CLEAN) == 0 && sync == VM_PAGEOUT_FORCE))
@@ -619,7 +620,7 @@ rescan1:
 			/*
 			 * if the next page has been re-activated, start scanning again
 			 */
-			if (next && (next->flags & PG_INACTIVE) == 0)
+			if (!next || (next->flags & PG_INACTIVE) == 0)
 				goto rescan1;
 		} else if (pmap_is_referenced(VM_PAGE_TO_PHYS(m))) {
 			pmap_clear_reference(VM_PAGE_TO_PHYS(m));
