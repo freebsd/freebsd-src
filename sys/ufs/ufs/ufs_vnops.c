@@ -408,6 +408,11 @@ ufs_setattr(ap)
 	if (vap->va_flags != VNOVAL) {
 		if (vp->v_mount->mnt_flag & MNT_RDONLY)
 			return (EROFS);
+		/*
+		 * Privileged processes in jail() are permitted to modify
+		 * arbitrary user flags on files, but are not permitted
+		 * to modify system flags.
+		 */
 		if (cred->cr_uid != ip->i_uid &&
 		    (error = suser_xxx(cred, p, PRISON_ROOT)))
 			return (error);
