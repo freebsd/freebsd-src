@@ -1,5 +1,8 @@
 # $FreeBSD$
 
+.if ${MACHINE} == "pc98"
+.PATH: ${.CURDIR}/../../pc98/pc98
+.endif
 .PATH: ${.CURDIR}/../../dev/sio
 
 KMOD=	sio
@@ -7,12 +10,18 @@ SRCS=	sio.c sio_pccard.c sio_pci.c sio_puc.c
 
 .if ${MACHINE} == "sparc64"
 ### untested
-CFLAGS += sio_ebus.c
+SRCS+=	sio_ebus.c
 .endif
 .if ${MACHINE} == "pc98"
-CFLAGS+= -DPC98
+SRCS+=	sio_cbus.c
 .else
 SRCS+=	sio_isa.c
+.endif
+
+.if ${MACHINE} == "pc98"
+opt_sio.h:
+	@echo '#define COM_MULTIPORT 1' > opt_sio.h
+	@echo '#define COM_ESP 1' >> opt_sio.h
 .endif
 
 opt_compat.h:
