@@ -48,26 +48,5 @@ static moduledata_t snd_mod = {
 	snd_modevent,
 	NULL
 };
-DECLARE_MODULE(snd_driver, snd_mod, SI_SUB_DRIVERS, SI_ORDER_MIDDLE);
-MODULE_VERSION(snd_driver, 1);
+DECLARE_MODULE(snd, snd_mod, SI_SUB_DRIVERS, SI_ORDER_MIDDLE);
 
-MODULE_DEPEND(snd_driver, snd_ad1816, 1, 1, 1);
-/* MODULE_DEPEND(snd_driver, snd_aureal, 1, 1, 1); */
-MODULE_DEPEND(snd_driver, snd_csa, 1, 1, 1);
-MODULE_DEPEND(snd_driver, snd_csapcm, 1, 1, 1);
-MODULE_DEPEND(snd_driver, snd_ds1, 1, 1, 1);
-MODULE_DEPEND(snd_driver, snd_emu10k1, 1, 1, 1);
-MODULE_DEPEND(snd_driver, snd_es137x, 1, 1, 1);
-MODULE_DEPEND(snd_driver, snd_es1888, 1, 1, 1);
-MODULE_DEPEND(snd_driver, snd_ess, 1, 1, 1);
-MODULE_DEPEND(snd_driver, snd_gusc, 1, 1, 1);
-MODULE_DEPEND(snd_driver, snd_maestro, 1, 1, 1);
-MODULE_DEPEND(snd_driver, snd_maestro3, 1, 1, 1);
-MODULE_DEPEND(snd_driver, snd_mss, 1, 1, 1);
-MODULE_DEPEND(snd_driver, snd_neomagic, 1, 1, 1);
-MODULE_DEPEND(snd_driver, snd_sb8, 1, 1, 1);
-MODULE_DEPEND(snd_driver, snd_sb16, 1, 1, 1);
-MODULE_DEPEND(snd_driver, snd_sbc, 1, 1, 1);
-MODULE_DEPEND(snd_driver, snd_solo, 1, 1, 1);
-MODULE_DEPEND(snd_driver, snd_t4dwave, 1, 1, 1);
-MODULE_DEPEND(snd_driver, snd_via82c686, 1, 1, 1);
