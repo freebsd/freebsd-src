@@ -1600,7 +1600,7 @@ carp_set_addr6(struct carp_softc *sc, struct sockaddr_in6 *sin6)
 	sc->sc_ac.ac_if.if_flags |= IFF_UP;
 	if (own)
 		sc->sc_advskew = 0;
-	carp_set_state(sc, INIT);
+	carp_carpdev_state(cif);
 	carp_setrun(sc, 0);
 
 	return (0);
