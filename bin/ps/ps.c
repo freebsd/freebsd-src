@@ -98,7 +98,7 @@ int	 sumrusage;		/* -S */
 int	 termwidth;		/* Width of the screen (0 == infinity). */
 int	 totwidth;		/* Calculated-width of requested variables. */
 
-struct varent *vhead;
+struct velisthead varlist = STAILQ_HEAD_INITIALIZER(varlist);
 
 static int	 forceuread = DEF_UREAD; /* Do extra work to get u-area. */
 static kvm_t	*kd;
@@ -600,9 +600,9 @@ main(int argc, char *argv[])
 	 * For each process, call each variable output function.
 	 */
 	for (i = lineno = 0; i < nkept; i++) {
-		for (vent = vhead; vent; vent = vent->next) {
+		STAILQ_FOREACH(vent, &varlist, next_ve) {
 			(vent->var->oproc)(&kinfo[i], vent);
-			if (vent->next != NULL)
+			if (STAILQ_NEXT(vent, next_ve) != NULL)
 				(void)putchar(' ');
 		}
 		(void)putchar('\n');
@@ -886,7 +886,7 @@ find_varentry(VAR *v)
 {
 	struct varent *vent;
 
-	for (vent = vhead; vent; vent = vent->next) {
+	STAILQ_FOREACH(vent, &varlist, next_ve) {
 		if (strcmp(vent->var->name, v->name) == 0)
 			return vent;
 	}
@@ -899,7 +899,7 @@ scanvars(void)
 	struct varent *vent;
 	VAR *v;
 
-	for (vent = vhead; vent; vent = vent->next) {
+	STAILQ_FOREACH(vent, &varlist, next_ve) {
 		v = vent->var;
 		if (v->flag & DSIZ) {
 			v->dwidth = v->width;
@@ -919,7 +919,7 @@ dynsizevars(KINFO *ki)
 	VAR *v;
 	int i;
 
-	for (vent = vhead; vent; vent = vent->next) {
+	STAILQ_FOREACH(vent, &varlist, next_ve) {
 		v = vent->var;
 		if (!(v->flag & DSIZ))
 			continue;
@@ -938,7 +938,7 @@ sizevars(void)
 	VAR *v;
 	int i;
 
-	for (vent = vhead; vent; vent = vent->next) {
+	STAILQ_FOREACH(vent, &varlist, next_ve) {
 		v = vent->var;
 		i = strlen(vent->header);
 		if (v->width < i)
