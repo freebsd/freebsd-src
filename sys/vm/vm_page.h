@@ -61,7 +61,7 @@
  * any improvements or extensions that they make and grant Carnegie the
  * rights to redistribute these changes.
  *
- * $Id: vm_page.h,v 1.24 1996/01/19 04:00:17 dyson Exp $
+ * $Id: vm_page.h,v 1.25 1996/01/30 23:02:38 mpp Exp $
  */
 
 /*
@@ -239,7 +239,7 @@ extern vm_offset_t last_phys_addr;	/* physical address for last_page */
 void vm_page_activate __P((vm_page_t));
 vm_page_t vm_page_alloc __P((vm_object_t, vm_pindex_t, int));
 void vm_page_cache __P((register vm_page_t));
-void vm_page_copy __P((vm_page_t, vm_page_t));
+static __inline void vm_page_copy __P((vm_page_t, vm_page_t));
 void vm_page_deactivate __P((vm_page_t));
 void vm_page_free __P((vm_page_t));
 void vm_page_insert __P((vm_page_t, vm_object_t, vm_pindex_t));
@@ -249,13 +249,13 @@ void vm_page_rename __P((vm_page_t, vm_object_t, vm_pindex_t));
 vm_offset_t vm_page_startup __P((vm_offset_t, vm_offset_t, vm_offset_t));
 void vm_page_unwire __P((vm_page_t));
 void vm_page_wire __P((vm_page_t));
-boolean_t vm_page_zero_fill __P((vm_page_t));
+void vm_page_unqueue __P((vm_page_t));
 void vm_page_set_validclean __P((vm_page_t, int, int));
 void vm_page_set_invalid __P((vm_page_t, int, int));
+static __inline boolean_t vm_page_zero_fill __P((vm_page_t));
 int vm_page_is_valid __P((vm_page_t, int, int));
 void vm_page_test_dirty __P((vm_page_t));
 int vm_page_bits __P((int, int));
-
 
 /*
  * Keep page from being freed by the page daemon
@@ -298,6 +298,34 @@ vm_page_protect(vm_page_t mem, int prot)
 	}
 }
 
+/*
+ *	vm_page_zero_fill:
+ *
+ *	Zero-fill the specified page.
+ *	Written as a standard pagein routine, to
+ *	be used by the zero-fill object.
+ */
+static __inline boolean_t
+vm_page_zero_fill(m)
+	vm_page_t m;
+{
+	pmap_zero_page(VM_PAGE_TO_PHYS(m));
+	return (TRUE);
+}
+
+/*
+ *	vm_page_copy:
+ *
+ *	Copy one page to another
+ */
+static __inline void
+vm_page_copy(src_m, dest_m)
+	vm_page_t src_m;
+	vm_page_t dest_m;
+{
+	pmap_copy_page(VM_PAGE_TO_PHYS(src_m), VM_PAGE_TO_PHYS(dest_m));
+	dest_m->valid = VM_PAGE_BITS_ALL;
+}
 
 #endif				/* KERNEL */
 #endif				/* !_VM_PAGE_ */
