@@ -1,5 +1,5 @@
 /*-
- *  dgb.c $Id: dgb.c,v 1.38 1998/08/12 23:44:22 brian Exp $
+ *  dgb.c $Id: dgb.c,v 1.39 1998/08/16 01:21:49 bde Exp $
  *
  *  Digiboard driver.
  *
@@ -222,11 +222,14 @@ static	d_ioctl_t	dgbioctl;
 static	d_stop_t	dgbstop;
 static	d_devtotty_t	dgbdevtotty;
 
-#define CDEV_MAJOR 58
-static struct cdevsw dgb_cdevsw = 
-	{ dgbopen,	dgbclose,	dgbread,	dgbwrite,	/*58*/
-	  dgbioctl,	dgbstop,	noreset,	dgbdevtotty, /* dgb */
-	  ttpoll,	nommap,		NULL,	"dgb",	NULL,	-1 };
+#define	CDEV_MAJOR	58
+static	struct cdevsw	dgb_cdevsw = {
+	dgbopen,	dgbclose,	dgbread,	dgbwrite,
+	dgbioctl,	dgbstop,	noreset,	dgbdevtotty,
+	ttpoll,		nommap,		NULL,		"dgb",
+	NULL,		-1,		nodump,		nopsize,
+	D_TTY,
+};
 
 static	speed_t	dgbdefaultrate = TTYDEF_SPEED;
 
@@ -1070,8 +1073,6 @@ open_top:
 			DPRINT4(DB_OPEN,"dgb%d: port%d: dgbparam error=%d\n",unit,pnum,error);
 			goto out;
 		}
-
-		ttsetwater(tp);
 
 		/* handle fake DCD for callout devices */
 		/* and initial DCD */

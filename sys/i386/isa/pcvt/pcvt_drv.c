@@ -122,11 +122,13 @@ static	d_ioctl_t	pcioctl;
 static	d_devtotty_t	pcdevtotty;
 static	d_mmap_t	pcmmap;
 
-#define CDEV_MAJOR 12
-static	struct cdevsw	pcdevsw = {
+#define	CDEV_MAJOR	12
+static	struct cdevsw	pc_cdevsw = {
 	pcopen,		pcclose,	pcread,		pcwrite,
 	pcioctl,	nullstop,	noreset,	pcdevtotty,
-	ttpoll,		pcmmap,		nostrategy, "vt", NULL, -1
+	ttpoll,		pcmmap,		nostrategy,	"vt",
+	NULL,		-1,		nodump,		nopsize,
+	D_TTY,
 };
 
 #if PCVT_FREEBSD > 205
@@ -356,13 +358,13 @@ pcattach(struct isa_device *dev)
 	{
 	dev_t dev = makedev(CDEV_MAJOR, 0);
 
-	cdevsw_add(&dev, &pcdevsw, NULL);
+	cdevsw_add(&dev, &pc_cdevsw, NULL);
 	}
 
 #ifdef DEVFS	
 	for(vt = 0; vt < MAXCONS; vt++) {
           pcvt_devfs_token[vt] = 
-		devfs_add_devswf(&pcdevsw, vt,
+		devfs_add_devswf(&pc_cdevsw, vt,
                                  DV_CHR, 0, 0, 0600, "ttyv%r", vt );
 	}
 #endif DEVFS
@@ -489,7 +491,6 @@ pcopen(Dev_t dev, int flag, int mode, struct proc *p)
 		tp->t_lflag = TTYDEF_LFLAG;
 		tp->t_ispeed = tp->t_ospeed = TTYDEF_SPEED;
 		pcparam(tp, &tp->t_termios);
-		ttsetwater(tp);
 		(*linesw[tp->t_line].l_modem)(tp, 1);	/* fake connection */
 		winsz = 1;			/* set winsize later */
 	}

@@ -30,7 +30,7 @@
  * MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN
  * NO EVENT SHALL THE AUTHORS BE LIABLE.
  *
- *	$Id: si.c,v 1.74 1998/08/16 00:57:07 bde Exp $
+ *	$Id: si.c,v 1.75 1998/08/16 01:04:48 bde Exp $
  */
 
 #ifndef lint
@@ -173,12 +173,14 @@ static	d_ioctl_t	siioctl;
 static	d_stop_t	sistop;
 static	d_devtotty_t	sidevtotty;
 
-#define CDEV_MAJOR 68
-static struct cdevsw si_cdevsw =
-	{ siopen,	siclose,	siread,		siwrite,	/*68*/
-	  siioctl,	sistop,		noreset,	sidevtotty,/* si */
-	  ttpoll,	nommap,		NULL,	"si",	NULL,	-1 };
-
+#define	CDEV_MAJOR	68
+static	struct cdevsw	si_cdevsw = {
+	siopen,		siclose,	siread,		siwrite,
+	siioctl,	sistop,		noreset,	sidevtotty,
+	ttpoll,		nommap,		NULL,		"si",
+	NULL,		-1,		nodump,		nopsize,
+	D_TTY,
+};
 
 #ifdef SI_DEBUG		/* use: ``options "SI_DEBUG"'' in your config file */
 
@@ -1231,8 +1233,6 @@ open_top:
 		if (error != 0)
 			goto out;
 		/* XXX: we should goto_top if siparam slept */
-
-		ttsetwater(tp);
 
 		/* set initial DCD state */
 		pp->sp_last_hi_ip = ccbp->hi_ip;
