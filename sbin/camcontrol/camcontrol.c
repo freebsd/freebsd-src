@@ -48,9 +48,6 @@
 #include <camlib.h>
 #include "camcontrol.h"
 
-#define DEFAULT_DEVICE "da"
-#define DEFAULT_UNIT 	0
-
 typedef enum {
 	CAM_ARG_NONE		= 0x00000000,
 	CAM_ARG_DEVLIST		= 0x00000001,
@@ -1067,6 +1064,8 @@ scanlun_or_reset_dev(int bus, int target, int lun, int scan)
 	union ccb ccb;
 	struct cam_device *device;
 	int fd;
+
+	device = NULL;
 
 	if (bus < 0) {
 		warnx("invalid bus number %d", bus);
@@ -3015,8 +3014,8 @@ usage(int verbose)
 "Generic arguments:\n"
 "-v                be verbose, print out sense information\n"
 "-t timeout        command timeout in seconds, overrides default timeout\n"
-"-n dev_name       specify device name (default is %s)\n"
-"-u unit           specify unit number (default is %d)\n"
+"-n dev_name       specify device name, e.g. \"da\", \"cd\"\n"
+"-u unit           specify unit number, e.g. \"0\", \"5\"\n"
 "-E                have the kernel attempt to perform SCSI error recovery\n"
 "-C count          specify the SCSI command retry count (needs -E to work)\n"
 "modepage arguments:\n"
@@ -3059,8 +3058,7 @@ usage(int verbose)
 "format arguments:\n"
 "-q                be quiet, don't print status messages\n"
 "-w                don't send immediate format command\n"
-"-y                don't ask any questions\n",
-DEFAULT_DEVICE, DEFAULT_UNIT);
+"-y                don't ask any questions\n");
 }
 
 int 
@@ -3245,12 +3243,6 @@ main(int argc, char **argv)
 		}
 	}
 
-	if ((arglist & CAM_ARG_DEVICE) == 0)
-		device = (char *)strdup(DEFAULT_DEVICE);
-
-	if ((arglist & CAM_ARG_UNIT) == 0)
-		unit = DEFAULT_UNIT;
-
 	/*
 	 * For most commands we'll want to open the passthrough device
 	 * associated with the specified device.  In the case of the rescan
@@ -3258,6 +3250,13 @@ main(int argc, char **argv)
 	 * transport layer device.
 	 */
 	if (devopen == 1) {
+		if (((arglist & (CAM_ARG_BUS|CAM_ARG_TARGET)) == 0)
+		 && (((arglist & CAM_ARG_DEVICE) == 0)
+		  || ((arglist & CAM_ARG_UNIT) == 0))) {
+			errx(1, "subcommand \"%s\" requires a valid device "
+			     "identifier", argv[1]);
+		}
+
 		if ((cam_dev = ((arglist & (CAM_ARG_BUS | CAM_ARG_TARGET))?
 				cam_open_btl(bus, target, lun, O_RDWR, NULL) :
 				cam_open_spec_device(device,unit,O_RDWR,NULL)))
