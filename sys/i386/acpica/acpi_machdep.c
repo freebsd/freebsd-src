@@ -41,8 +41,6 @@ __FBSDID("$FreeBSD$");
 #include <dev/acpica/acpivar.h>
 #include <dev/acpica/acpiio.h>
 
-static device_t	acpi_dev;
-
 /*
  * APM driver emulation 
  */
@@ -58,7 +56,7 @@ uint32_t acpi_reset_video = 1;
 TUNABLE_INT("hw.acpi.reset_video", &acpi_reset_video);
 
 static int intr_model = ACPI_INTR_PIC;
-static struct apm_softc	apm_softc;
+static int apm_active;
 
 static d_open_t apmopen;
 static d_close_t apmclose;
@@ -138,7 +136,7 @@ acpi_capm_get_info(apm_info_t aip)
 	aip->ai_infoversion = 1;
 	aip->ai_major       = 1;
 	aip->ai_minor       = 2;
-	aip->ai_status      = apm_softc.active;
+	aip->ai_status      = apm_active;
 	aip->ai_capabilities= 0xff00;	/* unknown */
 
 	if (acpi_acad_get_acline(&acline))
@@ -213,13 +211,13 @@ apmioctl(struct cdev *dev, u_long cmd, caddr_t addr, int flag, d_thread_t *td)
 	struct apm_info info;
 	apm_info_old_t aiop;
 
-	acpi_sc = device_get_softc(acpi_dev);
+	acpi_sc = devclass_get_softc(devclass_find("acpi"), 0);
 
 	switch (cmd) {
 	case APMIO_SUSPEND:
 		if ((flag & FWRITE) == 0)
 			return (EPERM);
-		if (apm_softc.active)
+		if (apm_active)
 			acpi_SetSleepState(acpi_sc, acpi_sc->acpi_suspend_sx);
 		else
 			error = EINVAL;
@@ -227,7 +225,7 @@ apmioctl(struct cdev *dev, u_long cmd, caddr_t addr, int flag, d_thread_t *td)
 	case APMIO_STANDBY:
 		if ((flag & FWRITE) == 0)
 			return (EPERM);
-		if (apm_softc.active)
+		if (apm_active)
 			acpi_SetSleepState(acpi_sc, acpi_sc->acpi_standby_sx);
 		else
 			error = EINVAL;
@@ -254,12 +252,12 @@ apmioctl(struct cdev *dev, u_long cmd, caddr_t addr, int flag, d_thread_t *td)
 	case APMIO_ENABLE:
 		if ((flag & FWRITE) == 0)
 			return (EPERM);
-		apm_softc.active = 1;
+		apm_active = 1;
 		break;
 	case APMIO_DISABLE:
 		if ((flag & FWRITE) == 0)
 			return (EPERM);
-		apm_softc.active = 0;
+		apm_active = 0;
 		break;
 	case APMIO_HALTCPU:
 		break;
@@ -305,9 +303,7 @@ acpi_machdep_init(device_t dev)
 {
 	struct	acpi_softc *sc;
 
-	acpi_dev = dev;
-	sc = device_get_softc(acpi_dev);
-
+	sc = devclass_get_softc(devclass_find("acpi"), 0);
 	acpi_capm_init(sc);
 
 	acpi_install_wakeup_handler(sc);
