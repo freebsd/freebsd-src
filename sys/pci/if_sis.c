@@ -141,6 +141,12 @@ static void sis_eeprom_putbyte	__P((struct sis_softc *, int));
 static void sis_eeprom_getword	__P((struct sis_softc *, int, u_int16_t *));
 static void sis_read_eeprom	__P((struct sis_softc *, caddr_t, int,
 							int, int));
+#ifdef __i386__
+static void sis_read_cmos	__P((struct sis_softc *, device_t, caddr_t,
+							int, int));
+static device_t sis_find_bridge	__P((device_t));
+#endif
+
 static int sis_miibus_readreg	__P((device_t, int, int));
 static int sis_miibus_writereg	__P((device_t, int, int, int));
 static void sis_miibus_statchg	__P((device_t));
@@ -357,6 +363,73 @@ static void sis_read_eeprom(sc, dest, off, cnt, swap)
 
 	return;
 }
+
+#ifdef __i386__
+static device_t sis_find_bridge(dev)
+	device_t		dev;
+{
+	devclass_t		pci_devclass;
+	device_t		*pci_devices;
+	int			pci_count = 0;
+	device_t		*pci_children;
+	int			pci_childcount = 0;
+	device_t		*busp, *childp;
+	int			i, j;
+
+	if ((pci_devclass = devclass_find("pci")) == NULL)
+		return(NULL);
+
+	devclass_get_devices(pci_devclass, &pci_devices, &pci_count);
+
+	for (i = 0, busp = pci_devices; i < pci_count; i++, busp++) {
+		pci_childcount = 0;
+		device_get_children(*busp, &pci_children, &pci_childcount);
+		for (j = 0, childp = pci_children;
+		    j < pci_childcount; j++, childp++) {
+			if (pci_get_vendor(*childp) == SIS_VENDORID &&
+			    pci_get_device(*childp) == 0x0008) {
+				free(pci_devices, M_TEMP);
+				free(pci_children, M_TEMP);
+				return(*childp);
+			}
+		}
+	}
+
+	free(pci_devices, M_TEMP);
+	free(pci_children, M_TEMP);
+	return(NULL);
+}
+
+static void sis_read_cmos(sc, dev, dest, off, cnt)
+	struct sis_softc	*sc;
+	device_t		dev;
+	caddr_t			dest;
+	int			off;
+	int			cnt;
+{
+	device_t		bridge;
+	u_int8_t		reg;
+	int			i;
+	bus_space_tag_t		btag;
+
+	bridge = sis_find_bridge(dev);
+	if (bridge == NULL)
+		return;
+	reg = pci_read_config(bridge, 0x48, 1);
+	pci_write_config(bridge, 0x48, reg|0x40, 1);
+
+	/* XXX */
+	btag = I386_BUS_SPACE_IO;
+
+	for (i = 0; i < cnt; i++) {
+		bus_space_write_1(btag, 0x0, 0x70, i + off);
+		*(dest + i) = bus_space_read_1(btag, 0x0, 0x71);
+	}
+
+	pci_write_config(bridge, 0x48, reg & ~0x40, 1);
+	return;
+}
+#endif
 
 static int sis_miibus_readreg(dev, phy, reg)
 	device_t		dev;
@@ -777,7 +850,31 @@ static int sis_attach(dev)
 		break;
 	case SIS_VENDORID:
 	default:
-		sis_read_eeprom(sc, (caddr_t)&eaddr, SIS_EE_NODEADDR, 3, 0);
+#ifdef __i386__
+		/*
+		 * If this is a SiS 630E chipset with an embedded
+		 * SiS 900 controller, we have to read the MAC address
+		 * from the APC CMOS RAM. Our method for doing this
+		 * is very ugly since we have to reach out and grab
+		 * ahold of hardware for which we cannot properly
+		 * allocate resources. This code is only compiled on
+		 * the i386 architecture since the SiS 630E chipset
+		 * is for x86 motherboards only. Note that there are
+		 * a lot of magic numbers in this hack. These are
+		 * taken from SiS's Linux driver. I'd like to replace
+		 * them with proper symbolic definitions, but that
+		 * requires some datasheets that I don't have access
+		 * to at the moment.
+		 */
+		command = pci_read_config(dev, PCIR_REVID, 1);
+		if (command == SIS_REV_630S ||
+		    command == SIS_REV_630E ||
+		    command == SIS_REV_630EA1)
+			sis_read_cmos(sc, dev, (caddr_t)&eaddr, 0x9, 6);
+		else
+#endif
+			sis_read_eeprom(sc, (caddr_t)&eaddr,
+			    SIS_EE_NODEADDR, 3, 0);
 		break;
 	}
 
