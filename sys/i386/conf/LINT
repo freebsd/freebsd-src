@@ -511,7 +511,7 @@ options 	ETHER_SNAP		# enable Ethernet_802.2/SNAP frame
 # for IPv6
 pseudo-device	gif	4		#IPv6 and IPv4 tunneling
 pseudo-device	faith	1		#for IPv6 and IPv4 translation
-pseudo-device	stf	1		#6to4 IPv6 over IPv4 encapsulation
+pseudo-device	stf			#6to4 IPv6 over IPv4 encapsulation
 
 #
 # Internet family options:
