@@ -117,7 +117,7 @@ server.
 .Xr mtab 5 ,
 .Xr rmtab 5 ,
 .Xr mountd 8 ,
-.Xr showmount 8 .
+.Xr showmount 8
 .Sh BUGS
 No attempt is made to verify the information in
 .Pa /etc/mtab
@@ -139,7 +139,7 @@ To catch those cases, a filesystem is also deemed mounted if its
 .Em local
 mount point is identical to the remote entry.
 I.e., on a SunOS diskless client,
-.Ic server:/export/share/sunos.4.1.1
+.Pa server:/export/share/sunos.4.1.1
 is actually
 .Pa /usr/share .
 Since the local mount point is
