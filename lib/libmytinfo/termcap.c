@@ -21,7 +21,7 @@ static const char SCCSid[] = "@(#) mytinfo termcap.c 3.3 92/06/01 public domain,
 
 extern char _mytinfo_version[];
 /* not static */
-char *force = _mytinfo_version;
+char *_force_pick1 = _mytinfo_version;
 
 int
 tgetent(buf, term)

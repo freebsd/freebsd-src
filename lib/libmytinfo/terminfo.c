@@ -18,7 +18,7 @@ static const char SCCSid[] = "@(#) mytinfo terminfo.c 3.2 92/02/01 public domain
 
 extern char _mytinfo_version[];
 /* not static */
-char *force = _mytinfo_version;
+char *_force_pick2 = _mytinfo_version;
 
 #ifdef USE_FAKE_STDIO
 
