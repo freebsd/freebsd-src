@@ -528,22 +528,12 @@ static int
 agp_release_helper(device_t dev, enum agp_acquire_state state)
 {
 	struct agp_softc *sc = device_get_softc(dev);
-	struct agp_memory *mem;
 
 	if (sc->as_state == AGP_ACQUIRE_FREE)
 		return 0;
 
 	if (sc->as_state != state)
 		return EBUSY;
-
-	/*
-	 * Clear out the aperture and free any outstanding memory blocks.
-	 */
-	while ((mem = TAILQ_FIRST(&sc->as_memory)) != 0) {
-		if (mem->am_is_bound)
-			AGP_UNBIND_MEMORY(dev, mem);
-		AGP_FREE_MEMORY(dev, mem);
-	}
 
 	sc->as_state = AGP_ACQUIRE_FREE;
 	return 0;
@@ -660,10 +650,16 @@ agp_close(dev_t kdev, int fflag, int devtype, struct proc *p)
 {
 	device_t dev = KDEV2DEV(kdev);
 	struct agp_softc *sc = device_get_softc(dev);
+	struct agp_memory *mem;
 
 	/*
 	 * Clear the GATT and force release on last close
 	 */
+	while ((mem = TAILQ_FIRST(&sc->as_memory)) != 0) {
+		if (mem->am_is_bound)
+			AGP_UNBIND_MEMORY(dev, mem);
+		AGP_FREE_MEMORY(dev, mem);
+	}
 	if (sc->as_state == AGP_ACQUIRE_USER)
 		agp_release_helper(dev, AGP_ACQUIRE_USER);
 	sc->as_isopen = 0;
