@@ -82,11 +82,11 @@ getttyent()
 		while (!index(p, '\n')) {
 			i = strlen(p);
 			lbsize += MALLOCCHUNK;
-			if ((line = realloc(line, lbsize)) == NULL) {
+			if ((p = realloc(line, lbsize)) == NULL) {
 				(void)endttyent();
 				return (NULL);
 			}
-			p = line;
+			line = p;
 			if (!fgets(&line[i], lbsize - i, tf))
 				return (NULL);
 		}
