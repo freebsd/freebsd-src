@@ -2,6 +2,7 @@
 # $FreeBSD$
 
 PROG=	worms
+MAN=	worms.6
 DPADD=	${LIBCURSES}
 LDADD=	-lcurses
 

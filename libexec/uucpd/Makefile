@@ -2,6 +2,7 @@
 # $FreeBSD$
 
 PROG=	uucpd
+MAN=	uucpd.8
 LDADD=  -lcrypt -lutil
 DPADD=  ${LIBCRYPT} ${LIBUTIL}
 .include <bsd.prog.mk>
