@@ -24,7 +24,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: if_fxp.c,v 1.21.2.2 1997/02/04 07:41:01 davidg Exp $
+ *	$Id: if_fxp.c,v 1.21.2.3 1997/02/04 10:53:59 davidg Exp $
  */
 
 /*
@@ -850,15 +850,15 @@ fxp_init(ifp)
 	cbp->cb_command =	FXP_CB_COMMAND_CONFIG | FXP_CB_COMMAND_EL;
 	cbp->link_addr =	-1;	/* (no) next command */
 	cbp->byte_count =	22;	/* (22) bytes to config */
-	cbp->rx_fifo_limit =	8;	/* rx fifo threshold */
-	cbp->tx_fifo_limit =	0;	/* tx fifo threshold */
+	cbp->rx_fifo_limit =	8;	/* rx fifo threshold (32 bytes) */
+	cbp->tx_fifo_limit =	0;	/* tx fifo threshold (0 bytes) */
 	cbp->adaptive_ifs =	0;	/* (no) adaptive interframe spacing */
-	cbp->rx_dma_bytecount =	16;	/* (no) rx DMA max */
-	cbp->tx_dma_bytecount =	16;	/* (no) tx DMA max */
-	cbp->dma_bce =		1;	/* (enable) dma max counters */
+	cbp->rx_dma_bytecount =	0;	/* (no) rx DMA max */
+	cbp->tx_dma_bytecount =	0;	/* (no) tx DMA max */
+	cbp->dma_bce =		0;	/* (disable) dma max counters */
 	cbp->late_scb =		0;	/* (don't) defer SCB update */
 	cbp->tno_int =		0;	/* (disable) tx not okay interrupt */
-	cbp->ci_int =		0;	/* (do) interrupt on CU not active */
+	cbp->ci_int =		0;	/* interrupt on CU not active */
 	cbp->save_bf =		prm;	/* save bad frames */
 	cbp->disc_short_rx =	!prm;	/* discard short packets */
 	cbp->underrun_retry =	1;	/* retry mode (1) on DMA underrun */
@@ -871,7 +871,7 @@ fxp_init(ifp)
 	cbp->interfrm_spacing =	6;	/* (96 bits of) interframe spacing */
 	cbp->promiscuous =	prm;	/* promiscuous mode */
 	cbp->bcast_disable =	0;	/* (don't) disable broadcasts */
-	cbp->crscdt =		1;	/* (CRS only) */
+	cbp->crscdt =		0;	/* (CRS only) */
 	cbp->stripping =	!prm;	/* truncate rx packet to byte count */
 	cbp->padding =		1;	/* (do) pad short tx packets */
 	cbp->rcv_crc_xfer =	0;	/* (don't) xfer CRC to host */
