@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)locore.s	7.3 (Berkeley) 5/13/91
- *	$Id: locore.s,v 1.46 1995/01/14 13:20:07 bde Exp $
+ *	$Id: locore.s,v 1.47 1995/01/25 21:40:15 bde Exp $
  */
 
 /*
@@ -121,9 +121,12 @@ tmpstk:
 	.globl	_boothowto,_bootdev
 
 	.globl	_cpu,_cold,_atdevbase,_cpu_vendor,_cpu_id,_bootinfo
+	.globl	_cpu_high, _cpu_feature
 
 _cpu:	.long	0				/* are we 386, 386sx, or 486 */
 _cpu_id:	.long	0			/* stepping ID */
+_cpu_high:	.long	0			/* highest arg to CPUID */
+_cpu_feature:	.long	0			/* features */
 _cpu_vendor:	.space	20			/* CPU origin code */
 _bootinfo:	.space	BOOTINFO_SIZE		/* bootinfo that we can handle */
 _cold:	.long	1				/* cold till we are not */
@@ -474,16 +477,18 @@ got_common_bi_size:
 
 1:	/* Use the `cpuid' instruction. */
 	xorl	%eax,%eax
-	.byte	0x0f,0xa2		# cpuid 0
+	.byte	0x0f,0xa2			# cpuid 0
+	movl	%eax,_cpu_high-KERNBASE		# highest capability
 	movl	%ebx,_cpu_vendor-KERNBASE	# store vendor string
 	movl	%edx,_cpu_vendor+4-KERNBASE
 	movl	%ecx,_cpu_vendor+8-KERNBASE
 	movb	$0,_cpu_vendor+12-KERNBASE
 
 	movl	$1,%eax
-	.byte	0x0f,0xa2		# cpuid 1
+	.byte	0x0f,0xa2			# cpuid 1
 	movl	%eax,_cpu_id-KERNBASE		# store cpu_id
-	rorl	$8,%eax			# extract family type
+	movl	%edx,_cpu_feature-KERNBASE	# store cpu_feature
+	rorl	$8,%eax				# extract family type
 	andl	$15,%eax
 	cmpl	$5,%eax
 	jae	1f
