@@ -1302,23 +1302,6 @@ show_ipfw(struct ip_fw *rule, int pcwidth, int bcwidth)
 				printf(cmd->len & F_NOT ? " out" : " in");
 				break;
 
-			case O_DIVERTED:
-				switch (cmd->arg1) {
-				case 3:
-					printf(" diverted");
-					break;
-				case 1:
-					printf(" diverted-loopback");
-					break;
-				case 2:
-					printf(" diverted-output");
-					break;
-				default:
-					printf(" diverted-?<%u>", cmd->arg1);
-					break;
-				}
-				break;
-
 			case O_LAYER2:
 				printf(" layer2");
 				break;
