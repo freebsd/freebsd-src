@@ -27,8 +27,8 @@ CLEANFILES+=vers.${PROG}.c vers.${PROG}.o version.amd
 
 CLEANFILES+=mount.h mount_xdr.c nfs_prot.h nfs_prot_xdr.c nfs_prot_svc.c
 RPCCOM = rpcgen
-MOUNT_X= /usr/include/rpcsvc/mount.x
-NFS_PROT_X= /usr/include/rpcsvc/nfs_prot.x
+MOUNT_X= ${DESTDIR}/usr/include/rpcsvc/mount.x
+NFS_PROT_X= ${DESTDIR}/usr/include/rpcsvc/nfs_prot.x
 vers.${PROG}.c: ${SRCS:.c=.o}
 	@d=${.CURDIR}/ sh ${.CURDIR}/../config/newvers.sh ${PROG} ${MACHINE} ${OS}
 
