@@ -157,7 +157,7 @@ getstops(cp)
 		i = 0;
 		while (*cp >= '0' && *cp <= '9')
 			i = i * 10 + *cp++ - '0';
-		if (i <= 0 || i > 256)
+		if (i <= 0)
 			errx(1, "bad tab stop spec");
 		if (nstops > 0 && i <= tabstops[nstops-1])
 			errx(1, "bad tab stop spec");
