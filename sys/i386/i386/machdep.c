@@ -35,7 +35,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)machdep.c	7.4 (Berkeley) 6/3/91
- *	$Id: machdep.c,v 1.105 1995/01/29 01:18:51 ats Exp $
+ *	$Id: machdep.c,v 1.106 1995/02/10 07:17:46 davidg Exp $
  */
 
 #include "npx.h"
@@ -102,7 +102,6 @@ extern vm_offset_t avail_start, avail_end;
 
 static void identifycpu(void);
 static void initcpu(void);
-static int test_page(int *, int);
 
 char machine[] = "i386";
 char cpu_model[sizeof("Cy486DLC") + 1];
@@ -1285,15 +1284,13 @@ init386(first)
 	pmap_bootstrap (first, 0);
 
 	/*
-	 * Do simple memory test over range of extended memory that BIOS
-	 *	indicates exists. Adjust Maxmem to the highest page of
-	 *	good memory. Don't kill the last page of memory - it's
-	 *	where the message buffer lives and should be preserved
-	 *	after reboot.
+	 * Do a quick, non-destructive check over extended memory to verify
+	 * what the BIOS tells us agrees with reality. Adjust down Maxmem
+	 * if we find that the page can't be correctly written to/read from.
 	 */
-	printf("Testing memory (%dMB)...", ptoa(Maxmem)/1024/1024);
 
-	for (target_page = Maxmem - 2; target_page >= atop(first); target_page--) {
+	for (target_page = Maxmem - 1; target_page >= atop(first); target_page--) {
+		int tmp;
 
 		/*
 		 * map page into kernel: valid, read/write, non-cacheable
@@ -1301,11 +1298,12 @@ init386(first)
 		*(int *)CMAP1 = PG_V | PG_KW | PG_N | ptoa(target_page);
 		pmap_update();
 
+		tmp = *(int *)CADDR1;
 		/*
 		 * Test for alternating 1's and 0's
 		 */
-		filli(0xaaaaaaaa, CADDR1, PAGE_SIZE/sizeof(int));
-		if (test_page((int *)CADDR1, 0xaaaaaaaa)) {
+		*(int *)CADDR1 = 0xaaaaaaaa;
+		if (*(int *)CADDR1 != 0xaaaaaaaa) {
 			Maxmem = target_page;
 			badpages++;
 			continue;
@@ -1313,8 +1311,8 @@ init386(first)
 		/*
 		 * Test for alternating 0's and 1's
 		 */
-		filli(0x55555555, CADDR1, PAGE_SIZE/sizeof(int));
-		if (test_page((int *)CADDR1, 0x55555555)) {
+		*(int *)CADDR1 = 0x55555555;
+		if (*(int *)CADDR1 != 0x55555555) {
 			Maxmem = target_page;
 			badpages++;
 			continue;
@@ -1322,17 +1320,17 @@ init386(first)
 		/*
 		 * Test for all 1's
 		 */
-		filli(0xffffffff, CADDR1, PAGE_SIZE/sizeof(int));
-		if (test_page((int *)CADDR1, 0xffffffff)) {
+		*(int *)CADDR1 = 0xffffffff;
+		if (*(int *)CADDR1 != 0xffffffff) {
 			Maxmem = target_page;
 			badpages++;
 			continue;
 		}
 		/*
-		 * Test zeroing of page
+		 * Test for all 0's
 		 */
-		bzero(CADDR1, PAGE_SIZE);
-		if (test_page((int *)CADDR1, 0)) {
+		*(int *)CADDR1 = 0x0;
+		if (*(int *)CADDR1 != 0x0) {
 			/*
 			 * test of page failed
 			 */
@@ -1340,8 +1338,10 @@ init386(first)
 			badpages++;
 			continue;
 		}
+		*(int *)CADDR1 = tmp;
 	}
-	printf("done.\n");
+	if (badpages != 0)
+		printf("WARNING: BIOS extended memory size and reality don't agree.\n");
 
 	*(int *)CMAP1 = 0;
 	pmap_update();
@@ -1397,20 +1397,6 @@ init386(first)
 	bcopy(&sigcode, proc0.p_addr->u_pcb.pcb_sigc, szsigcode);
 	proc0.p_addr->u_pcb.pcb_flags = 0;
 	proc0.p_addr->u_pcb.pcb_ptd = IdlePTD;
-}
-
-int
-test_page(address, pattern)
-	int *address;
-	int pattern;
-{
-	int *x;
-
-	for (x = address; x < (int *)((char *)address + PAGE_SIZE); x++) {
-		if (*x != pattern)
-			return (1);
-	}
-	return(0);
 }
 
 /*
