@@ -210,7 +210,7 @@ complete_rqe(struct buf *bp)
 #ifdef VINUMDEBUG
 	if (debug & DEBUG_RESID) {
 	    if (ubp->b_resid != 0)			    /* still something to transfer? */
-		Debugger("resid");
+		kdb_enter("resid");
 	}
 #endif
 

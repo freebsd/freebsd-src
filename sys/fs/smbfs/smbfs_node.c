@@ -33,6 +33,7 @@
  */
 #include <sys/param.h>
 #include <sys/systm.h>
+#include <sys/kdb.h>
 #include <sys/kernel.h>
 #include <sys/lock.h>
 #include <sys/malloc.h>
@@ -140,7 +141,7 @@ smbfs_name_free(u_char *name)
 	cp--;
 	if (*cp != 0xfc) {
 		printf("First byte of name entry '%s' corrupted\n", name);
-		Debugger("ditto");
+		kdb_enter("ditto");
 	}
 	cp -= sizeof(int);
 	nmlen = *(int*)cp;
@@ -148,11 +149,11 @@ smbfs_name_free(u_char *name)
 	if (nmlen != slen) {
 		printf("Name length mismatch: was %d, now %d name '%s'\n",
 		    nmlen, slen, name);
-		Debugger("ditto");
+		kdb_enter("ditto");
 	}
 	if (name[nmlen] != 0xfe) {
 		printf("Last byte of name entry '%s' corrupted\n", name);
-		Debugger("ditto");
+		kdb_enter("ditto");
 	}
 	free(cp, M_SMBNODENAME);
 #else

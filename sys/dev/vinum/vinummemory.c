@@ -175,7 +175,7 @@ MMalloc(int size, char *file, int line)
 	for (i = 0; i < malloccount; i++) {
 	    if (((result + size) > malloced[i].address)
 		&& (result < malloced[i].address + malloced[i].size)) /* overlap */
-		Debugger("Malloc overlap");
+		kdb_enter("Malloc overlap");
 	}
 	if (result) {
 	    char *f = basename(file);
@@ -238,7 +238,7 @@ FFree(void *mem, char *file, int line)
 	mem,
 	file,
 	line);
-    Debugger("Free");
+    kdb_enter("Free");
 }
 
 void
