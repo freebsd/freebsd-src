@@ -1,4 +1,4 @@
-.\" $Id: ppp.8,v 1.135 1998/11/08 13:05:30 brian Exp $
+.\" $Id: ppp.8,v 1.136 1998/11/08 13:06:19 brian Exp $
 .Dd 20 September 1995
 .Os FreeBSD
 .Dt PPP 8
@@ -94,7 +94,7 @@ scripts that wish to execute certain commands only if the connection
 is successfully established.
 .It Supports server-side PPP connections.
 In direct mode,
-.nm
+.Nm
 acts as server which accepts incoming
 .Em PPP
 connections on stdin/stdout.
@@ -339,7 +339,7 @@ file and that that group contains the names of all users expected to use
 .Nm ppp .
 Refer to the
 .Xr group 5
-manual page for details.  Each of these uses must also be given access
+manual page for details.  Each of these users must also be given access
 using the
 .Dq allow users
 command in
@@ -1717,7 +1717,8 @@ or directly to the screen:
 .It Li Connect	Log Chat lines containing "CONNECT"
 .It Li Debug	Log debug information
 .It Li HDLC	Dump HDLC packet in hex
-.It Li ID0	Log all function calls specifically made as user id 0.
+.It Li ID0	Log all function calls specifically made 
+as user id 0.
 .It Li IPCP	Generate an IPCP packet trace
 .It Li LCP	Generate an LCP packet trace
 .It Li LQM	Generate LQR report
@@ -1725,9 +1726,11 @@ or directly to the screen:
 .It Li TCP/IP	Dump all TCP/IP packets
 .It Li Timer	Log timer manipulation
 .It Li TUN	Include the tun device on each log line
-.It Li Warning	Output to the terminal device.  If there is currently no
+.It Li Warning	Output to the terminal device.  
+If there is currently no
 terminal, output is sent to the log file using LOG_WARNING.
-.It Li Error	Output to both the terminal device and the log file using
+.It Li Error	Output to both the terminal device 
+and the log file using
 LOG_ERROR.
 .It Li Alert	Output to the log file using LOG_ALERT
 .El
@@ -2769,8 +2772,8 @@ ppp will exit after closing all connections.  Otherwise, if the user
 is connected to a diagnostic socket, the connection is simply dropped.
 .Pp
 If the
-.Ar
-all argument is given,
+.Ar all
+argument is given,
 .Nm
 will exit despite the source of the command after closing all existing
 connections.
