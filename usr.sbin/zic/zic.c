@@ -6,7 +6,7 @@ static char	elsieid[] = "@(#)zic.c	7.96";
 
 #ifndef lint
 static const char rcsid[] =
-	"$Id: zic.c,v 1.8 1999/01/21 17:46:19 wollman Exp $";
+	"$Id: zic.c,v 1.9 1999/01/21 21:09:56 wollman Exp $";
 #endif /* not lint */
 
 #include "private.h"
@@ -615,8 +615,7 @@ warning(_("hard link failed, symbolic link used"));
 		}
 #endif
 		if (result != 0) {
-			err(EXIT_FAILURE,
-			    _("%s: Can't link from %s to %s"),
+			err(EXIT_FAILURE, _("can't link from %s to %s"),
 			    fromname, toname);
 		}
 	}
