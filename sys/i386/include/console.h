@@ -25,7 +25,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *	$Id: console.h,v 1.33 1997/12/07 08:08:49 yokota Exp $
+ *	$Id: console.h,v 1.34 1998/01/07 08:40:14 yokota Exp $
  */
 
 #ifndef	_MACHINE_CONSOLE_H_
@@ -36,21 +36,21 @@
 #endif
 #include <sys/ioccom.h>
 
-#define KDGKBMODE 	_IOR('K',  6, int)
-#define KDSKBMODE 	_IO('K',  7)
-#define KDMKTONE	_IO('K',  8)
-#define KDGETMODE	_IOR('K',  9, int)
-#define KDSETMODE	_IO('K', 10)
-#define KDSBORDER	_IO('K', 13)
+#define KDGKBMODE 	_IOR('K', 6, int)
+#define KDSKBMODE 	_IO('K', 7 /*, int */)
+#define KDMKTONE	_IO('K', 8 /*, int */)
+#define KDGETMODE	_IOR('K', 9, int)
+#define KDSETMODE	_IO('K', 10 /*, int */)
+#define KDSBORDER	_IO('K', 13 /*, int */)
 #define KDGKBSTATE	_IOR('K', 19, int)
-#define KDSKBSTATE	_IO('K', 20)
+#define KDSKBSTATE	_IO('K', 20 /*, int */)
 #define KDENABIO	_IO('K', 60)
 #define KDDISABIO	_IO('K', 61)
-#define KIOCSOUND	_IO('K', 63)
+#define KIOCSOUND	_IO('K', 63 /*, int */)
 #define KDGKBTYPE	_IOR('K', 64, int)
 #define KDGETLED	_IOR('K', 65, int)
-#define KDSETLED	_IO('K', 66)
-#define KDSETRAD	_IO('K', 67)
+#define KDSETLED	_IO('K', 66 /*, int */)
+#define KDSETRAD	_IO('K', 67 /*, int */)
 
 #define GETFKEY		_IOWR('k', 0, fkeyarg_t)
 #define SETFKEY		_IOWR('k', 1, fkeyarg_t)
@@ -89,9 +89,9 @@
 #define VT_OPENQRY	_IOR('v', 1, int)
 #define VT_SETMODE	_IOW('v', 2, vtmode_t)
 #define VT_GETMODE	_IOR('v', 3, vtmode_t)
-#define VT_RELDISP	_IO('v', 4)
-#define VT_ACTIVATE	_IO('v', 5)
-#define VT_WAITACTIVE	_IO('v', 6)
+#define VT_RELDISP	_IO('v', 4 /*, int */)
+#define VT_ACTIVATE	_IO('v', 5 /*, int */)
+#define VT_WAITACTIVE	_IO('v', 6 /*, int */)
 #define VT_GETACTIVE	_IOR('v', 7, int)
 
 #define VT_FALSE	0
@@ -102,6 +102,8 @@
 #define VT_PROCESS	1		/* switching controlled by prog */
 #define VT_KERNEL	255		/* switching controlled in kernel */
 
+#ifndef _VT_MODE_DECLARED
+#define	_VT_MODE_DECLARED
 struct vt_mode {
 	char	mode;
 	char	waitv;			/* not implemented yet 	SOS	*/
@@ -109,6 +111,9 @@ struct vt_mode {
 	short	acqsig;
 	short	frsig;			/* not implemented yet	SOS	*/
 };
+
+typedef struct vt_mode vtmode_t;
+#endif /* !_VT_MODE_DECLARED */
 
 struct mouse_data {
 	int	x;
@@ -183,6 +188,8 @@ struct mouse_info {
 #define NUM_STATES	8		/* states per key		*/
 #define ALTGR_OFFSET	128		/* offset for altlock keys	*/
 
+#ifndef _KEYMAP_DECLARED
+#define	_KEYMAP_DECLARED
 struct key_t {
 	u_char map[NUM_STATES];
 	u_char spcl;
@@ -193,6 +200,9 @@ struct keymap {
 	u_short	n_keys;
 	struct key_t key[NUM_KEYS];
 };
+
+typedef struct keymap keymap_t;
+#endif /* !_KEYMAP_DECLARED */
 
 #define NUM_DEADKEYS	15		/* number of accent keys */
 #define NUM_ACCENTCHARS	52		/* max number of accent chars */
@@ -246,12 +256,10 @@ struct ssaver	{
 	long	time;
 };
 
-typedef struct keymap keymap_t;
 typedef struct accentmap accentmap_t;
 typedef struct fkeytab fkeytab_t;
 typedef struct fkeyarg fkeyarg_t;
 typedef struct vid_info vid_info_t;
-typedef struct vt_mode vtmode_t;
 typedef struct mouse_info mouse_info_t;
 typedef struct {char scrmap[256];} scrmap_t;
 typedef struct {char fnt8x8[8*256];} fnt8_t;

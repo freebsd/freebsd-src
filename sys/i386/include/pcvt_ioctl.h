@@ -548,6 +548,8 @@ struct pcvtinfo {			/* compile time option values */
 #define VT_WAITACTIVE	_IO('v', 6 /*, int */)
 #define VT_GETACTIVE	_IOR('v', 7, int)
 
+#ifndef _VT_MODE_DECLARED
+#define	_VT_MODE_DECLARED
 struct vt_mode {
 	char	mode;
 
@@ -561,20 +563,26 @@ struct vt_mode {
 };
 
 typedef struct vt_mode vtmode_t;
+#endif /* !_VT_MODE_DECLARED */
 
 #define NUM_KEYS	256
 #define NUM_STATES	8
 
+#ifndef _KEYMAP_DECLARED
+#define	_KEYMAP_DECLARED
+struct key_t {
+	u_char map[NUM_STATES];
+	u_char spcl;
+	u_char flgs;
+};
+
 struct keymap {
 	u_short	n_keys;
-	struct key_t {
-		u_char map[NUM_STATES];
-		u_char spcl;
-		u_char flgs;
-	} key[NUM_KEYS];
+	struct key_t key[NUM_KEYS];
 };
 
 typedef struct keymap keymap_t;
+#endif /* !_KEYMAP_DECLARED */
 
 /* end of USL VT compatibility stuff */
 
