@@ -63,8 +63,13 @@ Fields that are undefined for a particular file system are set to -1.
 The buffer is filled with an array of
 .Fa fsstat
 structures, one for each mounted file system
-up to the size specified by
+up to the byte count specified by
 .Fa bufsize .
+Note, the
+.Fa bufsize
+argument is the number of bytes that
+.Fa buf
+can hold, not the count of statfs structures it will hold.
 .Pp
 If
 .Fa buf
