@@ -338,6 +338,9 @@ ia64_dispatch_intr(void *frame, unsigned long vector)
 	if (i == NULL)
 		return;			/* no ithread for this vector */
 
+	if (i->cntp)
+		atomic_add_long(i->cntp, 1);
+
 	ithd = i->ithd;
 	KASSERT(ithd != NULL, ("interrupt vector without a thread"));
 
@@ -347,9 +350,6 @@ ia64_dispatch_intr(void *frame, unsigned long vector)
 	 */
 	if (TAILQ_EMPTY(&ithd->it_handlers))
 		return;
-
-	if (i->cntp)
-		atomic_add_long(i->cntp, 1);
 
 	/*
 	 * Handle a fast interrupt if there is no actual thread for this
