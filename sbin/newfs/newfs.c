@@ -198,8 +198,8 @@ char	device[MAXPATHLEN];
 char	*progname;
 
 extern void mkfs (struct partition *, char *, int, int);
-static void usage (void);
 static void rewritelabel (char *s, int fd, register struct disklabel *lp);
+static void usage (void);
 
 int
 main(argc, argv)
@@ -310,8 +310,9 @@ main(argc, argv)
 			else if (strcmp(optarg, "time") == 0)
 				opt = FS_OPTTIME;
 			else
-				fatal("%s: unknown optimization preference: "
-				    "use `space' or `time'", optarg);
+				fatal(
+		"%s: unknown optimization preference: use `space' or `time'",
+				    optarg);
 			break;
 		case 'p':
 			if ((trackspares = atoi(optarg)) < 0)
@@ -358,10 +359,9 @@ main(argc, argv)
 	cp = strrchr(special, '/');
 	if (cp == 0) {
 		/*
-		 * No path prefix; try /dev/%s.
+		 * No path prefix; try prefixing _PATH_DEV.
 		 */
-		(void)snprintf(device, sizeof(device),
-		    "%s%s", _PATH_DEV, special);
+		snprintf(device, sizeof(device), "%s%s", _PATH_DEV, special);
 		special = device;
 	}
 	if (Nflag)
@@ -426,8 +426,9 @@ main(argc, argv)
 	if (fssize == 0)
 		fssize = pp->p_size;
 	if (fssize > pp->p_size)
-		fatal("%s: maximum file system size on the "
-		    "`%c' partition is %d", argv[0], *cp, pp->p_size);
+		fatal(
+		    "%s: maximum file system size on the `%c' partition is %d",
+		    argv[0], *cp, pp->p_size);
 	if (rpm == 0) {
 		rpm = lp->d_rpm;
 		if (rpm <= 0)
