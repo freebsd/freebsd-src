@@ -335,21 +335,23 @@ pccard_scan_cis(device_t dev, int (*fct)(struct pccard_tuple *, void *),
 			if (longlink_present) {
 				CARD_SET_RES_FLAGS(device_get_parent(dev), dev,
 				    SYS_RES_MEMORY, rid, longlink_common ?
-				    PCCARD_A_MEM_ATTR : PCCARD_A_MEM_ATTR);
+				    PCCARD_A_MEM_COM : PCCARD_A_MEM_ATTR);
 				DPRINTF(("cis mem map %x\n",
 				    (unsigned int) tuple.memh));
 				tuple.mult = longlink_common ? 1 : 2;
+				tuple.ptr = longlink_addr;
 				longlink_present = 0;
 				longlink_common = 1;
 				longlink_addr = 0;
 			} else if (mfc_count && (mfc_index < mfc_count)) {
 				CARD_SET_RES_FLAGS(device_get_parent(dev), dev,
 				    SYS_RES_MEMORY, rid, mfc[mfc_index].common
-				    ? PCCARD_A_MEM_ATTR : PCCARD_A_MEM_ATTR);
+				    ? PCCARD_A_MEM_COM : PCCARD_A_MEM_ATTR);
 				DPRINTF(("cis mem map %x\n",
 				    (unsigned int) tuple.memh));
 				/* set parse state, and point at the next one */
 				tuple.mult = mfc[mfc_index].common ? 1 : 2;
+				tuple.ptr = mfc[mfc_index].addr;
 				mfc_index++;
 			} else {
 				goto done;
