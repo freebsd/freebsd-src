@@ -226,12 +226,11 @@ static int DRM(bufs_info) DRM_SYSCTL_HANDLER_ARGS
 	 * copy of the whole structure and the relevant data from buflist.
 	 */
 	DRM_LOCK();
-	DRM_SPINLOCK(&dev->dma_lock);
 	if (dma == NULL) {
-		DRM_SPINUNLOCK(&dev->dma_lock);
 		DRM_UNLOCK();
 		return 0;
 	}
+	DRM_SPINLOCK(&dev->dma_lock);
 	tempdma = *dma;
 	templists = DRM(alloc)(sizeof(int) * dma->buf_count, DRM_MEM_BUFS);
 	for (i = 0; i < dma->buf_count; i++)
