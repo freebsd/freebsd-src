@@ -1,4 +1,4 @@
-<!-- $Id: contrib.sgml,v 1.58 1996/03/25 10:13:13 asami Exp $ -->
+<!-- $Id: contrib.sgml,v 1.59 1996/03/25 10:55:29 asami Exp $ -->
 <!-- The FreeBSD Documentation Project -->
 
 <chapt><heading>FreeBSD contributor list<label id="contrib"></heading>
@@ -117,8 +117,8 @@
         <item>&a.jmz; 
       </itemize>
 
-  <sect><heading>Who is responsible for what</heading>
-      
+  <sect><heading>Who is responsible for what<label id="contrib:who></heading>
+ 
     <p><descrip>
         <tag/President/ &a.jkh 
         <tag/Principal Architect/ &a.davidg 
