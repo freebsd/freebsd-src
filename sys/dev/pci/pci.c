@@ -91,8 +91,6 @@ static int		pci_modevent(module_t mod, int what, void *arg);
 static void		pci_hdrtypedata(device_t pcib, int b, int s, int f, 
 			    pcicfgregs *cfg);
 static void		pci_read_extcap(device_t pcib, pcicfgregs *cfg);
-static void		pci_cfg_restore(device_t, struct pci_devinfo *);
-static void		pci_cfg_save(device_t, struct pci_devinfo *, int);
 
 static device_method_t pci_methods[] = {
 	/* Device interface */
@@ -1849,7 +1847,7 @@ pci_modevent(module_t mod, int what, void *arg)
 	return (0);
 }
 
-static void
+void
 pci_cfg_restore(device_t dev, struct pci_devinfo *dinfo)
 {
 	int i;
@@ -1894,7 +1892,7 @@ pci_cfg_restore(device_t dev, struct pci_devinfo *dinfo)
 	pci_write_config(dev, PCIR_REVID, dinfo->cfg.revid, 1);
 }
 
-static void
+void
 pci_cfg_save(device_t dev, struct pci_devinfo *dinfo, int setstate)
 {
 	int i;
