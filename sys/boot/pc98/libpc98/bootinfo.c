@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: bootinfo.c,v 1.2 1999/03/10 13:40:29 kato Exp $
+ *	$Id: bootinfo.c,v 1.3 1999/03/19 15:58:05 kato Exp $
  */
 
 #include <stand.h>
@@ -50,6 +50,7 @@ static struct
     int		mask;
 } howto_names[] = {
     {"boot_askname",	RB_ASKNAME},
+    {"boot_cdrom",	RB_CDROM},
     {"boot_userconfig",	RB_CONFIG},
     {"boot_ddb",	RB_KDB},
     {"boot_gdb",	RB_GDB},
@@ -81,6 +82,9 @@ bi_getboothowto(char *kargs)
 		    break;
 		case 'c':
 		    howto |= RB_CONFIG;
+		    break;
+		case 'C':
+		    howto |= RB_CDROM;
 		    break;
 		case 'd':
 		    howto |= RB_KDB;
