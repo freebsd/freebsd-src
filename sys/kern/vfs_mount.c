@@ -913,7 +913,7 @@ update:
 		TAILQ_INSERT_TAIL(&mountlist, mp, mnt_list);
 		mtx_unlock(&mountlist_mtx);
 		vfs_event_signal(NULL, VQ_MOUNT, 0);
-		if (VFS_ROOT(mp, &newdp))
+		if (VFS_ROOT(mp, &newdp, td))
 			panic("mount: lost mount");
 		checkdirs(vp, newdp);
 		vput(newdp);
@@ -1114,7 +1114,7 @@ dounmount(mp, flags, td)
 	 * vnode to the covered vnode.  For non-forced unmounts we want
 	 * such references to cause an EBUSY error.
 	 */
-	if ((flags & MNT_FORCE) && VFS_ROOT(mp, &fsrootvp) == 0) {
+	if ((flags & MNT_FORCE) && VFS_ROOT(mp, &fsrootvp, td) == 0) {
 		if (mp->mnt_vnodecovered != NULL)
 			checkdirs(fsrootvp, mp->mnt_vnodecovered);
 		if (fsrootvp == rootvnode) {
@@ -1131,7 +1131,7 @@ dounmount(mp, flags, td)
 	vn_finished_write(mp);
 	if (error) {
 		/* Undo cdir/rdir and rootvnode changes made above. */
-		if ((flags & MNT_FORCE) && VFS_ROOT(mp, &fsrootvp) == 0) {
+		if ((flags & MNT_FORCE) && VFS_ROOT(mp, &fsrootvp, td) == 0) {
 			if (mp->mnt_vnodecovered != NULL)
 				checkdirs(mp->mnt_vnodecovered, fsrootvp);
 			if (rootvnode == NULL) {
@@ -1465,7 +1465,7 @@ getdiskbyname(char *name)
 		if (error)
 			break;
 		VFS_START(mp, 0, td);
-		VFS_ROOT(mp, &vroot);
+		VFS_ROOT(mp, &vroot, td);
 		VOP_UNLOCK(vroot, 0, td);
 
 		NDINIT(&nid, LOOKUP, NOCACHE|FOLLOW,

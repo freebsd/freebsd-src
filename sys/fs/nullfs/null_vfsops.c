@@ -228,7 +228,7 @@ nullfs_unmount(mp, mntflags, td)
 		flags |= FORCECLOSE;
 
 	/* There is 1 extra root vnode reference (nullm_rootvp). */
-	error = vflush(mp, 1, flags);
+	error = vflush(mp, 1, flags, td);
 	if (error)
 		return (error);
 
@@ -242,11 +242,11 @@ nullfs_unmount(mp, mntflags, td)
 }
 
 static int
-nullfs_root(mp, vpp)
+nullfs_root(mp, vpp, td)
 	struct mount *mp;
 	struct vnode **vpp;
+	struct thread *td;
 {
-	struct thread *td = curthread;	/* XXX */
 	struct vnode *vp;
 
 	NULLFSDEBUG("nullfs_root(mp = %p, vp = %p->%p)\n", (void *)mp,

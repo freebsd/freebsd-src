@@ -101,7 +101,7 @@ devfs_nmount(mp, ndp, td)
 	fmp->dm_basedir = fmp->dm_rootdir;
 	devfs_rules_newmount(fmp, td);
 
-	error = devfs_root(mp, &rvp);
+	error = devfs_root(mp, &rvp, td);
 	if (error) {
 		lockdestroy(&fmp->dm_lock);
 		FREE(fmp, M_DEVFS);
@@ -130,7 +130,7 @@ devfs_unmount(mp, mntflags, td)
 	if (mntflags & MNT_FORCE)
 		flags |= FORCECLOSE;
 	/* There is 1 extra root vnode reference from devfs_mount(). */
-	error = vflush(mp, 1, flags);
+	error = vflush(mp, 1, flags, td);
 	if (error)
 		return (error);
 	devfs_purge(fmp->dm_rootdir);
@@ -144,16 +144,15 @@ devfs_unmount(mp, mntflags, td)
 /* Return locked reference to root.  */
 
 static int
-devfs_root(mp, vpp)
+devfs_root(mp, vpp, td)
 	struct mount *mp;
 	struct vnode **vpp;
+	struct thread *td;
 {
 	int error;
-	struct thread *td;
 	struct vnode *vp;
 	struct devfs_mount *dmp;
 
-	td = curthread;					/* XXX */
 	dmp = VFSTODEVFS(mp);
 	error = devfs_allocv(dmp->dm_rootdir, mp, &vp, td);
 	if (error)

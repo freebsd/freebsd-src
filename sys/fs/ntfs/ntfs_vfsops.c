@@ -457,7 +457,7 @@ out1:
 	for(i=0;i<NTFS_SYSNODESNUM;i++)
 		if(ntmp->ntm_sysvn[i]) vrele(ntmp->ntm_sysvn[i]);
 
-	if (vflush(mp, 0, 0))
+	if (vflush(mp, 0, 0, td))
 		dprintf(("ntfs_mountfs: vflush failed\n"));
 
 out:
@@ -487,7 +487,7 @@ ntfs_unmount(
 		flags |= FORCECLOSE;
 
 	dprintf(("ntfs_unmount: vflushing...\n"));
-	error = vflush(mp, 0, flags | SKIPSYSTEM);
+	error = vflush(mp, 0, flags | SKIPSYSTEM, td);
 	if (error) {
 		printf("ntfs_unmount: vflush failed: %d\n",error);
 		return (error);
@@ -503,7 +503,7 @@ ntfs_unmount(
 		 if(ntmp->ntm_sysvn[i]) vrele(ntmp->ntm_sysvn[i]);
 
 	/* vflush system vnodes */
-	error = vflush(mp, 0, flags);
+	error = vflush(mp, 0, flags, td);
 	if (error)
 		printf("ntfs_unmount: vflush failed(sysnodes): %d\n",error);
 
@@ -538,7 +538,8 @@ ntfs_unmount(
 static int
 ntfs_root(
 	struct mount *mp,
-	struct vnode **vpp )
+	struct vnode **vpp,
+	struct thread *td )
 {
 	struct vnode *nvp;
 	int error = 0;

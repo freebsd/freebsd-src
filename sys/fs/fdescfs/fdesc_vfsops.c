@@ -117,7 +117,7 @@ fdesc_unmount(mp, mntflags, td)
 	 * There is 1 extra root vnode reference corresponding
 	 * to f_root.
 	 */
-	if ((error = vflush(mp, 1, flags)) != 0)
+	if ((error = vflush(mp, 1, flags, td)) != 0)
 		return (error);
 
 	/*
@@ -130,9 +130,10 @@ fdesc_unmount(mp, mntflags, td)
 }
 
 int
-fdesc_root(mp, vpp)
+fdesc_root(mp, vpp, td)
 	struct mount *mp;
 	struct vnode **vpp;
+	struct thread *td;
 {
 	struct thread *td = curthread;	/* XXX */
 	struct vnode *vp;

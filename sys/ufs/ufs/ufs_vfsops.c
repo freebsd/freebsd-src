@@ -80,9 +80,10 @@ ufs_start(mp, flags, td)
  * Return the root of a filesystem.
  */
 int
-ufs_root(mp, vpp)
+ufs_root(mp, vpp, td)
 	struct mount *mp;
 	struct vnode **vpp;
+	struct thread *td;
 {
 	struct vnode *nvp;
 	int error;

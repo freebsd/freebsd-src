@@ -208,7 +208,7 @@ static int nwfs_mount(struct mount *mp, char *path, caddr_t data,
 	/* protect against invalid mount points */
 	nmp->m.mount_point[sizeof(nmp->m.mount_point)-1] = '\0';
 	vfs_getnewfsid(mp);
-	error = nwfs_root(mp, &vp);
+	error = nwfs_root(mp, &vp, td);
 	if (error)
 		goto bad;
 	/*
@@ -238,7 +238,7 @@ nwfs_unmount(struct mount *mp, int mntflags, struct thread *td)
 	if (mntflags & MNT_FORCE)
 		flags |= FORCECLOSE;
 	/* There is 1 extra root vnode reference from nwfs_mount(). */
-	error = vflush(mp, 1, flags);
+	error = vflush(mp, 1, flags, td);
 	if (error)
 		return (error);
 	conn = NWFSTOCONN(nmp);
@@ -257,13 +257,12 @@ nwfs_unmount(struct mount *mp, int mntflags, struct thread *td)
 
 /*  Return locked vnode to root of a filesystem */
 static int
-nwfs_root(struct mount *mp, struct vnode **vpp) {
+nwfs_root(struct mount *mp, struct vnode **vpp, struct thread *td) {
 	struct vnode *vp;
 	struct nwmount *nmp;
 	struct nwnode *np;
 	struct ncp_conn *conn;
 	struct nw_entry_info fattr;
-	struct thread *td = curthread;
 	struct ucred *cred =  td->td_ucred;
 	int error, nsf, opt;
 	u_char vol;

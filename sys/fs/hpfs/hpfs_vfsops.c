@@ -300,7 +300,7 @@ hpfs_mountfs(devvp, mp, argsp, td)
 		goto failed;
 	}
 
-	error = hpfs_root(mp, &vp);
+	error = hpfs_root(mp, &vp, td);
 	if (error) {
 		hpfs_cpdeinit(hpmp);
 		hpfs_bmdeinit(hpmp);
@@ -344,7 +344,7 @@ hpfs_unmount(
 
 	dprintf(("hpfs_unmount: vflushing...\n"));
 	
-	error = vflush(mp, 0, flags);
+	error = vflush(mp, 0, flags, td);
 	if (error) {
 		printf("hpfs_unmount: vflush failed: %d\n",error);
 		return (error);
@@ -371,7 +371,8 @@ hpfs_unmount(
 static int
 hpfs_root(
 	struct mount *mp,
-	struct vnode **vpp )
+	struct vnode **vpp,
+	struct thread *td )
 {
 	int error = 0;
 	struct hpfsmount *hpmp = VFSTOHPFS(mp);
