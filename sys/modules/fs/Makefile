@@ -1,10 +1,7 @@
 # $FreeBSD$
 
 SUBDIR =
-SUBDIR += pseudofs
-
-.if ${MACHINE_ARCH} == "i386"
 SUBDIR += linprocfs
-.endif
+SUBDIR += pseudofs
 
 .include <bsd.subdir.mk>
