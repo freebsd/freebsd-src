@@ -183,7 +183,16 @@ extern struct vm_object kmem_object_store;
 #define	VM_OBJECT_TRYLOCK(object)	mtx_trylock(&(object)->mtx)
 #define	VM_OBJECT_UNLOCK(object)	mtx_unlock(&(object)->mtx)
 
-void vm_object_set_flag(vm_object_t object, u_short bits);
+/*
+ *	The object must be locked or thread private.
+ */
+static __inline void
+vm_object_set_flag(vm_object_t object, u_short bits)
+{
+
+	object->flags |= bits;
+}
+
 void vm_object_clear_flag(vm_object_t object, u_short bits);
 void vm_object_pip_add(vm_object_t object, short i);
 void vm_object_pip_subtract(vm_object_t object, short i);
