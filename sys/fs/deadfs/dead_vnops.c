@@ -31,11 +31,12 @@
  * SUCH DAMAGE.
  *
  *	@(#)dead_vnops.c	8.1 (Berkeley) 6/10/93
- * $Id: dead_vnops.c,v 1.4 1994/09/21 03:46:52 wollman Exp $
+ * $Id: dead_vnops.c,v 1.5 1994/10/06 21:06:40 davidg Exp $
  */
 
 #include <sys/param.h>
 #include <sys/systm.h>
+#include <sys/proc.h>
 #include <sys/time.h>
 #include <sys/kernel.h>
 #include <sys/vnode.h>
@@ -43,6 +44,7 @@
 #include <sys/namei.h>
 #include <sys/buf.h>
 
+static int	chkvnlock __P((struct vnode *));
 /*
  * Prototypes for dead operations on vnodes.
  */
