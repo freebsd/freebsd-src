@@ -19,18 +19,24 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd January 17, 2000
+.Dd April 13, 2001
 .Dt SETRESUID 2
 .Os
 .Sh NAME
+.Nm getresgid ,
+.Nm getresuid ,
 .Nm setresgid ,
 .Nm setresuid
-.Nd set real, effective and saved user or group ID
+.Nd "get or set real, effective and saved user or group ID"
 .Sh LIBRARY
 .Lb libc
 .Sh SYNOPSIS
 .Fd #include <sys/types.h>
 .Fd #include <unistd.h>
+.Ft int
+.Fn getresgid "gid_t *rgid" "gid_t *egid" "gid_t *sgid"
+.Ft int
+.Fn getresuid "uit_t *ruid" "uid_t *euid" "uid_t *suid"
 .Ft int
 .Fn setresgid "gid_t rgid" "gid_t egid" "gid_t sgid"
 .Ft int
@@ -51,6 +57,13 @@ in that each of the new IDs must match one of the current IDs.
 .Pp
 Passing -1 as an argument causes the corresponding value
 to remain unchanged.
+.Pp
+The
+.Fn getresgid
+and
+.Fn getresuid
+calls retrieve the real, effective, and saved group and user IDs of
+the current process, respectively.
 .Sh RETURN VALUES
 These functions return the value 0 if successful;
 otherwise the value -1 is returned
@@ -64,6 +77,12 @@ The calling process was not privileged
 and tried to change one or more IDs to a value
 which was not the current real ID, the current effective ID
 nor the current saved ID.
+.It Bq Er EFAULT
+An address passed to
+.Fn getresgid
+or
+.Fn getresuid
+was invalid.
 .El
 .Sh SEE ALSO
 .Xr getegid 2 ,
