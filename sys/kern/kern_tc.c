@@ -655,7 +655,7 @@ pps_event(struct pps_state *pps, int event)
  */
 
 static int tc_tick;
-SYSCTL_INT(_kern_timecounter, OID_AUTO, tick, CTLFLAG_RD, &tick, 0, "");
+SYSCTL_INT(_kern_timecounter, OID_AUTO, tick, CTLFLAG_RD, &tc_tick, 0, "");
 
 void
 tc_ticktock(void)
