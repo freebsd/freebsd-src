@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)if.c	8.3 (Berkeley) 1/4/94
- * $Id: if.c,v 1.28 1996/02/08 21:34:56 wollman Exp $
+ * $Id: if.c,v 1.29 1996/03/11 15:13:00 davidg Exp $
  */
 
 #include <sys/param.h>
@@ -452,6 +452,8 @@ ifunit(name)
 	ep = cp;
 	for (unit = 0; *cp >= '0' && *cp <= '9'; )
 		unit = unit * 10 + *cp++ - '0';
+	if (*cp != '\0')
+		return 0;	/* no trailing garbage allowed */
 	*ep = 0;
 	for (ifp = ifnet; ifp; ifp = ifp->if_next) {
 		if (bcmp(ifp->if_name, name, len))
