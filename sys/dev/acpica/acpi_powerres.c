@@ -106,6 +106,8 @@ static ACPI_STATUS	acpi_pwr_deregister_resource(ACPI_HANDLE res);
 #endif /* notyet */
 static void		acpi_pwr_reference_resource(ACPI_OBJECT *obj,
 						    void *arg);
+static int		acpi_pwr_dereference_resource(struct acpi_powerconsumer
+			    *pc);
 static ACPI_STATUS	acpi_pwr_switch_power(void);
 static struct acpi_powerresource
 			*acpi_pwr_find_resource(ACPI_HANDLE res);
@@ -298,7 +300,6 @@ ACPI_STATUS
 acpi_pwr_switch_consumer(ACPI_HANDLE consumer, int state)
 {
     struct acpi_powerconsumer	*pc;
-    struct acpi_powerreference	*pr;
     ACPI_HANDLE			method_handle, reslist_handle, pr0_handle;
     ACPI_BUFFER			reslist_buffer;
     ACPI_OBJECT			*reslist_object;
@@ -422,15 +423,7 @@ acpi_pwr_switch_consumer(ACPI_HANDLE consumer, int state)
      * Now we are ready to switch, so kill off any current power
      * resource references.
      */
-    res_changed = 0;
-    while ((pr = TAILQ_FIRST(&pc->ac_references)) != NULL) {
-	res_changed = 1;
-	ACPI_DEBUG_PRINT((ACPI_DB_OBJECTS, "removing reference to %s\n",
-			 acpi_name(pr->ar_resource->ap_resource)));
-	TAILQ_REMOVE(&pr->ar_resource->ap_references, pr, ar_rlink);
-	TAILQ_REMOVE(&pc->ac_references, pr, ar_clink);
-	free(pr, M_ACPIPWR);
-    }
+    res_changed = acpi_pwr_dereference_resource(pc);
 
     /*
      * Add new power resource references, if we have any.  Traverse the
@@ -488,6 +481,40 @@ acpi_pwr_switch_consumer(ACPI_HANDLE consumer, int state)
     return_ACPI_STATUS (status);
 }
 
+/* Enable or disable a power resource for wake */
+ACPI_STATUS
+acpi_pwr_wake_enable(ACPI_HANDLE consumer, int enable)
+{
+    ACPI_STATUS status;
+    struct acpi_powerconsumer *pc;
+    struct acpi_prw_data prw;
+    int i;
+
+    if (consumer == NULL)
+	return (AE_BAD_PARAMETER);
+
+    if ((pc = acpi_pwr_find_consumer(consumer)) == NULL) {
+	if (ACPI_FAILURE(status = acpi_pwr_register_consumer(consumer)))
+	    return_ACPI_STATUS (status);
+	if ((pc = acpi_pwr_find_consumer(consumer)) == NULL) {
+	    return_ACPI_STATUS (AE_ERROR);	/* something very wrong */
+	}
+    }
+
+    if (acpi_parse_prw(consumer, &prw) != 0)
+	return (AE_OK);
+    for (i = 0; i < prw.power_res_count; i++)
+	if (enable)
+	    acpi_pwr_reference_resource(&prw.power_res[i], pc);
+	else
+	    acpi_pwr_dereference_resource(pc);
+
+    if (prw.power_res_count > 0)
+	acpi_pwr_switch_power();
+
+    return (AE_OK);
+}
+
 /*
  * Called to create a reference between a power consumer and a power resource
  * identified in the object.
@@ -535,10 +562,28 @@ acpi_pwr_reference_resource(ACPI_OBJECT *obj, void *arg)
     pr->ar_resource = rp;
     TAILQ_INSERT_TAIL(&pc->ac_references, pr, ar_clink);
     TAILQ_INSERT_TAIL(&rp->ap_references, pr, ar_rlink);
-    
+
     return_VOID;
 }
 
+static int
+acpi_pwr_dereference_resource(struct acpi_powerconsumer *pc)
+{
+    struct acpi_powerreference *pr;
+    int changed;
+
+    changed = 0;
+    while ((pr = TAILQ_FIRST(&pc->ac_references)) != NULL) {
+        ACPI_DEBUG_PRINT((ACPI_DB_OBJECTS, "removing reference to %s\n",
+                         acpi_name(pr->ar_resource->ap_resource)));
+        TAILQ_REMOVE(&pr->ar_resource->ap_references, pr, ar_rlink);
+        TAILQ_REMOVE(&pc->ac_references, pr, ar_clink);
+        free(pr, M_ACPIPWR);
+        changed = 1;
+    }
+
+    return (changed);
+}
 
 /*
  * Switch power resources to conform to the desired state.
