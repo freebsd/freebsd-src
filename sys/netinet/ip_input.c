@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)ip_input.c	8.2 (Berkeley) 1/4/94
- * $Id: ip_input.c,v 1.50.2.19 1998/07/08 08:51:38 dg Exp $
+ * $Id: ip_input.c,v 1.50.2.20 1998/09/17 18:02:26 luigi Exp $
  *	$ANA: ip_input.c,v 1.5 1996/09/18 14:34:59 wollman Exp $
  */
 
@@ -252,7 +252,7 @@ ip_input(struct mbuf *m)
 	u_short ip_divert_cookie = 0 ;
 #endif
 #ifdef COMPAT_IPFW
-	struct ip_fw_chain *rule ;
+	struct ip_fw_chain *rule = NULL ;
 #endif
 
 #if defined(IPFIREWALL) && defined(DUMMYNET)
@@ -269,8 +269,7 @@ ip_input(struct mbuf *m)
 	    ip = mtod(m, struct ip *);
 	    hlen = IP_VHL_HL(ip->ip_vhl) << 2;
 	    goto iphack ;
-	} else
-	    rule = NULL ;
+	}
 #endif
 #ifdef	DIAGNOSTIC
 	if ((m->m_flags & M_PKTHDR) == 0)
