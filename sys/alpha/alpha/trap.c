@@ -513,7 +513,6 @@ trap(a0, a1, a2, entry, framep)
 				goto out;
 			}
 
-			mtx_lock(&Giant);
 			/*
 			 * It is only a kernel address space fault iff:
 			 *	1. !user and
@@ -620,11 +619,9 @@ trap(a0, a1, a2, entry, framep)
 					rv = KERN_INVALID_ADDRESS;
 			}
 			if (rv == KERN_SUCCESS) {
-				mtx_unlock(&Giant);
 				goto out;
 			}
 
-			mtx_unlock(&Giant);
 			if (!user) {
 				/* Check for copyin/copyout fault */
 				if (p != NULL &&
@@ -671,6 +668,7 @@ out:
 	return;
 
 dopanic:
+	mtx_lock(&Giant);
 	printtrap(a0, a1, a2, entry, framep, 1, user);
 
 	/* XXX dump registers */
@@ -680,6 +678,7 @@ dopanic:
 #endif
 
 	panic("trap");
+	mtx_unlock(&Giant);
 }
 
 /*
@@ -723,7 +722,6 @@ syscall(code, framep)
 	p->p_md.md_kernnest++;
 	critical_exit(s);
 #endif
-	mtx_lock(&Giant);
 
 	framep->tf_regs[FRAME_TRAPARG_A0] = 0;
 	framep->tf_regs[FRAME_TRAPARG_A1] = 0;
@@ -791,9 +789,20 @@ syscall(code, framep)
 	case 0:
 		break;
 	}
+
+	/*
+	 * Try to run the syscall without the MP lock if the syscall
+	 * is MP safe
+	 */
+	if ((callp->sy_narg & SYF_MPSAFE) == 0) {
+		mtx_lock(&Giant);
+	}
 #ifdef KTRACE
-	if (KTRPOINT(p, KTR_SYSCALL))
+	if (KTRPOINT(p, KTR_SYSCALL)) {
+		if (!mtx_owned(&Giant))
+			mtx_lock(&Giant);
 		ktrsyscall(p->p_tracep, code, (callp->sy_narg & SYF_ARGMASK), args + hidden);
+	}
 #endif
 	if (error == 0) {
 		p->p_retval[0] = 0;
@@ -830,10 +839,18 @@ syscall(code, framep)
 
 	userret(p, framep, sticks);
 #ifdef KTRACE
-	if (KTRPOINT(p, KTR_SYSRET))
+	if (KTRPOINT(p, KTR_SYSRET)) {
+		if (!mtx_owned(&Giant))
+			mtx_lock(&Giant);
 		ktrsysret(p->p_tracep, code, error, p->p_retval[0]);
+	}
 #endif
-	mtx_unlock(&Giant);
+	
+	/*
+	 * Release Giant if we had to get it
+	 */
+	if (mtx_owned(&Giant))
+		mtx_unlock(&Giant);
 
 	/*
 	 * This works because errno is findable through the
