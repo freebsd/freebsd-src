@@ -1,4 +1,4 @@
-#	$Id: Makefile,v 1.9 1998/08/31 12:14:30 brian Exp $
+#	$Id: Makefile,v 1.10 1999/02/27 02:16:01 brian Exp $
 
 LIB=		alias
 SHLIB_MAJOR=	3
@@ -10,6 +10,6 @@ MAN3=		libalias.3
 
 beforeinstall:
 	${INSTALL} -C -o ${BINOWN} -g ${BINGRP} -m 444 ${.CURDIR}/alias.h \
-		${DESTDIR}/usr/include
+	    ${DESTDIR}/usr/include
 
 .include <bsd.lib.mk>
