@@ -274,5 +274,14 @@
       &release.prev;, but was not documented in the release
       notes.</para>
 
+    <bridgehead renderas="sect3">&man.amd.8;
+      Interoperability</bridgehead>
+
+    <para>&release.prev; contains some bugs in its non-blocking RPC
+      code.  The most noticeable side-effect of these bugs was that
+      &man.amd.8; users were not able to mount volumes from a
+      &release.prev; server.  This bug has been fixed in
+      &release.current;.</para>
+
   </sect1>
 </article>
