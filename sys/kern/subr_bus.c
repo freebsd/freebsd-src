@@ -1924,6 +1924,7 @@ bus_generic_driver_added(device_t dev, driver_t *driver)
 {
     device_t child;
 
+    DEVICE_IDENTIFY(driver, dev);
     for (child = TAILQ_FIRST(&dev->children);
 	 child; child = TAILQ_NEXT(child, link))
 	if (child->state == DS_NOTPRESENT)
