@@ -29,7 +29,7 @@
  * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF
  * THE POSSIBILITY OF SUCH DAMAGE.
  *
- *	$Id: if_tl.c,v 1.4 1998/08/03 00:44:48 root Exp $
+ *	$Id: if_tl.c,v 1.28 1998/09/18 05:22:57 wpaul Exp $
  */
 
 /*
@@ -38,11 +38,12 @@
  * the National Semiconductor DP83840A physical interface and the
  * Microchip Technology 24Cxx series serial EEPROM.
  *
- * Written using the following three documents:
+ * Written using the following four documents:
  *
  * Texas Instruments ThunderLAN Programmer's Guide (www.ti.com)
  * National Semiconductor DP83840A data sheet (www.national.com)
  * Microchip Technology 24C02C data sheet (www.microchip.com)
+ * Micro Linear ML6692 100BaseTX only PHY data sheet (www.microlinear.com)
  * 
  * Written by Bill Paul <wpaul@ctr.columbia.edu>
  * Electrical Engineering Department
@@ -54,7 +55,7 @@
  *
  * The ThunderLAN controller is a single chip containing PCI controller
  * logic, approximately 3K of on-board SRAM, a LAN controller, and media
- * independent interface (MII). The MII allows the ThunderLAN chip to
+ * independent interface (MII) bus. The MII allows the ThunderLAN chip to
  * control up to 32 different physical interfaces (PHYs). The ThunderLAN
  * also has a built-in 10baseT PHY, allowing a single ThunderLAN controller
  * to act as a complete ethernet interface.
@@ -62,27 +63,18 @@
  * Other PHYs may be attached to the ThunderLAN; the Compaq 10/100 cards
  * use a National Semiconductor DP83840A PHY that supports 10 or 100Mb/sec
  * in full or half duplex. Some of the Compaq Deskpro machines use a
- * Level 1 LXT970 PHY with the same capabilities. A serial EEPROM is also
- * attached to the ThunderLAN chip to provide power-up default register
- * settings and for storing the adapter's stattion address. Although not
- * supported by this driver, the ThunderLAN chip can also be connected
- * to token ring PHYs.
- *
- * It is important to note that while it is possible to have multiple
- * PHYs attached to the ThunderLAN's MII, only one PHY may be active at
- * any time. (This makes me wonder exactly how the dual port Compaq
- * adapter is supposed to work.) This driver attempts to compensate for
- * this in the following way:
- *
- * When the ThunderLAN chip is probed, the probe routine attempts to
- * locate all attached PHYs by checking all 32 possible PHY addresses
- * (0x00 to 0x1F). Each PHY is attached as a separate logical interface.
- * The driver allows any one interface to be brought up at any given
- * time: if an attempt is made to bring up a second PHY while another
- * PHY is already enabled, the driver will return an error.
+ * Level 1 LXT970 PHY with the same capabilities. Certain Olicom adapters
+ * use a Micro Linear ML6692 100BaseTX only PHY, which can be used in
+ * concert with the ThunderLAN's internal PHY to provide full 10/100
+ * support. This is cheaper than using a standalone external PHY for both
+ * 10/100 modes and letting the ThunderLAN's internal PHY go to waste.
+ * A serial EEPROM is also attached to the ThunderLAN chip to provide
+ * power-up default register settings and for storing the adapter's
+ * station address. Although not supported by this driver, the ThunderLAN
+ * chip can also be connected to token ring PHYs.
  *
  * The ThunderLAN has a set of registers which can be used to issue
- * command, acknowledge interrupts, and to manipulate other internal
+ * commands, acknowledge interrupts, and to manipulate other internal
  * registers on its DIO bus. The primary registers can be accessed
  * using either programmed I/O (inb/outb) or via PCI memory mapping,
  * depending on how the card is configured during the PCI probing
@@ -213,11 +205,54 @@
 #include <pci/pcireg.h>
 #include <pci/pcivar.h>
 
+/* #define TL_BACKGROUND_AUTONEG */
+
 #include <pci/if_tlreg.h>
 
 #ifndef lint
 static char rcsid[] =
-	"$Id: if_tl.c,v 1.4 1998/08/03 00:44:48 root Exp $";
+	"$Id: if_tl.c,v 1.28 1998/09/18 05:22:57 wpaul Exp $";
+#endif
+
+#ifdef TL_DEBUG
+#define EV_TXEOC 2
+#define EV_TXEOF 3
+#define EV_RXEOC 4
+#define EV_RXEOF 5
+#define EV_START_TX 6
+#define EV_START_Q 7
+#define EV_SETMODE 8
+#define EV_AUTONEG_XMIT 9
+#define EV_AUTONEG_FIN 10
+#define EV_START_TX_REAL 11
+#define EV_WATCHDOG 12
+#define EV_INIT	13
+
+static void evset(sc, e)
+	struct tl_softc		*sc;
+	int			e;
+{
+	int			i;
+
+	for (i = 19; i > 0; i--)
+		sc->tl_event[i] = sc->tl_event[i - 1];
+	sc->tl_event[0] = e;
+
+	return;
+}
+
+static void evshow(sc)
+	struct tl_softc		*sc;
+{
+	int			i;
+
+	printf("tl%d: events: ", sc->tl_unit);
+	for (i = 0; i < 20; i++)
+		printf(" %d", sc->tl_event[i]);
+	printf("\n");
+
+	return;
+}
 #endif
 
 /*
@@ -272,23 +307,17 @@ static struct tl_type tl_phys[] = {
 	{ 0, 0, "<MII-compliant physical interface>" }
 };
 
-static struct tl_iflist		*tl_iflist = NULL;
 static unsigned long		tl_count;
-static unsigned long		tl_unit_count = 0;
 
 static char *tl_probe		__P((pcici_t, pcidi_t));
-static void tl_attach_ctlr	__P((pcici_t, int));
-static int tl_attach_phy	__P((volatile struct tl_csr *, int, u_char *,
-					int, struct tl_iflist *));
-static int tl_intvec_invalid	__P((void *, u_int32_t));
-static int tl_intvec_dummy	__P((void *, u_int32_t));
+static void tl_attach		__P((pcici_t, int));
+static int tl_attach_phy	__P((struct tl_softc *));
 static int tl_intvec_rxeoc	__P((void *, u_int32_t));
 static int tl_intvec_txeoc	__P((void *, u_int32_t));
 static int tl_intvec_txeof	__P((void *, u_int32_t));
 static int tl_intvec_rxeof	__P((void *, u_int32_t));
 static int tl_intvec_adchk	__P((void *, u_int32_t));
 static int tl_intvec_netsts	__P((void *, u_int32_t));
-static int tl_intvec_statoflow	__P((void *, u_int32_t));
 
 static int tl_newbuf		__P((struct tl_softc *,
 					struct tl_chain_onefrag *));
@@ -306,20 +335,15 @@ static void tl_shutdown		__P((int, void *));
 static int tl_ifmedia_upd	__P((struct ifnet *));
 static void tl_ifmedia_sts	__P((struct ifnet *, struct ifmediareq *));
 
-static u_int8_t tl_eeprom_putbyte	__P((volatile struct tl_csr *,
-							u_int8_t));
-static u_int8_t	tl_eeprom_getbyte	__P((volatile struct tl_csr *,
-						u_int8_t, u_int8_t * ));
-static int tl_read_eeprom	__P((volatile struct tl_csr *,
-							caddr_t, int, int));
+static u_int8_t tl_eeprom_putbyte	__P((struct tl_softc *, u_int8_t));
+static u_int8_t	tl_eeprom_getbyte	__P((struct tl_softc *,
+						u_int8_t, u_int8_t *));
+static int tl_read_eeprom	__P((struct tl_softc *, caddr_t, int, int));
 
-static void tl_mii_sync		__P((volatile struct tl_csr *));
-static void tl_mii_send		__P((volatile struct tl_csr *,
-						u_int32_t, int));
-static int tl_mii_readreg	__P((volatile struct tl_csr *,
-						struct tl_mii_frame *));
-static int tl_mii_writereg	__P((volatile struct tl_csr *,
-						struct tl_mii_frame *));
+static void tl_mii_sync		__P((struct tl_softc *));
+static void tl_mii_send		__P((struct tl_softc *, u_int32_t, int));
+static int tl_mii_readreg	__P((struct tl_softc *, struct tl_mii_frame *));
+static int tl_mii_writereg	__P((struct tl_softc *, struct tl_mii_frame *));
 static u_int16_t tl_phy_readreg	__P((struct tl_softc *, int));
 static void tl_phy_writereg	__P((struct tl_softc *, u_int16_t, u_int16_t));
 
@@ -327,15 +351,142 @@ static void tl_autoneg		__P((struct tl_softc *, int, int));
 static void tl_setmode		__P((struct tl_softc *, int));
 static int tl_calchash		__P((unsigned char *));
 static void tl_setmulti		__P((struct tl_softc *));
-static void tl_softreset	__P((volatile struct tl_csr *, int));
+static void tl_setfilt		__P((struct tl_softc *, u_int8_t *, int));
+static void tl_softreset	__P((struct tl_softc *, int));
+static void tl_hardreset	__P((struct tl_softc *));
 static int tl_list_rx_init	__P((struct tl_softc *));
 static int tl_list_tx_init	__P((struct tl_softc *));
+
+static u_int8_t tl_dio_read8	__P((struct tl_softc *, u_int8_t));
+static u_int16_t tl_dio_read16	__P((struct tl_softc *, u_int8_t));
+static u_int32_t tl_dio_read32	__P((struct tl_softc *, u_int8_t));
+static void tl_dio_write8	__P((struct tl_softc *, u_int8_t, u_int8_t));
+static void tl_dio_write16	__P((struct tl_softc *, u_int8_t, u_int16_t));
+static void tl_dio_write32	__P((struct tl_softc *, u_int8_t, u_int32_t));
+static void tl_dio_setbit	__P((struct tl_softc *, u_int8_t, u_int8_t));
+static void tl_dio_clrbit	__P((struct tl_softc *, u_int8_t, u_int8_t));
+static void tl_dio_setbit16	__P((struct tl_softc *, u_int8_t, u_int16_t));
+static void tl_dio_clrbit16	__P((struct tl_softc *, u_int8_t, u_int16_t));
+
+static u_int8_t tl_dio_read8(sc, reg)
+	struct tl_softc			*sc;
+	u_int8_t			reg;
+{
+	CSR_WRITE_2(sc, TL_DIO_ADDR, reg);
+	return(CSR_READ_1(sc, TL_DIO_DATA + (reg & 3)));
+}
+
+static u_int16_t tl_dio_read16(sc, reg)
+	struct tl_softc			*sc;
+	u_int8_t			reg;
+{
+	CSR_WRITE_2(sc, TL_DIO_ADDR, reg);
+	return(CSR_READ_2(sc, TL_DIO_DATA + (reg & 3)));
+}
+
+static u_int32_t tl_dio_read32(sc, reg)
+	struct tl_softc			*sc;
+	u_int8_t			reg;
+{
+	CSR_WRITE_2(sc, TL_DIO_ADDR, reg);
+	return(CSR_READ_4(sc, TL_DIO_DATA + (reg & 3)));
+}
+
+static void tl_dio_write8(sc, reg, val)
+	struct tl_softc			*sc;
+	u_int8_t			reg;
+	u_int8_t			val;
+{
+	CSR_WRITE_2(sc, TL_DIO_ADDR, reg);
+	CSR_WRITE_1(sc, TL_DIO_DATA + (reg & 3), val);
+	return;
+}
+
+static void tl_dio_write16(sc, reg, val)
+	struct tl_softc			*sc;
+	u_int8_t			reg;
+	u_int16_t			val;
+{
+	CSR_WRITE_2(sc, TL_DIO_ADDR, reg);
+	CSR_WRITE_2(sc, TL_DIO_DATA + (reg & 3), val);
+	return;
+}
+
+static void tl_dio_write32(sc, reg, val)
+	struct tl_softc			*sc;
+	u_int8_t			reg;
+	u_int32_t			val;
+{
+	CSR_WRITE_2(sc, TL_DIO_ADDR, reg);
+	CSR_WRITE_4(sc, TL_DIO_DATA + (reg & 3), val);
+	return;
+}
+
+static void tl_dio_setbit(sc, reg, bit)
+	struct tl_softc			*sc;
+	u_int8_t			reg;
+	u_int8_t			bit;
+{
+	u_int8_t			f;
+
+	CSR_WRITE_2(sc, TL_DIO_ADDR, reg);
+	f = CSR_READ_1(sc, TL_DIO_DATA + (reg & 3));
+	f |= bit;
+	CSR_WRITE_1(sc, TL_DIO_DATA + (reg & 3), f);
+
+	return;
+}
+
+static void tl_dio_clrbit(sc, reg, bit)
+	struct tl_softc			*sc;
+	u_int8_t			reg;
+	u_int8_t			bit;
+{
+	u_int8_t			f;
+
+	CSR_WRITE_2(sc, TL_DIO_ADDR, reg);
+	f = CSR_READ_1(sc, TL_DIO_DATA + (reg & 3));
+	f &= ~bit;
+	CSR_WRITE_1(sc, TL_DIO_DATA + (reg & 3), f);
+
+	return;
+}
+
+static void tl_dio_setbit16(sc, reg, bit)
+	struct tl_softc			*sc;
+	u_int8_t			reg;
+	u_int16_t			bit;
+{
+	u_int16_t			f;
+
+	CSR_WRITE_2(sc, TL_DIO_ADDR, reg);
+	f = CSR_READ_2(sc, TL_DIO_DATA + (reg & 3));
+	f |= bit;
+	CSR_WRITE_2(sc, TL_DIO_DATA + (reg & 3), f);
+
+	return;
+}
+
+static void tl_dio_clrbit16(sc, reg, bit)
+	struct tl_softc			*sc;
+	u_int8_t			reg;
+	u_int16_t			bit;
+{
+	u_int16_t			f;
+
+	CSR_WRITE_2(sc, TL_DIO_ADDR, reg);
+	f = CSR_READ_2(sc, TL_DIO_DATA + (reg & 3));
+	f &= ~bit;
+	CSR_WRITE_2(sc, TL_DIO_DATA + (reg & 3), f);
+
+	return;
+}
 
 /*
  * Send an instruction or address to the EEPROM, check for ACK.
  */
-static u_int8_t tl_eeprom_putbyte(csr, byte)
-	volatile struct tl_csr	*csr;
+static u_int8_t tl_eeprom_putbyte(sc, byte)
+	struct tl_softc		*sc;
 	u_int8_t		byte;
 {
 	register int		i, ack = 0;
@@ -343,34 +494,34 @@ static u_int8_t tl_eeprom_putbyte(csr, byte)
 	/*
 	 * Make sure we're in TX mode.
 	 */
-	DIO_SEL(TL_NETSIO);
-	DIO_BYTE1_SET(TL_SIO_ETXEN);
+	tl_dio_setbit(sc, TL_NETSIO, TL_SIO_ETXEN);
 
 	/*
 	 * Feed in each bit and stobe the clock.
 	 */
 	for (i = 0x80; i; i >>= 1) {
-		DIO_SEL(TL_NETSIO);
 		if (byte & i) {
-			DIO_BYTE1_SET(TL_SIO_EDATA);
+			tl_dio_setbit(sc, TL_NETSIO, TL_SIO_EDATA);
 		} else {
-			DIO_BYTE1_CLR(TL_SIO_EDATA);
+			tl_dio_clrbit(sc, TL_NETSIO, TL_SIO_EDATA);
 		}
-		DIO_BYTE1_SET(TL_SIO_ECLOK);
-		DIO_BYTE1_CLR(TL_SIO_ECLOK);
+		DELAY(1);
+		tl_dio_setbit(sc, TL_NETSIO, TL_SIO_ECLOK);
+		DELAY(1);
+		tl_dio_clrbit(sc, TL_NETSIO, TL_SIO_ECLOK);
 	}
 
 	/*
 	 * Turn off TX mode.
 	 */
-	DIO_BYTE1_CLR(TL_SIO_ETXEN);
+	tl_dio_clrbit(sc, TL_NETSIO, TL_SIO_ETXEN);
 
 	/*
 	 * Check for ack.
 	 */
-	DIO_BYTE1_SET(TL_SIO_ECLOK);
-	ack = DIO_BYTE1_GET(TL_SIO_EDATA);
-	DIO_BYTE1_CLR(TL_SIO_ECLOK);
+	tl_dio_setbit(sc, TL_NETSIO, TL_SIO_ECLOK);
+	ack = tl_dio_read8(sc, TL_NETSIO) & TL_SIO_EDATA;
+	tl_dio_clrbit(sc, TL_NETSIO, TL_SIO_ECLOK);
 
 	return(ack);
 }
@@ -378,46 +529,57 @@ static u_int8_t tl_eeprom_putbyte(csr, byte)
 /*
  * Read a byte of data stored in the EEPROM at address 'addr.'
  */
-static u_int8_t tl_eeprom_getbyte(csr, addr, dest)
-	volatile struct tl_csr	*csr;
+static u_int8_t tl_eeprom_getbyte(sc, addr, dest)
+	struct tl_softc		*sc;
 	u_int8_t		addr;
 	u_int8_t		*dest;
 {
 	register int		i;
 	u_int8_t		byte = 0;
 
+	tl_dio_write8(sc, TL_NETSIO, 0);
+
 	EEPROM_START;
+
 	/*
 	 * Send write control code to EEPROM.
 	 */
-	if (tl_eeprom_putbyte(csr, EEPROM_CTL_WRITE))
+	if (tl_eeprom_putbyte(sc, EEPROM_CTL_WRITE)) {
+		printf("tl%d: failed to send write command, status: %x\n",
+				sc->tl_unit, tl_dio_read8(sc, TL_NETSIO));
 		return(1);
+	}
 
 	/*
 	 * Send address of byte we want to read.
 	 */
-	if (tl_eeprom_putbyte(csr, addr))
+	if (tl_eeprom_putbyte(sc, addr)) {
+		printf("tl%d: failed to send address, status: %x\n",
+				sc->tl_unit, tl_dio_read8(sc, TL_NETSIO));
 		return(1);
+	}
 
 	EEPROM_STOP;
 	EEPROM_START;
 	/*
 	 * Send read control code to EEPROM.
 	 */
-	if (tl_eeprom_putbyte(csr, EEPROM_CTL_READ))
+	if (tl_eeprom_putbyte(sc, EEPROM_CTL_READ)) {
+		printf("tl%d: failed to send write command, status: %x\n",
+				sc->tl_unit, tl_dio_read8(sc, TL_NETSIO));
 		return(1);
+	}
 
 	/*
 	 * Start reading bits from EEPROM.
 	 */
-	DIO_SEL(TL_NETSIO);
-	DIO_BYTE1_CLR(TL_SIO_ETXEN);
+	tl_dio_clrbit(sc, TL_NETSIO, TL_SIO_ETXEN);
 	for (i = 0x80; i; i >>= 1) {
-		DIO_SEL(TL_NETSIO);
-		DIO_BYTE1_SET(TL_SIO_ECLOK);
-		if (DIO_BYTE1_GET(TL_SIO_EDATA))
+		tl_dio_setbit(sc, TL_NETSIO, TL_SIO_ECLOK);
+		DELAY(1);
+		if (tl_dio_read8(sc, TL_NETSIO) & TL_SIO_EDATA)
 			byte |= i;
-		DIO_BYTE1_CLR(TL_SIO_ECLOK);
+		tl_dio_clrbit(sc, TL_NETSIO, TL_SIO_ECLOK);
 		DELAY(1);
 	}
 
@@ -432,42 +594,63 @@ static u_int8_t tl_eeprom_getbyte(csr, addr, dest)
 	return(0);
 }
 
-static void tl_mii_sync(csr)
-	volatile struct tl_csr	*csr;
+/*
+ * Read a sequence of bytes from the EEPROM.
+ */
+static int tl_read_eeprom(sc, dest, off, cnt)
+	struct tl_softc		*sc;
+	caddr_t			dest;
+	int			off;
+	int			cnt;
+{
+	int			err = 0, i;
+	u_int8_t		byte = 0;
+
+	for (i = 0; i < cnt; i++) {
+		err = tl_eeprom_getbyte(sc, off + i, &byte);
+		if (err)
+			break;
+		*(dest + i) = byte;
+	}
+
+	return(err ? 1 : 0);
+}
+
+static void tl_mii_sync(sc)
+	struct tl_softc		*sc;
 {
 	register int		i;
 
-	DIO_SEL(TL_NETSIO);
-	DIO_BYTE1_CLR(TL_SIO_MTXEN);
+	tl_dio_clrbit(sc, TL_NETSIO, TL_SIO_MTXEN);
 
 	for (i = 0; i < 32; i++) {
-		DIO_BYTE1_SET(TL_SIO_MCLK);
-		DIO_BYTE1_CLR(TL_SIO_MCLK);
+		tl_dio_setbit(sc, TL_NETSIO, TL_SIO_MCLK);
+		tl_dio_clrbit(sc, TL_NETSIO, TL_SIO_MCLK);
 	}
 
 	return;
 }
 
-static void tl_mii_send(csr, bits, cnt)
-	volatile struct tl_csr	*csr;
+static void tl_mii_send(sc, bits, cnt)
+	struct tl_softc		*sc;
 	u_int32_t		bits;
 	int			cnt;
 {
 	int			i;
 
 	for (i = (0x1 << (cnt - 1)); i; i >>= 1) {
-		DIO_BYTE1_CLR(TL_SIO_MCLK);
+		tl_dio_clrbit(sc, TL_NETSIO, TL_SIO_MCLK);
 		if (bits & i) {
-			DIO_BYTE1_SET(TL_SIO_MDATA);
+			tl_dio_setbit(sc, TL_NETSIO, TL_SIO_MDATA);
 		} else {
-			DIO_BYTE1_CLR(TL_SIO_MDATA);
+			tl_dio_clrbit(sc, TL_NETSIO, TL_SIO_MDATA);
 		}
-		DIO_BYTE1_SET(TL_SIO_MCLK);
+		tl_dio_setbit(sc, TL_NETSIO, TL_SIO_MCLK);
 	}
 }
 
-static int tl_mii_readreg(csr, frame)
-	volatile struct tl_csr	*csr;
+static int tl_mii_readreg(sc, frame)
+	struct tl_softc		*sc;
 	struct tl_mii_frame	*frame;
 	
 {
@@ -476,7 +659,7 @@ static int tl_mii_readreg(csr, frame)
 
 	s = splimp();
 
-	tl_mii_sync(csr);
+	tl_mii_sync(sc);
 
 	/*
 	 * Set up frame for RX.
@@ -487,48 +670,41 @@ static int tl_mii_readreg(csr, frame)
 	frame->mii_data = 0;
 	
 	/*
-	 * Select the NETSIO register. We will be using it
- 	 * to communicate indirectly with the MII.
-	 */
-
-	DIO_SEL(TL_NETSIO);
-
-	/*
 	 * Turn off MII interrupt by forcing MINTEN low.
 	 */
-	minten = DIO_BYTE1_GET(TL_SIO_MINTEN);
+	minten = tl_dio_read8(sc, TL_NETSIO) & TL_SIO_MINTEN;
 	if (minten) {
-		DIO_BYTE1_CLR(TL_SIO_MINTEN);
+		tl_dio_clrbit(sc, TL_NETSIO, TL_SIO_MINTEN);
 	}
 
 	/*
  	 * Turn on data xmit.
 	 */
-	DIO_BYTE1_SET(TL_SIO_MTXEN);
+	tl_dio_setbit(sc, TL_NETSIO, TL_SIO_MTXEN);
 
 	/*
 	 * Send command/address info.
 	 */
-	tl_mii_send(csr, frame->mii_stdelim, 2);
-	tl_mii_send(csr, frame->mii_opcode, 2);
-	tl_mii_send(csr, frame->mii_phyaddr, 5);
-	tl_mii_send(csr, frame->mii_regaddr, 5);
+	tl_mii_send(sc, frame->mii_stdelim, 2);
+	tl_mii_send(sc, frame->mii_opcode, 2);
+	tl_mii_send(sc, frame->mii_phyaddr, 5);
+	tl_mii_send(sc, frame->mii_regaddr, 5);
 
 	/*
 	 * Turn off xmit.
 	 */
-	DIO_BYTE1_CLR(TL_SIO_MTXEN);
+	tl_dio_clrbit(sc, TL_NETSIO, TL_SIO_MTXEN);
 
 	/* Idle bit */
-	DIO_BYTE1_CLR(TL_SIO_MCLK);
-	DIO_BYTE1_SET(TL_SIO_MCLK);
+	tl_dio_clrbit(sc, TL_NETSIO, TL_SIO_MCLK);
+	tl_dio_setbit(sc, TL_NETSIO, TL_SIO_MCLK);
 
 	/* Check for ack */
-	DIO_BYTE1_CLR(TL_SIO_MCLK);
-	ack = DIO_BYTE1_GET(TL_SIO_MDATA);
+	tl_dio_clrbit(sc, TL_NETSIO, TL_SIO_MCLK);
+	ack = tl_dio_read8(sc, TL_NETSIO) & TL_SIO_MDATA;
 
 	/* Complete the cycle */
-	DIO_BYTE1_SET(TL_SIO_MCLK);
+	tl_dio_setbit(sc, TL_NETSIO, TL_SIO_MCLK);
 
 	/*
 	 * Now try reading data bits. If the ack failed, we still
@@ -536,29 +712,29 @@ static int tl_mii_readreg(csr, frame)
 	 */
 	if (ack) {
 		for(i = 0; i < 16; i++) {
-			DIO_BYTE1_CLR(TL_SIO_MCLK);
-			DIO_BYTE1_SET(TL_SIO_MCLK);
+			tl_dio_clrbit(sc, TL_NETSIO, TL_SIO_MCLK);
+			tl_dio_setbit(sc, TL_NETSIO, TL_SIO_MCLK);
 		}
 		goto fail;
 	}
 
 	for (i = 0x8000; i; i >>= 1) {
-		DIO_BYTE1_CLR(TL_SIO_MCLK);
+		tl_dio_clrbit(sc, TL_NETSIO, TL_SIO_MCLK);
 		if (!ack) {
-			if (DIO_BYTE1_GET(TL_SIO_MDATA))
+			if (tl_dio_read8(sc, TL_NETSIO) & TL_SIO_MDATA)
 				frame->mii_data |= i;
 		}
-		DIO_BYTE1_SET(TL_SIO_MCLK);
+		tl_dio_setbit(sc, TL_NETSIO, TL_SIO_MCLK);
 	}
 
 fail:
 
-	DIO_BYTE1_CLR(TL_SIO_MCLK);
-	DIO_BYTE1_SET(TL_SIO_MCLK);
+	tl_dio_setbit(sc, TL_NETSIO, TL_SIO_MCLK);
+	tl_dio_clrbit(sc, TL_NETSIO, TL_SIO_MCLK);
 
 	/* Reenable interrupts */
 	if (minten) {
-		DIO_BYTE1_SET(TL_SIO_MINTEN);
+		tl_dio_setbit(sc, TL_NETSIO, TL_SIO_MINTEN);
 	}
 
 	splx(s);
@@ -568,15 +744,15 @@ fail:
 	return(0);
 }
 
-static int tl_mii_writereg(csr, frame)
-	volatile struct tl_csr	*csr;
+static int tl_mii_writereg(sc, frame)
+	struct tl_softc		*sc;
 	struct tl_mii_frame	*frame;
 	
 {
 	int			s;
 	int			minten;
 
-	tl_mii_sync(csr);
+	tl_mii_sync(sc);
 
 	s = splimp();
 	/*
@@ -588,43 +764,36 @@ static int tl_mii_writereg(csr, frame)
 	frame->mii_turnaround = TL_MII_TURNAROUND;
 	
 	/*
-	 * Select the NETSIO register. We will be using it
- 	 * to communicate indirectly with the MII.
-	 */
-
-	DIO_SEL(TL_NETSIO);
-
-	/*
 	 * Turn off MII interrupt by forcing MINTEN low.
 	 */
-	minten = DIO_BYTE1_GET(TL_SIO_MINTEN);
+	minten = tl_dio_read8(sc, TL_NETSIO) & TL_SIO_MINTEN;
 	if (minten) {
-		DIO_BYTE1_CLR(TL_SIO_MINTEN);
+		tl_dio_clrbit(sc, TL_NETSIO, TL_SIO_MINTEN);
 	}
 
 	/*
  	 * Turn on data output.
 	 */
-	DIO_BYTE1_SET(TL_SIO_MTXEN);
+	tl_dio_setbit(sc, TL_NETSIO, TL_SIO_MTXEN);
 
-	tl_mii_send(csr, frame->mii_stdelim, 2);
-	tl_mii_send(csr, frame->mii_opcode, 2);
-	tl_mii_send(csr, frame->mii_phyaddr, 5);
-	tl_mii_send(csr, frame->mii_regaddr, 5);
-	tl_mii_send(csr, frame->mii_turnaround, 2);
-	tl_mii_send(csr, frame->mii_data, 16);
+	tl_mii_send(sc, frame->mii_stdelim, 2);
+	tl_mii_send(sc, frame->mii_opcode, 2);
+	tl_mii_send(sc, frame->mii_phyaddr, 5);
+	tl_mii_send(sc, frame->mii_regaddr, 5);
+	tl_mii_send(sc, frame->mii_turnaround, 2);
+	tl_mii_send(sc, frame->mii_data, 16);
 
-	DIO_BYTE1_SET(TL_SIO_MCLK);
-	DIO_BYTE1_CLR(TL_SIO_MCLK);
+	tl_dio_setbit(sc, TL_NETSIO, TL_SIO_MCLK);
+	tl_dio_clrbit(sc, TL_NETSIO, TL_SIO_MCLK);
 
 	/*
 	 * Turn off xmit.
 	 */
-	DIO_BYTE1_CLR(TL_SIO_MTXEN);
+	tl_dio_clrbit(sc, TL_NETSIO, TL_SIO_MTXEN);
 
 	/* Reenable interrupts */
 	if (minten)
-		DIO_BYTE1_SET(TL_SIO_MINTEN);
+		tl_dio_setbit(sc, TL_NETSIO, TL_SIO_MINTEN);
 
 	splx(s);
 
@@ -636,19 +805,15 @@ static u_int16_t tl_phy_readreg(sc, reg)
 	int			reg;
 {
 	struct tl_mii_frame	frame;
-	volatile struct tl_csr	*csr;
 
 	bzero((char *)&frame, sizeof(frame));
 
-	csr = sc->csr;
-
 	frame.mii_phyaddr = sc->tl_phy_addr;
 	frame.mii_regaddr = reg;
-	tl_mii_readreg(sc->csr, &frame);
+	tl_mii_readreg(sc, &frame);
 
 	/* Reenable MII interrupts, just in case. */
-	DIO_SEL(TL_NETSIO);
-	DIO_BYTE1_SET(TL_SIO_MINTEN);
+	tl_dio_setbit(sc, TL_NETSIO, TL_SIO_MINTEN);
 
 	return(frame.mii_data);
 }
@@ -659,44 +824,19 @@ static void tl_phy_writereg(sc, reg, data)
 	u_int16_t		data;
 {
 	struct tl_mii_frame	frame;
-	volatile struct tl_csr	*csr;
 
 	bzero((char *)&frame, sizeof(frame));
 
-	csr = sc->csr;
 	frame.mii_phyaddr = sc->tl_phy_addr;
 	frame.mii_regaddr = reg;
 	frame.mii_data = data;
 
-	tl_mii_writereg(sc->csr, &frame);
+	tl_mii_writereg(sc, &frame);
 
 	/* Reenable MII interrupts, just in case. */
-	DIO_SEL(TL_NETSIO);
-	DIO_BYTE1_SET(TL_SIO_MINTEN);
+	tl_dio_setbit(sc, TL_NETSIO, TL_SIO_MINTEN);
 
 	return;
-}
-
-/*
- * Read a sequence of bytes from the EEPROM.
- */
-static int tl_read_eeprom(csr, dest, off, cnt)
-	volatile struct tl_csr	*csr;
-	caddr_t			dest;
-	int			off;
-	int			cnt;
-{
-	int			err = 0, i;
-	u_int8_t		byte = 0;
-
-	for (i = 0; i < cnt; i++) {
-		err = tl_eeprom_getbyte(csr, off + i, &byte);
-		if (err)
-			break;
-		*(dest + i) = byte;
-	}
-
-	return(err ? 1 : 0);
 }
 
 /*
@@ -729,6 +869,22 @@ static int tl_read_eeprom(csr, dest, off, cnt)
  * allow a full three seconds for autonegotiation to complete. So what
  * we do is flip the autonegotiation restart bit, then set a timeout
  * to wake us up in three seconds to check the link state.
+ *
+ * Note that there are some versions of the Olicom 2326 that use a
+ * Micro Linear ML6692 100BaseTX PHY. This particular PHY is designed
+ * to provide 100BaseTX support only, but can be used with a controller
+ * that supports an internal 10Mbps PHY to provide a complete
+ * 10/100Mbps solution. However, the ML6692 does not have vendor and
+ * device ID registers, and hence always shows up with a vendor/device
+ * ID of 0.
+ *
+ * We detect this configuration by checking the phy vendor ID in the
+ * softc structure. If it's a zero, and we're negotiating a high-speed
+ * mode, then we turn off the internal PHY. If it's a zero and we've
+ * negotiated a high-speed mode, we turn on the internal PHY. Note
+ * that to make things even more fun, we have to make extra sure that
+ * the loopback bit in the internal PHY's control register is turned
+ * off.
  */
 static void tl_autoneg(sc, flag, verbose)
 	struct tl_softc		*sc;
@@ -738,9 +894,7 @@ static void tl_autoneg(sc, flag, verbose)
 	u_int16_t		phy_sts = 0, media = 0, advert, ability;
 	struct ifnet		*ifp;
 	struct ifmedia		*ifm;
-	volatile struct tl_csr	*csr;
 
-	csr = sc->csr;
 	ifm = &sc->ifmedia;
 	ifp = &sc->arpcom.ac_if;
 
@@ -769,9 +923,12 @@ static void tl_autoneg(sc, flag, verbose)
 		phy_sts = tl_phy_readreg(sc, PHY_BMCR);
 		phy_sts |= PHY_BMCR_AUTONEGENBL|PHY_BMCR_AUTONEGRSTR;
 		tl_phy_writereg(sc, PHY_BMCR, phy_sts);
-		DELAY(3000000);
+		DELAY(5000000);
 		break;
 	case TL_FLAG_SCHEDDELAY:
+#ifdef TL_DEBUG
+		evset(sc, EV_AUTONEG_XMIT);
+#endif
 		/*
 		 * Wait for the transmitter to go idle before starting
 		 * an autoneg session, otherwise tl_start() may clobber
@@ -787,16 +944,19 @@ static void tl_autoneg(sc, flag, verbose)
 		phy_sts = tl_phy_readreg(sc, PHY_BMCR);
 		phy_sts |= PHY_BMCR_AUTONEGENBL|PHY_BMCR_AUTONEGRSTR;
 		tl_phy_writereg(sc, PHY_BMCR, phy_sts);
-		ifp->if_timer = 3;
+		ifp->if_timer = 5;
 		sc->tl_autoneg = 1;
 		sc->tl_want_auto = 0;
 		return;
 	case TL_FLAG_DELAYTIMEO:
+#ifdef TL_DEBUG
+		evset(sc, EV_AUTONEG_FIN);
+#endif
 		ifp->if_timer = 0;
 		sc->tl_autoneg = 0;
 		break;
 	default:
-		printf("tl%d: invalid autoneg flag: %d\n", flag, sc->tl_unit);
+		printf("tl%d: invalid autoneg flag: %d\n", sc->tl_unit, flag);
 		return;
 	}
 
@@ -833,8 +993,8 @@ static void tl_autoneg(sc, flag, verbose)
 		/* Set the DUPLEX bit in the NetCmd register accordingly. */
 		if (advert & PHY_ANAR_100BT4 && ability & PHY_ANAR_100BT4) {
 			ifm->ifm_media = IFM_ETHER|IFM_100_T4;
-			DIO_SEL(TL_NETCMD);
-			DIO_BYTE0_CLR(TL_CMD_DUPLEX);
+			media |= PHY_BMCR_SPEEDSEL;
+			media &= ~PHY_BMCR_DUPLEX;
 			if (verbose)
 				printf("(100baseT4)\n");
 		} else if (advert & PHY_ANAR_100BTXFULL &&
@@ -842,8 +1002,6 @@ static void tl_autoneg(sc, flag, verbose)
 			ifm->ifm_media = IFM_ETHER|IFM_100_TX|IFM_FDX;
 			media |= PHY_BMCR_SPEEDSEL;
 			media |= PHY_BMCR_DUPLEX;
-			DIO_SEL(TL_NETCMD);
-			DIO_BYTE0_SET(TL_CMD_DUPLEX);
 			if (verbose)
 				printf("(full-duplex, 100Mbps)\n");
 		} else if (advert & PHY_ANAR_100BTXHALF &&
@@ -851,8 +1009,6 @@ static void tl_autoneg(sc, flag, verbose)
 			ifm->ifm_media = IFM_ETHER|IFM_100_TX|IFM_HDX;
 			media |= PHY_BMCR_SPEEDSEL;
 			media &= ~PHY_BMCR_DUPLEX;
-			DIO_SEL(TL_NETCMD);
-			DIO_BYTE0_CLR(TL_CMD_DUPLEX);
 			if (verbose)
 				printf("(half-duplex, 100Mbps)\n");
 		} else if (advert & PHY_ANAR_10BTFULL &&
@@ -860,19 +1016,21 @@ static void tl_autoneg(sc, flag, verbose)
 			ifm->ifm_media = IFM_ETHER|IFM_10_T|IFM_FDX;
 			media &= ~PHY_BMCR_SPEEDSEL;
 			media |= PHY_BMCR_DUPLEX;
-			DIO_SEL(TL_NETCMD);
-			DIO_BYTE0_SET(TL_CMD_DUPLEX);
 			if (verbose)
 				printf("(full-duplex, 10Mbps)\n");
 		} else {
 			ifm->ifm_media = IFM_ETHER|IFM_10_T|IFM_HDX;
 			media &= ~PHY_BMCR_SPEEDSEL;
 			media &= ~PHY_BMCR_DUPLEX;
-			DIO_SEL(TL_NETCMD);
-			DIO_BYTE0_CLR(TL_CMD_DUPLEX);
 			if (verbose)
 				printf("(half-duplex, 10Mbps)\n");
 		}
+
+		if (media & PHY_BMCR_DUPLEX)
+			tl_dio_setbit(sc, TL_NETCMD, TL_CMD_DUPLEX);
+		else
+			tl_dio_clrbit(sc, TL_NETCMD, TL_CMD_DUPLEX);
+
 		media &= ~PHY_BMCR_AUTONEGENBL;
 		tl_phy_writereg(sc, PHY_BMCR, media);
 	} else {
@@ -899,22 +1057,12 @@ static void tl_setmode(sc, media)
 	struct tl_softc		*sc;
 	int			media;
 {
-	u_int16_t		bmcr, anar, ctl;
-	volatile struct tl_csr	*csr;
-
-	csr = sc->csr;
+	u_int16_t		bmcr;
 
 	bmcr = tl_phy_readreg(sc, PHY_BMCR);
-	anar = tl_phy_readreg(sc, PHY_ANAR);
-	ctl = tl_phy_readreg(sc, TL_PHY_CTL);
-	DIO_SEL(TL_NETCMD);
 
 	bmcr &= ~(PHY_BMCR_SPEEDSEL|PHY_BMCR_DUPLEX|PHY_BMCR_AUTONEGENBL|
 		  PHY_BMCR_LOOPBK|PHY_BMCR_ISOLATE);
-	anar &= ~(PHY_ANAR_100BT4|PHY_ANAR_100BTXFULL|PHY_ANAR_100BTXHALF|
-		  PHY_ANAR_10BTFULL|PHY_ANAR_10BTHALF);
-
-	ctl &= ~PHY_CTL_AUISEL;
 
 	if (IFM_SUBTYPE(media) == IFM_LOOP)
 		bmcr |= PHY_BMCR_LOOPBK;
@@ -922,28 +1070,43 @@ static void tl_setmode(sc, media)
 	if (IFM_SUBTYPE(media) == IFM_AUTO)
 		bmcr |= PHY_BMCR_AUTONEGENBL;
 
+	/*
+	 * The ThunderLAN's internal PHY has an AUI transceiver
+	 * that can be selected. This is usually attached to a
+	 * 10base2/BNC port. In order to activate this port, we
+	 * have to set the AUISEL bit in the internal PHY's
+	 * special control register.
+	 */
 	if (IFM_SUBTYPE(media) == IFM_10_5) {
+		u_int16_t		addr, ctl;
+		addr = sc->tl_phy_addr;
+		sc->tl_phy_addr = TL_PHYADDR_MAX;
+		ctl = tl_phy_readreg(sc, TL_PHY_CTL);
 		ctl |= PHY_CTL_AUISEL;
 		tl_phy_writereg(sc, TL_PHY_CTL, ctl);
+		tl_phy_writereg(sc, PHY_BMCR, bmcr);
+		sc->tl_phy_addr = addr;
+		bmcr |= PHY_BMCR_ISOLATE;
+	} else {
+		u_int16_t		addr, ctl;
+		addr = sc->tl_phy_addr;
+		sc->tl_phy_addr = TL_PHYADDR_MAX;
+		ctl = tl_phy_readreg(sc, TL_PHY_CTL);
+		ctl &= ~PHY_CTL_AUISEL;
+		tl_phy_writereg(sc, TL_PHY_CTL, ctl);
+		tl_phy_writereg(sc, PHY_BMCR, PHY_BMCR_ISOLATE);
+		sc->tl_phy_addr = addr;
+		bmcr &= ~PHY_BMCR_ISOLATE;
 	}
 
 	if (IFM_SUBTYPE(media) == IFM_100_TX) {
 		bmcr |= PHY_BMCR_SPEEDSEL;
 		if ((media & IFM_GMASK) == IFM_FDX) {
 			bmcr |= PHY_BMCR_DUPLEX;
-			anar |= PHY_ANAR_100BTXFULL;
-			DIO_SEL(TL_NETCMD);
-			DIO_BYTE0_SET(TL_CMD_DUPLEX);
-		} else if ((media & IFM_GMASK) == IFM_HDX) {
-			bmcr &= ~PHY_BMCR_DUPLEX;
-			anar |= PHY_ANAR_100BTXHALF;
-			DIO_SEL(TL_NETCMD);
-			DIO_BYTE0_CLR(TL_CMD_DUPLEX);
+			tl_dio_setbit(sc, TL_NETCMD, TL_CMD_DUPLEX);
 		} else {
 			bmcr &= ~PHY_BMCR_DUPLEX;
-			anar |= PHY_ANAR_100BTXHALF;
-			DIO_SEL(TL_NETCMD);
-			DIO_BYTE0_CLR(TL_CMD_DUPLEX);
+			tl_dio_clrbit(sc, TL_NETCMD, TL_CMD_DUPLEX);
 		}
 	}
 
@@ -951,26 +1114,14 @@ static void tl_setmode(sc, media)
 		bmcr &= ~PHY_BMCR_SPEEDSEL;
 		if ((media & IFM_GMASK) == IFM_FDX) {
 			bmcr |= PHY_BMCR_DUPLEX;
-			anar |= PHY_ANAR_10BTFULL;
-			DIO_SEL(TL_NETCMD);
-			DIO_BYTE0_SET(TL_CMD_DUPLEX);
-		} else if ((media & IFM_GMASK) == IFM_HDX) {
-			bmcr &= ~PHY_BMCR_DUPLEX;
-			anar |= PHY_ANAR_10BTHALF;
-			DIO_SEL(TL_NETCMD);
-			DIO_BYTE0_CLR(TL_CMD_DUPLEX);
+			tl_dio_setbit(sc, TL_NETCMD, TL_CMD_DUPLEX);
 		} else {
 			bmcr &= ~PHY_BMCR_DUPLEX;
-			anar |= PHY_ANAR_10BTHALF;
-			DIO_SEL(TL_NETCMD);
-			DIO_BYTE0_CLR(TL_CMD_DUPLEX);
+			tl_dio_clrbit(sc, TL_NETCMD, TL_CMD_DUPLEX);
 		}
 	}
 
 	tl_phy_writereg(sc, PHY_BMCR, bmcr);
-#ifdef notyet
-	tl_phy_writereg(sc, PHY_ANAR, anar);
-#endif
 
 	tl_init(sc);
 
@@ -996,26 +1147,90 @@ static int tl_calchash(addr)
 	return ((t >> 18) ^ (t >> 12) ^ (t >> 6) ^ t) & 0x3f;
 }
 
+/*
+ * The ThunderLAN has a perfect MAC address filter in addition to
+ * the multicast hash filter. The perfect filter can be programmed
+ * with up to four MAC addresses. The first one is always used to
+ * hold the station address, which leaves us free to use the other
+ * three for multicast addresses.
+ */
+static void tl_setfilt(sc, addr, slot)
+	struct tl_softc		*sc;
+	u_int8_t		*addr;
+	int			slot;
+{
+	int			i;
+	u_int16_t		regaddr;
+
+	regaddr = TL_AREG0_B5 + (slot * ETHER_ADDR_LEN);
+
+	for (i = 0; i < ETHER_ADDR_LEN; i++)
+		tl_dio_write8(sc, regaddr + i, *(addr + i));
+
+	return;
+}
+
+/*
+ * XXX In FreeBSD 3.0, multicast addresses are managed using a doubly
+ * linked list. This is fine, except addresses are added from the head
+ * end of the list. We want to arrange for 224.0.0.1 (the "all hosts")
+ * group to always be in the perfect filter, but as more groups are added,
+ * the 224.0.0.1 entry (which is always added first) gets pushed down
+ * the list and ends up at the tail. So after 3 or 4 multicast groups
+ * are added, the all-hosts entry gets pushed out of the perfect filter
+ * and into the hash table.
+ *
+ * Because the multicast list is a doubly-linked list as opposed to a
+ * circular queue, we don't have the ability to just grab the tail of
+ * the list and traverse it backwards. Instead, we have to traverse
+ * the list once to find the tail, then traverse it again backwards to
+ * update the multicast filter.
+ */
 static void tl_setmulti(sc)
 	struct tl_softc		*sc;
 {
 	struct ifnet		*ifp;
-	volatile struct tl_csr	*csr;
 	u_int32_t		hashes[2] = { 0, 0 };
-	int			h;
+	int			h, i;
 	struct ifmultiaddr	*ifma;
-
-	csr = sc->csr;
+	u_int8_t		dummy[] = { 0, 0, 0, 0, 0 ,0 };
 	ifp = &sc->arpcom.ac_if;
 
-	if (sc->arpcom.ac_multicnt > 64 || ifp->if_flags & IFF_ALLMULTI) {
+	/* First, zot all the existing filters. */
+	for (i = 1; i < 4; i++)
+		tl_setfilt(sc, dummy, i);
+	tl_dio_write32(sc, TL_HASH1, 0);
+	tl_dio_write32(sc, TL_HASH2, 0);
+
+	/* Now program new ones. */
+	if (ifp->if_flags & IFF_ALLMULTI) {
 		hashes[0] = 0xFFFFFFFF;
 		hashes[1] = 0xFFFFFFFF;
 	} else {
+		i = 1;
+		/* First find the tail of the list. */
 		for (ifma = ifp->if_multiaddrs.lh_first; ifma != NULL;
 					ifma = ifma->ifma_link.le_next) {
+			if (ifma->ifma_link.le_next == NULL)
+				break;
+		}
+		/* Now traverse the list backwards. */
+		for (; ifma != NULL && ifma != (void *)&ifp->if_multiaddrs;
+			ifma = (struct ifmultiaddr *)ifma->ifma_link.le_prev) {
 			if (ifma->ifma_addr->sa_family != AF_LINK)
 				continue;
+			/*
+			 * Program the first three multicast groups
+			 * into the perfect filter. For all others,
+			 * use the hash table.
+			 */
+			if (i < 4) {
+				tl_setfilt(sc,
+			LLADDR((struct sockaddr_dl *)ifma->ifma_addr), i);
+				i++;
+				continue;
+			}
+
 			h = tl_calchash(
 				LLADDR((struct sockaddr_dl *)ifma->ifma_addr));
 			if (h < 32)
@@ -1025,92 +1240,113 @@ static void tl_setmulti(sc)
 		}
 	}
 
-	DIO_SEL(TL_HASH1);
-	DIO_LONG_PUT(hashes[0]);
-	DIO_SEL(TL_HASH2);
-	DIO_LONG_PUT(hashes[1]);
+	tl_dio_write32(sc, TL_HASH1, hashes[0]);
+	tl_dio_write32(sc, TL_HASH2, hashes[1]);
 
 	return;
 }
 
-static void tl_softreset(csr, internal)
-        volatile struct tl_csr	*csr;
+/*
+ * This routine is recommended by the ThunderLAN manual to insure that
+ * the internal PHY is powered up correctly. It also recommends a one
+ * second pause at the end to 'wait for the clocks to start' but in my
+ * experience this isn't necessary.
+ */
+static void tl_hardreset(sc)
+	struct tl_softc		*sc;
+{
+	int			i;
+	u_int16_t		old_addr, flags;
+
+	old_addr = sc->tl_phy_addr;
+
+	for (i = 0; i < TL_PHYADDR_MAX + 1; i++) {
+		sc->tl_phy_addr = i;
+		tl_mii_sync(sc);
+	}
+
+	flags = PHY_BMCR_LOOPBK|PHY_BMCR_ISOLATE|PHY_BMCR_PWRDOWN;
+
+	for (i = 0; i < TL_PHYADDR_MAX + 1; i++) {
+		sc->tl_phy_addr = i;
+		tl_phy_writereg(sc, PHY_BMCR, flags);
+	}
+
+	sc->tl_phy_addr = TL_PHYADDR_MAX;
+	tl_phy_writereg(sc, PHY_BMCR, PHY_BMCR_ISOLATE);
+
+	DELAY(50000);
+
+	tl_phy_writereg(sc, PHY_BMCR, PHY_BMCR_LOOPBK|PHY_BMCR_ISOLATE);
+
+	tl_mii_sync(sc);
+
+	while(tl_phy_readreg(sc, PHY_BMCR) & PHY_BMCR_RESET);
+
+	sc->tl_phy_addr = old_addr;
+
+	return;
+}
+
+static void tl_softreset(sc, internal)
+	struct tl_softc		*sc;
 	int			internal;
 {
-        u_int32_t               cmd, dummy;
+        u_int32_t               cmd, dummy, i;
 
         /* Assert the adapter reset bit. */
-        CMD_SET(csr, TL_CMD_ADRST);
+	CMD_SET(sc, TL_CMD_ADRST);
         /* Turn off interrupts */
-        CMD_SET(csr, TL_CMD_INTSOFF);
+	CMD_SET(sc, TL_CMD_INTSOFF);
 
 	/* First, clear the stats registers. */
-	DIO_SEL(TL_TXGOODFRAMES|TL_DIO_ADDR_INC);
-	DIO_LONG_GET(dummy);
-	DIO_LONG_GET(dummy);
-	DIO_LONG_GET(dummy);
-	DIO_LONG_GET(dummy);
-	DIO_LONG_GET(dummy);
+	for (i = 0; i < 5; i++)
+		dummy = tl_dio_read32(sc, TL_TXGOODFRAMES);
 
         /* Clear Areg and Hash registers */
-	DIO_SEL(TL_AREG0_B5|TL_DIO_ADDR_INC);
-	DIO_LONG_PUT(0x00000000);
-	DIO_LONG_PUT(0x00000000);
-	DIO_LONG_PUT(0x00000000);
-	DIO_LONG_PUT(0x00000000);
-	DIO_LONG_PUT(0x00000000);
-	DIO_LONG_PUT(0x00000000);
-	DIO_LONG_PUT(0x00000000);
-	DIO_LONG_PUT(0x00000000);
+	for (i = 0; i < 8; i++)
+		tl_dio_write32(sc, TL_AREG0_B5, 0x00000000);
 
         /*
 	 * Set up Netconfig register. Enable one channel and
 	 * one fragment mode.
 	 */
-	DIO_SEL(TL_NETCONFIG);
-	DIO_WORD0_SET(TL_CFG_ONECHAN|TL_CFG_ONEFRAG);
+	tl_dio_setbit16(sc, TL_NETCONFIG, TL_CFG_ONECHAN|TL_CFG_ONEFRAG);
 	if (internal) {
-		DIO_SEL(TL_NETCONFIG);
-		DIO_WORD0_SET(TL_CFG_PHYEN);
+		tl_dio_setbit16(sc, TL_NETCONFIG, TL_CFG_PHYEN);
 	} else {
-		DIO_SEL(TL_NETCONFIG);
-		DIO_WORD0_CLR(TL_CFG_PHYEN);
+		tl_dio_clrbit16(sc, TL_NETCONFIG, TL_CFG_PHYEN);
 	}
 
         /* Set PCI burst size */
-        DIO_SEL(TL_BSIZEREG);
-        DIO_BYTE1_SET(0x33);
+	tl_dio_write8(sc, TL_BSIZEREG, 0x33);
 
 	/*
 	 * Load adapter irq pacing timer and tx threshold.
 	 * We make the transmit threshold 1 initially but we may
 	 * change that later.
 	 */
-	cmd = csr->tl_host_cmd;
+	cmd = CSR_READ_4(sc, TL_HOSTCMD);
 	cmd |= TL_CMD_NES;
 	cmd &= ~(TL_CMD_RT|TL_CMD_EOC|TL_CMD_ACK_MASK|TL_CMD_CHSEL_MASK);
-	CMD_PUT(csr, cmd | (TL_CMD_LDTHR | TX_THR));
-	CMD_PUT(csr, cmd | (TL_CMD_LDTMR | 0x00000003));
+	CMD_PUT(sc, cmd | (TL_CMD_LDTHR | TX_THR));
+	CMD_PUT(sc, cmd | (TL_CMD_LDTMR | 0x00000003));
 
         /* Unreset the MII */
-        DIO_SEL(TL_NETSIO);
-        DIO_BYTE1_SET(TL_SIO_NMRST);
+	tl_dio_setbit(sc, TL_NETSIO, TL_SIO_NMRST);
 
 	/* Clear status register */
-        DIO_SEL(TL_NETSTS);
-        DIO_BYTE2_SET(TL_STS_MIRQ);
-        DIO_BYTE2_SET(TL_STS_HBEAT);
-        DIO_BYTE2_SET(TL_STS_TXSTOP);
-        DIO_BYTE2_SET(TL_STS_RXSTOP);
+        tl_dio_setbit16(sc, TL_NETSTS, TL_STS_MIRQ);
+        tl_dio_setbit16(sc, TL_NETSTS, TL_STS_HBEAT);
+        tl_dio_setbit16(sc, TL_NETSTS, TL_STS_TXSTOP);
+        tl_dio_setbit16(sc, TL_NETSTS, TL_STS_RXSTOP);
 
 	/* Enable network status interrupts for everything. */
-	DIO_SEL(TL_NETMASK);
-	DIO_BYTE3_SET(TL_MASK_MASK7|TL_MASK_MASK6|
+	tl_dio_setbit(sc, TL_NETMASK, TL_MASK_MASK7|TL_MASK_MASK6|
 			TL_MASK_MASK5|TL_MASK_MASK4);
 
 	/* Take the adapter out of reset */
-	DIO_SEL(TL_NETCMD);
-	DIO_BYTE0_SET(TL_CMD_NRESET|TL_CMD_NWRAP);
+	tl_dio_setbit(sc, TL_NETCMD, TL_CMD_NRESET|TL_CMD_NWRAP);
 
 	/* Wait for things to settle down a little. */
 	DELAY(500);
@@ -1120,9 +1356,7 @@ static void tl_softreset(csr, internal)
 
 /*
  * Probe for a ThunderLAN chip. Check the PCI vendor and device IDs
- * against our list and return its name if we find a match. Note that
- * we also save a pointer to the tl_type struct for this card since we
- * will need it for the softc struct and attach routine later.
+ * against our list and return its name if we find a match.
  */
 static char *
 tl_probe(config_id, device_id)
@@ -1130,30 +1364,13 @@ tl_probe(config_id, device_id)
 	pcidi_t			device_id;
 {
 	struct tl_type		*t;
-	struct tl_iflist	*new;
 
 	t = tl_devs;
 
 	while(t->tl_name != NULL) {
 		if ((device_id & 0xFFFF) == t->tl_vid &&
-		    ((device_id >> 16) & 0xFFFF) == t->tl_did) {
-			new = malloc(sizeof(struct tl_iflist),
-					M_DEVBUF, M_NOWAIT);
-			if (new == NULL) {
-				printf("no memory for controller struct!\n");
-				break;
-			}
-			bzero(new, sizeof(struct tl_iflist));
-			new->tl_config_id = config_id;
-			new->tl_dinfo = t;
-			new->tl_next = tl_iflist;
-			if (t->tl_vid == COMPAQ_VENDORID)
-				new->tl_eeaddr = TL_EEPROM_EADDR;
-			if (t->tl_vid == OLICOM_VENDORID)
-				new->tl_eeaddr = TL_EEPROM_EADDR_OC;
-			tl_iflist = new;
+		    ((device_id >> 16) & 0xFFFF) == t->tl_did)
 			return(t->tl_name);
-		}
 		t++;
 	}
 
@@ -1161,127 +1378,23 @@ tl_probe(config_id, device_id)
 }
 
 /*
- * The ThunderLAN controller can support multiple PHYs. Logically,
- * this means we have to be able to deal with each PHY as a separate
- * interface. We therefore consider ThunderLAN devices as follows:
- *
- * o Each ThunderLAN controller device is assigned the name tlcX where
- *   X is the controller's unit number. Each ThunderLAN device found
- *   is assigned a different number.
- *
- * o Each PHY on each controller is assigned the name tlX. X starts at
- *   0 and is incremented each time an additional PHY is found.
- *
- * So, if you had two dual-channel ThunderLAN cards, you'd have
- * tlc0 and tlc1 (the controllers) and tl0, tl1, tl2, tl3 (the logical
- * interfaces). I think. I'm still not sure how dual chanel controllers
- * work as I've yet to see one.
- */
-
-/*
  * Do the interface setup and attach for a PHY on a particular
  * ThunderLAN chip. Also also set up interrupt vectors.
  */ 
-static int tl_attach_phy(csr, tl_unit, eaddr, tl_phy, ilist)
-	volatile struct tl_csr	*csr;
-	int			tl_unit;
-	u_char			*eaddr;
-	int			tl_phy;
-	struct tl_iflist	*ilist;
-{
+static int tl_attach_phy(sc)
 	struct tl_softc		*sc;
-	struct ifnet		*ifp;
+{
 	int			phy_ctl;
 	struct tl_type		*p = tl_phys;
-	struct tl_mii_frame	frame;
-	int			i, media = IFM_ETHER|IFM_100_TX|IFM_FDX;
-	unsigned int		round;
-	caddr_t			roundptr;
+	int			media = IFM_ETHER|IFM_100_TX|IFM_FDX;
+	struct ifnet		*ifp;
 
-	if (tl_phy != TL_PHYADDR_MAX)
-		tl_softreset(csr, 1);
+	ifp = &sc->arpcom.ac_if;
 
-	/* Reset the PHY again, just in case. */
-	bzero((char *)&frame, sizeof(frame));
-	frame.mii_phyaddr = tl_phy;
-	frame.mii_regaddr = TL_PHY_GENCTL;
-	frame.mii_data = PHY_BMCR_RESET;
-	tl_mii_writereg(csr, &frame);
-	DELAY(500);
-	frame.mii_data = 0;
-
-	/* First, allocate memory for the softc struct. */
-	sc = malloc(sizeof(struct tl_softc), M_DEVBUF, M_NOWAIT);
-	if (sc == NULL) {
-		printf("tlc%d: no memory for softc struct!\n", ilist->tlc_unit);
-		return(1);
-	}
-
-	bzero(sc, sizeof(struct tl_softc));
-
-	/*
-	 * Now allocate memory for the TX and RX lists. Note that
-	 * we actually allocate 8 bytes more than we really need:
-	 * this is because we need to adjust the final address to
-	 * be aligned on a quadword (64-bit) boundary in order to
-	 * make the chip happy. If the list structures aren't properly
-	 * aligned, DMA fails and the chip generates an adapter check
-	 * interrupt and has to be reset. If you set up the softc struct
-	 * just right you can sort of obtain proper alignment 'by chance.'
-	 * But I don't want to depend on this, so instead the alignment
-	 * is forced here.
-	 */
-	sc->tl_ldata_ptr = malloc(sizeof(struct tl_list_data) + 8,
-				M_DEVBUF, M_NOWAIT);
-
-	if (sc->tl_ldata_ptr == NULL) {
-		free(sc, M_DEVBUF);
-		printf("tlc%d: no memory for list buffers!\n", ilist->tlc_unit);
-		return(1);
-	}
-
-	/*
-	 * Convoluted but satisfies my ANSI sensibilities. GCC lets
-	 * you do casts on the LHS of an assignment, but ANSI doesn't
-	 * allow that.
-	 */
-	sc->tl_ldata = (struct tl_list_data *)sc->tl_ldata_ptr;
-	round = (unsigned int)sc->tl_ldata_ptr & 0xF;
-	roundptr = sc->tl_ldata_ptr;
-	for (i = 0; i < 8; i++) {
-		if (round % 8) {
-			round++;
-			roundptr++;
-		} else
-			break;
-	}
-	sc->tl_ldata = (struct tl_list_data *)roundptr;
-
-	bzero(sc->tl_ldata, sizeof(struct tl_list_data));
-
-	sc->csr = csr;
-	sc->tl_dinfo = ilist->tl_dinfo;
-	sc->tl_ctlr = ilist->tlc_unit;
-	sc->tl_unit = tl_unit;
-	sc->tl_phy_addr = tl_phy;
-	sc->tl_iflist = ilist;
-	callout_handle_init(&sc->tl_stat_ch);
-
-	frame.mii_regaddr = TL_PHY_VENID;
-	tl_mii_readreg(csr, &frame);
-	sc->tl_phy_vid = frame.mii_data;
-
-	frame.mii_regaddr = TL_PHY_DEVID;
-	tl_mii_readreg(csr, &frame);
-	sc->tl_phy_did = frame.mii_data;
-
-	frame.mii_regaddr = TL_PHY_GENSTS;
-	tl_mii_readreg(csr, &frame);
-	sc->tl_phy_sts = frame.mii_data;
-
-	frame.mii_regaddr = TL_PHY_GENCTL;
-	tl_mii_readreg(csr, &frame);
-	phy_ctl = frame.mii_data;
+	sc->tl_phy_did = tl_phy_readreg(sc, TL_PHY_DEVID);
+	sc->tl_phy_vid = tl_phy_readreg(sc, TL_PHY_VENID);
+	sc->tl_phy_sts = tl_phy_readreg(sc, TL_PHY_GENSTS);
+	phy_ctl = tl_phy_readreg(sc, TL_PHY_GENCTL);
 
 	/*
 	 * PHY revision numbers tend to vary a bit. Our algorithm here
@@ -1299,18 +1412,6 @@ static int tl_attach_phy(csr, tl_unit, eaddr, tl_phy, ilist)
 		sc->tl_pinfo = &tl_phys[PHY_UNKNOWN];
 	}
 
-	bcopy(eaddr, (char *)&sc->arpcom.ac_enaddr, ETHER_ADDR_LEN);
-	ifp = &sc->arpcom.ac_if;
-	ifp->if_softc = sc;
-	ifp->if_unit = tl_unit;
-	ifp->if_name = "tl";
-	ifp->if_flags = IFF_BROADCAST | IFF_SIMPLEX | IFF_MULTICAST;
-	ifp->if_ioctl = tl_ioctl;
-	ifp->if_output = ether_output;
-	ifp->if_start = tl_start;
-	ifp->if_watchdog = tl_watchdog;
-	ifp->if_init = tl_init;
-
 	if (sc->tl_phy_sts & PHY_BMSR_100BT4 ||
 		sc->tl_phy_sts & PHY_BMSR_100BTXFULL ||
 		sc->tl_phy_sts & PHY_BMSR_100BTXHALF)
@@ -1318,40 +1419,45 @@ static int tl_attach_phy(csr, tl_unit, eaddr, tl_phy, ilist)
 	else
 		ifp->if_baudrate = 10000000;
 
-	ilist->tl_sc[tl_phy] = sc;
+	if (bootverbose) {
+		printf("tl%d: phy at mii address %d\n", sc->tl_unit,
+							sc->tl_phy_addr);
 
-	printf("tl%d at tlc%d physical interface %d\n", ifp->if_unit,
-						sc->tl_ctlr,
-						sc->tl_phy_addr);
-
-	printf("tl%d: %s ", ifp->if_unit, sc->tl_pinfo->tl_name);
+		printf("tl%d: %s ", sc->tl_unit, sc->tl_pinfo->tl_name);
+	}
 
 	if (sc->tl_phy_sts & PHY_BMSR_100BT4 ||
 		sc->tl_phy_sts & PHY_BMSR_100BTXHALF ||
 		sc->tl_phy_sts & PHY_BMSR_100BTXHALF)
-		printf("10/100Mbps ");
+		if (bootverbose)
+			printf("10/100Mbps ");
 	else {
 		media &= ~IFM_100_TX;
 		media |= IFM_10_T;
-		printf("10Mbps ");
+		if (bootverbose)
+			printf("10Mbps ");
 	}
 
 	if (sc->tl_phy_sts & PHY_BMSR_100BTXFULL ||
 		sc->tl_phy_sts & PHY_BMSR_10BTFULL)
-		printf("full duplex ");
+		if (bootverbose)
+			printf("full duplex ");
 	else {
-		printf("half duplex ");
+		if (bootverbose)
+			printf("half duplex ");
 		media &= ~IFM_FDX;
 	}
 
 	if (sc->tl_phy_sts & PHY_BMSR_CANAUTONEG) {
 		media = IFM_ETHER|IFM_AUTO;
-		printf("autonegotiating\n");
+		if (bootverbose)
+			printf("autonegotiating\n");
 	} else
-		printf("\n");
+		if (bootverbose)
+			printf("\n");
 
 	/* If this isn't a known PHY, print the PHY indentifier info. */
-	if (sc->tl_pinfo->tl_vid == 0)
+	if (sc->tl_pinfo->tl_vid == 0 && bootverbose)
 		printf("tl%d: vendor id: %04x product id: %04x\n",
 			sc->tl_unit, sc->tl_phy_vid, sc->tl_phy_did);
 
@@ -1361,12 +1467,10 @@ static int tl_attach_phy(csr, tl_unit, eaddr, tl_phy, ilist)
 	/*
 	 * All ThunderLANs support at least 10baseT half duplex.
 	 * They also support AUI selection if used in 10Mb/s modes.
-	 * They all also support a loopback mode.
 	 */
 	ifmedia_add(&sc->ifmedia, IFM_ETHER|IFM_10_T|IFM_HDX, 0, NULL);
 	ifmedia_add(&sc->ifmedia, IFM_ETHER|IFM_10_T, 0, NULL);
 	ifmedia_add(&sc->ifmedia, IFM_ETHER|IFM_10_5, 0, NULL);
-	ifmedia_add(&sc->ifmedia, IFM_ETHER|IFM_LOOP, 0, NULL);
 
 	/* Some ThunderLAN PHYs support autonegotiation. */
 	if (sc->tl_phy_sts & PHY_BMSR_CANAUTONEG)
@@ -1406,7 +1510,244 @@ static int tl_attach_phy(csr, tl_unit, eaddr, tl_phy, ilist)
 	 */
 	if (sc->tl_phy_sts & PHY_BMSR_CANAUTONEG) {
 		tl_init(sc);
+#ifdef TL_BACKGROUND_AUTONEG
 		tl_autoneg(sc, TL_FLAG_SCHEDDELAY, 1);
+#else
+		tl_autoneg(sc, TL_FLAG_FORCEDELAY, 1);
+#endif
+	}
+
+	return(0);
+}
+
+static void
+tl_attach(config_id, unit)
+	pcici_t			config_id;
+	int			unit;
+{
+	int			s, i, phys = 0;
+#ifndef TL_USEIOSPACE
+	vm_offset_t		pbase, vbase;
+#endif
+	u_int32_t		command;
+	u_int16_t		did, vid;
+	struct tl_type		*t;
+	struct ifnet		*ifp;
+	struct tl_softc		*sc;
+	unsigned int		round;
+	caddr_t			roundptr;
+
+	s = splimp();
+
+	vid = pci_cfgread(config_id, PCIR_VENDOR, 2);
+	did = pci_cfgread(config_id, PCIR_DEVICE, 2);
+
+	t = tl_devs;
+	while(t->tl_name != NULL) {
+		if (vid == t->tl_vid && did == t->tl_did)
+			break;
+		t++;
+	}
+
+	if (t->tl_name == NULL) {
+		printf("tl%d: unknown device!?\n", unit);
+		goto fail;
+	}
+
+	/* First, allocate memory for the softc struct. */
+	sc = malloc(sizeof(struct tl_softc), M_DEVBUF, M_NOWAIT);
+	if (sc == NULL) {
+		printf("tl%d: no memory for softc struct!\n", unit);
+		goto fail;
+	}
+
+	bzero(sc, sizeof(struct tl_softc));
+
+	/*
+	 * Map control/status registers.
+	 */
+	command = pci_conf_read(config_id, PCI_COMMAND_STATUS_REG);
+	command |= (PCIM_CMD_PORTEN|PCIM_CMD_MEMEN|PCIM_CMD_BUSMASTEREN);
+	pci_conf_write(config_id, PCI_COMMAND_STATUS_REG, command);
+	command = pci_conf_read(config_id, PCI_COMMAND_STATUS_REG);
+
+#ifdef TL_USEIOSPACE
+	if (!(command & PCIM_CMD_PORTEN)) {
+		printf("tl%d: failed to enable I/O ports!\n", unit);
+		free(sc, M_DEVBUF);
+		goto fail;
+	}
+
+	sc->iobase = pci_conf_read(config_id, TL_PCI_LOIO) & 0xFFFFFFFC;
+#else
+	if (!(command & PCIM_CMD_MEMEN)) {
+		printf("tl%d: failed to enable memory mapping!\n", unit);
+		goto fail;
+	}
+
+	if (!pci_map_mem(config_id, TL_PCI_LOMEM, &vbase, &pbase)) {
+		printf ("tl%d: couldn't map memory\n", unit);
+		goto fail;
+	}
+
+	sc->csr = (volatile caddr_t)vbase;
+#endif
+
+#ifdef notdef
+	/*
+	 * The ThunderLAN manual suggests jacking the PCI latency
+	 * timer all the way up to its maximum value. I'm not sure
+	 * if this is really necessary, but what the manual wants,
+	 * the manual gets.
+	 */
+	command = pci_conf_read(config_id, TL_PCI_LATENCY_TIMER);
+	command |= 0x0000FF00;
+	pci_conf_write(config_id, TL_PCI_LATENCY_TIMER, command);
+#endif
+
+	/* Allocate interrupt */
+	if (!pci_map_int(config_id, tl_intr, sc, &net_imask)) {
+		printf("tl%d: couldn't map interrupt\n", unit);
+		goto fail;
+	}
+
+	/*
+	 * Now allocate memory for the TX and RX lists. Note that
+	 * we actually allocate 8 bytes more than we really need:
+	 * this is because we need to adjust the final address to
+	 * be aligned on a quadword (64-bit) boundary in order to
+	 * make the chip happy. If the list structures aren't properly
+	 * aligned, DMA fails and the chip generates an adapter check
+	 * interrupt and has to be reset. If you set up the softc struct
+	 * just right you can sort of obtain proper alignment 'by chance.'
+	 * But I don't want to depend on this, so instead the alignment
+	 * is forced here.
+	 */
+	sc->tl_ldata_ptr = malloc(sizeof(struct tl_list_data) + 8,
+				M_DEVBUF, M_NOWAIT);
+
+	if (sc->tl_ldata_ptr == NULL) {
+		free(sc, M_DEVBUF);
+		printf("tl%d: no memory for list buffers!\n", unit);
+		goto fail;
+	}
+
+	/*
+	 * Convoluted but satisfies my ANSI sensibilities. GCC lets
+	 * you do casts on the LHS of an assignment, but ANSI doesn't
+	 * allow that.
+	 */
+	sc->tl_ldata = (struct tl_list_data *)sc->tl_ldata_ptr;
+	round = (unsigned int)sc->tl_ldata_ptr & 0xF;
+	roundptr = sc->tl_ldata_ptr;
+	for (i = 0; i < 8; i++) {
+		if (round % 8) {
+			round++;
+			roundptr++;
+		} else
+			break;
+	}
+	sc->tl_ldata = (struct tl_list_data *)roundptr;
+
+	bzero(sc->tl_ldata, sizeof(struct tl_list_data));
+
+	sc->tl_unit = unit;
+	sc->tl_dinfo = t;
+	if (t->tl_vid == COMPAQ_VENDORID)
+		sc->tl_eeaddr = TL_EEPROM_EADDR;
+	if (t->tl_vid == OLICOM_VENDORID)
+		sc->tl_eeaddr = TL_EEPROM_EADDR_OC;
+
+	/* Reset the adapter. */
+	tl_softreset(sc, 1);
+	tl_hardreset(sc);
+	tl_softreset(sc, 1);
+
+	/*
+	 * Get station address from the EEPROM.
+	 */
+	if (tl_read_eeprom(sc, (caddr_t)&sc->arpcom.ac_enaddr,
+				sc->tl_eeaddr, ETHER_ADDR_LEN)) {
+		printf("tl%d: failed to read station address\n", unit);
+		goto fail;
+	}
+
+        /*
+         * XXX Olicom, in its desire to be different from the
+         * rest of the world, has done strange things with the
+         * encoding of the station address in the EEPROM. First
+         * of all, they store the address at offset 0xF8 rather
+         * than at 0x83 like the ThunderLAN manual suggests.
+         * Second, they store the address in three 16-bit words in
+         * network byte order, as opposed to storing it sequentially
+         * like all the other ThunderLAN cards. In order to get
+         * the station address in a form that matches what the Olicom
+         * diagnostic utility specifies, we have to byte-swap each
+         * word. To make things even more confusing, neither 00:00:28
+         * nor 00:00:24 appear in the IEEE OUI database.
+         */
+        if (sc->tl_dinfo->tl_vid == OLICOM_VENDORID) {
+                for (i = 0; i < ETHER_ADDR_LEN; i += 2) {
+                        u_int16_t               *p;
+                        p = (u_int16_t *)&sc->arpcom.ac_enaddr[i];
+                        *p = ntohs(*p);
+                }
+        }
+
+	/*
+	 * A ThunderLAN chip was detected. Inform the world.
+	 */
+	printf("tl%d: Ethernet address: %6D\n", unit,
+				sc->arpcom.ac_enaddr, ":");
+
+	ifp = &sc->arpcom.ac_if;
+	ifp->if_softc = sc;
+	ifp->if_unit = sc->tl_unit;
+	ifp->if_name = "tl";
+	ifp->if_flags = IFF_BROADCAST | IFF_SIMPLEX | IFF_MULTICAST;
+	ifp->if_ioctl = tl_ioctl;
+	ifp->if_output = ether_output;
+	ifp->if_start = tl_start;
+	ifp->if_watchdog = tl_watchdog;
+	ifp->if_init = tl_init;
+	ifp->if_mtu = ETHERMTU;
+	callout_handle_init(&sc->tl_stat_ch);
+
+	/* Reset the adapter again. */
+	tl_softreset(sc, 1);
+	tl_hardreset(sc);
+	tl_softreset(sc, 1);
+
+	/*
+	 * Now attach the ThunderLAN's PHYs. There will always
+	 * be at least one PHY; if the PHY address is 0x1F, then
+	 * it's the internal one.
+	 */
+
+	for (i = TL_PHYADDR_MIN; i < TL_PHYADDR_MAX + 1; i++) {
+		sc->tl_phy_addr = i;
+		if (bootverbose)
+			printf("tl%d: looking for phy at addr %x\n", unit, i);
+		tl_phy_writereg(sc, PHY_BMCR, PHY_BMCR_RESET);
+		DELAY(500);
+		while(tl_phy_readreg(sc, PHY_BMCR) & PHY_BMCR_RESET);
+		sc->tl_phy_sts = tl_phy_readreg(sc, PHY_BMSR);
+		if (bootverbose)
+			printf("tl%d: status: %x\n", unit, sc->tl_phy_sts);
+		if (!sc->tl_phy_sts)
+			continue;
+		if (tl_attach_phy(sc)) {
+			printf("tl%d: failed to attach a phy %d\n", unit, i);
+			goto fail;
+		}
+		phys++;
+		if (phys && i != TL_PHYADDR_MAX)
+			break;
+	}
+
+	if (!phys) {
+		printf("tl%d: no physical interfaces attached!\n", unit);
+		goto fail;
 	}
 
 	/*
@@ -1419,155 +1760,8 @@ static int tl_attach_phy(csr, tl_unit, eaddr, tl_phy, ilist)
 	bpfattach(ifp, DLT_EN10MB, sizeof(struct ether_header));
 #endif
 
-	return(0);
-}
+	at_shutdown(tl_shutdown, sc, SHUTDOWN_POST_SYNC);
 
-static void
-tl_attach_ctlr(config_id, unit)
-	pcici_t			config_id;
-	int			unit;
-{
-	int			s, i, phys = 0;
-	vm_offset_t		pbase, vbase;
-	volatile struct tl_csr	*csr;
-	u_char			eaddr[ETHER_ADDR_LEN];
-	struct tl_mii_frame	frame;
-	u_int32_t		command;
-	struct tl_iflist	*ilist;
-
-	s = splimp();
-
-	for (ilist = tl_iflist; ilist != NULL; ilist = ilist->tl_next)
-		if (ilist->tl_config_id == config_id)
-			break;
-
-	if (ilist == NULL) {
-		printf("couldn't match config id with controller struct\n");
-		goto fail;
-	}
-
-	/*
-	 * Map control/status registers.
-	 */
-	pci_conf_write(config_id, PCI_COMMAND_STATUS_REG,
-			PCIM_CMD_MEMEN|PCIM_CMD_BUSMASTEREN);
-
-	command = pci_conf_read(config_id, PCI_COMMAND_STATUS_REG);
-
-	if (!(command & PCIM_CMD_MEMEN)) {
-		printf("tlc%d: failed to enable memory mapping!\n", unit);
-		goto fail;
-	}
-
-	if (!pci_map_mem(config_id, TL_PCI_LOMEM, &vbase, &pbase)) {
-		printf ("tlc%d: couldn't map memory\n", unit);
-		goto fail;
-	}
-
-	csr = (volatile struct tl_csr *)vbase;
-
-	ilist->csr = csr;
-	ilist->tl_active_phy = TL_PHYS_IDLE;
-	ilist->tlc_unit = unit;
-
-	/* Allocate interrupt */
-	if (!pci_map_int(config_id, tl_intr, ilist, &net_imask)) {
-		printf("tlc%d: couldn't map interrupt\n", unit);
-		goto fail;
-	}
-
-	/* Reset the adapter. */
-	tl_softreset(csr, 1);
-
-	/*
-	 * Get station address from the EEPROM.
-	 */
-	if (tl_read_eeprom(csr, (caddr_t)&eaddr,
-				ilist->tl_eeaddr, ETHER_ADDR_LEN)) {
-		printf("tlc%d: failed to read station address\n", unit);
-		goto fail;
-	}
-
-	/*
-	 * XXX Olicom, in its desire to be different from the
-	 * rest of the world, has done strange things with the
-	 * encoding of the station address in the EEPROM. First
-	 * of all, they store the address at offset 0xF8 rather
-	 * than at 0x83 like the ThunderLAN manual suggests.
-	 * Second, they store the address in 16-bit chunks in
-	 * network byte order, as opposed to storing it sequentially
-	 * like all the other ThunderLAN cards. In order to get
-	 * the station address in a form that matches what the Olicom
-	 * diagnostic utility specifies, we have to byte-swap each
-	 * word. To make things even more confusing, neither 00:00:28
-	 * nor 00:00:24 appear in the IEEE OUI database.
-	 */
-	if (ilist->tl_dinfo->tl_vid == OLICOM_VENDORID) {
-		for (i = 0; i < ETHER_ADDR_LEN; i += 2) {
-			u_int16_t		*p;
-			p = (u_int16_t *)&eaddr[i];
-			*p = ntohs(*p);
-		}
-	}
-
-	/*
-	 * A ThunderLAN chip was detected. Inform the world.
-	 */
-	printf("tlc%d: Ethernet address: %6D\n", unit, eaddr, ":");
-
-	/*
-	 * Now attach the ThunderLAN's PHYs. There will always
-	 * be at least one PHY; if the PHY address is 0x1F, then
-	 * it's the internal one. If we encounter a lower numbered
-	 * PHY, we ignore the internal once since enabling the
-	 * internal PHY disables the external one.
-	 */
-
-	bzero((char *)&frame, sizeof(frame));
-
-	for (i = TL_PHYADDR_MIN; i < TL_PHYADDR_MAX + 1; i++) {
-		frame.mii_phyaddr = i;
-		frame.mii_regaddr = TL_PHY_GENCTL;
-		frame.mii_data = PHY_BMCR_RESET;
-		tl_mii_writereg(csr, &frame);
-		DELAY(500);
-		while(frame.mii_data & PHY_BMCR_RESET)
-			tl_mii_readreg(csr, &frame);
-		frame.mii_regaddr = PHY_BMSR;
-		frame.mii_data = 0;
-		tl_mii_readreg(csr, &frame);
-		if (!frame.mii_data)
-			continue;
-		if (tl_attach_phy(csr, tl_unit_count, eaddr, i, ilist)) {
-			printf("tlc%d: failed to attach interface %d\n",
-						unit, i);
-			goto fail;
-		}
-		tl_unit_count++;
-		phys++;
-		if (phys && i != TL_PHYADDR_MAX)
-			break;
-	}
-
-	if (!phys) {
-		printf("tlc%d: no physical interfaces attached!\n", unit);
-		goto fail;
-	}
-
-	/* Reset internal PHY. */
-	frame.mii_phyaddr = TL_PHYADDR_MAX;
-	frame.mii_regaddr = TL_PHY_GENCTL;
-	frame.mii_data = PHY_BMCR_RESET;
-	tl_mii_writereg(csr, &frame);
-	DELAY(500);
-	/* Do it again. */
-	tl_mii_writereg(csr, &frame);
-	DELAY(500);
-	/* Now isolate it. */
-	frame.mii_data = PHY_BMCR_ISOLATE;
-	tl_mii_writereg(csr, &frame);
-
-	at_shutdown(tl_shutdown, ilist, SHUTDOWN_POST_SYNC);
 fail:
 	splx(s);
 	return;
@@ -1616,7 +1810,8 @@ static int tl_list_rx_init(sc)
 	for (i = 0; i < TL_TX_LIST_CNT; i++) {
 		cd->tl_rx_chain[i].tl_ptr =
 			(struct tl_list_onefrag *)&ld->tl_rx_list[i];
-		tl_newbuf(sc, &cd->tl_rx_chain[i]);
+		if (tl_newbuf(sc, &cd->tl_rx_chain[i]) == ENOBUFS)
+			return(ENOBUFS);
 		if (i == (TL_TX_LIST_CNT - 1)) {
 			cd->tl_rx_chain[i].tl_next = NULL;
 			ld->tl_rx_list[i].tlist_fptr = 0;
@@ -1641,14 +1836,15 @@ static int tl_newbuf(sc, c)
 
 	MGETHDR(m_new, M_DONTWAIT, MT_DATA);
 	if (m_new == NULL) {
-		printf("tl%d: no memory for rx list",
+		printf("tl%d: no memory for rx list -- packet dropped!",
 				sc->tl_unit);
 		return(ENOBUFS);
 	}
 
 	MCLGET(m_new, M_DONTWAIT);
 	if (!(m_new->m_flags & M_EXT)) {
-		printf("tl%d: no memory for rx list", sc->tl_unit);
+		printf("tl%d: no memory for rx list -- packet dropped!",
+				 sc->tl_unit);
 		m_freem(m_new);
 		return(ENOBUFS);
 	}
@@ -1700,6 +1896,10 @@ static int tl_intvec_rxeof(xsc, type)
 	sc = xsc;
 	ifp = &sc->arpcom.ac_if;
 
+#ifdef TL_DEBUG
+	evset(sc, EV_RXEOF);
+#endif
+
 	while(sc->tl_cdata.tl_rx_head->tl_ptr->tlist_cstat & TL_CSTAT_FRAMECMP){
 		r++;
 		cur_rx = sc->tl_cdata.tl_rx_head;
@@ -1707,7 +1907,13 @@ static int tl_intvec_rxeof(xsc, type)
 		m = cur_rx->tl_mbuf;
 		total_len = cur_rx->tl_ptr->tlist_frsize;
 
-		tl_newbuf(sc, cur_rx);
+		if (tl_newbuf(sc, cur_rx) == ENOBUFS) {
+			ifp->if_ierrors++;
+			cur_rx->tl_ptr->tlist_frsize = MCLBYTES;
+			cur_rx->tl_ptr->tlist_cstat = TL_CSTAT_READY;
+			cur_rx->tl_ptr->tl_frag.tlist_dcnt = MCLBYTES;
+			continue;
+		}
 
 		sc->tl_cdata.tl_rx_tail->tl_ptr->tlist_fptr =
 						vtophys(cur_rx->tl_ptr);
@@ -1723,8 +1929,8 @@ static int tl_intvec_rxeof(xsc, type)
 		 * We drop don't need to process our own transmissions,
 		 * so we drop them here and continue.
 		 */
-		if (ifp->if_flags & IFF_PROMISC &&
-			!bcmp(eh->ether_shost, sc->arpcom.ac_enaddr,
+		/*if (ifp->if_flags & IFF_PROMISC && */
+		if (!bcmp(eh->ether_shost, sc->arpcom.ac_enaddr,
 		 					ETHER_ADDR_LEN)) {
 				m_freem(m);
 				continue;
@@ -1777,70 +1983,17 @@ static int tl_intvec_rxeoc(xsc, type)
 
 	sc = xsc;
 
+#ifdef TL_DEBUG
+	evset(sc, EV_RXEOC);
+#endif
+
 	/* Flush out the receive queue and ack RXEOF interrupts. */
 	r = tl_intvec_rxeof(xsc, type);
-	CMD_PUT(sc->csr, TL_CMD_ACK | r | (type & ~(0x00100000)));
+	CMD_PUT(sc, TL_CMD_ACK | r | (type & ~(0x00100000)));
 	r = 1;
-	sc->csr->tl_ch_parm = vtophys(sc->tl_cdata.tl_rx_head->tl_ptr);
+	CSR_WRITE_4(sc, TL_CH_PARM, vtophys(sc->tl_cdata.tl_rx_head->tl_ptr));
 	r |= (TL_CMD_GO|TL_CMD_RT);
 	return(r);
-}
-
-/*
- * Invalid interrupt handler. The manual says invalid interrupts
- * are caused by a hardware error in other hardware and that they
- * should just be ignored.
- */
-static int tl_intvec_invalid(xsc, type)
-	void			*xsc;
-	u_int32_t		type;
-{
-	struct tl_softc		*sc;
-
-	sc = xsc;
-
-#ifdef DIAGNOSTIC
-	printf("tl%d: got an invalid interrupt!\n", sc->tl_unit);
-#endif
-	/* Re-enable interrupts but don't ack this one. */
-	CMD_PUT(sc->csr, type);
-
-	return(0);
-}
-
-/*
- * Dummy interrupt handler. Dummy interrupts are generated by setting
- * the ReqInt bit in the host command register. They should only occur
- * if we ask for them, and we never do, so if one magically appears,
- * we should make some noise about it.
- */
-static int tl_intvec_dummy(xsc, type)
-	void			*xsc;
-	u_int32_t		type;
-{
-	struct tl_softc		*sc;
-
-	sc = xsc;
-	printf("tl%d: got a dummy interrupt\n", sc->tl_unit);
-
-	return(1);
-}
-
-/*
- * Stats counter overflow interrupt. The chip delivers one of these
- * if we don't poll the stats counters often enough.
- */
-static int tl_intvec_statoflow(xsc, type)
-	void			*xsc;
-	u_int32_t		type;
-{
-	struct tl_softc		*sc;
-
-	sc = xsc;
-
-	tl_stats_update(sc);
-
-	return(1);
 }
 
 static int tl_intvec_txeof(xsc, type)
@@ -1852,6 +2005,10 @@ static int tl_intvec_txeof(xsc, type)
 	struct tl_chain		*cur_tx;
 
 	sc = xsc;
+
+#ifdef TL_DEBUG
+	evset(sc, EV_TXEOF);
+#endif
 
 	/*
 	 * Go through our tx list and free mbufs for those
@@ -1909,6 +2066,10 @@ static int tl_intvec_txeoc(xsc, type)
 	/* Clear the timeout timer. */
 	ifp->if_timer = 0;
 
+#ifdef TL_DEBUG
+	evset(sc, EV_TXEOC);
+#endif
+
 	if (sc->tl_cdata.tl_tx_head == NULL) {
 		ifp->if_flags &= ~IFF_OACTIVE;
 		sc->tl_cdata.tl_tx_tail = NULL;
@@ -1926,14 +2087,15 @@ static int tl_intvec_txeoc(xsc, type)
 	} else {
 		sc->tl_txeoc = 0;
 		/* First we have to ack the EOC interrupt. */
-		CMD_PUT(sc->csr, TL_CMD_ACK | 0x00000001 | type);
+		CMD_PUT(sc, TL_CMD_ACK | 0x00000001 | type);
 		/* Then load the address of the next TX list. */
-		sc->csr->tl_ch_parm = vtophys(sc->tl_cdata.tl_tx_head->tl_ptr);
+		CSR_WRITE_4(sc, TL_CH_PARM,
+				vtophys(sc->tl_cdata.tl_tx_head->tl_ptr));
 		/* Restart TX channel. */
-		cmd = sc->csr->tl_host_cmd;
+		cmd = CSR_READ_4(sc, TL_HOSTCMD);
 		cmd &= ~TL_CMD_RT;
 		cmd |= TL_CMD_GO|TL_CMD_INTSON;
-		CMD_PUT(sc->csr, cmd);
+		CMD_PUT(sc, cmd);
 		return(0);
 	}
 
@@ -1946,12 +2108,14 @@ static int tl_intvec_adchk(xsc, type)
 {
 	struct tl_softc		*sc;
 	u_int16_t		bmcr, ctl;
-	volatile struct tl_csr	*csr;
 
 	sc = xsc;
-	csr = sc->csr;
 
-	printf("tl%d: adapter check: %x\n", sc->tl_unit, sc->csr->tl_ch_parm);
+	printf("tl%d: adapter check: %x\n", sc->tl_unit,
+			CSR_READ_4(sc, TL_CH_PARM));
+#ifdef TL_DEBUG
+	evshow(sc);
+#endif
 
 	/*
 	 * Before resetting the adapter, try reading the PHY
@@ -1961,19 +2125,17 @@ static int tl_intvec_adchk(xsc, type)
 	 */
 	bmcr = tl_phy_readreg(sc, PHY_BMCR);
 	ctl = tl_phy_readreg(sc, TL_PHY_CTL);
-	tl_softreset(sc->csr, sc->tl_phy_addr == TL_PHYADDR_MAX ? 1 : 0);
+	tl_softreset(sc, 1);
 	tl_phy_writereg(sc, PHY_BMCR, bmcr);
 	tl_phy_writereg(sc, TL_PHY_CTL, ctl);
 	if (bmcr & PHY_BMCR_DUPLEX) {
-		DIO_SEL(TL_NETCMD);
-		DIO_BYTE0_SET(TL_CMD_DUPLEX);
+		tl_dio_setbit(sc, TL_NETCMD, TL_CMD_DUPLEX);
 	} else {
-		DIO_SEL(TL_NETCMD);
-		DIO_BYTE0_CLR(TL_CMD_DUPLEX);
+		tl_dio_clrbit(sc, TL_NETCMD, TL_CMD_DUPLEX);
 	}
 	tl_stop(sc);
 	tl_init(sc);
-	CMD_SET(sc->csr, TL_CMD_INTSON);
+	CMD_SET(sc, TL_CMD_INTSON);
 
 	return(0);
 }
@@ -1984,72 +2146,46 @@ static int tl_intvec_netsts(xsc, type)
 {
 	struct tl_softc		*sc;
 	u_int16_t		netsts;
-	volatile struct tl_csr	*csr;
 
 	sc = xsc;
-	csr = sc->csr;
 
-	DIO_SEL(TL_NETSTS);
-	netsts = DIO_BYTE2_GET(0xFF);
-	DIO_BYTE2_SET(netsts);
+	netsts = tl_dio_read16(sc, TL_NETSTS);
+	tl_dio_write16(sc, TL_NETSTS, netsts);
 
 	printf("tl%d: network status: %x\n", sc->tl_unit, netsts);
 
 	return(1);
 }
 
-static void tl_intr(xilist)
-	void			*xilist;
+static void tl_intr(xsc)
+	void			*xsc;
 {
-	struct tl_iflist	*ilist;
 	struct tl_softc		*sc;
-	volatile struct tl_csr	*csr;
 	struct ifnet		*ifp;
 	int			r = 0;
 	u_int32_t		type = 0;
 	u_int16_t		ints = 0;
 	u_int8_t		ivec = 0;
 
-	ilist = xilist;
-	csr = ilist->csr;
+	sc = xsc;
 
 	/* Disable interrupts */
-	ints = csr->tl_host_int;
-	csr->tl_host_int = ints;
+	ints = CSR_READ_2(sc, TL_HOST_INT);
+	CSR_WRITE_2(sc, TL_HOST_INT, ints);
 	type = (ints << 16) & 0xFFFF0000;
 	ivec = (ints & TL_VEC_MASK) >> 5;
 	ints = (ints & TL_INT_MASK) >> 2;
-	/*
- 	 * An interrupt has been posted by the ThunderLAN, but we
-	 * have to figure out which PHY generated it before we can
-	 * do anything with it. If we receive an interrupt when we
-	 * know none of the PHYs are turned on, then either there's
-	 * a bug in the driver or we we handed an interrupt that
-	 * doesn't actually belong to us.
-	 */
-	if (ilist->tl_active_phy == TL_PHYS_IDLE) {
-		/*
-		 * Exception: if this is an invalid interrupt,
-		 * just re-enable interrupts and ignore it. Probably
-		 * what's happened is that we got an interrupt meant
-		 * for another PCI device that's sharing our IRQ.
-		 */
-		if (ints == TL_INTR_INVALID) {
-			CMD_SET(csr, type);
-			return;
-		}
-		printf("tlc%d: interrupt type %x with all phys idle\n",
-			ilist->tlc_unit, ints);
-		return;
-	}
 
-	sc = ilist->tl_sc[ilist->tl_active_phy];
-	csr = sc->csr;
 	ifp = &sc->arpcom.ac_if;
 
 	switch(ints) {
 	case (TL_INTR_INVALID):
-		r = tl_intvec_invalid((void *)sc, type);
+#ifdef DIAGNOSTIC
+		printf("tl%d: got an invalid interrupt!\n", sc->tl_unit);
+#endif
+		/* Re-enable interrupts but don't ack this one. */
+		CMD_PUT(sc, type);
+		r = 0;
 		break;
 	case (TL_INTR_TXEOF):
 		r = tl_intvec_txeof((void *)sc, type);
@@ -2058,13 +2194,15 @@ static void tl_intr(xilist)
 		r = tl_intvec_txeoc((void *)sc, type);
 		break;
 	case (TL_INTR_STATOFLOW):
-		r = tl_intvec_statoflow((void *)sc, type);
+		tl_stats_update(sc);
+		r = 1;
 		break;
 	case (TL_INTR_RXEOF):
 		r = tl_intvec_rxeof((void *)sc, type);
 		break;
 	case (TL_INTR_DUMMY):
-		r = tl_intvec_dummy((void *)sc, type);
+		printf("tl%d: got a dummy interrupt\n", sc->tl_unit);
+		r = 1;
 		break;
 	case (TL_INTR_ADCHK):
 		if (ivec)
@@ -2082,7 +2220,7 @@ static void tl_intr(xilist)
 
 	/* Re-enable interrupts */
 	if (r) {
-		CMD_PUT(csr, TL_CMD_ACK | r | type);
+		CMD_PUT(sc, TL_CMD_ACK | r | type);
 	}
 
 	if (ifp->if_snd.ifq_head != NULL)
@@ -2096,24 +2234,22 @@ static void tl_stats_update(xsc)
 {
 	struct tl_softc		*sc;
 	struct ifnet		*ifp;
-	volatile struct tl_csr	*csr;
 	struct tl_stats		tl_stats;
 	u_int32_t		*p;
 
 	bzero((char *)&tl_stats, sizeof(struct tl_stats));
 
 	sc = xsc;
-	csr = sc->csr;
 	ifp = &sc->arpcom.ac_if;
 
 	p = (u_int32_t *)&tl_stats;
 
-	DIO_SEL(TL_TXGOODFRAMES|TL_DIO_ADDR_INC);
-	DIO_LONG_GET(*p++);
-	DIO_LONG_GET(*p++);
-	DIO_LONG_GET(*p++);
-	DIO_LONG_GET(*p++);
-	DIO_LONG_GET(*p++);
+	CSR_WRITE_2(sc, TL_DIO_ADDR, TL_TXGOODFRAMES|TL_DIO_ADDR_INC);
+	*p++ = CSR_READ_4(sc, TL_DIO_DATA);
+	*p++ = CSR_READ_4(sc, TL_DIO_DATA);
+	*p++ = CSR_READ_4(sc, TL_DIO_DATA);
+	*p++ = CSR_READ_4(sc, TL_DIO_DATA);
+	*p++ = CSR_READ_4(sc, TL_DIO_DATA);
 
 	ifp->if_opackets += tl_tx_goodframes(tl_stats);
 	ifp->if_collisions += tl_stats.tl_tx_single_collision +
@@ -2205,7 +2341,8 @@ static int tl_encap(sc, c, m_head)
 	 */
 	if (total_len < TL_MIN_FRAMELEN) {
 		if (frag == TL_MAXFRAGS)
-			printf("all frags filled but frame still to small!\n");
+			printf("tl%d: all frags filled but "
+				"frame still to small!\n", sc->tl_unit);
 		f = &c->tl_ptr->tl_frag[frag];
 		f->tlist_dcnt = TL_MIN_FRAMELEN - total_len;
 		f->tlist_dadr = vtophys(&sc->tl_ldata->tl_pad);
@@ -2232,13 +2369,11 @@ static void tl_start(ifp)
 	struct ifnet		*ifp;
 {
 	struct tl_softc		*sc;
-	volatile struct tl_csr	*csr;
 	struct mbuf		*m_head = NULL;
 	u_int32_t		cmd;
 	struct tl_chain		*prev = NULL, *cur_tx = NULL, *start_tx;
 
 	sc = ifp->if_softc;
-	csr = sc->csr;
 
 	if (sc->tl_autoneg) {
 		sc->tl_tx_pend = 1;
@@ -2297,15 +2432,25 @@ static void tl_start(ifp)
 	if (sc->tl_cdata.tl_tx_head == NULL) {
 		sc->tl_cdata.tl_tx_head = start_tx;
 		sc->tl_cdata.tl_tx_tail = cur_tx;
+#ifdef TL_DEBUG
+		evset(sc, EV_START_TX);
+#endif
+
 		if (sc->tl_txeoc) {
+#ifdef TL_DEBUG
+			evset(sc, EV_START_TX_REAL);
+#endif
 			sc->tl_txeoc = 0;
-			sc->csr->tl_ch_parm = vtophys(start_tx->tl_ptr);
-			cmd = sc->csr->tl_host_cmd;
+			CSR_WRITE_4(sc, TL_CH_PARM, vtophys(start_tx->tl_ptr));
+			cmd = CSR_READ_4(sc, TL_HOSTCMD);
 			cmd &= ~TL_CMD_RT;
 			cmd |= TL_CMD_GO|TL_CMD_INTSON;
-			CMD_PUT(sc->csr, cmd);
+			CMD_PUT(sc, cmd);
 		}
 	} else {
+#ifdef TL_DEBUG
+		evset(sc, EV_START_Q);
+#endif
 		sc->tl_cdata.tl_tx_tail->tl_next = start_tx;
 	}
 
@@ -2322,13 +2467,19 @@ static void tl_init(xsc)
 {
 	struct tl_softc		*sc = xsc;
 	struct ifnet		*ifp = &sc->arpcom.ac_if;
-	volatile struct tl_csr	*csr = sc->csr;
         int			s;
 	u_int16_t		phy_sts;
+
+	if (sc->tl_autoneg)
+		return;
 
 	s = splimp();
 
 	ifp = &sc->arpcom.ac_if;
+
+#ifdef TL_DEBUG
+	evset(sc, EV_INIT);
+#endif
 
 	/*
 	 * Cancel pending I/O.
@@ -2338,38 +2489,30 @@ static void tl_init(xsc)
 	/*
 	 * Set 'capture all frames' bit for promiscuous mode.
 	 */
-	if (ifp->if_flags & IFF_PROMISC) {
-		DIO_SEL(TL_NETCMD);
-		DIO_BYTE0_SET(TL_CMD_CAF);
-	} else {
-		DIO_SEL(TL_NETCMD);
-		DIO_BYTE0_CLR(TL_CMD_CAF);
-	}
+	if (ifp->if_flags & IFF_PROMISC)
+		tl_dio_setbit(sc, TL_NETCMD, TL_CMD_CAF);
+	else
+		tl_dio_clrbit(sc, TL_NETCMD, TL_CMD_CAF);
 
 	/*
 	 * Set capture broadcast bit to capture broadcast frames.
 	 */
-	if (ifp->if_flags & IFF_BROADCAST) {
-		DIO_SEL(TL_NETCMD);
-		DIO_BYTE0_CLR(TL_CMD_NOBRX);
-	} else {
-		DIO_SEL(TL_NETCMD);
-		DIO_BYTE0_SET(TL_CMD_NOBRX);
-	}
+	if (ifp->if_flags & IFF_BROADCAST)
+		tl_dio_clrbit(sc, TL_NETCMD, TL_CMD_NOBRX);
+	else
+		tl_dio_setbit(sc, TL_NETCMD, TL_CMD_NOBRX);
 
 	/* Init our MAC address */
-	DIO_SEL(TL_AREG0_B5);
-	csr->u.tl_dio_bytes.byte0 = sc->arpcom.ac_enaddr[0];
-	csr->u.tl_dio_bytes.byte1 = sc->arpcom.ac_enaddr[1];
-	csr->u.tl_dio_bytes.byte2 = sc->arpcom.ac_enaddr[2];
-	csr->u.tl_dio_bytes.byte3 = sc->arpcom.ac_enaddr[3];
-	DIO_SEL(TL_AREG0_B1);
-	csr->u.tl_dio_bytes.byte0 = sc->arpcom.ac_enaddr[4];
-	csr->u.tl_dio_bytes.byte1 = sc->arpcom.ac_enaddr[5];
+	tl_setfilt(sc, sc->arpcom.ac_enaddr, 0);
+
+	/* Init multicast filter, if needed. */
+	tl_setmulti(sc);
 
 	/* Init circular RX list. */
-	if (tl_list_rx_init(sc)) {
-		printf("tl%d: failed to set up rx lists\n", sc->tl_unit);
+	if (tl_list_rx_init(sc) == ENOBUFS) {
+		printf("tl%d: initialization failed: no "
+			"memory for rx buffers\n", sc->tl_unit);
+		tl_stop(sc);
 		return;
 	}
 
@@ -2384,49 +2527,41 @@ static void tl_init(xsc)
 	tl_phy_writereg(sc, TL_PHY_CTL, phy_sts);
 
 	/* Enable MII interrupts. */
-	DIO_SEL(TL_NETSIO);
-	DIO_BYTE1_SET(TL_SIO_MINTEN);
+	tl_dio_setbit(sc, TL_NETSIO, TL_SIO_MINTEN);
 
-	/* Enable PCI interrupts. */	
-        CMD_SET(sc->csr, TL_CMD_INTSON);
+	/* Enable PCI interrupts. */
+	CMD_SET(sc, TL_CMD_INTSON);
 
 	/* Load the address of the rx list */
-	CMD_SET(sc->csr, TL_CMD_RT);
-	sc->csr->tl_ch_parm = vtophys(&sc->tl_ldata->tl_rx_list[0]);
+	CMD_SET(sc, TL_CMD_RT);
+	CSR_WRITE_4(sc, TL_CH_PARM, vtophys(&sc->tl_ldata->tl_rx_list[0]));
 
 	/*
-	 * XXX The following is a kludge. I've recently encountered
-	 * a version of the Olicom OC-2326 with what looks like a
-	 * mutant version of the ThunderLAN chip with a high-speed
-	 * PHY at MII address 0, but whose vendor and device ID
-	 * registers return 0. The tricky thing about these cards is
-	 * that while you can autonegotiate 10/100 half/full duplex
-	 * modes using just the PHY at address 0, you need to isolate
-	 * the internal PHY at address 31 in order to use 100Mbps modes
-	 * and un-isolate it if you want to use 10Mbps modes.
-	 * I'm not sure if this nonsense is Olicom's doing or if this
-	 * really is a special version of the ThunderLAN with built-in
-	 * 100Mbps support, but I don't have a simple way to 'spot the
-	 * looney' other than checking the PHY vendor ID.
-	 */
-	if (!sc->tl_phy_vid) {
-		u_int8_t			addr = 0;
-		u_int16_t			bmcr;
+	 * XXX This is a kludge to handle adapters with the Micro Linear
+	 * ML6692 100BaseTX PHY, which only supports 100Mbps modes and
+	 * relies on the controller's internal 10Mbps PHY to provide
+	 * 10Mbps modes. The ML6692 always shows up with a vendor/device ID
+	 * of 0 (it doesn't actually have vendor/device ID registers)
+	 * so we use that property to detect it. In theory there ought to
+	 * be a better way to 'spot the looney' but I can't find one.
+         */
+        if (!sc->tl_phy_vid) {
+                u_int8_t                        addr = 0;
+                u_int16_t                       bmcr;
 
-		bmcr = tl_phy_readreg(sc, PHY_BMCR);
-		addr = sc->tl_phy_addr;
-		sc->tl_phy_addr = TL_PHYADDR_MAX;
-		tl_phy_writereg(sc, PHY_BMCR, PHY_BMCR_RESET);
-		if (bmcr & PHY_BMCR_SPEEDSEL)
-			tl_phy_writereg(sc, PHY_BMCR, PHY_BMCR_ISOLATE);
-		else
-			tl_phy_writereg(sc, PHY_BMCR, bmcr);
-		sc->tl_phy_addr = addr;
-	}
+                bmcr = tl_phy_readreg(sc, PHY_BMCR);
+                addr = sc->tl_phy_addr;
+                sc->tl_phy_addr = TL_PHYADDR_MAX;
+                tl_phy_writereg(sc, PHY_BMCR, PHY_BMCR_RESET);
+                if (bmcr & PHY_BMCR_SPEEDSEL)
+                        tl_phy_writereg(sc, PHY_BMCR, PHY_BMCR_ISOLATE);
+                else
+                        tl_phy_writereg(sc, PHY_BMCR, bmcr);
+                sc->tl_phy_addr = addr;
+        }
 
 	/* Send the RX go command */
-	CMD_SET(sc->csr, (TL_CMD_GO|TL_CMD_RT));
-	sc->tl_iflist->tl_active_phy = sc->tl_phy_addr;
+	CMD_SET(sc, TL_CMD_GO|TL_CMD_RT);
 
 	ifp->if_flags |= IFF_RUNNING;
 	ifp->if_flags &= ~IFF_OACTIVE;
@@ -2446,11 +2581,9 @@ static int tl_ifmedia_upd(ifp)
 	struct ifnet		*ifp;
 {
 	struct tl_softc		*sc;
-	volatile struct tl_csr	*csr;
 	struct ifmedia		*ifm;
 
 	sc = ifp->if_softc;
-	csr = sc->csr;
 	ifm = &sc->ifmedia;
 
 	if (IFM_TYPE(ifm->ifm_media) != IFM_ETHER)
@@ -2474,10 +2607,8 @@ static void tl_ifmedia_sts(ifp, ifmr)
 	u_int16_t		phy_ctl;
 	u_int16_t		phy_sts;
 	struct tl_softc		*sc;
-	volatile struct tl_csr	*csr;
 
 	sc = ifp->if_softc;
-	csr = sc->csr;
 
 	ifmr->ifm_active = IFM_ETHER;
 
@@ -2485,15 +2616,15 @@ static void tl_ifmedia_sts(ifp, ifmr)
 	phy_sts = tl_phy_readreg(sc, TL_PHY_CTL);
 
 	if (phy_sts & PHY_CTL_AUISEL)
-		ifmr->ifm_active |= IFM_10_5;
+		ifmr->ifm_active = IFM_ETHER|IFM_10_5;
 
 	if (phy_ctl & PHY_BMCR_LOOPBK)
-		ifmr->ifm_active |= IFM_LOOP;
+		ifmr->ifm_active = IFM_ETHER|IFM_LOOP;
 
 	if (phy_ctl & PHY_BMCR_SPEEDSEL)
-		ifmr->ifm_active |= IFM_100_TX;
+		ifmr->ifm_active = IFM_ETHER|IFM_100_TX;
 	else
-		ifmr->ifm_active |= IFM_10_T;
+		ifmr->ifm_active = IFM_ETHER|IFM_10_T;
 
 	if (phy_ctl & PHY_BMCR_DUPLEX) {
 		ifmr->ifm_active |= IFM_FDX;
@@ -2502,9 +2633,6 @@ static void tl_ifmedia_sts(ifp, ifmr)
 		ifmr->ifm_active &= ~IFM_FDX;
 		ifmr->ifm_active |= IFM_HDX;
 	}
-
-	if (phy_ctl & PHY_BMCR_AUTONEGENBL)
-		ifmr->ifm_active |= IFM_AUTO;
 
 	return;
 }
@@ -2527,21 +2655,10 @@ static int tl_ioctl(ifp, command, data)
 		error = ether_ioctl(ifp, command, data);
 		break;
 	case SIOCSIFFLAGS:
-		/*
-		 * Make sure no more than one PHY is active
-		 * at any one time.
-		 */
 		if (ifp->if_flags & IFF_UP) {
-			if (sc->tl_iflist->tl_active_phy != TL_PHYS_IDLE &&
-			    sc->tl_iflist->tl_active_phy != sc->tl_phy_addr) {
-				error = EINVAL;
-				break;
-			}
-			sc->tl_iflist->tl_active_phy = sc->tl_phy_addr;
 			tl_init(sc);
 		} else {
 			if (ifp->if_flags & IFF_RUNNING) {
-				sc->tl_iflist->tl_active_phy = TL_PHYS_IDLE;
 				tl_stop(sc);
 			}
 		}
@@ -2574,6 +2691,10 @@ static void tl_watchdog(ifp)
 
 	sc = ifp->if_softc;
 
+#ifdef TL_DEBUG
+	evset(sc, EV_WATCHDOG);
+#endif
+
 	if (sc->tl_autoneg) {
 		tl_autoneg(sc, TL_FLAG_DELAYTIMEO, 1);
 		return;
@@ -2604,49 +2725,36 @@ static void tl_stop(sc)
 {
 	register int		i;
 	struct ifnet		*ifp;
-	volatile struct tl_csr	*csr;
-	struct tl_mii_frame	frame;
 
-	csr = sc->csr;
 	ifp = &sc->arpcom.ac_if;
 
 	/* Stop the stats updater. */
 	untimeout(tl_stats_update, sc, sc->tl_stat_ch);
 
 	/* Stop the transmitter */
-	CMD_CLR(sc->csr, TL_CMD_RT);
-	CMD_SET(sc->csr, TL_CMD_STOP);
+	CMD_CLR(sc, TL_CMD_RT);
+	CMD_SET(sc, TL_CMD_STOP);
+	CSR_WRITE_4(sc, TL_CH_PARM, 0);
 
 	/* Stop the receiver */
-	CMD_SET(sc->csr, TL_CMD_RT);
-	CMD_SET(sc->csr, TL_CMD_STOP);
+	CMD_SET(sc, TL_CMD_RT);
+	CMD_SET(sc, TL_CMD_STOP);
+	CSR_WRITE_4(sc, TL_CH_PARM, 0);
 
 	/*
 	 * Disable host interrupts.
 	 */
-	CMD_SET(sc->csr, TL_CMD_INTSOFF);
-
-	/*
-	 * Disable PHY interrupts.
-	 */
-	bzero((char *)&frame, sizeof(frame));
-
-	frame.mii_phyaddr = sc->tl_phy_addr;
-	frame.mii_regaddr = TL_PHY_CTL;
-	tl_mii_readreg(csr, &frame);
-	frame.mii_data |= PHY_CTL_INTEN;
-	tl_mii_writereg(csr, &frame);
+	CMD_SET(sc, TL_CMD_INTSOFF);
 
 	/*
 	 * Disable MII interrupts.
 	 */
-	DIO_SEL(TL_NETSIO);
-	DIO_BYTE1_CLR(TL_SIO_MINTEN);
+	tl_dio_clrbit(sc, TL_NETSIO, TL_SIO_MINTEN);
 
 	/*
 	 * Clear list pointer.
 	 */
-	sc->csr->tl_ch_parm = 0;
+	CSR_WRITE_4(sc, TL_CH_PARM, 0);
 
 	/*
 	 * Free the RX lists.
@@ -2672,7 +2780,6 @@ static void tl_stop(sc)
 	bzero((char *)&sc->tl_ldata->tl_tx_list,
 		sizeof(sc->tl_ldata->tl_tx_list));
 
-	sc->tl_iflist->tl_active_phy = TL_PHYS_IDLE;
 	ifp->if_flags &= ~(IFF_RUNNING | IFF_OACTIVE);
 
 	return;
@@ -2682,56 +2789,25 @@ static void tl_stop(sc)
  * Stop all chip I/O so that the kernel's probe routines don't
  * get confused by errant DMAs when rebooting.
  */
-static void tl_shutdown(howto, xilist)
+static void tl_shutdown(howto, xsc)
 	int			howto;
-	void			*xilist;
+	void			*xsc;
 {
-	struct tl_iflist	*ilist = (struct tl_iflist *)xilist;
-	volatile struct tl_csr	*csr = ilist->csr;
-	struct tl_mii_frame	frame;
-	int			i;
+	struct tl_softc		*sc;
 
-	/* Stop the transmitter */
-	CMD_CLR(csr, TL_CMD_RT);
-	CMD_SET(csr, TL_CMD_STOP);
+	sc = xsc;
 
-	/* Stop the receiver */
-	CMD_SET(csr, TL_CMD_RT);
-	CMD_SET(csr, TL_CMD_STOP);
-
-	/*
-	 * Disable host interrupts.
-	 */
-	CMD_SET(csr, TL_CMD_INTSOFF);
-
-	/*
-	 * Disable PHY interrupts.
-	 */
-	bzero((char *)&frame, sizeof(frame));
-
-	for (i = TL_PHYADDR_MIN; i < TL_PHYADDR_MAX + 1; i++) {
-		frame.mii_phyaddr = i;
-		frame.mii_regaddr = TL_PHY_CTL;
-		tl_mii_readreg(csr, &frame);
-		frame.mii_data |= PHY_CTL_INTEN;
-		tl_mii_writereg(csr, &frame);
-	};
-
-	/*
-	 * Disable MII interrupts.
-	 */
-	DIO_SEL(TL_NETSIO);
-	DIO_BYTE1_CLR(TL_SIO_MINTEN);
+	tl_stop(sc);
 
 	return;
 }
 
 
-static struct pci_device tlc_device = {
-	"tlc",
+static struct pci_device tl_device = {
+	"tl",
 	tl_probe,
-	tl_attach_ctlr,
+	tl_attach,
 	&tl_count,
 	NULL
 };
-DATA_SET(pcidevice_set, tlc_device);
+DATA_SET(pcidevice_set, tl_device);
