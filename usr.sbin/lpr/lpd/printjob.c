@@ -514,7 +514,6 @@ printit(struct printer *pp, char *file)
 
 		case 'Z':       /* locale for pr */
 			strlcpy(locale, line + 1, sizeof(locale));
-			locale[sizeof(locale) - 1] = '\0';
 			continue;
 
 		default:	/* some file to print */
