@@ -31,7 +31,9 @@
 #
 # $FreeBSD$
 #
-#	last edit-date: [Mon Jan 18 14:08:10 1999]
+#	last edit-date: [Wed May  5 16:24:16 1999]
+#
+#	-hm	updated for isdnd support
 #
 #---------------------------------------------------------------------------
 
@@ -84,7 +86,7 @@ close(IN);
 # write header
 print "\n";
 print "     ISDN Accounting Report   ($from -> $to_d $to_h)\n";
-print "     ==================================================================\n";
+print "     =====================================================================\n";
 
 #write the sum for each interface/name
 foreach $name (sort(keys %a_secs))
