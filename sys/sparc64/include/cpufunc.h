@@ -32,6 +32,8 @@
 #include <machine/asi.h>
 #include <machine/pstate.h>
 
+struct thread;
+
 /*
  * membar operand macros for use in other macros when # is a special
  * character.  Keep these in sync with what the hardware expects.
@@ -160,28 +162,10 @@ STNC_GEN(u_long, stxa);
 	    : : "r" (val), "rI" (xor));					\
 } while (0)
 
-#define	CRITICAL_FORK	(0)
-
 static __inline void
 breakpoint(void)
 {
 	__asm __volatile("ta %%xcc, 1" : :);
-}
-
-static __inline critical_t
-cpu_critical_enter(void)
-{
-	critical_t pil;
-
-	pil = rdpr(pil);
-	wrpr(pil, 0, 14);
-	return (pil);
-}
-
-static __inline void
-cpu_critical_exit(critical_t pil)
-{
-	wrpr(pil, pil, 0);
 }
 
 static __inline register_t
@@ -239,5 +223,10 @@ ffs(int mask)
 
 #undef LDNC_GEN
 #undef STNC_GEN
+
+void	cpu_critical_enter(void);
+void	cpu_critical_exit(void);
+void	cpu_critical_fork_exit(void);
+void	cpu_thread_link(struct thread *td);
 
 #endif /* !_MACHINE_CPUFUNC_H_ */

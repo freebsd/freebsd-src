@@ -774,12 +774,16 @@ fork_exit(callout, arg, frame)
 
 	td->td_kse->ke_oncpu = PCPU_GET(cpuid);
 	/*
-	 * Setup the sched_lock state so that we can release it.
+	 * Finish setting up thread glue.  We need to initialize
+	 * the thread into a td_critnest=1 state.  Some platforms
+	 * may have already partially or fully initialized td_critnest
+	 * and/or td_md.md_savecrit (when applciable).
+	 *
+	 * see <arch>/<arch>/critical.c
 	 */
 	sched_lock.mtx_lock = (uintptr_t)td;
 	sched_lock.mtx_recurse = 0;
-	td->td_critnest = 1;
-	td->td_savecrit = CRITICAL_FORK;
+	cpu_critical_fork_exit();
 	CTR3(KTR_PROC, "fork_exit: new proc %p (pid %d, %s)", p, p->p_pid,
 	    p->p_comm);
 	if (PCPU_GET(switchtime.sec) == 0)
