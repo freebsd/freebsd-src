@@ -6,7 +6,7 @@ MESRCS=	acm.me chars.me deltext.me eqn.me float.me footnote.me \
 	index.me letterhead.me local.me null.me refer.me sh.me \
 	tbl.me thesis.me
 TMSRCS=	tmac.orig_me
-MAN7=	me.0
+MAN7=	me.7
 
 beforeinstall:
 	cd ${.CURDIR}; for i in ${MESRCS}; do \
