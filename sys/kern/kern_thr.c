@@ -186,11 +186,15 @@ thr_self(struct thread *td, struct thr_self_args *uap)
 
 int
 thr_exit(struct thread *td, struct thr_exit_args *uap)
-    /* NULL */
+    /* long *state */
 {
 	struct proc *p;
 
 	p = td->td_proc;
+
+	/* Signal userland that it can free the stack. */
+	if ((void *)uap->state != NULL)
+		suword((void *)uap->state, 1);
 
 	PROC_LOCK(p);
 	mtx_lock_spin(&sched_lock);
