@@ -11,9 +11,9 @@ CFLAGS+=-Wall
 LDADD+= -lcrypt -lmd -lutil -lz
 DPADD+=	${LIBCRYPT} ${LIBMD} ${LIBUTIL} ${LIBZ}
 .if defined(NOSUID) || defined(PPP_NOSUID)
-BINMODE=554
+BINMODE=551
 .else
-BINMODE=4554
+BINMODE=4551
 BINOWN=	root
 .endif
 BINGRP=	network
