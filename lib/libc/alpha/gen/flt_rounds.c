@@ -1,6 +1,3 @@
-/* $FreeBSD$ */
-/*	From: NetBSD: flt_rounds.c,v 1.2 1997/07/18 00:30:30 thorpej Exp */
-
 /*
  * Copyright (c) 1995 Christopher G. Demetriou
  * All rights reserved.
@@ -30,7 +27,12 @@
  * THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+ *
+ *	$NetBSD: flt_rounds.c,v 1.2 1997/07/18 00:30:30 thorpej Exp $
  */
+
+#include <sys/cdefs.h>
+__FBSDID("$FreeBSD$");
 
 #include <sys/types.h>
 #include <machine/float.h>
