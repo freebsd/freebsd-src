@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)kern_sig.c	8.7 (Berkeley) 4/18/94
- * $Id: kern_sig.c,v 1.53 1999/01/10 01:58:24 eivind Exp $
+ * $Id: kern_sig.c,v 1.53.2.1 1999/01/27 20:51:41 julian Exp $
  */
 
 #include "opt_compat.h"
@@ -283,6 +283,10 @@ execsigs(p)
 	ps->ps_sigstk.ss_size = 0;
 	ps->ps_sigstk.ss_sp = 0;
 	ps->ps_flags = 0;
+	/*
+	 * Reset no zombies if child dies flag as Solaris does.
+	 */
+	p->p_procsig->ps_flag &= ~P_NOCLDWAIT;
 }
 
 /*
