@@ -35,7 +35,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)machdep.c	7.4 (Berkeley) 6/3/91
- *	$Id: machdep.c,v 1.209.2.16 1997/12/04 14:36:56 jkh Exp $
+ *	$Id: machdep.c,v 1.209.2.17 1997/12/05 07:26:37 jmg Exp $
  */
 
 #include "npx.h"
@@ -1063,6 +1063,7 @@ init386(first)
 
 	finishidentcpu();	/* Final stage of CPU initialization */
 	setidt(6, &IDTVEC(ill),  SDT_SYS386TGT, SEL_KPL, GSEL(GCODE_SEL, SEL_KPL));
+	setidt(13, &IDTVEC(prot),  SDT_SYS386TGT, SEL_KPL, GSEL(GCODE_SEL, SEL_KPL));
 	initializecpu();	/* Initialize CPU registers */
 
 	/* Use BIOS values stored in RTC CMOS RAM, since probing

@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	from: Id: machdep.c,v 1.193 1996/06/18 01:22:04 bde Exp
- *	$Id: identcpu.c,v 1.7.2.12 1997/12/04 14:36:55 jkh Exp $
+ *	$Id: identcpu.c,v 1.7.2.13 1998/01/03 08:51:29 obrien Exp $
  */
 
 #include "opt_cpu.h"
@@ -56,10 +56,14 @@
 
 #include <i386/isa/isa_device.h>
 
+#define	IDENTBLUE_CYRIX486	0
+#define	IDENTBLUE_IBMCPU	1
+#define	IDENTBLUE_CYRIXM2	2
+
 /* XXX - should be in header file */
 void	i486_bzero __P((void *buf, size_t len));
 
-void printcpuinfo(void);		/* XXX should be in different header file */
+void printcpuinfo(void);	/* XXX should be in different header file */
 void finishidentcpu(void);
 void earlysetcpuclass(void);
 void panicifcpuunsupported(void);
@@ -532,21 +536,38 @@ panicifcpuunsupported(void)
 static	volatile u_int trap_by_wrmsr;
 
 /*
- * Special exception 16 handler.
+ * Special exception 6 handler.
  * The wrmsr instruction generates invalid opcodes fault on 486-class
  * Cyrix CPU.  Stacked eip register points the wrmsr instruction in the
  * function identblue() when this handler is called.  Stacked eip should
  * be advanced.
  */
-inthand_t	bluetrap;
+inthand_t	bluetrap6;
 asm
 ("
 	.text
 	.p2align 2,0x90
-" __XSTRING(CNAME(bluetrap)) ":
+" __XSTRING(CNAME(bluetrap6)) ":
 	ss
-	movl	$0xa8c1d," __XSTRING(CNAME(trap_by_wrmsr)) " # Don't ask meaning of the number :-).
-	addl	$2, (%esp)				  # I know wrmsr is a 2-bytes instruction.
+	movl	$0xa8c1d," __XSTRING(CNAME(trap_by_wrmsr)) "
+	addl	$2, (%esp)		  # I know wrmsr is a 2-bytes instruction.
+	iret
+");
+
+/*
+ * Special exception 13 handler.
+ * Accessing non-existent MSR generates general protection fault.
+ */
+inthand_t	bluetrap13;
+asm
+("
+	.text
+	.p2align 2,0x90
+" __XSTRING(CNAME(bluetrap13)) ":
+	ss
+	movl	$0xa89c4," __XSTRING(CNAME(trap_by_wrmsr)) "
+	popl	%eax				# discard errorcode.
+	addl	$2, (%esp)			# I know wrmsr is a 2-bytes instruction.
 	iret
 ");
 
@@ -563,19 +584,29 @@ identblue(void)
 {
 
 	trap_by_wrmsr = 0;
+
 	/* 
 	 * Cyrix 486-class CPU does not support wrmsr instruction.
-	 * The wrmsr instruction causes invalid opcode fault, and exception
-	 * will be trapped by bluetrap() on Cyrix 486-class CPU.  The bluetrap()
-	 * set the magic number to trap_by_wrmsr.
+	 * The wrmsr instruction generates invalid opcode fault, and exception
+	 * will be trapped by bluetrap6() on Cyrix 486-class CPU.  The
+	 * bluetrap6() set the magic number to trap_by_wrmsr.
 	 */
-	setidt(6, bluetrap, SDT_SYS386TGT, SEL_KPL, GSEL(GCODE_SEL, SEL_KPL));
-	wrmsr(0x1002, 0x03000000LL);	/* Fault on Cyrix 486-class CPU. */
+	setidt(6, bluetrap6, SDT_SYS386TGT, SEL_KPL, GSEL(GCODE_SEL, SEL_KPL));
+
+	/*
+	 * Certain BIOS disables cpuid instructnion of Cyrix 6x86MX CPU.
+	 * In this case, wrmsr generates general protection fault, and
+	 * exception will be trapped by bluetrap13().
+	 */
+	setidt(13, bluetrap13, SDT_SYS386TGT, SEL_KPL, GSEL(GCODE_SEL, SEL_KPL));
+
+	wrmsr(0x1002, 0x03000000LL);	/* Cyrix CPU generates fault. */
 
 	if (trap_by_wrmsr == 0xa8c1d)
-		return 0;					/* Cyrix CPU sets the magic number. */
-
-	return 1;						/* IBM Blue Lightnig CPU */
+		return IDENTBLUE_CYRIX486;
+	else if (trap_by_wrmsr == 0xa89c4)
+		return IDENTBLUE_CYRIXM2;
+	return IDENTBLUE_IBMCPU;
 }
 
 
@@ -630,6 +661,7 @@ identifycyrix(void)
 void
 finishidentcpu(void)
 {
+	int	isblue = 0;
 
 	if (strcmp(cpu_vendor, "CyrixInstead") == 0) {
 		if (cpu == CPU_486) {
@@ -638,7 +670,8 @@ finishidentcpu(void)
 			 *     - CPU does not support cpuid instruction.
 			 *     - Cyrix/IBM CPU is detected.
 			 */
-			if (identblue()) {
+			isblue = identblue();
+			if (isblue == IDENTBLUE_IBMCPU) {
 				strcpy(cpu_vendor, "IBM");
 				cpu = CPU_BLUE;
 				return;
@@ -684,6 +717,11 @@ finishidentcpu(void)
 			default:
 				/* M2 and later CPUs are treated as M2. */
 				cpu = CPU_M2;
+				/*
+				 * XXX
+				 * Execute cpuid instrunction here and fix cpu_id and
+				 * cpu_feature variables.
+				 */
 				break;
 			}
 		}
