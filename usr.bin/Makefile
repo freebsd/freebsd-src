@@ -12,7 +12,7 @@
 _xlint=	xlint
 _lex=	lex
 _yacc=	yacc
-_c88=	c88
+_c89=	c89
 _c99=	c99
 .endif
 .endif
