@@ -40,6 +40,7 @@
 .Sh SYNOPSIS
 .Nm mail.local
 .Op Fl f Ar from
+.Op Fl b
 .Ar user ...
 .Sh DESCRIPTION
 .Nm Mail.local
@@ -55,6 +56,10 @@ The options are as follows:
 .Bl -tag -width xxxfrom
 .It Fl f Ar from
 Specify the sender's name.
+.It Fl b
+Turn off the attempts to notify the
+.Dq biff
+service.
 .El
 .Pp
 Individual mail messages in the mailbox are delimited by an empty
