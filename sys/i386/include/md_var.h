@@ -97,6 +97,5 @@ void	setidt __P((int idx, alias_for_inthand_t *func, int typ, int dpl,
 void	swi_vm __P((void *));
 void	userconfig __P((void));
 int     user_dbreg_trap __P((void));
-int	vm_page_zero_idle __P((void));
 
 #endif /* !_MACHINE_MD_VAR_H_ */
