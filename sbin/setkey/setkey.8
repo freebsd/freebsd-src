@@ -516,7 +516,7 @@ lzs		rfc2395
 .Sh EXAMPLES
 .Bd -literal -offset
 add	3ffe:501:4819::1 3ffe:501:481d::1 esp 123457
-		-E des-cbc "ESP SA!!"
+		-E des-cbc "ESP SA!!" ;
 
 add	3ffe:501:4819::1 3ffe:501:481d::1 ah 123456
 		-A hmac-sha1 "AH SA configuration!" ;
