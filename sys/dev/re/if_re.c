@@ -393,6 +393,13 @@ re_gmii_readreg(dev, phy, reg)
 
 	sc = device_get_softc(dev);
 
+	/* Let the rgephy driver read the GMEDIASTAT register */
+
+	if (reg == RL_GMEDIASTAT) {
+		rval = CSR_READ_1(sc, RL_GMEDIASTAT);
+		return(rval);
+	}
+
 	CSR_WRITE_4(sc, RL_PHYAR, reg << 16);
 	DELAY(1000);
 
@@ -423,7 +430,7 @@ re_gmii_writereg(dev, phy, reg, data)
 	sc = device_get_softc(dev);
 
 	CSR_WRITE_4(sc, RL_PHYAR, (reg << 16) |
-	    (data | RL_PHYAR_PHYDATA) | RL_PHYAR_BUSY);
+	    (data & RL_PHYAR_PHYDATA) | RL_PHYAR_BUSY);
 	DELAY(1000);
 
 	for (i = 0; i < RL_TIMEOUT; i++) {
@@ -1148,6 +1155,7 @@ re_attach(dev)
 
 	/* Reset the adapter. */
 	re_reset(sc);
+	CSR_WRITE_1(sc, RL_EECMD, RL_EEMODE_PROGRAM);
 	sc->rl_eecmd_read = RL_EECMD_READ_6BIT;
 	re_read_eeprom(sc, (caddr_t)&re_did, 0, 1, 0);
 	if (re_did != 0x8129)
@@ -1161,6 +1169,8 @@ re_attach(dev)
 		eaddr[(i * 2) + 0] = as[i] & 0xff;
 		eaddr[(i * 2) + 1] = as[i] >> 8;
 	}
+
+	CSR_WRITE_1(sc, RL_EECMD, RL_EEMODE_OFF);
 
 	/*
 	 * A RealTek chip was detected. Inform the world.
@@ -1779,6 +1789,11 @@ re_intr(arg)
 
 	RL_LOCK(sc);
 	ifp = &sc->arpcom.ac_if;
+
+	if (!(ifp->if_flags & IFF_UP)) {
+		RL_UNLOCK(sc);
+		return;
+	}
 
 #ifdef DEVICE_POLLING
 	if  (ifp->if_flags & IFF_POLLING)
