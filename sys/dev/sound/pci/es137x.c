@@ -83,6 +83,7 @@ SYSCTL_INT(_debug, OID_AUTO, es_debug, CTLFLAG_RW, &debug, 0, "");
 
 #define CT5880REV_CT5880_C  0x02
 #define CT5880REV_CT5880_D  0x03
+#define CT5880REV_CT5880_E  0x04
 
 #define ES_DEFAULT_BUFSZ 4096
 
@@ -503,7 +504,8 @@ es1371_init(struct es_info *es, device_t dev)
 	if ((devid == ES1371_PCI_ID && revid == ES1371REV_ES1373_8) ||
 	    (devid == ES1371_PCI_ID && revid == ES1371REV_CT5880_A) ||
 	    (devid == CT5880_PCI_ID && revid == CT5880REV_CT5880_C) ||
-	    (devid == CT5880_PCI_ID && revid == CT5880REV_CT5880_D)) {
+	    (devid == CT5880_PCI_ID && revid == CT5880REV_CT5880_D) ||
+	    (devid == CT5880_PCI_ID && revid == CT5880REV_CT5880_E)) {
 		bus_space_write_4(es->st, es->sh, ES1370_REG_STATUS, 0x20000000);
 		DELAY(20000);
 		if (debug > 0) device_printf(dev, "ac97 2.1 enabled\n");
@@ -797,6 +799,10 @@ es_pci_probe(device_t dev)
 
 		case CT5880REV_CT5880_D:
 			device_set_desc(dev, "Creative CT5880-D");
+			return 0;
+
+		case CT5880REV_CT5880_E:
+			device_set_desc(dev, "Creative CT5880-E");
 			return 0;
 
 		default:
