@@ -1,4 +1,4 @@
-/*	$NetBSD: uhci.c,v 1.84 2000/01/28 00:44:27 augustss Exp $	*/
+/*	$NetBSD: uhci.c,v 1.85 2000/02/22 11:30:55 augustss Exp $	*/
 /*	$FreeBSD$	*/
 
 /*
@@ -243,6 +243,7 @@ Static void		uhci_root_intr_done(usbd_xfer_handle);
 
 Static usbd_status	uhci_open(usbd_pipe_handle);
 Static void		uhci_poll(struct usbd_bus *);
+Static void		uhci_softintr __P((struct usbd_bus *));
 
 Static usbd_status	uhci_device_request(usbd_xfer_handle xfer);
 
@@ -287,6 +288,7 @@ void			uhci_dump(void);
 
 struct usbd_bus_methods uhci_bus_methods = {
 	uhci_open,
+	uhci_softintr,
 	uhci_poll,
 	uhci_allocm,
 	uhci_freem,
@@ -1077,7 +1079,6 @@ uhci_intr(void *arg)
 	uhci_softc_t *sc = arg;
 	int status;
 	int ack;
-	uhci_intr_info_t *ii;
 
 	/*
 	 * It can happen that an interrupt will be delivered to
@@ -1146,8 +1147,24 @@ uhci_intr(void *arg)
 		return (0);
 	}
 
-	sc->sc_bus.intr_context++;
 	sc->sc_bus.no_intrs++;
+	usb_schedsoftintr(&sc->sc_bus);
+
+	DPRINTFN(10, ("%s: uhci_intr: exit\n", USBDEVNAME(sc->sc_bus.bdev)));
+
+	return (1);
+}
+
+void
+uhci_softintr(bus)
+	struct usbd_bus *bus;
+{
+	uhci_softc_t *sc = (uhci_softc_t *)bus;
+	uhci_intr_info_t *ii;
+
+	DPRINTFN(10,("%s: uhci_softintr\n", USBDEVNAME(sc->sc_bus.bdev)));
+
+	sc->sc_bus.intr_context++;
 
 	/*
 	 * Interrupts on UHCI really suck.  When the host controller
@@ -1163,11 +1180,7 @@ uhci_intr(void *arg)
 	LIST_FOREACH(ii, &sc->sc_intrhead, list)
 		uhci_check_intr(sc, ii);
 
-	DPRINTFN(10, ("%s: uhci_intr: exit\n", USBDEVNAME(sc->sc_bus.bdev)));
-
 	sc->sc_bus.intr_context--;
-
-	return (1);
 }
 
 /* Check for an interrupt. */
