@@ -35,7 +35,7 @@
 # Bugs: sure
 #   Email: Wolfram Schneider <wosch@cs.tu-berlin.de>
 #
-# $Id: catman.pl,v 1.10 1995/03/18 19:57:22 w Exp $
+# $Id: catman.perl,v 1.4 1995/03/31 04:00:20 joerg Exp $
 #
 
 sub usage {
@@ -327,10 +327,14 @@ sub nroff {
     if ($link{"$dev.$ino"}) {
 	warn "Link: $link{\"$dev.$ino\"} -> $cat\n" if $verbose || $print;
 
-	if (!$print && !link($link{"$dev.$ino"}, $cat)) {
+	return if $print;	# done
+	unlink($cat);		# remove possible old link
+	
+	unless (link($link{"$dev.$ino"}, $cat)) {
 	    warn "Link $cat: $!\n";
 	    $exit = 1;
 	}
+	return;
     } else {
 	$cat = "$cat$ext" if $cat !~ /$ext$/;
 	warn "Format: $man -> $cat\n" if $verbose || $print;
@@ -348,7 +352,7 @@ sub nroff {
 	    system("$nroff | gzip > $cat.tmp");
 	    if ($?) {
 		# assume a fatal signal to nroff
-		&Exit("INT to system() funktion") if ($? == 2); 
+		&Exit("INT to system() function") if ($? == 2); 
 	    } else {
 		rename("$cat.tmp", $cat);
 	    }
