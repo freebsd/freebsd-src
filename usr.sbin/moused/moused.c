@@ -501,6 +501,7 @@ main(int argc, char *argv[])
     int c;
     int	i;
     int	j;
+    int retry;
 
     for (i = 0; i < MOUSE_MAXBUTTON; ++i)
 	mstate[i] = &bstate[i];
@@ -751,14 +752,26 @@ main(int argc, char *argv[])
 	usage();
     }
 
+    retry = 1;
+    if (strncmp(rodent.portname, "/dev/ums", 8) == 0) {
+	if (kldload("ums") == -1 && errno != EEXIST)
+	    logerr(1, "unable to load USB mouse driver");
+	retry = 5;
+    }
+
     for (;;) {
 	if (setjmp(env) == 0) {
 	    signal(SIGHUP, hup);
 	    signal(SIGINT , cleanup);
 	    signal(SIGQUIT, cleanup);
 	    signal(SIGTERM, cleanup);
-	    if ((rodent.mfd = open(rodent.portname, O_RDWR | O_NONBLOCK, 0))
-		== -1)
+	    for (i = 0; i < retry; ++i) {
+		rodent.mfd = open(rodent.portname, O_RDWR | O_NONBLOCK);
+		if (rodent.mfd != -1 || errno != ENOENT)
+		    break;
+		sleep(2);
+	    }
+	    if (rodent.mfd == -1)
 		logerr(1, "unable to open %s", rodent.portname);
 	    if (r_identify() == MOUSE_PROTO_UNKNOWN) {
 		logwarnx("cannot determine mouse type on %s", rodent.portname);
