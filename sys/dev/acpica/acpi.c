@@ -385,8 +385,9 @@ acpi_attach(device_t dev)
 {
     struct acpi_softc	*sc;
     ACPI_STATUS		status;
-    int			error;
+    int			error, state;
     UINT32		flags;
+    UINT8		TypeA, TypeB;
     char		*env;
 #ifdef ACPI_DEBUGGER
     char		*debugpoint;
@@ -532,14 +533,21 @@ acpi_attach(device_t dev)
 	    sc->acpi_s4bios = 1;
 
     /*
-     * Dispatch the default sleep state to devices.
-     * TBD: should be configured from userland policy manager.
+     * Dispatch the default sleep state to devices.  The lid switch is set
+     * to NONE by default to avoid surprising users.
      */
-    sc->acpi_power_button_sx = ACPI_POWER_BUTTON_DEFAULT_SX;
-    sc->acpi_sleep_button_sx = ACPI_SLEEP_BUTTON_DEFAULT_SX;
-    sc->acpi_lid_switch_sx = ACPI_LID_SWITCH_DEFAULT_SX;
+    sc->acpi_power_button_sx = ACPI_STATE_S5;
+    sc->acpi_lid_switch_sx = ACPI_S_STATES_MAX + 1;
     sc->acpi_standby_sx = ACPI_STATE_S1;
     sc->acpi_suspend_sx = ACPI_STATE_S3;
+
+    /* Pick the first valid sleep state for the sleep button default. */
+    sc->acpi_sleep_button_sx = ACPI_S_STATES_MAX + 1;
+    for (state = ACPI_STATE_S1; state < ACPI_STATE_S5; state++)
+	if (ACPI_SUCCESS(AcpiGetSleepTypeData(state, &TypeA, &TypeB))) {
+	    sc->acpi_sleep_button_sx = state;
+	    break;
+	}
 
     acpi_enable_fixed_events(sc);
 
@@ -2235,7 +2243,7 @@ acpi_supported_sleep_state_sysctl(SYSCTL_HANDLER_ARGS)
     UINT8 state, TypeA, TypeB;
 
     buf[0] = '\0';
-    for (state = ACPI_STATE_S1; state < ACPI_S_STATES_MAX+1; state++) {
+    for (state = ACPI_STATE_S1; state < ACPI_S_STATES_MAX + 1; state++) {
 	if (ACPI_SUCCESS(AcpiGetSleepTypeData(state, &TypeA, &TypeB))) {
 	    sprintf(sleep_state, "S%d ", state);
 	    strcat(buf, sleep_state);
@@ -2253,7 +2261,7 @@ acpi_sleep_state_sysctl(SYSCTL_HANDLER_ARGS)
     u_int new_state, old_state;
 
     old_state = *(u_int *)oidp->oid_arg1;
-    if (old_state > ACPI_S_STATES_MAX+1) {
+    if (old_state > ACPI_S_STATES_MAX + 1) {
 	strcpy(sleep_state, "unknown");
     } else {
 	bzero(sleep_state, sizeof(sleep_state));

@@ -57,9 +57,6 @@ struct acpi_softc {
 
     struct sysctl_ctx_list acpi_sysctl_ctx;
     struct sysctl_oid	*acpi_sysctl_tree;
-#define ACPI_POWER_BUTTON_DEFAULT_SX	ACPI_STATE_S5;
-#define ACPI_SLEEP_BUTTON_DEFAULT_SX	ACPI_STATE_S1;
-#define ACPI_LID_SWITCH_DEFAULT_SX	ACPI_STATE_S1;
     int			acpi_power_button_sx;
     int			acpi_sleep_button_sx;
     int			acpi_lid_switch_sx;
