@@ -193,6 +193,7 @@ devtoname(dev)
 
 initdevtable()
 {
+	char linebuf[256];
 	char buf[BUFSIZ];
 	int maj;
 	register struct devdescription **dp = &devtable;
@@ -204,11 +205,21 @@ initdevtable()
 		fprintf(stderr, "config: can't open %s\n", buf);
 		exit(1);
 	}
-	while (fscanf(fp, "%s\t%d\n", buf, &maj) == 2) {
-		*dp = (struct devdescription *)malloc(sizeof (**dp));
-		(*dp)->dev_name = ns(buf);
-		(*dp)->dev_major = maj;
-		dp = &(*dp)->dev_next;
+	while(fgets(linebuf,256,fp)) {
+		/*******************************\
+		* Allow a comment		*
+		\*******************************/
+		if(linebuf[0] == '#') continue;
+	
+		if (sscanf(linebuf, "%s\t%d\n", buf, &maj) == 2) {
+			*dp = (struct devdescription *)malloc(sizeof (**dp));
+			(*dp)->dev_name = ns(buf);
+			(*dp)->dev_major = maj;
+			dp = &(*dp)->dev_next;
+		} else {
+			fprintf(stderr,"illegal line in devices file\n");
+			break;
+		}
 	}
 	*dp = 0;
 	fclose(fp);
