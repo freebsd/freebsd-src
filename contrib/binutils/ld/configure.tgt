@@ -134,7 +134,7 @@ i[3456]86-*-linux*aout*)	targ_emul=i386linux
 			targ_extra_emuls=elf_i386
 			tdir_elf_i386=`echo ${targ_alias} | sed -e 's/aout//'`
 			;;
-i[3456]86-*-linuxoldld)	targ_emul=i386linux; targ_extra_emuls=elf_i386 ;;
+i[3456]86-*-linux*oldld)	targ_emul=i386linux; targ_extra_emuls=elf_i386 ;;
 i[3456]86-*-linux-gnu*)	targ_emul=elf_i386
 			targ_extra_emuls=i386linux
 			tdir_i386linux=${targ_alias}aout
@@ -185,6 +185,7 @@ a29k-*-*)		targ_emul=a29k ;;
 arm-*-aout | armel-*-aout) targ_emul=armaoutl ;;
 armeb-*-aout)		targ_emul=armaoutb ;;
 arm-*-coff)		targ_emul=armcoff ;;
+arm-*-vxworks)		targ_emul=armcoff ;;
 arm-*-freebsd*)		targ_emul=armelf ;;
 arm-*-netbsd*)		targ_emul=armnbsd ;;
 arm-*-rtems*)		targ_emul=armelf ;;
@@ -276,11 +277,11 @@ mips*el-*-rtems*)	targ_emul=elf32elmip ;;
 mips*-*-rtems*)		targ_emul=elf32ebmip ;;
 mips*el-*-vxworks*)	targ_emul=elf32elmip ;;
 mips*-*-vxworks*)	targ_emul=elf32ebmip ;;
-mips*el-*-linux-gnu*)	targ_emul=elf32lsmip
-			targ_extra_emuls="elf32bsmip mipslit mipsbig"
+mips*el-*-linux-gnu*)	targ_emul=elf32ltsmip
+			targ_extra_emuls="elf32btsmip elf64ltsmip elf64btsmip"
 			;;
-mips*-*-linux-gnu*)	targ_emul=elf32bsmip
-			targ_extra_emuls="elf32lsmip mipsbig mipslit"
+mips*-*-linux-gnu*)	targ_emul=elf32btsmip
+			targ_extra_emuls="elf32ltsmip elf64btsmip elf64ltsmip"
 			;;
 mips*-*-lnews*)		targ_emul=mipslnews ;;
 mips*-*-sysv4*)         targ_emul=elf32btsmip ;;
@@ -325,7 +326,7 @@ powerpc-*-macos*)	targ_emul=ppcmacos ;;
 powerpc-*-netware*)	targ_emul=ppcnw ;;
 powerpcle-*-pe)         targ_emul=ppcpe ;;
 powerpcle-*-winnt*)     targ_emul=ppcpe ;;
-powerpcle-*-cygwin*)   targ_emul=ppcpe ;;
+powerpcle-*-cygwin*)    targ_emul=ppcpe ;;
 powerpc-*-aix*)		targ_emul=aixppc ;;
 powerpc-*-beos*)	targ_emul=aixppc ;;
 rs6000-*-aix*)		targ_emul=aixrs6 ;;
