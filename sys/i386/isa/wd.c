@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)wd.c	7.2 (Berkeley) 5/9/91
- *	$Id: wd.c,v 1.69 1995/03/16 18:12:08 bde Exp $
+ *	$Id: wd.c,v 1.70 1995/03/22 05:22:59 davidg Exp $
  */
 
 /* TODO:
@@ -92,7 +92,7 @@
 				/* can't handle that in all cases */
 #define BAD144_NO_CYL	0xffff	/* XXX should be in dkbad.h; bad144.c uses -1 */
 #ifndef NSECS_MULTI
-#define NSECS_MULTI 16
+#define NSECS_MULTI 1
 #endif
 
 #ifdef notyet
