@@ -65,6 +65,7 @@ ahc_compose_id(u_int device, u_int vendor, u_int subdevice, u_int subvendor)
 
 #define ID_ALL_MASK		0xFFFFFFFFFFFFFFFFull
 #define ID_DEV_VENDOR_MASK	0xFFFFFFFF00000000ull
+#define ID_9005_GENERIC_MASK	0xFFF0FFFF00000000ull
 #define ID_AIC7850		0x5078900400000000ull
 #define ID_AHA_2910_15_20_30C	0x5078900478509004ull
 #define ID_AIC7855		0x5578900400000000ull
@@ -133,6 +134,23 @@ ahc_compose_id(u_int device, u_int vendor, u_int subdevice, u_int subvendor)
 
 #define ID_AIC7810		0x1078900400000000ull
 #define ID_AIC7815		0x7815900400000000ull
+
+#define DEVID_9005_TYPE(id) ((id) & 0xF)
+#define		DEVID_9005_TYPE_HBA		0x0	/* Standard Card */
+#define		DEVID_9005_TYPE_AAA		0x3	/* RAID Card */
+#define		DEVID_9005_TYPE_SISL		0x5	/* Low Cost Card */
+#define		DEVID_9005_TYPE_MB		0xF	/* On Motherboard */
+
+#define DEVID_9005_MAXRATE(id) (((id) & 0x30) >> 4)
+#define		DEVID_9005_MAXRATE_U160		0x0
+#define		DEVID_9005_MAXRATE_ULTRA2	0x1
+#define		DEVID_9005_MAXRATE_ULTRA	0x2
+#define		DEVID_9005_MAXRATE_FAST		0x3
+
+#define DEVID_9005_MFUNC(id) (((id) & 0x40) >> 6)
+
+#define DEVID_9005_CLASS(id) (((id) & 0xFF00) >> 8)
+#define		DEVID_9005_CLASS_SPI		0x0	/* Parallel SCSI */
 
 #define SUBID_9005_TYPE(id) ((id) & 0xF)
 #define		SUBID_9005_TYPE_MB		0xF	/* On Motherboard */
@@ -509,14 +527,14 @@ struct ahc_pci_identity ahc_pci_ident_table [] =
 		ahc_aic7880_setup
 	},
 	{
-		ID_AIC7890 & ID_DEV_VENDOR_MASK,
-		ID_DEV_VENDOR_MASK,
+		ID_AIC7890 & ID_9005_GENERIC_MASK,
+		ID_9005_GENERIC_MASK,
 		"Adaptec aic7890/91 Ultra2 SCSI adapter",
 		ahc_aic7890_setup
 	},
 	{
-		ID_AIC7892 & ID_DEV_VENDOR_MASK,
-		ID_DEV_VENDOR_MASK,
+		ID_AIC7892 & ID_9005_GENERIC_MASK,
+		ID_9005_GENERIC_MASK,
 		"Adaptec aic7892 Ultra160 SCSI adapter",
 		ahc_aic7892_setup
 	},
@@ -533,14 +551,14 @@ struct ahc_pci_identity ahc_pci_ident_table [] =
 		ahc_aic7895_setup
 	},
 	{
-		ID_AIC7896 & ID_DEV_VENDOR_MASK,
-		ID_DEV_VENDOR_MASK,
+		ID_AIC7896 & ID_9005_GENERIC_MASK,
+		ID_9005_GENERIC_MASK,
 		"Adaptec aic7896/97 Ultra2 SCSI adapter",
 		ahc_aic7896_setup
 	},
 	{
-		ID_AIC7899 & ID_DEV_VENDOR_MASK,
-		ID_DEV_VENDOR_MASK,
+		ID_AIC7899 & ID_9005_GENERIC_MASK,
+		ID_9005_GENERIC_MASK,
 		"Adaptec aic7899 Ultra160 SCSI adapter",
 		ahc_aic7899_setup
 	},
@@ -792,6 +810,7 @@ ahc_pci_config(struct ahc_softc *ahc, struct ahc_pci_identity *entry)
 			printf("%s: Using left over BIOS settings\n",
 				ahc_name(ahc));
 			ahc->flags &= ~AHC_USEDEFAULTS;
+			ahc->flags |= AHC_BIOS_ENABLED;
 		} else {
 			/*
 			 * Assume only one connector and always turn
@@ -1227,8 +1246,15 @@ check_extport(struct ahc_softc *ahc, u_int *sxfrctl1)
 		if (sc.adapter_control & CFRESETB)
 			scsi_conf |= RESET_SCSI;
 
+		if ((sc.adapter_control & CFCHNLBPRIMARY) != 0
+		 && (ahc->features & AHC_MULTI_FUNC) != 0)
+			ahc->flags |= AHC_CHANNEL_B_PRIMARY;
+
 		if (sc.bios_control & CFEXTEND)
 			ahc->flags |= AHC_EXTENDED_TRANS_A;
+
+		if (sc.bios_control & CFBIOSEN)
+			ahc->flags |= AHC_BIOS_ENABLED;
 		if (ahc->features & AHC_ULTRA
 		 && (ahc->flags & AHC_NEWEEPROM_FMT) == 0) {
 			/* Should we enable Ultra mode? */
