@@ -58,7 +58,6 @@
 #include <netinet/in_var.h>
 #include <netinet/ip_var.h>
 
-
 #include <machine/in_cksum.h>
 
 static MALLOC_DEFINE(M_IPMOPTS, "ip_moptions", "internet multicast options");
