@@ -26,7 +26,7 @@
  * OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id$
+ *	$Id: util.c,v 1.1 1997/01/30 21:43:44 wollman Exp $
  */
 
 #include <sys/types.h>
@@ -148,6 +148,7 @@ percent_decode(const char *uri)
 			*s++ = *uri++;
 		}
 	}
+	*s = '\0';
 	return rv;
 }
 
