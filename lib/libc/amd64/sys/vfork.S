@@ -58,5 +58,5 @@ ENTRY(__sys_vfork)
 	movq	PIC_GOT(HIDENAME(cerror)),%rdx
 	jmp	*%rdx
 #else
-	jmp     HIDENAME(cerror)
+	jmp	HIDENAME(cerror)
 #endif
