@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)clock.c	7.2 (Berkeley) 5/12/91
- *	$Id: clock.c,v 1.27 1994/11/10 12:53:13 ache Exp $
+ *	$Id: clock.c,v 1.28 1994/11/12 16:24:54 ache Exp $
  */
 
 /*
@@ -94,11 +94,13 @@ int	disable_rtc_set	= 0;	/* disable resettodr() if != 0 */
 #ifdef I586_CPU
 int	pentium_mhz;
 #endif
+u_int	stat_imask = SWI_CLOCK_MASK;
 int 	timer0_max_count;
 u_int 	timer0_overflow_threshold;
 u_int 	timer0_prescaler_count;
 
 static	int	beeping = 0;
+static	u_int	clk_imask = HWI_MASK | SWI_MASK;
 static	const u_char daysinmonth[] = {31,28,31,30,31,30,31,31,30,31,30,31};
 static 	u_int	hardclock_max_count;
 /*
@@ -154,7 +156,7 @@ clkintr(struct clockframe frame)
 		if ((timer0_prescaler_count += timer0_max_count)
 		    >= hardclock_max_count) {
 			hardclock(&frame);
-			timer0_max_count = TIMER_DIV(hz);
+			timer0_max_count = hardclock_max_count;
 			timer0_overflow_threshold =
 				timer0_max_count - TIMER0_LATCH_COUNT;
 			disable_intr();
@@ -244,16 +246,14 @@ rtcintr(struct clockframe frame)
 	}
 }
 
-#ifdef DEBUG
+#ifdef DDB
 static void
 printrtc(void)
 {
-	outb(IO_RTC, RTC_STATUSA);
-	printf("RTC status A = %x", inb(IO_RTC+1));
-	outb(IO_RTC, RTC_STATUSB);
-	printf(", B = %x", inb(IO_RTC+1));
-	outb(IO_RTC, RTC_INTR);
-	printf(", C = %x\n", inb(IO_RTC+1));
+	printf("%02x/%02x/%02x %02x:%02x:%02x, A = %02x, B = %02x, C = %02x\n",
+	       rtcin(RTC_YEAR), rtcin(RTC_MONTH), rtcin(RTC_DAY),
+	       rtcin(RTC_HRS), rtcin(RTC_MIN), rtcin(RTC_SEC),
+	       rtcin(RTC_STATUSA), rtcin(RTC_STATUSB), rtcin(RTC_INTR));
 }
 #endif
 
@@ -401,11 +401,11 @@ int2bcd(int dez)
 	return(dez/10 *	16 + dez%10);
 }
 
-static void
-writertc(int port, int val)
+static inline void
+writertc(u_char reg, u_char val)
 {
-	outb(IO_RTC, port);
-	outb(IO_RTC+1, val);
+	outb(IO_RTC, reg);
+	outb(IO_RTC + 1, val);
 }
 
 static int
@@ -414,28 +414,18 @@ readrtc(int port)
 	return(bcd2int(rtcin(port)));
 }
 
+/*
+ * Initialize 8253 timer 0 early so that it can be used in DELAY().
+ * XXX initialization of other timers is unintentionally left blank.
+ */
 void
 startrtclock() 
 {
-	int s;
-
-	/* Initialize 8253 timer 0. */
 	timer0_max_count = hardclock_max_count = TIMER_DIV(hz);
 	timer0_overflow_threshold = timer0_max_count - TIMER0_LATCH_COUNT;
 	outb(TIMER_MODE, TIMER_SEL0 | TIMER_RATEGEN | TIMER_16BIT);
 	outb(TIMER_CNTR0, timer0_max_count & 0xff);
 	outb(TIMER_CNTR0, timer0_max_count >> 8);
-
-	/* XXX initialization of other timers unintentionally left blank. */
-
-	/* initialize brain-dead battery powered clock */
-	outb (IO_RTC, RTC_STATUSA);
-	outb (IO_RTC+1, rtc_statusa);
-	outb (IO_RTC, RTC_STATUSB);
-	outb (IO_RTC+1, RTCSB_24HR);
-	outb (IO_RTC, RTC_DIAG);
-	if (s = inb (IO_RTC+1))
-		printf("RTC BIOS diagnostic error %b\n", s, RTCDG_BITS);
 }
 
 /*
@@ -517,7 +507,7 @@ resettodr()
 	tm = time.tv_sec;
 	splx(s);
 
-	/* First, disable clock	updates	*/
+	/* Disable RTC updates and interrupts. */
 	writertc(RTC_STATUSB, RTCSB_HALT | RTCSB_24HR);
 
 	/* Calculate local time	to put in RTC */
@@ -552,72 +542,44 @@ resettodr()
 	writertc(RTC_MONTH, int2bcd(m));		/* Write back Month   */
 	writertc(RTC_DAY, int2bcd(tm+1));		/* Write back Day     */
 
-	/* enable time updates */
-	writertc(RTC_STATUSB, RTCSB_PINTR | RTCSB_24HR);
+	/* Reenable RTC updates and interrupts. */
+	writertc(RTC_STATUSB, RTCSB_24HR | RTCSB_PINTR);
 }
-
-#ifdef garbage
-/*
- * Initialze the time of day register, based on the time base which is, e.g.
- * from a filesystem.
- */
-static void
-test_inittodr(time_t base)
-{
-
-	outb(IO_RTC,9); /* year    */
-	printf("%d ",bcd(inb(IO_RTC+1)));
-	outb(IO_RTC,8); /* month   */
-	printf("%d ",bcd(inb(IO_RTC+1)));
-	outb(IO_RTC,7); /* day     */
-	printf("%d ",bcd(inb(IO_RTC+1)));
-	outb(IO_RTC,4); /* hour    */
-	printf("%d ",bcd(inb(IO_RTC+1)));
-	outb(IO_RTC,2); /* minutes */
-	printf("%d ",bcd(inb(IO_RTC+1)));
-	outb(IO_RTC,0); /* seconds */
-	printf("%d\n",bcd(inb(IO_RTC+1)));
-
-	time.tv_sec = base;
-}
-#endif
 
 /*
- * Wire clock interrupt in.
+ * Start both clocks running.
  */
-
-static u_int clkmask = HWI_MASK | SWI_MASK;
-static u_int rtcmask = SWI_CLOCK_MASK;
-
-static void
-enablertclock() 
-{
-	register_intr(/* irq */ 0, /* XXX id */ 0, /* flags */ 0, clkintr,
-		      &clkmask, /* unit */ 0);
-	INTREN(IRQ0);
-	register_intr(/* irq */ 8, /* XXX id */ 1, /* flags */ 0, rtcintr,
-		      &rtcmask, /* unit */ 0);
-	INTREN(IRQ8);
-	outb(IO_RTC, RTC_STATUSB);
-	outb(IO_RTC+1, RTCSB_PINTR | RTCSB_24HR);
-}
-
 void
 cpu_initclocks()
 {
+	int diag;
+
 	stathz = RTC_NOPROFRATE;
 	profhz = RTC_PROFRATE;
-	enablertclock();
+
+	/* Finish initializing 8253 timer 0. */
+	register_intr(/* irq */ 0, /* XXX id */ 0, /* flags */ 0, clkintr,
+		      &clk_imask, /* unit */ 0);
+	INTREN(IRQ0);
+
+	/* Initialize RTC. */
+	writertc(RTC_STATUSA, rtc_statusa);
+	writertc(RTC_STATUSB, RTCSB_24HR);
+	diag = rtcin(RTC_DIAG);
+	if (diag != 0)
+		printf("RTC BIOS diagnostic error %b\n", diag, RTCDG_BITS);
+	register_intr(/* irq */ 8, /* XXX id */ 1, /* flags */ 0, rtcintr,
+		      &stat_imask, /* unit */ 0);
+	INTREN(IRQ8);
+	writertc(RTC_STATUSB, RTCSB_24HR | RTCSB_PINTR);
 }
 
 void
 setstatclockrate(int newhz)
 {
-	if(newhz == RTC_PROFRATE) {
+	if (newhz == RTC_PROFRATE)
 		rtc_statusa = RTCSA_DIVIDER | RTCSA_PROF;
-	} else {
+	else
 		rtc_statusa = RTCSA_DIVIDER | RTCSA_NOPROF;
-	}
-	outb(IO_RTC, RTC_STATUSA);
-	outb(IO_RTC+1, rtc_statusa);
+	writertc(RTC_STATUSA, rtc_statusa);
 }

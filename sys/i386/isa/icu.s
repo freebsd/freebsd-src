@@ -36,7 +36,7 @@
  *
  *	@(#)icu.s	7.2 (Berkeley) 5/21/91
  *
- *	$Id: icu.s,v 1.15 1994/09/20 21:35:47 bde Exp $
+ *	$Id: icu.s,v 1.16 1994/12/03 10:03:16 bde Exp $
  */
 
 /*
@@ -57,8 +57,6 @@
 _cpl:	.long	HWI_MASK | SWI_MASK	/* current priority (all off) */
 	.globl	_imen
 _imen:	.long	HWI_MASK		/* interrupt mask enable (all h/w off) */
-	.globl  _stat_imask
-_stat_imask:	.long	(1 << 8)
 	.globl	_tty_imask
 _tty_imask:	.long	0
 	.globl	_bio_imask
