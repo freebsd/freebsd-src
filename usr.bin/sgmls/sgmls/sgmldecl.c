@@ -9,6 +9,7 @@
 /* Symbolic names for the error numbers that are be generated only by
 this module. */
 
+#define E_SHUNCHAR 159
 #define E_STANDARD 163
 #define E_SIGNIFICANT 164
 #define E_BADLIT 165
@@ -60,6 +61,7 @@ this module. */
 #define E_NMBAD 222
 #define E_NMMINUS 223
 #define E_UNKNOWNSET 227
+#define E_TOTALCAP 235
 
 #define CANON_NMC '.'		/* Canonical name character. */
 #define CANON_NMS 'A'		/* Canonical name start character. */
@@ -163,21 +165,21 @@ in a buffer intended for a literal.) */
 /* Table of quantity names.  Must match Q* in sgmldecl.h. */
 
 static char *quantity_names[] = {
-    "ATTCNT",
-    "ATTSPLEN",
-    "BSEQLEN",
-    "DTAGLEN",
-    "DTEMPLEN",
-    "ENTLVL",
-    "GRPCNT",
-    "GRPGTCNT",
-    "GRPLVL",
-    "LITLEN",
-    "NAMELEN",
-    "NORMSEP",
-    "PILEN",
-    "TAGLEN",
-    "TAGLVL",
+    "ATTCNT",   
+    "ATTSPLEN", 
+    "BSEQLEN",  
+    "DTAGLEN",  
+    "DTEMPLEN", 
+    "ENTLVL",   
+    "GRPCNT",   
+    "GRPGTCNT", 
+    "GRPLVL",   
+    "LITLEN",   
+    "NAMELEN",  
+    "NORMSEP",  
+    "PILEN",    
+    "TAGLEN",   
+    "TAGLVL",    
 };
 
 static int max_quantity[] = {
@@ -253,9 +255,18 @@ static int systemcharset[] = {
 240, 241, 242, 243, 244, 245, 246, 247, 248, 249, 250, 251, 252, 253, 254, 255,
 };
 
+/* This is a private use designating sequence that by convention
+refers to the whole system character set whatever it is. */
+
+#define SYSTEM_CHARSET_DESIGNATING_SEQUENCE "ESC 2/5 2/15 3/0"
+
 static struct pmap charset_map[] = {
-     { "ESC 2/5 4/0", (UNIV)asciicharset }, /* ISO 646 IRV */
-     { "ESC 2/8 4/2", (UNIV)asciicharset }, /* ISO Registration Number 6, ASCII */
+     { "ESC 2/5 4/0", (UNIV)iso646charset }, /* ISO 646 IRV */
+     { "ESC 2/8 4/2", (UNIV)iso646G0charset }, /* ISO Registration Number 6, ASCII */
+     { "ESC 2/8 4/0", (UNIV)iso646G0charset }, /* ISO Registration Number 6, ASCII */
+     { "ESC 2/13 4/1", (UNIV)iso8859_1charset }, /* Latin 1 */
+     { "ESC 2/1 4/0", (UNIV)iso646C0charset }, /* ISO 646, C0 */
+     { "ESC 2/2 4/3", (UNIV)iso6429C1charset }, /* ISO 6429, C1 */
      { SYSTEM_CHARSET_DESIGNATING_SEQUENCE, (UNIV)systemcharset },
 				/* system character set */
      { 0 }
@@ -272,7 +283,9 @@ static UNCH char_flags[256];
 static int done_nonsgml = 0;
 static UNCH *nlextoke = 0;	/* new lextoke */
 static UNCH *nlextran = 0;	/* new lextran */
-
+#define MAX_SAVED_ERRS 4
+static UNIV saved_errs[MAX_SAVED_ERRS];
+static int nsaved_errs = 0;
 
 static UNCH kcharset[] = "CHARSET";
 static UNCH kbaseset[] = "BASESET";
@@ -327,7 +340,7 @@ static UNCH kquantity[] = "QUANTITY";
 
 static UNIV pmaplookup P((struct pmap *, char *));
 static UNCH *ltous P((long));
-static VOID sdfixstandard P((UNCH *));
+static VOID sdfixstandard P((UNCH *, int));
 static int sdparm P((UNCH *, struct parse *));
 static int sdname P((UNCH *, UNCH *));
 static int sdckname P((UNCH *, UNCH *));
@@ -353,6 +366,7 @@ static int sdnames P((UNCH *));
 static int sdquantity P((UNCH *));
 static int sdfeatures P((UNCH *));
 static int sdappinfo P((UNCH *));
+static VOID sdsaverr P((UNS, UNCH *, UNCH *));
 
 static VOID bufsalloc P((void));
 static VOID bufsrealloc P((void));
@@ -377,11 +391,25 @@ int sgmldecl()
      parmno = 0;
      mdname = sgmlkey;
      subdcl = NULL;
+     nsaved_errs = 0;
      for (i = 0; i < SIZEOF(section); i++)
 	  if ((*section[i])(tbuf) == FAIL) {
 	       errsw = 1;
 	       break;
 	  }
+     if (sd.formal) {
+	  /* print saved errors */
+	  int i;
+	  for (i = 0; i < nsaved_errs; i++)
+	       svderr(saved_errs[i]);
+     }
+     else {
+	  /* free saved errors */
+	  int i;
+	  for (i = 0; i < nsaved_errs; i++)
+	       msgsfree(saved_errs[i]);
+     }
+
      if (!errsw)
 	  setlexical();
      bufsrealloc();
@@ -406,7 +434,7 @@ UNCH *tbuf;
 	  sderr(123, (UNCH *)0, (UNCH *)0);
 	  return FAIL;
      }
-     sdfixstandard(tbuf);
+     sdfixstandard(tbuf, 0);
      if (ustrcmp(tbuf, standard) != 0)
 	  sderr(E_BADVERSION, tbuf, standard);
      return SUCCESS;
@@ -426,6 +454,7 @@ UNCH *tbuf;
      if (sdcsdesc(tbuf, status) == FAIL)
 	  return FAIL;
 
+#if 0
      for (i = 128; i < 256; i++)
 	  if (status[i] != UNDESC)
 	       break;
@@ -437,11 +466,14 @@ UNCH *tbuf;
 	  sderr(E_7BIT, (UNCH *)0, (UNCH *)0);
 #endif
      }
+#endif
      /* Characters that are declared UNUSED in the document character set
 	are assigned to non-SGML. */
      for (i = 0; i < 256; i++) {
 	  if (status[i] == UNDESC) {
+#if 0
 	       sderr(E_CHARMISSING, ltous((long)i), (UNCH *)0);
+#endif
 	       char_flags[i] |= CHAR_NONSGML;
 	  }
 	  else if (status[i] == UNUSED)
@@ -491,9 +523,9 @@ int *status;
 	  fpi.fpipubis = tbuf;
 	  /* Give a warning if it is not a CHARSET fpi. */
 	  if (parsefpi(&fpi))
-	       sderr(E_FORMAL, (UNCH *)0, (UNCH *)0);
+	       sdsaverr(E_FORMAL, (UNCH *)0, (UNCH *)0);
 	  else if (fpi.fpic != FPICHARS)
-	       sderr(E_BADCLASS, kcharset, (UNCH *)0);
+	       sdsaverr(E_BADCLASS, kcharset, (UNCH *)0);
 	  else {
 	       fpi.fpipubis[fpi.fpil + fpi.fpill] = '\0';
 	       baseset = (int *)pmaplookup(charset_map,
@@ -547,10 +579,12 @@ int *status;
 			      int n = basenum + (i - start);
 			      if (n < 0 || n > 255)
 				   sderr(E_CHARRANGE, (UNCH *)0, (UNCH *)0);
-			      else if (baseset[n] == UNUSED)
-				   sderr(E_BADBASECHAR, ltous((long)n), (UNCH *)0);
-			      else
+			      else {
+				   if (baseset[n] == UNUSED)
+					sderr(E_BADBASECHAR, ltous((long)n),
+					      (UNCH *)0);
 				   status[i] = baseset[n];
+			      }
 			 }
 		    }
 	       }
@@ -570,6 +604,7 @@ static int sdcapacity(tbuf)
 UNCH *tbuf;
 {
      int ncap;
+     int i;
 
      if (sdckname(tbuf, kcapacity) == FAIL)
 	  return FAIL;
@@ -609,7 +644,9 @@ UNCH *tbuf;
 	  sderr(E_CAPMISSING, (UNCH *)0, (UNCH *)0);
 	  return FAIL;
      }
-
+     for (i = 1; i < NCAPACITY; i++)
+	  if (sd.capacity[i] > sd.capacity[0])
+	       sderr(E_TOTALCAP, (UNCH *)captab[i], (UNCH *)0);
      return SUCCESS;
 }
 
@@ -624,7 +661,7 @@ UNCH *tbuf;
 	  sderr(123, (UNCH *)0, (UNCH *)0);
 	  return FAIL;
      }
-     sdfixstandard(tbuf);
+     sdfixstandard(tbuf, 1);
      ptr = pmaplookup(capset_map, (char *)tbuf);
      if (!ptr)
 	  sderr(E_CAPSET, tbuf, (UNCH *)0);
@@ -680,7 +717,7 @@ UNCH *tbuf;
      int nswitches;
      if (sdparm(tbuf, &pcblitv) != LIT1)
 	  return FAIL;
-     sdfixstandard(tbuf);
+     sdfixstandard(tbuf, 1);
      if (ustrcmp(tbuf, CORE_SYNTAX) == 0)
 	  sd.shortref = 0;
      else if (ustrcmp(tbuf, REFERENCE_SYNTAX) == 0)
@@ -769,7 +806,7 @@ UNCH *tbuf;
 	  }
      }
      if (pcbsd.action != NUM1) {
-	  sderr(E_XNUM, (UNCH *)0, (UNCH *)0);
+	  sderr(E_SHUNCHAR, (UNCH *)0, (UNCH *)0);
 	  return FAIL;
      }
      do {
@@ -944,7 +981,7 @@ UNCH *tbuf;
 	       return FAIL;
 	  }
 	  start[i] = bufi;
-
+	  
 	  for (s = tbuf; *s; s++) {
 	       int c = *s;
 	       if (c == DELNONCH) {
@@ -955,8 +992,7 @@ UNCH *tbuf;
 	       if (c < 0)
 		    bad = 1;
 	       else if ((char_flags[c] & (CHAR_SIGNIFICANT | CHAR_MAGIC))
-			&& c != '.' && c != '-'
-			&& !(c == '_' && i >= 2)) {
+			&& c != '.' && c != '-') {
 		    int class = lextoke[c];
 		    if (class == SEP || class == SP || class == NMC
 			|| class == NMS || class == NU)
@@ -996,7 +1032,7 @@ UNCH *tbuf;
 	       nlextoke[uc] = NMS;
 	       nlextran[lc] = uc;
 	  }
-
+		       
 	  for (i = 0; i < count[2]; i++) {
 	       UNCH lc = buf[start[2] + i];
 	       UNCH uc = buf[start[3] + i];
@@ -1149,7 +1185,7 @@ UNCH *tbuf;
 	  for (i = 0; i < NKEYS; i++)
 	       if (newkey[i][0] != '\0') {
 		    UNCH temp[REFNAMELEN + 1];
-
+		    
 		    ustrcpy(temp, key[i]);
 		    ustrcpy(key[i], newkey[i]);
 		    ustrcpy(newkey[i], temp);
@@ -1304,11 +1340,13 @@ UNCH *tbuf;
 /* Change a prefix of ISO 8879-1986 to ISO 8879:1986.  Amendment 1 to
 the standard requires the latter. */
 
-static VOID sdfixstandard(tbuf)
+static VOID sdfixstandard(tbuf, silently)
 UNCH *tbuf;
+int silently;
 {
      if (strncmp((char *)tbuf, "ISO 8879-1986", 13) == 0) {
-	  sderr(E_STANDARD, (UNCH *)0, (UNCH *)0);
+	  if (!silently)
+	       sderr(E_STANDARD, (UNCH *)0, (UNCH *)0);
 	  tbuf[8] = ':';
      }
 }
@@ -1389,7 +1427,7 @@ VOID sdinit()
 {
      int i;
      /* Shunned character numbers in the reference concrete syntax. */
-     static UNCH refshun[] = {
+     static UNCH refshun[] = { 
 	  0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18,
 	  19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 31, 127, 255
 	  };
@@ -1435,7 +1473,7 @@ static
 VOID bufsrealloc()
 {
      UNS size;
-
+     
      if (ENTLVL != REFENTLVL)
 	  scbs = (struct source *)rrealloc((UNIV)scbs,
 					   (ENTLVL+1)*sizeof(struct source));
@@ -1463,7 +1501,7 @@ static VOID setlexical()
 {
      int i;
      UNCH **p;
-
+     
      if (nlextoke) {
 	  /* Handle characters that were made significant by the
 	     NAMING section. */
@@ -1493,7 +1531,7 @@ static VOID setlexical()
 	       }
 	  }
 
-
+     
      /* Now munge the lexical tables. */
      for (p = lextabs; *p; p++) {
 	  UNCH nonclass = (*p)[CANON_NONSGML];
@@ -1513,6 +1551,12 @@ static VOID setlexical()
 		    }
 		    else if (!(char_flags[i] & CHAR_SIGNIFICANT))
 			 (*p)[i] = datclass;
+		    else if (*p == lexmin) {
+			 /* If it used to be NONSGML, but its now significant,
+			    treat it like a datachar. */
+			 if ((*p)[i] == nonclass)
+			      (*p)[i] = datclass;
+		    }
 		    else if (nlextoke
 			     /* This relies on the fact that lextoke
 				occurs last in lextabs. */
@@ -1544,7 +1588,7 @@ static VOID setlexical()
 	  frem((UNIV)nlextoke);
 	  nlextoke = 0;
      }
-
+     
 }
 
 /* Munge parse tables so that empty start and end tags are not recognized. */
@@ -1553,7 +1597,7 @@ static VOID noemptytag()
 {
      static struct parse *pcbs[] = { &pcbconm, &pcbcone, &pcbconr, &pcbconc };
      int i;
-
+     
      for (i = 0; i < SIZEOF(pcbs); i++) {
 	  int maxclass, maxstate;
 	  int j, k, act;
@@ -1617,11 +1661,10 @@ FILE *fp;
      char lcletter[256];	/* LC letters: a-z */
 
      fprintf(fp, "<!SGML \"%s\"\n", standard);
-     fprintf(fp, "CHARSET\nBASESET \"%s//CHARSET %s//%s\"\nDESCSET\n",
-	     SYSTEM_CHARSET_OWNER,
-	     SYSTEM_CHARSET_DESCRIPTION,
+     fprintf(fp,
+	     "CHARSET\nBASESET \"-//Dummy//CHARSET Dummy//%s\"\nDESCSET\n",
 	     SYSTEM_CHARSET_DESIGNATING_SEQUENCE);
-
+     
      if (!done_nonsgml) {
 	  done_nonsgml = 1;
 	  for (i = 0; i < 256; i++)
@@ -1655,18 +1698,26 @@ FILE *fp;
      if (!changed)
 	  fprintf(fp, "PUBLIC \"%s\"\n", capset_map[0].name);
      fprintf(fp, "SCOPE DOCUMENT\n");
-
+     
      fprintf(fp, "SYNTAX\nSHUNCHAR");
      for (i = 0; i < 256; i++)
 	  if (char_flags[i] & CHAR_SHUNNED)
-	       fprintf(fp, " %d", i);
-     fprintf(fp, "\n");
-     fprintf(fp, "BASESET \"%s//CHARSET %s//%s\"\nDESCSET 0 256 0\n",
-	     SYSTEM_CHARSET_OWNER,
-	     SYSTEM_CHARSET_DESCRIPTION,
+	       break;
+     if (i == 256)
+	  fprintf(fp, " NONE\n");
+     else {
+	  for (; i < 256; i++)
+	       if (char_flags[i] & CHAR_SHUNNED)
+		    fprintf(fp, " %d", i);
+	  fprintf(fp, "\n");
+     }
+
+     fprintf(fp,
+	     "BASESET \"-//Dummy//CHARSET Dummy//%s\"\nDESCSET 0 256 0\n",
 	     SYSTEM_CHARSET_DESIGNATING_SEQUENCE);
 
-     fprintf(fp, "FUNCTION\nRE 13\nRS 10\nSPACE 32\nTAB SEPCHAR 9\n");
+     fprintf(fp, "FUNCTION\nRE %d\nRS %d\nSPACE %d\nTAB SEPCHAR %d\n",
+	     RECHAR, RSCHAR, ' ', TABCHAR);
 
      MEMZERO((UNIV)uc, 256);
      for (i = 0; i < 256; i++)
@@ -1729,6 +1780,17 @@ FILE *fp;
      fprintf(fp, "FORMAL %s\n", sd.formal ? "YES" : "NO");
      fprintf(fp, "APPINFO NONE");
      fprintf(fp, ">\n");
+}
+
+/* Save an error to be printed only if FORMAL is declared as YES. */
+
+static
+VOID sdsaverr(number, parm1, parm2)
+UNS number;
+UNCH *parm1;
+UNCH *parm2;
+{
+     saved_errs[nsaved_errs++] = savmderr(number, parm1, parm2);
 }
 
 /*

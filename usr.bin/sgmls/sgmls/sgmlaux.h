@@ -51,6 +51,7 @@ VOID ioinit P((struct switches *));
 char *ioflid P((UNIV));
 
 UNIV entgen P((struct fpi *));
+VOID entginit P((struct switches *));
 
 VOID msgprint P((struct error *));
 VOID msginit P((struct switches *));
@@ -68,3 +69,4 @@ UNIV rmalloc P((unsigned int));
 UNIV rrealloc P((UNIV, UNS));
 VOID frem P((UNIV));
 VOID exiterr P((unsigned int,struct parse *));
+char *getsubst P((void));

@@ -104,6 +104,7 @@ struct parse *pcb;            /* Current parse control block. */
                parsenm(entbuf, NAMECASE);
                parse(&pcbref);     /* Handle reference terminator. */
                charrefa(entbuf);
+	       if (docelsw) synerr(232, pcb);
                continue;
 
           case SYS_:          /* Invalid NONCHAR: send msg and ignore. */
@@ -172,10 +173,10 @@ int ch;
 	change the entity, since the entity might be referenced again.
 	So in this case we copy the entity.  This is inefficient, but
 	it will only happen in a case like this:
-
+	
 	<!entity % amp "&">
 	<!entity e "x%amp;#SPACE;">
-
+	
 	Usually character references will have been processed while the
 	entity was being defined.  */
      if (*FPOS != ch) {
@@ -754,12 +755,19 @@ UNCH del;                     /* Literal delimiter: LIT LITA PIC EOS */
 #endif
 {
      UNCH *pt = tbuf;         /* Current pointer into tbuf. */
-     UNCH lexsv = lexlms[del];/* Saved lexlms value of delimiter. */
+     UNCH lexsv = pcb->plex[del];/* Saved value of delimiter in lexical table. */
      int essv = es;           /* Entity stack level when literal started. */
      UNCH datadel;            /* Delimiter for CDATA/SDATA entity. */
-     int parmlen = (int)maxlen;  /* Working limit (to be decremented). */
+     int parmlen = (int)maxlen + 1;  /* Working limit (to be decremented). */
+     int overflow = 0;	      /* Did the buffer overflow? */
 
-     lexlms[del] = lex.l.litc;   /* Set delimiter to act as literal close. */
+     pcb->plex[del] = pcb->plex == lexlms ? lex.l.litc : lex.l.minlitc;
+
+     /* The RPR_ action may cause the length of the literal to decrease by
+	1 (this discards a final space in a minimum literal); so while
+	building the literal, the length must be allowed to grow to
+	maxlen + 1. */
+
      do {
           switch (parse(pcb)) {
                case LP2_:          /* Move 2nd char back to buffer; redo prev.*/
@@ -767,15 +775,19 @@ UNCH del;                     /* Literal delimiter: LIT LITA PIC EOS */
                case LPR_:          /* Move previous char to buffer; REPEATCC; */
                     REPEATCC;
                case MLA_:          /* Move character to buffer. */
+		    if (parmlen <= 0) { overflow = 1; break; }
                     *pt++ = *FPOS; --parmlen;
                     continue;
 
                case FUN_:          /* Function char found; replace with space.*/
+		    if (parmlen <= 0) { overflow = 1; break; }
                     *pt++ = ' '; --parmlen;
                     continue;
 
                case RSM_:          /* Record start: ccnt=0; ++rcnt.*/
-                    ++RCNT; CTRSET(RSCC); *pt++ = *FPOS; --parmlen;
+		    ++RCNT; CTRSET(RSCC); 
+		    if (parmlen <= 0) { overflow = 1; break; }
+                    *pt++ = *FPOS; --parmlen;
                     continue;
 
                case ERX_:          /* Entity reference: cancel LITC delim. */
@@ -806,7 +818,12 @@ UNCH del;                     /* Literal delimiter: LIT LITA PIC EOS */
 			 pt += parmlensv - parmlen;
 			 continue;
 		    }
-                    if ((parmlen -= (int)datalen+2)<0) {entdatsw = 0; break;}
+		    if (parmlen < datalen + 2) {
+			 entdatsw = 0;
+			 overflow = 1;
+			 break;
+		    }
+		    parmlen -= datalen + 2;
                     *pt++ = datadel =
                          BITON(entdatsw, CDECONT) ? DELCDATA : DELSDATA;
                     entdatsw = 0;
@@ -816,7 +833,8 @@ UNCH del;                     /* Literal delimiter: LIT LITA PIC EOS */
                     continue;
 
                case NON_:          /* Non-SGML char (delimited and shifted). */
-                    if ((parmlen -= 2)<0) break;
+		    if (parmlen < 2) { overflow = 1; break; }
+		    parmlen -= 2;
                     memcpy( pt , nonchbuf, 2 );
                     pt += 2;
                     continue;
@@ -832,19 +850,25 @@ UNCH del;                     /* Literal delimiter: LIT LITA PIC EOS */
                     break;
           }
           break;
-     } while (parmlen>=0 && pcb->action!=TER_);
+     } while (!overflow && pcb->action!=TER_);
 
-     if (parmlen<0) {--pt; sgmlerr(134, pcb, ntoa((int)maxlen),(UNCH *)0); REPEATCC;}
+     if (parmlen <= 0) {
+	  --pt;
+	  overflow = 1;
+     }
+     if (overflow)
+	  sgmlerr(134, pcb, ntoa((int)maxlen),(UNCH *)0);
+
      datalen = (UNS)(pt-tbuf);/* To return PI string to text processor. */
      *pt++ = EOS;
-     lexlms[del] = lexsv;     /* Restore normal delimiter handling. */
+     pcb->plex[del] = lexsv;     /* Restore normal delimiter handling. */
      if (es!=essv) synerr(37, pcb);
-     return;
 }
 
 /* Handle a data entity in a tokenized attribute value literal.
 Parmlen is amount of space left.  Return new parmlen. If there's not
-enough space return -1, and copy up to parmlen + 1 characters. */
+enough space return -1, and copy up to parmlen + 1 characters.  Only
+tokenization should be done, not attribute value interpretation. */
 
 int tokdata(pt, parmlen)
 UNCH *pt;
@@ -852,14 +876,9 @@ int parmlen;
 {
      int skip = (pcblitt.newstate == 0);
      int i;
-
+     
      for (i = 0; parmlen >= 0 && i < datalen; i++) {
 	  switch (data[i]) {
-	  case RSCHAR:
-	       /* ignore it */
-	       break;
-	  case RECHAR:
-	  case TABCHAR:
 	  case SPCCHAR:
 	       if (!skip) {
 		    *pt++ = data[i];
@@ -935,6 +954,7 @@ UNS tokenlen;                 /* Max length of expected token: NAMELEN LITLEN */
           return (int)pcb->action;
      case NUM:           /* Number or number token string. */
           parsetkn(pt, (UNCH)((int)tokenlen<=NAMELEN ? NU:NMC), (int)tokenlen);
+	  if (tokenlen > NAMELEN) pcb->newstate = 0;
           return (int)pcb->action;
      case PENR:
 	  REPEATCC;
@@ -976,6 +996,11 @@ int dctype;                        /* Content type (0=model). */
      case OREP:                    /* OREP occurrence indicator for model. */
           SET(gbuf[1].ttype, TOREP|TXOREP);
           break;
+     case EE_:
+	  if (es < mdessv) {
+	       synerr(37, &pcbmd);
+	       mdessv = es;
+	  }
      default:                      /* RCR_: Repeat char and return. */
           break;
      }

@@ -35,7 +35,7 @@ struct sgmls_external_entity {
   struct sgmls_attribute *attributes;
   struct sgmls_notation *notation;
 };
-
+  
 struct sgmls_entity {
   union {
     struct sgmls_internal_entity internal;

@@ -44,6 +44,9 @@ Standard Generalized Markup Language
 [
 .BI \-i name
 ]
+[
+.BI \-m file
+]
 .if \n(Tr \{\
 [
 .BI \-x flags
@@ -77,7 +80,8 @@ can also be used to refer to the standard input.
 The following options are available:
 .TP
 .BI \-c file
-Write a report of capacity usage to
+Report any capacity limits that are exceeded
+and write a report of capacity usage to
 .IR file .
 The report is in the format of a RACT result.
 RACT is the Reference Application for Capacity Testing defined in the
@@ -137,6 +141,17 @@ Output
 .B L
 commands giving the current line number and filename.
 .TP
+.BI \-m file
+Map public identifiers and entity names to system identifiers
+using the catalog entry file
+.IR file .
+Multiple
+.B \-m
+options are allowed.
+Catalog entry files specified with the
+.B -m
+option will be searched before the defaults.
+.TP
 .B \-p
 Parse only the prolog.
 .I Sgmls
@@ -153,7 +168,6 @@ Error messages will still be printed.
 .TP
 .B \-u
 Warn about undefined elements: elements used in the DTD but not defined.
-Also warn about undefined short reference maps.
 .TP
 .B \-v
 Print the version number.
@@ -223,11 +237,80 @@ interpreted as a list of filenames separated by
 A filename of
 .B \-
 can be used to refer to the standard input.
-If no system identifier is supplied, then the entity manager will
-attempt to generate a filename using the public identifier
-(if there is one) and other information available to it.
-Notation identifiers are not subject to this treatment.
-This process is controlled by the environment variable
+.LP
+If a system identifier is not specified,
+then the entity manager can generate one using catalog
+entry files in the format defined in the SGML Open Draft Technical
+Resolution on Entity Management.  A catalog entry file contains a
+sequence of entries in one of the following four forms:
+.TP
+.BI PUBLIC\  pubid\ sysid
+This specifies that
+.I sysid
+should be used as the system identifier if the the public
+identifier is
+.IR pubid .
+.I Sysid
+is a system identifier as defined in ISO 8879 and
+.I pubid
+is a public identifier as defined in ISO 8879.
+.TP
+.BI ENTITY\  name\ sysid
+This specifies that
+.I sysid
+should be used as the system identifier if the entity is a general
+entity whose name is
+.IR name .
+.TP
+.BI ENTITY\ % name\ sysid
+This specifies that
+.I sysid
+should be used as the system identifier if the entity is a parameter
+entity whose name is
+.IR name .
+Note that there is no space between the
+.B %
+and the
+.IR name .
+.TP
+.BI DOCTYPE\  name\ sysid
+This specifies that
+.I sysid
+should be used as the system identifier if the entity is an
+entity declared in a document type declaration whose document type name is
+.IR name .
+.LP
+The last two forms are extensions to the SGML Open format.
+The delimiters can be omitted from the
+.I sysid
+provided it does not contain any white space.
+Comments are allowed between parameters delimited by
+.B --
+as in SGML.
+The environment variable
+.B \s-1SGML_CATALOG_FILES\s0
+contains a
+.if \n(Os=0 colon-separated
+.if \n(Os=1 semicolon-separated
+list of catalog entry files.
+These will be searched after any catalog entry files specified
+using the
+.B \-m
+option.
+If this environment variable is not set,
+then a system dependent list of catalog entry files will be used.
+A match in a catalog entry file for a PUBLIC entry will take
+precedence over a match in the same file for an ENTITY
+or DOCTYPE entry.
+A filename in a system identifier in a catalog entry file
+is interpreted relative to the directory containing the catalog
+entry file.
+.LP
+If no match can be found in a catalog entry file, then the entity
+manager will attempt to generate a filename using the public
+identifier (if there is one) and other information available to it.
+Notation identifiers are not subject to this treatment.  This process
+is controlled by the environment variable
 .BR \s-1SGML_PATH\s0 ;
 this contains a
 .if \n(Os=0 colon-separated
@@ -238,18 +321,6 @@ substitution fields; a substitution field is a
 .B %
 character followed by a single letter that indicates the value
 of the substitution.
-If
-.B \s-1SGML_PATH\s0
-uses the
-.B %S
-field (the value of which is the system identifier),
-then the entity manager will also use
-.B \s-1SGML_PATH\s0
-to generate a filename
-when a system identifier that does not contain any
-.if \n(Os=0 colons
-.if \n(Os=1 semi-colons
-is supplied.
 The value of a substitution can either be a string
 or it can be
 .IR null .
@@ -395,6 +466,27 @@ does not allow a display version or if no version was specified.
 If an empty version was specified, a value of
 .B default
 will be used.
+.LP
+Normally if the external identifier for an entity includes a system
+identifier, the entity manager will use the specified system
+identifier and not attempt to generate one.
+If, however,
+.B \s-1SGML_PATH\s0
+uses the
+.B %S
+field,
+then the entity manager will first search for a matching
+entry in the catalog entry files.
+If a match is found, then this will be used instead of the
+specified system identifier.
+Otherwise,
+if the specified system identifier does not contain any
+.if \n(Os=0 colons,
+.if \n(Os=1 semi-colons,
+the entity manager will use
+.B \s-1SGML_PATH\s0
+to generate a filename.
+Otherwise the entity manager will use the specified system identifier.
 .br
 .ne 18
 .SS "System declaration"
@@ -442,6 +534,10 @@ SDIF
 &PACK&NO&UNPACK&NO
 .TE
 .LP
+Exceeding a capacity limit will be ignored unless the
+.B \-c
+option is given.
+.LP
 The memory usage of
 .I sgmls
 is not a function of the capacity points used by a document;
@@ -465,18 +561,6 @@ The shunned character numbers can be changed.
 .LP
 Eight bit characters can be assigned to
 \s-1LCNMSTRT\s0, \s-1UCNMSTRT\s0, \s-1LCNMCHAR\s0 and \s-1UCNMCHAR\s0.
-Declaring this requires that the syntax reference character set be declared
-like this:
-.RS
-.ne 3
-.TS
-tab(&);
-l l.
-BASESET&"ISO Registration Number 100//CHARSET
-&\h'\w'"'u'ECMA-94 Right Part of Latin Alphabet Nr. 1//ESC 2/13 4/1"
-DESCSET&0\0256\00
-.TE
-.RE
 .LP
 Uppercase substitution can be performed or not performed
 both for entity names and for other names.
@@ -544,21 +628,35 @@ APPINFO NONE>
 .TE
 with the exception that characters 128 through 254 will be assigned to
 \s-1DATACHAR\s0.
-When exporting documents that use characters in this range,
-an accurate description of the upper half of the document character set
-should be added to this declaration.
-For ISO Latin-1, an appropriate description would be:
-.br
-.ne 5
+.LP
+.I Sgmls
+identifies base character sets using the designating sequence in the
+public identifier.  The following designating sequences are
+recognized:
 .TS
 tab(&);
-l l.
-BASESET&"ISO Registration Number 100//CHARSET
-&\h'\w'"'u'ECMA-94 Right Part of Latin Alphabet Nr. 1//ESC 2/13 4/1"
-DESCSET&128\032\0UNUSED
-&160\095\032
-&255\0\01\0UNUSED
+c c c c c
+c c c c ^
+c c c c ^
+l n n n l.
+Designating&ISO&Minimum&Number&Description
+Escape&Registration&Character&of&
+Sequence&Number&Number&Characters&
+_
+ESC 2/5 4/0&-&0&128&full set of ISO 646 IRV
+ESC 2/8 4/0&2&33&94&G0 set of ISO 646 IRV
+ESC 2/8 4/2&6&33&94&G0 set of ASCII
+ESC 2/13 4/1&100&32&96&G1 set of ISO 8859-1
+ESC 2/1 4/0&1&0&32&C0 set of ISO 646
+ESC 2/2 4/3&77&0&32&C1 set of ISO 6429
+ESC 2/5 2/15 3/0&-&0&256&the system character set
 .TE
+.LP
+When one of the G0 sets is used as a base set, the characters SPACE
+and DELETE are treated as occurring at positions 32 and 127
+respectively; although these characters are not part of the character
+sets designated by the escape sequences, this mimics the behaviour of
+ISO 2022 with respect to these code positions.
 .SS "Output format"
 The output is a series of lines.
 Lines can be arbitrarily long.

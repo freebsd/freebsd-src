@@ -32,6 +32,7 @@ struct lexcode {
      UNCH fce;                /* LEXCNM: FRE character as entity reference. */
      UNCH fre;                /* LEXCON: Free character not an entity ref. */
      UNCH litc;               /* LEXLMS: Literal close delimiter enabled. */
+     UNCH minlitc;	      /* LEXMIN: Literal close delimiter enabled. */
      UNCH msc;                /* LEXLMS: Marked section close delim enabled. */
      UNCH net;                /* LEXCON: Null end-tag delimiter enabled. */
      UNCH nonet;              /* LEXCON: NET disabled; still used as ETI. */
@@ -50,6 +51,7 @@ extern UNCH lexcnm[];         /* Lexical table: mixed content. */
 extern UNCH lexcon[];         /* Lexical table for content (except mixed). */
 extern UNCH lexgrp[];         /* Lexical table for groups. */
 extern UNCH lexlms[];         /* Lexical table: literals and marked sections. */
+extern UNCH lexmin[];         /* Lexical table: minimum data literal. */
 extern UNCH lexmark[];        /* Lexical table for markup. */
 extern UNCH lexsd[];          /* Lexical table for SGML declaration. */
 extern UNCH lextran[];        /* Case translation table for SGML names. */

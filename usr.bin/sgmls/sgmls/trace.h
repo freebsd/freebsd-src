@@ -20,11 +20,11 @@ VOID tracecon P((int,int,int,struct parse *,int,int));
 VOID tracedcn P((struct dcncb *));
 VOID tracedsk P((struct tag *,struct tag *,int,int));
 VOID traceecb P((char *,struct entity *));
-VOID traceend P((char *,struct thdr *,struct mpos *,int,int,int));
+VOID traceend P((char *,struct thdr *,struct mpos *,int,int));
 VOID traceesn P((struct ne *));
 VOID traceetd P((struct etd *));
 VOID traceetg P((struct tag *,struct etd *,int,int));
-VOID tracegi P((char *,struct etd *,struct thdr *,struct mpos *,int));
+VOID tracegi P((char *,struct etd *,struct thdr *,struct mpos *));
 VOID tracegml P((struct restate *,int,int,int));
 VOID tracegrp P((struct etd **));
 VOID traceid P((char *,struct id *));
@@ -50,15 +50,15 @@ VOID traceval P((struct parse *,unsigned int,UNCH *,int));
   ((void)(gtrace && (tracedsk(pts, ptso, ts3, etictr), 1)))
 #define TRACEECB(action, p) \
   ((void)(etrace && (traceecb(action, p), 1)))
-#define TRACEEND(stagenm, mod, pos, rc, opt, Tstart) \
-  ((void)(ctrace && (traceend(stagenm, mod, pos, rc, opt, Tstart), 1)))
+#define TRACEEND(stagenm, mod, pos, rc, opt) \
+  ((void)(ctrace && (traceend(stagenm, mod, pos, rc, opt), 1)))
 #define TRACEESN(p) \
   ((void)((etrace || atrace || ntrace) && (traceesn(p), 1)))
 #define TRACEETD(p) ((void)(gtrace && (traceetd(p), 1)))
 #define TRACEETG(pts, curetd, tsl, etagimct) \
   ((void)(gtrace && (traceetg(pts, curetd, tsl, etagimct), 1)))
-#define TRACEGI(stagenm, gi, mod, pos, Tstart) \
-  ((void)(ctrace && (tracegi(stagenm, gi, mod, pos, Tstart), 1)))
+#define TRACEGI(stagenm, gi, mod, pos) \
+  ((void)(ctrace && (tracegi(stagenm, gi, mod, pos), 1)))
 #define TRACEGML(scb, pss, conactsw, conact) \
   ((void)(trace && (tracegml(scb, pss, conactsw, conact), 1)))
 #define TRACEGRP(p) ((void)(gtrace && (tracegrp(p), 1)))
@@ -89,11 +89,11 @@ VOID traceval P((struct parse *,unsigned int,UNCH *,int));
 #define TRACEDCN(dcn) /* empty */
 #define TRACEDSK(pts, ptso, ts3, etictr) /* empty */
 #define TRACEECB(action, p) /* empty */
-#define TRACEEND(stagenm, mod, pos, rc, opt, Tstart) /* empty */
+#define TRACEEND(stagenm, mod, pos, rc, opt) /* empty */
 #define TRACEESN(p) /* empty */
 #define TRACEETG(pts, curetd, tsl, etagimct) /* empty */
 #define TRACEETD(p) /* empty */
-#define TRACEGI(stagenm, gi, mod, pos, Tstart) /* empty */
+#define TRACEGI(stagenm, gi, mod, pos) /* empty */
 #define TRACEGML(scb, pss, conactsw, conact) /* empty */
 #define TRACEGRP(p) /* empty */
 #define TRACEID(action, p) /* empty */
