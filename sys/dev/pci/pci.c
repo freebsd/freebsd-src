@@ -70,7 +70,8 @@ static int		pci_porten(device_t pcib, int b, int s, int f);
 static int		pci_memen(device_t pcib, int b, int s, int f);
 static int		pci_add_map(device_t pcib, int b, int s, int f, int reg, 
 				    struct resource_list *rl);
-static void		pci_add_resources(device_t pcib, device_t dev);
+static void		pci_add_resources(device_t pcib, device_t bus,
+					  device_t dev);
 static int		pci_probe(device_t dev);
 static int		pci_attach(device_t dev);
 static void		pci_load_vendor_data(void);
@@ -119,6 +120,7 @@ static device_method_t pci_methods[] = {
 	DEVMETHOD(pci_disable_io,	pci_disable_io_method),
 	DEVMETHOD(pci_get_powerstate,	pci_get_powerstate_method),
 	DEVMETHOD(pci_set_powerstate,	pci_set_powerstate_method),
+	DEVMETHOD(pci_assign_interrupt,	pci_assign_interrupt_method),
 
 	{ 0, 0 }
 };
@@ -776,7 +778,7 @@ pci_add_map(device_t pcib, int b, int s, int f, int reg,
 }
 
 static void
-pci_add_resources(device_t pcib, device_t dev)
+pci_add_resources(device_t pcib, device_t bus, device_t dev)
 {
 	struct pci_devinfo *dinfo = device_get_ivars(dev);
 	pcicfgregs *cfg = &dinfo->cfg;
@@ -805,7 +807,7 @@ pci_add_resources(device_t pcib, device_t dev)
 		 * If the re-route fails, then just stick with what we
 		 * have.
 		 */
-		irq = PCIB_ROUTE_INTERRUPT(pcib, dev, cfg->intpin);
+		irq = PCI_ASSIGN_INTERRUPT(bus, dev);
 		if (PCI_INTERRUPT_VALID(irq)) {
 			pci_write_config(dev, PCIR_INTLINE, irq, 1);
 			cfg->intline = irq;
@@ -855,7 +857,7 @@ pci_add_child(device_t bus, struct pci_devinfo *dinfo)
 	pcib = device_get_parent(bus);
 	dinfo->cfg.dev = device_add_child(bus, NULL, -1);
 	device_set_ivars(dinfo->cfg.dev, dinfo);
-	pci_add_resources(pcib, dinfo->cfg.dev);
+	pci_add_resources(pcib, bus, dinfo->cfg.dev);
 	pci_print_verbose(dinfo);
 }
 
@@ -1356,8 +1358,7 @@ pci_alloc_resource(device_t dev, device_t child, int type, int *rid,
 			 */
 			if (!PCI_INTERRUPT_VALID(cfg->intline) &&
 			    (cfg->intpin != 0)) {
-				cfg->intline = PCIB_ROUTE_INTERRUPT(
-				    device_get_parent(dev), child, cfg->intpin);
+				cfg->intline = PCI_ASSIGN_INTERRUPT(dev, child);
 				if (PCI_INTERRUPT_VALID(cfg->intline)) {
 					pci_write_config(child, PCIR_INTLINE,
 					    cfg->intline, 1);
@@ -1477,6 +1478,16 @@ pci_child_pnpinfo_str_method(device_t cbdev, device_t child, char *buf,
 	    cfg->subvendor, cfg->subdevice, cfg->baseclass, cfg->subclass,
 	    cfg->progif);
 	return (0);
+}
+
+int
+pci_assign_interrupt_method(device_t dev, device_t child)
+{
+	struct pci_devinfo *dinfo = device_get_ivars(child);
+	pcicfgregs *cfg = &dinfo->cfg;
+
+	return (PCIB_ROUTE_INTERRUPT(device_get_parent(dev), child,
+	    cfg->intpin));
 }
 
 static int

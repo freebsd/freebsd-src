@@ -77,3 +77,8 @@ METHOD int disable_io {
 	device_t	child;
 	int		space;
 };
+
+METHOD int assign_interrupt {
+	device_t	dev;
+	device_t	child;
+};
