@@ -98,8 +98,8 @@ static int appr_fixseqack __P((fr_info_t *, ip_t *, ap_session_t *, int ));
 #include "netinet/ip_rcmd_pxy.c"
 #include "netinet/ip_raudio_pxy.c"
 #include "netinet/ip_netbios_pxy.c"
-#endif
 #include "netinet/ip_ipsec_pxy.c"
+#endif
 
 ap_session_t	*ap_sess_tab[AP_SESS_SIZE];
 ap_session_t	*ap_sess_list = NULL;
