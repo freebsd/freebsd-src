@@ -1362,7 +1362,6 @@ hifn_init_dma(struct hifn_softc *sc)
 static u_int
 hifn_write_command(struct hifn_command *cmd, u_int8_t *buf)
 {
-#define	MIN(a,b)	((a)<(b)?(a):(b))
 	u_int8_t *buf_pos;
 	hifn_base_command_t *base_cmd;
 	hifn_mac_command_t *mac_cmd;
@@ -1456,7 +1455,6 @@ hifn_write_command(struct hifn_command *cmd, u_int8_t *buf)
 	}
 
 	return (buf_pos - buf);
-#undef	MIN
 }
 
 static int

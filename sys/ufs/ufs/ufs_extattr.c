@@ -66,8 +66,6 @@
 
 #ifdef UFS_EXTATTR
 
-#define	MIN(a,b) (((a)<(b))?(a):(b))
-
 static MALLOC_DEFINE(M_UFS_EXTATTR, "ufs_extattr", "ufs extended attribute");
 
 static int ufs_extattr_sync = 0;
