@@ -596,7 +596,7 @@ doit(struct sockaddr_in *fromp)
 	krb_afslog(0, 0);
     }
     execle(pwd->pw_shell, cp, "-c", cmdbuf, 0, envinit);
-    err(1, pwd->pw_shell);
+    err(1, "%s", pwd->pw_shell);
 }
 
 /*
