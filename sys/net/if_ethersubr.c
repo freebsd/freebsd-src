@@ -139,7 +139,7 @@ static int ether_ipfw;
  */
 int
 ether_output(ifp, m, dst, rt0)
-	register struct ifnet *ifp;
+	struct ifnet *ifp;
 	struct mbuf *m;
 	struct sockaddr *dst;
 	struct rtentry *rt0;
@@ -147,8 +147,8 @@ ether_output(ifp, m, dst, rt0)
 	short type;
 	int error = 0, hdrcmplt = 0;
  	u_char esrc[6], edst[6];
-	register struct rtentry *rt;
-	register struct ether_header *eh;
+	struct rtentry *rt;
+	struct ether_header *eh;
 	int loop_copy = 0;
 	int hlen;	/* link layer header lenght */
 	struct arpcom *ac = IFP2AC(ifp);
@@ -648,7 +648,7 @@ ether_demux(struct ifnet *ifp, struct mbuf *m)
 	struct ifqueue *inq;
 	u_short ether_type;
 #if defined(NETATALK)
-	register struct llc *l;
+	struct llc *l;
 #endif
 	struct ip_fw *rule = NULL;
 
@@ -902,8 +902,8 @@ ether_sprintf(const u_char *ap)
 void
 ether_ifattach(struct ifnet *ifp, const u_int8_t *llc)
 {
-	register struct ifaddr *ifa;
-	register struct sockaddr_dl *sdl;
+	struct ifaddr *ifa;
+	struct sockaddr_dl *sdl;
 
 	ifp->if_type = IFT_ETHER;
 	ifp->if_addrlen = ETHER_ADDR_LEN;
@@ -983,7 +983,7 @@ ether_ioctl(ifp, command, data)
 		 */
 		case AF_IPX:
 			{
-			register struct ipx_addr *ina = &(IA_SIPX(ifa)->sipx_addr);
+			struct ipx_addr *ina = &(IA_SIPX(ifa)->sipx_addr);
 			struct arpcom *ac = IFP2AC(ifp);
 
 			if (ipx_nullhost(*ina))
@@ -1009,7 +1009,7 @@ ether_ioctl(ifp, command, data)
 		 */
 		case AF_NS:
 		{
-			register struct ns_addr *ina = &(IA_SNS(ifa)->sns_addr);
+			struct ns_addr *ina = &(IA_SNS(ifa)->sns_addr);
 			struct arpcom *ac = IFP2AC(ifp);
 
 			if (ns_nullhost(*ina))
