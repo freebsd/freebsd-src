@@ -292,10 +292,12 @@ setup(dev)
 	}
 	numdirs = sblock.fs_cstotal.cs_ndir;
 	dirhash = numdirs;
+#if NOTFORIFS
 	if (numdirs == 0) {
 		printf("numdirs is zero, try using an alternate superblock\n");
 		goto badsb;
 	}
+#endif
 	inplast = 0;
 	listmax = numdirs + 10;
 	inpsort = (struct inoinfo **)calloc((unsigned)listmax,

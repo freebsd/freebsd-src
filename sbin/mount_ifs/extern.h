@@ -26,9 +26,5 @@
  * $FreeBSD$
  */
 
-/* vfslist.c */
-int checkvfsname __P((const char *, const char **));
-const char **makevfslist __P((char *));
-
 /* mount_ufs.c */
-int mount_ufs __P((int, char *const *));
+int mount_ifs __P((int, char *const *));

@@ -241,9 +241,12 @@ checkfilesys(filesys, mntpt, auxdata, child)
 	/*
 	 * 2: traverse directories from root to mark all connected directories
 	 */
+#ifdef NOTFORIFS
 	if (preen == 0)
 		printf("** Phase 2 - Check Pathnames\n");
 	pass2();
+#endif
+	printf("** Skipping phase 2 for IFS\n");
 
 	/*
 	 * 3: scan inodes looking for disconnected directories
@@ -345,7 +348,7 @@ checkfilesys(filesys, mntpt, auxdata, child)
 			args.fspec = 0;
 			args.export.ex_flags = 0;
 			args.export.ex_root = 0;
-			ret = mount("ufs", mntbuf->f_mntonname,
+			ret = mount("ifs", mntbuf->f_mntonname,
 			    mntbuf->f_flags | MNT_UPDATE | MNT_RELOAD, &args);
 			if (ret == 0)
 				return (0);
@@ -380,7 +383,7 @@ getmntpt(name)
 		return (NULL);
 	mntsize = getmntinfo(&mntbuf, MNT_NOWAIT);
 	for (i = 0; i < mntsize; i++) {
-		if (strcmp(mntbuf[i].f_fstypename, "ufs") != 0)
+		if (strcmp(mntbuf[i].f_fstypename, "ifs") != 0)
 			continue;
 		devname = mntbuf[i].f_mntfromname;
 		if (*devname != '/') {
