@@ -30,12 +30,14 @@
  * THE POSSIBILITY OF SUCH DAMAGE.
  */
 
+#if 0
 #ifndef lint
 static const char copyright[] = "@(#) Copyright (c) 1997, 1998, 1999\
 	Bill Paul. All rights reserved.";
-static const char rcsid[] =
-	"$FreeBSD$";
 #endif /* not lint */
+#endif
+#include <sys/cdefs.h>
+__FBSDID("$FreeBSD$");
 
 #include <sys/types.h>
 #include <sys/cdefs.h>
