@@ -69,11 +69,16 @@ and
 .Ar Ethernet_802.3
 frame type.
 .Pp
-Please note that it is impossible to configure IPX protocol on the 'raw'
+Please note that it is impossible to configure IPX protocol on the parent
 .Ar ed0
 device after
 .Ar if_ef.ko
 driver loaded.
+.Pp
+If parent interface do not configured for any other protocol (IP for example),
+subinterfaces will not function. To avoid that, parent interface should be
+manually marked as 'up':
+.Dl # ifconfig ed0 up
 .Sh EXAMPLES
 The
 .Nm
@@ -92,7 +97,7 @@ file:
 .Sh DIAGNOSTICS
 None.
 .Sh CAVEATS
-Avoid to configuring 'raw' ethernet device for IPX protocol after
+Avoid to configuring parent ethernet device for IPX protocol after
 .Nm
 driver is loaded.
 .Sh SEE ALSO
