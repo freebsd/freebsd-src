@@ -42,8 +42,6 @@
 #include "libofw.h"
 
 #define	DISKSECSZ	512
-#define	DISKLABELSEC	0
-#define	DISKLABELOFF	128
 
 static int	ofwd_init(void);
 static int	ofwd_strategy(void *devdata, int flag, daddr_t dblk, 
@@ -77,21 +75,18 @@ ofwd_init(void)
 	int ret;
 	char devpath[255];
 	ihandle_t instance;
+	int i;
 
-	printf("ofwd_init: searching for block devices\n");
 	ofw_devsearch_init();
 	while ((ret = ofw_devsearch("block", devpath)) != 0) {
 		devpath[sizeof devpath - 1] = 0;
-		printf("ofwd_init: devpath=%s\n", devpath);
-		if (ret == -1) {
-			printf("ofwd_init: ret=%d\n", ret);
+		if (ret == -1)
 			return (1);
-		}
 #ifdef DEBUG
 		printf("devpath=\"%s\" ret=%d\n", devpath, ret);
 #endif
 
-		if (strcmp(devpath, "/pci@1f,0/pci@1,1/ide@3/cdrom") == 0)
+		if (strstr(devpath, "cdrom") != 0)
 			continue;
 
 		instance = OF_open(devpath);
@@ -101,6 +96,7 @@ ofwd_init(void)
 			printf("disk%d is %s\n", nofwdinfo, ofwdinfo[nofwdinfo].ofwd_path);
 			nofwdinfo++;
 			OF_close(instance);
+			break;
 		}
 
 		if (nofwdinfo > MAXDEV) {
@@ -109,7 +105,6 @@ ofwd_init(void)
 		}
 	}
 
-	printf("ofwd_init: return (0)\n");
 	return (0);
 }
 
@@ -164,31 +159,23 @@ ofwd_open(struct open_file *f, ...)
 	return 0;
 }
 
-/* XXX This is a NetBSD header! */
-#include "disklabel.h"
 int
 readdisklabel(struct ofw_devdesc *dp)
 {
 	char buf[DISKSECSZ];
-	struct partition *p;
 	struct disklabel *lp;
 	size_t size;
 	int i;
 
 	dp->d_kind.ofwdisk.partoff = 0;
+	dp->d_dev->dv_strategy(dp, 0, LABELSECTOR, sizeof(buf), buf, &size);
+	i = dp->d_kind.ofwdisk.partition;
+	if (i >= MAXPARTITIONS)
+		return 1;
 
-	dp->d_dev->dv_strategy(dp, 0, DISKLABELSEC, sizeof(buf), buf, &size);
-
-	lp = (struct disklabel *)(buf + DISKLABELOFF);
-	p = lp->d_partitions;
-	for (i = 0; i < MAXPARTITIONS; i++) {
-		if (i == dp->d_kind.ofwdisk.partition) {
-			dp->d_kind.ofwdisk.partoff = p->p_offset;
-			return 0;
-		}
-		p++;
-	}
-	return 1;
+	lp = (struct disklabel *)(buf + LABELOFFSET);
+	dp->d_kind.ofwdisk.partoff = lp->d_partitions[i].p_offset;
+	return 0;
 }
 
 static int
