@@ -1,5 +1,5 @@
                                  RELEASE NOTES
-                             FreeBSD 2.2.5-RELEASE
+                           FreeBSD 2.2-STABLE VERSION
 
 o For information about the layout of the release directory, see
   the ABOUT.TXT file.  If you are installing from floppies, it is
@@ -19,63 +19,12 @@ please install from:
         ftp://current.freebsd.org/pub/FreeBSD
 
 
-1. What's new since 2.2.2
+1. What's new since 2.2.5
 -------------------------
 
-Better support for Cyrix and AMD processors.
+Fixed /dev/io security hole.
 
-The "world" target in /usr/src/Makefile has been made more
-independent of the host system, allowing for easier bootstrapping
-via source from very old systems.
-
-Many many fixes to the documentation.
-
-Many security enhancements, as reported through CERT and other
-computer security organizations.
-
-The installation program was further updated and fixed, some
-year-old bogons finally eliminated for 2.2.5.
-
-Important subsystems such as BIND and sendmail updated.
-
-Support for ethernet media selection.   Replacing the far
-more arcane "link" flag usage, a new media flag to ifconfig
-permits specific interfaces on multi-port ethernet cards to
-be selected by name (man ifconfig for more details).
-
-Significant improvements to the AHC (Adaptec 394x/294X) driver
-and AIC7xxx assembler.
-
-Enhancements to the serial boot code and GDB remote support.
-
-Make work-around available for CMD640 chipset (see /sys/i386/conf/LINT).
-
-Newer 3Com 3c589D PCMCIA cards are now supported.
-
-A new VGA library (/usr/src/lib/libvgl) now exists for doing simple
-VGA graphics to syscons ttys (sort of like Linux's libSVGA).
-
-The TCP connection timeout in lpd & friends can now be specified by a
-printcap(5) capability, preventing it from hanging for too long when
-working in an environment with many network printservers.
-
-User-mode ppp updated with various fixes and enhancements from 3.0-current.
-It's worth re-reading the manual page since some of the following changes
-may disturb peoples current configurations:
-
-  o The "set debug" command is now "set log".
-  o The LCP log has been split into an LCP, IPCP and CCP log, so any
-    "set log LCP" lines will need to be changed to "set log LCP IPCP CCP"
-    to see the same output as before.
-  o Ppp now uses syslogd to write its log files.
-  o Ppp now has LQR disabled and openmode active by default.
-  o Ppp now installs as group "network", with mode 4550.  You must add group
-    69 (network) to /etc/group.  If you wish to allow users to run "ppp
-    -direct ...", you must enable them by making them a member of group
-    "network".  Client-side ppp now requires user id 0.
-
-Refer to the ppp(8) man page and the relevent section of the handbook for
-full details.
+<add additional items here>
 
 
 2. Supported Configurations
