@@ -91,9 +91,9 @@ __FBSDID("$FreeBSD$");
 #include <sys/select.h>
 #include <sys/sysctl.h>
 #include <sys/proc.h>
-#include <sys/vnode.h>
 #include <sys/bus.h>
 #include <sys/poll.h>
+#include <sys/uio.h>
 
 #include <dev/usb/usb.h>
 #include <dev/usb/usbcdc.h>
