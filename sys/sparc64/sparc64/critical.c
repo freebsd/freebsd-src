@@ -62,4 +62,3 @@ cpu_thread_link(struct thread *td)
 
 	td->td_md.md_savecrit = 0;
 }
-
