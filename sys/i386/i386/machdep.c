@@ -149,11 +149,7 @@ SYSCTL_INT(_debug, OID_AUTO, tlb_flush_count,
 	CTLFLAG_RD, &tlb_flush_count, 0, "");
 #endif
 
-#ifdef PC98
-static int	ispc98 = 1;
-#else
 static int	ispc98 = 0;
-#endif
 SYSCTL_INT(_machdep, OID_AUTO, ispc98, CTLFLAG_RD, &ispc98, 0, "");
 
 int physmem = 0;
