@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: menus.c,v 1.171 1998/09/30 21:39:02 jkh Exp $
+ * $Id: menus.c,v 1.172 1998/11/03 03:38:55 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -290,8 +290,8 @@ DMenu MenuIndex = {
 /* The initial installation menu */
 DMenu MenuInitial = {
     DMENU_NORMAL_TYPE,
-    "Welcome to FreeBSD! [" RELEASE_NAME "]",			/* title */
-    "This is the main menu of the FreeBSD installation system.  Please\n" /* prompt */
+    "/stand/sysinstall Main Menu",			/* title */
+    "Welcome to the FreeBSD installation and configuration tool.  Please\n" /* prompt */
     "select one of the options below by using the arrow keys or typing the\n"
     "first character of the option name you're interested in.  Invoke an\n"
     "option by pressing [ENTER] or [TAB-ENTER] to exit the installation.", 
@@ -317,7 +317,7 @@ DMenu MenuInitial = {
 /* The main documentation menu */
 DMenu MenuDocumentation = {
     DMENU_NORMAL_TYPE,
-    "Documentation for FreeBSD " RELEASE_NAME,
+    "FreeBSD Documentation Menu",
     "If you are at all unsure about the configuration of your hardware\n"
     "or are looking to build a system specifically for FreeBSD, read the\n"
     "Hardware guide!  New users should also read the Install document for\n"
