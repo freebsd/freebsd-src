@@ -82,7 +82,7 @@ static int fw6_verbose_limit = IPV6FIREWALL_VERBOSE_LIMIT;
 static int fw6_verbose_limit = 0;
 #endif
 
-LIST_HEAD (ip6_fw_head, ip6_fw_chain) ip6_fw_chain;
+static LIST_HEAD (ip6_fw_head, ip6_fw_chain) ip6_fw_chain;
 
 #ifdef SYSCTL_NODE
 SYSCTL_DECL(_net_inet6_ip6);
