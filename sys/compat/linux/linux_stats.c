@@ -73,7 +73,7 @@ newstat_copyout(struct stat *buf, void *ubuf)
 {
 	struct linux_newstat tbuf;
 
-	tbuf.stat_dev = uminor(buf->st_dev) | (umajor(buf->st_dev) << 10);
+	tbuf.stat_dev = uminor(buf->st_dev) | (umajor(buf->st_dev) << 8);
 	tbuf.stat_ino = buf->st_ino;
 	tbuf.stat_mode = buf->st_mode;
 	tbuf.stat_nlink = buf->st_nlink;
