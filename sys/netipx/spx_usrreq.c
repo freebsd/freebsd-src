@@ -33,11 +33,12 @@
  *
  *	@(#)spx_usrreq.h
  *
- * $Id: spx_usrreq.c,v 1.14 1997/06/26 19:36:02 jhay Exp $
+ * $Id: spx_usrreq.c,v 1.15 1997/08/16 19:15:47 wollman Exp $
  */
 
 #include <sys/param.h>
 #include <sys/systm.h>
+#include <sys/malloc.h>
 #include <sys/mbuf.h>
 #include <sys/proc.h>
 #include <sys/protosw.h>

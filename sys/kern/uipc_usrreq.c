@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	From: @(#)uipc_usrreq.c	8.3 (Berkeley) 1/4/94
- *	$Id: uipc_usrreq.c,v 1.23 1997/04/27 20:00:46 wollman Exp $
+ *	$Id: uipc_usrreq.c,v 1.24 1997/08/16 19:15:06 wollman Exp $
  */
 
 #include <sys/param.h>
@@ -42,6 +42,7 @@
 #include <sys/fcntl.h>
 #include <sys/file.h>
 #include <sys/filedesc.h>
+#include <sys/malloc.h>
 #include <sys/mbuf.h>
 #include <sys/namei.h>
 #include <sys/proc.h>

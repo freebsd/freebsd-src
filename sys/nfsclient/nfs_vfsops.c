@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)nfs_vfsops.c	8.12 (Berkeley) 5/20/95
- * $Id: nfs_vfsops.c,v 1.44 1997/06/27 19:10:46 wpaul Exp $
+ * $Id: nfs_vfsops.c,v 1.45 1997/08/16 19:16:04 wollman Exp $
  */
 
 #include <sys/param.h>
@@ -48,6 +48,7 @@
 #include <sys/sysctl.h>
 #include <sys/mount.h>
 #include <sys/buf.h>
+#include <sys/malloc.h>
 #include <sys/mbuf.h>
 #include <sys/socket.h>
 #include <sys/socketvar.h>

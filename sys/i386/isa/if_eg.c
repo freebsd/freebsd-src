@@ -27,7 +27,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- * $Id: if_eg.c,v 1.23 1997/03/24 11:32:41 bde Exp $
+ * $Id: if_eg.c,v 1.24 1997/07/20 14:09:57 bde Exp $
  *
  * Support for 3Com 3c505 Etherlink+ card.
  */
@@ -43,6 +43,7 @@
 #include <sys/systm.h>
 #include <sys/conf.h>
 #include <sys/sockio.h>
+#include <sys/malloc.h>
 #include <sys/mbuf.h>
 #include <sys/socket.h>
 #include <sys/syslog.h>
