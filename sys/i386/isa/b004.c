@@ -49,21 +49,19 @@
 #if NBQU > 0
 
 #include <sys/param.h>
-#include <sys/systm.h> /* for min(), SELWAIT */
-/* #include "proc.h" /*  for pid_t */
-/* #include "user.h" */
-/* #include "buf.h" */
-/* #include "kernel.h"  */
+#include <sys/systm.h>
+#include <sys/proc.h>
 #include <sys/uio.h>
 #include <sys/devconf.h>
+
+#include <machine/clock.h>
+
+#include <i386/isa/b004.h>
 #include <i386/isa/isa.h>
-/* #include "sys/ioctl.h" */
-/* #include "syslog.h" */
-
 #include <i386/isa/isa_device.h>
-#include <sys/errno.h>
 
-#include "b004.h"
+extern u_char d_inb(u_int port);
+extern void d_outb(u_int port, u_char data);
 
 static struct kern_devconf kdc_bqu[NBQU] = { {
 	0, 0, 0,		/* filled in by dev_attach */
@@ -110,12 +108,6 @@ static struct kern_devconf kdc_bqu[NBQU] = { {
 #define DEB2(x)
 #endif
 
-int bquclose(dev_t dev, int flag);
-int bquopen(dev_t dev, int flag);
-int bquwrite(dev_t dev, struct uio *uio, int flag);
-int bquread(dev_t dev, struct uio *uio, int flag);
-int bquioctl(dev_t dev, int cmd, caddr_t data, int flag, struct proc *p);
-int bquselect(dev_t dev, int rw, struct proc *p);
 int bquprobe(struct isa_device *idp);
 int bquattach(struct isa_device *idp);
 
@@ -427,7 +419,7 @@ bquwrite(dev_t dev, struct uio *uio, int flag)
  */
 
 int
-bquopen(dev_t dev, int flag)
+bquopen(dev_t dev, int flags, int fmt, struct proc *p)
 {
     unsigned int dev_min = minor(dev) & 7;
 
@@ -456,7 +448,7 @@ bquopen(dev_t dev, int flag)
  */
 
 int
-bquclose(dev_t dev, int flag)
+bquclose(dev_t dev, int flags, int fmt, struct proc *p)
 {
     unsigned int dev_min = minor(dev) & 7;
 
