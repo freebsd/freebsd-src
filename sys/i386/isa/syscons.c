@@ -25,7 +25,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *  $Id: syscons.c,v 1.155 1996/06/25 08:54:45 sos Exp $
+ *  $Id: syscons.c,v 1.157 1996/06/26 13:04:52 sos Exp $
  */
 
 #include "sc.h"
@@ -251,7 +251,7 @@ scprobe(struct isa_device *dev)
 
     /* flush any noise in the buffer */
     while (inb(KB_STAT) & KB_BUF_FULL) {
-	DELAY(25);
+	DELAY(100);
 	(void) inb(KB_DATA);
     }
 
@@ -274,10 +274,10 @@ gotres:
     else {
 	i = 10;			/* At most 10 retries. */
 gotack:
-	DELAY(25);
-	j = 1000;		/* Wait at most 50 ms (supposedly). */
-	while ((inb(KB_STAT) & KB_BUF_FULL) == 0 && --j > 0) DELAY(50);
-	DELAY(25);
+	DELAY(100);
+	j = 1000;		/* Wait at most 1 s. */
+	while ((inb(KB_STAT) & KB_BUF_FULL) == 0 && --j > 0) DELAY(1000);
+	DELAY(1000);
 	val = inb(KB_DATA);
 	if (val == KB_ACK && --i > 0)
 	    goto gotack;
