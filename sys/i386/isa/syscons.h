@@ -25,7 +25,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *	$Id: syscons.h,v 1.31 1997/07/15 14:43:27 yokota Exp $
+ *	$Id: syscons.h,v 1.32 1997/08/25 23:21:55 bde Exp $
  */
 
 #ifndef _I386_ISA_SYSCONS_H_
@@ -101,7 +101,10 @@
 #define FONT_8		2
 #define FONT_14		4
 #define FONT_16		8
-#define HISTORY_SIZE	(COL * ROW * 4)
+#if !defined(SC_HISTORY_SIZE)
+#define SC_HISTORY_SIZE	(ROW * 4)
+#endif /* SC_HISTORY_SIZE */
+#define HISTORY_SIZE	(COL * (SC_HISTORY_SIZE))
 
 /* defines related to hardware addresses */
 #define	MONO_BASE	0x3B4			/* crt controller base mono */

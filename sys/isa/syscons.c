@@ -25,7 +25,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *  $Id: syscons.c,v 1.229 1997/08/08 22:52:30 sos Exp $
+ *  $Id: syscons.c,v 1.230 1997/08/09 19:24:03 sos Exp $
  */
 
 #include "sc.h"
@@ -961,16 +961,11 @@ scioctl(dev_t dev, int cmd, caddr_t data, int flag, struct proc *p)
                 return EBUSY;
 	    if (scp->history != NULL)
 		free(scp->history, M_DEVBUF);
-	    scp->history_size = *(int*)data;
-	    if (scp->history_size < scp->ysize)
-		scp->history = NULL;
-	    else {
-		scp->history_size *= scp->xsize;
-		scp->history_head = scp->history_pos = scp->history =
-		    (u_short *)malloc(scp->history_size*sizeof(u_short),
-				      M_DEVBUF, M_WAITOK);
-		bzero(scp->history_head, scp->history_size*sizeof(u_short));
-	    }
+	    scp->history_size = max(scp->ysize, *(int *)data)*scp->xsize;
+	    scp->history_head = scp->history_pos = scp->history =
+		(u_short *)malloc(scp->history_size*sizeof(u_short),
+				  M_DEVBUF, M_WAITOK);
+	    bzero(scp->history_head, scp->history_size*sizeof(u_short));
 	    return 0;
 	}
 	else
@@ -1183,6 +1178,13 @@ scioctl(dev_t dev, int cmd, caddr_t data, int flag, struct proc *p)
 	free(cut_buffer, M_DEVBUF);
     	cut_buffer = (char *)malloc(scp->xsize*scp->ysize, M_DEVBUF, M_NOWAIT);
 	cut_buffer[0] = 0x00;
+	if (scp->history != NULL)
+	    free(scp->history, M_DEVBUF);
+	scp->history_size = max(HISTORY_SIZE, scp->xsize*scp->ysize);
+	scp->history_head = scp->history_pos = scp->history = (u_short *)
+	    malloc(scp->history_size*sizeof(u_short), M_DEVBUF, M_NOWAIT);
+	if (scp->history != NULL)
+	    bzero(scp->history, scp->history_size*sizeof(u_short));
 	if (scp == cur_console)
 	    set_mode(scp);
 	scp->status &= ~UNKNOWN_MODE;
@@ -2812,7 +2814,7 @@ init_scp(scr_stat *scp)
     scp->proc = NULL;
     scp->smode.mode = VT_AUTO;
     scp->history_head = scp->history_pos = scp->history = NULL;
-    scp->history_size = HISTORY_SIZE;
+    scp->history_size = max(HISTORY_SIZE, scp->xsize*scp->ysize);
 }
 
 static u_char
