@@ -728,6 +728,7 @@ rescan0:
 		}
 
 		next = TAILQ_NEXT(m, pageq);
+		object = m->object;
 
 		/*
 		 * skip marker pages
@@ -747,7 +748,12 @@ rescan0:
 		 * Don't mess with busy pages, keep in the front of the
 		 * queue, most likely are being paged out.
 		 */
+		if (!VM_OBJECT_TRYLOCK(object)) {
+			addl_page_shortage++;
+			continue;
+		}
 		if (m->busy || (m->flags & PG_BUSY)) {
+			VM_OBJECT_UNLOCK(object);
 			addl_page_shortage++;
 			continue;
 		}
@@ -756,7 +762,7 @@ rescan0:
 		 * If the object is not being used, we ignore previous 
 		 * references.
 		 */
-		if (m->object->ref_count == 0) {
+		if (object->ref_count == 0) {
 			vm_page_flag_clear(m, PG_REFERENCED);
 			pmap_clear_reference(m);
 
@@ -772,6 +778,7 @@ rescan0:
 		} else if (((m->flags & PG_REFERENCED) == 0) &&
 			(actcount = pmap_ts_referenced(m))) {
 			vm_page_activate(m);
+			VM_OBJECT_UNLOCK(object);
 			m->act_count += (actcount + ACT_ADVANCE);
 			continue;
 		}
@@ -786,6 +793,7 @@ rescan0:
 			vm_page_flag_clear(m, PG_REFERENCED);
 			actcount = pmap_ts_referenced(m);
 			vm_page_activate(m);
+			VM_OBJECT_UNLOCK(object);
 			m->act_count += (actcount + ACT_ADVANCE + 1);
 			continue;
 		}
@@ -816,9 +824,6 @@ rescan0:
 			vm_page_dirty(m);
 		}
 
-		object = m->object;
-		if (!VM_OBJECT_TRYLOCK(object))
-			continue;
 		if (m->valid == 0) {
 			/*
 			 * Invalid pages can be easily freed
