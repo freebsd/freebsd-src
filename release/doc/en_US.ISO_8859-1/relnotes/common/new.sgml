@@ -573,9 +573,6 @@
       Support for new Hauppauge Model 44xxx WinTV Cards (the ones with
       no audio mux) has been added.</para>
 
-      <para>The &man.pcm.4; audio driver is now compiled into the
-      <filename>GENERIC</filename> kernel by default.</para>
-
       <para>When sound modules are built, one can now load all the
       drivers and infrastructure by <command>kldload
       snd</command>.</para>
@@ -841,6 +838,11 @@
     <para>&man.ifconfig.8; can now accept addresses in slash/CIDR
     notation. &merged;</para>
 
+    <para>&man.ifconfig.8; now has support for setting parameters for
+    IEEE 802.11 wireless network devices.  &man.wi.4; and
+    &man.an.4; devices are supported, and partial support is provided
+    for awi devices.</para>
+
     <para>&man.setproctitle.3; has been moved from
     <filename>libutil</filename> to
     <filename>libc</filename>. &merged;</para>
@@ -939,6 +941,10 @@
     <para>The &man.lastlogin.8; utility, which prints the last login
     time of each user, has been imported from
     NetBSD. &merged;</para>
+
+    <para>&man.last.1; now implements a <option>-d</option> that
+    provides a <quote>snapshot</quote> of who was logged in at a
+    particular date and time</para>
 
     <para>&man.newfs.8; now implements write combining, which can make
     creation of new filesystems up to seven times
@@ -1082,6 +1088,12 @@
     <para>&man.sysctl.8; now supports a <option>-N</option> option to
     print out variable names only.</para>
 
+    <para>&man.sysctl.8; has replaced the <option>-A</option> and
+    <option>-X</option> options with <option>-ao</option> and
+    <option>-ax</option> respectively; the former options are now
+    deprecated.  The <option>-w</option> is deprecated as well; it is
+    not needed to determine the user's intentions.</para>
+
     <para>&man.sysinstall.8; now lives in <filename>/usr/sbin</filename>,
     which simplifies the installation process.  The &man.sysinstall.8;
     manpage is also installed in a more consistent fashion now.</para>
@@ -1163,6 +1175,9 @@
 
     <para><application>PAM</application> support has been added for
     account management and sessions.</para>
+
+    <para>&man.su.1; now uses <application>PAM</application> for
+    authentication.</para>
 
     <para>&man.wall.1; now supports a <option>-g</option> flag to
     write a message to all users of a given group.</para>
@@ -1253,7 +1268,11 @@
     <para>&man.vidcontrol.1; now supports a <option>-p</option> to
     take a snapshot of a &man.syscons.4; video buffer.  These
     snapshots can be manipulated by some of the
-    <filename>scr2*</filename> utilities in the Ports Collection.</para>
+    <filename>scr2*</filename> utilities in the Ports
+    Collection. &merged;</para>
+
+    <para>&man.vidcontrol.1; now supports a <option>-H</option> option
+    to clear the history buffer for a given tty.</para>
 
     <para>devinfo, a simple tool to print the device tree and resource usage by
     devices, has been added.</para>
@@ -1304,6 +1323,16 @@
     from 256KB to 279KB, to spread out superblocks more evenly between
     stripes.</para>
 
+    <para>&man.chown.8; now correctly follows symbolic links named as
+    command line arguments if run without <option>-R</option>.</para>
+
+    <para>&man.install.1; has a number of new features, including the
+    <option>-b</option> and <option>-B</option> options for backing up
+    existing target files and the <option>-S</option> option for
+    <quote>safe</quote> (atomic copy) operation.  The
+    <option>-c</option> (copy) flag is now the default, and the
+    <option>-D</option> (debugging) flag has been withdrawn.</para>
+
     <sect3>
       <title>Contributed Software</title>
 
@@ -1315,7 +1344,7 @@
       <filename>libisc</filename>. &merged;</para>
 
       <para><application>Binutils</application> have been upgraded to
-      2.10.1. &merged;</para>
+      2.11.0. &merged;</para>
 
       <para><application>cvs</application> has been updated to
       1.11. &merged;</para>
