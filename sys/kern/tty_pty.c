@@ -185,7 +185,7 @@ ptsopen(dev, flag, devtype, td)
 		tp->t_lflag = TTYDEF_LFLAG;
 		tp->t_cflag = TTYDEF_CFLAG;
 		tp->t_ispeed = tp->t_ospeed = TTYDEF_SPEED;
-	} else if (tp->t_state & TS_XCLUDE && suser(p)) {
+	} else if (tp->t_state & TS_XCLUDE && suser_xxx(p->p_ucred, NULL, 0)) {
 		return (EBUSY);
 	} else if (pti->pt_prison != p->p_ucred->cr_prison) {
 		return (EBUSY);

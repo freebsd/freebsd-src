@@ -235,7 +235,8 @@ donice(curp, chgp, n)
 		n = PRIO_MAX;
 	if (n < PRIO_MIN)
 		n = PRIO_MIN;
-	if (n < chgp->p_ksegrp.kg_nice /* XXXKSE */  && suser(curp))
+	if (n < chgp->p_ksegrp.kg_nice /* XXXKSE */  &&
+	    suser_xxx(curp->p_ucred, NULL, 0))
 		return (EACCES);
 	chgp->p_ksegrp.kg_nice /* XXXKSE */  = n;
 	(void)resetpriority(&chgp->p_ksegrp); /* XXXKSE */
@@ -297,7 +298,7 @@ rtprio(td, uap)
 		    (error = copyin(uap->rtp, &rtp, sizeof(struct rtprio))))
 			break;
 		/* disallow setting rtprio in most cases if not superuser */
-		if (suser(curp) != 0) {
+		if (suser_xxx(curp->p_ucred, NULL, 0) != 0) {
 			/* can't set someone else's */
 			if (uap->pid) {
 				error = EPERM;
