@@ -680,7 +680,7 @@ doit(union sockunion *fromp)
 	environ_pam = pam_getenvlist(pamh);
 	if (environ_pam)
 		export_pam_environment();
-	if ((retcode = pam_end(pamh, PAM_DATA_SILENT)) != PAM_SUCCESS)
+	if ((retcode = pam_end(pamh, 0)) != PAM_SUCCESS)
 		syslog(LOG_ERR|LOG_AUTH, "pam_end: %s", pam_strerror(pamh, retcode));
 #endif /* USE_PAM */
 
