@@ -99,10 +99,6 @@ void	mark_buffer_dirty __P((struct buf *bh));
  */
 #define  IS_EXT2_VNODE(vp) (vp->v_mount->mnt_stat.f_type == MOUNT_EXT2FS)
 
-#ifdef DIAGNOSTIC
-void	ext2_checkoverlap __P((struct buf *, struct inode *));
-#endif
-
 extern vop_t **ext2_vnodeop_p;
 extern vop_t **ext2_specop_p;
 extern vop_t **ext2_fifoop_p;
