@@ -1101,7 +1101,7 @@ devfs_fixup(struct thread *td)
 	NDINIT(&nd, LOOKUP, FOLLOW | LOCKLEAF, UIO_SYSSPACE, "/dev", td);
 	error = namei(&nd);
 	if (error) {
-		printf("Lookup /dev -> %d\n", error);
+		printf("Lookup of /dev for devfs, error: %d\n", error);
 		return;
 	}
 	NDFREE(&nd, NDF_ONLY_PNBUF);
