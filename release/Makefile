@@ -527,10 +527,10 @@ ftp.1:
 	@cd ${RD} && find floppies -print | cpio -dumpl ${FD}
 	@cd ${RD}/dists && find . -print | cpio -dumpl ${FD}
 	@for i in ${DIST_DOCS}; do \
+	  cp ${.CURDIR}/texts/$${i} ${FD}; \
 	  if [ -f ${.CURDIR}/texts/${MACHINE_ARCH}/$${i} ]; then \
-	     cp ${.CURDIR}/texts/${MACHINE_ARCH}/$${i} ${FD}; \
-	  else \
-	     cp ${.CURDIR}/texts/$${i} ${FD}; \
+	     echo "=== Platform specifics for ${MACHINE_ARCH}" >> ${FD}/$${i}; \
+	     cat ${.CURDIR}/texts/${MACHINE_ARCH}/$${i} >> ${FD}/$${i}; \
 	  fi; \
 	done
 	@echo "CD_VERSION = ${BUILDNAME}" > ${FD}/cdrom.inf
@@ -560,10 +560,10 @@ cdrom.1:
 	@echo "CD_VERSION = ${BUILDNAME}" > ${CD_DISC1}/cdrom.inf
 	@echo "CD_VERSION = ${BUILDNAME}" > ${CD_DISC2}/cdrom.inf
 	@for i in ${DIST_DOCS}; do \
+	  cp ${.CURDIR}/texts/$${i} ${CD_DISC1}; \
 	  if [ -f ${.CURDIR}/texts/${MACHINE_ARCH}/$${i} ]; then \
-	     cp ${.CURDIR}/texts/${MACHINE_ARCH}/$${i} ${CD_DISC1}; \
-          else \
-	     cp ${.CURDIR}/texts/$${i} ${CD_DISC1}; \
+	     echo "=== Platform specifics for ${MACHINE_ARCH}" >> ${FD}/$${i}; \
+	     cat ${.CURDIR}/texts/${MACHINE_ARCH}/$${i} >> ${CD_DISC1}/$${i}; \
 	  fi; \
         done
 .if !defined(NOPORTS)
