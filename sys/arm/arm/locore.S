@@ -65,6 +65,7 @@ ENTRY_NP(btext)
 
 ASENTRY_NP(_start)
 	
+
 	/* Check if we are running on RAM, if not move ourself to RAM */
 #if 0
 	cmp	pc, #PHYSADDR
@@ -129,7 +130,10 @@ Lunmapped:
 3:	
 	ldmia	r4!, {r1,r2,r3}   /* # of sections, PA|attr, VA */
 	cmp	r1, #0
-	bne	2b	
+	adrne	r5, 2b
+	bicne	r5, r5, #0xff000000
+	orrne	r5, r5, #PHYSADDR
+	movne	pc, r5
 
 	mcr	p15, 0, r0, c2, c0, 0	/* Set TTB */
 	mcr	p15, 0, r0, c8, c7, 0	/* Flush TLB */
