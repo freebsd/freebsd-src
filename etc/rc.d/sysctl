@@ -1,0 +1,13 @@
+#!/bin/sh
+#
+# Read in /etc/sysctl.conf and set things accordingly
+#
+# $Id:$
+if [ -f /etc/sysctl.conf ]; then
+	3< /etc/sysctl.conf
+	while read 0<&3 var;
+	do
+		sysctl -w $var
+	done
+	3<&-
+fi

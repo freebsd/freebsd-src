@@ -1,5 +1,5 @@
 #!/bin/sh
-#	$Id: rc,v 1.182 1999/03/14 20:26:39 des Exp $
+#	$Id: rc,v 1.183 1999/03/17 04:00:04 billf Exp $
 #	From: @(#)rc	5.27 (Berkeley) 6/5/91
 
 # System startup script run by init on autoboot
@@ -148,6 +148,11 @@ fi
 if [ "x$swapfile" != "xNO" -a -w "$swapfile" -a -b /dev/vn0b ]; then
 	echo "Adding $swapfile as additional swap."
 	vnconfig /dev/vn0b $swapfile && swapon /dev/vn0b
+fi
+
+# set sysctl variables early as we can
+if [ -f /etc/rc.sysctl ]; then
+	. /etc/rc.sysctl
 fi
 
 # configure serial devices
