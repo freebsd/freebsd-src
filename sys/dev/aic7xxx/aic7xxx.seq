@@ -39,7 +39,7 @@
  *
  *-M************************************************************************/
 
-VERSION AIC7XXX_SEQ_VER "$Id: aic7xxx.seq,v 1.35 1996/05/21 18:32:22 gibbs Exp $"
+VERSION AIC7XXX_SEQ_VER "$Id: aic7xxx.seq,v 1.36 1996/05/23 15:01:47 gibbs Exp $"
 
 #include "../../dev/aic7xxx/aic7xxx_reg.h"
 
@@ -495,11 +495,11 @@ p_mesgout_start:
  * a MESSAGE REJECT.
  */
 p_mesgout_loop:
-	test	SSTAT1,PHASEMIS	jnz p_mesgout_phasemis
 	test	SSTAT0,SPIORDY	jz p_mesgout_loop
 	cmp	DINDEX,1	jne p_mesgout_outb	/* last byte? */
 	mvi	CLRSINT1,CLRATNO			/* drop ATN */
 p_mesgout_outb:
+	test	SSTAT1,PHASEMIS	jnz p_mesgout_phasemis
 	dec	DINDEX
 	or	CLRSINT0, CLRSPIORDY
 	mov	SCSIDATL,SINDIR
@@ -862,8 +862,8 @@ inb_next:
 	or	CLRSINT0, CLRSPIORDY
 	mov	NONE,SCSIDATL			/*dummy read from latch to ACK*/
 inb_next_wait:
-	test	SSTAT1,PHASEMIS	jnz mesgin_phasemis
 	test	SSTAT0,SPIORDY	jz inb_next_wait /* wait for next byte */
+	test	SSTAT1,PHASEMIS	jnz mesgin_phasemis
 inb_first:
 	mov	DINDEX,SINDEX
 	mov	DINDIR,SCSIBUSL	ret		/*read byte directly from bus*/
