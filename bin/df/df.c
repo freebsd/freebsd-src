@@ -112,7 +112,7 @@ unit_t unitp [] = { NONE, KILO, MEGA, GIGA, TERA, PETA };
 int	  bread(off_t, void *, int);
 int	  checkvfsname(const char *, char **);
 char	 *getmntpt(char *);
-int	  longwidth(long);
+int	  int64width(int64_t);
 char	 *makenetvfslist(void);
 char	**makevfslist(char *);
 void	  prthuman(struct statfs *, long);
@@ -376,9 +376,15 @@ prthumanval(double bytes)
  * Convert statfs returned filesystem size into BLOCKSIZE units.
  * Attempts to avoid overflow for large filesystems.
  */
-#define fsbtoblk(num, fsbs, bs) \
-	(((fsbs) != 0 && (fsbs) < (bs)) ? \
-		(num) / ((bs) / (fsbs)) : (num) * ((fsbs) / (bs)))
+static int64_t
+fsbtoblk(int64_t num, uint64_t fsbs, u_long bs)
+{
+
+	if (fsbs != 0 && fsbs < bs)
+		return (num / (int64_t)(bs / fsbs));
+	else
+		return (num * (int64_t)(fsbs / bs));
+}
 
 /*
  * Print out status about a filesystem.
@@ -420,11 +426,12 @@ prtstat(struct statfs *sfsp, struct maxwidths *mwp)
 	if (hflag) {
 		prthuman(sfsp, used);
 	} else {
-		(void)printf(" %*ld %*ld %*ld", mwp->total,
-	            fsbtoblk(sfsp->f_blocks, sfsp->f_bsize, blocksize),
-		    mwp->used, fsbtoblk(used, sfsp->f_bsize, blocksize),
-	            mwp->avail, fsbtoblk(sfsp->f_bavail, sfsp->f_bsize,
-		    blocksize));
+		(void)printf(" %*lld %*lld %*lld", mwp->total,
+	            (long long)fsbtoblk(sfsp->f_blocks, sfsp->f_bsize,
+		    blocksize), mwp->used,
+		    (long long)fsbtoblk(used, sfsp->f_bsize, blocksize),
+	            mwp->avail, (long long)fsbtoblk(sfsp->f_bavail,
+	            sfsp->f_bsize, blocksize));
 	}
 	(void)printf(" %5.0f%%",
 	    availblks == 0 ? 100.0 : (double)used / (double)availblks * 100.0);
@@ -453,20 +460,20 @@ update_maxwidths(struct maxwidths *mwp, struct statfs *sfsp)
 		getbsize(&dummy, &blocksize);
 
 	mwp->mntfrom = imax(mwp->mntfrom, strlen(sfsp->f_mntfromname));
-	mwp->total = imax(mwp->total, longwidth(fsbtoblk(sfsp->f_blocks,
+	mwp->total = imax(mwp->total, int64width(fsbtoblk(sfsp->f_blocks,
 	    sfsp->f_bsize, blocksize)));
-	mwp->used = imax(mwp->used, longwidth(fsbtoblk(sfsp->f_blocks -
+	mwp->used = imax(mwp->used, int64width(fsbtoblk(sfsp->f_blocks -
 	    sfsp->f_bfree, sfsp->f_bsize, blocksize)));
-	mwp->avail = imax(mwp->avail, longwidth(fsbtoblk(sfsp->f_bavail,
+	mwp->avail = imax(mwp->avail, int64width(fsbtoblk(sfsp->f_bavail,
 	    sfsp->f_bsize, blocksize)));
-	mwp->iused = imax(mwp->iused, longwidth(sfsp->f_files -
+	mwp->iused = imax(mwp->iused, int64width(sfsp->f_files -
 	    sfsp->f_ffree));
-	mwp->ifree = imax(mwp->ifree, longwidth(sfsp->f_ffree));
+	mwp->ifree = imax(mwp->ifree, int64width(sfsp->f_ffree));
 }
 
 /* Return the width in characters of the specified long. */
 int
-longwidth(long val)
+int64width(int64_t val)
 {
 	int len;
 
