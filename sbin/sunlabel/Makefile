@@ -6,6 +6,11 @@ PROG=	sunlabel
 SRCS=	sunlabel.c geom_sunlabel_enc.c
 MAN=	sunlabel.8
 
+.if ${MACHINE_ARCH} == "sparc64"
+LINKS=	${BINDIR}/sunlabel ${BINDIR}/sunlabel
+MLINKS=	sunlabel.8 disklabel.8
+.endif
+
 WARNS?=	5
 
 DPADD=	${LIBGEOM}
