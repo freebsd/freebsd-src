@@ -177,8 +177,11 @@ vfs_mount(td, fstype, fspath, fsflags, fsdata)
 	    (strlen(fspath) >= MNAMELEN - 1))
 		return (ENAMETOOLONG);
 
-	if (usermount == 0 && (error = suser_td(td)))
-		return (error);
+	if (usermount == 0) {
+		error = suser_td(td);
+		if (error)
+			return (error);
+	}
 	/*
 	 * Do not allow NFS export by non-root users.
 	 */
@@ -221,10 +224,12 @@ vfs_mount(td, fstype, fspath, fsflags, fsdata)
 		 * Only root, or the user that did the original mount is
 		 * permitted to update it.
 		 */
-		if (mp->mnt_stat.f_owner != p->p_ucred->cr_uid &&
-		    (error = suser_td(td))) {
-			vput(vp);
-			return (error);
+		if (mp->mnt_stat.f_owner != p->p_ucred->cr_uid) {
+			error = suser_td(td);
+			if (error) {
+				vput(vp);
+				return (error);
+			}
 		}
 		if (vfs_busy(mp, LK_NOWAIT, 0, td)) {
 			vput(vp);
@@ -249,11 +254,17 @@ vfs_mount(td, fstype, fspath, fsflags, fsdata)
 	 * If the user is not root, ensure that they own the directory
 	 * onto which we are attempting to mount.
 	 */
-	if ((error = VOP_GETATTR(vp, &va, p->p_ucred, td)) ||
-	    (va.va_uid != p->p_ucred->cr_uid &&
-	     (error = suser_td(td)))) {
+	error = VOP_GETATTR(vp, &va, p->p_ucred, td);
+	if (error) {
 		vput(vp);
 		return (error);
+	}
+	if (va.va_uid != p->p_ucred->cr_uid) {
+		error = suser_td(td);
+		if (error) {
+			vput(vp);
+			return (error);
+		}
 	}
 	if ((error = vinvalbuf(vp, V_SAVE, p->p_ucred, td, 0, 0)) != 0) {
 		vput(vp);
@@ -270,7 +281,8 @@ vfs_mount(td, fstype, fspath, fsflags, fsdata)
 		linker_file_t lf;
 
 		/* Only load modules for root (very important!) */
-		if ((error = suser_td(td)) != 0) {
+		error = suser_td(td);
+		if (error) {
 			vput(vp);
 			return error;
 		}
@@ -482,10 +494,12 @@ unmount(td, uap)
 	 * Only root, or the user that did the original mount is
 	 * permitted to unmount this filesystem.
 	 */
-	if ((mp->mnt_stat.f_owner != td->td_proc->p_ucred->cr_uid) &&
-	    (error = suser_td(td))) {
-		vput(vp);
-		return (error);
+	if (mp->mnt_stat.f_owner != td->td_proc->p_ucred->cr_uid) {
+		error = suser_td(td);
+		if (error) {
+			vput(vp);
+			return (error);
+		}
 	}
 
 	/*
@@ -2195,9 +2209,12 @@ setfflags(td, vp, flags)
 	 * if they are allowed to set flags and programs assume that
 	 * chown can't fail when done as root.
 	 */
-	if ((vp->v_type == VCHR || vp->v_type == VBLK) && 
-	    ((error = suser_xxx(td->td_proc->p_ucred, td->td_proc, PRISON_ROOT)) != 0))
-		return (error);
+	if (vp->v_type == VCHR || vp->v_type == VBLK) {
+		error = suser_xxx(td->td_proc->p_ucred, td->td_proc,
+		    PRISON_ROOT);
+		if (error)
+			return (error);
+	}
 
 	if ((error = vn_start_write(vp, &mp, V_WAIT | PCATCH)) != 0)
 		return (error);
@@ -3402,11 +3419,14 @@ revoke(td, uap)
 		error = EINVAL;
 		goto out;
 	}
-	if ((error = VOP_GETATTR(vp, &vattr, td->td_proc->p_ucred, td)) != 0)
+	error = VOP_GETATTR(vp, &vattr, td->td_proc->p_ucred, td);
+	if (error)
 		goto out;
-	if (td->td_proc->p_ucred->cr_uid != vattr.va_uid &&
-	    (error = suser_xxx(0, td->td_proc, PRISON_ROOT)))
-		goto out;
+	if (td->td_proc->p_ucred->cr_uid != vattr.va_uid) {
+		error = suser_xxx(0, td->td_proc, PRISON_ROOT);
+		if (error)
+			goto out;
+	}
 	if ((error = vn_start_write(vp, &mp, V_WAIT | PCATCH)) != 0)
 		goto out;
 	if (vcount(vp) > 1)
@@ -3731,7 +3751,8 @@ fhstatfs(td, uap)
 	/*
 	 * Must be super user
 	 */
-	if ((error = suser_td(td)))
+	error = suser_td(td);
+	if (error)
 		return (error);
 
 	if ((error = copyin(SCARG(uap, u_fhp), &fh, sizeof(fhandle_t))) != 0)
