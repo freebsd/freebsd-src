@@ -54,7 +54,7 @@
                   (literal "日本語訳に関するお問い合わせは <")
                   (create-link (list (list "HREF" "http://www.jp.FreeBSD.org/ml.html#doc-jp"))
                                (literal "doc-jp@jp.FreeBSD.org"))
-                  (literal "> まで電子メールでお願いします。"))))))
+                  (literal "> まで電子メールでお願いします。")))))))
 
 	<!-- Convert " ... " to `` ... '' in the HTML output. -->
 	(element quote
