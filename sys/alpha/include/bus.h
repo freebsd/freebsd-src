@@ -88,7 +88,7 @@ typedef u_int32_t		bus_space_handle_t;
 /* The largest address space known so far is 40 bits */
 #define BUS_SPACE_MAXADDR	0xFFFFFFFFFUL
 
-#define BUS_SPACE_UNRESTRICTED	(~0UL)
+#define BUS_SPACE_UNRESTRICTED	(~0)
 
 /*
  * Map a region of device bus space into CPU virtual address space.
