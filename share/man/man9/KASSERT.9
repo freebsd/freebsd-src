@@ -35,29 +35,34 @@
 .Nm KASSERT
 .Nd kernel expression verification macro
 .Sh SYNOPSIS
+.Cd "options INVARIANTS"
+.Pp
 .In sys/param.h
 .In sys/systm.h
-.Cd options INVARIANTS
 .Fn KASSERT expression msg
 .Sh DESCRIPTION
-In a kernel compiled with "options INVARIANTS",
+In a kernel compiled with
+.Cd "options INVARIANTS" ,
 the
 .Fn KASSERT
 macro tests the given
-.Ar expression
+.Fa expression
 and if it is false,
 calls the
-.Fn panic
-syscall, terminating the running system.
+.Xr panic 9
+function, terminating the running system.
 .Pp
-In a kernel that does not have "options INVARIANTS",
+In a kernel that does not have
+.Cd "options INVARIANTS" ,
 the
 .Fn KASSERT
 macro is defined to be a no-op.
 .Sh EXAMPLES
 The kernel function
 .Fn vput
-must not be called with a NULL pointer.
+must not be called with a
+.Dv NULL
+pointer.
 .Bd -literal -offset indent
 void
 vput(vp)
@@ -70,7 +75,7 @@ vput(vp)
 .Ed
 .Sh NOTES
 .Fa msg
-must be enclosed in brackets.
+must be enclosed in parentheses.
 .Sh SEE ALSO
 .Xr config 8 ,
 .Xr panic 9
