@@ -66,10 +66,7 @@ the sender must be the super-user.
 As a single special case the continue signal SIGCONT may be sent
 to any process that is a descendant of the current process.
 .Sh RETURN VALUES
-Upon successful completion, a value of 0 is returned.  Otherwise,
-a value of -1 is returned and the global variable
-.Va errno
-is set to indicate the error.
+.Rv -std killpg
 .Sh ERRORS
 .Fn Killpg
 will fail and no signal will be sent if:

@@ -52,10 +52,7 @@ in the file handle pointed to by
 .Fa fhp .
 This system call is restricted to the superuser.
 .Sh RETURN VALUES
-Upon successful completion, a value of 0 is returned.
-Otherwise, -1 is returned and the global variable
-.Va errno
-is set to indicate the error.
+.Rv -std getfh
 .Sh ERRORS
 .Fn Getfh
 fails if one or more of the following are true:

@@ -133,11 +133,7 @@ Region is not included in a core file.
 Include region in a core file.
 .El
 .Sh RETURN VALUES
-Upon successful completion,
-.Fn madvise
-returns 0.  Otherwise a value of -1 is returned and
-.Va errno
-is set to indicate the error.
+.Rv -std madvise
 .Sh ERRORS
 The
 .Fn madvise

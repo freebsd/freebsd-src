@@ -53,12 +53,7 @@ deletes the mappings for the specified address range,
 and causes further references to addresses within the range
 to generate invalid memory references.
 .Sh RETURN VALUES
-Upon successful completion,
-.Fn munmap
-returns zero.
-Otherwise, a value of -1 is returned and
-.Va errno
-is set to indicate the error.
+.Rv -std munmap
 .Sh ERRORS
 .Fn Munmap
 will fail if:
