@@ -1,22 +1,22 @@
 /* fileman.c -- A tiny application which demonstrates how to use the
    GNU Readline library.  This application interactively allows users
    to manipulate files and their modes. */
-/*
- * Remove the next line if you're compiling this against an installed
- * libreadline.a
- */
-#define READLINE_LIBRARY
 
 #ifdef HAVE_CONFIG_H
-#include <config.h>
+#  include <config.h>
 #endif
 
 #include <sys/types.h>
 #ifdef HAVE_SYS_FILE_H
-#include <sys/file.h>
+#  include <sys/file.h>
 #endif
 #include <sys/stat.h>
 
+#ifdef HAVE_UNISTD_H
+#  include <unistd.h>
+#endif
+
+#include <fcntl.h>
 #include <stdio.h>
 #include <errno.h>
 
@@ -26,6 +26,10 @@
 #  include <strings.h>
 #endif /* !HAVE_STRING_H */
 
+#ifdef HAVE_STDLIB_H
+#  include <stdlib.h>
+#endif
+
 #ifdef READLINE_LIBRARY
 #  include "readline.h"
 #  include "history.h"
@@ -34,7 +38,6 @@
 #  include <readline/history.h>
 #endif
 
-extern char *getwd ();
 extern char *xmalloc ();
 
 /* The names of functions that actually do the manipulation. */
@@ -300,7 +303,12 @@ com_view (arg)
   if (!valid_argument ("view", arg))
     return 1;
 
+#if defined (__MSDOS__)
+  /* more.com doesn't grok slashes in pathnames */
+  sprintf (syscom, "less %s", arg);
+#else
   sprintf (syscom, "more %s", arg);
+#endif
   return (system (syscom));
 }
 
@@ -406,7 +414,7 @@ com_pwd (ignore)
 {
   char dir[1024], *s;
 
-  s = getwd (dir);
+  s = getcwd (dir, sizeof(dir) - 1);
   if (s == 0)
     {
       printf ("Error getting pwd: %s\n", dir);

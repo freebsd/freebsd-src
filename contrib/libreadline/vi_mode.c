@@ -8,7 +8,7 @@
 
    The GNU Readline Library is free software; you can redistribute it
    and/or modify it under the terms of the GNU General Public License
-   as published by the Free Software Foundation; either version 1, or
+   as published by the Free Software Foundation; either version 2, or
    (at your option) any later version.
 
    The GNU Readline Library is distributed in the hope that it will be
@@ -19,7 +19,7 @@
    The GNU General Public License is often shipped with GNU software, and
    is generally kept in a file called COPYING or LICENSE.  If you do not
    have a copy of the license, write to the Free Software Foundation,
-   675 Mass Ave, Cambridge, MA 02139, USA. */
+   59 Temple Place, Suite 330, Boston, MA 02111 USA. */
 #define READLINE_LIBRARY
 
 /* **************************************************************** */
@@ -54,6 +54,9 @@
 #include "readline.h"
 #include "history.h"
 
+#include "rlprivate.h"
+#include "xmalloc.h"
+
 #ifndef _rl_digit_p
 #define _rl_digit_p(c)  ((c) >= '0' && (c) <= '9')
 #endif
@@ -73,26 +76,6 @@
 #ifndef exchange
 #define exchange(x, y) do {int temp = x; x = y; y = temp;} while (0)
 #endif
-
-extern char *xmalloc (), *xrealloc ();
-
-/* Variables imported from readline.c */
-extern int rl_point, rl_end, rl_mark;
-extern FILE *rl_instream;
-extern int rl_line_buffer_len, rl_explicit_arg, rl_numeric_arg;
-extern Keymap _rl_keymap;
-extern char *rl_prompt;
-extern char *rl_line_buffer;
-extern int rl_arg_sign;
-
-extern int _rl_doing_an_undo;
-extern int _rl_undo_group_level;
-
-extern void _rl_dispatch ();
-extern int _rl_char_search_internal ();
-
-extern void rl_extend_line_buffer ();
-extern int rl_vi_check ();
 
 /* Non-zero means enter insertion mode. */
 static int _rl_vi_doing_insert;
@@ -131,7 +114,7 @@ static char *vi_textmod = "_*\\AaIiCcDdPpYyRrSsXx~";
 /* Arrays for the saved marks. */
 static int vi_mark_chars[27];
 
-static int rl_digit_loop1 ();
+static int rl_digit_loop1 __P((void));
 
 void
 _rl_vi_initialize_line ()
@@ -1043,7 +1026,7 @@ rl_vi_char_search (count, key)
       if (vi_redoing)
 	target = _rl_vi_last_search_char;
       else
-	_rl_vi_last_search_char = target = rl_getc (rl_instream);
+	_rl_vi_last_search_char = target = (*rl_getc_function) (rl_instream);
 
       switch (key)
         {
@@ -1159,7 +1142,7 @@ rl_vi_change_char (count, key)
   if (vi_redoing)
     c = _rl_vi_last_replacement;
   else
-    _rl_vi_last_replacement = c = rl_getc (rl_instream);
+    _rl_vi_last_replacement = c = (*rl_getc_function) (rl_instream);
 
   if (c == '\033' || c == CTRL ('C'))
     return -1;
