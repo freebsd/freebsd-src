@@ -56,6 +56,13 @@ static const char rcsid[] =
 
 #include "pw_scan.h"
 
+/*
+ * Some software assumes that IDs are short.  We should emit warnings
+ * for id's which can not be stored in a short, but we are more liberal
+ * by default, warning for IDs greater than USHRT_MAX.
+ */
+int	pw_big_ids_warning = 1;
+
 int
 pw_scan(bp, pw)
 	char *bp;
@@ -89,8 +96,8 @@ pw_scan(bp, pw)
 		warnx("root uid should be 0");
 		return (0);
 	}
-	if (id > USHRT_MAX) {
-		warnx("%s > max uid value (%d)", p, USHRT_MAX);
+	if (pw_big_ids_warning && id > USHRT_MAX) {
+		warnx("%s > max uid value (%u)", p, USHRT_MAX);
 		/*return (0);*/ /* THIS SHOULD NOT BE FATAL! */
 	}
 	pw->pw_uid = id;
@@ -99,8 +106,8 @@ pw_scan(bp, pw)
 		goto fmt;
 	if(p[0]) pw->pw_fields |= _PWF_GID;
 	id = atol(p);
-	if (id > USHRT_MAX) {
-		warnx("%s > max gid value (%d)", p, USHRT_MAX);
+	if (pw_big_ids_warning && id > USHRT_MAX) {
+		warnx("%s > max gid value (%u)", p, USHRT_MAX);
 		/* return (0); This should not be fatal! */
 	}
 	pw->pw_gid = id;
