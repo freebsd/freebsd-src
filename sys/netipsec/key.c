@@ -2053,7 +2053,6 @@ key_spddelete(so, m, mhp)
 	xpl0->sadb_x_policy_id = sp->id;
 
 	sp->state = IPSEC_SPSTATE_DEAD;
-	SECPOLICY_LOCK_DESTROY(sp);
 	KEY_FREESP(&sp);
 
     {
@@ -2117,7 +2116,6 @@ key_spddelete2(so, m, mhp)
 	}
 
 	sp->state = IPSEC_SPSTATE_DEAD;
-	SECPOLICY_LOCK_DESTROY(sp);
 	KEY_FREESP(&sp);
 
     {
