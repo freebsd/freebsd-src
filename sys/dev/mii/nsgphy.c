@@ -100,8 +100,8 @@ static void	nsgphy_status(struct mii_softc *);
 static int	nsgphy_mii_phy_auto(struct mii_softc *, int);
 extern void	mii_phy_auto_timeout(void *);
 
-static int nsgphy_probe(dev)
-	device_t		dev;
+static int
+nsgphy_probe(device_t dev)
 {
 	struct mii_attach_args *ma;
 
@@ -121,8 +121,8 @@ static int nsgphy_probe(dev)
 	return(ENXIO);
 }
 
-static int nsgphy_attach(dev)
-	device_t		dev;
+static int
+nsgphy_attach(device_t dev)
 {
 	struct mii_softc *sc;
 	struct mii_attach_args *ma;
@@ -157,23 +157,23 @@ static int nsgphy_attach(dev)
 
 	device_printf(dev, " ");
 	ADD(IFM_MAKEWORD(IFM_ETHER, IFM_1000_TX, IFM_FDX, sc->mii_inst),
-	    NSGPHY_S1000|NSGPHY_BMCR_FDX);
+	    BMCR_S1000|BMCR_FDX);
 	PRINT("1000baseTX-FDX");
 	ADD(IFM_MAKEWORD(IFM_ETHER, IFM_1000_TX, 0, sc->mii_inst),
-	    NSGPHY_S1000);
+	    BMCR_S1000);
 	PRINT("1000baseTX");
 	sc->mii_capabilities =
 	    (PHY_READ(sc, MII_BMSR) |
 	    (BMSR_10TFDX|BMSR_10THDX)) & ma->mii_capmask;
 	ADD(IFM_MAKEWORD(IFM_ETHER, IFM_100_TX, IFM_FDX, sc->mii_inst),
-	    NSGPHY_S100|NSGPHY_BMCR_FDX);
+	    BMCR_S100|BMCR_FDX);
 	PRINT("100baseTX-FDX");
-	ADD(IFM_MAKEWORD(IFM_ETHER, IFM_100_TX, 0, sc->mii_inst), NSGPHY_S100);
+	ADD(IFM_MAKEWORD(IFM_ETHER, IFM_100_TX, 0, sc->mii_inst), BMCR_S100);
 	PRINT("100baseTX");
 	ADD(IFM_MAKEWORD(IFM_ETHER, IFM_10_T, IFM_FDX, sc->mii_inst),
-	    NSGPHY_S10|NSGPHY_BMCR_FDX);
+	    BMCR_S10|BMCR_FDX);
 	PRINT("10baseT-FDX");
-	ADD(IFM_MAKEWORD(IFM_ETHER, IFM_10_T, 0, sc->mii_inst), NSGPHY_S10);
+	ADD(IFM_MAKEWORD(IFM_ETHER, IFM_10_T, 0, sc->mii_inst), BMCR_S10);
 	PRINT("10baseT");
 	ADD(IFM_MAKEWORD(IFM_ETHER, IFM_AUTO, 0, sc->mii_inst), 0);
 	PRINT("auto");
@@ -185,8 +185,8 @@ static int nsgphy_attach(dev)
 	return(0);
 }
 
-static int nsgphy_detach(dev)
-	device_t		dev;
+static int
+nsgphy_detach(device_t dev)
 {
 	struct mii_softc *sc;
 	struct mii_data *mii;
@@ -200,11 +200,9 @@ static int nsgphy_detach(dev)
 
 	return(0);
 }
-int
-nsgphy_service(sc, mii, cmd)
-	struct mii_softc *sc;
-	struct mii_data *mii;
-	int cmd;
+
+static int
+nsgphy_service(struct mii_softc *sc, struct mii_data *mii, int cmd)
 {
 	struct ifmedia_entry *ife = mii->mii_media.ifm_cur;
 	int reg;
@@ -242,20 +240,20 @@ nsgphy_service(sc, mii, cmd)
 			/*
 			 * If we're already in auto mode, just return.
 			 */
-			if (PHY_READ(sc, NSGPHY_MII_BMCR) & NSGPHY_BMCR_AUTOEN)
+			if (PHY_READ(sc, MII_BMCR) & BMCR_AUTOEN)
 				return (0);
 #endif
 			(void) nsgphy_mii_phy_auto(sc, 0);
 			break;
 		case IFM_1000_TX:
 			if ((ife->ifm_media & IFM_GMASK) == IFM_FDX) {
-				PHY_WRITE(sc, NSGPHY_MII_BMCR,
-				    NSGPHY_BMCR_FDX|NSGPHY_BMCR_SPD1);
+				PHY_WRITE(sc, MII_BMCR,
+				    BMCR_FDX|BMCR_SPEED1);
 			} else {
-				PHY_WRITE(sc, NSGPHY_MII_BMCR,
-				    NSGPHY_BMCR_SPD1);
+				PHY_WRITE(sc, MII_BMCR,
+				    BMCR_SPEED1);
 			}
-			PHY_WRITE(sc, NSGPHY_MII_ANAR, NSGPHY_SEL_TYPE);
+			PHY_WRITE(sc, MII_ANAR, ANAR_CSMA);
 
 			/*
 			 * When setting the link manually, one side must
@@ -266,11 +264,10 @@ nsgphy_service(sc, mii, cmd)
 			 * be a master, otherwise it's a slave.
 			 */
 			if ((mii->mii_ifp->if_flags & IFF_LINK0)) {
-				PHY_WRITE(sc, NSGPHY_MII_1000CTL,
-				    NSGPHY_1000CTL_MSE|NSGPHY_1000CTL_MSC);
+				PHY_WRITE(sc, MII_100T2CR,
+				    GTCR_MAN_MS|GTCR_ADV_MS);
 			} else {
-				PHY_WRITE(sc, NSGPHY_MII_1000CTL,
-				    NSGPHY_1000CTL_MSE);
+				PHY_WRITE(sc, MII_100T2CR, GTCR_MAN_MS);
 			}
 			break;
 		case IFM_100_T4:
@@ -285,8 +282,7 @@ nsgphy_service(sc, mii, cmd)
 			/*
 			 * BMCR data is stored in the ifmedia entry.
 			 */
-			PHY_WRITE(sc, MII_ANAR,
-			    mii_anar(ife->ifm_media));
+			PHY_WRITE(sc, MII_ANAR, mii_anar(ife->ifm_media));
 			PHY_WRITE(sc, MII_BMCR, ife->ifm_data);
 			break;
 		}
@@ -344,8 +340,7 @@ nsgphy_service(sc, mii, cmd)
 }
 
 static void
-nsgphy_status(sc)
-	struct mii_softc *sc;
+nsgphy_status(struct mii_softc *sc)
 {
 	struct mii_data *mii = sc->mii_pdata;
 	int bmsr, bmcr, physup, anlpar, gstat;
@@ -353,58 +348,64 @@ nsgphy_status(sc)
 	mii->mii_media_status = IFM_AVALID;
 	mii->mii_media_active = IFM_ETHER;
 
-	bmsr = PHY_READ(sc, NSGPHY_MII_BMSR);
+	bmsr = PHY_READ(sc, MII_BMSR);
+
 	physup = PHY_READ(sc, NSGPHY_MII_PHYSUP);
+
 	if (physup & NSGPHY_PHYSUP_LNKSTS)
 		mii->mii_media_status |= IFM_ACTIVE;
 
-	bmcr = PHY_READ(sc, NSGPHY_MII_BMCR);
+	bmcr = PHY_READ(sc, MII_BMCR);
 
-	if (bmcr & NSGPHY_BMCR_LOOP)
+	if (bmcr & BMCR_LOOP)
 		mii->mii_media_active |= IFM_LOOP;
 
-	if (bmcr & NSGPHY_BMCR_AUTOEN) {
-		if ((bmsr & NSGPHY_BMSR_ACOMP) == 0) {
+	if (bmcr & BMCR_AUTOEN) {
+		/*
+		 * The media status bits are only valid if autonegotiation
+		 * has completed (or it's disabled).
+		 */
+		if ((bmsr & BMSR_ACOMP) == 0) {
 			/* Erg, still trying, I guess... */
 			mii->mii_media_active |= IFM_NONE;
 			return;
 		}
-		anlpar = PHY_READ(sc, NSGPHY_MII_ANLPAR);
-		gstat = PHY_READ(sc, NSGPHY_MII_1000STS);
-		if (gstat & NSGPHY_1000STS_LPFD)
+		anlpar = PHY_READ(sc, MII_ANLPAR);
+		gstat = PHY_READ(sc, MII_100T2SR);
+		if (gstat & GTSR_LP_1000TFDX)
 			mii->mii_media_active |= IFM_1000_TX|IFM_FDX;
-		else if (gstat & NSGPHY_1000STS_LPHD)
+		else if (gstat & GTSR_LP_1000THDX)
 			mii->mii_media_active |= IFM_1000_TX|IFM_HDX;
-		else if (anlpar & NSGPHY_ANLPAR_100T4)
+		else if (anlpar & ANLPAR_T4)
 			mii->mii_media_active |= IFM_100_T4;
-		else if (anlpar & NSGPHY_ANLPAR_100FDX)
+		else if (anlpar & ANLPAR_TX_FD)
 			mii->mii_media_active |= IFM_100_TX|IFM_FDX;
-		else if (anlpar & NSGPHY_ANLPAR_100HDX)
+		else if (anlpar & ANLPAR_TX)
 			mii->mii_media_active |= IFM_100_TX;
-		else if (anlpar & NSGPHY_ANLPAR_10FDX)
+		else if (anlpar & ANLPAR_10_FD)
 			mii->mii_media_active |= IFM_10_T|IFM_FDX;
-		else if (anlpar & NSGPHY_ANLPAR_10HDX)
+		else if (anlpar & ANLPAR_10)
 			mii->mii_media_active |= IFM_10_T|IFM_HDX;
 		else
 			mii->mii_media_active |= IFM_NONE;
 		return;
 	}
 
-	switch(bmcr & (NSGPHY_BMCR_SPD1|NSGPHY_BMCR_SPD0)) {
-	case NSGPHY_S1000:
+	switch(bmcr & (BMCR_SPEED1|BMCR_SPEED0)) {
+	case BMCR_S1000:
 		mii->mii_media_active |= IFM_1000_TX;
 		break;
-	case NSGPHY_S100:
+	case BMCR_S100:
 		mii->mii_media_active |= IFM_100_TX;
 		break;
-	case NSGPHY_S10:
+	case BMCR_S10:
 		mii->mii_media_active |= IFM_10_T;
 		break;
 	default:
 		break;
 	}
 
-	if (bmcr & NSGPHY_BMCR_FDX)
+	if (bmcr & BMCR_FDX)
 		mii->mii_media_active |= IFM_FDX;
 	else
 		mii->mii_media_active |= IFM_HDX;
@@ -414,33 +415,30 @@ nsgphy_status(sc)
 
 
 static int
-nsgphy_mii_phy_auto(mii, waitfor)
-	struct mii_softc *mii;
-	int waitfor;
+nsgphy_mii_phy_auto(struct mii_softc *mii, int waitfor)
 {
 	int bmsr, ktcr = 0, i;
 
 	if ((mii->mii_flags & MIIF_DOINGAUTO) == 0) {
 		mii_phy_reset(mii);
-		PHY_WRITE(mii, NSGPHY_MII_BMCR, 0);
+		PHY_WRITE(mii, MII_BMCR, 0);
 		DELAY(1000);
-		ktcr = PHY_READ(mii, NSGPHY_MII_1000CTL);
-		PHY_WRITE(mii, NSGPHY_MII_1000CTL, ktcr |
-		    (NSGPHY_1000CTL_AFD|NSGPHY_1000CTL_AHD));
-		ktcr = PHY_READ(mii, NSGPHY_MII_1000CTL);
+		ktcr = PHY_READ(mii, MII_100T2CR);
+		PHY_WRITE(mii, MII_100T2CR, ktcr |
+		    (GTCR_ADV_1000TFDX|GTCR_ADV_1000THDX));
+		ktcr = PHY_READ(mii, MII_100T2CR);
 		DELAY(1000);
-		PHY_WRITE(mii, NSGPHY_MII_ANAR,
+		PHY_WRITE(mii, MII_ANAR,
 		    BMSR_MEDIA_TO_ANAR(mii->mii_capabilities) | ANAR_CSMA);
 		DELAY(1000);
-		PHY_WRITE(mii, NSGPHY_MII_BMCR,
-		    NSGPHY_BMCR_AUTOEN | NSGPHY_BMCR_STARTNEG);
+		PHY_WRITE(mii, MII_BMCR,
+		    BMCR_AUTOEN | BMCR_STARTNEG);
 	}
 
 	if (waitfor) {
 		/* Wait 500ms for it to complete. */
 		for (i = 0; i < 500; i++) {
-			if ((bmsr = PHY_READ(mii, NSGPHY_MII_BMSR)) &
-			    NSGPHY_BMSR_ACOMP)
+			if ((bmsr = PHY_READ(mii, MII_BMSR)) & BMSR_ACOMP)
 				return (0);
 			DELAY(1000);
 #if 0
