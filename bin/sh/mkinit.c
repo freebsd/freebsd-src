@@ -33,7 +33,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: mkinit.c,v 1.9 1997/02/22 13:58:36 peter Exp $
+ *	$Id: mkinit.c,v 1.10 1997/04/28 03:06:37 steve Exp $
  */
 
 #ifndef lint
@@ -168,7 +168,7 @@ void error __P((char *));
 
 int
 main(argc, argv)
-	int argc;
+	int argc __unused;
 	char **argv;
 {
 	char **ap;

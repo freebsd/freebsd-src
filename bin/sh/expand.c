@@ -33,7 +33,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: expand.c,v 1.16 1997/02/22 13:58:26 peter Exp $
+ *	$Id: expand.c,v 1.17 1997/04/28 03:28:43 steve Exp $
  */
 
 #ifndef lint
@@ -956,7 +956,7 @@ char *expdir;
 STATIC void
 expandmeta(str, flag)
 	struct strlist *str;
-	int flag;
+	int flag __unused;
 {
 	char *p;
 	struct strlist **savelastp;

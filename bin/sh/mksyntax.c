@@ -33,7 +33,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id$
+ *	$Id: mksyntax.c,v 1.9 1997/02/22 13:58:37 peter Exp $
  */
 
 #ifndef lint
@@ -117,8 +117,8 @@ static void digit_convert __P((void));
 
 int
 main(argc, argv)
-	int argc;
-	char **argv;
+	int argc __unused;
+	char **argv __unused;
 {
 	char c;
 	char d;
