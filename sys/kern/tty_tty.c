@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)tty_tty.c	8.2 (Berkeley) 9/23/93
- * $Id$
+ * $Id: tty_tty.c,v 1.3 1994/08/02 07:42:57 davidg Exp $
  */
 
 /*
@@ -128,6 +128,8 @@ cttyioctl(dev, cmd, addr, flag, p)
 
 	if (ttyvp == NULL)
 		return (EIO);
+	if (cmd == TIOCSCTTY)  /* don't allow controlling tty to be set    */
+		return EINVAL; /* to controlling tty -- infinite recursion */
 	if (cmd == TIOCNOTTY) {
 		if (!SESS_LEADER(p)) {
 			p->p_flag &= ~P_CONTROLT;
