@@ -41,6 +41,7 @@ __FBSDID("$FreeBSD$");
 #include "opt_quota.h"
 #include "opt_suiddir.h"
 #include "opt_ufs.h"
+#include "opt_ffs.h"
 
 #include <sys/param.h>
 #include <sys/systm.h>
@@ -80,6 +81,8 @@ __FBSDID("$FreeBSD$");
 #ifdef UFS_DIRHASH
 #include <ufs/ufs/dirhash.h>
 #endif
+
+#include <ufs/ffs/ffs_extern.h>
 
 static int ufs_access(struct vop_access_args *);
 static int ufs_advlock(struct vop_advlock_args *);
@@ -1950,8 +1953,11 @@ ufs_strategy(ap)
 	vp = ip->i_devvp;
 	bp->b_dev = vp->v_rdev;
 	bp->b_iooffset = dbtob(bp->b_blkno);
-	if (!buf_prewrite(vp, bp)) 
-		VOP_SPECSTRATEGY(vp, bp);
+#ifdef SOFTUPDATES
+	if (bp->b_iocmd == BIO_WRITE && softdep_disk_prewrite(vp, bp))
+		return (0);
+#endif
+	VOP_SPECSTRATEGY(vp, bp);
 	return (0);
 }
 
