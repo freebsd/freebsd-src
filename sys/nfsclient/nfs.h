@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)nfs.h	8.4 (Berkeley) 5/1/95
- * $Id: nfs.h,v 1.23 1997/03/27 20:01:03 guido Exp $
+ * $Id: nfs.h,v 1.24 1997/03/29 12:34:33 bde Exp $
  */
 
 #ifndef _NFS_NFS_H_
@@ -517,6 +517,23 @@ extern int nfsd_head_flag;
  	 !bcmp((caddr_t)&(o)->nd_cr, (caddr_t)&(n)->nd_cr, \
 		sizeof (struct ucred)))
 
+#ifdef NFS_DEBUG
+
+extern int nfs_debug;
+#define NFS_DEBUG_ASYNCIO	1 /* asynchronous i/o */
+#define NFS_DEBUG_WG		2 /* server write gathering */
+#define NFS_DEBUG_RC		4 /* server request caching */
+
+#define NFS_DPF(cat, args)					\
+	do {							\
+		if (nfs_debug & NFS_DEBUG_##cat) printf args;	\
+	} while (0)
+
+#else
+
+#define NFS_DPF(cat, args)
+
+#endif
 
 int	nfs_init __P((struct vfsconf *vfsp));
 int	nfs_reply __P((struct nfsreq *));
