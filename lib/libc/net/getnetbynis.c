@@ -24,8 +24,8 @@
  */
 
 #if defined(LIBC_SCCS) && !defined(lint)
-static char sccsid[] = "@(#)$Id: getnetbynis.c,v 1.6 1996/08/29 20:08:01 peter Exp $";
-static char rcsid[] = "$Id: getnetbynis.c,v 1.6 1996/08/29 20:08:01 peter Exp $";
+static char sccsid[] = "@(#)$Id: getnetbynis.c,v 1.7 1996/12/06 00:12:31 jkh Exp $";
+static char rcsid[] = "$Id: getnetbynis.c,v 1.7 1996/12/06 00:12:31 jkh Exp $";
 #endif /* LIBC_SCCS and not lint */
 
 #include <sys/param.h>
@@ -64,7 +64,7 @@ _getnetbynis(name, map, af)
 	int resultlen;
 	static struct netent h;
 	static char *domain = (char *)NULL;
-	static char ypbuf[YPMAXRECORD];
+	static char ypbuf[YPMAXRECORD + 2];
 
 	switch(af) {
 	case AF_INET:
@@ -83,6 +83,7 @@ _getnetbynis(name, map, af)
 		return (NULL);
 
 	bcopy((char *)result, (char *)&ypbuf, resultlen);
+	ypbuf[resultlen] = '\0';
 	free(result);
 	result = (char *)&ypbuf;
 
