@@ -545,40 +545,47 @@ ext2_reload(mountp, cred, p)
 	brelse(bp);
 
 loop:
+	simple_lock(&mntvnode_slock);
 	for (vp = mountp->mnt_vnodelist.lh_first; vp != NULL; vp = nvp) {
+		if (vp->v_mount != mountp) {
+			simple_unlock(&mntvnode_slock);
+			goto loop;
+		}
 		nvp = vp->v_mntvnodes.le_next;
 		/*
 		 * Step 4: invalidate all inactive vnodes.
 		 */
-		if (vp->v_usecount == 0) {
-			vgone(vp);
-			continue;
-		}
+  		if (vrecycle(vp, &mntvnode_slock, p))
+  			goto loop;
 		/*
 		 * Step 5: invalidate all cached file data.
 		 */
-		if (vget(vp, LK_EXCLUSIVE, p))
+		simple_lock(&vp->v_interlock);
+		simple_unlock(&mntvnode_slock);
+		if (vget(vp, LK_EXCLUSIVE | LK_INTERLOCK, p)) {
 			goto loop;
+		}
 		if (vinvalbuf(vp, 0, cred, p, 0, 0))
 			panic("ext2_reload: dirty2");
 		/*
 		 * Step 6: re-read inode data for all active vnodes.
 		 */
 		ip = VTOI(vp);
-		if (error =
+		error =
 		    bread(devvp, fsbtodb(fs, ino_to_fsba(fs, ip->i_number)),
-		    (int)fs->s_blocksize, NOCRED, &bp)) {
+		    (int)fs->s_blocksize, NOCRED, &bp);
+		if (error) {
 			vput(vp);
 			return (error);
 		}
 		ext2_ei2di((struct ext2_inode *) ((char *)bp->b_data + 
-			EXT2_INODE_SIZE * ino_to_fsbo(fs, ip->i_number)), 
-			&ip->i_din);
+		    EXT2_INODE_SIZE * ino_to_fsbo(fs, ip->i_number)), 
+		    &ip->i_din);
 		brelse(bp);
 		vput(vp);
-		if (vp->v_mount != mountp)
-			goto loop;
+		simple_lock(&mntvnode_slock);
 	}
+	simple_unlock(&mntvnode_slock);
 	return (0);
 }
 
@@ -881,63 +888,77 @@ ext2_sync(mp, waitfor, cred, p)
 	struct ucred *cred;
 	struct proc *p;
 {
-	register struct vnode *vp;
-	register struct inode *ip;
-	register struct ufsmount *ump = VFSTOUFS(mp);
-	register struct ext2_sb_info *fs;
+	struct vnode *nvp, *vp;
+	struct inode *ip;
+	struct ufsmount *ump = VFSTOUFS(mp);
+	struct ext2_sb_info *fs;
+	struct timeval tv;
 	int error, allerror = 0;
 
 	fs = ump->um_e2fs;
-	/*
-	 * Write back modified superblock.
-	 * Consistency check that the superblock
-	 * is still in the buffer cache.
-	 */
-	if (fs->s_dirt) {
-		if (fs->s_rd_only != 0) {		/* XXX */
-			printf("fs = %s\n", fs->fs_fsmnt);
-			panic("update: rofs mod");
-		}
-		fs->s_dirt = 0;
-		fs->s_es->s_wtime = time_second;
-		allerror = ext2_sbupdate(ump, waitfor);
+	if (fs->s_dirt != 0 && fs->s_rd_only != 0) {		/* XXX */
+		printf("fs = %s\n", fs->fs_fsmnt);
+		panic("ext2_sync: rofs mod");
 	}
 	/*
 	 * Write back each (modified) inode.
 	 */
+	simple_lock(&mntvnode_slock);
 loop:
-	for (vp = mp->mnt_vnodelist.lh_first;
-	     vp != NULL;
-	     vp = vp->v_mntvnodes.le_next) {
+	for (vp = mp->mnt_vnodelist.lh_first; vp != NULL; vp = nvp) {
 		/*
 		 * If the vnode that we are about to sync is no longer
 		 * associated with this mount point, start over.
 		 */
 		if (vp->v_mount != mp)
 			goto loop;
-		if (VOP_ISLOCKED(vp))
-			continue;
-		if (vp->v_type == VNON) /* XXX why is this needed? (it is) */
-			continue;
+		simple_lock(&vp->v_interlock);
+		nvp = vp->v_mntvnodes.le_next;
 		ip = VTOI(vp);
-		if ((ip->i_flag &
+		if (vp->v_type == VNON ||
+		    (ip->i_flag &
 		    (IN_ACCESS | IN_CHANGE | IN_MODIFIED | IN_UPDATE)) == 0 &&
-		    vp->v_dirtyblkhd.lh_first == NULL)
+		    (vp->v_dirtyblkhd.lh_first == NULL ||
+		    waitfor == MNT_LAZY)) {
+			simple_unlock(&vp->v_interlock);
 			continue;
-		if (vget(vp, LK_EXCLUSIVE, p))
-			goto loop;
+		}
+		simple_unlock(&mntvnode_slock);
+		error = vget(vp, LK_EXCLUSIVE | LK_NOWAIT | LK_INTERLOCK, p);
+		if (error) {
+			simple_lock(&mntvnode_slock);
+			if (error == ENOENT)
+				goto loop;
+			continue;
+		}
 		if (error = VOP_FSYNC(vp, cred, waitfor, p))
 			allerror = error;
-		vput(vp);
+		VOP_UNLOCK(vp, 0, p);
+		vrele(vp);
+		simple_lock(&mntvnode_slock);
 	}
+	simple_unlock(&mntvnode_slock);
 	/*
 	 * Force stale file system control information to be flushed.
 	 */
-	if (error = VOP_FSYNC(ump->um_devvp, cred, waitfor, p))
-		allerror = error;
+	if (waitfor != MNT_LAZY) {
+		vn_lock(ump->um_devvp, LK_EXCLUSIVE | LK_RETRY, p);
+		if ((error = VOP_FSYNC(ump->um_devvp, cred, waitfor, p)) != 0)
+			allerror = error;
+		VOP_UNLOCK(ump->um_devvp, 0, p);
+	}
 #if QUOTA
 	qsync(mp);
 #endif
+	/*
+	 * Write back modified superblock.
+	 */
+	if (fs->s_dirt != 0) {
+		fs->s_dirt = 0;
+		fs->s_es->s_wtime = time_second;
+		if ((error = ext2_sbupdate(ump, waitfor)) != 0)
+			allerror = error;
+	}
 	return (allerror);
 }
 
