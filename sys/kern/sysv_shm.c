@@ -1,4 +1,4 @@
-/*	$Id: sysv_shm.c,v 1.38 1998/08/24 08:39:38 dfr Exp $ */
+/*	$Id: sysv_shm.c,v 1.39 1998/10/13 08:24:40 dg Exp $ */
 /*	$NetBSD: sysv_shm.c,v 1.23 1994/07/04 23:25:12 glass Exp $	*/
 
 /*
@@ -444,13 +444,13 @@ shmget_existing(p, uap, mode, segnum)
 			return error;
 		return EAGAIN;
 	}
+	if ((uap->shmflg & (IPC_CREAT | IPC_EXCL)) == (IPC_CREAT | IPC_EXCL))
+		return EEXIST;
 	error = ipcperm(cred, &shmseg->shm_perm, mode);
 	if (error)
 		return error;
 	if (uap->size && uap->size > shmseg->shm_segsz)
 		return EINVAL;
-       if ((uap->shmflg & (IPC_CREAT | IPC_EXCL)) == (IPC_CREAT | IPC_EXCL))
-		return EEXIST;
 	p->p_retval[0] = IXSEQ_TO_IPCID(segnum, shmseg->shm_perm);
 	return 0;
 }
