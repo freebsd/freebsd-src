@@ -64,13 +64,7 @@
 #include <vm/vm_object.h>
 #include <vm/swap_pager.h>
 
-#include <machine/frame.h>
 #include <machine/limits.h>
-#include <machine/psl.h>
-#include <machine/sysarch.h>
-#ifdef __i386__
-#include <machine/segments.h>
-#endif
 
 #include <posix4/sched.h>
 
