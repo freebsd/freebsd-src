@@ -106,6 +106,9 @@
     &man.access.2; except that the former uses effective credentials
     rather than real credentials.</para>
 
+    <para arch="sparc64">Support has been added for EBus-based
+    devices.</para>
+
     <para arch="i386">The &man.ichsmb.4; driver for the Intel 82801AA
     (ICH) SMBus controller and compatibles has been
     added. &merged;</para>
@@ -244,6 +247,9 @@
     <para>A new kernel option, <literal>options REGRESSION</literal>,
     enables interfaces and functionality intended for use during
     correctness and regression testing.</para>
+
+    <para arch="sparc64">Support has been added for SBus-based
+    devices.</para>
 
     <para arch="i386">The &man.spic.4; driver, which provides access to the jog
     dial device on some Sony laptops, has been added.</para>
@@ -865,6 +871,9 @@ options HZ=1000 # not compulsory but strongly recommended</programlisting>
       <para>A bug in the TCP implementation, which could cause
       connections to stall if a sender saw a zero-sized window, has
       been corrected. &merged;</para>
+
+      <para>The TCP implementation now properly ignores packets
+      addressed to IP-layer broadcast addresses. &merged;</para>
     </sect3>
 
     <sect3>
@@ -1665,7 +1674,7 @@ options HZ=1000 # not compulsory but strongly recommended</programlisting>
     changed. &merged;</para>
 
     <para>&man.dump.8; now supplies progress information in its
-    process title, useful for monitoring automated backups.</para>
+    process title, useful for monitoring automated backups. &merged;</para>
 
     <para>&man.edquota.8; now takes a <option>-f</option> option to
     allow limiting the prototype quota distribution (specified with
