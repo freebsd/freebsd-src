@@ -1342,7 +1342,6 @@ got_match:
 		 */
 		if (q == NULL && f->fw_flg & IP_FW_F_KEEP_S)
 		    install_state(chain);
-		*flow_id = chain ; /* XXX set flow id */
 		/* Update statistics */
 		f->fw_pcnt += 1;
 		f->fw_bcnt += ip_len;
@@ -1376,6 +1375,7 @@ got_match:
 #ifdef DUMMYNET
 		case IP_FW_F_PIPE:
 		case IP_FW_F_QUEUE:
+			*flow_id = chain;
 			return(f->fw_pipe_nr | IP_FW_PORT_DYNT_FLAG);
 #endif
 #ifdef IPFIREWALL_FORWARD
