@@ -23,6 +23,18 @@ NOTE TO PEOPLE WHO THINK THAT FreeBSD 6.x IS SLOW:
 	developers choose to disable these features on build machines
 	to maximize performance.
 
+20041201:
+	The wlan support has been updated to split the crypto support
+	into separate modules.  For static WEP you must configure the
+	wlan_wep module in your system or build and install the module
+	in place where it can be loaded (the kernel will auto-load
+	the module when a wep key is configured).
+
+20041201:
+	The ath driver has been updated to split the tx rate control
+	algorithm into a separate module.  You need to include either
+	ath_rate_onoe or ath_rate_amrr when configuring the kernel.
+
 20041116:
 	Support for systems with an 80386 CPU has been removed.  Please
 	use FreeBSD 5.x or earlier on systems with an 80386.
