@@ -182,7 +182,7 @@ enum pci_device_ivars {
 /*
  * Simplified accessors for pci devices
  */
-#define PCI_ACCESSOR(var, ivar, type)						\
+#define PCI_ACCESSOR(var, ivar, type)					\
 	__BUS_ACCESSOR(pci, var, PCI, ivar, type)
 
 PCI_ACCESSOR(subvendor,		SUBVENDOR,	u_int16_t)
