@@ -41,11 +41,13 @@
 #include <sys/param.h>
 #include <sys/kernel.h>
 #include <sys/socket.h>
+#include <sys/systm.h>
 #include <sys/module.h>
 #include <sys/bus.h>
 
 #include <machine/bus.h>
 #include <machine/resource.h>
+#include <machine/clock.h>
 #include <sys/rman.h>
 
 #include <pci/pcireg.h>
