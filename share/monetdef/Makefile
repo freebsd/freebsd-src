@@ -64,6 +64,7 @@ LOCALES=	af_ZA.ISO8859-1 \
 		sr_YU.UTF-8 \
 		sv_SE.ISO8859-1 \
 		tr_TR.ISO8859-9 \
+		uk_UA.CP1251 \
 		uk_UA.ISO8859-5 \
 		uk_UA.KOI8-U \
 		uk_UA.UTF-8 \
