@@ -1,4 +1,4 @@
-.\" $Id: ppp.8,v 1.113 1998/07/31 19:50:24 brian Exp $
+.\" $Id: ppp.8,v 1.114 1998/08/07 18:42:50 brian Exp $
 .Dd 20 September 1995
 .Os FreeBSD
 .Dt PPP 8
@@ -3444,12 +3444,7 @@ The process id (pid) of the
 .Nm
 program connected to the tunN device, where
 .Sq N
-is the number of the device.  This file is only created in
-.Fl background ,
-.Fl auto
-and
-.Fl ddial
-modes.
+is the number of the device.
 .It Pa /var/run/ttyXX.if
 The tun interface used by this port.  Again, this file is only created in
 .Fl background ,
