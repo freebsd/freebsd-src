@@ -17,7 +17,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: lcp.c,v 1.54 1998/01/20 22:47:40 brian Exp $
+ * $Id: lcp.c,v 1.55 1998/01/21 02:15:18 brian Exp $
  *
  * TODO:
  *      o Validate magic number received from peer.
@@ -714,7 +714,7 @@ LcpDecodeConfig(u_char *cp, int plen, int mode_type)
 	LcpInfo.want_magic = GenerateMagic();
 	break;
       case MODE_REJ:
-	LogPrintf(LogLCP, " Magic 0x%80x is REJected!\n", magic);
+	LogPrintf(LogLCP, " Magic 0x%08x is REJected!\n", magic);
 	LcpInfo.want_magic = 0;
 	LcpInfo.his_reject |= (1 << type);
 	break;
