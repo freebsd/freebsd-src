@@ -40,146 +40,72 @@ static char copyright[] =
 #ifndef lint
 /*static char sccsid[] = "From: @(#)sysctl.c	8.1 (Berkeley) 6/6/93"; */
 static const char rcsid[] =
-	"$Id: sysctl.c,v 1.7 1995/06/11 19:32:58 rgrimes Exp $";
+	"$Id: sysctl.c,v 1.8 1995/11/17 16:28:42 phk Exp $";
 #endif /* not lint */
 
-#include <sys/param.h>
-#include <sys/gmon.h>
+#include <sys/types.h>
 #include <sys/stat.h>
 #include <sys/sysctl.h>
-#include <sys/socket.h>
-#include <vm/vm_param.h>
-#include <machine/cpu.h>
-
-#include <netinet/in.h>
-#include <netinet/in_systm.h>
-#include <netinet/ip.h>
-#include <netinet/ip_icmp.h>
-#include <netinet/icmp_var.h>
-#include <netinet/ip_var.h>
-#include <netinet/udp.h>
-#include <netinet/udp_var.h>
-#include <netinet/tcp.h>
-#include <netinet/tcp_seq.h>
-#include <netinet/tcp_timer.h>
-#include <netinet/tcp_var.h>
-#include <netinet/igmp_var.h>
+#include <sys/resource.h>
 
 #include <errno.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <ctype.h>
+#include <err.h>
 
-struct ctlname topname[] = CTL_NAMES;
-struct ctlname kernname[] = CTL_KERN_NAMES;
-struct ctlname vmname[] = CTL_VM_NAMES;
-struct ctlname netname[] = CTL_NET_NAMES;
-struct ctlname hwname[] = CTL_HW_NAMES;
-struct ctlname username[] = CTL_USER_NAMES;
-#ifdef CTL_MACHDEP_NAMES
-struct ctlname machdepname[] = CTL_MACHDEP_NAMES;
-#endif
-char names[BUFSIZ];
+static int	Aflag, aflag, nflag, wflag, Xflag, bflag;
 
-struct list {
-	struct	ctlname *list;
-	int	size;
-};
-struct list toplist = { topname, CTL_MAXID };
-struct list secondlevel[] = {
-	{ 0, 0 },			/* CTL_UNSPEC */
-	{ kernname, KERN_MAXID },	/* CTL_KERN */
-	{ vmname, VM_MAXID },		/* CTL_VM */
-	{ 0, 0 },			/* CTL_FS */
-	{ netname, NET_MAXID },		/* CTL_NET */
-	{ 0, 0 },			/* CTL_DEBUG */
-	{ hwname, HW_MAXID },		/* CTL_HW */
-#ifdef CTL_MACHDEP_NAMES
-	{ machdepname, CPU_MAXID },	/* CTL_MACHDEP */
-#else
-	{ 0, 0 },			/* CTL_MACHDEP */
-#endif
-	{ username, USER_MAXID },	/* CTL_USER_NAMES */
-};
+static int	oidfmt(int *, int, char *, u_int *);
+static void	parse(char *);
+static int	show_var(int *, int);
+static int	sysctl_all (int *oid, int len);
+static int	name2oid(char *, int *);
 
-int	Aflag, aflag, nflag, wflag;
+static void
+usage(void)
+{
 
-/*
- * Variables requiring special processing.
- */
-#define	CLOCK		0x00000001
-#define	BOOTTIME	0x00000002
-#define	CONSDEV		0x00000004
-#define DUMPDEV		0x00000008
+	(void)fprintf(stderr, "usage:\n%s",
+	    "\tsysctl [-bnX] variable ...\n"
+	    "\tsysctl [-bnX] -w variable=value ...\n"
+	    "\tsysctl [-bnX] -a\n"
+	    "\tsysctl [-bnX] -A\n"
+		);
+	exit(1);
+}
 
 int
-main(argc, argv)
-	int argc;
-	char *argv[];
+main(int argc, char **argv)
 {
 	extern char *optarg;
 	extern int optind;
-	int ch, lvl1;
+	int ch;
+	setbuf(stdout,0);
+	setbuf(stderr,0);
 
-	while ((ch = getopt(argc, argv, "Aanw")) != EOF) {
+	while ((ch = getopt(argc, argv, "AabnwX")) != EOF) {
 		switch (ch) {
-
-		case 'A':
-			Aflag = 1;
-			break;
-
-		case 'a':
-			aflag = 1;
-			break;
-
-		case 'n':
-			nflag = 1;
-			break;
-
-		case 'w':
-			wflag = 1;
-			break;
-
-		default:
-			usage();
+		case 'A': Aflag = 1; break;
+		case 'a': aflag = 1; break;
+		case 'b': bflag = 1; break;
+		case 'n': nflag = 1; break;
+		case 'w': wflag = 1; break;
+		case 'X': Xflag = Aflag = 1; break;
+		default: usage();
 		}
 	}
 	argc -= optind;
 	argv += optind;
 
-	if (Aflag || aflag) {
-		for (lvl1 = 1; lvl1 < CTL_MAXID; lvl1++)
-			listall(topname[lvl1].ctl_name, &secondlevel[lvl1]);
-		exit(0);
-	}
+	if (Aflag || aflag)
+		exit (sysctl_all(0, 0));
 	if (argc == 0)
 		usage();
 	while (argc-- > 0)
-		parse(*argv, 1);
+		parse(*argv++);
 	exit(0);
-}
-
-/*
- * List all variables known to the system.
- */
-listall(prefix, lp)
-	char *prefix;
-	struct list *lp;
-{
-	int lvl2;
-	char *cp, name[BUFSIZ];
-
-	if (lp->list == 0)
-		return;
-	strcpy(name, prefix);
-	cp = &name[strlen(name)];
-	*cp++ = '.';
-	for (lvl2 = 0; lvl2 < lp->size; lvl2++) {
-		if (lp->list[lvl2].ctl_name == 0)
-			continue;
-		strcpy(cp, lp->list[lvl2].ctl_name);
-		parse(name, Aflag);
-	}
 }
 
 /*
@@ -187,18 +113,16 @@ listall(prefix, lp)
  * Lookup and print out the MIB entry if it exists.
  * Set a new value if requested.
  */
-parse(string, flags)
-	char *string;
-	int flags;
+static void
+parse(char *string)
 {
-	int indx, type, state, size, len;
-	int special = 0;
+	int len, i, j;
 	void *newval = 0;
 	int intval, newsize = 0;
 	quad_t quadval;
-	struct list *lp;
 	int mib[CTL_MAXNAME];
-	char *cp, *bufp, buf[BUFSIZ], strval[BUFSIZ];
+	char *cp, *bufp, buf[BUFSIZ];
+	u_int kind;
 
 	bufp = buf;
 	snprintf(buf, BUFSIZ, "%s", string);
@@ -214,350 +138,323 @@ parse(string, flags)
 		newval = cp;
 		newsize = strlen(cp);
 	}
-	if ((indx = findname(string, "top", &bufp, &toplist)) == -1)
-		return;
-	mib[0] = indx;
-	lp = &secondlevel[indx];
-	if (lp->list == 0) {
-		fprintf(stderr, "%s: class is not implemented\n",
-		    topname[indx]);
-		return;
-	}
-	if (bufp == NULL) {
-		listall(topname[indx].ctl_name, lp);
-		return;
-	}
-	if ((indx = findname(string, "second", &bufp, lp)) == -1)
-		return;
-	mib[1] = indx;
-	type = lp->list[indx].ctl_type;
-	len = 2;
-	switch (mib[0]) {
+	len = name2oid(bufp, mib);
 
-	case CTL_KERN:
-		switch (mib[1]) {
-		case KERN_PROF:
-			mib[2] = GPROF_STATE;
-			size = sizeof state;
-			if (sysctl(mib, 3, &state, &size, NULL, 0) < 0) {
-				if (flags == 0)
-					return;
-				if (!nflag)
-					fprintf(stdout, "%s: ", string);
-				fprintf(stderr,
-				    "kernel is not compiled for profiling\n");
+	if (len < 0) 
+		errx(1, "Unknown oid '%s'", bufp);
+
+	if (oidfmt(mib, len, 0, &kind))
+		err(1, "Couldn't find format of oid '%s'", bufp);
+
+	if (!wflag) {
+		if ((kind & CTLTYPE) == CTLTYPE_NODE) {
+			sysctl_all(mib, len);
+		} else {
+			i = show_var(mib, len);
+			if (!i && !bflag)
+				putchar('\n');
+		}
+	} else {
+		if ((kind & CTLTYPE) == CTLTYPE_NODE)
+			errx(1, "oid '%s' isn't a leaf node", bufp);
+
+		if (!(kind&CTLFLAG_WR))
+			errx(1, "oid '%s' is read only", bufp);
+	
+		switch (kind & CTLTYPE) {
+			case CTLTYPE_INT:
+				intval = atoi(newval);
+				newval = &intval;
+				newsize = sizeof intval;
+				break;
+				break;
+			case CTLTYPE_STRING:
+				break;
+			case CTLTYPE_QUAD:
+				break;
+				sscanf(newval, "%qd", &quadval);
+				newval = &quadval;
+				newsize = sizeof quadval;
+				break;
+			default:
+				errx(1, "oid '%s' is type %d,"
+					" cannot set that", bufp);
+		}
+
+		i = show_var(mib, len);
+		if (sysctl(mib, len, 0, 0, newval, newsize) == -1) {
+			if (!i && !bflag)
+				putchar('\n');
+			switch (errno) {
+			case EOPNOTSUPP:
+				errx(1, "%s: value is not available\n", 
+					string);
+			case ENOTDIR:
+				errx(1, "%s: specification is incomplete\n", 
+					string);
+			case ENOMEM:
+				errx(1, "%s: type is unknown to this program\n", 
+					string);
+			default:
+				perror(string);
 				return;
 			}
-			if (!nflag)
-				fprintf(stdout, "%s: %s\n", string,
-				    state == GMON_PROF_OFF ? "off" : "running");
-			return;
-		case KERN_VNODE:
-		case KERN_FILE:
-			if (flags == 0)
-				return;
-			fprintf(stderr,
-			    "Use pstat to view %s information\n", string);
-			return;
-		case KERN_PROC:
-			if (flags == 0)
-				return;
-			fprintf(stderr,
-			    "Use ps to view %s information\n", string);
-			return;
-		case KERN_CLOCKRATE:
-			special |= CLOCK;
-			break;
-		case KERN_BOOTTIME:
-			special |= BOOTTIME;
-			break;
-		case KERN_DUMPDEV:
-			special |= DUMPDEV;
-			break;
 		}
-		break;
-
-	case CTL_HW:
-		break;
-
-	case CTL_VM:
-		if (mib[1] == VM_LOADAVG) {
-			double loads[3];
-
-			getloadavg(loads, 3);
-			if (!nflag)
-				fprintf(stdout, "%s: ", string);
-			fprintf(stdout, "%.2f %.2f %.2f\n",
-			    loads[0], loads[1], loads[2]);
-			return;
-		}
-		if (flags == 0)
-			return;
-		fprintf(stderr,
-		    "Use vmstat or systat to view %s information\n", string);
-		return;
-
-	case CTL_NET:
-		if (mib[1] == PF_INET) {
-			len = sysctl_inet(string, &bufp, mib, flags, &type,
-					  &special);
-			if (len >= 0)
-				break;
-			return;
-		}
-		if (flags == 0)
-			return;
-		fprintf(stderr, "Use netstat to view %s information\n", string);
-		return;
-
-
-	case CTL_MACHDEP:
-#ifdef CPU_CONSDEV
-		if (mib[1] == CPU_CONSDEV)
-			special |= CONSDEV;
-#endif
-		break;
-
-	case CTL_FS:
-	case CTL_USER:
-		break;
-
-	default:
-		fprintf(stderr, "Illegal top level value: %d\n", mib[0]);
-		return;
-
-	}
-	if (bufp) {
-		fprintf(stderr, "name %s in %s is unknown\n", bufp, string);
-		return;
-	}
-	if (newsize > 0) {
-		switch (type) {
-		case CTLTYPE_INT:
-			intval = atoi(newval);
-			newval = &intval;
-			newsize = sizeof intval;
-			break;
-
-		case CTLTYPE_QUAD:
-			sscanf(newval, "%qd", &quadval);
-			newval = &quadval;
-			newsize = sizeof quadval;
-			break;
-		}
-	}
-	size = BUFSIZ;
-	if (sysctl(mib, len, buf, &size, newsize ? newval : 0, newsize) == -1) {
-		if (flags == 0)
-			return;
-		switch (errno) {
-		case EOPNOTSUPP:
-			fprintf(stderr, "%s: value is not available\n", string);
-			return;
-		case ENOTDIR:
-			fprintf(stderr, "%s: specification is incomplete\n",
-			    string);
-			return;
-		case ENOMEM:
-			fprintf(stderr, "%s: type is unknown to this program\n",
-			    string);
-			return;
-		default:
-			perror(string);
-			return;
-		}
-	}
-	if (special & CLOCK) {
-		struct clockinfo *clkp = (struct clockinfo *)buf;
-
-		if (!nflag)
-			fprintf(stdout, "%s: ", string);
-		fprintf(stdout,
-		    "hz = %d, tick = %d, profhz = %d, stathz = %d\n",
-		    clkp->hz, clkp->tick, clkp->profhz, clkp->stathz);
-		return;
-	}
-	if (special & BOOTTIME) {
-		struct timeval *btp = (struct timeval *)buf;
-
-		if (!nflag)
-			fprintf(stdout, "%s = %s", string,
-			    ctime(&btp->tv_sec));
-		else
-			fprintf(stdout, "%d\n", btp->tv_sec);
-		return;
-	}
-	if (special & (CONSDEV | DUMPDEV)) {
-		dev_t dev = *(dev_t *)buf;
-
-		if ((special & DUMPDEV) && dev == NODEV && !nflag) {
-			printf("%s = disabled\n", string);
-			return;
-		}
-		if (!nflag)
-			fprintf(stdout, "%s = %s\n", string,
-			    devname(dev,
-				    (special & CONSDEV) ? S_IFCHR : S_IFBLK));
-		else
-			fprintf(stdout, "0x%x\n", dev);
-		return;
-	}
-	switch (type) {
-	case CTLTYPE_INT:
-		if (newsize == 0) {
-			if (!nflag)
-				fprintf(stdout, "%s = ", string);
-			fprintf(stdout, "%d\n", *(int *)buf);
-		} else {
-			if (!nflag)
-				fprintf(stdout, "%s: %d -> ", string,
-				    *(int *)buf);
-			fprintf(stdout, "%d\n", *(int *)newval);
-		}
-		return;
-
-	case CTLTYPE_STRING:
-		if (newsize == 0) {
-			if (!nflag)
-				fprintf(stdout, "%s = ", string);
-			fprintf(stdout, "%s\n", buf);
-		} else {
-			if (!nflag)
-				fprintf(stdout, "%s: %s -> ", string, buf);
-			fprintf(stdout, "%s\n", newval);
-		}
-		return;
-
-	case CTLTYPE_QUAD:
-		if (newsize == 0) {
-			if (!nflag)
-				fprintf(stdout, "%s = ", string);
-			fprintf(stdout, "%qd\n", *(quad_t *)buf);
-		} else {
-			if (!nflag)
-				fprintf(stdout, "%s: %qd -> ", string,
-				    *(quad_t *)buf);
-			fprintf(stdout, "%qd\n", *(quad_t *)newval);
-		}
-		return;
-
-	case CTLTYPE_STRUCT:
-		fprintf(stderr, "%s: unknown structure returned\n",
-		    string);
-		return;
-
-	default:
-	case CTLTYPE_NODE:
-		fprintf(stderr, "%s: unknown type returned\n",
-		    string);
-		return;
+		if (!bflag)
+			printf(" -> ");
+		i = nflag;
+		nflag = 1;
+		j = show_var(mib, len);
+		if (!j && !bflag)
+			putchar('\n');
+		nflag = i;
 	}
 }
 
+/* These functions will dump out various interesting structures. */
 
-struct ctlname inetname[] = CTL_IPPROTO_NAMES;
-struct ctlname ipname[] = IPCTL_NAMES;
-struct ctlname icmpname[] = ICMPCTL_NAMES;
-struct ctlname udpname[] = UDPCTL_NAMES;
-struct ctlname tcpname[] = TCPCTL_NAMES;
-struct ctlname igmpname[] = IGMPCTL_NAMES;
-struct list inetlist = { inetname, IPPROTO_MAXID };
-struct list inetvars[] = {
-	{ ipname, IPCTL_MAXID },	/* ip */
-	{ icmpname, ICMPCTL_MAXID },	/* icmp */
-	{ igmpname, IGMPCTL_MAXID },	/* igmp */
-	{ 0, 0 },			/* ggp */
-	{ 0, 0 },			/* ipencap */
-	{ 0, 0 },
-	{ tcpname, TCPCTL_MAXID },	/* tcp */
-	{ 0, 0 },
-	{ 0, 0 },			/* egp */
-	{ 0, 0 },
-	{ 0, 0 },
-	{ 0, 0 },
-	{ 0, 0 },			/* pup */
-	{ 0, 0 },
-	{ 0, 0 },
-	{ 0, 0 },
-	{ 0, 0 },
-	{ udpname, UDPCTL_MAXID },	/* udp */
-};
-
-/*
- * handle internet requests
- */
-int
-sysctl_inet(string, bufpp, mib, flags, typep, specialp)
-	char *string;
-	char **bufpp;
-	int mib[];
-	int flags;
-	int *typep;
-	int *specialp;
+static int
+S_clockinfo(int l2, void *p)
 {
-	struct list *lp;
-	int indx;
+	struct clockinfo *ci = (struct clockinfo*)p;
+	if (l2 != sizeof *ci)
+		err(-1, "S_clockinfo %d != %d", l2, sizeof *ci);
+	printf("{ hz = %d, tick = %d, profhz = %d, stathz = %d }",
+		ci->hz, ci->tick, ci->profhz, ci->stathz);
+	return (0);
+}
 
-	if (*bufpp == NULL) {
-		listall(string, &inetlist);
-		return (-1);
-	}
-	if ((indx = findname(string, "third", bufpp, &inetlist)) == -1)
-		return (-1);
-	mib[2] = indx;
-	if (indx <= IPPROTO_UDP && inetvars[indx].list != NULL)
-		lp = &inetvars[indx];
-	else if (!flags)
-		return (-1);
-	else {
-		fprintf(stderr, "%s: no variables defined for this protocol\n",
-		    string);
-		return (-1);
-	}
-	if (*bufpp == NULL) {
-		listall(string, lp);
-		return (-1);
-	}
-	if ((indx = findname(string, "fourth", bufpp, lp)) == -1)
-		return (-1);
-	mib[3] = indx;
-	*typep = lp->list[indx].ctl_type;
-	return (4);
+static int
+S_loadavg(int l2, void *p)
+{
+	struct loadavg *tv = (struct loadavg*)p;
+
+	if (l2 != sizeof *tv)
+		err(-1, "S_loadavg %d != %d", l2, sizeof *tv);
+
+	printf("{ %.2f %.2f %.2f }",
+		(double)tv->ldavg[0]/(double)tv->fscale,
+		(double)tv->ldavg[1]/(double)tv->fscale,
+		(double)tv->ldavg[2]/(double)tv->fscale);
+	return (0);
+}
+
+static int
+S_timeval(int l2, void *p)
+{
+	struct timeval *tv = (struct timeval*)p;
+	char *p1, *p2;
+
+	if (l2 != sizeof *tv)
+		err(-1, "S_timeval %d != %d", l2, sizeof *tv);
+	printf("{ sec = %ld, usec = %ld } ",
+		tv->tv_sec, tv->tv_usec);
+	p1 = strdup(ctime(&tv->tv_sec));
+	for (p2=p1; *p2 ; p2++)
+		if (*p2 == '\n')
+			*p2 = '\0';
+	fputs(p1, stdout);
+	return (0);
+}
+
+static int
+T_dev_t(int l2, void *p)
+{
+	dev_t *d = (dev_t *)p;
+	if (l2 != sizeof *d)
+		err(-1, "T_dev_T %d != %d", l2, sizeof *d);
+	printf("{ major = %d, minor = %d }",
+		major(*d), minor(*d));
+	return (0);
 }
 
 /*
- * Scan a list of names searching for a particular name.
+ * These functions uses a presently undocumented interface to the kernel
+ * to walk the tree and get the type so it can print the value.
+ * This interface is under work and consideration, and should probably
+ * be killed with a big axe by the first person who can find the time.
+ * (be aware though, that the proper interface isn't as obvious as it
+ * may seem, there are various conflicting requirements.
  */
-findname(string, level, bufp, namelist)
-	char *string;
-	char *level;
-	char **bufp;
-	struct list *namelist;
-{
-	char *name;
-	int i;
 
-	if (namelist->list == 0 || (name = strsep(bufp, ".")) == NULL) {
-		fprintf(stderr, "%s: incomplete specification\n", string);
-		return (-1);
-	}
-	for (i = 0; i < namelist->size; i++)
-		if (namelist->list[i].ctl_name != NULL &&
-		    strcmp(name, namelist->list[i].ctl_name) == 0)
-			break;
-	if (i == namelist->size) {
-		fprintf(stderr, "%s level name %s in %s is invalid\n",
-		    level, name, string);
-		return (-1);
-	}
-	return (i);
+static int
+name2oid(char *name, int *oidp)
+{
+	int oid[2];
+	int i, j;
+
+	oid[0] = 0;
+	oid[1] = 3;
+
+	j = CTL_MAXNAME * sizeof (int);
+	i = sysctl(oid, 2, oidp, &j, name, strlen(name));
+	if (i < 0) 
+		return i;
+	j /= sizeof (int);
+	return (j);
 }
 
-usage()
+static int
+oidfmt(int *oid, int len, char *fmt, u_int *kind)
 {
+	int qoid[CTL_MAXNAME+2];
+	u_char buf[BUFSIZ];
+	int i, j;
 
-	(void)fprintf(stderr, "usage:\t%s\n\t%s\n\t%s\n\t%s\n",
-	    "sysctl [-n] variable ...", "sysctl [-n] -w variable=value ...",
-	    "sysctl [-n] -a", "sysctl [-n] -A");
-	exit(1);
+	qoid[0] = 0;
+	qoid[1] = 4;
+	memcpy(qoid + 2, oid, len * sizeof(int));
+
+	j = sizeof buf;
+	i = sysctl(qoid, len + 2, buf, &j, 0, 0);
+	if (i)
+		err(-1, "sysctl fmt %d %d %d", i, j, errno);
+
+	if (kind)
+		*kind = *(u_int *)buf;
+
+	if (fmt)
+		strcpy(fmt, (char *)(buf + sizeof(u_int)));
+	return 0;
+}
+
+/*
+ * This formats and outputs the value of one variable
+ *
+ * Returns zero if anything was actually output.
+ * Returns one if didn't know what to do with this.
+ * Return minus one if we had errors.
+ */
+
+static int
+show_var(int *oid, int nlen)
+{
+	u_char buf[BUFSIZ], *val, *p;
+	char name[BUFSIZ], *fmt;
+	int qoid[CTL_MAXNAME+2];
+	int i, j, len;
+	u_int kind;
+	int (*func)(int, void *) = 0;
+
+	/* find an estimate of how much we need for this var */
+	j = 0;
+	i = sysctl(oid, nlen, 0, &j, 0, 0);
+	j += j; /* we want to be sure :-) */
+
+	val = alloca(j);
+	len = j;
+	i = sysctl(oid, nlen, val, &len, 0, 0);
+	if (i || !len)
+		return (1);
+
+	if (bflag) {
+		fwrite(val, 1, len, stdout);
+		return (0);
+	}
+
+	qoid[0] = 0;
+	qoid[1] = 4;
+	memcpy(qoid + 2, oid, nlen * sizeof(int));
+
+	j = sizeof buf;
+	i = sysctl(qoid, nlen + 2, buf, &j, 0, 0);
+	if (i || !j)
+		err(-1, "sysctl fmt %d %d %d", i, j, errno);
+
+	kind = *(u_int *)buf;
+
+	fmt = (char *)(buf + sizeof(u_int));
+
+	qoid[1] = 1;
+	j = sizeof name;
+	i = sysctl(qoid, nlen + 2, name, &j, 0, 0);
+	if (i || !j)
+		err(-1, "sysctl name %d %d %d", i, j, errno);
+
+	p = val;
+	switch (*fmt) {
+	case 'A':
+		if (!nflag)
+			printf("%s: ", name);
+		printf("%s", p);
+		return (0);
+		
+	case 'I':
+		if (!nflag)
+			printf("%s: ", name);
+		printf("%d", *(int *)p);
+		return (0);
+
+	case 'T':
+	case 'S':
+		i = 0;
+		if (!strcmp(fmt, "S,clockinfo"))	func = S_clockinfo;
+		else if (!strcmp(fmt, "S,timeval"))	func = S_timeval;
+		else if (!strcmp(fmt, "S,loadavg"))	func = S_loadavg;
+		else if (!strcmp(fmt, "T,dev_t"))	func = T_dev_t;
+		if (func) {
+			if (!nflag)
+				printf("%s: ", name);
+			return ((*func)(len, p));
+		}
+		/* FALL THROUGH */
+	default:
+		if (!Aflag)
+			return (1);
+		if (!nflag)
+			printf("%s: ", name);
+		printf("Format:%s Length:%d Dump:0x", fmt, len);
+		while (len--) {
+			printf("%02x", *p++);
+			if (Xflag || p < val+16)
+				continue;
+			printf("...");
+			break;
+		}
+		return (0);
+	}
+	return (1);
+}
+
+static int
+sysctl_all (int *oid, int len)
+{
+	int name1[22], name2[22];
+	int i, j, l1, l2;
+
+	name1[0] = 0;
+	name1[1] = 2;
+	l1 = 2;
+	if (len) {
+		memcpy(name1+2, oid, len*sizeof (int));
+		l1 += len;
+	} else {
+		name1[2] = 1;
+		l1++;
+	}
+	while (1) {
+		l2 = sizeof name2;
+		j = sysctl(name1, l1, name2, &l2, 0, 0);
+		if (j < 0)
+			if (errno == ENOENT)
+				return 0;
+			else
+				err(-1, "sysctl(getnext) %d %d", j, l2);
+
+		l2 /= sizeof (int);
+
+		if (l2 < len)
+			return 0;
+
+		for (i = 0; i < len; i++)
+			if (name2[i] != oid[i])
+				return 0;
+
+		i = show_var(name2, l2);
+		if (!i && !bflag)
+			putchar('\n');
+
+		memcpy(name1+2, name2, l2*sizeof (int));
+		l1 = 2 + l2;
+	}
 }
