@@ -1,7 +1,9 @@
                      THE FREEBSD MAILING LIST FAQ 
 
-Last updated: $Date: 1994/05/07 11:42:03 $
+Last updated: $Date: 1994/09/11 10:56:07 $
+Id: $Id$
 
+--
 Though many of the FreeBSD development members read USENET, we cannot
 always guarantee that we'll get to your questions in a timely fashion
 (or at all) if you post them only to one of the comp.os.386bsd.*
@@ -22,6 +24,29 @@ freebsd-announce                Important events / milestones
 freebsd-current                 Discussions about the use of FreeBSD-current
 freebsd-commit			Commit messages to source repository
 freebsd-core			FreeBSD core team (limited)
+-----------------------------------------------------------------------------
+
+The following lists are for people seeing the log messages for source changes 
+in specific areas:
+
+List name	Source area		Area Description (source for)
+-----------------------------------------------------------------------------
+cvs-CVSROOT	/usr/src/[A-Z]*		Top level /usr/src file changes
+cvs-all		/usr/src		All changes to the tree (superset)
+cvs-bin		/usr/src/bin		System binaries
+cvs-etc		/usr/src/etc		System files
+cvs-games	/usr/src/games		Games
+cvs-gnu		/usr/src/gnu		GPL'd utilities
+cvs-include	/usr/src/include	Include files
+cvs-kerberosIV	/usr/src/kerberosIV	Kerberos encryption code
+cvs-lib		/usr/src/lib		System libraries
+cvs-libexec	/usr/src/libexec	System binaries
+cvs-sbin	/usr/src/sbin		System binaries
+cvs-share	/usr/src/share		System shared files
+cvs-sys		/usr/src/sys		Kernel
+cvs-usrbin	/usr/src/usr.bin	Use binaries
+cvs-usrsbin	/usr/src/usr.sbin	System binaries
+cvs-ports	/usr/ports		Ported software
 -----------------------------------------------------------------------------
 
 Of all the lists, freebsd-arch, freebsd-admin and freebsd-core have closed
@@ -73,4 +98,3 @@ then it's suggested that you join freebsd-announce, which will contain
 only infrequent traffic.
 
                                 Thank you!
-
