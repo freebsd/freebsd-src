@@ -30,7 +30,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: aic7xxx.h,v 1.30 1996/10/25 06:42:53 gibbs Exp $
+ *	$Id: aic7xxx.h,v 1.31 1996/10/28 06:10:02 gibbs Exp $
  */
 
 #ifndef _AIC7XXX_H_
@@ -38,6 +38,7 @@
 
 #if defined(__FreeBSD__)
 #include "ahc.h"                /* for NAHC from config */
+#include "opt_aic7xxx.h"	/* for config options */
 #endif
 
 #if defined(__NetBSD__)
