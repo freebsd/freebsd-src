@@ -122,7 +122,8 @@ struct crypt_op {
 	u_int16_t	op;		/* i.e. COP_ENCRYPT */
 #define COP_ENCRYPT	1
 #define COP_DECRYPT	2
-	u_int16_t	flags;		/* always 0 */
+	u_int16_t	flags;
+#define	COP_F_BATCH	0x0008		/* Batch op if possible */
 	u_int		len;
 	caddr_t		src, dst;	/* become iov[] inside kernel */
 	caddr_t		mac;		/* must be big enough for chosen MAC */
@@ -261,7 +262,8 @@ struct cryptop {
 #define CRYPTO_F_IMBUF	0x0001	/* Input/output are mbuf chains, otherwise contig */
 #define CRYPTO_F_IOV	0x0002	/* Input/output are uio */
 #define CRYPTO_F_REL	0x0004	/* Must return data in same place */
-#define	CRYPTO_F_NODELAY 0x0008	/* Dispatch as quickly as possible */
+#define	CRYPTO_F_BATCH	0x0008	/* Batch op if possible */
+#define	CRYPTO_F_CBIMM	0x0010	/* Do callback immediately */
 
 	caddr_t		crp_buf;	/* Data to be processed */
 	caddr_t		crp_opaque;	/* Opaque pointer, passed along */
