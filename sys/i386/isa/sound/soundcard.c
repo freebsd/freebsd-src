@@ -80,7 +80,6 @@ sequencer_poll (int dev, struct fileinfo *file, int events, select_table * wait)
 
 static int sndprobe    __P((struct isa_device *));
 static int sndattach   __P((struct isa_device *));
-static int sndmmap __P((dev_t dev, int offset, int nprot ));
 
 static d_open_t sndopen;
 static d_close_t sndclose;
@@ -88,6 +87,7 @@ static d_ioctl_t sndioctl;
 static d_read_t sndread;
 static d_write_t sndwrite;
 static d_poll_t sndpoll;
+static d_mmap_t sndmmap;
 
 static char     driver_name[] = "snd";
 
@@ -96,7 +96,6 @@ static struct cdevsw snd_cdevsw = {
 	sndopen, sndclose, sndread, sndwrite,
 	sndioctl, nostop, noreset, nodevtotty,
 	sndpoll, sndmmap, nostrategy, driver_name,
-	NULL, -1,
 };
 
 
@@ -147,7 +146,7 @@ get_time(void)
 }
 
 static int
-sndmmap( dev_t dev, int offset, int nprot )
+sndmmap( dev_t dev, vm_offset_t offset, int nprot )
 {
 	struct dma_buffparms * dmap;
 	u_int min = minor(dev) >> 4;
