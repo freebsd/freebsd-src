@@ -4,7 +4,7 @@
 #
 #	  Originally written by Toshiharu OHNO
 #
-# $Id: ppp.conf.sample,v 1.28.2.4 1998/04/24 19:16:23 brian Exp $
+# $Id: ppp.conf.sample,v 1.28.2.5 1998/04/30 23:54:38 brian Exp $
 #
 #################################################################
 
@@ -42,16 +42,7 @@ default:
 # An on demand example where we have dynamic IP addresses:
 #  If the peer assigns us an arbitrary IP (most ISPs do this) and we
 #  can't predict what their IP will be either, take a wild guess at
-#  some IPs that you can't currently route to.  Ensure that the "delete"
-#  and "add" lines are also present in the pmdemand section of ppp.linkup
-#  so that when we connect, things will be put straight.
-#
-#  This will work with static IP numbers too.  You can also use this entry
-#  if you don't want on-demand dialup.  The "set ifaddr", "delete" and
-#  "add" lines are required for on-demand.  The "delete" and "add" lines
-#  should not be used if you're not in -auto mode.  Note, for dynamic IP
-#  numbers, whether dialing manually or on demand, there should *always*
-#  be an entry in ppp.linkup.
+#  some IPs that you can't currently route to.
 #
 #  The /0 bit in "set ifaddr" says that we insist on 0 bits of the
 #  specified IP actually being correct, therefore, the other side can assign
@@ -59,6 +50,11 @@ default:
 #
 #  The forth arg to "set ifaddr" makes us send "0.0.0.0" as our requested
 #  IP number, forcing the peer to make the decision.
+#
+#  This entry also works with static IP numbers or when not in -auto mode.
+#  The ``add'' line adds a `sticky' default route that will be updated if
+#  and when any of the IP numbers are changed in IPCP negotiations.
+#  The "set ifaddr" is required in -auto mode.
 #
 #  Finally, the ``enable dns'' bit tells ppp to ask the peer for the
 #  nameserver addresses that should be used.  This isn't always supported
@@ -70,8 +66,7 @@ pmdemand:
  set login "ABORT NO\\sCARRIER TIMEOUT 5 ogin:--ogin: ppp word: ppp"
  set timeout 120
  set ifaddr 10.0.0.1/0 10.0.0.2/0 255.255.255.0 0.0.0.0
- delete ALL
- add 0 0 HISADDR
+ add default HISADDR
  enable dns
 
 # When we want to use PAP or CHAP instead of using a unix-style login
@@ -85,8 +80,7 @@ PAPorCHAPpmdemand:
  set authkey MyKey
  set timeout 120
  set ifaddr 10.0.0.1/0 10.0.0.2/0 255.255.255.0 0.0.0.0
- delete ALL
- add 0 0 HISADDR
+ add default HISADDR
  enable dns
 
 # On demand dialup example with static IP addresses:
@@ -95,17 +89,16 @@ PAPorCHAPpmdemand:
 #
 #  # ppp -auto ondemand
 #
-#  It is not necessary to have an entry in ppp.linkup when both IP numbers
-#  are static.  Be warned though, the MYADDR: label is executed from
-#  ppp.linkup if the "ondemand:" and "192.244.176.44" labels are not found.
+#  With static IP numbers, our setup is similar to dynamic:
+#  Remember, ppp.linkup is searched for a "192.244.176.44" label, then
+#  a "ondemand" label, and finally the "MYADDR" label.
 #
 ondemand:
  set phone 1234567
  set login "ABORT NO\\sCARRIER TIMEOUT 5 ogin:--ogin: ppp word: ppp"
  set timeout 120
- set ifaddr 192.244.185.226 192.244.176.44 255.255.255.0
- delete ALL
- add 0 0 HISADDR
+ set ifaddr 192.244.185.226 192.244.176.44
+ add default HISADDR
  enable dns
 
 #                          Example segments
@@ -355,7 +348,8 @@ loop-in:
 # the ``link'' command.
 #
 # You can now ``dial'' specific links, or even dial all links at the
-# same time.  The `dial'
+# same time.  The `dial' command may also be prefixed with a specific
+# link that should do the dialing.
 #
 
 mloop:
