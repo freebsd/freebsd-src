@@ -1001,21 +1001,22 @@ rl_detach(device_t dev)
 {
 	struct rl_softc		*sc;
 	struct ifnet		*ifp;
+	int			attached;
 
 	sc = device_get_softc(dev);
 	ifp = &sc->arpcom.ac_if;
 
 	KASSERT(mtx_initialized(&sc->rl_mtx), ("rl mutex not initialized"));
+	attached = device_is_attached(dev);
+	/* These should only be active if attach succeeded */
+	if (attached)
+		ether_ifdetach(ifp);
 	RL_LOCK(sc);
 #if 0
 	sc->suspended = 1;
 #endif
-
-	/* These should only be active if attach succeeded */
-	if (device_is_attached(dev)) {
+	if (attached)
 		rl_stop(sc);
-		ether_ifdetach(ifp);
-	}
 	if (sc->rl_miibus)
 		device_delete_child(dev, sc->rl_miibus);
 	bus_generic_detach(dev);
