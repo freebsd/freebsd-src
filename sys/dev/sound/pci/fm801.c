@@ -799,5 +799,5 @@ static driver_t fm801_driver = {
 };
 
 DRIVER_MODULE(snd_fm801, pci, fm801_driver, pcm_devclass, 0, 0);
-MODULE_DEPEND(snd_fm801, snd_pcm, PCM_MINVER, PCM_PREFVER, PCM_MAXVER);
+MODULE_DEPEND(snd_fm801, sound, SOUND_MINVER, SOUND_PREFVER, SOUND_MAXVER);
 MODULE_VERSION(snd_fm801, 1);

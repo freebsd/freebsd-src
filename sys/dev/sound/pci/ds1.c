@@ -1084,5 +1084,5 @@ static driver_t ds1_driver = {
 };
 
 DRIVER_MODULE(snd_ds1, pci, ds1_driver, pcm_devclass, 0, 0);
-MODULE_DEPEND(snd_ds1, snd_pcm, PCM_MINVER, PCM_PREFVER, PCM_MAXVER);
+MODULE_DEPEND(snd_ds1, sound, SOUND_MINVER, SOUND_PREFVER, SOUND_MAXVER);
 MODULE_VERSION(snd_ds1, 1);

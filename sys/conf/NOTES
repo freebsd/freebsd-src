@@ -1805,13 +1805,15 @@ options 	NATM			#native ATM
 options 	LIBMBPOOL		#needed by patm, iatm
 
 #
-# Audio drivers: `pcm', `sbc', `gusc'
+# Sound drivers
 #
-# pcm: PCM audio through various sound cards.
+# sound: The generic sound driver.
 #
-# This has support for a large number of new audio cards, based on
-# CS423x, OPTi931, Yamaha OPL-SAx, and also for SB16, GusPnP.
-# For more information about this driver and supported cards, see pcm(4).
+
+device		sound
+
+#
+# snd_*: Device-specific drivers.
 #
 # The flags of the device tells the device a bit more info about the
 # device that normally is obtained through the PnP interface.
@@ -1821,44 +1823,81 @@ options 	LIBMBPOOL		#needed by patm, iatm
 #		    zero if don't know what to put in (and you don't,
 #		    since this is unsupported at the moment...).
 #
-# Supported cards include:
-# Creative SoundBlaster ISA PnP/non-PnP
-# Supports ESS and Avance ISA chips as well.
-# Gravis UltraSound ISA PnP/non-PnP
-# Crystal Semiconductor CS461x/428x PCI
-# Neomagic 256AV (ac97)
-# Most of the more common ISA/PnP sb/mss/ess compatible cards.
+# snd_als4000:		Avance Logic ALS4000 PCI.
+# snd_ad1816:		Analog Devices AD1816 ISA PnP/non-PnP.
+# snd_cmi:		CMedia CMI8338/CMI8738 PCI.
+# snd_cs4281:		Crystal Semiconductor CS4281 PCI.
+# snd_csa:		Crystal Semiconductor CS461x/428x PCI. (except
+#			4281)
+# snd_ds1:		Yamaha DS-1 PCI.
+# snd_emu10k1:		Creative EMU10K1 PCI and EMU10K2 (Audigy) PCI.
+# snd_es137x:		Ensoniq AudioPCI ES137x PCI.
+# snd_ess:		Ensoniq ESS ISA PnP/non-PnP.
+# snd_fm801:		Forte Media FM801 PCI.
+# snd_gusc:		Gravis UltraSound ISA PnP/non-PnP.
+# snd_ich:		Intel ICH PCI and some more audio controllers
+#			embedded in a chipset.
+# snd_maestro:		ESS Technology Maestro-1/2x PCI.
+# snd_maestro3:		ESS Technology Maestro-3/Allegro PCI.
+# snd_mss:		Microsoft Sound System ISA PnP/non-PnP.
+# snd_neomagic:		Neomagic 256 AV/ZX PCI.
+# snd_sb16:		Creative SoundBlaster16, to be used in
+#			conjuction with snd_sbc.
+# snd_sb8:		Creative SoundBlaster (pre-16), to be used in
+#			conjuction with snd_sbc.
+# snd_sbc:		Creative SoundBlaster ISA PnP/non-PnP.
+#			Supports ESS and Avance ISA chips as well.
+# snd_solo:		ESS Solo-1x PCI.
+# snd_t4dwave:		Trident 4DWave PCI, Sis 7018 PCI and Acer Labs
+#			M5451 PCI.
+# snd_via8233:		VIA VT8233x PCI.
+# snd_via82c686:	VIA VT82C686A PCI.
+# snd_vibes:		S3 Sonicvibes PCI.
+# snd_uaudio:		USB audio.
 
-device		pcm
+device		"snd_ad1816"
+device		"snd_als4000"
+#device		"snd_au88x0"
+device		snd_cmi
+device		"snd_cs4281"
+device		snd_csa
+device		"snd_ds1"
+device		"snd_emu10k1"
+device		"snd_es137x"
+device		snd_ess
+device		"snd_fm801"
+device		snd_gusc
+device		snd_ich
+device		snd_maestro
+device		"snd_maestro3"
+device		snd_mss
+device		snd_neomagic
+device		"snd_sb16"
+device		"snd_sb8"
+device		snd_sbc
+device		snd_solo
+device		"snd_t4dwave"
+device		"snd_via8233"
+device		"snd_via82c686"
+device		snd_vibes
+#device		"snd_vortex1"
+device		snd_uaudio
 
-# For non-pnp sound cards with no bridge drivers only:
-hint.pcm.0.at="isa"
-hint.pcm.0.irq="10"
-hint.pcm.0.drq="1"
-hint.pcm.0.flags="0x0"
-
-# The bridge drivers for sound cards.  These can be separately configured
-# for providing services to the likes of new-midi.
-# When used with 'device pcm' they also provide pcm sound services.
-#
-# sbc:  Creative SoundBlaster ISA PnP/non-PnP
-#	Supports ESS and Avance ISA chips as well.
-# gusc: Gravis UltraSound ISA PnP/non-PnP
-# csa:  Crystal Semiconductor CS461x/428x PCI
-
-# For non-PnP cards:
-device		sbc
-hint.sbc.0.at="isa"
-hint.sbc.0.port="0x220"
-hint.sbc.0.irq="5"
-hint.sbc.0.drq="1"
-hint.sbc.0.flags="0x15"
-device		gusc
-hint.gusc.0.at="isa"
-hint.gusc.0.port="0x220"
-hint.gusc.0.irq="5"
-hint.gusc.0.drq="1"
-hint.gusc.0.flags="0x13"
+# For non-pnp sound cards:
+hint.snd_mss.0.at="isa"
+hint.snd_mss.0.irq="10"
+hint.snd_mss.0.drq="1"
+hint.snd_mss.0.flags="0x0"
+hint.snd_sbc.0.at="isa"
+hint.snd_sbc.0.port="0x220"
+hint.snd_sbc.0.irq="5"
+hint.snd_sbc.0.drq="1"
+hint.snd_sbc.0.flags="0x15"
+hint.snd_gusc.0.at="isa"
+hint.snd_gusc.0.port="0x220"
+hint.snd_gusc.0.irq="5"
+hint.snd_gusc.0.drq="1"
+hint.snd_gusc.0.flags="0x13"
 
 #
 # Miscellaneous hardware:
