@@ -59,7 +59,7 @@ Minor numbering:
 .Ed
 .Sh DESCRIPTION
 The
-.Nm cy
+.Nm
 driver provides support for Cirrus Logic CD1400-based
 .Tn EIA
 .Tn RS-232C
@@ -86,7 +86,7 @@ but when 4 lines are active in both directions its limit is about
 .\" It was copied from sio.4.  The only change was s/sio/cy/g.
 .Pp
 Serial ports controlled by the
-.Nm cy
+.Nm
 driver can be used for both `callin' and `callout'.
 For each port there is a callin device and a callout device.
 The minor number of the callout device is 128 higher
@@ -104,7 +104,7 @@ to work on general ports and need to open the port without waiting
 but are too stupid to do so.
 .Pp
 The
-.Nm cy
+.Nm
 driver also supports an initial-state and a lock-state control
 device for each of the callin and the callout "data" devices.
 The minor number of the initial-state device is 32 higher

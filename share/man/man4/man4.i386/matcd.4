@@ -100,7 +100,7 @@
 .Pp
 .Sh DESCRIPTION
 The
-.Nm matcd
+.Nm
 driver controls the CR-562-x and CR-563-x CD-ROM drives made by
 Matsushita-Kotobuki Electronics Industries, or Matsushita for short.
 These CD-ROM drives have been sold under the Panasonic (which is a trade
@@ -113,7 +113,7 @@ a sound card.
 
 .Sh DRIVER CONFIGURATION
 The
-.Nm matcd
+.Nm
 driver supports up to four host interfaces with up to four drives on each
 interface.  Audio activity may occur on all drives simultaneously.  Data
 read operations are limited to one drive per host interface at any instant.
@@ -145,12 +145,12 @@ up to four drives on a single host interface.  It is also not necessary to
 have four drives on a single interface before adding a second interface.
 
 By default,
-.Nm matcd
+.Nm
 searches for the CD-ROM host interface adapters by using a table of known I/O
 ports on Creative host adapters (see \fIoptions.h\fR).  Although this
 is very flexible, it can cause problems when your system has other devices
 that are located at the I/O ports that 
-.Nm matcd 
+.Nm
 is checking for CD-ROM host interfaces.  In addition, checking multiple
 locations can cause the boot process to take longer than it could.
 .if t .bp
@@ -164,7 +164,7 @@ change where the kernel looks for the hardware by using the -c option at
 the kernel boot prompt.  This will load the kernel and then give you the
 opportunity to change settings for any of the devices included the kernel.
 For example, to change the I/O port for
-.Nm matcd
+.Nm
 adapter zero to 0x340, you would type
 
 	config> port matcd0c 0x340
@@ -176,7 +176,7 @@ like this:
 	device  matcd0  at  isa?  port  0x230
 
 With this change, the
-.Nm matcd
+.Nm
 driver will only look at I/O port 0x230 for the first CD-ROM host interface
 and will not disturb any other I/O ports.
 
@@ -185,7 +185,7 @@ to configure and recompile the kernel, install it and reboot for the
 changes to take effect.
 .Sh SUPPORTED HARDWARE
 At this time, there are only two known drive models that work with the
-.Nm matcd
+.Nm
 driver:
 .Bl -tag -width CR-123-X -compact -offset indent
 .br
@@ -200,10 +200,10 @@ also has the FCC, VDE, CSA and RU certification marks.
 Both of these drive models have motorized trays.  There is also a custom
 version of these drives that does not have the volume control or headphone
 jack (seen on some Tandy computers), but this drive also works with
-.Nm matcd.
+.Nm .
 
 The Matsushita CR-522-x and CR-523-x CD-ROM drive is not usable with 
-.Nm matcd.
+.Nm .
 The CR-522 and CR-523 can also be identified from the front as it
 requires a CD-caddy.
 
@@ -212,7 +212,7 @@ Drives with IDE interfaces must use an IDE driver.
 The TEAC CD-55 4X CD-ROM drive also uses the Creative/Panasonic interface
 but the TEAC drive is \fInot\fR compatible with the Matsushita CR-56x drives.  
 The TEAC drive cannot be used with 
-.Nm matcd.
+.Nm .
 .if t .sp
 .if n .bp
 The most common source of host interface adapters for the Panasonic drives
@@ -222,7 +222,7 @@ of the newer cards provide the appropriate interface, sometimes labeled as
 the "Creative/Panasonic" interface.
 
 The following host interface adapters are known to work with the
-.Nm matcd
+.Nm
 driver:
 .Bl -tag -width LONGNAME -compact -offset indent
 .It Creative
@@ -261,14 +261,14 @@ must be reconfigured to locate these adapters.
 It is important to understand that some manufacturers have a different
 host interface implementation.  If you have a board that won't communicate
 with the drives under MS-DOS using the genuine Creative Labs drivers, then
-.Nm matcd
+.Nm
 may not work with that host adapter.
 .br
 .if t .bp
 .if n .sp
 .Sh SUPPORTED OPERATIONS
 The
-.Nm matcd
+.Nm
 driver supports block and character access.  Partition "a" returns
 2048-byte User Data blocks from data CDs.  Partition "c" returns the full
 2352-byte Frames from any type of CD, including audio CDs.  (Partition
@@ -278,7 +278,7 @@ No other partitions are supported.
 The 
 .Nm matcdl
 devices work the same as the normal
-.Nm matcd
+.Nm
 devices except that the drive trays are locked and
 remain locked until all of the devs on that drive are closed.
 .if n .bp
@@ -354,7 +354,7 @@ report the capabilities of the drive and driver.
 The
 .Fn ioctl
 commands defined above are the only ones that the
-.Nm matcd
+.Nm
 driver supports. 
 .bp
 .Sh FILES
@@ -367,7 +367,7 @@ is used to access 2352-byte frames on a CD-ROM disc
 recorded in any format.
 .It Pa /usr/src/sys/i386/isa/matcd/*
 Source code and compilation options for 
-.Nm matcd.
+.Nm .
 .El
 
 The file \fIoptions.h\fR contains all of the compilation options.
@@ -406,7 +406,7 @@ Program and Documentation are Copyright 1994, 1995,
 All rights reserved.  
 .Sh HISTORY
 The
-.Nm matcd
+.Nm
 driver appeared in
 .Fx 2.0.5 .
 

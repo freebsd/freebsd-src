@@ -41,7 +41,8 @@
 .Nm lp
 .Nd printer port Internet Protocol driver
 .Sh SYNOPSIS
-.Nm ifconfig lp0
+.Nm ifconfig
+.Ar lp0
 .Ar myaddress hisaddress
 .Op Fl link0
 .Pp
@@ -64,7 +65,7 @@ device which is probed and has an interrupt assigned, a corresponding
 device is created.
 .Pp
 Configuring an
-.Nm lp
+.Nm
 device with
 .Xr ifconfig 8
 causes the corresponding

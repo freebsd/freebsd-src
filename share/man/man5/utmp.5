@@ -48,7 +48,7 @@ The file
 .Aq Pa utmp.h
 declares the structures used to record information about current
 users in the file
-.Nm utmp ,
+.Nm ,
 logins and logouts in the file
 .Nm wtmp ,
 and last logins in the file
@@ -110,14 +110,14 @@ record is written,
 .\" .Xr libutil 3
 .\" routine
 the file
-.Nm utmp
+.Nm
 is opened and the
 .Fa utmp
 record for the user inserted.
 This record remains there until
 the user logs out at which time it is deleted.
 The
-.Nm utmp
+.Nm
 file is used by the programs
 .Xr rwho 1 ,
 .Xr users 1 ,
@@ -188,13 +188,16 @@ indicates the new time.
 .Bl -tag -width /var/log/lastlog -compact
 .It Pa /var/run/utmp
 The
-.Nm utmp file.
+.Nm
+file.
 .It Pa /var/log/wtmp
 The
-.Nm wtmp file.
+.Nm wtmp
+file.
 .It Pa /var/log/lastlog
 The
-.Nm lastlog file.
+.Nm lastlog
+file.
 .El
 .Sh SEE ALSO
 .Xr last 1 ,
@@ -205,7 +208,7 @@ The
 .Xr init 8
 .Sh HISTORY
 A
-.Nm utmp
+.Nm
 and
 .Nm wtmp
 file format appeared in

@@ -34,7 +34,7 @@
 .Cd device pci
 .Sh DESCRIPTION
 The
-.Nm pci
+.Nm
 driver provides a way for userland programs to read and write
 .Tn PCI
 configuration registers.  It also provides a way for userland programs to
@@ -45,17 +45,17 @@ devices, or all
 devices that match various patterns.
 .Pp
 Since the
-.Nm pci
+.Nm
 driver provides a write interface for
 .Tn PCI
 configuration registers, system administrators should exercise caution when
 granting access to the
-.Nm pci
+.Nm
 device.  If used improperly, this driver can allow userland applications to
 crash a machine or cause data loss.
 .Sh KERNEL CONFIGURATION
 It is only necessary to specify one
-.Nm pci
+.Nm
 controller in the kernel.  Additional
 .Tn PCI
 busses are handled automatically as they are encountered.
@@ -63,7 +63,7 @@ busses are handled automatically as they are encountered.
 The following
 .Xr ioctl 2
 calls are supported by the
-.Nm pci
+.Nm
 driver.  They are defined in the header file
 .Aq Pa sys/pciio.h .
 .Bl -tag -width 012345678901234
@@ -265,7 +265,7 @@ configuration registers.
 .Bl -tag -width 01234567890 -compact
 .It Pa /dev/pci
 Character device for the
-.Nm pci
+.Nm
 driver.
 .El
 .Sh DIAGNOSTICS
@@ -274,7 +274,7 @@ None.
 .Xr pciconf 8
 .Sh HISTORY
 The
-.Nm pci
+.Nm
 driver (not the kernel's
 .Tn PCI
 support code) first appeared in

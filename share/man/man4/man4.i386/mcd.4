@@ -36,7 +36,7 @@
 .Cd "device mcd0 at isa? port 0x300 irq 10"
 .Sh DESCRIPTION
 The
-.Nm mcd
+.Nm
 driver provides a data and audio interface to the Mitsumi-brand CD-ROM
 player.
 The CD-ROM player must be interfaced to the ISA bus through
@@ -46,7 +46,7 @@ boards supported are the LU002S, LU005S, the FX001 and the quite
 common FX001D.
 .Pp
 The
-.Nm mcd
+.Nm
 driver responds to disk-specific
 .Fn ioctl
 commands, namely the
@@ -61,7 +61,7 @@ Other disk-specific
 commands will return an error.
 .Pp
 The
-.Nm mcd
+.Nm
 driver also responds to special CD-ROM
 .Fn ioctl
 commands.
@@ -98,18 +98,18 @@ command).
 stops any play and resets the Mitsumi controller board
 .It CDIOCSETDEBUG
 cause the kernel to print debug messages to the console about the
-.Nm mcd
+.Nm
 driver
 .It CDIOCCLRDEBUG
 cause the kernel to quit printing debug messages about the
-.Nm mcd
+.Nm
 driver
 .El
 .Pp
 The
 .Fn ioctl
 commands defined above are the only ones that the
-.Nm mcd
+.Nm
 driver supports.
 There are other CD-ROM related
 .Fn ioctl
@@ -130,7 +130,7 @@ accesses raw device.
 .El
 .Sh NOTES
 The character-mode devices for the
-.Nm mcd
+.Nm
 driver should only be used for accessing the audio features of the
 CD-ROM player as the performance on data is abysmal.
 .Pp
@@ -155,6 +155,6 @@ and
 .An Jordan K. Hubbard .
 .Sh HISTORY
 An
-.Nm mcd
+.Nm
 driver appeared in
 .Fx 1.0 .
