@@ -213,7 +213,7 @@ main(argc, argv)
 	struct termios ts;
 	size_t sz;
 	u_char *datap, packet[IP_MAXPACKET];
-	char *ep, *source, *target;
+	char *ep, *source, *target, *payload;
 	struct hostent *hp;
 #ifdef IPSEC_POLICY_IPSEC
 	char *policy_in, *policy_out;
@@ -249,7 +249,6 @@ main(argc, argv)
 	alarmtimeout = df = preload = tos = 0;
 
 	outpack = outpackhdr + sizeof(struct ip);
-	datap = &outpack[MINICMPLEN + PHDR_LEN];
 	while ((ch = getopt(argc, argv,
 		"ADI:LQRS:T:c:adfi:l:m:Mnop:qrs:t:vz:"
 #ifdef IPSEC
@@ -341,7 +340,7 @@ main(argc, argv)
 			break;
 		case 'p':		/* fill buffer with user pattern */
 			options |= F_PINGFILLED;
-			fill((char *)datap, optarg);
+			payload = optarg;
 			break;
 		case 'Q':
 			options |= F_QUIET2;
@@ -427,6 +426,10 @@ main(argc, argv)
 	if (datalen > maxpayload)
 		errx(EX_USAGE, "packet size too large: %lu > %u", datalen,
 		    maxpayload);
+	datap = &outpack[MINICMPLEN + PHDR_LEN];
+	if (options & F_PINGFILLED) {
+		fill((char *)datap, payload);
+	}
 	if (source) {
 		bzero((char *)&sin, sizeof(sin));
 		sin.sin_family = AF_INET;
