@@ -1227,7 +1227,7 @@ pmap_pinit(pmap)
 	lev1pg->wire_count = 1;
 	++cnt.v_wire_count;
 
-	vm_page_flag_clear(lev1pg, PG_MAPPED | PG_BUSY);	/* not mapped normally */
+	vm_page_flag_clear(lev1pg, PG_BUSY);
 	lev1pg->valid = VM_PAGE_BITS_ALL;
 
 	pmap->pm_lev1 = (pt_entry_t*) ALPHA_PHYS_TO_K0SEG(VM_PAGE_TO_PHYS(lev1pg));
@@ -1402,7 +1402,6 @@ _pmap_allocpte(pmap, ptepindex)
 
 	m->valid = VM_PAGE_BITS_ALL;
 	vm_page_flag_clear(m, PG_ZERO);
-	vm_page_flag_set(m, PG_MAPPED);
 	vm_page_wakeup(m);
 
 	return m;
@@ -1702,7 +1701,7 @@ pmap_remove_entry(pmap_t pmap, vm_page_t m, vm_offset_t va)
 		TAILQ_REMOVE(&m->md.pv_list, pv, pv_list);
 		m->md.pv_list_count--;
 		if (TAILQ_FIRST(&m->md.pv_list) == NULL)
-			vm_page_flag_clear(m, PG_MAPPED | PG_WRITEABLE);
+			vm_page_flag_clear(m, PG_WRITEABLE);
 
 		TAILQ_REMOVE(&pmap->pm_pvlist, pv, pv_plist);
 		free_pv_entry(pv);
@@ -1901,7 +1900,7 @@ pmap_remove_all(vm_page_t m)
 		free_pv_entry(pv);
 	}
 
-	vm_page_flag_clear(m, PG_MAPPED | PG_WRITEABLE);
+	vm_page_flag_clear(m, PG_WRITEABLE);
 
 	splx(s);
 }
@@ -2316,7 +2315,6 @@ pmap_object_init_pt(pmap_t pmap, vm_offset_t addr,
 				mpte = pmap_enter_quick(pmap, 
 					addr + alpha_ptob(tmpidx), p, mpte);
 				vm_page_lock_queues();
-				vm_page_flag_set(p, PG_MAPPED);
 				vm_page_wakeup(p);
 			}
 			vm_page_unlock_queues();
@@ -2349,7 +2347,6 @@ pmap_object_init_pt(pmap_t pmap, vm_offset_t addr,
 				mpte = pmap_enter_quick(pmap, 
 					addr + alpha_ptob(tmpidx), p, mpte);
 				vm_page_lock_queues();
-				vm_page_flag_set(p, PG_MAPPED);
 				vm_page_wakeup(p);
 			}
 			vm_page_unlock_queues();
@@ -2448,7 +2445,6 @@ pmap_prefault(pmap, addra, entry)
 			vm_page_unlock_queues();
 			mpte = pmap_enter_quick(pmap, addr, m, mpte);
 			vm_page_lock_queues();
-			vm_page_flag_set(m, PG_MAPPED);
 			vm_page_wakeup(m);
 		}
 		vm_page_unlock_queues();
@@ -2687,7 +2683,7 @@ pmap_remove_pages(pmap, sva, eva)
 		m->md.pv_list_count--;
 		TAILQ_REMOVE(&m->md.pv_list, pv, pv_list);
 		if (TAILQ_FIRST(&m->md.pv_list) == NULL) {
-			vm_page_flag_clear(m, PG_MAPPED | PG_WRITEABLE);
+			vm_page_flag_clear(m, PG_WRITEABLE);
 		}
 
 		pmap_unuse_pt(pv->pv_pmap, pv->pv_va, pv->pv_ptem);

@@ -1061,7 +1061,7 @@ pmap_remove_entry(pmap_t pmap, vm_page_t m, vm_offset_t va, pv_entry_t pv)
 		TAILQ_REMOVE(&m->md.pv_list, pv, pv_list);
 		m->md.pv_list_count--;
 		if (TAILQ_FIRST(&m->md.pv_list) == NULL)
-			vm_page_flag_clear(m, PG_MAPPED | PG_WRITEABLE);
+			vm_page_flag_clear(m, PG_WRITEABLE);
 
 		TAILQ_REMOVE(&pmap->pm_pvlist, pv, pv_plist);
 		free_pv_entry(pv);
@@ -1503,7 +1503,7 @@ pmap_remove_all(vm_page_t m)
 		pmap_install(oldpmap);
 	}
 
-	vm_page_flag_clear(m, PG_MAPPED | PG_WRITEABLE);
+	vm_page_flag_clear(m, PG_WRITEABLE);
 
 	splx(s);
 	return;
@@ -1830,7 +1830,6 @@ pmap_object_init_pt(pmap_t pmap, vm_offset_t addr,
 				pmap_enter_quick(pmap,
 						 addr + ia64_ptob(tmpidx), p);
 				vm_page_lock_queues();
-				vm_page_flag_set(p, PG_MAPPED);
 				vm_page_wakeup(p);
 			}
 			vm_page_unlock_queues();
@@ -1863,7 +1862,6 @@ pmap_object_init_pt(pmap_t pmap, vm_offset_t addr,
 				pmap_enter_quick(pmap,
 						 addr + ia64_ptob(tmpidx), p);
 				vm_page_lock_queues();
-				vm_page_flag_set(p, PG_MAPPED);
 				vm_page_wakeup(p);
 			}
 			vm_page_unlock_queues();
@@ -1959,7 +1957,6 @@ pmap_prefault(pmap, addra, entry)
 			vm_page_unlock_queues();
 			pmap_enter_quick(pmap, addr, m);
 			vm_page_lock_queues();
-			vm_page_flag_set(m, PG_MAPPED);
 			vm_page_wakeup(m);
 		}
 		vm_page_unlock_queues();
