@@ -295,9 +295,9 @@
     hierarchy.  This bug has been fixed (see security advisory
     FreeBSD-SA-01:40).</para>
 
-    <para>The portmapper, <filename>/usr/sbin/portmap</filename>, is now
-    turned off by default.  However, if you turn on NFS server, NIS services,
-    or Amd; the portmapper will still be started.</para>
+    <para>&man.portmap.8; is now turned off by default, although it
+    will be started automatically on machines that enable NFS serving,
+    NIS services, or &man.amd.8; through &man.rc.conf.5;.</para>
 
     <para>A flaw allowed some signal handlers to remain in effect in a
     child process after being exec-ed from its parent.  This allowed
@@ -325,6 +325,13 @@
     gives the option of enabling or disabling &man.inetd.8; on new
     installations, as well as editing
     <filename>inetd.conf</filename>.</para>
+
+    <para>A flaw in the implementation of the &man.ipfw.8;
+    <literal>me</literal> rules on point-to-point links has been
+    corrected.  Formerly, <literal>me</literal> filter rules would
+    match the remote IP address of a point-to-point interface in
+    addition to the intended local IP address (see security advisory
+    FreeBSD-SA-01:53). &merged;</para>
   </sect2>
   <sect2 id="userland">
     <title>Userland Changes</title>
