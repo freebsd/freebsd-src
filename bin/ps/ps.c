@@ -140,7 +140,7 @@ static const char *
 		    KINFO *, char *, int);
 static void	 free_list(struct listinfo *);
 static void	 init_list(struct listinfo *, addelem_rtn, int, const char *);
-static char	*kludge_oldps_options(const char *opts, char *);
+static char	*kludge_oldps_options(const char *opts, char *, const char *);
 static int	 pscomp(const void *, const void *);
 static void	 saveuser(KINFO *);
 static void	 scanvars(void);
@@ -193,7 +193,7 @@ main(int argc, char *argv[])
 	 * to support some historical BSD behaviors, such as `ps axu'.
 	 */
 	if (argc > 1)
-		argv[1] = kludge_oldps_options(PS_ARGS, argv[1]);
+		argv[1] = kludge_oldps_options(PS_ARGS, argv[1], argv[2]);
 
 	all = dropgid = _fmt = nselectors = optfatal = 0;
 	prtheader = showthreads = wflag = xkeep_implied = 0;
@@ -1077,7 +1077,7 @@ pscomp(const void *a, const void *b)
  * feature is available with the option 'T', which takes no argument.
  */
 static char *
-kludge_oldps_options(const char *optlist, char *origval)
+kludge_oldps_options(const char *optlist, char *origval, const char *nextarg)
 {
 	size_t len;
 	char *argp, *cp, *newopts, *ns, *optp, *pidp;
@@ -1114,9 +1114,10 @@ kludge_oldps_options(const char *optlist, char *origval)
 	len = strlen(origval);
 	cp = origval + len - 1;
 	pidp = NULL;
-	if (*cp == 't' && *origval != '-' && cp == argp)
-		*cp = 'T';
-	else if (argp == NULL) {
+	if (*cp == 't' && *origval != '-' && cp == argp) {
+		if (nextarg == NULL || *nextarg == '-' || isdigitch(*nextarg))
+			*cp = 'T';
+	} else if (argp == NULL) {
 		/*
 		 * The original value did not include any option which takes
 		 * an argument (and that would include `p' and `t'), so check
