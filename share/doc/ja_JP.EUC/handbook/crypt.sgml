@@ -1,14 +1,12 @@
-<!-- $Id: crypt.sgml,v 1.5 1997/02/22 13:00:44 peter Exp $ -->
+<!-- $Id: crypt.sgml,v 1.6 1997/02/25 04:54:28 hanai Exp $ -->
 <!-- The FreeBSD Japanese Documentation Project -->
-<!-- Original revision: 1.3 -->
+<!-- Original revision: 1.4 -->
 
 <sect><heading>DES, MD5, と Crypt<label id="crypt"></heading>
 
 <p><em>原作: &a.wollman;<newline>24 September 1995.</em>
 
 <p><em>訳: &a.hanai;<newline>12 September 1996.</em>
-
-<p><bf>歴史</bf>
 
 <p>UN*X システムにおいてパスワードを保護し, 簡単に覗かれるのを防
 ぐために, 従来パスワードはある方法によりスクランブルされてきました.
@@ -47,7 +45,7 @@ DES `<tt>libcrypt</tt>' は一方向パスワードハッシュをおこなうのに必要なコード
 して国外に持ち出す許可を得るのを簡単にするために, コードはこのように分け
 られたのです.
 
-<p><bf>`<tt>crypt</tt>' メカニズムを理解する</bf>
+<sect1><heading>`<tt>crypt</tt>' メカニズムを理解する</heading>
 
 <p>あるパスワード文字列を作るのに, DES に基づいたハッシュ関数を使っ
 たのか, MD5に基づいたハッシュ関数を使ったのかは非常に簡単にわかります.
