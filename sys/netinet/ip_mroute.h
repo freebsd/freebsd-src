@@ -215,9 +215,6 @@ struct rtdetq {
     struct mbuf 	*m;		/* A copy of the packet		    */
     struct ifnet	*ifp;		/* Interface pkt came in on	    */
     vifi_t		xmt_vif;	/* Saved copy of imo_multicast_vif  */
-#ifdef UPCALL_TIMING
-    struct timeval	t;		/* Timestamp */
-#endif /* UPCALL_TIMING */
     struct rtdetq	*next;		/* Next in list of packets          */
 };
 
