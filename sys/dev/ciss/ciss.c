@@ -592,10 +592,11 @@ ciss_init_pci(struct ciss_softc *sc)
      */
     if (bus_dma_tag_create(NULL, 			/* parent */
 			   1, 0, 			/* alignment, boundary */
-			   BUS_SPACE_MAXADDR_32BIT,	/* lowaddr */
+			   BUS_SPACE_MAXADDR,		/* lowaddr */
 			   BUS_SPACE_MAXADDR, 		/* highaddr */
 			   NULL, NULL, 			/* filter, filterarg */
-			   MAXBSIZE, CISS_COMMAND_SG_LENGTH,	/* maxsize, nsegments */
+			   BUS_SPACE_MAXSIZE_32BIT,	/* maxsize */
+			   CISS_COMMAND_SG_LENGTH,	/* nsegments */
 			   BUS_SPACE_MAXSIZE_32BIT,	/* maxsegsize */
 			   BUS_DMA_ALLOCNOW,		/* flags */
 			   &sc->ciss_parent_dmat)) {
@@ -736,13 +737,13 @@ ciss_init_requests(struct ciss_softc *sc)
      */
     if (bus_dma_tag_create(sc->ciss_parent_dmat,	/* parent */
 			   1, 0, 			/* alignment, boundary */
-			   BUS_SPACE_MAXADDR,		/* lowaddr */
+			   BUS_SPACE_MAXADDR_32BIT,	/* lowaddr */
 			   BUS_SPACE_MAXADDR, 		/* highaddr */
 			   NULL, NULL, 			/* filter, filterarg */
 			   CISS_COMMAND_ALLOC_SIZE * 
 			   sc->ciss_max_requests, 1,	/* maxsize, nsegments */
 			   BUS_SPACE_MAXSIZE_32BIT,	/* maxsegsize */
-			   0,				/* flags */
+			   BUS_DMA_ALLOCNOW,		/* flags */
 			   &sc->ciss_command_dmat)) {
 	ciss_printf(sc, "can't allocate command DMA tag\n");
 	return(ENOMEM);
@@ -756,7 +757,7 @@ ciss_init_requests(struct ciss_softc *sc)
 	return(ENOMEM);
     }
     bus_dmamap_load(sc->ciss_command_dmat, sc->ciss_command_map, sc->ciss_command, 
-		    sizeof(struct ciss_command) * sc->ciss_max_requests,
+		    CISS_COMMAND_ALLOC_SIZE * sc->ciss_max_requests,
 		    ciss_command_map_helper, sc, 0);
     bzero(sc->ciss_command, CISS_COMMAND_ALLOC_SIZE * sc->ciss_max_requests);
 
@@ -768,6 +769,7 @@ ciss_init_requests(struct ciss_softc *sc)
 	cr = &sc->ciss_request[i];
 	cr->cr_sc = sc;
 	cr->cr_tag = i;
+	bus_dmamap_create(sc->ciss_buffer_dmat, 0, &cr->cr_datamap);
 	ciss_enqueue_free(cr);
     }
     return(0);
@@ -1339,6 +1341,8 @@ ciss_accept_media_complete(struct ciss_request *cr)
 static void
 ciss_free(struct ciss_softc *sc)
 {
+    struct ciss_request *cr;
+
     debug_called(1);
 
     /* we're going away */
@@ -1370,6 +1374,9 @@ ciss_free(struct ciss_softc *sc)
     /* destroy DMA tags */
     if (sc->ciss_parent_dmat)
 	bus_dma_tag_destroy(sc->ciss_parent_dmat);
+
+    while ((cr = ciss_dequeue_free(sc)) != NULL)
+	bus_dmamap_destroy(sc->ciss_buffer_dmat, cr->cr_datamap);
     if (sc->ciss_buffer_dmat)
 	bus_dma_tag_destroy(sc->ciss_buffer_dmat);
 
@@ -1378,7 +1385,7 @@ ciss_free(struct ciss_softc *sc)
 	bus_dmamap_unload(sc->ciss_command_dmat, sc->ciss_command_map);
 	bus_dmamem_free(sc->ciss_command_dmat, sc->ciss_command, sc->ciss_command_map);
     }
-    if (sc->ciss_buffer_dmat)
+    if (sc->ciss_command_dmat)
 	bus_dma_tag_destroy(sc->ciss_command_dmat);
 
     /* disconnect from CAM */
@@ -1421,12 +1428,6 @@ ciss_start(struct ciss_request *cr)
 #if 0
     ciss_print_request(cr);
 #endif
-
-    /*
-     * Post the command to the adapter.
-     */
-    ciss_enqueue_busy(cr);
-    CISS_TL_SIMPLE_POST_CMD(cr->cr_sc, CISS_FIND_COMMANDPHYS(cr));
 
     return(0);
 }
@@ -1777,6 +1778,7 @@ ciss_get_request(struct ciss_softc *sc, struct ciss_request **crp)
     cr->cr_data = NULL;
     cr->cr_flags = 0;
     cr->cr_complete = NULL;
+    cr->cr_private = NULL;
     
     ciss_preen_command(cr);
     *crp = cr;
@@ -1993,24 +1995,35 @@ static int
 ciss_map_request(struct ciss_request *cr)
 {
     struct ciss_softc	*sc;
+    int			error = 0;
 
     debug_called(2);
     
     sc = cr->cr_sc;
 
     /* check that mapping is necessary */
-    if ((cr->cr_flags & CISS_REQ_MAPPED) || (cr->cr_data == NULL))
+    if (cr->cr_flags & CISS_REQ_MAPPED)
 	return(0);
     
-    bus_dmamap_load(sc->ciss_buffer_dmat, cr->cr_datamap, cr->cr_data, cr->cr_length,
-		    ciss_request_map_helper, CISS_FIND_COMMAND(cr), 0);
-	
-    if (cr->cr_flags & CISS_REQ_DATAIN)
-	bus_dmamap_sync(sc->ciss_buffer_dmat, cr->cr_datamap, BUS_DMASYNC_PREREAD);
-    if (cr->cr_flags & CISS_REQ_DATAOUT)
-	bus_dmamap_sync(sc->ciss_buffer_dmat, cr->cr_datamap, BUS_DMASYNC_PREWRITE);
-
     cr->cr_flags |= CISS_REQ_MAPPED;
+
+    bus_dmamap_sync(sc->ciss_command_dmat, sc->ciss_command_map,
+		    BUS_DMASYNC_PREWRITE);
+
+    if (cr->cr_data != NULL) {
+	error = bus_dmamap_load(sc->ciss_buffer_dmat, cr->cr_datamap,
+				cr->cr_data, cr->cr_length,
+				ciss_request_map_helper, cr, 0);
+	if (error != 0)
+	    return (error);
+    } else {
+	/*
+	 * Post the command to the adapter.
+	 */
+	ciss_enqueue_busy(cr);
+	CISS_TL_SIMPLE_POST_CMD(cr->cr_sc, CISS_FIND_COMMANDPHYS(cr));
+    }
+
     return(0);
 }
 
@@ -2018,11 +2031,15 @@ static void
 ciss_request_map_helper(void *arg, bus_dma_segment_t *segs, int nseg, int error)
 {
     struct ciss_command	*cc;
+    struct ciss_request *cr;
+    struct ciss_softc   *sc;
     int			i;
 
     debug_called(2);
     
-    cc = (struct ciss_command *)arg;
+    cr = (struct ciss_request *)arg;
+    sc = cr->cr_sc;
+    cc = CISS_FIND_COMMAND(cr);
     for (i = 0; i < nseg; i++) {
 	cc->sg[i].address = segs[i].ds_addr;
 	cc->sg[i].length = segs[i].ds_len;
@@ -2031,6 +2048,17 @@ ciss_request_map_helper(void *arg, bus_dma_segment_t *segs, int nseg, int error)
     /* we leave the s/g table entirely within the command */
     cc->header.sg_in_list = nseg;
     cc->header.sg_total = nseg;
+
+    if (cr->cr_flags & CISS_REQ_DATAIN)
+	bus_dmamap_sync(sc->ciss_buffer_dmat, cr->cr_datamap, BUS_DMASYNC_PREREAD);
+    if (cr->cr_flags & CISS_REQ_DATAOUT)
+	bus_dmamap_sync(sc->ciss_buffer_dmat, cr->cr_datamap, BUS_DMASYNC_PREWRITE);
+
+    /*
+     * Post the command to the adapter.
+     */
+    ciss_enqueue_busy(cr);
+    CISS_TL_SIMPLE_POST_CMD(cr->cr_sc, CISS_FIND_COMMANDPHYS(cr));
 }
 
 /************************************************************************
@@ -2046,8 +2074,14 @@ ciss_unmap_request(struct ciss_request *cr)
     sc = cr->cr_sc;
 
     /* check that unmapping is necessary */
-    if (!(cr->cr_flags & CISS_REQ_MAPPED) || (cr->cr_data == NULL))
+    if (cr->cr_flags & CISS_REQ_MAPPED)
 	return;
+
+    bus_dmamap_sync(sc->ciss_command_dmat, sc->ciss_command_map,
+		    BUS_DMASYNC_POSTWRITE);
+
+    if (cr->cr_data == NULL)
+	goto out;
 
     if (cr->cr_flags & CISS_REQ_DATAIN)
 	bus_dmamap_sync(sc->ciss_buffer_dmat, cr->cr_datamap, BUS_DMASYNC_POSTREAD);
@@ -2055,6 +2089,7 @@ ciss_unmap_request(struct ciss_request *cr)
 	bus_dmamap_sync(sc->ciss_buffer_dmat, cr->cr_datamap, BUS_DMASYNC_POSTWRITE);
 
     bus_dmamap_unload(sc->ciss_buffer_dmat, cr->cr_datamap);
+out:
     cr->cr_flags &= ~CISS_REQ_MAPPED;
 }
 
@@ -2363,7 +2398,13 @@ ciss_cam_action_io(struct cam_sim *sim, struct ccb_scsiio *csio)
     if ((error = ciss_start(cr)) != 0) {
 	xpt_freeze_simq(sc->ciss_cam_sim, 1);
 	csio->ccb_h.status |= CAM_REQUEUE_REQ;
-	ciss_release_request(cr);
+	if (error == EINPROGRESS) {
+	    csio->ccb_h.status |= CAM_RELEASE_SIMQ;
+	    error = 0;
+	} else {
+	    csio->ccb_h.status |= CAM_REQUEUE_REQ;
+	    ciss_release_request(cr);
+	}
 	return(error);
     }
 	
