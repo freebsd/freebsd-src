@@ -31,8 +31,8 @@ ExtUtils::Command - utilities to replace common UNIX commands in Makefiles etc.
 
 =head1 DESCRIPTION
 
-The module is used in Win32 port to replace common UNIX commands.
-Most commands are wrapers on generic modules File::Path and File::Basename.
+The module is used in the Win32 port to replace common UNIX commands.
+Most commands are wrappers on generic modules File::Path and File::Basename.
 
 =over 4
 

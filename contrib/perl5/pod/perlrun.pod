@@ -129,6 +129,21 @@ and a Perl library file.
 Macintosh perl scripts will have the appropriate Creator and
 Type, so that double-clicking them will invoke the perl application.
 
+=item VMS
+
+Put
+
+    $ perl -mysw 'f$env("procedure")' 'p1' 'p2' 'p3' 'p4' 'p5' 'p6' 'p7' 'p8' !
+    $ exit++ + ++$status != 0 and $exit = $status = undef;
+
+at the top of your script, where C<-mysw> are any command line switches you
+want to pass to Perl.  You can now invoke the script directly, by saying
+C<perl script>, or as a DCL procedure, by saying C<@script> (or implicitly
+via F<DCL$PATH> by just using the name of the script).
+
+This incantation is a bit much to remember, but Perl will display it for
+you if you say C<perl "-V:startperl">.
+
 =back
 
 Command-interpreters on non-Unix systems have rather different ideas
@@ -492,7 +507,7 @@ makes it iterate over filename arguments somewhat like B<sed>:
 
 If a file named by an argument cannot be opened for some reason, Perl
 warns you about it, and moves on to the next file.  Note that the
-lines are printed automatically.  An error occuring during printing is
+lines are printed automatically.  An error occurring during printing is
 treated as fatal.  To suppress printing use the B<-n> switch.  A B<-p>
 overrides a B<-n> switch.
 
@@ -671,7 +686,8 @@ Command-line options (switches).  Switches in this variable are taken
 as if they were on every Perl command line.  Only the B<-[DIMUdmw]>
 switches are allowed.  When running taint checks (because the script
 was running setuid or setgid, or the B<-T> switch was used), this
-variable is ignored.
+variable is ignored.  If PERL5OPT begins with B<-T>, tainting will be
+enabled, and any subsequent options ignored.
 
 =item PERLLIB
 

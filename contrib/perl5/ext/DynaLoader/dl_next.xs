@@ -172,6 +172,7 @@ static char *dlopen(char *path, int mode /* mode is ignored */)
     I32 i, psize;
     char *result;
     char **p;
+    STRLEN n_a;
 	
     /* Do not load what is already loaded into this process */
     if (hv_fetch(dl_loaded_files, path, strlen(path), 0))
@@ -182,7 +183,7 @@ static char *dlopen(char *path, int mode /* mode is ignored */)
     p = (char **) safemalloc(psize * sizeof(char*));
     p[0] = path;
     for(i=1; i<psize-1; i++) {
-	p[i] = SvPVx(*av_fetch(dl_resolve_using, i-1, TRUE), PL_na);
+	p[i] = SvPVx(*av_fetch(dl_resolve_using, i-1, TRUE), n_a);
     }
     p[psize-1] = 0;
     rld_success = rld_load(nxerr, (struct mach_header **)0, p,

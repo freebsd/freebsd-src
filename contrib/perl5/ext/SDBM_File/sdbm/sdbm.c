@@ -437,6 +437,7 @@ setdbit(register DBM *db, register long int dbit)
 	dirb = c / DBLKSIZ;
 
 	if (dirb != db->dirbno) {
+		(void) memset(db->dirbuf, 0, DBLKSIZ);
 		if (lseek(db->dirf, OFF_DIR(dirb), SEEK_SET) < 0
 		    || read(db->dirf, db->dirbuf, DBLKSIZ) < 0)
 			return 0;

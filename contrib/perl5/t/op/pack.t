@@ -1,8 +1,12 @@
 #!./perl
 
-# $RCSfile: pack.t,v $$Revision: 4.1 $$Date: 92/08/07 18:28:11 $
+BEGIN {
+    chdir 't' if -d 't';
+    unshift @INC, '../lib' if -d '../lib';
+    require Config; import Config;
+}
 
-print "1..60\n";
+print "1..142\n";
 
 $format = "c2 x5 C C x s d i l a6";
 # Need the expression in here to force ary[5] to be numeric.  This avoids
@@ -31,7 +35,7 @@ print +($x = unpack("%32B69", "\001\002\004\010\020\040\100\200\017")) == 9
 	? "ok 6\n" : "not ok 6 $x\n";
 
 my $sum = 129; # ASCII
-$sum = 103 if ($^O eq 'os390'); # An EBCDIC variant.
+$sum = 103 if ($Config{ebcdic} eq 'define');
 
 print +($x = unpack("%32B*", "Now is the time for all good blurfl")) == $sum
 	? "ok 7\n" : "not ok 7 $x\n";
@@ -160,7 +164,12 @@ foreach my $t (@templates) {
 
 # 57..60: uuencode/decode
 
-$in = join "", map { chr } 0..255;
+# Note that first uuencoding known 'text' data and then checking the
+# binary values of the uuencoded version would not be portable between
+# character sets.  Uuencoding is meant for encoding binary data, not
+# text data.
+ 
+$in = pack 'C*', 0 .. 255;
 
 # just to be anal, we do some random tr/`/ /
 $uu = <<'EOUU';
@@ -199,7 +208,150 @@ EOUU
 print "not " unless unpack('u', $uu) eq $in;
 print "ok ", $test++, "\n";
 
-# Note that first uuencoding known 'text' data and then checking the
-# binary values of the uuencoded version would not be portable between
-# character sets.  Uuencoding is meant for encoding binary data, not
-# text data.
+# 61..72: test the ascii template types (A, a, Z)
+
+print "not " unless pack('A*', "foo\0bar\0 ") eq "foo\0bar\0 ";
+print "ok ", $test++, "\n";
+
+print "not " unless pack('A11', "foo\0bar\0 ") eq "foo\0bar\0   ";
+print "ok ", $test++, "\n";
+
+print "not " unless unpack('A*', "foo\0bar \0") eq "foo\0bar";
+print "ok ", $test++, "\n";
+
+print "not " unless unpack('A8', "foo\0bar \0") eq "foo\0bar";
+print "ok ", $test++, "\n";
+
+print "not " unless pack('a*', "foo\0bar\0 ") eq "foo\0bar\0 ";
+print "ok ", $test++, "\n";
+
+print "not " unless pack('a11', "foo\0bar\0 ") eq "foo\0bar\0 \0\0";
+print "ok ", $test++, "\n";
+
+print "not " unless unpack('a*', "foo\0bar \0") eq "foo\0bar \0";
+print "ok ", $test++, "\n";
+
+print "not " unless unpack('a8', "foo\0bar \0") eq "foo\0bar ";
+print "ok ", $test++, "\n";
+
+print "not " unless pack('Z*', "foo\0bar\0 ") eq "foo\0bar\0 ";
+print "ok ", $test++, "\n";
+
+print "not " unless pack('Z11', "foo\0bar\0 ") eq "foo\0bar\0 \0\0";
+print "ok ", $test++, "\n";
+
+print "not " unless unpack('Z*', "foo\0bar \0") eq "foo";
+print "ok ", $test++, "\n";
+
+print "not " unless unpack('Z8', "foo\0bar \0") eq "foo";
+print "ok ", $test++, "\n";
+
+# 73..78: packing native shorts/ints/longs
+
+# integrated from mainline and don't want to change numbers all the way
+# down. native ints are not supported in _0x so comment out checks
+#print "not " unless length(pack("s!", 0)) == $Config{shortsize};
+print "ok ", $test++, "\n";
+
+#print "not " unless length(pack("i!", 0)) == $Config{intsize};
+print "ok ", $test++, "\n";
+
+#print "not " unless length(pack("l!", 0)) == $Config{longsize};
+print "ok ", $test++, "\n";
+
+#print "not " unless length(pack("s!", 0)) <= length(pack("i!", 0));
+print "ok ", $test++, "\n";
+
+#print "not " unless length(pack("i!", 0)) <= length(pack("l!", 0));
+print "ok ", $test++, "\n";
+
+#print "not " unless length(pack("i!", 0)) == length(pack("i", 0));
+print "ok ", $test++, "\n";
+
+# 79..138: pack <-> unpack bijectionism
+
+#  79.. 83 c
+foreach my $c (-128, -1, 0, 1, 127) {
+    print "not " unless unpack("c", pack("c", $c)) == $c;
+    print "ok ", $test++, "\n";
+}
+
+#  84.. 88: C
+foreach my $C (0, 1, 127, 128, 255) {
+    print "not " unless unpack("C", pack("C", $C)) == $C;
+    print "ok ", $test++, "\n";
+}
+
+#  89.. 93: s
+foreach my $s (-32768, -1, 0, 1, 32767) {
+    print "not " unless unpack("s", pack("s", $s)) == $s;
+    print "ok ", $test++, "\n";
+}
+
+#  94.. 98: S
+foreach my $S (0, 1, 32767, 32768, 65535) {
+    print "not " unless unpack("S", pack("S", $S)) == $S;
+    print "ok ", $test++, "\n";
+}
+
+#  99..103: i
+foreach my $i (-2147483648, -1, 0, 1, 2147483647) {
+    print "not " unless unpack("i", pack("i", $i)) == $i;
+    print "ok ", $test++, "\n";
+}
+
+# 104..108: I
+foreach my $I (0, 1, 2147483647, 2147483648, 4294967295) {
+    print "not " unless unpack("I", pack("I", $I)) == $I;
+    print "ok ", $test++, "\n";
+}
+
+# 109..113: l
+foreach my $l (-2147483648, -1, 0, 1, 2147483647) {
+    print "not " unless unpack("l", pack("l", $l)) == $l;
+    print "ok ", $test++, "\n";
+}
+
+# 114..118: L
+foreach my $L (0, 1, 2147483647, 2147483648, 4294967295) {
+    print "not " unless unpack("L", pack("L", $L)) == $L;
+    print "ok ", $test++, "\n";
+}
+
+# 119..123: n
+foreach my $n (0, 1, 32767, 32768, 65535) {
+    print "not " unless unpack("n", pack("n", $n)) == $n;
+    print "ok ", $test++, "\n";
+}
+
+# 124..128: v
+foreach my $v (0, 1, 32767, 32768, 65535) {
+    print "not " unless unpack("v", pack("v", $v)) == $v;
+    print "ok ", $test++, "\n";
+}
+
+# 129..133: N
+foreach my $N (0, 1, 2147483647, 2147483648, 4294967295) {
+    print "not " unless unpack("N", pack("N", $N)) == $N;
+    print "ok ", $test++, "\n";
+}
+
+# 134..138: V
+foreach my $V (0, 1, 2147483647, 2147483648, 4294967295) {
+    print "not " unless unpack("V", pack("V", $V)) == $V;
+    print "ok ", $test++, "\n";
+}
+
+# 139..142: pack nvNV byteorders
+
+print "not " unless pack("n", 0xdead) eq "\xde\xad";
+print "ok ", $test++, "\n";
+
+print "not " unless pack("v", 0xdead) eq "\xad\xde";
+print "ok ", $test++, "\n";
+
+print "not " unless pack("N", 0xdeadbeef) eq "\xde\xad\xbe\xef";
+print "ok ", $test++, "\n";
+
+print "not " unless pack("V", 0xdeadbeef) eq "\xef\xbe\xad\xde";
+print "ok ", $test++, "\n";

@@ -1,6 +1,6 @@
 /*    hv.c
  *
- *    Copyright (c) 1991-1997, Larry Wall
+ *    Copyright (c) 1991-1999, Larry Wall
  *
  *    You may distribute under the terms of either the GNU General Public
  *    License or the Artistic License, as specified in the README file.
@@ -18,7 +18,7 @@ static void hv_magic_check _((HV *hv, bool *needs_copy, bool *needs_store));
 #ifndef PERL_OBJECT
 static void hsplit _((HV *hv));
 static void hfreeentries _((HV *hv));
-static HE* more_he _((void));
+static void more_he _((void));
 #endif
 
 #if defined(STRANGE_MALLOC) || defined(MYMALLOC)
@@ -32,22 +32,25 @@ STATIC HE*
 new_he(void)
 {
     HE* he;
-    if (PL_he_root) {
-        he = PL_he_root;
-        PL_he_root = HeNEXT(he);
-        return he;
-    }
-    return more_he();
+    LOCK_SV_MUTEX;
+    if (!PL_he_root)
+        more_he();
+    he = PL_he_root;
+    PL_he_root = HeNEXT(he);
+    UNLOCK_SV_MUTEX;
+    return he;
 }
 
 STATIC void
 del_he(HE *p)
 {
+    LOCK_SV_MUTEX;
     HeNEXT(p) = (HE*)PL_he_root;
     PL_he_root = p;
+    UNLOCK_SV_MUTEX;
 }
 
-STATIC HE*
+STATIC void
 more_he(void)
 {
     register HE* he;
@@ -60,7 +63,6 @@ more_he(void)
         he++;
     }
     HeNEXT(he) = 0;
-    return new_he();
 }
 
 STATIC HEK *
@@ -830,19 +832,18 @@ HV *
 newHVhv(HV *ohv)
 {
     register HV *hv;
-    register XPVHV* xhv;
     STRLEN hv_max = ohv ? HvMAX(ohv) : 0;
     STRLEN hv_fill = ohv ? HvFILL(ohv) : 0;
 
     hv = newHV();
     while (hv_max && hv_max + 1 >= hv_fill * 2)
 	hv_max = hv_max / 2;	/* Is always 2^n-1 */
-    ((XPVHV*)SvANY(hv))->xhv_max = hv_max;
+    HvMAX(hv) = hv_max;
     if (!hv_fill)
 	return hv;
 
 #if 0
-    if (!SvRMAGICAL(ohv) || !mg_find((SV*)ohv,'P')) {
+    if (! SvTIED_mg((SV*)ohv, 'P')) {
 	/* Quick way ???*/
     } 
     else 
@@ -853,7 +854,7 @@ newHVhv(HV *ohv)
 	HE *hv_eiter = HvEITER(ohv);	/* current entry of iterator */
 	
 	/* Slow way */
-	hv_iterinit(hv);
+	hv_iterinit(ohv);
 	while (entry = hv_iternext(ohv)) {
 	    hv_store(hv, HeKEY(entry), HeKLEN(entry), 
 		     SvREFCNT_inc(HeVAL(entry)), HeHASH(entry));
@@ -1014,7 +1015,7 @@ hv_iternext(HV *hv)
     xhv = (XPVHV*)SvANY(hv);
     oldentry = entry = xhv->xhv_eiter;
 
-    if (SvRMAGICAL(hv) && (mg = mg_find((SV*)hv,'P'))) {
+    if (mg = SvTIED_mg((SV*)hv, 'P')) {
 	SV *key = sv_newmortal();
 	if (entry) {
 	    sv_setsv(key, HeSVKEY_force(entry));
@@ -1149,6 +1150,7 @@ unsharepvn(char *str, I32 len, U32 hash)
     } */
     xhv = (XPVHV*)SvANY(PL_strtab);
     /* assert(xhv_array != 0) */
+    LOCK_STRTAB_MUTEX;
     oentry = &((HE**)xhv->xhv_array)[hash & (I32) xhv->xhv_max];
     for (entry = *oentry; entry; i=0, oentry = &HeNEXT(entry), entry = *oentry) {
 	if (HeHASH(entry) != hash)		/* strings can't be equal */
@@ -1168,6 +1170,7 @@ unsharepvn(char *str, I32 len, U32 hash)
 	}
 	break;
     }
+    UNLOCK_STRTAB_MUTEX;
     
     if (!found)
 	warn("Attempt to free non-existent shared string");    
@@ -1193,6 +1196,7 @@ share_hek(char *str, I32 len, register U32 hash)
     */
     xhv = (XPVHV*)SvANY(PL_strtab);
     /* assert(xhv_array != 0) */
+    LOCK_STRTAB_MUTEX;
     oentry = &((HE**)xhv->xhv_array)[hash & (I32) xhv->xhv_max];
     for (entry = *oentry; entry; i=0, entry = HeNEXT(entry)) {
 	if (HeHASH(entry) != hash)		/* strings can't be equal */
@@ -1219,6 +1223,7 @@ share_hek(char *str, I32 len, register U32 hash)
     }
 
     ++HeVAL(entry);				/* use value slot as REFCNT */
+    UNLOCK_STRTAB_MUTEX;
     return HeKEY_hek(entry);
 }
 

@@ -17,16 +17,18 @@ Time::Local - efficiently compute time from local and GMT time
 
 =head1 DESCRIPTION
 
-These routines are quite efficient and yet are always guaranteed to agree
-with localtime() and gmtime().  We manage this by caching the start times
-of any months we've seen before.  If we know the start time of the month,
-we can always calculate any time within the month.  The start times
-themselves are guessed by successive approximation starting at the
-current time, since most dates seen in practice are close to the
-current date.  Unlike algorithms that do a binary search (calling gmtime
-once for each bit of the time value, resulting in 32 calls), this algorithm
-calls it at most 6 times, and usually only once or twice.  If you hit
-the month cache, of course, it doesn't call it at all.
+These routines are quite efficient and yet are always guaranteed to
+agree with localtime() and gmtime(), the most notable points being
+that year is year-1900 and month is 0..11.  We manage this by caching
+the start times of any months we've seen before.  If we know the start
+time of the month, we can always calculate any time within the month.
+The start times themselves are guessed by successive approximation
+starting at the current time, since most dates seen in practice are
+close to the current date.  Unlike algorithms that do a binary search
+(calling gmtime once for each bit of the time value, resulting in 32
+calls), this algorithm calls it at most 6 times, and usually only once
+or twice.  If you hit the month cache, of course, it doesn't call it
+at all.
 
 timelocal is implemented using the same cache.  We just assume that we're
 translating a GMT time, and then fudge it when we're done for the timezone

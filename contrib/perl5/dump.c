@@ -1,6 +1,6 @@
 /*    dump.c
  *
- *    Copyright (c) 1991-1997, Larry Wall
+ *    Copyright (c) 1991-1999, Larry Wall
  *
  *    You may distribute under the terms of either the GNU General Public
  *    License or the Artistic License, as specified in the README file.
@@ -239,11 +239,12 @@ dump_op(OP *o)
     case OP_GVSV:
     case OP_GV:
 	if (cGVOPo->op_gv) {
+	    STRLEN n_a;
 	    SV *tmpsv = NEWSV(0,0);
 	    ENTER;
 	    SAVEFREESV(tmpsv);
 	    gv_fullname3(tmpsv, cGVOPo->op_gv, Nullch);
-	    dump("GV = %s\n", SvPV(tmpsv, PL_na));
+	    dump("GV = %s\n", SvPV(tmpsv, n_a));
 	    LEAVE;
 	}
 	else

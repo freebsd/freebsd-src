@@ -63,6 +63,8 @@ $inif = 0;
 
 @ARGV = ('-') unless @ARGV;
 
+build_preamble_if_necessary();
+
 while (defined ($file = next_file())) {
     if (-l $file and -d $file) {
         link_if_possible($file) if ($opt_l);
@@ -97,6 +99,8 @@ while (defined ($file = next_file())) {
 	open(IN,"$file") || (($Exit = 1),(warn "Can't open $file: $!\n"),next);
 	open(OUT,">$Dest_dir/$outfile") || die "Can't create $outfile: $!\n";
     }
+
+    print OUT "require '_h2ph_pre.ph';\n\n";
     while (<IN>) {
 	chop;
 	while (/\\$/) {
@@ -105,6 +109,7 @@ while (defined ($file = next_file())) {
 	    chop;
 	}
 	print OUT "# $_\n" if $opt_D;
+
 	if (s:/\*:\200:g) {
 	    s:\*/:\201:g;
 	    s/\200[^\201]*\201//g;	# delete single line comments
@@ -158,6 +163,7 @@ while (defined ($file = next_file())) {
 		    $args = reindent($args);
 		    if ($t ne '') {
 			$new =~ s/(['\\])/\\$1/g;        #']);
+
 			if ($opt_h) {
 			    print OUT $t,"eval \"\\n#line $eval_index $outfile\\n\" . 'sub $name () {",$new,";}' unless defined(\&$name);\n";
 			    $eval_index++;
@@ -165,6 +171,9 @@ while (defined ($file = next_file())) {
 			    print OUT $t,"eval 'sub $name () {",$new,";}' unless defined(\&$name);\n";
 			}
 		    } else {
+		    	# Shunt around such directives as `#define FOO FOO':
+		    	next if " \&$name" eq $new;
+
                       print OUT $t,"unless(defined(\&$name)) {\n    sub $name () {\t",$new,";}\n}\n";
 		    }
 		}
@@ -230,10 +239,12 @@ while (defined ($file = next_file())) {
 		print OUT $t,"}\n";
 	    } elsif(/^undef\s+(\w+)/) {
 		print OUT $t, "undef(&$1) if defined(&$1);\n";
+	    } elsif(/^error\s+(".*")/) {
+		print OUT $t, "die($1);\n";
 	    } elsif(/^error\s+(.*)/) {
-		print OUT $t, "die(\"$1\");\n";
+		print OUT $t, "die(\"", quotemeta($1), "\");\n";
 	    } elsif(/^warning\s+(.*)/) {
-		print OUT $t, "warn(\"$1\");\n";
+		print OUT $t, "warn(\"", quotemeta($1), "\");\n";
 	    } elsif(/^ident\s+(.*)/) {
 		print OUT $t, "# $1\n";
 	    }
@@ -512,6 +523,71 @@ sub inc_dirs
 }
 
 
+# Create "_h2ph_pre.ph", if it doesn't exist or was built by a different
+# version of h2ph.
+sub build_preamble_if_necessary
+{
+    # Increment $VERSION every time this function is modified:
+    my $VERSION     = 1;
+    my $preamble    = "$Dest_dir/_h2ph_pre.ph";
+
+    # Can we skip building the preamble file?
+    if (-r $preamble) {
+        # Extract version number from first line of preamble:
+        open  PREAMBLE, $preamble or die "Cannot open $preamble:  $!";
+            my $line = <PREAMBLE>;
+            $line =~ /(\b\d+\b)/;
+        close PREAMBLE            or die "Cannot close $preamble:  $!";
+
+        # Don't build preamble if a compatible preamble exists:
+        return if $1 == $VERSION;
+    }
+
+    my (%define) = _extract_cc_defines();
+
+    open  PREAMBLE, ">$preamble" or die "Cannot open $preamble:  $!";
+        print PREAMBLE "# This file was created by h2ph version $VERSION\n";
+
+        foreach (sort keys %define) {
+            if ($opt_D) {
+                print PREAMBLE "# $_=$define{$_}\n";
+            }
+
+            if ($define{$_} =~ /^\d+$/) {
+                print PREAMBLE
+                    "unless (defined &$_) { sub $_() { $define{$_} } }\n\n";
+            } else {
+                print PREAMBLE
+                    "unless (defined &$_) { sub $_() { \"",
+                    quotemeta($define{$_}), "\" } }\n\n";
+            }
+        }
+    close PREAMBLE               or die "Cannot close $preamble:  $!";
+}
+
+
+# %Config contains information on macros that are pre-defined by the
+# system's compiler.  We need this information to make the .ph files
+# function with perl as the .h files do with cc.
+sub _extract_cc_defines
+{
+    my %define;
+    my $allsymbols = join " ", @Config{ccsymbols, cppsymbols, cppccsymbols};
+
+    # Split compiler pre-definitions into `key=value' pairs:
+    foreach (split /\s+/, $allsymbols) {
+        /(.*?)=(.*)/;
+        $define{$1} = $2;
+
+        if ($opt_D) {
+            print STDERR "$_:  $1 -> $2\n";
+        }
+    }
+
+    return %define;
+}
+
+
 1;
 
 ##############################################################################
@@ -590,6 +666,10 @@ However, the B<.ph> files almost double in size when built using B<-h>.
 Include the code from the B<.h> file as a comment in the B<.ph> file.
 This is primarily used for debugging I<h2ph>.
 
+=item -Q
+
+``Quiet'' mode; don't print out the names of the files being converted.
+
 =back
 
 =head1 ENVIRONMENT
@@ -625,6 +705,24 @@ that it can translate.
 
 It's only intended as a rough tool.
 You may need to dicker with the files produced.
+
+Doesn't run with C<use strict>
+
+You have to run this program by hand; it's not run as part of the Perl
+installation.
+
+Doesn't handle complicated expressions built piecemeal, a la:
+
+    enum {
+        FIRST_VALUE,
+        SECOND_VALUE,
+    #ifdef ABC
+        THIRD_VALUE
+    #endif
+    };
+
+Doesn't necessarily locate all of your C compiler's internally-defined
+symbols.
 
 =cut
 

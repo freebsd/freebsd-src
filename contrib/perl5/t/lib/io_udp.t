@@ -13,7 +13,7 @@ BEGIN {
     if(-d "lib" && -f "TEST") {
         if ( ($Config{'extensions'} !~ /\bSocket\b/ ||
               $Config{'extensions'} !~ /\bIO\b/	||
-	      $^O eq 'os2')    &&
+	      ($^O eq 'os2') || $^O eq 'apollo')    &&
               !(($^O eq 'VMS') && $Config{d_socket})) {
 	    print "1..0\n";
 	    exit 0;

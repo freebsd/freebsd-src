@@ -1,12 +1,12 @@
 # $Header$ 
 # basic C types
 int			T_IV
-unsigned		T_IV
-unsigned int		T_IV
+unsigned		T_UV
+unsigned int		T_UV
 long			T_IV
-unsigned long		T_IV
+unsigned long		T_UV
 short			T_IV
-unsigned short		T_IV
+unsigned short		T_UV
 char			T_CHAR
 unsigned char		T_U_CHAR
 char *			T_PV
@@ -34,7 +34,7 @@ I16			T_IV
 I8			T_IV
 U32			T_U_LONG
 U16			T_U_SHORT
-U8			T_IV
+U8			T_UV
 Result			T_U_CHAR
 Boolean			T_IV
 double			T_DOUBLE
@@ -73,6 +73,8 @@ T_CVREF
 	    croak(\"$var is not of type ${ntype}\")
 T_SYSRET
 	$var NOT IMPLEMENTED
+T_UV
+	$var = ($type)SvUV($arg)
 T_IV
 	$var = ($type)SvIV($arg)
 T_INT
@@ -82,19 +84,19 @@ T_ENUM
 T_BOOL
 	$var = (int)SvIV($arg)
 T_U_INT
-	$var = (unsigned int)SvIV($arg)
+	$var = (unsigned int)SvUV($arg)
 T_SHORT
 	$var = (short)SvIV($arg)
 T_U_SHORT
-	$var = (unsigned short)SvIV($arg)
+	$var = (unsigned short)SvUV($arg)
 T_LONG
 	$var = (long)SvIV($arg)
 T_U_LONG
-	$var = (unsigned long)SvIV($arg)
+	$var = (unsigned long)SvUV($arg)
 T_CHAR
 	$var = (char)*SvPV($arg,PL_na)
 T_U_CHAR
-	$var = (unsigned char)SvIV($arg)
+	$var = (unsigned char)SvUV($arg)
 T_FLOAT
 	$var = (float)SvNV($arg)
 T_NV
@@ -191,6 +193,8 @@ T_CVREF
 	$arg = newRV((SV*)$var);
 T_IV
 	sv_setiv($arg, (IV)$var);
+T_UV
+	sv_setuv($arg, (UV)$var);
 T_INT
 	sv_setiv($arg, (IV)$var);
 T_SYSRET
@@ -205,19 +209,19 @@ T_ENUM
 T_BOOL
 	$arg = boolSV($var);
 T_U_INT
-	sv_setiv($arg, (IV)$var);
+	sv_setuv($arg, (UV)$var);
 T_SHORT
 	sv_setiv($arg, (IV)$var);
 T_U_SHORT
-	sv_setiv($arg, (IV)$var);
+	sv_setuv($arg, (UV)$var);
 T_LONG
 	sv_setiv($arg, (IV)$var);
 T_U_LONG
-	sv_setiv($arg, (IV)$var);
+	sv_setuv($arg, (UV)$var);
 T_CHAR
 	sv_setpvn($arg, (char *)&$var, 1);
 T_U_CHAR
-	sv_setiv($arg, (IV)$var);
+	sv_setuv($arg, (UV)$var);
 T_FLOAT
 	sv_setnv($arg, (double)$var);
 T_NV

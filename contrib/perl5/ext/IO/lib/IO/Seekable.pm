@@ -14,7 +14,7 @@ IO::Seekable - supply seek based methods for I/O objects
 
 =head1 DESCRIPTION
 
-C<IO::Seekable> does not have a constuctor of its own as is intended to
+C<IO::Seekable> does not have a constructor of its own as it is intended to
 be inherited by other C<IO::Handle> based objects. It provides methods
 which allow seeking of the file descriptors.
 

@@ -1,0 +1,141 @@
+#!../perl
+
+$M = '-M';
+$M = '-m' if -d '/usr/uts' && -f '/etc/master';
+
+do 'getopt.pl';
+do Getopt('f');
+
+if ($opt_f) {
+    $makefile = $opt_f;
+}
+elsif (-f 'makefile') {
+    $makefile = 'makefile';
+}
+elsif (-f 'Makefile') {
+    $makefile = 'Makefile';
+}
+else {
+    die "No makefile\n";
+}
+
+$MF = 'mf00';
+
+while(($key,$val) = each(ENV)) {
+    $mac{$key} = $val;
+}
+
+do scan($makefile);
+
+$co = $action{'.c.o'};
+$co = ' ' unless $co;
+
+$missing = "Missing dependencies:\n";
+foreach $key (sort keys(o)) {
+    if ($oc{$key}) {
+	$src = $oc{$key};
+	$action = $action{$key};
+    }
+    else {
+	$action = '';
+    }
+    if (!$action) {
+	if ($co && ($c = $key) =~ s/\.o$/.c/ && -f $c) {
+	    $src = $c;
+	    $action = $co;
+	}
+	else {
+	    print "No source found for $key $c\n";
+	    next;
+	}
+    }
+    $I = '';
+    $D = '';
+    $I .= $1 while $action =~ s/(-I\S+\s*)//;
+    $D .= $1 . ' ' while $action =~ s/(-D\w+)//;
+    if ($opt_v) {
+	$cmd = "Checking $key: cc $M $D $I $src";
+	$cmd =~ s/\s\s+/ /g;
+	print stderr $cmd,"\n";
+    }
+    open(CPP,"cc $M $D $I $src|") || die "Can't run C preprocessor: $!";
+    while (<CPP>) {
+	($name,$dep) = split;
+	$dep =~ s|^\./||;
+	(print $missing,"$key: $dep\n"),($missing='')
+	    unless ($dep{"$key: $dep"} += 2) > 2;
+    }
+}
+
+$extra = "\nExtraneous dependencies:\n";
+foreach $key (sort keys(dep)) {
+    if ($key =~ /\.o: .*\.h$/ && $dep{$key} == 1) {
+	print $extra,$key,"\n";
+	$extra = '';
+    }
+}
+
+sub scan {
+    local($makefile) = @_;
+    local($MF) = $MF;
+    print stderr "Analyzing $makefile.\n" if $opt_v;
+    $MF++;
+    open($MF,$makefile) || die "Can't open $makefile: $!";
+    while (<$MF>) {
+	chop;
+	chop($_ = $_ . <$MF>) while s/\\$//;
+	next if /^#/;
+	next if /^$/;
+	s/\$\((\w+):([^=)]*)=([^)]*)\)/do subst("$1","$2","$3")/eg;
+	s/\$\((\w+)\)/$mac{$1}/eg;
+	$mac{$1} = $2, next if /^(\w+)\s*=\s*(.*)/;
+	if (/^include\s+(.*)/) {
+	    do scan($1);
+	    print stderr "Continuing $makefile.\n" if $opt_v;
+	    next;
+	}
+	if (/^([^:]+):\s*(.*)/) {
+	    $left = $1;
+	    $right = $2;
+	    if ($right =~ /^([^;]*);(.*)/) {
+		$right = $1;
+		$action = $2;
+	    }
+	    else {
+		$action = '';
+	    }
+	    while (<$MF>) {
+		last unless /^\t/;
+		chop;
+		chop($_ = $_ . <$MF>) while s/\\$//;
+		next if /^#/;
+		last if /^$/;
+		s/\$\((\w+):([^=)]*)=([^)]*)\)/do subst("$1","$2","$3")/eg;
+		s/\$\((\w+)\)/$mac{$1}/eg;
+		$action .= $_;
+	    }
+	    foreach $targ (split(' ',$left)) {
+		$targ =~ s|^\./||;
+		foreach $src (split(' ',$right)) {
+		    $src =~ s|^\./||;
+		    $deplist{$targ} .= ' ' . $src;
+		    $dep{"$targ: $src"} = 1;
+		    $o{$src} = 1 if $src =~ /\.o$/;
+		    $oc{$targ} = $src if $targ =~ /\.o$/ && $src =~ /\.[yc]$/;
+		}
+		$action{$targ} .= $action;
+	    }
+	    redo if $_;
+	}
+    }
+    close($MF);
+}
+
+sub subst {
+    local($foo,$from,$to) = @_;
+    $foo = $mac{$foo};
+    $from =~ s/\./[.]/;
+    y/a/a/;
+    $foo =~ s/\b$from\b/$to/g;
+    $foo;
+}

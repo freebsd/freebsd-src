@@ -366,7 +366,10 @@ else {
     test 72, $@ eq '', $@;		# NB: This should be allowed
 
     # Try first new style but allow also old style.
-    test 73, $!{ENOENT} || $! == 2 || ($Is_Dos && $! == 22); # File not found
+    test 73, $!{ENOENT} ||
+	$! == 2 || # File not found
+	($Is_Dos && $! == 22) ||
+	($^O eq 'mint' && $! == 33);
 
     test 74, eval { open FOO, "> $foo" } eq '', 'open for write';
     test 75, $@ =~ /^Insecure dependency/, $@;

@@ -12,7 +12,7 @@
 #
 useposix='undef'
 
-libpth='/lib /usr/lib'
+libpth='/lib /usr/lib /usr/local/lib'
 libswanted=' '
 libc='/NextLibrary/Frameworks/System.framework/System'
 
@@ -35,7 +35,20 @@ ld='cc'
 #
 #	archs='m68k i386'
 #
-archs=`/bin/lipo -info /usr/lib/libm.a | sed -n 's/^[^:]*:[^:]*: //p'`
+
+# On m68k machines, toke.c cannot be compiled at all for i386 and it can
+# only be compiled for m68k itself without optimization (this is under
+# OPENSTEP 4.2).
+#
+if [ `hostinfo | grep 'NeXT Mach.*:'  | sed 's/.*RELEASE_//'` = M68K ]
+then
+	echo "Cross compilation is impossible on m68k hardware under OS 4"
+	echo "Forcing architecture to m68k only"
+	toke_cflags='optimize=""'
+	archs='m68k'
+else
+	archs=`/bin/lipo -info /usr/lib/libm.a | sed -n 's/^[^:]*:[^:]*: //p'`
+fi
 
 #
 # leave the following part alone

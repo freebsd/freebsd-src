@@ -124,6 +124,11 @@ The COUNT can be zero or negative, see timethis().
 Returns the difference between two Benchmark times as a Benchmark
 object suitable for passing to timestr().
 
+=item timesum ( T1, T2 )
+
+Returns the sum of two Benchmark times as a Benchmark object suitable
+for passing to timestr().
+
 =item timestr ( TIMEDIFF, [ STYLE, [ FORMAT ] ] )
 
 Returns a string that formats the times in the TIMEDIFF object in
@@ -291,6 +296,15 @@ sub timediff {
 	push(@r, $a->[$i] - $b->[$i]);
     }
     bless \@r;
+}
+
+sub timesum {
+     my($a, $b) = @_;
+     my @r;
+     for (my $i=0; $i < @$a; ++$i) {
+ 	push(@r, $a->[$i] + $b->[$i]);
+     }
+     bless \@r;
 }
 
 sub timestr {

@@ -69,7 +69,7 @@ sub FETCH {
 sub STORE {
     local($self,$key,$val) = @_;
     local($klen, $vlen, $tsize, $rlen) = @$self[1..4];
-    croak("Table is full") if $self[5] == $tsize;
+    croak("Table is full") if $$self[5] == $tsize;
     croak(qq/Value "$val" is not $vlen characters long./)
 	if length($val) != $vlen;
     my $writeoffset;

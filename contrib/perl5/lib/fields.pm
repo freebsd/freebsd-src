@@ -32,7 +32,7 @@ does so by updating the %FIELDS hash in the calling package.
 If a typed lexical variable holding a reference is used to access a
 hash element and the %FIELDS hash of the given type exists, then the
 operation is turned into an array access at compile time.  The %FIELDS
-hash map from hash element names to the array indices.  If the hash
+hash maps from hash element names to the array indices.  If the hash
 element is not present in the %FIELDS hash, then a compile-time error
 is signaled.
 
@@ -57,7 +57,7 @@ constructor like this does the job:
   {
       my $class = shift;
       no strict 'refs';
-      my $self = bless [\%{"$class\::FIELDS"], $class;
+      my $self = bless [\%{"$class\::FIELDS"}], $class;
       $self;
   }
 

@@ -35,13 +35,19 @@ and a carp as a cluck across I<all> modules. In other words, force a
 detailed stack trace to be given.  This can be very helpful when trying
 to understand why, or from where, a warning or error is being generated.
 
-This feature is enabled by 'importing' the non-existant symbol
+This feature is enabled by 'importing' the non-existent symbol
 'verbose'. You would typically enable it by saying
 
     perl -MCarp=verbose script.pl
 
 or by including the string C<MCarp=verbose> in the L<PERL5OPT>
 environment variable.
+
+=head1 BUGS
+
+The Carp routines don't handle exception objects currently.
+If called with a first argument that is a reference, they simply
+call die() or warn(), as appropriate.
 
 =cut
 
@@ -88,6 +94,7 @@ sub export_fail {
 # each function call on the stack.
 
 sub longmess {
+    return @_ if ref $_[0];
     my $error = join '', @_;
     my $mess = "";
     my $i = 1 + $CarpLevel;
@@ -190,6 +197,7 @@ sub longmess {
 
 sub shortmess {	# Short-circuit &longmess if called via multiple packages
     goto &longmess if $Verbose;
+    return @_ if ref $_[0];
     my $error = join '', @_;
     my ($prevpack) = caller(1);
     my $extra = $CarpLevel;

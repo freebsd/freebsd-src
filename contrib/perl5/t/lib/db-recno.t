@@ -42,14 +42,16 @@ sub bad_one
 {
     print STDERR <<EOM unless $bad_ones++ ;
 #
-# Some older versions of Berkeley DB will fail tests 51, 53 and 55.
+# Some older versions of Berkeley DB version 1 will fail tests 51,
+# 53 and 55.
 #
 # You can safely ignore the errors if you're never going to use the
-# broken functionality (recno databases with a modified bval). 
+# broken functionality (recno databases with a modified bval).
 # Otherwise you'll have to upgrade your DB library.
 #
-# If you want to upgrade Berkeley DB, the most recent version is 1.85.
-# Check out http://www.bostic.com/db for more details.
+# If you want to use Berkeley DB version 1, then 1.85 and 1.86 are the
+# last versions that were released. Berkeley DB version 2 is continually
+# being updated -- Check out http://www.sleepycat.com/ for more details.
 #
 EOM
 }

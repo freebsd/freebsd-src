@@ -1,8 +1,6 @@
 #!./perl
 
-# $RCSfile: undef.t,v $$Revision: 4.1 $$Date: 92/08/07 18:28:34 $
-
-print "1..21\n";
+print "1..23\n";
 
 print defined($a) ? "not ok 1\n" : "ok 1\n";
 
@@ -54,3 +52,10 @@ sub foo { print "ok 19\n"; }
 print defined &foo ? "ok 20\n" : "not ok 20\n";
 undef &foo;
 print defined(&foo) ? "not ok 21\n" : "ok 21\n";
+
+eval { undef $1 };
+print $@ =~ /^Modification of a read/ ? "ok 22\n" : "not ok 22\n";
+
+eval { $1 = undef };
+print $@ =~ /^Modification of a read/ ? "ok 23\n" : "not ok 23\n";
+

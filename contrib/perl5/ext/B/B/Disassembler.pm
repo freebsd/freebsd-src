@@ -77,7 +77,7 @@ sub GET_PV {
     }
 }
 
-sub GET_comment {
+sub GET_comment_t {
     my $fh = shift;
     my ($str, $c);
     while (defined($c = $fh->getc) && $c ne "\n") {
