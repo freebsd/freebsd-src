@@ -37,7 +37,7 @@
  * IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
  * POSSIBILITY OF SUCH DAMAGES.
  *
- * $Id: //depot/aic7xxx/aic7xxx/aic79xx_inline.h#44 $
+ * $Id: //depot/aic7xxx/aic7xxx/aic79xx_inline.h#50 $
  *
  * $FreeBSD$
  */
@@ -223,7 +223,7 @@ ahd_unpause(struct ahd_softc *ahd)
 		ahd_set_modes(ahd, ahd->saved_src_mode, ahd->saved_dst_mode);
 	}
 
-	if ((ahd_inb(ahd, INTSTAT) & ~(SWTMINT | CMDCMPLT)) == 0)
+	if ((ahd_inb(ahd, INTSTAT) & ~CMDCMPLT) == 0)
 		ahd_outb(ahd, HCNTRL, ahd->unpause);
 
 	ahd_known_modes(ahd, AHD_MODE_UNKNOWN, AHD_MODE_UNKNOWN);
@@ -271,11 +271,12 @@ ahd_setup_scb_common(struct ahd_softc *ahd, struct scb *scb)
 	scb->crc_retry_count = 0;
 	if ((scb->flags & SCB_PACKETIZED) != 0) {
 		/* XXX what about ACA??  It is type 4, but TAG_TYPE == 0x3. */
-		scb->hscb->task_attribute= scb->hscb->control & SCB_TAG_TYPE;
-		/*
-		 * For Rev A short lun workaround.
-		 */
-		scb->hscb->pkt_long_lun[6] = scb->hscb->lun;
+		scb->hscb->task_attribute = scb->hscb->control & SCB_TAG_TYPE;
+	} else {
+		if (ahd_get_transfer_length(scb) & 0x01)
+			scb->hscb->task_attribute = SCB_XFERLEN_ODD;
+		else
+			scb->hscb->task_attribute = 0;
 	}
 
 	if (scb->hscb->cdb_len <= MAX_CDB_LEN_WITH_SENSE_ADDR
@@ -298,9 +299,12 @@ ahd_setup_data_scb(struct ahd_softc *ahd, struct scb *scb)
 		scb->hscb->datacnt = sg->len;
 	} else {
 		struct ahd_dma_seg *sg;
+		uint32_t *dataptr_words;
 
 		sg = (struct ahd_dma_seg *)scb->sg_list;
-		scb->hscb->dataptr = sg->addr;
+		dataptr_words = (uint32_t*)&scb->hscb->dataptr;
+		dataptr_words[0] = sg->addr;
+		dataptr_words[1] = 0;
 		if ((ahd->flags & AHD_39BIT_ADDRESSING) != 0) {
 			uint64_t high_addr;
 
@@ -777,12 +781,15 @@ ahd_queue_scb(struct ahd_softc *ahd, struct scb *scb)
 
 #ifdef AHD_DEBUG
 	if ((ahd_debug & AHD_SHOW_QUEUE) != 0) {
+		uint64_t host_dataptr;
+
+		host_dataptr = ahd_le64toh(scb->hscb->dataptr);
 		printf("%s: Queueing SCB 0x%x bus addr 0x%x - 0x%x%x/0x%x\n",
 		       ahd_name(ahd),
-		       SCB_GET_TAG(scb), scb->hscb->hscb_busaddr,
-		       (u_int)((scb->hscb->dataptr >> 32) & 0xFFFFFFFF),
-		       (u_int)(scb->hscb->dataptr & 0xFFFFFFFF),
-		       scb->hscb->datacnt);
+		       SCB_GET_TAG(scb), ahd_le32toh(scb->hscb->hscb_busaddr),
+		       (u_int)((host_dataptr >> 32) & 0xFFFFFFFF),
+		       (u_int)(host_dataptr & 0xFFFFFFFF),
+		       ahd_le32toh(scb->hscb->datacnt));
 	}
 #endif
 	/* Tell the adapter about the newly queued SCB */
@@ -805,7 +812,7 @@ ahd_get_sense_bufaddr(struct ahd_softc *ahd, struct scb *scb)
 static __inline void	ahd_sync_qoutfifo(struct ahd_softc *ahd, int op);
 static __inline void	ahd_sync_tqinfifo(struct ahd_softc *ahd, int op);
 static __inline u_int	ahd_check_cmdcmpltqueues(struct ahd_softc *ahd);
-static __inline void	ahd_intr(struct ahd_softc *ahd);
+static __inline int	ahd_intr(struct ahd_softc *ahd);
 
 static __inline void
 ahd_sync_qoutfifo(struct ahd_softc *ahd, int op)
@@ -864,7 +871,7 @@ ahd_check_cmdcmpltqueues(struct ahd_softc *ahd)
 /*
  * Catch an interrupt from the adapter
  */
-static __inline void
+static __inline int
 ahd_intr(struct ahd_softc *ahd)
 {
 	u_int	intstat;
@@ -876,7 +883,7 @@ ahd_intr(struct ahd_softc *ahd)
 		 * so just return.  This is likely just a shared
 		 * interrupt.
 		 */
-		return;
+		return (0);
 	}
 
 	/*
@@ -890,6 +897,9 @@ ahd_intr(struct ahd_softc *ahd)
 		intstat = CMDCMPLT;
 	else
 		intstat = ahd_inb(ahd, INTSTAT);
+
+	if ((intstat & INT_PEND) == 0)
+		return (0);
 
 	if (intstat & CMDCMPLT) {
 		ahd_outb(ahd, CLRINT, CLRCMDINT);
@@ -924,28 +934,25 @@ ahd_intr(struct ahd_softc *ahd)
 #endif
 	}
 
-	if (intstat == 0xFF && (ahd->features & AHD_REMOVABLE) != 0)
-		/* Hot eject */
-		return;
-
-	if ((intstat & INT_PEND) == 0)
-		return;
-
-	if (intstat & HWERRINT) {
+	/*
+	 * Handle statuses that may invalidate our cached
+	 * copy of INTSTAT separately.
+	 */
+	if (intstat == 0xFF && (ahd->features & AHD_REMOVABLE) != 0) {
+		/* Hot eject.  Do nothing */
+	} else if (intstat & HWERRINT) {
 		ahd_handle_hwerrint(ahd);
-		return;
-	}
-
-	if ((intstat & (PCIINT|SPLTINT)) != 0) {
+	} else if ((intstat & (PCIINT|SPLTINT)) != 0) {
 		ahd->bus_intr(ahd);
-		return;
+	} else {
+
+		if ((intstat & SEQINT) != 0)
+			ahd_handle_seqint(ahd, intstat);
+
+		if ((intstat & SCSIINT) != 0)
+			ahd_handle_scsiint(ahd, intstat);
 	}
-
-	if ((intstat & SEQINT) != 0)
-		ahd_handle_seqint(ahd, intstat);
-
-	if ((intstat & SCSIINT) != 0)
-		ahd_handle_scsiint(ahd, intstat);
+	return (1);
 }
 
 #endif  /* _AIC79XX_INLINE_H_ */

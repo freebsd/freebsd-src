@@ -37,7 +37,7 @@
  * IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
  * POSSIBILITY OF SUCH DAMAGES.
  *
- * $Id: //depot/aic7xxx/aic7xxx/aic79xx.h#85 $
+ * $Id: //depot/aic7xxx/aic7xxx/aic79xx.h#92 $
  *
  * $FreeBSD$
  */
@@ -180,7 +180,7 @@ do {								\
 
 /*
  * Define the size of our QIN and QOUT FIFOs.  They must be a power of 2
- * in size and accomodate as many transactions as can be queued concurrently.
+ * in size and accommodate as many transactions as can be queued concurrently.
  */
 #define	AHD_QIN_SIZE	AHD_MAX_QUEUE
 #define	AHD_QOUT_SIZE	AHD_MAX_QUEUE
@@ -322,7 +322,11 @@ typedef enum {
 	 * glitches.  This flag tells the firmware to tolerate
 	 * early REQ assertions.
 	 */
-	AHD_EARLY_REQ_BUG	= 0x400000
+	AHD_EARLY_REQ_BUG	= 0x400000,
+	/*
+	 * The LED does not stay on long enough in packetized modes.
+	 */
+	AHD_FAINT_LED_BUG	= 0x800000
 } ahd_bug;
 
 /*
@@ -332,10 +336,7 @@ typedef enum {
  */
 typedef enum {
 	AHD_FNONE	      = 0x00000,
-	AHD_PRIMARY_CHANNEL   = 0x00003,/*
-					 * The channel that should
-					 * be probed first.
-					 */
+	AHD_BOOT_CHANNEL      = 0x00001,/* We were set as the boot channel. */
 	AHD_USEDEFAULTS	      = 0x00004,/*
 					 * For cards without an seeprom
 					 * or a BIOS to initialize the chip's
@@ -378,7 +379,7 @@ typedef enum {
 
 /*
  * The driver keeps up to MAX_SCB scb structures per card in memory.  The SCB
- * consists of a "hardware SCB" mirroring the fields availible on the card
+ * consists of a "hardware SCB" mirroring the fields available on the card
  * and additional information the kernel stores for each transaction.
  *
  * To minimize space utilization, a portion of the hardware scb stores
@@ -493,22 +494,22 @@ struct hardware_scb {
  *	  transfer.
  */ 
 #define SG_PTR_MASK	0xFFFFFFF8
-/*16*/	uint16_t tag;
-/*18*/	uint8_t  cdb_len;
-/*19*/	uint8_t  task_management;
-/*20*/	uint32_t next_hscb_busaddr;
-/*24*/	uint64_t dataptr;
-/*32*/	uint32_t datacnt;	/* Byte 3 is spare. */
-/*36*/	uint32_t sgptr;
-/*40*/	uint8_t  control;	/* See SCB_CONTROL in aic79xx.reg for details */
-/*41*/	uint8_t	 scsiid;	/*
+/*16*/	uint16_t tag;		/* Reused by Sequencer. */
+/*18*/	uint8_t  control;	/* See SCB_CONTROL in aic79xx.reg for details */
+/*19*/	uint8_t	 scsiid;	/*
 				 * Selection out Id
 				 * Our Id (bits 0-3) Their ID (bits 4-7)
 				 */
-/*42*/	uint8_t  lun;
-/*43*/	uint8_t  task_attribute;
-/*44*/	uint32_t hscb_busaddr;
-/******* Long lun field only downloaded for full 8 byte lun support *******/
+/*20*/	uint8_t  lun;
+/*21*/	uint8_t  task_attribute;
+/*22*/	uint8_t  cdb_len;
+/*23*/	uint8_t  task_management;
+/*24*/	uint64_t dataptr;
+/*32*/	uint32_t datacnt;	/* Byte 3 is spare. */
+/*36*/	uint32_t sgptr;
+/*40*/	uint32_t hscb_busaddr;
+/*44*/	uint32_t next_hscb_busaddr;
+/********** Long lun field only downloaded for full 8 byte lun support ********/
 /*48*/  uint8_t	 pkt_long_lun[8];
 /******* Fields below are not Downloaded (Sequencer may use for scratch) ******/
 /*56*/  uint8_t	 spare[8];
@@ -900,6 +901,40 @@ struct seeprom_config {
 	uint16_t checksum;		/* word 31 */
 };
 
+/*
+ * Vital Product Data used during POST and by the BIOS.
+ */
+struct vpd_config {
+	uint8_t  bios_flags;
+#define		VPDMASTERBIOS	0x0001
+#define		VPDBOOTHOST	0x0002
+	uint8_t  reserved_1[21];
+	uint8_t  resource_type;
+	uint8_t  resource_len[2];
+	uint8_t  resource_data[8];
+	uint8_t  vpd_tag;
+	uint16_t vpd_len;
+	uint8_t  vpd_keyword[2];
+	uint8_t  length;
+	uint8_t  revision;
+	uint8_t  device_flags;
+	uint8_t  termnation_menus[2];
+	uint8_t  fifo_threshold;
+	uint8_t  end_tag;
+	uint8_t  vpd_checksum;
+	uint16_t default_target_flags;
+	uint16_t default_bios_flags;
+	uint16_t default_ctrl_flags;
+	uint8_t  default_irq;
+	uint8_t  pci_lattime;
+	uint8_t  max_target;
+	uint8_t  boot_lun;
+	uint16_t signature;
+	uint8_t  reserved_2;
+	uint8_t  checksum;
+	uint8_t	 reserved_3[4];
+};
+
 /****************************** Flexport Logic ********************************/
 #define FLXADDR_TERMCTL			0x0
 #define		FLX_TERMCTL_ENSECHIGH	0x8
@@ -932,11 +967,12 @@ struct seeprom_config {
 #define		FLX_CSTAT_INVALID	0x3
 
 int		ahd_read_seeprom(struct ahd_softc *ahd, uint16_t *buf,
-				 u_int start_addr, u_int count);
+				 u_int start_addr, u_int count, int bstream);
 
 int		ahd_write_seeprom(struct ahd_softc *ahd, uint16_t *buf,
 				  u_int start_addr, u_int count);
 int		ahd_wait_seeprom(struct ahd_softc *ahd);
+int		ahd_verify_vpd_cksum(struct vpd_config *vpd);
 int		ahd_verify_cksum(struct seeprom_config *sc);
 int		ahd_acquire_seeprom(struct ahd_softc *ahd);
 void		ahd_release_seeprom(struct ahd_softc *ahd);
@@ -1189,20 +1225,20 @@ struct ahd_softc {
 	int			  seltime;
 
 	/*
-	 * Interrupt coalessing settings.
+	 * Interrupt coalescing settings.
 	 */
-#define	AHD_INT_COALESSING_TIMER_DEFAULT		250 /*us*/
-#define	AHD_INT_COALESSING_MAXCMDS_DEFAULT		10
-#define	AHD_INT_COALESSING_MAXCMDS_MAX			127
-#define	AHD_INT_COALESSING_MINCMDS_DEFAULT		5
-#define	AHD_INT_COALESSING_MINCMDS_MAX			127
-#define	AHD_INT_COALESSING_THRESHOLD_DEFAULT		2000
-#define	AHD_INT_COALESSING_STOP_THRESHOLD_DEFAULT	1000
-	u_int			  int_coalessing_timer;
-	u_int			  int_coalessing_maxcmds;
-	u_int			  int_coalessing_mincmds;
-	u_int			  int_coalessing_threshold;
-	u_int			  int_coalessing_stop_threshold;
+#define	AHD_INT_COALESCING_TIMER_DEFAULT		250 /*us*/
+#define	AHD_INT_COALESCING_MAXCMDS_DEFAULT		10
+#define	AHD_INT_COALESCING_MAXCMDS_MAX			127
+#define	AHD_INT_COALESCING_MINCMDS_DEFAULT		5
+#define	AHD_INT_COALESCING_MINCMDS_MAX			127
+#define	AHD_INT_COALESCING_THRESHOLD_DEFAULT		2000
+#define	AHD_INT_COALESCING_STOP_THRESHOLD_DEFAULT	1000
+	u_int			  int_coalescing_timer;
+	u_int			  int_coalescing_maxcmds;
+	u_int			  int_coalescing_mincmds;
+	u_int			  int_coalescing_threshold;
+	u_int			  int_coalescing_stop_threshold;
 
 	uint16_t	 	  user_discenable;/* Disconnection allowed  */
 	uint16_t		  user_tagenable;/* Tagged Queuing allowed */
@@ -1321,14 +1357,16 @@ int			 ahd_softc_init(struct ahd_softc *);
 void			 ahd_controller_info(struct ahd_softc *ahd, char *buf);
 int			 ahd_init(struct ahd_softc *ahd);
 int			 ahd_default_config(struct ahd_softc *ahd);
+int			 ahd_parse_vpddata(struct ahd_softc *ahd,
+					   struct vpd_config *vpd);
 int			 ahd_parse_cfgdata(struct ahd_softc *ahd,
 					   struct seeprom_config *sc);
 void			 ahd_intr_enable(struct ahd_softc *ahd, int enable);
-void			 ahd_update_coalessing_values(struct ahd_softc *ahd,
+void			 ahd_update_coalescing_values(struct ahd_softc *ahd,
 						      u_int timer,
 						      u_int maxcmds,
 						      u_int mincmds);
-void			 ahd_enable_coalessing(struct ahd_softc *ahd,
+void			 ahd_enable_coalescing(struct ahd_softc *ahd,
 					       int enable);
 void			 ahd_pause_and_flushwork(struct ahd_softc *ahd);
 int			 ahd_suspend(struct ahd_softc *ahd); 
@@ -1341,13 +1379,13 @@ struct scb		*ahd_get_scb(struct ahd_softc *ahd, u_int col_idx);
 void			 ahd_free_scb(struct ahd_softc *ahd, struct scb *scb);
 void			 ahd_alloc_scbs(struct ahd_softc *ahd);
 void			 ahd_free(struct ahd_softc *ahd);
-int			 ahd_reset(struct ahd_softc *ahd);
+int			 ahd_reset(struct ahd_softc *ahd, int reinit);
 void			 ahd_shutdown(void *arg);
-int			ahd_write_flexport(struct ahd_softc *ahd,
-					   u_int addr, u_int value);
-int			ahd_read_flexport(struct ahd_softc *ahd, u_int addr,
-					  uint8_t *value);
-int			ahd_wait_flexport(struct ahd_softc *ahd);
+int			 ahd_write_flexport(struct ahd_softc *ahd,
+					    u_int addr, u_int value);
+int			 ahd_read_flexport(struct ahd_softc *ahd, u_int addr,
+					   uint8_t *value);
+int			 ahd_wait_flexport(struct ahd_softc *ahd);
 
 /*************************** Interrupt Services *******************************/
 void			ahd_pci_intr(struct ahd_softc *ahd);
@@ -1476,7 +1514,7 @@ extern uint32_t ahd_debug;
 #define AHD_SHOW_QUEUE		0x02000
 #define AHD_SHOW_TQIN		0x04000
 #define AHD_SHOW_SG		0x08000
-#define AHD_SHOW_INT_COALESSING	0x10000
+#define AHD_SHOW_INT_COALESCING	0x10000
 #define AHD_DEBUG_SEQUENCER	0x20000
 #endif
 void			ahd_print_scb(struct scb *scb);

@@ -28,7 +28,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $Id: //depot/aic7xxx/freebsd/dev/aic7xxx/aic7xxx_osm.c#12 $
+ * $Id: //depot/aic7xxx/freebsd/dev/aic7xxx/aic7xxx_osm.c#13 $
  *
  * $FreeBSD$
  */
@@ -1386,7 +1386,8 @@ ahc_setup_data(struct ahc_softc *ahc, struct cam_sim *sim,
 					panic("ahc_setup_data - Transfer size "
 					      "larger than can device max");
 
-				seg.ds_addr = (bus_addr_t)csio->data_ptr;
+				seg.ds_addr =
+				    (bus_addr_t)(vm_offset_t)csio->data_ptr;
 				seg.ds_len = csio->dxfer_len;
 				ahc_execute_scb(scb, &seg, 1, 0);
 			}

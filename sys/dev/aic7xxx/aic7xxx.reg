@@ -39,7 +39,7 @@
  *
  * $FreeBSD$
  */
-VERSION = "$Id: //depot/aic7xxx/aic7xxx/aic7xxx.reg#37 $"
+VERSION = "$Id: //depot/aic7xxx/aic7xxx/aic7xxx.reg#39 $"
 
 /*
  * This file is processed by the aic7xxx_asm utility for use in assembling
@@ -1080,7 +1080,8 @@ scb {
 		mask	OID				0x0f
 	}
 	SCB_LUN {
-		mask	LID				0xff
+		field	SCB_XFERLEN_ODD			0x80
+		mask	LID				0x3f
 		size	1
 	}
 	SCB_TAG {
@@ -1239,7 +1240,6 @@ register SG_CACHE_PRE {
 	access_mode WO
 	address			0x0fc
 	mask	SG_ADDR_MASK	0xf8
-	field	ODD_SEG		0x04
 	field	LAST_SEG	0x02
 	field	LAST_SEG_DONE	0x01
 }
@@ -1248,7 +1248,6 @@ register SG_CACHE_SHADOW {
 	access_mode RO
 	address			0x0fc
 	mask	SG_ADDR_MASK	0xf8
-	field	ODD_SEG		0x04
 	field	LAST_SEG	0x02
 	field	LAST_SEG_DONE	0x01
 }
@@ -1478,14 +1477,6 @@ scratch_ram {
 		field	ENAUTOATNI	0x04
 		field	ENAUTOATNP	0x02
 	}
-
-	/*
-	 * Track whether the transfer byte count for
-	 * the current data phase is odd.
-	 */
-	DATA_COUNT_ODD {
-		size		1
-	}
 }
 
 scratch_ram {
@@ -1580,7 +1571,7 @@ const BUS_32_BIT		0x02
 const MAX_OFFSET_8BIT		0x0f
 const MAX_OFFSET_16BIT		0x08
 const MAX_OFFSET_ULTRA2		0x7f
-const MAX_OFFSET		0xff
+const MAX_OFFSET		0x7f
 const HOST_MSG			0xff
 
 /* Target mode command processing constants */

@@ -39,7 +39,7 @@
  *
  * $FreeBSD$
  */
-VERSION = "$Id: aic79xx.reg,v 1.2.2.4 2003/03/07 23:20:36 gibbs Exp $"
+VERSION = "$Id: //depot/aic7xxx/aic7xxx/aic79xx.reg#70 $"
 
 /*
  * This file is processed by the aic7xxx_asm utility for use in assembling
@@ -194,7 +194,8 @@ register SEQINTCODE {
 		TRACEPOINT1,
 		TRACEPOINT2,
 		TRACEPOINT3,
-		SAW_HWERR
+		SAW_HWERR,
+		BAD_SCB_STATUS
 	}
 }
 
@@ -285,7 +286,7 @@ register HS_MAILBOX {
 	address			0x00B
 	access_mode	RW
 	mask	HOST_TQINPOS	0x80	/* Boundary at either 0 or 128 */
-	mask	ENINT_COALESS	0x40	/* Perform interrupt coalessing */
+	mask	ENINT_COALESCE	0x40	/* Perform interrupt coalescing */
 }
 
 /*
@@ -1376,7 +1377,10 @@ register LUNLEN {
 	address			0x030
 	access_mode	RW
 	modes		M_CFG
+	mask		ILUNLEN	0x0F
+	mask		TLUNLEN	0xF0
 }
+const LUNLEN_SINGLE_LEVEL_LUN 0xF
 
 /*
  * CDB Limit
@@ -3484,9 +3488,6 @@ scratch_ram {
 	LONGJMP_ADDR {
 		size		2
 	}
-	LONGJMP_SCB {
-		size		2
-	}
 	ACCUM_SAVE {
 		size		1
 	}
@@ -3706,28 +3707,28 @@ scratch_ram {
 	}
 
 	/*
-	 * The maximum amount of time to wait, when interrupt coalessing
+	 * The maximum amount of time to wait, when interrupt coalescing
 	 * is enabled, before issueing a CMDCMPLT interrupt for a completed
 	 * command.
 	 */
-	INT_COALESSING_TIMER {
+	INT_COALESCING_TIMER {
 		size		2
 	}
 
 	/*
-	 * The maximum number of commands to coaless into a single interrupt.
+	 * The maximum number of commands to coalesce into a single interrupt.
 	 * Actually the 2's complement of that value to simplify sequencer
 	 * code.
 	 */
-	INT_COALESSING_MAXCMDS {
+	INT_COALESCING_MAXCMDS {
 		size		1
 	}
 
 	/*
 	 * The minimum number of commands still outstanding required
-	 * to continue coalessing (2's complement of value).
+	 * to continue coalescing (2's complement of value).
 	 */
-	INT_COALESSING_MINCMDS {
+	INT_COALESCING_MINCMDS {
 		size		1
 	}
 
@@ -3739,9 +3740,9 @@ scratch_ram {
 	}
 
 	/*
-	 * The count of commands that have been coalessed.
+	 * The count of commands that have been coalesced.
 	 */
-	INT_COALESSING_CMDCOUNT {
+	INT_COALESCING_CMDCOUNT {
 		size		1
 	}
 
@@ -3800,7 +3801,35 @@ scb {
 		alias	SCB_NEXT_COMPLETE
 	}
 	SCB_TAG {
+		alias	SCB_FIFO_USE_COUNT
 		size	2
+	}
+	SCB_CONTROL {
+		size	1
+		field	TARGET_SCB	0x80
+		field	DISCENB		0x40
+		field	TAG_ENB		0x20
+		field	MK_MESSAGE	0x10
+		field	STATUS_RCVD	0x08
+		field	DISCONNECTED	0x04
+		field	SCB_TAG_TYPE	0x03
+	}
+	SCB_SCSIID {
+		size	1
+		field	TID	0xF0
+		field	OID	0x0F
+	}
+	SCB_LUN {
+		size	1
+		field	LID	0xff
+	}
+	SCB_TASK_ATTRIBUTE {
+		size	1
+		/*
+		 * Overloaded field for non-packetized 
+		 * ignore wide residue message handling.
+		 */
+		field	SCB_XFERLEN_ODD	0x01
 	}
 	SCB_CDB_LEN {
 		size	1
@@ -3808,13 +3837,6 @@ scb {
 	}
 	SCB_TASK_MANAGEMENT {
 		size	1
-	}
-	SCB_NEXT {
-		alias	SCB_NEXT_SCB_BUSADDR
-		size	2
-	}
-	SCB_NEXT2 {
-		size	2
 	}
 	SCB_DATAPTR {
 		size	8
@@ -3834,30 +3856,15 @@ scb {
 		field	SG_FULL_RESID	0x02	/* In the first byte */
 		field	SG_LIST_NULL	0x01	/* In the first byte */
 	}
-	SCB_CONTROL {
-		size	1
-		field	TARGET_SCB	0x80
-		field	DISCENB		0x40
-		field	TAG_ENB		0x20
-		field	MK_MESSAGE	0x10
-		field	STATUS_RCVD	0x08
-		field	DISCONNECTED	0x04
-		field	SCB_TAG_TYPE	0x03
-	}
-	SCB_SCSIID {
-		size	1
-		field	TID	0xF0
-		field	OID	0x0F
-	}
-	SCB_LUN {
-		size	1
-		field	LID				0xff
-	}
-	SCB_TASK_ATTRIBUTE {
-		size	1
-	}
 	SCB_BUSADDR {
 		size	4
+	}
+	SCB_NEXT {
+		alias	SCB_NEXT_SCB_BUSADDR
+		size	2
+	}
+	SCB_NEXT2 {
+		size	2
 	}
 	SCB_SPARE {
 		size	8

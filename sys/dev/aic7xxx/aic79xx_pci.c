@@ -38,7 +38,7 @@
  * IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
  * POSSIBILITY OF SUCH DAMAGES.
  *
- * $Id: //depot/aic7xxx/aic7xxx/aic79xx_pci.c#67 $
+ * $Id: //depot/aic7xxx/aic7xxx/aic79xx_pci.c#75 $
  *
  * $FreeBSD$
  */
@@ -65,28 +65,29 @@ ahd_compose_id(u_int device, u_int vendor, u_int subdevice, u_int subvendor)
 }
 
 #define ID_ALL_MASK			0xFFFFFFFFFFFFFFFFull
+#define ID_ALL_IROC_MASK		0xFFFFFF7FFFFFFFFFull
 #define ID_DEV_VENDOR_MASK		0xFFFFFFFF00000000ull
 #define ID_9005_GENERIC_MASK		0xFFF0FFFF00000000ull
+#define ID_9005_GENERIC_IROC_MASK	0xFFF0FF7F00000000ull
 
 #define ID_AIC7901			0x800F9005FFFF9005ull
-#define ID_AIC7901A			0x801E9005FFFF9005ull
-#define ID_AIC7901A_IROC		0x809E9005FFFF9005ull
 #define ID_AHA_29320A			0x8000900500609005ull
+#define ID_AHA_29320ALP			0x8017900500449005ull
+
+#define ID_AIC7901A			0x801E9005FFFF9005ull
+#define ID_AHA_29320			0x8012900500429005ull
+#define ID_AHA_29320B			0x8013900500439005ull
 #define ID_AHA_29320LP			0x8014900500449005ull
-#define ID_AHA_29320LP_IROC		0x8094900500449005ull
 
 #define ID_AIC7902			0x801F9005FFFF9005ull
-#define ID_AIC7902_IROC			0x809F9005FFFF9005ull
 #define ID_AIC7902_B			0x801D9005FFFF9005ull
-#define ID_AIC7902_B_IROC		0x809D9005FFFF9005ull
 #define ID_AHA_39320			0x8010900500409005ull
+#define ID_AHA_39320_B			0x8015900500409005ull
 #define ID_AHA_39320A			0x8016900500409005ull
 #define ID_AHA_39320D			0x8011900500419005ull
 #define ID_AHA_39320D_B			0x801C900500419005ull
 #define ID_AHA_39320D_HP		0x8011900500AC0E11ull
 #define ID_AHA_39320D_B_HP		0x801C900500AC0E11ull
-#define ID_AHA_29320			0x8012900500429005ull
-#define ID_AHA_29320B			0x8013900500439005ull
 #define ID_AIC7902_PCI_REV_A4		0x3
 #define ID_AIC7902_PCI_REV_B0		0x10
 #define SUBID_HP			0x0E11
@@ -113,27 +114,53 @@ ahd_compose_id(u_int device, u_int vendor, u_int subdevice, u_int subvendor)
 #define		SUBID_9005_SEEPTYPE_NONE	0x0
 #define		SUBID_9005_SEEPTYPE_4K		0x1
 
+static ahd_device_setup_t ahd_aic7901_setup;
 static ahd_device_setup_t ahd_aic7901A_setup;
 static ahd_device_setup_t ahd_aic7902_setup;
 
 struct ahd_pci_identity ahd_pci_ident_table [] =
 {
+	/* aic7901 based controllers */
+	{
+		ID_AHA_29320A,
+		ID_ALL_MASK,
+		"Adaptec 29320A Ultra320 SCSI adapter",
+		ahd_aic7901_setup
+	},
+	{
+		ID_AHA_29320ALP,
+		ID_ALL_MASK,
+		"Adaptec 29320ALP Ultra320 SCSI adapter",
+		ahd_aic7901_setup
+	},
 	/* aic7901A based controllers */
+	{
+		ID_AHA_29320,
+		ID_ALL_MASK,
+		"Adaptec 29320 Ultra320 SCSI adapter",
+		ahd_aic7901A_setup
+	},
+	{
+		ID_AHA_29320B,
+		ID_ALL_MASK,
+		"Adaptec 29320B Ultra320 SCSI adapter",
+		ahd_aic7901A_setup
+	},
 	{
 		ID_AHA_29320LP,
 		ID_ALL_MASK,
 		"Adaptec 29320LP Ultra320 SCSI adapter",
 		ahd_aic7901A_setup
 	},
-	{
-		ID_AHA_29320A,
-		ID_ALL_MASK,
-		"Adaptec 29320A Ultra320 SCSI adapter",
-		ahd_aic7901A_setup
-	},
 	/* aic7902 based controllers */	
 	{
 		ID_AHA_39320,
+		ID_ALL_MASK,
+		"Adaptec 39320 Ultra320 SCSI adapter",
+		ahd_aic7902_setup
+	},
+	{
+		ID_AHA_39320_B,
 		ID_ALL_MASK,
 		"Adaptec 39320 Ultra320 SCSI adapter",
 		ahd_aic7902_setup
@@ -181,6 +208,12 @@ struct ahd_pci_identity ahd_pci_ident_table [] =
 		ahd_aic7902_setup
 	},
 	/* Generic chip probes for devices we don't know 'exactly' */
+	{
+		ID_AIC7901 & ID_DEV_VENDOR_MASK,
+		ID_DEV_VENDOR_MASK,
+		"Adaptec AIC7901 Ultra320 SCSI adapter",
+		ahd_aic7901_setup
+	},
 	{
 		ID_AIC7901A & ID_DEV_VENDOR_MASK,
 		ID_DEV_VENDOR_MASK,
@@ -332,9 +365,9 @@ ahd_pci_config(struct ahd_softc *ahd, struct ahd_pci_identity *entry)
 	}
 	
 	/* Ensure busmastering is enabled */
-	command = ahd_pci_read_config(ahd->dev_softc, PCIR_COMMAND, /*bytes*/1);
+	command = ahd_pci_read_config(ahd->dev_softc, PCIR_COMMAND, /*bytes*/2);
 	command |= PCIM_CMD_BUSMASTEREN;
-	ahd_pci_write_config(ahd->dev_softc, PCIR_COMMAND, command, /*bytes*/1);
+	ahd_pci_write_config(ahd->dev_softc, PCIR_COMMAND, command, /*bytes*/2);
 
 	error = ahd_softc_init(ahd);
 	if (error != 0)
@@ -342,7 +375,7 @@ ahd_pci_config(struct ahd_softc *ahd, struct ahd_pci_identity *entry)
 
 	ahd->bus_intr = ahd_pci_intr;
 
-	error = ahd_reset(ahd);
+	error = ahd_reset(ahd, /*reinit*/FALSE);
 	if (error != 0)
 		return (ENXIO);
 
@@ -385,9 +418,11 @@ ahd_pci_config(struct ahd_softc *ahd, struct ahd_pci_identity *entry)
 int
 ahd_pci_test_register_access(struct ahd_softc *ahd)
 {
-	uint32_t	cmd;
-	int		error;
-	uint8_t		hcntrl;
+	uint32_t cmd;
+	u_int	 targpcistat;
+	u_int	 pci_status1;
+	int	 error;
+	uint8_t	 hcntrl;
 
 	error = EIO;
 
@@ -421,6 +456,18 @@ ahd_pci_test_register_access(struct ahd_softc *ahd)
 	ahd_outb(ahd, HCNTRL, hcntrl|PAUSE);
 	while (ahd_is_paused(ahd) == 0)
 		;
+
+	/* Clear any PCI errors that occurred before our driver attached. */
+	ahd_set_modes(ahd, AHD_MODE_CFG, AHD_MODE_CFG);
+	targpcistat = ahd_inb(ahd, TARGPCISTAT);
+	ahd_outb(ahd, TARGPCISTAT, targpcistat);
+	pci_status1 = ahd_pci_read_config(ahd->dev_softc,
+					  PCIR_STATUS + 1, /*bytes*/1);
+	ahd_pci_write_config(ahd->dev_softc, PCIR_STATUS + 1,
+			     pci_status1, /*bytes*/1);
+	ahd_set_modes(ahd, AHD_MODE_SCSI, AHD_MODE_SCSI);
+	ahd_outb(ahd, CLRINT, CLRPCIINT);
+
 	ahd_outb(ahd, SEQCTL0, PERRORDIS);
 	ahd_outl(ahd, SRAM_BASE, 0x5aa555aa);
 	if (ahd_inl(ahd, SRAM_BASE) != 0x5aa555aa)
@@ -439,8 +486,6 @@ ahd_pci_test_register_access(struct ahd_softc *ahd)
 
 fail:
 	if ((ahd_inb(ahd, INTSTAT) & PCIINT) != 0) {
-		u_int targpcistat;
-		u_int pci_status1;
 
 		ahd_set_modes(ahd, AHD_MODE_CFG, AHD_MODE_CFG);
 		targpcistat = ahd_inb(ahd, TARGPCISTAT);
@@ -453,7 +498,6 @@ fail:
 				     pci_status1, /*bytes*/1);
 		ahd_outb(ahd, CLRINT, CLRPCIINT);
 	}
-
 	ahd_outb(ahd, SEQCTL0, PERRORDIS|FAILDIS);
 	ahd_pci_write_config(ahd->dev_softc, PCIR_COMMAND, cmd, /*bytes*/2);
 	return (error);
@@ -466,6 +510,7 @@ fail:
 static int
 ahd_check_extport(struct ahd_softc *ahd)
 {
+	struct	vpd_config vpd;
 	struct	seeprom_config *sc;
 	u_int	adapter_control;
 	int	have_seeprom;
@@ -476,6 +521,27 @@ ahd_check_extport(struct ahd_softc *ahd)
 	if (have_seeprom) {
 		u_int start_addr;
 
+		/*
+		 * Fetch VPD for this function and parse it.
+		 */
+		if (bootverbose) 
+			printf("%s: Reading VPD from SEEPROM...",
+			       ahd_name(ahd));
+
+		/* Address is always in units of 16bit words */
+		start_addr = ((2 * sizeof(*sc))
+			    + (sizeof(vpd) * (ahd->channel - 'A'))) / 2;
+
+		error = ahd_read_seeprom(ahd, (uint16_t *)&vpd,
+					 start_addr, sizeof(vpd)/2,
+					 /*bytestream*/TRUE);
+		if (error == 0)
+			error = ahd_parse_vpddata(ahd, &vpd);
+		if (bootverbose) 
+			printf("%s: VPD parsing %s\n",
+			       ahd_name(ahd),
+			       error == 0 ? "successful" : "failed");
+
 		if (bootverbose) 
 			printf("%s: Reading SEEPROM...", ahd_name(ahd));
 
@@ -483,7 +549,8 @@ ahd_check_extport(struct ahd_softc *ahd)
 		start_addr = (sizeof(*sc) / 2) * (ahd->channel - 'A');
 
 		error = ahd_read_seeprom(ahd, (uint16_t *)sc,
-					 start_addr, sizeof(*sc)/2);
+					 start_addr, sizeof(*sc)/2,
+					 /*bytestream*/FALSE);
 
 		if (error != 0) {
 			printf("Unable to read SEEPROM\n");
@@ -542,14 +609,13 @@ ahd_check_extport(struct ahd_softc *ahd)
 #if AHD_DEBUG
 	if (have_seeprom != 0
 	 && (ahd_debug & AHD_DUMP_SEEPROM) != 0) {
-		uint8_t *sc_data;
-		int	 i;
+		uint16_t *sc_data;
+		int	  i;
 
 		printf("%s: Seeprom Contents:", ahd_name(ahd));
-		sc_data = (uint8_t *)sc;
+		sc_data = (uint16_t *)sc;
 		for (i = 0; i < (sizeof(*sc)); i += 2)
-			printf("\n\t0x%.4x", 
-			       sc_data[i] | (sc_data[i+1] << 8));
+			printf("\n\t0x%.4x", sc_data[i]);
 		printf("\n");
 	}
 #endif
@@ -803,7 +869,7 @@ ahd_pci_split_intr(struct ahd_softc *ahd, u_int intstat)
 		/* Clear latched errors.  So our interrupt deasserts. */
 		ahd_outb(ahd, DCHSPLTSTAT0, split_status[i]);
 		ahd_outb(ahd, DCHSPLTSTAT1, split_status1[i]);
-		if (i != 0)
+		if (i > 1)
 			continue;
 		sg_split_status[i] = ahd_inb(ahd, SGSPLTSTAT0);
 		sg_split_status1[i] = ahd_inb(ahd, SGSPLTSTAT1);
@@ -825,7 +891,7 @@ ahd_pci_split_intr(struct ahd_softc *ahd, u_int intstat)
 				       split_status_source[i]);
 			}
 
-			if (i != 0)
+			if (i > 1)
 				continue;
 
 			if ((sg_split_status[i] & (0x1 << bit)) != 0) {
@@ -843,6 +909,18 @@ ahd_pci_split_intr(struct ahd_softc *ahd, u_int intstat)
 			     pcix_status, /*bytes*/2);
 	ahd_outb(ahd, CLRINT, CLRSPLTINT);
 	ahd_restore_modes(ahd, saved_modes);
+}
+
+static int
+ahd_aic7901_setup(struct ahd_softc *ahd)
+{
+	int error;
+
+	error = ahd_aic7902_setup(ahd);
+	if (error != 0)
+		return (error);
+	ahd->chip = AHD_AIC7901;
+	return (0);
 }
 
 static int
@@ -868,7 +946,7 @@ ahd_aic7902_setup(struct ahd_softc *ahd)
 	if (rev < ID_AIC7902_PCI_REV_A4) {
 		printf("%s: Unable to attach to unsupported chip revision %d\n",
 		       ahd_name(ahd), rev);
-		ahd_pci_write_config(pci, PCIR_COMMAND, 0, /*bytes*/1);
+		ahd_pci_write_config(pci, PCIR_COMMAND, 0, /*bytes*/2);
 		return (ENXIO);
 	}
 	ahd->channel = ahd_get_pci_function(pci) + 'A';
@@ -887,7 +965,8 @@ ahd_aic7902_setup(struct ahd_softc *ahd)
 			  |  AHD_PKTIZED_STATUS_BUG|AHD_PKT_LUN_BUG
 			  |  AHD_MDFF_WSCBPTR_BUG|AHD_REG_SLOW_SETTLE_BUG
 			  |  AHD_SET_MODE_BUG|AHD_BUSFREEREV_BUG
-			  |  AHD_NONPACKFIFO_BUG|AHD_PACED_NEGTABLE_BUG;
+			  |  AHD_NONPACKFIFO_BUG|AHD_PACED_NEGTABLE_BUG
+			  |  AHD_FAINT_LED_BUG;
 
 		/*
 		 * IO Cell paramter setup.
