@@ -302,15 +302,15 @@ index_parse(FILE *fp, char *name, char *pathto, char *prefix, char *comment, cha
     if (i <= 0)
 	return EOF;
     cp = line;
-    cp += copy_to_sep(name, cp, '|');
-    cp += copy_to_sep(pathto, cp, '|');
-    cp += copy_to_sep(prefix, cp, '|');
-    cp += copy_to_sep(comment, cp, '|');
-    cp += copy_to_sep(descr, cp, '|');
-    cp += copy_to_sep(maint, cp, '|');
-    cp += copy_to_sep(cats, cp, '|');
-    cp += copy_to_sep(junk, cp, '|');	/* build deps - not used */
-    cp += copy_to_sep(rdeps, cp, '|');
+    cp += copy_to_sep(name, cp, '|');		/* package name */
+    cp += copy_to_sep(pathto, cp, '|');		/* ports directory */
+    cp += copy_to_sep(prefix, cp, '|');		/* prefix */
+    cp += copy_to_sep(comment, cp, '|');	/* comment */
+    cp += copy_to_sep(descr, cp, '|');		/* path to pkg-descr */
+    cp += copy_to_sep(maint, cp, '|');		/* maintainer */
+    cp += copy_to_sep(cats, cp, '|');		/* categories */
+    cp += copy_to_sep(junk, cp, '|');		/* build deps - not used */
+    cp += copy_to_sep(rdeps, cp, '|');		/* run deps */
     if (index(cp, '|'))
         cp += copy_to_sep(junk, cp, '|');	/* url - not used */
     else {
@@ -318,6 +318,12 @@ index_parse(FILE *fp, char *name, char *pathto, char *prefix, char *comment, cha
 	*volume = 0;
 	return 0;
     }
+    if (index(cp, '|'))
+	cp += copy_to_sep(junk, cp, '|');	/* extract deps - not used */
+    if (index(cp, '|'))
+	cp += copy_to_sep(junk, cp, '|');	/* patch deps - not used */
+    if (index(cp, '|'))
+	cp += copy_to_sep(junk, cp, '|');	/* fetch deps - not used */
     if (index(cp, '|'))
         cp += copy_to_sep(volstr, cp, '|');	/* media volume */
     else {
