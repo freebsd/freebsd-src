@@ -8,13 +8,19 @@ SRCS=	chpass.c edit.c field.c pw_scan.c table.c util.c
 BINOWN=	root
 BINMODE=4555
 WARNS?=	5
-CFLAGS+=-DYP
+.if !defined(NO_NIS)
+CFLAGS+= -DYP
+.endif
 #Some people need this, uncomment to activate
 #CFLAGS+=-DRESTRICT_FULLNAME_CHANGE
 CFLAGS+=-I${.CURDIR}/../../usr.sbin/pwd_mkdb -I${.CURDIR}/../../lib/libc/gen -I.
 
-DPADD=	${LIBCRYPT} ${LIBUTIL} ${LIBYPCLNT}
-LDADD=	-lcrypt -lutil -lypclnt
+DPADD=	${LIBCRYPT} ${LIBUTIL}
+LDADD=	-lcrypt -lutil
+.if !defined(NO_NIS)
+DPADD+=	${LIBYPCLNT}
+LDADD+=	-lypclnt
+.endif 
 
 LINKS=	${BINDIR}/chpass ${BINDIR}/chfn
 LINKS+=	${BINDIR}/chpass ${BINDIR}/chsh

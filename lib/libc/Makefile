@@ -60,7 +60,7 @@ NOASM=
 .if ${MACHINE_ARCH} == "arm"
 .include "${.CURDIR}/softfloat/Makefile.inc"
 .endif
-.if !defined(NO_YP_LIBC)
+.if !defined(NO_NIS)
 CFLAGS+= -DYP
 .include "${.CURDIR}/yp/Makefile.inc"
 .endif

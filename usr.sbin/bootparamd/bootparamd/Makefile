@@ -7,6 +7,9 @@ SRCS=	bootparamd.c main.c ${GENSRCS}
 GENSRCS=bootparam_prot.h bootparam_prot_svc.c bootparam_prot_xdr.c
 
 CFLAGS+= -DTFTP_DIR=\"/tftpboot\" -I.
+.if !defined(NO_NIS)
+CFLAGS+= -DYP
+.endif
 
 CLEANFILES= ${GENSRCS}
 

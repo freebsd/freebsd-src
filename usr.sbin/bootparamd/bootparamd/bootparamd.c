@@ -12,9 +12,11 @@ static const char rcsid[] =
   "$FreeBSD$";
 #endif /* not lint */
 
+#ifdef YP
 #include <rpc/rpc.h>
 #include <rpcsvc/yp_prot.h>
 #include <rpcsvc/ypclnt.h>
+#endif
 #include "bootparam_prot.h"
 #include <ctype.h>
 #include <err.h>
@@ -191,7 +193,9 @@ int blen;
   char  *where;
   static char *result;
   int resultlen;
+#ifdef YP
   static char *yp_domain;
+#endif
 
   int ch, pch, fid_len, res = 0;
   int match = 0;
@@ -212,6 +216,7 @@ int blen;
       }
     }
     if (*hostname == '+' ) { /* NIS */
+#ifdef YP
       if (yp_get_default_domain(&yp_domain)) {
 	 if (debug) warn("NIS");
 	 return(0);
@@ -230,6 +235,9 @@ int blen;
       if (fclose(bpf))
         warnx("could not close %s", bootpfile);
       return(1);
+#else
+      return(0);	/* ENOTSUP */
+#endif
     }
     /* skip to next entry */
     if ( match ) break;
@@ -288,7 +296,9 @@ int len;
   int res = 0;
   static char *result;
   int resultlen;
+#ifdef YP
   static char *yp_domain;
+#endif
 
 /*  struct hostent *cmp_he;*/
 
@@ -315,6 +325,7 @@ int len;
       }
     }
     if (*hostname == '+' ) { /* NIS */
+#ifdef YP
       if (yp_get_default_domain(&yp_domain)) {
 	 if (debug) warn("NIS");
 	 return(0);
@@ -332,6 +343,9 @@ int len;
       if (fclose(bpf))
         warnx("could not close %s", bootpfile);
       return(res);
+#else
+      return(0);	/* ENOTSUP */
+#endif
     }
     /* skip to next entry */
     pch = ch = getc(bpf);

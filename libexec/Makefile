@@ -12,7 +12,7 @@ SUBDIR=	atrun \
 	${_lukemftpd} \
 	${_mail.local} \
 	makekey \
-	mknetid \
+	${_mknetid} \
 	pppoed \
 	pt_chown \
 	rbootd \
@@ -32,7 +32,12 @@ SUBDIR=	atrun \
 	tcpd \
 	telnetd \
 	tftpd \
-	ypxfr
+	${_ypxfr}
+
+.if !defined(NO_NIS)
+_mknetid=	mknetid
+_ypxfr=		ypxfr
+.endif
 
 .if !defined(NO_PF)
 _ftp-proxy=	ftp-proxy
