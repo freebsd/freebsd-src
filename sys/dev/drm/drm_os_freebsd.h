@@ -275,9 +275,9 @@ for ( ret = 0 ; !ret && !(condition) ; ) {		\
 #define DRM_COPY_TO_USER_UNCHECKED(arg1, arg2, arg3)	\
 	copyout(arg2, arg1, arg3)
 #define DRM_GET_USER_UNCHECKED(val, uaddr)			\
-	((val) = fuword(uaddr), 0)
+	((val) = fuword32(uaddr), 0)
 #define DRM_PUT_USER_UNCHECKED(uaddr, val)			\
-	suword(uaddr, val)
+	suword32(uaddr, val)
 
 /* DRM_READMEMORYBARRIER() prevents reordering of reads.
  * DRM_WRITEMEMORYBARRIER() prevents reordering of writes.
@@ -294,11 +294,10 @@ for ( ret = 0 ; !ret && !(condition) ; ) {		\
 #define DRM_WRITEMEMORYBARRIER()	alpha_wmb();
 #define DRM_MEMORYBARRIER()		alpha_mb();
 #elif defined(__amd64__)
-#define DRM_READMEMORYBARRIER()		__asm __volatile( \
-					"lock; addl $0,0(%%rsp)" : : : "memory");
-#define DRM_WRITEMEMORYBARRIER()	__asm __volatile("" : : : "memory");
-#define DRM_MEMORYBARRIER()		__asm __volatile( \
-					"lock; addl $0,0(%%rsp)" : : : "memory");
+//#warning FIX-ME!!!
+#define DRM_READMEMORYBARRIER()		__asm __volatile("lfence" ::: "memory");
+#define DRM_WRITEMEMORYBARRIER()	__asm __volatile("sfence" ::: "memory");
+#define DRM_MEMORYBARRIER()		__asm __volatile("mfence" ::: "memory");
 #endif
 
 #define PAGE_ALIGN(addr) round_page(addr)
