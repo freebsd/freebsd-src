@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: dispatch.c,v 1.20 1997/07/16 05:22:40 jkh Exp $
+ * $Id: dispatch.c,v 1.21 1997/08/11 13:08:18 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -39,7 +39,8 @@
 
 static int _shutdown(dialogMenuItem *unused);
 static int _systemExecute(dialogMenuItem *unused);
-    
+static int _loadConfig(dialogMenuItem *unused);
+
 static struct _word {
     char *name;
     int (*handler)(dialogMenuItem *self);
@@ -82,6 +83,7 @@ static struct _word {
     { "installFixitFloppy",	installFixitFloppy	},
     { "installFilesystems",	installFilesystems	},
     { "installVarDefaults",	installVarDefaults	},
+    { "loadConfig",		_loadConfig		},
     { "mediaSetCDROM",		mediaSetCDROM		},
     { "mediaSetFloppy",		mediaSetFloppy		},
     { "mediaSetDOS",		mediaSetDOS		},
@@ -138,6 +140,35 @@ _systemExecute(dialogMenuItem *unused)
     else
 	msgDebug("_systemExecute: No command passed in `command' variable.\n");
     return DITEM_FAILURE;
+}
+
+static int
+_loadConfig(dialogMenuItem *unused)
+{
+    FILE *fp;
+    char *cp, buf[BUFSIZ];
+    int i = DITEM_SUCCESS;
+
+    cp = variable_get("file");
+    if ((!cp || (fp = fopen(cp, "r")) == NULL) &&
+	(fp = fopen("install.cfg", "r")) == NULL &&
+	(fp = fopen("/stand/install.cfg", "r")) == NULL &&
+	(fp = fopen("/tmp/install.cfg", "r")) == NULL) {
+	msgConfirm("Unable to locate an install.cfg file in $CWD, /stand or /tmp.");
+	i =  DITEM_FAILURE;
+    }
+    else {
+    	variable_set2(VAR_NONINTERACTIVE, "YES");
+    	while (fgets(buf, sizeof buf, fp)) {
+	    if ((i = DITEM_STATUS(dispatchCommand(buf))) != DITEM_SUCCESS) {
+		msgDebug("Command `%s' failed - rest of script aborted.\n", buf);
+		break;
+	    }
+	}
+    }
+    fclose(fp);
+    variable_unset(VAR_NONINTERACTIVE);
+    return i;
 }
 
 /* For a given string, call it or spit out an undefined command diagnostic */
