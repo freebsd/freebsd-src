@@ -6,7 +6,7 @@
  * this stuff is worth it, you can buy me a beer in return.   Poul-Henning Kamp
  * ----------------------------------------------------------------------------
  *
- * $Id: utils.c,v 1.21 1994/11/04 21:38:37 phk Exp $
+ * $Id: utils.c,v 1.22 1994/11/05 03:34:22 phk Exp $
  *
  */
 
@@ -345,4 +345,5 @@ SetMount(int disk, int part, char *path)
     Fsize[k] = (Dlbl[disk]->d_partitions[part].p_size+1024)/2048;
     
     MP[disk][part] = k;
+    return NULL;
 }
