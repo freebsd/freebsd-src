@@ -82,7 +82,7 @@ __FBSDID("$FreeBSD$");
 #   include <net/if_sppp.h>
 #   define PP_CISCO IFF_LINK2
 #   if __FreeBSD_version < 500000
-#       include <bpf.h>
+#	include <bpf.h>
 #   endif
 #   include <net/bpf.h>
 #   define NBPFILTER NBPF
@@ -731,19 +731,19 @@ static int ct_attach (device_t dev)
 #if __FreeBSD_version > 501000
 		if_initname (&d->pp.pp_if, "ct", b->num * NCHAN + c->num);
 #else
-		d->pp.pp_if.if_unit     = b->num * NCHAN + c->num;
-		d->pp.pp_if.if_name     = "ct";
+		d->pp.pp_if.if_unit	= b->num * NCHAN + c->num;
+		d->pp.pp_if.if_name	= "ct";
 #endif
-		d->pp.pp_if.if_mtu      = PP_MTU;
-		d->pp.pp_if.if_flags    = IFF_POINTOPOINT | IFF_MULTICAST;
-		d->pp.pp_if.if_ioctl    = ct_sioctl;
-		d->pp.pp_if.if_start    = ct_ifstart;
-		d->pp.pp_if.if_watchdog = ct_ifwatchdog;
-		d->pp.pp_if.if_init     = ct_initialize;
+		d->pp.pp_if.if_mtu	= PP_MTU;
+		d->pp.pp_if.if_flags	= IFF_POINTOPOINT | IFF_MULTICAST;
+		d->pp.pp_if.if_ioctl	= ct_sioctl;
+		d->pp.pp_if.if_start	= ct_ifstart;
+		d->pp.pp_if.if_watchdog	= ct_ifwatchdog;
+		d->pp.pp_if.if_init	= ct_initialize;
 		sppp_attach (&d->pp.pp_if);
 		if_attach (&d->pp.pp_if);
-		d->pp.pp_tlf            = ct_tlf;
-		d->pp.pp_tls            = ct_tls;
+		d->pp.pp_tlf		= ct_tlf;
+		d->pp.pp_tls		= ct_tls;
 		/* If BPF is in the kernel, call the attach for it.
 		 * Header size is 4 bytes. */
 		bpfattach (&d->pp.pp_if, DLT_PPP, 4);
@@ -855,14 +855,14 @@ static int ct_detach (device_t dev)
 #ifndef NETGRAPH
 static void ct_ifstart (struct ifnet *ifp)
 {
-        drv_t *d = ifp->if_softc;
+	drv_t *d = ifp->if_softc;
 
 	ct_start (d);
 }
 
 static void ct_ifwatchdog (struct ifnet *ifp)
 {
-        drv_t *d = ifp->if_softc;
+	drv_t *d = ifp->if_softc;
 
 	ct_watchdog (d);
 }
@@ -915,7 +915,7 @@ static int ct_sioctl (struct ifnet *ifp, u_long cmd, caddr_t data)
 		d->chan->debug = 1;
 
 	switch (cmd) {
-	default:           CT_DEBUG2 (d, ("ioctl 0x%lx\n", cmd)); return 0;
+	default:	   CT_DEBUG2 (d, ("ioctl 0x%lx\n", cmd)); return 0;
 	case SIOCADDMULTI: CT_DEBUG2 (d, ("SIOCADDMULTI\n"));     return 0;
 	case SIOCDELMULTI: CT_DEBUG2 (d, ("SIOCDELMULTI\n"));     return 0;
 	case SIOCSIFFLAGS: CT_DEBUG2 (d, ("SIOCSIFFLAGS\n"));     break;
@@ -1261,69 +1261,69 @@ static int ct_ioctl (struct cdev *dev, u_long cmd, caddr_t data, int flag, struc
 		for (s=0; s<NCTAU*NCHAN; ++s)
 			if (channel [s])
 				mask [s/8] |= 1 << (s & 7);
-	        bcopy (mask, data, sizeof (mask));
+		bcopy (mask, data, sizeof (mask));
 		return 0;
 
 #ifndef NETGRAPH
 	case SERIAL_GETPROTO:
-	        strcpy ((char*)data, (d->pp.pp_flags & PP_FR) ? "fr" :
-	                (d->pp.pp_if.if_flags & PP_CISCO) ? "cisco" : "ppp");
-	        return 0;
+		strcpy ((char*)data, (d->pp.pp_flags & PP_FR) ? "fr" :
+			(d->pp.pp_if.if_flags & PP_CISCO) ? "cisco" : "ppp");
+		return 0;
 
 	case SERIAL_SETPROTO:
-	        /* Only for superuser! */
+		/* Only for superuser! */
 #if __FreeBSD_version < 500000
-	        error = suser (p);
+		error = suser (p);
 #else /* __FreeBSD_version >= 500000 */
-	        error = suser (td);
+		error = suser (td);
 #endif /* __FreeBSD_version >= 500000 */
-	        if (error)
-	                return error;
+		if (error)
+			return error;
 		if (d->pp.pp_if.if_flags & IFF_RUNNING)
 			return EBUSY;
-	        if (! strcmp ("cisco", (char*)data)) {
-	                d->pp.pp_flags &= ~(PP_FR);
-	                d->pp.pp_flags |= PP_KEEPALIVE;
-	                d->pp.pp_if.if_flags |= PP_CISCO;
-	        } else if (! strcmp ("fr", (char*)data)) {
-	                d->pp.pp_if.if_flags &= ~(PP_CISCO);
-	                d->pp.pp_flags |= PP_FR | PP_KEEPALIVE;
-	        } else if (! strcmp ("ppp", (char*)data)) {
-	                d->pp.pp_flags &= ~(PP_FR | PP_KEEPALIVE);
-	                d->pp.pp_if.if_flags &= ~(PP_CISCO);
-	        } else
+		if (! strcmp ("cisco", (char*)data)) {
+			d->pp.pp_flags &= ~(PP_FR);
+			d->pp.pp_flags |= PP_KEEPALIVE;
+			d->pp.pp_if.if_flags |= PP_CISCO;
+		} else if (! strcmp ("fr", (char*)data)) {
+			d->pp.pp_if.if_flags &= ~(PP_CISCO);
+			d->pp.pp_flags |= PP_FR | PP_KEEPALIVE;
+		} else if (! strcmp ("ppp", (char*)data)) {
+			d->pp.pp_flags &= ~(PP_FR | PP_KEEPALIVE);
+			d->pp.pp_if.if_flags &= ~(PP_CISCO);
+		} else
 			return EINVAL;
-	        return 0;
+		return 0;
 
 	case SERIAL_GETKEEPALIVE:
 		if ((d->pp.pp_flags & PP_FR) ||
 			(d->pp.pp_if.if_flags & PP_CISCO))
 			return EINVAL;
-	        *(int*)data = (d->pp.pp_flags & PP_KEEPALIVE) ? 1 : 0;
-	        return 0;
+		*(int*)data = (d->pp.pp_flags & PP_KEEPALIVE) ? 1 : 0;
+		return 0;
 
 	case SERIAL_SETKEEPALIVE:
-	        /* Only for superuser! */
+		/* Only for superuser! */
 #if __FreeBSD_version < 500000
-	        error = suser (p);
+		error = suser (p);
 #else /* __FreeBSD_version >= 500000 */
-	        error = suser (td);
+		error = suser (td);
 #endif /* __FreeBSD_version >= 500000 */
-	        if (error)
-	                return error;
+		if (error)
+			return error;
 		if ((d->pp.pp_flags & PP_FR) ||
 			(d->pp.pp_if.if_flags & PP_CISCO))
 			return EINVAL;
-	        if (*(int*)data)
-	                d->pp.pp_flags |= PP_KEEPALIVE;
+		if (*(int*)data)
+			d->pp.pp_flags |= PP_KEEPALIVE;
 		else
-	                d->pp.pp_flags &= ~PP_KEEPALIVE;
-	        return 0;
+			d->pp.pp_flags &= ~PP_KEEPALIVE;
+		return 0;
 #endif /*NETGRAPH*/
 
 	case SERIAL_GETMODE:
 		*(int*)data = SERIAL_HDLC;
-	        return 0;
+		return 0;
 
 	case SERIAL_GETCFG:
 		if (c->mode == M_HDLC)
@@ -1333,40 +1333,40 @@ static int ct_ioctl (struct cdev *dev, u_long cmd, caddr_t data, int flag, struc
 		case CFG_B: *(char*)data = 'b'; break;
 		case CFG_C: *(char*)data = 'c'; break;
 		}
-	        return 0;
+		return 0;
 
 	case SERIAL_SETCFG:
-	        /* Only for superuser! */
+		/* Only for superuser! */
 #if __FreeBSD_version < 500000
-	        error = suser (p);
+		error = suser (p);
 #else /* __FreeBSD_version >= 500000 */
-	        error = suser (td);
+		error = suser (td);
 #endif /* __FreeBSD_version >= 500000 */
-	        if (error)
-	                return error;
+		if (error)
+			return error;
 		if (c->mode == M_HDLC)
 			return EINVAL;
-	        s = splimp ();
+		s = splimp ();
 		switch (*(char*)data) {
 		case 'a': ct_set_config (c->board, CFG_A); break;
 		case 'b': ct_set_config (c->board, CFG_B); break;
 		case 'c': ct_set_config (c->board, CFG_C); break;
 		}
-	        splx (s);
-                return 0;
+		splx (s);
+		return 0;
 
 	case SERIAL_GETSTAT:
-	        st = (struct serial_statistics*) data;
-	        st->rintr  = c->rintr;
-	        st->tintr  = c->tintr;
-	        st->mintr  = c->mintr;
-	        st->ibytes = c->ibytes;
-	        st->ipkts  = c->ipkts;
-	        st->ierrs  = c->ierrs;
-	        st->obytes = c->obytes;
-	        st->opkts  = c->opkts;
-	        st->oerrs  = c->oerrs;
-	        return 0;
+		st = (struct serial_statistics*) data;
+		st->rintr  = c->rintr;
+		st->tintr  = c->tintr;
+		st->mintr  = c->mintr;
+		st->ibytes = c->ibytes;
+		st->ipkts  = c->ipkts;
+		st->ierrs  = c->ierrs;
+		st->obytes = c->obytes;
+		st->opkts  = c->opkts;
+		st->oerrs  = c->oerrs;
+		return 0;
 
 	case SERIAL_GETESTAT:
 		opte1 = (struct e1_statistics*)data;
@@ -1416,145 +1416,145 @@ static int ct_ioctl (struct cdev *dev, u_long cmd, caddr_t data, int flag, struc
 		return 0;
 
 	case SERIAL_CLRSTAT:
-	        /* Only for superuser! */
+		/* Only for superuser! */
 #if __FreeBSD_version < 500000
-	        error = suser (p);
+		error = suser (p);
 #else /* __FreeBSD_version >= 500000 */
-	        error = suser (td);
+		error = suser (td);
 #endif /* __FreeBSD_version >= 500000 */
-	        if (error)
-	                return error;
-	        c->rintr = 0;
-	        c->tintr = 0;
-	        c->mintr = 0;
-	        c->ibytes = 0;
-	        c->ipkts = 0;
-	        c->ierrs = 0;
-	        c->obytes = 0;
-	        c->opkts = 0;
-	        c->oerrs = 0;
+		if (error)
+			return error;
+		c->rintr = 0;
+		c->tintr = 0;
+		c->mintr = 0;
+		c->ibytes = 0;
+		c->ipkts = 0;
+		c->ierrs = 0;
+		c->obytes = 0;
+		c->opkts = 0;
+		c->oerrs = 0;
 		bzero (&c->currnt, sizeof (c->currnt));
 		bzero (&c->total, sizeof (c->total));
 		bzero (c->interval, sizeof (c->interval));
-	        return 0;
+		return 0;
 
 	case SERIAL_GETBAUD:
-	        *(long*)data = ct_get_baud(c);
-	        return 0;
+		*(long*)data = ct_get_baud(c);
+		return 0;
 
 	case SERIAL_SETBAUD:
-	        /* Only for superuser! */
+		/* Only for superuser! */
 #if __FreeBSD_version < 500000
-	        error = suser (p);
+		error = suser (p);
 #else /* __FreeBSD_version >= 500000 */
-	        error = suser (td);
+		error = suser (td);
 #endif /* __FreeBSD_version >= 500000 */
-	        if (error)
-	                return error;
-	        s = splimp ();
-	        ct_set_baud (c, *(long*)data);
-	        splx (s);
-	        return 0;
+		if (error)
+			return error;
+		s = splimp ();
+		ct_set_baud (c, *(long*)data);
+		splx (s);
+		return 0;
 
 	case SERIAL_GETLOOP:
-	        *(int*)data = ct_get_loop (c);
-	        return 0;
+		*(int*)data = ct_get_loop (c);
+		return 0;
 
 	case SERIAL_SETLOOP:
-	        /* Only for superuser! */
+		/* Only for superuser! */
 #if __FreeBSD_version < 500000
-	        error = suser (p);
+		error = suser (p);
 #else /* __FreeBSD_version >= 500000 */
-	        error = suser (td);
+		error = suser (td);
 #endif /* __FreeBSD_version >= 500000 */
-	        if (error)
-	                return error;
-	        s = splimp ();
+		if (error)
+			return error;
+		s = splimp ();
 		ct_set_loop (c, *(int*)data);
-	        splx (s);
-	        return 0;
+		splx (s);
+		return 0;
 
 	case SERIAL_GETDPLL:
-	        if (c->mode == M_E1 || c->mode == M_G703)
-	                return EINVAL;
+		if (c->mode == M_E1 || c->mode == M_G703)
+			return EINVAL;
 		*(int*)data = ct_get_dpll (c);
-	        return 0;
+		return 0;
 
 	case SERIAL_SETDPLL:
-	        /* Only for superuser! */
+		/* Only for superuser! */
 #if __FreeBSD_version < 500000
-	        error = suser (p);
+		error = suser (p);
 #else /* __FreeBSD_version >= 500000 */
-	        error = suser (td);
+		error = suser (td);
 #endif /* __FreeBSD_version >= 500000 */
-	        if (error)
-	                return error;
-	        if (c->mode == M_E1 || c->mode == M_G703)
-	                return EINVAL;
-	        s = splimp ();
-	        ct_set_dpll (c, *(int*)data);
-	        splx (s);
-	        return 0;
+		if (error)
+			return error;
+		if (c->mode == M_E1 || c->mode == M_G703)
+			return EINVAL;
+		s = splimp ();
+		ct_set_dpll (c, *(int*)data);
+		splx (s);
+		return 0;
 
 	case SERIAL_GETNRZI:
-	        if (c->mode == M_E1 || c->mode == M_G703)
-	                return EINVAL;
-	        *(int*)data = ct_get_nrzi (c);
-	        return 0;
+		if (c->mode == M_E1 || c->mode == M_G703)
+			return EINVAL;
+		*(int*)data = ct_get_nrzi (c);
+		return 0;
 
 	case SERIAL_SETNRZI:
-	        /* Only for superuser! */
+		/* Only for superuser! */
 #if __FreeBSD_version < 500000
-	        error = suser (p);
+		error = suser (p);
 #else /* __FreeBSD_version >= 500000 */
-	        error = suser (td);
+		error = suser (td);
 #endif /* __FreeBSD_version >= 500000 */
-	        if (error)
-	                return error;
-	        if (c->mode == M_E1 || c->mode == M_G703)
-	                return EINVAL;
-	        s = splimp ();
-	        ct_set_nrzi (c, *(int*)data);
-	        splx (s);
-	        return 0;
+		if (error)
+			return error;
+		if (c->mode == M_E1 || c->mode == M_G703)
+			return EINVAL;
+		s = splimp ();
+		ct_set_nrzi (c, *(int*)data);
+		splx (s);
+		return 0;
 
 	case SERIAL_GETDEBUG:
-	        *(int*)data = c->debug;
-	        return 0;
+		*(int*)data = c->debug;
+		return 0;
 
 	case SERIAL_SETDEBUG:
-	        /* Only for superuser! */
+		/* Only for superuser! */
 #if __FreeBSD_version < 500000
-	        error = suser (p);
+		error = suser (p);
 #else /* __FreeBSD_version >= 500000 */
-	        error = suser (td);
+		error = suser (td);
 #endif /* __FreeBSD_version >= 500000 */
-	        if (error)
-	                return error;
-	        c->debug = *(int*)data;
+		if (error)
+			return error;
+		c->debug = *(int*)data;
 #ifndef	NETGRAPH
 		if (d->chan->debug)
 			d->pp.pp_if.if_flags |= IFF_DEBUG;
 		else
 			d->pp.pp_if.if_flags &= (~IFF_DEBUG);
 #endif
-	        return 0;
+		return 0;
 
 	case SERIAL_GETHIGAIN:
-	        if (c->mode != M_E1)
-	                return EINVAL;
-	        *(int*)data = ct_get_higain (c);
+		if (c->mode != M_E1)
+			return EINVAL;
+		*(int*)data = ct_get_higain (c);
 		return 0;
 
 	case SERIAL_SETHIGAIN:
-	        /* Only for superuser! */
+		/* Only for superuser! */
 #if __FreeBSD_version < 500000
-	        error = suser (p);
+		error = suser (p);
 #else /* __FreeBSD_version >= 500000 */
-	        error = suser (td);
+		error = suser (td);
 #endif /* __FreeBSD_version >= 500000 */
-	        if (error)
-	                return error;
+		if (error)
+			return error;
 		s = splimp ();
 		ct_set_higain (c, *(int*)data);
 		splx (s);
@@ -1562,51 +1562,51 @@ static int ct_ioctl (struct cdev *dev, u_long cmd, caddr_t data, int flag, struc
 
 	case SERIAL_GETPHONY:
 		CT_DEBUG2 (d, ("ioctl: getphony\n"));
-	        if (c->mode != M_E1)
-	                return EINVAL;
-	        *(int*)data = c->gopt.phony;
+		if (c->mode != M_E1)
+			return EINVAL;
+		*(int*)data = c->gopt.phony;
 		return 0;
 
 	case SERIAL_SETPHONY:
 		CT_DEBUG2 (d, ("ioctl: setphony\n"));
-	        if (c->mode != M_E1)
-	                return EINVAL;
-	        /* Only for superuser! */
+		if (c->mode != M_E1)
+			return EINVAL;
+		/* Only for superuser! */
 #if __FreeBSD_version < 500000
-	        error = suser (p);
+		error = suser (p);
 #else /* __FreeBSD_version >= 500000 */
-	        error = suser (td);
+		error = suser (td);
 #endif /* __FreeBSD_version >= 500000 */
-	        if (error)
-	                return error;
+		if (error)
+			return error;
 		s = splimp ();
 		ct_set_phony (c, *(int*)data);
 		splx (s);
 		return 0;
 
 	case SERIAL_GETCLK:
-	        if (c->mode != M_E1 && c->mode != M_G703)
-	                return EINVAL;
+		if (c->mode != M_E1 && c->mode != M_G703)
+			return EINVAL;
 		switch (ct_get_clk(c)) {
-		default:         *(int*)data = E1CLK_INTERNAL;          break;
-		case GCLK_RCV:   *(int*)data = E1CLK_RECEIVE;	        break;
+		default:	 *(int*)data = E1CLK_INTERNAL;		break;
+		case GCLK_RCV:   *(int*)data = E1CLK_RECEIVE;		break;
 		case GCLK_RCLKO: *(int*)data = c->num ?
 			E1CLK_RECEIVE_CHAN0 : E1CLK_RECEIVE_CHAN1;	break;
 		}
 		return 0;
 
 	case SERIAL_SETCLK:
-	        /* Only for superuser! */
+		/* Only for superuser! */
 #if __FreeBSD_version < 500000
 		error = suser (p);
 #else /* __FreeBSD_version >= 500000 */
-	        error = suser (td);
+		error = suser (td);
 #endif /* __FreeBSD_version >= 500000 */
-	        if (error)
-	                return error;
+		if (error)
+			return error;
 		s = splimp ();
 		switch (*(int*)data) {
-		default:                    ct_set_clk (c, GCLK_INT);   break;
+		default:		    ct_set_clk (c, GCLK_INT);   break;
 		case E1CLK_RECEIVE:	    ct_set_clk (c, GCLK_RCV);   break;
 		case E1CLK_RECEIVE_CHAN0:
 		case E1CLK_RECEIVE_CHAN1:
@@ -1616,40 +1616,40 @@ static int ct_ioctl (struct cdev *dev, u_long cmd, caddr_t data, int flag, struc
 		return 0;
 
 	case SERIAL_GETTIMESLOTS:
-	        if (c->mode != M_E1)
-	                return EINVAL;
-	        *(long*)data = ct_get_ts (c);
+		if (c->mode != M_E1)
+			return EINVAL;
+		*(long*)data = ct_get_ts (c);
 		return 0;
 
 	case SERIAL_SETTIMESLOTS:
-	        /* Only for superuser! */
+		/* Only for superuser! */
 #if __FreeBSD_version < 500000
-	        error = suser (p);
+		error = suser (p);
 #else /* __FreeBSD_version >= 500000 */
-	        error = suser (td);
+		error = suser (td);
 #endif /* __FreeBSD_version >= 500000 */
-	        if (error)
-	                return error;
+		if (error)
+			return error;
 		s = splimp ();
 		ct_set_ts (c, *(long*)data);
 		splx (s);
 		return 0;
 
 	case SERIAL_GETSUBCHAN:
-	        if (c->mode != M_E1)
-	                return EINVAL;
-	        *(long*)data = ct_get_subchan (c->board);
+		if (c->mode != M_E1)
+			return EINVAL;
+		*(long*)data = ct_get_subchan (c->board);
 		return 0;
 
 	case SERIAL_SETSUBCHAN:
-	        /* Only for superuser! */
+		/* Only for superuser! */
 #if __FreeBSD_version < 500000
-	        error = suser (p);
+		error = suser (p);
 #else /* __FreeBSD_version >= 500000 */
-	        error = suser (td);
+		error = suser (td);
 #endif /* __FreeBSD_version >= 500000 */
-	        if (error)
-	                return error;
+		if (error)
+			return error;
 		s = splimp ();
 		ct_set_subchan (c->board, *(long*)data);
 		splx (s);
@@ -1657,92 +1657,92 @@ static int ct_ioctl (struct cdev *dev, u_long cmd, caddr_t data, int flag, struc
 
 	case SERIAL_GETINVCLK:
 	case SERIAL_GETINVTCLK:
-	        if (c->mode == M_E1 || c->mode == M_G703)
-	                return EINVAL;
-	        *(int*)data = ct_get_invtxc (c);
+		if (c->mode == M_E1 || c->mode == M_G703)
+			return EINVAL;
+		*(int*)data = ct_get_invtxc (c);
 		return 0;
 
 	case SERIAL_GETINVRCLK:
-	        if (c->mode == M_E1 || c->mode == M_G703)
-	                return EINVAL;
-	        *(int*)data = ct_get_invrxc (c);
+		if (c->mode == M_E1 || c->mode == M_G703)
+			return EINVAL;
+		*(int*)data = ct_get_invrxc (c);
 		return 0;
 
 	case SERIAL_SETINVCLK:
 	case SERIAL_SETINVTCLK:
-	        /* Only for superuser! */
+		/* Only for superuser! */
 #if __FreeBSD_version < 500000
-	        error = suser (p);
+		error = suser (p);
 #else /* __FreeBSD_version >= 500000 */
-	        error = suser (td);
+		error = suser (td);
 #endif /* __FreeBSD_version >= 500000 */
-	        if (error)
-	                return error;
-	        if (c->mode == M_E1 || c->mode == M_G703)
-	                return EINVAL;
+		if (error)
+			return error;
+		if (c->mode == M_E1 || c->mode == M_G703)
+			return EINVAL;
 		s = splimp ();
 		ct_set_invtxc (c, *(int*)data);
 		splx (s);
 		return 0;
 
 	case SERIAL_SETINVRCLK:
-	        /* Only for superuser! */
+		/* Only for superuser! */
 #if __FreeBSD_version < 500000
-	        error = suser (p);
+		error = suser (p);
 #else /* __FreeBSD_version >= 500000 */
-	        error = suser (td);
+		error = suser (td);
 #endif /* __FreeBSD_version >= 500000 */
-	        if (error)
-	                return error;
-	        if (c->mode == M_E1 || c->mode == M_G703)
-	                return EINVAL;
+		if (error)
+			return error;
+		if (c->mode == M_E1 || c->mode == M_G703)
+			return EINVAL;
 		s = splimp ();
 		ct_set_invrxc (c, *(int*)data);
 		splx (s);
 		return 0;
 
 	case SERIAL_GETLEVEL:
-	        if (c->mode != M_G703)
-	                return EINVAL;
+		if (c->mode != M_G703)
+			return EINVAL;
 		s = splimp ();
 		*(int*)data = ct_get_lq (c);
 		splx (s);
 		return 0;
 
-	case TIOCSDTR:          /* Set DTR */
+	case TIOCSDTR:	/* Set DTR */
 		s = splimp ();
 		ct_set_dtr (c, 1);
 		splx (s);
 		return 0;
 
-	case TIOCCDTR:          /* Clear DTR */
+	case TIOCCDTR:	/* Clear DTR */
 		s = splimp ();
 		ct_set_dtr (c, 0);
 		splx (s);
 		return 0;
 
-	case TIOCMSET:          /* Set DTR/RTS */
+	case TIOCMSET:	/* Set DTR/RTS */
 		s = splimp ();
 		ct_set_dtr (c, (*(int*)data & TIOCM_DTR) ? 1 : 0);
 		ct_set_rts (c, (*(int*)data & TIOCM_RTS) ? 1 : 0);
 		splx (s);
 		return 0;
 
-	case TIOCMBIS:          /* Add DTR/RTS */
+	case TIOCMBIS:	/* Add DTR/RTS */
 		s = splimp ();
 		if (*(int*)data & TIOCM_DTR) ct_set_dtr (c, 1);
 		if (*(int*)data & TIOCM_RTS) ct_set_rts (c, 1);
 		splx (s);
 		return 0;
 
-	case TIOCMBIC:          /* Clear DTR/RTS */
+	case TIOCMBIC:	/* Clear DTR/RTS */
 		s = splimp ();
 		if (*(int*)data & TIOCM_DTR) ct_set_dtr (c, 0);
 		if (*(int*)data & TIOCM_RTS) ct_set_rts (c, 0);
 		splx (s);
 		return 0;
 
-	case TIOCMGET:          /* Get modem status */
+	case TIOCMGET:	/* Get modem status */
 		*(int*)data = ct_modem_status (c);
 		return 0;
 	}
@@ -1900,15 +1900,15 @@ static int print_stats (char *s, ct_chan_t *c, int need_header)
 	struct serial_statistics st;
 	int length = 0;
 
-        st.rintr  = c->rintr;
-        st.tintr  = c->tintr;
-        st.mintr  = c->mintr;
-        st.ibytes = c->ibytes;
-        st.ipkts  = c->ipkts;
-        st.ierrs  = c->ierrs;
-        st.obytes = c->obytes;
-        st.opkts  = c->opkts;
-        st.oerrs  = c->oerrs;
+	st.rintr  = c->rintr;
+	st.tintr  = c->tintr;
+	st.mintr  = c->mintr;
+	st.ibytes = c->ibytes;
+	st.ipkts  = c->ipkts;
+	st.ierrs  = c->ierrs;
+	st.obytes = c->obytes;
+	st.opkts  = c->opkts;
+	st.oerrs  = c->oerrs;
 	if (need_header)
 		length += sprintf (s + length, "  Rintr   Tintr   Mintr   Ibytes   Ipkts   Ierrs   Obytes   Opkts   Oerrs\n");
 	length += sprintf (s + length, "%7ld %7ld %7ld %8ld %7ld %7ld %8ld %7ld %7ld\n",
@@ -1954,7 +1954,7 @@ static int print_frac (char *s, int leftalign, u_long numerator, u_long divider)
 	*(s + length) = leftalign ? '/' : ' ';
 	length ++;
 
-	if      (n >= 1000000) n = (n+500) / 1000 * 1000;
+	if     (n >= 1000000) n = (n+500) / 1000 * 1000;
 	else if (n >= 100000)  n = (n+50)  / 100 * 100;
 	else if (n >= 10000)   n = (n+5)   / 10 * 10;
 
@@ -1964,10 +1964,10 @@ static int print_frac (char *s, int leftalign, u_long numerator, u_long divider)
 	case 100000:  n = 99900;  break;
 	case 1000000: n = 999000; break;
 	}
-	if (n < 10000)        length += sprintf (s+length, "%d.%d", n/1000, n/10%100);
+	if (n < 10000)	      length += sprintf (s+length, "%d.%d", n/1000, n/10%100);
 	else if (n < 100000)  length += sprintf (s+length, "%d.%d", n/1000, n/100%10);
 	else if (n < 1000000) length += sprintf (s+length, "%d.", n/1000);
-	else                  length += sprintf (s+length, "%d", n/1000);
+	else		      length += sprintf (s+length, "%d", n/1000);
 
 	return length;
 }
@@ -2337,7 +2337,7 @@ static int ng_ct_disconnect (hook_p hook)
 
 static int ct_modevent (module_t mod, int type, void *unused)
 {
-        struct cdev *dev;
+	struct cdev *dev;
 	static int load_count = 0;
 	struct cdevsw *cdsw;
 
