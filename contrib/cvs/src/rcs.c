@@ -21,6 +21,9 @@
 # ifndef HAVE_GETPAGESIZE
 #  include "getpagesize.h"
 # endif
+# ifndef MAP_FAILED
+#  define MAP_FAILED NULL
+# endif
 #endif
 
 int preserve_perms = 0;
@@ -1096,7 +1099,8 @@ rcsbuf_getkey (rcsbuf, keyp, valp)
     ptrend = rcsbuf->ptrend;
 
     /* Sanity check.  */
-    assert (ptr >= rcsbuf_buffer && ptr < rcsbuf_buffer + rcsbuf_buffer_size);
+    assert (ptr >= rcsbuf_buffer && ptr <= rcsbuf_buffer + rcsbuf_buffer_size);
+    assert (ptrend >= rcsbuf_buffer && ptrend <= rcsbuf_buffer + rcsbuf_buffer_size);
 
 #ifndef HAVE_MMAP
     /* If the pointer is more than RCSBUF_BUFSIZE bytes into the
@@ -1590,10 +1594,6 @@ rcsbuf_fill (rcsbuf, ptr, keyp, valp)
 
 	poff = ptr - rcsbuf_buffer;
 	peoff = rcsbuf->ptrend - rcsbuf_buffer;
-	if (keyp != NULL && *keyp != NULL)
-	    koff = *keyp - rcsbuf_buffer;
-	if (valp != NULL && *valp != NULL)
-	    voff = *valp - rcsbuf_buffer;
 	koff = keyp == NULL ? 0 : *keyp - rcsbuf_buffer;
 	voff = valp == NULL ? 0 : *valp - rcsbuf_buffer;
 
@@ -1602,9 +1602,9 @@ rcsbuf_fill (rcsbuf, ptr, keyp, valp)
 
 	ptr = rcsbuf_buffer + poff;
 	rcsbuf->ptrend = rcsbuf_buffer + peoff;
-	if (keyp != NULL && *keyp != NULL)
+	if (keyp != NULL)
 	    *keyp = rcsbuf_buffer + koff;
-	if (valp != NULL && *valp != NULL)
+	if (valp != NULL)
 	    *valp = rcsbuf_buffer + voff;
     }
 
@@ -5045,7 +5045,7 @@ RCS_checkin (rcs, workfile, message, rev, flags)
 	delta->other_delta = getlist();
 
 	if (CVS_LSTAT (workfile, &sb) < 0)
-	    error (1, 1, "cannot lstat %s", workfile);
+	    error (1, errno, "cannot lstat %s", workfile);
 
 	if (S_ISLNK (sb.st_mode))
 	{
@@ -5084,7 +5084,7 @@ RCS_checkin (rcs, workfile, message, rev, flags)
 		case S_IFREG: break;
 		case S_IFCHR:
 		case S_IFBLK:
-# ifdef HAVE_ST_RDEV
+# ifdef HAVE_STRUCT_STAT_ST_RDEV
 		    np = getnode();
 		    np->type = RCSFIELD;
 		    np->key = xstrdup ("special");
@@ -8416,13 +8416,12 @@ rcs_internal_unlockfile (fp, rcsfile)
        corrupting the repository. */
 
     if (ferror (fp))
-	/* The only case in which using errno here would be meaningful
-	   is if we happen to have left errno unmolested since the call
-	   which produced the error (e.g. fprintf).  That is pretty
-	   fragile even if it happens to sometimes be true.  The real
-	   solution is to check each call to fprintf rather than waiting
+	/* Using errno here may well be misleanding since the most recent
+	   call that set errno may not have anything whatsoever to do with
+	   the error that set the flag, but it's better than nothing.  The
+	   real solution is to check each call to fprintf rather than waiting
 	   until the end like this.  */
-	error (1, 0, "error writing to lock file %s", rcs_lockfile);
+	error (1, errno, "error writing to lock file %s", rcs_lockfile);
     if (fclose (fp) == EOF)
 	error (1, errno, "error closing lock file %s", rcs_lockfile);
     rcs_lockfd = -1;

@@ -466,7 +466,7 @@ safe_location (where)
 		char *parent;
 
 		/* strip the last_component */
-		where_location = strdup( where );
+		where_location = xstrdup( where );
 		parent = last_component( where_location );
 		parent[-1] = '\0';
 

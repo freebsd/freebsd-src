@@ -13,7 +13,9 @@
  */
 
 
-#include "config.h"		/* this is stuff found via autoconf */
+#ifdef HAVE_CONFIG_H
+# include <config.h>		/* this is stuff found via autoconf */
+#endif /* CONFIG_H */
 #include "options.h"		/* these are some larger questions which
 				   can't easily be automatically checked
 				   for */
@@ -65,7 +67,11 @@ extern char *getenv();
 char *strerror ();
 #endif
 
-#include <fnmatch.h> /* This is supposed to be available on Posix systems */
+#ifdef HAVE_FNMATCH
+# include <fnmatch.h> /* This is supposed to be available on Posix systems */
+#else /* HAVE_FNMATCH */
+# include "fnmatch.h" /* Our substitute */
+#endif /* HAVE_FNMATCH */
 
 #include <ctype.h>
 #include <pwd.h>
@@ -362,6 +368,11 @@ typedef int Dtype;
 typedef enum direnter_type Dtype;
 #endif
 
+/* Recursion processor lock types */
+#define LOCK_NONE	0
+#define LOCK_READ	1
+#define LOCK_WRITE	2
+
 extern char *program_name, *program_path, *command_name;
 extern char *Tmpdir, *Editor;
 extern int cvsadmin_root;
@@ -428,10 +439,6 @@ extern int RCS_exec_rcsdiff PROTO ((RCSNode *rcsfile,
 extern int diff_exec PROTO ((char *file1, char *file2,
 			     char *label1, char *label2,
 			     char *options, char *out));
-extern int diff_execv PROTO ((char *file1, char *file2,
-			      char *label1, char *label2,
-			      char *options, char *out));
-
 
 
 #include "error.h"
@@ -494,6 +501,7 @@ int isabsolute PROTO((const char *filename));
 char *xreadlink PROTO((const char *link));
 char *last_component PROTO((char *path));
 char *get_homedir PROTO ((void));
+char *strcat_filename_onto_homedir PROTO ((const char *, const char *));
 char *cvs_temp_name PROTO ((void));
 FILE *cvs_temp_file PROTO ((char **filename));
 void parseopts PROTO ((const char *root));
@@ -646,7 +654,7 @@ int start_recursion PROTO((FILEPROC fileproc, FILESDONEPROC filesdoneproc,
 		     DIRENTPROC direntproc, DIRLEAVEPROC dirleaveproc,
 		     void *callerdat,
 		     int argc, char *argv[], int local, int which,
-		     int aflag, int readlock, char *update_preload,
+		     int aflag, int locktype, char *update_preload,
 		     int dosrcs));
 void SIG_beginCrSect PROTO((void));
 void SIG_endCrSect PROTO((void));
@@ -860,8 +868,17 @@ extern int history PROTO ((int argc, char **argv));
 extern int import PROTO ((int argc, char **argv));
 extern int cvslog PROTO ((int argc, char **argv));
 #ifdef AUTH_CLIENT_SUPPORT
+/* Some systems (namely Mac OS X) have conflicting definitions for these
+ * functions.  Avoid them.
+ */
+#ifdef HAVE_LOGIN
+# define login		cvs_login
+#endif /* HAVE_LOGIN */
+#ifdef HAVE_LOGOUT
+# define logout		cvs_logout
+#endif /* HAVE_LOGOUT */
 extern int login PROTO((int argc, char **argv));
-int logout PROTO((int argc, char **argv));
+extern int logout PROTO((int argc, char **argv));
 #endif /* AUTH_CLIENT_SUPPORT */
 extern int patch PROTO((int argc, char **argv));
 extern int release PROTO((int argc, char **argv));

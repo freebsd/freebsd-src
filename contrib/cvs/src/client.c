@@ -251,7 +251,8 @@ arg_should_not_be_sent_to_server (arg)
 	{
 	    /* We're at the beginning of the string.  Look at the
                CVSADM files in cwd.  */
-	    this_root = Name_Root ((char *) NULL, (char *) NULL);
+	    this_root = (CVSroot_cmdline ? xstrdup(CVSroot_cmdline)
+			 : Name_Root ((char *) NULL, (char *) NULL));
 	}
 
 	/* Now check the value for root. */
@@ -1324,6 +1325,9 @@ warning: server is not creating directories one at a time");
 	    if ( CVS_CHDIR (dir_name) < 0)
 		error (1, errno, "could not chdir to %s", dir_name);
 	}
+	else if (strcmp (command_name, "export") == 0)
+	    /* Don't create CVSADM directories if this is export.  */
+	    ;
 	else if (!isdir (CVSADM))
 	{
 	    /*
@@ -3613,12 +3617,14 @@ get_responses_and_close ()
     status = buf_shutdown (to_server);
     if (status != 0)
 	error (0, status, "shutting down buffer to server");
+    buf_free (to_server);
+    to_server = NULL;
+
     status = buf_shutdown (from_server);
     if (status != 0)
 	error (0, status, "shutting down buffer from server");
-
-    buf_free (to_server);
     buf_free (from_server);
+    from_server = NULL;
     server_started = 0;
 
     /* see if we need to sleep before returning to avoid time-stamp races */
@@ -3724,14 +3730,18 @@ get_port_number (envname, portname, defaultport)
  * we do this here instead of in parse_cvsroot so that we can keep network
  * code confined to a localized area and also to delay the lookup until the
  * last possible moment so it remains possible to run cvs client commands that
- * skip opening connections to the server (i.e. skip network operations entirely)
+ * skip opening connections to the server (i.e. skip network operations
+ * entirely)
  *
- * and yes, I know none of the the commands do that now, but here's to planning
+ * and yes, I know none of the commands do that now, but here's to planning
  * for the future, eh?  cheers.
  *
  * FIXME - We could cache the port lookup safely right now as we never change
  * it for a single root on the fly, but we'd have to un'const some other
- * functions
+ * functions - REMOVE_FIXME? This may be unecessary.  We're talking about,
+ * what, usually one, sometimes two lookups of the port per invocation.  I
+ * think twice is by far the rarer of the two cases - only the login function
+ * will need to do it to save the canonical CVSROOT. -DRP
  */
 int
 get_cvs_port_number (root)
@@ -3911,12 +3921,14 @@ connect_to_pserver (root, to_server_p, from_server_p, verify_only, do_gssapi)
 	status = buf_shutdown (to_server);
 	if (status != 0)
 	    error (0, status, "shutting down buffer to server");
+	buf_free (to_server);
+	to_server = NULL;
+
 	status = buf_shutdown (from_server);
 	if (status != 0)
 	    error (0, status, "shutting down buffer from server");
-
-	buf_free (to_server);
 	buf_free (from_server);
+	from_server = NULL;
 
 	/* Don't need to set server_started = 0 since we don't set it to 1
 	 * until returning from this call.
@@ -3961,10 +3973,11 @@ auth_server (root, lto_server, lfrom_server, verify_only, do_gssapi, hostinfo)
     if (do_gssapi)
     {
 #ifdef HAVE_GSSAPI
-	int fd = (int) lto_server->closure;
+	FILE *fp = stdio_buffer_get_file(lto_server);
+	int fd = fp ? fileno(fp) : -1;
 	struct stat s;
 
-	if (fstat (fd, &s) < 0 || !S_ISSOCK(s.st_mode))
+	if ((fd < 0) || (fstat (fd, &s) < 0) || !S_ISSOCK(s.st_mode))
 	{
 	    error (1, 0, "gserver currently only enabled for socket connections");
 	}
@@ -5623,7 +5636,7 @@ send_files (argc, argv, local, aflag, flags)
     err = start_recursion
 	(send_fileproc, send_filesdoneproc,
 	 send_dirent_proc, send_dirleave_proc, (void *) &args,
-	 argc, argv, local, W_LOCAL, aflag, 0, (char *)NULL, 0);
+	 argc, argv, local, W_LOCAL, aflag, LOCK_NONE, (char *)NULL, 0);
     if (err)
 	error_exit ();
     if (toplevel_repos == NULL)
