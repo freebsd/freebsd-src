@@ -499,12 +499,11 @@ mount -t msdos /dev/sd0s5 /dos_d
 2.4     Can I run DOS binaries under FreeBSD?
 ---     -------------------------------------
 
-Not yet!  We'd like to add support for this someday, but are still
-lacking anyone to actually do the work.  Ongoing work with BSDI's
-doscmd utility is bringing this much closer to being a reality in
-FreeBSD-current (AKA 3.0) and you should send mail to
-freebsd-hackers@FreeBSD.org if you're interested in joining this
-effort!
+Ongoing work with BSDI's doscmd utility is bringing this much closer to
+being a reality in FreeBSD 3.0, though it still has some rough edges.
+If you're interested in working on this, please send mail to
+emulation@FreeBSD.org and indicate that you're interested in joining
+this ongoing effort!
 
 There is also a neat utility called "pcemu" in the ports collection
 which emulates an 8088 and enough BIOS services to run DOS text mode
