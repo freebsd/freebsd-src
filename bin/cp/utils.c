@@ -62,7 +62,7 @@ copy_file(entp, dne)
 	int dne;
 {
 	static char buf[MAXBSIZE];
-	struct stat to_stat, *fs;
+	struct stat *fs;
 	int ch, checkch, from_fd, rcount, rval, to_fd, wcount, wresid;
 	char *bufp;
 #ifdef VM_AND_BUFFER_CACHE_SYNCHRONIZED
@@ -179,22 +179,6 @@ copy_file(entp, dne)
 
 	if (pflag && setfile(fs, to_fd))
 		rval = 1;
-	/*
-	 * If the source was setuid or setgid, lose the bits unless the
-	 * copy is owned by the same user and group.
-	 */
-#define	RETAINBITS \
-	(S_ISUID | S_ISGID | S_ISVTX | S_IRWXU | S_IRWXG | S_IRWXO)
-	else if (fs->st_mode & (S_ISUID | S_ISGID) && fs->st_uid == myuid) {
-		if (fstat(to_fd, &to_stat)) {
-			warn("%s", to.p_path);
-			rval = 1;
-		} else if (fs->st_gid == to_stat.st_gid &&
-		    fchmod(to_fd, fs->st_mode & RETAINBITS & ~myumask)) {
-			warn("%s", to.p_path);
-			rval = 1;
-		}
-	}
 	(void)close(from_fd);
 	if (close(to_fd)) {
 		warn("%s", to.p_path);
@@ -259,6 +243,8 @@ copy_special(from_stat, exists)
 	return (pflag ? setfile(from_stat, 0) : 0);
 }
 
+#define	RETAINBITS \
+	(S_ISUID | S_ISGID | S_ISVTX | S_IRWXU | S_IRWXG | S_IRWXO)
 
 int
 setfile(fs, fd)
