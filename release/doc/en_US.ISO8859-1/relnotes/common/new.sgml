@@ -134,16 +134,45 @@
     <sect3 id="proc">
       <title>Hardware Support</title>
 
-      <para></para>
+      <para arch="sparc64">The &man.auxio.4; driver has been to drive
+	some auxiliary I/O functions found on various SBus/EBus
+	&ultrasparc; models.</para>
+
+      <para arch="sparc64">The rtc driver has been added to support
+	the MC146818-compatible clock found on some &ultrasparc; II
+	and III models.</para>
+
+      <para arch="sparc64">The &man.uart.4; driver is now enabled in
+	the <filename>GENERIC</filename> kernel, and is now the
+	default driver for serial ports.  The ofw_console,
+	&man.sab.4;, and zs drivers are now disabled in the
+	<filename>GENERIC</filename> kernel.</para>
 
       <sect4 id="mm">
 	<title>Multimedia Support</title>
 
-	<para></para>
+	<para arch="sparc64">The &man.snd.audiocs.4; driver has been
+	  added to support the Crystal Semiconductor CS4231 audio
+	  controller found on &ultrasparc; workstations.</para>
+
       </sect4>
 
       <sect4 id="net-if">
 	<title>Network Interface Support</title>
+
+	<para>The &man.cp.4; driver is now MPSAFE.</para>
+
+	<para>The &man.ctau.4; driver is now MPSAFE.</para>
+
+	<para>The &man.cx.4; driver is now MPSAFE.</para>
+
+	<para>In the &man.em.4; driver, hardware support for VLAN
+	  tagging is now disabled by default due to some interactions
+	  between this feature and promiscuous mode.</para>
+
+	<para>Ethernet flow control is now disabled by default in the
+	  &man.fxp.4; driver, to prevent problems with a system panics
+	  or is left in the kernel debugger.</para>
 
 	<para>The &man.hme.4; driver is now MPSAFE.</para>
 
@@ -175,6 +204,9 @@
       <para>Ongoing work is reducing the use of the Giant lock by the
 	network protocol stack and improving the locking
 	strategies.</para>
+
+      <para>The &man.sppp.4; driver now includes Frame Relay
+	support.</para>
 
       <para>A bug in TCP that sometimes caused RST packets to
 	be ignored if the receive window was zero bytes has been
