@@ -117,7 +117,6 @@ char	tmpfil[] = _PATH_TMP;
 
 char	namebuf[BBSIZE], *np = namebuf;
 struct	disklabel lab;
-struct	disklabel *readlabel(), *makebootarea();
 char	bootarea[BBSIZE];
 
 #if NUMBOOT > 0
@@ -864,7 +863,6 @@ editit()
 {
 	register int pid, xpid;
 	int stat, omask;
-	extern char *getenv();
 
 	omask = sigblock(sigmask(SIGINT)|sigmask(SIGQUIT)|sigmask(SIGHUP));
 	while ((pid = fork()) < 0) {
