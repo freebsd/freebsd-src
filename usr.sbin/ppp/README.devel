@@ -1,0 +1,22 @@
+This program was originally written by Toshiharu OHNO <tony-o@iij.ad.jp>,
+and was submitted to FreeBSD-2.0.5 by Atsushi Murai <amurai@spec.co.jp>.
+The original version was usually referred to as iij-ppp.
+
+Ppp is currently maintained under FreeBSD and OpenBSD by Brian Somers
+<brian@Awfulhak.org>.  The sources for both operating systems are the
+same although the Makefiles vary due to the nature of each system.
+If and when it's ported to another OS, things will probably be shuffled
+around so that there are several Makefiles, one per architecture.
+
+The latest sources are available in FreeBSD-current and OpenBSD-current.
+An archive hacked so that it will build on just about any version of
+FreeBSD is frequently generated and made available on
+http://www.FreeBSD.org/~brian.  Once the first OpenBSD release is made
+with ppp, an up-to-date OpenBSD archive will be made available too.
+
+A FAQ is available at http://www.FreeBSD.org/FAQ/userppp.html.  It applies
+equally to OpenBSD as it does to FreeBSD.  The man page is quite extensive,
+and there are lots of examples in /etc/ppp/ppp.*.sample.  These examples
+come with the hacked archive above but must be installed manually.
+
+Ppp is still under development.  There is no official TODO list.
