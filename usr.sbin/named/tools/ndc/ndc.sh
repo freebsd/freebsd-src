@@ -6,7 +6,7 @@ USAGE='echo \
 	 ... \
 	"; exit 1'
 
-PATH=%DESTSBIN%:/bin:/usr/bin:/usr/ucb:$PATH
+PATH=%DESTSBIN%:/bin:/usr/bin:$PATH
 PIDFILE=%PIDDIR%/named.pid
 
 if [ -f $PIDFILE ]
