@@ -1,7 +1,7 @@
 .\" This file contains changes from the Open Software Foundation.
 .\"
 .\"	from: @(#)newsyslog.8
-.\"	$Id: newsyslog.8,v 1.18 1999/04/10 15:09:07 chuckr Exp $
+.\"	$Id: newsyslog.8,v 1.19 1999/06/28 03:15:01 obrien Exp $
 .\"
 .\" Copyright 1988, 1989 by the Massachusetts Institute of Technology
 .\" 
@@ -275,12 +275,15 @@ MIT Project Athena
 .Pp
 Copyright 1987, Massachusetts Institute of Technology
 .Sh COMPATIBILITY
-Previous versions of the chown utility used the dot (``.'') character to
+Previous versions of the
+.Nm
+utility used the dot (``.'') character to
 distinguish the group name.  
 Begining with 
-.Fx 4.0 ,
-this has been changed to be a colon (``:'') character so that user and group
-names may contain the dot character.
+.Fx 3.3 ,
+this has been changed to a colon (``:'') character so that user and group
+names may contain the dot character.  The dot (``.'') character is still
+accepted for backwards compatibility.
 .Sh "SEE ALSO"
 .Xr gzip 1 ,
 .Xr syslog 3 ,
