@@ -1,4 +1,4 @@
-/*	$NetBSD: slcompress.c,v 1.15 1996/03/15 02:28:12 paulus Exp $   */
+/*	$NetBSD: slcompress.c,v 1.17 1997/05/17 21:12:10 christos Exp $   */
 /*	Id: slcompress.c,v 1.3 1996/05/24 07:04:47 paulus Exp 	*/
 
 /*
@@ -67,10 +67,36 @@
 #define ovbcopy bcopy
 #endif
 
+
 void
-sl_compress_init(comp, max_state)
+sl_compress_init(comp)
 	struct slcompress *comp;
-	int max_state;
+{
+	register u_int i;
+	register struct cstate *tstate = comp->tstate;
+
+	bzero((char *)comp, sizeof(*comp));
+	for (i = MAX_STATES - 1; i > 0; --i) {
+		tstate[i].cs_id = i;
+		tstate[i].cs_next = &tstate[i - 1];
+	}
+	tstate[0].cs_next = &tstate[MAX_STATES - 1];
+	tstate[0].cs_id = 0;
+	comp->last_cs = &tstate[0];
+	comp->last_recv = 255;
+	comp->last_xmit = 255;
+	comp->flags = SLF_TOSS;
+}
+
+
+/*
+ * Like sl_compress_init, but we get to specify the maximum connection
+ * ID to use on transmission.
+ */
+void
+sl_compress_setup(comp, max_state)
+ 	struct slcompress *comp;
+ 	int max_state;
 {
 	register u_int i;
 	register struct cstate *tstate = comp->tstate;
