@@ -137,21 +137,25 @@
 #endif
 
 #ifdef _KERNEL
+#include "opt_acpi.h"
+#endif
+
+#ifdef ACPI_DEBUG
+#define ACPI_DEBUG_OUTPUT	/* for backward compatibility */
+#endif
+
+#ifdef _KERNEL
 #include <sys/ctype.h>
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/libkern.h>
 #include <machine/stdarg.h>
 
-#define asm         __asm
-#define __cli()     disable_intr()
-#define __sti()     enable_intr()
-
-#ifdef ACPI_DEBUG_OUTPUT
 #ifdef DEBUGGER_THREADING
 #undef DEBUGGER_THREADING
 #endif /* DEBUGGER_THREADING */
 #define DEBUGGER_THREADING 0    /* integrated with DDB */
+#ifdef ACPI_DEBUG_OUTPUT
 #include "opt_ddb.h"
 #ifdef DDB
 #define ACPI_DEBUGGER
