@@ -12,7 +12,7 @@ g_xfmt.c	c20a5e4	2795
 gdtoa.c	364a0d2	17017
 gdtoa.h	1eb440de	4810
 gdtoaimp.h	6a955ba	19106
-gethex.c	1310d1b3	5066
+gethex.c	1c586a03	5075
 gmisc.c	e1a268ea	2114
 hd_init.c	cf9a94e	1827
 hexnan.c	f53be1da	2988
