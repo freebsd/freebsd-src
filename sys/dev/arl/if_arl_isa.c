@@ -27,6 +27,7 @@ __FBSDID("$FreeBSD$");
 #include <net/if.h>
 #include <net/if_arp.h>
 #include <net/if_mib.h>
+#include <net/if_media.h>
 
 #include <isa/isavar.h>
 #include <isa/pnpvar.h>
@@ -166,7 +167,7 @@ arl_isa_identify (driver_t *driver, device_t parent)
 		}
 
 		if (bootverbose)
-			device_printf(child, "%sfound at 0x%x\n", 
+			device_printf(child, "%sfound at 0x%x\n",
 					!found ? "not " : "", chunk);
 
 		arl_release_resources(child);
@@ -250,35 +251,9 @@ arl_isa_probe (device_t dev)
 
 	if (ar->diagnosticInfo == 0xFF) {
 		/* Copy arp to arpcom struct */
-		bcopy(ar->lanCardNodeId, sc->arpcom.ac_enaddr,
-		      ETHER_ADDR_LEN);
-
-		/* copy values to local cache */
-		bzero(&arcfg, sizeof(arcfg));
-
-		bcopy(ar->lanCardNodeId, arcfg.lanCardNodeId,
-		      sizeof(ar->lanCardNodeId));
-		bcopy(ar->specifiedRouter, arcfg.specifiedRouter,
-		      sizeof(ar->specifiedRouter));
-
-		GET_ARL_PARAM(hardwareType);
-		GET_ARL_PARAM(majorHardwareVersion);
-		GET_ARL_PARAM(minorHardwareVersion);
-		GET_ARL_PARAM(radioModule);
-		GET_ARL_PARAM(channelSet);
-		if (!arcfg.channelSet)
-			arcfg.channelSet = ar->defaultChannelSet;
-		GET_ARL_PARAM(channelNumber);
-		GET_ARL_PARAM(spreadingCode);
-		GET_ARL_PARAM(priority);
-		GET_ARL_PARAM(receiveMode);
-		arcfg.registrationMode	= 1;	/* set default TMA mode */
-		arcfg.txRetry		= 0;	/* use default */
-
-		strncpy(arcfg.name, ar->name, ARLAN_NAME_SIZE);
-		bcopy(ar->systemId, arcfg.sid, 4 * sizeof(ar->systemId[0]));
-
-		device_set_desc_copy(dev, arl_make_desc(ar->hardwareType, ar->radioModule));
+		bcopy(ar->lanCardNodeId, sc->arpcom.ac_enaddr, ETHER_ADDR_LEN);
+		device_set_desc_copy(dev, arl_make_desc(ar->hardwareType,
+			ar->radioModule));
 		error = 0;
 	} else {
 		if (bootverbose)
@@ -325,7 +300,7 @@ arl_isa_detach(device_t dev)
 	struct arl_softc *sc = device_get_softc(dev);
 
 	arl_stop(sc);
-	/* ifmedia_removeall(&sc->an_ifmedia); */
+	ifmedia_removeall(&sc->arl_ifmedia);
 #if __FreeBSD_version < 500100
 	ether_ifdetach(&sc->arpcom.ac_if, ETHER_BPF_SUPPORTED);
 #else

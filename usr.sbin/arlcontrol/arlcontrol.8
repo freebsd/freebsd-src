@@ -40,25 +40,11 @@
 .Nm
 .Ar iface
 .Nm
-.Ar iface Cm name Ar name 
-.Nm
-.Ar iface Cm sid Ar SID 
-.Nm
 .Ar iface Cm country Ar country ( Cm 9-15 )
 .Nm
-.Ar iface Cm channel Ar channel
-(depend on 
-.Ar country )
-.Nm
-.Ar iface Cm freq Ar freq ( Cm 2412, 2427, 2442, 2457, 2465 ) 
-.Nm
-.Ar iface Cm spread Ar spread Cm ( 354, 500, 1000, 2000 ) 
-.Nm
-.Ar iface Cm bitrate Ar bitrate ( Cm 0-4) 
-.Nm
-.Ar iface Cm mode Ar mode ( Cm 640 | 655 )
-.Nm
 .Ar iface Cm priority Ar priority ( Cm normal, high, highest )
+.Nm
+.Ar iface Cm txretry Ar txretry
 .Nm
 .Ar iface Cm stat
 .Nm
@@ -72,11 +58,6 @@ devices via the
 driver.
 Most of the parameters that can be changed are related to the
 Aironet protocol which the Aironet Arlan 655 card implements.
-The parameters include
-the station name, the station operation mode 
-.Ar (point to point or infrastructure) , 
-and the network name of a service
-set to join.
 The
 .Nm
 utility can also be used to view the current NIC status, configuration
@@ -97,71 +78,9 @@ The options are as follows:
 Display current settings of specified wireless interface. 
 This retrieves current card settings from the driver and prints 
 them out. 
-.It Ar iface Cm name Ar name 
-Set 
-.Ar Device Name . 
-This 
-parameter is used to establish a 15-byte ASCII name
-for the Arlan 655 Client Card.
-The 
-.Ar Device Name 
-is optional and may be left blank.
-.Pp
-If you choose to assign a name, while operating in 
-.Ar TMA
-mode, the name will appear in the Arlan Access Point's Registration Table.
-Duplicate names are allowed. 
-.It Ar iface Cm sid Ar SID 
-Set
-.Ar System Identifier.
-The System Identifier 
-.Ar (SID)
-is a 4-byte, hexadecimal digit value that 
-is attached to each packet sent out over the radio.
-Establishing a 
-.Ar SID
-allows you to group nodes into a microcellular network and exclude 
-those nodes that are whiting radio range on other networks.
-.Pp
-The
-.Ar SID
-value must be an even number, cannot exceed ts and must start with
-00 or 02.
-Examples of valid SID values are: 00000102, 0200AA14, 00013A18,
-007F6380.
-The 
-.Ar default 
-SID is 
-.Cm 00000002 .
-.Pp
-Since nodes will only receive packets from other nodes with a matching SID, 
-you must make sure that the Arlan 655 Client Card is set the same SID as 
-other nodes on your network. 
-.It Ar iface Cm mode Ar mode ( Cm 640 | 655 )
-Use
-.Ar operating mode
-parameter to specify whether you are operating in 
-.Ar TMA , Non-TMA 
-or
-.Ar PSP
-mode.
-The 
-.Ar default
-setting is 
-.Cm TMA
-mode.  
-.Bl -column ".Em Mode" ".Em Regmode"  -offset indent indent
-.Em "Mode       Registration mode"
-.It 640 Ta TMA 
-.It 655 Ta Non-TMA 
-.It PSP Ta Power save mode 
-.El
-.!!!
 .It Ar iface Cm country Ar country ( Cm 9-15 )
-.It Ar iface Cm channel Ar channel
-.It Ar iface Cm freq Ar freq ( Cm 2412, 2427, 2442, 2457, 2465 ) 
 Chose 
-.Ar country , channel , freq
+.Ar country , channel
  parameters that depend on the
 .Ar country 
 according to the following table:
@@ -181,17 +100,6 @@ according to the following table:
 .It "U.K.         " Ta 15 Ta "2460"
 .It "Spain        " Ta 15 Ta "2460"
 .El
-.It Ar iface Cm bitrate Ar bitrate ( Cm 0-4) 
-.It Ar iface Cm spread Ar spread Cm ( 354, 500, 1000, 2000 ) 
-Set device operating bitrate or spread.
-.Bl -column ".Em Rate" ".Em Spread" ".Em kb/s"  -offset indent indent
-.Em "Rate	Spread	kb/s"
-.It 0 Ta - Ta Auto
-.It 1 Ta 354 Ta 354
-.It 2 Ta 512 Ta 512
-.It 3 Ta 1000 Ta 1000
-.It 4 Ta 2000 Ta 2000
-.El
 .It Ar iface Cm priority Ar priority ( Cm normal, high, highest )
 Use the
 .Ar priority
@@ -207,6 +115,8 @@ to transmit at the same time.
 The percentage of units on your network that you set to values other than
 .Dq normal
 should be kept small - 10 percent or less.  
+.It Ar iface Cm txretry Ar txretry
+Set transmit retries. Default is 0.
 .It Ar iface Cm stat
 Print internal Arlan 655 statistics block.
 .It Ar iface Cm quality
@@ -219,7 +129,7 @@ Also the driver extracts values from ACK packets.
 .El
 .Sh EXAMPLES
 .Bd -literal -offset indent
-arlconfig arl0 name NODE1 sid 4 freq 2442 
+arlconfig arl0 country 11 priority hight 
 arlconfig arl0 quality 
 arlconfig arl0 stat
 arlconfig arl0
