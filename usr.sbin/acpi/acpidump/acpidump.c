@@ -41,9 +41,10 @@ asl_dump_from_file(char *file)
 {
 	u_int8_t	*dp;
 	u_int8_t	*end;
+	struct	ACPIsdt *dsdt;
 
 	acpi_load_dsdt(file, &dp, &end);
-	asl_dump_objectlist(&dp, end, 0);
+	acpi_dump_dsdt(dp, end);
 }
 
 static void

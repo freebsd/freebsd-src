@@ -39,7 +39,7 @@
 char	*aml_dumpfile = NULL;
 
 void
-aml_dump(u_int32_t *ptr, int len)
+aml_dump(struct ACPIsdt *dsdp)
 {
 	int	fd;
 	mode_t	mode;
@@ -49,10 +49,12 @@ aml_dump(u_int32_t *ptr, int len)
 	}
 
 	mode = (S_IRUSR | S_IWUSR | S_IRGRP | S_IROTH);
-	fd = open(aml_dumpfile, O_WRONLY | O_CREAT, mode);
+	fd = open(aml_dumpfile, O_WRONLY | O_CREAT | O_TRUNC, mode);
 	if (fd == -1) {
 		return;
 	}
-	write(fd, ptr, len);
+	write(fd, dsdp, SIZEOF_SDT_HDR);
+	write(fd, dsdp->body, dsdp->len - SIZEOF_SDT_HDR);
 	close(fd);
 }
+

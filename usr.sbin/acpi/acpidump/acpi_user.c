@@ -149,14 +149,11 @@ acpi_load_dsdt(char *dumpfile, u_int8_t **dpp, u_int8_t **endp)
 		errx(1, "mmap %s\n", dumpfile);
 	}
 
-	/*
-	 * Microsoft asl.exe generates 0x23 byte additional info.
-	 * at the begining of the file, so just ignore it.
-	 */
-        if (strncmp(dp, "DSDT", 4) == 0) {
-                dp += 0x23;
-		sb.st_size -= 0x23;
-        }
+	if (strncmp(dp, "DSDT", 4) == 0) {
+		memcpy(&dsdt_header, dp, SIZEOF_SDT_HDR);
+		dp += SIZEOF_SDT_HDR;
+		sb.st_size -= SIZEOF_SDT_HDR;
+	}
 
 	end = (u_int8_t *) dp + sb.st_size;
 	*dpp = dp;

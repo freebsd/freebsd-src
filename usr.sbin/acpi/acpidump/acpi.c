@@ -39,6 +39,48 @@
 
 #include "acpidump.h"
 
+#include "aml/aml_env.h"
+#include "aml/aml_common.h"
+
+#define BEGIN_COMMENT	"/*\n"
+#define END_COMMENT	" */\n"
+
+struct ACPIsdt	dsdt_header = {
+	"DSDT", 0, 1, 0, "OEMID", "OEMTBLID", 0x12345678, "CRTR", 0x12345678
+};
+
+static void
+acpi_trim_string(char *s, size_t length)
+{
+
+	/* Trim trailing spaces and NULLs */
+	while (length > 0 && (s[length - 1] == ' ' || s[length - 1] == '\0'))
+		s[length-- - 1] = '\0';
+}
+
+static void
+acpi_print_dsdt_definition(void)
+{
+	char	oemid[6 + 1];
+	char	oemtblid[8 + 1];
+
+	acpi_trim_string(dsdt_header.oemid, 6);
+	acpi_trim_string(dsdt_header.oemtblid, 8);
+	strncpy(oemid, dsdt_header.oemid, 6);
+	oemid[6] = '\0';
+	strncpy(oemtblid, dsdt_header.oemtblid, 8);
+	oemtblid[8] = '\0';
+
+	printf("DefinitionBlock (
+    \"acpi_dsdt.aml\",	//Output filename
+    \"DSDT\",		//Signature
+    0x%x,		//DSDT Revision
+    \"%s\",		//OEMID
+    \"%s\",		//TABLE ID
+    0x%x		//OEM Revision\n)\n",
+	dsdt_header.rev, oemid, oemtblid, dsdt_header.oemrev);
+}
+
 static void
 acpi_print_string(char *s, size_t length)
 {
@@ -63,8 +105,8 @@ acpi_handle_dsdt(struct ACPIsdt *dsdp)
 	acpi_print_dsdt(dsdp);
 	dp = (u_int8_t *)dsdp->body;
 	end = (u_int8_t *)dsdp + dsdp->len;
-	asl_dump_objectlist(&dp, end, 0);
-	assert(dp == end);
+
+	acpi_dump_dsdt(dp, end);
 }
 
 static void
@@ -77,7 +119,21 @@ acpi_handle_facp(struct FACPbody *facp)
 	if (acpi_checksum(dsdp, dsdp->len))
 		errx(1, "DSDT is corrupt\n");
 	acpi_handle_dsdt(dsdp);
-	aml_dump(dsdp->body, dsdp->len - SIZEOF_SDT_HDR);
+	aml_dump(dsdp);
+}
+
+static void
+init_namespace()
+{
+	struct	aml_environ env;
+	struct	aml_name *newname;
+
+	aml_new_name_group(AML_NAME_GROUP_OS_DEFINED);
+	env.curname = aml_get_rootname();
+	newname = aml_create_name(&env, "\\_OS_");
+	newname->property = aml_alloc_object(aml_t_string, NULL);
+	newname->property->str.needfree = 0;
+	newname->property->str.string = "Microsoft Windows NT";
 }
 
 /*
@@ -85,11 +141,41 @@ acpi_handle_facp(struct FACPbody *facp)
  */
 
 void
+acpi_dump_dsdt(u_int8_t *dp, u_int8_t *end)
+{
+	extern struct aml_environ	asl_env;
+
+	acpi_print_dsdt_definition();
+
+	/* 1st stage: parse only w/o printing */
+	init_namespace();
+	aml_new_name_group((int)dp);
+	bzero(&asl_env, sizeof(asl_env));
+
+	asl_env.dp = dp;
+	asl_env.end = end;
+	asl_env.curname = aml_get_rootname();
+
+	aml_local_stack_push(aml_local_stack_create());
+	aml_parse_objectlist(&asl_env, 0);
+	aml_local_stack_delete(aml_local_stack_pop());
+
+	assert(asl_env.dp == asl_env.end);
+	asl_env.dp = dp;
+
+	/* 2nd stage: dump whole object list */
+	printf("\n{\n");
+	asl_dump_objectlist(&dp, end, 0);
+	printf("\n}\n");
+	assert(dp == end);
+}
+void
 acpi_print_sdt(struct ACPIsdt *sdp)
 {
 
+	printf(BEGIN_COMMENT);
 	acpi_print_string(sdp->signature, 4);
-	printf(": Lenth=%d, Revision=%d, Checksum=%d,\n",
+	printf(": Length=%d, Revision=%d, Checksum=%d,\n",
 	       sdp->len, sdp->rev, sdp->check);
 	printf("\tOEMID=");
 	acpi_print_string(sdp->oemid, 6);
@@ -99,6 +185,10 @@ acpi_print_sdt(struct ACPIsdt *sdp)
 	printf("\tCreator ID=");
 	acpi_print_string(sdp->creator, 4);
 	printf(", Creator Revision=0x%x\n", sdp->crerev);
+	printf(END_COMMENT);
+	if (!memcmp(sdp->signature, "DSDT", 4)) {
+		memcpy(&dsdt_header, sdp, sizeof(dsdt_header));
+	}
 }
 
 void
@@ -108,6 +198,7 @@ acpi_print_rsdt(struct ACPIsdt *rsdp)
 
 	acpi_print_sdt(rsdp);
 	entries = (rsdp->len - SIZEOF_SDT_HDR) / sizeof(u_int32_t);
+	printf(BEGIN_COMMENT);
 	printf("\tEntries={ ");
 	for (i = 0; i < entries; i++) {
 		if (i > 0)
@@ -115,6 +206,7 @@ acpi_print_rsdt(struct ACPIsdt *rsdp)
 		printf("0x%08x", rsdp->body[i]);
 	}
 	printf(" }\n");
+	printf(END_COMMENT);
 }
 
 void
@@ -122,6 +214,7 @@ acpi_print_facp(struct FACPbody *facp)
 {
 	char	sep;
 
+	printf(BEGIN_COMMENT);
 	printf("\tDSDT=0x%x\n", facp->dsdt_ptr);
 	printf("\tINT_MODEL=%s\n", facp->int_model ? "APIC" : "PIC");
 	printf("\tSCI_INT=%d\n", facp->sci_int);
@@ -193,6 +286,7 @@ acpi_print_facp(struct FACPbody *facp)
 #undef PRINTFLAG
 
 	printf("}\n");
+	printf(END_COMMENT);
 }
 
 void
@@ -230,9 +324,11 @@ void
 acpi_print_rsd_ptr(struct ACPIrsdp *rp)
 {
 
+	printf(BEGIN_COMMENT);
 	printf("RSD PTR: Checksum=%d, OEMID=", rp->sum);
 	acpi_print_string(rp->oem, 6);
 	printf(", RsdtAddress=0x%08x\n", rp->addr);
+	printf(END_COMMENT);
 }
 
 void
@@ -255,3 +351,86 @@ acpi_handle_rsdt(struct ACPIsdt *rsdp)
 		}
 	}
 }
+
+/*
+ *	Dummy functions
+ */
+
+void
+aml_dbgr(struct aml_environ *env1, struct aml_environ *env2)
+{
+	/* do nothing */
+}
+
+int
+aml_region_read_simple(struct aml_region_handle *h, vm_offset_t offset,
+    u_int32_t *valuep)
+{
+	return (0);
+}
+
+int
+aml_region_write_simple(struct aml_region_handle *h, vm_offset_t offset,
+    u_int32_t value)
+{
+	return (0);
+}
+
+u_int32_t
+aml_region_prompt_read(struct aml_region_handle *h, u_int32_t value)
+{
+	return (0);
+}
+
+u_int32_t
+aml_region_prompt_write(struct aml_region_handle *h, u_int32_t value)
+{
+	return (0);
+}
+
+int
+aml_region_prompt_update_value(u_int32_t orgval, u_int32_t value,
+    struct aml_region_handle *h)
+{
+	return (0);
+}
+
+u_int32_t
+aml_region_read(struct aml_environ *env, int regtype, u_int32_t flags,
+    u_int32_t addr, u_int32_t bitoffset, u_int32_t bitlen)
+{
+	return (0);
+}
+
+int
+aml_region_write(struct aml_environ *env, int regtype, u_int32_t flags,
+    u_int32_t value, u_int32_t addr, u_int32_t bitoffset, u_int32_t bitlen)
+{
+	return (0);
+}
+
+int
+aml_region_write_from_buffer(struct aml_environ *env, int regtype,
+    u_int32_t flags, u_int8_t *buffer, u_int32_t addr, u_int32_t bitoffset,
+    u_int32_t bitlen)
+{
+	return (0);
+}
+
+int
+aml_region_bcopy(struct aml_environ *env, int regtype, u_int32_t flags,
+    u_int32_t addr, u_int32_t bitoffset, u_int32_t bitlen,
+    u_int32_t dflags, u_int32_t daddr,
+    u_int32_t dbitoffset, u_int32_t dbitlen)
+{
+	return (0);
+}
+
+int
+aml_region_read_into_buffer(struct aml_environ *env, int regtype,
+    u_int32_t flags, u_int32_t addr, u_int32_t bitoffset,
+    u_int32_t bitlen, u_int8_t *buffer)
+{
+	return (0);
+}
+
