@@ -472,11 +472,13 @@ pad_output(int current, int target)
 	if (current >= target)
 	    return (current);	/* line is already long enough */
 	curr = current;
-	while ((tcur = ((curr - 1) & tabmask) + tabsize + 1) <= target) {
-	    putc('\t', output);
-	    curr = tcur;
-	}
-	while (curr++ < target)
+        if (use_tabs) {
+            while ((tcur = ((curr - 1) & tabmask) + tabsize + 1) <= target) {
+                putc('\t', output);
+                curr = tcur;
+            }
+        }
+        while (curr++ < target)
 	    putc(' ', output);	/* pad with final blanks */
     }
     return (target);
