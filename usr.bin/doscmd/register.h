@@ -58,6 +58,7 @@ typedef union
 
 typedef struct
 {
+    int		onstack;
     reg86_t	gs;
     reg86_t	fs;
     reg86_t	es;
