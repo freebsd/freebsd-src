@@ -131,7 +131,7 @@ portal_lookup(ap)
 	MALLOC(pt, struct portalnode *, sizeof(struct portalnode),
 		M_TEMP, M_WAITOK);
 
-	error = getnewvnode("portal", dvp->v_mount, portal_vnodeop_p, &fvp);
+	error = getnewvnode("portal", dvp->v_mount, &portal_vnodeops, &fvp);
 	if (error) {
 		FREE(pt, M_TEMP);
 		goto bad;
@@ -556,20 +556,14 @@ portal_reclaim(ap)
 	return (0);
 }
 
-vop_t **portal_vnodeop_p;
-static struct vnodeopv_entry_desc portal_vnodeop_entries[] = {
-	{ &vop_default_desc,		(vop_t *) vop_defaultop },
-	{ &vop_access_desc,		(vop_t *) vop_null },
-	{ &vop_getattr_desc,		(vop_t *) portal_getattr },
-	{ &vop_lookup_desc,		(vop_t *) portal_lookup },
-	{ &vop_open_desc,		(vop_t *) portal_open },
-	{ &vop_pathconf_desc,		(vop_t *) vop_stdpathconf },
-	{ &vop_readdir_desc,		(vop_t *) portal_readdir },
-	{ &vop_reclaim_desc,		(vop_t *) portal_reclaim },
-	{ &vop_setattr_desc,		(vop_t *) portal_setattr },
-	{ NULL, NULL }
+struct vop_vector portal_vnodeops = {
+	.vop_default =		&default_vnodeops,
+	.vop_access =		VOP_NULL,
+	.vop_getattr =		portal_getattr,
+	.vop_lookup =		portal_lookup,
+	.vop_open =		portal_open,
+	.vop_pathconf =		vop_stdpathconf,
+	.vop_readdir =		portal_readdir,
+	.vop_reclaim =		portal_reclaim,
+	.vop_setattr =		portal_setattr,
 };
-static struct vnodeopv_desc portal_vnodeop_opv_desc =
-	{ &portal_vnodeop_p, portal_vnodeop_entries };
-
-VNODEOP_SET(portal_vnodeop_opv_desc);

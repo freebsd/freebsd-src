@@ -60,8 +60,6 @@
 
 #define	NWNOHASH(fhsum) (&nwhashtbl[(fhsum.f_id) & nwnodehash])
 
-extern vop_t **nwfs_vnodeop_p;
-
 static LIST_HEAD(nwnode_hash_head,nwnode) *nwhashtbl;
 static u_long nwnodehash;
 static struct lock nwhashlock;
@@ -170,7 +168,7 @@ rescan:
 	 * elsewhere if MALLOC should block.
 	 */
 	MALLOC(np, struct nwnode *, sizeof *np, M_NWNODE, M_WAITOK | M_ZERO);
-	error = getnewvnode("nwfs", mp, nwfs_vnodeop_p, &vp);
+	error = getnewvnode("nwfs", mp, &nwfs_vnodeops, &vp);
 	if (error) {
 		*vpp = NULL;
 		FREE(np, M_NWNODE);

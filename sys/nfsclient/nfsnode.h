@@ -191,10 +191,10 @@ nfs_rsunlock(struct nfsnode *np, struct thread *td)
 	(void)lockmgr(&np->n_rslock, LK_RELEASE, NULL, td);
 }
 
-extern	vop_t	**fifo_nfsnodeop_p;
-extern	vop_t	**nfs_vnodeop_p;
+extern	struct vop_vector	nfs_fifoops;
+extern	struct vop_vector	nfs_vnodeops;
+extern	struct vop_vector	nfs4_vnodeops;
 extern struct buf_ops buf_ops_nfs;
-extern	vop_t	**nfs4_vnodeop_p;
 extern struct buf_ops buf_ops_nfs4;
 
 /*

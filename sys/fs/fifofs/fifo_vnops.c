@@ -100,51 +100,35 @@ static struct filterops fiforead_filtops =
 static struct filterops fifowrite_filtops =
 	{ 1, NULL, filt_fifowdetach, filt_fifowrite };
 
-vop_t **fifo_vnodeop_p;
-static struct vnodeopv_entry_desc fifo_vnodeop_entries[] = {
-	{ &vop_default_desc,		(vop_t *) vop_defaultop },
-	{ &vop_access_desc,		(vop_t *) vop_ebadf },
-	{ &vop_advlock_desc,		(vop_t *) fifo_advlock },
-	{ &vop_close_desc,		(vop_t *) fifo_close },
-	{ &vop_create_desc,		(vop_t *) vop_panic },
-	{ &vop_getattr_desc,		(vop_t *) vop_ebadf },
-	{ &vop_ioctl_desc,		(vop_t *) fifo_ioctl },
-	{ &vop_kqfilter_desc,		(vop_t *) fifo_kqfilter },
-	{ &vop_lease_desc,		(vop_t *) vop_null },
-	{ &vop_link_desc,		(vop_t *) vop_panic },
-	{ &vop_mkdir_desc,		(vop_t *) vop_panic },
-	{ &vop_mknod_desc,		(vop_t *) vop_panic },
-	{ &vop_open_desc,		(vop_t *) fifo_open },
-	{ &vop_pathconf_desc,		(vop_t *) fifo_pathconf },
-	{ &vop_print_desc,		(vop_t *) fifo_print },
-	{ &vop_readdir_desc,		(vop_t *) vop_panic },
-	{ &vop_readlink_desc,		(vop_t *) vop_panic },
-	{ &vop_reallocblks_desc,	(vop_t *) vop_panic },
-	{ &vop_reclaim_desc,		(vop_t *) vop_null },
-	{ &vop_remove_desc,		(vop_t *) vop_panic },
-	{ &vop_rename_desc,		(vop_t *) vop_panic },
-	{ &vop_rmdir_desc,		(vop_t *) vop_panic },
-	{ &vop_setattr_desc,		(vop_t *) vop_ebadf },
-	{ &vop_symlink_desc,		(vop_t *) vop_panic },
-	{ NULL, NULL }
+struct vop_vector fifo_specops = {
+	.vop_default =		&default_vnodeops,
+	.vop_access =		VOP_EBADF,
+	.vop_advlock =		fifo_advlock,
+	.vop_close =		fifo_close,
+	.vop_create =		VOP_PANIC,
+	.vop_getattr =		VOP_EBADF,
+	.vop_ioctl =		fifo_ioctl,
+	.vop_kqfilter =		fifo_kqfilter,
+	.vop_lease =		VOP_NULL,
+	.vop_link =		VOP_PANIC,
+	.vop_mkdir =		VOP_PANIC,
+	.vop_mknod =		VOP_PANIC,
+	.vop_open =		fifo_open,
+	.vop_pathconf =		fifo_pathconf,
+	.vop_print =		fifo_print,
+	.vop_readdir =		VOP_PANIC,
+	.vop_readlink =		VOP_PANIC,
+	.vop_reallocblks =	VOP_PANIC,
+	.vop_reclaim =		VOP_NULL,
+	.vop_remove =		VOP_PANIC,
+	.vop_rename =		VOP_PANIC,
+	.vop_rmdir =		VOP_PANIC,
+	.vop_setattr =		VOP_EBADF,
+	.vop_symlink =		VOP_PANIC,
 };
-static struct vnodeopv_desc fifo_vnodeop_opv_desc =
-	{ &fifo_vnodeop_p, fifo_vnodeop_entries };
-
-VNODEOP_SET(fifo_vnodeop_opv_desc);
 
 struct mtx fifo_mtx;
 MTX_SYSINIT(fifo, &fifo_mtx, "fifo mutex", MTX_DEF);
-
-int
-fifo_vnoperate(ap)
-	struct vop_generic_args /* {
-		struct vnodeop_desc *a_desc;
-		<other random data follows, presumably>
-	} */ *ap;
-{
-	return (VOCALL(fifo_vnodeop_p, ap->a_desc->vdesc_offset, ap));
-}
 
 /*
  * Dispose of fifo resources.

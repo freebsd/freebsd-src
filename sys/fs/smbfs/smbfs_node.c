@@ -62,7 +62,7 @@
 #define	smbfs_hash_unlock(smp, td)	lockmgr(&smp->sm_hashlock, LK_RELEASE, NULL, td)
 
 
-extern vop_t **smbfs_vnodeop_p;
+extern struct vop_vector smbfs_vnodeops;	/* XXX -> .h file */
 
 MALLOC_DEFINE(M_SMBNODE, "SMBFS node", "SMBFS vnode private part");
 static MALLOC_DEFINE(M_SMBNODENAME, "SMBFS nname", "SMBFS node name");
@@ -236,7 +236,7 @@ loop:
 		return ENOENT;
 
 	MALLOC(np, struct smbnode *, sizeof *np, M_SMBNODE, M_WAITOK);
-	error = getnewvnode("smbfs", mp, smbfs_vnodeop_p, &vp);
+	error = getnewvnode("smbfs", mp, &smbfs_vnodeops, &vp);
 	if (error) {
 		FREE(np, M_SMBNODE);
 		return error;

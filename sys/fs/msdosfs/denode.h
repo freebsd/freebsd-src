@@ -259,7 +259,7 @@ struct defid {
 #endif
 };
 
-extern vop_t **msdosfs_vnodeop_p;
+extern struct vop_vector msdosfs_vnodeops;
 
 int msdosfs_lookup(struct vop_cachedlookup_args *);
 int msdosfs_inactive(struct vop_inactive_args *);

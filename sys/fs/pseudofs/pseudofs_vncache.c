@@ -72,7 +72,7 @@ SYSCTL_INT(_vfs_pfs_vncache, OID_AUTO, misses, CTLFLAG_RD,
     &pfs_vncache_misses, 0,
     "number of cache misses since initialization");
 
-extern vop_t **pfs_vnodeop_p;
+extern struct vop_vector pfs_vnodeops;	/* XXX -> .h file */
 
 /*
  * Initialize vnode cache
@@ -137,7 +137,7 @@ pfs_vncache_alloc(struct mount *mp, struct vnode **vpp,
 	MALLOC(pvd, struct pfs_vdata *, sizeof *pvd, M_PFSVNCACHE, M_WAITOK);
 	if (++pfs_vncache_entries > pfs_vncache_maxentries)
 		pfs_vncache_maxentries = pfs_vncache_entries;
-	error = getnewvnode("pseudofs", mp, pfs_vnodeop_p, vpp);
+	error = getnewvnode("pseudofs", mp, &pfs_vnodeops, vpp);
 	if (error) {
 		FREE(pvd, M_PFSVNCACHE);
 		return (error);

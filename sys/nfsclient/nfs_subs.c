@@ -543,7 +543,7 @@ nfs_loadattrcache(struct vnode **vpp, struct mbuf **mdp, caddr_t *dposp,
 	if (vp->v_type != vtyp) {
 		vp->v_type = vtyp;
 		if (vp->v_type == VFIFO)
-			vp->v_op = fifo_nfsnodeop_p;
+			vp->v_op = &nfs_fifoops;
 		np->n_mtime = mtime.tv_sec;
 	}
 	vap = &np->n_vattr;

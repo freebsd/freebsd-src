@@ -70,39 +70,32 @@ static int	vop_nostrategy(struct vop_strategy_args *);
  *
  */
 
-vop_t **default_vnodeop_p;
-static struct vnodeopv_entry_desc default_vnodeop_entries[] = {
-	{ &vop_default_desc,		(vop_t *) vop_eopnotsupp },
-	{ &vop_advlock_desc,		(vop_t *) vop_einval },
-	{ &vop_bmap_desc,		(vop_t *) vop_stdbmap },
-	{ &vop_close_desc,		(vop_t *) vop_null },
-	{ &vop_createvobject_desc,	(vop_t *) vop_stdcreatevobject },
-	{ &vop_destroyvobject_desc,	(vop_t *) vop_stddestroyvobject },
-	{ &vop_fsync_desc,		(vop_t *) vop_null },
-	{ &vop_getpages_desc,		(vop_t *) vop_stdgetpages },
-	{ &vop_getvobject_desc,		(vop_t *) vop_stdgetvobject },
-	{ &vop_getwritemount_desc, 	(vop_t *) vop_stdgetwritemount },
-	{ &vop_inactive_desc,		(vop_t *) vop_stdinactive },
-	{ &vop_ioctl_desc,		(vop_t *) vop_enotty },
-	{ &vop_islocked_desc,		(vop_t *) vop_stdislocked },
-	{ &vop_lease_desc,		(vop_t *) vop_null },
-	{ &vop_lock_desc,		(vop_t *) vop_stdlock },
-	{ &vop_lookup_desc,		(vop_t *) vop_nolookup },
-	{ &vop_open_desc,		(vop_t *) vop_null },
-	{ &vop_pathconf_desc,		(vop_t *) vop_einval },
-	{ &vop_poll_desc,		(vop_t *) vop_nopoll },
-	{ &vop_putpages_desc,		(vop_t *) vop_stdputpages },
-	{ &vop_readlink_desc,		(vop_t *) vop_einval },
-	{ &vop_revoke_desc,		(vop_t *) vop_panic },
-	{ &vop_strategy_desc,		(vop_t *) vop_nostrategy },
-	{ &vop_unlock_desc,		(vop_t *) vop_stdunlock },
-	{ NULL, NULL }
+struct vop_vector default_vnodeops = {
+	.vop_default =		NULL,
+	.vop_advlock =		VOP_EINVAL,
+	.vop_bmap =		vop_stdbmap,
+	.vop_close =		VOP_NULL,
+	.vop_createvobject =	vop_stdcreatevobject,
+	.vop_destroyvobject =	vop_stddestroyvobject,
+	.vop_fsync =		VOP_NULL,
+	.vop_getpages =		vop_stdgetpages,
+	.vop_getvobject =		vop_stdgetvobject,
+	.vop_getwritemount = 	vop_stdgetwritemount,
+	.vop_inactive =		vop_stdinactive,
+	.vop_ioctl =		VOP_ENOTTY,
+	.vop_islocked =		vop_stdislocked,
+	.vop_lease =		VOP_NULL,
+	.vop_lock =		vop_stdlock,
+	.vop_lookup =		vop_nolookup,
+	.vop_open =		VOP_NULL,
+	.vop_pathconf =		VOP_EINVAL,
+	.vop_poll =		vop_nopoll,
+	.vop_putpages =		vop_stdputpages,
+	.vop_readlink =		VOP_EINVAL,
+	.vop_revoke =		VOP_PANIC,
+	.vop_strategy =		vop_nostrategy,
+	.vop_unlock =		vop_stdunlock,
 };
-
-static struct vnodeopv_desc default_vnodeop_opv_desc =
-        { &default_vnodeop_p, default_vnodeop_entries };
-
-VNODEOP_SET(default_vnodeop_opv_desc);
 
 /*
  * Series of placeholder functions for various error returns for
@@ -145,16 +138,6 @@ vop_null(struct vop_generic_args *ap)
 {
 
 	return (0);
-}
-
-/*
- * Used to make a defined VOP fall back to the default VOP.
- */
-int
-vop_defaultop(struct vop_generic_args *ap)
-{
-
-	return (VOCALL(default_vnodeop_p, ap->a_desc->vdesc_offset, ap));
 }
 
 /*

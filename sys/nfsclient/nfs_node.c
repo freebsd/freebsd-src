@@ -235,9 +235,9 @@ loop:
 	np = uma_zalloc(nfsnode_zone, M_WAITOK);
 
 	if (nmp->nm_flag & NFSMNT_NFSV4)
-		error = getnewvnode("nfs4", mntp, nfs4_vnodeop_p, &nvp);
+		error = getnewvnode("nfs4", mntp, &nfs4_vnodeops, &nvp);
 	else
-		error = getnewvnode("nfs", mntp, nfs_vnodeop_p, &nvp);
+		error = getnewvnode("nfs", mntp, &nfs_vnodeops, &nvp);
 	if (error) {
 		if (nfs_node_hash_lock < 0)
 			wakeup(&nfs_node_hash_lock);

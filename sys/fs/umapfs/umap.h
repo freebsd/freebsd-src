@@ -83,5 +83,4 @@ extern struct vnode *umap_checkvp(struct vnode *vp, char *fil, int lno);
 #define	UMAPVPTOLOWERVP(vp) (VTOUMAP(vp)->umap_lowervp)
 #endif
 
-extern vop_t **umap_vnodeop_p;
 #endif /* _KERNEL */

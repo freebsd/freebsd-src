@@ -729,7 +729,7 @@ int
 getnewvnode(tag, mp, vops, vpp)
 	const char *tag;
 	struct mount *mp;
-	vop_t **vops;
+	struct vop_vector *vops;
 	struct vnode **vpp;
 {
 	struct vnode *vp = NULL;
@@ -1772,7 +1772,7 @@ bdevvp(dev, vpp)
 	if (vfinddev(dev, vpp))
 		return (0);
 
-	error = getnewvnode("none", (struct mount *)0, devfs_specop_p, &nvp);
+	error = getnewvnode("none", (struct mount *)0, &devfs_specops, &nvp);
 	if (error) {
 		*vpp = NULLVP;
 		return (error);
@@ -1811,7 +1811,7 @@ addaliasu(nvp, nvp_rdev)
 	dev_t nvp_rdev;
 {
 	struct vnode *ovp;
-	vop_t **ops;
+	struct vop_vector *ops;
 	struct cdev *dev;
 
 	if (nvp->v_type == VBLK)
@@ -2438,7 +2438,7 @@ vclean(vp, flags, td)
 	 * notify sleepers of the grim news.
 	 */
 	vp->v_vnlock = &vp->v_lock;
-	vp->v_op = dead_vnodeop_p;
+	vp->v_op = &dead_vnodeops;
 	if (vp->v_pollinfo != NULL)
 		vn_pollgone(vp);
 	vp->v_tag = "none";
@@ -2511,14 +2511,14 @@ vgonechrl(struct vnode *vp, struct thread *td)
 		VOP_UNLOCK(vp, 0, td);
 		vp->v_vnlock = &vp->v_lock;
 		vp->v_tag = "orphanchr";
-		vp->v_op = devfs_specop_p;
+		vp->v_op = &devfs_specops;
 		delmntque(vp);
 		cache_purge(vp);
 		vrele(vp);
 		VI_LOCK(vp);
 	} else
 		vclean(vp, 0, td);
-	vp->v_op = devfs_specop_p;
+	vp->v_op = &devfs_specops;
 	vx_unlock(vp);
 	VI_UNLOCK(vp);
 }
@@ -3186,22 +3186,16 @@ static int	sync_fsync(struct  vop_fsync_args *);
 static int	sync_inactive(struct  vop_inactive_args *);
 static int	sync_reclaim(struct  vop_reclaim_args *);
 
-static vop_t **sync_vnodeop_p;
-static struct vnodeopv_entry_desc sync_vnodeop_entries[] = {
-	{ &vop_default_desc,	(vop_t *) vop_eopnotsupp },
-	{ &vop_close_desc,	(vop_t *) sync_close },		/* close */
-	{ &vop_fsync_desc,	(vop_t *) sync_fsync },		/* fsync */
-	{ &vop_inactive_desc,	(vop_t *) sync_inactive },	/* inactive */
-	{ &vop_reclaim_desc,	(vop_t *) sync_reclaim },	/* reclaim */
-	{ &vop_lock_desc,	(vop_t *) vop_stdlock },	/* lock */
-	{ &vop_unlock_desc,	(vop_t *) vop_stdunlock },	/* unlock */
-	{ &vop_islocked_desc,	(vop_t *) vop_stdislocked },	/* islocked */
-	{ NULL, NULL }
+static struct vop_vector sync_vnodeops = {
+	.vop_bypass =	VOP_EOPNOTSUPP,
+	.vop_close =	sync_close,		/* close */
+	.vop_fsync =	sync_fsync,		/* fsync */
+	.vop_inactive =	sync_inactive,	/* inactive */
+	.vop_reclaim =	sync_reclaim,	/* reclaim */
+	.vop_lock =	vop_stdlock,	/* lock */
+	.vop_unlock =	vop_stdunlock,	/* unlock */
+	.vop_islocked =	vop_stdislocked,	/* islocked */
 };
-static struct vnodeopv_desc sync_vnodeop_opv_desc =
-	{ &sync_vnodeop_p, sync_vnodeop_entries };
-
-VNODEOP_SET(sync_vnodeop_opv_desc);
 
 /*
  * Create a new filesystem syncer vnode for the specified mount point.
@@ -3215,7 +3209,7 @@ vfs_allocate_syncvnode(mp)
 	int error;
 
 	/* Allocate a new vnode */
-	if ((error = getnewvnode("syncer", mp, sync_vnodeop_p, &vp)) != 0) {
+	if ((error = getnewvnode("syncer", mp, &sync_vnodeops, &vp)) != 0) {
 		mp->mnt_syncer = NULL;
 		return (error);
 	}

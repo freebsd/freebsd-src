@@ -68,7 +68,7 @@ struct vnode *null_checkvp(struct vnode *vp, char *fil, int lno);
 #define	NULLVPTOLOWERVP(vp) (VTONULL(vp)->null_lowervp)
 #endif
 
-extern vop_t **null_vnodeop_p;
+extern struct vop_vector null_vnodeops;
 
 #ifdef MALLOC_DECLARE
 MALLOC_DECLARE(M_NULLFSNODE);

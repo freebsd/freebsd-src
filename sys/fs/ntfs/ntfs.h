@@ -304,4 +304,4 @@ MALLOC_DECLARE(M_NTFSNTHASH);
 #define ddprintf(a)
 #endif
 
-extern vop_t  **ntfs_vnodeop_p;
+extern struct vop_vector ntfs_vnodeops;
