@@ -61,7 +61,7 @@
  * any improvements or extensions that they make and grant Carnegie the
  * rights to redistribute these changes.
  *
- * $Id: vm_object.c,v 1.21 1995/02/02 09:08:48 davidg Exp $
+ * $Id: vm_object.c,v 1.22 1995/02/12 09:19:44 davidg Exp $
  */
 
 /*
@@ -263,7 +263,7 @@ vm_object_deallocate(object)
 				if( robject) {
 					int s;
 					robject->ref_count += 2;
-					object->ref_count += 1;
+					object->ref_count += 2;
 
 					do {
 						s = splhigh();
@@ -278,7 +278,7 @@ vm_object_deallocate(object)
 
 					} while( object->paging_in_progress || robject->paging_in_progress);
 
-					object->ref_count -= 1;
+					object->ref_count -= 2;
 					robject->ref_count -= 2;
 					if( robject->ref_count == 0) {
 						vm_object_unlock(object);
@@ -1217,6 +1217,7 @@ vm_object_qcollapse(object)
 					swap_pager_freespace(backing_object->pager,
 					    backing_object->paging_offset + p->offset, PAGE_SIZE);
 				vm_page_rename(p, object, new_offset);
+				p->dirty = VM_PAGE_BITS_ALL;
 			}
 		}
 		p = next;
@@ -1268,6 +1269,9 @@ vm_object_collapse(object)
 		 * Make sure there is a backing object.
 		 */
 		if ((backing_object = object->shadow) == NULL)
+			return;
+
+		if ((object->flags & OBJ_DEAD) || (backing_object->flags & OBJ_DEAD))
 			return;
 
 		if (object->paging_in_progress != 0) {
@@ -1373,6 +1377,7 @@ vm_object_collapse(object)
 						vm_page_unlock_queues();
 					} else {
 						vm_page_rename(p, object, new_offset);
+						p->dirty = VM_PAGE_BITS_ALL;
 					}
 				}
 			}
