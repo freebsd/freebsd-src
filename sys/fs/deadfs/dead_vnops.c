@@ -43,7 +43,6 @@
  */
 static vop_bmap_t	dead_bmap;
 static vop_ioctl_t	dead_ioctl;
-static vop_lock_t	dead_lock;
 static vop_lookup_t	dead_lookup;
 static vop_open_t	dead_open;
 static vop_poll_t	dead_poll;
@@ -61,7 +60,6 @@ struct vop_vector dead_vnodeops = {
 	.vop_inactive =		VOP_NULL,
 	.vop_ioctl =		dead_ioctl,
 	.vop_link =		VOP_PANIC,
-	.vop_lock =		dead_lock,
 	.vop_lookup =		dead_lookup,
 	.vop_mkdir =		VOP_PANIC,
 	.vop_mknod =		VOP_PANIC,
@@ -127,9 +125,6 @@ dead_read(ap)
 		struct ucred *a_cred;
 	} */ *ap;
 {
-
-	if (vx_wait(ap->a_vp))
-		panic("dead_read: lock");
 	/*
 	 * Return EOF for tty devices, EIO for others
 	 */
@@ -151,9 +146,6 @@ dead_write(ap)
 		struct ucred *a_cred;
 	} */ *ap;
 {
-
-	if (vx_wait(ap->a_vp))
-		panic("dead_write: lock");
 	return (EIO);
 }
 
@@ -172,38 +164,8 @@ dead_ioctl(ap)
 		struct proc *a_p;
 	} */ *ap;
 {
-
-	if (!vx_wait(ap->a_vp))
-		return (ENOTTY);
 	/* XXX: Doesn't this just recurse back here ? */
 	return (VOP_IOCTL_AP(ap));
-}
-
-
-/*
- * Wait until the vnode has finished changing state.
- */
-static int
-dead_lock(ap)
-	struct vop_lock_args /* {
-		struct vnode *a_vp;
-		int a_flags;
-		struct proc *a_p;
-	} */ *ap;
-{
-	struct vnode *vp = ap->a_vp;
-
-	/*
-	 * Since we are not using the lock manager, we must clear
-	 * the interlock here.
-	 */
-	if (ap->a_flags & LK_INTERLOCK) {
-		mtx_unlock(&vp->v_interlock);
-		ap->a_flags &= ~LK_INTERLOCK;
-	}
-	if (!vx_wait(vp))
-		return (0);
-	return (VOP_LOCK_AP(ap));
 }
 
 /*
@@ -221,8 +183,6 @@ dead_bmap(ap)
 	} */ *ap;
 {
 
-	if (!vx_wait(ap->a_vp))
-		return (EIO);
 	return (VOP_BMAP(ap->a_vp, ap->a_bn, ap->a_bop, ap->a_bnp, ap->a_runp, ap->a_runb));
 }
 
