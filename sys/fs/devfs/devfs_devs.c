@@ -36,7 +36,6 @@
 #include <sys/dirent.h>
 #include <sys/conf.h>
 #include <sys/vnode.h>
-#include <sys/proc.h>
 #include <sys/malloc.h>
 #include <sys/sysctl.h>
 #include <sys/kernel.h>

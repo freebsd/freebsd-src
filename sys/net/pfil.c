@@ -34,7 +34,6 @@
 #include <sys/socket.h>
 #include <sys/socketvar.h>
 #include <sys/systm.h>
-#include <sys/proc.h>
 #include <sys/queue.h>
 
 #include <net/if.h>

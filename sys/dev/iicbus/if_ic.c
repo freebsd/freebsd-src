@@ -33,7 +33,6 @@
 #ifdef _KERNEL
 #include <sys/param.h>
 #include <sys/systm.h>
-#include <sys/proc.h>
 #include <sys/mbuf.h>
 #include <sys/socket.h>
 #include <sys/filio.h>
