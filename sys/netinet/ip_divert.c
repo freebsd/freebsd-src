@@ -688,8 +688,18 @@ div_modevent(module_t mod, int type, void *unused)
 		err = pf_proto_register(PF_INET, &div_protosw);
 		ip_divert_ptr = divert_packet;
 		break;
+	case MOD_QUIESCE:
+		/*
+		 * IPDIVERT may normally not be unloaded because of the
+		 * potential race conditions.  Tell kldunload we can't be
+		 * unloaded unless the unload is forced.
+		 */
+		err = EPERM;
+		break;
 	case MOD_UNLOAD:
 		/*
+		 * Forced unload.
+		 *
 		 * Module ipdivert can only be unloaded if no sockets are
 		 * connected.  Maybe this can be changed later to forcefully
 		 * disconnect any open sockets.
@@ -712,7 +722,7 @@ div_modevent(module_t mod, int type, void *unused)
 		uma_zdestroy(divcbinfo.ipi_zone);
 		break;
 	default:
-		return EINVAL;
+		err = EOPNOTSUPP;
 		break;
 	}
 	return err;
