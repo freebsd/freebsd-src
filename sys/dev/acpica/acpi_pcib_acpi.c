@@ -132,6 +132,8 @@ acpi_pcib_acpi_attach(device_t dev)
 {
     struct acpi_hpcib_softc	*sc;
     ACPI_STATUS			status;
+    uint addr, slot, func, busok;
+    uint8_t busno;
 
     ACPI_FUNCTION_TRACE((char *)(uintptr_t)__func__);
 
@@ -140,7 +142,7 @@ acpi_pcib_acpi_attach(device_t dev)
     sc->ap_handle = acpi_get_handle(dev);
 
     /*
-     * Get our base bus number by evaluating _BBN.  If that doesn't work, try _ADR.
+     * Get our base bus number by evaluating _BBN.
      * If this doesn't work, we assume we're bus number 0.
      *
      * XXX note that it may also not exist in the case where we are 
@@ -151,21 +153,64 @@ acpi_pcib_acpi_attach(device_t dev)
      *     default PCI configuration space handlers can deal with this bus,
      *     we should attach our own handler.
      * XXX invoke _REG on this for the PCI config space address space?
+     * XXX It seems many BIOS's with multiple Host-PCI bridges do not set
+     *     _BBN correctly.  They set _BBN to zero for all bridges.  Thus,
+     *     if _BBN is zero and pcib0 already exists, we try to read our
+     *     bus number from the configuration registers at address _ADR.
      */
-    if (ACPI_FAILURE(status = acpi_EvaluateInteger(sc->ap_handle, "_BBN", &sc->ap_bus))) {
+    status = acpi_EvaluateInteger(sc->ap_handle, "_BBN", &sc->ap_bus);
+    if (ACPI_FAILURE(status)) {
 	if (status != AE_NOT_FOUND) {
-	    device_printf(dev, "could not evaluate _BBN - %s\n", AcpiFormatException(status));
+	    device_printf(dev, "could not evaluate _BBN - %s\n",
+		AcpiFormatException(status));
 	    return_VALUE(ENXIO);
 	}
-	if (ACPI_FAILURE(status = acpi_EvaluateInteger(sc->ap_handle, "_ADR", &sc->ap_bus))) {
+    } else {
+	/* if it's not found, assume 0 */
+	sc->ap_bus = 0;
+    }
+
+    /*
+     * If the bus is zero and pcib0 already exists, read the bus number
+     * via PCI config space.
+     */
+    busok = 1;
+    if (sc->ap_bus == 0 && devclass_get_device(pcib_devclass, 0) != dev) {
+	status = acpi_EvaluateInteger(sc->ap_handle, "_ADR", &addr);
+	if (ACPI_FAILURE(status)) {
 	    if (status != AE_NOT_FOUND) {
-		device_printf(dev, "could not evaluate _ADR - %s\n", AcpiFormatException(status));
+		device_printf(dev, "could not evaluate _ADR - %s\n",
+		    AcpiFormatException(status));
 		return_VALUE(ENXIO);
+	    } else {
+		device_printf(dev, "could not determine config space address\n");
+		busok = 0;
 	    }
 	} else {
-	    /* if it's not found, assume 0 */
-	    sc->ap_bus = 0;
+	    /* XXX: We assume bus 0. */
+	    slot = addr >> 16;
+	    func = addr & 0xffff;
+	    if (bootverbose)
+		device_printf(dev, "reading config registers from 0:%d:%d\n",
+		    slot, func);
+	    if (host_pcib_get_busno(pci_cfgregread, 0, slot, func, &busno) == 0) {
+		device_printf(dev, "could not read bus number from config space\n");
+		busok = 0;
+	    } else {
+		sc->ap_bus = busno;
+	    }
 	}
+    }
+
+    /*
+     * If nothing else worked, hope that ACPI at least lays out the
+     * host-PCI bridges in order and that as a result our unit number
+     * is actually our bus number.  There are several reasons this
+     * might not be true.
+     */
+    if (busok == 0) {
+	sc->ap_bus = device_get_unit(dev);
+	device_printf(dev, "trying bus number %d\n", sc->ap_bus);
     }
 
     /*
