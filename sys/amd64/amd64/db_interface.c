@@ -77,6 +77,7 @@ rss(void)
 int
 kdb_trap(int type, int code, struct i386_saved_state *regs)
 {
+	u_int ef;
 	volatile int ddb_mode = !(boothowto & RB_GDB);
 
 	/*
@@ -95,6 +96,9 @@ kdb_trap(int type, int code, struct i386_saved_state *regs)
 	    }
 	    return (0);
 	}
+
+	ef = read_eflags();
+	disable_intr();
 
 	switch (type) {
 	    case T_BPTFLT:	/* breakpoint */
@@ -216,6 +220,9 @@ kdb_trap(int type, int code, struct i386_saved_state *regs)
 	regs->tf_fs     = ddb_regs.tf_fs & 0xffff;
 	regs->tf_cs     = ddb_regs.tf_cs & 0xffff;
 	regs->tf_ds     = ddb_regs.tf_ds & 0xffff;
+
+	write_eflags(ef);
+
 	return (1);
 }
 
