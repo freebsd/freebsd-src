@@ -514,13 +514,8 @@ wi_printaplist(const char *iface)
 	prism2 = wreq.wi_val[0];
 
 	/* send out a scan request */
-	wreq.wi_len = prism2 ? 3 : 1;
-	wreq.wi_type = WI_RID_SCAN_REQ;
-
-	if (prism2) {
-		wreq.wi_val[0] = 0x3FFF;
-		wreq.wi_val[1] = 0x000F;
-	}
+	wreq.wi_len = 1;
+	wreq.wi_type = WI_RID_SCAN_APS;
 
 	wi_setval(iface, &wreq);
 
