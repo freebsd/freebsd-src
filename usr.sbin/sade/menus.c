@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: menus.c,v 1.132 1997/05/14 07:12:47 jkh Exp $
+ * $Id: menus.c,v 1.133 1997/05/22 00:17:10 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -263,8 +263,8 @@ DMenu MenuIndex = {
       { "Media, FTP Passive",	"Select passive FTP installation media.", NULL, mediaSetFTPPassive },
       { "Network Interfaces",	"Configure network interfaces",		NULL, tcpMenuSelect },
       { "Networking Services",	"The network services menu.",		NULL, dmenuSubmenu, NULL, &MenuNetworking },
-      { "NFS, client",		"Set NFS client flag.",			dmenuVarCheck, dmenuToggleVariable, NULL, "nfs_client=YES" },
-      { "NFS, server",		"Set NFS server flag.",			dmenuVarCheck, configNFSServer, NULL, "nfs_server" },
+      { "NFS, client",		"Set NFS client flag.",			dmenuVarCheck, dmenuToggleVariable, NULL, "nfs_client_enable=YES" },
+      { "NFS, server",		"Set NFS server flag.",			dmenuVarCheck, configNFSServer, NULL, "nfs_server_enable" },
       { "NTP Menu",		"The NTP configuration menu.",		NULL, dmenuSubmenu, NULL, &MenuNTP },
       { "Options",		"The options editor.",			NULL, optionsEditor },
       { "Packages",		"The packages collection",		NULL, configPackages },
@@ -1132,11 +1132,11 @@ DMenu MenuNetworking = {
     { { "Interfaces",	"Configure additional network interfaces",
 	NULL, tcpMenuSelect },
       { "NFS client",	"This machine will be an NFS client",
-	dmenuVarCheck,	dmenuToggleVariable, NULL, "nfs_client=YES" },
+	dmenuVarCheck,	dmenuToggleVariable, NULL, "nfs_client_enable=YES" },
       { "NFS server",	"This machine will be an NFS server",
-	dmenuVarCheck, configNFSServer, NULL, "nfs_server" },
+	dmenuVarCheck, configNFSServer, NULL, "nfs_server_enable" },
       { "Gateway",	"This machine will route packets between interfaces",
-	dmenuVarCheck,	dmenuToggleVariable, NULL, "gateway=YES" },
+	dmenuVarCheck,	dmenuToggleVariable, NULL, "gateway_enable=YES" },
 #ifdef NETCON_EXTENTIONS
       { "Netcon",	"Install the Novell client/server demo package",
 	dmenuVarCheck, configNovell, NULL, "novell" },
@@ -1146,7 +1146,7 @@ DMenu MenuNetworking = {
       { "router",	"Select routing daemon (default: routed)",
 	dmenuVarCheck, configRouter, NULL, "router" },
       { "Rwhod",	"This machine wants to run the rwho daemon",
-	dmenuVarCheck,	dmenuToggleVariable, NULL, "rwhod=YES" },
+	dmenuVarCheck,	dmenuToggleVariable, NULL, "rwhod_enable=YES" },
       { "Anon FTP",	"This machine wishes to allow anonymous FTP.",
 	dmenuVarCheck, configAnonFTP, NULL, "anon_ftp" },
       { "Samba",	"Install Samba for LanManager (NETBUI) access.",
@@ -1288,6 +1288,8 @@ DMenu MenuSysconsSaver = {
     NULL,
     { { "blank",	"Simply blank the screen",
 	dmenuVarCheck, configSaver, NULL, "saver=blank" },
+      { "Daemon",	"\"BSD Daemon\" animated screen saver",
+	dmenuVarCheck, configSaver, NULL, "saver=daemon" },
       { "Green",	"\"Green\" power saving mode (if supported by monitor)",
 	dmenuVarCheck, configSaver, NULL, "saver=green" },
       { "Snake",	"Draw a FreeBSD \"snake\" on your screen",
@@ -1381,5 +1383,4 @@ DMenu MenuFixit = {
   { "3 Shell",	"Start an Emergency Holographic Shell",			NULL, installFixitHoloShell },
   { NULL } },
 };
-
 
