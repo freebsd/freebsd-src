@@ -1,3 +1,4 @@
+/* $FreeBSD$ */
 /*	$NetBSD: lseek.c,v 1.4 1997/01/22 00:38:10 cgd Exp $	*/
 
 /*-
@@ -67,36 +68,46 @@
 #include "stand.h"
 
 off_t
-lseek(fd, offset, where)
-	int fd;
-	off_t offset;
-	int where;
+lseek(int fd, off_t offset, int where)
 {
-	register struct open_file *f = &files[fd];
+    struct open_file *f = &files[fd];
 
-	if ((unsigned)fd >= SOPEN_MAX || f->f_flags == 0) {
-		errno = EBADF;
-		return (-1);
+    if ((unsigned)fd >= SOPEN_MAX || f->f_flags == 0) {
+	errno = EBADF;
+	return (-1);
+    }
+
+    if (f->f_flags & F_RAW) {
+	/*
+	 * On RAW devices, update internal offset.
+	 */
+	switch (where) {
+	case SEEK_SET:
+	    f->f_offset = offset;
+	    break;
+	case SEEK_CUR:
+	    f->f_offset += offset;
+	    break;
+	case SEEK_END:
+	default:
+	    errno = EOFFSET;
+	    return (-1);
 	}
+	return (f->f_offset);
+    }
 
-	if (f->f_flags & F_RAW) {
-		/*
-		 * On RAW devices, update internal offset.
-		 */
-		switch (where) {
-		case SEEK_SET:
-			f->f_offset = offset;
-			break;
-		case SEEK_CUR:
-			f->f_offset += offset;
-			break;
-		case SEEK_END:
-		default:
-			errno = EOFFSET;
-			return (-1);
-		}
-		return (f->f_offset);
-	}
+    /*
+     * If this is a relative seek, we need to correct the offset for
+     * bytes that we have already read but the caller doesn't know
+     * about.
+     */
+    if (where == SEEK_CUR)
+	offset -= f->f_ralen;
 
-	return (f->f_ops->fo_seek)(f, offset, where);
+    /* 
+     * Invalidate the readahead buffer.
+     */
+    f->f_ralen = 0;
+
+    return (f->f_ops->fo_seek)(f, offset, where);
 }
