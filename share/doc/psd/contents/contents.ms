@@ -52,27 +52,26 @@ The
 .UX
 Programmer's Reference Manual
 .R
-for the FreeBSD system as distributed by the FreeBSD Project.  Documents
-``(encumbered)'' are not distributed for legal reasons.
+for the FreeBSD system as distributed by the FreeBSD Project.
 .SH
 Documents of Historical Interest
 .IP
 .tl 'The Unix Time\-Sharing System''PSD:1'
 .QP
 Dennis Ritchie and Ken Thompson's original paper about UNIX, reprinted 
-from Communications of the ACM.  (encumbered)
+from Communications of the ACM.
 .sp
 .IP
 .tl 'Unix Implementation''PSD:2'
 .QP
 Ken Thompson's description of the implementation of the Version 7
-kernel and file system.  (encumbered)
+kernel and file system.
 .sp
 .IP
 .tl 'The Unix I/O System''PSD:3'
 .QP
 Dennis Ritchie's overview of the I/O System of Version 7; still helpful for 
-those writing device drivers.  (encumbered)
+those writing device drivers.
 .sp
 .IP
 .tl 'Unix Programming \- Second Edition ''PSD:4'
@@ -81,7 +80,7 @@ Describes the programming interface to the UNIX version 7 operating
 system and the standard I/O library.  Should be supplemented by
 Kernighan and Pike, ``The UNIX Programming Environment'',
 Prentice-Hall, 1984 and especially by the Programmer Reference Manual
-section 2 (system calls) and 3 (library routines).  (encumbered)
+section 2 (system calls) and 3 (library routines).
 .sp
 .IP
 .tl 'Berkeley Software Architecture Manual (4.4 Edition)''PSD:5'
@@ -102,7 +101,7 @@ Languages in common use
 Official statement of the syntax of C.
 Should be supplemented by ``The C Programming Language,''
 B.W. Kernighan and D.M. Ritchie, Prentice-Hall, 1978, that
-contains a tutorial introduction and many examples.  (encumbered)
+contains a tutorial introduction and many examples.
 .sp
 .IP
 .tl 'Berkeley Pascal User\'s Manual''PSD:7'
@@ -115,7 +114,8 @@ An implementation of this language popular for learning to program.
 .QP
 A revised version of the document which originally appeared in
 Volume 2b of the Bell Labs documentation;
-this version reflects the work done at Berkeley.  (encumbered)
+this version reflects the work done at Berkeley.
+(Not provided in FreeBSD.)
 .sp
 .IP
 .tl 'Introduction to the f77 I/O Library''PSD:9'
@@ -136,7 +136,7 @@ How to debug programs using the source level \fIgdb\fP debugger
 .tl 'A Tutorial Introduction to ADB''PSD:11'
 .QP
 How to debug programs using the assembly-language level \fIadb\fP debugger.
-(encumbered)
+(Not provided in FreeBSD.)
 .sp
 .IP
 .tl 'Make \- A Program for Maintaining Computer Programs''PSD:12'
@@ -163,20 +163,20 @@ An alternative to \fIsccs\fR for controlling software changes.
 .tl 'An Introduction to the Source Code Control System''PSD:14'
 .QP
 A useful introductory article for those users with
-installations licensed for SCCS.  (encumbered)
+installations licensed for SCCS.
 .sp
 .IP
 .tl 'YACC: Yet Another Compiler-Compiler''PSD:15'
 .QP
 Converts a BNF specification of a language and semantic actions
-written in C into a compiler for that language.  (encumbered)
+written in C into a compiler for that language.
 .sp
 .IP
 .tl 'LEX \- A Lexical Analyzer Generator''PSD:16'
 .QP
 Creates a recognizer for a set of regular expressions:
 each regular expression can be followed by arbitrary C code
-to be executed upon finding the regular expression.  (encumbered)
+to be executed upon finding the regular expression.
 .sp
 .IP
 .tl 'The M4 Macro Processor''PSD:17'
