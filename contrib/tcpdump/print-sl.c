@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1989, 1990, 1991, 1993, 1994, 1995, 1996
+ * Copyright (c) 1989, 1990, 1991, 1993, 1994, 1995, 1996, 1997
  *	The Regents of the University of California.  All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -21,7 +21,7 @@
 
 #ifndef lint
 static const char rcsid[] =
-    "@(#) $Header: print-sl.c,v 1.41 96/12/10 23:19:42 leres Exp $ (LBL)";
+    "@(#) $Header: print-sl.c,v 1.42 97/06/12 14:21:35 leres Exp $ (LBL)";
 #endif
 
 #ifdef HAVE_NET_SLIP_H
@@ -54,7 +54,6 @@ struct rtentry;
 #include <ctype.h>
 #include <netdb.h>
 #include <pcap.h>
-#include <signal.h>
 #include <stdio.h>
 
 #include "interface.h"
@@ -74,6 +73,8 @@ static void compressed_sl_print(const u_char *, const struct ip *, u_int, int);
 #define SLX_CHDR (SLC_BPFHDRLEN - 1)
 #define CHDR_LEN (SLC_BPFHDR - SLC_BPFHDRLEN)
 #endif
+
+/* XXX needs more hacking to work right */
 
 void
 sl_if_print(u_char *user, const struct pcap_pkthdr *h, const u_char *p)
@@ -102,6 +103,45 @@ sl_if_print(u_char *user, const struct pcap_pkthdr *h, const u_char *p)
 
 	if (eflag)
 		sliplink_print(p, ip, length);
+
+	ip_print((u_char *)ip, length);
+
+	if (xflag)
+		default_print((u_char *)ip, caplen - SLIP_HDRLEN);
+ out:
+	putchar('\n');
+}
+
+
+void
+sl_bsdos_if_print(u_char *user, const struct pcap_pkthdr *h, const u_char *p)
+{
+	register u_int caplen = h->caplen;
+	register u_int length = h->len;
+	register const struct ip *ip;
+
+	ts_print(&h->ts);
+
+	if (caplen < SLIP_HDRLEN) {
+		printf("[|slip]");
+		goto out;
+	}
+	/*
+	 * Some printers want to get back at the link level addresses,
+	 * and/or check that they're not walking off the end of the packet.
+	 * Rather than pass them all the way down, we set these globals.
+	 */
+	packetp = p;
+	snapend = p + caplen;
+
+	length -= SLIP_HDRLEN;
+
+	ip = (struct ip *)(p + SLIP_HDRLEN);
+
+#ifdef notdef
+	if (eflag)
+		sliplink_print(p, ip, length);
+#endif
 
 	ip_print((u_char *)ip, length);
 
@@ -247,8 +287,17 @@ compressed_sl_print(const u_char *chdr, const struct ip *ip,
 #include <stdio.h>
 
 #include "interface.h"
+
 void
 sl_if_print(u_char *user, const struct pcap_pkthdr *h, const u_char *p)
+{
+
+	error("not configured for slip");
+	/* NOTREACHED */
+}
+
+void
+sl_bsdos_if_print(u_char *user, const struct pcap_pkthdr *h, const u_char *p)
 {
 
 	error("not configured for slip");

@@ -23,7 +23,7 @@
 
 #ifndef lint
 static const char rcsid[] =
-    "@(#) $Header: print-isoclns.c,v 1.14 96/12/10 23:26:56 leres Exp $ (LBL)";
+    "@(#) $Header: print-isoclns.c,v 1.15 96/12/31 21:27:41 leres Exp $ (LBL)";
 #endif
 
 #include <sys/types.h>
@@ -283,7 +283,7 @@ esis_print(const u_char *p, u_int length)
 			printf(" bad pkt!");
 		else {
 			printf(" too short for esis header %d:", li);
-			while (--length >= 0)
+			while (--length != 0)
 				printf("%02X", *p++);
 		}
 		return;
@@ -663,7 +663,8 @@ osi_cksum(register const u_char *p, register int len, u_char *off)
 	if ((off[0] == 0) && (off[1] == 0))
 		return 0;
 
-	while (--len >= 0) {
+	off[0] = off[1] = 0;
+	while ((int)--len >= 0) {
 		c0 += *p++;
 		c0 %= 255;
 		c1 += c0;

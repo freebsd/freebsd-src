@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1988, 1989, 1990, 1991, 1992, 1993, 1994, 1995, 1996
+ * Copyright (c) 1988, 1989, 1990, 1991, 1992, 1993, 1994, 1995, 1996, 1997
  *	The Regents of the University of California.  All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -21,7 +21,7 @@
 
 #ifndef lint
 static const char rcsid[] =
-    "@(#) $Header: print-nfs.c,v 1.63 96/12/10 23:18:07 leres Exp $ (LBL)";
+    "@(#) $Header: print-nfs.c,v 1.65 97/08/17 13:24:22 leres Exp $ (LBL)";
 #endif
 
 #include <sys/param.h>
@@ -247,7 +247,7 @@ nfsreply_print(register const u_char *bp, u_int length,
 	ip = (const struct ip *)bp2;
 
 	if (!nflag)
-		(void)printf("%s.nfs > %s.%x: reply %s %d",
+		(void)printf("%s.nfs > %s.%u: reply %s %d",
 			     ipaddr_string(&ip->ip_src),
 			     ipaddr_string(&ip->ip_dst),
 			     (u_int32_t)ntohl(rp->rm_xid),
@@ -255,7 +255,7 @@ nfsreply_print(register const u_char *bp, u_int length,
 				     "ok":"ERR",
 			     length);
 	else
-		(void)printf("%s.%x > %s.%x: reply %s %d",
+		(void)printf("%s.%u > %s.%u: reply %s %d",
 			     ipaddr_string(&ip->ip_src),
 			     NFS_PORT,
 			     ipaddr_string(&ip->ip_dst),
@@ -383,13 +383,13 @@ nfsreq_print(register const u_char *bp, u_int length,
 	rp = (const struct rpc_msg *)bp;
 	ip = (const struct ip *)bp2;
 	if (!nflag)
-		(void)printf("%s.%x > %s.nfs: %d",
+		(void)printf("%s.%u > %s.nfs: %d",
 			     ipaddr_string(&ip->ip_src),
 			     (u_int32_t)ntohl(rp->rm_xid),
 			     ipaddr_string(&ip->ip_dst),
 			     length);
 	else
-		(void)printf("%s.%x > %s.%x: %d",
+		(void)printf("%s.%u > %s.%u: %d",
 			     ipaddr_string(&ip->ip_src),
 			     (u_int32_t)ntohl(rp->rm_xid),
 			     ipaddr_string(&ip->ip_dst),
@@ -758,7 +758,7 @@ xid_map_find(const struct rpc_msg *rp, const struct ip *ip, u_int32_t *proc,
 	} while (i != xid_map_hint);
 
 	/* search failed */
-	return (-1);
+	return (0);
 }
 
 /*
