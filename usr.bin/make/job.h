@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)job.h	8.1 (Berkeley) 6/6/93
- *	$Id$
+ *	$Id: job.h,v 1.7 1997/02/22 19:27:12 peter Exp $
  */
 
 /*-
@@ -55,7 +55,7 @@
  * seconds and SEL_USEC is the number of micro-seconds
  */
 #define SEL_SEC		0
-#define SEL_USEC	500000
+#define SEL_USEC	100000
 
 
 /*-
