@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $Id: asnames.h,v 1.5 1997/08/30 11:20:02 peter Exp $
+ * $Id: asnames.h,v 1.6 1997/09/05 08:47:24 peter Exp $
  */
 
 #ifndef _MACHINE_ASNAMES_H_
@@ -235,6 +235,7 @@
 #define _imen_lock			imen_lock
 #define _init386			init386
 #define _init_secondary			init_secondary
+#define _inside_intr			inside_intr
 #define _intr_countp			intr_countp
 #define _intr_handler			intr_handler
 #define _intr_mask			intr_mask
