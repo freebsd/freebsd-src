@@ -30,6 +30,9 @@
 #define PCIR_NAMBAR 0x10
 #define PCIR_NABMBAR 0x14
 
+#define PCIR_MMBAR 0x18
+#define PCIR_MBBAR 0x1C
+
 #define PCIR_ICH_LEGACY 0x41
 #define ICH_LEGACY_ENABLE	0x01
 
