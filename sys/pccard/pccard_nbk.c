@@ -86,8 +86,13 @@ devclass_t	pccard_devclass;
 
 SYSCTL_NODE(_machdep, OID_AUTO, pccard, CTLFLAG_RW, 0, "pccard");
 
+#ifdef UNSAFE
 static u_long mem_start = IOM_BEGIN;
 static u_long mem_end = IOM_END;
+#else
+static u_long mem_start = 0xd0000;
+static u_long mem_end = 0xeffff;
+#endif
 
 SYSCTL_ULONG(_machdep_pccard, OID_AUTO, mem_start, CTLFLAG_RW,
     &mem_start, 0, "");
