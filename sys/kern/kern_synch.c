@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)kern_synch.c	8.9 (Berkeley) 5/19/95
- * $Id: kern_synch.c,v 1.68 1998/11/26 16:49:55 bde Exp $
+ * $Id: kern_synch.c,v 1.69 1998/11/27 11:44:22 dg Exp $
  */
 
 #include "opt_ktrace.h"
@@ -407,9 +407,21 @@ tsleep(ident, priority, wmesg, timo)
 	if (ident == NULL || p->p_stat != SRUN)
 		panic("tsleep");
 	/* XXX This is not exhaustive, just the most common case */
+#ifdef NOTDEF
+	/*
+	 * This can happen legitimately now with asleep()/await()
+	 */
 	if ((p->p_procq.tqe_prev != NULL) && (*p->p_procq.tqe_prev == p))
 		panic("sleeping process already on another queue");
 #endif
+#endif
+	/*
+	 * Process may be sitting on a slpque if asleep() was called, remove
+	 * it before re-adding.
+	 */
+	if (p->p_wchan != NULL)
+		unsleep(p);
+
 	p->p_wchan = ident;
 	p->p_wmesg = wmesg;
 	p->p_slptime = 0;
@@ -475,7 +487,170 @@ resume:
 }
 
 /*
- * Implement timeout for tsleep.
+ * asleep() - async sleep call.  Place process on wait queue and return 
+ * immediately without blocking.  The process stays runnable until await() 
+ * is called.  If ident is NULL, remove process from wait queue if it is still
+ * on one.
+ *
+ * Only the most recent sleep condition is effective when making successive
+ * calls to asleep() or when calling tsleep().
+ *
+ * The timeout, if any, is not initiated until await() is called.  The sleep
+ * priority, signal, and timeout is specified in the asleep() call but may be
+ * overriden in the await() call.
+ *
+ * <<<<<<<< EXPERIMENTAL, UNTESTED >>>>>>>>>>
+ */
+
+int
+asleep(void *ident, int priority, const char *wmesg, int timo)
+{
+	struct proc *p = curproc;
+	int s;
+
+	/*
+	 * splhigh() while manipulating sleep structures and slpque.
+	 *
+	 * Remove preexisting wait condition (if any) and place process
+	 * on appropriate slpque, but do not put process to sleep.
+	 */
+
+	s = splhigh();
+
+	if (p->p_wchan != NULL)
+		unsleep(p);
+
+	if (ident) {
+		p->p_wchan = ident;
+		p->p_wmesg = wmesg;
+		p->p_slptime = 0;
+		p->p_asleep.as_priority = priority;
+		p->p_asleep.as_timo = timo;
+		TAILQ_INSERT_TAIL(&slpque[LOOKUP(ident)], p, p_procq);
+	}
+
+	splx(s);
+
+	return(0);
+}
+
+/*
+ * await() - wait for async condition to occur.   The process blocks until
+ * wakeup() is called on the most recent asleep() address.  If wakeup is called
+ * priority to await(), await() winds up being a NOP.
+ *
+ * If await() is called more then once (without an intervening asleep() call),
+ * await() is still effectively a NOP but it calls mi_switch() to give other
+ * processes some cpu before returning.  The process is left runnable.
+ *
+ * <<<<<<<< EXPERIMENTAL, UNTESTED >>>>>>>>>>
+ */
+
+int
+await(int priority, int timo)
+{
+	struct proc *p = curproc;
+	int s;
+
+	s = splhigh();
+
+	if (p->p_wchan != NULL) {
+		struct callout_handle thandle;
+		int sig;
+		int catch;
+
+		/*
+		 * The call to await() can override defaults specified in
+		 * the original asleep().
+		 */
+		if (priority < 0)
+			priority = p->p_asleep.as_priority;
+		if (timo < 0)
+			timo = p->p_asleep.as_timo;
+
+		/*
+		 * Install timeout
+		 */
+
+		if (timo)
+			thandle = timeout(endtsleep, (void *)p, timo);
+
+		sig = 0;
+		catch = priority & PCATCH;
+
+		if (catch) {
+			p->p_flag |= P_SINTR;
+			if ((sig = CURSIG(p))) {
+				if (p->p_wchan)
+					unsleep(p);
+				p->p_stat = SRUN;
+				goto resume;
+			}
+			if (p->p_wchan == NULL) {
+				catch = 0;
+				goto resume;
+			}
+		}
+		p->p_stat = SSLEEP;
+		p->p_stats->p_ru.ru_nvcsw++;
+		mi_switch();
+resume:
+		curpriority = p->p_usrpri;
+
+		splx(s);
+		p->p_flag &= ~P_SINTR;
+		if (p->p_flag & P_TIMEOUT) {
+			p->p_flag &= ~P_TIMEOUT;
+			if (sig == 0) {
+#ifdef KTRACE
+				if (KTRPOINT(p, KTR_CSW))
+					ktrcsw(p->p_tracep, 0, 0);
+#endif
+				return (EWOULDBLOCK);
+			}
+		} else if (timo)
+			untimeout(endtsleep, (void *)p, thandle);
+		if (catch && (sig != 0 || (sig = CURSIG(p)))) {
+#ifdef KTRACE
+			if (KTRPOINT(p, KTR_CSW))
+				ktrcsw(p->p_tracep, 0, 0);
+#endif
+			if (p->p_sigacts->ps_sigintr & sigmask(sig))
+				return (EINTR);
+			return (ERESTART);
+		}
+#ifdef KTRACE
+		if (KTRPOINT(p, KTR_CSW))
+			ktrcsw(p->p_tracep, 0, 0);
+#endif
+	} else {
+		/*
+		 * If as_priority is 0, await() has been called without an 
+		 * intervening asleep().  We are still effectively a NOP, 
+		 * but we call mi_switch() for safety.
+		 */
+
+		if (p->p_asleep.as_priority == 0) {
+			p->p_stats->p_ru.ru_nvcsw++;
+			mi_switch();
+		}
+		splx(s);
+	}
+
+	/*
+	 * clear p_asleep.as_priority as an indication that await() has been
+	 * called.  If await() is called again without an intervening asleep(),
+	 * await() is still effectively a NOP but the above mi_switch() code
+	 * is triggered as a safety.
+	 */
+	p->p_asleep.as_priority = 0;
+
+	return (0);
+}
+
+/*
+ * Implement timeout for tsleep or asleep()/await()
+ *
  * If process hasn't been awakened (wchan non-zero),
  * set timeout flag and undo the sleep.  If proc
  * is stopped, just unsleep so it will remain stopped.
@@ -532,8 +707,14 @@ wakeup(ident)
 restart:
 	for (p = qp->tqh_first; p != NULL; p = p->p_procq.tqe_next) {
 #ifdef DIAGNOSTIC
+#ifdef NOTDEF
+		/*
+		 * The process can legitimately be running now with 
+		 * asleep()/await().
+		 */
 		if (p->p_stat != SSLEEP && p->p_stat != SSTOP)
 			panic("wakeup");
+#endif
 #endif
 		if (p->p_wchan == ident) {
 			TAILQ_REMOVE(qp, p, p_procq);
@@ -577,8 +758,14 @@ wakeup_one(ident)
 
 	for (p = qp->tqh_first; p != NULL; p = p->p_procq.tqe_next) {
 #ifdef DIAGNOSTIC
+#ifdef NOTDEF
+		/*
+		 * The process can legitimately be running now with 
+		 * asleep()/await().
+		 */
 		if (p->p_stat != SSLEEP && p->p_stat != SSTOP)
 			panic("wakeup_one");
+#endif
 #endif
 		if (p->p_wchan == ident) {
 			TAILQ_REMOVE(qp, p, p_procq);
