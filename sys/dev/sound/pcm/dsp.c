@@ -992,9 +992,8 @@ dsp_unregister(int unit, int channel)
 static void
 dsp_clone(void *arg, char *name, int namelen, dev_t *dev)
 {
-	struct snddev_info *d;
 	dev_t pdev;
-	int unit, devtype;
+	int i, cont, unit, devtype;
 
 	if (*dev != NODEV)
 		return;
@@ -1028,13 +1027,18 @@ gotit:
 	if (unit == -1 || unit > devclass_get_maxunit(pcm_devclass))
 		return;
 
-	d = devclass_get_softc(pcm_devclass, unit);
-
-	pdev = makedev(SND_CDEV_MAJOR, PCMMKMINOR(unit, devtype, d->defaultchan++));
-	if (d->defaultchan >= d->chancount)
-		d->defaultchan = 0;
-	if (pdev->si_flags & SI_NAMED)
-		*dev = pdev;
+	cont = 1;
+	for (i = 0; cont; i++) {
+		pdev = makedev(SND_CDEV_MAJOR, PCMMKMINOR(unit, devtype, i));
+		if (pdev->si_flags & SI_NAMED) {
+			if ((pdev->si_drv1 == NULL) && (pdev->si_drv2 == NULL)) {
+				*dev = pdev;
+				return;
+			}
+		} else {
+			cont = 0;
+		}
+	}
 }
 
 static void
