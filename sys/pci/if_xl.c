@@ -106,6 +106,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/sockio.h>
+#include <sys/endian.h>
 #include <sys/mbuf.h>
 #include <sys/malloc.h>
 #include <sys/kernel.h>
@@ -346,12 +347,13 @@ xl_dma_map_txbuf(arg, segs, nseg, mapsize, error)
 	l = arg;
 	for (i = 0; i < nseg; i++) {
 		KASSERT(segs[i].ds_len <= MCLBYTES, ("segment size too large"));
-		l->xl_frag[i].xl_addr = segs[i].ds_addr;
-		l->xl_frag[i].xl_len = segs[i].ds_len;
+		l->xl_frag[i].xl_addr = htole32(segs[i].ds_addr);
+		l->xl_frag[i].xl_len = htole32(segs[i].ds_len);
 		total_len += segs[i].ds_len;
 	}
-	l->xl_frag[nseg - 1].xl_len |= XL_LAST_FRAG;
-	l->xl_status = total_len;
+	l->xl_frag[nseg - 1].xl_len = htole32(segs[nseg - 1].ds_len |
+	    XL_LAST_FRAG);
+	l->xl_status = htole32(total_len);
 	l->xl_next = 0;
 }
 
@@ -1295,6 +1297,7 @@ xl_attach(dev)
 {
 	u_char			eaddr[ETHER_ADDR_LEN];
 	u_int32_t		command;
+	u_int16_t		xcvr[2];
 	struct xl_softc		*sc;
 	struct ifnet		*ifp;
 	int			media = IFM_ETHER|IFM_100_TX|IFM_FDX;
@@ -1466,7 +1469,7 @@ xl_attach(dev)
 	 * All of our lists are allocated as a contiguous block
 	 * of memory.
 	 */
-	error = bus_dma_tag_create(NULL, 1, 0,
+	error = bus_dma_tag_create(NULL, 8, 0,
 	    BUS_SPACE_MAXADDR_32BIT, BUS_SPACE_MAXADDR, NULL, NULL,
 	    XL_RX_LIST_SZ, 1, BUS_SPACE_MAXSIZE_32BIT, 0,
 	    &sc->xl_ldata.xl_rx_tag);
@@ -1475,7 +1478,7 @@ xl_attach(dev)
 		goto fail_irq_setup;
 	}
 
-	error = bus_dma_tag_create(NULL, 1, 0,
+	error = bus_dma_tag_create(NULL, 8, 0,
 	    BUS_SPACE_MAXADDR_32BIT, BUS_SPACE_MAXADDR, NULL, NULL,
 	    XL_TX_LIST_SZ, 1, BUS_SPACE_MAXSIZE_32BIT, 0,
 	    &sc->xl_ldata.xl_tx_tag);
@@ -1519,15 +1522,24 @@ xl_attach(dev)
 	bzero(sc->xl_ldata.xl_rx_list, XL_RX_LIST_SZ);
 
 	/*
-	 * Obtain the DMA address of the RX ring which we'll need later.
+	 * Obtain the DMA address of the RX and TX ring which we'll need later.
 	 */
+	error = bus_dmamap_load(sc->xl_ldata.xl_tx_tag,
+	    sc->xl_ldata.xl_tx_dmamap, sc->xl_ldata.xl_tx_list,
+	    XL_TX_LIST_SZ, xl_dma_map_addr,
+	    &sc->xl_ldata.xl_tx_dmaaddr, 0);
+	if (error) {
+		printf("xl%d: cannot get dma address of the tx ring!\n", unit);
+		goto fail_rxmem;
+	}
+
 	error = bus_dmamap_load(sc->xl_ldata.xl_rx_tag,
-	    sc->xl_ldata.xl_rx_dmamap, &(sc->xl_ldata.xl_rx_list[0]),
-	    sizeof(struct xl_list_onefrag), xl_dma_map_addr,
+	    sc->xl_ldata.xl_rx_dmamap, sc->xl_ldata.xl_rx_list,
+	    XL_RX_LIST_SZ, xl_dma_map_addr,
 	    &sc->xl_ldata.xl_rx_dmaaddr, 0);
 	if (error) {
 		printf("xl%d: cannot get dma address of the rx ring!\n", unit);
-		goto fail_rxmem;
+		goto fail_txmap;
 	}
 
 	/*
@@ -1572,7 +1584,8 @@ xl_attach(dev)
 		printf("xl%d: media options word: %x\n", sc->xl_unit,
 							 sc->xl_media);
 
-	xl_read_eeprom(sc, (char *)&sc->xl_xcvr, XL_EE_ICFG_0, 2, 0);
+	xl_read_eeprom(sc, (char *)&xcvr, XL_EE_ICFG_0, 2, 0);
+	sc->xl_xcvr = xcvr[0] | xcvr[1] << 16;
 	sc->xl_xcvr &= XL_ICFG_CONNECTOR_MASK;
 	sc->xl_xcvr >>= XL_ICFG_CONNECTOR_BITS;
 
@@ -1586,7 +1599,7 @@ xl_attach(dev)
 		if (mii_phy_probe(dev, &sc->xl_miibus,
 		    xl_ifmedia_upd, xl_ifmedia_sts)) {
 			printf("xl%d: no PHY found!\n", sc->xl_unit);
-			goto fail_rxmem;
+			goto fail_rxmap;
 		}
 
 		goto done;
@@ -1706,6 +1719,10 @@ done:
 	XL_UNLOCK(sc);
 	return(0);
 
+fail_rxmap:
+	bus_dmamap_unload(sc->xl_ldata.xl_rx_tag, sc->xl_ldata.xl_rx_dmamap);
+fail_txmap:
+	bus_dmamap_unload(sc->xl_ldata.xl_tx_tag, sc->xl_ldata.xl_tx_dmamap);
 fail_rxmem:
 	bus_dmamem_free(sc->xl_ldata.xl_rx_tag, sc->xl_ldata.xl_rx_list,
 	    sc->xl_ldata.xl_rx_dmamap);
@@ -1798,11 +1815,8 @@ xl_list_tx_init(sc)
 		    &cd->xl_tx_chain[i].xl_map);
 		if (error)
 			return(error);
-		error = bus_dmamap_load(ld->xl_tx_tag, ld->xl_tx_dmamap,
-		    &ld->xl_tx_list[i], sizeof(struct xl_list),
-		    xl_dma_map_addr, &cd->xl_tx_chain[i].xl_phys, 0);
-		if (error)
-			return(error);
+		cd->xl_tx_chain[i].xl_phys = ld->xl_tx_dmaaddr +
+		    i * sizeof(struct xl_list);
 		if (i == (XL_TX_LIST_CNT - 1))
 			cd->xl_tx_chain[i].xl_next = NULL;
 		else
@@ -1835,11 +1849,8 @@ xl_list_tx_init_90xB(sc)
 		    &cd->xl_tx_chain[i].xl_map);
 		if (error)
 			return(error);
-		error = bus_dmamap_load(ld->xl_tx_tag, ld->xl_tx_dmamap,
-		    &ld->xl_tx_list[i], sizeof(struct xl_list),
-		    xl_dma_map_addr, &cd->xl_tx_chain[i].xl_phys, 0);
-		if (error)
-			return(error);
+		cd->xl_tx_chain[i].xl_phys = ld->xl_tx_dmaaddr +
+		    i * sizeof(struct xl_list);
 		if (i == (XL_TX_LIST_CNT - 1))
 			cd->xl_tx_chain[i].xl_next = &cd->xl_tx_chain[0];
 		else
@@ -1853,7 +1864,7 @@ xl_list_tx_init_90xB(sc)
 	}
 
 	bzero(ld->xl_tx_list, XL_TX_LIST_SZ);
-	ld->xl_tx_list[0].xl_status = XL_TXSTAT_EMPTY;
+	ld->xl_tx_list[0].xl_status = htole32(XL_TXSTAT_EMPTY);
 
 	cd->xl_tx_prod = 1;
 	cd->xl_tx_cons = 1;
@@ -1874,7 +1885,8 @@ xl_list_rx_init(sc)
 {
 	struct xl_chain_data	*cd;
 	struct xl_list_data	*ld;
-	int			error, i;
+	int			error, i, next;
+	u_int32_t		nextptr;
 
 	cd = &sc->xl_cdata;
 	ld = &sc->xl_ldata;
@@ -1888,22 +1900,14 @@ xl_list_rx_init(sc)
 		error = xl_newbuf(sc, &cd->xl_rx_chain[i]);
 		if (error)
 			return(error);
-		if (i == (XL_RX_LIST_CNT - 1)) {
-			cd->xl_rx_chain[i].xl_next = &cd->xl_rx_chain[0];
-			error = bus_dmamap_load(ld->xl_rx_tag, ld->xl_rx_dmamap,
-			    &ld->xl_rx_list[0], sizeof(struct xl_list_onefrag),
-			    xl_dma_map_addr, &ld->xl_rx_list[i].xl_next, 0);
-			if (error)
-				return(error);
-		} else {
-			cd->xl_rx_chain[i].xl_next = &cd->xl_rx_chain[i + 1];
-			error = bus_dmamap_load(ld->xl_rx_tag, ld->xl_rx_dmamap,
-			    &ld->xl_rx_list[i + 1],
-			    sizeof(struct xl_list_onefrag), xl_dma_map_addr,
-			    &ld->xl_rx_list[i].xl_next, 0);
-			if (error)
-				return(error);
-		}
+		if (i == (XL_RX_LIST_CNT - 1))
+			next = 0;
+		else
+			next = i + 1;
+		nextptr = ld->xl_rx_dmaaddr +
+		    next * sizeof(struct xl_list_onefrag);
+		cd->xl_rx_chain[i].xl_next = &cd->xl_rx_chain[next];
+		ld->xl_rx_list[i].xl_next = htole32(nextptr);
 	}
 
 	bus_dmamap_sync(ld->xl_rx_tag, ld->xl_rx_dmamap, BUS_DMASYNC_PREWRITE);
@@ -1922,6 +1926,7 @@ xl_newbuf(sc, c)
 {
 	struct mbuf		*m_new = NULL;
 	int			error;
+	u_int32_t		baddr;
 
 	MGETHDR(m_new, M_DONTWAIT, MT_DATA);
 	if (m_new == NULL)
@@ -1939,17 +1944,18 @@ xl_newbuf(sc, c)
 	m_adj(m_new, ETHER_ALIGN);
 
 	c->xl_mbuf = m_new;
-	c->xl_ptr->xl_frag.xl_len = MCLBYTES | XL_LAST_FRAG;
+	c->xl_ptr->xl_frag.xl_len = htole32(m_new->m_len | XL_LAST_FRAG);
 	c->xl_ptr->xl_status = 0;
 
 	error = bus_dmamap_load(sc->xl_mtag, c->xl_map, mtod(m_new, void *),
-	    MCLBYTES, xl_dma_map_addr, &c->xl_ptr->xl_frag.xl_addr, 0);
+	    MCLBYTES, xl_dma_map_addr, &baddr, 0);
 	if (error) {
 		m_freem(m_new);
 		printf("xl%d: can't map mbuf (error %d)\n", sc->xl_unit, error);
 		return(error);
 	}
-	bus_dmamap_sync(sc->xl_mtag, c->xl_map, BUS_DMASYNC_PREWRITE);
+	c->xl_ptr->xl_frag.xl_addr = htole32(baddr);
+	bus_dmamap_sync(sc->xl_mtag, c->xl_map, BUS_DMASYNC_PREREAD);
 	return(0);
 }
 
@@ -1994,7 +2000,9 @@ xl_rxeof(sc)
 
 again:
 
-	while((rxstat = sc->xl_cdata.xl_rx_head->xl_ptr->xl_status)) {
+	bus_dmamap_sync(sc->xl_ldata.xl_rx_tag, sc->xl_ldata.xl_rx_dmamap,
+	    BUS_DMASYNC_POSTREAD);
+	while((rxstat = le32toh(sc->xl_cdata.xl_rx_head->xl_ptr->xl_status))) {
 		cur_rx = sc->xl_cdata.xl_rx_head;
 		sc->xl_cdata.xl_rx_head = cur_rx->xl_next;
 
@@ -2007,6 +2015,8 @@ again:
 		if (rxstat & XL_RXSTAT_UP_ERROR) {
 			ifp->if_ierrors++;
 			cur_rx->xl_ptr->xl_status = 0;
+			bus_dmamap_sync(sc->xl_ldata.xl_rx_tag,
+			    sc->xl_ldata.xl_rx_dmamap, BUS_DMASYNC_PREWRITE);
 			continue;
 		}
 
@@ -2020,15 +2030,18 @@ again:
 			    "packet dropped\n", sc->xl_unit);
 			ifp->if_ierrors++;
 			cur_rx->xl_ptr->xl_status = 0;
+			bus_dmamap_sync(sc->xl_ldata.xl_rx_tag,
+			    sc->xl_ldata.xl_rx_dmamap, BUS_DMASYNC_PREWRITE);
 			continue;
 		}
 
 		/* No errors; receive the packet. */	
 		bus_dmamap_sync(sc->xl_mtag, cur_rx->xl_map,
-		    BUS_DMASYNC_POSTWRITE);
+		    BUS_DMASYNC_POSTREAD);
 		bus_dmamap_unload(sc->xl_mtag, cur_rx->xl_map);
 		m = cur_rx->xl_mbuf;
-		total_len = cur_rx->xl_ptr->xl_status & XL_RXSTAT_LENMASK;
+		total_len = le32toh(cur_rx->xl_ptr->xl_status) &
+		    XL_RXSTAT_LENMASK;
 
 		/*
 		 * Try to conjure up a new mbuf cluster. If that
@@ -2040,8 +2053,12 @@ again:
 		if (xl_newbuf(sc, cur_rx)) {
 			ifp->if_ierrors++;
 			cur_rx->xl_ptr->xl_status = 0;
+			bus_dmamap_sync(sc->xl_ldata.xl_rx_tag,
+			    sc->xl_ldata.xl_rx_dmamap, BUS_DMASYNC_PREWRITE);
 			continue;
 		}
+		bus_dmamap_sync(sc->xl_ldata.xl_rx_tag,
+		    sc->xl_ldata.xl_rx_dmamap, BUS_DMASYNC_PREWRITE);
 
 		ifp->if_ipackets++;
 		m->m_pkthdr.rcvif = ifp;
@@ -2124,7 +2141,7 @@ xl_txeof(sc)
 
 		sc->xl_cdata.xl_tx_head = cur_tx->xl_next;
 		bus_dmamap_sync(sc->xl_mtag, cur_tx->xl_map,
-		    BUS_DMASYNC_POSTREAD);
+		    BUS_DMASYNC_POSTWRITE);
 		bus_dmamap_unload(sc->xl_mtag, cur_tx->xl_map);
 		m_freem(cur_tx->xl_mbuf);
 		cur_tx->xl_mbuf = NULL;
@@ -2159,17 +2176,20 @@ xl_txeof_90xB(sc)
 
 	ifp = &sc->arpcom.ac_if;
 
+	bus_dmamap_sync(sc->xl_ldata.xl_tx_tag, sc->xl_ldata.xl_tx_dmamap,
+	    BUS_DMASYNC_POSTREAD);
 	idx = sc->xl_cdata.xl_tx_cons;
 	while(idx != sc->xl_cdata.xl_tx_prod) {
 
 		cur_tx = &sc->xl_cdata.xl_tx_chain[idx];
 
-		if (!(cur_tx->xl_ptr->xl_status & XL_TXSTAT_DL_COMPLETE))
+		if (!(le32toh(cur_tx->xl_ptr->xl_status) &
+		      XL_TXSTAT_DL_COMPLETE))
 			break;
 
 		if (cur_tx->xl_mbuf != NULL) {
 			bus_dmamap_sync(sc->xl_mtag, cur_tx->xl_map,
-			    BUS_DMASYNC_POSTREAD);
+			    BUS_DMASYNC_POSTWRITE);
 			bus_dmamap_unload(sc->xl_mtag, cur_tx->xl_map);
 			m_freem(cur_tx->xl_mbuf);
 			cur_tx->xl_mbuf = NULL;
@@ -2382,6 +2402,7 @@ xl_encap(sc, c, m_head)
 {
 	struct xl_frag		*f = NULL;
 	int			error;
+	u_int32_t		baddr, status;
 
 	/*
  	 * Start packing the mbufs in this chain into
@@ -2432,33 +2453,35 @@ xl_encap(sc, c, m_head)
 		f = &c->xl_ptr->xl_frag[0];
 		error = bus_dmamap_load(sc->xl_mtag, c->xl_map,
 		    mtod(m_new, void *), MCLBYTES, xl_dma_map_addr,
-		    &f->xl_addr, 0);
+		    &baddr, 0);
 		if (error) {
 			m_freem(m_new);
 			printf("xl%d: can't map mbuf (error %d)\n",
 			    sc->xl_unit, error);
 			return(1);
 		}
-		f->xl_len = m_new->m_len | XL_LAST_FRAG;
-		c->xl_ptr->xl_status = m_new->m_len;
+		f->xl_addr = htole32(baddr);
+		f->xl_len = htole32(m_new->m_len | XL_LAST_FRAG);
+		c->xl_ptr->xl_status = htole32(m_new->m_len);
 		c->xl_ptr->xl_next = 0;
 	}
 
 	if (sc->xl_type == XL_TYPE_905B) {
-		c->xl_ptr->xl_status = XL_TXSTAT_RND_DEFEAT;
+		status = XL_TXSTAT_RND_DEFEAT;
 
 		if (m_head->m_pkthdr.csum_flags) {
 			if (m_head->m_pkthdr.csum_flags & CSUM_IP)
-				c->xl_ptr->xl_status |= XL_TXSTAT_IPCKSUM;
+				status |= XL_TXSTAT_IPCKSUM;
 			if (m_head->m_pkthdr.csum_flags & CSUM_TCP)
-				c->xl_ptr->xl_status |= XL_TXSTAT_TCPCKSUM;
+				status |= XL_TXSTAT_TCPCKSUM;
 			if (m_head->m_pkthdr.csum_flags & CSUM_UDP)
-				c->xl_ptr->xl_status |= XL_TXSTAT_UDPCKSUM;
+				status |= XL_TXSTAT_UDPCKSUM;
 		}
+		c->xl_ptr->xl_status = htole32(status);
 	}
 
 	c->xl_mbuf = m_head;
-	bus_dmamap_sync(sc->xl_mtag, c->xl_map, BUS_DMASYNC_PREREAD);
+	bus_dmamap_sync(sc->xl_mtag, c->xl_map, BUS_DMASYNC_PREWRITE);
 	return(0);
 }
 
@@ -2475,6 +2498,7 @@ xl_start(ifp)
 	struct xl_softc		*sc;
 	struct mbuf		*m_head = NULL;
 	struct xl_chain		*prev = NULL, *cur_tx = NULL, *start_tx;
+	u_int32_t		status;
 	int			error;
 
 	sc = ifp->if_softc;
@@ -2514,7 +2538,7 @@ xl_start(ifp)
 		/* Chain it together. */
 		if (prev != NULL) {
 			prev->xl_next = cur_tx;
-			prev->xl_ptr->xl_next = cur_tx->xl_phys;
+			prev->xl_ptr->xl_next = htole32(cur_tx->xl_phys);
 		}
 		prev = cur_tx;
 
@@ -2540,7 +2564,10 @@ xl_start(ifp)
 	 * get an interupt once for the whole chain rather than
 	 * once for each packet.
 	 */
-	cur_tx->xl_ptr->xl_status |= XL_TXSTAT_DL_INTR;
+	cur_tx->xl_ptr->xl_status = htole32(le32toh(cur_tx->xl_ptr->xl_status) |
+	    XL_TXSTAT_DL_INTR);
+	bus_dmamap_sync(sc->xl_ldata.xl_tx_tag, sc->xl_ldata.xl_tx_dmamap,
+	    BUS_DMASYNC_PREWRITE);
 
 	/*
 	 * Queue the packets. If the TX channel is clear, update
@@ -2551,9 +2578,11 @@ xl_start(ifp)
 
 	if (sc->xl_cdata.xl_tx_head != NULL) {
 		sc->xl_cdata.xl_tx_tail->xl_next = start_tx;
-		sc->xl_cdata.xl_tx_tail->xl_ptr->xl_next = start_tx->xl_phys;
-		sc->xl_cdata.xl_tx_tail->xl_ptr->xl_status &=
-					~XL_TXSTAT_DL_INTR;
+		sc->xl_cdata.xl_tx_tail->xl_ptr->xl_next =
+		    htole32(start_tx->xl_phys);
+		status = sc->xl_cdata.xl_tx_tail->xl_ptr->xl_status;
+		sc->xl_cdata.xl_tx_tail->xl_ptr->xl_status =
+		    htole32(le32toh(status) & ~XL_TXSTAT_DL_INTR);
 		sc->xl_cdata.xl_tx_tail = cur_tx;
 	} else {
 		sc->xl_cdata.xl_tx_head = start_tx;
@@ -2633,7 +2662,7 @@ xl_start_90xB(ifp)
 
 		/* Chain it together. */
 		if (prev != NULL)
-			prev->xl_ptr->xl_next = cur_tx->xl_phys;
+			prev->xl_ptr->xl_next = htole32(cur_tx->xl_phys);
 		prev = cur_tx;
 
 		/*
@@ -2661,11 +2690,14 @@ xl_start_90xB(ifp)
 	 * get an interupt once for the whole chain rather than
 	 * once for each packet.
 	 */
-	cur_tx->xl_ptr->xl_status |= XL_TXSTAT_DL_INTR;
+	cur_tx->xl_ptr->xl_status = htole32(le32toh(cur_tx->xl_ptr->xl_status) |
+	    XL_TXSTAT_DL_INTR);
+	bus_dmamap_sync(sc->xl_ldata.xl_tx_tag, sc->xl_ldata.xl_tx_dmamap,
+	    BUS_DMASYNC_PREWRITE);
 
 	/* Start transmission */
 	sc->xl_cdata.xl_tx_prod = idx;
-	start_tx->xl_prev->xl_ptr->xl_next = start_tx->xl_phys;
+	start_tx->xl_prev->xl_ptr->xl_next = htole32(start_tx->xl_phys);
 
 	/*
 	 * Set a timeout in case the chip goes out to lunch.
@@ -3150,9 +3182,9 @@ xl_stop(sc)
 	for (i = 0; i < XL_RX_LIST_CNT; i++) {
 		if (sc->xl_cdata.xl_rx_chain[i].xl_mbuf != NULL) {
 			bus_dmamap_unload(sc->xl_mtag,
-			    sc->xl_cdata.xl_tx_chain[i].xl_map);
+			    sc->xl_cdata.xl_rx_chain[i].xl_map);
 			bus_dmamap_destroy(sc->xl_mtag,
-			    sc->xl_cdata.xl_tx_chain[i].xl_map);
+			    sc->xl_cdata.xl_rx_chain[i].xl_map);
 			m_freem(sc->xl_cdata.xl_rx_chain[i].xl_mbuf);
 			sc->xl_cdata.xl_rx_chain[i].xl_mbuf = NULL;
 		}
