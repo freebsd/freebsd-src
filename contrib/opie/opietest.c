@@ -9,7 +9,7 @@
 on your system. The converse is not such a safe statement.
 
 %%% copyright-cmetz-96
-This software is Copyright 1996-1997 by Craig Metz, All Rights Reserved.
+This software is Copyright 1996-1998 by Craig Metz, All Rights Reserved.
 The Inner Net License Version 2 applies to this software.
 You should have received a copy of the license with this software. If
 you didn't get a copy, you may request one from <license@inner.net>.

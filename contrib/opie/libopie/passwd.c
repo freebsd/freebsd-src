@@ -1,13 +1,16 @@
 /* passwd.c: The opiepasswd() library function.
 
 %%% copyright-cmetz-96
-This software is Copyright 1996-1997 by Craig Metz, All Rights Reserved.
+This software is Copyright 1996-1998 by Craig Metz, All Rights Reserved.
 The Inner Net License Version 2 applies to this software.
 You should have received a copy of the license with this software. If
 you didn't get a copy, you may request one from <license@inner.net>.
 
 	History:
 
+	Modified by cmetz for OPIE 2.32. Renamed mode to flags. Made flag
+		values symbolic constants. Added a flag for insecure override
+		support.
 	Modified by cmetz for OPIE 2.31. Removed active attack protection
 		support.
 	Modified by cmetz for OPIE 2.3. Split most of the function off
@@ -20,12 +23,15 @@ you didn't get a copy, you may request one from <license@inner.net>.
 #include "opie_cfg.h"
 #include "opie.h"
 
-int opiepasswd FUNCTION((old, mode, principal, n, seed, ks), struct opie *old AND int mode AND char *principal AND int n AND char *seed AND char *ks)
+int opiepasswd FUNCTION((old, flags, principal, n, seed, ks), struct opie *old AND int flags AND char *principal AND int n AND char *seed AND char *ks)
 {
   int i;
   struct opie opie;
 
-  if ((mode & 1) && opieinsecure())
+  if ((flags & OPIEPASSWD_CONSOLE) && opieinsecure())
+#if INSECURE_OVERRIDE
+    if (!(flags & OPIEPASSWD_FORCE))
+#endif /* INSECURE_OVERRIDE */
     return -1;
 
   memset(&opie, 0, sizeof(struct opie));
@@ -42,7 +48,7 @@ int opiepasswd FUNCTION((old, mode, principal, n, seed, ks), struct opie *old AN
   if (ks) {
     char key[8];
     
-    if (mode & 1) {
+    if (flags & OPIEPASSWD_CONSOLE) {
       if (opiekeycrunch(MDX, key, seed, ks))
 	return -1;
       for (i = n; i; i--)
