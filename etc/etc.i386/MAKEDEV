@@ -70,7 +70,7 @@
 #	pcaudio PCM audio driver 
 #	socksys iBCS2 socket system driver
 #
-#	$Id: MAKEDEV,v 1.42 1994/10/01 03:32:26 davidg Exp $
+#	$Id: MAKEDEV,v 1.43 1994/10/13 20:10:14 sos Exp $
 #
 
 PATH=/sbin:/bin/:/usr/bin:/usr/sbin:
@@ -81,7 +81,8 @@ case $i in
 
 all)
 	sh MAKEDEV std						# standard
-	sh MAKEDEV wd0 wd1 wd2 wd3 fd0 fd1 sd0 sd1 cd0 mcd0	# bdev, disk
+	sh MAKEDEV wd0 wd1 wd2 wd3 fd0 fd1 sd0 sd1 sd2 sd3 	# bdev, disk
+	sh MAKEDEC cd0 mcd0					# bdev, cdrom
 	sh MAKEDEV ft0 wt0 st0 					# bdev, tape
 	sh MAKEDEV pty0 tty0 tty1 pc0 lpt0 lpt1 lpt2            # cdev
 	sh MAKEDEV ch0 tw0 bpf0 				# cdev
