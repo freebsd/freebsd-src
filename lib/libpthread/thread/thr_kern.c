@@ -347,13 +347,14 @@ _kse_single_thread(struct pthread *curthread)
 		_thr_signal_deinit();
 	}
 	__isthreaded = 0;
+	curthread->kse->k_kcb->kcb_kmbx.km_curthread = NULL;
+	curthread->attr.flags |= PTHREAD_SCOPE_SYSTEM;
+
 	/*
 	 * Restore signal mask early, so any memory problems could
 	 * dump core.
 	 */ 
 	sigprocmask(SIG_SETMASK, &curthread->sigmask, NULL);
-	curthread->kse->k_kcb->kcb_kmbx.km_curthread = NULL;
-	curthread->attr.flags |= PTHREAD_SCOPE_SYSTEM;
 	_thr_active_threads = 1;
 #endif
 }
