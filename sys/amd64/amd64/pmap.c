@@ -39,7 +39,7 @@
  * SUCH DAMAGE.
  *
  *	from:	@(#)pmap.c	7.7 (Berkeley)	5/12/91
- *	$Id: pmap.c,v 1.83 1996/03/28 05:40:58 dyson Exp $
+ *	$Id: pmap.c,v 1.84 1996/03/31 23:00:32 davidg Exp $
  */
 
 /*
@@ -162,7 +162,7 @@ struct msgbuf *msgbufp;
 
 static void	free_pv_entry __P((pv_entry_t pv));
 pt_entry_t *
-		get_pt_entry __P((pmap_t pmap));
+		get_ptbase __P((pmap_t pmap));
 static pv_entry_t
 		get_pv_entry __P((void));
 static void	i386_protection_init __P((void));
@@ -175,7 +175,7 @@ static void	pmap_remove_all __P((vm_offset_t pa));
 static void pmap_remove_page __P((struct pmap *pmap, vm_offset_t va));
 static __inline void pmap_remove_entry __P((struct pmap *pmap, pv_entry_t pv,
 					vm_offset_t va));
-static int pmap_remove_pte __P((struct pmap *pmap, pt_entry_t *ptq,
+static void pmap_remove_pte __P((struct pmap *pmap, pt_entry_t *ptq,
 					vm_offset_t sva));
 static vm_page_t
 		pmap_pte_vm_page __P((pmap_t pmap, vm_offset_t pt));
@@ -850,7 +850,7 @@ init_pv_entries(npg)
 }
 
 __inline pt_entry_t *
-get_pt_entry(pmap)
+get_ptbase(pmap)
 	pmap_t pmap;
 {
 	vm_offset_t frame = (int) pmap->pm_pdir[PTDPTDI] & PG_FRAME;
@@ -905,9 +905,9 @@ pmap_remove_entry(pmap, pv, va)
 }
 
 /*
- * pmap_remove_pte: do the things to unmap a page to mapped into a process
+ * pmap_remove_pte: do the things to unmap a page in a process
  */
-static int
+static void
 pmap_remove_pte(pmap, ptq, sva)
 	struct pmap *pmap;
 	pt_entry_t *ptq;
@@ -943,24 +943,7 @@ pmap_remove_pte(pmap, ptq, sva)
 	}
 
 	*ptq = 0;
-	return 1;
-}
-
-/*
- * Scan pmap for non-null entry up to the entry pointed to
- * by pdnxt.  Return the va corresponding to the entry.
- */
-static __inline vm_offset_t
-pmap_scan( vm_offset_t sva, vm_offset_t pdnxt, pt_entry_t *ptp) {
-	pt_entry_t *ptt, *ptnxt;
-
-	ptnxt = &ptp[pdnxt];
-	ptt = &ptp[sva];
-
-	while ((ptt != ptnxt) && (*ptt == 0)) {
-		ptt++;
-	}
-	return ptt - ptp;
+	return;
 }
 
 /*
@@ -971,7 +954,7 @@ pmap_remove_page(pmap, va)
 	struct pmap *pmap;
 	register vm_offset_t va;
 {
-	register pt_entry_t *ptp, *ptq;
+	register pt_entry_t *ptbase, *ptq;
 	/*
 	 * if there is no pte for this address, just skip it!!!
 	 */
@@ -980,10 +963,12 @@ pmap_remove_page(pmap, va)
 	/*
 	 * get a local va for mappings for this pmap.
 	 */
-	ptp = get_pt_entry(pmap);
-	ptq = ptp + i386_btop(va);
-	if ( *ptq && pmap_remove_pte( pmap, ptq, va))
+	ptbase = get_ptbase(pmap);
+	ptq = ptbase + i386_btop(va);
+	if (*ptq) {
+		pmap_remove_pte(pmap, ptq, va);
 		pmap_update_1pg(va);
+	}
 	return;
 }
 	
@@ -999,11 +984,11 @@ pmap_remove(pmap, sva, eva)
 	register vm_offset_t sva;
 	register vm_offset_t eva;
 {
-	register pt_entry_t *ptp;
+	register pt_entry_t *ptbase;
 	vm_offset_t va;
 	vm_offset_t pdnxt;
-	vm_offset_t ptepaddr;
-	int update_needed;
+	vm_offset_t ptpaddr;
+	vm_offset_t sindex, eindex;
 	vm_page_t mpte;
 
 	if (pmap == NULL)
@@ -1023,117 +1008,55 @@ pmap_remove(pmap, sva, eva)
 	 * Get a local virtual address for the mappings that are being
 	 * worked with.
 	 */
+	ptbase = get_ptbase(pmap);
 
-	update_needed = 0;
-	va = sva;
-	sva = i386_btop(va);
+	sindex = i386_btop(sva);
+	eindex = i386_btop(eva);
 
-	pdnxt = ((sva + NPTEPG) & ~(NPTEPG - 1));
-	ptepaddr = (vm_offset_t) *pmap_pde(pmap, va);
-	eva = i386_btop(eva);
-	mpte = NULL;
-	ptp = NULL;
-
-	while (sva < eva) {
+	for (; sindex < eindex; sindex = pdnxt) {
 
 		/*
-		 * pointers for page table hold count and wire counts.
+		 * Calculate index for next page table.
 		 */
-		short *hc;
-		u_short *wc;
-
-		/*
-		 * On a new page table page, we need to calculate the
-		 * end va for that page, and it's physical address.
-		 */
-		if (sva >= pdnxt) {
-			pdnxt = ((sva + NPTEPG) & ~(NPTEPG - 1));
-			ptepaddr =
-				(vm_offset_t) *pmap_pde(pmap, i386_ptob(sva));
-			mpte = NULL;
-		}
+		pdnxt = ((sindex + NPTEPG) & ~(NPTEPG - 1));
+		ptpaddr = (vm_offset_t) *pmap_pde(pmap, i386_ptob(sindex));
 
 		/*
 		 * Weed out invalid mappings. Note: we assume that the page
 		 * directory table is always allocated, and in kernel virtual.
 		 */
-		if (ptepaddr == 0) {
-			sva = pdnxt;
+		if (ptpaddr == 0)
 			continue;
-		}
 
-		ptepaddr &= PG_FRAME;
 		/*
 		 * get the vm_page_t for the page table page
 		 */
-		if (mpte == NULL)
-			mpte = PHYS_TO_VM_PAGE(ptepaddr);
-
-		/*
-		 * get the address of the hold and wire counts for the
-		 * page table page.
-		 */
-		hc = &(mpte->hold_count);
-		wc = &(mpte->wire_count);
+		mpte = PHYS_TO_VM_PAGE(ptpaddr);
 
 		/*
 		 * if the pte isn't wired or held, just skip it.
 		 */
-		if ((*hc == 0) && (*wc == 0)) {
-			sva = pdnxt;
+		if ((mpte->hold_count == 0) && (mpte->wire_count == 0))
 			continue;
-		}
 
 		/*
 		 * Limit our scan to either the end of the va represented
 		 * by the current page table page, or to the end of the
 		 * range being removed.
 		 */
-		if (pdnxt > eva) {
-			pdnxt = eva;
+		if (pdnxt > eindex) {
+			pdnxt = eindex;
 		}
 
-		/*
-		 * get get the ptp only if we need to
-		 */
-		if (ptp == NULL)
-			ptp = get_pt_entry(pmap);
-quickloop:
-		sva = pmap_scan(sva, pdnxt, ptp);
-		if (sva == pdnxt)
-			goto endmainloop;
-		/*
-		 * Remove the found entry.
-		 */
-		va = i386_ptob(sva);
-quickloop1:
-		if (pmap_remove_pte( pmap, ptp + sva, va))
-			update_needed = 1;
-
-		/*
-		 * If the wire count and the hold count for the page table page
-		 * are both zero, then we are done.
-		 */
-		if ((*hc != 0) || (*wc != 0)) {
-			++sva;
-			if (pdnxt == sva)
-				goto endmainloop;
-			if (ptp[sva]) {
-				va += PAGE_SIZE;
-				goto quickloop1;
-			}
-			goto quickloop;
+		for ( ;sindex != pdnxt; sindex++) {
+			if (ptbase[sindex] == 0)
+				continue;
+			pmap_remove_pte(pmap, ptbase + sindex, i386_ptob(sindex));
+			if (mpte->hold_count == 0 && mpte->wire_count == 0)
+				break;
 		}
-
-		/*
-		 * We are done with the current page table page if we get here
-		 */
-		sva = pdnxt;
-
-endmainloop:
 	}
-	if (update_needed)
-		pmap_update();
+	pmap_update();
 }
 
 /*
@@ -1153,7 +1076,7 @@ pmap_remove_all(pa)
 	vm_offset_t pa;
 {
 	register pv_entry_t pv, opv, npv;
-	register pt_entry_t *pte, *ptp;
+	register pt_entry_t *pte, *ptbase;
 	vm_offset_t va;
 	struct pmap *pmap;
 	vm_page_t m;
@@ -1180,9 +1103,9 @@ pmap_remove_all(pa)
 	pv = opv;
 	while (pv && ((pmap = pv->pv_pmap) != NULL)) {
 		int tpte;
-		ptp = get_pt_entry(pmap);
+		ptbase = get_ptbase(pmap);
 		va = pv->pv_va;
-		pte = ptp + i386_btop(va);
+		pte = ptbase + i386_btop(va);
 		if (tpte = ((int) *pte)) {
 			*pte = 0;
 			if (tpte & PG_W)
@@ -1238,13 +1161,13 @@ pmap_protect(pmap, sva, eva, prot)
 {
 	register pt_entry_t *pte;
 	register vm_offset_t va;
-	int i386prot;
-	register pt_entry_t *ptp;
+	register pt_entry_t *ptbase;
 	vm_offset_t pdnxt;
-	vm_offset_t ptepaddr;
+	vm_offset_t ptpaddr;
+	vm_offset_t sindex, eindex;
 	vm_page_t mpte;
+	int anychanged;
 
-	int anychanged = 0;
 
 	if (pmap == NULL)
 		return;
@@ -1256,69 +1179,52 @@ pmap_protect(pmap, sva, eva, prot)
 	if (prot & VM_PROT_WRITE)
 		return;
 
-	ptp = get_pt_entry(pmap);
+	anychanged = 0;
 
-	eva = i386_btop(eva);
+	ptbase = get_ptbase(pmap);
 
-	sva = i386_btop(va = sva);
-	pdnxt = ((sva + NPTEPG) & ~(NPTEPG - 1));
-	ptepaddr = (vm_offset_t) *pmap_pde(pmap, va);
-	mpte = NULL;
+	sindex = i386_btop(sva);
+	eindex = i386_btop(eva);
 
-	while (sva < eva) {
+	for (; sindex < eindex; sindex = pdnxt) {
 		int pprot;
 		int pbits;
+
+		pdnxt = ((sindex + NPTEPG) & ~(NPTEPG - 1));
+		ptpaddr = (vm_offset_t) *pmap_pde(pmap, i386_ptob(sindex));
+
 		/*
 		 * Weed out invalid mappings. Note: we assume that the page
 		 * directory table is always allocated, and in kernel virtual.
 		 */
-		if (sva >= pdnxt) {
-			pdnxt = ((sva + NPTEPG) & ~(NPTEPG - 1));
-			ptepaddr =
-				(vm_offset_t) *pmap_pde(pmap, i386_ptob(sva));
-			mpte = NULL;
-		}
-
-		if (ptepaddr == 0) {
-			sva = pdnxt;
+		if (ptpaddr == 0)
 			continue;
-		}
 
-		ptepaddr &= PG_FRAME;
-		if (mpte == NULL)
-			mpte = PHYS_TO_VM_PAGE(ptepaddr);
+		mpte = PHYS_TO_VM_PAGE(ptpaddr);
 
-		if ((mpte->hold_count == 0) && (mpte->wire_count == 0)) {
-			sva = pdnxt;
+		if ((mpte->hold_count == 0) && (mpte->wire_count == 0))
 			continue;
+
+		if (pdnxt > eindex) {
+			pdnxt = eindex;
 		}
 
-		if (pdnxt > eva) {
-			pdnxt = eva;
-		}
-
-quickloop:
-		sva = pmap_scan( sva, pdnxt, ptp);
-		if (sva == pdnxt) {
-			continue;
-		}
-
-		pte = ptp + sva;
-		pbits = *(int *)pte;
-
-		if (pbits & PG_RW) {
-			if (pbits & PG_M) {
-				vm_page_t m;
-				vm_offset_t pa = pbits & PG_FRAME;
-				m = PHYS_TO_VM_PAGE(pa);
-				m->dirty = VM_PAGE_BITS_ALL;
+		for (; sindex != pdnxt; sindex++) {
+			if (ptbase[sindex] == 0)
+				continue;
+			pte = ptbase + sindex;
+			pbits = *(int *)pte;
+			if (pbits & PG_RW) {
+				if (pbits & PG_M) {
+					vm_page_t m;
+					vm_offset_t pa = pbits & PG_FRAME;
+					m = PHYS_TO_VM_PAGE(pa);
+					m->dirty = VM_PAGE_BITS_ALL;
+				}
+				*(int *)pte &= ~(PG_M|PG_RW);
+				anychanged=1;
 			}
-			*(int *)pte &= ~(PG_M|PG_RW);
-			anychanged=1;
 		}
-		++sva;
-		if ( sva < pdnxt)
-			goto quickloop;
 	}
 	if (anychanged)
 		pmap_update();
@@ -1359,33 +1265,22 @@ pmap_enter(pmap, va, pa, prot, wired)
 	if (va > VM_MAX_KERNEL_ADDRESS)
 		panic("pmap_enter: toobig");
 
-#ifdef NO_HANDLE_LOCKED_PTES
 	/*
-	 * Page Directory table entry not valid, we need a new PT page
-	 */
-	pte = pmap_pte(pmap, va);
-	if (pte == NULL) {
-		printf("kernel page directory invalid pdir=%p, va=0x%lx\n",
-			pmap->pm_pdir[PTDPTDI], va);
-		panic("invalid kernel page directory");
-	}
-#else
-	/*
-	 * This is here in the case that a page table page is not
-	 * resident, but we are inserting a page there.
+	 * In the case that a page table page is not
+	 * resident, we are creating it here.
 	 */
 	if ((va < VM_MIN_KERNEL_ADDRESS) &&
 		(curproc != NULL) &&
-		(pmap == &curproc->p_vmspace->vm_pmap)) {
+		(pmap->pm_map->pmap == pmap)) {
 		vm_offset_t v;
-		v = (vm_offset_t) vtopte(va);
 
+		v = (vm_offset_t) vtopte(va);
 		/* Fault the pte only if needed: */
 		if (*((int *)vtopte(v)) == 0) 
-			(void) vm_fault(&curproc->p_vmspace->vm_map,
+			(void) vm_fault(pmap->pm_map,
 				trunc_page(v), VM_PROT_WRITE, FALSE);
 	}
-		
+
 	/*
 	 * Page Directory table entry not valid, we need a new PT page
 	 */
@@ -1395,7 +1290,6 @@ pmap_enter(pmap, va, pa, prot, wired)
 			pmap->pm_pdir[PTDPTDI], va);
 		panic("invalid kernel page directory");
 	}
-#endif
 
 	origpte = *(vm_offset_t *)pte;
 	opa = origpte & PG_FRAME;
