@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)systm.h	8.7 (Berkeley) 3/29/95
- * $Id: systm.h,v 1.93 1999/07/20 21:29:01 green Exp $
+ * $Id: systm.h,v 1.94 1999/07/23 23:45:50 alc Exp $
  */
 
 #ifndef _SYS_SYSTM_H_
@@ -108,16 +108,16 @@ void	tablefull __P((const char *));
 int	addlog __P((const char *, ...)) __printflike(1, 2);
 int	kvprintf __P((char const *, void (*)(int, void*), void *, int,
 		      _BSD_VA_LIST_)) __printflike(1, 0);
-void	log __P((int, const char *, ...)) __printflike(2, 3);
+int	log __P((int, const char *, ...)) __printflike(2, 3);
 void	logwakeup __P((void));
 int	printf __P((const char *, ...)) __printflike(1, 2);
 int	snprintf __P((char *, size_t, const char *, ...)) __printflike(3, 4);
 int	sprintf __P((char *buf, const char *, ...)) __printflike(2, 3);
-void	uprintf __P((const char *, ...)) __printflike(1, 2);
-void	vprintf __P((const char *, _BSD_VA_LIST_)) __printflike(1, 0);
+int	uprintf __P((const char *, ...)) __printflike(1, 2);
+int	vprintf __P((const char *, _BSD_VA_LIST_)) __printflike(1, 0);
 int	vsnprintf __P((char *, size_t, const char *, _BSD_VA_LIST_)) __printflike(3, 0);
 int     vsprintf __P((char *buf, const char *, _BSD_VA_LIST_)) __printflike(2, 0);
-void	ttyprintf __P((struct tty *, const char *, ...)) __printflike(2, 3);
+int	ttyprintf __P((struct tty *, const char *, ...)) __printflike(2, 3);
 int	sscanf __P((const char *, char const *, ...));
 int	vsscanf __P((const char *, char const *, _BSD_VA_LIST_));
 u_quad_t strtouq __P((const char *, const char **, int));

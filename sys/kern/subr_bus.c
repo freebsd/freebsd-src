@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: subr_bus.c,v 1.29 1999/05/30 10:27:11 dfr Exp $
+ *	$Id: subr_bus.c,v 1.30 1999/07/11 13:42:37 dfr Exp $
  */
 
 #include <sys/param.h>
@@ -891,25 +891,27 @@ device_get_desc(device_t dev)
     return dev->desc;
 }
 
-void
+int
 device_print_prettyname(device_t dev)
 {
 	const char *name = device_get_name(dev);
 
 	if (name == 0)
 		name = "(no driver assigned)";
-	printf("%s%d: ", name, device_get_unit(dev));
+	return(printf("%s%d: ", name, device_get_unit(dev)));
 }
 
-void
+int
 device_printf(device_t dev, const char * fmt, ...)
 {
 	va_list ap;
+	int retval;
 
-	device_print_prettyname(dev);
+	retval = device_print_prettyname(dev);
 	va_start(ap, fmt);
-	vprintf(fmt, ap);
+	retval += vprintf(fmt, ap);
 	va_end(ap);
+	return retval;
 }
 
 static void
