@@ -2,8 +2,8 @@
 
 PROG=	miniperl
 NOMAN=	true
-CFLAGS+=-I${PERL5SRC} -I${.OBJDIR}
-SRCS=	miniperlmain.c config.h
+CFLAGS+=-I${PERL5SRC} -I${.OBJDIR} -DPERL_EXTERNAL_GLOB
+SRCS=	miniperlmain.c opmini.c config.h
 # Miniperl _must_ be static!!
 NOSHARED= yes
 .if exists(${.OBJDIR}/../libperl/)
@@ -14,10 +14,13 @@ MYLIBPERL= ${.CURDIR}/../libperl/libperl.a
 DPADD=	${MYLIBPERL} ${LIBM} ${LIBCRYPT}
 LDADD=	${MYLIBPERL} -lm -lcrypt
 
-# Trick the bootstrap tools into thinking that miniperl is perl.
-# This gets overwritten.
-LINKS=	${BINDIR}/${PROG} ${BINDIR}/perl
+build-tools:	${PROG}
 
 .include <bsd.prog.mk>
 
 .PATH:	${PERL5SRC}
+
+opmini.c:	op.c
+	ln -sf ${.OODATE} ${.TARGET}
+
+CLEANFILES+=	opmini.c
