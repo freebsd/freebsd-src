@@ -24,13 +24,11 @@
 .\"
 .\" $FreeBSD$
 .\"
-.\" Note: The date here should be updated whenever a non-trivial
-.\" change is made to the manual page.
 .Dd February 19, 2004
-.Dt PTHREAD_BARRIER_DESTROY 3 PTHREAD_BARRIER_INIT 3 PTHREAD_BARRIER_WAIT 3
+.Dt PTHREAD_BARRIER 3
 .Os
 .Sh NAME
-.Nm pthread_barrier_destroy pthread_barrier_init pthread_barrier_wait
+.Nm pthread_barrier_destroy , pthread_barrier_init , pthread_barrier_wait
 .Nd "destroy, initialize or wait on a barrier object"
 .Sh LIBRARY
 .Lb libpthread
@@ -50,7 +48,8 @@ function will initialize
 .Fa barrier
 with attributes specified in
 .Fa attr ,
-or if it is NULL,
+or if it is
+.Dv NULL ,
 with default attributes.
 The number of threads that must call
 .Fn pthread_barrier_wait
@@ -76,27 +75,31 @@ any of them will be released is determined by the
 argument to
 .Fn pthread_barrier_init .
 Once the threads have been released the barrier will be reset.
-.Sh DIAGNOSTICS
+.Sh RETURN VALUES
 If successful,
 both
 .Fn pthread_barrier_destroy
 and
 .Fn pthread_barrier_init
 will return zero.
-Otherwise an error number will be returned to indicate the error.
+Otherwise, an error number will be returned to indicate the error.
 If the call to
 .Fn pthread_barrier_wait
-is successful all but one of the threads will return zero.
-That one thread will return PTHREAD_BARRIER_SERIAL_THREAD.
-Otherwise an error number will be returned to indicate the error.
+is successful, all but one of the threads will return zero.
+That one thread will return
+.Dv PTHREAD_BARRIER_SERIAL_THREAD .
+Otherwise, an error number will be returned to indicate the error.
 .Pp
-None of these functions will return EINTR.
+None of these functions will return
+.Er EINTR .
 .Sh IMPLIMENTATION NOTES
 In both
 .Lb libpthread
 and
 .Lb libthr
-the PTHREAD_BARRIER_SERIAL_THREAD return value will
+the
+.Dv PTHREAD_BARRIER_SERIAL_THREAD
+return value will
 always be returned by the last thread to reach the barrier.
 .Sh ERRORS
 The
@@ -139,7 +142,6 @@ Insufficient memory to initialize
 .Fa barrier .
 .El
 .Sh SEE ALSO
-.Xr pthread_barrier_wait 3 ,
 .Xr pthread_barrierattr 3
 .Sh HISTORY
 The
