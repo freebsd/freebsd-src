@@ -41,8 +41,8 @@ COPTS	+=	-I/usr/include/scsi -DSESINC="<ses.h>"
 .elif	${SYS} == NetBSD
 COPTS	+=	-I/usr/include/dev/scsipi -DSESINC="<ses.h>"
 .else
-COPTS	+=	-I/usr/include/cam/scsi -DSESINC="<scsi_ses.h>"
+CFLAGS	+=	-I/usr/include/cam/scsi -DSESINC="<scsi_ses.h>"
 .endif
-BINDIR	?=	${DESTDIR}/usr/sbin
+BINDIR	?=	/usr/sbin
 
 .PATH:	../srcs
