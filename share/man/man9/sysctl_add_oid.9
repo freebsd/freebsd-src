@@ -1,0 +1,441 @@
+.\"
+.\" Copyright (c) 2000, Andrzej Bialecki <abial@freebsd.org>
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\" 3. The name of the author may not be used to endorse or promote products
+.\"    derived from this software without specific prior written permission.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\" $FreeBSD$
+.\"
+.Dd Jul 15, 2000
+.Dt sysctl_add_oid 9
+.Os FreeBSD 5.0
+.Sh NAME
+.Nm sysctl_add_oid ,
+.Nm sysctl_remove_oid
+.Nd runtime sysctl tree manipulation
+.Sh SYNOPSIS
+.Fd #include <sys/sysctl.h>
+.Ft struct sysctl_oid *
+.Fo sysctl_add_oid
+.Fa "struct sysctl_ctx_list *ctx"
+.Fa "struct sysctl_oid_list *parent"
+.Fa "int number"
+.Fa "char *name"
+.Fa "int kind"
+.Fa "void *arg1"
+.Fa "int arg2"
+.Fa "int (*handler) (SYSCTL_HANDLER_ARGS)"
+.Fa "char *format"
+.Fa "char *descr"
+.Fc
+.Ft int
+.Fo sysctl_remove_oid
+.Fa "struct sysctl_oid *oidp"
+.Fa "int del"
+.Fa "int recurse"
+.Fc
+.Ft struct sysctl_oid_list *
+.Fo SYSCTL_CHILDREN
+.Fa "struct sysctl_oid *oidp"
+.Fc
+.Ft struct sysctl_oid_list *
+.Fo SYSCTL_STATIC_CHILDREN
+.Fa "OID_NAME"
+.Fc
+.Ft struct sysctl_oid *
+.Fo SYSCTL_ADD_OID
+.Fa "struct sysctl_ctx_list *ctx"
+.Fa "struct sysctl_oid_list *parent"
+.Fa "int number"
+.Fa "NAME"
+.Fa "int kind"
+.Fa "void *arg1"
+.Fa "int arg2"
+.Fa "int (*handler) (SYSCTL_HANDLER_ARGS)"
+.Fa "char *format"
+.Fa "char *descr"
+.Fc
+.Ft struct sysctl_oid *
+.Fo SYSCTL_ADD_NODE
+.Fa "struct sysctl_ctx_list *ctx"
+.Fa "struct sysctl_oid_list *parent"
+.Fa "int number"
+.Fa "NAME"
+.Fa "int access"
+.Fa "int (*handler) (SYSCTL_HANDLER_ARGS)"
+.Fa "char *descr"
+.Fc
+.Ft struct sysctl_oid *
+.Fo SYSCTL_ADD_STRING
+.Fa "struct sysctl_ctx_list *ctx"
+.Fa "struct sysctl_oid_list *parent"
+.Fa "int number"
+.Fa "NAME"
+.Fa "int access"
+.Fa "char *arg"
+.Fa "0"
+.Fa "char *descr"
+.Fc
+.Ft struct sysctl_oid *
+.Fo SYSCTL_ADD_INT
+.Fa "struct sysctl_ctx_list *ctx"
+.Fa "struct sysctl_oid_list *parent"
+.Fa "int number"
+.Fa "NAME"
+.Fa "int access"
+.Fa "int *arg"
+.Fa "0"
+.Fa "char *descr"
+.Fc
+.Ft struct sysctl_oid *
+.Fo SYSCTL_ADD_UINT
+.Fa "struct sysctl_ctx_list *ctx"
+.Fa "struct sysctl_oid_list *parent"
+.Fa "int number"
+.Fa "NAME"
+.Fa "int access"
+.Fa "unsigned int *arg"
+.Fa "0"
+.Fa "char *descr"
+.Fc
+.Ft struct sysctl_oid *
+.Fo SYSCTL_ADD_LONG
+.Fa "struct sysctl_ctx_list *ctx"
+.Fa "struct sysctl_oid_list *parent"
+.Fa "int number"
+.Fa "NAME"
+.Fa "int access"
+.Fa "long *arg"
+.Fa "0"
+.Fa "char *descr"
+.Fc
+.Ft struct sysctl_oid *
+.Fo SYSCTL_ADD_ULONG
+.Fa "struct sysctl_ctx_list *ctx"
+.Fa "struct sysctl_oid_list *parent"
+.Fa "int number"
+.Fa "NAME"
+.Fa "int access"
+.Fa "unsigned long *arg"
+.Fa "0"
+.Fa "char *descr"
+.Fc
+.Ft struct sysctl_oid *
+.Fo SYSCTL_ADD_OPAQUE
+.Fa "struct sysctl_ctx_list *ctx"
+.Fa "struct sysctl_oid_list *parent"
+.Fa "int number"
+.Fa "NAME"
+.Fa "int access"
+.Fa "void *arg"
+.Fa "size_t *len"
+.Fa "char *descr"
+.Fc
+.Ft struct sysctl_oid *
+.Fo SYSCTL_ADD_STRUCT
+.Fa "struct sysctl_ctx_list *ctx"
+.Fa "struct sysctl_oid_list *parent"
+.Fa "int number"
+.Fa "NAME"
+.Fa "int access"
+.Fa "struct TYPE *arg"
+.Fa "TYPE"
+.Fa "char *descr"
+.Fc
+.Ft struct sysctl_oid *
+.Fo SYSCTL_ADD_PROC
+.Fa "struct sysctl_ctx_list *ctx"
+.Fa "struct sysctl_oid_list *parent"
+.Fa "int number"
+.Fa "NAME"
+.Fa "int access"
+.Fa "0"
+.Fa "0"
+.Fa "int (*handler) (SYSCTL_HANDLER_ARGS)"
+.Fa "char *format"
+.Fa "char *descr"
+.Fc
+.Sh DESCRIPTION
+These two functions and set of macros allow to create and delete sysctl
+oids during runtime (e.g. during lifetime of a module). Alternative method,
+based on linker sets (see
+.Aq sys/linker_set.h
+and
+.Pa sys/kern/kern_sysctl.c
+for details), allows only to create and delete them on module load/unload.
+.Pp
+Dynamic oids of type CTLTYPE_NODE are reusable, so that several
+code sections can create and delete them, but in reality they are allocated
+and freed based on their reference count. As a consequence, it's possible
+for two or more code sections to create partially overlapping trees that
+they both can use. It's not possible to create overlapping leaves, or
+to create different child type with the same parent and the same name as
+one of already existing children.
+.Pp
+Newly created oids are connected to their parent nodes. In all functions
+and macros one of the required parameters is
+.Va "struct sysctl_oid_list *parent"
+that points to the list of children of the parent node.
+.Pp
+In case of connecting to already existing static oid (most top level
+categories are created statically), this pointer can be obtained by
+.Fn SYSCTL_STATIC_CHILDREN "NAME"
+macro, where
+.Fa "NAME"
+is name of the parent oid of type CTLTYPE_NODE (the name displayed by
+.Xr sysctl 8
+preceded by underscore, and with all dots replaced by underscores).
+.Pp
+In case of connecting to already existing dynamic oid, this pointer
+can be obtained through
+.Fn SYSCTL_CHILDREN "struct sysctl_oid *oidp"
+macro, where
+.Fa "oidp"
+points to the parent oid of type CTLTYPE_NODE.
+
+.Fn sysctl_add_oid
+is a function to create raw oids of any type. If the oid was successfuly
+created, the function returns a pointer to it, otherwise it returns NULL.
+Many of the arguments that
+.Fn sysctl_add_oid
+takes are common also with the macros. The arguments are as follows:
+.Bl -tag -width handler
+.It ctx
+The pointer to (optional) sysctl context, or NULL. See
+.Xr sysctl_ctx_init 9
+for details. It is strongly advised that programmers use
+contexts to organize the dynamic oids they create, unless special
+creation and deletion sequences are required. If
+.Fa "ctx"
+is not NULL, the newly created oid will be added to this context as
+its first entry.
+.It parent
+The pointer to
+.Va sysctl_oid_list
+structure containing all parent's children.
+.It number
+The oid number that will be assigned to this oid. In almost all cases this
+should be set to
+.Va OID_AUTO
+which will result in assigning next available oid number.
+.It name
+Name of the oid. Newly created oid will contain copy of the name.
+.It kind
+The oid kind, specified as OR of type and access values defined in
+.Aq sys/sysctl.h
+header file. Oids created dynamically always have CTLTYPE_DYN flag set.
+.Pa access
+related flags specify whether this oid is read-only or read-write, and
+who may modify it (all users or superuser only).
+.It arg1
+points to any data that the oid should reference, or is set to NULL.
+.It arg2
+usually contains the information about size of
+.Fa "arg1"
+, or is set to 0.
+.It handler
+points to a function that is responsible for handling read and
+write requests to this oid. There are several standard handlers that
+support operations on nodes, integers, strings and opaque objects.
+It's possible also to define new handlers (cf.
+.Fn SYSCTL_ADD_PROC
+macro).
+.It format
+Specifies the format of the oid in a symbolic way. This format is
+used as a hint by
+.Xr sysctl 8
+to apply proper data formatting for display purposes. Currently used
+format names are:
+.Dq N
+for node, 
+.Dq A
+for
+.Pa "char *"
+,
+.Dq I
+for
+.Pa "int"
+,
+.Dq IU
+for
+.Pa "unsigned int"
+,
+.Dq L
+for
+.Pa "long"
+,
+.Dq LU
+for
+.Pa "unsigned long"
+and
+.Dq S,TYPE
+for
+.Pa "struct TYPE"
+structures.
+.It descr
+Textual description of the oid.
+.El
+.Pp
+
+.Fn sysctl_remove_oid
+removes dynamically created oid from the tree, optionally freeing
+its resources.  It takes the following arguments:
+.Bl -tag -width recurse
+.It oidp
+pointer to the dynamic oid to be removed. If the oid is not dynamic,
+or NULL, the function returns EINVAL error code.
+.It del
+If set to non-zero,
+.Fn sysctl_remove_oid
+will try to free the oid's resources, when the reference count of the oid
+becomes zero. However, if
+.Va del
+is set to 0, the routine will only deregister oid from the tree, without
+freeing its resources. This case is useful when the caller wants later
+to rollback (possibly partially failed) deletion of many oids.
+.It recurse
+if set to non-zero, attempt to remove current node and all its children.
+If
+.Pa recurse
+is set to 0, attempt to remove node that contains any children will result
+in ENOTEMPTY error.
+
+\fBWARNING: use recursive delete with extreme caution! Normally it
+shouldn't be needed if you use contexts.\fR Contexts take care of
+tracking inter-dependencies between users of the tree. However, in some
+extreme cases it might be needed to remove part of the subtree no matter
+how it was created, in order to free some other resources. Be aware,
+though, that it may result in system panic if other code section still
+was using removed subtree.
+.El
+.Pp
+Again, in most cases programmer should use contexts, as described in
+.Xr sysctl_ctx_init 9
+to keep track of created oids, and later to delete them in orderly fashion.
+.Pp
+There is a set of macros defined that helps to create oids of given type.
+They are as follows:
+.Pp
+.Fn SYSCTL_ADD_OID
+creates raw oid. This macro is functionally equivalent to
+.Fn sysctl_add_oid
+function.
+.Pp
+.Fn SYSCTL_ADD_NODE
+creates oid of type CTLFLAG_NODE, to which you can add children oids.
+.Pp
+.Fn SYSCTL_ADD_STRING
+creates oid that handles a zero-terminated string.
+.Pp
+.Fn SYSCTL_ADD_INT
+creates oid that handles
+.Va int
+variable.
+.Pp
+.Fn SYSCTL_ADD_UINT
+creates oid that handles
+.Va unsigned int
+variable.
+.Pp
+.Fn SYSCTL_ADD_LONG
+creates oid that handles
+.Va long
+variable.
+.Pp
+.Fn SYSCTL_ADD_ULONG
+creates oid that handles
+.Va unsigned long
+variable.
+.Pp
+.Fn SYSCTL_ADD_OPAQUE
+creates oid that handles any chunk of opaque data of specified size.
+.Pp
+.Fn SYSCTL_ADD_STRUCT
+creates oid that handles
+.Va "struct TYPE"
+structure. The
+.Pa format
+parameter will be set to
+.Dq S,TYPE
+to provide proper hints to
+.Xr sysctl 8
+utlity.
+.Pp
+.Fn SYSCTL_ADD_PROC
+creates oid with specified
+.Pa handler
+function. The handler is responsible to handle read and write requests
+to the oid. This oid type is especially useful if the kernel data is not
+easily accessible, or needs to be processed before exporting.
+.Pp
+.Sh EXAMPLES
+The following code example shows how to create new top-level category
+and how to hook up another subtree to already existing (static) node:
+.Bd -literal
+#include <sys/sysctl.h>
+ ...
+/* Need to preserve pointers to newly created subtrees, to be able
+ * to free them later.
+ */
+struct sysctl_oid *root1, *root2, *oidp;
+int a_int;
+char *string = "dynamic sysctl";
+ ...
+
+root1 = SYSCTL_ADD_NODE( NULL, SYSCTL_STATIC_CHILDREN(/* tree top */), 
+	OID_AUTO, newtree, CTFLAG_RW, 0, "new top level tree");
+oidp = SYSCTL_ADD_INT( NULL, SYSCTL_CHILDREN(root1),
+	OID_AUTO, newint, CTLFLAG_RW, &a_int, 0, "new int leaf");
+ ...
+root2 = SYSCTL_ADD_NODE( NULL, SYSCTL_STATIC_CHILDREN(_debug), 
+	OID_AUTO, newtree, CTFLAG_RW, 0, "new tree under debug");
+oidp = SYSCTL_ADD_STRING( NULL, SYSCTL_CHILDREN(root2),
+	OID_AUTO, newstring, CTLFLAG_R, string, 0, "new string leaf");
+.Ed
+.Pp
+This example creates the following subtrees:
+.Bd -literal -offset indent
+debug.newtree.newstring
+newtree.newint
+.Ed
+.Pp
+Don't forget to free all oids when you don't need them!
+.Pp
+.Sh SEE ALSO
+.Xr sysctl_ctx_init 9 ,
+.Xr sysctl_ctx_free 9 ,
+.Xr sysctl 8
+.Sh HISTORY
+These functions appeared in
+.Fx 5.0 .
+.Sh AUTHORS
+.An Andrzej Bialecki Aq abial@FreeBSD.org
+.Sh BUGS
+Sharing nodes between many code sections causes interdependencies that
+sometimes may lock the resources (e.g. it will be impossible to
+delete some oids, if other module hooked up its subtree to oids created
+by this module).  These issues are handled properly by sysctl contexts.
+
+Many operations on the tree involve traversing linked lists. For this
+reason oid creation and removal is relatively costly.
