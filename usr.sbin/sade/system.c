@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: system.c,v 1.28 1995/05/21 06:12:44 phk Exp $
+ * $Id: system.c,v 1.29 1995/05/23 02:41:18 jkh Exp $
  *
  * Jordan Hubbard
  *
@@ -83,6 +83,18 @@ systemInitialize(int argc, char **argv)
     if (set_termcap() == -1) {
 	printf("Can't find terminal entry\n");
 	exit(-1);
+    }
+
+    /* If we're running as init, stick a shell over on the 4th VTY */
+    if (RunningAsInit && !fork()) {
+	int i;
+	    
+	for (i = 0; i < 64; i++)
+	    close(i);
+	open("/dev/ttyv3", O_RDWR);
+	ioctl(0, TIOCSCTTY, (char *)NULL);
+	dup2(0, 1);
+	dup2(0, 2);
     }
 
     /* XXX - libdialog has particularly bad return value checking */
