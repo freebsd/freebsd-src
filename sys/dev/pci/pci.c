@@ -60,6 +60,23 @@
 #include <machine/smp.h>
 #endif /* APIC_IO */
 
+struct pci_quirk {
+	u_int32_t devid;	/* Vendor/device of the card */
+	int	type;
+#define PCI_QUIRK_MAP_REG	1 /* PCI map register in wierd place */
+	int	arg1;
+	int	arg2;
+};
+
+struct pci_quirk pci_quirks[] = {
+	/*
+	 * The Intel 82371AB has a map register at offset 0x90.
+	 */
+	{ 0x71138086, PCI_QUIRK_MAP_REG,	0x90,	 0 },
+
+	{ 0 }
+};
+
 /* map register information */
 #define PCI_MAPMEM	0x01	/* memory map */
 #define PCI_MAPMEMP	0x02	/* prefetchable memory map */
@@ -970,81 +987,100 @@ pci_memen(pcicfgregs *cfg)
 	return ((cfg->cmdreg & PCIM_CMD_MEMEN) != 0);
 }
 
+/*
+ * Add a resource based on a pci map register. Return 1 if the map
+ * register is a 32bit map register or 2 if it is a 64bit register.
+ */
+static int
+pci_add_map(device_t dev, pcicfgregs* cfg, int reg)
+{
+	struct pci_devinfo *dinfo = device_get_ivars(dev);
+	struct resource_list *rl = &dinfo->resources;
+	u_int32_t map;
+	u_int64_t base;
+	u_int8_t ln2size;
+	u_int8_t ln2range;
+	u_int32_t testval;
+		
+	int type;
+
+	map = pci_cfgread(cfg, reg, 4);
+
+	if (map == 0 || map == 0xffffffff)
+		return 1; /* skip invalid entry */
+
+	pci_cfgwrite(cfg, reg, 0xffffffff, 4);
+	testval = pci_cfgread(cfg, reg, 4);
+	pci_cfgwrite(cfg, reg, map, 4);
+
+	base = pci_mapbase(map);
+	if (pci_maptype(map) & PCI_MAPMEM)
+		type = SYS_RES_MEMORY;
+	else
+		type = SYS_RES_IOPORT;
+	ln2size = pci_mapsize(testval);
+	ln2range = pci_maprange(testval);
+	if (ln2range == 64) {
+		/* Read the other half of a 64bit map register */
+		base |= (u_int64_t) pci_cfgread(cfg, reg + 4, 4) << 32;
+	}
+
+#ifdef __alpha__
+	/* 
+	 *  XXX: encode hose number in the base addr,
+	 *  This will go away once the bus_space functions
+	 *  can deal with multiple hoses 
+	 */
+
+	if(cfg->hose){
+		if (base & 0x80000000) {
+			printf("base   addr = 0x%x\n", base);
+			printf("hacked addr = 0x%x\n",
+			       base | (cfg->hose << 31));
+					
+			panic("hose encoding hack would clobber base addr");
+		}
+		if (cfg->hose > 1)
+			panic("only one hose supported!");
+		base |= (cfg->hose << 31);
+	}
+#endif
+	if (type == SYS_RES_IOPORT && !pci_porten(cfg))
+		return 1;
+	if (type == SYS_RES_MEMORY && !pci_memen(cfg))
+		return 1;
+
+	resource_list_add(rl, type, reg,
+			  base, base + (1 << ln2size) - 1,
+			  (1 << ln2size));
+
+	if (bootverbose) {
+		printf("\tmap[%02x]: type %x, range %2d, base %08x, size %2d\n",
+		       reg, pci_maptype(base), ln2range,
+		       (unsigned int) base, ln2size);
+	}
+
+	return (ln2range == 64) ? 2 : 1;
+}
+
 static void
 pci_add_resources(device_t dev, pcicfgregs* cfg)
 {
-
 	struct pci_devinfo *dinfo = device_get_ivars(dev);
 	struct resource_list *rl = &dinfo->resources;
+	struct pci_quirk *q;
 	int i;
 
-	for (i = 0; i < cfg->nummaps; i++) {
-		int reg = PCIR_MAPS + i*4;
-		u_int32_t map;
-		u_int64_t base;
-		u_int8_t ln2size;
-		u_int8_t ln2range;
-		u_int32_t testval;
-		
-		int type;
-
-		map = pci_cfgread(cfg, reg, 4);
-
-		if (map == 0 || map == 0xffffffff)
-			continue; /* skip invalid entry */
-
-		pci_cfgwrite(cfg, reg, 0xffffffff, 4);
-		testval = pci_cfgread(cfg, reg, 4);
-		pci_cfgwrite(cfg, reg, map, 4);
-
-		base = pci_mapbase(map);
-		if (pci_maptype(map) & PCI_MAPMEM)
-		    type = SYS_RES_MEMORY;
-		else
-		    type = SYS_RES_IOPORT;
-		ln2size = pci_mapsize(testval);
-		ln2range = pci_maprange(testval);
-		if (ln2range == 64) {
-			/* Read the other half of a 64bit map register */
-			base |= (u_int64_t) pci_cfgread(cfg, reg + 4, 4) << 32;
-			i++;
-		}
-
-#ifdef __alpha__
-		/* 
-		 *  XXX: encode hose number in the base addr,
-		 *  This will go away once the bus_space functions
-		 *  can deal with multiple hoses 
-		 */
-
-		if(cfg->hose){
-			if (base & 0x80000000) {
-				printf("base   addr = 0x%x\n", base);
-				printf("hacked addr = 0x%x\n",
-				       base | (cfg->hose << 31));
-					
-				panic("hose encoding hack would clobber base addr");
-			}
-			if (cfg->hose > 1)
-				panic("only one hose supported!");
-			base |= (cfg->hose << 31);
-		}
-#endif
-		if (type == SYS_RES_IOPORT && !pci_porten(cfg))
-			continue;
-		if (type == SYS_RES_MEMORY && !pci_memen(cfg))
-			continue;
-
-		resource_list_add(rl, type, reg,
-				  base, base + (1 << ln2size) - 1,
-				  (1 << ln2size));
-
-		if (bootverbose) {
-			printf("\tmap[%d]: type %x, range %2d, base %08x, size %2d\n",
-			       i, pci_maptype(base), ln2range,
-			       (unsigned int) base, ln2size);
-		}
+	for (i = 0; i < cfg->nummaps;) {
+		i += pci_add_map(dev, cfg, PCIR_MAPS + i*4);
 	}
+
+	for (q = &pci_quirks[0]; q->devid; q++) {
+		if (q->devid == ((cfg->device << 16) | cfg->vendor)
+		    && q->type == PCI_QUIRK_MAP_REG)
+			pci_add_map(dev, cfg, q->arg1);
+	}
+
 	if (cfg->intline != 255)
 		resource_list_add(rl, SYS_RES_IRQ, 0,
 				  cfg->intline, cfg->intline, 1);
@@ -1278,8 +1314,11 @@ static int
 pci_set_resource(device_t dev, device_t child, int type, int rid,
 		 u_long start, u_long count)
 {
-	printf("pci_set_resource: PCI resources can not be changed\n");
-	return EINVAL;
+	struct pci_devinfo *dinfo = device_get_ivars(child);
+	struct resource_list *rl = &dinfo->resources;
+
+	resource_list_add(rl, type, rid, start, start + count - 1, count);
+	return 0;
 }
 
 static int
@@ -1304,7 +1343,6 @@ static void
 pci_delete_resource(device_t dev, device_t child, int type, int rid)
 {
 	printf("pci_set_resource: PCI resources can not be deleted\n");
-	return EINVAL;
 }
 
 static u_int32_t
