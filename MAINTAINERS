@@ -65,7 +65,6 @@ nvi		peter	Try not to break it.
 libz		peter	Try not to break it.
 pppd/chat	peter	Try not to break it.
 share/mk	ru	Recommends pre-commit review.
-m4		jmallett	Pre-commit review required.
 ipfw		ipfw	Pre-commit review preferred. send to ipfw@freebsd.org
 xten		imp	Looking after it, don't remove, don't break it.
 drm		anholt	Just keep me informed of changes, try not to break it.
