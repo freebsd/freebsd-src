@@ -12,7 +12,7 @@
  * on the understanding that TFS is not responsible for the correct
  * functioning of this software in any circumstances.
  *
- * $Id: st.c,v 1.70 1996/06/24 04:54:32 gibbs Exp $
+ * $Id: st.c,v 1.71 1996/07/14 10:46:54 joerg Exp $
  */
 
 /*
@@ -163,16 +163,10 @@ static d_strategy_t	ststrategy;
 
 #define CDEV_MAJOR 14
 #define BDEV_MAJOR 5
-extern struct cdevsw st_cdevsw; /* hold off the complaints for a second */
+static struct cdevsw st_cdevsw;
 static struct bdevsw st_bdevsw = 
 	{ stopen,	stclose,	ststrategy,	stioctl,	/*5*/
 	  nodump,	nopsize,	0,	"st",	&st_cdevsw,	-1 };
-
-static struct cdevsw st_cdevsw = 
-	{ stopen,	stclose,	rawread,	rawwrite,	/*14*/
-	  stioctl,	nostop,		nullreset,	nodevtotty,/* st */
-	  seltrue,	nommap,		ststrategy,	"st",
-	  &st_bdevsw,	-1 };
 
 SCSI_DEVICE_ENTRIES(st)
 
@@ -1987,13 +1981,9 @@ static st_devsw_installed = 0;
 static void 
 st_drvinit(void *unused)
 {
-	dev_t dev;
 
 	if( ! st_devsw_installed ) {
-		dev = makedev(CDEV_MAJOR, 0);
-		cdevsw_add(&dev,&st_cdevsw, NULL);
-		dev = makedev(BDEV_MAJOR, 0);
-		bdevsw_add(&dev,&st_bdevsw, NULL);
+		bdevsw_add_generic(BDEV_MAJOR, CDEV_MAJOR, &st_bdevsw);
 		st_devsw_installed = 1;
     	}
 }

@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)wd.c	7.2 (Berkeley) 5/9/91
- *	$Id: wd.c,v 1.110 1996/06/12 05:03:51 gpalmer Exp $
+ *	$Id: wd.c,v 1.111 1996/07/21 09:28:50 phk Exp $
  */
 
 /* TODO:
@@ -318,17 +318,10 @@ static	d_psize_t	wdsize;
 
 #define CDEV_MAJOR 3
 #define BDEV_MAJOR 0
-extern	struct cdevsw wd_cdevsw;
+static struct cdevsw wd_cdevsw;
 static struct bdevsw wd_bdevsw = 
 	{ wdopen,	wdclose,	wdstrategy,	wdioctl,	/*0*/
 	  wddump,	wdsize,		0,	"wd",	&wd_cdevsw,	-1 };
-
-static struct cdevsw wd_cdevsw = 
-	{ wdopen,	wdclose,	rawread,	rawwrite,	/*3*/
-	  wdioctl,	nostop,		nullreset,	nodevtotty,/* wd */
-	  seltrue,	nommap,		wdstrategy,	"wd",
-	  &wd_bdevsw,	-1 };
-
 
 /*
  * Probe for controller.
@@ -2167,13 +2160,9 @@ static wd_devsw_installed = 0;
 
 static void 	wd_drvinit(void *unused)
 {
-	dev_t dev;
 
 	if( ! wd_devsw_installed ) {
-		dev = makedev(CDEV_MAJOR,0);
-		cdevsw_add(&dev,&wd_cdevsw,NULL);
-		dev = makedev(BDEV_MAJOR,0);
-		bdevsw_add(&dev,&wd_bdevsw,NULL);
+		bdevsw_add_generic(BDEV_MAJOR,CDEV_MAJOR, &wd_bdevsw);
 		wd_devsw_installed = 1;
     	}
 }

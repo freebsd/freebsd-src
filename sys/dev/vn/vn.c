@@ -38,7 +38,7 @@
  * from: Utah Hdr: vn.c 1.13 94/04/02
  *
  *	from: @(#)vn.c	8.6 (Berkeley) 4/1/94
- *	$Id$
+ *	$Id: vn.c,v 1.36 1996/03/28 15:25:43 bde Exp $
  */
 
 /*
@@ -102,17 +102,10 @@ static	d_strategy_t	vnstrategy;
 
 #define CDEV_MAJOR 43
 #define BDEV_MAJOR 15
-extern	struct cdevsw vn_cdevsw;
+static struct cdevsw vn_cdevsw;
 static struct bdevsw vn_bdevsw = 
 	{ vnopen,	vnclose,	vnstrategy,	vnioctl,	/*15*/
 	  vndump,	vnsize,		0,	"vn",	&vn_cdevsw,	-1 };
-
-static struct cdevsw vn_cdevsw = 
-	{ vnopen,	vnclose,	rawread,	rawwrite,	/*43*/
-	  vnioctl,	nostop,		nullreset,	nodevtotty,/* vn */
-	  seltrue,	nommap,		vnstrategy,	"vn",
-	  &vn_bdevsw,	-1 };
-
 
 
 #ifdef DEBUG
@@ -622,7 +615,6 @@ static vn_devsw_installed = 0;
 static void 
 vn_drvinit(void *unused)
 {
-	dev_t dev;
 #ifdef DEVFS
 	int mynor;
 	int unit;
@@ -630,10 +622,7 @@ vn_drvinit(void *unused)
 #endif
 
 	if( ! vn_devsw_installed ) {
-		dev = makedev(CDEV_MAJOR,0);
-		cdevsw_add(&dev,&vn_cdevsw,NULL);
-		dev = makedev(BDEV_MAJOR,0);
-		bdevsw_add(&dev,&vn_bdevsw,NULL);
+		bdevsw_add_generic(BDEV_MAJOR,CDEV_MAJOR, &vn_bdevsw);
 		vn_devsw_installed = 1;
 #ifdef DEVFS
 		for (unit = 0; unit < NVN; unit++) {
