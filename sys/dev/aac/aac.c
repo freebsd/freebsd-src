@@ -814,7 +814,6 @@ aac_command_thread(struct aac_softc *sc)
 	AAC_LOCK_RELEASE(&sc->aac_io_lock);
 	wakeup(sc->aac_dev);
 
-	mtx_lock(&Giant);
 	kthread_exit(0);
 }
 

@@ -1053,7 +1053,6 @@ cbb_event_thread(void *arg)
 		mtx_unlock(&sc->mtx);
 	}
 	sc->flags &= ~CBB_KTHREAD_RUNNING;
-	mtx_lock(&Giant);	/* kthread_exit drops */
 	kthread_exit(0);
 }
 
