@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id:$
+ *	$Id: iface.c,v 1.1 1998/10/22 02:32:49 brian Exp $
  */
 
 #include <sys/types.h>
@@ -232,6 +232,7 @@ iface_addr_Zap(const char *name, struct iface_addr *addr)
     me->sin_len = peer->sin_len = sizeof(struct sockaddr_in);
     me->sin_addr = addr->ifa;
     peer->sin_addr = addr->brd;
+    log_Printf(LogDEBUG, "Delete %s\n", inet_ntoa(addr->ifa));
     if (ID0ioctl(s, SIOCDIFADDR, &ifra) < 0)
       log_Printf(LogWARN, "iface_addr_Zap: ioctl(SIOCDIFADDR, %s): %s\n",
                  inet_ntoa(addr->ifa), strerror(errno));
@@ -256,7 +257,7 @@ int
 iface_inAdd(struct iface *iface, struct in_addr ifa, struct in_addr mask,
             struct in_addr brd, int how)
 {
-  int slot, s;
+  int slot, s, chg;
   struct ifaliasreq ifra;
   struct sockaddr_in *me, *peer, *msk;
   struct iface_addr *addr;
@@ -284,27 +285,76 @@ iface_inAdd(struct iface *iface, struct in_addr ifa, struct in_addr mask,
     return 0;
   }
 
+  /*
+   * We've gotta be careful here.  If we try to add an address with the
+   * same destination as an existing interface, nothing will work.
+   * Instead, we tweak all previous address entries that match the
+   * to-be-added destination to 255.255.255.255 (w/ a similar netmask).
+   * There *may* be more than one - if the user has ``iface add''ed
+   * stuff previously.
+   */
+  for (chg = 0; chg < iface->in_addrs; chg++) {
+    if ((iface->in_addr[chg].brd.s_addr == brd.s_addr &&
+         brd.s_addr != INADDR_BROADCAST) || chg == slot) {
+      memset(&ifra, '\0', sizeof ifra);
+      strncpy(ifra.ifra_name, iface->name, sizeof ifra.ifra_name - 1);
+      me = (struct sockaddr_in *)&ifra.ifra_addr;
+      msk = (struct sockaddr_in *)&ifra.ifra_mask;
+      peer = (struct sockaddr_in *)&ifra.ifra_broadaddr;
+      me->sin_family = msk->sin_family = peer->sin_family = AF_INET;
+      me->sin_len = msk->sin_len = peer->sin_len = sizeof(struct sockaddr_in);
+      me->sin_addr = iface->in_addr[chg].ifa;
+      msk->sin_addr = iface->in_addr[chg].mask;
+      peer->sin_addr = iface->in_addr[chg].brd;
+      log_Printf(LogDEBUG, "Delete %s\n", inet_ntoa(me->sin_addr));
+      ID0ioctl(s, SIOCDIFADDR, &ifra);	/* Don't care if it fails... */
+      if (chg != slot) {
+        peer->sin_addr.s_addr = iface->in_addr[chg].brd.s_addr =
+          msk->sin_addr.s_addr = iface->in_addr[chg].mask.s_addr =
+            INADDR_BROADCAST;
+        iface->in_addr[chg].bits = 32;
+        log_Printf(LogDEBUG, "Add %s -> 255.255.255.255\n",
+                   inet_ntoa(me->sin_addr));
+        if (ID0ioctl(s, SIOCAIFADDR, &ifra) < 0 && errno != EEXIST) {
+          /* Oops - that's bad(ish) news !  We've lost an alias ! */
+          log_Printf(LogERROR, "iface_inAdd: ioctl(SIOCAIFADDR): %s: %s\n",
+               inet_ntoa(me->sin_addr), strerror(errno));
+          iface->in_addrs--;
+          bcopy(iface->in_addr + chg + 1, iface->in_addr + chg,
+                (iface->in_addrs - chg) * sizeof iface->in_addr[0]);
+          if (slot > chg)
+            slot--;
+          chg--;
+        }
+      }
+    }
+  }
+
   memset(&ifra, '\0', sizeof ifra);
   strncpy(ifra.ifra_name, iface->name, sizeof ifra.ifra_name - 1);
-
   me = (struct sockaddr_in *)&ifra.ifra_addr;
   msk = (struct sockaddr_in *)&ifra.ifra_mask;
   peer = (struct sockaddr_in *)&ifra.ifra_broadaddr;
-
   me->sin_family = msk->sin_family = peer->sin_family = AF_INET;
   me->sin_len = msk->sin_len = peer->sin_len = sizeof(struct sockaddr_in);
-
   me->sin_addr = ifa;
   msk->sin_addr = mask;
   peer->sin_addr = brd;
 
-  /*
-   * Note: EEXIST is sometimes returned, despite the route actually being
-   *       added !
-   */
-  if (ID0ioctl(s, SIOCAIFADDR, &ifra) < 0 && errno != EEXIST) {
-    log_Printf(LogERROR, "iface_inAdd: ioctl(SIOCAIFADDR): %s\n",
-               strerror(errno));
+  if (log_IsKept(LogDEBUG)) {
+    char buf[16];
+
+    strncpy(buf, inet_ntoa(brd), sizeof buf-1);
+    buf[sizeof buf - 1] = '\0';
+    log_Printf(LogDEBUG, "Add %s -> %s\n", inet_ntoa(ifa), buf);
+  }
+
+  /* An EEXIST failure w/ brd == INADDR_BROADCAST is ok (and works!) */
+  if (ID0ioctl(s, SIOCAIFADDR, &ifra) < 0 &&
+      (brd.s_addr != INADDR_BROADCAST || errno != EEXIST)) {
+    log_Printf(LogERROR, "iface_inAdd: ioctl(SIOCAIFADDR): %s: %s\n",
+               inet_ntoa(ifa), strerror(errno));
+    ID0ioctl(s, SIOCDIFADDR, &ifra);	/* EEXIST ? */
     close(s);
     return 0;
   }
