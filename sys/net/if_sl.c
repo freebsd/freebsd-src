@@ -975,7 +975,7 @@ slioctl(ifp, cmd, data)
 		 */
 		if (ifa->ifa_addr->sa_family == AF_INET) {
 			if (sl_softc[ifp->if_unit].sc_ttyp != NULL)
-				if_up(ifp);
+				ifp->if_flags |= IFF_UP;
 		} else {
 			error = EAFNOSUPPORT;
 		}
