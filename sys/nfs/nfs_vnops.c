@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)nfs_vnops.c	8.16 (Berkeley) 5/27/95
- * $Id: nfs_vnops.c,v 1.116.2.3 1999/02/13 08:03:47 dillon Exp $
+ * $Id: nfs_vnops.c,v 1.116.2.4 1999/06/30 03:38:52 julian Exp $
  */
 
 
@@ -2335,7 +2335,7 @@ nfs_readdirplusrpc(vp, uiop, cred)
 					newvp = NFSTOV(np);
 				}
 			    }
-			    if (doit) {
+			    if (doit && bigenough) {
 				dpossav2 = dpos;
 				dpos = dpossav1;
 				mdsav2 = md;
@@ -2359,7 +2359,10 @@ nfs_readdirplusrpc(vp, uiop, cred)
 			    nfsm_adv(nfsm_rndup(i));
 			}
 			if (newvp != NULLVP) {
-			    vrele(newvp);
+			    if (newvp == vp)
+				vrele(newvp);
+			    else
+				vput(newvp);
 			    newvp = NULLVP;
 			}
 			nfsm_dissect(tl, u_int32_t *, NFSX_UNSIGNED);
