@@ -26,10 +26,9 @@
 #  include <config.h>
 #endif
 
+#include <sys/types.h>
+
 #if defined (HAVE_UNISTD_H)
-#  ifdef _MINIX
-#    include <sys/types.h>
-#  endif
 #  include <unistd.h>
 #endif /* HAVE_UNISTD_H */
 
@@ -45,22 +44,16 @@
 #  include <strings.h>
 #endif /* !HAVE_STRING_H */
 
-extern char *xmalloc (), *xrealloc ();
+#include <pwd.h>
 
-#if !defined (SHELL)
+#if !defined (HAVE_GETPW_DECLS)
+extern struct passwd *getpwuid ();
+#endif /* !HAVE_GETPW_DECLS */
 
-#ifdef savestring
-#undef savestring
-#endif
+extern char *xmalloc ();
 
-/* Backwards compatibility, now that savestring has been removed from
-   all `public' readline header files. */
-char *
-rl_savestring (s)
-     char *s;
-{
-  return ((char *)strcpy (xmalloc (1 + (int)strlen (s)), (s)));
-}
+/* All of these functions are resolved from bash if we are linking readline
+   as part of bash. */
 
 /* Does shell-like quoting using single quotes. */
 char *
@@ -126,13 +119,15 @@ get_env_value (varname)
   return ((char *)getenv (varname));
 }
 
-#else /* SHELL */
-extern char *get_string_value ();
-
 char *
-get_env_value (varname)
-     char *varname;
+get_home_dir ()
 {
-  return get_string_value (varname);
-}	
-#endif /* SHELL */
+  char *home_dir;
+  struct passwd *entry;
+
+  home_dir = (char *)NULL;
+  entry = getpwuid (getuid ());
+  if (entry)
+    home_dir = entry->pw_dir;
+  return (home_dir);
+}
