@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *      $Id: pnp.c,v 1.2 1997/09/18 08:04:11 jmg Exp $
+ *      $Id: pnp.c,v 1.3 1997/09/19 15:20:24 jmg Exp $
  */
 
 #include <sys/param.h>
@@ -32,13 +32,11 @@
 #include <sys/malloc.h>
 #include <sys/interrupt.h>
 #include <machine/clock.h>
-#include <machine/cpufunc.h>
 #include <machine/md_var.h>
 
-#include <i386/isa/pnp.h>
-#include <i386/isa/isa_device.h>
-#include <i386/isa/isa.h>
 #include <i386/isa/icu.h>
+#include <i386/isa/isa_device.h>
+#include <i386/isa/pnp.h>
 
 int num_pnp_cards = 0;
 pnp_id pnp_devices[MAX_PNP_CARDS];
