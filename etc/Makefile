@@ -1,16 +1,11 @@
 #	from: @(#)Makefile	5.11 (Berkeley) 5/21/91
-#	$Id: Makefile,v 1.81 1994/09/09 16:11:58 rgrimes Exp $
+#	$Id: Makefile,v 1.82 1994/09/15 04:44:03 rgrimes Exp $
 
 # disktab may be wrong -- hcx9 is a tahoe, but gets its own.
 # -rw-r--r--
 BINOWN= root
 BINGRP= wheel
-BIN1=	aliases csh.cshrc csh.login csh.logout dm.conf \
-	ftpusers gettytab group hosts host.conf hosts.equiv hosts.lpd \
-	inetd.conf login.access motd myname netstart \
-	networks phones printcap protocols rc rc.local remote \
-	security services shells skey.access \
-	syslog.conf ttys etc.${MACHINE}/disktab rpc make.conf \
+BIN1=	etc.${MACHINE}/disktab \
 	${.CURDIR}/../gnu/usr.bin/man/manpath/manpath.config \
 	${.CURDIR}/../usr.bin/mail/misc/mail.rc
 
@@ -147,6 +142,7 @@ descrypt:
 	
 	
 distribution: distrib-dirs
+	(cd ${.CURDIR}/../share/examples; ${MAKE} install-etc)
 	(cd ${.CURDIR}; \
 	install -c -o ${BINOWN} -g ${BINGRP} -m 644 ${BIN1} ${DESTDIR}/etc; \
 	install -c -o ${BINOWN} -g ${BINGRP} -m 666 ${BIN2} ${DESTDIR}/etc; \
