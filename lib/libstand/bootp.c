@@ -37,6 +37,7 @@
  * SUCH DAMAGE.
  *
  * @(#) Header: bootp.c,v 1.4 93/09/11 03:13:51 leres Exp  (LBL)
+ * $FreeBSD$
  */
 
 #include <sys/types.h>
@@ -80,8 +81,9 @@ struct in_addr dhcp_serverip;
 
 /* Fetch required bootp infomation */
 void
-bootp(sock)
+bootp(sock, flag)
 	int sock;
+	int flag;
 {
 	struct iodesc *d;
 	register struct bootp *bp;
@@ -124,7 +126,19 @@ bootp(sock)
 	bp->bp_vend[4] = TAG_DHCP_MSGTYPE;
 	bp->bp_vend[5] = 1;
 	bp->bp_vend[6] = DHCPDISCOVER;
-	bp->bp_vend[7] = TAG_END;
+
+	/*
+	 * If we are booting from PXE, we want to send the string
+	 * 'PXEClient' to the DHCP server so you have the option of
+	 * only responding to PXE aware dhcp requests.
+	 */
+	if (flag & BOOTP_PXE) {
+		bp->bp_vend[7] = TAG_CLASSID;
+		bp->bp_vend[8] = 9;
+		bcopy("PXEClient", &bp->bp_vend[9], 9);
+		bp->bp_vend[18] = TAG_END;
+	} else
+		bp->bp_vend[7] = TAG_END;
 #else
 	bp->bp_vend[4] = TAG_END;
 #endif
@@ -161,7 +175,13 @@ bootp(sock)
 		bp->bp_vend[20] = 4;
 		leasetime = htonl(300);
 		bcopy(&leasetime, &bp->bp_vend[21], 4);
-		bp->bp_vend[25] = TAG_END;
+		if (flag & BOOTP_PXE) {
+			bp->bp_vend[25] = TAG_CLASSID;
+			bp->bp_vend[26] = 9;
+			bcopy("PXEClient", &bp->bp_vend[27], 9);
+			bp->bp_vend[36] = TAG_END;
+		} else
+			bp->bp_vend[25] = TAG_END;
 
 		expected_dhcpmsgtype = DHCPACK;
 
