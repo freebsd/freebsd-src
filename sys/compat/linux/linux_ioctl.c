@@ -69,6 +69,7 @@ static linux_ioctl_function_t linux_ioctl_disk;
 static linux_ioctl_function_t linux_ioctl_socket;
 static linux_ioctl_function_t linux_ioctl_sound;
 static linux_ioctl_function_t linux_ioctl_termio;
+static linux_ioctl_function_t linux_ioctl_private;
 
 static struct linux_ioctl_handler cdrom_handler =
 { linux_ioctl_cdrom, LINUX_IOCTL_CDROM_MIN, LINUX_IOCTL_CDROM_MAX };
@@ -82,6 +83,8 @@ static struct linux_ioctl_handler sound_handler =
 { linux_ioctl_sound, LINUX_IOCTL_SOUND_MIN, LINUX_IOCTL_SOUND_MAX };
 static struct linux_ioctl_handler termio_handler =
 { linux_ioctl_termio, LINUX_IOCTL_TERMIO_MIN, LINUX_IOCTL_TERMIO_MAX };
+static struct linux_ioctl_handler private_handler =
+{ linux_ioctl_private, LINUX_IOCTL_PRIVATE_MIN, LINUX_IOCTL_PRIVATE_MAX };
 
 DATA_SET(linux_ioctl_handler_set, cdrom_handler);
 DATA_SET(linux_ioctl_handler_set, console_handler);
@@ -89,6 +92,7 @@ DATA_SET(linux_ioctl_handler_set, disk_handler);
 DATA_SET(linux_ioctl_handler_set, socket_handler);
 DATA_SET(linux_ioctl_handler_set, sound_handler);
 DATA_SET(linux_ioctl_handler_set, termio_handler);
+DATA_SET(linux_ioctl_handler_set, private_handler);
 
 struct handler_element 
 {
@@ -1320,7 +1324,20 @@ linux_ioctl_console(struct thread *td, struct linux_ioctl_args *args)
 	return (ENOIOCTL);
 }
 
-#if 0
+/*
+ * Construct the Linux name for an interface
+ */
+
+int
+linux_ifname(struct ifnet *ifp, char *name, size_t size)
+{
+	if ((ifp->if_flags & IFF_BROADCAST) != 0)
+		return snprintf(name, LINUX_IFNAMSIZ,
+		    "eth%d", ifp->if_index);
+	return snprintf(name, LINUX_IFNAMSIZ,
+	    "%s%d", ifp->if_name, ifp->if_unit);
+}
+
 /*
  * Translate a FreeBSD interface name to a Linux interface name,
  * and return the associated ifnet structure.
@@ -1348,17 +1365,11 @@ ifname_bsd_to_linux(const char *bsdname, char *lxname)
 		    strncmp(ifp->if_name, bsdname, len) == 0)
 			break;
 	}
-	if (ifp != NULL) {
-		if ((ifp->if_flags & IFF_LOOPBACK) != 0)
-			snprintf(lxname, LINUX_IFNAMSIZ,
-			    "lo%d", ifp->if_unit);
-		else
-			snprintf(lxname, LINUX_IFNAMSIZ,
-			    "eth%d", ifp->if_index);
-	}
+	if (ifp != NULL)
+		linux_ifname(ifp, lxname, LINUX_IFNAMSIZ);
+	
 	return (ifp);
 }
-#endif
 
 /*
  * Translate a Linux interface name to a FreeBSD interface name,
@@ -1388,6 +1399,7 @@ ifname_linux_to_bsd(const char *lxname, char *bsdname)
 		    strncmp(ifp->if_name, lxname, len) == 0)
 			break;
 		if (ifp->if_index == unit &&
+		    (ifp->if_flags & IFF_BROADCAST) != 0 &&
 		    strncmp(lxname, "eth", len) == 0)
 			break;
 	}
@@ -1430,12 +1442,7 @@ linux_ifconf(struct thread *td, struct ifconf *uifc)
 		if (uio.uio_resid <= 0)
 			break;
 		bzero(&ifr, sizeof ifr);
-		if ((ifp->if_flags & IFF_LOOPBACK) != 0)
-			snprintf(ifr.ifr_name, LINUX_IFNAMSIZ,
-			    "lo%d", ifp->if_unit);
-		else
-			snprintf(ifr.ifr_name, LINUX_IFNAMSIZ,
-			    "eth%d", ifp->if_index);
+		linux_ifname(ifp, ifr.ifr_name, LINUX_IFNAMSIZ);
 		error = uiomove((caddr_t)&ifr, sizeof ifr, &uio);
 		if (error != 0)
 			return (error);
@@ -1538,6 +1545,8 @@ linux_ioctl_socket(struct thread *td, struct linux_ioctl_args *args)
 	case LINUX_SIOCGIFFLAGS:
 	case LINUX_SIOCGIFHWADDR:
 	case LINUX_SIOCGIFNETMASK:
+        case LINUX_SIOCDEVPRIVATE:
+        case LINUX_SIOCDEVPRIVATE+1:
 		/* copy in the interface name and translate it. */
 		copyin((char *)(args->arg), lifname, LINUX_IFNAMSIZ);
 #ifdef DEBUG
@@ -1636,6 +1645,18 @@ linux_ioctl_socket(struct thread *td, struct linux_ioctl_args *args)
 		args->cmd = SIOCDELMULTI;
 		error = ioctl(td, (struct ioctl_args *)args);
 		break;
+
+	/*
+	 * XXX This is slightly bogus, but these ioctls are currently
+	 * XXX only used by the aironet (if_an) network driver.
+	 */
+        case LINUX_SIOCDEVPRIVATE:
+                args->cmd = SIOCGPRIVATE_0;
+                error = ioctl(td, (struct ioctl_args *)args);
+		
+        case LINUX_SIOCDEVPRIVATE+1:
+                args->cmd = SIOCGPRIVATE_1;
+                error = ioctl(td, (struct ioctl_args *)args);
 	}
 
 	if (ifp != NULL)
@@ -1646,6 +1667,32 @@ linux_ioctl_socket(struct thread *td, struct linux_ioctl_args *args)
 	printf(__FUNCTION__ "(): returning %d\n", error);
 #endif
 	return (error);
+}
+
+/*
+ * Device private ioctl handler
+ */
+static int
+linux_ioctl_private(struct thread *td, struct linux_ioctl_args *args)
+{
+	struct filedesc *fdp;
+	struct file *fp;
+	int type;
+
+	/* XXX is it sufficient to PROC_LOCK td->td_proc? */
+	mtx_lock(&Giant);
+	fdp = td->td_proc->p_fd;
+	if (args->fd >= fdp->fd_nfiles ||
+	    (fp = fdp->fd_ofiles[args->fd]) == NULL) {
+		mtx_unlock(&Giant);
+		return (EBADF);
+	} else {
+		type = fp->f_type;
+	}
+	mtx_unlock(&Giant);
+	if (type == DTYPE_SOCKET)
+		return (linux_ioctl_socket(td, args));
+	return (ioctl(td, (struct ioctl_args *)args));
 }
 
 /*
