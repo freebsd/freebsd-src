@@ -1,4 +1,4 @@
-.\" $Id: ppp.8,v 1.184 1999/07/29 14:37:26 brian Exp $
+.\" $Id: ppp.8,v 1.185 1999/08/02 21:45:36 brian Exp $
 .Dd 20 September 1995
 .nr XX \w'\fC00'
 .Os FreeBSD
@@ -8,14 +8,8 @@
 .Nd Point to Point Protocol (a.k.a. user-ppp) 
 .Sh SYNOPSIS
 .Nm
-.Oo
-.Fl auto |
-.Fl background |
-.Fl ddial |
-.Fl direct |
-.Fl dedicated
-.Oc
 .Op Fl alias
+.Op Fl Va mode
 .Op Ar system Ns
 .No ...
 .Sh DESCRIPTION
@@ -30,6 +24,104 @@ However, in this implementation
 .Em PPP
 is done as a user process with the help of the
 tunnel device driver (tun).
+.Pp
+The
+.Fl alias
+flag does the equivalent of an
+.Dq alias enable yes ,
+enabling
+.Nm ppp Ns No s
+packet aliasing features.  This allows
+.Nm ppp
+to act as a NAT or masquerading engine for all machines on an internal 
+LAN.  Refer to
+.Xr libalias 3
+for details.
+.Pp
+The following
+.Va mode Ns No s
+are understood by
+.Nm ppp :
+.Bl -tag -width XXX -offset XXX
+.It Fl auto
+.Nm
+opens the tun interface, configures it then goes into the background.
+The link isn't brought up until outgoing data is detected on the tun
+interface at which point
+.Nm
+attempts to bring up the link.  Packets received (including the first one)
+while
+.Nm
+is trying to bring the link up will remain queued for a default of
+2 minutes.  See the
+.Dq set choked
+command below.
+.Pp
+In
+.Fl auto
+mode, at least one
+.Dq system
+must be given on the command line (see below) and a
+.Dq set ifaddr
+must be done in the system profile that specifies a peer IP address to
+use when configuring the interface.  Something like
+.Dq 10.0.0.1/0
+is usually appropriate.  See the
+.Dq pmdemand
+system in
+.Pa /usr/share/examples/ppp/ppp.conf.sample
+for an example.
+.It Fl background
+Here,
+.Nm
+attempts to establish a connection with the peer immediately.  If it
+succeeds,
+.Nm
+goes into the background and the parent process returns an exit code
+of 0.  If it fails,
+.Nm
+exits with a non-zero result.
+.It Fl direct
+This is used for receiving incoming connections.
+.Nm
+ignores the
+.Dq set device
+line and uses descriptor 0 as the link.
+.Pp
+If callback is configured,
+.Nm
+will use the
+.Dq set device
+information when dialing back.
+.It Fl dedicated
+This option is designed for machines connected with a dedicated
+wire.
+.Nm
+will always keep the device open and will never use any configured
+chat scripts.
+.It Fl ddial
+This mode is equivalent to
+.Fl auto
+mode except that
+.Nm
+will bring the link back up any time it's dropped for any reason.
+.It Fl interactive
+This is a no-op, and gives the same behaviour as if none of the above
+modes have been specified.
+.Nm
+loads any sections specified on the command line then provides an
+interactive prompt.
+.El
+.Pp
+One or more configuration entries or systems
+.Pq as specified in Pa /etc/ppp/ppp.conf
+may also be specified on the command line.
+.Nm
+will read the
+.Dq default
+system from
+.Pa /etc/ppp/ppp.conf
+at startup, followed by each of the systems specified on the command line.
 .Sh Major Features
 .Bl -diag
 .It Provides an interactive user interface.
@@ -208,122 +300,6 @@ Refer to the
 logging facility if you're interested in what exactly is done as user id
 zero.
 .Sh GETTING STARTED
-The following command line switches are understood by
-.Nm ppp :
-.Bl -tag -width XXX -offset XXX
-.It Fl auto
-.Nm
-opens the tun interface, configures it then goes into the background.
-The link isn't brought up until outgoing data is detected on the tun
-interface at which point
-.Nm
-attempts to bring up the link.  Packets received (including the first one)
-while
-.Nm
-is trying to bring the link up will remain queued for a default of
-2 minutes.  See the
-.Dq set choked
-command below.
-.Pp
-At least one
-.Dq system
-must be given on the command line (see below) and a
-.Dq set ifaddr
-must be done in the system profile that specifies a peer IP address to
-use when configuring the interface.  Something like
-.Dq 10.0.0.1/0
-is usually appropriate.  See the
-.Dq pmdemand
-system in
-.Pa /usr/share/examples/ppp/ppp.conf.sample
-for an example.
-.It Fl background
-Here,
-.Nm
-attempts to establish a connection with the peer immediately.  If it
-succeeds,
-.Nm
-goes into the background and the parent process returns an exit code
-of 0.  If it fails,
-.Nm
-exits with a non-zero result.
-.It Fl direct
-This is used for receiving incoming connections.
-.Nm
-ignores the
-.Dq set device
-line and uses descriptor 0 as the link.
-.Pp
-If callback is configured,
-.Nm
-will use the
-.Dq set device
-information when dialing back.
-.It Fl dedicated
-This option is designed for machines connected with a dedicated
-wire.
-.Nm
-will always keep the device open and will never use any configured
-chat scripts.
-.It Fl ddial
-This mode is equivalent to
-.Fl auto
-mode except that
-.Nm
-will bring the link back up any time it's dropped for any reason.
-.It Fl interactive
-This is a no-op, and gives the same behaviour as if none of the above
-flags have been specified.
-.Nm
-loads any sections specified on the command line then provides an
-interactive prompt.
-.It Fl alias
-This flag doesn't control
-.Nm ppp Ns No 's
-mode.  It does the equivalent of an
-.Dq alias enable yes .
-Additionally, if the
-.Fl auto
-flag is also specified, an implicit
-.Dq enable iface-alias
-is done.
-See below for details.
-.Pp
-Enabling IP aliasing allows
-.Nm ppp
-to act as a NAT or masquerading engine for all machines on an internal 
-LAN.  Refer to
-.Xr libalias 3
-for details.
-.El
-.Pp
-Additionally, one or more configuration entries
-.Pq as specified in Pa /etc/ppp/ppp.conf
-may be specified on the command line.
-.Nm
-will read the
-.Dq default
-system from
-.Pa /etc/ppp/ppp.conf
-at startup, followed by each of the systems specified on the command line.
-.Pp
-Only one of the
-.Fl auto ,
-.Fl background ,
-.Fl ddial ,
-.Fl direct ,
-.Fl dedicated
-and
-.Fl interactive
-switches may be specified.
-.Nm ppp Ns No 's
-.Sq mode
-may subsequently be changed with the
-.Dq set mode
-command (see below).
-.Pp
-For now, we'll stick to using interactive mode.
-.Pp
 When you first run
 .Nm
 you may need to deal with some initial configuration details.
