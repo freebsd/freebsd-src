@@ -3,7 +3,7 @@
 
     $FreeBSD$
 
-    Original revision: 1.22.2.267
+    Original revision: 1.22.2.268
 -->
 
 <articleinfo>
@@ -372,8 +372,9 @@
   <sect2>
     <title>リリースエンジニアリングと統合</title>
 
-    <para></para>
-
+    <para>新規インストール時に
+      <filename>/usr/share/examples</filename>
+      が展開されないというバグが修正されました。</para>
   </sect2>
 </sect1>
 
