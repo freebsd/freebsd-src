@@ -416,7 +416,9 @@ ether_input(ifp, eh, m)
 	struct ether_header *eh;
 	struct mbuf *m;
 {
+#ifdef BRIDGE
 	struct ether_header save_eh;
+#endif
 
 	/* Check for a BPF tap */
 	if (ifp->if_bpf != NULL) {
@@ -476,16 +478,6 @@ ether_input(ifp, eh, m)
        }
 #endif
 
-	/* Discard packet if upper layers shouldn't see it. This should
-	   only happen when the interface is in promiscuous mode. */
-	if ((ifp->if_flags & IFF_PROMISC) != 0
-	    && (eh->ether_dhost[0] & 1) == 0
-	    && bcmp(eh->ether_dhost,
-	      IFP2AC(ifp)->ac_enaddr, ETHER_ADDR_LEN) != 0) {
-		m_freem(m);
-		return;
-	}
-
 #ifdef BRIDGE
 recvLocal:
 #endif
@@ -508,6 +500,18 @@ ether_demux(ifp, eh, m)
 #if defined(NETATALK)
 	register struct llc *l;
 #endif
+
+	/* Discard packet if upper layers shouldn't see it because it was
+	   unicast to a different Ethernet address. If the driver is working
+	   properly, then this situation can only happen when the interface
+	   is in promiscuous mode. */
+	if ((ifp->if_flags & IFF_PROMISC) != 0
+	    && (eh->ether_dhost[0] & 1) == 0
+	    && bcmp(eh->ether_dhost,
+	      IFP2AC(ifp)->ac_enaddr, ETHER_ADDR_LEN) != 0) {
+		m_freem(m);
+		return;
+	}
 
 	/* Discard packet if interface is not up */
 	if ((ifp->if_flags & IFF_UP) == 0) {
