@@ -149,14 +149,14 @@ sio_isa_probe(dev)
 	/* Check isapnp ids */
 	if (ISA_PNP_PROBE(device_get_parent(dev), dev, sio_ids) == ENXIO)
 		return (ENXIO);
-	return (sioprobe(dev, 0, 0));
+	return (sioprobe(dev, 0, 0UL, 0));
 }
 
 static int
 sio_isa_attach(dev)
 	device_t	dev;
 {
-	return (sioattach(dev, 0));
+	return (sioattach(dev, 0, 0UL));
 }
 
 DRIVER_MODULE(sio, isa, sio_isa_driver, sio_devclass, 0, 0);
