@@ -57,6 +57,9 @@ NOASM=
 .include "${.CURDIR}/rpc/Makefile.inc"
 .include "${.CURDIR}/uuid/Makefile.inc"
 .include "${.CURDIR}/xdr/Makefile.inc"
+.if ${MACHINE_ARCH} == "arm"
+.include "${.CURDIR}/softfloat/Makefile.inc"
+.endif
 .if !defined(NO_YP_LIBC)
 CFLAGS+= -DYP
 .include "${.CURDIR}/yp/Makefile.inc"
