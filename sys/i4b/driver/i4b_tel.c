@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997, 2000 Hellmuth Michaelis. All rights reserved.
+ * Copyright (c) 1997, 2001 Hellmuth Michaelis. All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -27,11 +27,9 @@
  *	i4b_tel.c - device driver for ISDN telephony
  *	--------------------------------------------
  *
- *	$Id: i4b_tel.c,v 1.51 2000/10/06 08:37:43 hm Exp $
- *
  * $FreeBSD$
  *
- *	last edit-date: [Mon Oct  2 10:06:32 2000]
+ *	last edit-date: [Fri Jan 12 14:52:05 2001]
  *
  *---------------------------------------------------------------------------*/
 
@@ -44,7 +42,7 @@
 #include <sys/param.h>
 #include <sys/systm.h>
 
-#if (defined(__FreeBSD__) && __FreeBSD__ >= 3) || defined(__NetBSD__)
+#if defined(__FreeBSD__) || defined(__NetBSD__)
 #include <sys/ioccom.h>
 #include <sys/poll.h>
 #else
@@ -61,15 +59,9 @@
 #include <sys/tty.h>
 
 #ifdef __FreeBSD__
-
-#if defined(__FreeBSD__) && __FreeBSD__ == 3
-#include "opt_devfs.h"
-#endif
-
 #ifdef DEVFS
 #include <sys/devfsext.h>
 #endif
-
 #endif /* __FreeBSD__ */
 
 #ifdef __bsdi__
@@ -93,7 +85,6 @@
 #include <i4b/layer4/i4b_l4.h>
 
 /* minor number: lower 6 bits = unit number */
-
 
 #define UNITBITS	6
 #define UNITMASK	0x3f
@@ -136,11 +127,6 @@ typedef struct {
 
 	struct selinfo		selp;		/* select / poll */
 
-#if defined(__FreeBSD__) && __FreeBSD__ == 3
-#ifdef DEVFS
-        void                    *devfs_token;   /* token for DEVFS */
-#endif
-#endif
 	struct i4b_tel_tones	tones;
 	int			toneidx;
 	int			toneomega;
@@ -186,8 +172,7 @@ int i4btelpoll	__P((dev_t dev, int events, struct proc *p));
 int i4btelsel __P((dev_t dev, int rw, struct proc *p));
 #endif
 
-#endif /* __FreeBSD__ */
-
+#endif /* ! __FreeBSD__ */
 
 #if BSD > 199306 && defined(__FreeBSD__)
 
@@ -208,7 +193,6 @@ PDEVSTATIC d_select_t i4btelsel;
 
 #define CDEV_MAJOR 56
 
-#if defined(__FreeBSD__) && __FreeBSD__ >= 4
 static struct cdevsw i4btel_cdevsw = {
 	/* open */      i4btelopen,
 	/* close */     i4btelclose,
@@ -225,13 +209,6 @@ static struct cdevsw i4btel_cdevsw = {
 	/* flags */     0,
 	/* bmaj */      -1
 };
-#else
-static struct cdevsw i4btel_cdevsw = {
-	i4btelopen,	i4btelclose,	i4btelread,	i4btelwrite,
-  	i4btelioctl,	nostop,		noreset,	nodevtotty,
-	POLLFIELD,	nommap, 	NULL, "i4btel", NULL, -1
-};
-#endif
 
 PDEVSTATIC void i4btelinit(void *unused);
 PDEVSTATIC void i4btelattach(void *);
@@ -248,12 +225,7 @@ PSEUDO_SET(i4btelattach, i4b_tel);
 PDEVSTATIC void
 i4btelinit(void *unused)
 {
-#if defined(__FreeBSD__) && __FreeBSD__ >= 4
 	cdevsw_add(&i4btel_cdevsw);
-#else
-	dev_t dev = makedev(CDEV_MAJOR, 0);
-	cdevsw_add(&dev, &i4btel_cdevsw, NULL);
-#endif
 }
 
 SYSINIT(i4bteldev, SI_SUB_DRIVERS,
@@ -306,9 +278,7 @@ i4btelattach()
 {
 	int i, j;
 
-#ifndef HACK_NO_PSEUDO_ATTACH_MSG
 	printf("i4btel: %d ISDN telephony interface device(s) attached\n", NI4BTEL);
-#endif
 	
 	for(i=0; i < NI4BTEL; i++)
 	{
@@ -321,17 +291,6 @@ i4btelattach()
 			tel_sc[i][j].result = 0;
 
 #if defined(__FreeBSD__)
-#if __FreeBSD__ == 3
-
-#ifdef DEVFS
-
-/* XXX */  		tel_sc[i][j].devfs_token
-		  		= devfs_add_devswf(&i4btel_cdevsw, i, DV_CHR,
-				     UID_ROOT, GID_WHEEL, 0600,
-				     "i4btel%d", i);
-#endif
-
-#else
 			switch(j)
 			{
 				case FUNCTEL:	/* normal i4btel device */
@@ -346,7 +305,6 @@ i4btelattach()
 						0600, "i4bteld%d", i);
 					break;
 			}
-#endif
 #endif
 		}
 		tel_init_linktab(i);		
@@ -401,6 +359,7 @@ i4btelclose(dev_t dev, int flag, int fmt, struct proc *p)
 
 	x = splimp();
 	sc->devstate &= ~ST_TONE;		
+
 	if((func == FUNCTEL) &&
 	   (sc->isdn_linktab != NULL && sc->isdn_linktab->tx_queue != NULL))
 	{
@@ -428,7 +387,7 @@ i4btelclose(dev_t dev, int flag, int fmt, struct proc *p)
  *	i4btelioctl - device driver ioctl routine
  *---------------------------------------------------------------------------*/
 PDEVSTATIC int
-#if defined(__FreeBSD_version) && __FreeBSD_version >= 300003
+#if defined(__FreeBSD__)
 i4btelioctl(dev_t dev, u_long cmd, caddr_t data, int flag, struct proc *p)
 #elif defined(__bsdi__)
 i4btelioctl(dev_t dev, u_long cmd, caddr_t data, int flag, struct proc *p)
@@ -574,6 +533,7 @@ i4btelread(dev_t dev, struct uio *uio, int ioflag)
 	{
 		s = splimp();
 		IF_LOCK(sc->isdn_linktab->rx_queue);
+
 		while(IF_QEMPTY(sc->isdn_linktab->rx_queue) &&
 			(sc->devstate & ST_ISOPEN)          &&
 			(sc->devstate & ST_CONNECTED))		
@@ -581,11 +541,16 @@ i4btelread(dev_t dev, struct uio *uio, int ioflag)
 			sc->devstate |= ST_RDWAITDATA;
 
 			NDBGL4(L4_TELDBG, "i4btel%d, queue empty!", unit);
-			
+#if defined (__FreeBSD__) && __FreeBSD__ > 4
 			if((error = msleep((caddr_t) &sc->isdn_linktab->rx_queue,
-						&sc->isdn_linktab->rx_queue->ifq_mtx,
+					&sc->isdn_linktab->rx_queue->ifq_mtx,
+					TTIPRI | PCATCH,
+					"rtel", 0 )) != 0)
+#else
+			if((error = tsleep((caddr_t) &sc->isdn_linktab->rx_queue,
 						TTIPRI | PCATCH,
 						"rtel", 0 )) != 0)
+#endif						
 			{
 				sc->devstate &= ~ST_RDWAITDATA;
 				IF_UNLOCK(sc->isdn_linktab->rx_queue);
@@ -711,12 +676,16 @@ i4btelwrite(dev_t dev, struct uio * uio, int ioflag)
 		      (sc->devstate & ST_ISOPEN))
 		{
 			sc->devstate |= ST_WRWAITEMPTY;
-	
+#if defined (__FreeBSD__) && __FreeBSD__ > 4	
 			if((error = msleep((caddr_t) &sc->isdn_linktab->tx_queue,
 					&sc->isdn_linktab->tx_queue->ifq_mtx,
 					TTIPRI | PCATCH, "wtel", 0)) != 0)
+#else
+			if((error = tsleep((caddr_t) &sc->isdn_linktab->tx_queue,
+					TTIPRI | PCATCH, "wtel", 0)) != 0)
+#endif					
 			{
-				sc->devstate &= ~ST_WRWAITEMPTY;			
+				sc->devstate &= ~ST_WRWAITEMPTY;
 				IF_UNLOCK(sc->isdn_linktab->tx_queue);
 				splx(s);
 				return(error);
@@ -753,8 +722,14 @@ i4btelwrite(dev_t dev, struct uio * uio, int ioflag)
 				/* always reverse bitorder to line */
 				mtod(m,u_char *)[i] = bitreverse[mtod(m,u_char *)[i]];
 			}
-			
+#if defined (__FreeBSD__) && __FreeBSD__ > 4			
 			(void) IF_HANDOFF(sc->isdn_linktab->tx_queue, m, NULL);
+#else
+			if(IF_QFULL(sc->isdn_linktab->tx_queue))
+				m_freem(m);
+			else
+				IF_ENQUEUE(sc->isdn_linktab->tx_queue, m);
+#endif			
 			(*sc->isdn_linktab->bch_tx_start)(sc->isdn_linktab->unit, sc->isdn_linktab->channel);
 		}
 	
