@@ -43,6 +43,7 @@ static char sccsid[] = "@(#)netstat.c	8.1 (Berkeley) 6/6/93";
 #include <sys/socketvar.h>
 #include <sys/mbuf.h>
 #include <sys/protosw.h>
+#include <sys/queue.h>
 
 #include <netinet/in.h>
 #include <net/route.h>
@@ -164,6 +165,7 @@ fetchnetstat()
 {
 	register struct inpcb *prev, *next;
 	register struct netinfo *p;
+	struct inpcbhead head;
 	struct inpcb inpcb;
 	struct socket sockb;
 	struct tcpcb tcpcb;
@@ -187,18 +189,9 @@ fetchnetstat()
 		return;
 	}
 again:
-	KREAD(off, &inpcb, sizeof (struct inpcb));
-	prev = off;
-	for (; inpcb.inp_next != off; prev = next) {
-		next = inpcb.inp_next;
+	KREAD(off, &head, sizeof (struct inpcbhead));
+	for (next = head.lh_first; next != NULL; next = inpcb.inp_list.le_next) {
 		KREAD(next, &inpcb, sizeof (inpcb));
-		if (inpcb.inp_prev != prev) {
-			p = netcb.ni_forw;
-			for (; p != (struct netinfo *)&netcb; p = p->ni_forw)
-				p->ni_seen = 1;
-			error("Kernel state in transition");
-			return;
-		}
 		if (!aflag && inet_lnaof(inpcb.inp_laddr) == INADDR_ANY)
 			continue;
 		if (nhosts && !checkhost(&inpcb))
