@@ -55,7 +55,7 @@ file is included from the file
 .Pa /etc/defaults/rc.conf ,
 which specifies the default settings for all the available options.
 Options
-need only be specified in 
+need only be specified in
 .Pa /etc/rc.conf
 when the system administrator wishes to override these defaults.
 The file
@@ -119,14 +119,14 @@ set it to melody mode.
 .It Ar pccard_conf
 (str) Path to the configuration file for the
 .Xr pccardd 8
-daemon (e.g. 
+daemon (e.g.
 .Pa /etc/pccard.conf.sample ) .
 .It Ar pccardd_flags
-(str) If 
-.Ar pccard_enable 
-is set to 
-.Ar YES , 
-these are the flags to pass to the 
+(str) If
+.Ar pccard_enable
+is set to
+.Ar YES ,
+these are the flags to pass to the
 .Xr pccardd 8
 daemon.
 .It Ar local_startup
@@ -156,8 +156,8 @@ page for a description of the command line options available.
 .It Ar firewall_enable
 (bool) Set to
 .Ar NO
-if you do not want have firewall rules loaded at startup, or 
-.Ar YES 
+if you do not want have firewall rules loaded at startup, or
+.Ar YES
 if you do.
 If set to
 .Ar YES ,
@@ -170,12 +170,12 @@ See also
 .Pa /etc/rc.firewall ,
 set this variable to the full path to that script.
 .It Ar firewall_type
-(str) Names the firewall type from the selection in 
+(str) Names the firewall type from the selection in
 .Pa /etc/rc.firewall ,
 or the file which contains the local firewall ruleset.  Valid selections
-from 
+from
 .Pa /etc/rc.firewall ,
-are 
+are
 .Dq open
 - unrestricted IP access;
 .Dq closed
@@ -183,10 +183,10 @@ are
 .Dq client
 - basic protection for a workstation;
 .Dq simple
-- basic protection for a LAN.  If a filename is specified, the full path 
+- basic protection for a LAN.  If a filename is specified, the full path
 must be given.
 .It Ar firewall_quiet
-(bool) Set to 
+(bool) Set to
 .Ar YES
 to disable the display of ipfw rules on the console during boot.
 .It Ar firewall_logging
@@ -496,9 +496,9 @@ for troubleshooting your own network.
 For example, if you had a loopback device (standard) and an SMC Elite
 Ultra NIC, you might have this set to
 .Qq Ar "lo0 ed0"
-for the two interfaces.  An 
+for the two interfaces.  An
 .No ifconfig_ Ns Em interface
-variable is also assumed to exist for each value of 
+variable is also assumed to exist for each value of
 .Em interface .
 It is also possible to add IP alias entries here in cases where you
 want a single interface to have multiple IP addresses registered against
@@ -506,7 +506,7 @@ it.
 Assuming that the interface in question was ed0, it might look
 something like this:
 .Bd -literal
-ifconfig_ed0_alias0="inet 127.0.0.253 netmask 0xffffffff" 
+ifconfig_ed0_alias0="inet 127.0.0.253 netmask 0xffffffff"
 ifconfig_ed0_alias1="inet 127.0.0.254 netmask 0xffffffff"
 
 .Ed
@@ -522,7 +522,7 @@ ifconfig_ed0_alias2="inet 127.0.0.253 netmask 0xffffffff"
 ifconfig_ed0_alias4="inet 127.0.0.254 netmask 0xffffffff"
 
 .Ed
-Then note that alias4 would 
+Then note that alias4 would
 .Em not
 be added since the search would
 stop with the missing alias3 entry.
@@ -675,7 +675,7 @@ See the
 .Xr info 1
 page for more information.
 .It Ar update_motd
-(bool) If set to 
+(bool) If set to
 .Ar YES ,
 .Pa /etc/motd
 will be updated at boot time to reflect the kernel release
@@ -698,7 +698,7 @@ daemon.
 .It Ar nfs_access_cache
 if
 .Ar nfs_client_enable
-is set to 
+is set to
 .Ar YES ,
 this can be set to
 .Ar 0
@@ -779,7 +779,7 @@ daemon.
 (bool) If set to
 .Ar YES
 then run the
-.Xr xtend 8 
+.Xr xtend 8
 daemon at boot time.
 .It Ar xtend_flags
 (str) If
@@ -793,7 +793,7 @@ daemon.
 (bool) If set to
 .Ar YES
 then run the
-.Xr pppoed 8 
+.Xr pppoed 8
 daemon at boot time to provide PPP over Ethernet services.
 .It Ar pppoed_provider
 .Xr pppoed 8
@@ -954,10 +954,10 @@ server!)
 boot time.  If not set to
 .Ar NO
 then for each whitespace separated
-.Em element 
-in the value, a 
+.Em element
+in the value, a
 .No route_ Ns element
-variable is assumed to exist 
+variable is assumed to exist
 whose contents will later be passed to a
 .Dq route add
 operation.
@@ -1047,100 +1047,100 @@ these are the flags to pass to the
 daemon.
 .It Ar atm_enable
 (bool) Set to
-.Ar YES 
+.Ar YES
 to enable the configuration of ATM interfaces at system boot time.
 For all of the ATM variables described below, please refer to the
 .Xr atm 8
 man page for further details on the available command parameters.
-Also refer to the files in 
+Also refer to the files in
 .Pa /usr/share/examples/atm
 for more detailed configuration information.
 .It Ar atm_netif_<intf>
-(str) For the ATM physical interface 
-.Va <intf> , 
-this variable defines the name prefix and count for the ATM network interfaces to be created. 
-The value will be passed as the parameters of an 
+(str) For the ATM physical interface
+.Va <intf> ,
+this variable defines the name prefix and count for the ATM network interfaces to be created.
+The value will be passed as the parameters of an
 .Dq atm set netif Va <intf>
 command.
 .It Ar atm_sigmgr_<intf>
-(str) For the ATM physical interface 
-.Va <intf> , 
+(str) For the ATM physical interface
+.Va <intf> ,
 this variable defines the ATM signalling manager to be used.
-The value will be passed as the parameters of an 
+The value will be passed as the parameters of an
 .Dq atm attach Va <intf>
 command.
 .It Ar atm_prefix_<intf>
-(str) For the ATM physical interface 
-.Va <intf> , 
-this variable defines the NSAP prefix for interfaces using a UNI signalling 
+(str) For the ATM physical interface
+.Va <intf> ,
+this variable defines the NSAP prefix for interfaces using a UNI signalling
 manager.  If set to
 .Em ILMI ,
-then the prefix will automatically be set via the 
-.Xr ilmid 8 
-daemon.  Otherwise, the value will be passed as the parameters of an 
+then the prefix will automatically be set via the
+.Xr ilmid 8
+daemon.  Otherwise, the value will be passed as the parameters of an
 .Dq atm set prefix Va <intf>
 command.
 .It Ar atm_macaddr_<intf>
-(str) For the ATM physical interface 
-.Va <intf> , 
-this variable defines the MAC address for interfaces using a UNI signalling 
+(str) For the ATM physical interface
+.Va <intf> ,
+this variable defines the MAC address for interfaces using a UNI signalling
 manager.  If set to
 .Em NO ,
 then the hardware MAC address contained in the ATM interface card will be used.
-Otherwise, the value will be passed as the parameters of an 
+Otherwise, the value will be passed as the parameters of an
 .Dq atm set mac Va <intf>
 command.
 .It Ar atm_arpserver_<netif>
-(str) For the ATM network interface 
-.Va <netif> , 
+(str) For the ATM network interface
+.Va <netif> ,
 this variable defines the ATM address for a host which is to provide ATMARP
-service.  This variable is only applicable to interfaces using a UNI signalling 
+service.  This variable is only applicable to interfaces using a UNI signalling
 manager.  If set to
 .Em local ,
 then this host will become an ATMARP server.
-The value will be passed as the parameters of an 
+The value will be passed as the parameters of an
 .Dq atm set arpserver Va <netif>
 command.
 .It Ar atm_scsparp_<netif>
 (bool) If set to
 .Em YES ,
-then SCSP/ATMARP service for the network interface 
-.Va <netif> 
+then SCSP/ATMARP service for the network interface
+.Va <netif>
 will be initiated using the
 .Xr scspd 8
 and
 .Xr atmarpd 8
-daemons.  This variable is only applicable if 
-.So 
-.No atm_arpserver_ Ns Va <netif> 
+daemons.  This variable is only applicable if
+.So
+.No atm_arpserver_ Ns Va <netif>
 .No = Ns Qq local
-.Sc 
+.Sc
 is defined.
 .It Ar atm_pvcs
 (str) Set to the list of ATM PVCs you would like to add at system
-boot time.  For each whitespace separated 
-.Em element 
-in the value, an 
+boot time.  For each whitespace separated
+.Em element
+in the value, an
 .No atm_pvc_ Ns Em element
-variable is assumed to exist.  The value of each of these variables 
-will be passed as the parameters of an 
+variable is assumed to exist.  The value of each of these variables
+will be passed as the parameters of an
 .Dq atm add pvc
 command.
 .It Ar atm_arps
-(str) Set to the list of permanent ATM ARP entries you would like to add 
-at system boot time.  For each whitespace separated 
-.Em element 
-in the value, an 
+(str) Set to the list of permanent ATM ARP entries you would like to add
+at system boot time.  For each whitespace separated
+.Em element
+in the value, an
 .No atm_arp_ Ns Em element
-variable is assumed to exist.  The value of each of these variables 
-will be passed as the parameters of an 
+variable is assumed to exist.  The value of each of these variables
+will be passed as the parameters of an
 .Dq atm add arp
 command.
 .It Ar keymap
 (str) If set to
 .Ar NO
 then no keymap is installed, otherwise the value is used to install
-the keymap file in 
+the keymap file in
 .Pa /usr/share/syscons/keymaps/<value>.kbd
 .It Ar keyrate
 (str) The keyboard repeat speed.  Set to
@@ -1168,13 +1168,13 @@ to set the cursor behavior explicitly or choose the default behavior.
 (str) If set to
 .Ar NO
 then no screen map is installed, otherwise the value is used to install
-the screen map file in 
+the screen map file in
 .Pa /usr/share/syscons/scrnmaps/<value> .
 .It Ar font8x16
 (str) If set to
 .Ar NO
 then the default 8x16 font value is used for screen size requests, otherwise
-the value in 
+the value in
 .Pa /usr/share/syscons/fonts/<value>
 is used.
 .It Ar font8x14
@@ -1195,8 +1195,8 @@ is used.
 (int) If set to
 .Ar NO
 then the default screen blanking interval is used, otherwise it is set
-to 
-.Ar value 
+to
+.Ar value
 seconds.
 .It Ar saver
 (str) If not set to
@@ -1210,7 +1210,7 @@ the
 daemon is started for doing cut/paste selection on the console.
 .It Ar moused_type
 (str) This is the protocol type of mouse you would like to use.
-This variable must be set if 
+This variable must be set if
 .Ar moused_enable
 is set to
 .Ar YES .
@@ -1218,7 +1218,7 @@ The
 .Xr moused 8
 daemon
 is able to detect the appropriate mouse type automatically in many cases.
-You can set this variable to 
+You can set this variable to
 .Ar auto
 to let the daemon detect it, or
 select one from the following list if the automatic detection fails.
@@ -1233,7 +1233,7 @@ mouse is attached to the bus mouse port, choose
 .Ar auto
 or
 .Ar busmouse .
-All other protocols are for serial mice and will not work with 
+All other protocols are for serial mice and will not work with
 the PS/2 and bus mice.
 If you have a USB mouse,
 .Ar auto
@@ -1268,7 +1268,7 @@ and configure it as a sysmouse type mouse, since all
 mouse data is converted to this single canonical format when
 using
 .Xr moused 8 .
-If the client program does not support the sysmouse type, 
+If the client program does not support the sysmouse type,
 specify the mousesystems type.
 It is the second preferred type.
 .It Ar moused_port
@@ -1357,7 +1357,7 @@ daemon.
 (str) If not set to
 .Ar NO
 then point kernel crash-dumps at the swap device
-specified as 
+specified as
 .Em value .
 When the system restarts,
 a crash-dump found on the specified device
@@ -1369,13 +1369,13 @@ program.
 .It Ar check_quotas
 (bool) Set to
 .Ar YES
-if you want to enable user disk quota checking via the 
+if you want to enable user disk quota checking via the
 .Xr quotacheck 8
 command.
 .It Ar accounting_enable
 (bool) Set to
 .Ar YES
-if you wish to enable system accounting through the 
+if you wish to enable system accounting through the
 .Xr accton 8
 facility.
 .It Ar ibcs2_enable
@@ -1426,12 +1426,12 @@ Set this variable to
 .Ar YES
 if you want to disable that security check during system startup.
 .It Ar kern_securelevel_enable
-(bool) Set to 
+(bool) Set to
 .Ar YES
 if you wish to set the kernel security level at system startup.
 .It Ar kern_securelevel
 (int) The kernel security level to set at startup.
-The allowed range of 
+The allowed range of
 .Ar value
 ranges from -1 (the compile time default) to 3 (the
 most secure).  See
@@ -1465,9 +1465,67 @@ these are the flags to pass to the
 .Xr sshd 8
 daemon.
 .It Ar unaligned_print
-(bool) If set to  
+(bool) If set to
 .Ar NO
 then unaligned access warnings will not be printed. (alpha)
+.\" ----- isdn settings ---------------------------------
+.It Ar isdn_enable
+(bool)
+Set to
+.Ar NO
+by default.
+When set to
+.Ar YES ,
+starts the isdn daemon
+.Pa /usr/sbin/isdnd
+at system boot time.
+.It Va isdn_flags
+(str) Set to
+.Ar -dn -d0x1f9
+by default. Additional flags to pass to
+.Xr isndn 8
+(but see
+.Ar isdn_fsdev
+and
+.Ar isdn_ttype
+for certain tunable parameters).
+.It Ar isdn_ttype
+(str) Set to
+.Ar cons25
+by default. The terminal type of the output device when
+.Xr idsnd 8
+operates in fullscreen mode.
+.It Ar isdn_fsdev
+(str) Set to
+.Ar /dev/ttyv4
+by default. The output device for
+.Xr idsnd 8
+in fullscreen mode (or
+.Ar NO
+for daemon mode).
+.It Ar isdn_trace
+(bool) Set to
+.Ar NO
+by default. When set to
+.Ar YES ,
+enables the ISDN protocol trace utility
+.Pa /usr/sbin/isdntrace
+at system boot time.
+.It Ar isdn_traceflags
+(str) Set to
+.Ar -f /var/tmp/isdntrace0
+by default. Flags for
+.Pa /usr/sbin/isdntrace .
+.It Ar isdn_screenflags
+(str) Set to
+.Ar NO
+by default.
+The video mode for fullscreen mode (only for
+.Xr syscons 4
+console driver, see
+.Xr vidcontrol 1
+for valid modes).
+.\" -----------------------------------------------------
 .El
 .Sh FILES
 .Bl -tag -width /etc/defaults/rc.conf -compact
@@ -1491,6 +1549,8 @@ then unaligned access warnings will not be printed. (alpha)
 .Xr gated 8 ,
 .Xr ifconfig 8 ,
 .Xr inetd 8 ,
+.Xr isdnd 8 ,
+.Xr isdntrace 8 ,
 .Xr lpd 8 ,
 .Xr moused 8 ,
 .Xr mrouted 8 ,
@@ -1516,6 +1576,7 @@ then unaligned access warnings will not be printed. (alpha)
 .Xr swapon 8 ,
 .Xr tickadj 8 ,
 .Xr timed 8 ,
+.Xr vidcontrol 1 ,
 .Xr vinum 8 ,
 .Xr vnconfig 8 ,
 .Xr xntpd 8 ,
