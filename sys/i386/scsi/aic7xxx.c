@@ -24,14 +24,13 @@
  *
  * commenced: Sun Sep 27 18:14:01 PDT 1992
  *
- *      $Id: aic7xxx.c,v 1.9 1995/01/13 02:24:30 gibbs Exp $
+ *      $Id: aic7xxx.c,v 1.10 1995/01/13 02:27:08 gibbs Exp $
  */
 /*
  * TODO:
  * 	Add target reset capabilities
  *	Implement Target Mode
  *	Implement Tagged Queuing
- *	Test support for the 294X series cards
  *
  *	This driver is very stable, and seems to offer performance
  *	comprable to the 1742 FreeBSD driver.  I have not experienced
@@ -46,8 +45,6 @@
 #include <sys/buf.h>
 #include <sys/proc.h>
 #include <sys/user.h>
-#include <i386/isa/isa.h>
-#include <i386/isa/isa_device.h>
 #include <scsi/scsi_all.h>
 #include <scsi/scsiconf.h>
 #include <machine/cpufunc.h>
@@ -320,12 +317,13 @@ struct scsi_device ahc_dev =
 #define INTSTAT			0xc91ul
 #define		SEQINT_MASK	0xf0		/* SEQINT Status Codes */
 #define			BAD_PHASE	0x00
-#define			MSG_REJECT	0x10
+#define			SEND_REJECT	0x10
 #define			NO_IDENT	0x20
 #define			NO_MATCH	0x30
 #define			MSG_SDTR	0x40
-#define			BAD_STATUS	0x50
-#define			MSG_WDTR	0x60
+#define			MSG_WDTR	0x50
+#define			MSG_REJECT	0x60
+#define			BAD_STATUS	0x70
 #define 	BRKADRINT 0x08
 #define		SCSIINT	  0x04
 #define		CMDCMPLT  0x02
@@ -434,16 +432,10 @@ struct scsi_device ahc_dev =
 
 #define HA_SIGSTATE		0xc4dul
 
-#define HA_NEEDWDTR0		0xc34ul
-#define HA_NEEDWDTR1		0xc35ul
-#define HA_NEEDSDTR0		0xc4eul
-#define HA_NEEDSDTR1		0xc4ful
-
 #define HA_SCBCOUNT		0xc56ul
 #define HA_FLAGS		0xc57ul
 #define		TWIN_BUS	0x01
 #define		WIDE_BUS	0x02
-#define		CHECK_DTR	0x08
 #define		SENSE		0x10
 #define		ACTIVE_MSG	0x20
 #define		IDENTIFY_SEEN	0x40
@@ -688,15 +680,6 @@ ahc_attach(unit)
 		scsi_attachdevs(&(ahc->sc_link_b));		
 	}	
 
-	/* 
-	 * We should be done with all SDTR and WDTR messages, so
-	 * lets tell the  sequencer to stop checking if it should
-	 * be doing them.  This makes ~8 tests into 1.
-	 */
-	PAUSE_SEQUENCER(ahc);
-	flags = inb(HA_FLAGS + ahc->baseport);
-	outb(HA_FLAGS + ahc->baseport, flags & ~CHECK_DTR);
-	UNPAUSE_SEQUENCER(ahc);
         return 1;
 }
 
@@ -710,17 +693,7 @@ ahc_send_scb( ahc, scb )
          
         PAUSE_SEQUENCER(ahc);
         
-        old_scbptr = inb(SCBPTR + iobase);
-        outb(SCBPTR + iobase, scb->position);
-                        
-        outb(SCBCNT + iobase, SCBAUTO); 
-
-	outsb(SCBARRAY + iobase, scb, SCB_DOWN_SIZE);
-
-        outb(SCBCNT + iobase, 0);
-
         outb(QINFIFO + iobase, scb->position);
-        outb(SCBPTR + iobase, old_scbptr);
 
         UNPAUSE_SEQUENCER(ahc);
 }
@@ -789,7 +762,7 @@ ahcintr(unit)
                         panic("ahc%d: unknown scsi bus phase.  "
 			      "Attempting to continue\n", unit);  
                         break; 
-                    case MSG_REJECT: 
+                    case SEND_REJECT: 
                         printf("ahc%d: Warning - " 
                               "message reject, message type: 0x%x\n", unit,
                               inb(HA_REJBYTE + iobase));
@@ -816,6 +789,7 @@ ahcintr(unit)
 				}
 				active = inb(active_port);
 				active &= ~(0x01 << (target & 0x07));
+				outb(SCBARRAY + iobase, SCB_NEEDDMA);
 				outb(active_port, active);
 				outb(CLRSINT1 + iobase, CLRSELTIMEO);
 	                        RESTART_SEQUENCER(ahc);
@@ -824,7 +798,6 @@ ahcintr(unit)
                     case MSG_SDTR:
 			{
 				int loc;
-				u_short needsdtr;
 				u_char scsi_id, offset, rate, targ_scratch;
 	                        /* 
 				 * Help the sequencer to translate the 
@@ -849,19 +822,14 @@ ahcintr(unit)
 				outb(HA_TARG_SCRATCH + iobase + scsi_id, rate);
 				outb(SCSIRATE + iobase, rate); 
 				/* See if we initiated Sync Negotiation */
-				needsdtr = (inb(HA_NEEDSDTR1 + iobase) << 8)
-					  | inb(HA_NEEDSDTR0 + iobase);
-				if(needsdtr & (0x01 << scsi_id))
+				if(ahc->needsdtr & (0x01 << scsi_id))
 				{
 					/* 
 					 * Negate the flag and don't send
 					 * an SDTR back to the target
 					 */
-					needsdtr &= ~(0x01 << scsi_id);
-					outb(HA_NEEDSDTR0 + iobase,
-						needsdtr & 0xff);
-					outb(HA_NEEDSDTR1 + iobase, 
-						needsdtr >> 8);
+					ahc->needsdtr &= ~(0x01 << scsi_id);
+
 					outb(HA_RETURN_1 + iobase, 0);
 				}
 				else{
@@ -876,36 +844,26 @@ ahcintr(unit)
                     case MSG_WDTR:
 			{
 				int loc;
-				u_short needwdtr;
 				u_char scsi_id, scratch, bus_width;
 
 				bus_width = inb(ACCUM + iobase);
 				scsi_id = inb(SCSIID + iobase) >> 0x4;
-				needwdtr = (inb(HA_NEEDWDTR1 + iobase) << 8)
-					  | inb(HA_NEEDWDTR0 + iobase);
 
 				if(inb(SBLKCTL + iobase) & 0x08)
 					/* B channel */
 					scsi_id += 8;
 
-				printf("Recieved MSG_WDTR, scsi_id = %d, "
-				       "needwdtr == 0x%x\n", scsi_id, needwdtr);
-
 				scratch = inb(HA_TARG_SCRATCH + iobase 
 					      + scsi_id);
 
-				if(needwdtr & (0x01 << scsi_id))
+				if(ahc->needwdtr & (0x01 << scsi_id))
 				{
 					/* 
 					 * Negate the flag and don't 
 					 * send a WDTR back to the 
 					 * target, since we asked first.
 					 */
-					needwdtr &= ~(0x01 << scsi_id);
-					outb(HA_NEEDWDTR0 + iobase, 
-						needwdtr & 0xff);
-					outb(HA_NEEDWDTR1 + iobase, 
-						needwdtr >> 8);
+					ahc->needwdtr &= ~(0x01 << scsi_id);
 					outb(HA_RETURN_1 + iobase, 0);
 					switch(bus_width)
 					{
@@ -950,6 +908,52 @@ ahcintr(unit)
 				outb(HA_TARG_SCRATCH + iobase + scsi_id, scratch);
 				outb(SCSIRATE + iobase, scratch);
 	                        break;
+			}
+		    case MSG_REJECT:
+			{
+				/* 
+				 * What we care about here is if we had an
+				 * outstanding SDTR or WDTR message for this
+				 * target.  If we did, this is a signal that
+				 * the target is refusing negotiation.
+				 */
+				
+				u_char targ_scratch;
+				u_char scsi_id = inb(SCSIID + iobase) >> 0x4;
+				u_short mask;
+
+				if(inb(SBLKCTL + iobase) & 0x08)
+					/* B channel */
+					scsi_id += 8;
+
+				targ_scratch = inb(HA_TARG_SCRATCH + iobase
+						   + scsi_id);
+
+				mask = (0x01 << scsi_id);
+				if(ahc->needsdtr & mask){
+					/* note asynch xfers and clear flag */
+					targ_scratch &= 0xf0;
+					ahc->needsdtr &= ~mask;
+        				printf("ahc%d: target %d refusing "
+					       "syncronous negotiation.  Using "
+					       "asyncronous transfers\n",
+						unit, scsi_id);
+				}
+				if(ahc->needwdtr & mask){
+					/* note 8bit xfers and clear flag */
+					targ_scratch &= 0x7f;
+					ahc->needwdtr &= ~mask;
+        				printf("ahc%d: target %d refusing "
+					       "WIDE negotiation.  Using "
+					       "8bit transfers\n",
+						unit, scsi_id);
+				}
+				outb(HA_TARG_SCRATCH + iobase + scsi_id,
+				     targ_scratch);
+				/*
+				 * Otherwise, we ignore it.
+				 */
+				break;
 			}
                     case BAD_STATUS:   
 			{
@@ -1016,6 +1020,7 @@ ahcintr(unit)
 #endif
 					bzero(scb, SCB_DOWN_SIZE);
 					scb->flags |= SCB_SENSE;
+					scb->control = SCB_NEEDDMA;
 					sc->op_code = REQUEST_SENSE;
 					sc->byte2 =  xs->sc_link->lun << 5;
 					sc->length = sizeof(struct scsi_sense_data);
@@ -1029,18 +1034,17 @@ ahcintr(unit)
 					scb->cmdpointer = KVTOPHYS(sc);
 					scb->cmdlen = sizeof(*sc);
 
-					/*
-					 * Download new command.
-					 */
-					outb(SCBCNT + iobase, 0x80); 
+					outb(SCBCNT + iobase, 0x80);
 					outsb(SCBARRAY+iobase,scb,SCB_DOWN_SIZE);
 					outb(SCBCNT + iobase, 0);
+
 					flags = inb(HA_FLAGS + iobase);
 					/* 
 					 * Have the sequencer handle the sense
 					 * request
 					 */
 					outb(HA_FLAGS + iobase, flags | SENSE);
+					break;
 				}
 				/*
 				 * Clear the SCB_SENSE Flag and have
@@ -1125,7 +1129,10 @@ clear:
 				~(0x01 << (xs->sc_link->target & 0x07));
 			outb(active_port, active);
 
+			outb(SCBARRAY + iobase, SCB_NEEDDMA);
+
                         outb(CLRSINT1 + iobase, CLRSELTIMEO);
+
                         RESTART_SEQUENCER(ahc);
                          
                         outb(CLRINT + iobase, CLRINTSTAT);
@@ -1279,14 +1286,13 @@ ahc_init(unit)
 	    case 0xc0: 	/* 294x Adaptors have the top two bits set */
 		ahc->our_id = (inb(HA_SCSICONF + iobase) & HSCSIID);
                 printf("Single Channel, SCSI Id=%d, ", ahc->our_id);
-		outb(HA_FLAGS + iobase, CHECK_DTR);
                 break;
             case 2:
 	    case 0xc2:
 		ahc->our_id = (inb(HA_SCSICONF + 1 + iobase) & HWSCSIID);
                 printf("Wide Channel, SCSI Id=%d, ", ahc->our_id);
 		ahc->type += 2;
-		outb(HA_FLAGS + iobase, WIDE_BUS|CHECK_DTR);
+		outb(HA_FLAGS + iobase, WIDE_BUS);
                 break;
             case 8:
 		ahc->our_id = (inb(HA_SCSICONF + iobase) & HSCSIID);
@@ -1294,7 +1300,7 @@ ahc_init(unit)
                 printf("Twin Channel, A SCSI Id=%d, B SCSI Id=%d, ",
 			ahc->our_id, ahc->our_id_b);
 		ahc->type += 1;
-		outb(HA_FLAGS + iobase, TWIN_BUS|CHECK_DTR);
+		outb(HA_FLAGS + iobase, TWIN_BUS);
                 break;
             default:
                 printf(" Unsupported adapter type.  Ignoring\n");
@@ -1366,17 +1372,17 @@ ahc_init(unit)
 	 * negotiation to that target so we don't activate the needsdr
 	 * flag.
 	 */
-	ahc->needsdtr = 0;
-	ahc->needwdtr = 0;
+	ahc->needsdtr_orig = 0;
+	ahc->needwdtr_orig = 0;
 	for(i = 0; i < 16; i++){
 		u_char target_settings = inb(HA_TARG_SCRATCH + i + iobase);
 		if(target_settings & 0x0f){
-			ahc->needsdtr |= (0x01 << i);
-			/* Default to a syncrounous offset of 15 */
+			ahc->needsdtr_orig |= (0x01 << i);
+			/* Default to a syncronous offset of 15 */
 			target_settings |= 0x0f;
 		}
 		if(target_settings & 0x80){
-			ahc->needwdtr |= (0x01 << i);
+			ahc->needwdtr_orig |= (0x01 << i);
 			/*
 			 * We'll set the Wide flag when we
 			 * are successful with Wide negotiation,
@@ -1387,10 +1393,8 @@ ahc_init(unit)
 		}
 		outb(HA_TARG_SCRATCH+i+iobase,target_settings);
 	}
-        outb( HA_NEEDSDTR0 + iobase, ahc->needsdtr & 0xff);
-        outb( HA_NEEDSDTR1 + iobase, ahc->needsdtr >> 8);
-	outb( HA_NEEDWDTR0 + iobase, ahc->needwdtr & 0xff);
-	outb( HA_NEEDWDTR1 + iobase, ahc->needwdtr >> 8);
+        ahc->needsdtr = ahc->needsdtr_orig;
+	ahc->needwdtr = ahc->needwdtr_orig;
 	/*
 	 * Set the number of availible SCBs
 	 */
@@ -1440,12 +1444,14 @@ ahc_scsi_cmd(xs)
         int     thiskv; 
         physaddr thisphys, nextphys;
         int     unit = xs->sc_link->adapter_unit;
+	u_short	mask = (0x01 << (xs->sc_link->target 
+				| ((u_long)xs->sc_link->fordriver & 0x08)));
         int     bytes_this_seg, bytes_this_page, datalen, flags;
         struct ahc_data *ahc = ahcdata[unit];
         int     s;
 
 	/*
-	 *Set a flag that states, yes, we can receive interrupts
+	 * Set a flag that states, yes, we can receive interrupts
 	 * the reason for doing this is that we have a choice of
 	 * edge or level sensitive interrupts, and if we have the
 	 * wrong type, we'll get spurrious interrupts.  We check
@@ -1479,13 +1485,17 @@ ahc_scsi_cmd(xs)
         scb->xs = xs;
 
         if (flags & SCSI_RESET) {
-		/* AR: Needs Implementation */
+		/* XXX: Needs Implementation */
 		printf("ahc0: SCSI_RESET called.\n");
         }       
         /*
          * Put all the arguments for the xfer in the scb
          */     
         
+	if(ahc->needsdtr & mask)
+		scb->control |= SCB_NEEDSDTR;
+	if(ahc->needwdtr & mask)
+		scb->control |= SCB_NEEDWDTR; 
 	scb->target_channel_lun = ((xs->sc_link->target << 4) & 0xF0) | 
 				  ((u_long)xs->sc_link->fordriver & 0x08) |
 				  xs->sc_link->lun & 0x07;
@@ -1663,6 +1673,9 @@ ahc_get_scb(unit, flags)
                         scbp = (struct scb *) malloc(sizeof(struct scb),
                                 M_TEMP, M_NOWAIT);
                         if (scbp) {
+				physaddr scbaddr = KVTOPHYS(scbp);
+				u_long iobase = ahc->baseport;
+				u_char curscb;
                                 bzero(scbp, sizeof(struct scb));
 				scbp->position = ahc->numscbs;
                                 ahc->numscbs++;
@@ -1675,6 +1688,25 @@ ahc_get_scb(unit, flags)
 				 * load it into.
 				 */
 				ahc->scbarray[scbp->position] = scbp;
+
+				/*
+				 * Initialize the host memory location 
+				 * of this SCB down on the board and
+				 * flag that it should be DMA's before 
+				 * reference.
+				 */ 
+				scbp->control = SCB_NEEDDMA;
+				scbp->host_scb = scbaddr;
+				PAUSE_SEQUENCER(ahc);
+				curscb = inb(SCBPTR + iobase);
+				outb(SCBPTR + iobase, scbp->position);
+				outb(SCBCNT + iobase, 0x80);
+				outsb(SCBARRAY+iobase,scbp,30);
+				outb(SCBCNT + iobase, 0);
+				outb(SCBPTR + iobase, curscb);
+				UNPAUSE_SEQUENCER(ahc);
+				scbp->control = 0;
+
                         } else {
                                 printf("ahc%d: Can't malloc SCB\n", unit);
                         } goto gottit;
@@ -1804,26 +1836,25 @@ ahc_abort_scb( unit, ahc, scb )
 		 * If there's a message in progress, 
 		 * reset the bus and have all devices renegotiate.
 		 */
+		int i;
 		u_char flags;
 		if(scb->target_channel_lun & 0x08){
-			outb(HA_NEEDSDTR1 + iobase, ahc->needsdtr >> 8);
+			ahc->needsdtr |= (ahc->needsdtr_orig & 0xff00);
 			outb(HA_ACTIVE1, 0);
 		}
 		else if (ahc->type == AHC_274W || ahc->type == AHC_284W
 					       || ahc->type == AHC_294W){
-			outb(HA_NEEDSDTR0, ahc->needsdtr & 0xff);
-			outb(HA_NEEDSDTR1, ahc->needsdtr >> 8);
-			outb(HA_NEEDWDTR0, ahc->needwdtr & 0xff);
-			outb(HA_NEEDWDTR1, ahc->needwdtr >> 8);
+			ahc->needsdtr = ahc->needsdtr_orig;
+			ahc->needwdtr = ahc->needwdtr_orig;
 			outb(HA_ACTIVE0, 0);
 			outb(HA_ACTIVE1, 0);
 		}
 		else{
-			outb(HA_NEEDSDTR0 + iobase, ahc->needsdtr & 0xff);
+			ahc->needsdtr = ahc->needsdtr_orig;
 			outb(HA_ACTIVE0, 0);
 		}
-		flags = inb(HA_FLAGS + iobase);
-		outb(HA_FLAGS + iobase, flags | CHECK_DTR);
+
+		/* Reset the bus */
 		outb(SCSISEQ + iobase, SCSIRSTO); 
 		DELAY(50);
 		outb(SCSISEQ + iobase, 0);
