@@ -159,6 +159,9 @@ nl_langinfo(nl_item item) {
 			}
 		}
 		break;
+	case D_MD_ORDER:        /* local extension */
+		ret = (char *) __get_current_time_locale()->md_order;
+		break;
 	default:
 		ret = "";
    }
