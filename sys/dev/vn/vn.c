@@ -289,7 +289,6 @@ vnstrategy(struct buf *bp)
 	int unit;
 	struct vn_softc *vn;
 	int error;
-	int isvplocked = 0;
 
 	unit = dkunit(bp->b_dev);
 	vn = bp->b_dev->si_drv1;
@@ -386,18 +385,12 @@ vnstrategy(struct buf *bp)
 			auio.uio_rw = UIO_WRITE;
 		auio.uio_resid = bp->b_bcount;
 		auio.uio_procp = curproc;
-		if (!VOP_ISLOCKED(vn->sc_vp, NULL)) {
-			isvplocked = 1;
-			vn_lock(vn->sc_vp, LK_EXCLUSIVE | LK_RETRY, curproc);
-		}
-		if( bp->b_flags & B_READ)
-			error = VOP_READ(vn->sc_vp, &auio, 0, vn->sc_cred);
+		vn_lock(vn->sc_vp, LK_EXCLUSIVE | LK_RETRY, curproc);
+		if (bp->b_flags & B_READ)
+			error = VOP_READ(vn->sc_vp, &auio, IO_DIRECT, vn->sc_cred);
 		else
 			error = VOP_WRITE(vn->sc_vp, &auio, 0, vn->sc_cred);
-		if (isvplocked) {
-			VOP_UNLOCK(vn->sc_vp, 0, curproc);
-			isvplocked = 0;
-		}
+		VOP_UNLOCK(vn->sc_vp, 0, curproc);
 		bp->b_resid = auio.uio_resid;
 
 		if (error) {
