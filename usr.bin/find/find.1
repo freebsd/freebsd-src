@@ -35,7 +35,7 @@
 .\"	@(#)find.1	8.7 (Berkeley) 5/9/95
 .\" $FreeBSD$
 .\"
-.Dd July 29, 2004
+.Dd April 2, 2005
 .Dt FIND 1
 .Os
 .Sh NAME
@@ -535,8 +535,11 @@ requests user affirmation for the execution of the
 .Ar utility
 by printing
 a message to the terminal and reading a response.
-If the response is other than
-.Dq Li y
+.No If the response is not affirmative ( Ns
+.Ql y
+in the
+.Dq Li POSIX
+locale),
 the command is not executed and the
 value of the
 .Ic -ok
@@ -742,6 +745,15 @@ All operands and primaries must be separate arguments to
 Primaries which themselves take arguments expect each argument
 to be a separate argument to
 .Nm .
+.Sh ENVIRONMENT
+The
+.Ev LANG , LC_ALL , LC_COLLATE , LC_CTYPE , LC_MESSAGES
+and
+.Ev LC_TIME
+environment variables affect the execution of the
+.Nm
+utility as described in
+.Xr environ 7 .
 .Sh EXAMPLES
 The following examples are shown as given to the shell:
 .Bl -tag -width indent
