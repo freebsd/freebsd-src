@@ -1,6 +1,6 @@
 # from BSDI Makefile,v 2.6 1996/04/08 20:06:40 bostic Exp
 #
-# $Id: Makefile,v 1.14 1999/01/22 12:45:27 jdp Exp $
+# $Id: Makefile,v 1.13.2.1 1999/01/22 18:40:55 jdp Exp $
 
 PROG=	doscmd
 SRCS=	AsyncIO.c ParseBuffer.c bios.c callback.c cpu.c dos.c cmos.c config.c \
@@ -17,7 +17,9 @@ CLEANFILES=     redir.com emsdriv.sys
 
 BINGRP=	kmem
 EXEGRP=	bin
-BINMODE=2555
+BINMODE=555
+# Use the following mode if you're less concerned about security.
+#BINMODE=2555
 EXEMODE=444
 
 .if exists(${X11BASE}/include) && exists(${X11BASE}/lib/libX11.a)
