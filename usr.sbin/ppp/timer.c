@@ -17,7 +17,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: timer.c,v 1.10 1997/02/25 14:05:17 brian Exp $
+ * $Id: timer.c,v 1.11 1997/03/08 09:55:42 ache Exp $
  *
  *  TODO:
  */
@@ -26,7 +26,6 @@
 #include <signal.h>
 #include "timeout.h"
 #include <sys/cdefs.h>
-#include "sig.h"
 #ifdef SIGALRM
 #include <errno.h>
 #endif
