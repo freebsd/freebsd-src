@@ -44,8 +44,8 @@ systems.
 It is the first utility invoked by the
 .Fx
 installation boot
-floppy and is also copied into
-.Pa /stand/sysinstall
+floppy and is also available as
+.Pa /usr/sbin/sysinstall
 on newly installed
 .Fx
 systems for use in later configuring the system.
@@ -134,7 +134,7 @@ directive), upon reaching the end of the argument list or on error.
 .Pp
 For example:
 .Bd -literal
-/stand/sysinstall _ftpPath=ftp://ziggy/pub/ mediaSetFTP configPackages
+/usr/sbin/sysinstall _ftpPath=ftp://ziggy/pub/ mediaSetFTP configPackages
 .Ed
 .Pp
 Would initialize
