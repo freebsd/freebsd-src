@@ -33,27 +33,26 @@
 .Nd
 Ultrastore SCSI host adapter driver
 .Sh SYNOPSIS
-.sp
 For Ultrastore 24f controllers in EISA mode:
 .Cd "controller uha0 at isa? bio irq ? vector uhaintr
 .Cd "controller scbus0
-.sp
+.Pp
 For Ultrastore 14f and 34f controllers:
 .Cd "controller uha0 at isa? port" \&"IO_UHA0\&" bio irq ? drq 5 vector uhaintr
 .Cd "controller scbus0
-.sp
+.Pp
 For each disk:
 .Cd "device sd0
-.sp
+.Pp
 For each tape device:
 .Cd "device st0
-.sp
+.Pp
 For one or more cdroms:
 .Cd "device cd0
 .Sh DESCRIPTION
 This driver provides access to SCSI devices connected to an Ultrastore
 Ultrastore 14f, Ultrastore 24f or Ultrastore 34f hostadapter.
-.sp
+.Pp
 Note that for an Ultrastore 24f in EISA mode no I/O addresses or DMA channels 
 are required in the kernel config file. If they are present, the driver
 will correctly find the Ultrastore 24f, but you tie up precious DMA channels
