@@ -41,7 +41,7 @@
 static char sccsid[] = "@(#)arith_lex.l	8.1 (Berkeley) 5/31/93";
 #endif /* not lint */
 
-#include "arith.tab.h"
+#include "y.tab.h"
 
 extern yylval;
 extern char *arith_buf, *arith_startbuf;
