@@ -5,15 +5,17 @@ MAKEINFOFLAGS?=	# --no-split would simplify some things, e.g., compression
 
 .SUFFIXES: .info .texi .texinfo
 .texi.info:
-	${MAKEINFO} ${MAKEINFOFLAGS} ${.IMPSRC} -o ${.TARGET}
+	${MAKEINFO} ${MAKEINFOFLAGS} -I ${.CURDIR} ${.IMPSRC} -o ${.TARGET}
 .texinfo.info:
-	${MAKEINFO} ${MAKEINFOFLAGS} ${.IMPSRC} -o ${.TARGET}
+	${MAKEINFO} ${MAKEINFOFLAGS} -I ${.CURDIR} ${.IMPSRC} -o ${.TARGET}
+
+.PATH: ${.CURDIR}
+
+all: ${INFO:S/$/.info/g}
 
 .if defined(SRCS)
-all: ${INFO:S/$/.info/g}
-	${MAKEINFO} ${MAKEINFOFLAGS} ${SRCS} -o ${INFO:S/$/.info/g}
-.else
-all: ${INFO:S/$/.info/g}
+${INFO}.info: ${SRCS}
+	${MAKEINFO} ${MAKEINFOFLAGS} -I ${.CURDIR} ${SRCS:S/^/${.CURDIR}\//g} -o ${INFO}.info
 .endif
 
 depend:;
