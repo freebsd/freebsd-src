@@ -57,6 +57,9 @@ when they are mmap(2)ed.
 
 The ata(4) driver now has support for ATA100 controllers.
 
+The ti(4) driver now supports the Alteon AceNIC 1000baseT Gigabit 
+Ethernet and Netgear GA620T 1000baseT Gigabit Ethernet cards.
+
 
 1.2. SECURITY FIXES
 -------------------
@@ -253,12 +256,15 @@ Allied-Telesis AT1700 and RE2000 cards
 
 Alteon Networks PCI Gigabit Ethernet NICs based on the Tigon 1 and Tigon 2
 chipsets, including the following:
-  Alteon AceNIC (Tigon 1 and 2)
   3Com 3c985-SX (Tigon 1 and 2)
-  Netgear GA620 (Tigon 2)
-  Silicon Graphics Gigabit Ethernet
+  Alteon AceNIC 1000baseSX (Tigon 1 and 2)
+  Alteon AceNIC 1000baseT (Tigon 2)
   DEC/Compaq EtherWORKS 1000
+  Farallon PN9000SX
   NEC Gigabit Ethernet
+  Netgear GA620 (Tigon 2)
+  Netgear GA620T (Tigon 2, 1000baseT)
+  Silicon Graphics Gigabit Ethernet
 
 AMD PCnet/PCI (79c970 & 53c974 or 79c974)
 

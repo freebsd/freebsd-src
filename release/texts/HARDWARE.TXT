@@ -462,11 +462,14 @@ Allied-Telesyn AT1700 and RE2000 cards
 Alteon Networks PCI gigabit ethernet NICs based on the Tigon 1 and Tigon 2
 chipsets, including the following:
   Alteon AceNIC (Tigon 1 and 2)
+  Alteon AceNIC 1000baseT (Tigon 2)
   3Com 3c985-SX (Tigon 1 and 2)
   Netgear GA620 (Tigon 2)
+  Netgear GA620T (Tigon 2, 1000baseT)
   Silicon Graphics Gigabit Ethernet
   DEC/Compaq EtherWORKS 1000
   NEC Gigabit Ethernet
+  Farallon PN9000SX
 
 AMD PCnet/PCI (79c970 & 53c974 or 79c974)
 
