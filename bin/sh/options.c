@@ -200,13 +200,28 @@ options(int cmdline)
 STATIC void
 minus_o(char *name, int val)
 {
-	int i;
+	int doneset, i;
 
 	if (name == NULL) {
-		out1str("Current option settings\n");
-		for (i = 0; i < NOPTS; i++)
-			out1fmt("%-16s%s\n", optlist[i].name,
-				optlist[i].val ? "on" : "off");
+		if (val) {
+			/* "Pretty" output. */
+			out1str("Current option settings\n");
+			for (i = 0; i < NOPTS; i++)
+				out1fmt("%-16s%s\n", optlist[i].name,
+					optlist[i].val ? "on" : "off");
+		} else {
+			/* Output suitable for re-input to shell. */
+			for (doneset = i = 0; i < NOPTS; i++)
+				if (optlist[i].val) {
+					if (!doneset) {
+						out1str("set");
+						doneset = 1;
+					}
+					out1fmt(" -o %s", optlist[i].name);
+				}
+			if (doneset)
+				out1c('\n');
+		}
 	} else {
 		for (i = 0; i < NOPTS; i++)
 			if (equal(name, optlist[i].name)) {
