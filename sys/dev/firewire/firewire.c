@@ -1293,6 +1293,25 @@ fw_bus_probe(struct firewire_comm *fc)
 }
 
 /*
+ * Find the self_id packet for a node, ignoring sequels.
+ */
+static union fw_self_id *
+fw_find_self_id(struct firewire_comm *fc, int node)
+{
+	uint32_t i;
+	union fw_self_id *s;
+
+	for (i = 0; i < fc->topology_map->self_id_count; i++) {
+		s = &fc->topology_map->self_id[i];
+		if (s->p0.sequel)
+			continue;
+		if (s->p0.phy_id == node)
+			return s;
+	}
+	return 0;
+}
+
+/*
  * To collect device informations on the IEEE1394 bus. 
  */
 static void
@@ -1315,7 +1334,7 @@ loop:
 
 	/* check link */
 	/* XXX we need to check phy_id first */
-	if (!fc->topology_map->self_id[fc->ongonode].p0.link_active) {
+	if (!fw_find_self_id(fc, fc->ongonode)->p0.link_active) {
 		if (firewire_debug)
 			printf("node%d: link down\n", fc->ongonode);
 		fc->ongonode++;
@@ -2185,7 +2204,7 @@ fw_bmr(struct firewire_comm *fc)
 	u_int32_t quad;
 
 	/* Check to see if the current root node is cycle master capable */
-	self_id = &fc->topology_map->self_id[fc->max_node];
+	self_id = fw_find_self_id(fc, fc->max_node);
 	if (fc->max_node > 0) {
 		/* XXX check cmc bit of businfo block rather than contender */
 		if (self_id->p0.link_active && self_id->p0.contender)
