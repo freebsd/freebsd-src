@@ -25,7 +25,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *	$Id: atapi-cd.c,v 1.5 1998/11/21 01:57:48 archie Exp $
+ *	$Id: atapi-cd.c,v 1.6 1998/12/07 21:58:20 archie Exp $
  */
 
 #include "wdc.h"
@@ -265,7 +265,7 @@ acd_describe(struct acd *cdp)
     if (cdp->cap.buf_size)
         printf(", %dKB cache\n", cdp->cap.buf_size);
 
-    printf("acd%d: supported read  types:", cdp->lun);
+    printf("acd%d: supported read types:", cdp->lun);
     comma = 0;
     if (cdp->cap.read_cdr) {
         printf(" CD-R"); comma = 1;
