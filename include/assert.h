@@ -39,6 +39,8 @@
  * $FreeBSD$
  */
 
+#include <sys/cdefs.h>
+
 /*
  * Unlike other ANSI header files, <assert.h> may usefully be included
  * multiple times, with and without NDEBUG defined.
@@ -52,17 +54,16 @@
 #define	_assert(e)	((void)0)
 #else
 #define	_assert(e)	assert(e)
+
 #ifdef __STDC__
 #define	assert(e)	((e) ? (void)0 : __assert(__func__, __FILE__, \
-						  __LINE__, #e))
-#else	/* PCC */
+			    __LINE__, #e))
+#else /* !__STDC__ */
 #define	assert(e)	((e) ? (void)0 : __assert(__func__, __FILE__, \
-						  __LINE__, "e"))
-#endif
-#endif
-
-#include <sys/cdefs.h>
+			    __LINE__, "e"))
+#endif /* __STDC__ */
+#endif /* NDEBUG */
 
 __BEGIN_DECLS
-void	__assert(const char *, const char *, int, const char *);
+void __assert __P((const char *, const char *, int, const char *));
 __END_DECLS
