@@ -25,15 +25,15 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd December 18, 1999
-.Dt GUSC 4
+.Dd August 28, 2004
+.Dt SND_GUSC 4
 .Os
 .Sh NAME
-.Nm gusc
+.Nm snd_gusc
 .Nd Gravis UltraSound ISA bridge device driver
 .Sh SYNOPSIS
-.Cd "device pcm"
-.Cd "device gusc"
+.Cd "device sound"
+.Cd "device snd_gusc"
 .Pp
 For non-PnP cards, add the following lines in
 .Pa /boot/device.hints .
@@ -46,7 +46,7 @@ For non-PnP cards, add the following lines in
 The
 .Nm
 bridge driver allows the generic audio drivers including
-.Xr pcm 4
+.Xr sound 4
 to attach to the following ISA sound cards:
 .Bl -bullet -width 2m
 .It
@@ -71,7 +71,7 @@ The
 device driver first appeared in
 .Fx 4.0 .
 .Sh SEE ALSO
-.Xr pcm 4
+.Xr sound 4
 .Sh AUTHORS
 .An Ville-Pertti Keinonen Aq will@iki.fi
 .An Seigo Tanimura Aq tanimura@r.dl.itc.u-tokyo.ac.jp

@@ -36,15 +36,16 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd November 10, 2003
-.Dt UAUDIO 4
+.Dd August 28, 2004
+.Dt SND_UAUDIO 4
 .Os
 .Sh NAME
-.Nm uaudio
+.Nm snd_uaudio
 .Nd USB audio device driver
 .Sh SYNOPSIS
-.Cd "device pcm"
+.Cd "device sound"
 .Cd "device usb"
+.Cd "device snd_uaudio"
 .Sh DESCRIPTION
 The
 .Nm
@@ -62,7 +63,7 @@ Refer to the
 .Ql USB Audio Class Specification
 for more information.
 .Sh SEE ALSO
-.Xr pcm 4 ,
+.Xr sound 4 ,
 .Xr usb 4
 .Rs
 .%T "USB Audio Class Specifications"
