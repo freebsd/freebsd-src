@@ -31,175 +31,304 @@
 #include "assym.s"
 
 /*
- * pcb_save: save process context, i.e. callee-saved registers. This
+ * pcb_save - save process context, i.e. callee-saved registers. This
  * function is called by savectx() and cpu_switch().
  *
+ * The callee-saved (ie preserved) registers are:
+ *	r4-r7
+ *	f2-f5, f16-f31
+ *	p1-p5, p16-p63
+ *	b1-b5
+ *	ar.unat, ar.lc
+ *
+ * Notes:
+ * o  We don't need to save and restore gp because its value is constant.
+ * o  We don't need to save and restore ar.rsc because its value is known.
+ * o  We don't need to save and restore r13 because it always points to
+ *    the pcpu structure.
+ *
  * Arguments:
- *	in0	'struct pcb *' of the process that needs its context saved.
- *	in1	return address.
+ *	r8	'struct pcb *' of the process that needs its context saved.
+ *	b6	return address.
  */
-
-ENTRY(pcb_save,2)
-{	.mmi
-	flushrs				// push out caller's dirty regs
-	mov	r22=ar.unat		// caller's value for ar.unat
-	mov	r16=in0
+ENTRY(pcb_save,0)
+{	.mii
+	mov	r16=ar.unat
+	add	r9=8,r8
+	mov	r17=b0
 	;;
 }
 {	.mmi
-	mov	ar.rsc=0		// stop the RSE after the flush
-	;;
-	mov	r22=ar.rnat		// read RSE's NaT collection
-	add	r17=8,r16
-	;;
-}
-{	.mmi
-	.mem.offset	0,0
-	st8.spill [r16]=r4,16		// save r4, ofs=&r6
-	.mem.offset	8,0
-	st8.spill [r17]=r5,16		// save r5, ofs=&r7
-	mov	r18=b0
-	;;
-}
-{	.mmi
-	.mem.offset	16,0
-	st8.spill [r16]=r6,16		// save r6, ofs=&f2	
-	.mem.offset	24,0
-	st8.spill [r17]=r7,24		// save r7, ofs=&f3
-	mov	r19=b1
-	;;
-}
-{	.mmi
-	stf.spill [r16]=f2,32		// save f2, ofs=&f4
-	stf.spill [r17]=f3,32		// save f3, ofs=&f5
-	mov	r20=b2
-	;;
-}
-{	.mmi
-	stf.spill [r16]=f4,32		// save f4, ofs=&b0
-	stf.spill [r17]=f5,24		// save f5, ofs=&b1
-	mov	r21=b3
-	;;
-}
-{	.mmi
-	st8	[r16]=r18,16		// save b0, ofs=&b2
-	st8	[r17]=r19,16		// save b1, ofs=&b3
-	mov	r18=b4
-	;;
-}
-{	.mmi
-	st8	[r16]=r20,16		// save b2, ofs=&b4
-	st8	[r17]=r21,16		// save b3, ofs=&b5
-	mov	r19=b5
-	;;
-}
-{	.mmi
-	st8	[r16]=r18,16		// save b4, ofs=&old_unat
-	st8	[r17]=r19,16		// save b5, ofs=&sp
-	mov	r18=ar.pfs
-	;;
-}
-{	.mmi
-	st8	[r16]=r22,16		// save old_unat, ofs=&pfs
-	st8	[r17]=sp,16		// save sp, ofs=&bspstore
-	mov	r19=ar.lc
-	;;
-}
-{	.mmi
-	mov	r20=ar.bspstore
-	mov	r21=ar.unat
-	add	r23=PC_CURRENT_PMAP,r13
-	;;
-}
-{	.mmi
-	st8	[r16]=r18,16		// save pfs, ofs=&lc
-	st8	[r17]=r20,16		// save bspstore, ofs=&unat
+	st8	[r8]=r12,16		// sp
+	st8	[r9]=r16,16		// ar.unat
 	mov	r18=pr
 	;;
 }
 {	.mmi
-	st8	[r16]=r19,16		// save lc, ofs=&rnat
-	st8	[r17]=r21,16		// save unat, ofs=&pr
-	mov	b6=in1
+	st8	[r8]=r17,16		// rp
+	st8	[r9]=r18,24		// pr
+	add	r31=PC_CURRENT_PMAP,r13
+	;;
+}
+	stf.spill [r8]=f2,32
+	stf.spill [r9]=f3,32
+	;;
+	stf.spill [r8]=f4,32
+	stf.spill [r9]=f5,32
+	;;
+	stf.spill [r8]=f16,32
+	stf.spill [r9]=f17,32
+	;;
+	stf.spill [r8]=f18,32
+	stf.spill [r9]=f19,32
+	;;
+	stf.spill [r8]=f20,32
+	stf.spill [r9]=f21,32
+	;;
+	stf.spill [r8]=f22,32
+	stf.spill [r9]=f23,32
+	;;
+	stf.spill [r8]=f24,32
+	stf.spill [r9]=f25,32
+	;;
+	stf.spill [r8]=f26,32
+	stf.spill [r9]=f27,32
+	;;
+	stf.spill [r8]=f28,32
+	stf.spill [r9]=f29,32
+	;;
+	stf.spill [r8]=f30,32
+	stf.spill [r9]=f31,24		// BEWARE
+	;;
+{	.mmi
+	.mem.offset 0,0
+	st8.spill [r8]=r4,16
+	.mem.offset 8,0
+	st8.spill [r9]=r5,16
+	mov	r17=b1
 	;;
 }
 {	.mmi
-	st8	[r16]=r22,16		// save rnat, ofs=&pmap
-	st8	[r17]=r18,16		// save pr, ofs=&ar.fsr
-	nop	1
+	.mem.offset 16,0
+	st8.spill [r8]=r6,16
+	.mem.offset 24,0
+	st8.spill [r9]=r7,16
+	mov	r18=b2
 	;;
 }
+{	.mmi
+	flushrs
+	mov	r16=ar.unat
+	mov	r19=b3
+	;;
+}
+{	.mmi
+	st8	[r8]=r16,16		// ar.unat
+	st8	[r9]=r17,16		// b1
+	mov	r20=b4
+	;;
+}
+{	.mmi
+	st8	[r8]=r18,16		// b2
+	st8	[r9]=r19,16		// b3
+	mov	r21=b5
+	;;
+}
+	st8	[r8]=r20,16		// b4
+	st8	[r9]=r21,16		// b5
+	;;
+{	.mmi
+	mov	ar.rsc=0
+	mov	r16=ar.bsp
+	mov	r17=ar.pfs
+	;;
+}
+{	.mmi
+	st8	[r8]=r16,16		// ar.bsp
+	st8	[r9]=r17,16		// ar.pfs
+	mov	r18=ar.lc
+	;;
+}
+	mov	r17=ar.rnat
+	ld8	r19=[r31]
+	;;
+	st8	[r8]=r17,16		// ar.rnat
+	st8	[r9]=r18,16		// ar.lc
+	;;
+	st8	[r8]=r19,16		// pc_current_pmap
+	mov	r16=ar.fcr
+	;;
+	st8	[r9]=r16,16		// ar.fcr
+	mov	r17=ar.eflag
+	;;
+	st8	[r8]=r17,16		// ar.eflag
+	mov	r16=ar.csd
+	;;
+	st8	[r9]=r16,16		// ar.csd
+	mov	r17=ar.ssd
+	;;
+	st8	[r8]=r17,16		// ar.ssd
+	mov	r16=ar.fsr
+	;;
+	st8	[r9]=r16,16		// ar.fsr
+	mov	r17=ar.fir
+	;;
+	st8	[r8]=r17,16		// ar.fir
+	mov	r16=ar.fdr
+	;;
 {	.mmb
-	ld8	r19=[r23]
-	mov	r18=ar.fsr
-	nop	2
-	;;
-}
-{	.mmi
-	st8	[r16]=r19,16		// save pmap, ofs=&ar.fcr
-	st8	[r17]=r18,16		// save ar.fsr, ofs=&ar.fir
-	nop	3
-	;;
-}
-{	.mmb
-	mov	r19=ar.fcr
-	mov	r18=ar.fir
-	nop	4
-	;;
-}
-{	.mmi
-	st8	[r16]=r19,16		// save ar.fcr, ofs=&ar.fdr
-	st8	[r17]=r18,16		// save ar.fir, ofs=&ar.eflag
-	nop	5
-	;;
-}
-{	.mmb
-	mov	r19=ar.fdr
-	mov	r18=ar.eflag
-	nop	6
-	;;
-}
-{	.mmi
-	st8	[r16]=r19,16		// save ar.fdr, ofs=&ar.csd
-	st8	[r17]=r18,16		// save ar.eflag, ofs=&ssd
-	nop	7
-	;;
-}
-{	.mmb
-	mov	r19=ar.csd
-	mov	r18=ar.ssd
-	nop	8
-	;;
-}
-{	.mmi
-	st8	[r16]=r19		// save ar.csd
-	st8	[r17]=r18		// save ar.ssd
-	nop	9
-}
-{	.mib
-	mov	ar.rsc=3		// turn RSE back on
-	mov	ret0=r0
-	br.sptk.few	b6
+	st8	[r9]=r16,16		// ar.fdr
+	mov	ar.rsc=3
+	br.sptk.many b6
 	;;
 }
 END(pcb_save)
 
+/*
+ * pcb_restore - restore a process context. This does not return.
+ *
+ * Arguments:
+ *	r8	'struct pcb *' of the process that needs its context saved.
+ */
+ENTRY(pcb_restore,0)
+	mov	ar.rsc=0
+	add	r9=8,r8
+	add	r31=PCB_UNAT47,r8
+	;;
+	ld8	r12=[r8],16		// sp
+	ld8	r30=[r9],16		// ar.unat
+	;;
+	ld8	r16=[r8],16		// rp
+	ld8	r17=[r9],24		// pr
+	;;
+	ldf.fill f2=[r8],32
+	ldf.fill f3=[r9],32
+	mov	b0=r16
+	;;
+	ldf.fill f4=[r8],32
+	ldf.fill f5=[r9],32
+	mov	pr=r17,0x1fffe
+	;;
+	ldf.fill f16=[r8],32
+	ldf.fill f17=[r9],32
+	;;
+	ldf.fill f18=[r8],32
+	ldf.fill f19=[r9],32
+	;;
+	ldf.fill f20=[r8],32
+	ldf.fill f21=[r9],32
+	;;
+	ldf.fill f22=[r8],32
+	ldf.fill f23=[r9],32
+	;;
+	ldf.fill f24=[r8],32
+	ldf.fill f25=[r9],32
+	;;
+	ldf.fill f26=[r8],32
+	ldf.fill f27=[r9],32
+	;;
+	ldf.fill f28=[r8],32
+	ldf.fill f29=[r9],32
+	;;
+	ldf.fill f30=[r8],32
+	ldf.fill f31=[r9],24		// BEWARE
+	;;
+	ld8	r16=[r31]
+	;;
+	mov	ar.unat=r16
+	;;
+	.mem.offset 0,0
+	ld8.fill r4=[r8],16
+	.mem.offset 8,0
+	ld8.fill r5=[r9],16
+	;;
+	.mem.offset 16,0
+	ld8.fill r6=[r8],24
+	.mem.offset 24,0
+	ld8.fill r7=[r9],24
+	;;
+	loadrs
+	mov	ar.unat=r30
+	;;
+	ld8	r16=[r8],16		// b1
+	ld8	r17=[r9],16		// b2
+	;;
+	ld8	r18=[r8],16		// b3
+	ld8	r19=[r9],16		// b4
+	mov	b1=r16
+	;;
+	ld8	r20=[r8],16		// b5
+	ld8	r21=[r9],16		// ar.bsp
+	mov	b2=r17
+	;;
+	ld8	r22=[r8],16		// ar.pfs
+	ld8	r23=[r9],24		// ar.rnat
+	mov	b3=r18
+	;;
+	ld8	r24=[r8],24		// ar.lc
+	mov	b4=r19
+	mov	b5=r20
+	;;
+{	.mmi
+	mov	ar.bspstore=r21
+	;;
+	mov	ar.rnat=r23
+	mov	ar.pfs=r22
+	;;
+}
+{	.mmi
+	invala
+	;;
+	ld8	r16=[r9],16		// ar.fcr
+	mov	r18=ar.lc
+	;;
+}
+	ld8	r17=[r8],16		// ar.eflag
+	mov	ar.fcr=r16
+	;;
+	ld8	r16=[r9],16		// ar.csd
+	mov	ar.eflag=r17
+	;;
+	ld8	r17=[r8],16		// ar.ssd
+	mov	ar.csd=r16
+	;;
+	ld8	r16=[r9],16		// ar.fsr
+	mov	ar.ssd=r17
+	;;
+	ld8	r17=[r8],16		// ar.fir
+	mov	ar.fsr=r16
+	;;
+	ld8	r16=[r9],16		// ar.fdr
+	mov	ar.fir=r17
+	;;
+{	.mmb
+	mov	ar.fdr=r16
+	mov	ar.rsc=3
+	br.ret.sptk b0
+	;;
+}
+END(pcb_restore)
+
+/*
+ * savectx - Save current context.
+ */
 ENTRY(savectx,1)
 {	.mii
-1:	alloc	r16=ar.pfs,0,0,2,0
+1:	nop	1
 	mov	r17=ip
 	;;
-	add	r33=2f-1b,r17
+	add	r16=2f-1b,r17
+	;;
+}
+{	.mib
+	mov	r8=r32
+	mov	b6=r16
+	br.sptk.many pcb_save
 }
 {	.mfb
-	nop	1
-	nop	2
-	br.sptk.few	pcb_save
-}
-{	.mfb
-2:	nop	3
-	nop	4
-	br.ret.sptk	rp
+2:	nop	2
+	nop	3
+	br.ret.sptk rp
 }
 END(savectx)
 
@@ -213,18 +342,15 @@ END(savectx)
  *	Does not return. We arrange things so that savectx appears to
  *	return a second time with a non-zero return value.
  */
-
 ENTRY(restorectx, 1)
-
-	mov	r15=in0
-	br.cond.sptk.many 4f
-	
+	mov	r8=in0
+	br.cond.sptk.many pcb_restore
+	;;
 END(restorectx)	
 
 ENTRY(cpu_throw, 0)
-	
-	br.sptk.few 2f
-
+	br.sptk.many 2f
+	;;
 END(cpu_throw)
 
 ENTRY(cpu_switch, 0)
@@ -233,16 +359,17 @@ ENTRY(cpu_switch, 0)
 	mov	r17=ip
 	;;
 }
-	add	r33=1f-1b,r17
+	add	r16=1f-1b,r17
 	add	r17=PC_CURTHREAD,r13
 	;;
 	ld8	r17=[r17]
 	;;
 	add	r17=TD_PCB,r17
+	mov	b6=r16
 	;;
-	ld8	r32=[r17]
-	br.sptk.few	pcb_save
-
+	ld8	r8=[r17]
+	br.sptk.many pcb_save
+	;;
 1:
 #ifdef SMP
 	add	r17 = PC_CPUID, r13
@@ -263,10 +390,8 @@ ENTRY(cpu_switch, 0)
 	br.sptk	3f
 #endif
 
-2:	srlz.i
-	mf
-	;; 
-	br.call.sptk.few rp=choosethread
+2:	br.call.sptk.few rp=choosethread
+	;;
 	mov	r4=ret0			// save from call
 
 3:
@@ -276,6 +401,7 @@ ENTRY(cpu_switch, 0)
 	ld8	out0=[r14]
 	mov	out1=1
 	br.call.sptk.few rp=ia64_fpstate_save // clear fpcurthread
+	;;
 #endif
 
 	add	r14=PC_CURTHREAD,r13
@@ -287,96 +413,20 @@ ENTRY(cpu_switch, 0)
 	;;
 	ld8	r15=[r15]
 	;;
-	add	r15=PCB_PMAP,r15	// &pcb_pmap
+	add	r15=PCB_CURRENT_PMAP,r15 // &pcb_pmap
 	;;
 	ld8	out0=[r15]
 	br.call.sptk.few rp=pmap_install // install RIDs etc.
-
+	;;
 	add	r15=TD_PCB,r4
 	add	r16=TD_KSTACK,r4
 	;;
-	ld8	r15=[r15]
+	ld8	r8=[r15]
 	ld8	r16=[r16]
 	;;
 	mov	ar.k5=r16
-
-	// pcb_restore
-4:	
-	add	r3=PCB_UNAT,r15		// point at NaT for r4..r7
-	mov	ar.rsc=0 ;;		// switch off the RSE
-	ld8	r16=[r3]		// load NaT for r4..r7
+	br.cond.sptk pcb_restore
 	;;
-	mov	ar.unat=r16
-	;;
-	ld8.fill r4=[r15],8 ;;		// restore r4
-	ld8.fill r5=[r15],8 ;;		// restore r5
-	ld8.fill r6=[r15],8 ;;		// restore r6
-	ld8.fill r7=[r15],8 ;;		// restore r7
-
-	ldf.fill f2=[r15],16 ;;		// restore f2
-	ldf.fill f3=[r15],16 ;;		// restore f3
-	ldf.fill f4=[r15],16 ;;		// restore f4
-	ldf.fill f5=[r15],16 ;;		// restore f5
-
-	ld8	r16=[r15],8 ;;		// restore b0
-	ld8	r17=[r15],8 ;;		// restore b1
-	ld8	r18=[r15],8 ;;		// restore b2
-	ld8	r19=[r15],8 ;;		// restore b3
-	ld8	r20=[r15],8 ;;		// restore b4
-	ld8	r21=[r15],8 ;;		// restore b5
-
-	mov	b0=r16
-	mov	b1=r17
-	mov	b2=r18
-	mov	b3=r19
-	mov	b4=r20
-	mov	b5=r21
-
-	ld8	r16=[r15],8 ;;		// caller's ar.unat
-	ld8	sp=[r15],8 ;;		// stack pointer
-	ld8	r17=[r15],8 ;;		// ar.pfs
-	ld8	r18=[r15],8 ;;		// ar.bspstore
-	ld8	r21=[r15],16 ;;		// ar.lc, skip ar.unat
-	ld8	r19=[r15],8 ;;		// ar.rnat
-	ld8	r20=[r15],16 ;;		// pr, skip pmap
-
-	loadrs				// invalidate register stack
-	;;
-	mov	ar.unat=r16
-	mov	ar.pfs=r17
-	mov	ar.lc=r21
-	mov	ar.bspstore=r18 ;;
-	mov	ar.rnat=r19
-	mov	pr=r20,0x1ffff
-	;;
-	ld8	r16=[r15],8		// ar.fsr
-	;;
-	ld8	r17=[r15],8		// ar.fcr
-	mov	ar.fsr=r16
-	;; 
-	ld8	r16=[r15],8		// ar.fir
-	mov	ar.fcr=r17
-	;; 
-	ld8	r17=[r15],8		// ar.fdr
-	mov	ar.fir=r16
-	;; 
-	ld8	r16=[r15],8		// ar.eflag
-	mov	ar.fdr=r17
-	;; 
-	ld8	r17=[r15],8		// ar.csd
-	mov	ar.eflag=r16
-	;; 
-	ld8	r16=[r15],8		// ar.ssd
-	mov	ar.csd=r17
-	;; 
-	mov	ar.ssd=r16
-	
-	mov	ar.rsc=3		// restart RSE
-	invala
-	;;
-9:
-	br.ret.sptk.few rp
-
 END(cpu_switch)
 
 /*
@@ -397,13 +447,13 @@ ENTRY(savehighfp, 1)
 	;; 
 	stf.spill [in0]=f36,32
 	stf.spill [r14]=f37,32
-	;; 
+	;;
 	stf.spill [in0]=f38,32
 	stf.spill [r14]=f39,32
-	;; 
+	;;
 	stf.spill [in0]=f40,32
 	stf.spill [r14]=f41,32
-	;; 
+	;;
 	stf.spill [in0]=f42,32
 	stf.spill [r14]=f43,32
 	;; 
@@ -721,5 +771,5 @@ ENTRY(fork_trampoline, 0)
 	br.call.sptk.few rp=fork_exit
 	;; 
 	br.cond.sptk.many exception_restore
-
-	END(fork_trampoline)
+	;;
+END(fork_trampoline)

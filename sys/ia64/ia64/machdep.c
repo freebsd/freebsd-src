@@ -704,7 +704,7 @@ ia64_init(u_int64_t arg1, u_int64_t arg2)
 	 */
 	thread0.td_frame = (struct trapframe *)thread0.td_pcb - 1;
 	thread0.td_pcb->pcb_sp = (u_int64_t)thread0.td_frame - 16;
-	thread0.td_pcb->pcb_bspstore = (u_int64_t)proc0kstack;
+	thread0.td_pcb->pcb_ar_bsp = (u_int64_t)proc0kstack;
 
 	mutex_init();
 
@@ -1261,18 +1261,26 @@ fill_fpregs(td, fpregs)
 	struct thread *td;
 	struct fpreg *fpregs;
 {
-	fpregs->fpr_regs[2] = td->td_pcb->pcb_f2;
-	fpregs->fpr_regs[3] = td->td_pcb->pcb_f3;
-	fpregs->fpr_regs[4] = td->td_pcb->pcb_f4;
-	fpregs->fpr_regs[5] = td->td_pcb->pcb_f5;
+	struct pcb *pcb = td->td_pcb;
 
-	bcopy(td->td_frame->tf_f, fpregs->fpr_regs+6,
+	/*
+	 * XXX - The PCB pointer should not point to the actual PCB,
+	 * because it will not contain the preserved registers of
+	 * the program being debugged. Instead, it should point to
+	 * a PCB constructed by unwinding all the way up to the
+	 * IVT handler.
+	 */
+	bcopy(pcb->pcb_f + PCB_F2, fpregs->fpr_regs + 2,
+	    sizeof(pcb->pcb_f[0]) * 4);
+
+	bcopy(td->td_frame->tf_f, fpregs->fpr_regs + 6,
 	    sizeof(td->td_frame->tf_f));
 
-	/* XXX f16-f31 */
+	bcopy(pcb->pcb_f + PCB_F16, fpregs->fpr_regs + 16,
+	    sizeof(pcb->pcb_f[0]) * 16);
 
 	ia64_fpstate_save(td, 0);
-	bcopy(td->td_pcb->pcb_highfp, fpregs->fpr_regs+32,
+	bcopy(pcb->pcb_highfp, fpregs->fpr_regs + 32,
 	    sizeof(td->td_pcb->pcb_highfp));
 
 	return (0);
@@ -1283,18 +1291,30 @@ set_fpregs(td, fpregs)
 	struct thread *td;
 	struct fpreg *fpregs;
 {
-	td->td_pcb->pcb_f2 = fpregs->fpr_regs[2];
-	td->td_pcb->pcb_f3 = fpregs->fpr_regs[3];
-	td->td_pcb->pcb_f4 = fpregs->fpr_regs[4];
-	td->td_pcb->pcb_f5 = fpregs->fpr_regs[5];
+	struct pcb *pcb = td->td_pcb;
 
-	bcopy(fpregs->fpr_regs+6, td->td_frame->tf_f,
+	/*
+	 * XXX - The PCB pointer should not point to the actual PCB,
+	 * because it will not contain the preserved registers of
+	 * the program being debugged. Instead, it should point to
+	 * a PCB constructed by unwinding all the way up to the
+	 * IVT handler.
+	 * XXX - An additional complication here is that we need to
+	 * have the actual location of where the values should be
+	 * stored as well. Some values may still reside in registers,
+	 * while other may have been saved somewhere.
+	 */
+	bcopy(fpregs->fpr_regs + 2, pcb->pcb_f + PCB_F2,
+	    sizeof(pcb->pcb_f[0]) * 4);
+
+	bcopy(fpregs->fpr_regs + 6, td->td_frame->tf_f,
 	    sizeof(td->td_frame->tf_f));
 
-	/* XXX f16-f31 */
+	bcopy(fpregs->fpr_regs + 16, pcb->pcb_f + PCB_F16,
+	    sizeof(pcb->pcb_f[0]) * 16);
 
 	ia64_fpstate_drop(td);
-	bcopy(fpregs->fpr_regs+32, td->td_pcb->pcb_highfp,
+	bcopy(fpregs->fpr_regs + 32, pcb->pcb_highfp,
 	    sizeof(td->td_pcb->pcb_highfp));
 
 	return (0);
