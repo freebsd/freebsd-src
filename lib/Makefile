@@ -7,6 +7,7 @@
 # csu must be built before all shared libaries for ELF.
 # libcom_err must be built before libkrb, libpam and libss.
 # libcrypt must be built before libkrb and libpam.
+# libkvm must be built before libdevstat.
 # msun must be built before libg++ and libstdc++.
 # libmd must be built before libatm, libopie, libradius, and libtacplus.
 # libncurses must be built before libdialog, libedit and libreadline.
@@ -18,12 +19,12 @@
 #
 # Otherwise, the SUBDIR list should be in alphabetical order.
 
-SUBDIR=	${_csu} libcom_err libcrypt msun libmd \
+SUBDIR=	${_csu} libcom_err libcrypt libkvm msun libmd \
 	libncurses libradius libtacplus libutil libsbuf \
 	${_compat} libalias libatm ${_libbind} libbz2 libc ${_libc_r} \
 	libcalendar libcam libcompat libdevinfo libdevstat libdisk \
 	libedit libfetch libform libftpio libgnumalloc ${_libio} libipsec \
-	libipx libisc libkvm libmenu ${_libmp} ${_libncp} \
+	libipx libisc libmenu ${_libmp} ${_libncp} \
 	libnetgraph libopie libpam libpanel libpcap \
 	libresolv librpcsvc libsmdb libsmutil libss \
 	libstand ${_libtelnet} libusb ${_libvgl} libwrap libxpg4 liby libz

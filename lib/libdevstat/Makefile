@@ -3,11 +3,25 @@
 MAINTAINER=ken@FreeBSD.ORG
 
 LIB=	devstat
+SHLIB_MAJOR= 3
+SHLIB_MINOR= 0
 SRCS=	devstat.c
 INCS=	devstat.h
 
+DPADD+=	${LIBKVM}
+LDADD+=	-lkvm
+
 MAN=	devstat.3
 
+MLINKS+=devstat.3 devstat_getnumdevs.3 
+MLINKS+=devstat.3 devstat_getgeneration.3 
+MLINKS+=devstat.3 devstat_getversion.3
+MLINKS+=devstat.3 devstat_checkversion.3 
+MLINKS+=devstat.3 devstat_getdevs.3 
+MLINKS+=devstat.3 devstat_selectdevs.3
+MLINKS+=devstat.3 devstat_buildmatch.3 
+MLINKS+=devstat.3 devstat_compute_statistics.3
+MLINKS+=devstat.3 devstat_compute_etime.3
 MLINKS+=devstat.3 getnumdevs.3 
 MLINKS+=devstat.3 getgeneration.3 
 MLINKS+=devstat.3 getversion.3

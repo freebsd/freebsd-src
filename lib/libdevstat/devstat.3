@@ -1,5 +1,5 @@
 .\"
-.\" Copyright (c) 1998, 1999 Kenneth D. Merry.
+.\" Copyright (c) 1998, 1999, 2001 Kenneth D. Merry.
 .\" All rights reserved.
 .\"
 .\" Redistribution and use in source and binary forms, with or without
@@ -27,11 +27,20 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd May 21, 1998
+.Dd July 15, 2001
 .Dt DEVSTAT 3
 .Os
 .Sh NAME
 .Nm devstat ,
+.Nm devstat_getnumdevs ,
+.Nm devstat_getgeneration ,
+.Nm devstat_getversion ,
+.Nm devstat_checkversion ,
+.Nm devstat_getdevs ,
+.Nm devstat_selectdevs ,
+.Nm devstat_buildmatch ,
+.Nm devstat_compute_statistics ,
+.Nm devstat_compute_etime ,
 .Nm getnumdevs ,
 .Nm getgeneration ,
 .Nm getversion ,
@@ -47,6 +56,62 @@
 .Sh SYNOPSIS
 .Fd #include <sys/dkstat.h>
 .Fd #include <devstat.h>
+.Ft int
+.Fo devstat_getnumdevs
+.Fa "kvm_t *kd"
+.Fc
+.Ft long
+.Fo devstat_getgeneration
+.Fa "kvm_t *kd"
+.Fc
+.Ft int
+.Fo devstat_getversion
+.Fa "kvm_t *kd"
+.Fc
+.Ft int
+.Fo devstat_checkversion
+.Fa "kvm_t *kd"
+.Fc
+.Ft int
+.Fo devstat_getdevs
+.Fa "kvm_t *kd"
+.Fa "struct statinfo *stats"
+.Fc
+.Ft int
+.Fo devstat_selectdevs
+.Fa "struct device_selection **dev_select"
+.Fa "int *num_selected"
+.Fa "int *num_selections"
+.Fa "long *select_generation"
+.Fa "long current_generation"
+.Fa "struct devstat *devices"
+.Fa "int numdevs"
+.Fa "struct devstat_match *matches"
+.Fa "int num_matches"
+.Fa "char **dev_selections"
+.Fa "int num_dev_selections"
+.Fa "devstat_select_mode select_mode"
+.Fa "int maxshowdevs"
+.Fa "int perf_select"
+.Fc
+.Ft int
+.Fo devstat_buildmatch
+.Fa "char *match_str"
+.Fa "struct devstat_match **matches"
+.Fa "int *num_matches"
+.Fc
+.Ft int
+.Fo devstat_compute_statistics
+.Fa "struct devstat *current"
+.Fa "struct devstat *previous"
+.Fa "long double *etime"
+.Fa "..."
+.Fc
+.Ft long double
+.Fo devstat_compute_etime
+.Fa "struct timeval cur_time"
+.Fa "struct timeval prev_time"
+.Fc
 .Ft int
 .Fn getnumdevs "void"
 .Ft long
@@ -105,34 +170,77 @@ The
 library is a library of helper functions for dealing with the kernel
 .Xr devstat 9
 interface, which is accessible to users via
+.Xr sysctl 3
+and
+.Xr kvm 3 .
+All functions that that take a
+.Vt kvm_t *
+as first argument can be passed
+.Dv NULL
+instead of a kvm handle as this argument,
+which causes the data to be read via
 .Xr sysctl 3 .
+Otherwise, it is read via
+.Xr kvm 3
+using the supplied handle.
+.Fn devstat_checkversion
+should be called with each kvm handle that is going to be used (or with
+.Dv NULL
+if
+.Xr sysctl 3
+is going to be used).
 .Pp
-.Fn getnumdevs
+.Fn devstat_getnumdevs
 returns the number of devices registered with the
 .Nm
 subsystem in the kernel.
 .Pp
-.Fn getgeneration
+.Fn getnumdevs
+is a deprecated version of
+.Fn devstat_getnumdevs
+which always uses
+.Xr sysctl 3 .
+.Pp
+.Fn devstat_getgeneration
 returns the current generation of the
 .Nm
 list of devices in the kernel.
 .Pp
-.Fn getversion
+.Fn getgeneration
+is a deprecated version of
+.Fn devstat_getgeneration
+which always uses
+.Xr sysctl 3 .
+.Pp
+.Fn devstat_getversion
 returns the current kernel
 .Nm
 version.
 .Pp
-.Fn checkversion
-checks the userland devstat version against the kernel devstat version.  If
-the two are identical, it returns zero.  Otherwise, it prints an
-appropriate error in
+.Fn getversion
+is a deprecated version of
+.Fn devstat_getversion
+which always uses
+.Xr sysctl 3 .
+.Pp
+.Fn devstat_checkversion
+checks the userland devstat version against the kernel devstat version.
+If the two are identical, it returns zero.
+Otherwise, it prints an appropriate error in
 .Va devstat_errbuf
 and returns -1.
 .Pp
-.Fn getdevs
+.Fn checkversion
+is a deprecated version of
+.Fn devstat_checkversion
+which always uses
+.Xr sysctl 3 .
+.Pp
+.Fn devstat_getdevs
 fetches the current list of devices and statistics into the supplied
 .Va statinfo
-structure.  The
+structure.
+The
 .Va statinfo
 structure can be found in
 .Aq Pa devstat.h :
@@ -146,18 +254,18 @@ struct statinfo {
 };
 .Ed
 .Pp
-.Fn getdevs
+.Fn devstat_getdevs
 expects the
 .Va statinfo
 structure to be allocated, and it also expects the
 .Va dinfo
 subelement to be allocated and zeroed prior to the first invocation of
-.Fn getdevs .
+.Fn devstat_getdevs .
 The
 .Va dinfo
 subelement is used to store state between calls, and should not be modified
 after the first call to
-.Fn getdevs .
+.Fn devstat_getdevs .
 The
 .Va dinfo
 subelement contains the following elements:
@@ -177,11 +285,11 @@ variable contains an array of
 .Nm
 structures, but at the head of the array is the current
 .Nm
-generation.  The reason the generation is at the head of the buffer is so
-that userland software accessing the devstat statistics information can
-atomically get both the statistics information and the corresponding
-generation number.  If client software were forced to get the generation
-number via a separate
+generation.
+The reason the generation is at the head of the buffer is so that userland
+software accessing the devstat statistics information can atomically get
+both the statistics information and the corresponding generation number.
+If client software were forced to get the generation number via a separate
 .Nm sysctl
 variable (which is available for convenience), the list of devices could
 change between the time the client gets the generation and the time the
@@ -193,19 +301,18 @@ subelement of the
 .Va devinfo
 structure is a pointer to memory that is allocated, and resized if
 necessary, by
-.Fn getdevs .
+.Fn devstat_getdevs .
 The devices subelement of the
 .Va devinfo
 structure is basically a pointer to the beginning of the array of devstat
 structures from the
 .Va kern.devstat.all
 .Nm sysctl
-variable.  The generation subelement of the
+variable (or the corresponding values read via
+.Xr kvm 3 ) .
+The generation subelement of the
 .Va devinfo
-structure contains the generation number from the
-.Va kern.devstat.all
-.Nm sysctl
-variable.
+structure contains the corresponding generation number.
 The
 .Va numdevs
 subelement of the
@@ -215,15 +322,21 @@ number of devices registered with the kernel
 .Nm
 subsystem.
 .Pp
-.Fn selectdevs
+.Fn getdevs
+is a deprecated version of
+.Fn devstat_getdevs
+which always uses
+.Xr sysctl 3 .
+.Pp
+.Fn devstat_selectdevs
 selects devices to display based upon a number of criteria:
 .Bl -tag -width flag
 .It specified devices
-Specified devices are the first selection priority.  These are generally
-devices specified by name by the user.  e.g. da0, da1, cd0.
+Specified devices are the first selection priority.
+These are generally devices specified by name by the user e.g. da0, da1, cd0.
 .It match patterns
 These are pattern matching expressions generated by
-.Fn buildmatch
+.Fn devstat_buildmatch
 from user input.
 .It performance
 If performance mode is enabled, devices will be sorted based on the
@@ -231,35 +344,36 @@ If performance mode is enabled, devices will be sorted based on the
 field in the
 .Va device_selection
 structure passed in to
-.Fn selectdevs .
+.Fn devstat_selectdevs .
 The
 .Va bytes
-value currently must be maintained by the user.  In the future,
-this may be done for him in a
+value currently must be maintained by the user.
+In the future, this may be done for him in a
 .Nm
 library routine.
 If no devices have been selected by name or by pattern, the performance
 tracking code will select every device in the system, and sort them by
-performance.  If devices have been selected by name or pattern, the
-performance tracking code will honor those selections and will only sort
-among the selected devices.
+performance.
+If devices have been selected by name or pattern, the performance tracking
+code will honor those selections and will only sort among the selected
+devices.
 .It order in the devstat list
 If the selection mode is set to DS_SELECT_ADD, and if there are still less
 than
 .Va maxshowdevs
 devices selected,
-.Fn selectdevs
+.Fn devstat_selectdevs
 will automatically select up to
 .Va maxshowdevs
 devices.
 .El
 .Pp
-.Fn selectdevs
+.Fn devstat_selectdevs
 performs selections in four different modes:
 .Bl -tag -width DS_SELECT_ADDONLY
 .It DS_SELECT_ADD
 In add mode,
-.Fn selectdevs
+.Fn devstat_selectdevs
 will select any unselected devices specified by name or matching pattern.
 It will also select more devices, in devstat list order, until the number
 of selected devices is equal to
@@ -268,43 +382,43 @@ or until all devices are
 selected.
 .It DS_SELECT_ONLY
 In only mode,
-.Fn selectdevs
+.Fn devstat_selectdevs
 will clear all current selections, and will only select devices specified
 by name or by matching pattern.
 .It DS_SELECT_REMOVE
 In remove mode,
-.Fn selectdevs
-will remove devices specified by name or by matching pattern.  It will not
-select any additional devices.
+.Fn devstat_selectdevs
+will remove devices specified by name or by matching pattern.
+It will not select any additional devices.
 .It DS_SELECT_ADDONLY
 In add only mode,
-.Fn selectdevs
+.Fn devstat_selectdevs
 will select any unselected devices specified by name or matching pattern.
-In this respect it is identical to add mode.  It will not, however, select
-any devices other than those specified.
+In this respect it is identical to add mode.
+It will not, however, select any devices other than those specified.
 .El
 .Pp
 In all selection modes,
-.Fn selectdevs
+.Fn devstat_selectdevs
 will not select any more than
 .Va maxshowdevs
-devices.  One exception to
-this is when you are in
+devices.
+One exception to this is when you are in
 .Dq top
-mode and no devices have been selected.  In
-this case,
-.Fn selectdevs
-will select every device in the system.  Client programs must pay attention
-to selection order when deciding whether to pay attention to a particular
-device.  This may be the wrong behavior, and probably requires additional
-thought.
+mode and no devices have been selected.
+In this case,
+.Fn devstat_selectdevs
+will select every device in the system.
+Client programs must pay attention to selection order when deciding whether
+to pay attention to a particular device.
+This may be the wrong behavior, and probably requires additional thought.
 .Pp
-.Fn selectdevs
+.Fn devstat_selectdevs
 handles allocation and resizing of the
 .Va dev_select
 structure passed in
 by the client.
-.Fn selectdevs
+.Fn devstat_selectdevs
 uses the
 .Va numdevs
 and
@@ -312,7 +426,8 @@ and
 fields to track the
 current
 .Nm
-generation and number of devices.  If
+generation and number of devices.
+If
 .Va num_selections
 is not the same
 as
@@ -321,12 +436,17 @@ or if
 .Va select_generation
 is not the same as
 .Va current_generation ,
-.Fn selectdevs
+.Fn devstat_selectdevs
 will resize the selection list as necessary, and re-initialize the
 selection array.
 .Pp
-.Fn buildmatch
-takes a comma separated match string and compiles it into a
+.Fn selectdevs
+is the old name of
+.Fn devstat_selectdevs ,
+and is deprecated.
+.Pp
+.Fn devstat_buildmatch
+take a comma separated match string and compile it into a
 \fBdevstat_match\fR structure that is understood by
 .Fn selectdevs .
 Match strings have the following format:
@@ -335,7 +455,7 @@ Match strings have the following format:
 device,type,if
 .Ed
 .Pp
-.Fn buildmatch
+.Fn devstat_buildmatch
 takes care of allocating and reallocating the match list as necessary.
 Currently known match types include:
 .Pp
@@ -387,22 +507,285 @@ Passthrough devices
 .El
 .El
 .Pp
+.Fn buildmatch
+is the old name of
+.Fn devstat_buildmatch ,
+and is deprecated.
+.Pp
+.Fn devstat_compute_statistics
+is an updated version of
 .Fn compute_stats
-provides an easy way to obtain various device statistics.  Only two
-arguments are mandatory:
+that provides more complete statistics calculation.
+There are four arguments for which values \fBmust\fR be supplied:
+.Va current ,
+.Va previous ,
+.Va etime ,
+and the terminating argument for the varargs list,
+.Va DSM_NONE .
+For most applications, the user will want to supply valid devstat
+structures for both
+.Va current
+and
+.Va previous .
+In some instances, for instance when calculating statistics since system
+boot, the user may pass in a NULL pointer for the
+.Va previous
+argument.
+In that case,
+.Fn devstat_compute_statistics
+will use the total stats in the
+.Va current
+structure to calculate statistics over
+.Va etime .
+For each statistic to be calculated, the user should supply the proper
+enumerated type (listed below), and a variable of the indicated type.
+All statistics are either integer values, for which a u_int64_t is used,
+or floating point, for which a long double is used.
+The statistics that may be calculated are:
+.Bl -tag -width DSM_TRANSFERS_PER_SECOND_OTHER
+.It DSM_NONE
+type: N/A
+.Pp
+This \fBmust\fR
+be the last argument passed to
+.Fn devstat_compute_statistics .
+It is an argument list terminator.
+.It DSM_TOTAL_BYTES
+type: u_int64_t *
+.Pp
+The total number of bytes transferred between the acquisition of
+.Va previous
+and
+.Va current .
+.It DSM_TOTAL_BYTES_READ
+type: u_int64_t *
+.Pp
+The total number of bytes read between the acquisition of
+.Va previous
+and
+.Va current .
+.It DSM_TOTAL_BYTES_WRITE
+type: u_int64_t *
+.Pp
+The total number of bytes written between the acquisition of
+.Va previous
+and
+.Va current .
+.It DSM_TOTAL_TRANSFERS
+type: u_int64_t *
+.Pp
+The total number of transfers between the acquisition of
+.Va previous
+and
+.Va current .
+.It DSM_TOTAL_TRANSFERS_READ
+type: u_int64_t *
+.Pp
+The total number of reads between the acquisition of
+.Va previous
+and
+.Va current .
+.It DSM_TOTAL_TRANSFERS_WRITE
+type: u_int64_t *
+.Pp
+The total number of writes between the acquisition of
+.Va previous
+and
+.Va current .
+.It DSM_TOTAL_TRANSFERS_OTHER
+type: u_int64_t *
+.Pp
+The total number of transactions that are not reads or writes that occurred
+between the acquisition of
+.Va previous
+and
+.Va current .
+.It DSM_TOTAL_BLOCKS
+type: u_int64_t *
+.Pp
+The total number of blocks transferred between the acquisition of
+.Va previous
+and
+.Va current .
+This number is in terms of the blocksize reported by the device.
+If no blocksize has been reported (i.e. the block size is 0), a default
+blocksize of 512 bytes will be used in the calculation.
+.It DSM_TOTAL_BLOCKS_READ
+type: u_int64_t *
+.Pp
+The total number of blocks read between the acquisition of
+.Va previous
+and
+.Va current .
+This number is in terms of the blocksize reported by the device.
+If no blocksize has been reported (i.e. the block size is 0), a default
+blocksize of 512 bytes will be used in the calculation.
+.It DSM_TOTAL_BLOCKS_WRITE
+type: u_int64_t *
+.Pp
+The total number of blocks written between the acquisition of
+.Va previous
+and
+.Va current .
+This number is in terms of the blocksize reported by the device.
+If no blocksize has been reported (i.e. the block size is 0), a default
+blocksize of 512 bytes will be used in the calculation.
+.It DSM_KB_PER_TRANSFER
+type: long double *
+.Pp
+The average number of kilobytes per transfer between the acquisition of
+.Va previous
+and
+.Va current .
+.It DSM_KB_PER_TRANSFER_READ
+type: long double *
+.Pp
+The average number of kilobytes per read transaction between the acquisition of
+.Va previous
+and
+.Va current .
+.It DSM_KB_PER_TRANSFER_WRITE
+type: long double *
+.Pp
+The average number of kilobytes per write transaction between the acquisition of
+.Va previous
+and
+.Va current .
+.It DSM_TRANSFERS_PER_SECOND
+type: long double *
+.Pp
+The average number of transfers per second between the acquisition of
+.Va previous
+and
+.Va current .
+.It DSM_TRANSFERS_PER_SECOND_READ
+type: long double *
+.Pp
+The average number of reads per second between the acquisition of
+.Va previous
+and
+.Va current .
+.It DSM_TRANSFERS_PER_SECOND_WRITE
+type: long double *
+.Pp
+The average number of writes per second between the acquisition of
+.Va previous
+and
+.Va current .
+.It DSM_TRANSFERS_PER_SECOND_OTHER
+type: long double *
+.Pp
+The average number of non-read, non-write transactions per second between
+the acquisition of
+.Va previous
+and
+.Va current .
+.It DSM_MB_PER_SECOND
+type: long double *
+.Pp
+The average number of megabytes transferred per second between the
+acquisition of
+.Va previous
+and
+.Va current .
+.It DSM_MB_PER_SECOND_READ
+type: long double *
+.Pp
+The average number of megabytes read per second between the acquisition of
+.Va previous
+and
+.Va current .
+.It DSM_MB_PER_SECOND_WRITE
+type: long double *
+.Pp
+The average number of megabytes written per second between the acquisition of
+.Va previous
+and
+.Va current .
+.It DSM_BLOCKS_PER_SECOND
+type: long double *
+.Pp
+The average number of blocks transferred per second between the acquisition of
+.Va previous
+and
+.Va current .
+This number is in terms of the blocksize reported by the device.
+If no blocksize has been reported (i.e. the block size is 0), a default
+blocksize of 512 bytes will be used in the calculation.
+.It DSM_BLOCKS_PER_SECOND_READ
+type: long double *
+.Pp
+The average number of blocks read per second between the acquisition of
+.Va previous
+and
+.Va current .
+This number is in terms of the blocksize reported by the device.
+If no blocksize has been reported (i.e. the block size is 0), a default
+blocksize of 512 bytes will be used in the calculation.
+.It DSM_BLOCKS_PER_SECOND_WRITE
+type: long double *
+.Pp
+The average number of blocks written per second between the acquisition of
+.Va previous
+and
+.Va current .
+This number is in terms of the blocksize reported by the device.
+If no blocksize has been reported (i.e. the block size is 0), a default
+blocksize of 512 bytes will be used in the calculation.
+.It DSM_MS_PER_TRANSACTION
+type: long double *
+.Pp
+The average rate of transaction completion between the acquisition of
+.Va previous
+and
+.Va current .
+Note that this isn't a true reflection of the average number of
+milliseconds per transaction, but rather is the average rate of transaction
+completion.
+The number is derived by dividing the time elapsed by the number of
+transactions completed.
+.It DSM_MS_PER_TRANSACTION_READ
+type: long double *
+.Pp
+The average rate of read completions between the acquisition of
+.Va previous
+and
+.Va current .
+As above, this is not the true number of milliseconds per transaction, but
+rather the average rate of read transaction completion.
+.It DSM_MS_PER_TRANSACTION_WRITE
+type: long double *
+.Pp
+The average rate of write transaction completion between the acquisition of
+.Va previous
+and
+.Va current .
+As above, this is not the true number of milliseconds per transaction, but
+rather the average rate of write transaction completion.
+.El
+.Pp
+.Fn compute_stats
+is deprecated; use 
+.Fn devstat_compute_statistics
+instead.
+.Fn compute_stats
+provides an easy way to obtain various device statistics.
+Only two arguments are mandatory:
 .Va current
 and
 .Va etime .
-Every other argument is optional.  For most applications, the user will
-want to supply both
+Every other argument is optional.
+For most applications, the user will want to supply both
 .Va current
 and
 .Va previous
 devstat structures so that statistics may be calculated over a given period
-of time.  In some instances, for instance when calculating statistics since
-system boot, the user may pass in a NULL pointer for the
+of time.
+In some instances, for instance when calculating statistics since system boot,
+the user may pass in a NULL pointer for the
 .Va previous
-argument.  In that case,
+argument.
+In that case,
 .Fn compute_stats
 will use the total stats in the
 .Va current
@@ -437,7 +820,8 @@ is NULL, the result will be the total number of transactions listed in
 .It total_blocks
 This is basically
 .Va total_bytes
-divided by the device blocksize.  If the device blocksize is listed as
+divided by the device blocksize.
+If the device blocksize is listed as
 .Sq 0 ,
 the device blocksize will default to 512 bytes.
 .It kb_per_transfer
@@ -448,55 +832,66 @@ This is the average number of transfers per second.
 .It mb_per_second
 This is average megabytes per second.
 .It blocks_per_second
-This is average blocks per second.  If the device blocksize is
+This is average blocks per second.
+If the device blocksize is
 .Sq 0 ,
 a default blocksize of 512 bytes will be used instead.
 .It ms_per_transaction
 The average number of milliseconds per transaction.
 .El
 .Pp
-.Fn compute_etime
+.Fn devstat_compute_etime
 provides an easy way to find the difference in seconds between two
 .Va timeval
-structures.  This is most commonly used in conjunction with the time
-recorded by the
-.Fn getdevs
+structures.
+This is most commonly used in conjunction with the time recorded by the
+.Fn devstat_getdevs
 function (in struct
 .Va statinfo )
 each time it fetches the current
 .Nm
 list.
+.Pp
+.Fn compute_etime
+is the old name of
+.Fn devstat_compute_etime ,
+and is deprecated.
 .Sh RETURN VALUES
-.Fn getnumdevs ,
-.Fn getgeneration ,
+.Fn devstat_getnumdevs ,
+.Fn devstat_getgeneration ,
 and
-.Fn getversion
+.Fn devstat_getversion
 return the indicated \fBsysctl\fR variable, or -1 if there is an error
 fetching the variable.
 .Pp
-.Fn checkversion
+.Fn devstat_checkversion
 returns 0 if the kernel and userland
 .Nm
-versions match.  If they do not match, it returns -1.
+versions match.
+If they do not match, it returns -1.
 .Pp
-.Fn getdevs
+.Fn devstat_getdevs
 and
-.Fn selectdevs
+.Fn devstat_selectdevs
 return -1 in case of an error, 0 if there is no error and 1 if the device
-list or selected devices have changed.  A return value of 1 from
-.Fn getdevs
+list or selected devices have changed.
+A return value of 1 from
+.Fn devstat_getdevs
 is usually a hint to re-run
-.Fn selectdevs
+.Fn devstat_selectdevs
 because the device list has changed.
 .Pp
-.Fn buildmatch
+.Fn devstat_buildmatch
 returns -1 for error, and 0 if there is no error.
 .Pp
 .Fn compute_stats
 returns -1 for error, and 0 for success.
 .Pp
-.Fn compute_etime
+.Fn devstat_compute_etime
 returns the computed elapsed time.
+.Pp
+.Fn devstat_compute_statistics
+returns -1 for error, and 0 for success.
 .Pp
 If an error is returned from one of the
 .Nm
@@ -507,7 +902,10 @@ which is
 .Dv DEVSTAT_ERRBUF_SIZE
 characters long.
 .Sh SEE ALSO
+.Xr sysctl 1 ,
 .Xr systat 1 ,
+.Xr kvm 3 ,
+.Xr sysctl 3 ,
 .Xr iostat 8 ,
 .Xr rpc.rstatd 8 ,
 .Xr vmstat 8 ,
@@ -517,16 +915,18 @@ The
 .Nm
 statistics system first appeared in
 .Fx 3.0 .
+The new interface (the functions prefixed with devstat_) first appeared in
+.Fx 5.0 .
 .Sh AUTHORS
 .An Kenneth Merry Aq ken@FreeBSD.org
 .Sh BUGS
 There should probably be an interface to de-allocate memory allocated by
-.Fn getdevs ,
-.Fn selectdevs ,
+.Fn devstat_getdevs ,
+.Fn devstat_selectdevs ,
 and
-.Fn buildmatch .
+.Fn devstat_buildmatch .
 .Pp
-.Fn selectdevs
+.Fn devstat_selectdevs
 should probably not select more than
 .Va maxshowdevs
 devices in

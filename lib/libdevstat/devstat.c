@@ -32,14 +32,25 @@
 #include <sys/sysctl.h>
 #include <sys/errno.h>
 #include <sys/dkstat.h>
+#include <sys/queue.h>
 
 #include <ctype.h>
 #include <err.h>
+#include <fcntl.h>
+#include <limits.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <stdarg.h>
+#include <kvm.h>
 
 #include "devstat.h"
+
+typedef enum {
+	DEVSTAT_ARG_NOTYPE,
+	DEVSTAT_ARG_UINT64,
+	DEVSTAT_ARG_LD
+} devstat_arg_type;
 
 char devstat_errbuf[DEVSTAT_ERRBUF_SIZE];
 
@@ -68,30 +79,90 @@ struct devstat_match_table match_table[] = {
 	{NULL,		0,			0}
 };
 
+struct devstat_args {
+	devstat_metric 		metric;
+	devstat_arg_type	argtype;
+} devstat_arg_list[] = {
+	{ DSM_NONE, DEVSTAT_ARG_NOTYPE },
+	{ DSM_TOTAL_BYTES, DEVSTAT_ARG_UINT64 },
+	{ DSM_TOTAL_BYTES_READ, DEVSTAT_ARG_UINT64 },
+	{ DSM_TOTAL_BYTES_WRITE, DEVSTAT_ARG_UINT64 },
+	{ DSM_TOTAL_TRANSFERS, DEVSTAT_ARG_UINT64 },
+	{ DSM_TOTAL_TRANSFERS_READ, DEVSTAT_ARG_UINT64 },
+	{ DSM_TOTAL_TRANSFERS_WRITE, DEVSTAT_ARG_UINT64 },
+	{ DSM_TOTAL_TRANSFERS_OTHER, DEVSTAT_ARG_UINT64 },
+	{ DSM_TOTAL_BLOCKS, DEVSTAT_ARG_UINT64 },
+	{ DSM_TOTAL_BLOCKS_READ, DEVSTAT_ARG_UINT64 },
+	{ DSM_TOTAL_BLOCKS_WRITE, DEVSTAT_ARG_UINT64 },
+	{ DSM_KB_PER_TRANSFER, DEVSTAT_ARG_LD },
+	{ DSM_KB_PER_TRANSFER_READ, DEVSTAT_ARG_LD },
+	{ DSM_KB_PER_TRANSFER_WRITE, DEVSTAT_ARG_LD },
+	{ DSM_TRANSFERS_PER_SECOND, DEVSTAT_ARG_LD },
+	{ DSM_TRANSFERS_PER_SECOND_READ, DEVSTAT_ARG_LD },
+	{ DSM_TRANSFERS_PER_SECOND_WRITE, DEVSTAT_ARG_LD },
+	{ DSM_TRANSFERS_PER_SECOND_OTHER, DEVSTAT_ARG_LD },
+	{ DSM_MB_PER_SECOND, DEVSTAT_ARG_LD },
+	{ DSM_MB_PER_SECOND_READ, DEVSTAT_ARG_LD },
+	{ DSM_MB_PER_SECOND_WRITE, DEVSTAT_ARG_LD },
+	{ DSM_BLOCKS_PER_SECOND, DEVSTAT_ARG_LD },
+	{ DSM_BLOCKS_PER_SECOND_READ, DEVSTAT_ARG_LD },
+	{ DSM_BLOCKS_PER_SECOND_WRITE, DEVSTAT_ARG_LD },
+	{ DSM_MS_PER_TRANSACTION, DEVSTAT_ARG_LD },
+	{ DSM_MS_PER_TRANSACTION_READ, DEVSTAT_ARG_LD },
+	{ DSM_MS_PER_TRANSACTION_WRITE, DEVSTAT_ARG_LD }
+};
+
+static char *namelist[] = {
+#define X_NUMDEVS	0
+	"_devstat_num_devs",
+#define X_GENERATION	1
+	"_devstat_generation",
+#define X_VERSION	2
+	"_devstat_version",
+#define X_DEVICE_STATQ	3
+	"_device_statq",
+#define X_END		4
+};
+
 /*
  * Local function declarations.
  */
 static int compare_select(const void *arg1, const void *arg2);
+static int readkmem(kvm_t *kd, unsigned long addr, void *buf, size_t nbytes);
+static int readkmem_nl(kvm_t *kd, char *name, void *buf, size_t nbytes);
+static char *get_devstat_kvm(kvm_t *kd);
+
+#define KREADNL(kd, var, val) \
+	readkmem_nl(kd, namelist[var], &val, sizeof(val))
 
 int
-getnumdevs(void)
+devstat_getnumdevs(kvm_t *kd)
 {
 	size_t numdevsize;
 	int numdevs;
-	char *func_name = "getnumdevs";
+	char *func_name = "devstat_getnumdevs";
 
 	numdevsize = sizeof(int);
 
 	/*
 	 * Find out how many devices we have in the system.
 	 */
-	if (sysctlbyname("kern.devstat.numdevs", &numdevs,
-			 &numdevsize, NULL, 0) == -1) {
-		sprintf(devstat_errbuf, "%s: error getting number of devices\n"
-			"%s: %s", func_name, func_name, strerror(errno));
-		return(-1);
-	} else
-		return(numdevs);
+	if (kd == NULL) {
+		if (sysctlbyname("kern.devstat.numdevs", &numdevs,
+				 &numdevsize, NULL, 0) == -1) {
+			snprintf(devstat_errbuf, sizeof(devstat_errbuf),
+				"%s: error getting number of devices\n"
+				"%s: %s", func_name, func_name, 
+				strerror(errno));
+			return(-1);
+		} else
+			return(numdevs);
+	} else {
+		if (KREADNL(kd, X_NUMDEVS, numdevs) == -1)
+			return(-1);
+		else
+			return(numdevs);
+	}
 }
 
 /*
@@ -102,24 +173,32 @@ getnumdevs(void)
  * this function is called and the device list is retreived.
  */
 long
-getgeneration(void)
+devstat_getgeneration(kvm_t *kd)
 {
 	size_t gensize;
 	long generation;
-	char *func_name = "getgeneration";
+	char *func_name = "devstat_getgeneration";
 
 	gensize = sizeof(long);
 
 	/*
 	 * Get the current generation number.
 	 */
-	if (sysctlbyname("kern.devstat.generation", &generation, 
-			 &gensize, NULL, 0) == -1) {
-		sprintf(devstat_errbuf,"%s: error getting devstat generation\n"
-			"%s: %s", func_name, func_name, strerror(errno));
-		return(-1);
-	} else
-		return(generation);
+	if (kd == NULL) {
+		if (sysctlbyname("kern.devstat.generation", &generation, 
+				 &gensize, NULL, 0) == -1) {
+			snprintf(devstat_errbuf, sizeof(devstat_errbuf),
+				"%s: error getting devstat generation\n%s: %s",
+				func_name, func_name, strerror(errno));
+			return(-1);
+		} else
+			return(generation);
+	} else {
+		if (KREADNL(kd, X_GENERATION, generation) == -1)
+			return(-1);
+		else
+			return(generation);
+	}
 }
 
 /*
@@ -129,24 +208,32 @@ getgeneration(void)
  * whether they are out of sync with the kernel.
  */
 int
-getversion(void)
+devstat_getversion(kvm_t *kd)
 {
 	size_t versize;
 	int version;
-	char *func_name = "getversion";
+	char *func_name = "devstat_getversion";
 
 	versize = sizeof(int);
 
 	/*
 	 * Get the current devstat version.
 	 */
-	if (sysctlbyname("kern.devstat.version", &version, &versize,
-			 NULL, 0) == -1) {
-		sprintf(devstat_errbuf, "%s: error getting devstat version\n"
-			"%s: %s", func_name, func_name, strerror(errno));
-		return(-1);
-	} else
-		return(version);
+	if (kd == NULL) {
+		if (sysctlbyname("kern.devstat.version", &version, &versize,
+				 NULL, 0) == -1) {
+			snprintf(devstat_errbuf, sizeof(devstat_errbuf),
+				"%s: error getting devstat version\n%s: %s",
+				func_name, func_name, strerror(errno));
+			return(-1);
+		} else
+			return(version);
+	} else {
+		if (KREADNL(kd, X_VERSION, version) == -1)
+			return(-1);
+		else
+			return(version);
+	}
 }
 
 /*
@@ -155,14 +242,14 @@ getversion(void)
  * devstat error buffer, and return -1.  If they match, return 0.
  */
 int
-checkversion(void)
+devstat_checkversion(kvm_t *kd)
 {
 	int retval = 0;
 	int errlen = 0;
-	char *func_name = "checkversion";
+	char *func_name = "devstat_checkversion";
 	int version;
 
-	version = getversion();
+	version = devstat_getversion(kd);
 
 	if (version != DEVSTAT_VERSION) {
 		int buflen = 0;
@@ -226,7 +313,7 @@ checkversion(void)
  *  1  -- device list has changed
  */
 int
-getdevs(struct statinfo *stats)
+devstat_getdevs(kvm_t *kd, struct statinfo *stats)
 {
 	int error;
 	size_t dssize;
@@ -234,87 +321,100 @@ getdevs(struct statinfo *stats)
 	long oldgeneration;
 	int retval = 0;
 	struct devinfo *dinfo;
-	char *func_name = "getdevs";
+	char *func_name = "devstat_getdevs";
 
 	dinfo = stats->dinfo;
 
 	if (dinfo == NULL) {
-		sprintf(devstat_errbuf, "%s: stats->dinfo was NULL", func_name);
+		snprintf(devstat_errbuf, sizeof(devstat_errbuf),
+			"%s: stats->dinfo was NULL", func_name);
 		return(-1);
 	}
 
 	oldnumdevs = dinfo->numdevs;
 	oldgeneration = dinfo->generation;
 
-	/*
-	 * If this is our first time through, mem_ptr will be null.  
-	 */
-	if (dinfo->mem_ptr == NULL) {
-		/*
-		 * Get the number of devices.  If it's negative, it's an
-		 * error.  Don't bother setting the error string, since
-		 * getnumdevs() has already done that for us.
-		 */
-		if ((dinfo->numdevs = getnumdevs()) < 0)
-			return(-1);
-
-		/*
-		 * The kern.devstat.all sysctl returns the current generation
-		 * number, as well as all the devices.  So we need four
-		 * bytes more.
-		 */
-		dssize =(dinfo->numdevs * sizeof(struct devstat)) +sizeof(long);
-		dinfo->mem_ptr = (u_int8_t *)malloc(dssize);
-	} else
-		dssize =(dinfo->numdevs * sizeof(struct devstat)) +sizeof(long);
-
 	/* Get the current time when we get the stats */
 	gettimeofday(&stats->busy_time, NULL);
 
-	/*
-	 * Request all of the devices.  We only really allow for one
-	 * ENOMEM failure.  It would, of course, be possible to just go in
-	 * a loop and keep reallocing the device structure until we don't
-	 * get ENOMEM back.  I'm not sure it's worth it, though.  If
-	 * devices are being added to the system that quickly, maybe the
-	 * user can just wait until all devices are added.
-	 */
-	if ((error = sysctlbyname("kern.devstat.all", dinfo->mem_ptr, 
-	     &dssize, NULL, 0)) == -1) {
-		/*
-		 * If we get ENOMEM back, that means that there are 
-		 * more devices now, so we need to allocate more 
-		 * space for the device array.
-		 */
-		if (errno == ENOMEM) {
+	if (kd == NULL) {
+		/* If this is our first time through, mem_ptr will be null. */
+		if (dinfo->mem_ptr == NULL) {
 			/*
-			 * No need to set the error string here, getnumdevs()
-			 * will do that if it fails.
+			 * Get the number of devices.  If it's negative, it's an
+			 * error.  Don't bother setting the error string, since
+			 * getnumdevs() has already done that for us.
 			 */
 			if ((dinfo->numdevs = getnumdevs()) < 0)
 				return(-1);
-
+			
+			/*
+			 * The kern.devstat.all sysctl returns the current 
+			 * generation number, as well as all the devices.  
+			 * So we need four bytes more.
+			 */
 			dssize = (dinfo->numdevs * sizeof(struct devstat)) +
-				sizeof(long);
-			dinfo->mem_ptr = (u_int8_t *)realloc(dinfo->mem_ptr,
-							     dssize);
-			if ((error = sysctlbyname("kern.devstat.all", 
-			    dinfo->mem_ptr, &dssize, NULL, 0)) == -1) {
-				sprintf(devstat_errbuf,
+				 sizeof(long);
+			dinfo->mem_ptr = (u_int8_t *)malloc(dssize);
+		} else
+			dssize = (dinfo->numdevs * sizeof(struct devstat)) +
+				 sizeof(long);
+
+		/*
+		 * Request all of the devices.  We only really allow for one
+		 * ENOMEM failure.  It would, of course, be possible to just go
+		 * in a loop and keep reallocing the device structure until we
+		 * don't get ENOMEM back.  I'm not sure it's worth it, though.
+		 * If devices are being added to the system that quickly, maybe
+		 * the user can just wait until all devices are added.
+		 */
+		if ((error = sysctlbyname("kern.devstat.all", dinfo->mem_ptr, 
+					  &dssize, NULL, 0)) == -1) {
+			/*
+			 * If we get ENOMEM back, that means that there are 
+			 * more devices now, so we need to allocate more 
+			 * space for the device array.
+			 */
+			if (errno == ENOMEM) {
+				/*
+				 * No need to set the error string here, 
+				 * getnumdevs() will do that if it fails.
+				 */
+				if ((dinfo->numdevs = getnumdevs()) < 0)
+					return(-1);
+
+				dssize = (dinfo->numdevs * 
+					sizeof(struct devstat)) + sizeof(long);
+				dinfo->mem_ptr = (u_int8_t *)
+					realloc(dinfo->mem_ptr, dssize);
+				if ((error = sysctlbyname("kern.devstat.all", 
+				    dinfo->mem_ptr, &dssize, NULL, 0)) == -1) {
+					snprintf(devstat_errbuf,
+						sizeof(devstat_errbuf),
+					    	"%s: error getting device "
+					    	"stats\n%s: %s", func_name,
+					    	func_name, strerror(errno));
+					return(-1);
+				}
+			} else {
+				snprintf(devstat_errbuf, sizeof(devstat_errbuf),
 					"%s: error getting device stats\n"
 					"%s: %s", func_name, func_name,
 					strerror(errno));
 				return(-1);
 			}
-		} else {
-			sprintf(devstat_errbuf,
-				"%s: error getting device stats\n"
-				"%s: %s", func_name, func_name,
-				strerror(errno));
-			return(-1);
-		}
-	} 
+		} 
 
+	} else {
+		/* 
+		 * This is of course non-atomic, but since we are working
+		 * on a core dump, the generation is unlikely to change
+		 */
+		if ((dinfo->numdevs = getnumdevs()) == -1)
+			return(-1);
+		if ((dinfo->mem_ptr = get_devstat_kvm(kd)) == NULL)
+			return(-1);
+	}
 	/*
 	 * The sysctl spits out the generation as the first four bytes,
 	 * then all of the device statistics structures.
@@ -415,12 +515,13 @@ getdevs(struct statinfo *stats)
  *  1  -- selected devices changed
  */
 int
-selectdevs(struct device_selection **dev_select, int *num_selected,
-	   int *num_selections, long *select_generation, 
-	   long current_generation, struct devstat *devices, int numdevs,
-	   struct devstat_match *matches, int num_matches,
-	   char **dev_selections, int num_dev_selections,
-	   devstat_select_mode select_mode, int maxshowdevs, int perf_select)
+devstat_selectdevs(struct device_selection **dev_select, int *num_selected,
+		   int *num_selections, long *select_generation, 
+		   long current_generation, struct devstat *devices,
+		   int numdevs, struct devstat_match *matches, int num_matches,
+		   char **dev_selections, int num_dev_selections,
+		   devstat_select_mode select_mode, int maxshowdevs,
+		   int perf_select)
 {
 	register int i, j, k;
 	int init_selections = 0, init_selected_var = 0;
@@ -879,17 +980,19 @@ compare_select(const void *arg1, const void *arg2)
  * device matching expression from it.
  */
 int
-buildmatch(char *match_str, struct devstat_match **matches, int *num_matches)
+devstat_buildmatch(char *match_str, struct devstat_match **matches,
+		   int *num_matches)
 {
 	char *tstr[5];
 	char **tempstr;
 	int num_args;
 	register int i, j;
-	char *func_name = "buildmatch";
+	char *func_name = "devstat_buildmatch";
 
 	/* We can't do much without a string to parse */
 	if (match_str == NULL) {
-		sprintf(devstat_errbuf, "%s: no match expression", func_name);
+		snprintf(devstat_errbuf, sizeof(devstat_errbuf),
+			 "%s: no match expression", func_name);
 		return(-1);
 	}
 
@@ -905,8 +1008,8 @@ buildmatch(char *match_str, struct devstat_match **matches, int *num_matches)
 
 	/* The user gave us too many type arguments */
 	if (num_args > 3) {
-		sprintf(devstat_errbuf, "%s: too many type arguments",
-			func_name);
+		snprintf(devstat_errbuf, sizeof(devstat_errbuf),
+			 "%s: too many type arguments", func_name);
 		return(-1);
 	}
 
@@ -971,7 +1074,8 @@ buildmatch(char *match_str, struct devstat_match **matches, int *num_matches)
 				 */
 				if (((*matches)[*num_matches].match_fields &
 				    match_table[j].match_field) != 0) {
-					sprintf(devstat_errbuf,
+					snprintf(devstat_errbuf,
+						sizeof(devstat_errbuf),
 						"%s: cannot have more than "
 						"one match item in a single "
 						"category", func_name);
@@ -1032,7 +1136,8 @@ compute_stats(struct devstat *current, struct devstat *previous,
 	 * current is the only mandatory field.
 	 */
 	if (current == NULL) {
-		sprintf(devstat_errbuf, "%s: current stats structure was NULL",
+		snprintf(devstat_errbuf, sizeof(devstat_errbuf),
+			"%s: current stats structure was NULL",
 			func_name);
 		return(-1);
 	}
@@ -1110,7 +1215,7 @@ compute_stats(struct devstat *current, struct devstat *previous,
 }
 
 long double
-compute_etime(struct timeval cur_time, struct timeval prev_time)
+devstat_compute_etime(struct timeval cur_time, struct timeval prev_time)
 {
 	struct timeval busy_time;
 	u_int64_t busy_usec;
@@ -1125,4 +1230,454 @@ compute_etime(struct timeval cur_time, struct timeval prev_time)
         etime /= 1000000;
 
 	return(etime);
+}
+
+int
+devstat_compute_statistics(struct devstat *current, struct devstat *previous,
+			   long double etime, ...)
+{
+	char *func_name = "devstat_compute_statistics";
+	u_int64_t totalbytes, totalbytesread, totalbyteswrite;
+	u_int64_t totaltransfers, totaltransfersread, totaltransferswrite;
+	u_int64_t totaltransfersother, totalblocks, totalblocksread;
+	u_int64_t totalblockswrite;
+	va_list ap;
+	devstat_metric metric;
+	u_int64_t *destu64;
+	long double *destld;
+	int retval;
+
+	retval = 0;
+
+	/*
+	 * current is the only mandatory field.
+	 */
+	if (current == NULL) {
+		snprintf(devstat_errbuf, sizeof(devstat_errbuf),
+			 "%s: current stats structure was NULL", func_name);
+		return(-1);
+	}
+
+	totalbytesread = current->bytes_read -
+			 ((previous) ? previous->bytes_read : 0);
+	totalbyteswrite = current->bytes_written -
+			    ((previous) ? previous->bytes_written : 0);
+
+	totalbytes = totalbytesread + totalbyteswrite;
+
+	totaltransfersread = current->num_reads -
+			     ((previous) ? previous->num_reads : 0);
+
+	totaltransferswrite = current->num_writes -
+			      ((previous) ? previous->num_writes : 0);
+
+	totaltransfersother = current->num_other -
+			      ((previous) ? previous->num_other : 0);
+
+	totaltransfers = totaltransfersread + totaltransferswrite +
+			 totaltransfersother;
+
+	totalblocks = totalbytes;
+	totalblocksread = totalbytesread;
+	totalblockswrite = totalbyteswrite;
+
+	if (current->block_size > 0) {
+		totalblocks /= current->block_size;
+		totalblocksread /= current->block_size;
+		totalblockswrite /= current->block_size;
+	} else {
+		totalblocks /= 512;
+		totalblocksread /= 512;
+		totalblockswrite /= 512;
+	}
+
+	va_start(ap, etime);
+
+	while ((metric = (devstat_metric)va_arg(ap, devstat_metric)) != 0) {
+
+		if (metric == DSM_NONE)
+			break;
+
+		if (metric >= DSM_MAX) {
+			snprintf(devstat_errbuf, sizeof(devstat_errbuf),
+				 "%s: metric %d is out of range", func_name,
+				 metric);
+			retval = -1;
+			goto bailout;
+		}
+
+		switch (devstat_arg_list[metric].argtype) {
+		case DEVSTAT_ARG_UINT64:
+			destu64 = (u_int64_t *)va_arg(ap, u_int64_t *);
+			if (destu64 == NULL) {
+				snprintf(devstat_errbuf, sizeof(devstat_errbuf),
+					 "%s: argument type not u_int64_t * or "
+					 "argument type missing", func_name);
+				retval = -1;
+				goto bailout;
+				break; /* NOTREACHED */
+			}
+			break;
+		case DEVSTAT_ARG_LD:
+			destld = (long double *)va_arg(ap, long double *);
+			if (destld == NULL) {
+				snprintf(devstat_errbuf, sizeof(devstat_errbuf),
+					 "%s: argument type not long double * "
+					 "or argument type missing", func_name);
+				retval = -1;
+				goto bailout;
+				break; /* NOTREACHED */
+			}
+			break;
+		default:
+			snprintf(devstat_errbuf, sizeof(devstat_errbuf),
+				 "%s: unknown argument type %d", func_name,
+				 devstat_arg_list[metric].argtype);
+			retval = -1;
+			goto bailout;
+			break; /* NOTREACHED */
+		}
+
+		switch (metric) {
+		case DSM_TOTAL_BYTES:
+			*destu64 = totalbytes;
+			break;
+		case DSM_TOTAL_BYTES_READ:
+			*destu64 = totalbytesread;
+			break;
+		case DSM_TOTAL_BYTES_WRITE:
+			*destu64 = totalbyteswrite;
+			break;
+		case DSM_TOTAL_TRANSFERS:
+			*destu64 = totaltransfers;
+			break;
+		case DSM_TOTAL_TRANSFERS_READ:
+			*destu64 = totaltransfersread;
+			break;
+		case DSM_TOTAL_TRANSFERS_WRITE:
+			*destu64 = totaltransferswrite;
+			break;
+		case DSM_TOTAL_TRANSFERS_OTHER:
+			*destu64 = totaltransfersother;
+			break;
+		case DSM_TOTAL_BLOCKS:
+			*destu64 = totalblocks;
+			break;
+		case DSM_TOTAL_BLOCKS_READ:
+			*destu64 = totalblocksread;
+			break;
+		case DSM_TOTAL_BLOCKS_WRITE:
+			*destu64 = totalblockswrite;
+			break;
+		case DSM_KB_PER_TRANSFER:
+			*destld = totalbytes;
+			*destld /= 1024;
+			if (totaltransfers > 0)
+				*destld /= totaltransfers;
+			else
+				*destld = 0.0;
+			break;
+		case DSM_KB_PER_TRANSFER_READ:
+			*destld = totalbytesread;
+			*destld /= 1024;
+			if (totaltransfersread > 0)
+				*destld /= totaltransfersread;
+			else
+				*destld = 0.0;
+			break;
+		case DSM_KB_PER_TRANSFER_WRITE:
+			*destld = totalbyteswrite;
+			*destld /= 1024;
+			if (totaltransferswrite > 0)
+				*destld /= totaltransferswrite;
+			else
+				*destld = 0.0;
+			break;
+		case DSM_TRANSFERS_PER_SECOND:
+			if (etime > 0.0) {
+				*destld = totaltransfers;
+				*destld /= etime;
+			} else
+				*destld = 0.0;
+			break;
+		case DSM_TRANSFERS_PER_SECOND_READ:
+			if (etime > 0.0) {
+				*destld = totaltransfersread;
+				*destld /= etime;
+			} else
+				*destld = 0.0;
+			break;
+		case DSM_TRANSFERS_PER_SECOND_WRITE:
+			if (etime > 0.0) {
+				*destld = totaltransferswrite;
+				*destld /= etime;
+			} else
+				*destld = 0.0;
+			break;
+		case DSM_TRANSFERS_PER_SECOND_OTHER:
+			if (etime > 0.0) {
+				*destld = totaltransfersother;
+				*destld /= etime;
+			} else
+				*destld = 0.0;
+			break;
+		case DSM_MB_PER_SECOND:
+			*destld = totalbytes;
+			*destld /= 1024 * 1024;
+			if (etime > 0.0)
+				*destld /= etime;
+			else
+				*destld = 0.0;
+			break;
+		case DSM_MB_PER_SECOND_READ:
+			*destld = totalbytesread;
+			*destld /= 1024 * 1024;
+			if (etime > 0.0)
+				*destld /= etime;
+			else
+				*destld = 0.0;
+			break;
+		case DSM_MB_PER_SECOND_WRITE:
+			*destld = totalbyteswrite;
+			*destld /= 1024 * 1024;
+			if (etime > 0.0)
+				*destld /= etime;
+			else
+				*destld = 0.0;
+			break;
+		case DSM_BLOCKS_PER_SECOND:
+			*destld = totalblocks;
+			if (etime > 0.0)
+				*destld /= etime;
+			else
+				*destld = 0.0;
+			break;
+		case DSM_BLOCKS_PER_SECOND_READ:
+			*destld = totalblocksread;
+			if (etime > 0.0)
+				*destld /= etime;
+			else
+				*destld = 0.0;
+			break;
+		case DSM_BLOCKS_PER_SECOND_WRITE:
+			*destld = totalblockswrite;
+			if (etime > 0.0)
+				*destld /= etime;
+			else
+				*destld = 0.0;
+			break;
+		/*
+		 * This calculation is somewhat bogus.  It simply divides
+		 * the elapsed time by the total number of transactions
+		 * completed.  While that does give the caller a good
+		 * picture of the average rate of transaction completion,
+		 * it doesn't necessarily give the caller a good view of
+		 * how long transactions took to complete on average.
+		 * Those two numbers will be different for a device that
+		 * can handle more than one transaction at a time.  e.g.
+		 * SCSI disks doing tagged queueing.
+		 *
+		 * The only way to accurately determine the real average
+		 * time per transaction would be to compute and store the
+		 * time on a per-transaction basis.  That currently isn't
+		 * done in the kernel, and would only be desireable if it
+		 * could be implemented in a somewhat non-intrusive and high
+		 * performance way.
+		 */
+		case DSM_MS_PER_TRANSACTION:
+			if (totaltransfers > 0) {
+				*destld = etime;
+				*destld /= totaltransfers;
+				*destld *= 1000;
+			} else
+				*destld = 0.0;
+			break;
+		/*
+		 * As above, these next two really only give the average
+		 * rate of completion for read and write transactions, not
+		 * the average time the transaction took to complete.
+		 */
+		case DSM_MS_PER_TRANSACTION_READ:
+			if (totaltransfersread > 0) {
+				*destld = etime;
+				*destld /= totaltransfersread;
+				*destld *= 1000;
+			} else
+				*destld = 0.0;
+			break;
+		case DSM_MS_PER_TRANSACTION_WRITE:
+			if (totaltransferswrite > 0) {
+				*destld = etime;
+				*destld /= totaltransferswrite;
+				*destld *= 1000;
+			} else
+				*destld = 0.0;
+			break;
+		default:
+			/*
+			 * This shouldn't happen, since we should have
+			 * caught any out of range metrics at the top of
+			 * the loop.
+			 */
+			snprintf(devstat_errbuf, sizeof(devstat_errbuf),
+				 "%s: unknown metric %d", func_name, metric);
+			retval = -1;
+			goto bailout;
+			break; /* NOTREACHED */
+		}
+	}
+
+bailout:
+
+	va_end(ap);
+	return(retval);
+}
+
+static int 
+readkmem(kvm_t *kd, unsigned long addr, void *buf, size_t nbytes)
+{
+	char *func_name = "readkmem";
+
+	if (kvm_read(kd, addr, buf, nbytes) == -1) {
+		snprintf(devstat_errbuf, sizeof(devstat_errbuf),
+			 "%s: error reading value (kvm_read): %s", func_name,
+			 kvm_geterr(kd));
+		return(-1);
+	}
+	return(0);
+}
+
+static int
+readkmem_nl(kvm_t *kd, char *name, void *buf, size_t nbytes)
+{
+	char *func_name = "readkmem_nl";
+	struct nlist nl[2] = { { name }, { NULL } };
+
+	if (kvm_nlist(kd, nl) == -1) {
+		snprintf(devstat_errbuf, sizeof(devstat_errbuf),
+			 "%s: error getting name list (kvm_nlist): %s",
+			 func_name, kvm_geterr(kd));
+		return(-1);
+	}
+	return(readkmem(kd, nl[0].n_value, buf, nbytes));
+}
+
+/*
+ * This duplicates the functionality of the kernel sysctl handler for poking
+ * through crash dumps.
+ */
+static char *
+get_devstat_kvm(kvm_t *kd)
+{
+	int error, i, wp;
+	long gen;
+	struct devstat *nds;
+	struct devstat ds;
+	struct devstatlist dhead;
+	int num_devs;
+	char *rv = NULL;
+	char *func_name = "get_devstat_kvm";
+
+	if ((num_devs = getnumdevs()) <= 0)
+		return(NULL);
+	error = 0;
+	if (KREADNL(kd, X_DEVICE_STATQ, dhead) == -1)
+		return(NULL);
+
+	nds = STAILQ_FIRST(&dhead);
+	
+	if ((rv = malloc(sizeof(gen))) == NULL) {
+		snprintf(devstat_errbuf, sizeof(devstat_errbuf), 
+			 "%s: out of memory (initial malloc failed)",
+			 func_name);
+		return(NULL);
+	}
+	gen = getgeneration();
+	memcpy(rv, &gen, sizeof(gen));
+	wp = sizeof(gen);
+	/*
+	 * Now push out all the devices.
+	 */
+	for (i = 0; (nds != NULL) && (i < num_devs);  
+	     nds = STAILQ_NEXT(nds, dev_links), i++) {
+		if (readkmem(kd, (long)nds, &ds, sizeof(ds)) == -1) {
+			free(rv);
+			return(NULL);
+		}
+		nds = &ds;
+		rv = (char *)reallocf(rv, sizeof(gen) + 
+				      sizeof(ds) * (i + 1));
+		if (rv == NULL) {
+			snprintf(devstat_errbuf, sizeof(devstat_errbuf), 
+				 "%s: out of memory (malloc failed)",
+				 func_name);
+			return(NULL);
+		}
+		memcpy(rv + wp, &ds, sizeof(ds));
+		wp += sizeof(ds);
+	}
+	return(rv);
+}
+
+/*
+ * Compatability functions for libdevstat 2. These are deprecated and may
+ * eventually be removed.
+ */
+int
+getnumdevs(void)
+{
+	return(devstat_getnumdevs(NULL));
+}
+
+long
+getgeneration(void)
+{
+	return(devstat_getgeneration(NULL));
+}
+
+int
+getversion(void)
+{
+	return(devstat_getversion(NULL));
+}
+
+int
+checkversion(void)
+{
+	return(devstat_checkversion(NULL));
+}
+
+int
+getdevs(struct statinfo *stats)
+{
+	return(devstat_getdevs(NULL, stats));
+}
+
+int
+selectdevs(struct device_selection **dev_select, int *num_selected,
+	   int *num_selections, long *select_generation, 
+	   long current_generation, struct devstat *devices, int numdevs,
+	   struct devstat_match *matches, int num_matches,
+	   char **dev_selections, int num_dev_selections,
+	   devstat_select_mode select_mode, int maxshowdevs,
+	   int perf_select)
+{
+
+	return(devstat_selectdevs(dev_select, num_selected, num_selections,
+	       select_generation, current_generation, devices, numdevs,
+	       matches, num_matches, dev_selections, num_dev_selections,
+	       select_mode, maxshowdevs, perf_select));
+}
+
+int
+buildmatch(char *match_str, struct devstat_match **matches,
+	   int *num_matches)
+{
+	return(devstat_buildmatch(match_str, matches, num_matches));
+}
+
+long double
+compute_etime(struct timeval cur_time, struct timeval prev_time)
+{
+	return(devstat_compute_etime(cur_time, prev_time));
 }
