@@ -31,7 +31,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $P4: //depot/projects/openpam/lib/pam_getenv.c#12 $
+ * $P4: //depot/projects/openpam/lib/pam_getenv.c#13 $
  */
 
 #include <stdlib.h>
@@ -48,7 +48,7 @@
  * Retrieve the value of a PAM environment variable
  */
 
-char *
+const char *
 pam_getenv(pam_handle_t *pamh,
 	const char *name)
 {
