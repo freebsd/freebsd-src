@@ -331,7 +331,7 @@ again:
 	/*
 	 * Do directory search MAC check using non-cached credentials.
 	 */
-	if ((error = mac_check_vnode_readdir(td->td_proc->p_ucred, vp))
+	if ((error = mac_check_vnode_readdir(td->td_proc->p_ucred, vp)))
 		goto out;
 #endif /* MAC */
 	if ((error = VOP_READDIR(vp, &auio, fp->f_cred, &eofflag, &ncookies,
