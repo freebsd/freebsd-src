@@ -17,6 +17,9 @@
 <!ENTITY % ja-mailing-lists PUBLIC "-//FreeBSD//ENTITIES DocBook Mailing List Entities//JA">
 %ja-mailing-lists;
 
+<!ENTITY % trademarks PUBLIC "-//FreeBSD//ENTITIES DocBook Trademark Entities//EN">
+%trademarks;
+
 <!ENTITY % release PUBLIC "-//FreeBSD//ENTITIES Release Specification//EN">
 %release;
 
@@ -29,7 +32,7 @@
     FreeBSD Japanese Documentation Project
 
     $FreeBSD$
-    Original revision: 1.15
+    Original revision: 1.16
 -->
 
 <article>
@@ -48,6 +51,14 @@
       <holder role="mailto:re@FreeBSD.org">&os;
         リリースエンジニアリングチーム</holder>
     </copyright>
+
+    <legalnotice id="trademarks" role="trademarks">
+      &tm-attrib.freebsd;
+      &tm-attrib.intel;
+      &tm-attrib.microsoft;
+      &tm-attrib.sparc;
+      &tm-attrib.general;
+    </legalnotice>
 
     <abstract>
       <para>この記事では、&os; &release.current; の現状を
@@ -185,8 +196,8 @@
       </listitem>
 
       <listitem>
-	<para>新しいアーキテクチャ:  i386, pc98, alpha アーキテクチャに加え、
-          新たに sparc64 と ia64 アーキテクチャに対応しました。</para>
+	<para>新しいアーキテクチャ:  &i386;, pc98, alpha アーキテクチャに加え、
+          新たに &sparc64; と ia64 アーキテクチャに対応しました。</para>
       </listitem>
 
       <listitem>
@@ -391,7 +402,7 @@
         &os; &release.5x; に存在しないファイルをシステムに数多く残します。
         これらの古いファイルは何らかの問題を引き起こす可能性があります。</para>
 
-      <para>i386 および pc98 プラットフォームの 4-STABLE では、
+      <para>&i386; および pc98 プラットフォームの 4-STABLE では、
         インストールメディアからの起動の際、
         ISA デバイスの設定を起動時に変更できる UserConfig
         ユーティリティが利用できるようになっています。
@@ -407,12 +418,12 @@
         <filename>mfsroot.flp</filename>
         のフロッピイメージが置かれている場所と同じところに置かれています。</para>
 
-      <para>i386 アーキテクチャにおける CDROM を使ったインストールでは、
+      <para>&i386; アーキテクチャにおける CDROM を使ったインストールでは、
         <quote>非エミュレーション型</quote>の起動ローダを使用するようになっています。
         この利点はいろいろとありますが、フロッピイメージ用に切り詰めた
         カーネルではなく、通常の <literal>GENERIC</literal> カーネルが
         使用できるという点があげられるでしょう。
-        理論的には、Microsoft Windows NT 4 インストール CDROM
+        理論的には、&microsoft; &windowsnt; 4 インストール CDROM
         が起動できるシステムなら、&os; &release.5x; CDROM も動作するはずです。</para>
     </sect2>
 
