@@ -1842,7 +1842,10 @@ retry:
 				if (!atomic_cmpset_int((u_int *)pte, obits,
 				    pbits))
 					goto retry;
-				anychanged = 1;
+				if (obits & PG_G)
+					pmap_invalidate_page(pmap, sva);
+				else
+					anychanged = 1;
 			}
 		}
 	}
