@@ -39,7 +39,7 @@ TUNABLE_INT("hw.snd.unit", &snd_unit);
 #endif
 int snd_autovchans = 0;
 int snd_maxvchans = 0;
-#if __FreeBSD_version > 50000
+#if __FreeBSD_version > 500000
 TUNABLE_INT("hw.snd.autovchans", &snd_autovchans);
 TUNABLE_INT("hw.snd.maxvchans", &snd_maxvchans);
 #else
