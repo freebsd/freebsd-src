@@ -373,7 +373,6 @@ cluster_rbuild(vp, filesize, lbn, blkno, size, run, fbp)
 	bp->b_offset = tbp->b_offset;
 	KASSERT(bp->b_offset != NOOFFSET, ("cluster_rbuild: no buffer offset"));
 	pbgetvp(vp, bp);
-	bp->b_object = tbp->b_object;
 
 	TAILQ_INIT(&bp->b_cluster.cluster_head);
 
