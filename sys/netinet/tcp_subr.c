@@ -1032,6 +1032,20 @@ tcp_ctlinput(cmd, sa, vip)
 				       + (IP_VHL_HL(ip->ip_vhl) << 2));
 		if (tcp_seq_check == 1)
 			tcp_sequence = ntohl(th->th_seq);
+		/*
+		 * Only call in_pcbnotify if the src port number != 0, as we 
+		 * treat 0 as a wildcard in src/sys/in_pbc.c:in_pcbnotify()
+		 *
+		 * It's sufficient to check for src|local port, as we'll have no
+		 * sessions with src|local port == 0
+		 *
+		 * Without this a attacker sending ICMP messages, where the attached 
+		 * IP header (+ 8 bytes) has the address and port numbers == 0, would
+		 * have the ICMP message applied to all sessions (modulo TCP sequence
+		 * number check).
+		 */
+		if (th->th_sport == 0)
+			return;
 		in_pcbnotify(&tcb, sa, th->th_dport, ip->ip_src, th->th_sport,
 			cmd, notify, tcp_sequence, tcp_seq_check);
 	} else
