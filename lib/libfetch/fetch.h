@@ -38,25 +38,25 @@
 #define URL_PWDLEN 256
 
 struct url {
-    char	 scheme[URL_SCHEMELEN+1];
-    char	 user[URL_USERLEN+1];
-    char	 pwd[URL_PWDLEN+1];
-    char	 host[MAXHOSTNAMELEN+1];
-    int		 port;
-    char	*doc;
-    off_t	 offset;
-    size_t	 length;
+	char		 scheme[URL_SCHEMELEN+1];
+	char		 user[URL_USERLEN+1];
+	char		 pwd[URL_PWDLEN+1];
+	char		 host[MAXHOSTNAMELEN+1];
+	int		 port;
+	char		*doc;
+	off_t		 offset;
+	size_t		 length;
 };
 
 struct url_stat {
-    off_t	 size;
-    time_t	 atime;
-    time_t	 mtime;
+	off_t		 size;
+	time_t		 atime;
+	time_t		 mtime;
 };
 
 struct url_ent {
-    char	 name[PATH_MAX];
-    struct url_stat stat;
+	char		 name[PATH_MAX];
+	struct url_stat	 stat;
 };
 
 /* Recognized schemes */
@@ -85,6 +85,8 @@ struct url_ent {
 #define	FETCH_UNKNOWN	17
 #define	FETCH_URL	18
 #define	FETCH_VERBOSE	19
+
+__BEGIN_DECLS
 
 /* FILE-specific functions */
 FILE		*fetchXGetFile(struct url *, struct url_stat *, const char *);
@@ -121,22 +123,28 @@ struct url_ent	*fetchList(struct url *, const char *);
 
 /* URL parsing */
 struct url	*fetchMakeURL(const char *, const char *, int,
-			const char *, const char *, const char *);
+		     const char *, const char *, const char *);
 struct url	*fetchParseURL(const char *);
 void		 fetchFreeURL(struct url *);
 
+__END_DECLS
+
 /* Authentication */
 typedef int (*auth_t)(struct url *);
-extern auth_t	 fetchAuthMethod;
+extern auth_t		 fetchAuthMethod;
 
 /* Last error code */
-extern int	 fetchLastErrCode;
+extern int		 fetchLastErrCode;
 #define MAXERRSTRING 256
-extern char	 fetchLastErrString[MAXERRSTRING];
-extern int	 fetchTimeout;
-extern int	 fetchRestartCalls;
+extern char		 fetchLastErrString[MAXERRSTRING];
+
+/* I/O timeout */
+extern int		 fetchTimeout;
+
+/* Restart interrupted syscalls */
+extern int		 fetchRestartCalls;
 
 /* Extra verbosity */
-extern int	 fetchDebug;
+extern int		 fetchDebug;
 
 #endif
