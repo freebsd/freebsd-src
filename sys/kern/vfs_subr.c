@@ -956,7 +956,7 @@ vinvalbuf(vp, flags, td, slpflag, slptimeo)
 		if (error == 0)
 			error = flushbuflist(&bo->bo_dirty,
 			    flags, vp, slpflag, slptimeo);
-		if (error != EAGAIN) {
+		if (error != 0 && error != EAGAIN) {
 			BO_UNLOCK(bo);
 			return (error);
 		}
@@ -1011,19 +1011,19 @@ flushbuflist(bufv, flags, vp, slpflag, slptimeo)
 	int slpflag, slptimeo;
 {
 	struct buf *bp, *nbp;
-	int found, error;
+	int retval, error;
 	struct bufobj *bo;
 
 	bo = &vp->v_bufobj;
 	ASSERT_BO_LOCKED(bo);
 
-	found = 0;
+	retval = 0;
 	TAILQ_FOREACH_SAFE(bp, &bufv->bv_hd, b_bobufs, nbp) {
 		if (((flags & V_NORMAL) && (bp->b_xflags & BX_ALTDATA)) ||
 		    ((flags & V_ALT) && (bp->b_xflags & BX_ALTDATA) == 0)) {
 			continue;
 		}
-		found += 1;
+		retval = EAGAIN;
 		error = BUF_TIMELOCK(bp,
 		    LK_EXCLUSIVE | LK_SLEEPFAIL | LK_INTERLOCK, BO_MTX(bo),
 		    "flushbuf", slpflag, slptimeo);
@@ -1063,7 +1063,7 @@ flushbuflist(bufv, flags, vp, slpflag, slptimeo)
 		brelse(bp);
 		BO_LOCK(bo);
 	}
-	return (found ? EAGAIN : 0);
+	return (retval);
 }
 
 /*
