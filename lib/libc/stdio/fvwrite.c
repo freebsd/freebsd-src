@@ -39,7 +39,7 @@
 static char sccsid[] = "@(#)fvwrite.c	8.1 (Berkeley) 6/4/93";
 #endif
 static const char rcsid[] =
-		"$Id$";
+		"$Id: fvwrite.c,v 1.3 1996/06/22 10:33:27 jraynard Exp $";
 #endif /* LIBC_SCCS and not lint */
 
 #include <stdio.h>
@@ -115,9 +115,11 @@ __sfvwrite(fp, uio)
 			if (fp->_flags & __SSTR) {
 				if (len < w)
 					w = len;
-				COPY(w);	/* copy MIN(fp->_w,len), */
-				fp->_w -= w;
-				fp->_p += w;
+				if (w > 0) {
+					COPY(w);        /* copy MIN(fp->_w,len), */
+					fp->_w -= w;
+					fp->_p += w;
+				}
 				w = len;	/* but pretend copied all */
 			} else if (fp->_p > fp->_bf._base && len > w) {
 				/* fill and flush */
