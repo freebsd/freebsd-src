@@ -469,8 +469,6 @@ icmp6_input(mp, offp, proto)
 
 	case ICMP6_PACKET_TOO_BIG:
 		icmp6_ifstat_inc(m->m_pkthdr.rcvif, ifs6_in_pkttoobig);
-		if (code != 0)
-			goto badcode;
 
 		/* validation is made in icmp6_mtudisc_update */
 
