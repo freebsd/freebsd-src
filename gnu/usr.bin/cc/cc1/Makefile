@@ -1,5 +1,5 @@
 #
-# $Id$
+# $Id: Makefile,v 1.11 1997/02/22 15:44:53 peter Exp $
 #
  
 PROG =	cc1
@@ -8,7 +8,7 @@ SRCS =	c-parse.c \
 	c-typeck.c
 BINDIR=	/usr/libexec
 NOMAN=	1
-NOSHARED= true
+NOSHARED=yes
 DPADD+=	${LIBCC_INT} 
 LDADD+=	${LIBCC_INT}
 
