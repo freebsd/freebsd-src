@@ -1,6 +1,6 @@
 #!/bin/sh -
 #
-#	$Id: rc.i386,v 1.5 1995/04/06 02:38:37 jkh Exp $
+#	$Id: rc.i386,v 1.6 1995/04/09 09:54:51 rgrimes Exp $
 #	Do i386 specific processing
 #
 
@@ -100,3 +100,5 @@ if [ "X${saver}" != X"NO" ] ; then
 	modstat | grep _saver || modload -u -o /tmp/saver_mod -e \
 				 saver_init -q /lkm/${saver}_saver_mod.o
 fi
+
+echo '.'
