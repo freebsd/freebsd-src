@@ -1633,7 +1633,7 @@ getsockaddr(namp, uaddr, len)
 }
 
 /*
- * Detatch mapped page and release resources back to the system.
+ * Detach mapped page and release resources back to the system.
  */
 void
 sf_buf_mext(void *addr, void *args)
