@@ -32,13 +32,12 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)npx.c	7.2 (Berkeley) 5/12/91
- *	$Id: npx.c,v 1.27 1997/08/21 10:13:12 kato Exp $
+ *	$Id: npx.c,v 1.28 1997/10/28 14:30:47 kato Exp $
  */
 
 #include "npx.h"
 #if NNPX > 0
 
-#include "opt_cpu.h"
 #include "opt_math_emulate.h"
 
 #include <sys/param.h>
@@ -52,25 +51,33 @@
 #endif
 #include <sys/signalvar.h>
 
+#ifndef SMP
 #include <machine/asmacros.h>
+#endif
 #include <machine/cputypes.h>
 #include <machine/frame.h>
 #include <machine/ipl.h>
+#ifndef SMP
 #include <machine/md_var.h>
+#endif
 #include <machine/pcb.h>
 #include <machine/psl.h>
+#ifndef SMP
 #include <machine/clock.h>
+#endif
 #include <machine/specialreg.h>
 #include <machine/segments.h>
 
+#ifndef SMP
 #include <i386/isa/icu.h>
-#include <i386/isa/isa_device.h>
 #include <i386/isa/intr_machdep.h>
 #ifdef PC98
 #include <pc98/pc98/pc98.h>
 #else
 #include <i386/isa/isa.h>
 #endif
+#endif
+#include <i386/isa/isa_device.h>
 
 /*
  * 387 and 287 Numeric Coprocessor Extension (NPX) Driver.
