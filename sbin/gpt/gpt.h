@@ -51,17 +51,6 @@ struct mbr {
 #define	MBR_SIG		0xAA55
 };
 
-#ifndef uuid_s_ok
-#define	NEED_UUID_FUNCTIONS
-#define	uuid_s_ok			0
-#define	uuid_s_bad_version		1
-#define	uuid_s_invalid_string_uuid	2
-void	uuid_create(uuid_t *, uint32_t *);
-void	uuid_from_string(const char *, uuid_t *, uint32_t *);
-int32_t	uuid_is_nil(uuid_t *, uint32_t *);
-void	uuid_to_string(uuid_t *, char **, uint32_t *);
-#endif
-
 extern char device_name[];
 extern off_t mediasz;
 extern u_int parts;
