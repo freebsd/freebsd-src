@@ -31,8 +31,10 @@
  * SUCH DAMAGE.
  *
  *	@(#)spec_vnops.c	8.14 (Berkeley) 5/21/95
- * $Id: spec_vnops.c,v 1.52 1997/12/29 00:23:16 dyson Exp $
+ * $Id: spec_vnops.c,v 1.53 1998/01/06 05:21:23 dyson Exp $
  */
+
+#include "opt_diagnostic.h"
 
 #include <sys/param.h>
 #include <sys/proc.h>

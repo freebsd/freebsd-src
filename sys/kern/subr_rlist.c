@@ -54,8 +54,10 @@
  * functioning of this software, nor does the author assume any responsibility
  * for damages incurred with its use.
  *
- *	$Id: subr_rlist.c,v 1.22 1997/09/02 20:05:51 bde Exp $
+ *	$Id: subr_rlist.c,v 1.23 1997/09/16 11:43:31 bde Exp $
  */
+
+#include "opt_diagnostic.h"
 
 #include <sys/param.h>
 #include <sys/systm.h>

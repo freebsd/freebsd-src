@@ -38,8 +38,10 @@
  * SUCH DAMAGE.
  *
  *	@(#)kern_lock.c	8.18 (Berkeley) 5/21/95
- * $Id: kern_lock.c,v 1.13 1997/10/28 15:58:19 bde Exp $
+ * $Id: kern_lock.c,v 1.14 1997/11/07 08:52:55 phk Exp $
  */
+
+#include "opt_diagnostic.h"
 
 #include <sys/param.h>
 #include <sys/proc.h>

@@ -45,6 +45,7 @@
  *	@(#)ext2_vnops.c	8.7 (Berkeley) 2/3/94
  */
 
+#include "opt_diagnostic.h"
 #include "opt_quota.h"
 #include "opt_suiddir.h"
 

@@ -11,7 +11,7 @@
  * 2. Absolutely no warranty of function or purpose is made by the author
  *		John S. Dyson.
  *
- * $Id: vfs_bio.c,v 1.146 1998/01/25 06:24:01 dyson Exp $
+ * $Id: vfs_bio.c,v 1.147 1998/01/31 11:55:59 dyson Exp $
  */
 
 /*
@@ -26,6 +26,7 @@
  */
 
 #include "opt_bounce.h"
+#include "opt_diagnostic.h"
 
 #define VMIO
 #include <sys/param.h>

@@ -26,7 +26,7 @@
  * OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: in_rmx.c,v 1.29 1997/02/14 18:15:45 wollman Exp $
+ *	$Id: in_rmx.c,v 1.30 1997/08/02 14:32:50 bde Exp $
  */
 
 /*
@@ -41,6 +41,8 @@
  *     a large quantity of stale routing data is not kept in kernel memory
  *     indefinitely.  See in_rtqtimo() below for the exact mechanism.
  */
+
+#include "opt_diagnostic.h"
 
 #include <sys/param.h>
 #include <sys/systm.h>

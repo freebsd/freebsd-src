@@ -13,12 +13,14 @@
  * bad that happens because of using this software isn't the responsibility
  * of the author.  This software is distributed AS-IS.
  *
- * $Id: vfs_aio.c,v 1.19 1997/12/08 02:18:25 dyson Exp $
+ * $Id: vfs_aio.c,v 1.20 1997/12/10 04:14:23 dyson Exp $
  */
 
 /*
  * This file contains support for the POSIX.4 AIO/LIO facility.
  */
+
+#include "opt_diagnostic.h"
 
 #include <sys/param.h>
 #include <sys/systm.h>

@@ -28,8 +28,10 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: default_pager.c,v 1.12 1997/08/25 22:15:06 bde Exp $
+ *	$Id: default_pager.c,v 1.13 1997/09/01 03:17:08 bde Exp $
  */
+
+#include "opt_diagnostic.h"
 
 #include <sys/param.h>
 #include <sys/systm.h>

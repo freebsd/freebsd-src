@@ -37,13 +37,15 @@
  *
  *	@(#)procfs_mem.c	8.5 (Berkeley) 6/15/94
  *
- *	$Id: procfs_mem.c,v 1.27 1997/08/12 04:34:28 sef Exp $
+ *	$Id: procfs_mem.c,v 1.28 1998/01/22 17:30:01 dyson Exp $
  */
 
 /*
  * This is a lightly hacked and merged version
  * of sef's pread/pwrite functions
  */
+
+#include "opt_diagnostic.h"
 
 #include <sys/param.h>
 #include <sys/systm.h>

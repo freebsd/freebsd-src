@@ -61,12 +61,14 @@
  * any improvements or extensions that they make and grant Carnegie the
  * rights to redistribute these changes.
  *
- * $Id: vm_init.c,v 1.15 1997/02/22 09:48:20 peter Exp $
+ * $Id: vm_init.c,v 1.16 1997/08/02 14:33:26 bde Exp $
  */
 
 /*
  *	Initialize the Virtual Memory subsystem.
  */
+
+#include "opt_diagnostic.h"
 
 #include <sys/param.h>
 #include <sys/kernel.h>

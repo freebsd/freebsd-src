@@ -35,7 +35,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)trap.c	7.4 (Berkeley) 5/13/91
- *	$Id: trap.c,v 1.119 1997/12/06 04:11:01 sef Exp $
+ *	$Id: trap.c,v 1.120 1998/01/31 05:00:15 eivind Exp $
  */
 
 /*
@@ -44,6 +44,7 @@
 
 #include "opt_cpu.h"
 #include "opt_ddb.h"
+#include "opt_diagnostic.h"
 #include "opt_ktrace.h"
 #include "opt_trap.h"
 #include "opt_vm86.h"

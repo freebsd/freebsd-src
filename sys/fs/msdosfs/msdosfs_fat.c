@@ -1,4 +1,4 @@
-/*	$Id: msdosfs_fat.c,v 1.12 1997/02/22 09:40:47 peter Exp $ */
+/*	$Id: msdosfs_fat.c,v 1.13 1997/09/02 20:06:16 bde Exp $ */
 /*	$NetBSD: msdosfs_fat.c,v 1.12 1994/08/21 18:44:04 ws Exp $	*/
 
 /*-
@@ -47,6 +47,11 @@
  *
  * October 1992
  */
+
+/*
+ * Option include files
+ */
+#include "opt_diagnostic.h"
 
 /*
  * kernel include files.

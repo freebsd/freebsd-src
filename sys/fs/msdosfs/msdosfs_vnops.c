@@ -1,4 +1,4 @@
-/*	$Id: msdosfs_vnops.c,v 1.52 1997/10/27 13:33:43 bde Exp $ */
+/*	$Id: msdosfs_vnops.c,v 1.53 1997/12/27 02:56:31 bde Exp $ */
 /*	$NetBSD: msdosfs_vnops.c,v 1.20 1994/08/21 18:44:13 ws Exp $	*/
 
 /*-
@@ -47,6 +47,8 @@
  *
  * October 1992
  */
+
+#include "opt_diagnostic.h"
 
 #include <sys/param.h>
 #include <sys/systm.h>

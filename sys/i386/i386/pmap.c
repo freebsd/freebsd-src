@@ -39,7 +39,7 @@
  * SUCH DAMAGE.
  *
  *	from:	@(#)pmap.c	7.7 (Berkeley)	5/12/91
- *	$Id: pmap.c,v 1.179 1998/01/31 11:55:41 dyson Exp $
+ *	$Id: pmap.c,v 1.180 1998/02/03 22:09:01 bde Exp $
  */
 
 /*
@@ -68,6 +68,7 @@
  *	and to when physical maps must be made correct.
  */
 
+#include "opt_diagnostic.h"
 #include "opt_disable_pse.h"
 
 #include <sys/param.h>
