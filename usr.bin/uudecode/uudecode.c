@@ -53,8 +53,16 @@ static char sccsid[] = "@(#)uudecode.c	8.2 (Berkeley) 4/2/94";
 #include <pwd.h>
 #include <stdio.h>
 #include <string.h>
+#include <stdlib.h>
 
 char *filename;
+int cflag, pflag;
+
+void    usage __P((void));
+int	decode __P((void));
+int	decode2 __P((int));
+
+extern int optind;
 
 int
 main(argc, argv)
@@ -62,9 +70,25 @@ main(argc, argv)
 	char *argv[];
 {
 	extern int errno;
-	int rval;
+	int rval, ch;
 
-	if (*++argv) {
+	while ((ch = getopt(argc, argv, "cp")) != EOF) {
+		switch(ch) {
+		case 'c':
+			cflag = 1; /* multiple uudecode'd files */
+			break;
+		case 'p':
+			pflag = 1; /* print output to stdout */
+			break;
+		default:
+			(void)usage();
+		}
+	}
+        argc -= optind;
+        argv += optind;
+
+			
+	if (*argv) {
 		rval = 0;
 		do {
 			if (!freopen(filename = *argv, "r", stdin)) {
@@ -82,7 +106,28 @@ main(argc, argv)
 	exit(rval);
 }
 
-decode()
+int
+decode ()
+{
+	int flag;
+
+	/* decode only one file per input stream */
+	if (!cflag) 
+		return(decode2(0));
+
+	/* multiple uudecode'd files */
+	for (flag = 0; ; flag++)
+		if (decode2(flag))
+			return(1);
+		else if (feof(stdin))
+			break;
+
+	return(0);
+}
+
+int
+decode2(flag)
+	int flag;
 {
 	extern int errno;
 	struct passwd *pw;
@@ -91,9 +136,13 @@ decode()
 	int mode, n1;
 	char buf[MAXPATHLEN];
 
+	
 	/* search for header line */
 	do {
 		if (!fgets(buf, sizeof(buf), stdin)) {
+			if (flag) /* no error */
+				return(0);
+
 			(void)fprintf(stderr,
 			    "uudecode: %s: no \"begin\" line\n", filename);
 			return(1);
@@ -127,7 +176,10 @@ decode()
 	}
 
 	/* create output file, set mode */
-	if (!freopen(buf, "w", stdout) ||
+	if (pflag)
+		; /* print to stdout */
+
+	else if (!freopen(buf, "w", stdout) ||
 	    fchmod(fileno(stdout), mode&0666)) {
 		(void)fprintf(stderr, "uudecode: %s: %s: %s\n", buf,
 		    filename, strerror(errno));
@@ -180,8 +232,9 @@ decode()
 	return(0);
 }
 
+void
 usage()
 {
-	(void)fprintf(stderr, "usage: uudecode [file ...]\n");
+	(void)fprintf(stderr, "usage: uudecode [-cp] [file ...]\n");
 	exit(1);
 }
