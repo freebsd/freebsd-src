@@ -36,7 +36,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *      $Id: aic7xxx.c,v 1.6 1998/10/07 03:34:13 gibbs Exp $
+ *      $Id: aic7xxx.c,v 1.7 1998/10/09 17:41:39 gibbs Exp $
  */
 /*
  * A few notes on features of the driver.
@@ -807,90 +807,121 @@ ahc_attach(struct ahc_softc *ahc)
 	struct ccb_setasync csa;
 	struct cam_devq *devq;
 	int bus_id;
+	int bus_id2;
+	struct cam_sim *sim;
+	struct cam_sim *sim2;
+	struct cam_path *path;
+	struct cam_path *path2;
+	int count;
+
+	count = 0;
+	sim = NULL;
+	sim2 = NULL;
 
 	/*
-	 * Create the device queue for our SIM.
+	 * Attach secondary channel first if the user has
+	 * declared it the primary channel.
+	 */
+	if ((ahc->flags & AHC_CHANNEL_B_PRIMARY) != 0) {
+		bus_id = 1;
+		bus_id2 = 0;
+	} else {
+		bus_id = 0;
+		bus_id2 = 1;
+	}
+
+	/*
+	 * Create the device queue for our SIM(s).
 	 */
 	devq = cam_simq_alloc(ahc->scb_data->maxscbs);
 	if (devq == NULL)
-		return (0);
+		goto fail;
 
 	/*
-	 * Construct our SIM entry
+	 * Construct our first channel SIM entry
 	 */
-	ahc->sim = cam_sim_alloc(ahc_action, ahc_poll, "ahc", ahc, ahc->unit,
-				 1, ahc->scb_data->maxscbs, devq);
-	if (ahc->sim == NULL) {
+	sim = cam_sim_alloc(ahc_action, ahc_poll, "ahc", ahc, ahc->unit,
+			    1, ahc->scb_data->maxscbs, devq);
+	if (sim == NULL) {
 		cam_simq_free(devq);
-		return (0);
+		goto fail;
 	}
-	bus_id = (ahc->flags & AHC_CHANNEL_B_PRIMARY) ? 1 : 0;
-	
-	if (xpt_bus_register(ahc->sim, bus_id) != CAM_SUCCESS) {
-		cam_sim_free(ahc->sim, /*free_devq*/TRUE);
-		return (0);
+
+	if (xpt_bus_register(sim, bus_id) != CAM_SUCCESS) {
+		cam_sim_free(sim, /*free_devq*/TRUE);
+		sim = NULL;
+		goto fail;
 	}
 	
-	if (xpt_create_path(&ahc->path, /*periph*/NULL,
-			    cam_sim_path(ahc->sim), CAM_TARGET_WILDCARD,
+	if (xpt_create_path(&path, /*periph*/NULL,
+			    cam_sim_path(sim), CAM_TARGET_WILDCARD,
 			    CAM_LUN_WILDCARD) != CAM_REQ_CMP) {
-		xpt_bus_deregister(cam_sim_path(ahc->sim));
-		cam_sim_free(ahc->sim, /*free_devq*/TRUE);
-		return (0);
+		xpt_bus_deregister(cam_sim_path(sim));
+		cam_sim_free(sim, /*free_devq*/TRUE);
+		sim = NULL;
+		goto fail;
 	}
 		
-	xpt_setup_ccb(&csa.ccb_h, ahc->path, /*priority*/5);
+	xpt_setup_ccb(&csa.ccb_h, path, /*priority*/5);
 	csa.ccb_h.func_code = XPT_SASYNC_CB;
 	csa.event_enable = AC_LOST_DEVICE;
 	csa.callback = ahc_async;
-	csa.callback_arg = ahc->sim;
+	csa.callback_arg = sim;
 	xpt_action((union ccb *)&csa);
+	count++;
 
 	if (ahc->features & AHC_TWIN) {
-		ahc->sim_b = cam_sim_alloc(ahc_action, ahc_poll, "ahc",
-					   ahc, ahc->unit, 1,
-					   ahc->scb_data->maxscbs, devq);
+		sim2 = cam_sim_alloc(ahc_action, ahc_poll, "ahc",
+				    ahc, ahc->unit, 1,
+				    ahc->scb_data->maxscbs, devq);
 
-		if (ahc->sim_b == NULL) {
+		if (sim2 == NULL) {
 			printf("ahc_attach: Unable to attach second "
 			       "bus due to resource shortage");
-			/*
-			 * Must return success or the first bus
-			 * won't get attached either.
-			 */
-			return (1);
+			goto fail;
 		}
 		
-		bus_id = (ahc->flags & AHC_CHANNEL_B_PRIMARY) ? 0 : 1;
-		if (xpt_bus_register(ahc->sim_b, bus_id) != CAM_SUCCESS) {
+		if (xpt_bus_register(sim2, bus_id2) != CAM_SUCCESS) {
 			printf("ahc_attach: Unable to attach second "
 			       "bus due to resource shortage");
 			/*
 			 * We do not want to destroy the device queue
 			 * because the first bus is using it.
 			 */
-			cam_sim_free(ahc->sim_b, /*free_devq*/FALSE);
-			ahc->sim_b = NULL;
-			return (1);
+			cam_sim_free(sim2, /*free_devq*/FALSE);
+			goto fail;
 		}
 
-		if (xpt_create_path(&ahc->path_b, /*periph*/NULL,
-				    cam_sim_path(ahc->sim_b),
+		if (xpt_create_path(&path2, /*periph*/NULL,
+				    cam_sim_path(sim2),
 				    CAM_TARGET_WILDCARD,
 				    CAM_LUN_WILDCARD) != CAM_REQ_CMP) {
-			xpt_bus_deregister(cam_sim_path(ahc->sim_b));
-			cam_sim_free(ahc->sim_b, /*free_devq*/FALSE);
-			ahc->sim_b = NULL;
-			return (1);
+			xpt_bus_deregister(cam_sim_path(sim2));
+			cam_sim_free(sim2, /*free_devq*/FALSE);
+			sim2 = NULL;
+			goto fail;
 		}
-		xpt_setup_ccb(&csa.ccb_h, ahc->path_b, /*priority*/5);
+		xpt_setup_ccb(&csa.ccb_h, path2, /*priority*/5);
 		csa.ccb_h.func_code = XPT_SASYNC_CB;
 		csa.event_enable = AC_LOST_DEVICE;
 		csa.callback = ahc_async;
-		csa.callback_arg = ahc->sim_b;
+		csa.callback_arg = sim2;
 		xpt_action((union ccb *)&csa);
+		count++;
 	}
-	return (1);
+fail:
+	if ((ahc->flags & AHC_CHANNEL_B_PRIMARY) != 0) {
+		ahc->sim_b = sim;
+		ahc->path_b = path;
+		ahc->sim = sim2;
+		ahc->path = path2;
+	} else {
+		ahc->sim = sim;
+		ahc->path = path;
+		ahc->sim_b = sim2;
+		ahc->path_b = path2;
+	}
+	return (count);
 }
 
 static void
@@ -2440,8 +2471,9 @@ ahc_init(struct ahc_softc *ahc)
 		ahc->flags |= AHC_TARGETMODE;
 
 	if ((ahc->features & AHC_TWIN) != 0) {
- 		printf("Twin Channel, A SCSI Id=%d, B SCSI Id=%d, ",
-		       ahc->our_id, ahc->our_id_b);
+ 		printf("Twin Channel, A SCSI Id=%d, B SCSI Id=%d, primary %c, ",
+		       ahc->our_id, ahc->our_id_b,
+		       ahc->flags & AHC_CHANNEL_B_PRIMARY? 'B': 'A');
 	} else {
 		if ((ahc->features & AHC_WIDE) != 0) {
 			printf("Wide ");
