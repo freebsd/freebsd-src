@@ -788,7 +788,7 @@ struct isa_driver rpdriver = {
 	rpprobe, rpattach, "rp"
      };
 
-#define CDEV_MAJOR	20
+#define CDEV_MAJOR	81
 
 static	char	driver_name[] = "rp";
 
