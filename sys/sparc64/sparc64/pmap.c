@@ -214,7 +214,8 @@ pmap_bootstrap(vm_offset_t skpa, vm_offset_t ekva)
 		tte.tte_tag = TT_CTX(TLB_CTX_KERNEL) | TT_VA(va);
 		tte.tte_data = TD_V | TD_4M | TD_VA_LOW(va) | TD_PA(pa) |
 		    TD_MOD | TD_REF | TD_TSB | TD_L | TD_CP | TD_P | TD_W;
-		tlb_store_slot(TLB_DTLB, va, tte, TLB_SLOT_TSB_KERNEL_MIN + i);
+		tlb_store_slot(TLB_DTLB, va, TLB_CTX_KERNEL, tte,
+		    TLB_SLOT_TSB_KERNEL_MIN + i);
 	}
 	bzero((void *)va, TSB_KERNEL_SIZE);
 	stxa(AA_IMMU_TSB, ASI_IMMU, 
@@ -263,6 +264,7 @@ pmap_bootstrap(vm_offset_t skpa, vm_offset_t ekva)
 	 * fp block operations in the kernel).
 	 */
 	stxa(AA_DMMU_SCXR, ASI_DMMU, TLB_CTX_KERNEL);
+	membar(Sync);
 }
 
 /*
@@ -277,7 +279,7 @@ pmap_bootstrap_alloc(vm_size_t size)
 	int i;
 
 	size = round_page(size);
-	for (i = 0; phys_avail[i] != 0; i += 2) {
+	for (i = 0; phys_avail[i + 1] != 0; i += 2) {
 		if (phys_avail[i + 1] - phys_avail[i] < size)
 			continue;
 		pa = phys_avail[i];
@@ -526,7 +528,7 @@ pmap_zero_page(vm_offset_t pa)
 	va = CADDR2;
 	tte.tte_tag = TT_CTX(TLB_CTX_KERNEL) | TT_VA(va);
 	tte.tte_data = TD_V | TD_8K | TD_PA(pa) | TD_L | TD_CP | TD_P | TD_W;
-	tlb_store(TLB_DTLB, va, tte);
+	tlb_store(TLB_DTLB, va, TLB_CTX_KERNEL, tte);
 	bzero((void *)va, PAGE_SIZE);
 	tlb_page_demap(TLB_DTLB, TLB_CTX_KERNEL, va);
 }
@@ -639,7 +641,16 @@ pmap_copy_page(vm_offset_t src, vm_offset_t dst)
 void
 pmap_zero_page_area(vm_offset_t pa, int off, int size)
 {
-	TODO;
+	struct tte tte;
+	vm_offset_t va;
+
+	KASSERT(off + size <= PAGE_SIZE, ("pmap_zero_page_area: bad off/size"));
+	va = CADDR2;
+	tte.tte_tag = TT_CTX(TLB_CTX_KERNEL) | TT_VA(va);
+	tte.tte_data = TD_V | TD_8K | TD_PA(pa) | TD_L | TD_CP | TD_P | TD_W;
+	tlb_store(TLB_DTLB, va, TLB_CTX_KERNEL, tte);
+	bzero((char *)va + off, size);
+	tlb_page_demap(TLB_DTLB, TLB_CTX_KERNEL, va);
 }
 
 vm_offset_t
@@ -687,7 +698,7 @@ void
 pmap_object_init_pt(pmap_t pmap, vm_offset_t addr, vm_object_t object,
 		    vm_pindex_t pindex, vm_size_t size, int limit)
 {
-	TODO;
+	/* XXX */
 }
 
 boolean_t
@@ -706,7 +717,7 @@ pmap_prefault(pmap_t pmap, vm_offset_t va, vm_map_entry_t entry)
 void
 pmap_protect(pmap_t pmap, vm_offset_t sva, vm_offset_t eva, vm_prot_t prot)
 {
-	TODO;
+	/* XXX */
 }
 
 vm_offset_t
@@ -732,7 +743,8 @@ pmap_release(pmap_t pmap)
 void
 pmap_remove_pages(pmap_t pmap, vm_offset_t sva, vm_offset_t eva)
 {
-	TODO;
+
+	/* XXX */
 }
 
 void
