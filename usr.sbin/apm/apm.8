@@ -19,8 +19,10 @@
 .Nd control the APM BIOS and display its information
 .Sh SYNOPSIS
 .Nm apm
-.Op Fl abelstzZ
-.Op Fl d Ar 1|0
+.Op Fl ablstzZ
+.Op Fl d Ar enable
+.Op Fl e Ar enable
+.Op Fl h Ar enable
 .Op Fl r Ar delta
 .Pp
 .Nm zzz
@@ -60,17 +62,30 @@ status,
 status,
 .Dq charging
 status respectively.
-.It Fl d
+.It Fl d Ar enable
 Disable/enable suspending of the display separately from a normal suspend
-using the values
-.Ar 1
-or
-.Ar 0
-respectively.  This argument seems to not work on many different
-laptops, including the Libretto 30CT and 50CT.
-.It Fl e
-Enable APM if it is currently not enabled, or disable APM if it is currently
-enabled.
+using the boolean value for
+.Ar enable .
+This feature seems to not work on many different laptops,
+including the Libretto 30CT and 50CT.
+.It Fl e Ar enable
+Enable or disable APM functions of the computer,
+depending on the boolean
+.Ar enable
+argument.
+.It Fl h Ar enable
+Depending on the boolean value of
+.Ar enable ,
+enable or disable the HLT instruction in the kernel context switch routine.
+These options are not necessary for almost all APM implementations,
+but for some implementations whose
+.Dq Pa Idle CPU
+call executes both CPU clock slowdown and HLT instruction,
+.Fl t
+is necessary to prevent the system from reducing its peak performance.
+See
+.Xr apm 4
+for details.
 .It Fl l
 Display the remaining battery percentage.  If your laptop does not 
 support this function, 255 is displayed.
@@ -116,7 +131,6 @@ by using
 or 
 .Nm zzz .
 .Sh SEE ALSO
-.Xr apm 4 ,
-.Xr apmconf 8
+.Xr apm 4
 .Sh AUTHORS
 .An Tatsumi Hosokawa Aq hosokawa@jp.FreeBSD.org
