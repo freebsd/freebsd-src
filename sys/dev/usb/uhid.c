@@ -138,19 +138,14 @@ static struct cdevsw uhid_cdevsw = {
 	/* read */	uhidread,
 	/* write */	uhidwrite,
 	/* ioctl */	uhidioctl,
-	/* stop */	nostop,
-	/* reset */	noreset,
-	/* devtotty */	nodevtotty,
 	/* poll */	uhidpoll,
 	/* mmap */	nommap,
 	/* strategy */	nostrategy,
 	/* name */	"uhid",
-	/* parms */	noparms,
 	/* maj */	UHID_CDEV_MAJOR,
 	/* dump */	nodump,
 	/* psize */	nopsize,
 	/* flags */	0,
-	/* maxio */	0,
 	/* bmaj */	-1
 };
 #endif

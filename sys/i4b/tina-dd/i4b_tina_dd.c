@@ -102,19 +102,14 @@ static struct cdevsw tina_cdevsw = {
 	/* read */	noread,
 	/* write */	nowrite,
 	/* ioctl */	tinaioctl,
-	/* stop */	nostop,
-	/* reset */	noreset,
-	/* devtotty */	nodevtotty,
 	/* poll */	POLLFIELD,
 	/* mmap */	nommap,
 	/* strategy */	nostrategy,
 	/* name */	"tina",
-	/* parms */	noparms,
 	/* maj */	CDEV_MAJOR,
 	/* dump */	nodump,
 	/* psize */	nopsize,
 	/* flags */	0,
-	/* maxio */	0,
 	/* bmaj */	-1
 };
 

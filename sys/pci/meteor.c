@@ -226,19 +226,14 @@ static struct cdevsw meteor_cdevsw = {
 	/* read */	meteor_read,
 	/* write */	meteor_write,
 	/* ioctl */	meteor_ioctl,
-	/* stop */	nostop,
-	/* reset */	noreset,
-	/* devtotty */	nodevtotty,
 	/* poll */	nopoll,
 	/* mmap */	meteor_mmap,
 	/* strategy */	nostrategy,
 	/* name */	"meteor",
-	/* parms */	noparms,
 	/* maj */	CDEV_MAJOR,
 	/* dump */	nodump,
 	/* psize */	nopsize,
 	/* flags */	0,
-	/* maxio */	0,
 	/* bmaj */	-1
 };
 #endif

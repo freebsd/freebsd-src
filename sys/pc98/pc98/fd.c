@@ -486,19 +486,14 @@ static struct cdevsw fd_cdevsw = {
 	/* read */	physread,
 	/* write */	physwrite,
 	/* ioctl */	fdioctl,
-	/* stop */	nostop,
-	/* reset */	noreset,
-	/* devtotty */	nodevtotty,
 	/* poll */	nopoll,
 	/* mmap */	nommap,
 	/* strategy */	fdstrategy,
 	/* name */	"fd",
-	/* parms */	noparms,
 	/* maj */	CDEV_MAJOR,
 	/* dump */	nodump,
 	/* psize */	nopsize,
 	/* flags */	D_DISK,
-	/* maxio */	0,
 	/* bmaj */	BDEV_MAJOR
 };
 

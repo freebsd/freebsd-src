@@ -126,19 +126,14 @@ static struct cdevsw ugen_cdevsw = {
 	/* read */	ugenread,
 	/* write */	ugenwrite,
 	/* ioctl */	ugenioctl,
-	/* stop */	nostop,
-	/* reset */	noreset,
-	/* devtotty */	nodevtotty,
 	/* poll */	ugenpoll,
 	/* mmap */	nommap,
 	/* strategy */	nostrategy,
 	/* name */	"ugen",
-	/* parms */	noparms,
 	/* maj */	UGEN_CDEV_MAJOR,
 	/* dump */	nodump,
 	/* psize */	nopsize,
 	/* flags */	0,
-	/* maxio */	0,
 	/* bmaj */	-1
 };
 #endif

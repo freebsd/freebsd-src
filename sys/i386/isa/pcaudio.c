@@ -136,19 +136,14 @@ static struct cdevsw pca_cdevsw = {
 	/* read */	noread,
 	/* write */	pcawrite,
 	/* ioctl */	pcaioctl,
-	/* stop */	nostop,
-	/* reset */	noreset,
-	/* devtotty */	nodevtotty,
 	/* poll */	pcapoll,
 	/* mmap */	nommap,
 	/* strategy */	nostrategy,
 	/* name */	"pca",
-	/* parms */	noparms,
 	/* maj */	CDEV_MAJOR,
 	/* dump */	nodump,
 	/* psize */	nopsize,
 	/* flags */	0,
-	/* maxio */	0,
 	/* bmaj */	-1
 };
 

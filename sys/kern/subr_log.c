@@ -69,19 +69,14 @@ static struct cdevsw log_cdevsw = {
 	/* read */	logread,
 	/* write */	nowrite,
 	/* ioctl */	logioctl,
-	/* stop */	nostop,
-	/* reset */	noreset,
-	/* devtotty */	nodevtotty,
 	/* poll */	logpoll,
 	/* mmap */	nommap,
 	/* strategy */	nostrategy,
 	/* name */	"log",
-	/* parms */	noparms,
 	/* maj */	CDEV_MAJOR,
 	/* dump */	nodump,
 	/* psize */	nopsize,
 	/* flags */	0,
-	/* maxio */	0,
 	/* bmaj */	-1
 };
 

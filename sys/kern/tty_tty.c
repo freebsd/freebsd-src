@@ -61,19 +61,14 @@ struct cdevsw ctty_cdevsw = {
 	/* read */	cttyread,
 	/* write */	cttywrite,
 	/* ioctl */	cttyioctl,
-	/* stop */	nostop,
-	/* reset */	noreset,
-	/* devtotty */	nodevtotty,
 	/* poll */	cttypoll,
 	/* mmap */	nommap,
 	/* strategy */	nostrategy,
 	/* name */	"ctty",
-	/* parms */	noparms,
 	/* maj */	CDEV_MAJOR,
 	/* dump */	nodump,
 	/* psize */	nopsize,
 	/* flags */	D_TTY,
-	/* maxio */	0,
 	/* bmaj */	-1
 };
 

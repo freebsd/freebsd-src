@@ -214,19 +214,14 @@ static struct cdevsw mcd_cdevsw = {
 	/* read */	physread,
 	/* write */	nowrite,
 	/* ioctl */	mcdioctl,
-	/* stop */	nostop,
-	/* reset */	noreset,
-	/* devtotty */	nodevtotty,
 	/* poll */	nopoll,
 	/* mmap */	nommap,
 	/* strategy */	mcdstrategy,
 	/* name */	"mcd",
-	/* parms */	noparms,
 	/* maj */	CDEV_MAJOR,
 	/* dump */	nodump,
 	/* psize */	nopsize,
 	/* flags */	D_DISK,
-	/* maxio */	0,
 	/* bmaj */	BDEV_MAJOR
 };
 

@@ -87,19 +87,14 @@ static struct cdevsw tun_cdevsw = {
 	/* read */	tunread,
 	/* write */	tunwrite,
 	/* ioctl */	tunioctl,
-	/* stop */	nostop,
-	/* reset */	noreset,
-	/* devtotty */	nodevtotty,
 	/* poll */	tunpoll,
 	/* mmap */	nommap,
 	/* strategy */	nostrategy,
 	/* name */	"tun",
-	/* parms */	noparms,
 	/* maj */	CDEV_MAJOR,
 	/* dump */	nodump,
 	/* psize */	nopsize,
 	/* flags */	0,
-	/* maxio */	0,
 	/* bmaj */	-1
 };
 

@@ -100,19 +100,14 @@ static struct cdevsw i4bctl_cdevsw = {
 	/* read */	noread,
 	/* write */	nowrite,
 	/* ioctl */	i4bctlioctl,
-	/* stop */	nostop,
-	/* reset */	noreset,
-	/* devtotty */	nodevtotty,
 	/* poll */	POLLFIELD,
 	/* mmap */	nommap,
 	/* strategy */	nostrategy,
 	/* name */	"i4bctl",
-	/* parms */	noparms,
 	/* maj */	CDEV_MAJOR,
 	/* dump */	nodump,
 	/* psize */	nopsize,
 	/* flags */	0,
-	/* maxio */	0,
 	/* bmaj */	-1
 };
 #else

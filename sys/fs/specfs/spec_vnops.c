@@ -243,8 +243,8 @@ spec_open(ap)
 			struct tty *tp;
 			tp = dev->si_tty;
 			if (!tp->t_stop) {
-				printf("Warning:%s: no t_stop, using nostop\n", devtoname(dev));
-				tp->t_stop = nostop;
+				printf("Warning:%s: no t_stop, using nottystop\n", devtoname(dev));
+				tp->t_stop = nottystop;
 			}
 		}
 	}

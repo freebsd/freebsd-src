@@ -264,19 +264,14 @@ static struct cdevsw wd_cdevsw = {
 	/* read */	physread,
 	/* write */	physwrite,
 	/* ioctl */	wdioctl,
-	/* stop */	nostop,
-	/* reset */	noreset,
-	/* devtotty */	nodevtotty,
 	/* poll */	nopoll,
 	/* mmap */	nommap,
 	/* strategy */	wdstrategy,
 	/* name */	"wd",
-	/* parms */	noparms,
 	/* maj */	CDEV_MAJOR,
 	/* dump */	wddump,
 	/* psize */	wdsize,
 	/* flags */	D_DISK,
-	/* maxio */	0,
 	/* bmaj */	BDEV_MAJOR
 };
 

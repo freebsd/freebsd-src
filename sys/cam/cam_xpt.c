@@ -562,19 +562,14 @@ static struct cdevsw xpt_cdevsw = {
 	/* read */	noread,
 	/* write */	nowrite,
 	/* ioctl */	xptioctl,
-	/* stop */	nostop,
-	/* reset */	noreset,
-	/* devtotty */	nodevtotty,
 	/* poll */	nopoll,
 	/* mmap */	nommap,
 	/* strategy */	nostrategy,
 	/* name */	"xpt",
-	/* parms */	noparms,
 	/* maj */	XPT_CDEV_MAJOR,
 	/* dump */	nodump,
 	/* psize */	nopsize,
 	/* flags */	0,
-	/* maxio */	0,
 	/* bmaj */	-1
 };
 

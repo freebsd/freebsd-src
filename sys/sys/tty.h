@@ -234,6 +234,7 @@ void	 clist_free_cblocks __P((struct clist *q));
 int	 getc __P((struct clist *q));
 void	 ndflush __P((struct clist *q, int cc));
 int	 ndqb __P((struct clist *q, int flag));
+void	 nottystop __P((struct tty*, int rw));
 char	*nextc __P((struct clist *q, char *cp, int *c));
 int	 putc __P((int c, struct clist *q));
 int	 q_to_b __P((struct clist *q, char *cp, int cc));
