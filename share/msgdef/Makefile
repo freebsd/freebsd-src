@@ -99,9 +99,8 @@ PT_LINKS=	pt_BR
 all: ${LOCALES:S/$/.out/g}
 
 afterinstall:
-# HACK: remove LC_MESSAGES directories before installing LC_MESSAGES file
-	-rm -rf ${LOCALEDIR}/*/LC_MESSAGES
 .for lang in ${LOCALES}
+	-rm -rf ${LOCALEDIR}/${lang}/LC_MESSAGES
 	${INSTALL} -m 644 -o ${BINOWN} -g ${BINGRP} ${lang}.out \
 			   ${LOCALEDIR}/${lang}/LC_MESSAGES
 .endfor
