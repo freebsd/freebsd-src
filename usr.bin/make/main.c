@@ -1018,9 +1018,17 @@ Cmd_Exec(cmd, err)
 	(void) close(fds[1]);
 
 #if DEFSHELL == 1
-	(void) execv("/bin/sh", args);
+#ifndef _PATH_DEFSHELLDIR
+	(void) execvp("sh", args);
+#else /* _PATH_DEFSHELLDIR */
+	(void) execv(_PATH_DEFSHELLDIR"/sh", args);
+#endif /* _PATH_DEFSHELLDIR */
 #elif DEFSHELL == 2
-	(void) execv("/bin/ksh", args);
+#ifndef _PATH_DEFSHELLDIR
+	(void) execvp("ksh", args);
+#else /* _PATH_DEFSHELLDIR */
+	(void) execv(_PATH_DEFSHELLDIR"/ksh", args);
+#endif /* _PATH_DEFSHELLDIR */
 #else
 #error "DEFSHELL must be 1 or 2."
 #endif
