@@ -666,19 +666,22 @@ hierarchy:
 includes:
 	cd ${.CURDIR}/include;			${MAKE} -B all install
 	cd ${.CURDIR}/gnu/include;		${MAKE} install
+	cd ${.CURDIR}/gnu/lib/csu;		${MAKE} beforeinstall
+	cd ${.CURDIR}/gnu/lib/libdialog;	${MAKE} beforeinstall
 	cd ${.CURDIR}/gnu/lib/libobjc;		${MAKE} beforeinstall
 	cd ${.CURDIR}/gnu/lib/libreadline/readline;	${MAKE} beforeinstall
 	cd ${.CURDIR}/gnu/lib/libregex;		${MAKE} beforeinstall
 	cd ${.CURDIR}/gnu/lib/libstdc++;	${MAKE} beforeinstall
-	cd ${.CURDIR}/gnu/lib/libdialog;	${MAKE} beforeinstall
 	cd ${.CURDIR}/gnu/usr.bin/cc/cc1plus;	${MAKE} beforeinstall
-.if exists(${.CURDIR}/secure) && !defined(NOCRYPT) && !defined(NOSECURE)
-.if exists(${.CURDIR}/secure/lib/libcrypto)
-	cd ${.CURDIR}/secure/lib/libcrypto;	${MAKE} beforeinstall
-.endif
-.if exists(${.CURDIR}/secure/lib/libssl)
-	cd ${.CURDIR}/secure/lib/libssl;	${MAKE} beforeinstall
-.endif
+.if exists(${.CURDIR}/kerberos5) && !defined(NOCRYPT) && \
+    defined(MAKE_KERBEROS5)
+	cd ${.CURDIR}/kerberos5/lib/libasn1;		${MAKE} beforeinstall
+	cd ${.CURDIR}/kerberos5/lib/libhdb;		${MAKE} beforeinstall
+	cd ${.CURDIR}/kerberos5/lib/libkadm5clnt;	${MAKE} beforeinstall
+	cd ${.CURDIR}/kerberos5/lib/libkadm5srv;	${MAKE} beforeinstall
+	cd ${.CURDIR}/kerberos5/lib/libkafs5;		${MAKE} beforeinstall
+	cd ${.CURDIR}/kerberos5/lib/libkrb5;		${MAKE} beforeinstall
+	cd ${.CURDIR}/kerberos5/lib/libsl;		${MAKE} beforeinstall
 .endif
 .if exists(${.CURDIR}/kerberosIV) && !defined(NOCRYPT) && \
     defined(MAKE_KERBEROS4)
@@ -693,26 +696,16 @@ includes:
 .else
 	cd ${.CURDIR}/lib/libtelnet;		${MAKE} beforeinstall
 .endif
-.if exists(${.CURDIR}/kerberos5) && !defined(NOCRYPT) && \
-    defined(MAKE_KERBEROS5)
-	cd ${.CURDIR}/kerberos5/lib/libasn1;		${MAKE} beforeinstall
-	cd ${.CURDIR}/kerberos5/lib/libhdb;		${MAKE} beforeinstall
-	cd ${.CURDIR}/kerberos5/lib/libkadm5clnt;	${MAKE} beforeinstall
-	cd ${.CURDIR}/kerberos5/lib/libkadm5srv;	${MAKE} beforeinstall
-	cd ${.CURDIR}/kerberos5/lib/libkafs5;		${MAKE} beforeinstall
-	cd ${.CURDIR}/kerberos5/lib/libkrb5;		${MAKE} beforeinstall
-	cd ${.CURDIR}/kerberos5/lib/libsl;		${MAKE} beforeinstall
-.endif
 .if exists(${.CURDIR}/lib/csu/${MACHINE_ARCH})
 	cd ${.CURDIR}/lib/csu/${MACHINE_ARCH};	${MAKE} beforeinstall
 .endif
-	cd ${.CURDIR}/gnu/lib/csu;		${MAKE} beforeinstall
 	cd ${.CURDIR}/lib/libalias;		${MAKE} beforeinstall
 	cd ${.CURDIR}/lib/libatm;		${MAKE} beforeinstall
-	cd ${.CURDIR}/lib/libdevstat;		${MAKE} beforeinstall
 	cd ${.CURDIR}/lib/libc;			${MAKE} beforeinstall
 	cd ${.CURDIR}/lib/libcalendar;		${MAKE} beforeinstall
 	cd ${.CURDIR}/lib/libcam;		${MAKE} beforeinstall
+	cd ${.CURDIR}/lib/libcom_err;		${MAKE} beforeinstall
+	cd ${.CURDIR}/lib/libdevstat;		${MAKE} beforeinstall
 	cd ${.CURDIR}/lib/libdisk;		${MAKE} beforeinstall
 	cd ${.CURDIR}/lib/libedit;		${MAKE} beforeinstall
 	cd ${.CURDIR}/lib/libfetch;		${MAKE} beforeinstall
@@ -720,25 +713,32 @@ includes:
 	cd ${.CURDIR}/lib/libkvm;		${MAKE} beforeinstall
 	cd ${.CURDIR}/lib/libmd;		${MAKE} beforeinstall
 	cd ${.CURDIR}/lib/libmp;		${MAKE} beforeinstall
-	cd ${.CURDIR}/lib/msun;			${MAKE} beforeinstall
 	cd ${.CURDIR}/lib/libncp;		${MAKE} beforeinstall
 	cd ${.CURDIR}/lib/libncurses;		${MAKE} beforeinstall
 	cd ${.CURDIR}/lib/libnetgraph;		${MAKE} beforeinstall
 	cd ${.CURDIR}/lib/libopie;		${MAKE} beforeinstall
+	cd ${.CURDIR}/lib/libpam/libpam;	${MAKE} beforeinstall
 	cd ${.CURDIR}/lib/libpcap;		${MAKE} beforeinstall
 	cd ${.CURDIR}/lib/libradius;		${MAKE} beforeinstall
 	cd ${.CURDIR}/lib/librpcsvc;		${MAKE} beforeinstall
-	cd ${.CURDIR}/lib/libpam/libpam;	${MAKE} beforeinstall
 	cd ${.CURDIR}/lib/libsbuf;		${MAKE} beforeinstall
 	cd ${.CURDIR}/lib/libstand;		${MAKE} beforeinstall
 	cd ${.CURDIR}/lib/libtacplus;		${MAKE} beforeinstall
-	cd ${.CURDIR}/lib/libcom_err;		${MAKE} beforeinstall
 	cd ${.CURDIR}/lib/libusbhid;		${MAKE} beforeinstall
 	cd ${.CURDIR}/lib/libutil;		${MAKE} beforeinstall
 	cd ${.CURDIR}/lib/libvgl;		${MAKE} beforeinstall
 	cd ${.CURDIR}/lib/libwrap;		${MAKE} beforeinstall
 	cd ${.CURDIR}/lib/libypclnt;		${MAKE} beforeinstall
 	cd ${.CURDIR}/lib/libz;			${MAKE} beforeinstall
+	cd ${.CURDIR}/lib/msun;			${MAKE} beforeinstall
+.if exists(${.CURDIR}/secure) && !defined(NOCRYPT) && !defined(NOSECURE)
+.if exists(${.CURDIR}/secure/lib/libcrypto)
+	cd ${.CURDIR}/secure/lib/libcrypto;	${MAKE} beforeinstall
+.endif
+.if exists(${.CURDIR}/secure/lib/libssl)
+	cd ${.CURDIR}/secure/lib/libssl;	${MAKE} beforeinstall
+.endif
+.endif
 	cd ${.CURDIR}/usr.bin/lex;		${MAKE} beforeinstall
 
 #
