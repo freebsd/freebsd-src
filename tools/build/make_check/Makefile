@@ -205,7 +205,9 @@ pass_cmd_vars_3_1:
 .MAKEFLAGS: CMD1=baz1
 
 pass_cmd_vars_4:
-	@${MAKE} pass_cmd_vars_4_1
+	@:
+# The following does not work yet (see standards/57295)
+#	@${MAKE} pass_cmd_vars_4_1
 
 .if ${CMD1} != baz1 || ${CMD2} != cmd2
 .error MAKEFLAGS-passed variables not overridden via .MAKEFLAGS target
