@@ -26,8 +26,8 @@ crypt_md5(const char *pw, const char *salt)
 {
 	MD5_CTX	ctx,ctx1;
 	unsigned long l;
-	int sl;
-	u_int pl, i;
+	int sl, pl;
+	u_int i;
 	u_char final[MD5_SIZE];
 	static const char *sp, *ep;
 	static char passwd[120], *p;
@@ -69,9 +69,9 @@ crypt_md5(const char *pw, const char *salt)
 	MD5Update(&ctx1, (const u_char *)sp, (u_int)sl);
 	MD5Update(&ctx1, (const u_char *)pw, strlen(pw));
 	MD5Final(final, &ctx1);
-	for(pl = strlen(pw); pl > 0; pl -= MD5_SIZE)
+	for(pl = (int)strlen(pw); pl > 0; pl -= MD5_SIZE)
 		MD5Update(&ctx, (const u_char *)final,
-		    pl > MD5_SIZE ? MD5_SIZE : pl);
+		    (u_int)(pl > MD5_SIZE ? MD5_SIZE : pl));
 
 	/* Don't leave anything around in vm they could use. */
 	memset(final, 0, sizeof(final));
