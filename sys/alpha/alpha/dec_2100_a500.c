@@ -50,7 +50,6 @@ static int comcnrate = CONSPEED;
 
 void dec_2100_a500_init __P((int));
 static void dec_2100_a500_cons_init __P((void));
-static void dec_2100_a500_intr_map  __P((void *));
 static void dec_2100_a500_intr_init  __P((void ));
 
 extern int siocnattach __P((int, int));
@@ -66,13 +65,13 @@ dec_2100_a500_init(cputype)
 	 * See if we're a `Sable' or a `Lynx'.
 	 */
 	if (cputype == ST_DEC_2100_A500) {
-		t2_csr_base = SABLE_BASE;
+		sable_lynx_base = SABLE_BASE;
 		platform.family = "DEC AlphaServer 2100";
 	} else if (cputype == ST_DEC_2100A_A500) {
-		t2_csr_base = LYNX_BASE;
+		sable_lynx_base = LYNX_BASE;
 		platform.family = "DEC AlphaServer 2100A";
 	} else {
-		t2_csr_base = SABLE_BASE;
+		sable_lynx_base = SABLE_BASE;
 		platform.family = "DEC AlphaServer 2100?????";
 	}
 
@@ -82,7 +81,6 @@ dec_2100_a500_init(cputype)
 
 	platform.iobus = "t2";
 	platform.cons_init = dec_2100_a500_cons_init;
-	platform.pci_intr_map = dec_2100_a500_intr_map;
 	platform.pci_intr_init = dec_2100_a500_intr_init;
 
 	t2_init();
@@ -136,15 +134,6 @@ dec_2100_a500_cons_init()
 		printf("ctb->ctb_term_type = 0x%lx\n", ctb->ctb_term_type);
 		panic("consinit: unknown console type");
 	}
-}
-
-void
-dec_2100_a500_intr_map(void *arg)
-{
-	pcicfgregs *cfg;
-
-	cfg = (pcicfgregs *)arg;
-	cfg->intline += 32;
 }
 
 void
