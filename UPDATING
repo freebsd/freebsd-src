@@ -23,6 +23,14 @@ NOTE TO PEOPLE WHO THINK THAT FreeBSD 6.x IS SLOW:
 	developers choose to disable these features on build machines
 	to maximize performance.
 
+20040902:
+	The ifi_epoch change has been reverted because the ABI breakage
+	was too extensive.  If you are running with a kernel/userland
+	containing the initial change (20040830), you should heed the
+	warning about ifconfig incompatibility when upgrading again.
+	With this change, 5.3 and 6.0 ifconfigs and kernels are once
+	again interoperable.
+
 20040830:
 	A new variable, ifi_epoch, has been added to struct if_data
 	which is part if struct ifnet.  This means all network drivers
