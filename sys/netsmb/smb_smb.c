@@ -71,6 +71,32 @@ static struct smb_dialect smb_dialects[] = {
 
 #define	SMB_DIALECT_MAX	(sizeof(smb_dialects) / sizeof(struct smb_dialect) - 2)
 
+static u_int32_t
+smb_vc_maxread(struct smb_vc *vcp)
+{
+	/*
+	 * Specs say up to 64k data bytes, but Windows traffic
+	 * uses 60k... no doubt for some good reason.
+	 */
+	if (vcp->vc_sopt.sv_caps & SMB_CAP_LARGE_READX)
+		return (60*1024);
+	else
+		return (vcp->vc_sopt.sv_maxtx);
+}
+
+static u_int32_t
+smb_vc_maxwrite(struct smb_vc *vcp)
+{
+	/*
+	 * Specs say up to 64k data bytes, but Windows traffic
+	 * uses 60k... probably for some good reason.
+	 */
+	if (vcp->vc_sopt.sv_caps & SMB_CAP_LARGE_WRITEX)
+		return (60*1024);
+	else
+		return (vcp->vc_sopt.sv_maxtx);
+}
+
 static int
 smb_smb_nomux(struct smb_vc *vcp, struct smb_cred *scred, const char *name)
 {
@@ -211,7 +237,13 @@ smb_smb_negotiate(struct smb_vc *vcp, struct smb_cred *scred)
 		}
 		if (sp->sv_maxtx <= 0 || sp->sv_maxtx > 0xffff)
 			sp->sv_maxtx = 1024;
+		else
+			sp->sv_maxtx = min(sp->sv_maxtx,
+					   63*1024 + SMB_HDRLEN + 16);
+		SMB_TRAN_GETPARAM(vcp, SMBTP_RCVSZ, &maxqsz);
+		vcp->vc_rxmax = min(smb_vc_maxread(vcp), maxqsz - 1024);
 		SMB_TRAN_GETPARAM(vcp, SMBTP_SNDSZ, &maxqsz);
+		vcp->vc_wxmax = min(smb_vc_maxwrite(vcp), maxqsz - 1024);
 		vcp->vc_txmax = min(sp->sv_maxtx, maxqsz);
 		SMBSDEBUG("TZ = %d\n", sp->sv_tz);
 		SMBSDEBUG("CAPS = %x\n", sp->sv_caps);
@@ -486,6 +518,144 @@ smb_smb_treedisconnect(struct smb_share *ssp, struct smb_cred *scred)
 }
 
 static __inline int
+smb_smb_readx(struct smb_share *ssp, u_int16_t fid, int *len, int *rresid,
+	      struct uio *uio, struct smb_cred *scred)
+{
+	struct smb_rq *rqp;
+	struct mbchain *mbp;
+	struct mdchain *mdp;
+	u_int8_t wc;
+	int error;
+	u_int16_t residhi, residlo, off, doff;
+	u_int32_t resid;
+
+	error = smb_rq_alloc(SSTOCP(ssp), SMB_COM_READ_ANDX, scred, &rqp);
+	if (error)
+		return error;
+	smb_rq_getrequest(rqp, &mbp);
+	smb_rq_wstart(rqp);
+	mb_put_uint8(mbp, 0xff);	/* no secondary command */
+	mb_put_uint8(mbp, 0);		/* MBZ */
+	mb_put_uint16le(mbp, 0);	/* offset to secondary */
+	mb_put_mem(mbp, (caddr_t)&fid, sizeof(fid), MB_MSYSTEM);
+	mb_put_uint32le(mbp, uio->uio_offset);
+	*len = min(SSTOVC(ssp)->vc_rxmax, *len);
+	mb_put_uint16le(mbp, *len);	/* MaxCount */
+	mb_put_uint16le(mbp, *len);	/* MinCount (only indicates blocking) */
+	mb_put_uint32le(mbp, (unsigned)*len >> 16);	/* MaxCountHigh */
+	mb_put_uint16le(mbp, *len);	/* Remaining ("obsolete") */
+	mb_put_uint32le(mbp, uio->uio_offset >> 32);	/* OffsetHigh */
+	smb_rq_wend(rqp);
+	smb_rq_bstart(rqp);
+	smb_rq_bend(rqp);
+	do {
+		error = smb_rq_simple(rqp);
+		if (error)
+			break;
+		smb_rq_getreply(rqp, &mdp);
+		off = SMB_HDRLEN;
+		md_get_uint8(mdp, &wc);
+		off++;
+		if (wc != 12) {
+			error = EBADRPC;
+			break;
+		}
+		md_get_uint8(mdp, NULL);
+		off++;
+		md_get_uint8(mdp, NULL);
+		off++;
+		md_get_uint16le(mdp, NULL);
+		off += 2;
+		md_get_uint16le(mdp, NULL);
+		off += 2;
+		md_get_uint16le(mdp, NULL);	/* data compaction mode */
+		off += 2;
+		md_get_uint16le(mdp, NULL);
+		off += 2;
+		md_get_uint16le(mdp, &residlo);
+		off += 2;
+		md_get_uint16le(mdp, &doff);	/* data offset */
+		off += 2;
+		md_get_uint16le(mdp, &residhi);
+		off += 2;
+		resid = (residhi << 16) | residlo;
+		md_get_mem(mdp, NULL, 4 * 2, MB_MSYSTEM);
+		off += 4*2;
+		md_get_uint16le(mdp, NULL);	/* ByteCount */
+		off += 2;
+		if (doff > off)	/* pad byte(s)? */
+			md_get_mem(mdp, NULL, doff - off, MB_MSYSTEM);
+		if (resid == 0) {
+			*rresid = resid;
+			break;
+		}
+		error = md_get_uio(mdp, uio, resid);
+		if (error)
+			break;
+		*rresid = resid;
+	} while(0);
+	smb_rq_done(rqp);
+	return (error);
+}
+
+static __inline int
+smb_smb_writex(struct smb_share *ssp, u_int16_t fid, int *len, int *rresid,
+	struct uio *uio, struct smb_cred *scred)
+{
+	struct smb_rq *rqp;
+	struct mbchain *mbp;
+	struct mdchain *mdp;
+	int error;
+	u_int8_t wc;
+	u_int16_t resid;
+
+	error = smb_rq_alloc(SSTOCP(ssp), SMB_COM_WRITE_ANDX, scred, &rqp);
+	if (error)
+		return (error);
+	smb_rq_getrequest(rqp, &mbp);
+	smb_rq_wstart(rqp);
+	mb_put_uint8(mbp, 0xff);	/* no secondary command */
+	mb_put_uint8(mbp, 0);		/* MBZ */
+	mb_put_uint16le(mbp, 0);	/* offset to secondary */
+	mb_put_mem(mbp, (caddr_t)&fid, sizeof(fid), MB_MSYSTEM);
+	mb_put_uint32le(mbp, uio->uio_offset);
+	mb_put_uint32le(mbp, 0);	/* MBZ (timeout) */
+	mb_put_uint16le(mbp, 0);	/* !write-thru */
+	mb_put_uint16le(mbp, 0);
+	*len = min(SSTOVC(ssp)->vc_wxmax, *len);
+	mb_put_uint16le(mbp, (unsigned)*len >> 16);
+	mb_put_uint16le(mbp, *len);
+	mb_put_uint16le(mbp, 64);	/* data offset from header start */
+	mb_put_uint32le(mbp, uio->uio_offset >> 32);	/* OffsetHigh */
+	smb_rq_wend(rqp);
+	smb_rq_bstart(rqp);
+	do {
+		mb_put_uint8(mbp, 0xee);	/* mimic xp pad byte! */
+		error = mb_put_uio(mbp, uio, *len);
+		if (error)
+			break;
+		smb_rq_bend(rqp);
+		error = smb_rq_simple(rqp);
+		if (error)
+			break;
+		smb_rq_getreply(rqp, &mdp);
+		md_get_uint8(mdp, &wc);
+		if (wc != 6) {
+			error = EBADRPC;
+			break;
+		}
+		md_get_uint8(mdp, NULL);
+		md_get_uint8(mdp, NULL);
+		md_get_uint16le(mdp, NULL);
+		md_get_uint16le(mdp, &resid);
+		*rresid = resid;
+	} while(0);
+
+	smb_rq_done(rqp);
+	return (error);
+}
+
+static __inline int
 smb_smb_read(struct smb_share *ssp, u_int16_t fid,
 	int *len, int *rresid, struct uio *uio, struct smb_cred *scred)
 {
@@ -495,6 +665,9 @@ smb_smb_read(struct smb_share *ssp, u_int16_t fid,
 	u_int16_t resid, bc;
 	u_int8_t wc;
 	int error, rlen, blksz;
+
+	if (SSTOVC(ssp)->vc_sopt.sv_caps & SMB_CAP_LARGE_READX)
+		return (smb_smb_readx(ssp, fid, len, rresid, uio, scred));
 
 	error = smb_rq_alloc(SSTOCP(ssp), SMB_COM_READ, scred, &rqp);
 	if (error)
@@ -571,6 +744,9 @@ smb_smb_write(struct smb_share *ssp, u_int16_t fid, int *len, int *rresid,
 	u_int8_t wc;
 	int error, blksz;
 
+	if (*len && SSTOVC(ssp)->vc_sopt.sv_caps & SMB_CAP_LARGE_WRITEX)
+		return (smb_smb_writex(ssp, fid, len, rresid, uio, scred));
+ 
 	blksz = SSTOVC(ssp)->vc_txmax - SMB_HDRLEN - 16;
 	if (blksz > 0xffff)
 		blksz = 0xffff;
