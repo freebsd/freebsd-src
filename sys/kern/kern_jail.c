@@ -55,7 +55,7 @@ SYSCTL_INT(_security_jail, OID_AUTO, sysvipc_allowed, CTLFLAG_RW,
     "Processes in jail can use System V IPC primitives");
 
 int	jail_getfsstatroot_only = 1;
-SYSCTL_INT(_security_jail, OID_AUTO, getfsstate_getfsstatroot_only, CTLFLAG_RW,
+SYSCTL_INT(_security_jail, OID_AUTO, getfsstatroot_only, CTLFLAG_RW,
     &jail_getfsstatroot_only, 0,
     "Processes see only their root file system in getfsstat()");
 
