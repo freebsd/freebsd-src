@@ -96,6 +96,7 @@ static char cpu_model[128];
 SYSCTL_STRING(_hw, HW_MODEL, model, CTLFLAG_RD, 
     cpu_model, 0, "Machine model");
 
+#if defined(I486_CPU) || defined(I586_CPU) || defined(I686_CPU)
 static char cpu_brand[48];
 
 #define	MAX_BRAND_INDEX	8
@@ -111,6 +112,7 @@ static const char *cpu_brandtable[MAX_BRAND_INDEX + 1] = {
 	NULL,
 	"Intel Pentium 4"
 };
+#endif
 
 static struct cpu_nameclass i386_cpus[] = {
 	{ "Intel 80286",	CPUCLASS_286 },		/* CPU_286   */
@@ -141,8 +143,8 @@ printcpuinfo(void)
 {
 #if defined(I486_CPU) || defined(I586_CPU) || defined(I686_CPU)
 	u_int regs[4], i;
-#endif
 	char *brand;
+#endif
 
 	cpu_class = i386_cpus[cpu].cpu_class;
 	printf("CPU: ");
