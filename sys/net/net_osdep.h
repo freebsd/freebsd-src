@@ -321,7 +321,6 @@
 
 #define if_name(ifp)	((ifp)->if_xname)
 
-#define HAVE_OLD_BPF
 #define HAVE_NEW_BPFATTACH
 
 #define ifa_list	ifa_link
