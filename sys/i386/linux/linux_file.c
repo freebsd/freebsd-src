@@ -25,7 +25,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *  $Id: linux_file.c,v 1.21 1998/07/29 16:43:00 bde Exp $
+ *  $Id: linux_file.c,v 1.22 1998/10/05 16:37:36 jfieber Exp $
  */
 
 #include "opt_compat.h"
@@ -812,7 +812,7 @@ linux_readlink(struct proc *p, struct linux_readlink_args *args)
 int
 linux_truncate(struct proc *p, struct linux_truncate_args *args)
 {
-	struct otruncate_args bsd;
+	struct truncate_args bsd;
 	caddr_t sg;
 
 	sg = stackgap_init();
@@ -825,6 +825,6 @@ linux_truncate(struct proc *p, struct linux_truncate_args *args)
 	bsd.path = args->path;
 	bsd.length = args->length;
 
-	return otruncate(p, &bsd);
+	return truncate(p, &bsd);
 }
 
