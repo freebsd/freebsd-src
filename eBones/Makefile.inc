@@ -1,5 +1,5 @@
 #	From: @(#)Makefile.inc	5.1 (Berkeley) 6/25/90
-#	$Id: Makefile.inc,v 1.2 1994/11/20 23:16:51 wollman Exp $
+#	$Id: Makefile.inc,v 1.3 1995/01/14 20:50:37 wollman Exp $
 
 BINDIR?=	/usr/sbin
 SHLIB_MAJOR?=	2
@@ -30,4 +30,11 @@ ACLOBJDIR=	${.CURDIR}/../acl/obj
 ACLOBJDIR=	${.CURDIR}/../acl
 .endif
 
+.if exists(${.CURDIR}/../libkadm/obj)
+KADMOBJDIR=	${.CURDIR}/../libkadm/obj
+.else
+KADMOBJDIR=	${.CURDIR}/../libkadm
+.endif
+
 COMPILE_ET=     compile_et
+
