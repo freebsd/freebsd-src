@@ -4,7 +4,7 @@
  * This is probably the last attempt in the `sysinstall' line, the next
  * generation being slated to essentially a complete rewrite.
  *
- * $Id: sysinstall.h,v 1.30 1995/05/24 09:00:58 jkh Exp $
+ * $Id: sysinstall.h,v 1.31 1995/05/24 22:37:43 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -365,6 +365,7 @@ extern char	**item_add_pair(char **list, char *item1, char *item2,
 extern void	items_free(char **list, int *curr, int *max);
 extern int	Mkdir(char *, void *data);
 extern int	Mount(char *, void *data);
+extern int	Mount_DOS(char *, void *data);
 
 /* msg.c */
 extern void	msgInfo(char *fmt, ...);
