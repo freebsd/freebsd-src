@@ -433,6 +433,22 @@ tcp_stats(u_long off __unused, char *name, int af __unused)
 	p(tcps_keepdrops, "\t\t%lu connection%s dropped by keepalive\n");
 	p(tcps_predack, "\t%lu correct ACK header prediction%s\n");
 	p(tcps_preddat, "\t%lu correct data packet header prediction%s\n");
+
+	p(tcps_sc_added, "\t%lu syncache entries added\n"); 
+	p(tcps_sc_retransmitted, "\t\t%lu retransmitted\n"); 
+	p(tcps_sc_dupsyn, "\t\t%lu dupsyn\n"); 
+	p(tcps_sc_dropped, "\t\t%lu dropped\n"); 
+	p(tcps_sc_completed, "\t\t%lu completed\n"); 
+	p(tcps_sc_bucketoverflow, "\t\t%lu bucket overflow\n"); 
+	p(tcps_sc_cacheoverflow, "\t\t%lu cache overflow\n"); 
+	p(tcps_sc_reset, "\t\t%lu reset\n"); 
+	p(tcps_sc_stale, "\t\t%lu stale\n"); 
+	p(tcps_sc_aborted, "\t\t%lu aborted\n"); 
+	p(tcps_sc_badack, "\t\t%lu badack\n"); 
+	p(tcps_sc_unreach, "\t\t%lu unreach\n"); 
+	p(tcps_sc_zonefail, "\t\t%lu zone failures\n"); 
+	p(tcps_sc_sendcookie, "\t%lu cookies sent\n"); 
+	p(tcps_sc_recvcookie, "\t%lu cookies received\n"); 
 #undef p
 #undef p1a
 #undef p2
