@@ -515,7 +515,7 @@ contigmalloc2(vm_page_t m, vm_pindex_t npages, int flags)
 	return ((void *)addr);
 }
 
-static int vm_old_contigmalloc = 1;
+static int vm_old_contigmalloc = 0;
 SYSCTL_INT(_vm, OID_AUTO, old_contigmalloc,
     CTLFLAG_RW, &vm_old_contigmalloc, 0, "Use the old contigmalloc algorithm");
 TUNABLE_INT("vm.old_contigmalloc", &vm_old_contigmalloc);
