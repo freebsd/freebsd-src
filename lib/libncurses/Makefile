@@ -226,7 +226,7 @@ DBGSRCS=lib_traceatr.c \
 # Used instead of the hideous read_termcap.c abomination.
 SRCS+=	termcap.c
 
-CLEANFILES+=	${GENSRC} ${GENHDR} keys.tries make_hash term.h.new \
+CLEANFILES+=	${GENSRC} ${GENHDR} keys.list make_hash term.h.new \
 	make_keys MKterm.h.awk comp_captab.c curses.head \
 	namehdr nameftr codeftr ${NAMESRC} ${CODESRC}
 
