@@ -51,7 +51,7 @@ fetchXGetFile(struct url *u, struct url_stat *us, const char *flags)
     if (f == NULL)
 	_fetch_syserr();
 
-    if (u->offset && fseek(f, u->offset, SEEK_SET) == -1) {
+    if (u->offset && fseeko(f, u->offset, SEEK_SET) == -1) {
 	fclose(f);
 	_fetch_syserr();
     }
@@ -78,7 +78,7 @@ fetchPutFile(struct url *u, const char *flags)
     if (f == NULL)
 	_fetch_syserr();
     
-    if (u->offset && fseek(f, u->offset, SEEK_SET) == -1) {
+    if (u->offset && fseeko(f, u->offset, SEEK_SET) == -1) {
 	fclose(f);
 	_fetch_syserr();
     }
@@ -104,13 +104,13 @@ _fetch_stat_file(const char *fn, struct url_stat *us)
 }
 
 int
-fetchStatFile(struct url *u, struct url_stat *us, const char *flags)
+fetchStatFile(struct url *u, struct url_stat *us, const char *flags __unused)
 {
     return _fetch_stat_file(u->doc, us);
 }
 
 struct url_ent *
-fetchListFile(struct url *u, const char *flags)
+fetchListFile(struct url *u, const char *flags __unused)
 {
     DIR *dir;
     struct dirent *de;
