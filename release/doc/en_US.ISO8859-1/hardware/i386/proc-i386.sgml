@@ -72,7 +72,7 @@
     page.  The use of ACPI causes instabilities on some machines and it
     may be necessary to disable the ACPI driver, which is normally
     loaded via a kernel module.  This may be accomplished by adding
-    the following line to <filename>/boot/loader.conf</filename>:</para>
+    the following line to <filename>/boot/device.hints</filename>:</para>
 
   <programlisting>hint.acpi.0.disabled="1"</programlisting>
 
