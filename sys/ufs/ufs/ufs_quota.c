@@ -814,7 +814,8 @@ dqget(vp, id, ump, type, dqp)
 		if (dq->dq_cnt || (dq->dq_flags & DQ_MOD))
 			panic("dqget: free dquot isn't");
 		TAILQ_REMOVE(&dqfreelist, dq, dq_freelist);
-		LIST_REMOVE(dq, dq_hash);
+		if (dq->dq_ump != NULL)
+			LIST_REMOVE(dq, dq_hash);
 	}
 	/*
 	 * Initialize the contents of the dquot structure.
