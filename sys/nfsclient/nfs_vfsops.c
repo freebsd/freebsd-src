@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)nfs_vfsops.c	8.3 (Berkeley) 1/4/94
- * $Id: nfs_vfsops.c,v 1.28 1996/04/30 23:23:09 bde Exp $
+ * $Id: nfs_vfsops.c,v 1.29 1996/05/02 14:20:40 phk Exp $
  */
 
 #include <sys/param.h>
@@ -128,6 +128,24 @@ VFS_SET(nfs_vfsops, nfs, MOUNT_NFS, VFCF_NETWORK);
  */
 struct nfs_diskless nfs_diskless = { 0 };
 int nfs_diskless_valid = 0;
+
+SYSCTL_INT(_vfs_nfs, OID_AUTO, diskless_valid, CTLFLAG_RD, 
+	&nfs_diskless_valid, 0, "");
+
+SYSCTL_STRING(_vfs_nfs, OID_AUTO, diskless_rootpath, CTLFLAG_RD,
+	nfs_diskless.root_hostnam, 0, "");
+
+SYSCTL_OPAQUE(_vfs_nfs, OID_AUTO, diskless_rootaddr, CTLFLAG_RD,
+	&nfs_diskless.root_saddr, sizeof nfs_diskless.root_saddr,
+	"%Ssockaddr_in", "");
+
+SYSCTL_STRING(_vfs_nfs, OID_AUTO, diskless_swappath, CTLFLAG_RD,
+	nfs_diskless.swap_hostnam, 0, "");
+
+SYSCTL_OPAQUE(_vfs_nfs, OID_AUTO, diskless_swapaddr, CTLFLAG_RD,
+	&nfs_diskless.swap_saddr, sizeof nfs_diskless.swap_saddr, 
+	"%Ssockaddr_in","");
+
 
 void nfsargs_ntoh __P((struct nfs_args *));
 static struct mount *nfs_mountdiskless __P((char *, char *, int,
