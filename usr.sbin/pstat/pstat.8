@@ -30,7 +30,7 @@
 .\" SUCH DAMAGE.
 .\"
 .\"     @(#)pstat.8	8.5 (Berkeley) 5/13/94
-.\"	$Id: pstat.8,v 1.12 1997/02/22 16:12:15 peter Exp $
+.\"	$Id: pstat.8,v 1.13 1997/03/11 13:00:38 peter Exp $
 .\"
 .Dd May 13, 1994
 .Dt PSTAT 8
@@ -270,20 +270,26 @@ A list of letters representing vnode flags:
 \- VROOT
 .It T
 \- VTEXT
+.It S
+\- VSYSTEM
+.It t
+\- VISTTY
 .It L
 \- VXLOCK
 .It W
 \- VXWANT
-.It E
-\- VEXLOCK
-.It S
-\- VSHLOCK
-.It T
-\- VLWAIT
-.It A
-\- VALIASED
 .It B
 \- VBWAIT
+.It A
+\- VALIASED
+.It V
+\- VVMIO
+.It a
+\- VAGE
+.It l
+\- VOLOCK
+.It w
+\- VOWANT
 .El
 .Pp
 .It USE
