@@ -82,4 +82,8 @@ struct xe_softc {
 #define CISTPL_LEN(tpl)		bus_space_read_1(bst, bsh, tpl + 2)
 #define CISTPL_DATA(tpl,pos)	bus_space_read_1(bst, bsh, tpl+ 4 + ((pos)<<1))
 
+int xe_attach(device_t dev);
+int xe_activate(device_t dev);
+void xe_deactivate(device_t dev);
+
 #endif /* DEV_XE_IF_XEVAR_H */
