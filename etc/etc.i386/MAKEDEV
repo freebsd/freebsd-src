@@ -77,7 +77,7 @@
 #	spigot	Video Spigot video aquisition card
 #	isdn*	ISDN devices
 #
-#	$Id: MAKEDEV,v 1.80 1995/03/13 00:10:40 ache Exp $
+#	$Id: MAKEDEV,v 1.81 1995/03/21 06:31:00 jkh Exp $
 #
 
 PATH=/sbin:/bin/:/usr/bin:/usr/sbin:
@@ -538,6 +538,13 @@ matcd*)
 		mknod r${name}${unit}c  c $chr `expr $unit '*' 8 + 2`
 		chgrp operator ${name}${unit}[a-h] r${name}${unit}[a-h]
 		chmod 640 ${name}${unit}[a-h] r${name}${unit}[a-h]
+
+		mknod ${name}${unit}la  b $blk `expr $unit '*' 8 + 128`
+		mknod ${name}${unit}lc  b $blk `expr $unit '*' 8 + 130`
+		mknod r${name}${unit}la c $chr `expr $unit '*' 8 + 128`
+		mknod r${name}${unit}lc c $chr `expr $unit '*' 8 + 130`
+		chgrp operator ${name}${unit}l[a-h] r${name}${unit}l[a-h]
+		chmod 640 ${name}${unit}l[a-h] r${name}${unit}l[a-h]
 		;;
 	*)
 		echo bad unit for disk in: $i
