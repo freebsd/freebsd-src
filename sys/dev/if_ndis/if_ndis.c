@@ -153,6 +153,8 @@ ndis_setmulti(sc)
 		return;
 	}
 
+	if (TAILQ_EMPTY(&ifp->if_multiaddrs))
+		return;
 
 	len = sizeof(mclistsz);
 	ndis_get_info(sc, OID_802_3_MAXIMUM_LIST_SIZE, &mclistsz, &len);
