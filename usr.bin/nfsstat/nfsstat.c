@@ -444,7 +444,7 @@ void
 usage()
 {
 	(void)fprintf(stderr,
-	    "usage: nfsstat [-M core] [-N system] [-w interval]\n");
+	    "usage: nfsstat [-csW] [-M core] [-N system] [-w interval]\n");
 	exit(1);
 }
 
