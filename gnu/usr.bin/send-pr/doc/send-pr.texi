@@ -10,7 +10,7 @@
 @ifinfo
 @format
 START-INFO-DIR-ENTRY
-* send-pr::                     Reporting problems--using send-pr
+* send-pr: (send-pr).		Reporting problems--using send-pr.
 END-INFO-DIR-ENTRY
 @end format
 @end ifinfo
