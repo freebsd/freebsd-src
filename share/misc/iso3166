@@ -202,6 +202,7 @@ SM	SMR	674	San Marino
 ST	STP	678	Sao Tome and Principe
 SA	SAU	682	Saudi Arabia
 SN	SEN	686	Senegal
+CS	SCG	891	Serbia and Montenegro
 SC	SYC	690	Seychelles
 SL	SLE	694	Sierra Leone
 SG	SGP	702	Singapore
@@ -252,7 +253,6 @@ VI	VIR	850	Virgin Islands (U.S.)
 WF	WLF	876	Wallis and Futuna Islands
 EH	ESH	732	Western Sahara
 YE	YEM	887	Yemen
-YU	YUG	891	Yugoslavia
 ZM	ZMB	894	Zambia
 ZW	ZWE	716	Zimbabwe
 #
@@ -479,3 +479,16 @@ ZW	ZWE	716	Zimbabwe
 # Newsletter V-5 2002-05-20
 #  EAST TIMOR changed alpha-2 code from TP to TL and alpha-3 from TMP to TLS.
 #  Numeric remains 626.
+<<<<<<< iso3166
+=======
+#
+# Newsletter V-6 2002-11-15
+#  EAST TIMOR (TL) changed short name to TIMOR-LESTE.  Codes unchanged.
+#
+# Newsletter V-7 2003-01-14
+#  COMOROS (KM) changed official name, not included in this file.
+#
+# Newsletter V-8 2003-07-23
+#  YUGOSLAVIA (YU) changed official name, short name, alpha-2, and alpha-3.
+#
+>>>>>>> 1.12
