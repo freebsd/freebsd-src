@@ -24,7 +24,7 @@
  * SUCH DAMAGE.
  */
 
-/* $Id: main.c,v 1.9 1996/07/18 00:08:02 jkh Exp $ */
+/* $Id: main.c,v 1.10 1996/07/18 00:08:58 jkh Exp $ */
 
 #include <stdlib.h>
 #include <stdio.h>
@@ -222,9 +222,9 @@ ftpget ()
 	}
 	if ((lp = getenv("FTP_LOGIN")) == NULL)
 	    lp = "anonymous";
-	ftp = ftpLogin(host, lp, ftp_pw, 0);
+	ftp = ftpLogin(host, lp, ftp_pw, 0, verbose);
 	if (!ftp) 
-	    err(1, "Couldn't open FTP connection to %s.", host);
+	    err(1, "Couldn't open FTP connection or login to %s.", host);
 
 	/* Time to set our defaults */
 	ftpBinary (ftp);
@@ -272,7 +272,7 @@ ftpget ()
 	if (strcmp (outputfile, "-")) {
 		file = fopen (outputfile, size0 ? "a" : "w");
 		if (!file) 
-		    err (1, outputfile);
+		    err (1, "Could not open output file %s\n", outputfile);
 	} else 
 	    file = stdout;
 
@@ -477,7 +477,7 @@ httpget ()
 	sprintf (str, "GET /%s HTTP/1.0\n\n", file_to_get);
 	i = strlen (str);
 	if (i != write (s, str, i))
-	    err (1, 0);
+	    err (1, "Could not send GET command to HTTP server\n");
 
 	FD_ZERO (&fdset);
 	FD_SET (s, &fdset);
@@ -490,7 +490,7 @@ httpget ()
 	if (strcmp (outputfile, "-")) {
 		file = fopen (outputfile, "w");
 		if (!file)
-		    err (1, 0);
+		    err (1, "Could not open output file %s\n", outputfile);
 	} else {
 		file = stdout;
 		verbose = 0;
@@ -510,7 +510,7 @@ httpget ()
 			    exit (0);
 			break;
 		      default:
-			err (1, 0);
+			err (1, "Communication error with HTTP server\n");
 		}
 	}
 }
@@ -621,7 +621,7 @@ http_open ()
 	} else {
 		h = gethostbyname (host);
 		if (!h) 
-		    err (1, 0);
+		    err (1, "Could not lookup host %s\n", host);
 		sin.sin_family = h->h_addrtype;
 		bcopy(h->h_addr, (char *)&sin.sin_addr, h->h_length);
 	}
@@ -633,7 +633,7 @@ http_open ()
 	sin2.sin_port = 0;
 	sin2.sin_addr.s_addr = htonl (INADDR_ANY);
 	if (bind (s, (struct sockaddr *)&sin2, sizeof (sin2)))
-	    err (1, 0);
+	    err (1, "Could not bind to socket\n");
 
 	if (connect(s, (struct sockaddr *)&sin, sizeof(sin)) < 0)
 	    err (1, "Connection failed");
