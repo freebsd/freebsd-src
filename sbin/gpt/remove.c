@@ -29,7 +29,6 @@ __FBSDID("$FreeBSD$");
 
 #include <sys/types.h>
 #include <sys/disklabel.h>
-#include <sys/gpt.h>
 
 #include <err.h>
 #include <stddef.h>
@@ -37,7 +36,6 @@ __FBSDID("$FreeBSD$");
 #include <stdlib.h>
 #include <string.h>
 #include <unistd.h>
-#include <uuid.h>
 
 #include "map.h"
 #include "gpt.h"
@@ -59,6 +57,7 @@ usage_remove(void)
 static void
 rem(int fd)
 {
+	uuid_t uuid;
 	map_t *gpt, *tpg;
 	map_t *tbl, *lbt;
 	map_t *m;
@@ -103,28 +102,31 @@ rem(int fd)
 		i = m->map_index - 1;
 
 		hdr = gpt->map_data;
-		ent = (void*)((char*)tbl->map_data + i * hdr->hdr_entsz);
+		ent = (void*)((char*)tbl->map_data + i *
+		    le32toh(hdr->hdr_entsz));
+		le_uuid_dec(&ent->ent_type, &uuid);
 		if (!uuid_is_nil(&type, NULL) &&
-		    !uuid_equal(&type, &ent->ent_type, NULL))
+		    !uuid_equal(&type, &uuid, NULL))
 			continue;
 		uuid_create_nil(&ent->ent_type, NULL);
 
-		hdr->hdr_crc_table = crc32(tbl->map_data,
-		    hdr->hdr_entries * hdr->hdr_entsz);
+		hdr->hdr_crc_table = htole32(crc32(tbl->map_data,
+		    le32toh(hdr->hdr_entries) * le32toh(hdr->hdr_entsz)));
 		hdr->hdr_crc_self = 0;
-		hdr->hdr_crc_self = crc32(hdr, hdr->hdr_size);
+		hdr->hdr_crc_self = htole32(crc32(hdr, le32toh(hdr->hdr_size)));
 
 		gpt_write(fd, gpt);
 		gpt_write(fd, tbl);
 
 		hdr = tpg->map_data;
-		ent = (void*)((char*)lbt->map_data + i * hdr->hdr_entsz);
+		ent = (void*)((char*)lbt->map_data + i *
+		    le32toh(hdr->hdr_entsz));
 		uuid_create_nil(&ent->ent_type, NULL);
 
-		hdr->hdr_crc_table = crc32(lbt->map_data,
-		    hdr->hdr_entries * hdr->hdr_entsz);
+		hdr->hdr_crc_table = htole32(crc32(lbt->map_data,
+		    le32toh(hdr->hdr_entries) * le32toh(hdr->hdr_entsz)));
 		hdr->hdr_crc_self = 0;
-		hdr->hdr_crc_self = crc32(hdr, hdr->hdr_size);
+		hdr->hdr_crc_self = htole32(crc32(hdr, le32toh(hdr->hdr_size)));
 
 		gpt_write(fd, lbt);
 		gpt_write(fd, tpg);
