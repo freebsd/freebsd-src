@@ -1,6 +1,6 @@
 # -------+---------+---------+---------+---------+---------+---------+---------+
 
-   The FreeBSD/sparc64 port is going to change time_t from 32-bits to 64-bits.
+   The FreeBSD/sparc64 port has now changed time_t from 32-bits to 64-bits.
    This file explains the exact steps that users should follow to update their
    sparc64 systems for this change.  People running FreeBSD on other types of
    hardware, such as CPU's from Intel or AMD, can ignore this file.  For now,
@@ -43,7 +43,16 @@ upgrading the base system.
 
 Do not start this update unless you have the extra time.
 
-* READ THIS ENTIRE DOCUMENT at least once before starting the upgrade. *
+As of March 10th, the official value for time_t on sparc64 has changed to
+be 64-bits.  If you really must build system with 32-bit time_t's, then it
+would be best to stick with a snapshot of current from before March 10th.
+With src snapshots after that point, there will soon be ports which assume
+you have a 64-bit time_t based on the value of __FreeBSD_version.
+
+If you are ready to upgrade, then *READ THIS ENTIRE DOCUMENT* at least
+once before starting the upgrade.
+
+# -------+---------+---------+---------+---------+---------+---------+---------+
 
 This is a major change.  This change will *not* be backwards-compatible.
 Any programs which call system-routines for handling time-values will
@@ -60,8 +69,12 @@ trouble.  We can not guarantee that these steps will avoid all possible
 problems, but if you ignore these steps you are very likely to run into
 some very painful and time-consuming headaches when upgrading.
 
-Step Pre-1:  Update to a recent snapshot of -current, keeping it as
-             a system with 32-bit time_t.
+Step Pre-1:  Update to a recent snapshot of -current, and first build
+             that as a system with 32-bit time_t.  To do this, edit
+	     the file  /usr/src/sys/sparc64/include/_types.h 
+             find the line:
+               typedef	__int64_t	__time_t;	/* time()... */
+             and change '__int64_t' to '__int32_t'
 Step Pre-2:  Install that system, using whatever steps you normally
              use, and make sure that installation seems to work okay.
 Step Pre-3:  While still running that 32-bit time_t system, it would
@@ -78,17 +91,17 @@ Step Pre-4:  For sparc64 machines which need DHCP:
              The 'dhclient' in the base system is known to be unreliable
 	     on a system which is upgraded to 64-bit time_t's.  It may
 	     work for you, but it probably will not.
-	     As of March 3rd 2004, we have no fix for that.
+	     As of March 10th 2004, we have no fix for that.
 	     However, the net/isc-dhcp3-client port does seem to work.
 	     IF your machine needs DHCP, then you should probably install
 	     that port and make sure you can get it working *before* you
 	     make the change to use 64-bit time_t's.
 
-<instructions for early-adopters>
+After you have built and installed that src-snapshot with 32-bit time_t's,
      edit the file  /usr/src/sys/sparc64/include/_types.h 
      find the line:
         typedef	__int32_t	__time_t;	/* time()... */
-     and change '__int32_t' to '__int64_t'
+     and change '__int32_t' back to '__int64_t'
 
      For best results, do NOT make any other changes.  Do NOT cvsup the
      source tree trying to pick up any other changes.  At this point you
@@ -104,8 +117,9 @@ Step Pre-4:  For sparc64 machines which need DHCP:
      I am not suggesting that you have to do two whole buildworld/
      installworld cycles in a single day.  You could easily wait a few
      days, or even a week between them.  What I am suggesting is that
-      you should not 'cvsup' your sources inbetween the two buildworlds.
-</instructions for early-adopters>
+     you should not 'cvsup' your sources inbetween the two buildworlds.
+
+And then follow these steps to build and install the 64-bit time_t system:
 
     cd /usr/src                   #-  1.
     make cleanworld               #-  2.  or 'rm -Rf /usr/obj/usr/src/*'
@@ -299,9 +313,9 @@ to upgrade your ports, then I suggest the first thing you should do is:
         and log back in after recompiling that shell.
     portupgrade -Rr -f ezm3 cvsup-without-gui    #- Ports 3 (maybe).
         If you want to rebuild a 64-bit time_t version of cvsup.
-	Note: ezm3 (modula-3) needs a patch to work correctly after
-	the change to 64-BTT.  That fix has not been commited to the
-	port yet [as of Mar 3rd], but it should be commited soon.
+	Note: ezm3 (modula-3) needs a patch to work correctly after the
+	change to 64-BTT.  That fix has not been commited to the port
+	yet [as of Mar 10th], but hopefully it will be commited soon.
 
 There are pre-built packages available for ezm3 and cvsup-without-gui on
 the new 64-bTT systems.  This ezm3 package *does* include the necessarily
@@ -325,10 +339,11 @@ You can install the new packages with:
     "Now look over all the other ports you have installed, and
     re-compile everything that probably needs to be recompiled".
 
-If you are going to do it piecemeal, the next ports to force-recompile
-would probably be languages like perl and python, if you have them
-installed.  Or you might want to play it safe at this point, and simply
-recompile *every* port that you have installed.
+If you are going to do it piecemeal, the next ports to force-rebuild would
+probably be languages like perl and python, if you have them installed.
+After that, force-rebuild the ports like autoconf and automake, if you
+have them installed.  Or you might want to play it safe at this point,
+and simply recompile *every* port that you have installed.
 
 A different tactic to use for ports is to remove *all* ports before you
 do the installkernel/installworld step (while you're still on a 32-bTT
@@ -340,21 +355,6 @@ of a 'pkg_info' command before you start removing ports.
 
 If you run into problems when making this change, please report them to
 the mailing list freebsd-sparc64@FreeBSD.org .
-
-# -------+---------+---------+---------+---------+---------+---------+---------+
-
-<Final notes for early-adopters>
-    For people who are helping out by testing these instructions, note
-    that once you make this change, you must remember to KEEP changing
-    __time_t in _types.h after every time you 'cvs update' or cvsup
-    your /usr/src tree.  If you forget, and end up building a world
-    with 32-bit time_t's, you will probably have a very very bad day.
-    Once this change is committed for real (which is scheduled for
-    March 10th), you will not need to care about this issue as much.
-
-    Also, a change has been committed to /usr/src/Makefile.inc1 which
-    does try to protect you from making this mistake.
-</final notes for early-adopters>
 
 # -------+---------+---------+---------+---------+---------+---------+---------+
 #  Notice that the following command can be useful in some settings:
