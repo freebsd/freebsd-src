@@ -48,6 +48,14 @@
 .Fn relpbuf "struct buf *bp" "int *pfreecnt"
 .Sh DESCRIPTION
 These functions are used to allocate and release physical buffers.
+.Pp
+The physical buffers are allocated at system startup and are
+maintained in a separate pool from the main system buffers.
+They are intended for use by subsystems that cannot or should not be
+reliant on the main pool of buffers (for example the swap pager).
+The system allocates between 16 and 256 physical buffers depending
+on the amount of memory in the system.
+.Pp
 Each subsystem that allocates buffers via these calls is expected
 to manage its own percentage free counter.
 If the value is initialized to \-1 the number of buffers available
@@ -120,5 +128,5 @@ In the case of
 .Dv NULL
 can also be returned indicating that there are no buffers available.
 .Sh AUTHORS
-This man page was written by
+This manual page was written by
 .An Chad David Aq davidc@acns.ab.ca .
