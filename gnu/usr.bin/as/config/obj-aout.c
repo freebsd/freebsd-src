@@ -99,7 +99,7 @@ const pseudo_typeS obj_pseudo_table[] = {
 	{ "scl",	s_ignore, 0 },
 	{ "size",	s_size,   0 },
 	{ "tag",	s_ignore, 0 },
-	{ "type",	s_ignore, 0 },
+	{ "type",	s_type, 0 },
 	{ "val",	s_ignore, 0 },
 	{ "version",	s_ignore, 0 },
 	
@@ -228,9 +228,43 @@ symbolS *symbol_rootP;
 		temp = S_GET_NAME(symbolP);
 		S_SET_OFFSET(symbolP, symbolP->sy_name_offset);
 		
+		/*
+		 * Put aux info in lower four bits of `n_other' field
+		 * Do this only now, because things like S_IS_DEFINED()
+		 * depend on S_GET_OTHER() for some unspecified reason.
+		 */
+		if (symbolP->sy_aux)
+			S_SET_OTHER(symbolP, (symbolP->sy_aux & 0xf));
+
 		/* Any symbol still undefined and is not a dbg symbol is made N_EXT. */
-		if (!S_IS_DEBUG(symbolP) && !S_IS_DEFINED(symbolP)) S_SET_EXTERNAL(symbolP);
+		if (!S_IS_DEBUG(symbolP) && !S_IS_DEFINED(symbolP))
+			S_SET_EXTERNAL(symbolP);
 		
+		if (S_GET_TYPE(symbolP) == N_SIZE) {
+			expressionS	*exp = (expressionS*)symbolP->sy_sizexp;
+			long		size = 0;
+
+			if (exp == NULL) {
+				as_bad("Internal error: no size expression");
+				return;
+			}
+
+			switch (exp->X_seg) {
+			case SEG_ABSOLUTE:
+				size = exp->X_add_number;
+				break;
+			case SEG_DIFFERENCE:
+				size = S_GET_VALUE(exp->X_add_symbol) -
+					S_GET_VALUE(exp->X_subtract_symbol) +
+					exp->X_add_number;
+				break;
+			default:
+				as_bad("Unsupported .size expression");
+				break;
+			}
+			S_SET_VALUE(symbolP, size);
+		}
+
 		obj_symbol_to_chars(where, symbolP);
 		S_SET_NAME(symbolP,temp);
 	}
@@ -458,6 +492,8 @@ object_headers *headers;
 		   
 		   * symbols with no name (stabd's?)
 		   * symbols with debug info in their N_TYPE
+		   * symbols marked "forceout" (to force out local `L'
+						symbols in PIC code)
 		   
 		   Symbols that don't are:
 		   * symbols that are registers
@@ -506,31 +542,39 @@ object_headers *headers;
 			/*
 			 * If symbol has a known size, output an extra symbol
 			 * of type N_SIZE and with the same name.
+			 * We cannot evaluate the size expression just yet, as
+			 * some its terms may not have had their final values
+			 * set. We defer this until `obj_emit_symbols()'
 			 */
-			if (symbolP->sy_size && flagseen['k']) {
-				symbolS	*addme;
-#ifdef USE_NSIZE_PREFIX /*XXX*/
+			if (flagseen['k'] &&
+				S_GET_TYPE(symbolP) != N_SIZE &&
+#ifndef GRACE_PERIOD_EXPIRED
+				/*Can be enabled when no more old ld's around*/
+				(symbolP->sy_aux == AUX_OBJECT) &&
+#endif
+					symbolP->sy_sizexp) {
+
+				symbolS		*addme;
+
+				/* Put a new symbol on the chain */
+#ifdef NSIZE_PREFIX /*XXX*/
 				char	buf[BUFSIZ];
 
-				/*
-				 * Changed my mind, make name: "=symbol"
-				 */
-				buf[0] = '=';
+				buf[0] = NSIZE_PREFIX;
 				strncpy(buf+1, S_GET_NAME(symbolP), BUFSIZ-2);
 				addme = symbol_make(buf);
 #else
 				addme = symbol_make(S_GET_NAME(symbolP));
 #endif
-#if 0
-				S_SET_SEGMENT(addme, SEG_SIZE);
-#endif
+				/* Set type and transfer size expression */
 				addme->sy_symbol.n_type = N_SIZE;
-				S_SET_VALUE(addme, symbolP->sy_size);
-				/* Set external if symbolP is ? */
-#if 1
+				addme->sy_sizexp = symbolP->sy_sizexp;
+				symbolP->sy_sizexp = NULL;
+
+				/* Set external if symbolP is */
 				if (S_IS_EXTERN(symbolP))
 					S_SET_EXTERNAL(addme);
-#endif
+
 			}
 			symbolPP = &(symbol_next(symbolP));
 		} else {
