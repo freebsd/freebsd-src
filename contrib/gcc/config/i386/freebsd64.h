@@ -39,6 +39,6 @@ Boston, MA 02111-1307, USA.  */
     %{!shared: \
       %{!static: \
         %{rdynamic:-export-dynamic} \
-	%{!dynamic-linker:-dynamic-linker /usr/libexec/ld-elf.so.1}} \
+	%{!dynamic-linker:-dynamic-linker /libexec/ld-elf.so.1}} \
     %{static:-Bstatic}} \
   %{symbolic:-Bsymbolic}"
