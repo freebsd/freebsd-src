@@ -1,6 +1,6 @@
 # from BSDI Makefile,v 2.6 1996/04/08 20:06:40 bostic Exp
 #
-# $Id: Makefile,v 1.14 1999/01/22 12:45:27 jdp Exp $
+# $Id: Makefile,v 1.15 1999/02/15 12:36:21 bde Exp $
 
 PROG=	doscmd
 SRCS=	AsyncIO.c ParseBuffer.c bios.c callback.c cpu.c dos.c cmos.c config.c \
@@ -20,10 +20,16 @@ EXEGRP=	bin
 BINMODE=2555
 EXEMODE=444
 
-.if exists(${X11BASE}/include) && exists(${X11BASE}/lib/libX11.a)
+.if ${OBJFORMAT} == "aout"
+XLIBDIR:= ${X11BASE}/lib/aout
+.else
+XLIBDIR:= ${X11BASE}/lib
+.endif
+
+.if exists(${X11BASE}/include) && exists(${XLIBDIR}/libX11.a)
 CFLAGS+= -I. -I${X11BASE}/include -DDISASSEMBLER
-LDADD= -L${X11BASE}/lib -lX11
-DPADD= ${X11BASE}/lib/libX11.a
+LDADD= -L${XLIBDIR} -lX11
+DPADD= ${XLIBDIR}/libX11.a
 .else
 CFLAGS+= -I. -DDISASSEMBLER -DNO_X
 .endif
