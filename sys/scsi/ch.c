@@ -2,7 +2,7 @@
  * Written by grefen@convex.com (probably moved by now)
  * Based on scsi drivers by Julian Elischer (julian@tfs.com)
  *
- *      $Id: ch.c,v 1.29 1995/12/14 19:51:12 bde Exp $
+ *      $Id: ch.c,v 1.30 1996/03/10 07:13:05 gibbs Exp $
  */
 
 #include	<sys/types.h>
@@ -427,7 +427,7 @@ ch_mode_sense(unit, flags)
 					 * missing block descriptor
 					 */
 	u_char *b;
-	int32   i, l;
+	int32_t   i, l;
 	errval  errcode;
 	struct scsi_data *cd;
 	struct scsi_link *sc_link;
