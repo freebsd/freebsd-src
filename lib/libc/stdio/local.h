@@ -57,6 +57,7 @@ extern wint_t	__fgetwc(FILE *);
 extern wint_t	__fputwc(wchar_t, FILE *);
 extern int	__sflush(FILE *);
 extern FILE	*__sfp(void);
+extern int	__slbexpand(FILE *, size_t);
 extern int	__srefill(FILE *);
 extern int	__sread(void *, char *, int);
 extern int	__swrite(void *, char const *, int);
