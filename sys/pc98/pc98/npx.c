@@ -32,7 +32,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)npx.c	7.2 (Berkeley) 5/12/91
- *	$Id: npx.c,v 1.35 1998/04/16 16:34:46 kato Exp $
+ *	$Id: npx.c,v 1.36 1998/04/20 13:50:21 kato Exp $
  */
 
 #include "npx.h"
@@ -287,7 +287,7 @@ npxprobe1(dvp)
 	 * it after a warm boot.
 	 */
 #ifdef PC98
-	outb(IO_NPX,0);
+	outb(0xf8,0);
 #else
 	outb(0xf1, 0);		/* full reset on some systems, NOP on others */
 	outb(0xf0, 0);		/* clear BUSY# latch */
@@ -558,7 +558,7 @@ npxintr(unit)
 	}
 
 #ifdef PC98
-	outb(IO_NPX, 0);	
+	outb(0xf8, 0);	
 #else
 	outb(0xf0, 0);
 #endif
