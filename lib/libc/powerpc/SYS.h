@@ -25,7 +25,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$NetBSD: SYS.h,v 1.8 2002/01/14 00:55:56 thorpej Exp $	*/
+ *	$NetBSD: SYS.h,v 1.8 2002/01/14 00:55:56 thorpej Exp $
  * $FreeBSD$
  */
 
