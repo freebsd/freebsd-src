@@ -63,6 +63,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/proc.h>
 #include <sys/pioctl.h>
 #include <sys/resourcevar.h>
+#include <sys/sleepqueue.h>
 #include <sys/smp.h>
 #include <sys/stat.h>
 #include <sys/sx.h>
@@ -1869,12 +1870,8 @@ do_tdsignal(struct thread *td, int sig, sigtarget_t target)
 		 * It may run a bit until it hits a thread_suspend_check().
 		 */
 		mtx_lock_spin(&sched_lock);
-		if (TD_ON_SLEEPQ(td) && (td->td_flags & TDF_SINTR)) {
-			if (td->td_flags & TDF_CVWAITQ)
-				cv_abort(td);
-			else
-				abortsleep(td);
-		}
+		if (TD_ON_SLEEPQ(td) && (td->td_flags & TDF_SINTR))
+			sleepq_abort(td);
 		mtx_unlock_spin(&sched_lock);
 		goto out;
 		/*
@@ -1969,9 +1966,8 @@ tdsigwakeup(struct thread *td, int sig, sig_t action)
 		 * be noticed when the process returns through
 		 * trap() or syscall().
 		 */
-		if ((td->td_flags & TDF_SINTR) == 0) {
+		if ((td->td_flags & TDF_SINTR) == 0)
 			return;
-		}
 		/*
 		 * Process is sleeping and traced.  Make it runnable
 		 * so it can discover the signal in issignal() and stop
@@ -1999,14 +1995,10 @@ tdsigwakeup(struct thread *td, int sig, sig_t action)
 			/*
 			 * Raise priority to at least PUSER.
 			 */
-			if (td->td_priority > PUSER) {
+			if (td->td_priority > PUSER)
 				td->td_priority = PUSER;
-			}
 		}
-		if (td->td_flags & TDF_CVWAITQ) 
-			cv_abort(td);
-		else
-			abortsleep(td);
+		sleepq_abort(td);
 	}
 #ifdef SMP
 	  else {
@@ -2015,9 +2007,8 @@ tdsigwakeup(struct thread *td, int sig, sig_t action)
 		 * other than kicking ourselves if we are running.
 		 * It will either never be noticed, or noticed very soon.
 		 */
-		if (TD_IS_RUNNING(td) && td != curthread) {
+		if (TD_IS_RUNNING(td) && td != curthread)
 			forward_signal(td);
-		}
 	  }
 #endif
 }
