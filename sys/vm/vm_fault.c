@@ -66,7 +66,7 @@
  * any improvements or extensions that they make and grant Carnegie the
  * rights to redistribute these changes.
  *
- * $Id: vm_fault.c,v 1.32 1995/09/24 19:47:58 dyson Exp $
+ * $Id: vm_fault.c,v 1.33 1995/10/07 19:02:53 davidg Exp $
  */
 
 /*
@@ -532,7 +532,6 @@ readrest:
 			object->paging_in_progress++;
 		} else {
 			prot &= ~VM_PROT_WRITE;
-			m->flags |= PG_COPYONWRITE;
 		}
 	}
 
@@ -590,18 +589,11 @@ readrest:
 		 * write-enabled after all.
 		 */
 		prot &= retry_prot;
-		if (m->flags & PG_COPYONWRITE)
-			prot &= ~VM_PROT_WRITE;
 	}
 	/*
 	 * (the various bits we're fiddling with here are locked by the
 	 * object's lock)
 	 */
-
-	/* XXX This distorts the meaning of the copy_on_write bit */
-
-	if (prot & VM_PROT_WRITE)
-		m->flags &= ~PG_COPYONWRITE;
 
 	/*
 	 * It's critically important that a wired-down page be faulted only
