@@ -153,19 +153,6 @@ distribution:
 .endif
 
 distrib-dirs:
-	-set - `grep "^[a-zA-Z]" ${.CURDIR}/locale.deprecated`; \
-	while [ $$# -gt 0 ] ; \
-	do \
-		for dir in /usr/share/locale \
-			   /usr/share/nls \
-			   /usr/local/share/nls; \
-		do \
-			test -d ${DESTDIR}/$${dir} && cd ${DESTDIR}/$${dir}; \
-			test -L "$$2" && rm -rf "$$2"; \
-			test \! -L "$$1" && test -d "$$1" && mv "$$1" "$$2"; \
-		done; \
-		shift; shift; \
-	done
 	mtree -deU ${MTREE_FOLLOWS_SYMLINKS} -f ${.CURDIR}/mtree/BSD.root.dist -p ${DESTDIR}/
 	mtree -deU ${MTREE_FOLLOWS_SYMLINKS} -f ${.CURDIR}/mtree/BSD.var.dist -p ${DESTDIR}/var
 	mtree -deU ${MTREE_FOLLOWS_SYMLINKS} -f ${.CURDIR}/mtree/BSD.usr.dist -p ${DESTDIR}/usr
@@ -186,14 +173,6 @@ distrib-dirs:
 	done
 	cd ${DESTDIR}/usr/share/openssl/man; \
 	set - `grep "^[a-zA-Z]" ${.CURDIR}/man.alias`; \
-	while [ $$# -gt 0 ] ; \
-	do \
-		rm -rf "$$1"; \
-		ln -s "$$2" "$$1"; \
-		shift; shift; \
-	done
-	cd ${DESTDIR}/usr/share/locale; \
-	set - `grep "^[a-zA-Z]" ${.CURDIR}/locale.alias`; \
 	while [ $$# -gt 0 ] ; \
 	do \
 		rm -rf "$$1"; \
