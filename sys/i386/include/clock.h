@@ -3,7 +3,7 @@
  * Garrett Wollman, September 1994.
  * This file is in the public domain.
  *
- *	$Id: clock.h,v 1.10 1996/03/31 04:05:17 bde Exp $
+ *	$Id: clock.h,v 1.11 1996/04/05 03:36:20 ache Exp $
  */
 
 #ifndef _MACHINE_CLOCK_H_
@@ -54,6 +54,7 @@
  */
 extern int	adjkerntz;
 extern int	disable_rtc_set;
+extern int	statclock_disable;
 extern int	wall_cmos_clock;
 
 #if defined(I586_CPU) || defined(I686_CPU)
