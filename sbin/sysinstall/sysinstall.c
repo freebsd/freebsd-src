@@ -14,11 +14,11 @@
 
 #include <dialog.h>
 #include <fcntl.h>
-#include <ncurses.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 #include <unistd.h>
+#include <stdarg.h>
 
 #include <sys/types.h>
 #include <sys/errno.h>
@@ -30,6 +30,7 @@
 #include <sys/stat.h>
 #include <sys/wait.h>
 #include <ufs/ffs/fs.h>
+#include <machine/console.h>
 
 #include "bootarea.h"
 #include "sysinstall.h"
@@ -53,6 +54,7 @@ int no_disks = 0;
 int inst_disk = 0;
 int inst_part = 0;
 int custom_install;
+int dialog_active = 0;
 
 void leave_sysinstall();
 void abort_task();
@@ -173,18 +175,26 @@ void
 cleanup()
 {
 	free_memory();
-	endwin();
+	if (dialog_active)
+		end_dialog();
 }
 
 void
 fatal(char *errmsg)
 {
+	if (dialog_active)
 	dialog_msgbox("Fatal Error -- Aborting installation", errmsg, 10, 75, 20);
+	else
+		fprintf(stderr, "Fatal Error -- Aborting installation:\n%s\n", errmsg);
 	if (getpid() == 1) {
 		if (reboot(RB_AUTOBOOT) == -1)
 			while (1)
+				if (dialog_active)
 				dialog_msgbox("Fatal Error -- Aborting installation",
 								  "Reboot failed after a fatal error -- hit reset", 10, 75, 20);
+				else
+					fprintf(stderr, "Fatal Error -- Aborting installation:\n%s\n",
+								  "Reboot failed after a fatal error -- hit reset");
 	} else {
 		cleanup();
 		exit(1);
@@ -321,30 +331,43 @@ exec(char *cmd, char *args, ...)
 	return(0);
 }
 
-void
+int
 set_termcap()
 {
 	char *term;
 
 	term = getenv("TERM");
 	if (term == NULL) {
-		putenv("TERM=cons25");
-		putenv("TERMCAP=\
-cons25|ansis|ansi80x25:\
-:ac=l\\332m\\300k\\277j\\331u\\264t\\303v\\301w\\302q\\304x\\263n\\305`^Da\\260f\\370g\\361~\\371.^Y-^Xh\\261I^U0\\333y\\363z\\362:\
-:al=\\E[L:am:bs:cd=\\E[J:ce=\\E[K:cl=\\E[H\\E[J:cm=\\E[%i%d;%dH:co#80:\
-:dc=\\E[P:dl=\\E[M:do=\\E[B:bt=\\E[Z:ho=\\E[H:ic=\\E[@:li#25:\
-:ms:nd=\\E[C:pt:rs=\\E[x\\E[m\\Ec:so=\\E[7m:se=\\E[m:up=\\E[A:\
-:pa#64:Co#8:Sf=\\E[3%dm:Sb=\\E[4%dm:op=\\E[37;40m:\
-:k1=\\E[M:k2=\\E[N:k3=\\E[O:k4=\\E[P:k5=\\E[Q:k6=\\E[R:k7=\\E[S:k8=\\E[T:\
-:k9=\\E[U:k;=\\E[V:F1=\\E[W:F2=\\E[X:\
-:kb=^H:kh=\\E[H:ku=\\E[A:kd=\\E[B:kl=\\E[D:kr=\\E[C:\
-:le=^H:eo:sf=\\E[S:sr=\\E[T:\
-:kN=\\E[G:kP=\\E[I:@7=\\E[F:kI=\\E[L:kD=\\177:kB=\\E[Z:\
-:IC=\\E[%d@:DC=\\E[%dP:SF=\\E[%dS:SR=\\E[%dT:AL=\\E[%dL:DL=\\E[%dM:\
-:DO=\\E[%dB:LE=\\E[%dD:RI=\\E[%dC:UP=\\E[%dA:bw:\
-:mb=\\E[5m:md=\\E[1m:mh=\\E[30;1m:mr=\\E[7m:me=\\E[m:bl=^G:ut:it#8:");
+		int color_display;
+
+		if (setenv("TERMCAP", "/etc/termcap.small", 1) < 0)
+			return -1;
+		if (ioctl(STDERR_FILENO, GIO_COLOR, &color_display) < 0) {
+			char buf[64];
+			int len;
+
+			/* serial console */
+			fprintf(stderr, "Enter your terminal type (must be present in /etc/termcap.small): ");
+			if (fgets(buf, sizeof(buf), stdin) == NULL)
+				return -1;
+			len = strlen(buf);
+			if (len > 0 && buf[len-1] == '\n')
+				buf[len-1] = '\0';
+			if (setenv("TERM", buf, 1) < 0)
+				return -1;
+		} else if (color_display) {
+
+			/* color console */
+			if (setenv("TERM", "cons25", 1) < 0)
+				return -1;
+		} else {
+
+			/* mono console */
+			if (setenv("TERM", "cons25-m", 1) < 0)
+				return -1;
+		}
 	}
+	return 0;
 }
 
 int
@@ -653,10 +676,13 @@ main(int argc, char **argv)
 		setlogin("root");
 	}
 
-	set_termcap();
+	/* /etc/termcap.small used, if TERM undefined */
+	if (set_termcap() == -1)
+		fatal("Can't find terminal entry\n");
 	if (alloc_memory() == -1)
 		fatal("Couldn't allocate memory\n");
 	init_dialog();
+	dialog_active = 1;
 
 	strcpy(scratch, "/etc/");
 	strcat(scratch, STATUSFILE);
