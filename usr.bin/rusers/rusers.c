@@ -32,23 +32,27 @@
  */
 
 #ifndef lint
-static char rcsid[] = "$Id: rusers.c,v 1.1.1.1 1994/08/28 15:06:02 csgr Exp $";
+static char rcsid[] =
+	"$Id: rusers.c,v 1.2 1995/05/30 06:33:28 rgrimes Exp $";
 #endif /* not lint */
 
 #include <sys/types.h>
 #include <sys/param.h>
 #include <sys/socket.h>
+#include <err.h>
 #include <netdb.h>
 #include <stdio.h>
+#include <stdlib.h>
 #include <strings.h>
+#include <unistd.h>
 #include <rpc/rpc.h>
+#include <rpc/pmap_clnt.h>
 #include <arpa/inet.h>
 #include <rpcsvc/rnusers.h>
 
 #define MAX_INT 0x7fffffff
 #define HOST_WIDTH 20
 #define LINE_WIDTH 15
-char *argv0;
 
 int longopt;
 int allopt;
@@ -58,7 +62,8 @@ struct host_list {
 	struct in_addr addr;
 } *hosts;
 
-int search_host(struct in_addr addr)
+int
+search_host(struct in_addr addr)
 {
 	struct host_list *hp;
 
@@ -72,19 +77,19 @@ int search_host(struct in_addr addr)
 	return(0);
 }
 
-void remember_host(struct in_addr addr)
+void
+remember_host(struct in_addr addr)
 {
 	struct host_list *hp;
 
-	if (!(hp = (struct host_list *)malloc(sizeof(struct host_list)))) {
-		fprintf(stderr, "%s: no memory.\n", argv0);
-		exit(1);
-	}
+	if (!(hp = (struct host_list *)malloc(sizeof(struct host_list))))
+		errx(1, "no memory");
 	hp->addr.s_addr = addr.s_addr;
 	hp->next = hosts;
 	hosts = hp;
 }
 
+int
 rusers_reply(char *replyp, struct sockaddr_in *raddrp)
 {
         int x, idle;
@@ -164,6 +169,7 @@ rusers_reply(char *replyp, struct sockaddr_in *raddrp)
 	return(0);
 }
 
+void
 onehost(char *host)
 {
         utmpidlearr up;
@@ -172,58 +178,45 @@ onehost(char *host)
         struct hostent *hp;
 
         hp = gethostbyname(host);
-        if (hp == NULL) {
-                fprintf(stderr, "%s: unknown host \"%s\"\n",
-                        argv0, host);
-                exit(1);
-        }
+        if (hp == NULL)
+                errx(1, "unknown host \"%s\"", host);
 
         rusers_clnt = clnt_create(host, RUSERSPROG, RUSERSVERS_IDLE, "udp");
-        if (rusers_clnt == NULL) {
-                clnt_pcreateerror(argv0);
-                exit(1);
-        }
+        if (rusers_clnt == NULL)
+                errx(1, "%s", clnt_spcreateerror(""));
 
 	bzero((char *)&up, sizeof(up));
-	if (clnt_call(rusers_clnt, RUSERSPROC_NAMES, xdr_void, NULL, xdr_utmpidlearr, &up, NULL) != RPC_SUCCESS) {
-                clnt_perror(rusers_clnt, argv0);
-                exit(1);
-        }
+	if (clnt_call(rusers_clnt, RUSERSPROC_NAMES, xdr_void, NULL, xdr_utmpidlearr, &up, NULL) != RPC_SUCCESS)
+                errx(1, "%s", clnt_sperror(rusers_clnt, ""));
         addr.sin_addr.s_addr = *(int *)hp->h_addr;
         rusers_reply((char *)&up, &addr);
 }
 
+void
 allhosts()
 {
-        utmpidlearr up;
+	utmpidlearr up;
 	enum clnt_stat clnt_stat;
 
 	bzero((char *)&up, sizeof(up));
 	clnt_stat = clnt_broadcast(RUSERSPROG, RUSERSVERS_IDLE, RUSERSPROC_NAMES,
 				   xdr_void, NULL,
 				   xdr_utmpidlearr, &up, rusers_reply);
-	if (clnt_stat != RPC_SUCCESS && clnt_stat != RPC_TIMEDOUT) {
-		fprintf(stderr, "%s: %s\n", argv0, clnt_sperrno(clnt_stat));
-		exit(1);
-	}
+	if (clnt_stat != RPC_SUCCESS && clnt_stat != RPC_TIMEDOUT)
+		errx(1, "%s", clnt_sperrno(clnt_stat));
 }
 
+static void
 usage()
 {
-        fprintf(stderr, "Usage: %s [-la] [hosts ...]\n", argv0);
+        fprintf(stderr, "usage: rusers [-la] [hosts ...]\n");
         exit(1);
 }
 
+int
 main(int argc, char *argv[])
 {
         int ch;
-        extern int optind;
-
-        if (!(argv0 = rindex(argv[0], '/')))
-                argv0 = argv[0];
-        else
-                argv0++;
-
 
         while ((ch = getopt(argc, argv, "al")) != -1)
 	        switch (ch) {
