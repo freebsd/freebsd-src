@@ -426,7 +426,7 @@ tc_windup(void)
 	 * processing provides us with.
 	 *
 	 * The th_adjustment is nanoseconds per second with 32 bit binary
-	 * fraction and want 64 bit binary fraction of second:
+	 * fraction and we want 64 bit binary fraction of second:
 	 *
 	 *	 x = a * 2^32 / 10^9 = a * 4.294967296
 	 *
