@@ -103,7 +103,7 @@ CDROM_SET_1="${CDROM_SET_1} x11/xorg-clients"
 CDROM_SET_1="${CDROM_SET_1} x11/xorg-documents"
 CDROM_SET_1="${CDROM_SET_1} x11/xorg-libraries"
 CDROM_SET_1="${CDROM_SET_1} x11/xorg-manpages"
-CDROM_SET_1="${CDROM_SET_1} x11/gnome2-lite"
+CDROM_SET_1="${CDROM_SET_1} x11/gnome2"
 CDROM_SET_1="${CDROM_SET_1} x11/kde-lite"
 CDROM_SET_1="${CDROM_SET_1} www/links"
 
