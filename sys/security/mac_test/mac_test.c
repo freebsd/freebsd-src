@@ -484,8 +484,8 @@ mac_test_externalize_label(struct label *label, char *element_name,
 }
 
 static int
-mac_test_internalize_label(struct label *label, struct mac *mac,
-    char *element_name, char *element_data, int *claimed)
+mac_test_internalize_label(struct label *label, char *element_name,
+    char *element_data, int *claimed)
 {
 
 	atomic_add_int(&internalize_count, 1);
