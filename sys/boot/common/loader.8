@@ -352,29 +352,6 @@ by the kernel during the boot phase.
 List of semicolon-separated search path for bootable kernels.
 The default is
 .Dq Li kernel;kernel.old .
-.It Va bootp
-Setting this variable tells the kernel to use BOOTP to obtain an IP address
-and hostname at boot time.
-The kernel must be built with
-.Dv NFSCLIENT
-and
-.Dv NFS_ROOT
-defined.
-.It Va bootp.compat
-Setting this variable enables a workaround for broken BOOTP daemons.
-.It Va bootp.nfsroot
-Setting this variable tells the kernel to NFS mount the root filesystem using
-BOOTP information.
-.It Va bootp.nfsv3
-Setting this variable tells the kernel to use NFS version 3 to mount the root
-filesystem.
-.It Va bootp.wired_to
-This variable may be set to the name of the interface that is to be used to
-boot from when
-.Va bootp
-is set.
-If it is not set, the system will attempt to boot from all available
-interfaces, using the first one found.
 .It Va console
 Defines the current console.
 .It Va currdev

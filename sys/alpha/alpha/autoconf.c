@@ -27,6 +27,7 @@
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
+#include "opt_bootp.h"
 #include "opt_isa.h"
 #include "opt_nfs.h"
 #include "opt_nfsroot.h"
@@ -202,12 +203,11 @@ void
 cpu_rootconf()
 {
 #if defined(NFSCLIENT) && defined(NFS_ROOT)
-	char	*cp = NULL;
-
-	if (nfs_diskless_valid || (cp = getenv("bootp.nfsroot")) != NULL)
-		rootdevnames[0] = "nfs:";
-	if (cp != NULL)
-		freeenv(cp);
+	int	order = 0;
+#if !defined(BOOTP_NFSROOT)
+	if (nfs_diskless_valid)
+#endif
+		rootdevnames[order++] = "nfs:";
 #endif
 }
 SYSINIT(cpu_rootconf, SI_SUB_ROOT_CONF, SI_ORDER_FIRST, cpu_rootconf, NULL)

@@ -62,6 +62,7 @@
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
+#include "opt_bootp.h"
 #include "opt_nfsroot.h"
 
 #include <sys/param.h>
