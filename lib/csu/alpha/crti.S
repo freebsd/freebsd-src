@@ -1,4 +1,4 @@
-/*-
+/*
  * Copyright 2000 David O'Brien, John D. Polstra.
  * All rights reserved.
  *
@@ -21,8 +21,6 @@
  * THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
- *
- * $FreeBSD$
  */
 
 	.section .init,"ax",@progbits
@@ -37,6 +35,7 @@ $_init..ng:
 	mov $30,$15
 	.align	5
 
+
 	.section .fini,"ax",@progbits
 	.align	5
 	.globl	_fini
@@ -49,3 +48,6 @@ $_fini..ng:
 	mov $30,$15
 	.align	5
 
+
+.section	.rodata
+	.ascii "$FreeBSD$\0"
