@@ -38,7 +38,7 @@
  */
 
 /*
- *  $Id: if_ep.c,v 1.44 1996/05/24 15:22:36 gibbs Exp $
+ *  $Id: if_ep.c,v 1.45 1996/06/12 05:03:38 gpalmer Exp $
  *
  *  Promiscuous mode added and interrupt logic slightly changed
  *  to reduce the number of adapter failures. Transceiver select
@@ -496,7 +496,7 @@ ep_attach(sc)
 	p[i] = htons(sc->epb->eth_addr[i]);
 	outw(BASE + EP_W2_ADDR_0 + (i * 2), ntohs(p[i]));
     }
-    printf(" address %6D\n", sc->arpcom.ac_enaddr, ":");
+    printf(" address %6D\n", sc->arpcom.ac_enaddr);
 
     ifp->if_softc = sc;
     ifp->if_unit = sc->unit;
@@ -640,39 +640,40 @@ epinit(sc)
 	  *
 	  */
 
+    /* Set the xcvr. */
     if(ifp->if_flags & IFF_LINK0 && sc->ep_connectors & AUI) {
-	/* nothing */
+	i = ACF_CONNECTOR_AUI;
     } else if(ifp->if_flags & IFF_LINK1 && sc->ep_connectors & BNC) {
-	outw(BASE + EP_COMMAND, START_TRANSCEIVER);
-	DELAY(1000);
+	i = ACF_CONNECTOR_BNC;
     } else if(ifp->if_flags & IFF_LINK2 && sc->ep_connectors & UTP) {
-	GO_WINDOW(4);
-	outw(BASE + EP_W4_MEDIA_TYPE, ENABLE_UTP);
-	GO_WINDOW(1);
+	i = ACF_CONNECTOR_UTP;
     } else {
-	GO_WINDOW(1);
-	switch(sc->ep_connector) {
-	    case ACF_CONNECTOR_UTP:
-		if(sc->ep_connectors & UTP) {
-		    GO_WINDOW(4);
-		    outw(BASE + EP_W4_MEDIA_TYPE, ENABLE_UTP);
-		    GO_WINDOW(1);
-		}
-		break;
-	    case ACF_CONNECTOR_BNC:
-		if(sc->ep_connectors & BNC) {
-		    outw(BASE + EP_COMMAND, START_TRANSCEIVER);
-		    DELAY(1000);
-		}
-		break;
-	    case ACF_CONNECTOR_AUI:
-		/* nothing to do */
-		break;
-	    default:
-		printf("ep%d: strange connector type in EEPROM: assuming AUI\n",
-		    sc->unit);
-		break;
+	i = sc->ep_connector;
+    }
+    GO_WINDOW(0);
+    j = inw(BASE + EP_W0_ADDRESS_CFG) & 0x3fff;
+    outw(BASE + EP_W0_ADDRESS_CFG, j | (i << ACF_CONNECTOR_BITS));
+
+    switch(i) {
+      case ACF_CONNECTOR_UTP:
+	if(sc->ep_connectors & UTP) {
+	    GO_WINDOW(4);
+	    outw(BASE + EP_W4_MEDIA_TYPE, ENABLE_UTP);
 	}
+	break;
+      case ACF_CONNECTOR_BNC:
+	if(sc->ep_connectors & BNC) {
+	    outw(BASE + EP_COMMAND, START_TRANSCEIVER);
+	    DELAY(1000);
+	}
+	break;
+      case ACF_CONNECTOR_AUI:
+	/* nothing to do */
+	break;
+      default:
+	printf("ep%d: strange connector type in EEPROM: assuming AUI\n",
+	       sc->unit);
+	break;
     }
 
     outw(BASE + EP_COMMAND, RX_ENABLE);
@@ -717,6 +718,7 @@ epinit(sc)
     sc->next_mb = 0;
     epmbuffill((caddr_t) sc, 0);
 
+    GO_WINDOW(1);
     epstart(ifp);
 
     splx(s);
