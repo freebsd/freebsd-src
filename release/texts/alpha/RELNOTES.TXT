@@ -62,9 +62,6 @@ The ray(4) driver, which supports the Webgear Aviator wireless network
 cards, has been committed.  The operation of ray(4) interfaces can be
 modified by raycontrol(8).
 
-OpenSSH has been upgraded to 2.3.0.  This version adds support for the
-Rijndael encryption algorithm. [MERGED]
-
 The bug that made certain CDROM drives fail to attach when connected
 to a SCSI card driven by 'isp' has been fixed. 
 
@@ -91,6 +88,12 @@ variable prevents cleaning of the kernel build directory (which is now
 done via "make clean", rather than "config -r").
 
 The API CS20 1U high server has been verified to work OK.
+
+kobj functionality has been merged from -CURRENT to better support
+sound drivers.
+
+Separate drivers for the SoundBlaster 8 and Soundblaster 16 now
+replace an older, unified driver.
 
 
 1.2. SECURITY FIXES
@@ -151,6 +154,9 @@ removed.
 
 lpr(1), lpq(1), and lpd(8) have received a few minor enhancements.
 
+OpenSSH has been upgraded to 2.3.0.  This version adds support for the
+Rijndael encryption algorithm.
+
 syslogd(8) now supports a "LOG_CONSOLE" facility (disabled by
 default), which can be used to log /dev/console output.
 
@@ -193,6 +199,15 @@ flag.
 sendmail(8) and associated utilities upgraded from version 8.11.1 to
 version 8.11.2.  See /usr/src/contrib/sendmail/RELEASE_NOTES for more
 information.
+
+pkg_create(1) and pkg_install(1) can now work with packages that have
+been compressed using bzip2(1).
+
+pkg_info(1) can now accept a -g flag for verifying an installed
+package against its recorded checksums (to see if it's been modified
+post-installation).  Naturally, this mechanism is only as secure as
+the contents of /var/db/pkg if it's to be used for auditing
+purposes.
 
 
 2. Supported Configurations
