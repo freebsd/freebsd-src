@@ -25,7 +25,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *  $Id: syscons.c,v 1.109.2.4 1999/04/04 02:53:57 kato Exp $
+ *  $Id: syscons.c,v 1.109.2.5 1999/05/09 12:57:13 kato Exp $
  */
 
 #include "sc.h"
@@ -723,6 +723,7 @@ scopen(dev_t dev, int flag, int mode, struct proc *p)
 {
     struct tty *tp = scdevtotty(dev);
     keyarg_t key;
+    int error;
 
     if (!tp)
 	return(ENXIO);
@@ -750,6 +751,7 @@ scopen(dev_t dev, int flag, int mode, struct proc *p)
     else
 	if (tp->t_state & TS_XCLUDE && p->p_ucred->cr_uid != 0)
 	    return(EBUSY);
+    error = (*linesw[tp->t_line].l_open)(dev, tp);
     if (minor(dev) < MAXCONS && !console[minor(dev)]) {
 	console[minor(dev)] = alloc_scp();
 	if (ISGRAPHSC(console[minor(dev)]))
@@ -759,7 +761,7 @@ scopen(dev_t dev, int flag, int mode, struct proc *p)
 	tp->t_winsize.ws_col = console[minor(dev)]->xsize;
 	tp->t_winsize.ws_row = console[minor(dev)]->ysize;
     }
-    return ((*linesw[tp->t_line].l_open)(dev, tp));
+    return error;
 }
 
 int
