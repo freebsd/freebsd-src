@@ -125,6 +125,12 @@ for an
 .Tn MS-DOS
 (FAT)
 file system.
+.Sh EXIT STATUS
+An exit status of 0 is returned upon successful operation.
+Exit status
+1 is returned on any errors during floppy formatting, and an exit status
+of 2 reflects invalid arguments given to the program (along with an
+appropriate information written to diagnostic output).
 .Sh DIAGNOSTICS
 Unless
 .Fl q
@@ -140,12 +146,6 @@ will finally change to
 Detailed status information (cylinder, head and sector number, and the
 exact cause of the error) will be printed for up to 10 errors after the
 entire formatting process has completed.
-.Sh DIAGNOSTICS
-An exit status of 0 is returned upon successful operation.
-Exit status
-1 is returned on any errors during floppy formatting, and an exit status
-of 2 reflects invalid arguments given to the program (along with an
-appropriate information written to diagnostic output).
 .Sh SEE ALSO
 .Xr fdc 4 ,
 .Xr fdcontrol 8 ,
