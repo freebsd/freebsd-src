@@ -35,7 +35,7 @@
  *
  *	@(#)fdesc_vnops.c	8.9 (Berkeley) 1/21/94
  *
- * $Id: fdesc_vnops.c,v 1.4 1994/09/09 13:24:26 davidg Exp $
+ * $Id: fdesc_vnops.c,v 1.5 1994/09/21 03:46:56 wollman Exp $
  */
 
 /*
@@ -58,6 +58,7 @@
 #include <sys/namei.h>
 #include <sys/buf.h>
 #include <sys/dirent.h>
+#include <sys/socketvar.h>
 #include <miscfs/fdesc/fdesc.h>
 
 #define cttyvp(p) ((p)->p_flag & P_CONTROLT ? (p)->p_session->s_ttyvp : NULL)

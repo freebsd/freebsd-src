@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)device_pager.c	8.1 (Berkeley) 6/11/93
- * $Id$
+ * $Id: device_pager.c,v 1.3 1994/08/02 07:55:06 davidg Exp $
  */
 
 /*
@@ -48,6 +48,7 @@
 #include <sys/conf.h>
 #include <sys/mman.h>
 #include <sys/malloc.h>
+#include <sys/proc.h>
 
 #include <vm/vm.h>
 #include <vm/vm_kern.h>
@@ -241,7 +242,7 @@ dev_pager_dealloc(pager)
 	/*
 	 * Free up our fake pages.
 	 */
-	while (m=devp->devp_pglist.tqh_first) {
+	while ((m=devp->devp_pglist.tqh_first) != 0) {
 		TAILQ_REMOVE(&devp->devp_pglist, m, pageq);
 		dev_pager_putfake(m);
 	}

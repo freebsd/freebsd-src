@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)kernfs_vnops.c	8.6 (Berkeley) 2/10/94
- * $Id: kernfs_vnops.c,v 1.4 1994/08/18 22:35:12 wollman Exp $
+ * $Id: kernfs_vnops.c,v 1.5 1994/09/21 03:47:00 wollman Exp $
  */
 
 /*
@@ -111,7 +111,7 @@ kernfs_xread(kt, buf, len, lenp)
 	case KTT_TIME: {
 		struct timeval tv;
 		microtime(&tv);
-		sprintf(buf, "%d %d\n", tv.tv_sec, tv.tv_usec);
+		sprintf(buf, "%ld %ld\n", tv.tv_sec, tv.tv_usec);
 		break;
 	}
 

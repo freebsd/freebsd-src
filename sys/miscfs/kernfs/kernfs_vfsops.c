@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)kernfs_vfsops.c	8.4 (Berkeley) 1/21/94
- * $Id: kernfs_vfsops.c,v 1.4 1994/09/21 03:46:59 wollman Exp $
+ * $Id: kernfs_vfsops.c,v 1.5 1994/09/22 19:38:11 wollman Exp $
  */
 
 /*
@@ -78,7 +78,8 @@ cdevvp(dev, vpp)
 	}
 	vp = nvp;
 	vp->v_type = VCHR;
-	if (nvp = checkalias(vp, dev, (struct mount *)0)) {
+	nvp = checkalias(vp, dev, (struct mount *)0);
+	if (nvp) {
 		vput(vp);
 		vp = nvp;
 	}
@@ -206,7 +207,8 @@ kernfs_unmount(mp, mntflags, p)
 #ifdef KERNFS_DIAGNOSTIC
 	printf("kernfs_unmount: calling vflush\n");
 #endif
-	if (error = vflush(mp, rootvp, flags))
+	error = vflush(mp, rootvp, flags);
+	if (error)
 		return (error);
 
 #ifdef KERNFS_DIAGNOSTIC

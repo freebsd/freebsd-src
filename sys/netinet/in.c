@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)in.c	8.2 (Berkeley) 11/15/93
- * $Id: in.c,v 1.4 1994/08/18 22:35:28 wollman Exp $
+ * $Id: in.c,v 1.5 1994/09/16 05:47:06 phk Exp $
  */
 
 #include <sys/param.h>
@@ -213,14 +213,16 @@ in_control(so, cmd, data, ifp)
 			if (oia == (struct in_ifaddr *)NULL)
 				return (ENOBUFS);
 			bzero((caddr_t)oia, sizeof *oia);
-			if (ia = in_ifaddr) {
+			ia = in_ifaddr;
+			if (ia) {
 				for ( ; ia->ia_next; ia = ia->ia_next)
 					continue;
 				ia->ia_next = oia;
 			} else
 				in_ifaddr = oia;
 			ia = oia;
-			if (ifa = ifp->if_addrlist) {
+			ifa = ifp->if_addrlist;
+			if (ifa) {
 				for ( ; ifa->ifa_next; ifa = ifa->ifa_next)
 					continue;
 				ifa->ifa_next = (struct ifaddr *) ia;

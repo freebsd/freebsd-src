@@ -1,4 +1,4 @@
-/*	$Id: msdosfs_vfsops.c,v 1.3 1994/09/21 03:47:16 wollman Exp $ */
+/*	$Id: msdosfs_vfsops.c,v 1.4 1994/09/27 20:42:54 phk Exp $ */
 /*	$NetBSD: msdosfs_vfsops.c,v 1.19 1994/08/21 18:44:10 ws Exp $	*/
 
 /*-
@@ -230,7 +230,7 @@ msdosfs_mount(mp, path, data, ndp, p)
 	pmp->pm_mask = args.mask;
 	(void) msdosfs_statfs(mp, &mp->mnt_stat, p);
 #ifdef MSDOSFS_DEBUG
-	printf("msdosfs_mount(): mp %x, pmp %x, inusemap %x\n", mp, pmp, pmp->pm_inusemap);
+	printf("msdosfs_mount(): mp %p, pmp %p, inusemap %p\n", mp, pmp, pmp->pm_inusemap);
 #endif
 	return 0;
 }
@@ -515,19 +515,6 @@ msdosfs_unmount(mp, mntflags, p)
 	if (error)
 		return error;
 	pmp->pm_devvp->v_specflags &= ~SI_MOUNTEDON;
-#ifdef MSDOSFS_DEBUG
-	printf("msdosfs_umount(): just before calling VOP_CLOSE()\n");
-	printf("flag %08x, usecount %d, writecount %d, holdcnt %d\n",
-	    vp->v_flag, vp->v_usecount, vp->v_writecount, vp->v_holdcnt);
-	printf("lastr %d, id %d, mount %08x, op %08x\n",
-	    vp->v_lastr, vp->v_id, vp->v_mount, vp->v_op);
-	printf("freef %08x, freeb %08x, mountf %08x, mountb %08x\n",
-	    vp->v_freef, vp->v_freeb, vp->v_mountf, vp->v_mountb);
-	printf("cleanblkhd %08x, dirtyblkhd %08x, numoutput %d, type %d\n",
-	    vp->v_cleanblkhd, vp->v_dirtyblkhd, vp->v_numoutput, vp->v_type);
-	printf("union %08x, tag %d, data[0] %08x, data[1] %08x\n",
-	    vp->v_socket, vp->v_tag, vp->v_data[0], vp->v_data[1]);
-#endif
 	error = VOP_CLOSE(pmp->pm_devvp, pmp->pm_ronly ? FREAD : FREAD | FWRITE,
 	    NOCRED, p);
 	vrele(pmp->pm_devvp);
@@ -549,7 +536,7 @@ msdosfs_root(mp, vpp)
 
 	error = deget(pmp, MSDOSFSROOT, MSDOSFSROOT_OFS, NULL, &ndep);
 #ifdef MSDOSFS_DEBUG
-	printf("msdosfs_root(); mp %08x, pmp %08x, ndep %08x, vp %08x\n",
+	printf("msdosfs_root(); mp %p, pmp %p, ndep %p, vp %p\n",
 	    mp, pmp, ndep, DETOV(ndep));
 #endif
 	if (error == 0)

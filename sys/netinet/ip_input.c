@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)ip_input.c	8.2 (Berkeley) 1/4/94
- * $Id: ip_input.c,v 1.5 1994/09/06 22:42:21 wollman Exp $
+ * $Id: ip_input.c,v 1.6 1994/09/14 03:10:09 wollman Exp $
  */
 
 #include <sys/param.h>
@@ -196,7 +196,8 @@ next:
 		}
 		ip = mtod(m, struct ip *);
 	}
-	if (ip->ip_sum = in_cksum(m, hlen)) {
+	ip->ip_sum = in_cksum(m, hlen);
+	if (ip->ip_sum) {
 		ipstat.ips_badsum++;
 		goto bad;
 	}
@@ -1018,8 +1019,8 @@ ip_forward(m, srcrt)
 	dest = 0;
 #ifdef DIAGNOSTIC
 	if (ipprintfs)
-		printf("forward: src %x dst %x ttl %x\n", ip->ip_src,
-			ip->ip_dst, ip->ip_ttl);
+		printf("forward: src %x dst %x ttl %x\n", 
+			ip->ip_src.s_addr, ip->ip_dst.s_addr, ip->ip_ttl);
 #endif
 	if (m->m_flags & M_BCAST || in_canforward(ip->ip_dst) == 0) {
 		ipstat.ips_cantforward++;

@@ -35,7 +35,7 @@
  *
  *	@(#)null_subr.c	8.4 (Berkeley) 1/21/94
  *
- * $Id: lofs_subr.c,v 1.11 1992/05/30 10:05:43 jsp Exp jsp $
+ * $Id: null_subr.c,v 1.2 1994/05/25 09:08:00 rgrimes Exp $
  */
 
 #include <sys/param.h>
@@ -153,7 +153,8 @@ null_node_alloc(mp, lowervp, vpp)
 	struct vnode *othervp, *vp;
 	int error;
 
-	if (error = getnewvnode(VT_NULL, mp, null_vnodeop_p, vpp))
+	error = getnewvnode(VT_NULL, mp, null_vnodeop_p, vpp);
+	if (error)
 		return (error);
 	vp = *vpp;
 
@@ -167,7 +168,8 @@ null_node_alloc(mp, lowervp, vpp)
 	 * check to see if someone else has beaten us to it.
 	 * (We could have slept in MALLOC.)
 	 */
-	if (othervp = null_node_find(lowervp)) {
+	othervp = null_node_find(lowervp);
+	if (othervp) {
 		FREE(xp, M_TEMP);
 		vp->v_type = VBAD;	/* node is discarded */
 		vp->v_usecount = 0;	/* XXX */
@@ -194,7 +196,8 @@ null_node_create(mp, lowervp, newvpp)
 {
 	struct vnode *aliasvp;
 
-	if (aliasvp = null_node_find(mp, lowervp)) {
+	aliasvp = null_node_find(mp, lowervp);
+	if (aliasvp) {
 		/*
 		 * null_node_find has taken another reference
 		 * to the alias vnode.
@@ -216,7 +219,8 @@ null_node_create(mp, lowervp, newvpp)
 		/*
 		 * Make new vnode reference the null_node.
 		 */
-		if (error = null_node_alloc(mp, lowervp, &aliasvp))
+		error = null_node_alloc(mp, lowervp, &aliasvp);
+		if (error)
 			return error;
 
 		/*
@@ -229,8 +233,8 @@ null_node_create(mp, lowervp, newvpp)
 #ifdef DIAGNOSTIC
 	if (lowervp->v_usecount < 1) {
 		/* Should never happen... */
-		vprint ("null_node_create: alias ");
-		vprint ("null_node_create: lower ");
+		vprint ("null_node_create: alias ",aliasvp);
+		vprint ("null_node_create: lower ",lowervp);
 		printf ("null_node_create: lower has 0 usecount.\n");
 		panic ("null_node_create: lower has 0 usecount.");
 	};
