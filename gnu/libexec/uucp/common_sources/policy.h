@@ -203,7 +203,7 @@
    HAVE_SAVED_SETUID to 1, but your system does not have saved set
    user ID, uucp will fail with an error message whenever anybody
    other than the uucp user uses it.  */
-#define HAVE_SAVED_SETUID 0
+#define HAVE_SAVED_SETUID 1
 
 /* On some systems, such as the DG Aviion and, possibly, the RS/6000,
    the setreuid function is broken.  It should be possible to use
@@ -213,7 +213,7 @@
    set HAVE_BROKEN_SETREUID to 1; if you do not, you will get error
    messages from setreuid.  Systems on which setreuid exists but is
    broken pretty much always have saved setuid.  */
-#define HAVE_BROKEN_SETREUID 1
+#define HAVE_BROKEN_SETREUID 0
 
 /* On the 3B2, and possibly other systems, nap takes an argument in
    hundredths of a second rather than milliseconds.  I don't know of
