@@ -76,6 +76,10 @@ int __rpc_sockisbound(int);
 
 struct netbuf *__rpcb_findaddr(rpcprog_t, rpcvers_t, const struct netconfig *,
     const char *, CLIENT **);
+struct netbuf *__rpcb_findaddr_timed(rpcprog_t, rpcvers_t,
+    const struct netconfig *, const char *host, CLIENT **clpp,
+    struct timeval *tp);
+
 bool_t __rpc_control(int,void *);
 
 char *_get_next_token(char *, int);
