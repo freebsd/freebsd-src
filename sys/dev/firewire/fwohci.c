@@ -586,15 +586,15 @@ fwohci_init(struct fwohci_softc *sc, device_t dev)
 	device_printf(dev, "OHCI version %x.%x (ROM=%d)\n",
 			(reg>>16) & 0xff, reg & 0xff, (reg>>24) & 1);
 
-/* XXX: Available Isochrounous DMA channel probe */
-	for( i = 0 ; i < 0x20 ; i ++ ){
-		OWRITE(sc,  OHCI_IRCTL(i), OHCI_CNTL_DMA_RUN);
-		reg = OREAD(sc, OHCI_IRCTL(i));
-		if(!(reg & OHCI_CNTL_DMA_RUN)) break;
-		OWRITE(sc,  OHCI_ITCTL(i), OHCI_CNTL_DMA_RUN);
-		reg = OREAD(sc, OHCI_ITCTL(i));
-		if(!(reg & OHCI_CNTL_DMA_RUN)) break;
-	}
+/* Available Isochrounous DMA channel probe */
+	OWRITE(sc, OHCI_IT_MASK, 0xffffffff);
+	OWRITE(sc, OHCI_IR_MASK, 0xffffffff);
+	reg = OREAD(sc, OHCI_IT_MASK) & OREAD(sc, OHCI_IR_MASK);
+	OWRITE(sc, OHCI_IT_MASKCLR, 0xffffffff);
+	OWRITE(sc, OHCI_IR_MASKCLR, 0xffffffff);
+	for (i = 0; i < 0x20; i++)
+		if ((reg & (1 << i)) == 0)
+			break;
 	sc->fc.nisodma = i;
 	device_printf(dev, "No. of Isochronous channel is %d.\n", i);
 
