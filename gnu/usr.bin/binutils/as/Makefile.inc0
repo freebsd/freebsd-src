@@ -15,7 +15,6 @@ SRCS+=	app.c as.c atof-generic.c atof-ieee.c bignum-copy.c \
 	subsegs.c symbols.c write.c depend.c ehopt.c
 # DEO: why not used?
 #SRCS+=	itbl-ops.c
-WARNS=	2
 CFLAGS+= -I${SRCDIR}/gas -I${SRCDIR}/gas/config -I${SRCDIR} -I${.CURDIR}/..
 CFLAGS+= -DVERSION=\"${VERSION:C/[ ]?${VERSION_DATE}[ ]?//g}\" 
 CFLAGS+= -DBFD_VERSION_STRING=\"${VERSION}\"

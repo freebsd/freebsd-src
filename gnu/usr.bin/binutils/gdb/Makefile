@@ -50,7 +50,7 @@ SRCS=	init.c ${XSRCS} nm.h tm.h xm.h gdbversion.c xregex.h
 
 .include "${.CURDIR}/Makefile.${TARGET_ARCH}"
 
-WARNS=	0
+WARNS?=	0
 .if ${TARGET_ARCH} != ${MACHINE_ARCH}
 CFLAGS+=	-DCROSS_COMPILE=1
 .endif

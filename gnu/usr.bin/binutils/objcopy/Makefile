@@ -6,7 +6,7 @@
 
 PROG=	objcopy
 SRCS=	objcopy.c not-strip.c
-WARNS=	2
+WARNS?=	2
 CFLAGS+= -I${.CURDIR}/${RELTOP}/libbinutils
 CFLAGS+= -I${SRCDIR}/binutils
 DPADD=	${RELTOP}/libbinutils/libbinutils.a

@@ -2,7 +2,7 @@
 
 .include "${.CURDIR}/../Makefile.inc0"
 
-WARNS=	0
+WARNS?=	0
 
 .if ${TARGET_ARCH} != "ia64"
 NOMAN=	 true
