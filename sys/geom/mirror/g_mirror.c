@@ -1732,13 +1732,8 @@ g_mirror_update_device(struct g_mirror_softc *sc, boolean_t force)
 				}
 			}
 			if (ndisks == 0) {
-				int timeout;
-
-				/* No valid disks still, wait some more. */
-				timeout =
-				    atomic_load_acq_int(&g_mirror_timeout);
-				callout_reset(&sc->sc_callout, timeout * hz,
-				    g_mirror_go, sc);
+				/* No valid disks found, destroy device. */
+				sc->sc_flags |= G_MIRROR_DEVICE_FLAG_DESTROY;
 				return;
 			}
 		} else {
