@@ -843,7 +843,8 @@ VarREError(int err, regex_t *pat, const char *str)
  *	The (possibly-modified) value of the variable or var_Error if the
  *	specification is invalid. The length of the specification is
  *	placed in *lengthPtr (for invalid specifications, this is just
- *	2...?).
+ *	2 to skip the '$' and the following letter, or 1 if '$' was the
+ *	last character in the string).
  *	A Boolean in *freePtr telling whether the returned string should
  *	be freed by the caller.
  *
@@ -892,7 +893,10 @@ Var_Parse(char *str, GNode *ctxt, Boolean err, int *lengthPtr, Boolean *freePtr)
 
 	v = VarFind (name, ctxt, FIND_ENV | FIND_GLOBAL | FIND_CMD);
 	if (v == (Var *)NULL) {
-	    *lengthPtr = 2;
+	    if (str[1] != '\0')
+		*lengthPtr = 2;
+	    else
+		*lengthPtr = 1;
 
 	    if ((ctxt == VAR_CMD) || (ctxt == VAR_GLOBAL)) {
 		/*
