@@ -2,7 +2,7 @@
  * Generic driver definitions and exported functions for the Advanced
  * Systems Inc. Second Generation SCSI controllers
  * 
- * Copyright (c) 1998 Justin Gibbs.
+ * Copyright (c) 1998, 1999, 2000 Justin Gibbs.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -10,7 +10,7 @@
  * are met:
  * 1. Redistributions of source code must retain the above copyright
  *    notice, this list of conditions, and the following disclaimer,
- *    without modification, immediately at the beginning of the file.
+ *    without modification.
  * 2. Redistributions in binary form must reproduce the above copyright
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
@@ -39,8 +39,8 @@
 #include "adw.h"
 #include <dev/advansys/adwlib.h>
 
-struct adw_softc *	adw_alloc(int unit, bus_space_tag_t tag,
-				  bus_space_handle_t bsh);
+struct adw_softc *	adw_alloc(device_t dev, struct resource *regs,
+				  int regs_type, int regs_id);
 void			adw_map(void *arg, bus_dma_segment_t *segs,
 				int nseg, int error);
 void 			adw_free(struct adw_softc *adw);
