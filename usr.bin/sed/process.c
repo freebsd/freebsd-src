@@ -96,6 +96,8 @@ process()
 	size_t len, oldpsl = 0;
 	char *p;
 
+	p = NULL;
+
 	for (linenum = 0; mf_fgets(&PS, REPLACE);) {
 		pd = 0;
 top:
