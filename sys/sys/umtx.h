@@ -30,11 +30,14 @@
 #ifndef _SYS_UMTX_H_
 #define	_SYS_UMTX_H_
 
+#include <sys/limits.h>
+
 /* 
  * See pthread_*
  */
 
 #define	UMTX_UNOWNED	0x0
+#define	UMTX_CONTESTED	LONG_MIN
 
 struct umtx {
 	void	*u_owner;	/* Owner of the mutex. */
@@ -62,6 +65,18 @@ int _umtx_op(struct umtx *umtx, int op, long id, void *uaddr,
  * Standard api.  Try uncontested acquire/release and asks the
  * kernel to resolve failures.
  */
+static __inline void
+umtx_init(struct umtx *umtx)
+{
+	umtx->u_owner = UMTX_UNOWNED;
+}
+
+static __inline long
+umtx_owner(struct umtx *umtx)
+{
+	return ((long)umtx->u_owner & ~LONG_MIN);
+}
+
 static __inline int
 umtx_lock(struct umtx *umtx, long id)
 {
@@ -82,11 +97,11 @@ umtx_trylock(struct umtx *umtx, long id)
 }
 
 static __inline int
-umtx_timedlock(struct umtx *umtx, long id, struct timespec *abstime)
+umtx_timedlock(struct umtx *umtx, long id, const struct timespec *abstime)
 {
 	if (atomic_cmpset_acq_ptr(&umtx->u_owner, (void *)UMTX_UNOWNED,
 	    (void *)id) == 0)
-		if (_umtx_op(umtx, UMTX_OP_LOCK, id, 0, abstime) == -1)
+		if (_umtx_op(umtx, UMTX_OP_LOCK, id, 0, (void *)abstime) == -1)
 			return (errno);
 	return (0);
 }
@@ -113,9 +128,10 @@ umtx_wait(struct umtx *umtx, long id, void *uaddr)
 
 static __inline int
 umtx_timedwait(struct umtx *umtx, long id, void *uaddr,
-	struct timespec *abstime)
+	const struct timespec *abstime)
 {
-	if (_umtx_op(umtx, UMTX_OP_UNLOCK_AND_WAIT, id, uaddr, abstime) == -1)
+	if (_umtx_op(umtx, UMTX_OP_UNLOCK_AND_WAIT, id, uaddr,
+		(void *)abstime) == -1)
 		return (errno);
 	return (0);
 }
