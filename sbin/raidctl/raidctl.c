@@ -272,7 +272,7 @@ main(argc,argv)
 	argc -= optind;
 	argv += optind;
 
-	if ((num_options > 1) || (argc == NULL)) 
+	if ((num_options > 1) || (argc == 0)) 
 		usage();
 
 	strncpy(name,argv[0],PATH_MAX);

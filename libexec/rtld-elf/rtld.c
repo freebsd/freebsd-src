@@ -331,7 +331,7 @@ _rtld(Elf_Addr *sp, func_ptr_type *exit_proc, Obj_Entry **objp)
     obj_tail = &obj_main->next;
     obj_count++;
     /* Make sure we don't call the main program's init and fini functions. */
-    obj_main->init = obj_main->fini = NULL;
+    obj_main->init = obj_main->fini = (Elf_Addr)NULL;
 
     /* Initialize a fake symbol for resolving undefined weak references. */
     sym_zero.st_info = ELF_ST_INFO(STB_GLOBAL, STT_NOTYPE);
@@ -1068,11 +1068,11 @@ initlist_add_objects(Obj_Entry *obj, Obj_Entry **tail, Objlist *list)
 	initlist_add_neededs(obj->needed, list);
 
     /* Add the object to the init list. */
-    if (obj->init != NULL)
+    if (obj->init != (Elf_Addr)NULL)
 	objlist_push_tail(list, obj);
 
     /* Add the object to the global fini list in the reverse order. */
-    if (obj->fini != NULL)
+    if (obj->fini != (Elf_Addr)NULL)
 	objlist_push_head(&list_fini, obj);
 }
 
@@ -1132,7 +1132,7 @@ load_preload_objects(void)
     static const char delim[] = " \t:;";
 
     if (p == NULL)
-	return NULL;
+	return 0;
 
     p += strspn(p, delim);
     while (*p != '\0') {

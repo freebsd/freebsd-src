@@ -274,7 +274,7 @@ main(int argc, char **argv)
 				if (*file_buf == '#' || *file_buf == '\n')
 					continue;
 				if ((eol = strchr(file_buf, '\n')))
-					*eol = NULL;
+					*eol = '\0';
 				add_track(file_buf, block_size, block_type, nogap);
 			}
 			if (feof(fp))

@@ -579,7 +579,7 @@ makenetvfslist(void)
 		*strptr = ',';
 		free(listptr[i]);
 	}
-	*(--strptr) = NULL;
+	*(--strptr) = '\0';
 
 	free(keep_xvfsp);
 	free(listptr);
