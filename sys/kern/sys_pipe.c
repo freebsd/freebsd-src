@@ -1351,7 +1351,7 @@ pipe_free_kmem(cpipe)
 {
 
 	KASSERT(cpipe->pipe_mtxp == NULL || !mtx_owned(PIPE_MTX(cpipe)),
-	       ("pipespace: pipe mutex locked"));
+	       ("pipe_free_kmem: pipe mutex locked"));
 
 	if (cpipe->pipe_buffer.buffer != NULL) {
 		if (cpipe->pipe_buffer.size > PIPE_SIZE)
