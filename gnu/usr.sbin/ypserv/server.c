@@ -24,7 +24,7 @@
 ** Ported to FreeBSD and hacked all to pieces
 ** by Bill Paul <wpaul@ctr.columbia.edu>
 **
-**	$Id: server.c,v 1.6.4.2 1995/10/05 20:02:57 davidg Exp $
+**	$Id: server.c,v 1.6.4.3 1997/04/10 14:34:28 wpaul Exp $
 **
 */
 
@@ -550,6 +550,7 @@ ypresp_val *ypproc_match_2_svc(ypreq_key *key,
     if (result.stat != YP_TRUE && strstr(key->map, "hosts") && dns_flag)
     {
 	char *cp = NULL;
+	char			nbuf[YPMAXRECORD];
 
 	if (children < MAX_CHILDREN && fork())
 	{
@@ -559,15 +560,16 @@ ypresp_val *ypproc_match_2_svc(ypreq_key *key,
 	else
 	    forked++;
 
-	key->key.keydat_val[key->key.keydat_len] = '\0';
+	bcopy(key->key.keydat_val, nbuf, key->key.keydat_len);
+	nbuf[key->key.keydat_len] = '\0';
 
 	if (debug_flag)
-	    Perror("Doing DNS lookup of %s\n", key->key.keydat_val);
+	    Perror("Doing DNS lookup of %s\n", nbuf);
 
 	if (strcmp(key->map, "hosts.byname") == 0)
-	    cp = dnsname(key->key.keydat_val);
+	    cp = dnsname(nbuf);
 	else  if (strcmp(key->map, "hosts.byaddr") == 0)
-	    cp = dnsaddr(key->key.keydat_val);
+	    cp = dnsaddr(nbuf);
 
 	if (cp)
 	{
