@@ -15,46 +15,33 @@
 
 # Get __FreeBSD_version
 .if !defined(OSVERSION)
-.if exists(/sbin/sysctl)
 OSVERSION!=	/sbin/sysctl -n kern.osreldate
-.else
-OSVERSION!=	/usr/sbin/sysctl -n kern.osreldate
-.endif
 .endif
 
 MINIMALDOCPORTS= \
 	ports/Mk \
 	ports/Templates \
-	ports/Tools \
+	ports/Tools
+
+MINIMALDOCPORTS+= \
 	ports/archivers/unzip \
 	ports/converters/libiconv \
 	ports/devel/gettext \
 	ports/devel/gmake \
-	ports/devel/imake-4 \
 	ports/devel/libtool13 \
 	ports/devel/libtool15 \
-	ports/devel/p5-File-Spec \
-	ports/devel/p5-File-Temp \
 	ports/devel/pkgconfig \
 	ports/graphics/gd \
 	ports/graphics/jbigkit \
 	ports/graphics/jpeg \
 	ports/graphics/netpbm \
-	ports/graphics/peps \
 	ports/graphics/png \
 	ports/graphics/scr2png \
 	ports/graphics/tiff \
-	ports/lang/perl5 \
-	ports/lang/perl5.8 \
 	ports/print/freetype2 \
 	ports/print/ghostscript-gnu \
 	ports/print/ghostscript-gnu-nox11 \
 	ports/print/gsfonts \
-	ports/textproc/docbook \
-	ports/textproc/docbook-241 \
-	ports/textproc/docbook-300 \
-	ports/textproc/docbook-310 \
-	ports/textproc/docbook-400 \
 	ports/textproc/docbook-410 \
 	ports/textproc/docbook-xml \
 	ports/textproc/docbook-xsl \
@@ -68,17 +55,29 @@ MINIMALDOCPORTS= \
 	ports/textproc/linuxdoc \
 	ports/textproc/scr2txt \
 	ports/textproc/sdocbook-xml \
-	ports/textproc/sgmlformat \
 	ports/textproc/xhtml \
 	ports/textproc/xmlcatmgr \
 	ports/www/links1 \
 	ports/www/tidy
-.if ${OSVERSION} < 460101 || ( ${OSVERSION} >= 500000 && ${OSVERSION} < 500036 )
-MINIMALDOCPORTS+=	ports/textproc/sed_inplace
-.endif
+
 .if ${MACHINE_ARCH} != "i386"
 MINIMALDOCPORTS+=	ports/textproc/openjade \
 			ports/textproc/opensp
 .else
 MINIMALDOCPORTS+=	ports/textproc/jade
+.endif
+
+.if ${OSVERSION} < 500000
+MINIMALDOCPORTS+= \
+	ports/converters/p5-MIME-Base64 \
+	ports/devel/p5-File-Spec \
+	ports/devel/p5-File-Temp \
+	ports/devel/p5-Test-Harness \
+	ports/devel/p5-Test-Simple \
+	ports/security/p5-Digest \
+	ports/security/p5-Digest-MD5 \
+	ports/textproc/p5-PodParser
+.else
+MINIMALDOCPORTS+= \
+	ports/lang/perl5.8
 .endif
