@@ -5,7 +5,7 @@
 # See also: ../scripts/doFS.sh
 #
 
-set -e
+set -ex
 
 FSIMG=$1; shift
 RD=$1 ; shift
@@ -16,10 +16,10 @@ FSINODE=$1 ; shift
 FSLABEL=$1 ; shift
 
 # If the disklabel is not equal to "efi", we have to create a "normal"
-# UFS filesystem. In that case, call the generic version:
+# UFS file system. In that case, call the generic version:
 if [ x$FSLABEL != "xefi" ]; then
     DOFS_SH=`dirname $0`/../scripts/`basename $0`
-    echo Tranferring control to $DOFS_SH...
+    echo "Transferring control to $DOFS_SH..."
     exec sh $DOFS_SH ia64 $FSIMG $RD $MNT $FSSIZE $FSPROTO $FSINODE $FSLABEL
 fi
 
