@@ -134,7 +134,7 @@ main(argc, argv)
 				Kflag = 1;
 				break;
 			case 'l':
-				/* seperate system and user time */
+				/* separate system and user time */
 				lflag = 1;
 				break;
 			case 'm':
