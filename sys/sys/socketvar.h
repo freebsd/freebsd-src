@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)socketvar.h	8.3 (Berkeley) 2/19/95
- * $Id: socketvar.h,v 1.18 1997/02/22 09:45:56 peter Exp $
+ * $Id: socketvar.h,v 1.19 1997/04/27 20:01:28 wollman Exp $
  */
 
 #ifndef _SYS_SOCKETVAR_H_
@@ -200,9 +200,6 @@ struct socket {
 #ifdef KERNEL
 extern u_long	sb_max;
 
-/* to catch callers missing new second argument to sonewconn: */
-#define	sonewconn(head, connstatus)	sonewconn1((head), (connstatus))
-
 struct filedesc;
 struct mbuf;
 struct sockaddr;
@@ -262,7 +259,7 @@ int	solisten __P((struct socket *so, int backlog, struct proc *p));
 struct socket *
 	sodropablereq __P((struct socket *head));
 struct socket *
-	sonewconn1 __P((struct socket *head, int connstatus));
+	sonewconn __P((struct socket *head, int connstatus));
 int	soreceive __P((struct socket *so, struct mbuf **paddr, struct uio *uio,
 	    struct mbuf **mp0, struct mbuf **controlp, int *flagsp));
 int	soreserve __P((struct socket *so, u_long sndcc, u_long rcvcc));
