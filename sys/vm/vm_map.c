@@ -965,9 +965,7 @@ vm_map_findspace(
 	if (map == kernel_map) {
 		vm_offset_t ksize;
 		if ((ksize = round_page(start + length)) > kernel_vm_end) {
-			mtx_lock(&Giant);
 			pmap_growkernel(ksize);
-			mtx_unlock(&Giant);
 		}
 	}
 	return (0);
