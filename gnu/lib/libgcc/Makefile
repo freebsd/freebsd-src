@@ -44,6 +44,8 @@ CFLAGS+=	-I${.CURDIR}/../../usr.bin/cc/cc_tools \
 		-I${GCCDIR}/config -I${GCCDIR} -I.
 LDFLAGS=	-nostdlib
 
+OBJS=		# added to below in various ways depending on TARGET_ARCH
+
 #---------------------------------------------------------------------------
 #
 # When upgrading GCC, get the following defintions straight from Makefile.in
@@ -176,10 +178,10 @@ SYMS+=		${FPBIT_FUNCS} ${DPBIT_FUNCS}
 .endif
 SYMS_ST=	${LIB2FUNCS_ST}		\
 		${LIB2ADD_ST}
+OBJS+=		${SYMS:S/$/.o/}
 OBJS_T=		${SYMS:S/$/.o/}  ${SYMS_ST:S/$/.o/}
 OBJS_P=		${SYMS:S/$/.po/} ${SYMS_ST:S/$/.po/}
 OBJS_S=		${SYMS:S/$/.So/}
-OBJS=		${SYMS:S/$/.o/}
 STATICOBJS=	${SYMS_ST:S/$/.o/}
 SRCS=		${LIB2ADD} ${LIB2ADDEH}
 
