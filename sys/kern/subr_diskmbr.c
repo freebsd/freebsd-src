@@ -59,11 +59,28 @@
 
 static volatile u_char dsi_debug;
 
+/*
+ * This is what we have embedded in every boot1 for supporting the bogus
+ * "Dangerously Dedicated" mode.  However, the old table is broken because
+ * it has an illegal geometry in it - it specifies 256 heads (heads = end
+ * head + 1) which causes nasty stuff when that wraps to zero in bios code.
+ * eg: divide by zero etc.  This caused the dead-thinkpad problem, numerous
+ * SCSI bios crashes, EFI to crash, etc.
+ * 
+ * We still have to recognize the old table though, even though we stopped
+ * inflicting it apon the world.
+ */
 static struct dos_partition historical_bogus_partition_table[NDOSPART] = {
 	{ 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, },
 	{ 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, },
 	{ 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, },
 	{ 0x80, 0, 1, 0, DOSPTYP_386BSD, 255, 255, 255, 0, 50000, },
+};
+static struct dos_partition historical_bogus_partition_table_fixed[NDOSPART] = {
+	{ 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, },
+	{ 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, },
+	{ 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, },
+	{ 0x80, 0, 1, 0, DOSPTYP_386BSD, 254, 255, 255, 0, 50000, },
 };
 
 static int check_part __P((char *sname, struct dos_partition *dp,
@@ -109,7 +126,8 @@ check_part(sname, dp, offset, nsectors, ntracks, mbr_offset )
 	 * If ssector1 is on a cylinder >= 1024, then ssector can't be right.
 	 * Allow the C/H/S for it to be 1023/ntracks-1/nsectors, or correct
 	 * apart from the cylinder being reduced modulo 1024.  Always allow
-	 * 1023/255/63.
+	 * 1023/255/63, because this is the official way to represent
+	 * pure-LBA for the starting position.
 	 */
 	if ((ssector < ssector1
 	     && ((chs_ssect == nsectors && dp->dp_shd == ntracks - 1
@@ -129,7 +147,12 @@ check_part(sname, dp, offset, nsectors, ntracks, mbr_offset )
 		  + mbr_offset;
 	esector1 = ssector1 + dp->dp_size - 1;
 
-	/* Allow certain bogus C/H/S values for esector, as above. */
+	/*
+	 * Allow certain bogus C/H/S values for esector, as above.  However,
+	 * heads == 255 isn't really legal and causes some BIOS crashes.  The
+	 * correct value to indicate a pure-LBA end is 1023/heads-1/sectors -
+	 * usually 1023/254/63.  "heads" is base 0, "sectors" is base 1.
+	 */
 	if ((esector < esector1
 	     && ((chs_esect == nsectors && dp->dp_ehd == ntracks - 1
 		  && chs_ecyl == 1023)
@@ -228,9 +251,11 @@ reread_mbr:
 	}
 
 	if (bcmp(dp0, historical_bogus_partition_table,
-		 sizeof historical_bogus_partition_table) == 0) {
-		TRACE(("%s: invalid primary partition table: historical\n",
-		       sname));
+		 sizeof historical_bogus_partition_table) == 0 ||
+	    bcmp(dp0, historical_bogus_partition_table_fixed,
+		 sizeof historical_bogus_partition_table_fixed) == 0) {
+		printf(
+    "%s: invalid primary partition table: Dangerously Dedicated (ignored)\n", sname);
 		error = EINVAL;
 		goto done;
 	}
