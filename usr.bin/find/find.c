@@ -50,6 +50,8 @@ static char sccsid[] = "@(#)find.c	8.5 (Berkeley) 8/5/94";
 
 #include "find.h"
 
+static int find_compare(const FTSENT **s1, const FTSENT **s2);
+
 /*
  * find_formplan --
  *	process the command line and create a "plan" corresponding to the
@@ -142,6 +144,18 @@ find_formplan(argv)
 FTS *tree;			/* pointer to top of FTS hierarchy */
 
 /*
+ * find_compare --
+ *    A function which be used in fts_open() to order the 
+ *    traversal of the hierarchy. 
+ *    This function give you a lexicographical sorted output.
+ */
+static int find_compare(s1, s2)
+	const FTSENT **s1, **s2;
+{
+	return strcoll( (*s1)->fts_name, (*s2)->fts_name );
+}
+
+/*
  * find_execute --
  *	take a search plan and an array of search paths and executes the plan
  *	over all FTSENT's returned for the given search paths.
@@ -155,7 +169,8 @@ find_execute(plan, paths)
 	PLAN *p;
 	int rval;
 
-	if ((tree = fts_open(paths, ftsoptions, (int (*)())NULL)) == NULL)
+	if ((tree = fts_open(paths, ftsoptions, 
+		(issort ? find_compare : NULL) )) == NULL)
 		err(1, "ftsopen");
 
 	for (rval = 0; (entry = fts_read(tree)) != NULL;) {

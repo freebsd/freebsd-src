@@ -66,6 +66,7 @@ int isdeprecated;		/* using deprecated syntax */
 int isdepth;			/* do directories on post-order visit */
 int isoutput;			/* user specified output operator */
 int isxargs;			/* don't permit xargs delimiting chars */
+int issort;         /* travel the file hierarchy lexicographical order */
 
 static void usage __P((void));
 
@@ -84,7 +85,7 @@ main(argc, argv)
 	p = start = argv;
 	Hflag = Lflag = 0;
 	ftsoptions = FTS_NOSTAT | FTS_PHYSICAL;
-	while ((ch = getopt(argc, argv, "HLPXdf:x")) != -1)
+	while ((ch = getopt(argc, argv, "HLPXdf:sx")) != -1)
 		switch (ch) {
 		case 'H':
 			Hflag = 1;
@@ -105,6 +106,9 @@ main(argc, argv)
 			break;
 		case 'f':
 			*p++ = optarg;
+			break;
+		case 's':
+			issort = 1;
 			break;
 		case 'x':
 			ftsoptions |= FTS_XDEV;
