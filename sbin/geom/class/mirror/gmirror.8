@@ -104,13 +104,13 @@
 The
 .Nm
 utility is used for mirrors (RAID1) configuration.
-After a mirror creation, all components are detected and configured
+After a mirror's creation, all components are detected and configured
 automatically.
-All operations like failure detection, stale components detection, rebuild
-of stale components etc.\& are done automatically as well.
+All operations like failure detection, stale component detection, rebuild
+of stale components, etc.\& are also done automatically.
 The
 .Nm
-utility uses on-disk metadata (the last provider's sector) to store all needed
+utility uses on-disk metadata (stored in the provider's last sector) to store all needed
 information.
 Since the last sector is used for this purpose, it is possible to place a root
 file system on a mirror.
@@ -121,11 +121,11 @@ indicates an action to be performed:
 .Bl -tag -width ".Cm deactivate"
 .It Cm label
 Create a mirror.
-Components order is important, because priority is based on its position
+The order of components is important, because a component's priority is based on its position
 (starting from 0).
-Component with the biggest priority is used by prefer balance algorithm
-and also is used as a master component when resynchronization is needed
-after, e.g. a power failure if device was open for writing.
+The component with the biggest priority is used by prefer balance algorithm
+and is also used as a master component when resynchronization is needed,
+e.g.\& after a power failure when the device was open for writing.
 .Pp
 Additional options include:
 .Bl -tag -width ".Fl b Ar balance"
@@ -147,10 +147,10 @@ Hardcode providers' names in metadata.
 .It Fl n
 Turn off autosynchronization of stale components.
 .It Fl s Ar slice
-When using
+When using the
 .Nm split
-balance algorithm and I/O READ request is bigger than or equal to this value,
-I/O request will be split into N pieces, where N is the number of active
+balance algorithm and an I/O READ request is bigger than or equal to this value,
+the I/O request will be split into N pieces, where N is the number of active
 component.
 .El
 .It Cm clear
@@ -177,8 +177,8 @@ balance algorithm.
 .El
 .It Cm rebuild
 Rebuild the given mirror components forcibly.
-If autosynchronization wasn't turn off for the given device, this command
-hopefully will not be used.
+If autosynchronization was not turned off for the given device, this command
+should be unnecessary.
 .It Cm insert
 Add the given component(s) to the existing mirror.
 .Pp
@@ -187,7 +187,7 @@ Additional options include:
 .It Fl h
 Hardcode providers' names in metadata.
 .It Fl i
-Mark component(s) as inacitve immediatelly after insertion.
+Mark component(s) as inactive immediately after insertion.
 .It Fl p Ar priority
 Specifies priority of the given component(s).
 .El
@@ -200,9 +200,9 @@ Mark the given component(s) as inactive, so it will not be automatically
 connected to the mirror.
 .It Cm forget
 Forget about components which are not connected.
-This command is useful when disk failed and can't be reconnected, so
+This command is useful when a disk has failed and can not be reconnected, preventing the
 .Cm remove
-command can't be used to remove it.
+command from being used to remove it.
 .It Cm stop
 Stop the given mirror.
 .Pp
@@ -212,7 +212,7 @@ Additional options include:
 Stop the given mirror even if it is opened.
 .El
 .It Cm list
-List every currently configured devices, if a list of devices is passed as a
+List every currently configured devices; if a list of devices is passed as a
 parameter then only those devices will be shown.
 .It Cm load
 Load
@@ -250,7 +250,7 @@ gmirror label -v -b round-robin data da0
 gmirror insert data da1
 .Ed
 .Pp
-Create a mirror, but do not use automatic sunchronization feature.
+Create a mirror, but do not use automatic synchronization feature.
 Add another disk and rebuild it:
 .Bd -literal -offset indent
 gmirror label -v -n -b load data da0 da1
@@ -265,7 +265,7 @@ gmirror insert data da1
 .Ed
 .Pp
 Create a mirror, deactivate one component, do the backup and connect it again.
-It will not be resynchronized, if there is no need to (there were no writes in
+It will not be resynchronized, if there is no need to do so (there were no writes in
 the meantime):
 .Bd -literal -offset indent
 gmirror label data da0 da1
@@ -290,6 +290,6 @@ utility appeared in
 .Sh AUTHORS
 .An Pawel Jakub Dawidek Aq pjd@FreeBSD.org
 .Sh BUGS
-There should be a way to change component's priority inside a running mirror.
+There should be a way to change a component's priority inside a running mirror.
 .Pp
-There should be a section with implementation description.
+There should be a section with an implementation description.
