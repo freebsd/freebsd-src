@@ -259,7 +259,7 @@ pmap_kmem_choose(vm_offset_t addr)
 {
 	vm_offset_t newaddr = addr;
 
-#ifdef I686_CPU
+#ifdef I686_CPU_not	/* Problem seems to have gone away */
 	/* Deal with un-resolved Pentium4 issues */
 	if (cpu_class == CPUCLASS_686 &&
 	    strcmp(cpu_vendor, "GenuineIntel") == 0 &&
@@ -377,7 +377,7 @@ pmap_bootstrap(firstaddr, loadaddr)
 	if (cpu_feature & CPUID_PGE)
 		pgeflag = PG_G;
 #endif
-#ifdef I686_CPU
+#ifdef I686_CPU_not	/* Problem seems to have gone away */
 	/* Deal with un-resolved Pentium4 issues */
 	if (cpu_class == CPUCLASS_686 &&
 	    strcmp(cpu_vendor, "GenuineIntel") == 0 &&
@@ -401,7 +401,7 @@ pmap_bootstrap(firstaddr, loadaddr)
 	if (cpu_feature & CPUID_PSE)
 		pseflag = PG_PS;
 #endif
-#ifdef I686_CPU
+#ifdef I686_CPU_not	/* Problem seems to have gone away */
 	/* Deal with un-resolved Pentium4 issues */
 	if (cpu_class == CPUCLASS_686 &&
 	    strcmp(cpu_vendor, "GenuineIntel") == 0 &&
