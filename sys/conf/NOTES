@@ -175,6 +175,9 @@ cpu		I686_CPU		# aka Pentium Pro(tm)
 #
 # Options for CPU features.
 #
+# CPU_ATHLON_SSE_HACK tries to enable SSE instructions when the BIOS has
+# forgotten to enable them.
+#
 # CPU_BLUELIGHTNING_FPU_OP_CACHE enables FPU operand cache on IBM
 # BlueLightning CPU.  It works only with Cyrix FPU, and this option
 # should not be used with Intel FPU.
@@ -256,6 +259,7 @@ cpu		I686_CPU		# aka Pentium Pro(tm)
 # NOTE 3: This option may cause failures for software that requires
 # locked cycles in order to operate correctly.
 #
+options 	CPU_ATHLON_SSE_HACK
 options 	CPU_BLUELIGHTNING_FPU_OP_CACHE
 options 	CPU_BLUELIGHTNING_3X
 options 	CPU_BTB_EN
