@@ -17,6 +17,12 @@ NOTE TO PEOPLE WHO THINK THAT FreeBSD 5.x IS SLOW:
 	developers choose to disable these features on build machines
 	to maximize performance.
 
+20040222:
+	The cdevsw structure has changed in two externally visible ways.
+	First, the sense of the D_GIANT flag has changed to D_NEEDSGIANT.
+	Second, the d_version field must be filled in with D_VERSION.
+	Drivers outside the tree will need to be updated.
+
 20040207:
 	The /etc/rc.d/ttys script has been removed. It is no longer
 	necessary since devfs has been mandatory for some time.
