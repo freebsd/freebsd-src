@@ -1,6 +1,6 @@
 /**************************************************************************
 **
-**  $Id: pci.c,v 2.1 94/09/16 08:01:20 wolf Rel $
+**  $Id: pci.c,v 1.5 1994/09/28 16:34:07 se Exp $
 **
 **  General subroutines for the PCI bus on 80*86 systems.
 **  pci_configure ()
@@ -554,7 +554,7 @@ struct vt {
 
 static struct vt VendorTable[] = {
 	{0x1002, "ATI TECHNOLOGIES INC"},
-	{0x1011, "DIGITAL EQUIPMENT COMPANY"},
+	{0x1011, "DIGITAL EQUIPMENT CORP."},
 	{0x101A, "NCR"},
 	{0x102B, "MATROX"},
 	{0x1045, "OPTI"},
