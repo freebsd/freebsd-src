@@ -90,7 +90,7 @@
 	mtx_unlock_spin(&sched_lock);					\
 	return (error);							\
 } while(0)
-	
+
 int
 proc_read_regs(struct thread *td, struct reg *regs)
 {
@@ -248,7 +248,7 @@ proc_rwmem(struct proc *p, struct uio *uio)
 
 			pindex += OFF_TO_IDX(object->backing_object_offset);
 			object = object->backing_object;
-			
+
 			m = vm_page_lookup(object, pindex);
 		}
 
@@ -410,7 +410,7 @@ kern_ptrace(struct thread *td, int req, pid_t pid, void *addr, int data)
 	default:
 		break;
 	}
-		
+
 	write = 0;
 	if (req == PT_TRACE_ME) {
 		p = td->td_proc;
@@ -435,7 +435,7 @@ kern_ptrace(struct thread *td, int req, pid_t pid, void *addr, int data)
 		error = EINVAL;
 		goto fail;
 	}
-	
+
 	/*
 	 * Permissions check
 	 */
@@ -607,7 +607,7 @@ kern_ptrace(struct thread *td, int req, pid_t pid, void *addr, int data)
 		} else if (data)
 			psignal(p, data);
 		PROC_UNLOCK(p);
-		
+
 		return (0);
 
 	case PT_WRITE_I:

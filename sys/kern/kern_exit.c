@@ -178,11 +178,11 @@ exit1(td, rv)
 		/*
 		 * All other activity in this process is now stopped.
 		 * Remove excess KSEs and KSEGRPS. XXXKSE (when we have them)
-		 * ... 
+		 * ...
 		 * Turn off threading support.
 		 */
 		p->p_flag &= ~P_THREADED;
-		thread_single_end(); 	/* Don't need this any more. */
+		thread_single_end();	/* Don't need this any more. */
 	}
 	/*
 	 * With this state set:
@@ -208,7 +208,7 @@ exit1(td, rv)
 			PROC_UNLOCK(q);
 			q = q->p_peers;
 		}
-		while (p->p_peers != NULL) 
+		while (p->p_peers != NULL)
 			msleep(p, &ppeers_lock, PWAIT, "exit1", 0);
 		mtx_unlock(&ppeers_lock);
 	}
@@ -219,12 +219,12 @@ exit1(td, rv)
 	STOPEVENT(p, S_EXIT, rv);
 	wakeup(&p->p_stype);	/* Wakeup anyone in procfs' PIOCWAIT */
 
-	/* 
+	/*
 	 * Check if any loadable modules need anything done at process exit.
 	 * e.g. SYSV IPC stuff
 	 * XXX what if one of these generates an error?
 	 */
-	TAILQ_FOREACH(ep, &exit_list, next) 
+	TAILQ_FOREACH(ep, &exit_list, next)
 		(*ep->function)(p);
 
 
@@ -479,7 +479,7 @@ exit1(td, rv)
 	if (p->p_flag & P_KTHREAD)
 		wakeup(p);
 	PROC_UNLOCK(p);
-	
+
 	/*
 	 * Finally, call machine-dependent code to release the remaining
 	 * resources including address space.
@@ -514,7 +514,7 @@ exit1(td, rv)
 	/*
 	 * Make sure the scheduler takes this thread out of its tables etc.
 	 * This will also release this thread's reference to the ucred.
- 	 * Other thread parts to release include pcb bits and such.
+	 * Other thread parts to release include pcb bits and such.
 	 */
 	thread_exit();
 }
@@ -592,7 +592,7 @@ loop:
 		}
 
 		/*
-		 * This special case handles a kthread spawned by linux_clone 
+		 * This special case handles a kthread spawned by linux_clone
 		 * (see linux_misc.c).  The linux_wait4 and linux_waitpid
 		 * functions need to be able to distinguish between waiting
 		 * on a process and waiting on a thread.  It is a thread if
@@ -824,7 +824,7 @@ proc_reparent(child, parent)
 /*
  * The next two functions are to handle adding/deleting items on the
  * exit callout list
- * 
+ *
  * at_exit():
  * Take the arguments given and put them onto the exit callout list,
  * However first make sure that it's not already there.
@@ -839,7 +839,7 @@ at_exit(function)
 
 #ifdef INVARIANTS
 	/* Be noisy if the programmer has lost track of things */
-	if (rm_at_exit(function)) 
+	if (rm_at_exit(function))
 		printf("WARNING: exit callout entry (%p) already present\n",
 		    function);
 #endif
