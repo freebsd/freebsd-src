@@ -33,49 +33,155 @@
  *
  */
 
+/*
+ * POSIX stdio FILE locking functions. These assume that the locking
+ * is only required at FILE structure level, not at file descriptor
+ * level too.
+ *
+ */
+
+#include "namespace.h"
 #include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
+#include <pthread.h>
+#include "un-namespace.h"
 
 /*
- * Declare weak references in case the application is not linked
- * with libpthread.
+ * Weak symbols for externally visible functions in this file:
  */
-#pragma weak flockfile=_flockfile_stub
-#pragma weak _flockfile=_flockfile_stub
-#pragma weak _flockfile_debug=_flockfile_debug_stub
-#pragma weak ftrylockfile=_ftrylockfile_stub
-#pragma weak _ftrylockfile=_ftrylockfile_stub
-#pragma weak funlockfile=_funlockfile_stub
-#pragma weak _funlockfile=_funlockfile_stub
+#pragma weak	flockfile=_flockfile
+#pragma weak	_flockfile_debug=_flockfile_debug_stub
+#pragma weak	ftrylockfile=_ftrylockfile
+#pragma weak	funlockfile=_funlockfile
+
+static int	init_lock(FILE *);
 
 /*
- * This function is a stub for the _flockfile function in libpthread.
+ * The FILE lock structure. The FILE *fp is locked when the mutex
+ * is locked.
  */
-void
-_flockfile_stub(FILE *fp)
+struct	__file_lock {
+	pthread_mutex_t	fl_mutex;
+	pthread_t	fl_owner;	/* current owner */
+	int		fl_count;	/* recursive lock count */
+};
+
+/*
+ * Allocate and initialize a file lock.
+ */
+static int
+init_lock(FILE *fp)
 {
+	struct __file_lock *p;
+	int	ret;
+
+	if ((p = malloc(sizeof(struct __file_lock))) == NULL)
+		ret = -1;
+	else {
+		p->fl_mutex = PTHREAD_MUTEX_INITIALIZER;
+		p->fl_owner = NULL;
+		p->fl_count = 0;
+		fp->_lock = p;
+		ret = 0;
+	}
+	return (ret);
+}
+
+void
+_flockfile(FILE *fp)
+{
+	pthread_t curthread = _pthread_self();
+
+	/*
+	 * Check if this is a real file with a valid lock, creating
+	 * the lock if needed:
+	 */
+	if ((fp->_file >= 0) &&
+	    ((fp->_lock != NULL) || (init_lock(fp) == 0))) {
+		if (fp->_lock->fl_owner == curthread)
+			fp->_lock->fl_count++;
+		else {
+			/*
+			 * Make sure this mutex is treated as a private
+			 * internal mutex:
+			 */
+			_pthread_mutex_lock(&fp->_lock->fl_mutex);
+			fp->_lock->fl_owner = curthread;
+			fp->_lock->fl_count = 1;
+		}
+	}
 }
 
 /*
- * This function is a stub for the _flockfile_debug function in libpthread.
+ * This can be overriden by the threads library if it is linked in.
  */
 void
 _flockfile_debug_stub(FILE *fp, char *fname, int lineno)
 {
+	_flockfile(fp);
 }
 
-/*
- * This function is a stub for the _ftrylockfile function in libpthread.
- */
 int
-_ftrylockfile_stub(FILE *fp)
+_ftrylockfile(FILE *fp)
 {
-	return(0);
+	pthread_t curthread = _pthread_self();
+	int	ret = 0;
+
+	/*
+	 * Check if this is a real file with a valid lock, creating
+	 * the lock if needed:
+	 */
+	if ((fp->_file >= 0) &&
+	    ((fp->_lock != NULL) || (init_lock(fp) == 0))) {
+		if (fp->_lock->fl_owner == curthread)
+			fp->_lock->fl_count++;
+		/*
+		 * Make sure this mutex is treated as a private
+		 * internal mutex:
+		 */
+		else if (_pthread_mutex_trylock(&fp->_lock->fl_mutex) == 0) {
+			fp->_lock->fl_owner = curthread;
+			fp->_lock->fl_count = 1;
+		}
+		else
+			ret = -1;
+	}
+	else
+		ret = -1;
+	return (ret);
 }
 
-/*
- * This function is a stub for the _funlockfile function in libpthread.
- */
-void
-_funlockfile_stub(FILE *fp)
+void 
+_funlockfile(FILE *fp)
 {
+	pthread_t	curthread = _pthread_self();
+
+	/*
+	 * Check if this is a real file with a valid lock owned
+	 * by the current thread:
+	 */
+	if ((fp->_file >= 0) && (fp->_lock != NULL) &&
+	    (fp->_lock->fl_owner == curthread)) {
+		/*
+		 * Check if this thread has locked the FILE
+		 * more than once:
+		 */
+		if (fp->_lock->fl_count > 1)
+			/*
+			 * Decrement the count of the number of
+			 * times the running thread has locked this
+			 * file:
+			 */
+			fp->_lock->fl_count--;
+		else {
+			/*
+			 * The running thread will release the
+			 * lock now:
+			 */
+			fp->_lock->fl_count = 0;
+			fp->_lock->fl_owner = NULL;
+			_pthread_mutex_unlock(&fp->_lock->fl_mutex);
+		}
+	}
 }

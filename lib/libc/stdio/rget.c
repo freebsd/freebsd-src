@@ -39,22 +39,19 @@
 static char sccsid[] = "@(#)rget.c	8.1 (Berkeley) 6/4/93";
 #endif
 static const char rcsid[] =
-	"$Id";
+	"$FreeBSD$";
 #endif /* LIBC_SCCS and not lint */
 
 #include <stdio.h>
 #include "local.h"
-
-int 
-__srefill(FILE *);
 
 /*
  * Handle getc() when the buffer ran out:
  * Refill, then return the first character
  * in the newly-filled buffer.
  */
-int __srget(fp)
-	register FILE *fp;
+int
+__srget(FILE *fp)
 {
 	if (__srefill(fp) == 0) {
 		fp->_r--;

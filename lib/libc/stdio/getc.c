@@ -46,11 +46,10 @@ static const char rcsid[] =
 #include <stdio.h>
 #include "un-namespace.h"
 #include "libc_private.h"
+#include "local.h"
 
-#undef getc
 int
-getc(fp)
-	register FILE *fp;
+getc(FILE *fp)
 {
 	int retval;
 	FLOCKFILE(fp);

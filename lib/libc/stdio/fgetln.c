@@ -42,9 +42,12 @@ static const char rcsid[] =
   "$FreeBSD$";
 #endif /* LIBC_SCCS and not lint */
 
+#include "namespace.h"
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include "un-namespace.h"
+#include "libc_private.h"
 #include "local.h"
 
 /*
@@ -54,10 +57,8 @@ static const char rcsid[] =
  * so we add 1 here.
 #endif
  */
-int
-__slbexpand(fp, newsize)
-	FILE *fp;
-	size_t newsize;
+static int
+slbexpand(FILE *fp, size_t newsize)
 {
 	void *p;
 
@@ -81,23 +82,23 @@ __slbexpand(fp, newsize)
  * it if they wish.  Thus, we set __SMOD in case the caller does.
  */
 char *
-fgetln(fp, lenp)
-	register FILE *fp;
-	size_t *lenp;
+fgetln(FILE *fp, size_t *lenp)
 {
-	register unsigned char *p;
-	register size_t len;
+	unsigned char *p;
+	size_t len;
 	size_t off;
 
+	FLOCKFILE(fp);
 	/* make sure there is input */
 	if (fp->_r <= 0 && __srefill(fp)) {
 		*lenp = 0;
+		FUNLOCKFILE(fp);
 		return (NULL);
 	}
 
 	/* look for a newline in the input */
 	if ((p = memchr((void *)fp->_p, '\n', (size_t)fp->_r)) != NULL) {
-		register char *ret;
+		char *ret;
 
 		/*
 		 * Found one.  Flag buffer as modified to keep fseek from
@@ -110,6 +111,7 @@ fgetln(fp, lenp)
 		fp->_flags |= __SMOD;
 		fp->_r -= len;
 		fp->_p = p;
+		FUNLOCKFILE(fp);
 		return (ret);
 	}
 
@@ -124,14 +126,14 @@ fgetln(fp, lenp)
 #define OPTIMISTIC 80
 
 	for (len = fp->_r, off = 0;; len += fp->_r) {
-		register size_t diff;
+		size_t diff;
 
 		/*
 		 * Make sure there is room for more bytes.  Copy data from
 		 * file buffer to line buffer, refill file and look for
 		 * newline.  The loop stops only when we find a newline.
 		 */
-		if (__slbexpand(fp, len + OPTIMISTIC))
+		if (slbexpand(fp, len + OPTIMISTIC))
 			goto error;
 		(void)memcpy((void *)(fp->_lb._base + off), (void *)fp->_p,
 		    len - off);
@@ -145,7 +147,7 @@ fgetln(fp, lenp)
 		p++;
 		diff = p - fp->_p;
 		len += diff;
-		if (__slbexpand(fp, len))
+		if (slbexpand(fp, len))
 			goto error;
 		(void)memcpy((void *)(fp->_lb._base + off), (void *)fp->_p,
 		    diff);
@@ -157,9 +159,11 @@ fgetln(fp, lenp)
 #ifdef notdef
 	fp->_lb._base[len] = 0;
 #endif
+	FUNLOCKFILE(fp);
 	return ((char *)fp->_lb._base);
 
 error:
 	*lenp = 0;		/* ??? */
+	FUNLOCKFILE(fp);
 	return (NULL);		/* ??? */
 }

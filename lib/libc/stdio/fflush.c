@@ -49,6 +49,8 @@ static const char rcsid[] =
 #include "libc_private.h"
 #include "local.h"
 
+static int	sflush_locked(FILE *);
+
 /*
  * Flush a single file, or (if fp is NULL) all files.
  * MT-safe version
@@ -59,7 +61,7 @@ fflush(FILE *fp)
 	int retval;
 
 	if (fp == NULL)
-		return (_fwalk(__sflush));
+		return (_fwalk(sflush_locked));
 	FLOCKFILE(fp);
 	if ((fp->_flags & (__SWR | __SRW)) == 0) {
 		errno = EBADF;
@@ -80,7 +82,7 @@ __fflush(FILE *fp)
 	int retval;
 
 	if (fp == NULL)
-		return (_fwalk(__sflush));
+		return (_fwalk(sflush_locked));
 	if ((fp->_flags & (__SWR | __SRW)) == 0) {
 		errno = EBADF;
 		retval = EOF;
@@ -119,4 +121,15 @@ __sflush(FILE *fp)
 		}
 	}
 	return (0);
+}
+
+static int
+sflush_locked(FILE *fp)
+{
+	int	ret;
+
+	FLOCKFILE(fp);
+	ret = __sflush(fp);
+	FUNLOCKFILE(fp);
+	return (ret);
 }

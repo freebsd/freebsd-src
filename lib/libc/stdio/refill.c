@@ -42,22 +42,28 @@ static const char rcsid[] =
   "$FreeBSD$";
 #endif /* LIBC_SCCS and not lint */
 
+#include "namespace.h"
 #include <errno.h>
 #include <stdio.h>
 #include <stdlib.h>
+#include "un-namespace.h"
 
+#include "libc_private.h"
 #include "local.h"
 
 static int lflush __P((FILE *));
 
 static int
-lflush(fp)
-	FILE *fp;
+lflush(FILE *fp)
 {
+	int	ret = 0;
 
-	if ((fp->_flags & (__SLBF|__SWR)) == (__SLBF|__SWR))
-		return (__sflush(fp));
-	return (0);
+	if ((fp->_flags & (__SLBF|__SWR)) == (__SLBF|__SWR)) {
+		FLOCKFILE(fp);
+		ret = __sflush(fp);
+		FUNLOCKFILE(fp);
+	}
+	return (ret);
 }
 
 /*
@@ -65,10 +71,8 @@ lflush(fp)
  * Return EOF on eof or error, 0 otherwise.
  */
 int
-__srefill(fp)
-	register FILE *fp;
+__srefill(FILE *fp)
 {
-
 	/* make sure stdio is set up */
 	if (!__sdidinit)
 		__sinit();
@@ -119,8 +123,16 @@ __srefill(fp)
 	 * flush all line buffered output files, per the ANSI C
 	 * standard.
 	 */
-	if (fp->_flags & (__SLBF|__SNBF))
+	if (fp->_flags & (__SLBF|__SNBF)) {
+		/* Ignore this file in _fwalk to avoid potential deadlock. */
+		fp->_flags |= __SIGN;
 		(void) _fwalk(lflush);
+		fp->_flags &= ~__SIGN;
+
+		/* Now flush this file without locking it. */
+		if ((fp->_flags & (__SLBF|__SWR)) == (__SLBF|__SWR))
+			__sflush(fp);
+	}
 	fp->_p = fp->_bf._base;
 	fp->_r = (*fp->_read)(fp->_cookie, (char *)fp->_p, fp->_bf._size);
 	fp->_flags &= ~__SMOD;	/* buffer contents are again pristine */
