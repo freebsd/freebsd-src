@@ -38,7 +38,7 @@
  *
  *	from: Utah $Hdr: mem.c 1.13 89/10/08$
  *	from: @(#)mem.c	7.2 (Berkeley) 5/9/91
- *	$Id: mem.c,v 1.43 1997/05/07 20:02:37 peter Exp $
+ *	$Id: mem.c,v 1.44 1997/05/07 20:32:41 peter Exp $
  */
 
 /*
@@ -65,6 +65,7 @@
 #ifdef PERFMON
 #include <machine/perfmon.h>
 #endif
+#include <i386/isa/intr_machdep.h>
 
 #include <vm/vm.h>
 #include <vm/vm_param.h>

@@ -23,7 +23,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- * $Id: kern_intr.c,v 1.3 1997/05/31 09:30:39 peter Exp $
+ * $Id: kern_intr.c,v 1.4 1997/06/01 16:05:13 peter Exp $
  *
  */
 
@@ -37,8 +37,8 @@
 #endif /* RESOURCE_CHECK */
 
 #include <i386/isa/icu.h>
-#include <i386/isa/isa_device.h>
-#include <sys/interrupt.h> /* XXX needs inthand2_t from isa_device.h */
+#include <i386/isa/intr_machdep.h>
+#include <sys/interrupt.h>
 
 #include <machine/ipl.h>
 
