@@ -1,4 +1,4 @@
-static char     nic39_id[] = "@(#)$Id: nic3009.c,v 1.1 1995/01/25 14:06:18 jkr Exp jkr $";
+static char     nic39_id[] = "@(#)$Id: nic3009.c,v 1.1 1995/02/14 15:00:14 jkh Exp $";
 /*******************************************************************************
  *  II - Version 0.1 $Revision: 1.1 $   $State: Exp $
  *
@@ -10,6 +10,15 @@ static char     nic39_id[] = "@(#)$Id: nic3009.c,v 1.1 1995/01/25 14:06:18 jkr E
  *
  *******************************************************************************
  * $Log: nic3009.c,v $
+ * Revision 1.1  1995/02/14  15:00:14  jkh
+ * An ISDN driver that supports the EDSS1 and the 1TR6 ISDN interfaces.
+ * EDSS1 is the "Euro-ISDN", 1TR6 is the soon obsolete german ISDN Interface.
+ * Obtained from: Dietmar Friede <dfriede@drnhh.neuhaus.de> and
+ * 	Juergen Krause <jkr@saarlink.de>
+ *
+ * This is only one part - the rest to follow in a couple of hours.
+ * This part is a benign import, since it doesn't affect anything else.
+ *
  *
  ******************************************************************************/
 
@@ -29,10 +38,10 @@ static char     nic39_id[] = "@(#)$Id: nic3009.c,v 1.1 1995/01/25 14:06:18 jkr E
 #include "kernel.h"
 #include "systm.h"
 
-#include "i386/isa/isa_device.h"
-#include "i386/isa/nic3009.h"
-#include "i386/isa/niccyreg.h"
-#include "isdn/isdn_ioctl.h"
+#include "gnu/i386/isa/isa_device.h"
+#include "gnu/i386/isa/nic3009.h"
+#include "gnu/i386/isa/niccyreg.h"
+#include "gnu/isdn/isdn_ioctl.h"
 
 #define OPEN		1
 #define LOAD_HEAD	3
