@@ -1,12 +1,12 @@
 # From:	@(#)Makefile	8.3 (Berkeley) 4/2/94
-# $Id: Makefile,v 1.30 1998/09/19 22:42:04 obrien Exp $
+# $Id: Makefile,v 1.31 1999/02/14 13:56:15 des Exp $
 
 PROG=	passwd
 SRCS=	local_passwd.c passwd.c pw_copy.c pw_util.c pw_yp.c \
 	yp_passwd.c ypxfr_misc.c ${GENSRCS}
 GENSRCS=yp.h yp_clnt.c yppasswd.h yppasswd_clnt.c \
 	yppasswd_private.h yppasswd_private_clnt.c yppasswd_private_xdr.c
-CFLAGS+=-Wall
+CFLAGS+=-Wall -DPASSWD_IGNORE_COMMENTS
 
 DPADD=	${LIBCRYPT} ${LIBRPCSVC} ${LIBUTIL}
 LDADD=	-lcrypt -lrpcsvc -lutil
