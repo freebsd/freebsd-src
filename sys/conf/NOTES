@@ -1095,7 +1095,6 @@ options 	VGA_SLOW_IOACCESS	# do byte-wide i/o's to TS and GDC regs
 options 	VGA_WIDTH90		# support 90 column modes
 
 options 	FB_DEBUG		# Frame buffer debugging
-options 	FB_INSTALL_CDEV		# install a CDEV entry in /dev
 
 device		splash			# Splash screen and screen saver support
 
