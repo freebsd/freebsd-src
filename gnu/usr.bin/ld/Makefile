@@ -1,8 +1,8 @@
-# $Id: Makefile,v 1.26 1998/09/07 05:46:09 jb Exp $
+# $Id: Makefile,v 1.27 1998/09/09 11:22:28 kato Exp $
 #
 
 RTLD=	${.CURDIR}/../../../libexec/rtld-aout
-GCCDIR=	${.CURDIR}/../../../contrib/gcc
+GCCDIR=	${.CURDIR}/../../../contrib/egcs/gcc
 
 PROG=	ld
 BINDIR= /usr/libexec/aout
