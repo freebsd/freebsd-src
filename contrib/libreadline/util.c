@@ -1,4 +1,3 @@
-/* $FreeBSD$ */
 /* util.c -- readline utility functions */
 
 /* Copyright (C) 1987, 1989, 1992 Free Software Foundation, Inc.
@@ -238,9 +237,6 @@ _rl_strpbrk (string1, string2)
 
   memset (&ps, 0, sizeof (mbstate_t));
 #endif
-
-  if (string2 == NULL)
-    return ((char *)NULL);
 
   for (; *string1; string1++)
     {
