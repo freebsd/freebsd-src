@@ -503,10 +503,9 @@ nqsrv_send_eviction(vp, lp, slp, nam, cred)
 	struct ucred *cred;
 {
 	register struct nqhost *lph = &lp->lc_host;
-	register struct mbuf *m;
 	register int siz;
 	struct nqm *lphnext = lp->lc_morehosts;
-	struct mbuf *mreq, *mb, *mb2, *mheadend;
+	struct mbuf *m, *mreq, *mb, *mb2, *mheadend;
 	struct socket *so;
 	struct sockaddr *nam2;
 	struct sockaddr_in *saddr;
@@ -926,14 +925,13 @@ nqnfs_vacated(vp, cred)
 	struct ucred *cred;
 {
 	register caddr_t cp;
-	register struct mbuf *m;
 	register int i;
 	register u_int32_t *tl;
 	register int32_t t2;
 	caddr_t bpos;
 	u_int32_t xid;
 	int error = 0;
-	struct mbuf *mreq, *mb, *mb2, *mheadend;
+	struct mbuf *m, *mreq, *mb, *mb2, *mheadend;
 	struct nfsmount *nmp;
 	struct nfsreq myrep;
 

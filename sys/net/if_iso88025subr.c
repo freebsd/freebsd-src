@@ -160,9 +160,9 @@ iso88025_ioctl(struct ifnet *ifp, int command, caddr_t data)
  * ISO88025 encapsulation
  */
 int
-iso88025_output(ifp, m0, dst, rt0)
+iso88025_output(ifp, m, dst, rt0)
 	register struct ifnet *ifp;
-	struct mbuf *m0;
+	struct mbuf *m;
 	struct sockaddr *dst;
 	struct rtentry *rt0;
 {
@@ -173,7 +173,6 @@ iso88025_output(ifp, m0, dst, rt0)
 	register struct sockaddr_dl *sdl = NULL;
         int s, error = 0, rif_len = 0;
  	u_char edst[6];
-	register struct mbuf *m = m0;
 	register struct rtentry *rt;
 	int len = m->m_pkthdr.len, loop_copy = 0;
 	struct arpcom *ac = (struct arpcom *)ifp;
