@@ -11,4 +11,14 @@ CFLAGS+=-I. -I${.CURDIR} -I${.CURDIR}/../../../contrib/bc/h -DHAVE_CONFIG_H
 DPADD=	${LIBREADLINE} ${LIBTERMCAP}
 LDADD=	-lreadline -ltermcap
 
+EXAMPLES=	ckbook.b pi.b primes.b twins.b
+EXAMPDIR=	/usr/share/examples/bc
+
+beforeinstall:
+.for file in ${EXAMPLES}
+	cd ${.CURDIR}/../../../contrib/bc/Examples ; \
+	${INSTALL} -c -o ${BINOWN} -g ${BINGRP} -m 444 ${file} \
+		${DESTDIR}${EXAMPDIR}
+.endfor
+
 .include <bsd.prog.mk>
