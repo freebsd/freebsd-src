@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)sysctl.h	8.1 (Berkeley) 6/2/93
- * $Id$
+ * $Id: sysctl.h,v 1.51 1997/02/22 09:46:01 peter Exp $
  */
 
 #ifndef _SYS_SYSCTL_H_
@@ -226,8 +226,8 @@ int sysctl_handle_opaque SYSCTL_HANDLER_ARGS;
 #define	KERN_MAXFILESPERPROC	27	/* int: max open files per proc */
 #define	KERN_MAXPROCPERUID 	28	/* int: max processes per uid */
 #define KERN_DUMPDEV		29	/* dev_t: device to dump on */
-#define	KERN_SOMAXCONN		30	/* int: max connections in listen q */
-#define	KERN_MAXSOCKBUF		31	/* int: max size of a socket buffer */
+#define	KERN_IPC		30	/* node: anything related to IPC */
+#define	KERN_DUMMY		31	/* unused */
 #define	KERN_PS_STRINGS		32	/* int: address of PS_STRINGS */
 #define	KERN_USRSTACK		33	/* int: address of USRSTACK */
 #define KERN_MAXID		34      /* number of valid kern ids */
@@ -263,8 +263,8 @@ int sysctl_handle_opaque SYSCTL_HANDLER_ARGS;
 	{ "maxfilesperproc", CTLTYPE_INT }, \
 	{ "maxprocperuid", CTLTYPE_INT }, \
 	{ "dumpdev", CTLTYPE_STRUCT }, /* we lie; don't print as int */ \
-	{ "somaxconn", CTLTYPE_INT }, \
-	{ "maxsockbuf", CTLTYPE_INT }, \
+	{ "ipc", CTLTYPE_NODE }, \
+	{ "dummy", CTLTYPE_INT }, \
 	{ "ps_strings", CTLTYPE_INT }, \
 	{ "usrstack", CTLTYPE_INT }, \
 }
@@ -286,6 +286,18 @@ int sysctl_handle_opaque SYSCTL_HANDLER_ARGS;
 #define	KERN_PROC_TTY		4	/* by controlling tty */
 #define	KERN_PROC_UID		5	/* by effective uid */
 #define	KERN_PROC_RUID		6	/* by real uid */
+
+/*
+ * KERN_IPC identifiers
+ */
+#define KIPC_MAXSOCKBUF		1	/* int: max size of a socket buffer */
+#define	KIPC_SOCKBUF_WASTE	2	/* int: wastage factor in sockbuf */
+#define	KIPC_SOMAXCONN		3	/* int: max length of connection q */
+#define	KIPC_MAX_LINKHDR	4	/* int: max length of link header */
+#define	KIPC_MAX_PROTOHDR	5	/* int: max length of network header */
+#define	KIPC_MAX_HDR		6	/* int: max total length of headers */
+#define	KIPC_MAX_DATALEN	7	/* int: max length of data? */
+#define	KIPC_MBSTAT		8	/* struct: mbuf usage statistics */
 
 /*
  * CTL_HW identifiers
