@@ -7,6 +7,7 @@
  *	$NetBSD: uhci.c,v 1.176 2003/11/04 19:11:21 mycroft Exp $
  *	$NetBSD: uhci.c,v 1.177 2003/12/29 08:17:10 toshii Exp $
  *	$NetBSD: uhci.c,v 1.178 2004/03/02 16:32:05 martin Exp $
+ *	$NetBSD: uhci.c,v 1.180 2004/07/17 20:12:03 mycroft Exp $
  */
 
 #include <sys/cdefs.h>
@@ -1973,8 +1974,6 @@ uhci_abort_xfer(usbd_xfer_handle xfer, usbd_status status)
 	/*
 	 * Step 3: Execute callback.
 	 */
-	xfer->hcpriv = ii;
-
 	DPRINTFN(1,("uhci_abort_xfer: callback\n"));
 	s = splusb();
 #ifdef DIAGNOSTIC
