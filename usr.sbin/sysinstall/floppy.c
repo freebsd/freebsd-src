@@ -64,6 +64,9 @@ mediaInitFloppy(Device *dev)
     struct msdosfs_args dosargs;
     struct ufs_args u_args;
     char *mp;
+#ifdef PC98
+    char fddev[24];
+#endif
 
     if (floppyMounted)
 	return TRUE;
@@ -85,20 +88,51 @@ mediaInitFloppy(Device *dev)
     }
 
     memset(&dosargs, 0, sizeof dosargs);
+#ifdef PC98
+    dosargs.fspec = fddev;
+#else
     dosargs.fspec = dev->devname;
+#endif
     dosargs.uid = dosargs.gid = 0;
     dosargs.mask = 0777;
 
     memset(&u_args, 0, sizeof(u_args));
+#ifdef PC98
+    u_args.fspec = fddev;
+#else
     u_args.fspec = dev->devname;
+#endif
 
-    if (mount("msdos", mp, MNT_RDONLY, (caddr_t)&dosargs) == -1) {
-	if (mount("ufs", mp, MNT_RDONLY, (caddr_t)&u_args) == -1) {
-	    msgConfirm("Error mounting floppy %s (%s) on %s : %s",
-		       dev->name, dev->devname, mp, strerror(errno));
-	    return FALSE;
-	}
-    }
+#ifdef PC98
+    sprintf(fddev, "%s.1200", dev->devname);
+    if (mount("msdos", mp, MNT_RDONLY, (caddr_t)&dosargs) != -1)
+	goto success;
+    if (mount("ufs", mp, MNT_RDONLY, (caddr_t)&u_args) != -1)
+	goto success;
+
+    sprintf(fddev, "%s.1232", dev->devname);
+    if (mount("msdos", mp, MNT_RDONLY, (caddr_t)&dosargs) != -1)
+	goto success;
+    if (mount("ufs", mp, MNT_RDONLY, (caddr_t)&u_args) != -1)
+	goto success;
+
+    sprintf(fddev, "%s.1440", dev->devname);
+    if (mount("msdos", mp, MNT_RDONLY, (caddr_t)&dosargs) != -1)
+	goto success;
+    if (mount("ufs", mp, MNT_RDONLY, (caddr_t)&u_args) != -1)
+	goto success;
+#else
+    if (mount("msdos", mp, MNT_RDONLY, (caddr_t)&dosargs) != -1)
+	goto success;
+    if (mount("ufs", mp, MNT_RDONLY, (caddr_t)&u_args) != -1)
+	goto success;
+#endif /* PC98 */
+
+    msgConfirm("Error mounting floppy %s (%s) on %s : %s",
+	       dev->name, dev->devname, mp, strerror(errno));
+    return FALSE;
+
+success:
     floppyMounted = TRUE;
     distWanted = NULL;
     return TRUE;
