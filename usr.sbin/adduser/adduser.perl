@@ -24,7 +24,7 @@
 # OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 # SUCH DAMAGE.
 #
-# $Id: adduser.perl,v 1.19.2.3 1997/03/07 06:23:00 mpp Exp $
+# $Id: adduser.perl,v 1.19.2.4 1997/07/28 10:45:08 wosch Exp $
 
 
 # read variables
@@ -244,7 +244,7 @@ sub passwd_read {
 	    if ($verbose && $sh &&
 		!$shell{&basename($sh)} &&
 		$p_username !~ /^(news|xten|bin|nobody|uucp)$/ &&
-		$sh !~ /\/(pppd|sliplogin)$/);
+		$sh !~ /\/(pppd|sliplogin|nologin)$/);
 	$uid{$p_uid} = $p_username;
 	$pwgid{$p_gid} = $p_username;
     }
