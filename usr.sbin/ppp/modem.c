@@ -17,7 +17,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: modem.c,v 1.20 1996/03/27 22:28:19 ache Exp $
+ * $Id: modem.c,v 1.21 1996/03/27 22:58:21 ache Exp $
  *
  *  TODO:
  */
@@ -458,6 +458,7 @@ int mode;
       /*
        * If we are working as direct mode, don't change tty speed.
        */
+      rstio.c_cflag &= ~(CSIZE|PARODD|PARENB);
       rstio.c_cflag |= VarParity;
       cfsetspeed(&rstio, IntToSpeed(VarSpeed));
     }
