@@ -1987,13 +1987,6 @@ wi_set_cfg(struct ifnet *ifp, u_long cmd, caddr_t data)
 	case WI_RID_PROCFRAME:		/* ignore for compatibility */
 		break;
 
-	case WI_RID_SCAN_REQ:
-		if (!sc->sc_enabled) {
-			error = ENETDOWN;
-			break;
-		}
-		if (sc->sc_firmware_type == WI_LUCENT)
-
 	default:
 		if (sc->sc_enabled) {
 			error = wi_write_rid(sc, wreq.wi_type, wreq.wi_val,
