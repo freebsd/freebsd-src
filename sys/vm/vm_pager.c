@@ -371,7 +371,6 @@ getpbuf(pfreecnt)
 	struct buf *bp;
 
 	s = splvm();
-	GIANT_REQUIRED;
 	mtx_lock(&pbuf_mtx);
 
 	for (;;) {
@@ -445,7 +444,6 @@ relpbuf(bp, pfreecnt)
 	int s;
 
 	s = splvm();
-	mtx_lock(&pbuf_mtx);
 
 	if (bp->b_rcred != NOCRED) {
 		crfree(bp->b_rcred);
@@ -461,6 +459,7 @@ relpbuf(bp, pfreecnt)
 
 	BUF_UNLOCK(bp);
 
+	mtx_lock(&pbuf_mtx);
 	TAILQ_INSERT_HEAD(&bswlist, bp, b_freelist);
 
 	if (bswneeded) {
