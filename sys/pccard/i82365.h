@@ -76,7 +76,9 @@
 #define PCIC_IO1	0x0c	/* I/O Address 1 */
 #define	PCIC_MEMBASE	0x10	/* Base of memory window registers */
 #define PCIC_CDGC	0x16	/* Card Detect and General Control */
+#define PCIC_MISC1	0x16	/* PD672x: Misc control register 1 per slot */
 #define PCIC_GLO_CTRL	0x1e	/* Global Control Register */
+#define PCIC_MISC2	0x1e	/* PD672x: Misc control register 2 per chip */
 
 #define	PCIC_TIME_SETUP0	0x3a
 #define	PCIC_TIME_CMD0		0x3b
@@ -197,12 +199,18 @@
 #define PCIC_CDRES_EN	0x10	/* card detect resume enable */
 #define PCIC_SW_CD_INT	0x20	/* s/w card detect interrupt */
 
+/* For Misc. Control Register 1 */
+#define PCIC_SPKR_EN	0x10	/* Cirrus PD672x: speaker enable */
+
 /* For Global Control register (PCIC_GLO_CTRL) */
 #define PCIC_PWR_DOWN	0x01	/* power down */
 #define PCIC_LVL_MODE	0x02	/* level mode interrupt enable */
 #define PCIC_WB_CSCINT	0x04	/* explicit write-back csc intr */
 #define PCIC_IRQ0_LEVEL 0x08	/* irq 14 pulse mode enable */
 #define PCIC_IRQ1_LEVEL 0x10
+
+/* For Misc. Control Register 2 */
+#define PCIC_LPDM_EN	0x02	/* Cirrus PD672x: low power dynamic mode */
 
 /*
  *	Mask of allowable interrupts.

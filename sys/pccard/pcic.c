@@ -215,7 +215,7 @@ setb(struct pcic_slot *sp, int reg, unsigned char mask)
  * Write a 16 bit value to 2 adjacent PCIC registers
  */
 static inline void
-putw (struct pcic_slot *sp, int reg, unsigned short word)
+putw(struct pcic_slot *sp, int reg, unsigned short word)
 {
 	sp->putb(sp, reg, word & 0xFF);
 	sp->putb(sp, reg + 1, (word >> 8) & 0xff);
@@ -439,9 +439,9 @@ pcic_memory(struct slot *slotp, int win)
 		 * The values are all stored as the upper 12 bits of the
 		 * 24 bit address i.e everything is allocated as 4 Kb chunks.
 		 */
-		putw (sp, reg, sys_addr & 0xFFF);
-		putw (sp, reg+2, (sys_addr + (mp->size >> 12) - 1) & 0xFFF);
-		putw (sp, reg+4, ((mp->card >> 12) - sys_addr) & 0x3FFF);
+		putw(sp, reg, sys_addr & 0xFFF);
+		putw(sp, reg+2, (sys_addr + (mp->size >> 12) - 1) & 0xFFF);
+		putw(sp, reg+4, ((mp->card >> 12) - sys_addr) & 0x3FFF);
 #if 0
 		printf("card offs = card_adr = 0x%x 0x%x, sys_addr = 0x%x\n", 
 			mp->card, ((mp->card >> 12) - sys_addr) & 0x3FFF,
@@ -476,16 +476,16 @@ pcic_memory(struct slot *slotp, int win)
 		/*
 		 * Enable the memory window. By experiment, we need a delay.
 		 */
-		setb (sp, PCIC_ADDRWINE, (1<<win) | PCIC_MEMCS16);
+		setb(sp, PCIC_ADDRWINE, (1<<win) | PCIC_MEMCS16);
 		DELAY(50);
 	} else {
 #if 0
 		printf("Unmapping window %d\n", win);
 #endif
-		clrb (sp, PCIC_ADDRWINE, 1<<win);
-		putw (sp, reg, 0);
-		putw (sp, reg+2, 0);
-		putw (sp, reg+4, 0);
+		clrb(sp, PCIC_ADDRWINE, 1<<win);
+		putw(sp, reg, 0);
+		putw(sp, reg+2, 0);
+		putw(sp, reg+4, 0);
 	}
 	return(0);
 }
@@ -557,8 +557,8 @@ pcic_io(struct slot *slotp, int win)
 #ifdef	PCIC_DEBUG
 printf("Map I/O 0x%x (size 0x%x) on Window %d\n", ip->start, ip->size, win);
 #endif	/* PCIC_DEBUG */
-		putw (sp, reg, ip->start);
-		putw (sp, reg+2, ip->start+ip->size-1);
+		putw(sp, reg, ip->start);
+		putw(sp, reg+2, ip->start+ip->size-1);
 		x = 0;
 		if (ip->flags & IODF_ZEROWS)
 			x |= PCIC_IO_0WS;
@@ -584,13 +584,13 @@ printf("Map I/O 0x%x (size 0x%x) on Window %d\n", ip->start, ip->size, win);
 			break;
 		}
 		DELAY(100);
-		setb (sp, PCIC_ADDRWINE, mask);
+		setb(sp, PCIC_ADDRWINE, mask);
 		DELAY(100);
 	} else {
-		clrb (sp, PCIC_ADDRWINE, mask);
+		clrb(sp, PCIC_ADDRWINE, mask);
 		DELAY(100);
-		putw (sp, reg, 0);
-		putw (sp, reg + 2, 0);
+		putw(sp, reg, 0);
+		putw(sp, reg + 2, 0);
 	}
 	return(0);
 }
@@ -800,9 +800,28 @@ pcic_probe(void)
 				printf("pcic: controller irq %d\n", pcic_irq);
 		}
 		/*
+		 * Modem cards send the speaker audio (dialing noises)
+		 * to the host's speaker.  Cirrus Logic PCIC chips must
+		 * enable this.  There is also a Low Power Dynamic Mode bit
+		 * that claims to reduce power consumption by 30%, so
+		 * enable it and hope for the best.
+		 */
+		if (sp->controller == PCIC_PD672X) {
+			sp->setb(sp, PCIC_MISC1, PCIC_SPKR_EN);
+			sp->setb(sp, PCIC_MISC2, PCIC_LPDM_EN);
+		}
+		if (sp->controller == PCIC_PD672X) {
+			sp->setb(sp, PCIC_MISC1, PCIC_SPKR_EN);
+			sp->setb(sp, PCIC_MISC2, PCIC_LPDM_EN);
+		}
+		if (sp->controller == PCIC_PD672X) {
+			setb(sp, PCIC_MISC1, PCIC_SPKR_EN);
+			setb(sp, PCIC_MISC2, PCIC_LPDM_EN);
+  		}
+		/*
 		 *	Check for a card in this slot.
 		 */
-		setb (sp, PCIC_POWER, PCIC_PCPWRE| PCIC_DISRST);
+		setb(sp, PCIC_POWER, PCIC_PCPWRE| PCIC_DISRST);
 		if ((sp->getb(sp, PCIC_STATUS) & PCIC_CD) != PCIC_CD) {
 			slotp->laststate = slotp->state = empty;
 		} else {
@@ -1060,12 +1079,12 @@ pcic_reset(void *chan)
 	    case 0: /* Something funny happended on the way to the pub... */
 		return;
 	    case 1: /* Assert reset */
-		clrb (sp, PCIC_INT_GEN, PCIC_CARDRESET);
+		clrb(sp, PCIC_INT_GEN, PCIC_CARDRESET);
 		slotp->insert_seq = 2;
 		timeout(pcic_reset, (void*) slotp, hz/4);
 		return;
 	    case 2: /* Deassert it again */
-		setb (sp, PCIC_INT_GEN, PCIC_CARDRESET|PCIC_IOCARD);
+		setb(sp, PCIC_INT_GEN, PCIC_CARDRESET|PCIC_IOCARD);
 		slotp->insert_seq = 3;
 		timeout(pcic_reset, (void*) slotp, hz/4);
 		return;
@@ -1171,4 +1190,8 @@ pcic_resume(struct slot *slotp)
 	struct pcic_slot *sp = slotp->cdata;
 	if (pcic_irq > 0)
 		sp->putb(sp, PCIC_STAT_INT, (pcic_irq << 4) | 0xF);
+	if (sp->controller == PCIC_PD672X) {
+		sp->setb(sp, PCIC_MISC1, PCIC_SPKR_EN);
+		sp->setb(sp, PCIC_MISC2, PCIC_LPDM_EN);
+	}
 }
