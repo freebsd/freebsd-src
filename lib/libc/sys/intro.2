@@ -199,8 +199,9 @@ until at least one has been closed.
 .It Er 24 EMFILE Em "Too many open files" .
 <As released, the limit on the number of
 open files per process is 64.>
-.Xr Getdtablesize 2
-will obtain the current limit.
+The
+.Xr getdtablesize 2
+function will obtain the current limit.
 .It Er 25 ENOTTY Em "Inappropriate ioctl for device" .
 A control function (see
 .Xr ioctl 2 )
