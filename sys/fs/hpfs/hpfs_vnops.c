@@ -500,7 +500,7 @@ hpfs_setattr(ap)
 	struct hpfsnode *hp = VTOHP(vp);
 	struct vattr *vap = ap->a_vap;
 	struct ucred *cred = ap->a_cred;
-	struct thread *p = ap->a_td;
+	struct thread *td = ap->a_td;
 	int error;
 
 	dprintf(("hpfs_setattr(0x%x):\n", hp->h_no));
@@ -539,9 +539,9 @@ hpfs_setattr(ap)
 		if (vp->v_mount->mnt_flag & MNT_RDONLY)
 			return (EROFS);
 		if (cred->cr_uid != hp->h_uid &&
-		    (error = suser_xxx(cred, p->td_proc, PRISON_ROOT)) &&
+		    (error = suser_xxx(cred, td->td_proc, PRISON_ROOT)) &&
 		    ((vap->va_vaflags & VA_UTIMES_NULL) == 0 ||
-		    (error = VOP_ACCESS(vp, VWRITE, cred, p))))
+		    (error = VOP_ACCESS(vp, VWRITE, cred, td))))
 			return (error);
 		if (vap->va_atime.tv_sec != VNOVAL)
 			hp->h_atime = vap->va_atime.tv_sec;
@@ -565,7 +565,7 @@ hpfs_setattr(ap)
 		}
 
 		if (vap->va_size < hp->h_fn.fn_size) {
-			error = vtruncbuf(vp, cred, p, vap->va_size, DEV_BSIZE);
+			error = vtruncbuf(vp, cred, td, vap->va_size, DEV_BSIZE);
 			if (error)
 				return (error);
 			error = hpfs_truncate(hp, vap->va_size);
