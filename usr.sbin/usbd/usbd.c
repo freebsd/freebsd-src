@@ -1,11 +1,12 @@
-/*	$NetBSD: usbd.c,v 1.2 1998/07/23 18:39:53 augustss Exp $	*/
-/*	FreeBSD $Id$ */
+/*	$NetBSD: usbd.c,v 1.4 1998/12/09 00:57:19 augustss Exp $	*/
+/*	$FreeBSD$	*/
 
 /*
  * Copyright (c) 1998 The NetBSD Foundation, Inc.
  * All rights reserved.
  *
- * Author: Lennart Augustsson
+ * This code is derived from software contributed to The NetBSD Foundation
+ * by Lennart Augustsson (augustss@netbsd.org).
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -72,7 +73,7 @@ usage(void)
  * driven explore to find it.  Therefore we run an exploration
  * at regular intervals to catch those.
  */
-#define TIMEOUT 30
+#define TIMEOUT 300
 
 int
 main(int argc, char **argv)
@@ -160,15 +161,13 @@ main(int argc, char **argv)
 	if (!debug)
 		daemon(0, 0);
 
-	
-
-	FD_ZERO(&fdset);
 	for (;;) {
+		FD_ZERO(&fdset);
 		for (i = 0; i < ndevs; i++)
 			FD_SET(fds[i], &fdset);
 		timo.tv_usec = 0;
 		timo.tv_sec = itimo;
-		r = select(maxfd+1, &fdset, &fdset, 0, itimo ? &timo : 0);
+		r = select(maxfd+1, 0, &fdset, 0, itimo ? &timo : 0);
 		if (r < 0)
 			warn("select failed\n");
 		for (i = 0; i < ndevs; i++)
