@@ -4,7 +4,7 @@
  * This is probably the last attempt in the `sysinstall' line, the next
  * generation being slated to essentially a complete rewrite.
  *
- * $Id: floppy.c,v 1.29 1998/07/18 09:42:00 jkh Exp $
+ * $Id: floppy.c,v 1.30 1998/10/12 23:45:06 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -56,18 +56,17 @@
 static Boolean floppyMounted;
 
 char *distWanted;
+static char mountpoint[] = "/dist";
 
 Boolean
 mediaInitFloppy(Device *dev)
 {
     struct msdosfs_args dosargs;
     struct ufs_args u_args;
-    char *mountpoint;
 
     if (floppyMounted)
 	return TRUE;
 
-    mountpoint = (char *)dev->private;
     if (Mkdir(mountpoint)) {
 	msgConfirm("Unable to make %s directory mountpoint for %s!", mountpoint, dev->devname);
 	return FALSE;
@@ -93,12 +92,11 @@ mediaInitFloppy(Device *dev)
 
     if (mount("msdos", mountpoint, MNT_RDONLY, (caddr_t)&dosargs) == -1) {
 	if (mount("ufs", mountpoint, MNT_RDONLY, (caddr_t)&u_args) == -1) {
-	    msgConfirm("Error mounting floppy %s (%s) on %s : %s", dev->name, dev->devname, mountpoint,
-		       strerror(errno));
+	    msgConfirm("Error mounting floppy %s (%s) on %s : %s",
+		       dev->name, dev->devname, mountpoint, strerror(errno));
 	    return FALSE;
 	}
     }
-    msgDebug("initFloppy: mounted floppy %s successfully on %s\n", dev->devname, mountpoint);
     floppyMounted = TRUE;
     distWanted = NULL;
     return TRUE;
@@ -111,10 +109,12 @@ mediaGetFloppy(Device *dev, char *file, Boolean probe)
     FILE	*fp;
     int		nretries = 5;
 
-    snprintf(buf, PATH_MAX, "%s/%s", (char *)dev->private, file);
-
-    if (isDebug())
-	msgDebug("Request for %s from floppy on %s, probe is %d.\n", buf, (char *)dev->private, probe);
+    /*
+     * floppies don't use mediaGenericGet() because it's too expensive
+     * to speculatively open files on a floppy disk.  Make user get it
+     * right or give up with floppies.
+     */
+    snprintf(buf, PATH_MAX, "%s/%s", mountpoint, file);
     if (!file_readable(buf)) {
 	if (probe)
 	    return NULL;
@@ -138,17 +138,13 @@ mediaGetFloppy(Device *dev, char *file, Boolean probe)
 void
 mediaShutdownFloppy(Device *dev)
 {
-    char *mountpoint = (char *)dev->private;
-
     if (floppyMounted) {
 	if (unmount(mountpoint, MNT_FORCE) != 0)
 	    msgDebug("Umount of floppy on %s failed: %s (%d)\n", mountpoint, strerror(errno), errno);
 	else {
 	    floppyMounted = FALSE;
-	    msgDebug("Floppy unmounted successfully.\n");
 	    if (!variable_get(VAR_NONINTERACTIVE))
-		msgConfirm("You may remove the floppy from %s",
-			   dev->description);
+		msgConfirm("You may remove the floppy from %s", dev->description);
 	}
     }
 }

@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: index.c,v 1.57 1998/10/15 06:50:43 jkh Exp $
+ * $Id: index.c,v 1.58 1998/12/13 23:37:33 steve Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -82,6 +82,7 @@ static char *descrs[] = {
     "deskutils", "Various Desktop utilities.",
     "documentation", "Document preparation utilities.",
     "editors", "Common text editors.",
+    "elisp", "Things related to Emacs Lisp.",
     "emulation", "Utilities for emulating other OS types.",
     "emulators", "Utilities for emulating other OS types.",
     "games", "Various and sundry amusements.",
