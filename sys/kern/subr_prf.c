@@ -501,7 +501,7 @@ kvprintf(char const *fmt, void (*func)(int, void*), void *arg, int radix, va_lis
 		padc = ' ';
 		width = 0;
 		while ((ch = (u_char)*fmt++) != '%') {
-			if (ch == '\0') 
+			if (ch == '\0')
 				return (retval);
 			PCHAR(ch);
 		}
@@ -879,7 +879,7 @@ sysctl_kern_msgbuf_clear(SYSCTL_HANDLER_ARGS)
 }
 
 SYSCTL_PROC(_kern, OID_AUTO, msgbuf_clear,
-    CTLTYPE_INT | CTLFLAG_RW | CTLFLAG_SECURE, &msgbuf_clear, 0, 
+    CTLTYPE_INT | CTLFLAG_RW | CTLFLAG_SECURE, &msgbuf_clear, 0,
     sysctl_kern_msgbuf_clear, "I", "Clear kernel message buffer");
 
 #include "opt_ddb.h"
