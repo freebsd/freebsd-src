@@ -202,7 +202,7 @@ fetchpigs()
 		pt[i].pt_kp = &kpp[i];
 		pctp = &pt[i].pt_pctcpu;
 		time = kpp[i].ki_swtime;
-		if (time == 0 || (kpp[i].ki_flag & P_INMEM) == 0)
+		if (time == 0 || (kpp[i].ki_sflag & PS_INMEM) == 0)
 			*pctp = 0;
 		else
 			*pctp = ((double) kpp[i].ki_pctcpu /
