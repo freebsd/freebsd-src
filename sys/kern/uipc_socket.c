@@ -68,10 +68,6 @@ __FBSDID("$FreeBSD$");
 static int	soreceive_rcvoob(struct socket *so, struct uio *uio,
 		    int flags);
 
-#ifdef INET
-static int	 do_setopt_accept_filter(struct socket *so, struct sockopt *sopt);
-#endif
-
 static void	filt_sordetach(struct knote *kn);
 static int	filt_soread(struct knote *kn, long hint);
 static void	filt_sowdetach(struct knote *kn);
@@ -1462,128 +1458,6 @@ sorflush(so)
 	sbrelease(&asb, so);
 	SOCKBUF_LOCK_DESTROY(&asb);
 }
-
-#ifdef INET
-static int
-do_setopt_accept_filter(so, sopt)
-	struct	socket *so;
-	struct	sockopt *sopt;
-{
-	struct accept_filter_arg	*afap;
-	struct accept_filter	*afp;
-	struct so_accf	*newaf;
-	int	error = 0;
-
-	newaf = NULL;
-	afap = NULL;
-
-	/*
-	 * XXXRW: Configuring accept filters should be an atomic test-and-set
-	 * operation to prevent races during setup and attach.  There may be
-	 * more general issues of racing and ordering here that are not yet
-	 * addressed by locking.
-	 */
-	/* do not set/remove accept filters on non listen sockets */
-	SOCK_LOCK(so);
-	if ((so->so_options & SO_ACCEPTCONN) == 0) {
-		SOCK_UNLOCK(so);
-		return (EINVAL);
-	}
-
-	/* removing the filter */
-	if (sopt == NULL) {
-		if (so->so_accf != NULL) {
-			struct so_accf *af = so->so_accf;
-			if (af->so_accept_filter != NULL &&
-				af->so_accept_filter->accf_destroy != NULL) {
-				af->so_accept_filter->accf_destroy(so);
-			}
-			if (af->so_accept_filter_str != NULL) {
-				FREE(af->so_accept_filter_str, M_ACCF);
-			}
-			FREE(af, M_ACCF);
-			so->so_accf = NULL;
-		}
-		so->so_options &= ~SO_ACCEPTFILTER;
-		SOCK_UNLOCK(so);
-		return (0);
-	}
-	SOCK_UNLOCK(so);
-
-	/*-
-	 * Adding a filter.
-	 *
-	 * Do memory allocation, copyin, and filter lookup now while we're
-	 * not holding any locks.  Avoids sleeping with a mutex, as well as
-	 * introducing a lock order between accept filter locks and socket
-	 * locks here.
-	 */
-	MALLOC(afap, struct accept_filter_arg *, sizeof(*afap), M_TEMP,
-	    M_WAITOK);
-	/* don't put large objects on the kernel stack */
-	error = sooptcopyin(sopt, afap, sizeof *afap, sizeof *afap);
-	afap->af_name[sizeof(afap->af_name)-1] = '\0';
-	afap->af_arg[sizeof(afap->af_arg)-1] = '\0';
-	if (error) {
-		FREE(afap, M_TEMP);
-		return (error);
-	}
-	afp = accept_filt_get(afap->af_name);
-	if (afp == NULL) {
-		FREE(afap, M_TEMP);
-		return (ENOENT);
-	}
-
-	/*
-	 * Allocate the new accept filter instance storage.  We may have to
-	 * free it again later if we fail to attach it.  If attached
-	 * properly, 'newaf' is NULLed to avoid a free() while in use.
-	 */
-	MALLOC(newaf, struct so_accf *, sizeof(*newaf), M_ACCF, M_WAITOK |
-	    M_ZERO);
-	if (afp->accf_create != NULL && afap->af_name[0] != '\0') {
-		int len = strlen(afap->af_name) + 1;
-		MALLOC(newaf->so_accept_filter_str, char *, len, M_ACCF,
-		    M_WAITOK);
-		strcpy(newaf->so_accept_filter_str, afap->af_name);
-	}
-
-	SOCK_LOCK(so);
-	/* must remove previous filter first */
-	if (so->so_accf != NULL) {
-		error = EINVAL;
-		goto out;
-	}
-	/*
-	 * Invoke the accf_create() method of the filter if required.
-	 * XXXRW: the socket mutex is held over this call, so the create
-	 * method cannot block.  This may be something we have to change, but
-	 * it would require addressing possible races.
-	 */
-	if (afp->accf_create != NULL) {
-		newaf->so_accept_filter_arg =
-		    afp->accf_create(so, afap->af_arg);
-		if (newaf->so_accept_filter_arg == NULL) {
-			error = EINVAL;
-			goto out;
-		}
-	}
-	newaf->so_accept_filter = afp;
-	so->so_accf = newaf;
-	so->so_options |= SO_ACCEPTFILTER;
-	newaf = NULL;
-out:
-	SOCK_UNLOCK(so);
-	if (newaf != NULL) {
-		if (newaf->so_accept_filter_str != NULL)
-			FREE(newaf->so_accept_filter_str, M_ACCF);
-		FREE(newaf, M_ACCF);
-	}
-	if (afap != NULL)
-		FREE(afap, M_TEMP);
-	return (error);
-}
-#endif /* INET */
 
 /*
  * Perhaps this routine, and sooptcopyout(), below, ought to come in
