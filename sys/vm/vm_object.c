@@ -61,7 +61,7 @@
  * any improvements or extensions that they make and grant Carnegie the
  * rights to redistribute these changes.
  *
- * $Id: vm_object.c,v 1.32 1995/03/16 18:17:21 bde Exp $
+ * $Id: vm_object.c,v 1.33 1995/03/20 02:06:09 davidg Exp $
  */
 
 /*
@@ -384,8 +384,8 @@ vm_object_terminate(object)
 		vn_pager_t vnp = object->pager->pg_data;
 
 		vp = vnp->vnp_vp;
-		VOP_FSYNC(vp, NOCRED, MNT_WAIT, NULL);
-		vinvalbuf(vp, 0, NOCRED, NULL, 0, 0);
+		VOP_LOCK(vp);
+		vinvalbuf(vp, V_SAVE, NOCRED, NULL, 0, 0);
 	}
 	/*
 	 * Wait until the pageout daemon is through with the object.
@@ -433,7 +433,11 @@ vm_object_terminate(object)
 	 * object are gone, so we don't need to lock it.
 	 */
 	if (vp != NULL) {
+		VOP_UNLOCK(vp);
 		(void) vm_object_page_clean(object, 0, 0, TRUE, TRUE);
+		VOP_LOCK(vp);
+		vinvalbuf(vp, 0, NOCRED, NULL, 0, 0);
+		VOP_UNLOCK(vp);
 	}
 
 	/*
@@ -462,6 +466,8 @@ vm_object_terminate(object)
 	TAILQ_REMOVE(&vm_object_list, object, object_list);
 	vm_object_count--;
 	simple_unlock(&vm_object_list_lock);
+
+	wakeup(object);
 
 	/*
 	 * Free the space for the object.
