@@ -31,6 +31,8 @@ struct mbuf *
 m_clone(struct mbuf *m0)
 {
 	struct mbuf *m, *mprev;
+	struct mbuf *n, *mfirst, *mlast;
+	int len, off;
 
 	KASSERT(m0 != NULL, ("m_clone: null mbuf"));
 
@@ -43,7 +45,7 @@ m_clone(struct mbuf *m0)
 		 * also w/o having to handle them specially (i.e. convert
 		 * mbuf+cluster -> cluster).  This optimization is heavily
 		 * influenced by the assumption that we're running over
-		 * Ethernet where MCBYTES is large enough that the max
+		 * Ethernet where MCLBYTES is large enough that the max
 		 * packet size will permit lots of coalescing into a
 		 * single cluster.  This in turn permits efficient
 		 * crypto operations, especially when using hardware.
@@ -64,68 +66,24 @@ m_clone(struct mbuf *m0)
 			continue;
 		}
 		/*
-		 * Cluster'd mbufs are left alone (for now).
+		 * Writable mbufs are left alone (for now).
 		 */
 		if (!MEXT_IS_REF(m)) {
 			mprev = m;
 			continue;
 		}
+
 		/*
 		 * Not writable, replace with a copy or coalesce with
 		 * the previous mbuf if possible (since we have to copy
 		 * it anyway, we try to reduce the number of mbufs and
 		 * clusters so that future work is easier).
 		 */
-		/* XXX why can M_PKTHDR be set past the first mbuf? */
 		KASSERT(m->m_flags & M_EXT,
 			("m_clone: m_flags 0x%x", m->m_flags));
-		/* NB: we only coalesce into a cluster */
-		if (mprev == NULL || (mprev->m_flags & M_EXT) == 0 ||
-		    m->m_len > M_TRAILINGSPACE(mprev)) {
-			struct mbuf *n;
-
-			/*
-			 * Allocate a new page, copy the data to the front
-			 * and release the reference to the old page.
-			 */
-			if (mprev == NULL && (m->m_flags & M_PKTHDR)) {
-				/*
-				 * NB: if a packet header is present we
-				 * must allocate the mbuf separately from
-				 * the cluster 'cuz M_COPY_PKTHDR will
-				 * smash the data pointer and drop the
-				 * M_EXT marker.
-				 */
-				MGETHDR(n, M_DONTWAIT, m->m_type);
-				if (n == NULL) {
-					m_freem(m0);
-					return (NULL);
-				}
-				M_MOVE_PKTHDR(n, m);
-				MCLGET(n, M_DONTWAIT);
-				if ((n->m_flags & M_EXT) == 0) {
-					m_free(n);
-					m_freem(m0);
-					return (NULL);
-				}
-			} else {
-				n = m_getcl(M_DONTWAIT, m->m_type, m->m_flags);
-				if (n == NULL) {
-					m_freem(m0);
-					return (NULL);
-				}
-			}
-			memcpy(mtod(n, caddr_t), mtod(m, caddr_t), m->m_len);
-			n->m_len = m->m_len;
-			n->m_next = m->m_next;
-			if (mprev == NULL)
-				m0 = n;			/* new head of chain */
-			else
-				mprev->m_next = n;	/* replace old mbuf */
-			m_free(m);			/* release old mbuf */
-			mprev = n;
-			newipsecstat.ips_clcopied++;
-		} else {
+		/* NB: we only coalesce into a cluster or larger */
+		if (mprev != NULL && (mprev->m_flags & M_EXT) &&
+		    m->m_len <= M_TRAILINGSPACE(mprev)) {
 			/* XXX: this ignores mbuf types */
 			memcpy(mtod(mprev, caddr_t) + mprev->m_len,
 			       mtod(m, caddr_t), m->m_len);
@@ -133,14 +91,86 @@ m_clone(struct mbuf *m0)
 			mprev->m_next = m->m_next;	/* unlink from chain */
 			m_free(m);			/* reclaim mbuf */
 			newipsecstat.ips_clcoalesced++;
+			continue;
 		}
+
+		/*
+		 * Allocate new space to hold the copy...
+		 */
+		/* XXX why can M_PKTHDR be set past the first mbuf? */
+		if (mprev == NULL && (m->m_flags & M_PKTHDR)) {
+			/*
+			 * NB: if a packet header is present we must
+			 * allocate the mbuf separately from any cluster
+			 * because M_MOVE_PKTHDR will smash the data
+			 * pointer and drop the M_EXT marker.
+			 */
+			MGETHDR(n, M_DONTWAIT, m->m_type);
+			if (n == NULL) {
+				m_freem(m0);
+				return (NULL);
+			}
+			M_MOVE_PKTHDR(n, m);
+			MCLGET(n, M_DONTWAIT);
+			if ((n->m_flags & M_EXT) == 0) {
+				m_free(n);
+				m_freem(m0);
+				return (NULL);
+			}
+		} else {
+			n = m_getcl(M_DONTWAIT, m->m_type, m->m_flags);
+			if (n == NULL) {
+				m_freem(m0);
+				return (NULL);
+			}
+		}
+		/*
+		 * ... and copy the data.  We deal with jumbo mbufs
+		 * (i.e. m_len > MCLBYTES) by splitting them into
+		 * clusters.  We could just malloc a buffer and make
+		 * it external but too many device drivers don't know
+		 * how to break up the non-contiguous memory when
+		 * doing DMA.
+		 */
+		len = m->m_len;
+		off = 0;
+		mfirst = n;
+		mlast = NULL;
+		for (;;) {
+			int cc = min(len, MCLBYTES);
+			memcpy(mtod(n, caddr_t), mtod(m, caddr_t) + off, cc);
+			n->m_len = cc;
+			if (mlast != NULL)
+				mlast->m_next = n;
+			mlast = n;	
+			newipsecstat.ips_clcopied++;
+
+			len -= cc;
+			if (len <= 0)
+				break;
+			off += cc;
+
+			n = m_getcl(M_DONTWAIT, m->m_type, m->m_flags);
+			if (n == NULL) {
+				m_freem(mfirst);
+				m_freem(m0);
+				return (NULL);
+			}
+		}
+		n->m_next = m->m_next; 
+		if (mprev == NULL)
+			m0 = mfirst;		/* new head of chain */
+		else
+			mprev->m_next = mfirst;	/* replace old mbuf */
+		m_free(m);			/* release old mbuf */
+		mprev = mfirst;
 	}
 	return (m0);
 }
 
 /*
- * Make space for a new header of length hlen at offset off
- * in the packet.  When doing this we allocate new mbufs only
+ * Make space for a new header of length hlen at skip bytes
+ * into the packet.  When doing this we allocate new mbufs only
  * when absolutely necessary.  The mbuf where the new header
  * is to go is returned together with an offset into the mbuf.
  * If NULL is returned then the mbuf chain may have been modified;
