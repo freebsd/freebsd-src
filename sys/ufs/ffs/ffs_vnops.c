@@ -96,6 +96,10 @@ static struct vnodeopv_entry_desc ffs_specop_entries[] = {
 	{ &vop_default_desc,		(vop_t *) ufs_vnoperatespec },
 	{ &vop_fsync_desc,		(vop_t *) ffs_fsync },
 	{ &vop_copyonwrite_desc,	(vop_t *) ffs_copyonwrite },
+#ifdef FFS_EXTATTR
+	{ &vop_getextattr_desc,		(vop_t *) ufs_vop_getextattr },
+	{ &vop_setextattr_desc,		(vop_t *) ufs_vop_setextattr },
+#endif
 	{ NULL, NULL }
 };
 static struct vnodeopv_desc ffs_specop_opv_desc =
@@ -104,6 +108,10 @@ static struct vnodeopv_desc ffs_specop_opv_desc =
 vop_t **ffs_fifoop_p;
 static struct vnodeopv_entry_desc ffs_fifoop_entries[] = {
 	{ &vop_default_desc,		(vop_t *) ufs_vnoperatefifo },
+#ifdef FFS_EXTATTR
+	{ &vop_getextattr_desc,		(vop_t *) ufs_vop_getextattr },
+	{ &vop_setextattr_desc,		(vop_t *) ufs_vop_setextattr },
+#endif
 	{ &vop_fsync_desc,		(vop_t *) ffs_fsync },
 	{ NULL, NULL }
 };
