@@ -197,8 +197,6 @@ pid_t	pid;
 
 struct	sockaddr_storage ripsin;
 
-struct	rtentry rtentry;
-
 int	interval = 1;
 time_t	nextalarm = 0;
 time_t	sup_trig_update = 0;
