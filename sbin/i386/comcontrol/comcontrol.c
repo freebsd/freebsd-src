@@ -26,79 +26,83 @@
  * SUCH DAMAGE.
  */
 
-/* comcontrol.c */
+#ifndef lint
+static const char rcsid[] =
+	"$Id$";
+#endif /* not lint */
 
-#include <sys/types.h>
-#include <sys/ioctl.h>
+#include <ctype.h>
+#include <err.h>
+#include <fcntl.h>
 #include <stdio.h>
 #include <stdlib.h>
-#include <ctype.h>
-#include <fcntl.h>
+#include <unistd.h>
+#include <sys/types.h>
+#include <sys/ioctl.h>
 
-
-void usage(char *progname)
+static void
+usage()
 {
-	fprintf(stderr, "usage: %s <filename> [dtrwait <n>] [drainwait <n>]\n", progname);
+	fprintf(stderr,
+	"usage: comcontrol <filename> [dtrwait <n>] [drainwait <n>]\n");
 	exit(1);
 }
 
-int main(int argc, char *argv[])
+int
+main(int argc, char *argv[])
 {
 	int	fd;
 	int     res = 0;
 	int     dtrwait = -1, drainwait = -1;
 
 	if (argc < 2)
-		usage(argv[0]);
+		usage();
 
 	fd = open(argv[1], O_RDONLY|O_NONBLOCK, 0);
 	if (fd < 0) {
-		perror("open");
-		fprintf(stderr, "%s: couldn't open file %s\n", argv[0], argv[1]);
+		warn("couldn't open file %s", argv[1]);
 		return 1;
 	}
 
 	if (argc == 2) {
 		if (ioctl(fd, TIOCMGDTRWAIT, &dtrwait) < 0) {
 			res = 1;
-			perror("TIOCMGDTRWAIT");
+			warn("TIOCMGDTRWAIT");
 		}
 		if (ioctl(fd, TIOCGDRAINWAIT, &drainwait) < 0) {
 			res = 1;
-			perror("TIOCGDRAINWAIT");
+			warn("TIOCGDRAINWAIT");
 		}
 		printf("dtrwait %d drainwait %d\n", dtrwait, drainwait);
 	} else {
-		char *prg = argv[0];
-
 		while (argv[2] != NULL) {
 			if (!strcmp(argv[2],"dtrwait")) {
 				if (dtrwait >= 0)
-					usage(prg);
+					usage();
 				if (argv[3] == NULL || !isdigit(argv[3][0]))
-					usage(prg);
+					usage();
 				dtrwait = atoi(argv[3]);
 				argv += 2;
 			} else if (!strcmp(argv[2],"drainwait")) {
 				if (drainwait >= 0)
-					usage(prg);
+					usage();
 				if (argv[3] == NULL || !isdigit(argv[3][0]))
-					usage(prg);
+					usage();
 				drainwait = atoi(argv[3]);
 				argv += 2;
 			} else
-				usage(prg);
+				usage();
 		}
 		if (dtrwait >= 0) {
 			if (ioctl(fd, TIOCMSDTRWAIT, &dtrwait) < 0) {
 				res = 1;
-				perror("TIOCMSDTRWAIT");
+				warn("TIOCMSDTRWAIT");
 			}
 		}
 		if (drainwait >= 0) {
 			if (ioctl(fd, TIOCSDRAINWAIT, &drainwait) < 0) {
 				res = 1;
-				perror("TIOCSDRAINWAIT");
+				warn("TIOCSDRAINWAIT");
 			}
 		}
 	}
