@@ -476,6 +476,7 @@ printcpuinfo(void)
 		switch (cpu_id & 0xff0) {
 		case 0x540:
 			strcat(cpu_model, "WinChip C6");
+			tsc_is_broken = 1;
 			break;
 		case 0x580:
 			strcat(cpu_model, "WinChip 2");
