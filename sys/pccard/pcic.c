@@ -56,6 +56,7 @@
 
 #include <pccard/i82365.h>
 #include <pccard/card.h>
+#include <pccard/driver.h>
 #include <pccard/slot.h>
 
 extern struct kern_devconf kdc_pccard0;
@@ -83,9 +84,9 @@ static timeout_t 	pcic_reset;
 static void		pcic_disable __P((struct slot *));
 static void		pcic_mapirq __P((struct slot *, int));
 static timeout_t 	pcictimeout;
+static int		pcic_handle __P((struct lkm_table *lkmtp, int cmd));
 static int		pcic_memory(struct slot *, int);
 static int		pcic_io(struct slot *, int);
-       int		pcic_probe();
 
 /*
  *	Per-slot data table.
