@@ -124,7 +124,7 @@ userret(td, frame, oticks)
 		quad_t ticks;
 
 		mtx_lock_spin(&sched_lock);
-		ticks = ke->ke_sticks - oticks;
+		ticks = td->td_sticks - oticks;
 		mtx_unlock_spin(&sched_lock);
 		addupc_task(ke, TRAPF_PC(frame), (u_int)ticks * psratio);
 	}
@@ -175,7 +175,7 @@ ast(struct trapframe *framep)
 	 */
 	mtx_lock_spin(&sched_lock);
 	ke = td->td_kse;
-	sticks = ke->ke_sticks;
+	sticks = td->td_sticks;
 	flags = ke->ke_flags;
 	sflag = p->p_sflag;
 	p->p_sflag &= ~(PS_ALRMPEND | PS_NEEDSIGCHK | PS_PROFPEND | PS_XCPU);

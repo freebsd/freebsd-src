@@ -169,7 +169,7 @@ trap(struct trapframe *frame)
 	    trapname(type), user ? "user" : "kernel");
 
 	if (user) {
-		sticks = td->td_kse->ke_sticks;
+		sticks = td->td_sticks;
 		td->td_frame = frame;
 		if (td->td_ucred != p->p_ucred)
 			cred_update_thread(td);
