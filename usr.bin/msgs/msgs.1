@@ -134,11 +134,15 @@ to enable posting of messages.
 The
 .Fl c
 option is used for performing cleanup on
-.Pa /var/msgs.
-An entry with the
+.Pa /var/msgs .
+A shell script entry to run
+.Nm
+with the
 .Fl c
 option should be placed in
-.Pa /etc/crontab
+.Pa /etc/periodic/daily
+(see 
+.Xr periodic 8 )
 to run every night.  This will remove all messages over 21 days old.
 A different expiration may be specified on the command line to override
 the default.
@@ -146,7 +150,7 @@ the default.
 Options when reading messages include:
 .Bl -tag -width Fl
 .It Fl f
-Do not to say ``No new messages.''.
+Do not say ``No new messages.''.
 This is useful in a
 .Pa .login
 file since this is often the case here.
@@ -205,8 +209,8 @@ number of next message to be presented
 .Sh SEE ALSO
 .Xr mail 1 ,
 .Xr more 1 ,
-.Xr aliases 5
-.\".Xr crontab 5 ,
+.Xr aliases 5 ,
+.Xr periodic 8
 .Sh HISTORY
 The
 .Nm
