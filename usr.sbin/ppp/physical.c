@@ -831,11 +831,20 @@ physical_Login(struct physical *p, const char *name)
   if (p->type == PHYS_DIRECT && *p->name.base && !p->Utmp) {
     struct utmp ut;
     const char *connstr;
+    char *colon;
 
     memset(&ut, 0, sizeof ut);
     time(&ut.ut_time);
     strncpy(ut.ut_name, name, sizeof ut.ut_name);
-    strncpy(ut.ut_line, p->name.base, sizeof ut.ut_line);
+    if (p->handler && (p->handler->type == TCP_DEVICE ||
+                       p->handler->type == UDP_DEVICE)) {
+      strncpy(ut.ut_line, "ppp", sizeof ut.ut_line);
+      strncpy(ut.ut_host, p->name.base, sizeof ut.ut_host);
+      colon = memchr(ut.ut_host, ':', sizeof ut.ut_host);
+      if (colon)
+        *colon = '\0';
+    } else
+      strncpy(ut.ut_line, p->name.base, sizeof ut.ut_line);
     if ((connstr = getenv("CONNECT")))
       /* mgetty sets this to the connection speed */
       strncpy(ut.ut_host, connstr, sizeof ut.ut_host);
