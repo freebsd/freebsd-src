@@ -84,6 +84,7 @@
 #include <machine/bus.h>
 #include <sys/rman.h>
 #include <machine/resource.h>
+#include <machine/mutex.h>
 
 #include <net/ethernet.h>
 #include <net/if_arp.h>
@@ -521,13 +522,16 @@ fxp_attach(device_t dev)
 	int error = 0;
 	struct fxp_softc *sc = device_get_softc(dev);
 	struct ifnet *ifp;
-	int s;
+	FXP_SPLVAR(s)
 	u_long val;
 	int rid;
 
+#if !defined(__NetBSD__)
+	mtx_init(&sc->sc_mtx, "fxp", MTX_DEF);
+#endif
 	callout_handle_init(&sc->stat_ch);
 
-	s = splimp();
+	FXP_LOCK(sc, s);
 
 	/*
 	 * Enable bus mastering.
@@ -605,11 +609,12 @@ fxp_attach(device_t dev)
 	 */
 	ifp->if_snd.ifq_maxlen = FXP_NTXCB - 1;
 
-	splx(s);
+	FXP_UNLOCK(sc, s);
 	return 0;
 
  fail:
-	splx(s);
+	FXP_UNLOCK(sc, s);
+	mtx_destroy(&sc->sc_mtx);
 	return error;
 }
 
@@ -620,9 +625,9 @@ static int
 fxp_detach(device_t dev)
 {
 	struct fxp_softc *sc = device_get_softc(dev);
-	int s;
+	FXP_SPLVAR(s)
 
-	s = splimp();
+	FXP_LOCK(sc, s);
 
 	/*
 	 * Close down routes etc.
@@ -659,7 +664,7 @@ fxp_detach(device_t dev)
 	free(sc->fxp_stats, M_DEVBUF);
 	free(sc->mcsp, M_DEVBUF);
 
-	splx(s);
+	FXP_UNLOCK(sc, s);
 
 	return 0;
 }
@@ -959,13 +964,18 @@ fxp_start(ifp)
 	struct fxp_softc *sc = ifp->if_softc;
 	struct fxp_cb_tx *txp;
 
+#if !defined(__NetBSD__)
+	FXP_LOCK(sc, s);
+#endif
 	/*
 	 * See if we need to suspend xmit until the multicast filter
 	 * has been reprogrammed (which can only be done at the head
 	 * of the command chain).
 	 */
-	if (sc->need_mcsetup)
+	if (sc->need_mcsetup) {
+		FXP_UNLOCK(sc, s);
 		return;
+	}
 
 	txp = NULL;
 
@@ -1093,6 +1103,9 @@ tbdinit:
 		fxp_scb_wait(sc);
 		CSR_WRITE_1(sc, FXP_CSR_SCB_COMMAND, FXP_SCB_COMMAND_CU_RESUME);
 	}
+#if !defined(__NetBSD__)
+	FXP_UNLOCK(sc, s);
+#endif
 }
 
 /*
@@ -1107,6 +1120,9 @@ fxp_intr(arg)
 	u_int8_t statack;
 #if defined(__NetBSD__)
 	int claimed = 0;
+#else
+
+	FXP_LOCK(sc, s);
 #endif
 
 	while ((statack = CSR_READ_1(sc, FXP_CSR_SCB_STATACK)) != 0) {
@@ -1215,6 +1231,8 @@ rcvloop:
 	}
 #if defined(__NetBSD__)
 	return (claimed);
+#else
+	FXP_UNLOCK(sc, s);
 #endif
 }
 
@@ -1237,7 +1255,7 @@ fxp_stats_update(arg)
 	struct ifnet *ifp = &sc->sc_if;
 	struct fxp_stats *sp = sc->fxp_stats;
 	struct fxp_cb_tx *txp;
-	int s;
+	FXP_SPLVAR(s)
 
 	ifp->if_opackets += sp->tx_good;
 	ifp->if_collisions += sp->tx_total_collisions;
@@ -1264,7 +1282,7 @@ fxp_stats_update(arg)
 		if (tx_threshold < 192)
 			tx_threshold += 64;
 	}
-	s = splimp();
+	FXP_LOCK(sc, s);
 	/*
 	 * Release any xmit buffers that have completed DMA. This isn't
 	 * strictly necessary to do here, but it's advantagous for mbufs
@@ -1322,7 +1340,7 @@ fxp_stats_update(arg)
 		sp->rx_rnr_errors = 0;
 		sp->rx_overrun_errors = 0;
 	}
-	splx(s);
+	FXP_UNLOCK(sc, s);
 	/*
 	 * Schedule another timeout one second from now.
 	 */
@@ -1340,6 +1358,10 @@ fxp_stop(sc)
 	struct ifnet *ifp = &sc->sc_if;
 	struct fxp_cb_tx *txp;
 	int i;
+
+#if !defined(__NetBSD__)
+	FXP_LOCK(sc, s);
+#endif
 
 	/*
 	 * Cancel stats updater.
@@ -1386,6 +1408,9 @@ fxp_stop(sc)
 
 	ifp->if_flags &= ~(IFF_RUNNING | IFF_OACTIVE);
 	ifp->if_timer = 0;
+#if !defined(__NetBSD__)
+	FXP_UNLOCK(sc, s);
+#endif
 }
 
 /*
@@ -1415,9 +1440,10 @@ fxp_init(xsc)
 	struct fxp_cb_config *cbp;
 	struct fxp_cb_ias *cb_ias;
 	struct fxp_cb_tx *txp;
-	int i, s, prm;
+	int i, prm;
+	FXP_SPLVAR(s)
 
-	s = splimp();
+	FXP_LOCK(sc, s);
 	/*
 	 * Cancel any pending I/O
 	 */
@@ -1564,7 +1590,7 @@ fxp_init(xsc)
 
 	ifp->if_flags |= IFF_RUNNING;
 	ifp->if_flags &= ~IFF_OACTIVE;
-	splx(s);
+	FXP_UNLOCK(sc, s);
 
 	/*
 	 * Start stats updater.
@@ -1857,9 +1883,10 @@ fxp_ioctl(ifp, command, data)
 {
 	struct fxp_softc *sc = ifp->if_softc;
 	struct ifreq *ifr = (struct ifreq *)data;
-	int s, error = 0;
+	FXP_SPLVAR(s)
+	int error = 0;
 
-	s = splimp();
+	FXP_LOCK(sc, s);
 
 	switch (command) {
 
@@ -1936,7 +1963,7 @@ fxp_ioctl(ifp, command, data)
 	default:
 		error = EINVAL;
 	}
-	(void) splx(s);
+	FXP_UNLOCK(sc, s);
 	return (error);
 }
 
