@@ -35,13 +35,17 @@
  */
 
 #ifndef lint
-static char copyright[] =
+static const char copyright[] =
 "@(#) Copyright (c) 1980, 1990, 1993\n\
 	The Regents of the University of California.  All rights reserved.\n";
 #endif /* not lint */
 
 #ifndef lint
+#if 0
 static char sccsid[] = "from: @(#)quota.c	8.1 (Berkeley) 6/6/93";
+#endif
+static const char rcsid[] =
+	"$Id$";
 #endif /* not lint */
 
 /*
@@ -54,14 +58,14 @@ static char sccsid[] = "from: @(#)quota.c	8.1 (Berkeley) 6/6/93";
 #include <sys/mount.h>
 #include <sys/socket.h>
 #include <ufs/ufs/quota.h>
+#include <ctype.h>
+#include <err.h>
+#include <fstab.h>
+#include <grp.h>
+#include <pwd.h>
 #include <stdio.h>
 #include <stdlib.h>
-#include <fstab.h>
-#include <ctype.h>
 #include <string.h>
-#include <pwd.h>
-#include <grp.h>
-#include <errno.h>
 #include <unistd.h>
 
 #include <netdb.h>
@@ -113,8 +117,6 @@ main(argc, argv)
 	gid_t mygid, gidset[NGROUPS];
 	int i, gflag = 0, uflag = 0;
 	char ch;
-	extern char *optarg;
-	extern int optind, errno;
 
 	while ((ch = getopt(argc, argv, "ugvq")) != EOF) {
 		switch(ch) {
@@ -144,10 +146,8 @@ main(argc, argv)
 		if (gflag) {
 			mygid = getgid();
 			ngroups = getgroups(NGROUPS, gidset);
-			if (ngroups < 0) {
-				perror("quota: getgroups");
-				return(1);
-			}
+			if (ngroups < 0)
+				err(1, "getgroups");
 			showgid(mygid);
 			for (i = 0; i < ngroups; i++)
 				if (gidset[i] != mygid)
@@ -182,9 +182,9 @@ usage()
 {
 
 	fprintf(stderr, "%s\n%s\n%s\n",
-		"Usage: quota [-guqv]",
-		"\tquota [-qv] -u username ...",
-		"\tquota [-qv] -g groupname ...");
+		"usage: quota [-guqv]",
+		"       quota [-qv] -u username ...",
+		"       quota [-qv] -g groupname ...");
 	exit(1);
 }
 
@@ -222,13 +222,12 @@ showusrname(name)
 	u_long myuid;
 
 	if (pwd == NULL) {
-		fprintf(stderr, "quota: %s: unknown user\n", name);
+		warnx("%s: unknown user", name);
 		return;
 	}
 	myuid = getuid();
 	if (pwd->pw_uid != myuid && myuid != 0) {
-		fprintf(stderr, "quota: %s (uid %u): permission denied\n",
-		    name, pwd->pw_uid);
+		warnx("%s (uid %u): permission denied", name, pwd->pw_uid);
 		return;
 	}
 	showquotas(USRQUOTA, pwd->pw_uid, name);
@@ -254,7 +253,7 @@ showgid(gid)
 	mygid = getgid();
 	ngroups = getgroups(NGROUPS, gidset);
 	if (ngroups < 0) {
-		perror("quota: getgroups");
+		warn("getgroups");
 		return;
 	}
 	if (gid != mygid) {
@@ -262,9 +261,7 @@ showgid(gid)
 			if (gid == gidset[i])
 				break;
 		if (i >= ngroups && getuid() != 0) {
-			fprintf(stderr,
-			    "quota: %s (gid %lu): permission denied\n",
-			    name, gid);
+			warnx("%s (gid %lu): permission denied", name, gid);
 			return;
 		}
 	}
@@ -284,13 +281,13 @@ showgrpname(name)
 	register int i;
 
 	if (grp == NULL) {
-		fprintf(stderr, "quota: %s: unknown group\n", name);
+		warnx("%s: unknown group", name);
 		return;
 	}
 	mygid = getgid();
 	ngroups = getgroups(NGROUPS, gidset);
 	if (ngroups < 0) {
-		perror("quota: getgroups");
+		warn("getgroups");
 		return;
 	}
 	if (grp->gr_gid != mygid) {
@@ -298,9 +295,7 @@ showgrpname(name)
 			if (grp->gr_gid == gidset[i])
 				break;
 		if (i >= ngroups && getuid() != 0) {
-			fprintf(stderr,
-			    "quota: %s (gid %u): permission denied\n",
-			    name, grp->gr_gid);
+			warnx("%s (gid %u): permission denied", name, grp->gr_gid);
 			return;
 		}
 	}
@@ -466,18 +461,14 @@ getprivs(id, quotatype)
 	qup = quphead = (struct quotause *)0;
 
 	nfst = getmntinfo(&fst, MNT_WAIT);
-	if (nfst == 0) {
-		fprintf(stderr, "quota: no filesystems mounted!\n");
-		exit(2);
-	}
+	if (nfst == 0)
+		errx(2, "no filesystems mounted!");
 	setfsent();
 	for (i=0; i<nfst; i++) {
 		if (qup == NULL) {
 			if ((qup = (struct quotause *)malloc(sizeof *qup))
-			    == NULL) {
-				fprintf(stderr, "quota: out of memory\n");
-				exit(2);
-			}
+			    == NULL)
+				errx(2, "out of memory");
 		}
 		if (fst[i].f_type == MOUNT_NFS) {
 			if (getnfsquota(&fst[i], NULL, qup, id, quotatype)
@@ -568,7 +559,7 @@ getufsquota(fst, fs, qup, id, quotatype)
 
 	if (quotactl(fs->fs_file, qcmd, id, (char *)&qup->dqblk) != 0) {
 		if ((fd = open(qfpathname, O_RDONLY)) < 0) {
-			perror(qfpathname);
+			warn(qfpathname);
 			return (0);
 		}
 		(void) lseek(fd, (off_t)(id * sizeof(struct dqblk)), L_SET);
@@ -583,8 +574,7 @@ getufsquota(fst, fs, qup, id, quotatype)
 		case sizeof(struct dqblk):	/* OK */
 			break;
 		default:		/* ERROR */
-			fprintf(stderr, "quota: read error");
-			perror(qfpathname);
+			warn("read error: %s", qfpathname);
 			close(fd);
 			return (0);
 		}
@@ -621,7 +611,7 @@ getnfsquota(fst, fs, qup, id, quotatype)
 	 */
 	cp = strchr(fst->f_mntfromname, ':');
 	if (cp == NULL) {
-		fprintf(stderr, "cannot find hostname for %s\n",
+		warnx("cannot find hostname for %s",
 		    fst->f_mntfromname);
 		return (0);
 	}
@@ -645,7 +635,7 @@ getnfsquota(fst, fs, qup, id, quotatype)
 	case Q_NOQUOTA:
 		break;
 	case Q_EPERM:
-		fprintf(stderr, "quota permission error, host: %s\n",
+		warnx("quota permission error, host: %s",
 			fst->f_mntfromname);
 		break;
 	case Q_OK:
@@ -675,7 +665,7 @@ getnfsquota(fst, fs, qup, id, quotatype)
 		*cp = ':';
 		return (1);
 	default:
-		fprintf(stderr, "bad rpc result, host: %s\n",
+		warnx("bad rpc result, host: %s",
 		    fst->f_mntfromname);
 		break;
 	}
