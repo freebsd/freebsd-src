@@ -16,7 +16,7 @@ paper.t: 0.t 1.t ref.bib.i A.gt
 	    > ${.TARGET}
 
 ref.bib.i: ref.bib
-	${INDXBIB} -c ${.CURDIR}/../../../../contrib/groff/indxbib/eign \
+	${INDXBIB} -c ${.CURDIR}/../../../../contrib/groff/src/utils/indxbib/eign \
 	    -o ref.bib ${.ALLSRC}
 
 .include <bsd.doc.mk>
