@@ -1585,10 +1585,6 @@ pmap_remove_all(vm_page_t m)
 void
 pmap_remove_pages(pmap_t pm, vm_offset_t sva, vm_offset_t eva)
 {
-
-	KASSERT(pm == &curproc->p_vmspace->vm_pmap || pm == kernel_pmap,
-	    ("pmap_remove_pages: non current pmap"));
-	pmap_remove(pm, sva, eva);
 }
 
 /*
