@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)autoconf.c	7.1 (Berkeley) 5/9/91
- *	$Id: autoconf.c,v 1.24 1995/04/23 04:14:41 phk Exp $
+ *	$Id: autoconf.c,v 1.25 1995/04/23 09:12:39 julian Exp $
  */
 
 /*
@@ -147,11 +147,12 @@ void
 configure()
 {
 
+	configure_start();
+
 #if NEISA > 0
 	eisa_configure();
 #endif
 
-	configure_start();
 
 #if NISA > 0
 	isa_configure();
