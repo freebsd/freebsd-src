@@ -280,7 +280,7 @@ FilterCheck(const unsigned char *packet, u_int32_t family,
           case IPPROTO_ICMP:
             mindata = 8;	/* ICMP must be at least 8 octets */
             ih = (const struct icmp *)payload;
-            sport = ntohs(ih->icmp_type);
+            sport = ih->icmp_type;
             if (log_IsKept(LogDEBUG))
               snprintf(dbuff, sizeof dbuff, "sport = %d", sport);
             break;
@@ -289,7 +289,7 @@ FilterCheck(const unsigned char *packet, u_int32_t family,
           case IPPROTO_ICMPV6:
             mindata = 8;	/* ICMP must be at least 8 octets */
             ih6 = (const struct icmp6_hdr *)payload;
-            sport = ntohs(ih6->icmp6_type);
+            sport = ih6->icmp6_type;
             if (log_IsKept(LogDEBUG))
               snprintf(dbuff, sizeof dbuff, "sport = %d", sport);
             break;
