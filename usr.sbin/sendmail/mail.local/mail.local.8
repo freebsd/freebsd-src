@@ -30,7 +30,7 @@
 .\" SUCH DAMAGE.
 .\"
 .\"	@(#)mail.local.8	8.2 (Berkeley) 12/11/93
-.\"	$Id$
+.\"	$Id: mail.local.8,v 1.2 1996/10/29 05:22:51 peter Exp $
 .\"
 .Dd December 11, 1993
 .Dt MAIL.LOCAL 8
@@ -42,6 +42,7 @@
 .Nm mail.local
 .Op Fl f Ar from
 .Op Fl b
+.Op Fl s
 .Ar user ...
 .Sh DESCRIPTION
 .Nm Mail.local
@@ -61,6 +62,12 @@ Specify the sender's name.
 Turn off the attempts to notify the
 .Dq biff
 service.
+.It Fl s
+Turn off the
+.Xr fsync 2
+call that forces the mailbox to be committed to disk before returning a
+.Dq success
+status.
 .El
 .Pp
 Individual mail messages in the mailbox are delimited by an empty
