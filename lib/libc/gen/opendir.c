@@ -79,18 +79,13 @@ opendir(name)
 	    (dirp = malloc(sizeof(DIR))) == NULL)
 		goto fail;
 	/*
-	 * If CLBYTES is an exact multiple of DIRBLKSIZ, use a CLBYTES
-	 * buffer that it cluster boundary aligned.
-	 * Hopefully this can be a big win someday by allowing page trades
-	 * to user space to be done by getdirentries()
+	 * Use the system page size if that is a multiple of DIRBLKSIZ
+	 * this could speed things up in some cases we hope
 	 */
-	if ((CLBYTES % DIRBLKSIZ) == 0) {
-		dirp->dd_buf = malloc(CLBYTES);
-		dirp->dd_len = CLBYTES;
-	} else {
-		dirp->dd_buf = malloc(DIRBLKSIZ);
+	dirp->dd_len = getpagesize();
+	if ((dirp->dd_len % DIRBLKSIZ) != 0) 
 		dirp->dd_len = DIRBLKSIZ;
-	}
+	dirp->dd_buf = malloc(dirp->dd_len);
 	if (dirp->dd_buf == NULL)
 		goto fail;
 	dirp->dd_fd = fd;
