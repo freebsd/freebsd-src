@@ -554,16 +554,20 @@ es1371_wrcd(kobj_t obj, void *s, int addr, u_int32_t data)
 	  	if ((bus_space_read_4(es->st, es->sh, ES1371_REG_SMPRATE) & 0x00070000) == 0x00010000)
 			break;
 
-	if (debug > 2) printf("one b_s_w: 0x%x 0x%x 0x%x\n", es->sh, ES1371_REG_CODEC,
-			 ((addr << CODEC_POADD_SHIFT) & CODEC_POADD_MASK) |
-			 ((data << CODEC_PODAT_SHIFT) & CODEC_PODAT_MASK));
+	if (debug > 2)
+		printf("one b_s_w: 0x%lx 0x%x 0x%x\n",
+		       rman_get_start(es->reg), ES1371_REG_CODEC,
+		       ((addr << CODEC_POADD_SHIFT) & CODEC_POADD_MASK) |
+		       ((data << CODEC_PODAT_SHIFT) & CODEC_PODAT_MASK));
 
 	bus_space_write_4(es->st, es->sh,ES1371_REG_CODEC,
 			  ((addr << CODEC_POADD_SHIFT) & CODEC_POADD_MASK) |
 			  ((data << CODEC_PODAT_SHIFT) & CODEC_PODAT_MASK));
 	/* restore SRC reg */
 	es1371_wait_src_ready(s);
-	if (debug > 2) printf("two b_s_w: 0x%x 0x%x 0x%x\n", es->sh, ES1371_REG_SMPRATE, x);
+	if (debug > 2)
+		printf("two b_s_w: 0x%lx 0x%x 0x%x\n",
+		       rman_get_start(es->reg), ES1371_REG_SMPRATE, x);
 	bus_space_write_4(es->st, es->sh, ES1371_REG_SMPRATE, x);
 	splx(sl);
 
