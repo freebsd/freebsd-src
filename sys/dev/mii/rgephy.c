@@ -311,7 +311,7 @@ setit:
 
 	/*
 	 * Callback if something changed. Note that we need to poke
-	 * the DSP on the Broadcom PHYs if the media changes.
+	 * the DSP on the RealTek PHYs if the media changes.
 	 *
 	 */
 	if (sc->mii_media_active != mii->mii_media_active || 
@@ -328,7 +328,7 @@ rgephy_status(sc)
 	struct mii_softc *sc;
 {
 	struct mii_data *mii = sc->mii_pdata;
-	int bmsr, bmcr/*, anlpar*/;
+	int bmsr, bmcr;
 
 	mii->mii_media_status = IFM_AVALID;
 	mii->mii_media_active = IFM_ETHER;
@@ -350,18 +350,6 @@ rgephy_status(sc)
 			mii->mii_media_active |= IFM_NONE;
 			return;
 		}
-/*
-		anlpar = PHY_READ(sc, RL_GMEDIASTAT);
-		if (anlpar & RL_GMEDIASTAT_10MBPS)
-			mii->mii_media_active |= IFM_10_T;
-		if (anlpar & RL_GMEDIASTAT_100MBPS)
-			mii->mii_media_active |= IFM_100_TX;
-		if (anlpar & RL_GMEDIASTAT_1000MBPS)
-			mii->mii_media_active |= IFM_1000_T;
-		if (anlpar & RL_GMEDIASTAT_FDX)
-			mii->mii_media_active |= IFM_FDX;
-		return;
-*/
 	}
 
 	bmsr = PHY_READ(sc, RL_GMEDIASTAT);
@@ -423,7 +411,12 @@ rgephy_loop(struct mii_softc *sc)
 #define PHY_CLRBIT(x, y, z) \
 	PHY_WRITE(x, y, (PHY_READ(x, y) & ~(z)))
 
-/* Initialize RealTek PHY per datasheet */
+/*
+ * Initialize RealTek PHY per the datasheet. The DSP in the PHYs of
+ * existing revisions of the 8169S/8110S chips need to be tuned in
+ * order to reliably negotiate a 1000Mbps link. Later revs of the
+ * chips may not require this software tuning.
+ */
 static void
 rgephy_load_dspcode(struct mii_softc *sc)
 {
