@@ -27,7 +27,8 @@ node is a
 .Xr netgraph 4
 interface to the original
 .Xr sppp 4
-network module for synchronous lines. Currently
+network module for synchronous lines.
+Currently
 .Xr sppp 4
 supports PPP and Cisco HDLC protocol.
 An
@@ -74,7 +75,8 @@ network modules.
 .Pp
 An
 .Nm ng_sppp
-node has a single hook named downstream. Usually it is connected directly to
+node has a single hook named downstream.
+Usually it is connected directly to
 a device driver hook.
 .Pp
 .Nm ng_sppp
@@ -101,7 +103,8 @@ struct ng_iface_ifname {
 .Sh SHUTDOWN
 This node shuts down upon receipt of a
 .Dv NGM_SHUTDOWN
-control message.  The associated interface is removed and becomes available
+control message.
+The associated interface is removed and becomes available
 for use by future
 .Nm ng_sppp
 nodes.

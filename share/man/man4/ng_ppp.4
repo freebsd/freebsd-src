@@ -88,7 +88,8 @@ hook (see below).
 During normal operation, the individual PPP links are connected to hooks
 .Dv link0 ,
 .Dv link1 ,
-etc.  Up to
+etc.
+Up to
 .Dv NG_PPP_MAX_LINKS
 links are supported.
 These device-independent hooks transmit and receive full PPP
@@ -162,7 +163,8 @@ hooks are connected, and the corresponding configuration flag is
 enabled, Van Jacobson compression and/or decompression will become active.
 Normally these hooks connect to the corresponding hooks of a single
 .Xr ng_vjc 4
-node.  The PPP node is compatible with the
+node.
+The PPP node is compatible with the
 .Dq pass through
 modes of the
 .Xr ng_vjc 4
@@ -179,7 +181,8 @@ the prefix indicate the link number on which the frame was received
 For such frames received over the bundle (i.e., encapsulated in the
 multi-link protocol), the special link number
 .Dv NG_PPP_BUNDLE_LINKNUM
-is used.  After the two byte link number is the two byte PPP protocol number
+is used.
+After the two byte link number is the two byte PPP protocol number
 (also in network order).
 The PPP protocol number is two bytes long even if the original frame
 was protocol compressed.
@@ -347,7 +350,8 @@ Returns the current configuration as a
 .It Dv NGM_PPP_GET_LINK_STATS
 This command takes a two byte link number as an argument and returns a
 .Dv "struct ng_ppp_link_stat"
-containing statistics for the corresponding link.  Here
+containing statistics for the corresponding link.
+Here
 .Dv NG_PPP_BUNDLE_LINKNUM
 is a valid link number corresponding to the multi-link bundle.
 .It Dv NGM_PPP_CLR_LINK_STATS
@@ -361,10 +365,12 @@ but also atomically clears the statistics as well.
 .Pp
 This node type also accepts the control messages accepted by the
 .Xr ng_vjc 4
-node type. When received, these messages are simply forwarded to
+node type.
+When received, these messages are simply forwarded to
 the adjacent
 .Xr ng_vjc 4
-node, if any.  This is particularly useful when the individual
+node, if any.
+This is particularly useful when the individual
 PPP links are able to generate
 .Dv NGM_VJC_RECV_ERROR
 messages (see

@@ -43,11 +43,11 @@
 Detach a device.
 This can be called if the user is replacing the
 driver software or if a device is about to be physically removed from
-the system (e.g. for pccard devices).
+the system (e.g.\& for pccard devices).
 .Pp
 The method should deallocate any system resources allocated during the
 .Xr DEVICE_ATTACH 9
-method and reset the hardware to a sane state (i.e. disable interrupts
+method and reset the hardware to a sane state (i.e., disable interrupts
 etc.)
 .Sh RETURN VALUES
 Zero is returned on success, otherwise an appropriate error is returned.

@@ -207,7 +207,8 @@ Default: on
 If enabled, the 25-line modi
 (VT emulation with 25 lines, and HP emulation with 28 lines)
 default to 24 lines only to provide a better compatibility to the
-original DEV VT220 (TM). Thus it should be possible to use the
+original DEV VT220 (TM).
+Thus it should be possible to use the
 terminal information for those terminals without further changes.
 Note that this is a startup option; it is possible to toggle between
 the 24- and 25-lines' display by the
@@ -458,7 +459,8 @@ struct vgaloadchar {
 The field
 .Em character_set
 takes the values
-CH_SET0, CH_SET1, CH_SET2, CH_SET3 on EGA's or VGA's. Since VGA's
+CH_SET0, CH_SET1, CH_SET2, CH_SET3 on EGA's or VGA's.
+Since VGA's
 might have up to eight simultaneously loaded fonts, they can take
 CH_SET4, CH_SET5, CH_SET6, or CH_SET7, too.
 .Pp
@@ -597,7 +599,8 @@ struct vgapel {
 .Bl -tag -width 20n -offset indent -compact
 .It VGAPCVTID
 returns information if the current compiled in driver is pcvt and it's
-major and minor revision numbers. the call is taking a pointer to the
+major and minor revision numbers.
+the call is taking a pointer to the
 following structure as argument:
 .El
 .Bd -literal
@@ -615,7 +618,8 @@ struct pcvtid {
 .Bl -tag -width 20n -offset indent -compact
 .It VGAPCVTINFO
 returns information if the current compiled in driver is pcvt and it's
-compile time options. the call is taking a pointer to the following
+compile time options.
+the call is taking a pointer to the following
 structure as argument:
 .El
 .Bd -literal

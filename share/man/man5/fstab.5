@@ -86,8 +86,10 @@ The system can support various file system types.
 Only the root, /usr, and /tmp file systems need be statically
 compiled into the kernel;
 everything else will be automatically loaded at mount
-time.  (Exception: the UFS family - FFS and LFS cannot
-currently be demand-loaded.)  Some people still prefer to statically
+time.
+(Exception: the UFS family - FFS and LFS cannot
+currently be demand-loaded.)
+Some people still prefer to statically
 compile other file systems as well.
 .Pp
 The fourth field,
@@ -97,7 +99,8 @@ It is formatted as a comma separated list of options.
 It contains at least the type of mount (see
 .Fa fs_type
 below) plus any additional options
-appropriate to the file system type.  See the options flag
+appropriate to the file system type.
+See the options flag
 .Pq Fl o
 in the
 .Xr mount 8
@@ -131,7 +134,7 @@ If the option ``noauto'' is specified, the file system will not be automatically
 mounted at system startup.
 Note that, for network file systems
 of third party types
-(i.e. types supported by additional software
+(i.e., types supported by additional software
 not included in the base system)
 to be automatically mounted at system startup,
 the

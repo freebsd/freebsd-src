@@ -40,11 +40,13 @@
 .Nd mail addressing description
 .Sh DESCRIPTION
 Mail addresses are based on the Internet protocol listed at the end of this
-manual page.  These addresses are in the general format
+manual page.
+These addresses are in the general format
 .Pp
 .Dl user@domain
 .Pp
-where a domain is a hierarchical dot separated list of subdomains.  For
+where a domain is a hierarchical dot separated list of subdomains.
+For
 example, a valid address is:
 .Pp
 .Dl eric@CS.Berkeley.EDU
@@ -57,7 +59,8 @@ to CS over the Ethernet rather than going via the Berkeley Internet
 gateway.
 .Ss Abbreviation.
 Under certain circumstances it may not be necessary to type the entire
-domain name.  In general, anything following the first dot may be omitted
+domain name.
+In general, anything following the first dot may be omitted
 if it is the same as the domain from which you are sending the message.
 For example, a user on ``calder.berkeley.edu'' could send to ``eric@CS''
 without adding the ``berkeley.edu'' since it is the same on both sending
@@ -65,7 +68,8 @@ and receiving hosts.
 .Ss Compatibility.
 .Pp
 Certain old address formats are converted to the new format to provide
-compatibility with the previous mail system.  In particular,
+compatibility with the previous mail system.
+In particular,
 .Pp
 .Dl user@host
 .Pp
@@ -94,25 +98,30 @@ on for compatibility with older UUCP hosts.
 .Ss Case Distinctions.
 .Pp
 Domain names (i.e., anything after the ``@'' sign) may be given in any mixture
-of upper and lower case with the exception of UUCP hostnames.  Most hosts
+of upper and lower case with the exception of UUCP hostnames.
+Most hosts
 accept any combination of case in user names, with the notable exception of
 MULTICS sites.
 .Ss Route-addrs.
 .Pp
 Under some circumstances it may be necessary to route a message through
-several hosts to get it to the final destination.  Normally this routing
+several hosts to get it to the final destination.
+Normally this routing
 is done automatically, but sometimes it is desirable to route the message
-manually.  Addresses which show these relays are termed ``route-addrs.''
+manually.
+Addresses which show these relays are termed ``route-addrs.''
 These use the syntax:
 .Pp
 .Dl <@hosta,@hostb:user@hostc>
 .Pp
 This specifies that the message should be sent to hosta, from there to hostb,
-and finally to hostc.  This path is forced even if there is a more efficient
+and finally to hostc.
+This path is forced even if there is a more efficient
 path to hostc.
 .Pp
 Route-addrs occur frequently on return addresses, since these are generally
-augmented by the software at each host.  It is generally possible to ignore
+augmented by the software at each host.
+It is generally possible to ignore
 all but the ``user@hostc'' part of the address to determine the actual
 sender.
 .Pp
@@ -134,7 +143,8 @@ Some other networks can be reached by giving the name of the network as the
 last component of the domain.
 .Em This is not a standard feature
 and may
-not be supported at all sites.  For example, messages to CSNET or BITNET sites
+not be supported at all sites.
+For example, messages to CSNET or BITNET sites
 can often be sent to ``user@host.CSNET'' or ``user@host.BITNET'' respectively.
 .Sh SEE ALSO
 .Xr mail 1 ,

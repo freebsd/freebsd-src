@@ -46,7 +46,8 @@ capabilities of the
 .Tn Pentium
 and
 .Tn "Pentium Pro"
-CPUs.  These processors implement two internal counters which can be
+CPUs.
+These processors implement two internal counters which can be
 configured to measure a variety of events for either count or duration
 (in CPU cycles), as well as a cycle counter which counts clock cycles.
 The
@@ -67,7 +68,8 @@ and
 processors.
 .Pp
 .Sy NOTA BENE :
-The set of available events differs from processor to processor.  It
+The set of available events differs from processor to processor.
+It
 is the responsibility of the programmer to ensure that the event
 numbers used are the correct ones for the CPU type being measured.
 .Pp
@@ -119,22 +121,27 @@ returns the current configuration of the specified counter.
 .It Dv PMIOSTART
 .It Dv PMIOSTOP
 .Pq Li int
-starts (stops) the specified counter.  Due to hardware deficiencies,
-counters must be started and stopped in numerical order.  (That is to
+starts (stops) the specified counter.
+Due to hardware deficiencies,
+counters must be started and stopped in numerical order.
+(That is to
 say, counter 0 can never be stopped without first stopping counter 1.)
 The driver will
 .Em not
 enforce this restriction (since it may not be present in future CPUs).
 .It Dv PMIORESET
 .Pq Li int
-reset the specified counter to zero.  The counter should be stopped
+reset the specified counter to zero.
+The counter should be stopped
 with
 .Dv PMIOSTOP
-before it is reset.  All counters are automatically reset by
+before it is reset.
+All counters are automatically reset by
 .Dv PMIOSETUP .
 .It Dv PMIOREAD
 .Pq Li "struct pmc_data"
-get the current value of the counter.  The
+get the current value of the counter.
+The
 .Li pmc_data
 structure defines two fields:
 .Pp
@@ -152,7 +159,8 @@ instruction on
 processors to read the counters directly.
 .It Dv PMIOTSTAMP
 .Pq Li "struct pmc_tstamp"
-read the time stamp counter.  The
+read the time stamp counter.
+The
 .Li pmc_tstamp
 structure defines two fields:
 .Pp
@@ -166,7 +174,8 @@ the current value of the counter as a 64-bit integer
 It is important to note that the counter rate, as provided in the
 .Li pmct_rate
 field, is often incorrect because of calibration difficulties and
-non-integral clock rates.  This field should be considered more of a
+non-integral clock rates.
+This field should be considered more of a
 hint or sanity-check than an actual representation of the rate of
 clock ticks.
 .El

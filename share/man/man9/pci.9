@@ -119,7 +119,8 @@ or
 .Dv PCIM_CMD_PORTEN
 bit in the
 .Dv PCIR_COMMAND
-register appropriately. The
+register appropriately.
+The
 .Fn pci_disable_io
 function clears the appropriate bit.
 The
@@ -202,7 +203,8 @@ of a PCI device, given its
 .Fa vendor
 and
 .Fa device
-IDs. Note that there can be multiple matches for this search; this function
+IDs.
+Note that there can be multiple matches for this search; this function
 only returns the first matching device.
 .Sh IMPLEMENTATION NOTES
 The

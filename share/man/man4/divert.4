@@ -108,7 +108,8 @@ Packets written into a divert socket
 re-enter the packet filter at the rule number
 following the tag given in the port part of the socket address, which
 is usually already set at the rule number that caused the diversion
-(not the next rule if there are several at the same number). If the 'tag'
+(not the next rule if there are several at the same number).
+If the 'tag'
 is altered to indicate an alternative re-entry point, care should be taken
 to avoid loops, where the same packet is diverted more than once at the
 same rule.

@@ -74,7 +74,8 @@ statistics while utilizing a minimum amount of CPU time to record them.
 Thus, no statistical calculations are actually performed in the kernel
 portion of the
 .Nm
-code. Instead, that is left for user programs to handle.
+code.
+Instead, that is left for user programs to handle.
 .Pp
 .Fn devstat_add_entry
 registers a device with the
@@ -90,7 +91,7 @@ The
 .Va devstat
 structure, allocated and zeroed by the client.
 .It dev_name
-The device name. e.g. da, cd, sa.
+The device name, e.g.\& da, cd, sa.
 .It unit_number
 Device unit number.
 .It block_size
@@ -105,8 +106,8 @@ Flags indicating operations supported or not supported by the device.
 See below for details.
 .It device_type
 The device type.
-This is broken into three sections:  base device type
-(e.g. direct access, CDROM, sequential access), interface type (IDE, SCSI
+This is broken into three sections: base device type
+(e.g.\& direct access, CDROM, sequential access), interface type (IDE, SCSI
 or other) and a pass-through flag to indicate pas-through devices.
 See below for a complete list of types.
 .It priority
@@ -269,8 +270,8 @@ These flags are primarily intended to serve as an aid
 to userland programs that decipher the statistics.
 .It device_type
 This is the device type.
-It consists of three parts:  the device type
-(e.g. direct access, CDROM, sequential access, etc.), the interface (IDE,
+It consists of three parts: the device type
+(e.g.\& direct access, CDROM, sequential access, etc.), the interface (IDE,
 SCSI or other) and whether or not the device in question is a pass-through
 driver.
 See below for a complete list of device types.

@@ -44,11 +44,13 @@ This node currently handles the Ethernet and FDDI protocols.
 .Pp
 The node transmits and receives ATM PDUs on the
 .Dv atm
-hook.  Received PDUs are decoded and forwarded to the
+hook.
+Received PDUs are decoded and forwarded to the
 .Dv ether
 or
 .Dv fddi
-hooks as appropriate.  Data received on the
+hooks as appropriate.
+Data received on the
 .Dv ether
 or
 .Dv fddi
@@ -66,12 +68,14 @@ Typically this hook would be connected to a
 .Xr ng_atm 4
 node, which handles transmission of ATM PDUs over an ATM device.
 .It Dv ether
-Ethernet connection.  This hook sends and receives ethernet frames.
+Ethernet connection.
+This hook sends and receives ethernet frames.
 This would normally be connected to an
 .Xr ng_eiface 4
 node if in use.
 .It Dv fddi
-FDDI connection.  This hook sends and receives FDDI frames.
+FDDI connection.
+This hook sends and receives FDDI frames.
 .El
 .Sh CONTROL MESSAGES
 This node type supports the generic control messages.

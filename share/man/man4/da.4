@@ -96,7 +96,8 @@ utility.
 The read cache is used to store data from device-initiated read ahead
 operations as well as frequently used data.
 The read cache is transparent
-to the user and can be enabled without any adverse effect.  Most devices
+to the user and can be enabled without any adverse effect.
+Most devices
 with a read cache come from the factory with it enabled.
 The read cache can be disabled by setting the
 .Tn RCD
@@ -228,14 +229,14 @@ given
 unit.
 (The %d above denotes the unit number of the
 .Nm
-driver instance, e.g. 1, 2, 4, 8, etc.)
+driver instance, e.g.\& 1, 2, 4, 8, etc.)
 Valid minimum command size values are 6, 10, 12 and 16 bytes.
 The default is 6 bytes.
 .Pp
 The
 .Nm
 driver issues a CAM Path Inquiry CCB at probe time to determine whether the
-protocol the device in question speaks (e.g. ATAPI) typically doesn't allow
+protocol the device in question speaks (e.g.\& ATAPI) typically doesn't allow
 6 byte commands.
 If it doesn't, the
 .Nm

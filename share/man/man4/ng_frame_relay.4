@@ -47,7 +47,8 @@
 The
 .Nm frame_relay
 node type performs encapsulation, de-encapsulation, and multiplexing
-of packets using the frame relay protocol. It supports up to 1024 DLCI's.
+of packets using the frame relay protocol.
+It supports up to 1024 DLCI's.
 The LMI protocol is handled by a separate node type (see
 .Xr ng_lmi 4 ) .
 .Pp
@@ -67,7 +68,8 @@ This node type supports the following hooks:
 .It Dv downstream
 The connection to the synchronous line.
 .It Dv dlciX
-Here X is a decimal number from 0 to 1023. This hook corresponds
+Here X is a decimal number from 0 to 1023.
+This hook corresponds
 to the DLCI X frame relay virtual channel.
 .El
 .Sh CONTROL MESSAGES

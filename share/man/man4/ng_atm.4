@@ -44,28 +44,33 @@ The
 .Nm
 netgraph node type allows
 .Xr natm 4
-ATM drivers to be connected to the 
+ATM drivers to be connected to the
 .Xr netgraph 4
 networking subsystem.
 When the
 .Nm
 module is loaded a node is automatically create for each
 .Xr natm 4
-ATM interface. The nodes are named with the same name as the
-interface. Nodes are also created, if a driver for an ATM
+ATM interface.
+The nodes are named with the same name as the
+interface.
+Nodes are also created, if a driver for an ATM
 card is loaded after
 .Nm
 was loaded.
 .Pp
 .Nm
-nodes are persistent. They are removed when the interface is removed.
+nodes are persistent.
+They are removed when the interface is removed.
 SHUTDOWN messages are ignored by the node.
 .Sh HOOKS
 Four special hooks with fixed names and an unlimited number of hooks with user
-defined names are supported. Three of the fixed hooks are attached to
+defined names are supported.
+Three of the fixed hooks are attached to
 strategic points in the information flow in the
 .Xr natm 4
-system and support only reading. The fourth fixed hook behaves like the other
+system and support only reading.
+The fourth fixed hook behaves like the other
 user hooks, but a number of management messages are sent along the hook.
 The other hooks can be attached to VCIs dynamically by means of
 control messages to the
@@ -77,7 +82,9 @@ The four fixed hooks are:
 .It Dv input
 This is a connection to the raw input stream from the network.
 If this hook is connected, all incoming packets are delivered out to
-this hook. Note, that this redirects ALL input. Neither
+this hook.
+Note, that this redirects ALL input.
+Neither
 .Xr natm 4
 nor the user hooks will see any input if
 .Dv input
@@ -98,7 +105,7 @@ An
 .Xr natm 4 )
 is prepended to the actual data.
 .It Dv orphans
-This hook receives all packets that are unrecognized, i.e. do not belong to
+This hook receives all packets that are unrecognized, i.e., do not belong to
 either a
 .Xr natm 4
 socket, a
@@ -107,7 +114,8 @@ VCI or
 .Xr natm 4
 IP.
 Because ATM is connection oriented and packets are received on a given VCI only
-when someone initiates this VCI, packets should never be orphaned. There is
+when someone initiates this VCI, packets should never be orphaned.
+There is
 however one exception: if you use
 .Xr natm 4
 IP with LLC/SNAP encapsulation packets with don't have the IP protocol
@@ -123,16 +131,17 @@ the node at the other hand will receive management messages.
 .El
 .Pp
 Hooks for dynamically initiated VCIs can have whatever name is allowed by
-.Xr netgraph 4 
+.Xr netgraph 4
 as long as the name does not collide with one of the three predefined names.
 .Pp
 To initiate packet sending an receiving on a dynamic hook one has to issue
 a
 .Dv NGM_ATM_CPCS_INIT
-control message. To terminate sending and receiving one must send a
+control message.
+To terminate sending and receiving one must send a
 .Dv NGM_ATM_CPCS_TERM
 message (see
-.Sx CONTROL MESSAGES ) . 
+.Sx CONTROL MESSAGES ) .
 The data send and received on these hooks has no additional
 headers.
 .Sh CONTROL MESSAGES
@@ -153,7 +162,8 @@ struct ng_atm_config {
 };
 .Ed
 .It Dv NGM_ATM_GET_VCCS
-Returns the table of open VCCs from the driver. This table consists of
+Returns the table of open VCCs from the driver.
+This table consists of
 a header and a variable sized array of entries, one for each open vcc:
 .Bd -literal
 struct atmio_vcctable {
@@ -188,8 +198,10 @@ struct atmio_tparam {
 .Pp
 Note, that this is the driver's table, so all VCCs opened via
 .Xr natm 4
-sockets and IP are also shown. They can, however, be distinguished by
-their flags. The
+sockets and IP are also shown.
+They can, however, be distinguished by
+their flags.
+The
 .Dv flags
 field contains the following flags:
 .Bl -column ATM_PH_LLCSNAP -offset indent
@@ -229,7 +241,8 @@ all traffic types however):
 .It Dv ATMIO_TRAFFIC_VBR
 .El
 .It Dv NGM_ATM_CPCS_INIT
-Initialize a VCC for sending and receiving. The argument is a structure:
+Initialize a VCC for sending and receiving.
+The argument is a structure:
 .Bd -literal
 struct ng_atm_cpcs_init {
 	char		name[NG_HOOKSIZ];
@@ -261,8 +274,9 @@ This hook must already be connected.
 .Dv vpi
 and
 .Dv vci
-are the respective VPI and VCI values to use for the ATM cells. They must be
-within the range, given by the 
+are the respective VPI and VCI values to use for the ATM cells.
+They must be
+within the range, given by the
 .Dv maxvpi
 and
 .Dv maxvci
@@ -273,7 +287,8 @@ structure.
 contains the flags (see above) and the other fields describe the
 type of traffic.
 .It Dv NGM_ATM_CPCS_TERM
-Stop sending and receiving on the indicated hook. The argument is a
+Stop sending and receiving on the indicated hook.
+The argument is a
 .Bd -literal
 struct ng_atm_cpcs_term {
 	char		name[NG_HOOKSIZ];
@@ -283,7 +298,8 @@ struct ng_atm_cpcs_term {
 .Sh MANAGEMENT MESSAGES
 If the
 .Dv manage
-hook is connected certain messages are sent along the hook. They are
+hook is connected certain messages are sent along the hook.
+They are
 received by the peer node with a cookie of
 .Dv NG_ATM_COOKIE .
 .Bl -tag -width xxx
@@ -298,15 +314,18 @@ struct ng_atm_carrier_change {
 .Ed
 .Pp
 .Dv node
-is the node Id of the ATM node. This can be used by the managing entity
+is the node Id of the ATM node.
+This can be used by the managing entity
 (for example
 .Xr ilmid 8 )
 to manage several interfaces at the same time through the same node.
 .Dv state is 1 if the carrier was detected and 0 if it was lost.
 .It Dv NGM_ATM_VCC_CHANGE
-A permanent VCC has been added, deleted or changed. This is used by
+A permanent VCC has been added, deleted or changed.
+This is used by
 .Xr ilmid
-to generate the appropriate ILMI traps. The structure of the message is:
+to generate the appropriate ILMI traps.
+The structure of the message is:
 .Bd -literal
 struct ng_atm_vcc_change {
 	uint32_t	node;
@@ -321,22 +340,27 @@ is 0 if the PVC was deleted and 1 if it was added or modified.
 .El
 .Sh FLOW CONTROL
 If the hardware driver supports it the node can emit flow control messages
-along a user hook. The format of these messages is described in
+along a user hook.
+The format of these messages is described in
 .Pa netgraph/ng_message.h .
 The
 .Nm
 node may generate
 .Dv NGM_HIGH_WATER_PASSED and NGM_LOW_WATER_PASSED
-messages. The first one indicates that the hardware driver has stopped output
+messages.
+The first one indicates that the hardware driver has stopped output
 on the channel and drops new packets, the second one reports that
-output was reenabled. Currently the structures are not filled with
+output was reenabled.
+Currently the structures are not filled with
 information.
 .Sh SHUTDOWN
 The nodes are persistent as long as the corresponding interface exists.
 Upon receipt of a
 .Dv NGM_SHUTDOWN
-messages all hooks are disconnected and the node is reinitialized. All
-VCCs opened via netgraph are closed. When the ATM interface is unloaded
+messages all hooks are disconnected and the node is reinitialized.
+All
+VCCs opened via netgraph are closed.
+When the ATM interface is unloaded
 the node disappears.
 If the node is compiled with
 .Dv NGATM_DEBUG

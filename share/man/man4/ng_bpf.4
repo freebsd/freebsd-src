@@ -51,7 +51,8 @@ node type allows Berkeley Packet Filter (see
 .Xr bpf 4 )
 filters to be applied to data travelling through a Netgraph network.
 Each node allows an arbitrary number of connections to arbitrarily
-named hooks.  With each hook is associated a
+named hooks.
+With each hook is associated a
 .Xr bpf 4
 filter program which is applied to incoming data only, a destination hook
 for matching packets, a destination hook for non-matching packets,
@@ -60,7 +61,8 @@ and various statistics counters.
 A
 .Xr bpf 4
 program returns an unsigned integer, which is normally interpreted as
-the length of the prefix of the packet to return.  In the context of this
+the length of the prefix of the packet to return.
+In the context of this
 node type, returning zero is considered a non-match, in which case the
 entire packet is delivered out the non-match destination hook.
 Returning a value greater than zero causes the packet to be truncated
@@ -79,7 +81,8 @@ This node type supports the generic control messages, plus the following:
 .Bl -tag -width foo
 .It Dv NGM_BPF_SET_PROGRAM
 This command sets the filter program that will be applied to incoming
-data on a hook.  The following structure must be supplied as an argument:
+data on a hook.
+The following structure must be supplied as an argument:
 .Bd -literal -offset 4n
 struct ng_bpf_hookprog {
   char            thisHook[NG_HOOKSIZ];     /* name of hook */
@@ -101,7 +104,8 @@ Matching and non-matching incoming packets are delivered out the hooks named
 .Dv ifMatch
 and
 .Dv ifNotMatch ,
-respectively.  The program must be a valid
+respectively.
+The program must be a valid
 .Xr bpf 4
 program or else
 .Er EINVAL

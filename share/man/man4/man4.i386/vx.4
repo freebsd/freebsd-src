@@ -74,7 +74,8 @@ Use the UTP port.
 .Bl -diag
 .It "vx%d: not configured; kernel is built for only %d devices."
 There are not enough devices in the kernel configuration file for the number
-of adapters present in the system.  Add devices to the configuration file,
+of adapters present in the system.
+Add devices to the configuration file,
 rebuild the kernel, and reboot.
 .El
 .Pp
@@ -82,7 +83,8 @@ All other diagnostics indicate either a hardware problem or a bug in the
 driver.
 .Sh CAVEATS
 Some early-revision 3c590 cards are defective and suffer from many receive
-overruns, which cause lost packets.  The author has attempted to implement
+overruns, which cause lost packets.
+The author has attempted to implement
 a test for it based on the information supplied by 3Com, but the test resulted
 mostly in spurious warnings.
 .Pp

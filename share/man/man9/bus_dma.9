@@ -176,7 +176,7 @@ field contains the device visible address of the DMA segment, and
 contains the length of the DMA segment.
 Although the DMA segments returned by a mapping call will adhere to
 all restrictions necessary for a successful DMA operation, some conversion
-(e.g. a conversion from host byte order to the device's byte order) is
+(e.g.\& a conversion from host byte order to the device's byte order) is
 almost always required when presenting segment information to the device.
 .It Vt bus_dmamap_t
 A machine-dependent opaque type describing an individual mapping.
@@ -197,7 +197,7 @@ Callbacks are of the format:
 The
 .Fa callback_arg
 is the callback argument passed to dmamap load functions.
-The 
+The
 .Fa segs
 and
 .Fa nseg
@@ -216,7 +216,7 @@ the load of a
 .Vt bus_dmamap_t
 via
 .Fn bus_dmamap_load_uio
-or 
+or
 .Fn bus_dmamap_load_mbuf .
 .sp
 Callback2s are of the format:
@@ -372,7 +372,7 @@ DMA mapping associated with this tag.
 .It Fa nsegments
 Number of discontinuities (scatter/gather segments) allowed
 in a DMA mapped region.
-If there is no restriction, 
+If there is no restriction,
 .Dv BUS_SPACE_UNRESTRICTED
 may be specified.
 .It Fa maxsegsz
@@ -399,7 +399,7 @@ is used.
 Optional argument to be passed to the function specified by
 .Fa lockfunc .
 .It Fa dmat
-Pointer to a bus_dma_tag_t where the resulting DMA tag will 
+Pointer to a bus_dma_tag_t where the resulting DMA tag will
 be stored.
 .El
 .Pp
@@ -634,7 +634,7 @@ returned via
 .Fa mapp .
 Arguments are as follows:
 .Bl -tag -width alignment -compact
-.It Fa dmat 
+.It Fa dmat
 DMA tag describing the constraints of the DMA mapping.
 .It Fa vaddr
 Pointer to a pointer that will hold the returned KVA mapping of
@@ -646,7 +646,7 @@ Flags are defined as follows:
 The routine can safely wait (sleep) for resources.
 .It Dv BUS_DMA_NOWAIT
 The routine is not allowed to wait for resources.
-If resources are not available, 
+If resources are not available,
 .Dv ENOMEM
 is returned.
 .It Dv BUS_DMA_COHERENT

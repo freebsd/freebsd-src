@@ -42,7 +42,8 @@
 The
 .Fn pthread_rwlockattr_getpshared
 function is used to get the process shared setting of a read/write
-lock attribute object.  The setting is returned via
+lock attribute object.
+The setting is returned via
 .Fa pshared ,
 and may be one of two values:
 .Bl -tag -width PTHREAD_PROCESS_PRIVATE
@@ -51,13 +52,15 @@ Any thread of any process that has access to the memory where the
 read/write lock resides can manipulate the lock.
 .It Dv PTHREAD_PROCESS_PRIVATE
 Only threads created within the same process as the thread that
-initialized the read/write lock can manipulate the lock.  This is
+initialized the read/write lock can manipulate the lock.
+This is
 the default value.
 .El
 .Sh RETURN VALUES
 If successful, the
 .Fn pthread_rwlockattr_getpshared
-function will return zero.  Otherwise an error number will be returned
+function will return zero.
+Otherwise an error number will be returned
 to indicate the error.
 .Sh SEE ALSO
 .Xr pthread_rwlockattr_init 3 ,

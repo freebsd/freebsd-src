@@ -74,7 +74,8 @@ that which is exported by the
 .Xr ng_sscop 4
 node type.
 .It Dv upper
-This is the interface to the UNI. It uses the following message format:
+This is the interface to the UNI.
+It uses the following message format:
 .Bd -literal
 struct sscfu_arg {
 	uint32_t sig;
@@ -112,14 +113,14 @@ field of the message structure.
 .Pp
 If the
 .Dv lower
-hook is disconnected and the node is enabled, the protocol state is 
+hook is disconnected and the node is enabled, the protocol state is
 reset.
 .Sh CONTROL MESSAGES
 The
 .Nm
 node understands the generic messages plus the following:
 .Bl -tag -width xxx
-.It Dv NGM_SSCFU_GETDEFPARAM 
+.It Dv NGM_SSCFU_GETDEFPARAM
 This message returns a
 .Fa sscop_param
 structure, which contains the default parameters for the SSCOP at the
@@ -127,11 +128,11 @@ UNI.
 This structure should be used for a
 .Dv NGM_SSCOP_SETPARAM
 message to the SSCOP node below the SSCF.
-.It Dv NGM_SSCFU_ENABLE 
+.It Dv NGM_SSCFU_ENABLE
 This message creates the actual SSCF instance and initializes it.
 Until this is done, parameters may not be retrieved not set and all message
 received on any hook are discarded.
-.It Dv NGM_SSCFU_DISABLE 
+.It Dv NGM_SSCFU_DISABLE
 Destroy the SSCF instance.
 After this all messages on any hooks are discarded.
 .It Dv NGM_SSCFU_GETDEBUG

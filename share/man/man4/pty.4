@@ -69,7 +69,7 @@ The following
 calls apply only to pseudo terminals:
 .Bl -tag -width TIOCREMOTE
 .It Dv TIOCSTOP
-Stops output to a terminal (e.g. like typing
+Stops output to a terminal (e.g.\& like typing
 .Ql ^S ) .
 Takes
 no parameter.
@@ -93,7 +93,8 @@ the pseudo terminal preceded by a zero byte (symbolically
 defined as
 .Dv TIOCPKT_DATA ) ,
 or a single byte reflecting control
-status information.  In the latter case, the byte is an inclusive-or
+status information.
+In the latter case, the byte is an inclusive-or
 of zero or more of the bits:
 .Bl -tag -width TIOCPKT_FLUSHWRITE
 .It Dv TIOCPKT_FLUSHREAD

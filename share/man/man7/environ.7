@@ -44,8 +44,9 @@
 An array of strings called the
 .Ar environment
 is made available by
-.Xr execve  2
-when a process begins.  By convention these strings have the form
+.Xr execve 2
+when a process begins.
+By convention these strings have the form
 .Dq Ar name=value .
 The following names are used by various commands:
 .Bl -tag -width LC_MONETARY
@@ -76,14 +77,14 @@ call to ask the terminal driver for the width.
 Default editor name.
 .It Ev EXINIT
 A startup list of commands read by
-.Xr ex  1
+.Xr ex 1
 and
-.Xr vi  1  .
+.Xr vi 1 .
 .It Ev HOME
 A user's login directory, set by
-.Xr login  1
+.Xr login 1
 from the password file
-.Xr passwd  5  .
+.Xr passwd 5 .
 .It Ev LANG
 This variable configures all programs which use
 .Xr setlocale 3
@@ -121,7 +122,7 @@ for formatting output.
 The location of the user's
 mailbox instead of the default in /var/mail,
 used by
-.Xr mail  1 ,
+.Xr mail 1 ,
 .Xr sh 1 ,
 and many other mailclients.
 .It Ev NLSPATH
@@ -130,27 +131,28 @@ List of directories to be searched for the message catalog referred to by
 See
 .Xr catopen 3 .
 .It Ev PAGER
-Default paginator program.  The program specified by this variable is used by
+Default paginator program.
+The program specified by this variable is used by
 .Xr mail 1 ,
 .Xr man 1 ,
 .Xr ftp 1 ,
 etc, to display information which is longer than the current display.
 .It Ev PATH
 The sequence of directories, separated by colons, searched by
-.Xr csh  1  ,
-.Xr sh  1 ,
-.Xr system  3  ,
-.Xr execvp  3 ,
+.Xr csh 1 ,
+.Xr sh 1 ,
+.Xr system 3 ,
+.Xr execvp 3 ,
 etc, when looking for an executable file.
 .Ev PATH
 is set to ``/usr/bin:/bin'' initially by
-.Xr login  1  .
+.Xr login 1 .
 .It Ev PRINTER
 The name of the default printer to be used by
-.Xr lpr  1  ,
-.Xr lpq  1 ,
+.Xr lpr 1 ,
+.Xr lpq 1 ,
 and
-.Xr lprm  1  .
+.Xr lprm 1 .
 .It Ev PWD
 The current directory pathname.
 .It Ev SHELL
@@ -158,10 +160,11 @@ The full pathname of the user's login shell.
 .It Ev TERM
 The kind of terminal for which output is to be prepared.
 This information is used by commands, such as
-.Xr nroff  1
+.Xr nroff 1
 or
 .Xr plot 1
-which may exploit special terminal capabilities.  See
+which may exploit special terminal capabilities.
+See
 .Pa /usr/share/misc/termcap
 .Pq Xr termcap 5
 for a list of terminal types.
@@ -173,10 +176,11 @@ it begins with a '/', the name of the termcap file.
 See
 .Ev TERMPATH
 below, and
-.Xr termcap  5 .
+.Xr termcap 5 .
 .It Ev TERMPATH
 A sequence of pathnames of termcap files, separated by colons or spaces,
-which are searched for terminal descriptions in the order listed.  Having
+which are searched for terminal descriptions in the order listed.
+Having
 no
 .Ev TERMPATH
 is equivalent to a
@@ -213,13 +217,13 @@ Further names may be placed in the environment by the
 command and
 .Ar name=value
 arguments in
-.Xr sh  1  ,
+.Xr sh 1 ,
 or by the
 .Ic setenv
 command if you use
-.Xr csh  1  .
+.Xr csh 1 .
 It is unwise to change certain
-.Xr sh  1
+.Xr sh 1
 variables that are frequently exported by
 .Pa .profile
 files, such as
