@@ -1,11 +1,8 @@
 /*
- * Copyright (C) 1997-2000 by Darren Reed & Guido Van Rooij.
+ * Copyright (C) 1997-2001 by Darren Reed & Guido Van Rooij.
  *
- * Redistribution and use in source and binary forms are permitted
- * provided that this notice is preserved and due credit is given
- * to the original author and the contributors.
+ * See the IPFILTER.LICENCE file for details on licencing.
  *
- * $Id: ip_auth.h,v 2.1 1999/08/04 17:29:54 darrenr Exp $
  * $FreeBSD$
  *
  */
@@ -56,8 +53,8 @@ extern	void	fr_authunload __P((void));
 extern	mb_t	*fr_authpkts[];
 extern	int	fr_newauth __P((mb_t *, fr_info_t *, ip_t *));
 #if defined(__NetBSD__) || defined(__OpenBSD__)
-extern	int	fr_auth_ioctl __P((caddr_t, u_long, frentry_t *, frentry_t **));
+extern	int	fr_auth_ioctl __P((caddr_t, int, u_long, frentry_t *, frentry_t **));
 #else
-extern	int	fr_auth_ioctl __P((caddr_t, int, frentry_t *, frentry_t **));
+extern	int	fr_auth_ioctl __P((caddr_t, int, int, frentry_t *, frentry_t **));
 #endif
 #endif	/* __IP_AUTH_H__ */

@@ -1,9 +1,7 @@
 /*
- * Copyright (C) 1995-2000 by Darren Reed.
+ * Copyright (C) 1995-2001 by Darren Reed.
  *
- * Redistribution and use in source and binary forms are permitted
- * provided that this notice is preserved and due credit is given
- * to the original author and the contributors.
+ * See the IPFILTER.LICENCE file for details on licencing.
  *
  * @(#)ip_state.h	1.3 1/12/96 (C) 1995 Darren Reed
  * $Id: ip_state.h,v 2.13.2.1 2000/07/08 02:15:35 darrenr Exp $
@@ -18,8 +16,12 @@
 # define	SIOCDELST	_IOW(r, 61, struct ipstate *)
 #endif
 
-#define	IPSTATE_SIZE	5737
-#define	IPSTATE_MAX	4013	/* Maximum number of states held */
+#ifndef	IPSTATE_SIZE
+# define	IPSTATE_SIZE	5737
+#endif
+#ifndef	IPSTATE_MAX
+# define	IPSTATE_MAX	4013	/* Maximum number of states held */
+#endif
 
 #define	PAIRS(s1,d1,s2,d2)	((((s1) == (s2)) && ((d1) == (d2))) ||\
 				 (((s1) == (d2)) && ((d1) == (s2))))
