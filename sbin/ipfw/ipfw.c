@@ -14,7 +14,7 @@
  *
  * NEW command line interface for IP firewall facility
  *
- * $Id: ipfw.c,v 1.16 1995/08/22 00:38:02 gpalmer Exp $
+ * $Id: ipfw.c,v 1.18 1995/10/23 03:57:28 ugen Exp $
  *
  */
 
@@ -27,6 +27,7 @@
 #include <netdb.h>
 #include <kvm.h>
 #include <sys/socket.h>
+#include <sys/queue.h>
 #include <net/if.h>
 #include <netinet/in.h>
 #include <netinet/in_systm.h>
@@ -34,7 +35,6 @@
 #include <netinet/tcp.h>
 #include <arpa/inet.h>
 #define IPFIREWALL
-#define IPACCT
 #include <netinet/ip_fw.h>
 
 #define MAXSTR	25
@@ -50,7 +50,6 @@ u_short		flags=0;			/* New entry flags 	   */
 
 
 #define FW	0x001	/* Firewall action   */
-#define AC	0x002	/* Accounting action */
 
 #define S_ANY		"any"
 
@@ -75,11 +74,7 @@ u_short		flags=0;			/* New entry flags 	   */
 #define TCPF_URG	"urg"
 
 
-#define P_AC		"a" /* of "accept" for policy action */
-#define P_DE		"d" /* of "deny" for policy action   */
-
 #define CH_FW		"f" /* of "firewall" for chains in zero/flush       */
-#define CH_AC		"a" /* of "accounting" for chain in zero/flush/list */
 
 char	action_tab[][MAXSTR]={
 "addf",
@@ -124,8 +119,6 @@ char	type_tab[][MAXSTR]={
 #define T_LDENY		6
 "sin",
 #define T_SINGLE	7
-"bid",
-#define T_BIDIR		8
 "",
 #define T_NONE		9
 };
@@ -147,8 +140,6 @@ char	proto_tab[][MAXSTR]={
 struct nlist nlf[]={
 #define N_FCHAIN 	0
 	{ "_ip_fw_chain" },
-#define N_POLICY 	1
-	{ "_ip_fw_policy" },
 	"" ,
 };
 
@@ -193,12 +184,13 @@ struct hostent *he;
 int i,mb;
 
 
-if (do_short && do_acct) {
-	printf("%8d:%8d ",chain->fw_bcnt,chain->fw_pcnt);
-}
+	printf("%05u ", chain->fw_number);
+	if (do_acct) {
+		printf("%10u %10u ",chain->fw_bcnt,chain->fw_pcnt);
+	}
 
 
-if (do_short)
+if (do_short) {
 	if (c_t==FW) {
 		if (chain->fw_flg & IP_FW_F_ACCEPT)
 			if (chain->fw_flg & IP_FW_F_PRN)
@@ -216,36 +208,17 @@ if (do_short)
 					printf(" r");
 				else
 					printf(" d");
-	} else {
-		if (chain->fw_flg & IP_FW_F_BIDIR)
-			printf(" b");
-		else
-			printf(" s");
 	}
-else
-	if (c_t==FW) {
-		if (chain->fw_flg & IP_FW_F_ACCEPT)
-			if (chain->fw_flg & IP_FW_F_PRN)
-				printf("log ");
-			else
-				printf("accept ");
-		else
-			if (chain->fw_flg & IP_FW_F_PRN)
-				if (chain->fw_flg & IP_FW_F_ICMPRPL)
-					printf("lreject ");
-				else
-					printf("ldeny ");
-			else
-				if (chain->fw_flg & IP_FW_F_ICMPRPL)
-					printf("reject ");
-				else
-					printf("deny ");
-	} else {
-		if (chain->fw_flg & IP_FW_F_BIDIR)
-			printf("bidir  ");
-		else
-			printf("single ");
-	}
+} else {
+	if (chain->fw_flg & IP_FW_F_PRN)
+		printf("l");
+	if (chain->fw_flg & IP_FW_F_ACCEPT)
+		printf("accept ");
+	else if (chain->fw_flg & IP_FW_F_ICMPRPL)
+		printf("reject ");
+	else 
+		printf("deny ");
+}
 
 if (do_short)
 	switch (chain->fw_flg & IP_FW_F_KIND) {
@@ -499,6 +472,7 @@ char 	**av;
 kvm_t *kd;
 static char errb[_POSIX2_LINE_MAX];
 struct ip_fw b,*btmp;
+struct ip_fw_chain *fcp,fc;
 
 	if (!(kd=kvm_openfiles(NULL,NULL,NULL,O_RDONLY,errb))) {
      		fprintf(stderr,"%s: kvm_openfiles: %s\n",
@@ -512,34 +486,14 @@ if (*av==NULL || !strncmp(*av,CH_FW,strlen(CH_FW))) {
 						progname,getbootfile());
       		exit(1);
     	}
-}
 
-if (*av==NULL || !strncmp(*av,CH_FW,strlen(CH_FW))) {
-	kvm_read(kd,(u_long)nlf[N_FCHAIN].n_value,&b,sizeof(struct ip_fw));
+	kvm_read(kd,(u_long)nlf[N_FCHAIN].n_value,&fcp,sizeof fcp);
 	printf("FireWall chain entries:\n");
-	while(b.fw_next!=NULL) {
-		btmp=b.fw_next;
-		kvm_read(kd,(u_long)btmp,&b,sizeof(struct ip_fw));
+	while(fcp!=NULL) {
+		kvm_read(kd,(u_long)fcp,&fc,sizeof fc);
+		kvm_read(kd,(u_long)fc.rule,&b,sizeof b);
 		show_ipfw(&b,FW);
-	}
-}
-
-
-if (*av==NULL ||  !strncmp(*av,CH_AC,strlen(CH_AC))) {
-	if (kvm_nlist(kd,nla)<0 || nla[0].n_type==0) {
-		fprintf(stderr,"%s: kvm_nlist: no namelist in %s\n",
-						progname,getbootfile());
-      		exit(1);
-    	}
-}
-
-if (*av==NULL || !strncmp(*av,CH_AC,strlen(CH_AC))) {
-	kvm_read(kd,(u_long)nla[N_ACHAIN].n_value,&b,sizeof(struct ip_fw));
-	printf("Accounting chain entries:\n");
-	while(b.fw_next!=NULL) {
-		btmp=b.fw_next;
-		kvm_read(kd,(u_long)btmp,&b,sizeof(struct ip_fw));
-		show_ipfw(&b,AC);
+		fcp = fc.chain.le_next;
 	}
 }
 
@@ -1040,12 +994,6 @@ char **av;
 		} else {
 			printf("All firewall entries flushed.\n");
 		}
- 		if (setsockopt(s,IPPROTO_IP,IP_ACCT_FLUSH,NULL,0)<0) {
-			fprintf(stderr,"%s: setsockopt failed.\n",progname);
-			exit(1);
-		} else {
-			printf("All accounting entries flushed.\n");
-		}
 		return;
 	}
 	if (!strncmp(*av,CH_FW,strlen(CH_FW))) {
@@ -1057,74 +1005,12 @@ char **av;
 			return;
 		}
 	}
-	if (!strncmp(*av,CH_AC,strlen(CH_AC))) {
- 		if (setsockopt(s,IPPROTO_IP,IP_ACCT_FLUSH,NULL,0)<0) {
-			fprintf(stderr,"%s: setsockopt failed.\n",progname);
-			exit(1);
-		} else {
-			printf("All accounting entries flushed.\n");
-			return;
-		}
-	}
 
 }
-
-
-
-void policy(av)
-char **av;
-{
- u_short p=0,b;
- kvm_t *kd;
- static char errb[_POSIX2_LINE_MAX];
-
-if (*av==NULL || strlen(*av)<=0) {
- if ( (kd=kvm_openfiles(NULL,NULL,NULL,O_RDONLY,errb)) == NULL) {
-     fprintf(stderr,"%s: kvm_openfiles: %s\n",progname,kvm_geterr(kd));
-     exit(1);
- }
- if (kvm_nlist(kd,nlf) < 0 || nlf[0].n_type == 0) {
-      fprintf(stderr,"%s: kvm_nlist: no namelist in %s\n",
-					progname,getbootfile());
-      exit(1);
- }
-
-kvm_read(kd,(u_long)nlf[N_POLICY].n_value,&b,sizeof(int));
-
-if (b&IP_FW_P_DENY)
-	printf("Default policy: DENY\n");
-else
-	printf("Default policy: ACCEPT\n");
-exit(1);
-}
-
-if (!strncmp(*av,P_DE,strlen(P_DE)))
-	p|=IP_FW_P_DENY;
-else
-if (!strncmp(*av,P_AC,strlen(P_AC)))
-	p&=~IP_FW_P_DENY;
-else {
-	fprintf(stderr,"%s: bad policy value.\n",progname);
-	exit(1);
-}
-
-if (setsockopt(s,IPPROTO_IP,IP_FW_POLICY,&p,sizeof(p))<0) {
-	fprintf(stderr,"%s: setsockopt failed.\n",progname);
-	exit(1);
-} else {
-	if (p&IP_FW_P_DENY)
-		printf("Policy set to DENY.\n");
-	else
-		printf("Policy set to ACCEPT.\n");
-	return;
-}
-}
-
-
 
 zero()
 {
-	if (setsockopt(s,IPPROTO_IP,IP_ACCT_ZERO,NULL,0)<0) {
+	if (setsockopt(s,IPPROTO_IP,IP_FW_ZERO,NULL,0)<0) {
 		fprintf(stderr,"%s: setsockopt failed.\n",progname);
 		exit(1);
 	} else {
@@ -1190,18 +1076,6 @@ struct ip_fw	frwl;
 				int_t=FW;
 				is_check=1;
 				break;
-			case A_ADDA:
-				ctl=IP_ACCT_ADD;
-				int_t=AC;
-				break;
-			case A_DELA:
-				ctl=IP_ACCT_DEL;
-				int_t=AC;
-				break;
-			case A_CLRA:
-				ctl=IP_ACCT_CLR;
-				int_t=AC;
-				break;
 			case A_FLUSH:
 				flush(++av);
 				return;
@@ -1211,11 +1085,8 @@ struct ip_fw	frwl;
 			case A_ZERO:
 				zero();
 				return;
-			case A_POLICY:
-				policy(++av);
-				return;
 			default:
-				int_t=(AC|FW);
+				int_t=(FW);
 				int_notdef=1;
 	} /*  main action switch  */
 
@@ -1262,19 +1133,6 @@ struct ip_fw	frwl;
 				break;
 			case T_SINGLE:
 				flags|=0; /* just to show it related to flags */
-				if (!int_t&AC) {
-					show_usage(NULL);
-					exit(1);
-				}
-				int_t=AC;
-				break;
-			case T_BIDIR:
-				flags|=IP_FW_F_BIDIR;
-				if (!int_t&AC) {
-					show_usage(NULL);
-					exit(1);
-				}
-				int_t=AC;
 				break;
 			default:
 				show_usage(NULL);
@@ -1285,8 +1143,6 @@ struct ip_fw	frwl;
 	if (int_notdef) {
 		if (int_t==FW)
 			ctl=IP_FW_ADD;
-		if (int_t==AC)
-			ctl=IP_ACCT_ADD;
 	}
 
 proto_switch:
@@ -1385,7 +1241,8 @@ proto_switch:
     close(s);
 }
 
-void main(ac, av)
+int 
+main(ac, av)
 	int	ac;
 	char	**av;
 {
