@@ -1,6 +1,3 @@
-#ifndef _SCSI_GENERIC_H_
-#define _SCSI_GENERIC_H_
-
 /* 
  * Contributed by HD Associates (hd@world.std.com).
  * Copyright (c) 1992, 1993 HD Associates
@@ -35,6 +32,8 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
+ *	from: @(#)stdio.h	5.17 (Berkeley) 6/3/91
+ *	$Id$
  */
 
 /* generic SCSI header file.  We use the same minor number format
@@ -49,6 +48,9 @@
  * UUU are the LUN
  * III is the SCSI ID (controller)
  */
+
+#ifndef _SCSI_GENERIC_H_
+#define _SCSI_GENERIC_H_
 
 #define G_SCSI_FLAG(DEV) (((DEV) & 0xC0) >> 6)
 #define G_SCSI_UNIT(DEV) G_SCSI_FLAG(DEV)
