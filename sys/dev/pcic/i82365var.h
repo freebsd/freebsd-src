@@ -31,7 +31,6 @@
  */
 
 #include <dev/pccard/pccardreg.h>
-#include <dev/pccard/pccardchip.h>
 
 #include <dev/pcic/i82365reg.h>
 
@@ -107,8 +106,6 @@ struct pcic_softc {
 	struct resource	*port_res;
 	int		port_rid;
 
-	/* this needs to be large enough to hold PCIC_MEM_PAGES bits */
-	int	subregionmask;
 #define PCIC_MAX_MEM_PAGES	(8 * sizeof(int))
 
 	/* used by memory window mapping functions */
