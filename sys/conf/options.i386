@@ -1,4 +1,4 @@
-#	$Id: options.i386,v 1.104 1999/01/23 10:51:58 yokota Exp $
+#	$Id: options.i386,v 1.105 1999/03/03 10:40:24 kato Exp $
 
 DISABLE_PSE
 IDE_DELAY
@@ -155,6 +155,7 @@ ELSA_QS1ISA		opt_i4b.h
 # isdn4bsd: passive PCI cards
 # -------------------------------
 ELSA_QS1PCI		opt_i4b.h
+AVM_A1_PCI		opt_i4b.h
 # -------------------------------
 # isdn4bsd: passive PCMCIA cards
 # -------------------------------
