@@ -802,9 +802,10 @@ vfs_stdsync (mp, waitfor, cred, td)
 }
 
 int	
-vfs_stdvget (mp, ino, vpp)
+vfs_stdvget (mp, ino, flags, vpp)
 	struct mount *mp;
 	ino_t ino;
+	int flags;
 	struct vnode **vpp;
 {
 	return (EOPNOTSUPP);

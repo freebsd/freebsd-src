@@ -90,7 +90,8 @@ static int smbfs_init(struct vfsconf *vfsp);
 static int smbfs_uninit(struct vfsconf *vfsp);
 
 #if __FreeBSD_version < 400009
-static int smbfs_vget(struct mount *mp, ino_t ino, struct vnode **vpp);
+static int smbfs_vget(struct mount *mp, ino_t ino, int flags,
+			struct vnode **vpp);
 static int smbfs_fhtovp(struct mount *, struct fid *,
 			struct sockaddr *, struct vnode **, int *,
 			struct ucred **);
@@ -467,9 +468,10 @@ loop:
  * smbfs flat namespace lookup. Unsupported.
  */
 /* ARGSUSED */
-static int smbfs_vget(mp, ino, vpp)
+static int smbfs_vget(mp, ino, flags, vpp)
 	struct mount *mp;
 	ino_t ino;
+	int flags;
 	struct vnode **vpp;
 {
 	return (EOPNOTSUPP);

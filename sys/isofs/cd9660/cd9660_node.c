@@ -92,15 +92,19 @@ cd9660_uninit(vfsp)
  * Use the device/inum pair to find the incore inode, and return a pointer
  * to it. If it is in core, but locked, wait for it.
  */
-struct vnode *
-cd9660_ihashget(dev, inum)
+int
+cd9660_ihashget(dev, inum, flags, vpp)
 	dev_t dev;
 	ino_t inum;
+	int flags;
+	struct vnode **vpp;
 {
 	struct thread *td = curthread;		/* XXX */
 	struct iso_node *ip;
 	struct vnode *vp;
+	int error;
 
+	*vpp = NULL;
 loop:
 	mtx_lock(&cd9660_ihash_mtx);
 	for (ip = isohashtbl[INOHASH(dev, inum)]; ip; ip = ip->i_next) {
@@ -108,13 +112,17 @@ loop:
 			vp = ITOV(ip);
 			mtx_lock(&vp->v_interlock);
 			mtx_unlock(&cd9660_ihash_mtx);
-			if (vget(vp, LK_EXCLUSIVE | LK_INTERLOCK, td))
+			error = vget(vp, flags | LK_INTERLOCK, td);
+			if (error == ENOENT)
 				goto loop;
-			return (vp);
+			if (error)
+				return (error);
+			*vpp = vp;
+			return (0);
 		}
 	}
 	mtx_unlock(&cd9660_ihash_mtx);
-	return (NULL);
+	return (0);
 }
 
 /*

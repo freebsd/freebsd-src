@@ -101,6 +101,7 @@
 #define	IOSTARTED	0x0200	/* inodedep & pagedep only */
 #define	SPACECOUNTED	0x0400	/* inodedep only */
 #define	NEWBLOCK	0x0800	/* pagedep only */
+#define	INPROGRESS	0x1000	/* dirrem, freeblks, freefrag, freefile only */
 #define ONWORKLIST	0x8000
 
 #define	ALLCOMPLETE	(ATTACHED | COMPLETE | DEPCOMPLETE)

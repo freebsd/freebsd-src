@@ -158,7 +158,6 @@ ffs_mount(mp, path, data, ndp, td)
 
 		if ((error = ffs_mountfs(rootvp, mp, td, M_FFSNODE)) != 0)
 			return (error);
-
 		(void)VFS_STATFS(mp, &mp->mnt_stat, td);
 		return (0);
 	}
@@ -1143,9 +1142,10 @@ static int ffs_inode_hash_lock;
 static struct mtx ffs_inode_hash_mtx;
 
 int
-ffs_vget(mp, ino, vpp)
+ffs_vget(mp, ino, flags, vpp)
 	struct mount *mp;
 	ino_t ino;
+	int flags;
 	struct vnode **vpp;
 {
 	struct fs *fs;
@@ -1159,9 +1159,10 @@ ffs_vget(mp, ino, vpp)
 	ump = VFSTOUFS(mp);
 	dev = ump->um_dev;
 restart:
-	if ((*vpp = ufs_ihashget(dev, ino)) != NULL) {
+	if ((error = ufs_ihashget(dev, ino, flags, vpp)) != 0)
+		return (error);
+	if (*vpp != NULL)
 		return (0);
-	}
 
 	/*
 	 * Lock out the creation of new entries in the FFS hash table in

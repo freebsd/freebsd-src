@@ -629,8 +629,8 @@ ntfs_lookup(ap)
 
 		dprintf(("ntfs_lookup: parentdir: %d\n",
 			 vap->va_a_name->n_pnumber));
-		error = VFS_VGET(ntmp->ntm_mountp,
-				 vap->va_a_name->n_pnumber,ap->a_vpp); 
+		error = VFS_VGET(ntmp->ntm_mountp, vap->va_a_name->n_pnumber,
+				 LK_EXCLUSIVE, ap->a_vpp); 
 		ntfs_ntvattrrele(vap);
 		if (error) {
 			if (vn_lock(dvp,LK_EXCLUSIVE|LK_RETRY,cnp->cn_thread)==0)

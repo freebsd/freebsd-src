@@ -68,7 +68,7 @@ static int	ntfs_root __P((struct mount *, struct vnode **));
 static int	ntfs_statfs __P((struct mount *, struct statfs *,
 				 struct thread *));
 static int	ntfs_unmount __P((struct mount *, int, struct thread *));
-static int	ntfs_vget __P((struct mount *mp, ino_t ino,
+static int	ntfs_vget __P((struct mount *mp, ino_t ino, int lkflags,
 			       struct vnode **vpp));
 static int	ntfs_mountfs __P((register struct vnode *, struct mount *, 
 				  struct ntfs_args *, struct thread *));
@@ -367,7 +367,8 @@ ntfs_mountfs(devvp, mp, argsp, td)
 	{
 		int pi[3] = { NTFS_MFTINO, NTFS_ROOTINO, NTFS_BITMAPINO };
 		for (i=0; i<3; i++) {
-			error = VFS_VGET(mp, pi[i], &(ntmp->ntm_sysvn[pi[i]]));
+			error = VFS_VGET(mp, pi[i], LK_EXCLUSIVE,
+					 &(ntmp->ntm_sysvn[pi[i]]));
 			if(error)
 				goto out1;
 			ntmp->ntm_sysvn[pi[i]]->v_flag |= VSYSTEM;
@@ -397,7 +398,7 @@ ntfs_mountfs(devvp, mp, argsp, td)
 		struct attrdef ad;
 
 		/* Open $AttrDef */
-		error = VFS_VGET(mp, NTFS_ATTRDEFINO, &vp );
+		error = VFS_VGET(mp, NTFS_ATTRDEFINO, LK_EXCLUSIVE, &vp );
 		if(error) 
 			goto out1;
 
@@ -537,7 +538,7 @@ ntfs_root(
 
 	dprintf(("ntfs_root(): sysvn: %p\n",
 		VFSTONTFS(mp)->ntm_sysvn[NTFS_ROOTINO]));
-	error = VFS_VGET(mp, (ino_t)NTFS_ROOTINO, &nvp);
+	error = VFS_VGET(mp, (ino_t)NTFS_ROOTINO, LK_EXCLUSIVE, &nvp);
 	if(error) {
 		printf("ntfs_root: VFS_VGET failed: %d\n",error);
 		return (error);
@@ -625,7 +626,7 @@ ntfs_fhtovp(
 
 	ddprintf(("ntfs_fhtovp(): %d\n", ntfhp->ntfid_ino));
 
-	if ((error = VFS_VGET(mp, ntfhp->ntfid_ino, &nvp)) != 0) {
+	if ((error = VFS_VGET(mp, ntfhp->ntfid_ino, LK_EXCLUSIVE, &nvp)) != 0) {
 		*vpp = NULLVP;
 		return (error);
 	}
@@ -768,10 +769,11 @@ static int
 ntfs_vget(
 	struct mount *mp,
 	ino_t ino,
+	int lkflags,
 	struct vnode **vpp) 
 {
-	return ntfs_vgetex(mp, ino, NTFS_A_DATA, NULL,
-			LK_EXCLUSIVE | LK_RETRY, 0, curthread, vpp);
+	return ntfs_vgetex(mp, ino, NTFS_A_DATA, NULL, lkflags, 0,
+	    curthread, vpp);
 }
 
 static struct vfsops ntfs_vfsops = {

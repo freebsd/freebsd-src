@@ -1096,21 +1096,18 @@ hpfs_lookup(ap)
 		dprintf(("hpfs_lookup(0x%x,...): .. faked (0x%x)\n",
 			dhp->h_no, dhp->h_fn.fn_parent));
 
-		VOP_UNLOCK(dvp,0,cnp->cn_thread);
-
-		error = VFS_VGET(hpmp->hpm_mp,
-				 dhp->h_fn.fn_parent, ap->a_vpp); 
-		if(error) {
+		if (VFS_VGET(hpmp->hpm_mp, dhp->h_fn.fn_parent,
+		    LK_NOWAIT | LK_EXCLUSIVE, ap->a_vpp)) {
+			VOP_UNLOCK(dvp,0,cnp->cn_thread);
+			error = VFS_VGET(hpmp->hpm_mp,
+				 dhp->h_fn.fn_parent, LK_EXCLUSIVE, ap->a_vpp); 
 			VOP_LOCK(dvp, 0, cnp->cn_thread);
-			return(error);
+			if(error)
+				return(error);
 		}
-
-		if( lockparent && (flags & ISLASTCN) && 
-		    (error = VOP_LOCK(dvp, 0, cnp->cn_thread)) ) {
-			vput( *(ap->a_vpp) );
-			return (error);
-		}
-		return (error);
+		if (!lockparent || !(flags & ISLASTCN))
+			VOP_UNLOCK(dvp,0,cnp->cn_thread);
+		return (0);
 	} else {
 		struct buf *bp;
 		struct hpfsdirent *dep;
@@ -1148,7 +1145,8 @@ hpfs_lookup(ap)
 			return (0);
 		}
 
-		error = VFS_VGET(hpmp->hpm_mp, dep->de_fnode, ap->a_vpp);
+		error = VFS_VGET(hpmp->hpm_mp, dep->de_fnode, LK_EXCLUSIVE,
+				 ap->a_vpp);
 		if (error) {
 			printf("hpfs_lookup: VFS_VGET FAILED %d\n", error);
 			brelse(bp);

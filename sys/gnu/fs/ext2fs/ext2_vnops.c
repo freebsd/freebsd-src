@@ -285,7 +285,7 @@ ext2_mknod(ap)
 	(*vpp)->v_type = VNON;
 	ino = ip->i_number;	/* Save this before vgone() invalidates ip. */
 	vgone(*vpp);
-	error = VFS_VGET(ap->a_dvp->v_mount, ino, vpp);
+	error = VFS_VGET(ap->a_dvp->v_mount, ino, LK_EXCLUSIVE, vpp);
 	if (error) {
 		*vpp = NULL;
 		return (error);
