@@ -45,6 +45,7 @@
 
 #include <sys/ucred.h>
 #include <sys/queue.h>
+#include <sys/uio.h>
 #ifdef _KERNEL
 #include <sys/_lock.h>
 #include <sys/_mutex.h>
@@ -119,6 +120,18 @@ struct statfs {
  */
 TAILQ_HEAD(vnodelst, vnode);
 
+struct vfsoptlist {
+	struct vfsopt	*opt;
+	unsigned int	optcnt;
+	char		*optbuf;
+};
+
+struct vfsopt {
+	char	*name;
+	void	*value;
+	int	len;
+};
+
 struct mount {
 	TAILQ_ENTRY(mount) mnt_list;		/* mount list */
 	struct vfsops	*mnt_op;		/* operations on fs */
@@ -130,6 +143,8 @@ struct mount {
 	struct lock	mnt_lock;		/* mount structure lock */
 	int		mnt_writeopcount;	/* write syscalls in progress */
 	int		mnt_flag;		/* flags shared with user */
+	struct vfsoptlist *mnt_opt;		/* mount options */
+	struct vfsoptlist *mnt_optnew;		/* for MNT_UPDATE */
 	int		mnt_kern_flag;		/* kernel only flags */
 	int		mnt_maxsymlinklen;	/* max size of short symlink */
 	struct statfs	mnt_stat;		/* cache of filesystem stats */
@@ -369,8 +384,12 @@ struct vfsops {
 	int	(*vfs_extattrctl)(struct mount *mp, int cmd,
 		    struct vnode *filename_vp, int attrnamespace,
 		    const char *attrname, struct thread *td);
+	/* additions below are not binary compatible with 5.0 and below */
+	int	(*vfs_nmount)(struct mount *mp, struct nameidata *ndp,
+		    struct thread *td);
 };
 
+#define VFS_NMOUNT(MP, NDP, P)    (*(MP)->mnt_op->vfs_nmount)(MP, NDP, P)
 #define VFS_MOUNT(MP, PATH, DATA, NDP, P) \
 	(*(MP)->mnt_op->vfs_mount)(MP, PATH, DATA, NDP, P)
 #define VFS_START(MP, FLAGS, P)	  (*(MP)->mnt_op->vfs_start)(MP, FLAGS, P)
@@ -412,6 +431,10 @@ extern	char *mountrootfsname;
  * exported vnode operations
  */
 int	dounmount(struct mount *, int, struct thread *td);
+int	kernel_mount(struct iovec *iovp, unsigned int iovcnt, int flags);
+int	kernel_vmount(int flags, ...);
+int	vfs_getopt(struct vfsoptlist *, const char *, void **, int *);
+int	vfs_copyopt(struct vfsoptlist *, const char *, void *, int, int *);
 int	vfs_mount(struct thread *td, const char *type, char *path,
 	    int flags, void *data);
 int	vfs_setpublicfs			    /* set publicly exported fs */
@@ -483,6 +506,7 @@ int	fstatfs(int, struct statfs *);
 int	getfh(const char *, fhandle_t *);
 int	getfsstat(struct statfs *, long, int);
 int	getmntinfo(struct statfs **, int);
+int	nmount(const char *, const char *, int, struct iovec *, int);
 int	mount(const char *, const char *, int, void *);
 int	statfs(const char *, struct statfs *);
 int	unmount(const char *, int);
