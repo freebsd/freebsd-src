@@ -182,7 +182,7 @@ _gettemp(path, doopen, domkdir, slen)
 			if (*trv == 'Z')
 				*trv++ = 'a';
 			else {
-				if (isdigit(*trv))
+				if (isdigit((unsigned char)*trv))
 					*trv = 'a';
 				else if (*trv == 'z')	/* inc from z to A */
 					*trv = 'A';
