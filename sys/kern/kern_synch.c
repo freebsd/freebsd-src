@@ -529,9 +529,10 @@ mi_switch()
 	register long s, u;
 	struct timeval tv;
 
-#ifdef DEBUG
-	if (p->p_simple_locks)
-		panic("sleep: holding simple lock");
+#ifdef SIMPLELOCK_DEBUG
+	if (p->p_simple_locks) {
+		printf("sleep: holding simple lock");
+	}
 #endif
 	/*
 	 * Compute the amount of time during which the current

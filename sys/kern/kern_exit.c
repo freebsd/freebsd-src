@@ -1,4 +1,4 @@
-/*-
+/*
  * Copyright (c) 1982, 1986, 1989, 1991, 1993
  *	The Regents of the University of California.  All rights reserved.
  * (c) UNIX System Laboratories, Inc.
@@ -73,7 +73,7 @@
 #include <vm/vm.h>
 #include <vm/vm_param.h>
 #include <vm/vm_prot.h>
-#include <vm/lock.h>
+#include <sys/lock.h>
 #include <vm/pmap.h>
 #include <vm/vm_map.h>
 #include <vm/vm_kern.h>
@@ -208,7 +208,7 @@ exit1(p, rv)
 				 * if we blocked.
 				 */
 				if (sp->s_ttyvp)
-					vgoneall(sp->s_ttyvp);
+					VOP_REVOKE(sp->s_ttyvp, REVOKEALL);
 			}
 			if (sp->s_ttyvp)
 				vrele(sp->s_ttyvp);

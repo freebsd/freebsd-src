@@ -56,7 +56,7 @@ int	ext2_blkatoff __P((struct vop_blkatoff_args *));
 void	ext2_blkfree __P((struct inode *, daddr_t, long));
 daddr_t	ext2_blkpref __P((struct inode *, daddr_t, int, daddr_t *, daddr_t));
 int	ext2_bmap __P((struct vop_bmap_args *));
-int	ext2_init __P((void));
+int	ext2_init __P((struct vfsconf *));
 int	ext2_reallocblks __P((struct vop_reallocblks_args *));
 int	ext2_reclaim __P((struct vop_reclaim_args *));
 void	ext2_setblock __P((struct ext2_sb_info *, u_char *, daddr_t));

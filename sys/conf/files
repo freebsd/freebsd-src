@@ -52,6 +52,7 @@ kern/kern_exit.c	standard
 kern/kern_fork.c	standard
 kern/kern_ktrace.c	standard
 kern/kern_lkm.c		standard
+kern/kern_lock.c	standard
 kern/kern_lockf.c	standard
 kern/kern_malloc.c	standard
 kern/kern_mib.c		standard
@@ -373,7 +374,6 @@ ufs/ufs/ufs_vfsops.c	standard
 ufs/ufs/ufs_vnops.c	standard
 vm/default_pager.c	standard
 vm/device_pager.c	standard
-vm/kern_lock.c		standard
 vm/swap_pager.c		standard
 vm/vm_fault.c		standard
 vm/vm_glue.c		standard

@@ -329,6 +329,7 @@ void
 vnode_pager_umount(mp)
 	register struct mount *mp;
 {
+	struct proc *p = curproc;	/* XXX */
 	struct vnode *vp, *nvp;
 
 loop:
@@ -347,9 +348,9 @@ loop:
 		nvp = vp->v_mntvnodes.le_next;
 
 		if (vp->v_object != NULL) {
-			VOP_LOCK(vp);
-			vnode_pager_uncache(vp);
-			VOP_UNLOCK(vp);
+			vn_lock(vp, LK_EXCLUSIVE | LK_RETRY, p);
+			vnode_pager_uncache(vp, p);
+			VOP_UNLOCK(vp, 0, p);
 		}
 	}
 }
@@ -364,8 +365,9 @@ loop:
  * re-locking the vnode.
  */
 void
-vnode_pager_uncache(vp)
+vnode_pager_uncache(vp, p)
 	struct vnode *vp;
+	struct proc *p;
 {
 	vm_object_t object;
 
@@ -383,10 +385,10 @@ vnode_pager_uncache(vp)
 	 * VBLK devices...
 	 */
 	if (vp->v_type != VBLK)
-		VOP_UNLOCK(vp);
+		VOP_UNLOCK(vp, 0, p);
 	pager_cache(object, FALSE);
 	if (vp->v_type != VBLK)
-		VOP_LOCK(vp);
+		vn_lock(vp, LK_EXCLUSIVE | LK_RETRY, p);
 	return;
 }
 
@@ -968,11 +970,13 @@ struct vnode *
 vnode_pager_lock(object)
 	vm_object_t object;
 {
+	struct proc *p = curproc;	/* XXX */
+
 	for (; object != NULL; object = object->backing_object) {
 		if (object->type != OBJT_VNODE)
 			continue;
 
-		VOP_LOCK(object->handle);
+		vn_lock(object->handle, LK_EXCLUSIVE | LK_RETRY, p);
 		return object->handle;
 	}
 	return NULL;

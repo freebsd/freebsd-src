@@ -45,7 +45,7 @@
 #include <vm/vm_extern.h>
 #include <vm/vm_param.h>
 #include <vm/vm_prot.h>
-#include <vm/lock.h>
+#include <sys/lock.h>
 #include <vm/pmap.h>
 #include <vm/vm_map.h>
 #include <vm/vm_object.h>

@@ -124,7 +124,7 @@ msdosfs_hashget(dev, dirclust, diroff)
 				(void) tsleep((caddr_t)dep, PINOD, "msdhgt", 0);
 				break;
 			}
-			if (!vget(DETOV(dep), 1))
+			if (!vget(DETOV(dep), LK_EXCLUSIVE | LK_INTERLOCK, curproc))
 				return dep;
 			break;
 		}
@@ -259,7 +259,7 @@ deget(pmp, dirclust, diroffset, direntptr, depp)
 	 * can't be accessed until we've read it in and have done what we
 	 * need to it.
 	 */
-	VOP_LOCK(nvp);
+	vn_lock(nvp, LK_EXCLUSIVE | LK_RETRY, curproc);
 	msdosfs_hashins(ldep);
 
 	/*
@@ -716,7 +716,7 @@ msdosfs_inactive(ap)
 	printf("msdosfs_inactive(): dep %p, refcnt %ld, mntflag %x, MNT_RDONLY %x\n",
 	       dep, dep->de_refcnt, vp->v_mount->mnt_flag, MNT_RDONLY);
 #endif
-	VOP_LOCK(vp);
+	vn_lock(vp, LK_EXCLUSIVE | LK_RETRY, curproc);
 	if (dep->de_refcnt <= 0 && (vp->v_mount->mnt_flag & MNT_RDONLY) == 0) {
 		error = detrunc(dep, (u_long) 0, 0, NOCRED, NULL);
 		dep->de_flag |= DE_UPDATE;
@@ -726,7 +726,7 @@ msdosfs_inactive(ap)
 		TIMEVAL_TO_TIMESPEC(&time, &ts);
 		deupdat(dep, &ts, 0);
 	}
-	VOP_UNLOCK(vp);
+	VOP_UNLOCK(vp, 0, curproc);
 	dep->de_flag = 0;
 
 	/*

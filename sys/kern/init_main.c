@@ -66,7 +66,7 @@
 #include <vm/vm.h>
 #include <vm/vm_param.h>
 #include <vm/vm_prot.h>
-#include <vm/lock.h>
+#include <sys/lock.h>
 #include <vm/pmap.h>
 #include <vm/vm_map.h>
 #include <sys/user.h>
@@ -468,16 +468,16 @@ sched_setup(dummy)
 SYSINIT(sched_setup, SI_SUB_KICK_SCHEDULER, SI_ORDER_FIRST, sched_setup, NULL)
 
 /* ARGSUSED*/
-static void xxx_vfs_mountroot __P((void *dummy));
+static void xxx_vfs_mountroot __P((void *fsnamep));
 static void
-xxx_vfs_mountroot(dummy)
-	void *dummy;
+xxx_vfs_mountroot(fsnamep)
+	void *fsnamep;
 {
 	/* Mount the root file system. */
-	if ((*mountroot)(mountrootvfsops))
+	if (vfs_mountrootfs(*((char **) fsnamep)))
 		panic("cannot mount root");
 }
-SYSINIT(mountroot, SI_SUB_ROOT, SI_ORDER_FIRST, xxx_vfs_mountroot, NULL)
+SYSINIT(mountroot, SI_SUB_ROOT, SI_ORDER_FIRST, xxx_vfs_mountroot, &mountrootfsname)
 
 /* ARGSUSED*/
 static void xxx_vfs_root_fdtab __P((void *dummy));
@@ -492,7 +492,7 @@ xxx_vfs_root_fdtab(dummy)
 		panic("cannot find root vnode");
 	fdp->fd_fd.fd_cdir = rootvnode;
 	VREF(fdp->fd_fd.fd_cdir);
-	VOP_UNLOCK(rootvnode);
+	VOP_UNLOCK(rootvnode, 0, &proc0);
 	fdp->fd_fd.fd_rdir = NULL;
 }
 SYSINIT(retrofit, SI_SUB_ROOT_FDTAB, SI_ORDER_FIRST, xxx_vfs_root_fdtab, NULL)

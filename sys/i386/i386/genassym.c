@@ -61,13 +61,15 @@
 #include <sys/vmmeter.h>
 #include <vm/vm.h>
 #include <vm/vm_param.h>
-#include <vm/lock.h>
+#include <sys/lock.h>
 #include <vm/pmap.h>
 #include <vm/vm_map.h>
 #include <sys/user.h>
 #include <net/if.h>
 #include <netinet/in.h>
 #include <nfs/nfsv2.h>
+#include <nfs/rpcv2.h>
+#include <nfs/nfs.h>
 #include <nfs/nfsdiskless.h>
 
 extern int	main __P((void));

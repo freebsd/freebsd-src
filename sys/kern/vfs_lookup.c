@@ -88,6 +88,7 @@ namei(ndp)
 	struct uio auio;
 	int error, linklen;
 	struct componentname *cnp = &ndp->ni_cnd;
+	struct proc *p = cnp->cn_proc;
 
 	ndp->ni_cnd.cn_cred = ndp->ni_cnd.cn_proc->p_ucred;
 #ifdef DIAGNOSTIC
@@ -169,7 +170,7 @@ namei(ndp)
 			return (0);
 		}
 		if ((cnp->cn_flags & LOCKPARENT) && ndp->ni_pathlen == 1)
-			VOP_UNLOCK(ndp->ni_dvp);
+			VOP_UNLOCK(ndp->ni_dvp, 0, p);
 		if (ndp->ni_loopcnt++ >= MAXSYMLINKS) {
 			error = ELOOP;
 			break;
@@ -269,6 +270,7 @@ lookup(ndp)
 	int trailing_slash;
 	int error = 0;
 	struct componentname *cnp = &ndp->ni_cnd;
+	struct proc *p = cnp->cn_proc;
 
 	/*
 	 * Setup: break out flag bits into variables.
@@ -283,7 +285,7 @@ lookup(ndp)
 	cnp->cn_flags &= ~ISSYMLINK;
 	dp = ndp->ni_startdir;
 	ndp->ni_startdir = NULLVP;
-	VOP_LOCK(dp);
+	vn_lock(dp, LK_EXCLUSIVE | LK_RETRY, p);
 
 dirloop:
 	/*
@@ -351,12 +353,12 @@ dirloop:
 	 * e.g. like "/." or ".".
 	 */
 	if (cnp->cn_nameptr[0] == '\0') {
-		if (cnp->cn_nameiop != LOOKUP) {
-			error = EISDIR;
-			goto bad;
-		}
 		if (dp->v_type != VDIR) {
 			error = ENOTDIR;
+			goto bad;
+		}
+		if (cnp->cn_nameiop != LOOKUP) {
+			error = EISDIR;
 			goto bad;
 		}
 		if (wantparent) {
@@ -365,7 +367,7 @@ dirloop:
 		}
 		ndp->ni_vp = dp;
 		if (!(cnp->cn_flags & (LOCKPARENT | LOCKLEAF)))
-			VOP_UNLOCK(dp);
+			VOP_UNLOCK(dp, 0, p);
 		if (cnp->cn_flags & SAVESTART)
 			panic("lookup: SAVESTART");
 		return (0);
@@ -396,7 +398,7 @@ dirloop:
 			dp = dp->v_mount->mnt_vnodecovered;
 			vput(tdp);
 			VREF(dp);
-			VOP_LOCK(dp);
+			vn_lock(dp, LK_EXCLUSIVE | LK_RETRY, p);
 		}
 	}
 
@@ -405,8 +407,8 @@ dirloop:
 	 */
 unionlookup:
 	ndp->ni_dvp = dp;
-	error = VOP_LOOKUP(dp, &ndp->ni_vp, cnp);
-	if (error) {
+	ndp->ni_vp = NULL;
+	if (error = VOP_LOOKUP(dp, &ndp->ni_vp, cnp)) {
 #ifdef DIAGNOSTIC
 		if (ndp->ni_vp != NULL)
 			panic("leaf should be empty");
@@ -421,7 +423,7 @@ unionlookup:
 			dp = dp->v_mount->mnt_vnodecovered;
 			vput(tdp);
 			VREF(dp);
-			VOP_LOCK(dp);
+			vn_lock(dp, LK_EXCLUSIVE | LK_RETRY, p);
 			goto unionlookup;
 		}
 
@@ -474,12 +476,10 @@ unionlookup:
 	 */
 	while (dp->v_type == VDIR && (mp = dp->v_mountedhere) &&
 	       (cnp->cn_flags & NOCROSSMOUNT) == 0) {
-		if (mp->mnt_flag & MNT_MLOCK) {
-			mp->mnt_flag |= MNT_MWAIT;
-			(void) tsleep((caddr_t)mp, PVFS, "lookup", 0);
+		if (vfs_busy(mp, 0, 0, p))
 			continue;
-		}
-		error = VFS_ROOT(dp->v_mountedhere, &tdp);
+		error = VFS_ROOT(mp, &tdp);
+		vfs_unbusy(mp, p);
 		if (error)
 			goto bad2;
 		vput(dp);
@@ -533,12 +533,12 @@ nextname:
 	if (!wantparent)
 		vrele(ndp->ni_dvp);
 	if ((cnp->cn_flags & LOCKLEAF) == 0)
-		VOP_UNLOCK(dp);
+		VOP_UNLOCK(dp, 0, p);
 	return (0);
 
 bad2:
 	if ((cnp->cn_flags & LOCKPARENT) && *ndp->ni_next == '\0')
-		VOP_UNLOCK(ndp->ni_dvp);
+		VOP_UNLOCK(ndp->ni_dvp, 0, p);
 	vrele(ndp->ni_dvp);
 bad:
 	vput(dp);
@@ -555,7 +555,8 @@ relookup(dvp, vpp, cnp)
 	struct vnode *dvp, **vpp;
 	struct componentname *cnp;
 {
-	register struct vnode *dp = 0;	/* the directory we are searching */
+	struct proc *p = cnp->cn_proc;
+	struct vnode *dp = 0;		/* the directory we are searching */
 	int docache;			/* == 0 do not cache last component */
 	int wantparent;			/* 1 => wantparent or lockparent flag */
 	int rdonly;			/* lookup read-only flag bit */
@@ -576,7 +577,7 @@ relookup(dvp, vpp, cnp)
 	rdonly = cnp->cn_flags & RDONLY;
 	cnp->cn_flags &= ~ISSYMLINK;
 	dp = dvp;
-	VOP_LOCK(dp);
+	vn_lock(dp, LK_EXCLUSIVE | LK_RETRY, p);
 
 /* dirloop: */
 	/*
@@ -615,7 +616,7 @@ relookup(dvp, vpp, cnp)
 			goto bad;
 		}
 		if (!(cnp->cn_flags & LOCKLEAF))
-			VOP_UNLOCK(dp);
+			VOP_UNLOCK(dp, 0, p);
 		*vpp = dp;
 		if (cnp->cn_flags & SAVESTART)
 			panic("lookup: SAVESTART");
@@ -628,8 +629,7 @@ relookup(dvp, vpp, cnp)
 	/*
 	 * We now have a segment name to search for, and a directory to search.
 	 */
-	error = VOP_LOOKUP(dp, vpp, cnp);
-	if (error) {
+	if (error = VOP_LOOKUP(dp, vpp, cnp)) {
 #ifdef DIAGNOSTIC
 		if (*vpp != NULL)
 			panic("leaf should be empty");
@@ -675,16 +675,16 @@ relookup(dvp, vpp, cnp)
 	/* ASSERT(dvp == ndp->ni_startdir) */
 	if (cnp->cn_flags & SAVESTART)
 		VREF(dvp);
-
+	
 	if (!wantparent)
 		vrele(dvp);
 	if ((cnp->cn_flags & LOCKLEAF) == 0)
-		VOP_UNLOCK(dp);
+		VOP_UNLOCK(dp, 0, p);
 	return (0);
 
 bad2:
 	if ((cnp->cn_flags & LOCKPARENT) && (cnp->cn_flags & ISLASTCN))
-		VOP_UNLOCK(dvp);
+		VOP_UNLOCK(dvp, 0, p);
 	vrele(dvp);
 bad:
 	vput(dp);

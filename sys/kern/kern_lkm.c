@@ -604,8 +604,11 @@ _lkm_vfs(lkmtp, cmd)
 {
 	struct lkm_vfs *args = lkmtp->private.lkm_vfs;
 	struct vfsconf *vfc = args->lkm_vfsconf;
+	struct vfsconf *vfsp, *lastvfsp, *prev_vfsp, *new_vfc;
 	int i;
 	int err = 0;
+	char fstypename[MFSNAMELEN];
+	int neednamesearch = 1;
 
 	switch(cmd) {
 	case LKM_E_LOAD:
@@ -613,26 +616,51 @@ _lkm_vfs(lkmtp, cmd)
 		if (lkmexists(lkmtp))
 			return(EEXIST);
 
-		for(i = 0; i < MOUNT_MAXTYPE; i++) {
-			if(!strcmp(vfc->vfc_name, vfsconf[i]->vfc_name)) {
-				return EEXIST;
-			}
-		}
-
-		i = args->lkm_offset = vfc->vfc_index;
-		if (i < 0) {
-			for (i = MOUNT_MAXTYPE - 1; i >= 0; i--) {
-				if(vfsconf[i] == &void_vfsconf)
+		/* check to see if filesystem already exists */
+		vfsp = NULL;
+#ifdef COMPAT_43	/* see vfs_syscalls.c:mount() */
+		if (vfc->vfc_typenum < maxvfsconf) {
+			neednamesearch = 0;
+			for (vfsp = vfsconf; vfsp; vfsp = vfsp->vfc_next)
+				if (vfsp->vfc_typenum == vfc->vfc_typenum)
 					break;
+			if (vfsp != NULL) {
+				neednamesearch = 1;
+				strncpy(fstypename, vfsp->vfc_name, MFSNAMELEN);
+			}
+		} else
+#endif /* COMPAT_43 */
+		if (neednamesearch) {
+			strncpy(fstypename, vfc->vfc_name, MFSNAMELEN);
+			for (vfsp = vfsconf; vfsp; vfsp = vfsp->vfc_next) {
+				if (!strcmp(vfsp->vfc_name, fstypename)) {
+					return EEXIST;
+				}
 			}
 		}
-		if (i < 0) {
-			return EINVAL;
-		}
-		args->lkm_offset = vfc->vfc_index = i;
 
-		vfsconf[i] = vfc;
-		vfssw[i] = vfc->vfc_vfsops;
+		i = args->lkm_offset = vfc->vfc_typenum;
+		if (i < 0) {
+			i = maxvfsconf;
+		}
+		args->lkm_offset = vfc->vfc_typenum = i;
+
+		if (maxvfsconf <= vfsp->vfc_typenum)
+			maxvfsconf = vfsp->vfc_typenum + 1;
+
+		/* find vfsconf tail */
+		for (lastvfsp = vfsconf; lastvfsp->vfc_next;
+					lastvfsp = lastvfsp->vfc_next) ;
+
+		/* make copy */
+/* possible race condition if vfsconf changes while we wait XXX JH */
+		MALLOC(new_vfc, struct vfsconf *, sizeof(struct vfsconf),
+				M_VFSCONF, M_WAITOK);
+		*new_vfc = *vfc;
+		vfc = new_vfc;
+
+		lastvfsp->vfc_next = vfc;
+		vfc->vfc_next = NULL;
 
 		/* like in vfs_op_init */
 		for(i = 0; args->lkm_vnodeops->ls_items[i]; i++) {
@@ -645,7 +673,7 @@ _lkm_vfs(lkmtp, cmd)
 		/*
 		 * Call init function for this VFS...
 		 */
-	 	(*(vfssw[vfc->vfc_index]->vfs_init))();
+	 	(*(vfsp->vfc_vfsops->vfs_init))(vfsp);
 
 		/* done! */
 		break;
@@ -654,13 +682,23 @@ _lkm_vfs(lkmtp, cmd)
 		/* current slot... */
 		i = args->lkm_offset;
 
-		if (vfsconf[i]->vfc_refcount) {
+		prev_vfsp = NULL;
+		for (vfsp = vfsconf; vfsp;
+				prev_vfsp = vfsp, vfsp = vfsp->vfc_next) {
+			if (vfsp->vfc_typenum == vfc->vfc_typenum)
+				break;
+		}
+		if (vfsp == NULL) {
+			return EINVAL;
+		}
+
+		if (vfsp->vfc_refcount) {
 			return EBUSY;
 		}
 
-		/* replace current slot contents with old contents */
-		vfssw[i] = (struct vfsops *)0;
-		vfsconf[i] = &void_vfsconf;
+		FREE(vfsp, M_VFSCONF);
+
+		prev_vfsp->vfc_next = vfsp->vfc_next;
 
 		break;
 

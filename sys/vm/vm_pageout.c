@@ -87,7 +87,7 @@
 #include <vm/vm.h>
 #include <vm/vm_param.h>
 #include <vm/vm_prot.h>
-#include <vm/lock.h>
+#include <sys/lock.h>
 #include <vm/vm_object.h>
 #include <vm/vm_page.h>
 #include <vm/vm_map.h>
@@ -505,7 +505,7 @@ vm_pageout_map_deactivate_pages(map, desired)
 	vm_object_t obj, bigobj;
 
 	vm_map_reference(map);
-	if (!lock_try_write(&map->lock)) {
+	if (lockmgr(&map->lock, LK_EXCLUSIVE | LK_NOWAIT, (void *)0, curproc)) {
 		vm_map_deallocate(map);
 		return;
 	}
@@ -669,7 +669,9 @@ rescan0:
 
 			if (object->type == OBJT_VNODE) {
 				vp = object->handle;
-				if (VOP_ISLOCKED(vp) || vget(vp, 1)) {
+				if (VOP_ISLOCKED(vp) ||
+				    vget(vp, LK_EXCLUSIVE | LK_INTERLOCK,
+				         curproc)) {
 					if ((m->queue == PQ_INACTIVE) &&
 						(m->hold_count == 0) &&
 						(m->busy == 0) &&

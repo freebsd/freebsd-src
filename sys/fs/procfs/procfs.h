@@ -34,8 +34,9 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	@(#)procfs.h	8.6 (Berkeley) 2/3/94
+ *	@(#)procfs.h	8.9 (Berkeley) 5/14/95
  *
+ * From:
  *	$FreeBSD$
  */
 
@@ -44,6 +45,7 @@
  */
 typedef enum {
 	Proot,		/* the filesystem root */
+	Pcurproc,	/* symbolic link for curproc */
 	Pproc,		/* a process-specific sub-directory */
 	Pfile,		/* the executable file */
 	Pmem,		/* the process's memory image */
@@ -97,9 +99,9 @@ struct pfsdent {
 };
 #define UIO_MX sizeof(struct pfsdent)
 #define PROCFS_FILENO(pid, type) \
-	(((type) == Proot) ? \
-			2 : \
-			((((pid)+1) << 3) + ((int) (type))))
+	(((type) < Pproc) ? \
+			((type) + 2) : \
+			((((pid)+1) << 4) + ((int) (type))))
 
 /*
  * Convert between pfsnode vnode
@@ -113,33 +115,33 @@ struct vfs_namemap {
 	int nm_val;
 };
 
-extern int vfs_getuserstr __P((struct uio *, char *, int *));
-extern vfs_namemap_t *vfs_findname __P((vfs_namemap_t *, char *, int));
+int vfs_getuserstr __P((struct uio *, char *, int *));
+vfs_namemap_t *vfs_findname __P((vfs_namemap_t *, char *, int));
 
 /* <machine/reg.h> */
 struct reg;
 struct fpreg;
 
 #define PFIND(pid) ((pid) ? pfind(pid) : &proc0)
-extern int procfs_freevp __P((struct vnode *));
-extern int procfs_allocvp __P((struct mount *, struct vnode **, long, pfstype));
-extern struct vnode *procfs_findtextvp __P((struct proc *));
-extern int procfs_sstep __P((struct proc *));
-extern void procfs_fix_sstep __P((struct proc *));
-extern int procfs_read_regs __P((struct proc *, struct reg *));
-extern int procfs_write_regs __P((struct proc *, struct reg *));
-extern int procfs_read_fpregs __P((struct proc *, struct fpreg *));
-extern int procfs_write_fpregs __P((struct proc *, struct fpreg *));
-extern int procfs_donote __P((struct proc *, struct proc *, struct pfsnode *pfsp, struct uio *uio));
-extern int procfs_doregs __P((struct proc *, struct proc *, struct pfsnode *pfsp, struct uio *uio));
-extern int procfs_dofpregs __P((struct proc *, struct proc *, struct pfsnode *pfsp, struct uio *uio));
-extern int procfs_domem __P((struct proc *, struct proc *, struct pfsnode *pfsp, struct uio *uio));
-extern int procfs_doctl __P((struct proc *, struct proc *, struct pfsnode *pfsp, struct uio *uio));
-extern int procfs_dostatus __P((struct proc *, struct proc *, struct pfsnode *pfsp, struct uio *uio));
-extern int procfs_domap __P((struct proc *, struct proc *, struct pfsnode *pfsp, struct uio *uio));
-extern int procfs_dotype __P((struct proc *, struct proc *, struct pfsnode *pfsp, struct uio *uio));
+int procfs_freevp __P((struct vnode *));
+int procfs_allocvp __P((struct mount *, struct vnode **, long, pfstype));
+struct vnode *procfs_findtextvp __P((struct proc *));
+int procfs_sstep __P((struct proc *));
+void procfs_fix_sstep __P((struct proc *));
+int procfs_read_regs __P((struct proc *, struct reg *));
+int procfs_write_regs __P((struct proc *, struct reg *));
+int procfs_read_fpregs __P((struct proc *, struct fpreg *));
+int procfs_write_fpregs __P((struct proc *, struct fpreg *));
+int procfs_donote __P((struct proc *, struct proc *, struct pfsnode *pfsp, struct uio *uio));
+int procfs_doregs __P((struct proc *, struct proc *, struct pfsnode *pfsp, struct uio *uio));
+int procfs_dofpregs __P((struct proc *, struct proc *, struct pfsnode *pfsp, struct uio *uio));
+int procfs_domem __P((struct proc *, struct proc *, struct pfsnode *pfsp, struct uio *uio));
+int procfs_doctl __P((struct proc *, struct proc *, struct pfsnode *pfsp, struct uio *uio));
+int procfs_dostatus __P((struct proc *, struct proc *, struct pfsnode *pfsp, struct uio *uio));
+int procfs_domap __P((struct proc *, struct proc *, struct pfsnode *pfsp, struct uio *uio));
+int procfs_dotype __P((struct proc *, struct proc *, struct pfsnode *pfsp, struct uio *uio));
 
-/* check to see if the process has the "items" (regs/file) */
+/* functions to check whether or not files should be displayed */
 int procfs_validfile __P((struct proc *));
 int procfs_validfpregs __P((struct proc *));
 int procfs_validregs __P((struct proc *));

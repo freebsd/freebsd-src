@@ -55,7 +55,7 @@
 #include <vm/vm_kern.h>
 #include <vm/vm_param.h>
 #include <vm/pmap.h>
-#include <vm/lock.h>
+#include <sys/lock.h>
 #include <vm/vm_map.h>
 #include <vm/vm_prot.h>
 #include <vm/vm_extern.h>
@@ -358,7 +358,7 @@ elf_load_file(struct proc *p, char *file, u_long *addr, u_long *entry)
 	/*
 	 * No longer need this, and it prevents demand paging.
 	 */
-	VOP_UNLOCK(nd.ni_vp);
+	VOP_UNLOCK(nd.ni_vp, 0, p);
 
 	if (error)
                 goto fail;

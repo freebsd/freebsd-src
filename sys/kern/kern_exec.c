@@ -51,7 +51,7 @@
 #include <vm/vm.h>
 #include <vm/vm_param.h>
 #include <vm/vm_prot.h>
-#include <vm/lock.h>
+#include <sys/lock.h>
 #include <vm/pmap.h>
 #include <vm/vm_map.h>
 #include <vm/vm_kern.h>
@@ -162,7 +162,7 @@ interpret:
 	 * Lose the lock on the vnode. It's no longer needed, and must not
 	 * exist for the pagefault paging to work below.
 	 */
-	VOP_UNLOCK(imgp->vp);
+	VOP_UNLOCK(imgp->vp, 0, p);
 
 	if (error)
 		goto exec_fail_dealloc;

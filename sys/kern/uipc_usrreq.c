@@ -436,7 +436,7 @@ unp_bind(unp, nam, p)
 	struct nameidata nd;
 
 	NDINIT(&nd, CREATE, FOLLOW | LOCKPARENT, UIO_SYSSPACE,
-		soun->sun_path, p);
+	    soun->sun_path, p);
 	if (unp->unp_vnode != NULL)
 		return (EINVAL);
 	if (nam->m_len == MLEN) {
@@ -461,15 +461,14 @@ unp_bind(unp, nam, p)
 	VATTR_NULL(&vattr);
 	vattr.va_type = VSOCK;
 	vattr.va_mode = ACCESSPERMS;
-	LEASE_CHECK(nd.ni_dvp, p, p->p_ucred, LEASE_WRITE);
-	error = VOP_CREATE(nd.ni_dvp, &nd.ni_vp, &nd.ni_cnd, &vattr);
-	if (error)
+	VOP_LEASE(nd.ni_dvp, p, p->p_ucred, LEASE_WRITE);
+	if (error = VOP_CREATE(nd.ni_dvp, &nd.ni_vp, &nd.ni_cnd, &vattr))
 		return (error);
 	vp = nd.ni_vp;
 	vp->v_socket = unp->unp_socket;
 	unp->unp_vnode = vp;
 	unp->unp_addr = m_copy(nam, 0, (int)M_COPYALL);
-	VOP_UNLOCK(vp);
+	VOP_UNLOCK(vp, 0, p);
 	return (0);
 }
 
@@ -888,7 +887,7 @@ unp_gc()
 	for (i = nunref, fpp = extra_ref; --i >= 0; ++fpp)
 		sorflush((struct socket *)(*fpp)->f_data);
 	for (i = nunref, fpp = extra_ref; --i >= 0; ++fpp)
-		closef(*fpp,(struct proc*) NULL);
+		closef(*fpp, (struct proc *) NULL);
 	free((caddr_t)extra_ref, M_FILE);
 	unp_gcing = 0;
 }
@@ -897,6 +896,7 @@ void
 unp_dispose(m)
 	struct mbuf *m;
 {
+
 	if (m)
 		unp_scan(m, unp_discard);
 }
@@ -904,7 +904,7 @@ unp_dispose(m)
 static void
 unp_scan(m0, op)
 	register struct mbuf *m0;
-	void (*op)(struct file *);
+	void (*op) __P((struct file *));
 {
 	register struct mbuf *m;
 	register struct file **rp;

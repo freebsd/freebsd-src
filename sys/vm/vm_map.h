@@ -33,7 +33,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	from: @(#)vm_map.h	8.3 (Berkeley) 3/15/94
+ *	@(#)vm_map.h	8.9 (Berkeley) 5/17/95
  *
  *
  * Copyright (c) 1987, 1990 Carnegie-Mellon University.
@@ -105,14 +105,6 @@ struct vm_map_entry {
 	union vm_map_object object;	/* object I point to */
 	vm_ooffset_t offset;		/* offset into object */
 	u_char eflags;			/* map entry flags */
-#if 0
-	u_char is_a_map:1,		/* Is "object" a map? */
-	 is_sub_map:1,			/* Is "object" a submap? */
-	 copy_on_write:1,		/* is data copy-on-write */
-	 needs_copy:1,			/* does object need to be copied */
-	 nofault:1,			/* should never fault */
-	 user_wired:1;			/* wired by user */
-#endif
 	/* Only in task maps: */
 	vm_prot_t protection;		/* protection code */
 	vm_prot_t max_protection;	/* maximum protection */
@@ -135,12 +127,13 @@ struct vm_map_entry {
  */
 struct vm_map {
 	struct pmap *pmap;		/* Physical map */
-	lock_data_t lock;		/* Lock for map data */
+	struct lock lock;		/* Lock for map data */
 	struct vm_map_entry header;	/* List of entries */
 	int nentries;			/* Number of entries */
 	vm_size_t size;			/* virtual size */
 	boolean_t is_main_map;		/* Am I a main map? */
 	int ref_count;			/* Reference count */
+	simple_lock_data_t ref_lock;	/* Lock for ref_count field */
 	vm_map_entry_t hint;		/* hint for quick lookups */
 	vm_map_entry_t first_free;	/* First free space hint */
 	boolean_t entries_pageable;	/* map entries pageable?? */
@@ -195,14 +188,42 @@ typedef struct {
  *		Perform locking on the data portion of a map.
  */
 
-#define	vm_map_lock(map) { \
-	lock_write(&(map)->lock); \
+#include <sys/proc.h>	/* XXX for curproc and p_pid */
+
+#define	vm_map_lock_drain_interlock(map) { \
+	lockmgr(&(map)->lock, LK_DRAIN|LK_INTERLOCK, \
+		&(map)->ref_lock, curproc); \
 	(map)->timestamp++; \
 }
-#define	vm_map_unlock(map)	lock_write_done(&(map)->lock)
-#define	vm_map_lock_read(map)	lock_read(&(map)->lock)
-#define	vm_map_unlock_read(map)	lock_read_done(&(map)->lock)
-
+#ifdef DIAGNOSTIC
+#define	vm_map_lock(map) { \
+	if (lockmgr(&(map)->lock, LK_EXCLUSIVE, (void *)0, curproc) != 0) { \
+		panic("vm_map_lock: failed to get lock"); \
+	} \
+	(map)->timestamp++; \
+}
+#else
+#define	vm_map_lock(map) { \
+	lockmgr(&(map)->lock, LK_EXCLUSIVE, (void *)0, curproc); \
+	(map)->timestamp++; \
+}
+#endif /* DIAGNOSTIC */
+#define	vm_map_unlock(map) \
+		lockmgr(&(map)->lock, LK_RELEASE, (void *)0, curproc)
+#define	vm_map_lock_read(map) \
+		lockmgr(&(map)->lock, LK_SHARED, (void *)0, curproc)
+#define	vm_map_unlock_read(map) \
+		lockmgr(&(map)->lock, LK_RELEASE, (void *)0, curproc)
+#define vm_map_set_recursive(map) { \
+	simple_lock(&(map)->lock.lk_interlock); \
+	(map)->lock.lk_flags |= LK_CANRECURSE; \
+	simple_unlock(&(map)->lock.lk_interlock); \
+}
+#define vm_map_clear_recursive(map) { \
+	simple_lock(&(map)->lock.lk_interlock); \
+	(map)->lock.lk_flags &= ~LK_CANRECURSE; \
+	simple_unlock(&(map)->lock.lk_interlock); \
+}
 /*
  *	Functions implemented as macros
  */

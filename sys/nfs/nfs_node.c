@@ -33,9 +33,10 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	@(#)nfs_node.c	8.2 (Berkeley) 12/30/93
+ *	@(#)nfs_node.c	8.6 (Berkeley) 5/22/95
  * $FreeBSD$
  */
+
 
 #include <sys/param.h>
 #include <sys/systm.h>
@@ -108,7 +109,8 @@ nfs_nget(mntp, fhp, fhsize, npp)
 	int fhsize;
 	struct nfsnode **npp;
 {
-	register struct nfsnode *np;
+	struct proc *p = curproc;	/* XXX */
+	struct nfsnode *np;
 	struct nfsnodehashhead *nhpp;
 	register struct vnode *vp;
 	struct vnode *nvp;
@@ -121,7 +123,7 @@ loop:
 		    bcmp((caddr_t)fhp, (caddr_t)np->n_fhp, fhsize))
 			continue;
 		vp = NFSTOV(np);
-		if (vget(vp, 1))
+		if (vget(vp, LK_EXCLUSIVE, p))
 			goto loop;
 		*npp = np;
 		return(0);
@@ -178,7 +180,7 @@ loop:
 	/*
 	 * Lock the new nfsnode.
 	 */
-	VOP_LOCK(vp);
+	vn_lock(vp, LK_EXCLUSIVE | LK_RETRY, p);
 
 	return (0);
 }
@@ -187,6 +189,7 @@ int
 nfs_inactive(ap)
 	struct vop_inactive_args /* {
 		struct vnode *a_vp;
+		struct proc *a_p;
 	} */ *ap;
 {
 	register struct nfsnode *np;
@@ -213,6 +216,7 @@ nfs_inactive(ap)
 	}
 	np->n_flag &= (NMODIFIED | NFLUSHINPROG | NFLUSHWANT | NQNFSEVICTED |
 		NQNFSNONCACHE | NQNFSWRITE);
+	VOP_UNLOCK(ap->a_vp, 0, ap->a_p);
 	return (0);
 }
 
@@ -265,6 +269,7 @@ nfs_reclaim(ap)
 	return (0);
 }
 
+#if 0
 /*
  * Lock an nfsnode
  */
@@ -355,6 +360,7 @@ nfs_islocked(ap)
 {
 	return VTONFS(ap->a_vp)->n_flag & NLOCKED ? 1 : 0;
 }
+#endif
 
 /*
  * Nfs abort op, called after namei() when a CREATE/DELETE isn't actually

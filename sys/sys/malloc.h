@@ -133,7 +133,8 @@
 #define	M_GEOM_MOD	86	/* geometry module */
 #define	M_GEOM_REQ	87	/* geometry request */
 #define	M_GEOM_MISC	88	/* geometry misc */
-#define	M_LAST		89	/* Must be last type + 1 */
+#define M_VFSCONF	89	/* vfsconf structure */
+#define	M_LAST		90	/* Must be last type + 1 */
 
 #define INITKMEMNAMES { \
 	"free",		/* 0 M_FREE */ \
@@ -222,6 +223,7 @@
 	"GEOM mod",	/* 86 M_GEOM_MOD */ \
 	"GEOM req",	/* 87 M_GEOM_REQ */ \
 	"GEOM misc",	/* 88 M_GEOM_MISC */ \
+	"VFS conf",	/* 89 M_VFSCONF */ \
 }
 
 struct kmemstats {

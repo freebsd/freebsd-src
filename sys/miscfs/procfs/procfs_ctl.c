@@ -34,8 +34,9 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	@(#)procfs_ctl.c	8.3 (Berkeley) 1/21/94
+ *	@(#)procfs_ctl.c	8.4 (Berkeley) 6/15/94
  *
+ * From:
  *	$FreeBSD$
  */
 
@@ -51,12 +52,12 @@
 #include <sys/resourcevar.h>
 #include <sys/signal.h>
 #include <sys/signalvar.h>
-
-#include <vm/vm.h>
-#include <vm/vm_param.h>
-#include <vm/vm_extern.h>
-
+#include <sys/ptrace.h>
 #include <miscfs/procfs/procfs.h>
+
+#ifndef FIX_SSTEP
+#define FIX_SSTEP(p)
+#endif
 
 /*
  * True iff process (p) is in trace wait state
@@ -66,13 +67,6 @@
 	((p)->p_stat == SSTOP && \
 	 (p)->p_pptr == (curp) && \
 	 ((p)->p_flag & P_TRACED))
-
-#ifdef notdef
-#define FIX_SSTEP(p) { \
-		procfs_fix_sstep(p); \
-	} \
-}
-#endif
 
 #define PROCFS_CTL_ATTACH	1
 #define PROCFS_CTL_DETACH	2
@@ -220,8 +214,10 @@ procfs_control(curp, p, op)
 	 */
 	case PROCFS_CTL_STEP:
 		PHOLD(p);
-		procfs_sstep(p);
+		error = procfs_sstep(p);
 		PRELE(p);
+		if (error)
+			return (error);
 		break;
 
 	/*

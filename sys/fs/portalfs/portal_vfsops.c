@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1992, 1993
+ * Copyright (c) 1992, 1993, 1995
  *	The Regents of the University of California.  All rights reserved.
  *
  * This code is derived from software donated to Berkeley by
@@ -33,7 +33,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	@(#)portal_vfsops.c	8.6 (Berkeley) 1/21/94
+ *	@(#)portal_vfsops.c	8.11 (Berkeley) 5/14/95
  *
  * $FreeBSD$
  */
@@ -62,28 +62,18 @@
 #include <sys/un.h>
 #include <miscfs/portal/portal.h>
 
-static int	portal_init __P((void));
 static int	portal_mount __P((struct mount *mp, char *path, caddr_t data,
 				  struct nameidata *ndp, struct proc *p));
 static int	portal_start __P((struct mount *mp, int flags, struct proc *p));
 static int	portal_unmount __P((struct mount *mp, int mntflags,
 				    struct proc *p));
 static int	portal_root __P((struct mount *mp, struct vnode **vpp));
-static int	portal_quotactl __P((struct mount *mp, int cmd, uid_t uid,
-				     caddr_t arg, struct proc *p));
 static int	portal_statfs __P((struct mount *mp, struct statfs *sbp,
 				   struct proc *p));
-static int	portal_sync __P((struct mount *mp, int waitfor,
-				 struct ucred *cred, struct proc *p));
-static int	portal_vget __P((struct mount *mp, ino_t ino,
-				 struct vnode **vpp));
-static int	portal_fhtovp __P((struct mount *mp, struct fid *fhp,
-				   struct mbuf *nam, struct vnode **vpp,
-				   int *exflagsp, struct ucred **credanonp));
-static int	portal_vptofh __P((struct vnode *vp, struct fid *fhp));
 
 static int
-portal_init()
+portal_init(vfsp)
+	struct vfsconf *vfsp;
 {
 
 	return (0);
@@ -150,7 +140,7 @@ portal_mount(mp, path, data, ndp, p)
 
 	mp->mnt_flag |= MNT_LOCAL;
 	mp->mnt_data = (qaddr_t) fmp;
-	getnewfsid(mp, MOUNT_PORTAL);
+	vfs_getnewfsid(mp);
 
 	(void)copyinstr(path, mp->mnt_stat.f_mntonname, MNAMELEN - 1, &size);
 	bzero(mp->mnt_stat.f_mntonname + size, MNAMELEN - size);
@@ -186,12 +176,8 @@ portal_unmount(mp, mntflags, p)
 	int error, flags = 0;
 
 
-	if (mntflags & MNT_FORCE) {
-		/* portal can never be rootfs so don't check for it */
-		if (!doforce)
-			return (EINVAL);
+	if (mntflags & MNT_FORCE)
 		flags |= FORCECLOSE;
-	}
 
 	/*
 	 * Clear out buffer cache.  I don't think we
@@ -241,29 +227,17 @@ portal_root(mp, vpp)
 	struct mount *mp;
 	struct vnode **vpp;
 {
+	struct proc *p = curproc;	/* XXX */
 	struct vnode *vp;
-
 
 	/*
 	 * Return locked reference to root.
 	 */
 	vp = VFSTOPORTAL(mp)->pm_root;
 	VREF(vp);
-	VOP_LOCK(vp);
+	vn_lock(vp, LK_EXCLUSIVE | LK_RETRY, p);
 	*vpp = vp;
 	return (0);
-}
-
-static int
-portal_quotactl(mp, cmd, uid, arg, p)
-	struct mount *mp;
-	int cmd;
-	uid_t uid;
-	caddr_t arg;
-	struct proc *p;
-{
-
-	return (EOPNOTSUPP);
 }
 
 static int
@@ -273,7 +247,6 @@ portal_statfs(mp, sbp, p)
 	struct proc *p;
 {
 
-	sbp->f_type = MOUNT_PORTAL;
 	sbp->f_flags = 0;
 	sbp->f_bsize = DEV_BSIZE;
 	sbp->f_iosize = DEV_BSIZE;
@@ -283,6 +256,7 @@ portal_statfs(mp, sbp, p)
 	sbp->f_files = 1;		/* Allow for "." */
 	sbp->f_ffree = 0;		/* See comments above */
 	if (sbp != &mp->mnt_stat) {
+		sbp->f_type = mp->mnt_vfc->vfc_typenum;
 		bcopy(&mp->mnt_stat.f_fsid, &sbp->f_fsid, sizeof(sbp->f_fsid));
 		bcopy(mp->mnt_stat.f_mntonname, sbp->f_mntonname, MNAMELEN);
 		bcopy(mp->mnt_stat.f_mntfromname, sbp->f_mntfromname, MNAMELEN);
@@ -290,48 +264,17 @@ portal_statfs(mp, sbp, p)
 	return (0);
 }
 
-static int
-portal_sync(mp, waitfor, cred, p)
-	struct mount *mp;
-	int waitfor;
-	struct ucred *cred;
-	struct proc *p;
-{
-
-	return (0);
-}
-
-static int
-portal_vget(mp, ino, vpp)
-	struct mount *mp;
-	ino_t ino;
-	struct vnode **vpp;
-{
-
-	return (EOPNOTSUPP);
-}
-
-static int
-portal_fhtovp(mp, fhp, nam, vpp, exflagsp, credanonp)
-	struct mount *mp;
-	struct fid *fhp;
-	struct mbuf *nam;
-	struct vnode **vpp;
-	int *exflagsp;
-	struct ucred **credanonp;
-{
-
-	return (EOPNOTSUPP);
-}
-
-static int
-portal_vptofh(vp, fhp)
-	struct vnode *vp;
-	struct fid *fhp;
-{
-
-	return (EOPNOTSUPP);
-}
+#define portal_fhtovp ((int (*) __P((struct mount *, struct fid *, \
+	    struct mbuf *, struct vnode **, int *, struct ucred **)))eopnotsupp)
+#define portal_quotactl ((int (*) __P((struct mount *, int, uid_t, caddr_t, \
+	    struct proc *)))eopnotsupp)
+#define portal_sync ((int (*) __P((struct mount *, int, struct ucred *, \
+	    struct proc *)))nullop)
+#define portal_sysctl ((int (*) __P((int *, u_int, void *, size_t *, void *, \
+	    size_t, struct proc *)))eopnotsupp)
+#define portal_vget ((int (*) __P((struct mount *, ino_t, struct vnode **))) \
+	    eopnotsupp)
+#define portal_vptofh ((int (*) __P((struct vnode *, struct fid *)))eopnotsupp)
 
 static struct vfsops portal_vfsops = {
 	portal_mount,

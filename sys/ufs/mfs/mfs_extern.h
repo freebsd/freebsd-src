@@ -30,7 +30,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	@(#)mfs_extern.h	8.1 (Berkeley) 6/11/93
+ *	@(#)mfs_extern.h	8.4 (Berkeley) 3/30/95
  * $FreeBSD$
  */
 
@@ -43,5 +43,7 @@ struct vnode;
 void	mfs_doio __P((struct buf *bp, caddr_t base));
 int	mfs_mountfs __P((struct vnode *, struct mount *, struct proc *));
 int	mfs_mountroot __P((void));
+
+#define	mfs_revoke vop_revoke
 
 #endif /* !_UFS_MFS_MFS_EXTERN_H_ */

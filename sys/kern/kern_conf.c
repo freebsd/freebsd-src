@@ -192,6 +192,14 @@ void
 bdevsw_add_generic(int bdev, int cdev, struct bdevsw *bdevsw)
 {
 	dev_t dev;
+	/*
+	 * XXX hack alert.
+	 */
+	if (isdisk(makedev(bdev, 0), VBLK) && bdevsw->d_flags != D_DISK) {
+	    printf("bdevsw_add_generic: adding D_DISK flag for device %d\n",
+		   bdev);
+	    bdevsw->d_flags = D_DISK;
+	}
 	cdevsw_make(bdevsw);
 	dev = makedev(cdev, 0);
 	cdevsw_add(&dev, bdevsw->d_cdev, NULL);
