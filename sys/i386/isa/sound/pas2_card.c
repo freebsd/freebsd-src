@@ -26,6 +26,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
+ * pas2_card.c,v 1.11 1994/10/01 12:42:17 ache Exp
  */
 
 #include "sound_config.h"
@@ -45,6 +46,7 @@ static int      pas_intr_mask = 0;
 static int      pas_irq = 0;
 
 static char     pas_model;
+static unsigned char board_rev_id;
 static char    *pas_model_names[] =
 {"", "Pro AudioSpectrum+", "CDPC", "Pro AudioSpectrum 16", "Pro AudioSpectrum 16D"};
 
@@ -74,9 +76,9 @@ pas_write (unsigned char data, int ioaddr)
  * The Revision D cards have a problem with their MVA508 interface. The
  * kludge-o-rama fix is to make a 16-bit quantity with identical LSB and
  * MSBs out of the output byte and to do a 16-bit out to the mixer port -
- * 1. We need to do this because there was access problems, not timing
- * problems.
+ * 1.
  */
+
 void
 mix_write (unsigned char data, int ioaddr)
 {
@@ -378,9 +380,14 @@ attach_pas_card (long mem_start, struct address_info *hw_config)
   if (detect_pas_hw (hw_config))
     {
 
-      if (pas_model = pas_read (CHIP_REV))
+ 	board_rev_id = pas_read (BOARD_REV_ID);	
+	if (pas_model = pas_read (CHIP_REV))
 	{
+#ifdef __FreeBSD__
+	  printk ("snd3: <%s rev %d>", pas_model_names[(int) pas_model], board_rev_id);
+#else /* __FreeBSD__ */
 	  printk (" <%s rev %d>", pas_model_names[(int) pas_model], pas_read (BOARD_REV_ID));
+#endif /* __FreeBSD__ */
 	}
 
       if (config_pas_hw (hw_config))

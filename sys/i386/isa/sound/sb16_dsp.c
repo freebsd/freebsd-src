@@ -27,6 +27,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
+ * sb16_dsp.c,v 1.8 1994/10/01 02:17:02 swallace Exp
  */
 
 #define DEB(x)
@@ -38,7 +39,7 @@
 #include "sb.h"
 #include "sb_mixer.h"
 
-#if defined(CONFIGURE_SOUNDCARD) && !defined(EXCLUDE_SB16) && !defined(EXCLUDE_SB) && !defined(EXCLUDE_AUDIO)
+#if defined(CONFIGURE_SOUNDCARD) && !defined(EXCLUDE_SB16) && !defined(EXCLUDE_SB) && !defined(EXCLUDE_AUDIO) && !defined(EXCLUDE_SBPRO)
 
 extern int      sbc_base;
 
@@ -476,13 +477,22 @@ sb16_dsp_init (long mem_start, struct address_info *hw_config)
   sprintf (sb16_dsp_operations.name, "SoundBlaster 16 %d.%d", sbc_major, sbc_minor);
 #endif
 
+#ifdef __FreeBSD__
+  printk ("snd6: <%s>", sb16_dsp_operations.name);
+#else
   printk (" <%s>", sb16_dsp_operations.name);
+#endif
 
   if (num_audiodevs < MAX_AUDIO_DEV)
     {
       audio_devs[my_dev = num_audiodevs++] = &sb16_dsp_operations;
       audio_devs[my_dev]->dmachan = hw_config->dma;
+#ifndef NO_AUTODMA
       audio_devs[my_dev]->buffcount = 1;
+#else
+      audio_devs[my_dev]->flags &= ~DMA_AUTOMODE;
+      audio_devs[my_dev]->buffcount = DSP_BUFFCOUNT;
+#endif
       audio_devs[my_dev]->buffsize = DSP_BUFFSIZE;
     }
   else

@@ -26,8 +26,8 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
-
-*/
+ * $Id: dev_table.h,v 1.9 1995/02/13 22:49:03 jkh Exp $
+ */
 
 #ifndef _DEV_TABLE_H_
 #define _DEV_TABLE_H_
@@ -237,7 +237,7 @@ struct sound_timer_operations {
 #ifndef EXCLUDE_SB
 		{SNDCARD_SB,	"SoundBlaster",		attach_sb_card, probe_sb},
 #endif
-#if !defined(EXCLUDE_SB) && !defined(EXCLUDE_SB16)
+#if !defined(EXCLUDE_SB) && !defined(EXCLUDE_SB16) && !defined(EXCLUDE_SBPRO)
 #ifndef EXCLUDE_AUDIO
 		{SNDCARD_SB16,	"SoundBlaster16",	sb16_dsp_init, sb16_dsp_detect},
 #endif
