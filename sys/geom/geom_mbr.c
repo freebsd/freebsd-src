@@ -159,20 +159,30 @@ g_mbr_ioctl(struct g_provider *pp, u_long cmd, void *data, struct thread *td)
 	struct g_mbr_softc *ms;
 	struct g_slicer *gsp;
 	struct g_consumer *cp;
-	int error;
+	int error, opened;
 
 	gp = pp->geom;
 	gsp = gp->softc;
 	ms = gsp->softc;
 
+	opened = 0;
+	error = 0;
 	switch(cmd) {
 	case DIOCSMBR: {
 		DROP_GIANT();
 		g_topology_lock();
-		/* Validate and modify our slicer instance to match. */
-		error = g_mbr_modify(gp, ms, data);
 		cp = LIST_FIRST(&gp->consumer);
-		error = g_write_data(cp, 0, data, 512);
+		if (cp->acw == 0) {
+			error = g_access(cp, 0, 1, 0);
+			if (error == 0)
+				opened = 1;
+		}
+		if (!error)
+			error = g_mbr_modify(gp, ms, data);
+		if (!error)
+			error = g_write_data(cp, 0, data, 512);
+		if (opened)
+			g_access(cp, 0, -1 , 0);
 		g_topology_unlock();
 		PICKUP_GIANT();
 		return(error);
