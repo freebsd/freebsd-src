@@ -1491,8 +1491,6 @@ vgapage(int n)
 
 	current_video_screen = n;	/* current screen no */
 
-	pcvt_ttyp = &pcvt_tty[n];		/* current tty */
-
 	vsp = &vs[n];			/* current video state ptr */
 
 	/* kernel memory -> video board memory */

@@ -571,7 +571,7 @@ EXTERN u_char	color;			/* color or mono display */
 EXTERN u_short	kern_attr;		/* kernel messages char attributes */
 EXTERN u_short	user_attr;		/* character attributes */
 
-EXTERN struct tty pcvt_tty[PCVT_NSCREENS];
+EXTERN struct tty *pcvt_tty[PCVT_NSCREENS];
 
 struct sixels {
 	u_char lower[MAXSIXEL];		/* lower half of char */
@@ -735,7 +735,6 @@ u_char bgansitopc[] = {			/* background ANSI color -> pc */
 	BG_MAGENTA, BG_CYAN, BG_LIGHTGREY
 };
 
-struct tty *pcvt_ttyp = &pcvt_tty[0];	/* ptr to current device */
 video_state *vsp = &vs[0];		/* ptr to current screen parms */
 
 #ifdef XSERVER
@@ -872,7 +871,6 @@ extern int		pcvt_kbd_rptr;
 extern int		pcvt_kbd_count;
 
 extern u_char		vga_type;
-extern struct tty	*pcvt_ttyp;
 extern video_state	*vsp;
 
 #ifdef XSERVER
