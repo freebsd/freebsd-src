@@ -42,6 +42,7 @@
 #include <string.h>
 #include <stdlib.h>
 #include <signal.h>
+#include <sys/errno.h>
 #include <err.h>
 #else
 #include <sys/systm.h>
@@ -59,10 +60,61 @@
 #define SUNLABEL_CLASS_NAME "SUN"
 
 struct g_sunlabel_softc {
+	int sectorsize;
 	int nheads;
 	int nsects;
 	int nalt;
 };
+
+static int
+g_sunlabel_modify(struct g_geom *gp, struct g_sunlabel_softc *ms, u_char *sec0)
+{
+	int i, error;
+	u_int u, v, csize;
+
+	/* The second last short is a magic number */
+	if (g_dec_be2(sec0 + 508) != 0xdabe)
+		return (EBUSY);
+
+	/* The shortword parity of the entire thing must be even */
+	u = 0;
+	for (i = 0; i < 512; i += 2)
+		u ^= g_dec_be2(sec0 + i);
+	if (u != 0)
+		return(EBUSY);
+
+	csize = g_dec_be2(sec0 + 436) * g_dec_be2(sec0 + 438);
+
+	for (i = 0; i < 8; i++) {
+		v = g_dec_be4(sec0 + 444 + i * 8);
+		u = g_dec_be4(sec0 + 448 + i * 8);
+		g_topology_lock();
+		error = g_slice_config(gp, i, G_SLICE_CONFIG_CHECK,
+		    ((off_t)v * csize) << 9ULL,
+		    ((off_t)u) << 9ULL,
+		    ms->sectorsize,
+		    "%s%c", gp->name, 'a' + i);
+		g_topology_unlock();
+		if (error)
+			return (error);
+	}
+	for (i = 0; i < 8; i++) {
+		v = g_dec_be4(sec0 + 444 + i * 8);
+		u = g_dec_be4(sec0 + 448 + i * 8);
+		g_topology_lock();
+		g_slice_config(gp, i, G_SLICE_CONFIG_SET,
+		    ((off_t)v * csize) << 9ULL,
+		    ((off_t)u) << 9ULL,
+		    ms->sectorsize,
+		    "%s%c", gp->name, 'a' + i);
+		g_topology_unlock();
+	}
+	ms->nalt = g_dec_be2(sec0 + 434);
+	ms->nheads = g_dec_be2(sec0 + 436);
+	ms->nsects = g_dec_be2(sec0 + 438);
+
+	return (0);
+}
 
 static int
 g_sunlabel_start(struct bio *bp)
@@ -100,7 +152,6 @@ g_sunlabel_taste(struct g_class *mp, struct g_provider *pp, int flags)
 	int error, i, npart;
 	u_char *buf;
 	struct g_sunlabel_softc *ms;
-	u_int sectorsize, u, v, csize;
 	off_t mediasize;
 	struct g_slicer *gsp;
 
@@ -116,27 +167,18 @@ g_sunlabel_taste(struct g_class *mp, struct g_provider *pp, int flags)
 	g_topology_unlock();
 	gp->dumpconf = g_sunlabel_dumpconf;
 	npart = 0;
-	while (1) {	/* a trick to allow us to use break */
+	do {	/* a trick to allow us to use break */
 		if (gp->rank != 2 && flags == G_TF_NORMAL)
 			break;
-		sectorsize = cp->provider->sectorsize;
-		if (sectorsize < 512)
+		ms->sectorsize = cp->provider->sectorsize;
+		if (ms->sectorsize < 512)
 			break;
-		gsp->frontstuff = 16 * sectorsize;
+		gsp->frontstuff = 16 * ms->sectorsize;
 		mediasize = cp->provider->mediasize;
-		buf = g_read_data(cp, 0, sectorsize, &error);
+		buf = g_read_data(cp, 0, ms->sectorsize, &error);
 		if (buf == NULL || error != 0)
 			break;
 
-		/* The second last short is a magic number */
-		if (g_dec_be2(buf + 508) != 0xdabe)
-			break;
-		/* The shortword parity of the entire thing must be even */
-		u = 0;
-		for (i = 0; i < 512; i += 2)
-			u ^= g_dec_be2(buf + i);
-		if (u != 0)
-			break;
 		if (bootverbose) {
 			g_hexdump(buf, 128);
 			for (i = 0; i < 8; i++) {
@@ -160,33 +202,20 @@ g_sunlabel_taste(struct g_class *mp, struct g_provider *pp, int flags)
 			printf("v_head %d\n", g_dec_be2(buf + 436));
 			printf("v_sec %d\n", g_dec_be2(buf + 438));
 		}
-		ms->nalt = g_dec_be2(buf + 434);
-		ms->nheads = g_dec_be2(buf + 436);
-		ms->nsects = g_dec_be2(buf + 438);
+		
+		g_sunlabel_modify(gp, ms, buf);
 
-		csize = ms->nheads * ms->nsects;
-
-		for (i = 0; i < 8; i++) {
-			v = g_dec_be4(buf + 444 + i * 8);
-			u = g_dec_be4(buf + 448 + i * 8);
-			if (u == 0)
-				continue;
-			npart++;
-			g_topology_lock();
-			g_slice_config(gp, i, G_SLICE_CONFIG_SET,
-			    ((off_t)v * csize) << 9ULL,
-			    ((off_t)u) << 9ULL,
-			    sectorsize,
-			    "%s%c", pp->name, 'a' + i);
-			g_topology_unlock();
-		}
 		break;
-	}
+	} while (0);
 	g_topology_lock();
 	g_access_rel(cp, -1, 0, 0);
 	if (LIST_EMPTY(&gp->provider)) {
 		g_std_spoiled(cp);
 		return (NULL);
+#ifdef notyet
+	} else {
+		g_slice_conf_hot(gp, 0, 0, ms->sectorsize);
+#endif
 	}
 	return (gp);
 }
