@@ -30,7 +30,7 @@
 .\" SUCH DAMAGE.
 .\"
 .\"     @(#)rshd.8	8.1 (Berkeley) 6/4/93
-.\"	$Id$
+.\"	$Id: rshd.8,v 1.7 1997/02/22 14:22:22 peter Exp $
 .\"
 .Dd June 4, 1993
 .Dt RSHD 8
@@ -133,6 +133,12 @@ If the file
 .Pa /etc/nologin
 exists and the user is not the superuser,
 the connection is closed.
+The name of the nologin file may be overridden
+using the nologin= capability in login.conf
+according to the local user's login class,
+which may also be used to restrict rsh access by
+login time (times.allow and times.deny capabilities)
+and remote host (hosts.allow and hosts.deny capabilities).
 .It
 A null byte is returned on the initial socket
 and the command line is passed to the normal login
@@ -181,6 +187,9 @@ The
 command to the home directory failed.
 .It Sy Permission denied.
 The authentication procedure described above failed.
+.It Sy Logins not available right now.
+Rsh was attempted outside the allowed hours defined in
+login.conf for the local user's login class.
 .It Sy Can't make pipe.
 The pipe needed for the 
 .Em stderr ,
@@ -202,12 +211,12 @@ and is not preceded by a flag byte.
 .Xr rcmd 3 ,
 .Xr ruserok 3 ,
 .Xr hosts 5 ,
+.Xr login.conf 5 ,
 .Xr nologin 5 ,
 .Xr services 5 ,
 .Xr named 8 ,
 .Xr rlogind 8 ,
 .Xr syslogd 8 .
-
 .Sh FILES
 .Bl -tag -width /etc/hosts -compact
 .It Pa /etc/hosts
@@ -215,7 +224,6 @@ and is not preceded by a flag byte.
 .It Pa $HOME/.rhosts
 .It Pa /etc/nologin
 .El
-
 .Sh BUGS
 The authentication procedure used here assumes the integrity
 of each client machine and the connecting medium.  This is
