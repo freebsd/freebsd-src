@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)vm_swap.c	8.5 (Berkeley) 2/17/94
- * $Id: vm_swap.c,v 1.10 1994/10/22 02:41:19 davidg Exp $
+ * $Id: vm_swap.c,v 1.11 1994/10/22 17:53:35 phk Exp $
  */
 
 #include <sys/param.h>
@@ -404,7 +404,7 @@ swfree(p, index)
 		return (0);
 	}
 #endif
-	for (dvbase = 0; dvbase < nblks; dvbase += dmmax) {
+	for (dvbase = dmmax; dvbase < nblks; dvbase += dmmax) {
 		blk = nblks - dvbase;
 			
 #ifdef SEQSWAP
