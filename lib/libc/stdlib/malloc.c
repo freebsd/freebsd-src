@@ -6,7 +6,7 @@
  * this stuff is worth it, you can buy me a beer in return.   Poul-Henning Kamp
  * ----------------------------------------------------------------------------
  *
- * $Id: malloc.c,v 1.33 1997/12/15 02:12:42 jb Exp $
+ * $Id: malloc.c,v 1.34 1997/12/31 03:15:06 alex Exp $
  *
  */
 
@@ -47,7 +47,9 @@
 #       define malloc_pageshift		12U
 #       define malloc_minsize		16U
 #   endif
-#   define HAS_UTRACE
+#   if !defined(__NETBSD_SYSCALLS)
+#       define HAS_UTRACE
+#   endif
 #   if defined(_THREAD_SAFE)
 #       include <pthread.h>
 #       include "pthread_private.h"
