@@ -29,6 +29,8 @@
  * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
+ *
+ * $FreeBSD$
  */
 
 /* XXX Yes this is WAY too complicated */
@@ -193,9 +195,9 @@ findsaddr(register const struct sockaddr_in *to,
 			}
 
 			if (SALEN(sa) == 0)
-				cp += sizeof(u_int32_t);
+				cp += sizeof(long);
 			else
-				cp += roundup(SALEN(sa), sizeof(u_int32_t));
+				cp += roundup(SALEN(sa), sizeof(long));
 		}
 
 	return ("failed!");
