@@ -1123,7 +1123,7 @@ findpcb:
 		if (iss)
 			tp->iss = iss;
 		else {
-			tp->iss = tcp_rndiss_next();
+			tp->iss = tcp_new_isn();
  		}
 		tp->irs = th->th_seq;
 		tcp_sendseqinit(tp);
@@ -1655,7 +1655,7 @@ trimthenstep6:
 			if (thflags & TH_SYN &&
 			    tp->t_state == TCPS_TIME_WAIT &&
 			    SEQ_GT(th->th_seq, tp->rcv_nxt)) {
-				iss = tcp_rndiss_next();
+				iss = tcp_new_isn();
 				tp = tcp_close(tp);
 				goto findpcb;
 			}

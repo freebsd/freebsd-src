@@ -139,6 +139,10 @@ static int	icmp_may_rst = 1;
 SYSCTL_INT(_net_inet_tcp, OID_AUTO, icmp_may_rst, CTLFLAG_RW, &icmp_may_rst, 0, 
     "Certain ICMP unreachable messages may abort connections in SYN_SENT");
 
+static int	tcp_seq_genscheme = 1;
+SYSCTL_INT(_net_inet_tcp, OID_AUTO, tcp_seq_genscheme, CTLFLAG_RW,
+    &tcp_seq_genscheme, 0, "TCP ISN generation scheme");
+
 static void	tcp_cleartaocache __P((void));
 static void	tcp_notify __P((struct inpcb *, int));
 
@@ -182,6 +186,7 @@ tcp_init()
 {
 	int hashsize;
 	
+	tcp_iss = arc4random();	/* wrong, but better than a constant */
 	tcp_ccgen = 1;
 	tcp_cleartaocache();
 
@@ -1090,6 +1095,26 @@ tcp6_ctlinput(cmd, sa, d)
 			      0, cmd, notify);
 }
 #endif /* INET6 */
+
+tcp_seq
+tcp_new_isn()
+{
+	if ((tcp_seq_genscheme > 1) || (tcp_seq_genscheme < 0))
+		tcp_seq_genscheme = 1;
+
+	switch (tcp_seq_genscheme) {
+		case 0:	/*
+			 * Random positive increments
+			 */
+			tcp_iss += TCP_ISSINCR/2;
+			return tcp_iss;
+		case 1:	/*
+			 * OpemBSD randomized scheme
+			 */
+			return tcp_rndiss_next();
+	}
+
+}
 
 #define TCP_RNDISS_ROUNDS	16
 #define TCP_RNDISS_OUT	7200
