@@ -40,6 +40,9 @@ static const char copyright[] =
 #ifndef lint
 #if 0
 static char sccsid[] = "@(#)split.c	8.2 (Berkeley) 4/16/94";
+#else
+static const char rcsid[] =
+  "$FreeBSD$";
 #endif
 #endif /* not lint */
 
@@ -58,7 +61,7 @@ static char sccsid[] = "@(#)split.c	8.2 (Berkeley) 4/16/94";
 
 #define DEFLINE	1000			/* Default num lines per file. */
 
-long	 bytecnt;			/* Byte count to split on. */
+size_t	 bytecnt;			/* Byte count to split on. */
 long	 numlines;			/* Line count to split on. */
 int	 file_open;			/* If a file open. */
 int	 ifd = -1, ofd = -1;		/* Input/output file descriptors. */
@@ -106,7 +109,7 @@ main(argc, argv)
 			ifd = 0;
 			break;
 		case 'b':		/* Byte count. */
-			if ((bytecnt = strtol(optarg, &ep, 10)) <= 0 ||
+			if ((bytecnt = strtoq(optarg, &ep, 10)) <= 0 ||
 			    (*ep != '\0' && *ep != 'k' && *ep != 'm'))
 				errx(EX_USAGE,
 				    "%s: illegal byte count", optarg);
@@ -172,8 +175,7 @@ main(argc, argv)
 void
 split1()
 {
-	long bcnt;
-	int dist, len;
+	size_t bcnt, dist, len;
 	char *C;
 
 	for (bcnt = 0;;)
