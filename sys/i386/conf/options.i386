@@ -1,4 +1,4 @@
-#	$Id: options.i386,v 1.98 1998/12/27 14:21:08 sos Exp $
+#	$Id: options.i386,v 1.99 1998/12/27 21:46:55 phk Exp $
 
 DISABLE_PSE
 IDE_DELAY
@@ -56,6 +56,7 @@ CPU_UPGRADE_HW_CACHE		opt_cpu.h
 CPU_WT_ALLOC			opt_cpu.h
 CYRIX_CACHE_WORKS		opt_cpu.h
 CYRIX_CACHE_REALLY_WORKS	opt_cpu.h
+NO_MEMORY_HOLE			opt_cpu.h
 
 # The CPU type affects the endian conversion functions all over the kernel.
 I386_CPU		opt_global.h

@@ -26,7 +26,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *		$Id: initcpu.c,v 1.14 1998/10/06 13:16:23 kato Exp $
+ *		$Id: initcpu.c,v 1.15 1998/12/14 06:16:13 dillon Exp $
  */
 
 #include "opt_cpu.h"
@@ -44,6 +44,7 @@ void initializecpu(void);
 #if defined(I586_CPU) && defined(CPU_WT_ALLOC)
 void	enable_K5_wt_alloc(void);
 void	enable_K6_wt_alloc(void);
+void	enable_K6_2_wt_alloc(void);
 #endif
 
 #ifdef I486_CPU
@@ -628,8 +629,9 @@ enable_K6_wt_alloc(void)
 	whcr &= ~0x00feLL;
 	whcr |= (size << 1);
 
-#ifdef PC98
+#if defined(PC98) || defined(NO_MEMORY_HOLE)
 	if (whcr & 0x00feLL) {
+#ifdef PC98
 		/*
 		 * If bit 2 of port 0x43b is 0, disable wrte allocate for the
 		 * 15-16M range.
@@ -637,6 +639,7 @@ enable_K6_wt_alloc(void)
 		if (!(inb(0x43b) & 4))
 			whcr &= ~0x0001LL;
 		else
+#endif
 			whcr |=  0x0001LL;
 	}
 #else
@@ -644,7 +647,68 @@ enable_K6_wt_alloc(void)
 	 * There is no way to know wheter 15-16M hole exists or not. 
 	 * Therefore, we disable write allocate for this range.
 	 */
-	whcr &= 0x00feLL;
+	whcr &= ~0x0001LL;
+#endif
+	wrmsr(0x0c0000082, whcr);
+
+	write_eflags(eflags);
+	enable_intr();
+}
+
+void
+enable_K6_2_wt_alloc(void)
+{
+	quad_t	size;
+	u_int64_t	whcr;
+	u_long	eflags;
+
+	eflags = read_eflags();
+	disable_intr();
+	wbinvd();
+
+#ifdef CPU_DISABLE_CACHE
+	/*
+	 * Certain K6-2 box becomes unstable when write allocation is
+	 * enabled.
+	 */
+	/*
+	 * The AMD-K6 processer provides the 64-bit Test Register 12(TR12),
+	 * but only the Cache Inhibit(CI) (bit 3 of TR12) is suppported.
+	 * All other bits in TR12 have no effect on the processer's operation.
+	 * The I/O Trap Restart function (bit 9 of TR12) is always enabled
+	 * on the AMD-K6.
+	 */
+	wrmsr(0x0000000e, (u_int64_t)0x0008);
+#endif
+	/* Don't assume that memory size is aligned with 4M. */
+	if (Maxmem > 0)
+	  size = ((Maxmem >> 8) + 3) >> 2;
+	else
+	  size = 0;
+
+	/* Limit is 4092M bytes. */
+	size &= 0x3ff;
+	whcr = (rdmsr(0xc0000082) & ~(0x3ffLL << 22)) | (size << 22);
+
+#if defined(PC98) || defined(NO_MEMORY_HOLE)
+	if (whcr & (0x3ffLL << 22)) {
+#ifdef PC98
+		/*
+		 * If bit 2 of port 0x43b is 0, disable wrte allocate for the
+		 * 15-16M range.
+		 */
+		if (!(inb(0x43b) & 4))
+			whcr &= ~(1LL << 16);
+		else
+#endif
+			whcr |=  1LL << 16;
+	}
+#else
+	/*
+	 * There is no way to know wheter 15-16M hole exists or not. 
+	 * Therefore, we disable write allocate for this range.
+	 */
+	whcr &= ~(1LL << 16);
 #endif
 	wrmsr(0x0c0000082, whcr);
 
