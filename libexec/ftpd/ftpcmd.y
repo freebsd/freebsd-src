@@ -66,10 +66,11 @@ static char sccsid[] = "@(#)ftpcmd.y	8.3 (Berkeley) 4/6/94";
 
 #include "extern.h"
 
-extern	struct sockaddr_in data_dest;
+extern	struct sockaddr_in data_dest, his_addr;
 extern	int logged_in;
 extern	struct passwd *pw;
 extern	int guest;
+extern 	int paranoid;
 extern	int logging;
 extern	int type;
 extern	int form;
@@ -151,12 +152,23 @@ cmd
 	| PORT check_login SP host_port CRLF
 		{
 			if ($2) {
-				usedefault = 0;
-				if (pdata >= 0) {
-					(void) close(pdata);
-					pdata = -1;
+				if (paranoid &&
+				    ((ntohs(data_dest.sin_port) <
+				      IPPORT_RESERVED) ||
+				     memcmp(&data_dest.sin_addr,
+					    &his_addr.sin_addr,
+					    sizeof(data_dest.sin_addr)))) {
+					usedefault = 1;
+					reply(500,
+					      "Illegal PORT range rejected.");
+				} else {
+					usedefault = 0;
+					if (pdata >= 0) {
+						(void) close(pdata);
+						pdata = -1;
+					}
+					reply(200, "PORT command successful.");
 				}
-				reply(200, "PORT command successful.");
 			}
 		}
 	| PASV check_login CRLF
@@ -304,8 +316,8 @@ cmd
 				} else {
 					reply(503, "Bad sequence of commands.");
 				}
-				free($4);
 			}
+			free($4);
 		}
 	| ABOR CRLF
 		{
@@ -495,8 +507,9 @@ cmd
 					struct tm *t;
 					t = gmtime(&stbuf.st_mtime);
 					reply(213,
-					    "19%02d%02d%02d%02d%02d%02d",
-					    t->tm_year, t->tm_mon+1, t->tm_mday,
+					    "%04d%02d%02d%02d%02d%02d",
+					    1900 + t->tm_year,
+					    t->tm_mon+1, t->tm_mday,
 					    t->tm_hour, t->tm_min, t->tm_sec);
 				}
 			}
@@ -557,11 +570,12 @@ host_port
 		{
 			char *a, *p;
 
-			a = (char *)&data_dest.sin_addr;
-			a[0] = $1; a[1] = $3; a[2] = $5; a[3] = $7;
+			data_dest.sin_len = sizeof(struct sockaddr_in);
+			data_dest.sin_family = AF_INET;
 			p = (char *)&data_dest.sin_port;
 			p[0] = $9; p[1] = $11;
-			data_dest.sin_family = AF_INET;
+			a = (char *)&data_dest.sin_addr;
+			a[0] = $1; a[1] = $3; a[2] = $5; a[3] = $7;
 		}
 	;
 

@@ -41,6 +41,7 @@ Internet File Transfer Protocol server
 .Sh SYNOPSIS
 .Nm ftpd
 .Op Fl dl
+.Op Fl R
 .Op Fl S
 .Op Fl U
 .Op Fl T Ar maxtimeout
@@ -68,6 +69,17 @@ session is logged using syslog with a facility of LOG_FTP.
 If this option is specified twice, the retrieve (get), store (put), append,
 delete, make directory, remove directory and rename operations and
 their filename arguments are also logged.
+.It Fl R
+With this option set,
+.Nm ftpd
+will revert to historical behavior with regard to security checks on
+user operations and restrictions on PORT requests.
+Currently,
+.Nm ftpd
+will only honor PORT commands directed to unprivileged ports on the
+remote user's host (which violates the FTP protocol specification but
+closes some security holes).
+.
 .It Fl S
 With this option set,
 .Nm ftpd

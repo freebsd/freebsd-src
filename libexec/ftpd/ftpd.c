@@ -114,6 +114,7 @@ int	timeout = 900;    /* timeout after 15 minutes of inactivity */
 int	maxtimeout = 7200;/* don't allow idle time to be set beyond 2 hours */
 int	logging;
 int	restricted_data_ports = 1;
+int	paranoid = 1;
 int	guest;
 #ifdef STATS
 int	stats;
@@ -259,9 +260,9 @@ main(argc, argv, envp)
 
 
 #ifdef STATS
-	while ((ch = getopt(argc, argv, "dlSt:T:u:v")) != EOF) {
+	while ((ch = getopt(argc, argv, "RdlSt:T:u:v")) != EOF) {
 #else
-	while ((ch = getopt(argc, argv, "dlUt:T:u:v")) != EOF) {
+	while ((ch = getopt(argc, argv, "RdlUt:RT:u:v")) != EOF) {
 #endif
 		switch (ch) {
 		case 'd':
@@ -270,6 +271,10 @@ main(argc, argv, envp)
 
 		case 'l':
 			logging++;	/* > 1 == extra logging */
+			break;
+
+		case 'R':
+			paranoid = 0;
 			break;
 
 		case 'U':
@@ -1475,11 +1480,6 @@ void
 dologout(status)
 	int status;
 {
-	/*
-	 * Prevent reception of SIGURG from resulting in a resumption
-	 * back to the main program loop.
-	 */
-	transflag = 0;
 
 	if (logged_in) {
 		(void) seteuid((uid_t)0);
