@@ -657,8 +657,8 @@ status(argc, argv)
 		}
 		pswitch(0);
 	}
-	printf("Gate ftp: %s, server %s, port %d.\n", onoff(gatemode),
-	    *gateserver ? gateserver : "(none)", ntohs(gateport));
+	printf("Gate ftp: %s, server %s, port %s.\n", onoff(gatemode),
+	    *gateserver ? gateserver : "(none)", gateport);
 	printf("Passive mode: %s.\n", onoff(passivemode));
 	printf("Mode: %s; Type: %s; Form: %s; Structure: %s.\n",
 		modename, typename, formname, structname);
@@ -889,7 +889,9 @@ setgate(argc, argv)
 					code = -1;
 					return;
 				}
-				gateport = htons(port);
+				if (gateport != NULL)
+					free(gateport);
+				asprintf(&gateport, "%ld", port);
 			}
 			strncpy(gsbuf, argv[1], sizeof(gsbuf) - 1);
 			gsbuf[sizeof(gsbuf) - 1] = '\0';
@@ -902,8 +904,8 @@ setgate(argc, argv)
 		    "Disabling gate-ftp mode - no gate-ftp server defined.\n");
 		gatemode = 0;
 	} else {
-		printf("Gate ftp: %s, server %s, port %d.\n", onoff(gatemode),
-		    *gateserver ? gateserver : "(none)", ntohs(gateport));
+		printf("Gate ftp: %s, server %s, port %s.\n", onoff(gatemode),
+		    *gateserver ? gateserver : "(none)", gateport);
 	}
 	code = gatemode;
 }

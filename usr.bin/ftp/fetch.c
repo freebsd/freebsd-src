@@ -114,10 +114,12 @@ url_get(origline, proxyenv)
 	s = -1;
 	proxy = NULL;
 	isftpurl = 0;
+	res0 = NULL;
 
 #ifdef __GNUC__			/* XXX: to shut up gcc warnings */
 	(void)&savefile;
 	(void)&proxy;
+	(void)&res0;
 #endif
 
 	line = strdup(origline);

@@ -1178,6 +1178,9 @@ initconn()
 #endif
 
 	if (passivemode) {
+#ifdef __GNUC__			/* XXX: to shut up gcc warnings */
+		(void)&pasvcmd;
+#endif
 		data_addr = myctladdr;
 		data = socket(data_addr.su_family, SOCK_STREAM, 0);
 		if (data < 0) {
@@ -1327,7 +1330,6 @@ initconn()
 			}
 		} else if (strcmp(pasvcmd, "EPSV") == 0) {
 			char delim[4];
-			char *tcpport;
 
 			prt[0] = 0;
 			if (code / 10 == 22 && code != 229) {
