@@ -18,6 +18,7 @@ kerncruft	Shellscript to find orphaned *.c files in /sys
 kerninclude	Shellscript to find unused #includes in the kernel.
 kernxref	Shellscript to cross reference symbols in the LINT kernel.
 mid	 	Create a Message-ID database for mailing lists.
+pciid		Generate src/share/misc/pci_vendors.
 portsinfo 	Generate list of new ports for last two weeks.
 scsi-defects	Get at the primary or grown defect list of a SCSI disk.
 upgrade         Scripts used for upgrading an installed system.
