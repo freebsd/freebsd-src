@@ -552,8 +552,6 @@ f_flags(plan, entry)
 		/* note that plan->fl_flags always is a subset of
 		   plan->fl_mask */
 		return (flags & plan->fl_mask) == plan->fl_flags;
-	else if (plan->flags & F_ANY)
-		return flags & plan->fl_mask;
 	else
 		return flags == plan->fl_flags;
 	/* NOTREACHED */
@@ -999,6 +997,8 @@ f_perm(plan, entry)
 	    (S_ISUID|S_ISGID|S_ISTXT|S_IRWXU|S_IRWXG|S_IRWXO);
 	if (plan->flags & F_ATLEAST)
 		return (plan->m_data | mode) == mode;
+	else if (plan->flags & F_ANY)
+		return (mode & plan->m_data);
 	else
 		return mode == plan->m_data;
 	/* NOTREACHED */
