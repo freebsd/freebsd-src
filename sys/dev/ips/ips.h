@@ -50,6 +50,8 @@
 #include <dev/pci/pcireg.h>
 #include <dev/pci/pcivar.h>
 
+MALLOC_DECLARE(M_IPSBUF);
+
 /*
  *   IPS CONSTANTS
  */
