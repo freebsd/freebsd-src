@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)clock.c	7.2 (Berkeley) 5/12/91
- *	$Id: clock.c,v 1.39 1995/11/29 19:57:22 wollman Exp $
+ *	$Id: clock.c,v 1.40 1995/12/10 13:38:23 phk Exp $
  */
 
 /*
@@ -256,7 +256,7 @@ rtcintr(struct clockframe frame)
 }
 
 #ifdef DDB
-void
+static void
 DDB_printrtc(void)
 {
 	printf("%02x/%02x/%02x %02x:%02x:%02x, A = %02x, B = %02x, C = %02x\n",
