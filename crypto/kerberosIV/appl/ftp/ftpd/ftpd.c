@@ -787,7 +787,7 @@ int do_login(int code, char *passwd)
 			  "%s: anonymous/%s",
 			  remotehost,
 			  passwd);
-	setproctitle(proctitle);
+	setproctitle("%s", proctitle);
 #endif /* HAVE_SETPROCTITLE */
 	if (logging) {
 	    char data_addr[256];
@@ -808,7 +808,7 @@ int do_login(int code, char *passwd)
 		reply(code, "User %s logged in.", pw->pw_name);
 #ifdef HAVE_SETPROCTITLE
 		snprintf(proctitle, sizeof(proctitle), "%s: %s", remotehost, pw->pw_name);
-		setproctitle(proctitle);
+		setproctitle("%s", proctitle);
 #endif /* HAVE_SETPROCTITLE */
 	if (logging) {
 	    char data_addr[256];
@@ -1785,7 +1785,7 @@ dolog(struct sockaddr *sa)
 	inaddr2str (sin->sin_addr, remotehost, sizeof(remotehost));
 #ifdef HAVE_SETPROCTITLE
 	snprintf(proctitle, sizeof(proctitle), "%s: connected", remotehost);
-	setproctitle(proctitle);
+	setproctitle("%s", proctitle);
 #endif /* HAVE_SETPROCTITLE */
 
 	if (logging) {
