@@ -154,7 +154,12 @@ Pass2(FILE *fd)
 			  strcmp(tmp,p)) {
 			    fprintf(stderr,"  %s: %s md5 mismatch.\n",
 				sp->Key,name);
-			    if(j & CTM_Q_MD5_Force) {
+			    GETFIELDCOPY(md5,sep);
+			    if(md5 != NULL && strcmp(tmp,md5) == 0) {
+				fprintf(stderr,"  %s: %s already applied.\n",
+					sp->Key,name);
+				match = CTM_FILTER_DISABLE;
+			    } else if(j & CTM_Q_MD5_Force) {
 				if(Force)
 				    fprintf(stderr,"  Can and will force.\n");
 				else
@@ -165,9 +170,10 @@ Pass2(FILE *fd)
 			    }
 			}
 			break;
-		    }
-		    if(j & CTM_Q_MD5_After) {
-			GETFIELDCOPY(md5,sep);
+		    } else if(j & CTM_Q_MD5_After) {
+			if(md5 == NULL) {
+			    GETFIELDCOPY(md5,sep);
+			}
 			break;
 		    }
 		    /* Unqualified MD5 */
