@@ -146,7 +146,7 @@ flaopen(dev_t dev, int flag, int fmt, struct proc *p)
 	dk_dd.d_secsize = DEV_BSIZE;
 	dk_dd.d_secpercyl = dk_dd.d_ntracks * dk_dd.d_nsectors;
 
-	error = dsopen("fla", dev, fmt, 0, &sc->dk_slices, &dk_dd);
+	error = dsopen(dev, fmt, 0, &sc->dk_slices, &dk_dd);
 	if (error)
 		return (error);
 	return (0);
@@ -178,7 +178,7 @@ flaioctl(dev_t dev, u_long cmd, caddr_t addr, int flags, struct proc *p)
 			dev2udev(dev), cmd, addr, flags, p);
 	unit = dkunit(dev);
 	sc = &softc[unit];
-	error = dsioctl("fla", dev, cmd, addr, flags, &sc->dk_slices);
+	error = dsioctl(dev, cmd, addr, flags, &sc->dk_slices);
 	if (error == ENOIOCTL)
 		error = ENOTTY;
 	return (error);

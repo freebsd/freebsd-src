@@ -373,7 +373,7 @@ diskerr(bp, dname, what, pri, blkdone, lp)
 		pr = addlog;
 	} else
 		pr = printf;
-	sname = dsname(dname, unit, slice, part, partname);
+	sname = dsname(bp->b_dev, unit, slice, part, partname);
 	(*pr)("%s%s: %s %sing fsbn ", sname, partname, what,
 	      bp->b_flags & B_READ ? "read" : "writ");
 	sn = bp->b_blkno;

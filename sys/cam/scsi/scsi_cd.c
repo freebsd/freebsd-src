@@ -956,7 +956,7 @@ cdopen(dev_t dev, int flags, int fmt, struct proc *p)
 	label.d_partitions[0].p_fstype = FS_OTHER;
 
 	/* Initialize slice tables. */
-	error = dsopen("cd", dev, fmt, DSO_NOLABELS | DSO_ONESLICE,
+	error = dsopen(dev, fmt, DSO_NOLABELS | DSO_ONESLICE,
 		       &softc->cd_slices, &label);
 
 	if (error == 0) {
@@ -2452,7 +2452,7 @@ cdioctl(dev_t dev, u_long cmd, caddr_t addr, int flag, struct proc *p)
 		 * Check to see whether we've got a disk-type ioctl.  If we
 		 * don't, dsioctl will pass back an error code of ENOIOCTL.
 		 */
-		error = dsioctl("cd", dev, cmd, addr, flag, &softc->cd_slices);
+		error = dsioctl(dev, cmd, addr, flag, &softc->cd_slices);
 
 		if (error != ENOIOCTL)
 			break;

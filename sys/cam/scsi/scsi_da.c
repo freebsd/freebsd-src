@@ -380,7 +380,7 @@ daopen(dev_t dev, int flags, int fmt, struct proc *p)
 		}
 	
 		/* Initialize slice tables. */
-		error = dsopen("da", dev, fmt, 0, &softc->dk_slices, &label);
+		error = dsopen(dev, fmt, 0, &softc->dk_slices, &label);
 
 		/*
 		 * Check to see whether or not the blocksize is set yet.
@@ -599,7 +599,7 @@ daioctl(dev_t dev, u_long cmd, caddr_t addr, int flag, struct proc *p)
 		return (error); /* error code from tsleep */
 	}	
 
-	error = dsioctl("da", dev, cmd, addr, flag, &softc->dk_slices);
+	error = dsioctl(dev, cmd, addr, flag, &softc->dk_slices);
 
 	if (error == ENOIOCTL)
 		error = cam_periph_ioctl(periph, cmd, addr, daerror);

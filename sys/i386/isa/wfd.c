@@ -374,7 +374,7 @@ int wfdopen (dev_t dev, int flags, int fmt, struct proc *p)
 	label.d_secperunit = label.d_secpercyl * t->cap.cyls;
 
 	/* Initialize slice tables. */
-	errcode = dsopen("wfd", dev, fmt, 0, &t->dk_slices, &label);
+	errcode = dsopen(dev, fmt, 0, &t->dk_slices, &label);
 	if (errcode != 0)
 		return errcode;
 
@@ -627,7 +627,7 @@ int wfdioctl (dev_t dev, u_long cmd, caddr_t addr, int flag, struct proc *p)
 	struct wfd *t = wfdtab[lun];
 	int error = 0;
 
-	error = dsioctl("wfd", dev, cmd, addr, flag, &t->dk_slices);
+	error = dsioctl(dev, cmd, addr, flag, &t->dk_slices);
 	if (error != ENOIOCTL)
 		return (error);
 
