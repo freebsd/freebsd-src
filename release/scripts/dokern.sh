@@ -40,6 +40,7 @@ sed	-e '/	pci$/d' \
 	-e '/	xl/d' \
 	-e '/	an$/d' \
 	-e '/	wi$/d' \
+	-e '/	txp$/d' \
 	-e '/pty/d' \
 	-e '/pass/d' \
 	-e '/	apm/d' \
@@ -90,6 +91,7 @@ sed	-e '/pty/d' \
 	-e '/	ncr/d' \
 	-e '/	an$/d' \
 	-e '/	wi$/d' \
+	-e '/	txp$/d' \
 	-e '/atapist/d' \
 	-e '/lpt/d' \
 	-e '/ppi/d' \
