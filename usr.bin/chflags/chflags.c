@@ -56,6 +56,7 @@ static const char rcsid[] =
 #include <string.h>
 #include <unistd.h>
 
+int	main __P((int, char *[]));
 void	usage __P((void));
 
 int
@@ -163,7 +164,7 @@ main(argc, argv)
 		} else {
 			p->fts_statp->st_flags |= set;
 			p->fts_statp->st_flags &= clear;
-			if (!chflags(p->fts_accpath, p->fts_statp->st_flags))
+			if (!chflags(p->fts_accpath, (u_long)p->fts_statp->st_flags))
 				continue;
 		}
 		warn("%s", p->fts_path);
