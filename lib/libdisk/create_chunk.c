@@ -24,6 +24,7 @@
 #include <sys/stat.h>
 #include <err.h>
 #include <grp.h>
+#include <paths.h>
 #include <pwd.h>
 #include "libdisk.h"
 
@@ -47,7 +48,7 @@ msgDebug(char *fmt, ...)
     static int DebugFD = -1;
 
     if (DebugFD == -1)
-	DebugFD = open("/dev/ttyv1", O_RDWR);
+	DebugFD = open(_PATH_DEV"ttyv1", O_RDWR);
     dbg = (char *)alloca(FILENAME_MAX);
     strcpy(dbg, "DEBUG: ");
     va_start(args, fmt);
