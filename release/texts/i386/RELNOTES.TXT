@@ -1118,7 +1118,7 @@ vidcontrol(1) now allows the user to omit the font size specification
 when loading a font, and has some better error-handling.
 
 ip6fw(8) now has the ability to use a preprocessor and use the -q (quiet)
-flag when reading from a file). [MERGED]
+flag when reading from a file. [MERGED]
 
 
 2. Supported Configurations
