@@ -44,7 +44,7 @@ dialog_radiolist(unsigned char *title, unsigned char *prompt, int height, int wi
 	l, k, scroll = 0, max_choice, *status, was_on = 0;
     int redraw_menu = FALSE;
     char okButton, cancelButton;
-    WINDOW *dialog, *list, *save;
+    WINDOW *dialog, *list;
     unsigned char **items;
     dialogMenuItem *ditems;
     
@@ -122,14 +122,12 @@ dialog_radiolist(unsigned char *title, unsigned char *prompt, int height, int wi
     y = DialogY ? DialogY : (LINES - height)/2;
 
 draw:
-    save = dupwin(newscr);
 #ifdef HAVE_NCURSES
     if (use_shadow)
 	draw_shadow(stdscr, y, x, height, width);
 #endif
     dialog = newwin(height, width, y, x);
     if (dialog == NULL) {
-	delwin(save);
 	endwin();
 	fprintf(stderr, "\nnewwin(%d,%d,%d,%d) failed, maybe wrong dims\n", height,width,y,x);
 	return -1;
@@ -167,7 +165,6 @@ draw:
     /* create new window for the list */
     list = subwin(dialog, list_height, list_width, y + box_y + 1, x + box_x + 1);
     if (list == NULL) {
-	delwin(save);
 	delwin(dialog);
 	endwin();
 	fprintf(stderr, "\nsubwin(dialog,%d,%d,%d,%d) failed, maybe wrong dims\n", list_height,list_width,y+box_y+1,x+box_x+1);
@@ -214,20 +211,17 @@ draw:
 	if (toupper(key) == okButton) {
 	    if (ditems && result && ditems[OK_BUTTON].fire) {
 		int st;
+		WINDOW *save;
 
+		save = dupwin(newscr);
 		st = ditems[OK_BUTTON].fire(&ditems[OK_BUTTON]);
-		if (DITEM_STATUS(st) == DITEM_FAILURE)
-		    continue;
-		else {
-		    delwin(dialog);
-		    if (st & DITEM_RESTORE) {
-			touchwin(save);
-			wrefresh(save);
-		    }
+		if (st & DITEM_RESTORE) {
+		    touchwin(save);
+		    wrefresh(save);
 		}
+		delwin(save);
 	    }
 	    else {
-		delwin(dialog);
 		*result = '\0';
 		for (i = 0; i < item_no; i++) {
 		    if (status[i]) {
@@ -236,32 +230,30 @@ draw:
 		    }
 		}
 	    }
-	    delwin(save);
+	    delwin(dialog);
 	    return 0;
 	}
 	/* Shortcut to cancel */
 	else if (toupper(key) == cancelButton) {
 	    if (ditems && result && ditems[CANCEL_BUTTON].fire) {
 		int st;
+		WINDOW *save;
 
+		save = dupwin(newscr);
 		st = ditems[CANCEL_BUTTON].fire(&ditems[CANCEL_BUTTON]);
-		if (DITEM_STATUS(st) == DITEM_FAILURE) {
-		    wrefresh(dialog);
-		    continue;
-		}
-		else if (st & DITEM_RESTORE) {
+		if (st & DITEM_RESTORE) {
 		    touchwin(save);
 		    wrefresh(save);
 		}
+		delwin(save);
 	    }
 	    delwin(dialog);
-	    delwin(save);
 	    return 1;
 	}
 	
 	/* Check if key pressed matches first character of any item tag in list */
 	for (i = 0; i < max_choice; i++)
-	    if (toupper(key) == toupper(items[(scroll+i)*3][0]))
+	    if (toupper(key) == toupper(items[(scroll + i) * 3][0]))
 		break;
 	
 	if (i < max_choice || (key >= '1' && key <= MIN('9', '0' + max_choice)) ||
@@ -293,7 +285,7 @@ draw:
 	    }
 	    else if (key == KEY_DOWN || key == '+') {
 		if (choice == max_choice - 1) {
-		    if (scroll+choice < item_no-1) {
+		    if (scroll + choice < item_no - 1) {
 			/* Scroll list up */
 			getyx(dialog, cur_y, cur_x);    /* Save cursor position */
 			if (list_height > 1) {
@@ -321,31 +313,33 @@ draw:
 		    continue;
 		else if (ditems) {
 		    if (ditems[scroll + choice].fire) {
-			int st = ditems[scroll + choice].fire(&ditems[scroll + choice]);
-			
+			int st;
+			WINDOW *save;
+
+			save = dupwin(newscr);
+			st = ditems[scroll + choice].fire(&ditems[scroll + choice]);
 			if (st & DITEM_REDRAW) {
-			    for (i = 0; i < max_choice; i++)
+			    for (i = 0; i < max_choice; i++) {
+				status[i] = ditems[i].checked ? ditems[i].checked(&ditems[i]) : FALSE;
 				print_item(list, items[(scroll + i) * 3], items[(scroll + i) * 3 + 1],
 					   status[scroll + i], i, i == choice,
 					   DREF(ditems, scroll + i));
+			    }
 			    wnoutrefresh(list);
 			    wmove(dialog, cur_y, cur_x);  /* Restore cursor to previous position */
 			    wrefresh(dialog);
-			}
-			if (DITEM_STATUS(st) == DITEM_FAILURE) {
-			    wrefresh(dialog);
-			    continue;
 			}
 			else if (st & DITEM_RESTORE) {
 			    touchwin(save);
 			    wrefresh(save);
 			}
-			if (st & DITEM_RECREATE) {
+			else if (st & DITEM_RECREATE) {
 			    delwin(save);
 			    delwin(dialog);
 			    goto draw;
 			}
-			else if (st & DITEM_LEAVE_MENU) {
+			delwin(save);
+			if (st & DITEM_LEAVE_MENU) {
 			    /* Allow a fire action to take us out of the menu */
 			    key = ESC;
 			    break;
@@ -372,12 +366,12 @@ draw:
 	    if (i != choice) {
 		/* De-highlight current item */
 		getyx(dialog, cur_y, cur_x);    /* Save cursor position */
-		print_item(list, items[(scroll+choice)*3], items[(scroll+choice)*3 +1], status[scroll+choice], choice, FALSE,
-			   DREF(ditems, scroll + choice));
+		print_item(list, items[(scroll + choice) * 3], items[(scroll + choice) * 3 +1],
+			   status[scroll + choice], choice, FALSE, DREF(ditems, scroll + choice));
 		/* Highlight new item */
 		choice = i;
-		print_item(list, items[(scroll+choice)*3], items[(scroll+choice)*3 + 1], status[scroll+choice], choice, TRUE,
-			   DREF(ditems, scroll + choice));
+		print_item(list, items[(scroll + choice) * 3], items[(scroll + choice) * 3 + 1],
+			   status[scroll + choice], choice, TRUE, DREF(ditems, scroll + choice));
 		wnoutrefresh(list);
 		wmove(dialog, cur_y, cur_x);  /* Restore cursor to previous position */
 		wrefresh(dialog);
@@ -455,12 +449,12 @@ draw:
 	case '\n':
 	    if (!button && result) {
 		if (ditems && ditems[button ? CANCEL_BUTTON : OK_BUTTON].fire) {
-		    int st = ditems[button ? CANCEL_BUTTON : OK_BUTTON].fire(&ditems[button ? CANCEL_BUTTON : OK_BUTTON]);
-		    if (DITEM_STATUS(st) == DITEM_FAILURE) {
-			wrefresh(dialog);
-			continue;
-		    }
-		    else if (st & DITEM_RESTORE) {
+		    int st;
+		    WINDOW *save;
+
+		    save = dupwin(newscr);
+		    st = ditems[button ? CANCEL_BUTTON : OK_BUTTON].fire(&ditems[button ? CANCEL_BUTTON : OK_BUTTON]);
+		    if (st & DITEM_RESTORE) {
 			touchwin(save);
 			wrefresh(save);
 		    }
@@ -469,6 +463,7 @@ draw:
 			delwin(dialog);
 			goto draw;
 		    }
+		    delwin(save);
 		}
 		else {
 		    *result = '\0';
@@ -481,7 +476,6 @@ draw:
 		}
 	    }
 	    delwin(dialog);
-	    delwin(save);
 	    return button;
 	    break;
 	    
@@ -506,7 +500,6 @@ draw:
     }
     
     delwin(dialog);
-    delwin(save);
     free(status);
     return -1;    /* ESC pressed */
 }
