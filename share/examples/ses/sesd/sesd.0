@@ -45,7 +45,7 @@
 .Sh DESCRIPTION
 .Nm
 monitors SCSI Environmental Services (or SAF-TE) devices for changes
-in state and logs such changes changes to the system error logger
+in state and logs such changes to the system error logger
 (see
 .Xr syslogd 8 ) .
 At least one device must be specified.
