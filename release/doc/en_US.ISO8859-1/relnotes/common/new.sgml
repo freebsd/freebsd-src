@@ -407,6 +407,10 @@
     <sect3 id="net-proto">
       <title>Network Protocols</title>
 
+      <para>The <literal>DA_OLD_QUIRKS</literal> kernel option,
+	which is for the CAM SCSI disk driver (&man.cam.4;)
+	has been removed.  &merged;</para>
+
       <para>The &man.gre.4; tunnel driver now supports WCCP version
 	2.</para>
 
@@ -444,6 +448,14 @@
 	for authenticating TCP sessions.  &man.setkey.8; now includes
 	support for the TCP-MD5 class of security associations.
 	&merged;</para>
+
+      <para>The implementation of RFC 1948 has been improved.
+	The time offset component of an ISN now includes random positive
+	increments between clock ticks so that ISNs will always
+	be increasing, no matter how quickly the port is recycled.</para>
+
+      <para>The random ephemeral port allocation, which come from OpenBSD
+	has been implemented.</para>
     </sect3>
 
     <sect3 id="disks">
@@ -537,6 +549,9 @@
     <para>The <command>bthidcontrol</command> command and the
       <command>bthidd</command> command, which support Bluetooth
       HID (Human Interface Device), have been added.</para>
+
+    <para>&man.df.1; now supports a <option>-c</option> to display
+      a grand total of statistics for file systems.</para>
 
     <para>The <command>doscmd</command> utility has been
       removed from the &os; base system, and has been available
@@ -681,6 +696,9 @@
     <para>&man.pw.8; now supports a <option>-H</option> option, which
       accepts an encrypted password on a file descriptor. &merged;</para>
 
+    <para>A bug in &man.rarpd.8; that prevents it from working properly
+      when a interface has more than one IP address has been fixed.</para>
+
     <para>The configuration files used by the &man.resolver.3; now
       support the <literal>timeout:</literal> and
       <literal>attempts:</literal> keywords.</para>
@@ -791,7 +809,7 @@
       Dogwood release to the Eelgrass release.</para>
 
     <para><application>OpenSSH</application> has been updated from
-      3.6.1p1 to 3.8p1.
+      3.6.1p1 to 3.8.1p1.
 
       <note>
 	<para>The configuration defaults for &man.sshd.8; have been
