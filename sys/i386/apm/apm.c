@@ -13,7 +13,7 @@
  *
  * Sep, 1994	Implemented on FreeBSD 1.1.5.1R (Toshiba AVS001WD)
  *
- *	$Id: apm.c,v 1.12.4.2 1996/03/05 05:50:51 nate Exp $
+ *	$Id: apm.c,v 1.12.4.3 1996/03/12 06:06:35 nate Exp $
  */
 
 #include "apm.h"
@@ -52,12 +52,6 @@ struct apm_softc {
 static struct apm_softc apm_softc[NAPM];
 static struct apm_softc *master_softc = NULL; 	/* XXX */
 struct apmhook	*hook[NAPM_HOOK];		/* XXX */
-#ifdef APM_SLOWSTART
-int		apm_slowstart = 0;
-int		apm_ss_cnt = 0;
-static int	apm_slowstart_p = 0;
-int		apm_slowstart_stat = 0;
-#endif /* APM_SLOWSTART */
 
 #define is_enabled(foo) ((foo) ? "enabled" : "disabled")
 
@@ -474,12 +468,6 @@ apm_cpu_idle(void)
 	 * "hlt" operation from swtch() and managed it under
 	 * APM driver.
 	 */
-	/*
-	 * UKAI Note: on NetBSD, idle() called from cpu_switch()
-	 * doesn't halt CPU, so halt_cpu may not need on NetBSD/i386
-	 * or only "sti" operation would be needed.
-	 */
-
 	if (!sc->active || sc->halt_cpu) {
 		__asm("sti ; hlt");	/* wait for interrupt */
 	}
@@ -545,9 +533,6 @@ apm_halt_cpu(struct apm_softc *sc)
 	if (sc->initialized) {
 		sc->halt_cpu = 1;
 	}
-#ifdef APM_SLOWSTART
-	apm_slowstart = 0;
-#endif /* APM_SLOWSTART */
 }
 
 /* don't halt CPU in scheduling loop */
@@ -557,9 +542,6 @@ apm_not_halt_cpu(struct apm_softc *sc)
 	if (sc->initialized) {
 		sc->halt_cpu = 0;
 	}
-#ifdef APM_SLOWSTART
-	apm_slowstart = apm_slowstart_p;
-#endif /* APM_SLOWSTART */
 }
 
 /* device driver definitions */
@@ -711,12 +693,6 @@ apmattach(struct isa_device *dvp)
 	sc->idle_cpu = ((apm_flags & APM_CPUIDLE_SLOW) != 0);
 	sc->disabled = ((apm_flags & APM_DISABLED) != 0);
 	sc->disengaged = ((apm_flags & APM_DISENGAGED) != 0);
-
-#ifdef APM_SLOWSTART
-	if (sc->idle_cpu) {
-		apm_slowstart = apm_slowstart_p = 1;
-	}
-#endif
 
 	/* print bootstrap messages */
 #ifdef APM_DEBUG
