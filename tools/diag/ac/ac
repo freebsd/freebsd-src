@@ -8,7 +8,7 @@
 # $FreeBSD$
 
 : ${CVSROOT=/home/ncvs}
-contrib=doc/en_US.ISO_8859-1/books/handbook/staff/chapter.sgml
+contrib=doc/en_US.ISO8859-1/books/handbook/staff/chapter.sgml
 access=CVSROOT/access
 cvs='cvs -Q co -p'
 tmp=${TMPDIR-/tmp}/_committers
