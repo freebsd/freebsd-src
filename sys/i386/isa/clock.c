@@ -98,23 +98,6 @@ __FBSDID("$FreeBSD$");
 
 #define	TIMER_DIV(x) ((timer_freq + (x) / 2) / (x))
 
-#ifndef BURN_BRIDGES
-/*
- * Time in timer cycles that it takes for microtime() to disable interrupts
- * and latch the count.  microtime() currently uses "cli; outb ..." so it
- * normally takes less than 2 timer cycles.  Add a few for cache misses.
- * Add a few more to allow for latency in bogus calls to microtime() with
- * interrupts already disabled.
- */
-#define	TIMER0_LATCH_COUNT	20
-
-/*
- * Maximum frequency that we are willing to allow for timer0.  Must be
- * low enough to guarantee that the timer interrupt handler returns
- * before the next timer interrupt.
- */
-#define	TIMER0_MAX_FREQ		20000
-#endif
 
 int	adjkerntz;		/* local offset from GMT in seconds */
 int	clkintr_pending;
@@ -139,18 +122,6 @@ static	u_int32_t i8254_offset;
 static	int	(*i8254_pending)(struct intsrc *);
 static	int	i8254_ticked;
 static	int	using_lapic_timer;
-#ifndef BURN_BRIDGES
-/*
- * XXX new_function and timer_func should not handle clockframes, but
- * timer_func currently needs to hold hardclock to handle the
- * timer0_state == 0 case.  We should use inthand_add()/inthand_remove()
- * to switch between clkintr() and a slightly different timerintr().
- */
-static	void	(*new_function)(struct clockframe *frame);
-static	u_int	new_rate;
-static	u_int	timer0_prescaler_count;
-static	u_char	timer0_state;
-#endif
 static	u_char	rtc_statusa = RTCSA_DIVIDER | RTCSA_NOPROF;
 static	u_char	rtc_statusb = RTCSB_24HR | RTCSB_PINTR;
 
@@ -161,7 +132,6 @@ static	u_char	rtc_statusb = RTCSB_24HR | RTCSB_PINTR;
 #define	ACQUIRE_PENDING	3
 
 static	u_char	timer2_state;
-static	void	(*timer_func)(struct clockframe *frame) = hardclock;
 
 static	unsigned i8254_get_timecount(struct timecounter *tc);
 static	void	set_timer_freq(u_int freq, int intr_freq);
@@ -190,58 +160,8 @@ clkintr(struct clockframe *frame)
 		clkintr_pending = 0;
 		mtx_unlock_spin(&clock_lock);
 	}
-	if (timer_func != hardclock || !using_lapic_timer)
-		timer_func(frame);
-#ifndef BURN_BRIDGES
-	switch (timer0_state) {
-
-	case RELEASED:
-		break;
-
-	case ACQUIRED:
-		if (using_lapic_timer)
-			break;
-		if ((timer0_prescaler_count += timer0_max_count)
-		    >= hardclock_max_count) {
-			timer0_prescaler_count -= hardclock_max_count;
-			hardclock(frame);
-		}
-		break;
-
-	case ACQUIRE_PENDING:
-		mtx_lock_spin(&clock_lock);
-		i8254_offset = i8254_get_timecount(NULL);
-		i8254_lastcount = 0;
-		timer0_max_count = TIMER_DIV(new_rate);
-		outb(TIMER_MODE, TIMER_SEL0 | TIMER_RATEGEN | TIMER_16BIT);
-		outb(TIMER_CNTR0, timer0_max_count & 0xff);
-		outb(TIMER_CNTR0, timer0_max_count >> 8);
-		mtx_unlock_spin(&clock_lock);
-		timer_func = new_function;
-		timer0_state = ACQUIRED;
-		break;
-
-	case RELEASE_PENDING:
-		if ((timer0_prescaler_count += timer0_max_count)
-		    >= hardclock_max_count) {
-			mtx_lock_spin(&clock_lock);
-			i8254_offset = i8254_get_timecount(NULL);
-			i8254_lastcount = 0;
-			timer0_max_count = hardclock_max_count;
-			outb(TIMER_MODE,
-			     TIMER_SEL0 | TIMER_RATEGEN | TIMER_16BIT);
-			outb(TIMER_CNTR0, timer0_max_count & 0xff);
-			outb(TIMER_CNTR0, timer0_max_count >> 8);
-			mtx_unlock_spin(&clock_lock);
-			timer0_prescaler_count = 0;
-			timer_func = hardclock;
-			timer0_state = RELEASED;
-			if (!using_lapic_timer)
-				hardclock(frame);
-		}
-		break;
-	}
-#endif
+	if (!using_lapic_timer)
+		hardclock(frame);
 #ifdef DEV_MCA
 	/* Reset clock interrupt by asserting bit 7 of port 0x61 */
 	if (MCA_system)
@@ -249,43 +169,6 @@ clkintr(struct clockframe *frame)
 #endif
 }
 
-#ifndef BURN_BRIDGES
-/*
- * The acquire and release functions must be called at ipl >= splclock().
- */
-int
-acquire_timer0(int rate, void (*function)(struct clockframe *frame))
-{
-	static int old_rate;
-
-	if (rate <= 0 || rate > TIMER0_MAX_FREQ)
-		return (-1);
-	switch (timer0_state) {
-
-	case RELEASED:
-		timer0_state = ACQUIRE_PENDING;
-		break;
-
-	case RELEASE_PENDING:
-		if (rate != old_rate)
-			return (-1);
-		/*
-		 * The timer has been released recently, but is being
-		 * re-acquired before the release completed.  In this
-		 * case, we simply reclaim it as if it had not been
-		 * released at all.
-		 */
-		timer0_state = ACQUIRED;
-		break;
-
-	default:
-		return (-1);	/* busy */
-	}
-	new_function = function;
-	old_rate = new_rate = rate;
-	return (0);
-}
-#endif
 
 int
 acquire_timer2(int mode)
@@ -307,27 +190,6 @@ acquire_timer2(int mode)
 	return (0);
 }
 
-#ifndef BURN_BRIDGES
-int
-release_timer0()
-{
-	switch (timer0_state) {
-
-	case ACQUIRED:
-		timer0_state = RELEASE_PENDING;
-		break;
-
-	case ACQUIRE_PENDING:
-		/* Nothing happened yet, release quickly. */
-		timer0_state = RELEASED;
-		break;
-
-	default:
-		return (-1);
-	}
-	return (0);
-}
-#endif
 
 int
 release_timer2()
@@ -996,10 +858,6 @@ sysctl_machdep_i8254_freq(SYSCTL_HANDLER_ARGS)
 	freq = timer_freq;
 	error = sysctl_handle_int(oidp, &freq, sizeof(freq), req);
 	if (error == 0 && req->newptr != NULL) {
-#ifndef BURN_BRIDGES
-		if (timer0_state != RELEASED)
-			return (EBUSY);	/* too much trouble to handle */
-#endif
 		set_timer_freq(freq, hz);
 		i8254_timecounter.tc_frequency = freq;
 	}
