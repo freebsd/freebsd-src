@@ -636,6 +636,20 @@ Set to
 if you want to use
 .Xr pkg_version 1
 to list installed packages which are out of date.
+.It Va pkg_version
+.Pq Vt string
+When
+.Va weekly_status_pkg_enable
+is set to
+.Dq YES ,
+this variable specifies the program that is used to determine the out of
+date packages.
+If unset, the
+.Xr pkg_version 1
+program is used.
+As an example, this variable might be set to
+.Dq portversion
+if the portupgrade port has been installed.
 .It Va weekly_local
 .Pq Vt str
 Set to a list of extra scripts that should be run after all other
