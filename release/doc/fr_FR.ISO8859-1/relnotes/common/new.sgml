@@ -743,7 +743,163 @@ options HZ=1000 # pas obligatoire, mais fortemment recommandé</programlisting>
     <sect3>
       <title>Protocoles réseau</title>
 
-      <para></para>
+      <para>Le fonctionnalité noyau &man.accept.filter.9;, permettant de réduire
+      le temps d'acceptation et de lecture sur les nouvelles connexions sur
+      les sockets en attente a été ajoutée. &merged;</para>
+
+      <para>La valeur <literal>proxy</literal> de l'option
+      <option>-d</option> de &man.arp.8; a été renommé en 
+      <literal>pub</literal>, pour la cohérence avec l'option
+      <option>-s</option>.  Le mot clef <literal>only</literal> a été 
+      ajouté a l'option <option>-s</option> et l'option
+      <option>-S</option>, pour permettre de créer des entrées publiées
+      en <quote>proxy-only</quote>. &merged;</para>
+
+      <para>La fonctionnalité de temporisation de lecture de &man.bpf.4; 
+      fonctionne maintenant correctement avec &man.select.2;/&man.poll.2;, et
+      aussi avec les "pthreads". &merged;</para>
+
+      <para>&man.bridge.4; et &man.dummynet.4; ont recus des améliorations
+      et des corrections de bogues, et sont maintenant des modules 
+      chargeables. &merged;</para>
+
+      <para>&man.bridge.4; a maintenant un support amélioré pour les 
+      clusters multi-bridge indépendant et est maintenant plus stable 
+      lors de la présence d'attachements et de détachements dynamique. 
+      Les VLANs sont aussi supportés. &merged;</para>
+
+      <para>Les réponses ICMP ECHO et TSTAMPsont maintenant limitées. 
+      Les RSTs TCP générés du a des ports ouverts et semi-ouverts sont
+      maintenant limités par des compteurs séparés. Chaque taux de file 
+      de limitation a maintenant sa propre description.</para>
+
+      <para>Les messages ICMP <literal>UNREACH_FILTER_PROHIB</literal> peuvent
+      maintenant ré-initialisés des connexions TCP dans l'état
+       <literal>SYN_SENT</literal> si le numéro de séquence correct est renvoyé. Cette
+       fonctionnalité est controllée par la variable sysctl
+      <varname>net.inet.tcp.icmp_may_rst</varname>
+      .</para>
+
+      <para>IP multicast fonctionne mainetant sur les périphériques VLAN.  Plusieurs
+      autres bogues dans le code des VLAN ont été corrigés.</para>
+
+      <para>&man.ipfw.4; filtre maintenant correctement sur la présence de bits 
+      ECN dans les segments TCP. &merged;</para>
+
+      <para>Un nouveau noeud netgraph &man.ng.eth.4; permet au paquets de type
+      Ethernet d'etre filtrés sur différents critères sur les 
+      "ethertype".</para>
+
+      <para>Les noeuds netgraph &man.ng.gif.4; et &man.ng.gif.demux.4; 
+      opérants sur les gestionnaires de périphériques &man.gif.4; ont 
+      été ajoutés.</para>
+
+      <para>Le noeud netgraph &man.ng.ip.input.4;, permettant de créer des
+      files d'attentes des paquets IP dans le code d'execution principal
+      de la couche IP a été ajouté.</para>
+
+      <para>Les type de noeud &man.ng.mppc.4; et &man.ng.bridge.4; ont
+      été ajouté au sous-système &man.netgraph.4;. Le noeud &man.ng.ether.4; 
+      est maintenant chargeable dynamiquement.  Différents bogues et améliorations
+      ont été effectuées. &merged;</para>
+
+      <para>Un nouveau noeud netgraph; &man.ng.one2many.4;, permettant de 
+      multiplexer et démultiplexer les paquets sur plusieurs liens 
+      a été ajouté.&merged;</para>
+
+      <para>Une nouvelle variable sysctl 
+      <varname>net.inet.ip.check_interface</varname>, activée par défaut,
+      permet de vérifier que le paquet arrivant sur une interface a une 
+      addresse correspondante à l'addresse de destination du paquet. &merged;</para>
+
+      <para>Une nouvelle variable sysctl
+      <varname>net.link.ether.inet.log_arp_wrong_iface</varname> a été 
+      ajoutée et permet de supprimer le log des requetes ARP lorsque
+      le retour d'une paquet ARP arrive sur la mauvaise interface&merged;</para>
+
+      <para>Une nouvelle option noyau <literal>options RANDOM_IP_ID</literal> 
+      permet au champ ID des paquets IP d'etre aléatoire. Cela 
+      permet d'empecher a un observateur distant de calculer a quelle
+      vitesse la machine génère des paquets. Précédemment a chaque paquet
+      un compteur était incrémenter.&merged;</para>
+
+      <para arch="alpha">SLIP a été retiré de l'image disquette
+      <filename>mfsroot</filename>.</para>
+
+      <para>TCP a recu différentes corrections de bogues pour 
+      les ACK retardés. &merged;</para>
+
+      <para>TCP supporte maintenant la modification "NewReno" sur l'algorithme
+      " TCP Fast Recovery".  Cette fonctionnalité est controlable via la variable
+      sysctl<varname>net.inet.tcp.newreno</varname>. &merged;</para>
+
+      <para>TCP utilise maintenant une minuterie plus agressive pour les
+      SYN initiaux; cela permet de dropper de façon plus rapide les
+      tentatives de connexions. &merged;</para>
+
+      <para>L'option noyau <literal>TCP_COMPAT_42</literal> 
+      a été retirée. &merged;</para>
+
+      <para>L'option noyau <literal>TCP_RESTRICT_RST</literal> a été 
+      retirée. Une fonctionnalité similaire peut etre trouvée via la 
+      variable sysctl <varname>net.inet.tcp.blackhole</varname>. &merged;</para>
+
+      <para>Les extensions du RFC 1323 de TCP sont maintenant 
+      activées par defaut dans &man.rc.conf.5;. &merged;</para>
+
+      <para>Les extensions des RFC 1323 et TFC 1644 de TCP sont 
+      maintenant désactivées si aucune réponse au 3eme SYN envoyé
+      n'est reçue lors d'une demande de connexion. Cette fonctionnalité
+      permet de travailler avec les (tres vieux) serveurs de terminaux
+      ayant une implémentation de l'entete VJ de compression boggué. &merged;</para>
+
+      <para>L'implémentation TCP de nécessite plus l'allocation d'une strructure
+      TCP pour chaque connexion; cela permet de réduire le nombre de tampons
+      utilisés sur des systèmes ayant énormément de connexions. &merged;</para>
+
+
+      <para>La taille des tampons TCP par défaut, controllée par les 
+      variables sysctl
+      <varname>net.inet.tcp.sendspace</varname> et 
+      <varname>net.inet.tcp.recvspace</varname>, a été augmentée 
+      respectivement à 32K et 64K. Précedemment cette valeur
+      était de 16K pour chaque tampon. Pour essayer d'éviter 
+      l'augmentation de la congestion, la valeur par défaut de 
+      <varname>net.inet.tcp.local_slowstart_flightsize</varname> 
+      a été changée de l'infini a 4. &merged;
+        <note>
+	  <para>Sur des machines très chargées, la nouvelle valeur de
+	  la taille des tampons peut nécessiter une augmentation manuelle 
+	  du paramètre <varname>NMBCLUSTERS</varname>, soit dans
+	  le fichier de configuration du noyau, ou via la 
+	  variable <varname>kern.ipc.nmbclusters</varname>.
+	  <command>netstat -mb</command> permet de monitorer 
+	  l'etat des clusters mbuf.</para>
+	</note>
+      </para>
+
+      <para>TCP supporte maintenant le RFC 1948(Defending Against Sequence
+      Number Attacks). Cette fonctionnalité est controlable via
+      les variables sysctl <varname>net.inet.tcp.strict_rfc1948</varname> 
+      et <varname>net.inet.tcp.isn_reseed_interval</varname>. &merged;</para>
+
+      <para>L'implémentation TCP de &os; comporte maintenant
+      un cache en réception des segments SYN. L'arrivé d'un segment
+      SYN ajoute alors une entrée dans le cache en attendant la fin
+      de la séquence d'initialisation des 3 états TCP, a chaque point
+      la mémoire est alloué comme auparavant. En plus touts les
+      numéros de séquences initiale TCP (ISN) sont utilisés comme
+      "cookies", permettant a chaque entrée du cache d'etre détruite, 
+      tout en ayant leur ACK correspondant accepté plus tard. La 
+      combinaison de ces fonctionnalités appelées 
+      <quote>syncache</quote> et <quote>syncookies</quote> permet
+      a une machine d'etre plus resistante aux attaques par déni
+      de services TCP. Cette fonctionnalité est fournie grace
+      au sponsor du DARPA et NAI Labs. &merged;</para>
+
+      <para>Un bogue dans l'implémentation TCP, 
+      figeant une connexion si l'emetteur fixait une
+      fenetre de zero, a été corrigé.. &merged;</para>
     </sect3>
 
     <sect3>
