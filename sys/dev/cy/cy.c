@@ -82,8 +82,10 @@ __FBSDID("$FreeBSD$");
 
 #include <machine/psl.h>
 
-#include <i386/isa/cyreg.h>
-#include <i386/isa/ic/cd1400.h>
+#include <dev/ic/cd1400.h>
+
+#include <dev/cy/cyreg.h>
+#include <dev/cy/cyvar.h>
 
 #define	NCY 10			/* KLUDGE */
 
@@ -326,6 +328,7 @@ struct com_s {
 };
 
 devclass_t	cy_devclass;
+char		cy_driver_name[] = "cy";
 
 static	void	cd1400_channel_cmd(struct com_s *com, int cmd);
 static	void	cd1400_channel_cmd_wait(struct com_s *com);
@@ -351,7 +354,6 @@ static	void	disc_optim(struct tty *tp, struct termios *t,
 void	cystatus(int unit);
 #endif
 
-static char driver_name[] = "cy";
 static struct	mtx sio_lock;
 static int	sio_inited;
 
@@ -370,7 +372,7 @@ static struct cdevsw sio_cdevsw = {
 	.d_close =	sioclose,
 	.d_write =	siowrite,
 	.d_ioctl =	sioioctl,
-	.d_name =	driver_name,
+	.d_name =	cy_driver_name,
 	.d_flags =	D_TTY | D_NEEDGIANT,
 };
 
@@ -401,7 +403,7 @@ static	int	cy_total_devices;
 #undef	RxFifoThreshold
 static	int	volatile RxFifoThreshold = (CD1400_RX_FIFO_SIZE / 2);
 
-static int
+int
 cy_units(cy_iobase, cy_align)
 	cy_addr	cy_iobase;
 	int	cy_align;
@@ -468,7 +470,7 @@ cyattach_common(cy_iobase, cy_align)
 
 	while (sio_inited != 2)
 		if (atomic_cmpset_int(&sio_inited, 0, 1)) {
-			mtx_init(&sio_lock, driver_name, NULL, MTX_SPIN);
+			mtx_init(&sio_lock, cy_driver_name, NULL, MTX_SPIN);
 			atomic_store_rel_int(&sio_inited, 2);
 		}
 

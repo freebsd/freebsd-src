@@ -40,8 +40,10 @@ __FBSDID("$FreeBSD$");
 #include <sys/rman.h>
 #include <machine/resource.h>
 
-#include <i386/isa/cyreg.h>
-#include <i386/isa/ic/cd1400.h>
+#include <isa/isavar.h>
+
+#include <dev/cy/cyreg.h>
+#include <dev/cy/cyvar.h>
 
 static	int	cy_isa_attach(device_t dev);
 static	int	cy_isa_probe(device_t dev);
@@ -55,7 +57,7 @@ static device_method_t cy_isa_methods[] = {
 };
 
 static driver_t cy_isa_driver = {
-	driver_name,
+	cy_driver_name,
 	cy_isa_methods,
 	0,
 };
