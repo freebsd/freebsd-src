@@ -105,6 +105,7 @@ main(int argc, char **argv)
 				/* Imply ``-t vnode'' */
 				mdio.md_type = MD_VNODE;
 				mdio.md_options = MD_CLUSTER | MD_AUTOUNIT | MD_COMPRESS;
+				cmdline = 2;
 			}
 			mdio.md_file = optarg;
 			break;
@@ -176,12 +177,17 @@ main(int argc, char **argv)
 	    && (mdio.md_type == MD_MALLOC || mdio.md_type == MD_SWAP))
 		if (mdio.md_size == 0)
 			errx(1, "must specify -s for -t malloc or -t swap");
+	if (cmdline == 2 && mdio.md_type == MD_VNODE)
+		if (mdio.md_file == NULL)
+			errx(1, "must specify -f for -t vnode");
 	if (action == LIST) {
 		if (mdio.md_options & MD_AUTOUNIT)
 			list(fd);
 		else
 			query(fd, mdio.md_unit);
 	} else if (action == ATTACH) {
+		if (cmdline < 2)
+			usage();
 		i = ioctl(fd, MDIOCATTACH, &mdio);
 		if (i < 0)
 			err(1, "ioctl(/dev/%s)", MDCTL_NAME);
