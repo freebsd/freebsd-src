@@ -679,6 +679,7 @@ pipe_destroy_write_buffer(wpipe)
 	}
 	for (i = 0; i < wpipe->pipe_map.npages; i++)
 		vm_page_unwire(wpipe->pipe_map.ms[i], 1);
+	wpipe->pipe_map.npages = 0;
 }
 
 /*
