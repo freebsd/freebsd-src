@@ -31,6 +31,7 @@
 #include <sys/systm.h>
 #include <sys/interrupt.h>
 #include <sys/malloc.h>
+#include <sys/mutex.h>
 
 #include <vm/vm.h>
 #include <vm/vm_page.h>
@@ -69,6 +70,7 @@ struct bounce_page {
 
 int busdma_swi_pending;
 
+static struct mtx bounce_lock;
 static STAILQ_HEAD(bp_list, bounce_page) bounce_page_list;
 static int free_bpages;
 static int reserved_bpages;
@@ -591,6 +593,7 @@ alloc_bounce_pages(bus_dma_tag_t dmat, u_int numpages)
 
 	count = 0;
 	if (total_bpages == 0) {
+		mtx_init(&bounce_lock, "BouncePage", MTX_DEF);
 		STAILQ_INIT(&bounce_page_list);
 		STAILQ_INIT(&bounce_map_waitinglist);
 		STAILQ_INIT(&bounce_map_callbacklist);
@@ -598,7 +601,6 @@ alloc_bounce_pages(bus_dma_tag_t dmat, u_int numpages)
 	
 	while (numpages > 0) {
 		struct bounce_page *bpage;
-		int s;
 
 		bpage = (struct bounce_page *)malloc(sizeof(*bpage), M_DEVBUF,
 						     M_NOWAIT);
@@ -616,11 +618,11 @@ alloc_bounce_pages(bus_dma_tag_t dmat, u_int numpages)
 			break;
 		}
 		bpage->busaddr = pmap_kextract(bpage->vaddr);
-		s = splhigh();
+		mtx_enter(&bounce_lock, MTX_DEF);
 		STAILQ_INSERT_TAIL(&bounce_page_list, bpage, links);
 		total_bpages++;
 		free_bpages++;
-		splx(s);
+		mtx_exit(&bounce_lock, MTX_DEF);
 		count++;
 		numpages--;
 	}
@@ -645,7 +647,6 @@ static vm_offset_t
 add_bounce_page(bus_dma_tag_t dmat, bus_dmamap_t map, vm_offset_t vaddr,
 		bus_size_t size)
 {
-	int s;
 	struct bounce_page *bpage;
 
 	if (map->pagesneeded == 0)
@@ -656,7 +657,7 @@ add_bounce_page(bus_dma_tag_t dmat, bus_dmamap_t map, vm_offset_t vaddr,
 		panic("add_bounce_page: map doesn't need any pages");
 	map->pagesreserved--;
 
-	s = splhigh();
+	mtx_enter(&bounce_lock, MTX_DEF);
 	bpage = STAILQ_FIRST(&bounce_page_list);
 	if (bpage == NULL)
 		panic("add_bounce_page: free page list is empty");
@@ -664,7 +665,7 @@ add_bounce_page(bus_dma_tag_t dmat, bus_dmamap_t map, vm_offset_t vaddr,
 	STAILQ_REMOVE_HEAD(&bounce_page_list, links);
 	reserved_bpages--;
 	active_bpages++;
-	splx(s);
+	mtx_exit(&bounce_lock, MTX_DEF);
 
 	bpage->datavaddr = vaddr;
 	bpage->datacount = size;
@@ -675,13 +676,12 @@ add_bounce_page(bus_dma_tag_t dmat, bus_dmamap_t map, vm_offset_t vaddr,
 static void
 free_bounce_page(bus_dma_tag_t dmat, struct bounce_page *bpage)
 {
-	int s;
 	struct bus_dmamap *map;
 
 	bpage->datavaddr = 0;
 	bpage->datacount = 0;
 
-	s = splhigh();
+	mtx_enter(&bounce_lock, MTX_DEF);
 	STAILQ_INSERT_HEAD(&bounce_page_list, bpage, links);
 	free_bpages++;
 	active_bpages--;
@@ -694,22 +694,21 @@ free_bounce_page(bus_dma_tag_t dmat, struct bounce_page *bpage)
 			sched_swi(vm_ih, SWI_NOSWITCH);
 		}
 	}
-	splx(s);
+	mtx_exit(&bounce_lock, MTX_DEF);
 }
 
 void
 busdma_swi(void)
 {
-	int s;
 	struct bus_dmamap *map;
 
-	s = splhigh();
+	mtx_enter(&bounce_lock, MTX_DEF);
 	while ((map = STAILQ_FIRST(&bounce_map_callbacklist)) != NULL) {
 		STAILQ_REMOVE_HEAD(&bounce_map_callbacklist, links);
-		splx(s);
+		mtx_exit(&bounce_lock, MTX_DEF);
 		bus_dmamap_load(map->dmat, map, map->buf, map->buflen,
 				map->callback, map->callback_arg, /*flags*/0);
-		s = splhigh();
+		mtx_enter(&bounce_lock, MTX_DEF);
 	}
-	splx(s);
+	mtx_exit(&bounce_lock, MTX_DEF);
 }
