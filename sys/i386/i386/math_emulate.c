@@ -6,7 +6,7 @@
  * [expediant "port" of linux 8087 emulator to 386BSD, with apologies -wfj]
  *
  *	from: 386BSD 0.1
- *	$Id: math_emulate.c,v 1.25 1997/07/20 08:46:19 bde Exp $
+ *	$Id: math_emulate.c,v 1.26 1997/07/20 11:00:32 bde Exp $
  */
 
 /*
@@ -74,8 +74,8 @@ static unsigned short
 get_fs_word(unsigned short *adr)
 	{ return(fuword(adr)); }
 
-static unsigned long 
-get_fs_long(unsigned long *adr)
+static u_int32_t
+get_fs_long(u_int32_t *adr)
 	{ return(fuword(adr)); }
 
 static void 
@@ -87,7 +87,7 @@ put_fs_word(unsigned short val, short *adr)
 	{ (void)susword(adr,val); }
 
 static void 
-put_fs_long(u_long val, unsigned long *adr)
+put_fs_long(u_long val, u_int32_t *adr)
 	{ (void)suword(adr,val); }
 
 static int
@@ -96,7 +96,7 @@ math_emulate(struct trapframe * info)
 	unsigned short code;
 	temp_real tmp;
 	char * address;
-	u_long oldeip;
+	u_int32_t oldeip;
 
 	/* ever used fp? */
 	if ((((struct pcb *)curproc->p_addr)->pcb_flags & FP_SOFTFP) == 0) {
@@ -114,7 +114,7 @@ math_emulate(struct trapframe * info)
 /* 0x001f means user code space */
 	if ((u_short)info->tf_cs != 0x001F) {
 		printf("math_emulate: %04x:%08lx\n", (u_short)info->tf_cs,
-			oldeip);
+			(u_long)oldeip);
 		panic("?Math emulation needed in kernel?");
 	}
 	code = get_fs_word((unsigned short *) oldeip);
@@ -391,8 +391,8 @@ for fcom , ??? ATS */
 		case 0x24:
 			address = ea(info,code);
 			for (code = 0 ; code < 7 ; code++) {
-				((long *) & I387)[code] =
-				   get_fs_long((unsigned long *) address);
+				((int32_t *) & I387)[code] =
+				   get_fs_long((u_int32_t *) address);
 				address += 4;
 			}
 			return(0);
@@ -405,8 +405,8 @@ for fcom , ??? ATS */
 			address = ea(info,code);
 			/*verify_area(address,28);*/
 			for (code = 0 ; code < 7 ; code++) {
-				put_fs_long( ((long *) & I387)[code],
-					(unsigned long *) address);
+				put_fs_long( ((int32_t *) & I387)[code],
+					(u_int32_t *) address);
 				address += 4;
 			}
 			return(0);
@@ -441,8 +441,8 @@ for fcom , ??? ATS */
 		case 0xa4:
 			address = ea(info,code);
 			for (code = 0 ; code < 27 ; code++) {
-				((long *) & I387)[code] =
-				   get_fs_long((unsigned long *) address);
+				((int32_t *) & I387)[code] =
+				   get_fs_long((u_int32_t *) address);
 				address += 4;
 			}
 			return(0);
@@ -450,8 +450,8 @@ for fcom , ??? ATS */
 			address = ea(info,code);
 			/*verify_area(address,108);*/
 			for (code = 0 ; code < 27 ; code++) {
-				put_fs_long( ((long *) & I387)[code],
-					(unsigned long *) address);
+				put_fs_long( ((int32_t *) & I387)[code],
+					(u_int32_t *) address);
 				address += 4;
 			}
 			I387.cwd = 0x037f;
@@ -550,7 +550,7 @@ for fcom , ??? ATS */
 static void
 fpop(void)
 {
-	unsigned long tmp;
+	u_int32_t tmp;
 
 	tmp = I387.swd & 0xffffc7ffUL;
 	I387.swd += 0x00000800;
@@ -561,7 +561,7 @@ fpop(void)
 static void
 fpush(void)
 {
-	unsigned long tmp;
+	u_int32_t tmp;
 
 	tmp = I387.swd & 0xffffc7ffUL;
 	I387.swd += 0x00003800;
@@ -608,7 +608,7 @@ static char *
 sib(struct trapframe * info, int mod)
 {
 	unsigned char ss,index,base;
-	long offset = 0;
+	int32_t offset = 0;
 
 	base = get_fs_byte((char *) info->tf_eip);
 	info->tf_eip++;
@@ -626,7 +626,7 @@ sib(struct trapframe * info, int mod)
 		offset += (signed char) get_fs_byte((char *) info->tf_eip);
 		info->tf_eip++;
 	} else if (mod == 2 || base == 5) {
-		offset += (signed) get_fs_long((unsigned long *) info->tf_eip);
+		offset += (signed) get_fs_long((u_int32_t *) info->tf_eip);
 		info->tf_eip += 4;
 	}
 	I387.foo = offset;
@@ -638,7 +638,7 @@ static char *
 ea(struct trapframe * info, unsigned short code)
 {
 	unsigned char mod,rm;
-	long * tmp;
+	int32_t * tmp;
 	int offset = 0;
 
 	mod = (code >> 6) & 3;
@@ -646,13 +646,13 @@ ea(struct trapframe * info, unsigned short code)
 	if (rm == 4 && mod != 3)
 		return sib(info,mod);
 	if (rm == 5 && !mod) {
-		offset = get_fs_long((unsigned long *) info->tf_eip);
+		offset = get_fs_long((u_int32_t *) info->tf_eip);
 		info->tf_eip += 4;
 		I387.foo = offset;
 		I387.fos = 0x17;
 		return (char *) offset;
 	}
-	tmp = (long *) &REG(rm);
+	tmp = (int32_t *) &REG(rm);
 	switch (mod) {
 		case 0: offset = 0; break;
 		case 1:
@@ -660,7 +660,7 @@ ea(struct trapframe * info, unsigned short code)
 			info->tf_eip++;
 			break;
 		case 2:
-			offset = (signed) get_fs_long((unsigned long *) info->tf_eip);
+			offset = (signed) get_fs_long((u_int32_t *) info->tf_eip);
 			info->tf_eip += 4;
 			break;
 #ifdef notyet
@@ -691,7 +691,7 @@ get_short_real(temp_real * tmp, struct trapframe * info, unsigned short code)
 	short_real sr;
 
 	addr = ea(info,code);
-	sr = get_fs_long((unsigned long *) addr);
+	sr = get_fs_long((u_int32_t *) addr);
 	short_to_temp(&sr,tmp);
 }
 
@@ -702,8 +702,8 @@ get_long_real(temp_real * tmp, struct trapframe * info, unsigned short code)
 	long_real lr;
 
 	addr = ea(info,code);
-	lr.a = get_fs_long((unsigned long *) addr);
-	lr.b = get_fs_long(1 + (unsigned long *) addr);
+	lr.a = get_fs_long((u_int32_t *) addr);
+	lr.b = get_fs_long(1 + (u_int32_t *) addr);
 	long_to_temp(&lr,tmp);
 }
 
@@ -713,8 +713,8 @@ get_temp_real(temp_real * tmp, struct trapframe * info, unsigned short code)
 	char * addr;
 
 	addr = ea(info,code);
-	tmp->a = get_fs_long((unsigned long *) addr);
-	tmp->b = get_fs_long(1 + (unsigned long *) addr);
+	tmp->a = get_fs_long((u_int32_t *) addr);
+	tmp->b = get_fs_long(1 + (u_int32_t *) addr);
 	tmp->exponent = get_fs_word(4 + (unsigned short *) addr);
 }
 
@@ -739,7 +739,7 @@ get_long_int(temp_real * tmp, struct trapframe * info, unsigned short code)
 	temp_int ti;
 
 	addr = ea(info,code);
-	ti.a = get_fs_long((unsigned long *) addr);
+	ti.a = get_fs_long((u_int32_t *) addr);
 	ti.b = 0;
 	if (ti.sign = (ti.a < 0))
 		ti.a = - ti.a;
@@ -753,8 +753,8 @@ get_longlong_int(temp_real * tmp, struct trapframe * info, unsigned short code)
 	temp_int ti;
 
 	addr = ea(info,code);
-	ti.a = get_fs_long((unsigned long *) addr);
-	ti.b = get_fs_long(1 + (unsigned long *) addr);
+	ti.a = get_fs_long((u_int32_t *) addr);
+	ti.b = get_fs_long(1 + (u_int32_t *) addr);
 	if (ti.sign = (ti.b < 0))
 		__asm__("notl %0 ; notl %1\n\t"
 			"addl $1,%0 ; adcl $0,%1"
@@ -774,7 +774,7 @@ __asm__("addl %0,%0 ; adcl %1,%1\n\t" \
 
 #define ADD64(val,low,high) \
 __asm__("addl %4,%0 ; adcl $0,%1":"=r" (low),"=r" (high) \
-:"0" (low),"1" (high),"r" ((unsigned long) (val)))
+:"0" (low),"1" (high),"r" ((u_int32_t) (val)))
 
 static void
 get_BCD(temp_real * tmp, struct trapframe * info, unsigned short code)
@@ -808,7 +808,7 @@ put_short_real(const temp_real * tmp,
 	addr = ea(info,code);
 	/*verify_area(addr,4);*/
 	temp_to_short(tmp,&sr);
-	put_fs_long(sr,(unsigned long *) addr);
+	put_fs_long(sr,(u_int32_t *) addr);
 }
 
 static void
@@ -821,8 +821,8 @@ put_long_real(const temp_real * tmp,
 	addr = ea(info,code);
 	/*verify_area(addr,8);*/
 	temp_to_long(tmp,&lr);
-	put_fs_long(lr.a, (unsigned long *) addr);
-	put_fs_long(lr.b, 1 + (unsigned long *) addr);
+	put_fs_long(lr.a, (u_int32_t *) addr);
+	put_fs_long(lr.b, 1 + (u_int32_t *) addr);
 }
 
 static void
@@ -833,8 +833,8 @@ put_temp_real(const temp_real * tmp,
 
 	addr = ea(info,code);
 	/*verify_area(addr,10);*/
-	put_fs_long(tmp->a, (unsigned long *) addr);
-	put_fs_long(tmp->b, 1 + (unsigned long *) addr);
+	put_fs_long(tmp->a, (u_int32_t *) addr);
+	put_fs_long(tmp->b, 1 + (u_int32_t *) addr);
 	put_fs_word(tmp->exponent, 4 + (short *) addr);
 }
 
@@ -865,7 +865,7 @@ put_long_int(const temp_real * tmp,
 	/*verify_area(addr,4);*/
 	if (ti.sign)
 		ti.a = -ti.a;
-	put_fs_long(ti.a,(unsigned long *) addr);
+	put_fs_long(ti.a,(u_int32_t *) addr);
 }
 
 static void
@@ -883,8 +883,8 @@ put_longlong_int(const temp_real * tmp,
 			"addl $1,%0 ; adcl $0,%1"
 			:"=r" (ti.a),"=r" (ti.b)
 			:"0" (ti.a),"1" (ti.b));
-	put_fs_long(ti.a,(unsigned long *) addr);
-	put_fs_long(ti.b,1 + (unsigned long *) addr);
+	put_fs_long(ti.a,(u_int32_t *) addr);
+	put_fs_long(ti.b,1 + (u_int32_t *) addr);
 }
 
 #define DIV10(low,high,rem) \
@@ -934,7 +934,7 @@ shift(int * c)
 		"movl 4(%0),%%eax ; adcl %%eax,4(%0)\n\t"
 		"movl 8(%0),%%eax ; adcl %%eax,8(%0)\n\t"
 		"movl 12(%0),%%eax ; adcl %%eax,12(%0)"
-		::"r" ((long) c):"ax");
+		::"r" (c):"ax");
 }
 
 static void
@@ -958,7 +958,7 @@ mul64(const temp_real * a, const temp_real * b, int * c)
 		"addl %%eax,4(%2)\n\t"
 		"adcl %%edx,8(%2)\n\t"
 		"adcl $0,12(%2)"
-		::"S" ((long) a),"c" ((long) b),"D" ((long) c)
+		::"S" (a),"c" (b),"D" (c)
 		:"ax","dx");
 }
 
@@ -1009,14 +1009,14 @@ shift_left(int * c)
 		"movl 4(%0),%%eax ; adcl %%eax,4(%0)\n\t"
 		"movl 8(%0),%%eax ; adcl %%eax,8(%0)\n\t"
 		"movl 12(%0),%%eax ; adcl %%eax,12(%0)"
-		::"r" ((long) c):"ax");
+		::"r" (c):"ax");
 }
 
 static void
 shift_right(int * c)
 {
 	__asm__("shrl $1,12(%0) ; rcrl $1,8(%0) ; rcrl $1,4(%0) ; rcrl $1,(%0)"
-		::"r" ((long) c));
+		::"r" (c));
 }
 
 static int
@@ -1028,7 +1028,7 @@ try_sub(int * a, int * b)
 		"movl 4(%1),%%eax ; sbbl %%eax,4(%2)\n\t"
 		"movl 8(%1),%%eax ; sbbl %%eax,8(%2)\n\t"
 		"movl 12(%1),%%eax ; sbbl %%eax,12(%2)\n\t"
-		"setae %%al":"=a" (ok):"c" ((long) a),"d" ((long) b));
+		"setae %%al":"=a" (ok):"c" (a),"d" (b));
 	return ok;
 }
 
@@ -1312,7 +1312,7 @@ long_to_temp(const long_real * a, temp_real * b)
 	b->exponent = ((a->b >> 20) & 0x7ff)-1023+16383;
 	if (a->b<0)
 		b->exponent |= 0x8000;
-	b->b = 0x80000000UL | (a->b<<11) | (((unsigned long)a->a)>>21);
+	b->b = 0x80000000UL | (a->b<<11) | (((u_int32_t)a->a)>>21);
 	b->a = a->a<<11;
 }
 
@@ -1323,7 +1323,7 @@ temp_to_short(const temp_real * a, short_real * b)
 		*b = (a->exponent)?0x80000000UL:0;
 		return;
 	}
-	*b = ((((long) a->exponent)-16383+127) << 23) & 0x7f800000;
+	*b = ((((int32_t) a->exponent)-16383+127) << 23) & 0x7f800000;
 	if (a->exponent < 0)
 		*b |= 0x80000000UL;
 	*b |= (a->b >> 8) & 0x007fffff;
@@ -1351,7 +1351,8 @@ temp_to_long(const temp_real * a, long_real * b)
 		b->b = (a->exponent)?0x80000000UL:0;
 		return;
 	}
-	b->b = (((0x7fff & (long) a->exponent)-16383+1023) << 20) & 0x7ff00000;
+	b->b = (((0x7fff & (int32_t) a->exponent)-16383+1023) << 20) &
+	    0x7ff00000;
 	if (a->exponent < 0)
 		b->b |= 0x80000000UL;
 	b->b |= (a->b >> 11) & 0x000fffff;
@@ -1383,7 +1384,7 @@ static void
 frndint(const temp_real * a, temp_real * b)
 {
 	int shift =  16383 + 63 - (a->exponent & 0x7fff);
-	unsigned long underflow;
+	u_int32_t underflow;
 
 	if ((shift < 0) || (shift == 16383+63)) {
 		*b = *a;
@@ -1468,7 +1469,7 @@ static void
 real_to_int(const temp_real * a, temp_int * b)
 {
 	int shift =  16383 + 63 - (a->exponent & 0x7fff);
-	unsigned long underflow;
+	u_int32_t underflow;
 
 	b->a = b->b = underflow = 0;
 	b->sign = (a->exponent < 0);
