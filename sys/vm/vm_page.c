@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)vm_page.c	7.4 (Berkeley) 5/7/91
- *	$Id: vm_page.c,v 1.106 1998/08/24 08:39:38 dfr Exp $
+ *	$Id: vm_page.c,v 1.107 1998/09/04 08:06:57 dfr Exp $
  */
 
 /*
@@ -1099,6 +1099,7 @@ vm_page_freechk_and_unqueue(m)
 				m->wire_count, m->pindex);
 		}
 #endif
+		printf("vm_page_free: freeing wired page\n");
 		m->wire_count = 0;
 		if (m->object)
 			m->object->wire_count--;
