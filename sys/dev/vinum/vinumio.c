@@ -707,7 +707,7 @@ vinum_scandisk(char *devicename)
     /* Open all drives and find which was modified most recently */
     for (cp = devicename; *cp; cp = ep) {
 	char part;					    /* UNIX partition */
-#ifdef __i386__
+#if defined(__i386__) || defined(__amd64__)
 	int slice;
 #endif
 
@@ -729,7 +729,7 @@ vinum_scandisk(char *devicename)
 
 	goodpart = 0;					    /* no partitions on this disk yet */
 	partnamelen = MAXPATHLEN + np - partname;	    /* remaining length in partition name */
-#ifdef __i386__
+#if defined(__i386__) || defined(__amd64__)
 	/* first try the partition table */
 	for (slice = 1; slice < 5; slice++)
 	    for (part = 'a'; part < 'i'; part++) {
