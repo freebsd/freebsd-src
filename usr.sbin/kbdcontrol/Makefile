@@ -2,6 +2,7 @@
 
 PROG=	kbdcontrol
 SRCS=	kbdcontrol.c lex.l
+CFLAGS+= -I${.CURDIR}
 MAN1=	kbdcontrol.1
 MAN5=	kbdmap.5
 MLINKS= kbdmap.5 keymap.5

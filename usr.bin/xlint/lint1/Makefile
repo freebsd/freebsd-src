@@ -7,7 +7,7 @@ SRCS=	cgram.y scan.l mem1.c mem.c err.c main1.c decl.c tree.c func.c \
 NOMAN=
 LDADD+=	-ll
 DPADD+=	${LIBL}
-CFLAGS+=-I.
+CFLAGS+= -I${.CURDIR} -I.
 LINTFLAGS=-aehpz
 
 BINDIR=	/usr/libexec
