@@ -526,9 +526,10 @@ setuid(struct thread *td, struct setuid_args *uap)
 	uid_t uid;
 	int error;
 
-	uid = uap->uid;
 	mtx_lock(&Giant);
-	error = 0;
+	uid = uap->uid;
+	newcred = crget();
+	PROC_LOCK(p);
 	oldcred = p->p_ucred;
 
 	/*
@@ -555,10 +556,14 @@ setuid(struct thread *td, struct setuid_args *uap)
 #ifdef POSIX_APPENDIX_B_4_2_2	/* Use BSD-compat clause from B.4.2.2 */
 	    uid != oldcred->cr_uid &&		/* allow setuid(geteuid()) */
 #endif
-	    (error = suser_cred(oldcred, PRISON_ROOT)) != 0)
-		goto done2;
+	    (error = suser_cred(oldcred, PRISON_ROOT)) != 0) {
+		PROC_UNLOCK(p);
+		crfree(newcred);
+		mtx_unlock(&Giant);
+		return (error);
+	}
 
-	newcred = crdup(oldcred);
+	crcopy(newcred, oldcred);
 #ifdef _POSIX_SAVED_IDS
 	/*
 	 * Do we have "appropriate privileges" (are we root or uid == euid)
@@ -600,10 +605,10 @@ setuid(struct thread *td, struct setuid_args *uap)
 		setsugid(p);
 	}
 	p->p_ucred = newcred;
+	PROC_UNLOCK(p);
 	crfree(oldcred);
-done2:
 	mtx_unlock(&Giant);
-	return (error);
+	return (0);
 }
 
 #ifndef _SYS_SYSPROTO_H_
@@ -625,26 +630,31 @@ seteuid(struct thread *td, struct seteuid_args *uap)
 
 	euid = uap->euid;
 	mtx_lock(&Giant);
-	error = 0;
+	newcred = crget();
+	PROC_LOCK(p);
 	oldcred = p->p_ucred;
 	if (euid != oldcred->cr_ruid &&		/* allow seteuid(getuid()) */
 	    euid != oldcred->cr_svuid &&	/* allow seteuid(saved uid) */
-	    (error = suser_cred(oldcred, PRISON_ROOT)) != 0)
-		goto done2;
+	    (error = suser_cred(oldcred, PRISON_ROOT)) != 0) {
+		PROC_UNLOCK(p);
+		crfree(newcred);
+		mtx_unlock(&Giant);
+		return (error);
+	}
 	/*
 	 * Everything's okay, do it.  Copy credentials so other references do
 	 * not see our changes.
 	 */
-	newcred = crdup(oldcred);
+	crcopy(newcred, oldcred);
 	if (oldcred->cr_uid != euid) {
 		change_euid(newcred, euid);
 		setsugid(p);
 	}
 	p->p_ucred = newcred;
+	PROC_UNLOCK(p);
 	crfree(oldcred);
-done2:
 	mtx_unlock(&Giant);
-	return (error);
+	return (0);
 }
 
 #ifndef _SYS_SYSPROTO_H_
@@ -666,7 +676,8 @@ setgid(struct thread *td, struct setgid_args *uap)
 
 	gid = uap->gid;
 	mtx_lock(&Giant);
-	error = 0;
+	newcred = crget();
+	PROC_LOCK(p);
 	oldcred = p->p_ucred;
 
 	/*
@@ -687,10 +698,14 @@ setgid(struct thread *td, struct setgid_args *uap)
 #ifdef POSIX_APPENDIX_B_4_2_2	/* Use BSD-compat clause from B.4.2.2 */
 	    gid != oldcred->cr_groups[0] && /* allow setgid(getegid()) */
 #endif
-	    (error = suser_cred(oldcred, PRISON_ROOT)) != 0)
-		goto done2;
+	    (error = suser_cred(oldcred, PRISON_ROOT)) != 0) {
+		PROC_UNLOCK(p);
+		crfree(newcred);
+		mtx_unlock(&Giant);
+		return (error);
+	}
 
-	newcred = crdup(oldcred);
+	crcopy(newcred, oldcred);
 #ifdef _POSIX_SAVED_IDS
 	/*
 	 * Do we have "appropriate privileges" (are we root or gid == egid)
@@ -731,10 +746,10 @@ setgid(struct thread *td, struct setgid_args *uap)
 		setsugid(p);
 	}
 	p->p_ucred = newcred;
+	PROC_UNLOCK(p);
 	crfree(oldcred);
-done2:
 	mtx_unlock(&Giant);
-	return (error);
+	return (0);
 }
 
 #ifndef _SYS_SYSPROTO_H_
@@ -756,22 +771,27 @@ setegid(struct thread *td, struct setegid_args *uap)
 
 	egid = uap->egid;
 	mtx_lock(&Giant);
-	error = 0;
+	newcred = crget();
+	PROC_LOCK(p);
 	oldcred = p->p_ucred;
 	if (egid != oldcred->cr_rgid &&		/* allow setegid(getgid()) */
 	    egid != oldcred->cr_svgid &&	/* allow setegid(saved gid) */
-	    (error = suser_cred(oldcred, PRISON_ROOT)) != 0)
-		goto done2;
-	newcred = crdup(oldcred);
+	    (error = suser_cred(oldcred, PRISON_ROOT)) != 0) {
+		PROC_UNLOCK(p);
+		crfree(newcred);
+		mtx_unlock(&Giant);
+		return (error);
+	}
+	crcopy(newcred, oldcred);
 	if (oldcred->cr_groups[0] != egid) {
 		change_egid(newcred, egid);
 		setsugid(p);
 	}
 	p->p_ucred = newcred;
+	PROC_UNLOCK(p);
 	crfree(oldcred);
-done2:
 	mtx_unlock(&Giant);
-	return (error);
+	return (0);
 }
 
 #ifndef _SYS_SYSPROTO_H_
@@ -788,24 +808,39 @@ int
 setgroups(struct thread *td, struct setgroups_args *uap)
 {
 	struct proc *p = td->td_proc;
-	struct ucred *newcred, *oldcred;
+	struct ucred *newcred, *tempcred, *oldcred;
 	u_int ngrp;
 	int error;
 
 	ngrp = uap->gidsetsize;
+	if (ngrp > NGROUPS)
+		return (EINVAL);
 	mtx_lock(&Giant);
-	oldcred = p->p_ucred;
-	if ((error = suser_cred(oldcred, PRISON_ROOT)) != 0)
-		goto done2;
-	if (ngrp > NGROUPS) {
-		error = EINVAL;
-		goto done2;
+	tempcred = crget();
+	error = copyin((caddr_t)uap->gidset, (caddr_t)tempcred->cr_groups,
+	    ngrp * sizeof(gid_t));
+	if (error != 0) {
+		crfree(tempcred);
+		mtx_unlock(&Giant);
+		return (error);
 	}
+	newcred = crget();
+	PROC_LOCK(p);
+	oldcred = p->p_ucred;
+	error = suser_cred(oldcred, PRISON_ROOT);
+	if (error) {
+		PROC_UNLOCK(p);
+		crfree(newcred);
+		crfree(tempcred);
+		mtx_unlock(&Giant);
+		return (error);
+	}
+		
 	/*
 	 * XXX A little bit lazy here.  We could test if anything has
 	 * changed before crcopy() and setting P_SUGID.
 	 */
-	newcred = crdup(oldcred);
+	crcopy(newcred, oldcred);
 	if (ngrp < 1) {
 		/*
 		 * setgroups(0, NULL) is a legitimate way of clearing the
@@ -815,19 +850,17 @@ setgroups(struct thread *td, struct setgroups_args *uap)
 		 */
 		newcred->cr_ngroups = 1;
 	} else {
-		if ((error = copyin((caddr_t)uap->gidset,
-		    (caddr_t)newcred->cr_groups, ngrp * sizeof(gid_t)))) {
-			crfree(newcred);
-			goto done2;
-		}
+		bcopy(tempcred->cr_groups, newcred->cr_groups,
+		    ngrp * sizeof(gid_t));
 		newcred->cr_ngroups = ngrp;
 	}
 	setsugid(p);
 	p->p_ucred = newcred;
+	PROC_UNLOCK(p);
+	crfree(tempcred);
 	crfree(oldcred);
-done2:
 	mtx_unlock(&Giant);
-	return (error);
+	return (0);
 }
 
 #ifndef _SYS_SYSPROTO_H_
@@ -851,15 +884,20 @@ setreuid(register struct thread *td, struct setreuid_args *uap)
 	euid = uap->euid;
 	ruid = uap->ruid;
 	mtx_lock(&Giant);
-	error = 0;
+	newcred = crget();
+	PROC_LOCK(p);
 	oldcred = p->p_ucred;
 	if (((ruid != (uid_t)-1 && ruid != oldcred->cr_ruid &&
 	      ruid != oldcred->cr_svuid) ||
 	     (euid != (uid_t)-1 && euid != oldcred->cr_uid &&
 	      euid != oldcred->cr_ruid && euid != oldcred->cr_svuid)) &&
-	    (error = suser_cred(oldcred, PRISON_ROOT)) != 0)
-		goto done2;
-	newcred = crdup(oldcred);
+	    (error = suser_cred(oldcred, PRISON_ROOT)) != 0) {
+		PROC_UNLOCK(p);
+		crfree(newcred);
+		mtx_unlock(&Giant);
+		return (error);
+	}
+	crcopy(newcred, oldcred);
 	if (euid != (uid_t)-1 && oldcred->cr_uid != euid) {
 		change_euid(newcred, euid);
 		setsugid(p);
@@ -874,10 +912,10 @@ setreuid(register struct thread *td, struct setreuid_args *uap)
 		setsugid(p);
 	}
 	p->p_ucred = newcred;
+	PROC_UNLOCK(p);
 	crfree(oldcred);
-done2:
 	mtx_unlock(&Giant);
-	return (error);
+	return (0);
 }
 
 #ifndef _SYS_SYSPROTO_H_
@@ -901,15 +939,21 @@ setregid(register struct thread *td, struct setregid_args *uap)
 	egid = uap->egid;
 	rgid = uap->rgid;
 	mtx_lock(&Giant);
-	error = 0;
+	newcred = crget();
+	PROC_LOCK(p);
 	oldcred = p->p_ucred;
 	if (((rgid != (gid_t)-1 && rgid != oldcred->cr_rgid &&
 	    rgid != oldcred->cr_svgid) ||
 	     (egid != (gid_t)-1 && egid != oldcred->cr_groups[0] &&
 	     egid != oldcred->cr_rgid && egid != oldcred->cr_svgid)) &&
-	    (error = suser_cred(oldcred, PRISON_ROOT)) != 0)
-		goto done2;
-	newcred = crdup(oldcred);
+	    (error = suser_cred(oldcred, PRISON_ROOT)) != 0) {
+		PROC_UNLOCK(p);
+		crfree(newcred);
+		mtx_unlock(&Giant);
+		return (error);
+	}
+
+	crcopy(newcred, oldcred);
 	if (egid != (gid_t)-1 && oldcred->cr_groups[0] != egid) {
 		change_egid(newcred, egid);
 		setsugid(p);
@@ -924,10 +968,10 @@ setregid(register struct thread *td, struct setregid_args *uap)
 		setsugid(p);
 	}
 	p->p_ucred = newcred;
+	PROC_UNLOCK(p);
 	crfree(oldcred);
-done2:
 	mtx_unlock(&Giant);
-	return (error);
+	return (0);
 }
 
 /*
@@ -958,6 +1002,8 @@ setresuid(register struct thread *td, struct setresuid_args *uap)
 	ruid = uap->ruid;
 	suid = uap->suid;
 	mtx_lock(&Giant);
+	newcred = crget();
+	PROC_LOCK(p);
 	oldcred = p->p_ucred;
 	if (((ruid != (uid_t)-1 && ruid != oldcred->cr_ruid &&
 	     ruid != oldcred->cr_svuid &&
@@ -968,9 +1014,14 @@ setresuid(register struct thread *td, struct setresuid_args *uap)
 	     (suid != (uid_t)-1 && suid != oldcred->cr_ruid &&
 	    suid != oldcred->cr_svuid &&
 	      suid != oldcred->cr_uid)) &&
-	    (error = suser_cred(oldcred, PRISON_ROOT)) != 0)
-		goto done2;
-	newcred = crdup(oldcred);
+	    (error = suser_cred(oldcred, PRISON_ROOT)) != 0) {
+		PROC_UNLOCK(p);
+		crfree(newcred);
+		mtx_unlock(&Giant);
+		return (error);
+	}
+
+	crcopy(newcred, oldcred);
 	if (euid != (uid_t)-1 && oldcred->cr_uid != euid) {
 		change_euid(newcred, euid);
 		setsugid(p);
@@ -984,11 +1035,10 @@ setresuid(register struct thread *td, struct setresuid_args *uap)
 		setsugid(p);
 	}
 	p->p_ucred = newcred;
+	PROC_UNLOCK(p);
 	crfree(oldcred);
-	error = 0;
-done2:
 	mtx_unlock(&Giant);
-	return (error);
+	return (0);
 }
 
 /*
@@ -1019,6 +1069,8 @@ setresgid(register struct thread *td, struct setresgid_args *uap)
 	rgid = uap->rgid;
 	sgid = uap->sgid;
 	mtx_lock(&Giant);
+	newcred = crget();
+	PROC_LOCK(p);
 	oldcred = p->p_ucred;
 	if (((rgid != (gid_t)-1 && rgid != oldcred->cr_rgid &&
 	      rgid != oldcred->cr_svgid &&
@@ -1029,9 +1081,14 @@ setresgid(register struct thread *td, struct setresgid_args *uap)
 	     (sgid != (gid_t)-1 && sgid != oldcred->cr_rgid &&
 	      sgid != oldcred->cr_svgid &&
 	      sgid != oldcred->cr_groups[0])) &&
-	    (error = suser_cred(oldcred, PRISON_ROOT)) != 0)
-		goto done2;
-	newcred = crdup(oldcred);
+	    (error = suser_cred(oldcred, PRISON_ROOT)) != 0) {
+		PROC_UNLOCK(p);
+		crfree(newcred);
+		mtx_unlock(&Giant);
+		return (error);
+	}
+
+	crcopy(newcred, oldcred);
 	if (egid != (gid_t)-1 && oldcred->cr_groups[0] != egid) {
 		change_egid(newcred, egid);
 		setsugid(p);
@@ -1045,11 +1102,10 @@ setresgid(register struct thread *td, struct setresgid_args *uap)
 		setsugid(p);
 	}
 	p->p_ucred = newcred;
+	PROC_UNLOCK(p);
 	crfree(oldcred);
-	error = 0;
-done2:
 	mtx_unlock(&Giant);
-	return (error);
+	return (0);
 }
 
 #ifndef _SYS_SYSPROTO_H_
@@ -1147,27 +1203,27 @@ int
 __setugid(struct thread *td, struct __setugid_args *uap)
 {
 #ifdef REGRESSION
-	int error;
+	struct proc *p;
 
-	mtx_lock(&Giant);
-	error = 0;
+	p = td->td_proc;
 	switch (uap->flag) {
 	case 0:
-		PROC_LOCK(td->td_proc);
-		td->td_proc->p_flag &= ~P_SUGID;
-		PROC_UNLOCK(td->td_proc);
-		break;
+		mtx_lock(&Giant);
+		PROC_LOCK(p);
+		p->p_flag &= ~P_SUGID;
+		PROC_UNLOCK(p);
+		mtx_unlock(&Giant);
+		return (0);
 	case 1:
-		PROC_LOCK(td->td_proc);
-		td->td_proc->p_flag |= P_SUGID;
-		PROC_UNLOCK(td->td_proc);
-		break;
+		mtx_lock(&Giant);
+		PROC_LOCK(p);
+		p->p_flag |= P_SUGID;
+		PROC_UNLOCK(p);
+		mtx_unlock(&Giant);
+		return (0);
 	default:
-		error = EINVAL;
-		break;
+		return (EINVAL);
 	}
-	mtx_unlock(&Giant);
-	return (error);
 #else /* !REGRESSION */
 
 	return (ENOSYS);
@@ -1799,9 +1855,9 @@ setlogin(struct thread *td, struct setlogin_args *uap)
 	int error;
 	char logintmp[MAXLOGNAME];
 
-	mtx_lock(&Giant);
-	if ((error = suser_cred(td->td_ucred, PRISON_ROOT)) != 0)
-		goto done2;
+	error = suser_cred(td->td_ucred, PRISON_ROOT);
+	if (error)
+		return (error);
 	error = copyinstr((caddr_t) uap->namebuf, (caddr_t) logintmp,
 	    sizeof(logintmp), (size_t *)0);
 	if (error == ENAMETOOLONG)
@@ -1814,8 +1870,6 @@ setlogin(struct thread *td, struct setlogin_args *uap)
 		SESS_UNLOCK(p->p_session);
 		PROC_UNLOCK(p);
 	}
-done2:
-	mtx_unlock(&Giant);
 	return (error);
 }
 
