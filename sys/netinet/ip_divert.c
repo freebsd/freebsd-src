@@ -46,6 +46,7 @@
 #include <sys/kernel.h>
 #include <sys/malloc.h>
 #include <sys/mbuf.h>
+#include <sys/proc.h>
 #include <sys/socket.h>
 #include <sys/protosw.h>
 #include <sys/socketvar.h>
@@ -485,7 +486,8 @@ div_pcblist(SYSCTL_HANDLER_ARGS)
 	s = splnet();
 	for (inp = LIST_FIRST(divcbinfo.listhead), i = 0; inp && i < n;
 	     inp = LIST_NEXT(inp, inp_list)) {
-		if (inp->inp_gencnt <= gencnt && !prison_xinpcb(req->p, inp))
+		if (inp->inp_gencnt <= gencnt && !prison_xinpcb(
+		    req->td->td_proc, inp))
 			inp_list[i++] = inp;
 	}
 	splx(s);
