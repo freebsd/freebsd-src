@@ -1091,7 +1091,7 @@ pmap_pinit(pmap)
 	 * page directory table.
 	 */
 	if (pmap->pm_pdir == NULL) {
-		pmap->pm_pdir = (pd_entry_t *)kmem_alloc_pageable(kernel_map,
+		pmap->pm_pdir = (pd_entry_t *)kmem_alloc_nofault(kernel_map,
 		    NBPTD);
 #ifdef PAE
 		pmap->pm_pdpt = uma_zalloc(pdptzone, M_WAITOK | M_ZERO);
@@ -1102,13 +1102,6 @@ pmap_pinit(pmap)
 		    ("pmap_pinit: pdpt above 4g"));
 #endif
 	}
-
-	/*
-	 * allocate object for the ptes
-	 */
-	if (pmap->pm_pteobj == NULL)
-		pmap->pm_pteobj = vm_object_allocate(OBJT_DEFAULT, PTDPTDI +
-		    NPGPTD);
 
 	/*
 	 * allocate the page directory page(s)
@@ -1187,9 +1180,10 @@ _pmap_allocpte(pmap, ptepindex)
 	/*
 	 * Find or fabricate a new pagetable page
 	 */
-	VM_OBJECT_LOCK(pmap->pm_pteobj);
-	m = vm_page_grab(pmap->pm_pteobj, ptepindex,
-	    VM_ALLOC_WIRED | VM_ALLOC_ZERO | VM_ALLOC_RETRY);
+	m = vm_page_alloc(NULL, ptepindex,
+	    VM_ALLOC_WIRED | VM_ALLOC_ZERO | VM_ALLOC_NOOBJ);
+	if (m == NULL)
+		return (m);
 	if ((m->flags & PG_ZERO) == 0)
 		pmap_zero_page(m);
 
@@ -1218,7 +1212,6 @@ _pmap_allocpte(pmap, ptepindex)
 	vm_page_flag_clear(m, PG_ZERO);
 	vm_page_wakeup(m);
 	vm_page_unlock_queues();
-	VM_OBJECT_UNLOCK(pmap->pm_pteobj);
 
 	return m;
 }
@@ -1234,7 +1227,7 @@ pmap_allocpte(pmap_t pmap, vm_offset_t va)
 	 * Calculate pagetable page index
 	 */
 	ptepindex = va >> PDRSHIFT;
-
+retry:
 	/*
 	 * Get the page directory entry
 	 */
@@ -1257,12 +1250,16 @@ pmap_allocpte(pmap_t pmap, vm_offset_t va)
 	if (ptepa) {
 		m = PHYS_TO_VM_PAGE(ptepa);
 		m->hold_count++;
-		return m;
+	} else {
+		/*
+		 * Here if the pte page isn't mapped, or if it has
+		 * been deallocated. 
+		 */
+		m = _pmap_allocpte(pmap, ptepindex);
+		if (m == NULL)
+			goto retry;
 	}
-	/*
-	 * Here if the pte page isn't mapped, or if it has been deallocated.
-	 */
-	return _pmap_allocpte(pmap, ptepindex);
+	return (m);
 }
 
 
@@ -2086,6 +2083,7 @@ pmap_enter_quick(pmap_t pmap, vm_offset_t va, vm_page_t m, vm_page_t mpte)
 		if (mpte && (mpte->pindex == ptepindex)) {
 			mpte->hold_count++;
 		} else {
+retry:
 			/*
 			 * Get the page directory entry
 			 */
@@ -2102,6 +2100,8 @@ pmap_enter_quick(pmap_t pmap, vm_offset_t va, vm_page_t m, vm_page_t mpte)
 				mpte->hold_count++;
 			} else {
 				mpte = _pmap_allocpte(pmap, ptepindex);
+				if (mpte == NULL)
+					goto retry;
 			}
 		}
 	} else {
