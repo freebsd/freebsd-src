@@ -1,7 +1,7 @@
 # Makefile.i386 -- with config changes.
 # Copyright 1990 W. Jolitz
 #	from: @(#)Makefile.i386	7.1 5/10/91
-#	$Id: Makefile.i386,v 1.113 1998/05/21 19:21:44 eivind Exp $
+#	$Id: Makefile.i386,v 1.114 1998/06/17 15:16:52 bde Exp $
 #
 # Makefile for FreeBSD
 #
@@ -109,7 +109,7 @@ SYSTEM_LD_TAIL= @size ${.TARGET} ; chmod 755 ${.TARGET}
 clean:
 	rm -f *.o *.s eddep errs genassym gensetdefs kernel linterrs \
 	      makelinks param.c setdefs.h symbols.exclude symbols.sort tags \
-	      vers.c vnode_if.c vnode_if.h ${CLEAN}
+	      vers.c vnode_if.c vnode_if.h .vnode_if_created ${CLEAN}
 
 #lint: /tmp param.c
 #	@lint -hbxn -DGENERIC -Dvolatile= ${COPTS} ${PARAM} \
@@ -230,10 +230,12 @@ vers.o: $S/sys/param.h ${SYSTEM_DEP} ${SYSTEM_SWAP_DEP}
 	sh $S/conf/newvers.sh ${KERN_IDENT} ${IDENT}
 	${CC} ${CFLAGS} -c vers.c
 
-vnode_if.c: $S/kern/vnode_if.sh $S/kern/vnode_if.src
+vnode_if.c vnode_if.h: .vnode_if_created
+	touch ${.TARGET}
+
+.vnode_if_created: $S/kern/vnode_if.sh $S/kern/vnode_if.src
 	sh $S/kern/vnode_if.sh $S/kern/vnode_if.src
-vnode_if.h: $S/kern/vnode_if.sh $S/kern/vnode_if.src
-	sh $S/kern/vnode_if.sh $S/kern/vnode_if.src
+	touch ${.TARGET}
 
 .include <bsd.kern.mk>
 
