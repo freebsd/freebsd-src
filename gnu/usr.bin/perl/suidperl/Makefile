@@ -1,5 +1,5 @@
 #
-# $Id: Makefile,v 1.3 1998/09/16 17:25:52 markm Exp $
+# $Id: Makefile,v 1.4 1998/09/22 12:00:58 markm Exp $
 #
 
 PROG=	suidperl
@@ -13,72 +13,54 @@ BINOWN=	root
 BINMODE=4511
 
 CLEANFILES=	config.h config.sh config_h.sh writemain writemain.sh \
-		Config.pm cflags cflags.sh myconfig perlmain.c miniperlmain.c
-CLEANDIRS=	lib ext Porting hints
-
-.include <bsd.prog.mk>
+		Config.pm cflags cflags.sh myconfig perlmain.c miniperlmain.c \
+		autosplit regcomp.c regexec.c ext.libs sperl.c
 
 STATIC_EXT=	DynaLoader/DynaLoader
 
-${PROG}: Config.pm lib/auto/DynaLoader/DynaLoader.a
+.include <bsd.prog.mk>
 
-lib/auto/DynaLoader/DynaLoader.a: Config.pm autosplit
-
-config.h: config_h.sh config.sh
-	sh config_h.sh
-
-config.sh: ${.CURDIR}/../libperl/config.SH-${OBJFORMAT}.${MACHINE_ARCH}
-	ln -sf ${.OODATE} ${.TARGET}
-
-config_h.sh: config_h.SH
-	ln -sf ${.OODATE} ${.TARGET}
-
-cflags.sh: cflags.SH
-	ln -sf ${.OODATE} ${.TARGET}
-
-cflags: cflags.sh
-	sh ${.OODATE}
-
-lib/re.pm: lib ext hints ext/re/re.pm
-	cat ${PERL5SRC}/ext/re/re.pm > ${.OBJDIR}/lib/re.pm
-
-lib/Config.pm: Config.pm
-	cp -p ${.OODATE} ${.TARGET}
-
-myconfig: ${PERL5SRC}/myconfig
-	ln -sf ${.OODATE} ${.TARGET}
-
-Config.pm: myconfig config.sh lib ext hints Porting lib/re.pm
-	miniperl ${PERL5SRC}/configpm \
-		Config.pm Porting/Glossary myconfig config.sh
-
-${.OBJDIR}/miniperlmain.c: miniperlmain.c
-	@ln -sf ${.OODATE} ${.TARGET}
+${PROG}: linkfarm Config.pm autosplit lib/auto/DynaLoader/DynaLoader.a
 
 sperl.c: perl.c
 	@ln -sf ${.OODATE} ${.TARGET}
 
-perlmain.c: ${.OBJDIR}/miniperlmain.c config.sh writemain config.h
+config.h: linkfarm
+	sh config_h.sh
+
+cflags: linkfarm
+	sh cflags.sh
+
+Config.pm: linkfarm
+	miniperl ${PERL5SRC}/configpm \
+		Config.pm Porting/Glossary myconfig config.sh
+	cd lib ; ln -sf ../${.TARGET}
+
+perlmain.c: linkfarm writemain config.h
 	sh writemain lib/auto/DynaLoader/DynaLoader.a > ${.TARGET}
 
-writemain.sh: writemain.SH
-	@ln -sf ${.OODATE} ${.TARGET}
+writemain: linkfarm
+	sh writemain.sh
 
-writemain: writemain.sh
-	sh ${.OODATE}
-
-autosplit: lib ext Porting hints
+autosplit: linkfarm Config.pm lib/*.pm lib/*/*.pm
 	miniperl -I${.OBJDIR}/lib \
 		-e 'use AutoSplit; autosplit_lib_modules(@ARGV)' \
 		lib/*.pm lib/*/*.pm
+	touch ${.TARGET}
 
 .for I in ${STATIC_EXT}
-lib/auto/${I}.a: cflags lib/Config.pm ${DEPEND_H}
+ext/${I:H}/Makefile: linkfarm ext/${I:H}/Makefile.PL cflags Config.pm
 	cd ext/${I:H}; \
 	miniperl -I${.OBJDIR}/lib Makefile.PL \
-		INSTALLDIRS=perl PERL_SRC=${.OBJDIR}; \
-	make -B config PERL_SRC=${.OBJDIR}; \
-	make -B all LINKTYPE=static PERL_SRC=${.OBJDIR}
+		LINKTYPE=static INSTALLDIRS=perl PERL_SRC=${.OBJDIR} \
+		LIBS="-lperl" INSTALLMAN3DIR=${DESTDIR}/usr/share/perl/man3; \
+	make -B config PERL_SRC=${.OBJDIR}
+
+lib/auto/${I}.a: linkfarm ext/${I:H}/Makefile
+	cd ext/${I:H}; \
+	make -B all PERL_SRC=${.OBJDIR}
+
+all:	lib/auto/${I}.a
 
 STATICS+=	lib/auto/${I}.a
 .endfor
