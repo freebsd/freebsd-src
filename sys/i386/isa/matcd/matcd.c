@@ -623,6 +623,8 @@ int	matcdopen(dev_t dev, int flags, int fmt,
 
 	if (ldrive >= TOTALDRIVES) return(ENXIO);
 
+	dev->si_bsize_phys = 2048;
+	dev->si_bsize_max = MAXBSIZE;
 
 #ifdef DEBUGOPEN
 	printf("matcd%d: Open: dev %x partition %x controller %x flags %x cdrive %x\n",
