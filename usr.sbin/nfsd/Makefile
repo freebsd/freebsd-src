@@ -10,7 +10,7 @@ LDADD+=	-lutil
 	|| defined(MAKE_EBONES))
 CFLAGS+=-DKERBEROS
 DPADD=	${LIBKRB} ${LIBDES}
-LDADD=	-lkrb -ldes
+LDADD+=	-lkrb -ldes
 DISTRIBUTION=	krb
 .endif
 
