@@ -118,7 +118,7 @@ static void ArchFree(void *);
 static struct ar_hdr *ArchStatMember(char *, char *, Boolean);
 static FILE *ArchFindMember(char *, char *, struct ar_hdr *, char *);
 #if defined(__svr4__) || defined(__SVR4) || defined(__ELF__)
-#define SVR4ARCHIVES
+#define	SVR4ARCHIVES
 static int ArchSVR4Entry(Arch *, char *, size_t, FILE *);
 #endif
 
@@ -467,7 +467,7 @@ ArchStatMember (archive, member, hash)
     Boolean	  hash;	      /* TRUE if archive should be hashed if not
     			       * already so. */
 {
-#define AR_MAX_NAME_LEN	    (sizeof(arh.ar_name)-1)
+#define	AR_MAX_NAME_LEN	    (sizeof(arh.ar_name)-1)
     FILE *	  arch;	      /* Stream to archive */
     int		  size;       /* Size of archive member */
     char	  *cp;	      /* Useful character pointer */
@@ -687,8 +687,8 @@ ArchSVR4Entry(ar, name, size, arch)
 	size_t size;
 	FILE *arch;
 {
-#define ARLONGNAMES1 "//"
-#define ARLONGNAMES2 "/ARFILENAMES"
+#define	ARLONGNAMES1 "//"
+#define	ARLONGNAMES2 "/ARFILENAMES"
     size_t entry;
     char *ptr, *eptr;
 

@@ -45,7 +45,7 @@
  *	Header for using the list library
  */
 #ifndef _LST_H_
-#define _LST_H_
+#define	_LST_H_
 
 #include	<sys/param.h>
 #include	<stdlib.h>
@@ -63,11 +63,11 @@ typedef	struct	LstNode	*LstNode;
  *	not to be freed.
  * NOCOPY performs similarly when given as the copyProc to Lst_Duplicate.
  */
-#define NOFREE		((void (*)(void *)) 0)
-#define NOCOPY		((void * (*)(void *)) 0)
+#define	NOFREE		((void (*)(void *)) 0)
+#define	NOCOPY		((void * (*)(void *)) 0)
 
-#define LST_CONCNEW	0   /* create new LstNode's when using Lst_Concat */
-#define LST_CONCLINK	1   /* relink LstNode's when using Lst_Concat */
+#define	LST_CONCNEW	0   /* create new LstNode's when using Lst_Concat */
+#define	LST_CONCLINK	1   /* relink LstNode's when using Lst_Concat */
 
 /*
  * Creation/destruction functions

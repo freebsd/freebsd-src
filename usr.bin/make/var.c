@@ -125,30 +125,30 @@ GNode          *VAR_CMD;      /* variables defined on the command-line */
 
 static Lst	allVars;      /* List of all variables */
 
-#define FIND_CMD	0x1   /* look in VAR_CMD when searching */
-#define FIND_GLOBAL	0x2   /* look in VAR_GLOBAL as well */
-#define FIND_ENV  	0x4   /* look in the environment also */
+#define	FIND_CMD	0x1   /* look in VAR_CMD when searching */
+#define	FIND_GLOBAL	0x2   /* look in VAR_GLOBAL as well */
+#define	FIND_ENV  	0x4   /* look in the environment also */
 
 typedef struct Var {
     char          *name;	/* the variable's name */
     Buffer	  val;	    	/* its value */
     int	    	  flags;    	/* miscellaneous status flags */
-#define VAR_IN_USE	1   	    /* Variable's value currently being used.
+#define	VAR_IN_USE	1   	    /* Variable's value currently being used.
 				     * Used to avoid recursion */
-#define VAR_FROM_ENV	2   	    /* Variable comes from the environment */
-#define VAR_JUNK  	4   	    /* Variable is a junk variable that
+#define	VAR_FROM_ENV	2   	    /* Variable comes from the environment */
+#define	VAR_JUNK  	4   	    /* Variable is a junk variable that
 				     * should be destroyed when done with
 				     * it. Used by Var_Parse for undefined,
 				     * modified variables */
 }  Var;
 
 /* Var*Pattern flags */
-#define VAR_SUB_GLOBAL	0x01	/* Apply substitution globally */
-#define VAR_SUB_ONE	0x02	/* Apply substitution to one word */
-#define VAR_SUB_MATCHED	0x04	/* There was a match */
-#define VAR_MATCH_START	0x08	/* Match at start of word */
-#define VAR_MATCH_END	0x10	/* Match at end of word */
-#define VAR_NOSUBST	0x20	/* don't expand vars in VarGetPattern */
+#define	VAR_SUB_GLOBAL	0x01	/* Apply substitution globally */
+#define	VAR_SUB_ONE	0x02	/* Apply substitution to one word */
+#define	VAR_SUB_MATCHED	0x04	/* There was a match */
+#define	VAR_MATCH_START	0x08	/* Match at start of word */
+#define	VAR_MATCH_END	0x10	/* Match at end of word */
+#define	VAR_NOSUBST	0x20	/* don't expand vars in VarGetPattern */
 
 typedef struct {
     char    	  *lhs;	    /* String to match */
@@ -1150,7 +1150,7 @@ VarRESubstitute(word, addSpace, buf, patternp)
     int added;
     int flags = 0;
 
-#define MAYBE_ADD_SPACE()		\
+#define	MAYBE_ADD_SPACE()		\
 	if (addSpace && !added)		\
 	    Buf_AddByte(buf, ' ');	\
 	added = 1
@@ -1334,7 +1334,7 @@ VarGetPattern(ctxt, err, tstr, delim, flags, length, pattern)
     if (length == NULL)
 	length = &junk;
 
-#define IS_A_MATCH(cp, delim) \
+#define	IS_A_MATCH(cp, delim) \
     ((cp[0] == '\\') && ((cp[1] == delim) ||  \
      (cp[1] == '\\') || (cp[1] == '$') || (pattern && (cp[1] == '&'))))
 

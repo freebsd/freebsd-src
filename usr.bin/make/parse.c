@@ -1259,7 +1259,7 @@ Parse_IsVar (line)
     Boolean wasSpace = FALSE;	/* set TRUE if found a space */
     Boolean haveName = FALSE;	/* Set TRUE if have a variable name */
     int level = 0;
-#define ISEQOPERATOR(c) \
+#define	ISEQOPERATOR(c) \
 	(((c) == '+') || ((c) == ':') || ((c) == '?') || ((c) == '!'))
 
     /*

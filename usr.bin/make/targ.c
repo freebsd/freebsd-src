@@ -92,7 +92,7 @@ static Lst        allTargets;	/* the list of all targets found so far */
 static Lst	  allGNs;	/* List of all the GNodes */
 static Hash_Table targets;	/* a hash table of same */
 
-#define HTSIZE	191		/* initial size of hash table */
+#define	HTSIZE	191		/* initial size of hash table */
 
 static int TargPrintOnlySrc(void *, void *);
 static int TargPrintName(void *, void *);
@@ -487,8 +487,8 @@ Targ_PrintType (type)
 {
     int    tbit;
 
-#define PRINTBIT(attr)	case CONCAT(OP_,attr): printf("." #attr " "); break
-#define PRINTDBIT(attr) case CONCAT(OP_,attr): if (DEBUG(TARG)) printf("." #attr " "); break
+#define	PRINTBIT(attr)	case CONCAT(OP_,attr): printf("." #attr " "); break
+#define	PRINTDBIT(attr) case CONCAT(OP_,attr): if (DEBUG(TARG)) printf("." #attr " "); break
 
     type &= ~OP_OPMASK;
 
