@@ -6,7 +6,7 @@
  * this stuff is worth it, you can buy me a beer in return.   Poul-Henning Kamp
  * ----------------------------------------------------------------------------
  *
- * $Id: tst01.c,v 1.7 1995/04/30 11:04:16 phk Exp $
+ * $Id: tst01.c,v 1.8 1995/05/01 04:05:26 phk Exp $
  *
  */
 
@@ -22,8 +22,6 @@
 #endif
 #include <sys/types.h>
 #include "libdisk.h"
-
-CHAR_N;
 
 u_char mbr[] = {
 250,51,192,142,208,188,0,124,139,244,80,7,80,31,251,252,191,0,6,185,0,1,

@@ -6,7 +6,7 @@
  * this stuff is worth it, you can buy me a beer in return.   Poul-Henning Kamp
  * ----------------------------------------------------------------------------
  *
- * $Id: disk.c,v 1.12 1995/05/02 20:16:16 jkh Exp $
+ * $Id: disk.c,v 1.13 1995/05/03 06:30:55 phk Exp $
  *
  */
 
@@ -25,6 +25,18 @@
 
 #define DOSPTYP_EXTENDED        5
 #define DOSPTYP_ONTRACK         84      
+
+char *chunk_n[] = {
+	"whole",
+	"unknown",
+	"fat",
+	"freebsd",
+	"extended",
+	"part",
+	"unused",
+	"reserved",
+	NULL
+};
 
 struct disk *
 Open_Disk(char *name)
