@@ -126,8 +126,8 @@ struct ata_pci_controller {
 #define ATA_PDC20265		0x0d30105a
 #define ATA_PDC20267		0x4d30105a
 #define ATA_PDC20268		0x4d68105a
-#define ATA_PDC20268R		0x6268105a
 #define ATA_PDC20269		0x4d69105a
+#define ATA_PDC20270		0x6268105a
 #define ATA_PDC20271		0x6269105a
 #define ATA_PDC20275		0x1275105a
 #define ATA_PDC20276		0x5275105a
