@@ -7,7 +7,7 @@ SUBDIR= adjkerntz badsect ccdconfig clri disklabel dmesg dset dump dumpfs \
 	modunload mount mount_cd9660 mount_ext2fs \
 	mount_lfs mount_nfs mount_null mount_portal mount_std \
 	mount_umap mount_union mountd newfs newlfs nfsd nfsiod \
-	nologin ping quotacheck rdisc reboot restore route savecore scsi \
+	nologin ping quotacheck reboot restore route routed savecore scsi \
 	scsiformat shutdown slattach startslip swapon tunefs umount
 
 .if exists(${.CURDIR}/${MACHINE})
