@@ -607,12 +607,14 @@ void
 enable_K5_wt_alloc(void)
 {
 	u_int64_t	msr;
+	int		intrstate;
 
 	/*
 	 * Write allocate is supported only on models 1, 2, and 3, with
 	 * a stepping of 4 or greater.
 	 */
 	if (((cpu_id & 0xf0) > 0) && ((cpu_id & 0x0f) > 3)) {
+		intrstate = save_intr();
 		disable_intr();
 		msr = rdmsr(0x83);		/* HWCR */
 		wrmsr(0x83, msr & !(0x10));
@@ -645,7 +647,7 @@ enable_K5_wt_alloc(void)
 		msr=rdmsr(0x83);
 		wrmsr(0x83, msr|0x10); /* enable write allocate */
 
-		enable_intr();
+		restore_intr(intrstate);
 	}
 }
 
@@ -708,7 +710,6 @@ enable_K6_wt_alloc(void)
 	wrmsr(0x0c0000082, whcr);
 
 	write_eflags(eflags);
-	enable_intr();
 }
 
 void
@@ -770,7 +771,6 @@ enable_K6_2_wt_alloc(void)
 	wrmsr(0x0c0000082, whcr);
 
 	write_eflags(eflags);
-	enable_intr();
 }
 #endif /* I585_CPU && CPU_WT_ALLOC */
 

@@ -73,189 +73,6 @@ _tlb_flush_count:	.long	0
 
 	.text
 
-/*
- * When no processes are on the runq, cpu_switch() branches to _idle
- * to wait for something to come ready.
- */
-	ALIGN_TEXT
-	.type	_idle,@function
-_idle:
-	xorl	%ebp,%ebp
-	movl	%ebp,_switchtime
-
-#ifdef SMP
-
-	/* when called, we have the mplock, intr disabled */
-	/* use our idleproc's "context" */
-	movl	_IdlePTD, %ecx
-	movl	%cr3, %eax
-	cmpl	%ecx, %eax
-	je		2f
-#if defined(SWTCH_OPTIM_STATS)
-	decl	_swtch_optim_stats
-	incl	_tlb_flush_count
-#endif
-	movl	%ecx, %cr3
-2:
-	/* Keep space for nonexisting return addr, or profiling bombs */
-	movl	$gd_idlestack_top-4, %ecx	
-	addl	%fs:0, %ecx
-	movl	%ecx, %esp
-
-	/* update common_tss.tss_esp0 pointer */
-	movl	%ecx, _common_tss + TSS_ESP0
-
-	movl	_cpuid, %esi
-	btrl	%esi, _private_tss
-	jae	1f
-
-	movl	$gd_common_tssd, %edi
-	addl	%fs:0, %edi
-
-	/* move correct tss descriptor into GDT slot, then reload tr */
-	movl	_tss_gdt, %ebx			/* entry in GDT */
-	movl	0(%edi), %eax
-	movl	%eax, 0(%ebx)
-	movl	4(%edi), %eax
-	movl	%eax, 4(%ebx)
-	movl	$GPROC0_SEL*8, %esi		/* GSEL(entry, SEL_KPL) */
-	ltr	%si
-1:
-
-	sti
-
-	/*
-	 * XXX callers of cpu_switch() do a bogus splclock().  Locking should
-	 * be left to cpu_switch().
-	 *
-	 * NOTE: spl*() may only be called while we hold the MP lock (which 
-	 * we do).
-	 */
-	call	_spl0
-
-	cli
-
-	/*
-	 * _REALLY_ free the lock, no matter how deep the prior nesting.
-	 * We will recover the nesting on the way out when we have a new
-	 * proc to load.
-	 *
-	 * XXX: we had damn well better be sure we had it before doing this!
-	 */
-	movl	$FREE_LOCK, %eax
-	movl	%eax, _mp_lock
-
-	/* do NOT have lock, intrs disabled */
-	.globl	idle_loop
-idle_loop:
-
-	cmpl	$0,_smp_active
-	jne	1f
-	cmpl	$0,_cpuid
-	je	1f
-	jmp	2f
-
-1:
-	call	_procrunnable
-	testl	%eax,%eax
-	jnz	3f
-
-	/*
-	 * Handle page-zeroing in the idle loop.  Called with interrupts
-	 * disabled and the MP lock released.  Inside vm_page_zero_idle
-	 * we enable interrupts and grab the mplock as required.
-	 */
-	cmpl	$0,_do_page_zero_idle
-	je	2f
-
-	call	_vm_page_zero_idle		/* internal locking */
-	testl	%eax, %eax
-	jnz	idle_loop
-2:
-
-	/* enable intrs for a halt */
-	movl	$0, lapic_tpr			/* 1st candidate for an INT */
-	call	*_hlt_vector			/* wait for interrupt */
-	cli
-	jmp	idle_loop
-
-	/*
-	 * Note that interrupts must be enabled while obtaining the MP lock
-	 * in order to be able to take IPI's while blocked.
-	 */
-3:
-	movl	$LOPRIO_LEVEL, lapic_tpr	/* arbitrate for INTs */
-	sti
-	call	_get_mplock
-	cli
-	call	_procrunnable
-	testl	%eax,%eax
-	CROSSJUMP(jnz, sw1a, jz)
-	call	_rel_mplock
-	jmp	idle_loop
-
-#else /* !SMP */
-
-	movl	$HIDENAME(tmpstk),%esp
-#if defined(OVERLY_CONSERVATIVE_PTD_MGMT)
-#if defined(SWTCH_OPTIM_STATS)
-	incl	_swtch_optim_stats
-#endif
-	movl	_IdlePTD, %ecx
-	movl	%cr3, %eax
-	cmpl	%ecx, %eax
-	je		2f
-#if defined(SWTCH_OPTIM_STATS)
-	decl	_swtch_optim_stats
-	incl	_tlb_flush_count
-#endif
-	movl	%ecx, %cr3
-2:
-#endif
-
-	/* update common_tss.tss_esp0 pointer */
-	movl	%esp, _common_tss + TSS_ESP0
-
-	movl	$0, %esi
-	btrl	%esi, _private_tss
-	jae	1f
-
-	movl	$_common_tssd, %edi
-
-	/* move correct tss descriptor into GDT slot, then reload tr */
-	movl	_tss_gdt, %ebx			/* entry in GDT */
-	movl	0(%edi), %eax
-	movl	%eax, 0(%ebx)
-	movl	4(%edi), %eax
-	movl	%eax, 4(%ebx)
-	movl	$GPROC0_SEL*8, %esi		/* GSEL(entry, SEL_KPL) */
-	ltr	%si
-1:
-
-	sti
-
-	/*
-	 * XXX callers of cpu_switch() do a bogus splclock().  Locking should
-	 * be left to cpu_switch().
-	 */
-	call	_spl0
-
-	ALIGN_TEXT
-idle_loop:
-	cli
-	call	_procrunnable
-	testl	%eax,%eax
-	CROSSJUMP(jnz, sw1a, jz)
-	call	_vm_page_zero_idle
-	testl	%eax, %eax
-	jnz	idle_loop
-	call	*_hlt_vector			/* wait for interrupt */
-	jmp	idle_loop
-
-#endif /* SMP */
-
-CROSSJUMPTARGET(_idle)
-
 ENTRY(default_halt)
 	sti
 #ifndef SMP
@@ -264,16 +81,23 @@ ENTRY(default_halt)
 	ret
 
 /*
+ * cpu_throw()
+ */
+ENTRY(cpu_throw)
+	jmp	sw1
+
+/*
  * cpu_switch()
  */
 ENTRY(cpu_switch)
 	
 	/* switch to new process. first, save context as needed */
 	movl	_curproc,%ecx
+	movl	%ecx,_prevproc
 
 	/* if no process to save, don't bother */
 	testl	%ecx,%ecx
-	je	sw1
+	jz	sw1
 
 #ifdef SMP
 	movb	P_ONCPU(%ecx), %al		/* save "last" cpu */
@@ -299,7 +123,7 @@ ENTRY(cpu_switch)
 	movl	%edi,PCB_EDI(%edx)
 	movl	%gs,PCB_GS(%edx)
 
-	/* test if debug regisers should be saved */
+	/* test if debug registers should be saved */
 	movb    PCB_FLAGS(%edx),%al
 	andb    $PCB_DBREGS,%al
 	jz      1f                              /* no, skip over */
@@ -319,15 +143,12 @@ ENTRY(cpu_switch)
 	movl    %eax,PCB_DR0(%edx)
 1:
  
+	/* save sched_lock recursion count */
+	movl	_sched_lock+MTX_RECURSE,%eax
+	movl    %eax,PCB_SCHEDNEST(%edx)
+ 
 #ifdef SMP
-	movl	_mp_lock, %eax
 	/* XXX FIXME: we should be saving the local APIC TPR */
-#ifdef DIAGNOSTIC
-	cmpl	$FREE_LOCK, %eax		/* is it free? */
-	je	badsw4				/* yes, bad medicine! */
-#endif /* DIAGNOSTIC */
-	andl	$COUNT_FIELD, %eax		/* clear CPU portion */
-	movl	%eax, PCB_MPNEST(%edx)		/* store it */
 #endif /* SMP */
 
 #if NNPX > 0
@@ -341,25 +162,33 @@ ENTRY(cpu_switch)
 1:
 #endif	/* NNPX > 0 */
 
-	movl	$0,_curproc			/* out of process */
-
-	/* save is done, now choose a new process or idle */
+	/* save is done, now choose a new process */
 sw1:
-	cli
 
 #ifdef SMP
 	/* Stop scheduling if smp_active goes zero and we are not BSP */
 	cmpl	$0,_smp_active
 	jne	1f
 	cmpl	$0,_cpuid
-	CROSSJUMP(je, _idle, jne)		/* wind down */
+	je	1f
+
+	movl	_idleproc, %eax
+	jmp	sw1b
 1:
 #endif
 
+	/*
+	 * Choose a new process to schedule.  chooseproc() returns idleproc
+	 * if it cannot find another process to run.
+	 */
 sw1a:
 	call	_chooseproc			/* trash ecx, edx, ret eax*/
-	testl	%eax,%eax
-	CROSSJUMP(je, _idle, jne)		/* if no proc, idle */
+
+#ifdef DIAGNOSTIC
+	testl	%eax,%eax			/* no process? */
+	jz	badsw3				/* no, panic */
+#endif
+sw1b:
 	movl	%eax,%ecx
 
 	xorl	%eax,%eax
@@ -456,9 +285,6 @@ sw1a:
 	movl	%ecx, _curproc			/* into next process */
 
 #ifdef SMP
-	movl	_cpu_lockid, %eax
-	orl	PCB_MPNEST(%edx), %eax		/* add next count from PROC */
-	movl	%eax, _mp_lock			/* load the mp_lock */
 	/* XXX FIXME: we should be restoring the local APIC TPR */
 #endif /* SMP */
 
@@ -500,7 +326,22 @@ cpu_switch_load_gs:
 	movl    %eax,%dr7
 1:
 
-	sti
+	/*
+	 * restore sched_lock recursion count and transfer ownership to
+	 * new process
+	 */
+	movl	PCB_SCHEDNEST(%edx),%eax
+	movl	%eax,_sched_lock+MTX_RECURSE
+
+	movl	_curproc,%eax
+	movl	%eax,_sched_lock+MTX_LOCK
+
+#ifdef DIAGNOSTIC
+	pushfl
+	popl	%ecx
+	testl	$0x200, %ecx			/* interrupts enabled? */
+	jnz	badsw6				/* that way madness lies */
+#endif
 	ret
 
 CROSSJUMPTARGET(sw1a)
@@ -517,15 +358,27 @@ badsw2:
 	call	_panic
 
 sw0_2:	.asciz	"cpu_switch: not SRUN"
-#endif
 
-#if defined(SMP) && defined(DIAGNOSTIC)
-badsw4:
-	pushl	$sw0_4
+badsw3:
+	pushl	$sw0_3
 	call	_panic
 
-sw0_4:	.asciz	"cpu_switch: do not have lock"
-#endif /* SMP && DIAGNOSTIC */
+sw0_3:	.asciz	"cpu_switch: chooseproc returned NULL"
+
+#endif
+
+#ifdef DIAGNOSTIC
+badsw5:
+	pushl	$sw0_5
+	call	_panic
+
+sw0_5:	.asciz	"cpu_switch: interrupts enabled (again)"
+badsw6:
+	pushl	$sw0_6
+	call	_panic
+
+sw0_6:	.asciz	"cpu_switch: interrupts enabled"
+#endif
 
 /*
  * savectx(pcb)

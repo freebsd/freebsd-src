@@ -26,6 +26,20 @@
  * $FreeBSD$
  */
 
+#ifndef _MACHINE_GLOBALDATA_H_
+#define _MACHINE_GLOBALDATA_H_
+
+#include <vm/vm.h>
+#include <vm/pmap.h>
+#include <machine/pmap.h>
+#include <machine/segments.h>
+#include <machine/tss.h>
+
+/* XXX */
+#ifdef KTR_PERCPU
+#include <sys/ktr.h>
+#endif
+
 /*
  * This structure maps out the global data that needs to be kept on a
  * per-cpu basis.  genassym uses this to generate offsets for the assembler
@@ -41,11 +55,14 @@
 struct globaldata {
 	struct privatespace *gd_prvspace;	/* self-reference */
 	struct proc	*gd_curproc;
+	struct proc	*gd_prevproc;
 	struct proc	*gd_npxproc;
 	struct pcb	*gd_curpcb;
+	struct proc	*gd_idleproc;
 	struct timeval	gd_switchtime;
 	struct i386tss	gd_common_tss;
 	int		gd_switchticks;
+	int		gd_intr_nesting_level;
 	struct segment_descriptor gd_common_tssd;
 	struct segment_descriptor *gd_tss_gdt;
 #ifdef USER_LDT
@@ -67,7 +84,21 @@ struct globaldata {
 	unsigned	*gd_prv_PADDR1;
 #endif
 	u_int		gd_astpending;
+	SLIST_ENTRY(globaldata) gd_allcpu;
+	int		gd_witness_spin_check;
+#ifdef KTR_PERCPU
+#ifdef KTR
+	volatile int	gd_ktr_idx;
+	char		*gd_ktr_buf;
+	char		gd_ktr_buf_data[KTR_SIZE];
+#endif
+#endif
 };
+
+extern struct globaldata globaldata;
+
+SLIST_HEAD(cpuhead, globaldata);
+extern struct cpuhead cpuhead;
 
 #ifdef SMP
 /*
@@ -93,3 +124,5 @@ struct privatespace {
 extern struct privatespace SMP_prvspace[];
 
 #endif
+
+#endif	/* ! _MACHINE_GLOBALDATA_H_ */

@@ -57,12 +57,14 @@
 #include <sys/vnode.h>
 #include <sys/vmmeter.h>
 #include <sys/kernel.h>
+#include <sys/ktr.h>
 #include <sys/sysctl.h>
 #include <sys/unistd.h>
 
 #include <machine/clock.h>
 #include <machine/cpu.h>
 #include <machine/md_var.h>
+#include <machine/mutex.h>
 #ifdef SMP
 #include <machine/smp.h>
 #endif
@@ -177,9 +179,8 @@ cpu_fork(p1, p2, flags)
 	 * pcb2->pcb_onfault:	cloned above (always NULL here?).
 	 */
 
-#ifdef SMP
-	pcb2->pcb_mpnest = 1;
-#endif
+	pcb2->pcb_schednest = 0;
+
 	/*
 	 * XXX don't copy the i/o pages.  this should probably be fixed.
 	 */
@@ -256,8 +257,11 @@ cpu_exit(p)
                 reset_dbregs();
                 pcb->pcb_flags &= ~PCB_DBREGS;
         }
+	mtx_enter(&sched_lock, MTX_SPIN);
+	mtx_exit(&Giant, MTX_DEF | MTX_NOSWITCH);
+	mtx_assert(&Giant, MA_NOTOWNED);
 	cnt.v_swtch++;
-	cpu_switch(p);
+	cpu_switch();
 	panic("cpu_exit");
 }
 
@@ -406,17 +410,10 @@ vunmapbuf(bp)
 static void
 cpu_reset_proxy()
 {
-	u_int saved_mp_lock;
 
 	cpu_reset_proxy_active = 1;
 	while (cpu_reset_proxy_active == 1)
-		;	 /* Wait for other cpu to disable interupts */
-	saved_mp_lock = mp_lock;
-	mp_lock = 1;
-	printf("cpu_reset_proxy: Grabbed mp lock for BSP\n");
-	cpu_reset_proxy_active = 3;
-	while (cpu_reset_proxy_active == 3)
-		;	/* Wait for other cpu to enable interrupts */
+		;	 /* Wait for other cpu to see that we've started */
 	stop_cpus((1<<cpu_reset_proxyid));
 	printf("cpu_reset_proxy: Stopped CPU %d\n", cpu_reset_proxyid);
 	DELAY(1000000);
@@ -453,6 +450,7 @@ cpu_reset()
 
 			cpu_reset_proxyid = cpuid;
 			cpustop_restartfunc = cpu_reset_proxy;
+			cpu_reset_proxy_active = 0;
 			printf("cpu_reset: Restarting BSP\n");
 			started_cpus = (1<<0);		/* Restart CPU #0 */
 
@@ -461,17 +459,9 @@ cpu_reset()
 				cnt++;	/* Wait for BSP to announce restart */
 			if (cpu_reset_proxy_active == 0)
 				printf("cpu_reset: Failed to restart BSP\n");
-			__asm __volatile("cli" : : : "memory");
+			enable_intr();
 			cpu_reset_proxy_active = 2;
-			cnt = 0;
-			while (cpu_reset_proxy_active == 2 && cnt < 10000000)
-				cnt++;	/* Do nothing */
-			if (cpu_reset_proxy_active == 2) {
-				printf("cpu_reset: BSP did not grab mp lock\n");
-				cpu_reset_real();	/* XXX: Bogus ? */
-			}
-			cpu_reset_proxy_active = 4;
-			__asm __volatile("sti" : : : "memory");
+
 			while (1);
 			/* NOTREACHED */
 		}
@@ -553,7 +543,7 @@ vm_page_zero_idle()
 	static int free_rover;
 	static int zero_state;
 	vm_page_t m;
-	int s;
+	int s, intrsave;
 
 	/*
 	 * Attempt to maintain approximately 1/2 of our free pages in a
@@ -569,11 +559,10 @@ vm_page_zero_idle()
 	if (vm_page_zero_count >= ZIDLE_HI(cnt.v_free_count))
 		return(0);
 
-#ifdef SMP
-	if (try_mplock()) {
-#endif
+	if (mtx_try_enter(&Giant, MTX_DEF)) {
 		s = splvm();
-		__asm __volatile("sti" : : : "memory");
+		intrsave = save_intr();
+		enable_intr();
 		zero_state = 0;
 		m = vm_page_list_find(PQ_FREE, free_rover, FALSE);
 		if (m != NULL && (m->flags & PG_ZERO) == 0) {
@@ -595,14 +584,10 @@ vm_page_zero_idle()
 		}
 		free_rover = (free_rover + PQ_PRIME2) & PQ_L2_MASK;
 		splx(s);
-		__asm __volatile("cli" : : : "memory");
-#ifdef SMP
-		rel_mplock();
-#endif
+		restore_intr(intrsave);
+		mtx_exit(&Giant, MTX_DEF);
 		return (1);
-#ifdef SMP
 	}
-#endif
 	/*
 	 * We have to enable interrupts for a moment if the try_mplock fails
 	 * in order to potentially take an IPI.   XXX this should be in 

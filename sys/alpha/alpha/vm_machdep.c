@@ -84,6 +84,7 @@
 #include <machine/fpu.h>
 #include <machine/md_var.h>
 #include <machine/prom.h>
+#include <machine/mutex.h>
 
 #include <vm/vm.h>
 #include <vm/vm_param.h>
@@ -246,8 +247,10 @@ cpu_exit(p)
 	alpha_fpstate_drop(p);
 
 	(void) splhigh();
+	mtx_enter(&sched_lock, MTX_SPIN);
+	mtx_exit(&Giant, MTX_DEF);
 	cnt.v_swtch++;
-	cpu_switch(p);
+	cpu_switch();
 	panic("cpu_exit");
 }
 
@@ -358,7 +361,7 @@ vunmapbuf(bp)
 }
 
 /*
- * Force reset the processor by invalidating the entire address space!
+ * Reset back to firmware.
  */
 void
 cpu_reset()
@@ -416,7 +419,7 @@ vm_page_zero_idle()
 		return(0);
 
 #ifdef SMP
-	if (try_mplock()) {
+	if (KLOCK_ENTER(M_TRY)) {
 #endif
 		s = splvm();
 		m = vm_page_list_find(PQ_FREE, free_rover, FALSE);
@@ -447,7 +450,7 @@ vm_page_zero_idle()
 		free_rover = (free_rover + PQ_PRIME2) & PQ_L2_MASK;
 		splx(s);
 #ifdef SMP
-		rel_mplock();
+		KLOCK_EXIT;
 #endif
 		return (1);
 #ifdef SMP

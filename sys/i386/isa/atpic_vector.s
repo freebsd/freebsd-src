@@ -53,9 +53,11 @@ IDTVEC(vec_name) ; \
 	pushl	%ecx ; \
 	pushl	%edx ; \
 	pushl	%ds ; \
+	pushl	%fs ; \
 	MAYBE_PUSHL_ES ; \
 	mov	$KDSEL,%ax ; \
 	mov	%ax,%ds ; \
+	mov	%ax,%fs ; \
 	MAYBE_MOVW_AX_ES ; \
 	FAKE_MCOUNT((4+ACTUALLY_PUSHED)*4(%esp)) ; \
 	pushl	_intr_unit + (irq_num) * 4 ; \
@@ -65,18 +67,21 @@ IDTVEC(vec_name) ; \
 	incl	_cnt+V_INTR ;	/* book-keeping can wait */ \
 	movl	_intr_countp + (irq_num) * 4,%eax ; \
 	incl	(%eax) ; \
-	movl	_cpl,%eax ;	/* are we unmasking pending HWIs or SWIs? */ \
+/*	movl	_cpl,%eax ;	// are we unmasking pending SWIs? / \
 	notl	%eax ; \
-	andl	_ipending,%eax ; \
-	jne	2f ; 		/* yes, maybe handle them */ \
+	andl	_spending,$SWI_MASK ; \
+	jne	2f ; 		// yes, maybe handle them */ \
 1: ; \
 	MEXITCOUNT ; \
 	MAYBE_POPL_ES ; \
+	popl	%fs ; \
 	popl	%ds ; \
 	popl	%edx ; \
 	popl	%ecx ; \
 	popl	%eax ; \
 	iret ; \
+
+#if 0
 ; \
 	ALIGN_TEXT ; \
 2: ; \
@@ -88,6 +93,7 @@ IDTVEC(vec_name) ; \
 	incb	_intr_nesting_level ;	/* ... really limit it ... */ \
 	sti ;			/* ... to do this as early as possible */ \
 	MAYBE_POPL_ES ;		/* discard most of thin frame ... */ \
+	popl	%fs ; \
 	popl	%ecx ;		/* ... original %ds ... */ \
 	popl	%edx ; \
 	xchgl	%eax,4(%esp) ;	/* orig %eax; save cpl */ \
@@ -101,11 +107,20 @@ IDTVEC(vec_name) ; \
 	movl	(3+8+0)*4(%esp),%ecx ;	/* ... %ecx from thin frame ... */ \
 	movl	%ecx,(3+6)*4(%esp) ;	/* ... to fat frame ... */ \
 	movl	(3+8+1)*4(%esp),%eax ;	/* ... cpl from thin frame */ \
-	pushl	%eax ; \
 	subl	$4,%esp ;	/* junk for unit number */ \
 	MEXITCOUNT ; \
 	jmp	_doreti
+#endif
 
+/* 
+ * Slow, threaded interrupts.
+ *
+ * XXX Most of the parameters here are obsolete.  Fix this when we're
+ * done.
+ * XXX we really shouldn't return via doreti if we just schedule the
+ * interrupt handler and don't run anything.  We could just do an
+ * iret.  FIXME.
+ */
 #define	INTR(irq_num, vec_name, icu, enable_icus, reg, maybe_extra_ipending) \
 	.text ; \
 	SUPERALIGN_TEXT ; \
@@ -116,8 +131,8 @@ IDTVEC(vec_name) ; \
 	pushl	%ds ;		/* save our data and extra segments ... */ \
 	pushl	%es ; \
 	pushl	%fs ; \
-	mov	$KDSEL,%ax ;	/* ... and reload with kernel's own ... */ \
-	mov	%ax,%ds ;	/* ... early for obsolete reasons */ \
+	mov	$KDSEL,%ax ;	/* load kernel ds, es and fs */ \
+	mov	%ax,%ds ; \
 	mov	%ax,%es ; \
 	mov	%ax,%fs ; \
 	maybe_extra_ipending ; \
@@ -126,43 +141,37 @@ IDTVEC(vec_name) ; \
 	movb	%al,_imen + IRQ_BYTE(irq_num) ; \
 	outb	%al,$icu+ICU_IMR_OFFSET ; \
 	enable_icus ; \
-	movl	_cpl,%eax ; \
-	testb	$IRQ_BIT(irq_num),%reg ; \
-	jne	2f ; \
-	incb	_intr_nesting_level ; \
+	incb	_intr_nesting_level ; /* XXX do we need this? */ \
 __CONCAT(Xresume,irq_num): ; \
 	FAKE_MCOUNT(13*4(%esp)) ;	/* XXX late to avoid double count */ \
-	incl	_cnt+V_INTR ;	/* tally interrupts */ \
-	movl	_intr_countp + (irq_num) * 4,%eax ; \
-	incl	(%eax) ; \
-	movl	_cpl,%eax ; \
-	pushl	%eax ; \
-	pushl	_intr_unit + (irq_num) * 4 ; \
-	orl	_intr_mask + (irq_num) * 4,%eax ; \
-	movl	%eax,_cpl ; \
+	pushl	$irq_num; 	/* pass the IRQ */ \
 	sti ; \
-	call	*_intr_handler + (irq_num) * 4 ; \
-	cli ;			/* must unmask _imen and icu atomically */ \
-	movb	_imen + IRQ_BYTE(irq_num),%al ; \
-	andb	$~IRQ_BIT(irq_num),%al ; \
-	movb	%al,_imen + IRQ_BYTE(irq_num) ; \
-	outb	%al,$icu+ICU_IMR_OFFSET ; \
-	sti ;			/* XXX _doreti repeats the cli/sti */ \
+	call	_sched_ithd ; \
+	addl	$4, %esp ;	/* discard the parameter */ \
 	MEXITCOUNT ; \
 	/* We could usually avoid the following jmp by inlining some of */ \
 	/* _doreti, but it's probably better to use less cache. */ \
-	jmp	_doreti ; \
-; \
-	ALIGN_TEXT ; \
-2: ; \
-	/* XXX skip mcounting here to avoid double count */ \
-	orb	$IRQ_BIT(irq_num),_ipending + IRQ_BYTE(irq_num) ; \
-	popl	%fs ; \
-	popl	%es ; \
-	popl	%ds ; \
-	popal ; \
-	addl	$4+4,%esp ; \
-	iret
+	jmp	doreti_next	/* and catch up inside doreti */
+
+/*
+ * Reenable the interrupt mask after completing an interrupt.  Called
+ * from ithd_loop.  There are two separate functions, one for each
+ * ICU.
+ */
+       .globl   setimask0, setimask1
+setimask0:
+	cli
+	movb	_imen,%al
+	outb	%al,$IO_ICU1 + ICU_IMR_OFFSET
+	sti
+	ret
+
+setimask1:
+	cli
+	movb	_imen + 1,%al
+	outb	%al,$IO_ICU2 + ICU_IMR_OFFSET
+	sti
+	ret
 
 MCOUNT_LABEL(bintr)
 	FAST_INTR(0,fastintr0, ENABLE_ICU1)
@@ -181,7 +190,9 @@ MCOUNT_LABEL(bintr)
 	FAST_INTR(13,fastintr13, ENABLE_ICU1_AND_2)
 	FAST_INTR(14,fastintr14, ENABLE_ICU1_AND_2)
 	FAST_INTR(15,fastintr15, ENABLE_ICU1_AND_2)
+
 #define	CLKINTR_PENDING	movl $1,CNAME(clkintr_pending)
+/* Threaded interrupts */
 	INTR(0,intr0, IO_ICU1, ENABLE_ICU1, al, CLKINTR_PENDING)
 	INTR(1,intr1, IO_ICU1, ENABLE_ICU1, al,)
 	INTR(2,intr2, IO_ICU1, ENABLE_ICU1, al,)
@@ -198,6 +209,7 @@ MCOUNT_LABEL(bintr)
 	INTR(13,intr13, IO_ICU2, ENABLE_ICU1_AND_2, ah,)
 	INTR(14,intr14, IO_ICU2, ENABLE_ICU1_AND_2, ah,)
 	INTR(15,intr15, IO_ICU2, ENABLE_ICU1_AND_2, ah,)
+
 MCOUNT_LABEL(eintr)
 
 	.data
@@ -210,11 +222,5 @@ _ihandlers:			/* addresses of interrupt handlers */
 	.long	Xresume12, Xresume13, Xresume14, Xresume15 
 	.long	_swi_null, swi_net, _swi_null, _swi_null
 	.long	_swi_vm, _swi_null, _softclock
-
-imasks:				/* masks for interrupt handlers */
-	.space	NHWI*4		/* padding; HWI masks are elsewhere */
-
-	.long	SWI_TTY_MASK, SWI_NET_MASK, SWI_CAMNET_MASK, SWI_CAMBIO_MASK
-	.long	SWI_VM_MASK, SWI_TQ_MASK, SWI_CLOCK_MASK
 
 	.text

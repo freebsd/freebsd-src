@@ -15,6 +15,9 @@
 
 #ifdef _KERNEL
 
+#ifdef I386_CPU
+#error SMP not supported with I386_CPU
+#endif
 #if defined(SMP) && !defined(APIC_IO)
 # error APIC_IO required for SMP, add "options APIC_IO" to your config file.
 #endif /* SMP && !APIC_IO */
@@ -56,23 +59,6 @@ extern int			bootMP_size;
 
 /* functions in mpboot.s */
 void	bootMP			__P((void));
-
-/* global data in mplock.s */
-extern u_int			mp_lock;
-extern u_int			isr_lock;
-#ifdef RECURSIVE_MPINTRLOCK
-extern u_int			mpintr_lock;
-#endif /*  RECURSIVE_MPINTRLOCK */
-
-/* functions in mplock.s */
-void	get_mplock		__P((void));
-void	rel_mplock		__P((void));
-int		try_mplock		__P((void));
-#ifdef RECURSIVE_MPINTRLOCK
-void	get_mpintrlock		__P((void));
-void	rel_mpintrlock		__P((void));
-int		try_mpintrlock		__P((void));
-#endif /*  RECURSIVE_MPINTRLOCK */
 
 /* global data in apic_vector.s */
 extern volatile u_int		stopped_cpus;
@@ -185,23 +171,7 @@ extern int			smp_started;
 extern volatile int		smp_idle_loops;
 
 #endif /* !LOCORE */
-#else	/* !SMP && !APIC_IO */
-
-/*
- * Create dummy MP lock empties
- */
-
-static __inline void
-get_mplock(void)
-{
-}
-
-static __inline void
-rel_mplock(void)
-{
-}
-
-#endif
+#endif /* SMP && !APIC_IO */
 
 #endif /* _KERNEL */
 #endif /* _MACHINE_SMP_H_ */

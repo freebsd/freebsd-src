@@ -43,6 +43,8 @@
  *	@(#)clock.c	8.1 (Berkeley) 6/10/93
  */
 
+#include "opt_clock.h"
+
 #include <sys/cdefs.h>			/* RCS ID & Copyright macro defns */
 
 #include <sys/param.h>
@@ -80,8 +82,23 @@ int	disable_rtc_set;	/* disable resettodr() if != 0 */
 int	wall_cmos_clock;	/* wall	CMOS clock assumed if != 0 */
 static	int	beeping = 0;
 
-extern int cycles_per_sec;
+#define	TIMER_DIV(x) ((timer_freq + (x) / 2) / (x))
 
+#ifndef TIMER_FREQ
+#define TIMER_FREQ   1193182
+#endif
+u_int32_t timer_freq = TIMER_FREQ;
+int	timer0_max_count;
+
+static	u_int32_t i8254_lastcount;
+static	u_int32_t i8254_offset;
+static	int	i8254_ticked;
+static	int	clkintr_pending = 0;
+
+extern int cycles_per_sec;
+extern int ncpus;
+
+static timecounter_get_t	i8254_get_timecount;
 static timecounter_get_t	alpha_get_timecount;
 
 static struct timecounter alpha_timecounter = {
@@ -94,6 +111,17 @@ static struct timecounter alpha_timecounter = {
 
 SYSCTL_OPAQUE(_debug, OID_AUTO, alpha_timecounter, CTLFLAG_RD, 
 	&alpha_timecounter, sizeof(alpha_timecounter), "S,timecounter", "");
+
+static struct timecounter i8254_timecounter = {
+	i8254_get_timecount,	/* get_timecount */
+	0,			/* no poll_pps */
+	~0u,			/* counter_mask */
+	0,			/* frequency */
+	"i8254"			/* name */
+};
+
+SYSCTL_OPAQUE(_debug, OID_AUTO, i8254_timecounter, CTLFLAG_RD, 
+	&i8254_timecounter, sizeof(i8254_timecounter), "S,timecounter", "");
 
 /* Values for timerX_state: */
 #define	RELEASED	0
@@ -120,11 +148,14 @@ static u_int32_t max_cycles_per_tick;
 static u_int32_t last_time;
 
 static void handleclock(void* arg);
-static u_int32_t calibrate_clocks(u_int32_t firmware_freq);
+static void calibrate_clocks(u_int32_t firmware_freq,
+			     u_int32_t *pcc, u_int32_t *timer);
+static void set_timer_freq(u_int freq, int intr_freq);
 
 void
 clockattach(device_t dev)
 {
+	u_int32_t pcc, freq, delta;
 
 	/*
 	 * Just bookkeeping.
@@ -132,7 +163,33 @@ clockattach(device_t dev)
 	if (clockdev)
 		panic("clockattach: multiple clocks");
 	clockdev = dev;
-	cycles_per_sec = calibrate_clocks(cycles_per_sec);
+
+	calibrate_clocks(cycles_per_sec, &pcc, &freq);
+	cycles_per_sec = pcc;
+
+	/*
+	 * Use the calibrated i8254 frequency if it seems reasonable.
+	 * Otherwise use the default, and don't use the calibrated i586
+	 * frequency.
+	 */
+	delta = freq > timer_freq ? freq - timer_freq : timer_freq - freq;
+	if (delta < timer_freq / 100) {
+#ifndef CLK_USE_I8254_CALIBRATION
+		if (bootverbose)
+			printf(
+"CLK_USE_I8254_CALIBRATION not specified - using default frequency\n");
+		freq = timer_freq;
+#endif
+		timer_freq = freq;
+	} else {
+		if (bootverbose)
+			printf(
+		    "%d Hz differs from default of %d Hz by more than 1%%\n",
+			       freq, timer_freq);
+	}
+	set_timer_freq(timer_freq, hz);
+	i8254_timecounter.tc_frequency = timer_freq;
+
 #ifdef EVCNT_COUNTERS
 	evcnt_attach(dev, "intr", &clock_intr_evcnt);
 #endif
@@ -190,8 +247,12 @@ cpu_initclocks()
 	scaled_ticks_per_cycle = ((u_int64_t)hz << FIX_SHIFT) / freq;
 	max_cycles_per_tick = 2*freq / hz;
 
-	alpha_timecounter.tc_frequency = freq;
-	tc_init(&alpha_timecounter);
+	tc_init(&i8254_timecounter);
+
+	if (ncpus == 1) {
+		alpha_timecounter.tc_frequency = freq;
+		tc_init(&alpha_timecounter);
+	}
 
 	stathz = 128;
 	platform.clockintr = (void (*) __P((void *))) handleclock;
@@ -202,14 +263,35 @@ cpu_initclocks()
 	CLOCK_INIT(clockdev);
 }
 
-static u_int32_t
-calibrate_clocks(u_int32_t firmware_freq)
+static int
+getit(void)
+{
+	int high, low;
+	int s;
+
+	s = splhigh();
+
+	/* Select timer0 and latch counter value. */
+	outb(TIMER_MODE, TIMER_SEL0 | TIMER_LATCH);
+
+	low = inb(TIMER_CNTR0);
+	high = inb(TIMER_CNTR0);
+
+	splx(s);
+	return ((high << 8) | low);
+}
+
+static void
+calibrate_clocks(u_int32_t firmware_freq, u_int32_t *pcc, u_int32_t *timer)
 {
 	u_int32_t start_pcc, stop_pcc;
+	u_int count, prev_count, tot_count;
 	int sec, start_sec;
 
 	if (bootverbose)
 	        printf("Calibrating clock(s) ... ");
+
+	set_timer_freq(timer_freq, hz);
 
 	/* Read the mc146818A seconds counter. */
 	if (CLOCK_GETSECS(clockdev, &sec))
@@ -224,16 +306,36 @@ calibrate_clocks(u_int32_t firmware_freq)
 			break;
 	}
 
-	/* Start keeping track of the PCC. */
+	/* Start keeping track of the PCC and i8254. */
+	prev_count = getit();
+	if (prev_count == 0)
+		goto fail;
+	tot_count = 0;
+
 	start_pcc = alpha_rpcc();
 
 	/*
-	 * Wait for the mc146818A seconds counter to change.
+	 * Wait for the mc146818A seconds counter to change.  Read the i8254
+	 * counter for each iteration since this is convenient and only
+	 * costs a few usec of inaccuracy. The timing of the final reads
+	 * of the counters almost matches the timing of the initial reads,
+	 * so the main cause of inaccuracy is the varying latency from 
+	 * inside getit() or rtcin(RTC_STATUSA) to the beginning of the
+	 * rtcin(RTC_SEC) that returns a changed seconds count.  The
+	 * maximum inaccuracy from this cause is < 10 usec on 486's.
 	 */
 	start_sec = sec;
 	for (;;) {
 		if (CLOCK_GETSECS(clockdev, &sec))
 			goto fail;
+		count = getit();
+		if (count == 0)
+			goto fail;
+		if (count > prev_count)
+			tot_count += prev_count - (count - timer0_max_count);
+		else
+			tot_count += prev_count - count;
+		prev_count = count;
 		if (sec != start_sec)
 			break;
 	}
@@ -246,29 +348,55 @@ calibrate_clocks(u_int32_t firmware_freq)
 	if (bootverbose) {
 	        printf("PCC clock: %u Hz (firmware %u Hz)\n",
 		       stop_pcc - start_pcc, firmware_freq);
+	        printf("i8254 clock: %u Hz\n", tot_count);
 	}
-	return (stop_pcc - start_pcc);
+	*pcc = stop_pcc - start_pcc;
+	*timer = tot_count;
+	return;
 
 fail:
 	if (bootverbose)
 	        printf("failed, using firmware default of %u Hz\n",
 		       firmware_freq);
-	return (firmware_freq);
+
+	*pcc = firmware_freq;
+	*timer = 0;
+	return;
+}
+
+static void
+set_timer_freq(u_int freq, int intr_freq)
+{
+	int new_timer0_max_count;
+	int s;
+
+	s = splhigh();
+	timer_freq = freq;
+	new_timer0_max_count = TIMER_DIV(intr_freq);
+	if (new_timer0_max_count != timer0_max_count) {
+		timer0_max_count = new_timer0_max_count;
+		outb(TIMER_MODE, TIMER_SEL0 | TIMER_RATEGEN | TIMER_16BIT);
+		outb(TIMER_CNTR0, timer0_max_count & 0xff);
+		outb(TIMER_CNTR0, timer0_max_count >> 8);
+	}
+	splx(s);
 }
 
 static void
 handleclock(void* arg)
 {
-	u_int32_t now = alpha_rpcc();
-	u_int32_t delta = now - last_time;
-	last_time = now;
-
-	if (delta > max_cycles_per_tick) {
-		int i, missed_ticks;
-		missed_ticks = (delta * scaled_ticks_per_cycle) >> FIX_SHIFT;
-		for (i = 0; i < missed_ticks; i++)
-			hardclock(arg);
+	if (timecounter->tc_get_timecount == i8254_get_timecount) {
+		int s = splhigh();
+		if (i8254_ticked)
+			i8254_ticked = 0;
+		else {
+			i8254_offset += timer0_max_count;
+			i8254_lastcount = 0;
+		}
+		clkintr_pending = 0;
+		splx(s);
 	}
+
 	hardclock(arg);
 	setdelayed();
 }
@@ -433,6 +561,35 @@ resettodr()
 }
 
 static unsigned
+i8254_get_timecount(struct timecounter *tc)
+{
+	u_int count;
+	u_int high, low;
+	int s;
+
+	s = splhigh();
+
+	/* Select timer0 and latch counter value. */
+	outb(TIMER_MODE, TIMER_SEL0 | TIMER_LATCH);
+
+	low = inb(TIMER_CNTR0);
+	high = inb(TIMER_CNTR0);
+	count = timer0_max_count - ((high << 8) | low);
+	if (count < i8254_lastcount ||
+	    (!i8254_ticked && (clkintr_pending ||
+	    ((count < 20) && (inb(IO_ICU1) & 1)))
+	    )) {
+		i8254_ticked = 1;
+		i8254_offset += timer0_max_count;
+	}
+	i8254_lastcount = count;
+	count += i8254_offset;
+
+	splx(s);
+	return (count);
+}
+
+static unsigned
 alpha_get_timecount(struct timecounter* tc)
 {
     return alpha_rpcc();
@@ -476,15 +633,6 @@ sysbeepstop(void *chan)
 	release_timer2();
 	beeping = 0;
 }
-
-/*
- * Frequency of all three count-down timers; (TIMER_FREQ/freq) is the
- * appropriate count to generate a frequency of freq hz.
- */
-#ifndef TIMER_FREQ
-#define	TIMER_FREQ	1193182
-#endif
-#define TIMER_DIV(x) ((TIMER_FREQ+(x)/2)/(x))
 
 int
 sysbeep(int pitch, int period)

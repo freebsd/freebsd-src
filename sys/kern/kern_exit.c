@@ -349,7 +349,6 @@ exit1(p, rv)
 	 *
 	 * Other substructures are freed from wait().
 	 */
-	SET_CURPROC(NULL);
 	if (--p->p_limit->p_refcnt == 0) {
 		FREE(p->p_limit, M_SUBPROC);
 		p->p_limit = NULL;

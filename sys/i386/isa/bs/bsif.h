@@ -208,17 +208,10 @@ static BS_INLINE void memcopy __P((void *from, void *to, register size_t len));
 u_int32_t bs_adapter_info __P((int));
 #define delay(y) DELAY(y)
 extern int dma_init_flag;
-#ifdef SMP
-#error XXX see comments in i386/isa/bs/bsif.h for details
-/*
- * ipending is 'opaque' in SMP, and can't be accessed this way.
- * Since its my belief that this is PC98 code, and that PC98 and SMP
- * are mutually exclusive, the above compile-time error is the "fix".
- * Please inform smp@freebsd.org if this is NOT the case.
- */
-#else
+
 #define softintr(y) ipending |= (1 << y)
-#endif /* SMP */
+
+#endif /* IPENDING */
 
 static BS_INLINE void
 memcopy(from, to, len)

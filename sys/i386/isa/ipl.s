@@ -44,7 +44,6 @@
  * AT/386
  * Vector interrupt control section
  *
- *  cpl		- Current interrupt disable mask
  *  *_imask	- Interrupt masks for various spl*() functions
  *  ipending	- Pending interrupts (set when a masked interrupt occurs)
  */
@@ -53,8 +52,6 @@
 	ALIGN_DATA
 
 /* current priority (all off) */
-	.globl	_cpl
-_cpl:	.long	HWI_MASK | SWI_MASK
 
 	.globl	_tty_imask
 _tty_imask:	.long	SWI_TTY_MASK
@@ -71,9 +68,9 @@ _softnet_imask:	.long	SWI_NET_MASK
 	.globl	_softtty_imask
 _softtty_imask:	.long	SWI_TTY_MASK
 
-/* pending interrupts blocked by splxxx() */
-	.globl	_ipending
-_ipending:	.long	0
+/* pending software interrupts */
+	.globl	_spending
+_spending:	.long	0
 
 /* set with bits for which queue to service */
 	.globl	_netisr
@@ -100,58 +97,29 @@ _netisrs:
 _doreti:
 	FAKE_MCOUNT(_bintr)		/* init "from" _bintr -> _doreti */
 	addl	$4,%esp			/* discard unit number */
-	popl	%eax			/* cpl or cml to restore */
 doreti_next:
-	/*
-	 * Check for pending HWIs and SWIs atomically with restoring cpl
-	 * and exiting.  The check has to be atomic with exiting to stop
-	 * (ipending & ~cpl) changing from zero to nonzero while we're
-	 * looking at it (this wouldn't be fatal but it would increase
-	 * interrupt latency).  Restoring cpl has to be atomic with exiting
-	 * so that the stack cannot pile up (the nesting level of interrupt
-	 * handlers is limited by the number of bits in cpl).
-	 */
-#ifdef SMP
-	cli				/* early to prevent INT deadlock */
-doreti_next2:
-#endif
-	movl	%eax,%ecx
-	notl	%ecx			/* set bit = unmasked level */
-#ifndef SMP
-	cli
-#endif
-	andl	_ipending,%ecx		/* set bit = unmasked pending INT */
-	jne	doreti_unpend
-	movl	%eax,_cpl
 	decb	_intr_nesting_level
 
 	/* Check for ASTs that can be handled now. */
 	testl	$AST_PENDING,_astpending
-	je	doreti_exit
-	testb	$SEL_RPL_MASK,TF_CS(%esp)
-	jne	doreti_ast
-	testl	$PSL_VM,TF_EFLAGS(%esp)
-	je	doreti_exit
-	cmpl	$1,_in_vm86call
-	jne	doreti_ast
+	je	doreti_exit		/* no AST, exit */
+	testb	$SEL_RPL_MASK,TF_CS(%esp)  /* are we in user mode? */
+	jne	doreti_ast		/* yes, do it now. */
+	testl	$PSL_VM,TF_EFLAGS(%esp) /* kernel mode */
+	je	doreti_exit		/* and not VM86 mode, defer */
+	cmpl	$1,_in_vm86call		/* are we in a VM86 call? */
+	jne	doreti_ast		/* yes, we can do it */
 
 	/*
-	 * doreti_exit -	release MP lock, pop registers, iret.
+	 * doreti_exit:	release MP lock, pop registers, iret.
 	 *
-	 *	Note that the syscall trap shotcuts to doreti_syscall_ret.
+	 *	Note that the syscall trap shortcuts to doreti_syscall_ret.
 	 *	The segment register pop is a special case, since it may
 	 *	fault if (for example) a sigreturn specifies bad segment
-	 *	registers.  The fault is handled in trap.c
+	 *	registers.  The fault is handled in trap.c.
 	 */
-
 doreti_exit:
 	MEXITCOUNT
-
-#ifdef SMP
-	/* release the kernel lock */
-	movl	$_mp_lock, %edx		/* GIANT_LOCK */
-	call	_MPrellock_edx
-#endif /* SMP */
 
 	.globl	doreti_popl_fs
 	.globl	doreti_syscall_ret
@@ -170,6 +138,13 @@ doreti_popl_ds:
 doreti_iret:
 	iret
 
+  	/*
+	 * doreti_iret_fault and friends.  Alternative return code for
+	 * the case where we get a fault in the doreti_exit code
+	 * above.  trap() (i386/i386/trap.c) catches this specific
+	 * case, sends the process a signal and continues in the
+	 * corresponding place in the code below.
+	 */
 	ALIGN_TEXT
 	.globl	doreti_iret_fault
 doreti_iret_fault:
@@ -189,93 +164,11 @@ doreti_popl_fs_fault:
 	jmp	alltraps_with_regs_pushed
 
 	ALIGN_TEXT
-doreti_unpend:
-	/*
-	 * Enabling interrupts is safe because we haven't restored cpl yet.
-	 * %ecx contains the next probable ready interrupt (~cpl & ipending)
-	 */
-#ifdef SMP
-	bsfl	%ecx, %ecx		/* locate the next dispatchable int */
-	lock
-	btrl	%ecx, _ipending		/* is it really still pending? */
-	jnc	doreti_next2		/* some intr cleared memory copy */
-	sti				/* late to prevent INT deadlock */
-#else
-	sti
-	bsfl	%ecx,%ecx		/* slow, but not worth optimizing */
-	btrl	%ecx,_ipending
-	jnc	doreti_next		/* some intr cleared memory copy */
-#endif /* SMP */
-	/*
-	 * Execute handleable interrupt
-	 *
-	 * Set up JUMP to _ihandlers[%ecx] for HWIs.
-	 * Set up CALL of _ihandlers[%ecx] for SWIs.
-	 * This is a bit early for the SMP case - we have to push %ecx and
-	 * %edx, but could push only %ecx and load %edx later.
-	 */
-	movl	_ihandlers(,%ecx,4),%edx
-	cmpl	$NHWI,%ecx
-	jae	doreti_swi		/* software interrupt handling */
-	cli				/* else hardware int handling */
-#ifdef SMP
-	movl	%eax,_cpl		/* same as non-smp case right now */
-#else
-	movl	%eax,_cpl
-#endif
-	MEXITCOUNT
-#ifdef APIC_INTR_DIAGNOSTIC
-	lock
-	incl	CNAME(apic_itrace_doreti)(,%ecx,4)
-#ifdef APIC_INTR_DIAGNOSTIC_IRQ	
-	cmpl	$APIC_INTR_DIAGNOSTIC_IRQ,%ecx
-	jne	9f
-	pushl	%eax
-	pushl	%ecx
-	pushl	%edx
-	pushl	$APIC_ITRACE_DORETI
-	call	log_intr_event
-	addl	$4,%esp
-	popl	%edx
-	popl	%ecx
-	popl	%eax
-9:	
-#endif
-#endif
-	jmp	*%edx
-
-	ALIGN_TEXT
-doreti_swi:
-	pushl	%eax
-	/*
-	 * At least the SWI_CLOCK handler has to run at a possibly strictly
-	 * lower cpl, so we have to restore
-	 * all the h/w bits in cpl now and have to worry about stack growth.
-	 * The worst case is currently (30 Jan 1994) 2 SWI handlers nested
-	 * in dying interrupt frames and about 12 HWIs nested in active
-	 * interrupt frames.  There are only 4 different SWIs and the HWI
-	 * and SWI masks limit the nesting further.
-	 *
-	 * The SMP case is currently the same as the non-SMP case.
-	 */
-#ifdef SMP
-	orl	imasks(,%ecx,4), %eax	/* or in imasks */
-	movl	%eax,_cpl		/* set cpl for call */
-#else
-	orl	imasks(,%ecx,4),%eax
-	movl	%eax,_cpl
-#endif
-	call	*%edx
-	popl	%eax			/* cpl to restore */
-	jmp	doreti_next
-
-	ALIGN_TEXT
 doreti_ast:
 	andl	$~AST_PENDING,_astpending
 	sti
 	movl	$T_ASTFLT,TF_TRAPNO(%esp)
-	call	_trap
-	subl	%eax,%eax		/* recover cpl|cml */
+	call	_ast
 	movb	$1,_intr_nesting_level	/* for doreti_next to decrement */
 	jmp	doreti_next
 

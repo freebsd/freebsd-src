@@ -35,8 +35,9 @@
 
 #include <sys/param.h>
 #include <sys/systm.h>
+#include <machine/mutex.h>
+#include <sys/ktr.h>
 #include <sys/sysproto.h>
-#include <sys/signalvar.h>
 #include <sys/kernel.h>
 #include <sys/proc.h>
 #include <sys/exec.h>
@@ -58,6 +59,8 @@
 #include <machine/reg.h>
 #include <machine/pal.h>
 #include <machine/fpu.h>
+#include <machine/smp.h>
+#include <machine/mutex.h>
 
 #ifdef KTRACE
 #include <sys/uio.h>
@@ -69,8 +72,6 @@
 #endif
 
 u_int32_t want_resched;
-u_int32_t astpending;
-struct proc *fpcurproc;		/* current user of the FPU */
 
 void		userret __P((struct proc *, u_int64_t, u_quad_t));
 
@@ -201,6 +202,11 @@ trap(a0, a1, a2, entry, framep)
 	u_quad_t sticks;
 	int user;
 
+	/*
+	 * Find our per-cpu globals.
+	 */
+	globalp = (struct globaldata *) alpha_pal_rdval();
+
 	cnt.v_trap++;
 	p = curproc;
 	ucode = 0;
@@ -233,9 +239,12 @@ trap(a0, a1, a2, entry, framep)
 		 * and per-process unaligned-access-handling flags).
 		 */
 		if (user) {
-			if ((i = unaligned_fixup(a0, a1, a2, p)) == 0)
+			mtx_enter(&Giant, MTX_DEF);
+			if ((i = unaligned_fixup(a0, a1, a2, p)) == 0) {
+				mtx_exit(&Giant, MTX_DEF);
 				goto out;
-
+			}
+			mtx_exit(&Giant, MTX_DEF);
 			ucode = a0;		/* VA */
 			break;
 		}
@@ -259,9 +268,13 @@ trap(a0, a1, a2, entry, framep)
 		 * is not requested or if the completion fails.
 		 */
 		if (user) {
+			mtx_enter(&Giant, MTX_DEF);
 			if (a0 & EXCSUM_SWC)
-				if (fp_software_completion(a1, p))
+				if (fp_software_completion(a1, p)) {
+					mtx_exit(&Giant, MTX_DEF);
 					goto out;
+				}
+			mtx_exit(&Giant, MTX_DEF);
 			i = SIGFPE;
 			ucode =  a0;		/* exception summary */
 			break;
@@ -364,6 +377,7 @@ trap(a0, a1, a2, entry, framep)
 			vm_prot_t ftype = 0;
 			int rv;
 
+			mtx_enter(&Giant, MTX_DEF);
 			/*
 			 * If it was caused by fuswintr or suswintr,
 			 * just punt.  Note that we check the faulting
@@ -379,6 +393,7 @@ trap(a0, a1, a2, entry, framep)
 				framep->tf_regs[FRAME_PC] =
 				    p->p_addr->u_pcb.pcb_onfault;
 				p->p_addr->u_pcb.pcb_onfault = 0;
+				mtx_exit(&Giant, MTX_DEF);
 				goto out;
 			}
 
@@ -489,9 +504,11 @@ trap(a0, a1, a2, entry, framep)
 					rv = KERN_INVALID_ADDRESS;
 			}
 			if (rv == KERN_SUCCESS) {
+				mtx_exit(&Giant, MTX_DEF);
 				goto out;
 			}
 
+			mtx_exit(&Giant, MTX_DEF);
 			if (!user) {
 				/* Check for copyin/copyout fault */
 				if (p != NULL &&
@@ -572,6 +589,12 @@ syscall(code, framep)
 	u_quad_t sticks;
 	u_int64_t args[10];					/* XXX */
 	u_int hidden = 0, nargs;
+
+	/*
+	 * Find our per-cpu globals.
+	 */
+	globalp = (struct globaldata *) alpha_pal_rdval();
+	mtx_enter(&Giant, MTX_DEF);
 
 	framep->tf_regs[FRAME_TRAPARG_A0] = 0;
 	framep->tf_regs[FRAME_TRAPARG_A1] = 0;
@@ -693,6 +716,7 @@ syscall(code, framep)
 	 * is not the case, this code will need to be revisited.
 	 */
 	STOPEVENT(p, S_SCX, code);
+	mtx_exit(&Giant, MTX_DEF);
 }
 
 /*
@@ -712,6 +736,7 @@ child_return(p)
 	if (KTRPOINT(p, KTR_SYSRET))
 		ktrsysret(p->p_tracep, SYS_fork, 0, 0);
 #endif
+	mtx_exit(&Giant, MTX_DEF);
 }
 
 /*
@@ -725,6 +750,8 @@ ast(framep)
 	register struct proc *p;
 	u_quad_t sticks;
 
+	mtx_enter(&Giant, MTX_DEF);
+
 	p = curproc;
 	sticks = p->p_sticks;
 	p->p_md.md_tf = framep;
@@ -734,7 +761,7 @@ ast(framep)
 
 	cnt.v_soft++;
 
-	astpending = 0;
+	PCPU_SET(astpending, 0);
 	if (p->p_flag & P_OWEUPC) {
 		p->p_flag &= ~P_OWEUPC;
 		addupc_task(p, p->p_stats->p_prof.pr_addr,
@@ -742,6 +769,8 @@ ast(framep)
 	}
 
 	userret(p, framep->tf_regs[FRAME_PC], sticks);
+
+	mtx_exit(&Giant, MTX_DEF);
 }
 
 /*

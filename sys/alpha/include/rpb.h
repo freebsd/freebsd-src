@@ -219,7 +219,8 @@ struct rpb {
  * PCS: Per-CPU information.
  */
 struct pcs {
-	u_int8_t	pcs_hwpcb[128];		/*   0: PAL dependent */
+    
+	u_int64_t	pcs_hwpcb[16];		/*   0: PAL dependent */
 
 #define	PCS_BIP			0x000001	/* boot in progress */
 #define	PCS_RC			0x000002	/* restart possible */
@@ -238,12 +239,12 @@ struct pcs {
 #define	PCS_HALT_WARM_BOOT	0x030000
 #define	PCS_HALT_STAY_HALTED	0x040000
 #define	PCS_mbz	      0xffffffffff000000	/* 24:63 -- must be zero */
-	u_int64_t	pcs_flags;		/*  80: */
+	u_int64_t	pcs_flags;		/*  128: */
 
-	u_int64_t	pcs_pal_memsize;	/*  88: PAL memory size */
-	u_int64_t	pcs_pal_scrsize;	/*  90: PAL scratch size */
-	vm_offset_t	pcs_pal_memaddr;	/*  98: PAL memory addr */	
-	vm_offset_t	pcs_pal_scraddr;	/*  A0: PAL scratch addr */
+	u_int64_t	pcs_pal_memsize;	/* 136: PAL memory size */
+	u_int64_t	pcs_pal_scrsize;	/* 144: PAL scratch size */
+	vm_offset_t	pcs_pal_memaddr;	/* 152: PAL memory addr */	
+	vm_offset_t	pcs_pal_scraddr;	/* 160: PAL scratch addr */
 	struct {
 		u_int64_t
 			minorrev	: 8,	/* alphabetic char 'a' - 'z' */
@@ -261,14 +262,14 @@ struct pcs {
 			sbz1		: 8,
 			compatibility	: 16,	/* Compatibility revision */
 			proc_cnt	: 16;	/* Processor count */
-	} pcs_pal_rev;				/*  A8: */
+	} pcs_pal_rev;				/* 168: */
 #define pcs_minorrev	pcs_pal_rev.minorrev	
 #define pcs_majorrev	pcs_pal_rev.majorrev	
 #define pcs_pal_type	pcs_pal_rev.pal_type
 #define pcs_compatibility	pcs_pal_rev.compatibility
 #define pcs_proc_cnt	pcs_pal_rev.proc_cnt
 
-	u_int64_t	pcs_proc_type;		/*  B0: processor type */
+	u_int64_t	pcs_proc_type;		/* 176: processor type */
 
 #define	PCS_PROC_MAJOR		0x00000000ffffffff
 #define	PCS_PROC_MAJORSHIFT	0
@@ -288,23 +289,23 @@ struct pcs {
 
 	/* Minor number interpretation is processor specific.  See cpu.c. */
 
-	u_int64_t	pcs_proc_var;		/* B8: processor variation. */
+	u_int64_t	pcs_proc_var;		/* 184: processor variation. */
 
 #define	PCS_VAR_VAXFP		0x0000000000000001	/* VAX FP support */
 #define	PCS_VAR_IEEEFP		0x0000000000000002	/* IEEE FP support */
 #define	PCS_VAR_PE		0x0000000000000004	/* Primary Eligible */
 #define	PCS_VAR_RESERVED	0xfffffffffffffff8	/* Reserved */
 
-	char		pcs_proc_revision[8];	/*  C0: only first 4 valid */
-	char		pcs_proc_sn[16];	/*  C8: only first 10 valid */
-	vm_offset_t	pcs_machcheck;		/*  D8: mach chk phys addr. */
-	u_int64_t	pcs_machcheck_len;	/*  E0: length in bytes */
-	vm_offset_t	pcs_halt_pcbb;		/*  E8: phys addr of halt PCB */
-	vm_offset_t	pcs_halt_pc;		/*  F0: halt PC */
-	u_int64_t	pcs_halt_ps;		/*  F8: halt PS */
-	u_int64_t	pcs_halt_r25;		/* 100: halt argument list */
-	u_int64_t	pcs_halt_r26;		/* 108: halt return addr list */
-	u_int64_t	pcs_halt_r27;		/* 110: halt procedure value */
+	char		pcs_proc_revision[8];	/* 192: only first 4 valid */
+	char		pcs_proc_sn[16];	/* 200: only first 10 valid */
+	vm_offset_t	pcs_machcheck;		/* 216: mach chk phys addr. */
+	u_int64_t	pcs_machcheck_len;	/* 224: length in bytes */
+	vm_offset_t	pcs_halt_pcbb;		/* 232: pa of halt PCB */
+	vm_offset_t	pcs_halt_pc;		/* 240: halt PC */
+	u_int64_t	pcs_halt_ps;		/* 248: halt PS */
+	u_int64_t	pcs_halt_r25;		/* 256: halt argument list */
+	u_int64_t	pcs_halt_r26;		/* 264: halt ra list */
+	u_int64_t	pcs_halt_r27;		/* 272: halt procedure value */
 
 #define	PCS_HALT_RESERVED		0
 #define	PCS_HALT_POWERUP		1
@@ -315,17 +316,22 @@ struct pcs {
 #define	PCS_HALT_DOUBLE_ERROR_ABORT	6
 #define	PCS_HALT_SCBB			7
 #define	PCS_HALT_PTBR			8	/* 9-FF: reserved */
-	u_int64_t	pcs_halt_reason;	/* 118: */
+	u_int64_t	pcs_halt_reason;	/* 280: */
 
-	u_int64_t	pcs_reserved_soft;	/* 120: preserved software */
-	u_int64_t	pcs_buffer[21];		/* 128: console buffers */
+	u_int64_t	pcs_reserved_soft;	/* 288: preserved software */
+	struct {
+		u_int32_t	rxlen;
+		u_int32_t	txlen;
+		char		rxbuf[80];
+		char		txbuf[80];
+	}		pcs_buffer;		/* 296: console buffers */
 
 #define	PALvar_reserved	0
 #define	PALvar_OpenVMS	1
 #define	PALvar_OSF1	2
-	u_int64_t	pcs_palrevisions[16];	/* 1D0: PALcode revisions */
+	u_int64_t	pcs_palrevisions[16];	/* 464: PALcode revisions */
 
-	u_int64_t	pcs_reserved_arch[6];	/* 250: reserved arch */
+	u_int64_t	pcs_reserved_arch[6];	/* 592: reserved arch */
 };
 
 /*

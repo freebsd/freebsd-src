@@ -86,7 +86,6 @@
  * These defines enable critical region locking of areas that were
  * protected via cli/sti in the UP kernel.
  *
- * MPINTRLOCK protects all the generic areas.
  * COMLOCK protects the sio/cy drivers.
  * CLOCKLOCK protects clock hardware and data
  * known to be incomplete:
@@ -94,7 +93,6 @@
  *	?
  */
 #ifdef PUSHDOWN_LEVEL_1
-#define USE_MPINTRLOCK
 #define USE_COMLOCK
 #define USE_CLOCKLOCK
 #endif
@@ -176,9 +174,8 @@
 
 /*
  * Send CPUSTOP IPI for stop/restart of other CPUs on DDB break.
- *
-#define VERBOSE_CPUSTOP_ON_DDBBREAK
  */
+#define VERBOSE_CPUSTOP_ON_DDBBREAK
 #define CPUSTOP_ON_DDBBREAK
 
 

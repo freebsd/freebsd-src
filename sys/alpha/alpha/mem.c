@@ -261,9 +261,12 @@ mem_modevent(module_t mod, int type, void *data)
 	case MOD_LOAD:
 		if (bootverbose)
 			printf("mem: <memory & I/O>\n");
+/* XXX - ??? */
+#if 0
 		/* Initialise memory range handling */
 		if (mem_range_softc.mr_op != NULL)
 			mem_range_softc.mr_op->init(&mem_range_softc);
+#endif
 
 		memdev = make_dev(&mem_cdevsw, 0, UID_ROOT, GID_KMEM,
 			0640, "mem");

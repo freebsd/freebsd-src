@@ -131,6 +131,7 @@
 #define _Xintr7				Xintr7
 #define _Xintr8				Xintr8
 #define _Xintr9				Xintr9
+#define _Xtintr0			Xtintr0
 #define _Xinvltlb			Xinvltlb
 #define _Xrendezvous			Xrendezvous
 #define _Xmchk				Xmchk
@@ -155,6 +156,7 @@
 #define _arith_invalid			arith_invalid
 #define _arith_overflow			arith_overflow
 #define _arith_underflow		arith_underflow
+#define	_ast				ast
 #define _bcopy				bcopy
 #define _bcopy_vector			bcopy_vector
 #define _bigJump			bigJump
@@ -184,7 +186,6 @@
 #define _cnt				cnt
 #define _copyin_vector			copyin_vector
 #define _copyout_vector			copyout_vector
-#define _cpl				cpl
 #define _cpl_lock			cpl_lock
 #define _cpu				cpu
 #define _cpu0prvpage			cpu0prvpage
@@ -222,6 +223,7 @@
 #define _get_isrlock			get_isrlock
 #define _get_mplock			get_mplock
 #define _get_syscall_lock		get_syscall_lock
+#define	_Giant				Giant
 #define _idle				idle
 #define _ihandlers			ihandlers
 #define _imen				imen
@@ -232,13 +234,11 @@
 #define _intr_countp			intr_countp
 #define _intr_handler			intr_handler
 #define _intr_mask			intr_mask
-#define _intr_nesting_level		intr_nesting_level
 #define _intr_unit			intr_unit
 #define _intrcnt			intrcnt
 #define _intrnames			intrnames
 #define _invltlb_ok			invltlb_ok
 #define _ioapic				ioapic
-#define _ipending			ipending
 #define _isr_lock			isr_lock
 #define _kernelname			kernelname
 #define _lapic				lapic
@@ -249,6 +249,8 @@
 #define _mp_gdtbase			mp_gdtbase
 #define _mp_lock			mp_lock
 #define _mp_ncpus			mp_ncpus
+#define	__mtx_enter_giant_def		_mtx_enter_giant_def
+#define	__mtx_exit_giant_def		_mtx_exit_giant_def
 #define _mul64				mul64
 #define _net_imask			net_imask
 #define _netisr				netisr
@@ -281,6 +283,8 @@
 #define _round_reg			round_reg
 #define _s_lock				s_lock
 #define _s_unlock			s_unlock
+#define _sched_ithd			sched_ithd
+#define	_sched_lock			sched_lock
 #define _set_precision_flag_down	set_precision_flag_down
 #define _set_precision_flag_up		set_precision_flag_up
 #define _set_user_ldt			set_user_ldt
@@ -293,6 +297,7 @@
 #define _softclock			softclock
 #define _softnet_imask			softnet_imask
 #define _softtty_imask			softtty_imask
+#define _spending			spending
 #define _spl0				spl0
 #define _splz				splz
 #define _ss_lock			ss_lock
@@ -326,9 +331,9 @@
 
 #if defined(SMP) || defined(__ELF__)
 #ifdef SMP
-#define	FS(x)	%fs:gd_ ## x
+#define	FS(x)		%fs:gd_ ## x
 #else
-#define	FS(x)	x
+#define	FS(x)		x
 #endif
 
 #define _common_tss			FS(common_tss)
@@ -337,6 +342,8 @@
 #define _cpu_lockid			FS(cpu_lockid)
 #define _curpcb				FS(curpcb)
 #define _curproc			FS(curproc)
+#define _prevproc			FS(prevproc)
+#define	_idleproc			FS(idleproc)
 #define _astpending			FS(astpending)
 #define _currentldt			FS(currentldt)
 #define _inside_intr			FS(inside_intr)
@@ -353,9 +360,16 @@
 #define	_ss_eflags			FS(ss_eflags)
 #define _switchticks			FS(switchticks)
 #define _switchtime			FS(switchtime)
+#define	_intr_nesting_level		FS(intr_nesting_level)
 #define _tss_gdt			FS(tss_gdt)
 #define	_idlestack			FS(idlestack)
 #define	_idlestack_top			FS(idlestack_top)
+#define _witness_spin_check		FS(witness_spin_check)
+/*
+#define	_ktr_idx			FS(ktr_idx)
+#define	_ktr_buf			FS(ktr_buf)
+#define	_ktr_buf_data			FS(ktr_buf_data)
+*/
 
 #endif
 

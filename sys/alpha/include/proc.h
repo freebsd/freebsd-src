@@ -28,6 +28,12 @@
  * rights to redistribute these changes.
  */
 
+#ifndef _MACHINE_PROC_H_
+#define	_MACHINE_PROC_H_
+
+#include <machine/globaldata.h>
+#include <machine/globals.h>
+
 /*
  * Machine-dependent part of the proc struct for the Alpha.
  */
@@ -55,3 +61,5 @@ struct mdproc {
 #define MDP_UAC_SIGBUS	0x0040		/* Deliver SIGBUS upon
 					   unaligned access */
 #define MDP_UAC_MASK	(MDP_UAC_NOPRINT | MDP_UAC_NOFIX | MDP_UAC_SIGBUS)
+
+#endif /* !_MACHINE_PROC_H_ */
