@@ -41,6 +41,7 @@
  */
 
 #include "opt_smp.h"
+#include "mca.h"
 
 #include <sys/param.h>
 #include <sys/systm.h>
@@ -209,6 +210,14 @@ nexus_attach(device_t dev)
 			panic("nexus_attach eisa");
 		device_probe_and_attach(child);
 	}
+#if NMCA > 0
+	if (!devclass_get_device(devclass_find("mca"), 0)) {
+        	child = device_add_child(dev, "mca", 0, 0);
+        	if (child == 0)
+                	panic("nexus_probe mca");
+		device_probe_and_attach(child);
+	}
+#endif
 	if (!devclass_get_device(devclass_find("isa"), 0)) {
 		child = device_add_child(dev, "isa", 0, 0);
 		if (child == NULL)
