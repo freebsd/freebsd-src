@@ -1,6 +1,7 @@
 /*	$NetBSD: ibcs2_utsname.h,v 1.2 1994/10/26 02:53:14 cgd Exp $	*/
+/* $FreeBSD$ */
 
-/*
+/*-
  * Copyright (c) 1994 Scott Bartram
  * All rights reserved.
  *
