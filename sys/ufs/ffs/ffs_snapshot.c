@@ -241,7 +241,7 @@ restart:
 	/*
 	 * Change inode to snapshot type file.
 	 */
-	ip->i_flags |= SF_IMMUTABLE | SF_SNAPSHOT;
+	ip->i_flags |= SF_SNAPSHOT;
 	ip->i_flag |= IN_CHANGE | IN_UPDATE;
 	/*
 	 * Ensure that the snapshot is completely on disk.
@@ -414,7 +414,7 @@ restart:
 		    ino_to_fsbo(fs, xp->i_number);
 		dip->di_size = 0;
 		dip->di_blocks = 0;
-		dip->di_flags &= ~(SF_IMMUTABLE | SF_SNAPSHOT);
+		dip->di_flags &= ~SF_SNAPSHOT;
 		bzero(&dip->di_db[0], (NDADDR + NIADDR) * sizeof(ufs_daddr_t));
 		nbp->b_flags |= B_VALIDSUSPWRT;
 		bdwrite(nbp);
@@ -636,11 +636,9 @@ ffs_snapremove(vp)
 		ip->i_copyonwrite = 0;
 		break;
 	}
-	if (xp == 0) {
+	if (xp == 0)
 		printf("ffs_snapremove: lost snapshot vnode %d\n",
 		    ip->i_number);
-		vref(vp);
-	}
 	if (VTOI(devvp)->i_copyonwrite == 0)
 		devvp->v_flag &= ~VCOPYONWRITE;
 	/*
@@ -673,9 +671,8 @@ ffs_snapremove(vp)
 	/*
 	 * Clear snapshot flag and drop reference.
 	 */
-	ip->i_flags &= ~(SF_IMMUTABLE | SF_SNAPSHOT);
+	ip->i_flags &= ~SF_SNAPSHOT;
 	ip->i_flag |= IN_CHANGE | IN_UPDATE;
-	vrele(vp);
 }
 
 /*
@@ -905,7 +902,8 @@ ffs_snapshot_unmount(mp)
 	while ((xp = devip->i_copyonwrite) != 0) {
 		devip->i_copyonwrite = xp->i_copyonwrite;
 		xp->i_copyonwrite = 0;
-		vrele(ITOV(xp));
+		if (xp->i_effnlink > 0)
+			vrele(ITOV(xp));
 	}
 	ump->um_devvp->v_flag &= ~VCOPYONWRITE;
 }

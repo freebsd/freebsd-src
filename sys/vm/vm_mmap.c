@@ -358,7 +358,7 @@ mmap(p, uap)
 						        p->p_ucred, p)))
 						return (error);
 					if ((va.va_flags &
-					    (IMMUTABLE|APPEND)) == 0)
+					   (SF_SNAPSHOT|IMMUTABLE|APPEND)) == 0)
 						maxprot |= VM_PROT_WRITE;
 					else if (prot & PROT_WRITE)
 						return (EPERM);
