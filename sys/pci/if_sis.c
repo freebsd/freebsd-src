@@ -54,6 +54,8 @@
  * longword aligned.
  */
 
+#include "bpf.h"
+
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/sockio.h>
@@ -68,7 +70,9 @@
 #include <net/if_dl.h>
 #include <net/if_media.h>
 
+#if NBPFILTER > 0
 #include <net/bpf.h>
+#endif
 
 #include <vm/vm.h>              /* for vtophys */
 #include <vm/pmap.h>            /* for vtophys */
@@ -76,12 +80,6 @@
 #include <machine/bus_pio.h>
 #include <machine/bus_memio.h>
 #include <machine/bus.h>
-#include <machine/resource.h>
-#include <sys/bus.h>
-#include <sys/rman.h>
-
-#include <dev/mii/mii.h>
-#include <dev/mii/miivar.h>
 
 #include <pci/pcireg.h>
 #include <pci/pcivar.h>
@@ -89,9 +87,6 @@
 #define SIS_USEIOSPACE
 
 #include <pci/if_sisreg.h>
-
-/* "controller miibus0" required.  See GENERIC if you get errors here. */
-#include "miibus_if.h"
 
 #ifndef lint
 static const char rcsid[] =
@@ -107,9 +102,14 @@ static struct sis_type sis_devs[] = {
 	{ 0, 0, NULL }
 };
 
-static int sis_probe		__P((device_t));
-static int sis_attach		__P((device_t));
-static int sis_detach		__P((device_t));
+static struct sis_type sis_phys[] = {
+	{ 0, 0, "<MII-compilant physical interface>" },
+	{ 0, 0, NULL }
+};
+
+static unsigned long		sis_count = 0;
+static const char *sis_probe	__P((pcici_t, pcidi_t));
+static void sis_attach		__P((pcici_t, int));
 
 static int sis_newbuf		__P((struct sis_softc *,
 					struct sis_desc *,
@@ -120,13 +120,12 @@ static void sis_rxeof		__P((struct sis_softc *));
 static void sis_rxeoc		__P((struct sis_softc *));
 static void sis_txeof		__P((struct sis_softc *));
 static void sis_intr		__P((void *));
-static void sis_tick		__P((void *));
 static void sis_start		__P((struct ifnet *));
 static int sis_ioctl		__P((struct ifnet *, u_long, caddr_t));
 static void sis_init		__P((void *));
 static void sis_stop		__P((struct sis_softc *));
-static void sis_watchdog		__P((struct ifnet *));
-static void sis_shutdown		__P((device_t));
+static void sis_watchdog	__P((struct ifnet *));
+static void sis_shutdown	__P((int, void *));
 static int sis_ifmedia_upd	__P((struct ifnet *));
 static void sis_ifmedia_sts	__P((struct ifnet *, struct ifmediareq *));
 
@@ -136,53 +135,20 @@ static void sis_eeprom_putbyte	__P((struct sis_softc *, int));
 static void sis_eeprom_getword	__P((struct sis_softc *, int, u_int16_t *));
 static void sis_read_eeprom	__P((struct sis_softc *, caddr_t, int,
 							int, int));
-static int sis_miibus_readreg	__P((device_t, int, int));
-static int sis_miibus_writereg	__P((device_t, int, int, int));
-static void sis_miibus_statchg	__P((device_t));
-
 static void sis_setmulti	__P((struct sis_softc *));
 static u_int32_t sis_calchash	__P((caddr_t));
 static void sis_reset		__P((struct sis_softc *));
 static int sis_list_rx_init	__P((struct sis_softc *));
 static int sis_list_tx_init	__P((struct sis_softc *));
 
-#ifdef SIS_USEIOSPACE
-#define SIS_RES			SYS_RES_IOPORT
-#define SIS_RID			SIS_PCI_LOIO
-#else
-#define SIS_RES			SYS_RES_MEMORY
-#define SIS_RID			SIS_PCI_LOMEM
-#endif
+static u_int16_t sis_phy_readreg	__P((struct sis_softc *, int));
+static void sis_phy_writereg	__P((struct sis_softc *, int, int));
 
-static device_method_t sis_methods[] = {
-	/* Device interface */
-	DEVMETHOD(device_probe,		sis_probe),
-	DEVMETHOD(device_attach,	sis_attach),
-	DEVMETHOD(device_detach,	sis_detach),
-	DEVMETHOD(device_shutdown,	sis_shutdown),
+static void sis_autoneg_xmit	__P((struct sis_softc *));
+static void sis_autoneg_mii	__P((struct sis_softc *, int, int));
+static void sis_setmode_mii	__P((struct sis_softc *, int));
+static void sis_getmode_mii	__P((struct sis_softc *));
 
-	/* bus interface */
-	DEVMETHOD(bus_print_child,	bus_generic_print_child),
-	DEVMETHOD(bus_driver_added,	bus_generic_driver_added),
-
-	/* MII interface */
-	DEVMETHOD(miibus_readreg,	sis_miibus_readreg),
-	DEVMETHOD(miibus_writereg,	sis_miibus_writereg),
-	DEVMETHOD(miibus_statchg,	sis_miibus_statchg),
-
-	{ 0, 0 }
-};
-
-static driver_t sis_driver = {
-	"sis",
-	sis_methods,
-	sizeof(struct sis_softc)
-};
-
-static devclass_t sis_devclass;
-
-DRIVER_MODULE(if_sis, pci, sis_driver, sis_devclass, 0, 0);
-DRIVER_MODULE(miibus, sis, miibus_driver, miibus_devclass, 0, 0);
 
 #define SIS_SETBIT(sc, reg, x)				\
 	CSR_WRITE_4(sc, reg,				\
@@ -337,19 +303,17 @@ static void sis_read_eeprom(sc, dest, off, cnt, swap)
 	return;
 }
 
-static int sis_miibus_readreg(dev, phy, reg)
-	device_t		dev;
-	int			phy, reg;
-{
+static u_int16_t sis_phy_readreg(sc, reg)
 	struct sis_softc	*sc;
+	int			reg;
+{
 	int			i, val;
 
-	sc = device_get_softc(dev);
-
-	if (sc->sis_type == SIS_TYPE_900 && phy != 0)
+	if (sc->sis_type == SIS_TYPE_900 && sc->sis_phy_addr != 0)
 		return(0);
 
-	CSR_WRITE_4(sc, SIS_PHYCTL, (phy << 11) | (reg << 6) | SIS_PHYOP_READ);
+	CSR_WRITE_4(sc, SIS_PHYCTL, (sc->sis_phy_addr << 11) |
+	   (reg << 6) | SIS_PHYOP_READ);
 	SIS_SETBIT(sc, SIS_PHYCTL, SIS_PHYCTL_ACCESS);
 
 	for (i = 0; i < SIS_TIMEOUT; i++) {
@@ -370,19 +334,16 @@ static int sis_miibus_readreg(dev, phy, reg)
 	return(val);
 }
 
-static int sis_miibus_writereg(dev, phy, reg, data)
-	device_t		dev;
-	int			phy, reg, data;
-{
+static void sis_phy_writereg(sc, reg, data)
 	struct sis_softc	*sc;
+	int			reg, data;
+{
 	int			i;
 
-	sc = device_get_softc(dev);
+	if (sc->sis_type == SIS_TYPE_900 && sc->sis_phy_addr != 0)
+		return;
 
-	if (sc->sis_type == SIS_TYPE_900 && phy != 0)
-		return(0);
-
-	CSR_WRITE_4(sc, SIS_PHYCTL, (data << 16) | (phy << 11) |
+	CSR_WRITE_4(sc, SIS_PHYCTL, (data << 16) | (sc->sis_phy_addr << 11) |
 	    (reg << 6) | SIS_PHYOP_WRITE);
 	SIS_SETBIT(sc, SIS_PHYCTL, SIS_PHYCTL_ACCESS);
 
@@ -394,19 +355,14 @@ static int sis_miibus_writereg(dev, phy, reg, data)
 	if (i == SIS_TIMEOUT)
 		printf("sis%d: PHY failed to come ready\n", sc->sis_unit);
 
-	return(0);
+	return;
 }
 
-static void sis_miibus_statchg(dev)
-	device_t		dev;
-{
+static void sis_setcfg(sc, media)
 	struct sis_softc	*sc;
-	struct mii_data		*mii;
-
-	sc = device_get_softc(dev);
-	mii = device_get_softc(sc->sis_miibus);
-
-	if ((mii->mii_media_active & IFM_GMASK) == IFM_FDX) {
+	u_int16_t		media;
+{
+	if (media & PHY_BMCR_DUPLEX) {
 		SIS_SETBIT(sc, SIS_TX_CFG,
 		    (SIS_TXCFG_IGN_HBEAT|SIS_TXCFG_IGN_CARR));
 		SIS_SETBIT(sc, SIS_RX_CFG, SIS_RXCFG_RX_TXPKTS);
@@ -415,6 +371,313 @@ static void sis_miibus_statchg(dev)
 		    (SIS_TXCFG_IGN_HBEAT|SIS_TXCFG_IGN_CARR));
 		SIS_CLRBIT(sc, SIS_RX_CFG, SIS_RXCFG_RX_TXPKTS);
 	}
+
+	return;
+}
+
+/*
+ * Initiate an autonegotiation session.
+ */
+static void sis_autoneg_xmit(sc)
+	struct sis_softc		*sc;
+{
+	u_int16_t		phy_sts;
+
+	sis_phy_writereg(sc, PHY_BMCR, PHY_BMCR_RESET);
+	DELAY(500);
+	while(sis_phy_readreg(sc, PHY_BMCR)
+			& PHY_BMCR_RESET);
+
+	phy_sts = sis_phy_readreg(sc, PHY_BMCR);
+	phy_sts |= PHY_BMCR_AUTONEGENBL|PHY_BMCR_AUTONEGRSTR;
+	sis_phy_writereg(sc, PHY_BMCR, phy_sts);
+
+	return;
+}
+
+/*
+ * Invoke autonegotiation on a PHY.
+ */
+static void sis_autoneg_mii(sc, flag, verbose)
+	struct sis_softc		*sc;
+	int			flag;
+	int			verbose;
+{
+	u_int16_t		phy_sts = 0, media, advert, ability;
+	struct ifnet		*ifp;
+	struct ifmedia		*ifm;
+
+	ifm = &sc->ifmedia;
+	ifp = &sc->arpcom.ac_if;
+
+	ifm->ifm_media = IFM_ETHER | IFM_AUTO;
+
+	/*
+	 * The 100baseT4 PHY on the 3c905-T4 has the 'autoneg supported'
+	 * bit cleared in the status register, but has the 'autoneg enabled'
+	 * bit set in the control register. This is a contradiction, and
+	 * I'm not sure how to handle it. If you want to force an attempt
+	 * to autoneg for 100baseT4 PHYs, #define FORCE_AUTONEG_TFOUR
+	 * and see what happens.
+	 */
+#ifndef FORCE_AUTONEG_TFOUR
+	/*
+	 * First, see if autoneg is supported. If not, there's
+	 * no point in continuing.
+	 */
+	phy_sts = sis_phy_readreg(sc, PHY_BMSR);
+	if (!(phy_sts & PHY_BMSR_CANAUTONEG)) {
+		if (verbose)
+			printf("sis%d: autonegotiation not supported\n",
+							sc->sis_unit);
+		ifm->ifm_media = IFM_ETHER|IFM_10_T|IFM_HDX;	
+		return;
+	}
+#endif
+
+	switch (flag) {
+	case SIS_FLAG_FORCEDELAY:
+		/*
+	 	 * XXX Never use this option anywhere but in the probe
+	 	 * routine: making the kernel stop dead in its tracks
+ 		 * for three whole seconds after we've gone multi-user
+		 * is really bad manners.
+	 	 */
+		sis_autoneg_xmit(sc);
+		DELAY(5000000);
+		break;
+	case SIS_FLAG_SCHEDDELAY:
+		/*
+		 * Wait for the transmitter to go idle before starting
+		 * an autoneg session, otherwise sis_start() may clobber
+	 	 * our timeout, and we don't want to allow transmission
+		 * during an autoneg session since that can screw it up.
+	 	 */
+		if (sc->sis_cdata.sis_tx_cnt) {
+			sc->sis_want_auto = 1;
+			return;
+		}
+		sis_autoneg_xmit(sc);
+		ifp->if_timer = 5;
+		sc->sis_autoneg = 1;
+		sc->sis_want_auto = 0;
+		return;
+		break;
+	case SIS_FLAG_DELAYTIMEO:
+		ifp->if_timer = 0;
+		sc->sis_autoneg = 0;
+		break;
+	default:
+		printf("sis%d: invalid autoneg flag: %d\n", sc->sis_unit, flag);
+		return;
+	}
+
+	if (sis_phy_readreg(sc, PHY_BMSR) & PHY_BMSR_AUTONEGCOMP) {
+		if (verbose)
+			printf("sis%d: autoneg complete, ", sc->sis_unit);
+		phy_sts = sis_phy_readreg(sc, PHY_BMSR);
+	} else {
+		if (verbose)
+			printf("sis%d: autoneg not complete, ", sc->sis_unit);
+	}
+
+	media = sis_phy_readreg(sc, PHY_BMCR);
+
+	/* Link is good. Report modes and set duplex mode. */
+	if (sis_phy_readreg(sc, PHY_BMSR) & PHY_BMSR_LINKSTAT) {
+		if (verbose)
+			printf("link status good ");
+		advert = sis_phy_readreg(sc, PHY_ANAR);
+		ability = sis_phy_readreg(sc, PHY_LPAR);
+
+		if (advert & PHY_ANAR_100BT4 && ability & PHY_ANAR_100BT4) {
+			ifm->ifm_media = IFM_ETHER|IFM_100_T4;
+			media |= PHY_BMCR_SPEEDSEL;
+			media &= ~PHY_BMCR_DUPLEX;
+			printf("(100baseT4)\n");
+		} else if (advert & PHY_ANAR_100BTXFULL &&
+			ability & PHY_ANAR_100BTXFULL) {
+			ifm->ifm_media = IFM_ETHER|IFM_100_TX|IFM_FDX;
+			media |= PHY_BMCR_SPEEDSEL;
+			media |= PHY_BMCR_DUPLEX;
+			printf("(full-duplex, 100Mbps)\n");
+		} else if (advert & PHY_ANAR_100BTXHALF &&
+			ability & PHY_ANAR_100BTXHALF) {
+			ifm->ifm_media = IFM_ETHER|IFM_100_TX|IFM_HDX;
+			media |= PHY_BMCR_SPEEDSEL;
+			media &= ~PHY_BMCR_DUPLEX;
+			printf("(half-duplex, 100Mbps)\n");
+		} else if (advert & PHY_ANAR_10BTFULL &&
+			ability & PHY_ANAR_10BTFULL) {
+			ifm->ifm_media = IFM_ETHER|IFM_10_T|IFM_FDX;
+			media &= ~PHY_BMCR_SPEEDSEL;
+			media |= PHY_BMCR_DUPLEX;
+			printf("(full-duplex, 10Mbps)\n");
+		} else if (advert & PHY_ANAR_10BTHALF &&
+			ability & PHY_ANAR_10BTHALF) {
+			ifm->ifm_media = IFM_ETHER|IFM_10_T|IFM_HDX;
+			media &= ~PHY_BMCR_SPEEDSEL;
+			media &= ~PHY_BMCR_DUPLEX;
+			printf("(half-duplex, 10Mbps)\n");
+		}
+
+		media &= ~PHY_BMCR_AUTONEGENBL;
+
+		/* Set ASIC's duplex mode to match the PHY. */
+		sis_phy_writereg(sc, PHY_BMCR, media);
+		sis_setcfg(sc, media);
+	} else {
+		if (verbose)
+			printf("no carrier\n");
+	}
+
+	sis_init(sc);
+
+	if (sc->sis_tx_pend) {
+		sc->sis_autoneg = 0;
+		sc->sis_tx_pend = 0;
+		sis_start(ifp);
+	}
+
+	return;
+}
+
+static void sis_getmode_mii(sc)
+	struct sis_softc		*sc;
+{
+	u_int16_t		bmsr;
+	struct ifnet		*ifp;
+
+	ifp = &sc->arpcom.ac_if;
+
+	bmsr = sis_phy_readreg(sc, PHY_BMSR);
+	if (bootverbose)
+		printf("sis%d: PHY status word: %x\n", sc->sis_unit, bmsr);
+
+	/* fallback */
+	sc->ifmedia.ifm_media = IFM_ETHER|IFM_10_T|IFM_HDX;
+
+	if (bmsr & PHY_BMSR_10BTHALF) {
+		if (bootverbose)
+			printf("sis%d: 10Mbps half-duplex mode supported\n",
+								sc->sis_unit);
+		ifmedia_add(&sc->ifmedia,
+			IFM_ETHER|IFM_10_T|IFM_HDX, 0, NULL);
+		ifmedia_add(&sc->ifmedia, IFM_ETHER|IFM_10_T, 0, NULL);
+	}
+
+	if (bmsr & PHY_BMSR_10BTFULL) {
+		if (bootverbose)
+			printf("sis%d: 10Mbps full-duplex mode supported\n",
+								sc->sis_unit);
+		ifmedia_add(&sc->ifmedia,
+			IFM_ETHER|IFM_10_T|IFM_FDX, 0, NULL);
+		sc->ifmedia.ifm_media = IFM_ETHER|IFM_10_T|IFM_FDX;
+	}
+
+	if (bmsr & PHY_BMSR_100BTXHALF) {
+		if (bootverbose)
+			printf("sis%d: 100Mbps half-duplex mode supported\n",
+								sc->sis_unit);
+		ifp->if_baudrate = 100000000;
+		ifmedia_add(&sc->ifmedia, IFM_ETHER|IFM_100_TX, 0, NULL);
+		ifmedia_add(&sc->ifmedia,
+			IFM_ETHER|IFM_100_TX|IFM_HDX, 0, NULL);
+		sc->ifmedia.ifm_media = IFM_ETHER|IFM_100_TX|IFM_HDX;
+	}
+
+	if (bmsr & PHY_BMSR_100BTXFULL) {
+		if (bootverbose)
+			printf("sis%d: 100Mbps full-duplex mode supported\n",
+								sc->sis_unit);
+		ifp->if_baudrate = 100000000;
+		ifmedia_add(&sc->ifmedia,
+			IFM_ETHER|IFM_100_TX|IFM_FDX, 0, NULL);
+		sc->ifmedia.ifm_media = IFM_ETHER|IFM_100_TX|IFM_FDX;
+	}
+
+	/* Some also support 100BaseT4. */
+	if (bmsr & PHY_BMSR_100BT4) {
+		if (bootverbose)
+			printf("sis%d: 100baseT4 mode supported\n", sc->sis_unit);
+		ifp->if_baudrate = 100000000;
+		ifmedia_add(&sc->ifmedia, IFM_ETHER|IFM_100_T4, 0, NULL);
+		sc->ifmedia.ifm_media = IFM_ETHER|IFM_100_T4;
+#ifdef FORCE_AUTONEG_TFOUR
+		if (bootverbose)
+			printf("sis%d: forcing on autoneg support for BT4\n",
+							 sc->sis_unit);
+		ifmedia_add(&sc->ifmedia, IFM_ETHER|IFM_AUTO, 0 NULL):
+		sc->ifmedia.ifm_media = IFM_ETHER|IFM_AUTO;
+#endif
+	}
+
+	if (bmsr & PHY_BMSR_CANAUTONEG) {
+		if (bootverbose)
+			printf("sis%d: autoneg supported\n", sc->sis_unit);
+		ifmedia_add(&sc->ifmedia, IFM_ETHER|IFM_AUTO, 0, NULL);
+		sc->ifmedia.ifm_media = IFM_ETHER|IFM_AUTO;
+	}
+
+	return;
+}
+
+/*
+ * Set speed and duplex mode.
+ */
+static void sis_setmode_mii(sc, media)
+	struct sis_softc		*sc;
+	int			media;
+{
+	u_int16_t		bmcr;
+	struct ifnet		*ifp;
+
+	ifp = &sc->arpcom.ac_if;
+
+	/*
+	 * If an autoneg session is in progress, stop it.
+	 */
+	if (sc->sis_autoneg) {
+		printf("sis%d: canceling autoneg session\n", sc->sis_unit);
+		ifp->if_timer = sc->sis_autoneg = sc->sis_want_auto = 0;
+		bmcr = sis_phy_readreg(sc, PHY_BMCR);
+		bmcr &= ~PHY_BMCR_AUTONEGENBL;
+		sis_phy_writereg(sc, PHY_BMCR, bmcr);
+	}
+
+	printf("sis%d: selecting MII, ", sc->sis_unit);
+
+	bmcr = sis_phy_readreg(sc, PHY_BMCR);
+
+	bmcr &= ~(PHY_BMCR_AUTONEGENBL|PHY_BMCR_SPEEDSEL|
+			PHY_BMCR_DUPLEX|PHY_BMCR_LOOPBK);
+
+	if (IFM_SUBTYPE(media) == IFM_100_T4) {
+		printf("100Mbps/T4, half-duplex\n");
+		bmcr |= PHY_BMCR_SPEEDSEL;
+		bmcr &= ~PHY_BMCR_DUPLEX;
+	}
+
+	if (IFM_SUBTYPE(media) == IFM_100_TX) {
+		printf("100Mbps, ");
+		bmcr |= PHY_BMCR_SPEEDSEL;
+	}
+
+	if (IFM_SUBTYPE(media) == IFM_10_T) {
+		printf("10Mbps, ");
+		bmcr &= ~PHY_BMCR_SPEEDSEL;
+	}
+
+	if ((media & IFM_GMASK) == IFM_FDX) {
+		printf("full duplex\n");
+		bmcr |= PHY_BMCR_DUPLEX;
+	} else {
+		printf("half duplex\n");
+		bmcr &= ~PHY_BMCR_DUPLEX;
+	}
+
+	sis_phy_writereg(sc, PHY_BMCR, bmcr);
+	sis_setcfg(sc, bmcr);
 
 	return;
 }
@@ -504,136 +767,143 @@ static void sis_reset(sc)
 }
 
 /*
- * Probe for an SiS chip. Check the PCI vendor and device
+ * Probe for a SiS chip. Check the PCI vendor and device
  * IDs against our list and return a device name if we find a match.
  */
-static int sis_probe(dev)
-	device_t		dev;
+static const char *
+sis_probe(config_id, device_id)
+	pcici_t			config_id;
+	pcidi_t			device_id;
 {
 	struct sis_type		*t;
 
 	t = sis_devs;
 
 	while(t->sis_name != NULL) {
-		if ((pci_get_vendor(dev) == t->sis_vid) &&
-		    (pci_get_device(dev) == t->sis_did)) {
-			device_set_desc(dev, t->sis_name);
-			return(0);
+		if ((device_id & 0xFFFF) == t->sis_vid &&
+		    ((device_id >> 16) & 0xFFFF) == t->sis_did) {
+			return(t->sis_name);
 		}
 		t++;
 	}
 
-	return(ENXIO);
+	return(NULL);
 }
 
 /*
  * Attach the interface. Allocate softc structures, do ifmedia
  * setup and ethernet/BPF attach.
  */
-static int sis_attach(dev)
-	device_t		dev;
+static void
+sis_attach(config_id, unit)
+	pcici_t			config_id;
+	int			unit;
 {
-	int			s;
+	int			s, i;
+#ifndef SIS_USEIOSPACE
+	vm_offset_t		pbase, vbase;
+#endif
 	u_char			eaddr[ETHER_ADDR_LEN];
 	u_int32_t		command;
 	struct sis_softc	*sc;
 	struct ifnet		*ifp;
-	int			unit, error = 0, rid;
+	int			media = IFM_ETHER|IFM_100_TX|IFM_FDX;
+	struct sis_type		*p;
+	u_int16_t		phy_vid, phy_did, phy_sts;
+	u_int16_t		did;
 
 	s = splimp();
 
-	sc = device_get_softc(dev);
-	unit = device_get_unit(dev);
+	sc = malloc(sizeof(struct sis_softc), M_DEVBUF, M_NOWAIT);
+	if (sc == NULL) {
+		printf("sis%d: no memory for softc struct!\n", unit);
+		goto fail;
+	}
 	bzero(sc, sizeof(struct sis_softc));
 
-	if (pci_get_device(dev) == SIS_DEVICEID_900)
+	did = (pci_conf_read(config_id, SIS_PCI_VENDOR_ID) >> 16) & 0xFFFF;
+	if (did == SIS_DEVICEID_900)
 		sc->sis_type = SIS_TYPE_900;
-	if (pci_get_device(dev) == SIS_DEVICEID_7016)
+	if (did == SIS_DEVICEID_7016)
 		sc->sis_type = SIS_TYPE_7016;
 
 	/*
 	 * Handle power management nonsense.
 	 */
 
-	command = pci_read_config(dev, SIS_PCI_CAPID, 4) & 0x000000FF;
+	command = pci_conf_read(config_id, SIS_PCI_CAPID) & 0x000000FF;
 	if (command == 0x01) {
 
-		command = pci_read_config(dev, SIS_PCI_PWRMGMTCTRL, 4);
+		command = pci_conf_read(config_id, SIS_PCI_PWRMGMTCTRL);
 		if (command & SIS_PSTATE_MASK) {
 			u_int32_t		iobase, membase, irq;
 
 			/* Save important PCI config data. */
-			iobase = pci_read_config(dev, SIS_PCI_LOIO, 4);
-			membase = pci_read_config(dev, SIS_PCI_LOMEM, 4);
-			irq = pci_read_config(dev, SIS_PCI_INTLINE, 4);
+			iobase = pci_conf_read(config_id, SIS_PCI_LOIO);
+			membase = pci_conf_read(config_id, SIS_PCI_LOMEM);
+			irq = pci_conf_read(config_id, SIS_PCI_INTLINE);
 
 			/* Reset the power state. */
 			printf("sis%d: chip is in D%d power mode "
 			"-- setting to D0\n", unit, command & SIS_PSTATE_MASK);
 			command &= 0xFFFFFFFC;
-			pci_write_config(dev, SIS_PCI_PWRMGMTCTRL, command, 4);
+			pci_conf_write(config_id, SIS_PCI_PWRMGMTCTRL, command);
 
 			/* Restore PCI config data. */
-			pci_write_config(dev, SIS_PCI_LOIO, iobase, 4);
-			pci_write_config(dev, SIS_PCI_LOMEM, membase, 4);
-			pci_write_config(dev, SIS_PCI_INTLINE, irq, 4);
+			pci_conf_write(config_id, SIS_PCI_LOIO, iobase);
+			pci_conf_write(config_id, SIS_PCI_LOMEM, membase);
+			pci_conf_write(config_id, SIS_PCI_INTLINE, irq);
 		}
 	}
 
 	/*
 	 * Map control/status registers.
 	 */
-	command = pci_read_config(dev, PCI_COMMAND_STATUS_REG, 4);
+	command = pci_conf_read(config_id, PCI_COMMAND_STATUS_REG);
 	command |= (PCIM_CMD_PORTEN|PCIM_CMD_MEMEN|PCIM_CMD_BUSMASTEREN);
-	pci_write_config(dev, PCI_COMMAND_STATUS_REG, command, 4);
-	command = pci_read_config(dev, PCI_COMMAND_STATUS_REG, 4);
+	pci_conf_write(config_id, PCI_COMMAND_STATUS_REG, command);
+	command = pci_conf_read(config_id, PCI_COMMAND_STATUS_REG);
 
 #ifdef SIS_USEIOSPACE
 	if (!(command & PCIM_CMD_PORTEN)) {
 		printf("sis%d: failed to enable I/O ports!\n", unit);
-		error = ENXIO;;
+		free(sc, M_DEVBUF);
 		goto fail;
 	}
+
+	if (!pci_map_port(config_id, SIS_PCI_LOIO,
+					(u_short *)&(sc->sis_bhandle))) {
+		printf ("sis%d: couldn't map ports\n", unit);
+		goto fail;
+        }
+#ifdef __i386__
+	sc->sis_btag = I386_BUS_SPACE_IO;
+#endif
+#ifdef __alpha__
+	sc->sis_btag = ALPHA_BUS_SPACE_IO;
+#endif
 #else
 	if (!(command & PCIM_CMD_MEMEN)) {
 		printf("sis%d: failed to enable memory mapping!\n", unit);
-		error = ENXIO;;
 		goto fail;
 	}
+
+	if (!pci_map_mem(config_id, SIS_PCI_LOMEM, &vbase, &pbase)) {
+		printf ("sis%d: couldn't map memory\n", unit);
+		goto fail;
+	}
+#ifdef __i386__
+	sc->sis_btag = I386_BUS_SPACE_MEM;
+#endif
+#ifdef __alpha__
+	sc->sis_btag = ALPHA_BUS_SPACE_MEM;
+#endif
+	sc->sis_bhandle = vbase;
 #endif
 
-	rid = SIS_RID;
-	sc->sis_res = bus_alloc_resource(dev, SIS_RES, &rid,
-	    0, ~0, 1, RF_ACTIVE);
-
-	if (sc->sis_res == NULL) {
-		printf("sis%d: couldn't map ports/memory\n", unit);
-		error = ENXIO;
-		goto fail;
-	}
-
-	sc->sis_btag = rman_get_bustag(sc->sis_res);
-	sc->sis_bhandle = rman_get_bushandle(sc->sis_res);
-
 	/* Allocate interrupt */
-	rid = 0;
-	sc->sis_irq = bus_alloc_resource(dev, SYS_RES_IRQ, &rid, 0, ~0, 1,
-	    RF_SHAREABLE | RF_ACTIVE);
-
-	if (sc->sis_irq == NULL) {
+	if (!pci_map_int(config_id, sis_intr, sc, &net_imask)) {
 		printf("sis%d: couldn't map interrupt\n", unit);
-		bus_release_resource(dev, SIS_RES, SIS_RID, sc->sis_res);
-		error = ENXIO;
-		goto fail;
-	}
-
-	error = bus_setup_intr(dev, sc->sis_irq, INTR_TYPE_NET,
-	    sis_intr, sc, &sc->sis_intrhand);
-
-	if (error) {
-		bus_release_resource(dev, SYS_RES_IRQ, 0, sc->sis_res);
-		bus_release_resource(dev, SIS_RES, SIS_RID, sc->sis_res);
-		printf("sis%d: couldn't set up irq\n", unit);
 		goto fail;
 	}
 
@@ -651,18 +921,14 @@ static int sis_attach(dev)
 	printf("sis%d: Ethernet address: %6D\n", unit, eaddr, ":");
 
 	sc->sis_unit = unit;
-	callout_handle_init(&sc->sis_stat_ch);
 	bcopy(eaddr, (char *)&sc->arpcom.ac_enaddr, ETHER_ADDR_LEN);
 
 	sc->sis_ldata = contigmalloc(sizeof(struct sis_list_data), M_DEVBUF,
-	    M_NOWAIT, 0, 0xffffffff, PAGE_SIZE, 0);
+	    M_NOWAIT, 0x100000, 0xffffffff, PAGE_SIZE, 0);
 
 	if (sc->sis_ldata == NULL) {
 		printf("sis%d: no memory for list buffers!\n", unit);
-		bus_teardown_intr(dev, sc->sis_irq, sc->sis_intrhand);
-		bus_release_resource(dev, SYS_RES_IRQ, 0, sc->sis_irq);
-		bus_release_resource(dev, SIS_RES, SIS_RID, sc->sis_res);
-		error = ENXIO;
+		free(sc, M_DEVBUF);
 		goto fail;
 	}
 	bzero(sc->sis_ldata, sizeof(struct sis_list_data));
@@ -681,62 +947,79 @@ static int sis_attach(dev)
 	ifp->if_baudrate = 10000000;
 	ifp->if_snd.ifq_maxlen = SIS_TX_LIST_CNT - 1;
 
-	/*
-	 * Do MII setup.
-	 */
-	if (mii_phy_probe(dev, &sc->sis_miibus,
-	    sis_ifmedia_upd, sis_ifmedia_sts)) {
-		printf("sis%d: MII without any PHY!\n", sc->sis_unit);
-		bus_teardown_intr(dev, sc->sis_irq, sc->sis_intrhand);
-		bus_release_resource(dev, SYS_RES_IRQ, 0, sc->sis_irq);
-		bus_release_resource(dev, SIS_RES, SIS_RID, sc->sis_res);
-		error = ENXIO;
+	if (bootverbose)
+		printf("sis%d: probing for a PHY\n", sc->sis_unit);
+	for (i = SIS_PHYADDR_MIN; i < SIS_PHYADDR_MAX + 1; i++) {
+		if (bootverbose)
+			printf("sis%d: checking address: %d\n",
+						sc->sis_unit, i);
+		sc->sis_phy_addr = i;
+		sis_phy_writereg(sc, PHY_BMCR, PHY_BMCR_RESET);
+		DELAY(500);
+		while(sis_phy_readreg(sc, PHY_BMCR)
+				& PHY_BMCR_RESET);
+		if ((phy_sts = sis_phy_readreg(sc, PHY_BMSR)))
+			break;
+	}
+	if (phy_sts) {
+		phy_vid = sis_phy_readreg(sc, PHY_VENID);
+		phy_did = sis_phy_readreg(sc, PHY_DEVID);
+		if (bootverbose)
+			printf("sis%d: found PHY at address %d, ",
+				sc->sis_unit, sc->sis_phy_addr);
+		if (bootverbose)
+			printf("vendor id: %x device id: %x\n",
+			phy_vid, phy_did);
+		p = sis_phys;
+		while(p->sis_vid) {
+			if (phy_vid == p->sis_vid &&
+				(phy_did | 0x000F) == p->sis_did) {
+				sc->sis_pinfo = p;
+				break;
+			}
+			p++;
+		}
+		if (sc->sis_pinfo == NULL)
+			sc->sis_pinfo = &sis_phys[PHY_UNKNOWN];
+		if (bootverbose)
+			printf("sis%d: PHY type: %s\n",
+				sc->sis_unit, sc->sis_pinfo->sis_name);
+	} else {
+		printf("sis%d: MII without any phy!\n", sc->sis_unit);
+		free(sc->sis_ldata, M_DEVBUF);
+		free(sc, M_DEVBUF);
 		goto fail;
 	}
+
+	/*
+	 * Do ifmedia setup.
+	 */
+	ifmedia_init(&sc->ifmedia, 0, sis_ifmedia_upd, sis_ifmedia_sts);
+
+	sis_getmode_mii(sc);
+	sis_autoneg_mii(sc, SIS_FLAG_FORCEDELAY, 1);
+
+	media = sc->ifmedia.ifm_media;
+	sis_stop(sc);
+
+	ifmedia_set(&sc->ifmedia, media);
 
 	/*
 	 * Call MI attach routines.
 	 */
 	if_attach(ifp);
 	ether_ifattach(ifp);
-	callout_handle_init(&sc->sis_stat_ch);
 
+#if NBPFILTER > 0
 	bpfattach(ifp, DLT_EN10MB, sizeof(struct ether_header));
+#endif
+	at_shutdown(sis_shutdown, sc, SHUTDOWN_POST_SYNC);
 
 fail:
 	splx(s);
-	return(error);
+	return;
 }
 
-static int sis_detach(dev)
-	device_t		dev;
-{
-	struct sis_softc	*sc;
-	struct ifnet		*ifp;
-	int			s;
-
-	s = splimp();
-
-	sc = device_get_softc(dev);
-	ifp = &sc->arpcom.ac_if;
-
-	sis_reset(sc);
-	sis_stop(sc);
-	if_detach(ifp);
-
-	bus_generic_detach(dev);
-	device_delete_child(dev, sc->sis_miibus);
-
-	bus_teardown_intr(dev, sc->sis_irq, sc->sis_intrhand);
-	bus_release_resource(dev, SYS_RES_IRQ, 0, sc->sis_irq);
-	bus_release_resource(dev, SIS_RES, SIS_RID, sc->sis_res);
-
-	contigfree(sc->sis_ldata, sizeof(struct sis_list_data), M_DEVBUF);
-
-	splx(s);
-
-	return(0);
-}
 
 /*
  * Initialize the transmit descriptors.
@@ -905,7 +1188,7 @@ static void sis_rxeof(sc)
 
 		ifp->if_ipackets++;
 		eh = mtod(m, struct ether_header *);
-
+#if NBPFILTER > 0
 		/*
 		 * Handle BPF listeners. Let the BPF user see the packet, but
 		 * don't pass it up to the ether_input() layer unless it's
@@ -921,7 +1204,7 @@ static void sis_rxeof(sc)
 				continue;
 			}
 		}
-
+#endif
 		/* Remove header from mbuf and pass it on. */
 		m_adj(m, sizeof(struct ether_header));
 		ether_input(ifp, eh, m);
@@ -1000,25 +1283,6 @@ static void sis_txeof(sc)
 
 	if (cur_tx != NULL)
 		ifp->if_flags &= ~IFF_OACTIVE;
-
-	return;
-}
-
-static void sis_tick(xsc)
-	void			*xsc;
-{
-	struct sis_softc	*sc;
-	struct mii_data		*mii;
-	int			s;
-
-	s = splimp();
-
-	sc = xsc;
-	mii = device_get_softc(sc->sis_miibus);
-	mii_tick(mii);
-	sc->sis_stat_ch = timeout(sis_tick, sc, hz);
-
-	splx(s);
 
 	return;
 }
@@ -1142,6 +1406,9 @@ static void sis_start(ifp)
 
 	sc = ifp->if_softc;
 
+	if (sc->sis_autoneg)
+		return;
+
 	idx = sc->sis_cdata.sis_tx_prod;
 
 	if (ifp->if_flags & IFF_OACTIVE)
@@ -1158,13 +1425,14 @@ static void sis_start(ifp)
 			break;
 		}
 
+#if NBPFILTER > 0
 		/*
 		 * If there's a BPF listener, bounce a copy of this frame
 		 * to him.
 		 */
 		if (ifp->if_bpf)
 			bpf_mtap(ifp, m_head);
-
+#endif
 	}
 
 	/* Transmit */
@@ -1184,8 +1452,11 @@ static void sis_init(xsc)
 {
 	struct sis_softc	*sc = xsc;
 	struct ifnet		*ifp = &sc->arpcom.ac_if;
-	struct mii_data		*mii;
 	int			s;
+	u_int16_t		phy_bmcr;
+
+	if (sc->sis_autoneg)
+		return;
 
 	s = splimp();
 
@@ -1194,7 +1465,7 @@ static void sis_init(xsc)
 	 */
 	sis_stop(sc);
 
-	mii = device_get_softc(sc->sis_miibus);
+	phy_bmcr = sis_phy_readreg(sc, PHY_BMCR);
 
 	/* Set MAC address */
 	CSR_WRITE_4(sc, SIS_RXFILT_CTL, SIS_FILTADDR_PAR0);
@@ -1268,14 +1539,12 @@ static void sis_init(xsc)
 	SIS_CLRBIT(sc, SIS_CSR, SIS_CSR_TX_DISABLE|SIS_CSR_RX_DISABLE);
 	SIS_SETBIT(sc, SIS_CSR, SIS_CSR_RX_ENABLE);
 
-	mii_mediachg(mii);
+	sis_phy_writereg(sc, PHY_BMCR, phy_bmcr);
 
 	ifp->if_flags |= IFF_RUNNING;
 	ifp->if_flags &= ~IFF_OACTIVE;
 
 	(void)splx(s);
-
-	sc->sis_stat_ch = timeout(sis_tick, sc, hz);
 
 	return;
 }
@@ -1286,12 +1555,20 @@ static void sis_init(xsc)
 static int sis_ifmedia_upd(ifp)
 	struct ifnet		*ifp;
 {
-	struct sis_softc	*sc;
+	struct sis_softc		*sc;
+	struct ifmedia		*ifm;
 
 	sc = ifp->if_softc;
+	ifm = &sc->ifmedia;
 
-	if (ifp->if_flags & IFF_UP)
-		sis_init(sc);
+	if (IFM_TYPE(ifm->ifm_media) != IFM_ETHER)
+		return(EINVAL);
+
+	if (IFM_SUBTYPE(ifm->ifm_media) == IFM_AUTO)
+		sis_autoneg_mii(sc, SIS_FLAG_SCHEDDELAY, 1);
+	else {
+		sis_setmode_mii(sc, ifm->ifm_media);
+	}
 
 	return(0);
 }
@@ -1303,15 +1580,43 @@ static void sis_ifmedia_sts(ifp, ifmr)
 	struct ifnet		*ifp;
 	struct ifmediareq	*ifmr;
 {
-	struct sis_softc	*sc;
-	struct mii_data		*mii;
+	struct sis_softc		*sc;
+	u_int16_t		advert = 0, ability = 0;
 
 	sc = ifp->if_softc;
 
-	mii = device_get_softc(sc->sis_miibus);
-	mii_pollstat(mii);
-	ifmr->ifm_active = mii->mii_media_active;
-	ifmr->ifm_status = mii->mii_media_status;
+	ifmr->ifm_active = IFM_ETHER;
+
+	if (!(sis_phy_readreg(sc, PHY_BMCR) & PHY_BMCR_AUTONEGENBL)) {
+		if (sis_phy_readreg(sc, PHY_BMCR) & PHY_BMCR_SPEEDSEL)
+			ifmr->ifm_active = IFM_ETHER|IFM_100_TX;
+		else
+			ifmr->ifm_active = IFM_ETHER|IFM_10_T;
+		if (sis_phy_readreg(sc, PHY_BMCR) & PHY_BMCR_DUPLEX)
+			ifmr->ifm_active |= IFM_FDX;
+		else
+			ifmr->ifm_active |= IFM_HDX;
+		return;
+	}
+
+	ability = sis_phy_readreg(sc, PHY_LPAR);
+	advert = sis_phy_readreg(sc, PHY_ANAR);
+	if (advert & PHY_ANAR_100BT4 &&
+		ability & PHY_ANAR_100BT4) {
+		ifmr->ifm_active = IFM_ETHER|IFM_100_T4;
+	} else if (advert & PHY_ANAR_100BTXFULL &&
+		ability & PHY_ANAR_100BTXFULL) {
+		ifmr->ifm_active = IFM_ETHER|IFM_100_TX|IFM_FDX;
+	} else if (advert & PHY_ANAR_100BTXHALF &&
+		ability & PHY_ANAR_100BTXHALF) {
+		ifmr->ifm_active = IFM_ETHER|IFM_100_TX|IFM_HDX;
+	} else if (advert & PHY_ANAR_10BTFULL &&
+		ability & PHY_ANAR_10BTFULL) {
+		ifmr->ifm_active = IFM_ETHER|IFM_10_T|IFM_FDX;
+	} else if (advert & PHY_ANAR_10BTHALF &&
+		ability & PHY_ANAR_10BTHALF) {
+		ifmr->ifm_active = IFM_ETHER|IFM_10_T|IFM_HDX;
+	}
 
 	return;
 }
@@ -1323,7 +1628,6 @@ static int sis_ioctl(ifp, command, data)
 {
 	struct sis_softc	*sc = ifp->if_softc;
 	struct ifreq		*ifr = (struct ifreq *) data;
-	struct mii_data		*mii;
 	int			s, error = 0;
 
 	s = splimp();
@@ -1350,8 +1654,7 @@ static int sis_ioctl(ifp, command, data)
 		break;
 	case SIOCGIFMEDIA:
 	case SIOCSIFMEDIA:
-		mii = device_get_softc(sc->sis_miibus);
-		error = ifmedia_ioctl(ifp, ifr, &mii->mii_media, command);
+		error = ifmedia_ioctl(ifp, ifr, &sc->ifmedia, command);
 		break;
 	default:
 		error = EINVAL;
@@ -1369,6 +1672,11 @@ static void sis_watchdog(ifp)
 	struct sis_softc	*sc;
 
 	sc = ifp->if_softc;
+
+	if (sc->sis_autoneg) {
+		sis_autoneg_mii(sc, SIS_FLAG_DELAYTIMEO, 1);
+		return;
+	}
 
 	ifp->if_oerrors++;
 	printf("sis%d: watchdog timeout\n", sc->sis_unit);
@@ -1396,7 +1704,6 @@ static void sis_stop(sc)
 	ifp = &sc->arpcom.ac_if;
 	ifp->if_timer = 0;
 
-	untimeout(sis_tick, sc, sc->sis_stat_ch);
 	CSR_WRITE_4(sc, SIS_IER, 0);
 	CSR_WRITE_4(sc, SIS_IMR, 0);
 	SIS_SETBIT(sc, SIS_CSR, SIS_CSR_TX_DISABLE|SIS_CSR_RX_DISABLE);
@@ -1438,15 +1745,29 @@ static void sis_stop(sc)
  * Stop all chip I/O so that the kernel's probe routines don't
  * get confused by errant DMAs when rebooting.
  */
-static void sis_shutdown(dev)
-	device_t		dev;
+static void sis_shutdown(howto, arg)
+	int			howto;
+	void			*arg;
 {
 	struct sis_softc	*sc;
 
-	sc = device_get_softc(dev);
+	sc = arg;
 
 	sis_reset(sc);
 	sis_stop(sc);
 
 	return;
 }
+
+static struct pci_device sis_device = {
+	"sis",
+	sis_probe,
+	sis_attach,
+	&sis_count,
+	NULL
+};
+#ifdef COMPAT_PCI_DRIVER
+COMPAT_PCI_DRIVER(sis, sis_device);
+#else
+DATA_SET(pcidevice_set, sis_device);
+#endif

@@ -168,6 +168,8 @@ device		mx0		# Macronix 98713/98715/98725 (``PMAC'')
 device		pn0		# Lite-On 82c168/82c169 (``PNIC'')
 device		rl0		# RealTek 8129/8139
 device		sf0		# Adaptec AIC-6915 DuraLAN (``Starfire'')
+device		sis0		# Silicon Integrated Systems SiS 900/SiS 7016
+device		ste0		# Sundance ST201 (D-Link DFE-550)
 device		tl0		# Texas Instruments ThunderLAN
 device		tx0		# SMC 9432TX (83c170 ``EPIC'')
 device		vr0		# VIA Rhine, Rhine II
