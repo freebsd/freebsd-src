@@ -505,7 +505,7 @@ wihap_auth_req(struct wi_softc *sc, struct wi_frame *rxfrm,
 	u_int16_t		seq;
 	u_int16_t		status;
 	int			i, challenge_len;
-	u_int8_t		challenge[32];
+	u_int32_t		challenge[32];
 
 	struct wi_80211_hdr	*resp_hdr;
 
