@@ -36,7 +36,7 @@
 static char sccsid[] = "@(#)mbuf.c	8.1 (Berkeley) 6/6/93";
 #endif
 static const char rcsid[] =
-	"$Id: mbuf.c,v 1.11 1998/05/15 20:19:18 wollman Exp $";
+	"$Id: mbuf.c,v 1.12 1998/07/06 21:01:26 bde Exp $";
 #endif /* not lint */
 
 #include <sys/param.h>
@@ -99,8 +99,8 @@ mbpr()
 	register int totmem, totfree, totmbufs;
 	register int i;
 	register struct mbtypes *mp;
-	int name[3], nmbclusters, nmbclen;
-	size_t mbstatlen;
+	int name[3], nmbclusters;
+	size_t nmbclen, mbstatlen;
 
 	name[0] = CTL_KERN;
 	name[1] = KERN_IPC;
