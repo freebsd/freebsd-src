@@ -37,7 +37,8 @@
 #	wd*	"winchester" disk drives (ST506,IDE,ESDI,RLL,...)
 #	fd*	"floppy" disk drives (3 1/2", 5 1/4")
 #	sd*	"scsi disks"
-#	cd*	"cdrom disks"
+#	cd*	"scsi cdrom disks"
+#	mcd*	"mitsumi cdrom disks"
 #
 # Console ports:
 #	pc*	devices for stock pccons
@@ -74,7 +75,7 @@
 #	tw*	xten power controller
 #	snd*	various sound cards
 #
-#	$Id: MAKEDEV,v 1.27 1994/02/19 14:32:56 ache Exp $
+#	$Id: MAKEDEV,v 1.28 1994/02/19 15:45:13 ache Exp $
 #
 
 PATH=/sbin:/bin/:/usr/bin:/usr/sbin:
@@ -85,7 +86,7 @@ case $i in
 
 all)
 	sh MAKEDEV std						# standard
-	sh MAKEDEV wd0 wd1 fd0 fd1 ft0 wt0 sd0 sd1 st0 cd0	# bdev
+	sh MAKEDEV wd0 wd1 fd0 fd1 ft0 wt0 sd0 sd1 st0 cd0 mcd0	# bdev
 	sh MAKEDEV pty0 tty0 tty1 pc0 lpt0 lpt1 lpt2            # cdev
 	sh MAKEDEV ch0 tw0 bpf0 dcf0 lpa0 lpa1 lpa2		# cdev
 	sh MAKEDEV speaker mse0 ttyd2 ttyd3                     # cdev
@@ -376,10 +377,11 @@ ch*)
 	umask 77
 	;;
 
-cd*)
-	umask 2 ; unit=`expr $i : '..\(.*\)'`
+cd*|mcd*)
+	umask 2 ;
 	case $i in
-	cd*) name=cd; blk=6; chr=15;;
+	cd*) unit=`expr $i : '..\(.*\)'`; name=cd; blk=6; chr=15;;
+	mcd*) unit=`expr $i : '...\(.*\)'`; name=mcd; blk=7; chr=29;;
 	esac
 	rm -f $name$unit? r$name$unit?
 	case $unit in
