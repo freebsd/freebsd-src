@@ -222,6 +222,7 @@ struct nstat {
 #define	SF_IMMUTABLE	0x00020000	/* file may not be changed */
 #define	SF_APPEND	0x00040000	/* writes to file may only append */
 #define	SF_NOUNLINK	0x00100000	/* file may not be removed or renamed */
+#define	SF_SNAPSHOT	0x00200000	/* snapshot inode */
 
 #ifdef _KERNEL
 /*
