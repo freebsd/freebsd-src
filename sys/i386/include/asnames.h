@@ -327,47 +327,4 @@
 
 #endif /* __ELF__ */
 
-#if defined(SMP) || defined(__ELF__)
-#ifdef SMP
-#define	FS(x)		%fs:gd_ ## x
-#else
-#define	FS(x)		x
-#endif
-
-#define _common_tss			FS(common_tss)
-#define _common_tssd			FS(common_tssd)
-#define _cpuid				FS(cpuid)
-#define _cpu_lockid			FS(cpu_lockid)
-#define _curpcb				FS(curpcb)
-#define _curproc			FS(curproc)
-#define	_idleproc			FS(idleproc)
-#define _astpending			FS(astpending)
-#define _currentldt			FS(currentldt)
-#define _inside_intr			FS(inside_intr)
-#define _npxproc			FS(npxproc)
-#define _other_cpus			FS(other_cpus)
-#define _prv_CADDR1			FS(prv_CADDR1)
-#define _prv_CADDR2			FS(prv_CADDR2)
-#define _prv_CADDR3			FS(prv_CADDR3)
-#define _prv_CMAP1			FS(prv_CMAP1)
-#define _prv_CMAP2			FS(prv_CMAP2)
-#define _prv_CMAP3			FS(prv_CMAP3)
-#define _prv_PADDR1			FS(prv_PADDR1)
-#define _prv_PMAP1			FS(prv_PMAP1)
-#define	_ss_eflags			FS(ss_eflags)
-#define _switchticks			FS(switchticks)
-#define _switchtime			FS(switchtime)
-#define	_intr_nesting_level		FS(intr_nesting_level)
-#define _tss_gdt			FS(tss_gdt)
-#define	_idlestack			FS(idlestack)
-#define	_idlestack_top			FS(idlestack_top)
-#define _witness_spin_check		FS(witness_spin_check)
-/*
-#define	_ktr_idx			FS(ktr_idx)
-#define	_ktr_buf			FS(ktr_buf)
-#define	_ktr_buf_data			FS(ktr_buf_data)
-*/
-
-#endif
-
 #endif /* !_MACHINE_ASNAMES_H_ */
