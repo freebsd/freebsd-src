@@ -1,4 +1,4 @@
-/*
+/*-
  * Copyright (c) 2001 Alexey Zelkin
  * All rights reserved.
  *
@@ -27,7 +27,7 @@
  */
 
 #ifndef _MONETARY_H
-#define _MONETARY_H
+#define	_MONETARY_H
 
 #include <sys/cdefs.h>
 #include <machine/ansi.h>
@@ -43,7 +43,7 @@ typedef	_BSD_SSIZE_T_	ssize_t;
 #endif
 
 __BEGIN_DECLS
-ssize_t strfmon(char *, size_t, const char *, ...);
+ssize_t	strfmon(char *, size_t, const char *, ...);
 __END_DECLS
 
-#endif /* _MONETARY_H */
+#endif /* !_MONETARY_H */
