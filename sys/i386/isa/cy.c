@@ -27,7 +27,7 @@
  * NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
  * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *	$Id: cy.c,v 1.7.4.3 1996/01/29 04:44:13 bde Exp $
+ *	$Id: cy.c,v 1.7.4.4 1997/07/17 15:29:35 nate Exp $
  */
 
 #include "cy.h"
@@ -2200,7 +2200,7 @@ commctl(com, bits, how)
 		 * reading the status register doesn't clear pending modem
 		 * status change interrupts.
 		 */
-		msr = cd_inb(iobase, CD1400_MSVR2, com->cy_align);
+		msr = cd_inb(iobase, CD1400_MSVR2);
 
 		if (msr & MSR_CTS)
 			bits |= TIOCM_CTS;
