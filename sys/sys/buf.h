@@ -411,10 +411,11 @@ static __inline void
 bstrategy(struct buf *bp)
 {
 
-	KASSERT(bp->b_bufobj != NULL, ("bwrite: no bufobj bp=%p", bp));
-	KASSERT(bp->b_bufobj->bo_ops != NULL, ("bwrite: no bo_ops bp=%p", bp));
+	KASSERT(bp->b_bufobj != NULL, ("bstrategy: no bufobj bp=%p", bp));
+	KASSERT(bp->b_bufobj->bo_ops != NULL,
+	    ("bstrategy: no bo_ops bp=%p", bp));
 	KASSERT(bp->b_bufobj->bo_ops->bop_strategy != NULL,
-	    ("bwrite: no bop_strategy bp=%p", bp));
+	    ("bstrategy: no bop_strategy bp=%p", bp));
 	bp->b_bufobj->bo_ops->bop_strategy(bp->b_bufobj, bp);
 }
 
