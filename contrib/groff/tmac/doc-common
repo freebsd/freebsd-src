@@ -119,6 +119,7 @@
 .nr Xc 3
 .nr Xo 1
 .nr Xr 10n
+.nr Yr \n(yr+1900
 .ds sV \& \&
 .ds hV \&\ \&
 .ds iV \& \&
@@ -284,8 +285,7 @@
 .		if "\\n(mo"10" .ds dD October
 .		if "\\n(mo"11" .ds dD November
 .		if "\\n(mo"12" .ds dD December
-.		nr _y \\n(yr+1900
-.		as dD \&\ \\n(dy, \\n(_y
+.		as dD \&\ \\n(dy, \\n(Yr
 .	\}
 .\}
 .el \{\
