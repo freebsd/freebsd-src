@@ -204,8 +204,6 @@ intr_execute_handlers(struct intsrc *isrc, struct intrframe *iframe)
 		}
 		isrc->is_pic->pic_eoi_source(isrc);
 		error = 0;
-		/* XXX */
-		td->td_pflags &= ~TDP_OWEPREEMPT;
 		critical_exit();
 	} else {
 		/*
