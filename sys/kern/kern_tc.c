@@ -195,7 +195,7 @@ microuptime(struct timeval *tv)
 	tv->tv_sec = tc->tc_offset_sec;
 	tv->tv_usec = tc->tc_offset_micro;
 	tv->tv_usec += ((u_int64_t)tco_delta(tc) * tc->tc_scale_micro) >> 32;
-	if (tv->tv_usec >= 1000000) {
+	while (tv->tv_usec >= 1000000) {
 		tv->tv_usec -= 1000000;
 		tv->tv_sec++;
 	}
@@ -216,7 +216,7 @@ nanouptime(struct timespec *ts)
 	delta += ((u_int64_t)count * tc->tc_scale_nano_f);
 	delta >>= 32;
 	delta += ((u_int64_t)count * tc->tc_scale_nano_i);
-	if (delta >= 1000000000) {
+	while (delta >= 1000000000) {
 		delta -= 1000000000;
 		ts->tv_sec++;
 	}
