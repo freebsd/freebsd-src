@@ -332,7 +332,7 @@ print_arg(int fd, struct syscall_args *sc, unsigned long *args, long retval) {
       l1 = args[sc->offset];
       l2 = args[sc->offset+1];
       t = make_quad(l1, l2);
-      asprintf(&tmp, "0x%qx", t);
+      asprintf(&tmp, "0x%llx", t);
       break;
     }
   case Ptr:
