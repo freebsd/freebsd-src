@@ -32,6 +32,8 @@
  * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
+ *
+ * $FreeBSD$
  */
 
 #ifndef lint
@@ -47,6 +49,7 @@ static const char rcsid[] =
 #include <ar.h>
 #include <dirent.h>
 #include <fcntl.h>
+#include <langinfo.h>
 #include <stdio.h>
 #include <string.h>
 #include <unistd.h>
@@ -75,14 +78,20 @@ contents(argv)
 		else if (!(file = files(argv)))
 			goto next;
 		if (options & AR_V) {
+			static int d_first = -1;
+
 			(void)strmode(chdr.mode, buf);
 			(void)printf("%s %6d/%-6d %8qd ",
 			    buf + 1, chdr.uid, chdr.gid, chdr.size);
+
+			if (d_first < 0)
+				d_first = (*nl_langinfo(D_MD_ORDER) == 'd');
 			tp = localtime(&chdr.date);
-			(void)strftime(buf, sizeof(buf), "%c", tp);
-			buf[16] = '\0';
-			buf[24] = '\0';
-			(void)printf("%s %s %s\n", buf + 4, buf + 20, file);
+			(void)strftime(buf, sizeof(buf),
+				       d_first ? "%e %b %R %Y" :
+						 "%b %e %R %Y",
+				       tp);
+			(void)printf("%s %s\n", buf, file);
 		} else
 			(void)printf("%s\n", file);
 		if (!all && !*argv)
