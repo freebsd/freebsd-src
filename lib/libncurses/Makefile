@@ -244,11 +244,20 @@ SYMLINKS+=libncurses_p.a ${LIBDIR}/libmytinfo_p.a
 SYMLINKS+=libncurses_p.a ${LIBDIR}/libtinfo_p.a
 .endif
 
+DOCSDIR= /usr/share/doc/ncurses
+DOCS=	ncurses-intro.html hackguide.html
+
 beforeinstall:	${HEADERS}
 	${INSTALL} -c -o ${BINOWN} -g ${BINGRP} -m 444 ${HEADERS} \
 	    ${DESTDIR}/usr/include
 	rm -f ${DESTDIR}/usr/include/ncurses.h
 	ln -s curses.h ${DESTDIR}/usr/include/ncurses.h
+
+.for file in ${DOCS}
+	cd ${.CURDIR}/../../contrib/ncurses/misc ; \
+	${INSTALL} -c -o ${BINOWN} -g ${BINGRP} -m 444 ${file} \
+		${DESTDIR}${DOCSDIR}
+.endfor
 
 # Generated source
 namehdr nameftr codeftr ${NAMESRC} ${CODESRC}: MKnames.awk Caps
