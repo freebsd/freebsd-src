@@ -184,7 +184,7 @@ struct kinfo_proc {
 	void	*ki_kstack;		/* kernel virtual addr of stack */
 	struct	timeval ki_childstime;	/* system time used by children */
 	struct	timeval ki_childutime;	/* user time used by children */
-	pid_t	ki_tid;			/* XXXKSE thread id */
+	lwpid_t	ki_tid;			/* XXXKSE thread id */
 	int	ki_numthreads;		/* XXXKSE number of threads in total */
 	long	ki_spare[KI_NSPARE];	/* spare room for later growth */
 };
