@@ -1,5 +1,5 @@
 #!/bin/sh
-#	$Id: rc,v 1.177 1999/02/09 17:17:18 dillon Exp $
+#	$Id: rc,v 1.178 1999/02/10 18:08:16 jkh Exp $
 #	From: @(#)rc	5.27 (Berkeley) 6/5/91
 
 # System startup script run by init on autoboot
@@ -8,7 +8,7 @@
 # and the console is the controlling terminal.
 
 # Note that almost all the user-configurable behavior is no longer in
-# this file, but rather in /etc/rc.conf.  Please check this file
+# this file, but rather in /etc/defaults/rc.conf.  Please check this file
 # first before contemplating any changes here.
 
 stty status '^T'
@@ -120,12 +120,6 @@ if [ "X$diskless_mount" != "X" ]; then
 	if [ -f $diskless_mount ]; then
 		sh $diskless_mount
 	fi
-fi
-
-# If old file exists, whine until they fix it.
-if [ -f /etc/sysconfig ]; then
-	echo "Warning: /etc/sysconfig has been replaced by /etc/rc.conf."
-	echo "You should switch to /etc/rc.conf ASAP to eliminate this warning."
 fi
 
 adjkerntz -i
@@ -286,8 +280,7 @@ if [ -x /sbin/ldconfig ]; then
 
 	# Legacy aout support for i386 only
 	if [ X"`sysctl -n hw.machine`" = X"i386" ]; then
-		# Default the a.out ldconfig path, in case the system's
-		# /etc/rc.conf hasn't been updated.
+		# Default the a.out ldconfig path.
 		: ${ldconfig_paths_aout=${ldconfig_paths}}
 		_LDC=/usr/lib/aout
 		for i in $ldconfig_paths_aout; do
@@ -402,23 +395,19 @@ fi
 [ -f /etc/rc.devfs ] && sh /etc/rc.devfs
 
 # Do traditional (but rather obsolete) rc.local file if it exists.  If you
-# use this file and want to make it programmatic, source /etc/rc.conf in
-# /etc/rc.local and add your custom variables to /etc/rc.conf.local, as
-# shown below.  Please do not put local extensions into /etc/rc itself. 
+# use this file and want to make it programmatic, source /etc/defaults/rc.conf
+# in /etc/rc.local and add your custom variables to /etc/rc.conf, as
+# shown below.  Please do not put local extensions into /etc/rc itself.
 # Use /etc/rc.local
 #
 # ---- rc.local  ----
-#     if [ -f /etc/rc.conf ]; then
-#             . /etc/rc.conf
+#     if [ -f /etc/defaults/rc.conf ]; then
+#             . /etc/defaults/rc.conf
 #     fi
-#
-#     ... additional startup conditionals ...
-# ---- rc.local  ----
-#
-
-# Do traditional rc.local file if it exists. 
 # 
-
+#     ... additional startup conditionals ...
+# ---- rc.local  ---- 
+# 
 if [ -f /etc/rc.local ]; then
 	echo -n 'starting local daemons:'
         sh /etc/rc.local
