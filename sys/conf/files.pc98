@@ -115,6 +115,7 @@ dev/kbd/kbd.c			optional	sc
 dev/kbd/kbd.c			optional	ukbd
 dev/kbd/kbd.c			optional	pckbd
 dev/lnc/if_lnc_cbus.c		optional	lnc isa
+dev/ppc/ppc_puc.c		optional	ppc puc pci
 dev/sbni/if_sbni.c		optional	sbni
 dev/sbni/if_sbni_pci.c		optional	sbni pci
 dev/snc/dp83932.c		optional	snc
