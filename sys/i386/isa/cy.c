@@ -27,7 +27,7 @@
  * NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
  * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *	$Id: cy.c,v 1.65 1998/07/29 18:48:20 bde Exp $
+ *	$Id: cy.c,v 1.66 1998/08/11 17:01:32 bde Exp $
  */
 
 #include "opt_compat.h"
@@ -272,6 +272,7 @@ struct com_s {
 
 	int	cy_align;	/* index for register alignment */
 	cy_addr	cy_iobase;	/* base address of this port's cyclom */
+	int cy_rflow;		/* rflow flag */
 	cy_addr	iobase;		/* base address of this port's cd1400 */
 
 	struct tty	*tp;	/* cross reference */
@@ -344,7 +345,7 @@ static	int	comparam	__P((struct tty *tp, struct termios *t));
 static	swihand_t siopoll;
 static	int	sioprobe	__P((struct isa_device *dev));
 static	void	siosettimeout	__P((void));
-static	int	comspeed	__P((speed_t speed, int *prescaler_io));
+static	int	comspeed	__P((speed_t speed, long clock, int *prescaler_io));
 static	void	comstart	__P((struct tty *tp));
 static	timeout_t comwakeup;
 static	void	disc_optim	__P((struct tty	*tp, struct termios *t,
@@ -536,9 +537,13 @@ cyattach_common(cy_iobase, cy_align)
 				    + (cy_chip_offset[cyu] << cy_align));
 
 		/* Set up a receive timeout period of than 1+ ms. */
-		cd_outb(iobase, CD1400_PPR, cy_align,
-			howmany(CY_CLOCK / CD1400_PPR_PRESCALER, 1000));
-
+		if (cd_inb(iobase,CD1400_GFRCR, cy_align) >= CD1400_REV_J) { 
+			/* CD1400 rev. J or higher */
+			cd_outb(iobase, CD1400_PPR, cy_align, CY_CLOCK_60_1MS);
+		} else {
+			cd_outb(iobase, CD1400_PPR, cy_align, CY_CLOCK_25_1MS);
+		}
+			
 		for (cdu = 0; cdu < CD1400_NO_OF_CHANNELS; ++cdu, ++unit) {
 			struct com_s	*com;
 			int		s;
@@ -557,6 +562,13 @@ cyattach_common(cy_iobase, cy_align)
 
 			com->cy_align = cy_align;
 			com->cy_iobase = cy_iobase;
+			if (cd_inb(iobase,CD1400_GFRCR, cy_align) >= 
+			    CD1400_REV_J) { 
+				/* CD1400 rev. J or higher */
+				com->cy_rflow = 1;
+			} else {
+				com->cy_rflow = 0;
+			}
 	com->iobase = iobase;
 
 	/*
@@ -1102,14 +1114,24 @@ siointr(unit)
 				ioptr[CE_INPUT_OFFSET] = line_status;
 				com->iptr = ++ioptr;
 				if (ioptr == com->ihighwater
-				    && com->state & CS_RTS_IFLOW)
+				    && com->state & CS_RTS_IFLOW) {
 #if 0
 					outb(com->modem_ctl_port,
 					     com->mcr_image &= ~MCR_RTS);
 #else
-					cd_outb(iobase, CD1400_MSVR1, cy_align,
-						com->mcr_image &= ~MCR_RTS);
+					if (com->cy_rflow) {
+						cd_outb(iobase, CD1400_MSVR2, 
+							cy_align,
+							com->mcr_image &= 
+								~MCR_DTR);
+					} else {
+						cd_outb(iobase, CD1400_MSVR1, 
+							cy_align,
+							com->mcr_image &= 
+								~MCR_RTS);
+					}
 #endif
+				}
 				if (line_status & LSR_OE)
 					CE_RECORD(com, CE_OVERRUN);
 			}
@@ -1165,8 +1187,17 @@ siointr(unit)
 					outb(com->modem_ctl_port,
 					     com->mcr_image &= ~MCR_RTS);
 #else
-					cd_outb(iobase, CD1400_MSVR1, cy_align,
-						com->mcr_image &= ~MCR_RTS);
+					if (com->cy_rflow) {
+						cd_outb(iobase, CD1400_MSVR2, 
+							cy_align,
+							com->mcr_image &= 
+								~MCR_DTR);
+					} else {
+						cd_outb(iobase, CD1400_MSVR1, 
+							cy_align,
+							com->mcr_image &= 
+								~MCR_RTS);
+					}
 #endif
 				com_events += count;
 				do {
@@ -1602,8 +1633,9 @@ repeat:
 			 * there is room in the high-level buffer.
 			 */
 			if ((com->state & CS_RTS_IFLOW)
-			    && !(com->mcr_image & MCR_RTS)
-			    && !(tp->t_state & TS_TBLOCK))
+			    && (com->cy_rflow ? (!(com->mcr_image & MCR_DTR)) :
+						(!(com->mcr_image & MCR_RTS)))
+			    && !(tp->t_state & TS_TBLOCK)) {
 #if 0
 				outb(com->modem_ctl_port,
 				     com->mcr_image |= MCR_RTS);
@@ -1611,9 +1643,15 @@ repeat:
 				iobase = com->iobase,
 				cd_outb(iobase, CD1400_CAR, com->cy_align,
 					unit & CD1400_CAR_CHAN),
-				cd_outb(iobase, CD1400_MSVR1, com->cy_align,
-					com->mcr_image |= MCR_RTS);
+				(com->cy_rflow ?
+					cd_outb(iobase, CD1400_MSVR2, 
+						com->cy_align,
+						com->mcr_image |= MCR_DTR) :
+					cd_outb(iobase, CD1400_MSVR1, 
+						com->cy_align,
+						com->mcr_image |= MCR_RTS));
 #endif
+			}
 			enable_intr();
 			com->ibuf = ibuf;
 		}
@@ -1716,25 +1754,35 @@ comparam(tp, t)
 	u_char		opt;
 	int		s;
 	int		unit;
+	long		cy_clock;
 
 	/* do historical conversions */
 	if (t->c_ispeed == 0)
 		t->c_ispeed = t->c_ospeed;
 
-	/* check requested parameters */
-	idivisor = comspeed(t->c_ispeed, &iprescaler);
-	if (idivisor < 0)
-		return (EINVAL);
-	odivisor = comspeed(t->c_ospeed, &oprescaler);
-	if (odivisor < 0)
-		return (EINVAL);
-
-	/* parameters are OK, convert them to the com struct and the device */
 	unit = DEV_TO_UNIT(tp->t_dev);
 	com = com_addr(unit);
 	iobase = com->iobase;
 	s = spltty();
 	cd_outb(iobase, CD1400_CAR, com->cy_align, unit & CD1400_CAR_CHAN);
+
+	/* Set Clock Reference */
+	if (cd_inb(iobase, CD1400_GFRCR, com->cy_align) == CD1400_REV_J) {
+		/* CD1400 rev. J or higher */
+		cy_clock = CY_CLOCK_60;
+	} else {
+		cy_clock = CY_CLOCK_25;
+	}
+
+	/* check requested parameters */
+	idivisor = comspeed(t->c_ispeed, cy_clock, &iprescaler);
+	if (idivisor < 0)
+		return (EINVAL);
+	odivisor = comspeed(t->c_ospeed, cy_clock, &oprescaler);
+	if (odivisor < 0)
+		return (EINVAL);
+
+	/* parameters are OK, convert them to the com struct and the device */
 	if (odivisor == 0)
 		(void)commctl(com, TIOCM_DTR, DMBIC);	/* hang up line */
 	else
@@ -2002,8 +2050,13 @@ comparam(tp, t)
 #if 0
 		outb(com->modem_ctl_port, com->mcr_image |= MCR_RTS);
 #else
-		cd_outb(iobase, CD1400_MSVR1, com->cy_align,
-			com->mcr_image |= MCR_RTS);
+		if (com->cy_rflow) {
+			cd_outb(iobase, CD1400_MSVR2, com->cy_align,
+				com->mcr_image |= MCR_DTR);
+		} else {
+			cd_outb(iobase, CD1400_MSVR1, com->cy_align,
+				com->mcr_image |= MCR_RTS);
+		}
 #endif
 	}
 
@@ -2085,21 +2138,35 @@ comstart(tp)
 				com->intr_enable |= CD1400_SRER_TXRDY);
 	}
 	if (tp->t_state & TS_TBLOCK) {
-		if (com->mcr_image & MCR_RTS && com->state & CS_RTS_IFLOW)
+		if ((com->cy_rflow ? (com->mcr_image & MCR_DTR) :  
+				     (com->mcr_image & MCR_RTS))
+		    && com->state & CS_RTS_IFLOW)
 #if 0
 			outb(com->modem_ctl_port, com->mcr_image &= ~MCR_RTS);
 #else
-			cd_outb(iobase, CD1400_MSVR1, com->cy_align,
-				com->mcr_image &= ~MCR_RTS);
+			if (com->cy_rflow) {
+				cd_outb(iobase, CD1400_MSVR2, com->cy_align,
+					com->mcr_image &= ~MCR_DTR);
+			} else {
+				cd_outb(iobase, CD1400_MSVR1, com->cy_align,
+					com->mcr_image &= ~MCR_RTS);
+			}
 #endif
 	} else {
-		if (!(com->mcr_image & MCR_RTS) && com->iptr < com->ihighwater
+		if ((com->cy_rflow ? (!(com->mcr_image & MCR_DTR)) :  
+				     (!(com->mcr_image & MCR_RTS)))
+		    && com->iptr < com->ihighwater
 		    && com->state & CS_RTS_IFLOW)
 #if 0
 			outb(com->modem_ctl_port, com->mcr_image |= MCR_RTS);
 #else
-			cd_outb(iobase, CD1400_MSVR1, com->cy_align,
-				com->mcr_image |= MCR_RTS);
+			if (com->cy_rflow) {
+				cd_outb(iobase, CD1400_MSVR2, com->cy_align,
+					com->mcr_image |= MCR_DTR);
+			} else {
+				cd_outb(iobase, CD1400_MSVR1, com->cy_align,
+					com->mcr_image |= MCR_RTS);
+			}
 #endif
 	}
 	enable_intr();
@@ -2244,11 +2311,13 @@ commctl(com, bits, how)
 		if (com->channel_control & CD1400_CCR_RCVEN)
 			bits |= TIOCM_LE;
 		mcr = com->mcr_image;
-		if (mcr & MCR_DTR)
+		if ((com->cy_rflow ? mcr & MCR_RTS : mcr & MCR_DTR)) {
 			bits |= TIOCM_DTR;
-		if (mcr & MCR_RTS)
+		}
+		if ((com->cy_rflow ? mcr & MCR_DTR : mcr & MCR_RTS)) {
 			/* XXX wired on for Cyclom-8Ys */
 			bits |= TIOCM_RTS;
+		}
 
 		/*
 		 * We must read the modem status from the hardware because
@@ -2272,10 +2341,20 @@ commctl(com, bits, how)
 		return (bits);
 	}
 	mcr = 0;
-	if (bits & TIOCM_DTR)
-		mcr |= MCR_DTR;
-	if (bits & TIOCM_RTS)
-		mcr |= MCR_RTS;
+	if (bits & TIOCM_DTR) {
+		if (com->cy_rflow) {
+			mcr |= MCR_RTS;
+		} else {
+			mcr |= MCR_DTR;
+		}
+	}
+	if (bits & TIOCM_RTS) {
+		if (com->cy_rflow) {
+			mcr |= MCR_DTR;
+		} else {
+			mcr |= MCR_RTS;
+		}
+	}
 	disable_intr();
 	switch (how) {
 	case DMSET:
@@ -2452,8 +2531,9 @@ cyinput(c, tp)
 #endif /* Smarts */
 
 static int
-comspeed(speed, prescaler_io)
+comspeed(speed, clock, prescaler_io)
 	speed_t	speed;
+	long	clock;
 	int	*prescaler_io;
 {
 	int	actual;
@@ -2470,14 +2550,14 @@ comspeed(speed, prescaler_io)
 	/* determine which prescaler to use */
 	for (prescaler_unit = 4, prescaler = 2048; prescaler_unit;
 		prescaler_unit--, prescaler >>= 2) {
-		if (CY_CLOCK / prescaler / speed > 63)
+		if (clock / prescaler / speed > 63)
 			break;
 	}
 
-	divider = (CY_CLOCK / prescaler * 2 / speed + 1) / 2; /* round off */
+	divider = (clock / prescaler * 2 / speed + 1) / 2; /* round off */
 	if (divider > 255)
 		divider = 255;
-	actual = CY_CLOCK/prescaler/divider;
+	actual = clock/prescaler/divider;
 
 	/* 10 times error in percent: */
 	error = ((actual - (long)speed) * 2000 / (long)speed + 1) / 2;
