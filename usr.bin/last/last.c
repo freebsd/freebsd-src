@@ -109,7 +109,8 @@ void
 usage(void)
 {
 	(void)fprintf(stderr,
-	"usage: last [-#] [-f file] [-h hostname] [-t tty] [-s|w] [user ...]\n");
+"usage: last [-#] [-d [[CC]YY][MMDD]hhmm[.SS]] [-f file] [-h hostname]\n"
+"\t[-t tty] [-s|w] [user ...]\n");
 	exit(1);
 }
 

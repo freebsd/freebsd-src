@@ -32,7 +32,7 @@
 .\"     @(#)last.1	8.1 (Berkeley) 6/6/93
 .\" $FreeBSD$
 .\"
-.Dd June 6, 1993
+.Dd May 2, 2001
 .Dt LAST 1
 .Os BSD 4
 .Sh NAME
@@ -41,6 +41,15 @@
 .Sh SYNOPSIS
 .Nm
 .Op Fl Ns Ar n
+.Oo
+.Fl d
+.Sm off
+.Op Oo Ar CC Oc Ar YY
+.Op Ar MM DD
+.Ar hh mm
+.Op Ar .SS
+.Sm on
+.Oc
 .Op Fl f Ar file
 .Op Fl h Ar host
 .Op Fl s
@@ -49,12 +58,14 @@
 .Op Ar user ...
 .Sh DESCRIPTION
 .Nm Last
-will list the sessions of specified
+will either list the sessions of specified
 .Ar users ,
 .Ar ttys ,
 and
 .Ar hosts ,
-in reverse time order.  Each line of output contains
+in reverse time order,
+or list the users logged in at a specified date and time.
+Each line of output contains
 the user name, the tty from which the session was conducted, any
 hostname, the start and stop times for the session, and the duration
 of the session.  If the session is still continuing or was cut short by
@@ -67,6 +78,65 @@ will so indicate.
 Limits the report to
 .Ar n
 lines.
+.It Fl d Ar date
+Specify the snapshot date and time.
+All users logged in at the snapshot date and time will
+be reported.
+This may be used with the
+.Fl f
+option to derive the results from stored wtmp files.
+When this argument is provided, all other options except for
+.Fl f
+and
+.Fl Ar n
+are ignored.
+The argument should be in the form
+.Sm off
+.Op Oo Ar CC Oc Ar YY
+.Op Ar MM DD
+.Ar hh mm
+.Op Ar .SS
+.Sm on
+where each pair of letters represents the following:
+.Pp
+.Bl -tag -width Ds -compact -offset indent
+.It Ar CC
+The first two digits of the year (the century).
+.It Ar YY
+The second two digits of the year.
+If
+.Ar YY
+is specified, but
+.Ar CC
+is not, a value for
+.Ar YY
+between 69 and 99 results in a
+.Ar CC
+value of 19.
+Otherwise, a
+.Ar CC
+value of 20 is used.
+.It Ar MM
+Month of the year, from 1 to 12.
+.It Ar DD
+Day of the month, from 1 to 31.
+.It Ar hh
+Hour of the day, from 0 to 23.
+.It Ar mm
+Minute of the hour, from 0 to 59.
+.It Ar SS
+Second of the minute, from 0 to 61.
+.El
+.Pp
+If the
+.Ar CC
+and
+.Ar YY
+letter pairs are not specified, the values default to the current
+year.
+If the
+.Ar SS
+letter pair is not specified, the value defaults to 0.
 .It Fl f Ar file
 .Nm Last
 reads the file
@@ -92,8 +162,9 @@ Widen the duration field to show seconds, as well as the
 default days, hours and minutes.
 .El
 .Pp
-If
-multiple arguments are given, the information which applies to any of the
+If multiple arguments are given,
+and a snapshot time is not specified,
+the information which applies to any of the
 arguments is printed, e.g.,
 .Dq Li "last root -t console"
 would list all of
