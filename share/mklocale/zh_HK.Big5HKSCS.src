@@ -5,7 +5,7 @@
  * $FreeBSD$
  */
 
-ENCODING        "BIG5"
+ENCODING        "GBK"
 /* VARIABLE	BIG5 character set */
 
 /*
