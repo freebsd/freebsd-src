@@ -27,6 +27,7 @@
  */
 
 #include "acpi.h"
+#include <contrib/dev/acpica/actables.h>
 
 #include <machine/md_var.h>
 
@@ -136,7 +137,8 @@ ia64_probe_sapics(void)
 			    table->Signature[0], table->Signature[1],
 			    table->Signature[2], table->Signature[3], table);
 
-		if (strncmp(table->Signature, APIC_SIG, 4) != 0)
+		if (strncmp(table->Signature, APIC_SIG, 4) != 0 ||
+		    ACPI_FAILURE(AcpiTbVerifyTableChecksum((void *)table)))
 			continue;
 
 		/* Save the address of the processor interrupt block. */
@@ -219,7 +221,8 @@ ia64_count_cpus(void)
 		table = (MULTIPLE_APIC_TABLE *)
 		    IA64_PHYS_TO_RR7(xsdt->TableOffsetEntry[t]);
 
-		if (strncmp(table->Signature, APIC_SIG, 4) != 0)
+		if (strncmp(table->Signature, APIC_SIG, 4) != 0 ||
+		    ACPI_FAILURE(AcpiTbVerifyTableChecksum((void *)table)))
 			continue;
 
 		end = (char *)table + table->Length;
