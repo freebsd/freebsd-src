@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: bundle.h,v 1.2 1998/05/21 21:44:14 brian Exp $
+ *	$Id: bundle.h,v 1.3 1998/05/23 22:24:30 brian Exp $
  */
 
 #define	PHASE_DEAD		0	/* Link is dead */
@@ -164,3 +164,4 @@ extern void bundle_ReceiveDatalink(struct bundle *, int, struct sockaddr_un *);
 extern int bundle_SetMode(struct bundle *, struct datalink *, int);
 extern int bundle_RenameDatalink(struct bundle *, struct datalink *,
                                  const char *);
+extern void bundle_setsid(struct bundle *, int);
