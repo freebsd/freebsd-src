@@ -910,6 +910,12 @@ dontblock:
 		    !sosendallatonce(so) && !nextrecord) {
 			if (so->so_error || so->so_state & SS_CANTRCVMORE)
 				break;
+			/*
+			 * Notify the protocol that some data has been
+			 * drained before blocking.
+			 */
+			if (pr->pr_flags & PR_WANTRCVD && so->so_pcb)
+				(*pr->pr_usrreqs->pru_rcvd)(so, flags);
 			error = sbwait(&so->so_rcv);
 			if (error) {
 				sbunlock(&so->so_rcv);
