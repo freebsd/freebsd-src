@@ -10,7 +10,7 @@
 # putting your name on top after doing something trivial like reindenting
 # it, just to make it look like you wrote it!).
 #
-# $Id: miscfuncs.sh,v 1.5 1994/11/18 15:13:37 jkh Exp $
+# $Id: miscfuncs.sh,v 1.6 1994/11/20 14:49:48 jkh Exp $
 
 if [ "$_MISCFUNCS_SH_LOADED_" = "yes" ]; then
 	return 0
@@ -72,18 +72,21 @@ confirm()
 # A simple message box dialog.
 message()
 {
+	echo "Progress <$*>" > /dev/ttyv1
 	dialog $clear --title "Progress" --infobox "$*" -1 -1
 }
 
 # A simple error dialog.
 error()
 {
+	echo "ERROR <$*>" > /dev/ttyv1
 	dialog $clear --title "Error!" --msgbox "$*" -1 -1
 }
 
 # Something isn't supported yet! :-(
 not_supported()
 {
+	echo "<Feature not supported>" > /dev/ttyv1
 	dialog $clear --title "Sorry!" \
 	--msgbox "This feature is not supported in the current version of the \
 installation tools.  Barring some sort of fatal accident, we do \
