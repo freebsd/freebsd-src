@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)kern_descrip.c	8.6 (Berkeley) 4/19/94
- * $Id: kern_descrip.c,v 1.49 1998/02/04 22:32:31 eivind Exp $
+ * $Id: kern_descrip.c,v 1.50 1998/02/06 12:13:22 eivind Exp $
  */
 
 #include "opt_compat.h"
@@ -709,8 +709,7 @@ fdinit(p)
 	newfdp->fd_fd.fd_cdir = fdp->fd_cdir;
 	VREF(newfdp->fd_fd.fd_cdir);
 	newfdp->fd_fd.fd_rdir = fdp->fd_rdir;
-	if (newfdp->fd_fd.fd_rdir)
-		VREF(newfdp->fd_fd.fd_rdir);
+	VREF(newfdp->fd_fd.fd_rdir);
 
 	/* Create the file descriptor table. */
 	newfdp->fd_fd.fd_refcnt = 1;
@@ -757,8 +756,7 @@ fdcopy(p)
 	    M_FILEDESC, M_WAITOK);
 	bcopy(fdp, newfdp, sizeof(struct filedesc));
 	VREF(newfdp->fd_cdir);
-	if (newfdp->fd_rdir)
-		VREF(newfdp->fd_rdir);
+	VREF(newfdp->fd_rdir);
 	newfdp->fd_refcnt = 1;
 
 	/*
@@ -821,8 +819,7 @@ fdfree(p)
 	if (fdp->fd_nfiles > NDFILE)
 		FREE(fdp->fd_ofiles, M_FILEDESC);
 	vrele(fdp->fd_cdir);
-	if (fdp->fd_rdir)
-		vrele(fdp->fd_rdir);
+	vrele(fdp->fd_rdir);
 	FREE(fdp, M_FILEDESC);
 }
 

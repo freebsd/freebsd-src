@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)vfs_syscalls.c	8.13 (Berkeley) 4/15/94
- * $Id: vfs_syscalls.c,v 1.91 1998/02/06 12:13:32 eivind Exp $
+ * $Id: vfs_syscalls.c,v 1.92 1998/02/08 01:41:33 dyson Exp $
  */
 
 /* For 4.3 integer FS ID compatibility */
@@ -804,8 +804,7 @@ chroot(p, uap)
 	    SCARG(uap, path), p);
 	if (error = change_dir(&nd, p))
 		return (error);
-	if (fdp->fd_rdir != NULL)
-		vrele(fdp->fd_rdir);
+	vrele(fdp->fd_rdir);
 	fdp->fd_rdir = nd.ni_vp;
 	return (0);
 }
