@@ -1,4 +1,4 @@
-.\" $Id: fetch.1,v 1.9.2.3 1997/03/06 07:21:40 mpp Exp $
+.\" $Id: fetch.1,v 1.9.2.4 1997/03/10 07:12:48 fenner Exp $
 .Dd July 2, 1996
 .Dt FETCH 1
 .Os FreeBSD 2.2
@@ -7,7 +7,7 @@
 .Nd retrieve a file by Uniform Resource Locator
 .Sh SYNOPSIS
 .Nm fetch
-.Op Fl MPamnpqr
+.Op Fl MPabmnpqr
 .Op Fl o Ar file
 .Ar URL
 .Op Ar ...
@@ -48,6 +48,12 @@ The following options are available:
 .Bl -tag -width Fl
 .It Fl a
 Automatically retry the transfer upon soft failures.
+.It Fl b
+Work around a bug in some
+.Tn HTTP
+servers which fail to correctly implement the
+.Tn TCP
+protocol.
 .It Fl c Ar dir
 The file to retrieve is in directory
 .Ar dir
@@ -301,3 +307,7 @@ Only the
 authentication mode is implemented for
 .Tn HTTP .
 This should be replaced by digest authentication.
+.Pp
+The
+.Fl b
+flag should not be necessary.
