@@ -19,7 +19,7 @@
  * 4. Modifications may be freely made to this file if the above conditions
  *    are met.
  *
- *	$Id$
+ *	$Id: aic7770.c,v 1.10 1995/01/16 16:31:34 gibbs Exp $
  */
 
 #include <sys/param.h>
@@ -88,10 +88,10 @@ aic7770probe(struct isa_device *dev)
 
 	aic7770_sig valid_ids[] = {
 	/* Entries of other tested adaptors should be added here */
-		  AHC_274, 0x71,  /*274x, Card*/
-		  AHC_274, 0x70,  /*274x, Motherboard*/
-		  AHC_284, 0x56,  /*284x, BIOS enabled*/
-		  AHC_284, 0x57,  /*284x, BIOS disabled*/
+		{ AHC_274, 0x71 }, /*274x, Card*/
+		{ AHC_274, 0x70 }, /*274x, Motherboard*/
+		{ AHC_284, 0x56 }, /*284x, BIOS enabled*/
+		{ AHC_284, 0x57 }  /*284x, BIOS disabled*/
 	};
 
 
