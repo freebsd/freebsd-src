@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)ffs_vnops.c	8.15 (Berkeley) 5/14/95
- * $Id: ffs_vnops.c,v 1.55 1999/03/02 04:04:31 mckusick Exp $
+ * $Id: ffs_vnops.c,v 1.56 1999/05/14 01:26:05 mckusick Exp $
  */
 
 #include <sys/param.h>
@@ -143,7 +143,7 @@ ffs_fsync(ap)
 	/*
 	 * Flush all dirty buffers associated with a vnode.
 	 */
-	passes = NIADDR;
+	passes = NIADDR + 1;
 	skipmeta = 0;
 	if (ap->a_waitfor == MNT_WAIT)
 		skipmeta = 1;
@@ -174,11 +174,11 @@ loop:
 		    ((vp->v_type != VREG) && (vp->v_type != VBLK))) {
 
 			/*
-			 * Wait for I/O associated with indirect blocks to
-			 * complete, since there is no way to quickly wait
-			 * for them below.
+			 * On our final pass through, do all I/O synchronously
+			 * so that we can find out if our flush is failing
+			 * because of write errors.
 			 */
-			if ((bp->b_vp == vp) || (ap->a_waitfor != MNT_WAIT)) {
+			if (passes > 0 || (ap->a_waitfor != MNT_WAIT)) {
 				if ((bp->b_flags & B_CLUSTEROK) &&
 				    ap->a_waitfor != MNT_WAIT) {
 					(void) vfs_bio_awrite(bp);
@@ -193,7 +193,8 @@ loop:
 				bremfree(bp);
 				bp->b_flags |= B_BUSY;
 				splx(s);
-				(void) bwrite(bp);
+				if ((error = bwrite(bp)) != 0)
+					return (error);
 				s = splbio();
 			}
 		} else if ((vp->v_type == VREG) && (bp->b_lblkno >= lbn)) {
