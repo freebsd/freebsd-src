@@ -35,7 +35,6 @@
 .Cd options KTR_COMPILE=(KTR_LOCK|KTR_INTR|KTR_PROC)
 .Cd options KTR_CPUMASK=0x3
 .Cd options KTR_ENTRIES=8192
-.Cd options KTR_EXTEND
 .Cd options KTR_MASK=(KTR_INTR|KTR_PROC)
 .Cd options KTR_VERBOSE
 .Sh DESCRIPTION
@@ -163,12 +162,10 @@ output.
 Note that the events are displayed in reverse chronological order.
 That is, the most recent events are displayed first.
 .Sh SEE ALSO
-.Xr ktr 9
+.Xr ktr 9 ,
+.Xr ktrdump 8
 .Sh HISTORY
 The KTR kernel tracing facility first appeared in
 .Bsx 3.0
 and was imported into
 .Fx 5.0 .
-.Sh BUGS
-Currently there is no userland utility outside of a gdb script to extract
-the event buffer from a kernel crash dump or a running kernel.
