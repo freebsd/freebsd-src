@@ -30,7 +30,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: colrm.c,v 1.1.1.1.8.2 1997/06/30 11:13:59 charnier Exp $
+ *	$Id: colrm.c,v 1.1.1.1.8.3 1997/08/29 05:29:02 imp Exp $
  */
 
 #ifndef lint
@@ -40,7 +40,7 @@ static char copyright[] =
 #endif /* not lint */
 
 #ifndef lint
-static char sccsid[] = "@(#)colrm.c	8.1 (Berkeley) 6/6/93";
+static char sccsid[] = "@(#)colrm.c	8.2 (Berkeley) 5/4/95";
 #endif /* not lint */
 
 #include <sys/types.h>
@@ -50,6 +50,7 @@ static char sccsid[] = "@(#)colrm.c	8.1 (Berkeley) 6/6/93";
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <unistd.h>
 
 #define	TAB	8
 
@@ -65,7 +66,7 @@ main(argc, argv)
 	register int ch;
 	char *p;
 
-	while ((ch = getopt(argc, argv, "")) !=  -1)
+	while ((ch = getopt(argc, argv, "")) != -1)
 		switch(ch) {
 		case '?':
 		default:
@@ -137,3 +138,4 @@ usage()
 	(void)fprintf(stderr, "usage: colrm [start [stop]]\n");
 	exit(1);
 }
+

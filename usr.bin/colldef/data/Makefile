@@ -1,4 +1,4 @@
-# $Id: Makefile,v 1.8 1997/03/01 00:28:05 wosch Exp $
+# $Id: Makefile,v 1.3.2.2 1997/03/01 01:19:30 adam Exp $
 
 NOMAN=YES
 CLEANFILES+= ${LOCALES:S/$/.out/g}
@@ -6,6 +6,7 @@ CLEANFILES+= ${LOCALES:S/$/.out/g}
 LOCALES=        de_DE.ISO_8859-1 \
 		es_ES.ISO_8859-1 \
 		is_IS.ISO_8859-1 \
+		lt_LN.ASCII      \
 		lt_LN.ISO_8859-1 \
 		lt_LN.ISO_8859-2 \
 		ru_SU.CP866 \
@@ -18,6 +19,9 @@ COLLDEF=${.OBJDIR}/../colldef
 .else
 COLLDEF=${.CURDIR}/../colldef
 .endif
+
+ASCIILINKS = \
+	ko_KR.EUC ja_JP.EUC
 
 LATIN1LINKS = \
 	da_DK en_AU en_CA en_GB en_US fi_FI \
@@ -46,6 +50,10 @@ afterinstall:
 .for locale in ${LOCALES}
 	${INSTALL} -c -m 644 -o ${BINOWN} -g ${BINGRP} \
 		${locale}.out ${LOCALEDIR}/${locale}/LC_COLLATE
+.endfor
+.for link in ${ASCIILINKS}
+	ln -fs ../lt_LN.ASCII/LC_COLLATE \
+	       ${LOCALEDIR}/${link}/LC_COLLATE
 .endfor
 .for link in ${LATIN1LINKS}
 	ln -fs ../lt_LN.ISO_8859-1/LC_COLLATE \

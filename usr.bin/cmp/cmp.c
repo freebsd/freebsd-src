@@ -67,7 +67,7 @@ main(argc, argv)
 	int ch, fd1, fd2, special;
 	char *file1, *file2;
 
-	while ((ch = getopt(argc, argv, "-ls")) !=  -1)
+	while ((ch = getopt(argc, argv, "-ls")) != -1)
 		switch (ch) {
 		case 'l':		/* print all differences */
 			lflag = 1;
