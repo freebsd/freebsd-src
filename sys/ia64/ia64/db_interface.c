@@ -97,6 +97,16 @@ struct db_variable db_regs[] = {
 	{"ar.ccv",	(db_expr_t*) &ddb_regs.tf_ar_ccv,	FCN_NULL},
 	{"ar.fpsr",	(db_expr_t*) &ddb_regs.tf_ar_fpsr,	FCN_NULL},
 
+	/* Branch registers */
+	{"rp",		(db_expr_t*) &ddb_regs.tf_b[0],		FCN_NULL},
+	{"b1",		(db_expr_t*) &ddb_regs.tf_b[1],		FCN_NULL},
+	{"b2",		(db_expr_t*) &ddb_regs.tf_b[2],		FCN_NULL},
+	{"b3",		(db_expr_t*) &ddb_regs.tf_b[3],		FCN_NULL},
+	{"b4",		(db_expr_t*) &ddb_regs.tf_b[4],		FCN_NULL},
+	{"b5",		(db_expr_t*) &ddb_regs.tf_b[5],		FCN_NULL},
+	{"b6",		(db_expr_t*) &ddb_regs.tf_b[6],		FCN_NULL},
+	{"b7",		(db_expr_t*) &ddb_regs.tf_b[7],		FCN_NULL},
+
 	/* Static registers */
 	{"r0",		(db_expr_t*) &zero,			FCN_NULL},
 	{"gp",		(db_expr_t*) &ddb_regs.tf_r[FRAME_R1],	FCN_NULL},
@@ -321,7 +331,8 @@ kdb_trap(int vector, struct trapframe *regs)
 	/*
 	 * XXX pretend that registers outside the current frame don't exist.
 	 */
-	db_eregs = db_regs + DB_MISC_REGS + 32 + (ddb_regs.tf_cr_ifs & 0x7f);
+	db_eregs = db_regs + DB_MISC_REGS + 8 + 32
+		+ (ddb_regs.tf_cr_ifs & 0x7f);
 
 	__asm __volatile("flushrs"); /* so we can look at them */
 
