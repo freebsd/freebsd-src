@@ -68,6 +68,11 @@ typedef	_BSD_TIME_T_	time_t;
 #undef	_BSD_TIME_T_
 #endif
 
+#ifdef	_BSD_CLOCKID_T_
+typedef	_BSD_CLOCKID_T_	clockid_t;
+#undef	_BSD_CLOCKID_T_
+#endif
+
 #ifdef	_BSD_SIZE_T_
 typedef	_BSD_SIZE_T_	size_t;
 #undef	_BSD_SIZE_T_
