@@ -63,8 +63,6 @@ It is equivalent to:
 .Bd -literal -offset indent
 (int)strtol(nptr, (char **)NULL, 10);
 .Ed
-.Pp
-except the handling of errors.
 .Sh IMPLEMENTATION NOTES
 The
 .Fn atoi
@@ -76,9 +74,9 @@ function has been deprecated by
 .Fn strtol
 and should not be used in new code.
 .Sh ERRORS
-The
+The function
 .Fn atoi
-function does not detect errors.
+need not affect the value of errno on an error.
 .Sh SEE ALSO
 .Xr atof 3 ,
 .Xr atol 3 ,

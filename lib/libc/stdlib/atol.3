@@ -70,8 +70,6 @@ It is equivalent to:
 .Pp
 .Dl "strtol(nptr, (char **)NULL, 10);"
 .Pp
-except the handling of errors.
-.Pp
 The
 .Fn atoll
 function converts the initial portion of the string pointed to by
@@ -84,15 +82,13 @@ representation.
 It is equivalent to:
 .Pp
 .Dl "strtoll(nptr, (char **)NULL, 10);"
-.Pp
-except the handling of errors.
 .Sh ERRORS
-The
+The functions
 .Fn atol
-function does not detect errors.
-The
+and
 .Fn atoll
-function does not detect errors.
+need not
+affect the value of errno on an error.
 .Sh SEE ALSO
 .Xr atof 3 ,
 .Xr atoi 3 ,

@@ -33,18 +33,11 @@
  * $FreeBSD$
  */
 
-#include <errno.h>
 #include <stdlib.h>
 
 long long
 atoll(str)
 	const char *str;
 {
-	long long r;
-	int saverr;
-
-	saverr = errno;
-	r = strtoll(str, (char **)NULL, 10);
-	errno = saverr;
-	return r;
+	return strtoll(str, (char **)NULL, 10);
 }
