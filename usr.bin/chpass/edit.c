@@ -101,7 +101,7 @@ display(fd, pw)
 	    "#Changing %s information for %s.\n", _use_yp ? "NIS" : "user database", pw->pw_name);
 	if (!uid && (!_use_yp || suser_override)) {
 #else
-	    "#Changing user database information for %s.\n", pw->pw_name)
+	    "#Changing user database information for %s.\n", pw->pw_name);
 	if (!uid) {
 #endif /* YP */
 		(void)fprintf(fp, "Login: %s\n", pw->pw_name);
