@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: devices.c,v 1.53 1996/12/09 08:22:11 jkh Exp $
+ * $Id: devices.c,v 1.54 1996/12/11 09:34:55 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -41,6 +41,7 @@
 #include <sys/socket.h>
 #include <sys/ioctl.h>
 #include <sys/errno.h>
+#include <sys/time.h>
 
 #include <net/if.h>
 #include <net/if_dl.h>
@@ -68,8 +69,10 @@ static struct {
     { DEVICE_TYPE_TAPE, 	"rwt0",		"Wangtek tape drive"					},
     { DEVICE_TYPE_DISK, 	"sd",		"SCSI disk device"					},
     { DEVICE_TYPE_DISK, 	"wd",		"IDE/ESDI/MFM/ST506 disk device"			},
+    { DEVICE_TYPE_DISK, 	"od",		"SCSI optical disk device"				},
     { DEVICE_TYPE_FLOPPY,	"fd0",		"floppy drive unit A"					},
     { DEVICE_TYPE_FLOPPY,	"fd1",		"floppy drive unit B"					},
+    { DEVICE_TYPE_FLOPPY,	"od0",		"SCSI optical disk/floppy format"			},
     { DEVICE_TYPE_NETWORK,	"cuaa0",	"%s on serial port 0 (COM1)"				},
     { DEVICE_TYPE_NETWORK,	"cuaa1",	"%s on serial port 1 (COM2)"				},
     { DEVICE_TYPE_NETWORK,	"cuaa2",	"%s on serial port 2 (COM3)"				},
