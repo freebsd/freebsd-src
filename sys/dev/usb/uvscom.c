@@ -45,6 +45,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/module.h>
 #include <sys/fcntl.h>
 #include <sys/conf.h>
+#include <sys/serial.h>
 #include <sys/tty.h>
 #include <sys/file.h>
 #if defined(__FreeBSD__)
@@ -897,11 +898,11 @@ uvscom_intr(usbd_xfer_handle xfer, usbd_private_handle priv, usbd_status status)
 
 	pstatus = buf[1];
 	if (ISSET(pstatus, UVSCOM_CTS))
-		SET(sc->sc_msr, UMSR_CTS);
+		SET(sc->sc_msr, SER_CTS);
 	if (ISSET(pstatus, UVSCOM_DSR))
-		SET(sc->sc_msr, UMSR_DSR);
+		SET(sc->sc_msr, SER_DSR);
 	if (ISSET(pstatus, UVSCOM_DCD))
-		SET(sc->sc_msr, UMSR_DCD);
+		SET(sc->sc_msr, SER_DCD);
 
 	ucom_status_change(&sc->sc_ucom);
 }
