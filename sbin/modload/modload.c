@@ -29,7 +29,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: modload.c,v 1.10 1995/10/28 17:06:05 peter Exp $
+ *	$Id: modload.c,v 1.11 1996/04/26 18:39:48 erich Exp $
  */
 
 #include <stdio.h>
@@ -235,7 +235,7 @@ main(argc, argv)
 			p++;			/* skip over '/' */
 		else
 			p = modobj;
-		sprintf(modout, "%s%sut", _PATH_TMP, p);
+		snprintf(modout, sizeof modout, "%s%sut", _PATH_TMP, p);
 		out = modout;
 		/*
 		 * reverse meaning of -u - if we've generated a /tmp
