@@ -207,13 +207,49 @@ mecia_attach(device_t dev)
 	return (bus_generic_attach(dev));
 }
 
+static int
+mecia_sresource(struct slot *slt, caddr_t data)
+{
+	struct pccard_resource *pr;
+	struct resource *r;
+	int flags;
+	int rid = 0;
+	device_t pccarddev = slt->dev;
+
+	pr = (struct pccard_resource *)data;
+	pr->resource_addr = ~0ul;
+	switch(pr->type) {
+	default:
+		return (EINVAL);
+	case SYS_RES_MEMORY:
+	case SYS_RES_IRQ:
+	case SYS_RES_IOPORT:
+		break;
+	}
+	flags = rman_make_alignment_flags(pr->size);
+	r = bus_alloc_resource(pccarddev, pr->type, &rid, pr->min, pr->max,
+	   pr->size, flags);
+	if (r != NULL) {
+		pr->resource_addr = (u_long)rman_get_start(r);
+		bus_release_resource(bridgedev, pr->type, rid, r);
+	}
+	return (0);
+}
+
 /*
  *	ioctl calls - Controller specific ioctls
  */
 static int
 mecia_ioctl(struct slot *slt, int cmd, caddr_t data)
 {
-	return (ENOTTY);
+	switch(cmd) {
+	default:
+		return (ENOTTY);
+	case PIOCSRESOURCE:		/* Can I use this resource? */
+		mecia_sresource(slt, data);
+		break;
+	}
+	return (0);
 }
 
 /*
