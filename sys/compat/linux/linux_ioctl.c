@@ -56,19 +56,19 @@
 #include <i386/linux/linux_proto.h>
 #include <i386/linux/linux_util.h>
 
-static linux_ioctl_function_t linux_ioctl_disk;
 static linux_ioctl_function_t linux_ioctl_cdrom;
 static linux_ioctl_function_t linux_ioctl_console;
+static linux_ioctl_function_t linux_ioctl_disk;
 static linux_ioctl_function_t linux_ioctl_socket;
 static linux_ioctl_function_t linux_ioctl_sound;
 static linux_ioctl_function_t linux_ioctl_termio;
 
-static struct linux_ioctl_handler disk_handler =
-{ linux_ioctl_disk, LINUX_IOCTL_DISK_MIN, LINUX_IOCTL_DISK_MAX };
 static struct linux_ioctl_handler cdrom_handler =
 { linux_ioctl_cdrom, LINUX_IOCTL_CDROM_MIN, LINUX_IOCTL_CDROM_MAX };
 static struct linux_ioctl_handler console_handler =
 { linux_ioctl_console, LINUX_IOCTL_CONSOLE_MIN, LINUX_IOCTL_CONSOLE_MAX };
+static struct linux_ioctl_handler disk_handler =
+{ linux_ioctl_disk, LINUX_IOCTL_DISK_MIN, LINUX_IOCTL_DISK_MAX };
 static struct linux_ioctl_handler socket_handler =
 { linux_ioctl_socket, LINUX_IOCTL_SOCKET_MIN, LINUX_IOCTL_SOCKET_MAX };
 static struct linux_ioctl_handler sound_handler =
@@ -76,9 +76,9 @@ static struct linux_ioctl_handler sound_handler =
 static struct linux_ioctl_handler termio_handler =
 { linux_ioctl_termio, LINUX_IOCTL_TERMIO_MIN, LINUX_IOCTL_TERMIO_MAX };
 
-DATA_SET(linux_ioctl_handler_set, disk_handler);
 DATA_SET(linux_ioctl_handler_set, cdrom_handler);
 DATA_SET(linux_ioctl_handler_set, console_handler);
+DATA_SET(linux_ioctl_handler_set, disk_handler);
 DATA_SET(linux_ioctl_handler_set, socket_handler);
 DATA_SET(linux_ioctl_handler_set, sound_handler);
 DATA_SET(linux_ioctl_handler_set, termio_handler);
