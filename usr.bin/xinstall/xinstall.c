@@ -40,7 +40,7 @@ static const char copyright[] =
 #ifndef lint
 /*static char sccsid[] = "From: @(#)xinstall.c	8.1 (Berkeley) 7/21/93";*/
 static const char rcsid[] =
-	"$Id: xinstall.c,v 1.9 1996/08/12 17:03:30 peter Exp $";
+	"$Id: xinstall.c,v 1.10 1996/09/05 07:27:43 peter Exp $";
 #endif /* not lint */
 
 /*-
@@ -490,39 +490,45 @@ compare(int from_fd, const char *from_name, int to_fd, const char *to_name,
 
 	tsize = (size_t)from_sb->st_size;
 
-	if (tsize <= 8 * 1024 * 1024 && trymmap(from_fd) && trymmap(to_fd)) {
-		p = mmap(NULL, tsize, PROT_READ, 0, from_fd, (off_t)0);
-		if ((long)p == -1)
-			err(EX_OSERR, "mmap %s", from_name);
-		q = mmap(NULL, tsize, PROT_READ, 0, to_fd, (off_t)0);
-		if ((long)q == -1)
-			err(EX_OSERR, "mmap %s", to_name);
+	if (tsize <= 8 * 1024 * 1024) {
+		if (trymmap(from_fd) && trymmap(to_fd)) {
+			p = mmap(NULL, tsize, PROT_READ, 0, from_fd, (off_t)0);
+			if ((long)p == -1)
+				err(EX_OSERR, "mmap %s", from_name);
+			q = mmap(NULL, tsize, PROT_READ, 0, to_fd, (off_t)0);
+			if ((long)q == -1)
+				err(EX_OSERR, "mmap %s", to_name);
 
-		rv = memcmp(p, q, tsize);
-		munmap(p, tsize);
-		munmap(q, tsize);
-	} else {
-		char buf1[16384];
-		char buf2[16384];
-		int n1, n2;
+			rv = memcmp(p, q, tsize);
+			munmap(p, tsize);
+			munmap(q, tsize);
+		} else {
+			char buf1[16384];
+			char buf2[16384];
+			int n1, n2;
 
-		rv = 0;
-		lseek(from_fd, 0, SEEK_SET);
-		lseek(to_fd, 0, SEEK_SET);
-		while (rv == 0) {
-			n1 = read(from_fd, buf1, sizeof(buf1));
-			if (n1 == 0)
-				break;
-			else if (n1 > 0) {
-				n2 = read(to_fd, buf2, n1);
-				if (n2 == n1)
-					rv = memcmp(buf1, buf2, n1);
-				else
-					rv = 1;
-			} else
-				rv = 1;
+			rv = 0;
+			lseek(from_fd, 0, SEEK_SET);
+			lseek(to_fd, 0, SEEK_SET);
+			while (rv == 0) {
+				n1 = read(from_fd, buf1, sizeof(buf1));
+				if (n1 == 0)
+					break;		/* EOF */
+				else if (n1 > 0) {
+					n2 = read(to_fd, buf2, n1);
+					if (n2 == n1)
+						rv = memcmp(buf1, buf2, n1);
+					else
+						rv = 1;	/* out of sync */
+				} else
+					rv = 1;		/* read failure */
+			}
+			lseek(from_fd, 0, SEEK_SET);
+			lseek(to_fd, 0, SEEK_SET);
 		}
-	}
+	} else
+		rv = 1;	/* don't bother in this case */
+
 	return rv;
 }
 
