@@ -385,6 +385,7 @@ dev/mii/mii.c		optional miibus
 dev/mii/mii_physubr.c	optional miibus
 dev/mii/mlphy.c		optional miibus
 dev/mii/nsphy.c		optional miibus
+dev/mii/nsgphy.c	optional miibus
 dev/mii/pnphy.c		optional miibus
 dev/mii/pnaphy.c	optional miibus
 dev/mii/rlphy.c		optional miibus
@@ -404,6 +405,7 @@ dev/mly/mly.c		optional mly
 dev/mly/mly_cam.c	optional mly
 dev/mly/mly_pci.c	optional mly
 dev/musycc/musycc.c	optional musycc
+dev/nge/if_nge.c	optional nge
 dev/null/null.c		standard
 dev/nmdm/nmdm.c		optional nmdm
 dev/pccard/card_if.m	optional card

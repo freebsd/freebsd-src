@@ -356,6 +356,10 @@ The wx(4) driver now supports the Intel PRO1000-F and PRO1000-T
 
 The labpc(4) driver has been removed due to bitrot.
 
+Added support for PCI Gigabit Ethernet adapters based on the National
+Semiconductor DP83820 and DP83821 gigabit ethernet controller chips,
+including the D-Link DGE-500T, SMC EZ Card 1000 (SMC9462TX),
+Asante FriendlyNet GigaNIC 1000TA and 1000TPC and Addtron AEG320T.
 
 1.2. SECURITY FIXES
 -------------------
@@ -1285,7 +1289,15 @@ NICs including the following:
 Silicon Integrated Systems SiS 900 and SiS 7016 PCI Fast Ethernet NICs
 
 National Semiconductor DP83815 Fast Ethernet NICs including the following:
+  NetGear FA311-TX
   NetGear FA312-TX
+
+National Semiconductor DP83820 and DP83821 Gigabit Ethernet NICs including
+the following:
+    D-Link DGE-500T
+    SMC EZ Card 1000 (SMC9462TX)
+    Asante FriendlyNet GigaNIC 1000TA and 1000TPC
+    Addtron AEG320T
 
 Sundance Technologies ST201 PCI Fast Ethernet NICs including
 the following:

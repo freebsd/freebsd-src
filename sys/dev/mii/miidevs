@@ -122,6 +122,8 @@ model xxLEVEL1 LXT970		0x0000 LXT970 10/100 media interface
 /* National Semiconductor PHYs */
 model NATSEMI DP83840		0x0000 DP83840 10/100 media interface
 model NATSEMI DP83843		0x0001 DP83843 10/100 media interface
+model NATSEMI DP83891		0x0005 DP83891 10/100/1000 media interface
+model NATSEMI DP83861		0x0006 DP83861 10/100/1000 media interface
 
 /* Quality Semiconductor PHYs */
 model QUALSEMI QS6612		0x0000 QS6612 10/100 media interface
