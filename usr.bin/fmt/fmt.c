@@ -68,6 +68,7 @@ int	max_length;		/* Max line length in output */
 int	pfx;			/* Current leading blank count */
 int	lineno;			/* Current input line */
 int	mark;			/* Last place we saw a head line */
+int	center;
 
 char	*malloc();		/* for lint . . . */
 char	*headnames[] = {"To", "Subject", "Cc", 0};
@@ -96,6 +97,11 @@ main(argc, argv)
 	/*
 	 * LIZ@UOM 6/18/85 -- Check for goal and max length arguments
 	 */
+	if (argc > 1 && !strcmp(argv[1], "-c")) {
+		center++;
+		argc--;
+		argv++;
+	}
 	if (argc > 1 && (1 == (sscanf(argv[1], "%d", &number)))) {
 		argv++;
 		argc--;
@@ -143,6 +149,27 @@ fmt(fi)
 #define CHUNKSIZE 1024
 	static int lbufsize = 0, cbufsize = 0;
 
+	if (center) {
+		linebuf = malloc(BUFSIZ);
+		while (1) {
+			cp = fgets(linebuf, BUFSIZ, fi);
+			if (!cp)
+				return;
+			while (*cp && isspace(*cp))
+				cp++;
+			cp2 = cp + strlen(cp) - 1;
+			while (cp2 > cp && isspace(*cp2))
+				cp2--;
+			if (cp == cp2)
+				putchar('\n');
+			col = cp2 - cp;
+			for (c = 0; c < (goal_length-col)/2; c++)
+				putchar(' ');
+			while (cp <= cp2)
+				putchar(*cp++);
+			putchar('\n');
+		}
+	}
 	c = getc(fi);
 	while (c != EOF) {
 		/*
