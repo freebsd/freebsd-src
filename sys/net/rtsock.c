@@ -123,7 +123,7 @@ rts_attach(struct socket *so, int proto, struct proc *p)
 	 */
 	s = splnet();
 	so->so_pcb = (caddr_t)rp;
-	error = raw_usrreqs.pru_attach(so, proto, p);
+	error = raw_attach(so, proto);
 	rp = sotorawcb(so);
 	if (error) {
 		splx(s);
@@ -326,6 +326,14 @@ route_output(m, so)
 		else
 			senderr(ENOBUFS);
 	}
+
+	/*
+	 * Verify that the caller has the appropriate privilege; RTM_GET
+	 * is the only operation the non-superuser is allowed.
+	 */
+	if (rtm->rtm_type != RTM_GET && suser_xxx(so->so_cred, NULL, 0) != 0)
+		senderr(EPERM);
+
 	switch (rtm->rtm_type) {
 
 	case RTM_ADD:
