@@ -59,6 +59,7 @@
 	(((ver) & VER_MAXWIN_MASK) >> VER_MAXWIN_SHIFT)
 
 extern int cpu_impl;
+extern char sparc64_model[];
 
 /* Known implementations. */
 #define	CPU_IMPL_SPARC64	0x01

@@ -630,7 +630,7 @@ psycho_attach(device_t dev)
 	 * the firmware uses the same model as this driver if it does.
 	 * Additionally, set up the bus numbers and ranges.
 	 */
-	ofw_pci_init(dev, sc->sc_node, &obd);
+	ofw_pci_init(dev, sc->sc_node, sc->sc_ign, &obd);
 
 	device_add_child(dev, "pci", device_get_unit(dev));
 	return (bus_generic_attach(dev));
