@@ -616,6 +616,7 @@ crypto/rijndael/rijndael-api-fst.c	optional random
 crypto/sha2/sha2.c	optional random
 dev/ray/if_ray.c	optional ray card
 dev/ray/if_ray.c	optional ray pccard
+dev/rc/rc.c		optional rc
 dev/rp/rp.c		optional rp
 dev/rp/rp_isa.c		optional rp isa
 dev/rp/rp_pci.c		optional rp pci

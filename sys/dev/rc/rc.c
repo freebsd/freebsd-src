@@ -1,6 +1,7 @@
 /*
  * Copyright (C) 1995 by Pavel Antonov, Moscow, Russia.
  * Copyright (C) 1995 by Andrey A. Chernov, Moscow, Russia.
+ * Copyright (C) 2002 by John Baldwin <jhb@FreeBSD.org>
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -25,7 +26,6 @@
  * SUCH DAMAGE.
  *
  * $FreeBSD$
- *
  */
 
 /*
@@ -33,35 +33,40 @@
  *
  */
 
-#include "rc.h"
-
 /*#define RCDEBUG*/
 
 #include <sys/param.h>
 #include <sys/systm.h>
-#include <sys/kernel.h>
-#include <sys/tty.h>
+#include <sys/bus.h>
 #include <sys/conf.h>
 #include <sys/dkstat.h>
 #include <sys/fcntl.h>
-#include <sys/bus.h>
 #include <sys/interrupt.h>
+#include <sys/kernel.h>
+#include <sys/malloc.h>
+#include <sys/tty.h>
+#include <machine/bus.h>
+#include <machine/resource.h>
+#include <sys/rman.h>
 
+#include <dev/ic/cd180.h>
+#include <dev/rc/rcreg.h>
+#include <isa/isavar.h>
 
-#include <i386/isa/isa_device.h>
+#define	IOBASE_ADDRS	14
 
-#include <i386/isa/ic/cd180.h>
-#include <i386/isa/rcreg.h>
+#define	DEV_TO_RC(dev)		(struct rc_chans *)((dev)->si_drv1)
+#define	TTY_TO_RC(tty)		DEV_TO_RC((tty)->t_dev)
 
-/* Prototypes */
-static int     rcprobe(struct isa_device *);
-static int     rcattach(struct isa_device *);
+#define rcin(sc, port)		RC_IN(sc, port)
+#define rcout(sc, port, v)	RC_OUT(sc, port, v)
 
-#define rcin(port)      RC_IN  (nec, port)
-#define rcout(port,v)   RC_OUT (nec, port, v)
+#define WAITFORCCR(sc, chan)	rc_wait0((sc), (chan), __LINE__)
 
-#define WAITFORCCR(u,c) rc_wait0(nec, (u), (c), __LINE__)
-#define CCRCMD(u,c,cmd) WAITFORCCR((u), (c)); rcout(CD180_CCR, (cmd))
+#define CCRCMD(sc, chan, cmd) do {					\
+	WAITFORCCR((sc), (chan));					\
+	rcout((sc), CD180_CCR, (cmd));					\
+} while (0)
 
 #define RC_IBUFSIZE     256
 #define RB_I_HIGH_WATER (TTYHOG - 2 * RC_IBUFSIZE)
@@ -72,20 +77,69 @@ static int     rcattach(struct isa_device *);
 
 #define RC_FAKEID       0x10
 
-#define RC_PROBED 1
-#define RC_ATTACHED 2
+#define CALLOUT(dev)    (((int)(dev)->si_drv2) != 0)
 
-#define GET_UNIT(dev)   (minor(dev) & 0x3F)
-#define CALLOUT(dev)    (minor(dev) & 0x80)
-
-/* For isa routines */
-struct isa_driver rcdriver = {
-	INTR_TYPE_TTY,
-	rcprobe,
-	rcattach,
-	"rc"
+/* Per-channel structure */
+struct rc_chans  {
+	struct rc_softc *rc_rcb;                /* back ptr             */
+	dev_t		 rc_dev;		/* non-callout device	*/
+	dev_t		 rc_cdev;		/* callout device	*/
+	u_short          rc_flags;              /* Misc. flags          */
+	int              rc_chan;               /* Channel #            */
+	u_char           rc_ier;                /* intr. enable reg     */
+	u_char           rc_msvr;               /* modem sig. status    */
+	u_char           rc_cor2;               /* options reg          */
+	u_char           rc_pendcmd;            /* special cmd pending  */
+	u_int            rc_dtrwait;            /* dtr timeout          */
+	u_int            rc_dcdwaits;           /* how many waits DCD in open */
+	u_char		 rc_hotchar;		/* end packed optimize */
+	struct tty       rc_tp;                 /* tty struct           */
+	u_char          *rc_iptr;               /* Chars input buffer         */
+	u_char          *rc_hiwat;              /* hi-water mark        */
+	u_char          *rc_bufend;             /* end of buffer        */
+	u_char          *rc_optr;               /* ptr in output buf    */
+	u_char          *rc_obufend;            /* end of output buf    */
+	u_char           rc_ibuf[4 * RC_IBUFSIZE];  /* input buffer         */
+	u_char           rc_obuf[RC_OBUFSIZE];  /* output buffer        */
+	struct callout	 rc_dtrcallout;
 };
-COMPAT_ISA_DRIVER(rc, rcdriver);
+
+/* Per-board structure */
+struct rc_softc {
+	device_t	 sc_dev;
+	struct resource *sc_irq;
+	struct resource *sc_port[IOBASE_ADDRS];
+	int		 sc_irqrid;
+	void		*sc_hwicookie;
+	bus_space_tag_t  sc_bt;
+	bus_space_handle_t sc_bh;
+	u_int            sc_unit;       /* unit #               */
+	u_char           sc_dtr;        /* DTR status           */
+	int		 sc_opencount;
+	int		 sc_scheduled_event;
+	void		*sc_swicookie;
+	struct rc_chans  sc_channels[CD180_NCHAN]; /* channels */
+};
+
+/* Static prototypes */
+static void rc_release_resources(device_t dev);
+static void rc_intr(void *);
+static void rc_hwreset(struct rc_softc *, unsigned int);
+static int  rc_test(struct rc_softc *);
+static void rc_discard_output(struct rc_chans *);
+static void rc_hardclose(struct rc_chans *);
+static int  rc_modctl(struct rc_chans *, int, int);
+static void rc_start(struct tty *);
+static void rc_stop(struct tty *, int rw);
+static int  rc_param(struct tty *, struct termios *);
+static void rc_pollcard(void *);
+static void rc_reinit(struct rc_softc *);
+#ifdef RCDEBUG
+static void printrcflags();
+#endif
+static void rc_dtrwakeup(void *);
+static void disc_optim(struct tty *tp, struct termios *t, struct rc_chans *);
+static void rc_wait0(struct rc_softc *sc, int chan, int line);
 
 static	d_open_t	rcopen;
 static	d_close_t	rcclose;
@@ -109,42 +163,7 @@ static struct cdevsw rc_cdevsw = {
 	/* kqfilter */	ttykqfilter,
 };
 
-/* Per-board structure */
-static struct rc_softc {
-	u_int           rcb_probed;     /* 1 - probed, 2 - attached */
-	u_int           rcb_addr;       /* Base I/O addr        */
-	u_int           rcb_unit;       /* unit #               */
-	u_char          rcb_dtr;        /* DTR status           */
-	struct rc_chans *rcb_baserc;    /* base rc ptr          */
-} rc_softc[NRC];
-
-/* Per-channel structure */
-static struct rc_chans  {
-	struct rc_softc *rc_rcb;                /* back ptr             */
-	u_short          rc_flags;              /* Misc. flags          */
-	int              rc_chan;               /* Channel #            */
-	u_char           rc_ier;                /* intr. enable reg     */
-	u_char           rc_msvr;               /* modem sig. status    */
-	u_char           rc_cor2;               /* options reg          */
-	u_char           rc_pendcmd;            /* special cmd pending  */
-	u_int            rc_dtrwait;            /* dtr timeout          */
-	u_int            rc_dcdwaits;           /* how many waits DCD in open */
-	u_char		 rc_hotchar;		/* end packed optimize */
-	struct tty      *rc_tp;                 /* tty struct           */
-	u_char          *rc_iptr;               /* Chars input buffer         */
-	u_char          *rc_hiwat;              /* hi-water mark        */
-	u_char          *rc_bufend;             /* end of buffer        */
-	u_char          *rc_optr;               /* ptr in output buf    */
-	u_char          *rc_obufend;            /* end of output buf    */
-	u_char           rc_ibuf[4 * RC_IBUFSIZE];  /* input buffer         */
-	u_char           rc_obuf[RC_OBUFSIZE];  /* output buffer        */
-} rc_chans[NRC * CD180_NCHAN];
-
-static int rc_scheduled_event = 0;
-
-/* for pstat -t */
-static struct tty rc_tty[NRC * CD180_NCHAN];
-static const int  nrc_tty = NRC * CD180_NCHAN;
+static devclass_t rc_devclass;
 
 /* Flags */
 #define RC_DTR_OFF      0x0001          /* DTR wait, for close/open     */
@@ -170,165 +189,276 @@ static int rc_rcsrt[16] = {
 	TTY_BI|TTY_PE|TTY_FE|TTY_OE
 };
 
-static void	*rc_ih;
-
-/* Static prototypes */
-static ointhand2_t rcintr;
-static void rc_hwreset(int, int, unsigned int);
-static int  rc_test(int, int);
-static void rc_discard_output(struct rc_chans *);
-static void rc_hardclose(struct rc_chans *);
-static int  rc_modctl(struct rc_chans *, int, int);
-static void rc_start(struct tty *);
-static void rc_stop(struct tty *, int rw);
-static int  rc_param(struct tty *, struct termios *);
-static void rcpoll(void *);
-static void rc_reinit(struct rc_softc *);
-#ifdef RCDEBUG
-static void printrcflags();
-#endif
-static timeout_t rc_dtrwakeup;
-static timeout_t rc_wakeup;
-static void disc_optim(struct tty *tp, struct termios *t, struct rc_chans *);
-static void rc_wait0(int nec, int unit, int chan, int line);
+static int rc_ports[] =
+    { 0x220, 0x240, 0x250, 0x260, 0x2a0, 0x2b0, 0x300, 0x320 };
+static int iobase_addrs[IOBASE_ADDRS] =
+    { 0, 0x400, 0x800, 0xc00, 0x1400, 0x1800, 0x1c00, 0x2000,
+      0x3000, 0x3400, 0x3800, 0x3c00, 0x4000, 0x8000 };
 
 /**********************************************/
 
-/* Quick device probing */
 static int
-rcprobe(dvp)
-	struct  isa_device      *dvp;
+rc_probe(device_t dev)
 {
-	int             irq = ffs(dvp->id_irq) - 1;
-	register int    nec = dvp->id_iobase;
+	u_int port;
+	int i, found;
 
-	if (dvp->id_unit > NRC)
-		return 0;
-	if (!RC_VALIDADDR(nec)) {
-		printf("rc%d: illegal base address %x\n", dvp->id_unit, nec);
-		return 0;
-	}
-	if (!RC_VALIDIRQ(irq)) {
-		printf("rc%d: illegal IRQ value %d\n", dvp->id_unit, irq);
-		return 0;
-	}
-	rcout(CD180_PPRL, 0x22); /* Random values to Prescale reg. */
-	rcout(CD180_PPRH, 0x11);
-	if (rcin(CD180_PPRL) != 0x22 || rcin(CD180_PPRH) != 0x11)
-		return 0;
-	/* Now, test the board more thoroughly, with diagnostic */
-	if (rc_test(nec, dvp->id_unit))
-		return 0;
-	rc_softc[dvp->id_unit].rcb_probed = RC_PROBED;
+	/*
+	 * We don't know of any PnP ID's for these cards.
+	 */
+	if (isa_get_logicalid(dev) != 0)
+		return (ENXIO);
 
-	return 0xF;
+	/*
+	 * We have to have an IO port hint that is valid.
+	 */
+	port = isa_get_port(dev);
+	if (port == -1)
+		return (ENXIO);
+	found = 0;
+	for (i = 0; i < sizeof(rc_ports) / sizeof(int); i++)
+		if (rc_ports[i] == port) {
+			found = 1;
+			break;
+		}
+	if (!found)
+		return (ENXIO);
+
+	/*
+	 * We have to have an IRQ hint.
+	 */
+	if (isa_get_irq(dev) == -1)
+		return (ENXIO);
+
+	device_set_desc(dev, "SDL Riscom/8");
+	return (0);
 }
 
 static int
-rcattach(dvp)
-	struct  isa_device      *dvp;
+rc_attach(device_t dev)
 {
-	register int            chan, nec = dvp->id_iobase;
-	struct rc_softc         *rcb = &rc_softc[dvp->id_unit];
-	struct rc_chans         *rc  = &rc_chans[dvp->id_unit * CD180_NCHAN];
-	static int              rc_started = 0;
-	struct tty              *tp;
+ 	struct rc_chans *rc;
+	struct tty *tp;
+	struct rc_softc *sc;
+	u_int port;
+	int base, chan, error, i, x;
+	dev_t cdev;
 
-	dvp->id_ointr = rcintr;
+	sc = device_get_softc(dev);
+	sc->sc_dev = dev;
 
-	/* Thorooughly test the device */
-	if (rcb->rcb_probed != RC_PROBED)
-		return 0;
-	rcb->rcb_addr   = nec;
-	rcb->rcb_dtr    = 0;
-	rcb->rcb_baserc = rc;
-	rcb->rcb_unit	= dvp->id_unit;
-	/*rcb->rcb_chipid = 0x10 + dvp->id_unit;*/
-	printf("rc%d: %d chans, firmware rev. %c\n", rcb->rcb_unit,
-		CD180_NCHAN, (rcin(CD180_GFRCR) & 0xF) + 'A');
+	/*
+	 * We need to have IO ports.  Lots of them.  We need
+	 * the following ranges relative to the base port:
+	 * 0x0    -   0x10
+	 * 0x400  -  0x410
+	 * 0x800  -  0x810
+	 * 0xc00  -  0xc10
+	 * 0x1400 - 0x1410
+	 * 0x1800 - 0x1810
+	 * 0x1c00 - 0x1c10
+	 * 0x2000 - 0x2010
+	 * 0x3000 - 0x3010
+	 * 0x3400 - 0x3410
+	 * 0x3800 - 0x3810
+	 * 0x3c00 - 0x3c10
+	 * 0x4000 - 0x4010
+	 * 0x8000 - 0x8010
+	 */
+	port = isa_get_port(dev);
+	for (i = 0; i < IOBASE_ADDRS; i++)
+		if (bus_set_resource(dev, SYS_RES_IOPORT, i,
+		    port + iobase_addrs[i], 0x10) != 0)
+			return (ENXIO);
+	error = ENOMEM;
+	for (i = 0; i < IOBASE_ADDRS; i++) {
+		x = i;
+		sc->sc_port[i] = bus_alloc_resource(dev, SYS_RES_IOPORT, &x,
+		    0ul, ~0ul, 0x10, RF_ACTIVE);
+		if (x != i) {
+			device_printf(dev, "ioport %d was rid %d\n", i, x);
+			goto fail;
+		}
+		if (sc->sc_port[i] == NULL) {
+			device_printf(dev, "failed to alloc ioports %x-%x\n",
+			    port + iobase_addrs[i],
+			    port + iobase_addrs[i] + 0x10);
+			goto fail;
+		}
+	}
+	sc->sc_bt = rman_get_bustag(sc->sc_port[0]);
+	sc->sc_bh = rman_get_bushandle(sc->sc_port[0]);
 
+	sc->sc_irq = bus_alloc_resource(dev, SYS_RES_IRQ, &sc->sc_irqrid,
+	    0ul, ~0ul, 1, RF_ACTIVE);
+	if (sc->sc_irq == NULL) {
+		device_printf(dev, "failed to alloc IRQ\n");
+		goto fail;
+	}
+
+	/*
+	 * Now do some actual tests to make sure it works.
+	 */
+	error = ENXIO;
+	rcout(sc, CD180_PPRL, 0x22); /* Random values to Prescale reg. */
+	rcout(sc, CD180_PPRH, 0x11);
+	if (rcin(sc, CD180_PPRL) != 0x22 || rcin(sc, CD180_PPRH) != 0x11)
+		goto fail;
+	if (rc_test(sc))
+		goto fail;
+
+	/*
+	 * Ok, start actually hooking things up.
+	 */
+	sc->sc_unit = device_get_unit(dev);
+	/*sc->sc_chipid = 0x10 + device_get_unit(dev);*/
+	device_printf(dev, "%d chans, firmware rev. %c\n",
+		CD180_NCHAN, (rcin(sc, CD180_GFRCR) & 0xF) + 'A');
+	rc = sc->sc_channels;
+	base = CD180_NCHAN * sc->sc_unit;
 	for (chan = 0; chan < CD180_NCHAN; chan++, rc++) {
-		rc->rc_rcb     = rcb;
+		rc->rc_rcb     = sc;
 		rc->rc_chan    = chan;
 		rc->rc_iptr    = rc->rc_ibuf;
 		rc->rc_bufend  = &rc->rc_ibuf[RC_IBUFSIZE];
 		rc->rc_hiwat   = &rc->rc_ibuf[RC_IHIGHWATER];
-		rc->rc_flags   = rc->rc_ier = rc->rc_msvr = 0;
-		rc->rc_cor2    = rc->rc_pendcmd = 0;
 		rc->rc_optr    = rc->rc_obufend  = rc->rc_obuf;
 		rc->rc_dtrwait = 3 * hz;
-		rc->rc_dcdwaits= 0;
-		rc->rc_hotchar = 0;
-		tp = rc->rc_tp = &rc_tty[chan + (dvp->id_unit * CD180_NCHAN)];
+		callout_init(&rc->rc_dtrcallout, 0);
+		tp = &rc->rc_tp;
 		ttychars(tp);
 		tp->t_lflag = tp->t_iflag = tp->t_oflag = 0;
 		tp->t_cflag = TTYDEF_CFLAG;
 		tp->t_ispeed = tp->t_ospeed = TTYDEF_SPEED;
-		make_dev(&rc_cdevsw, chan + CD180_NCHAN * rcb->rcb_unit,
-		    UID_ROOT, GID_WHEEL, 0600, "ttym%d", chan + CD180_NCHAN *
-		    rcb->rcb_unit);
-		make_dev(&rc_cdevsw, chan + CD180_NCHAN * rcb->rcb_unit + 128,
-		    UID_UUCP, GID_DIALER, 0660, "cuam%d", chan + CD180_NCHAN *
-		    rcb->rcb_unit);
+		cdev = make_dev(&rc_cdevsw, chan + base,
+		    UID_ROOT, GID_WHEEL, 0600, "ttym%d", chan + base);
+		cdev->si_drv1 = rc;
+		cdev->si_drv2 = 0;
+		cdev->si_tty = tp;
+		rc->rc_dev = cdev;
+		cdev = make_dev(&rc_cdevsw, chan + base + 128,
+		    UID_UUCP, GID_DIALER, 0660, "cuam%d", chan + base);
+		cdev->si_drv1 = rc;
+		cdev->si_drv2 = (void *)1;
+		cdev->si_tty = tp;
+		rc->rc_cdev = cdev;
 	}
-	rcb->rcb_probed = RC_ATTACHED;
-	if (!rc_started) {
-		cdevsw_add(&rc_cdevsw);
-		swi_add(&tty_ithd, "tty:rc", rcpoll, NULL, SWI_TTY, 0, &rc_ih);
-		rc_wakeup((void *)NULL);
-		rc_started = 1;
+
+	error = bus_setup_intr(dev, sc->sc_irq, INTR_TYPE_TTY, rc_intr, sc,
+	    &sc->sc_hwicookie);
+	if (error) {
+		device_printf(dev, "failed to register interrupt handler\n");
+		goto fail;
 	}
-	return 1;
+		
+	swi_add(&tty_ithd, "tty:rc", rc_pollcard, sc, SWI_TTY, 0,
+	    &sc->sc_swicookie);
+	return (0);
+
+fail:
+	rc_release_resources(dev);
+	return (error);
+}
+
+static int
+rc_detach(device_t dev)
+{
+	struct rc_softc *sc;
+	struct rc_chans *rc;
+	int error, i, s;
+
+	sc = device_get_softc(dev);
+	if (sc->sc_opencount > 0)
+		return (EBUSY);
+	sc->sc_opencount = -1;
+
+	rc = sc->sc_channels;
+	for (i = 0; i < CD180_NCHAN; i++, rc++) {
+		destroy_dev(rc->rc_dev);
+		destroy_dev(rc->rc_cdev);
+	}
+
+	rc = sc->sc_channels;
+	s = splsoftclock();
+	for (i = 0; i < CD180_NCHAN; i++) {
+		if ((rc->rc_flags & RC_DTR_OFF) &&
+		    !callout_stop(&rc->rc_dtrcallout))
+			tsleep(&rc->rc_dtrwait, TTIPRI, "rcdtrdet", 0);
+	}
+
+	error = bus_teardown_intr(dev, sc->sc_irq, sc->sc_hwicookie);
+	if (error)
+		device_printf(dev, "failed to deregister interrupt handler\n");
+	ithread_remove_handler(sc->sc_swicookie);
+	rc_release_resources(dev);
+
+	return (0);
+}
+
+static void
+rc_release_resources(device_t dev)
+{
+	struct rc_softc *sc;
+	int i;
+
+	sc = device_get_softc(dev);
+	if (sc->sc_irq != NULL) {
+		bus_release_resource(dev, SYS_RES_IRQ, sc->sc_irqrid,
+		    sc->sc_irq);
+		sc->sc_irq = NULL;
+	}
+	for (i = 0; i < IOBASE_ADDRS; i++) {
+		if (sc->sc_port[i] == NULL)
+			break;
+		bus_release_resource(dev, SYS_RES_IOPORT, i, sc->sc_port[i]);
+		sc->sc_port[i] = NULL;
+	}
 }
 
 /* RC interrupt handling */
 static void
-rcintr(unit)
-	int             unit;
+rc_intr(void *arg)
 {
-	register struct rc_softc        *rcb = &rc_softc[unit];
-	register struct rc_chans        *rc;
-	register int                    nec, resid;
-	register u_char                 val, iack, bsr, ucnt, *optr;
-	int                             good_data, t_state;
+	struct rc_softc        *sc;
+	struct rc_chans        *rc;
+	int                    resid, chan;
+	u_char                 val, iack, bsr, ucnt, *optr;
+	int                    good_data, t_state;	
 
-	if (rcb->rcb_probed != RC_ATTACHED) {
-		printf("rc%d: bogus interrupt\n", unit);
-		return;
-	}
-	nec = rcb->rcb_addr;
-
-	bsr = ~(rcin(RC_BSR));
-
+	sc = (struct rc_softc *)arg;
+	bsr = ~(rcin(sc, RC_BSR));
 	if (!(bsr & (RC_BSR_TOUT|RC_BSR_RXINT|RC_BSR_TXINT|RC_BSR_MOINT))) {
-		printf("rc%d: extra interrupt\n", unit);
-		rcout(CD180_EOIR, 0);
+		device_printf(sc->sc_dev, "extra interrupt\n");
+		rcout(sc, CD180_EOIR, 0);
 		return;
 	}
 
 	while (bsr & (RC_BSR_TOUT|RC_BSR_RXINT|RC_BSR_TXINT|RC_BSR_MOINT)) {
 #ifdef RCDEBUG_DETAILED
-		printf("rc%d: intr (%02x) %s%s%s%s\n", unit, bsr,
+		device_printf(sc->sc_dev, "intr (%p) %s%s%s%s\n", arg, bsr,
 			(bsr & RC_BSR_TOUT)?"TOUT ":"",
 			(bsr & RC_BSR_RXINT)?"RXINT ":"",
 			(bsr & RC_BSR_TXINT)?"TXINT ":"",
 			(bsr & RC_BSR_MOINT)?"MOINT":"");
 #endif
 		if (bsr & RC_BSR_TOUT) {
-			printf("rc%d: hardware failure, reset board\n", unit);
-			rcout(RC_CTOUT, 0);
-			rc_reinit(rcb);
+			device_printf(sc->sc_dev,
+			    "hardware failure, reset board\n");
+			rcout(sc, RC_CTOUT, 0);
+			rc_reinit(sc);
 			return;
 		}
 		if (bsr & RC_BSR_RXINT) {
-			iack = rcin(RC_PILR_RX);
+			iack = rcin(sc, RC_PILR_RX);
 			good_data = (iack == (GIVR_IT_RGDI | RC_FAKEID));
 			if (!good_data && iack != (GIVR_IT_REI | RC_FAKEID)) {
-				printf("rc%d: fake rxint: %02x\n", unit, iack);
+				device_printf(sc->sc_dev,
+				    "fake rxint: %02x\n", iack);
 				goto more_intrs;
 			}
-			rc = rcb->rcb_baserc + ((rcin(CD180_GICR) & GICR_CHAN) >> GICR_LSH);
-			t_state = rc->rc_tp->t_state;
+			chan = ((rcin(sc, CD180_GICR) & GICR_CHAN) >> GICR_LSH);
+			rc = &sc->sc_channels[chan];
+			t_state = rc->rc_tp.t_state;
 			/* Do RTS flow control stuff */
 			if (  (rc->rc_flags & RC_RTSFLOW)
 			    || !(t_state & TS_ISOPEN)
@@ -338,13 +468,13 @@ rcintr(unit)
 				      )
 				    && (rc->rc_msvr & MSVR_RTS)
 				   )
-					rcout(CD180_MSVR,
+					rcout(sc, CD180_MSVR,
 						rc->rc_msvr &= ~MSVR_RTS);
 				else if (!(rc->rc_msvr & MSVR_RTS))
-					rcout(CD180_MSVR,
+					rcout(sc, CD180_MSVR,
 						rc->rc_msvr |= MSVR_RTS);
 			}
-			ucnt  = rcin(CD180_RDCR) & 0xF;
+			ucnt  = rcin(sc, CD180_RDCR) & 0xF;
 			resid = 0;
 
 			if (t_state & TS_ISOPEN) {
@@ -355,33 +485,33 @@ rcintr(unit)
 					resid -= ucnt;
 					if (!(rc->rc_flags & RC_WAS_BUFOVFL)) {
 						rc->rc_flags |= RC_WAS_BUFOVFL;
-						rc_scheduled_event++;
+						sc->sc_scheduled_event++;
 					}
 				}
 				optr = rc->rc_iptr;
 				/* check foor good data */
 				if (good_data) {
 					while (ucnt-- > 0) {
-						val = rcin(CD180_RDR);
+						val = rcin(sc, CD180_RDR);
 						optr[0] = val;
 						optr[INPUT_FLAGS_SHIFT] = 0;
 						optr++;
-						rc_scheduled_event++;
+						sc->sc_scheduled_event++;
 						if (val != 0 && val == rc->rc_hotchar)
-							swi_sched(rc_ih, 0);
+							swi_sched(sc->sc_swicookie, 0);
 					}
 				} else {
 					/* Store also status data */
 					while (ucnt-- > 0) {
-						iack = rcin(CD180_RCSR);
+						iack = rcin(sc, CD180_RCSR);
 						if (iack & RCSR_Timeout)
 							break;
 						if (   (iack & RCSR_OE)
 						    && !(rc->rc_flags & RC_WAS_SILOVFL)) {
 							rc->rc_flags |= RC_WAS_SILOVFL;
-							rc_scheduled_event++;
+							sc->sc_scheduled_event++;
 						}
-						val = rcin(CD180_RDR);
+						val = rcin(sc, CD180_RDR);
 						/*
 						  Don't store PE if IGNPAR and BREAK if IGNBRK,
 						  this hack allows "raw" tty optimization
@@ -389,21 +519,21 @@ rcintr(unit)
 						*/
 						if (   !(iack & (RCSR_PE|RCSR_FE|RCSR_Break))
 						    || ((!(iack & (RCSR_PE|RCSR_FE))
-						    ||  !(rc->rc_tp->t_iflag & IGNPAR))
+						    ||  !(rc->rc_tp.t_iflag & IGNPAR))
 						    && (!(iack & RCSR_Break)
-						    ||  !(rc->rc_tp->t_iflag & IGNBRK)))) {
+						    ||  !(rc->rc_tp.t_iflag & IGNBRK)))) {
 							if (   (iack & (RCSR_PE|RCSR_FE))
 							    && (t_state & TS_CAN_BYPASS_L_RINT)
 							    && ((iack & RCSR_FE)
 							    ||  ((iack & RCSR_PE)
-							    &&  (rc->rc_tp->t_iflag & INPCK))))
+							    &&  (rc->rc_tp.t_iflag & INPCK))))
 								val = 0;
 							else if (val != 0 && val == rc->rc_hotchar)
-								swi_sched(rc_ih, 0);
+								swi_sched(sc->sc_swicookie, 0);
 							optr[0] = val;
 							optr[INPUT_FLAGS_SHIFT] = iack;
 							optr++;
-							rc_scheduled_event++;
+							sc->sc_scheduled_event++;
 						}
 					}
 				}
@@ -414,25 +544,27 @@ rcintr(unit)
 			/* Clear FIFO if necessary */
 			while (resid-- > 0) {
 				if (!good_data)
-					iack = rcin(CD180_RCSR);
+					iack = rcin(sc, CD180_RCSR);
 				else
 					iack = 0;
 				if (iack & RCSR_Timeout)
 					break;
-				(void) rcin(CD180_RDR);
+				(void) rcin(sc, CD180_RDR);
 			}
 			goto more_intrs;
 		}
 		if (bsr & RC_BSR_MOINT) {
-			iack = rcin(RC_PILR_MODEM);
+			iack = rcin(sc, RC_PILR_MODEM);
 			if (iack != (GIVR_IT_MSCI | RC_FAKEID)) {
-				printf("rc%d: fake moint: %02x\n", unit, iack);
+				device_printf(sc->sc_dev, "fake moint: %02x\n",
+				    iack);
 				goto more_intrs;
 			}
-			rc = rcb->rcb_baserc + ((rcin(CD180_GICR) & GICR_CHAN) >> GICR_LSH);
-			iack = rcin(CD180_MCR);
-			rc->rc_msvr = rcin(CD180_MSVR);
-			rcout(CD180_MCR, 0);
+			chan = ((rcin(sc, CD180_GICR) & GICR_CHAN) >> GICR_LSH);
+			rc = &sc->sc_channels[chan];
+			iack = rcin(sc, CD180_MCR);
+			rc->rc_msvr = rcin(sc, CD180_MSVR);
+			rcout(sc, CD180_MCR, 0);
 #ifdef RCDEBUG
 			printrcflags(rc, "moint");
 #endif
@@ -444,29 +576,31 @@ rcintr(unit)
 			} else
 				rc->rc_flags |= RC_SEND_RDY;
 			if ((iack & MCR_CDchg) && !(rc->rc_flags & RC_MODCHG)) {
-				rc_scheduled_event += LOTS_OF_EVENTS;
+				sc->sc_scheduled_event += LOTS_OF_EVENTS;
 				rc->rc_flags |= RC_MODCHG;
-				swi_sched(rc_ih, 0);
+				swi_sched(sc->sc_swicookie, 0);
 			}
 			goto more_intrs;
 		}
 		if (bsr & RC_BSR_TXINT) {
-			iack = rcin(RC_PILR_TX);
+			iack = rcin(sc, RC_PILR_TX);
 			if (iack != (GIVR_IT_TDI | RC_FAKEID)) {
-				printf("rc%d: fake txint: %02x\n", unit, iack);
+				device_printf(sc->sc_dev, "fake txint: %02x\n",
+				    iack);
 				goto more_intrs;
 			}
-			rc = rcb->rcb_baserc + ((rcin(CD180_GICR) & GICR_CHAN) >> GICR_LSH);
+			chan = ((rcin(sc, CD180_GICR) & GICR_CHAN) >> GICR_LSH);
+			rc = &sc->sc_channels[chan];
 			if (    (rc->rc_flags & RC_OSUSP)
 			    || !(rc->rc_flags & RC_SEND_RDY)
 			   )
 				goto more_intrs;
 			/* Handle breaks and other stuff */
 			if (rc->rc_pendcmd) {
-				rcout(CD180_COR2, rc->rc_cor2 |= COR2_ETC);
-				rcout(CD180_TDR,  CD180_C_ESC);
-				rcout(CD180_TDR,  rc->rc_pendcmd);
-				rcout(CD180_COR2, rc->rc_cor2 &= ~COR2_ETC);
+				rcout(sc, CD180_COR2, rc->rc_cor2 |= COR2_ETC);
+				rcout(sc, CD180_TDR,  CD180_C_ESC);
+				rcout(sc, CD180_TDR,  rc->rc_pendcmd);
+				rcout(sc, CD180_COR2, rc->rc_cor2 &= ~COR2_ETC);
 				rc->rc_pendcmd = 0;
 				goto more_intrs;
 			}
@@ -475,38 +609,43 @@ rcintr(unit)
 			if (resid > CD180_NFIFO)
 				resid = CD180_NFIFO;
 			while (resid-- > 0)
-				rcout(CD180_TDR, *optr++);
+				rcout(sc, CD180_TDR, *optr++);
 			rc->rc_optr = optr;
 
 			/* output completed? */
 			if (optr >= rc->rc_obufend) {
-				rcout(CD180_IER, rc->rc_ier &= ~IER_TxRdy);
+				rcout(sc, CD180_IER, rc->rc_ier &= ~IER_TxRdy);
 #ifdef RCDEBUG
-				printf("rc%d/%d: output completed\n", unit, rc->rc_chan);
+				device_printf(sc->sc_dev,
+				    "channel %d: output completed\n",
+				    rc->rc_chan);
 #endif
 				if (!(rc->rc_flags & RC_DOXXFER)) {
-					rc_scheduled_event += LOTS_OF_EVENTS;
+					sc->sc_scheduled_event += LOTS_OF_EVENTS;
 					rc->rc_flags |= RC_DOXXFER;
-					swi_sched(rc_ih, 0);
+					swi_sched(sc->sc_swicookie, 0);
 				}
 			}
 		}
 	more_intrs:
-		rcout(CD180_EOIR, 0);   /* end of interrupt */
-		rcout(RC_CTOUT, 0);
-		bsr = ~(rcin(RC_BSR));
+		rcout(sc, CD180_EOIR, 0);   /* end of interrupt */
+		rcout(sc, RC_CTOUT, 0);
+		bsr = ~(rcin(sc, RC_BSR));
 	}
 }
 
 /* Feed characters to output buffer */
-static void rc_start(tp)
-register struct tty *tp;
+static void
+rc_start(struct tty *tp)
 {
-	register struct rc_chans       *rc = &rc_chans[GET_UNIT(tp->t_dev)];
-	register int                    nec = rc->rc_rcb->rcb_addr, s;
+	struct rc_softc *sc;
+	struct rc_chans *rc;
+	int s;
 
+	rc = TTY_TO_RC(tp);
 	if (rc->rc_flags & RC_OSBUSY)
 		return;
+	sc = rc->rc_rcb;
 	s = spltty();
 	rc->rc_flags |= RC_OSBUSY;
 	disable_intr();
@@ -519,11 +658,11 @@ register struct tty *tp;
 	    && (tp->t_state & TS_TBLOCK)
 	    && (rc->rc_msvr & MSVR_RTS)
 	   ) {
-		rcout(CD180_CAR, rc->rc_chan);
-		rcout(CD180_MSVR, rc->rc_msvr &= ~MSVR_RTS);
+		rcout(sc, CD180_CAR, rc->rc_chan);
+		rcout(sc, CD180_MSVR, rc->rc_msvr &= ~MSVR_RTS);
 	} else if (!(rc->rc_msvr & MSVR_RTS)) {
-		rcout(CD180_CAR, rc->rc_chan);
-		rcout(CD180_MSVR, rc->rc_msvr |= MSVR_RTS);
+		rcout(sc, CD180_CAR, rc->rc_chan);
+		rcout(sc, CD180_MSVR, rc->rc_msvr |= MSVR_RTS);
 	}
 	enable_intr();
 	if (tp->t_state & (TS_TIMEOUT|TS_TTSTOP))
@@ -537,7 +676,7 @@ register struct tty *tp;
 		tp->t_outq.c_cc, rc->rc_obufend - rc->rc_optr);
 #endif
 	if (tp->t_state & TS_BUSY)
-		goto    out;    /* output still in progress ... */
+		goto out;    /* output still in progress ... */
 
 	if (tp->t_outq.c_cc > 0) {
 		u_int   ocnt;
@@ -550,10 +689,11 @@ register struct tty *tp;
 		enable_intr();
 		if (!(rc->rc_ier & IER_TxRdy)) {
 #ifdef RCDEBUG
-			printf("rc%d/%d: rcstart enable txint\n", rc->rc_rcb->rcb_unit, rc->rc_chan);
+			device_printf(sc->sc_dev,
+			    "channel %d: rcstart enable txint\n", rc->rc_chan);
 #endif
-			rcout(CD180_CAR, rc->rc_chan);
-			rcout(CD180_IER, rc->rc_ier |= IER_TxRdy);
+			rcout(sc, CD180_CAR, rc->rc_chan);
+			rcout(sc, CD180_IER, rc->rc_ier |= IER_TxRdy);
 		}
 	}
 out:
@@ -562,24 +702,22 @@ out:
 }
 
 /* Handle delayed events. */
-static void
-rcpoll(void *arg)
+void
+rc_pollcard(void *arg)
 {
-	register struct rc_chans *rc;
-	register struct rc_softc *rcb;
-	register u_char        *tptr, *eptr;
-	register struct tty    *tp;
-	register int            chan, icnt, nec, unit;
+	struct rc_softc *sc;
+	struct rc_chans *rc;
+	struct tty *tp;
+	u_char *tptr, *eptr;
+	int chan, icnt;
 
-	if (rc_scheduled_event == 0)
+	sc = (struct rc_softc *)arg;
+	if (sc->sc_scheduled_event == 0)
 		return;
-repeat:
-	for (unit = 0; unit < NRC; unit++) {
-		rcb = &rc_softc[unit];
-		rc = rcb->rcb_baserc;
-		nec = rc->rc_rcb->rcb_addr;
+	do {
+		rc = sc->sc_channels;
 		for (chan = 0; chan < CD180_NCHAN; rc++, chan++) {
-			tp = rc->rc_tp;
+			tp = &rc->rc_tp;
 #ifdef RCDEBUG
 			if (rc->rc_flags & (RC_DORXFER|RC_DOXXFER|RC_MODCHG|
 			    RC_WAS_BUFOVFL|RC_WAS_SILOVFL))
@@ -588,23 +726,24 @@ repeat:
 			if (rc->rc_flags & RC_WAS_BUFOVFL) {
 				disable_intr();
 				rc->rc_flags &= ~RC_WAS_BUFOVFL;
-				rc_scheduled_event--;
+				sc->sc_scheduled_event--;
 				enable_intr();
-				printf("rc%d/%d: interrupt-level buffer overflow\n",
-					unit, chan);
+				device_printf(sc->sc_dev,
+			    "channel %d: interrupt-level buffer overflow\n",
+				     chan);
 			}
 			if (rc->rc_flags & RC_WAS_SILOVFL) {
 				disable_intr();
 				rc->rc_flags &= ~RC_WAS_SILOVFL;
-				rc_scheduled_event--;
+				sc->sc_scheduled_event--;
 				enable_intr();
-				printf("rc%d/%d: silo overflow\n",
-					unit, chan);
+				device_printf(sc->sc_dev,
+				    "channel %d: silo overflow\n", chan);
 			}
 			if (rc->rc_flags & RC_MODCHG) {
 				disable_intr();
 				rc->rc_flags &= ~RC_MODCHG;
-				rc_scheduled_event -= LOTS_OF_EVENTS;
+				sc->sc_scheduled_event -= LOTS_OF_EVENTS;
 				enable_intr();
 				(*linesw[tp->t_line].l_modem)(tp, !!(rc->rc_msvr & MSVR_CD));
 			}
@@ -633,11 +772,11 @@ repeat:
 					    && !(tp->t_state & TS_TBLOCK)
 					    && !(rc->rc_msvr & MSVR_RTS)
 					    ) {
-						rcout(CD180_CAR, chan);
-						rcout(CD180_MSVR,
+						rcout(sc, CD180_CAR, chan);
+						rcout(sc, CD180_MSVR,
 							rc->rc_msvr |= MSVR_RTS);
 					}
-					rc_scheduled_event -= icnt;
+					sc->sc_scheduled_event -= icnt;
 				}
 				enable_intr();
 
@@ -654,8 +793,9 @@ repeat:
 					tk_rawcc += icnt;
 					tp->t_rawcc += icnt;
 					if (b_to_q(tptr, icnt, &tp->t_rawq))
-						printf("rc%d/%d: tty-level buffer overflow\n",
-							unit, chan);
+						device_printf(sc->sc_dev,
+				    "channel %d: tty-level buffer overflow\n",
+						    chan);
 					ttwakeup(tp);
 					if ((tp->t_state & TS_TTSTOP) && ((tp->t_iflag & IXANY)
 					    || (tp->t_cc[VSTART] == tp->t_cc[VSTOP]))) {
@@ -673,31 +813,31 @@ done1: ;
 			}
 			if (rc->rc_flags & RC_DOXXFER) {
 				disable_intr();
-				rc_scheduled_event -= LOTS_OF_EVENTS;
+				sc->sc_scheduled_event -= LOTS_OF_EVENTS;
 				rc->rc_flags &= ~RC_DOXXFER;
-				rc->rc_tp->t_state &= ~TS_BUSY;
+				rc->rc_tp.t_state &= ~TS_BUSY;
 				enable_intr();
 				(*linesw[tp->t_line].l_start)(tp);
 			}
 		}
-		if (rc_scheduled_event == 0)
+		if (sc->sc_scheduled_event == 0)
 			break;
 	}
-	if (rc_scheduled_event >= LOTS_OF_EVENTS)
-		goto repeat;
+	while (sc->sc_scheduled_event >= LOTS_OF_EVENTS);
 }
 
-static	void
-rc_stop(tp, rw)
-	register struct tty     *tp;
-	int                     rw;
+static void
+rc_stop(struct tty *tp, int rw)
 {
-	register struct rc_chans        *rc = &rc_chans[GET_UNIT(tp->t_dev)];
+	struct rc_softc *sc;
+	struct rc_chans *rc;
 	u_char *tptr, *eptr;
 
+	rc = TTY_TO_RC(tp);
+	sc = rc->rc_rcb;
 #ifdef RCDEBUG
-	printf("rc%d/%d: rc_stop %s%s\n", rc->rc_rcb->rcb_unit, rc->rc_chan,
-		(rw & FWRITE)?"FWRITE ":"", (rw & FREAD)?"FREAD":"");
+	device_printf(sc->sc_dev, "channel %d: rc_stop %s%s\n",
+	    rc->rc_chan, (rw & FWRITE)?"FWRITE ":"", (rw & FREAD)?"FREAD":"");
 #endif
 	if (rw & FWRITE)
 		rc_discard_output(rc);
@@ -712,7 +852,7 @@ rc_stop(tp, rw)
 			tptr = rc->rc_ibuf;
 			rc->rc_iptr = rc->rc_ibuf;
 		}
-		rc_scheduled_event -= eptr - tptr;
+		sc->sc_scheduled_event -= eptr - tptr;
 	}
 	if (tp->t_state & TS_TTSTOP)
 		rc->rc_flags |= RC_OSUSP;
@@ -721,27 +861,23 @@ rc_stop(tp, rw)
 	enable_intr();
 }
 
-static	int
-rcopen(dev, flag, mode, td)
-	dev_t           dev;
-	int             flag, mode;
-	struct thread  *td;
+static int
+rcopen(dev_t dev, int flag, int mode, d_thread_t *td)
 {
-	register struct rc_chans *rc;
-	register struct tty      *tp;
-	int             unit, nec, s, error = 0;
+	struct rc_softc *sc;
+	struct rc_chans *rc;
+	struct tty *tp;
+	int s, error = 0;
 
-	unit = GET_UNIT(dev);
-	if (unit >= NRC * CD180_NCHAN)
-		return ENXIO;
-	if (rc_softc[unit / CD180_NCHAN].rcb_probed != RC_ATTACHED)
-		return ENXIO;
-	rc  = &rc_chans[unit];
-	tp  = rc->rc_tp;
-	dev->si_tty = tp;
-	nec = rc->rc_rcb->rcb_addr;
+	rc = DEV_TO_RC(dev);
+	sc = rc->rc_rcb;
+	tp = &rc->rc_tp;
+	if (sc->sc_opencount < 0)
+		return (ENXIO);
+	sc->sc_opencount++;
 #ifdef RCDEBUG
-	printf("rc%d/%d: rcopen: dev %x\n", rc->rc_rcb->rcb_unit, unit, dev);
+	device_printf(sc->sc_dev, "channel %d: rcopen: dev %p\n",
+	    rc->rc_chan, dev);
 #endif
 	s = spltty();
 
@@ -816,22 +952,20 @@ out:
 	return error;
 }
 
-static	int
-rcclose(dev, flag, mode, td)
-	dev_t           dev;
-	int             flag, mode;
-	struct thread  *td;
+static int
+rcclose(dev_t dev, int flag, int mode, d_thread_t *td)
 {
-	register struct rc_chans *rc;
-	register struct tty      *tp;
-	int  s, unit = GET_UNIT(dev);
+	struct rc_softc *sc;
+	struct rc_chans *rc;
+	struct tty *tp;
+	int  s;
 
-	if (unit >= NRC * CD180_NCHAN)
-		return ENXIO;
-	rc  = &rc_chans[unit];
-	tp  = rc->rc_tp;
+	rc = DEV_TO_RC(dev);
+	sc = rc->rc_rcb;
+	tp = &rc->rc_tp;
 #ifdef RCDEBUG
-	printf("rc%d/%d: rcclose dev %x\n", rc->rc_rcb->rcb_unit, unit, dev);
+	device_printf(sc->sc_dev, "channel %d: rcclose dev %p\n",
+	    rc->rc_chan, dev);
 #endif
 	s = spltty();
 	(*linesw[tp->t_line].l_close)(tp, flag);
@@ -840,31 +974,37 @@ rcclose(dev, flag, mode, td)
 	rc_hardclose(rc);
 	ttyclose(tp);
 	splx(s);
+	KASSERT(sc->sc_opencount > 0, ("rcclose: non-positive open count"));
+	sc->sc_opencount--;
 	return 0;
 }
 
-static void rc_hardclose(rc)
-register struct rc_chans *rc;
+static void
+rc_hardclose(struct rc_chans *rc)
 {
-	register int s, nec = rc->rc_rcb->rcb_addr;
-	register struct tty *tp = rc->rc_tp;
+	struct rc_softc *sc;
+	struct tty *tp;
+	int s;
 
+	tp = &rc->rc_tp;
+	sc = rc->rc_rcb;
 	s = spltty();
-	rcout(CD180_CAR, rc->rc_chan);
+	rcout(sc, CD180_CAR, rc->rc_chan);
 
 	/* Disable rx/tx intrs */
-	rcout(CD180_IER, rc->rc_ier = 0);
+	rcout(sc, CD180_IER, rc->rc_ier = 0);
 	if (   (tp->t_cflag & HUPCL)
 	    || (!(rc->rc_flags & RC_ACTOUT)
 	       && !(rc->rc_msvr & MSVR_CD)
 	       && !(tp->t_cflag & CLOCAL))
 	    || !(tp->t_state & TS_ISOPEN)
 	   ) {
-		CCRCMD(rc->rc_rcb->rcb_unit, rc->rc_chan, CCR_ResetChan);
-		WAITFORCCR(rc->rc_rcb->rcb_unit, rc->rc_chan);
+		CCRCMD(sc, rc->rc_chan, CCR_ResetChan);
+		WAITFORCCR(sc, rc->rc_chan);
 		(void) rc_modctl(rc, TIOCM_RTS, DMSET);
 		if (rc->rc_dtrwait) {
-			timeout(rc_dtrwakeup, rc, rc->rc_dtrwait);
+			callout_reset(&rc->rc_dtrcallout, rc->rc_dtrwait,
+			    rc_dtrwakeup, rc);
 			rc->rc_flags |= RC_DTR_OFF;
 		}
 	}
@@ -875,39 +1015,37 @@ register struct rc_chans *rc;
 }
 
 /* Reset the bastard */
-static void rc_hwreset(unit, nec, chipid)
-	register int    unit, nec;
-	unsigned int    chipid;
+static void
+rc_hwreset(struct rc_softc *sc, uint chipid)
 {
-	CCRCMD(unit, -1, CCR_HWRESET);            /* Hardware reset */
+	CCRCMD(sc, -1, CCR_HWRESET);            /* Hardware reset */
 	DELAY(20000);
-	WAITFORCCR(unit, -1);
+	WAITFORCCR(sc, -1);
 
-	rcout(RC_CTOUT, 0);             /* Clear timeout  */
-	rcout(CD180_GIVR,  chipid);
-	rcout(CD180_GICR,  0);
+	rcout(sc, RC_CTOUT, 0);             /* Clear timeout  */
+	rcout(sc, CD180_GIVR,  chipid);
+	rcout(sc, CD180_GICR,  0);
 
 	/* Set Prescaler Registers (1 msec) */
-	rcout(CD180_PPRL, ((RC_OSCFREQ + 999) / 1000) & 0xFF);
-	rcout(CD180_PPRH, ((RC_OSCFREQ + 999) / 1000) >> 8);
+	rcout(sc, CD180_PPRL, ((RC_OSCFREQ + 999) / 1000) & 0xFF);
+	rcout(sc, CD180_PPRH, ((RC_OSCFREQ + 999) / 1000) >> 8);
 
 	/* Initialize Priority Interrupt Level Registers */
-	rcout(CD180_PILR1, RC_PILR_MODEM);
-	rcout(CD180_PILR2, RC_PILR_TX);
-	rcout(CD180_PILR3, RC_PILR_RX);
+	rcout(sc, CD180_PILR1, RC_PILR_MODEM);
+	rcout(sc, CD180_PILR2, RC_PILR_TX);
+	rcout(sc, CD180_PILR3, RC_PILR_RX);
 
 	/* Reset DTR */
-	rcout(RC_DTREG, ~0);
+	rcout(sc, RC_DTREG, ~0);
 }
 
 /* Set channel parameters */
-static int rc_param(tp, ts)
-	register struct  tty    *tp;
-	struct termios          *ts;
+static int
+rc_param(struct tty *tp, struct termios *ts)
 {
-	register struct rc_chans *rc = &rc_chans[GET_UNIT(tp->t_dev)];
-	register int    nec = rc->rc_rcb->rcb_addr;
-	int      idivs, odivs, s, val, cflag, iflag, lflag, inpflow;
+	struct rc_softc *sc;
+	struct rc_chans *rc;
+	int idivs, odivs, s, val, cflag, iflag, lflag, inpflow;
 
 	if (   ts->c_ospeed < 0 || ts->c_ospeed > 76800
 	    || ts->c_ispeed < 0 || ts->c_ispeed > 76800
@@ -918,15 +1056,17 @@ static int rc_param(tp, ts)
 	odivs = RC_BRD(ts->c_ospeed);
 	idivs = RC_BRD(ts->c_ispeed);
 
+	rc = TTY_TO_RC(tp);
+	sc = rc->rc_rcb;
 	s = spltty();
 
 	/* Select channel */
-	rcout(CD180_CAR, rc->rc_chan);
+	rcout(sc, CD180_CAR, rc->rc_chan);
 
 	/* If speed == 0, hangup line */
 	if (ts->c_ospeed == 0) {
-		CCRCMD(rc->rc_rcb->rcb_unit, rc->rc_chan, CCR_ResetChan);
-		WAITFORCCR(rc->rc_rcb->rcb_unit, rc->rc_chan);
+		CCRCMD(sc, rc->rc_chan, CCR_ResetChan);
+		WAITFORCCR(sc, rc->rc_chan);
 		(void) rc_modctl(rc, TIOCM_DTR, DMBIC);
 	}
 
@@ -936,12 +1076,12 @@ static int rc_param(tp, ts)
 	lflag = ts->c_lflag;
 
 	if (idivs > 0) {
-		rcout(CD180_RBPRL, idivs & 0xFF);
-		rcout(CD180_RBPRH, idivs >> 8);
+		rcout(sc, CD180_RBPRL, idivs & 0xFF);
+		rcout(sc, CD180_RBPRH, idivs >> 8);
 	}
 	if (odivs > 0) {
-		rcout(CD180_TBPRL, odivs & 0xFF);
-		rcout(CD180_TBPRH, odivs >> 8);
+		rcout(sc, CD180_TBPRL, odivs & 0xFF);
+		rcout(sc, CD180_TBPRH, odivs >> 8);
 	}
 
 	/* set timeout value */
@@ -953,7 +1093,7 @@ static int rc_param(tp, ts)
 		    && ts->c_cc[VTIME] * 10 > itm)
 			itm = ts->c_cc[VTIME] * 10;
 
-		rcout(CD180_RTPR, itm <= 255 ? itm : 255);
+		rcout(sc, CD180_RTPR, itm <= 255 ? itm : 255);
 	}
 
 	switch (cflag & CSIZE) {
@@ -973,7 +1113,7 @@ static int rc_param(tp, ts)
 		val |= COR1_Ignore;
 	if (cflag & CSTOPB)
 		val |= COR1_2SB;
-	rcout(CD180_COR1, val);
+	rcout(sc, CD180_COR1, val);
 
 	/* Set FIFO threshold */
 	val = ts->c_ospeed <= 4800 ? 1 : CD180_NFIFO / 2;
@@ -988,7 +1128,7 @@ static int rc_param(tp, ts)
 		inpflow = 1;
 		val |= COR3_SCDE|COR3_FCT;
 	}
-	rcout(CD180_COR3, val);
+	rcout(sc, CD180_COR3, val);
 
 	/* Initialize on-chip automatic flow control */
 	val = 0;
@@ -1009,17 +1149,16 @@ static int rc_param(tp, ts)
 
 	if (inpflow) {
 		if (ts->c_cc[VSTART] != _POSIX_VDISABLE)
-			rcout(CD180_SCHR1, ts->c_cc[VSTART]);
-		rcout(CD180_SCHR2, ts->c_cc[VSTOP]);
+			rcout(sc, CD180_SCHR1, ts->c_cc[VSTART]);
+		rcout(sc, CD180_SCHR2, ts->c_cc[VSTOP]);
 		val |= COR2_TxIBE;
 		if (iflag & IXANY)
 			val |= COR2_IXM;
 	}
 
-	rcout(CD180_COR2, rc->rc_cor2 = val);
+	rcout(sc, CD180_COR2, rc->rc_cor2 = val);
 
-	CCRCMD(rc->rc_rcb->rcb_unit, rc->rc_chan,
-		CCR_CORCHG1 | CCR_CORCHG2 | CCR_CORCHG3);
+	CCRCMD(sc, rc->rc_chan, CCR_CORCHG1 | CCR_CORCHG2 | CCR_CORCHG3);
 
 	disc_optim(tp, ts, rc);
 
@@ -1027,17 +1166,17 @@ static int rc_param(tp, ts)
 	val = cflag & CLOCAL ? 0 : MCOR1_CDzd;
 	if (cflag & CCTS_OFLOW)
 		val |= MCOR1_CTSzd;
-	rcout(CD180_MCOR1, val);
+	rcout(sc, CD180_MCOR1, val);
 
 	val = cflag & CLOCAL ? 0 : MCOR2_CDod;
 	if (cflag & CCTS_OFLOW)
 		val |= MCOR2_CTSod;
-	rcout(CD180_MCOR2, val);
+	rcout(sc, CD180_MCOR2, val);
 
 	/* enable i/o and interrupts */
-	CCRCMD(rc->rc_rcb->rcb_unit, rc->rc_chan,
+	CCRCMD(sc, rc->rc_chan,
 		CCR_XMTREN | ((cflag & CREAD) ? CCR_RCVREN : CCR_RCVRDIS));
-	WAITFORCCR(rc->rc_rcb->rcb_unit, rc->rc_chan);
+	WAITFORCCR(sc, rc->rc_chan);
 
 	rc->rc_ier = cflag & CLOCAL ? 0 : IER_CD;
 	if (cflag & CCTS_OFLOW)
@@ -1050,38 +1189,33 @@ static int rc_param(tp, ts)
 		rc_modctl(rc, TIOCM_DTR, DMBIS);
 	if ((cflag & CCTS_OFLOW) && (rc->rc_msvr & MSVR_CTS))
 		rc->rc_flags |= RC_SEND_RDY;
-	rcout(CD180_IER, rc->rc_ier);
+	rcout(sc, CD180_IER, rc->rc_ier);
 	(void) splx(s);
 	return 0;
 }
 
 /* Re-initialize board after bogus interrupts */
-static void rc_reinit(rcb)
-struct rc_softc         *rcb;
+static void
+rc_reinit(struct rc_softc *sc)
 {
-	register struct rc_chans       *rc, *rce;
-	register int                    nec;
+	struct rc_chans *rc;
+	int i;
 
-	nec = rcb->rcb_addr;
-	rc_hwreset(rcb->rcb_unit, nec, RC_FAKEID);
-	rc  = &rc_chans[rcb->rcb_unit * CD180_NCHAN];
-	rce = rc + CD180_NCHAN;
-	for (; rc < rce; rc++)
-		(void) rc_param(rc->rc_tp, &rc->rc_tp->t_termios);
+	rc_hwreset(sc, RC_FAKEID);
+	rc = sc->sc_channels;
+	for (i = 0; i < CD180_NCHAN; i++, rc++)
+		(void) rc_param(&rc->rc_tp, &rc->rc_tp.t_termios);
 }
 
-static	int
-rcioctl(dev, cmd, data, flag, td)
-dev_t           dev;
-u_long          cmd;
-int		flag;
-caddr_t         data;
-struct thread  *td;
+static int
+rcioctl(dev_t dev, u_long cmd, caddr_t data, int flag, d_thread_t *td)
 {
-	register struct rc_chans       *rc = &rc_chans[GET_UNIT(dev)];
-	register int                    s, error;
-	struct tty                     *tp = rc->rc_tp;
+	struct rc_chans *rc;
+	struct tty *tp;
+	int s, error;
 
+	rc = DEV_TO_RC(dev);
+	tp = &rc->rc_tp;
 	error = (*linesw[tp->t_line].l_ioctl)(tp, cmd, data, flag, td);
 	if (error != ENOIOCTL)
 		return (error);
@@ -1148,21 +1282,23 @@ struct thread  *td;
 
 /* Modem control routines */
 
-static int rc_modctl(rc, bits, cmd)
-register struct rc_chans       *rc;
-int                             bits, cmd;
+static int
+rc_modctl(struct rc_chans *rc, int bits, int cmd)
 {
-	register int    nec = rc->rc_rcb->rcb_addr;
-	u_char         *dtr = &rc->rc_rcb->rcb_dtr, msvr;
+	struct rc_softc *sc;
+	u_char *dtr;
+	u_char msvr;
 
-	rcout(CD180_CAR, rc->rc_chan);
+	sc = rc->rc_rcb;
+	dtr = &sc->sc_dtr;
+	rcout(sc, CD180_CAR, rc->rc_chan);
 
 	switch (cmd) {
 	    case DMSET:
-		rcout(RC_DTREG, (bits & TIOCM_DTR) ?
+		rcout(sc, RC_DTREG, (bits & TIOCM_DTR) ?
 				~(*dtr |= 1 << rc->rc_chan) :
 				~(*dtr &= ~(1 << rc->rc_chan)));
-		msvr = rcin(CD180_MSVR);
+		msvr = rcin(sc, CD180_MSVR);
 		if (bits & TIOCM_RTS)
 			msvr |= MSVR_RTS;
 		else
@@ -1171,23 +1307,23 @@ int                             bits, cmd;
 			msvr |= MSVR_DTR;
 		else
 			msvr &= ~MSVR_DTR;
-		rcout(CD180_MSVR, msvr);
+		rcout(sc, CD180_MSVR, msvr);
 		break;
 
 	    case DMBIS:
 		if (bits & TIOCM_DTR)
-			rcout(RC_DTREG, ~(*dtr |= 1 << rc->rc_chan));
-		msvr = rcin(CD180_MSVR);
+			rcout(sc, RC_DTREG, ~(*dtr |= 1 << rc->rc_chan));
+		msvr = rcin(sc, CD180_MSVR);
 		if (bits & TIOCM_RTS)
 			msvr |= MSVR_RTS;
 		if (bits & TIOCM_DTR)
 			msvr |= MSVR_DTR;
-		rcout(CD180_MSVR, msvr);
+		rcout(sc, CD180_MSVR, msvr);
 		break;
 
 	    case DMGET:
 		bits = TIOCM_LE;
-		msvr = rc->rc_msvr = rcin(CD180_MSVR);
+		msvr = rc->rc_msvr = rcin(sc, CD180_MSVR);
 
 		if (msvr & MSVR_RTS)
 			bits |= TIOCM_RTS;
@@ -1199,30 +1335,36 @@ int                             bits, cmd;
 			bits |= TIOCM_DTR;
 		if (msvr & MSVR_CD)
 			bits |= TIOCM_CD;
-		if (~rcin(RC_RIREG) & (1 << rc->rc_chan))
+		if (~rcin(sc, RC_RIREG) & (1 << rc->rc_chan))
 			bits |= TIOCM_RI;
 		return bits;
 
 	    case DMBIC:
 		if (bits & TIOCM_DTR)
-			rcout(RC_DTREG, ~(*dtr &= ~(1 << rc->rc_chan)));
-		msvr = rcin(CD180_MSVR);
+			rcout(sc, RC_DTREG, ~(*dtr &= ~(1 << rc->rc_chan)));
+		msvr = rcin(sc, CD180_MSVR);
 		if (bits & TIOCM_RTS)
 			msvr &= ~MSVR_RTS;
 		if (bits & TIOCM_DTR)
 			msvr &= ~MSVR_DTR;
-		rcout(CD180_MSVR, msvr);
+		rcout(sc, CD180_MSVR, msvr);
 		break;
 	}
-	rc->rc_msvr = rcin(CD180_MSVR);
+	rc->rc_msvr = rcin(sc, CD180_MSVR);
 	return 0;
 }
 
+#define ERR(s) do {							\
+	device_printf(sc->sc_dev, "%s", "");				\
+	printf s ;							\
+	printf("\n");							\
+	(void) splx(old_level);						\
+	return 1;							\
+} while (0)
+
 /* Test the board. */
-static int
-rc_test(nec, unit)
-	register int    nec;
-	int             unit;
+int
+rc_test(struct rc_softc *sc)
 {
 	int     chan = 0;
 	int     i = 0, rcnt, old_level;
@@ -1230,9 +1372,6 @@ rc_test(nec, unit)
 	unsigned short  divs;
 	static  u_char  ctest[] = "\377\125\252\045\244\0\377";
 #define CTLEN   8
-#define ERR(s)  { \
-		printf("rc%d: ", unit); printf s ; printf("\n"); \
-		(void) splx(old_level); return 1; }
 
 	struct rtest {
 		u_char  txbuf[CD180_NFIFO];     /* TX buffer  */
@@ -1246,7 +1385,7 @@ rc_test(nec, unit)
 	chipid = RC_FAKEID;
 
 	/* First, reset board to inital state */
-	rc_hwreset(unit, nec, chipid);
+	rc_hwreset(sc, chipid);
 
 	divs = RC_BRD(19200);
 
@@ -1254,27 +1393,27 @@ rc_test(nec, unit)
 	for (chan = 0; chan < CD180_NCHAN; chan++) {
 
 		/* Select and reset channel */
-		rcout(CD180_CAR, chan);
-		CCRCMD(unit, chan, CCR_ResetChan);
-		WAITFORCCR(unit, chan);
+		rcout(sc, CD180_CAR, chan);
+		CCRCMD(sc, chan, CCR_ResetChan);
+		WAITFORCCR(sc, chan);
 
 		/* Set speed */
-		rcout(CD180_RBPRL, divs & 0xFF);
-		rcout(CD180_RBPRH, divs >> 8);
-		rcout(CD180_TBPRL, divs & 0xFF);
-		rcout(CD180_TBPRH, divs >> 8);
+		rcout(sc, CD180_RBPRL, divs & 0xFF);
+		rcout(sc, CD180_RBPRH, divs >> 8);
+		rcout(sc, CD180_TBPRL, divs & 0xFF);
+		rcout(sc, CD180_TBPRH, divs >> 8);
 
 		/* set timeout value */
-		rcout(CD180_RTPR,  0);
+		rcout(sc, CD180_RTPR,  0);
 
 		/* Establish local loopback */
-		rcout(CD180_COR1, COR1_NOPAR | COR1_8BITS | COR1_1SB);
-		rcout(CD180_COR2, COR2_LLM);
-		rcout(CD180_COR3, CD180_NFIFO);
-		CCRCMD(unit, chan, CCR_CORCHG1 | CCR_CORCHG2 | CCR_CORCHG3);
-		CCRCMD(unit, chan, CCR_RCVREN | CCR_XMTREN);
-		WAITFORCCR(unit, chan);
-		rcout(CD180_MSVR, MSVR_RTS);
+		rcout(sc, CD180_COR1, COR1_NOPAR | COR1_8BITS | COR1_1SB);
+		rcout(sc, CD180_COR2, COR2_LLM);
+		rcout(sc, CD180_COR3, CD180_NFIFO);
+		CCRCMD(sc, chan, CCR_CORCHG1 | CCR_CORCHG2 | CCR_CORCHG3);
+		CCRCMD(sc, chan, CCR_RCVREN | CCR_XMTREN);
+		WAITFORCCR(sc, chan);
+		rcout(sc, CD180_MSVR, MSVR_RTS);
 
 		/* Fill TXBUF with test data */
 		for (i = 0; i < CD180_NFIFO; i++) {
@@ -1284,57 +1423,57 @@ rc_test(nec, unit)
 		tchans[chan].txptr = tchans[chan].rxptr = 0;
 
 		/* Now, start transmit */
-		rcout(CD180_IER, IER_TxMpty|IER_RxData);
+		rcout(sc, CD180_IER, IER_TxMpty|IER_RxData);
 	}
 	/* Pseudo-interrupt poll stuff */
 	for (rcnt = 10000; rcnt-- > 0; rcnt--) {
-		i = ~(rcin(RC_BSR));
+		i = ~(rcin(sc, RC_BSR));
 		if (i & RC_BSR_TOUT)
-			ERR(("BSR timeout bit set\n"))
+			ERR(("BSR timeout bit set\n"));
 		else if (i & RC_BSR_TXINT) {
-			iack = rcin(RC_PILR_TX);
+			iack = rcin(sc, RC_PILR_TX);
 			if (iack != (GIVR_IT_TDI | chipid))
 				ERR(("Bad TX intr ack (%02x != %02x)\n",
 					iack, GIVR_IT_TDI | chipid));
-			chan = (rcin(CD180_GICR) & GICR_CHAN) >> GICR_LSH;
+			chan = (rcin(sc, CD180_GICR) & GICR_CHAN) >> GICR_LSH;
 			/* If no more data to transmit, disable TX intr */
 			if (tchans[chan].txptr >= CD180_NFIFO) {
-				iack = rcin(CD180_IER);
-				rcout(CD180_IER, iack & ~IER_TxMpty);
+				iack = rcin(sc, CD180_IER);
+				rcout(sc, CD180_IER, iack & ~IER_TxMpty);
 			} else {
 				for (iack = tchans[chan].txptr;
 				    iack < CD180_NFIFO; iack++)
-					rcout(CD180_TDR,
+					rcout(sc, CD180_TDR,
 					    tchans[chan].txbuf[iack]);
 				tchans[chan].txptr = iack;
 			}
-			rcout(CD180_EOIR, 0);
+			rcout(sc, CD180_EOIR, 0);
 		} else if (i & RC_BSR_RXINT) {
 			u_char ucnt;
 
-			iack = rcin(RC_PILR_RX);
+			iack = rcin(sc, RC_PILR_RX);
 			if (iack != (GIVR_IT_RGDI | chipid) &&
 			    iack != (GIVR_IT_REI  | chipid))
 				ERR(("Bad RX intr ack (%02x != %02x)\n",
-					iack, GIVR_IT_RGDI | chipid))
-			chan = (rcin(CD180_GICR) & GICR_CHAN) >> GICR_LSH;
-			ucnt = rcin(CD180_RDCR) & 0xF;
+					iack, GIVR_IT_RGDI | chipid));
+			chan = (rcin(sc, CD180_GICR) & GICR_CHAN) >> GICR_LSH;
+			ucnt = rcin(sc, CD180_RDCR) & 0xF;
 			while (ucnt-- > 0) {
-				iack = rcin(CD180_RCSR);
+				iack = rcin(sc, CD180_RCSR);
 				if (iack & RCSR_Timeout)
 					break;
 				if (iack & 0xF)
 					ERR(("Bad char chan %d (RCSR = %02X)\n",
-					    chan, iack))
+					    chan, iack));
 				if (tchans[chan].rxptr > CD180_NFIFO)
 					ERR(("Got extra chars chan %d\n",
-					    chan))
+					    chan));
 				tchans[chan].rxbuf[tchans[chan].rxptr++] =
-					rcin(CD180_RDR);
+					rcin(sc, CD180_RDR);
 			}
-			rcout(CD180_EOIR, 0);
+			rcout(sc, CD180_EOIR, 0);
 		}
-		rcout(RC_CTOUT, 0);
+		rcout(sc, RC_CTOUT, 0);
 		for (iack = chan = 0; chan < CD180_NCHAN; chan++)
 			if (tchans[chan].rxptr >= CD180_NFIFO)
 				iack++;
@@ -1343,30 +1482,30 @@ rc_test(nec, unit)
 	}
 	for (chan = 0; chan < CD180_NCHAN; chan++) {
 		/* Select and reset channel */
-		rcout(CD180_CAR, chan);
-		CCRCMD(unit, chan, CCR_ResetChan);
+		rcout(sc, CD180_CAR, chan);
+		CCRCMD(sc, chan, CCR_ResetChan);
 	}
 
 	if (!rcnt)
-		ERR(("looses characters during local loopback\n"))
+		ERR(("looses characters during local loopback\n"));
 	/* Now, check data */
 	for (chan = 0; chan < CD180_NCHAN; chan++)
 		for (i = 0; i < CD180_NFIFO; i++)
 			if (ctest[i] != tchans[chan].rxbuf[i])
 				ERR(("data mismatch chan %d ptr %d (%d != %d)\n",
-				    chan, i, ctest[i], tchans[chan].rxbuf[i]))
+				    chan, i, ctest[i], tchans[chan].rxbuf[i]));
 	(void) splx(old_level);
 	return 0;
 }
 
 #ifdef RCDEBUG
-static void printrcflags(rc, comment)
-struct rc_chans  *rc;
-char             *comment;
+static void
+printrcflags(struct rc_chans *rc, char *comment)
 {
+	struct rc_softc *sc;
 	u_short f = rc->rc_flags;
-	register int    nec = rc->rc_rcb->rcb_addr;
 
+	sc = rc->rc_rcb;
 	printf("rc%d/%d: %s flags: %s%s%s%s%s%s%s%s%s%s%s%s\n",
 		rc->rc_rcb->rcb_unit, rc->rc_chan, comment,
 		(f & RC_DTR_OFF)?"DTR_OFF " :"",
@@ -1382,62 +1521,42 @@ char             *comment;
 		(f & RC_WAS_SILOVFL) ?"SILOVFL " :"",
 		(f & RC_SEND_RDY) ?"SEND_RDY":"");
 
-	rcout(CD180_CAR, rc->rc_chan);
+	rcout(sc, CD180_CAR, rc->rc_chan);
 
 	printf("rc%d/%d: msvr %02x ier %02x ccsr %02x\n",
 		rc->rc_rcb->rcb_unit, rc->rc_chan,
-		rcin(CD180_MSVR),
-		rcin(CD180_IER),
-		rcin(CD180_CCSR));
+		rcin(sc, CD180_MSVR),
+		rcin(sc, CD180_IER),
+		rcin(sc, CD180_CCSR));
 }
 #endif /* RCDEBUG */
 
 static void
-rc_dtrwakeup(chan)
-	void	*chan;
+rc_dtrwakeup(void *arg)
 {
 	struct rc_chans  *rc;
 
-	rc = (struct rc_chans *)chan;
+	rc = (struct rc_chans *)arg;
 	rc->rc_flags &= ~RC_DTR_OFF;
 	wakeup(&rc->rc_dtrwait);
 }
 
 static void
-rc_discard_output(rc)
-	struct rc_chans  *rc;
+rc_discard_output(struct rc_chans *rc)
 {
 	disable_intr();
 	if (rc->rc_flags & RC_DOXXFER) {
-		rc_scheduled_event -= LOTS_OF_EVENTS;
+		rc->rc_rcb->sc_scheduled_event -= LOTS_OF_EVENTS;
 		rc->rc_flags &= ~RC_DOXXFER;
 	}
 	rc->rc_optr = rc->rc_obufend;
-	rc->rc_tp->t_state &= ~TS_BUSY;
+	rc->rc_tp.t_state &= ~TS_BUSY;
 	enable_intr();
-	ttwwakeup(rc->rc_tp);
+	ttwwakeup(&rc->rc_tp);
 }
 
 static void
-rc_wakeup(chan)
-	void	*chan;
-{
-	timeout(rc_wakeup, (caddr_t)NULL, 1);
-
-	if (rc_scheduled_event != 0) {
-		int	s;
-
-		s = splsofttty();
-		rcpoll(NULL);
-		splx(s);
-	}
-}
-
-static void
-disc_optim(tp, t, rc)
-	struct tty	*tp;
-	struct termios	*t;
-	struct rc_chans	*rc;
+disc_optim(struct tty *tp, struct termios *t, struct rc_chans *rc)
 {
 
 	if (!(t->c_iflag & (ICRNL | IGNCR | IMAXBEL | INLCR | ISTRIP | IXON))
@@ -1453,14 +1572,28 @@ disc_optim(tp, t, rc)
 }
 
 static void
-rc_wait0(nec, unit, chan, line)
-	int     nec, unit, chan, line;
+rc_wait0(struct rc_softc *sc, int chan, int line)
 {
 	int rcnt;
 
-	for (rcnt = 50; rcnt && rcin(CD180_CCR); rcnt--)
+	for (rcnt = 50; rcnt && rcin(sc, CD180_CCR); rcnt--)
 		DELAY(30);
 	if (rcnt == 0)
-		printf("rc%d/%d: channel command timeout, rc.c line: %d\n",
-		      unit, chan, line);
+		device_printf(sc->sc_dev,
+		    "channel %d command timeout, rc.c line: %d\n", chan, line);
 }
+
+static device_method_t rc_methods[] = {
+	/* Device interface */
+	DEVMETHOD(device_probe,		rc_probe),
+	DEVMETHOD(device_attach,	rc_attach),
+	DEVMETHOD(device_detach,	rc_detach),
+	{ 0, 0 }
+};
+
+static driver_t rc_driver = {
+	"rc",
+	rc_methods, sizeof(struct rc_softc),
+};
+
+DRIVER_MODULE(rc, isa, rc_driver, rc_devclass, 0, 0);
