@@ -33,7 +33,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)vfs_cluster.c	8.7 (Berkeley) 2/13/94
- * $Id: vfs_cluster.c,v 1.81 1999/05/02 23:56:11 alc Exp $
+ * $Id: vfs_cluster.c,v 1.82 1999/06/16 15:54:30 dg Exp $
  */
 
 #include "opt_debug_cluster.h"
@@ -649,13 +649,14 @@ cluster_wbuild(vp, size, start_lbn, len)
 		tbp->b_flags &= ~B_DONE;
 		splx(s);
 
-	/*
-	 * Extra memory in the buffer, punt on this buffer. XXX we could
-	 * handle this in most cases, but we would have to push the extra
-	 * memory down to after our max possible cluster size and then
-	 * potentially pull it back up if the cluster was terminated
-	 * prematurely--too much hassle.
-	 */
+		/*
+		 * Extra memory in the buffer, punt on this buffer.
+		 * XXX we could handle this in most cases, but we would
+		 * have to push the extra memory down to after our max
+		 * possible cluster size and then potentially pull it back
+		 * up if the cluster was terminated prematurely--too much
+		 * hassle.
+		 */
 		if (((tbp->b_flags & (B_CLUSTEROK|B_MALLOC)) != B_CLUSTEROK) ||
 		  (tbp->b_bcount != tbp->b_bufsize) ||
 		  (tbp->b_bcount != size) ||
