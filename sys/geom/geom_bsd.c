@@ -287,17 +287,6 @@ g_bsd_start(struct bio *bp)
 		g_io_deliver(bp);
 		return (1);
 	}
-#ifdef _KERNEL
-	if (gio->cmd == DIOCGPART) {
-		struct partinfo pi;
-		pi.disklab = &ms->inram;
-		pi.part = &ms->inram.d_partitions[bp->bio_to->index];
-		bcopy(&pi, gio->data, sizeof pi);
-		bp->bio_error = 0;
-		g_io_deliver(bp);
-		return (1);
-	}
-#endif
 	return (0);
 }
 

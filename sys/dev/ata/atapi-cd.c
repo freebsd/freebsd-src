@@ -1038,11 +1038,6 @@ acdioctl(dev_t dev, u_long cmd, caddr_t addr, int flags, struct thread *td)
 	error = EBADF;
 	break;
 
-    case DIOCGPART:
-	((struct partinfo *)addr)->disklab = &cdp->disklabel;
-	((struct partinfo *)addr)->part = &cdp->disklabel.d_partitions[0];
-	break;
-
     default:
 	error = ENOTTY;
     }

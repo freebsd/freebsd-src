@@ -436,11 +436,6 @@ scdioctl(dev_t dev, u_long cmd, caddr_t addr, int flags, struct thread *td)
 	case DIOCGDINFO:
 		*(struct disklabel *)addr = cd->dlabel;
 		return 0;
-	case DIOCGPART:
-		((struct partinfo *)addr)->disklab = &cd->dlabel;
-		((struct partinfo *)addr)->part =
-			&cd->dlabel.d_partitions[0];
-		return 0;
 	case CDIOCPLAYTRACKS:
 		return scd_playtracks(unit, (struct ioc_play_track *) addr);
 	case CDIOCPLAYBLOCKS:
