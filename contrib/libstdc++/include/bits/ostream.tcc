@@ -41,11 +41,19 @@ namespace std
   template<typename _CharT, typename _Traits>
     basic_ostream<_CharT, _Traits>::sentry::
     sentry(basic_ostream<_CharT,_Traits>& __os)
-    : _M_ok(__os.good()), _M_os(__os)
+    : _M_os(__os)
     {
-      // XXX MT 
-      if (_M_ok && __os.tie())
-	__os.tie()->flush();  
+      // XXX MT
+      if (__os.tie() && __os.good())
+	__os.tie()->flush();
+
+      if (__os.good())
+	_M_ok = true;
+      else
+	{
+	  _M_ok = false;
+	  __os.setstate(ios_base::failbit);
+	}
     }
   
   template<typename _CharT, typename _Traits>
@@ -58,11 +66,11 @@ namespace std
 	{ 
 	  try 
 	    { __pf(*this); }
-	  catch(exception& __fail)
+	  catch(...)
 	    {
 	      // 27.6.2.5.1 Common requirements.
 	      // Turn this on without causing an ios::failure to be thrown.
-	      this->setstate(ios_base::badbit);
+	      this->_M_setstate(ios_base::badbit);
 	      if ((this->exceptions() & ios_base::badbit) != 0)
 		__throw_exception_again;
 	    }
@@ -80,11 +88,11 @@ namespace std
 	{ 
 	  try 
 	    { __pf(*this); }
-	  catch(exception& __fail)
+	  catch(...)
 	    {
 	      // 27.6.2.5.1 Common requirements.
 	      // Turn this on without causing an ios::failure to be thrown.
-	      this->setstate(ios_base::badbit);
+	      this->_M_setstate(ios_base::badbit);
 	      if ((this->exceptions() & ios_base::badbit) != 0)
 		__throw_exception_again;
 	    }
@@ -102,11 +110,11 @@ namespace std
 	{ 
 	  try 
 	    { __pf(*this); }
-	  catch(exception& __fail)
+	  catch(...)
 	    {
 	      // 27.6.2.5.1 Common requirements.
 	      // Turn this on without causing an ios::failure to be thrown.
-	      this->setstate(ios_base::badbit);
+	      this->_M_setstate(ios_base::badbit);
 	      if ((this->exceptions() & ios_base::badbit) != 0)
 		__throw_exception_again;
 	    }
@@ -126,11 +134,11 @@ namespace std
 	      if (!__copy_streambufs(*this, __sbin, this->rdbuf()))
 		this->setstate(ios_base::failbit);
 	    }
-	  catch(exception& __fail)
+	  catch(...)
 	    {
 	      // 27.6.2.5.1 Common requirements.
 	      // Turn this on without causing an ios::failure to be thrown.
-	      this->setstate(ios_base::badbit);
+	      this->_M_setstate(ios_base::badbit);
 	      if ((this->exceptions() & ios_base::badbit) != 0)
 		__throw_exception_again;
 	    }
@@ -153,11 +161,11 @@ namespace std
 		if (_M_fnumput->put(*this, *this, this->fill(), __n).failed())
 		  this->setstate(ios_base::badbit);
 	    }
-	  catch(exception& __fail)
+	  catch(...)
 	    {
 	      // 27.6.1.2.1 Common requirements.
 	      // Turn this on without causing an ios::failure to be thrown.
-	      this->setstate(ios_base::badbit);
+	      this->_M_setstate(ios_base::badbit);
 	      if ((this->exceptions() & ios_base::badbit) != 0)
 		__throw_exception_again;
 	    }
@@ -190,11 +198,11 @@ namespace std
 		    this->setstate(ios_base::badbit);
 		}
 	    }
-	  catch(exception& __fail)
+	  catch(...)
 	    {
 	      // 27.6.1.2.1 Common requirements.
 	      // Turn this on without causing an ios::failure to be thrown.
-	      this->setstate(ios_base::badbit);
+	      this->_M_setstate(ios_base::badbit);
 	      if ((this->exceptions() & ios_base::badbit) != 0)
 		__throw_exception_again;
 	    }
@@ -215,11 +223,11 @@ namespace std
 		if (_M_fnumput->put(*this, *this, this->fill(), __n).failed())
 		  this->setstate(ios_base::badbit);
 	    }
-	  catch(exception& __fail)
+	  catch(...)
 	    {
 	      // 27.6.1.2.1 Common requirements.
 	      // Turn this on without causing an ios::failure to be thrown.
-	      this->setstate(ios_base::badbit);
+	      this->_M_setstate(ios_base::badbit);
 	      if ((this->exceptions() & ios_base::badbit) != 0)
 		__throw_exception_again;
 	    }
@@ -254,11 +262,11 @@ namespace std
 		    this->setstate(ios_base::badbit);
 		}
 	    }
-	  catch(exception& __fail)
+	  catch(...)
 	    {
 	      // 27.6.1.2.1 Common requirements.
 	      // Turn this on without causing an ios::failure to be thrown.
-	      this->setstate(ios_base::badbit);
+	      this->_M_setstate(ios_base::badbit);
 	      if ((this->exceptions() & ios_base::badbit) != 0)
 		__throw_exception_again;
 	    }
@@ -279,11 +287,11 @@ namespace std
 		if (_M_fnumput->put(*this, *this, this->fill(), __n).failed())
 		  this->setstate(ios_base::badbit);
 	    }
-	  catch(exception& __fail)
+	  catch(...)
 	    {
 	      // 27.6.1.2.1 Common requirements.
 	      // Turn this on without causing an ios::failure to be thrown.
-	      this->setstate(ios_base::badbit);
+	      this->_M_setstate(ios_base::badbit);
 	      if ((this->exceptions() & ios_base::badbit) != 0)
 		__throw_exception_again;
 	    }
@@ -305,11 +313,11 @@ namespace std
 		if (_M_fnumput->put(*this, *this, this->fill(), __n).failed())
 		  this->setstate(ios_base::badbit);
 	    }
-	  catch(exception& __fail)
+	  catch(...)
 	    {
 	      // 27.6.1.2.1 Common requirements.
 	      // Turn this on without causing an ios::failure to be thrown.
-	      this->setstate(ios_base::badbit);
+	      this->_M_setstate(ios_base::badbit);
 	      if ((this->exceptions() & ios_base::badbit) != 0)
 		__throw_exception_again;
 	    }
@@ -330,11 +338,11 @@ namespace std
 		if (_M_fnumput->put(*this, *this, this->fill(), __n).failed())
 		  this->setstate(ios_base::badbit);
 	    }
-	  catch(exception& __fail)
+	  catch(...)
 	    {
 	      // 27.6.1.2.1 Common requirements.
 	      // Turn this on without causing an ios::failure to be thrown.
-	      this->setstate(ios_base::badbit);
+	      this->_M_setstate(ios_base::badbit);
 	      if ((this->exceptions() & ios_base::badbit) != 0)
 		__throw_exception_again;
 	    }
@@ -355,11 +363,11 @@ namespace std
 		if (_M_fnumput->put(*this, *this, this->fill(), __n).failed())
 		  this->setstate(ios_base::badbit);
 	    }
-	  catch(exception& __fail)
+	  catch(...)
 	    {
 	      // 27.6.1.2.1 Common requirements.
 	      // Turn this on without causing an ios::failure to be thrown.
-	      this->setstate(ios_base::badbit);
+	      this->_M_setstate(ios_base::badbit);
 	      if ((this->exceptions() & ios_base::badbit) != 0)
 		__throw_exception_again;
 	    }
@@ -468,7 +476,7 @@ namespace std
 	{
 	  try 
 	    {
-	      streamsize __w = __out.width();
+	      const streamsize __w = __out.width() > 0 ? __out.width() : 0;
 	      _CharT* __pads = static_cast<_CharT*>(__builtin_alloca(sizeof(_CharT) * (__w + 1)));
 	      __pads[0] = __c;
 	      streamsize __len = 1;
@@ -481,11 +489,11 @@ namespace std
 	      __out.write(__pads, __len);
 	      __out.width(0);
 	    }
-	  catch(exception& __fail)
+	  catch(...)
 	    {
 	      // 27.6.1.2.1 Common requirements.
 	      // Turn this on without causing an ios::failure to be thrown.
-	      __out.setstate(ios_base::badbit);
+	      __out._M_setstate(ios_base::badbit);
 	      if ((__out.exceptions() & ios_base::badbit) != 0)
 		__throw_exception_again;
 	    }
@@ -504,7 +512,7 @@ namespace std
 	{
 	  try 
 	    {
-	      streamsize __w = __out.width();
+	      const streamsize __w = __out.width() > 0 ? __out.width() : 0;
 	      char* __pads = static_cast<char*>(__builtin_alloca(__w + 1));
 	      __pads[0] = __c;
 	      streamsize __len = 1;
@@ -517,11 +525,11 @@ namespace std
 	      __out.write(__pads, __len);
 	      __out.width(0);
 	    }
-	  catch(exception& __fail)
+	  catch(...)
 	    {
 	      // 27.6.1.2.1 Common requirements.
 	      // Turn this on without causing an ios::failure to be thrown.
-	      __out.setstate(ios_base::badbit);
+	      __out._M_setstate(ios_base::badbit);
 	      if ((__out.exceptions() & ios_base::badbit) != 0)
 		__throw_exception_again;
 	    }
@@ -539,7 +547,7 @@ namespace std
 	{
 	  try 
 	    {
-	      streamsize __w = __out.width();
+	      const streamsize __w = __out.width() > 0 ? __out.width() : 0;
 	      _CharT* __pads = static_cast<_CharT*>(__builtin_alloca(sizeof(_CharT) * __w));
 	      streamsize __len = static_cast<streamsize>(_Traits::length(__s));
 	      if (__w > __len)
@@ -552,11 +560,11 @@ namespace std
 	      __out.write(__s, __len);
 	      __out.width(0);
 	    }
-	  catch(exception& __fail)
+	  catch(...)
 	    {
 	      // 27.6.1.2.1 Common requirements.
 	      // Turn this on without causing an ios::failure to be thrown.
-	      __out.setstate(ios_base::badbit);
+	      __out._M_setstate(ios_base::badbit);
 	      if ((__out.exceptions() & ios_base::badbit) != 0)
 		__throw_exception_again;
 	    }
@@ -588,7 +596,7 @@ namespace std
 	  try 
 	    {
 	      streamsize __len = static_cast<streamsize>(__clen);
-	      streamsize __w = __out.width();
+	      const streamsize __w = __out.width() > 0 ? __out.width() : 0;
 	      _CharT* __pads = static_cast<_CharT*>(__builtin_alloca(sizeof(_CharT) * __w));
 	      
 	      if (__w > __len)
@@ -601,11 +609,11 @@ namespace std
 	      __out.write(__str, __len);
 	      __out.width(0);
 	    }
-	  catch(exception& __fail)
+	  catch(...)
 	    {
 	      // 27.6.1.2.1 Common requirements.
 	      // Turn this on without causing an ios::failure to be thrown.
-	      __out.setstate(ios_base::badbit);
+	      __out._M_setstate(ios_base::badbit);
 	      if ((__out.exceptions() & ios_base::badbit) != 0)
 		__throw_exception_again;
 	    }
@@ -626,7 +634,7 @@ namespace std
 	{
 	  try 
 	    {
-	      streamsize __w = __out.width();
+	      const streamsize __w = __out.width() > 0 ? __out.width() : 0;
 	      char* __pads = static_cast<char*>(__builtin_alloca(__w));
 	      streamsize __len = static_cast<streamsize>(_Traits::length(__s));
 
@@ -640,11 +648,11 @@ namespace std
 	      __out.write(__s, __len);
 	      __out.width(0);
 	    }
-	  catch(exception& __fail)
+	  catch(...)
 	    {
 	      // 27.6.1.2.1 Common requirements.
 	      // Turn this on without causing an ios::failure to be thrown.
-	      __out.setstate(ios_base::badbit);
+	      __out._M_setstate(ios_base::badbit);
 	      if ((__out.exceptions() & ios_base::badbit) != 0)
 		__throw_exception_again;
 	    }
@@ -665,7 +673,7 @@ namespace std
       if (__cerb)
 	{
 	  const _CharT* __s = __str.data();
-	  streamsize __w = __out.width();
+	  const streamsize __w = __out.width() > 0 ? __out.width() : 0;
 	  _CharT* __pads = static_cast<_CharT*>(__builtin_alloca(sizeof(_CharT) * __w));
 	  streamsize __len = static_cast<streamsize>(__str.size());
 #ifdef _GLIBCPP_RESOLVE_LIB_DEFECTS
@@ -689,6 +697,7 @@ namespace std
   // Inhibit implicit instantiations for required instantiations,
   // which are defined via explicit instantiations elsewhere.  
   // NB:  This syntax is a GNU extension.
+#if _GLIBCPP_EXTERN_TEMPLATE
   extern template class basic_ostream<char>;
   extern template ostream& endl(ostream&);
   extern template ostream& ends(ostream&);
@@ -709,5 +718,6 @@ namespace std
   extern template wostream& operator<<(wostream&, char);
   extern template wostream& operator<<(wostream&, const wchar_t*);
   extern template wostream& operator<<(wostream&, const char*);
+#endif
 #endif
 } // namespace std
