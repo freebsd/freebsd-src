@@ -370,9 +370,15 @@ sub manual {
 		} else {
 		    $list .= '- ' if (!$flag && !/^- /);
 		    $flag++;
-		    s/^\.[A-Z][a-z][ \t]*//;
-		    s/[ \t]+$//;
-		    $list .= $_;
+		    if (/^\.Xr/) {
+			split;
+			$list .= @_[1];
+			$list .= "(@_[2])" if @_[2];
+		    } else {
+			s/^\.[A-Z][a-z][ \t]*//;
+			s/[ \t]+$//;
+			$list .= $_;
+		    }
 		    $list .= ' ';
 		}
 	    }
