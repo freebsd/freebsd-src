@@ -1,0 +1,142 @@
+.\" Copyright (c) 1997
+.\"	John-Mark Gurney.  All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\" 3. Neither the name of the author nor the names of any co-contributors
+.\"    may be used to endorse or promote products derived from this software
+.\"    without specific prior written permission.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY John-Mark Gurney AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\"
+.Dd February 14, 1997
+.Dt SYSMOUSE 4
+.Os
+.Sh NAME
+.Nm sysmouse
+.Nd supplies mouse data from syscons for other applications
+.Sh SYNOPSIS
+.Fd #include <machine/console.h>
+.Fd #include <sys/ioctl.h>
+.Ft int
+.Fn ioctl cfd CONS_MOUSECTL struct\ *mouse_info
+.Sh DESCRIPTION
+The
+.Dv CONS_MOUSECTL
+.Fn ioctl
+call provides syscons with mouse information, which includes mouse movement
+and button presses.  The
+.Fn ioctl
+also provides a method for a process to receive a
+.Xr signal 3
+when a button is pressed.
+.Pp
+.Xr moused 8
+uses this
+.Fn ioctl
+to inform the console of mouse actions.  Applications
+.Pq such as Tn X\ Windows
+can use
+.Pa /dev/sysmouse ,
+allowing syscons and the application to share the mouse.
+.Pp
+.Bd -literal -offset indent
+struct mouse_info {
+        int     operation;
+        union {
+                struct mouse_data data;
+                struct mouse_mode mode;
+        }u;
+};
+.Ed
+.Bl -tag -width operation
+.It Dv operation
+This can be one of
+.Bl -tag -width MOUSE_MOVEABS
+.It Dv MOUSE_SHOW
+Enables and displays mouse cursor.
+.It Dv MOUSE_HIDE
+Disables and hides mouse cursor.
+.It Dv MOUSE_MOVEABS
+Moves mouse cursor to position supplied in
+.Dv u.data .
+.It Dv MOUSE_MOVEREL
+Add position supplied in
+.Dv u.data
+to current position.
+.It Dv MOUSE_GETINFO
+Returns current mouse position and button status in
+.Dv u.data .
+.It Dv MOUSE_MODE
+This sets the
+.Xr signal 3
+to be delivered to the current process when a button is pressed.
+The signal to be delivered is set in
+.Dv u.mode .
+.It Dv MOUSE_ACTION
+This takes the information in
+.Dv u.data
+and acts upon it.  It includes processing button presses if the current vty
+is a text interface, and sending
+.Tn Mouse System
+protocol data to
+.Pa /dev/sysmouse
+if it is open.
+.El
+.It Dv u
+This union is one of
+.Bl -tag -width data
+.It Dv data
+.Bd -literal -offset indent
+struct mouse_data {
+        int     x;
+        int     y;
+        int     buttons;
+};
+.Ed
+.It Dv mode
+.Bd -literal -offset indent
+struct mouse_mode {
+        int     mode;
+        int     signal;
+};
+.Ed
+.El
+.El
+.Sh FILES
+.Bl -tag -width /dev/consolectl -compact
+.It Pa /dev/consolectl
+device to control the console
+.It Pa /dev/sysmouse
+mouse action output
+.El
+.Sh SEE ALSO
+.Xr vidcontrol 1 ,
+.Xr signal 3 ,
+.Xr moused 8
+.Sh HISTORY
+The
+.Nm
+manual page example first appeared in
+.Fx 3.0 .
+.Sh AUTHOR
+This
+manual page was written by John-Mark Gurney
+.Aq gurney_j@efn.org .
