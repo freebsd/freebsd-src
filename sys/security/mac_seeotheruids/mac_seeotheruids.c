@@ -166,5 +166,5 @@ static struct mac_policy_ops mac_seeotheruids_ops =
 	.mpo_check_socket_visible = mac_seeotheruids_check_socket_visible,
 };
 
-MAC_POLICY_SET(&mac_seeotheruids_ops, trustedbsd_mac_seeotheruids,
+MAC_POLICY_SET(&mac_seeotheruids_ops, mac_seeotheruids,
     "TrustedBSD MAC/seeotheruids", MPC_LOADTIME_FLAG_UNLOADOK, NULL);

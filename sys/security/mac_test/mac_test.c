@@ -1495,5 +1495,5 @@ static struct mac_policy_ops mac_test_ops =
 	.mpo_check_vnode_write = mac_test_check_vnode_write,
 };
 
-MAC_POLICY_SET(&mac_test_ops, trustedbsd_mac_test, "TrustedBSD MAC/Test",
+MAC_POLICY_SET(&mac_test_ops, mac_test, "TrustedBSD MAC/Test",
     MPC_LOADTIME_FLAG_UNLOADOK, &test_slot);
