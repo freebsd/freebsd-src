@@ -48,6 +48,7 @@
 
 #include <sys/param.h>
 #include <sys/systm.h>
+#include <sys/conf.h>
 #include <sys/mbuf.h>
 #include <sys/protosw.h>
 #include <sys/socket.h>
@@ -70,6 +71,8 @@
 #include <pci/pcivar.h>
 #endif
 #include <machine/ioctl_meteor.h>
+
+extern int meteor_intr __P((void *arg));
 
 	/* enough memory for 640x48 RGB16, or YUV (16 storage bits/pixel) or
 			     450x340 RGB24 (32 storage bits/pixel)
@@ -634,7 +637,7 @@ meteor_reset(meteor_reg_t * const sc)
 #define UNIT(x)	((x) & 0x07)
 
 int
-meteor_open(dev_t dev, int flag)
+meteor_open(dev_t dev, int flags, int fmt, struct proc *p)
 {
 	meteor_reg_t *mtr;
 	int	unit; 
@@ -668,7 +671,7 @@ meteor_open(dev_t dev, int flag)
 }
 
 int
-meteor_close(dev_t dev, int flag)
+meteor_close(dev_t dev, int flags, int fmt, struct proc *p)
 {
 	meteor_reg_t *mtr;
 	int	unit; 
@@ -734,7 +737,7 @@ meteor_close(dev_t dev, int flag)
 }
 
 int
-meteor_read(dev_t dev, struct uio *uio)
+meteor_read(dev_t dev, struct uio *uio, int ioflag)
 {
 	meteor_reg_t *mtr;
 	int	unit; 
@@ -772,7 +775,7 @@ meteor_read(dev_t dev, struct uio *uio)
 }
 
 int
-meteor_write()
+meteor_write(dev_t dev, struct uio *uio, int ioflag)
 {
 	return(0);
 }
