@@ -461,22 +461,30 @@ struct _pw_cache *p, *m;
 struct _namelist *n;
 
 	while (_plushead) {
-			while(_plushead->namelist) {
-				n = _plushead->namelist->next;
-				free(_plushead->namelist);
-				_plushead->namelist = n;
-			}
+		while(_plushead->namelist) {
+			n = _plushead->namelist->next;
+			free(_plushead->namelist->name);
+			free(_plushead->namelist);
+			_plushead->namelist = n;
+		}
+		free(_plushead->pw_entry.pw_name);
+		free(_plushead->pw_entry.pw_passwd);
+		free(_plushead->pw_entry.pw_class);
+		free(_plushead->pw_entry.pw_gecos);
+		free(_plushead->pw_entry.pw_dir);
+		free(_plushead->pw_entry.pw_shell);
 		p = _plushead->next;
 		free(_plushead);
 		_plushead = p;
 	}
 
 	while(_minushead) {
-			while(_minushead->namelist) {
-				n = _minushead->namelist->next;
-				free(_minushead->namelist);
-				_minushead->namelist = n;
-			}
+		while(_minushead->namelist) {
+			n = _minushead->namelist->next;
+			free(_minushead->namelist->name);
+			free(_minushead->namelist);
+			_minushead->namelist = n;
+		}
 		m = _minushead->next;
 		free(_minushead);
 		_minushead = m;
