@@ -946,7 +946,7 @@ options HZ=1000 # not compulsory but strongly recommended</programlisting>
       <para role="historic">&man.ipfw.4; now filters correctly in the presence of ECN
 	bits in TCP segments. &merged;</para>
 
-      <para>&man.ipfw.4 has been re-implemented (the new version is
+      <para>&man.ipfw.4; has been re-implemented (the new version is
         commonly referred to as <quote>IPFW2</quote>).  It now uses
         variable-sized representation of rules in the kernel, similar
         to &man.bpf.4; instructions.  Most of the externally-visible
