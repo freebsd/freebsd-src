@@ -61,7 +61,7 @@ getvfsent(void)
 	}
 
 	do {
-		if(_vfs_index > _vfslistlen) {
+		if(_vfs_index >= _vfslistlen) {
 			return 0;
 		}
 
