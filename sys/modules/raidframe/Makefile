@@ -1,9 +1,8 @@
 # $FreeBSD$
-KMOD=	raidframe
-NOMAN=
 
 .PATH:	${.CURDIR}/../../dev/raidframe
 
+KMOD=	raidframe
 SRCS=	rf_acctrace.c rf_alloclist.c rf_aselect.c rf_callback.c \
 	rf_chaindecluster.c rf_copyback.c rf_cvscan.c rf_dagdegrd.c \
 	rf_dagdegwr.c rf_dagffrd.c rf_dagffwr.c rf_dagfuncs.c rf_dagutils.c \
@@ -17,16 +16,13 @@ SRCS=	rf_acctrace.c rf_alloclist.c rf_aselect.c rf_callback.c \
 	rf_raid4.c rf_raid5.c rf_raid5_rotatedspare.c rf_reconbuffer.c \
 	rf_reconmap.c rf_reconstruct.c rf_reconutil.c rf_revent.c \
 	rf_shutdown.c rf_sstf.c rf_states.c rf_stripelocks.c rf_strutils.c \
-	rf_threadstuff.c rf_utils.c rf_freebsdkintf.c
-
-SRCS+=	opt_raid.h vnode_if.h
-RF_DEBUG?= 0
+	rf_threadstuff.c rf_utils.c rf_freebsdkintf.c \
+	opt_raid.h vnode_if.h
 RF_AUTOCONFIG?= 1
-
-#CFLAGS+= -g
+RF_DEBUG?= 0
 
 opt_raid.h:
-	@echo "#define RAID_AUTOCONFIG ${RF_AUTOCONFIG}" > opt_raid.h
-	@echo "#define RAID_DEBUG ${RF_DEBUG}" >> opt_raid.h
+	echo "#define RAID_AUTOCONFIG ${RF_AUTOCONFIG}" > ${.TARGET}
+	echo "#define RAID_DEBUG ${RF_DEBUG}" >> ${.TARGET}
 
 .include <bsd.kmod.mk>
