@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: install.c,v 1.70.2.37 1995/06/05 21:19:14 jkh Exp $
+ * $Id: install.c,v 1.70.2.38 1995/06/06 05:18:31 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -49,7 +49,7 @@
 #include <sys/wait.h>
 #include <unistd.h>
 
-Boolean SystemWasInstalled;
+Boolean SystemWasInstalled = FALSE;
 
 static Boolean	make_filesystems(void);
 static Boolean	copy_self(void);
@@ -276,7 +276,10 @@ installCommit(char *str)
 	return 0;
     }
 
-    /* Always extract dists, as a minimal thing to do */
+    /* If we're about to extract the bin dist again, reset the installed state */
+    if (Dists & DIST_BIN)
+	SystemWasInstalled = FALSE;
+
     distExtractAll();
 
     if (!SystemWasInstalled && access("/kernel", R_OK)) {
@@ -286,31 +289,33 @@ installCommit(char *str)
 	}
     }
 
-    /* Resurrect /dev */
-    msgNotify("Making all devices.. Please wait!");
-    if (!SystemWasInstalled && vsystem("cd /dev; sh MAKEDEV all"))
-	msgConfirm("MAKEDEV returned non-zero status");
+    /* Resurrect /dev after bin distribution screws it up */
+    if (!SystemWasInstalled) {
+	msgNotify("Remaking all devices.. Please wait!");
+	if (vsystem("cd /dev; sh MAKEDEV all"))
+	    msgConfirm("MAKEDEV returned non-zero status");
+	
+	msgNotify("Resurrecting /dev entries for slices..");
+	devs = deviceFind(NULL, DEVICE_TYPE_DISK);
+	if (!devs)
+	    msgFatal("Couldn't get a disk device list!");
+	/* Resurrect the slices that the former clobbered */
+	for (i = 0; devs[i]; i++) {
+	    Disk *disk = (Disk *)devs[i]->private;
+	    Chunk *c1;
 
-    msgNotify("Resurrecting /dev entries for slices..");
-    devs = deviceFind(NULL, DEVICE_TYPE_DISK);
-    if (!devs)
-	msgFatal("Couldn't get a disk device list!");
-    /* Resurrect the slices that the former clobbered */
-    for (i = 0; devs[i]; i++) {
-	Disk *disk = (Disk *)devs[i]->private;
-	Chunk *c1;
-
-	if (!disk->chunks)
-	    msgFatal("No chunk list found for %s!", disk->name);
-	for (c1 = disk->chunks->part; c1; c1 = c1->next) {
-	    if (c1->type == freebsd) {
-		msgNotify("Making slice entries for %s", c1->name);
-		if (vsystem("cd /dev; sh MAKEDEV %sh", c1->name))
-		    msgConfirm("Unable to make slice entries for %s!", c1->name);
+	    if (!disk->chunks)
+		msgFatal("No chunk list found for %s!", disk->name);
+	    for (c1 = disk->chunks->part; c1; c1 = c1->next) {
+		if (c1->type == freebsd) {
+		    msgNotify("Making slice entries for %s", c1->name);
+		    if (vsystem("cd /dev; sh MAKEDEV %sh", c1->name))
+			msgConfirm("Unable to make slice entries for %s!", c1->name);
+		}
 	    }
 	}
     }
-    
+
     /* XXX Do all the last ugly work-arounds here which we'll try and excise someday right?? XXX */
     /* BOGON #1:  XFree86 extracting /usr/X11R6 with root-only perms */
     if (file_readable("/usr/X11R6"))
