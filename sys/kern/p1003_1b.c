@@ -169,7 +169,9 @@ int sched_setparam(struct proc *p,
 	int e;
 
 	struct sched_param sched_param;
-	copyin(uap->param, &sched_param, sizeof(sched_param));
+	e = copyin(uap->param, &sched_param, sizeof(sched_param));
+	if (e)
+		return (e);
 
 	(void) (0
 	|| (e = p31b_proc(p, uap->pid, &p))
@@ -202,7 +204,9 @@ int sched_setscheduler(struct proc *p,
 	int e;
 
 	struct sched_param sched_param;
-	copyin(uap->param, &sched_param, sizeof(sched_param));
+	e = copyin(uap->param, &sched_param, sizeof(sched_param));
+	if (e)
+		return (e);
 
 	(void) (0
 	|| (e = p31b_proc(p, uap->pid, &p))
