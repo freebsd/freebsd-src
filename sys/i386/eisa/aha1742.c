@@ -14,7 +14,7 @@
  *
  * commenced: Sun Sep 27 18:14:01 PDT 1992
  *
- *      $Id: aha1742.c,v 1.25 1994/11/15 14:53:09 bde Exp $
+ *      $Id: aha1742.c,v 1.26 1994/11/16 02:45:35 bde Exp $
  */
 
 #include <sys/types.h>
@@ -274,7 +274,7 @@ void    ahbminphys();
 struct	ecb *ahb_ecb_phys_kv();
 u_int32 ahb_adapter_info();
 
-#define	MAX_SLOTS	8	/* XXX should this be 16?? Need EISA spec */
+#define	MAX_SLOTS	16	/* XXX should this be 16?? Need EISA spec */
 static  ahb_slot = 0;		/* slot last board was found in */
 static  ahb_unit = 0;
 int     ahb_debug = 0;
