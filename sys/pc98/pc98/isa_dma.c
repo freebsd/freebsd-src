@@ -97,7 +97,7 @@
 #define	DMA2_MODE	(IO_DMA2 + 2*11)	/* mode register */
 #define	DMA2_FFC	(IO_DMA2 + 2*12)	/* clear first/last FF */
 
-static int isa_dmarangecheck __P((caddr_t va, u_int length, int chan));
+static int isa_dmarangecheck(caddr_t va, u_int length, int chan);
 
 #ifdef PC98
 static caddr_t	dma_bouncebuf[4];
