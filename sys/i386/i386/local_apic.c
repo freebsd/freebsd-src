@@ -59,6 +59,10 @@ __FBSDID("$FreeBSD$");
  */
 #define	MAX_APICID	16
 
+/* Sanity checks on IDT vectors. */
+CTASSERT(APIC_IO_INTS + APIC_NUM_IOINTS <= APIC_LOCAL_INTS);
+CTASSERT(IPI_STOP < APIC_SPURIOUS_INT);
+
 /*
  * Support for local APICs.  Local APICs manage interrupts on each
  * individual processor as opposed to I/O APICs which receive interrupts
@@ -104,8 +108,8 @@ static inthand_t *ioint_handlers[] = {
 	IDTVEC(apic_isr3),	/* 96 - 127 */
 	IDTVEC(apic_isr4),	/* 128 - 159 */
 	IDTVEC(apic_isr5),	/* 160 - 191 */
-	NULL,			/* 192 - 223 */
-	NULL			/* 224 - 255 */
+	IDTVEC(apic_isr6),	/* 192 - 223 */
+	IDTVEC(apic_isr7),	/* 224 - 255 */
 };
 
 volatile lapic_t *lapic;
@@ -491,7 +495,7 @@ apic_irq_to_idt(u_int irq)
 	u_int vector;
 
 	KASSERT(irq < NUM_IO_INTS, ("Invalid IRQ %u", irq));
-	vector = irq + IDT_IO_INTS;
+	vector = irq + APIC_IO_INTS;
 	if (vector >= IDT_SYSCALL)
 		vector++;
 	return (vector);
@@ -501,12 +505,12 @@ u_int
 apic_idt_to_irq(u_int vector)
 {
 
-	KASSERT(vector >= IDT_IO_INTS && vector != IDT_SYSCALL &&
-	    vector <= IDT_IO_INTS + NUM_IO_INTS,
+	KASSERT(vector >= APIC_IO_INTS && vector != IDT_SYSCALL &&
+	    vector <= APIC_IO_INTS + NUM_IO_INTS,
 	    ("Vector %u does not map to an IRQ line", vector));
 	if (vector > IDT_SYSCALL)
 		vector--;
-	return (vector - IDT_IO_INTS);
+	return (vector - APIC_IO_INTS);
 }
 
 /*

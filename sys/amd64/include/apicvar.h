@@ -40,13 +40,13 @@
  * Layout of local APIC interrupt vectors:
  *
  *	0xff (255)  +-------------+
- *                  |             | 15 (Spurious Vector)
+ *                  |             | 15 (Spurious / IPIs / Local Interrupts )
  *	0xf0 (240)  +-------------+
- *                  |             | 14 (Interprocessor Interrupts)
+ *                  |             | 14 (I/O Interrupts)
  *	0xe0 (224)  +-------------+
- *                  |             | 13 (Local Interrupt (LINT[01]))
+ *                  |             | 13 (I/O Interrupts)
  *	0xd0 (208)  +-------------+
- *                  |             | 12 (Local Timer and Error Interrupts)
+ *                  |             | 12 (I/O Interrupts)
  *	0xc0 (192)  +-------------+
  *                  |             | 11 (I/O Interrupts)
  *	0xb0 (176)  +-------------+
@@ -66,7 +66,7 @@
  *	0x40 (64)   +-------------+
  *                  |             | 3 (I/O Interrupts)
  *	0x30 (48)   +-------------+
- *                  |             | 2 (I/O Interrupts)
+ *                  |             | 2 (ATPIC Interrupts)
  *	0x20 (32)   +-------------+
  *                  |             | 1 (Exceptions, traps, faults, etc.)
  *	0x10 (16)   +-------------+
@@ -78,23 +78,24 @@
  */
 
 #define	APIC_ID_ALL	0xff
-#define	APIC_NUM_IOINTS	160
+#define	APIC_IO_INTS	(IDT_IO_INTS + 16)
+#define	APIC_NUM_IOINTS	192
 
-#define	APIC_LOCAL_INTS	(IDT_IO_INTS + APIC_NUM_IOINTS)
+#define	APIC_LOCAL_INTS	240
 #define	APIC_TIMER_INT	APIC_LOCAL_INTS
 #define	APIC_ERROR_INT	(APIC_LOCAL_INTS + 1)
 #define	APIC_THERMAL_INT (APIC_LOCAL_INTS + 2)
 
-#define	APIC_IPI_INTS	(APIC_LOCAL_INTS + 32)
+#define	APIC_IPI_INTS	(APIC_LOCAL_INTS + 3)
 #define	IPI_AST		APIC_IPI_INTS		/* Generate software trap. */
 #define	IPI_INVLTLB	(APIC_IPI_INTS + 1)	/* TLB Shootdown IPIs */
 #define	IPI_INVLPG	(APIC_IPI_INTS + 2)
 #define	IPI_INVLRNG	(APIC_IPI_INTS + 3)
+#define	IPI_LAZYPMAP	(APIC_IPI_INTS + 4)	/* Lazy pmap release. */
 #define	IPI_HARDCLOCK	(APIC_IPI_INTS + 8)	/* Inter-CPU clock handling. */
 #define	IPI_STATCLOCK	(APIC_IPI_INTS + 9)
 #define	IPI_RENDEZVOUS	(APIC_IPI_INTS + 10)	/* Inter-CPU rendezvous. */
-#define	IPI_LAZYPMAP	(APIC_IPI_INTS + 11)	/* Lazy pmap release. */
-#define	IPI_STOP	(APIC_IPI_INTS + 12)	/* Stop CPU until restarted. */
+#define	IPI_STOP	(APIC_IPI_INTS + 11)	/* Stop CPU until restarted. */
 
 #define	APIC_SPURIOUS_INT 255
 
@@ -127,7 +128,8 @@ struct apic_enumerator {
 
 inthand_t
 	IDTVEC(apic_isr1), IDTVEC(apic_isr2), IDTVEC(apic_isr3),
-	IDTVEC(apic_isr4), IDTVEC(apic_isr5), IDTVEC(spuriousint);
+	IDTVEC(apic_isr4), IDTVEC(apic_isr5), IDTVEC(apic_isr6),
+	IDTVEC(apic_isr7), IDTVEC(spuriousint);
 
 u_int	apic_irq_to_idt(u_int irq);
 u_int	apic_idt_to_irq(u_int vector);

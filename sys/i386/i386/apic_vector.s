@@ -117,6 +117,8 @@ MCOUNT_LABEL(bintr2)
 	ISR_VEC(3, apic_isr3)
 	ISR_VEC(4, apic_isr4)
 	ISR_VEC(5, apic_isr5)
+	ISR_VEC(6, apic_isr6)
+	ISR_VEC(7, apic_isr7)
 MCOUNT_LABEL(eintr2)
 
 #ifdef SMP
