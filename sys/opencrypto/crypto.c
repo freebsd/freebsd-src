@@ -123,7 +123,34 @@ crypto_init(void)
 	TAILQ_INIT(&crp_ret_kq);
 	mtx_init(&crypto_ret_q_mtx, "crypto return queues", NULL, MTX_DEF);
 }
-SYSINIT(crypto_init, SI_SUB_DRIVERS, SI_ORDER_FIRST, crypto_init, NULL)
+
+/*
+ * Initialization code, both for static and dynamic loading.
+ */
+static int
+crypto_modevent(module_t mod, int type, void *unused)
+{
+	switch (type) {
+	case MOD_LOAD:
+		crypto_init();
+		if (bootverbose)
+			printf("crypto: <crypto core>\n");
+		return 0;
+	case MOD_UNLOAD:
+		/*XXX disallow if active sessions */
+		/*XXX kill kthreads */
+		return 0;
+	}
+	return EINVAL;
+}
+
+static moduledata_t crypto_mod = {
+	"crypto",
+	crypto_modevent,
+	0
+};
+MODULE_VERSION(crypto, 1);
+DECLARE_MODULE(crypto, crypto_mod, SI_SUB_PSEUDO, SI_ORDER_SECOND);
 
 /*
  * Create a new session.
@@ -910,7 +937,7 @@ static struct kproc_desc crypto_kp = {
 	crypto_proc,
 	&cryptoproc
 };
-SYSINIT(crypto_proc, SI_SUB_KTHREAD_IDLE, SI_ORDER_ANY,
+SYSINIT(crypto_proc, SI_SUB_KTHREAD_IDLE, SI_ORDER_THIRD,
 	kproc_start, &crypto_kp)
 
 static struct proc *cryptoretproc;
@@ -972,5 +999,5 @@ static struct kproc_desc crypto_ret_kp = {
 	crypto_ret_proc,
 	&cryptoretproc
 };
-SYSINIT(crypto_ret_proc, SI_SUB_KTHREAD_IDLE, SI_ORDER_ANY,
+SYSINIT(crypto_ret_proc, SI_SUB_KTHREAD_IDLE, SI_ORDER_THIRD,
 	kproc_start, &crypto_ret_kp)

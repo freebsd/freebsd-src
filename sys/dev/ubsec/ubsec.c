@@ -124,6 +124,7 @@ static driver_t ubsec_driver = {
 static devclass_t ubsec_devclass;
 
 DRIVER_MODULE(ubsec, pci, ubsec_driver, ubsec_devclass, 0, 0);
+MODULE_DEPEND(ubsec, crypto, 1, 1, 1);
 
 static	void ubsec_intr(void *);
 static	int ubsec_newsession(void *, u_int32_t *, struct cryptoini *);
