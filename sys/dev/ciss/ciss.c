@@ -377,6 +377,11 @@ ciss_attach(device_t dev)
      * Work out adapter type.
      */
     i = ciss_lookup(dev);
+    if (i < 0) {
+	ciss_printf(sc, "unknown adapter type\n");
+	error = ENXIO;
+	goto out;
+    }
     if (ciss_vendor_data[i].flags & CISS_BOARD_SA5) {
 	sc->ciss_interrupt_mask = CISS_TL_SIMPLE_INTR_OPQ_SA5;
     } else if (ciss_vendor_data[i].flags & CISS_BOARD_SA5B) {
