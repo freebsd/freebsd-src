@@ -591,9 +591,6 @@ out:
 		framep->tf_regs[FRAME_SP] = alpha_pal_rdusp();
 		userret(td, framep, sticks);
 		mtx_assert(&Giant, MA_NOTOWNED);
-#ifdef DIAGNOSTIC
-		cred_free_thread(td);
-#endif
 	}
 	return;
 
@@ -785,9 +782,6 @@ syscall(code, framep)
 
 	PTRACESTOP_SC(p, td, S_PT_SCX);
 
-#ifdef DIAGNOSTIC
-	cred_free_thread(td);
-#endif
 	WITNESS_WARN(WARN_PANIC, NULL, "System call %s returning",
 	    (code >= 0 && code < SYS_MAXSYSCALL) ? syscallnames[code] : "???");
 	mtx_assert(&sched_lock, MA_NOTOWNED);
