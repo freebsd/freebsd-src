@@ -5,7 +5,7 @@
 '\" See the file "license.terms" for information on usage and redistribution
 '\" of this file, and for a DISCLAIMER OF ALL WARRANTIES.
 '\" 
-'\" SCCS: @(#) RecordEval.3 1.16 96/03/25 20:06:06
+'\" SCCS: @(#) RecordEval.3 1.17 96/08/26 12:59:47
 '\" 
 .so man.macros
 .TH Tcl_RecordAndEval 3 7.4 Tcl "Tcl Library Procedures"
@@ -25,20 +25,16 @@ Tcl interpreter in which to evaluate command.
 .AP char *cmd in
 Command (or sequence of commands) to execute.
 .AP int flags in
-.VS
 An OR'ed combination of flag bits.  TCL_NO_EVAL means record the
 command but don't evaluate it.  TCL_EVAL_GLOBAL means evaluate
 the command at global level instead of the current stack level.
-.VE
 .BE
 
 .SH DESCRIPTION
 .PP
 \fBTcl_RecordAndEval\fR is invoked to record a command as an event
 on the history list and then execute it using \fBTcl_Eval\fR
-.VS
 (or \fBTcl_GlobalEval\fR if the TCL_EVAL_GLOBAL bit is set in \fIflags\fR).
-.VE
 It returns a completion code such as TCL_OK just like \fBTcl_Eval\fR
 and it leaves information in \fIinterp->result\fR.
 If you don't want the command recorded on the history list then

@@ -9,7 +9,7 @@
  * See the file "license.terms" for information on usage and redistribution
  * of this file, and for a DISCLAIMER OF ALL WARRANTIES.
  *
- * SCCS: @(#) tclMain.c 1.50 96/04/10 16:40:57
+ * SCCS: @(#) tclMain.c 1.52 96/10/22 11:23:51
  */
 
 #include "tcl.h"
@@ -89,7 +89,6 @@ Tcl_Main(argc, argv, appInitProc)
     int code, gotPartial, tty, length;
     int exitCode = 0;
     Tcl_Channel inChannel, outChannel, errChannel;
-    Tcl_DString temp;
 
     Tcl_FindExecutable(argv[0]);
     interp = Tcl_CreateInterp();
@@ -114,7 +113,7 @@ Tcl_Main(argc, argv, appInitProc)
     args = Tcl_Merge(argc-1, argv+1);
     Tcl_SetVar(interp, "argv", args, TCL_GLOBAL_ONLY);
     ckfree(args);
-    sprintf(buffer, "%d", argc-1);
+    TclFormatInt(buffer, argc-1);
     Tcl_SetVar(interp, "argc", buffer, TCL_GLOBAL_ONLY);
     Tcl_SetVar(interp, "argv0", (fileName != NULL) ? fileName : argv[0],
 	    TCL_GLOBAL_ONLY);
@@ -171,40 +170,7 @@ Tcl_Main(argc, argv, appInitProc)
      * file if the application specified one and if the file exists.
      */
 
-    fileName = Tcl_GetVar(interp, "tcl_rcFileName", TCL_GLOBAL_ONLY);
-
-    if (fileName != NULL) {
-        Tcl_Channel c;
-	char *fullName;
-
-        Tcl_DStringInit(&temp);
-	fullName = Tcl_TranslateFileName(interp, fileName, &temp);
-	if (fullName == NULL) {
-	    errChannel = Tcl_GetStdChannel(TCL_STDERR);
-	    if (errChannel) {
-		Tcl_Write(errChannel, interp->result, -1);
-		Tcl_Write(errChannel, "\n", 1);
-	    }
-	} else {
-
-	    /*
-	     * Test for the existence of the rc file before trying to read it.
-	     */
-
-            c = Tcl_OpenFileChannel(NULL, fullName, "r", 0);
-            if (c != (Tcl_Channel) NULL) {
-                Tcl_Close(NULL, c);
-		if (Tcl_EvalFile(interp, fullName) != TCL_OK) {
-		    errChannel = Tcl_GetStdChannel(TCL_STDERR);
-		    if (errChannel) {
-			Tcl_Write(errChannel, interp->result, -1);
-			Tcl_Write(errChannel, "\n", 1);
-		    }
-		}
-	    }
-	}
-        Tcl_DStringFree(&temp);
-    }
+    Tcl_SourceRCFile(interp);
 
     /*
      * Process commands from stdin until there's an end-of-file.  Note

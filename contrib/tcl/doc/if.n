@@ -5,7 +5,7 @@
 '\" See the file "license.terms" for information on usage and redistribution
 '\" of this file, and for a DISCLAIMER OF ALL WARRANTIES.
 '\" 
-'\" SCCS: @(#) if.n 1.6 96/03/25 20:16:42
+'\" SCCS: @(#) if.n 1.7 96/08/26 13:00:00
 '\" 
 .so man.macros
 .TH if n "" Tcl "Tcl Built-In Commands"
@@ -22,11 +22,9 @@ if \- Execute scripts conditionally
 The \fIif\fR command evaluates \fIexpr1\fR as an expression (in the
 same way that \fBexpr\fR evaluates its argument).  The value of the
 expression must be a boolean
-.VS
 (a numeric value, where 0 is false and
 anything is true, or a string value such as \fBtrue\fR or \fByes\fR
 for true and \fBfalse\fR or \fBno\fR for false);
-.VE
 if it is true then \fIbody1\fR is executed by passing it to the
 Tcl interpreter.
 Otherwise \fIexpr2\fR is evaluated as an expression and if it is true

@@ -1,7 +1,7 @@
 # This Makefile is used to create several test cases for Tcl's load
 # command.  It also illustrates how to take advantage of configuration
 # exported by Tcl to set up Makefiles for shared libraries.
-# SCCS: @(#) Makefile.in 1.11 96/04/15 09:50:19
+# SCCS: @(#) Makefile.in 1.12 97/02/22 14:13:54
 
 CC = @CC@
 LIBS =			@TCL_BUILD_LIB_SPEC@ @TCL_LIBS@ -lc
@@ -20,23 +20,23 @@ all: pkga${SHLIB_SUFFIX} pkgb${SHLIB_SUFFIX} pkgc${SHLIB_SUFFIX} pkgd${SHLIB_SUF
 
 pkga${SHLIB_SUFFIX}: $(SRC_DIR)/pkga.c
 	$(CC) -c $(CC_SWITCHES) $(SRC_DIR)/pkga.c
-	${SHLIB_LD} pkga.o -o pkga${SHLIB_SUFFIX} @SHLIB_LD_LIBS@
+	${SHLIB_LD} -o pkga${SHLIB_SUFFIX} pkga.o @SHLIB_LD_LIBS@
 
 pkgb${SHLIB_SUFFIX}: $(SRC_DIR)/pkgb.c
 	$(CC) -c $(CC_SWITCHES) $(SRC_DIR)/pkgb.c
-	${SHLIB_LD} pkgb.o -o pkgb${SHLIB_SUFFIX} @SHLIB_LD_LIBS@
+	${SHLIB_LD} -o pkgb${SHLIB_SUFFIX} pkgb.o @SHLIB_LD_LIBS@
 
 pkgc${SHLIB_SUFFIX}: $(SRC_DIR)/pkgc.c
 	$(CC) -c $(CC_SWITCHES) $(SRC_DIR)/pkgc.c
-	${SHLIB_LD} pkgc.o -o pkgc${SHLIB_SUFFIX} @SHLIB_LD_LIBS@
+	${SHLIB_LD} -o pkgc${SHLIB_SUFFIX} pkgc.o @SHLIB_LD_LIBS@
 
 pkgd${SHLIB_SUFFIX}: $(SRC_DIR)/pkgd.c
 	$(CC) -c $(CC_SWITCHES) $(SRC_DIR)/pkgd.c
-	${SHLIB_LD} pkgd.o -o pkgd${SHLIB_SUFFIX} @SHLIB_LD_LIBS@
+	${SHLIB_LD} -o pkgd${SHLIB_SUFFIX} pkgd.o @SHLIB_LD_LIBS@
 
 pkge${SHLIB_SUFFIX}: $(SRC_DIR)/pkge.c
 	$(CC) -c $(CC_SWITCHES) $(SRC_DIR)/pkge.c
-	${SHLIB_LD} pkge.o -o pkge${SHLIB_SUFFIX} @SHLIB_LD_LIBS@
+	${SHLIB_LD} -o pkge${SHLIB_SUFFIX} pkge.o @SHLIB_LD_LIBS@
 
 clean:
 	rm -f *.o *${SHLIB_SUFFIX} config.cache config.log config.status lib.exp

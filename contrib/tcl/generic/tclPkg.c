@@ -9,7 +9,7 @@
  * See the file "license.terms" for information on usage and redistribution
  * of this file, and for a DISCLAIMER OF ALL WARRANTIES.
  *
- * SCCS: @(#) tclPkg.c 1.6 96/02/15 11:43:16
+ * SCCS: @(#) tclPkg.c 1.9 97/05/14 13:23:51
  */
 
 #include "tclInt.h"
@@ -304,6 +304,7 @@ Tcl_PackageCmd(dummy, interp, argc, argv)
     Tcl_HashSearch search;
     Tcl_HashTable *tablePtr;
     char *version;
+    char buf[30];
 
     if (argc < 2) {
 	Tcl_AppendResult(interp, "wrong # args: should be \"", argv[0],
@@ -355,7 +356,7 @@ Tcl_PackageCmd(dummy, interp, argc, argv)
 	    if (ComparePkgVersions(availPtr->version, argv[3], (int *) NULL)
 		    == 0) {
 		if (argc == 4) {
-		    interp->result = availPtr->script;
+		    Tcl_SetResult(interp, availPtr->script, TCL_VOLATILE);
 		    return TCL_OK;
 		}
 		Tcl_EventuallyFree((ClientData)availPtr->script, TCL_DYNAMIC);
@@ -404,7 +405,7 @@ Tcl_PackageCmd(dummy, interp, argc, argv)
 	    if (hPtr != NULL) {
 		pkgPtr = (Package *) Tcl_GetHashValue(hPtr);
 		if (pkgPtr->version != NULL) {
-		    interp->result = pkgPtr->version;
+		    Tcl_SetResult(interp, pkgPtr->version, TCL_VOLATILE);
 		}
 	    }
 	    return TCL_OK;
@@ -438,11 +439,11 @@ Tcl_PackageCmd(dummy, interp, argc, argv)
 	if (version == NULL) {
 	    return TCL_ERROR;
 	}
-	interp->result = version;
+	Tcl_SetResult(interp, version, TCL_VOLATILE);
     } else if ((c == 'u') && (strncmp(argv[1], "unknown", length) == 0)) {
 	if (argc == 2) {
 	    if (iPtr->packageUnknown != NULL) {
-		iPtr->result = iPtr->packageUnknown;
+		Tcl_SetResult(interp, iPtr->packageUnknown, TCL_VOLATILE);
 	    }
 	} else if (argc == 3) {
 	    if (iPtr->packageUnknown != NULL) {
@@ -471,8 +472,8 @@ Tcl_PackageCmd(dummy, interp, argc, argv)
 		|| (CheckVersion(interp, argv[3]) != TCL_OK)) {
 	    return TCL_ERROR;
 	}
-	sprintf(interp->result, "%d", ComparePkgVersions(argv[2], argv[3],
-		(int *) NULL));
+	TclFormatInt(buf, ComparePkgVersions(argv[2], argv[3], (int *) NULL));
+	Tcl_SetResult(interp, buf, TCL_VOLATILE);
     } else if ((c == 'v') && (strncmp(argv[1], "versions", length) == 0)
 	    && (length >= 2)) {
 	if (argc != 3) {
@@ -500,7 +501,8 @@ Tcl_PackageCmd(dummy, interp, argc, argv)
 	    return TCL_ERROR;
 	}
 	ComparePkgVersions(argv[2], argv[3], &satisfies);
-	sprintf(interp->result, "%d", satisfies);
+	TclFormatInt(buf, satisfies);
+	Tcl_SetResult(interp, buf, TCL_VOLATILE);
     } else {
 	Tcl_AppendResult(interp, "bad option \"", argv[1],
 		"\": should be forget, ifneeded, names, ",
@@ -628,11 +630,11 @@ CheckVersion(interp, string)
 {
     char *p = string;
 
-    if (!isdigit(*p)) {
+    if (!isdigit(UCHAR(*p))) {
 	goto error;
     }
     for (p++; *p != 0; p++) {
-	if (!isdigit(*p) && (*p != '.')) {
+	if (!isdigit(UCHAR(*p)) && (*p != '.')) {
 	    goto error;
 	}
     }

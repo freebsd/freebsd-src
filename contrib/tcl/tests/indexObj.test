@@ -1,0 +1,68 @@
+# This file is a Tcl script to test out the the procedures in file
+# tkIndexObj.c, which implement indexed table lookups.  The tests here
+# are organized in the standard fashion for Tcl tests.
+#
+# Copyright (c) 1997 Sun Microsystems, Inc.
+#
+# See the file "license.terms" for information on usage and redistribution
+# of this file, and for a DISCLAIMER OF ALL WARRANTIES.
+#
+# @(#) indexObj.test 1.3 97/06/23 18:23:09
+
+if {[info procs test] != "test"} {
+    source defs
+}
+
+if {[info commands testindexobj] == {}} {
+    puts "This application hasn't been compiled with the \"testindexobj\""
+    puts "command, so I can't test Tcl_GetIndexFromObj etc."
+    return 
+}
+
+test indexObj-1.1 {exact match} {
+    testindexobj 1 1 xyz abc def xyz alm
+} {2}
+test indexObj-1.2 {exact match} {
+    testindexobj 1 1 abc abc def xyz alm
+} {0}
+test indexObj-1.3 {exact match} {
+    testindexobj 1 1 alm abc def xyz alm
+} {3}
+test indexObj-1.4 {unique abbreviation} {
+    testindexobj 1 1 xy abc def xalb xyz alm
+} {3}
+test indexObj-1.5 {multiple abbreviations and exact match} {
+    testindexobj 1 1 x abc def xalb xyz alm x
+} {5}
+test indexObj-1.6 {forced exact match} {
+    testindexobj 1 0 xy abc def xalb xy alm
+} {3}
+test indexObj-1.7 {forced exact match} {
+    testindexobj 1 0 x abc def xalb xyz alm x
+} {5}
+
+test indexObj-2.1 {no match} {
+    list [catch {testindexobj 1 1 dddd abc def xalb xyz alm x} msg] $msg
+} {1 {bad token "dddd": must be abc, def, xalb, xyz, alm, or x}}
+test indexObj-2.2 {no match} {
+    list [catch {testindexobj 1 1 dddd abc} msg] $msg
+} {1 {bad token "dddd": must be abc}}
+test indexObj-2.3 {no match: no abbreviations} {
+    list [catch {testindexobj 1 0 xy abc def xalb xyz alm} msg] $msg
+} {1 {bad token "xy": must be abc, def, xalb, xyz, or alm}}
+test indexObj-2.4 {ambiguous value} {
+    list [catch {testindexobj 1 1 d dumb daughter a c} msg] $msg
+} {1 {ambiguous token "d": must be dumb, daughter, a, or c}}
+test indexObj-2.5 {omit error message} {
+    list [catch {testindexobj 0 1 d x} msg] $msg
+} {1 {}}
+
+test indexObj-3.1 {cache result to skip next lookup} {
+    testindexobj check 42
+} {42}
+
+test indexObj-4.1 {free old internal representation} {
+    set x {a b}
+    lindex $x 1
+    testindexobj 1 1 $x abc def {a b} zzz
+} {2}

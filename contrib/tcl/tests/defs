@@ -9,7 +9,7 @@
 # See the file "license.terms" for information on usage and redistribution
 # of this file, and for a DISCLAIMER OF ALL WARRANTIES.
 #
-# SCCS: @(#) defs 1.38 96/07/24 17:18:20
+# SCCS: @(#) defs 1.52 97/06/24 11:13:36
 
 if ![info exists VERBOSE] {
     set VERBOSE 0
@@ -22,10 +22,16 @@ if ![info exists TESTS] {
 # variable to prevent some tests from running at all.
 
 set user {}
-catch {set user [exec whoami]}
-if {$user == "root"} {
-    puts stdout "Warning: you're executing as root.  I'll have to"
-    puts stdout "skip some of the tests, since they'll fail as root."
+if {$tcl_platform(platform) == "unix"} {
+    catch {set user [exec whoami]}
+    if {$user == ""} {
+        catch {regexp {^[^(]*\(([^)]*)\)} [exec id] dummy user}
+    }
+    if {$user == ""} {set user root}
+    if {$user == "root"} {
+        puts stdout "Warning: you're executing as root.  I'll have to"
+        puts stdout "skip some of the tests, since they'll fail as root."
+    }
 }
 
 # Some of the tests don't work on some system configurations due to
@@ -34,8 +40,6 @@ if {$user == "root"} {
 # master development directory for Tcl.  The presence of a file
 # "doAllTests" in this directory is used to indicate that the non-portable
 # tests should be run.
-
-set doNonPortableTests [file exists doAllTests]
 
 # If there is no "memory" command (because memory debugging isn't
 # enabled), generate a dummy command that does nothing.
@@ -67,17 +71,28 @@ if {[info commands memory] == ""} {
 #			that it is safe to run non-portable tests.
 #	tempNotPc -	The inverse of pcOnly.  This flag is used to
 #			temporarily disable a test.
+#	tempNotMac -	The inverse of macOnly.  This flag is used to
+#			temporarily disable a test.
 #	nonBlockFiles - 1 means this platform supports setting files into
 #			nonblocking mode.
 #	asyncPipeClose- 1 means this platform supports async flush and
 #			async close on a pipe.
 #	unixExecs     - 1 means this machine has commands such as 'cat',
 #			'echo' etc available.
+#	notIfCompiled -	1 means this that it is safe to run tests that
+#                       might fail if the bytecode compiler is used. This
+#                       element is set 1 if the file "doAllTests" exists in
+#                       this directory. Normally, this element is 0 so that
+#                       tests that fail with the bytecode compiler are
+#			skipped. As of 11/2/96 these are the history tests
+#			since they depend on accurate source location
+#			information.
 
 catch {unset testConfig}
 if {$tcl_platform(platform) == "unix"} {
     set testConfig(unixOnly) 1
     set testConfig(tempNotPc) 1
+    set testConfig(tempNotMac) 1
 } else {
     set testConfig(unixOnly) 0
 } 
@@ -88,6 +103,7 @@ if {$tcl_platform(platform) == "macintosh"} {
     set testConfig(macOnly) 0
 } 
 if {$tcl_platform(platform) == "windows"} {
+    set testConfig(tempNotMac) 1
     set testConfig(pcOnly) 1
 } else {
     set testConfig(pcOnly) 0
@@ -95,15 +111,45 @@ if {$tcl_platform(platform) == "windows"} {
 set testConfig(unixOrPc) [expr $testConfig(unixOnly) || $testConfig(pcOnly)]
 set testConfig(macOrPc) [expr $testConfig(macOnly) || $testConfig(pcOnly)]
 set testConfig(macOrUnix) [expr $testConfig(macOnly) || $testConfig(unixOnly)]
-set testConfig(nonPortable) [file exists doAllTests]
+set testConfig(nonPortable)   [file exists doAllTests]
+set testConfig(notIfCompiled) [file exists doAllCompilerTests]
 
-set f [open defs r]
-if {[expr [catch {fconfigure $f -blocking off}]] == 0} {
+set testConfig(unix)	$testConfig(unixOnly)
+set testConfig(mac)	$testConfig(macOnly)
+set testConfig(pc)	$testConfig(pcOnly)
+
+set testConfig(nt)	[expr {$tcl_platform(os) == "Windows NT"}]
+set testConfig(95)	[expr {$tcl_platform(os) == "Windows 95"}]
+set testConfig(win32s)	[expr {$tcl_platform(os) == "Win32s"}]
+
+# The following config switches are used to mark tests that crash on
+# certain platforms, so that they can be reactivated again when the
+# underlying problem is fixed.
+
+set testConfig(winCrash) $testConfig(macOrUnix)
+set testConfig(macCrash) $testConfig(unixOrPc)
+set testConfig(unixCrash) $testConfig(macOrPc)
+
+if {[catch {set f [open defs r]}]} {
     set testConfig(nonBlockFiles) 1
 } else {
-    set testConfig(nonBlockFiles) 0
+    if {[expr [catch {fconfigure $f -blocking off}]] == 0} {
+	set testConfig(nonBlockFiles) 1
+    } else {
+	set testConfig(nonBlockFiles) 0
+    }
+    close $f
 }
-close $f
+
+trace variable testConfig r safeFetch
+
+proc safeFetch {n1 n2 op} {
+    global testConfig 
+
+    if {($n2 != {}) && ([info exists testConfig($n2)] == 0)} {
+	set testConfig($n2) 0
+    }
+}
 
 # Test for SCO Unix - cannot run async flushing tests because a potential
 # problem with select is apparently interfering. (Mark Diekhans).
@@ -168,6 +214,10 @@ if {($testConfig(unixExecs) == 1) && ($tcl_platform(platform) == "windows")} {
 	set testConfig(unixExecs) 0
     } else {
 	catch {exec rm -r removeMe}
+    }
+    if {$testConfig(unixExecs) == 0} {
+	puts stdout "Warning: Unix-style executables are not available, so"
+	puts stdout "some tests will be skipped."
     }
 }    
 
@@ -240,11 +290,34 @@ proc test {name description script answer args} {
 	set constraints $script
 	set script $answer
 	set answer [lindex $args 0]
-	foreach constraint $constraints {
-	    if {![info exists testConfig($constraint)]
-		    || !$testConfig($constraint)} {
-		return
+	set doTest 0
+	if {[string match {*[$\[]*} $constraints] != 0} {
+	    # full expression, e.g. {$foo > [info tclversion]}
+
+	    catch {set doTest [uplevel #0 expr $constraints]}
+	} elseif {[regexp {[^.a-zA-Z0-9 ]+} $constraints] != 0} {
+	    # something like {a || b} should be turned into 
+	    # $testConfig(a) || $testConfig(b).
+
+ 	    regsub -all {[.a-zA-Z0-9]+} $constraints {$testConfig(&)} c
+	    catch {set doTest [eval expr $c]}
+	} else {
+	    # just simple constraints such as {unixOnly fonts}.
+
+	    set doTest 1
+	    foreach constraint $constraints {
+		if {![info exists testConfig($constraint)]
+			|| !$testConfig($constraint)} {
+		    set doTest 0
+		    break
+		}
 	    }
+	}
+	if {$doTest == 0} {
+	    if $VERBOSE then {
+		puts stdout "++++ $name SKIPPED: $constraints"
+	    }
+	    return	
 	}
     } else {
 	error "wrong # args: must be \"test name description ?constraints? script answer\""
@@ -298,30 +371,15 @@ proc makeFile {contents name} {
 }
 
 proc removeFile {name} {
-    global tcl_platform testConfig
-    if {$tcl_platform(platform) == "macintosh"} {
-	catch {rm -f $name}
-    } else {
-	catch {exec rm -f $name}
-    }
+    file delete $name
 }
 
 proc makeDirectory {name} {
-    global tcl_platform testConfig
-    if {$tcl_platform(platform) == "macintosh"} {
-	catch {mkdir $name}
-    } else {
-	catch {exec mkdir $name}
-    }
+    file mkdir $name
 }
 
 proc removeDirectory {name} {
-    global tcl_platform testConfig
-    if {$tcl_platform(platform) == "macintosh"} {
-	catch {rmdir $name}
-    } else {
-	catch {exec rm -rf $name}
-    }
+    file delete -force $name
 }
 
 proc viewFile {name} {
@@ -345,4 +403,4 @@ if {$tcltest == "{}"} {
     puts "Unable to find tcltest executable, multiple process tests will fail."
 }
 
-
+    

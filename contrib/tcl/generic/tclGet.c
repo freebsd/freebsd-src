@@ -11,7 +11,7 @@
  * See the file "license.terms" for information on usage and redistribution
  * of this file, and for a DISCLAIMER OF ALL WARRANTIES.
  *
- * SCCS: @(#) tclGet.c 1.24 96/02/15 11:42:47
+ * SCCS: @(#) tclGet.c 1.33 97/05/14 16:42:19
  */
 
 #include "tclInt.h"
@@ -45,12 +45,96 @@ Tcl_GetInt(interp, string, intPtr)
     int *intPtr;		/* Place to store converted result. */
 {
     char *end, *p;
-    int i;
+    long i;
 
     /*
      * Note: use strtoul instead of strtol for integer conversions
      * to allow full-size unsigned numbers, but don't depend on strtoul
      * to handle sign characters;  it won't in some implementations.
+     */
+
+    errno = 0;
+    for (p = string; isspace(UCHAR(*p)); p++) {
+	/* Empty loop body. */
+    }
+    if (*p == '-') {
+	p++;
+	i = -((long)strtoul(p, &end, 0));
+    } else if (*p == '+') {
+	p++;
+	i = strtoul(p, &end, 0);
+    } else {
+	i = strtoul(p, &end, 0);
+    }
+    if (end == p) {
+	badInteger:
+        if (interp != (Tcl_Interp *) NULL) {
+            Tcl_AppendResult(interp, "expected integer but got \"", string,
+                    "\"", (char *) NULL);
+        }
+	return TCL_ERROR;
+    }
+
+    /*
+     * The second test below is needed on platforms where "long" is
+     * larger than "int" to detect values that fit in a long but not in
+     * an int.
+     */
+
+    if ((errno == ERANGE) || (((long)(int) i) != i)) {
+        if (interp != (Tcl_Interp *) NULL) {
+	    Tcl_SetResult(interp, "integer value too large to represent",
+		    TCL_STATIC);
+            Tcl_SetErrorCode(interp, "ARITH", "IOVERFLOW",
+                    interp->result, (char *) NULL);
+        }
+	return TCL_ERROR;
+    }
+    while ((*end != '\0') && isspace(UCHAR(*end))) {
+	end++;
+    }
+    if (*end != 0) {
+	goto badInteger;
+    }
+    *intPtr = (int) i;
+    return TCL_OK;
+}
+
+/*
+ *----------------------------------------------------------------------
+ *
+ * TclGetLong --
+ *
+ *	Given a string, produce the corresponding long integer value.
+ *	This routine is a version of Tcl_GetInt but returns a "long"
+ *	instead of an "int".
+ *
+ * Results:
+ *	The return value is normally TCL_OK; in this case *longPtr
+ *	will be set to the long integer value equivalent to string. If
+ *	string is improperly formed then TCL_ERROR is returned and
+ *	an error message will be left in interp->result.
+ *
+ * Side effects:
+ *	None.
+ *
+ *----------------------------------------------------------------------
+ */
+
+int
+TclGetLong(interp, string, longPtr)
+    Tcl_Interp *interp;		/* Interpreter used for error reporting. */
+    char *string;		/* String containing a (possibly signed)
+				 * long integer in a form acceptable to
+				 * strtoul. */
+    long *longPtr;		/* Place to store converted long result. */
+{
+    char *end, *p;
+    long i;
+
+    /*
+     * Note: don't depend on strtoul to handle sign characters; it won't
+     * in some implementations.
      */
 
     errno = 0;
@@ -76,7 +160,8 @@ Tcl_GetInt(interp, string, intPtr)
     }
     if (errno == ERANGE) {
         if (interp != (Tcl_Interp *) NULL) {
-            interp->result = "integer value too large to represent";
+	    Tcl_SetResult(interp, "integer value too large to represent",
+		    TCL_STATIC);
             Tcl_SetErrorCode(interp, "ARITH", "IOVERFLOW",
                     interp->result, (char *) NULL);
         }
@@ -88,7 +173,7 @@ Tcl_GetInt(interp, string, intPtr)
     if (*end != 0) {
 	goto badInteger;
     }
-    *intPtr = i;
+    *longPtr = i;
     return TCL_OK;
 }
 
@@ -101,7 +186,7 @@ Tcl_GetInt(interp, string, intPtr)
  *	floating-point value.
  *
  * Results:
- *	The return value is normally TCL_OK;  in this case *doublePtr
+ *	The return value is normally TCL_OK; in this case *doublePtr
  *	will be set to the double-precision value equivalent to string.
  *	If string is improperly formed then TCL_ERROR is returned and
  *	an error message will be left in interp->result.
@@ -114,7 +199,7 @@ Tcl_GetInt(interp, string, intPtr)
 
 int
 Tcl_GetDouble(interp, string, doublePtr)
-    Tcl_Interp *interp;		/* Interpreter to use for error reporting. */
+    Tcl_Interp *interp;		/* Interpreter used for error reporting. */
     char *string;		/* String containing a floating-point number
 				 * in a form acceptable to strtod. */
     double *doublePtr;		/* Place to store converted result. */
@@ -135,7 +220,18 @@ Tcl_GetDouble(interp, string, doublePtr)
     }
     if (errno != 0) {
         if (interp != (Tcl_Interp *) NULL) {
-            TclExprFloatError(interp, d);
+            TclExprFloatError(interp, d); /* sets interp->objResult */
+
+	    /*
+	     * Move the interpreter's object result to the string result, 
+	     * then reset the object result.
+	     * FAILS IF OBJECT RESULT'S STRING REPRESENTATION HAS NULLS.
+	     */
+
+	    Tcl_SetResult(interp,
+	            TclGetStringFromObj(Tcl_GetObjResult(interp),
+			    (int *) NULL),
+	            TCL_VOLATILE);
         }
 	return TCL_ERROR;
     }
@@ -171,7 +267,7 @@ Tcl_GetDouble(interp, string, doublePtr)
 
 int
 Tcl_GetBoolean(interp, string, boolPtr)
-    Tcl_Interp *interp;		/* Interpreter to use for error reporting. */
+    Tcl_Interp *interp;		/* Interpreter used for error reporting. */
     char *string;		/* String containing a boolean number
 				 * specified either as 1/0 or true/false or
 				 * yes/no. */

@@ -10,7 +10,7 @@
 # See the file "license.terms" for information on usage and redistribution
 # of this file, and for a DISCLAIMER OF ALL WARRANTIES.
 #
-# SCCS: @(#) linsert.test 1.8 96/02/16 08:56:07
+# SCCS: @(#) linsert.test 1.13 97/02/27 16:53:19
 
 if {[string compare test [info procs test]] == 1} then {source defs}
 
@@ -37,7 +37,7 @@ test linsert-1.7 {linsert command} {
 } {1 2 one two \{three {$four} 3 4 5}
 test linsert-1.8 {linsert command} {
     linsert {\{one \$two \{three \ four \ five} 2 a b c
-} {\{one \$two a b c \{three \ four \ five}
+} {\{one {$two} a b c \{three { four} { five}}
 test linsert-1.9 {linsert command} {
     linsert {{1 2} {3 4} {5 6} {7 8}} 2 {x y} {a b}
 } {{1 2} {3 4} {x y} {a b} {5 6} {7 8}}
@@ -49,10 +49,10 @@ test linsert-1.11 {linsert command} {
 } {{}}
 test linsert-1.12 {linsert command} {
     linsert {a b "c c" d e} 3 1
-} {a b "c c" 1 d e}
+} {a b {c c} 1 d e}
 test linsert-1.13 {linsert command} {
     linsert { a b c d} 0 1 2
-} {1 2  a b c d}
+} {1 2 a b c d}
 test linsert-1.14 {linsert command} {
     linsert {a b c {d e f}} 4 1 2
 } {a b c {d e f} 1 2}
@@ -80,7 +80,15 @@ test linsert-2.2 {linsert errors} {
 } {1 {wrong # args: should be "linsert list index element ?element ...?"}}
 test linsert-2.3 {linsert errors} {
     list [catch {linsert a 12x 2} msg] $msg
-} {1 {expected integer but got "12x"}}
+} {1 {bad index "12x": must be integer or "end"}}
 test linsert-2.4 {linsert errors} {
     list [catch {linsert \{ 12 2} msg] $msg
 } {1 {unmatched open brace in list}}
+
+test linsert-3.1 {linsert won't modify shared argument objects} {
+    proc p {} {
+        linsert "a b c" 1 "x y"
+        return "a b c"
+    }
+    p
+} "a b c"

@@ -1,6 +1,6 @@
 Recent user-visible changes to Tcl:
 
-SCCS: @(#) changes 1.142 96/08/01 17:00:22
+SCCS: @(#) changes 1.251 97/06/30 08:48:28
 
 1. No more [command1] [command2] construct for grouping multiple
 commands on a single command line.
@@ -128,7 +128,7 @@ Tcl_Eval.
 that came after version 3.3 was released.
 
 40. 5/17/91 Changed tests to conform to Mary Ann May-Pumphrey's approach.
-
+ 
 41. 5/23/91 Massive revision to Tcl parser to simplify the implementation
 of string and floating-point support in expressions.  Newlines inside
 [] are now treated as command separators rather than word separators
@@ -1322,7 +1322,7 @@ no longer shared between interpreters:  a file cannot normally be
 referenced in one interpreter if it was opened in another.  This
 feature is needed to support safe interpreters.  Added Tcl_ShareHandle()
 procedure for allowing files to be shared, and added "interp" argument
-to Tcl_FilePermissions procedure.
+to Tcl_FilePermissions procedure. (JL)
 *** POTENTIAL INCOMPATIBILITY ***
 
 9/11/95 (new feature) Added "AssocData" mechanism, whereby extensions
@@ -2179,3 +2179,918 @@ finished. The bug was reported by John Loverso and Steven Wahl,
 independently, test case supplied by John Loverso. (JL)
 
 ----------------- Released patch 7.5p1, 8/2/96 -----------------------
+
+5/8/96 (new feature) Added Tcl_GetChannelMode C API for retrieving whether
+a channel is open for reading and writing. (JL)
+
+5/8/96 (API changes) Revised C APIs for channel drivers:
+    - Removed all Tcl_Files from channel driver interface; you can now have
+      channels that are not based on Tcl_Files.
+    - Added channelReadyProc and watchChannelProc procedures to interface;
+      these are used to implement event notification for channels.
+    - Added getFileProc to channel driver, to allow the generic IO code
+      to retrieve a Tcl_File from a channel (presumably if the channel
+      uses Tcl_Files they will be stored inside its instanceData). (JL)
+*** INCOMPATIBILITY with Tcl 7.5 ***
+
+5/8/96 (API change) The Tcl_CreateChannel C API was modified to not take
+Tcl_File arguments, and instead to take a mask specifying whether the
+channel is readable and/or writable. (JL)
+*** INCOMPATIBILITY with Tcl 7.5 ***
+
+6/3/96 (bug fix) Made Tcl_SetVar2 robust against the case where the value
+of the variable is a NULL pointer instead of "". (JL)
+
+6/17/96 (bug fix) Fixed "reading uninitialized memory" error reported by
+Purify, in Tcl_Preserve/Tcl_Release. (JL)
+
+8/9/96 (bug fix) Fixed bug in init.tcl that caused incorrect error message
+if the act of autoloading a procedure caused the procedure to be invoked
+again. (JO)
+
+8/9/96 (bug fix) Configure script produced bad library names and extensions
+under SunOS and a few other platforms if the --disable-load switch was used.
+(JO)
+
+8/9/96 (bug fix) Tcl_UpdateLinkedVar generated an error if the variable
+being updated was read-only. (JO)
+
+8/14/96 (bug fix) The macintosh now supports synchronous socket
+connections.  Other minor bugs were also fixed. (RJ)
+
+8/15/96 (configuration improvement) Changed the file patchlevel.h
+to be tclPatch.h.  This avoids conflict with the Tk file and is now
+in 8.3 format on the Windows platform. (RJ)
+
+8/20/96 (bug fix) Fixed core dump in interp alias command for interpreters
+created with Tcl_CreateInterp (as opposed to with Tcl_CreateSlave). (JL)
+
+8/20/96 (bug fix) No longer masking ECONNRESET on Windows sockets so
+that the higher level of the IO mechanism sees the error instead of
+entering an infinite loop. (JL)
+
+8/20/96 (bug fix) Destroying the last interpreter no longer closes the
+standard channels. (JL)
+
+8/20/96 (bug fix) Closing one of the stdin, stdout or stderr channels and
+then opening a new channel now correctly assigns the new channel as the
+standard channel that was closed. (JL)
+
+8/20/96 (bug fix) Added code to unix/tclUnixChan.c for using ioctl with
+FIONBIO instead of fcntl with O_NONBLOCK, for those versions of Unix where
+either O_NONBLOCK is not supported or implemented incorrectly. (JL)
+
+8/21/96 (bug fix) Fixed "file extension" so it correctly returns the
+extension on files like "foo..c" as "..c" instead of ".c". (SS)
+
+8/22/96 (bug fix) If environ[] contains static strings, Tcl would core
+dump in TclSetupEnv because it was trying to write NULLs into the actual
+data in environ[]. Now we instead copy as appropriate. (JL)
+
+8/22/96 (added impl) Added missing implementation of Tcl_MakeTcpClientChannel
+for Windows platform. Code contributed by Mark Diekhans. (JL)
+
+8/22/96 (new feature) Added a new memory allocator for the Macintosh
+version of Tcl.  It's quite a bit faster than MetroWerk's version. (RJ)
+
+8/26/96 (documentation update) Removed old change bars (for all changes
+in Tcl 7.5 and earlier releases) from manual entries. (JO)
+
+8/27/96 (enhancement) The exec and open commands behave better and work in 
+more situations under Windows NT and Windows 95.  Documentation describes 
+what is still lacking. (CS)
+
+8/27/96 (enhancement) The Windows makefiles will now compile even if the
+compiler is not in the path and/or the compiler's environment variables
+have not been set up. (CS) 
+
+8/27/96 (configuration improvement) The Windows resource files are 
+automatically updated when the version/patch level changes.  The header file
+now has a comment that reminds the user which other files must be manually
+updated when the version/patch level changes. (CS)
+
+8/28/96 (new feature) Added file manipulation features (copy, rename, delete,
+mkdir) that are supported on all platforms. They are implemented as 
+subcommands to the "file" command. See the documentation for the "file"
+command for more information. (JH)
+
+----------------- Released 7.6b1, 8/30/96 -----------------------
+
+9/3/96 (bug fix) Simplified code so that standard channels are created
+lazily, they are added to an interpreter lazily, and they are never added
+to a safe interpreter. (JL)
+
+9/3/96 (bug fix) Closing a channel after closing a standard channel, e.g.
+stdout, would cause the implicit recreation of that standard channel. (JL)
+
+9/3/96 (new feature) Now calling Tcl_RegisterChannel with a NULL
+interpreter increments the refcount so that code outside any interpreter
+can use channels that are also registered in interpreters, without worrying
+that the channel may turn into a dangling pointer at any time. Calling
+Tcl_UnregisterChannel with a NULL interpreter only decrements the recount
+so that code outside any interpreter can safely declare it is no longer
+interested in a channel. (JL)
+
+9/4/96 (new features) Two changes to dynamic loading:
+    - If the file name is empty in the "load" command and there is no
+      statically loaded version of the package, a dynamically loaded
+      version will be used if there is one.
+    - Tcl_StaticPackage ignores redundant calls for the same package. (JO)
+
+9/6/96 (bug fix) Platform specific procedures for manipulating files are
+no longer macros and have been prefixed with "Tclp", such as TclpRenameFile.
+Unix file code now handles symbolic links and other special files correctly.
+The semantics of file copy and file rename has been changed so that if
+a target directory exists, the source files will NOT be merged with the
+existing files. (JH)
+
+9/6/96 (bug fix) If standard channel is NULL, because Tcl cannot connect
+to the standard channel, do not increment the refcount. The channel can
+be NULL if there is for example no standard input. (JL)
+
+9/6/96 (portability improvement) Changed parsing of backslash sequences
+like \n to translate directly to absolute values like 0xa instead of
+letting the compiler do the translation.  This guarantees that the
+translation is done the same everywhere. (JO)
+
+9/9/96 (bug fix) If channel is opened and not associated with any
+interpreter, but Tcl decides to use it as one of the standard channels, it
+became impossible to close the channel with Tcl_Close -- instead you had
+to call Tcl_UnregisterChannel. Fixed now so that it's safe to call
+Tcl_Close even when Tcl is using the channel as one of the standard ones. (JL)
+
+9/11/96 (feature change) The Tcl library is now placed in the Tcl
+shared libraries resource.  You no longer need to place the Tcl files
+in your applications explicitly.  (RJ)
+
+9/11/96 (feature change) Extensions no longer automatically have the
+resource fork of the extension opened for it.  Instead you need to
+use the tclMacLibrary.c file in your extension.  (RJ)
+*** POTENTIAL INCOMPATIBILITY ***
+
+9/12/96 (bug fix) The extension loading mechanism on the Macintosh now
+looks at the 'cfrg' resource to determine where to load the code
+fragment from.  This means FAT fragments should now work. (RJ)
+
+9/18/96 (enhancement) The exec and open commands behave better and work in
+more situations under Windows 3.X.  Documentation describes what is still
+lacking.  (CS)
+
+9/19/96 (bug fix) Fixed a panic which would occur if you delete a
+non-existent alias before any aliases are created. Now instead correctly
+returns an error that the alias is not found. (JL)
+
+9/19/96 (bug fix) Slave interpreters could rename aliases and they would
+not get deleted when the alias was being redefined. This led to dangling
+pointers etc. (JL)
+
+9/19/96 (bug fix) Fixed a panic where a hash table entry was being deleted
+twice during alias management operations. (JL)
+
+9/19/96 (bug fix) Fixed bug in event loop that could cause the input focus
+in Tk to get confused during menu traversal, among other problems.  The
+problem was related to handling of the "marker" when its event was
+deleted. (JO)
+
+9/26/96 (bug fix) Windows was losing EOF on a socket if the FD_CLOSE event
+happened to precede any left over FD_READ events. Now correctly remembers
+seeing FD_CLOSE, so that trailing FD_READ events are not discarded if they
+do not contain any data. This allows Tcl to correctly get a zero read and
+notice EOF. (JL)
+
+9/26/96 (bug fix) Was not resetting READABLE state properly on sockets
+under Windows if the driver discarded an FD_READ event because no data was
+present. Now correctly resets the state. (JL)
+
+9/30/96 (bug fix) Made EOF sticky on Windows sockets, so that fileevent
+readable will fire repeatedly until the socket is closed. Previously the
+fileevent fired only once. This could lead to never-closed connections if
+the Tcl script in the fileevent wasn't closing the socket immediately. (JL)
+
+10/2/96 (new feature) Improved the package loader:
+    - Added new variable tcl_pkgPath, which holds the default
+      directories under which packages are normally installed (each
+      package goes in a separate subdirectory of a directory in
+      $tcl_pkgPath).  These directories are included in auto_path by
+      default.
+    - Changed the package auto-loader to look for pkgIndex.tcl files 
+      not only in the auto_path directories but also in their immediate
+      children.  This should make it easier to install and uninstall
+      packages (don't have to change auto_path or merge pkgIndex.tcl
+      files). (JO)
+
+10/3/96 (bug fix) Changed tclsh to look for tclshrc.tcl instead of
+tclsh.rc on startup under Windows.  This is more consistent with wish and
+uses the right extension. (SS)
+*** POTENTIAL INCOMPATIBILITY ***
+
+10/8/96 (bug fix) Convertclock does not parse 24-hour times of the
+form "hhmm" correctly when hour = 00.  In the parse code, hour must be
+>= 100 for minutes to be non-zero.  Thanks to Lint LaCour for this
+bug fix. (RJ)
+
+10/11/96 (bug fix) Under Windows, the pid command returned the process
+handle instead of the process id. (SS)
+
+----------------- Released 7.6, 10/16/96 -----------------------
+
+10/29/96 (bug fix) Under Windows, sockets would consume 100% CPU time after
+the first accept(), due to a typo. (JL)
+
+10/29/96 (bug fix) Incorrect refcount management caused standard channels
+not to get deleted at process exit or DLL unload time, causing a memory
+leak of upwards of 20K each time. (JL)
+
+11/7/96 (bug fix) Auto-exec didn't work on file names that contained
+spaces. (JO)
+
+11/8/96 (bug fix) Fixed core dump that would occur if more than one call
+to Tcl_DeleteChannelHandler was made to delete a given channel handler. (JL)
+
+11/8/96 (bug fix) Fixed test for return value in Tcl_Seek and Tcl_SeekCmd
+to only treat -1 as error, instead of all negative numbers. (JL)
+
+11/12/96 (bug fix) Do not blocking waiting for processes at the end of a
+pipe during exit cleanup. (JL)
+
+11/12/96 (bug fix) If we are in exit cleanup, do not close the system level
+file descriptors 0, 1 and 2. Previously they were being closed which is
+incorrect, in the embedded case. This led to weird behavior for programs
+that want to interpose on I/O through the standard file descriptors (e.g.
+Netscape Navigator). (JL)
+
+11/15/96 (bug fix) Fixed core dump on Windows sockets due to dependency on
+deletion order at exit. Now all socket functions check to see if sockets
+are (still) initialized, before calling through function pointers. Before,
+they would call and might end up calling unloaded object code. (JL)
+
+11/15/96 (bug fix) Fixed core dump in Windows socket initialization routine
+if sockets were not installed on the system. Before, it was not properly
+checking the result of attempting to load the socket DLL, so it would call
+through uninitialized function pointers. (JL)
+
+11/15/96 (bug fix) Fixed memory leak in Windows sockets which left socket
+DLL handle open and could hold the socket DLL in memory uneccessarily,
+until a reboot. (JL)
+
+12/4/96 (bug fix) Fixed bug in Macintosh socket code that could result
+in lost data if a client was closed too soon after sending data. (RJ)
+
+12/17/96 (bug fix) Fixed deadlock bug in Windows sockets due to losing an
+event. This was happening because of an interaction between buffering and
+nonblocking mode on sockets. Now switched to sockets being blocking by
+default, so we are also no longer emulating blocking through a private
+event loop. (JL)
+
+1/21/97 (performance bug fix) Client TCP connections were slow to create
+because getservbyname was always called on the port.  Now this is only
+done if Tcl_GetInt fails. (BW)
+
+1/21/97 (configuration fix) Made it possible to override TCL_PACKAGE_PATH
+during make.  Previously it was only set during autoconf process.
+
+1/29/97 (bug fix) Fixed some problems with the clock command that
+impacted how dates were scaned after the year 2000. (RJ)
+
+----------------- Released 7.6p2, 1/31/97 -----------------------
+
+2/5/97 (bug fix) Fixed a bug where in CR-LF translation mode, \r bytes
+in the input stream were not being handled correctly. (JL)
+
+2/24/97 (bug fix) Fix bug with exec under Win32s not being able to create
+stderr file which caused all execs to fail.  Fixed temp file leak under
+Win32s.  Fixed optional parameter bug with SearchPath that only happened
+under Win32s 1.25. (CCS)
+
+----------------------------------------------------------
+Changes for Tcl 7.6 go above this line.
+Changes for Tcl 7.7 go below this line.
+----------------------------------------------------------
+
+5/8/96 (new feature) Added Tcl_Ungets C API for putting a sequence of bytes
+into a channel's input buffer. This can be used for "push" model channels
+where the input is obtained via callbacks instead of by request of the
+generic IO code. No Tcl procedure yet. (JL)
+
+11/15/96 (new feature) Implemented hidden commands. New C APIs:
+	Tcl_HideCommand		-- hides an existing exposed command.
+	Tcl_ExposeCommand	-- exposes an existing hidden command.
+New tcl APIs:
+	interp invokehidden	-- invokes a hidden command in a slave.
+	interp hide		-- hides an existing exposed command.
+	interp expose		-- exposes an existing hidden command.
+	interp hidden		-- returns a list of hidden commands.
+The implementation of Safe Tcl now uses the new hidden commands facility
+to implement the safe base, instead of deleting the commands from a safe
+interpreter. (JL)
+
+11/15/96 (new feature) Implemented the safe base, a mechanism for
+installing and requesting security policies, purely in Tcl code. Overloads
+the package command to also allow an interpreter to "require" a policy. The
+following new library commands are provided:
+	tcl_safeCreateInterp	-- creates a slave an initializes the
+				   policy mechanism.
+	tcl_safeInitInterp	-- initializes an existing slave with the
+				   policy mechanism.
+	tcl_safeDeleteInterp	-- deletes a slave and deinitializes the
+				   policy mechanism.
+	tcl_safeAutoPath	-- manages per slave path for package
+				   finding and auto-loading.
+	tcl_safePolicyPath	-- manages global search path for finding
+				   security policies.
+Added a new file to the library, safeinit.tcl, to hold implementation. (JL)
+
+12/6/96 (new feature) Implemented Tcl_Finalize, an API that should be
+called by a process when it is done using Tcl. This API runs all the exit
+handlers to allow them to clean up resources etc. (JL)
+
+12/17/96 (new feature) Add an http Tcl script package to the Tcl library.
+This package implements the client side of HTTP/1.0; the GET, HEAD,
+and POST requests. (BW)
+
+1/21/97 (new feature) Added a "marktrusted" subcommand to the "interp" and
+to the interpreter object command. It removes the "safe" mark on an
+interpreter and disables hard-wired checks for safety in the C sources. (JL)
+
+1/21/97 (removed feature) Removed "vwait" from set of commands available in
+a safe interpreter. (JL)
+
+2/11/97 (new feature, bug fix) http package.  Added -accept to http_config
+so you can set the Accept header.  Added -handler option to http_get so
+you can supply your own data handler.  Also fixed POST operation to
+set the correct MIME type on the request. (BW)
+
+----------------------------------------------------------
+Changes for Tcl 7.7 go above this line.
+Changes for Tcl 8.0 go below this line.
+----------------------------------------------------------
+
+9/17/96 (bug fix) Using "upvar" it was possible to turn an array element
+into an array itself.  Changed to disallow this; it was quirky and didn't
+really work correctly anyway. (JO)
+
+10/21/96 (new feature) The core of the Tcl interpreter has been replaced
+with an on-the-fly compiler that translates Tcl scripts to bytecoded
+instructions; a new interpreter then executes the bytecodes. The compiler
+introduces only a few minor changes at the level of Tcl scripts. The biggest
+changes are to expressions and lists.
+    - A second level of substitutions is no longer done for expressions.
+      This substantially improves their execution time. This means that
+      the expression "$x*4" produces a different result than in the past
+      if x is "$y+2". Fortunately, not much code depends on the old
+      two-level semantics. Some expressions that do, such as
+      "expr [join $list +]" can be recoded to work in Tcl8.0 by adding
+      an eval: e.g., "eval expr [join $list +]".
+    - Lists are now completely parsed on the first list operation to
+      create a faster internal representation. In the past, if you had a
+      misformed list but the erroneous part was after the point you
+      inserted or extracted an element, then you never saw an error.
+      In Tcl8.0 an error will be reported. This should only effect
+      incorrect programs that took advantage of behavior of the old
+      implementation that was not documented in the man pages.
+Other changes to Tcl scripts are discussed in the web page at
+http://www.sunlabs.com/research/tcl/compiler.html. (BL)
+*** POTENTIAL INCOMPATIBILITY ***
+
+10/21/96 (new feature) In earlier versions of Tcl, strings were used as a
+universal representation; in Tcl 8.0 strings are replaced with Tcl_Obj
+structures ("objects") that can hold both a string value and an internal
+form such as a binary integer or compiled bytecodes. The new objects make it
+possible to store information in efficient internal forms and avoid the
+constant translations to and from strings that occurred with the old
+interpreter. There are new many new C APIs for managing objects. Some of the
+new library procedures for objects (such as Tcl_EvalObj) resemble existing
+string-based procedures (such as Tcl_Eval) but take advantage of the
+internal form stored in Tcl objects for greater speed. Other new procedures
+manage objects and allow extension writers to define new kinds of objects.
+See the manual entries doc/*Obj*.3 (BL)
+
+10/24/96 (bug fix) Fixed memory leak on exit caused by some IO related
+data structures not being deallocated on exit because their refcount was
+artificially boosted. (JL)
+
+10/24/96 (bug fix) Fixed core dump in Tcl_Close if called with NULL
+Tcl_Channel. (JL)
+
+11/19/96 (new feature) Added library procedures for finding word
+breaks in strings in a platform specific manner.  See the library.n
+manual entry for more information. (SS)
+
+11/22/96 (feature improvements) Added support for different levels of
+tracing during bytecode compilation and execution. This should help in
+tracking down suspected problems with the compiler or with converting
+existing code to use Tcl8.0. Two global Tcl variables, traceCompile
+and traceExec, can be set to generate tracing information in stdout:
+    - traceCompile: 0  no tracing (default)
+                    1  trace compilations of top level commands and procs
+                    2  trace and display instructions for all compilations
+    - traceExec:    0  no tracing
+                    1  trace only calls to Tcl procs
+                    2  trace invocations of all commands including procs
+                    3  detailed trace showing the result of each instruction
+traceExec >= 2 provides a one line summary of each called command and
+its arguments. Commands that have been "compiled away" such as set are
+not shown. (BL)
+
+11/30/96 (bug fix) The command "info nameofexecutable" could sometimes
+return the name of a directory. (JO)
+
+11/30/96 (feature improvements) Changed the code in library/init.tcl
+that reads in pkgIndex.tcl so that (a) it reads the files from child
+directories before those in the parent, so that the parent gets
+precedence, and (b) it doesn't quit if there is an error in a
+pkgIndex.tcl file;  instead, it prints an error message on standard
+error and continues. (JO)
+
+10/5/96 (feature improvements) Partial implementation of binary string
+support: the ability for Tcl string values to contain embedded null bytes.
+Changed the Tcl object-based APIs to take a byte pointer and length pair
+instead of a null-terminated C string. Modified several object type managers
+to support binary strings but not, for example, the list type manager.
+Existing string-based C APIs are unchanged and will truncate binary
+strings. Compiled scripts containing nulls are also truncated. (BL)
+
+12/12/96 (feature change) Removed the commands "cp", "mkdir", "mv",
+"rm", and "rmdir" from the Macintosh version of Tcl.  They were never
+officially supported and their functionality is now available via
+the file command. (RJ)
+
+----------------- Released 8.0a1, 12/20/96 -----------------------
+
+1/7/97 (bug fix) Under Windows, "file stat c:" was returning error instead
+of stat for current dir on c: drive.
+
+1/10/97 (new feature) Added Tcl_GetIndexFromObj procedure for quick
+lookups of keyword arguments. (JO)
+
+1/12/97 (new feature) Serial IO channel drivers for Windows and Unix,
+available by using Tcl open command to open pseudo-files like "com1:" or
+"/dev/ttya".  New option to Tcl fconfigure command for serial files:  
+"-mode baud,parity,data,stop" to specify baud rate, parity, data bits, and
+stop bits.  Serial IO is not yet available on Mac.
+
+1/16/97 (feature change) Restored the Tcl7.x "two level substitution
+semantics" for expressions. Expressions not enclosed in braces are
+implemented, in general, by calling the expr command procedure
+(Tcl_ExprObjCmd) at runtime after the Tcl interpreter has already done a
+first round of substitutions. This is slow (about Tcl7.x speed) because new
+code for the expression is generally compiled each time. However, if the
+expression has only variable substitutions (and not command substitutions),
+"optimistic" fast code is generated inline. This inline code will fail if a
+second round of substitutions is needed (i.e., if the value of a substituted
+variable itself requires more substitutions). The optimistic code will
+catch the error and back off to call the slower but guaranteed correct
+expr command procedure. (BL)
+
+1/16/97 (feature improvements) Added Tcl_ExprLongObj and Tcl_ExprDoubleObj
+to round out expression-related procedures. (BL)
+
+1/16/97 (feature change) Under Windows, at startup the environment variables
+"path", "comspec", and "windir" in any capitalization are converted
+automatically to upper case.  The PATH variable could be spelled as path,
+Path, PaTh, etc. and it makes programming rather annoying.  All other
+environment variables are left alone. (CS)
+
+1/20/97 (new features) Rewrote the "lsort" command:
+    - The new version is based on reentrant merge sort code provided
+      by Richard Hipp, so it eliminates the reentrancy and stability
+      problems with the old qsort-based implementation.
+    - The new version supports a -dictionary option for sorting, and
+      it also supports a -index option for sorting lists using one
+      element for comparison.
+    - The new version is an object command, so it works well with the
+      Tcl compiler, especially in conjunction with the new -index
+      option.  When the -index option is used, this version of lsort
+      is more than 100 times faster than the Tcl 7.6 lsort, which had
+      to use the -command option to get the same effect. (JO)
+
+1/20/97 (feature improvements) Added the improved debugging support for Tcl
+objects prototyped by Karl Lehenbauer <karl@hammer1.ops.NeoSoft.com>.
+If TCL_MEM_DEBUG is defined, the object creation calls use Tcl_DbCkalloc
+directly in order to record the caller's source file name and line
+number. (BL)
+
+1/21/97 (removed feature) Desupported the tcl_precision variable: if
+set, it is ignored.  Tcl now uses the full 17 digits of precision when
+converting real numbers to strings (with the new object system real
+numbers are rarely converted to strings so there is no efficiency
+disadvantage to printing all 17 digits; the new scheme improves
+accuracy and simplifies several APIs). (JO)
+*** POTENTIAL INCOMPATIBILITY ***
+
+1/21/97 (feature change) Removed the "interp" argument for the
+procedures Tcl_GetStringFromObj, Tcl_StringObjAppend, and
+Tcl_StringObjAppendObj.  Also removed the "interp" argument for
+the updateStringProc procedure in Tcl_ObjType structures.  With
+the tcl_precision changes above, these are no longer needed. (JO)
+*** POTENTIAL INCOMPATIBILITY with Tcl 8.0a1, but not with Tcl 7.6 ***
+
+1/22/97 (bug fix) Fixed http.tcl so that http_reset does not result in
+an extra call to the command callback.  In addition, if the transaction
+gets a premature eof, the state(status) is "eof", not "ok". (BW)
+
+----------------- Released 8.0a2, 1/24/97 -----------------------
+
+1/29/97 (feature change) Changed how two digit years are parsed in the
+clock command.  The old interface just added 1900 which will seem
+broken by the year 2000.  The new scheme follows the POSIX standard
+and treats dates 70-99 as 1970-1999 and dates 00-38 as 2000-2038.  All
+other two digit dates are undefined. (RJ)
+*** POTENTIAL INCOMPATIBILITY ***
+
+2/4/97 (bug fix) Fixed bug in clock code that dealt with relative
+dates.  Using the relative month code you could get an invalid date
+because it jumped into a non-existant day.  (For example, Jan 31
+to Feb 31.)  The code now will return the last valid day of the
+month in these situations.  Thanks to Hume Smith for sending in
+this bug fix.  (RJ)
+
+2/10/97 (feature change) Eliminated Tcl_StringObjAppend and 
+Tcl_StringObjAppendObj procedures, replaced them with Tcl_AppendToObj
+and Tcl_AppendStringsToObj procedures.  Added new procedure
+Tcl_SetObjLength. (JO)
+*** POTENTIAL INCOMPATIBILITY with Tcl 8.0a2, but not with Tcl 7.6 ***
+
+2/10/97 (new feature) Added Tcl_WrongNumArgs procedure for generating
+error messages about incorrect number of arguments. (JO)
+
+2/11/97 (new feature, bug fix) http package.  Added -accept to http_config
+so you can set the Accept header.  Added -handler option to http_get so
+you can supply your own data handler.  Also fixed POST operation to
+set the correct MIME type on the request. (BW)
+
+2/22/97 (bug fix) Fixed bug that caused $tcl_platform(osVersion) to be
+computed incorrectly under AIX. (JO)
+
+2/25/97 (new feature, feature change) Added support for both int and long
+integer objects. Added Tcl_NewLongObj/Tcl_GetLongFromObj/Tcl_SetLongFromObj
+procedures and renamed the Tcl_Obj internalRep intValue member to
+longValue. Tcl_GetIntFromObj now checks for integer values too large to
+represent as non-long integers. Changed Tcl_GetAllObjTypes to
+Tcl_AppendAllObjTypes. (BL)
+
+3/5/97 (new feature) Added new Tcl_SetListObj procedure to round out
+collection of procedures that set the type and value of existing Tcl
+objects. (BL)
+
+3/6/97 (new feature) Added -global flag for interp invokehidden. (JL)
+
+3/6/97 (new feature, feature change) Added isNativeObjectProc field to the
+Tcl_CmdInfo structure to indicate (when 1) if the command has an
+object-based command procedure. Removed the nameLength arg from
+Tcl_CreateObjCommand since command names can't contain null characters. (BL)
+
+3/6/97 (bug fix) Fixed bug in "unknown" procedure that caused auto-
+loading to fail on commands whose names begin with digits. (JO)
+
+3/7/97 (bug fix) Auto-loading now works in Safe Base. Safe interpreters
+only accept the Version 2 and onwards tclIndex files. (JL)
+
+3/13/97 (bug fix) Fixed core dump due to interaction between aliases and
+hidden commands. Bug found by Lindsay Marshall. (JL)
+
+3/14/97 (bug fix) Fixed mac bugs relating to time.  The -gmt option
+now adjusts the time in the correct direction.  (Thanks to Ed Hume for
+reporting a fix to this problem.)  Also fixed file "mtime" etc. to
+return times from GMT rather than local time zone.  (RJ)
+
+3/18/97 (feature change) Declaration of objv in Tcl_ObjCmdProc function
+changed from "Tcl_Obj *objv[]" to "Tcl_Obj *CONST objv[]".  All Tcl object
+commands changed to use new declaration of objv.  Naive translation of
+string-based command procs to object-based command procs could very easily
+have yielded code where the contents of the objv array were changed.  This
+is not a problem with string-based command procs, but doing something as
+simple as objv[2] = objv[3] would corrupt the runtime stack and cause Tcl to
+crash.  Introduced CONST in declaration of objv so that attempted assignment
+of new pointer values to elements of the objv array will be caught by the
+compiler. (CCS)
+*** POTENTIAL INCOMPATIBILITY with Tcl 8.0a2 ***
+
+3/19/97 (bug fix) Fixed panic due to object sharing. The root cause was
+that old code was using Tcl_ResetResult instead of Tcl_ResetObjResult. (JL)
+
+3/20/97 (new feature) Added a new subcommand for the file
+command. file attributes filename can give a list of platform-specific
+options (such as file/creator type on the Mac, permissions on Unix) or
+set the values of them. Added a new subcommand for the file
+command. file nativename name gives back the platform-specific form
+for the file. This is useful when the filename is needed to pass to
+the OS, such as exec under Windows 95 or AppleScript on the Mac. For
+more info, see file.n. (SRP)
+
+3/24/97 (removed feature) Removed the tcl_safePolicyPath procedure. Now
+the policy path is computed from the auto_path by appending the directory
+'policies' to each element. Also fixed several bugs in automatic tracking
+of auto_path by computed policy path. (JL)
+*** POTENTIAL INCOMPATIBILITY with Tcl 8.0a2 but not with Tcl 7.6 ***
+
+4/8/97 (new feature) If the variable whose name is passed to lappend doesn't
+already exist, and there are no value arguments, lappend now creates the
+variable with an empty value instead of returning an error. Change suggested
+by Tom Tromey. (BL)
+
+4/9/97 (feature change) Changed the name of the TCL_PART1_NOT_PARSED flag to
+TCL_PARSE_PART1. (BL)
+*** POTENTIAL INCOMPATIBILITY with Tcl 8.0a2 but not with Tcl 7.6 ***
+
+4/10/97 (bug fixes) Fixed various compilation-related bugs:
+    - "UpdateStringOfCmdName should never be invoked" panic.
+    - Bad code generated for expressions not in {}'s inside catch commands.
+    - Segmentation fault in some command procedures when two argument
+      object pointers refer to the same object.
+    - Second level of substitutions were never done for expressions not
+      in {}'s that consist of a single variable reference: e.g.,
+      "set x 27; set bool {$x}; if $bool {puts foo}" would fail with error.
+    - Bad code generated when code storage was grown while compiling some
+      expressions: ones with compilation errors or consisting of only a
+      variable reference.
+    - Bugs involving multiple interpreters: wasn't checking that a
+      procedure's code was compiled for the same interpreter as the one
+      executing it, and didn't invalidate code on hidden-exposed command
+      transitions.
+    - "Bad stack top" panic when executing scripts that require a huge
+      amount of stack space.
+    - Incorrect sharing of code for procedure bodies, and procedure code
+      deallocated before last execution of the procedure finished.
+    - Fixed compilation of expression words in quotes. For example,
+      if "0 < 3" {puts foo}.
+    - Fixed performance bug in array set command with large assignments.
+    - Tcl_SetObjLength segmentation fault setting length of empty object.
+    - If Tcl_SetObjectResult was passed the same object as the interpreter's
+      result object, it freed the object instead of doing nothing. Bug fix
+      by Michael J. McLennan.
+    - Tcl_ListObjAppendList inserted elements from the wrong list. Bug fix
+      by Michael J. McLennan.
+    - Segmentation fault if empty variable list was specified in a foreach
+      command. Bug fix by Jan Nijtmans.
+    - NULL command name was always passed to Tcl_CreateTrace callback
+      procedure.
+    - Wrong string representation generated for the value LONG_MIN.
+      For example, expr 1<<31 printed incorrectly on a 32 bit machine.
+    - "set {a($x)} 1" stored value in wrong variable.
+    - Tcl_GetBooleanFromObj was not checking for garbage after a numeric
+      value.
+    - Garbled "bad operand type" error message when evaluating expressions
+      not surrounded by {}'s. (BL)
+
+4/16/97 (new feature) The expr command now has the "rand()" and
+"srand()" functions for getting random numbers in expr. (RJ)
+
+4/23/97 (bug fix) Fixed core dump in bgerror when the error handler command
+deletes the current interpreter. Found by Juergen Schoenwald. (JL)
+
+4/23/97 (feature change) The notifier interfaces have been redesigned
+to make embedding in applications with external event loops possible.
+A number of interfaces in the notifier and the channel drivers have
+changed.  Refer to the Notifier.3 and CrtChannel.3 manual entries for
+more details. (SS)
+*** POTENTIAL INCOMPATIBILITY ***
+
+4/23/97 (removed feature) The Tcl_File interfaces have been removed.
+The Tcl_CreateFileHandler/Tcl_DeleteFileHandler interfaces now take
+Unix fd's and are only supported on the Unix platform.
+Tcl_GetChannelFile has been replaced with Tcl_GetChannelHandle.
+Tcl_MakeFileChannel now takes a platform specific file handle. (SS)
+*** POTENTIAL INCOMPATIBILITY ***
+
+4/23/97 (removed feature) The modal timeout interface has been
+removed (Tcl_CreateModalTimeout/Tcl_DeleteModalTimeout) (SS)
+*** POTENTIAL INCOMPATIBILITY ***
+
+4/23/97 (feature change) Channel drivers are now required to correctly
+implement blocking behavior when they are in blocking mode. (SS)
+*** POTENTIAL INCOMPATIBILITY ***
+
+4/23/97 (new feature) Added the "binary" command for manipulating
+binary strings. Also, changed the "puts", "gets", and "read" commands
+to preserve embedded nulls.  (SS)
+
+4/23/97 (new feature) Added tcl_platform(byteOrder) element to the
+tcl_platform array to identify the native byte order for the current
+host. (SS)
+
+4/23/97 (bug fix) Fixed bug in date parsing around year boundaries. (SS)
+
+4/24/97 (bug fix) In the process of copying a file owned by another user,
+Tcl was changing the owner of the copy back to the owner of the original
+file, therefore causing further file operations to fail because the current
+user didn't own the copy anymore.  The owner of the copy is now left as the
+current user. (CCS)
+
+4/24/97 (feature change) Under Windows, don't automatically uppercase the
+environment variable "windir" -- it's supposed to be lower case.  (CCS)
+
+4/29/97 (new feature) Added namespace support based on a namespace
+implementation by Michael J. McLennan of Lucent Technologies. A namespace
+encapsulates a collection of commands and variables to ensure that they
+won't interfere the commands and variables of other namespaces. The global
+namespace holds all global variables and commands. Additional namespaces are
+created with the new namespace command. The new variable command lets you
+create Tcl variables inside a namespace. The names of Tcl variables and
+commands may now be qualified by the name of the namespace containing them.
+The key namespace-related commands are summarized below:
+    - namespace ?eval? name arg ?arg...?
+         Used to define the commands and variables in a namespace.
+         Optionally creates the namespace.
+    - namespace export ?-clear? ?pattern pattern...?
+         Specifies which commands are exported from a namespace. These
+         are the ones that can be imported into another namespace.
+    - namespace import ?-force? ?pattern pattern...?
+         Makes the specified commands accessible in the current namespace.
+    - namespace current
+         Returns the name of the current namespace.
+    - variable name ?value? ?name ?value?...?
+         Creates one or more namespace variables. (BTL)
+
+5/1/97 (bug fix) Under Windows, file times were reported in GMT.  Should be
+reported in local time. (CCS)
+
+5/2/97 (feature change) Changed the name of the two Tcl variables used for
+tracing bytecode compilation and execution to tcl_traceCompile and
+tcl_traceExec respectively. These variables are now documented in the
+tclvars man page. (BL)
+
+5/5/97 (new feature) Support "end" as the index for "lsort -index". (BW)
+
+5/5/97 (bug fixes) Cleaned up the way the http package resets connections (BW)
+
+5/8/97 (feature change) Newly created Tcl objects now have a reference count
+of zero instead of one. This simplifies C code that stores newly created
+objects in Tcl variables or in data structures such as list objects. That C
+code must increment the new object's reference count since the variable or
+data structure will contain a long-term reference to the object. Formerly,
+when new objects started out with reference count one, it was necessary to
+decrement the new object's reference count after the store to make sure it
+was left with the correct value; this is no longer necessary. (BL)
+
+5/9/97 (new feature) Added the Tcl_GetsObj interface that takes an
+object reference instead of a dynamic string (as in Tcl_Gets). (SS)
+
+5/12/97 (new feature) Added Tcl_CreateAliasObj and Tcl_GetAliasObj C APIs
+to allow an alias command to be created with a vector of Tcl_Obj structures
+and to get the vector back later. (JL)
+
+5/12/97 (feature change) Changed Tcl_ExposeCommand and Tcl_HideCommand to
+leave an object result instead of a string result. (JL)
+
+5/14/97 (feature change) Improved the handling of the interpreter result.
+This is still either an object or a string, but the two values are now
+kept consistent unless some C code has set interp->result directly. See
+the SetResult man page for details. Removed the Tcl_ResetObjResult
+procedure. (BL)
+*** POTENTIAL INCOMPATIBILITY with Tcl 8.0a2 ***
+
+5/16/97 (new feature) Added "fcopy" command to move data between
+channels.  Refer to the manual page for more information.  Removed the
+"unsupported0" command since it is obsolete now.  (SS)
+
+5/16/97 (new feature) Added Tcl_GetStringResult procedure to allow programs
+to get an interpreter's result as a string. If the result was previously set
+to an object, this procedure will convert the object to a string. Use of
+Tcl_GetStringResult is intended to replace direct access to interp->result,
+which is not safe. (BL)
+
+5/20/97 (new features) Fixed "fcopy" to return the number of bytes
+transferred in the blocking case.  Updated the http package to use
+fcopy instead of unsupported0.  Added -timeout and -handler options to
+http_get.  http_get is now blocking by default.  It is only non-blocking
+if you supply a -command argument. (BW)
+
+5/22/97 (bug fix) Fixed several bugs in the "lsort" command having to do
+with the -dictionary option and the presence of numbers embedded in the
+strings.  (JO)
+
+----------------- Released 8.0b1, 5/27/97 -----------------------
+
+6/2/97 (bug fix) Fixed bug in startup code that caused a problem in
+finding the library files when they are installed in a directory
+containing a space in the name. (SS)
+
+6/2/97 (bug fix) Fixed bug in Unix notifier where the select mask was
+not being cleared under some circumstances. (SS)
+
+6/4/97 (bug fix) Fixed bug that prevented creation of Tk widgets in
+namespaces. Tcl_CreateObjCommand and Tcl_CreateCommand now always create
+commands in the global namespace unless the command names are qualified. Tcl
+procedures continue to be created in the current namespace by default. (BL)
+
+6/6/97 (new features) Added new namespace API procedures
+Tcl_AppendExportList and Tcl_Export to allow C code to get and set a
+namespace's export list. (BL)
+
+6/11/97 (new feature) Added Tcl_ConcatObj. This object-based routine
+parallels the string-based routine Tcl_Concat. (SRP)
+
+6/11/97 (new feature) Added Tcl_SetObjErrorCode. This object-based
+routines parallels the string-based routine Tcl_SetErrorCode. (SRP)
+
+6/12/97 (bug fix) Fix the "unknown" procedure so that wish under Windows
+will exec an external program, instead of always complaining "console1 not
+opened for writing". (CCS)
+
+6/12/97 (bug fix) Fixed core dump experienced by the following simple
+script:
+	interp create x
+	x alias exec exec
+	interp delete x
+This panic was caused by not installing the new CmdDeleteProc when exec
+got redefined by the alias creation step. Reported by Lindsay Marshal (JL)
+
+6/13/97 (new features) Tcl objects newly created by Tcl_NewObj now have a
+string representation that points to a shared heap string of length 1. (They
+used to have NULL bytes and typePtr fields. This was treated as a special
+case to indicate an empty string, but made type manager implementations
+complex and error prone.) The new procedure Tcl_InvalidateStringRep is used
+to mark an object's string representation invalid and to free any storage
+associated with the old string representation. (BL)
+*** POTENTIAL INCOMPATIBILITY with Tcl 8.0b1, but not with Tcl7.6 ***
+
+6/16/97 (bug fix) Tcl_ScanCountedElement could leave braces unmatched
+if the string ended with a backslash. (JO)
+
+6/17/97 (bug fix) Fixed channel event bug where readable events would be
+lost during recursive events loops if the input buffers contained
+data. (SS)
+
+6/17/97 (bug fix) Fixed bug in Windows socket code that didn't
+reenable read events in the case where an external entity is also
+reading from the socket. (SS)
+
+6/18/97 (bug fix) Changed initial setting of the notifier service mode
+to TCL_SERVICE_NONE to avoid unexpected event handling during
+initialization. (SS)
+
+6/19/97 (bug fix/feature change) The command callback to fcopy is now
+called in case of errors during the background copy.  This adds a second,
+optional argument to the callback that is the error string.  The callback
+in case of errors is required for proper cleanup by the user of fcopy. (BW)
+*** POTENTIAL INCOMPATIBILITY with Tcl 8.0b1, but not with Tcl 7.6 ***
+
+6/19/97 (bug fix) Fixed a panic due to the following four line script:
+	interp create x
+	x alias foo bar
+	x eval rename foo blotz
+	x alias foo {}
+The problem was that the interp code was not using the actual current name
+of the command to be deleted as a result of un-aliasing foo. (JL)
+
+6/19/97 (feature change) Pass interp down to the ChannelOption and
+driver specific calls so system errors can be differentiated from syntax
+ones. Changed Tcl_DriverGetOptionProc type. Affects Tcl_GetChannelOption,
+TcpGetOptionProc,  TtyGetOptionProc, etc. (DL)
+*** POTENTIAL INCOMPATIBILITY ***
+
+6/19/97 (new feature) Added Tcl_BadChannelOption for use by by driver
+specific option procedures (Set and Get) to return a complete and
+meaningful error message. (DL)
+
+6/19/97 (bug fixes) If a system call error occurs while doing an
+fconfigure on tcp or tty/com channel: return the appropriate error
+message (instead of the syntax error one or none). (Fixed for Unix and
+most of the Win and Mac drivers). (DL)
+
+6/20/97 (feature change) Eval is no longer assumed as the subcommand name
+in namespace commands: you must now write "namespace eval nsName {...}".
+Abbreviations of namespace subcommand names are now allowed. (BL)
+*** POTENTIAL INCOMPATIBILITY with Tcl 8.0b1, but not with Tcl7.6 ***
+
+6/20/97 (feature change) Changed the errorInfo traceback message for
+compilation errors from "invoked from within" to "while compiling". (BL)
+
+6/20/97 (bug fixes) Fixed various compilation-related bugs:
+    - "UpdateStringOfCmdName should never be called" and
+      "UpdateStringOfByteCode should never be called" panics.
+    - Segfault in TclObjInterpProc getting procedure name after evaluation
+      stack is reallocated (grown).
+    - Could not use ":" at end of variable and command names.
+    - Bad code generated for while and for commands with test expressions
+      enclosed in quotes: e.g., "set i 0; while "$i > 5" {}".
+    - Command trace procedures would crash if they did a Tcl_EvalObj that
+      reallocated the evaluation stack.
+    - Break and continue commands did not reset the interpreter result.
+    - The Tcl_ExprXXX routines, both string- or object-based, always
+      modified the interpreter result even if there was no error.
+    - The argument parsing procedure used by several compile procedures
+      always treated "]" as end of a command: e.g., "set a ]" would fail.
+    - Changed errorInfo traceback message for compilation errors from 
+      "invoked from within" to "while compiling".
+    - Problem initializing Tcl object managers during interpreter creation.
+    - Added check and error message if formal parameter to a procedure is
+      an array element. (BL)
+
+6/23/97 (new feature) Added "registry" package to allow manipulation
+of the Windows system registry.  See manual entry for details. (SS)
+
+6/24/97 (feature change) Converted http to a package and added the
+http1.0 subdirectory of the Tcl script library.  This means you have
+to do a "package require http" to use this, as advertised in the man page. (BW)
+*** POTENTIAL INCOMPATIBILITY with Tcl 8.0b1, but not with Tcl 7.6 ***
+
+6/24/97 (bug fix) Ensure that Tcl_Set/GetVar C APIs, when called without
+TCL_LEAVE_ERR_MSG, don't touch the interp result. (DL)
+
+6/26/97 (feature change) Changed name of Tcl_ExprStringObj to
+Tcl_ExprObj. (BL)
+*** POTENTIAL INCOMPATIBILITY with Tcl 8.0b1, but not with Tcl 7.6 ***
+
+----------------- Released 8.0b2, 6/30/97 -----------------------

@@ -1,0 +1,436 @@
+# This file contains tests for the tclVar.c source file. Tests appear in
+# the same order as the C code that they test. The set of tests is
+# currently incomplete since it currently includes only new tests for
+# code changed for the addition of Tcl namespaces. Other variable-
+# related tests appear in several other test files including
+# namespace.test, set.test, trace.test, and upvar.test.
+#
+# Sourcing this file into Tcl runs the tests and generates output for
+# errors. No output means no errors were found.
+#
+# Copyright (c) 1997 Sun Microsystems, Inc.
+#
+# See the file "license.terms" for information on usage and redistribution
+# of this file, and for a DISCLAIMER OF ALL WARRANTIES.
+#
+# SCCS: @(#) var.test 1.8 97/06/25 09:02:03
+#
+
+if {[string compare test [info procs test]] == 1} then {source defs}
+
+catch {rename p ""}
+catch {namespace delete test_ns_var}
+catch {unset xx}
+catch {unset x}
+catch {unset y}
+catch {unset i}
+catch {unset a}
+catch {unset arr}
+
+test var-1.1 {TclLookupVar, TCL_PARSE_PART1 flag set} {
+    catch {unset a}
+    set x "incr"  ;# force no compilation and runtime call to Tcl_IncrCmd 
+    set i 10
+    set arr(foo) 37
+    list [$x i] $i [$x arr(foo)] $arr(foo)
+} {11 11 38 38}
+test var-1.2 {TclLookupVar, TCL_GLOBAL_ONLY implies global namespace var} {
+    set x "global value"
+    namespace eval test_ns_var {
+        variable x "namespace value"
+        proc p {} {
+            global x  ;# specifies TCL_GLOBAL_ONLY to get global x
+            return $x
+        }
+    }
+    test_ns_var::p
+} {global value}
+test var-1.3 {TclLookupVar, TCL_NAMESPACE_ONLY implies namespace var} {
+    namespace eval test_ns_var {
+        proc q {} {
+            variable x  ;# specifies TCL_NAMESPACE_ONLY to get namespace x
+            return $x
+        }
+    }
+    test_ns_var::q
+} {namespace value}
+test var-1.4 {TclLookupVar, no active call frame implies global namespace var} {
+    set x
+} {global value}
+test var-1.5 {TclLookupVar, active call frame pushed for namespace eval implies namespace var} {
+    namespace eval test_ns_var {set x}
+} {namespace value}
+test var-1.6 {TclLookupVar, name starts with :: implies some namespace var} {
+    namespace eval test_ns_var {set ::x}
+} {global value}
+test var-1.7 {TclLookupVar, error finding namespace var} {
+    list [catch {set a:::b} msg] $msg
+} {1 {can't read "a:::b": no such variable}}
+test var-1.8 {TclLookupVar, error finding namespace var} {
+    list [catch {set ::foobarfoo} msg] $msg
+} {1 {can't read "::foobarfoo": no such variable}}
+test var-1.9 {TclLookupVar, create new namespace var} {
+    namespace eval test_ns_var {
+        set v hello
+    }
+} {hello}
+test var-1.10 {TclLookupVar, create new namespace var} {
+    catch {unset y}
+    namespace eval test_ns_var {
+        set ::y 789
+    }
+    set y
+} {789}
+test var-1.11 {TclLookupVar, error creating new namespace var} {
+    namespace eval test_ns_var {
+        list [catch {set ::test_ns_var::foo::bar 314159} msg] $msg
+    }
+} {1 {can't set "::test_ns_var::foo::bar": parent namespace doesn't exist}}
+test var-1.12 {TclLookupVar, error creating new namespace var} {
+    namespace eval test_ns_var {
+        list [catch {set ::test_ns_var::foo:: 1997} msg] $msg
+    }
+} {1 {can't set "::test_ns_var::foo::": parent namespace doesn't exist}}
+test var-1.13 {TclLookupVar, new namespace var is created in a particular namespace} {
+    catch {unset aNeWnAmEiNnS}
+    namespace eval test_ns_var {
+        namespace eval test_ns_var2::test_ns_var3 {
+            set aNeWnAmEiNnS 77777
+        }
+        # namespace which builds a name by traversing nsPtr chain to ::
+        namespace which -variable test_ns_var2::test_ns_var3::aNeWnAmEiNnS
+    }
+} {::test_ns_var::test_ns_var2::test_ns_var3::aNeWnAmEiNnS}
+test var-1.14 {TclLookupVar, namespace code ignores ":"s in middle and end of var names} {
+    namespace eval test_ns_var {
+        set : 123
+        set v: 456
+        set x:y: 789
+        list [set :] [set v:] [set x:y:] \
+             ${:} ${v:} ${x:y:} \
+             [expr {[lsearch [info vars] :] != -1}] \
+             [expr {[lsearch [info vars] v:] != -1}] \
+             [expr {[lsearch [info vars] x:y:] != -1}]
+    }
+} {123 456 789 123 456 789 1 1 1}
+
+test var-2.1 {Tcl_LappendObjCmd, create var if new} {
+    catch {unset x}
+    lappend x 1 2
+} {1 2}
+
+test var-3.1 {MakeUpvar, TCL_NAMESPACE_ONLY not specified for other var} {
+    catch {unset x}
+    set x 1997
+    proc p {} {
+        global x  ;# calls MakeUpvar with TCL_NAMESPACE_ONLY for other var x
+        return $x
+    }
+    p
+} {1997}
+test var-3.2 {MakeUpvar, other var has TCL_NAMESPACE_ONLY specified} {
+    namespace eval test_ns_var {
+        catch {unset v}
+        variable v 1998
+        proc p {} {
+            variable v  ;# TCL_NAMESPACE_ONLY specified for other var x
+            return $v
+        }
+        p
+    }
+} {1998}
+if {[info commands testupvar] != {}} {
+    test var-3.3 {MakeUpvar, my var has TCL_GLOBAL_ONLY specified} {
+        catch {unset a}
+        set a 123321
+        proc p {} {
+            # create global xx linked to global a
+	    testupvar 1 a {} xx global 
+	}
+        list [p] $xx [set xx 789] $a
+    } {{} 123321 789 789}
+    test var-3.4 {MakeUpvar, my var has TCL_NAMESPACE_ONLY specified} {
+        catch {unset a}
+        set a 456
+        namespace eval test_ns_var {
+            catch {unset ::test_ns_var::vv}
+            proc p {} {
+                # create namespace var vv linked to global a
+	        testupvar 1 a {} vv namespace 
+	    }
+            p
+        }
+        list $test_ns_var::vv [set test_ns_var::vv 123] $a
+    } {456 123 123}
+}
+test var-3.5 {MakeUpvar, no call frame so my var will be in global :: ns} {
+    catch {unset aaaaa}
+    catch {unset xxxxx}
+    set aaaaa 77777
+    upvar #0 aaaaa xxxxx
+    list [set xxxxx] [set aaaaa]
+} {77777 77777}
+test var-3.6 {MakeUpvar, active call frame pushed for namespace eval} {
+    catch {unset a}
+    set a 121212
+    namespace eval test_ns_var {
+        upvar ::a vvv
+        set vvv
+    }
+} {121212}
+test var-3.7 {MakeUpvar, my var has ::s} {
+    catch {unset a}
+    set a 789789
+    upvar #0 a test_ns_var::lnk
+    namespace eval test_ns_var {
+        set lnk
+    }
+} {789789}
+test var-3.8 {MakeUpvar, my var already exists in global ns} {
+    catch {unset aaaaa}
+    catch {unset xxxxx}
+    set aaaaa 456654
+    set xxxxx hello
+    upvar #0 aaaaa xxxxx
+    set xxxxx
+} {hello}
+test var-3.9 {MakeUpvar, my var has invalid ns name} {
+    catch {unset aaaaa}
+    set aaaaa 789789
+    list [catch {upvar #0 aaaaa test_ns_fred::lnk} msg] $msg
+} {1 {bad variable name "test_ns_fred::lnk": unknown namespace}}
+
+if {[info commands testgetvarfullname] != {}} {
+    test var-4.1 {Tcl_GetVariableName, global variable} {
+        catch {unset a}
+        set a 123
+        testgetvarfullname a global
+    } ::a
+    test var-4.2 {Tcl_GetVariableName, namespace variable} {
+        namespace eval test_ns_var {
+            variable george
+            testgetvarfullname george namespace
+        }
+    } ::test_ns_var::george
+    test var-4.3 {Tcl_GetVariableName, variable can't be array element} {
+        catch {unset a}
+        set a(1) foo
+        list [catch {testgetvarfullname a(1) global} msg] $msg
+    } {1 {unknown variable "a(1)"}}
+}
+
+test var-5.1 {Tcl_GetVariableFullName, global variable} {
+    catch {unset a}
+    set a bar
+    namespace which -variable a
+} {::a}
+test var-5.2 {Tcl_GetVariableFullName, namespace variable} {
+    namespace eval test_ns_var {
+        variable martha
+        namespace which -variable martha
+    }
+} {::test_ns_var::martha}
+test var-5.3 {Tcl_GetVariableFullName, namespace variable} {
+    namespace which -variable test_ns_var::martha
+} {::test_ns_var::martha}
+
+test var-6.1 {Tcl_GlobalObjCmd, variable is qualified by a namespace name} {
+    namespace eval test_ns_var {
+        variable boeing 777
+    }
+    proc p {} {
+        global ::test_ns_var::boeing
+        set boeing
+    }
+    p
+} {777}
+test var-6.2 {Tcl_GlobalObjCmd, variable is qualified by a namespace name} {
+    namespace eval test_ns_var {
+        namespace eval test_ns_nested {
+            variable java java
+        }
+        proc p {} {
+            global ::test_ns_var::test_ns_nested::java
+            set java
+        }
+    }
+    test_ns_var::p
+} {java}
+test var-6.3 {Tcl_GlobalObjCmd, variable named {} qualified by a namespace name} {
+    set ::test_ns_var::test_ns_nested:: 24
+    proc p {} {
+        global ::test_ns_var::test_ns_nested::
+        set {}
+    }
+    p
+} {24}
+
+test var-7.1 {Tcl_VariableObjCmd, create and initialize one new ns variable} {
+    catch {namespace delete test_ns_var}
+    namespace eval test_ns_var {
+        variable one 1
+    }
+    list [info vars test_ns_var::*] [set test_ns_var::one]
+} {::test_ns_var::one 1}
+test var-7.2 {Tcl_VariableObjCmd, if new and no value, leave undefined} {
+    set two 2222222
+    namespace eval test_ns_var {
+        variable two
+    }
+    list [info vars test_ns_var::*] [catch {set test_ns_var::two} msg] $msg
+} {::test_ns_var::one 1 {can't read "test_ns_var::two": no such variable}}
+test var-7.3 {Tcl_VariableObjCmd, "define" var already created above} {
+    namespace eval test_ns_var {
+        variable two 2
+    }
+    list [info vars test_ns_var::*] \
+         [namespace eval test_ns_var {set two}]
+} {{::test_ns_var::two ::test_ns_var::one} 2}
+test var-7.4 {Tcl_VariableObjCmd, list of vars} {
+    namespace eval test_ns_var {
+        variable three 3 four 4
+    }
+    list [info vars test_ns_var::*] \
+         [namespace eval test_ns_var {expr $three+$four}]
+} {{::test_ns_var::four ::test_ns_var::three ::test_ns_var::two ::test_ns_var::one} 7}
+test var-7.5 {Tcl_VariableObjCmd, value for last var is optional} {
+    catch {unset a}
+    catch {unset five}
+    catch {unset six}
+    set a ""
+    set five 555
+    set six  666
+    namespace eval test_ns_var {
+        variable five 5 six
+        lappend a $five
+    }
+    lappend a $test_ns_var::five \
+        [set test_ns_var::six 6] [set test_ns_var::six] $six
+    catch {unset five}
+    catch {unset six}
+    set a
+} {5 5 6 6 666}
+catch {unset newvar}
+test var-7.6 {Tcl_VariableObjCmd, variable name can be qualified} {
+    namespace eval test_ns_var {
+        variable ::newvar cheers!
+    }
+    set newvar
+} {cheers!}
+catch {unset newvar}
+test var-7.7 {Tcl_VariableObjCmd, bad var name} {
+    namespace eval test_ns_var {
+        list [catch {variable sev:::en 7} msg] $msg
+    }
+} {1 {can't define "sev:::en": parent namespace doesn't exist}}
+test var-7.8 {Tcl_VariableObjCmd, if var already exists and no value is given, leave value unchanged} {
+    set a ""
+    namespace eval test_ns_var {
+        variable eight 8
+        lappend a $eight
+        variable eight
+        lappend a $eight
+    }
+    set a
+} {8 8}
+test var-7.9 {Tcl_VariableObjCmd, variable cmd inside proc creates local link var} {
+    namespace eval test_ns_var {
+        proc p {} {
+            variable eight
+            list [set eight] [info vars]
+        }
+        p
+    }
+} {8 eight}
+test var-7.10 {Tcl_VariableObjCmd, variable cmd inside proc creates local link var} {
+    proc p {} {   ;# note this proc is at global :: scope
+        variable test_ns_var::eight
+        list [set eight] [info vars]
+    }
+    p
+} {8 eight}
+test var-7.11 {Tcl_VariableObjCmd, variable cmd inside proc creates local link var} {
+    namespace eval test_ns_var {
+        variable {} {My name is empty}
+    }
+    proc p {} {   ;# note this proc is at global :: scope
+        variable test_ns_var::
+        list [set {}] [info vars]
+    }
+    p
+} {{My name is empty} {{}}}
+
+test var-8.1 {TclDeleteVars, "unset" traces are called with fully-qualified var names} {
+    catch {namespace delete test_ns_var}
+    catch {unset a}
+    namespace eval test_ns_var {
+        variable v 123
+        variable info ""
+
+        proc traceUnset {name1 name2 op} {
+            variable info
+            set info [concat $info [list $name1 $name2 $op]]
+        }
+
+        trace var v u [namespace code traceUnset]
+    }
+    list [unset test_ns_var::v] $test_ns_var::info
+} {{} {test_ns_var::v {} u}}
+
+test var-9.1 {behaviour of TclSetVar without TCL_LEAVE_ERR_MSG flag} {
+	testsetnoerr v 1
+} 1
+test var-9.2 {behaviour of TclGetVar without TCL_LEAVE_ERR_MSG flag} {
+	catch {unset v}
+	list [catch {testsetnoerr v} res] $res;
+} {1 {before get}}
+test var-9.3 {behaviour of TclGetVar without TCL_LEAVE_ERR_MSG flag} {
+	catch {unset arr}
+	set arr(1) 1;
+	list [catch {testsetnoerr arr} res] $res;
+} {1 {before get}}
+test var-9.4 {behaviour of TclGetVar without TCL_LEAVE_ERR_MSG flag} {
+	namespace eval ns {variable v nsv}
+	testsetnoerr ns::v;
+} nsv;
+test var-9.5 {behaviour of TclGetVar without TCL_LEAVE_ERR_MSG flag} {
+	catch {namespace delete ns}
+	list [catch {testsetnoerr ns::v} res] $res;
+} {1 {before get}}
+test var-9.6 {behaviour of TclSetVar without TCL_LEAVE_ERR_MSG flag} {
+	catch {unset arr}
+	set arr(1) 1;
+	list [catch {testsetnoerr arr 2} res] $res;
+} {1 {before set}}
+test var-9.6 {behaviour of TclSetVar without TCL_LEAVE_ERR_MSG flag} {
+	catch {unset arr}
+	set arr(1) 1;
+	list [catch {testsetnoerr arr 2} res] $res;
+} {1 {before set}}
+test var-9.7 {behaviour of TclSetVar without TCL_LEAVE_ERR_MSG flag} {
+    # this test currently fails, should not...
+    # (some namespace function resets the interp while it should not)
+    catch {namespace delete ns}
+    list [catch {testsetnoerr ns::v 1} res] $res;
+} {1 {before set}}
+test var-9.8 {behaviour of TclSetVar without TCL_LEAVE_ERR_MSG flag} {
+    proc readonly args {error "read-only"}
+    set v 456
+    trace var v w readonly
+    list [catch {testsetnoerr v 2} msg] $msg
+} {1 {before set}}
+
+catch {namespace delete ns}
+catch {unset arr}
+catch {unset v}
+
+catch {rename p ""}
+catch {namespace delete test_ns_var}
+catch {unset xx}
+catch {unset x}
+catch {unset y}
+catch {unset i}
+catch {unset a}
+catch {unset xxxxx}
+catch {unset aaaaa}
+

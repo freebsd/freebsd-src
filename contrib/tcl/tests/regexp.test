@@ -10,7 +10,7 @@
 # See the file "license.terms" for information on usage and redistribution
 # of this file, and for a DISCLAIMER OF ALL WARRANTIES.
 #
-# SCCS: @(#) regexp.test 1.20 96/04/02 15:03:53
+# SCCS: @(#) regexp.test 1.21 96/12/23 13:59:48
 
 if {[string compare test [info procs test]] == 1} then {source defs}
 
@@ -26,6 +26,9 @@ test regexp-1.3 {basic regexp operation} {
 } 0
 test regexp-1.4 {basic regexp operation} {
     regexp -- -gorp abc-gorpxxx
+} 1
+test regexp-1.5 {basic regexp operation} {
+    regexp {^([^ ]*)[ ]*([^ ]*)} "" a
 } 1
 
 test regexp-2.1 {getting substrings back from regexp} {

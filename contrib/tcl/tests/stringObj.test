@@ -1,0 +1,189 @@
+# Commands covered: none
+#
+# This file contains tests for the procedures in tclStringObj.c
+# that implement the Tcl type manager for the string type.
+#
+# Sourcing this file into Tcl runs the tests and generates output for
+# errors. No output means no errors were found.
+#
+# Copyright (c) 1995-1997 Sun Microsystems, Inc.
+#
+# See the file "license.terms" for information on usage and redistribution
+# of this file, and for a DISCLAIMER OF ALL WARRANTIES.
+#
+# @(#) stringObj.test 1.8 97/04/09 11:29:37
+
+if {[info commands testobj] == {}} {
+    puts "This application hasn't been compiled with the \"testobj\""
+    puts "command, so I can't test the Tcl type and object support."
+    return
+}
+
+if {[string compare test [info procs test]] == 1} then {source defs}
+
+test stringObj-1.1 {string type registration} {
+    set t [testobj types]
+    set first [string first "string" $t]
+    set result [expr {$first != -1}]
+} {1}
+
+test stringObj-2.1 {Tcl_NewStringObj} {
+    set result ""
+    lappend result [testobj freeallvars]
+    lappend result [teststringobj set 1 abcd]
+    lappend result [testobj type 1]
+    lappend result [testobj refcount 1]
+} {{} abcd string 2}
+
+test stringObj-3.1 {Tcl_SetStringObj, existing "empty string" object} {
+    set result ""
+    lappend result [testobj freeallvars]
+    lappend result [testobj newobj 1]
+    lappend result [teststringobj set 1 xyz] ;# makes existing obj a string
+    lappend result [testobj type 1]
+    lappend result [testobj refcount 1]
+} {{} {} xyz string 2}
+test stringObj-3.2 {Tcl_SetStringObj, existing non-"empty string" object} {
+    set result ""
+    lappend result [testobj freeallvars]
+    lappend result [testintobj set 1 512]
+    lappend result [teststringobj set 1 foo]  ;# makes existing obj a string
+    lappend result [testobj type 1]
+    lappend result [testobj refcount 1]
+} {{} 512 foo string 2}
+
+test stringObj-4.1 {Tcl_SetObjLength procedure, string gets shorter} {
+    testobj freeallvars
+    teststringobj set 1 test
+    teststringobj setlength 1 3
+    list [teststringobj length 1] [teststringobj length2 1] \
+	    [teststringobj get 1]
+} {3 4 tes}
+test stringObj-4.2 {Tcl_SetObjLength procedure, string gets longer} {
+    testobj freeallvars
+    teststringobj set 1 abcdef
+    teststringobj setlength 1 10
+    list [teststringobj length 1] [teststringobj length2 1]
+} {10 10}
+test stringObj-4.3 {Tcl_SetObjLength procedure, string gets longer} {
+    testobj freeallvars
+    teststringobj set 1 abcdef
+    teststringobj append 1 xyzq -1
+    list [teststringobj length 1] [teststringobj length2 1] \
+	    [teststringobj get 1]
+} {10 20 abcdefxyzq}
+test stringObj-4.4 {Tcl_SetObjLength procedure, "expty string", length 0} {
+    testobj freeallvars
+    testobj newobj 1
+    teststringobj setlength 1 0
+    list [teststringobj length2 1] [teststringobj get 1]
+} {0 {}}
+
+test stringObj-5.1 {Tcl_AppendToObj procedure, type conversion} {
+    testobj freeallvars
+    testintobj set2 1 43
+    teststringobj append 1 xyz -1
+    teststringobj get 1
+} {43xyz}
+test stringObj-5.2 {Tcl_AppendToObj procedure, length calculation} {
+    testobj freeallvars
+    teststringobj set 1 {x y }
+    teststringobj append 1 bbCCddEE 4
+    teststringobj append 1 123 -1
+    teststringobj get 1
+} {x y bbCC123}
+test stringObj-5.3 {Tcl_AppendToObj procedure, reallocating space} {
+    testobj freeallvars
+    teststringobj set 1 xyz
+    teststringobj setlength 1 15
+    teststringobj setlength 1 2
+    set result {}
+    teststringobj append 1 1234567890123 -1
+    lappend result [teststringobj length 1] [teststringobj length2 1]
+    teststringobj setlength 1 10
+    teststringobj append 1 abcdef -1
+    lappend result [teststringobj length 1] [teststringobj length2 1] \
+	    [teststringobj get 1]
+} {15 15 16 32 xy12345678abcdef}
+
+test stringObj-6.1 {Tcl_AppendStringsToObj procedure, type conversion} {
+    testobj freeallvars
+    teststringobj set2 1 [list a b]
+    teststringobj appendstrings 1 xyz { 1234 } foo
+    teststringobj get 1
+} {a bxyz 1234 foo}
+test stringObj-6.2 {Tcl_AppendStringsToObj procedure, counting space} {
+    testobj freeallvars
+    teststringobj set 1 abc
+    teststringobj appendstrings 1
+    list [teststringobj length 1] [teststringobj get 1]
+} {3 abc}
+test stringObj-6.3 {Tcl_AppendStringsToObj procedure, counting space} {
+    testobj freeallvars
+    teststringobj set 1 abc
+    teststringobj appendstrings 1 {} {} {} {}
+    list [teststringobj length 1] [teststringobj get 1]
+} {3 abc}
+test stringObj-6.4 {Tcl_AppendStringsToObj procedure, counting space} {
+    testobj freeallvars
+    teststringobj set 1 abc
+    teststringobj appendstrings 1 { 123 } abcdefg
+    list [teststringobj length 1] [teststringobj get 1]
+} {15 {abc 123 abcdefg}}
+test stringObj-6.5 {Tcl_AppendStringsToObj procedure, don't double space if initial string empty} {
+    testobj freeallvars
+    testobj newobj 1
+    teststringobj appendstrings 1 123 abcdefg
+    list [teststringobj length 1] [teststringobj length2 1] [teststringobj get 1]
+} {10 10 123abcdefg}
+test stringObj-6.6 {Tcl_AppendStringsToObj procedure, space reallocation} {
+    testobj freeallvars
+    teststringobj set 1 abc
+    teststringobj setlength 1 10
+    teststringobj setlength 1 2
+    teststringobj appendstrings 1 34567890
+    list [teststringobj length 1] [teststringobj length2 1] \
+	    [teststringobj get 1]
+} {10 10 ab34567890}
+test stringObj-6.7 {Tcl_AppendStringsToObj procedure, space reallocation} {
+    testobj freeallvars
+    teststringobj set 1 abc
+    teststringobj setlength 1 10
+    teststringobj setlength 1 2
+    teststringobj appendstrings 1 34567890x
+    list [teststringobj length 1] [teststringobj length2 1] \
+	    [teststringobj get 1]
+} {11 22 ab34567890x}
+test stringObj-6.8 {Tcl_AppendStringsToObj procedure, object totally empty} {
+    testobj freeallvars
+    testobj newobj 1
+    teststringobj appendstrings 1 {}
+    list [teststringobj length2 1] [teststringobj get 1]
+} {0 {}}
+
+test stringObj-7.1 {ConvertToStringType procedure} {
+    testobj freeallvars
+    teststringobj set2 1 [list a b]
+    teststringobj append 1 x -1
+    list [teststringobj length 1] [teststringobj length2 1] \
+	    [teststringobj get 1]
+} {4 8 {a bx}}
+test stringObj-7.2 {ConvertToStringType procedure, null object} {
+    testobj freeallvars
+    testobj newobj 1
+    teststringobj appendstrings 1 {}
+    list [teststringobj length 1] [teststringobj length2 1] \
+	    [teststringobj get 1]
+} {0 0 {}}
+
+test stringObj-8.1 {DupStringInternalRep procedure} {
+    testobj freeallvars
+    teststringobj set 1 {}
+    teststringobj append 1 abcde -1
+    testobj duplicate 1 2
+    list [teststringobj length 1] [teststringobj length2 1] \
+	    [teststringobj length 2] [teststringobj length2 2] \
+	    [teststringobj get 2]
+} {5 10 5 5 abcde}
+
+testobj freeallvars

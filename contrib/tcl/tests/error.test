@@ -5,12 +5,12 @@
 # generates output for errors.  No output means no errors were found.
 #
 # Copyright (c) 1991-1993 The Regents of the University of California.
-# Copyright (c) 1994 Sun Microsystems, Inc.
+# Copyright (c) 1994-1996 Sun Microsystems, Inc.
 #
 # See the file "license.terms" for information on usage and redistribution
 # of this file, and for a DISCLAIMER OF ALL WARRANTIES.
 #
-# SCCS: @(#) error.test 1.14 96/02/16 08:55:48
+# SCCS: @(#) error.test 1.18 96/11/07 18:36:09
 
 if {[string compare test [info procs test]] == 1} then {source defs}
 
@@ -42,9 +42,7 @@ test error-1.3 {simple errors from commands} {
     set errorInfo
 } {wrong # args: should be "string compare string1 string2"
     while executing
-"string compare"
-    invoked from within
-"format [string compare]..."}
+"format [string compare]"}
 
 test error-1.4 {simple errors from commands} {
     catch {error glorp} b
@@ -64,10 +62,6 @@ test error-1.7 {simple errors from commands} {
     set b
 } {wrong # args: should be "catch command ?varName?"}
 
-test error-2.1 {simple errors from commands} {
-    catch catch
-} 1
-
 # Check errors nested in procedures.  Also check the optional argument
 # to "error" to generate a new error trace.
 
@@ -86,7 +80,7 @@ test error-2.3 {errors in nested procedures} {
 } {Human-generated
     while executing
 "error {Human-generated}"
-    (procedure "foo" line 4)
+    (procedure "foo" line 1)
     invoked from within
 "foo"}
 
@@ -104,9 +98,7 @@ test error-2.6 {errors in nested procedures} {
     set errorInfo
 } {glorp2
     while executing
-"error glorp2"
-    invoked from within
-"format [error glorp2]..."
+"format [error glorp2]"
     (procedure "foo2" line 1)
     invoked from within
 "foo2"}

@@ -7,12 +7,12 @@
  *	history substitutions.
  *
  * Copyright (c) 1990-1993 The Regents of the University of California.
- * Copyright (c) 1994-1995 Sun Microsystems, Inc.
+ * Copyright (c) 1994-1996 Sun Microsystems, Inc.
  *
  * See the file "license.terms" for information on usage and redistribution
  * of this file, and for a DISCLAIMER OF ALL WARRANTIES.
  *
- * SCCS: @(#) tclHistory.c 1.40 96/02/15 11:50:24
+ * SCCS: @(#) tclHistory.c 1.43 97/05/14 13:23:18
  */
 
 #include "tclInt.h"
@@ -454,12 +454,15 @@ Tcl_HistoryCmd(dummy, interp, argc, argv)
 	iPtr->numEvents = count;
 	return TCL_OK;
     } else if ((c == 'n') && (strncmp(argv[1], "nextid", length)) == 0) {
+	char buf[40];
+	
 	if (argc != 2) {
 	    Tcl_AppendResult(interp, "wrong # args: should be \"", argv[0],
 		    " nextid\"", (char *) NULL);
 	    return TCL_ERROR;
 	}
-	sprintf(iPtr->result, "%d", iPtr->curEventNum+1);
+	TclFormatInt(buf, iPtr->curEventNum+1);
+	Tcl_SetResult(interp, buf, TCL_VOLATILE);
 	return TCL_OK;
     } else if ((c == 'r') && (strncmp(argv[1], "redo", length)) == 0) {
 	if (argc > 3) {
@@ -501,8 +504,7 @@ Tcl_HistoryCmd(dummy, interp, argc, argv)
 	    return TCL_ERROR;
 	}
 	RevResult(iPtr, words);
-	iPtr->result = words;
-	iPtr->freeProc = TCL_DYNAMIC;
+	Tcl_SetResult(interp, words, TCL_DYNAMIC);
 	return TCL_OK;
     }
 
@@ -1044,7 +1046,7 @@ GetWords(iPtr, command, words)
     }
     for (index = 0; *next != 0; index++) {
 	start = next;
-	end = TclWordEnd(next, 0, (int *) NULL);
+	end = TclWordEnd(next, next + strlen(next), 0, (int *) NULL);
 	if (*end != 0) {
 	    end++;
 	    for (next = end; isspace(UCHAR(*next)); next++) {

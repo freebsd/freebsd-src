@@ -10,7 +10,7 @@
 # See the file "license.terms" for information on usage and redistribution
 # of this file, and for a DISCLAIMER OF ALL WARRANTIES.
 #
-# SCCS: @(#) info.test 1.33 96/03/22 12:12:48
+# SCCS: @(#) info.test 1.38 97/05/20 16:35:54
 
 if {[string compare test [info procs test]] == 1} then {source defs}
 
@@ -33,6 +33,11 @@ test info-1.4 {info args option} {
 test info-1.5 {info args option} {
     list [catch {info args set} msg] $msg
 } {1 {"set" isn't a procedure}}
+test info-1.6 {info args option} {
+    proc t1 {a b} {set c 123; set d $c}
+    t1 1 2
+    info args t1
+} {a b}
 
 test info-2.1 {info body option} {
     proc t1 {} {body of t1}
@@ -45,12 +50,15 @@ test info-2.3 {info body option} {
     list [catch {info args set 1} msg] $msg
 } {1 {wrong # args: should be "info args procname"}}
 
+# "info cmdcount" is no longer accurate for compiled commands! The expected
+# result for info-3.1 used to be "3" and is now "1" since the "set"s have
+# been compiled away.
 test info-3.1 {info cmdcount option} {
     set x [info cmdcount]
     set y 12345
     set z [info cm]
     expr $z-$x
-} 3
+} 1
 test info-3.2 {info body option} {
     list [catch {info cmdcount 1} msg] $msg
 } {1 {wrong # args: should be "info cmdcount"}}
@@ -367,7 +375,7 @@ test info-9.4 {info level option} {
 } {1 t1}
 test info-9.5 {info level option} {
     list [catch {info level 1 2} msg] $msg
-} {1 {wrong # args: should be "info level [number]"}}
+} {1 {wrong # args: should be "info level ?number?"}}
 test info-9.6 {info level option} {
     list [catch {info level 123a} msg] $msg
 } {1 {expected integer but got "123a"}}
@@ -383,7 +391,7 @@ test info-9.9 {info level option} {
     list [catch {t1 -3} msg] $msg
 } {1 {bad level "-3"}}
 
-set savedLibrary tcl_library
+set savedLibrary $tcl_library
 test info-10.1 {info library option} {
     list [catch {info library x} msg] $msg
 } {1 {wrong # args: should be "info library"}}
@@ -433,6 +441,14 @@ test info-12.5 {info locals option} {
     proc t1 {} {return [info locals]}
     t1
 } {}
+test info-12.6 {info locals vs unset compiled locals} {
+    proc t1 {lst} {
+        foreach $lst $lst {}
+        unset lst
+        return [info locals]
+    }
+    lsort [t1 {a b c c d e f}]
+} {a b c d e f}
 
 test info-13.1 {info nameofexecutable option} {
     list [catch {info nameofexecutable foo} msg] $msg
@@ -543,13 +559,13 @@ test info-20.1 {miscellaneous error conditions} {
 } {1 {wrong # args: should be "info option ?arg arg ...?"}}
 test info-20.2 {miscellaneous error conditions} {
     list [catch {info gorp} msg] $msg
-} {1 {bad option "gorp": should be args, body, cmdcount, commands, complete, default, exists, globals, hostname, level, library, loaded, locals, nameofexecutable, patchlevel, procs, script, sharedlibextension, tclversion, or vars}}
+} {1 {bad option "gorp": must be args, body, cmdcount, commands, complete, default, exists, globals, hostname, level, library, loaded, locals, nameofexecutable, patchlevel, procs, script, sharedlibextension, tclversion, or vars}}
 test info-20.3 {miscellaneous error conditions} {
     list [catch {info c} msg] $msg
-} {1 {bad option "c": should be args, body, cmdcount, commands, complete, default, exists, globals, hostname, level, library, loaded, locals, nameofexecutable, patchlevel, procs, script, sharedlibextension, tclversion, or vars}}
+} {1 {ambiguous option "c": must be args, body, cmdcount, commands, complete, default, exists, globals, hostname, level, library, loaded, locals, nameofexecutable, patchlevel, procs, script, sharedlibextension, tclversion, or vars}}
 test info-20.4 {miscellaneous error conditions} {
     list [catch {info l} msg] $msg
-} {1 {bad option "l": should be args, body, cmdcount, commands, complete, default, exists, globals, hostname, level, library, loaded, locals, nameofexecutable, patchlevel, procs, script, sharedlibextension, tclversion, or vars}}
+} {1 {ambiguous option "l": must be args, body, cmdcount, commands, complete, default, exists, globals, hostname, level, library, loaded, locals, nameofexecutable, patchlevel, procs, script, sharedlibextension, tclversion, or vars}}
 test info-20.5 {miscellaneous error conditions} {
     list [catch {info s} msg] $msg
-} {1 {bad option "s": should be args, body, cmdcount, commands, complete, default, exists, globals, hostname, level, library, loaded, locals, nameofexecutable, patchlevel, procs, script, sharedlibextension, tclversion, or vars}}
+} {1 {ambiguous option "s": must be args, body, cmdcount, commands, complete, default, exists, globals, hostname, level, library, loaded, locals, nameofexecutable, patchlevel, procs, script, sharedlibextension, tclversion, or vars}}

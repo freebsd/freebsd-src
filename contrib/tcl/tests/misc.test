@@ -6,12 +6,12 @@
 # releases.
 #
 # Copyright (c) 1992-1993 The Regents of the University of California.
-# Copyright (c) 1994 Sun Microsystems, Inc.
+# Copyright (c) 1994-1996 Sun Microsystems, Inc.
 #
 # See the file "license.terms" for information on usage and redistribution
 # of this file, and for a DISCLAIMER OF ALL WARRANTIES.
 #
-# SCCS: @(#) misc.test 1.5 96/02/16 08:56:18
+# SCCS: @(#) misc.test 1.11 97/06/20 16:53:28
 
 if {[string compare test [info procs test]] == 1} then {source defs}
 
@@ -48,23 +48,10 @@ test misc-1.2 {error in variable ref. in command in array reference} {
     "
     set msg {}
     list [catch tstProc msg] $msg $errorInfo
-} [list 1 {missing close-brace for variable name} \
-[format {missing close-brace for variable name
-    while executing
-"winfo name $%szz)
-	# this is a bogus comment
-	# this is a bogus comment
-	# this is a bogus comment
-	# this is a bogus comment
-	# this is a bogus commen ..."
-    (parsing index for array "a")
+} [list 1 {missing close-bracket or close-brace} \
+{missing close-bracket or close-brace
+    while compiling
+"set"
+    (compiling body of proc "tstProc", line 4)
     invoked from within
-"set tst $a([winfo name $%szz)
-	# this is a bogus comment
-	# this is a bogus comment
-	# this is a bogus comment
-	# this is a bogus comment
-	# this is a  ..."
-    (procedure "tstProc" line 4)
-    invoked from within
-"tstProc"} \{ \{]]
+"tstProc"}]

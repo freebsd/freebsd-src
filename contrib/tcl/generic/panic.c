@@ -11,7 +11,7 @@
  * See the file "license.terms" for information on usage and redistribution
  * of this file, and for a DISCLAIMER OF ALL WARRANTIES.
  *
- * SCCS: @(#) panic.c 1.11 96/02/15 11:50:29
+ * SCCS: @(#) panic.c 1.15 96/09/12 14:55:25
  */
 
 #include <stdio.h>
@@ -21,7 +21,13 @@
 #   include <stdlib.h>
 #endif
 
+#define panic panicDummy
 #include "tcl.h"
+#undef panic
+
+EXTERN void		panic _ANSI_ARGS_((char *format, char *arg1,
+			    char *arg2, char *arg3, char *arg4, char *arg5,
+			    char *arg6, char *arg7, char *arg8));
 
 /*
  * The panicProc variable contains a pointer to an application
@@ -29,8 +35,6 @@
  */
 
 void (*panicProc) _ANSI_ARGS_(TCL_VARARGS(char *,format)) = NULL;
-
-
 
 /*
  *----------------------------------------------------------------------

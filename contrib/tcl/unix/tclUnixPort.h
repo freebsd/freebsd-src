@@ -19,7 +19,7 @@
  * See the file "license.terms" for information on usage and redistribution
  * of this file, and for a DISCLAIMER OF ALL WARRANTIES.
  *
- * SCCS: @(#) tclUnixPort.h 1.34 96/07/23 16:17:47
+ * SCCS: @(#) tclUnixPort.h 1.47 97/05/22 10:57:36
  */
 
 #ifndef _TCLUNIXPORT
@@ -69,6 +69,21 @@
 #else
 #   include "../compat/unistd.h"
 #endif
+#ifdef	USE_FIONBIO
+
+    /*
+     * Not using the Posix fcntl(...,O_NONBLOCK,...) interface, instead
+     * we are using ioctl(..,FIONBIO,..).
+     */
+
+#   ifdef HAVE_SYS_FILIO_H
+#	include	<sys/filio.h>	/* For FIONBIO. */
+#   endif
+
+#   ifdef HAVE_SYS_IOCTL_H
+#	include	<sys/ioctl.h>	/* For FIONBIO. */
+#   endif
+#endif	/* USE_FIONBIO */
 
 /*
  * Socket support stuff: This likely needs more work to parameterize for
@@ -76,10 +91,41 @@
  */
 
 #include <sys/socket.h>		/* struct sockaddr, SOCK_STREAM, ... */
-#include <sys/utsname.h>	/* uname system call. */
+#ifndef NO_UNAME
+#   include <sys/utsname.h>	/* uname system call. */
+#endif
 #include <netinet/in.h>		/* struct in_addr, struct sockaddr_in */
 #include <arpa/inet.h>		/* inet_ntoa() */
 #include <netdb.h>		/* gethostbyname() */
+
+/*
+ * Some platforms (e.g. SunOS) don't define FLT_MAX and FLT_MIN, so we
+ * look for an alternative definition.  If no other alternative is available
+ * we use a reasonable guess.
+ */
+
+#ifndef NO_FLOAT_H
+#include <float.h>
+#else
+#   ifndef NO_VALUES_H
+#	include <values.h>
+#   endif
+#endif
+
+#ifndef FLT_MAX
+#   ifdef MAXFLOAT
+#	define FLT_MAX MAXFLOAT
+#   else
+#	define FLT_MAX 3.402823466E+38F
+#   endif
+#endif
+#ifndef FLT_MIN
+#   ifdef MINFLOAT
+#	define FLT_MIN MINFLOAT
+#   else
+#	define FLT_MIN 1.175494351E-38F
+#   endif
+#endif
 
 /*
  * NeXT doesn't define O_NONBLOCK, so #define it here if necessary.
@@ -100,6 +146,16 @@
 #else
 #  define NBIO_FLAG O_NDELAY
 #endif
+
+/*
+ * The following defines denote malloc and free as the system calls
+ * used to allocate new memory.  These defines are only used in the
+ * file tclCkalloc.c.
+ */
+
+#define TclpAlloc(size)		malloc(size)
+#define TclpFree(ptr)		free(ptr)
+#define TclpRealloc(ptr, size)	realloc(ptr, size)
 
 /*
  * The default platform eol translation on Unix is TCL_TRANSLATE_LF:
@@ -417,5 +473,15 @@ extern double strtod();
 
 #define TclpGetDate(t,u) ((u) ? gmtime((t)) : localtime((t)))
 #define TclStrftime(s,m,f,t) (strftime((s),(m),(f),(t)))
+#define TclpGetPid(pid)	    ((unsigned long) (pid))
+
+#define TclpReleaseFile(file)	
+
+/*
+ * The following routine is only exported for testing purposes.
+ */
+
+EXTERN int	TclUnixWaitForFile _ANSI_ARGS_((int fd, int mask,
+		    int timeout));
 
 #endif /* _TCLUNIXPORT */

@@ -1,41 +1,23 @@
 '\"
 '\" Copyright (c) 1989-1993 The Regents of the University of California.
-'\" Copyright (c) 1994-1996 Sun Microsystems, Inc.
+'\" Copyright (c) 1994-1997 Sun Microsystems, Inc.
 '\"
 '\" See the file "license.terms" for information on usage and redistribution
 '\" of this file, and for a DISCLAIMER OF ALL WARRANTIES.
 '\" 
-'\" SCCS: @(#) CrtCommand.3 1.22 96/03/25 19:58:44
+'\" SCCS: @(#) CrtCommand.3 1.29 97/06/04 17:23:53
 '\" 
 .so man.macros
 .TH Tcl_CreateCommand 3 "" Tcl "Tcl Library Procedures"
 .BS
 .SH NAME
-Tcl_CreateCommand, Tcl_DeleteCommand, Tcl_GetCommandInfo, Tcl_SetCommandInfo \- implement new commands in C
+Tcl_CreateCommand \- implement new commands in C
 .SH SYNOPSIS
 .nf
 \fB#include <tcl.h>\fR
 .sp
-.VS
-.VE
 Tcl_Command
 \fBTcl_CreateCommand\fR(\fIinterp, cmdName, proc, clientData, deleteProc\fR)
-.sp
-int
-\fBTcl_DeleteCommand\fR(\fIinterp, cmdName\fR)
-.sp
-.VS
-int
-\fBTcl_GetCommandInfo\fR(\fIinterp, cmdName, infoPtr\fR)
-.sp
-int
-\fBTcl_SetCommandInfo\fR(\fIinterp, cmdName, infoPtr\fR)
-.sp
-.VS
-char *
-\fBTcl_GetCommandName\fR(\fIinterp, token\fR)
-.VE
-.VE
 .SH ARGUMENTS
 .AS Tcl_CmdDeleteProc **deleteProcPtr
 .AP Tcl_Interp *interp in
@@ -51,14 +33,6 @@ Arbitrary one-word value to pass to \fIproc\fR and \fIdeleteProc\fR.
 Procedure to call before \fIcmdName\fR is deleted from the interpreter;
 allows for command-specific cleanup.  If NULL, then no procedure is
 called before the command is deleted.
-.AP Tcl_CmdInfo *infoPtr in/out
-.VS
-Pointer to structure containing various information about a
-Tcl command.
-.AP Tcl_Command token in
-Token for command, returned by previous call to \fBTcl_CreateCommand\fR.
-The command must not have been deleted.
-.VE
 .BE
 
 .SH DESCRIPTION
@@ -66,16 +40,41 @@ The command must not have been deleted.
 \fBTcl_CreateCommand\fR defines a new command in \fIinterp\fR and associates
 it with procedure \fIproc\fR such that whenever \fIcmdName\fR is
 invoked as a Tcl command (via a call to \fBTcl_Eval\fR) the Tcl interpreter
-will call \fIproc\fR
-to process the command.  If there is already a command \fIcmdName\fR
-associated with the interpreter, it is deleted.
-.VS
-\fBTcl_CreateCommand\fR returns a token that may be used to refer
+will call \fIproc\fR to process the command.
+It differs from \fBTcl_CreateObjCommand\fR in that a new string-based
+command is defined;
+that is, a command procedure is defined that takes an array of
+argument strings instead of objects.
+The object-based command procedures registered by \fBTcl_CreateObjCommand\fR
+can execute significantly faster than the string-based command procedures
+defined by \fBTcl_CreateCommand\fR.
+This is because they take Tcl objects as arguments
+and those objects can retain an internal representation that
+can be manipulated more efficiently.
+Also, Tcl's interpreter now uses objects internally.
+In order to invoke a string-based command procedure
+registered by \fBTcl_CreateCommand\fR,
+it must generate and fetch a string representation
+from each argument object before the call
+and create a new Tcl object to hold the string result returned by the
+string-based command procedure.
+New commands should be defined using \fBTcl_CreateObjCommand\fR.
+We support \fBTcl_CreateCommand\fR for backwards compatibility.
+.PP
+The procedures \fBTcl_DeleteCommand\fR, \fBTcl_GetCommandInfo\fR,
+and \fBTcl_SetCommandInfo\fR are used in conjunction with
+\fBTcl_CreateCommand\fR.
+.PP
+\fBTcl_CreateCommand\fR will delete an existing command \fIcmdName\fR,
+if one is already associated with the interpreter.
+It returns a token that may be used to refer
 to the command in subsequent calls to \fBTcl_GetCommandName\fR.
+If \fIcmdName\fR contains any \fB::\fR namespace qualifiers,
+then the command is added to the specified namespace;
+otherwise the command is added to the global namespace.
 If \fBTcl_CreateCommand\fR is called for an interpreter that is in
 the process of being deleted, then it does not create a new command
 and it returns NULL.
-.VE
 \fIProc\fR should have arguments and result that match the type
 \fBTcl_CmdProc\fR:
 .CS
@@ -101,24 +100,22 @@ last value is NULL.
 \fBTCL_RETURN\fR, \fBTCL_BREAK\fR, or \fBTCL_CONTINUE\fR.  See the Tcl overview man page
 for details on what these codes mean.  Most normal commands will only
 return \fBTCL_OK\fR or \fBTCL_ERROR\fR.  In addition, \fIproc\fR must set
-\fIinterp->result\fR to point to a string value;
+the interpreter result to point to a string value;
 in the case of a \fBTCL_OK\fR return code this gives the result
 of the command, and in the case of \fBTCL_ERROR\fR it gives an error message.
 The \fBTcl_SetResult\fR procedure provides an easy interface for setting
-the return value;  for complete details on how the \fIinterp->result\fR
+the return value;  for complete details on how the the interpreter result
 field is managed, see the \fBTcl_Interp\fR man page.
 Before invoking a command procedure,
-\fBTcl_Eval\fR sets \fIinterp->result\fR to point to an empty string, so simple
-commands can return an empty result by doing nothing at all.
+\fBTcl_Eval\fR sets the interpreter result to point to an empty string,
+so simple commands can return an empty result by doing nothing at all.
 .PP
-.VS
 The contents of the \fIargv\fR array belong to Tcl and are not
 guaranteed to persist once \fIproc\fR returns:  \fIproc\fR should
-not modify them, nor should it set \fIinterp->result\fR to point
+not modify them, nor should it set the interpreter result to point
 anywhere within the \fIargv\fR values.
 Call \fBTcl_SetResult\fR with status \fBTCL_VOLATILE\fR if you want
 to return something from the \fIargv\fR array.
-.VE
 .PP
 \fIDeleteProc\fR will be invoked when (if) \fIcmdName\fR is deleted.
 This can occur through a call to \fBTcl_DeleteCommand\fR or \fBTcl_DeleteInterp\fR,
@@ -133,49 +130,9 @@ typedef void Tcl_CmdDeleteProc(ClientData \fIclientData\fR);
 The \fIclientData\fR argument will be the same as the \fIclientData\fR
 argument passed to \fBTcl_CreateCommand\fR.
 .PP
-\fBTcl_DeleteCommand\fR deletes a command from a command interpreter.
-Once the call completes, attempts to invoke \fIcmdName\fR in
-\fIinterp\fR will result in errors.
-If \fIcmdName\fR isn't bound as a command in \fIinterp\fR then
-\fBTcl_DeleteCommand\fR does nothing and returns -1;  otherwise
-it returns 0.
-There are no restrictions on \fIcmdName\fR:  it may refer to
-a built-in command, an application-specific command, or a Tcl procedure.
-.PP
-.VS
-\fBTcl_GetCommandInfo\fR checks to see whether its \fIcmdName\fR argument
-exists as a command in \fIinterp\fR.  If not then it returns 0.
-Otherwise it places information about the command in the structure
-pointed to by \fIinfoPtr\fR and returns 1.
-Tcl_CmdInfo structures have fields named \fIproc\fR, \fIclientData\fR,
-and \fIdeleteProc\fR, which have the same meaning as the corresponding
-arguments to \fBTcl_CreateCommand\fR.
-There is also a field \fIdeleteData\fR, which is the ClientData value
-to pass to \fIdeleteProc\fR;  it is normally the same as
-\fIclientData\fR but may be set independently using the
-\fBTcl_SetCommandInfo\fR procedure.
-.PP
-\fBTcl_SetCommandInfo\fR is used to modify the procedures and
-ClientData values associated with a command.
-Its \fIcmdName\fR argument is the name of a command in \fIinterp\fR.
-If this command does not exist then \fBTcl_SetCommandInfo\fR returns 0.
-Otherwise, it copies the information from \fI*infoPtr\fR to
-Tcl's internal structure for the command and returns 1.
-Note that this procedure allows the ClientData for a command's
-deletion procedure to be given a different value than the ClientData
-for its command procedure.
-.PP
-\fBTcl_GetCommandName\fR provides a mechanism for tracking commands
-that have been renamed.  Given a token returned by \fBTcl_CreateCommand\fR
-when the command was created, \fBTcl_GetCommandName\fR returns the
-string name of the command.  If the command has been renamed since it
-was created, then \fBTcl_GetCommandName\fR returns the current name.
-The command corresponding to \fItoken\fR must not have been deleted.
-The string returned by \fBTcl_GetCommandName\fR is in dynamic memory
-owned by Tcl and is only guaranteed to retain its value as long as the
-command isn't deleted or renamed;  callers should copy the string if
-they need to keep it for a long time.
-.VE
+
+.SH "SEE ALSO"
+Tcl_CreateObjCommand, Tcl_DeleteCommand, Tcl_GetCommandInfo, Tcl_SetCommandInfo, Tcl_GetCommandName, Tcl_SetObjResult
 
 .SH KEYWORDS
-bind, command, create, delete, interpreter
+bind, command, create, delete, interpreter, namespace

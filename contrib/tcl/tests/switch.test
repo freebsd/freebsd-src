@@ -10,7 +10,7 @@
 # See the file "license.terms" for information on usage and redistribution
 # of this file, and for a DISCLAIMER OF ALL WARRANTIES.
 #
-# SCCS: @(#) switch.test 1.5 96/02/16 08:56:31
+# SCCS: @(#) switch.test 1.7 97/02/10 17:27:13
 
 if {[string compare test [info procs test]] == 1} then {source defs}
 
@@ -85,7 +85,7 @@ test switch-3.5 {-exact vs. -glob vs. -regexp} {
 } exact
 test switch-3.6 {-exact vs. -glob vs. -regexp} {
     list [catch {switch -foo a b c} msg] $msg
-} {1 {bad option "-foo": should be -exact, -glob, -regexp, or --}}
+} {1 {bad option "-foo": must be -exact, -glob, -regexp, or --}}
 
 test switch-4.1 {error in executed command} {
     list [catch {switch a a {error "Just a test"} default {format 1}} msg] \
@@ -168,3 +168,12 @@ test switch-7.3 {"-" bodies} {
 	}
     } msg] $msg
 } {1 {invalid command name "-foo"}}
+
+test switch-8.1 {empty body} {
+    set msg {}
+    switch {2} {
+    	1 {set msg 1}
+        2 {}
+        default {set msg 2}
+    }
+} {}

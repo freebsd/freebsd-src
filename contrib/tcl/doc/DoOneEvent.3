@@ -5,7 +5,7 @@
 '\" See the file "license.terms" for information on usage and redistribution
 '\" of this file, and for a DISCLAIMER OF ALL WARRANTIES.
 '\" 
-'\" SCCS: @(#) DoOneEvent.3 1.5 96/03/25 20:02:05
+'\" SCCS: @(#) DoOneEvent.3 1.6 97/05/09 18:12:05
 '\" 
 .so man.macros
 .TH Tcl_DoOneEvent 3 7.5 Tcl "Tcl Library Procedures"
@@ -46,7 +46,7 @@ If no events are found, \fBTcl_DoOneEvent\fR checks for \fBTcl_DoWhenIdle\fR
 callbacks; if any are found, it invokes all of them and returns.
 Finally, if no events or idle callbacks have been found, then
 \fBTcl_DoOneEvent\fR sleeps until an event occurs; then it adds any 
-ew events to the Tcl event queue, calls handlers for the first event,
+new events to the Tcl event queue, calls handlers for the first event,
 and returns.
 The normal return value is 1 to signify that some event
 was processed (see below for other alternatives).

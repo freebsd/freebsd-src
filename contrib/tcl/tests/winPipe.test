@@ -1,0 +1,283 @@
+# 
+# winPipe.test --
+#
+# This file contains a collection of tests for tclWinPipe.c
+
+# Sourcing this file into Tcl runs the tests and generates output for 
+# errors.  No output means no errors were found.
+#
+# Copyright (c) 1996 Sun Microsystems, Inc.
+#
+# See the file "license.terms" for information on usage and redistribution
+# of this file, and for a DISCLAIMER OF ALL WARRANTIES.
+#
+# SCCS: @(#) winPipe.test 1.7 97/06/23 17:30:41
+
+if {$tcl_platform(platform) != "windows"} {
+    return
+}
+
+set cat16 [file join $tcl_library ../win/cat16.exe]
+set cat32 [file join $tcl_library ../win/cat32.exe]
+
+if {[string compare test [info procs test]] == 1} then {source defs}
+
+if [catch {puts console1 ""}] {
+    set testConfig(AllocConsole) 1
+} else {
+    set testConfig(.console) 1
+}
+
+set big aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa\n
+append big $big
+append big $big	
+append big $big
+append big $big
+append big $big
+append big $big
+
+set f [open "little" w] 
+puts -nonewline $f "little"
+close $f
+
+set f [open "big" w]
+puts -nonewline $f $big
+close $f
+
+proc contents {file} {
+    set f [open $file r]
+    set r [read $f]
+    close $f
+    set r
+}
+
+if [file exists $cat32] {
+test winpipe-1.1 {32 bit comprehensive tests: from little file} {
+    exec $cat32 < little > stdout 2> stderr
+    list [contents stdout] [contents stderr]
+} "little stderr32"
+test winpipe-1.2 {32 bit comprehensive tests: from big file} {
+    exec $cat32 < big > stdout 2> stderr
+    list [contents stdout] [contents stderr]
+} "{$big} stderr32"
+test winpipe-1.3 {32 bit comprehensive tests: a little from pipe} {nt} {
+    exec more < little | $cat32 > stdout 2> stderr
+    list [contents stdout] [contents stderr]
+} "{little\n} stderr32"
+test winpipe-1.4 {32 bit comprehensive tests: a little from pipe} {95} {
+    exec more < little |& $cat32 > stdout 2> stderr
+    list [contents stdout] [contents stderr]
+} "{\nlittle} stderr32"
+test winpipe-1.5 {32 bit comprehensive tests: a lot from pipe} {nt} {
+    exec more < big | $cat32 > stdout 2> stderr
+    list [contents stdout] [contents stderr]
+} "{$big} stderr32"
+test winpipe-1.6 {32 bit comprehensive tests: a lot from pipe} {95} {
+    exec command /c type big |& $cat32 > stdout 2> stderr
+    list [contents stdout] [contents stderr]
+} "{$big} stderr32"
+test winpipe-1.7 {32 bit comprehensive tests: from console} {AllocConsole} {
+    # would block waiting for human input
+} {}
+test winpipe-1.8 {32 bit comprehensive tests: from NUL} {
+    exec $cat32 < nul > stdout 2> stderr
+    list [contents stdout] [contents stderr]
+} "{} stderr32"
+test winpipe-1.9 {32 bit comprehensive tests: from socket} {
+    # doesn't work
+} {}
+test winpipe-1.10 {32 bit comprehensive tests: from nowhere} {.console} {
+    exec $cat32 > stdout 2> stderr
+    list [contents stdout] [contents stderr]
+} "{} stderr32"
+test winpipe-1.11 {32 bit comprehensive tests: from file handle} {
+    set f [open "little" r]
+    exec $cat32 <@$f > stdout 2> stderr
+    close $f
+    list [contents stdout] [contents stderr]
+} "little stderr32"
+test winpipe-1.12 {32 bit comprehensive tests: read from application} {
+    set f [open "|$cat32 < little" r]
+    gets $f line
+    catch {close $f} msg
+    list $line $msg
+} "little stderr32"
+test winpipe-1.13 {32 bit comprehensive tests: a little to file} {
+    exec $cat32 < little > stdout 2> stderr
+    list [contents stdout] [contents stderr]
+} "little stderr32"
+test winpipe-1.14 {32 bit comprehensive tests: a lot to file} {
+    exec $cat32 < big > stdout 2> stderr
+    list [contents stdout] [contents stderr]
+} "{$big} stderr32"
+test winpipe-1.15 {32 bit comprehensive tests: a little to pipe} {nt} {
+    exec $cat32 < little | more > stdout 2> stderr
+    list [contents stdout] [contents stderr]
+} "{little\n} stderr32"
+test winpipe-1.16 {32 bit comprehensive tests: a little to pipe} {95} {
+    exec $cat32 < little | more > stdout 2> stderr
+    list [contents stdout] [contents stderr]
+} "{\nlittle} stderr32"
+test winpipe-1.17 {32 bit comprehensive tests: a lot to pipe} {nt} {
+    exec $cat32 < big | more > stdout 2> stderr
+    list [contents stdout] [contents stderr]
+} "{$big\n} stderr32"
+test winpipe-1.18 {32 bit comprehensive tests: a lot to pipe} {95} {
+    exec $cat32 < big | more > stdout 2> stderr
+    list [contents stdout] [contents stderr]
+} "{\n$big} stderr32"
+test winpipe-1.19 {32 bit comprehensive tests: to console} {
+    catch {exec $cat32 << "You should see this\n" >@stdout} msg
+    set msg
+} stderr32
+test winpipe-1.20 {32 bit comprehensive tests: to NUL} {
+    # some apps hang when sending a large amount to NUL.  $cat32 isn't one.
+    catch {exec $cat32 < big > nul} msg
+    set msg
+} stderr32
+test winpipe-1.21 {32 bit comprehensive tests: to nowhere} {.console} {
+    exec $cat32 < big >&@stdout 
+} {}
+test winpipe-1.22 {32 bit comprehensive tests: to file handle} {
+    set f1 [open "stdout" w]
+    set f2 [open "stderr" w]
+    exec $cat32 < little >@$f1 2>@$f2
+    close $f1
+    close $f2
+    list [contents stdout] [contents stderr]
+} "little stderr32"
+test winpipe-1.23 {32 bit comprehensive tests: write to application} {
+    set f [open "|$cat32 > stdout" w]
+    puts -nonewline $f "foo"
+    catch {close $f} msg
+    list [contents stdout] $msg
+} "foo stderr32"
+test winpipe-1.24 {32 bit comprehensive tests: read/write application} {
+    set f [open "|$cat32" r+]
+    puts $f $big
+    puts $f \032
+    flush $f
+    set r [read $f 64]
+    catch {close $f}
+    set r
+} "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+test winpipe-1.25 {32 bit comprehensive tests: to socket} {
+    # doesn't work
+} {}
+}
+
+if [file exists $cat16] {
+test winpipe-2.1 {16 bit comprehensive tests: from little file} {
+    exec $cat16 < little > stdout 2> stderr
+    list [contents stdout] [contents stderr]
+} "little stderr16"
+test winpipe-2.2 {16 bit comprehensive tests: from big file} {
+    exec $cat16 < big > stdout 2> stderr
+    list [contents stdout] [contents stderr] 
+} "{$big} stderr16"
+test winpipe-2.3 {16 bit comprehensive tests: a little from pipe} {nt} {
+    exec more < little | $cat16 > stdout 2> stderr
+    list [contents stdout] [contents stderr]
+} "{little\n} stderr16"
+test winpipe-2.4 {16 bit comprehensive tests: a little from pipe} {95} {
+    exec more < little | $cat16 > stdout 2> stderr
+    list [contents stdout] [contents stderr]
+} "{\nlittle} stderr16"
+test winpipe-2.5 {16 bit comprehensive tests: a lot from pipe} {nt} {
+    exec $cat16 < big | $cat16 > stdout 2> stderr
+    list [contents stdout] [contents stderr] 
+} "{$big} stderr16stderr16"
+test winpipe-2.6 {16 bit comprehensive tests: a lot from pipe} {95} {
+    exec more < big | $cat16 > stdout 2> stderr
+    list [contents stdout] [contents stderr] 
+} "{\n$big} stderr16"
+test winpipe-2.7 {16 bit comprehensive tests: from console} {AllocConsole} {
+    # would block waiting for human input
+} {}		     
+test winpipe-2.8 {16 bit comprehensive tests: from NUL} {nt} {
+    exec $cat16 < nul > stdout 2> stderr
+    list [contents stdout] [contents stderr]
+} "{} stderr16"
+test winpipe-2.9 {16 bit comprehensive tests: from socket} {
+    # doesn't work
+} {}
+test winpipe-2.10 {16 bit comprehensive tests: from nowhere} {.console} {
+    exec $cat16 > stdout 2> stderr
+    list [contents stdout] [contents stderr]
+} "{} stderr16"
+test winpipe-2.11 {16 bit comprehensive tests: from file handle} {
+    set f [open "little" r]
+    exec $cat16 <@$f > stdout 2> stderr
+    close $f
+    list [contents stdout] [contents stderr]
+} "little stderr16"
+test winpipe-2.12 {16 bit comprehensive tests: read from application} {
+    set f [open "|$cat16 < little" r]
+    gets $f line
+    catch {close $f} msg
+    list $line $msg
+} {little stderr16}
+test winpipe-2.13 {16 bit comprehensive tests: a little to file} {
+    exec $cat16 < little > stdout 2> stderr
+    list [contents stdout] [contents stderr]
+} "little stderr16"
+test winpipe-2.14 {16 bit comprehensive tests: a lot to file} {
+    exec $cat16 < big > stdout 2> stderr
+    list [contents stdout] [contents stderr]
+} "{$big} stderr16"
+test winpipe-2.15 {16 bit comprehensive tests: a little to pipe} {nt} {
+    catch {exec $cat16 < little | more > stdout 2> stderr}
+    list [contents stdout] [contents stderr]
+} "{little\n} stderr16"
+test winpipe-2.16 {16 bit comprehensive tests: a little to pipe} {95} {
+    exec $cat16 < little | more > stdout 2> stderr
+    list [contents stdout] [contents stderr]
+} "{\nlittle} stderr16"
+test winpipe-2.17 {16 bit comprehensive tests: a lot to pipe} {nt} {
+    catch {exec $cat16 < big | more > stdout 2> stderr}
+    list [contents stdout] [contents stderr]
+} "{$big\n} stderr16"
+test winpipe-2.18 {16 bit comprehensive tests: a lot to pipe} {95} {
+    exec $cat16 < big | more > stdout 2> stderr
+    list [contents stdout] [contents stderr]
+} "{\n$big} stderr16"
+test winpipe-2.19 {16 bit comprehensive tests: to console} {
+    catch {exec $cat16 << "You should see this\n" >@stdout} msg
+    set msg
+} stderr16
+test winpipe-2.20 {16 bit comprehensive tests: to NUL} {nt} {
+    # some apps hang when sending a large amount to NUL.  cat16 isn't one.
+    catch {exec $cat16 < big > nul} msg
+    set msg
+} stderr16
+test winpipe-2.21 {16 bit comprehensive tests: to nowhere} {.console} {
+    exec $cat16 < big >&@stdout 
+} {}
+test winpipe-2.22 {16 bit comprehensive tests: to file handle} {
+    set f1 [open "stdout" w]
+    set f2 [open "stderr" w]
+    exec $cat16 < little >@$f1 2>@$f2
+    close $f1
+    close $f2
+    list [contents stdout] [contents stderr]
+} "little stderr16"
+test winpipe-2.23 {16 bit comprehensive tests: write to application} {
+    set f [open "|$cat16 > stdout" w]
+    puts -nonewline $f "foo"
+    catch {close $f} msg
+    list [contents stdout] $msg
+} "foo stderr16"
+test winpipe-2.24 {16 bit comprehensive tests: read/write application} {nt} {
+    set f [open "|$cat16" r+]
+    puts $f $big
+    puts $f \032
+    flush $f
+    set r [read $f 64]
+    catch {close $f}
+    set r
+} "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+test winpipe-2.25 {16 bit comprehensive tests: to socket} {
+    # doesn't work
+} {}
+}
+

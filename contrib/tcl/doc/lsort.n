@@ -5,16 +5,16 @@
 '\" See the file "license.terms" for information on usage and redistribution
 '\" of this file, and for a DISCLAIMER OF ALL WARRANTIES.
 '\" 
-'\" SCCS: @(#) lsort.n 1.6 96/03/25 20:20:27
+'\" SCCS: @(#) lsort.n 1.9 97/03/24 20:51:09
 '\" 
 .so man.macros
-.TH lsort n 7.0 Tcl "Tcl Built-In Commands"
+.TH lsort n 8.0 Tcl "Tcl Built-In Commands"
 .BS
 '\" Note:  do not modify the .SH NAME line immediately below!
 .SH NAME
 lsort \- Sort the elements of a list
 .SH SYNOPSIS
-\fBlsort \fR?\fIswitches\fR? \fIlist\fR
+\fBlsort \fR?\fIoptions\fR? \fIlist\fR
 .BE
 
 .SH DESCRIPTION
@@ -22,14 +22,23 @@ lsort \- Sort the elements of a list
 This command sorts the elements of \fIlist\fR, returning a new
 list in sorted order.  By default ASCII sorting is used with
 the result returned in increasing order.
-.VS
 However, any of the
-following switches may be specified before \fIlist\fR to
+following options may be specified before \fIlist\fR to
 control the sorting process (unique abbreviations are accepted):
 .TP 20
 \fB\-ascii\fR
 Use string comparison with ASCII collation order.  This is
 the default.
+.VS br
+.TP 20
+\fB\-dictionary\fR
+Use dictionary-style comparison.  This is the same as \fB\-ascii\fR
+except (a) case is ignored except as a tie-breaker and (b) if two
+strings contain embedded numbers, the numbers compare as integers,
+not characters.  For example, in \fB\-dictionary\fR mode, \fBbigBoy\fR
+sorts between \fBbigbang\fR and \fBbigboy\fR, and \fBx10y\fR
+sorts between \fBx9y\fR and \fBx11y\fR.
+.VE
 .TP 20
 \fB\-integer\fR
 Convert list elements to integers and use integer comparison.
@@ -53,7 +62,24 @@ This is the default.
 .TP 20
 \fB\-decreasing\fR
 Sort the list in decreasing order (``largest'' items first).
+.VS br
+.TP 20
+\fB\-index\0\fIindex\fR
+If this option is specified, each of the elements of \fIlist\fR must
+itself be a proper Tcl sublist.  Instead of sorting based on whole sublists,
+\fBlsort\fR will extract the \fIindex\fR'th element from each sublist
+and sort based on the given element.  The keyword \fBend\fP is allowed
+for the \fIindex\fP to sort on the last sublist element. For example,
+.RS
+.CS
+lsort -integer -index 1 {{First 24} {Second 18} {Third 30}}
+.CE
+returns \fB{Second 18} {First 24} {Third 30}\fR.
+This option is much more efficient than using \fB\-command\fR
+to achieve the same effect.
+.RE
 .VE
+
 
 .SH KEYWORDS
 element, list, order, sort

@@ -4,145 +4,502 @@
 # built-in commands.  Sourcing this file into Tcl runs the tests and
 # generates output for errors.  No output means no errors were found.
 #
-# Copyright (c) 1991-1993 The Regents of the University of California.
-# Copyright (c) 1994 Sun Microsystems, Inc.
+# Copyright (c) 1996 Sun Microsystems, Inc.
 #
 # See the file "license.terms" for information on usage and redistribution
 # of this file, and for a DISCLAIMER OF ALL WARRANTIES.
 #
-# SCCS: @(#) if.test 1.8 96/02/16 08:55:59
+# SCCS: @(#) if.test 1.8 97/06/23 18:18:30
 
 if {[string compare test [info procs test]] == 1} then {source defs}
 
-test if-1.1 {taking proper branch} {
+# Basic "if" operation.
+
+catch {unset a}
+test if-1.1 {TclCompileIfCmd: missing if/elseif test} {
+    list [catch {if} msg] $msg
+} {1 {wrong # args: no expression after "if" argument}}
+test if-1.2 {TclCompileIfCmd: error in if/elseif test} {
+    list [catch {if {[error "error in condition"]} foo} msg] $msg
+} {1 {error in condition}}
+test if-1.3 {TclCompileIfCmd: error in if/elseif test} {
+    list [catch {if {1+}} msg] $msg $errorInfo
+} {1 {syntax error in expression "1+"} {syntax error in expression "1+"
+    ("if" test expression)
+    while compiling
+"if"}}
+test if-1.4 {TclCompileIfCmd: if/elseif test in braces} {
     set a {}
-    if 0 {set a 1} else {set a 2}
+    if {1<2} {set a 1}
     set a
-} 2
-test if-1.2 {taking proper branch} {
+} {1}
+test if-1.5 {TclCompileIfCmd: if/elseif test not in braces} {
     set a {}
-    if 1 {set a 1} else {set a 2}
+    if 1<2 {set a 1}
     set a
-} 1
-test if-1.3 {taking proper branch} {
+} {1}
+test if-1.6 {TclCompileIfCmd: multiline test expr} {
+    set a {}
+    if {($tcl_platform(platform) != "foobar1") && \
+	($tcl_platform(platform) != "foobar2")} {set a 3} else {set a 4}
+    set a
+} 3
+test if-1.7 {TclCompileIfCmd: "then" after if/elseif test} {
+    set a {}
+    if 4>3 then {set a 1}
+    set a
+} {1}
+test if-1.8 {TclCompileIfCmd: keyword other than "then" after if/elseif test} {
+    set a {}
+    catch {if 1<2 therefore {set a 1}} msg 
+    set msg
+} {invalid command name "therefore"}
+test if-1.9 {TclCompileIfCmd: missing "then" body} {
+    set a {}
+    catch {if 1<2 then} msg 
+    set msg
+} {wrong # args: no script following "then" argument}
+test if-1.10 {TclCompileIfCmd: error in "then" body} {
+    set a {}
+    list [catch {if {$a!="xxx"} then {set}} msg] $msg $errorInfo
+} {1 {wrong # args: should be "set varName ?newValue?"} {wrong # args: should be "set varName ?newValue?"
+    while compiling
+"set"
+    ("if" body script)
+    while compiling
+"if"}}
+test if-1.11 {TclCompileIfCmd: error in "then" body} {
+    list [catch {if 2 then {[error "error in then clause"]}} msg] $msg
+} {1 {error in then clause}}
+test if-1.12 {TclCompileIfCmd: "then" body in quotes} {
+    set a {}
+    if 27>17 "append a x"
+    set a
+} {x}
+test if-1.13 {TclCompileIfCmd: computed "then" body} {
+    catch {unset x1}
+    catch {unset x2}
+    set a {}
+    set x1 {append a x1}
+    set x2 {; append a x2}
+    set a {}
+    if 1 $x1$x2
+    set a
+} {x1x2}
+test if-1.14 {TclCompileIfCmd: taking proper branch} {
     set a {}
     if 1<2 {set a 1}
     set a
 } 1
-test if-1.4 {taking proper branch} {
+test if-1.15 {TclCompileIfCmd: taking proper branch} {
     set a {}
     if 1>2 {set a 1}
     set a
 } {}
-test if-1.5 {taking proper branch} {
+test if-1.16 {TclCompileIfCmd: test jumpFalse instruction replacement after long "then" body} {
+    catch {unset i}
     set a {}
-    if 0 {set a 1} else {}
+    if 1<2 {
+	set a 1
+	while {$a != "xxx"} {
+	    break;
+	    while {$i >= 0} {
+		if {[string compare $a "bar"] < 0} {
+		    set i $i
+		    set i [lindex $s $i]
+		}
+		if {[string compare $a "bar"] < 0} {
+		    set i $i
+		    set i [lindex $s $i]
+		}
+		if {[string compare $a "bar"] < 0} {
+		    set i $i
+		    set i [lindex $s $i]
+		}
+		if {[string compare $a "bar"] < 0} {
+		    set i $i
+		    set i [lindex $s $i]
+		}
+		set i [expr $i-1]
+	    }
+	}
+	set a 2
+	while {$a != "xxx"} {
+	    break;
+	    while {$i >= 0} {
+		if {[string compare $a "bar"] < 0} {
+		    set i $i
+		    set i [lindex $s $i]
+		}
+		if {[string compare $a "bar"] < 0} {
+		    set i $i
+		    set i [lindex $s $i]
+		}
+		if {[string compare $a "bar"] < 0} {
+		    set i $i
+		    set i [lindex $s $i]
+		}
+		if {[string compare $a "bar"] < 0} {
+		    set i $i
+		    set i [lindex $s $i]
+		}
+		set i [expr $i-1]
+	    }
+	}
+	set a 3
+    }
     set a
-} {}
-test if-1.5 {taking proper branch} {
+} 3
+test if-1.17 {TclCompileIfCmd: if/elseif test in quotes} {
     set a {}
-    if 0 {set a 1} elseif 1 {set a 2} elseif 1 {set a 3} else {set a 4}
+    list [catch {if {"0 < 3"} {set a 1}} msg] $msg
+} {1 {expected boolean value but got "0 < 3"}}
+
+
+test if-2.1 {TclCompileIfCmd: "elseif" after if/elseif test} {
+    set a {}
+    if 3>4 {set a 1} elseif 1 {set a 2}
     set a
 } {2}
-test if-1.6 {taking proper branch} {
+# Since "else" is optional, the "elwood" below is treated as a command.
+# But then there shouldn't be any additional argument words for the "if".
+test if-2.2 {TclCompileIfCmd: keyword other than "elseif"} {
     set a {}
-    if 0 {set a 1} elseif 0 {set a 2} elseif 1 {set a 3} else {set a 4}
-    set a
-} {3}
-test if-1.7 {taking proper branch} {
+    catch {if 1<2 {set a 1} elwood {set a 2}} msg 
+    set msg
+} {wrong # args: extra words after "else" clause in "if" command}
+test if-2.3 {TclCompileIfCmd: missing expression after "elseif"} {
     set a {}
-    if 0 {set a 1} elseif 0 {set a 2} elseif 0 {set a 3} else {set a 4}
+    catch {if 1<2 {set a 1} elseif} msg 
+    set msg
+} {wrong # args: no expression after "elseif" argument}
+test if-2.4 {TclCompileIfCmd: error in expression after "elseif"} {
+    set a {}
+    list [catch {if 3>4 {set a 1} elseif {1>}} msg] $msg $errorInfo
+} {1 {syntax error in expression "1>"} {syntax error in expression "1>"
+    ("if" test expression)
+    while compiling
+"if"}}
+test if-2.5 {TclCompileIfCmd: test jumpFalse instruction replacement after long "elseif" body} {
+    catch {unset i}
+    set a {}
+    if 1>2 {
+	set a 1
+	while {$a != "xxx"} {
+	    break;
+	    while {$i >= 0} {
+		if {[string compare $a "bar"] < 0} {
+		    set i $i
+		    set i [lindex $s $i]
+		}
+		if {[string compare $a "bar"] < 0} {
+		    set i $i
+		    set i [lindex $s $i]
+		}
+		if {[string compare $a "bar"] < 0} {
+		    set i $i
+		    set i [lindex $s $i]
+		}
+		if {[string compare $a "bar"] < 0} {
+		    set i $i
+		    set i [lindex $s $i]
+		}
+		set i [expr $i-1]
+	    }
+	}
+	set a 2
+	while {$a != "xxx"} {
+	    break;
+	    while {$i >= 0} {
+		if {[string compare $a "bar"] < 0} {
+		    set i $i
+		    set i [lindex $s $i]
+		}
+		if {[string compare $a "bar"] < 0} {
+		    set i $i
+		    set i [lindex $s $i]
+		}
+		if {[string compare $a "bar"] < 0} {
+		    set i $i
+		    set i [lindex $s $i]
+		}
+		if {[string compare $a "bar"] < 0} {
+		    set i $i
+		    set i [lindex $s $i]
+		}
+		set i [expr $i-1]
+	    }
+	}
+	set a 3
+    } elseif 1<2 then { #; this if arm should be taken
+	set a 4
+	while {$a != "xxx"} {
+	    break;
+	    while {$i >= 0} {
+		if {[string compare $a "bar"] < 0} {
+		    set i $i
+		    set i [lindex $s $i]
+		}
+		if {[string compare $a "bar"] < 0} {
+		    set i $i
+		    set i [lindex $s $i]
+		}
+		if {[string compare $a "bar"] < 0} {
+		    set i $i
+		    set i [lindex $s $i]
+		}
+		if {[string compare $a "bar"] < 0} {
+		    set i $i
+		    set i [lindex $s $i]
+		}
+		set i [expr $i-1]
+	    }
+	}
+	set a 5
+	while {$a != "xxx"} {
+	    break;
+	    while {$i >= 0} {
+		if {[string compare $a "bar"] < 0} {
+		    set i $i
+		    set i [lindex $s $i]
+		}
+		if {[string compare $a "bar"] < 0} {
+		    set i $i
+		    set i [lindex $s $i]
+		}
+		if {[string compare $a "bar"] < 0} {
+		    set i $i
+		    set i [lindex $s $i]
+		}
+		if {[string compare $a "bar"] < 0} {
+		    set i $i
+		    set i [lindex $s $i]
+		}
+		set i [expr $i-1]
+	    }
+	}
+	set a 6
+    }
     set a
-} {4}
+} 6
 
+test if-3.1 {TclCompileIfCmd: "else" clause} {
+    set a {}
+    if 3>4 {set a 1} elseif {$a == "foo"} {set a 2} else {set a 3}
+    set a
+} 3
+# Since "else" is optional, the "elsex" below is treated as a command.
+# But then there shouldn't be any additional argument words for the "if".
+test if-3.2 {TclCompileIfCmd: keyword other than "else"} {
+    set a {}
+    catch {if 1<2 then {set a 1} elsex {set a 2}} msg 
+    set msg
+} {wrong # args: extra words after "else" clause in "if" command}
+test if-3.3 {TclCompileIfCmd: missing body after "else"} {
+    set a {}
+    catch {if 2<1 {set a 1} else} msg 
+    set msg
+} {wrong # args: no script following "else" argument}
+test if-3.4 {TclCompileIfCmd: error compiling body after "else"} {
+    set a {}
+    catch {if 2<1 {set a 1} else {set}} msg 
+    set errorInfo
+} {wrong # args: should be "set varName ?newValue?"
+    while compiling
+"set"
+    ("if" else script)
+    while compiling
+"if"}
+test if-3.5 {TclCompileIfCmd: extra arguments after "else" argument} {
+    set a {}
+    catch {if 2<1 {set a 1} else {set a 2} or something} msg 
+    set msg
+} {wrong # args: extra words after "else" clause in "if" command}
+# The following test also checks whether contained loops and other
+# commands are properly relocated because a short jump must be replaced
+# by a "long distance" one.
+test if-3.6 {TclCompileIfCmd: test jumpFalse instruction replacement after long "else" clause} {
+    catch {unset i}
+    set a {}
+    if 1>2 {
+	set a 1
+	while {$a != "xxx"} {
+	    break;
+	    while {$i >= 0} {
+		if {[string compare $a "bar"] < 0} {
+		    set i $i
+		    set i [lindex $s $i]
+		}
+		if {[string compare $a "bar"] < 0} {
+		    set i $i
+		    set i [lindex $s $i]
+		}
+		if {[string compare $a "bar"] < 0} {
+		    set i $i
+		    set i [lindex $s $i]
+		}
+		if {[string compare $a "bar"] < 0} {
+		    set i $i
+		    set i [lindex $s $i]
+		}
+		set i [expr $i-1]
+	    }
+	}
+	set a 2
+	while {$a != "xxx"} {
+	    break;
+	    while {$i >= 0} {
+		if {[string compare $a "bar"] < 0} {
+		    set i $i
+		    set i [lindex $s $i]
+		}
+		if {[string compare $a "bar"] < 0} {
+		    set i $i
+		    set i [lindex $s $i]
+		}
+		if {[string compare $a "bar"] < 0} {
+		    set i $i
+		    set i [lindex $s $i]
+		}
+		if {[string compare $a "bar"] < 0} {
+		    set i $i
+		    set i [lindex $s $i]
+		}
+		set i [expr $i-1]
+	    }
+	}
+	set a 3
+    } elseif 1==2 then { #; this if arm should be taken
+	set a 4
+	while {$a != "xxx"} {
+	    break;
+	    while {$i >= 0} {
+		if {[string compare $a "bar"] < 0} {
+		    set i $i
+		    set i [lindex $s $i]
+		}
+		if {[string compare $a "bar"] < 0} {
+		    set i $i
+		    set i [lindex $s $i]
+		}
+		if {[string compare $a "bar"] < 0} {
+		    set i $i
+		    set i [lindex $s $i]
+		}
+		if {[string compare $a "bar"] < 0} {
+		    set i $i
+		    set i [lindex $s $i]
+		}
+		set i [expr $i-1]
+	    }
+	}
+	set a 5
+	while {$a != "xxx"} {
+	    break;
+	    while {$i >= 0} {
+		if {[string compare $a "bar"] < 0} {
+		    set i $i
+		    set i [lindex $s $i]
+		}
+		if {[string compare $a "bar"] < 0} {
+		    set i $i
+		    set i [lindex $s $i]
+		}
+		if {[string compare $a "bar"] < 0} {
+		    set i $i
+		    set i [lindex $s $i]
+		}
+		if {[string compare $a "bar"] < 0} {
+		    set i $i
+		    set i [lindex $s $i]
+		}
+		set i [expr $i-1]
+	    }
+	}
+	set a 6
+    } else {
+	set a 7
+	while {$a != "xxx"} {
+	    break;
+	    while {$i >= 0} {
+		if {[string compare $a "bar"] < 0} {
+		    set i $i
+		    set i [lindex $s $i]
+		}
+		if {[string compare $a "bar"] < 0} {
+		    set i $i
+		    set i [lindex $s $i]
+		}
+		if {[string compare $a "bar"] < 0} {
+		    set i $i
+		    set i [lindex $s $i]
+		}
+		if {[string compare $a "bar"] < 0} {
+		    set i $i
+		    set i [lindex $s $i]
+		}
+		set i [expr $i-1]
+	    }
+	}
+	set a 8
+	while {$a != "xxx"} {
+	    break;
+	    while {$i >= 0} {
+		if {[string compare $a "bar"] < 0} {
+		    set i $i
+		    set i [lindex $s $i]
+		}
+		if {[string compare $a "bar"] < 0} {
+		    set i $i
+		    set i [lindex $s $i]
+		}
+		if {[string compare $a "bar"] < 0} {
+		    set i $i
+		    set i [lindex $s $i]
+		}
+		if {[string compare $a "bar"] < 0} {
+		    set i $i
+		    set i [lindex $s $i]
+		}
+		set i [expr $i-1]
+	    }
+	}
+	set a 9
+    }
+    set a
+} 9
 
-test if-2.1 {optional then-else args} {
-    set a 44
-    if 0 then {set a 1} elseif 0 then {set a 3} else {set a 2}
+test if-4.1 {TclCompileIfCmd: "if" command result} {
+    set a {}
+    set a [if 3<4 {set i 27}]
+    set a
+} 27
+test if-4.2 {TclCompileIfCmd: "if" command result} {
+    set a {}
+    set a [if 3>4 {set i 27}]
+    set a
+} {}
+test if-4.3 {TclCompileIfCmd: "if" command result} {
+    set a {}
+    set a [if 0 {set i 1} elseif 1 {set i 2}]
     set a
 } 2
-test if-2.2 {optional then-else args} {
-    set a 44
-    if 1 then {set a 1} else {set a 2}
-    set a
-} 1
-test if-2.3 {optional then-else args} {
-    set a 44
-    if 0 {set a 1} else {set a 2}
-    set a
-} 2
-test if-2.4 {optional then-else args} {
-    set a 44
-    if 1 {set a 1} else {set a 2}
-    set a
-} 1
-test if-2.5 {optional then-else args} {
-    set a 44
-    if 0 then {set a 1} {set a 2}
-    set a
-} 2
-test if-2.6 {optional then-else args} {
-    set a 44
-    if 1 then {set a 1} {set a 2}
-    set a
-} 1
-test if-2.7 {optional then-else args} {
-    set a 44
-    if 0 then {set a 1} else {set a 2}
-    set a
-} 2
-test if-2.8 {optional then-else args} {
-    set a 44
-    if 0 then {set a 1} elseif 0 {set a 2} elseif 0 {set a 3} {set a 4}
+test if-4.4 {TclCompileIfCmd: "if" command result} {
+    set a {}
+    set a [if 0 {set i 1} elseif 0 {set i 2} elseif 2>5 {set i 3} else {set i 4}]
     set a
 } 4
-
-test if-3.1 {return value} {
-    if 1 then {set a 22; concat abc}
-} abc
-test if-3.2 {return value} {
+test if-4.5 {TclCompileIfCmd: return value} {
     if 0 then {set a 22; concat abc} elseif 1 {concat def} {concat ghi}
 } def
-test if-3.3 {return value} {
-    if 0 then {set a 22; concat abc} else {concat def}
-} def
-test if-3.4 {return value} {
-    if 0 then {set a 22; concat abc}
-} {}
-test if-3.5 {return value} {
-    if 0 then {set a 22; concat abc} elseif 0 {concat def}
-} {}
 
-test if-4.1 {error conditions} {
-    list [catch {if} msg] $msg
-} {1 {wrong # args: no expression after "if" argument}}
-test if-4.2 {error conditions} {
-    list [catch {if {[error "error in condition"]}} msg] $msg
-} {1 {error in condition}}
-test if-4.3 {error conditions} {
-    list [catch {if 2} msg] $msg
-} {1 {wrong # args: no script following "2" argument}}
-test if-4.4 {error conditions} {
-    list [catch {if 2 then} msg] $msg
-} {1 {wrong # args: no script following "then" argument}}
-test if-4.5 {error conditions} {
-    list [catch {if 2 the} msg] $msg
-} {1 {invalid command name "the"}}
-test if-4.6 {error conditions} {
-    list [catch {if 2 then {[error "error in then clause"]}} msg] $msg
-} {1 {error in then clause}}
-test if-4.7 {error conditions} {
-    list [catch {if 0 then foo elseif} msg] $msg
-} {1 {wrong # args: no expression after "elseif" argument}}
-test if-4.8 {error conditions} {
-    list [catch {if 0 then foo elsei} msg] $msg
-} {1 {invalid command name "elsei"}}
-test if-4.9 {error conditions} {
-    list [catch {if 0 then foo elseif 0 bar else} msg] $msg
-} {1 {wrong # args: no script following "else" argument}}
-test if-4.10 {error conditions} {
-    list [catch {if 0 then foo elseif 0 bar els} msg] $msg
-} {1 {invalid command name "els"}}
-test if-4.11 {error conditions} {
-    list [catch {if 0 then foo elseif 0 bar else {[error "error in else clause"]}} msg] $msg
-} {1 {error in else clause}}
+# Check "if" and computed command names.
+
+test if-5.1 {if and computed command names} {
+    set i 0
+    set z if
+    $z 1 {
+        set i 1
+    }
+    set i
+} 1

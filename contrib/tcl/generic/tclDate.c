@@ -2,15 +2,15 @@
  * tclDate.c --
  *
  *	This file is generated from a yacc grammar defined in
- *	the file tclGetDate.y
+ *	the file tclGetDate.y.  It should not be edited directly.
  *
  * Copyright (c) 1992-1995 Karl Lehenbauer and Mark Diekhans.
- * Copyright (c) 1995-1996 Sun Microsystems, Inc.
+ * Copyright (c) 1995-1997 Sun Microsystems, Inc.
  *
  * See the file "license.terms" for information on usage and redistribution
  * of this file, and for a DISCLAIMER OF ALL WARRANTIES.
  *
- * @(#) tclDate.c 1.25 96/07/23 16:10:50
+ * @(#) tclDate.c 1.32 97/02/03 14:54:37
  */
 
 #include "tclInt.h"
@@ -25,6 +25,15 @@
 #   define START_OF_TIME   1902
 #   define END_OF_TIME     2037
 #endif
+
+/*
+ * The offset of tm_year of struct tm returned by localtime, gmtime, etc.
+ * I don't know how universal this is; K&R II, the NetBSD manpages, and
+ * ../compat/strftime.c all agree that tm_year is the year-1900.  However,
+ * some systems may have a different value.  This #define should be the
+ * same as in ../compat/strftime.c.
+ */
+#define TM_YEAR_BASE 1900
 
 #define HOUR(x)         ((int) (60 * x))
 #define SECSPERDAY      (24L * 60L * 60L)
@@ -85,44 +94,19 @@ static time_t   TclDateRelSeconds;
 /*
  * Prototypes of internal functions.
  */
-static void
-TclDateerror _ANSI_ARGS_((char *s));
-
-static time_t
-ToSeconds _ANSI_ARGS_((time_t      Hours,
-                       time_t      Minutes,
-                       time_t      Seconds,
-                       MERIDIAN    Meridian));
-
-static int
-Convert _ANSI_ARGS_((time_t      Month,
-                     time_t      Day,
-                     time_t      Year,
-                     time_t      Hours,
-                     time_t      Minutes,
-                     time_t      Seconds,
-                     MERIDIAN    Meridia,
-                     DSTMODE     DSTmode,
-                     time_t     *TimePtr));
-
-static time_t
-DSTcorrect _ANSI_ARGS_((time_t      Start,
-                        time_t      Future));
-
-static time_t
-RelativeDate _ANSI_ARGS_((time_t      Start,
-                          time_t      DayOrdinal,
-                          time_t      DayNumber));
-
-static int
-RelativeMonth _ANSI_ARGS_((time_t      Start,
-                           time_t      RelMonth,
-                           time_t     *TimePtr));
-static int
-LookupWord _ANSI_ARGS_((char  *buff));
-
-static int
-TclDatelex _ANSI_ARGS_((void));
+static void	TclDateerror _ANSI_ARGS_((char *s));
+static time_t	ToSeconds _ANSI_ARGS_((time_t Hours, time_t Minutes,
+		    time_t Seconds, MERIDIAN Meridian));
+static int	Convert _ANSI_ARGS_((time_t Month, time_t Day, time_t Year,
+		    time_t Hours, time_t Minutes, time_t Seconds,
+		    MERIDIAN Meridia, DSTMODE DSTmode, time_t *TimePtr));
+static time_t	DSTcorrect _ANSI_ARGS_((time_t Start, time_t Future));
+static time_t	RelativeDate _ANSI_ARGS_((time_t Start, time_t DayOrdinal,
+		    time_t DayNumber));
+static int	RelativeMonth _ANSI_ARGS_((time_t Start, time_t RelMonth,
+		    time_t *TimePtr));
+static int	LookupWord _ANSI_ARGS_((char *buff));
+static int	TclDatelex _ANSI_ARGS_((void));
 
 int
 TclDateparse _ANSI_ARGS_((void));
@@ -431,14 +415,10 @@ Convert(Month, Day, Year, Hours, Minutes, Seconds, Meridian, DSTmode, TimePtr)
     static int  DaysInMonth[12] = {
         31, 0, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31
     };
-    time_t      tod;
-    time_t      Julian;
-    int         i;
+    time_t tod;
+    time_t Julian;
+    int i;
 
-    if (Year < 0)
-        Year = -Year;
-    if (Year < 100)
-        Year += 1900;
     DaysInMonth[1] = Year % 4 == 0 && (Year % 100 != 0 || Year % 400 == 0)
                     ? 29 : 28;
     if (Month < 1 || Month > 12
@@ -501,27 +481,44 @@ RelativeDate(Start, DayOrdinal, DayNumber)
 
 static int
 RelativeMonth(Start, RelMonth, TimePtr)
-    time_t      Start;
-    time_t      RelMonth;
-    time_t     *TimePtr;
+    time_t Start;
+    time_t RelMonth;
+    time_t *TimePtr;
 {
-    struct tm   *tm;
-    time_t      Month;
-    time_t      Year;
-    time_t      Julian;
+    struct tm *tm;
+    time_t Month;
+    time_t Year;
+    time_t Julian;
+    int result;
 
     if (RelMonth == 0) {
         *TimePtr = 0;
         return 0;
     }
     tm = TclpGetDate(&Start, 0);
-    Month = 12 * tm->tm_year + tm->tm_mon + RelMonth;
+    Month = 12 * (tm->tm_year + TM_YEAR_BASE) + tm->tm_mon + RelMonth;
     Year = Month / 12;
     Month = Month % 12 + 1;
-    if (Convert(Month, (time_t)tm->tm_mday, Year,
-                (time_t)tm->tm_hour, (time_t)tm->tm_min, (time_t)tm->tm_sec,
-                MER24, DSTmaybe, &Julian) < 0)
-        return -1;
+    result = Convert(Month, (time_t) tm->tm_mday, Year,
+	    (time_t) tm->tm_hour, (time_t) tm->tm_min, (time_t) tm->tm_sec,
+	    MER24, DSTmaybe, &Julian);
+    /*
+     * The following iteration takes into account the case were we jump
+     * into a "short month".  Far example, "one month from Jan 31" will
+     * fail because there is no Feb 31.  The code below will reduce the
+     * day and try converting the date until we succed or the date equals
+     * 28 (which always works unless the date is bad in another way).
+     */
+
+    while ((result != 0) && (tm->tm_mday > 28)) {
+	tm->tm_mday--;
+	result = Convert(Month, (time_t) tm->tm_mday, Year,
+		(time_t) tm->tm_hour, (time_t) tm->tm_min, (time_t) tm->tm_sec,
+		MER24, DSTmaybe, &Julian);
+    }
+    if (result != 0) {
+	return -1;
+    }
     *TimePtr = DSTcorrect(Start, Julian);
     return 0;
 }
@@ -531,18 +528,18 @@ static int
 LookupWord(buff)
     char                *buff;
 {
-    register char       *p;
-    register char       *q;
-    register TABLE      *tp;
-    int                 i;
-    int                 abbrev;
+    register char *p;
+    register char *q;
+    register TABLE *tp;
+    int i;
+    int abbrev;
 
     /*
      * Make it lowercase.
      */
     for (p = buff; *p; p++) {
-        if (isupper(*p)) {
-            *p = (char) tolower(*p);
+        if (isupper(UCHAR(*p))) {
+            *p = (char) tolower(UCHAR(*p));
 	}
     }
 
@@ -617,7 +614,7 @@ LookupWord(buff)
     /*
      * Military timezones.
      */
-    if (buff[1] == '\0' && isalpha(*buff)) {
+    if (buff[1] == '\0' && isalpha(UCHAR(*buff))) {
         for (tp = MilitaryTable; tp->name; tp++) {
             if (strcmp(buff, tp->name) == 0) {
                 TclDatelval.Number = tp->value;
@@ -630,19 +627,21 @@ LookupWord(buff)
      * Drop out any periods and try the timezone table again.
      */
     for (i = 0, p = q = buff; *q; q++)
-        if (*q != '.')
+        if (*q != '.') {
             *p++ = *q;
-        else
+        } else {
             i++;
+	}
     *p = '\0';
-    if (i)
+    if (i) {
         for (tp = TimezoneTable; tp->name; tp++) {
             if (strcmp(buff, tp->name) == 0) {
                 TclDatelval.Number = tp->value;
                 return tp->type;
             }
 	}
-
+    }
+    
     return tID;
 }
 
@@ -682,7 +681,7 @@ TclDatelex()
 	    }
             return sign ? tSNUMBER : tUNUMBER;
         }
-        if (isalpha(c)) {
+        if (isalpha(UCHAR(c))) {
             for (p = buff; isalpha(c = *TclDateInput++) || c == '.'; ) {
                 if (p < &buff[sizeof buff - 1]) {
                     *p++ = c;
@@ -715,19 +714,21 @@ TclDatelex()
 
 int
 TclGetDate(p, now, zone, timePtr)
-    char          *p;
-    unsigned long  now;
-    long           zone;
+    char *p;
+    unsigned long now;
+    long zone;
     unsigned long *timePtr;
 {
-    struct tm           *tm;
-    time_t              Start;
-    time_t              Time;
-    time_t              tod;
+    struct tm *tm;
+    time_t Start;
+    time_t Time;
+    time_t tod;
+    int thisyear;
 
     TclDateInput = p;
     tm = TclpGetDate((time_t *) &now, 0);
-    TclDateYear = tm->tm_year;
+    thisyear = tm->tm_year + TM_YEAR_BASE;
+    TclDateYear = thisyear;
     TclDateMonth = tm->tm_mon + 1;
     TclDateDay = tm->tm_mday;
     TclDateTimezone = zone;
@@ -755,14 +756,35 @@ TclGetDate(p, now, zone, timePtr)
     }
     
     if (TclDateHaveDate || TclDateHaveTime || TclDateHaveDay) {
-        if (Convert(TclDateMonth, TclDateDay, TclDateYear, TclDateHour, TclDateMinutes, TclDateSeconds,
-                    TclDateMeridian, TclDateDSTmode, &Start) < 0)
+	if (TclDateYear < 0) {
+	    TclDateYear = -TclDateYear;
+	}
+	/*
+	 * The following line handles years that are specified using
+	 * only two digits.  The line of code below implements a policy
+	 * defined by the X/Open workgroup on the millinium rollover.
+	 * Note: some of those dates may not actually be valid on some
+	 * platforms.  The POSIX standard startes that the dates 70-99
+	 * shall refer to 1970-1999 and 00-38 shall refer to 2000-2038.
+	 * This later definition should work on all platforms.
+	 */
+
+	if (TclDateYear < 100) {
+	    if (TclDateYear >= 69) {
+		TclDateYear += 1900;
+	    } else {
+		TclDateYear += 2000;
+	    }
+	}
+	if (Convert(TclDateMonth, TclDateDay, TclDateYear, TclDateHour, TclDateMinutes, TclDateSeconds,
+		TclDateMeridian, TclDateDSTmode, &Start) < 0) {
             return -1;
-    }
-    else {
+	}
+    } else {
         Start = now;
-        if (!TclDateHaveRel)
+        if (!TclDateHaveRel) {
             Start -= ((tm->tm_hour * 60L) + tm->tm_min * 60L) + tm->tm_sec;
+	}
     }
 
     Start += TclDateRelSeconds;
@@ -1589,22 +1611,21 @@ case 37:{
             TclDateRelMonth += TclDatepvt[-0].Number;
         } break;
 case 38:{
-            if (TclDateHaveTime && TclDateHaveDate && !TclDateHaveRel)
-                TclDateYear = TclDatepvt[-0].Number;
-            else {
-                TclDateHaveTime++;
-                if (TclDatepvt[-0].Number < 100) {
-                    TclDateHour = TclDatepvt[-0].Number;
-                    TclDateMinutes = 0;
-                }
-                else {
-                    TclDateHour = TclDatepvt[-0].Number / 100;
-                    TclDateMinutes = TclDatepvt[-0].Number % 100;
-                }
-                TclDateSeconds = 0;
-                TclDateMeridian = MER24;
-            }
-        } break;
+	if (TclDateHaveTime && TclDateHaveDate && !TclDateHaveRel) {
+	    TclDateYear = TclDatepvt[-0].Number;
+	} else {
+	    TclDateHaveTime++;
+	    if (TclDatepvt[-0].Number < 100) {
+		TclDateHour = 0;
+		TclDateMinutes = TclDatepvt[-0].Number;
+	    } else {
+		TclDateHour = TclDatepvt[-0].Number / 100;
+		TclDateMinutes = TclDatepvt[-0].Number % 100;
+	    }
+	    TclDateSeconds = 0;
+	    TclDateMeridian = MER24;
+	}
+    } break;
 case 39:{
             TclDateval.Meridian = MER24;
         } break;

@@ -12,7 +12,7 @@ SGI, as well as PCs running Linux, BSDI, and SCO UNIX.  To compile for
 a PC running Windows, see the README file in the directory ../win.  To
 compile for a Macintosh, see the README file in the directory ../mac.
 
-SCCS: @(#) README 1.13 96/07/31 16:28:38
+SCCS: @(#) README 1.15 96/12/19 14:02:23
 
 How To Compile And Install Tcl:
 -------------------------------
@@ -75,15 +75,15 @@ How To Compile And Install Tcl:
     Tcl then you'll first need to set your TCL_LIBRARY variable to
     hold the full path name of the "library" subdirectory.  Note that
     the installed versions of tclsh, libtcl.a, and libtcl.so have a
-    version number in their names, such as "tclsh7.5" or "libtcl7.5.so";
+    version number in their names, such as "tclsh8.0" or "libtcl8.0.so";
     to use the installed versions, either specify the version number
-    or create a symbolic link (e.g. from "tclsh" to "tclsh7.5").
+    or create a symbolic link (e.g. from "tclsh" to "tclsh8.0").
 
 If you have trouble compiling Tcl, read through the file" porting.notes".
 It contains information that people have provided about changes they had
 to make to compile Tcl in various environments.  Or, check out the
 following Web URL:
-    http://www.sunlabs.com/cgi-bin/tcl/info.4.1
+    http://www.sunlabs.com/cgi-bin/tcl/info.8.0
 This is an on-line database of porting information.  We make no guarantees
 that this information is accurate, complete, or up-to-date, but you may
 find it useful.  If you get Tcl running on a new configuration, we would

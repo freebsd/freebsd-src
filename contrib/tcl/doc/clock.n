@@ -1,6 +1,6 @@
 '\"
 '\" Copyright (c) 1992-1995 Karl Lehenbauer and Mark Diekhans.
-'\" Copyright (c) 1995-1996 Sun Microsystems, Inc.
+'\" Copyright (c) 1995-1997 Sun Microsystems, Inc.
 '\"
 '\" This documentation is derived from the time and date facilities of
 '\" TclX, by Mark Diekhans and Karl Lehenbauer.
@@ -8,7 +8,7 @@
 '\" See the file "license.terms" for information on usage and redistribution
 '\" of this file, and for a DISCLAIMER OF ALL WARRANTIES.
 '\" 
-'\" SCCS: @(#) clock.n 1.13 96/05/03 14:40:37
+'\" SCCS: @(#) clock.n 1.17 97/02/03 16:34:17
 '\" 
 .so man.macros
 .TH clock n 7.4 Tcl "Tcl Built-In Commands"
@@ -150,7 +150,10 @@ A specific month and day with optional year.  The
 acceptable formats are \fImm/dd\fR?\fI/yy\fR?, \fImonthname dd\fR
 ?, \fIyy\fR?, \fIdd monthname \fR?\fIyy\fR? and \fIday, dd monthname
 yy\fR.  The default year is the current year.  If the year is less
-then 100, then 1900 is added to it.
+then 100, we treat the years 00-38 as 2000-2038 and the years 70-99
+as 1970-1999.  The years 39-70 are undefined and may not be valid on
+certain platforms.  (For thos platforms where it is defined then the
+years 69-99 match to 1969-1999.)
 .TP
 \fIrelative time\fR
 A specification relative to the current time.  The format is \fInumber
@@ -170,7 +173,8 @@ Next, relative specifications are used.  If a date or day is
 specified, and no absolute or relative time is given, midnight is
 used.  Finally, a correction is applied so that the correct hour of
 the day is produced after allowing for daylight savings time
-differences.
+differences and the correct date is given when going from the end
+of a long month to a short month.
 .RE
 .TP
 \fBclock seconds\fR
