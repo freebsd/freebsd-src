@@ -1,4 +1,4 @@
-/* $Header: /src/pub/tcsh/ed.chared.c,v 3.59 1999/08/13 16:34:57 christos Exp $ */
+/* $Header: /src/pub/tcsh/ed.chared.c,v 3.60 2000/06/10 22:07:55 kim Exp $ */
 /*
  * ed.chared.c: Character editing functions.
  */
@@ -76,7 +76,7 @@
 
 #include "sh.h"
 
-RCSID("$Id: ed.chared.c,v 3.59 1999/08/13 16:34:57 christos Exp $")
+RCSID("$Id: ed.chared.c,v 3.60 2000/06/10 22:07:55 kim Exp $")
 
 #include "ed.h"
 #include "tw.h"
@@ -959,7 +959,7 @@ c_get_histline()
 	CurrentHistLit = 1;
     }
     else {
-	(void) sprlex(InputBuf, sizeof(InputBuf), &hp->Hlex);
+	(void) sprlex(InputBuf, sizeof(InputBuf) / sizeof(Char), &hp->Hlex);
 	CurrentHistLit = 0;
     }
     LastChar = InputBuf + Strlen(InputBuf);
@@ -1704,7 +1704,7 @@ e_toggle_hist(c)
 	}
     }
     else {
-	(void) sprlex(InputBuf, sizeof(InputBuf), &hp->Hlex);
+	(void) sprlex(InputBuf, sizeof(InputBuf) / sizeof(Char), &hp->Hlex);
 	CurrentHistLit = 0;
     }
 
@@ -1855,9 +1855,11 @@ e_up_search_hist(c)
     while (hp != NULL) {
 	Char sbuf[INBUFSIZE], *hl;
 	if (hp->histline == NULL) {
-	    hp->histline = Strsave(sprlex(sbuf, sizeof(sbuf), &hp->Hlex));
+	    hp->histline = Strsave(sprlex(sbuf, sizeof(sbuf) / sizeof(Char),
+				   &hp->Hlex));
 	}
-	hl = HistLit ? hp->histline : sprlex(sbuf, sizeof(sbuf), &hp->Hlex);
+	hl = HistLit ? hp->histline : sprlex(sbuf, sizeof(sbuf) / sizeof(Char),
+					     &hp->Hlex);
 #ifdef SDEBUG
 	xprintf("Comparing with \"%S\"\n", hl);
 #endif
@@ -1908,9 +1910,11 @@ e_down_search_hist(c)
     for (h = 1; h < Hist_num && hp; h++) {
 	Char sbuf[INBUFSIZE], *hl;
 	if (hp->histline == NULL) {
-	    hp->histline = Strsave(sprlex(sbuf, sizeof(sbuf), &hp->Hlex));
+	    hp->histline = Strsave(sprlex(sbuf, sizeof(sbuf) / sizeof(Char),
+				   &hp->Hlex));
 	}
-	hl = HistLit ? hp->histline : sprlex(sbuf, sizeof(sbuf), &hp->Hlex);
+	hl = HistLit ? hp->histline : sprlex(sbuf, sizeof(sbuf) / sizeof(Char),
+					     &hp->Hlex);
 #ifdef SDEBUG
 	xprintf("Comparing with \"%S\"\n", hl);
 #endif
