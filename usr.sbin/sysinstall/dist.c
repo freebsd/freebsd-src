@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: dist.c,v 1.19 1995/05/24 17:49:12 jkh Exp $
+ * $Id: dist.c,v 1.20 1995/05/25 18:48:24 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -233,15 +233,13 @@ distExtract(char *parent, Distribution *me)
 	    if (me[i].my_dist)
 		status = distExtract(me[i].my_name, me[i].my_dist);
 	    else {
-		char distname[FILENAME_MAX];
+		char dparent[FILENAME_MAX];
 
-		if (parent)
-		    snprintf(distname, FILENAME_MAX, "%s%s", parent, me[i].my_name);
-		else
-		    snprintf(distname, FILENAME_MAX, "%s/%s", me[i].my_name, me[i].my_name);
-		fd = (*mediaDevice->get)(distname);
+		if (parent)	/* Yetch */
+		    snprintf(dparent, FILENAME_MAX, "%s/", parent);
+		fd = (*mediaDevice->get)(parent ? dparent : me[i].my_name, me[i].my_name);
 		if (fd != -1) {
-		    status = mediaExtractDist(distname, me[i].my_dir, fd);
+		    status = mediaExtractDist(me[i].my_name, me[i].my_dir, fd);
 		    if (mediaDevice->close)
 			(*mediaDevice->close)(mediaDevice, fd);
 		    else
@@ -251,7 +249,7 @@ distExtract(char *parent, Distribution *me)
 		    if (getenv(NO_CONFIRMATION))
 			status = 0;
 		    else
-			status = !msgYesNo("Unable to transfer the %s distribution from %s.\nDo you want to retry this distribution later?", distname, mediaDevice->name);
+			status = !msgYesNo("Unable to transfer the %s distribution from %s.\nDo you want to retry this distribution later?", me[i].my_name, mediaDevice->name);
 		}
 	    }
 	    if (!status) {

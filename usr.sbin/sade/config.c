@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: config.c,v 1.5 1995/05/24 18:52:47 jkh Exp $
+ * $Id: config.c,v 1.6 1995/05/25 18:48:22 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -82,7 +82,7 @@ nameof(Chunk *c1)
 static char *
 mount_point(Chunk *c1)
 {
-    if (c1->type == PART_FAT || (c1->type == part && c1->subtype != FS_SWAP))
+    if (c1->type == fat || (c1->type == part && c1->subtype != FS_SWAP))
 	return ((PartInfo *)c1->private)->mountpoint;
     else if (c1->type == part && c1->subtype == FS_SWAP)
 	return "none";
@@ -92,7 +92,7 @@ mount_point(Chunk *c1)
 static char *
 fstype(Chunk *c1)
 {
-    if (c1->type == PART_FAT)
+    if (c1->type == fat)
 	return "msdos";
     else if (c1->type == part) {
 	if (c1->subtype != FS_SWAP)
@@ -209,7 +209,6 @@ configFstab(void)
 void
 configSysconfig(void)
 {
-#if 0
     FILE *fp;
     char *lines[5001];	/* Some big number we're not likely to ever reach - I'm being really lazy here, I know */
     char line[256];
@@ -222,16 +221,39 @@ configSysconfig(void)
 	return;
     }
     for (i = 0; i < 5000; i++) {
-	if (!fgets(line, 256, fp))
+	if (!fgets(line, 255, fp))
 	    break;
 	lines[nlines++] = strdup(line);
     }
     lines[nlines] = NULL;
+    fclose(fp);
     for (v = VarHead; v; v = v->next) {
 	for (i = 0; i < nlines; i++) {
+	    char modify[256], *cp;
+
+	    if (lines[i][0] == '#' || lines[i][0] == ';')
+		continue;
+	    strncpy(modify, lines[i], 255);
+	    cp = index(modify, '=');
+	    if (!cp)
+		continue;
+	    *(cp++) = '\0';
+	    if (!strcmp(modify, v->name)) {
+		free(lines[i]);
+		lines[i] = (char *)malloc(strlen(v->name) + strlen(v->value) + 3);
+		sprintf(lines[i], "%s=%s\n", v->name, v->value);
+	    }
+	    
 	}
     }
-#endif
+    fp = fopen("/etc/sysconfig", "w");
+    if (!fp) {
+	msgConfirm("Unable to re-write /etc/sysconfig file!  Things may work\nrather strangely as a result of this.");
+	return;
+    }
+    for (i = 0; i < nlines; i++)
+	fprintf(fp, lines[i]);
+    fclose(fp);
 }
 
 int
