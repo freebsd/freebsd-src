@@ -44,12 +44,12 @@
 .Op Fl M Ar core
 .Op Fl N Ar system
 .Nm netstat
-.Op Fl dghimnrs
+.Op Fl bdghimnrs
 .Op Fl f Ar address_family
 .Op Fl M Ar core
 .Op Fl N Ar system
 .Nm netstat
-.Op Fl dn
+.Op Fl bdn
 .Op Fl I Ar interface
 .Op Fl M Ar core
 .Op Fl N Ar system
@@ -87,6 +87,11 @@ for debugging.
 With the default display,
 show the state of all sockets; normally sockets used by
 server processes are not shown.
+.It Fl b
+With either interface display (option
+.Fl i
+or an interval, as described below),
+show the number of bytes in and out.
 .It Fl d
 With either interface display (option
 .Fl i

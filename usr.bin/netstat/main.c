@@ -202,13 +202,16 @@ main(argc, argv)
 		prog = argv[0];
 	af = AF_UNSPEC;
 
-	while ((ch = getopt(argc, argv, "Aadf:ghI:iM:mN:np:rstuw:")) != EOF)
+	while ((ch = getopt(argc, argv, "Aabdf:ghI:iM:mN:np:rstuw:")) != EOF)
 		switch(ch) {
 		case 'A':
 			Aflag = 1;
 			break;
 		case 'a':
 			aflag = 1;
+			break;
+		case 'b':
+			bflag = 1;
 			break;
 		case 'd':
 			dflag = 1;
@@ -499,9 +502,9 @@ usage()
 	(void)fprintf(stderr,
 "usage: %s [-Aan] [-f address_family] [-M core] [-N system]\n", prog);
 	(void)fprintf(stderr,
-"       %s [-ghimnrs] [-f address_family] [-M core] [-N system]\n", prog);
+"       %s [-bdghimnrs] [-f address_family] [-M core] [-N system]\n", prog);
 	(void)fprintf(stderr,
-"       %s [-n] [-I interface] [-M core] [-N system] [-w wait]\n", prog);
+"       %s [-bdn] [-I interface] [-M core] [-N system] [-w wait]\n", prog);
 	(void)fprintf(stderr,
 "       %s [-M core] [-N system] [-p protocol]\n", prog);
 	exit(1);
