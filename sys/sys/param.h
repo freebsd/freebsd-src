@@ -44,7 +44,7 @@
 
 #include <sys/_null.h>
 
-#define	BSD	199506		/* System version (year & month). */
+#define	BSD	199507		/* System version (year & month). */
 #define BSD4_3	1
 #define BSD4_4	1
 
