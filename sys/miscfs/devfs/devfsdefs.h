@@ -1,5 +1,4 @@
-#define DEBUG 1
-#ifdef DEBUG
+#ifdef DEVFS_DEBUG
 #define DBPRINT(A) printf(A)
 #else
 #define DBPRINT(A)
@@ -8,7 +7,7 @@
 /*
  * Written by Julian Elischer (julian@DIALIX.oz.au)
  *
- * $Header: /sys/miscfs/devfs/RCS/devfsdefs.h,v 1.2 1994/12/28 02:43:47 root Exp root $
+ * $Header: /home/ncvs/src/sys/miscfs/devfs/devfsdefs.h,v 1.2 1995/04/20 07:34:55 julian Exp $
  */
 
 /* first a couple of defines for compatibility with inodes */
