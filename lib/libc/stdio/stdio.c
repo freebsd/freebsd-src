@@ -45,8 +45,9 @@ static const char rcsid[] =
 #include "namespace.h"
 #include <errno.h>
 #include <fcntl.h>
-#include <unistd.h>
+#include <limits.h>
 #include <stdio.h>
+#include <unistd.h>
 #include "un-namespace.h"
 #include "local.h"
 
@@ -65,10 +66,19 @@ __sread(cookie, buf, n)
 
 	ret = _read(fp->_file, buf, (size_t)n);
 	/* if the read succeeded, update the current offset */
-	if (ret >= 0)
-		fp->_offset += ret;
-	else
-		fp->_flags &= ~__SOFF;	/* paranoia */
+	if (ret >= 0) {
+		if (fp->_flags & __SOFF) {
+			if (fp->_offset > OFF_MAX - ret) {
+				errno = EOVERFLOW;
+				ret = -1;
+			} else {
+				fp->_offset += ret;
+				return (ret);
+			}
+		} else
+			return (ret);
+	}
+	fp->_flags &= ~__SOFF;
 	return (ret);
 }
 
@@ -94,20 +104,24 @@ __sseek(cookie, offset, whence)
 {
 	register FILE *fp = cookie;
 	register off_t ret;
+	int serrno, errret;
 
+	serrno = errno;
+	errno = 0;
 	ret = lseek(fp->_file, (off_t)offset, whence);
+	errret = errno;
+	if (errno == 0)
+		errno = serrno;
 	/*
 	 * Disallow negative seeks per POSIX.
 	 * It is needed here to help upper level caller
 	 * (fseek) in the cases it can't detect.
 	 */
 	if (ret < 0) {
-		if (ret != -1) {
-			/* Resulting seek is negative! */
-			ret = -1;
+		if (errret == 0)
 			errno = EINVAL;
-		}
 		fp->_flags &= ~__SOFF;
+		ret = -1;
 	} else {
 		fp->_flags |= __SOFF;
 		fp->_offset = ret;
