@@ -4,10 +4,10 @@
 '\" See the file "license.terms" for information on usage and redistribution
 '\" of this file, and for a DISCLAIMER OF ALL WARRANTIES.
 '\" 
-'\" SCCS: @(#) interp.n 1.19 96/05/10 16:36:44
+'\" SCCS: @(#) interp.n 1.29 97/03/06 17:41:39
 '\" 
 .so man.macros
-.TH interp n 7.5 Tcl "Tcl Built-In Commands"
+.TH interp n 7.6 Tcl "Tcl Built-In Commands"
 .BS
 '\" Note:  do not modify the .SH NAME line immediately below!
 .SH NAME
@@ -15,6 +15,7 @@ interp \- Create and manipulate Tcl interpreters
 .SH SYNOPSIS
 \fBinterp \fIoption \fR?\fIarg arg ...\fR?
 .BE
+
 .SH DESCRIPTION
 .PP
 This command makes it possible to create one or more new Tcl 
@@ -43,32 +44,45 @@ The \fBinterp\fR command also provides support for \fIsafe\fR
 interpreters.  A safe interpreter is a slave whose functions have
 been greatly restricted, so that it is safe to execute untrusted
 scripts without fear of them damaging other interpreters or the
-application's environment.  For example, all IO channel creation commands
-and subprocess creation commands are removed from safe interpreters.
-See SAFE INTERPRETERS below for more information on what features
-are present in a safe interpreter.  The alias mechanism can be
-used for protected communication (analogous to a kernel call)
-between a slave interpreter and its master.
+application's environment. For example, all IO channel creation
+commands and subprocess creation commands are made inaccessible to safe
+interpreters.
+.VS
+See SAFE INTERPRETERS below for more information on
+what features are present in a safe interpreter.
+The dangerous functionality is not removed from the safe interpreter;
+instead, it is \fIhidden\fR, so that only trusted interpreters can obtain
+access to it. For a detailed explanation of hidden commands, see
+HIDDEN COMMANDS, below.
+The alias mechanism can be used for protected communication (analogous to a
+kernel call) between a slave interpreter and its master. See ALIAS
+INVOCATION, below, for more details on how the alias mechanism works.
+.VE
 .PP
 A qualified interpreter name is a proper Tcl lists containing a subset of its
 ancestors in the interpreter hierarchy, terminated by the string naming the
 interpreter in its immediate master. Interpreter names are relative to the
-interpreter in which they are used. For example, if \fIa\fR is a slave of
-the current interpreter and it has a slave \fIa1\fR, which in turn has a
-slave \fIa11\fR, the qualified name of \fIa11\fR in \fIa\fR is the list
-\fI{a1 a11}\fR.
+interpreter in which they are used. For example, if \fBa\fR is a slave of
+the current interpreter and it has a slave \fBa1\fR, which in turn has a
+slave \fBa11\fR, the qualified name of \fBa11\fR in \fBa\fR is the list
+\fBa1 a11\fR.
 .PP
 The \fBinterp\fR command, described below, accepts qualified interpreter
 names as arguments; the interpreter in which the command is being evaluated
-can always be referred to as \fI{}\fR (the empty list or string). Note that
+can always be referred to as \fB{}\fR (the empty list or string). Note that
 it is impossible to refer to a master (ancestor) interpreter by name in a
 slave interpreter except through aliases. Also, there is no global name by
 which one can refer to the first interpreter created in an application.
 Both restrictions are motivated by safety concerns.
+
+.VS
+.SH "THE INTERP COMMAND"
 .PP
+.VE
 The \fBinterp\fR command is used to create, delete, and manipulate
-slave interpreters.  It can have any of several forms, depending on
-the \fIoption\fR argument:
+slave interpreters, and to share or transfer
+channels between interpreters.  It can have any of several forms, depending
+on the \fIoption\fR argument:
 .TP
 \fBinterp \fBalias \fIsrcPath \fIsrcCmd\fR
 Returns a Tcl list whose elements are the \fItargetCmd\fR and
@@ -117,9 +131,9 @@ Creates a slave interpreter identified by \fIpath\fR and a new command,
 called a \fIslave command\fR. The name of the slave command is the last
 component of \fIpath\fR. The new slave interpreter and the slave command
 are created in the interpreter identified by the path obtained by removing
-the last component from \fIpath\fR. For example, if \fIpath is ``\fBa b
-c\fR'' then a new slave interpreter and slave command named ``\fBc\fR'' are
-created in the interpreter identified by the path ``\fBa b\fR''.
+the last component from \fIpath\fR. For example, if \fIpath is \fBa b
+c\fR then a new slave interpreter and slave command named \fBc\fR are
+created in the interpreter identified by the path \fBa b\fR.
 The slave command may be used to manipulate the new interpreter as
 described below. If \fIpath\fR is omitted, Tcl creates a unique name of the
 form \fBinterp\fIx\fR, where \fIx\fR is an integer, and uses it for the
@@ -153,10 +167,49 @@ invoking interpreter.
 Returns  \fB1\fR if a slave interpreter by the specified \fIpath\fR
 exists in this master, \fB0\fR otherwise. If \fIpath\fR is omitted, the
 invoking interpreter is used.
+.VS BR
+.TP
+\fBinterp \fBexpose \fIpath\fR \fIhiddenCmdName\fR ?\fIexposedCmdName\fR?
+Makes the hidden command \fIhiddenCmdName\fR exposed, potentially renaming
+it to \fIexposedCmdName\fR, in the interpreter denoted by \fIpath\fR.
+If an exposed command with the targetted name already exists, this command
+fails.
+Hidden commands are explained in more detail in HIDDEN COMMANDS, below.
+.TP
+\fBinterp \fBhide \fIpath\fR \fIexposedCmdName\fR ?\fIhiddenCmdName\fR?
+Makes the exposed command \fIexposedCmdName\fR hidden, potentially renaming
+it to \fIhiddenCmdName\fR, in the interpreter denoted by \fIpath\fR.
+If a hidden command with the targetted name already exists, this command
+fails.
+Hidden commands are explained in more detail in HIDDEN COMMANDS, below.
+.TP
+\fBinterp \fBhidden \fIpath\fR
+Returns a list of the names of all hidden commands in the interpreter
+identified by \fIpath\fR.
+.TP
+\fBinterp \fBinvokehidden\fR \fIpath\fR ?\fB-global\fR \fIhiddenCmdName\fR ?\fIarg ...\fR?
+Invokes the hidden command \fIhiddenCmdName\fR with the arguments supplied
+in the interpreter denoted by \fIpath\fR. No substitutions or evaluation
+are applied to the arguments.
+If the \fB-global\fR flag is present, the hidden command is invoked at the
+global level in the target interpreter; otherwise it is invoked at the
+current call frame and can access local variables in that and outer call
+frames.
+Hidden commands are explained in more detail in HIDDEN COMMANDS, below.
+.VE
 .TP
 \fBinterp \fBissafe\fR ?\fIpath\fR?
 Returns \fB1\fR if the interpreter identified by the specified \fIpath\fR
 is safe, \fB0\fR otherwise.
+.VS BR
+.TP
+\fBinterp \fBmarktrusted\fR \fIpath\fR
+Marks the interpreter identified by \fIpath\fR as trusted. Does
+not expose the hidden commands. This command can only be invoked from a
+trusted interpreter.
+The command has no effect if the interpreter identified by \fIpath\fR is
+already trusted.
+.VE
 .TP
 \fBinterp \fBshare\fR \fIsrcPath channelId destPath\fR
 Causes the IO channel identified by \fIchannelId\fR to become shared
@@ -186,6 +239,7 @@ The target command does not have to be defined at the time of this invocation.
 Causes the IO channel identified by \fIchannelId\fR to become available in
 the interpreter identified by \fIdestPath\fR and unavailable in the
 interpreter identified by \fIsrcPath\fR.
+
 .SH "SLAVE COMMAND"
 .PP
 For each slave interpreter created with the \fBinterp\fR command, a
@@ -235,50 +289,46 @@ the resulting string as a Tcl script in \fIslave\fR.
 The result of this evaluation (including error information
 such as the \fBerrorInfo\fR and \fBerrorCode\fR variables, if an
 error occurs) is returned to the invoking interpreter.
+.VS BR
+.TP
+\fIslave \fBexpose \fIhiddenCmdName \fR?\fIexposedCmdName\fR?
+This command exposes the hidden command \fIhiddenCmdName\fR, potentially
+renaming it to \fIexposedCmdName\fR, in \fIslave\fR.
+If an exposed command with the targeted name already exists, this command
+fails.
+For more details on hidden commands, see HIDDEN COMMANDS, below.
+.TP
+\fIslave \fBhide \fIexposedCmdName \fR?\fIhiddenCmdName\fR?
+This command hides the exposed command \fIexposedCmdName\fR, potentially
+renaming it to \fIhiddenCmdName\fR, in \fIslave\fR.
+If a hidden command with the targeted name already exists, this command
+fails.
+For more details on hidden commands, see HIDDEN COMMANDS, below.
+.TP
+\fIslave \fBhidden\fR
+Returns a list of the names of all hidden commands in \fIslave\fR.
+.TP
+\fIslave \fBinvokehidden\fR ?\fB-global\fR \fIhiddenCmdName \fR?\fIarg ..\fR?
+This command invokes the hidden command \fIhiddenCmdName\fR with the
+supplied arguments, in \fIslave\fR. No substitutions or evaluations are
+applied to the arguments.
+If the \fB-global\fR flag is given, the command is invoked at the global
+level in the slave; otherwise it is invoked at the current call frame and
+can access local variables in that or outer call frames.
+For more details on hidden commands, see HIDDEN
+COMMANDS, below.
+.VE
 .TP
 \fIslave \fBissafe\fR
 Returns  \fB1\fR if the slave interpreter is safe, \fB0\fR otherwise.
-
-.SH "ALIAS INVOCATION"
-.PP
-The alias mechanism has been carefully designed so that it can
-be used safely when an untrusted script is executing
-in a safe slave and the target of the alias is a trusted
-master.  The most important thing in guaranteeing safety is to
-ensure that information passed from the slave to the master is
-never evaluated or substituted in the master;  if this were to
-occur, it would enable an evil script in the slave to invoke
-arbitrary functions in the master, which would compromise security.
-.PP
-When the source for an alias is invoked in the slave interpreter, the
-usual Tcl substitutions are performed when parsing that command.
-These substitutions are carried out in the source interpreter just
-as they would be for any other command invoked in that interpreter.
-The command procedure for the source command takes its arguments
-and merges them with the \fItargetCmd\fR and \fIarg\fRs for the
-alias to create a new array of arguments.  If the words
-of \fIsrcCmd\fR were ``\fIsrcCmd arg1 arg2 ... argN\fR'',
-the new set of words will be
-``\fItargetCmd arg arg ... arg arg1 arg2 ... argN\fR'',
-where \fItargetCmd\fR and \fIarg\fRs are the values supplied when the
-alias was created.  \fITargetCmd\fR is then used to locate a command
-procedure in the target interpreter, and that command procedure
-is invoked with the new set of arguments.  An error occurs if
-there is no command named \fItargetCmd\fR in the target interpreter.
-No additional substitutions are performed on the words:  the
-target command procedure is invoked directly, without
-going through the normal Tcl evaluation mechanism.
-Substitutions are thus performed on each word exactly once:
-\fItargetCmd\fR and \fIargs\fR were substituted when parsing the command
-that created the alias, and \fIarg1 - argN\fR are substituted when
-the alias's source command is parsed in the source interpreter.
-.PP
-When writing the \fItargetCmd\fRs for aliases in safe interpreters,
-it is very important that the arguments to that command never be
-evaluated or substituted, since this would provide an escape
-mechanism whereby the slave interpreter could execute arbitrary
-code in the master.  This in turn would compromise the security
-of the system.
+.VS BR
+.TP
+\fIslave \fBmarktrusted\fR
+Marks the slave interpreter as trusted. Can only be invoked by a
+trusted interpreter. This command does not expose any hidden
+commands in the slave interpreter. The command has no effect if the slave
+is already trusted.
+.VE
 
 .SH "SAFE INTERPRETERS"
 .PP
@@ -321,9 +371,18 @@ split	string	subst	switch
 tell	trace	unset	update
 uplevel	upvar	vwait	while\fR
 .DE
-All commands not on this list are removed from the interpreter by
-the \fBinterp create\fR command.  Of course, the missing commands
-can be recreated later as Tcl procedures or aliases.
+.VS BR
+The following commands are hidden by \fBinterp create\fR when it
+creates a safe interpreter:
+.DS
+.ta 1.2i 2.4i 3.6i
+\fBcd	exec	exit	fconfigure
+file	glob	load	open
+pwd	socket	source	vwait\fR
+.DE
+These commands can be recreated later as Tcl procedures or aliases, or
+re-exposed by \fBinterp expose\fR.
+.VE
 .PP
 In addition, the \fBenv\fR variable is not present in a safe interpreter,
 so it cannot share environment variables with other interpreters. The
@@ -336,15 +395,118 @@ security risk.
 .PP
 If extensions are loaded into a safe interpreter, they may also restrict
 their own functionality to eliminate unsafe commands. For a discussion of
-management of extensions for safety see the manual entries for the
-\fBpackage\fR and \fBload\fR Tcl commands.
+management of extensions for safety see the manual entries for
+\fBSafe\-Tcl\fR and the \fBload\fR Tcl command.
+
+.SH "ALIAS INVOCATION"
+.PP
+The alias mechanism has been carefully designed so that it can
+be used safely when an untrusted script is executing
+in a safe slave and the target of the alias is a trusted
+master.  The most important thing in guaranteeing safety is to
+ensure that information passed from the slave to the master is
+never evaluated or substituted in the master;  if this were to
+occur, it would enable an evil script in the slave to invoke
+arbitrary functions in the master, which would compromise security.
+.PP
+When the source for an alias is invoked in the slave interpreter, the
+usual Tcl substitutions are performed when parsing that command.
+These substitutions are carried out in the source interpreter just
+as they would be for any other command invoked in that interpreter.
+The command procedure for the source command takes its arguments
+and merges them with the \fItargetCmd\fR and \fIarg\fRs for the
+alias to create a new array of arguments.  If the words
+of \fIsrcCmd\fR were ``\fIsrcCmd arg1 arg2 ... argN\fR'',
+the new set of words will be
+``\fItargetCmd arg arg ... arg arg1 arg2 ... argN\fR'',
+where \fItargetCmd\fR and \fIarg\fRs are the values supplied when the
+alias was created.  \fITargetCmd\fR is then used to locate a command
+procedure in the target interpreter, and that command procedure
+is invoked with the new set of arguments.  An error occurs if
+there is no command named \fItargetCmd\fR in the target interpreter.
+No additional substitutions are performed on the words:  the
+target command procedure is invoked directly, without
+going through the normal Tcl evaluation mechanism.
+Substitutions are thus performed on each word exactly once:
+\fItargetCmd\fR and \fIargs\fR were substituted when parsing the command
+that created the alias, and \fIarg1 - argN\fR are substituted when
+the alias's source command is parsed in the source interpreter.
+.PP
+When writing the \fItargetCmd\fRs for aliases in safe interpreters,
+it is very important that the arguments to that command never be
+evaluated or substituted, since this would provide an escape
+mechanism whereby the slave interpreter could execute arbitrary
+code in the master.  This in turn would compromise the security
+of the system.
+
+.VS
+.SH "HIDDEN COMMANDS"
+.PP
+Safe interpreters greatly restrict the functionality available to Tcl
+programs executing within them.
+Allowing the untrusted Tcl program to have direct access to this
+functionality is unsafe, because it can be used for a variety of
+attacks on the environment.
+However, there are times when there is a legitimate need to use the
+dangerous functionality in the context of the safe interpreter. For
+example, sometimes a program must be \fBsource\fRd into the interpreter.
+Another example is Tk, where windows are bound to the hierarchy of windows
+for a specific interpreter; some potentially dangerous functions, e.g.
+window management, must be performed on these windows within the
+interpreter context.
+.PP
+The \fBinterp\fR command provides a solution to this problem in the form of
+\fIhidden commands\fR. Instead of removing the dangerous commands entirely
+from a safe interpreter, these commands are hidden so they become
+unavailable to Tcl scripts executing in the interpreter. However, such
+hidden commands can be invoked by any trusted ancestor of the safe
+interpreter, in the context of the safe interpreter, using \fBinterp
+invoke\fR. Hidden commands and exposed commands reside in separate name
+spaces. It is possible to define a hidden command and an exposed command by
+the same name within one interpreter.
+.PP
+Hidden commands in a slave interpreter can be invoked in the body of
+procedures called in the master during alias invocation. For example, an
+alias for \fBsource\fR could be created in a slave interpreter. When it is
+invoked in the slave interpreter, a procedure is called in the master
+interpreter to check that the operation is allowable (e.g. it asks to
+source a file that the slave interpreter is allowed to access). The
+procedure then it invokes the hidden \fBsource\fR command in the slave
+interpreter to actually source in the contents of the file. Note that two
+commands named \fBsource\fR exist in the slave interpreter: the alias, and
+the hidden command.
+.PP
+Because a master interpreter may invoke a hidden command as part of
+handling an alias invocation, great care must be taken to avoid evaluating
+any arguments passed in through the alias invocation.
+Otherwise, malicious slave interpreters could cause a trusted master
+interpreter to execute dangerous commands on their behalf. See the section
+on ALIAS INVOCATION for a more complete discussion of this topic.
+To help avoid this problem, no substitutions or evaluations are
+applied to arguments of \fBinterp invokehidden\fR.
+.PP
+Safe interpreters are not allowed to invoke hidden commands in themselves
+or in their descendants. This prevents safe slaves from gaining access to
+hidden functionality in themselves or their descendants.
+.PP
+The set of hidden commands in an interpreter can be manipulated by a trusted
+interpreter using \fBinterp expose\fR and \fBinterp hide\fR. The \fBinterp
+expose\fR command moves a hidden command to the
+set of exposed commands in the interpreter identified by \fIpath\fR,
+potentially renaming the command in the process. If an exposed command by
+the targeted name already exists, the operation fails. Similarly,
+\fBinterp hide\fR moves an exposed command to the set of hidden commands in
+that interpreter. Safe interpreters are not allowed to move commands
+between the set of hidden and exposed commands, in either themselves or
+their descendants.
+.VE
 .SH CREDITS
 .PP
 This mechanism is based on the Safe-Tcl prototype implemented
 by Nathaniel Borenstein and Marshall Rose.
 
 .SH "SEE ALSO"
-load(n), package(n) Tcl_CreateSlave(3)
+load(n), safe(n), Tcl_CreateSlave(3)
 
 .SH KEYWORDS
 alias, master interpreter, safe interpreter, slave interpreter

@@ -5,7 +5,7 @@
 '\" See the file "license.terms" for information on usage and redistribution
 '\" of this file, and for a DISCLAIMER OF ALL WARRANTIES.
 '\" 
-'\" SCCS: @(#) linsert.n 1.7 96/03/25 20:18:57
+'\" SCCS: @(#) linsert.n 1.8 96/08/26 13:00:03
 '\" 
 .so man.macros
 .TH linsert n 7.4 Tcl "Tcl Built-In Commands"
@@ -25,9 +25,7 @@ element of \fIlist\fR.  Each \fIelement\fR argument will become
 a separate element of the new list.  If \fIindex\fR is less than
 or equal to zero, then the new elements are inserted at the
 beginning of the list.  If \fIindex\fR
-.VS
 has the value \fBend\fR,
-.VE
 or if it is greater than or equal to the number of elements in the list,
 then the new elements are appended to the list.
 

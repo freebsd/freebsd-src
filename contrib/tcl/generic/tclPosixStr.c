@@ -11,7 +11,7 @@
  * See the file "license.terms" for information on usage and redistribution
  * of this file, and for a DISCLAIMER OF ALL WARRANTIES.
  *
- * SCCS: @(#) tclPosixStr.c 1.31 96/07/28 16:25:29
+ * SCCS: @(#) tclPosixStr.c 1.32 96/10/10 10:09:42
  */
 
 #include "tclInt.h"
@@ -540,7 +540,7 @@ Tcl_ErrnoMsg(err)
 	case EBFONT: return "bad font file format";
 #endif
 #ifdef EBUSY
-	case EBUSY: return "mount device busy";
+	case EBUSY: return "file busy";
 #endif
 #ifdef ECHILD
 	case ECHILD: return "no children";

@@ -5,10 +5,10 @@
 '\" See the file "license.terms" for information on usage and redistribution
 '\" of this file, and for a DISCLAIMER OF ALL WARRANTIES.
 '\" 
-'\" SCCS: @(#) exec.n 1.12 96/03/25 20:13:20
+'\" SCCS: @(#) exec.n 1.17 96/09/18 15:21:17
 '\" 
 .so man.macros
-.TH exec n 7.0 Tcl "Tcl Built-In Commands"
+.TH exec n 7.6 Tcl "Tcl Built-In Commands"
 .BS
 '\" Note:  do not modify the .SH NAME line immediately below!
 .SH NAME
@@ -26,7 +26,6 @@ where each \fIarg\fR becomes one word of a command, and
 each distinct command becomes a subprocess.
 .PP
 If the initial arguments to \fBexec\fR start with \fB\-\fR then
-.VS
 they are treated as command-line switches and are not part
 of the pipeline specification.  The following switches are
 currently supported:
@@ -38,17 +37,14 @@ Normally a trailing newline will be deleted.
 \fB\-\|\-\fR
 Marks the end of switches.  The argument following this one will
 be treated as the first \fIarg\fR even if it starts with a \fB\-\fR.
-.VE
 .PP
 If an \fIarg\fR (or pair of \fIarg\fR's) has one of the forms
 described below then it is used by \fBexec\fR to control the
 flow of input and output among the subprocess(es).
 Such arguments will not be passed to the subprocess(es).  In forms
-.VS
 such as ``< \fIfileName\fR'' \fIfileName\fR may either be in a
 separate argument from ``<'' or in the same argument with no
 intervening space (i.e. ``<\fIfileName\fR'').
-.VE
 .TP 15
 |
 Separates distinct commands in the pipeline.  The standard output
@@ -66,12 +62,10 @@ The file named by \fIfileName\fR is opened and used as the standard
 input for the first command in the pipeline.
 .TP 15
 <@\0\fIfileId\fR
-.VS
 \fIFileId\fR must be the identifier for an open file, such as the return
 value from a previous call to \fBopen\fR.
 It is used as the standard input for the first command in the pipeline.
 \fIFileId\fR must have been opened for reading.
-.VE
 .TP 15
 <<\0\fIvalue\fR
 \fIValue\fR is passed to the first command as its standard input.
@@ -81,7 +75,6 @@ Standard output from the last command is redirected to the file named
 \fIfileName\fR, overwriting its previous contents.
 .TP 15
 2>\0\fIfileName\fR
-.VS
 Standard error from all commands in the pipeline is redirected to the
 file named \fIfileName\fR, overwriting its previous contents.
 .TP 15
@@ -89,7 +82,6 @@ file named \fIfileName\fR, overwriting its previous contents.
 Both standard output from the last command and standard error from all
 commands are redirected to the file named \fIfileName\fR, overwriting
 its previous contents.
-.VE
 .TP 15
 >>\0\fIfileName\fR
 Standard output from the last command is
@@ -97,7 +89,6 @@ redirected to the file named \fIfileName\fR, appending to it rather
 than overwriting it.
 .TP 15
 2>>\0\fIfileName\fR
-.VS
 Standard error from all commands in the pipeline is
 redirected to the file named \fIfileName\fR, appending to it rather
 than overwriting it.
@@ -126,7 +117,6 @@ value from a previous call to \fBopen\fR.
 Both standard output from the last command and standard error from
 all commands are redirected to \fIfileId\fR's file.
 The file must have been opened for writing.
-.VE
 .PP
 If standard output has not been redirected then the \fBexec\fR
 command returns the standard output from the last command
@@ -149,10 +139,8 @@ is a newline then that character is normally deleted
 from the result or error message.
 This is consistent with other Tcl return values, which don't
 normally end with newlines.
-.VS
 However, if \fB\-keepnewline\fR is specified then the trailing
 newline is retained.
-.VE
 .PP
 If standard input isn't redirected with ``<'' or ``<<''
 or ``<@'' then the standard input for the first command in the
@@ -160,11 +148,9 @@ pipeline is taken from the application's current standard input.
 .PP
 If the last \fIarg\fR is ``&'' then the pipeline will be
 executed in background.
-.VS
 In this case the \fBexec\fR command will return a list whose
 elements are the process identifiers for all of the subprocesses
 in the pipeline.
-.VE
 The standard output from the last command in the pipeline will
 go to the application's standard output if it hasn't been
 redirected, and error output from all of
@@ -181,5 +167,191 @@ reachable from the current directory.
 No ``glob'' expansion or other shell-like substitutions
 are performed on the arguments to commands.
 
+.VS
+.SH "PORTABILITY ISSUES"
+.TP
+\fBWindows\fR (all versions)
+.
+Reading from or writing to a socket, using the ``\fB@\0\fIfileId\fR''
+notation, does not work.  When reading from a socket, a 16-bit DOS
+application will hang and a 32-bit application will return immediately with
+end-of-file.  When either type of application writes to a socket, the
+information is instead sent to the console, if one is present, or is
+discarded.
+.sp
+The Tk console text widget does not provide real standard IO capabilities.
+Under Tk, when redirecting from standard input, all applications will see an
+immediate end-of-file; information redirected to standard output or standard
+error will be discarded.  
+.sp
+Either forward or backward slashes are accepted as path separators for
+arguments to Tcl commands.  When executing an application, the path name
+specified for the application may also contain forward or backward slashes
+as path separators.  Bear in mind, however, that most Windows applications
+accept arguments with forward slashes only as option delimiters and
+backslashes only in paths.  Any arguments to an application that specify a
+path name with forward slashes will not automatically be converted to use
+the backslash character.  If an argument contains forward slashes as the
+path separator, it may or may not be recognized as a path name, depending on
+the program.  
+.sp
+Additionally, when calling a 16-bit DOS or Windows 3.X application, all path
+names must use the short, cryptic, path format (e.g., using ``applba~1.def''
+instead of ``applbakery.default'').
+.sp
+Two or more forward or backward slashes in a row in a path refer to a
+network path.  For example, a simple concatenation of the root directory
+\fBc:/\fR with a subdirectory \fB/windows/system\fR will yield
+\fBc://windows/system\fR (two slashes together), which refers to the
+directory \fB/system\fR on the machine \fBwindows\fR (and the \fBc:/\fR is
+ignored), and is not equivalent to \fBc:/windows/system\fR, which describes
+a directory on the current computer.
+.TP
+\fBWindows NT\fR
+.
+When attempting to execute an application, \fBexec\fR first searches for the
+name as it was specified.  Then, in order, \fB.com\fR, \fB.exe\fR, and \fB.bat\fR 
+are appended to the end of the specified name and it searches for
+the longer name.  If a directory name was not specified as part of the
+application name, the following directories are automatically searched in
+order when attempting to locate the application:
+.sp
+.RS
+.RS
+The directory from which the Tcl executable was loaded.
+.br
+The current directory.
+.br
+The Windows NT 32-bit system directory.
+.br
+The Windows NT 16-bit system directory.
+.br
+The Windows NT home directory.
+.br
+The directories listed in the path.
+.RE
+.sp
+In order to execute the shell builtin commands like \fBdir\fR and \fBcopy\fR,
+the caller must prepend ``\fBcmd.exe /c\0\fR'' to the desired command.  
+.sp
+.RE
+.TP
+\fBWindows 95\fR
+.
+When attempting to execute an application, \fBexec\fR first searches for the
+name as it was specified.  Then, in order, \fB.com\fR, \fB.exe\fR, and \fB.bat\fR
+are appended to the end of the specified name and it searches for
+the longer name.  If a directory name was not specified as part of the
+application name, the following directories are automatically searched in
+order when attempting to locate the application:
+.sp
+.RS
+.RS
+The directory from which the Tcl executable was loaded.
+.br
+The current directory.
+.br
+The Windows 95 system directory.
+.br
+The Windows 95 home directory.
+.br
+The directories listed in the path.
+.RE
+.sp
+In order to execute the shell builtin commands like \fBdir\fR and \fBcopy\fR,
+the caller must prepend ``\fBcommand.com /c\0\fR'' to the desired command.
+.sp
+Once a 16-bit DOS application has read standard input from a console and 
+then quit, all subsequently run 16-bit DOS applications will see the 
+standard input as already closed.  32-bit applications do not have this
+problem and will run correctly even after a 16-bit DOS application thinks 
+that standard input is closed.  There is no known workaround for this bug
+at this time.
+.sp
+Redirection between the \fBNUL:\fR device and a 16-bit application does not
+always work.  When redirecting from \fBNUL:\fR, some applications may hang,
+others will get an infinite stream of ``0x01'' bytes, and some will actually
+correctly get an immediate end-of-file; the behavior seems to depend upon 
+something compiled into the application itself.  When redirecting greater than
+4K or so to \fBNUL:\fR, some applications will hang.  The above problems do not
+happen with 32-bit applications.  
+.sp
+All DOS 16-bit applications are run synchronously.  All standard input from
+a pipe to a 16-bit DOS application is collected into a temporary file; the
+other end of the pipe must be closed before the 16-bit DOS application
+begins executing.  All standard output or error from a 16-bit DOS
+application to a pipe is collected into temporary files; the application
+must terminate before the temporary files are redirected to the next stage
+of the pipeline.  This is due to a workaround for a Windows 95 bug in the 
+implementation of pipes, and is how the Windows 95 command line interpreter
+handles pipes itself.
+.sp
+Certain applications, such as \fBcommand.com\fR, should not be executed
+interactively.  Applications which directly access the console window,
+rather than reading from their standard input and writing to their standard
+output may fail, hang Tcl, or even hang the system if their own private
+console window is not available to them.
+.RE
+.TP
+\fBWindows 3.X\fR
+.
+When attempting to execute an application, \fBexec\fR first searches for the
+name as it was specified.  Then, in order, \fB.com\fR, \fB.exe\fR, and \fB.bat\fR
+are appended to the end of the specified name and it searches for
+the longer name.  If a directory name was not specified as part of the
+application name, the following directories are automatically searched in
+order when attempting to locate the application:
+.sp
+.RS
+.RS
+The directory from which the Tcl executable was loaded.
+.br
+The current directory.
+.br
+The Windows 3.X system directory.
+.br
+The Windows 3.X home directory.
+.br
+The directories listed in the path.
+.RE
+.sp
+In order to execute the shell builtin commands like \fBdir\fR and \fBcopy\fR,
+the caller must prepend ``\fBcommand.com /c\0\fR'' to the desired command.
+.sp
+16-bit and 32-bit DOS and Windows applications may be executed.  However,
+redirection and piping of standard IO only works with 16-bit DOS
+applications.  32-bit applications always see standard input as already
+closed, and any standard output or error is discarded, no matter where in the
+pipeline the application occurs or what redirection symbols are used by the
+caller.  Additionally, for 16-bit applications, standard error is always
+sent to the same place as standard output; it cannot be redirected to a
+separate location.  In order to achieve pseudo-redirection for 32-bit
+applications, the 32-bit application must instead be written to take command
+line arguments that specify the files that it should read from and write to
+and open those files itself.  
+.sp
+All applications, both 16-bit and 32-bit, run synchronously; each application
+runs to completion before the next one in the pipeline starts.  Temporary files
+are used to simulate piping between applications.  The \fBexec\fR
+command cannot be used to start an application in the background.
+.sp
+When standard input is redirected from an open file using the
+``\fB@\0\fIfileId\fR'' notation, the open file is completely read up to its
+end.  This is slightly different than under Windows 95 or NT, where the child
+application consumes from the open file only as much as it wants.
+Redirecting to an open file is supported as normal.
+.RE
+.TP
+\fBMacintosh\fR
+The \fBexec\fR command is not implemented and does not exist under Macintosh.
+.TP
+\fBUnix\fR\0\0\0\0\0\0\0
+The \fBexec\fR command is fully functional and works as described.
+
+.SH "SEE ALSO"
+open(n)
+.VE
+
 .SH KEYWORDS
 execute, pipeline, redirection, subprocess
+

@@ -5,7 +5,7 @@
 '\" See the file "license.terms" for information on usage and redistribution
 '\" of this file, and for a DISCLAIMER OF ALL WARRANTIES.
 '\" 
-'\" SCCS: @(#) upvar.n 1.14 96/03/25 20:27:03
+'\" SCCS: @(#) upvar.n 1.15 96/08/26 13:00:19
 '\" 
 .so man.macros
 .TH upvar n "" Tcl "Tcl Built-In Commands"
@@ -34,13 +34,11 @@ The variable named by \fIotherVar\fR need not exist at the time of the
 call;  it will be created the first time \fImyVar\fR is referenced, just like
 an ordinary variable.  There must not exist a variable by the
 name \fImyVar\fR at the time \fBupvar\fR is invoked.
-.VS
 \fIMyVar\fR is always treated as the name of a variable, not an
 array element.  Even if the name looks like an array element,
 such as \fBa(b)\fR, a regular variable is created.
 \fIOtherVar\fR may refer to a scalar variable, an array,
 or an array element.
-.VE
 \fBUpvar\fR returns an empty string.
 .PP
 The \fBupvar\fR command simplifies the implementation of call-by-name

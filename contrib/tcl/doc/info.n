@@ -1,11 +1,12 @@
 '\"
 '\" Copyright (c) 1993 The Regents of the University of California.
-'\" Copyright (c) 1994-1996 Sun Microsystems, Inc.
+'\" Copyright (c) 1994-1997 Sun Microsystems, Inc.
+'\" Copyright (c) 1993-1997 Bell Labs Innovations for Lucent Technologies
 '\"
 '\" See the file "license.terms" for information on usage and redistribution
 '\" of this file, and for a DISCLAIMER OF ALL WARRANTIES.
 '\" 
-'\" SCCS: @(#) info.n 1.13 96/07/20 16:07:40
+'\" SCCS: @(#) info.n 1.17 97/05/19 14:48:52
 '\" 
 .so man.macros
 .TH info n 7.5 Tcl "Tcl Built-In Commands"
@@ -37,12 +38,21 @@ Returns a count of the total number of commands that have been invoked
 in this interpreter.
 .TP
 \fBinfo commands \fR?\fIpattern\fR?
-If \fIpattern\fR isn't specified, returns a list of names of all the
-Tcl commands, including both the built-in commands written in C and
+If \fIpattern\fR isn't specified,
+returns a list of names of all the Tcl commands in the current namespace,
+including both the built-in commands written in C and
 the command procedures defined using the \fBproc\fR command.
-If \fIpattern\fR is specified, only those names matching \fIpattern\fR
-are returned.  Matching is determined using the same rules as for
-\fBstring match\fR.
+If \fIpattern\fR is specified,
+only those names matching \fIpattern\fR are returned.
+Matching is determined using the same rules as for \fBstring match\fR.
+\fIpattern\fR can be a qualified name like \fBFoo::print*\fR.
+That is, it may specify a particular namespace
+using a sequence of namespace names separated by \fB::\fRs,
+and may have pattern matching special characters
+at the end to specify a set of commands in that namespace.
+If \fIpattern\fR is a qualified name,
+the resulting list of command names has each one qualified with the name
+of the specified namespace.
 .TP
 \fBinfo complete \fIcommand\fR
 Returns 1 if \fIcommand\fR is a complete Tcl command in the sense of
@@ -68,15 +78,14 @@ otherwise.
 \fBinfo globals \fR?\fIpattern\fR?
 If \fIpattern\fR isn't specified, returns a list of all the names
 of currently-defined global variables.
+Global variables are variables in the global namespace.
 If \fIpattern\fR is specified, only those names matching \fIpattern\fR
 are returned.  Matching is determined using the same rules as for
 \fBstring match\fR.
-.VS br
 .TP
 \fBinfo hostname\fR
 Returns the name of the computer on which this invocation is being
 executed.
-.VE
 .TP
 \fBinfo level\fR ?\fInumber\fR?
 If \fInumber\fR is not specified, this command returns a number
@@ -94,7 +103,6 @@ levels mean.
 \fBinfo library\fR
 Returns the name of the library directory in which standard Tcl
 scripts are stored.
-.VS
 This is actually the value of the \fBtcl_library\fR
 variable and may be changed by setting \fBtcl_library\fR.
 See the \fBtclvars\fR manual entry for more information.
@@ -110,7 +118,6 @@ If \fIinterp\fR is omitted then information is returned for all packages
 loaded in any interpreter in the process.
 To get a list of just the packages in the current interpreter, specify
 an empty string for the \fIinterp\fR argument.
-.VE
 .TP
 \fBinfo locals \fR?\fIpattern\fR?
 If \fIpattern\fR isn't specified, returns a list of all the names
@@ -121,7 +128,6 @@ will not be returned.
 If \fIpattern\fR is specified, only those names matching \fIpattern\fR
 are returned.  Matching is determined using the same rules as for
 \fBstring match\fR.
-.VS br
 .TP
 \fBinfo nameofexecutable\fR
 Returns the full path name of the binary file from which the application
@@ -131,13 +137,14 @@ string is returned.
 \fBinfo patchlevel\fR
 Returns the value of the global variable \fBtcl_patchLevel\fR; see
 the \fBtclvars\fR manual entry for more information.
-.VE
 .TP
 \fBinfo procs \fR?\fIpattern\fR?
 If \fIpattern\fR isn't specified, returns a list of all the
-names of Tcl command procedures.
-If \fIpattern\fR is specified, only those names matching \fIpattern\fR
-are returned.  Matching is determined using the same rules as for
+names of Tcl command procedures in the current namespace.
+If \fIpattern\fR is specified,
+only those procedure names in the current namespace
+matching \fIpattern\fR are returned.
+Matching is determined using the same rules as for
 \fBstring match\fR.
 .TP
 \fBinfo script\fR
@@ -146,7 +153,6 @@ call to \fBTcl_EvalFile\fR active or there is an active invocation
 of the \fBsource\fR command), then this command returns the name
 of the innermost file being processed.  Otherwise the command returns an
 empty string.
-.VS br
 .TP
 \fBinfo sharedlibextension\fR
 Returns the extension used on this platform for the names of files
@@ -157,15 +163,23 @@ string is returned.
 \fBinfo tclversion\fR
 Returns the value of the global variable \fBtcl_version\fR; see
 the \fBtclvars\fR manual entry for more information.
-.VE
 .TP
 \fBinfo vars\fR ?\fIpattern\fR?
 If \fIpattern\fR isn't specified,
-returns a list of all the names of currently-visible variables, including
-both locals and currently-visible globals.
+returns a list of all the names of currently-visible variables.
+This includes locals and currently-visible globals.
 If \fIpattern\fR is specified, only those names matching \fIpattern\fR
 are returned.  Matching is determined using the same rules as for
 \fBstring match\fR.
+\fIpattern\fR can be a qualified name like \fBFoo::option*\fR.
+That is, it may specify a particular namespace
+using a sequence of namespace names separated by \fB::\fRs,
+and may have pattern matching special characters
+at the end to specify a set of variables in that namespace.
+If \fIpattern\fR is a qualified name,
+the resulting list of variable names
+has each matching namespace variable qualified with the name
+of its namespace.
 
 .SH KEYWORDS
-command, information, interpreter, level, procedure, variable
+command, information, interpreter, level, namespace, procedure, variable

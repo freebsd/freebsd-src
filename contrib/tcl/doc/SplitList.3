@@ -5,7 +5,7 @@
 '\" See the file "license.terms" for information on usage and redistribution
 '\" of this file, and for a DISCLAIMER OF ALL WARRANTIES.
 '\" 
-'\" SCCS: @(#) SplitList.3 1.20 96/06/05 18:00:16
+'\" SCCS: @(#) SplitList.3 1.21 97/04/29 14:07:10
 '\" 
 .so man.macros
 .TH Tcl_SplitList 3 7.5 Tcl "Tcl Library Procedures"
@@ -24,9 +24,19 @@ char *
 .sp
 int
 \fBTcl_ScanElement\fR(\fIsrc, flagsPtr\fR)
+.VS
+.sp
+int
+\fBTcl_ScanCountedElement\fR(\fIsrc, length, flagsPtr\fR)
+.VE
 .sp
 int
 \fBTcl_ConvertElement\fR(\fIsrc, dst, flags\fR)
+.VS
+.sp
+int
+\fBTcl_ConvertCountedElement\fR(\fIsrc, length, dst, flags\fR)
+.VE
 .SH ARGUMENTS
 .AS Tcl_Interp ***argvPtr
 .AP Tcl_Interp *interp out
@@ -53,6 +63,10 @@ String that is to become an element of a list.
 .AP int *flagsPtr in
 Pointer to word to fill in with information about \fIsrc\fR.
 The value of *\fIflagsPtr\fR must be passed to \fBTcl_ConvertElement\fR.
+.VS
+.AP int length in
+Number of bytes in string \fIsrc\fR.
+.VE
 .AP char *dst in
 Place to copy converted list element.  Must contain enough characters
 to hold converted string.
@@ -165,6 +179,13 @@ special situations, such as when \fBTcl_ConvertElement\fR is being
 used to generate a portion of an argument for a Tcl command.
 In this case, surrounding \fIsrc\fR with curly braces would cause
 the command not to be parsed correctly.
+.PP
+.VS
+\fBTcl_ScanCountedElement\fR and \fBTcl_ConvertCountedElement\fR are
+the same as \fBTcl_ScanElement\fR and \fBTcl_ConvertElement\fR, except
+the length of string \fIsrc\fR is specified by the \fIlength\fR
+argument, and the string may contain embedded nulls.
+.VE
 
 .SH KEYWORDS
 backslash, convert, element, list, merge, split, strings

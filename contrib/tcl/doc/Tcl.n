@@ -5,7 +5,7 @@
 '\" See the file "license.terms" for information on usage and redistribution
 '\" of this file, and for a DISCLAIMER OF ALL WARRANTIES.
 '\" 
-'\" SCCS: @(#) Tcl.n 1.127 96/03/25 20:08:20
+'\" SCCS: @(#) Tcl.n 1.128 96/08/26 12:59:50
 '
 .so man.macros
 .TH Tcl n "" Tcl "Tcl Built-In Commands"
@@ -102,22 +102,18 @@ Variable substitution is not performed on words enclosed in braces.
 .IP [8]
 If a backslash (``\e'') appears within a word then
 \fIbackslash substitution\fR occurs.
-.VS
 In all cases but those described below the backslash is dropped and
 the following character is treated as an ordinary
 character and included in the word.
-.VE
 This allows characters such as double quotes, close brackets,
 and dollar signs to be included in words without triggering
 special processing.
 The following table lists the backslash sequences that are
 handled specially, along with the value that replaces each sequence.
 .RS
-.VS
 .TP 6
 \e\fBa\fR
 Audible alert (bell) (0x7).
-.VE
 .TP 6
 \e\fBb\fR
 Backspace (0x8).
@@ -138,7 +134,6 @@ Tab (0x9).
 Vertical tab (0xb).
 .TP 6
 \e\fB<newline>\fIwhiteSpace\fR
-.VS
 A single space character replaces the backslash, newline, and all
 spaces and tabs after the newline.
 This backslash sequence is unique in that it is replaced in a separate
@@ -146,7 +141,6 @@ pre-pass before the command is actually parsed.
 This means that it will be replaced even when it occurs between
 braces, and the resulting space will be treated as a word separator
 if it isn't in braces or quotes.
-.VE
 .TP 6
 \e\e
 Backslash (``\e'').
@@ -156,10 +150,8 @@ The digits \fIooo\fR (one, two, or three of them) give the octal value of
 the character.
 .TP 6
 \e\fBx\fIhh\fR
-.VS
 The hexadecimal digits \fIhh\fR give the hexadecimal value of
 the character.  Any number of digits may be present.
-.VE
 .LP
 Backslash substitution is not performed on words enclosed in braces,
 except for backslash-newline as described above.

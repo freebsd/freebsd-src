@@ -4,14 +4,13 @@
 '\" See the file "license.terms" for information on usage and redistribution
 '\" of this file, and for a DISCLAIMER OF ALL WARRANTIES.
 '\" 
-'\" SCCS: @(#) CrtSlave.3 1.13 96/03/25 20:00:42
+'\" SCCS: @(#) CrtSlave.3 1.22 97/06/10 17:52:33
 '\" 
 .so man.macros
-.TH Tcl_CreateSlave 3 7.5 Tcl "Tcl Library Procedures"
+.TH Tcl_CreateSlave 3 7.6 Tcl "Tcl Library Procedures"
 .BS
 .SH NAME
-Tcl_IsSafe, Tcl_MakeSafe, Tcl_CreateSlave, Tcl_GetSlave, Tcl_GetSlaves, Tcl_GetMaster, Tcl_CreateAlias, Tcl_GetAlias, Tcl_GetAliases \- manage
-multiple Tcl interpreters and aliases.
+Tcl_IsSafe, Tcl_MakeSafe, Tcl_CreateSlave, Tcl_GetSlave, Tcl_GetMaster, Tcl_GetInterpPath, Tcl_CreateAlias, Tcl_CreateAliasObj, Tcl_GetAlias, Tcl_GetAliasObj, Tcl_ExposeCommand, Tcl_HideCommand \- manage multiple Tcl interpreters, aliases and hidden commands.
 .SH SYNOPSIS
 .nf
 \fB#include <tcl.h>\fR
@@ -34,20 +33,35 @@ Tcl_Interp *
 int
 \fBTcl_GetInterpPath\fR(\fIaskingInterp, slaveInterp\fR)
 .sp
+.VS
 int
 \fBTcl_CreateAlias\fR(\fIslaveInterp, srcCmd, targetInterp, targetCmd, argc, argv\fR)
 .sp
 int
+\fBTcl_CreateAliasObj\fR(\fIslaveInterp, srcCmd, targetInterp, targetCmd, objc, objv\fR)
+.VE
+.sp
+int
 \fBTcl_GetAlias\fR(\fIinterp, srcCmd, targetInterpPtr, targetCmdPtr, argcPtr, argvPtr\fR)
+.sp
+.VS
+int
+\fBTcl_GetAliasObj\fR(\fIinterp, srcCmd, targetInterpPtr, targetCmdPtr, objcPtr, objvPtr\fR)
+.sp
+int
+\fBTcl_ExposeCommand\fR(\fIinterp, hiddenCmdName, cmdName\fR)
+.sp
+int
+\fBTcl_HideCommand\fR(\fIinterp, cmdName, hiddenCmdName\fR)
 .SH ARGUMENTS
-.AS Tcl_InterpDeleteProc **delProcPtr
+.AS Tcl_InterpDeleteProc **hiddenCmdName
 .AP Tcl_Interp *interp in
 Interpreter in which to execute the specified command.
 .AP char *slaveName in
 Name of slave interpreter to create or manipulate.
 .AP int isSafe in
-Zero means the interpreter may have all Tcl functions. Non-zero means the
-new interpreter's functionality should be limited to make it safe.
+If non-zero, a ``safe'' slave that is suitable for running untrusted code
+is created, otherwise a trusted slave is created.
 .AP Tcl_Interp *slaveInterp in
 Interpreter to use for creating the source command for an alias (see
 below).
@@ -62,6 +76,12 @@ Count of additional arguments to pass to the alias command.
 .AP char **argv in
 Vector of strings, the additional arguments to pass to the alias command.
 This storage is owned by the caller.
+.AP int objc in
+Count of additional object arguments to pass to the alias object command.
+.AP Tcl_Object **objv in
+Vector of Tcl_Obj structures, the additional object argumenst to pass to
+the alias object command.
+This storage is owned by the caller.
 .AP Tcl_Interp **targetInterpPtr in
 Pointer to location to store the address of the interpreter where a target
 command is defined for an alias.
@@ -75,6 +95,20 @@ the alias. The location is in storage owned by the caller.
 Pointer to location to store a vector of strings, the additional arguments
 to pass to an alias. The location is in storage owned by the caller, the
 vector of strings is owned by the called function.
+.AP int *objcPtr out
+Pointer to location to store count of additional object arguments to be
+passed to the alias. The location is in storage owned by the caller.
+.AP Tcl_Obj ***objvPtr out
+Pointer to location to store a vector of Tcl_Obj structures, the additional
+arguments to pass to an object alias command. The location is in storage
+owned by the caller, the vector of Tcl_Obj structures is owned by the
+called function.
+.VS
+.AP char *cmdName in
+Name of an exposed command to hide or create.
+.AP char *hiddenCmdName in
+Name of a hidden command to create or expose.
+.VE
 .BE
 
 .SH DESCRIPTION
@@ -87,28 +121,31 @@ interpreter. The return value for those procedures that return an \fBint\fR
 is either \fBTCL_OK\fR or \fBTCL_ERROR\fR. If \fBTCL_ERROR\fR is returned
 then the \fBresult\fR field of the interpreter contains an error message.
 .PP
-\fBTcl_CreateSlave\fR creates a new interpreter as a slave of the given
-interpreter. It also creates a slave command in the given interpreter which
-allows the master interpreter to manipulate the slave. The slave
-interpreter and the slave command have the specified name. If \fIisSafe\fR
-is \fB1\fR, the new slave interpreter is made ``safe'' by removing all
-unsafe functionality. If the creation failed, \fBNULL\fR is returned.
+\fBTcl_CreateSlave\fR creates a new interpreter as a slave of \fIinterp\fR.
+It also creates a slave command named \fIslaveName\fR in \fIinterp\fR which 
+allows \fIinterp\fR to manipulate the new slave. 
+If \fIisSafe\fR is zero, the command creates a trusted slave in which Tcl
+code has access to all the Tcl commands.
+If it is \fB1\fR, the command creates a ``safe'' slave in which Tcl code
+has access only to set of Tcl commands defined as ``Safe Tcl''; see the
+manual entry for the Tcl \fBinterp\fR command for details.
+If the creation of the new slave interpreter failed, \fBNULL\fR is returned.
 .PP
-\fBTcl_IsSafe\fR returns \fB1\fR if the given interpreter is ``safe'',
+\fBTcl_IsSafe\fR returns \fB1\fR if \fIinterp\fR is ``safe'' (was created
+with the \fBTCL_SAFE_INTERPRETER\fR flag specified),
 \fB0\fR otherwise.
 .PP
-\fBTcl_MakeSafe\fR makes the given interpreter ``safe'' by removing all
+\fBTcl_MakeSafe\fR makes \fIinterp\fR ``safe'' by removing all
 non-core and core unsafe functionality. Note that if you call this after
 adding some extension to an interpreter, all traces of that extension will
-be removed from the interpreter. This operation always succeeds and returns
-\fBTCL_OK\fR.
+be removed from the interpreter.
 .PP
-\fBTcl_GetSlave\fR returns a pointer to a slave interpreter of the given
-interpreter. The slave interpreter is identified by the name specified.
+\fBTcl_GetSlave\fR returns a pointer to a slave interpreter of
+\fIinterp\fR. The slave interpreter is identified by \fIslaveName\fR.
 If no such slave interpreter exists, \fBNULL\fR is returned.
 .PP
-\fBTcl_GetMaster\fR returns a pointer to the master interpreter of the
-given interpreter. If the given interpreter has no master (it is a
+\fBTcl_GetMaster\fR returns a pointer to the master interpreter of
+\fIinterp\fR. If \fIinterp\fR has no master (it is a
 top-level interpreter) then \fBNULL\fR is returned.
 .PP
 \fBTcl_GetInterpPath\fR sets the \fIresult\fR field in \fIaskingInterp\fR
@@ -118,25 +155,66 @@ of the relative path succeeds, \fBTCL_OK\fR is returned, else
 \fBTCL_ERROR\fR is returned and the \fIresult\fR field in
 \fIaskingInterp\fR contains the error message.
 .PP
-\fBTcl_GetAlias\fR returns information about an alias of a specified name
-in a given interpreter. Any of the result fields can be \fBNULL\fR, in
+.VS
+\fBTcl_CreateAlias\fR creates an object command named \fIsrcCmd\fR in
+\fIslaveInterp\fR that when invoked, will cause the command \fItargetCmd\fR
+to be invoked in \fItargetInterp\fR. The arguments specified by the strings
+contained in \fIargv\fR are always prepended to any arguments supplied in the
+invocation of \fIsrcCmd\fR and passed to \fItargetCmd\fR.
+This operation returns \fBTCL_OK\fR if it succeeds, or \fBTCL_ERROR\fR if
+it fails; in that case, an error message is left in the object result
+of \fIslaveInterp\fR.
+Note that there are no restrictions on the ancestry relationship (as
+created by \fBTcl_CreateSlave\fR) between \fIslaveInterp\fR and
+\fItargetInterp\fR. Any two interpreters can be used, without any
+restrictions on how they are related.
+.PP
+\fBTcl_CreateAliasObj\fR is similar to \fBTcl_CreateAliasObj\fR except 
+that it takes a vector of objects to pass as additional arguments instead
+of a vector of strings.
+.VE
+.PP
+\fBTcl_GetAlias\fR returns information about an alias \fIaliasName\fR
+in \fIinterp\fR. Any of the result fields can be \fBNULL\fR, in
 which case the corresponding datum is not returned. If a result field is
 non\-\fBNULL\fR, the address indicated is set to the corresponding datum.
 For example, if \fItargetNamePtr\fR is non\-\fBNULL\fR it is set to a
 pointer to the string containing the name of the target command.
+.VS
 .PP
-In order to map over all slave interpreters, use \fBTcl_Eval\fR with the
-command \fBinterp slaves\fR and use the value (a Tcl list) deposited in the
-\fBresult\fR field of the interpreter. Similarly, to map over all aliases
-whose source commands are defined in an interpreter, use \fBTcl_Eval\fR
-with the command \fBinterp aliases\fR and use the value (a Tcl list)
-deposited in the \fBresult\fR field. Note that the storage of this list
-belongs to Tcl, so you should copy it before invoking any other Tcl
-commands in that interpreter.
+\fBTcl_GetAliasObj\fR is similar to \fBTcl_GetAlias\fR except that it
+returns a pointer to a vector of Tcl_Obj structures instead of a vector of
+strings.
+.PP
+\fBTcl_ExposeCommand\fR moves the command named \fIhiddenCmdName\fR from
+the set of hidden commands to the set of exposed commands, renaming it to
+\fIcmdName\fR. \fIHiddenCmdName\fR must be the name of an existing hidden
+command, or the operation will return \fBTCL_ERROR\fR and deposit an error
+message in the \fIresult\fR field in \fIinterp\fR.
+If an exposed command named \fIcmdName\fR already exists,
+the operation returns \fBTCL_ERROR\fR and leaves an error message in the
+object result of \fIinterp\fR.
+If the operation succeeds, it returns \fBTCL_OK\fR.
+After executing this command, attempts to use \fIcmdName\fR in a call to
+\fBTcl_Eval\fR or with the Tcl \fBeval\fR command will again succeed.
+.PP
+\fBTcl_HideCommand\fR moves the command named \fIcmdName\fR from the set of
+exposed commands to the set of hidden commands, renaming it to
+\fIhiddenCmdName\fR. \fICmdName\fR must be the name of an existing exposed
+command, or the operation will return \fBTCL_ERROR\fR and leave an error
+message in the object result of \fIinterp\fR.
+If a hidden command named \fIhiddenCmdName\fR already
+exists, the operation also returns \fBTCL_ERROR\fR and the \fIresult\fR
+field in \fIinterp\fR contains an error message.
+If the operation succeeds, it returns \fBTCL_OK\fR.
+After executing this command, attempts to use \fIcmdName\fR in a call to
+\fBTcl_Eval\fR or with the Tcl \fBeval\fR command will fail.
+.PP
 .SH "SEE ALSO"
 For a description of the Tcl interface to multiple interpreters, see
 \fIinterp(n)\fR.
 
 .SH KEYWORDS
-alias, command, interpreter, master, slave
+alias, command, exposed commands, hidden commands, interpreter, invoke,
+master, slave, 
 

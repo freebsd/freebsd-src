@@ -5,7 +5,7 @@
 '\" See the file "license.terms" for information on usage and redistribution
 '\" of this file, and for a DISCLAIMER OF ALL WARRANTIES.
 '\" 
-'\" SCCS: @(#) read.n 1.14 96/02/15 20:02:29
+'\" SCCS: @(#) read.n 1.15 96/08/26 13:00:09
 '\" 
 .so man.macros
 .TH read n 7.5 Tcl "Tcl Built-In Commands"
@@ -30,7 +30,6 @@ read.  Exactly that many bytes will be read and returned, unless
 there are fewer than \fInumBytes\fR left in the file;  in this case
 all the remaining bytes are returned.
 .PP
-.VS
 If \fIchannelId\fR is in nonblocking mode, the command may not read
 as many bytes as requested:  once all available input has been read,
 the command will return the data that is available rather than blocking
@@ -43,7 +42,6 @@ newline characters according to the \fB\-translation\fR option
 for the channel.
 See the manual entry for \fBfconfigure\fR for details on the
 \fB\-translation\fR option.
-.VE
 
 .SH "SEE ALSO"
 eof(n), fblocked(n), fconfigure(n)

@@ -12,19 +12,16 @@
  *
  * This code contributed by Karl Lehenbauer and Mark Diekhans
  *
- *
- * SCCS: @(#) tclCkalloc.c 1.20 96/06/06 13:48:27
+ * SCCS: @(#) tclCkalloc.c 1.28 97/04/30 12:09:04
  */
 
 #include "tclInt.h"
+#include "tclPort.h"
 
 #define FALSE	0
 #define TRUE	1
 
 #ifdef TCL_MEM_DEBUG
-#ifndef TCL_GENERIC_ONLY
-#include "tclPort.h"
-#endif
 
 /*
  * One of the following structures is allocated each time the
@@ -110,17 +107,20 @@ static int  init_malloced_bodies = TRUE;
 
 static int		MemoryCmd _ANSI_ARGS_((ClientData clientData,
 			    Tcl_Interp *interp, int argc, char **argv));
+static void		ValidateMemory _ANSI_ARGS_((
+			    struct mem_header *memHeaderP, char *file,
+			    int line, int nukeGuards));
 
 /*
  *----------------------------------------------------------------------
  *
- * dump_memory_info --
+ * TclDumpMemoryInfo --
  *     Display the global memory management statistics.
  *
  *----------------------------------------------------------------------
  */
-static void
-dump_memory_info(outFile) 
+void
+TclDumpMemoryInfo(outFile) 
     FILE *outFile;
 {
         fprintf(outFile,"total mallocs             %10d\n", 
@@ -146,7 +146,7 @@ dump_memory_info(outFile)
  *----------------------------------------------------------------------
  */
 static void
-ValidateMemory (memHeaderP, file, line, nukeGuards)
+ValidateMemory(memHeaderP, file, line, nukeGuards)
     struct mem_header *memHeaderP;
     char              *file;
     int                line;
@@ -161,18 +161,18 @@ ValidateMemory (memHeaderP, file, line, nukeGuards)
         byte = *(memHeaderP->low_guard + idx);
         if (byte != GUARD_VALUE) {
             guard_failed = TRUE;
-            fflush (stdout);
+            fflush(stdout);
 	    byte &= 0xff;
             fprintf(stderr, "low guard byte %d is 0x%x  \t%c\n", idx, byte,
 		    (isprint(UCHAR(byte)) ? byte : ' '));
         }
     }
     if (guard_failed) {
-        dump_memory_info (stderr);
-        fprintf (stderr, "low guard failed at %lx, %s %d\n",
+        TclDumpMemoryInfo (stderr);
+        fprintf(stderr, "low guard failed at %lx, %s %d\n",
                  (long unsigned int) memHeaderP->body, file, line);
-        fflush (stderr);  /* In case name pointer is bad. */
-        fprintf (stderr, "%ld bytes allocated at (%s %d)\n", memHeaderP->length,
+        fflush(stderr);  /* In case name pointer is bad. */
+        fprintf(stderr, "%ld bytes allocated at (%s %d)\n", memHeaderP->length,
 		memHeaderP->file, memHeaderP->line);
         panic ("Memory validation failure");
     }
@@ -190,14 +190,14 @@ ValidateMemory (memHeaderP, file, line, nukeGuards)
     }
 
     if (guard_failed) {
-        dump_memory_info (stderr);
-        fprintf (stderr, "high guard failed at %lx, %s %d\n",
+        TclDumpMemoryInfo (stderr);
+        fprintf(stderr, "high guard failed at %lx, %s %d\n",
                  (long unsigned int) memHeaderP->body, file, line);
-        fflush (stderr);  /* In case name pointer is bad. */
-        fprintf (stderr, "%ld bytes allocated at (%s %d)\n",
+        fflush(stderr);  /* In case name pointer is bad. */
+        fprintf(stderr, "%ld bytes allocated at (%s %d)\n",
 		memHeaderP->length, memHeaderP->file,
 		memHeaderP->line);
-        panic ("Memory validation failure");
+        panic("Memory validation failure");
     }
 
     if (nukeGuards) {
@@ -223,7 +223,7 @@ Tcl_ValidateAllMemory (file, line)
     struct mem_header *memScanP;
 
     for (memScanP = allocHead; memScanP != NULL; memScanP = memScanP->flink)
-        ValidateMemory (memScanP, file, line, FALSE);
+        ValidateMemory(memScanP, file, line, FALSE);
 
 }
 
@@ -252,7 +252,7 @@ Tcl_DumpActiveMemory (fileName)
 
     for (memScanP = allocHead; memScanP != NULL; memScanP = memScanP->flink) {
         address = &memScanP->body [0];
-        fprintf (fileP, "%8lx - %8lx  %7ld @ %s %d %s",
+        fprintf(fileP, "%8lx - %8lx  %7ld @ %s %d %s",
 		(long unsigned int) address,
                  (long unsigned int) address + memScanP->length - 1,
 		 memScanP->length, memScanP->file, memScanP->line,
@@ -292,11 +292,11 @@ Tcl_DbCkalloc(size, file, line)
     if (validate_memory)
         Tcl_ValidateAllMemory (file, line);
 
-    result = (struct mem_header *)malloc((unsigned)size + 
+    result = (struct mem_header *) TclpAlloc((unsigned)size + 
                               sizeof(struct mem_header) + HIGH_GUARD_SIZE);
     if (result == NULL) {
         fflush(stdout);
-        dump_memory_info(stderr);
+        TclDumpMemoryInfo(stderr);
         panic("unable to alloc %d bytes, %s line %d", size, file, 
               line);
     }
@@ -401,9 +401,9 @@ Tcl_DbCkfree(ptr, file, line)
 		(long unsigned int) memp->body, memp->length, file, line);
 
     if (validate_memory)
-        Tcl_ValidateAllMemory (file, line);
+        Tcl_ValidateAllMemory(file, line);
 
-    ValidateMemory (memp, file, line, TRUE);
+    ValidateMemory(memp, file, line, TRUE);
     if (init_malloced_bodies) {
 	memset((VOID *) ptr, GUARD_VALUE, (size_t) memp->length);
     }
@@ -415,7 +415,7 @@ Tcl_DbCkfree(ptr, file, line)
     if (memp->tagPtr != NULL) {
 	memp->tagPtr->refCount--;
 	if ((memp->tagPtr->refCount == 0) && (curTagPtr != memp->tagPtr)) {
-	    free((char *) memp->tagPtr);
+	    TclpFree((char *) memp->tagPtr);
 	}
     }
 
@@ -428,7 +428,7 @@ Tcl_DbCkfree(ptr, file, line)
         memp->blink->flink = memp->flink;
     if (allocHead == memp)
         allocHead = memp->flink;
-    free((char *) memp);
+    TclpFree((char *) memp);
     return 0;
 }
 
@@ -463,7 +463,7 @@ Tcl_DbCkrealloc(ptr, size, file, line)
 	    (((unsigned long) ptr) - BODY_OFFSET);
 
     copySize = size;
-    if (copySize > memp->length) {
+    if (copySize > (unsigned int) memp->length) {
 	copySize = memp->length;
     }
     new = Tcl_DbCkalloc(size, file, line);
@@ -571,19 +571,22 @@ MemoryCmd (clientData, interp, argc, argv)
 	return TCL_OK;
     }
     if (strcmp(argv[1],"break_on_malloc") == 0) {
-        if (argc != 3) 
+        if (argc != 3) {
             goto argError;
-        if (Tcl_GetInt(interp, argv[2], &break_on_malloc) != TCL_OK)
-                return TCL_ERROR;
+	}
+        if (Tcl_GetInt(interp, argv[2], &break_on_malloc) != TCL_OK) {
+	    return TCL_ERROR;
+	}
         return TCL_OK;
     }
     if (strcmp(argv[1],"info") == 0) {
-        dump_memory_info(stdout);
+        TclDumpMemoryInfo(stdout);
         return TCL_OK;
     }
     if (strcmp(argv[1],"init") == 0) {
-        if (argc != 3)
+        if (argc != 3) {
             goto bad_suboption;
+	}
         init_malloced_bodies = (strcmp(argv[2],"on") == 0);
         return TCL_OK;
     }
@@ -594,30 +597,34 @@ MemoryCmd (clientData, interp, argc, argv)
 	    return TCL_ERROR;
 	}
 	if ((curTagPtr != NULL) && (curTagPtr->refCount == 0)) {
-	    free((char *) curTagPtr);
+	    TclpFree((char *) curTagPtr);
 	}
-	curTagPtr = (MemTag *) malloc(TAG_SIZE(strlen(argv[2])));
+	curTagPtr = (MemTag *) TclpAlloc(TAG_SIZE(strlen(argv[2])));
 	curTagPtr->refCount = 0;
 	strcpy(curTagPtr->string, argv[2]);
 	return TCL_OK;
     }
     if (strcmp(argv[1],"trace") == 0) {
-        if (argc != 3) 
+        if (argc != 3) {
             goto bad_suboption;
+	}
         alloc_tracing = (strcmp(argv[2],"on") == 0);
         return TCL_OK;
     }
 
     if (strcmp(argv[1],"trace_on_at_malloc") == 0) {
-        if (argc != 3) 
+        if (argc != 3) {
             goto argError;
-        if (Tcl_GetInt(interp, argv[2], &trace_on_at_malloc) != TCL_OK)
-                return TCL_ERROR;
-         return TCL_OK;
+	}
+        if (Tcl_GetInt(interp, argv[2], &trace_on_at_malloc) != TCL_OK) {
+	    return TCL_ERROR;
+	}
+	return TCL_OK;
     }
     if (strcmp(argv[1],"validate") == 0) {
-        if (argc != 3)
-             goto bad_suboption;
+        if (argc != 3) {
+	    goto bad_suboption;
+	}
         validate_memory = (strcmp(argv[2],"on") == 0);
         return TCL_OK;
     }
@@ -661,7 +668,7 @@ Tcl_InitMemory(interp)
  *----------------------------------------------------------------------
  *
  * Tcl_Alloc --
- *     Interface to malloc when TCL_MEM_DEBUG is disabled.  It does check
+ *     Interface to TclpAlloc when TCL_MEM_DEBUG is disabled.  It does check
  *     that memory was actually allocated.
  *
  *----------------------------------------------------------------------
@@ -673,7 +680,7 @@ Tcl_Alloc (size)
 {
         char *result;
 
-        result = malloc(size);
+        result = TclpAlloc(size);
         if (result == NULL) 
                 panic("unable to alloc %d bytes", size);
         return result;
@@ -687,7 +694,7 @@ Tcl_DbCkalloc(size, file, line)
 {
     char *result;
 
-    result = (char *) malloc(size);
+    result = (char *) TclpAlloc(size);
 
     if (result == NULL) {
         fflush(stdout);
@@ -702,8 +709,8 @@ Tcl_DbCkalloc(size, file, line)
  *----------------------------------------------------------------------
  *
  * Tcl_Realloc --
- *     Interface to realloc when TCL_MEM_DEBUG is disabled.  It does check
- *     that memory was actually allocated.
+ *     Interface to TclpRealloc when TCL_MEM_DEBUG is disabled.  It does 
+ *     check that memory was actually allocated.
  *
  *----------------------------------------------------------------------
  */
@@ -715,7 +722,7 @@ Tcl_Realloc(ptr, size)
 {
     char *result;
 
-    result = realloc(ptr, size);
+    result = TclpRealloc(ptr, size);
     if (result == NULL) 
 	panic("unable to realloc %d bytes", size);
     return result;
@@ -730,7 +737,7 @@ Tcl_DbCkrealloc(ptr, size, file, line)
 {
     char *result;
 
-    result = (char *) realloc(ptr, size);
+    result = (char *) TclpRealloc(ptr, size);
 
     if (result == NULL) {
         fflush(stdout);
@@ -744,8 +751,8 @@ Tcl_DbCkrealloc(ptr, size, file, line)
  *----------------------------------------------------------------------
  *
  * Tcl_Free --
- *     Interface to free when TCL_MEM_DEBUG is disabled.  Done here rather
- *     in the macro to keep some modules from being compiled with 
+ *     Interface to TclpFree when TCL_MEM_DEBUG is disabled.  Done here
+ *     rather in the macro to keep some modules from being compiled with 
  *     TCL_MEM_DEBUG enabled and some with it disabled.
  *
  *----------------------------------------------------------------------
@@ -755,7 +762,7 @@ void
 Tcl_Free (ptr)
     char *ptr;
 {
-        free (ptr);
+        TclpFree(ptr);
 }
 
 int
@@ -764,7 +771,7 @@ Tcl_DbCkfree(ptr, file, line)
     char     *file;
     int       line;
 {
-    free (ptr);
+    TclpFree(ptr);
     return 0;
 }
 
@@ -792,14 +799,14 @@ extern void		Tcl_ValidateAllMemory _ANSI_ARGS_((char *file,
 			    int line));
 
 int
-Tcl_DumpActiveMemory (fileName)
+Tcl_DumpActiveMemory(fileName)
     char *fileName;
 {
     return TCL_OK;
 }
 
 void
-Tcl_ValidateAllMemory (file, line)
+Tcl_ValidateAllMemory(file, line)
     char  *file;
     int    line;
 {

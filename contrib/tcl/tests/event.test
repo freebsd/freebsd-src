@@ -1,14 +1,14 @@
 # This file contains a collection of tests for the procedures in the file
-# tclEvent.c, which includes the "after", "update", and "vwait" Tcl
+# tclEvent.c, which includes the "update", and "vwait" Tcl
 # commands.  Sourcing this file into Tcl runs the tests and generates
 # output for errors.  No output means no errors were found.
 #
-# Copyright (c) 1995-1996 Sun Microsystems, Inc.
+# Copyright (c) 1995-1997 Sun Microsystems, Inc.
 #
 # See the file "license.terms" for information on usage and redistribution
 # of this file, and for a DISCLAIMER OF ALL WARRANTIES.
 #
-# "@(#) event.test 1.20 96/04/09 15:54:05"
+# "@(#) event.test 1.27 97/06/23 18:21:18"
 
 if {[string compare test [info procs test]] == 1} then {source defs}
 
@@ -110,6 +110,7 @@ if {[catch {testfilehandler create 0 off off}] == 0 } {
     } {0 0}
 
     test event-4.1 {FileHandlerEventProc, race between event and disabling } {
+	update
 	testfilehandler close
 	testfilehandler create 2 disabled disabled
 	testfilehandler create 1 readable writable
@@ -128,6 +129,7 @@ if {[catch {testfilehandler create 0 off off}] == 0 } {
 	set result
     } {{0 1} {1 1} {1 2} {0 0}}
     test event-4.2 {FileHandlerEventProc, TCL_FILE_EVENTS off } {
+	update
 	testfilehandler close
 	testfilehandler create 1 readable writable
 	testfilehandler create 2 readable writable
@@ -145,147 +147,7 @@ if {[catch {testfilehandler create 0 off off}] == 0 } {
     update
 }
 
-test event-5.1 {Tcl_CreateTimerHandler procedure} {
-    foreach i [after info] {
-	after cancel $i
-    }
-    set x ""
-    foreach i {100 200 1000 50 150} {
-	after $i lappend x $i
-    }
-    after 200
-    update
-    set x
-} {50 100 150 200}
-
-test event-6.1 {Tcl_DeleteTimerHandler procedure} {
-    foreach i [after info] {
-	after cancel $i
-    }
-    set x ""
-    foreach i {100 200 300 50 150} {
-	after $i lappend x $i
-    }
-    after cancel lappend x 150
-    after cancel lappend x 50
-    after 200
-    update
-    set x
-} {100 200}
-
-if {[info commands testmodal] != ""} {
-    test event-7.1 {Tcl_CreateModalTimeout and Tcl_DeleteModalTimeout procedures} {
-	update
-	set x {}
-	set result {}
-	testmodal create 50 first
-	testmodal create 200 second
-	after 100
-	testmodal eventnotimers
-	lappend result $x
-	after 150
-	testmodal eventnotimers
-	lappend result $x
-	testmodal delete
-	testmodal eventnotimers
-	lappend result $x
-	testmodal eventnotimers
-	lappend result $x
-	testmodal delete
-	testmodal eventnotimers
-	lappend result $x
-    } {{} second {second first} {second first first} {second first first}}
-    
-    test event-8.1 {TimerHandlerSetupProc procedure, choosing correct timer} {
-	update
-	set x {}
-	after 100 {lappend x normal}
-	testmodal create 200 modal
-	vwait x
-	testmodal delete
-	set x
-    } {normal}
-    test event-8.2 {TimerHandlerSetupProc procedure, choosing correct timer} {
-	update
-	set x {}
-	after 200 {lappend x normal}
-	testmodal create 100 modal
-	vwait x
-	testmodal delete
-	set x
-    } {modal}
-}
-
-# No tests for TimerHandlerCheckProc:  it's already tested by other tests
-# above and below.
-
-test event-9.1 {TimerHandlerEventProc procedure} {
-    foreach i [after info] {
-	after cancel $i
-    }
-    foreach i {100 200 300} {
-	after $i lappend x $i
-    }
-    after 100
-    set result ""
-    set x ""
-    update
-    lappend result $x
-    after 100
-    update
-    lappend result $x
-    after 100
-    update
-    lappend result $x
-} {100 {100 200} {100 200 300}}
-
-# No tests for Tcl_DoWhenIdle:  it's already tested by other tests
-# below.
-
-test event-10.1 {Tk_CancelIdleCall procedure} {
-    foreach i [after info] {
-	after cancel $i
-    }
-    set x before
-    set y before
-    set z before
-    after idle set x after1
-    after idle set y after2
-    after idle set z after3
-    after cancel set y after2
-    update idletasks
-    concat $x $y $z
-} {after1 before after3}
-test event-10.2 {Tk_CancelIdleCall procedure} {
-    foreach i [after info] {
-	after cancel $i
-    }
-    set x before
-    set y before
-    set z before
-    after idle set x after1
-    after idle set y after2
-    after idle set z after3
-    after cancel set x after1
-    update idletasks
-    concat $x $y $z
-} {before after2 after3}
-
-test event-11.1 {Tcl_ServiceIdle, self-rescheduling handlers} {
-    foreach i [after info] {
-	after cancel $i
-    }
-    set x 1
-    set y 23
-    after idle {incr x; after idle {incr x; after idle {incr x}}}
-    after idle {incr y}
-    vwait x
-    set result "$x $y"
-    update idletasks
-    lappend result $x
-} {2 24 4}
-
-test event-12.1 {Tcl_BackgroundError, HandleBgErrors procedures} {
+test event-5.1 {Tcl_BackgroundError, HandleBgErrors procedures} {
     catch {rename bgerror {}}
     proc bgerror msg {
 	global errorInfo errorCode x
@@ -305,7 +167,7 @@ test event-12.1 {Tcl_BackgroundError, HandleBgErrors procedures} {
     while executing
 "open non_existent"
     ("after" script)} {POSIX ENOENT {no such file or directory}}}}
-test event-12.2 {Tcl_BackgroundError, HandleBgErrors procedures} {
+test event-5.2 {Tcl_BackgroundError, HandleBgErrors procedures} {
     catch {rename bgerror {}}
     proc bgerror msg {
 	global x
@@ -320,7 +182,7 @@ test event-12.2 {Tcl_BackgroundError, HandleBgErrors procedures} {
     set x
 } {{a simple error}}
 
-test event-13.1 {BgErrorDeleteProc procedure} {
+test event-6.1 {BgErrorDeleteProc procedure} {
     catch {interp delete foo}
     interp create foo
     foo eval {
@@ -346,20 +208,20 @@ test event-13.1 {BgErrorDeleteProc procedure} {
 } {Unmodified
 }
 
-test event-14.1 {tkerror/bgerror backwards compabitility} {
+test event-7.1 {tkerror/bgerror backwards compabitility} {
     catch {rename bgerror {}}
     proc tkerror {x y} {
 	return [expr $x + $y]
     }
     list [tkerror 4 7] [bgerror 8 -3]
 } {11 5}
-test event-14.2 {tkerror/bgerror backwards compabitility} {
+test event-7.2 {tkerror/bgerror backwards compabitility} {
     proc bgerror {x y} {
 	return [expr 1 + $x + $y]
     }
     list [tkerror 6 -2] [bgerror 7 2]
 } {5 10}
-test event-14.3 {tkerror/bgerror backwards compabitility} {
+test event-7.3 {tkerror/bgerror backwards compabitility} {
     proc bgerror {x y} {
 	return [expr 1 + $x + $y]
     }
@@ -367,7 +229,7 @@ test event-14.3 {tkerror/bgerror backwards compabitility} {
     rename tkerror {}
     lappend result [info commands bgerror] [info commands tkerror]
 } {bgerror tkerror {} {}}
-test event-14.4 {tkerror/bgerror backwards compabitility} {
+test event-7.4 {tkerror/bgerror backwards compabitility} {
     proc tkerror {x y} {
 	return [expr 1 + $x + $y]
     }
@@ -375,14 +237,14 @@ test event-14.4 {tkerror/bgerror backwards compabitility} {
     rename bgerror {}
     lappend result [info commands bgerror] [info commands tkerror]
 } {bgerror tkerror {} {}}
-test event-14.5 {tkerror/bgerror backwards compabitility} {
+test event-7.5 {tkerror/bgerror backwards compabitility} {
     proc tkerror {x y} {
 	return [expr 1 + $x + $y]
     }
     rename tkerror foo
     list [info commands bgerror] [info commands tkerror] [foo 4 3]
 } {{} {} 8}
-test event-14.6 {tkerror/bgerror backwards compabitility} {
+test event-7.6 {tkerror/bgerror backwards compabitility} {
     proc bgerror {x y} {
 	return [expr 1 + $x + $y]
     }
@@ -390,26 +252,26 @@ test event-14.6 {tkerror/bgerror backwards compabitility} {
     rename bgerror foo
     list [info commands bgerror] [info commands tkerror] [foo 4 3]
 } {{} {} 8}
-test event-14.7 {tkerror/bgerror backwards compabitility} {
+test event-7.7 {tkerror/bgerror backwards compabitility} {
     proc foo args {return $args}
     catch {rename tkerror {}}
     rename foo tkerror
     list [info commands bgerror] [info commands tkerror] [info commands foo] [tkerror a b c d]
 } {bgerror tkerror {} {a b c d}}
-test event-14.8 {tkerror/bgerror backwards compabitility} {
+test event-7.8 {tkerror/bgerror backwards compabitility} {
     proc foo args {return $args}
     catch {rename bgerror {}}
     rename foo bgerror
     list [info commands bgerror] [info commands tkerror] [info commands foo] [tkerror a b c d]
 } {bgerror tkerror {} {a b c d}}
-test event-14.9 {tkerror/bgerror backwards compabitility} {
+test event-7.9 {tkerror/bgerror backwards compabitility} {
     proc bgerror args {return $args}
     list [catch {rename bgerror tkerror} msg] $msg
 } {1 {can't rename to "tkerror": command already exists}}
-rename bgerror {}
+catch {rename bgerror {}}
 
 if {[info commands testexithandler] != ""} {
-    test event-15.1 {Tcl_CreateExitHandler procedure} {unixOrPc} {
+    test event-8.1 {Tcl_CreateExitHandler procedure} {unixOrPc} {
 	set child [open |[list [info nameofexecutable]] r+]
 	puts $child "testexithandler create 41; testexithandler create 4"
 	puts $child "testexithandler create 6; exit"
@@ -422,7 +284,7 @@ even 4
 odd 41
 }
 
-    test event-16.1 {Tcl_DeleteExitHandler procedure} {unixOrPc} {
+    test event-9.1 {Tcl_DeleteExitHandler procedure} {unixOrPc} {
 	set child [open |[list [info nameofexecutable]] r+]
 	puts $child "testexithandler create 41; testexithandler create 4"
 	puts $child "testexithandler create 6; testexithandler delete 41"
@@ -435,7 +297,7 @@ odd 41
 even 6
 even 4
 }
-    test event-16.2 {Tcl_DeleteExitHandler procedure} {unixOrPc} {
+    test event-9.2 {Tcl_DeleteExitHandler procedure} {unixOrPc} {
 	set child [open |[list [info nameofexecutable]] r+]
 	puts $child "testexithandler create 41; testexithandler create 4"
 	puts $child "testexithandler create 6; testexithandler delete 4"
@@ -448,7 +310,7 @@ even 4
 even 6
 odd 41
 }
-    test event-16.3 {Tcl_DeleteExitHandler procedure} {unixOrPc} {
+    test event-9.3 {Tcl_DeleteExitHandler procedure} {unixOrPc} {
 	set child [open |[list [info nameofexecutable]] r+]
 	puts $child "testexithandler create 41; testexithandler create 4"
 	puts $child "testexithandler create 6; testexithandler delete 6"
@@ -461,7 +323,7 @@ odd 41
 even 4
 odd 41
 }
-    test event-16.4 {Tcl_DeleteExitHandler procedure} {unixOrPc} {
+    test event-9.4 {Tcl_DeleteExitHandler procedure} {unixOrPc} {
 	set child [open |[list [info nameofexecutable]] r+]
 	puts $child "testexithandler create 41; testexithandler delete 41"
 	puts $child "testexithandler create 16; exit"
@@ -473,301 +335,25 @@ odd 41
 }
 }
 
-test event-17.1 {Tcl_Exit procedure} {unixOrPc} {
+test event-10.1 {Tcl_Exit procedure} {unixOrPc} {
     set child [open |[list [info nameofexecutable]] r+]
     puts $child "exit 3"
     list [catch {close $child} msg] $msg [lindex $errorCode 0] \
         [lindex $errorCode 2]
 } {1 {child process exited abnormally} CHILDSTATUS 3}
 
-test event-18.1 {Tcl_AfterCmd procedure, basics} {
-    list [catch {after} msg] $msg
-} {1 {wrong # args: should be "after option ?arg arg ...?"}}
-test event-18.2 {Tcl_AfterCmd procedure, basics} {
-    list [catch {after 2x} msg] $msg
-} {1 {expected integer but got "2x"}}
-test event-18.3 {Tcl_AfterCmd procedure, basics} {
-    list [catch {after gorp} msg] $msg
-} {1 {bad argument "gorp": must be cancel, idle, info, or a number}}
-test event-18.4 {Tcl_AfterCmd procedure, ms argument} {
-    set x before
-    after 400 {set x after}
-    after 200
-    update
-    set y $x
-    after 400
-    update
-    list $y $x
-} {before after}
-test event-18.5 {Tcl_AfterCmd procedure, ms argument} {
-    set x before
-    after 300 set x after
-    after 200
-    update
-    set y $x
-    after 200
-    update
-    list $y $x
-} {before after}
-test event-18.6 {Tcl_AfterCmd procedure, cancel option} {
-    list [catch {after cancel} msg] $msg
-} {1 {wrong # args: should be "after cancel id|command"}}
-test event-18.7 {Tcl_AfterCmd procedure, cancel option} {
-    after cancel after#1
-} {}
-test event-18.8 {Tcl_AfterCmd procedure, cancel option} {
-    after cancel {foo bar}
-} {}
-test event-18.9 {Tcl_AfterCmd procedure, cancel option} {
-    foreach i [after info] {
-	after cancel $i
-    }
-    set x before
-    set y [after 100 set x after]
-    after cancel $y
-    after 200
-    update
-    set x
-} {before}
-test event-18.10 {Tcl_AfterCmd procedure, cancel option} {
-    foreach i [after info] {
-	after cancel $i
-    }
-    set x before
-    after 100 set x after
-    after cancel {set x after}
-    after 200
-    update
-    set x
-} {before}
-test event-18.11 {Tcl_AfterCmd procedure, cancel option} {
-    foreach i [after info] {
-	after cancel $i
-    }
-    set x before
-    after 100 set x after
-    set id [after 300 set x after]
-    after cancel $id
-    after 200
-    update
-    set y $x
-    set x cleared
-    after 200
-    update
-    list $y $x
-} {after cleared}
-test event-18.12 {Tcl_AfterCmd procedure, cancel option} {
-    foreach i [after info] {
-	after cancel $i
-    }
-    set x first
-    after idle lappend x second
-    after idle lappend x third
-    set i [after idle lappend x fourth]
-    after cancel {lappend x second}
-    after cancel $i
-    update idletasks
-    set x
-} {first third}
-test event-18.13 {Tcl_AfterCmd procedure, cancel option, multiple arguments for command} {
-    foreach i [after info] {
-	after cancel $i
-    }
-    set x first
-    after idle lappend x second
-    after idle lappend x third
-    set i [after idle lappend x fourth]
-    after cancel lappend x second
-    after cancel $i
-    update idletasks
-    set x
-} {first third}
-test event-18.14 {Tcl_AfterCmd procedure, cancel option, cancel during handler, used to dump core} {
-    foreach i [after info] {
-	after cancel $i
-    }
-    set id [
-	after 100 {
-	    set x done
-	    after cancel $id
-	}
-    ]
-    vwait x
-} {}
-test event-18.15 {Tcl_AfterCmd procedure, cancel option, multiple interps} {
-    foreach i [after info] {
-	after cancel $i
-    }
-    interp create x
-    x eval {set a before; set b before; after idle {set a a-after};
-	    after idle {set b b-after}}
-    set result [llength [x eval after info]]
-    lappend result [llength [after info]]
-    after cancel {set b b-after}
-    set a aaa
-    set b bbb
-    x eval {after cancel set a a-after}
-    update idletasks
-    lappend result $a $b [x eval {list $a $b}]
-    interp delete x
-    set result
-} {2 0 aaa bbb {before b-after}}
-test event-18.16 {Tcl_AfterCmd procedure, idle option} {
-    list [catch {after idle} msg] $msg
-} {1 {wrong # args: should be "after idle script script ..."}}
-test event-18.17 {Tcl_AfterCmd procedure, idle option} {
-    set x before
-    after idle {set x after}
-    set y $x
-    update idletasks
-    list $y $x
-} {before after}
-test event-18.18 {Tcl_AfterCmd procedure, idle option} {
-    set x before
-    after idle set x after
-    set y $x
-    update idletasks
-    list $y $x
-} {before after}
-set event1 [after idle event 1]
-set event2 [after 1000 event 2]
-interp create x
-set childEvent [x eval {after idle event in child}]
-test event-18.19 {Tcl_AfterCmd, info option} {
-    lsort [after info]
-} "$event1 $event2"
-test event-18.20 {Tcl_AfterCmd, info option} {
-    list [catch {after info a b} msg] $msg
-} {1 {wrong # args: should be "after info ?id?"}}
-test event-18.21 {Tcl_AfterCmd, info option} {
-    list [catch {after info $childEvent} msg] $msg
-} "1 {event \"$childEvent\" doesn't exist}"
-test event-18.22 {Tcl_AfterCmd, info option} {
-    list [after info $event1] [after info $event2]
-} {{{event 1} idle} {{event 2} timer}}
-after cancel $event1
-after cancel $event2
-interp delete x
-
-set event [after idle foo bar]
-scan $event after#%d id
-test event-19.1 {GetAfterEvent procedure} {
-    list [catch {after info xfter#$id} msg] $msg
-} "1 {event \"xfter#$id\" doesn't exist}"
-test event-19.2 {GetAfterEvent procedure} {
-    list [catch {after info afterx$id} msg] $msg
-} "1 {event \"afterx$id\" doesn't exist}"
-test event-19.3 {GetAfterEvent procedure} {
-    list [catch {after info after#ab} msg] $msg
-} {1 {event "after#ab" doesn't exist}}
-test event-19.4 {GetAfterEvent procedure} {
-    list [catch {after info after#} msg] $msg
-} {1 {event "after#" doesn't exist}}
-test event-19.5 {GetAfterEvent procedure} {
-    list [catch {after info after#${id}x} msg] $msg
-} "1 {event \"after#${id}x\" doesn't exist}"
-test event-19.6 {GetAfterEvent procedure} {
-    list [catch {after info afterx[expr $id+1]} msg] $msg
-} "1 {event \"afterx[expr $id+1]\" doesn't exist}"
-after cancel $event
-
-test event-20.1 {AfterProc procedure} {
-    set x before
-    proc foo {} {
-	set x untouched
-	after 100 {set x after}
-	after 200
-	update
-	return $x
-    }
-    list [foo] $x
-} {untouched after}
-test event-20.2 {AfterProc procedure} {
-    catch {rename bgerror {}}
-    proc bgerror msg {
-	global x errorInfo
-	set x [list $msg $errorInfo]
-    }
-    set x empty
-    after 100 {error "After error"}
-    after 200
-    set y $x
-    update
-    catch {rename bgerror {}}
-    list $y $x
-} {empty {{After error} {After error
-    while executing
-"error "After error""
-    ("after" script)}}}
-test event-20.3 {AfterProc procedure, deleting handler from itself} {
-    foreach i [after info] {
-	after cancel $i
-    }
-    proc foo {} {
-	global x
-	set x {}
-	foreach i [after info] {
-	    lappend x [after info $i]
-	}
-	after cancel foo
-    }
-    after idle foo
-    after 1000 {error "I shouldn't ever have executed"}
-    update idletasks
-    set x
-} {{{error "I shouldn't ever have executed"} timer}}
-test event-20.4 {AfterProc procedure, deleting handler from itself} {
-    foreach i [after info] {
-	after cancel $i
-    }
-    proc foo {} {
-	global x
-	set x {}
-	foreach i [after info] {
-	    lappend x [after info $i]
-	}
-	after cancel foo
-    }
-    after 1000 {error "I shouldn't ever have executed"}
-    after idle foo
-    update idletasks
-    set x
-} {{{error "I shouldn't ever have executed"} timer}}
-    foreach i [after info] {
-	after cancel $i
-    }
-
-test event-21.1 {AfterCleanupProc procedure} {
-    catch {interp delete x}
-    interp create x
-    x eval {after 200 {
-	lappend x after
-	puts "part 1: this message should not appear"
-    }}
-    after 200 {lappend x after2}
-    x eval {after 200 {
-	lappend x after3
-	puts "part 2: this message should not appear"
-    }}
-    after 200 {lappend x after4}
-    x eval {after 200 {
-	lappend x after5
-	puts "part 3: this message should not appear"
-    }}
-    interp delete x
-    set x before
-    after 300
-    update
-    set x
-} {before after2 after4}
-
-test event-22.1 {Tcl_VwaitCmd procedure} {
+test event-11.1 {Tcl_VwaitCmd procedure} {
     list [catch {vwait} msg] $msg
 } {1 {wrong # args: should be "vwait name"}}
-test event-22.2 {Tcl_VwaitCmd procedure} {
+test event-11.2 {Tcl_VwaitCmd procedure} {
     list [catch {vwait a b} msg] $msg
 } {1 {wrong # args: should be "vwait name"}}
-test event-22.3 {Tcl_VwaitCmd procedure} {
+test event-11.3 {Tcl_VwaitCmd procedure} {
+    catch {unset x}
+    set x 1
+    list [catch {vwait x(1)} msg] $msg
+} {1 {can't trace "x(1)": variable isn't array}}
+test event-11.4 {Tcl_VwaitCmd procedure} {
     foreach i [after info] {
 	after cancel $i
     }
@@ -782,13 +368,57 @@ test event-22.3 {Tcl_VwaitCmd procedure} {
     list [vwait y] $x $y $z $q
 } {{} x-done y-done before q-done}
 
-test event-23.1 {Tcl_UpdateCmd procedure} {
+foreach i [after info] {
+    after cancel $i
+}
+
+test event-11.5 {Tcl_VwaitCmd procedure: round robin scheduling, 2 sources} {
+    set f1 [open test1 w]
+    proc accept {s args} {
+	puts $s foobar
+	close $s
+    }
+    set s1 [socket -server accept 5000]
+    set s2 [socket 127.0.0.1 5000]
+    close $s1
+    set x 0
+    set y 0
+    set z 0
+    fileevent $s2 readable { incr z }
+    vwait z
+    fileevent $f1 writable { incr x; if { $y == 3 } { set z done } }
+    fileevent $s2 readable { incr y; if { $x == 3 } { set z done } }
+    vwait z
+    close $f1
+    close $s2
+    file delete test1 test2
+    list $x $y $z
+} {3 3 done}
+test event-11.6 {Tcl_VwaitCmd procedure: round robin scheduling, same source} {
+    file delete test1 test2
+    set f1 [open test1 w]
+    set f2 [open test2 w]
+    set x 0
+    set y 0
+    set z 0
+    update
+    fileevent $f1 writable { incr x; if { $y == 3 } { set z done } }
+    fileevent $f2 writable { incr y; if { $x == 3 } { set z done } }
+    vwait z
+    close $f1
+    close $f2
+    file delete test1 test2
+    list $x $y $z
+} {3 3 done}
+
+
+test event-12.1 {Tcl_UpdateCmd procedure} {
     list [catch {update a b} msg] $msg
 } {1 {wrong # args: should be "update ?idletasks?"}}
-test event-23.2 {Tcl_UpdateCmd procedure} {
+test event-12.2 {Tcl_UpdateCmd procedure} {
     list [catch {update bogus} msg] $msg
 } {1 {bad option "bogus": must be idletasks}}
-test event-23.3 {Tcl_UpdateCmd procedure} {
+test event-12.3 {Tcl_UpdateCmd procedure} {
     foreach i [after info] {
 	after cancel $i
     }
@@ -801,7 +431,7 @@ test event-23.3 {Tcl_UpdateCmd procedure} {
     update idletasks
     list $x $y $z
 } {before after {after, y = after}}
-test event-23.4 {Tcl_UpdateCmd procedure} {
+test event-12.4 {Tcl_UpdateCmd procedure} {
     foreach i [after info] {
 	after cancel $i
     }
@@ -817,7 +447,7 @@ test event-23.4 {Tcl_UpdateCmd procedure} {
 } {x-done before z-done}
 
 if {[info commands testfilehandler] != ""} {
-    test event-24.1 {Tcl_WaitForFile procedure, readable} unixOnly {
+    test event-13.1 {Tcl_WaitForFile procedure, readable} unixOnly {
 	foreach i [after info] {
 	    after cancel $i
 	}
@@ -830,7 +460,7 @@ if {[info commands testfilehandler] != ""} {
 	testfilehandler close
 	list $result $x
     } {{} {no timeout}}
-    test event-24.2 {Tcl_WaitForFile procedure, readable} unixOnly {
+    test event-13.2 {Tcl_WaitForFile procedure, readable} unixOnly {
 	foreach i [after info] {
 	    after cancel $i
 	}
@@ -843,7 +473,7 @@ if {[info commands testfilehandler] != ""} {
 	testfilehandler close
 	list $result $x
     } {{} timeout}
-    test event-24.3 {Tcl_WaitForFile procedure, readable} unixOnly {
+    test event-13.3 {Tcl_WaitForFile procedure, readable} unixOnly {
 	foreach i [after info] {
 	    after cancel $i
 	}
@@ -857,7 +487,7 @@ if {[info commands testfilehandler] != ""} {
 	testfilehandler close
 	list $result $x
     } {readable {no timeout}}
-    test event-24.4 {Tcl_WaitForFile procedure, writable} {unixOnly nonPortable} {
+    test event-13.4 {Tcl_WaitForFile procedure, writable} {unixOnly nonPortable} {
 	foreach i [after info] {
 	    after cancel $i
 	}
@@ -871,7 +501,7 @@ if {[info commands testfilehandler] != ""} {
 	testfilehandler close
 	list $result $x
     } {{} {no timeout}}
-    test event-24.5 {Tcl_WaitForFile procedure, writable} {unixOnly nonPortable} {
+    test event-13.5 {Tcl_WaitForFile procedure, writable} {unixOnly nonPortable} {
 	foreach i [after info] {
 	    after cancel $i
 	}
@@ -885,7 +515,7 @@ if {[info commands testfilehandler] != ""} {
 	testfilehandler close
 	list $result $x
     } {{} timeout}
-    test event-24.6 {Tcl_WaitForFile procedure, writable} unixOnly {
+    test event-13.6 {Tcl_WaitForFile procedure, writable} unixOnly {
 	foreach i [after info] {
 	    after cancel $i
 	}
@@ -898,7 +528,7 @@ if {[info commands testfilehandler] != ""} {
 	testfilehandler close
 	list $result $x
     } {writable {no timeout}}
-    test event-24.7 {Tcl_WaitForFile procedure, don't call other event handlers} unixOnly {
+    test event-13.7 {Tcl_WaitForFile procedure, don't call other event handlers} unixOnly {
 	foreach i [after info] {
 	    after cancel $i
 	}
@@ -912,7 +542,10 @@ if {[info commands testfilehandler] != ""} {
 	testfilehandler close
 	lappend result $x
     } {{} {} {timeout idle}}
-    test event-24.8 {Tcl_WaitForFile procedure, waiting indefinitely} unixOnly {
+}
+
+if {[info commands testfilewait] != ""} {
+    test event-13.8 {Tcl_WaitForFile procedure, waiting indefinitely} unixOnly {
 	set f [open "|sleep 2" r]
 	set result ""
 	lappend result [testfilewait $f readable 100]

@@ -5,7 +5,7 @@
 '\" See the file "license.terms" for information on usage and redistribution
 '\" of this file, and for a DISCLAIMER OF ALL WARRANTIES.
 '\" 
-'\" SCCS: @(#) array.n 1.7 96/03/25 20:09:58
+'\" SCCS: @(#) array.n 1.8 96/08/26 12:59:53
 '\" 
 .so man.macros
 .TH array n 7.4 Tcl "Tcl Built-In Commands"
@@ -47,31 +47,24 @@ been the return value from a previous invocation of
 \fBarray startsearch\fR.  Returns an empty string.
 .TP
 \fBarray exists \fIarrayName\fR
-.VS
 Returns 1 if \fIarrayName\fR is an array variable, 0 if there
 is no variable by that name or if it is a scalar variable.
-.VE
 .TP
 \fBarray get \fIarrayName\fR ?\fIpattern\fR?
-.VS
 Returns a list containing pairs of elements.  The first
 element in each pair is the name of an element in \fIarrayName\fR
 and the second element of each pair is the value of the
 array element.  The order of the pairs is undefined.
-.VS
 If \fIpattern\fR is not specified, then all of the elements of the
 array are included in the result.
 If \fIpattern\fR is specified, then only those elements whose names
 match \fIpattern\fR (using the glob-style matching rules of
 \fBstring match\fR) are included.
-.VE
 If \fIarrayName\fR isn't the name of an array variable, or if
 the array contains no elements, then an empty list is returned.
-.VE
 .TP
 \fBarray names \fIarrayName\fR ?\fIpattern\fR?
 Returns a list containing the names of all of the elements in
-.VS
 the array that match \fIpattern\fR (using the glob-style matching
 rules of \fBstring match\fR).
 If \fIpattern\fR is omitted then the command returns all of
@@ -79,7 +72,6 @@ the element names in the array.
 If there are no (matching) elements in the array, or if \fIarrayName\fR
 isn't the name of an array variable, then an empty string is
 returned.
-.VE
 .TP
 \fBarray nextelement \fIarrayName searchId\fR
 Returns the name of the next element in \fIarrayName\fR, or
@@ -93,21 +85,17 @@ then all searches are automatically terminated just as if
 \fBarray nextelement\fR operations to fail for those searches.
 .TP
 \fBarray set \fIarrayName list\fR
-.VS
 Sets the values of one or more elements in \fIarrayName\fR.
 \fIlist\fR must have a form like that returned by \fBarray get\fR,
 consisting of an even number of elements.
 Each odd-numbered element in \fIlist\fR is treated as an element
 name within \fIarrayName\fR, and the following element in \fIlist\fR
 is used as a new value for that array element.
-.VE
 .TP
 \fBarray size \fIarrayName\fR
 Returns a decimal string giving the number of elements in the
 array.
-.VS
 If \fIarrayName\fR isn't the name of an array then 0 is returned.
-.VE
 .TP
 \fBarray startsearch \fIarrayName\fR
 This command initializes an element-by-element search through the

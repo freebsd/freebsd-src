@@ -9,7 +9,7 @@
  * See the file "license.terms" for information on usage and redistribution
  * of this file, and for a DISCLAIMER OF ALL WARRANTIES.
  *
- * SCCS: @(#) tclLoad.c 1.11 96/07/29 08:39:29
+ * SCCS: @(#) tclLoad.c 1.16 97/05/14 13:23:37
  */
 
 #include "tclInt.h"
@@ -101,12 +101,12 @@ Tcl_LoadCmd(dummy, interp, argc, argv)
     char **argv;			/* Argument strings. */
 {
     Tcl_Interp *target;
-    LoadedPackage *pkgPtr;
+    LoadedPackage *pkgPtr, *defaultPtr;
     Tcl_DString pkgName, initName, safeInitName, fileName;
     Tcl_PackageInitProc *initProc, *safeInitProc;
     InterpPackage *ipFirstPtr, *ipPtr;
-    int code, c, gotPkgName;
-    char *p, *fullFileName;
+    int code, c, gotPkgName, namesMatch, filesMatch;
+    char *p, *fullFileName, *p1, *p2;
 
     if ((argc < 2) || (argc > 4)) {
 	Tcl_AppendResult(interp, "wrong # args: should be \"", argv[0],
@@ -126,7 +126,9 @@ Tcl_LoadCmd(dummy, interp, argc, argv)
 	gotPkgName = 0;
     }
     if ((fullFileName[0] == 0) && !gotPkgName) {
-	interp->result = "must specify either file name or package name";
+	Tcl_SetResult(interp,
+		"must specify either file name or package name",
+		TCL_STATIC);
 	code = TCL_ERROR;
 	goto done;
     }
@@ -146,55 +148,65 @@ Tcl_LoadCmd(dummy, interp, argc, argv)
     }
 
     /*
-     * See if the desired file is already loaded.  If so, its package
-     * name must agree with ours (if we have one).
+     * Scan through the packages that are currently loaded to see if the
+     * package we want is already loaded.  We'll use a loaded package if
+     * it meets any of the following conditions:
+     *  - Its name and file match the once we're looking for.
+     *  - Its file matches, and we weren't given a name.
+     *  - Its name matches, the file name was specified as empty, and there
+     *    is only no statically loaded package with the same name.
      */
 
+    defaultPtr = NULL;
     for (pkgPtr = firstPackagePtr; pkgPtr != NULL; pkgPtr = pkgPtr->nextPtr) {
-	if (strcmp(pkgPtr->fileName, fullFileName) != 0) {
-	    continue;
-	}
-	if (gotPkgName) {
-	    char *p1, *p2;
+	if (!gotPkgName) {
+	    namesMatch = 0;
+	} else {
+	    namesMatch = 1;
 	    for (p1 = argv[2], p2 = pkgPtr->packageName; ; p1++, p2++) {
-		if ((isupper(*p1) ? tolower(*p1) : *p1)
-			!= (isupper(*p2) ? tolower(*p2) : *p2)) {
-		    if (fullFileName[0] == 0) {
-			/*
-			 * We're looking for a statically loaded package;
-			 * the file name is basically irrelevant here, so
-			 * don't get upset that there's some other package
-			 * with the same (empty string) file name.  Just
-			 * skip this package and go on to the next.
-			 */
-
-			goto nextPackage;
-		    }
-		    Tcl_AppendResult(interp, "file \"", fullFileName,
-			    "\" is already loaded for package \"",
-			    pkgPtr->packageName, "\"", (char *) NULL);
-		    code = TCL_ERROR;
-		    goto done;
+		if ((isupper(UCHAR(*p1)) ? tolower(UCHAR(*p1)) : *p1)
+			!= (isupper(UCHAR(*p2)) ? tolower(UCHAR(*p2)) : *p2)) {
+		    namesMatch = 0;
+		    break;
 		}
 		if (*p1 == 0) {
-		    goto gotPkg;
+		    break;
 		}
 	    }
-	    nextPackage:
-	    continue;
 	}
-	break;
+	filesMatch = (strcmp(pkgPtr->fileName, fullFileName) == 0);
+	if (filesMatch && (namesMatch || !gotPkgName)) {
+	    break;
+	}
+	if (namesMatch && (fullFileName[0] == 0)) {
+	    defaultPtr = pkgPtr;
+	}
+	if (filesMatch && !namesMatch && (fullFileName[0] != 0)) {
+	    /*
+	     * Can't have two different packages loaded from the same
+	     * file.
+	     */
+
+	    Tcl_AppendResult(interp, "file \"", fullFileName,
+		    "\" is already loaded for package \"",
+		    pkgPtr->packageName, "\"", (char *) NULL);
+	    code = TCL_ERROR;
+	    goto done;
+	}
     }
-    gotPkg:
+    if (pkgPtr == NULL) {
+	pkgPtr = defaultPtr;
+    }
 
     /*
-     * If the file is already loaded in the target interpreter then
-     * there's nothing for us to do.
+     * Scan through the list of packages already loaded in the target
+     * interpreter.  If the package we want is already loaded there,
+     * then there's nothing for us to to.
      */
 
-    ipFirstPtr = (InterpPackage *) Tcl_GetAssocData(target, "tclLoad",
-	    (Tcl_InterpDeleteProc **) NULL);
     if (pkgPtr != NULL) {
+	ipFirstPtr = (InterpPackage *) Tcl_GetAssocData(target, "tclLoad",
+		(Tcl_InterpDeleteProc **) NULL);
 	for (ipPtr = ipFirstPtr; ipPtr != NULL; ipPtr = ipPtr->nextPtr) {
 	    if (ipPtr->pkgPtr == pkgPtr) {
 		code = TCL_OK;
@@ -230,9 +242,9 @@ Tcl_LoadCmd(dummy, interp, argc, argv)
 		/*
 		 * The platform-specific code couldn't figure out the
 		 * module name.  Make a guess by taking the last element
-		 * of the file name, stripping off any leading "lib", and
-		 * then using all of the alphabetic characters that follow
-		 * that.
+		 * of the file name, stripping off any leading "lib",
+		 * and then using all of the alphabetic and underline
+		 * characters that follow that.
 		 */
 
 		Tcl_SplitPath(fullFileName, &pargc, &pargv);
@@ -241,7 +253,7 @@ Tcl_LoadCmd(dummy, interp, argc, argv)
 			&& (pkgGuess[2] == 'b')) {
 		    pkgGuess += 3;
 		}
-		for (p = pkgGuess; isalpha(*p); p++) {
+		for (p = pkgGuess; isalpha(UCHAR(*p)) || (*p == '_'); p++) {
 		    /* Empty loop body. */
 		}
 		if (p == pkgGuess) {
@@ -434,6 +446,19 @@ Tcl_StaticPackage(interp, pkgName, initProc, safeInitProc)
 {
     LoadedPackage *pkgPtr;
     InterpPackage *ipPtr, *ipFirstPtr;
+
+    /*
+     * Check to see if someone else has already reported this package as
+     * statically loaded.  If this call is redundant then just return.
+     */
+
+    for (pkgPtr = firstPackagePtr; pkgPtr != NULL; pkgPtr = pkgPtr->nextPtr) {
+	if ((pkgPtr->initProc == initProc)
+		&& (pkgPtr->safeInitProc == safeInitProc)
+		&& (strcmp(pkgPtr->packageName, pkgName) == 0)) {
+	    return;
+	}
+    }
 
     if (firstPackagePtr == NULL) {
 	Tcl_CreateExitHandler(LoadExitProc, (ClientData) NULL);

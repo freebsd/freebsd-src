@@ -1,11 +1,11 @@
 '\"
 '\" Copyright (c) 1989-1993 The Regents of the University of California.
-'\" Copyright (c) 1994-1996 Sun Microsystems, Inc.
+'\" Copyright (c) 1994-1997 Sun Microsystems, Inc.
 '\"
 '\" See the file "license.terms" for information on usage and redistribution
 '\" of this file, and for a DISCLAIMER OF ALL WARRANTIES.
 '\" 
-'\" SCCS: @(#) ExprLong.3 1.17 96/03/25 20:03:03
+'\" SCCS: @(#) ExprLong.3 1.26 97/06/26 13:42:47
 '\" 
 .so man.macros
 .TH Tcl_ExprLong 3 7.0 Tcl "Tcl Library Procedures"
@@ -30,7 +30,7 @@ int
 .SH ARGUMENTS
 .AS Tcl_Interp *booleanPtr
 .AP Tcl_Interp *interp in
-Interpreter in whose context to evaluate \fIstring\fR.
+Interpreter in whose context to evaluate \fIstring\fR or \fIobjPtr\fR.
 .AP char *string in
 Expression to be evaluated.  Must be in writable memory (the expression
 parser makes temporary modifications to the string during parsing, which
@@ -48,20 +48,29 @@ expression.
 
 .SH DESCRIPTION
 .PP
-These four procedures all evaluate an expression, returning
-the result in one of four different forms.
-The expression is given by the \fIstring\fR argument, and it
-can have any of the forms accepted by the \fBexpr\fR command.
+These four procedures all evaluate the expression
+given by the \fIstring\fR argument
+and return the result in one of four different forms.
+The expression can have any of the forms accepted by the \fBexpr\fR command.
+Note that these procedures have been largely replaced by the
+object-based procedures \fBTcl_ExprLongObj\fR, \fBTcl_ExprDoubleObj\fR,
+\fBTcl_ExprBooleanObj\fR, and \fBTcl_ExprStringObj\fR.
+Those object-based procedures evaluate an expression held in a Tcl object
+instead of a string.
+The object argument can retain an internal representation
+that is more efficient to execute.
+.PP
 The \fIinterp\fR argument refers to an interpreter used to
 evaluate the expression (e.g. for variables and nested Tcl
-commands) and to return error information.  \fIInterp->result\fR
-is assumed to be initialized in the standard fashion when any
-of the procedures are invoked.
+commands) and to return error information.
+\fIinterp->result\fR is assumed to be initialized
+in the standard fashion when they are invoked.
 .PP
 For all of these procedures the return value is a standard
-Tcl result:  \fBTCL_OK\fR means the expression was successfully
+Tcl result: \fBTCL_OK\fR means the expression was successfully
 evaluated, and \fBTCL_ERROR\fR means that an error occurred while
-evaluating the expression.  If \fBTCL_ERROR\fR is returned then
+evaluating the expression.
+If \fBTCL_ERROR\fR is returned then
 \fIinterp->result\fR will hold a message describing the error.
 If an error occurs while executing a Tcl command embedded in
 the expression then that error will be returned.
@@ -83,24 +92,23 @@ an error is returned.
 .PP
 \fBTcl_ExprBoolean\fR stores a 0/1 integer value at \fI*booleanPtr\fR.
 If the expression's actual value is an integer or floating-point
-number, then \fBTcl_ExprBoolean\fR stores 0 at \fI*booleanPtr\fR if
+number, then they store 0 at \fI*booleanPtr\fR if
 the value was zero and 1 otherwise.
-.VS
 If the expression's actual value is a non-numeric string then
-it must be one of the values accepted by \fBTcl_GetBoolean\fR,
+it must be one of the values accepted by \fBTcl_GetBoolean\fR
 such as ``yes'' or ``no'', or else an error occurs.
-.VE
 .PP
 \fBTcl_ExprString\fR returns the value of the expression as a
 string stored in \fIinterp->result\fR.
-.VS
 If the expression's actual value is an integer
 then \fBTcl_ExprString\fR converts it to a string using \fBsprintf\fR
 with a ``%d'' converter.
 If the expression's actual value is a floating-point
 number, then \fBTcl_ExprString\fR calls \fBTcl_PrintDouble\fR
 to convert it to a string.
-.VE
+
+.SH "SEE ALSO"
+Tcl_ExprLongObj, Tcl_ExprDoubleObj, Tcl_ExprBooleanObj, Tcl_ExprObj
 
 .SH KEYWORDS
-boolean, double, evaluate, expression, integer, string
+boolean, double, evaluate, expression, integer, object, string

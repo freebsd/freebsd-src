@@ -4,7 +4,7 @@
 '\" See the file "license.terms" for information on usage and redistribution
 '\" of this file, and for a DISCLAIMER OF ALL WARRANTIES.
 '\" 
-'\" SCCS: @(#) SplitPath.3 1.3 96/07/31 17:04:33
+'\" SCCS: @(#) SplitPath.3 1.4 96/08/19 14:59:35
 '\" 
 .so man.macros
 .TH Tcl_SplitPath 3 7.5 Tcl "Tcl Library Procedures"
@@ -59,11 +59,11 @@ responsibility to free all of this storage.
 For example, suppose that you have called \fBTcl_SplitPath\fR with the
 following code:
 .CS
-int argc, code;
+int argc;
 char *path;
 char **argv;
 \&...
-code = Tcl_SplitPath(interp, string, &argc, &argv);
+Tcl_SplitPath(string, &argc, &argv);
 .CE
 Then you should eventually free the storage with a call like the
 following:

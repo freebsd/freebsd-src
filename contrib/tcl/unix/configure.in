@@ -2,11 +2,12 @@ dnl	This file is an input file used by the GNU "autoconf" program to
 dnl	generate the file "configure", which is run during Tcl installation
 dnl	to configure the system for the local environment.
 AC_INIT(../generic/tcl.h)
-# SCCS: @(#) configure.in 1.107 96/07/30 08:38:37
+# SCCS: @(#) configure.in 1.135 97/06/10 17:28:19
 
-TCL_VERSION=7.5
-TCL_MAJOR_VERSION=7
-TCL_MINOR_VERSION=5
+TCL_VERSION=8.0
+TCL_MAJOR_VERSION=8
+TCL_MINOR_VERSION=0
+TCL_PATCH_LEVEL=b2
 VERSION=${TCL_VERSION}
 
 if test "${prefix}" = "NONE"; then
@@ -15,6 +16,7 @@ fi
 if test "${exec_prefix}" = "NONE"; then
     exec_prefix=$prefix
 fi
+TCL_SRC_DIR=`cd $srcdir/..; pwd`
 
 AC_PROG_RANLIB
 AC_ARG_ENABLE(gcc, [  --enable-gcc            allow use of gcc if available],
@@ -48,6 +50,21 @@ AC_CHECK_FUNC(uname, , AC_DEFINE(NO_UNAME))
 
 AC_CHECK_FUNC(sin, MATH_LIBS="", MATH_LIBS="-lm")
 AC_CHECK_LIB(ieee, main, [MATH_LIBS="-lieee $MATH_LIBS"])
+
+#--------------------------------------------------------------------
+#       On AIX systems, libbsd.a has to be linked in to support
+#       non-blocking file IO.  This library has to be linked in after
+#       the MATH_LIBS or it breaks the pow() function.  The way to
+#       insure proper sequencing, is to add it to the tail of MATH_LIBS.
+#        This library also supplies gettimeofday.
+#--------------------------------------------------------------------
+libbsd=no
+if test "`uname -s`" = "AIX" ; then
+    AC_CHECK_LIB(bsd, gettimeofday, libbsd=yes)
+    if test $libbsd = yes; then
+	MATH_LIBS="$MATH_LIBS -lbsd"
+    fi
+fi
 
 #--------------------------------------------------------------------
 #	Supply substitutes for missing POSIX header files.  Special
@@ -85,6 +102,7 @@ fi
 AC_MSG_RESULT($tcl_ok)
 AC_CHECK_HEADER(errno.h, , AC_DEFINE(NO_ERRNO_H))
 AC_CHECK_HEADER(float.h, , AC_DEFINE(NO_FLOAT_H))
+AC_CHECK_HEADER(values.h, , AC_DEFINE(NO_VALUES_H))
 AC_CHECK_HEADER(limits.h, , AC_DEFINE(NO_LIMITS_H))
 AC_CHECK_HEADER(stdlib.h, tcl_ok=1, tcl_ok=0)
 AC_EGREP_HEADER(strtol, stdlib.h, , tcl_ok=0)
@@ -100,7 +118,66 @@ if test $tcl_ok = 0; then
     AC_DEFINE(NO_STRING_H)
 fi
 AC_CHECK_HEADER(sys/wait.h, , AC_DEFINE(NO_SYS_WAIT_H))
+AC_CHECK_HEADER(dlfcn.h, , AC_DEFINE(NO_DLFCN_H))
 AC_HAVE_HEADERS(unistd.h)
+
+#---------------------------------------------------------------------------
+#	Determine which interface to use to talk to the serial port.
+#	Note that #include lines must begin in leftmost column for
+#	some compilers to recognize them as preprocessor directives.
+#---------------------------------------------------------------------------
+
+AC_MSG_CHECKING([termios vs. termio vs. sgtty])
+AC_TRY_RUN([
+#include <termios.h>
+
+main()
+{
+    struct termios t;
+    if (tcgetattr(0, &t) == 0) {
+	cfsetospeed(&t, 0);
+	t.c_cflag |= PARENB | PARODD | CSIZE | CSTOPB;
+	return 0;
+    }
+    return 1;
+}], tk_ok=termios, tk_ok=no, tk_ok=no)
+if test $tk_ok = termios; then
+    AC_DEFINE(USE_TERMIOS)
+else
+AC_TRY_RUN([
+#include <termio.h>
+
+main()
+{
+    struct termio t;
+    if (ioctl(0, TCGETA, &t) == 0) {
+	t.c_cflag |= CBAUD | PARENB | PARODD | CSIZE | CSTOPB;
+	return 0;
+    }
+    return 1;
+}], tk_ok=termio, tk_ok=no, tk_ok=no)
+if test $tk_ok = termio; then
+    AC_DEFINE(USE_TERMIO)
+else
+AC_TRY_RUN([
+#include <sgtty.h>
+
+main()
+{
+    struct sgttyb t;
+    if (ioctl(0, TIOCGETP, &t) == 0) {
+	t.sg_ospeed = 0;
+	t.sg_flags |= ODDP | EVENP | RAW;
+	return 0;
+    }
+    return 1;
+}], tk_ok=sgtty, tk_ok=none, tk_ok=none)
+if test $tk_ok = sgtty; then
+    AC_DEFINE(USE_SGTTY)
+fi
+fi
+fi
+AC_MSG_RESULT($tk_ok)
 
 #--------------------------------------------------------------------
 #	Include sys/select.h if it exists and if it supplies things
@@ -138,26 +215,52 @@ AC_MSG_CHECKING([tm_tzadj in struct tm])
 AC_TRY_COMPILE([#include <time.h>], [struct tm tm; tm.tm_tzadj;],
         [AC_DEFINE(HAVE_TM_TZADJ)
          AC_MSG_RESULT(yes)],
-        AC_MSG_RESULT(no))
+         AC_MSG_RESULT(no))
 
 AC_MSG_CHECKING([tm_gmtoff in struct tm])
 AC_TRY_COMPILE([#include <time.h>], [struct tm tm; tm.tm_gmtoff;],
         [AC_DEFINE(HAVE_TM_GMTOFF)
          AC_MSG_RESULT(yes)],
-        AC_MSG_RESULT(no))
+         AC_MSG_RESULT(no))
 
 #
 # Its important to include time.h in this check, as some systems (like convex)
 # have timezone functions, etc.
 #
-AC_MSG_CHECKING([timezone variable])
+have_timezone=no
+AC_MSG_CHECKING([long timezone variable])
 AC_TRY_COMPILE([#include <time.h>],
         [extern long timezone;
          timezone += 1;
          exit (0);],
+        [have_timezone=yes
+	 AC_DEFINE(HAVE_TIMEZONE_VAR)
+         AC_MSG_RESULT(yes)],
+         AC_MSG_RESULT(no))
+
+#
+# On some systems (eg IRIX 6.2), timezone is a time_t and not a long.
+#
+if test "$have_timezone" = no; then
+   AC_MSG_CHECKING([time_t timezone variable])
+   AC_TRY_COMPILE([#include <time.h>],
+        [extern time_t timezone;
+         timezone += 1;
+         exit (0);],
         [AC_DEFINE(HAVE_TIMEZONE_VAR)
          AC_MSG_RESULT(yes)],
-        AC_MSG_RESULT(no))
+         AC_MSG_RESULT(no))
+fi
+
+#
+# AIX does not have a timezone field in struct tm. When the AIX bsd
+# library is used, the timezone global and the gettimeofday methods are
+# to be avoided for timezone deduction instead, we deduce the timezone
+# by comparing the localtime result on a known GMT value.
+#
+if test $libbsd = yes; then
+    AC_DEFINE(USE_DELTA_FOR_TZ)
+fi
 
 #--------------------------------------------------------------------
 #	On some systems strstr is broken: it returns a pointer even
@@ -239,17 +342,17 @@ AC_CHECK_FUNC(strtod, tcl_strtod=1, tcl_strtod=0)
 if test "$tcl_strtod" = 1; then
     AC_MSG_CHECKING([for Solaris strtod bug])
     AC_TRY_RUN([
-	extern double strtod();
-	int main()
-	{
-	    char *string = "NaN";
-	    char *term;
-	    strtod(string, &term);
-	    if ((term != string) && (term[-1] == 0)) {
-		exit(1);
-	    }
-	    exit(0);
-	}], tcl_ok=1, tcl_ok=0, tcl_ok=0)
+extern double strtod();
+int main()
+{
+    char *string = "NaN";
+    char *term;
+    strtod(string, &term);
+    if ((term != string) && (term[-1] == 0)) {
+	exit(1);
+    }
+    exit(0);
+}], tcl_ok=1, tcl_ok=0, tcl_ok=0)
     if test $tcl_ok = 1; then
 	AC_MSG_RESULT(ok)
     else
@@ -326,30 +429,30 @@ AC_CHECK_FUNC(vfork, tcl_ok=1, tcl_ok=0)
 if test "$tcl_ok" = 1; then
     AC_MSG_CHECKING([vfork/signal bug]);
     AC_TRY_RUN([
-	#include <stdio.h>
-	#include <signal.h>
-	#include <sys/wait.h>
-	int gotSignal = 0;
-	sigProc(sig)
-	    int sig;
-	{
-	    gotSignal = 1;
-	}
-	main()
-	{
-	    int pid, sts;
-	    (void) signal(SIGCHLD, sigProc);
-	    pid = vfork();
-	    if (pid <  0) {
-		exit(1);
-	    } else if (pid == 0) {
-		(void) signal(SIGCHLD, SIG_DFL);
-		_exit(0);
-	    } else {
-		(void) wait(&sts);
-	    }
-	    exit((gotSignal) ? 0 : 1);
-	}], tcl_ok=1, tcl_ok=0, tcl_ok=0)
+#include <stdio.h>
+#include <signal.h>
+#include <sys/wait.h>
+int gotSignal = 0;
+sigProc(sig)
+    int sig;
+{
+    gotSignal = 1;
+}
+main()
+{
+    int pid, sts;
+    (void) signal(SIGCHLD, sigProc);
+    pid = vfork();
+    if (pid <  0) {
+	exit(1);
+    } else if (pid == 0) {
+	(void) signal(SIGCHLD, SIG_DFL);
+	_exit(0);
+    } else {
+	(void) wait(&sts);
+    }
+    exit((gotSignal) ? 0 : 1);
+}], tcl_ok=1, tcl_ok=0, tcl_ok=0)
     if test "$tcl_ok" = 1; then
 	AC_MSG_RESULT(ok)
     else
@@ -404,6 +507,23 @@ AC_EGREP_HEADER(gettimeofday, sys/time.h, AC_MSG_RESULT(present), [
 
 AC_CHECK_LIB(inet, main, [LIBS="$LIBS -linet"])
 AC_CHECK_HEADER(net/errno.h, AC_DEFINE(HAVE_NET_ERRNO_H))
+
+#--------------------------------------------------------------------
+#	The following code checks to see whether it is possible to get
+#	signed chars on this platform.  This is needed in order to
+#	properly generate sign-extended ints from character values.
+#--------------------------------------------------------------------
+
+AC_C_CHAR_UNSIGNED
+AC_MSG_CHECKING([signed char declarations])
+AC_TRY_COMPILE(, [
+signed char *p;
+p = 0;
+], tcl_ok=yes, tcl_ok=no)
+AC_MSG_RESULT($tcl_ok)
+if test $tcl_ok = yes; then
+    AC_DEFINE(HAVE_SIGNED_CHAR)
+fi
 
 #--------------------------------------------------------------------
 #	Check for the existence of the -lsocket and -lnsl libraries.
@@ -473,7 +593,7 @@ AC_CHECK_FUNC(gethostbyname, , AC_CHECK_LIB(nsl, main, [LIBS="$LIBS -lnsl"]))
 #			extensions.  An empty string means we don't know how
 #			to use shared libraries on this platform.
 #	TCL_LIB_FILE -	Name of the file that contains the Tcl library, such
-#			as libtcl7.5.so or libtcl7.5.a.
+#			as libtcl7.8.so or libtcl7.8.a.
 #	TCL_LIB_SUFFIX -Specifies everything that comes after the "libtcl"
 #			in the shared library name, using the $VERSION variable
 #			to put the version in the right place.  This is used
@@ -517,22 +637,25 @@ fi
 
 AC_CHECK_LIB(dl, dlopen, have_dl=yes, have_dl=no)
 
-# Step 3: disable dynamic loading if requested via a command-line switch.
-
-AC_ARG_ENABLE(load, [  --disable-load          disallow dynamic loading and "load" command],
-    [tcl_ok=$enableval], [tcl_ok=yes])
-if test "$tcl_ok" = "no"; then
-    system=unknown
-fi
-
-# Step 4: set configuration options based on system name and version.
+# Step 3: set configuration options based on system name and version.
 
 fullSrcDir=`cd $srcdir; pwd`
-AIX=no
 TCL_SHARED_LIB_SUFFIX=""
 TCL_UNSHARED_LIB_SUFFIX=""
 TCL_LIB_VERSIONS_OK=ok
 case $system in
+    AIX-4.[[2-9]])
+	SHLIB_CFLAGS=""
+	SHLIB_LD="$fullSrcDir/ldAix /bin/ld -bhalt:4 -bM:SRE -bE:lib.exp -H512 -T512"
+	SHLIB_LD_LIBS='${LIBS}'
+	SHLIB_SUFFIX=".so"
+	DL_OBJS="tclLoadDl.o"
+	DL_LIBS="-ldl"
+	LD_FLAGS=""
+	LD_SEARCH_FLAGS='-L${LIB_RUNTIME_DIR}'
+	AIX=yes
+	TCL_SHARED_LIB_SUFFIX='${VERSION}.a'
+	;;
     AIX-*)
 	SHLIB_CFLAGS=""
 	SHLIB_LD="$fullSrcDir/ldAix /bin/ld -bhalt:4 -bM:SRE -bE:lib.exp -H512 -T512"
@@ -542,14 +665,22 @@ case $system in
 	DL_LIBS="-lld"
 	LD_FLAGS=""
 	LD_SEARCH_FLAGS='-L${LIB_RUNTIME_DIR}'
-	AC_DEFINE(NO_DLFCN_H)
-	AIX=yes
 	TCL_SHARED_LIB_SUFFIX='${VERSION}.a'
 	;;
-    BSD/OS-2.1*)
+    BSD/OS-2.1*|BSD/OS-3*)
 	SHLIB_CFLAGS=""
-	SHLIB_LD="ld -r"
-	SHLIB_LD_FLAGS=""
+	SHLIB_LD="shlicc -r"
+	SHLIB_LD_LIBS='${LIBS}'
+	SHLIB_SUFFIX=".so"
+	DL_OBJS="tclLoadDl.o"
+	DL_LIBS="-ldl"
+	LD_FLAGS=""
+	LD_SEARCH_FLAGS=""
+	;;
+    dgux*)
+	SHLIB_CFLAGS="-K PIC"
+	SHLIB_LD="cc -G"
+	SHLIB_LD_LIBS=""
 	SHLIB_SUFFIX=".so"
 	DL_OBJS="tclLoadDl.o"
 	DL_LIBS="-ldl"
@@ -557,24 +688,28 @@ case $system in
 	LD_SEARCH_FLAGS=""
 	;;
     HP-UX-*.08.*|HP-UX-*.09.*|HP-UX-*.10.*)
-	SHLIB_CFLAGS="+z"
-	SHLIB_LD="ld -b"
-	SHLIB_LD_LIBS='${LIBS}'
-	SHLIB_SUFFIX=".sl"
-	DL_OBJS="tclLoadShl.o"
-	DL_LIBS="-ldld"
-	LD_FLAGS="-Wl,-E"
-	LD_SEARCH_FLAGS='-Wl,+b,${LIB_RUNTIME_DIR}:.'
+	AC_CHECK_LIB(dld, shl_load, tcl_ok=yes, tcl_ok=no)
+	if test "$tcl_ok" = yes; then
+	    SHLIB_CFLAGS="+z"
+	    SHLIB_LD="ld -b"
+	    SHLIB_LD_LIBS=""
+	    SHLIB_SUFFIX=".sl"
+	    DL_OBJS="tclLoadShl.o"
+	    DL_LIBS="-ldld"
+	    LD_FLAGS="-Wl,-E"
+	    LD_SEARCH_FLAGS='-Wl,+b,${LIB_RUNTIME_DIR}:.'
+	fi
 	;;
     IRIX-4.*)
 	SHLIB_CFLAGS="-G 0"
-	SHLIB_SUFFIX="..o"
+	SHLIB_SUFFIX=".a"
 	SHLIB_LD="echo tclLdAout $CC \{$SHLIB_CFLAGS\} | `pwd`/tclsh -r -G 0"
-	SHLIB_LD_LIBS=""
+	SHLIB_LD_LIBS='${LIBS}'
 	DL_OBJS="tclLoadAout.o"
 	DL_LIBS=""
 	LD_FLAGS="-Wl,-D,08000000"
-	LD_SEARCH_FLAGS=""
+	LD_SEARCH_FLAGS='-L${LIB_RUNTIME_DIR}'
+	TCL_SHARED_LIB_SUFFIX='${VERSION}.a'
 	;;
     IRIX-5.*|IRIX-6.*)
 	SHLIB_CFLAGS=""
@@ -635,32 +770,32 @@ case $system in
 	LD_FLAGS="-Wl,-Bexport"
 	LD_SEARCH_FLAGS=""
 	;;
-    NetBSD-*|FreeBSD-*)
+    NetBSD-*|FreeBSD-*|OpenBSD-*)
 	# Not available on all versions:  check for include file.
 	AC_CHECK_HEADER(dlfcn.h, [
 	    SHLIB_CFLAGS="-fpic"
-	    SHLIB_LD="ld -Bshareable"
+	    SHLIB_LD="ld -Bshareable -x"
 	    SHLIB_LD_LIBS=""
 	    SHLIB_SUFFIX=".so"
-	    DL_OBJS="tclLoadDl2.o"
+	    DL_OBJS="tclLoadDl.o"
 	    DL_LIBS=""
 	    LD_FLAGS=""
 	    LD_SEARCH_FLAGS=""
+	    TCL_SHARED_LIB_SUFFIX='`echo ${VERSION} | tr -d .`.so.1.0'
 	], [
 	    SHLIB_CFLAGS=""
-	    SHLIB_LD="echo tclLdAout $CC \{$SHLIB_CFLAGS\} | `pwd`/tclsh -r -G 0"
-	    SHLIB_LD_LIBS=""
-	    SHLIB_SUFFIX="..o"
+	    SHLIB_LD="echo tclLdAout $CC \{$SHLIB_CFLAGS\} | `pwd`/tclsh -r"
+	    SHLIB_LD_LIBS='${LIBS}'
+	    SHLIB_SUFFIX=".a"
 	    DL_OBJS="tclLoadAout.o"
 	    DL_LIBS=""
 	    LD_FLAGS=""
-	    LD_SEARCH_FLAGS=""
+	    LD_SEARCH_FLAGS='-L${LIB_RUNTIME_DIR}'
+	    TCL_SHARED_LIB_SUFFIX='`echo ${VERSION} | tr -d .`.a'
 	])
 
-	# FreeBSD doesn't handle version numbers with dots.  Also, have to
-	# append a dummy version number to .so file names.
+	# FreeBSD doesn't handle version numbers with dots.
 
-	TCL_SHARED_LIB_SUFFIX='`echo ${VERSION} | tr -d .`.so.1.0'
 	TCL_UNSHARED_LIB_SUFFIX='`echo ${VERSION} | tr -d .`.a'
 	TCL_LIB_VERSIONS_OK=nodots
 	;;
@@ -674,7 +809,7 @@ case $system in
 	LD_FLAGS=""
 	LD_SEARCH_FLAGS=""
 	;;
-    OSF1-1.[012])
+    OSF1-1.0|OSF1-1.1|OSF1-1.2)
 	# OSF/1 1.[012] from OSF, and derivatives, including Paragon OSF/1
 	SHLIB_CFLAGS=""
 	# Hack: make package name same as library name
@@ -711,12 +846,12 @@ case $system in
     RISCos-*)
 	SHLIB_CFLAGS="-G 0"
 	SHLIB_LD="echo tclLdAout $CC \{$SHLIB_CFLAGS\} | `pwd`/tclsh -r -G 0"
-	SHLIB_LD_LIBS=""
-	SHLIB_SUFFIX="..o"
+	SHLIB_LD_LIBS='${LIBS}'
+	SHLIB_SUFFIX=".a"
 	DL_OBJS="tclLoadAout.o"
 	DL_LIBS=""
 	LD_FLAGS="-Wl,-D,08000000"
-	LD_SEARCH_FLAGS=""
+	LD_SEARCH_FLAGS='-L${LIB_RUNTIME_DIR}'
 	;;
     SCO_SV-3.2*)
         # Note, dlopen is available only on SCO 3.2.5 and greater.  However,
@@ -763,6 +898,10 @@ case $system in
     SunOS-5*)
 	SHLIB_CFLAGS="-KPIC"
 	SHLIB_LD="/usr/ccs/bin/ld -G -z text"
+
+	# Note: need the LIBS below, otherwise Tk won't find Tcl's
+	# symbols when dynamically loaded into tclsh.
+
 	SHLIB_LD_LIBS='${LIBS}'
 	SHLIB_SUFFIX=".so"
 	DL_OBJS="tclLoadDl.o"
@@ -772,13 +911,13 @@ case $system in
 	;;
     ULTRIX-4.*)
 	SHLIB_CFLAGS="-G 0"
-	SHLIB_SUFFIX="..o"
+	SHLIB_SUFFIX=".a"
 	SHLIB_LD="echo tclLdAout $CC \{$SHLIB_CFLAGS\} | `pwd`/tclsh -r -G 0"
-	SHLIB_LD_LIBS=""
+	SHLIB_LD_LIBS='${LIBS}'
 	DL_OBJS="tclLoadAout.o"
 	DL_LIBS=""
 	LD_FLAGS="-Wl,-D,08000000"
-	LD_SEARCH_FLAGS=""
+	LD_SEARCH_FLAGS='-L${LIB_RUNTIME_DIR}'
 	;;
     UNIX_SV*)
 	SHLIB_CFLAGS="-KPIC"
@@ -787,17 +926,30 @@ case $system in
 	SHLIB_SUFFIX=".so"
 	DL_OBJS="tclLoadDl.o"
 	DL_LIBS="-ldl"
-	LD_FLAGS="-Wl,-Bexport"
+	# Some UNIX_SV* systems (unixware 1.1.2 for example) have linkers
+	# that don't grok the -Bexport option.  Test that it does.
+	hold_ldflags=$LDFLAGS
+	AC_MSG_CHECKING(for ld accepts -Bexport flag)
+	LDFLAGS="${LDFLAGS} -Wl,-Bexport"
+	AC_TRY_LINK(, [int i;], found=yes, found=no)
+	LDFLAGS=$hold_ldflags
+	AC_MSG_RESULT($found)
+	if test $found = yes; then
+	  LD_FLAGS="-Wl,-Bexport"
+	else
+	  LD_FLAGS=""
+	fi
 	LD_SEARCH_FLAGS=""
 	;;
 esac
 
-# If pseudo-static linking is in use (see K. B. Kenny, "Dynamic Loading for
-# Tcl -- What Became of It?".  Proc. 2nd Tcl/Tk Workshop, New Orleans, LA,
-# Computerized Processes Unlimited, 1994), then we need to determine which
-# of several header files defines the a.out file format (a.out.h, sys/exec.h,
-# or sys/exec_aout.h).  At present, we support only a file format that
-# is more or less version-7-compatible.  In particular,
+# Step 4: If pseudo-static linking is in use (see K. B. Kenny, "Dynamic
+# Loading for Tcl -- What Became of It?".  Proc. 2nd Tcl/Tk Workshop,
+# New Orleans, LA, Computerized Processes Unlimited, 1994), then we need
+# to determine which of several header files defines the a.out file
+# format (a.out.h, sys/exec.h, or sys/exec_aout.h).  At present, we
+# support only a file format that is more or less version-7-compatible. 
+# In particular,
 #	- a.out files must begin with `struct exec'.
 #	- the N_TXTOFF on the `struct exec' must compute the seek address
 #	  of the text segment
@@ -868,6 +1020,14 @@ if test "x$DL_OBJS" = "xtclLoadAout.o" ; then
     fi
 fi
 
+# Step 5: disable dynamic loading if requested via a command-line switch.
+
+AC_ARG_ENABLE(load, [  --disable-load          disallow dynamic loading and "load" command],
+    [tcl_ok=$enableval], [tcl_ok=yes])
+if test "$tcl_ok" = "no"; then
+    DL_OBJS=""
+fi
+
 if test "x$DL_OBJS" != "x" ; then
     BUILD_DLTEST="\$(DLTEST_TARGETS)"
 else
@@ -889,9 +1049,76 @@ fi
 
 if test "$DL_OBJS" != "tclLoadNone.o" ; then
     if test "$CC" = "gcc" -o `$CC -v 2>&1 | grep -c gcc` != "0" ; then
-	SHLIB_CFLAGS="-fPIC"
+	case $system in
+	    AIX-*)
+		;;
+	    BSD/OS*)
+		;;
+	    IRIX*)
+		;;
+	    NetBSD-*|FreeBSD-*|OpenBSD-*)
+		;;
+	    RISCos-*)
+		;;
+	    ULTRIX-4.*)
+		;;
+	    *)
+		SHLIB_CFLAGS="-fPIC"
+		;;
+	esac
     fi
 fi
+
+#--------------------------------------------------------------------
+#	The statements below check for systems where POSIX-style
+#	non-blocking I/O (O_NONBLOCK) doesn't work or is unimplemented. 
+#	On these systems (mostly older ones), use the old BSD-style
+#	FIONBIO approach instead.
+#--------------------------------------------------------------------
+
+AC_CHECK_HEADERS(sys/ioctl.h)
+AC_CHECK_HEADERS(sys/filio.h)
+AC_MSG_CHECKING([FIONBIO vs. O_NONBLOCK for nonblocking I/O])
+if test -f /usr/lib/NextStep/software_version; then
+    system=NEXTSTEP-`awk '/3/,/3/' /usr/lib/NextStep/software_version`
+else
+    system=`uname -s`-`uname -r`
+    if test "$?" -ne 0 ; then
+	system=unknown
+    else
+	# Special check for weird MP-RAS system (uname returns weird
+	# results, and the version is kept in special file).
+    
+	if test -r /etc/.relid -a "X`uname -n`" = "X`uname -s`" ; then
+	    system=MP-RAS-`awk '{print $3}' /etc/.relid'`
+	fi
+	if test "`uname -s`" = "AIX" ; then
+	    system=AIX-`uname -v`.`uname -r`
+	fi
+    fi
+fi
+case $system in
+    # There used to be code here to use FIONBIO under AIX.  However, it
+    # was reported that FIONBIO doesn't work under AIX 3.2.5.  Since
+    # using O_NONBLOCK seems fine under AIX 4.*, I removed the FIONBIO
+    # code (JO, 5/31/97).
+
+    OSF*)
+	AC_DEFINE(USE_FIONBIO)
+	AC_MSG_RESULT(FIONBIO)
+	;;
+    SunOS-4*)
+	AC_DEFINE(USE_FIONBIO)
+	AC_MSG_RESULT(FIONBIO)
+	;;
+    ULTRIX-4.*)
+	AC_DEFINE(USE_FIONBIO)
+	AC_MSG_RESULT(FIONBIO)
+	;;
+    *)
+	AC_MSG_RESULT(O_NONBLOCK)
+	;;
+esac
 
 #--------------------------------------------------------------------
 #	The statements below define a collection of symbols related to
@@ -908,17 +1135,28 @@ fi
 AC_ARG_ENABLE(shared,
     [  --enable-shared         build libtcl as a shared library],
     [tcl_ok=$enableval], [tcl_ok=no])
-if test "$tcl_ok" = "yes" -a "${SHLIB_SUFFIX}" != "" \
-	-a "${DL_OBJS}" != "tclLoadAout.o" ; then
+if test "$tcl_ok" = "yes" -a "${SHLIB_SUFFIX}" != "" ; then
     TCL_SHLIB_CFLAGS="${SHLIB_CFLAGS}"
     TCL_LD_SEARCH_FLAGS="${LD_SEARCH_FLAGS}"
     eval "TCL_LIB_FILE=libtcl${TCL_SHARED_LIB_SUFFIX}"
-    MAKE_LIB="\${SHLIB_LD} -o ${TCL_LIB_FILE} \${OBJS} ${SHLIB_LD_LIBS}"
-    RANLIB=":"
-else
-    if test "$AIX" = "no" ; then
-	SHLIB_LD_LIBS=""
+    if test "x$DL_OBJS" = "xtclLoadAout.o"; then
+	MAKE_LIB="ar cr ${TCL_LIB_FILE} \${OBJS}"
+    else
+	MAKE_LIB="\${SHLIB_LD} -o ${TCL_LIB_FILE} \${OBJS} ${SHLIB_LD_LIBS}"
+	RANLIB=":"
     fi
+else
+    case $system in
+        BSD/OS*)
+	    ;;
+
+	AIX-*)
+            ;;
+
+        *)
+	    SHLIB_LD_LIBS=""
+	    ;;
+    esac
     TCL_SHLIB_CFLAGS=""
     TCL_LD_SEARCH_FLAGS=""
     eval "TCL_LIB_FILE=libtcl${TCL_UNSHARED_LIB_SUFFIX}"
@@ -938,6 +1176,19 @@ else
     TCL_LIB_SPEC="-L${exec_prefix}/lib -ltcl`echo ${VERSION} | tr -d .`"
 fi
 
+#--------------------------------------------------------------------
+#	The statements below define the symbol TCL_PACKAGE_PATH, which
+#	gives a list of directories that may contain packages.  The list
+#	consists of one directory for machine-dependent binaries and
+#	another for platform-independent scripts.
+#--------------------------------------------------------------------
+
+if test "$prefix" != "$exec_prefix"; then
+    TCL_PACKAGE_PATH="${exec_prefix}/lib ${prefix}/lib"
+else
+    TCL_PACKAGE_PATH="${prefix}/lib"
+fi
+
 AC_SUBST(BUILD_DLTEST)
 AC_SUBST(DL_LIBS)
 AC_SUBST(DL_OBJS)
@@ -955,8 +1206,11 @@ AC_SUBST(TCL_LIB_SPEC)
 AC_SUBST(TCL_LIB_VERSIONS_OK)
 AC_SUBST(TCL_MAJOR_VERSION)
 AC_SUBST(TCL_MINOR_VERSION)
+AC_SUBST(TCL_PACKAGE_PATH)
+AC_SUBST(TCL_PATCH_LEVEL)
 AC_SUBST(TCL_SHARED_LIB_SUFFIX)
 AC_SUBST(TCL_SHLIB_CFLAGS)
+AC_SUBST(TCL_SRC_DIR)
 AC_SUBST(TCL_UNSHARED_LIB_SUFFIX)
 AC_SUBST(TCL_VERSION)
 

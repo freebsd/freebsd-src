@@ -17,7 +17,7 @@
  *	for any results of using the software, alterations are clearly marked
  *	as such, and this notice is not modified.
  *
- * SCCS: @(#) tclLoadAix.c 1.10 96/03/26 13:18:21
+ * SCCS: @(#) tclLoadAix.c 1.11 96/10/07 10:41:24
  *
  * Note:  this file has been altered from the original in a few
  * ways in order to work properly with Tcl.
@@ -92,7 +92,7 @@ static int readExports(ModulePtr);
 static void terminate(void);
 static void *findMain(void);
 
-void *dlopen(const char *path, int mode)
+VOID *dlopen(const char *path, int mode)
 {
 	register ModulePtr mp;
 	static void *mainModule;
@@ -113,13 +113,13 @@ void *dlopen(const char *path, int mode)
 	for (mp = modList; mp; mp = mp->next)
 		if (strcmp(mp->name, path) == 0) {
 			mp->refCnt++;
-			return mp;
+			return (VOID *) mp;
 		}
 	if ((mp = (ModulePtr)calloc(1, sizeof(*mp))) == NULL) {
 		errvalid++;
 		strcpy(errbuf, "calloc: ");
 		strcat(errbuf, strerror(errno));
-		return NULL;
+		return (VOID *) NULL;
 	}
 	mp->name = malloc((unsigned) (strlen(path) + 1));
 	strcpy(mp->name, path);
@@ -150,7 +150,7 @@ void *dlopen(const char *path, int mode)
 			}
 		} else
 			strcat(errbuf, strerror(errno));
-		return NULL;
+		return (VOID *) NULL;
 	}
 	mp->refCnt = 1;
 	mp->next = modList;
@@ -160,7 +160,7 @@ void *dlopen(const char *path, int mode)
 		errvalid++;
 		strcpy(errbuf, "loadbind: ");
 		strcat(errbuf, strerror(errno));
-		return NULL;
+		return (VOID *) NULL;
 	}
 	/*
 	 * If the user wants global binding, loadbind against all other
@@ -174,12 +174,12 @@ void *dlopen(const char *path, int mode)
 				errvalid++;
 				strcpy(errbuf, "loadbind: ");
 				strcat(errbuf, strerror(errno));
-				return NULL;
+				return (VOID *) NULL;
 			}
 	}
 	if (readExports(mp) == -1) {
 		dlclose(mp);
-		return NULL;
+		return (VOID *) NULL;
 	}
 	/*
 	 * If there is a dl_info structure, call the init function.
@@ -200,7 +200,7 @@ void *dlopen(const char *path, int mode)
 		}
 	} else
 		errvalid = 0;
-	return mp;
+	return (VOID *) mp;
 }
 
 /*
@@ -242,7 +242,7 @@ static void caterr(char *s)
 	}
 }
 
-void *dlsym(void *handle, const char *symbol)
+VOID *dlsym(void *handle, const char *symbol)
 {
 	register ModulePtr mp = (ModulePtr)handle;
 	register ExportPtr ep;

@@ -5,7 +5,7 @@
 '\" See the file "license.terms" for information on usage and redistribution
 '\" of this file, and for a DISCLAIMER OF ALL WARRANTIES.
 '\" 
-'\" SCCS: @(#) set.n 1.5 96/03/25 20:23:07
+'\" SCCS: @(#) set.n 1.6 97/05/18 15:56:26
 '\" 
 .so man.macros
 .TH set n "" Tcl "Tcl Built-In Commands"
@@ -25,14 +25,24 @@ the value of \fIvarName\fR to \fIvalue\fR, creating a new variable
 if one doesn't already exist, and return its value.
 If \fIvarName\fR contains an open parenthesis and ends with a
 close parenthesis, then it refers to an array element:  the characters
-before the first open parenthesis are the name of the array, and the characters
-between the parentheses are the index within the array.
+before the first open parenthesis are the name of the array,
+and the characters between the parentheses are the index within the array.
 Otherwise \fIvarName\fR refers to a scalar variable.
-If no procedure is active, then \fIvarName\fR refers to a global
-variable.
+Normally, \fIvarName\fR is unqualified
+(does not include the names of any containing namespaces),
+and the variable of that name in the current namespace is read or written.
+If \fIvarName\fR includes namespace qualifiers
+(in the array name if it refers to an array element),
+the variable in the specified namespace is read or written.
+.PP
+If no procedure is active,
+then \fIvarName\fR refers to a namespace variable
+(global variable if the current namespace is the global namespace).
 If a procedure is active, then \fIvarName\fR refers to a parameter
-or local variable of the procedure unless the \fIglobal\fR command
-has been invoked to declare \fIvarName\fR to be global.
+or local variable of the procedure unless the \fBglobal\fR command
+was invoked to declare \fIvarName\fR to be global,
+or unless a \fBvariable\fR command
+was invoked to declare \fIvarName\fR to be a namespace variable.
 
 .SH KEYWORDS
 read, write, variable

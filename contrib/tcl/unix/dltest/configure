@@ -398,7 +398,7 @@ else
 fi
 
 
-# SCCS: %Z% %M% %I% %E% %U%
+# SCCS: @(#) configure.in 1.9 96/04/15 09:50:20
 
 # Recover information that Tcl computed with its configure script.
 

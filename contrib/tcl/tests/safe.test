@@ -1,0 +1,324 @@
+# safe.test --
+#
+# This file contains a collection of tests for security policies, safe Tcl,
+# and using safe interpreters. Sourcing this file into tcl runs the tests
+# and generates output for errors.  No output means no errors were found.
+#
+# Copyright (c) 1995-1996 Sun Microsystems, Inc.
+#
+# See the file "license.terms" for information on usage and redistribution
+# of this file, and for a DISCLAIMER OF ALL WARRANTIES.
+#
+# SCCS: @(#) safe.test 1.13 97/06/24 17:33:22
+
+# NOTE: The tests in this file only pass if you invoke them from the
+#	"tests" directory.
+
+if {[string compare test [info procs test]] == 1} then {source defs}
+
+foreach i [interp slaves] {
+  interp delete $i
+}
+
+proc equiv {x} {return $x}
+
+test safe-1.1 {creating interpreters, should have no aliases} {
+    interp aliases
+} ""
+test safe-1.2 {creating interpreters, should have no aliases} {
+    catch {tcl_safeDeleteInterp a}
+    interp create a
+    set l [a aliases]
+    interp delete a
+    set l
+} ""
+test safe-1.3 {creating safe interpreters, should have no aliases} {
+    catch {tcl_safeDeleteInterp a}
+    interp create a -safe
+    set l [a aliases]
+    interp delete a
+    set l
+} ""
+
+test safe-2.1 {calling tcl_SafeInit is safe} {
+    catch {tcl_safeDeleteInterp a}
+    tcl_safeCreateInterp a
+    catch {interp eval a exec ls} msg
+    tcl_safeDeleteInterp a
+    set msg
+} {invalid command name "exec"}
+test safe-2.2 {calling tcl_safeCreateInterp on trusted interp} {
+    catch {tcl_safeDeleteInterp a}
+    tcl_safeCreateInterp a
+    set l [lsort [a aliases]]
+    tcl_safeDeleteInterp a
+    set l
+} {exit file load source tclPkgUnknown}
+test safe-2.3 {calling tcl_safeCreateInterp on trusted interp} {
+    catch {tcl_safeDeleteInterp a}
+    tcl_safeCreateInterp a
+    set x [interp eval a {source [file join $tcl_library init.tcl]}]
+    tcl_safeDeleteInterp a
+    set x
+} ""
+test safe-2.4 {calling tcl_safeCreateInterp on trusted interp} {
+    catch {tcl_safeDeleteInterp a}
+    tcl_safeCreateInterp a
+    catch {set x \
+		[interp eval a {source [file join $tcl_library init.tcl]}]} msg
+    tcl_safeDeleteInterp a
+    list $x $msg
+} {{} {}}
+
+test safe-3.1 {tcl_safeDeleteInterp} {
+    catch {tcl_safeDeleteInterp a}
+    interp create a
+    tcl_safeDeleteInterp a
+} ""
+test safe-3.2 {tcl_safeDeleteInterp, indirectly} {
+    catch {tcl_safeDeleteInterp a}
+    interp create a
+    a alias exit tcl_safeDeleteInterp a
+    a eval exit
+} ""
+test safe-3.3 {tcl_safeDeleteInterp, state array} {
+    catch {tcl_safeDeleteInterp a}
+    set tclSafea(foo) 33
+    tcl_safeDeleteInterp a
+    catch {set tclSafea(foo)} msg
+    set msg
+} {can't read "tclSafea(foo)": no such variable}
+test safe-3.4 {tcl_safeDeleteInterp, state array, indirectly} {
+    catch {tcl_safeDeleteInterp a}
+    set tclSafea(foo) 33
+    tcl_safeCreateInterp a
+    a eval exit
+    catch {set tclSafea(foo)} msg
+    set msg
+} {can't read "tclSafea(foo)": no such variable}
+test safe-3.5 {tcl_safeDeleteInterp} {
+    catch {tcl_safeDeleteInterp a}
+    tcl_safeCreateInterp a
+    catch {tcl_safeCreateInterp a} msg
+    set msg
+} {interpreter named "a" already exists, cannot create}
+test safe-3.6 {tcl_safeDeleteInterp, indirectly} {
+    catch {tcl_safeDeleteInterp a}
+    tcl_safeCreateInterp a
+    a eval exit
+} ""
+test safe-3.7 {tcl_safeDeleteInterp, state array} {
+    catch {tcl_safeDeleteInterp a}
+    set tclSafea(foo) 33
+    tcl_safeCreateInterp a
+    tcl_safeDeleteInterp a
+    catch {set tclSafea(foo)} msg
+    set msg
+} {can't read "tclSafea(foo)": no such variable}
+test safe-3.8 {tcl_safeDeleteInterp, state array, indirectly} {
+    catch {tcl_safeDeleteInterp a}
+    set tclSafea(foo) 33
+    tcl_safeCreateInterp a
+    a eval exit
+    catch {set tclSafea(foo)} msg
+    set msg
+} {can't read "tclSafea(foo)": no such variable}
+
+# For the following tests, we need a policyPath; we assume that the
+# test directory has a subdirectory policies, and we will use that.
+
+# Save old value of tcl_PolicyPath so we can restore it once we are
+# done with this test sequence:
+
+set my_old_auto_path $auto_path
+lappend auto_path [pwd]
+
+test safe-4.1 {loading a policy from the main directory} {
+    catch {tcl_safeDeleteInterp a}
+    tcl_safeCreateInterp a
+    set l [a eval {package require globalPolicy}]
+    tcl_safeDeleteInterp a
+    set l
+} 1.0
+test safe-4.2 {same, loading into safe interpreter} {
+    catch {tcl_safeDeleteInterp a}
+    tcl_safeCreateInterp a
+    set l [a eval {package require globalPolicy}]
+    tcl_safeDeleteInterp a
+    set l
+} 1.0
+test safe-4.3 {loading a policy from a subdirectory} {
+    catch {tcl_safeDeleteInterp a}
+    tcl_safeCreateInterp a
+    set l [a eval {package require policyA}]
+    tcl_safeDeleteInterp a
+    set l
+} 1.0
+test safe-4.4 {loading a policy, unloading, reloading -- clean} {
+    catch {tcl_safeDeleteInterp a}
+    tcl_safeCreateInterp a
+    set l ""
+    lappend l [a eval {package require policyA}]
+    tcl_safeDeleteInterp a
+    tcl_safeCreateInterp a
+    lappend l [a eval {package require policyA}]
+    tcl_safeDeleteInterp a
+    set l
+} {1.0 1.0}
+test safe-4.5 {loading two policies - prevented} {
+    catch {tcl_safeDeleteInterp a}
+    tcl_safeCreateInterp a
+    set l ""
+    lappend l [a eval {package require policyA}]
+    lappend l [catch {a eval {package require policyB}} msg]
+    lappend l $msg
+    tcl_safeDeleteInterp a
+    set l
+} {1.0 1 {security policy policyA already loaded}}
+test safe-4.6 {two interpreters can have different policies} {
+    catch {tcl_safeDeleteInterp a}
+    catch {tcl_safeDeleteInterp b}
+    tcl_safeCreateInterp a
+    tcl_safeCreateInterp b
+    set l ""
+    lappend l [a eval {package require policyA}]
+    lappend l [b eval {package require policyB}]
+    tcl_safeDeleteInterp a
+    tcl_safeDeleteInterp b
+    set l
+} {1.0 1.0}
+test safe-4.7 {safe, loading policy, unloading, reloading: clean} {
+    catch {tcl_safeDeleteInterp a}
+    tcl_safeCreateInterp a
+    set l ""
+    lappend l [a eval {package require policyA}]
+    tcl_safeDeleteInterp a
+    tcl_safeCreateInterp a
+    lappend l [a eval {package require policyA}]
+    tcl_safeDeleteInterp a
+    set l
+} {1.0 1.0}
+test safe-4.8 {safe, loading two policies - prevented} {
+    catch {tcl_safeDeleteInterp a}
+    tcl_safeCreateInterp a
+    set l ""
+    lappend l [a eval {package require policyA}]
+    lappend l [catch {a eval {package require policyB}} msg]
+    lappend l $msg
+    tcl_safeDeleteInterp a
+    set l
+} {1.0 1 {security policy policyA already loaded}}
+test safe-4.9 {safe, two interpreters have different policies} {
+    catch {tcl_safeDeleteInterp a}
+    catch {tcl_safeDeleteInterp b}
+    tcl_safeCreateInterp a
+    tcl_safeCreateInterp b
+    set l ""
+    lappend l [a eval {package require policyA}]
+    lappend l [b eval {package require policyB}]
+    tcl_safeDeleteInterp a
+    tcl_safeDeleteInterp b
+    set l
+} {1.0 1.0}
+
+test safe-5.1 {unloading runs policy cleanup code} {
+    catch {tcl_safeDeleteInterp a}
+    tcl_safeCreateInterp a
+    set l ""
+    lappend l [a eval {package require policyC}]
+    tcl_safeDeleteInterp a
+    set l  ;# the cleanup side-effects the global variable "l"
+} {1.0 bye}
+
+# For the following tests we need an auto_path that has the policies and
+# packages directories in it.
+
+lappend auto_path [file join [pwd] policies] \
+	[file join [pwd] policies packages]
+
+proc findPackage {i n} {
+    set l [$i eval {package names}]
+    if {[lsearch $l $n] > -1} {
+	return 1
+    }
+    return 0
+}
+
+test safe-6.1 {loading packages still works} {
+    catch {tcl_safeDeleteInterp a}
+    interp create a
+    set l ""
+    a eval [list set auto_path $auto_path]   
+    lappend l [a eval {package require packageA 1.0}]
+    lappend l [a eval hoohum]
+    lappend l [a eval info proc hoohum]
+    tcl_safeDeleteInterp a
+    set l
+} {1.0 bazooka hoohum}
+test safe-6.2 {tcl_safeCreateInterp, loading packages} {
+    catch {tcl_safeDeleteInterp a}
+    tcl_safeCreateInterp a
+    set l ""
+    lappend l [a eval {package require packageA 1.0}]
+    lappend l [a eval hoohum]
+    lappend l [a eval info proc hoohum]
+    tcl_safeDeleteInterp a
+    set l
+} {1.0 bazooka hoohum}
+test safe-6.3 {policies vs packages} {
+    catch {tcl_safeDeleteInterp a}
+    tcl_safeCreateInterp a
+    set l ""
+    lappend l [a eval {package require policyA}]
+    lappend l [a eval {package require packageA}]
+    lappend l [findPackage a policyA]
+    lappend l [findPackage a packageA]
+    lappend l [findPackage a hohum]
+    tcl_safeDeleteInterp a
+    set l
+} {1.0 1.0 1 1 0}
+test safe-6.4 {policies vs packages} {
+    catch {tcl_safeDeleteInterp a}
+    tcl_safeCreateInterp a
+    set l ""
+    lappend l [a eval {package require policyA}]
+    lappend l [a eval {package require packageA}]
+    lappend l [findPackage a Tcl]
+    lappend l [findPackage a policyA]
+    lappend l [findPackage a hohum]
+    tcl_safeDeleteInterp a
+    set l
+} {1.0 1.0 1 1 0}
+test safe-6.5 {policies vs packages vs policies} {
+    catch {tcl_safeDeleteInterp a}
+    tcl_safeCreateInterp a
+    set l ""
+    lappend l [a eval {package require policyA}]
+    lappend l [a eval {package require packageA}]
+    catch {a eval {package require policyB}} msg
+    lappend l $msg
+    lappend l [findPackage a Tcl]
+    lappend l [findPackage a policyA]
+    lappend l [findPackage a policyB]
+    tcl_safeDeleteInterp a
+    set l
+} {1.0 1.0 {security policy policyA already loaded} 1 1 0}
+
+# The following test checks whether the definition of tcl_endOfWord can be
+# obtained from auto_loading.
+
+test safe-7.1 {test auto-loading in safe interpreters} {
+    catch {tcl_safeDeleteInterp a}
+    tcl_safeCreateInterp a
+    set r [catch {interp eval a {tcl_endOfWord "" 0}} msg]
+    tcl_safeDeleteInterp a
+    list $r $msg
+} {0 -1}
+
+# Restore settings to what they were before this file was sourced:
+
+set auto_path $my_old_auto_path
+unset my_old_auto_path
+
+# set auto_path $old_auto_path
+# unset old_auto_path
