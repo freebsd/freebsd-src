@@ -49,7 +49,7 @@
 #include <vm/vm_object.h>
 #include <vm/vm_page.h>
 #include <vm/vm_pageout.h>
-#include <vm/vm_zone.h>
+#include <vm/uma.h>
 
 #include <machine/asi.h>
 #include <machine/frame.h>
@@ -60,10 +60,7 @@
 #include <machine/tlb.h>
 #include <machine/tsb.h>
 
-vm_zone_t pvzone;
-#if 0
-struct vm_zone pvzone_store;
-#endif
+uma_zone_t pvzone;
 struct vm_object pvzone_obj;
 int pv_entry_count;
 int pv_entry_max;
@@ -80,7 +77,7 @@ pv_alloc(void)
 		pmap_pagedaemon_waken = 1;
 		wakeup(&vm_pages_needed);
 	}
-	return (zalloc(pvzone));
+	return (uma_zalloc(pvzone), M_WAITOK);
 }
 
 void *
@@ -96,7 +93,7 @@ pv_free(pv_entry_t pv)
 {
 
 	pv_entry_count--;
-	zfree(pvzone, pv);
+	uma_zfree(pvzone, pv);
 }
 
 /*

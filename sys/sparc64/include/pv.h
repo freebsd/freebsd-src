@@ -40,8 +40,7 @@
 #ifndef	_MACHINE_PV_H_
 #define	_MACHINE_PV_H_
 
-extern vm_zone_t pvzone;
-extern struct vm_zone pvzone_store;
+extern uma_zone_t pvzone;
 extern struct vm_object pvzone_obj;
 extern int pv_entry_count;
 extern int pv_entry_max;
