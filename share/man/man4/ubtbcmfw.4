@@ -44,7 +44,7 @@ driver creates three fixed endpoint device nodes.
 .Pp
 The control transfers can only happen on the control endpoint which
 is always endpoint 0.
-Control request are issued by
+Control requests are issued by
 .Xr ioctl 2
 calls.
 .Pp
@@ -52,7 +52,7 @@ Only incoming transfers are supported on an interrupt endpoint.
 To perform I/O on an interrupt endpoint,
 .Xr read 2
 should be used.
-All I/O operations on a interrupt endpoint are unbuffered.
+All I/O operations on an interrupt endpoint are unbuffered.
 Interrupt endpoint is always endpoint 1.
 .Pp
 Only outgoing bulk transfers are supported on a bulk endpoint.
