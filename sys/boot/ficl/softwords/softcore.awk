@@ -91,6 +91,6 @@ END \
   printf "    \"quit \";\n";
   printf "\n\nvoid ficlCompileSoftCore(FICL_VM *pVM)\n";
   printf "{\n";
-  printf "    assert(ficlExec(pVM, softWords) != VM_ERREXIT);\n";
+  printf "    assert(ficlExec(pVM, softWords, -1) != VM_ERREXIT);\n";
   printf "}\n";
 }

@@ -33,7 +33,9 @@ decimal 32 constant bl
     postpone if 
     postpone ." 
     postpone cr 
-    postpone abort 
+    -2
+    postpone literal
+    postpone throw 
     postpone endif 
 ; immediate 
 

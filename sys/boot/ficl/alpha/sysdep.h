@@ -215,6 +215,7 @@ typedef struct
 struct vm;
 void  ficlTextOut(struct vm *pVM, char *msg, int fNewline);
 void *ficlMalloc (size_t size);
+void *ficlRealloc (void *p, size_t size);
 void  ficlFree   (void *p);
 
 /*
