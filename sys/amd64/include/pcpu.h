@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $Id: globaldata.h,v 1.4 1998/05/17 23:08:02 tegge Exp $
+ * $Id: globaldata.h,v 1.5 1998/05/28 09:30:02 phk Exp $
  */
 
 /*
@@ -48,6 +48,9 @@ struct globaldata {
 	struct segment_descriptor common_tssd;
 	u_int		private_tss;
 	u_int		my_tr;		
+#endif
+#ifdef USER_LDT
+	int		currentldt;
 #endif
 #ifdef SMP
 	u_int		cpuid;

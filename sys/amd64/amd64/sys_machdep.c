@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)sys_machdep.c	5.5 (Berkeley) 1/19/91
- *	$Id: sys_machdep.c,v 1.34 1998/03/23 19:52:34 jlemon Exp $
+ *	$Id: sys_machdep.c,v 1.35 1998/07/28 03:29:32 jlemon Exp $
  *
  */
 
@@ -64,8 +64,8 @@
 
 
 
-void set_user_ldt	__P((struct pcb *pcb));
 #ifdef USER_LDT
+void set_user_ldt	__P((struct pcb *pcb));
 static int i386_get_ldt	__P((struct proc *, char *));
 static int i386_set_ldt	__P((struct proc *, char *));
 #endif
