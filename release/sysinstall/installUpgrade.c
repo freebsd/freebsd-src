@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: installUpgrade.c,v 1.61.2.4 1999/03/19 08:22:49 jkh Exp $
+ * $Id: installUpgrade.c,v 1.61.2.5 1999/04/24 02:02:28 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -280,6 +280,8 @@ installUpgrade(dialogMenuItem *self)
 		if (msgYesNo("Unable to backup your /etc into %s.\n"
 			     "Do you want to continue anyway?", saved_etc) != 0)
 		    return DITEM_FAILURE | DITEM_RESTORE;
+	    msgNotify("Preserving /root directory..");
+	    vsystem("tar -cBpf - -C / root | tar --unlink -xBpf - -C %s", saved_etc);
 	}
 
 	msgNotify("chflags'ing old binaries - please wait.");
@@ -353,6 +355,8 @@ media:
     else {
 	/* Now try to resurrect the /etc files */
 	traverseHitlist(etc_files);
+	/* Resurrect the root dotfiles */
+	vsystem("tar -cBpf - root | tar -xBpf - -C / && rm -rf root");
     }
 
     msgConfirm("Upgrade completed!  All of your old /etc files have been restored.\n"
