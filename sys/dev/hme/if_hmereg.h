@@ -267,12 +267,6 @@
 /*
  * Buffer Descriptors.
  */
-#ifdef notdef
-struct hme_xd {
-	volatile u_int32_t	xd_flags;
-	volatile u_int32_t	xd_addr;	/* Buffer address (DMA) */
-};
-#endif
 #define HME_XD_SIZE			8
 #define HME_XD_FLAGS(base, index)	((base) + ((index) * HME_XD_SIZE) + 0)
 #define HME_XD_ADDR(base, index)	((base) + ((index) * HME_XD_SIZE) + 4)

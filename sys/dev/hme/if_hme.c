@@ -240,6 +240,7 @@ hme_config(struct hme_softc *sc)
 	 * processed descriptor and may be used later on.
 	 */
 	for (rdesc = 0; rdesc < HME_NRXDESC; rdesc++) {
+		sc->sc_rb.rb_rxdesc[rdesc].hrx_m = NULL;
 		error = bus_dmamap_create(sc->sc_rdmatag, 0,
 		    &sc->sc_rb.rb_rxdesc[rdesc].hrx_dmamap);
 		if (error != 0)
@@ -251,13 +252,13 @@ hme_config(struct hme_softc *sc)
 		goto fail_rxdesc;
 	/* Same for the TX descs. */
 	for (tdesc = 0; tdesc < HME_NTXDESC; tdesc++) {
+		sc->sc_rb.rb_txdesc[tdesc].htx_m = NULL;
+		sc->sc_rb.rb_txdesc[tdesc].htx_flags = 0;
 		error = bus_dmamap_create(sc->sc_tdmatag, 0,
 		    &sc->sc_rb.rb_txdesc[tdesc].htx_dmamap);
 		if (error != 0)
 			goto fail_txdesc;
 	}
-	bus_dmamap_sync(sc->sc_cdmatag, sc->sc_cdmamap,
-	    BUS_DMASYNC_PREREAD | BUS_DMASYNC_PREWRITE);
 
 	device_printf(sc->sc_dev, "Ethernet address:");
 	for (i = 0; i < 6; i++)
@@ -409,6 +410,27 @@ hme_rxdma_callback(void *xsc, bus_dma_segment_t *segs, int nsegs, int error)
 	*a = segs[0].ds_addr;
 }
 
+/*
+ * Discard the contents of an mbuf in the RX ring, freeing the buffer in the
+ * ring for subsequent use.
+ */
+static void
+hme_discard_rxbuf(struct hme_softc *sc, int ix, int sync)
+{
+
+	/*
+	 * Dropped a packet, reinitialize the descriptor and turn the
+	 * ownership back to the hardware.
+	 */
+	HME_XD_SETFLAGS(sc->sc_pci, sc->sc_rb.rb_rxd, ix, HME_XD_OWN |
+	    HME_XD_ENCODE_RSIZE(ulmin(HME_BUFSZ,
+	    sc->sc_rb.rb_rxdesc[ix].hrx_len)));
+	if (sync) {
+		bus_dmamap_sync(sc->sc_cdmatag, sc->sc_cdmamap,
+		    BUS_DMASYNC_PREREAD | BUS_DMASYNC_PREWRITE);
+	}
+}
+
 static int
 hme_add_rxbuf(struct hme_softc *sc, unsigned int ri, int keepold)
 {
@@ -422,8 +444,14 @@ hme_add_rxbuf(struct hme_softc *sc, unsigned int ri, int keepold)
 
 	rd = &sc->sc_rb.rb_rxdesc[ri];
 	unmap = rd->hrx_m != NULL;
-	if (unmap && keepold)
+	if (unmap && keepold) {
+		/*
+		 * Reinitialize the descriptor flags, as they may have been
+		 * altered by the hardware.
+		 */
+		hme_discard_rxbuf(sc, ri, 0);
 		return (0);
+	}
 	if ((m = m_gethdr(M_DONTWAIT, MT_DATA)) == NULL)
 		return (ENOBUFS);
 	m_clget(m, M_DONTWAIT);
@@ -534,12 +562,15 @@ hme_meminit(struct hme_softc *sc)
 			return (error);
 	}
 
+	bus_dmamap_sync(sc->sc_cdmatag, sc->sc_cdmamap,
+	    BUS_DMASYNC_PREREAD | BUS_DMASYNC_PREWRITE);
+
 	hr->rb_tdhead = hr->rb_tdtail = 0;
 	hr->rb_td_nbusy = 0;
 	hr->rb_rdtail = 0;
-	CTR2(KTR_HME, "gem_meminit: tx ring va %p, pa %#lx", hr->rb_txd,
+	CTR2(KTR_HME, "hme_meminit: tx ring va %p, pa %#lx", hr->rb_txd,
 	    hr->rb_txddma);
-	CTR2(KTR_HME, "gem_meminit: rx ring va %p, pa %#lx", hr->rb_rxd,
+	CTR2(KTR_HME, "hme_meminit: rx ring va %p, pa %#lx", hr->rb_rxd,
 	    hr->rb_rxddma);
 	CTR2(KTR_HME, "rx entry 1: flags %x, address %x",
 	    *(u_int32_t *)hr->rb_rxd, *(u_int32_t *)(hr->rb_rxd + 4));
@@ -861,7 +892,7 @@ hme_load_mbuf(struct hme_softc *sc, struct mbuf *m0)
 	u_int32_t flags;
 
 	if ((m->m_flags & M_PKTHDR) == 0)
-		panic("gem_dmamap_load_mbuf: no packet header");
+		panic("hme_dmamap_load_mbuf: no packet header");
 	totlen = m->m_pkthdr.len;
 	sum = 0;
 	si = sc->sc_rb.rb_tdhead;
@@ -965,7 +996,9 @@ hme_read(struct hme_softc *sc, int ix, int len)
 		HME_WHINE(sc->sc_dev, "invalid packet size %d; dropping\n",
 		    len);
 #endif
-		goto drop;
+		ifp->if_ierrors++;
+		hme_discard_rxbuf(sc, ix, 1);
+		return;
 	}
 
 	m = sc->sc_rb.rb_rxdesc[ix].hrx_m;
@@ -978,7 +1011,9 @@ hme_read(struct hme_softc *sc, int ix, int len)
 		 * it is sure that a new buffer can be mapped. If it can not,
 		 * drop the packet, but leave the interface up.
 		 */
-		goto drop;
+		ifp->if_iqdrops++;
+		hme_discard_rxbuf(sc, ix, 1);
+		return;
 	}
 
 	ifp->if_ipackets++;
@@ -994,19 +1029,6 @@ hme_read(struct hme_softc *sc, int ix, int len)
 	m_adj(m, sizeof(struct ether_header));
 	/* Pass the packet up. */
 	ether_input(ifp, eh, m);
-	return;
-
-drop:
-	ifp->if_ierrors++;
-	/*
-	 * Dropped a packet, reinitialize the descriptor and turn the
-	 * ownership back to the hardware.
-	 */
-	HME_XD_SETFLAGS(sc->sc_pci, sc->sc_rb.rb_rxd, ix, HME_XD_OWN |
-	    HME_XD_ENCODE_RSIZE(ulmin(HME_BUFSZ,
-	    sc->sc_rb.rb_rxdesc[ix].hrx_len)));
-	bus_dmamap_sync(sc->sc_cdmatag, sc->sc_cdmamap,
-	    BUS_DMASYNC_PREREAD | BUS_DMASYNC_PREWRITE);
 }
 
 static void
@@ -1084,7 +1106,7 @@ hme_tint(struct hme_softc *sc)
 		td = &sc->sc_rb.rb_txdesc[ri];
 		CTR1(KTR_HME, "hme_tint: not owned, dflags %#x", td->htx_flags);
 		if ((td->htx_flags & HTXF_MAPPED) != 0) {
-			bus_dmamap_sync(sc->sc_cdmatag, sc->sc_cdmamap,
+			bus_dmamap_sync(sc->sc_tdmatag, td->htx_dmamap,
 			    BUS_DMASYNC_POSTWRITE);
 			bus_dmamap_unload(sc->sc_tdmatag, td->htx_dmamap);
 		}
@@ -1120,6 +1142,7 @@ static void
 hme_rint(struct hme_softc *sc)
 {
 	caddr_t xdr = sc->sc_rb.rb_rxd;
+	struct ifnet *ifp = &sc->sc_arpcom.ac_if;
 	unsigned int ri, len;
 	u_int32_t flags;
 
@@ -1135,6 +1158,8 @@ hme_rint(struct hme_softc *sc)
 		if ((flags & HME_XD_OFL) != 0) {
 			device_printf(sc->sc_dev, "buffer overflow, ri=%d; "
 			    "flags=0x%x\n", ri, flags);
+			ifp->if_ierrors++;
+			hme_discard_rxbuf(sc, ri, 1);
 		} else {
 			len = HME_XD_DECODE_RSIZE(flags);
 			hme_read(sc, ri, len);
