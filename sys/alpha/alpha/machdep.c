@@ -1640,7 +1640,7 @@ ptrace_read_int(struct thread *td, vm_offset_t addr, u_int32_t *v)
 	uio.uio_segflg = UIO_SYSSPACE;
 	uio.uio_rw = UIO_READ;
 	uio.uio_td = td;
-	return procfs_domem(curproc, td->td_proc, NULL, &uio);
+	return proc_rwmem(td->td_proc, &uio);
 }
 
 static int
@@ -1657,7 +1657,7 @@ ptrace_write_int(struct thread *td, vm_offset_t addr, u_int32_t v)
 	uio.uio_segflg = UIO_SYSSPACE;
 	uio.uio_rw = UIO_WRITE;
 	uio.uio_td = td;
-	return procfs_domem(curproc, td->td_proc, NULL, &uio);
+	return proc_rwmem(td->td_proc, &uio);
 }
 
 static u_int64_t
