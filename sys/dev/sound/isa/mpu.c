@@ -359,6 +359,8 @@ mpu_attach(device_t dev)
 
 	DEB(printf("mpu: attaching.\n"));
 
+	mtx_init(&scp->mtx, "mpumid", MTX_DEF);
+
 	/* Allocate the resources, switch to uart mode. */
 	if (mpu_allocres(scp, dev) || mpu_uartmode(scp)) {
 		mpu_releaseres(scp, dev);
@@ -369,7 +371,6 @@ mpu_attach(device_t dev)
 
 	/* Fill the softc. */
 	scp->dev = dev;
-	mtx_init(&scp->mtx, "mpumid", MTX_DEF);
 	scp->devinfo = devinfo = create_mididev_info_unit(MDT_MIDI, &mpu_op_desc, &midisynth_op_desc);
 
 	/* Fill the midi info. */
@@ -752,6 +753,7 @@ mpu_releaseres(sc_p scp, device_t dev)
 		bus_release_resource(dev, SYS_RES_IOPORT, scp->io_rid, scp->io);
 		scp->io = NULL;
 	}
+	mtx_destroy(&scp->mtx);
 }
 
 static device_method_t mpu_methods[] = {
