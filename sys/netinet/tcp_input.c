@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	From: @(#)tcp_input.c	8.5 (Berkeley) 4/10/94
- *	$Id: tcp_input.c,v 1.15 1995/02/16 01:39:19 wollman Exp $
+ *	$Id: tcp_input.c,v 1.16 1995/03/16 18:15:04 bde Exp $
  */
 
 #ifndef TUBA_INCLUDE
@@ -522,7 +522,17 @@ findpcb:
 			m->m_len -= sizeof(struct tcpiphdr)+off-sizeof(struct tcphdr);
 			sbappend(&so->so_rcv, m);
 			sorwakeup(so);
-			tp->t_flags |= TF_DELACK;
+			/*
+			 * If this is a short packet, then ACK now - with Nagel
+			 *	congestion avoidance sender won't send more until
+			 *	he gets an ACK.
+			 */
+			if (ti->ti_flags & TH_PUSH) {
+				tp->t_flags |= TF_ACKNOW;
+				tcp_output(tp);
+			} else {
+				tp->t_flags |= TF_DELACK;
+			}
 			return;
 		}
 	}
@@ -1556,6 +1566,14 @@ dodata:							/* XXX */
 	if (so->so_options & SO_DEBUG)
 		tcp_trace(TA_INPUT, ostate, tp, &tcp_saveti, 0);
 #endif
+
+	/*
+	 * If this is a short packet, then ACK now - with Nagel
+	 *      congestion avoidance sender won't send more until
+	 *      he gets an ACK.
+	 */
+	if (ti->ti_flags & TH_PUSH)
+		tp->t_flags |= TF_ACKNOW;
 
 	/*
 	 * Return any desired output.
