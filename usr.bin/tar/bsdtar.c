@@ -228,6 +228,7 @@ main(int argc, char **argv)
 #ifdef HAVE_GETOPT_LONG
 		case OPTION_HELP:
 			long_help(bsdtar);
+			exit(0);
 			break;
 #endif
 #ifdef HAVE_GETOPT_LONG
@@ -362,7 +363,7 @@ main(int argc, char **argv)
 	 */
 	if (mode == '\0' && possible_help_request) {
 		long_help(bsdtar);
-		exit(1);
+		exit(0);
 	}
 
 	if (mode == '\0')
@@ -519,14 +520,14 @@ usage(struct bsdtar *bsdtar)
 
 	p = bsdtar->progname;
 
-	printf("Basic Usage:\n");
-	printf("  List:    %s -tf [archive-filename]\n", p);
-	printf("  Extract: %s -xf [archive-filename]\n", p);
-	printf("  Create:  %s -cf [archive-filename] [filenames...]\n", p);
+	fprintf(stderr, "Usage:\n");
+	fprintf(stderr, "  List:    %s -tf <archive-filename>\n", p);
+	fprintf(stderr, "  Extract: %s -xf <archive-filename>\n", p);
+	fprintf(stderr, "  Create:  %s -cf <archive-filename> [filenames...]\n", p);
 #ifdef HAVE_GETOPT_LONG
-	printf("  Help:    %s --help\n", p);
+	fprintf(stderr, "  Help:    %s --help\n", p);
 #else
-	printf("  Help:    %s -h\n", p);
+	fprintf(stderr, "  Help:    %s -h\n", p);
 #endif
 	exit(1);
 }
@@ -543,7 +544,9 @@ static const char *long_help_msg[] = {
 	"  <file>, <dir>  add these items to archive\n",
 	"  -z, -j  Compress archive with gzip/bzip2\n",
 	"  -F {ustar|pax|cpio|shar}  Select archive format\n",
+#ifdef HAVE_GETOPT_LONG
 	"  --exclude <pattern>  Skip files that match pattern\n",
+#endif
 	"  C=<dir>  Change to <dir> before processing remaining files\n",
 	"  @<archive>  Add entries from <archive> to output\n",
 	"List: %p -t [options] [<patterns>]\n",
@@ -558,6 +561,16 @@ static const char *long_help_msg[] = {
 };
 
 
+/*
+ * Note that the word 'bsdtar' will always appear in the first line
+ * of output.
+ *
+ * In particular, /bin/sh scripts that need to test for the presence
+ * of bsdtar can use the following template:
+ *
+ * if (tar --help 2>&1 | grep bsdtar >/dev/null 2>&1 ) then \
+ *          echo bsdtar; else echo not bsdtar; fi
+ */
 static void
 long_help(struct bsdtar *bsdtar)
 {
@@ -567,7 +580,13 @@ long_help(struct bsdtar *bsdtar)
 
 	prog = bsdtar->progname;
 
-	printf("%s: manipulate archive files\n", prog);
+	fflush(stderr);
+	if (strcmp(prog,"bsdtar")!=0)
+		p = "(bsdtar)";
+	else
+		p = "";
+
+	fprintf(stderr, "%s%s: manipulate archive files\n", prog, p);
 
 	for (msg = long_help_msg; *msg != NULL; msg++) {
 		for (p = *msg; p != NULL; p++) {
@@ -575,7 +594,7 @@ long_help(struct bsdtar *bsdtar)
 				break;
 			else if (*p == '%') {
 				if (p[1] == 'p') {
-					fputs(prog, stdout);
+					fputs(prog, stderr);
 					p++;
 				} else
 					putchar('%');
@@ -583,4 +602,5 @@ long_help(struct bsdtar *bsdtar)
 				putchar(*p);
 		}
 	}
+	fflush(stderr);
 }
