@@ -78,20 +78,6 @@ _pthread_cancel(pthread_t pthread)
 				break;
 
 			case PS_SUSPENDED:
-				if (pthread->suspended == SUSP_NO ||
-				    pthread->suspended == SUSP_YES ||
-				    pthread->suspended == SUSP_JOIN ||
-				    pthread->suspended == SUSP_NOWAIT) {
-					/*
-					 * This thread isn't in any scheduling
-					 * queues; just change it's state:
-					 */
-					pthread->cancelflags |=
-					    PTHREAD_CANCELLING;
-					PTHREAD_SET_STATE(pthread, PS_RUNNING);
-					break;
-				}
-				/* FALLTHROUGH */
 			case PS_MUTEX_WAIT:
 			case PS_COND_WAIT:
 			case PS_FDLR_WAIT:
@@ -109,7 +95,7 @@ _pthread_cancel(pthread_t pthread)
 				 */
 				pthread->interrupted = 1;
 				pthread->cancelflags |= PTHREAD_CANCEL_NEEDED;
-				PTHREAD_NEW_STATE(pthread,PS_RUNNING);
+				PTHREAD_NEW_STATE(pthread, PS_RUNNING);
 				pthread->continuation = finish_cancellation;
 				break;
 

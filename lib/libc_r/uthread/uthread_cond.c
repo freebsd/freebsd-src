@@ -524,15 +524,9 @@ _pthread_cond_signal(pthread_cond_t * cond)
 
 			if ((pthread = cond_queue_deq(*cond)) != NULL) {
 				/*
-				 * Unless the thread is currently suspended,
-				 * allow it to run.  If the thread is suspended,
-				 * make a note that the thread isn't in a wait
-				 * queue any more.
+				 * Wake up the signaled thread:
 				 */
-				if (pthread->state != PS_SUSPENDED)
-					PTHREAD_NEW_STATE(pthread,PS_RUNNING);
-				else
-					pthread->suspended = SUSP_NOWAIT;
+				PTHREAD_NEW_STATE(pthread, PS_RUNNING);
 			}
 
 			/* Check for no more waiters: */
@@ -596,15 +590,9 @@ _pthread_cond_broadcast(pthread_cond_t * cond)
 			 */
 			while ((pthread = cond_queue_deq(*cond)) != NULL) {
 				/*
-				 * Unless the thread is currently suspended,
-				 * allow it to run.  If the thread is suspended,
-				 * make a note that the thread isn't in a wait
-				 * queue any more.
+				 * Wake up the signaled thread:
 				 */
-				if (pthread->state != PS_SUSPENDED)
-					PTHREAD_NEW_STATE(pthread,PS_RUNNING);
-				else
-					pthread->suspended = SUSP_NOWAIT;
+				PTHREAD_NEW_STATE(pthread, PS_RUNNING);
 			}
 
 			/* There are no more waiting threads: */
