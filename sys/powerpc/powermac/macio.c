@@ -31,7 +31,6 @@
  * Driver for KeyLargo/Pangea, the MacPPC south bridge ASIC.
  */
 
-#define __RMAN_RESOURCE_VISIBLE
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/kernel.h>
