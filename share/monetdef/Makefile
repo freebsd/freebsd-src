@@ -21,6 +21,8 @@ LOCALES=	af_ZA.ISO_8859-1 \
 		nl_NL.ISO_8859-1 \
 		no_NO.ISO_8859-1 \
 		pl_PL.ISO_8859-2 \
+		ru_RU.CP866 \
+		ru_RU.ISO_8859-5 \
 		ru_RU.KOI8-R \
 		sv_SE.ISO_8859-1 \
 		uk_UA.KOI8-U \
