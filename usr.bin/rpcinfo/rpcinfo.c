@@ -2,7 +2,7 @@
 /*static char sccsid[] = "from: @(#)rpcinfo.c 1.22 87/08/12 SMI";*/
 /*static char sccsid[] = "from: @(#)rpcinfo.c	2.2 88/08/11 4.0 RPCSRC";*/
 static char rcsid[] =
-	"$Id: rpcinfo.c,v 1.6 1997/08/06 06:49:06 charnier Exp $";
+	"$Id: rpcinfo.c,v 1.7 1998/06/09 04:30:56 imp Exp $";
 #endif
 
 /*
@@ -54,6 +54,7 @@ static char rcsid[] =
 #include <signal.h>
 #include <ctype.h>
 #include <sys/param.h>
+#include <arpa/inet.h>
 
 #define MAXHOSTLEN 256
 
@@ -71,8 +72,6 @@ static void	usage(/*void*/);
 static u_long	getprognum(/*char *arg*/);
 static u_long	getvers(/*char *arg*/);
 static void	get_inet_address(/*struct sockaddr_in *addr, char *host*/);
-extern u_long inet_addr();  /* in 4.2BSD, arpa/inet.h called that a in_addr */
-extern char *inet_ntoa();
 
 /*
  * Functions to be performed.
