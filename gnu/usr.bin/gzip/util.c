@@ -5,10 +5,9 @@
  */
 
 #ifndef lint
-static char rcsid[] = "$Id: util.c,v 0.14 1993/05/27 10:31:52 jloup Exp $";
+static char rcsid[] = "$Id: util.c,v 0.15 1993/06/15 09:04:13 jloup Exp $";
 #endif
 
-#include <stdio.h>
 #include <ctype.h>
 #include <errno.h>
 #include <sys/types.h>
@@ -32,6 +31,26 @@ static char rcsid[] = "$Id: util.c,v 0.14 1993/05/27 10:31:52 jloup Exp $";
 #include "crypt.h"
 
 extern ulg crc_32_tab[];   /* crc table, defined below */
+
+/* ===========================================================================
+ * Copy input to output unchanged: zcat == cat with --force.
+ * IN assertion: insize bytes have already been read in inbuf.
+ */
+int copy(in, out)
+    int in, out;   /* input and output file descriptors */
+{
+    errno = 0;
+    while (insize != 0 && (int)insize != EOF) {
+	write_buf(out, (char*)inbuf, insize);
+	bytes_out += insize;
+	insize = read(in, (char*)inbuf, INBUFSIZ);
+    }
+    if ((int)insize == EOF && errno != 0) {
+	read_error();
+    }
+    bytes_in = bytes_out;
+    return OK;
+}
 
 /* ===========================================================================
  * Run a set of bytes through the crc shift register.  If s is a NULL
@@ -69,10 +88,10 @@ void clear_bufs()
 }
 
 /* ===========================================================================
- * Fill the input buffer. This is called only when the buffer is empty
- * and at least one byte is really needed.
+ * Fill the input buffer. This is called only when the buffer is empty.
  */
-int fill_inbuf()
+int fill_inbuf(eof_ok)
+    int eof_ok;          /* set if EOF acceptable as a result */
 {
     int len;
 
@@ -86,6 +105,7 @@ int fill_inbuf()
     } while (insize < INBUFSIZ);
 
     if (insize == 0) {
+	if (eof_ok) return EOF;
 	read_error();
     }
     bytes_in += (ulg)insize;
@@ -176,6 +196,26 @@ char *basename(fname)
     if (casemap('A') == 'a') strlwr(fname);
     return fname;
 }
+
+/* ========================================================================
+ * Make a file name legal for file systems not allowing file names with
+ * multiple dots or starting with a dot (such as MSDOS), by changing
+ * all dots except the last one into underlines.  A target dependent
+ * function can be used instead of this simple function by defining the macro
+ * MAKE_LEGAL_NAME in tailor.h and providing the function in a target
+ * dependent module.
+ */
+void make_simple_name(name)
+    char *name;
+{
+    char *p = strrchr(name, '.');
+    if (p == NULL) return;
+    if (p == name) p++;
+    do {
+        if (*--p == '.') *p = '_';
+    } while (p != name);
+}
+
 
 #if defined(NO_STRING_H) && !defined(STDC_HEADERS)
 
@@ -325,11 +365,12 @@ void write_error()
 }
 
 /* ========================================================================
- * Display compression ratio on stderr.
+ * Display compression ratio on the given stream on 6 characters.
  */
-void display_ratio(num, den)
+void display_ratio(num, den, file)
     long num;
     long den;
+    FILE *file;
 {
     long ratio;  /* 1000 times the compression ratio */
 
@@ -341,10 +382,12 @@ void display_ratio(num, den)
 	ratio = num/(den/1000L);
     }
     if (ratio < 0) {
-	putc('-', stderr);
+	putc('-', file);
 	ratio = -ratio;
+    } else {
+	putc(' ', file);
     }
-    fprintf(stderr, "%2ld.%ld%%", ratio / 10L, ratio % 10L);
+    fprintf(file, "%2ld.%1ld%%", ratio / 10L, ratio % 10L);
 }
 
 

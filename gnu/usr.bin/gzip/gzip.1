@@ -5,7 +5,7 @@ gzip, gunzip, zcat \- compress or expand files
 .SH SYNOPSIS
 .ll +8
 .B gzip
-.RB [ " \-acdfhLrtvV19 " ]
+.RB [ " \-acdfhlLnrtvV19 " ]
 .RB [ \-S\ suffix ]
 [
 .I "name \&..."
@@ -13,14 +13,14 @@ gzip, gunzip, zcat \- compress or expand files
 .ll -8
 .br
 .B gunzip
-.RB [ " \-acfhLrtvV " ]
+.RB [ " \-acfhlLnrtvV " ]
 .RB [ \-S\ suffix ]
 [
 .I "name \&..."
 ]
 .br
 .B zcat
-.RB [ " \-hLV " ]
+.RB [ " \-fhLV " ]
 [
 .I "name \&..."
 ]
@@ -35,14 +35,23 @@ while keeping the same ownership modes, access and modification times.
 .B "\-gz"
 for VMS,
 .B "z"
-for MSDOS, OS/2 and Atari.)
+for MSDOS, OS/2 FAT and Atari.)
 If no files are specified, the standard input is compressed to the
-standard output. If the new file name is too long,
-.I gzip
-truncates it and keeps the original file name in the compressed file.
+standard output.
 .I Gzip
 will only attempt to compress regular files.
 In particular, it will ignore symbolic links.
+.PP
+If the new file name is too long for its file system,
+.I gzip
+truncates it and keeps the original file name in the compressed file.
+.I Gzip
+attempts to truncate only the parts of the file name longer than 3 characters.
+(A part is delimited by dots.) If the name consists of small parts only,
+the longest parts are truncated. For example, if file names are limited
+to 14 characters, gzip.msdos.exe is compressed to gzi.msd.exe.gz.
+Names are not truncated on systems which do not have a limit on file name
+length.
 .PP
 Compressed files can be restored to their original form using
 .I gzip -d
@@ -50,6 +59,9 @@ or
 .I gunzip
 or
 .I zcat.
+If the original name saved in the compressed file is not suitable for its
+file system, a new name is constructed from the original one to make it
+legal.
 .PP
 .I gunzip
 takes a list of files on its command line and replaces each
@@ -66,10 +78,17 @@ as shorthands for
 and
 .B "\&.tar.Z"
 respectively.
+When compressing,
+.I gzip
+uses the
+.B "\&.tgz"
+extension if necessary instead of truncating a file with a
+.B "\&.tar"
+extension.
 .PP
 .I gunzip
 can currently decompress files created by
-.I gzip, zip, compress
+.I gzip, zip, compress, compress -H
 or
 .I pack.
 The detection of the input format is automatic.  When using
@@ -77,7 +96,7 @@ the first two formats,
 .I gunzip
 checks a 32 bit CRC. For
 .I pack, gunzip
-checks the uncompressed length. The
+checks the uncompressed length. The standard
 .I compress
 format was not designed to allow consistency checks. However
 .I gunzip
@@ -88,6 +107,8 @@ correct simply because the standard
 does not complain. This generally means that the standard
 .I uncompress
 does not check its input, and happily generates garbage output.
+The SCO compress -H format (lzh compression method) does not include a CRC
+but also allows some consistency checks.
 .PP
 Files created by
 .I zip
@@ -150,7 +171,7 @@ Ascii text mode: convert end-of-lines using local conventions. This option
 is supported only on some non-Unix systems. For MSDOS, CR LF is converted
 to LF when compressing, and LF is converted to CR LF when decompressing.
 .TP
-.B \-c --stdout
+.B \-c --stdout --to-stdout
 Write output on standard output; keep original files unchanged.
 If there are several input files, the output consists of a sequence of
 independently compressed members. To obtain better compression,
@@ -162,7 +183,15 @@ Decompress.
 .B \-f --force
 Force compression or decompression even if the file has multiple links
 or the corresponding file already exists, or if the compressed data
-is read from or written to a terminal. If
+is read from or written to a terminal. If the input data is not in
+a format recognized by
+.I gzip,
+and if the option --stdout is also given, copy the input data without change
+to the standard ouput: let
+.I zcat
+behave as
+.I cat.
+If
 .B \-f
 is not given,
 and when not running in the background,
@@ -172,10 +201,47 @@ prompts to verify whether an existing file should be overwritten.
 .B \-h --help
 Display a help screen and quit.
 .TP
+.B \-l --list
+For each compressed file, list the following fields:
+
+    compressed size: size of the compressed file
+    uncompressed size: size of the uncompressed file
+    ratio: compression ratio (0.0% if unknown)
+    uncompressed_name: name of the uncompressed file
+
+The uncompressed size is given as -1 for files not in gzip format,
+such as compressed .Z files. To get the uncompressed size for such a file,
+you can use:
+
+    zcat file.Z | wc -c
+
+In combination with the --verbose option, the following fields are also
+displayed:
+
+    method: compression method
+    crc: the 32-bit CRC of the uncompressed data
+    date & time: time stamp for the uncompressed file
+
+The compression methods currently supported are deflate, compress, lzh
+(SCO compress -H) and pack.  The crc is given as ffffffff for a file
+not in gzip format.
+
+With --verbose, the size totals and compression ratio for all files
+is also displayed, unless some sizes are unknown. With --quiet,
+the title and totals lines are not displayed.
+.TP
 .B \-L --license
 Display the
 .I gzip
-license.
+license and quit.
+.TP
+.B \-n --no-name
+When compressing, do not save the original file name by default. (The
+original name is always saved if the name had to be truncated.) When
+decompressing, do not restore the original file name if present: remove
+only the
+.I gzip
+suffix from the compressed file name.
 .TP
 .B \-q --quiet
 Suppress all warnings.
@@ -189,10 +255,15 @@ will descend into the directory and compress all the files it finds there
 .I gunzip
 ).
 .TP
-.B \-S .z   --suffix .z
-Use suffix .z instead of .gz. Any suffix can be given, but suffixes
+.B \-S .suf   --suffix .suf
+Use suffix .suf instead of .gz. Any suffix can be given, but suffixes
 other than .z and .gz should be avoided to avoid confusion when files
-are transferred to other systems.  Previous versions of gzip used
+are transferred to other.  A null suffix forces gunzip to  try
+decompression on all given files regardless of suffix, as in:
+
+    gunzip -S "" *       (*.* for MSDOS)
+
+Previous versions of gzip used
 the .z suffix. This was changed to avoid a conflict with
 .IR pack "(1)".
 .TP
@@ -200,7 +271,8 @@ the .z suffix. This was changed to avoid a conflict with
 Test. Check the compressed file integrity.
 .TP
 .B \-v --verbose
-Verbose. Display the name and percentage reduction for each file compressed.
+Verbose. Display the name and percentage reduction for each file compressed
+or decompressed.
 .TP
 .B \-V --version
 Version. Display the version number and compilation options then quit.
@@ -219,7 +291,8 @@ or
 .B \-\-best
 indicates the slowest compression method (optimal compression).
 The default compression level is
-.BR \-5.
+.BR \-6
+(that is, biased towards high compression at expense of speed).
 .SH "ADVANCED USAGE"
 Multiple compressed files can be concatenated. In this case,
 .I gunzip
@@ -268,7 +341,7 @@ pack(1), compact(1)
 Exit status is normally 0;
 if an error occurs, exit status is 1. If a warning occurs, exit status is 2.
 .PP
-Usage: gzip [-cdfhLrtvV19] [-S suffix] [file ...]
+Usage: gzip [-cdfhlLnrtvV19] [-S suffix] [file ...]
 .in +8
 Invalid options were specified on the command line.
 .in -8
@@ -322,7 +395,9 @@ been corrupted.
 .in +8
 Percentage of the input saved by compression.
 (Relevant only for
-.BR \-v \.)
+.BR \-v
+and
+.BR \-l \.)
 .in -8
 -- not a regular file or directory: ignored
 .in +8
@@ -358,3 +433,7 @@ environment variable as in:
 In the above example, gzip is invoked implicitly by the -z option
 of GNU tar. Make sure that the same block size (-b option of
 tar) is used for reading and writing compressed data on tapes.
+.SH BUGS
+The --list option reports incorrect sizes if they exceed 2 gigabytes.
+The --list option reports sizes as -1 and crc as ffffffff if the
+compressed file is on a non seekable media.

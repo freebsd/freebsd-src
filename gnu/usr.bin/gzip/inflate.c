@@ -97,10 +97,9 @@
  */
 
 #ifndef lint
-static char rcsid[] = "$Id: inflate.c,v 0.13 1993/04/26 14:18:22 jloup Exp $";
+static char rcsid[] = "$Id: inflate.c,v 0.14 1993/06/10 13:27:04 jloup Exp $";
 #endif
 
-#include <stdio.h>
 #include <sys/types.h>
 
 #include "tailor.h"

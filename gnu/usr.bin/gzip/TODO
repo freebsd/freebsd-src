@@ -48,11 +48,6 @@ Some of the planned features include:
 - Use a larger window size to deal with some large redundant files that
   'compress' currently handles better than gzip.
 
-- implement the following options:
-
-   -e    encrypt
-   -l    list .z file contents
+- Implement the -e (encrypt) option.
    
-- support .Z files in SCO 'compress -H' format.
-
 Send comments to Jean-loup Gailly <jloup@chorus.fr>.

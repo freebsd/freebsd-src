@@ -54,13 +54,12 @@
  */
 
 #include <ctype.h>
-#include <stdio.h>
 
 #include "tailor.h"
 #include "gzip.h"
 
 #ifndef lint
-static char rcsid[] = "$Id: trees.c,v 0.11 1993/03/26 14:55:43 jloup Exp $";
+static char rcsid[] = "$Id: trees.c,v 0.12 1993/06/10 13:27:54 jloup Exp $";
 #endif
 
 /* ===========================================================================

@@ -68,7 +68,7 @@
 #include "lzw.h" /* just for consistency checking */
 
 #ifndef lint
-static char rcsid[] = "$Id: deflate.c,v 0.13 1993/05/25 16:25:40 jloup Exp $";
+static char rcsid[] = "$Id: deflate.c,v 0.14 1993/06/12 20:11:10 jloup Exp $";
 #endif
 
 /* ===========================================================================
@@ -187,8 +187,17 @@ unsigned near max_chain_length;
 
 local unsigned int max_lazy_match;
 /* Attempt to find a better match only when the current match is strictly
- * smaller than this value.
+ * smaller than this value. This mechanism is used only for compression
+ * levels >= 4.
  */
+#define max_insert_length  max_lazy_match
+/* Insert new strings in the hash table only if the match length
+ * is not greater than this length. This saves time but degrades compression.
+ * max_insert_length is used only for compression levels <= 3.
+ */
+
+local int compr_level;
+/* compression level (1..9) */
 
 int near good_match;
 /* Use a faster search when the previous match is longer than this */
@@ -216,18 +225,20 @@ typedef struct config {
 local config configuration_table[10] = {
 /*      good lazy nice chain */
 /* 0 */ {0,    0,  0,    0},  /* store only */
-/* 1 */ {4,    4, 16,   16},  /* maximum speed */
-/* 2 */ {6,    8, 16,   16},
-/* 3 */ {8,   16, 32,   32},
-/* 4 */ {8,   16, 64,   64},
-/* 5 */ {8,   16, 128, 128},
-/* 6 */ {8,   32, 128, 256},
-/* 7 */ {8,   64, 128, 512},
+/* 1 */ {4,    4,  8,    4},  /* maximum speed, no lazy matches */
+/* 2 */ {4,    5, 16,    8},
+/* 3 */ {4,    6, 32,   32},
+
+/* 4 */ {4,    4, 16,   16},  /* lazy matches */
+/* 5 */ {8,   16, 32,   32},
+/* 6 */ {8,   16, 128, 128},
+/* 7 */ {8,   32, 128, 256},
 /* 8 */ {32, 128, 258, 1024},
 /* 9 */ {32, 258, 258, 4096}}; /* maximum compression */
 
-/* Note: the current code requires max_lazy >= MIN_MATCH and max_chain >= 4
- * but these restrictions can easily be removed at a small cost.
+/* Note: the deflate() code requires max_lazy >= MIN_MATCH and max_chain >= 4
+ * For deflate_fast() (levels <= 3) good is ignored and lazy has a different
+ * meaning.
  */
 
 #define EQUAL 0
@@ -237,6 +248,8 @@ local config configuration_table[10] = {
  *  Prototypes for local functions.
  */
 local void fill_window   OF((void));
+local ulg deflate_fast   OF((void));
+
       int  longest_match OF((IPos cur_match));
 #ifdef ASMV
       void match_init OF((void)); /* asm code initialization */
@@ -277,6 +290,7 @@ void lm_init (pack_level, flags)
     register unsigned j;
 
     if (pack_level < 1 || pack_level > 9) error("bad pack level");
+    compr_level = pack_level;
 
     /* Initialize the hash table. */
 #if defined(MAXSEG_64K) && HASH_BITS == 15
@@ -558,10 +572,12 @@ local void fill_window()
                 (char*)NULL, (long)strstart - block_start, (eof))
 
 /* ===========================================================================
- * Processes a new input file and return its compressed length.
+ * Processes a new input file and return its compressed length. This
+ * function does not perform lazy evaluationof matches and inserts
+ * new strings in the dictionary only for unmatched strings. It is used
+ * only for the fast compression options.
  */
-#ifdef NO_LAZY
-ulg deflate()
+local ulg deflate_fast()
 {
     IPos hash_head; /* head of the hash chain */
     int flush;      /* set if current block must be flushed */
@@ -592,22 +608,38 @@ ulg deflate()
             flush = ct_tally(strstart-match_start, match_length - MIN_MATCH);
 
             lookahead -= match_length;
-            match_length--; /* string at strstart already in hash table */
-            do {
-                strstart++;
-                INSERT_STRING(strstart, hash_head);
-                /* strstart never exceeds WSIZE-MAX_MATCH, so there are
-                 * always MIN_MATCH bytes ahead. If lookahead < MIN_MATCH
-                 * these bytes are garbage, but it does not matter since the
-                 * next lookahead bytes will always be emitted as literals.
-                 */
-            } while (--match_length != 0);
+
+	    /* Insert new strings in the hash table only if the match length
+             * is not too large. This saves time but degrades compression.
+             */
+            if (match_length <= max_insert_length) {
+                match_length--; /* string at strstart already in hash table */
+                do {
+                    strstart++;
+                    INSERT_STRING(strstart, hash_head);
+                    /* strstart never exceeds WSIZE-MAX_MATCH, so there are
+                     * always MIN_MATCH bytes ahead. If lookahead < MIN_MATCH
+                     * these bytes are garbage, but it does not matter since
+                     * the next lookahead bytes will be emitted as literals.
+                     */
+                } while (--match_length != 0);
+	        strstart++; 
+            } else {
+	        strstart += match_length;
+	        match_length = 0;
+	        ins_h = window[strstart];
+	        UPDATE_HASH(ins_h, window[strstart+1]);
+#if MIN_MATCH != 3
+                Call UPDATE_HASH() MIN_MATCH-3 more times
+#endif
+            }
         } else {
             /* No match, output a literal byte */
+            Tracevv((stderr,"%c",window[strstart]));
             flush = ct_tally (0, window[strstart]);
             lookahead--;
+	    strstart++; 
         }
-        strstart++; 
         if (flush) FLUSH_BLOCK(0), block_start = strstart;
 
         /* Make sure that we always have enough lookahead, except
@@ -620,7 +652,7 @@ ulg deflate()
     }
     return FLUSH_BLOCK(1); /* eof */
 }
-#else /* LAZY */
+
 /* ===========================================================================
  * Same as above, but achieves better compression. We use a lazy
  * evaluation for matches: a match is finally adopted only if there is
@@ -636,6 +668,8 @@ ulg deflate()
 #ifdef DEBUG
     extern long isize;        /* byte length of input file, for debug only */
 #endif
+
+    if (compr_level <= 3) return deflate_fast(); /* optimized for speed */
 
     /* Process the input block. */
     while (lookahead != 0) {
@@ -727,4 +761,3 @@ ulg deflate()
 
     return FLUSH_BLOCK(1); /* eof */
 }
-#endif /* LAZY */
