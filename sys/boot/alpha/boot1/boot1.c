@@ -253,7 +253,7 @@ main()
     char *name = "/boot/loader";
     char *p;
     char filename[512];
-    void (*entry) __P((void));
+    void (*entry)(void);
     u_long start, freq;
     int	i;
 
