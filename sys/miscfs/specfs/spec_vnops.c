@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)spec_vnops.c	8.14 (Berkeley) 5/21/95
- * $Id: spec_vnops.c,v 1.62 1998/05/21 07:47:49 dyson Exp $
+ * $Id: spec_vnops.c,v 1.63 1998/06/07 17:11:59 dfr Exp $
  */
 
 #include <sys/param.h>
@@ -805,7 +805,7 @@ spec_getpages(ap)
 	cnt.v_vnodepgsin += pcount;
 
 	/* Do the input. */
-	VOP_STRATEGY(bp);
+	VOP_STRATEGY(bp->b_vp, bp);
 
 	s = splbio();
 

@@ -39,7 +39,7 @@
  * from: Utah $Hdr: swap_pager.c 1.4 91/04/30$
  *
  *	@(#)swap_pager.c	8.9 (Berkeley) 3/21/94
- * $Id: swap_pager.c,v 1.94 1998/04/29 04:27:59 dyson Exp $
+ * $Id: swap_pager.c,v 1.95 1998/05/04 03:01:42 dyson Exp $
  */
 
 /*
@@ -1062,7 +1062,7 @@ swap_pager_getpages(object, m, count, reqpage)
 	/*
 	 * perform the I/O
 	 */
-	VOP_STRATEGY(bp);
+	VOP_STRATEGY(bp->b_vp, bp);
 
 	/*
 	 * wait for the sync I/O to complete
@@ -1466,7 +1466,7 @@ swap_pager_putpages(object, m, count, sync, rtvals)
 	/*
 	 * perform the I/O
 	 */
-	VOP_STRATEGY(bp);
+	VOP_STRATEGY(bp->b_vp, bp);
 	if (sync == FALSE) {
 		if (swap_pager_free_pending) {
 			swap_pager_sync();
