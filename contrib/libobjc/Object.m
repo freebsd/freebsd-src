@@ -320,10 +320,6 @@ extern int errno;
                      object_get_class_name(self), sel_get_name(aSel)];
 }
 
-#ifdef __alpha__
-extern size_t strlen(const char*);
-#endif
-
 - error:(const char *)aString, ...
 {
 #define FMT "error: %s (%s)\n%s\n"
