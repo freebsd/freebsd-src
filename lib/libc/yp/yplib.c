@@ -28,7 +28,7 @@
  */
 
 #ifndef LINT
-static char *rcsid = "$Id: yplib.c,v 1.7 1996/11/08 01:10:35 wpaul Exp $";
+static char *rcsid = "$Id: yplib.c,v 1.25 1996/11/08 01:42:02 wpaul Exp $";
 #endif
 
 #include <sys/param.h>
@@ -79,6 +79,7 @@ extern bool_t xdr_ypresp_master();
 int (*ypresp_allfn)();
 void *ypresp_data;
 
+static void _yp_unbind __P(( struct dom_binding * ));
 struct dom_binding *_ypbindlist;
 static char _yp_domain[MAXHOSTNAMELEN];
 int _yplib_timeout = 10;
@@ -230,7 +231,7 @@ _yp_dobind(dom, ypdb)
 		ysd = _ypbindlist;
 		while(ysd) {
 			if(ysd->dom_client != NULL)
-				clnt_destroy(ysd->dom_client);
+				_yp_unbind(ysd);
 			ysd2 = ysd->dom_pnext;
 			free(ysd);
 			ysd = ysd2;
