@@ -37,18 +37,11 @@
 static char sccsid[] = "@(#)atof.c	8.1 (Berkeley) 6/4/93";
 #endif /* LIBC_SCCS and not lint */
 
-#include <errno.h>
 #include <stdlib.h>
 
 double
 atof(ascii)
 	const char *ascii;
 {
-	double r;
-	int saverr;
-
-	saverr = errno;
-	r = strtod(ascii, (char **)NULL);
-	errno = saverr;
-	return r;
+	return strtod(ascii, (char **)NULL);
 }
