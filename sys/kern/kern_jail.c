@@ -79,7 +79,9 @@ jail(td, uap)
 	if (error)
 		goto bail;
 	ca.path = j.path;
+	mtx_lock(&Giant);
 	error = chroot(td, &ca);
+	mtx_unlock(&Giant);
 	if (error)
 		goto bail;
 	newcred = crget();
