@@ -18,7 +18,7 @@
  *		Columbus, OH  43221
  *		(614)451-1883
  *
- * $Id: chat.c,v 1.20 1997/03/09 20:03:34 ache Exp $
+ * $Id: chat.c,v 1.21 1997/03/09 20:09:14 ache Exp $
  *
  *  TODO:
  *	o Support more UUCP compatible control sequences.
@@ -38,6 +38,7 @@
 #include <sys/wait.h>
 #include "timeout.h"
 #include "vars.h"
+#include "sig.h"
 
 #define	IBSIZE 200
 
@@ -402,10 +403,12 @@ char *command, *out;
   pipe(fids);
   pid = fork();
   if (pid == 0) {
+    TermTimerService();
     signal(SIGINT, SIG_DFL);
     signal(SIGQUIT, SIG_DFL);
     signal(SIGTERM, SIG_DFL);
     signal(SIGHUP, SIG_DFL);
+    signal(SIGALRM, SIG_DFL);
     close(fids[0]);
     dup2(fids[1], 1);
     close(fids[1]);
