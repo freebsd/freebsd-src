@@ -33,8 +33,6 @@
 #ifndef	_MACHINE_MD_VAR_H_
 #define	_MACHINE_MD_VAR_H_
 
-extern	char	sigcode[];
-extern	int	szsigcode;
 extern	char	tl0_base[];
 extern	char	_end[];
 

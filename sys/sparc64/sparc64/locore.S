@@ -150,23 +150,3 @@ ENTRY(cpu_setregs)
 	retl
 	 nop
 END(cpu_setregs)
-
-/*
- * Signal trampoline, copied out to user stack.  Must be 16 byte aligned or
- * the argv and envp pointers can become misaligned.
- */
-ENTRY(sigcode)
-	call	%o4
-	 nop
-	add	%sp, SPOFF + CCFSZ + SF_UC, %o0
-	mov	SYS_sigreturn, %g1
-	ta	%xcc, 9
-	mov	SYS_exit, %g1
-	ta	%xcc, 9
-	illtrap
-	.align 16
-esigcode:
-END(sigcode)
-
-DATA(szsigcode)
-	.long	esigcode - sigcode
