@@ -49,6 +49,7 @@ static const char rcsid[] =
 #include <sys/socket.h>
 #include <netinet/in.h>
 #include <arpa/inet.h>
+#include <ctype.h>
 #include <err.h>
 #include <netdb.h>
 #include <stdio.h>
@@ -166,13 +167,19 @@ main(argc, argv)
 				}
 			}
 			if (j != 0) {
-				qnichost = (char *) calloc(i - j + 1 +
-				    strlen(QNICHOST_TAIL), sizeof(char));
-				if (!qnichost) {
-					err(1, "calloc");
+				if (isdigit(*(*argv + j + 1))) {
+					(void) asprintf(&qnichost, "%s",
+					    ANICHOST);
+				} else {
+					qnichost = (char *) calloc(i - j
+					    + 1 + strlen(QNICHOST_TAIL),
+					    sizeof(char));
+					if (!qnichost) {
+						err(1, "calloc");
+					}
+					strcpy(qnichost, *argv + j + 1);
+					strcat(qnichost, QNICHOST_TAIL);
 				}
-				strcpy(qnichost, *argv + j + 1);
-				strcat(qnichost, QNICHOST_TAIL);
 
 				memset(&hints, 0, sizeof(hints));
 				hints.ai_flags = 0;
