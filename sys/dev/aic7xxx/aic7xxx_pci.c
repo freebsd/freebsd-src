@@ -3,7 +3,8 @@
  *      3940, 2940, aic7895, aic7890, aic7880,
  *	aic7870, aic7860 and aic7850 SCSI controllers
  *
- * Copyright (c) 1995-2000 Justin T. Gibbs
+ * Copyright (c) 1994-2001 Justin T. Gibbs.
+ * Copyright (c) 2000-2001 Adaptec Inc.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -11,33 +12,47 @@
  * are met:
  * 1. Redistributions of source code must retain the above copyright
  *    notice, this list of conditions, and the following disclaimer,
- *    without modification, immediately at the beginning of the file.
- * 2. The name of the author may not be used to endorse or promote products
- *    derived from this software without specific prior written permission.
+ *    without modification.
+ * 2. Redistributions in binary form must reproduce at minimum a disclaimer
+ *    substantially similar to the "NO WARRANTY" disclaimer below
+ *    ("Disclaimer") and any redistribution must be conditioned upon
+ *    including a substantially similar Disclaimer requirement for further
+ *    binary redistribution.
+ * 3. Neither the names of the above-listed copyright holders nor the names
+ *    of any contributors may be used to endorse or promote products derived
+ *    from this software without specific prior written permission.
  *
  * Alternatively, this software may be distributed under the terms of the
- * GNU Public License ("GPL").
+ * GNU General Public License ("GPL") version 2 as published by the Free
+ * Software Foundation.
  *
- * THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
- * ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
- * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
- * ARE DISCLAIMED. IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE FOR
- * ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+ * NO WARRANTY
+ * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
+ * "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
+ * LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR
+ * A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT
+ * HOLDERS OR CONTRIBUTORS BE LIABLE FOR SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
  * DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
  * OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
- * HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
- * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
- * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
- * SUCH DAMAGE.
+ * HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT,
+ * STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING
+ * IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
+ * POSSIBILITY OF SUCH DAMAGES.
  *
- * $Id: //depot/src/aic7xxx/aic7xxx_pci.c#28 $
+ * $Id: //depot/aic7xxx/aic7xxx/aic7xxx_pci.c#37 $
  *
  * $FreeBSD$
  */
 
-#include <dev/aic7xxx/aic7xxx_freebsd.h>
+#ifdef __linux__
+#include "aic7xxx_osm.h"
+#include "aic7xxx_inline.h"
+#include "aic7xxx_93cx6.h"
+#else
+#include <dev/aic7xxx/aic7xxx_osm.h>
 #include <dev/aic7xxx/aic7xxx_inline.h>
 #include <dev/aic7xxx/aic7xxx_93cx6.h>
+#endif
 
 #define AHC_PCI_IOADDR	PCIR_MAPS	/* I/O Address */
 #define AHC_PCI_MEMADDR	(PCIR_MAPS + 4)	/* Mem I/O Address */
@@ -137,7 +152,7 @@ ahc_compose_id(u_int device, u_int vendor, u_int subdevice, u_int subvendor)
 #define DEVID_9005_TYPE(id) ((id) & 0xF)
 #define		DEVID_9005_TYPE_HBA		0x0	/* Standard Card */
 #define		DEVID_9005_TYPE_AAA		0x3	/* RAID Card */
-#define		DEVID_9005_TYPE_SISL		0x5	/* Low Cost Card */
+#define		DEVID_9005_TYPE_SISL		0x5	/* Container ROMB */
 #define		DEVID_9005_TYPE_MB		0xF	/* On Motherboard */
 
 #define DEVID_9005_MAXRATE(id) (((id) & 0x30) >> 4)
@@ -198,7 +213,7 @@ ahc_compose_id(u_int device, u_int vendor, u_int subdevice, u_int subvendor)
 	 : ((id) & 0x1000) >> 12)
 /*
  * Informational only. Should use chip register to be
- * ceratian, but may be use in identification strings.
+ * certain, but may be use in identification strings.
  */
 #define SUBID_9005_CARD_SCSIWIDTH_MASK	0x2000
 #define SUBID_9005_CARD_PCIWIDTH_MASK	0x4000
@@ -645,6 +660,8 @@ const u_int ahc_num_pci_devs = NUM_ELEMENTS(ahc_pci_ident_table);
 #define		CACHESIZE	0x0000003ful	/* only 5 bits */
 #define		LATTIME		0x0000ff00ul
 
+static int ahc_9005_subdevinfo_valid(uint16_t vendor, uint16_t device,
+				     uint16_t subvendor, uint16_t subdevice);
 static int ahc_ext_scbram_present(struct ahc_softc *ahc);
 static void ahc_scbram_config(struct ahc_softc *ahc, int enable,
 				  int pcheck, int fast, int large);
@@ -668,11 +685,42 @@ static void aic787X_cable_detect(struct ahc_softc *ahc, int *internal50_present,
 static void aic785X_cable_detect(struct ahc_softc *ahc, int *internal50_present,
 				 int *externalcable_present,
 				 int *eeprom_present);
-static int acquire_seeprom(struct ahc_softc *ahc,
-			   struct seeprom_descriptor *sd);
-static void release_seeprom(struct seeprom_descriptor *sd);
 static void write_brdctl(struct ahc_softc *ahc, uint8_t value);
 static uint8_t read_brdctl(struct ahc_softc *ahc);
+
+static int
+ahc_9005_subdevinfo_valid(uint16_t device, uint16_t vendor,
+			  uint16_t subdevice, uint16_t subvendor)
+{
+	int result;
+
+	/* Default to invalid. */
+	result = 0;
+	if (vendor == 0x9005
+	 && subvendor == 0x9005
+         && subdevice != device
+         && SUBID_9005_TYPE_KNOWN(subdevice) != 0) {
+
+		switch (SUBID_9005_TYPE(subdevice)) {
+		case SUBID_9005_TYPE_MB:
+			break;
+		case SUBID_9005_TYPE_CARD:
+		case SUBID_9005_TYPE_LCCARD:
+			/*
+			 * Currently only trust Adaptec cards to
+			 * get the sub device info correct.
+			 */
+			if (DEVID_9005_TYPE(device) == DEVID_9005_TYPE_HBA)
+				result = 1;
+			break;
+		case SUBID_9005_TYPE_RAID:
+			break;
+		default:
+			break;
+		}
+	}
+	return (result);
+}
 
 struct ahc_pci_identity *
 ahc_find_pci_device(ahc_dev_softc_t pci)
@@ -702,9 +750,7 @@ ahc_find_pci_device(ahc_dev_softc_t pci)
 	 * ID as valid.
 	 */
 	if (ahc_get_pci_function(pci) > 0
-	 && subvendor == 0x9005
-	 && subdevice != device
-	 && SUBID_9005_TYPE_KNOWN(subdevice) != 0
+	 && ahc_9005_subdevinfo_valid(vendor, device, subvendor, subdevice)
 	 && SUBID_9005_MFUNCENB(subdevice) == 0)
 		return (NULL);
 
@@ -739,11 +785,19 @@ ahc_pci_config(struct ahc_softc *ahc, struct ahc_pci_identity *entry)
 	ahc->chip |= AHC_PCI;
 	ahc->description = entry->name;
 
+	ahc_power_state_change(ahc, AHC_POWER_STATE_D0);
+
 	error = ahc_pci_map_registers(ahc);
 	if (error != 0)
 		return (error);
 
-	ahc_power_state_change(ahc, AHC_POWER_STATE_D0);
+	/*
+	 * Before we continue probing the card, ensure that
+	 * its interrupts are *disabled*.  We don't want
+	 * a misstep to hang the machine in an interrupt
+	 * storm.
+	 */
+	ahc_intr_enable(ahc, FALSE);
 
 	/*
 	 * If we need to support high memory, enable dual
@@ -956,6 +1010,14 @@ ahc_ext_scbram_present(struct ahc_softc *ahc)
 
 	if ((ahc->features & AHC_ULTRA2) != 0)
 		ramps = (ahc_inb(ahc, DSCOMMAND0) & RAMPS) != 0;
+	else if (chip == AHC_AIC7895 || chip == AHC_AIC7895C)
+		/*
+		 * External SCBRAM arbitration is flakey
+		 * on these chips.  Unfortunately this means
+		 * we don't use the extra SCB ram space on the
+		 * 3940AUW.
+		 */
+		ramps = 0;
 	else if (chip >= AHC_AIC7870)
 		ramps = (devconfig & RAMPSM) != 0;
 	else
@@ -1158,7 +1220,7 @@ check_extport(struct ahc_softc *ahc, u_int *sxfrctl1)
 	sd.sd_DO = SEEDO;
 	sd.sd_DI = SEEDI;
 
-	have_seeprom = acquire_seeprom(ahc, &sd);
+	have_seeprom = ahc_acquire_seeprom(ahc, &sd);
 	if (have_seeprom) {
 
 		if (bootverbose) 
@@ -1169,11 +1231,12 @@ check_extport(struct ahc_softc *ahc, u_int *sxfrctl1)
 
 			start_addr = 32 * (ahc->channel - 'A');
 
-			have_seeprom = read_seeprom(&sd, (uint16_t *)&sc,
-						    start_addr, sizeof(sc)/2);
+			have_seeprom = ahc_read_seeprom(&sd, (uint16_t *)&sc,
+							start_addr,
+							sizeof(sc)/2);
 
 			if (have_seeprom)
-				have_seeprom = verify_cksum(&sc);
+				have_seeprom = ahc_verify_cksum(&sc);
 
 			if (have_seeprom != 0 || sd.sd_chip == C56_66) {
 				if (bootverbose) {
@@ -1186,7 +1249,7 @@ check_extport(struct ahc_softc *ahc, u_int *sxfrctl1)
 			}
 			sd.sd_chip = C56_66;
 		}
-		release_seeprom(&sd);
+		ahc_release_seeprom(&sd);
 	}
 
 	if (!have_seeprom) {
@@ -1214,8 +1277,14 @@ check_extport(struct ahc_softc *ahc, u_int *sxfrctl1)
 				val = ahc_inb(ahc, SRAM_BASE + j)
 				    | ahc_inb(ahc, SRAM_BASE + j + 1) << 8;
 			}
-			have_seeprom = verify_cksum(&sc);
+			have_seeprom = ahc_verify_cksum(&sc);
 		}
+		/*
+		 * Clear any SCB parity errors in case this data and
+		 * its associated parity was not initialized by the BIOS
+		 */
+		ahc_outb(ahc, CLRINT, CLRPARERR);
+		ahc_outb(ahc, CLRINT, CLRBRKADRINT);
 	}
 
 	if (!have_seeprom) {
@@ -1364,9 +1433,9 @@ check_extport(struct ahc_softc *ahc, u_int *sxfrctl1)
 	}
 
 	if (have_autoterm) {
-		acquire_seeprom(ahc, &sd);
+		ahc_acquire_seeprom(ahc, &sd);
 		configure_termination(ahc, &sd, adapter_control, sxfrctl1);
-		release_seeprom(&sd);
+		ahc_release_seeprom(&sd);
 	}
 }
 
@@ -1491,6 +1560,15 @@ configure_termination(struct ahc_softc *ahc,
 			       "Only two connectors on the "
 			       "adapter may be used at a "
 			       "time!\n", ahc_name(ahc));
+
+			/*
+			 * Pretend there are no cables in the hope
+			 * that having all of the termination on
+			 * gives us a more stable bus.
+			 */
+		 	internal50_present = 0;
+			internal68_present = 0;
+			externalcable_present = 0;
 		}
 
 		if ((ahc->features & AHC_WIDE) != 0
@@ -1663,8 +1741,8 @@ aic785X_cable_detect(struct ahc_softc *ahc, int *internal50_present,
 	*eeprom_present = (ahc_inb(ahc, SPIOCAP) & EEPROM) ? 1 : 0;
 }
 	
-static int
-acquire_seeprom(struct ahc_softc *ahc, struct seeprom_descriptor *sd)
+int
+ahc_acquire_seeprom(struct ahc_softc *ahc, struct seeprom_descriptor *sd)
 {
 	int wait;
 
@@ -1691,8 +1769,8 @@ acquire_seeprom(struct ahc_softc *ahc, struct seeprom_descriptor *sd)
 	return(1);
 }
 
-static void
-release_seeprom(struct seeprom_descriptor *sd)
+void
+ahc_release_seeprom(struct seeprom_descriptor *sd)
 {
 	/* Release access to the memory port and the serial EEPROM. */
 	SEEPROM_OUTB(sd, 0);

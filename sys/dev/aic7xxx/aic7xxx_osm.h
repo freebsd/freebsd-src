@@ -58,6 +58,7 @@
 #endif
 #include <machine/bus_pio.h>
 #include <machine/bus.h>
+#include <machine/endian.h>
 #include <machine/clock.h>
 #include <machine/resource.h>
 
@@ -183,23 +184,19 @@ struct scb_platform_data {
 };
 
 /********************************* Byte Order *********************************/
-/*
- * XXX Waiting for FreeBSD byte swapping functions.
- * For now assume host is Little Endian.
- */
-#define ahc_htobe16(x) x
-#define ahc_htobe32(x) x
-#define ahc_htobe64(x) x
-#define ahc_htole16(x) x
-#define ahc_htole32(x) x
-#define ahc_htole64(x) x
+#define ahc_htobe16(x) htobe16(x)
+#define ahc_htobe32(x) htobe32(x)
+#define ahc_htobe64(x) htobe64(x)
+#define ahc_htole16(x) htole16(x)
+#define ahc_htole32(x) htole32(x)
+#define ahc_htole64(x) htole64(x)
 
-#define ahc_be16toh(x) x
-#define ahc_be32toh(x) x
-#define ahc_be64toh(x) x
-#define ahc_le16toh(x) x
-#define ahc_le32toh(x) x
-#define ahc_le64toh(x) x
+#define ahc_be16toh(x) be16toh(x)
+#define ahc_be32toh(x) be32toh(x)
+#define ahc_be64toh(x) be64toh(x)
+#define ahc_le16toh(x) le16toh(x)
+#define ahc_le32toh(x) le32toh(x)
+#define ahc_le64toh(x) le64toh(x)
 
 /***************************** Core Includes **********************************/
 #include <dev/aic7xxx/aic7xxx.h>
@@ -469,7 +466,7 @@ void ahc_power_state_change(struct ahc_softc *ahc,
 			    ahc_power_state new_state);
 #endif
 /******************************** VL/EISA *************************************/
-int aic7770_map_registers(struct ahc_softc *ahc);
+int aic7770_map_registers(struct ahc_softc *ahc, u_int port);
 int aic7770_map_int(struct ahc_softc *ahc, int irq);
 
 /********************************* Debug **************************************/
@@ -496,6 +493,7 @@ void	  ahc_platform_set_tags(struct ahc_softc *, struct ahc_devinfo *,
 /************************* Initialization/Teardown ****************************/
 int	  ahc_platform_alloc(struct ahc_softc *ahc, void *platform_arg);
 void	  ahc_platform_free(struct ahc_softc *ahc);
+int	  ahc_map_int(struct ahc_softc *ahc);
 int	  ahc_attach(struct ahc_softc *);
 int	  ahc_softc_comp(struct ahc_softc *lahc, struct ahc_softc *rahc);
 int	  ahc_detach(device_t);

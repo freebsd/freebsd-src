@@ -33,7 +33,7 @@
  * $FreeBSD$
  */
 
-#include <dev/aic7xxx/aic7xxx_freebsd.h>
+#include <dev/aic7xxx/aic7xxx_osm.h>
 #include <dev/aic7xxx/aic7xxx_inline.h>
 
 #ifndef AHC_TMODE_ENABLE
@@ -41,10 +41,6 @@
 #endif
 
 #define ccb_scb_ptr spriv_ptr0
-
-#ifdef AHC_DEBUG
-static int     ahc_debug = AHC_DEBUG;
-#endif
 
 #if UNUSED
 static void	ahc_dump_targcmd(struct target_cmd *cmd);
@@ -84,6 +80,22 @@ ahc_create_path(struct ahc_softc *ahc, char channel, u_int target,
 				path_id, target, lun));
 }
 
+int
+ahc_map_int(struct ahc_softc *ahc)
+{
+	int error;
+
+	/* Hook up our interrupt handler */
+	error = bus_setup_intr(ahc->dev_softc, ahc->platform_data->irq,
+			       INTR_TYPE_CAM, ahc_platform_intr, ahc,
+			       &ahc->platform_data->ih);
+
+	if (error != 0)
+		device_printf(ahc->dev_softc, "bus_setup_intr() failed: %d\n",
+			      error);
+	return (error);
+}
+
 /*
  * Attach all the sub-devices we can find
  */
@@ -101,7 +113,6 @@ ahc_attach(struct ahc_softc *ahc)
 	struct cam_path *path2;
 	long s;
 	int count;
-	int error;
 
 	count = 0;
 	sim = NULL;
@@ -110,15 +121,6 @@ ahc_attach(struct ahc_softc *ahc)
 	ahc_controller_info(ahc, ahc_info);
 	printf("%s\n", ahc_info);
 	ahc_lock(ahc, &s);
-	/* Hook up our interrupt handler */
-	if ((error = bus_setup_intr(ahc->dev_softc, ahc->platform_data->irq,
-				    INTR_TYPE_CAM|INTR_ENTROPY, ahc_platform_intr, ahc,
-				    &ahc->platform_data->ih)) != 0) {
-		device_printf(ahc->dev_softc, "bus_setup_intr() failed: %d\n",
-			      error);
-		goto fail;
-	}
-
 	/*
 	 * Attach secondary channel first if the user has
 	 * declared it the primary channel.
@@ -304,8 +306,10 @@ ahc_done(struct ahc_softc *ahc, struct scb *scb)
 			if ((ccb->ccb_h.flags & CAM_SEND_STATUS) != 0) {
 				ahc->pending_device = NULL;
 			} else {
-				xpt_print_path(ccb->ccb_h.path);
-				printf("Still disconnected\n");
+				if (bootverbose) {
+					xpt_print_path(ccb->ccb_h.path);
+					printf("Still connected\n");
+				}
 				ahc_freeze_ccb(ccb);
 			}
 		}
@@ -370,7 +374,7 @@ ahc_done(struct ahc_softc *ahc, struct scb *scb)
 		memset(&ccb->csio.sense_data, 0, sizeof(ccb->csio.sense_data));
 		memcpy(&ccb->csio.sense_data,
 		       ahc_get_sense_buf(ahc, scb),
-		       (scb->sg_list->len & AHC_SG_LEN_MASK)
+		       (ahc_le32toh(scb->sg_list->len) & AHC_SG_LEN_MASK)
 		       - ccb->csio.sense_resid);
 		scb->io_ctx->ccb_h.status |= CAM_AUTOSNS_VALID;
 	}
@@ -651,6 +655,9 @@ ahc_action(struct cam_sim *sim, union ccb *ccb)
 			else
 				maxsync = AHC_SYNCRATE_FAST;
 
+			if (spi->bus_width != MSG_EXT_WDTR_BUS_16_BIT)
+				spi->ppr_options &= ~MSG_EXT_PPR_DT_REQ;
+
 			syncrate = ahc_find_syncrate(ahc, &spi->sync_period,
 						     &spi->ppr_options,
 						     maxsync);
@@ -757,7 +764,8 @@ ahc_action(struct cam_sim *sim, union ccb *ccb)
 				maxsync = AHC_SYNCRATE_FAST;
 
 			ppr_options = 0;
-			if (cts->sync_period <= 9)
+			if (cts->sync_period <= 9
+			 && cts->bus_width == MSG_EXT_WDTR_BUS_16_BIT)
 				ppr_options = MSG_EXT_PPR_DT_REQ;
 
 			syncrate = ahc_find_syncrate(ahc, &cts->sync_period,
@@ -980,7 +988,6 @@ ahc_get_tran_settings(struct ahc_softc *ahc, int our_id, char channel,
 	struct	ahc_initiator_tinfo *targ_info;
 	struct	ahc_tmode_tstate *tstate;
 	struct	ahc_transinfo *tinfo;
-	long	s;
 
 	ahc_compile_devinfo(&devinfo, our_id,
 			    cts->ccb_h.target_id,
@@ -995,8 +1002,6 @@ ahc_get_tran_settings(struct ahc_softc *ahc, int our_id, char channel,
 	else
 		tinfo = &targ_info->user;
 	
-	ahc_lock(ahc, &s);
-
 	cts->flags &= ~(CCB_TRANS_DISC_ENB|CCB_TRANS_TAG_ENB);
 	if ((cts->flags & CCB_TRANS_CURRENT_SETTINGS) == 0) {
 		if ((ahc->user_discenable & devinfo.target_mask) != 0)
@@ -1015,8 +1020,6 @@ ahc_get_tran_settings(struct ahc_softc *ahc, int our_id, char channel,
 	cts->sync_offset = tinfo->offset;
 	cts->bus_width = tinfo->width;
 	
-	ahc_unlock(ahc, &s);
-
 	cts->valid = CCB_TRANS_SYNC_RATE_VALID
 		   | CCB_TRANS_SYNC_OFFSET_VALID
 		   | CCB_TRANS_BUS_WIDTH_VALID;
@@ -1180,7 +1183,7 @@ ahc_execute_scb(void *arg, bus_dma_segment_t *dm_segs, int nsegments,
 		scb->hscb->dataptr = scb->sg_list->addr;
 		scb->hscb->datacnt = scb->sg_list->len;
 	} else {
-		scb->hscb->sgptr = SG_LIST_NULL;
+		scb->hscb->sgptr = ahc_htole32(SG_LIST_NULL);
 		scb->hscb->dataptr = 0;
 		scb->hscb->datacnt = 0;
 	}
@@ -1195,8 +1198,7 @@ ahc_execute_scb(void *arg, bus_dma_segment_t *dm_segs, int nsegments,
 	 */
 	if (ahc_get_transaction_status(scb) != CAM_REQ_INPROG) {
 		if (nsegments != 0)
-			bus_dmamap_unload(ahc->buffer_dmat,
-					  scb->dmamap);
+			bus_dmamap_unload(ahc->buffer_dmat, scb->dmamap);
 		ahc_free_scb(ahc, scb);
 		ahc_unlock(ahc, &s);
 		xpt_done(ccb);
@@ -1558,11 +1560,12 @@ bus_reset:
 				 * Send back any queued up transactions
 				 * and properly record the error condition.
 				 */
-				ahc_freeze_devq(ahc, scb);
-				ahc_set_transaction_status(scb,
-							   CAM_CMD_TIMEOUT);
-				ahc_freeze_scb(scb);
-				ahc_done(ahc, scb);
+				ahc_abort_scbs(ahc, SCB_GET_TARGET(ahc, scb),
+					       SCB_GET_CHANNEL(ahc, scb),
+					       SCB_GET_LUN(scb),
+					       scb->hscb->tag,
+					       ROLE_TARGET,
+					       CAM_CMD_TIMEOUT);
 
 				/* Will clear us from the bus */
 				ahc_restart(ahc);
@@ -1582,7 +1585,7 @@ bus_reset:
 		} else {
 			int	 disconnected;
 
-			/* XXX Shouldn't panic.  Just punt instead */
+			/* XXX Shouldn't panic.  Just punt instead? */
 			if ((scb->hscb->control & TARGET_SCB) != 0)
 				panic("Timed-out target SCB but bus idle");
 
