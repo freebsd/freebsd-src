@@ -228,10 +228,10 @@ main(argc, argv)
 		fprintf(stderr, "fatal: inet_pton failed\n");
 		exit(1);
 	}
-	sock_open();
-
 	if (!fflag)
 		daemon(1, 0);
+
+	sock_open();
 
 	/* record the current PID */
 	pid = getpid();
