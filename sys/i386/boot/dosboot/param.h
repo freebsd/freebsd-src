@@ -140,14 +140,6 @@
 	((unsigned long)(db) << DEV_BSHIFT)
 
 /*
- * Map a ``block device block'' to a file system block.
- * This should be device dependent, and will be if we
- * add an entry to cdevsw/bdevsw for that purpose.
- * For now though just use DEV_BSIZE.
- */
-#define bdbtofsb(bn)	((bn) / (BLKDEV_IOSIZE/DEV_BSIZE))
-
-/*
  * Mach derived conversion macros
  */
 #define trunc_page(x)		((unsigned long)(x) & ~(NBPG-1))
