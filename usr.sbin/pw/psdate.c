@@ -43,9 +43,9 @@ a2i(char const ** str)
 	int             i = 0;
 	char const     *s = *str;
 
-	if (isdigit(*s)) {
+	if (isdigit((unsigned char)*s)) {
 		i = atoi(s);
-		while (isdigit(*s))
+		while (isdigit((unsigned char)*s))
 			++s;
 		*str = s;
 	}
@@ -55,10 +55,10 @@ a2i(char const ** str)
 static int
 numerics(char const * str)
 {
-	int             rc = isdigit(*str);
+	int             rc = isdigit((unsigned char)*str);
 
 	if (rc)
-		while (isdigit(*str) || *str == 'x')
+		while (isdigit((unsigned char)*str) || *str == 'x')
 			++str;
 	return rc && !*str;
 }
@@ -72,15 +72,15 @@ aindex(char const * arr[], char const ** str, int len)
 	mystr[len] = '\0';
 	l = strlen(strncpy(mystr, *str, len));
 	for (i = 0; i < l; i++)
-		mystr[i] = (char) tolower(mystr[i]);
+		mystr[i] = (char) tolower((unsigned char)mystr[i]);
 	for (i = 0; arr[i] && strcmp(mystr, arr[i]) != 0; i++);
 	if (arr[i] == NULL)
 		i = -1;
 	else {			/* Skip past it */
-		while (**str && isalpha(**str))
+		while (**str && isalpha((unsigned char)**str))
 			++(*str);
 		/* And any following whitespace */
-		while (**str && (**str == ',' || isspace(**str)))
+		while (**str && (**str == ',' || isspace((unsigned char)**str)))
 			++(*str);
 	}			/* Return index */
 	return i;
@@ -143,7 +143,7 @@ parse_datesub(char const * str, int *day, int *mon, int *year)
 
 	while (*str && strchr(nchrs + 10, *str) != NULL)
 		++str;
-	if (isdigit(*str)) {
+	if (isdigit((unsigned char)*str)) {
 		*year = atoi(str);
 		if (*year > 1900)
 			*year -= 1900;
@@ -176,7 +176,7 @@ parse_date(time_t dt, char const * str)
 	if (dt == 0)
 		dt = time(NULL);
 
-	while (*str && isspace(*str))
+	while (*str && isspace((unsigned char)*str))
 		++str;
 
 	if (numerics(str)) {
@@ -247,7 +247,7 @@ parse_date(time_t dt, char const * str)
 			else {
 				int             j = 1;
 
-				while (q[j] && isupper(q[j]))
+				while (q[j] && isupper((unsigned char)q[j]))
 					++j;
 				if (q[j] == '\0')
 					*q = '\0';
