@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 2003 Networks Associates Technology, Inc.
+ * Copyright (c) 2003-2004 Networks Associates Technology, Inc.
  * All rights reserved.
  *
  * This software was developed for the FreeBSD Project by Network
@@ -450,6 +450,10 @@ check_socket_bind(struct ucred *cred, struct socket *so,
 	struct sockaddr_in *sin;
 	int family, type;
 	u_int16_t port;
+
+	/* Only run if we are enabled. */
+	if (mac_portacl_enabled == 0)
+		return (0);
 
 	/* Only interested in IPv4 and IPv6 sockets. */
 	if (so->so_proto->pr_domain->dom_family != PF_INET &&
