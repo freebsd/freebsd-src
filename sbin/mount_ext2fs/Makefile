@@ -5,6 +5,7 @@ SRCS=	mount_ext2fs.c getmntopts.c
 MAN8=	mount_ext2fs.8
 
 MOUNT=	${.CURDIR}/../mount
+CFLAGS+= -D_NEW_VFSCONF
 CFLAGS+= -I${MOUNT}
 .PATH:	${MOUNT}
 

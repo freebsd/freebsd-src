@@ -42,10 +42,10 @@ char copyright[] =
 
 #ifndef lint
 /*
-static char sccsid[] = "@(#)mount_portal.c	8.4 (Berkeley) 3/27/94";
+static char sccsid[] = "@(#)mount_portal.c	8.6 (Berkeley) 4/26/95";
 */
 static const char rcsid[] =
-	"$Id$";
+	"$Id: mount_portal.c,v 1.9 1997/02/22 14:32:53 peter Exp $";
 #endif /* not lint */
 
 #include <sys/param.h>
@@ -93,7 +93,7 @@ int sig;
 		;
 	/* wrtp - waitpid _doesn't_ return 0 when no children! */
 #ifdef notdef
-	if (pid < 0)
+	if (pid < 0 && errno != ECHILD)
 		syslog(LOG_WARNING, "waitpid: %s", strerror(errno));
 #endif
 }
@@ -109,7 +109,7 @@ main(argc, argv)
 	char *mountpt;
 	int mntflags = 0;
 	char tag[32];
-	struct vfsconf *vfc;
+	struct vfsconf vfc;
 
 	qelem q;
 	int rc;
@@ -171,26 +171,24 @@ main(argc, argv)
 	sprintf(tag, "portal:%d", getpid());
 	args.pa_config = tag;
 
-	vfc = getvfsbyname("portal");
-	if(!vfc && vfsisloadable("portal")) {
-		if(vfsload("portal"))
+	error = getvfsbyname("portal", &vfc);
+	if (error && vfsisloadable("portal")) {
+		if (vfsload("portal"))
 			err(EX_OSERR, "vfsload(portal)");
-		endvfsent();	/* flush cache */
-		vfc = getvfsbyname("portal");
+		endvfsent();
+		error = getvfsbyname("portal", &vfc);
 	}
-	if (!vfc)
+	if (error)
 		errx(EX_OSERR, "portal filesystem is not available");
 
-	rc = mount(vfc ? vfc->vfc_index : MOUNT_PORTAL, mountpt, mntflags, &args);
+	rc = mount(vfc.vfc_name, mountpt, mntflags, &args);
 	if (rc < 0)
 		err(1, NULL);
 
-#ifdef notdef
 	/*
 	 * Everything is ready to go - now is a good time to fork
 	 */
 	daemon(0, 0);
-#endif
 
 	/*
 	 * Start logging (and change name)
@@ -272,7 +270,7 @@ main(argc, argv)
 		case 0:
 			(void) close(so);
 			activate(&q, so2);
-			exit(0);		/* stupid errors.... tidied up... wrtp*/
+			exit(0);
 		default:
 			(void) close(so2);
 			break;

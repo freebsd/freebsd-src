@@ -74,7 +74,8 @@ main(argc, argv)
 	struct union_args args;
 	int ch, mntflags;
 	char target[MAXPATHLEN];
-	struct vfsconf *vfc;
+	struct vfsconf vfc;
+	int error;
 
 	mntflags = 0;
 	args.mntflags = UNMNT_ABOVE;
@@ -111,17 +112,17 @@ main(argc, argv)
 
 	args.target = target;
 
-	vfc = getvfsbyname("union");
-	if(!vfc && vfsisloadable("union")) {
-		if(vfsload("union"))
-			err(1, "vfsload(union)");
+	error = getvfsbyname("union", &vfc);
+	if (error && vfsisloadable("union")) {
+		if (vfsload("union"))
+			err(EX_OSERR, "vfsload(union)");
 		endvfsent();	/* flush cache */
-		vfc = getvfsbyname("union");
+		error = getvfsbyname("union", &vfc);
 	}
-	if (!vfc)
+	if (error)
 		errx(EX_OSERR, "union filesystem is not available");
 
-	if (mount(vfc->vfc_index, argv[1], mntflags, &args))
+	if (mount(vfc.vfc_name, argv[1], mntflags, &args))
 		err(EX_OSERR, target);
 	exit(0);
 }
