@@ -139,13 +139,14 @@ static int ip6_splithdr __P((struct mbuf *, struct ip6_exthdrs *));
  * which is rt_rmx.rmx_mtu.
  */
 int
-ip6_output(m0, opt, ro, flags, im6o, ifpp)
+ip6_output(m0, opt, ro, flags, im6o, ifpp, inp)
 	struct mbuf *m0;
 	struct ip6_pktopts *opt;
 	struct route_in6 *ro;
 	int flags;
 	struct ip6_moptions *im6o;
 	struct ifnet **ifpp;		/* XXX: just for statistics */
+	struct inpcb *inp;
 {
 	struct ip6_hdr *ip6, *mhip6;
 	struct ifnet *ifp, *origifp;
@@ -164,12 +165,9 @@ ip6_output(m0, opt, ro, flags, im6o, ifpp)
 	int needipsec = 0;
 #ifdef IPSEC
 	int needipsectun = 0;
-	struct socket *so;
 	struct secpolicy *sp = NULL;
+	struct socket *so = inp ? inp->inp_socket : NULL;
 
-	/* for AH processing. stupid to have "socket" variable in IP layer... */
-	so = ipsec_getsocket(m);
-	(void)ipsec_setsocket(m, NULL);
 	ip6 = mtod(m, struct ip6_hdr *);
 #endif /* IPSEC */
 
@@ -2505,9 +2503,8 @@ ip6_splithdr(m, exthdrs)
 			m_freem(m);
 			return ENOBUFS;
 		}
-		M_COPY_PKTHDR(mh, m);
+		M_MOVE_PKTHDR(mh, m);
 		MH_ALIGN(mh, sizeof(*ip6));
-		m->m_flags &= ~M_PKTHDR;
 		m->m_len -= sizeof(*ip6);
 		m->m_data += sizeof(*ip6);
 		mh->m_next = m;

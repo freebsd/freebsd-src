@@ -304,8 +304,8 @@ char *	ip6_get_prevhdr __P((struct mbuf *, int));
 int	ip6_nexthdr __P((struct mbuf *, int, int, int *));
 int	ip6_lasthdr __P((struct mbuf *, int, int, int *));
 
-struct mbuf *ip6_addaux __P((struct mbuf *));
-struct mbuf *ip6_findaux __P((struct mbuf *));
+struct ip6aux *ip6_addaux __P((struct mbuf *));
+struct ip6aux *ip6_findaux __P((struct mbuf *));
 void	ip6_delaux __P((struct mbuf *));
 
 int	ip6_mforward __P((struct ip6_hdr *, struct ifnet *, struct mbuf *));
@@ -323,7 +323,8 @@ void	ip6_mloopback __P((struct ifnet *, struct mbuf *, struct sockaddr_in6 *));
 int	ip6_output __P((struct mbuf *, struct ip6_pktopts *,
 			struct route_in6 *,
 			int,
-			struct ip6_moptions *, struct ifnet **));
+			struct ip6_moptions *, struct ifnet **,
+			struct inpcb *));
 int	ip6_ctloutput __P((struct socket *, struct sockopt *sopt));
 void	init_ip6pktopts __P((struct ip6_pktopts *));
 int	ip6_setpktoptions __P((struct mbuf *, struct ip6_pktopts *, int, int));

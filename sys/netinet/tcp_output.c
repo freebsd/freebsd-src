@@ -876,17 +876,11 @@ send:
 					       : NULL);
 
 		/* TODO: IPv6 IP6TOS_ECT bit on */
-#ifdef IPSEC
-		if (ipsec_setsocket(m, so) != 0) {
-			m_freem(m);
-			error = ENOBUFS;
-			goto out;
-		}
-#endif /*IPSEC*/
 		error = ip6_output(m,
 			    tp->t_inpcb->in6p_outputopts,
 			    &tp->t_inpcb->in6p_route,
-			    (so->so_options & SO_DONTROUTE), NULL, NULL);
+			    (so->so_options & SO_DONTROUTE), NULL, NULL,
+			    tp->t_inpcb);
 	} else
 #endif /* INET6 */
     {
@@ -915,11 +909,8 @@ send:
 	    && !(rt->rt_rmx.rmx_locks & RTV_MTU)) {
 		ip->ip_off |= IP_DF;
 	}
-#ifdef IPSEC
- 	ipsec_setsocket(m, so);
-#endif /*IPSEC*/
 	error = ip_output(m, tp->t_inpcb->inp_options, &tp->t_inpcb->inp_route,
-	    (so->so_options & SO_DONTROUTE), 0);
+	    (so->so_options & SO_DONTROUTE), 0, tp->t_inpcb);
     }
 	if (error) {
 

@@ -543,6 +543,7 @@ icmp6_input(mp, offp, proto)
 		 || n->m_len < off + sizeof(struct icmp6_hdr)) {
 			struct mbuf *n0 = n;
 			const int maxlen = sizeof(*nip6) + sizeof(*nicmp6);
+			int n0len;
 
 			/*
 			 * Prepare an internal mbuf. m_pullup() doesn't
@@ -566,7 +567,8 @@ icmp6_input(mp, offp, proto)
 				m_freem(n0);
 				break;
 			}
-			M_COPY_PKTHDR(n, n0);
+			n0len = n0->m_pkthdr.len;	/* save for use below */
+			M_MOVE_PKTHDR(n, n0);
 			/*
 			 * Copy IPv6 and ICMPv6 only.
 			 */
@@ -575,16 +577,16 @@ icmp6_input(mp, offp, proto)
 			nicmp6 = (struct icmp6_hdr *)(nip6 + 1);
 			bcopy(icmp6, nicmp6, sizeof(struct icmp6_hdr));
 			noff = sizeof(struct ip6_hdr);
-			n->m_pkthdr.len = n->m_len =
-				noff + sizeof(struct icmp6_hdr);
+			/* new mbuf contains only ipv6+icmpv6 headers */
+			n->m_len = noff + sizeof(struct icmp6_hdr);
 			/*
 			 * Adjust mbuf. ip6_plen will be adjusted in
 			 * ip6_output().
 			 */
 			m_adj(n0, off + sizeof(struct icmp6_hdr));
-			n->m_pkthdr.len += n0->m_pkthdr.len;
+			/* recalculate complete packet size */
+			n->m_pkthdr.len = n0len + (noff - off);
 			n->m_next = n0;
-			n0->m_flags &= ~M_PKTHDR;
 		} else {
 			nip6 = mtod(n, struct ip6_hdr *);
 			nicmp6 = (struct icmp6_hdr *)((caddr_t)nip6 + off);
@@ -682,6 +684,17 @@ icmp6_input(mp, offp, proto)
 					n = NULL;
 				}
 			}
+			if (!m_dup_pkthdr(n, m, M_DONTWAIT)) {
+				/*
+				 * Previous code did a blind M_COPY_PKTHDR
+				 * and said "just for rcvif".  If true, then
+				 * we could tolerate the dup failing (due to
+				 * the deep copy of the tag chain).  For now
+				 * be conservative and just fail.
+				 */
+				m_free(n);
+				n = NULL;
+			}
 			if (n == NULL) {
 				/* Give up remote */
 				break;
@@ -702,7 +715,6 @@ icmp6_input(mp, offp, proto)
 			bzero(p, 4);
 			bcopy(hostname, p + 4, maxhlen); /* meaningless TTL */
 			noff = sizeof(struct ip6_hdr);
-			M_COPY_PKTHDR(n, m); /* just for rcvif */
 			n->m_pkthdr.len = n->m_len = sizeof(struct ip6_hdr) +
 				sizeof(struct icmp6_hdr) + 4 + maxhlen;
 			nicmp6->icmp6_type = ICMP6_WRUREPLY;
@@ -1379,7 +1391,7 @@ ni6_input(m, off)
 		m_freem(m);
 		return(NULL);
 	}
-	M_COPY_PKTHDR(n, m); /* just for recvif */
+	M_MOVE_PKTHDR(n, m); /* just for recvif */
 	if (replylen > MHLEN) {
 		if (replylen > MCLBYTES) {
 			/*
@@ -2157,15 +2169,11 @@ icmp6_reflect(m, off)
 	 */
 
 	m->m_flags &= ~(M_BCAST|M_MCAST);
-#ifdef IPSEC
-	/* Don't lookup socket */
-	(void)ipsec_setsocket(m, NULL);
-#endif /*IPSEC*/
 
 #ifdef COMPAT_RFC1885
-	ip6_output(m, NULL, &icmp6_reflect_rt, 0, NULL, &outif);
+	ip6_output(m, NULL, &icmp6_reflect_rt, 0, NULL, &outif, NULL);
 #else
-	ip6_output(m, NULL, NULL, 0, NULL, &outif);
+	ip6_output(m, NULL, NULL, 0, NULL, &outif, NULL);
 #endif
 	if (outif)
 		icmp6_ifoutstat_inc(outif, type, code);
@@ -2665,11 +2673,7 @@ noredhdropt:;
 		= in6_cksum(m, IPPROTO_ICMPV6, sizeof(*ip6), ntohs(ip6->ip6_plen));
 
 	/* send the packet to outside... */
-#ifdef IPSEC
-	/* Don't lookup socket */
-	(void)ipsec_setsocket(m, NULL);
-#endif /*IPSEC*/
-	ip6_output(m, NULL, NULL, 0, NULL, &outif);
+	ip6_output(m, NULL, NULL, 0, NULL, &outif, NULL);
 	if (outif) {
 		icmp6_ifstat_inc(outif, ifs6_out_msg);
 		icmp6_ifstat_inc(outif, ifs6_out_redirect);

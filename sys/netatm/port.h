@@ -264,8 +264,7 @@ typedef struct mbuf	KBuffer;
 }
 #define	KB_LINKHEAD(new, head) {			\
 	if ((head) && KB_ISPKT(new) && KB_ISPKT(head)) {\
-		M_COPY_PKTHDR((new), (head));		\
-		(head)->m_flags &= ~M_PKTHDR;		\
+		M_MOVE_PKTHDR((new), (head));		\
 	}						\
 	(new)->m_next = (head);				\
 }

@@ -436,7 +436,7 @@ stf_output(ifp, m, dst, rt)
 		}
 	}
 
-	return ip_output(m, NULL, &sc->sc_ro, 0, NULL);
+	return ip_output(m, NULL, &sc->sc_ro, 0, NULL, NULL);
 }
 
 static int

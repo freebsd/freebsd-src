@@ -421,7 +421,7 @@ retry:
 		 */
 		mhead->m_pkthdr.rcvif = NULL;
 		mhead->m_pkthdr.csum_flags = 0;
-		mhead->m_pkthdr.aux   = NULL; 
+		SLIST_INIT(&mhead->m_pkthdr.tags);
 		KB_PLENSET(mhead, pdulen);
 		fup->fu_pif.pif_ipdus++;
 		fup->fu_pif.pif_ibytes += pdulen;

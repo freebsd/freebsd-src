@@ -149,7 +149,7 @@ int ip6_fw_enable = 1;
 struct ip6stat ip6stat;
 
 static void ip6_init2 __P((void *));
-static struct mbuf *ip6_setdstifaddr __P((struct mbuf *, struct in6_ifaddr *));
+static struct ip6aux *ip6_setdstifaddr __P((struct mbuf *, struct in6_ifaddr *));
 static int ip6_hopopts_input __P((u_int32_t *, u_int32_t *, struct mbuf **, int *));
 #ifdef PULLDOWN_TEST
 static struct mbuf *ip6_pullexthdr __P((struct mbuf *, size_t, int));
@@ -309,8 +309,8 @@ ip6_input(m)
 
 		MGETHDR(n, M_DONTWAIT, MT_HEADER);
 		if (n)
-			M_COPY_PKTHDR(n, m);
-		if (n && m->m_pkthdr.len > MHLEN) {
+			M_MOVE_PKTHDR(n, m);
+		if (n && n->m_pkthdr.len > MHLEN) {
 			MCLGET(n, M_DONTWAIT);
 			if ((n->m_flags & M_EXT) == 0) {
 				m_freem(n);
@@ -322,8 +322,8 @@ ip6_input(m)
 			return;	/*ENOBUFS*/
 		}
 
-		m_copydata(m, 0, m->m_pkthdr.len, mtod(n, caddr_t));
-		n->m_len = m->m_pkthdr.len;
+		m_copydata(m, 0, n->m_pkthdr.len, mtod(n, caddr_t));
+		n->m_len = n->m_pkthdr.len;
 		m_freem(m);
 		m = n;
 	}
@@ -847,16 +847,16 @@ ip6_input(m)
  * set/grab in6_ifaddr correspond to IPv6 destination address.
  * XXX backward compatibility wrapper
  */
-static struct mbuf *
+static struct ip6aux *
 ip6_setdstifaddr(m, ia6)
 	struct mbuf *m;
 	struct in6_ifaddr *ia6;
 {
-	struct mbuf *n;
+	struct ip6aux *n;
 
 	n = ip6_addaux(m);
 	if (n)
-		mtod(n, struct ip6aux *)->ip6a_dstia6 = ia6;
+		n->ip6a_dstia6 = ia6;
 	return n;	/* NULL if failed to set */
 }
 
@@ -864,11 +864,11 @@ struct in6_ifaddr *
 ip6_getdstifaddr(m)
 	struct mbuf *m;
 {
-	struct mbuf *n;
+	struct ip6aux *n;
 
 	n = ip6_findaux(m);
 	if (n)
-		return mtod(n, struct ip6aux *)->ip6a_dstia6;
+		return n->ip6a_dstia6;
 	else
 		return NULL;
 }
@@ -1594,53 +1594,38 @@ ip6_lasthdr(m, off, proto, nxtp)
 	}
 }
 
-struct mbuf *
+struct ip6aux *
 ip6_addaux(m)
 	struct mbuf *m;
 {
-	struct mbuf *n;
-
-#ifdef DIAGNOSTIC
-	if (sizeof(struct ip6aux) > MHLEN)
-		panic("assumption failed on sizeof(ip6aux)");
-#endif
-	n = m_aux_find(m, AF_INET6, -1);
-	if (n) {
-		if (n->m_len < sizeof(struct ip6aux)) {
-			printf("conflicting use of ip6aux");
-			return NULL;
-		}
-	} else {
-		n = m_aux_add(m, AF_INET6, -1);
-		n->m_len = sizeof(struct ip6aux);
-		bzero(mtod(n, caddr_t), n->m_len);
+	struct m_tag *tag = m_tag_find(m, PACKET_TAG_IPV6_INPUT, NULL);
+	if (!tag) {
+		tag = m_tag_get(PACKET_TAG_IPV6_INPUT,
+				sizeof (struct ip6aux),
+				M_NOWAIT);
+		if (tag)
+			m_tag_prepend(m, tag);
 	}
-	return n;
+	if (tag)
+		bzero(tag+1, sizeof (struct ip6aux));
+	return tag ? (struct ip6aux*)(tag+1) : NULL;
 }
 
-struct mbuf *
+struct ip6aux *
 ip6_findaux(m)
 	struct mbuf *m;
 {
-	struct mbuf *n;
-
-	n = m_aux_find(m, AF_INET6, -1);
-	if (n && n->m_len < sizeof(struct ip6aux)) {
-		printf("conflicting use of ip6aux");
-		n = NULL;
-	}
-	return n;
+	struct m_tag *tag = m_tag_find(m, PACKET_TAG_IPV6_INPUT, NULL);
+	return tag ? (struct ip6aux*)(tag+1) : NULL;
 }
 
 void
 ip6_delaux(m)
 	struct mbuf *m;
 {
-	struct mbuf *n;
-
-	n = m_aux_find(m, AF_INET6, -1);
-	if (n)
-		m_aux_delete(m, n);
+	struct m_tag *tag = m_tag_find(m, PACKET_TAG_IPV6_INPUT, NULL);
+	if (tag)
+		m_tag_delete(m, tag);
 }
 
 /*

@@ -291,14 +291,8 @@ udp6_output(in6p, m, addr6, control, p)
 		flags = 0;
 
 		udp6stat.udp6s_opackets++;
-#ifdef IPSEC
-		if (ipsec_setsocket(m, in6p->in6p_socket) != 0) {
-			error = ENOBUFS;
-			goto release;
-		}
-#endif /* IPSEC */
 		error = ip6_output(m, in6p->in6p_outputopts, &in6p->in6p_route,
-		    flags, in6p->in6p_moptions, NULL);
+		    flags, in6p->in6p_moptions, NULL, in6p);
 		break;
 	case AF_INET:
 		error = EAFNOSUPPORT;

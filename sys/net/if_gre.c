@@ -412,7 +412,7 @@ gre_output(struct ifnet *ifp, struct mbuf *m, struct sockaddr *dst,
 	ifp->if_opackets++;
 	ifp->if_obytes += m->m_pkthdr.len;
 	/* send it off */
-	error = ip_output(m, NULL, &sc->route, 0, NULL);
+	error = ip_output(m, NULL, &sc->route, 0, NULL, NULL);
   end:
 	sc->called = 0;
 	if (error)

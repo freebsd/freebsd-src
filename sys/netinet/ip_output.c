@@ -111,12 +111,13 @@ extern	struct protosw inetsw[];
  * The mbuf opt, if present, will not be freed.
  */
 int
-ip_output(m0, opt, ro, flags, imo)
+ip_output(m0, opt, ro, flags, imo, inp)
 	struct mbuf *m0;
 	struct mbuf *opt;
 	struct route *ro;
 	int flags;
 	struct ip_moptions *imo;
+	struct inpcb *inp;
 {
 	struct ip *ip, *mhip;
 	struct ifnet *ifp = NULL;	/* keep compiler happy */
@@ -129,8 +130,8 @@ ip_output(m0, opt, ro, flags, imo)
 	struct in_addr pkt_dst;
 #ifdef IPSEC
 	struct route iproute;
-	struct socket *so = NULL;
 	struct secpolicy *sp = NULL;
+	struct socket *so = inp ? inp->inp_socket : NULL;
 #endif
 	struct ip_fw_args args;
 	int src_was_INADDR_ANY = 0;	/* as the name says... */
@@ -142,10 +143,10 @@ ip_output(m0, opt, ro, flags, imo)
 
 	/* Grab info from MT_TAG mbufs prepended to the chain. */
 	for (; m0 && m0->m_type == MT_TAG; m0 = m0->m_next) {
-		switch(m0->m_tag_id) {
+		switch(m0->_m_tag_id) {
 		default:
 			printf("ip_output: unrecognised MT_TAG tag %d\n",
-			    m0->m_tag_id);
+			    m0->_m_tag_id);
 			break;
 
 		case PACKET_TAG_DUMMYNET:
@@ -175,14 +176,9 @@ ip_output(m0, opt, ro, flags, imo)
 	m = m0;
 
 	KASSERT(!m || (m->m_flags & M_PKTHDR) != 0, ("ip_output: no HDR"));
-
 	KASSERT(ro != NULL, ("ip_output: no route, proto %d",
 	    mtod(m, struct ip *)->ip_p));
 
-#ifdef IPSEC
-	so = ipsec_getsocket(m);
-	(void)ipsec_setsocket(m, NULL);
-#endif
 	if (args.rule != NULL) {	/* dummynet already saw us */
 		ip = mtod(m, struct ip *);
 		hlen = IP_VHL_HL(ip->ip_vhl) << 2 ;
@@ -560,7 +556,6 @@ sendit:
 	ip->ip_off = ntohs(ip->ip_off);
 skip_ipsec:
 #endif /*IPSEC*/
-
 	/*
 	 * IpHack's section.
 	 * - Xlate: translate packet's addr/port (NAT).

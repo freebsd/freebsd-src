@@ -456,7 +456,7 @@ mld6_sendpkt(in6m, type, dst)
 	/* increment output statictics */
 	icmp6stat.icp6s_outhist[type]++;
 
-	ip6_output(mh, &ip6_opts, NULL, 0, &im6o, &outif);
+	ip6_output(mh, &ip6_opts, NULL, 0, &im6o, &outif, NULL);
 	if (outif) {
 		icmp6_ifstat_inc(outif, ifs6_out_msg);
 		switch (type) {

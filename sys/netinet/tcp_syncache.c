@@ -1088,14 +1088,6 @@ syncache_respond(sc, m)
 	m->m_pkthdr.len = tlen;
 	m->m_pkthdr.rcvif = NULL;
 
-#ifdef IPSEC
-	/* use IPsec policy on listening socket to send SYN,ACK */
-	if (ipsec_setsocket(m, sc->sc_tp->t_inpcb->inp_socket) != 0) {
-		m_freem(m);
-		return (ENOBUFS);
-	}
-#endif
-
 #ifdef INET6
 	if (sc->sc_inc.inc_isipv6) {
 		ip6 = mtod(m, struct ip6_hdr *);
@@ -1197,7 +1189,8 @@ no_options:
 		th->th_sum = in6_cksum(m, IPPROTO_TCP, hlen, tlen - hlen);
 		ip6->ip6_hlim = in6_selecthlim(NULL,
 		    ro6->ro_rt ? ro6->ro_rt->rt_ifp : NULL);
-		error = ip6_output(m, NULL, ro6, 0, NULL, NULL);
+		error = ip6_output(m, NULL, ro6, 0, NULL, NULL,
+				sc->sc_tp->t_inpcb);
 	} else
 #endif
 	{
@@ -1205,7 +1198,8 @@ no_options:
 		    htons(tlen - hlen + IPPROTO_TCP));
 		m->m_pkthdr.csum_flags = CSUM_TCP;
 		m->m_pkthdr.csum_data = offsetof(struct tcphdr, th_sum);
-		error = ip_output(m, sc->sc_ipopts, &sc->sc_route, 0, NULL);
+		error = ip_output(m, sc->sc_ipopts, &sc->sc_route, 0, NULL,
+				sc->sc_tp->t_inpcb);
 	}
 	return (error);
 }

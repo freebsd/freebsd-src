@@ -1841,7 +1841,7 @@ STATIC int en_makeexclusive(sc, mm, prev)
 		return(0);
 	    }
 	    if (m->m_flags & M_PKTHDR)
-		M_COPY_PKTHDR(new, m);
+		M_MOVE_PKTHDR(new, m);
 	    MCLGET(new, M_DONTWAIT);
 	    if ((new->m_flags & M_EXT) == 0) {
 		m_free(new);

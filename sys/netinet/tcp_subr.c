@@ -498,15 +498,10 @@ tcp_respond(tp, ipgen, th, m, ack, seq, flags)
 	if (tp == NULL || (tp->t_inpcb->inp_socket->so_options & SO_DEBUG))
 		tcp_trace(TA_OUTPUT, 0, tp, mtod(m, void *), th, 0);
 #endif
-#ifdef IPSEC
-	if (ipsec_setsocket(m, tp ? tp->t_inpcb->inp_socket : NULL) != 0) {
-		m_freem(m);
-		return;
-	}
-#endif
 #ifdef INET6
 	if (isipv6) {
-		(void)ip6_output(m, NULL, ro6, ipflags, NULL, NULL);
+		(void)ip6_output(m, NULL, ro6, ipflags, NULL, NULL,
+			tp ? tp->t_inpcb : NULL);
 		if (ro6 == &sro6 && ro6->ro_rt) {
 			RTFREE(ro6->ro_rt);
 			ro6->ro_rt = NULL;
@@ -514,7 +509,7 @@ tcp_respond(tp, ipgen, th, m, ack, seq, flags)
 	} else
 #endif /* INET6 */
       {
-	(void) ip_output(m, NULL, ro, ipflags, NULL);
+	(void) ip_output(m, NULL, ro, ipflags, NULL, tp ? tp->t_inpcb : NULL);
 	if (ro == &sro && ro->ro_rt) {
 		RTFREE(ro->ro_rt);
 		ro->ro_rt = NULL;

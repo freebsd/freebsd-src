@@ -738,15 +738,9 @@ udp_output(inp, m, addr, control, p)
 	((struct ip *)ui)->ip_tos = inp->inp_ip_tos;	/* XXX */
 	udpstat.udps_opackets++;
 
-#ifdef IPSEC
-	if (ipsec_setsocket(m, inp->inp_socket) != 0) {
-		error = ENOBUFS;
-		goto release;
-	}
-#endif /*IPSEC*/
 	error = ip_output(m, inp->inp_options, &inp->inp_route,
 	    (inp->inp_socket->so_options & (SO_DONTROUTE | SO_BROADCAST)),
-	    inp->inp_moptions);
+	    inp->inp_moptions, inp);
 
 	if (addr) {
 		in_pcbdisconnect(inp);

@@ -272,15 +272,8 @@ rip_output(struct mbuf *m, struct socket *so, u_long dst)
 		ipstat.ips_rawout++;
 	}
 
-#ifdef IPSEC
-	if (ipsec_setsocket(m, so) != 0) {
-		m_freem(m);
-		return ENOBUFS;
-	}
-#endif /*IPSEC*/
-
 	return (ip_output(m, inp->inp_options, &inp->inp_route, flags,
-			  inp->inp_moptions));
+			  inp->inp_moptions, inp));
 }
 
 /*
