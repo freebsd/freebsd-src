@@ -46,7 +46,7 @@
  * SUCH DAMAGE.
  *
  *	from: unknown origin, 386BSD 0.1
- *	$Id: lpt.c,v 1.30.4.4 1996/02/12 14:37:24 phk Exp $
+ *	$Id: lpt.c,v 1.30.4.5 1996/02/12 14:40:10 phk Exp $
  */
 
 /*
@@ -290,13 +290,15 @@ d_open_t	lptopen;
 d_close_t	lptclose;
 d_write_t	lptwrite;
 d_ioctl_t	lptioctl;
+void		lptintr(int unit);
 
 #define CDEV_MAJOR 16
+#if 0
 static struct cdevsw lpt_cdevsw = 
 	{ lptopen,	lptclose,	noread,		lptwrite,	/*16*/
 	  lptioctl,	nullstop,	nullreset,	nodevtotty,/* lpt */
 	  seltrue,	nommap,		nostrat,	"lpt",	NULL,	-1 };
-
+#endif
 
 static struct kern_devconf kdc_lpt[NLPT] = { {
 	0, 0, 0,		/* filled in by dev_attach */
@@ -493,7 +495,7 @@ lptattach(struct isa_device *isdp)
  *	printer -- this is just used for passing ioctls.
  */
 
-static	int
+int
 lptopen (dev_t dev, int flags, int fmt, struct proc *p)
 {
 	struct lpt_softc *sc;
@@ -627,7 +629,7 @@ lptout (struct lpt_softc * sc)
  * Check for interrupted write call added.
  */
 
-static	int
+int
 lptclose(dev_t dev, int flags, int fmt, struct proc *p)
 {
 	struct lpt_softc *sc = lpt_sc + LPTUNIT(minor(dev));
@@ -726,7 +728,7 @@ pushbytes(struct lpt_softc * sc)
  * Flagging of interrupted write added.
  */
 
-static	int
+int
 lptwrite(dev_t dev, struct uio * uio, int ioflag)
 {
 	register unsigned n;
@@ -824,7 +826,7 @@ lptintr(int unit)
 	lprintf("sts %x ", sts);
 }
 
-static	int
+int
 lptioctl(dev_t dev, int cmd, caddr_t data, int flags, struct proc *p)
 {
 	int	error = 0;
@@ -873,7 +875,6 @@ lpattach (struct lpt_softc *sc, int unit)
 {
 	struct ifnet *ifp = &sc->sc_if;
 
-	ifp->if_softc = sc;
 	ifp->if_name = "lp";
 	ifp->if_unit = unit;
 	ifp->if_mtu = LPMTU;
