@@ -239,11 +239,11 @@ static int
 msdosfs_mount(struct mount *mp, struct thread *td)
 {
 	struct vnode *devvp;	  /* vnode for blk device to mount */
-	struct export_args *export;
+	struct export_args export;
 	/* msdosfs specific mount control block */
 	struct msdosfsmount *pmp = NULL;
 	struct nameidata ndp;
-	int error, flags, len;
+	int error, flags;
 	mode_t accessmode;
 	char *from;
 
@@ -256,7 +256,18 @@ msdosfs_mount(struct mount *mp, struct thread *td)
 	 */
 	if (mp->mnt_flag & MNT_UPDATE) {
 		pmp = VFSTOMSDOSFS(mp);
-		error = 0;
+
+		error = vfs_copyopt(mp->mnt_optnew, "export",
+		    &export, sizeof export);
+		if (error == 0 && export.ex_flags != 0) {
+			/*
+			 * Process export requests.
+			 */
+			if ((export.ex_flags & MNT_EXPORTED) != 0 &&
+			    (pmp->pm_flags & MSDOSFS_LARGEFS) != 0)
+				return (EOPNOTSUPP);
+			return (vfs_export(mp, &export));
+		}
 		if (!(pmp->pm_flags & MSDOSFSMNT_RONLY) &&
 		    vfs_flagopt(mp->mnt_optnew, "ro", NULL, 0)) {
 			error = VFS_SYNC(mp, MNT_WAIT, td->td_ucred, td);
@@ -316,17 +327,6 @@ msdosfs_mount(struct mount *mp, struct thread *td)
 					pmp->pm_flags |= MSDOSFSMNT_SHORTNAME;
 			}
 #endif
-			error = vfs_getopt(mp->mnt_optnew, "export",
-			    (void **)&export, &len);
-			if (error || len != sizeof *export)
-				return (EINVAL);
-			/*
-			 * Process export requests.
-			 */
-			if ((export->ex_flags & MNT_EXPORTED) != 0 &&
-			    (pmp->pm_flags & MSDOSFS_LARGEFS) != 0)
-				return (EOPNOTSUPP);
-			return (vfs_export(mp, export));
 		}
 	}
 	/*
