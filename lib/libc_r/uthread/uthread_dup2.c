@@ -57,21 +57,32 @@ _dup2(int fd, int newfd)
 		if (!(newfd_opened = (_thread_fd_table[newfd] != NULL)) || 
 		    (ret = _FD_LOCK(newfd, FD_RDWR, NULL)) == 0) {
 			/* Perform the 'dup2' syscall: */
-			if ((ret = _thread_sys_dup2(fd, newfd)) < 0) {
-			}
-			/* Initialise the file descriptor table entry: */
-			else if (_thread_fd_table_init(ret) != 0) {
-				/* Quietly close the file: */
-				_thread_sys_close(ret);
-
-				/* Reset the file descriptor: */
-				ret = -1;
-			} else {
+			ret = _thread_sys_dup2(fd, newfd);
+			if (ret >= 0) {
 				/*
-				 * Save the file open flags so that they can
-				 * be checked     later: 
+				 * If we are duplicating one of the standard
+				 * file descriptors, update its flags in the
+				 * table of pthread stdio descriptor flags.
 				 */
-				_thread_fd_table[ret]->flags = _thread_fd_table[fd]->flags;
+				if (ret < 3) {
+					_pthread_stdio_flags[ret] =
+					    _thread_fd_table[fd]->flags;
+				}
+				/* Initialise the file descriptor table entry */
+				if (_thread_fd_table_init(ret) != 0) {
+					/* Quietly close the file: */
+					__sys_close(ret);
+
+					/* Reset the file descriptor: */
+					ret = -1;
+				} else {
+					/*
+					 * Save the file open flags so that
+					 * they can be checked later: 
+					 */
+					_thread_fd_table[ret]->flags =
+					    _thread_fd_table[fd]->flags;
+				}
 			}
 
 			/* Unlock the file descriptor: */
