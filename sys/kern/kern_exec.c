@@ -28,7 +28,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: kern_exec.c,v 1.5 1994/08/24 10:53:53 davidg Exp $
+ *	$Id: kern_exec.c,v 1.6 1994/09/13 14:46:50 dfr Exp $
  */
 
 #include <sys/param.h>
@@ -338,8 +338,10 @@ exec_new_vmspace(iparams)
 	iparams->vmspace_destroyed = 1;
 
 	/* Blow away entire process VM */
+#ifdef SYSVSHM
 	if (vmspace->vm_shm)
 		shmexit(iparams->proc);
+#endif
 	vm_deallocate(&vmspace->vm_map, 0, USRSTACK);
 
 	/* Allocate a new stack */
