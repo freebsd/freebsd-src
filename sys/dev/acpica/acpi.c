@@ -262,6 +262,8 @@ acpi_attach(device_t dev)
     bzero(sc, sizeof(*sc));
     sc->acpi_dev = dev;
 
+    acpi_install_wakeup_handler(sc);
+
 #ifdef ENABLE_DEBUGGER
     if (debugpoint && !strcmp(debugpoint, "spaces"))
 	acpi_EnterDebugger();
@@ -959,7 +961,6 @@ acpi_FindIndexedResource(ACPI_RESOURCE *resbuf, int index, ACPI_RESOURCE **resp)
 static ACPI_STATUS __inline
 acpi_wakeup(UINT8 state)
 {
-    UINT16			Count;
     ACPI_STATUS		Status;
     ACPI_OBJECT_LIST	Arg_list;
     ACPI_OBJECT		Arg;
@@ -968,21 +969,6 @@ acpi_wakeup(UINT8 state)
 
     FUNCTION_TRACE_U32(__func__, state);
     ACPI_ASSERTLOCK;
-    
-    /* wait for the WAK_STS bit */
-    Count = 0;
-    while (!(AcpiHwRegisterBitAccess(ACPI_READ, ACPI_MTX_LOCK, WAK_STS))) {
-	AcpiOsSleepUsec(1000);
-	/*
-	 * Some BIOSes don't set WAK_STS at all,
-	 * give up waiting for wakeup if we time out.
-	 */
-	if (Count > 1000) {
-	    printf("ACPI: timed out waiting for WAK_STS, continuing\n");
-	    break;	/* giving up */
-	}
-	Count++;
-    }
 
     /*
      * Evaluate the _WAK method
@@ -1056,6 +1042,7 @@ ACPI_STATUS
 acpi_SetSleepState(struct acpi_softc *sc, int state)
 {
     ACPI_STATUS	status = AE_OK;
+    UINT16	Count;
 
     FUNCTION_TRACE_U32(__func__, state);
     ACPI_ASSERTLOCK;
@@ -1069,6 +1056,9 @@ acpi_SetSleepState(struct acpi_softc *sc, int state)
 	break;
 
     case ACPI_STATE_S1:
+    case ACPI_STATE_S2:
+    case ACPI_STATE_S3:
+    case ACPI_STATE_S4:
 	/*
 	 * Inform all devices that we are going to sleep.
 	 */
@@ -1084,10 +1074,37 @@ acpi_SetSleepState(struct acpi_softc *sc, int state)
 	    return_ACPI_STATUS(AE_ERROR);
 	}
 	sc->acpi_sstate = state;
-	status = AcpiEnterSleepState((UINT8)state);
-	if (status != AE_OK) {
-	    device_printf(sc->acpi_dev, "AcpiEnterSleepState failed - %s\n", acpi_strerror(status));
-	    break;
+
+	if (state != ACPI_STATE_S1) {
+	    acpi_sleep_machdep(sc, state);
+
+	    /* AcpiEnterSleepState() maybe incompleted, unlock here. */ 
+	    AcpiUtReleaseMutex(ACPI_MTX_HARDWARE);
+
+	    /* Re-enable ACPI hardware on wakeup from sleep state 4. */
+	    if (state >= ACPI_STATE_S4) {
+		acpi_Disable(sc);
+		acpi_Enable(sc);
+	    }
+	} else {
+	    status = AcpiEnterSleepState((UINT8)state);
+	    if (status != AE_OK) {
+		device_printf(sc->acpi_dev, "AcpiEnterSleepState failed - %s\n", acpi_strerror(status));
+		break;
+	    }
+	    /* wait for the WAK_STS bit */
+	    Count = 0;
+	    while (!(AcpiHwRegisterBitAccess(ACPI_READ, ACPI_MTX_LOCK, WAK_STS))) {
+		AcpiOsSleepUsec(1000);
+		/*
+		 * Some BIOSes don't set WAK_STS at all,
+		 * give up waiting for wakeup if we time out.
+		 */
+		if (Count > 1000) {
+		    break;	/* giving up */
+		}
+		Count++;
+	    }
 	}
 	acpi_wakeup((UINT8)state);
 	DEVICE_RESUME(root_bus);
@@ -1095,9 +1112,6 @@ acpi_SetSleepState(struct acpi_softc *sc, int state)
 	acpi_enable_fixed_events(sc);
 	break;
 
-    case ACPI_STATE_S3:
-	acpi_off_state = ACPI_STATE_S3;
-	/* FALLTHROUGH */
     case ACPI_STATE_S5:
 	/*
 	 * Shut down cleanly and power off.  This will call us back through the

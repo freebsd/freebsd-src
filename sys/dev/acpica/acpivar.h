@@ -32,6 +32,9 @@
 #include <sys/eventhandler.h>
 #include <sys/sysctl.h>
 
+#include <machine/bus.h>
+#include <machine/resource.h>
+
 extern devclass_t	acpi_devclass;
 
 struct acpi_softc {
@@ -53,6 +56,11 @@ struct acpi_softc {
     int			acpi_power_button_sx;
     int			acpi_sleep_button_sx;
     int			acpi_lid_switch_sx;
+
+    bus_dma_tag_t	acpi_waketag;
+    bus_dmamap_t	acpi_wakemap;
+    vm_offset_t		acpi_wakeaddr;
+    vm_offset_t		acpi_wakephys;
 
     struct sysctl_ctx_list	 acpi_battery_sysctl_ctx;
     struct sysctl_oid		*acpi_battery_sysctl_tree;
@@ -266,6 +274,9 @@ acpi_device_get_parent_softc(device_t child)
 extern char	*acpi_name(ACPI_HANDLE handle);
 extern int	acpi_avoid(ACPI_HANDLE handle);
 extern int	acpi_disabled(char *subsys);
+
+extern void	acpi_install_wakeup_handler(struct acpi_softc *sc);
+extern int	acpi_sleep_machdep(struct acpi_softc *sc, int state);
 
 /*
  * Battery Abstruction.

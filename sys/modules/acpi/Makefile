@@ -2,7 +2,7 @@
 
 .PATH: ${.CURDIR}/../../contrib/dev/acpica \
        ${.CURDIR}/../../pci ${.CURDIR}/../../dev/acpica \
-       ${.CURDIR}/../../dev/acpica/Osd
+       ${.CURDIR}/../../dev/acpica/Osd ${.CURDIR}/../../${MACHINE}/acpica
 
 KMOD=	acpica
 
@@ -30,6 +30,7 @@ SRCS+=	utglobal.c utinit.c utmisc.c utobject.c utxface.c
 SRCS+=	acpi.c acpi_acad.c acpi_battery.c acpi_button.c acpi_cmbat.c acpi_cpu.c
 SRCS+=	acpi_ec.c acpi_isa.c acpi_lid.c acpi_pcib.c acpi_powerprofile.c
 SRCS+=	acpi_powerres.c acpi_resource.c acpi_thermal.c acpi_timer.c
+SRCS+=	acpi_wakecode.h acpi_wakeup.c
 SRCS+=  OsdDebug.c 
 SRCS+=	OsdHardware.c OsdInterrupt.c OsdMemory.c OsdSchedule.c
 SRCS+=	OsdStream.c OsdSynch.c OsdEnvironment.c 
@@ -37,8 +38,12 @@ SRCS+=	opt_acpi.h opt_ddb.h
 SRCS+=	device_if.h bus_if.h pci_if.h pcib_if.h isa_if.h
 
 CFLAGS+=   -I${.CURDIR}/../../contrib/dev/acpica
+CLEANFILES+=	acpi_wakecode.h acpi_wakecode.o acpi_wakecode.bin
 
 opt_ddb.h: Makefile
 	echo '#define DDB 1'  >opt_ddb.h
+
+acpi_wakecode.h: acpi_wakecode.S
+	${MAKE} -f ${.CURDIR}/../../${MACHINE}/acpica/Makefile MAKESRCPATH=${.CURDIR}/../../${MACHINE}/acpica
 
 .include <bsd.kmod.mk>
