@@ -12,9 +12,10 @@ SRCS+=	big5.c btowc.c collate.c collcmp.c euc.c fix_grouping.c frune.c \
 	mskanji.c nl_langinfo.c nomacros.c none.c rune.c \
 	runetype.c setinvalidrune.c setlocale.c setrunelocale.c table.c \
 	tolower.c toupper.c utf2.c wcrtomb.c wcsrtombs.c wcsftime.c wcstod.c \
-	wcstol.c \
+	wcstoimax.c wcstol.c wcstoll.c \
 	wcstombs.c \
-	wcstoul.c wctob.c wctomb.c wctrans.c wctype.c wcwidth.c
+	wcstoul.c wcstoull.c wcstoumax.c wctob.c wctomb.c wctrans.c wctype.c \
+	wcwidth.c
 
 .if ${LIB} == "c"
 MAN+=	btowc.3 \
@@ -48,7 +49,8 @@ MLINKS+=rune.3 fgetrune.3 rune.3 fputrune.3 rune.3 fungetrune.3 \
 	rune.3 sputrune.3
 MLINKS+=setlocale.3 localeconv.3
 MLINKS+=towlower.3 towupper.3
-MLINKS+=wcstol.3 wcstoul.3
+MLINKS+=wcstol.3 wcstoul.3 wcstol.3 wcstoll.3 wcstol.3 wcstoull.3 \
+	wcstol.3 wcstoimax.3 wcstol.3 wcstoumax.3
 MLINKS+=wctrans.3 towctrans.3
 MLINKS+=wctype.3 iswctype.3
 .endif
