@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)clock.c	7.2 (Berkeley) 5/12/91
- *	$Id: clock.c,v 1.68 1999/04/28 08:06:00 kato Exp $
+ *	$Id: clock.c,v 1.69 1999/05/10 09:05:01 kato Exp $
  */
 
 /*
@@ -73,6 +73,7 @@
 #include <machine/ipl.h>
 #include <machine/limits.h>
 #include <machine/md_var.h>
+#include <machine/psl.h>
 #if NAPM > 0
 #include <machine/apm_bios.h>
 #include <i386/apm/apm_setup.h>
@@ -92,7 +93,7 @@
 #include <i386/isa/isa_device.h>
 #else
 #include <i386/isa/isa.h>
-#include <i386/isa/rtc.h>
+#include <isa/rtc.h>
 #endif
 #include <i386/isa/timerreg.h>
 
@@ -137,6 +138,7 @@ static void setup_8254_mixed_mode __P((void));
 #define	TIMER0_MAX_FREQ		20000
 
 int	adjkerntz;		/* local offset from GMT in seconds */
+int	clkintr_pending;
 int	disable_rtc_set;	/* disable resettodr() if != 0 */
 volatile u_int	idelayed;
 int	statclock_disable;
@@ -151,6 +153,7 @@ u_int	stat_imask = SWI_CLOCK_MASK;
 u_int	timer_freq = TIMER_FREQ;
 int	timer0_max_count;
 u_int	tsc_freq;
+int	tsc_is_broken;
 int	wall_cmos_clock;	/* wall CMOS clock assumed if != 0 */
 
 static	int	beeping = 0;
@@ -224,24 +227,15 @@ static void
 clkintr(struct clockframe frame)
 {
 	if (timecounter->tc_get_timecount == i8254_get_timecount) {
-		/*
-		 * Maintain i8254_offset and related variables.  Optimize
-		 * the usual case where i8254 counter rollover has not been
-		 * detected in i8254_get_timecount() by pretending that we
-		 * read the counter when it rolled over.  Otherwise, call
-		 * i8254_get_timecount() to do most of the work.  The
-		 * hardware counter must be read to ensure monotonicity
-		 * despite multiple rollovers and misbehaving hardware.
-		 */
-		(disable_intr)();	/* XXX avoid clock locking */
-		if (i8254_ticked) {
-			i8254_get_timecount(NULL);
+		disable_intr();
+		if (i8254_ticked)
 			i8254_ticked = 0;
-		} else {
+		else {
 			i8254_offset += timer0_max_count;
 			i8254_lastcount = 0;
 		}
-		(enable_intr)();	/* XXX avoid clock locking */
+		clkintr_pending = 0;
+		enable_intr();
 	}
 	timer_func(&frame);
 	switch (timer0_state) {
@@ -1001,7 +995,7 @@ startrtclock()
 		return;
 #endif /* NAPM > 0 */
 
-	if (tsc_present && tsc_freq != 0) {
+	if (tsc_present && tsc_freq != 0 && !tsc_is_broken) {
 		tsc_timecounter.tc_frequency = tsc_freq;
 		init_timecounter(&tsc_timecounter);
 	}
@@ -1510,13 +1504,21 @@ i8254_get_timecount(struct timecounter *tc)
 
 	low = inb(TIMER_CNTR0);
 	high = inb(TIMER_CNTR0);
-
-	count = hardclock_max_count - ((high << 8) | low);
-	if (count < i8254_lastcount) {
+	count = timer0_max_count - ((high << 8) | low);
+	if (count < i8254_lastcount ||
+	    (!i8254_ticked && (clkintr_pending ||
+	    ((count < 20 || (!(ef & PSL_I) && count < timer0_max_count / 2u)) &&
+#ifdef APIC_IO
+#define	lapic_irr1	((volatile u_int *)&lapic)[0x210 / 4]	/* XXX XXX */
+	    /* XXX this assumes that apic_8254_intr is < 24. */
+	    (lapic_irr1 & (1 << apic_8254_intr))))
+#else
+	    (inb(IO_ICU1) & 1)))
+#endif
+	    )) {
 		i8254_ticked = 1;
-		i8254_offset += hardclock_max_count;
+		i8254_offset += timer0_max_count;
 	}
-
 	i8254_lastcount = count;
 	count += i8254_offset;
 	CLOCK_UNLOCK();
