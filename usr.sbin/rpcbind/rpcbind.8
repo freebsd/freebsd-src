@@ -10,7 +10,7 @@
 .Nd universal addresses to RPC program number mapper
 .Sh SYNOPSIS
 .Nm
-.Op Fl dilLs
+.Op Fl adhiLls
 .Sh DESCRIPTION
 The
 .Nm
@@ -67,12 +67,18 @@ The
 utility can only be started by the super-user.
 .Sh OPTIONS
 .Bl -tag -width indent
+.It Fl a
+When debugging
+.Pq Fl d ,
+do an abort on errors.
 .It Fl d
 Run in debug mode.
 In this mode,
 .Nm
 will not fork when it starts, will print additional information
-during operation, and will abort on certain errors.
+during operation, and will abort on certain errors if
+.Fl a
+is also specified.
 With this option, the name-to-address translation consistency
 checks are shown in detail.
 .It Fl h
@@ -108,6 +114,10 @@ accepts these requests only from the loopback interface for security reasons.
 This change is necessary for programs that were compiled with earlier
 versions of the rpc library and do not make those requests using the
 loopback interface.
+.It Fl L
+Allow old-style local connections over the loopback interface.
+Without this flag, local connections are only allowed over a local socket,
+.Pa /var/run/rpcbind.sock .
 .It Fl l
 Turn on libwrap connection logging.
 .It Fl s
@@ -120,10 +130,6 @@ to use non-privileged ports for outgoing connections, preventing non-privileged
 clients from using
 .Nm
 to connect to services from a privileged port.
-.It Fl L
-Allow old-style local connections over the loopback interface.
-Without this flag, local connections are only allowed over a local socket,
-.Pa /var/run/rpcbind.sock .
 .El
 .Sh NOTES
 All RPC servers must be restarted if
