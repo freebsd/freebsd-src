@@ -362,7 +362,7 @@ void
 protocol(f, p)
 	register int f, p;
 {
-	char pibuf[1024+1], fibuf[1024], *pbp, *fbp;
+	char pibuf[1024+1], fibuf[1024], *pbp = NULL, *fbp = NULL;
 	int pcc = 0, fcc = 0;
 	int cc, nfd, n;
 	char cntl;
