@@ -101,6 +101,9 @@ SENDMAIL?=		/usr/sbin/sendmail
 MAKEMAP?=		/usr/sbin/makemap
 M4?=			/usr/bin/m4
 
+# Permissions for generated maps
+SENDMAIL_MAP_PERMS?=	0640
+
 # Set a reasonable default
 .MAIN:	all
 
@@ -134,10 +137,12 @@ ${_f}:		${_f}.sample
 
 ${_f}.db:	${_f}
 	${MAKEMAP} ${SENDMAIL_MAP_TYPE} ${.TARGET} < ${.OODATE}
+	chmod ${SENDMAIL_MAP_PERMS} ${.TARGET}
 .endfor
 
 userdb.db:	userdb
 	${MAKEMAP} btree ${.TARGET} < ${.OODATE}
+	chmod ${SENDMAIL_MAP_PERMS} ${.TARGET}
 
 
 #
@@ -160,6 +165,7 @@ M4FILES!=	find ${SENDMAIL_CF_DIR} -type f -name '*.m4' -print
 #
 ${SENDMAIL_ALIASES}.db:	${SENDMAIL_ALIASES}
 	${SENDMAIL} -bi
+	chmod ${SENDMAIL_MAP_PERMS} ${.TARGET}
 
 #
 # ------------------------------------------------------------------------
