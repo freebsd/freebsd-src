@@ -50,130 +50,42 @@ s" arch-i386" environment? [if] [if]
 
 include /boot/support.4th
 
-only forth definitions also support-functions
-
 \ ***** boot-conf
 \
 \	Prepares to boot as specified by loaded configuration files.
 
-also support-functions definitions
-
-: set-tempoptions  ( addrN lenN ... addr1 len1 N -- addr len 1 | 0 )
-  \ No options, set the default ones
-  dup 0= if
-    s" kernel_options" getenv dup -1 = if
-      drop
-    else
-      s" temp_options" setenv
-    then
-    exit
-  then
-
-  \ Skip filename
-  2 pick
-  c@
-  [char] - <> if
-    swap >r swap >r
-    1 >r  \ Filename present
-    1 -   \ One less argument
-  else
-    0 >r  \ Filename not present
-  then
-
-  \ If no other arguments exist, use default options
-  ?dup 0= if
-    s" kernel_options" getenv dup -1 = if
-      drop
-    else
-      s" temp_options" setenv
-    then
-    \ Put filename back on the stack, if necessary
-    r> if r> r> 1 else 0 then
-    exit
-  then
-
-  \ Concatenate remaining arguments into a single string
-  >r strdup r>
-  1 ?do
-    \ Allocate new buffer
-    2over nip over + 1+
-    allocate if out_of_memory throw then
-    \ Copy old buffer over
-    0 2swap over >r strcat
-    \ Free old buffer
-    r> free if free_error throw then
-    \ Copy a space
-    s"  " strcat
-    \ Copy next string (do not free)
-    2swap strcat
-  loop
-
-  \ Set temp_options variable, free whatever memory that needs freeing
-  over >r
-  s" temp_options" setenv
-  r> free if free_error throw then
-
-  \ Put filename back on the stack, if necessary
-  r> if r> r> 1 else 0 then
-;
-
-: get-arguments ( -- addrN lenN ... addr1 len1 N )
-  0
-  begin
-    \ Get next word on the command line
-    parse-word
-  ?dup while
-    2>r ( push to the rstack, so we can retrieve in the correct order )
-    1+
-  repeat
-  drop ( empty string )
-  dup
-  begin
-    dup
-  while
-    2r> rot
-    >r rot r>
-    1 -
-  repeat
-  drop
-;
-
-also builtins
-
-: load-conf  ( args 1 | 0 "args" -- flag )
-  0= if ( interpreted ) get-arguments then
-  set-tempoptions
-  s" temp_options" getenv -1 <> if 2swap 2 else 1 then
-  load_kernel_and_modules
-;
-
 only forth also support-functions also builtins definitions
 
 : boot
+  0= if ( interpreted ) get-arguments then
+
   \ Unload only if a path was passed
-  >in @ parse-word rot >in !
-  if
+  dup if
+    >r over r> swap
     c@ [char] - <> if
       0 1 unload drop
     else
-      get-arguments 1 boot exit
+      1 boot exit
     then
   else
-    0 1 boot exit
+    1 boot exit
   then
   load-conf
   ?dup 0= if 0 1 boot then
 ;
 
 : boot-conf
+  0= if ( interpreted ) get-arguments then
   0 1 unload drop
   load-conf
   ?dup 0= if 0 1 autoboot then
 ;
 
 also forth definitions also builtins
+
 builtin: boot
 builtin: boot-conf
+
 only forth definitions also support-functions
 
 \ ***** check-password
