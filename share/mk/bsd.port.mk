@@ -1,7 +1,7 @@
 #	bsd.port.mk - 940820 Jordan K. Hubbard.
 #	This file is in the public domain.
 #
-# $Id: bsd.port.mk,v 1.27 1994/09/02 01:53:33 jkh Exp $
+# $Id: bsd.port.mk,v 1.28 1994/09/09 00:17:47 jkh Exp $
 
 #
 # Supported Variables and their behaviors:
@@ -10,9 +10,9 @@
 # 
 # PORTSDIR	- The root of the ports tree (default: /usr/ports).
 # DISTDIR 	- Where to get gzip'd, tarballed copies of original sources
-#		- (default: ${PORTSDIR}/distfiles.
+#		- (default: ${PORTSDIR}/distfiles).
 # PACKAGES	- A top level directory where all packages go (rather than
-#		- going someplace locally). (default: ${PORTSDIR}/packages).
+#		- going locally to each port). (default: ${PORTSDIR}/packages).
 # GMAKE		- Set to path of GNU make if not in $PATH (default: gmake).
 # XMKMF		- Set to path of `xmkmf' if not in $PATH (default: xmkmf).
 #
@@ -20,18 +20,22 @@
 #
 # WRKDIR 	- A temporary working directory that gets *clobbered* on clean.
 # WRKSRC	- A subdirectory of ${WRKDIR} where the distribution actually
-#		  unpacks to.  Defaults to ${WRKDIR}/${DISTNAME}.
+#		  unpacks to.  (Default: ${WRKDIR}/${DISTNAME} unless
+#		  NO_WRKSUBDIR is set, in which case simply ${WRKDIR}).
 # DISTNAME	- Name of port or distribution.
-# PATCHDIR 	- A directory containing required patches.
-# SCRIPTDIR 	- A directory containing auxilliary scripts.
+# DISTFILE	- Name of archive file containing distribution
+#		  (default: ${DISTDIR}/${DISTNAME}${EXTRACT_SUFX}).
+# PATCHDIR 	- A directory containing any required patches.
+# SCRIPTDIR 	- A directory containing any auxilliary scripts.
 # FILESDIR 	- A directory containing any miscellaneous additional files.
-# PKGDIR 	- Package creation files.
+# PKGDIR 	- A direction containing any package creation files.
 #
 # NO_EXTRACT	- Use a dummy (do-nothing) extract target.
 # NO_CONFIGURE	- Use a dummy (do-nothing) configure target.
 # NO_BUILD	- Use a dummy (do-nothing) build target.
 # NO_PACKAGE	- Use a dummy (do-nothing) package target.
 # NO_INSTALL	- Use a dummy (do-nothing) install target.
+# NO_WRKSUBDIR	- Assume port unpacks directly into ${WRKDIR}.
 # USE_GMAKE	- Says that the port uses gmake.
 # USE_IMAKE	- Says that the port uses imake.
 # HAS_CONFIGURE	- Says that the port has its own configure script.
@@ -42,27 +46,32 @@
 # DEPENDS	- A list of other ports this package depends on being
 #		  made first, relative to ${PORTSDIR} (e.g. x11/tk, lang/tcl,
 #		  etc).
-# 
+# EXTRACT_CMD	- Command for extracting archive (default: tar).
+# EXTRACT_SUFX	- Suffix for archive names (default: .tar.gz).
+# EXTRACT_ARGS	- Arguments to ${EXTRACT_CMD} (default: -C ${WRKDIR} -xzf).
+#
+# NCFTP		- Full path to ncftp command if not in $PATH (default: ncftp).
+# NCFTP_ARGS	- Arguments to ${NCFTP} (default: -N).
+#
 #
 # Default targets and their behaviors:
 #
-# extract	- Unpacks ${DISTDIR}/${DISTNAME}.tar.gz into ${WRKDIR}.
+# fetch		- Retrieves ${DISTNAME}/${DISTNAME}${EXTRACT_SUFX} as and if
+#		  necessary.
+# extract	- Unpacks ${DISTDIR}/${DISTNAME}${EXTRACT_SUFX} into ${WRKDIR}.
 # configure	- Applys patches, if any, and runs either GNU configure, one
 #		  or more local configure scripts or nothing, depending on
 #		  what's available.
 # build		- Actually compile the sources.
 # install	- Install the results of a build.
 # package	- Create a package from a build.
-# bundle	- From an unextracted source tree, re-create tarballs.
+#
+# Default sequence for "all" is:  fetch extract configure build
 
 
 .if exists(${.CURDIR}/../Makefile.inc)
 .include "${.CURDIR}/../Makefile.inc"
 .endif
-
-GMAKE?=		gmake
-NCFTP?=		/usr/local/bin/ncftp
-NCFTPFLAGS?=	-N
 
 # These need to be absolute since we don't know how deep in the ports
 # tree we are and thus can't go relative.  They can, of course, be overridden
@@ -72,7 +81,11 @@ DISTDIR?=	${PORTSDIR}/distfiles
 PACKAGES?=	${PORTSDIR}/packages
 
 WRKDIR?=	${.CURDIR}/work
+.if defined(NO_WRKSUBDIR)
+WRKSRC?=	${WRKDIR}
+.else
 WRKSRC?=	${WRKDIR}/${DISTNAME}
+.endif
 PATCHDIR?=	${.CURDIR}/patches
 SCRIPTDIR?=	${.CURDIR}/scripts
 FILESDIR?=	${.CURDIR}/files
@@ -87,12 +100,15 @@ CONFIGURE_COOKIE?=	${.CURDIR}/.configure_done
 DO_NADA?=		echo -n
 
 # Miscellaneous overridable commands:
+GMAKE?=		gmake
+XMKMF?=		xmkmf
+
+NCFTP?=		ncftp
+NCFTPFLAGS?=	-N
+
 EXTRACT_CMD?=	tar
 EXTRACT_SUFX?=	.tar.gz
 EXTRACT_ARGS?=	-C ${WRKDIR} -xzf
-
-BUNDLE_CMD?=	tar
-BUNDLE_ARGS?=	-C ${WRKDIR} -czf
 
 PKG_CMD?=	pkg_create
 PKG_ARGS?=	-v -c ${PKGDIR}/COMMENT -d ${PKGDIR}/DESCR -f ${PKGDIR}/PLIST
@@ -244,42 +260,13 @@ ${CONFIGURE_COOKIE}:
 	@touch -f ${CONFIGURE_COOKIE}
 .endif
 
-.if !target(pre-bundle)
-pre-bundle:
+.if !target(pre-fetch)
+pre-fetch:
 	@${DO_NADA}
 .endif
 
-.if !target(bundle)
-bundle: pre-bundle
-	@echo "===>  Bundling for ${DISTNAME}"
-	@if [ ! -f ${EXTRACT_COOKIE} ]; then \
-	   echo ">> There doesn't appear to be a properly extracted"; \
-	   echo ">> distribution for ${DISTNAME}. Skipping.."; \
-	   exit 0; \
-	fi
-	@if [ -f ${CONFIGURE_COOKIE} ]; then \
-	   echo ">> WARNING:  This source has been configured and may"; \
-	   echo ">> produce a tainted distfile!"; \
-	fi
-	${BUNDLE_CMD} ${BUNDLE_ARGS} ${DISTFILE} ${DISTNAME}
-.endif
-
-.if !target(pre-extract)
-pre-extract:
-	@${DO_NADA}
-.endif
-
-.if !target(extract)
-# We need to depend on .extract_done rather than the presence of ${WRKDIR}
-# because if the user interrupts the extract in the middle (and it's often
-# a long procedure), we get tricked into thinking that we've got a good dist
-# in ${WRKDIR}.
-extract: pre-extract ${EXTRACT_COOKIE}
-
-${EXTRACT_COOKIE}:
-	@echo "===>  Extracting for ${DISTNAME}"
-	@rm -rf ${WRKDIR}
-	@mkdir -p ${WRKDIR}
+.if !target(fetch)
+fetch: pre-fetch
 .if defined(HOME_LOCATION)
 	@if [ ! -f ${DISTFILE} ]; then \
 	   echo ">> Sorry, I can't seem to find: ${DISTFILE}"; \
@@ -313,6 +300,24 @@ ${EXTRACT_COOKIE}:
 	    exit 1; \
 	fi
 .endif
+.endif
+
+.if !target(pre-extract)
+pre-extract:
+	@${DO_NADA}
+.endif
+
+.if !target(extract)
+# We need to depend on .extract_done rather than the presence of ${WRKDIR}
+# because if the user interrupts the extract in the middle (and it's often
+# a long procedure), we get tricked into thinking that we've got a good dist
+# in ${WRKDIR}.
+extract: fetch pre-extract ${EXTRACT_COOKIE}
+
+${EXTRACT_COOKIE}:
+	@echo "===>  Extracting for ${DISTNAME}"
+	@rm -rf ${WRKDIR}
+	@mkdir -p ${WRKDIR}
 	@${EXTRACT_CMD} ${EXTRACT_ARGS} ${DISTFILE}
 	@touch -f ${EXTRACT_COOKIE}
 .endif
