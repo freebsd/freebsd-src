@@ -30,7 +30,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *		$Id: main.c,v 1.7.2.4 1997/09/14 13:15:00 jkh Exp $
+ *		$Id$
  */
 
 #ifndef lint
@@ -120,7 +120,11 @@ main(argc, argv)
 		usage();
 
 	obsolete(&argc, &argv);
+#ifdef KERBEROS
+#define optstring "0123456789aB:b:cd:f:h:kns:T:uWw"
+#else
 #define optstring "0123456789aB:b:cd:f:h:ns:T:uWw"
+#endif
 	while ((ch = getopt(argc, argv, optstring)) != -1)
 #undef optstring
 		switch (ch) {
@@ -175,6 +179,12 @@ main(argc, argv)
 		case 'h':
 			honorlevel = numarg("honor level", 0L, 10L);
 			break;
+
+#ifdef KERBEROS
+		case 'k':
+			dokerberos = 1;
+			break;
+#endif
 
 		case 'n':		/* notify operators */
 			notify = 1;
@@ -488,6 +498,9 @@ usage()
 {
 	fprintf(stderr,
 		"usage: dump [-0123456789ac"
+#ifdef KERBEROS
+		"k"
+#endif
 		"nu] [-B records] [-b blocksize] [-d density] [-f file]\n"
 		"            [-h level] [-s feet] [-T date] filesystem\n"
 		"       dump [-W | -w]\n");
