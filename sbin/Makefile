@@ -109,4 +109,8 @@ SUBDIR+=fdisk \
 SUBDIR+=disklabel
 .endif
 
+.if ${MACHINE_ARCH} == "sparc64"
+SUBDIR+=sunlabel
+.endif
+
 .include <bsd.subdir.mk>
