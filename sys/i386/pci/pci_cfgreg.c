@@ -1,4 +1,4 @@
-/*
+/*-
  * Copyright (c) 1997, Stefan Esser <se@freebsd.org>
  * Copyright (c) 2000, Michael Smith <msmith@freebsd.org>
  * Copyright (c) 2000, BSDi

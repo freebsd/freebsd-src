@@ -1,4 +1,4 @@
-/*
+/*-
  * Copyright (c) 2000, 2001 Sergio Prallon. All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -21,8 +21,9 @@
  * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
- *
- *---------------------------------------------------------------------------
+ */
+
+/*---------------------------------------------------------------------------
  *
  *      i4b_itjc - NetJet PCI for split layers
  *      ------------------------------------------

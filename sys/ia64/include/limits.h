@@ -1,7 +1,7 @@
 /* $FreeBSD$ */
 /* From: NetBSD: limits.h,v 1.3 1997/04/06 08:47:31 cgd Exp */
 
-/*
+/*-
  * Copyright (c) 1988, 1993
  *	The Regents of the University of California.  All rights reserved.
  *
