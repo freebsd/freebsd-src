@@ -2272,3 +2272,46 @@ pmap_clear_bit(vm_page_t m, int ptebit)
 
 	return ((rv & ptebit) != 0);
 }
+
+/*
+ * Map a set of physical memory pages into the kernel virtual
+ * address space. Return a pointer to where it is mapped. This
+ * routine is intended to be used for mapping device memory,
+ * NOT real memory.
+ */
+void *
+pmap_mapdev(vm_offset_t pa, vm_size_t size)
+{
+	vm_offset_t va, tmpva, offset;
+	
+	pa = trunc_page(pa);
+	offset = pa & PAGE_MASK;
+	size = roundup(offset + size, PAGE_SIZE);
+	
+	GIANT_REQUIRED;
+
+	va = kmem_alloc_pageable(kernel_map, size);
+	if (!va)
+		panic("pmap_mapdev: Couldn't alloc kernel virtual memory");
+
+	for (tmpva = va; size > 0;) {
+		pmap_kenter(tmpva, pa);
+		TLBIE(tmpva); /* XXX or should it be invalidate-all ? */
+		size -= PAGE_SIZE;
+		tmpva += PAGE_SIZE;
+		pa += PAGE_SIZE;
+	}
+
+	return ((void *)(va + offset));
+}
+
+void
+pmap_unmapdev(vm_offset_t va, vm_size_t size)
+{
+	vm_offset_t base, offset;
+
+	base = trunc_page(va);
+	offset = va & PAGE_MASK;
+	size = roundup(offset + size, PAGE_SIZE);
+	kmem_free(kernel_map, base, size);
+}
