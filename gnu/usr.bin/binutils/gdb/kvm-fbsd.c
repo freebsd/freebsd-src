@@ -479,6 +479,7 @@ static int found_pcb;
 static int devmem;
 static int kfd;
 static struct pcb pcb;
+static struct i386tss cts;
 
 /* substitutes for the stuff in libkvm which doesn't work */
 /* most of this was taken from the old kgdb */
@@ -512,7 +513,8 @@ kvm_open (efile, cfile, sfile, perm, errout)
   printf ("IdlePTD %x\n", sbr);
   curpcb = ksym_lookup ("curpcb") - KERNOFF;
   physrd (cfd, curpcb, (char*)&curpcb, sizeof curpcb);
-  kstack = ksym_lookup ("kstack");
+  physrd (cfd, ksym_lookup ("common_tss") - KERNOFF, (char*)&cts, sizeof cts);
+  kstack = cts.tss_ksp;
 
   found_pcb = 1; /* for vtophys */
   if (!devmem)
@@ -810,6 +812,7 @@ read_pcb (fd, uaddr)
 {
   int i;
   int *pcb_regs = (int *)&pcb;
+  int *cts_regs = (int *)&cts;
   int	eip;
   CORE_ADDR nuaddr = uaddr;
 
@@ -828,15 +831,23 @@ read_pcb (fd, uaddr)
    * get the register values out of the sys pcb and
    * store them where `read_register' will find them.
    */
-  for (i = 0; i < 8; ++i)
-    supply_register (i, (char *)&pcb_regs[i+10]);
-  supply_register (8, (char *)&pcb_regs[8]);	/* eip */
-  supply_register (9, (char *)&pcb_regs[9]);	/* eflags */
+  for (i = 0; i < 3; ++i)
+    supply_register (i, (char *)&cts_regs[i+10]);    /* eax, ecx, edx */
+
+  /* get registers from the pcb */
+  supply_register (3, (char *)&pcb_regs[5]);	/* ebx */
+  supply_register (4, (char *)&pcb_regs[4]);	/* esp */
+  supply_register (5, (char *)&pcb_regs[3]);	/* ebp */
+  supply_register (6, (char *)&pcb_regs[2]);	/* esi */
+  supply_register (7, (char *)&pcb_regs[1]);	/* edi */
+  supply_register (8, (char *)&pcb_regs[6]);	/* eip */
+
+  supply_register (9, (char *)&cts_regs[9]);	/* eflags */
   for (i = 10; i < 13; ++i)		/* cs, ss, ds */
-    supply_register (i, (char *)&pcb_regs[i+9]);
-  supply_register (13, (char *)&pcb_regs[18]);	/* es */
+    supply_register (i, (char *)&cts_regs[i+9]);
+  supply_register (13, (char *)&cts_regs[18]);	/* es */
   for (i = 14; i < 16; ++i)		/* fs, gs */
-    supply_register (i, (char *)&pcb_regs[i+8]);
+    supply_register (i, (char *)&cts_regs[i+8]);
 
 #if 0 /* doesn't work ??? */
   /* Hmm... */
