@@ -718,7 +718,7 @@ device ed0 at isa? port 0x280 net irq 5 iomem 0xd8000 vector edintr
 device eg0 at isa? port 0x310 net irq 5 vector egintr
 device el0 at isa? port 0x300 net irq 9 vector elintr
 device ep0 at isa? port 0x300 net irq 10 vector epintr
-#device ex0 at isa? port 0x300 net irq 10 iomem 0xd0000 vector exintr
+device ex0 at isa? port? net irq? vector exintr
 device fe0 at isa? port 0x300 net irq ? vector feintr
 device fea0 at isa? net irq ? vector feaintr
 device ie0 at isa? port 0x360 net irq 7 iomem 0xd0000 vector ieintr
