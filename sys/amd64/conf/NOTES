@@ -465,6 +465,9 @@ options 	PMAP_SHPGPERPROC=201
 # Enable Linux ABI emulation
 #XXX#options 	COMPAT_LINUX
 
+# Enable 32-bit Linux ABI emulation (requires COMPAT_43 and IA32)
+options 	COMPAT_LINUX32
+
 # Enable the linux-like proc filesystem support (requires COMPAT_LINUX
 # and PSEUDOFS)
 #XXX#options 	LINPROCFS
