@@ -32,7 +32,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *      $Id: advansys.c,v 1.5 1998/10/29 17:41:34 gibbs Exp $
+ *      $Id: advansys.c,v 1.6 1998/12/04 22:54:44 archie Exp $
  */
 /*
  * Ported from:
@@ -554,8 +554,10 @@ adv_alloc_ccb_info(struct adv_softc *adv)
 	struct adv_ccb_info *cinfo;
 
 	cinfo = malloc(sizeof(*cinfo), M_DEVBUF, M_NOWAIT);
-	if (cinfo == NULL)
+	if (cinfo == NULL) {
 		printf("%s: Can't malloc CCB info\n", adv_name(adv));
+		return (NULL);
+	}
 	cinfo->state = ACCB_FREE;
 	error = bus_dmamap_create(adv->buffer_dmat, /*flags*/0,
 				  &cinfo->dmamap);
