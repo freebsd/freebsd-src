@@ -22,7 +22,8 @@ should invoked by using the
 .B groff
 command
 with a
-.B \-Tascii
+.BR \-Tascii ,
+.B \-Tkoi8-r
 or
 .B \-Tlatin1
 option.
@@ -155,22 +156,36 @@ Device description file for
 .B ascii
 device.
 .TP
-.B @FONTDIR@/devascii/ F
+.BI @FONTDIR@/devascii/ F
 Font description file for font
 .I F
 of
-.B ascii device.
+.B ascii
+device.
 .TP
 .B @FONTDIR@/devlatin1/DESC
 Device description file for
 .B latin1
 device.
 .TP
-.B @FONTDIR@/devlatin1/ F
+.BI @FONTDIR@/devlatin1/ F
 Font description file for font
 .I F
 of
-.B latin1 device.
+.B latin1
+device.
+.TP
+.B @FONTDIR@/devkoi8-r/DESC
+Device description file for
+.B koi8-r
+device.
+.TP
+.BI @FONTDIR@/devkoi8-r/ F
+Font description file for font
+.I F
+of
+.B koi8-r
+device.
 .TP
 .B @MACRODIR@/tmac.tty
 Macros for use with
