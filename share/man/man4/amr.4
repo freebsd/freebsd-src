@@ -67,23 +67,19 @@ HP NetRAID (all models are believed to work)
 Compatible AMI controllers not listed should work,
 but have not been tested.
 .Sh DIAGNOSTICS
-Driver initialisation/shutdown phase:
+.Ss Driver initialisation/shutdown phase
 .Bl -diag
 .It amr%d: memory window not available
 .It amr%d: I/O window not available
-.El
 .Pp
 The PCI BIOS did not allocate resources necessary for the correct operation of
 the controller.
 The driver cannot attach to this controller.
-.Bl -diag
 .It amr%d: busmaster bit not set, enabling
-.El
 .Pp
 The PCI BIOS did not enable busmaster DMA,
 which is required for the correct operation of the controller.
 The driver has enabled this bit and initialisation will proceed.
-.Bl -diag
 .It amr%d: can't allocate register window
 .It amr%d: can't allocate parent DMA tag
 .It amr%d: can't allocate scatter/gather DMA tag
@@ -93,68 +89,51 @@ The driver has enabled this bit and initialisation will proceed.
 .It amr%d: can't allocate interrupt
 .It amr%d: can't set up interrupt
 .It amr%d: can't allocate buffer DMA tag
-.El
 .Pp
 A resource allocation error occurred while initialising the driver;
 initialisation has failed and the driver will not attach to this controller.
-.Bl -diag
 .It amr%d: can't obtain configuration data from controller
-.El
 .Pp
 The driver was unable to obtain vital configuration data from the controller.
 Initialisation has failed and the driver will not attach to this controller.
-.Bl -diag
 .It amr%d: controller supports 40ld but CONFIG_PRODINFO failed
 .It amr%d: 40LD firmware unsupported; send controller to msmith@freebsd.org
-.El
 .Pp
 This controller provides a firmware interface that is currently unsupported.
 Please contact the AUTHOR to determine status of support for this controller.
-.Bl -diag
 .It amr%d: can't scan controller for drives
-.El
 .Pp
 The scan for logical drives managed by the controller failed.
 No drives will be attached.
-.Bl -diag
 .It amr%d: device_add_child failed
 .It amr%d: bus_generic_attach returned %d
-.El
 .Pp
 Creation of the logical drive instances failed;
 attachment of one or more logical drives may have been aborted.
-.Bl -diag
 .It amrd%d: still open, can't shutdown
-.El
 .Pp
 The logical drive indicated is still open,
 and the driver cannot shut down.
-.Bl -diag
 .It amr%d: flushing cache...
-.El
 .Pp
 The controller cache is being flushed prior to shutdown or detach.
-.Pp
-Operational diagnostics:
+.El
+.Ss Operational diagnostics
 .Bl -diag
 .It amr%d: I/O beyond end of unit (%u,%d > %u)
-.El
 .Pp
 A partitioning error or disk corruption has caused an I/O request
 beyond the end of the logical drive.
 This may also occur if FlexRAID Virtual Sizing is enabled and
 an I/O operation is attempted on a portion of the virtual drive
 beyond the actual capacity available.
-.Bl -diag
 .It amr%d: I/O error - %x
-.El
 .Pp
 An I/O error has occurred.
-.Bl -diag
 .It amr%d: controller wedged (not taking commands)
-.El
 .Pp
 The controller is not responding to commands.
+.El
 .Sh AUTHORS
 The amr driver was written by
 .An Mike Smith
