@@ -998,7 +998,7 @@ check_login_ro
 	: /* empty */
 		{
 		if (readonly) {
-			reply(202, "Command ignored. Server is in readonly mode.");
+			reply(550, "Permission denied.");
 			$$ = 0;
 		}
 		else
