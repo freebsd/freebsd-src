@@ -262,7 +262,7 @@ cpu_thread_setup(struct thread *td)
 }
 
 void
-cpu_set_upcall(struct thread *td, void *pcb)
+cpu_set_upcall(struct thread *td, struct thread *td0)
 {
 	struct pcb *pcb2;
 
@@ -282,7 +282,7 @@ cpu_set_upcall(struct thread *td, void *pcb)
 	 * at this time (see the matching comment below for
 	 * more analysis) (need a good safe default).
 	 */
-	bcopy(pcb, pcb2, sizeof(*pcb2));
+	bcopy(td0->td_pcb, pcb2, sizeof(*pcb2));
 
 	/*
 	 * Create a new fresh stack for the new thread.
@@ -291,7 +291,7 @@ cpu_set_upcall(struct thread *td, void *pcb)
 	 * The contexts are filled in at the time we actually DO the
 	 * upcall as only then do we know which KSE we got.
 	 */
-	td->td_frame = (struct trapframe *)((caddr_t)pcb2) - 1;
+	bcopy(td0->td_frame, td->td_frame, sizeof(struct trapframe));
 
 	/*
 	 * Arrange for continuation at fork_return(), which

@@ -147,11 +147,13 @@ cpu_thread_setup(struct thread *td)
 }
 
 void
-cpu_set_upcall(struct thread *td, void *v)
+cpu_set_upcall(struct thread *td, struct thread *td0)
 {
 	struct trapframe *tf;
 	struct frame *fr;
 	struct pcb *pcb;
+
+	bcopy(td0->td_frame, td->td_frame, sizeof(struct trapframe));
 
 	pcb = td->td_pcb;
 	tf = td->td_frame;
