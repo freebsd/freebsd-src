@@ -1,5 +1,3 @@
-/* $FreeBSD$ */
-
 /*
  * Arc4 random number generator for OpenBSD.
  * Copyright 1996 David Mazieres <dm@lcs.mit.edu>.
