@@ -40,6 +40,7 @@ CLK_CALIBRATION_LOOP		opt_clock.h
 CLK_USE_I8254_CALIBRATION	opt_clock.h
 CLK_USE_TSC_CALIBRATION		opt_clock.h
 TIMER_FREQ			opt_clock.h
+KERN_TIMESTAMP			opt_global.h
 
 NO_F00F_HACK			opt_cpu.h
 CPU_BLUELIGHTNING_FPU_OP_CACHE	opt_cpu.h
