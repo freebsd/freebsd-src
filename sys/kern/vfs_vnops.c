@@ -201,6 +201,8 @@ restart:
 		}
 		if (fmode & FREAD)
 			mode |= VREAD;
+		if (fmode & O_APPEND)
+			mode |= VAPPEND;
 		if (mode) {
 		        error = VOP_ACCESS(vp, mode, cred, td);
 			if (error)
