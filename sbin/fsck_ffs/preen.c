@@ -341,8 +341,9 @@ retry:
 		retried++;
 		goto retry;
 	}
-	printf("Can't make sense out of name %s\n", name);
-	return (0);
+	printf("Warning: Can't find blockdevice corresponding to name %s\n",
+	    name);
+	return (name);
 }
 
 char *
