@@ -26,7 +26,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $Id: dev_table.h,v 1.6 1994/08/02 07:39:47 davidg Exp $
+ * $Id: dev_table.h,v 1.7 1994/09/27 17:58:15 davidg Exp $
  */
 
 #ifndef _DEV_TABLE_H_
@@ -40,20 +40,71 @@
  *	NOTE! 	NOTE!	NOTE!	NOTE!
  */
 
-struct card_info {
-	int card_type;	/*	From soundcard.c	*/
+struct driver_info {
+	int card_type;	/*	From soundcard.h	*/
 	char *name;
 	long (*attach) (long mem_start, struct address_info *hw_config);
 	int (*probe) (struct address_info *hw_config);
+};
+
+struct card_info {
+	int card_type;	/* Link (search key) to the driver list */
 	struct address_info config;
 	int enabled;
 };
 
-/** UWM -- new  MIDI structure here.. **/
+/*
+ * Device specific parameters (used only by dmabuf.c)
+ */
+#define MAX_SUB_BUFFERS		(32*MAX_REALTIME_FACTOR)
 
-struct generic_midi_info{
-        char *name;	/* Name of the MIDI device.. */
-        long (*attach) (long mem_start);
+#define DMODE_NONE		0
+#define DMODE_OUTPUT		1
+#define DMODE_INPUT		2
+
+struct dma_buffparms {
+	int      dma_mode;	/* DMODE_INPUT, DMODE_OUTPUT or DMODE_NONE */
+
+	/*
+ 	 * Pointers to raw buffers
+ 	 */
+
+  	char     *raw_buf[DSP_BUFFCOUNT];
+    	unsigned long   raw_buf_phys[DSP_BUFFCOUNT];
+    	int             raw_count;
+
+     	/*
+         * Device state tables
+         */
+
+	unsigned long flags;
+#define DMA_BUSY	0x00000001
+#define DMA_RESTART	0x00000002
+#define DMA_ACTIVE	0x00000004
+#define DMA_STARTED	0x00000008
+#define DMA_ALLOC_DONE	0x00000020
+
+	int      open_mode;
+
+	/*
+	 * Queue parameters.
+	 */
+       	int      qlen;
+       	int      qhead;
+       	int      qtail;
+
+	int      nbufs;
+	int      counts[MAX_SUB_BUFFERS];
+	int      subdivision;
+	char    *buf[MAX_SUB_BUFFERS];
+	unsigned long buf_phys[MAX_SUB_BUFFERS];
+
+	int      fragment_size;
+	int	 max_fragments;
+
+	int	 bytes_in_use;
+
+	int	 underrun_count;
 };
 
 struct audio_operations {
@@ -61,6 +112,9 @@ struct audio_operations {
 	int flags;
 #define NOTHING_SPECIAL 	0
 #define NEEDS_RESTART		1
+#define DMA_AUTOMODE		2
+	int  format_mask;	/* Bitmask for supported audio formats */
+	void *devc;		/* Driver specific info */
 	int (*open) (int dev, int mode);
 	void (*close) (int dev);
 	void (*output_block) (int dev, unsigned long buf, 
@@ -72,9 +126,13 @@ struct audio_operations {
 	int (*prepare_for_output) (int dev, int bufsize, int nbufs);
 	void (*reset) (int dev);
 	void (*halt_xfer) (int dev);
-	int (*has_output_drained)(int dev);
+	int (*local_qlen)(int dev);
         void (*copy_from_user)(int dev, char *localbuf, int localoffs,
                                snd_rw_buf *userbuf, int useroffs, int len);
+	int buffcount;
+	long buffsize;
+	int dmachan;
+	struct dma_buffparms *dmap;
 };
 
 struct mixer_operations {
@@ -83,13 +141,14 @@ struct mixer_operations {
 
 struct synth_operations {
 	struct synth_info *info;
+	int midi_dev;
 	int synth_type;
 	int synth_subtype;
 
 	int (*open) (int dev, int mode);
 	void (*close) (int dev);
 	int (*ioctl) (int dev, unsigned int cmd, unsigned int arg);
-	int (*kill_note) (int dev, int voice, int velocity);
+	int (*kill_note) (int dev, int voice, int note, int velocity);
 	int (*start_note) (int dev, int voice, int note, int velocity);
 	int (*set_instr) (int dev, int voice, int instr);
 	void (*reset) (int dev);
@@ -101,10 +160,16 @@ struct synth_operations {
 	void (*panning) (int dev, int voice, int value);
 	void (*volume_method) (int dev, int mode);
 	int (*pmgr_interface) (int dev, struct patmgr_info *info);
+	void (*bender) (int dev, int chn, int value);
+	int (*alloc_voice) (int dev, int chn, int note, struct voice_alloc_info *alloc);
+
+ 	struct voice_alloc_info alloc;
+ 	struct channel_info chn_info[16];
 };
 
 struct midi_operations {
 	struct midi_info info;
+	struct synth_operations *converter;
 	int (*open) (int dev, int mode,
 		void (*inputintr)(int dev, unsigned char data),
 		void (*outputintr)(int dev)
@@ -115,158 +180,166 @@ struct midi_operations {
 	int (*start_read) (int dev);
 	int (*end_read) (int dev);
 	void (*kick)(int dev);
-	int (*command) (int dev, unsigned char data);
+	int (*command) (int dev, unsigned char *data);
 	int (*buffer_status) (int dev);
+	int (*prefix_cmd) (int dev, unsigned char status);
 };
 
-/** UWM -- new structure for MIDI  **/
-
-struct generic_midi_operations {
-	struct midi_info info;
-	int (*open) (int dev, int mode);
-	void (*close) (int dev);
-	int (*write) (int dev, snd_rw_buf *data);
-	int (*read)  (int dev, snd_rw_buf *data);
-};	
-
-#ifndef ALL_EXTERNAL_TO_ME
-
-#ifdef _MIDI_TABLE_C_
-
-/** UWM **/
-       struct generic_midi_operations * generic_midi_devs[MAX_MIDI_DEV] = {NULL}; 
-       int num_generic_midis = 0, pro_midi_dev = 0; 
-
-      struct generic_midi_info midi_supported[] = {
-
-#ifndef EXCLUDE_PRO_MIDI
-        {"ProAudioSpectrum MV101",pro_midi_attach}
-#endif
-        }; 
-
-        int num_midi_drivers = 
-            sizeof (midi_supported) / sizeof(struct generic_midi_info);
-
-#endif
-
+struct sound_timer_operations {
+	struct sound_timer_info info;
+	int priority;
+	int devlink;
+	int (*open)(int dev, int mode);
+	void (*close)(int dev);
+	int (*event)(int dev, unsigned char *ev);
+	unsigned long (*get_time)(int dev);
+	int (*ioctl) (int dev, unsigned int cmd, unsigned int arg);
+	void (*arm_timer)(int dev, long time);
+};
 
 #ifdef _DEV_TABLE_C_   
-	struct audio_operations * dsp_devs[MAX_DSP_DEV] = {NULL}; int num_dspdevs = 0;
-	struct mixer_operations * mixer_devs[MAX_MIXER_DEV] = {NULL}; int num_mixers = 0;
-	struct synth_operations * synth_devs[MAX_SYNTH_DEV] = {NULL}; int num_synths = 0;
-	struct midi_operations * midi_devs[MAX_MIDI_DEV] = {NULL}; int num_midis = 0;
+	struct audio_operations *audio_devs[MAX_AUDIO_DEV] = {NULL}; int num_audiodevs = 0;
+	struct mixer_operations *mixer_devs[MAX_MIXER_DEV] = {NULL}; int num_mixers = 0;
+	struct synth_operations *synth_devs[MAX_SYNTH_DEV+MAX_MIDI_DEV] = {NULL}; int num_synths = 0;
+	struct midi_operations *midi_devs[MAX_MIDI_DEV] = {NULL}; int num_midis = 0;
 
-
-#   ifndef EXCLUDE_MPU401
-        int mpu401_dev = 0;
-#   endif
+#ifndef EXCLUDE_SEQUENCER
+	extern struct sound_timer_operations default_sound_timer;
+	struct sound_timer_operations *sound_timer_devs[MAX_TIMER_DEV] = 
+		{&default_sound_timer, NULL}; 
+	int num_sound_timers = 1;
+#else
+	struct sound_timer_operations *sound_timer_devs[MAX_TIMER_DEV] = 
+		{NULL}; 
+	int num_sound_timers = 0;
+#endif
 
 /*
+ * List of low level drivers compiled into the kernel.
+ */
+
+	struct driver_info sound_drivers[] = {
+#ifndef EXCLUDE_PSS
+	  {SNDCARD_PSS, "Echo Personal Sound System PSS (ESC614)", attach_pss, probe_pss},
+#endif
+#ifndef EXCLUDE_YM3812
+		{SNDCARD_ADLIB,	"OPL-2/OPL-3 FM",		attach_adlib_card, probe_adlib},
+#endif
+#ifndef EXCLUDE_PAS
+		{SNDCARD_PAS,	"ProAudioSpectrum",	attach_pas_card, probe_pas},
+#endif
+#if !defined(EXCLUDE_MPU401) && !defined(EXCLUDE_MIDI)
+		{SNDCARD_MPU401,"Roland MPU-401",	attach_mpu401, probe_mpu401},
+#endif
+#if !defined(EXCLUDE_UART6850) && !defined(EXCLUDE_MIDI)
+		{SNDCARD_UART6850,"6860 UART Midi",	attach_uart6850, probe_uart6850},
+#endif
+#ifndef EXCLUDE_SB
+		{SNDCARD_SB,	"SoundBlaster",		attach_sb_card, probe_sb},
+#endif
+#if !defined(EXCLUDE_SB) && !defined(EXCLUDE_SB16)
+#ifndef EXCLUDE_AUDIO
+		{SNDCARD_SB16,	"SoundBlaster16",	sb16_dsp_init, sb16_dsp_detect},
+#endif
+#ifndef EXCLUDE_MIDI
+		{SNDCARD_SB16MIDI,"SB16 MIDI",	attach_sb16midi, probe_sb16midi},
+#endif
+#endif
+#ifndef EXCLUDE_GUS16
+		{SNDCARD_GUS16,	"Ultrasound 16-bit opt.",	attach_gus_db16, probe_gus_db16},
+#endif
+#ifndef EXCLUDE_MSS
+		{SNDCARD_MSS,	"MS Sound System",	attach_ms_sound, probe_ms_sound},
+#endif
+#ifndef EXCLUDE_GUS
+		{SNDCARD_GUS,	"Gravis Ultrasound",	attach_gus_card, probe_gus},
+#endif
+		{0,			"*?*",			NULL, NULL}
+	};
+
+/*
+ *	List of devices actually configured in the system.
+ *
  *	Note! The detection order is significant. Don't change it.
  */
 
-	struct card_info supported_drivers[] = {
+	struct card_info snd_installed_cards[] = {
+#ifndef EXCLUDE_PSS
+	     {SNDCARD_PSS, {PSS_BASE, PSS_IRQ, PSS_DMA}, SND_DEFAULT_ENABLE},
+#endif
 #if !defined(EXCLUDE_MPU401) && !defined(EXCLUDE_MIDI)
-		{SNDCARD_MPU401,"Roland MPU-401",	attach_mpu401, probe_mpu401,
-			{MPU_BASE, MPU_IRQ, 0}, SND_DEFAULT_ENABLE},
+		{SNDCARD_MPU401, {MPU_BASE, MPU_IRQ, 0}, SND_DEFAULT_ENABLE},
+#ifdef MPU2_BASE
+		{SNDCARD_MPU401, {MPU2_BASE, MPU2_IRQ, 0}, SND_DEFAULT_ENABLE},
+#endif
+#ifdef MPU3_BASE
+		{SNDCARD_MPU401, {MPU3_BASE, MPU2_IRQ, 0}, SND_DEFAULT_ENABLE},
+#endif
+#endif
+#ifndef EXCLUDE_MSS
+		{SNDCARD_MSS, {MSS_BASE, MSS_IRQ, MSS_DMA}, SND_DEFAULT_ENABLE},
+#	ifdef MSS2_BASE
+		{SNDCARD_MSS, {MSS2_BASE, MSS2_IRQ, MSS2_DMA}, SND_DEFAULT_ENABLE},
+#	endif
+#endif
+
+#if !defined(EXCLUDE_UART6850) && !defined(EXCLUDE_MIDI)
+		{SNDCARD_UART6850, {U6850_BASE, U6850_IRQ, 0}, SND_DEFAULT_ENABLE},
 #endif
 
 #ifndef EXCLUDE_PAS
-		{SNDCARD_PAS,	"ProAudioSpectrum",	attach_pas_card, probe_pas,
-			{PAS_BASE, PAS_IRQ, PAS_DMA}, SND_DEFAULT_ENABLE},
+		{SNDCARD_PAS, {PAS_BASE, PAS_IRQ, PAS_DMA}, SND_DEFAULT_ENABLE},
 #endif
 
 #ifndef EXCLUDE_SB
-		{SNDCARD_SB,	"SoundBlaster",		attach_sb_card, probe_sb,
-			{SBC_BASE, SBC_IRQ, SBC_DMA}, SND_DEFAULT_ENABLE},
+		{SNDCARD_SB, {SBC_BASE, SBC_IRQ, SBC_DMA}, SND_DEFAULT_ENABLE},
 #endif
 
-#if !defined(EXCLUDE_SB) && !defined(EXCLUDE_SB16) && !defined(EXCLUDE_SBPRO)
+#if !defined(EXCLUDE_SB) && !defined(EXCLUDE_SB16)
 #ifndef EXCLUDE_AUDIO
-		{SNDCARD_SB16,	"SoundBlaster16",	sb16_dsp_init, sb16_dsp_detect,
-			{SBC_BASE, SBC_IRQ, SB16_DMA}, SND_DEFAULT_ENABLE},
+		{SNDCARD_SB16, {SBC_BASE, SBC_IRQ, SB16_DMA}, SND_DEFAULT_ENABLE},
 #endif
 #ifndef EXCLUDE_MIDI
-		{SNDCARD_SB16MIDI,"SB16 MPU-401",	attach_sb16midi, probe_sb16midi,
-			{SB16MIDI_BASE, SBC_IRQ, 0}, SND_DEFAULT_ENABLE},
+		{SNDCARD_SB16MIDI,{SB16MIDI_BASE, SBC_IRQ, 0}, SND_DEFAULT_ENABLE},
 #endif
 #endif
 
 #ifndef EXCLUDE_GUS
-		{SNDCARD_GUS,	"Gravis Ultrasound",	attach_gus_card, probe_gus,
-			{GUS_BASE, GUS_IRQ, GUS_DMA}, SND_DEFAULT_ENABLE},
+#ifndef EXCLUDE_GUS16
+		{SNDCARD_GUS16, {GUS16_BASE, GUS16_IRQ, GUS16_DMA}, SND_DEFAULT_ENABLE},
+#endif
+		{SNDCARD_GUS, {GUS_BASE, GUS_IRQ, GUS_DMA}, SND_DEFAULT_ENABLE},
 #endif
 
 #ifndef EXCLUDE_YM3812
-		{SNDCARD_ADLIB,	"AdLib",		attach_adlib_card, probe_adlib,
-			{FM_MONO, 0, 0}, SND_DEFAULT_ENABLE},
+		{SNDCARD_ADLIB, {FM_MONO, 0, 0}, SND_DEFAULT_ENABLE},
 #endif
-		{0,			"*?*",			NULL, 0}
+		{0, {0}, 0}
 	};
 
 	int num_sound_drivers =
-	    sizeof(supported_drivers) / sizeof (struct card_info);
+	    sizeof(sound_drivers) / sizeof (struct driver_info);
+	int num_sound_cards =
+	    sizeof(snd_installed_cards) / sizeof (struct card_info);
 
 
-# ifndef EXCLUDE_AUDIO 
-	int sound_buffcounts[MAX_DSP_DEV] = {0};
-	long sound_buffsizes[MAX_DSP_DEV] = {0};
-	int sound_dsp_dmachan[MAX_DSP_DEV] = {0};
-	int sound_dma_automode[MAX_DSP_DEV] = {0};
-# endif
 #else
-	extern struct audio_operations * dsp_devs[MAX_DSP_DEV]; int num_dspdevs;
+	extern struct audio_operations * audio_devs[MAX_AUDIO_DEV]; int num_audiodevs;
 	extern struct mixer_operations * mixer_devs[MAX_MIXER_DEV]; extern int num_mixers;
-	extern struct synth_operations * synth_devs[MAX_SYNTH_DEV]; extern int num_synths;
+	extern struct synth_operations * synth_devs[MAX_SYNTH_DEV+MAX_MIDI_DEV]; extern int num_synths;
 	extern struct midi_operations * midi_devs[MAX_MIDI_DEV]; extern int num_midis;
-#   ifndef EXCLUDE_MPU401
-        extern int mpu401_dev;
-#   endif
+	extern struct sound_timer_operations * sound_timer_devs[MAX_SYNTH_DEV+MAX_MIDI_DEV]; extern int num_sound_timers;
 
-	extern struct card_info supported_drivers[];
+	extern struct driver_info sound_drivers[];
 	extern int num_sound_drivers;
-
-# ifndef EXCLUDE_AUDIO
-	extern int sound_buffcounts[MAX_DSP_DEV];
-	extern long sound_buffsizes[MAX_DSP_DEV];
-	extern int sound_dsp_dmachan[MAX_DSP_DEV];
-	extern int sound_dma_automode[MAX_DSP_DEV];
-# endif
-
-#endif
+	extern struct card_info snd_installed_cards[];
+	extern int num_sound_cards;
 
 long sndtable_init(long mem_start);
 int sndtable_get_cardcount (void);
 struct address_info *sound_getconf(int card_type);
 void sound_chconf(int card_type, int ioaddr, int irq, int dma);
-#endif
+int snd_find_driver(int type);
 
-#endif
-
-/* If external to me.... :) */
-
-#ifdef ALL_EXTERNAL_TO_ME
-
-	extern struct audio_operations * dsp_devs[MAX_DSP_DEV]; int num_dspdevs;
-        extern struct mixer_operations * mixer_devs[MAX_MIXER_DEV]; extern int num_mixers;
-        extern struct synth_operations * synth_devs[MAX_SYNTH_DEV]; extern int num_synths;
-        extern struct midi_operations * midi_devs[MAX_MIDI_DEV]; extern int num_midis;
-	extern struct generic_midi_operations *generic_midi_devs[]; 
-	extern int num_generic_midis, pro_midi_dev;
- 
-#ifndef EXCLUDE_MPU401
-        extern int mpu401_dev;
-#endif
-
-	extern struct generic_midi_info midi_supported[];
-	extern struct card_info supported_drivers[];
-        extern int num_sound_drivers;
-	extern int num_midi_drivers;	
-#ifndef EXCLUDE_AUDIO
-        extern int sound_buffcounts[MAX_DSP_DEV];
-        extern long sound_buffsizes[MAX_DSP_DEV];
-        extern int sound_dsp_dmachan[MAX_DSP_DEV];
-        extern int sound_dma_automode[MAX_DSP_DEV];
-#endif
-
-#endif
+#endif	/* _DEV_TABLE_C_ */
+#endif	/* _DEV_TABLE_H_ */

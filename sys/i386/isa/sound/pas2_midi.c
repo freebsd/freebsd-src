@@ -25,7 +25,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $Id$
+ * $Id: pas2_midi.c,v 1.5 1994/08/02 07:40:22 davidg Exp $
  */
 
 #include "sound_config.h"
@@ -63,7 +63,9 @@ pas_midi_open (int dev, int mode,
       return RET_ERROR (EBUSY);
     }
 
-  /* Reset input and output FIFO pointers */
+  /*
+   * Reset input and output FIFO pointers
+   */
   pas_write (M_C_RESET_INPUT_FIFO | M_C_RESET_OUTPUT_FIFO,
 	     MIDI_CONTROL);
 
@@ -72,7 +74,9 @@ pas_midi_open (int dev, int mode,
   if ((err = pas_set_intr (I_M_MIDI_IRQ_ENABLE)) < 0)
     return err;
 
-  /* Enable input available and output FIFO empty interrupts */
+  /*
+   * Enable input available and output FIFO empty interrupts
+   */
 
   ctrl = 0;
   input_opened = 0;
@@ -80,20 +84,26 @@ pas_midi_open (int dev, int mode,
 
   if (mode == OPEN_READ || mode == OPEN_READWRITE)
     {
-      ctrl |= M_C_ENA_INPUT_IRQ;/* Enable input */
+      ctrl |= M_C_ENA_INPUT_IRQ;/*
+					 * Enable input
+					 */
       input_opened = 1;
     }
 
   if (mode == OPEN_WRITE || mode == OPEN_READWRITE)
     {
-      ctrl |= M_C_ENA_OUTPUT_IRQ |	/* Enable output */
+      ctrl |= M_C_ENA_OUTPUT_IRQ |	/*
+					 * Enable output
+					 */
 	M_C_ENA_OUTPUT_HALF_IRQ;
     }
 
   pas_write (ctrl,
 	     MIDI_CONTROL);
 
-  /* Acknowledge any pending interrupts */
+  /*
+   * Acknowledge any pending interrupts
+   */
 
   pas_write (0xff, MIDI_STATUS);
   ofifo_bytes = 0;
@@ -109,7 +119,9 @@ static void
 pas_midi_close (int dev)
 {
 
-  /* Reset FIFO pointers, disable intrs */
+  /*
+   * Reset FIFO pointers, disable intrs
+   */
   pas_write (M_C_RESET_INPUT_FIFO | M_C_RESET_OUTPUT_FIFO, MIDI_CONTROL);
 
   pas_remove_intr (I_M_MIDI_IRQ_ENABLE);
@@ -123,9 +135,14 @@ dump_to_midi (unsigned char midi_byte)
 
   fifo_space = ((x = pas_read (MIDI_FIFO_STATUS)) >> 4) & 0x0f;
 
-  if (fifo_space == 15 || (fifo_space < 2 && ofifo_bytes > 13))	/* Fifo full */
+  if (fifo_space == 15 || (fifo_space < 2 && ofifo_bytes > 13))	/*
+									 * Fifo
+									 * full
+									 */
     {
-      return 0;			/* Upper layer will call again */
+      return 0;			/*
+				 * Upper layer will call again
+				 */
     }
 
   ofifo_bytes++;
@@ -161,14 +178,18 @@ pas_midi_out (int dev, unsigned char midi_byte)
 
   if (!qlen)
     if (dump_to_midi (midi_byte))
-      return 1;			/* OK */
+      return 1;			/*
+				 * OK
+				 */
 
   /*
    * Put to the local queue
    */
 
   if (qlen >= 256)
-    return 0;			/* Local queue full */
+    return 0;			/*
+				 * Local queue full
+				 */
 
   DISABLE_INTR (flags);
 
@@ -211,9 +232,14 @@ pas_buffer_status (int dev)
   return !qlen;
 }
 
+#define MIDI_SYNTH_NAME	"Pro Audio Spectrum Midi"
+#define MIDI_SYNTH_CAPS	SYNTH_CAP_INPUT
+#include "midi_synth.h"
+
 static struct midi_operations pas_midi_operations =
 {
   {"Pro Audio Spectrum", 0, 0, SNDCARD_PAS},
+  &std_midi_synth,
   pas_midi_open,
   pas_midi_close,
   pas_midi_ioctl,
@@ -221,14 +247,23 @@ static struct midi_operations pas_midi_operations =
   pas_midi_start_read,
   pas_midi_end_read,
   pas_midi_kick,
-  NULL,				/* command */
-  pas_buffer_status
+  NULL,				/*
+				 * command
+				 */
+  pas_buffer_status,
+  NULL
 };
 
 long
 pas_midi_init (long mem_start)
 {
-  my_dev = num_midis;
+  if (num_midis >= MAX_MIDI_DEV)
+    {
+      printk ("Sound: Too many midi devices detected\n");
+      return mem_start;
+    }
+
+  std_midi_synth.midi_dev = my_dev = num_midis;
   midi_devs[num_midis++] = &pas_midi_operations;
   return mem_start;
 }
@@ -242,9 +277,13 @@ pas_midi_interrupt (void)
 
   stat = pas_read (MIDI_STATUS);
 
-  if (stat & M_S_INPUT_AVAIL)	/* Input byte available */
+  if (stat & M_S_INPUT_AVAIL)	/*
+				 * Input byte available
+				 */
     {
-      incount = pas_read (MIDI_FIFO_STATUS) & 0x0f;	/* Input FIFO count */
+      incount = pas_read (MIDI_FIFO_STATUS) & 0x0f;	/*
+							 * Input FIFO count
+							 */
       if (!incount)
 	incount = 16;
 
@@ -254,7 +293,9 @@ pas_midi_interrupt (void)
 	    midi_input_intr (my_dev, pas_read (MIDI_DATA));
 	  }
 	else
-	  pas_read (MIDI_DATA);	/* Flush */
+	  pas_read (MIDI_DATA);	/*
+				 * Flush
+				 */
     }
 
   if (stat & (M_S_OUTPUT_EMPTY | M_S_OUTPUT_HALF_EMPTY))
@@ -288,7 +329,9 @@ pas_midi_interrupt (void)
       ofifo_bytes = 100;
     }
 
-  pas_write (stat, MIDI_STATUS);/* Acknowledge interrupts */
+  pas_write (stat, MIDI_STATUS);/*
+					 * Acknowledge interrupts
+					 */
 }
 
 #endif

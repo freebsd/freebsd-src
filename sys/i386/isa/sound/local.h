@@ -1,6 +1,6 @@
 /* for FreeBSD */
 /*
- * $Id: local.h,v 1.8 1994/08/02 07:40:06 davidg Exp $
+ * $Id: local.h,v 1.9 1994/09/27 17:58:19 davidg Exp $
  */
 #include "snd.h"
 
@@ -13,11 +13,18 @@
 #define KERNEL_SOUNDCARD
 #endif
 
+#ifndef EXCLUDE_UART6850
+#define EXCLUDE_UART6850
+#endif
+#ifndef EXCLUDE_PSS
+#define EXCLUDE_PSS
+#endif
+
 #define DSP_BUFFSIZE 65536
 #define NO_AUTODMA  /* still */
 #define SELECTED_SOUND_OPTIONS	0xffffffff
-#define SOUND_VERSION_STRING "2.5"
-#define SOUND_CONFIG_DATE "Sat Apr 23 07:45:17 MSD 1994"
-#define SOUND_CONFIG_BY "ache"
-#define SOUND_CONFIG_HOST "dream.demos.su"
+#define SOUND_VERSION_STRING "2.90-2"
+#define SOUND_CONFIG_DATE "Thu Sep 29 15:33:39 PDT 1994"
+#define SOUND_CONFIG_BY "swallace"
+#define SOUND_CONFIG_HOST "pal-r32-a07b.slip.nts.uci.edu"
 #define SOUND_CONFIG_DOMAIN ""
