@@ -73,8 +73,7 @@ _thread_critical_enter(pthread_t pthread)
 		    errno);
 		abort();
 	}
-
-	restore = sav;
+	curthread->savedsig = sav;
 }
 
 void
@@ -83,16 +82,9 @@ _thread_critical_exit(pthread_t pthread)
 	sigset_t set;
 
 	/*
-	 * restore is protected by giant.  We could restore our signal state
-	 * incorrectly if someone else set restore between unlocking giant
-	 * and restoring the signal mask.  To avoid this we cache a copy prior
-	 * to the unlock.
-	 */
-	set = restore;
-
-	/*
 	 * Restore signals.
 	 */
+	set = curthread->savedsig;
 	if (__sys_sigprocmask(SIG_SETMASK, &set, NULL)) {
 		_thread_printf(STDERR_FILENO, "Critical Exit: sig err %d\n",
 		    errno);
