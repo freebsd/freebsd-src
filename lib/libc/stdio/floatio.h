@@ -53,4 +53,6 @@
 #error "floating point buffers too small"
 #endif
 
+char *__hdtoa(double, const char *, int, int *, int *, char **);
+char *__hldtoa(long double, const char *, int, int *, int *, char **);
 char *__ldtoa(long double *, int, int, int *, int *, char **);
