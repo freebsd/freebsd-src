@@ -146,12 +146,13 @@ struct wi_softc	{
 #define WI_PORT4	4
 #define WI_PORT5	5
 
-#define WI_PCI_IORES	0x1c
+#define WI_PCI_MEMRES	0x18
+#define WI_PCI_IORES	0x1C
 
-#define WI_PCI_VENDOR_Eumitcom	0x1638
-#define WI_PCI_DEVICE_PRISM2STA	0x1100
-#define WI_HFA384x_SWSUPPORT0_OFF	0x28
-#define WI_PRISM2STA_MAGIC			0x4a2d
+#define WI_PCI_VENDOR_EUMITCOM		0x1638
+#define WI_PCI_DEVICE_PRISM2STA		0x1100
+#define WI_HFA384X_SWSUPPORT0_OFF	0x28
+#define WI_PRISM2STA_MAGIC		0x4A2D
 
 /* Default port: 0 (only 0 exists on stations) */
 #define WI_DEFAULT_PORT	(WI_PORT0 << 8)
