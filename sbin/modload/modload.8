@@ -23,7 +23,7 @@
 .\" (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
 .\" THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 .\"
-.\"	$Id: modload.8,v 1.2 1994/08/19 13:28:20 davidg Exp $
+.\"	$Id: modload.8,v 1.3 1994/08/19 13:39:20 davidg Exp $
 .\"
 .Dd June 7, 1993
 .Dt MODLOAD 8
@@ -73,8 +73,8 @@ Specify the name of a shell script or program that will
 be executed if the module is successfully loaded. It
 is always passed the module id (in decimal) and module
 type (in hexadecimal) as the first two arguments.
-For loadable drivers, the third and fourth arguments are
-the block major and character major numbers respectively.
+For loadable drivers, the third argument is
+the block or character major device number.
 For a loadable system call, the third argument is the system
 call number.
 .It Fl o Ar output_file
@@ -112,4 +112,5 @@ Terrence R. Lambert, terry@cs.weber.edu
 .El
 .Sh BUGS
 Loadable streams modules and loadable execution interpreters
-are not currently supported.
+are not currently supported.  The loadable device driver framework can
+only reserve either a character or block device entry, not both.
