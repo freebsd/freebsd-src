@@ -134,6 +134,14 @@ write_bootblocks(int disk)
 		return (-1);
 	}
 
+	/* Update the in-core label too if possible */
+
+	if (ioctl(fd, DIOCSDINFO, lbl) < 0) {
+		sprintf(errmsg, "Couldn't change in-core disklabel for %s\n\n%s",
+			scratch, strerror(errno));
+		return (-1);
+	}
+
 	if (enable_label(fd) == -1)
 		return (-1);
 
@@ -145,14 +153,6 @@ write_bootblocks(int disk)
 
 	if (disable_label(fd) == -1)
 		return (-1);
-
-	/* Update the in-core label too if possible */
-
-	if (ioctl(fd, DIOCSDINFO, lbl) < 0) {
-		sprintf(errmsg, "Couldn't change in-core disklabel for %s\n\n%s",
-			scratch, strerror(errno));
-		return (-1);
-	}
 
 	if (close(fd) == -1) {
 		sprintf(errmsg, "Couldn't close device %s\n\n%s",
