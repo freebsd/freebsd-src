@@ -1681,6 +1681,7 @@ scioctl(dev_t dev, u_long cmd, caddr_t data, int flag, struct proc *p)
 	*(int *)data = scp->status & LOCK_MASK;
 	return 0;
 
+    case KDGETREPEAT:      	/* get keyboard repeat & delay rates */
     case KDSETREPEAT:      	/* set keyboard repeat & delay rates (new) */
 	error = kbd_ioctl(kbd, cmd, data);
 	if (error == ENOIOCTL)

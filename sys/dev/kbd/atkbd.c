@@ -30,6 +30,9 @@
 #include "opt_kbd.h"
 #include "opt_atkbd.h"
 #include "opt_devfs.h"
+#ifdef __i386__
+#include "opt_vm86.h"
+#endif
 
 #if NATKBD > 0
 
@@ -41,6 +44,18 @@
 #include <sys/tty.h>
 #include <sys/fcntl.h>
 #include <sys/malloc.h>
+
+#ifdef __i386__
+#ifdef VM86
+#include <machine/md_var.h>
+#include <machine/psl.h>
+#include <machine/vm86.h>
+#include <machine/pc/bios.h>
+
+#include <vm/vm.h>
+#include <vm/pmap.h>
+#endif /* VM86 */
+#endif /* __i386__ */
 
 #include <dev/kbd/kbdreg.h>
 #include <dev/kbd/atkbdreg.h>
@@ -338,6 +353,7 @@ keyboard_switch_t atkbdsw = {
 KEYBOARD_DRIVER(atkbd, atkbdsw, atkbd_configure);
 
 /* local functions */
+static int		get_typematic(keyboard_t *kbd);
 static int		setup_kbd_port(KBDC kbdc, int port, int intr);
 static int		get_kbd_echo(KBDC kbdc);
 static int		probe_keyboard(KBDC kbdc, int flags);
@@ -345,6 +361,8 @@ static int		init_keyboard(KBDC kbdc, int *type, int flags);
 static int		write_kbd(KBDC kbdc, int command, int data);
 static int		get_kbd_id(KBDC kbdc);
 static int		typematic(int delay, int rate);
+static int		typematic_delay(int delay);
+static int		typematic_rate(int rate);
 
 /* local variables */
 
@@ -450,6 +468,7 @@ atkbd_init(int unit, keyboard_t **kbdp, void *arg, int flags)
 	accentmap_t *accmap;
 	fkeytab_t *fkeymap;
 	int fkeymap_size;
+	int delay[2];
 	int *data = (int *)arg;
 
 	/* XXX */
@@ -533,6 +552,10 @@ atkbd_init(int unit, keyboard_t **kbdp, void *arg, int flags)
 	    	    && (kbd->kb_config & KB_CONF_FAIL_IF_NO_KBD))
 			return ENXIO;
 		atkbd_ioctl(kbd, KDSETLED, (caddr_t)&state->ks_state);
+		get_typematic(kbd);
+		delay[0] = kbd->kb_delay1;
+		delay[1] = kbd->kb_delay2;
+		atkbd_ioctl(kbd, KDSETREPEAT, (caddr_t)delay);
 		KBD_INIT_DONE(kbd);
 	}
 	if (!KBD_IS_CONFIGURED(kbd)) {
@@ -557,6 +580,7 @@ static int
 atkbd_intr(keyboard_t *kbd, void *arg)
 {
 	atkbd_state_t *state;
+	int delay[2];
 	int c;
 
 	if (KBD_IS_ACTIVE(kbd) && KBD_IS_BUSY(kbd)) {
@@ -578,6 +602,10 @@ atkbd_intr(keyboard_t *kbd, void *arg)
 			init_keyboard(state->kbdc, &kbd->kb_type,
 				      kbd->kb_config);
 			atkbd_ioctl(kbd, KDSETLED, (caddr_t)&state->ks_state);
+			get_typematic(kbd);
+			delay[0] = kbd->kb_delay1;
+			delay[1] = kbd->kb_delay2;
+			atkbd_ioctl(kbd, KDSETREPEAT, (caddr_t)delay);
 			KBD_FOUND_DEVICE(kbd);
 		}
 	}
@@ -987,13 +1015,23 @@ atkbd_ioctl(keyboard_t *kbd, u_long cmd, caddr_t arg)
 		if (!KBD_HAS_DEVICE(kbd))
 			return 0;
 		i = typematic(((int *)arg)[0], ((int *)arg)[1]);
-		return write_kbd(state->kbdc, KBDC_SET_TYPEMATIC, i);
+		error = write_kbd(state->kbdc, KBDC_SET_TYPEMATIC, i);
+		if (error == 0) {
+			kbd->kb_delay1 = typematic_delay(i);
+			kbd->kb_delay2 = typematic_rate(i);
+		}
+		return error;
 
 	case KDSETRAD:		/* set keyboard repeat rate (old interface) */
 		splx(s);
 		if (!KBD_HAS_DEVICE(kbd))
 			return 0;
-		return write_kbd(state->kbdc, KBDC_SET_TYPEMATIC, *(int *)arg);
+		error = write_kbd(state->kbdc, KBDC_SET_TYPEMATIC, *(int *)arg);
+		if (error == 0) {
+			kbd->kb_delay1 = typematic_delay(*(int *)arg);
+			kbd->kb_delay2 = typematic_rate(*(int *)arg);
+		}
+		return error;
 
 	case PIO_KEYMAP:	/* set keyboard translation table */
 	case PIO_KEYMAPENT:	/* set keyboard translation table entry */
@@ -1075,6 +1113,43 @@ atkbd_poll(keyboard_t *kbd, int on)
 }
 
 /* local functions */
+
+static int
+get_typematic(keyboard_t *kbd)
+{
+#ifdef __i386__
+#ifdef VM86
+	/*
+	 * Only some systems allow us to retrieve the keyboard repeat 
+	 * rate previously set via the BIOS...
+	 */
+	struct vm86frame vmf;
+	u_int32_t p;
+
+	bzero(&vmf, sizeof(vmf));
+	vmf.vmf_ax = 0xc000;
+	vm86_intcall(0x15, &vmf);
+	if ((vmf.vmf_eflags & PSL_C) || vmf.vmf_ah)
+		return ENODEV;
+        p = BIOS_PADDRTOVADDR(((u_int32_t)vmf.vmf_es << 4) + vmf.vmf_bx);
+	if ((readb(p + 6) & 0x40) == 0)	/* int 16, function 0x09 supported? */
+		return ENODEV;
+	vmf.vmf_ax = 0x0900;
+	vm86_intcall(0x16, &vmf);
+	if ((vmf.vmf_al & 0x08) == 0)	/* int 16, function 0x0306 supported? */
+		return ENODEV;
+	vmf.vmf_ax = 0x0306;
+	vm86_intcall(0x16, &vmf);
+	kbd->kb_delay1 = typematic_delay(vmf.vmf_bh << 5);
+	kbd->kb_delay2 = typematic_rate(vmf.vmf_bl);
+	return 0;
+#else
+	return ENODEV;
+#endif /* VM86 */
+#else
+	return ENODEV;
+#endif /* __i386__ */
+}
 
 static int
 setup_kbd_port(KBDC kbdc, int port, int intr)
@@ -1398,14 +1473,27 @@ get_kbd_id(KBDC kbdc)
 	return ((id2 << 8) | id1);
 }
 
+static int delays[] = { 250, 500, 750, 1000 };
+static int rates[] = {  34,  38,  42,  46,  50,  55,  59,  63,
+			68,  76,  84,  92, 100, 110, 118, 126,
+		       136, 152, 168, 184, 200, 220, 236, 252,
+		       272, 304, 336, 368, 400, 440, 472, 504 };
+
+static int
+typematic_delay(int i)
+{
+	return delays[(i >> 5) & 3];
+}
+
+static int
+typematic_rate(int i)
+{
+	return rates[i & 0x1f];
+}
+
 static int
 typematic(int delay, int rate)
 {
-	static int delays[] = { 250, 500, 750, 1000 };
-	static int rates[] = {  34,  38,  42,  46,  50,  55,  59,  63,
-				68,  76,  84,  92, 100, 110, 118, 126,
-			       136, 152, 168, 184, 200, 220, 236, 252,
-			       272, 304, 336, 368, 400, 440, 472, 504 };
 	int value;
 	int i;
 

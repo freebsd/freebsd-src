@@ -866,6 +866,11 @@ genkbd_commonioctl(keyboard_t *kbd, u_long cmd, caddr_t arg)
 		*(int *)arg = kbd->kb_type;
 		break;
 
+	case KDGETREPEAT:	/* get keyboard repeat rate */
+		((int *)arg)[0] = kbd->kb_delay1;
+		((int *)arg)[1] = kbd->kb_delay2; 
+		break;
+
 	case GIO_KEYMAP:	/* get keyboard translation table */
 		bcopy(kbd->kb_keymap, arg, sizeof(*kbd->kb_keymap));
 		break;

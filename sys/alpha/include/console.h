@@ -55,6 +55,7 @@
 #define KDRASTER	_IOW('K', 100, scr_size_t)
 #define KDGKBINFO	_IOR('K', 101, keyboard_info_t)
 #define KDSETREPEAT	_IOW('K', 102, keyboard_delay_t)
+#define KDGETREPEAT	_IOR('K', 103, keyboard_delay_t)
 
 #define GETFKEY		_IOWR('k', 0, fkeyarg_t)
 #define SETFKEY		_IOWR('k', 1, fkeyarg_t)
