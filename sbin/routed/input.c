@@ -261,7 +261,7 @@ input(struct sockaddr_in *from,		/* received from this IP address */
 			 * already knows it.
 			 */
 			ap = find_auth(aifp);
-			if (aifp == 0 && ap->type == RIP_AUTH_PW
+			if (ap != 0 && ap->type == RIP_AUTH_PW
 			    && n->n_family == RIP_AF_AUTH
 			    && !ck_passwd(aifp,rip,lim,FROM_NADDR,&use_auth))
 				ap = 0;
