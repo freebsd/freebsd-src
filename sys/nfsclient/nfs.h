@@ -119,8 +119,6 @@
  */
 struct nfs4_fctx {
 	TAILQ_ENTRY(nfs4_fstate) next;
-
-	pid_t		pid;
 	uint32_t	refcnt;
 	struct nfs4_lowner *lop;
 	struct nfsnode *np;
