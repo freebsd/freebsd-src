@@ -118,7 +118,7 @@ net_warn_not_mpsafe(const char *component)
 	 */
 	if (!debug_mpsafenet_toolatetotwiddle) {
 		debug_mpsafenet = 0;
-		printf("WARNING: debug.mpsafenet forced to = as %s requires "
+		printf("WARNING: debug.mpsafenet forced to 0 as %s requires "
 		    "Giant\n", component);
 		return;
 	}
