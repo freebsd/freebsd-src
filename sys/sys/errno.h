@@ -166,9 +166,15 @@ __END_DECLS
 #define	ENOATTR		87		/* Attribute not found */
 
 #define EDOOFUS		88		/* Programming error */
+#endif /* _POSIX_SOURCE */
 
-#define	ELAST		88		/* Must be equal largest errno */
+#define	EBADMSG		89		/* Bad message */
+#define	EMULTIHOP	90		/* Multihop attempted */
+#define	ENOLINK		91		/* Link has been severed */
+#define	EPROTO		92		/* Protocol error */
 
+#ifndef _POSIX_SOURCE
+#define	ELAST		92		/* Must be equal largest errno */
 #endif /* _POSIX_SOURCE */
 
 #ifdef _KERNEL
