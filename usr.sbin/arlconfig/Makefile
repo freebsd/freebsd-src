@@ -5,7 +5,7 @@
 
 PROG=	arlconfig
 SRCS=	arlconfig.c
-CFLAGS=	-I${.CURDIR}/../../sys
+CFLAGS=	-I${.CURDIR}/../../sys -DARLCACHE
 MAN=	arlconfig.8
 
 .include <bsd.prog.mk>
