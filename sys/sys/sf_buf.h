@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 2003 Alan L. Cox <alc@cs.rice.edu>
+ * Copyright (c) 2003-2004 Alan L. Cox <alc@cs.rice.edu>
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -31,6 +31,17 @@
 
 #include <machine/sf_buf.h>
 
+/*
+ * Options to sf_buf_alloc() are specified through its flags argument.  This
+ * argument's value should be the result of a bitwise or'ing of one or more
+ * of the following values.
+ */
+#define	SFB_CATCH	1		/* Check signals if the allocation
+					   sleeps. */
+#define	SFB_CPUPRIVATE	2		/* Create a CPU private mapping. */
+#define	SFB_DEFAULT	0
+#define	SFB_NOWAIT	4		/* Return NULL if all bufs are used. */
+
 struct vm_page;
 
 extern  int nsfbufs;                    /* Number of sendfile(2) bufs alloced */
@@ -38,7 +49,7 @@ extern  int nsfbufspeak;                /* Peak of nsfbufsused */
 extern  int nsfbufsused;                /* Number of sendfile(2) bufs in use */
 
 struct sf_buf *
-	sf_buf_alloc(struct vm_page *m, int pri);
+	sf_buf_alloc(struct vm_page *m, int flags);
 void	sf_buf_free(struct sf_buf *sf);
 void	sf_buf_mext(void *addr, void *args);
 
