@@ -1636,7 +1636,7 @@ options HZ=1000 # not compulsory but strongly recommended</programlisting>
 	クラッシュダンプに対応しました。
         &merged;</para>
 
-      <para arch="i386" role="historic">iir ドライバが
+      <para arch="i386" role="historic">&man.iir.4; ドライバが
 	Intel 内蔵 RAID コントローラ
 	に対応しました。古い ICP Vortex コントローラにも対応しています。</para>
 
@@ -2881,7 +2881,9 @@ hw.pcic.irq="0"</programlisting>
       &merged;</para>
 
     <para>&os; 4-STABLE との互換性を提供する
-      <filename>compat4x</filename> 配布物が追加されました。</para>
+      <filename>compat4x</filename> 配布物が追加されました。
+      これには、&os; 4.7-RELEASE
+      で配布されているライブラリのサブセットが含まれています。</para>
 
     <para role="historic">&man.config.8;
       で本来エラーとなるべきだったさまざまな警告が、
@@ -3173,6 +3175,10 @@ hw.pcic.irq="0"</programlisting>
     <para>&man.ftpd.8; に、新しく
       <option>-W</option> オプションが追加されました。
       これは、FTP セションのログを &man.wtmp.5; に記録しないようにします。
+      &merged;</para>
+
+    <para>FireWire サブシステムをユーザから操作・制御するための
+      &man.fwcontrol.8; ユーティリティが追加されました。
       &merged;</para>
 
     <para arch="i386,pc98" role="historic">&man.gdb.1;
@@ -4191,6 +4197,18 @@ hw.pcic.irq="0"</programlisting>
     <para>&man.su.1; が認証に <application>PAM</application>
       を使うようになりました。</para>
 
+    <para>デバイス上のページングとスワップ処理を無効にする
+      &man.swapoff.8; コマンドが追加されました。
+      関連するコマンド &man.swapctl.8; も、他の BSD にあるような
+      &man.swapon.8; と &man.swapoff.8;
+      へのインタフェースに対応しました。
+
+      <note>
+        <para>&man.swapoff.8;
+          機能は実験的なものと考えられています。</para>
+      </note>
+    </para>
+
     <para role="historic">起動時の &man.syscons.4;
       設定は、アーキテクチャに依存しない
       <filename>/etc/rc.syscons</filename>
@@ -4619,8 +4637,8 @@ hw.pcic.irq="0"</programlisting>
 
       <para>Bell Labs の <application>awk</application>
 	( <quote>BWK awk</quote> や <quote>The One True	AWK</quote>
-	として知られています ) の 2002/02/10 版スナップショット
-	が統合されました。
+	として知られています ) の 2002 年 12 月 13
+        日時点のスナップショットが統合されました。
 	<command>awk</command>、<command>nawk</command>
 	としてインストールされます。</para>
 
@@ -4653,6 +4671,10 @@ hw.pcic.irq="0"</programlisting>
         これによりベースシステムに &man.bzip2.1; プログラムおよび、
         <filename>libbz2</filename> ライブラリが導入されました。
 	&merged;</para>
+
+      <para>ベースシステムに <application>bzip2</application>
+        スイート全体、特に <command>bzip2recover</command>
+        がインストールされるようになりました。&merged;</para>
 
       <para role="historic">&man.ee.1; <application>Easy Editor</application>
         がバージョン 1.4.2 に更新されました。
@@ -4767,7 +4789,7 @@ hw.pcic.irq="0"</programlisting>
         4.1.1b に更新されました。</para>
 
       <para><application>OpenPAM</application>
-        (<quote>Citronella</quote> リリース) が
+        (<quote>Daffodil</quote> リリース) が
 	<application>Linux-PAM</application> に代わって
 	統合されました。</para>
 
@@ -4877,7 +4899,7 @@ hw.pcic.irq="0"</programlisting>
 
         <para><application>cvs</application>
 	  が、バージョン 1.11.2.1 の
-          2002 年 12 月 1 日時点のスナップショットに更新されました。</para>
+          2002 年 12 月 1 日時点のスナップショットに更新されました。&merged;</para>
 
         <para role="historic">&man.cvs.1; が利用する
 	  <envar>CVS_RSH</envar> 環境変数の
