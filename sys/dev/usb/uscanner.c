@@ -139,6 +139,9 @@ static const struct uscan_info uscanner_devs[] = {
  {{ USB_VENDOR_HP, USB_PRODUCT_HP_6200C }, 0 },
  {{ USB_VENDOR_HP, USB_PRODUCT_HP_6300C }, 0 },
 
+ /* Minolta */
+ {{ USB_VENDOR_MINOLTA, USB_PRODUCT_MINOLTA_5400 }, 0 },
+
   /* Microtek */
  {{ USB_VENDOR_SCANLOGIC, USB_PRODUCT_SCANLOGIC_336CX }, 0 },
  {{ USB_VENDOR_MICROTEK, USB_PRODUCT_MICROTEK_X6U }, 0 },
