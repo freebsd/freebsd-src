@@ -26,7 +26,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *	$Id: imgact_coff.c,v 1.30 1998/02/11 01:46:47 eivind Exp $
+ *	$Id: imgact_coff.c,v 1.31 1998/08/16 01:21:49 bde Exp $
  */
 
 #include <sys/param.h>
@@ -70,7 +70,7 @@ load_coff_section(struct vmspace *vmspace, struct vnode *vp, vm_offset_t offset,
 	size_t copy_len;
 
 	map_offset = trunc_page(offset);
-	map_addr = trunc_page(vmaddr);
+	map_addr = trunc_page((vm_offset_t)vmaddr);
 
 	if (memsz > filsz) {
 		/*
@@ -116,8 +116,8 @@ load_coff_section(struct vmspace *vmspace, struct vnode *vp, vm_offset_t offset,
 	 */
 
 	copy_len = (offset + filsz) - trunc_page(offset + filsz);
-	map_addr = trunc_page(vmaddr + filsz);
-	map_len = round_page(vmaddr + memsz) - map_addr;
+	map_addr = trunc_page((vm_offset_t)vmaddr + filsz);
+	map_len = round_page((vm_offset_t)vmaddr + memsz) - map_addr;
 
 	DPRINTF(("%s(%d): vm_map_find(&vmspace->vm_map, NULL, 0, &0x%08lx,0x%x, FALSE, VM_PROT_ALL, VM_PROT_ALL, 0)\n", __FILE__, __LINE__, map_addr, map_len));
 
@@ -451,7 +451,7 @@ exec_coff_imgact(imgp)
 	vmspace->vm_taddr = (caddr_t)(void *)(uintptr_t)text_address;
 	vmspace->vm_daddr = (caddr_t)(void *)(uintptr_t)data_address;
 
-	hole = (caddr_t)trunc_page(vmspace->vm_daddr) + ctob(vmspace->vm_dsize);
+	hole = (caddr_t)trunc_page((vm_offset_t)vmspace->vm_daddr) + ctob(vmspace->vm_dsize);
 
 
 	DPRINTF(("%s(%d): vm_map_find(&vmspace->vm_map, NULL, 0, &0x%08lx, PAGE_SIZE, FALSE, VM_PROT_ALL, VM_PROT_ALL, 0)\n",

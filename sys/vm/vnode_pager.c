@@ -38,7 +38,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)vnode_pager.c	7.5 (Berkeley) 4/20/91
- *	$Id: vnode_pager.c,v 1.98 1998/09/05 15:17:34 bde Exp $
+ *	$Id: vnode_pager.c,v 1.99 1998/09/28 23:58:10 rvb Exp $
  */
 
 /*
@@ -94,7 +94,7 @@ struct pagerops vnodepagerops = {
  * Handle is a vnode pointer.
  */
 vm_object_t
-vnode_pager_alloc(void *handle, vm_size_t size, vm_prot_t prot,
+vnode_pager_alloc(void *handle, vm_ooffset_t size, vm_prot_t prot,
 		  vm_ooffset_t offset)
 {
 	vm_object_t object;
@@ -134,10 +134,10 @@ vnode_pager_alloc(void *handle, vm_size_t size, vm_prot_t prot,
 		/*
 		 * And an object of the appropriate size
 		 */
-		object = vm_object_allocate(OBJT_VNODE, size);
+		object = vm_object_allocate(OBJT_VNODE, OFF_TO_IDX(round_page(size)));
 		object->flags = 0;
 
-		object->un_pager.vnp.vnp_size = (vm_ooffset_t) size * PAGE_SIZE;
+		object->un_pager.vnp.vnp_size = size;
 
 		object->handle = handle;
 		vp->v_object = object;

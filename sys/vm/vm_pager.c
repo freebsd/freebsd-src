@@ -61,7 +61,7 @@
  * any improvements or extensions that they make and grant Carnegie the
  * rights to redistribute these changes.
  *
- * $Id: vm_pager.c,v 1.36 1998/03/07 21:37:21 dyson Exp $
+ * $Id: vm_pager.c,v 1.37 1998/03/16 01:56:01 dyson Exp $
  */
 
 /*
@@ -91,7 +91,7 @@ extern struct pagerops vnodepagerops;
 extern struct pagerops devicepagerops;
 
 static int dead_pager_getpages __P((vm_object_t, vm_page_t *, int, int));
-static vm_object_t dead_pager_alloc __P((void *, vm_size_t, vm_prot_t,
+static vm_object_t dead_pager_alloc __P((void *, vm_ooffset_t, vm_prot_t,
 	vm_ooffset_t));
 static int dead_pager_putpages __P((vm_object_t, vm_page_t *, int, int, int *));
 static boolean_t dead_pager_haspage __P((vm_object_t, vm_pindex_t, int *, int *));
@@ -110,7 +110,7 @@ dead_pager_getpages(obj, ma, count, req)
 vm_object_t
 dead_pager_alloc(handle, size, prot, off)
 	void *handle;
-	vm_size_t size;
+	vm_ooffset_t size;
 	vm_prot_t prot;
 	vm_ooffset_t off;
 {
@@ -227,7 +227,7 @@ vm_pager_bufferinit()
  * need to perform page-level validation (e.g. the device pager).
  */
 vm_object_t
-vm_pager_allocate(objtype_t type, void *handle, vm_size_t size, vm_prot_t prot,
+vm_pager_allocate(objtype_t type, void *handle, vm_ooffset_t size, vm_prot_t prot,
 		  vm_ooffset_t off)
 {
 	struct pagerops *ops;

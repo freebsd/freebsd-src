@@ -11,7 +11,7 @@
  * 2. Absolutely no warranty of function or purpose is made by the author
  *		John S. Dyson.
  *
- * $Id: vfs_bio.c,v 1.177 1998/09/25 17:34:49 peter Exp $
+ * $Id: vfs_bio.c,v 1.178 1998/09/26 00:12:35 dillon Exp $
  */
 
 /*
@@ -668,7 +668,7 @@ brelse(struct buf * bp)
 				}
 
 				if ((bp->b_flags & B_INVAL) == 0) {
-					pmap_qenter(trunc_page(bp->b_data), bp->b_pages, bp->b_npages);
+					pmap_qenter(trunc_page((vm_offset_t)bp->b_data), bp->b_pages, bp->b_npages);
 				}
 			}
 			if (bp->b_flags & (B_NOCACHE|B_ERROR)) {
@@ -1721,7 +1721,7 @@ allocbuf(struct buf * bp, int size)
 					bp->b_pages[i] = NULL;
 					vm_page_unwire(m);
 				}
-				pmap_qremove((vm_offset_t) trunc_page(bp->b_data) +
+				pmap_qremove((vm_offset_t) trunc_page((vm_offset_t)bp->b_data) +
 				    (desiredpages << PAGE_SHIFT), (bp->b_npages - desiredpages));
 				bp->b_npages = desiredpages;
 			}
@@ -1827,7 +1827,7 @@ allocbuf(struct buf * bp, int size)
 					if (bp->b_validend == 0)
 						bp->b_flags &= ~B_CACHE;
 				}
-				bp->b_data = (caddr_t) trunc_page(bp->b_data);
+				bp->b_data = (caddr_t) trunc_page((vm_offset_t)bp->b_data);
 				bp->b_npages = curbpnpages;
 				pmap_qenter((vm_offset_t) bp->b_data,
 					bp->b_pages, bp->b_npages);
@@ -1975,7 +1975,7 @@ biodone(register struct buf * bp)
 					continue;
 				}
 				bp->b_pages[i] = m;
-				pmap_qenter(trunc_page(bp->b_data), bp->b_pages, bp->b_npages);
+				pmap_qenter(trunc_page((vm_offset_t)bp->b_data), bp->b_pages, bp->b_npages);
 			}
 #if defined(VFS_BIO_DEBUG)
 			if (OFF_TO_IDX(foff) != m->pindex) {
@@ -2123,7 +2123,7 @@ vfs_unbusy_pages(struct buf * bp)
 				}
 #endif
 				bp->b_pages[i] = m;
-				pmap_qenter(trunc_page(bp->b_data), bp->b_pages, bp->b_npages);
+				pmap_qenter(trunc_page((vm_offset_t)bp->b_data), bp->b_pages, bp->b_npages);
 			}
 			vm_object_pip_subtract(obj, 1);
 			vm_page_flag_clear(m, PG_ZERO);
@@ -2260,7 +2260,7 @@ retry:
 			else if (bp->b_bcount >= PAGE_SIZE) {
 				if (m->valid && (bp->b_flags & B_CACHE) == 0) {
 					bp->b_pages[i] = bogus_page;
-					pmap_qenter(trunc_page(bp->b_data), bp->b_pages, bp->b_npages);
+					pmap_qenter(trunc_page((vm_offset_t)bp->b_data), bp->b_pages, bp->b_npages);
 				}
 			}
 		}
@@ -2349,7 +2349,7 @@ vm_hold_load_pages(struct buf * bp, vm_offset_t from, vm_offset_t to)
 
 	to = round_page(to);
 	from = round_page(from);
-	index = (from - trunc_page(bp->b_data)) >> PAGE_SHIFT;
+	index = (from - trunc_page((vm_offset_t)bp->b_data)) >> PAGE_SHIFT;
 
 	for (pg = from; pg < to; pg += PAGE_SIZE, index++) {
 
@@ -2382,7 +2382,7 @@ vm_hold_free_pages(struct buf * bp, vm_offset_t from, vm_offset_t to)
 
 	from = round_page(from);
 	to = round_page(to);
-	newnpages = index = (from - trunc_page(bp->b_data)) >> PAGE_SHIFT;
+	newnpages = index = (from - trunc_page((vm_offset_t)bp->b_data)) >> PAGE_SHIFT;
 
 	for (pg = from; pg < to; pg += PAGE_SIZE, index++) {
 		p = bp->b_pages[index];

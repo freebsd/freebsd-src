@@ -28,7 +28,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: default_pager.c,v 1.14 1998/02/04 22:33:39 eivind Exp $
+ *	$Id: default_pager.c,v 1.15 1998/02/06 12:14:20 eivind Exp $
  */
 
 #include <sys/param.h>
@@ -44,7 +44,7 @@
 #include <vm/default_pager.h>
 #include <vm/swap_pager.h>
 
-static vm_object_t default_pager_alloc __P((void *, vm_size_t, vm_prot_t,
+static vm_object_t default_pager_alloc __P((void *, vm_ooffset_t, vm_prot_t,
 		vm_ooffset_t));
 static void default_pager_dealloc __P((vm_object_t));
 static int default_pager_getpages __P((vm_object_t, vm_page_t *, int, int));
@@ -69,13 +69,13 @@ struct pagerops defaultpagerops = {
  * no_pager_alloc just returns an initialized object.
  */
 static vm_object_t
-default_pager_alloc(void *handle, vm_size_t size, vm_prot_t prot,
+default_pager_alloc(void *handle, vm_ooffset_t size, vm_prot_t prot,
 		    vm_ooffset_t offset)
 {
 	if (handle != NULL)
 		panic("default_pager_alloc: handle specified");
 
-	return vm_object_allocate(OBJT_DEFAULT, OFF_TO_IDX(offset) + size);
+	return vm_object_allocate(OBJT_DEFAULT, OFF_TO_IDX(round_page(offset + size)));
 }
 
 static void

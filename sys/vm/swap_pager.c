@@ -39,7 +39,7 @@
  * from: Utah $Hdr: swap_pager.c 1.4 91/04/30$
  *
  *	@(#)swap_pager.c	8.9 (Berkeley) 3/21/94
- * $Id: swap_pager.c,v 1.100 1998/08/24 08:39:37 dfr Exp $
+ * $Id: swap_pager.c,v 1.101 1998/09/04 08:06:56 dfr Exp $
  */
 
 /*
@@ -136,7 +136,7 @@ static struct pagerlst *swp_qs[] = {
  * pagerops for OBJT_SWAP - "swap pager".
  */
 static vm_object_t
-		swap_pager_alloc __P((void *handle, vm_size_t size,
+		swap_pager_alloc __P((void *handle, vm_ooffset_t size,
 				      vm_prot_t prot, vm_ooffset_t offset));
 static void	swap_pager_dealloc __P((vm_object_t object));
 static boolean_t
@@ -295,7 +295,7 @@ swap_pager_swp_alloc(object, wait)
  * we should not wait for memory as it could resulting in deadlock.
  */
 static vm_object_t
-swap_pager_alloc(void *handle, vm_size_t size, vm_prot_t prot,
+swap_pager_alloc(void *handle, vm_ooffset_t size, vm_prot_t prot,
 		 vm_ooffset_t offset)
 {
 	vm_object_t object;
@@ -317,13 +317,13 @@ swap_pager_alloc(void *handle, vm_size_t size, vm_prot_t prot,
 			 * rip support of "named anonymous regions" out altogether.
 			 */
 			object = vm_object_allocate(OBJT_SWAP,
-				OFF_TO_IDX(offset + PAGE_MASK) + size);
+				OFF_TO_IDX(offset + PAGE_MASK + size));
 			object->handle = handle;
 			(void) swap_pager_swp_alloc(object, M_WAITOK);
 		}
 	} else {
 		object = vm_object_allocate(OBJT_SWAP,
-			OFF_TO_IDX(offset + PAGE_MASK) + size);
+			OFF_TO_IDX(offset + PAGE_MASK + size));
 		(void) swap_pager_swp_alloc(object, M_WAITOK);
 	}
 
