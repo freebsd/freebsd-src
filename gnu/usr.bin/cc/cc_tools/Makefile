@@ -1,10 +1,10 @@
 #
-# $Id: Makefile,v 1.5 1998/01/11 04:13:25 jb Exp $
+# $Id: Makefile,v 1.6 1998/01/25 09:47:46 jb Exp $
 #
 
 #
 # This could probably be merged with ../cc_int/Makefile, but bsd.lib.mk
-# is such a !@#!*#% nightmare because of how it reporgrams the dependencies,
+# is such a !@#!*#% nightmare because of how it reprograms the dependencies,
 # suffix rules, SRCS, etc.  It's easiest to cheat by using bsd.prog.mk and
 # SRCS to get dependencies.
 #
@@ -21,9 +21,9 @@ bc-$i.h:	bi-$i bytecode.def
 bi-$i:	bi-$i.o bi-parser.o bi-lexer.o bi-reverse.o
 	${CC} ${.ALLSRC} -o ${.TARGET}
 
-CLEANFILES+= bi-$i bi-$i.o
 SRCS+= bc-$i.h
-
+LOCOBJS+= bi-$i.o
+CLEANFILES+= bi-$i bi-$i.o
 .endfor
 
 .ORDER: bi-parser.c bi-parser.h
@@ -32,6 +32,7 @@ bi-parser.c bi-parser.h:	bi-parser.y
 
 SRCS+= bi-parser.c bi-parser.h
 
+LOCOBJS+= bi-lexer.o bi-parser.o bi-reverse.o
 CLEANFILES+= bi-lexer.o bi-parser.o bi-reverse.o
 
 #-----------------------------------------------------------------------
@@ -54,6 +55,7 @@ gen$i:	gen$i.o rtl.o obstack.o
 	${CC} ${.ALLSRC} -o ${.TARGET}
 
 gen$i.o:	gen$i.c ${RTL_H}
+LOCOBJS+= gen$i.o
 CLEANFILES+= gen$i gen$i.o
 .endfor
 
@@ -62,9 +64,11 @@ gen$i:	gen$i.o rtl.o rtlanal.o print-rtl.o obstack.o
 	${CC} ${.ALLSRC} -o ${.TARGET}
 
 gen$i.o:	gen$i.c ${RTL_H}
+LOCOBJS+= gen$i.o
 CLEANFILES+= gen$i gen$i.o
 .endfor
 
+LOCOBJS+= print-rtl.o rtl.o rtlanal.o obstack.o
 CLEANFILES+= print-rtl.o rtl.o rtlanal.o obstack.o
 
 #-----------------------------------------------------------------------
@@ -108,26 +112,25 @@ SRCS+=	objc-parse.c objc-parse.h
 CLEANFILES+= objc-parse.y		# insurance
 
 #-----------------------------------------------------------------------
-# C++ parser done in it's own makefile
+# C++ parser done in its own makefile
 #-----------------------------------------------------------------------
-# CPP parser done in it's own makefile
+# CPP parser done in its own makefile
 #-----------------------------------------------------------------------
-# All generates sources are cleaned
+# Everything in ${SRCS} is generated
 CLEANFILES+=	${SRCS}
 
 #-----------------------------------------------------------------------
 all:		${BINFORMAT} ${SRCS}
 
 #-----------------------------------------------------------------------
-# Make 'depend' in compat mode
-.if make(depend)
-.SINGLESHELL:
-.endif
-
 beforedepend:	${BINFORMAT}
 
 #-----------------------------------------------------------------------
 # the host/target compiler config.
+
+COMMONHDRS=	config.h hconfig.h tconfig.h tm.h options.h specs.h
+
+${COMMONHDRS}:	${BINFORMAT}
 
 aout:
 	@rm -f elf
@@ -151,6 +154,14 @@ elf:
 	echo '#include "f2c-specs.h"'                   >> specs.h
 	@touch elf
 
-CLEANFILES+=	config.h hconfig.h tconfig.h tm.h options.h specs.h elf aout
+SRCS+=	${COMMONHDRS}
+CLEANFILES+=	elf aout
+
+# We kept ${LOCOBJS} separate from ${OBJS} because adding all the
+# objects to ${OBJS} would give too many (cyclic) dependencies.
+# Add just enough dependencies for `make -j 1000' to work.
+${LOCOBJS}: ${COMMONHDRS}
+genattrtab.o:	insn-config.h
+genextract.o:	insn-config.h
 
 .include <bsd.prog.mk>
