@@ -686,30 +686,35 @@ kvm_uread(kd, p, uva, buf, len)
 	int fd;
 
 	if (!ISALIVE(kd)) {
-		_kvm_err(kd, kd->program, "cannot read user space from dead kernel");
-		return(0);
+		_kvm_err(kd, kd->program,
+		    "cannot read user space from dead kernel");
+		return (0);
 	}
-
-	cp = buf;
 
 	sprintf(procfile, "/proc/%d/mem", p->p_pid);
 	fd = open(procfile, O_RDONLY, 0);
-
 	if (fd < 0) {
 		_kvm_err(kd, kd->program, "cannot open %s", procfile);
 		close(fd);
 		return (0);
 	}
 
-
+	cp = buf;
 	while (len > 0) {
+		errno = 0;
 		if (lseek(fd, (off_t)uva, 0) == -1 && errno != 0) {
-			_kvm_err(kd, kd->program, "invalid address (%x) in %s", uva, procfile);
+			_kvm_err(kd, kd->program, "invalid address (%x) in %s",
+			    uva, procfile);
 			break;
 		}
 		amount = read(fd, cp, len);
 		if (amount < 0) {
-			_kvm_err(kd, kd->program, "error reading %s", procfile);
+			_kvm_syserr(kd, kd->program, "error reading %s",
+			    procfile);
+			break;
+		}
+		if (amount == 0) {
+			_kvm_err(kd, kd->program, "EOF reading %s", procfile);
 			break;
 		}
 		cp += amount;
@@ -718,5 +723,5 @@ kvm_uread(kd, p, uva, buf, len)
 	}
 
 	close(fd);
-	return (ssize_t)(cp - buf);
+	return ((ssize_t)(cp - buf));
 }
