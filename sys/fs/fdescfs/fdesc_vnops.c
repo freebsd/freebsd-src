@@ -271,8 +271,7 @@ fdesc_getattr(ap)
 
 	switch (VTOFDESC(vp)->fd_type) {
 	case Froot:
-		bzero((caddr_t) vap, sizeof(*vap));
-		vattr_null(vap);
+		VATTR_NULL(vap);
 
 		vap->va_mode = S_IRUSR|S_IXUSR|S_IRGRP|S_IXGRP|S_IROTH|S_IXOTH;
 		vap->va_type = VDIR;
@@ -326,7 +325,7 @@ fdesc_getattr(ap)
 		case DTYPE_KQUEUE:
 			error = fo_stat(fp, &stb, ap->a_p);
 			if (error == 0) {
-				vattr_null(vap);
+				VATTR_NULL(vap);
 				if (fp->f_type == DTYPE_KQUEUE)
 					vap->va_type = VFIFO;
 				else
@@ -337,7 +336,6 @@ fdesc_getattr(ap)
 				vap->va_nlink = 1;
 				vap->va_flags = 0;
 				vap->va_bytes = stb.st_blocks * stb.st_blksize;
-				vap->va_fsid = VNOVAL;
 				vap->va_fileid = VTOFDESC(vp)->fd_ix;
 				vap->va_size = stb.st_size;
 				vap->va_blocksize = stb.st_blksize;
