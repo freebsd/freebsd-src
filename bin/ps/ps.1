@@ -67,10 +67,9 @@
 The
 .Nm
 utility
-displays a header line followed by lines containing information about your
+displays a header line, followed by lines containing information about
+all of your
 processes that have controlling terminals.
-This information is sorted by controlling terminal, then by process
-.Tn ID .
 .Pp
 A different set of processes can be selected for display by using any
 combination of the
@@ -82,6 +81,24 @@ If more than one of these options are given, then
 .Nm
 will select all processes which are matched by at least one of the
 given options.
+.Pp
+For the processes which have been selected for display,
+.Nm
+will usually display one line per process.
+The
+.Fl H
+option may result in multiple output lines (one line per thread) for
+some processes.
+By default all of these output lines are sorted first by controlling
+terminal, then by process
+.Tn ID .
+The
+.Fl m, r, u,
+and
+.Fl v
+options will change the sort order.
+If more than one sorting option was given, then the selected processes
+will be sorted by the last sorting option which was specified.
 .Pp
 For the processes which have been selected for display, the information
 to display is selected based on a set of keywords (see the
@@ -141,7 +158,11 @@ header per page of information.
 Print information associated with the following keywords:
 user, pid, ppid, pgid, jobc, state, tt, time and command.
 .It Fl L
-List the set of available keywords.
+List the set of keywords available for the
+.Fl O
+and
+.Fl o
+options.
 .It Fl l
 Display information associated with the following keywords:
 uid, pid, ppid, cpu, pri, nice, vsz, rss, mwchan, state, tt, time
@@ -150,7 +171,8 @@ and command.
 Extract values associated with the name list from the specified core
 instead of the currently running system.
 .It Fl m
-Sort by memory usage, instead of by process
+Sort by memory usage, instead of the combination of controlling
+terminal and process
 .Tn ID .
 .It Fl N
 Extract the name list from the specified system instead of the default,
@@ -177,7 +199,8 @@ the standard header.
 Display information about processes which match the specified process
 .Tn ID(s) .
 .It Fl r
-Sort by current cpu usage, instead of by process
+Sort by current cpu usage, instead of the combination of controlling
+terminal and process
 .Tn ID .
 .It Fl S
 Change the way the process time is calculated by summing all exited
