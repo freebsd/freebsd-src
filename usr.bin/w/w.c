@@ -42,7 +42,7 @@ static const char copyright[] =
 static char sccsid[] = "@(#)w.c	8.4 (Berkeley) 4/16/94";
 #endif
 static const char rcsid[] =
-	"$Id: w.c,v 1.22 1997/09/12 02:22:21 ache Exp $";
+	"$Id: w.c,v 1.23 1997/09/12 02:26:12 ache Exp $";
 #endif /* not lint */
 
 /*
@@ -399,7 +399,7 @@ pr_header(nowp, nusers)
 {
 	double avenrun[3];
 	time_t uptime;
-	int days, hrs, i, mins;
+	int days, hrs, i, mins, secs;
 	int mib[2];
 	size_t size;
 	char buf[256];
@@ -431,19 +431,21 @@ pr_header(nowp, nusers)
 		hrs = uptime / 3600;
 		uptime %= 3600;
 		mins = uptime / 60;
+		secs = uptime % 60;
 		(void)printf(" up");
 		if (days > 0)
 			(void)printf(" %d day%s,", days, days > 1 ? "s" : "");
 		if (hrs > 0 && mins > 0)
 			(void)printf(" %2d:%02d,", hrs, mins);
-		else {
-			if (hrs > 0)
-				(void)printf(" %d hr%s,",
-				    hrs, hrs > 1 ? "s" : "");
-			if (mins > 0)
-				(void)printf(" %d min%s,",
-				    mins, mins > 1 ? "s" : "");
-		}
+		else if (hrs > 0)
+			(void)printf(" %d hr%s,",
+				     hrs, hrs > 1 ? "s" : "");
+		else if (mins > 0)
+			(void)printf(" %d min%s,",
+				     mins, mins > 1 ? "s" : "");
+		else
+			(void)printf(" %d sec%s,",
+				     secs, secs > 1 ? "s" : "");
 	}
 
 	/* Print number of users logged in to system */
