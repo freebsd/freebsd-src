@@ -514,7 +514,7 @@ vlan_ioctl(struct ifnet *ifp, u_long cmd, caddr_t data)
 			vlan_unconfig(ifp);
 			ifv->ifv_p = 0;
 			if_down(ifp);
-			ifv->if_flags &= ~(IFF_UP|IFF_RUNNING);
+			ifp->if_flags &= ~(IFF_UP|IFF_RUNNING);
 			break;
 		}
 		p = ifunit(vlr.vlr_parent);
