@@ -1,26 +1,37 @@
 # $FreeBSD$
 
-LIB= ypclnt
-SHLIB_MAJOR=1
-SHLIB_MINOR=0
-SRCS=	ypclnt_connect.c ypclnt_error.c ypclnt_free.c ypclnt_new.c \
-	ypclnt_passwd.c
-SRCS+=	${GENSRCS}
-INCS=	ypclnt.h
-CLEANFILES+= ${GENSRCS}
-CFLAGS+= -I.
-WARNS?=	4
-DPADD=	${LIBRPCSVC}
-LDADD=	-lrpcsvc
+LIB		 = ypclnt
+SHLIB_MAJOR	 = 1
+SHLIB_MINOR	 = 0
+SRCS		 =
+SRCS		+= ypclnt_connect.c
+SRCS		+= ypclnt_error.c
+SRCS		+= ypclnt_free.c
+SRCS		+= ypclnt_new.c
+SRCS		+= ypclnt_passwd.c
+SRCS		+= ${GENSRCS}
+INCS		 = ypclnt.h
+CLEANFILES	+= ${GENSRCS}
+CFLAGS		+= -I.
+WARNS		?= 4
+NO_WERROR	 = yes
+DPADD		+= ${LIBRPCSVC}
+LDADD		+= -lrpcsvc
 
-GENSRCS+= yp.h yp_clnt.c \
-	yppasswd.h yppasswd_xdr.c yppasswd_clnt.c yppasswd_private.h \
-	yppasswd_private_clnt.c yppasswd_private_xdr.c
+GENSRCS		 =
+GENSRCS		+= yp.h
+GENSRCS		+= yp_clnt.c
+GENSRCS		+= yppasswd.h
+GENSRCS		+= yppasswd_xdr.c
+GENSRCS		+= yppasswd_clnt.c
+GENSRCS		+= yppasswd_private.h
+GENSRCS		+= yppasswd_private_clnt.c
+GENSRCS		+= yppasswd_private_xdr.c
 
-RPCGEN=	rpcgen -C
-RPCSRC=	${.CURDIR}/../../include/rpcsvc/yp.x
-RPCSRC_PW=	${.CURDIR}/../../include/rpcsvc/yppasswd.x
-RPCSRC_PRIV=	${.CURDIR}/../../usr.sbin/rpc.yppasswdd/yppasswd_private.x
+RPCGEN		 = rpcgen -C
+RPCSRC		 = ${.CURDIR}/../../include/rpcsvc/yp.x
+RPCSRC_PW	 = ${.CURDIR}/../../include/rpcsvc/yppasswd.x
+RPCSRC_PRIV	 = ${.CURDIR}/../../usr.sbin/rpc.yppasswdd/yppasswd_private.x
 
 yp.h: ${RPCSRC}
 	${RPCGEN} -h -o ${.TARGET} ${RPCSRC}
