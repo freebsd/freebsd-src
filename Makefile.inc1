@@ -428,12 +428,11 @@ buildkernel:
 			${KERNCONFDIR}/${_kernel}
 .endif
 .if !defined(NOCLEAN) && !defined(NO_KERNELCLEAN)
-.if defined(MODULES_WITH_WORLD) || defined(NO_MODULES) || !exists(${KRNLSRCDIR}/modules)
 	cd ${KRNLOBJDIR}/${_kernel}; \
-	    ${KMAKEENV} ${MAKE} KERNEL=${INSTKERNNAME} clean
-.else
+	    ${KMAKEENV} ${MAKE} KERNEL=${INSTKERNNAME} -DNO_MODULES clean
+.if !defined(MODULES_WITH_WORLD) && !defined(NO_MODULES) && exists(${KRNLSRCDIR}/modules)
 	cd ${KRNLOBJDIR}/${_kernel}; \
-	    ${KMAKEENV} ${MAKE} KERNEL=${INSTKERNNAME} clean cleandir
+	    ${KMAKEENV} ${MAKE} KERNEL=${INSTKERNNAME} cleandir
 .endif
 .endif
 	cd ${KRNLOBJDIR}/${_kernel}; \
