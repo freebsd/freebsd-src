@@ -37,7 +37,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)vnode_pager.c	7.5 (Berkeley) 4/20/91
- *	$Id: vnode_pager.c,v 1.8 1994/09/06 17:53:24 davidg Exp $
+ *	$Id: vnode_pager.c,v 1.9 1994/10/05 09:48:45 davidg Exp $
  */
 
 /*
@@ -212,9 +212,9 @@ vnode_pager_dealloc(pager)
 {
 	register vn_pager_t vnp = (vn_pager_t) pager->pg_data;
 	register struct vnode *vp;
-	struct proc *p = curproc;	/* XXX */
 
-	if (vp = vnp->vnp_vp) {
+	vp = vnp->vnp_vp;
+	if (vp) {
 		vp->v_vmdata = NULL;
 		vp->v_flag &= ~(VTEXT|VVMIO);
 		vrele(vp);
@@ -243,7 +243,6 @@ vnode_pager_getpage(pager, m, sync)
 	boolean_t sync;
 {
 
-	int     err;
 	vm_page_t marray[1];
 
 	if (pager == NULL)
@@ -259,7 +258,6 @@ vnode_pager_putpage(pager, m, sync)
 	vm_page_t m;
 	boolean_t sync;
 {
-	int     err;
 	vm_page_t marray[1];
 	int     rtvals[1];
 
@@ -609,7 +607,7 @@ vnode_pager_input_smlfs(vnp, m)
 		 */
 		block = foff / bsize + i;
 		s = splbio();
-		while (bp = incore(vp, block)) {
+		while ((bp = incore(vp, block)) != 0) {
 			int     amount;
 
 			/*
@@ -710,7 +708,6 @@ vnode_pager_input_old(vnp, m)
 	vn_pager_t vnp;
 	vm_page_t m;
 {
-	int     i;
 	struct uio auio;
 	struct iovec aiov;
 	int     error;
@@ -771,10 +768,9 @@ vnode_pager_input(vnp, m, count, reqpage)
 	vm_page_t *m;
 	int     count, reqpage;
 {
-	int     i, j;
+	int     i;
 	vm_offset_t kva, foff;
 	int     size, sizea;
-	struct proc *p = curproc;	/* XXX */
 	vm_object_t object;
 	vm_offset_t paging_offset;
 	struct vnode *dp, *vp;
@@ -784,7 +780,6 @@ vnode_pager_input(vnp, m, count, reqpage)
 	int     reqaddr, firstaddr;
 	int     block, offset;
 
-	int     nbp;
 	struct buf *bp, *bpa;
 	int	counta;
 	int     s;
@@ -861,7 +856,7 @@ vnode_pager_input(vnp, m, count, reqpage)
 		/*
 		 * if we have a buffer in core, then try to use it
 		 */
-		while (bp = incore(vp, block)) {
+		while ((bp = incore(vp, block)) != 0) {
 			int     amount;
 
 			/*
@@ -1214,7 +1209,6 @@ vnode_pager_output_smlfs(vnp, m)
 	vm_offset_t foff;
 	vm_offset_t kva;
 	int     fileaddr;
-	int     block;
 	vm_offset_t bsize;
 	int     error = 0;
 
@@ -1233,7 +1227,8 @@ vnode_pager_output_smlfs(vnp, m)
 		fileaddr = vnode_pager_addr(vp, foff + i * bsize);
 		if (fileaddr != -1) {
 			s = splbio();
-			if (bp = incore(vp, (foff / bsize) + i)) {
+			bp = incore(vp, (foff / bsize) + i);
+			if (bp) {
 				bp = getblk(vp, (foff / bsize) + i, bp->b_bufsize, 0, 0);
 				bp->b_flags |= B_INVAL;
 				brelse(bp);
@@ -1302,7 +1297,6 @@ vnode_pager_output(vnp, m, count, rtvals)
 	int     i, j;
 	vm_offset_t kva, foff;
 	int     size;
-	struct proc *p = curproc;	/* XXX */
 	vm_object_t object;
 	vm_offset_t paging_offset;
 	struct vnode *dp, *vp;
@@ -1416,7 +1410,8 @@ retryoutput:
 			struct buf *fbp;
 
 			s = splbio();
-			if (fbp = incore(vp, filblock)) {
+			fbp = incore(vp, filblock);
+			if (fbp) {
 				fbp = getblk(vp, filblock, fbp->b_bufsize, 0, 0);
 				if (fbp->b_flags & B_DELWRI) {
 					if (fbp->b_bufsize <= PAGE_SIZE)

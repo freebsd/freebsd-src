@@ -37,7 +37,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)vm_pager.h	8.4 (Berkeley) 1/12/94
- * $Id$
+ * $Id: vm_pager.h,v 1.3 1994/08/02 07:55:36 davidg Exp $
  */
 
 /*
@@ -125,10 +125,12 @@ boolean_t	 vm_pager_has_page __P((vm_pager_t, vm_offset_t));
 void		 vm_pager_init __P((void));
 vm_pager_t	 vm_pager_lookup __P((struct pagerlst *, caddr_t));
 vm_offset_t	 vm_pager_map_pages __P((vm_page_t *, int, boolean_t));
+vm_offset_t	 vm_pager_map_page __P((vm_page_t));
 int		 vm_pager_put_pages
 		    __P((vm_pager_t, vm_page_t *, int, boolean_t, int *));
 void		 vm_pager_sync __P((void));
 void		 vm_pager_unmap_pages __P((vm_offset_t, int));
+void		 vm_pager_unmap_page __P((vm_offset_t));
 
 #define vm_pager_cancluster(p, b)	((p)->pg_flags & (b))
 

@@ -61,7 +61,7 @@
  * any improvements or extensions that they make and grant Carnegie the
  * rights to redistribute these changes.
  *
- * $Id: vm_pageout.h,v 1.4 1994/08/18 22:36:08 wollman Exp $
+ * $Id: vm_pageout.h,v 1.5 1994/08/21 07:19:45 paul Exp $
  */
 
 #ifndef _VM_VM_PAGEOUT_H_
@@ -112,6 +112,7 @@ inline static void vm_wait() {
 int		 vm_pageout_scan __P((void));
 void		 vm_pageout_page __P((vm_page_t, vm_object_t));
 void		 vm_pageout_cluster __P((vm_page_t, vm_object_t));
+int		vm_pageout_clean __P((vm_page_t, int));
 #endif
 
 #endif
