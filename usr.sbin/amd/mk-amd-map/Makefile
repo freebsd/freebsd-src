@@ -9,5 +9,6 @@
 .PATH:		${.CURDIR}/../../../contrib/amd/mk-amd-map
 
 PROG=		mk-amd-map
+SRCS=		mk-amd-map.c
 
 .include <bsd.prog.mk>
