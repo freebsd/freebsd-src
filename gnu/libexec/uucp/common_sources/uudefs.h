@@ -1,7 +1,7 @@
 /* uudefs.h
    Miscellaneous definitions for the UUCP package.
 
-   Copyright (C) 1991, 1992, 1993 Ian Lance Taylor
+   Copyright (C) 1991, 1992, 1993, 1995 Ian Lance Taylor
 
    This file is part of the Taylor UUCP package.
 
@@ -17,10 +17,10 @@
 
    You should have received a copy of the GNU General Public License
    along with this program; if not, write to the Free Software
-   Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
+   Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 
    The author of the program may be contacted at ian@airs.com or
-   c/o Cygnus Support, Building 200, 1 Kendall Square, Cambridge, MA 02139.
+   c/o Cygnus Support, 48 Grove Street, Somerville, MA 02144.
    */
 
 #if ANSI_C
@@ -93,6 +93,9 @@ struct sstatus
   long ilast;
   /* Number of seconds until a retry is permitted.  */
   int cwait;
+  /* String in status file.  Only used when reading status file, not
+     when writing.  May be NULL.  Should be freed with ubuffree.  */
+  char *zstring;
 };
 
 /* How long we have to wait for the next call, given the number of retries
@@ -323,7 +326,7 @@ extern void ulog_close P((void));
 extern void ustats P((boolean fsucceeded, const char *zuser,
 		      const char *zsystem, boolean fsent,
 		      long cbytes, long csecs, long cmicros,
-		      boolean fmaster));
+		      boolean fcaller));
 
 /* Close the statistics file.  */
 extern void ustats_close P((void));
@@ -349,11 +352,13 @@ extern int idebug_parse P((const char *));
 
 /* Copy one file to another.  */
 extern boolean fcopy_file P((const char *zfrom, const char *zto,
-			     boolean fpublic, boolean fmkdirs));
+			     boolean fpublic, boolean fmkdirs,
+			     boolean fsignals));
 
 /* Copy an open file to another.  */
 extern boolean fcopy_open_file P((openfile_t efrom, const char *zto,
-				  boolean fpublic, boolean fmkdirs));
+				  boolean fpublic, boolean fmkdirs,
+				  boolean fsignals));
 
 /* Translate escape sequences in a buffer, leaving the result in the
    same buffer and returning the length.  */

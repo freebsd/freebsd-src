@@ -86,7 +86,7 @@ main(int argc,char *argv[])
   int child;			/* pid of child process */
   int stat;			/* exit status of child process */
   char *temp;			/* used to get basename of dialer */
-
+  
   if(argc!=5)
   {
     fprintf(stderr,kUsage,argv[0],argv[0]);
@@ -95,9 +95,9 @@ main(int argc,char *argv[])
 
   dialerPath=argv[1];
   dialerName= (temp=strrchr(argv[1],'/'))!=NULL ? temp+1 : argv[1];
-
+  
   parent=getpid();
-
+  
   signal(SIGUSR1,badExec);	/* set up for possible failed exec */
 
   if((child=fork())<0)
@@ -111,7 +111,7 @@ main(int argc,char *argv[])
     signal(SIGHUP,SIG_IGN);
     signal(SIGINT,SIG_IGN);
     signal(SIGTERM,SIG_IGN);
-
+    
     wait(&stat);		/* wait for child to exit */
     exit(figureStat(stat));	/* figure out our exit code and die */
   }
@@ -125,7 +125,7 @@ main(int argc,char *argv[])
       kill(parent,SIGUSR1);
       exit(0);
     }
-  }
+  }  
   exit(0);
 }
 
@@ -136,7 +136,7 @@ int figureStat(int stat)
   int exit;
   int errFlag;
   int error;
-
+  
   if(WIFSIGNALED(stat))		/* determine if exit was from signal or what */
   {
     fprintf(stderr,"Error: Dialer %s recieved signal %d.\n",dialerName,

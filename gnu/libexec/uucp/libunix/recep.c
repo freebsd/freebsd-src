@@ -1,7 +1,7 @@
 /* recep.c
    See whether a file has already been received.
 
-   Copyright (C) 1992, 1993 Ian Lance Taylor
+   Copyright (C) 1992, 1993, 1995 Ian Lance Taylor
 
    This file is part of the Taylor UUCP package.
 
@@ -17,10 +17,10 @@
 
    You should have received a copy of the GNU General Public License
    along with this program; if not, write to the Free Software
-   Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
+   Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 
    The author of the program may be contacted at ian@airs.com or
-   c/o Cygnus Support, Building 200, 1 Kendall Square, Cambridge, MA 02139.
+   c/o Cygnus Support, 48 Grove Street, Somerville, MA 02144.
    */
 
 #include "uucp.h"
@@ -50,7 +50,7 @@ static char *zsreceived_name P((const struct uuconf_system *qsys,
 /* These routines are used to see whether we have already received a
    file in a previous UUCP connection.  It is possible for the
    acknowledgement of a received file to be lost.  The sending system
-   will then now know that the file was correctly received, and will
+   will then not know that the file was correctly received, and will
    send it again.  This can be a problem particularly with protocols
    which support channels, since they may send several small files in
    a single window, all of which may be received correctly although

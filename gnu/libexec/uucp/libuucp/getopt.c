@@ -9,15 +9,15 @@
    under the terms of the GNU General Public License as published by the
    Free Software Foundation; either version 2, or (at your option) any
    later version.
-
+   
    This program is distributed in the hope that it will be useful,
    but WITHOUT ANY WARRANTY; without even the implied warranty of
    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
    GNU General Public License for more details.
-
+   
    You should have received a copy of the GNU General Public License
    along with this program; if not, write to the Free Software
-   Foundation, 675 Mass Ave, Cambridge, MA 02139, USA.
+   Foundation, 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 
    This file was modified slightly by Ian Lance Taylor, June 1992, for
    Taylor UUCP.  */
@@ -488,7 +488,7 @@ _getopt_internal (argc, argv, optstring, longopts, longind, long_only)
 	  {
 	    if (c < 040 || c >= 0177)
 	      fprintf (stderr, "%s: unrecognized option, character code 0%o\n",
-		       argv[0], (unsigned int) c);
+		       argv[0], BUCHAR (c));
 	    else
 	      fprintf (stderr, "%s: unrecognized option `-%c'\n", argv[0], c);
 	  }
