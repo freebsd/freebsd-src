@@ -171,7 +171,7 @@ struct input_file {
  */
 #define pushf(x) 			\
 	do {				\
-		if (++sp == STACKMAX) 	\
+		if ((uintptr_t)++sp == STACKMAX) 	\
 			enlarge_stack();\
 		mstack[sp].sfra = (x);	\
 		sstack[sp] = 0; \
@@ -179,7 +179,7 @@ struct input_file {
 
 #define pushs(x) 			\
 	do {				\
-		if (++sp == STACKMAX) 	\
+		if ((uintptr_t)++sp == STACKMAX) 	\
 			enlarge_stack();\
 		mstack[sp].sstr = (x);	\
 		sstack[sp] = 1; \
@@ -187,7 +187,7 @@ struct input_file {
 
 #define pushs1(x) 			\
 	do {				\
-		if (++sp == STACKMAX) 	\
+		if ((uintptr_t)++sp == STACKMAX) 	\
 			enlarge_stack();\
 		mstack[sp].sstr = (x);	\
 		sstack[sp] = 0; \
