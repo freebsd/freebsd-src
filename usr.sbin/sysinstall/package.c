@@ -114,9 +114,12 @@ package_exists(char *name)
 int
 package_extract(Device *dev, char *name, Boolean depended)
 {
-    char path[511];
-    int ret, last_msg = 0;
+    char path[MAXPATHLEN];
+    const char *PkgExts[] = { "", ".tbz", ".tbz2", ".tgz" };
+    int ext, last_msg, pathend, ret;
     FILE *fp;
+
+    last_msg = 0;
 
     /* Check to make sure it's not already there */
     if (package_exists(name))
@@ -145,15 +148,20 @@ package_extract(Device *dev, char *name, Boolean depended)
 
     if (!index(name, '/')) {
 	if (!strpbrk(name, "-_"))
-	    sprintf(path, "packages/Latest/%s.tgz", name);
+	    pathend = snprintf(path, sizeof path, "packages/Latest/%s", name);
 	else
-	    sprintf(path, "packages/All/%s%s", name, strstr(name, ".tgz") ? "" : ".tgz");
+	    pathend = snprintf(path, sizeof path, "packages/All/%s", name);
     }
     else
-	sprintf(path, "%s%s", name, strstr(name, ".tgz") ? "" : ".tgz");
+	pathend = snprintf(path, sizeof path, "%s", name);
 
     /* We have a path, call the device strategy routine to get the file */
-    fp = DEVICE_GET(dev, path, TRUE);
+    for (ext = 0 ; ext < sizeof PkgExts / sizeof PkgExts[0]; ++ext) {
+	strlcpy(path + pathend, PkgExts[ext], sizeof path - pathend);
+	if ((fp = DEVICE_GET(dev, path, TRUE)))
+	    break;
+    }
+
     if (fp) {
 	int i = 0, tot, pfd[2];
 	pid_t pid;
