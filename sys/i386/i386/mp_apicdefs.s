@@ -23,9 +23,15 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id$
+ *	$Id: mp_apicdefs.s,v 1.1 1997/06/22 16:03:16 peter Exp $
  */
 
+	.globl	lapic_eoi, lapic_svr, lapic_tpr, lapic_irr1, lapic_ver
+/*
+ * Do not clutter our namespace with these unless we need them
+ * outside the scope of locore.s
+ */
+#if 0
 	.globl	lapic_id,lapic_ver,lapic_tpr,lapic_apr,lapic_ppr,lapic_eoi
 	.globl	lapic_ldr,lapic_dfr,lapic_svr,lapic_isr,lapic_isr0,lapic_isr1
 	.globl	lapic_isr2,lapic_isr3,lapic_isr4,lapic_isr5,lapic_isr6
@@ -35,7 +41,7 @@
 	.globl	lapic_irr4,lapic_irr5,lapic_irr6,lapic_irr7,lapic_esr
 	.globl	lapic_icr_lo,lapic_icr_hi,lapic_lvtt,lapic_pcint,lapic_lvt1
 	.globl	lapic_lvt2,lapic_lvt3,lapic_ticr,lapic_tccr,lapic_tdcr
-
+#endif
 	.set	lapic_id,	_lapic + 0x020
 	.set	lapic_ver,	_lapic + 0x030
 	.set	lapic_tpr,	_lapic + 0x080
