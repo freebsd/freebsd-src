@@ -108,14 +108,14 @@ __bswap16_var(__uint32_t v)
      (((x) & 0x00ff) << 8))
 
 #define __bswap16(x)	\
-    (__builtin_constant_p(x) ?	\
-     __bswap16_constant(x) : \
-     __bswap16_var(x))
+    ((__uint16_t)(__builtin_constant_p(x) ?	\
+     __bswap16_constant(x) :			\
+     __bswap16_var(x)))
 
 #define __bswap32(x)	\
-    (__builtin_constant_p(x) ? 	\
-     __bswap32_constant(x) : \
-     __bswap32_var(x))
+    ((__uint32_t)(__builtin_constant_p(x) ? 	\
+     __bswap32_constant(x) :			\
+     __bswap32_var(x)))
 
 #else
 #define __bswap16(x)	__bswap16_var(x)
