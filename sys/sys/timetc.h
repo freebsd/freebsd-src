@@ -30,12 +30,14 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	@(#)time.h	8.1 (Berkeley) 6/2/93
- * $Id: time.h,v 1.5 1994/10/10 00:58:36 phk Exp $
+ *	@(#)time.h	8.5 (Berkeley) 5/4/95
+ * $Id: time.h,v 1.7 1996/02/24 07:41:46 hsu Exp $
  */
 
 #ifndef _SYS_TIME_H_
 #define _SYS_TIME_H_
+
+#include <sys/types.h>
 
 /*
  * Structure returned by gettimeofday(2) system call,
@@ -50,7 +52,7 @@ struct timeval {
  * Structure defined by POSIX.4 to be like a timeval.
  */
 struct timespec {
-	long	ts_sec;		/* seconds */
+	time_t	ts_sec;		/* seconds */
 	long	ts_nsec;	/* and nanoseconds */
 };
 
@@ -107,14 +109,12 @@ struct clockinfo {
 };
 
 #ifdef KERNEL
-
-int	itimerdecr __P((struct itimerval *itp,int usec));
-int	itimerfix __P((struct timeval *));
-void	microtime __P((struct timeval *));
+int	itimerfix __P((struct timeval *tv));
+int	itimerdecr __P((struct itimerval *itp, int usec));
+void	microtime __P((struct timeval *tv));
 void	timevaladd __P((struct timeval *, struct timeval *));
 void	timevalsub __P((struct timeval *, struct timeval *));
-
-#else /* not KERNEL */
+#else /* !KERNEL */
 #include <time.h>
 
 #ifndef _POSIX_SOURCE
