@@ -1942,6 +1942,8 @@ vat		3456/tcp   #VAT default data
 vat		3456/udp   #VAT default data
 vat-control	3457/tcp   #VAT default control
 vat-control	3457/udp   #VAT default control
+svn		3690/tcp   #Subversion
+svn		3690/udp   #Subversion
 udt_os		3900/tcp   #Unidata UDT OS
 udt_os		3900/udp   #Unidata UDT OS
 netcheque	4008/tcp   #NetCheque accounting
