@@ -33,7 +33,7 @@
  */
 
 #ifndef lint
-static char sccsid[] = "@(#)savemail.c	8.87 (Berkeley) 10/28/95";
+static char sccsid[] = "@(#)savemail.c	8.87.1.2 (Berkeley) 9/16/96";
 #endif /* not lint */
 
 # include "sendmail.h"
@@ -376,8 +376,7 @@ savemail(e, sendbody)
 				break;
 			}
 
-			strcpy(buf, _PATH_VARTMP);
-			strcat(buf, "dead.letter");
+			snprintf(buf, sizeof buf, "%sdead.letter", _PATH_VARTMP);
 
 			sfflags = SFF_NOSLINK|SFF_CREAT|SFF_REGONLY|SFF_ROOTOK|SFF_OPENASROOT;
 			if (!writable(buf, NULL, sfflags) ||
@@ -555,10 +554,10 @@ returntosender(msg, returnq, sendbody, e)
 	{
 		addheader("MIME-Version", "1.0", &ee->e_header);
 
-		(void) sprintf(buf, "%s.%ld/%.100s",
+		(void) snprintf(buf, sizeof buf, "%s.%ld/%.100s",
 			ee->e_id, curtime(), MyHostName);
 		ee->e_msgboundary = newstr(buf);
-		(void) sprintf(buf,
+		(void) snprintf(buf, sizeof buf,
 #if DSN
 			"multipart/report; report-type=delivery-status;\n\tboundary=\"%s\"",
 #else
@@ -592,11 +591,12 @@ returntosender(msg, returnq, sendbody, e)
 	}
 	else
 	{
-		sprintf(buf, "Returned mail: %.*s", sizeof buf - 20, msg);
+		snprintf(buf, sizeof buf, "Returned mail: %.*s",
+			sizeof buf - 20, msg);
 		addheader("Subject", buf, &ee->e_header);
 		p = "failure";
 	}
-	(void) sprintf(buf, "auto-generated (%s)", p);
+	(void) snprintf(buf, sizeof buf, "auto-generated (%s)", p);
 	addheader("Auto-Submitted", buf, &ee->e_header);
 
 	/* fake up an address header for the from person */
@@ -690,7 +690,7 @@ errbody(mci, e, separator)
 	{
 		putline("This is a MIME-encapsulated message", mci);
 		putline("", mci);
-		(void) sprintf(buf, "--%s", e->e_msgboundary);
+		(void) snprintf(buf, sizeof buf, "--%s", e->e_msgboundary);
 		putline(buf, mci);
 		putline("", mci);
 	}
@@ -715,7 +715,7 @@ errbody(mci, e, separator)
 			mci);
 		putline("", mci);
 	}
-	sprintf(buf, "The original message was received at %s",
+	snprintf(buf, sizeof buf, "The original message was received at %s",
 		arpadate(ctime(&e->e_parent->e_ctime)));
 	putline(buf, mci);
 	expand("from \201_", buf, sizeof buf, e->e_parent);
@@ -790,11 +790,12 @@ errbody(mci, e, separator)
 			printheader = FALSE;
 		}
 
-		sprintf(buf, "%s  (%s)", shortenstring(q->q_paddr, 203), p);
+		snprintf(buf, sizeof buf, "%s  (%s)",
+			shortenstring(q->q_paddr, 203), p);
 		putline(buf, mci);
 		if (q->q_alias != NULL)
 		{
-			sprintf(buf, "    (expanded from: %s)",
+			snprintf(buf, sizeof buf, "    (expanded from: %s)",
 				shortenstring(q->q_alias->q_paddr, 203));
 			putline(buf, mci);
 		}
@@ -837,7 +838,7 @@ errbody(mci, e, separator)
 	if (e->e_msgboundary != NULL)
 	{
 		putline("", mci);
-		(void) sprintf(buf, "--%s", e->e_msgboundary);
+		(void) snprintf(buf, sizeof buf, "--%s", e->e_msgboundary);
 		putline(buf, mci);
 		putline("Content-Type: message/delivery-status", mci);
 		putline("", mci);
@@ -849,13 +850,13 @@ errbody(mci, e, separator)
 		/* original envelope id from MAIL FROM: line */
 		if (e->e_parent->e_envid != NULL)
 		{
-			(void) sprintf(buf, "Original-Envelope-Id: %.800s",
+			(void) snprintf(buf, sizeof buf, "Original-Envelope-Id: %.800s",
 				xuntextify(e->e_parent->e_envid));
 			putline(buf, mci);
 		}
 
 		/* Reporting-MTA: is us (required) */
-		(void) sprintf(buf, "Reporting-MTA: dns; %.800s", MyHostName);
+		(void) snprintf(buf, sizeof buf, "Reporting-MTA: dns; %.800s", MyHostName);
 		putline(buf, mci);
 
 		/* DSN-Gateway: not relevant since we are not translating */
@@ -867,13 +868,13 @@ errbody(mci, e, separator)
 			if (e->e_parent->e_from.q_mailer == NULL ||
 			    (p = e->e_parent->e_from.q_mailer->m_mtatype) == NULL)
 				p = "dns";
-			(void) sprintf(buf, "Received-From-MTA: %s; %.800s",
+			(void) snprintf(buf, sizeof buf, "Received-From-MTA: %s; %.800s",
 				p, RealHostName);
 			putline(buf, mci);
 		}
 
 		/* Arrival-Date: -- when it arrived here */
-		(void) sprintf(buf, "Arrival-Date: %s",
+		(void) snprintf(buf, sizeof buf, "Arrival-Date: %s",
 			arpadate(ctime(&e->e_parent->e_ctime)));
 		putline(buf, mci);
 
@@ -911,7 +912,7 @@ errbody(mci, e, separator)
 			/* Original-Recipient: -- passed from on high */
 			if (q->q_orcpt != NULL)
 			{
-				(void) sprintf(buf, "Original-Recipient: %.800s",
+				(void) snprintf(buf, sizeof buf, "Original-Recipient: %.800s",
 					q->q_orcpt);
 				putline(buf, mci);
 			}
@@ -924,12 +925,14 @@ errbody(mci, e, separator)
 				continue;
 			if (strchr(r->q_user, '@') == NULL)
 			{
-				(void) sprintf(buf, "Final-Recipient: %s; %.700s@%.100s",
+				(void) snprintf(buf, sizeof buf,
+					"Final-Recipient: %s; %.700s@%.100s",
 					p, r->q_user, MyHostName);
 			}
 			else
 			{
-				(void) sprintf(buf, "Final-Recipient: %s; %.800s",
+				(void) snprintf(buf, sizeof buf,
+					"Final-Recipient: %s; %.800s",
 					p, r->q_user);
 			}
 			putline(buf, mci);
@@ -939,31 +942,33 @@ errbody(mci, e, separator)
 			{
 				if (strchr(q->q_user, '@') == NULL)
 				{
-					(void) sprintf(buf, "X-Actual-Recipient: %s; %.700s@%.100s",
+					(void) snprintf(buf, sizeof buf,
+						"X-Actual-Recipient: %s; %.700s@%.100s",
 						p, q->q_user, MyHostName);
 				}
 				else
 				{
-					(void) sprintf(buf, "X-Actual-Recipient: %s; %.800s",
+					(void) snprintf(buf, sizeof buf,
+						"X-Actual-Recipient: %s; %.800s",
 						p, q->q_user);
 				}
 				putline(buf, mci);
 			}
 
 			/* Action: -- what happened? */
-			sprintf(buf, "Action: %s", action);
+			snprintf(buf, sizeof buf, "Action: %s", action);
 			putline(buf, mci);
 
 			/* Status: -- what _really_ happened? */
-			strcpy(buf, "Status: ");
 			if (q->q_status != NULL)
-				strcat(buf, q->q_status);
+				p = q->q_status;
 			else if (bitset(QBADADDR, q->q_flags))
-				strcat(buf, "5.0.0");
+				p = "5.0.0";
 			else if (bitset(QQUEUEUP, q->q_flags))
-				strcat(buf, "4.0.0");
+				p = "4.0.0";
 			else
-				strcat(buf, "2.0.0");
+				p = "2.0.0";
+			snprintf(buf, sizeof buf, "Status: %s", p);
 			putline(buf, mci);
 
 			/* Remote-MTA: -- who was I talking to? */
@@ -972,7 +977,8 @@ errbody(mci, e, separator)
 				if (q->q_mailer == NULL ||
 				    (p = q->q_mailer->m_mtatype) == NULL)
 					p = "dns";
-				(void) sprintf(buf, "Remote-MTA: %s; %.800s",
+				(void) snprintf(buf, sizeof buf,
+					"Remote-MTA: %s; %.800s",
 					p, q->q_statmta);
 				p = &buf[strlen(buf) - 1];
 				if (*p == '.')
@@ -986,7 +992,8 @@ errbody(mci, e, separator)
 				p = q->q_mailer->m_diagtype;
 				if (p == NULL)
 					p = "smtp";
-				(void) sprintf(buf, "Diagnostic-Code: %s; %.800s",
+				(void) snprintf(buf, sizeof buf,
+					"Diagnostic-Code: %s; %.800s",
 					p, q->q_rstatus);
 				putline(buf, mci);
 			}
@@ -994,7 +1001,8 @@ errbody(mci, e, separator)
 			/* Last-Attempt-Date: -- fine granularity */
 			if (q->q_statdate == (time_t) 0L)
 				q->q_statdate = curtime();
-			(void) sprintf(buf, "Last-Attempt-Date: %s",
+			(void) snprintf(buf, sizeof buf,
+				"Last-Attempt-Date: %s",
 				arpadate(ctime(&q->q_statdate)));
 			putline(buf, mci);
 
@@ -1006,7 +1014,8 @@ errbody(mci, e, separator)
 
 				xdate = e->e_parent->e_ctime +
 					TimeOuts.to_q_return[e->e_parent->e_timeoutclass];
-				sprintf(buf, "Will-Retry-Until: %s",
+				snprintf(buf, sizeof buf,
+					"Will-Retry-Until: %s",
 					arpadate(ctime(&xdate)));
 				putline(buf, mci);
 			}
@@ -1034,10 +1043,11 @@ errbody(mci, e, separator)
 		}
 		else
 		{
-			(void) sprintf(buf, "--%s", e->e_msgboundary);
+			(void) snprintf(buf, sizeof buf, "--%s",
+				e->e_msgboundary);
 
 			putline(buf, mci);
-			(void) sprintf(buf, "Content-Type: %s",
+			(void) snprintf(buf, sizeof buf, "Content-Type: %s",
 				sendbody ? "message/rfc822"
 					 : "text/rfc822-headers");
 			putline(buf, mci);
@@ -1049,7 +1059,7 @@ errbody(mci, e, separator)
 				p = "8bit";
 			if (p != NULL)
 			{
-				(void) sprintf(buf, "Content-Transfer-Encoding: %s",
+				(void) snprintf(buf, sizeof buf, "Content-Transfer-Encoding: %s",
 					p);
 				putline(buf, mci);
 			}
@@ -1072,7 +1082,7 @@ errbody(mci, e, separator)
 	if (e->e_msgboundary != NULL)
 	{
 		putline("", mci);
-		(void) sprintf(buf, "--%s--", e->e_msgboundary);
+		(void) snprintf(buf, sizeof buf, "--%s--", e->e_msgboundary);
 		putline(buf, mci);
 	}
 	putline("", mci);
@@ -1351,6 +1361,7 @@ pruneroute(addr)
 	char *start, *at, *comma;
 	char c;
 	int rcode;
+	int i;
 	char hostbuf[BUFSIZ];
 	char *mxhosts[MAXMXHOSTS + 1];
 
@@ -1363,8 +1374,11 @@ pruneroute(addr)
 		return FALSE;
 
 	/* slice off the angle brackets */
+	i = strlen(at + 1);
+	if (i >= (SIZE_T) sizeof hostbuf)
+		return FALSE;
 	strcpy(hostbuf, at + 1);
-	hostbuf[strlen(hostbuf) - 1] = '\0';
+	hostbuf[i - 1] = '\0';
 
 	while (start)
 	{
@@ -1376,10 +1390,11 @@ pruneroute(addr)
 		c = *start;
 		*start = '\0';
 		comma = strrchr(addr, ',');
-		if (comma && comma[1] == '@')
+		if (comma != NULL && comma[1] == '@' &&
+		    strlen(comma + 2) < (SIZE_T) sizeof hostbuf)
 			strcpy(hostbuf, comma + 2);
 		else
-			comma = 0;
+			comma = NULL;
 		*start = c;
 		start = comma;
 	}

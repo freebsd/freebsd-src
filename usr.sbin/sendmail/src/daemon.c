@@ -37,9 +37,9 @@
 
 #ifndef lint
 #ifdef DAEMON
-static char sccsid[] = "@(#)daemon.c	8.119 (Berkeley) 11/29/95 (with daemon mode)";
+static char sccsid[] = "@(#)daemon.c	8.119.1.2 (Berkeley) 9/16/96 (with daemon mode)";
 #else
-static char sccsid[] = "@(#)daemon.c	8.119 (Berkeley) 11/29/95 (without daemon mode)";
+static char sccsid[] = "@(#)daemon.c	8.119.1.2 (Berkeley) 9/16/96 (without daemon mode)";
 #endif
 #endif /* not lint */
 
@@ -1093,7 +1093,8 @@ getauthinfo(fd)
 	if (isatty(fd) || getpeername(fd, &RealHostAddr.sa, &falen) < 0 ||
 	    falen <= 0 || RealHostAddr.sa.sa_family == 0)
 	{
-		(void) sprintf(hbuf, "%s@localhost", RealUserName);
+		(void) snprintf(hbuf, sizeof hbuf, "%s@localhost",
+			RealUserName);
 		if (tTd(9, 1))
 			printf("getauthinfo: %s\n", hbuf);
 		return hbuf;
@@ -1118,7 +1119,7 @@ getauthinfo(fd)
 	}
 
 	/* create ident query */
-	(void) sprintf(ibuf, "%d,%d\r\n",
+	(void) snprintf(ibuf, sizeof ibuf, "%d,%d\r\n",
 		ntohs(RealHostAddr.sin.sin_port), ntohs(la.sin.sin_port));
 
 	/* create local address */
@@ -1228,8 +1229,8 @@ getauthinfo(fd)
 	/* p now points to the authenticated name -- copy carefully */
 	cleanstrcpy(hbuf, p, MAXNAME);
 	i = strlen(hbuf);
-	hbuf[i++] = '@';
-	strcpy(&hbuf[i], RealHostName == NULL ? "localhost" : RealHostName);
+	snprintf(&hbuf[i], sizeof hbuf - i, "@%s",
+		RealHostName == NULL ? "localhost" : RealHostName);
 	goto postident;
 
 closeident:
@@ -1243,7 +1244,7 @@ noident:
 			printf("getauthinfo: NULL\n");
 		return NULL;
 	}
-	(void) strcpy(hbuf, RealHostName);
+	snprintf(hbuf, sizeof hbuf, "%s", RealHostName);
 
 postident:
 #if IP_SRCROUTE
@@ -1265,6 +1266,7 @@ postident:
 		int ipoptlen, j;
 		u_char *q;
 		u_char *o;
+		int l;
 		struct in_addr addr;
 		struct ipoption ipopt;
 
@@ -1290,10 +1292,14 @@ postident:
 			  case IPOPT_SSRR:
 			  case IPOPT_LSRR:
 				p = &hbuf[strlen(hbuf)];
-				sprintf(p, " [%s@%.120s",
+				l = sizeof hbuf - (hbuf - p) - 6;
+				snprintf(p, SPACELEFT(hbuf, p), " [%s@%.*s",
 				    *o == IPOPT_SSRR ? "!" : "",
+				    l > 240 ? 120 : l / 2,
 				    inet_ntoa(ipopt.ipopt_dst));
-				p += strlen(p);
+				i = strlen(p);
+				p += i;
+				l -= strlen(p);
 
 				/* o[1] is option length */
 				j = *++o / sizeof(struct in_addr) - 1;
@@ -1303,10 +1309,15 @@ postident:
 				for ( ; j >= 0; j--)
 				{
 					memcpy(&addr, q, sizeof(addr));
-					sprintf(p, "%c%.120s",
-						     j ? '@' : ':',
-						     inet_ntoa(addr));
-					p += strlen(p);
+					snprintf(p, SPACELEFT(hbuf, p),
+						"%c%.*s",
+						j != 0 ? '@' : ':',
+						l > 240 ? 120 :
+						    j == 0 ? l : l / 2,
+						inet_ntoa(addr));
+					i = strlen(p);
+					p += i;
+					l -= i + 1;
 					q += sizeof(struct in_addr); 
 				}
 				o += *o;
@@ -1318,7 +1329,7 @@ postident:
 				break;
 			}
 		}
-		strcat(hbuf,"]");
+		snprintf(p, SPACELEFT(hbuf, p), "]");
 		goto postipsr;
 	}
 #endif
@@ -1327,7 +1338,8 @@ noipsr:
 	if (RealHostName != NULL && RealHostName[0] != '[')
 	{
 		p = &hbuf[strlen(hbuf)];
-		(void) sprintf(p, " [%.100s]", anynet_ntoa(&RealHostAddr));
+		(void) snprintf(p, SPACELEFT(hbuf, p), " [%.100s]",
+			anynet_ntoa(&RealHostAddr));
 	}
 
 postipsr:
@@ -1426,12 +1438,7 @@ host_map_lookup(map, name, av, statp)
 			printf("host_map_lookup(%s) => ", name);
 		s->s_namecanon.nc_flags |= NCF_VALID;		/* will be soon */
 		if (strlen(name) < sizeof hbuf)
-			(void) strcpy(hbuf, name);
-		else
-		{
-			bcopy(name, hbuf, sizeof hbuf - 1);
-			hbuf[sizeof hbuf - 1] = '\0';
-		}
+		snprintf(hbuf, sizeof hbuf, "%s", name);
 		if (getcanonname(hbuf, sizeof hbuf - 1, !HasWildcardMX))
 		{
 			if (tTd(9, 1))
@@ -1541,9 +1548,10 @@ anynet_ntoa(sap)
 #if NETUNIX
 	  case AF_UNIX:
 	  	if (sap->sunix.sun_path[0] != '\0')
-	  		sprintf(buf, "[UNIX: %.64s]", sap->sunix.sun_path);
+	  		snprintf(buf, sizeof buf, "[UNIX: %.64s]",
+				sap->sunix.sun_path);
 	  	else
-	  		sprintf(buf, "[UNIX: localhost]");
+	  		snprintf(buf, sizeof buf, "[UNIX: localhost]");
 		return buf;
 #endif
 
@@ -1554,7 +1562,7 @@ anynet_ntoa(sap)
 
 #if NETLINK
 	  case AF_LINK:
-		sprintf(buf, "[LINK: %s]",
+		snprintf(buf, sizeof buf, "[LINK: %s]",
 			link_ntoa((struct sockaddr_dl *) &sap->sa));
 		return buf;
 #endif
@@ -1565,12 +1573,12 @@ anynet_ntoa(sap)
 	}
 
 	/* unknown family -- just dump bytes */
-	(void) sprintf(buf, "Family %d: ", sap->sa.sa_family);
+	(void) snprintf(buf, sizeof buf, "Family %d: ", sap->sa.sa_family);
 	bp = &buf[strlen(buf)];
 	ap = sap->sa.sa_data;
 	for (l = sizeof sap->sa.sa_data; --l >= 0; )
 	{
-		(void) sprintf(bp, "%02x:", *ap++ & 0377);
+		(void) snprintf(bp, SPACELEFT(buf, bp), "%02x:", *ap++ & 0377);
 		bp += 3;
 	}
 	*--bp = '\0';
@@ -1642,7 +1650,7 @@ hostnamebyanyaddr(sap)
 		/* produce a dotted quad */
 		static char buf[203];
 
-		(void) sprintf(buf, "[%.200s]", anynet_ntoa(sap));
+		(void) snprintf(buf, sizeof buf, "[%.200s]", anynet_ntoa(sap));
 		return buf;
 	}
 }

@@ -33,7 +33,7 @@
  */
 
 #ifndef lint
-static char sccsid[] = "@(#)headers.c	8.82.1.1 (Berkeley) 2/18/96";
+static char sccsid[] = "@(#)headers.c	8.82.1.2 (Berkeley) 9/16/96";
 #endif /* not lint */
 
 # include <errno.h>
@@ -678,11 +678,11 @@ logsender(e, msgid)
 	else
 	{
 		name = hbuf;
-		(void) sprintf(hbuf, "%.80s", RealHostName);
+		(void) snprintf(hbuf, sizeof hbuf, "%.80s", RealHostName);
 		if (RealHostAddr.sa.sa_family != 0)
 		{
 			p = &hbuf[strlen(hbuf)];
-			(void) sprintf(p, " (%.100s)",
+			(void) snprintf(p, SPACELEFT(hbuf, p), " (%.100s)",
 				anynet_ntoa(&RealHostAddr));
 		}
 	}
@@ -690,23 +690,25 @@ logsender(e, msgid)
 	/* some versions of syslog only take 5 printf args */
 #  if (SYSLOG_BUFSIZE) >= 256
 	sbp = sbuf;
-	sprintf(sbp, "from=%.200s, size=%ld, class=%d, pri=%ld, nrcpts=%d",
+	snprintf(sbp, SPACELEFT(sbuf, sbp),
+	    "from=%.200s, size=%ld, class=%d, pri=%ld, nrcpts=%d",
 	    e->e_from.q_paddr == NULL ? "<NONE>" : e->e_from.q_paddr,
 	    e->e_msgsize, e->e_class, e->e_msgpriority, e->e_nrcpts);
 	sbp += strlen(sbp);
 	if (msgid != NULL)
 	{
-		sprintf(sbp, ", msgid=%.100s", mbuf);
+		snprintf(sbp, SPACELEFT(sbuf, sbp), ", msgid=%.100s", mbuf);
 		sbp += strlen(sbp);
 	}
 	if (e->e_bodytype != NULL)
 	{
-		(void) sprintf(sbp, ", bodytype=%.20s", e->e_bodytype);
+		(void) snprintf(sbp, SPACELEFT(sbuf, sbp), ", bodytype=%.20s",
+			e->e_bodytype);
 		sbp += strlen(sbp);
 	}
 	p = macvalue('r', e);
 	if (p != NULL)
-		(void) sprintf(sbp, ", proto=%.20s", p);
+		(void) snprintf(sbp, SPACELEFT(sbuf, sbp), ", proto=%.20s", p);
 	syslog(LOG_INFO, "%s: %.850s, relay=%.100s",
 	    e->e_id, sbuf, name);
 
@@ -722,17 +724,17 @@ logsender(e, msgid)
 		syslog(LOG_INFO, "%s: msgid=%s",
 			e->e_id, shortenstring(mbuf, 83));
 	sbp = sbuf;
-	sprintf(sbp, "%s:", e->e_id);
+	snprintf(sbp, SPACELEFT(sbuf, sbp), "%s:", e->e_id);
 	sbp += strlen(sbp);
 	if (e->e_bodytype != NULL)
 	{
-		sprintf(sbp, " bodytype=%.20s,", e->e_bodytype);
+		snprintf(sbp, SPACELEFT(sbuf, sbp), " bodytype=%.20s,", e->e_bodytype);
 		sbp += strlen(sbp);
 	}
 	p = macvalue('r', e);
 	if (p != NULL)
 	{
-		sprintf(sbp, " proto=%.20s,", p);
+		snprintf(sbp, SPACELEFT(sbuf, sbp), " proto=%.20s,", p);
 		sbp += strlen(sbp);
 	}
 	syslog(LOG_INFO, "%.400s relay=%.100s", sbuf, name);
@@ -1216,7 +1218,8 @@ putheader(mci, h, e)
 			else
 			{
 				/* no other recipient headers: truncate value */
-				(void) sprintf(obuf, "%s:", h->h_field);
+				(void) snprintf(obuf, sizeof obuf, "%s:",
+					h->h_field);
 				putline(obuf, mci);
 			}
 			continue;
@@ -1241,13 +1244,15 @@ putheader(mci, h, e)
 			register char *obp;
 
 vanilla:
-			(void) sprintf(obuf, "%.200s: ", h->h_field);
+			obp = obuf;
+			(void) snprintf(obp, SPACELEFT(obuf, obp), "%.200s: ",
+				h->h_field);
 			obp = obuf + strlen(obuf);
 			while ((nlp = strchr(p, '\n')) != NULL)
 			{
 
 				*nlp = '\0';
-				sprintf(obp, "%.*s",
+				snprintf(obp, SPACELEFT(obuf, obp), "%.*s",
 					sizeof obuf - (obp - obuf) - 1, p);
 				*nlp = '\n';
 				putline(obuf, mci);
@@ -1256,7 +1261,8 @@ vanilla:
 				if (*p != ' ' && *p != '\t')
 					*obp++ = ' ';
 			}
-			sprintf(obp, "%.*s", sizeof obuf - (obp - obuf) - 1, p);
+			snprintf(obp, SPACELEFT(obuf, obp), "%.*s",
+				sizeof obuf - (obp - obuf) - 1, p);
 			putline(obuf, mci);
 		}
 	}
@@ -1277,7 +1283,8 @@ vanilla:
 			putline("MIME-Version: 1.0", mci);
 		if (hvalue("Content-Type", e->e_header) == NULL)
 		{
-			sprintf(obuf, "Content-Type: text/plain; charset=%s",
+			snprintf(obuf, sizeof obuf,
+				"Content-Type: text/plain; charset=%s",
 				defcharset(e));
 			putline(obuf, mci);
 		}
@@ -1326,7 +1333,7 @@ commaize(h, p, oldstyle, mci, e)
 		printf("commaize(%s: %s)\n", h->h_field, p);
 
 	obp = obuf;
-	(void) sprintf(obp, "%.200s: ", h->h_field);
+	(void) snprintf(obp, SPACELEFT(obuf, obp), "%.200s: ", h->h_field);
 	opos = strlen(h->h_field) + 2;
 	obp += opos;
 	omax = mci->mci_mailer->m_linelimit - 2;
@@ -1420,7 +1427,7 @@ commaize(h, p, oldstyle, mci, e)
 			opos += 2;
 		if (opos > omax && !firstone)
 		{
-			(void) strcpy(obp, ",\n");
+			snprintf(obp, SPACELEFT(obuf, obp), ",\n");
 			putline(obuf, mci);
 			obp = obuf;
 			(void) strcpy(obp, "        ");
@@ -1430,7 +1437,7 @@ commaize(h, p, oldstyle, mci, e)
 		}
 		else if (!firstone)
 		{
-			(void) strcpy(obp, ", ");
+			snprintf(obp, SPACELEFT(obuf, obp), ", ");
 			obp += 2;
 		}
 

@@ -33,7 +33,7 @@
  */
 
 #ifndef lint
-static char sccsid[] = "@(#)parseaddr.c	8.87 (Berkeley) 11/29/95";
+static char sccsid[] = "@(#)parseaddr.c	8.87.1.1 (Berkeley) 9/16/96";
 #endif /* not lint */
 
 # include "sendmail.h"
@@ -1212,7 +1212,8 @@ rewrite(pvp, ruleset, reclevel, e)
 					{
 						char mbuf[300];
 
-						sprintf(mbuf, "%.80s map: lookup (%s): deferred",
+						snprintf(mbuf, sizeof mbuf,
+							"%.80s map: lookup (%s): deferred",
 							mapname,
 							shortenstring(buf, 203));
 						e->e_message = newstr(mbuf);

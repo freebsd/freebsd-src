@@ -1,10 +1,20 @@
 			SENDMAIL RELEASE NOTES
-	     @(#)RELEASE_NOTES	8.7.5.1 (Berkeley) 3/4/96
+	     @(#)RELEASE_NOTES	8.7.6.4 (Berkeley) 9/16/96
 
 
 This listing shows the version of the sendmail binary, the version
 of the sendmail configuration files, the date of release, and a
 summary of the changes in that release.
+
+8.7.6/8.7.3	96/09/17
+	SECURITY: It is possible to force getpwuid to fail when writing the
+		queue file, causing sendmail to fall back to running programs
+		as the default user.  This is not exploitable from off-site.
+		Workarounds include using a unique user for the DefaultUser
+		(old u & g options) and using smrsh as the local shell.
+	SECURITY: fix some buffer overruns; in at least one case this allows
+		a local user to get root.  This is not known to be exploitable
+		from off-site.  The workaround is to disable chfn(1) commands.
 
 8.7.5/8.7.3	96/03/04
 	Fix glitch in 8.7.4 when putting certain internal lines; this can
