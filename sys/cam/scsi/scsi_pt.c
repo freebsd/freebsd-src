@@ -41,7 +41,6 @@
 
 #include <cam/cam.h>
 #include <cam/cam_ccb.h>
-#include <cam/cam_extend.h>
 #include <cam/cam_periph.h>
 #include <cam/cam_xpt_periph.h>
 #include <cam/cam_debug.h>
@@ -134,8 +133,6 @@ static struct cdevsw pt_cdevsw = {
 	/* flags */	0,
 };
 
-static struct extend_array *ptperiphs;
-
 #ifndef SCSI_PT_DEFAULT_TIMEOUT
 #define SCSI_PT_DEFAULT_TIMEOUT		60
 #endif
@@ -150,7 +147,7 @@ ptopen(dev_t dev, int flags, int fmt, struct thread *td)
 	int s;
 
 	unit = minor(dev);
-	periph = cam_extend_get(ptperiphs, unit);
+	periph = (struct cam_periph *)dev->si_drv1;
 	if (periph == NULL)
 		return (ENXIO);	
 
@@ -189,11 +186,9 @@ ptclose(dev_t dev, int flag, int fmt, struct thread *td)
 {
 	struct	cam_periph *periph;
 	struct	pt_softc *softc;
-	int	unit;
 	int	error;
 
-	unit = minor(dev);
-	periph = cam_extend_get(ptperiphs, unit);
+	periph = (struct cam_periph *)dev->si_drv1;
 	if (periph == NULL)
 		return (ENXIO);	
 
@@ -218,11 +213,9 @@ ptstrategy(struct bio *bp)
 {
 	struct cam_periph *periph;
 	struct pt_softc *softc;
-	u_int  unit;
 	int    s;
 	
-	unit = minor(bp->bio_dev);
-	periph = cam_extend_get(ptperiphs, unit);
+	periph = (struct cam_periph *)bp->bio_dev->si_drv1;
 	bp->bio_resid = bp->bio_bcount;
 	if (periph == NULL) {
 		biofinish(bp, NULL, ENXIO);
@@ -267,15 +260,6 @@ ptinit(void)
 	cam_status status;
 	struct cam_path *path;
 
-	/*
-	 * Create our extend array for storing the devices we attach to.
-	 */
-	ptperiphs = cam_extend_new();
-	if (ptperiphs == NULL) {
-		printf("pt: Failed to alloc extend array!\n");
-		return;
-	}
-	
 	/*
 	 * Install a global async callback.  This callback will
 	 * receive async callbacks like "new device found".
@@ -337,8 +321,6 @@ ptctor(struct cam_periph *periph, void *arg)
 
 	periph->softc = softc;
 	
-	cam_extend_set(ptperiphs, periph->unit_number, periph);
-
 	devstat_add_entry(&softc->device_stats, "pt",
 			  periph->unit_number, 0,
 			  DEVSTAT_NO_BLOCKSIZE,
@@ -348,6 +330,8 @@ ptctor(struct cam_periph *periph, void *arg)
 	softc->dev = make_dev(&pt_cdevsw, periph->unit_number, UID_ROOT,
 			      GID_OPERATOR, 0600, "%s%d", periph->periph_name,
 			      periph->unit_number);
+	softc->dev->si_drv1 = periph;
+
 	/*
 	 * Add async callbacks for bus reset and
 	 * bus device reset calls.  I don't bother
@@ -427,7 +411,6 @@ ptdtor(struct cam_periph *periph)
 
 	destroy_dev(softc->dev);
 
-	cam_extend_release(ptperiphs, periph->unit_number);
 	xpt_print_path(periph->path);
 	printf("removing device entry\n");
 	free(softc, M_DEVBUF);
@@ -682,12 +665,9 @@ ptioctl(dev_t dev, u_long cmd, caddr_t addr, int flag, struct thread *td)
 {
 	struct cam_periph *periph;
 	struct pt_softc *softc;
-	int unit;
 	int error;
 
-	unit = minor(dev);
-	periph = cam_extend_get(ptperiphs, unit);
-
+	periph = (struct cam_periph *)dev->si_drv1;
 	if (periph == NULL)
 		return(ENXIO);
 

@@ -43,7 +43,6 @@
 
 #include <cam/cam.h>
 #include <cam/cam_ccb.h>
-#include <cam/cam_extend.h>
 #include <cam/cam_periph.h>
 #include <cam/cam_queue.h>
 #include <cam/cam_xpt_periph.h>
@@ -82,7 +81,7 @@ typedef enum {
 #define MIN(a, b) ((a > b) ? b : a)
 
 #define TARG_CONTROL_UNIT 0xffff00ff
-#define TARG_IS_CONTROL_DEV(unit) ((unit) == TARG_CONTROL_UNIT)
+#define TARG_IS_CONTROL_DEV(d)	(minor((d)) == TARG_CONTROL_UNIT)
 
 #define TARG_TAG_WILDCARD ((u_int)~0)
 
@@ -236,20 +235,11 @@ static struct periph_driver targdriver =
 
 PERIPHDRIVER_DECLARE(targ, targdriver);
 
-static struct extend_array *targperiphs;
 static dev_t targ_ctl_dev;
 
 static void
 targinit(void)
 {
-	/*
-	 * Create our extend array for storing the devices we attach to.
-	 */
-	targperiphs = cam_extend_new();
-	if (targperiphs == NULL) {
-		printf("targ: Failed to alloc extend array!\n");
-		return;
-	}
 	targ_ctl_dev = make_dev(&targ_cdevsw, TARG_CONTROL_UNIT, UID_ROOT,
 	    GID_OPERATOR, 0600, "%s.ctl", "targ");
 	if (targ_ctl_dev == (dev_t) 0) {
@@ -470,8 +460,6 @@ targctor(struct cam_periph *periph, void *arg)
 	periph->softc = softc;
 	softc->init_level++;
 
-	cam_extend_set(targperiphs, periph->unit_number, periph);
-
 	/*
 	 * We start out life with a UA to indicate power-on/reset.
 	 */
@@ -517,6 +505,7 @@ targctor(struct cam_periph *periph, void *arg)
 	softc->targ_dev = make_dev(&targ_cdevsw, periph->unit_number, UID_ROOT,
 				   GID_OPERATOR, 0600, "%s%d",
 				   periph->periph_name, periph->unit_number);
+	softc->targ_dev->si_drv1 = periph;
 
 	softc->init_level++;
 	return (CAM_REQ_CMP);
@@ -532,8 +521,6 @@ targdtor(struct cam_periph *periph)
 	softc->state = TARG_STATE_TEARDOWN;
 
 	targdislun(periph);
-
-	cam_extend_release(targperiphs, periph->unit_number);
 
 	switch (softc->init_level) {
 	default:
@@ -555,19 +542,16 @@ targopen(dev_t dev, int flags, int fmt, struct thread *td)
 {
 	struct cam_periph *periph;
 	struct	targ_softc *softc;
-	u_int unit;
 	cam_status status;
 	int error;
 	int s;
 
-	unit = minor(dev);
-
 	/* An open of the control device always succeeds */
-	if (TARG_IS_CONTROL_DEV(unit))
+	if (TARG_IS_CONTROL_DEV(dev))
 		return 0;
 
 	s = splsoftcam();
-	periph = cam_extend_get(targperiphs, unit);
+	periph = (struct cam_periph *)dev->si_drv1;
 	if (periph == NULL) {
         	splx(s);
 		return (ENXIO);
@@ -614,18 +598,15 @@ targclose(dev_t dev, int flag, int fmt, struct thread *td)
 {
 	struct	cam_periph *periph;
 	struct	targ_softc *softc;
-	u_int	unit;
 	int	s;
 	int	error;
 
-	unit = minor(dev);
-
 	/* A close of the control device always succeeds */
-	if (TARG_IS_CONTROL_DEV(unit))
+	if (TARG_IS_CONTROL_DEV(dev))
 		return 0;
 
 	s = splsoftcam();
-	periph = cam_extend_get(targperiphs, unit);
+	periph = (struct cam_periph *)dev->si_drv1;
 	if (periph == NULL) {
 		splx(s);
 		return (ENXIO);
@@ -811,12 +792,10 @@ targioctl(dev_t dev, u_long cmd, caddr_t addr, int flag, struct thread *td)
 {
 	struct cam_periph *periph;
 	struct targ_softc *softc;
-	u_int  unit;
 	int    error;
 
-	unit = minor(dev);
 	error = 0;
-	if (TARG_IS_CONTROL_DEV(unit)) {
+	if (TARG_IS_CONTROL_DEV(dev)) {
 		switch (cmd) {
 		case OTARGCTLIOALLOCUNIT:
 		case TARGCTLIOALLOCUNIT:
@@ -838,7 +817,7 @@ targioctl(dev_t dev, u_long cmd, caddr_t addr, int flag, struct thread *td)
 		return (error);
 	}
 
-	periph = cam_extend_get(targperiphs, unit);
+	periph = (struct cam_periph *)dev->si_drv1;
 	if (periph == NULL)
 		return (ENXIO);
 	softc = (struct targ_softc *)periph->softc;
@@ -1084,17 +1063,14 @@ targpoll(dev_t dev, int poll_events, struct thread *td)
 {
 	struct cam_periph *periph;
 	struct targ_softc *softc;
-	u_int  unit;
 	int    revents;
 	int    s;
 
-	unit = minor(dev);
-
 	/* ioctl is the only supported operation of the control device */
-	if (TARG_IS_CONTROL_DEV(unit))
+	if (TARG_IS_CONTROL_DEV(dev))
 		return EINVAL;
 
-	periph = cam_extend_get(targperiphs, unit);
+	periph = (struct cam_periph *)dev->si_drv1;
 	if (periph == NULL)
 		return (ENXIO);
 	softc = (struct targ_softc *)periph->softc;
@@ -1128,11 +1104,8 @@ targpoll(dev_t dev, int poll_events, struct thread *td)
 static int
 targread(dev_t dev, struct uio *uio, int ioflag)
 {
-	u_int  unit;
-
-	unit = minor(dev);
 	/* ioctl is the only supported operation of the control device */
-	if (TARG_IS_CONTROL_DEV(unit))
+	if (TARG_IS_CONTROL_DEV(dev))
 		return EINVAL;
 
 	if (uio->uio_iovcnt == 0
@@ -1143,7 +1116,7 @@ targread(dev_t dev, struct uio *uio, int ioflag)
 		int    s;
 	
 		s = splcam();
-		periph = cam_extend_get(targperiphs, unit);
+		periph = (struct cam_periph *)dev->si_drv1;
 		if (periph == NULL)
 			return (ENXIO);
 		softc = (struct targ_softc *)periph->softc;
@@ -1158,11 +1131,8 @@ targread(dev_t dev, struct uio *uio, int ioflag)
 static int
 targwrite(dev_t dev, struct uio *uio, int ioflag)
 {
-	u_int  unit;
-
-	unit = minor(dev);
 	/* ioctl is the only supported operation of the control device */
-	if (TARG_IS_CONTROL_DEV(unit))
+	if (TARG_IS_CONTROL_DEV(dev))
 		return EINVAL;
 
 	if (uio->uio_iovcnt == 0
@@ -1173,7 +1143,7 @@ targwrite(dev_t dev, struct uio *uio, int ioflag)
 		int    s;
 	
 		s = splcam();
-		periph = cam_extend_get(targperiphs, unit);
+		periph = (struct cam_periph *)dev->si_drv1;
 		if (periph == NULL)
 			return (ENXIO);
 		softc = (struct targ_softc *)periph->softc;
@@ -1195,19 +1165,17 @@ targstrategy(struct bio *bp)
 {
 	struct cam_periph *periph;
 	struct targ_softc *softc;
-	u_int  unit;
 	int    s;
 	
-	unit = minor(bp->bio_dev);
 	bp->bio_resid = bp->bio_bcount;
 
 	/* ioctl is the only supported operation of the control device */
-	if (TARG_IS_CONTROL_DEV(unit)) {
+	if (TARG_IS_CONTROL_DEV(bp->bio_dev)) {
 		biofinish(bp, NULL, EINVAL);
 		return;
 	}
 
-	periph = cam_extend_get(targperiphs, unit);
+	periph = (struct cam_periph *)bp->bio_dev->si_drv1;
 	if (periph == NULL) {
 		biofinish(bp, NULL, ENXIO);
 		return;

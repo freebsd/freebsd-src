@@ -39,7 +39,6 @@
 
 #include <cam/cam.h>
 #include <cam/cam_ccb.h>
-#include <cam/cam_extend.h>
 #include <cam/cam_periph.h>
 #include <cam/cam_xpt_periph.h>
 #include <cam/cam_debug.h>
@@ -191,22 +190,12 @@ static struct cdevsw ses_cdevsw =
 	/* psize */	nopsize,
 	/* flags */	0,
 };
-static struct extend_array *sesperiphs;
 
 void
 sesinit(void)
 {
 	cam_status status;
 	struct cam_path *path;
-
-	/*
-	 * Create our extend array for storing the devices we attach to.
-	 */
-	sesperiphs = cam_extend_new();
-	if (sesperiphs == NULL) {
-		printf("ses: Failed to alloc extend array!\n");
-		return;
-	}
 
 	/*
 	 * Install a global async callback.  This callback will
@@ -267,7 +256,6 @@ sescleanup(struct cam_periph *periph)
 
 	destroy_dev(softc->ses_dev);
 
-	cam_extend_release(sesperiphs, periph->unit_number);
 	xpt_print_path(periph->path);
 	printf("removing device entry\n");
 	free(softc, M_DEVBUF);
@@ -383,11 +371,10 @@ sesregister(struct cam_periph *periph, void *arg)
 		return (CAM_REQ_CMP_ERR);
 	}
 
-	cam_extend_set(sesperiphs, periph->unit_number, periph);
-
 	softc->ses_dev = make_dev(&ses_cdevsw, periph->unit_number,
 	    UID_ROOT, GID_OPERATOR, 0600, "%s%d",
 	    periph->periph_name, periph->unit_number);
+	softc->ses_dev->si_drv1 = periph;
 
 	/*
 	 * Add an async callback so that we get
@@ -433,7 +420,7 @@ sesopen(dev_t dev, int flags, int fmt, struct thread *td)
 	int error, s;
 
 	s = splsoftcam();
-	periph = cam_extend_get(sesperiphs, SESUNIT(dev));
+	periph = (struct cam_periph *)dev->si_drv1;
 	if (periph == NULL) {
 		splx(s);
 		return (ENXIO);
@@ -486,12 +473,11 @@ sesclose(dev_t dev, int flag, int fmt, struct thread *td)
 {
 	struct cam_periph *periph;
 	struct ses_softc *softc;
-	int unit, error;
+	int error;
 
 	error = 0;
 
-	unit = SESUNIT(dev);
-	periph = cam_extend_get(sesperiphs, unit);
+	periph = (struct cam_periph *)dev->si_drv1;
 	if (periph == NULL)
 		return (ENXIO);
 
@@ -555,7 +541,7 @@ sesioctl(dev_t dev, u_long cmd, caddr_t arg_addr, int flag, struct thread *td)
 	else
 		addr = NULL;
 
-	periph = cam_extend_get(sesperiphs, SESUNIT(dev));
+	periph = (struct cam_periph *)dev->si_drv1;
 	if (periph == NULL)
 		return (ENXIO);
 

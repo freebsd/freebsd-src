@@ -60,7 +60,6 @@
 
 #include <cam/cam.h>
 #include <cam/cam_ccb.h>
-#include <cam/cam_extend.h>
 #include <cam/cam_periph.h>
 #include <cam/cam_xpt_periph.h>
 
@@ -491,7 +490,6 @@ static struct cdevsw da_cdevsw = {
 static struct cdevsw dadisk_cdevsw;
 
 static SLIST_HEAD(,da_softc) softc_list;
-static struct extend_array *daperiphs;
 
 static int
 daopen(dev_t dev, int flags __unused, int fmt __unused, struct thread *td __unused)
@@ -509,7 +507,7 @@ daopen(dev_t dev, int flags __unused, int fmt __unused, struct thread *td __unus
 	unit = dkunit(dev);
 	part = dkpart(dev);
 	s = splsoftcam();
-	periph = cam_extend_get(daperiphs, unit);
+	periph = (struct cam_periph *)dev->si_drv1;
 	if (periph == NULL) {
 		splx(s);
 		return (ENXIO);	
@@ -621,11 +619,9 @@ daclose(dev_t dev, int flag __unused, int fmt __unused, struct thread *td __unus
 {
 	struct	cam_periph *periph;
 	struct	da_softc *softc;
-	int	unit;
 	int	error;
 
-	unit = dkunit(dev);
-	periph = cam_extend_get(daperiphs, unit);
+	periph = (struct cam_periph *)dev->si_drv1;
 	if (periph == NULL)
 		return (ENXIO);	
 
@@ -711,13 +707,9 @@ dastrategy(struct bio *bp)
 {
 	struct cam_periph *periph;
 	struct da_softc *softc;
-	u_int  unit;
-	u_int  part;
 	int    s;
 	
-	unit = dkunit(bp->bio_dev);
-	part = dkpart(bp->bio_dev);
-	periph = cam_extend_get(daperiphs, unit);
+	periph = (struct cam_periph *)bp->bio_dev->si_drv1;
 	if (periph == NULL) {
 		biofinish(bp, NULL, ENXIO);
 		return;
@@ -771,11 +763,9 @@ daioctl(dev_t dev, u_long cmd, caddr_t addr, int flag, struct thread *td)
 {
 	struct cam_periph *periph;
 	struct da_softc *softc;
-	int unit;
 	int error;
 
-	unit = dkunit(dev);
-	periph = cam_extend_get(daperiphs, unit);
+	periph = (struct cam_periph *)dev->si_drv1;
 	if (periph == NULL)
 		return (ENXIO);	
 
@@ -799,14 +789,10 @@ dadump(dev_t dev, void *virtual, vm_offset_t physical, off_t offset, size_t leng
 {
 	struct	    cam_periph *periph;
 	struct	    da_softc *softc;
-	u_int	    unit;
-	u_int	    part;
 	u_int	    secsize;
 	struct	    ccb_scsiio csio;
 
-	unit = dkunit(dev);
-	part = dkpart(dev);
-	periph = cam_extend_get(daperiphs, unit);
+	periph = (struct cam_periph *)dev->si_drv1;
 	if (periph == NULL)
 		return (ENXIO);
 	softc = (struct da_softc *)periph->softc;
@@ -892,15 +878,7 @@ dainit(void)
 	cam_status status;
 	struct cam_path *path;
 
-	/*
-	 * Create our extend array for storing the devices we attach to.
-	 */
-	daperiphs = cam_extend_new();
 	SLIST_INIT(&softc_list);
-	if (daperiphs == NULL) {
-		printf("da: Failed to alloc extend array!\n");
-		return;
-	}
 	
 	/*
 	 * Install a global async callback.  This callback will
@@ -997,7 +975,6 @@ dacleanup(struct cam_periph *periph)
 	softc = (struct da_softc *)periph->softc;
 
 	devstat_remove_entry(&softc->device_stats);
-	cam_extend_release(daperiphs, periph->unit_number);
 	xpt_print_path(periph->path);
 	printf("removing device entry\n");
 	if (softc->dev) {
@@ -1108,8 +1085,6 @@ daregister(struct cam_periph *periph, void *arg)
 		softc->flags |= DA_FLAG_TAGGED_QUEUING;
 
 	periph->softc = softc;
-	
-	cam_extend_set(daperiphs, periph->unit_number, periph);
 
 	/*
 	 * See if this device has any quirks.
@@ -1156,6 +1131,7 @@ daregister(struct cam_periph *periph, void *arg)
 	 */
 	softc->dev = disk_create(periph->unit_number, &softc->disk, 0, 
 	    &da_cdevsw, &dadisk_cdevsw);
+	softc->dev->si_drv1 = periph;
 
 	/*
 	 * Add async callbacks for bus reset and
