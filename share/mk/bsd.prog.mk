@@ -69,7 +69,7 @@ all: objwarn ${PROG} all-man _SUBDIR
 
 CLEANFILES+= ${PROG} ${OBJS}
 
-.if defined(PROG) && !defined(NOEXTRADEPEND)
+.if defined(PROG)
 _EXTRADEPEND:
 .if ${OBJFORMAT} == aout
 	echo ${PROG}: `${CC} -Wl,-f ${CFLAGS} ${LDFLAGS} ${LDDESTDIR} \
