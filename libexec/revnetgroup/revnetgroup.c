@@ -114,7 +114,7 @@ main(argc, argv)
 
 	if (strcmp(netgroup, "-")) {
 		if ((fp = fopen(netgroup, "r")) == NULL) {
-			err(1,netgroup);
+			err(1, "%s", netgroup);
 		}
 	} else {
 		fp = stdin;
