@@ -5,6 +5,9 @@ MAN=	diskinfo.8
 
 WARNS?=	5
 
+DPADD=	${LIBUTIL}
+LDADD=	-lutil
+
 .include <bsd.prog.mk>
 
 test:	${PROG}
