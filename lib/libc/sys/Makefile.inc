@@ -23,8 +23,7 @@ ASM=	accept.o access.o acct.o adjtime.o bind.o chdir.o chflags.o chmod.o \
 	lfs_segclean.o lfs_segwait.o link.o listen.o lstat.o \
 	madvise.o mincore.o mkdir.o mkfifo.o mknod.o mlock.o mount.o \
 	mprotect.o msgsys.o msync.o munlock.o munmap.o nfssvc.o \
-	ntp_adjtime.o ntp_gettime.o open.o \
-	pathconf.o profil.o quotactl.o read.o \
+	ntp_adjtime.o open.o pathconf.o profil.o quotactl.o read.o \
 	readlink.o readv.o recvfrom.o recvmsg.o rename.o revoke.o rmdir.o \
 	rtprio.o select.o semsys.o sendmsg.o sendto.o setegid.o seteuid.o setgid.o \
 	setgroups.o setitimer.o setpgid.o setpriority.o setrlimit.o \
