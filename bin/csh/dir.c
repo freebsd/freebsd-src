@@ -30,7 +30,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: dir.c,v 1.2 1994/09/24 02:53:54 davidg Exp $
+ *	$Id: dir.c,v 1.3 1995/05/30 00:06:30 rgrimes Exp $
  */
 
 #ifndef lint
@@ -84,7 +84,7 @@ dinit(hp)
     /* Don't believe the login shell home, because it may be a symlink */
     tcp = getwd(path);		/* see ngetwd.c for System V version */
     if (tcp == NULL || *tcp == '\0') {
-	(void) fprintf(csherr, "csh: %s\n", path);
+	(void) fprintf(csherr, "csh: %s: %s\n", path, strerror(errno));
 	if (hp && *hp) {
 	    tcp = short2str(hp);
 	    if (chdir(tcp) == -1)
