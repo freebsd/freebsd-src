@@ -2248,8 +2248,6 @@ pseudo-device	streams		# STREAMS network driver (required for svr4).
 
 options 	AHC_DUMP_EEPROM
 options 	AHC_TMODE_ENABLE
-options 	ATA_16BIT_ONLY
-options 	ATA_STATIC_ID
 options 	BUS_DEBUG
 options 	CAM_DEBUG_DELAY
 options 	CLK_CALIBRATION_LOOP
