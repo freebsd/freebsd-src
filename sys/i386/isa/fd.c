@@ -80,6 +80,12 @@ struct fd_type {
 	int	heads;			/* number of heads	     */
 };
 
+/* This defines must match fd_types */
+#define FD144  0
+#define FD12   1
+#define FD720H 2
+#define FD360H 3
+#define FD360  4
 struct fd_type fd_types[NUMTYPES] =
 {
  	{ 18,2,0xFF,0x1B,80,2880,1,0,2 }, /* 1.44 meg HD 3.5in floppy    */
@@ -284,16 +290,22 @@ fdattach(dev)
 		fd_data[fdu].fdsu = fdsu;
 		printf("fd%d: unit %d type ", fdcu, fdu);
 		
+		/* Fdopen can redefine ft field later */
+
 		if ((fdt & 0xf0) == RTCFDT_12M) {
 			printf("1.2MB 5.25in\n");
-			fd_data[fdu].type = 1;
-			fd_data[fdu].ft = fd_types + 1;
-			
+			fd_data[fdu].type = FD12;
+			fd_data[fdu].ft = fd_types + FD12;
 		}
 		if ((fdt & 0xf0) == RTCFDT_144M) {
 			printf("1.44MB 3.5in\n");
-			fd_data[fdu].type = 0;
-			fd_data[fdu].ft = fd_types + 0;
+			fd_data[fdu].type = FD144;
+			fd_data[fdu].ft = fd_types + FD144;
+		}
+		if ((fdt & 0xf0) == RTCFDT_360K) {
+			printf("360K 5.25in\n");
+			fd_data[fdu].type = FD360;
+			fd_data[fdu].ft = fd_types + FD360;
 		}
 
 		fdt <<= 4;
@@ -517,6 +529,11 @@ Fdopen(dev, flags)
 	if (fdu >= NFD || fd_data[fdu].fdc == NULL
 		|| fd_data[fdu].type == NO_TYPE) return(ENXIO);
 	if (type >= NUMTYPES) return(ENXIO);
+	if (fd_data[fdu].type == FD360 && type != FD360)
+		return(ENXIO);
+	if (fd_data[fdu].type == FD12 && type == FD144)
+		return(ENXIO);
+	fd_data[fdu].ft = fd_types + type;
 	fd_data[fdu].flags |= FD_OPEN;
 
 	return 0;
