@@ -41,7 +41,7 @@
 .Fn DEVICE_IDENTIFY "driver_t *driver" "device_t parent"
 .Sh DESCRIPTION
 The identify function for a device is only needed for devices on busses
-that cannot identify their childs independently, e.g. the ISA bus.
+that cannot identify their children independently, e.g. the ISA bus.
 It is used to recognize the device (usually done by accessing non-ambiguous
 registers in the hardware) and to tell the kernel about it and thus
 creating a new device instance.
