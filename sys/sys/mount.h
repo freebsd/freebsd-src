@@ -486,6 +486,7 @@ int	vfs_getopt(struct vfsoptlist *, const char *, void **, int *);
 int	vfs_copyopt(struct vfsoptlist *, const char *, void *, int);
 int	vfs_mount(struct thread *td, const char *type, char *path,
 	    int flags, void *data);
+int	vfs_nmount(struct thread *td, int fsflags, struct uio *fsoptions);
 int	vfs_setpublicfs			    /* set publicly exported fs */
 	    (struct mount *, struct netexport *, struct export_args *);
 int	vfs_lock(struct mount *);         /* lock a vfs */
