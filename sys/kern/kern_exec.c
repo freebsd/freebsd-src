@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: kern_exec.c,v 1.70 1997/12/16 15:40:29 davidg Exp $
+ *	$Id: kern_exec.c,v 1.71 1997/12/20 03:05:45 sef Exp $
  */
 
 #include <sys/param.h>
@@ -58,6 +58,7 @@
 #include <vm/vm_kern.h>
 #include <vm/vm_extern.h>
 #include <vm/vm_object.h>
+#include <vm/vm_zone.h>
 
 #include <machine/reg.h>
 
