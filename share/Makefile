@@ -3,11 +3,15 @@
 
 # Do not include `info' in the SUBDIR list, it is handled separately.
 
-SUBDIR= colldef dict examples isdn man me misc mk mklocale monetdef \
+SUBDIR= colldef dict examples man me misc mk mklocale monetdef \
 	msgdef numericdef skel syscons tabset termcap timedef zoneinfo
 
 .if !defined(NO_SHAREDOCS)
 SUBDIR+= doc
+.endif
+
+.if !defined(NO_I4B)
+SUBDIR+= isdn
 .endif
 
 .if !defined(NO_SENDMAIL)
