@@ -40,7 +40,7 @@ main(int argc, char *argv[])
 
 	slen = sizeof (stats);
 	if (sysctlbyname("hw.ubsec.stats", &stats, &slen, NULL, NULL) < 0)
-		err(1, "kern.ubsec_stats");
+		err(1, "hw.ubsec.stats");
 
 	printf("input %llu bytes %u packets\n",
 		stats.hst_ibytes, stats.hst_ipackets);
@@ -49,7 +49,8 @@ main(int argc, char *argv[])
 	printf("invalid %u badsession %u badflags %u\n",
 		stats.hst_invalid, stats.hst_badsession, stats.hst_badflags);
 	printf("nodesc %u badalg %u nomem %u queuefull %u\n",
-		stats.hst_badalg, stats.hst_nomem, stats.hst_queuefull);
+		stats.hst_nodesc, stats.hst_badalg,
+		stats.hst_nomem, stats.hst_queuefull);
 	printf("dmaerr %u mcrerr %u nodmafree %u\n",
 		stats.hst_dmaerr, stats.hst_mcrerr, stats.hst_nodmafree);
 	printf("lenmismatch %u skipmisatch %u iovmisalined %u\n",
