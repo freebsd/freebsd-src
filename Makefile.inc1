@@ -130,6 +130,7 @@ WORLDTMP=	${OBJTREE}${.CURDIR}/${BUILD_ARCH}
 # /usr/games added for fortune which depend on strfile
 STRICTTMPPATH=	${WORLDTMP}/usr/sbin:${WORLDTMP}/usr/bin:${WORLDTMP}/usr/games
 TMPPATH=	${STRICTTMPPATH}:${PATH}
+OBJFORMAT_PATH?=	/usr/libexec
 
 TMPDIR?=	/tmp
 TMPPID!=	echo $$$$
@@ -198,6 +199,10 @@ WMAKE=		${WMAKEENV} ${MAKE} -f Makefile.inc1
 IMAKEENV=	${CROSSENV} \
 		PATH=${STRICTTMPPATH}:${INSTALLTMP}
 IMAKE=		${IMAKEENV} ${MAKE} -f Makefile.inc1
+
+# kernel stage
+KMAKEENV=	${WMAKEENV} \
+		OBJFORMAT_PATH=${WORLDTMP}/usr/libexec:${OBJFORMAT_PATH}
 
 USRDIRS=	usr/bin usr/lib/compat/aout usr/games usr/libdata/ldscripts \
 		usr/libexec/${OBJFORMAT} usr/sbin usr/share/misc
