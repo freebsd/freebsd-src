@@ -273,7 +273,7 @@ Lowercase versions of
 and
 .Cm G
 are allowed.
-Size and type should be specifed without any spaces between them.
+Size and type should be specified without any spaces between them.
 .Pp
 Example: 2097152, 1G, 1024M and 1048576K are all the same size
 (assuming 512-byte sectors).
@@ -408,8 +408,8 @@ Display what the label would be for
 .Pa da0s1
 using the partition layout in
 .Pa label_layout .
-This is useful for determining how much space would be alloted for various
-partitions with a labelling scheme using
+This is useful for determining how much space would be allotted for various
+partitions with a labeling scheme using
 .Cm % Ns -based
 or
 .Cm *
@@ -468,6 +468,20 @@ which could be used as a source file for
   f:     5g        *    4.2BSD
   g:      *        *    4.2BSD
 .Ed
+.Sh DIAGNOSTICS
+The kernel device drivers will not allow the size of a disk partition
+to be decreased or the offset of a partition to be changed while it is open.
+.Sh COMPATIBILITY
+Due to the use of an
+.Vt u_int32_t
+to store the number of sectors,
+bsdlabels are restricted to a maximum of 2^32-1 sectors.
+This usually means 2TB of disk space.
+Larger disks should be partitioned using another method such as
+.Xr gpt 8 .
+.Pp
+The various BSDs all use slightly different versions of BSD labels and
+are not generally compatible.
 .Sh SEE ALSO
 .Xr ccd 4 ,
 .Xr geom 4 ,
@@ -475,7 +489,5 @@ which could be used as a source file for
 .\" Xr bsdlabel 5 ,
 .Xr disktab 5 ,
 .Xr boot0cfg 8 ,
-.Xr fdisk 8
-.Sh DIAGNOSTICS
-The kernel device drivers will not allow the size of a disk partition
-to be decreased or the offset of a partition to be changed while it is open.
+.Xr fdisk 8 ,
+.Xr gpt 8
