@@ -190,19 +190,9 @@ usage()
 	fprintf(stderr, "\t<param>\t\tParameter name (see below).\n");
 	fprintf(stderr, "\t<value>\t\tNew value for parameter.\n");
 	fprintf(stderr, "Parameter name:\t\tValue:\n");
-	fprintf(stderr, "\tname\t\tset Name.\n");
-	fprintf(stderr, "\tsid\t\tset System ID.\n");
-	fprintf(stderr, "\tfreq\t\tset Frequency Channel (2412, 2427, 2442, 2457, 2465)\n");
-	fprintf(stderr, "\tspread\t\tset Bitrate (354, 500, 1000, 2000)\n");
-	fprintf(stderr, "\tmode\t\tset Mode (640, 655, PSP).\n");
 	fprintf(stderr, "\tcountry\t\tset Country (9-15)\n");
-	fprintf(stderr, "\tchannel\t\tset Channel (depended on country)\n");
-	fprintf(stderr, "\tbitrate\t\tset Bitrate (0-4)\n");
 	fprintf(stderr, "\tpriority\tset Priority (normal, high, highest)\n");
-#if 0
-	fprintf(stderr, "\tparent\t\tset Arlan parent's MAC.\n");
-	fprintf(stderr, "\taddr\t\tset Arlan MAC.\n");
-#endif
+	fprintf(stderr, "\ttxretry\t\tset Arlan Tx retry.\n");
 	fprintf(stderr, "or: %s <ifname> stat\n", progname);
 	fprintf(stderr, "\tprint internal arlan statistics block\n");
 #ifdef ARLCACHE
@@ -380,7 +370,7 @@ main(int argc, char *argv[])
 			strncpy(ifr.ifr_name, argv[1], sizeof(ifr.ifr_name));
 			ifr.ifr_addr.sa_family = AF_INET;
 			ifr.ifr_data = (caddr_t)qlt;
-			if (ioctl(sd, SIOCGARLQLT, (caddr_t)&ifr)) 
+			if (ioctl(sd, SIOCGARLQLT, (caddr_t)&ifr))
 				err(1,"Get QLT");
 			print_qlt(qlt);
 			exit(0);
@@ -395,53 +385,6 @@ main(int argc, char *argv[])
 		value = argv[argind+1];
 		val = -1;
 
-		if (!strcasecmp(param, "name")) {
-			bzero(arl_io.cfg.name, 16);
-			strncpy(arl_io.cfg.name, value, 16);
-			arl_io.what_set |= ARLAN_SET_name;
-		}
-
-		if (!strcasecmp(param, "sid")) {
-			val2 = strtol(value, &value2, 0);
-			if (val2 < 0 || val2 > 0xffffff || val2 % 2 ||
-			    value == value2)
-				err(1, "Bad SID - %s", value);
-			bcopy(&val2, arl_io.cfg.sid, 4);
-			arl_io.what_set |= ARLAN_SET_sid;
-		}
-
-		if (!strcasecmp (param, "freq")) {
-			if (!strcmp(value, "2412"))
-				val = 1;
-			else if (!strcmp(value, "2427"))
-				val = 2;
-			else if (!strcmp(value, "2442"))
-				val = 3;
-			else if (!strcmp(value, "2457"))
-				val = 4;
-			else if (!strcmp(value, "2465"))
-				val = 5;
-			if (val == -1)
-				err(1, "Bad Frequency - %s", value);
-			arl_io.cfg.channelNumber = val;
-			arl_io.what_set |= ARLAN_SET_channelNumber;
-		}
-
-		if (!strcasecmp(param, "spread")) {
-			if (!strcmp(value, "354"))
-				val = 1;
-			else if (!strcmp(value, "500"))
-				val = 2;
-			else if (!strcmp(value, "1000"))
-				val = 3;
-			else if (!strcmp(value, "2000"))
-				val = 4;
-			if (val == -1)
-				err (1, "Bad Bitrate - %s", value);
-			arl_io.cfg.spreadingCode = val;
-			arl_io.what_set |= ARLAN_SET_spreadingCode;
-		}
-
 		if (!strcasecmp(param, "priority")) {
 			if (!strcasecmp(value, "normal"))
 				val = 0;
@@ -455,19 +398,6 @@ main(int argc, char *argv[])
 			arl_io.what_set |= ARLAN_SET_priority;
 		}
 
-		if (!strcasecmp(param, "mode")) {
-			if (!strcmp(value, "655"))
-				val = 0;
-			else if (!strcmp(value, "640"))
-				val = 1;
-			else if (!strcasecmp (value, "PSP"))
-				val = 2;
-			if (val == -1)
-				err (1, "Bad Mode - %s", value);
-			arl_io.cfg.registrationMode = val;
-			arl_io.what_set |= ARLAN_SET_registrationMode;
-		}
-
 		if (!strcasecmp(param, "parent")) {
 			if ((ea = (struct ether_addr*) ether_aton(value)) == NULL)
 				err (1, "Bad parent's MAC - %s", value);
@@ -478,34 +408,9 @@ main(int argc, char *argv[])
 			arl_io.what_set |= ARLAN_SET_specifiedRouter;
 		}
 
-		if (!strcasecmp(param, "addr")) {
-			if ((ea = (struct ether_addr*) ether_aton(value)) == NULL)
-				err (1, "Bad MAC - %s", value);
-			for (val = 0; val < 6; val++) {
-				arl_io.cfg.lanCardNodeId[val] =
-				    (int) ea->octet[val];
-			}
-			arl_io.what_set |= ARLAN_SET_lanCardNodeId;
-		}
-
 		if (!strcasecmp(param, "country")) {
 			arl_io.cfg.channelSet = atoi(value);
 			arl_io.what_set |= ARLAN_SET_channelSet;
-		}
-
-		if (!strcasecmp(param, "channel")) {
-			arl_io.cfg.channelNumber = atoi(value);
-			arl_io.what_set |= ARLAN_SET_channelNumber;
-		}
-
-		if (!strcasecmp(param, "bitrate")) {
-			arl_io.cfg.spreadingCode = atoi(value);
-			arl_io.what_set |= ARLAN_SET_spreadingCode;
-		}
-
-		if (!strcasecmp(param, "receive")) {
-			arl_io.cfg.receiveMode = atoi(value);
-			arl_io.what_set |= ARLAN_SET_receiveMode;
 		}
 
 		if (!strcasecmp(param, "txretry")) {
