@@ -3,9 +3,9 @@
 # $FreeBSD$
 #
 
-PROG=	arlconfig
-SRCS=	arlconfig.c
+PROG=	arlcontrol
+SRCS=	arlcontrol.c
 CFLAGS=	-I${.CURDIR}/../../sys -DARLCACHE
-MAN=	arlconfig.8
+MAN=	arlcontrol.8
 
 .include <bsd.prog.mk>
