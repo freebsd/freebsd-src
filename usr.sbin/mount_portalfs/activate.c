@@ -39,7 +39,7 @@
 
 #ifndef lint
 static const char rcsid[] =
-	"$Id$";
+	"$Id: activate.c,v 1.5 1998/07/06 07:19:23 charnier Exp $";
 #endif /* not lint */
 
 #include <errno.h>
@@ -148,7 +148,7 @@ int error;
 	/*
 	 * Send to kernel...
 	 */
-	if ((n = sendmsg(so, &msg, MSG_EOR)) < 0)
+	if ((n = sendmsg(so, &msg, 0)) < 0)
 		syslog(LOG_ERR, "send: %s", strerror(errno));
 #ifdef DEBUG
 	fprintf(stderr, "sent %d bytes\n", n);
