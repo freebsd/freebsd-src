@@ -45,7 +45,12 @@
 #include <sys/cdefs.h>
 #include <sys/_types.h>
 
-/* XXX missing blkcnt_t, blksize_t, dev_t. */
+/* XXX missing blkcnt_t, blksize_t. */
+
+#ifndef _DEV_T_DECLARED
+typedef	__dev_t		dev_t;
+#define	_DEV_T_DECLARED
+#endif
 
 #ifndef _FFLAGS_T_DECLARED
 typedef	__fflags_t	fflags_t;
@@ -99,12 +104,6 @@ typedef	__uid_t		uid_t;
 #include <sys/_timespec.h>
 #endif
 
-#ifdef _KERNEL		/* XXX __dev_t should be in <sys/_types.h>. */
-#define __dev_t	udev_t
-#else
-#define __dev_t	dev_t
-#endif
-
 #if __BSD_VISIBLE
 struct ostat {
 	__uint16_t st_dev;		/* inode's device */
@@ -126,13 +125,13 @@ struct ostat {
 #endif /* __BSD_VISIBLE */
 
 struct stat {
-	__dev_t	  st_dev;		/* inode's device */
+	__udev_t  st_dev;		/* inode's device */
 	ino_t	  st_ino;		/* inode's number */
 	mode_t	  st_mode;		/* inode protection mode */
 	nlink_t	  st_nlink;		/* number of hard links */
 	uid_t	  st_uid;		/* user ID of the file's owner */
 	gid_t	  st_gid;		/* group ID of the file's group */
-	__dev_t	  st_rdev;		/* device type */
+	__udev_t  st_rdev;		/* device type */
 #if __BSD_VISIBLE
 	struct	timespec st_atimespec;	/* time of last access */
 	struct	timespec st_mtimespec;	/* time of last data modification */
@@ -173,13 +172,13 @@ struct stat {
 
 #if __BSD_VISIBLE
 struct nstat {
-	__dev_t	  st_dev;		/* inode's device */
+	__udev_t st_dev;		/* inode's device */
 	ino_t	  st_ino;		/* inode's number */
 	__uint32_t st_mode;		/* inode protection mode */
 	__uint32_t st_nlink;		/* number of hard links */
 	uid_t	  st_uid;		/* user ID of the file's owner */
 	gid_t	  st_gid;		/* group ID of the file's group */
-	__dev_t	  st_rdev;		/* device type */
+	__udev_t st_rdev;		/* device type */
 	struct	timespec st_atimespec;	/* time of last access */
 	struct	timespec st_mtimespec;	/* time of last data modification */
 	struct	timespec st_ctimespec;	/* time of last file status change */
@@ -196,8 +195,6 @@ struct nstat {
 	unsigned int :(8 / 2) * (16 - (int)sizeof(struct timespec));
 };
 #endif
-
-#undef __dev_t
 
 #if __BSD_VISIBLE
 #define st_atime st_atimespec.tv_sec
