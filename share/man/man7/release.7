@@ -220,6 +220,15 @@ or
 will ask
 .Xr cvs 1
 to check out or update sources as of 00:00:00 GMT, January 1 2002, respectively.
+.It Va KERNEL_FLAGS
+The contents of this variable are passed to
+.Xr make 1
+when building kernels during the release build.
+For example, setting this variable to
+.Dq Li "-j 4"
+will instruct
+.Xr make 1
+to execute up to four processes at a time.
 .It Va LOCAL_PATCHES
 A patch file against
 .Pa /usr/src
@@ -297,6 +306,15 @@ For example, cross-building for PC98 machines requires
 .Va TARGET_ARCH Ns = Ns Li i386
 and
 .Va TARGET Ns = Ns Li pc98 .
+.It Va WORLD_FLAGS
+The contents of this variable are passed to
+.Xr make 1
+when building world during the release build.
+For example, setting this variable to
+.Dq Li "-j 4"
+will instruct
+.Xr make 1
+to execute up to four processes at a time.
 .El
 .Sh FILES
 .Bl -tag -compact
