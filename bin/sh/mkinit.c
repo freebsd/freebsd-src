@@ -66,6 +66,7 @@ static const char rcsid[] =
 #include <string.h>
 #include <fcntl.h>
 #include <unistd.h>
+#include <errno.h>
 
 
 /*
@@ -478,7 +479,7 @@ ckfopen(file, mode)
 	FILE *fp;
 
 	if ((fp = fopen(file, mode)) == NULL) {
-		fprintf(stderr, "Can't open %s\n", file);
+		fprintf(stderr, "Can't open %s: %s\n", file, strerror(errno));
 		exit(2);
 	}
 	return fp;

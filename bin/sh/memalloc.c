@@ -187,10 +187,6 @@ popstackmark(mark)
 
 	INTOFF;
 	while (stackp != mark->stackp) {
-		if (stackp == NULL) {
-			write(2, "Oops, stackp deleted\n", 21);
-			abort();
-		}
 		sp = stackp;
 		stackp = sp->prev;
 		ckfree(sp);

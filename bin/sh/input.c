@@ -232,7 +232,6 @@ preadbuffer()
 	char *p, *q;
 	int more;
 	int something;
-	extern EditLine *el;
 	char savec;
 
 	if (parsefile->strpush) {
@@ -384,7 +383,7 @@ setinputfile(fname, push)
 
 	INTOFF;
 	if ((fd = open(fname, O_RDONLY)) < 0)
-		error("Can't open %s", fname);
+		error("Can't open %s: %s", fname, strerror(errno));
 	if (fd < 10) {
 		fd2 = copyfd(fd, 10);
 		close(fd);

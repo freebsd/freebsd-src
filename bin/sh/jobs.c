@@ -594,7 +594,7 @@ forkshell(jp, n, mode)
 	if (pid == -1) {
 		TRACE(("Fork failed, errno=%d\n", errno));
 		INTON;
-		error("Cannot fork");
+		error("Cannot fork: %s", strerror(errno));
 	}
 	if (pid == 0) {
 		struct job *p;
@@ -636,7 +636,8 @@ forkshell(jp, n, mode)
 			    ! fd0_redirected_p ()) {
 				close(0);
 				if (open("/dev/null", O_RDONLY) != 0)
-					error("Can't open /dev/null");
+					error("Can't open /dev/null: %s", 
+					    strerror(errno));
 			}
 		}
 #else
@@ -647,7 +648,8 @@ forkshell(jp, n, mode)
 			    ! fd0_redirected_p ()) {
 				close(0);
 				if (open("/dev/null", O_RDONLY) != 0)
-					error("Can't open /dev/null");
+					error("Can't open /dev/null: %s", 
+					    strerror(errno));
 			}
 		}
 #endif

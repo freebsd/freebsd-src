@@ -56,6 +56,7 @@ static const char rcsid[] =
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <errno.h>
 #ifdef __STDC__
 #include <stdarg.h>
 #else
@@ -123,7 +124,7 @@ main(argc, argv)
 	if (argc != 3)
 		error("usage: mknodes file");
 	if ((infp = fopen(argv[1], "r")) == NULL)
-		error("Can't open %s", argv[1]);
+		error("Can't open %s: %s", argv[1], strerror(errno));
 	while (readline()) {
 		if (line[0] == ' ' || line[0] == '\t')
 			parsefield();
@@ -232,9 +233,9 @@ output(file)
 	char *p;
 
 	if ((patfile = fopen(file, "r")) == NULL)
-		error("Can't open %s", file);
+		error("Can't open %s: %s", file, strerror(errno));
 	if ((hfile = fopen("nodes.h", "w")) == NULL)
-		error("Can't create nodes.h");
+		error("Can't create nodes.h: %s", strerror(errno));
 	if ((cfile = fopen("nodes.c", "w")) == NULL)
 		error("Can't create nodes.c");
 	fputs(writer, hfile);

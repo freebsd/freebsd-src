@@ -420,7 +420,7 @@ opentrace() {
 	scopy("./trace", s);
 #endif /* not_this_way */
 	if ((tracefile = fopen(s, "a")) == NULL) {
-		fprintf(stderr, "Can't open %s\n", s);
+		fprintf(stderr, "Can't open %s: %s\n", s, strerror(errno));
 		return;
 	}
 #ifdef O_APPEND

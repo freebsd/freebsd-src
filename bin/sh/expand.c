@@ -315,7 +315,7 @@ done:
 		goto lose;
 	*p = c;
 	while ((c = *home++) != '\0') {
-		if (quotes && SQSYNTAX[c] == CCTL)
+		if (quotes && c >= 0 && SQSYNTAX[(int)c] == CCTL)
 			STPUTC(CTLESC, expdest);
 		STPUTC(c, expdest);
 	}
@@ -478,7 +478,7 @@ expbackq(cmd, quoted, flag)
 		}
 		lastc = *p++;
 		if (lastc != '\0') {
-			if (quotes && syntax[lastc] == CCTL)
+			if (quotes && lastc >= 0 && syntax[(int)lastc] == CCTL)
 				STPUTC(CTLESC, dest);
 			STPUTC(lastc, dest);
 		}
@@ -694,7 +694,8 @@ again: /* jump here after setting a variable with ${var=text} */
 			}
 			else {
 				while (*val) {
-					if (quotes && syntax[*val] == CCTL)
+					if (quotes && *val >= 0 &&
+					    syntax[(int)*val] == CCTL)
 						STPUTC(CTLESC, expdest);
 					STPUTC(*val++, expdest);
 				}
@@ -865,7 +866,7 @@ varvalue(name, quoted, allow_split)
 	if (allow_split) { \
 		syntax = quoted? DQSYNTAX : BASESYNTAX; \
 		while (*p) { \
-			if (syntax[*p] == CCTL) \
+			if (*p >= 0 && syntax[(int)*p] == CCTL) \
 				STPUTC(CTLESC, expdest); \
 			STPUTC(*p++, expdest); \
 		} \
