@@ -6,7 +6,7 @@
  * this stuff is worth it, you can buy me a beer in return.   Poul-Henning Kamp
  * ----------------------------------------------------------------------------
  *
- * $Id: ftp.c,v 1.13.2.4 1995/06/03 06:31:02 jkh Exp $
+ * $Id: ftp.c,v 1.13.2.5 1995/06/03 08:51:28 jkh Exp $
  *
  * Return values have been sanitized:
  *	-1	error, but you (still) have a session.
@@ -367,7 +367,11 @@ FtpGet(FTP_t ftp, char *file)
 	    close(s);
 	    return zap(ftp);
 	}
-	ftp->fd_xfer = accept(s,0,0);
+	else if (i > 299) {
+	    close(s);
+	    return -1;
+        }
+	ftp->fd_xfer = accept(s, 0, 0);
 	if (ftp->fd_xfer < 0) {
 	    close(s);
 	    return zap(ftp);
