@@ -419,6 +419,8 @@ sysctl_sysctl_name2oid SYSCTL_HANDLER_ARGS
 
 	if (!req->newlen) 
 		return ENOENT;
+	if (req->newlen >= MAXPATHLEN)	/* XXX arbitrary, undocumented */
+		return (ENAMETOOLONG);
 
 	p = malloc(req->newlen+1, M_SYSCTL, M_WAITOK);
 
@@ -524,10 +526,7 @@ sysctl_handle_int SYSCTL_HANDLER_ARGS
 }
 
 /*
- * Handle a long, signed or unsigned.
- * Two cases:
- *     a variable:  point arg1 at it.
- *     a constant:  pass it in arg2.
+ * Handle a long, signed or unsigned.  arg1 points to it.
  */
 
 int
@@ -535,15 +534,14 @@ sysctl_handle_long SYSCTL_HANDLER_ARGS
 {
 	int error = 0;
 
+	if (!arg1)
+		return (EINVAL);
 	error = SYSCTL_OUT(req, arg1, sizeof(long));
 
 	if (error || !req->newptr)
 		return (error);
 
-	if (!arg1)
-		error = EPERM;
-	else
-		error = SYSCTL_IN(req, arg1, sizeof(long));
+	error = SYSCTL_IN(req, arg1, sizeof(long));
 	return (error);
 }
 
@@ -561,11 +559,11 @@ sysctl_handle_string SYSCTL_HANDLER_ARGS
 
 	error = SYSCTL_OUT(req, arg1, strlen((char *)arg1)+1);
 
-	if (error || !req->newptr || !arg2)
+	if (error || !req->newptr)
 		return (error);
 
-	if ((req->newlen - req->newidx) > arg2) {
-		error = E2BIG;
+	if ((req->newlen - req->newidx) >= arg2) {
+		error = EINVAL;
 	} else {
 		arg2 = (req->newlen - req->newidx);
 		error = SYSCTL_IN(req, arg1, arg2);
