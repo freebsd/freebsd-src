@@ -243,7 +243,7 @@ ast(struct trapframe *framep)
 	if (flags & TDF_NEEDRESCHED) {
 #ifdef KTRACE
 		if (KTRPOINT(td, KTR_CSW))
-			ktrcsw(1, 0);
+			ktrcsw(1, 1);
 #endif
 		mtx_lock_spin(&sched_lock);
 		sched_prio(td, kg->kg_user_pri);
@@ -252,7 +252,7 @@ ast(struct trapframe *framep)
 		mtx_unlock_spin(&sched_lock);
 #ifdef KTRACE
 		if (KTRPOINT(td, KTR_CSW))
-			ktrcsw(0, 0);
+			ktrcsw(0, 1);
 #endif
 	}
 	if (flags & TDF_NEEDSIGCHK) {
