@@ -17,7 +17,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: ip.c,v 1.47 1998/06/27 14:18:05 brian Exp $
+ * $Id: ip.c,v 1.48 1998/06/27 23:48:45 brian Exp $
  *
  *	TODO:
  *		o Return ICMP message for filterd packet
@@ -532,9 +532,9 @@ ip_FlushPacket(struct link *l, struct bundle *bundle)
         struct ip *pip = (struct ip *)MBUF_CTOP(bp);
 
 	cnt = mbuf_Length(bp);
-	vj_SendFrame(l, bp, bundle);
         if (!(FilterCheck(pip, &bundle->filter.alive) & A_DENY))
           bundle_StartIdleTimer(bundle);
+	vj_SendFrame(l, bp, bundle);
         ipcp_AddOutOctets(&bundle->ncp.ipcp, cnt);
 	return 1;
       }
