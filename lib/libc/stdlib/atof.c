@@ -29,18 +29,26 @@
  * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
+ *
+ * $FreeBSD$
  */
 
 #if defined(LIBC_SCCS) && !defined(lint)
 static char sccsid[] = "@(#)atof.c	8.1 (Berkeley) 6/4/93";
 #endif /* LIBC_SCCS and not lint */
 
+#include <errno.h>
 #include <stdlib.h>
-#include <stddef.h>
 
 double
 atof(ascii)
 	const char *ascii;
 {
-	return (strtod(ascii, NULL));
+	double r;
+	int saverr;
+
+	saverr = errno;
+	r = strtod(ascii, (char **)NULL);
+	errno = saverr;
+	return r;
 }
