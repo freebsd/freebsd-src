@@ -23,8 +23,73 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: cia.c,v 1.5 1998/08/07 08:18:44 dfr Exp $
+ *	$Id: cia.c,v 1.6 1998/08/10 07:53:59 dfr Exp $
  */
+/*-
+ * Copyright (c) 1998 The NetBSD Foundation, Inc.
+ * All rights reserved.
+ *
+ * This code is derived from software contributed to The NetBSD Foundation
+ * by Jason R. Thorpe of the Numerical Aerospace Simulation Facility,
+ * NASA Ames Research Center.
+ *
+ * Redistribution and use in source and binary forms, with or without
+ * modification, are permitted provided that the following conditions
+ * are met:
+ * 1. Redistributions of source code must retain the above copyright
+ *    notice, this list of conditions and the following disclaimer.
+ * 2. Redistributions in binary form must reproduce the above copyright
+ *    notice, this list of conditions and the following disclaimer in the
+ *    documentation and/or other materials provided with the distribution.
+ * 3. All advertising materials mentioning features or use of this software
+ *    must display the following acknowledgement:
+ *	This product includes software developed by the NetBSD
+ *	Foundation, Inc. and its contributors.
+ * 4. Neither the name of The NetBSD Foundation nor the names of its
+ *    contributors may be used to endorse or promote products derived
+ *    from this software without specific prior written permission.
+ *
+ * THIS SOFTWARE IS PROVIDED BY THE NETBSD FOUNDATION, INC. AND CONTRIBUTORS
+ * ``AS IS'' AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED
+ * TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR
+ * PURPOSE ARE DISCLAIMED.  IN NO EVENT SHALL THE FOUNDATION OR CONTRIBUTORS
+ * BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR
+ * CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF
+ * SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS
+ * INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN
+ * CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
+ * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
+ * POSSIBILITY OF SUCH DAMAGE.
+ */
+
+/*
+ * Copyright (c) 1995, 1996 Carnegie-Mellon University.
+ * All rights reserved.
+ *
+ * Author: Chris G. Demetriou
+ * 
+ * Permission to use, copy, modify and distribute this software and
+ * its documentation is hereby granted, provided that both the copyright
+ * notice and this permission notice appear in all copies of the
+ * software, derivative works or modified versions, and any portions
+ * thereof, and that both notices appear in supporting documentation.
+ * 
+ * CARNEGIE MELLON ALLOWS FREE USE OF THIS SOFTWARE IN ITS "AS IS" 
+ * CONDITION.  CARNEGIE MELLON DISCLAIMS ANY LIABILITY OF ANY KIND 
+ * FOR ANY DAMAGES WHATSOEVER RESULTING FROM THE USE OF THIS SOFTWARE.
+ * 
+ * Carnegie Mellon requests users of this software to return to
+ *
+ *  Software Distribution Coordinator  or  Software.Distribution@CS.CMU.EDU
+ *  School of Computer Science
+ *  Carnegie Mellon University
+ *  Pittsburgh PA 15213-3890
+ *
+ * any improvements or extensions that they make and grant Carnegie the
+ * rights to redistribute these changes.
+ */
+
+#include "opt_cpu.h"
 
 #include <sys/param.h>
 #include <sys/systm.h>
@@ -38,12 +103,14 @@
 #include <machine/swiz.h>
 #include <machine/intr.h>
 #include <machine/cpuconf.h>
+#include <machine/rpb.h>
 
 #define KV(pa)			ALPHA_PHYS_TO_K0SEG(pa)
 
 static devclass_t	cia_devclass;
 static device_t		cia0;		/* XXX only one for now */
 static u_int32_t	cia_hae_mem;
+static int		cia_rev, cia_ispyxis, cia_config;
 
 struct cia_softc {
 	int		junk;		/* no softc */
@@ -499,8 +566,31 @@ cia_init()
 	if (initted) return;
 	initted = 1;
 
+	cia_rev = REGVAL(CIA_CSR_REV) & REV_MASK;
+
+	/*
+	 * Determine if we have a Pyxis.  Only two systypes can
+	 * have this: the EB164 systype (AlphaPC164LX and AlphaPC164SX)
+	 * and the DEC_ST550 systype (Miata).
+	 */
+	if ((hwrpb->rpb_type == ST_EB164 &&
+	     (hwrpb->rpb_variation & SV_ST_MASK) >= SV_ST_ALPHAPC164LX_400) ||
+	    hwrpb->rpb_type == ST_DEC_550)
+		cia_ispyxis = TRUE;
+	else
+		cia_ispyxis = FALSE;
+	
+	/*
+	 * ALCOR/ALCOR2 Revisions >= 2 and Pyxis have the CNFG register.
+	 */
+	if (cia_rev >= 2 || cia_ispyxis)
+		cia_config = REGVAL(CIA_CSR_CNFG);
+	else
+		cia_config = 0;
+
 	if (alpha_implver() != ALPHA_IMPLVER_EV5
-	    || alpha_amask(ALPHA_AMASK_BWX))
+	    || alpha_amask(ALPHA_AMASK_BWX)
+	    || !(cia_config & CNFG_BWEN))
 		chipset = cia_swiz_chipset;
 	else
 		chipset = cia_bwx_chipset;
@@ -531,9 +621,58 @@ static int
 cia_attach(device_t dev)
 {
 	struct cia_softc* sc = CIA_SOFTC(dev);
+	char* name;
+	int pass;
 
 	cia_init();
 	chipset.intrdev = dev;
+
+	name = cia_ispyxis ? "Pyxis" : "ALCOR/ALCOR2";
+	if (cia_ispyxis) {
+		name = "Pyxis";
+		pass = cia_rev;
+	} else {
+		name = "ALCOR/ALCOR2";
+		pass = cia_rev+1;
+	}
+	printf("cia0: %s, pass %d\n", name, pass);
+	if (cia_config)
+		printf("cia0: extended capabilities: %b\n",
+		       cia_config, CIA_CSR_CNFG_BITS);
+
+#ifdef DEC_ST550
+	if (hwrpb->rpb_type == ST_DEC_550 &&
+	    (hwrpb->rpb_variation & SV_ST_MASK) < SV_ST_MIATA_1_5) {
+		/*
+		 * Miata 1 systems have a bug: DMA cannot cross
+		 * an 8k boundary!  Make sure PCI read prefetching
+		 * is disabled on these chips.  Note that secondary
+		 * PCI busses don't have this problem, because of
+		 * the way PPBs handle PCI read requests.
+		 *
+		 * In the 21174 Technical Reference Manual, this is
+		 * actually documented as "Pyxis Pass 1", but apparently
+		 * there are chips that report themselves as "Pass 1"
+		 * which do not have the bug!  Miatas with the Cypress
+		 * PCI-ISA bridge (i.e. Miata 1.5 and Miata 2) do not
+		 * have the bug, so we use this check.
+		 *
+		 * XXX We also need to deal with this boundary constraint
+		 * XXX in the PCI bus 0 (and ISA) DMA tags, but some
+		 * XXX drivers are going to need to be changed first.
+		 */
+		u_int32_t ctrl;
+
+		/* XXX no bets... */
+		printf("cia0: WARNING: Pyxis pass 1 DMA bug; no bets...\n");
+
+		alpha_mb();
+		ctrl = REGVAL(CIA_CSR_CTRL);
+		ctrl &= ~(CTRL_RD_TYPE|CTRL_RL_TYPE|CTRL_RM_TYPE);
+		REGVAL(CIA_CSR_CTRL) = ctrl;
+		alpha_mb();
+	}
+#endif
 
 	if (!platform.iointr)	/* XXX */
 		set_iointr(alpha_dispatch_intr);
