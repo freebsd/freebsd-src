@@ -2539,8 +2539,8 @@ psmsoftintr(void *arg)
 		    x0 = (x0 + sc->xold * 3) / 4;
 		    y0 = (y0 + sc->yold * 3) / 4;
 
-		    x = (x0 - sc->xold) / 4;
-		    y = (y0 - sc->yold) / 4;
+		    x = (x0 - sc->xold) * 10 / 85;
+		    y = (y0 - sc->yold) * 10 / 85;
 		} else {
 		    sc->flags |= PSM_FLAGS_FINGERDOWN;
 		}
