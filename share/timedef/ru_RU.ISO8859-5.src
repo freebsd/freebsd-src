@@ -35,13 +35,13 @@
 #
 # Short weekdays names
 #
-вс 
-пн 
-вт 
-ср 
-чт 
-пт 
-сб 
+вс
+пн
+вт
+ср
+чт
+пт
+сб
 #
 # Long weekdays names
 #
@@ -67,7 +67,7 @@
 #
 # am
 #
-  
+
 #
 # pm
 #
