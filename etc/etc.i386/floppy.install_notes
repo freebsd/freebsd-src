@@ -1,45 +1,76 @@
-1.  Boot the kernel copy floppy for the type of disk controller you
-    have:
+                INSTALLATION INSTRUCTIONS FOR FreeBSD 1.0 GAMMA
 
-	IDE/ST506/Adaptec 1542{A,B,C}/Adaptec 1742A: kcopy-ah-floppy
+Welcome to FreeBSD!  This document has been put together in an effort
+to make initial installation of the system as easy as possible.
 
-	Bustek 742a/UltraStore {14,34}F: kcopy-bt-floppy
+1.  To install FreeBSD you will need 3 floppies, as well as the bulk of
+    the distribution on some other medium (floppy, tape, CD, etc).  If
+    you've retrieved this release from the net, you'll first have to make
+    the floppies yourself using the supplied images.
 
-2.  When that floppy asks you to insert the file system floppy insert
-    the floppy labeled file filesystem-floppy.  Follow the instructions
-    that floppy gives you.  Note what type of disk that it says to
-    copy the kernel to (sd0a or wd0a.)  When it halts go to the next step.
+    Due to the differences in PC configurations, we've found it necessary
+    to provide multiple initial boot images that provide kernels for
+    different types of systems.
 
-3.  Boot the same floppy you used in step one, this time when it asks
-    you to insert the file system floppy just press the return key.
-    Follow the instructions that the floppy gives you.  Basically
-    type copy at the ``kc>'' prompt, then either ``sd0a'' or ``wd0a''
-    at the ``copy kernel to>'' prompt.  When it halts go to the next step.
+    If your disk controller is one of:
 
-4.  Remove all floppies from the drive, then press return to boot from
-    the hard disk.  After it has booted and is asking what drive the
-    cpio floppy is in insert the floppy labeled cpio-floppy into a
+	IDE/ST506
+	Adaptec 1542{A,B,C}
+	Adaptec 1742A
+
+    Then please use the disk image:	kcopy-ah-floppy
+    to construct your boot floppy.
+
+    If your disk controller is one of:
+
+	Bustek 742a
+	UltraStore {14,34}F
+
+    Then please use the disk image:	kcopy-bt-floppy
+    to construct your boot floppy.
+
+    Next, make a second floppy from the disk image:	filesystem-floppy
+    You'll need this for the second stage of the boot process.
+
+    Finally, make a third floppy from the disk image:	cpio-floppy
+    You'll need this for the last stage of the boot process.
+
+2.  Boot the first floppy.  When it asks you to insert the file system,
+    insert your second "filesystem-floppy."  Follow the instructions
+    that floppy gives you, making note of the type of disk it says to
+    copy the kernel to, `sd0a' or `wd0a' (`sd0a' is for SCSI systems,
+    `wd0a' is for all others.) When the system halts, go on to the next step.
+
+3.  Boot the first floppy again, but this time when it asks
+    you to insert the file system floppy, just press the return key.
+    Follow the instructions that the floppy gives you.  When you see
+    the `kc>' prompt, type `copy' (without quotes).  At the next prompt,
+    `copy kernel to>', type either `sd0a' or `wd0a' as given in
+    the previous step.  When the system halts, go on to the next step.
+
+4.  Making sure that there's no floppy in the drive, press return to boot
+    from the hard disk.  After it has booted and is asking what drive the
+    cpio floppy is in, insert the third floppy (cpio-floppy) into a
     floppy drive and answer the question about what drive it is in.
     Note that 0 is the same as DOS drive A:, and 1 is the same as DOS
     drive B:
 
-5.  After the cpio-floppy has been copied to the disk enter ``halt''.
+5.  After the cpio-floppy has been copied to the disk, enter `halt'.
 
-6.  Remove the cpio-floppy from the drive after the system has asked
-    you to press the return key to reboot, but before you press the
-    return key.  Press the return key to boot again from the hard
+6.  When the system asks you to press the return key to reboot, first
+    remove the floppy and then press the return key to boot from the hard
     disk.
 
 7.  At this point you will get 4 errors from the fsck on boot, this
-    is expected and is caused by files that where open when the
-    /dev entries where built.  The system will correct these and then
-    halt.  After it has halted, just press the return key to reboot
-    again.
+    is normal and is caused by files that were open when the
+    /dev entries were built - just ignore them.  The system will
+    correct these errors and then halt, after which you should press
+    the return key again to reboot with a clean system.
 
-8.  Congratulations, you've got the mini FreeBSD system on the disk.
+8.  Congratulations, you've got the mini FreeBSD system on the disk!
 
 9.  Follow the instructions about set_tmp_dir and extract that
-    well come on your screen after you press the return key.
+    will come on your screen after you've pressed the return key.
 
 10. You will get the following errors while extracting the bin
     distribution, you can safely ignore them.
@@ -50,16 +81,25 @@
 
 11. Run the configure command to set up some of the /etc files by
     typing ``configure''.  You will have to edit /etc/netstart after
-    this is you have a networking interface.
+    this if you have a networking interface.
 
 12. Reboot so that the system comes up multiuser by typing ``reboot''.
 
-13. You should save the /.profile file to /.profile.install for use later
-    if you decide to install other parts of the system that you did not
-    install at this time and link /.profile to /root/.profile so when
-    the system comes up single user the proper .profile is read:
+13. You are now running FreeBSD!  Congradulations!  You may now continue
+    with installing the source distribution, or stop here for now.
+
+    Should you decided to postpone further installation, you should
+    probably save the "installing profile" for possible future use by
+    saving it and linking a default profile into place.
+
+    Do it like this:
 
 	mv /.profile /.profile.install
 	ln /root/.profile /.profile
 
-End of $Id$
+14. In addition to the source and binary distributions, many additional
+    packages, such as X11 and TeX, may be obtained from freebsd.cdrom.com -
+    please have a look around!  You may also find this a good time to
+    read the release notes in /usr/src/RELNOTES.FreeBSD.
+    
+End of $Id: floppy.install_notes,v 1.1 1993/09/01 01:41:23 rgrimes Exp $
