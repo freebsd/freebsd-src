@@ -1,3 +1,6 @@
+/*	$OpenBSD: remote.c,v 1.10 2001/10/24 18:38:58 millert Exp $	*/
+/*	$NetBSD: remote.c,v 1.5 1997/04/20 00:02:45 mellon Exp $	*/
+
 /*
  * Copyright (c) 1992, 1993
  *	The Regents of the University of California.  All rights reserved.
@@ -32,8 +35,11 @@
  * SUCH DAMAGE.
  */
 
+#include <sys/cdefs.h>
+__FBSDID("$FreeBSD$");
+
 #ifndef lint
-static const char copyright[] =
+static char copyright[] =
 "@(#) Copyright (c) 1992, 1993\n\
 	The Regents of the University of California.  All rights reserved.\n";
 #endif /* not lint */
@@ -41,19 +47,15 @@ static const char copyright[] =
 #ifndef lint
 #if 0
 static char sccsid[] = "@(#)remote.c	8.1 (Berkeley) 6/6/93";
+static char rcsid[] = "$OpenBSD: remote.c,v 1.10 2001/10/24 18:38:58 millert Exp $";
 #endif
-static const char rcsid[] =
-  "$FreeBSD$";
 #endif /* not lint */
 
-#include <sys/syslimits.h>
-#include <err.h>
 #include <stdio.h>
 #include <stdlib.h>
 
-#include "tipconf.h"
-#include "tip.h"
 #include "pathnames.h"
+#include "tip.h"
 
 /*
  * Attributes to be gleened from remote host description
@@ -61,65 +63,29 @@ static const char rcsid[] =
  */
 static char **caps[] = {
 	&AT, &DV, &CM, &CU, &EL, &IE, &OE, &PN, &PR, &DI,
-	&ES, &EX, &FO, &RC, &RE, &PA, &LI, &LO
+	&ES, &EX, &FO, &RC, &RE, &PA
 };
 
 static char *capstrings[] = {
 	"at", "dv", "cm", "cu", "el", "ie", "oe", "pn", "pr",
-	"di", "es", "ex", "fo", "rc", "re", "pa", "li", "lo", 0
+	"di", "es", "ex", "fo", "rc", "re", "pa", 0
 };
 
 static char	*db_array[3] = { _PATH_REMOTE, 0, 0 };
 
 #define cgetflag(f)	(cgetcap(bp, f, ':') != NULL)
 
-static void getremcap __P((char *));
-
-/*
-	Expand the start tilde sequence at the start of the
-	specified path. Optionally, free space allocated to
-	path before reinitializing it.
-*/
-static int
-expand_tilde (char **path, void (*free) (char *p))
-{
-	int rc = 0;
-	char buffer [PATH_MAX];
-	char *tailp;
-	if ((tailp = strchr (*path + 1, '/')) != NULL)
-	{
-		struct passwd *pwd;
-		*tailp++ = '\0';
-		if (*(*path + 1) == '\0')
-			strcpy (buffer, getlogin ());
-		else
-			strcpy (buffer, *path + 1);
-		if ((pwd = getpwnam (buffer)) != NULL)
-		{
-			strcpy (buffer, pwd->pw_dir);
-			strcat (buffer, "/");
-			strcat (buffer, tailp);
-			if (free)
-				free (*path);
-			*path = strdup (buffer);
-			rc++;
-		}
-		return rc;
-	}
-	return (-1);
-}
-
 static void
 getremcap(host)
-	register char *host;
+	char *host;
 {
-	register char **p, ***q;
+	char **p, ***q;
 	char *bp;
 	char *rempath;
 	int   stat;
 
 	rempath = getenv("REMOTE");
-	if (rempath != NULL)
+	if (rempath != NULL) {
 		if (*rempath != '/')
 			/* we have an entry */
 			cgetset(rempath);
@@ -127,10 +93,11 @@ getremcap(host)
 			db_array[1] = rempath;
 			db_array[2] = _PATH_REMOTE;
 		}
+	}
 
 	if ((stat = cgetent(&bp, db_array, host)) < 0) {
 		if (DV ||
-		    (host[0] == '/' && access(DV = host, R_OK | W_OK) == 0)) {
+		    host[0] == '/' && access(DV = host, R_OK | W_OK) == 0) {
 			CU = DV;
 			HO = host;
 			HW = 1;
@@ -142,13 +109,17 @@ getremcap(host)
 		}
 		switch(stat) {
 		case -1:
-			warnx("unknown host %s", host);
+			fprintf(stderr, "%s: unknown host %s\n", __progname,
+			    host);
 			break;
 		case -2:
-			warnx("can't open host description file");
+			fprintf(stderr, 
+			    "%s: can't open host description file\n",
+			    __progname);
 			break;
 		case -3:
-			warnx("possible reference loop in host description file");
+			fprintf(stderr, 
+			    "%s: possible reference loop in host description file\n", __progname);
 			break;
 		}
 		exit(3);
@@ -175,6 +146,10 @@ getremcap(host)
 		fprintf(stderr, "%s: missing phone number\n", host);
 		exit(3);
 	}
+	if (DU && AT == NOSTR) {
+		fprintf(stderr, "%s: missing acu type\n", host);
+		exit(3);
+	}
 
 	HD = cgetflag("hd");
 
@@ -185,58 +160,35 @@ getremcap(host)
 	if (!HW)
 		HW = (CU == NOSTR) || (DU && equal(DV, CU));
 	HO = host;
-
-	/*
-		If login script, verify access
-	*/
-	if (LI != NOSTR) {
-		if (*LI == '~')
-			(void) expand_tilde (&LI, NULL);
-		if (access (LI, F_OK | X_OK) != 0) {
-			printf("tip (warning): can't open login script \"%s\"\n", LI);
-			LI = NOSTR;
-		}
-	}
-
-	/*
-		If logout script, verify access
-	*/
-	if (LO != NOSTR) {
-		if (*LO == '~')
-			(void) expand_tilde (&LO, NULL);
-		if (access (LO, F_OK | X_OK) != 0) {
-			printf("tip (warning): can't open logout script \"%s\"\n", LO);
-			LO = NOSTR;
-		}
-	}
-
 	/*
 	 * see if uppercase mode should be turned on initially
 	 */
 	if (cgetflag("ra"))
-		boolean(value(RAISE)) = 1;
+		setboolean(value(RAISE), 1);
 	if (cgetflag("ec"))
-		boolean(value(ECHOCHECK)) = 1;
+		setboolean(value(ECHOCHECK), 1);
 	if (cgetflag("be"))
-		boolean(value(BEAUTIFY)) = 1;
+		setboolean(value(BEAUTIFY), 1);
 	if (cgetflag("nb"))
-		boolean(value(BEAUTIFY)) = 0;
+		setboolean(value(BEAUTIFY), 0);
 	if (cgetflag("sc"))
-		boolean(value(SCRIPT)) = 1;
+		setboolean(value(SCRIPT), 1);
 	if (cgetflag("tb"))
-		boolean(value(TABEXPAND)) = 1;
+		setboolean(value(TABEXPAND), 1);
 	if (cgetflag("vb"))
-		boolean(value(VERBOSE)) = 1;
+		setboolean(value(VERBOSE), 1);
 	if (cgetflag("nv"))
-		boolean(value(VERBOSE)) = 0;
+		setboolean(value(VERBOSE), 0);
 	if (cgetflag("ta"))
-		boolean(value(TAND)) = 1;
+		setboolean(value(TAND), 1);
 	if (cgetflag("nt"))
-		boolean(value(TAND)) = 0;
+		setboolean(value(TAND), 0);
 	if (cgetflag("rw"))
-		boolean(value(RAWFTP)) = 1;
+		setboolean(value(RAWFTP), 1);
 	if (cgetflag("hd"))
-		boolean(value(HALFDUPLEX)) = 1;
+		setboolean(value(HALFDUPLEX), 1);
+	if (cgetflag("dc"))
+		setboolean(value(DC), 1);
 	if (RE == NOSTR)
 		RE = (char *)"tip.record";
 	if (EX == NOSTR)
@@ -261,13 +213,15 @@ char *
 getremote(host)
 	char *host;
 {
-	register char *cp;
+	char *cp;
 	static char *next;
 	static int lookedup = 0;
 
 	if (!lookedup) {
-		if (host == NOSTR && (host = getenv("HOST")) == NOSTR)
-			errx(3, "no host specified");
+		if (host == NOSTR && (host = getenv("HOST")) == NOSTR) {
+			fprintf(stderr, "%s: no host specified\n", __progname);
+			exit(3);
+		}
 		getremcap(host);
 		next = DV;
 		lookedup++;
@@ -278,7 +232,7 @@ getremote(host)
 	 */
 	if (next == NOSTR)
 		return (NOSTR);
-	if ((cp = index(next, ',')) == NULL) {
+	if ((cp = strchr(next, ',')) == NULL) {
 		DV = next;
 		next = NOSTR;
 	} else {

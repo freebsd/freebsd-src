@@ -1,3 +1,6 @@
+/*	$OpenBSD: dn11.c,v 1.5 2001/11/19 19:02:16 mpech Exp $	*/
+/*	$NetBSD: dn11.c,v 1.4 1995/10/29 00:49:53 pk Exp $	*/
+
 /*
  * Copyright (c) 1983, 1993
  *	The Regents of the University of California.  All rights reserved.
@@ -29,32 +32,35 @@
  * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
- *
- * $FreeBSD$
  */
 
+#include <sys/cdefs.h>
+__FBSDID("$FreeBSD$");
+
 #ifndef lint
+#if 0
 static char sccsid[] = "@(#)dn11.c	8.1 (Berkeley) 6/6/93";
+static char rcsid[] = "$OpenBSD: dn11.c,v 1.5 2001/11/19 19:02:16 mpech Exp $";
+#endif
 #endif /* not lint */
 
 /*
  * Routines for dialing up on DN-11
  */
-#include "tipconf.h"
 #include "tip.h"
-#include <errno.h>
 
-int dn_abort();
+void dn_abort();
 void alarmtr();
 static jmp_buf jmpbuf;
 static int child = -1, dn;
 
+int
 dn_dialer(num, acu)
 	char *num, *acu;
 {
-	char *p, *q, phone[40];
-	int lt, nw, connected = 1;
-	register int timelim;
+	int lt, nw;
+	int timelim;
+	struct termios cntrl;
 
 	if (boolean(value(VERBOSE)))
 		printf("\nstarting call...");
@@ -98,18 +104,9 @@ dn_dialer(num, acu)
 		return (0);
 	}
 	alarm(0);
-
-#if HAVE_TERMIOS
-	{
-		struct termios term;
-		tcgetattr (dn, &term);
-		term.c_cflag |= HUPCL;
-		tcsetattr (dn, TCSANOW, &term);
-	}
-#elif defined(TIOCHPCL)
-	ioctl(dn, TIOCHPCL, 0);
-#endif
-
+	tcgetattr(dn, &cntrl);
+	cntrl.c_cflag |= HUPCL;
+	tcsetattr(dn, TCSANOW, &cntrl);
 	signal(SIGALRM, SIG_DFL);
 	while ((nw = wait(&lt)) != child && nw != -1)
 		;
@@ -133,6 +130,7 @@ alarmtr()
  * Insurance, for some reason we don't seem to be
  *  hanging up...
  */
+void
 dn_disconnect()
 {
 
@@ -142,6 +140,7 @@ dn_disconnect()
 	close(FD);
 }
 
+void
 dn_abort()
 {
 
