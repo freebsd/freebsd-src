@@ -2055,7 +2055,7 @@ fill_ip(ipfw_insn_ip *cmd, char *av)
 				errx(EX_DATAERR, "not any never matches");
 		}
 		/* else do nothing and skip this entry */
-		continue;
+		return;
 	}
 	/* A single IP can be stored in an optimized format */
 	if (d[1] == IP_MASK_ALL && av == NULL && len == 0) {
