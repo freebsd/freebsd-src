@@ -23,15 +23,15 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $FreeBSD$
- *
  * Functions to encode or decode struct dos_partition into a bytestream
  * of correct endianess and packing.  These functions do no validation
  * or sanity checking, they only pack/unpack the fields correctly.
  *
  * NB!  This file must be usable both in kernel and userland.
- *
  */
+
+#include <sys/cdefs.h>
+__FBSDID("$FreeBSD$");
 
 #include <sys/types.h>
 #include <sys/diskmbr.h>
