@@ -121,6 +121,7 @@ all: ${KERNEL_KO}
 depend: kernel-depend
 clean:  kernel-clean
 cleandepend:  kernel-cleandepend
+clobber: kernel-clobber
 tags:  kernel-tags
 install: kernel-install
 install.debug: kernel-install.debug
@@ -157,6 +158,9 @@ kernel-clean:
 	      vers.c vnode_if.c vnode_if.h \
 	      ${MFILES:T:S/.m$/.c/} ${MFILES:T:S/.m$/.h/} \
 	      ${CLEAN}
+
+kernel-clobber:
+	find . -type f ! -name version -delete
 
 #lint: /tmp param.c
 #	@lint -hbxn -DGENERIC -Dvolatile= ${COPTS} \
@@ -271,6 +275,7 @@ depend: modules-depend
 clean:  modules-clean
 cleandepend:  modules-cleandepend
 cleandir:  modules-cleandir
+clobber:  modules-clobber
 tags:  modules-tags
 install: modules-install
 install.debug: modules-install.debug
@@ -296,6 +301,9 @@ modules-clean:
 
 modules-cleandepend:
 	cd $S/modules ; env ${MKMODULESENV} ${MAKE} cleandepend
+
+modules-clobber:	modules-clean
+	rm -rf ${MKMODULESENV}
 
 modules-cleandir:
 	cd $S/modules ; env ${MKMODULESENV} ${MAKE} cleandir
