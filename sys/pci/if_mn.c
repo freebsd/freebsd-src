@@ -369,6 +369,7 @@ ngmn_rcvmsg(node_p node, item_p item, hook_p lasthook)
 	if (msg->header.cmd == NGM_TEXT_CONFIG) {
 		ngmn_config(node, s, r);
 		resp->header.arglen = strlen(r) + 1;
+		NG_RESPOND_MSG(i, node, item, resp);
 		FREE(msg, M_NETGRAPH);
 		return (0);
 	}
