@@ -77,6 +77,8 @@ struct atapi_xpt_softc {
     LIST_ENTRY(atapi_xpt_softc) chain;
 };
 
+enum reinit_reason { BOOT_ATTACH, ATTACH, RESET };
+
 static LIST_HEAD(,atapi_xpt_softc) all_buses = LIST_HEAD_INITIALIZER(all_buses);
 
 /* CAM XPT methods */
@@ -87,6 +89,7 @@ static void atapi_async1(void *, u_int32_t, struct cam_path *, void *);
 static int atapi_cb(struct atapi_request *);
 
 /* internal functions */
+static void reinit_bus(struct atapi_xpt_softc *scp, enum reinit_reason reason);
 static void setup_dev(struct atapi_xpt_softc *, struct ata_device *);
 static void setup_async_cb(struct atapi_xpt_softc *, uint32_t);
 static void cam_rescan_callback(struct cam_periph *, union ccb *);
@@ -95,6 +98,7 @@ static void free_hcb_and_ccb_done(struct atapi_hcb *, u_int32_t);
 static struct atapi_hcb *allocate_hcb(struct atapi_xpt_softc *, int, int, union ccb *);
 static void free_hcb(struct atapi_hcb *hcb);
 static void free_softc(struct atapi_xpt_softc *scp);
+static struct atapi_xpt_softc *get_softc(struct ata_channel *ata_ch);
 static struct ata_device *get_ata_device(struct atapi_xpt_softc *scp, int id);
 
 static MALLOC_DEFINE(M_ATACAM, "ATA CAM transport", "ATA driver CAM-XPT layer");
@@ -147,13 +151,7 @@ atapi_cam_attach_bus(struct ata_channel *ata_ch)
     CAM_DEBUG(path, CAM_DEBUG_TRACE, ("Registered SIM for ata%d\n", unit));
 
     setup_async_cb(scp, AC_LOST_DEVICE);
-
-    if (ata_ch->devices & ATA_ATAPI_MASTER)
-	setup_dev(scp, &ata_ch->device[MASTER]);
-    if (ata_ch->devices & ATA_ATAPI_SLAVE)
-	setup_dev(scp, &ata_ch->device[SLAVE]);
-
-    cam_rescan(sim);
+    reinit_bus(scp, cold ? BOOT_ATTACH : ATTACH);
     return;
 
 error:
@@ -163,11 +161,32 @@ error:
 void 
 atapi_cam_detach_bus(struct ata_channel *ata_ch)
 {
-    struct atapi_xpt_softc *scp;
+    struct atapi_xpt_softc *scp = get_softc(ata_ch);
+    free_softc(scp);
+}
 
-    LIST_FOREACH(scp, &all_buses, chain) {
-	if (scp->ata_ch == ata_ch)
-	    free_softc(scp);
+void
+atapi_cam_reinit_bus(struct ata_channel *ata_ch) {
+    struct atapi_xpt_softc *scp = get_softc(ata_ch);
+    reinit_bus(scp, RESET);
+}
+
+static void
+reinit_bus(struct atapi_xpt_softc *scp, enum reinit_reason reason) {
+    if (scp->ata_ch->devices & ATA_ATAPI_MASTER)
+	setup_dev(scp, &scp->ata_ch->device[MASTER]);
+    if (scp->ata_ch->devices & ATA_ATAPI_SLAVE)
+	setup_dev(scp, &scp->ata_ch->device[SLAVE]);
+
+    switch (reason) {
+	case BOOT_ATTACH:
+	    break;
+	case RESET:
+	    xpt_async(AC_BUS_RESET, scp->path, NULL);
+	    /*FALLTHROUGH*/
+	case ATTACH:
+	    cam_rescan(scp->sim);
+	    break;
     }
 }
 
@@ -261,16 +280,20 @@ atapi_action(struct cam_sim *sim, union ccb *ccb)
 	return;
     }
 
-    case XPT_RESET_DEV:
-	/* should reset the device */
+    case XPT_RESET_DEV: {
+	int tid = ccb_h->target_id;
+	struct ata_device *dev = get_ata_device(softc, tid);
+
 	CAM_DEBUG(ccb->ccb_h.path, CAM_DEBUG_SUBTRACE, ("dev reset\n"));
+	atapi_reinit(dev);
 	ccb->ccb_h.status = CAM_REQ_CMP;
 	xpt_done(ccb);
 	return;
+    }
 
     case XPT_RESET_BUS:
-	/* should reset the ATA bus */
 	CAM_DEBUG(ccb->ccb_h.path, CAM_DEBUG_SUBTRACE, ("bus reset\n"));
+	ata_reinit(softc->ata_ch);
 	ccb->ccb_h.status = CAM_REQ_CMP;
 	xpt_done(ccb);
 	return;
@@ -667,6 +690,16 @@ free_softc(struct atapi_xpt_softc *scp)
 	LIST_REMOVE(scp, chain);
 	free(scp, M_ATACAM);
     }
+}
+
+static struct atapi_xpt_softc *
+get_softc(struct ata_channel *ata_ch) {
+    struct atapi_xpt_softc *scp;
+    LIST_FOREACH(scp, &all_buses, chain) {
+        if (scp->ata_ch == ata_ch)
+            return scp;
+    }
+    return NULL;
 }
 
 static struct ata_device *
