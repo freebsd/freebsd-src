@@ -271,7 +271,6 @@
 }
 
 0x0f "Data Compression Page" {
-	{Reserved} *t1
 	{Data Compression Enabled} t1
 	{Date Compression Capable} t1
 	{Reserved} *t6
