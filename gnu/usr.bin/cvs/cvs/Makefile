@@ -7,12 +7,8 @@ PROG = ncvs
 CFLAGS +=	-I${.CURDIR}/../lib \
 		-DDIRENT -DSTDC_HEADERS -DPOSIX -DBROKEN_SIGISMEMBER \
 		-DFTIME_MISSING -DHAVE_TIMEZONE -DUTIME_NULL_MISSING
-
-.if exists(${.CURDIR}/../lib/obj)
-LDADD=  -L${.CURDIR}/../lib/obj -lcvs
-.else
-LDADD=  -L${.CURDIR}/../lib/ -lcvs
-.endif
+DPADD+=	${LIBCVS}
+LDADD+=	-lcvs
 
 .if defined(FREEBSD_DEVELOPER)
 CFLAGS+= -DFREEBSD_DEVELOPER
@@ -32,5 +28,6 @@ MAN5=	cvs.5
 check:
 	@echo `pwd` ${.CURDIR}
 
-.include <bsd.prog.mk>
 .include "../../Makefile.inc"
+.include "../Makefile.inc"
+.include <bsd.prog.mk>
