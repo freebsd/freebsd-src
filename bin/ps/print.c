@@ -376,7 +376,6 @@ void
 started(KINFO *k, VARENT *ve)
 {
 	VAR *v;
-	static time_t now;
 	time_t then;
 	struct tm *tp;
 	char buf[100];
@@ -393,8 +392,6 @@ started(KINFO *k, VARENT *ve)
 
 	then = k->ki_p->ki_start.tv_sec;
 	tp = localtime(&then);
-	if (!now)
-		(void)time(&now);
 	if (now - k->ki_p->ki_start.tv_sec < 24 * 3600) {
 		(void)strftime(buf, sizeof(buf) - 1,
 		use_ampm ? "%l:%M%p" : "%k:%M  ", tp);
@@ -541,12 +538,9 @@ elapsed(KINFO *k, VARENT *ve)
 	VAR *v;
 	time_t secs;
 	char obuff[128];
-	static time_t now;
 
 	v = ve->var;
 
-	if (!now)
-		time(&now);
 	secs = now - k->ki_p->ki_start.tv_sec;
 	(void)snprintf(obuff, sizeof(obuff), "%3ld:%02ld", secs/60, secs%60);
 	(void)printf("%*s", v->width, obuff);
