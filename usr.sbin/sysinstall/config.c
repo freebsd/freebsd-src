@@ -374,7 +374,7 @@ configMake_conf(char *config)
 
     if (!file_readable(config)) {
 	char *line = malloc(21);
-	sprintf(line, "USA_RESIDENT=\"%s\"\n", USAResident ? "YES" : "NO");
+	sprintf(line, "USA_RESIDENT=%s\n", USAResident ? "YES" : "NO");
 	lines[0] = line;
 	nlines = 1;
     }
