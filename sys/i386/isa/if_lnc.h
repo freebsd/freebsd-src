@@ -30,7 +30,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $Id: if_lnc.h,v 1.10 1999/01/31 00:56:32 paul Exp $
+ * $Id: if_lnc.h,v 1.11 1999/07/06 19:22:51 des Exp $
  */
 
 #include <i386/isa/ic/Am7990.h>
@@ -107,6 +107,8 @@
 #define PCnet_PCI_II    8        /* Am79C970A */
 #define PCnet_FAST      9        /* Am79C971 */
 #define PCnet_FASTplus  10       /* Am79C972 */
+#define PCnet_Home	11	 /* Am79C978 */
+
 
 /* CSR88-89: Chip ID masks */
 #define AMD_MASK  0x003
@@ -119,6 +121,7 @@
 #define Am79C970A 0x2621
 #define Am79C971  0x2623
 #define Am79C972  0x2624
+#define Am79C978  0x2626
 
 /* Board types */
 #define UNKNOWN         0
