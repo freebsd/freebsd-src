@@ -47,6 +47,7 @@
 .Fl f
 .Fl R
 .Op Fl H | Fl L | Fl P
+.Fl v
 .Oc
 .Ar mode
 .Ar file ...
@@ -80,6 +81,10 @@ instead of just the files themselves.
 Do not display a diagnostic message if
 .Nm
 could not modify the mode for
+.It Fl v
+Cause
+.Nm
+to be verbose, showing files as the mode is modified.
 .Va file .
 .El
 .Pp
@@ -307,6 +312,10 @@ set the group bits equal to the user bits, but clear the group write bit.
 There's no
 .Ar perm
 option for the naughty bits.
+.Sh COMPATIBILITY
+The
+.Fl v
+option is non-standard and its use in scripts is not recommended.
 .Sh SEE ALSO
 .Xr chflags 1 ,
 .Xr install 1 ,
