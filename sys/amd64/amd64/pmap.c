@@ -39,7 +39,7 @@
  * SUCH DAMAGE.
  *
  *	from:	@(#)pmap.c	7.7 (Berkeley)	5/12/91
- *	$Id: pmap.c,v 1.124 1996/10/12 20:36:15 bde Exp $
+ *	$Id: pmap.c,v 1.125 1996/10/12 21:35:03 dyson Exp $
  */
 
 /*
@@ -1443,6 +1443,9 @@ pmap_remove(pmap, sva, eva)
 	if (pmap == NULL)
 		return;
 
+	if (pmap->pm_stats.resident_count == 0)
+		return;
+
 	/*
 	 * special handling of removing one page.  a very
 	 * common operation and easy to short circuit some
@@ -1470,6 +1473,8 @@ pmap_remove(pmap, sva, eva)
 		 * Calculate index for next page table.
 		 */
 		pdnxt = ((sindex + NPTEPG) & ~(NPTEPG - 1));
+		if (pmap->pm_stats.resident_count == 0)
+			break;
 		ptpaddr = (vm_offset_t) *pmap_pde(pmap, i386_ptob(sindex));
 
 		/*
