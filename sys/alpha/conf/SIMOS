@@ -31,7 +31,6 @@ options 	PROCFS			#Process filesystem (requires PSEUDOFS)
 options 	PSEUDOFS		#Pseudo-filesystem framework
 options 	"COMPAT_43"		#Compatible with BSD 4.3 [KEEP THIS!]
 options 	SCSI_DELAY=100		#Be pessimistic about Joe SCSI device
-options 	UCONSOLE		#Allow users to grab the console
 
 config		kernel
 

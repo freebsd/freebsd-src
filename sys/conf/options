@@ -97,7 +97,6 @@ MSGMNI		opt_sysvipc.h
 MSGSEG		opt_sysvipc.h
 MSGSSZ		opt_sysvipc.h
 MSGTQL		opt_sysvipc.h
-UCONSOLE
 VFS_AIO
 
 # POSIX kernel options
