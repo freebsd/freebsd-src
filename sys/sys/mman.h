@@ -124,6 +124,7 @@
 #define	MADV_AUTOSYNC	7	/* revert to default flushing strategy */
 #define	MADV_NOCORE	8	/* do not include these pages in a core file */
 #define	MADV_CORE	9	/* revert to including pages in a core file */
+#define	MADV_PROTECT	10	/* protect process from pageout kill */
 
 /*
  * Return bits from mincore
