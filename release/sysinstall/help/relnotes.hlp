@@ -16,9 +16,6 @@ INSTALL.TXT and HARDWARE.TXT files.
 1. What's new since 2.2.X-RELEASE
 ------------------------------------
 
-top(1) is now part of the base system.  It was too system-dependant yet
-considered generally useful enough to be maintained in ports.
-
 The kernel code from 4.4BSD-Lite2 has been (finally) merged.
 
 The SMP (Symmetric MultiProcessing) branch has been merged into
@@ -68,6 +65,11 @@ in /dev.
 
 The suidperl vulnerability mentioned in the CERT advisory CA-97.17 is
 believed to be fixed.
+
+With the contribution of Berkeley Software Design, Inc., Jonathan Lemmon,
+Mike Smith, Sean Eric Fagan, and John Dyson, VM86 support has been added
+to the kernel, and BSD/OS's contributed dosemu has been ported.
+
 
 2. Supported Configurations
 ---------------------------
