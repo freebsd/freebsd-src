@@ -117,8 +117,8 @@ str_concat(s1, s2, flags)
 
 	/* free original strings */
 	if (flags & STR_DOFREE) {
-		(void)efree(__DECONST(void *, s1));
-		(void)efree(__DECONST(void *, s2));
+		(void)efree((void *)s1);
+		(void)efree((void *)s2);
 	}
 	return(result);
 }
