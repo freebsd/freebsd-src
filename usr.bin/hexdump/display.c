@@ -117,6 +117,7 @@ print(pr, bp)
 	PR *pr;
 	u_char *bp;
 {
+	long double ldbl;
 	   double f8;
 	    float f4;
 	  int16_t s2;
@@ -148,6 +149,10 @@ print(pr, bp)
 		case 8:
 			bcopy(bp, &f8, sizeof(f8));
 			(void)printf(pr->fmt, f8);
+			break;
+		case sizeof(long double):
+			bcopy(bp, &ldbl, sizeof(ldbl));
+			(void)printf(pr->fmt, ldbl);
 			break;
 		}
 		break;
