@@ -67,3 +67,5 @@ libkern/umoddi3.c		standard
 powerpc/powerpc/mp_machdep.c	optional smp
 
 powerpc/ofw/ofw_pci.c		optional	pci
+
+powerpc/powermac/uninorth.c	optional	powermac pci
