@@ -1,4 +1,4 @@
-/* $Id: isp.c,v 1.14 1999/03/17 05:04:38 mjacob Exp $ */
+/* $Id: isp.c,v 1.15 1999/03/25 22:52:44 mjacob Exp $ */
 /* release_03_25_99 */
 /*
  * Machine and OS Independent (well, as best as possible)
@@ -743,7 +743,7 @@ isp_init(isp)
 		 * We don't update dev_flags with what we've set
 		 * because that's not the ultimate goal setting.
 		 * If we succeed with the command, we *do* update
-		 * cur_dflags.
+		 * cur_dflags by getting target parameters.
 		 */
 		mbs.param[0] = MBOX_GET_TARGET_PARAMS;
 		mbs.param[1] = (tgt << 8);
@@ -759,6 +759,14 @@ isp_init(isp)
 			sdp->isp_devparam[tgt].cur_offset = mbs.param[3] >> 8;
 			sdp->isp_devparam[tgt].cur_period = mbs.param[3] & 0xff;
 		}
+		/*
+		 * Ensure that we don't believe tagged queuing is enabled yet.
+		 * It turns out that sometimes the ISP just ignores our
+		 * attempts to set parameters for devices that it hasn't
+		 * seen yet.
+		 */
+		sdp->isp_devparam[tgt].cur_dflags &= ~DPARM_TQING;
+
 		maxlun = (isp->isp_fwrev >= ISP_FW_REV(7, 55))? 32 : 8;
 		for (lun = 0; lun < maxlun; lun++) {
 			mbs.param[0] = MBOX_SET_DEV_QUEUE_PARAMS;
