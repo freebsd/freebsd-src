@@ -1432,8 +1432,8 @@ nansi.sysk|nansisysk|PC-DOS Public Domain NANSI.SYS with keypad redefined for vi
 	:al=\E[1L:dl=\E[1M:ic=\E[1@:dc=\E[1P:\
 	:is=U4 PC-DOS Public Domain NANSI.SYS with keypad redefined for vi 9-29-86\n\E[;75;8p:\
 	:tc=ansi.sysk:
-#	Helmuth Michaelis <hm@FreeBSD.org>
-#	386bsd vt220 terminal emulator console (pc keyboard & monitor)
+#	Hellmuth Michaelis <hm@FreeBSD.org>
+#	pcvt vt220 terminal emulator console (pc keyboard & monitor)
 #	termcap entries for pure VT220-Emulation and 25, 28, 35, 40, 43 and
 #	50 lines entries
 #	80 columns
@@ -1615,6 +1615,7 @@ pcvtXX|pcvt vt200 emulator (DEC VT220):\
 	:SF=\E[%dS:\
 	:SR=\E[%dT:\
 	:UP=\E[%dA:\
+        :ac=llmmkkjjuuttvvwwqqxxnnpprr``aa:\
 	:ae=^O:\
 	:al=\E[L:\
 	:am:\
@@ -1632,6 +1633,7 @@ pcvtXX|pcvt vt200 emulator (DEC VT220):\
 	:dc=\E[P:\
 	:dl=\E[M:\
 	:do=^J:\
+        :eA=\E)0:\
 	:ei=\E[4l:\
 	:ho=\E[H:\
 	:im=\E[4h:\
@@ -1682,6 +1684,7 @@ pcvtXX|pcvt vt200 emulator (DEC VT220):\
 	:us=\E[4m:\
 	:vt#3:\
 	:xn:
+
 # # --------------------------------
 #
 # T: TELETYPE
