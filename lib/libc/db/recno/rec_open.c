@@ -169,7 +169,7 @@ slow:			if ((t->bt_rfp = fdopen(rfd, "r")) == NULL)
 				t->bt_msize = sb.st_size;
 				if ((t->bt_smap = mmap(NULL, t->bt_msize,
 				    PROT_READ, MAP_PRIVATE, rfd,
-				    (off_t)0)) == (caddr_t)-1)
+				    (off_t)0)) == MAP_FAILED)
 					goto slow;
 				t->bt_cmap = t->bt_smap;
 				t->bt_emap = t->bt_smap + sb.st_size;
