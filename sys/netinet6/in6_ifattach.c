@@ -668,8 +668,10 @@ in6_ifattach(ifp, altifp)
 	switch (ifp->if_type) {
 #ifdef IFT_BRIDGE	/* OpenBSD 2.8, NetBSD 1.6 */
 	case IFT_BRIDGE:
-		return;
 #endif
+	case IFT_PFLOG:
+	case IFT_PFSYNC:
+		return;
 	}
 
 	/*

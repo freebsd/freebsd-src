@@ -156,6 +156,11 @@ struct pf_addr_dyn {
 #if defined(__FreeBSD__)
 #define splsoftnet()	splnet()
 
+#define	HTONL(x)	(x) = htonl((__uint32_t)(x))
+#define	HTONS(x)	(x) = htons((__uint16_t)(x))
+#define	NTOHL(x)	(x) = ntohl((__uint32_t)(x))
+#define	NTOHS(x)	(x) = ntohs((__uint16_t)(x))
+
 #define PF_NAME		"pf"
 
 #define PR_NOWAIT	M_NOWAIT
