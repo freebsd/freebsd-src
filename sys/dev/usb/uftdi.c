@@ -153,7 +153,12 @@ USB_MATCH(uftdi)
 	if (uaa->vendor == USB_VENDOR_FTDI &&
 	    (uaa->product == USB_PRODUCT_FTDI_SERIAL_8U100AX ||
 	     uaa->product == USB_PRODUCT_FTDI_SERIAL_8U232AM ||
-	     uaa->product == USB_PRODUCT_FTDI_CFA_631))
+	     uaa->product == USB_PRODUCT_FTDI_CFA_631 ||
+	     uaa->product == USB_PRODUCT_FTDI_USBSERIAL ||
+	     uaa->product == USB_PRODUCT_FTDI_MX2_3 ||
+	     uaa->product == USB_PRODUCT_FTDI_MX4_5 ||
+	     uaa->product == USB_PRODUCT_FTDI_LK202 ||
+	     uaa->product == USB_PRODUCT_FTDI_LK204))
 		return (UMATCH_VENDOR_PRODUCT);
 
 	return (UMATCH_NONE);
@@ -207,6 +212,11 @@ USB_ATTACH(uftdi)
 		break;
 	case USB_PRODUCT_FTDI_SERIAL_8U232AM:
 	case USB_PRODUCT_FTDI_CFA_631:
+	case USB_PRODUCT_FTDI_USBSERIAL:
+	case USB_PRODUCT_FTDI_MX2_3:
+	case USB_PRODUCT_FTDI_MX4_5:
+	case USB_PRODUCT_FTDI_LK202:
+	case USB_PRODUCT_FTDI_LK204:
 		sc->sc_type = UFTDI_TYPE_8U232AM;
 		sc->sc_hdrlen = 0;
 		break;
