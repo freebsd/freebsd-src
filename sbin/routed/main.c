@@ -39,7 +39,7 @@ static char sccsid[] = "@(#)main.c	8.1 (Berkeley) 6/5/93";
 #elif defined(__NetBSD__)
 static char rcsid[] = "$NetBSD$";
 #endif
-#ident "$Revision: 1.1.1.1 $"
+#ident "$Revision: 1.18 $"
 
 #include "defs.h"
 #include "pathnames.h"
@@ -97,11 +97,16 @@ main(int argc,
 	struct timeval wtime, t2;
 	time_t dt;
 	fd_set ibits;
-	naddr p_addr, p_mask;
+	naddr p_net, p_mask;
 	struct interface *ifp;
 	struct parm parm;
 	char *tracename = 0;
 
+
+	/* Some shells are badly broken and send SIGHUP to backgrounded
+	 * processes.
+	 */
+	signal(SIGHUP, SIG_IGN);
 
 	openlog("routed", LOG_PID | LOG_ODELAY, LOG_DAEMON);
 	ftrace = stdout;
@@ -119,7 +124,7 @@ main(int argc,
 	(void)gethostname(myname, sizeof(myname)-1);
 	(void)gethost(myname, &myaddr);
 
-	while ((n = getopt(argc, argv, "sqdghmAtT:F:P:")) != EOF) {
+	while ((n = getopt(argc, argv, "sqdghmpAtT:F:P:")) != EOF) {
 		switch (n) {
 		case 's':
 			supplier = 1;
@@ -169,7 +174,7 @@ main(int argc,
 			break;
 
 		case 'F':		/* minimal routes for SLIP */
-			n = HOPCNT_INFINITY-2;
+			n = FAKE_METRIC;
 			p = strchr(optarg,',');
 			if (p && *p != '\0') {
 				n = (int)strtoul(p+1, &q, 0);
@@ -178,13 +183,13 @@ main(int argc,
 				    && n >= 1)
 					*p = '\0';
 			}
-			if (!getnet(optarg, &p_addr, &p_mask)) {
+			if (!getnet(optarg, &p_net, &p_mask)) {
 				msglog("bad network; \"-F %s\"",
 				       optarg);
 				break;
 			}
 			bzero(&parm, sizeof(parm));
-			parm.parm_addr_h = ntohl(p_addr);
+			parm.parm_net = p_net;
 			parm.parm_mask = p_mask;
 			parm.parm_d_metric = n;
 			p = check_parms(&parm);
@@ -252,8 +257,6 @@ usage:
 	signal(SIGALRM, sigalrm);
 	if (!background)
 		signal(SIGHUP, sigterm);    /* SIGHUP fatal during debugging */
-	else
-		signal(SIGHUP, SIG_IGN);
 	signal(SIGTERM, sigterm);
 	signal(SIGINT, sigterm);
 	signal(SIGUSR1, sigtrace_on);
@@ -298,7 +301,9 @@ usage:
 		if (new_tracelevel == 0)	/* use stdout if file is bad */
 			new_tracelevel = 1;
 	}
-	set_tracelevel();
+	set_tracelevel(1);
+
+	bufinit();
 
 	/* initialize radix tree */
 	rtinit();
@@ -325,8 +330,7 @@ usage:
 
 	/* Ask for routes */
 	rip_query();
-	if (!supplier)
-		rdisc_sol();
+	rdisc_sol();
 
 	/* Loop forever, listening and broadcasting.
 	 */
@@ -342,7 +346,7 @@ usage:
 			dt = t2.tv_sec;
 			if (dt > 0)
 				dt -= wtime.tv_sec;
-			trace_act("time changed by %d sec\n", dt);
+			trace_act("time changed by %d sec", dt);
 			epoch.tv_sec += dt;
 		}
 		timevalsub(&now, &clk, &epoch);
@@ -351,13 +355,11 @@ usage:
 		now_garbage = now.tv_sec - GARBAGE_TIME;
 
 		/* deal with interrupts that should affect tracing */
-		set_tracelevel();
+		set_tracelevel(0);
 
 		if (stopint != 0) {
-			if (supplier) {
-				rip_bcast(0);
-				rdisc_adv();
-			}
+			rip_bcast(0);
+			rdisc_adv();
 			trace_off("exiting with signal %d\n", stopint);
 			exit(stopint | 128);
 		}
@@ -495,7 +497,7 @@ sigalrm(int sig)
 	 * new and broken interfaces.
 	 */
 	ifinit_timer.tv_sec = now.tv_sec;
-	trace_act("SIGALRM\n");
+	trace_act("SIGALRM");
 }
 
 
@@ -552,10 +554,16 @@ fix_sock(int sock,
 		logbad(1, "fcntl(%s) O_NONBLOCK: %s",
 		       name, strerror(errno));
 	on = 1;
-	if (setsockopt(sock, SOL_SOCKET,SO_BROADCAST,
-		       &on,sizeof(on)) < 0)
+	if (setsockopt(sock, SOL_SOCKET,SO_BROADCAST, &on,sizeof(on)) < 0)
 		msglog("setsockopt(%s,SO_BROADCAST): %s",
 		       name, strerror(errno));
+#ifdef USE_PASSIFNAME
+	on = 1;
+	if (setsockopt(sock, SOL_SOCKET, SO_PASSIFNAME, &on,sizeof(on)) < 0)
+		msglog("setsockopt(%s,SO_PASSIFNAME): %s",
+		       name, strerror(errno));
+#endif
+
 	if (rbuf >= MIN_SOCKBUF) {
 		if (setsockopt(sock, SOL_SOCKET, SO_RCVBUF,
 			       &rbuf, sizeof(rbuf)) < 0)
@@ -565,7 +573,7 @@ fix_sock(int sock,
 		for (rbuf = 60*1024; ; rbuf -= 4096) {
 			if (setsockopt(sock, SOL_SOCKET, SO_RCVBUF,
 				       &rbuf, sizeof(rbuf)) == 0) {
-				trace_act("RCVBUF=%d\n", rbuf);
+				trace_act("RCVBUF=%d", rbuf);
 				break;
 			}
 			if (rbuf < MIN_SOCKBUF) {
@@ -624,7 +632,7 @@ rip_off(void)
 
 
 	if (rip_sock >= 0 && !mhome) {
-		trace_act("turn off RIP\n");
+		trace_act("turn off RIP");
 
 		(void)close(rip_sock);
 		rip_sock = -1;
@@ -632,8 +640,9 @@ rip_off(void)
 		/* get non-broadcast sockets to listen to queries.
 		 */
 		for (ifp = ifnet; ifp != 0; ifp = ifp->int_next) {
-			if (ifp->int_rip_sock < 0
-			    && !(ifp->int_state & IS_ALIAS)) {
+			if (ifp->int_state & IS_REMOTE)
+				continue;
+			if (ifp->int_rip_sock < 0) {
 				addr = ((ifp->int_if_flags & IFF_POINTOPOINT)
 					? ifp->int_dstaddr
 					: ifp->int_addr);
@@ -686,11 +695,11 @@ rip_on(struct interface *ifp)
 		return;
 	}
 
-	/* If the main RIP socket is off, and it makes sense to turn it on,
-	 * turn it on for all of the interfaces.
+	/* If the main RIP socket is off and it makes sense to turn it on,
+	 * then turn it on for all of the interfaces.
 	 */
 	if (rip_interfaces > 0 && !rdisc_ok) {
-		trace_act("turn on RIP\n");
+		trace_act("turn on RIP");
 
 		/* Close all of the query sockets so that we can open
 		 * the main socket.  SO_REUSEPORT is not a solution,
@@ -713,25 +722,21 @@ rip_on(struct interface *ifp)
 			next_bcast.tv_sec = now.tv_sec+MIN_WAITTIME;
 
 		for (ifp = ifnet; ifp != 0; ifp = ifp->int_next) {
-			if (!IS_RIP_IN_OFF(ifp->int_state))
-				ifp->int_state &= ~IS_RIP_QUERIED;
+			ifp->int_query_time = NEVER;
 			rip_mcast_on(ifp);
 		}
-
 		ifinit_timer.tv_sec = now.tv_sec;
 
-		fix_select();
-
 	} else if (ifp != 0
-		   && ifp->int_rip_sock < 0
-		   && !(ifp->int_state & IS_ALIAS)) {
+		   && !(ifp->int_state & IS_REMOTE)
+		   && ifp->int_rip_sock < 0) {
 		/* RIP is off, so ensure there are sockets on which
 		 * to listen for queries.
 		 */
 		ifp->int_rip_sock = get_rip_sock(ifp->int_addr, 0);
-
-		fix_select();
 	}
+
+	fix_select();
 }
 
 
@@ -790,6 +795,8 @@ timevalsub(struct timeval *t1,
 }
 
 
+/* put a message into the system log
+ */
 void
 msglog(char *p, ...)
 {
@@ -803,6 +810,34 @@ msglog(char *p, ...)
 	if (ftrace != 0) {
 		if (ftrace == stdout)
 			(void)fputs("routed: ", ftrace);
+		(void)vfprintf(ftrace, p, args);
+		(void)fputc('\n', ftrace);
+	}
+}
+
+
+/* Put a message about a bad router into the system log if
+ * we have not complained about it recently.
+ */
+void
+msglim(struct msg_limit *lim, naddr addr, char *p, ...)
+{
+	va_list args;
+	char *p1;
+
+	va_start(args, p);
+
+	if ( lim->addr != addr || lim->until <= now.tv_sec) {
+		lim->addr = addr;
+		lim->until = now.tv_sec + 60*60;
+
+		trace_flush();
+		for (p1 = p; *p1 == ' '; p1++)
+			continue;
+		vsyslog(LOG_ERR, p1, args);
+	}
+
+	if (ftrace != 0) {
 		(void)vfprintf(ftrace, p, args);
 		(void)fputc('\n', ftrace);
 	}
