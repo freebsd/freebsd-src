@@ -29,6 +29,7 @@
 #include <sys/param.h>
 #include <sys/kernel.h>
 #include <sys/systm.h>
+#include <sys/malloc.h>
 #include <sys/module.h>
 #include <sys/bus.h>
 #include <sys/conf.h>
@@ -246,6 +247,7 @@ iicioctl(dev_t dev, u_long cmd, caddr_t data, int flags, struct thread *td)
 	device_t parent = device_get_parent(iicdev);
 	struct iiccmd *s = (struct iiccmd *)data;
 	int error, count;
+	char *buf = NULL;
 
 	if (!sc)
 		return (EINVAL);
@@ -278,19 +280,37 @@ iicioctl(dev_t dev, u_long cmd, caddr_t data, int flags, struct thread *td)
 		break;
 
 	case I2CWRITE:
-		error = iicbus_write(parent, s->buf, s->count, &count, 10);
+		if (s->count <= 0) {
+			error = EINVAL;
+			break;
+		}
+		buf = malloc((unsigned long)s->count, M_TEMP, M_WAITOK);
+		error = copyin(s->buf, buf, s->count);
+		if (error)
+			break;
+		error = iicbus_write(parent, buf, s->count, &count, 10);
 		break;
 
 	case I2CREAD:
-		error = iicbus_read(parent, s->buf, s->count, &count, s->last, 10);
+		if (s->count <= 0) {
+			error = EINVAL;
+			break;
+		}
+		buf = malloc((unsigned long)s->count, M_TEMP, M_WAITOK);
+		error = iicbus_read(parent, buf, s->count, &count, s->last, 10);
+		if (error)
+			break;
+		error = copyout(buf, s->buf, s->count);
 		break;
 
 	default:
-		error = ENODEV;
+		error = ENOTTY;
 	}
 
 	iicbus_release_bus(device_get_parent(iicdev), iicdev);
 
+	if (buf != NULL)
+		free(buf, M_TEMP);
 	return (error);
 }
 
