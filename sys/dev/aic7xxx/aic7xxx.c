@@ -588,7 +588,7 @@ ahc_handle_seqint(struct ahc_softc *ahc, u_int intstat)
 			 */
 			if (ahc->scb_data->recovery_scbs == 0
 			 || (scb->flags & SCB_RECOVERY_SCB) != 0)
-				aic_scb_timer_reset(scb, 5 * 1000000);
+				aic_scb_timer_reset(scb, 5 * 1000);
 			break;
 		}
 		default:
@@ -2828,10 +2828,16 @@ reswitch:
 	case MSG_TYPE_TARGET_MSGIN:
 	{
 		int msgdone;
-		int msgout_request;
 
 		if (ahc->msgout_len == 0)
 			panic("Target MSGIN with no active message");
+
+#ifdef AHC_DEBUG
+		if ((ahc_debug & AHC_SHOW_MESSAGES) != 0) {
+			ahc_print_devinfo(ahc, &devinfo);
+			printf("TARGET_MSG_IN");
+		}
+#endif
 
 		/*
 		 * If we interrupted a mesgout session, the initiator
@@ -2840,24 +2846,47 @@ reswitch:
 		 * first byte.
 		 */
 		if ((ahc_inb(ahc, SCSISIGI) & ATNI) != 0
-		 && ahc->msgout_index > 0)
-			msgout_request = TRUE;
-		else
-			msgout_request = FALSE;
-
-		if (msgout_request) {
+		 && ahc->msgout_index > 0) {
 
 			/*
-			 * Change gears and see if
-			 * this messages is of interest to
-			 * us or should be passed back to
-			 * the sequencer.
+			 * Change gears and see if this messages is
+			 * of interest to us or should be passed back
+			 * to the sequencer.
 			 */
+#ifdef AHC_DEBUG
+			if ((ahc_debug & AHC_SHOW_MESSAGES) != 0)
+				printf(" Honoring ATN Request.\n");
+#endif
 			ahc->msg_type = MSG_TYPE_TARGET_MSGOUT;
+
+			/*
+			 * Disable SCSI Programmed I/O during the
+			 * phase change so as to avoid phantom REQs.
+			 */
+			ahc_outb(ahc, SXFRCTL0,
+				 ahc_inb(ahc, SXFRCTL0) & ~SPIOEN);
+
+			/*
+			 * Since SPIORDY asserts when ACK is asserted
+			 * for P_MSGOUT, and SPIORDY's assertion triggered
+			 * our entry into this routine, wait for ACK to
+			 * *de-assert* before changing phases.
+			 */
+			while ((ahc_inb(ahc, SCSISIGI) & ACKI) != 0)
+				;
+
 			ahc_outb(ahc, SCSISIGO, P_MESGOUT | BSYO);
+
+			/*
+			 * All phase line changes require a bus
+			 * settle delay before REQ is asserted.
+			 * [SCSI SPI4 10.7.1]
+			 */
+			ahc_flush_device_writes(ahc);
+			aic_delay(AHC_BUSSETTLE_DELAY);
+
 			ahc->msgin_index = 0;
-			/* Dummy read to REQ for first byte */
-			ahc_inb(ahc, SCSIDATL);
+			/* Enable SCSI Programmed I/O to REQ for first byte */
 			ahc_outb(ahc, SXFRCTL0,
 				 ahc_inb(ahc, SXFRCTL0) | SPIOEN);
 			break;
@@ -2874,6 +2903,11 @@ reswitch:
 		/*
 		 * Present the next byte on the bus.
 		 */
+#ifdef AHC_DEBUG
+		if ((ahc_debug & AHC_SHOW_MESSAGES) != 0)
+			printf(" byte 0x%x\n",
+			       ahc->msgout_buf[ahc->msgout_index]);
+#endif
 		ahc_outb(ahc, SXFRCTL0, ahc_inb(ahc, SXFRCTL0) | SPIOEN);
 		ahc_outb(ahc, SCSIDATL, ahc->msgout_buf[ahc->msgout_index++]);
 		break;
@@ -2883,6 +2917,12 @@ reswitch:
 		int lastbyte;
 		int msgdone;
 
+#ifdef AHC_DEBUG
+		if ((ahc_debug & AHC_SHOW_MESSAGES) != 0) {
+			ahc_print_devinfo(ahc, &devinfo);
+			printf("TARGET_MSG_OUT");
+		}
+#endif
 		/*
 		 * The initiator signals that this is
 		 * the last byte by dropping ATN.
@@ -2896,6 +2936,13 @@ reswitch:
 		 */
 		ahc_outb(ahc, SXFRCTL0, ahc_inb(ahc, SXFRCTL0) & ~SPIOEN);
 		ahc->msgin_buf[ahc->msgin_index] = ahc_inb(ahc, SCSIDATL);
+
+#ifdef AHC_DEBUG
+		if ((ahc_debug & AHC_SHOW_MESSAGES) != 0)
+			printf(" byte 0x%x\n",
+			       ahc->msgin_buf[ahc->msgin_index]);
+#endif
+
 		msgdone = ahc_parse_msg(ahc, &devinfo);
 		if (msgdone == MSGLOOP_TERMINATED) {
 			/*
@@ -2921,7 +2968,33 @@ reswitch:
 			 * to the Message in phase and send it.
 			 */
 			if (ahc->msgout_len != 0) {
+#ifdef AHC_DEBUG
+				if ((ahc_debug & AHC_SHOW_MESSAGES) != 0) {
+					ahc_print_devinfo(ahc, &devinfo);
+					printf(" preparing response.\n");
+				}
+#endif
 				ahc_outb(ahc, SCSISIGO, P_MESGIN | BSYO);
+
+				/*
+				 * All phase line changes require a bus
+				 * settle delay before REQ is asserted.
+				 * [SCSI SPI4 10.7.1]  When transitioning
+				 * from an OUT to an IN phase, we must
+				 * also wait a data release delay to allow
+				 * the initiator time to release the data
+				 * lines. [SCSI SPI4 10.12]
+				 */
+				ahc_flush_device_writes(ahc);
+				aic_delay(AHC_BUSSETTLE_DELAY
+					+ AHC_DATARELEASE_DELAY);
+
+				/*
+				 * Enable SCSI Programmed I/O.  This will
+				 * immediately cause SPIORDY to assert,
+				 * and the sequencer will call our message
+				 * loop again.
+				 */
 				ahc_outb(ahc, SXFRCTL0,
 					 ahc_inb(ahc, SXFRCTL0) | SPIOEN);
 				ahc->msg_type = MSG_TYPE_TARGET_MSGIN;
@@ -3851,7 +3924,7 @@ ahc_alloc(void *platform_arg, char *name)
 		return (NULL);
 	}
 	LIST_INIT(&ahc->pending_scbs);
-	LIST_INIT(&ahd->timedout_scbs);
+	LIST_INIT(&ahc->timedout_scbs);
 	/* We don't know our unit number until the OSM sets it */
 	ahc->name = name;
 	ahc->unit = -1;
@@ -6634,6 +6707,12 @@ ahc_print_register(ahc_reg_parse_entry_t *table, u_int num_entries,
 {
 	int	printed;
 	u_int	printed_mask;
+	u_int	dummy_column;
+
+	if (cur_column == NULL) {
+		dummy_column = 0;
+		cur_column = &dummy_column;
+	}
 
 	if (cur_column != NULL && *cur_column >= wrap_point) {
 		printf("\n");
@@ -7055,7 +7134,7 @@ bus_reset:
 			active_scb = ahc_lookup_scb(ahc, active_scb_index);
 			if (active_scb != scb) {
 				if (ahc_other_scb_timeout(ahc, scb,
-							  active_scb) != 0)
+							  active_scb) == 0)
 					goto bus_reset;
 				continue;
 			} 
@@ -7085,7 +7164,7 @@ bus_reset:
 			ahc_print_path(ahc, active_scb);
 			printf("BDR message in message buffer\n");
 			active_scb->flags |= SCB_DEVICE_RESET;
-			aic_scb_timer_reset(scb, 2 * 1000000);
+			aic_scb_timer_reset(scb, 2 * 1000);
 		} else if (last_phase != P_BUSFREE
 			&& (ahc_inb(ahc, SSTAT1) & REQINIT) == 0) {
 			/*
@@ -7187,7 +7266,7 @@ bus_reset:
 				printf("Queuing a BDR SCB\n");
 				ahc_qinfifo_requeue_tail(ahc, scb);
 				ahc_outb(ahc, SCBPTR, saved_scbptr);
-				aic_scb_timer_reset(scb, 2 * 1000000);
+				aic_scb_timer_reset(scb, 2 * 1000);
 			} else {
 				/* Go "immediatly" to the bus reset */
 				/* This shouldn't happen */
@@ -7767,10 +7846,12 @@ ahc_handle_target_cmd(struct ahc_softc *ahc, struct target_cmd *cmd)
 		return (1);
 	} else
 		ahc->flags &= ~AHC_TQINFIFO_BLOCKED;
-#if 0
-	printf("Incoming command from %d for %d:%d%s\n",
-	       initiator, target, lun,
-	       lstate == ahc->black_hole ? "(Black Holed)" : "");
+#ifdef AHC_DEBUG
+	if (ahc_debug & AHC_SHOW_TQIN) {
+		printf("Incoming command from %d for %d:%d%s\n",
+		       initiator, target, lun,
+		       lstate == ahc->black_hole ? "(Black Holed)" : "");
+	}
 #endif
 	SLIST_REMOVE_HEAD(&lstate->accept_tios, sim_links.sle);
 
@@ -7830,9 +7911,11 @@ ahc_handle_target_cmd(struct ahc_softc *ahc, struct target_cmd *cmd)
 		 * continue target I/O comes in response
 		 * to this accept tio.
 		 */
-#if 0
-		printf("Received Immediate Command %d:%d:%d - %p\n",
-		       initiator, target, lun, ahc->pending_device);
+#ifdef AHC_DEBUG
+		if (ahc_debug & AHC_SHOW_TQIN) {
+			printf("Received Immediate Command %d:%d:%d - %p\n",
+			       initiator, target, lun, ahc->pending_device);
+		}
 #endif
 		ahc->pending_device = lstate;
 		aic_freeze_ccb((union ccb *)atio);
