@@ -169,7 +169,12 @@ static	u_int	timer0_prescaler_count;
 static	u_char	timer0_state;
 static	u_char	timer2_state;
 static	void	(*timer_func) __P((struct clockframe *frame)) = hardclock;
+#if defined(I386_CPU) || defined(I486_CPU)
+	u_int	tsc_present;	/* Not static; other parts of the kernel
+				 * Need to know this */
+#else
 static	u_int	tsc_present;
+#endif
 
 static	unsigned i8254_get_timecount __P((struct timecounter *tc));
 static	unsigned tsc_get_timecount __P((struct timecounter *tc));
