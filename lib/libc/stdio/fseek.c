@@ -151,8 +151,14 @@ _fseeko(fp, offset, whence, ltest)
 			if (HASUB(fp)) {
 				curoff -= fp->_ur;
 				if (curoff < 0) {
-					errno = EBADF;
-					return (-1);
+					if (-curoff <= fp->_r) {
+						fp->_p -= curoff;
+						fp->_r += curoff;
+						curoff = 0;
+					} else {
+						errno = EBADF;
+						return (-1);
+					}
 				}
 			}
 		} else if ((fp->_flags & __SWR) && fp->_p != NULL) {
@@ -261,8 +267,14 @@ _fseeko(fp, offset, whence, ltest)
 		}
 		if (HASUB(fp)) {
 			curoff -= fp->_ur;
-			if (curoff < 0)
-				goto dumb;
+			if (curoff < 0) {
+				if (-curoff <= fp->_r) {
+					fp->_p -= curoff;
+					fp->_r += curoff;
+					curoff = 0;
+				} else
+					goto dumb;
+			}
 		}
 	}
 

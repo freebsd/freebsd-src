@@ -118,9 +118,15 @@ ftello(fp)
 		if (HASUB(fp)) {
 			pos -= fp->_ur;
 			if (pos < 0) {
-				errno = EBADF;
-				FUNLOCKFILE(fp);
-				return (-1);
+				if (-pos <= fp->_r) {
+					fp->_p -= pos;
+					fp->_r += pos;
+					pos = 0;
+				} else {
+					errno = EBADF;
+					FUNLOCKFILE(fp);
+					return (-1);
+				}
 			}
 		}
 	} else if ((fp->_flags & __SWR) && fp->_p != NULL) {
