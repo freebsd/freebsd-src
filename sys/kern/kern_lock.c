@@ -79,7 +79,6 @@ __FBSDID("$FreeBSD$");
 static struct mtx lock_mtx;
 
 static int acquire(struct lock **lkpp, int extflags, int wanted);
-static int apause(struct lock *lkp, int flags);
 static int acquiredrain(struct lock *lkp, int extflags) ;
 
 static void
@@ -113,32 +112,6 @@ shareunlock(struct thread *td, struct lock *lkp, int decr) {
 	}
 }
 
-/*
- * This is the waitloop optimization.
- */
-static int
-apause(struct lock *lkp, int flags)
-{
-#ifdef SMP
-	int i, lock_wait;
-#endif
-
-	if ((lkp->lk_flags & flags) == 0)
-		return 0;
-#ifdef SMP
-	for (lock_wait = LOCK_WAIT_TIME; lock_wait > 0; lock_wait--) {
-		mtx_unlock(lkp->lk_interlock);
-		for (i = LOCK_SAMPLE_WAIT; i > 0; i--)
-			if ((lkp->lk_flags & flags) == 0)
-				break;
-		mtx_lock(lkp->lk_interlock);
-		if ((lkp->lk_flags & flags) == 0)
-			return 0;
-	}
-#endif
-	return 1;
-}
-
 static int
 acquire(struct lock **lkpp, int extflags, int wanted)
 {
@@ -150,12 +123,6 @@ acquire(struct lock **lkpp, int extflags, int wanted)
 
 	if ((extflags & LK_NOWAIT) && (lkp->lk_flags & wanted)) {
 		return EBUSY;
-	}
-
-	if ((extflags & LK_INTERLOCK) == 0) {
-		error = apause(lkp, wanted);
-		if (error == 0)
-			return 0;
 	}
 
 	s = splhigh();
@@ -496,13 +463,6 @@ acquiredrain(struct lock *lkp, int extflags) {
 	if ((extflags & LK_NOWAIT) && (lkp->lk_flags & LK_ALL)) {
 		return EBUSY;
 	}
-
-	if ((extflags & LK_INTERLOCK) == 0) {
-		error = apause(lkp, LK_ALL);
-		if (error == 0)
-			return 0;
-	}
-
 	while (lkp->lk_flags & LK_ALL) {
 		lkp->lk_flags |= LK_WAITDRAIN;
 		error = msleep(&lkp->lk_flags, lkp->lk_interlock, lkp->lk_prio,
