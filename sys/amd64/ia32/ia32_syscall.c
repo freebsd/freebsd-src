@@ -83,6 +83,7 @@
 #define	IDTVEC(name)	__CONCAT(X,name)
 
 extern inthand_t IDTVEC(int0x80_syscall), IDTVEC(rsvd);
+extern const char *ia32_syscallnames[];
 
 void ia32_syscall(struct trapframe frame);	/* Called from asm code */
 
@@ -251,7 +252,7 @@ ia32_syscall(struct trapframe frame)
 	cred_free_thread(td);
 #endif
 	WITNESS_WARN(WARN_PANIC, NULL, "System call %s returning",
-	    (code >= 0 && code < SYS_MAXSYSCALL) ? syscallnames[code] : "???");
+	    (code >= 0 && code < SYS_MAXSYSCALL) ? ia32_syscallnames[code] : "???");
 	mtx_assert(&sched_lock, MA_NOTOWNED);
 	mtx_assert(&Giant, MA_NOTOWNED);
 }
