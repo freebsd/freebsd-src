@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)ffs_vnops.c	8.7 (Berkeley) 2/3/94
- * $Id: ffs_vnops.c,v 1.12 1995/09/06 05:41:17 dyson Exp $
+ * $Id: ffs_vnops.c,v 1.13 1995/09/22 00:05:46 davidg Exp $
  */
 
 #include <sys/param.h>
@@ -228,7 +228,7 @@ int doclusterwrite = 1;
 struct ctldebug debug12 = { "doclusterwrite", &doclusterwrite };
 #else
 /* XXX for ufs_readwrite */
-#define doclusterread 1
+#define doclusterread 0
 #define doclusterwrite 1
 #endif
 
