@@ -1,7 +1,5 @@
-/*	$FreeBSD$	*/
 /*	$NecBSD: scsi_low_pisa.c,v 1.13.18.1 2001/06/08 06:27:48 honda Exp $	*/
 /*	$NetBSD$	*/
-
 /*
  * [NetBSD for NEC PC-98 series]
  *  Copyright (c) 1995, 1996, 1997, 1998
@@ -32,6 +30,9 @@
  * ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
  * POSSIBILITY OF SUCH DAMAGE.
  */
+
+#include <sys/cdefs.h>
+__FBSDID("$FreeBSD$");
 
 #ifdef	__NetBSD__
 #include <sys/param.h>
