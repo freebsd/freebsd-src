@@ -1248,7 +1248,7 @@ ip6_mdq(m, ifp, rt)
 /*
  * Macro to send packet on mif.  Since RSVP packets don't get counted on
  * input, they shouldn't get counted on output, so statistics keeping is
- * seperate.
+ * separate.
  */
 
 #define MC6_SEND(ip6, mifp, m) do {				\

@@ -27,7 +27,7 @@
  *	i4b_ihfc_l1.c - hfc layer 1 handler
  *	-----------------------------------
  *
- *	The idea of this file is to seperate hfcs/sp/pci data/signal
+ *	The idea of this file is to separate hfcs/sp/pci data/signal
  *	handling and the I4B data/signal handling.
  *
  *	Everything which has got anything to do with I4B has been put here!

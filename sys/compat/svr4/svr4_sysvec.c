@@ -228,7 +228,7 @@ svr4_fixup(register_t **stack_base, struct image_params *imgp)
 
 /*
  * Search an alternate path before passing pathname arguments on
- * to system calls. Useful for keeping a seperate 'emulation tree'.
+ * to system calls. Useful for keeping a separate 'emulation tree'.
  *
  * If cflag is set, we check if an attempt can be made to create
  * the named file, i.e. we check if the directory it should
