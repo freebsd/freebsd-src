@@ -34,8 +34,8 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	@(#)igmp_var.h	8.1 (Berkeley) 7/19/93
- * $Id: igmp_var.h,v 1.12 1997/09/07 05:26:37 bde Exp $
+ *	from: @(#)igmp_var.h	8.1 (Berkeley) 7/19/93
+ *	$Id: igmp_var.h,v 1.13 1999/02/16 10:49:51 dfr Exp $
  */
 
 #ifndef _NETINET_IGMP_VAR_H_
@@ -91,6 +91,9 @@ void	igmp_joingroup __P((struct in_multi *));
 void	igmp_leavegroup __P((struct in_multi *));
 void	igmp_fasttimo __P((void));
 void	igmp_slowtimo __P((void));
+
+SYSCTL_DECL(_net_inet_igmp);
+
 #endif
 
 /*
@@ -103,9 +106,4 @@ void	igmp_slowtimo __P((void));
 	{ 0, 0 }, \
 	{ "stats", CTLTYPE_STRUCT }, \
 }
-
-SYSCTL_DECL(_net_inet_igmp);
-
 #endif
-
-
