@@ -35,7 +35,7 @@
  *
  *	@(#)umap_subr.c	8.9 (Berkeley) 5/14/95
  *
- * $Id: umap_subr.c,v 1.10 1997/02/22 09:40:37 peter Exp $
+ * $Id: umap_subr.c,v 1.11 1997/08/02 14:32:24 bde Exp $
  */
 
 #include <sys/param.h>
@@ -355,6 +355,9 @@ umap_mapids(v_mount, credp)
 	u_long *groupmap, *usermap;
 	uid_t uid;
 	gid_t gid;
+
+	if (credp == NOCRED)
+		return;
 
 	unentries =  MOUNTTOUMAPMOUNT(v_mount)->info_nentries;
 	usermap =  &(MOUNTTOUMAPMOUNT(v_mount)->info_mapdata[0][0]);
