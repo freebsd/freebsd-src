@@ -503,7 +503,7 @@ rijndael128_encrypt(caddr_t key, u_int8_t *blk)
 static void
 rijndael128_decrypt(caddr_t key, u_int8_t *blk)
 {
-	rijndael_decrypt(((rijndael_ctx *) key) + 1, (u_char *) blk,
+	rijndael_decrypt(((rijndael_ctx *) key), (u_char *) blk,
 	    (u_char *) blk);
 }
 
@@ -512,12 +512,11 @@ rijndael128_setkey(u_int8_t **sched, u_int8_t *key, int len)
 {
 	int err;
 
-	MALLOC(*sched, u_int8_t *, 2 * sizeof(rijndael_ctx), M_CRYPTO_DATA,
+	MALLOC(*sched, u_int8_t *, sizeof(rijndael_ctx), M_CRYPTO_DATA,
 	    M_NOWAIT|M_ZERO);
 	if (*sched != NULL) {
-		rijndael_set_key((rijndael_ctx *) *sched, (u_char *) key, len * 8, 1);
-		rijndael_set_key(((rijndael_ctx *) *sched) + 1, (u_char *) key,
-		    len * 8, 0);
+		rijndael_set_key((rijndael_ctx *) *sched, (u_char *) key,
+		    len * 8);
 		err = 0;
 	} else
 		err = ENOMEM;
@@ -527,7 +526,7 @@ rijndael128_setkey(u_int8_t **sched, u_int8_t *key, int len)
 static void
 rijndael128_zerokey(u_int8_t **sched)
 {
-	bzero(*sched, 2 * sizeof(rijndael_ctx));
+	bzero(*sched, sizeof(rijndael_ctx));
 	FREE(*sched, M_CRYPTO_DATA);
 	*sched = NULL;
 }
