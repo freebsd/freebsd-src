@@ -1,9 +1,9 @@
 # $FreeBSD$
 
 KMOD=	snake_saver
-SRCS= 	snake_saver.c
-
+SRCS=	snake_saver.c
 NOMAN=
+
 CFLAGS+= -I${.CURDIR}/..
 
 .if ${MACHINE} == "pc98"

@@ -1,6 +1,6 @@
-#	$FreeBSD$
+# $FreeBSD$
 
-.PATH:	${.CURDIR}/../../nwfs
+.PATH: ${.CURDIR}/../../nwfs
 
 KMOD=	nwfs
 
@@ -8,7 +8,7 @@ SRCS=	vnode_if.h \
 	nwfs_node.c nwfs_ioctl.c nwfs_io.c nwfs_vfsops.c nwfs_vnops.c \
 	nwfs_subr.c opt_ncp.h opt_nwfs.h opt_vmpage.h
 
-NOMAN=true
+NOMAN=	true
 
 .if defined(VNPRINT)
 CFLAGS+= -DVNPRINT

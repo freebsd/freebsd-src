@@ -1,8 +1,8 @@
 # $FreeBSD$
 
-.PATH:	${.CURDIR}/../../compat/linux ${.CURDIR}/../../${MACHINE_ARCH}/linux
-
 MAINTAINER=	marcel@FreeBSD.org
+
+.PATH: ${.CURDIR}/../../compat/linux ${.CURDIR}/../../${MACHINE_ARCH}/linux
 
 KMOD=	linux
 SRCS=	linux_file.c linux_ioctl.c linux_ipc.c linux_machdep.c linux_misc.c \
@@ -12,23 +12,23 @@ SRCS=	linux_file.c linux_ioctl.c linux_ipc.c linux_machdep.c linux_misc.c \
 OBJS=	linux_locore.o
 
 .if ${MACHINE_ARCH} != "alpha"
-SRCS+=  imgact_linux.c
+SRCS+=	imgact_linux.c
 .endif
 
-EXPORT_SYMS=_linux_mod
-CLEANFILES= linux_assym.h linux_genassym.o
+EXPORT_SYMS=	_linux_mod
+CLEANFILES=	linux_assym.h linux_genassym.o
 
-linux_assym.h:	linux_genassym.o
+linux_assym.h: linux_genassym.o
 .if exists(@)
-linux_assym.h:	@/kern/genassym.sh
+linux_assym.h: @/kern/genassym.sh
 .endif
 	sh @/kern/genassym.sh linux_genassym.o > ${.TARGET}
 
-linux_locore.o:	linux_locore.s linux_assym.h
+linux_locore.o: linux_locore.s linux_assym.h
 	${CC} -c -x assembler-with-cpp -DLOCORE ${CFLAGS} \
-		${.IMPSRC} -o ${.TARGET}
+	    ${.IMPSRC} -o ${.TARGET}
 
-linux_genassym.o:	linux_genassym.c linux.h @ machine
+linux_genassym.o: linux_genassym.c linux.h @ machine
 	${CC} -c ${CFLAGS} ${.IMPSRC}
 
 opt_compat.h:

@@ -1,9 +1,9 @@
 # $FreeBSD$
 
 KMOD=	rain_saver
-SRCS= 	rain_saver.c
-
+SRCS=	rain_saver.c
 NOMAN=
+
 CFLAGS+= -I${.CURDIR}/..
 CWARNFLAGS= -Wall -pedantic
 

@@ -1,10 +1,11 @@
 # $FreeBSD$
 
-.PATH:	${.CURDIR}/../../dev/aha
-KMOD	= aha
-SRCS	= aha.c aha_isa.c ahareg.h opt_cam.h device_if.h bus_if.h aha.h \
+.PATH: ${.CURDIR}/../../dev/aha
+
+KMOD=	aha
+SRCS=	aha.c aha_isa.c ahareg.h opt_cam.h device_if.h bus_if.h aha.h \
 	opt_scsi.h isa_if.h
-CLEANFILES	= aha.h
+CLEANFILES=	aha.h
 
 aha.h:
 	echo "#define NAHA 1" > aha.h
