@@ -273,7 +273,8 @@ out:
 	if (pendingsigs)
 		dotrap();
 	if ((flags & EV_EXIT) || (eflag && exitstatus 
-	    && !(flags & EV_TESTED) && (n->type == NCMD)))
+	    && !(flags & EV_TESTED) && (n->type == NCMD || 
+	    n->type == NSUBSHELL)))
 		exitshell(exitstatus);
 }
 
