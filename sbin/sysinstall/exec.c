@@ -6,7 +6,7 @@
  * this stuff is worth it, you can buy me a beer in return.   Poul-Henning Kamp
  * ----------------------------------------------------------------------------
  *
- * $Id: utils.c,v 1.4 1994/10/20 19:30:56 ache Exp $
+ * $Id: exec.c,v 1.1 1994/10/21 02:14:49 phk Exp $
  *
  */
 
@@ -33,7 +33,6 @@ exec(int magic, char *cmd, char *args, ...)
 	int pid, w, status;
 	char *argv[EXEC_MAXARG];
 	int arg = 0;
-	int no_args = 0;
 	va_list ap;
 	struct stat dummy;
 	int i;
@@ -53,13 +52,19 @@ exec(int magic, char *cmd, char *args, ...)
 
 	if ((pid = fork()) == 0) {
 		switch (magic) {
+		case 0:
+			close(0); open("/dev/null",O_RDONLY);
+			close(1); open("/dev/null",O_WRONLY);
+			close(2); open("/dev/null",O_WRONLY);
+			break;
 		case 1:
 			close(0);
 			i = open("/file.list",O_RDONLY);
 			if (i != 0) {
-				perror("/etc/file.list");
-				exit(2);
+				perror("Couldn't open /etc/file.list");
 			}
+			close(1); open("/dev/null",O_WRONLY);
+			close(2); open("/dev/null",O_WRONLY);
 			break;
 		default:
 			break;
