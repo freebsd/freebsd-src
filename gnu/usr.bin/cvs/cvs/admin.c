@@ -3,7 +3,7 @@
  * Copyright (c) 1989-1992, Brian Berliner
  * 
  * You may distribute under the terms of the GNU General Public License as
- * specified in the README file that comes with the CVS 1.3 kit.
+ * specified in the README file that comes with the CVS 1.4 kit.
  * 
  * Administration
  * 
@@ -14,18 +14,14 @@
 #include "cvs.h"
 
 #ifndef lint
-static char rcsid[] = "@(#)admin.c 1.17 92/03/31";
+static char rcsid[] = "$CVSid: @(#)admin.c 1.20 94/09/30 $";
+USE(rcsid)
 #endif
 
-#if __STDC__
-static Dtype admin_dirproc (char *dir, char *repos, char *update_dir);
-static int admin_fileproc (char *file, char *update_dir,
+static Dtype admin_dirproc PROTO((char *dir, char *repos, char *update_dir));
+static int admin_fileproc PROTO((char *file, char *update_dir,
 			   char *repository, List *entries,
-			   List *srcfiles);
-#else
-static int admin_fileproc ();
-static Dtype admin_dirproc ();
-#endif				/* __STDC__ */
+			   List *srcfiles));
 
 static char *admin_usage[] =
 {
@@ -60,7 +56,7 @@ admin (argc, argv)
     /* start the recursion processor */
     err = start_recursion (admin_fileproc, (int (*) ()) NULL, admin_dirproc,
 			   (int (*) ()) NULL, argc, argv, 0,
-			   W_LOCAL, 0, 1, (char *) NULL, 1);
+			   W_LOCAL, 0, 1, (char *) NULL, 1, 0);
     return (err);
 }
 

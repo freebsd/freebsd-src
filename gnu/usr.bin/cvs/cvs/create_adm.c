@@ -3,7 +3,7 @@
  * Copyright (c) 1989-1992, Brian Berliner
  * 
  * You may distribute under the terms of the GNU General Public License as
- * specified in the README file that comes with the CVS 1.3 kit.
+ * specified in the README file that comes with the CVS 1.4 kit.
  * 
  * Create Administration.
  * 
@@ -14,7 +14,8 @@
 #include "cvs.h"
 
 #ifndef lint
-static char rcsid[] = "@(#)create_adm.c 1.24 92/03/31";
+static char rcsid[] = "$CVSid: @(#)create_adm.c 1.28 94/09/23 $";
+USE(rcsid)
 #endif
 
 void
@@ -30,9 +31,6 @@ Create_Admin (dir, repository, tag, date)
 
     if (noexec)
 	return;
-
-    if (!isdir (repository))
-	error (1, 0, "there is no repository %s", repository);
 
     if (dir != NULL)
 	(void) sprintf (tmp, "%s/%s", dir, CVSADM);
@@ -58,6 +56,11 @@ Create_Admin (dir, repository, tag, date)
 	(void) strcpy (tmp, CVSADM);
     make_directory (tmp);
 
+#ifdef CVSADM_ROOT
+    /* record the current cvs root for later use */
+
+    Create_Root (dir, CVSroot);
+#endif /* CVSADM_ROOT */
     if (dir != NULL)
 	(void) sprintf (tmp, "%s/%s", dir, CVSADM_REP);
     else

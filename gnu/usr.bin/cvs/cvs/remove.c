@@ -3,7 +3,7 @@
  * Copyright (c) 1989-1992, Brian Berliner
  * 
  * You may distribute under the terms of the GNU General Public License as
- * specified in the README file that comes with the CVS 1.3 kit.
+ * specified in the README file that comes with the CVS 1.4 kit.
  * 
  * Remove a File
  * 
@@ -18,26 +18,24 @@
 #include "cvs.h"
 
 #ifndef lint
-static char rcsid[] = "@(#)remove.c 1.34 92/04/10";
+static char rcsid[] = "$CVSid: @(#)remove.c 1.39 94/10/07 $";
+USE(rcsid)
 #endif
 
-#if __STDC__
-static int remove_fileproc (char *file, char *update_dir,
+static int remove_fileproc PROTO((char *file, char *update_dir,
 			    char *repository, List *entries,
-			    List *srcfiles);
-static Dtype remove_dirproc (char *dir, char *repos, char *update_dir);
-#else
-static Dtype remove_dirproc ();
-static int remove_fileproc ();
-#endif
+			    List *srcfiles));
+static Dtype remove_dirproc PROTO((char *dir, char *repos, char *update_dir));
 
+static int force;
 static int local;
 static int removed_files;
-static int auto_removed_files;
+static int existing_files;
 
 static char *remove_usage[] =
 {
-    "Usage: %s %s [-lR] [files...]\n",
+    "Usage: %s %s [-flR] [files...]\n",
+    "\t-f\tDelete the file before removing it.\n",
     "\t-l\tProcess this directory only (not recursive).\n",
     "\t-R\tProcess directories recursively.\n",
     NULL
@@ -54,10 +52,13 @@ cvsremove (argc, argv)
 	usage (remove_usage);
 
     optind = 1;
-    while ((c = gnu_getopt (argc, argv, "lR")) != -1)
+    while ((c = getopt (argc, argv, "flR")) != -1)
     {
 	switch (c)
 	{
+	    case 'f':
+		force = 1;
+		break;
 	    case 'l':
 		local = 1;
 		break;
@@ -76,15 +77,18 @@ cvsremove (argc, argv)
     /* start the recursion processor */
     err = start_recursion (remove_fileproc, (int (*) ()) NULL, remove_dirproc,
 			   (int (*) ()) NULL, argc, argv, local,
-			   W_LOCAL, 0, 1, (char *) NULL, 1);
+			   W_LOCAL, 0, 1, (char *) NULL, 1, 0);
 
     if (removed_files)
 	error (0, 0, "use '%s commit' to remove %s permanently", program_name,
 	       (removed_files == 1) ? "this file" : "these files");
-    else
-	if (!auto_removed_files)
-	    error (0, 0, "no files removed; use `%s' to remove the file first",
-		   RM);
+
+    if (existing_files)
+	error (0, 0,
+	       ((existing_files == 1) ?
+		"%d file exists; use `%s' to remove it first" :
+		"%d files exist; use `%s' to remove them first"),
+	       existing_files, RM);
 
     return (err);
 }
@@ -104,24 +108,28 @@ remove_fileproc (file, update_dir, repository, entries, srcfiles)
     char fname[PATH_MAX];
     Vers_TS *vers;
 
+    /*
+     * If unlinking the file works, good.  If not, the "unremoved"
+     * error will indicate problems.
+     */
+    if (force)
+	(void) unlink (file);
+
     vers = Version_TS (repository, (char *) NULL, (char *) NULL, (char *) NULL,
 		       file, 0, 0, entries, srcfiles);
 
     if (vers->ts_user != NULL)
     {
-	freevers_ts (&vers);
-	return (0);
+	existing_files++;
+	if (!quiet)
+	    error (0, 0, "file `%s' still in working directory", file);
     }
-
-    if (vers->vn_user == NULL)
+    else if (vers->vn_user == NULL)
     {
 	if (!quiet)
-	    error (0, 0, "nothing known about %s", file);
-	freevers_ts (&vers);
-	return (0);
+	    error (0, 0, "nothing known about `%s'", file);
     }
-
-    if (vers->vn_user[0] == '0' && vers->vn_user[1] == '\0')
+    else if (vers->vn_user[0] == '0' && vers->vn_user[1] == '\0')
     {
 	/*
 	 * It's a file that has been added, but not commited yet. So,
@@ -134,13 +142,12 @@ remove_fileproc (file, update_dir, repository, entries, srcfiles)
 	(void) sprintf (fname, "%s/%s%s", CVSADM, file, CVSEXT_LOG);
 	(void) unlink_file (fname);
 	if (!quiet)
-	    error (0, 0, "removed `%s'.", file);
-	auto_removed_files++;
+	    error (0, 0, "removed `%s'", file);
     }
     else if (vers->vn_user[0] == '-')
     {
-	freevers_ts (&vers);
-	return (0);
+	if (!quiet)
+	    error (0, 0, "file `%s' already scheduled for removal", file);
     }
     else
     {
@@ -148,12 +155,10 @@ remove_fileproc (file, update_dir, repository, entries, srcfiles)
 	(void) strcpy (fname, "-");
 	(void) strcat (fname, vers->vn_user);
 	Register (entries, file, fname, vers->ts_rcs, vers->options,
-		  vers->tag, vers->date);
+		  vers->tag, vers->date, vers->ts_conflict);
 	if (!quiet)
-	{
-	    error (0, 0, "scheduling %s for removal", file);
-	    removed_files++;
-	}
+	    error (0, 0, "scheduling `%s' for removal", file);
+	removed_files++;
     }
 
     freevers_ts (&vers);

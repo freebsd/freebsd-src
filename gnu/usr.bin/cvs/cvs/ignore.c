@@ -1,11 +1,12 @@
 /*
- * .cvsignore file support contributed by David G. Grubbs <dgg@ksr.com>
+ * .cvsignore file support contributed by David G. Grubbs <dgg@odi.com>
  */
 
 #include "cvs.h"
 
 #ifndef lint
-static char rcsid[] = "@(#)ignore.c 1.13 92/04/03";
+static char rcsid[] = "$CVSid: @(#)ignore.c 1.16 94/09/24 $";
+USE(rcsid)
 #endif
 
 /*
@@ -147,7 +148,7 @@ ign_add (ign, hold)
 	 * (saving it if necessary).  We also catch * as a special case in a
 	 * global ignore file as an optimization
 	 */
-	if (isspace (*(ign + 1)) && (*ign == '!' || *ign == '*'))
+	if ((!*(ign+1) || isspace (*(ign+1))) && (*ign == '!' || *ign == '*'))
 	{
 	    if (!hold)
 	    {
@@ -224,4 +225,48 @@ ign_name (name)
 	if (fnmatch (*cpp++, name, 0) == 0)
 	    return (1);
     return (0);
+}
+
+
+static char **dir_ign_list = NULL;
+static int dir_ign_max = 0;
+static int dir_ign_current = 0;
+
+/* add a directory to list of dirs to ignore */
+void ign_dir_add (name)
+     char *name;
+{
+  /* make sure we've got the space for the entry */
+  if (dir_ign_current <= dir_ign_max)
+    {
+      dir_ign_max += IGN_GROW;
+      dir_ign_list = (char **) xrealloc ((char *) dir_ign_list, (dir_ign_max+1) * sizeof(char*));
+    }
+
+  dir_ign_list[dir_ign_current] = name;
+
+  dir_ign_current += 1 ;
+}
+
+
+/* this function returns 1 (true) if the given directory name is part of
+ * the list of directories to ignore
+ */
+
+int ignore_directory (name)
+     char *name;
+{
+  int i;
+
+  if (!dir_ign_list)
+    return 0;
+
+  i = dir_ign_current;
+  while (i--)
+    {
+      if (strncmp(name, dir_ign_list[i], strlen(dir_ign_list[i])) == 0)
+	return 1;
+    }
+
+  return 0;
 }

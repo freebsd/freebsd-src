@@ -1,4 +1,4 @@
-.\" cvscheck.man,v 1.1 1992/04/10 03:04:20 berliner Exp
+.\" $Id: cvscheck.man,v 1.1 1992/04/10 03:04:20 berliner Exp $
 .\" Contributed by Lowell Skoog <fluke!lowell@uunet.uu.net>
 .TH CVSCHECK LOCAL "4 March 1991" FLUKE
 .SH NAME

@@ -3,7 +3,7 @@
  * Copyright (c) 1989-1992, Brian Berliner
  * 
  * You may distribute under the terms of the GNU General Public License as
- * specified in the README file that comes with the CVS 1.3 kit.
+ * specified in the README file that comes with the CVS 1.4 kit.
  * 
  * Find Names
  * 
@@ -19,16 +19,12 @@
 #include "cvs.h"
 
 #ifndef lint
-static char rcsid[] = "@(#)find_names.c 1.38 92/04/10";
+static char rcsid[] = "$CVSid: @(#)find_names.c 1.45 94/10/22 $";
+USE(rcsid)
 #endif
 
-#if __STDC__
-static int find_dirs (char *dir, List * list, int checkadm);
-static int find_rcs (char *dir, List * list);
-#else
-static int find_rcs ();
-static int find_dirs ();
-#endif				/* __STDC__ */
+static int find_dirs PROTO((char *dir, List * list, int checkadm));
+static int find_rcs PROTO((char *dir, List * list));
 
 static List *filelist;
 
@@ -36,8 +32,9 @@ static List *filelist;
  * add the key from entry on entries list to the files list
  */
 static int
-add_entries_proc (node)
-    Node *node;
+add_entries_proc (node, closure)
+     Node *node;
+     void *closure;
 {
     Node *fnode;
 
@@ -82,7 +79,7 @@ Find_Names (repository, which, aflag, optentries)
 	if (entries != NULL)
 	{
 	    /* walk the entries file adding elements to the files list */
-	    (void) walklist (entries, add_entries_proc);
+	    (void) walklist (entries, add_entries_proc, NULL);
 
 	    /* if our caller wanted the entries list, return it; else free it */
 	    if (optentries != NULL)
@@ -167,28 +164,21 @@ find_rcs (dir, list)
     List *list;
 {
     Node *p;
-    CONST char *regex_err;
-    char line[50];
-    struct direct *dp;
+    struct dirent *dp;
     DIR *dirp;
 
     /* set up to read the dir */
     if ((dirp = opendir (dir)) == NULL)
 	return (1);
 
-    /* set up a regular expression to find the ,v files */
-    (void) sprintf (line, ".*%s$", RCSEXT);
-    if ((regex_err = re_comp (line)) != NULL)
-	error (1, 0, "%s", regex_err);
-
     /* read the dir, grabbing the ,v files */
     while ((dp = readdir (dirp)) != NULL)
     {
-	if (re_exec (dp->d_name))
+	if (fnmatch (RCSPAT, dp->d_name, 0) == 0) 
 	{
 	    char *comma;
 
-	    comma = rindex (dp->d_name, ',');	/* strip the ,v */
+	    comma = strrchr (dp->d_name, ',');	/* strip the ,v */
 	    *comma = '\0';
 	    p = getnode ();
 	    p->type = FILES;
@@ -213,16 +203,9 @@ find_dirs (dir, list, checkadm)
     int checkadm;
 {
     Node *p;
-    CONST char *regex_err;
     char tmp[PATH_MAX];
-    char admdir[PATH_MAX];
-    struct direct *dp;
+    struct dirent *dp;
     DIR *dirp;
-
-    /* build a regex to blow off ,v files */
-    (void) sprintf (tmp, ".*%s$", RCSEXT);
-    if ((regex_err = re_comp (tmp)) != NULL)
-	error (1, 0, "%s", regex_err);
 
     /* set up to read the dir */
     if ((dirp = opendir (dir)) == NULL)
@@ -234,38 +217,61 @@ find_dirs (dir, list, checkadm)
 	if (strcmp (dp->d_name, ".") == 0 ||
 	    strcmp (dp->d_name, "..") == 0 ||
 	    strcmp (dp->d_name, CVSATTIC) == 0 ||
-	    strcmp (dp->d_name, CVSLCK) == 0 ||
-	    re_exec (dp->d_name))	/* don't bother stating ,v files */
+	    strcmp (dp->d_name, CVSLCK) == 0)
 	    continue;
 
-	(void) sprintf (tmp, "%s/%s", dir, dp->d_name);
-	if (isdir (tmp))
+#ifdef DT_DIR
+	if (dp->d_type != DT_DIR) 
 	{
-	    /* check for administration directories (if needed) */
-	    if (checkadm)
+	    if (dp->d_type != DT_UNKNOWN && dp->d_type != DT_LNK)
+		continue;
+#endif
+	    /* don't bother stating ,v files */
+	    if (fnmatch (RCSPAT, dp->d_name, 0) == 0)
+		continue;
+
+	    sprintf (tmp, "%s/%s", dir, dp->d_name);
+	    if (!isdir (tmp))
+		continue;
+
+#ifdef DT_DIR
+	}
+#endif
+
+	/* check for administration directories (if needed) */
+	if (checkadm)
+	{
+	    /* blow off symbolic links to dirs in local dir */
+#ifdef DT_DIR
+	    if (dp->d_type != DT_DIR)
 	    {
-		/* blow off symbolic links to dirs in local dir */
+		/* we're either unknown or a symlink at this point */
+		if (dp->d_type == DT_LNK)
+		    continue;
+#endif
 		if (islink (tmp))
 		    continue;
-
-		/* check for new style */
-		(void) sprintf (admdir, "%s/%s", tmp, CVSADM);
-		if (!isdir (admdir))
-		{
-		    /* and old style */
-		    (void) sprintf (admdir, "%s/%s", tmp, OCVSADM);
-		    if (!isdir (admdir))
-			continue;
-		}
+#ifdef DT_DIR
 	    }
+#endif
 
-	    /* put it in the list */
-	    p = getnode ();
-	    p->type = DIRS;
-	    p->key = xstrdup (dp->d_name);
-	    if (addnode (list, p) != 0)
-		freenode (p);
+	    /* check for new style */
+	    (void) sprintf (tmp, "%s/%s/%s", dir, dp->d_name, CVSADM);
+	    if (!isdir (tmp))
+	    {
+		/* and old style */
+		(void) sprintf (tmp, "%s/%s/%s", dir, dp->d_name, OCVSADM);
+		if (!isdir (tmp))
+		    continue;
+	    }
 	}
+
+	/* put it in the list */
+	p = getnode ();
+	p->type = DIRS;
+	p->key = xstrdup (dp->d_name);
+	if (addnode (list, p) != 0)
+	    freenode (p);
     }
     (void) closedir (dirp);
     return (0);

@@ -19,8 +19,12 @@
 /* Brian Berliner added support for CVS */
 
 #ifndef lint
-static char rcsid[] = "@(#)error.c 1.9 92/03/31";
+static char rcsid[] = "$CVSid: @(#)error.c 1.13 94/09/30 $";
 #endif /* not lint */
+
+#ifdef HAVE_CONFIG_H
+#include "config.h"
+#endif
 
 #include <stdio.h>
 
@@ -35,7 +39,7 @@ void Lock_Cleanup();
 #endif /* __STDC__ */
 #endif /* CVS_SUPPORT */
 
-#ifndef VPRINTF_MISSING
+#ifdef HAVE_VPRINTF
 
 #if __STDC__
 #include <stdarg.h>
@@ -47,7 +51,7 @@ void Lock_Cleanup();
 
 #else
 
-#ifndef DOPRNT_MISSING
+#ifdef HAVE_DOPRNT
 #define va_alist args
 #define va_dcl int args;
 #else
@@ -57,7 +61,7 @@ void Lock_Cleanup();
 
 #endif
 
-#ifdef STDC_HEADERS
+#if STDC_HEADERS
 #include <stdlib.h>
 #include <string.h>
 #else
@@ -68,19 +72,7 @@ void exit ();
 #endif /* __STDC__ */
 #endif
 
-#ifdef STRERROR_MISSING
-static char *
-strerror (errnum)
-     int errnum;
-{
-  extern char *sys_errlist[];
-  extern int sys_nerr;
-
-  if (errnum > 0 && errnum < sys_nerr)
-    return sys_errlist[errnum];
-  return "Unknown system error";
-}
-#endif /* STRERROR_MISSING */
+extern char *strerror ();
 
 /* Print the program name and error message MESSAGE, which is a printf-style
    format string with optional args.
@@ -88,7 +80,7 @@ strerror (errnum)
    Exit with status STATUS if it is nonzero. */
 /* VARARGS */
 void
-#if !defined (VPRINTF_MISSING) && __STDC__
+#if defined (HAVE_VPRINTF) && __STDC__
 error (int status, int errnum, char *message, ...)
 #else
 error (status, errnum, message, va_alist)
@@ -102,7 +94,7 @@ error (status, errnum, message, va_alist)
 #ifdef CVS_SUPPORT
   extern char *command_name;
 #endif
-#ifndef VPRINTF_MISSING
+#ifdef HAVE_VPRINTF
   va_list args;
 #endif
 
@@ -117,12 +109,12 @@ error (status, errnum, message, va_alist)
 #else
   fprintf (stderr, "%s: ", program_name);
 #endif
-#ifndef VPRINTF_MISSING
+#ifdef HAVE_VPRINTF
   VA_START (args, message);
   vfprintf (stderr, message, args);
   va_end (args);
 #else
-#ifndef DOPRNT_MISSING
+#ifdef HAVE_DOPRNT
   _doprnt (message, &args, stderr);
 #else
   fprintf (stderr, message, a1, a2, a3, a4, a5, a6, a7, a8);
@@ -149,7 +141,7 @@ error (status, errnum, message, va_alist)
    Exit with status STATUS if it is nonzero. */
 /* VARARGS */
 void
-#if !defined (VPRINTF_MISSING) && __STDC__
+#if defined (HAVE_VPRINTF) && __STDC__
 fperror (FILE *fp, int status, int errnum, char *message, ...)
 #else
 fperror (fp, status, errnum, message, va_alist)
@@ -161,17 +153,17 @@ fperror (fp, status, errnum, message, va_alist)
 #endif
 {
   extern char *program_name;
-#ifndef VPRINTF_MISSING
+#ifdef HAVE_VPRINTF
   va_list args;
 #endif
 
   fprintf (fp, "%s: ", program_name);
-#ifndef VPRINTF_MISSING
+#ifdef HAVE_VPRINTF
   VA_START (args, message);
   vfprintf (fp, message, args);
   va_end (args);
 #else
-#ifndef DOPRNT_MISSING
+#ifdef HAVE_DOPRNT
   _doprnt (message, &args, fp);
 #else
   fprintf (fp, message, a1, a2, a3, a4, a5, a6, a7, a8);
