@@ -55,7 +55,6 @@ static int		pcic_power __P((struct slot *));
 static timeout_t 	pcic_reset;
 static void		pcic_resume(struct slot *);
 static void		pcic_disable __P((struct slot *));
-static void		pcic_mapirq __P((struct slot *, int));
 static timeout_t 	pcictimeout;
 static struct callout_handle pcictimeout_ch
     = CALLOUT_HANDLE_INITIALIZER(&pcictimeout_ch);
@@ -96,6 +95,21 @@ static int validunits = 0;
 
 #define GET_UNIT(d)	*(int *)device_get_softc(d)
 #define SET_UNIT(d,u)	*(int *)device_get_softc(d) = (u)
+
+static char *bridges[] =
+{
+	"Intel i82365",
+	"IBM PCIC",
+	"VLSI 82C146",
+	"Cirrus logic 672x",
+	"Cirrus logic 6710",
+	"Vadem 365",
+	"Vadem 465",
+	"Vadem 468",
+	"Vadem 469",
+	"Ricoh RF5C396",
+	"IBM KING PCMCIA Controller"
+};
 
 /*
  *	Internal inline functions for accessing the PCIC.
@@ -281,7 +295,6 @@ pcic_probe(device_t dev)
 	struct slot *slt;
 	struct pcic_slot *sp;
 	unsigned char c;
-	char *name;
 	int error;
 	struct resource *r;
 	int rid;
@@ -299,7 +312,6 @@ pcic_probe(device_t dev)
 	cinfo.mapio = pcic_io;
 	cinfo.ioctl = pcic_ioctl;
 	cinfo.power = pcic_power;
-	cinfo.mapirq = pcic_mapirq;
 	cinfo.reset = pcic_reset;
 	cinfo.disable = pcic_disable;
 	cinfo.resume = pcic_resume;
@@ -333,7 +345,8 @@ pcic_probe(device_t dev)
 		 * ones would need to be probed at the new offset we set after
 		 * we assume it's broken.
 		 */
-		if (slotnum == 1 && maybe_vlsi && sp->getb(sp, PCIC_ID_REV) != 0x84) {
+		if (slotnum == 1 && maybe_vlsi &&
+		    sp->getb(sp, PCIC_ID_REV) != PCIC_VLSI82C146) {
 			sp->index += 4;
 			sp->data += 4;
 			sp->offset = PCIC_SLOT_SIZE << 1;
@@ -349,16 +362,16 @@ pcic_probe(device_t dev)
 		/*
 		 *	82365 or clones.
 		 */
-		case 0x82:
-		case 0x83:
+		case PCIC_INTEL0:
+		case PCIC_INTEL1:
 			sp->controller = PCIC_I82365;
 			sp->revision = c & 1;
 			/*
 			 *	Now check for VADEM chips.
 			 */
-			outb(sp->index, 0x0E);
+			outb(sp->index, 0x0E);	/* Unlock VADEM's extra regs */
 			outb(sp->index, 0x37);
-			setb(sp, 0x3A, 0x40);
+			setb(sp, PCIC_VMISC, PCIC_VADEMREV);
 			c = sp->getb(sp, PCIC_ID_REV);
 			if (c & 0x08) {
 				switch (sp->revision = c & 7) {
@@ -375,7 +388,7 @@ pcic_probe(device_t dev)
 					sp->controller = PCIC_VG469;
 					break;
 				}
-				clrb(sp, 0x3A, 0x40);
+				clrb(sp, PCIC_VMISC, PCIC_VADEMREV);
 			}
 
 			/*
@@ -390,16 +403,16 @@ pcic_probe(device_t dev)
 		/*
 		 *	VLSI chips.
 		 */
-		case 0x84:
+		case PCIC_VLSI82C146:
 			sp->controller = PCIC_VLSI;
 			maybe_vlsi = 1;
 			break;
-		case 0x88:
-		case 0x89:
+		case PCIC_IBM1:
+		case PCIC_IBM2:
 			sp->controller = PCIC_IBM;
 			sp->revision = c & 1;
 			break;
-		case 0x8a:
+		case PCIC_IBM3:
 			sp->controller = PCIC_IBM_KING;
 			sp->revision = c & 1;
 			break;
@@ -409,57 +422,19 @@ pcic_probe(device_t dev)
 		/*
 		 *	Check for Cirrus logic chips.
 		 */
-		sp->putb(sp, 0x1F, 0);
-		c = sp->getb(sp, 0x1F);
-		if ((c & 0xC0) == 0xC0) {
-			c = sp->getb(sp, 0x1F);
-			if ((c & 0xC0) == 0) {
-				if (c & 0x20)
+		sp->putb(sp, PCIC_CLCHIP, 0);
+		c = sp->getb(sp, PCIC_CLCHIP);
+		if ((c & PCIC_CLC_TOGGLE) == PCIC_CLC_TOGGLE) {
+			c = sp->getb(sp, PCIC_CLCHIP);
+			if ((c & PCIC_CLC_TOGGLE) == 0) {
+				if (c & PCIC_CLC_DUAL)
 					sp->controller = PCIC_PD672X;
 				else
 					sp->controller = PCIC_PD6710;
 				sp->revision = 8 - ((c & 0x1F) >> 2);
 			}
 		}
-		switch(sp->controller) {
-		case PCIC_I82365:
-			name = "Intel i82365";
-			break;
-		case PCIC_IBM:
-			name = "IBM PCIC";
-			break;
-		case PCIC_IBM_KING:
-			name = "IBM KING PCMCIA Controller";
-			break;
-		case PCIC_PD672X:
-			name = "Cirrus Logic PD672X";
-			break;
-		case PCIC_PD6710:
-			name = "Cirrus Logic PD6710";
-			break;
-		case PCIC_VG365:
-			name = "Vadem 365";
-			break;
-		case PCIC_VG465:
-			name = "Vadem 465";
-			break;
-		case PCIC_VG468:
-			name = "Vadem 468";
-			break;
-		case PCIC_VG469:
-			name = "Vadem 469";
-			break;
-		case PCIC_RF5C396:
-			name = "Ricoh RF5C396";
-			break;
-		case PCIC_VLSI:
-			name = "VLSI 82C146";
-			break;
-		default:
-			name = "Unknown!";
-			break;
-		}
-		device_set_desc(dev, name);
+		device_set_desc(dev, bridges[(int) sp->controller]);
 		/*
 		 *	OK it seems we have a PCIC or lookalike.
 		 *	Allocate a slot and initialise the data structures.
@@ -479,12 +454,20 @@ pcic_probe(device_t dev)
 		 * enable it and hope for the best.
 		 */
 		if (sp->controller == PCIC_PD672X) {
-			setb(sp, PCIC_MISC1, PCIC_SPKR_EN);
+			setb(sp, PCIC_MISC1, PCIC_MISC1_SPEAKER);
 			setb(sp, PCIC_MISC2, PCIC_LPDM_EN);
 		}
 	}
 	bus_release_resource(dev, SYS_RES_IOPORT, rid, r);
 	return(validslots ? 0 : ENXIO);
+}
+
+static void
+do_mgt_irq(struct pcic_slot *sp, int irq)
+{
+	/* Management IRQ changes */
+	clrb(sp, PCIC_INT_GEN, PCIC_INTR_ENA);
+	sp->putb(sp, PCIC_STAT_INT, (irq << 4) | 0xF);
 }
 
 static int
@@ -521,9 +504,17 @@ pcic_attach(device_t dev)
 	}
 	rid = 0;
 	r = 0;
-	if (irq >= 0) {
+	if (irq > 0) {
 		r = bus_alloc_resource(dev, SYS_RES_IRQ, &rid, irq,
-		    ~0, 1, RF_ACTIVE);
+		    irq, 1, RF_ACTIVE);
+	}
+	if (r && ((1 << (rman_get_start(r))) & PCIC_INT_MASK_ALLOWED) == 0) {
+		device_printf(dev,
+		    "Hardware does not support irq %d, trying polling.\n",
+		    irq);
+		bus_release_resource(dev, SYS_RES_IRQ, rid, r);
+		r = 0;
+		irq = 0;
 	}
 	if (r) {
 		error = bus_setup_intr(dev, r, INTR_TYPE_MISC,
@@ -538,19 +529,20 @@ pcic_attach(device_t dev)
 		irq = 0;
 	}
 	if (irq == 0) {
-		pcictimeout_ch = timeout(pcictimeout, (void *) GET_UNIT(dev), hz/2);
+		pcictimeout_ch = timeout(pcictimeout, (void *) GET_UNIT(dev),
+		    hz/2);
 		device_printf(dev, "Polling mode\n");
 	}
 
 	sp = &pcic_slots[GET_UNIT(dev) * PCIC_CARD_SLOTS];
 	for (i = 0; i < PCIC_CARD_SLOTS; i++, sp++) {
-		/* Assign IRQ */
-		sp->putb(sp, PCIC_STAT_INT, (irq << 4) | 0xF);
+		if (sp->slt == NULL)
+			continue;
+
+		do_mgt_irq(sp, irq);
 
 		/* Check for changes */
 		setb(sp, PCIC_POWER, PCIC_PCPWRE| PCIC_DISRST);
-		if (sp->slt == NULL)
-			continue;
 		stat = sp->getb(sp, PCIC_STATUS);
 		if (bootverbose)
 			printf("stat is %x\n", stat);
@@ -612,6 +604,7 @@ pcic_power(struct slot *slt)
 	case PCIC_RF5C396:
 	case PCIC_VLSI:
 	case PCIC_IBM_KING:
+	case PCIC_I82365:
 		switch(slt->pwr.vpp) {
 		default:
 			return(EINVAL);
@@ -640,9 +633,9 @@ pcic_power(struct slot *slt)
 				(sp->controller == PCIC_VG469) ||
 				(sp->controller == PCIC_VG465) ||
 				(sp->controller == PCIC_VG365))
-				setb(sp, 0x2f, 0x03) ;
+				setb(sp, PCIC_CVSR, PCIC_CVSR_VS);
 			else
-				setb(sp, 0x16, 0x02);
+				setb(sp, PCIC_MISC1, PCIC_MISC1_VCC_33);
 			break;
 		case 50:
                         if (sp->controller == PCIC_IBM_KING) {
@@ -654,9 +647,9 @@ pcic_power(struct slot *slt)
 				(sp->controller == PCIC_VG469) ||
 				(sp->controller == PCIC_VG465) ||
 				(sp->controller == PCIC_VG365))
-				clrb(sp, 0x2f, 0x03) ;
+				clrb(sp, PCIC_CVSR, PCIC_CVSR_VS);
 			else
-				clrb(sp, 0x16, 0x02);
+				clrb(sp, PCIC_MISC1, PCIC_MISC1_VCC_33);
 			break;
 		}
 		break;
@@ -671,7 +664,7 @@ pcic_power(struct slot *slt)
 	/* Some chips are smarter than us it seems, so if we weren't
 	 * allowed to use 5V, try 3.3 instead
 	 */
-	if (!(sp->getb(sp, PCIC_STATUS) &  0x40) && slt->pwr.vcc == 50) {
+	if (!(sp->getb(sp, PCIC_STATUS) & PCIC_POW) && slt->pwr.vcc == 50) {
 		slt->pwr.vcc = 33;
 		slt->pwr.vpp = 0;
 		return (pcic_power(slt));
@@ -681,7 +674,8 @@ pcic_power(struct slot *slt)
 
 /*
  * tell the PCIC which irq we want to use.  only the following are legal:
- * 3, 4, 5, 7, 9, 10, 11, 12, 14, 15
+ * 3, 4, 5, 7, 9, 10, 11, 12, 14, 15.  We require the callers of this
+ * routine to do the check for legality.
  */
 static void
 pcic_mapirq(struct slot *slt, int irq)
@@ -690,7 +684,8 @@ pcic_mapirq(struct slot *slt, int irq)
 	if (irq == 0)
 		clrb(sp, PCIC_INT_GEN, 0xF);
 	else
-		sp->putb(sp, PCIC_INT_GEN, (sp->getb(sp, PCIC_INT_GEN) & 0xF0) | irq);
+		sp->putb(sp, PCIC_INT_GEN,
+		    (sp->getb(sp, PCIC_INT_GEN) & 0xF0) | irq);
 }
 
 /*
@@ -781,6 +776,7 @@ pcicintr(void *arg)
 						PCIC_CD) {
 					pccard_event(sp->slt, card_inserted);
 				} else {
+					pcic_disable(sp->slt);
 					pccard_event(sp->slt, card_removed);
 				}
 			}
@@ -797,9 +793,9 @@ pcic_resume(struct slot *slt)
 {
 	struct pcic_slot *sp = slt->cdata;
 
-	sp->putb(sp, PCIC_STAT_INT, (slt->irq << 4) | 0xF);
+	do_mgt_irq(sp, slt->irq);
 	if (sp->controller == PCIC_PD672X) {
-		setb(sp, PCIC_MISC1, PCIC_SPKR_EN);
+		setb(sp, PCIC_MISC1, PCIC_MISC1_SPEAKER);
 		setb(sp, PCIC_MISC2, PCIC_LPDM_EN);
 	}
 }
@@ -897,6 +893,12 @@ pcic_setup_intr(device_t dev, device_t child, struct resource *irq,
 {
 	struct pccard_devinfo *devi = device_get_ivars(child);
 	int err;
+
+	if (((1 << rman_get_start(irq)) & PCIC_INT_MASK_ALLOWED) == 0) {
+		device_printf(dev, "Hardware does not support irq %ld.\n",
+		    rman_get_start(irq));
+		return (EINVAL);
+	}
 
 	err = bus_generic_setup_intr(dev, child, irq, flags, intr, arg,
 	    cookiep);
