@@ -626,26 +626,17 @@ crdioctl(dev_t dev, u_long cmd, caddr_t data, int fflag, struct proc *p)
 			return EINVAL;
 		case SYS_RES_IOPORT:
 		case SYS_RES_MEMORY:
-			for (i = pr->min; i + pr->size <= pr->max; i++) {
+		case SYS_RES_IRQ:
+			for (i = pr->min; i + pr->size - 1 <= pr->max; i++) {
+				/* already allocated to pcic? */
+				if (bus_get_resource_start(pcicdev, pr->type, 0) == i)
+					continue;
 				err = bus_set_resource(pcicdev, pr->type, rid, i, pr->size);
 				if (!err) {
 					r = bus_alloc_resource(pcicdev, pr->type, &rid, 0ul, ~0ul, pr->size, 0);
 					if (r) { 
 						pr->resource_addr = (u_long)rman_get_start(r);
 			                        bus_release_resource(pcicdev, pr->type, rid, r);
-						break;
-					}
-				}
-			}
-			break;
-		case SYS_RES_IRQ:
-			for (i = pr->min; i <= pr->max; i++) {
-				err = bus_set_resource(pcicdev, SYS_RES_IRQ, rid, i, 1);
-				if (!err) {
-					r = bus_alloc_resource(pcicdev, SYS_RES_IRQ, &rid, 0ul, ~0ul, 1, 0);
-					if (r) { 
-						pr->resource_addr = (u_long)rman_get_start(r);
-			                        bus_release_resource(pcicdev, SYS_RES_IRQ, rid, r);
 						break;
 					}
 				}
