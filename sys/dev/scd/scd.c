@@ -131,7 +131,7 @@ static int scd_resume(struct scd_softc *);
 static int scd_playtracks(struct scd_softc *, struct ioc_play_track *pt);
 static int scd_playmsf(struct scd_softc *, struct ioc_play_msf *msf);
 static int scd_play(struct scd_softc *, struct ioc_play_msf *msf);
-static int scd_subchan(struct scd_softc *, struct ioc_read_subchannel *sch);
+static int scd_subchan(struct scd_softc *, struct ioc_read_subchannel *sch, int nocopyout);
 static int read_subcode(struct scd_softc *, struct sony_subchannel_position_data *sch);
 
 /* for xcdplayer */
@@ -350,8 +350,10 @@ scdioctl(struct cdev *dev, u_long cmd, caddr_t addr, int flags, struct thread *t
 		return (EINVAL);
 	case CDIOCPLAYMSF:
 		return scd_playmsf(sc, (struct ioc_play_msf *) addr);
+	case CDIOCREADSUBCHANNEL_SYSSPACE:
+		return scd_subchan(sc, (struct ioc_read_subchannel *) addr, 1);
 	case CDIOCREADSUBCHANNEL:
-		return scd_subchan(sc, (struct ioc_read_subchannel *) addr);
+		return scd_subchan(sc, (struct ioc_read_subchannel *) addr, 0);
 	case CDIOREADTOCHEADER:
 		return scd_toc_header (sc, (struct ioc_toc_header *) addr);
 	case CDIOREADTOCENTRYS:
@@ -544,7 +546,7 @@ scd_eject(struct scd_softc *sc)
 }
 
 static int
-scd_subchan(struct scd_softc *sc, struct ioc_read_subchannel *sch)
+scd_subchan(struct scd_softc *sc, struct ioc_read_subchannel *sch, int nocopyout)
 {
 	struct sony_subchannel_position_data q;
 	struct cd_sub_channel_info data;
@@ -573,8 +575,12 @@ scd_subchan(struct scd_softc *sc, struct ioc_read_subchannel *sch)
 	data.what.position.absaddr.msf.second = bcd2bin(q.abs_msf[1]);
 	data.what.position.absaddr.msf.frame = bcd2bin(q.abs_msf[2]);
 
-	if (copyout(&data, sch->data, min(sizeof(struct cd_sub_channel_info), sch->data_len))!=0)
-		return (EFAULT);
+	if (nocopyout == 0) {
+		if (copyout(&data, sch->data, min(sizeof(struct cd_sub_channel_info), sch->data_len))!=0)
+			return (EFAULT);
+	} else {
+		bcopy(&data, sch->data, min(sizeof(struct cd_sub_channel_info), sch->data_len));
+	}
 	return (0);
 }
 
