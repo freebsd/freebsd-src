@@ -24,22 +24,19 @@
  *
  * 	From Id: probe_keyboard.c,v 1.13 1997/06/09 05:10:55 bde Exp
  *
- *	$Id$
+ *	$Id: comconsole.c,v 1.1.1.1 1998/08/21 03:17:41 msmith Exp $
  */
 
 #include <stand.h>
-
-#include "bootstrap.h"
-
-/* in comconsole.S */
-extern void	cominit(int s);
-extern void	computc(int c);
-extern int	comgetc(void);
-extern int	comiskey(void);
+#include <bootstrap.h>
+#include <btxv86.h>
+#include "libi386.h"
 
 static void	comc_probe(struct console *cp);
 static int	comc_init(int arg);
-static int	comc_in(void);
+static void	comc_putchar(int c);
+static int	comc_getchar(void);
+static int	comc_ischar(void);
 
 struct console comconsole = {
     "comconsole",
@@ -47,10 +44,12 @@ struct console comconsole = {
     0,
     comc_probe,
     comc_init,
-    computc,
-    comc_in,
-    comiskey
+    comc_putchar,
+    comc_getchar,
+    comc_ischar
 };
+
+#define BIOS_COMPORT	0
 
 static void
 comc_probe(struct console *cp)
@@ -62,17 +61,43 @@ comc_probe(struct console *cp)
 static int
 comc_init(int arg)
 {
-    /* XXX arg is unit number, should we use variables instead? */
-    cominit(arg);
-    return(0);
+    v86.ctl = V86_FLAGS;
+    v86.addr = 0x14;
+    v86.eax = 0xe3;		/* 9600N81 */
+    v86.edx = BIOS_COMPORT;	/* XXX take as arg, or use env var? */
+    v86int();
+    return(v86.efl & 1);
+}
+
+static void
+comc_putchar(int c)
+{
+    v86.ctl = 0;
+    v86.addr = 0x14;
+    v86.eax = 0x100 | c;
+    v86int();
 }
 
 static int
-comc_in(void)
+comc_getchar(void)
 {
-    if (comiskey()) {
-	return(comgetc());
+    if (comc_ischar()) {
+	v86.ctl = 0;
+	v86.addr = 0x14;
+	v86.eax = 0x300;
+	v86int();
+	return(v86.eax);
     } else {
 	return(-1);
     }
+}
+
+static int
+comc_ischar(void)
+{
+    v86.ctl = 0;
+    v86.addr = 0x14;
+    v86.eax = 0x200;
+    v86int();
+    return(v86.eax & 0x1);
 }

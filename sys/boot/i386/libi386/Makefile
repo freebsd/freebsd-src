@@ -1,16 +1,13 @@
-# $Id: Makefile,v 1.1.1.1 1998/08/21 03:17:41 msmith Exp $
+# $Id: Makefile,v 1.2 1998/08/31 21:10:43 msmith Exp $
 #
-SUBDIR=	crt
 LIB=	i386
 NOPIC=
 NOPROFILE=
 
-SRCS=	aout_freebsd.c biosdelay.S biosdisk.c biosdisk_support.S biosgetrtc.S \
-	biosmem.S biosreboot.S bootinfo.c comconsole.c comconsole_support.S \
-	devicename.c gatea20.c getsecs.c i386_copy.c i386_module.c \
-	startprog.S vidconsole.c vidconsole_support.S
+SRCS=	aout_freebsd.c biosdisk.c biosmem.c bootinfo.c comconsole.c \
+	devicename.c gatea20.c i386_copy.c i386_module.c time.c vidconsole.c
 
-CFLAGS+=	-I${.CURDIR}/../../common
+CFLAGS+=	-I${.CURDIR}/../../common -I${.CURDIR}/../btx/lib
 
 # Make the disk code more talkative
 #CFLAGS+= -DDISK_DEBUG

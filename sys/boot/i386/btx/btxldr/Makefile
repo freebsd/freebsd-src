@@ -1,4 +1,4 @@
-#	$Id: Makefile,v 1.1 1998/09/12 06:30:26 rnordier Exp $
+#	$Id: Makefile,v 1.2 1998/09/14 18:27:05 msmith Exp $
 
 ORG=0x100000
 
@@ -21,5 +21,6 @@ clean:
 
 depend:
 
-install:
+cleandepend:
 
+install:

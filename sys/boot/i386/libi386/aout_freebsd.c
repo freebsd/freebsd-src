@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: aout_freebsd.c,v 1.2 1998/08/31 21:10:43 msmith Exp $
+ *	$Id: aout_freebsd.c,v 1.3 1998/09/14 18:27:05 msmith Exp $
  */
 
 #include <sys/param.h>
@@ -37,6 +37,7 @@
 
 #include "bootstrap.h"
 #include "libi386.h"
+#include "btxv86.h"
 
 static int	aout_exec(struct loaded_module *amp);
 
@@ -141,6 +142,8 @@ aout_exec(struct loaded_module *mp)
     printf("Start @ 0x%lx ...\n", entry);
 #endif
 
-    startprog(entry, 6, argv, (vm_offset_t)0x90000);
+    __exec(entry, argv[0], argv[1], argv[2], argv[3], argv[4], argv[5]);
+
+/*     startprog(entry, 6, argv, (vm_offset_t)0x90000); */
     panic("exec returned");
 }
