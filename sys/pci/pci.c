@@ -23,7 +23,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- * $Id: pci.c,v 1.94 1999/04/11 02:47:31 eivind Exp $
+ * $Id: pci.c,v 1.95 1999/04/16 21:22:52 peter Exp $
  *
  */
 
@@ -38,6 +38,7 @@
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/malloc.h>
+#include <sys/module.h>
 #include <sys/fcntl.h>
 #include <sys/conf.h>
 #include <sys/kernel.h>
@@ -926,17 +927,17 @@ static devclass_t	pci_devclass;
 /*
  * Create a new style driver around each old pci driver.
  */
-static void
-pci_wrap_old_drivers(void)
+int
+compat_pci_handler(struct moduledata *mod, int type, void *data)
 {
-	struct pci_device **dvpp, *dvp;
+	struct pci_device *dvp = (struct pci_device *)data;
+	driver_t *driver;
 
-	dvpp = (struct pci_device **)pcidevice_set.ls_items;
-	while ((dvp = *dvpp++) != NULL) {
-		driver_t *driver;
+	switch (type) {
+	case MOD_LOAD:
 		driver = malloc(sizeof(driver_t), M_DEVBUF, M_NOWAIT);
 		if (!driver)
-			continue;
+			return ENOMEM;
 		bzero(driver, sizeof(driver_t));
 		driver->name = dvp->pd_name;
 		driver->methods = pci_compat_methods;
@@ -944,7 +945,14 @@ pci_wrap_old_drivers(void)
 		driver->softc = sizeof(struct pci_devinfo *);
 		driver->priv = dvp;
 		devclass_add_driver(pci_devclass, driver);
+		break;
+	case MOD_UNLOAD:
+		printf("%s: module unload not supported!\n", mod->name);
+		return EOPNOTSUPP;
+	default:
+		break;
 	}
+	return 0;
 }
 
 /*
@@ -1330,7 +1338,7 @@ pci_modevent(module_t mod, int what, void *arg)
 {
 	switch (what) {
 	case MOD_LOAD:
-		pci_wrap_old_drivers();
+		/* pci_wrap_old_drivers(); */
 		break;
 
 	case MOD_UNLOAD:
