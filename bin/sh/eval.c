@@ -1007,6 +1007,7 @@ commandcmd(int argc, char **argv)
 	path = pathval();
 
 	optind = optreset = 1;
+	opterr = 0;
 	while ((ch = getopt(argc, argv, "p")) != -1) {
 		switch (ch) {
 		case 'p':

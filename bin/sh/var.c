@@ -543,6 +543,7 @@ exportcmd(int argc, char **argv)
 
 	cmdname = argv[0];
 	optreset = optind = 1;
+	opterr = 0;
 	values = 0;
 	while ((ch = getopt(argc, argv, "p")) != -1) {
 		switch (ch) {
