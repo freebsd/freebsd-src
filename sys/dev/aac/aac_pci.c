@@ -50,6 +50,7 @@
 #include <pci/pcivar.h>
 
 #include <dev/aac/aacreg.h>
+#include <dev/aac/aac_ioctl.h>
 #include <dev/aac/aacvar.h>
 
 static int		aac_pci_probe(device_t dev);
@@ -230,7 +231,7 @@ aac_pci_attach(device_t dev)
 			   BUS_SPACE_MAXADDR,				/* lowaddr */
 			   BUS_SPACE_MAXADDR, 				/* highaddr */
 			   NULL, NULL, 					/* filter, filterarg */
-			   AAC_CLUSTER_COUNT * sizeof(struct aac_fib), 1,/* maxsize, nsegments */
+			   AAC_FIB_COUNT * sizeof(struct aac_fib), 1,	/* maxsize, nsegments */
 			   BUS_SPACE_MAXSIZE_32BIT,			/* maxsegsize */
 			   0,						/* flags */
 			   &sc->aac_fib_dmat)) {
@@ -241,6 +242,7 @@ aac_pci_attach(device_t dev)
     /* 
      * Detect the hardware interface version, set up the bus interface indirection.
      */
+    sc->aac_hwif = AAC_HWIF_UNKNOWN;
     for (i = 0; aac_identifiers[i].vendor != 0; i++) {
 	if ((aac_identifiers[i].vendor == pci_get_vendor(dev)) &&
 	    (aac_identifiers[i].device == pci_get_device(dev))) {
@@ -258,6 +260,11 @@ aac_pci_attach(device_t dev)
 	    }
 	    break;
 	}
+    }
+    if (sc->aac_hwif == AAC_HWIF_UNKNOWN) {
+	device_printf(sc->aac_dev, "unknown hardware type\n");
+	error = ENXIO;
+	goto out;
     }
 
     /*

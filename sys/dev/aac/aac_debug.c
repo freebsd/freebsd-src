@@ -44,6 +44,7 @@
 #include <machine/bus.h>
 
 #include <dev/aac/aacreg.h>
+#include <dev/aac/aac_ioctl.h>
 #include <dev/aac/aacvar.h>
 
 void		aac_printstate0(void);
@@ -90,7 +91,16 @@ aac_print_queues(struct aac_softc *sc)
 		  sc->aac_queues->qt_qindex[AAC_ADAP_HIGH_RESP_QUEUE][AAC_PRODUCER_INDEX],
 		  sc->aac_queues->qt_qindex[AAC_ADAP_HIGH_RESP_QUEUE][AAC_CONSUMER_INDEX], 
 		  AAC_ADAP_HIGH_RESP_ENTRIES);
-
+    device_printf(sc->aac_dev, "AACQ_FREE      %d/%d\n", 
+		  sc->aac_qstat[AACQ_FREE].q_length, sc->aac_qstat[AACQ_FREE].q_max);
+    device_printf(sc->aac_dev, "AACQ_BIO       %d/%d\n", 
+		  sc->aac_qstat[AACQ_BIO].q_length, sc->aac_qstat[AACQ_BIO].q_max);
+    device_printf(sc->aac_dev, "AACQ_READY     %d/%d\n", 
+		  sc->aac_qstat[AACQ_READY].q_length, sc->aac_qstat[AACQ_READY].q_max);
+    device_printf(sc->aac_dev, "AACQ_BUSY      %d/%d\n", 
+		  sc->aac_qstat[AACQ_BUSY].q_length, sc->aac_qstat[AACQ_BUSY].q_max);
+    device_printf(sc->aac_dev, "AACQ_COMPLETE  %d/%d\n", 
+		  sc->aac_qstat[AACQ_COMPLETE].q_length, sc->aac_qstat[AACQ_COMPLETE].q_max);
 }
 
 /********************************************************************************
