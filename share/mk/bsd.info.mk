@@ -111,7 +111,7 @@ DVIPS2ASCII?=	dvips2ascii
 	mv -f ${.TARGET}.new ${.TARGET}
 
 .dvi.ps:
-	${DVIPS} -o ${.TARGET} ${.IMPSRC} 	
+	${DVIPS} -o ${.TARGET} ${.IMPSRC}
 
 .info.html:
 	${INFO2HTML} ${.IMPSRC}
