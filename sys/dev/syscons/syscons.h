@@ -25,7 +25,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *	$Id: syscons.h,v 1.44 1998/10/01 11:39:18 yokota Exp $
+ *	$Id: syscons.h,v 1.45 1999/01/11 03:18:29 yokota Exp $
  */
 
 #ifndef _DEV_SYSCONS_SYSCONS_H_
@@ -175,7 +175,9 @@ typedef struct scr_stat {
 	u_short		*history_pos;		/* position shown on screen */
 	u_short		*history_save;		/* save area index */
 	int		history_size;		/* size of history buffer */
+#ifdef __i386__
 	struct apmhook  r_hook;			/* reconfiguration support */
+#endif
 	int		splash_save_mode;	/* saved mode for splash screen */
 	int		splash_save_status;	/* saved status for splash screen */
 } scr_stat;
@@ -202,6 +204,9 @@ typedef struct default_attr {
 /* misc prototypes used by different syscons related LKM's */
 
 /* syscons.c */
+int sc_probe_unit(int unit, int flags);
+int sc_attach_unit(int unit, int flags);
+
 extern int (*sc_user_ioctl)(dev_t dev, u_long cmd, caddr_t data, int flag, 
 			    struct proc *p);
 

@@ -23,7 +23,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- * $Id: $
+ * $Id: kbdreg.h,v 1.1 1999/01/09 02:44:50 yokota Exp $
  */
 
 #ifndef _DEV_KBD_KBDREG_H_
@@ -109,7 +109,7 @@ typedef int		kbd_probe_t(int unit, keyboard_t **kbdp, void *arg,
 				    int flags);
 typedef int		kbd_init_t(keyboard_t *kbd);
 typedef int		kbd_term_t(keyboard_t *kbd);
-typedef int		kbd_intr_t(keyboard_t *kbd, void *arg);
+typedef int		kbd_intr_t(keyboard_t *kbd);
 typedef int		kbd_test_if_t(keyboard_t *kbd);
 typedef int		kbd_enable_t(keyboard_t *kbd);
 typedef int		kbd_disable_t(keyboard_t *kbd);
