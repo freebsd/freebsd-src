@@ -4,7 +4,7 @@
  * This is probably the last attempt in the `sysinstall' line, the next
  * generation being slated to essentially a complete rewrite.
  *
- * $Id: media_strategy.c,v 1.8 1995/05/21 19:29:17 gpalmer Exp $
+ * $Id: media_strategy.c,v 1.9 1995/05/21 19:51:50 gpalmer Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -213,6 +213,7 @@ genericGetDist(char *path, struct attribs *dist_attrib)
     }
 
     numchunks = atoi(attr_match(dist_attrib, "pieces"));
+    msgDebug("Attempting to extract distribution from %u files\n", numchunks);
     pipe(pfd);
     pid = fork();
     if (!pid)
@@ -228,16 +229,21 @@ genericGetDist(char *path, struct attribs *dist_attrib)
 	    int		fd;
 
 	    snprintf(buf, 512, "%s.%c%c", path, (chunk / 26), (chunk % 26));
+	    msgDebug("Opening %s\n", buf);
 	    if ((fd = open(buf, O_RDONLY)) == NULL)
 		msgFatal("Cannot find file `%s'!\n", buf);
 
 	    fstat(fd, &sb);
+	    msgDebug("mmap()ing %s (%d)\n", buf, fd);
 	    memory = mmap(0, sb.st_size, PROT_READ, MAP_SHARED, fd, (off_t) 0);
 	    if (memory == (caddr_t) -1)
 		msgFatal("mmap error: %s\n", strerror(errno));
 
+	    msgDebug("writing out mmap() space\n");
  	    write(1, memory, sb.st_size);
+	    msgDebug("munmapping %s\n", buf);
 	    munmap(memory, sb.st_size);
+	    msgDebug("closing %s\n", buf);
 	    close(fd);
 	    ++chunk;
 	}
@@ -301,7 +307,7 @@ mediaGetCDROM(char *dist)
 	return FALSE;
     }
    
-    snprintf(buf, PATH_MAX, "/mnt/%s", dist);
+    snprintf(buf, PATH_MAX, "/mnt/dists/%s", dist);
 
     retval = genericGetDist(buf, dist_attr);
     free(dist_attr);
