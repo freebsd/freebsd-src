@@ -519,6 +519,7 @@ configSecurityModerate(dialogMenuItem *self)
 	variable_set2("nfs_reserved_port_only", "YES", 1);
     variable_set2("sendmail_enable", "YES", 1);
     variable_set2("sshd_enable", "YES", 1);
+    variable_set2("kern_securelevel_enable", "NO", 1);
 
     if (self)
 	msgConfirm("Moderate security settings have been selected.\n\n"
@@ -543,6 +544,7 @@ configSecurityLiberal(dialogMenuItem *self)
     variable_set2("portmap_enable", "YES", 1);
     variable_set2("sendmail_enable", "YES", 1);
     variable_set2("sshd_enable", "YES", 1);
+    variable_set2("kern_securelevel_enable", "NO", 1);
 
     if (self)
 	msgConfirm("Liberal security settings have been selected.\n\n"
