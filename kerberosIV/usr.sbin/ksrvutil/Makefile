@@ -1,4 +1,4 @@
-#	$Id$
+#	$Id: Makefile,v 1.2 1997/10/02 15:03:23 markm Exp $
 
 PROG=		ksrvutil
 MAN8=		${KRB4DIR}/man/ksrvutil.8
@@ -6,6 +6,7 @@ SRCS=		ksrvutil.c ksrvutil_get.c
 CFLAGS+=	-I${KRB4DIR}/include \
 		-I${KRB4DIR}/lib/roken \
 		-I${KRB4DIR}/lib/sl \
+		-I${KRB4DIR}/lib/acl \
 		-I${KRB4DIR}/lib/kadm \
 		-I${KRB4DIR}/lib/kdb \
 		-I${KRB4DIR}/lib/krb \
