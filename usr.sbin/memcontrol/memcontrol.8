@@ -24,7 +24,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd September 28, 1999
+.Dd September 15, 2002
 .Dt MEMCONTROL 8
 .Os
 .Sh NAME
@@ -32,22 +32,19 @@
 .Nd "control system cache behaviour with respect to memory"
 .Sh SYNOPSIS
 .Nm
-.Ar list
+.Cm list
 .Op Fl a
-.Pp
 .Nm
-.Ar set
+.Cm set
 .Fl b Ar base
 .Fl l Ar length
 .Fl o Ar owner
 .Ar attribute
-.Pp
 .Nm
-.Ar clear
+.Cm clear
 .Fl o Ar owner
-.Pp
 .Nm
-.Ar clear
+.Cm clear
 .Fl b Ar base
 .Fl l Ar length
 .Sh DESCRIPTION
@@ -62,52 +59,50 @@ provides an interface to this facility, allowing CPU cache behavior to
 be altered for ranges of system physical memory.
 .Pp
 These ranges are typically power-of-2 aligned and sized, however the specific
-rules governing their layout vary between architectures.  The
+rules governing their layout vary between architectures.
+The
 .Nm
 utility does not attempt to enforce these rules, however the system will
 reject any attempt to set an illegal combination.
-.Bl -tag -width clear
-.It Ar list
+.Bl -tag -width ".Cm clear"
+.It Cm list
 List range slots.
-.Bl -tag -width xxxxxx
-.It Op Fl a
-List all range slots, even those that are inactive
+.Bl -tag -width indent
+.It Fl a
+List all range slots, even those that are inactive.
 .El
-.It Ar set
+.It Cm set
 Set memory range attributes.
-.Bl -tag -width xxxxxx
+.Bl -tag -width indent
 .It Fl b Ar base
-Memory range base address
+Memory range base address.
 .It Fl l Ar length
-Length of memory range in bytes, power of 2
+Length of memory range in bytes, power of 2.
 .It Fl o Ar owner
-Text identifier for this setting (7 char max)
+Text identifier for this setting (7 char max).
 .It Ar attribute
 Attributes applied to this range; combinations of
-.Ar force ,
-.Ar uncacheable ,
-.Ar write-combine ,
-.Ar write-through ,
-.Ar write-back ,
-.Ar write-protect
+.Cm force , uncacheable , write-combine , write-through , write-back ,
+and
+.Cm write-protect .
 .El
-.It Ar clear
+.It Cm clear
 Clear memory range attributes.
 Ranges may be cleared by owner or by
 base/length combination.
 .Pp
 To clear based on ownership:
-.Bl -tag -width xxxxxx
+.Bl -tag -width indent
 .It Fl o Ar owner
-All ranges with this owner will be cleared
+All ranges with this owner will be cleared.
 .El
 .Pp
 To clear based on the base/length combination:
-.Bl -tag -width xxxxxx
+.Bl -tag -width indent
 .It Fl b Ar base
-Memory range base address
+Memory range base address.
 .It Fl l Ar length
-Length of memory range in bytes, power of 2
+Length of memory range in bytes, power of 2.
 .El
 .Pp
 Base and length must exactly match an existing range.
