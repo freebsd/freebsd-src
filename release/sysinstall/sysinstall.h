@@ -4,7 +4,7 @@
  * This is probably the last attempt in the `sysinstall' line, the next
  * generation being slated to essentially a complete rewrite.
  *
- * $Id: sysinstall.h,v 1.27 1995/05/23 02:41:16 jkh Exp $
+ * $Id: sysinstall.h,v 1.28 1995/05/23 18:06:16 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -204,6 +204,7 @@ extern unsigned int	XF86FontDists;		/* The XFree86 fonts we want			*/
 
 extern DMenu		MenuInitial;		/* Initial installation menu			*/
 extern DMenu		MenuMBRType;		/* Type of MBR to write on the disk		*/
+extern DMenu		MenuConfigure;		/* Final configuration menu			*/
 extern DMenu		MenuDocumentation;	/* Documentation menu				*/
 extern DMenu		MenuOptions;		/* Installation options				*/
 extern DMenu		MenuOptionsLanguage;	/* Language options menu			*/
@@ -240,6 +241,8 @@ extern void	command_func_add(char *key, commandFunc func, void *data);
 extern void	config_fstab(void);
 extern void	config_sysconfig(void);
 extern void	config_resolv(void);
+extern int	config_ports(char *str);
+extern int	config_packages(char *str);
 
 /* decode.c */
 extern DMenuItem *decode(DMenu *menu, char *name);

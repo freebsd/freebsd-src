@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: install.c,v 1.48 1995/05/23 02:41:05 jkh Exp $
+ * $Id: install.c,v 1.49 1995/05/23 18:06:13 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -435,4 +435,5 @@ cpio_extract(void)
 static void
 do_final_setup(void)
 {
+    dmenuOpenSimple(&MenuConfigure);
 }
