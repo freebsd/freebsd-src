@@ -37,7 +37,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *      $Id: worm.c,v 1.6 1995/05/03 23:53:32 dufault Exp $
+ *      $Id: worm.c,v 1.7 1995/05/30 08:13:58 rgrimes Exp $
  */
 
 /* XXX This is PRELIMINARY.
@@ -101,14 +101,17 @@ struct scsi_device worm_switch =
 	worm_strategy,
 };
 
-static int worm_size(struct scsi_link *sc_link)
+static int worm_size(struct scsi_link *sc_link, int flags)
 {
 	int ret;
 	struct scsi_data *worm = sc_link->sd;
 
 	worm->n_blks = scsi_read_capacity(sc_link, &worm->blk_size,
-	SCSI_NOSLEEP | SCSI_NOMASK);
+					  flags);
 
+	if(worm->blk_size == 0)
+		/* XXX */
+		worm->blk_size = 2048;
 	if (worm->n_blks)
 	{
 		sc_link->flags |= SDEV_MEDIA_LOADED;
@@ -130,11 +133,10 @@ wormattach(struct scsi_link *sc_link)
 
 	printf("- UNTESTED ");
 
-	if (worm_size(sc_link) == 0)
+	if (worm_size(sc_link, SCSI_NOSLEEP | SCSI_NOMASK) == 0)
 		printf("- can't get capacity.");
 	else
 		printf("with %ld %ld byte blocks.", worm->n_blks, worm->blk_size);
-
 	return 0;
 }
 
@@ -241,9 +243,11 @@ wormstart(unit, flags)
 		} else {
 badnews:
 			printf("worm%ld: oops not queued\n", unit);
-			bp->b_flags |= B_ERROR;
-			bp->b_error = EIO;
-			biodone(bp);
+			if (bp) {
+				bp->b_flags |= B_ERROR;
+				bp->b_error = EIO;
+				biodone(bp);
+			}
 		}
 	} /* go back and see if we can cram more work in.. */
 }
@@ -337,7 +341,7 @@ struct scsi_link *sc_link)
 
 	scsi_prevent(sc_link, PR_PREVENT, SCSI_SILENT);
 
-	if (worm_size(sc_link) == 0) {
+	if (worm_size(sc_link, 0) == 0) {
 		scsi_stop_unit(sc_link, 0, SCSI_SILENT);
 		scsi_prevent(sc_link, PR_ALLOW, SCSI_SILENT);
 		sc_link->flags &= ~SDEV_OPEN;
