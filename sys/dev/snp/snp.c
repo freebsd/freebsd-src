@@ -18,6 +18,7 @@
 #if NSNP > 0
 
 #include "opt_compat.h"
+#include "opt_devfs.h"
 
 #include <sys/param.h>
 #include <sys/systm.h>

@@ -11,7 +11,7 @@
 # device lines is present in the ./LINT configuration file. If you are 
 # in doubt as to the purpose or necessity of a line, check first in LINT.
 #
-#	$Id: GENERIC,v 1.103 1998/01/16 22:12:58 pst Exp $
+#	$Id: GENERIC,v 1.104 1998/01/21 18:34:44 jkh Exp $
 
 machine		"i386"
 cpu		"I386_CPU"
@@ -27,6 +27,9 @@ options		FFS			#Berkeley Fast Filesystem
 options		NFS			#Network Filesystem
 options		MSDOSFS			#MSDOS Filesystem
 options		"CD9660"		#ISO 9660 Filesystem
+options		"CD9660_ROOT"		#CD-ROM usable as root device
+options		FFS_ROOT		#FFS usable as root device [keep this!]
+options		NFS_ROOT		#NFS usable as root device
 options		PROCFS			#Process filesystem
 options		"COMPAT_43"		#Compatible with BSD 4.3 [KEEP THIS!]
 options		SCSI_DELAY=15		#Be pessimistic about Joe SCSI device

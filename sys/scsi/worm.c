@@ -43,10 +43,11 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *      $Id: worm.c,v 1.49 1997/12/20 23:03:49 joerg Exp $
+ *      $Id: worm.c,v 1.50 1997/12/26 14:52:29 joerg Exp $
  */
 
 #include "opt_bounce.h"
+#include "opt_devfs.h"
 #include "opt_scsi.h"
 
 #include <sys/param.h>

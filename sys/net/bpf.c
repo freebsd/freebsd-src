@@ -37,7 +37,7 @@
  *
  *      @(#)bpf.c	8.2 (Berkeley) 3/28/94
  *
- * $Id: bpf.c,v 1.35 1997/10/03 21:32:05 julian Exp $
+ * $Id: bpf.c,v 1.36 1997/11/18 16:29:53 bde Exp $
  */
 
 #include "bpfilter.h"
@@ -78,6 +78,9 @@
 #include <netinet/if_ether.h>
 #include <sys/kernel.h>
 #include <sys/sysctl.h>
+
+#include "opt_devfs.h"
+
 #ifdef DEVFS
 #include <sys/devfsext.h>
 #endif /*DEVFS*/

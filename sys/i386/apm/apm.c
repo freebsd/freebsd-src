@@ -15,8 +15,10 @@
  *
  * Sep, 1994	Implemented on FreeBSD 1.1.5.1R (Toshiba AVS001WD)
  *
- *	$Id: apm.c,v 1.66 1997/12/04 02:40:00 imp Exp $
+ *	$Id: apm.c,v 1.67 1997/12/23 16:32:35 nate Exp $
  */
+
+#include "opt_devfs.h"
 
 #include <sys/param.h>
 #include <sys/conf.h>

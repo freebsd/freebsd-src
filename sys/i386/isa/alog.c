@@ -61,6 +61,7 @@
 #include <sys/alogio.h>
 #include <sys/dataacq.h>
 
+#include "opt_devfs.h"
 #ifdef DEVFS
 #include <sys/devfsext.h>
 #endif 

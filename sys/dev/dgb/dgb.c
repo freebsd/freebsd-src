@@ -1,5 +1,5 @@
 /*-
- *  dgb.c $Id: dgb.c,v 1.29 1997/12/06 13:22:03 bde Exp $
+ *  dgb.c $Id: dgb.c,v 1.30 1997/12/16 17:39:57 eivind Exp $
  *
  *  Digiboard driver.
  *
@@ -28,6 +28,7 @@
  */
 
 #include "opt_compat.h"
+#include "opt_devfs.h"
 
 #include "dgb.h"
 

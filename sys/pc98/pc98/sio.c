@@ -31,12 +31,13 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)com.c	7.5 (Berkeley) 5/16/91
- *	$Id: sio.c,v 1.48 1998/01/16 11:20:22 kato Exp $
+ *	$Id: sio.c,v 1.49 1998/01/22 03:52:55 kato Exp $
  */
 
 #include "opt_comconsole.h"
 #include "opt_compat.h"
 #include "opt_ddb.h"
+#include "opt_devfs.h"
 #include "opt_sio.h"
 #include "sio.h"
 #include "pnp.h"

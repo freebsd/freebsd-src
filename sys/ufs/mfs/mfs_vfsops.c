@@ -31,8 +31,10 @@
  * SUCH DAMAGE.
  *
  *	@(#)mfs_vfsops.c	8.11 (Berkeley) 6/19/95
- * $Id: mfs_vfsops.c,v 1.37 1997/11/01 20:19:43 tegge Exp $
+ * $Id: mfs_vfsops.c,v 1.38 1997/11/12 05:42:30 julian Exp $
  */
+
+#include "opt_mfs.h"
 
 #include <sys/param.h>
 #include <sys/systm.h>

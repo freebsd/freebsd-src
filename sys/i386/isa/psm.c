@@ -20,7 +20,7 @@
  * NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
  * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- * $Id: psm.c,v 1.47 1997/12/07 08:09:17 yokota Exp $
+ * $Id: psm.c,v 1.48 1998/01/20 03:37:26 yokota Exp $
  */
 
 /*
@@ -63,6 +63,7 @@
 
 #include "psm.h"
 #include "apm.h"
+#include "opt_devfs.h"
 #include "opt_psm.h"
 
 #if NPSM > 0

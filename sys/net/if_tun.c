@@ -17,6 +17,7 @@
 #include "tun.h"
 #if NTUN > 0
 
+#include "opt_devfs.h"
 #include "opt_inet.h"
 
 #include <sys/param.h>

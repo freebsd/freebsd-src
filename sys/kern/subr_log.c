@@ -31,12 +31,14 @@
  * SUCH DAMAGE.
  *
  *	@(#)subr_log.c	8.1 (Berkeley) 6/10/93
- * $Id: subr_log.c,v 1.24 1997/09/16 11:43:30 bde Exp $
+ * $Id: subr_log.c,v 1.25 1997/10/28 15:58:21 bde Exp $
  */
 
 /*
  * Error log buffer for kernel printf's.
  */
+
+#include "opt_devfs.h"
 
 #include <sys/param.h>
 #include <sys/systm.h>

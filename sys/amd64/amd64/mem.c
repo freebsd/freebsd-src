@@ -38,13 +38,14 @@
  *
  *	from: Utah $Hdr: mem.c 1.13 89/10/08$
  *	from: @(#)mem.c	7.2 (Berkeley) 5/9/91
- *	$Id: mem.c,v 1.47 1997/09/14 03:19:02 peter Exp $
+ *	$Id: mem.c,v 1.48 1997/11/20 19:30:30 bde Exp $
  */
 
 /*
  * Memory special file
  */
 
+#include "opt_devfs.h"
 #include "opt_perfmon.h"
 
 #include <sys/param.h>

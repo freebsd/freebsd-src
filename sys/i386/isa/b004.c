@@ -53,6 +53,9 @@
 #include <sys/uio.h>
 #include <sys/conf.h>
 #include <sys/kernel.h>
+
+#include "opt_devfs.h"
+
 #ifdef DEVFS
 #include <sys/devfsext.h>
 #endif /*DEVFS*/
