@@ -130,7 +130,7 @@ USB_MATCH(ndisusb)
 {
 	USB_MATCH_START(ndisusb, uaa);
 
-	if (windrv_lookup(NULL, "USB Bus") == NULL)
+	if (windrv_lookup(0, "USB Bus") == NULL)
 		return(UMATCH_NONE);
 
 	if (uaa->iface != NULL)
@@ -151,7 +151,7 @@ USB_ATTACH(ndisusb)
 
 	/* Create PDO for this device instance */
 
-	drv = windrv_lookup(NULL, "USB Bus");
+	drv = windrv_lookup(0, "USB Bus");
 	windrv_create_pdo(drv, self);
 
 	if (ndis_attach(self) != 0)
