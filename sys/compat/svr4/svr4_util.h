@@ -25,7 +25,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  * 
- * $Id$
+ * $Id: svr4_util.h,v 1.2 1999/07/30 12:45:21 newton Exp $
  */
 
 #ifndef	_SVR4_UTIL_H_
@@ -71,10 +71,17 @@ extern const char svr4_emul_path[];
 int svr4_emul_find __P((struct proc *, caddr_t *, const char *, char *,
 			char **, int));
 
-#define CHECKALTEXIST(p, sgp, path) \
-    svr4_emul_find(p, sgp, svr4_emul_path, path, &(path), 0)
+#define CHECKALT(p, sgp, path, i)					\
+	do {								\
+		int _error;						\
+									\
+		_error = svr4_emul_find(p, sgp, svr4_emul_path, path,	\
+                    &path, i);						\
+		if (_error == EFAULT)					\
+			return (_error);				\
+	} while (0)
 
-#define CHECKALTCREAT(p, sgp, path) \
-    svr4_emul_find(p, sgp, svr4_emul_path, path, &(path), 1)
+#define CHECKALTEXIST(p, sgp, path) CHECKALT(p, sgp, path, 0)
+#define CHECKALTCREAT(p, sgp, path) CHECKALT(p, sgp, path, 1)
 
 #endif /* !_SVR4_UTIL_H_ */
