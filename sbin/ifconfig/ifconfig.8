@@ -139,7 +139,10 @@ The following parameters may be set with
 .Nm :
 .Bl -tag -width indent
 .It Cm add
-Another name for the ``alias'' parameter.  Introduced for compatibility
+Another name for the
+.Cm alias
+parameter.
+Introduced for compatibility
 with BSD/OS.
 .It Cm alias
 Establish an additional network address for this interface.
@@ -181,10 +184,15 @@ extra console error logging.
 .It Fl debug
 Disable driver dependent debugging code.
 .It Cm delete
-Another name for the ``-alias'' parameter.
+Another name for the
+.Fl alias
+parameter.
 .It Cm down
-Mark an interface ``down''.  When an interface is
-marked ``down'', the system will not attempt to
+Mark an interface
+.Dq down .
+When an interface is marked
+.Dq down ,
+the system will not attempt to
 transmit messages through that interface. 
 If possible, the interface will be reset to disable reception as well.
 This action does not automatically disable routes using the interface.
@@ -364,13 +372,18 @@ netmasks though
 .Fx
 implements it internally as a set of netmasks.
 .It Cm remove
-Another name for the ``-alias'' parameter.  Introduced for compatibility
+Another name for the
+.Fl alias
+parameter.
+Introduced for compatibility
 with BSD/OS.
 .It Cm phase
 The argument following this specifies the version (phase) of the 
 Appletalk network attached to the interface.
 Values of 1 or 2 are permitted.
-.It Cm link[0-2]
+.It Cm link Ns Xo
+.Op Cm 0 Ns - Ns Cm 2
+.Xc
 Enable special processing of the link level of the interface.
 These three options are interface specific in actual effect, however,
 they are in general used to select special modes of operation.
@@ -378,7 +391,9 @@ An example
 of this is to enable SLIP compression, or to select the connector type
 for some Ethernet cards.  Refer to the man page for the specific driver
 for more information.
-.It Fl link[0-2]
+.It Fl link Ns Xo
+.Op Cm 0 Ns - Ns Cm 2
+.Xc
 Disable special processing at the link level with the specified interface.
 .It Cm up
 Mark an interface
