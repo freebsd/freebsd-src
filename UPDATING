@@ -22,6 +22,12 @@ NOTE TO PEOPLE WHO THINK THAT 5.0-CURRENT IS SLOW:
 	integrity.  Re-enabling write caching can substantially improve
 	performance.
 
+20020729:
+	COPY is being deprecated.  The 20010530 change was reverted, as
+	it causes far more pain than was expected, and to always compare
+	before installing, please use INSTALL="install -C" again.  The
+	-C option is now silently ignored when used with the -d option.
+
 20020702:
 	Problems with libc_r clients like KDE and GNOME have been resolved.
 	There are still some minor problems with some signals but the 
