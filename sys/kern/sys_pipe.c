@@ -16,7 +16,7 @@
  * 4. Modifications may be freely made to this file if the above conditions
  *    are met.
  *
- * $Id: sys_pipe.c,v 1.39 1998/02/09 06:09:25 eivind Exp $
+ * $Id: sys_pipe.c,v 1.40 1998/03/26 20:51:47 phk Exp $
  */
 
 /*
@@ -62,6 +62,7 @@
 #include <sys/signalvar.h>
 #include <sys/sysproto.h>
 #include <sys/pipe.h>
+#include <sys/uio.h>
 
 #include <vm/vm.h>
 #include <vm/vm_prot.h>

@@ -31,11 +31,13 @@
  * SUCH DAMAGE.
  *
  *	@(#)signalvar.h	8.6 (Berkeley) 2/19/95
- * $Id: signalvar.h,v 1.16 1997/08/30 11:24:05 peter Exp $
+ * $Id: signalvar.h,v 1.17 1998/02/24 02:01:11 bde Exp $
  */
 
 #ifndef	_SYS_SIGNALVAR_H_		/* tmp for user.h */
 #define	_SYS_SIGNALVAR_H_
+
+#include <sys/signal.h>
 
 /*
  * Kernel signal definitions and data structures,
@@ -149,6 +151,7 @@ static int sigprop[NSIG + 1] = {
 
 #ifdef KERNEL
 struct pgrp;
+struct proc;
 
 /*
  * Machine-independent functions:

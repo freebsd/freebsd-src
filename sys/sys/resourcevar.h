@@ -31,11 +31,13 @@
  * SUCH DAMAGE.
  *
  *	@(#)resourcevar.h	8.4 (Berkeley) 1/9/95
- * $Id$
+ * $Id: resourcevar.h,v 1.10 1997/02/22 09:45:46 peter Exp $
  */
 
 #ifndef	_SYS_RESOURCEVAR_H_
 #define	_SYS_RESOURCEVAR_H_
+
+#include <sys/resource.h>
 
 /*
  * Kernel per-process accounting / statistics
@@ -78,6 +80,8 @@ struct plimit {
 };
 
 #ifdef KERNEL
+struct proc;
+
 void	 addupc_intr __P((struct proc *p, u_long pc, u_int ticks));
 void	 addupc_task __P((struct proc *p, u_long pc, u_int ticks));
 void	 calcru __P((struct proc *p, struct timeval *up, struct timeval *sp,

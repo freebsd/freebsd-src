@@ -34,7 +34,7 @@
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 /*
- * $Id: asc.c,v 1.27 1997/09/14 03:19:05 peter Exp $
+ * $Id: asc.c,v 1.28 1998/01/24 02:54:15 eivind Exp $
  */
 
 #include "asc.h"
@@ -67,6 +67,7 @@
 #ifdef DEVFS
 #include <sys/devfsext.h>
 #endif /*DEVFS*/
+#include <sys/uio.h>
 
 #include <machine/asc_ioctl.h>
 

@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)in_pcb.c	8.4 (Berkeley) 5/24/95
- *	$Id: in_pcb.c,v 1.40 1998/03/24 18:06:08 wollman Exp $
+ *	$Id: in_pcb.c,v 1.41 1998/03/28 10:18:21 bde Exp $
  */
 
 #include <sys/param.h>
@@ -44,6 +44,8 @@
 #include <sys/proc.h>
 #include <sys/kernel.h>
 #include <sys/sysctl.h>
+
+#include <machine/limits.h>
 
 #include <vm/vm_zone.h>
 

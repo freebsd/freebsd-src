@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)user.h	8.2 (Berkeley) 9/23/93
- * $Id: user.h,v 1.13 1997/03/03 08:34:08 ache Exp $
+ * $Id: user.h,v 1.14 1997/03/03 09:51:15 ache Exp $
  */
 
 #ifndef _SYS_USER_H_
@@ -51,11 +51,13 @@
 #include <vm/pmap.h>		/* XXX */
 #include <sys/lock.h>		/* XXX */
 #include <vm/vm_map.h>		/* XXX */
-#else
-#include <vm/vm.h>		/* XXX */
 #endif /* !KERNEL */
+#ifndef _SYS_RESOURCEVAR_H_
 #include <sys/resourcevar.h>
+#endif
+#ifndef _SYS_SIGNALVAR_H_
 #include <sys/signalvar.h>
+#endif
 
 /*
  * KERN_PROC subtype ops return arrays of augmented proc structures:

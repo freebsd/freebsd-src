@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)ffs_vnops.c	8.15 (Berkeley) 5/14/95
- * $Id: ffs_vnops.c,v 1.45 1998/03/19 22:49:44 dyson Exp $
+ * $Id: ffs_vnops.c,v 1.46 1998/03/21 05:16:09 dyson Exp $
  */
 
 #include <sys/param.h>
@@ -45,6 +45,8 @@
 #include <sys/mount.h>
 #include <sys/sysctl.h>
 #include <sys/vnode.h>
+
+#include <machine/limits.h>
 
 #include <vm/vm.h>
 #include <vm/vm_prot.h>
