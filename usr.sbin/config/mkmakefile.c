@@ -253,7 +253,7 @@ makefile(void)
 			}
 			/* anything left? */
 			if (*line == '\0')
-				break;
+				continue;
 			fprintf(ofp, "\"%s\\0\"\n", line);
 		}
 	}
