@@ -42,7 +42,6 @@
 #include <sys/param.h>
 
 #if defined(__FreeBSD__)
-#include <sys/ioccom.h>
 #include <sys/random.h>
 #else
 #include <sys/ioctl.h>
