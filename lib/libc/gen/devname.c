@@ -40,65 +40,22 @@ __FBSDID("$FreeBSD$");
 #include <sys/types.h>
 #include <sys/sysctl.h>
 
-#include <db.h>
 #include <err.h>
 #include <fcntl.h>
-#include <paths.h>
 #include <stdio.h>
 #include <string.h>
 #include <sys/param.h>
 #include <sys/stat.h>
 
-static char *
-xdevname(dev, type)
-	dev_t dev;
-	mode_t type;
-{
-	struct {
-		mode_t type;
-		dev_t dev;
-	} bkey;
-	static DB *db;
-	static int failure;
-	DBT data, key;
-
-	if (!db && !failure &&
-	    !(db = dbopen(_PATH_DEVDB, O_RDONLY, 0, DB_HASH, NULL))) 
-		failure = 1;
-	if (failure)
-		return (NULL);
-
-	/*
-	 * Keys are a mode_t followed by a dev_t.  The former is the type of
-	 * the file (mode & S_IFMT), the latter is the st_rdev field.  Be
-	 * sure to clear any padding that may be found in bkey.
-	 */
-	memset(&bkey, 0, sizeof(bkey));
-	bkey.dev = dev;
-	bkey.type = type;
-	key.data = &bkey;
-	key.size = sizeof(bkey);
-	return ((db->get)(db, &key, &data, 0) ? NULL : (char *)data.data);
-}
-
 char *
-devname(dev, type)
-	dev_t dev;
-	mode_t type;
+devname_r(dev_t dev, mode_t type, char *buf, int len)
 {
-	static char buf[SPECNAMELEN + 1];
 	int i;
 	size_t j;
 	char *r;
 
-	/* First check the DB file. */
-	r = xdevname(dev, type);
-	if (r != NULL)
-		return (r);
-
-	/* Then ask the kernel. */
 	if ((type & S_IFMT) == S_IFCHR) {
-		j = sizeof(buf);
+		j = len;
 		i = sysctlbyname("kern.devname", buf, &j, &dev, sizeof (dev));
 		if (i == 0)
 		    return (buf);
@@ -109,7 +66,15 @@ devname(dev, type)
 		r = "#NODEV";
 	else 
 		r = "#%c:%d:0x%x";
-	snprintf(buf, SPECNAMELEN + 1, r,
+	snprintf(buf, len, r,
 	    (type & S_IFMT) == S_IFCHR ? 'C' : 'B', major(dev), minor(dev));
 	return (buf);
+}
+
+char *
+devname(dev_t dev, mode_t type)
+{
+	static char buf[SPECNAMELEN + 1];
+
+	return(devname_r(dev, type, buf, sizeof(buf)));
 }
