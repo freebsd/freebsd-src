@@ -284,8 +284,10 @@ scsi/scsi_ioctl.c	optional scbus
 scsi/scsiconf.c		optional scbus
 scsi/scsi_driver.c		optional scbus
 scsi/uk.c		optional scbus
+scsi/pt.c		optional pt
 scsi/sd.c		optional sd
 scsi/st.c		optional st
+scsi/worm.c		optional worm
 scsi/su.c		optional su
 scsi/ssc.c		optional ssc
 ufs/ffs/ffs_alloc.c	optional ffs
