@@ -1,0 +1,46 @@
+#!/usr/bin/perl
+eval 'exec /usr/bin/perl -S $0 ${1+"$@"}'
+	if 0;
+
+require 'sys/ipc.ph';
+require 'sys/msg.ph';
+
+$| = 1;
+
+$mode = shift;
+die "usage: ipcmsg {r|s}\n" unless $mode =~ /^[rs]$/;
+$signal = ($mode eq "s");
+
+$id = semget(0x1234, 1, ($signal ? 0 : &IPC_CREAT) | 0644);
+die "Can't get semaphore: $!\n" unless defined($id);
+print "semaphore id: $id\n";
+
+if ($signal) {
+	while (<STDIN>) {
+		print "Signalling\n";
+		unless (semop($id, 0, pack("sss", 0, 1, 0))) {
+			die "Can't signal semaphore: $!\n";
+		}
+	}
+}
+else {
+	$SIG{'INT'} = $SIG{'QUIT'} = "leave";
+	for (;;) {
+		unless (semop($id, 0, pack("sss", 0, -1, 0))) {
+			die "Can't wait for semaphore: $!\n";
+		}
+		print "Unblocked\n";
+	}
+}
+
+&leave;
+
+sub leave {
+	if (!$signal) {
+		$x = semctl($id, 0, &IPC_RMID, 0);
+		if (!defined($x) || $x < 0) {
+			die "Can't remove semaphore: $!\n";
+		}
+	}
+	exit;
+}
