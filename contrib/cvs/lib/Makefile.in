@@ -52,7 +52,16 @@ SOURCES = \
 
 HEADERS = getline.h getopt.h fnmatch.h regex.h system.h wait.h md5.h savecwd.h
 
-# See long comment in ../configure.in concerning inclusion of regex.o.
+# Always use CVS's regular expression matcher regex.o, because of
+# variations in regular expression syntax - we want to be the same
+# across systems and (probably) compared with old versions of CVS too.
+#
+# On a more mundane/detail level, having regex.h match regex.c can be
+# an issue if we aren't careful.
+#
+# Also should look into unifying regular expression matching in CVS
+# with the diff library (perhaps to have the caller, CVS, do the
+# matching?)
 OBJECTS = \
     @LIBOBJS@ \
     argmatch.o \

@@ -1,3 +1,37 @@
+2000-09-07  Larry Jones  <larry.jones@sdrc.com>
+
+	* Makefile.in: Use @bindir@, @libdir@, @infodir@, and @mandir@
+	from autoconf.
+
+2000-05-03  Larry Jones  <larry.jones@sdrc.com>
+
+	* cvs.1: Correct CVSEDITOR/VISUAL/EDITOR documentation.
+	Correct KJ's botched patch application.
+
+2000-01-02  John P Cavanaugh <cavanaug@sr.hp.com>
+
+	* cvs.texinfo: document new -C option to update, now that it works
+	both remotely and locally.
+	(Re-applied by Karl Fogel <kfogel@red-bean.com>.)
+
+1999-12-11  Karl Fogel  <kfogel@red-bean.com>
+
+	* Revert previous change -- it doesn't work remotely yet.
+
+1999-12-10  John P Cavanaugh <cavanaug@sr.hp.com>
+
+	* cvs.1: document new -C option to update.
+	(Applied by Karl Fogel <kfogel@red-bean.com>.)
+
+1999-11-29  Larry Jones  <larry.jones@sdrc.com>
+
+	* cvsbug.8: Change .TH from section 1 to section 8.
+
+1999-11-10  Jim Kingdon  <http://developer.redhat.com/>
+
+	* cvs.1: Don't document -H as a command option; it has been a
+	while since that worked.
+
 1999-01-19  Vitaly V Fedrushkov  <willy@snowyowl.csu.ac.ru>
 
 	* Makefile.in (INSTALL_DATA): Wrong manpage permissions fixed.

@@ -18,11 +18,17 @@
 /* Define to `int' if <sys/types.h> doesn't define.  */
 /* #undef gid_t */
 
+/* Define if your system has a working fnmatch function.  */
+#define HAVE_FNMATCH 1
+
 /* Define if you support file names longer than 14 characters.  */
 #define HAVE_LONG_FILE_NAMES 1
 
 /* Define if your struct stat has st_blksize.  */
 #define HAVE_ST_BLKSIZE 1
+
+/* Define if your struct stat has st_rdev.  */
+#define HAVE_ST_RDEV 1
 
 /* Define if you have <sys/wait.h> that is POSIX.1 compatible.  */
 #define HAVE_SYS_WAIT_H 1
@@ -94,10 +100,7 @@
 /* #undef ENCRYPTION */
 
 /* Define if you have the connect function.  */
-/* #undef HAVE_CONNECT */
-
-/* Define if this system supports chown(), link(), and friends.  */
-#define PRESERVE_PERMISSIONS_SUPPORT 1
+#define HAVE_CONNECT 1
 
 /* Define if you have memchr (always for CVS).  */
 #define HAVE_MEMCHR 1
@@ -119,6 +122,18 @@
 /* Define if you have the crypt function.  */
 #define HAVE_CRYPT 1
 
+/* Define if you have the getspnam function.  */
+/* #undef HAVE_GETSPNAM */
+
+/* Define to force lib/regex.c to use malloc instead of alloca.  */
+#define REGEX_MALLOC 1
+
+/* Define to force lib/regex.c to define re_comp et al.  */
+#define _REGEX_RE_COMP 1
+
+/* Define if you have the dup2 function.  */
+#define HAVE_DUP2 1
+
 /* Define if you have the fchdir function.  */
 #define HAVE_FCHDIR 1
 
@@ -137,14 +152,23 @@
 /* Define if you have the getpagesize function.  */
 #define HAVE_GETPAGESIZE 1
 
-/* Define if you have the getspnam function.  */
-/* #undef HAVE_GETSPNAM */
+/* Define if you have the getpassphrase function.  */
+/* #undef HAVE_GETPASSPHRASE */
 
 /* Define if you have the initgroups function.  */
 #define HAVE_INITGROUPS 1
 
 /* Define if you have the krb_get_err_text function.  */
 /* #undef HAVE_KRB_GET_ERR_TEXT */
+
+/* Define if you have the memmove function.  */
+#define HAVE_MEMMOVE 1
+
+/* Define if you have the mkdir function.  */
+#define HAVE_MKDIR 1
+
+/* Define if you have the mknod function.  */
+#define HAVE_MKNOD 1
 
 /* Define if you have the mktemp function.  */
 #define HAVE_MKTEMP 1
@@ -154,6 +178,9 @@
 
 /* Define if you have the readlink function.  */
 #define HAVE_READLINK 1
+
+/* Define if you have the rename function.  */
+#define HAVE_RENAME 1
 
 /* Define if you have the sigaction function.  */
 #define HAVE_SIGACTION 1
@@ -170,6 +197,15 @@
 /* Define if you have the sigvec function.  */
 #define HAVE_SIGVEC 1
 
+/* Define if you have the strerror function.  */
+#define HAVE_STRERROR 1
+
+/* Define if you have the strstr function.  */
+#define HAVE_STRSTR 1
+
+/* Define if you have the strtoul function.  */
+#define HAVE_STRTOUL 1
+
 /* Define if you have the tempnam function.  */
 #define HAVE_TEMPNAM 1
 
@@ -179,11 +215,17 @@
 /* Define if you have the tzset function.  */
 #define HAVE_TZSET 1
 
+/* Define if you have the valloc function.  */
+#define HAVE_VALLOC 1
+
 /* Define if you have the vprintf function.  */
 #define HAVE_VPRINTF 1
 
 /* Define if you have the wait3 function.  */
 #define HAVE_WAIT3 1
+
+/* Define if you have the waitpid function.  */
+#define HAVE_WAITPID 1
 
 /* Define if you have the <direct.h> header file.  */
 /* #undef HAVE_DIRECT_H */
@@ -208,6 +250,9 @@
 
 /* Define if you have the <io.h> header file.  */
 /* #undef HAVE_IO_H */
+
+/* Define if you have the <krb5.h> header file.  */
+/* #undef HAVE_KRB5_H */
 
 /* Define if you have the <limits.h> header file.  */
 #define HAVE_LIMITS_H 1
@@ -257,23 +302,5 @@
 /* Define if you have the <utime.h> header file.  */
 #define HAVE_UTIME_H 1
 
-/* Define if you have the crypt library (-lcrypt).  */
-#define HAVE_LIBCRYPT 1
-
 /* Define if you have the gen library (-lgen).  */
 /* #undef HAVE_LIBGEN */
-
-/* Define if you have the inet library (-linet).  */
-/* #undef HAVE_LIBINET */
-
-/* Define if you have the nsl library (-lnsl).  */
-/* #undef HAVE_LIBNSL */
-
-/* Define if you have the nsl_s library (-lnsl_s).  */
-/* #undef HAVE_LIBNSL_S */
-
-/* Define if you have the sec library (-lsec).  */
-/* #undef HAVE_LIBSEC */
-
-/* Define if you have the socket library (-lsocket).  */
-/* #undef HAVE_LIBSOCKET */

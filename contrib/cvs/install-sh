@@ -10,6 +10,7 @@
 # This script is compatible with the BSD install script, but was written
 # from scratch.
 #
+#
 
 
 # set DOITPROG to echo to test this script

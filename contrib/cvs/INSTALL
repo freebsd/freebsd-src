@@ -122,7 +122,7 @@ HPPA:
         HPPA 1.1 running HP-UX A.09.04 (1.7.1)
 	HPPA running HP-UX 9.05 (1.9)
 	HPPA running HP-UX 10.01 (1.7)
-	HPPA running HP-UX 10.20 (1.9, 1.9.14)
+	HPPA running HP-UX 10.20 (1.10.7)
 	NextSTEP 3.3 (1.7)
 i386 family:
 	Solaris 2.4 using gcc (about 1.4A2)
@@ -134,7 +134,7 @@ i386 family:
 	Linux (kernel 1.2.x) (1.8.86)
 	Linux (kernel 2.0.x, RedHat 4.2) (1.10)
 	Linux (kernel 2.0.x, RedHat 5.x) (1.10)
-	BSDI 2.0 (1.4.93) (footnote 5)
+	BSDI 4.0 (1.10.7)
 	FreeBSD 2.1.5-stable (1.8.87)
 	NextSTEP 3.3 (1.7)
 	SCO Unix 3.2.4.2, gcc 2.7.2 (1.8.87) (footnote 4)
@@ -168,11 +168,13 @@ MIPS:
 	SGI running Irix 6.2 using SGI MIPSpro 6.2 and beta 7.2 compilers (1.9)
 	SGI running Irix-6.2 (1.9.8)
 	SGI running IRIX 6.4 (1.10)
+	SGI running IRIX 6.5 (1.10.7)
 	Siemens-Nixdorf RM600 running SINIX-Y (1.6)
 PowerPC or RS/6000:
 	IBM RS/6000 running AIX 3.1 using gcc and cc (1.6.86)
 	IBM RS/6000 running AIX 3.2.5 (1.8)
 	IBM RS/6000 running AIX 4.1 (1.9)
+	IBM RS/6000 running AIX 4.3 (1.10.7)
 	Lynx 2.3.1 120495 (1.6.86) (footnote 9)
 	Lynx 2.5 (1.9) (footnote 10)
 	MkLinux DR3 GENERIC #6 (1.10.5.1) (presumably LinuxPPC too)
@@ -182,6 +184,7 @@ SPARC:
 	Sun SPARCstation running Solaris 2.4 using gcc and cc (about 1.5.91)
 	Sun SPARC running Solaris 2.5 (1.8.87)
 	Sun SPARC running Solaris 2.5.1 using gcc 2.7.2.2 (1.9.14)
+	Sun SPARC running Solaris 2.6 (1.10.7)
 	Sun UltraSPARC running Solaris 2.6 using gcc 2.8.1 (1.10)
 	NextSTEP 3.3 (1.7)
 	Sun SPARC running Linux 2.0.17, gcc 2.7.2 (1.8.87)
@@ -197,11 +200,6 @@ VAX:
 
 (footnote 4) Comment out the include of sys/time.h in src/server.c. (1.4.93)
 	You also may have to make sure TIME_WITH_SYS_TIME is undef'ed.
-
-(footnote 5) Change /usr/tmp to /var/tmp in src/server.c (2 places) (1.4.93).
-	(This should no longer be needed; CVS doesn't have /usr/tmp in
-	src/server.c any more.  Has anyone tried a more recent version
-	on BSDI?  If so, please report it so we can update this file).
 
 (footnote 6) Build in ucb universe with COFF compiler tools.  Put
 	/usr/local/bin first in PATH while doing a configure, make

@@ -1,3 +1,33 @@
+2000-08-03  Larry Jones  <larry.jones@sdrc.com>
+
+	* diff3.c (read_diff): Use cvs_temp_name () instead of tmpnam () so
+	there's at least a chance of getting the file in the correct tmp dir.
+
+2000-07-10  Larry Jones  <larry.jones@sdrc.com>
+
+	* util.c (printf_output): Fix type clashes.
+
+2000-06-15  Larry Jones  <larry.jones@sdrc.com>
+
+	* diff3.c (diff3_run, make_3way_diff): Plug memory leaks.
+
+1999-12-29  Jim Kingdon  <http://developer.redhat.com/>
+
+	* diff.c (compare_files): Use explicit braces with if-if-else, per
+	GNU coding standards and gcc -Wall.
+
+1999-11-23  Larry Jones  <larry.jones@sdrc.com>
+
+	* diff3.c: Explicitly initialize zero_diff3 to placate neurotic
+	compilers that gripe about implicitly initialized const variables.
+	Reported by Eric Veum <sysv@yahoo.com>.
+
+1999-09-15  Larry Jones  <larry.jones@sdrc.com>
+
+	* diff.c (diff_run): Move the setjmp call before the options
+	processing since option errors can call fatal which in turn
+	calls longjmp.
+
 1999-05-06  Jim Kingdon  <http://www.cyclic.com>
 
 	* Makefile.in (DISTFILES): Remove libdiff.mak.

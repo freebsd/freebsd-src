@@ -1,3 +1,20 @@
+2000-09-07  Larry Jones  <larry.jones@sdrc.com>
+
+	* Makefile.in: Use @bindir@, @libdir@, @infodir@, and @mandir@
+	from autoconf.
+
+2000-02-25  Larry Jones  <larry.jones@sdr.com>
+
+	* log.pl: Get committer from command line instead of getlogin
+	so that client/server works correctly.
+	* loc_accum.pl: Ditto.
+
+2000-01-24  K.J. Paradise <kj@sourcegear.com>
+
+	* sccs2rcs.csh: fixed a y2k bug.  This was submitted 
+	by Ceri Davies <ceri_davies@isdcorp.com>, and looks 
+	okay to me. 
+
 1999-01-19  Graham Stoney <greyham@research.canon.com.au>
 
 	* log.pl: The author commited the canonical perl "localtime" Y2K

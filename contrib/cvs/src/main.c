@@ -115,30 +115,31 @@ static const struct cmd
     { "history",  "hi",       "his",       history },
     { "import",   "im",       "imp",       import },
     { "init",     NULL,       NULL,        init },
-#ifdef SERVER_SUPPORT
+#if defined (HAVE_KERBEROS) && defined (SERVER_SUPPORT)
     { "kserver",  NULL,       NULL,        server }, /* placeholder */
 #endif
     { "log",      "lo",       "rlog",      cvslog },
 #ifdef AUTH_CLIENT_SUPPORT
     { "login",    "logon",    "lgn",       login },
     { "logout",   NULL,       NULL,        logout },
-#ifdef SERVER_SUPPORT
+#endif /* AUTH_CLIENT_SUPPORT */
+#if (defined(AUTH_SERVER_SUPPORT) || defined (HAVE_GSSAPI)) && defined(SERVER_SUPPORT)
     { "pserver",  NULL,       NULL,        server }, /* placeholder */
 #endif
-#endif /* AUTH_CLIENT_SUPPORT */
     { "rdiff",    "patch",    "pa",        patch },
     { "release",  "re",       "rel",       release },
     { "remove",   "rm",       "delete",    cvsremove },
-    { "status",   "st",       "stat",      cvsstatus },
     { "rtag",     "rt",       "rfreeze",   rtag },
-    { "tag",      "ta",       "freeze",    cvstag },
-    { "unedit",   NULL,	      NULL,	   unedit },
-    { "update",   "up",       "upd",       update },
-    { "watch",    NULL,	      NULL,	   watch },
-    { "watchers", NULL,	      NULL,	   watchers },
 #ifdef SERVER_SUPPORT
     { "server",   NULL,       NULL,        server },
 #endif
+    { "status",   "st",       "stat",      cvsstatus },
+    { "tag",      "ta",       "freeze",    cvstag },
+    { "unedit",   NULL,	      NULL,	   unedit },
+    { "update",   "up",       "upd",       update },
+    { "version",  "ve",       "ver",       version },
+    { "watch",    NULL,	      NULL,	   watch },
+    { "watchers", NULL,	      NULL,	   watchers },
     { NULL, NULL, NULL, NULL },
 };
 
@@ -183,7 +184,7 @@ static const char *const usg[] =
        version control means.  */
 
     "For CVS updates and additional information, see\n",
-    "    Cyclic Software at http://www.cyclic.com/ or\n",
+    "    the CVS home page at http://www.cvshome.org/ or\n",
     "    Pascal Molli's CVS site at http://www.loria.fr/~molli/cvs-index.html\n",
     NULL,
 };
@@ -203,15 +204,24 @@ static const char *const cmd_usage[] =
     "        history      Show repository access history\n",
     "        import       Import sources into CVS, using vendor branches\n",
     "        init         Create a CVS repository if it doesn't exist\n",
+#if defined (HAVE_KERBEROS) && defined (SERVER_SUPPORT)
+    "        kserver      Kerberos server mode\n",
+#endif
     "        log          Print out history information for files\n",
 #ifdef AUTH_CLIENT_SUPPORT
-    "        login        Prompt for password for authenticating server.\n",
-    "        logout       Removes entry in .cvspass for remote repository.\n",
+    "        login        Prompt for password for authenticating server\n",
+    "        logout       Removes entry in .cvspass for remote repository\n",
 #endif /* AUTH_CLIENT_SUPPORT */
+#if (defined(AUTH_SERVER_SUPPORT) || defined (HAVE_GSSAPI)) && defined(SERVER_SUPPORT)
+    "        pserver      Password server mode\n",
+#endif
     "        rdiff        Create 'patch' format diffs between releases\n",
     "        release      Indicate that a Module is no longer in use\n",
     "        remove       Remove an entry from the repository\n",
     "        rtag         Add a symbolic tag to a module\n",
+#ifdef SERVER_SUPPORT
+    "        server       Server mode\n",
+#endif
     "        status       Display status information on checked out files\n",
     "        tag          Add a symbolic tag to checked out version of files\n",
     "        unedit       Undo an edit command\n",
@@ -349,6 +359,7 @@ lookup_command_attribute (cmd_name)
         (strcmp (cmd_name, "log") != 0) &&
         (strcmp (cmd_name, "noop") != 0) &&
         (strcmp (cmd_name, "watchers") != 0) &&
+        (strcmp (cmd_name, "release") != 0) &&
         (strcmp (cmd_name, "status") != 0))
     {
         ret |= CVS_CMD_MODIFIES_REPOSITORY;
@@ -368,6 +379,11 @@ main_cleanup (sig)
 
     switch (sig)
     {
+#ifdef SIGABRT
+    case SIGABRT:
+	name = "abort";
+	break;
+#endif
 #ifdef SIGHUP
     case SIGHUP:
 	name = "hangup";
@@ -411,8 +427,6 @@ main (argc, argv)
     char **argv;
 {
     char *CVSroot = CVSROOT_DFLT;
-    extern char *version_string;
-    extern char *config_string;
     char *cp, *end;
     const struct cmd *cm;
     int c, err = 0;
@@ -424,6 +438,7 @@ main (argc, argv)
     int help = 0;		/* Has the user asked for help?  This
 				   lets us support the `cvs -H cmd'
 				   convention to give help for cmd. */
+    static const char short_options[] = "+QqgrwtnRlvb:T:e:d:Hfz:s:xaU";
     static struct option long_options[] =
     {
         {"help", 0, NULL, 'H'},
@@ -504,7 +519,7 @@ main (argc, argv)
     opterr = 0;
 
     while ((c = getopt_long
-            (argc, argv, "+f", NULL, NULL))
+            (argc, argv, short_options, long_options, &option_index))
            != EOF)
     {
 	if (c == 'f')
@@ -521,7 +536,7 @@ main (argc, argv)
     opterr = 1;
 
     while ((c = getopt_long
-            (argc, argv, "+QqgrwtnRlvb:T:e:d:Hfz:s:xaU", long_options, &option_index))
+            (argc, argv, short_options, long_options, &option_index))
            != EOF)
     {
 	switch (c)
@@ -574,14 +589,11 @@ main (argc, argv)
 		logoff = 1;
 		break;
 	    case 'v':
-		/* Having the year here is a good idea, so people have
-		   some idea of how long ago their version of CVS was
-		   released.  */
-		(void) fputs (version_string, stdout);
-		(void) fputs (config_string, stdout);
+		(void) fputs ("\n", stdout);
+		version (0, (char **) NULL);    
 		(void) fputs ("\n", stdout);
 		(void) fputs ("\
-Copyright (c) 1989-1998 Brian Berliner, david d `zoo' zuhn, \n\
+Copyright (c) 1989-2000 Brian Berliner, david d `zoo' zuhn, \n\
                         Jeff Polk, and other authors\n", stdout);
 		(void) fputs ("\n", stdout);
 		(void) fputs ("CVS may be copied only under the terms of the GNU General Public License,\n", stdout);
@@ -625,9 +637,9 @@ Copyright (c) 1989-1998 Brian Berliner, david d `zoo' zuhn, \n\
 	    case 'z':
 #ifdef CLIENT_SUPPORT
 		gzip_level = atoi (optarg);
-		if (gzip_level <= 0 || gzip_level > 9)
+		if (gzip_level < 0 || gzip_level > 9)
 		  error (1, 0,
-			 "gzip compression level must be between 1 and 9");
+			 "gzip compression level must be between 0 and 9");
 #endif
 		/* If no CLIENT_SUPPORT, we just silently ignore the gzip
 		   level, so that users can have it in their .cvsrc and not
@@ -685,7 +697,10 @@ Copyright (c) 1989-1998 Brian Berliner, david d `zoo' zuhn, \n\
     }
 
     if (!cm->fullname)
-	usage (cmd_usage);	        /* no match */
+    {
+	fprintf (stderr, "Unknown command: `%s'\n\n", command_name);
+	usage (cmd_usage);
+    }
     else
 	command_name = cm->fullname;	/* Global pointer for later use */
 
@@ -799,25 +814,23 @@ Copyright (c) 1989-1998 Brian Berliner, david d `zoo' zuhn, \n\
 
 #ifndef DONT_USE_SIGNALS
 	/* make sure we clean up on error */
+#ifdef SIGABRT
+	(void) SIG_register (SIGABRT, main_cleanup);
+#endif
 #ifdef SIGHUP
 	(void) SIG_register (SIGHUP, main_cleanup);
-	(void) SIG_register (SIGHUP, Lock_Cleanup);
 #endif
 #ifdef SIGINT
 	(void) SIG_register (SIGINT, main_cleanup);
-	(void) SIG_register (SIGINT, Lock_Cleanup);
 #endif
 #ifdef SIGQUIT
 	(void) SIG_register (SIGQUIT, main_cleanup);
-	(void) SIG_register (SIGQUIT, Lock_Cleanup);
 #endif
 #ifdef SIGPIPE
 	(void) SIG_register (SIGPIPE, main_cleanup);
-	(void) SIG_register (SIGPIPE, Lock_Cleanup);
 #endif
 #ifdef SIGTERM
 	(void) SIG_register (SIGTERM, main_cleanup);
-	(void) SIG_register (SIGTERM, Lock_Cleanup);
 #endif
 #endif /* !DONT_USE_SIGNALS */
 
@@ -912,7 +925,7 @@ Copyright (c) 1989-1998 Brian Berliner, david d `zoo' zuhn, \n\
 	{
 	    Node *n;
 	    n = getnode ();
-	    n->type = UNKNOWN;
+	    n->type = NT_UNKNOWN;
 	    n->key = xstrdup (CVSroot);
 	    n->data = NULL;
 
@@ -955,11 +968,8 @@ Copyright (c) 1989-1998 Brian Berliner, david d `zoo' zuhn, \n\
 			   current_root);
 
 		/*
-		 * Check to see if we can write into the history file.  If not,
-		 * we assume that we can't work in the repository.
-		 * BUT, only if the history file exists.
+		 * Check to see if the repository exists.
 		 */
-
 		if (!client_active)
 		{
 		    char *path;
@@ -967,8 +977,7 @@ Copyright (c) 1989-1998 Brian Berliner, david d `zoo' zuhn, \n\
 
 		    path = xmalloc (strlen (CVSroot_directory)
 				    + sizeof (CVSROOTADM)
-				    + 20
-				    + sizeof (CVSROOTADM_HISTORY));
+				    + 20);
 		    (void) sprintf (path, "%s/%s", CVSroot_directory, CVSROOTADM);
 		    if (!isaccessible (path, R_OK | X_OK))
 		    {
@@ -979,14 +988,6 @@ Copyright (c) 1989-1998 Brian Berliner, david d `zoo' zuhn, \n\
 			    error (1, save_errno, "%s", path);
 			}
 		    }
-		    (void) strcat (path, "/");
-		    (void) strcat (path, CVSROOTADM_HISTORY);
-		    if (readonlyfs == 0 && isfile (path) && !isaccessible (path, R_OK | W_OK))
-		    {
-			save_errno = errno;
-			error (0, 0, "Sorry, you don't have read/write access to the history file");
-			error (1, save_errno, "%s", path);
-		    }
 		    free (path);
 		}
 
@@ -995,12 +996,17 @@ Copyright (c) 1989-1998 Brian Berliner, david d `zoo' zuhn, \n\
 		/* FIXME (njc): should we always set this with the CVSROOT from the command line? */
 		if (cvs_update_env)
 		{
+		    static char *prev;
 		    char *env;
 		    env = xmalloc (strlen (CVSROOT_ENV) + strlen (CVSroot)
 				   + 1 + 1);
 		    (void) sprintf (env, "%s=%s", CVSROOT_ENV, CVSroot);
 		    (void) putenv (env);
-		    /* do not free env, as putenv has control of it */
+		    /* do not free env yet, as putenv has control of it */
+		    /* but do free the previous value, if any */
+		    if (prev != NULL)
+			free (prev);
+		    prev = env;
 		}
 #endif
 	    }
