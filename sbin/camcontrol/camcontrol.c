@@ -107,7 +107,7 @@ typedef enum {
 } cam_argmask;
 
 struct camcontrol_opts {
-	char 		*optname;	
+	const char	*optname;	
 	cam_cmdmask	cmdnum;
 	cam_argmask	argnum;
 	const char	*subopt;
@@ -160,11 +160,10 @@ typedef enum {
 
 cam_cmdmask cmdlist;
 cam_argmask arglist;
-int bus, target, lun;
 
 
 camcontrol_optret getoption(char *arg, cam_cmdmask *cmdnum, cam_argmask *argnum,
-			    char **subopt);
+			    const char **subopt);
 #ifndef MINIMALISTIC
 static int getdevlist(struct cam_device *device);
 static int getdevtree(void);
@@ -179,7 +178,7 @@ static int scsiserial(struct cam_device *device, int retry_count, int timeout);
 static int scsixferrate(struct cam_device *device);
 #endif /* MINIMALISTIC */
 static int parse_btl(char *tstr, int *bus, int *target, int *lun,
-		     cam_argmask *arglist);
+		     cam_argmask *arglst);
 static int dorescan_or_reset(int argc, char **argv, int rescan);
 static int rescan_or_reset_bus(int bus, int rescan);
 static int scanlun_or_reset_dev(int bus, int target, int lun, int scan);
@@ -205,7 +204,8 @@ static int scsiformat(struct cam_device *device, int argc, char **argv,
 #endif /* MINIMALISTIC */
 
 camcontrol_optret
-getoption(char *arg, cam_cmdmask *cmdnum, cam_argmask *argnum, char **subopt)
+getoption(char *arg, cam_cmdmask *cmdnum, cam_argmask *argnum, 
+	  const char **subopt)
 {
 	struct camcontrol_opts *opts;
 	int num_matches = 0;
@@ -215,7 +215,7 @@ getoption(char *arg, cam_cmdmask *cmdnum, cam_argmask *argnum, char **subopt)
 		if (strncmp(opts->optname, arg, strlen(arg)) == 0) {
 			*cmdnum = opts->cmdnum;
 			*argnum = opts->argnum;
-			*subopt = (char *)opts->subopt;
+			*subopt = opts->subopt;
 			if (++num_matches > 1)
 				return(CC_OR_AMBIGUOUS);
 		}
@@ -952,7 +952,7 @@ xferrate_bailout:
  * Returns the number of parsed components, or 0.
  */
 static int
-parse_btl(char *tstr, int *bus, int *target, int *lun, cam_argmask *arglist)
+parse_btl(char *tstr, int *bus, int *target, int *lun, cam_argmask *arglst)
 {
 	char *tmpstr;
 	int convs = 0;
@@ -963,17 +963,17 @@ parse_btl(char *tstr, int *bus, int *target, int *lun, cam_argmask *arglist)
 	tmpstr = (char *)strtok(tstr, ":");
 	if ((tmpstr != NULL) && (*tmpstr != '\0')) {
 		*bus = strtol(tmpstr, NULL, 0);
-		*arglist |= CAM_ARG_BUS;
+		*arglst |= CAM_ARG_BUS;
 		convs++;
 		tmpstr = (char *)strtok(NULL, ":");
 		if ((tmpstr != NULL) && (*tmpstr != '\0')) {
 			*target = strtol(tmpstr, NULL, 0);
-			*arglist |= CAM_ARG_TARGET;
+			*arglst |= CAM_ARG_TARGET;
 			convs++;
 			tmpstr = (char *)strtok(NULL, ":");
 			if ((tmpstr != NULL) && (*tmpstr != '\0')) {
 				*lun = strtol(tmpstr, NULL, 0);
-				*arglist |= CAM_ARG_LUN;
+				*arglst |= CAM_ARG_LUN;
 				convs++;
 			}
 		}
@@ -2349,7 +2349,7 @@ cpi_print(struct ccb_pathinq *cpi)
 		cpi->version_num);
 
 	for (i = 1; i < 0xff; i = i << 1) {
-		char *str;
+		const char *str;
 
 		if ((i & cpi->hba_inquiry) == 0)
 			continue;
@@ -2386,7 +2386,7 @@ cpi_print(struct ccb_pathinq *cpi)
 	}
 
 	for (i = 1; i < 0xff; i = i << 1) {
-		char *str;
+		const char *str;
 
 		if ((i & cpi->hba_misc) == 0)
 			continue;
@@ -2415,7 +2415,7 @@ cpi_print(struct ccb_pathinq *cpi)
 	}
 
 	for (i = 1; i < 0xff; i = i << 1) {
-		char *str;
+		const char *str;
 
 		if ((i & cpi->target_sprt) == 0)
 			continue;
@@ -3264,11 +3264,14 @@ main(int argc, char **argv)
 	int timeout = 0, retry_count = 1;
 	camcontrol_optret optreturn;
 	char *tstr;
-	char *mainopt = "C:En:t:u:v";
-	char *subopt = NULL;
+	const char *mainopt = "C:En:t:u:v";
+	const char *subopt = NULL;
 	char combinedopt[256];
 	int error = 0, optstart = 2;
 	int devopen = 1;
+#ifndef MINIMALISTIC
+	int bus, target, lun;
+#endif /* MINIMALISTIC */
 
 	cmdlist = CAM_CMD_NONE;
 	arglist = CAM_ARG_NONE;
