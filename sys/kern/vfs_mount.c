@@ -1290,7 +1290,6 @@ vfs_mountroot_try(const char *mountfrom)
 {
         struct mount	*mp;
 	char		*vfsname, *path;
-	const char	*devname;
 	int		error;
 	char		patt[32];
 	int		s;
