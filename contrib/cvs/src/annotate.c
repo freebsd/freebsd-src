@@ -17,6 +17,7 @@
 /* Options from the command line.  */
 
 static int force_tag_match = 1;
+static int force_binary = 0;
 static char *tag = NULL;
 static int tag_validated;
 static char *date = NULL;
@@ -30,10 +31,11 @@ static int rannotate_proc PROTO((int argc, char **argv, char *xwhere,
 
 static const char *const annotate_usage[] =
 {
-    "Usage: %s %s [-lRf] [-r rev] [-D date] [files...]\n",
+    "Usage: %s %s [-lRfF] [-r rev] [-D date] [files...]\n",
     "\t-l\tLocal directory only, no recursion.\n",
     "\t-R\tProcess directories recursively.\n",
     "\t-f\tUse head revision if tag/date not found.\n",
+    "\t-F\tAnnotate binary files.\n",
     "\t-r rev\tAnnotate file as of specified revision/tag.\n",
     "\t-D date\tAnnotate file as of specified date.\n",
     "(Specify the --help global option for a list of other help options)\n",
@@ -58,7 +60,7 @@ annotate (argc, argv)
 	usage (annotate_usage);
 
     optind = 0;
-    while ((c = getopt (argc, argv, "+lr:D:fR")) != -1)
+    while ((c = getopt (argc, argv, "+lr:D:fFR")) != -1)
     {
 	switch (c)
 	{
@@ -76,6 +78,9 @@ annotate (argc, argv)
 		break;
 	    case 'f':
 	        force_tag_match = 0;
+		break;
+	    case 'F':
+	        force_binary = 1;
 		break;
 	    case '?':
 	    default:
@@ -100,6 +105,8 @@ annotate (argc, argv)
 	    send_arg ("-l");
 	if (!force_tag_match)
 	    send_arg ("-f");
+	if (force_binary)
+	    send_arg ("-F");
 	option_with_arg ("-r", tag);
 	if (date)
 	    client_senddate (date);
@@ -128,14 +135,14 @@ annotate (argc, argv)
 	for (i = 0; i < argc; i++)
 	{
 	    err += do_module (db, argv[i], MISC, "Annotating", rannotate_proc,
-			     (char *) NULL, 0, 0, 0, 0, (char *) NULL);
+			     (char *) NULL, 0, local, 0, 0, (char *) NULL);
 	}
 	close_module (db);
     }
     else
     {
 	err = rannotate_proc (argc + 1, argv - 1, (char *) NULL,
-			 (char *) NULL, (char *) NULL, 0, 0, (char *) NULL,
+			 (char *) NULL, (char *) NULL, 0, local, (char *) NULL,
 			 (char *) NULL);
     }
 
@@ -251,7 +258,7 @@ annotate_fileproc (callerdat, finfo)
     void *callerdat;
     struct file_info *finfo;
 {
-    char *version;
+    char *expand, *version;
 
     if (finfo->rcs == NULL)
         return (1);
@@ -259,19 +266,28 @@ annotate_fileproc (callerdat, finfo)
     if (finfo->rcs->flags & PARTIAL)
         RCS_reparsercsfile (finfo->rcs, (FILE **) NULL, (struct rcsbuffer *) NULL);
 
+    expand = RCS_getexpand (finfo->rcs);
     version = RCS_getversion (finfo->rcs, tag, date, force_tag_match,
 			      (int *) NULL);
+
     if (version == NULL)
         return 0;
 
     /* Distinguish output for various files if we are processing
        several files.  */
-    cvs_outerr ("Annotations for ", 0);
+    cvs_outerr ("\nAnnotations for ", 0);
     cvs_outerr (finfo->fullname, 0);
     cvs_outerr ("\n***************\n", 0);
 
-    RCS_deltas (finfo->rcs, (FILE *) NULL, (struct rcsbuffer *) NULL,
-		version, RCS_ANNOTATE, NULL, NULL, NULL, NULL);
+    if (!force_binary && expand && expand[0] == 'b')
+    {
+        cvs_outerr ("Skipping binary file -- -F not specified.\n", 0);
+    }
+    else
+    {
+	RCS_deltas (finfo->rcs, (FILE *) NULL, (struct rcsbuffer *) NULL,
+		    version, RCS_ANNOTATE, NULL, NULL, NULL, NULL);
+    }
     free (version);
     return 0;
 }

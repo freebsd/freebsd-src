@@ -27,19 +27,22 @@ provide multiple versions of tools (typically an ancient, traditional
 version and a new, standards-conforming version), so you may already
 have a usable version even if the default version isn't.  If you don't
 have a suitable tool, you can probably get one from the GNU Project (see
-http://www.gnu.org).  expr and id are both part of the GNU shellutils
-package, tr is part of the GNU textutils package, and awk is part of the
-GNU gawk package.  The test script tries to verify that the tools exist
-and are usable; if not, it tries to find the GNU versions and use them
-instead.  If it can't find the GNU versions either, it will print an
-error message and, depending on the severity of the deficiency, it may
-exit.
+http://www.gnu.org).  At this writting, expr and id are both part of the
+GNU shellutils package, tr is part of the GNU textutils package, and awk
+is part of the GNU gawk package.  The test script tries to verify that
+the tools exist and are usable; if not, it tries to find the GNU
+versions and use them instead.  If it can't find the GNU versions
+either, it will print an error message and, depending on the severity of
+the deficiency, it may exit.  There are environment variables you can
+set to use a particular version of a tool -- see the test script
+(src/sanity.sh) for details.
 
-If there is some unexpected output, that is a failure which can be
-somewhat hard to track down.  Finding out which test is producing the
-output is not always easy.  The newer tests (that is, ones using
-dotest*) will not have this problem, but there are many old tests
-which have not been converted.
+Some of the tests use fairly long command lines -- this usually isn't a
+problem, but if you have a very short command line length limit (or a
+lot of environment variables), you may run into trouble.  Also, some of
+the tests expect your local timezone to be an integral number of hours
+from UTC -- if you usually use a fractional timezone, use a different
+(integral) timezone when running the tests to avoid spurious failures.
 
 If running the tests produces the output "FAIL:" followed by the name
 of the test that failed, then the details on the failure are in the
@@ -161,3 +164,66 @@ c.  have a send-expect type dialog with the program under test
     (e.g. see server-7 or pserver-4 which want to talk the CVS
     protocol, or the many tests which need to answer the prompt of "cvs
     release", e.g. deep-5).
+
+ABOUT ADDING YOUR OWN TESTS
+***************************
+
+As stated in the HACKING file, patches are not accepted without documentation
+and tests.  Many people seem to be scared off by the large size of the
+sanity.sh script, but it is not really very complicated.
+
+You can probably ignore most of the begining of the script.  This section
+just sets some environment variables and finds the tools the script needs to
+run.
+
+There is one main loop you can find by grepping for "The big loop".  This loop
+repeatedly calls a case statement where the individual cases are of the form:
+
+    testname)
+            ...
+            ;;
+
+If you add a complete new test be sure to add it into the default list of tests
+(grep for 'tests=' near the begining of the script) as well as the case
+statement.  During debugging, be aware that the sanity.sh usage allows for a '-f
+testname' option to continue through the default list "from" a particular test
+as well as interpreting everything in argv past the required options as test
+names to run individual tests.
+
+Within each major test section, individual tests usually look like:
+
+    dotest testname-subtestname "shell command" "optionally multiline regexp"
+
+Tests should always start in $testdir and create a subdirectory to operate in
+and remove their cruft and end back in $testdir.  The dotest functions output
+failure messages and exit if the shell command exits with the wrong exit code or
+its stdin/stderr output doesn't match the regexp.  There are a few dotest
+variations, most notably dotest_fail for expected non-zero exit codes.
+
+Other than that the script is mostly vanilla Bourne shell.  There are a few
+constructs used for versatility and portability.  You can grep for the ones I
+miss, but here are a few important ones.  I'm leaving off long explanations
+after the first few since it probably gives you the idea and the data is in
+sanity.sh.
+
+
+   * $testdir  = the directory this test is taking place in
+     (CVSROOT=$testdir/cvsroot or CVSROOT=:fork:$testdir/cvsroot)
+   * $testcvs  = full path to the cvs executable we are testing
+   * $PLUS     = expr dependant uninterpreted '+' since this can vary
+   * $DOTSTAR  = expr dependant _interpreted_ .* since some exprs don't match
+     EOL
+   * $username = regexp to match a username
+   * $hostname = regexp to match a hostname
+   * $PROG     = regexp to match progname in CVS error messages
+   * $remote   = 'yes' or 'no', depending on whether the script is running with
+     a remote CVSROOT
+
+And, of course, some characters like '.' in regexps need to be '\' escaped when
+you mean them literally.  Some characters may be interpreted by the shell,
+e.g. backquotes and '$', are usually either escaped or replaced with '.'.
+dotest adds the final '$' anchor to the regexp itself and all the expr
+implementations I know of implicitly supply the start anchor ('^').
+
+If you only make a few mistakes, the work is, of course, still usable, though we
+may send the patch back to you for repair.  :)

@@ -24,8 +24,6 @@ static int find_rcs PROTO((char *dir, List * list));
 static int add_subdir_proc PROTO((Node *, void *));
 static int register_subdir_proc PROTO((Node *, void *));
 
-static List *filelist;
-
 /*
  * add the key from entry on entries list to the files list
  */
@@ -37,6 +35,7 @@ add_entries_proc (node, closure)
 {
     Entnode *entnode;
     Node *fnode;
+    List *filelist = (List *) closure;
 
     entnode = (Entnode *) node->data;
     if (entnode->type != ENT_FILE)
@@ -66,7 +65,7 @@ Find_Names (repository, which, aflag, optentries)
     List *files;
 
     /* make a list for the files */
-    files = filelist = getlist ();
+    files = getlist ();
 
     /* look at entries (if necessary) */
     if (which & W_LOCAL)
@@ -76,7 +75,7 @@ Find_Names (repository, which, aflag, optentries)
 	if (entries != NULL)
 	{
 	    /* walk the entries file adding elements to the files list */
-	    (void) walklist (entries, add_entries_proc, NULL);
+	    (void) walklist (entries, add_entries_proc, files);
 
 	    /* if our caller wanted the entries list, return it; else free it */
 	    if (optentries != NULL)

@@ -12,7 +12,7 @@
 # MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
 # GNU General Public License for more details.
 
-AUTOMAKE_OPTIONS = 1.4a dist-bzip2
+AUTOMAKE_OPTIONS = 1.5 dist-bzip2
 
 ## Subdirectories to run make in for the primary targets.
 # Unix source subdirs, where we'll want to run lint and etags:
@@ -35,31 +35,22 @@ EXTRA_DIST = \
 	TESTS \
 	build.com \
 	cvs-format.el \
-	cvs.spec \
-	cvs.spec.in \
 	cvsnt.dsp \
 	cvsnt.dsw \
-	cvsnt.mak
+	cvsnt.mak \
+	noautomake.sh
 
-.PHONY: remotecheck
-remotecheck: all
+
+
+## MAINTAINER Targets
+
+.PHONY: localcheck remotecheck
+localcheck remotecheck: all
 	cd src && $(MAKE) $(AM_MAKEFLAGS) "$@"
 
 .PHONY: doc
 doc:
 	cd doc && $(MAKE) $(AM_MAKEFLAGS) "$@"
-
-## MAINTAINER Targets
-
-## cvs.spec  ##
-# - cvs.spec needs to be updated only once, since it depends on
-#   configure.in, not on the results of a 'configure' run.
-# - It is guaranteed (with GNU Make) that when the version in configure.in
-#   is changed, acversion.m4 is built only after the new version number is
-#   propagated to the Makefile.  (Libtool uses the same guarantee.)
-cvs.spec: $(srcdir)/cvs.spec.in $(top_srcdir)/configure.in
-	sed 's,@VERSION\@,$(VERSION),g' $(srcdir)/cvs.spec.in >cvs.tspec
-	mv cvs.tspec $(srcdir)/cvs.spec
 
 # for backwards compatibility with the old makefiles
 .PHONY: realclean

@@ -75,6 +75,7 @@ Installation:
 
 Please read the INSTALL file for installation instructions.  Brief summary:
 
+	$ ./noautomake.sh --noautoconf
 	$ ./configure
 	$ make
 	(run the regression tests if desired)

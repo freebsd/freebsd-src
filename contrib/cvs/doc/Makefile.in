@@ -1,4 +1,4 @@
-# Makefile.in generated automatically by automake 1.4e from Makefile.am.
+# Makefile.in generated automatically by automake 1.5 from Makefile.am.
 
 # Copyright 1994, 1995, 1996, 1997, 1998, 1999, 2000, 2001
 # Free Software Foundation, Inc.
@@ -26,19 +26,6 @@
 # MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
 # GNU General Public License for more details.
 
-#DISTFILES = \
-#	.cvsignore \
-#	RCSFILES \
-
-# AUTOMAKE_OPTIONS = no-texinfo.tex
-
-# FIXME - these rebuild every 'make dist' with some BSD makes due to a bug
-# that prevents make from searching VPATH for targets.  There is some
-# machinery in place in configure.in to work around this for some targets
-# (see the CVSvn.texi target below) now, but fixing the two info_TEXINFOS
-# targets below is probably going to require work on Automake
-
-
 SHELL = @SHELL@
 
 srcdir = @srcdir@
@@ -59,11 +46,9 @@ infodir = @infodir@
 mandir = @mandir@
 includedir = @includedir@
 oldincludedir = /usr/include
-
 pkgdatadir = $(datadir)/@PACKAGE@
 pkglibdir = $(libdir)/@PACKAGE@
 pkgincludedir = $(includedir)/@PACKAGE@
-
 top_builddir = ..
 
 ACLOCAL = @ACLOCAL@
@@ -77,7 +62,6 @@ INSTALL_DATA = @INSTALL_DATA@
 INSTALL_SCRIPT = @INSTALL_SCRIPT@
 INSTALL_HEADER = $(INSTALL_DATA)
 transform = @program_transform_name@
-
 NORMAL_INSTALL = :
 PRE_INSTALL = :
 POST_INSTALL = :
@@ -89,31 +73,26 @@ AWK = @AWK@
 CC = @CC@
 CSH = @CSH@
 DEPDIR = @DEPDIR@
-ETAGS = @ETAGS@
-ETAGS_INCLUDE_OPTION = @ETAGS_INCLUDE_OPTION@
+EXEEXT = @EXEEXT@
 INSTALL_STRIP_PROGRAM = @INSTALL_STRIP_PROGRAM@
-INSTALL_STRIP_PROGRAM_ENV = @INSTALL_STRIP_PROGRAM_ENV@
 KRB4 = @KRB4@
 LN_S = @LN_S@
-MAKEINFO = @MAKEINFO@
+OBJEXT = @OBJEXT@
 PACKAGE = @PACKAGE@
 PERL = @PERL@
 PR = @PR@
 PS2PDF = @PS2PDF@
 RANLIB = @RANLIB@
 ROFF = @ROFF@
-STRIP = @STRIP@
 TEXI2DVI = @TEXI2DVI@
 VERSION = @VERSION@
 YACC = @YACC@
-_am_include = @_am_include@
-_am_quote = @_am_quote@
+am__include = @am__include@
+am__quote = @am__quote@
 includeopt = @includeopt@
 install_sh = @install_sh@
 
 info_TEXINFOS = cvs.texinfo cvsclient.texi
-cvs_TEXINFOS = CVSvn.texi
-cvsclient_TEXINFOS = CVSvn.texi
 
 POSTSCRIPTS = \
 	cvs.ps \
@@ -135,18 +114,10 @@ TXTS = \
 EXTRA_DIST = \
 	$(POSTSCRIPTS) \
 	.cvsignore \
-	CVSvn.texi.in \
 	ChangeLog.fsf \
 	RCSFILES \
-	cvs-paper.ms \
-	cvs.aux \
-	cvsclient.aux
-
-
-# Listing cvs.cps & cvs.fns here is a workaround for an Automake deficiency
-MOSTLYCLEANFILES = \
-	cvs.cps \
-	cvs.fns
+	mdate-sh \
+	cvs-paper.ms
 
 
 CLEANFILES = \
@@ -159,8 +130,6 @@ MAINTAINERCLEANFILES = \
 
 
 SUFFIXES = .aux .txt .pdf
-EXEEXT =
-OBJEXT = o
 subdir = doc
 mkinstalldirs = $(SHELL) $(top_srcdir)/mkinstalldirs
 CONFIG_HEADER = $(top_builddir)/config.h $(top_builddir)/src/options.h
@@ -174,63 +143,110 @@ DIST_SOURCES =
 INFO_DEPS = cvs.info cvsclient.info
 DVIS = cvs.dvi cvsclient.dvi
 TEXINFOS = cvs.texinfo cvsclient.texi
-DIST_COMMON = $(cvs_TEXINFOS) $(cvsclient_TEXINFOS) ChangeLog \
-	Makefile.am Makefile.in texinfo.tex
+DIST_COMMON = ChangeLog Makefile.am Makefile.in mdate-sh stamp-1 \
+	stamp-vti texinfo.tex version-client.texi version.texi
 all: all-am
 
 .SUFFIXES:
 .SUFFIXES: .aux .txt .pdf .dvi .info .ps .texi .texinfo .txi
-
 $(srcdir)/Makefile.in:  Makefile.am  $(top_srcdir)/configure.in $(ACLOCAL_M4)
 	cd $(top_srcdir) && \
 	  $(AUTOMAKE) --gnu  doc/Makefile
-
 Makefile:  $(srcdir)/Makefile.in  $(top_builddir)/config.status
 	cd $(top_builddir) && \
 	  CONFIG_HEADERS= CONFIG_LINKS= \
 	  CONFIG_FILES=$(subdir)/$@ $(SHELL) ./config.status
 
-cvs.info: cvs.texinfo $(cvs_TEXINFOS)
-cvs.dvi: cvs.texinfo $(cvs_TEXINFOS)
+$(srcdir)/version.texi:  $(srcdir)/stamp-vti
+	@:
+$(srcdir)/stamp-vti: cvs.texinfo $(top_srcdir)/configure.in
+	@(set `$(SHELL) $(srcdir)/mdate-sh $(srcdir)/cvs.texinfo`; \
+	echo "@set UPDATED $$1 $$2 $$3"; \
+	echo "@set UPDATED-MONTH $$2 $$3"; \
+	echo "@set EDITION $(VERSION)"; \
+	echo "@set VERSION $(VERSION)") > vti.tmp
+	@cmp -s vti.tmp $(srcdir)/version.texi \
+	  || (echo "Updating $(srcdir)/version.texi"; \
+	      cp vti.tmp $(srcdir)/version.texi)
+	-@rm -f vti.tmp
+	@cp $(srcdir)/version.texi $@
 
-cvsclient.info: cvsclient.texi $(cvsclient_TEXINFOS)
-cvsclient.dvi: cvsclient.texi $(cvsclient_TEXINFOS)
+mostlyclean-vti:
+	-rm -f vti.tmp
+
+maintainer-clean-vti:
+	-rm -f $(srcdir)/stamp-vti $(srcdir)/version.texi
+
+cvs.info: cvs.texinfo $(srcdir)/version.texi
+cvs.dvi: cvs.texinfo $(srcdir)/version.texi
+
+$(srcdir)/version-client.texi:  $(srcdir)/stamp-1
+	@:
+$(srcdir)/stamp-1: cvsclient.texi $(top_srcdir)/configure.in
+	@(set `$(SHELL) $(srcdir)/mdate-sh $(srcdir)/cvsclient.texi`; \
+	echo "@set UPDATED $$1 $$2 $$3"; \
+	echo "@set UPDATED-MONTH $$2 $$3"; \
+	echo "@set EDITION $(VERSION)"; \
+	echo "@set VERSION $(VERSION)") > 1.tmp
+	@cmp -s 1.tmp $(srcdir)/version-client.texi \
+	  || (echo "Updating $(srcdir)/version-client.texi"; \
+	      cp 1.tmp $(srcdir)/version-client.texi)
+	-@rm -f 1.tmp
+	@cp $(srcdir)/version-client.texi $@
+
+mostlyclean-1:
+	-rm -f 1.tmp
+
+maintainer-clean-1:
+	-rm -f $(srcdir)/stamp-1 $(srcdir)/version-client.texi
+
+cvsclient.info: cvsclient.texi $(srcdir)/version-client.texi
+cvsclient.dvi: cvsclient.texi $(srcdir)/version-client.texi
 
 .texi.info:
 	@cd $(srcdir) && rm -f $@ $@-[0-9] $@-[0-9][0-9]
 	cd $(srcdir) \
-	  && $(MAKEINFO) `echo $< | sed 's,.*/,,'`
+	  && $(MAKEINFO) $(AM_MAKEINFOFLAGS) $(MAKEINFOFLAGS) \
+	       `echo $< | sed 's,.*/,,'`
 
 .texi.dvi:
 	TEXINPUTS=$(srcdir):$$TEXINPUTS \
-	  MAKEINFO='$(MAKEINFO) -I $(srcdir)' $(TEXI2DVI) $<
+	MAKEINFO='$(MAKEINFO) $(AM_MAKEINFOFLAGS) $(MAKEINFOFLAGS) -I $(srcdir)' \
+	$(TEXI2DVI) $<
 
 .texi:
 	@cd $(srcdir) && rm -f $@ $@-[0-9] $@-[0-9][0-9]
 	cd $(srcdir) \
-	  && $(MAKEINFO) `echo $< | sed 's,.*/,,'`
+	  && $(MAKEINFO) $(AM_MAKEINFOFLAGS) $(MAKEINFOFLAGS) \
+	       `echo $< | sed 's,.*/,,'`
 
 .texinfo.info:
 	@cd $(srcdir) && rm -f $@ $@-[0-9] $@-[0-9][0-9]
 	cd $(srcdir) \
-	  && $(MAKEINFO) `echo $< | sed 's,.*/,,'`
+	  && $(MAKEINFO) $(AM_MAKEINFOFLAGS) $(MAKEINFOFLAGS) \
+	       `echo $< | sed 's,.*/,,'`
 
 .texinfo.dvi:
 	TEXINPUTS=$(srcdir):$$TEXINPUTS \
-	  MAKEINFO='$(MAKEINFO) -I $(srcdir)' $(TEXI2DVI) $<
+	MAKEINFO='$(MAKEINFO) $(AM_MAKEINFOFLAGS) $(MAKEINFOFLAGS) -I $(srcdir)' \
+	$(TEXI2DVI) $<
 
 .texinfo:
 	@cd $(srcdir) && rm -f $@ $@-[0-9] $@-[0-9][0-9]
 	cd $(srcdir) \
-	  && $(MAKEINFO) `echo $< | sed 's,.*/,,'`
+	  && $(MAKEINFO) $(AM_MAKEINFOFLAGS) $(MAKEINFOFLAGS) \
+	       `echo $< | sed 's,.*/,,'`
 
+MAKEINFO = @MAKEINFO@
+TEXI2DVI = texi2dvi
 DVIPS = dvips
 .dvi.ps:
 	$(DVIPS) $< -o $@
 
 uninstall-info-am:
 	$(PRE_UNINSTALL)
-	@if $(SHELL) -c 'install-info --version | sed 1q | fgrep -s -v -i debian' >/dev/null 2>&1; then \
+	@if (install-info --version && \
+	     install-info --version | fgrep -i -v debian) >/dev/null 2>&1; then \
 	  list='$(INFO_DEPS)'; \
 	  for file in $$list; do \
 	    echo " install-info --info-dir=$(DESTDIR)$(infodir) --remove $(DESTDIR)$(infodir)/$$file"; \
@@ -282,7 +298,11 @@ distdir = $(top_distdir)/$(PACKAGE)-$(VERSION)
 
 distdir: $(DISTFILES)
 	@for file in $(DISTFILES); do \
-	  d=$(srcdir); \
+	  if test -f $$file; then d=.; else d=$(srcdir); fi; \
+	  dir=`echo "$$file" | sed -e 's,/[^/]*$$,,'`; \
+	  if test "$$dir" != "$$file" && test "$$dir" != "."; then \
+	    $(mkinstalldirs) "$(distdir)/$$dir"; \
+	  fi; \
 	  if test -d $$d/$$file; then \
 	    cp -pR $$d/$$file $(distdir) \
 	    || exit 1; \
@@ -311,25 +331,21 @@ install-am: all-am
 	@$(MAKE) $(AM_MAKEFLAGS) install-exec-am install-data-am
 
 installcheck: installcheck-am
-
 install-strip:
 	$(MAKE) $(AM_MAKEFLAGS) INSTALL_PROGRAM="$(INSTALL_STRIP_PROGRAM)" \
-	  INSTALL_PROGRAM_ENV='$(INSTALL_STRIP_PROGRAM_ENV)' install
-
+	  `test -z '$(STRIP)' || \
+	    echo "INSTALL_PROGRAM_ENV=STRIPPROG='$(STRIP)'"` install
 mostlyclean-generic:
-	-test -z "$(MOSTLYCLEANFILES)" || rm -f $(MOSTLYCLEANFILES)
 
 clean-generic:
 	-test -z "$(CLEANFILES)" || rm -f $(CLEANFILES)
 
 distclean-generic:
-	-rm -f Makefile $(CONFIG_CLEAN_FILES)
-	-rm -f config.cache config.log stamp-h stamp-h[0-9]*
+	-rm -f Makefile $(CONFIG_CLEAN_FILES) stamp-h stamp-h[0-9]*
 
 maintainer-clean-generic:
 	@echo "This command is intended for maintainers to use"
 	@echo "it deletes files that may require special tools to rebuild."
-	-rm -f Makefile.in
 	-test -z "$(MAINTAINERCLEANFILES)" || rm -f $(MAINTAINERCLEANFILES)
 clean: clean-am
 
@@ -367,7 +383,8 @@ install-info-am: $(INFO_DEPS)
 	  done; \
 	done
 	@$(POST_INSTALL)
-	@if $(SHELL) -c 'install-info --version | sed 1q | fgrep -s -v -i debian' >/dev/null 2>&1; then \
+	@if (install-info --version && \
+	     install-info --version | fgrep -i -v debian) >/dev/null 2>&1; then \
 	  list='$(INFO_DEPS)'; \
 	  for file in $$list; do \
 	    echo " install-info --info-dir=$(DESTDIR)$(infodir) $(DESTDIR)$(infodir)/$$file";\
@@ -380,25 +397,26 @@ installcheck-am:
 
 maintainer-clean: maintainer-clean-am
 
-maintainer-clean-am: distclean-am maintainer-clean-aminfo \
-	maintainer-clean-generic
+maintainer-clean-am: distclean-am maintainer-clean-1 \
+	maintainer-clean-aminfo maintainer-clean-generic \
+	maintainer-clean-vti
 
 mostlyclean: mostlyclean-am
 
-mostlyclean-am: mostlyclean-aminfo mostlyclean-generic
+mostlyclean-am: mostlyclean-1 mostlyclean-aminfo mostlyclean-generic \
+	mostlyclean-vti
 
 uninstall-am: uninstall-info-am
-
-uninstall-info: uninstall-info-am
 
 .PHONY: all all-am check check-am clean clean-generic dist-info \
 	distclean distclean-generic distdir dvi dvi-am info info-am \
 	install install-am install-data install-data-am install-exec \
 	install-exec-am install-info install-info-am install-man \
 	install-strip installcheck installcheck-am installdirs \
-	maintainer-clean maintainer-clean-aminfo \
-	maintainer-clean-generic mostlyclean mostlyclean-aminfo \
-	mostlyclean-generic uninstall uninstall-am uninstall-info-am
+	maintainer-clean maintainer-clean-1 maintainer-clean-aminfo \
+	maintainer-clean-generic maintainer-clean-vti mostlyclean \
+	mostlyclean-1 mostlyclean-aminfo mostlyclean-generic \
+	mostlyclean-vti uninstall uninstall-am uninstall-info-am
 
 
 doc ps: $(POSTSCRIPTS)
@@ -413,40 +431,33 @@ txt: $(TXTS)
 dvi: cvs.dvi cvsclient.dvi
 .PHONY: dvi
 
-cvs.aux cvs.pdf cvs.txt: cvs.texinfo $(cvs_TEXINFOS)
-cvsclient.aux cvsclient.pdf cvsclient.txt: cvsclient.texi $(cvsclient_TEXINFOS)
+# FIXME-AUTOMAKE:
+# For some reason if I remove version.texi, it doesn't get built automatically.
+# This needs to be fixed in automake.
+cvs.aux cvs.pdf cvs.txt: cvs.texinfo $(srcdir)/version.texi
+cvsclient.aux cvsclient.pdf cvsclient.txt: cvsclient.texi
 
-# These targets need to be very specific so that the other PDFs get generated correctly.
-# If they are more generic and cvs.ps is made before cvs.pdf, then cvs.pdf will be
-# generated from the generic target and the PS source, which contains less information
-# than the usual texinfo source.
-cvs-paper.pdf: cvs-paper.ps
+# These targets need to be very specific so that the other PDFs get generated
+# correctly.  If they are more generic and cvs.ps is made before cvs.pdf, then
+# cvs.pdf will be generated from the generic target and the PS source, which
+# contains less information (hyperlinks and such) than the usual texinfo source.
+cvs-paper.ps: cvs-paper.ms
 	$(ROFF) -t -p -ms -Tps $< > $@-t
 	mv $@-t $@
 
-cvs-paper.ps: cvs-paper.ms
+cvs-paper.pdf: cvs-paper.ps
 	$(PS2PDF) $< $@
 
 # texinfo based targets automake neglects to include
 .texinfo.pdf:
 	TEXINPUTS=$(srcdir):$$TEXINPUTS \
-	  MAKEINFO='$(MAKEINFO) -I $(srcdir)' $(TEXI2DVI) --pdf $<
+	  MAKEINFO='$(MAKEINFO) -I $(srcdir)' $(TEXI2DVI) --pdf --batch $<
 .txi.pdf:
 	TEXINPUTS=$(srcdir):$$TEXINPUTS \
-	  MAKEINFO='$(MAKEINFO) -I $(srcdir)' $(TEXI2DVI) --pdf $<
+	  MAKEINFO='$(MAKEINFO) -I $(srcdir)' $(TEXI2DVI) --pdf --batch $<
 .texi.pdf:
 	TEXINPUTS=$(srcdir):$$TEXINPUTS \
-	  MAKEINFO='$(MAKEINFO) -I $(srcdir)' $(TEXI2DVI) --pdf $<
-
-.texinfo.aux:
-	TEXINPUTS=$(srcdir):$$TEXINPUTS \
-	  MAKEINFO='$(MAKEINFO) -I $(srcdir)' $(TEXI2DVI) $<
-.txi.aux:
-	TEXINPUTS=$(srcdir):$$TEXINPUTS \
-	  MAKEINFO='$(MAKEINFO) -I $(srcdir)' $(TEXI2DVI) $<
-.texi.aux:
-	TEXINPUTS=$(srcdir):$$TEXINPUTS \
-	  MAKEINFO='$(MAKEINFO) -I $(srcdir)' $(TEXI2DVI) $<
+	  MAKEINFO='$(MAKEINFO) -I $(srcdir)' $(TEXI2DVI) --pdf --batch $<
 
 .texinfo.txt:
 	TEXINPUTS=$(srcdir):$$TEXINPUTS \
@@ -458,33 +469,9 @@ cvs-paper.ps: cvs-paper.ms
 	TEXINPUTS=$(srcdir):$$TEXINPUTS \
 	  MAKEINFO='$(MAKEINFO) -I $(srcdir)' $(MAKEINFO) $< --no-headers -o $@
 
-# - CVSvn.texi needs to be updated only once, since it depends on
-#   configure.in, not on the results of a 'configure' run.
-# - It is guaranteed (with GNU Make) that when the version in configure.in
-#   is changed, acversion.m4 is built only after the new version number is
-#   propagated to the Makefile.  (Libtool uses the same guarantee.)
-# - Of the next three targets, only the next one or the following two should be
-#   enabled, not all three
-# - This is the target for systems without the BSD VPATH bug in make or with
-#   $(srcdir) = $(builddir)
-@MAKE_TARGETS_IN_VPATH_TRUE@CVSvn.texi: $(srcdir)/CVSvn.texi.in $(top_srcdir)/configure.in
-@MAKE_TARGETS_IN_VPATH_TRUE@	sed 's,@VERSION\@,$(VERSION),g' $(srcdir)/CVSvn.texi.in >$(srcdir)/CVSvn.ttexi
-@MAKE_TARGETS_IN_VPATH_TRUE@	mv $(srcdir)/CVSvn.ttexi $(srcdir)/CVSvn.texi
-# - The next two targets are a workaround for the fact that some BSD makes
-#   don't look through VPATH for targets, but only for sources.
-# - They should be disabled on systems without the bug and in environments
-#   where $(srcdir) = $(builddir)
-@MAKE_TARGETS_IN_VPATH_FALSE@CVSvn.texi: $(srcdir)/CVSvn.texi
-@MAKE_TARGETS_IN_VPATH_FALSE@	# use cat so the time stamp gets set properly
-@MAKE_TARGETS_IN_VPATH_FALSE@	cat $(srcdir)/CVSvn.texi >$@
-@MAKE_TARGETS_IN_VPATH_FALSE@$(srcdir)/CVSvn.texi: $(srcdir)/CVSvn.texi.in $(top_srcdir)/configure.in
-@MAKE_TARGETS_IN_VPATH_FALSE@	sed 's,@VERSION\@,$(VERSION),g' $(srcdir)/CVSvn.texi.in >$(srcdir)/CVSvn.ttexi
-@MAKE_TARGETS_IN_VPATH_FALSE@	mv $(srcdir)/CVSvn.ttexi $(srcdir)/CVSvn.texi
-
 # for backwards compatibility with the old makefiles
 realclean: maintainer-clean
 .PHONY: realclean
-
 # Tell versions [3.59,3.63) of GNU make to not export all variables.
 # Otherwise a system limit (for SysV at least) may be exceeded.
 .NOEXPORT:
