@@ -121,7 +121,7 @@ void	ng_unref_node(node_p node); /* don't move this */
 #define NG_NODE_HAS_NAME(node)	((node)->name[0] + 0)
 #define NG_NODE_ID(node)	((node)->ID + 0)
 #define NG_NODE_REF(node)	atomic_add_int(&(node)->refs, 1)
-#define NG_NODE_UNREF(node)	ng_unref_node(node)
+#define NG_NODE_UNREF(node)	ng_unref(node)
 #define NG_NODE_SET_PRIVATE(node, val)	do {(node)->private = val;} while (0)
 #define NG_NODE_PRIVATE(node)	((node)->private)
 #define NG_NODE_IS_VALID(node)	(!((node)->flags & NG_INVALID))
