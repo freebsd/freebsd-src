@@ -46,7 +46,7 @@
  * Hooks for the ACPI CA debugging infrastructure
  */
 #define _COMPONENT	ACPI_AC_ADAPTER
-MODULE_NAME("AC_ADAPTER")
+ACPI_MODULE_NAME("AC_ADAPTER")
 
 #define ACPI_DEVICE_CHECK_PNP		0x00
 #define ACPI_DEVICE_CHECK_EXISTENCE	0x01
@@ -71,7 +71,7 @@ acpi_acad_get_status(void *context)
 	struct acpi_acad_softc *sc = device_get_softc(dev);
 	ACPI_HANDLE h = acpi_get_handle(dev);
 
-	if (acpi_EvaluateInteger(h, "_PSR", &newstatus) != AE_OK) {
+	if (ACPI_FAILURE(acpi_EvaluateInteger(h, "_PSR", &newstatus))) {
 		sc->status = -1;
 		return;
 	}
