@@ -103,7 +103,7 @@ struct nlist dump_nl[] = {	/* Name list for dumped system. */
 };
 
 /* Types match kernel declarations. */
-long	dumplo;				/* where dump starts on dumpdev */
+off_t	dumplo;				/* where dump starts on dumpdev */
 int	dumpmag;			/* magic number in dump */
 int	dumpsize;			/* amount of memory dumped */
 
@@ -217,6 +217,7 @@ kmem_setup()
 	const char *dump_sys;
 	int mib[2];
 	size_t len;
+	unsigned long kdumplo;		/* where dump starts on dumpdev */
 
 	/*
 	 * Some names we need for the currently running system, others for
@@ -260,7 +261,8 @@ kmem_setup()
 
 	kmem = Open(_PATH_KMEM, O_RDONLY);
 	Lseek(kmem, (off_t)current_nl[X_DUMPLO].n_value, L_SET);
-	(void)Read(kmem, &dumplo, sizeof(dumplo));
+	(void)Read(kmem, &kdumplo, sizeof(dumplo));
+	dumplo = kdumplo;
 	if (verbose)
 		(void)printf("dumplo = %ld (%ld * %d)\n",
 		    dumplo, dumplo/DEV_BSIZE, DEV_BSIZE);
