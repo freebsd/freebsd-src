@@ -2,7 +2,7 @@
 
 LIB=	rkinit
 CFLAGS+=-DKERBEROS -DCRYPT -DDEBUG -I${RKINITOBJDIR}
-SRCS=	rkinit_err.c rk_lib.c rk_rpc.c rk_util.c rk_krb.c rkinit_err.c
+SRCS=	rkinit_err.c rk_lib.c rk_rpc.c rk_util.c rk_krb.c
 
 LDADD+=	-lcom_err
 
