@@ -28,6 +28,11 @@ __FBSDID("$FreeBSD$");
  */
 #define	_PATH_LIBHELP	"/usr/lib/help"
 
+/*
+ * The file we check if all else fails.
+ */
+#define	_PATH_DEFAULT	_PATH_LIBHELP "/default"
+
 int help(const char *);
 
 int
@@ -98,9 +103,20 @@ help(const char *key)
 	keynumber = key;
 	key = keyname;
 	*p = '\0';
-	snprintf(path, sizeof(path), _PATH_LIBHELP "/%s", keybase);
+	/*
+	 * Try the default help file if we have a numeric key.
+	 * Or else, use the non-numeric part of the key.
+	 */
+	if (strlen(keybase) == 0) {
+		strlcpy(path, _PATH_DEFAULT, sizeof(path));
+	} else {
+		snprintf(path, sizeof(path), _PATH_LIBHELP "/%s", keybase);
+	}
 	free(keybase);
 	numlen = strlen(keynumber);
+	if (!numlen) {
+		goto fail;
+	}
 
 	helpfile = fopen(path, "r");
 	if (helpfile == NULL) {
