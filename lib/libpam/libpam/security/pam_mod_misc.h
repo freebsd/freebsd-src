@@ -31,33 +31,15 @@
 
 #include <sys/cdefs.h>
 
-/* Standard options
+/*
+ * Common option names
  */
-enum opt { PAM_OPT_DEBUG, PAM_OPT_NO_WARN, PAM_OPT_ECHO_PASS,
-	PAM_OPT_USE_FIRST_PASS, PAM_OPT_TRY_FIRST_PASS, PAM_OPT_USE_MAPPED_PASS,
-	PAM_OPT_TRY_MAPPED_PASS, PAM_OPT_EXPOSE_ACCOUNT,
-	PAM_OPT_STD_MAX /* XXX */ };
-
-#define PAM_MAX_OPTIONS	32
-
-struct opttab {
-	const char *name;
-	int value;
-};
-
-struct options {
-	struct {
-		const char *name;
-		int bool;
-		char *arg;
-	} opt[PAM_MAX_OPTIONS];
-};
+#define	PAM_OPT_NULLOK		"nullok"
+#define PAM_OPT_AUTH_AS_SELF	"auth_as_self"
+#define PAM_OPT_ECHO_PASS	"echo_pass"
+#define PAM_OPT_DEBUG		"debug"
 
 __BEGIN_DECLS
-void	pam_std_option(struct options *, struct opttab *, int, const char **);
-int	pam_test_option(struct options *, enum opt, char **);
-void	pam_set_option(struct options *, enum opt);
-void	pam_clear_option(struct options *, enum opt);
 void	_pam_verbose_error(pam_handle_t *, int, const char *,
 		const char *, const char *, ...);
 __END_DECLS
