@@ -27,6 +27,7 @@
  */
 
 #define MLX_BLKSIZE	512		/* fixed feature */
+#define MLX_PAGE_SIZE	4096		/* controller, not cpu, attribute */
 
 /*
  * Selected command codes.
