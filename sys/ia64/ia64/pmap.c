@@ -126,6 +126,10 @@
 
 MALLOC_DEFINE(M_PMAP, "PMAP", "PMAP Structures");
 
+#ifndef KSTACK_MAX_PAGES
+#define	KSTACK_MAX_PAGES 32
+#endif
+
 #ifndef PMAP_SHPGPERPROC
 #define PMAP_SHPGPERPROC 200
 #endif
@@ -723,10 +727,6 @@ pmap_track_modified(vm_offset_t va)
 	else
 		return 0;
 }
-
-#ifndef KSTACK_MAX_PAGES
-#define KSTACK_MAX_PAGES 32
-#endif
 
 /*
  * Create the KSTACK for a new thread.
