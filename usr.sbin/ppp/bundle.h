@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: bundle.h,v 1.16 1998/10/26 19:07:38 brian Exp $
+ *	$Id: bundle.h,v 1.17 1998/10/26 19:07:42 brian Exp $
  */
 
 #define	PHASE_DEAD		0	/* Link is dead */
@@ -59,6 +59,8 @@ struct bundle {
   struct descriptor desc;     /* really all our datalinks */
   int unit;                   /* The device/interface unit number */
   const char **argv;          /* From main() */
+  const char *argv0;          /* Original */
+  const char *argv1;          /* Original */
 
   struct {
     char Name[20];            /* The /dev/XXXX name */
