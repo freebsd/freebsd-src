@@ -30,7 +30,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: cpufunc.h,v 1.37 1995/05/30 08:00:30 rgrimes Exp $
+ *	$Id: cpufunc.h,v 1.37.4.1 1995/08/23 09:40:21 davidg Exp $
  */
 
 /*
@@ -69,7 +69,7 @@ disable_intr(void)
 static __inline void
 enable_intr(void)
 {
-	__asm __volatile("sti" : : : "memory");
+	__asm __volatile("sti");
 }
 
 #define	HAVE_INLINE_FFS
@@ -268,8 +268,8 @@ pmap_update(void)
 	 * This should be implemented as load_cr3(rcr3()) when load_cr3()
 	 * is inlined.
 	 */
-	__asm __volatile("movl %%cr3, %0; movl %0, %%cr3" : "=r" (temp) :
-		: "memory");
+	__asm __volatile("movl %%cr3, %0; movl %0, %%cr3" : "=r" (temp)
+			 : : "memory");
 }
 
 static __inline u_long
