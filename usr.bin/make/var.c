@@ -1753,15 +1753,16 @@ Var_Subst(const char *var, char *str, GNode *ctxt, Boolean undefErr)
 	    str++;
 	    Buf_AddByte(buf, (Byte)*str);
 	    str++;
-	} else if (*str != '$') {
+	} else if (str[0] != '$') {
 	    /*
 	     * Skip as many characters as possible -- either to the end of
 	     * the string or to the next dollar sign (variable invocation).
 	     */
-	    const char *cp;
+	    const char *cp = str;
 
-	    for (cp = str++; *str != '$' && *str != '\0'; str++)
-		continue;
+	    do {
+		str++;
+	    } while (str[0] != '$' && str[0] != '\0');
 	    Buf_AppendRange(buf, cp, str);
 	} else {
 	    if (var != NULL) {
