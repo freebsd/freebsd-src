@@ -17,7 +17,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: command.c,v 1.122 1997/12/30 02:45:41 brian Exp $
+ * $Id: command.c,v 1.123 1997/12/30 20:02:32 brian Exp $
  *
  */
 #include <sys/param.h>
@@ -1355,6 +1355,8 @@ SetVariable(struct cmdargs const *arg)
     VarLoginScript[sizeof VarLoginScript - 1] = '\0';
     break;
   case VAR_DEVICE:
+    if (mode & MODE_INTER)
+      HangupModem(0);
     if (modem != -1)
       LogPrintf(LogWARN, "Cannot change device to \"%s\" when \"%s\" is open\n",
                 argp, VarDevice);
