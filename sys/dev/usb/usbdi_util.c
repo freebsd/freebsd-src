@@ -1,4 +1,4 @@
-/*	$NetBSD: usbdi_util.c,v 1.24 1999/11/17 23:00:50 augustss Exp $	*/
+/*	$NetBSD: usbdi_util.c,v 1.26 1999/11/28 22:49:53 augustss Exp $	*/
 /*	$FreeBSD$	*/
 
 /*
@@ -73,6 +73,9 @@ usbd_get_desc(dev, type, index, len, desc)
 {
 	usb_device_request_t req;
 
+	DPRINTFN(3,("usbd_get_desc: type=%d, index=%d, len=%d\n",
+		    type, index, len));
+
 	req.bmRequestType = UT_READ_DEVICE;
 	req.bRequest = UR_GET_DESCRIPTOR;
 	USETW2(req.wValue, type, index);
@@ -82,21 +85,20 @@ usbd_get_desc(dev, type, index, len, desc)
 }
 
 usbd_status
-usbd_get_config_desc(dev, conf, d)
-	usbd_device_handle dev;
-	int conf;
-	usb_config_descriptor_t *d;
+usbd_get_config_desc(usbd_device_handle dev, int confidx,
+		     usb_config_descriptor_t *d)
 {
 	usbd_status err;
 
-	DPRINTFN(3,("usbd_get_config_desc: conf=%d\n", conf));
-	err = usbd_get_desc(dev, UDESC_CONFIG, conf, 
-			  USB_CONFIG_DESCRIPTOR_SIZE, d);
+	DPRINTFN(3,("usbd_get_config_desc: confidx=%d\n", confidx));
+	err = usbd_get_desc(dev, UDESC_CONFIG, confidx, 
+			    USB_CONFIG_DESCRIPTOR_SIZE, d);
 	if (err)
 		return (err);
 	if (d->bDescriptorType != UDESC_CONFIG) {
-		DPRINTFN(-1,("usbd_get_config_desc: conf %d, bad desc %d\n",
-			     conf, d->bDescriptorType));
+		DPRINTFN(-1,("usbd_get_config_desc: confidx=%d, bad desc "
+			     "len=%d type=%d\n",
+			     confidx, d->bLength, d->bDescriptorType));
 		return (USBD_INVAL);
 	}
 	return (USBD_NORMAL_COMPLETION);
