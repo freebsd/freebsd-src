@@ -269,7 +269,7 @@ i4b_OpenInfo(struct physical *p)
 
 static void
 i4b_device2iov(struct device *d, struct iovec *iov, int *niov,
-               int maxiov, int *auxfd, int *nauxfd, pid_t newpid)
+               int maxiov, int *auxfd, int *nauxfd)
 {
   struct i4bdevice *dev = device2i4b(d);
   int sz = physical_MaxDeviceSize();

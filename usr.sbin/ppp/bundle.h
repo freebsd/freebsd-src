@@ -174,7 +174,8 @@ extern void bundle_CleanDatalinks(struct bundle *);
 extern void bundle_SetLabel(struct bundle *, const char *);
 extern const char *bundle_GetLabel(struct bundle *);
 extern void bundle_SendDatalink(struct datalink *, int, struct sockaddr_un *);
-extern void bundle_ReceiveDatalink(struct bundle *, int, struct sockaddr_un *);
+extern int bundle_LinkSize(void);
+extern void bundle_ReceiveDatalink(struct bundle *, int);
 extern int bundle_SetMode(struct bundle *, struct datalink *, int);
 extern int bundle_RenameDatalink(struct bundle *, struct datalink *,
                                  const char *);
