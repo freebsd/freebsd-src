@@ -52,7 +52,6 @@ static const char rcsid[] =
 #include "y.tab.h"
 
 static int do_header(char *, int);
-static void nocount(char *);
 static char *toheader(char *);
 static char *tomacro(char *);
 
