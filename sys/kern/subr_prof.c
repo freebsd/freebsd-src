@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)subr_prof.c	8.3 (Berkeley) 9/23/93
- * $Id: subr_prof.c,v 1.26 1998/05/01 16:40:20 bde Exp $
+ * $Id: subr_prof.c,v 1.27 1998/07/14 05:09:46 bde Exp $
  */
 
 #include <sys/param.h>
@@ -341,8 +341,8 @@ SYSCTL_NODE(_kern, KERN_PROF, prof, CTLFLAG_RW, sysctl_kern_prof, "");
 #ifndef _SYS_SYSPROTO_H_
 struct profil_args {
 	caddr_t	samples;
-	u_int	size;
-	u_int	offset;
+	size_t	size;
+	size_t	offset;
 	u_int	scale;
 };
 #endif

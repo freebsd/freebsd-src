@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)sys_generic.c	8.5 (Berkeley) 1/21/94
- * $Id: sys_generic.c,v 1.39 1998/06/10 10:29:31 dfr Exp $
+ * $Id: sys_generic.c,v 1.40 1998/08/24 08:39:38 dfr Exp $
  */
 
 #include "opt_ktrace.h"
@@ -76,8 +76,8 @@ static int	selscan __P((struct proc *, fd_mask **, fd_mask **, int));
 #ifndef _SYS_SYSPROTO_H_
 struct read_args {
 	int	fd;
-	char	*buf;
-	u_int	nbyte;
+	void	*buf;
+	size_t	nbyte;
 };
 #endif
 /* ARGSUSED */
@@ -226,8 +226,8 @@ done:
 #ifndef _SYS_SYSPROTO_H_
 struct write_args {
 	int	fd;
-	char	*buf;
-	u_int	nbyte;
+	const void *buf;
+	size_t	nbyte;
 };
 #endif
 int
