@@ -1,6 +1,6 @@
 # Copyright 1990 W. Jolitz
 #	from: @(#)Makefile.i386	7.1 5/10/91
-#	$Id: Makefile.i386,v 1.71 1995/12/16 01:57:17 bde Exp $
+#	$Id: Makefile.i386,v 1.72 1995/12/26 13:57:55 bde Exp $
 #
 # Makefile for FreeBSD
 #
@@ -114,8 +114,8 @@ machdep.o: Makefile
 # the following is necessary because autoconf.o depends on #if GENERIC
 autoconf.o: Makefile
 
-# depend on network configuration
-af.o uipc_proto.o locore.o: Makefile
+# XXX - may no longer be needed
+locore.o: Makefile
 
 # depends on KDB (cons.o also depends on GENERIC)
 trap.o cons.o: Makefile
