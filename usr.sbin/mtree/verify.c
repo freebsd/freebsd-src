@@ -51,7 +51,6 @@ static const char rcsid[] =
 #include "mtree.h"
 #include "extern.h"
 
-extern long int crc_total;
 extern int ftsoptions;
 extern int dflag, eflag, qflag, rflag, sflag, uflag;
 extern char fullpath[MAXPATHLEN];
@@ -155,7 +154,7 @@ extra:
 	}
 	(void)fts_close(t);
 	if (sflag)
-		warnx("%s checksum: %lu", fullpath, crc_total);
+		warnx("%s checksum: %lu", fullpath, (unsigned long)crc_total);
 	return (rval);
 }
 
