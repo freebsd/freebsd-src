@@ -469,7 +469,6 @@ gv_plex_destroy_geom(struct gctl_req *req, struct g_class *mp,
 	 * and signal it to self destruct.
 	 */
 	gv_kill_thread(p);
-	mtx_destroy(&p->worklist_mtx);
 	/* g_free(sc); */
 	g_wither_geom(gp, ENXIO);
 	return (0);
