@@ -1,21 +1,14 @@
-#	$Id: Makefile,v 1.7 1997/02/22 16:07:29 peter Exp $
+#	$Id: Makefile,v 1.8 1997/12/17 15:11:43 bde Exp $
 
 PROG=	mrinfo
 
 S=	${.CURDIR}/..
 .PATH:	$S
 CFLAGS+=	-I$S
-.if exists(${.OBJDIR}/../common)
-LDADD+=	-L${.OBJDIR}/../common
-DPADD+= ${.OBJDIR}/../common/libmrouted.a
-.else
-LDADD+=	-L$S/common
-DPADD+=	$S/common/libmrouted.a
-.endif
-LDADD+=	-lmrouted
+DPADD=	${LIBMROUTED}
+LDADD=	${LIBMROUTED}
 
-SRCS=	mrinfo.c
-MAN8=	${.CURDIR}/../mrinfo.8
+MAN8=	mrinfo.8
 BINOWN=	root
 BINMODE=4555
 
