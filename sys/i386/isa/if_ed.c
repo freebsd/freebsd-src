@@ -13,14 +13,10 @@
  *   the SMC Elite Ultra (8216), the 3Com 3c503, the NE1000 and NE2000,
  *   and a variety of similar clones.
  *
- * Thanks to Charles Hannum for proving to me with example code that the
- *	NE1000/2000 support could be added with minimal impact. Without
- *	this, I wouldn't have proceeded in this direction.
- *	
  */
 
 /*
- * $Id: if_ed.c,v 1.33 1994/02/03 11:50:58 davidg Exp $
+ * $Id: if_ed.c,v 1.34 1994/03/01 12:23:33 davidg Exp $
  */
 
 #include "ed.h"
