@@ -81,7 +81,6 @@ int	tapeno = 0;	/* current tape number */
 int	density = 0;	/* density in bytes/0.1" " <- this is for hilit19 */
 int	ntrec = NTREC;	/* # tape blocks in each tape record */
 int	cartridge = 0;	/* Assume non-cartridge tape */
-int	dokerberos = 0;	/* Use Kerberos authentication */
 int	cachesize = 0;	/* block cache size (in bytes), defaults to 0 */
 long	dev_bsize = 1;	/* recalculated below */
 long	blocksperfile;	/* output blocks per file */
@@ -127,11 +126,7 @@ main(int argc, char *argv[])
 		usage();
 
 	obsolete(&argc, &argv);
-#ifdef KERBEROS
-#define optstring "0123456789aB:b:C:cD:d:f:h:kLnSs:T:uWw"
-#else
 #define optstring "0123456789aB:b:C:cD:d:f:h:LnSs:T:uWw"
-#endif
 	while ((ch = getopt(argc, argv, optstring)) != -1)
 #undef optstring
 		switch (ch) {
@@ -180,12 +175,6 @@ main(int argc, char *argv[])
 		case 'h':
 			honorlevel = numarg("honor level", 0L, 10L);
 			break;
-
-#ifdef KERBEROS
-		case 'k':
-			dokerberos = 1;
-			break;
-#endif
 
 		case 'L':
 			snapdump = 1;
@@ -573,9 +562,6 @@ usage(void)
 {
 	fprintf(stderr,
 		"usage: dump [-0123456789ac"
-#ifdef KERBEROS
-		"k"
-#endif
 		"LnSu] [-B records] [-b blocksize] [-C cachesize]\n"
 		"            [-D dumpdates] [-d density] [-f file] [-h level] [-s feet]\n"
 		"            [-T date] filesystem\n"
