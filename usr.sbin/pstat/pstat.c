@@ -543,10 +543,6 @@ nfs_print(vp)
 		*flags++ = 'U';
 	if (flag & NCHG)
 		*flags++ = 'C';
-	if (flag & NLOCKED)
-		*flags++ = 'L';
-	if (flag & NWANTED)
-		*flags++ = 'w';
 	if (flag == 0)
 		*flags++ = '-';
 	*flags = '\0';
