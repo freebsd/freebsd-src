@@ -39,7 +39,7 @@ CLEANFILES+=	tmp_version.c pathnames.h
 CFLAGS+=	-I.
 
 tmp_version.c:	version.c ${BIND_DIR}/Version
-	(u=$${USER-root} d=`pwd` h=`hostname` t=`LC_TIME=C date`; \
+	(u=$${USER-root} d=`pwd` h=`hostname` t=`LC_ALL=C date`; \
 	sed -e "s|%WHEN%|$${t}|" -e "s|%VERSION%|"${VER}"|" \
 	    -e "s|%WHOANDWHERE%|$${u}@$${h}:$${d}|" \
 	    < ${BIND_DIR}/bin/named/version.c > tmp_version.c)

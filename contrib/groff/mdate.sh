@@ -7,7 +7,7 @@
 # Don't want foreign dates.
 
 LANGUAGE=
-LC_TIME=C; export LC_TIME
+LC_ALL=C; export LC_ALL
 
 
 (date;

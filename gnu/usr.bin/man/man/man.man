@@ -112,7 +112,7 @@ component.
 .Pp
 Locale name is taken from the first of three environment variables
 with a nonempty value:
-.Ev LC_CTYPE , LC_ALL ,
+.Ev LC_ALL , LC_CTYPE ,
 or
 .Ev LANG ,
 in the specified order.
@@ -179,7 +179,7 @@ the files that would be formatted or displayed.
 .El
 .Sh ENVIRONMENT
 .Bl -tag -width MANROFFSEQ
-.It Ev LC_CTYPE , LC_ALL , LANG
+.It Ev LC_ALL , LC_CTYPE , LANG
 These variables specify the preferred language for manual pages.
 (See the
 .Fl o
