@@ -63,6 +63,20 @@ It is equivalent to:
 .Bd -literal -offset indent
 (int)strtol(nptr, (char **)NULL, 10);
 .Ed
+.Sh IMPLEMENTATION NOTES
+The
+.Fn atoi
+function is not thread-safe and also not async-cancel safe.
+.Pp
+The
+.Fn atof
+function has been deprecated by
+.Fn strtol
+and should not be used in new code.
+.Sh ERRORS
+The
+.Fn atoi
+function does not detect errors.
 .Sh SEE ALSO
 .Xr atof 3 ,
 .Xr atol 3 ,
@@ -73,4 +87,7 @@ It is equivalent to:
 The
 .Fn atoi
 function conforms to
-.St -isoC .
+.St -p1003.1-90 ,
+.St -isoC ,
+and
+.St -isoC-99 .
