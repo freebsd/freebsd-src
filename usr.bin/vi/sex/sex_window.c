@@ -48,6 +48,7 @@ static char sccsid[] = "@(#)sex_window.c	8.8 (Berkeley) 8/17/94";
 #include <string.h>
 #include <termios.h>
 #include <unistd.h>
+#include <errno.h>
 
 #include "compat.h"
 #include <curses.h>
@@ -79,7 +80,7 @@ sex_window(sp, sigwinch)
 	 *
 	 * Try TIOCGWINSZ.
 	 */
-	row = col = 0;
+	errno = row = col = 0;
 #ifdef TIOCGWINSZ
 	if (ioctl(STDERR_FILENO, TIOCGWINSZ, &win) != -1) {
 		row = win.ws_row;
@@ -89,7 +90,8 @@ sex_window(sp, sigwinch)
 	/* If here because of a signal, TIOCGWINSZ is all we trust. */
 	if (sigwinch) {
 		if (row == 0 || col == 0) {
-			msgq(sp, M_SYSERR, "TIOCGWINSZ");
+			if (errno > 0)
+				msgq(sp, M_SYSERR, "TIOCGWINSZ");
 			return (1);
 		}
 
