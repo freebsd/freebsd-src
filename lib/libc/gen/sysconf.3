@@ -32,7 +32,7 @@
 .\"	@(#)sysconf.3	8.3 (Berkeley) 4/19/94
 .\" $FreeBSD$
 .\"
-.Dd April 19, 1994
+.Dd June 18, 2001
 .Dt SYSCONF 3
 .Os BSD 4
 .Sh NAME
@@ -59,7 +59,10 @@ The
 .Fa name
 argument specifies the system variable to be queried.
 Symbolic constants for each name value are found in the include file
-.Li <unistd.h> .
+.Aq Pa unistd.h .
+Shell programmers who need access to these parameters should use the
+.Xr getconf 1
+utility.
 .Pp
 The available values are as follows:
 .Pp
@@ -72,6 +75,13 @@ The maximum bytes of argument to
 The maximum number of simultaneous processes per user id.
 .It Li _SC_CLK_TCK
 The frequency of the statistics clock in ticks per second.
+.It Li _SC_IOV_MAX
+The maximum number of elements in the I/O vector used by
+.Xr readv 2 ,
+.Xr writev 2 ,
+.Xr recvmsg 2 ,
+and
+.Xr sendmsg 2 .
 .It Li _SC_NGROUPS_MAX
 The maximum number of supplemental groups.
 .It Li _SC_OPEN_MAX
@@ -168,7 +178,7 @@ The
 .Fn sysconf
 function may fail and set
 .Va errno
-for any of the errors specified for the library functions
+for any of the errors specified for the library function
 .Xr sysctl 3 .
 In addition, the following error may be reported:
 .Bl -tag -width Er
@@ -178,6 +188,9 @@ The value of the
 argument is invalid.
 .El
 .Sh SEE ALSO
+.Xr getconf 1 ,
+.Xr pathconf 2 ,
+.Xr confstr 3 ,
 .Xr sysctl 3
 .Sh BUGS
 The value for _SC_STREAM_MAX is a minimum maximum, and required to be
