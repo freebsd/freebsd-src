@@ -1,3 +1,4 @@
+/*	$FreeBSD$ */
 /*	$OpenBSD: pidfile.c,v 1.5 2002/05/26 09:29:02 deraadt Exp $	*/
 /*	$NetBSD: pidfile.c,v 1.4 2001/02/19 22:43:42 cgd Exp $	*/
 
@@ -47,7 +48,7 @@ static const char rcsid[] = "$OpenBSD: pidfile.c,v 1.5 2002/05/26 09:29:02 deraa
 #include <stdio.h>
 #include <stdlib.h>
 #include <unistd.h>
-#if defined(__FreeBSD__)
+#ifdef __FreeBSD__
 #include "pidfile.h"
 #else
 #include <util.h>
