@@ -353,8 +353,6 @@ nfs_reclaim(struct vop_reclaim_args *ap)
 	}
 
 	lockdestroy(&np->n_rslock);
-
-	cache_purge(vp);
 	uma_zfree(nfsnode_zone, vp->v_data);
 	vp->v_data = NULL;
 	return (0);
