@@ -105,18 +105,14 @@ ffs_blkatoff(vp, offset, res, bpp)
  * to the incore copy.
  */
 void
-ffs_load_inode(bp, ip, mtype, fs, ino)
+ffs_load_inode(bp, ip, fs, ino)
 	struct buf *bp;
 	struct inode *ip;
-	struct malloc_type *mtype;
 	struct fs *fs;
 	ino_t ino;
 {
 
 	if (ip->i_ump->um_fstype == UFS1) {
-		if (mtype != NULL)
-			MALLOC(ip->i_din1, struct ufs1_dinode *,
-			    sizeof(struct ufs1_dinode), mtype, M_WAITOK);
 		*ip->i_din1 =
 		    *((struct ufs1_dinode *)bp->b_data + ino_to_fsbo(fs, ino));
 		ip->i_mode = ip->i_din1->di_mode;
@@ -127,9 +123,6 @@ ffs_load_inode(bp, ip, mtype, fs, ino)
 		ip->i_uid = ip->i_din1->di_uid;
 		ip->i_gid = ip->i_din1->di_gid;
 	} else {
-		if (mtype != NULL)
-			MALLOC(ip->i_din2, struct ufs2_dinode *,
-			    sizeof(struct ufs2_dinode), mtype, M_WAITOK);
 		*ip->i_din2 =
 		    *((struct ufs2_dinode *)bp->b_data + ino_to_fsbo(fs, ino));
 		ip->i_mode = ip->i_din2->di_mode;
