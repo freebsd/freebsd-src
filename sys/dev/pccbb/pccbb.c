@@ -35,6 +35,7 @@
  *  TI Datasheets:
  *   http://www-s.ti.com/cgi-bin/sc/generic2.cgi?family=PCI+CARDBUS+CONTROLLERS
  * Much of the 16-bit PC Card compatibility code stolen from dev/pcic/i82365.c
+ * XXX and should be cleaned up to share as much as possible.
  *
  * Written by Jonathan Chen <jon@freebsd.org>
  * The author would like to acknowledge:
@@ -1386,19 +1387,27 @@ pccbb_pcic_alloc_resource(device_t self, device_t child, int type, int* rid,
 	struct pccbb_softc *sc = device_get_softc(self);
 	struct pccbb_reslist *rle;
 
-	/* Nearly default */
-	if (type == SYS_RES_MEMORY && start == 0 && end == ~0 && count != 1) {
-		start = 0xd0000; /* XXX */
-		end = 0xdffff;
-	}
-
-	if (type == SYS_RES_IRQ)
-		flags |= RF_SHAREABLE;
-
-	if (type == SYS_RES_MEMORY)
+	switch (type) {
+	case SYS_RES_MEMORY:
+		/* Nearly default */
+		if (start == 0 && end == ~0 && count != 1) {
+			start = 0xd0000; /* XXX -- should be tweakable*/
+			end = 0xdffff;
+		}
 		flags = (flags & ~RF_ALIGNMENT_MASK)
 			| rman_make_alignment_flags(PCCBB_MEMALIGN);
-
+		break;
+	case SYS_RES_IOPORT:
+		if (start < 0x100)
+			start = 0x100;		/* XXX tweakable? */
+		if (end < start)
+			end = start;
+		break;
+	case SYS_RES_IRQ:
+		flags |= RF_SHAREABLE;
+		start = end = rman_get_start(sc->sc_irq_res);
+		break;
+	}
 	r = bus_generic_alloc_resource(self, child, type, rid, start, end,
 				       count, flags & ~RF_ACTIVE);
 	if (r == NULL)
@@ -1452,7 +1461,6 @@ pccbb_pcic_set_res_flags(device_t self, device_t child, int type, int rid,
 {
 	struct pccbb_softc *sc = device_get_softc(self);
 
-	DPRINTF(("%p %p %d %d %#x\n", self, child, type, rid, flags));
 	if (type != SYS_RES_MEMORY)
 		return (EINVAL);
 	sc->mem[rid].kind = PCCARD_MEM_ATTR;
