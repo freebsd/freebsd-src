@@ -881,6 +881,13 @@ struct pthread {
  * Global variables for the uthread kernel.
  */
 
+SCLASS void *_usrstack
+#ifdef GLOBAL_PTHREAD_PRIVATE
+= (void *) USRSTACK;
+#else
+;
+#endif
+
 /* Kernel thread structure used when there are no running threads: */
 SCLASS struct pthread   _thread_kern_thread;
 

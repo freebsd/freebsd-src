@@ -112,8 +112,7 @@ static LIST_HEAD(, stack)	_mstackq = LIST_HEAD_INITIALIZER(_mstackq);
  * high memory
  *
  */
-static void *	last_stack = (void *) USRSTACK - PTHREAD_STACK_INITIAL
-		    - PTHREAD_GUARD_DEFAULT;
+static void *	last_stack;
 
 void *
 _thread_stack_alloc(size_t stacksize, size_t guardsize)
@@ -186,8 +185,11 @@ _thread_stack_alloc(size_t stacksize, size_t guardsize)
 	/* Check if a stack was not allocated from a stack cache: */
 	if (stack == NULL) {
 
-		/* Allocate a new stack. */
+		if (last_stack == NULL)
+			last_stack = _usrstack - PTHREAD_STACK_INITIAL -
+			    PTHREAD_GUARD_DEFAULT;
 
+		/* Allocate a new stack. */
 		stack = last_stack - stack_size;
 
 		/*
