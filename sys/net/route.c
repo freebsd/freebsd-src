@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)route.c	8.2 (Berkeley) 11/15/93
- * $Id: route.c,v 1.13 1994/12/13 23:07:03 wollman Exp $
+ * $Id: route.c,v 1.14 1995/01/23 02:00:34 wollman Exp $
  */
 
 #include <sys/param.h>
@@ -625,4 +625,5 @@ rtinit(ifa, cmd, flags)
 		}
 		rt_newaddrmsg(cmd, ifa, error, nrt);
 	}
-	return (e
+	return (error);
+}
