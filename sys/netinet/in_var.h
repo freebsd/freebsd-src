@@ -184,7 +184,7 @@ do { \
 	for (ifma = (ifp)->if_multiaddrs.lh_first; ifma; \
 	     ifma = ifma->ifma_link.le_next) { \
 		if (ifma->ifma_addr->sa_family == AF_INET \
-		    && ((struct sockaddr_in *)ifma)->sin_addr.s_addr == \
+		    && ((struct sockaddr_in *)ifma->ifma_addr)->sin_addr.s_addr == \
 		    (addr).s_addr) \
 			break; \
 	} \
