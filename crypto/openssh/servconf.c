@@ -427,7 +427,7 @@ parse_flag:
 
 		case sIgnoreUserKnownHosts:
 			intptr = &options->ignore_user_known_hosts;
-			goto parse_int;
+			goto parse_flag;
 
 		case sRhostsAuthentication:
 			intptr = &options->rhosts_authentication;
