@@ -74,14 +74,14 @@ to share a block of memory between parent and child that has been mapped
 MAP_PRIVATE.  That is, modifications made by parent or child are shared but
 the original underlying file is left untouched.
 .Bl -tag -width MAP_HASSEMAPHORE
-.It Dv VM_INHERIT_SHARE
+.It Dv INHERIT_SHARE
 This option causes the address space in question to be shared between
 parent and child.  It has no effect on how the original underlying backing
 store was mapped.
-.It Dv VM_INHERIT_NONE
+.It Dv INHERIT_NONE
 This option prevents the address space in question from being inherited 
 at all.  The address space will be unmapped in the child.
-.It Dv VM_INHERIT_COPY
+.It Dv INHERIT_COPY
 This option causes the child to inherit the address space as copy-on-write.
 This option also has an unfortunate side effect of causing the parent
 address space to become copy-on-write when the parent forks.  If the
