@@ -232,9 +232,9 @@ int uwx_decode_rhdr(
 	if ((b0 & 0x20) == 0) {
 	    TRACE_I_DECODE_RHDR_1("(R1) prologue", b0)
 	    rhdr->is_prologue = 1;
-	}
-	else
+	} else {
 	    TRACE_I_DECODE_RHDR_1("(R1) body", b0)
+	}
 	rhdr->rlen = b0 & 0x1f;
     }
 
@@ -263,9 +263,9 @@ int uwx_decode_rhdr(
 	if ((b0 & 0x03) == 0) {
 	    TRACE_I_DECODE_RHDR_1L("(R3) prologue", b0, val)
 	    rhdr->is_prologue = 1;
-	}
-	else
+	} else {
 	    TRACE_I_DECODE_RHDR_1L("(R3) body", b0, val)
+	}
 	rhdr->rlen = (unsigned int) val;
     }
 
