@@ -50,8 +50,8 @@ static const char rcsid[] =
 #include "fsck.h"
 
 static int charsperline(void);
-static int printindir(ufs_daddr_t blk, int level, char *bufp);
-static void printblocks(ino_t inum, struct dinode *dp);
+static int printindir(ufs2_daddr_t blk, int level, char *bufp);
+static void printblocks(ino_t inum, union dinode *dp);
 
 char **
 crack(char *line, int *argc)
@@ -106,15 +106,17 @@ argcount(struct cmdtable *cmdp, int argc, char *argv[])
 }
 
 void
-printstat(const char *cp, ino_t inum, struct dinode *dp)
+printstat(const char *cp, ino_t inum, union dinode *dp)
 {
     struct group *grp;
     struct passwd *pw;
+    ufs2_daddr_t blocks;
+    int64_t gen;
     char *p;
     time_t t;
 
     printf("%s: ", cp);
-    switch (dp->di_mode & IFMT) {
+    switch (DIP(dp, di_mode) & IFMT) {
     case IFDIR:
 	puts("directory");
 	break;
@@ -123,19 +125,25 @@ printstat(const char *cp, ino_t inum, struct dinode *dp)
 	break;
     case IFBLK:
 	printf("block special (%d,%d)",
-	       major(dp->di_rdev), minor(dp->di_rdev));
+	       major(DIP(dp, di_rdev)), minor(DIP(dp, di_rdev)));
 	break;
     case IFCHR:
 	printf("character special (%d,%d)",
-	       major(dp->di_rdev), minor(dp->di_rdev));
+	       major(DIP(dp, di_rdev)), minor(DIP(dp, di_rdev)));
 	break;
     case IFLNK:
 	fputs("symlink",stdout);
-	if (dp->di_size > 0 && dp->di_size < MAXSYMLINKLEN &&
-	    dp->di_blocks == 0)
-	    printf(" to `%.*s'\n", (int) dp->di_size, (char *)dp->di_shortlink);
-	else
-		putchar('\n');
+	if (DIP(dp, di_size) > 0 &&
+	    DIP(dp, di_size) < sblock.fs_maxsymlinklen &&
+	    DIP(dp, di_blocks) == 0) {
+	    if (sblock.fs_magic == FS_UFS1_MAGIC)
+		p = (caddr_t)dp->dp1.di_db;
+	    else
+		p = (caddr_t)dp->dp2.di_db;
+	    printf(" to `%.*s'\n", (int) DIP(dp, di_size), p);
+	} else {
+	    putchar('\n');
+	}
 	break;
     case IFSOCK:
 	puts("socket");
@@ -144,31 +152,43 @@ printstat(const char *cp, ino_t inum, struct dinode *dp)
 	puts("fifo");
 	break;
     }
-    printf("I=%lu MODE=%o SIZE=%qu", (u_long)inum, dp->di_mode, dp->di_size);
-    t = dp->di_mtime;
+    printf("I=%lu MODE=%o SIZE=%qu", (u_long)inum, DIP(dp, di_mode),
+	DIP(dp, di_size));
+    if (sblock.fs_magic == FS_UFS1_MAGIC)
+	t = _time32_to_time(dp->dp1.di_mtime);
+    else
+	t = _time64_to_time(dp->dp2.di_mtime);
     p = ctime(&t);
     printf("\n\tMTIME=%15.15s %4.4s [%d nsec]", &p[4], &p[20],
-	   dp->di_mtimensec);
-    t = dp->di_ctime;
+	   DIP(dp, di_mtimensec));
+    if (sblock.fs_magic == FS_UFS1_MAGIC)
+	t = _time32_to_time(dp->dp1.di_ctime);
+    else
+	t = _time64_to_time(dp->dp2.di_ctime);
     p = ctime(&t);
     printf("\n\tCTIME=%15.15s %4.4s [%d nsec]", &p[4], &p[20],
-	   dp->di_ctimensec);
-    t = dp->di_atime;
+	   DIP(dp, di_ctimensec));
+    if (sblock.fs_magic == FS_UFS1_MAGIC)
+	t = _time32_to_time(dp->dp1.di_atime);
+    else
+	t = _time64_to_time(dp->dp2.di_atime);
     p = ctime(&t);
     printf("\n\tATIME=%15.15s %4.4s [%d nsec]\n", &p[4], &p[20],
-	   dp->di_atimensec);
+	   DIP(dp, di_atimensec));
 
-    if ((pw = getpwuid(dp->di_uid)))
+    if ((pw = getpwuid(DIP(dp, di_uid))))
 	printf("OWNER=%s ", pw->pw_name);
     else
-	printf("OWNUID=%u ", dp->di_uid);
-    if ((grp = getgrgid(dp->di_gid)))
+	printf("OWNUID=%u ", DIP(dp, di_uid));
+    if ((grp = getgrgid(DIP(dp, di_gid))))
 	printf("GRP=%s ", grp->gr_name);
     else
-	printf("GID=%u ", dp->di_gid);
+	printf("GID=%u ", DIP(dp, di_gid));
 
-    printf("LINKCNT=%hd FLAGS=%#x BLKCNT=%x GEN=%x\n", dp->di_nlink, dp->di_flags,
-	   dp->di_blocks, dp->di_gen);
+    blocks = DIP(dp, di_blocks);
+    gen = DIP(dp, di_gen);
+    printf("LINKCNT=%hd FLAGS=%#x BLKCNT=%qx GEN=%qx\n", DIP(dp, di_nlink),
+	DIP(dp, di_flags), blocks, gen);
 }
 
 
@@ -199,12 +219,12 @@ charsperline(void)
  * Recursively print a list of indirect blocks.
  */
 static int
-printindir(ufs_daddr_t blk, int level, char *bufp)
+printindir(ufs2_daddr_t blk, int level, char *bufp)
 {
     struct bufarea buf, *bp;
-    char tempbuf[32];		/* enough to print an ufs_daddr_t */
+    char tempbuf[32];		/* enough to print an ufs2_daddr_t */
     int i, j, cpl, charssofar;
-    ufs_daddr_t blkno;
+    ufs2_daddr_t blkno;
 
     if (level == 0) {
 	/* for the final indirect level, don't use the cache */
@@ -219,13 +239,16 @@ printindir(ufs_daddr_t blk, int level, char *bufp)
 
     cpl = charsperline();
     for (i = charssofar = 0; i < NINDIR(&sblock); i++) {
-	blkno = bp->b_un.b_indir[i];
+	if (sblock.fs_magic == FS_UFS1_MAGIC)
+		blkno = bp->b_un.b_indir1[i];
+	else
+		blkno = bp->b_un.b_indir2[i];
 	if (blkno == 0) {
 	    if (level == 0)
 		putchar('\n');
 	    return 0;
 	}
-	j = sprintf(tempbuf, "%d", blkno);
+	j = sprintf(tempbuf, "%qd", blkno);
 	if (level == 0) {
 	    charssofar += j;
 	    if (charssofar >= cpl - 2) {
@@ -253,30 +276,32 @@ printindir(ufs_daddr_t blk, int level, char *bufp)
  * Print the block pointers for one inode.
  */
 static void
-printblocks(ino_t inum, struct dinode *dp)
+printblocks(ino_t inum, union dinode *dp)
 {
     char *bufp;
     int i, j, nfrags;
     long ndb, offset;
+    ufs2_daddr_t blkno;
 
     printf("Blocks for inode %d:\n", inum);
     printf("Direct blocks:\n");
-    ndb = howmany(dp->di_size, sblock.fs_bsize);
+    ndb = howmany(DIP(dp, di_size), sblock.fs_bsize);
     for (i = 0; i < NDADDR; i++) {
-	if (dp->di_db[i] == 0) {
+	if (DIP(dp, di_db[i]) == 0) {
 	    putchar('\n');
 	    return;
 	}
 	if (i > 0)
 	    printf(", ");
-	printf("%d", dp->di_db[i]);
-	if (--ndb == 0 && (offset = blkoff(&sblock, dp->di_size)) != 0) {
+	blkno = DIP(dp, di_db[i]);
+	printf("%qd", blkno);
+	if (--ndb == 0 && (offset = blkoff(&sblock, DIP(dp, di_size))) != 0) {
 	    nfrags = numfrags(&sblock, fragroundup(&sblock, offset));
 	    printf(" (%d frag%s)", nfrags, nfrags > 1? "s": "");
 	}
     }
     putchar('\n');
-    if (dp->di_ib[0] == 0)
+    if (DIP(dp, di_ib[0]) == 0)
 	return;
 
     bufp = malloc((unsigned int)sblock.fs_bsize);
@@ -284,7 +309,7 @@ printblocks(ino_t inum, struct dinode *dp)
 	errx(EEXIT, "cannot allocate indirect block buffer");
     printf("Indirect blocks:\n");
     for (i = 0; i < NIADDR; i++)
-	if (printindir(dp->di_ib[i], i, bufp) == 0)
+	if (printindir(DIP(dp, di_ib[i]), i, bufp) == 0)
 	    break;
     free(bufp);
 }
@@ -307,7 +332,7 @@ checkactivedir(void)
 	warnx("no current inode\n");
 	return 0;
     }
-    if ((curinode->di_mode & IFMT) != IFDIR) {
+    if ((DIP(curinode, di_mode) & IFMT) != IFDIR) {
 	warnx("inode %d not a directory", curinum);
 	return 0;
     }
@@ -319,7 +344,7 @@ printactive(int doblocks)
 {
     if (!checkactive())
 	return 1;
-    switch (curinode->di_mode & IFMT) {
+    switch (DIP(curinode, di_mode) & IFMT) {
     case IFDIR:
     case IFREG:
     case IFBLK:
@@ -337,7 +362,7 @@ printactive(int doblocks)
 	break;
     default:
 	printf("current inode %d: screwy itype 0%o (mode 0%o)?\n",
-	       curinum, curinode->di_mode & IFMT, curinode->di_mode);
+	       curinum, DIP(curinode, di_mode) & IFMT, DIP(curinode, di_mode));
 	break;
     }
     return 0;

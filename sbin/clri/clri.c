@@ -61,6 +61,11 @@ static const char rcsid[] =
 #include <stdio.h>
 #include <unistd.h>
 
+/*
+ * Possible superblock locations ordered from most to least likely.
+ */
+static int sblock_try[] = SBLOCKSEARCH;
+
 static void
 usage(void)
 {
@@ -74,13 +79,13 @@ main(argc, argv)
 	char *argv[];
 {
 	struct fs *sbp;
-	struct dinode *ip;
-	int fd;
-	struct dinode ibuf[MAXBSIZE / sizeof (struct dinode)];
+	struct ufs1_dinode *dp1;
+	struct ufs2_dinode *dp2;
+	char *ibuf[MAXBSIZE];
 	long generation, bsize;
 	off_t offset;
-	int inonum;
-	char *fs, sblock[SBSIZE];
+	int i, fd, inonum;
+	char *fs, sblock[SBLOCKSIZE];
 
 	if (argc < 3)
 		usage();
@@ -90,15 +95,23 @@ main(argc, argv)
 	/* get the superblock. */
 	if ((fd = open(fs, O_RDWR, 0)) < 0)
 		err(1, "%s", fs);
-	if (lseek(fd, (off_t)(SBLOCK * DEV_BSIZE), SEEK_SET) < 0)
-		err(1, "%s", fs);
-	if (read(fd, sblock, sizeof(sblock)) != sizeof(sblock))
-		errx(1, "%s: can't read superblock", fs);
-
-	sbp = (struct fs *)sblock;
-	if (sbp->fs_magic != FS_MAGIC)
-		errx(1, "%s: superblock magic number 0x%x, not 0x%x",
-		    fs, sbp->fs_magic, FS_MAGIC);
+	for (i = 0; sblock_try[i] != -1; i++) {
+		if (lseek(fd, (off_t)(sblock_try[i]), SEEK_SET) < 0)
+			err(1, "%s", fs);
+		if (read(fd, sblock, sizeof(sblock)) != sizeof(sblock))
+			errx(1, "%s: can't read superblock", fs);
+		sbp = (struct fs *)sblock;
+		if ((sbp->fs_magic == FS_UFS1_MAGIC ||
+		     (sbp->fs_magic == FS_UFS2_MAGIC &&
+		      sbp->fs_sblockloc == numfrags(sbp, sblock_try[i]))) &&
+		    sbp->fs_bsize <= MAXBSIZE &&
+		    sbp->fs_bsize >= sizeof(struct fs))
+			break;
+	}
+	if (sblock_try[i] == -1) {
+		fprintf(stderr, "Cannot find filesystem\n");
+		exit(2);
+	}
 	bsize = sbp->fs_bsize;
 
 	/* remaining arguments are inode numbers. */
@@ -119,13 +132,25 @@ main(argc, argv)
 		if (read(fd, ibuf, bsize) != bsize)
 			err(1, "%s", fs);
 
-		/* get the inode within the block. */
-		ip = &ibuf[ino_to_fsbo(sbp, inonum)];
+		if (sbp->fs_magic == FS_UFS2_MAGIC) {
+			/* get the inode within the block. */
+			dp2 = &(((struct ufs2_dinode *)ibuf)
+			    [ino_to_fsbo(sbp, inonum)]);
 
-		/* clear the inode, and bump the generation count. */
-		generation = ip->di_gen + 1;
-		memset(ip, 0, sizeof(*ip));
-		ip->di_gen = generation;
+			/* clear the inode, and bump the generation count. */
+			generation = dp2->di_gen + 1;
+			memset(dp2, 0, sizeof(*dp2));
+			dp2->di_gen = generation;
+		} else {
+			/* get the inode within the block. */
+			dp1 = &(((struct ufs1_dinode *)ibuf)
+			    [ino_to_fsbo(sbp, inonum)]);
+
+			/* clear the inode, and bump the generation count. */
+			generation = dp1->di_gen + 1;
+			memset(dp1, 0, sizeof(*dp1));
+			dp1->di_gen = generation;
+		}
 
 		/* backup and write the block */
 		if (lseek(fd, (off_t)-bsize, SEEK_CUR) < 0)

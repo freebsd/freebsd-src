@@ -53,8 +53,9 @@ static const char rcsid[] =
 #include <sys/disklabel.h>
 #include <sys/stat.h>
 
-#include <ufs/ffs/fs.h>
 #include <ufs/ufs/ufsmount.h>
+#include <ufs/ufs/dinode.h>
+#include <ufs/ffs/fs.h>
 
 #include <err.h>
 #include <fcntl.h>
@@ -77,8 +78,8 @@ union {
 int fi;
 long dev_bsize = 1;
 
-void bwrite(daddr_t, const char *, int);
-int bread(daddr_t, char *, int);
+void bwrite(ufs2_daddr_t, const char *, int);
+int bread(ufs2_daddr_t, char *, int);
 void getsb(struct fs *, const char *);
 void putsb(struct fs *, const char *, int);
 void usage(void);
@@ -93,9 +94,9 @@ main(argc, argv)
 	const char *name;
 	struct stat st;
 	int Aflag = 0, active = 0;
-	int aflag = 0, dflag = 0, eflag = 0, fflag = 0, mflag = 0;
+	int aflag = 0, eflag = 0, fflag = 0, mflag = 0;
 	int nflag = 0, oflag = 0, pflag = 0, sflag = 0;
-	int avalue = 0, dvalue = 0, evalue = 0, fvalue = 0;
+	int avalue = 0, evalue = 0, fvalue = 0;
 	int mvalue = 0, ovalue = 0, svalue = 0;
 	char *nvalue = NULL; 
 	struct fstab *fs;
@@ -108,7 +109,7 @@ main(argc, argv)
         if (argc < 3)
                 usage();
 	found_arg = 0; /* at least one arg is required */
-	while ((ch = getopt(argc, argv, "Aa:d:e:f:m:n:o:ps:")) != -1)
+	while ((ch = getopt(argc, argv, "Aa:e:f:m:n:o:ps:")) != -1)
 	  switch (ch) {
 	  case 'A':
 		found_arg = 1;
@@ -121,12 +122,6 @@ main(argc, argv)
 		if (avalue < 1)
 			errx(10, "%s must be >= 1 (was %s)", name, optarg);
 		aflag = 1;
-		break;
-	  case 'd':
-		found_arg = 1;
-		name = "rotational delay between contiguous blocks";
-		dvalue = atoi(optarg);
-		dflag = 1;
 		break;
 	  case 'e':
 		found_arg = 1;
@@ -235,17 +230,6 @@ again:
 			warnx("%s changes from %d to %d",
 					name, sblock.fs_maxcontig, avalue);
 			sblock.fs_maxcontig = avalue;
-		}
-	}
-	if (dflag) {
-		name = "rotational delay between contiguous blocks";
-		if (sblock.fs_rotdelay == dvalue) {
-			warnx("%s remains unchanged as %dms", name, dvalue);
-		}
-		else {
-			warnx("%s changes from %dms to %dms",
-				    name, sblock.fs_rotdelay, dvalue);
-			sblock.fs_rotdelay = dvalue;
 		}
 	}
 	if (eflag) {
@@ -358,20 +342,36 @@ usage()
 	exit(2);
 }
 
+/*
+ * Possible superblock locations ordered from most to least likely.
+ */
+static int sblock_try[] = SBLOCKSEARCH;
+static ufs2_daddr_t sblockloc;
+
 void
 getsb(fs, file)
 	struct fs *fs;
 	const char *file;
 {
+	int i;
 
 	fi = open(file, O_RDONLY);
 	if (fi < 0)
 		err(3, "cannot open %s", file);
-	if (bread((daddr_t)SBOFF, (char *)fs, SBSIZE))
-		err(4, "%s: bad super block", file);
-	if (fs->fs_magic != FS_MAGIC)
-		errx(5, "%s: bad magic number", file);
+	for (i = 0; sblock_try[i] != -1; i++) {
+		if (bread(sblock_try[i], (char *)fs, SBLOCKSIZE))
+			err(4, "%s: bad super block", file);
+		if ((fs->fs_magic == FS_UFS1_MAGIC ||
+		     (fs->fs_magic == FS_UFS2_MAGIC &&
+		      fs->fs_sblockloc == numfrags(fs, sblock_try[i]))) &&
+		    fs->fs_bsize <= MAXBSIZE &&
+		    fs->fs_bsize >= sizeof(struct fs))
+			break;
+	}
+	if (sblock_try[i] == -1)
+		err(5, "Cannot find filesystem superblock");
 	dev_bsize = fs->fs_fsize / fsbtodb(fs, 1);
+	sblockloc = sblock_try[i] / dev_bsize;
 }
 
 void
@@ -392,11 +392,11 @@ putsb(fs, file, all)
 	close(i);
 	if (fi < 0)
 		err(3, "cannot open %s", file);
-	bwrite((daddr_t)SBOFF / dev_bsize, (const char *)fs, SBSIZE);
+	bwrite(sblockloc, (const char *)fs, SBLOCKSIZE);
 	if (all)
 		for (i = 0; i < fs->fs_ncg; i++)
 			bwrite(fsbtodb(fs, cgsblock(fs, i)),
-			    (const char *)fs, SBSIZE);
+			    (const char *)fs, SBLOCKSIZE);
 	close(fi);
 }
 
@@ -407,8 +407,6 @@ printfs()
 		(sblock.fs_flags & FS_DOSOFTDEP)? "enabled" : "disabled");
 	warnx("maximum contiguous block count: (-a)               %d",
 	      sblock.fs_maxcontig);
-	warnx("rotational delay between contiguous blocks: (-d)   %d ms",
-	      sblock.fs_rotdelay);
 	warnx("maximum blocks per file in a cylinder group: (-e)  %d",
 	      sblock.fs_maxbpg);
 	warnx("average file size: (-f)                            %d",
@@ -429,7 +427,7 @@ printfs()
 
 void
 bwrite(blk, buf, size)
-	daddr_t blk;
+	ufs2_daddr_t blk;
 	const char *buf;
 	int size;
 {
@@ -442,7 +440,7 @@ bwrite(blk, buf, size)
 
 int
 bread(bno, buf, cnt)
-	daddr_t bno;
+	ufs2_daddr_t bno;
 	char *buf;
 	int cnt;
 {

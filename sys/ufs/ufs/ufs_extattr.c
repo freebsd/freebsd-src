@@ -947,7 +947,7 @@ ufs_extattr_get(struct vnode *vp, int attrnamespace, const char *name,
 		 * is to coerce this to undefined, and let it get cleaned
 		 * up by the next write or extattrctl clean.
 		 */
-		printf("ufs_extattr_get (%s): inode number inconsistency (%d, %d)\n",
+		printf("ufs_extattr_get (%s): inode number inconsistency (%d, %lld)\n",
 		    mp->mnt_stat.f_mntonname, ueh.ueh_i_gen, ip->i_gen);
 		error = ENOATTR;
 		goto vopunlock_exit;
@@ -1226,7 +1226,7 @@ ufs_extattr_rm(struct vnode *vp, int attrnamespace, const char *name,
 		 * coerce this to undefined, and let it get cleaned up by
 		 * the next write or extattrctl clean.
 		 */
-		printf("ufs_extattr_rm (%s): inode number inconsistency (%d, %d)\n",
+		printf("ufs_extattr_rm (%s): inode number inconsistency (%d, %lld)\n",
 		    mp->mnt_stat.f_mntonname, ueh.ueh_i_gen, ip->i_gen);
 		error = ENOATTR;
 		goto vopunlock_exit;

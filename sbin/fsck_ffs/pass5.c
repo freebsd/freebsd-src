@@ -55,18 +55,17 @@ static void check_maps(u_char *, u_char *, int, int, char *, int *, int, int);
 void
 pass5(void)
 {
-	int c, blk, frags, basesize, sumsize, mapsize, savednrpos = 0;
+	int c, i, j, blk, frags, basesize, mapsize;
 	int inomapsize, blkmapsize;
 	struct fs *fs = &sblock;
 	struct cg *cg = &cgrp;
-	ufs_daddr_t dbase, dmax, d;
-	int i, j, excessdirs, rewritecg = 0;
+	ufs2_daddr_t d, dbase, dmax;
+	int excessdirs, rewritecg = 0;
 	struct csum *cs;
-	struct csum cstotal;
+	struct csum_total cstotal;
 	struct inodesc idesc[3];
 	char buf[MAXBSIZE];
 	struct cg *newcg = (struct cg *)buf;
-	struct ocg *ocg = (struct ocg *)buf;
 
 	inoinfo(WINO)->ino_state = USTATE;
 	memset(newcg, 0, (size_t)fs->fs_cgsize);
@@ -110,63 +109,46 @@ pass5(void)
 			}
 		}
 	}
-	switch ((int)fs->fs_postblformat) {
-
-	case FS_42POSTBLFMT:
-		basesize = (char *)(&ocg->cg_btot[0]) -
-		    (char *)(&ocg->cg_firstfield);
-		sumsize = &ocg->cg_iused[0] - (u_int8_t *)(&ocg->cg_btot[0]);
-		mapsize = &ocg->cg_free[howmany(fs->fs_fpg, NBBY)] -
-			(u_char *)&ocg->cg_iused[0];
-		blkmapsize = howmany(fs->fs_fpg, NBBY);
-		inomapsize = &ocg->cg_free[0] - (u_char *)&ocg->cg_iused[0];
-		ocg->cg_magic = CG_MAGIC;
-		savednrpos = fs->fs_nrpos;
-		fs->fs_nrpos = 8;
-		break;
-
-	case FS_DYNAMICPOSTBLFMT:
-		newcg->cg_btotoff =
-		     &newcg->cg_space[0] - (u_char *)(&newcg->cg_firstfield);
-		newcg->cg_boff =
-		    newcg->cg_btotoff + fs->fs_cpg * sizeof(int32_t);
-		newcg->cg_iusedoff = newcg->cg_boff +
-		    fs->fs_cpg * fs->fs_nrpos * sizeof(u_int16_t);
-		newcg->cg_freeoff =
-		    newcg->cg_iusedoff + howmany(fs->fs_ipg, NBBY);
-		inomapsize = newcg->cg_freeoff - newcg->cg_iusedoff;
-		newcg->cg_nextfreeoff = newcg->cg_freeoff +
-		    howmany(fs->fs_cpg * fs->fs_spc / NSPF(fs), NBBY);
-		blkmapsize = newcg->cg_nextfreeoff - newcg->cg_freeoff;
-		if (fs->fs_contigsumsize > 0) {
-			newcg->cg_clustersumoff = newcg->cg_nextfreeoff -
-			    sizeof(u_int32_t);
-			newcg->cg_clustersumoff =
-			    roundup(newcg->cg_clustersumoff, sizeof(u_int32_t));
-			newcg->cg_clusteroff = newcg->cg_clustersumoff +
-			    (fs->fs_contigsumsize + 1) * sizeof(u_int32_t);
-			newcg->cg_nextfreeoff = newcg->cg_clusteroff +
-			    howmany(fs->fs_cpg * fs->fs_spc / NSPB(fs), NBBY);
-		}
-		newcg->cg_magic = CG_MAGIC;
-		basesize = &newcg->cg_space[0] -
-		    (u_char *)(&newcg->cg_firstfield);
-		sumsize = newcg->cg_iusedoff - newcg->cg_btotoff;
-		mapsize = newcg->cg_nextfreeoff - newcg->cg_iusedoff;
-		break;
-
-	default:
-		inomapsize = blkmapsize = sumsize = 0;	/* keep lint happy */
-		errx(EEXIT, "UNKNOWN ROTATIONAL TABLE FORMAT %d",
-			fs->fs_postblformat);
+	basesize = &newcg->cg_space[0] - (u_char *)(&newcg->cg_firstfield);
+	if (sblock.fs_magic == FS_UFS2_MAGIC) {
+		newcg->cg_iusedoff = basesize;
+	} else {
+		/*
+		 * We reserve the space for the old rotation summary
+		 * tables for the benefit of old kernels, but do not
+		 * maintain them in modern kernels. In time, they can
+		 * go away.
+		 */
+		newcg->cg_old_btotoff = basesize;
+		newcg->cg_old_boff = newcg->cg_old_btotoff +
+		    fs->fs_old_cpg * sizeof(int32_t);
+		newcg->cg_iusedoff = newcg->cg_old_boff +
+		    fs->fs_old_cpg * fs->fs_old_nrpos * sizeof(u_int16_t);
+		memset(&newcg->cg_space[0], 0, newcg->cg_iusedoff - basesize);
 	}
+	inomapsize = howmany(fs->fs_ipg, NBBY);
+	newcg->cg_freeoff = newcg->cg_iusedoff + inomapsize;
+	blkmapsize = howmany(fs->fs_fpg, NBBY);
+	newcg->cg_nextfreeoff = newcg->cg_freeoff + blkmapsize;
+	if (fs->fs_contigsumsize > 0) {
+		newcg->cg_clustersumoff = newcg->cg_nextfreeoff -
+		    sizeof(u_int32_t);
+		newcg->cg_clustersumoff =
+		    roundup(newcg->cg_clustersumoff, sizeof(u_int32_t));
+		newcg->cg_clusteroff = newcg->cg_clustersumoff +
+		    (fs->fs_contigsumsize + 1) * sizeof(u_int32_t);
+		newcg->cg_nextfreeoff = newcg->cg_clusteroff +
+		    howmany(fragstoblks(fs, fs->fs_fpg), NBBY);
+	}
+	newcg->cg_magic = CG_MAGIC;
+	mapsize = newcg->cg_nextfreeoff - newcg->cg_iusedoff;
 	memset(&idesc[0], 0, sizeof idesc);
 	for (i = 0; i < 3; i++)
 		idesc[i].id_type = ADDR;
-	memset(&cstotal, 0, sizeof(struct csum));
-	j = blknum(fs, fs->fs_size + fs->fs_frag - 1);
-	for (i = fs->fs_size; i < j; i++)
-		setbmap(i);
+	memset(&cstotal, 0, sizeof(struct csum_total));
+	dmax = blknum(fs, fs->fs_size + fs->fs_frag - 1);
+	for (d = fs->fs_size; d < dmax; d++)
+		setbmap(d);
 	for (c = 0; c < fs->fs_ncg; c++) {
 		if (got_siginfo) {
 			printf("%s: phase 5: cyl group %d of %d (%d%%)\n",
@@ -177,17 +159,23 @@ pass5(void)
 		getblk(&cgblk, cgtod(fs, c), fs->fs_cgsize);
 		if (!cg_chkmagic(cg))
 			pfatal("CG %d: BAD MAGIC NUMBER\n", c);
+		newcg->cg_time = cg->cg_time;
+		newcg->cg_old_time = cg->cg_old_time;
+		newcg->cg_cgx = c;
 		dbase = cgbase(fs, c);
 		dmax = dbase + fs->fs_fpg;
 		if (dmax > fs->fs_size)
 			dmax = fs->fs_size;
-		newcg->cg_time = cg->cg_time;
-		newcg->cg_cgx = c;
-		if (c == fs->fs_ncg - 1 && fs->fs_ncyl % fs->fs_cpg > 0)
-			newcg->cg_ncyl = fs->fs_ncyl % fs->fs_cpg;
-		else
-			newcg->cg_ncyl = fs->fs_cpg;
 		newcg->cg_ndblk = dmax - dbase;
+		if (fs->fs_magic == FS_UFS1_MAGIC) {
+			if (c == fs->fs_ncg - 1)
+				newcg->cg_old_ncyl = howmany(newcg->cg_ndblk,
+				    fs->fs_fpg / fs->fs_old_cpg);
+			else
+				newcg->cg_old_ncyl = fs->fs_old_cpg;
+			newcg->cg_old_niblk = fs->fs_ipg;
+			newcg->cg_niblk = 0;
+		}
 		if (fs->fs_contigsumsize > 0)
 			newcg->cg_nclusterblks = newcg->cg_ndblk / fs->fs_frag;
 		newcg->cg_cs.cs_ndir = 0;
@@ -206,11 +194,16 @@ pass5(void)
 			newcg->cg_irotor = cg->cg_irotor;
 		else
 			newcg->cg_irotor = 0;
+		if (fs->fs_magic == FS_UFS1_MAGIC) {
+			newcg->cg_initediblk = 0;
+		} else {
+			if ((unsigned)cg->cg_initediblk > fs->fs_ipg)
+				newcg->cg_initediblk = fs->fs_ipg;
+			else
+				newcg->cg_initediblk = cg->cg_initediblk;
+		}
 		memset(&newcg->cg_frsum[0], 0, sizeof newcg->cg_frsum);
-		memset(&cg_blktot(newcg)[0], 0,
-		      (size_t)(sumsize + mapsize));
-		if (fs->fs_postblformat == FS_42POSTBLFMT)
-			ocg->cg_magic = CG_MAGIC;
+		memset(cg_inosused(newcg), 0, (size_t)(mapsize));
 		j = fs->fs_ipg * c;
 		for (i = 0; i < inostathead[c].il_numalloced; j++, i++) {
 			switch (inoinfo(j)->ino_state) {
@@ -254,9 +247,6 @@ pass5(void)
 			}
 			if (frags == fs->fs_frag) {
 				newcg->cg_cs.cs_nbfree++;
-				j = cbtocylno(fs, i);
-				cg_blktot(newcg)[j]++;
-				cg_blks(fs, newcg, j)[cbtorpos(fs, i)]++;
 				if (fs->fs_contigsumsize > 0)
 					setbit(cg_clustersfree(newcg),
 					    i / fs->fs_frag);
@@ -312,13 +302,9 @@ pass5(void)
 			continue;
 		}
 		if (cursnapshot == 0 &&
-		    (memcmp(newcg, cg, basesize) != 0 ||
-		     memcmp(&cg_blktot(newcg)[0],
-			  &cg_blktot(cg)[0], sumsize) != 0) &&
+		    memcmp(newcg, cg, basesize) != 0 &&
 		    dofix(&idesc[2], "SUMMARY INFORMATION BAD")) {
 			memmove(cg, newcg, (size_t)basesize);
-			memmove(&cg_blktot(cg)[0],
-			       &cg_blktot(newcg)[0], (size_t)sumsize);
 			cgdirty();
 		}
 		if (bkgrdflag != 0 || usedsoftdep || debug) {
@@ -346,12 +332,10 @@ pass5(void)
 			cgdirty();
 		}
 	}
-	if (fs->fs_postblformat == FS_42POSTBLFMT)
-		fs->fs_nrpos = savednrpos;
 	if (cursnapshot == 0 &&
-	    memcmp(&cstotal, &fs->fs_cstotal, sizeof *cs) != 0
-	    && dofix(&idesc[0], "FREE BLK COUNT(S) WRONG IN SUPERBLK")) {
-		memmove(&fs->fs_cstotal, &cstotal, sizeof *cs);
+	    memcmp(&cstotal, &fs->fs_cstotal, sizeof cstotal) != 0
+	    && dofix(&idesc[0], "SUMMARY BLK COUNT(S) WRONG IN SUPERBLK")) {
+		memmove(&fs->fs_cstotal, &cstotal, sizeof cstotal);
 		fs->fs_ronly = 0;
 		fs->fs_fmod = 0;
 		sbdirty();
@@ -398,6 +382,7 @@ check_maps(
 					aend = n;
 					continue;
 				}
+				returntosingle = 1;
 				if (astart == aend)
 					(*msg)("ALLOCATED %s %d MARKED FREE\n",
 					    name, astart);
@@ -434,6 +419,7 @@ check_maps(
 					pwarn("%s %sS %d-%ld MARKED USED\n",
 					    "UNALLOCATED", name, ustart,
 					    ustart + size - 1);
+				returntosingle = 1;
 				if (bkgrdflag != 0) {
 					cmd.value = ustart;
 					cmd.size = size;
@@ -476,6 +462,7 @@ check_maps(
 				pwarn("UNALLOCATED %sS %d-%ld MARKED USED\n",
 				    name, ustart, ustart + size - 1);
 		}
+		returntosingle = 1;
 		if (bkgrdflag != 0) {
 			cmd.value = ustart;
 			cmd.size = size;
