@@ -121,6 +121,7 @@ static Distribution SrcDistTable[] = {
     DTE_TARBALL("subin",    &SrcDists, SRC_UBIN,    "/usr/src"),
     DTE_TARBALL("susbin",   &SrcDists, SRC_USBIN,   "/usr/src"),
     DTE_TARBALL("stools",   &SrcDists, SRC_TOOLS,   "/usr/src"),
+    DTE_TARBALL("srescue",  &SrcDists, SRC_RESCUE,  "/usr/src"),
     { NULL },
 };
 

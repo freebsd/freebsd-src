@@ -1037,6 +1037,8 @@ DMenu MenuSrcDistributions = {
 	dmenuFlagCheck,	dmenuSetFlag, NULL, &SrcDists, '[', 'X', ']', DIST_SRC_LIBEXEC },
       { " release",	"/usr/src/release (release-generation tools)",
 	dmenuFlagCheck,	dmenuSetFlag, NULL, &SrcDists, '[', 'X', ']', DIST_SRC_RELEASE },
+      { " rescue",	"/usr/src/rescue (static rescue tools)",
+	dmenuFlagCheck,	dmenuSetFlag, NULL, &SrcDists, '[', 'X', ']', DIST_SRC_RESCUE },
       { " bin",		"/usr/src/bin (system binaries)",
 	dmenuFlagCheck,	dmenuSetFlag, NULL, &SrcDists, '[', 'X', ']', DIST_SRC_BIN },
       { " sbin",	"/usr/src/sbin (system binaries)",
