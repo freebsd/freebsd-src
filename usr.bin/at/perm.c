@@ -48,7 +48,7 @@
 
 /* File scope variables */
 
-static const char rcsid[] = "$Id: perm.c,v 1.5 1997/02/22 19:54:08 peter Exp $";
+static const char rcsid[] = "$Id: perm.c,v 1.6 1998/12/06 07:42:09 archie Exp $";
 
 /* Function declarations */
 
@@ -104,7 +104,7 @@ int check_permission()
     {
 	return check_for_user(fp, pentry->pw_name);
     }
-    else
+    else if (errno == ENOENT)
     {
 
 	PRIV_START
@@ -117,7 +117,10 @@ int check_permission()
 	{
 	    return !check_for_user(fp, pentry->pw_name);
 	}
-	perror("at.deny");
+	else if (errno != ENOENT)
+	    perror("at.deny");
     }
+    else
+	perror("at.allow");
     return 0;
 }
