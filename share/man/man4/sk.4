@@ -71,8 +71,8 @@ The GEnesis can control up to two XMACs simultaneously,
 allowing dual-port NIC configurations.
 .Pp
 The SK-982x 1000baseT adapters also include a Broadcom BCM5400 1000baseTX
-PHY which is used in place of the XMAC's internal PHY. The Broadcom PHY
-is connected to the XMAC via its GMII port.
+PHY which is used in place of the XMAC's internal PHY.
+The Broadcom PHY is connected to the XMAC via its GMII port.
 .Pp
 The
 .Nm
@@ -108,7 +108,8 @@ the autoselected mode by adding media options to the
 .Pa /etc/rc.conf
 file.
 .It 1000baseTX
-Set 1000baseTX operation over twisted pair. This is only available
+Set 1000baseTX operation over twisted pair.
+This is only available
 for SK-982x series adapters with 1000baseT ports.
 Both
 .Ar full-duplex
@@ -142,12 +143,15 @@ driver also supports one special link option for 1000baseTX cards:
 .Bl -tag -width xxxxxxxxxxxxxxxxxxxx
 .It link0
 With 1000baseTX cards, establishing a link between two ports requires
-that one port be configured as a master and the other a slave. With
-autonegotiation, the master/slave settings will be chosen automatically.
+that one port be configured as a master and the other a slave.
+With autonegotiation,
+the master/slave settings will be chosen automatically.
 However when manually selecting the link state, it is necessary to
-force one side of the link to be a master and the other a slave. The
+force one side of the link to be a master and the other a slave.
+The
 .Nm
-driver configures the ports as slaves by default. Setting the
+driver configures the ports as slaves by default.
+Setting the
 .Ar link0
 flag with
 .Xr ifconfig 8
