@@ -844,8 +844,6 @@ readrest:
 	}
 	vm_page_flag_clear(fs.m, PG_ZERO);
 	vm_page_flag_set(fs.m, PG_MAPPED|PG_REFERENCED);
-	if (fault_flags & VM_FAULT_HOLD)
-		vm_page_hold(fs.m);
 
 	/*
 	 * If the page is not wired down, then put it where the pageout daemon
