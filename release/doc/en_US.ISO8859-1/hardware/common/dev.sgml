@@ -346,6 +346,13 @@
 
   </sect2>
 
+  <sect2 id="tokenring">
+    <title>Token Ring Interfaces</title>
+
+    &hwlist.oltr;
+
+  </sect2>
+
   <sect2 id="fddi">
     <title>FDDI Interfaces</title>
     <para arch="i386,pc98,alpha">DEC DEFPA PCI (&man.fpa.4; driver)</para>
