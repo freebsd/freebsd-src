@@ -1,4 +1,4 @@
-<!-- $Id: contrib.sgml,v 1.138 1996/09/29 17:17:42 joerg Exp $ -->
+<!-- $Id: contrib.sgml,v 1.139 1996/10/16 05:59:27 max Exp $ -->
 <!-- The FreeBSD Documentation Project -->
 
 <!-- Please try to keep the file 'avail' (from CVSROOT) 
@@ -183,6 +183,7 @@
 	  <item>Anthony Yee-Hang Chan &lt;yeehang@netcom.com&gt;
 	  <item>Bernd Rosauer &lt;br@schiele-ct.de&gt;
 	  <item>Bill Kish &lt;kish@osf.org&gt;
+	  <item>&a.wlloyd
 	  <item>Bob Wilcox &lt;bob@obiwan.uucp&gt;
 	  <item>Brent J. Nordquist &lt;nordquist@platinum.com&gt;
 	  <item>Brian Clapper &lt;bmc@willscreek.com&gt;
