@@ -33,12 +33,12 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: Ovfork.S,v 1.8 1998/09/12 22:03:08 dt Exp $
+ *	$Id: Ovfork.S,v 1.9 1998/09/13 20:32:45 luoqi Exp $
  */
 
 #if defined(SYSLIBC_RCS) && !defined(lint)
 	.text
-	.asciz "$Id: Ovfork.S,v 1.8 1998/09/12 22:03:08 dt Exp $"
+	.asciz "$Id: Ovfork.S,v 1.9 1998/09/13 20:32:45 luoqi Exp $"
 #endif /* SYSLIBC_RCS and not lint */
 
 #include "DEFS.h"
@@ -60,27 +60,13 @@ ENTRY(vfork)
 	popl	%ecx		/* my rta into ecx */
 	lea	SYS_vfork,%eax
 	KERNCALL
-	jb	verror
-vforkok:
-	cmpl	$0,%edx		/* child process? */
-	jne	child		/* yes */
-	jmp 	parent 
-
-	.globl	CNAME(__error)
-	.type	CNAME(__error),@function
-verror:
-	pushl	%eax
-#ifdef PIC
-	call	PIC_PLT(CNAME(__error))
-#else
-	call	CNAME(__error)
-#endif
-	popl	%edx
-	movl	%edx,(%eax)
-	movl	$-1,%eax
-	movl	$-1,%edx
-	jmp	%ecx
-child:
+	jb	2f
+	cmpl	$0,%edx		/* parent process? */
+	je	1f		/* yes */
 	movl	$0,%eax
-parent:
+1:
 	jmp	%ecx
+2:
+	pushl	%ecx
+	PIC_PROLOGUE
+	jmp     PIC_PLT(HIDENAME(cerror))
