@@ -39,9 +39,9 @@ struct ACPIgas {
 #define ACPI_GAS_EMBEDDED	3
 #define ACPI_GAS_SMBUS		4
 #define ACPI_GAS_FIXED		0x7f
-	u_int8_t	register_bit_width;
-	u_int8_t	register_bit_offset;
-	u_int8_t	res;
+	u_int8_t	bit_width;
+	u_int8_t	bit_offset;
+	u_int8_t	_reserved;
 	u_int64_t	address;
 } __packed;
 
@@ -74,19 +74,19 @@ struct ACPIsdt {
 } __packed;
 
 /* Fixed ACPI Description Table (body) */
-struct FACPbody {
+struct FADTbody {
 	u_int32_t	facs_ptr;
 	u_int32_t	dsdt_ptr;
 	u_int8_t	int_model;
-#define ACPI_FACP_INTMODEL_PIC	0	/* Standard PC-AT PIC */
-#define ACPI_FACP_INTMODEL_APIC	1	/* Multiple APIC */
-	u_char		reserved1;
+#define ACPI_FADT_INTMODEL_PIC	0	/* Standard PC-AT PIC */
+#define ACPI_FADT_INTMODEL_APIC	1	/* Multiple APIC */
+	u_int8_t	pm_profile;
 	u_int16_t	sci_int;
 	u_int32_t	smi_cmd;
 	u_int8_t	acpi_enable;
 	u_int8_t	acpi_disable;
 	u_int8_t	s4biosreq;
-	u_int8_t	reserved2;
+	u_int8_t	pstate_cnt;
 	u_int32_t	pm1a_evt_blk;
 	u_int32_t	pm1b_evt_blk;
 	u_int32_t	pm1a_cnt_blk;
@@ -102,7 +102,7 @@ struct FACPbody {
 	u_int8_t	gpe0_len;
 	u_int8_t	gpe1_len;
 	u_int8_t	gpe1_base;
-	u_int8_t	reserved3;
+	u_int8_t	cst_cnt;
 	u_int16_t	p_lvl2_lat;
 	u_int16_t	p_lvl3_lat;
 	u_int16_t	flush_size;
@@ -113,18 +113,24 @@ struct FACPbody {
 	u_int8_t	mon_alrm;
 	u_int8_t	century;
 	u_int16_t	iapc_boot_arch;
+#define FADT_FLAG_LEGACY_DEV	1	/* System has legacy devices */
+#define FADT_FLAG_8042		2	/* 8042 keyboard controller */
 	u_char		reserved4[1];
 	u_int32_t	flags;
-#define ACPI_FACP_FLAG_WBINVD	1	/* WBINVD is correctly supported */
-#define ACPI_FACP_FLAG_WBINVD_FLUSH 2	/* WBINVD flushes caches */
-#define ACPI_FACP_FLAG_PROC_C1	4	/* C1 power state supported */
-#define ACPI_FACP_FLAG_P_LVL2_UP 8	/* C2 power state works on SMP */
-#define ACPI_FACP_FLAG_PWR_BUTTON 16	/* Power button uses control method */
-#define ACPI_FACP_FLAG_SLP_BUTTON 32	/* Sleep button uses control method */
-#define ACPI_FACP_FLAG_FIX_RTC	64	/* RTC wakeup not supported */
-#define ACPI_FACP_FLAG_RTC_S4	128	/* RTC can wakeup from S4 state */
-#define ACPI_FACP_FLAG_TMR_VAL_EXT 256	/* TMR_VAL is 32bit */
-#define ACPI_FACP_FLAG_DCK_CAP	512	/* Can support docking */
+#define FADT_FLAG_WBINVD	1	/* WBINVD is correctly supported */
+#define FADT_FLAG_WBINVD_FLUSH	2	/* WBINVD flushes caches */
+#define FADT_FLAG_PROC_C1	4	/* C1 power state supported */
+#define FADT_FLAG_P_LVL2_UP	8	/* C2 power state works on SMP */
+#define FADT_FLAG_PWR_BUTTON	16	/* Power button uses control method */
+#define FADT_FLAG_SLP_BUTTON	32	/* Sleep button uses control method */
+#define FADT_FLAG_FIX_RTC	64	/* RTC wakeup not supported */
+#define FADT_FLAG_RTC_S4	128	/* RTC can wakeup from S4 state */
+#define FADT_FLAG_TMR_VAL_EXT	256	/* TMR_VAL is 32bit */
+#define FADT_FLAG_DCK_CAP	512	/* Can support docking */
+#define FADT_FLAG_RESET_REG	1024	/* Supports RESET_REG */
+#define FADT_FLAG_SEALED_CASE	2048	/* Case cannot be opened */
+#define FADT_FLAG_HEADLESS	4096	/* No monitor */
+#define FADT_FLAG_CPU_SW_SLP	8192	/* Supports CPU software sleep */
 	struct ACPIgas	reset_reg;
 	u_int8_t	reset_value;
 	u_int8_t	reserved5[3];
@@ -141,22 +147,23 @@ struct FACPbody {
 } __packed;
 
 /* Firmware ACPI Control Structure */
-struct FACS {
+struct FACSbody {
 	u_char		signature[4];
 	u_int32_t	len;
-	u_char		hard_sig[4];
+	u_int32_t	hw_sig;
 	/*
 	 * NOTE This should be filled with physical address below 1MB!!
 	 * sigh....
 	 */
 	u_int32_t	firm_wake_vec;
-	u_int32_t	g_lock;		/* bit field */
-	/* 5.2.6.1 Global Lock */
-#define ACPI_GLOBAL_LOCK_PENDING 1
-#define ACPI_GLOBAL_LOCK_OWNED   2
-	u_int32_t	flags;		/* bit field */
-#define ACPI_FACS_FLAG_S4BIOS_F  1	/* Supports S4BIOS_SEQ */
-	char		reserved[40];
+	u_int32_t	global_lock;
+#define FACS_FLAG_LOCK_PENDING	1	/* 5.2.6.1 Global Lock */
+#define FACS_FLAG_LOCK_OWNED	2
+	u_int32_t	flags;
+#define FACS_FLAG_S4BIOS_F	1	/* Supports S4BIOS_SEQ */
+	u_int64_t	x_firm_wake_vec;
+	u_int8_t	version;
+	char		reserved[31];
 } __packed;
 
 struct MADT_local_apic {
@@ -277,21 +284,6 @@ struct HPETbody {
 	u_int16_t	clock_tick __packed;
 } __packed;
 
-#if 0
-void		*acpi_map_physical(vm_offset_t, size_t);
-struct ACPIrsdp	*acpi_find_rsd_ptr(void);
-int		 acpi_checksum(void *, size_t);
-struct ACPIsdt	*acpi_map_sdt(vm_offset_t);
-void		 acpi_print_rsd_ptr(struct ACPIrsdp *);
-void		 acpi_print_sdt(struct ACPIsdt *);
-void		 acpi_print_rsdt(struct ACPIsdt *);
-void		 acpi_print_facp(struct FACPbody *);
-void		 acpi_print_dsdt(struct ACPIsdt *);
-void    	 acpi_handle_rsdt(struct ACPIsdt *);
-void		 acpi_load_dsdt(char *, u_int8_t **, u_int8_t **);
-void		 acpi_dump_dsdt(u_int8_t *, u_int8_t *);
-#endif
-
 /* Find and map the RSD PTR structure and return it for parsing */
 struct ACPIsdt  *sdt_load_devmem(void);
 
@@ -314,7 +306,7 @@ void    	 aml_disassemble(struct ACPIsdt *);
 struct ACPIrsdp	*acpi_find_rsd_ptr(void);
 void *		 acpi_map_physical(vm_offset_t, size_t);
 struct ACPIsdt	*sdt_from_rsdt(struct ACPIsdt *, const char *);
-struct ACPIsdt	*dsdt_from_facp(struct FACPbody *);
+struct ACPIsdt	*dsdt_from_fadt(struct FADTbody *);
 int		 acpi_checksum(void *, size_t);
 
 /* Command line flags */

@@ -44,7 +44,8 @@
 #define END_COMMENT	" */\n"
 
 static void	acpi_print_string(char *s, size_t length);
-static void	acpi_handle_facp(struct FACPbody *facp);
+static void	acpi_print_gas(struct ACPIgas *gas);
+static void	acpi_handle_fadt(struct FADTbody *fadt);
 static void	acpi_print_cpu(u_char cpu_id);
 static void	acpi_print_local_apic(u_char cpu_id, u_char apic_id,
 				      u_int32_t flags);
@@ -56,7 +57,8 @@ static void	acpi_print_apic(struct MADT_APIC *mp);
 static void	acpi_handle_apic(struct ACPIsdt *sdp);
 static void	acpi_handle_hpet(struct ACPIsdt *sdp);
 static void	acpi_print_sdt(struct ACPIsdt *sdp, int endcomment);
-static void	acpi_print_facp(struct FACPbody *facp);
+static void	acpi_print_fadt(struct FADTbody *fadt);
+static void	acpi_print_facs(struct FACSbody *facs);
 static void	acpi_print_dsdt(struct ACPIsdt *dsdp);
 static struct ACPIsdt *
 		acpi_map_sdt(vm_offset_t pa);
@@ -79,12 +81,52 @@ acpi_print_string(char *s, size_t length)
 }
 
 static void
-acpi_handle_facp(struct FACPbody *facp)
+acpi_print_gas(struct ACPIgas *gas)
 {
-	struct	ACPIsdt *dsdp;
+	switch(gas->address_space_id) {
+	case ACPI_GAS_MEMORY:
+		printf("0x%08lx:%u[%u] (Memory)\n", (u_long)gas->address,
+		       gas->bit_offset, gas->bit_width);
+		break;
+	case ACPI_GAS_IO:
+		printf("0x%08lx:%u[%u] (IO)\n", (u_long)gas->address,
+		       gas->bit_offset, gas->bit_width);
+		break;
+	case ACPI_GAS_PCI:
+		printf("%x:%x+%#x (PCI)\n", (uint16_t)(gas->address >> 32),
+		       (uint16_t)((gas->address >> 16) & 0xffff),
+		       (uint16_t)gas->address);
+		break;
+	/* XXX How to handle these below? */
+	case ACPI_GAS_EMBEDDED:
+		printf("0x%#x:%u[%u] (EC)\n", (uint16_t)gas->address,
+		       gas->bit_offset, gas->bit_width);
+		break;
+	case ACPI_GAS_SMBUS:
+		printf("0x%#x:%u[%u] (SMBus)\n", (uint16_t)gas->address,
+		       gas->bit_offset, gas->bit_width);
+		break;
+	case ACPI_GAS_FIXED:
+	default:
+		printf("0x%08lx (?)\n", (u_long)gas->address);
+		break;
+	}
+}
 
-	acpi_print_facp(facp);
-	dsdp = (struct ACPIsdt *)acpi_map_sdt(facp->dsdt_ptr);
+static void
+acpi_handle_fadt(struct FADTbody *fadt)
+{
+	struct ACPIsdt	*dsdp;
+	struct FACSbody	*facs;
+
+	acpi_print_fadt(fadt);
+
+	facs = (struct FACSbody *)acpi_map_sdt(fadt->facs_ptr);
+	if (memcmp(facs->signature, "FACS", 4) != 0 || facs->len < 64)
+		errx(1, "FACS is corrupt");
+	acpi_print_facs(facs);
+
+	dsdp = (struct ACPIsdt *)acpi_map_sdt(fadt->dsdt_ptr);
 	if (acpi_checksum(dsdp, dsdp->len))
 		errx(1, "DSDT is corrupt");
 	acpi_print_dsdt(dsdp);
@@ -312,83 +354,144 @@ acpi_print_rsdt(struct ACPIsdt *rsdp)
 	printf(END_COMMENT);
 }
 
+static const char *acpi_pm_profiles[] = {
+	"Unspecified", "Desktop", "Mobile", "Workstation",
+	"Enterprise Server", "SOHO Server", "Appliance PC"
+};
+
 static void
-acpi_print_facp(struct FACPbody *facp)
+acpi_print_fadt(struct FADTbody *fadt)
 {
-	char	sep;
+	const char *pm;
+	char	    sep;
 
 	printf(BEGIN_COMMENT);
-	printf("  FACP:\tDSDT=0x%x\n", facp->dsdt_ptr);
-	printf("\tINT_MODEL=%s\n", facp->int_model ? "APIC" : "PIC");
-	printf("\tSCI_INT=%d\n", facp->sci_int);
-	printf("\tSMI_CMD=0x%x, ", facp->smi_cmd);
-	printf("ACPI_ENABLE=0x%x, ", facp->acpi_enable);
-	printf("ACPI_DISABLE=0x%x, ", facp->acpi_disable);
-	printf("S4BIOS_REQ=0x%x\n", facp->s4biosreq);
-	if (facp->pm1a_evt_blk)
+	printf("  FADT:\tFACS=0x%x, DSDT=0x%x\n", fadt->facs_ptr,
+	       fadt->dsdt_ptr);
+	printf("\tINT_MODEL=%s\n", fadt->int_model ? "APIC" : "PIC");
+	if (fadt->pm_profile >= sizeof(acpi_pm_profiles) / sizeof(char *))
+		pm = "Reserved";
+	else
+		pm = acpi_pm_profiles[fadt->pm_profile];
+	printf("\tPreferred_PM_Profile=%s (%d)\n", pm, fadt->pm_profile);
+	printf("\tSCI_INT=%d\n", fadt->sci_int);
+	printf("\tSMI_CMD=0x%x, ", fadt->smi_cmd);
+	printf("ACPI_ENABLE=0x%x, ", fadt->acpi_enable);
+	printf("ACPI_DISABLE=0x%x, ", fadt->acpi_disable);
+	printf("S4BIOS_REQ=0x%x\n", fadt->s4biosreq);
+	printf("\tPSTATE_CNT=0x%x\n", fadt->pstate_cnt);
+	if (fadt->pm1a_evt_blk != 0)
 		printf("\tPM1a_EVT_BLK=0x%x-0x%x\n",
-		       facp->pm1a_evt_blk,
-		       facp->pm1a_evt_blk + facp->pm1_evt_len - 1);
-	if (facp->pm1b_evt_blk)
+		       fadt->pm1a_evt_blk,
+		       fadt->pm1a_evt_blk + fadt->pm1_evt_len - 1);
+	if (fadt->pm1b_evt_blk != 0)
 		printf("\tPM1b_EVT_BLK=0x%x-0x%x\n",
-		       facp->pm1b_evt_blk,
-		       facp->pm1b_evt_blk + facp->pm1_evt_len - 1);
-	if (facp->pm1a_cnt_blk)
+		       fadt->pm1b_evt_blk,
+		       fadt->pm1b_evt_blk + fadt->pm1_evt_len - 1);
+	if (fadt->pm1a_cnt_blk != 0)
 		printf("\tPM1a_CNT_BLK=0x%x-0x%x\n",
-		       facp->pm1a_cnt_blk,
-		       facp->pm1a_cnt_blk + facp->pm1_cnt_len - 1);
-	if (facp->pm1b_cnt_blk)
+		       fadt->pm1a_cnt_blk,
+		       fadt->pm1a_cnt_blk + fadt->pm1_cnt_len - 1);
+	if (fadt->pm1b_cnt_blk != 0)
 		printf("\tPM1b_CNT_BLK=0x%x-0x%x\n",
-		       facp->pm1b_cnt_blk,
-		       facp->pm1b_cnt_blk + facp->pm1_cnt_len - 1);
-	if (facp->pm2_cnt_blk)
+		       fadt->pm1b_cnt_blk,
+		       fadt->pm1b_cnt_blk + fadt->pm1_cnt_len - 1);
+	if (fadt->pm2_cnt_blk != 0)
 		printf("\tPM2_CNT_BLK=0x%x-0x%x\n",
-		       facp->pm2_cnt_blk,
-		       facp->pm2_cnt_blk + facp->pm2_cnt_len - 1);
-	if (facp->pm_tmr_blk)
+		       fadt->pm2_cnt_blk,
+		       fadt->pm2_cnt_blk + fadt->pm2_cnt_len - 1);
+	if (fadt->pm_tmr_blk != 0)
 		printf("\tPM2_TMR_BLK=0x%x-0x%x\n",
-		       facp->pm_tmr_blk,
-		       facp->pm_tmr_blk + facp->pm_tmr_len - 1);
-	if (facp->gpe0_blk)
-		printf("\tPM2_GPE0_BLK=0x%x-0x%x\n",
-		       facp->gpe0_blk,
-		       facp->gpe0_blk + facp->gpe0_len - 1);
-	if (facp->gpe1_blk)
-		printf("\tPM2_GPE1_BLK=0x%x-0x%x, GPE1_BASE=%d\n",
-		       facp->gpe1_blk,
-		       facp->gpe1_blk + facp->gpe1_len - 1,
-		       facp->gpe1_base);
+		       fadt->pm_tmr_blk,
+		       fadt->pm_tmr_blk + fadt->pm_tmr_len - 1);
+	if (fadt->gpe0_blk != 0)
+		printf("\tGPE0_BLK=0x%x-0x%x\n",
+		       fadt->gpe0_blk,
+		       fadt->gpe0_blk + fadt->gpe0_len - 1);
+	if (fadt->gpe1_blk != 0)
+		printf("\tGPE1_BLK=0x%x-0x%x, GPE1_BASE=%d\n",
+		       fadt->gpe1_blk,
+		       fadt->gpe1_blk + fadt->gpe1_len - 1,
+		       fadt->gpe1_base);
+	if (fadt->cst_cnt != 0)
+		printf("\tCST_CNT=0x%x\n", fadt->cst_cnt);
 	printf("\tP_LVL2_LAT=%dms, P_LVL3_LAT=%dms\n",
-	       facp->p_lvl2_lat, facp->p_lvl3_lat);
+	       fadt->p_lvl2_lat, fadt->p_lvl3_lat);
 	printf("\tFLUSH_SIZE=%d, FLUSH_STRIDE=%d\n",
-	       facp->flush_size, facp->flush_stride);
+	       fadt->flush_size, fadt->flush_stride);
 	printf("\tDUTY_OFFSET=%d, DUTY_WIDTH=%d\n",
-	       facp->duty_off, facp->duty_width);
+	       fadt->duty_off, fadt->duty_width);
 	printf("\tDAY_ALRM=%d, MON_ALRM=%d, CENTURY=%d\n",
-	       facp->day_alrm, facp->mon_alrm, facp->century);
-	printf("\tFlags=");
-	sep = '{';
+	       fadt->day_alrm, fadt->mon_alrm, fadt->century);
 
-#define PRINTFLAG(xx) do {					\
-	if (facp->flags & ACPI_FACP_FLAG_## xx) {		\
-		printf("%c%s", sep, #xx); sep = ',';		\
-	}							\
+#define PRINTFLAG(var, flag) do {			\
+	if ((var) & FADT_FLAG_## flag) {		\
+		printf("%c%s", sep, #flag); sep = ',';	\
+	}						\
 } while (0)
 
-	PRINTFLAG(WBINVD);
-	PRINTFLAG(WBINVD_FLUSH);
-	PRINTFLAG(PROC_C1);
-	PRINTFLAG(P_LVL2_UP);
-	PRINTFLAG(PWR_BUTTON);
-	PRINTFLAG(SLP_BUTTON);
-	PRINTFLAG(FIX_RTC);
-	PRINTFLAG(RTC_S4);
-	PRINTFLAG(TMR_VAL_EXT);
-	PRINTFLAG(DCK_CAP);
+	printf("\tIAPC_BOOT_ARCH=");
+	sep = '{';
+	PRINTFLAG(fadt->iapc_boot_arch, LEGACY_DEV);
+	PRINTFLAG(fadt->iapc_boot_arch, 8042);
+	printf("}\n");
+
+	printf("\tFlags=");
+	sep = '{';
+	PRINTFLAG(fadt->flags, WBINVD);
+	PRINTFLAG(fadt->flags, WBINVD_FLUSH);
+	PRINTFLAG(fadt->flags, PROC_C1);
+	PRINTFLAG(fadt->flags, P_LVL2_UP);
+	PRINTFLAG(fadt->flags, PWR_BUTTON);
+	PRINTFLAG(fadt->flags, SLP_BUTTON);
+	PRINTFLAG(fadt->flags, FIX_RTC);
+	PRINTFLAG(fadt->flags, RTC_S4);
+	PRINTFLAG(fadt->flags, TMR_VAL_EXT);
+	PRINTFLAG(fadt->flags, DCK_CAP);
+	PRINTFLAG(fadt->flags, RESET_REG);
+	PRINTFLAG(fadt->flags, SEALED_CASE);
+	PRINTFLAG(fadt->flags, HEADLESS);
+	PRINTFLAG(fadt->flags, CPU_SW_SLP);
+	printf("}\n");
 
 #undef PRINTFLAG
 
+	if (fadt->flags & FADT_FLAG_RESET_REG) {
+		printf("\tRESET_REG=");
+		acpi_print_gas(&fadt->reset_reg);
+		printf(", RESET_VALUE=%#x\n", fadt->reset_value);
+	}
+
+	printf(END_COMMENT);
+}
+
+static void
+acpi_print_facs(struct FACSbody *facs)
+{
+	printf(BEGIN_COMMENT);
+	printf("  FACS:\tLength=%u, ", facs->len);
+	printf("HwSig=0x%08x, ", facs->hw_sig);
+	printf("Firm_Wake_Vec=0x%08x\n", facs->firm_wake_vec);
+
+	printf("\tGlobal_Lock={");
+	if (facs->global_lock != 0) {
+		if (facs->global_lock & FACS_FLAG_LOCK_PENDING)
+			printf("PENDING,");
+		if (facs->global_lock & FACS_FLAG_LOCK_OWNED)
+			printf("OWNED");
+	}
 	printf("}\n");
+
+	printf("\tFlags={");
+	if (facs->flags & FACS_FLAG_S4BIOS_F)
+		printf("S4BIOS");
+	printf("}\n");
+
+	if (facs->x_firm_wake_vec != 0) {
+		printf("\tX_Firm_Wake_Vec=%08lx\n",
+		       (u_long)facs->x_firm_wake_vec);
+	}
+
 	printf(END_COMMENT);
 }
 
@@ -447,7 +550,7 @@ acpi_handle_rsdt(struct ACPIsdt *rsdp)
 		if (acpi_checksum(sdp, sdp->len))
 			errx(1, "RSDT entry %d is corrupt", i);
 		if (!memcmp(sdp->signature, "FACP", 4))
-			acpi_handle_facp((struct FACPbody *) sdp->body);
+			acpi_handle_fadt((struct FADTbody *) sdp->body);
 		else if (!memcmp(sdp->signature, "APIC", 4))
 			acpi_handle_apic(sdp);
 		else if (!memcmp(sdp->signature, "HPET", 4))
@@ -565,11 +668,11 @@ sdt_from_rsdt(struct ACPIsdt *rsdt, const char *sig)
 }
 
 struct ACPIsdt *
-dsdt_from_facp(struct FACPbody *facp)
+dsdt_from_fadt(struct FADTbody *fadt)
 {
 	struct	ACPIsdt *sdt;
 
-	sdt = (struct ACPIsdt *)acpi_map_sdt(facp->dsdt_ptr);
+	sdt = (struct ACPIsdt *)acpi_map_sdt(fadt->dsdt_ptr);
 	if (acpi_checksum(sdt, sdt->len))
 		errx(1, "DSDT is corrupt\n");
 	return (sdt);
