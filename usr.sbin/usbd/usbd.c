@@ -611,15 +611,15 @@ find_action(struct usb_device_info *devinfo)
 		    (action->protocol == WILDCARD_INT ||
 		     action->protocol == devinfo->protocol)) {
 			/* found match !*/
-			break;
+			if (verbose)
+				printf("%s: Found action '%s' for %s, %s\n",
+					__progname, action->name,
+					devinfo->product, devinfo->vendor);
+			return(action);
 		}
 	}
 
-	if (verbose)
-		printf("%s: Found action '%s' for %s, %s\n",
-			__progname, action->name,
-			devinfo->product, devinfo->vendor);
-	return(action);
+	return NULL;
 }
 
 void
@@ -695,7 +695,7 @@ execute_command(char *cmd)
 		} else if (status == 127) {
 			fprintf(stderr, "%s: Shell failed for '%s'\n",
 				__progname, cmd);
-		} else if (WIFEXITED(status)) {
+		} else if (WIFEXITED(status) && WEXITSTATUS(status)) {
 			fprintf(stderr, "%s: '%s' returned %d\n",
 				__progname, cmd, WEXITSTATUS(status));
 		} else if (WIFSIGNALED(status)) {
