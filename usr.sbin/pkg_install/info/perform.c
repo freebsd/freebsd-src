@@ -387,7 +387,7 @@ find_pkg(char *db_dir, struct which_head *which_list)
 		    if (!cmp_path(wp->file, itr->name, cwd))
 			continue;
 		    if (wp->package[0] != '\0') {
-			warnx("Both %s and %s claim to have installed %s\n",
+			warnx("both %s and %s claim to have installed %s\n",
 			      wp->package, installed[i], wp->file);
 		    } else {
 			strlcpy(wp->package, installed[i], PATH_MAX);
