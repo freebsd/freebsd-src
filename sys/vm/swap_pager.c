@@ -39,7 +39,7 @@
  * from: Utah $Hdr: swap_pager.c 1.4 91/04/30$
  *
  *	@(#)swap_pager.c	8.9 (Berkeley) 3/21/94
- * $Id: swap_pager.c,v 1.19 1994/12/19 00:02:54 davidg Exp $
+ * $Id: swap_pager.c,v 1.20 1994/12/22 05:18:12 davidg Exp $
  */
 
 /*
@@ -1020,6 +1020,7 @@ swap_pager_input(swp, m, count, reqpage)
 		bp = spc->spc_bp;
 		bzero(bp, sizeof *bp);
 		bp->b_spc = spc;
+		bp->b_vnbufs.le_next = NOLIST;
 	} else {
 	/*
 	 * Get a swap buffer header to perform the IO
@@ -1033,7 +1034,6 @@ swap_pager_input(swp, m, count, reqpage)
 	 */
 	pmap_qenter( kva, m, count);
 
-	s = splbio();
 	bp->b_flags = B_BUSY | B_READ | B_CALL;
 	bp->b_iodone = swap_pager_iodone1;
 	bp->b_proc = &proc0;	/* XXX (but without B_PHYS set this is ok) */
@@ -1059,6 +1059,7 @@ swap_pager_input(swp, m, count, reqpage)
 	/*
 	 * wait for the sync I/O to complete
 	 */
+	s = splbio();
 	while ((bp->b_flags & B_DONE) == 0) {
 		tsleep((caddr_t)bp, PVM, "swread", 0);
 	}
@@ -1388,13 +1389,13 @@ retrygetspace:
 		--swb[i]->swb_locked;
 	}
 
-	s = splbio();
 	/*
 	 * Get a swap buffer header and perform the IO
 	 */
 	bp = spc->spc_bp;
 	bzero(bp, sizeof *bp);
 	bp->b_spc = spc;
+	bp->b_vnbufs.le_next = NOLIST;
 
 	bp->b_flags = B_BUSY;
 	bp->b_proc = &proc0;	/* XXX (but without B_PHYS set this is ok) */
@@ -1415,6 +1416,7 @@ retrygetspace:
 	 * If this is an async write we set up additional buffer fields
 	 * and place a "cleaning" entry on the inuse queue.
 	 */
+	s = splbio();
 	if ( flags & B_ASYNC ) {
 		spc->spc_flags = 0;
 		spc->spc_swp = swp;
