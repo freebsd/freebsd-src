@@ -1648,6 +1648,7 @@ issignal(td)
 			SIGADDSET(p->p_siglist, sig);
 			if (SIGISMEMBER(p->p_sigmask, sig))
 				continue;
+			signotify(p);
 		}
 
 		/*
