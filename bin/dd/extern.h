@@ -38,8 +38,6 @@
  * $FreeBSD$
  */
 
-#include <sys/cdefs.h>
-
 void block(void);
 void block_close(void);
 void dd_out(int);
@@ -57,10 +55,10 @@ void unblock_close(void);
 extern IO in, out;
 extern STAT st;
 extern void (*cfunc)(void);
-extern u_quad_t cpy_cnt;
+extern uintmax_t cpy_cnt;
 extern size_t cbsz;
 extern u_int ddflags;
-extern quad_t files_cnt;
+extern uintmax_t files_cnt;
 extern const u_char *ctab;
 extern const u_char a2e_32V[], a2e_POSIX[];
 extern const u_char e2a_32V[], e2a_POSIX[];
