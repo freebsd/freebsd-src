@@ -837,7 +837,7 @@ IofCallDriver(REGARGS2(device_object *dobj, irp *ip))
 	sl->isl_devobj = dobj;
 
 	disp = drvobj->dro_dispatch[sl->isl_major];
-	status = disp(dobj, ip);
+	status = MSCALL2(disp, dobj, ip);
 
 	return(status);
 }
@@ -870,7 +870,7 @@ IofCompleteRequest(REGARGS2(irp *ip, uint8_t prioboost))
 		    (ip->irp_cancel == TRUE &&
 		    sl->isl_ctl & SL_INVOKE_ON_CANCEL))) {
 			cf = sl->isl_completionfunc;
-			status = cf(dobj, ip, sl->isl_completionctx);
+			status = MSCALL3(cf, dobj, ip, sl->isl_completionctx);
 			if (status == STATUS_MORE_PROCESSING_REQUIRED)
 				return;
 		}
