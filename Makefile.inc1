@@ -1,5 +1,5 @@
 #
-#	$Id: Makefile.inc1,v 1.37 1998/11/04 12:43:46 peter Exp $
+#	$Id: Makefile.inc1,v 1.38 1998/11/05 04:38:28 peter Exp $
 #
 # Make command line options:
 #	-DCLOBBER will remove /usr/include
@@ -752,7 +752,7 @@ _linux=		lkm/linux
 .endif
 .if ${MACHINE_ARCH} == i386
 _kldlinux=	sys/modules/linux
-,endif
+.endif
 .if ${OBJFORMAT} == "aout"
 _netboot=	sys/${MACHINE}/boot/netboot
 .endif
