@@ -46,7 +46,7 @@
  ** (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  ** THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  **
- **      $Id: userconfig.c,v 1.83 1999/06/30 13:30:58 kato Exp $
+ **      $Id: userconfig.c,v 1.84 1999/07/09 12:52:09 kato Exp $
  **/
 
 /**
@@ -398,6 +398,7 @@ static DEV_INFO device_info[] = {
 {"ix",          "Intel EtherExpress Ethernet adapter",	0,		CLS_NETWORK},
 {"le",          "DEC Etherworks 2 and 3 Ethernet adapters",	0,	CLS_NETWORK},
 {"lnc",         "Isolan, Novell NE2100/NE32-VL Ethernet adapters",	0,CLS_NETWORK},
+{"sf",          "Adaptec AIC-6915 PCI Ethernet adapters",		0,CLS_NETWORK},
 {"sk",          "SysKonnect SK-984x gigabit Ethernet adapters",		0,CLS_NETWORK},
 {"ti",          "Alteon Networks Tigon gigabit Ethernet adapters",	0,CLS_NETWORK},
 {"tl",          "Texas Instruments ThunderLAN Ethernet adapters",	0,CLS_NETWORK},
@@ -474,7 +475,7 @@ static DEV_INFO device_info[] = {
 
 {"apm",         "Advanced Power Management",		FLG_FIXED,	CLS_MISC},
 {"labpc",       "National Instruments Lab-PC/Lab-PC+",	0,		CLS_MISC},
-{"npx",	        "Math coprocessor",			FLG_INVISIBLE,	CLS_MISC},
+{"npx",	        "Math coprocessor",			FLG_IMMUTABLE,	CLS_MISC},
 {"lkm",		"Loadable PCI driver support",		FLG_INVISIBLE,	CLS_MISC},
 {"vga",	        "Catchall PCI VGA driver",		FLG_INVISIBLE,	CLS_MISC},
 {"chip",        "PCI chipset support",			FLG_INVISIBLE,	CLS_MISC},
@@ -2559,7 +2560,7 @@ visuserconfig(void)
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *      $Id: userconfig.c,v 1.83 1999/06/30 13:30:58 kato Exp $
+ *      $Id: userconfig.c,v 1.84 1999/07/09 12:52:09 kato Exp $
  */
 
 #include "scbus.h"
