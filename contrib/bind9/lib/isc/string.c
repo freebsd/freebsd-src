@@ -15,7 +15,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: string.c,v 1.6.164.4 2004/03/16 05:50:24 marka Exp $ */
+/* $Id: string.c,v 1.6.164.5 2004/09/16 01:00:58 marka Exp $ */
 
 #include <config.h>
 
@@ -60,7 +60,7 @@ isc_string_touint64(char *source, char **end, int base) {
 	tmp = 0;
 
 	while ((c = *s) != 0) {
-		c = tolower(c);
+		c = tolower(c&0xff);
 		/* end ? */
 		if ((o = strchr(digits, c)) == NULL) {
 			*end = s;

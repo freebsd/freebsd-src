@@ -18,7 +18,7 @@ AC_DIVERT_PUSH(1)dnl
 esyscmd([sed "s/^/# /" COPYRIGHT])dnl
 AC_DIVERT_POP()dnl
 
-AC_REVISION($Revision: 1.294.2.23.2.30 $)
+AC_REVISION($Revision: 1.294.2.23.2.39 $)
 
 AC_INIT(lib/dns/name.c)
 AC_PREREQ(2.13)
@@ -261,6 +261,23 @@ AC_TRY_COMPILE(, [
 
 AC_TYPE_SIZE_T
 AC_CHECK_TYPE(ssize_t, int)
+AC_CHECK_TYPE(socklen_t,
+[AC_DEFINE(ISC_SOCKADDR_LEN_T, socklen_t)],
+[
+AC_TRY_COMPILE(
+[
+#include <sys/types.h>
+#include <sys/socket.h>
+int getsockname(int, struct sockaddr *, size_t *);
+],[],
+[AC_DEFINE(ISC_SOCKADDR_LEN_T, size_t)],
+[AC_DEFINE(ISC_SOCKADDR_LEN_T, int)])
+],
+[
+#include <sys/types.h>
+#include <sys/socket.h>
+])
+AC_SUBST(ISC_SOCKADDR_LEN_T)
 AC_HEADER_TIME
 AC_MSG_CHECKING(for long long)
 AC_TRY_COMPILE([],[long long i = 0; return (0);],
@@ -345,17 +362,33 @@ AC_ARG_WITH(openssl,
                           (Required for DNSSEC)],
     use_openssl="$withval", use_openssl="auto")
 
+openssldirs="/usr /usr/local /usr/local/ssl /usr/pkg"
+if test "$use_openssl" = "auto"
+then
+	for d in $openssldirs
+	do
+		if test -f $d/include/openssl/opensslv.h
+		then
+			use_openssl=$d
+			break
+		fi
+	done
+fi
 case "$use_openssl" in
 	no)
 		AC_MSG_RESULT(no)
 		DST_OPENSSL_INC=""
 		USE_OPENSSL=""
 		;;
+	auto)
+		DST_OPENSSL_INC=""
+		USE_OPENSSL=""
+		AC_MSG_RESULT(not found)
+		;;
 	*)
-		if test "$use_openssl" = "yes" -o "$use_openssl" = "auto"
+		if test "$use_openssl" = "yes"
 		then
 		    	# User did not specify a path - guess it
-			openssldirs="/usr /usr/local /usr/local/ssl /usr/pkg"
 			for d in $openssldirs
 			do
 				if test -f $d/include/openssl/opensslv.h
@@ -369,12 +402,6 @@ case "$use_openssl" in
 			    	AC_MSG_RESULT(not found)
 				AC_MSG_ERROR(
 [OpenSSL was not found in any of $openssldirs; use --with-openssl=/path])
-			elif test "$use_openssl" = "auto"
-			then
-				DST_OPENSSL_INC=""
-				USE_OPENSSL=""
-				AC_MSG_RESULT(not found)
-				break
 			fi
 		fi
 		USE_OPENSSL='-DOPENSSL'
@@ -762,6 +789,11 @@ then
 		#
 		*-freebsd*)
 			AC_CHECK_LIB(c_r, sigwait, AC_DEFINE(HAVE_SIGWAIT),)
+			case $host in
+			*-freebsd5.3|*-freebsd5.3.*)
+				AC_DEFINE(NEED_PTHREAD_SCOPE_SYSTEM)
+				;;
+			esac
 			;;
 		#
 		# BSDI 3.0 through 4.0.1 needs pthread_init() to be
@@ -905,6 +937,11 @@ IRIX_DNSSEC_WARNINGS_HACK=""
 
 if test "X$GCC" = "Xyes"; then
 	STD_CWARNINGS="$STD_CWARNINGS -W -Wall -Wmissing-prototypes -Wcast-qual -Wwrite-strings -Wformat"
+	case "$host" in
+	*-hp-hpux*)
+		LDFLAGS="-Wl,+vnocompatwarnings $LDFALGS"
+		;;
+	esac
 else
 	case $host in
 	*-dec-osf*)
@@ -928,7 +965,7 @@ else
 			;;
 		esac
 		CCOPT="$CCOPT -Ae -z"
-		LIBS="-Wl,+vnocompatwarnings $LIBS"
+		LDFLAGS="-Wl,+vnocompatwarnings $LDFALGS"
 		MKDEPPROG='cc -Ae -E -Wp,-M >/dev/null 2>>$TMP'
 		;;
 	*-sgi-irix*)
@@ -1039,6 +1076,13 @@ case $use_libtool in
 		LIBTOOL_MODE_COMPILE='--mode=compile'
 		LIBTOOL_MODE_INSTALL='--mode=install'
 		LIBTOOL_MODE_LINK='--mode=link'
+		case "$host" in
+		*) LIBTOOL_ALLOW_UNDEFINED= ;;
+		esac
+		case "$host" in
+		*-ibm-aix*) LIBTOOL_IN_MAIN="-Wl,-bI:T_testlist.imp" ;;
+		*) LIBTOOL_IN_MAIN= ;;
+		esac;
 		;;
 	*)
 		O=o
@@ -1049,6 +1093,8 @@ case $use_libtool in
 		LIBTOOL_MODE_COMPILE=
 		LIBTOOL_MODE_INSTALL=
 		LIBTOOL_MODE_LINK=
+		LIBTOOL_ALLOW_UNDEFINED=
+		LIBTOOL_IN_MAIN=
 		;;
 esac
 
@@ -1065,6 +1111,8 @@ AC_SUBST(LIBTOOL_MKDEP_SED)
 AC_SUBST(LIBTOOL_MODE_COMPILE)
 AC_SUBST(LIBTOOL_MODE_INSTALL)
 AC_SUBST(LIBTOOL_MODE_LINK)
+AC_SUBST(LIBTOOL_ALLOW_UNDEFINED)
+AC_SUBST(LIBTOOL_IN_MAIN)
 
 #
 # build libbind?
@@ -1592,7 +1640,7 @@ case $host in
 	# project handles the AF_INET6 case correctly.  We need to avoid
 	# using the former but prefer the latter unless overridden by
 	# --enable-getifaddrs=glibc.
-	if test $use_getifaddrs = glibc
+	if test $want_getifaddrs = glibc
 	then
 		AC_CHECK_FUNC(getifaddrs, AC_DEFINE(HAVE_GETIFADDRS))
 	else
@@ -1830,6 +1878,9 @@ AC_SUBST(ISC_PLATFORM_BRACEPTHREADONCEINIT)
 ISC_PLATFORM_BRACEPTHREADONCEINIT="#undef ISC_PLATFORM_BRACEPTHREADONCEINIT"
 
 case "$host" in
+	*-aix5.1.*)
+		hack_shutup_pthreadonceinit=yes
+		;;
 	*-bsdi3.1*)
 		hack_shutup_sputaux=yes
 		;;
@@ -2119,10 +2170,7 @@ AC_OUTPUT(
 	lib/dns/Makefile
 	lib/dns/include/Makefile
 	lib/dns/include/dns/Makefile
-	lib/dns/sec/Makefile
-	lib/dns/sec/dst/Makefile
-	lib/dns/sec/dst/include/Makefile
-	lib/dns/sec/dst/include/dst/Makefile
+	lib/dns/include/dst/Makefile
 	lib/bind9/Makefile
 	lib/bind9/include/Makefile
 	lib/bind9/include/bind9/Makefile

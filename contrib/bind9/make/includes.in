@@ -13,7 +13,7 @@
 # OR OTHER TORTIOUS ACTION, ARISING OUT OF OR IN CONNECTION WITH THE USE OR
 # PERFORMANCE OF THIS SOFTWARE.
 
-# $Id: includes.in,v 1.15.12.3 2004/03/08 09:05:14 marka Exp $
+# $Id: includes.in,v 1.15.12.4 2004/12/09 04:07:30 marka Exp $
 
 # Search for machine-generated header files in the build tree,
 # and for normal headers in the source tree (${top_srcdir}).
@@ -34,8 +34,7 @@ ISCCFG_INCLUDES = @BIND9_ISCCFG_BUILDINCLUDE@ \
        -I${top_srcdir}/lib/isccfg/include
 
 DNS_INCLUDES = @BIND9_DNS_BUILDINCLUDE@ \
-	-I${top_srcdir}/lib/dns/include \
-	-I${top_srcdir}/lib/dns/sec/dst/include
+	-I${top_srcdir}/lib/dns/include
 
 LWRES_INCLUDES = @BIND9_LWRES_BUILDINCLUDE@ \
 	-I${top_srcdir}/lib/lwres/unix/include \

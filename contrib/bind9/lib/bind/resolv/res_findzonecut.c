@@ -1,5 +1,5 @@
 #if !defined(lint) && !defined(SABER)
-static const char rcsid[] = "$Id: res_findzonecut.c,v 1.2.2.3.4.2 2004/03/16 12:34:18 marka Exp $";
+static const char rcsid[] = "$Id: res_findzonecut.c,v 1.2.2.3.4.3 2004/09/16 07:06:11 marka Exp $";
 #endif /* not lint */
 
 /*
@@ -360,8 +360,9 @@ get_soa(res_state statp, const char *dname, ns_class class, int opts,
 				abort();
 			}
 			if (strlen(t) + 1 > zsize) {
-				DPRINTF(("get_soa: zname(%d) too small (%d)",
-					 zsize, strlen(t) + 1));
+				DPRINTF(("get_soa: zname(%lu) too small (%lu)",
+					 (unsigned long)zsize,
+					 (unsigned long)strlen(t) + 1));
 				errno = EMSGSIZE;
 				goto cleanup;
 			}

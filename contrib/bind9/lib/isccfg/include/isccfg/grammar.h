@@ -15,7 +15,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: grammar.h,v 1.3.50.3 2004/03/08 09:05:07 marka Exp $ */
+/* $Id: grammar.h,v 1.3.50.4 2004/11/30 01:15:44 marka Exp $ */
 
 #ifndef ISCCFG_GRAMMAR_H
 #define ISCCFG_GRAMMAR_H 1
@@ -226,16 +226,16 @@ struct cfg_parser {
 /*
  * Predefined data representation types.
  */
-LIBISCCFG_EXTERNAL_DATA cfg_rep_t cfg_rep_uint32;
-LIBISCCFG_EXTERNAL_DATA cfg_rep_t cfg_rep_uint64;
-LIBISCCFG_EXTERNAL_DATA cfg_rep_t cfg_rep_string;
-LIBISCCFG_EXTERNAL_DATA cfg_rep_t cfg_rep_boolean;
-LIBISCCFG_EXTERNAL_DATA cfg_rep_t cfg_rep_map;
-LIBISCCFG_EXTERNAL_DATA cfg_rep_t cfg_rep_list;
-LIBISCCFG_EXTERNAL_DATA cfg_rep_t cfg_rep_tuple;
-LIBISCCFG_EXTERNAL_DATA cfg_rep_t cfg_rep_sockaddr;
-LIBISCCFG_EXTERNAL_DATA cfg_rep_t cfg_rep_netprefix;
-LIBISCCFG_EXTERNAL_DATA cfg_rep_t cfg_rep_void;
+LIBISCCFG_EXTERNAL_DATA extern cfg_rep_t cfg_rep_uint32;
+LIBISCCFG_EXTERNAL_DATA extern cfg_rep_t cfg_rep_uint64;
+LIBISCCFG_EXTERNAL_DATA extern cfg_rep_t cfg_rep_string;
+LIBISCCFG_EXTERNAL_DATA extern cfg_rep_t cfg_rep_boolean;
+LIBISCCFG_EXTERNAL_DATA extern cfg_rep_t cfg_rep_map;
+LIBISCCFG_EXTERNAL_DATA extern cfg_rep_t cfg_rep_list;
+LIBISCCFG_EXTERNAL_DATA extern cfg_rep_t cfg_rep_tuple;
+LIBISCCFG_EXTERNAL_DATA extern cfg_rep_t cfg_rep_sockaddr;
+LIBISCCFG_EXTERNAL_DATA extern cfg_rep_t cfg_rep_netprefix;
+LIBISCCFG_EXTERNAL_DATA extern cfg_rep_t cfg_rep_void;
 
 /*
  * Predefined configuration object types.
