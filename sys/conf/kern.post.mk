@@ -50,9 +50,6 @@ ${mfile:T:S/.m$/.h/}: ${mfile}
 	${AWK} -f $S/tools/makeobjops.awk ${mfile} -h
 .endfor
 
-miidevs.h: $S/tools/devlist2h.awk $S/dev/mii/miidevs
-	${AWK} -f $S/tools/devlist2h.awk $S/dev/mii/miidevs
-
 .if !exists(.depend)
 acphy.o amphy.o bmtphy.o brgphy.o dcphy.o e1000phy.o exphy.o if_bge.o if_tx.o \
 inphy.o lxtphy.o nsgphy.o nsphy.o pnaphy.o pnphy.o qsphy.o rlphy.o tdkphy.o \
@@ -62,7 +59,7 @@ tlphy.o xmphy.o: miidevs.h
 kernel-clean:
 	rm -f *.o *.so *.So *.ko *.s eddep errs \
 	      ${FULLKERNEL} ${KERNEL_KO} linterrs makelinks tags \
-	      miidevs.h vers.c vnode_if.c vnode_if.h \
+	      vers.c vnode_if.c vnode_if.h \
 	      ${MFILES:T:S/.m$/.c/} ${MFILES:T:S/.m$/.h/} \
 	      ${CLEAN}
 
