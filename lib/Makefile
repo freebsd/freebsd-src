@@ -10,11 +10,11 @@ SUBDIR=csu/${MACHINE}
 .endif
 
 # XXX MISSING:		libplot
-SUBDIR+=libc libcompat libcom_err libcurses libedit \
-	libf2c libfakegnumalloc libftpio \
+SUBDIR+=libc libcompat libcom_err libcurses libdisk libedit \
+	libf2c libfakegnumalloc libftpio libipx \
 	libkvm libmd libmytinfo libncurses libpcap libresolv librpcsvc \
-	libscsi libskey libss libtcl libtermcap libutil libxpg4 liby \
-	libipx libdisk
+	libscsi libskey libss libtcl libtermcap libutil libxpg4 liby libz
+	
 
 .if !exists(../secure) || defined(NOSECURE) || defined(NOCRYPT)
 SUBDIR+= libcrypt
