@@ -799,9 +799,6 @@ nd6_lookup(addr6, create, ifp)
 	sin6.sin6_len = sizeof(struct sockaddr_in6);
 	sin6.sin6_family = AF_INET6;
 	sin6.sin6_addr = *addr6;
-#ifdef SCOPEDROUTING
-	sin6.sin6_scope_id = in6_addr2scopeid(ifp, addr6);
-#endif
 	rt = rtalloc1((struct sockaddr *)&sin6, create, 0UL);
 	if (rt) {
 		if ((rt->rt_flags & RTF_LLINFO) == 0 && create) {
