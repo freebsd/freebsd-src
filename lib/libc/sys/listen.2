@@ -70,8 +70,20 @@ If a connection
 request arrives with the queue full the client may
 receive an error with an indication of
 .Er ECONNREFUSED ,
-or, if the underlying protocol supports retransmission,
-the request may be ignored so that retries may succeed.
+or, in the case of TCP, the connection will be
+silently dropped.
+.Pp
+Note that before FreeBSD 4.5 and the introduction of the syncache,
+the 
+.Fa backlog
+parameter also determined the length of the incomplete
+connection queue, which held TCP sockets in the process
+of completing TCP's 3-way handshake.  These incomplete connections
+are now held entirely in the syncache, which is unaffected by
+queue lengths.  Inflated
+.Fa backlog
+values to help handle denial
+of service attacks are no longer necessary.
 .Pp
 The
 .Xr sysctl 3
@@ -85,6 +97,19 @@ or less than zero is specified,
 .Fa backlog
 is silently forced to
 .Va kern.ipc.somaxconn .
+.Sh INTERACTION WITH ACCEPT FILTERS
+When accept filtering is used on a socket, a second queue will
+be used to hold sockets that have connected, but have not yet
+met their accept filtering criteria.  Once the criteria has been
+met, these sockets will be moved over into the completed connection
+queue to be accept()ed.  If this secondary queue is full and a
+new connection comes in, the oldest socket which has not yet met
+its accept filter criteria will be terminated.
+.Pp
+This secondary queue, like the primary listen queue, is sized
+according to the 
+.Fa backlog
+parameter.
 .Sh RETURN VALUES
 .Rv -std listen
 .Sh ERRORS
@@ -105,6 +130,7 @@ The socket is not of a type that supports the operation
 .El
 .Sh SEE ALSO
 .Xr accept 2 ,
+.Xr accept_filter 9 ,
 .Xr connect 2 ,
 .Xr socket 2 ,
 .Xr sysctl 3 ,
