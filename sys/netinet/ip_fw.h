@@ -54,7 +54,7 @@ struct ip_fw {
     struct in_addr fw_src, fw_dst;	/* Source and destination IP addr */
     struct in_addr fw_smsk, fw_dmsk;	/* Mask for src and dest IP addr */
     u_short fw_number;			/* Rule number */
-    u_int fw_flg;			/* Flags word */
+    u_int fw_flg;			/* Operational Flags word */
 #define IP_FW_MAX_PORTS	10		/* A reasonable maximum */
 	union {
 	u_short fw_pts[IP_FW_MAX_PORTS];	/* Array of port numbers to match */
@@ -62,9 +62,16 @@ struct ip_fw {
 #define IP_FW_ICMPTYPES_DIM	(IP_FW_ICMPTYPES_MAX / (sizeof(unsigned) * 8))
 	unsigned fw_icmptypes[IP_FW_ICMPTYPES_DIM]; /* ICMP types bitmap */
 	} fw_uar;
+    u_int fw_ipflg;			/* IP flags word */
     u_char fw_ipopt,fw_ipnopt;		/* IP options set/unset */
+    u_short fw_iplen, fw_ipid;		/* IP length, identification */
+    u_char fw_iptos, fw_ipntos;		/* IP type of service set/unset */
+    u_char fw_ipttl;			/* IP time to live */
+    u_int fw_ipver:4;			/* IP version */
     u_char fw_tcpopt,fw_tcpnopt;	/* TCP options set/unset */
     u_char fw_tcpf,fw_tcpnf;		/* TCP flags set/unset */
+    u_int32_t fw_tcpseq, fw_tcpack;	/* TCP sequence and acknowledgement */
+    u_short fw_tcpwin;			/* TCP window size */
     long timestamp;			/* timestamp (tv_sec) of last match */
     union ip_fw_if fw_in_if, fw_out_if;	/* Incoming and outgoing interfaces */
     union {
@@ -206,6 +213,26 @@ struct ipfw_dyn_rule {
 #define IP_FW_F_CHECK_S	0x10000000	/* check state	 			*/
 
 #define IP_FW_F_MASK	0x1FFFFFFF	/* All possible flag bits mask		*/
+
+/* 
+ * Flags for the 'fw_ipflg' field, for comparing values of ip and its protocols.
+ */
+#define IP_FW_IF_TCPOPT	0x00000001      /* tcp options			*/
+#define IP_FW_IF_TCPFLG	0x00000002      /* tcp flags			*/
+#define IP_FW_IF_TCPSEQ	0x00000004      /* tcp sequence number		*/
+#define IP_FW_IF_TCPACK	0x00000008      /* tcp acknowledgement number	*/
+#define IP_FW_IF_TCPWIN	0x00000010      /* tcp window size		*/
+#define IP_FW_IF_TCPMSK	0x0000001f      /* mask of all tcp values	*/
+
+#define IP_FW_IF_IPOPT	0x00000100	/* ip options			*/
+#define IP_FW_IF_IPLEN	0x00000200	/* ip length			*/
+#define IP_FW_IF_IPID	0x00000400	/* ip identification		*/
+#define IP_FW_IF_IPTOS	0x00000800	/* ip type of service		*/
+#define IP_FW_IF_IPTTL	0x00001000	/* ip time to live		*/
+#define IP_FW_IF_IPVER	0x00002000	/* ip version			*/
+#define IP_FW_IF_IPMSK	0x00003f00	/* mask of all ip values	*/
+
+#define IP_FW_IF_MSK	0x0000ffff	/* All possible bits mask	*/
 
 /*
  * For backwards compatibility with rules specifying "via iface" but

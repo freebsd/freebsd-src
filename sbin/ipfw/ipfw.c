@@ -412,7 +412,7 @@ show_ipfw(struct ip_fw *chain, int pcwidth, int bcwidth)
 	if (chain->fw_flg & IP_FW_F_FRAG)
 		printf(" frag");
 
-	if (chain->fw_ipopt || chain->fw_ipnopt) {
+	if (chain->fw_ipflg & IP_FW_IF_IPOPT) {
 		int 	_opt_printed = 0;
 #define PRINTOPT(x)	{if (_opt_printed) printf(",");\
 			printf(x); _opt_printed = 1;}
@@ -428,12 +428,39 @@ show_ipfw(struct ip_fw *chain, int pcwidth, int bcwidth)
 		if (chain->fw_ipnopt & IP_FW_IPOPT_TS)   PRINTOPT("!ts");
 	} 
 
+	if (chain->fw_ipflg & IP_FW_IF_IPLEN)
+		printf(" iplen %u", chain->fw_iplen);
+	if (chain->fw_ipflg & IP_FW_IF_IPID)
+		printf(" ipid 0x%04x", chain->fw_ipid);
+
+	if (chain->fw_ipflg & IP_FW_IF_IPTOS) {
+		int 	_opt_printed = 0;
+
+		printf(" iptos ");
+		if (chain->fw_iptos  & IPTOS_LOWDELAY) PRINTOPT("lowdelay");
+		if (chain->fw_ipntos & IPTOS_LOWDELAY) PRINTOPT("!lowdelay");
+		if (chain->fw_iptos  & IPTOS_THROUGHPUT) PRINTOPT("throughput");
+		if (chain->fw_ipntos & IPTOS_THROUGHPUT) PRINTOPT("!throughput");
+		if (chain->fw_iptos  & IPTOS_RELIABILITY)   PRINTOPT("reliability");
+		if (chain->fw_ipntos & IPTOS_RELIABILITY)   PRINTOPT("!reliability");
+		if (chain->fw_iptos  & IPTOS_MINCOST)   PRINTOPT("mincost");
+		if (chain->fw_ipntos & IPTOS_MINCOST)   PRINTOPT("!mincost");
+		if (chain->fw_iptos  & IPTOS_CE)   PRINTOPT("congestion");
+		if (chain->fw_ipntos & IPTOS_CE)   PRINTOPT("!congestion");
+	} 
+
+	if (chain->fw_ipflg & IP_FW_IF_IPTTL)
+		printf(" ipttl %u", chain->fw_ipttl);
+
+	if (chain->fw_ipflg & IP_FW_IF_IPVER)
+		printf(" ipversion %u", chain->fw_ipver);
+
 	if (chain->fw_tcpf & IP_FW_TCPF_ESTAB) 
 		printf(" established");
 	else if (chain->fw_tcpf == IP_FW_TCPF_SYN &&
 	    chain->fw_tcpnf == IP_FW_TCPF_ACK)
 		printf(" setup");
-	else if (chain->fw_tcpf || chain->fw_tcpnf) {
+	else if (chain->fw_ipflg & IP_FW_IF_TCPOPT) {
 		int 	_flg_printed = 0;
 #define PRINTFLG(x)	{if (_flg_printed) printf(",");\
 			printf(x); _flg_printed = 1;}
@@ -452,7 +479,7 @@ show_ipfw(struct ip_fw *chain, int pcwidth, int bcwidth)
 		if (chain->fw_tcpf  & IP_FW_TCPF_URG)  PRINTFLG("urg");
 		if (chain->fw_tcpnf & IP_FW_TCPF_URG)  PRINTFLG("!urg");
 	} 
-	if (chain->fw_tcpopt || chain->fw_tcpnopt) {
+	if (chain->fw_ipflg & IP_FW_IF_TCPOPT) {
 		int 	_opt_printed = 0;
 #define PRINTTOPT(x)	{if (_opt_printed) printf(",");\
 			printf(x); _opt_printed = 1;}
@@ -469,6 +496,13 @@ show_ipfw(struct ip_fw *chain, int pcwidth, int bcwidth)
 		if (chain->fw_tcpopt  & IP_FW_TCPOPT_CC)  PRINTTOPT("cc");
 		if (chain->fw_tcpnopt & IP_FW_TCPOPT_CC)  PRINTTOPT("!cc");
 	} 
+
+	if (chain->fw_ipflg & IP_FW_IF_TCPSEQ)
+		printf(" tcpseq %lu", ntohl(chain->fw_tcpseq));
+	if (chain->fw_ipflg & IP_FW_IF_TCPACK)
+		printf(" tcpack %lu", ntohl(chain->fw_tcpack));
+	if (chain->fw_ipflg & IP_FW_IF_TCPWIN)
+		printf(" tcpwin %hu", ntohs(chain->fw_tcpwin));
 
 	if (chain->fw_flg & IP_FW_F_ICMPBIT) {
 		int type_index;
@@ -837,7 +871,15 @@ show_usage(const char *fmt, ...)
 "    {established|setup}\n"
 "    tcpflags [!]{syn|fin|rst|ack|psh|urg},...\n"
 "    ipoptions [!]{ssrr|lsrr|rr|ts},...\n"
+"    iplen {length}\n"
+"    ipid {identification number (in hex)}\n"
+"    iptos [!]{lowdelay|throughput|reliability|mincost|congestion}\n"
+"    ipttl {time to live}\n"
+"    ipversion {version number}\n"
 "    tcpoptions [!]{mss|window|sack|ts|cc},...\n"
+"    tcpseq {sequence number}\n"
+"    tcpack {acknowledgement number}\n"
+"    tcpwin {window size}\n"
 "    icmptypes {type[,type]}...\n"
 "  pipeconfig:\n"
 "    {bw|bandwidth} <number>{bit/s|Kbit/s|Mbit/s|Bytes/s|KBytes/s|MBytes/s}\n"
@@ -1143,6 +1185,40 @@ fill_ipopt(u_char *set, u_char *reset, char **vp)
 		if (!strncmp(p,"lsrr",strlen(p))) *d |= IP_FW_IPOPT_LSRR;
 		if (!strncmp(p,"rr",strlen(p)))   *d |= IP_FW_IPOPT_RR;
 		if (!strncmp(p,"ts",strlen(p)))   *d |= IP_FW_IPOPT_TS;
+		p = q;
+	}
+}
+
+static void
+fill_iptos(u_char *set, u_char *reset, char **vp)
+{
+	char *p = *vp,*q;
+	u_char *d;
+
+	while (p && *p) {
+		if (*p == '!') {
+			p++;
+			d = reset;
+		} else {
+			d = set;
+		}
+		q = strchr(p, ',');
+		if (q) 
+			*q++ = '\0';
+		if (!strncmp(p,"lowdelay",strlen(p)))
+			*d |= IPTOS_LOWDELAY;
+		if (!strncmp(p,"throughput",strlen(p)))
+			*d |= IPTOS_THROUGHPUT;
+		if (!strncmp(p,"reliability",strlen(p)))
+			*d |= IPTOS_RELIABILITY;
+		if (!strncmp(p,"mincost",strlen(p)))
+			*d |= IPTOS_MINCOST;
+		if (!strncmp(p,"congestion",strlen(p)))
+			*d |= IPTOS_CE;
+#if 0 /* conflicting! */
+		if (!strncmp(p,"ecntransport",strlen(p)))
+			*d |= IPTOS_ECT;
+#endif
 		p = q;
 	}
 }
@@ -1878,40 +1954,127 @@ badviacombo:
 			rule.fw_flg |= IP_FW_F_FRAG;
 			av++; ac--; continue;
 		}
-		if (!strncmp(*av,"ipoptions",strlen(*av))) { 
+		if (!strncmp(*av,"ipoptions",strlen(*av)) ||
+			!strncmp(*av,"ipopts",strlen(*av))) { 
 			av++; ac--; 
 			if (!ac)
 				show_usage("missing argument"
 				    " for ``ipoptions''");
+			rule.fw_ipflg |= IP_FW_IF_IPOPT;
 			fill_ipopt(&rule.fw_ipopt, &rule.fw_ipnopt, av);
 			av++; ac--; continue;
 		}
+		if (!strncmp(*av,"iplen",strlen(*av))) {
+ 			av++; ac--;
+			if (!ac)
+ 				show_usage("missing argument"
+ 					" for ``iplen''");
+ 			rule.fw_ipflg |= IP_FW_IF_IPLEN;
+ 			rule.fw_iplen = (u_short)strtoul(*av, NULL, 0);
+  			av++; ac--; continue;
+ 		}
+		if (!strncmp(*av,"ipid",strlen(*av))) {
+ 			av++; ac--;
+			if (!ac)
+ 				show_usage("missing argument"
+ 					" for ``ipid''");
+ 			rule.fw_ipflg |= IP_FW_IF_IPID;
+			if (strlen(*av) != 6 || (*av)[0] != '0' || (*av)[1] != 'x' ||
+				isxdigit((*av)[2]) == 0 ||
+				isxdigit((*av)[3]) == 0 ||
+				isxdigit((*av)[4]) == 0 ||
+				isxdigit((*av)[5]) == 0)
+				show_usage("argument to ipid must be in hex");
+ 			rule.fw_ipid = (u_short)strtoul(*av, NULL, 0);
+  			av++; ac--; continue;
+ 		}
+		if (!strncmp(*av,"iptos",strlen(*av))) {
+ 			av++; ac--;
+			if (!ac)
+ 				show_usage("missing argument"
+ 					" for ``iptos''");
+ 			rule.fw_ipflg |= IP_FW_IF_IPTOS;
+			fill_iptos(&rule.fw_iptos, &rule.fw_ipntos, av);
+  			av++; ac--; continue;
+ 		}
+		if (!strncmp(*av,"ipttl",strlen(*av))) {
+ 			av++; ac--;
+			if (!ac)
+ 				show_usage("missing argument"
+ 					" for ``ipttl''");
+ 			rule.fw_ipflg |= IP_FW_IF_IPTTL;
+ 			rule.fw_ipttl = (u_short)strtoul(*av, NULL, 0);
+  			av++; ac--; continue;
+ 		}
+		if (!strncmp(*av,"ipversion",strlen(*av)) ||
+			!strncmp(*av,"ipver",strlen(*av))) {
+ 			av++; ac--;
+			if (!ac)
+ 				show_usage("missing argument"
+ 					" for ``ipversion''");
+ 			rule.fw_ipflg |= IP_FW_IF_IPVER;
+ 			rule.fw_ipver = (u_short)strtoul(*av, NULL, 0);
+  			av++; ac--; continue;
+ 		}
 		if (rule.fw_prot == IPPROTO_TCP) {
 			if (!strncmp(*av,"established",strlen(*av))) { 
 				rule.fw_tcpf  |= IP_FW_TCPF_ESTAB;
+ 				rule.fw_ipflg |= IP_FW_IF_TCPFLG;
 				av++; ac--; continue;
 			}
 			if (!strncmp(*av,"setup",strlen(*av))) { 
 				rule.fw_tcpf  |= IP_FW_TCPF_SYN;
 				rule.fw_tcpnf  |= IP_FW_TCPF_ACK;
+ 				rule.fw_ipflg |= IP_FW_IF_TCPFLG;
 				av++; ac--; continue;
 			}
-			if (!strncmp(*av,"tcpflags",strlen(*av)) || !strncmp(*av,"tcpflgs",strlen(*av))) { 
+			if (!strncmp(*av,"tcpflags",strlen(*av)) ||
+				!strncmp(*av,"tcpflgs",strlen(*av))) { 
 				av++; ac--; 
 				if (!ac)
 					show_usage("missing argument"
 					    " for ``tcpflags''");
+ 				rule.fw_ipflg |= IP_FW_IF_TCPFLG;
 				fill_tcpflag(&rule.fw_tcpf, &rule.fw_tcpnf, av);
 				av++; ac--; continue;
 			}
-			if (!strncmp(*av,"tcpoptions",strlen(*av)) || !strncmp(*av, "tcpopts",strlen(*av))) { 
+			if (!strncmp(*av,"tcpoptions",strlen(*av)) ||
+				!strncmp(*av, "tcpopts",strlen(*av))) { 
 				av++; ac--; 
 				if (!ac)
 					show_usage("missing argument"
 					    " for ``tcpoptions''");
+ 				rule.fw_ipflg |= IP_FW_IF_TCPOPT;
 				fill_tcpopts(&rule.fw_tcpopt, &rule.fw_tcpnopt, av);
 				av++; ac--; continue;
 			}
+			if (!strncmp(*av,"tcpseq",strlen(*av))) {
+				av++; ac--;
+ 				if (!ac)
+ 					show_usage("missing argument"
+ 						" for ``tcpseq''");
+ 				rule.fw_ipflg |= IP_FW_IF_TCPSEQ;
+ 				rule.fw_tcpseq = htonl((u_int32_t)strtoul(*av, NULL, 0));
+ 				av++; ac--; continue;
+ 			}
+ 			if (!strncmp(*av,"tcpack",strlen(*av))) {
+ 				av++; ac--;
+ 				if (!ac)
+ 					show_usage("missing argument"
+ 						" for ``tcpack''");
+ 				rule.fw_ipflg |= IP_FW_IF_TCPACK;
+ 				rule.fw_tcpack = htonl((u_int32_t)strtoul(*av, NULL, 0));
+ 				av++; ac--; continue;
+ 			}
+ 			if (!strncmp(*av,"tcpwin",strlen(*av))) {
+ 				av++; ac--;
+				if (!ac)
+ 					show_usage("missing argument"
+ 						" for ``tcpwin''");
+ 				rule.fw_ipflg |= IP_FW_IF_TCPWIN;
+ 				rule.fw_tcpwin = htons((u_short)strtoul(*av, NULL, 0));
+  				av++; ac--; continue;
+  			}
 		}
 		if (rule.fw_prot == IPPROTO_ICMP) {
 			if (!strncmp(*av,"icmptypes",strlen(*av))) {
