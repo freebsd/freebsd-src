@@ -76,9 +76,43 @@ extern int	mcount_lock;
 
 #define	FUNCTION_ALIGNMENT	4
 
-#define	_MCOUNT_DECL static __inline void _mcount
+#define	_MCOUNT_DECL \
+static void _mcount(uintfptr_t frompc, uintfptr_t selfpc) __unused; \
+static void _mcount
 
 #ifdef	__GNUC__
+#define	MCOUNT __asm ("			\n\
+	.globl	.mcount			\n\
+	.type	.mcount @function	\n\
+.mcount:				\n\
+	pushq	%rbp			\n\
+	movq	%rsp, %rbp		\n\
+	pushq	%rdi			\n\
+	pushq	%rsi			\n\
+	pushq	%rdx			\n\
+	pushq	%rcx			\n\
+	pushq	%r8			\n\
+	pushq	%r9			\n\
+	movq	8(%rbp),%rsi		\n\
+	movq	(%rbp),%rdi		\n\
+	movq	8(%rdi),%rdi		\n\
+	call	_mcount			\n\
+	popq	%r9			\n\
+	popq	%r8			\n\
+	popq	%rcx			\n\
+	popq	%rdx			\n\
+	popq	%rsi			\n\
+	popq	%rdi			\n\
+	leave				\n\
+	ret				\n\
+	.size	.mcount, . - .mcount");
+#if 0
+/*
+ * We could use this, except it doesn't preserve the registers that were
+ * being passed with arguments to the function that we were inserted
+ * into.  I've left it here as documentation of what the code above is
+ * supposed to do.
+ */
 #define	MCOUNT								\
 void									\
 mcount()								\
@@ -97,10 +131,11 @@ mcount()								\
 	 * the caller's frame pointer.  The caller's raddr is in the	\
 	 * caller's frame following the caller's caller's frame pointer.\
 	 */								\
-	__asm("movq (%%rbp),%0" : "=r" (frompc));				\
+	__asm("movq (%%rbp),%0" : "=r" (frompc));			\
 	frompc = ((uintfptr_t *)frompc)[1];				\
 	_mcount(frompc, selfpc);					\
 }
+#endif
 #else	/* __GNUC__ */
 #define	MCOUNT		\
 void			\
