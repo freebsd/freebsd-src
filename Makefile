@@ -1,5 +1,5 @@
 #
-#	$Id: Makefile,v 1.68 1995/11/25 01:28:07 peter Exp $
+#	$Id: Makefile,v 1.69 1995/11/26 07:31:13 jkh Exp $
 #
 # Make command line options:
 #	-DCLOBBER will remove /usr/include and MOST of /usr/lib
@@ -256,6 +256,8 @@ lib-tools:
 	@echo " Rebuilding tools needed to build the libraries"
 	@echo "--------------------------------------------------------------"
 	@echo
+	cd ${.CURDIR}/usr.bin/xinstall && \
+		${MAKE} depend all install ${CLEANDIR} ${OBJDIR}
 	cd ${.CURDIR}/gnu/usr.bin/ld && \
 		${MAKE} depend all install ${CLEANDIR} ${OBJDIR}
 	cd ${.CURDIR}/usr.bin/ar && \
