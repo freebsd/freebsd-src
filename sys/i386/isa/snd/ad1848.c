@@ -6,7 +6,7 @@
  * 
  * AD1848, CS4248, CS423x, OPTi931, Yamaha SA2 and many others.
  *
- * Copyright Luigi Rizzo, 1997
+ * Copyright Luigi Rizzo, 1997,1998
  * Copyright by Hannu Savolainen 1994, 1995
  * 
  * Redistribution and use in source and binary forms, with or without
@@ -133,8 +133,8 @@ mss_probe(struct isa_device *dev)
     bzero(&pcm_info[dev->id_unit], sizeof(pcm_info[dev->id_unit]) );
     if (dev->id_iobase == -1) {
         dev->id_iobase = 0x530;
-        printf("mss_probe: no address supplied, try default 0x%x\n",
-	    dev->id_iobase);
+        BVDDB(printf("mss_probe: no address supplied, try default 0x%x\n",
+	    dev->id_iobase));
     }
     if (snd_conflict(dev->id_iobase))
 	return 0 ;
@@ -150,13 +150,13 @@ mss_probe(struct isa_device *dev)
 
     tmp = inb(dev->id_iobase + 3);
     if (tmp == 0xff) {	/* Bus float */
-	DEB(printf("I/O address inactive (%x), try pseudo_mss\n", tmp));
+	BVDDB(printf("I/O address inactive (%x), try pseudo_mss\n", tmp));
 	dev->id_flags &= ~DV_F_TRUE_MSS ;
 	goto mss_probe_end;
     }
     tmp &= 0x3f ;
     if (tmp != 0x04 && tmp != 0x0f && tmp != 0x00) {
-	DEB(printf("No MSS signature detected on port 0x%x (0x%x)\n",
+	BVDDB(printf("No MSS signature detected on port 0x%x (0x%x)\n",
 		   dev->id_iobase, inb(dev->id_iobase + 3)));
 	return 0;
     }
@@ -276,10 +276,12 @@ mss_open(dev_t dev, int flags, int mode, struct proc * p)
 	d->flags |= SND_F_BUSY_DSP ;
     else if (dev == SND_DEV_DSP16)
 	d->flags |= SND_F_BUSY_DSP16 ;
-    if ( ! (d->flags & SND_F_BUSY) ) {
+    if ( d->flags & SND_F_BUSY )
+	splx(s); /* device was already set, no need to reinit */
+    else {
 	/*
 	 * device was idle. Do the necessary initialization,
-	 * but no need keep interrupts blocked since this device
+	 * but no need keep interrupts blocked.
 	 * will not get them
 	 */
 
@@ -313,7 +315,6 @@ mss_open(dev_t dev, int flags, int mode, struct proc * p)
 	}
 	ask_init(d); /* and reset buffers... */
     }
-    splx(s);
     return 0 ;
 }
 
@@ -343,14 +344,15 @@ mss_close(dev_t dev, int flags, int mode, struct proc * p)
 	d->flags &= ~SND_F_BUSY_DSP ;
     else if (dev == SND_DEV_DSP16)
 	d->flags &= ~SND_F_BUSY_DSP16 ;
-    if ( ! (d->flags & SND_F_BUSY_ANY) ) { /* last one ... */
+    if ( d->flags & SND_F_BUSY_ANY )	/* still some device open */
+	splx(s);
+    else {				/* last one */
 	d->flags |= SND_F_CLOSING ;
 	splx(s); /* is this ok here ? */
 	snd_flush(d);
 	outb(io_Status(d), 0);	/* Clear interrupt status */
 	d->flags = 0 ;
     }
-    splx(s);
     return 0 ;
 }
 
@@ -435,6 +437,7 @@ mss_callback(snddev_info *d, int reason)
 	    ad_write_cnt(d, 30, cnt);
 
 	break ;
+
     case SND_CB_STOP :
     case SND_CB_ABORT : /* XXX check this... */
 	m = ad_read(d,9) ;
@@ -548,11 +551,11 @@ again:
     c=mc11 = FULL_DUPLEX(d) ? opti_read(d->conf_base, 11) : 0xc ;
     mc11 &= 0x0c ;
     if (c & 0x10) {
-	printf("Warning: CD interrupt\n");
+	DEB(printf("Warning: CD interrupt\n");)
 	mc11 |= 0x10 ;
     }
     if (c & 0x20) {
-	printf("Warning: MPU interrupt\n");
+	DEB(printf("Warning: MPU interrupt\n");)
 	mc11 |= 0x20 ;
     }
     if (mc11 & masked) 
@@ -578,7 +581,7 @@ again:
     }
     opti_write(d->conf_base, 11, ~mc11); /* ack */
     if (--loops) goto again;
-    printf("xxx too many loops\n");
+    DEB(printf("xxx too many loops\n");)
 }
 
 /*
@@ -637,13 +640,13 @@ gus_readw(int io_base, u_char reg)
 static int
 AD_WAIT_INIT(snddev_info *d, int x)
 {
-    int n = 0; /* to shut up the compiler... */
+    int arg=x, n = 0; /* to shut up the compiler... */
     for (; x-- ; )
 	if ( (n=inb(io_Index_Addr(d))) & IA_BUSY)
 	    DELAY(10);
 	else
 	    return n ;
-    printf("AD_WAIT_INIT FAILED 0x%02x\n", n);
+    printf("AD_WAIT_INIT FAILED %d 0x%02x\n", arg, n);
     return n ;
 }
 
@@ -1061,7 +1064,7 @@ mss_detect(struct isa_device *dev)
 	else
 	    break ;
     if ((inb(io_Index_Addr(d)) & IA_BUSY) != 0x00) {	/* Not a AD1848 */
-	DEB(printf("mss_detect error, busy still set (0x%02x)\n",
+	BVDDB(printf("mss_detect error, busy still set (0x%02x)\n",
 		   inb(io_Index_Addr(d))));
 	return 0;
     }
@@ -1076,7 +1079,7 @@ mss_detect(struct isa_device *dev)
     tmp1 = ad_read(d, 0) ;
     tmp2 = ad_read(d, 1) ;
     if ( tmp1 != 0xaa || tmp2 != 0x45) {
-	DEB(printf("mss_detect error - IREG (0x%02x/0x%02x) want 0xaa/0x45\n",
+	BVDDB(printf("mss_detect error - IREG (0x%02x/0x%02x) want 0xaa/0x45\n",
 		tmp1, tmp2));
 	return 0;
     }
@@ -1087,7 +1090,7 @@ mss_detect(struct isa_device *dev)
     tmp2 = ad_read(d, 1) ;
 
     if (tmp1 != 0x45 || tmp2 != 0xaa) {
-	DEB(printf("mss_detect error - IREG2 (%x/%x)\n", tmp1, tmp2));
+	BVDDB(printf("mss_detect error - IREG2 (%x/%x)\n", tmp1, tmp2));
 	return 0;
     }
 
@@ -1101,7 +1104,7 @@ mss_detect(struct isa_device *dev)
     tmp1 = ad_read(d, 12);
 
     if ((tmp & 0x0f) != (tmp1 & 0x0f)) {
-	DEB(printf("mss_detect error - I12 (0x%02x was 0x%02x)\n",
+	BVDDB(printf("mss_detect error - I12 (0x%02x was 0x%02x)\n",
 	    tmp1, tmp));
 	return 0;
     }
@@ -1112,7 +1115,7 @@ mss_detect(struct isa_device *dev)
      *  0x0A=RevC. also CS4231/CS4231A and OPTi931
      */
 
-    printf("mss_detect - chip revision 0x%02x\n", tmp & 0x0f);
+    BVDDB(printf("mss_detect - chip revision 0x%02x\n", tmp & 0x0f);)
 
     /*
      * The original AD1848/CS4248 has just 16 indirect registers. This
@@ -1125,7 +1128,7 @@ mss_detect(struct isa_device *dev)
 
     for (i = 0; i < 16; i++)
 	if ((tmp1 = ad_read(d, i)) != (tmp2 = ad_read(d, i + 16))) {
-	    DEB(printf("mss_detect warning - I%d: 0x%02x/0x%02x\n",
+	    BVDDB(printf("mss_detect warning - I%d: 0x%02x/0x%02x\n",
 		i, tmp1, tmp2));
 	    /*
 	     * note - this seems to fail on the 4232 on I11. So we just break
@@ -1148,7 +1151,7 @@ mss_detect(struct isa_device *dev)
 	name = "CS4248" ; /* Our best knowledge just now */
     }
     if ((tmp1 & 0xf0) == 0x00) {
-	printf("this should be an OPTi931\n");
+	BVDDB(printf("this should be an OPTi931\n");)
     } else if ((tmp1 & 0xc0) == 0xC0) {
 	/*
 	 * The 4231 has bit7=1 always, and bit6 we just set to 1.
@@ -1162,14 +1165,13 @@ mss_detect(struct isa_device *dev)
 
 	    ad_write(d, 0, 0xaa);
 	    if ((tmp1 = ad_read(d, 16)) == 0xaa) {	/* Rotten bits? */
-		DEB(printf("mss_detect error - step H(%x)\n", tmp1));
+		BVDDB(printf("mss_detect error - step H(%x)\n", tmp1));
 		return 0;
 	    }
 	    /*
 	     * Verify that some bits of I25 are read only.
 	     */
 
-	    DEB(printf("mss_detect() - step I\n"));
 	    tmp1 = ad_read(d, 25);	/* Original bits */
 	    ad_write(d, 25, ~tmp1);	/* Invert all bits */
 	    if ((ad_read(d, 25) & 0xe7) == (tmp1 & 0xe7)) {
@@ -1240,7 +1242,7 @@ mss_detect(struct isa_device *dev)
 		    break ;
 
 		default:	/* Assume CS4231 */
-		    printf("unknown id 0x%02x, assuming CS4231\n", id);
+		    BVDDB(printf("unknown id 0x%02x, assuming CS4231\n", id);)
 		    d->bd_id = MD_CS4231;
 
 		}
@@ -1249,7 +1251,7 @@ mss_detect(struct isa_device *dev)
 
 	}
     }
-    DEB(printf("mss_detect() - Detected %s\n", name));
+    BVDDB(printf("mss_detect() - Detected %s\n", name));
     strcpy(d->name, name);
     dev->id_flags &= ~DV_F_DEV_MASK ;
     dev->id_flags |= (d->bd_id << DV_F_DEV_SHIFT) & DV_F_DEV_MASK ;
@@ -1455,6 +1457,7 @@ cs423x_attach(u_long csn, u_long vend_id, char *name,
     dev->id_intr = pcmintr ;
     dev->id_flags = DV_F_DUAL_DMA | (d.drq[1] ) ;
 
+    tmp_d.synth_base = d.port[1]; /* XXX check this for yamaha */
     pcmattach(dev);
 }
 
@@ -1526,6 +1529,7 @@ opti931_attach(u_long csn, u_long vend_id, char *name,
     dev->id_iobase = d.port[0] - 4 ; /* old mss have 4 bytes before... */
     tmp_d.io_base = dev->id_iobase; /* needed for ad_write to work... */
     tmp_d.alt_base = d.port[2];
+    tmp_d.synth_base = d.port[1];
     opti_write(p, 4, 0xd6 /* fifo empty, OPL3, audio enable, SB3.2 */ );
     ad_write (&tmp_d, 10, 2); /* enable interrupts */
 
@@ -1598,7 +1602,6 @@ guspnp_attach(u_long csn, u_long vend_id, char *name,
     read_pnp_parms ( &d , 0 ) ;
 
     /* d.irq[1] = d.irq[0] ; */
-    printf("pnp_read 0xf2 returns 0x%x\n", pnp_read(0xf2) );
     pnp_write ( 0xf2, 0xff ); /* enable power on the guspnp */
 
     write_pnp_parms ( &d , 0 );
@@ -1623,7 +1626,6 @@ guspnp_attach(u_long csn, u_long vend_id, char *name,
     DELAY(1000 * 30);
     /* release reset  and enable DAC */
     gus_write(tmp_d.conf_base, 0x4c /* _URSTI */, 3 );
-    printf("resetting the gus...\n");
     DELAY(1000 * 30);
     /* end of reset */
 
@@ -1645,7 +1647,7 @@ guspnp_attach(u_long csn, u_long vend_id, char *name,
     /* enable access to hidden regs */
     tmp = gus_read(tmp_d.conf_base, 0x5b /* IVERI */ );
     gus_write(tmp_d.conf_base, 0x5b , tmp | 1 );
-    printf("GUS: silicon rev %c\n", 'A' + ( ( tmp & 0xf ) >> 4) );
+    BVDDB(printf("GUS: silicon rev %c\n", 'A' + ( ( tmp & 0xf ) >> 4) );)
 
     strcpy(tmp_d.name, name);
 

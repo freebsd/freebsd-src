@@ -151,6 +151,7 @@ struct _snddev_info {
 
     /*
      * whereas from here, parameters are set at runtime.
+     * io_base == 0 means that the board is not configured.
      */
 
     int     io_base ;	/* primary I/O address for the board */
@@ -158,7 +159,6 @@ struct _snddev_info {
     int     conf_base ; /* and the opti931 also has a config space */
     int     mix_base ; /* base for the mixer... */
     int     midi_base ; /* base for the midi */
-    int     synth_base ; /* base for the synth */
 
     int     irq ;
     int bd_id ;     /* used to hold board-id info, eg. sb version,
@@ -201,6 +201,7 @@ struct _snddev_info {
 #define	SND_F_BUSY_DSP		0x20000000
 #define	SND_F_BUSY_DSP16	0x40000000
 #define	SND_F_BUSY_ANY		0x70000000
+#define	SND_F_BUSY_SYNTH	0x80000000
     /*
      * the next two are used to allow only one pending operation of
      * each type.
@@ -278,6 +279,8 @@ struct _snddev_info {
     u_long	interrupts;	/* counter of interrupts */
     u_long	magic;
 #define	MAGIC(unit) ( 0xa4d10de0 + unit )
+    int     synth_base ; /* base for the synth */
+    int     synth_type ; /* type of synth */
     void    *device_data ;	/* just in case it is needed...*/
 } ;
 
@@ -286,36 +289,6 @@ struct _snddev_info {
  */
 
 #define NPCM_MAX	8	/* Number of supported devices */
-
-/*
- * Supported card ID numbers (were in soundcard.h...)
- */
-
-#define SNDCARD_ADLIB		1
-#define SNDCARD_SB		2
-#define SNDCARD_PAS		3
-#define SNDCARD_GUS		4
-#define SNDCARD_MPU401		5
-#define SNDCARD_SB16		6
-#define SNDCARD_SB16MIDI	7
-#define SNDCARD_UART6850	8
-#define SNDCARD_GUS16		9
-#define SNDCARD_MSS		10
-#define SNDCARD_PSS     	11
-#define SNDCARD_SSCAPE		12
-#define SNDCARD_PSS_MPU     	13
-#define SNDCARD_PSS_MSS     	14
-#define SNDCARD_SSCAPE_MSS	15
-#define SNDCARD_TRXPRO		16
-#define SNDCARD_TRXPRO_SB	17
-#define SNDCARD_TRXPRO_MPU	18
-#define SNDCARD_MAD16		19
-#define SNDCARD_MAD16_MPU	20
-#define SNDCARD_CS4232		21
-#define SNDCARD_CS4232_MPU	22
-#define SNDCARD_MAUI		23
-#define SNDCARD_PSEUDO_MSS	24	/* MSS without WSS regs.*/
-#define SNDCARD_AWE32           25
 
 /*
  * values used in bd_id for the mss boards
@@ -337,11 +310,7 @@ struct _snddev_info {
 /*
  * TODO: add some card classes rather than specific types.
  */
-#ifdef KERNEL
-#include <i386/isa/snd/soundcard.h>
-#else
-#include </sys/i386/isa/snd/soundcard.h>
-#endif
+#include <machine/soundcard.h>
 /*
  * many variables should be reduced to a range. Here define a macro
  */
@@ -433,13 +402,16 @@ typedef struct mixer_def mixer_tab[32][2];
 
 #define MIX_NONE(name) MIX_ENT(name, 0,0,0,0, 0,0,0,0)
 
+/*
+ * some macros for debugging purposes
+ * DDB/DEB to enable/disable debugging stuff
+ * BVDDB   to enable debugging when bootverbose
+ */
 #define DDB(x)	x	/* XXX */
+#define BVDDB(x) if (bootverbose) x
 
 #ifndef DEB
 #define DEB(x)
-#endif
-#ifndef DDB
-#define DDB(x)
 #endif
 
 extern snddev_info pcm_info[NPCM_MAX] ;
@@ -529,6 +501,6 @@ int sb_getmixer (int io_base, u_int port);
 /*
  * the following flags are for PnP cards only and are undocumented
  */
-#define DV_PNP_SBCODEC	0x1
+#define DV_PNP_SBCODEC 0x1
 
 #endif

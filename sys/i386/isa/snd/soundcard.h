@@ -49,6 +49,46 @@
   **********************************************************************
   */
 
+/*
+ * SOUND_VERSION is only used by the voxware driver. Hopefully apps
+ * should not depend on it, but rather look at the capabilities
+ * of the driver in the kernel!
+ */
+#define SOUND_VERSION  301
+#define VOXWARE		/* does this have any use ? */
+
+/*
+ * Supported card ID numbers (Should be somewhere else? We keep
+ * them here just for compativility with the old driver, but these
+ * constants are of little or no use).
+ */
+
+#define SNDCARD_ADLIB          1
+#define SNDCARD_SB             2
+#define SNDCARD_PAS            3
+#define SNDCARD_GUS            4
+#define SNDCARD_MPU401         5
+#define SNDCARD_SB16           6
+#define SNDCARD_SB16MIDI       7
+#define SNDCARD_UART6850       8
+#define SNDCARD_GUS16          9
+#define SNDCARD_MSS            10
+#define SNDCARD_PSS            11
+#define SNDCARD_SSCAPE         12
+#define SNDCARD_PSS_MPU        13
+#define SNDCARD_PSS_MSS        14
+#define SNDCARD_SSCAPE_MSS     15
+#define SNDCARD_TRXPRO         16
+#define SNDCARD_TRXPRO_SB      17
+#define SNDCARD_TRXPRO_MPU     18
+#define SNDCARD_MAD16          19
+#define SNDCARD_MAD16_MPU      20
+#define SNDCARD_CS4232         21
+#define SNDCARD_CS4232_MPU     22
+#define SNDCARD_MAUI           23
+#define SNDCARD_PSEUDO_MSS     24
+#define SNDCARD_AWE32           25
+
 #include <sys/types.h>
 #ifndef _IOWR
 #include <sys/ioccom.h>
@@ -621,6 +661,7 @@ struct synth_info {	/* Read only */
 
 #define SAMPLE_TYPE_BASIC		0x10
 #define SAMPLE_TYPE_GUS			SAMPLE_TYPE_BASIC
+#define SAMPLE_TYPE_AWE32		0x20
 
 	int	perc_mode;	/* No longer supported */
 	int	nr_voices;
@@ -724,6 +765,7 @@ typedef struct audio_buf_info {
 #define DSP_CAP_COPROC		0x00000800
     /* Has a coprocessor, sometimes it's a DSP but usually not */
 #define DSP_CAP_TRIGGER		0x00001000 /* Supports SETTRIGGER */
+#define DSP_CAP_MMAP 0x00002000 /* Supports mmap() */
 
 /*
  * What do these function do ?
@@ -866,7 +908,7 @@ typedef struct copr_msg {
 
 #define SOUND_DEVICE_LABELS	{ \
 	"Vol  ", "Bass ", "Trebl", "Synth", "Pcm  ", "Spkr ", "Line ", \
-	 "Mic  ", "CD   ", "Mix  ", "Pcm2 ", "Rec  ", "IGain", "OGain", \
+	"Mic  ", "CD   ", "Mix  ", "Pcm2 ", "Rec  ", "IGain", "OGain", \
 	"Line1", "Line2", "Line3", "Digital1", "Digital2", "Digital3", \
 	"PhoneIn", "PhoneOut", "Video", "Radio", "Monitor"}
 
