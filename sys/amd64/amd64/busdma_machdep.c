@@ -566,7 +566,7 @@ bus_dmamap_load(bus_dma_tag_t dmat, bus_dmamap_t map, void *buf,
 #else
 	bus_dma_segment_t	dm_segments[BUS_DMAMAP_NSEGS];
 #endif
-        bus_addr_t		lastaddr = 0;
+	bus_addr_t		lastaddr = 0;
 	int			error, nsegs = 0;
 
 	if (map != NULL) {
@@ -579,7 +579,7 @@ bus_dmamap_load(bus_dma_tag_t dmat, bus_dmamap_t map, void *buf,
 	    NULL, flags, &lastaddr, &nsegs, 1);
 
 	if (error == EINPROGRESS)
-		return error;
+		return (error);
 
 	if (error)
 		(*callback)(callback_arg, dm_segments, 0, error);
