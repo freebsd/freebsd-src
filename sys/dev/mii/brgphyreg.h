@@ -68,14 +68,14 @@
 #define BRGPHY_MII_ANAR		0x04
 #define BRGPHY_ANAR_NP		0x8000	/* Next page */
 #define BRGPHY_ANAR_RF		0x2000	/* Remote fault */
-#define BRGPHY_ANAR_ASP		0x0800	/* Asymetric Pause */
+#define BRGPHY_ANAR_ASP		0x0800	/* Asymmetric Pause */
 #define BRGPHY_ANAR_PC		0x0400	/* Pause capable */
 #define BRGPHY_ANAR_SEL		0x001F	/* selector field, 00001=Ethernet */
 
 #define BRGPHY_MII_ANLPAR	0x05
 #define BRGPHY_ANLPAR_NP	0x8000	/* Next page */
 #define BRGPHY_ANLPAR_RF	0x2000	/* Remote fault */
-#define BRGPHY_ANLPAR_ASP	0x0800	/* Asymetric Pause */
+#define BRGPHY_ANLPAR_ASP	0x0800	/* Asymmetric Pause */
 #define BRGPHY_ANLPAR_PC	0x0400	/* Pause capable */
 #define BRGPHY_ANLPAR_SEL	0x001F	/* selector field, 00001=Ethernet */
 
@@ -183,6 +183,11 @@
 
 #define BRGPHY_RES_1000FD	0x0700	/* 1000baseT full duplex */
 #define BRGPHY_RES_1000HD	0x0600	/* 1000baseT half duplex */
+#define BRGPHY_RES_100FD	0x0500	/* 100baseT full duplex */
+#define BRGPHY_RES_100T4	0x0400	/* 100baseT4 */
+#define BRGPHY_RES_100HD	0x0300	/* 100baseT half duplex */
+#define BRGPHY_RES_10HD		0x0200	/* 10baseT full duplex */
+#define BRGPHY_RES_10FD		0x0100	/* 10baseT half duplex */
 
 #define BRGPHY_MII_ISR		0x1A	/* interrupt status */
 #define BRGPHY_ISR_PSERR	0x4000	/* Pair swap error */
