@@ -1882,9 +1882,9 @@ Static usb_device_descriptor_t ohci_devd = {
 	USB_DEVICE_DESCRIPTOR_SIZE,
 	UDESC_DEVICE,		/* type */
 	{0x00, 0x01},		/* USB version */
-	UCLASS_HUB,		/* class */
-	USUBCLASS_HUB,		/* subclass */
-	0,			/* protocol */
+	UDCLASS_HUB,		/* class */
+	UDSUBCLASS_HUB,		/* subclass */
+	UDPROTO_FSHUB,		/* protocol */
 	64,			/* max packet */
 	{0},{0},{0x00,0x01},	/* device id */
 	1,2,0,			/* string indicies */
@@ -1910,9 +1910,9 @@ Static usb_interface_descriptor_t ohci_ifcd = {
 	0,
 	0,
 	1,
-	UCLASS_HUB,
-	USUBCLASS_HUB,
-	0,
+	UICLASS_HUB,
+	UISUBCLASS_HUB,
+	UIPROTO_FSHUB,
 	0
 };
 

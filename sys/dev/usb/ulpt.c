@@ -171,10 +171,10 @@ USB_MATCH(ulpt)
 		return (UMATCH_NONE);
 	id = usbd_get_interface_descriptor(uaa->iface);
 	if (id != NULL &&
-	    id->bInterfaceClass == UCLASS_PRINTER &&
-	    id->bInterfaceSubClass == USUBCLASS_PRINTER &&
-	    (id->bInterfaceProtocol == UPROTO_PRINTER_UNI ||
-	     id->bInterfaceProtocol == UPROTO_PRINTER_BI))
+	    id->bInterfaceClass == UICLASS_PRINTER &&
+	    id->bInterfaceSubClass == UISUBCLASS_PRINTER &&
+	    (id->bInterfaceProtocol == UIPROTO_PRINTER_UNI ||
+	     id->bInterfaceProtocol == UIPROTO_PRINTER_BI))
 		return (UMATCH_IFACECLASS_IFACESUBCLASS_IFACEPROTO);
 	return (UMATCH_NONE);
 }
