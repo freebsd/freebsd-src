@@ -11,7 +11,7 @@ SHLIB_MAJOR=	1
 CFLAGS+=	-I${.OBJDIR}
 
 # rsaref
-SRCS+=	rsa_err.c rsa_eay.c
+SRCS+=	rsa_err.c rsa_eay.c rsa_intlstubs.c
 
 HDRS=	asn1/asn1.h asn1/asn1_mac.h bio/bio.h bf/blowfish.h bn/bn.h \
 	buffer/buffer.h cast/cast.h comp/comp.h conf/conf.h crypto.h \
