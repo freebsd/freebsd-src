@@ -25,7 +25,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *  $Id: syscons.c,v 1.118 1995/06/14 05:16:12 bde Exp $
+ *  $Id: syscons.c,v 1.119 1995/07/11 17:59:22 bde Exp $
  */
 
 #include "sc.h"
@@ -1081,20 +1081,6 @@ set_mouse_pos:
 }
 
 void
-scxint(dev_t dev)
-{
-    struct tty *tp = scdevtotty(dev);
-
-    if (!tp)
-	return;
-    tp->t_state &= ~TS_BUSY;
-    if (tp->t_line)
-	(*linesw[tp->t_line].l_start)(tp);
-    else
-	scstart(tp);
-}
-
-void
 scstart(struct tty *tp)
 {
     struct clist *rbp;
@@ -1102,18 +1088,19 @@ scstart(struct tty *tp)
     u_char buf[PCBURST];
     scr_stat *scp = get_scr_stat(tp->t_dev);
 
+    /* XXX who repeats the call when the above flags are cleared? */
     if (scp->status & SLKED || blink_in_progress)
 	return;
     s = spltty();
-    if (!(tp->t_state & (TS_TIMEOUT|TS_BUSY|TS_TTSTOP))) {
+    if (!(tp->t_state & (TS_TIMEOUT | TS_BUSY | TS_TTSTOP))) {
 	tp->t_state |= TS_BUSY;
-	splx(s);
 	rbp = &tp->t_outq;
 	while (rbp->c_cc) {
 	    len = q_to_b(rbp, buf, PCBURST);
+	    splx(s);
 	    ansi_put(scp, buf, len);
+	    s = spltty();
 	}
-	s = spltty();
 	tp->t_state &= ~TS_BUSY;
 	if (rbp->c_cc <= tp->t_lowat) {
 	    if (tp->t_state & TS_ASLEEP) {
