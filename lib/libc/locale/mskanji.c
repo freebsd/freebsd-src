@@ -36,9 +36,10 @@
 #if defined(LIBC_SCCS) && !defined(lint)
 static char sccsid[] = "@(#)mskanji.c	1.0 (Phase One) 5/5/95";
 #endif /* LIBC_SCCS and not lint */
-#include <sys/param.h>
+#include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
+#include <sys/types.h>
 #include <errno.h>
 #include <runetype.h>
 #include <stdlib.h>
@@ -46,11 +47,11 @@ __FBSDID("$FreeBSD$");
 #include <wchar.h>
 #include "mblocal.h"
 
-int	_MSKanji_init(_RuneLocale *);
-size_t	_MSKanji_mbrtowc(wchar_t * __restrict, const char * __restrict, size_t,
-	    mbstate_t * __restrict);
-int	_MSKanji_mbsinit(const mbstate_t *);
-size_t	_MSKanji_wcrtomb(char * __restrict, wchar_t, mbstate_t * __restrict);
+static size_t	_MSKanji_mbrtowc(wchar_t * __restrict, const char * __restrict,
+		    size_t, mbstate_t * __restrict);
+static int	_MSKanji_mbsinit(const mbstate_t *);
+static size_t	_MSKanji_wcrtomb(char * __restrict, wchar_t,
+		    mbstate_t * __restrict);
 
 typedef struct {
 	wchar_t	ch;
@@ -68,14 +69,14 @@ _MSKanji_init(_RuneLocale *rl)
 	return (0);
 }
 
-int
+static int
 _MSKanji_mbsinit(const mbstate_t *ps)
 {
 
 	return (ps == NULL || ((const _MSKanjiState *)ps)->ch == 0);
 }
 
-size_t
+static size_t
 _MSKanji_mbrtowc(wchar_t * __restrict pwc, const char * __restrict s, size_t n,
     mbstate_t * __restrict ps)
 {
@@ -133,7 +134,7 @@ _MSKanji_mbrtowc(wchar_t * __restrict pwc, const char * __restrict s, size_t n,
 	}
 }
 
-size_t
+static size_t
 _MSKanji_wcrtomb(char * __restrict s, wchar_t wc, mbstate_t * __restrict ps)
 {
 	_MSKanjiState *ms;

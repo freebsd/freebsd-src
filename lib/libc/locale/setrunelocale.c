@@ -49,14 +49,6 @@ __FBSDID("$FreeBSD$");
 #include "mblocal.h"
 #include "setlocale.h"
 
-extern int		_none_init(_RuneLocale *);
-extern int		_UTF8_init(_RuneLocale *);
-extern int		_EUC_init(_RuneLocale *);
-extern int		_GB18030_init(_RuneLocale *);
-extern int		_GB2312_init(_RuneLocale *);
-extern int		_GBK_init(_RuneLocale *);
-extern int		_BIG5_init(_RuneLocale *);
-extern int		_MSKanji_init(_RuneLocale *);
 extern _RuneLocale	*_Read_RuneMagi(FILE *);
 
 static int		__setrunelocale(const char *);
@@ -86,13 +78,7 @@ __setrunelocale(const char *encoding)
 	 * The "C" and "POSIX" locale are always here.
 	 */
 	if (strcmp(encoding, "C") == 0 || strcmp(encoding, "POSIX") == 0) {
-		_CurrentRuneLocale = &_DefaultRuneLocale;
-		__mb_cur_max = 1;
-		__mbrtowc = _none_mbrtowc;
-		__mbsinit = _none_mbsinit;
-		__mbsnrtowcs = _none_mbsnrtowcs;
-		__wcrtomb = _none_wcrtomb;
-		__wcsnrtombs = _none_wcsnrtombs;
+		_none_init(&_DefaultRuneLocale);
 		return (0);
 	}
 
