@@ -49,11 +49,11 @@ struct arglist {
 	char **argv;
 };
 
-int main __P((int, char *[], char *[]));
+int main(int, char *[], char *[]);
 
-static void initarg __P((struct arglist *));
-static void addarg __P((struct arglist *, const char *, int));
-static void freearg __P((struct arglist *, int));
+static void initarg(struct arglist *);
+static void addarg(struct arglist *, const char *, int);
+static void freearg(struct arglist *, int);
 
 extern const char *__progname;	/* from crt0.o */
 

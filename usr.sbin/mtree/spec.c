@@ -55,8 +55,8 @@ static const char rcsid[] =
 
 int lineno;				/* Current spec line number. */
 
-static void	 set __P((char *, NODE *));
-static void	 unset __P((char *, NODE *));
+static void	 set(char *, NODE *);
+static void	 unset(char *, NODE *);
 
 NODE *
 spec()

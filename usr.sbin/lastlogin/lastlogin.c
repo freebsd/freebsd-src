@@ -48,9 +48,9 @@ __RCSID("$NetBSD: lastlogin.c,v 1.4 1998/02/03 04:45:35 perry Exp $");
 
 static	const char *logfile = _PATH_LASTLOG;
 
-	int	main __P((int, char **));
-static	void	output __P((struct passwd *, struct lastlog *));
-static	void	usage __P((void));
+	int	main(int, char **);
+static	void	output(struct passwd *, struct lastlog *);
+static	void	usage(void);
 
 int
 main(argc, argv)
