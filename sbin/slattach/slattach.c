@@ -77,7 +77,7 @@ void	acquire_line();		/* get tty device as controling terminal */
 int	fd = -1;
 char	*dev = (char *)0;	/* path name of the tty (e.g. /dev/tty01) */
 int	flow_control = 0;	/* non-zero to enable hardware flow control. */
-int	modem_control = 0;	/* non-zero iff we watch carrier. */
+int	modem_control =	HUPCL;	/* !CLOCAL+HUPCL iff we	watch carrier. */
 int	comstate;		/* TIOCMGET current state of serial driver */
 int	redial_on_startup = 0;	/* iff non-zero execute redial_cmd on startup */
 int	speed = DEFAULT_BAUD;	/* baud rate of tty */
@@ -133,7 +133,7 @@ int main(int argc, char **argv)
 			flow_control |= CRTSCTS;
 			break;
 		case 'l':
-			modem_control |= CLOCAL;
+			modem_control =	CLOCAL;	/* clear HUPCL too */
 			break;
 		case 'n':
 			slflags |= IFF_LINK1;
@@ -373,7 +373,8 @@ again:
 		setup_line(CLOCAL);
 		syslog(LOG_NOTICE,"SIGHUP on %s (sl%d); running %s",
 		       dev,unit,redial_cmd);
-		system(redial_cmd);
+		if (system(redial_cmd))
+			goto again;
 		/* Now check again for carrier (dial command is done): */
 		if (!(modem_control & CLOCAL)) {
 			tty.c_cflag &= ~CLOCAL;
