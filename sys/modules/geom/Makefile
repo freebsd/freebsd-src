@@ -8,6 +8,7 @@ SUBDIR=	geom_apple \
 	geom_fox \
 	geom_gate \
 	geom_gpt \
+	geom_label \
 	geom_mbr \
 	geom_nop \
 	geom_pc98 \
