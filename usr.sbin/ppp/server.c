@@ -1,4 +1,5 @@
 #include <sys/types.h>
+#include <sys/stat.h>
 #include <sys/socket.h>
 #include <netinet/in.h>
 #include <sys/un.h>
@@ -20,7 +21,7 @@ static struct sockaddr_un ifsun;
 static char *rm;
 
 int
-ServerLocalOpen(const char *name)
+ServerLocalOpen(const char *name, mode_t mask)
 {
     int s;
 
@@ -39,7 +40,9 @@ ServerLocalOpen(const char *name)
     }
 
     setsockopt(s, SOL_SOCKET, SO_REUSEADDR, &s, sizeof s);
+    mask = umask(mask);
     if (bind(s, (struct sockaddr *) &ifsun, sizeof(ifsun)) < 0) {
+      umask(mask);
       LogPrintf(LogERROR, "Local: bind: %s\n", strerror(errno));
       if (errno == EADDRINUSE && VarTerm)
         fprintf(VarTerm, "Wait for a while, then try again.\n");
@@ -47,6 +50,7 @@ ServerLocalOpen(const char *name)
       unlink(name);
       return 3;
     }
+    umask(mask);
     if (listen(s, 5) != 0) {
       LogPrintf(LogERROR, "Local: Unable to listen to socket - OS overload?\n");
       close(s);
