@@ -148,7 +148,11 @@ typedef	__off_t		off_t;		/* file offset */
 #define	_OFF_T_DECLARED
 #endif
 
+#ifndef _PID_T_DECLARED
 typedef	__pid_t		pid_t;		/* process id */
+#define	_PID_T_DECLARED
+#endif
+
 typedef	__register_t	register_t;
 typedef	quad_t		rlim_t;		/* resource limit */
 typedef	__segsz_t	segsz_t;	/* segment size (in pages) */
