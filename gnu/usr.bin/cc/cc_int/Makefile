@@ -1,5 +1,5 @@
 #
-# $Id: Makefile,v 1.18 1999/04/22 19:35:14 obrien Exp $
+# $Id: Makefile,v 1.19 1999/04/22 20:12:21 obrien Exp $
 #
 .include "../Makefile.inc"
 
@@ -25,7 +25,7 @@ SRCS+=	haifa-sched.c
 SRCS+=	sched.c
 .endif
 
-CFLAGS+=	-DTARGET_NAME=\"${MACHINE_ARCH}-unknown-freebsd\"
+CFLAGS+=	-DTARGET_NAME=\"${target}\"
 
 LIB=		cc_int
 NOPROFILE=	YES
