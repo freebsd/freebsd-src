@@ -6,10 +6,10 @@ SHLIB_MAJOR= 3
 SHLIB_MINOR= 0
 CFLAGS+=-Wall -DLIBC_SCCS -I${.CURDIR} -I${.CURDIR}/../../sys
 CFLAGS+=-DINET6
-SRCS=	login.c login_tty.c logout.c logwtmp.c pty.c \
-	login_cap.c login_class.c login_auth.c login_times.c login_ok.c \
-	login_crypt.c _secure_path.c uucplock.c property.c auth.c \
-	realhostname.c fparseln.c stub.c
+SRCS=	_secure_path.c auth.c fparseln.c login.c login_auth.c login_cap.c \
+	login_class.c login_crypt.c login_ok.c login_times.c login_tty.c \
+	logout.c logwtmp.c property.c pty.c realhostname.c stub.c \
+	trimdomain.c uucplock.c
 INCS=	libutil.h login_cap.h
 
 MAN3+=	login.3 login_auth.3 login_tty.3 logout.3 logwtmp.3 pty.3 \
