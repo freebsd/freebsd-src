@@ -131,7 +131,6 @@ chmod 666 /dev/tty[pqrsPQRS]*
 rm -f /etc/nologin
 rm -f /var/spool/lock/*
 rm -rf /var/spool/uucp/.Temp/*
-rm -f /var/run/*.pid
 (cd /var/run && { cp /dev/null utmp; chmod 644 utmp; })
 
 # enable dumpdev so that savecore can see it
