@@ -719,7 +719,8 @@ vm_page_select_cache(vm_pindex_t color)
 	while (TRUE) {
 		m = vm_pageq_find(PQ_CACHE, color & PQ_L2_MASK, FALSE);
 		if (m && ((m->flags & (PG_BUSY|PG_UNMANAGED)) || m->busy ||
-			       m->hold_count || m->wire_count)) {
+			       m->hold_count || m->wire_count ||
+			  !VM_OBJECT_TRYLOCK(m->object))) {
 			vm_page_deactivate(m);
 			continue;
 		}
@@ -765,6 +766,7 @@ vm_page_select_free(vm_pindex_t color, boolean_t prefer_zero)
 vm_page_t
 vm_page_alloc(vm_object_t object, vm_pindex_t pindex, int req)
 {
+	vm_object_t m_object;
 	vm_page_t m = NULL;
 	vm_pindex_t color;
 	int flags, page_req, s;
@@ -820,10 +822,13 @@ loop:
 			return (NULL);
 		}
 		KASSERT(m->dirty == 0, ("Found dirty cache page %p", m));
+		m_object = m->object;
+		VM_OBJECT_LOCK_ASSERT(m_object, MA_OWNED);
 		vm_page_busy(m);
 		pmap_remove_all(m);
 		vm_page_free(m);
 		vm_page_unlock_queues();
+		VM_OBJECT_UNLOCK(m_object);
 		goto loop;
 	} else {
 		/*
