@@ -54,6 +54,8 @@ static const char sccsid[] = "@(#)init_disp.c	8.2 (Berkeley) 2/16/94";
 
 #include "talk.h"
 
+extern volatile sig_atomic_t gotwinch;
+
 /*
  * Make sure the callee can write to the screen
  */
@@ -92,6 +94,7 @@ init_display()
 	crmode();
 	signal(SIGINT, sig_sent);
 	signal(SIGPIPE, sig_sent);
+	signal(SIGWINCH, sig_winch);
 	/* curses takes care of ^Z */
 	my_win.x_nlines = LINES / 2;
 	my_win.x_ncols = COLS;
@@ -165,6 +168,13 @@ sig_sent(signo)
 	quit();
 }
 
+void
+sig_winch(int dummy)
+{
+ 
+	gotwinch = 1;
+}
+
 /*
  * All done talking...hang up the phone and reset terminal thingy's
  */
@@ -181,4 +191,50 @@ quit()
 	if (invitation_waiting)
 		send_delete();
 	exit(0);
+}
+
+/*
+ * If we get SIGWINCH, recompute both window sizes and refresh things.
+ */
+void
+resize_display(void)
+{
+	struct winsize ws;
+
+	if (ioctl(STDIN_FILENO, TIOCGWINSZ, &ws) < 0 ||
+	    (ws.ws_row == LINES && ws.ws_col == COLS))
+		return;
+
+	/* Update curses' internal state with new window size. */
+	resizeterm(ws.ws_row, ws.ws_col);
+
+	/*
+	 * Resize each window but wait to refresh the screen until
+	 * everything has been drawn so the cursor is in the right spot.
+	 */
+	my_win.x_nlines = LINES / 2;
+	my_win.x_ncols = COLS;
+	wresize(my_win.x_win, my_win.x_nlines, my_win.x_ncols);
+	mvwin(my_win.x_win, 0, 0);
+	clearok(my_win.x_win, TRUE);
+
+	his_win.x_nlines = LINES / 2 - 1;
+	his_win.x_ncols = COLS;
+	wresize(his_win.x_win, his_win.x_nlines, his_win.x_ncols);
+	mvwin(his_win.x_win, my_win.x_nlines + 1, 0);
+	clearok(his_win.x_win, TRUE);
+
+	wresize(line_win, 1, COLS);
+	mvwin(line_win, my_win.x_nlines, 0);
+#if defined(NCURSES_VERSION) || defined(whline)
+	whline(line_win, '-', COLS);
+#else
+	wmove(line_win, my_win.x_nlines, 0);
+	box(line_win, '-', '-');
+#endif
+
+	/* Now redraw the screen. */
+	wrefresh(his_win.x_win);
+	wrefresh(line_win);
+	wrefresh(my_win.x_win);
 }
