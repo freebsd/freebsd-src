@@ -431,7 +431,7 @@ END(rsf_fatal)
 
 	.macro	tl0_setup	type
 	tl0_split
-	b	%xcc, tl0_trap
+	ba	%xcc, tl0_utrap
 	 mov	\type, %o0
 	.endm
 
@@ -504,7 +504,7 @@ ENTRY(tl0_sfsr_trap)
 	tl0_split
 	mov	%g3, %o4
 	mov	%g4, %o5
-	b	%xcc, tl0_trap
+	ba	%xcc, tl0_utrap
 	 mov	%g2, %o0
 END(tl0_sfsr_trap)
 
@@ -1036,7 +1036,7 @@ ENTRY(tl0_dmmu_prot_trap)
 	mov	%g2, %o3
 	mov	%g3, %o4
 	mov	%g4, %o5
-	b	%xcc, tl0_trap
+	ba	%xcc, tl0_utrap
 	 mov	T_DATA_PROTECTION, %o0
 END(tl0_dmmu_prot_trap)
 
@@ -2189,6 +2189,110 @@ tl1_breakpoint:
 /*
  * User trap entry point.
  *
+ * void tl0_utrap(u_long type, u_long o1, u_long o2, u_long tar, u_long sfar,
+ *                u_long sfsr)
+ *
+ * This handles redirecting a trap back to usermode as a user trap.  The user
+ * program must have first registered a trap handler with the kernel using
+ * sysarch(SPARC_UTRAP_INSTALL).  The trap handler is passed enough state
+ * for it to return to the trapping code directly, it will not return through
+ * the kernel.  The trap type is passed in %o0, all out registers must be
+ * passed through to tl0_trap or to usermode untouched.  Note that the
+ * parameters passed in out registers may be used by the user trap handler.
+ * Do not change the registers they are passed in or you will break the ABI.
+ *
+ * If the trap type allows user traps, setup state to execute the user trap
+ * handler and bounce back to usermode, otherwise branch to tl0_trap.
+ */
+ENTRY(tl0_utrap)
+	/*
+	 * Check if the trap type allows user traps.
+	 */
+	cmp	%o0, UT_MAX
+	bge,a,pt %xcc, tl0_trap
+	 nop
+
+	/*
+	 * Load the user trap handler from the utrap table.
+	 */
+	ldx	[PCPU(CURTHREAD)], %l0
+	ldx	[%l0 + TD_PROC], %l0
+	ldx	[%l0 + P_MD + MD_UTRAP], %l0
+	brz,pt	%l0, tl0_trap
+	 sllx	%o0, PTR_SHIFT, %l1
+	ldx	[%l0 + %l1], %l0
+	brz,a,pt %l0, tl0_trap
+	 nop
+
+	/*
+	 * If the save we did on entry to the kernel had to spill a window
+	 * to the pcb, pretend we took a spill trap instead.  Any windows
+	 * that are in the pcb must be copied out or the fill handler will
+	 * not be able to find them, since the user trap handler returns
+	 * directly to the trapping code.  Note that we only support precise
+	 * user traps, which implies that the condition that caused the trap
+	 * in the first place is still valid, so it will occur again when we
+	 * re-execute the trapping instruction.
+	 */	
+	ldx	[PCB_REG + PCB_NSAVED], %l1
+	brnz,a,pn %l1, tl0_trap
+	 mov	T_SPILL, %o0
+
+	/*
+	 * Pass %fsr in %l4, %tstate in %l5, %tpc in %l6 and %tnpc in %l7.
+	 * The ABI specifies only %l6 and %l7, but we need to pass %fsr or
+	 * it may be clobbered by an interrupt before the user trap code
+	 * can read it, and we must pass %tstate in order to restore %ccr
+	 * and %asi.  The %fsr must be stored to memory, so we use the
+	 * temporary stack for that.
+	 */
+	rd	%fprs, %l1
+	or	%l1, FPRS_FEF, %l2
+	wr	%l2, 0, %fprs
+	dec	8, ASP_REG
+	stx	%fsr, [ASP_REG]
+	ldx	[ASP_REG], %l4
+	inc	8, ASP_REG
+	wr	%l1, 0, %fprs
+
+	rdpr	%tstate, %l5
+	rdpr	%tpc, %l6
+	rdpr	%tnpc, %l7
+
+	/*
+	 * Setup %tnpc to return to.
+	 */
+	wrpr	%l0, 0, %tnpc
+
+	/*
+	 * Setup %wstate for return, clear WSTATE_TRANSITION.
+	 */
+	rdpr	%wstate, %l1
+	and	%l1, WSTATE_NORMAL_MASK, %l1
+	wrpr	%l1, 0, %wstate
+
+	/*
+	 * Setup %tstate for return, change the saved cwp to point to the
+	 * current window instead of the window at the time of the trap.
+	 */
+	andn	%l5, TSTATE_CWP_MASK, %l1
+	rdpr	%cwp, %l2
+	wrpr	%l1, %l2, %tstate
+
+	/*
+	 * Setup %sp.  Userland processes will crash if this is not setup.
+	 */
+	sub	%fp, CCFSZ, %sp
+
+	/*
+	 * Execute the user trap handler.
+	 */
+	done
+END(tl0_utrap)
+
+/*
+ * (Real) User trap entry point.
+ *
  * void tl0_trap(u_int type, u_long o1, u_long o2, u_long tar, u_long sfar,
  *		 u_int sfsr)
  *
@@ -2233,70 +2337,8 @@ ENTRY(tl0_trap)
 9:
 #endif
 
-	and	%l5, WSTATE_NORMAL_MASK, %l5
-
-	cmp	%o0, UT_MAX
-	bge,a,pt %xcc, 2f
-	 nop
-
-	ldx	[PCPU(CURTHREAD)], %l6
-	ldx	[%l6 + TD_PROC], %l6
-	ldx	[%l6 + P_MD + MD_UTRAP], %l6
-	brz,pt	%l6, 2f
-	 sllx	%o0, PTR_SHIFT, %l7
-	ldx	[%l6 + %l7], %l6
-	brz,pt	%l6, 2f
-	 andn	%l0, TSTATE_CWP_MASK, %l7
-
-	ldx	[PCB_REG + PCB_NSAVED], %g1
-	brnz,a,pn %g1, 1f
-	 mov	T_SPILL, %o0
-
-#if KTR_COMPILE & KTR_TRAP
-	CATR(KTR_TRAP, "tl0_trap: user trap npc=%#lx"
-	    , %g1, %g2, %g3, 7, 8, 9)
-	stx	%l6, [%g1 + KTR_PARM1]
-9:
-#endif
-
-	wrpr	%l5, %wstate
-	wrpr	%l6, %tnpc
-	rdpr	%cwp, %l6
-	wrpr	%l6, %l7, %tstate
-
-	sub	%fp, CCFSZ, %sp
-
-	/*
-	 * Need to store %fsr to pass it to the user trap handler. Otherwise,
-	 * the ftt field might be zeoed out in a store in another trap or
-	 * interrupt. Use the temporary stack for that.
-	 */
-	rd	%fprs, %l3
-	or	%l3, FPRS_FEF, %l4
-	wr	%l4, 0, %fprs
-	dec	8, ASP_REG
-	stx	%fsr, [ASP_REG]
-	ldx	[ASP_REG], %l4
-	inc	8, ASP_REG
-	wr	%l3, 0, %fprs
-
-	mov	%l0, %l5
-	mov	%l1, %l6
-	mov	%l2, %l7
-
-	done
-
-1:
-#if KTR_COMPILE & KTR_TRAP
-	CATR(KTR_TRAP, "tl0_trap: defer user trap npc=%#lx nsaved=%#lx"
-	    , %g1, %g2, %g3, 7, 8, 9)
-	stx	%l6, [%g1 + KTR_PARM1]
-	ldx	[PCB_REG + PCB_NSAVED], %g2
-	stx	%g2, [%g1 + KTR_PARM2]
-9:
-#endif
-
-2:	sllx	%l5, WSTATE_OTHER_SHIFT, %l5
+1:	and	%l5, WSTATE_NORMAL_MASK, %l5
+	sllx	%l5, WSTATE_OTHER_SHIFT, %l5
 	wrpr	%l5, WSTATE_KERNEL, %wstate
 	rdpr	%canrestore, %l6
 	wrpr	%l6, 0, %otherwin
