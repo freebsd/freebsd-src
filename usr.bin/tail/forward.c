@@ -161,7 +161,7 @@ forward(fp, style, off, sbp)
 	}
 
 	/*
-	 * We pause for one second after displaying any data that has
+	 * We pause for 1/4 second after displaying any data that has
 	 * accumulated since we read the file.
 	 */
 
