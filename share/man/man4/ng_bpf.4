@@ -145,6 +145,7 @@ control message, as demonstrated here:
 #!/bin/sh
 
 PATTERN="tcp dst port 80"
+NODEPATH="my_node:"
 INHOOK="hook1"
 MATCHHOOK="hook2"
 NOTMATCHHOOK="hook3"
@@ -165,7 +166,7 @@ xxENDxx
 
 BPFPROG=`tcpdump -ddd ${PATTERN} | awk -f /tmp/bpf.awk`
 
-ngctl msg my_node: setprogram { thisHook=\\"${INHOOK}\\" \\
+ngctl msg ${NODEPATH} setprogram { thisHook=\\"${INHOOK}\\" \\
   ifMatch=\\"${MATCHHOOK}\\" \\
   ifNotMatch=\\"${NOTMATCHHOOK}\\" \\
   ${BPFPROG} } }
