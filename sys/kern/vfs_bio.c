@@ -3106,6 +3106,8 @@ bufdone(struct buf *bp)
 		KASSERT(bp->b_offset != NOOFFSET,
 		    ("biodone: no buffer offset"));
 
+		if (obj != NULL)
+			VM_OBJECT_LOCK(obj);
 #if defined(VFS_BIO_DEBUG)
 		if (obj->paging_in_progress < bp->b_npages) {
 			printf("biodone: paging in progress(%d) < bp->b_npages(%d)\n",
@@ -3194,7 +3196,6 @@ bufdone(struct buf *bp)
 		}
 		vm_page_unlock_queues();
 		if (obj != NULL) {
-			VM_OBJECT_LOCK(obj);
 			vm_object_pip_wakeupn(obj, 0);
 			VM_OBJECT_UNLOCK(obj);
 		}
