@@ -26,6 +26,9 @@
 /*
  * HISTORY
  * $Log: db_aout.c,v $
+ * Revision 1.1.1.1  1993/06/12  14:57:38  rgrimes
+ * Initial import, 0.1 + pk 0.2.4-B1
+ *
  * Revision 1.1  1992/03/25  21:44:55  pace
  * Initial revision
  *
@@ -77,7 +80,10 @@
 	(sp = (struct nlist *)((symtab) + 1), \
 	 ep = (struct nlist *)((char *)sp + *(symtab)))
 
+#ifndef	SYMTAB_SPACE
 #define SYMTAB_SPACE 63000
+#endif	/*SYMTAB_SPACE*/
+
 int db_symtabsize = SYMTAB_SPACE;
 char db_symtab[SYMTAB_SPACE] = { 1 };
 
