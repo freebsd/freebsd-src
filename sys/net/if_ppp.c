@@ -69,17 +69,20 @@
  * Paul Mackerras (paulus@cs.anu.edu.au).
  */
 
-/* $Id: if_ppp.c,v 1.51 1997/12/06 13:24:25 bde Exp $ */
+/* $Id: if_ppp.c,v 1.52 1997/12/15 20:31:04 eivind Exp $ */
 /* from if_sl.c,v 1.11 84/10/04 12:54:47 rick Exp */
 /* from NetBSD: if_ppp.c,v 1.15.2.2 1994/07/28 05:17:58 cgd Exp */
 
 #include "ppp.h"
 #if NPPP > 0
 
-#include "opt_ppp.h"
+#include "opt_inet.h"
 #include "opt_ipx.h"
+#include "opt_ppp.h"
 
+#ifdef INET
 #define VJC
+#endif
 #define PPP_COMPRESS
 
 #include <sys/param.h>

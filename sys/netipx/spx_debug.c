@@ -33,9 +33,10 @@
  *
  *	@(#)spx_debug.c
  *
- * $Id: spx_debug.c,v 1.10 1997/06/26 19:36:00 jhay Exp $
+ * $Id: spx_debug.c,v 1.11 1997/10/28 12:24:26 bde Exp $
  */
 
+#include "opt_inet.h"
 #include "opt_tcpdebug.h"
 
 #include <sys/param.h>

@@ -65,6 +65,7 @@
 #if NLNC > 0
 
 #include "bpfilter.h"
+#include "opt_inet.h"
 
 /* Some defines that should really be in generic locations */
 #define FCS_LEN 4
@@ -79,7 +80,9 @@
 #include <sys/socket.h>
 #include <sys/syslog.h>
 
+#include <net/ethernet.h>
 #include <net/if.h>
+#include <net/if_arp.h>
 #include <net/if_types.h>
 #ifdef INET
 #include <netinet/in.h>
@@ -96,7 +99,7 @@
 #include <i386/isa/if_lnc.h>
 
 struct lnc_softc {
-	struct arpcom arpcom;	            /* see ../../netinet/if_ether.h */
+	struct arpcom arpcom;	            /* see ../../net/if_arp.h */
 	struct nic_info nic;	            /* NIC specific info */
 	int nrdre;
 	struct host_ring_entry *recv_ring;  /* start of alloc'd mem */

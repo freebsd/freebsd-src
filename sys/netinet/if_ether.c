@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)if_ether.c	8.1 (Berkeley) 6/10/93
- * $Id: if_ether.c,v 1.41 1997/10/28 15:58:40 bde Exp $
+ * $Id: if_ether.c,v 1.42 1997/12/20 00:07:11 bde Exp $
  */
 
 /*
@@ -39,6 +39,8 @@
  * TODO:
  *	add "inuse/lock" bit (or ref. count) along with valid bit
  */
+
+#include "opt_inet.h"
 
 #include <sys/param.h>
 #include <sys/kernel.h>
@@ -108,7 +110,9 @@ static void	arptfree __P((struct llinfo_arp *));
 static void	arptimer __P((void *));
 static struct llinfo_arp
 		*arplookup __P((u_long, int, int));
+#ifdef INET
 static void	in_arpinput __P((struct mbuf *));
+#endif
 
 /*
  * Timeout routine.  Age arp_tab entries periodically.
@@ -209,6 +213,7 @@ arp_rtrequest(req, rt, sa)
 		rt->rt_flags |= RTF_LLINFO;
 		LIST_INSERT_HEAD(&llinfo_arp, la, la_le);
 
+#ifdef INET
 		/*
 		 * This keeps the multicast addresses from showing up
 		 * in `arp -a' listings as unresolved.  It's not actually
@@ -225,6 +230,7 @@ arp_rtrequest(req, rt, sa)
 			SDL(gate)->sdl_alen = 6;
 			rt->rt_expire = 0;
 		}
+#endif
 
 		if (SIN(rt_key(rt))->sin_addr.s_addr ==
 		    (IA_SIN(rt->rt_ifa))->sin_addr.s_addr) {
@@ -406,9 +412,11 @@ arpintr()
 
 			    switch (ntohs(ar->ar_pro)) {
 
+#ifdef INET
 			    case ETHERTYPE_IP:
 				    in_arpinput(m);
 				    continue;
+#endif
 			    }
 		m_freem(m);
 	}
@@ -416,6 +424,8 @@ arpintr()
 
 NETISR_SET(NETISR_ARP, arpintr);
 
+
+#ifdef INET
 /*
  * ARP for Internet protocols on 10 Mb/s Ethernet.
  * Algorithm is that given in RFC 826.
@@ -566,6 +576,7 @@ reply:
 	(*ac->ac_if.if_output)(&ac->ac_if, m, &sa, (struct rtentry *)0);
 	return;
 }
+#endif
 
 /*
  * Free an arp entry.

@@ -31,8 +31,10 @@
  * SUCH DAMAGE.
  *
  *	@(#)spp_debug.c	8.1 (Berkeley) 6/10/93
- * $Id$
+ * $Id: spp_debug.c,v 1.8 1997/02/22 09:42:25 peter Exp $
  */
+
+#include "opt_inet.h"
 
 #include <sys/param.h>
 #include <sys/systm.h>

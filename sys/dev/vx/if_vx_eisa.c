@@ -34,16 +34,19 @@
 #include "vx.h"
 #if NVX > 0
 
+#include "opt_inet.h"
+
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/kernel.h>
 #include <sys/socket.h>
 
+#include <net/ethernet.h>
 #include <net/if.h>
+#include <net/if_arp.h>
 
 #ifdef INET
 #include <netinet/in.h>
-#include <netinet/if_ether.h>
 #endif
 
 #ifdef NS

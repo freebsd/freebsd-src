@@ -1,5 +1,5 @@
 /*	$NetBSD: if_de.c,v 1.56 1997/10/20 14:32:46 matt Exp $	*/
-/*	$Id: if_de.c,v 1.75 1997/11/22 06:45:57 bde Exp $ */
+/*	$Id: if_de.c,v 1.76 1997/12/15 20:31:25 eivind Exp $ */
 
 /*-
  * Copyright (c) 1994-1997 Matt Thomas (matt@3am-software.com)
@@ -39,6 +39,7 @@
  */
 #define	TULIP_HDR_DATA
 
+#include "opt_inet.h"
 #include "opt_ipx.h"
 
 #include <sys/param.h>
@@ -82,6 +83,7 @@
 
 #ifdef INET
 #include <netinet/in.h>
+#include <netinet/if_ether.h>
 #endif
 
 #ifdef IPX
@@ -99,7 +101,8 @@
 #if defined(__FreeBSD__)
 #include <vm/pmap.h>
 #include <pci.h>
-#include <netinet/if_ether.h>
+#include <net/ethernet.h>
+#include <net/if_arp.h>
 #if NPCI > 0
 #include <pci/pcivar.h>
 #include <pci/dc21040reg.h>

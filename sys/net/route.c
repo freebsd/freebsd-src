@@ -31,9 +31,10 @@
  * SUCH DAMAGE.
  *
  *	@(#)route.c	8.2 (Berkeley) 11/15/93
- *	$Id: route.c,v 1.44 1997/09/16 11:43:46 bde Exp $
+ *	$Id: route.c,v 1.45 1997/10/28 15:58:35 bde Exp $
  */
 
+#include "opt_inet.h"
 #include "opt_mrouting.h"
 
 #include <sys/param.h>

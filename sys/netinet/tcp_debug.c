@@ -31,10 +31,15 @@
  * SUCH DAMAGE.
  *
  *	@(#)tcp_debug.c	8.1 (Berkeley) 6/10/93
- * $Id: tcp_debug.c,v 1.10 1997/08/02 14:32:55 bde Exp $
+ * $Id: tcp_debug.c,v 1.11 1997/09/16 18:36:04 joerg Exp $
  */
 
+#include "opt_inet.h"
 #include "opt_tcpdebug.h"
+
+#ifndef INET
+#error The option TCPDEBUG requires option INET.
+#endif
 
 #ifdef TCPDEBUG
 /* load symbolic names */
