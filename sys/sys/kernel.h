@@ -273,7 +273,8 @@ static void __Tunable_ ## var (void *ignored)		\
     tmp = getenv((path));				\
     if (tmp == NULL)					\
        tmp = (defval);					\
-    strlcpy((var), tmp, (size));			\
+    strncpy((var), tmp, (size));			\
+    (var)[(size) - 1] = 0;				\
 }							\
 SYSINIT(__Tunable_init_ ## var, SI_SUB_TUNABLES, SI_ORDER_MIDDLE, __Tunable_ ## var , NULL);
 
@@ -284,7 +285,8 @@ static void __Tunable_ ## var (void *ignored)		\
     tmp = getenv((path));				\
     if (tmp == NULL)					\
        tmp = (defval);					\
-    strlcpy((var), tmp, (size));			\
+    strncpy((var), tmp, (size));			\
+    (var)[(size) - 1] = 0;				\
 }
 
 /*
