@@ -1,5 +1,5 @@
 #	From: @(#)bsd.prog.mk	5.26 (Berkeley) 6/25/91
-#	$Id: bsd.kmod.mk,v 1.54 1998/10/02 05:08:09 msmith Exp $
+#	$Id: bsd.kmod.mk,v 1.55 1998/10/14 04:04:22 peter Exp $
 #
 # The include file <bsd.kmod.mk> handles installing Loadable Kernel Modules.
 #
@@ -141,6 +141,12 @@ SRCS+=	vnode_if.h
 CLEANFILES+=	vnode_if.h vnode_if.c
 .endif
 
+.if defined(VFS_KLD)
+CFLAGS+= -DVFS_LKM -DVFS_KLD
+SRCS+=	vnode_if.h
+CLEANFILES+=	vnode_if.h vnode_if.c
+.endif
+
 .if defined(KLDMOD) && ${OBJFORMAT} == elf
 CLEANFILES+=	setdef0.c setdef1.c setdefs.h
 CLEANFILES+=	setdef0.o setdef1.o
@@ -209,6 +215,7 @@ all: objwarn ${PROG} all-man _SUBDIR
 
 beforedepend ${OBJS}: ${_ILINKS}
 
+.if !defined(KLDMOD)
 # The search for the link targets works best if we are in a normal src
 # tree, and not too deeply below src/lkm.  If we are near "/", then
 # we may find /sys - this is harmless.  Other abnormal "sys" directories
@@ -230,6 +237,26 @@ ${_ILINKS}:
 	path=`(cd $$path && /bin/pwd)` ; \
 	${ECHO} ${.TARGET} "->" $$path ; \
 	ln -s $$path ${.TARGET}
+.else
+${_ILINKS}:
+	@set +x; for up in ../.. ../../.. ; do \
+		case ${.TARGET} in \
+		machine) \
+			testpath=${.CURDIR}/$$up/${MACHINE_ARCH}/include ; \
+			path=${.CURDIR}/$$up/${MACHINE_ARCH}/include ; \
+			defaultpath=/usr/include/machine ;; \
+		@) \
+			testpath=${.CURDIR}/$$up/sys ; \
+			path=${.CURDIR}/$$up ; \
+			defaultpath=/usr/include ;; \
+		esac ; \
+		if [ -d $$testpath ] ; then break ; fi ; \
+		path=$$defaultpath ; \
+	done ; \
+	path=`(cd $$path && /bin/pwd)` ; \
+	${ECHO} ${.TARGET} "->" $$path ; \
+	ln -s $$path ${.TARGET}
+.endif
 
 CLEANFILES+= ${KMOD} ${PROG} ${OBJS} ${_ILINKS} lkm_verify_tmp symb.tmp tmp.o
 
@@ -284,7 +311,11 @@ unload:	${PROG}
 	${MODUNLOAD} -n ${KMOD}
 .endif
 
+.if exists(${.CURDIR}/../../kern)
+KERN=	${.CURDIR}/../../kern
+.else
 KERN=	${.CURDIR}/../../sys/kern
+.endif
 
 vnode_if.h:	${KERN}/vnode_if.sh ${KERN}/vnode_if.src
 	sh ${KERN}/vnode_if.sh ${KERN}/vnode_if.src
