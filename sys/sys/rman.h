@@ -34,6 +34,9 @@
 
 #ifndef	_KERNEL
 #include <sys/queue.h>
+#else
+#include <machine/bus.h>
+#include <machine/resource.h>
 #endif
 
 #define	RF_ALLOCATED	0x0001	/* resource has been reserved */
