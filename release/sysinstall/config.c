@@ -516,6 +516,8 @@ configSecurityHigh(dialogMenuItem *self)
     variable_set2("sshd_enable", "YES", 1);
     variable_set2("portmap_enable", "NO", 1);
     variable_set2("nfs_server_enable", "NO", 1);
+    variable_set2("kern_securelevel_enable", "YES", 1);
+    variable_set2("kern_securelevel", "1", 1);
 
     if (self)
 	msgConfirm("High security settings have been selected.\n\n"
