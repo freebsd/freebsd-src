@@ -21,6 +21,11 @@ SRCS =	version.c tcpdump.c \
 CLEANFILES+=	version.c
 DPADD+=	${LIBL} ${LIBPCAP}
 LDADD+=	-ll -lpcap
+.if exists(../../../crypto) && !defined(NOSECURE) && !defined(NO_OPENSSL)
+DPADD+= ${LIBCRYPTO}
+LDADD+= -lcrypto
+CFLAGS+= -I${DESTDIR}/usr/include/openssl -DCRYPTO -DHAVE_LIBCRYPTO -DHAVE_RC5_H -DHAVE_CAST_H
+.endif
 
 TCPDUMP_DISTDIR?= ${.CURDIR}/../../../contrib/tcpdump
 CFLAGS+= -I${TCPDUMP_DISTDIR}/lbl
