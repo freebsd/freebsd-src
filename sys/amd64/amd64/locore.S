@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)locore.s	7.3 (Berkeley) 5/13/91
- *	$Id: locore.s,v 1.31 1994/10/02 01:32:50 rgrimes Exp $
+ *	$Id: locore.s,v 1.32 1994/10/02 18:57:15 davidg Exp $
  */
 
 /*
@@ -101,8 +101,6 @@
  * Globals
  */
 	.data
-	.globl	_esym
-_esym:	.long	0				/* ptr to end of syms */
 
 	.globl	_boothowto,_bootdev,_curpcb
 
@@ -164,6 +162,10 @@ NON_GPROF_ENTRY(btext)
 	.org	0x500				/* space for BIOS variables */
 
 1:
+	/* Set up a real frame, some day we will be doing returns */
+	pushl	%ebp
+	movl	%esp, %ebp
+
 	/* Don't trust what the BIOS gives for eflags. */
 	pushl	$PSL_MBO
 	popfl
@@ -192,7 +194,8 @@ NON_GPROF_ENTRY(btext)
 	 *	[return address != 0, and can be returned to]
 	 *
 	 * There may seem to be a lot of wasted arguments in here, but
-	 * that is so the newer boot code can still load very old kernels.
+	 * that is so the newer boot code can still load very old kernels
+	 * and old boot code can load new kernels.
 	 */
 
 	/*
@@ -200,7 +203,7 @@ NON_GPROF_ENTRY(btext)
 	 * did an lret to get here.  The frame on the stack has a return
 	 * address of 0.
 	 */
-	cmpl	$0,0x00(%esp)
+	cmpl	$0,4(%ebp)
 	je	2f				/* olddiskboot: */
 
 	/*
@@ -209,7 +212,7 @@ NON_GPROF_ENTRY(btext)
 	 * be detected by looking at the 5th argument, it if is 0 we
 	 * we are being booted by the new unifrom boot code.
 	 */
-	cmpl	$0,0x14(%esp)
+	cmpl	$0,24(%ebp)
 	je	1f				/* newboot: */
 
 	/*
@@ -220,34 +223,56 @@ NON_GPROF_ENTRY(btext)
 	 hlt
 
 	/*
-	 * We have been loaded by the new uniform boot code, this kernel
-	 * is not yet ready to handle that, so for now fix up the stack
-	 * like a real subroutine and then return to the boot loader with
-	 * a status of 1 to indicate this error.
+	 * We have been loaded by the new uniform boot code.
+	 * Lets check the bootinfo version, and if we do not understand
+	 * it we return to the loader with a status of 1 to indicate this error
 	 */
 1:	/* newboot: */
-	 pushl	%ebp
-	 movl	%esp,%ebp
-	 movl	$1,%eax
-	 leave
-	 ret
+	movl	28(%ebp),%ebx		/* &bootinfo.version */
+	movl	BOOTINFO_VERSION(%ebx),%eax
+	cmpl	$1,%eax			/* We only understand version 1 */
+	je	1f
+	movl	$1,%eax			/* Return status */
+	leave
+	ret
+
+1:
+	/*
+	 * If we have a kernelname copy it in
+	 */
+	movl	BOOTINFO_KERNELNAME(%ebx),%esi
+	cmpl	$0,%esi
+	je	1f			/* No kernelname */
+	lea	_kernelname-KERNBASE,%edi
+	movl	$MAXPATHLEN,%ecx	/* Brute force!!! */
+	cld
+	rep
+	movsb
+
+1:
+	/*
+	 * If we have a nfs_diskless structure copy it in
+	 */
+	movl	BOOTINFO_NFS_DISKLESS(%ebx),%esi
+	cmpl	$0,%esi
+	je	2f
+	lea	_nfs_diskless-KERNBASE,%edi
+	movl	$NFSDISKLESS_SIZE,%ecx
+	cld
+	rep
+	movsb
 
 	/*
 	 * The old style disk boot.
 	 *	(*btext)(howto, bootdev, cyloffset, esym);
-	 * cyloffset is no longer copied
-	 * XXX Is esym still used for the end of the kernel some place???
-	 *     for now make sure we keep a correct value in it until I
-	 *     can deterimine that.
+	 * Note that the newer boot code just falls into here to pick
+	 * up howto and bootdev, cyloffset and esym are no longer used
 	 */
 2:	/* olddiskboot: */
-	movl	4(%esp),%eax
+	movl	8(%ebp),%eax
 	movl	%eax,_boothowto-KERNBASE
-	movl	8(%esp),%eax
+	movl	12(%ebp),%eax
 	movl	%eax,_bootdev-KERNBASE
-	movl	16(%esp),%eax
-	addl	$KERNBASE,%eax
-	movl	%eax,_esym-KERNBASE
 
 	/* get the BIOS video mode pointer */
  	movl	$0x4a8, %ecx
