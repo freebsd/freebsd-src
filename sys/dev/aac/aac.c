@@ -1290,8 +1290,10 @@ aac_map_command_sg(void *arg, bus_dma_segment_t *segs, int nseg, int error)
 	cm->cm_flags |= AAC_CMD_MAPPED;
 
 	/* put the FIB on the outbound queue */
-	if (aac_enqueue_fib(sc, cm->cm_queue, cm) == EBUSY)
+	if (aac_enqueue_fib(sc, cm->cm_queue, cm) == EBUSY) {
+		aac_unmap_command(cm);
 		aac_requeue_ready(cm);
+	}
 
 	return;
 }
