@@ -7,39 +7,19 @@ not under any circumstances commit new versions onto the mainline, new
 versions or official-patch versions must be imported.
 
 To prepare a new cvs dist for import, extract it into a fresh directory;
+then delete the files and directories listed in FREEBSD-Xlist.
 
-The following generated files were deleted:
-doc/*.ps
-doc/*.info*
-doc/texinfo.tex
-lib/getdate.c
-cvsnt.*
-cvs.spec*
-build.com
-*/*.com
-*/*.dsp
-*/.cvsignore
-.cvsignore
-README.VMS
-
-The following non-freebsd-specific directories were deleted:
-os2
-emx
-windows-NT
-vms
-zlib
-
-It is imported from it's top level directory something like this:
+CVS is imported from its top level directory something like this:
   cvs -n import src/contrib/cvs CVSHOME v<version>
 
-The -n option is "dont do anything" so you can see what is about to happen
+The -n option is "don't do anything" so you can see what is about to happen
 first.  Remove it when it looks ok.
 
 The initial import was done with:
   cvs import src/contrib/cvs CVSHOME v1_8_1
 
 When new versions are imported, cvs will give instructions on how to merge
-the local and vendor changes when/if conflicts arise..
+the local and vendor changes when/if conflicts arise.
 
 The developers can be reached at:  <devel-cvs@cyclic.com>.  Local changes
 that are suitable for public consumption should be submitted for inclusion
