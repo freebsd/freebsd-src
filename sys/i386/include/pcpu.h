@@ -151,6 +151,16 @@ extern struct pcpu *pcpup;
 #define	PCPU_PTR(member)	__PCPU_PTR(pc_ ## member)
 #define	PCPU_SET(member, val)	__PCPU_SET(pc_ ## member, val)
 
+static __inline struct thread *
+__curthread(void)
+{
+	struct thread *td;
+
+	__asm __volatile("movl %%fs:0,%0" : "=r" (td));
+	return (td);
+}
+#define	curthread (__curthread())
+
 #else
 #error gcc or lint is required to use this file
 #endif
