@@ -59,11 +59,13 @@ the vnode of the target file (if it exists)
 pathname information about the file's new name
 .El
 .Sh LOCKS
-The source directory and file will have their ref count bumped on entry.
-The destination directory and file will be locked and referenced on entry.
-The procedure must release (not unlock) the source directory and file,
-and must relase and unlock (i.e. vput) the destination directory and file
-prior to return.
+The source directory and file are unlocked but are expected to have their
+ref count bumped on entry.  The VOP routine is expected to vrele() both prior
+to returning.
+.Pp
+The destination directory and file are locked as well as having their ref
+count bumped.  The VOP routine is expected to vput() both prior to 
+returning.
 .Sh PSEUDOCODE
 .Bd -literal
 int
