@@ -652,9 +652,6 @@ show_intf_stats(int argc, char **argv, const struct cmd *cmdp __unused)
 		case VENDOR_FORE:
 			show_fore200_stats(intf, argc, argv);
 			break;
-		case VENDOR_ENI:
-			show_eni_stats(intf, argc, argv);
-			break;
 		default:
 			fprintf(stderr, "%s: Unknown adapter vendor\n",
 					prog);
