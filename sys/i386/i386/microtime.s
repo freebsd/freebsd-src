@@ -32,8 +32,10 @@
  * SUCH DAMAGE.
  *
  *	from: Steve McCanne's microtime code
- *	$Id: microtime.s,v 1.15 1996/07/17 11:25:53 bde Exp $
+ *	$Id: microtime.s,v 1.16 1996/08/02 20:17:50 bde Exp $
  */
+
+#include "opt_cpu.h"
 
 #include <machine/asmacros.h>
 #include <machine/clock.h>

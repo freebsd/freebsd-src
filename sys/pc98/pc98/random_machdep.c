@@ -1,7 +1,7 @@
 /*
  * random_machdep.c -- A strong random number generator
  *
- * $Id: random_machdep.c,v 1.4 1996/09/03 10:23:53 asami Exp $
+ * $Id: random_machdep.c,v 1.5 1996/09/07 02:14:17 asami Exp $
  *
  * Version 0.95, last modified 18-Oct-95
  * 
@@ -43,7 +43,7 @@
  * modified for PC-9801 by KATO T. of Nagoya University
  */
 
-#define MAX_BLKDEV 4
+#include "opt_cpu.h"
 
 #include <sys/param.h>
 #include <sys/systm.h>
@@ -62,6 +62,8 @@
 #include <i386/isa/isa_device.h>
 #include <i386/isa/timerreg.h>
 #endif
+
+#define MAX_BLKDEV 4
 
 /*
  * The pool is stirred with a primitive polynomial of degree 128
