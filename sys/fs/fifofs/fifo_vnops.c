@@ -528,7 +528,7 @@ fifo_close(ap)
 		if (fip->fi_writers == 0)
 			socantrcvmore(fip->fi_readsock);
 	}
-	if (vp->v_usecount > 1)
+	if (vrefcnt(vp) > 1)
 		return (0);
 	error1 = soclose(fip->fi_readsock);
 	error2 = soclose(fip->fi_writesock);

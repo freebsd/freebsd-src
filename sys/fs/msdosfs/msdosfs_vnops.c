@@ -218,12 +218,12 @@ msdosfs_close(ap)
 	struct denode *dep = VTODE(vp);
 	struct timespec ts;
 
-	mtx_lock(&vp->v_interlock);
+	VI_LOCK(vp);
 	if (vp->v_usecount > 1) {
 		getnanotime(&ts);
 		DETIMES(dep, &ts, &ts, &ts);
 	}
-	mtx_unlock(&vp->v_interlock);
+	VI_UNLOCK(vp);
 	return 0;
 }
 
@@ -818,13 +818,15 @@ loop:
 	VI_LOCK(vp);
 	for (bp = TAILQ_FIRST(&vp->v_dirtyblkhd); bp; bp = nbp) {
 		nbp = TAILQ_NEXT(bp, b_vnbufs);
-		if (BUF_LOCK(bp, LK_EXCLUSIVE | LK_NOWAIT))
+		VI_UNLOCK(vp);
+		if (BUF_LOCK(bp, LK_EXCLUSIVE | LK_NOWAIT)) {
+			VI_LOCK(vp);
 			continue;
+		}
 		if ((bp->b_flags & B_DELWRI) == 0)
 			panic("msdosfs_fsync: not dirty");
 		bremfree(bp);
 		splx(s);
-		VI_UNLOCK(vp);
 		/* XXX Could do bawrite */
 		(void) bwrite(bp);
 		goto loop;
@@ -834,13 +836,13 @@ loop:
 		(void) msleep((caddr_t)&vp->v_numoutput, VI_MTX(vp),
 		    PRIBIO + 1, "msdosfsn", 0);
 	}
-	VI_UNLOCK(vp);
 #ifdef DIAGNOSTIC
 	if (!TAILQ_EMPTY(&vp->v_dirtyblkhd)) {
 		vprint("msdosfs_fsync: dirty", vp);
 		goto loop;
 	}
 #endif
+	VI_UNLOCK(vp);
 	splx(s);
 	return (deupdat(VTODE(vp), ap->a_waitfor == MNT_WAIT));
 }

@@ -209,7 +209,7 @@ smbfs_mount(struct mount *mp, char *path, caddr_t data,
 	if (error)
 		goto bad;
 	VOP_UNLOCK(vp, 0, td);
-	SMBVDEBUG("root.v_usecount = %d\n", vp->v_usecount);
+	SMBVDEBUG("root.v_usecount = %d\n", vrefcnt(vp));
 
 #ifdef DIAGNOSTICS
 	SMBERROR("mp=%p\n", mp);
@@ -426,14 +426,17 @@ loop:
 		 */
 		if (vp->v_mount != mp)
 			goto loop;
+		VI_LOCK(vp);
 #ifndef FB_RELENG3
 		if (VOP_ISLOCKED(vp, NULL) || TAILQ_EMPTY(&vp->v_dirtyblkhd) ||
 #else
 		if (VOP_ISLOCKED(vp) || TAILQ_EMPTY(&vp->v_dirtyblkhd) ||
 #endif
-		    waitfor == MNT_LAZY)
+		    waitfor == MNT_LAZY) {
+			VI_UNLOCK(vp);
 			continue;
-		if (vget(vp, LK_EXCLUSIVE, td))
+		}
+		if (vget(vp, LK_EXCLUSIVE | LK_INTERLOCK, td))
 			goto loop;
 		error = VOP_FSYNC(vp, cred, waitfor, td);
 		if (error)
