@@ -6,7 +6,7 @@
  * to the original author and the contributors.
  */
 #if !defined(lint)
-static const char rcsid[] = "@(#)$Id: ip_proxy.c,v 1.1.1.3 1998/03/21 10:11:30 peter Exp $";
+static const char rcsid[] = "@(#)$Id: ip_proxy.c,v 1.2 1998/03/21 11:34:23 peter Exp $";
 #endif
 
 #if defined(__FreeBSD__) && defined(KERNEL) && !defined(_KERNEL)
@@ -82,6 +82,10 @@ static ap_session_t *ap_find __P((ip_t *, tcphdr_t *));
 static ap_session_t *ap_new_session __P((aproxy_t *, ip_t *, tcphdr_t *,
 					 fr_info_t *, nat_t *));
 
+static int ap_matchsrcdst __P((ap_session_t *aps, struct in_addr src,
+			       struct in_addr dst, void *tcp, u_short sport,
+			       u_short dport));
+
 #define	AP_SESS_SIZE	53
 
 #if defined(_KERNEL) && !defined(linux)
@@ -114,15 +118,37 @@ ipnat_t *nat;
 }
 
 
+static int
+ap_matchsrcdst(aps, src, dst, tcp, sport, dport)
+ap_session_t *aps;
+struct in_addr src, dst;
+void *tcp;
+u_short sport, dport;
+{
+	if (aps->aps_dst.s_addr == dst.s_addr) {
+		if ((aps->aps_src.s_addr == src.s_addr) &&
+		    (!tcp || (sport == aps->aps_sport) &&
+		     (dport == aps->aps_dport)))
+			return 1;
+	} else if (aps->aps_dst.s_addr == src.s_addr) {
+		if ((aps->aps_src.s_addr == dst.s_addr) &&
+		    (!tcp || (sport == aps->aps_dport) &&
+		     (dport == aps->aps_sport)))
+			return 1;
+	}
+	return 0;
+}
+
+
 static ap_session_t *ap_find(ip, tcp)
 ip_t *ip;
 tcphdr_t *tcp;
 {
-	struct in_addr src, dst;
-	register u_long hv;
-	register u_short sp, dp;
-	register ap_session_t *aps;
 	register u_char p = ip->ip_p;
+	register ap_session_t *aps;
+	register u_short sp, dp;
+	register u_long hv;
+	struct in_addr src, dst;
 
 	src = ip->ip_src, dst = ip->ip_dst;
 	sp = dp = 0;			/* XXX gcc -Wunitialized */
@@ -139,14 +165,8 @@ tcphdr_t *tcp;
 
 	for (aps = ap_sess_tab[hv]; aps; aps = aps->aps_next)
 		if ((aps->aps_p == p) &&
-		    IPPAIR(aps->aps_src, aps->aps_dst, src, dst)) {
-			if (tcp) {
-				if (PAIRS(aps->aps_sport, aps->aps_dport,
-					  sp, dp))
-					break;
-			} else
-				break;
-		}
+		    ap_matchsrcdst(aps, src, dst, tcp, sp, dp))
+			break;
 	return aps;
 }
 
