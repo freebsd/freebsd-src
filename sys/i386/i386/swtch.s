@@ -33,7 +33,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: swtch.s,v 1.20.4.5 1996/03/12 05:49:48 nate Exp $
+ *	$Id: swtch.s,v 1.20.4.6 1996/03/12 16:39:15 nate Exp $
  */
 
 #include "npx.h"	/* for NNPX */
@@ -259,11 +259,11 @@ idle_loop:
 	cmpl	$0,_whichidqs			/* 'idle' queue */
 	jne	idqr
 	movb	$0,_intr_nesting_level		/* charge Idle for this loop */
+	sti
 #if NAPM > 0
 	call    _apm_cpu_idle
 	call    _apm_cpu_busy
 #else
-	sti
 	hlt					/* wait for interrupt */
 #endif
 	jmp	idle_loop
