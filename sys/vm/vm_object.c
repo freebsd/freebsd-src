@@ -754,7 +754,7 @@ vm_object_page_clean(vm_object_t object, vm_pindex_t start, vm_pindex_t end, int
 		if ((flags & OBJPC_NOSYNC) && (p->flags & PG_NOSYNC))
 			clearobjflags = 0;
 		else
-			vm_page_protect(p, VM_PROT_READ);
+			pmap_page_protect(p, VM_PROT_READ);
 	}
 
 	if (clearobjflags && (tstart == 0) && (tend == object->size)) {
@@ -924,7 +924,7 @@ vm_object_page_collect_flush(vm_object_t object, vm_page_t p, int curgeneration,
 	vm_pageout_flush(ma, runlen, pagerflags);
 	for (i = 0; i < runlen; i++) {
 		if (ma[i]->valid & ma[i]->dirty) {
-			vm_page_protect(ma[i], VM_PROT_READ);
+			pmap_page_protect(ma[i], VM_PROT_READ);
 			vm_page_flag_set(ma[i], PG_CLEANCHK);
 
 			/*
@@ -950,7 +950,7 @@ vm_object_page_collect_flush(vm_object_t object, vm_page_t p, int curgeneration,
  * is converted to copy-on-write.  
  *
  * NOTE: If the page is already at VM_PROT_NONE, calling
- * vm_page_protect will have no effect.
+ * pmap_page_protect will have no effect.
  */
 void
 vm_object_pmap_copy_1(vm_object_t object, vm_pindex_t start, vm_pindex_t end)
@@ -967,7 +967,7 @@ vm_object_pmap_copy_1(vm_object_t object, vm_pindex_t start, vm_pindex_t end)
 		p = vm_page_lookup(object, idx);
 		if (p == NULL)
 			continue;
-		vm_page_protect(p, VM_PROT_READ);
+		pmap_page_protect(p, VM_PROT_READ);
 	}
 }
 #endif
