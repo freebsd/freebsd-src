@@ -25,7 +25,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *  $Id: linux_stats.c,v 1.4 1996/01/30 12:23:17 peter Exp $
+ *  $Id: linux_stats.c,v 1.5 1996/03/02 19:38:00 peter Exp $
  */
 
 #include <sys/param.h>
@@ -192,6 +192,7 @@ linux_newfstat(struct proc *p, struct linux_newfstat_args *args, int *retval)
 	|| (fp = fdp->fd_ofiles[args->fd]) == NULL)
 	return EBADF;
     switch (fp->f_type) {
+    case DTYPE_FIFO:
     case DTYPE_VNODE:
 	error = vn_stat((struct vnode *)fp->f_data, &buf, p);
 	break;
