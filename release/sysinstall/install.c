@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: install.c,v 1.5 1995/05/04 03:51:16 jkh Exp $
+ * $Id: install.c,v 1.6 1995/05/04 19:48:11 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -43,6 +43,8 @@
 
 #include "sysinstall.h"
 
+Boolean SystemWasInstalled;
+
 static int
 installHook(char *str)
 {
@@ -53,6 +55,7 @@ installHook(char *str)
     /* Clip garbage off the ends */
     string_prune(str);
     str = string_skipwhite(str);
+    /* Try and open all the disks */
     while (str) {
 	char *cp;
 
@@ -63,30 +66,42 @@ installHook(char *str)
 	    beep();
 	    return 0;
 	}
-	disks[i++] = device_slice_disk(str);
+	disks[i] = Open_Disk(str);
+	if (!disks[i])
+	    msgFatal("Unable to open disk %s!", str);
+	++i;
 	str = cp;
     }
     disks[i] = NULL;
     if (!i)
 	return 0;
-    else {
-#ifdef notdoneyet
-	partition_disks(disks);
-	if (!confirm_write(disks)) {
-	    for (i = 0; disks[i]; i++)
-		Free_Disk(disks[i]);
-	    return 0;
-	}
-	else {
+
+    while (1) {
+	/* Now go set up all the MBR partition information */
+	for (i = 0; disks[i]; i++)
+	    disks[i] = device_slice_disk(disks[i]);
+
+	for (i = 0; disks[i]; i++)
+	    partition_disk(disks[i]);
+
+	if (!write_disks(disks)) {
 	    make_filesystems(disks);
 	    cpio_extract(disks);
 	    extract_dists(disks);
 	    do_final_setup(disks);
-	    systemShutdown();
+	    SystemWasInstalled = TRUE;
+	    break;
 	}
-#endif
+	else {
+	    dialog_clear();
+	    if (msgYesNo("Would you like to go back to the master partition menu?")) {
+		for (i = 0; disks[i]; i++)
+		    Free_Disk(disks[i]);
+		break;
+	    }
+	}
     }
-    return 1;
+    return SystemWasInstalled;
 }
 
 int
@@ -105,7 +120,7 @@ installCustom(char *str)
     dmenuOpen(menu, &choice, &scroll, &curr, &max);
     free(menu);
     free(devs);
-    return 1;
+    return SystemWasInstalled;
 }
 
 int
@@ -124,7 +139,7 @@ installExpress(char *str)
     dmenuOpen(menu, &choice, &scroll, &curr, &max);
     free(menu);
     free(devs);
-    return 1;
+    return SystemWasInstalled;
 }
 
 int

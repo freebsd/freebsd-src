@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: msg.c,v 1.3 1995/05/04 03:51:21 jkh Exp $
+ * $Id: msg.c,v 1.4 1995/05/04 19:48:16 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -173,7 +173,7 @@ msgConfirm(char *fmt, ...)
     va_end(args);
     use_helpline(NULL);
     use_helpfile(NULL);
-    dialog_mesgbox("User Confirmation Request", errstr, -1, -1);
+    dialog_mesgbox("User Attention Requested", errstr, -1, -1);
     free(errstr);
 }
 
@@ -191,7 +191,7 @@ msgYesNo(char *fmt, ...)
     va_end(args);
     use_helpline(NULL);
     use_helpfile(NULL);
-    ret = dialog_yesno("Decision Required", errstr, -1, -1);
+    ret = dialog_yesno("User Confirmation Requested", errstr, -1, -1);
     free(errstr);
     return ret;
 }
