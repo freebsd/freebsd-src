@@ -55,9 +55,11 @@
  * on it, the new owner of the lock must claim ownership of the turnstile
  * via turnstile_claim().
  *
- * Each thread allocates a turnstile at thread creation time via
- * turnstile_alloc() and frees it at thread destroy time via
- * turnstile_free().
+ * Each thread allocates a turnstile at thread creation via turnstile_alloc()
+ * and releases it at thread destruction via turnstile_free().  Note that
+ * a turnstile is not tied to a specific thread and that the turnstile
+ * released at thread destruction may not be the same turnstile that the
+ * thread allocated when it was created.
  *
  * A function can query a turnstile to see if it is empty via
  * turnstile_empty().  The highest priority thread blocked on a turnstile
