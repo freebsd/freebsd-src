@@ -1948,12 +1948,14 @@ fdautoselect(dev_t dev)
 
 	fd->options = oopts;
 	if (i == n) {
-		device_printf(fd->dev, "autoselection failed\n");
+		if (bootverbose)
+			device_printf(fd->dev, "autoselection failed\n");
 		fd->ft = 0;
 		return (EIO);
 	} else {
-		device_printf(fd->dev, "autoselected %d KB medium\n",
-			      fd->ft->size / 2);
+		if (bootverbose)
+			device_printf(fd->dev, "autoselected %d KB medium\n",
+				      fd->ft->size / 2);
 		return (0);
 	}
 }
