@@ -456,7 +456,7 @@ parse(char *arg)
 	    }
 	    if (opts & 1 << RBX_PROBEKBD) {
 		i = *(uint8_t *)PTOV(0x496) & 0x10;
-		printf("Keyboard: %s\n", i ? "yes" : "no");
+		/* printf("Keyboard: %s\n", i ? "yes" : "no"); XXX GCC31 size */
 		if (!i)
 		    opts |= 1 << RBX_DUAL | 1 << RBX_SERIAL;
 		opts &= ~(1 << RBX_PROBEKBD);
