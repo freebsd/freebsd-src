@@ -148,12 +148,12 @@ void	fdfree __P((struct thread *td));
 struct	filedesc *fdinit __P((struct thread *td));
 struct	filedesc *fdshare __P((struct proc *p));
 void	ffree __P((struct file *fp));
+static __inline struct file *	fget_locked __P((struct filedesc *fdp, int fd));
 pid_t	fgetown __P((struct sigio *sigio));
 int	fsetown __P((pid_t pgid, struct sigio **sigiop));
 void	funsetown __P((struct sigio *sigio));
 void	funsetownlst __P((struct sigiolst *sigiolst));
 int	getvnode __P((struct filedesc *fdp, int fd, struct file **fpp));
-static __inline struct file *	fget_locked(struct filedesc *, int);
 void	setugidsafety __P((struct thread *td));
 
 static __inline struct file *
@@ -162,9 +162,8 @@ fget_locked(fdp, fd)
 	int fd;
 {
 
-	if (fd < 0 || (u_int)fd >= fdp->fd_nfiles)
-	       return (NULL);
-	return (fdp->fd_ofiles[fd]);
+	/* u_int cast checks for negative descriptors. */
+	return ((u_int)fd >= fdp->fd_nfiles ? NULL : fdp->fd_ofiles[fd]);
 }
 
 #endif /* _KERNEL */
