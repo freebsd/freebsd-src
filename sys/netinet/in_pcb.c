@@ -521,7 +521,7 @@ in_pcbconnect(inp, nam, p)
 		if (inp->inp_lport == 0) {
 			error = in_pcbbind(inp, (struct sockaddr *)0, p);
 			if (error)
-			    return (error);
+				return (error);
 		}
 		inp->inp_laddr = ifaddr->sin_addr;
 	}
