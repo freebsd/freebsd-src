@@ -762,7 +762,7 @@
 
       <para>ACPI support has been merged in from the
       <application>Intel ACPI</application>
-      project, and updated to the ACPI CA 20010518 release.</para>
+      project, and updated to the ACPI CA 20010816 release.</para>
 
       <sect4 arch="i386">
         <title>isdn4bsd</title>
@@ -1759,6 +1759,12 @@
     to create a relatively safe anonymous FTP drop box for others to upload
     to.</para>
 
+    <para>The &man.daemon.8; program, a command-line interface to
+    &man.daemon.3;, has been added.  It detaches itself from its
+    controlling terminal and executes a program specified on the command
+    line.  This allows the user to run an arbitrary program as if it were
+    written to be a daemon.</para>
+
     <sect3>
       <title>Contributed Software</title>
 
@@ -1853,6 +1859,9 @@
 
       <para><application>ncurses</application> has been updated to
       5.2-20010512.</para>
+
+      <para>The <application>NTP</application> suite of programs has been
+      updated to 4.1.0.</para>
 
       <para>The <application>OPIE</application> one-time-password suite
       has been updated to 2.32. &merged;  It has completely replaced
