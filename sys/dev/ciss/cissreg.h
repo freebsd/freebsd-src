@@ -463,6 +463,15 @@ struct ciss_config_table
 #define CISS_BIG_MAP_ENTRIES	128	/* number of entries in a BIG_MAP */
 
 /*
+ * In the device address of a logical volume, the bus number
+ * is encoded into the logical lun volume number starting
+ * at the second byte, with the first byte defining the
+ * logical drive number.
+ */
+#define CISS_LUN_TO_BUS(x)    (((x) >> 16) & 0xFF)
+#define CISS_LUN_TO_TARGET(x) ((x) & 0xFF)
+
+/*
  * BMIC CDB
  *
  * Note that the phys_drive/res1 field is nominally the 32-bit
