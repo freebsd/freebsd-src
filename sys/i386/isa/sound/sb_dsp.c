@@ -1067,6 +1067,30 @@ sb_dsp_detect (struct address_info *hw_config)
     return 0;
 #endif
 
+#ifdef PC98
+  switch (sbc_irq)
+    {
+    case 3:
+      sb_setmixer (IRQ_NR, 1);
+      break;
+    case 5:
+      sb_setmixer (IRQ_NR, 8);
+      break;
+    case 10:
+      sb_setmixer (IRQ_NR, 2);
+      break;
+    }
+  switch (hw_config->dma)
+    {
+    case 0:
+      sb_setmixer (DMA_NR, 1);
+      break;
+    case 3:
+      sb_setmixer (DMA_NR, 2);
+      break;
+    }
+#endif
+
   return 1;			/*
 				 * Detected
 				 */
@@ -1137,8 +1161,13 @@ sb_dsp_init (long mem_start, struct address_info *hw_config)
 
 #ifndef EXCLUDE_YM3812
 
+#ifdef PC98
+  if (sbc_major > 3 ||
+      (sbc_major == 3 && INB (0x28d2) == 0x00))
+#else
   if (sbc_major > 3 ||
       (sbc_major == 3 && INB (0x388) == 0x00))	/* Should be 0x06 if not OPL-3 */
+#endif
     enable_opl3_mode (OPL3_LEFT, OPL3_RIGHT, OPL3_BOTH);
 #endif
 

@@ -24,7 +24,7 @@
  * the rights to redistribute these changes.
  *
  *	from: Mach, Revision 2.2  92/04/04  11:35:03  rpd
- *	$Id: boot.h,v 1.3 1996/10/09 21:45:24 asami Exp $
+ *	$Id: boot.h,v 1.4 1996/10/23 07:24:30 asami Exp $
  */
 
 #include <sys/param.h>
@@ -82,6 +82,9 @@ int gets(char *buf);
 int strcmp(const char *s1, const char *s2);
 void bcopy(const char *from, char *to, int len);
 void twiddle(void);
+#ifdef PC98
+void machine_check(void);
+#endif
 
 /* probe_keyboard.c */
 int probe_keyboard(void);
@@ -98,3 +101,8 @@ void read(char *buffer, int count);
 int find(char *path);
 int block_map(int file_block);
 int openrd(void);
+
+#ifdef PC98
+#define V(ra)	(ra - BOOTSEG * 0x10)
+#endif
+

@@ -32,7 +32,7 @@ int probe_keyboard(void)
 	/*
 	 * New type (RA and later) keyboard only!
 	 */
-	if (*(unsigned char*)0x11481 & 0x48)
+	if (*(unsigned char*)V(0xA1481) & 0x48)
 		return 0;
 	return 1;	/* keyboard not found */
 }

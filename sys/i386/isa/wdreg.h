@@ -34,12 +34,42 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)wdreg.h	7.1 (Berkeley) 5/9/91
- *	$Id: wdreg.h,v 1.11 1996/01/28 22:16:20 wollman Exp $
+ *	$Id: wdreg.h,v 1.13 1996/11/02 10:37:08 asami Exp $
+ */
+
+/*
+ * modified for PC9801 by F.Ukai
+ *			Kyoto University Microcomputer Club (KMC)
  */
 
 /*
  * Disk Controller register definitions.
  */
+#ifdef PC98
+#define	wd_data		0x0		/* data register (R/W - 16 bits) */
+#define wd_error	0x2		/* error register (R) */
+#define	wd_precomp	wd_error	/* write precompensation (W) */
+#define wd_features	wd_error	/* features register (W) */
+#define	wd_seccnt	0x4		/* sector count (R/W) */
+#define	wd_sector	0x6		/* first sector number (R/W) */
+#define	wd_cyl_lo	0x8		/* cylinder address, low byte (R/W) */
+#define	wd_cyl_hi	0xa		/* cylinder address, high byte (R/W)*/
+#define	wd_sdh		0xc		/* sector size/drive/head (R/W)*/
+#define	wd_command	0xe		/* command register (W)	 */
+#define	wd_status wd_command		/* immediate status (R)	 */
+
+#define	wd_altsts_nec	0x10c	 /*alternate fixed disk status(via 1015) (R)*/
+#define	wd_ctlr_nec	0x10c	 /*fixed disk controller control(via 1015) (W)*/
+#define	wd_altsts_epson	0x3	 /*alternate fixed disk status(via 1015) (R)*/
+#define	wd_ctlr_epson	0x3	 /*fixed disk controller control(via 1015) (W)*/
+#define wd_altsts		wd_alsts_nec
+#define wd_ctlr			wd_ctlr_nec
+
+#define  WDCTL_4BIT	 0x8	/* use four head bits (wd1003) */
+#define  WDCTL_RST	 0x4	/* reset the controller */
+#define  WDCTL_IDS	 0x2	/* disable controller interrupts */
+#define	wd_digin	0x10e	 /* disk controller input(via 1015) (R)*/
+#else	/* IBM-PC */
 #define	wd_data		0x0		/* data register (R/W - 16 bits) */
 #define wd_error	0x1		/* error register (R) */
 #define	wd_precomp	wd_error	/* write precompensation (W) */
@@ -58,6 +88,7 @@
 #define  WDCTL_RST	 0x4	/* reset the controller */
 #define  WDCTL_IDS	 0x2	/* disable controller interrupts */
 #define	wd_digin	0x207	 /* disk controller input(via 1015) (R)*/
+#endif	/* PC98 */
 
 /*
  * Status Bits.

@@ -80,7 +80,7 @@ READ(ap)
 	mode = ip->i_mode;
 	uio = ap->a_uio;
 
-#if DIAGNOSTIC
+#ifdef DIAGNOSTIC
 	if (uio->uio_rw != UIO_READ)
 		panic("%s: mode", READ_S);
 
@@ -103,13 +103,14 @@ READ(ap)
 		nextlbn = lbn + 1;
 		size = BLKSIZE(fs, ip, lbn);
 		blkoffset = blkoff(fs, uio->uio_offset);
+
 		xfersize = fs->s_frag_size - blkoffset;
 		if (uio->uio_resid < xfersize)
 			xfersize = uio->uio_resid;
 		if (bytesinfile < xfersize)
 			xfersize = bytesinfile;
 
-		if (lblktosize(fs, nextlbn) > ip->i_size)
+		if (lblktosize(fs, nextlbn) >= ip->i_size)
 			error = bread(vp, lbn, size, NOCRED, &bp);
 		else if (doclusterread)
 			error = cluster_read(vp,
@@ -146,15 +147,19 @@ READ(ap)
 		    uiomove((char *)bp->b_data + blkoffset, (int)xfersize, uio);
 		if (uio->uio_segflg != UIO_NOCOPY)
 			ip->i_flag &= ~IN_RECURSE;
+		if (error)
+			break;
 #if !defined(__FreeBSD__)
 		if (S_ISREG(mode) && (xfersize + blkoffset == fs->s_frag_size ||
 		    uio->uio_offset == ip->i_size))
 			bp->b_flags |= B_AGE;
 #endif
+
 		bqrelse(bp);
 	}
 	if (bp != NULL)
 		bqrelse(bp);
+	if (!(vp->v_mount->mnt_flag & MNT_NOATIME))
 	ip->i_flag |= IN_ACCESS;
 	return (error);
 }
@@ -180,13 +185,14 @@ WRITE(ap)
 	daddr_t lbn;
 	off_t osize;
 	int blkoffset, error, flags, ioflag, resid, size, xfersize;
+	struct timeval tv;
 
 	ioflag = ap->a_ioflag;
 	uio = ap->a_uio;
 	vp = ap->a_vp;
 	ip = VTOI(vp);
 
-#if DIAGNOSTIC
+#ifdef DIAGNOSTIC
 	if (uio->uio_rw != UIO_WRITE)
 		panic("%s: mode", WRITE_S);
 #endif
@@ -239,7 +245,7 @@ WRITE(ap)
 
 #if defined(__FreeBSD__)
 		if (uio->uio_offset + xfersize > ip->i_size)
-			vnode_pager_setsize(vp, (u_long)uio->uio_offset + xfersize);
+			vnode_pager_setsize(vp, uio->uio_offset + xfersize);
 #endif
 
 		if (fs->s_frag_size > xfersize)
@@ -249,9 +255,9 @@ WRITE(ap)
 
 		error = ext2_balloc(ip,
 		    lbn, blkoffset + xfersize, ap->a_cred, &bp, flags);
-
 		if (error)
 			break;
+
 		if (uio->uio_offset + xfersize > ip->i_size) {
 			ip->i_size = uio->uio_offset + xfersize;
 #if !defined(__FreeBSD__)
@@ -272,10 +278,12 @@ WRITE(ap)
 		    uiomove((char *)bp->b_data + blkoffset, (int)xfersize, uio);
 		if (uio->uio_segflg != UIO_NOCOPY)
 			ip->i_flag &= ~IN_RECURSE;
+		if (ioflag & IO_VMIO)
+			bp->b_flags |= B_RELBUF;
 
-		if (ioflag & IO_SYNC)
+		if (ioflag & IO_SYNC) {
 			(void)bwrite(bp);
-		else if (xfersize + blkoffset == fs->s_frag_size) {
+		} else if (xfersize + blkoffset == fs->s_frag_size) {
 			if (doclusterwrite) {
 #if defined(__FreeBSD__)
 				bp->b_flags |= B_CLUSTEROK;
@@ -289,12 +297,10 @@ WRITE(ap)
 			}
 		} else {
 #if defined(__FreeBSD__)
-			if (doclusterwrite)
 				bp->b_flags |= B_CLUSTEROK;
 #endif
 			bdwrite(bp);
 		}
-
 		if (error || xfersize == 0)
 			break;
 		ip->i_flag |= IN_CHANGE | IN_UPDATE;
@@ -314,7 +320,6 @@ WRITE(ap)
 			uio->uio_resid = resid;
 		}
 	} else if (resid > uio->uio_resid && (ioflag & IO_SYNC)) {
-		struct timeval tv;
 #if !defined(__FreeBSD__)
 		get_time(&tv);
 #else

@@ -1242,10 +1242,6 @@ vt_coldinit(void)
 
 	if(!keyboard_is_initialized)
 		kbd_code_init1();
-
-	/* update keyboard led's */
-
-	update_led();
 }
 
 /*---------------------------------------------------------------------------*

@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)com.c	7.5 (Berkeley) 5/16/91
- *	$Id: sio.c,v 1.7 1996/09/12 11:09:56 asami Exp $
+ *	$Id: sio.c,v 1.8 1996/10/09 21:46:46 asami Exp $
  */
 
 #include "opt_comconsole.h"
@@ -423,6 +423,7 @@ static struct cdevsw sio_cdevsw = {
 
 static	int	comconsole = -1;
 static	speed_t	comdefaultrate = TTYDEF_SPEED;
+static	speed_t	condefaultrate = CONSPEED;
 static	u_int	com_events;	/* input chars + weighted output completions */
 static	int	sio_timeout;
 static	int	sio_timeouts_until_log;
@@ -1130,9 +1131,11 @@ sioattach(isdp)
 		com->it_in.c_cflag = TTYDEF_CFLAG | CLOCAL;
 		com->it_in.c_lflag = TTYDEF_LFLAG;
 		com->lt_out.c_cflag = com->lt_in.c_cflag = CLOCAL;
-	}
-	termioschars(&com->it_in);
+		com->it_in.c_ispeed = com->it_in.c_ospeed = condefaultrate;
+	} else
 	com->it_in.c_ispeed = com->it_in.c_ospeed = comdefaultrate;
+
+	termioschars(&com->it_in);
 	com->it_out = com->it_in;
 
 	/* attempt to determine UART type */
@@ -3052,7 +3055,7 @@ siocnopen(sp)
 
 	/*
 	 * Save all the device control registers except the fifo register
-	 * and set our default ones (cs8 -parenb speed=comdefaultrate).
+	 * and set our default ones (cs8 -parenb speed=condefaultrate).
 	 * We can't save the fifo register since it is read-only.
 	 */
 	iobase = siocniobase;
@@ -3069,7 +3072,7 @@ siocnopen(sp)
 	 * data input register.  This also reduces the effects of the
 	 * UMC8669F bug.
 	 */
-	divisor = ttspeedtab(comdefaultrate, comspeedtab);
+	divisor = ttspeedtab(condefaultrate, comspeedtab);
 	dlbl = divisor & 0xFF;
 	if (sp->dlbl != dlbl)
 		outb(iobase + com_dlbl, dlbl);
