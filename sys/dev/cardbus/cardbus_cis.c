@@ -421,7 +421,7 @@ cardbus_read_tuple_init(device_t cbdev, device_t child, u_int32_t *start,
 	case CARDBUS_CIS_ASI_BAR4:
 	case CARDBUS_CIS_ASI_BAR5:
 		*rid = CARDBUS_BASE0_REG + (CARDBUS_CIS_SPACE(*start) - 1) * 4;
-		pci_write_config(child, *rid, ~0UL, 4);
+		pci_write_config(child, *rid, 0xffffffff, 4);
 		break;
 	case CARDBUS_CIS_ASI_ROM:
 		*rid = CARDBUS_ROM_REG;
