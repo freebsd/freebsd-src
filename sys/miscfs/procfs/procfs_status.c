@@ -37,7 +37,7 @@
  *	@(#)procfs_status.c	8.4 (Berkeley) 6/15/94
  *
  * From:
- *	$Id: procfs_status.c,v 1.13 1999/04/28 11:37:20 phk Exp $
+ *	$Id: procfs_status.c,v 1.14 1999/05/22 20:10:26 dt Exp $
  */
 
 #include <sys/param.h>
@@ -48,6 +48,11 @@
 #include <sys/tty.h>
 #include <sys/resourcevar.h>
 #include <miscfs/procfs/procfs.h>
+
+#include <vm/vm.h>
+#include <vm/pmap.h>
+#include <vm/vm_param.h>
+#include <sys/exec.h>
 
 int
 procfs_dostatus(curp, p, pfs, uio)
@@ -160,19 +165,47 @@ procfs_docmdline(curp, p, pfs, uio)
 	int error;
 	char psbuf[256];
 
+	struct ps_strings pstr;
+	int i;
+	size_t bytes_left, done;
+
 	if (uio->uio_rw != UIO_READ)
 		return (EOPNOTSUPP);
 
 	/*
-	 * For now, this is a hack.  To implement this fully would require
-	 * groping around in the process address space to follow argv etc.
+	 * This is a hack: the correct behaviour is only implemented for
+	 * the case of the current process enquiring about its own argv
+	 * (due to the difficulty of accessing other processes' address space).
+	 * For other cases, we cop out and just return argv[0] from p->p_comm.
+	 * Note that if the argv is no longer available, we deliberately
+	 * don't fall back on p->p_comm or return an error: the authentic
+	 * Linux behaviour is to return zero-length in this case.
 	 */
-	ps = psbuf;
-	bcopy(p->p_comm, ps, MAXCOMLEN);
-	ps[MAXCOMLEN] = '\0';
-	ps += strlen(ps);
 
-	ps += sprintf(ps, "\n");
+	if (curproc == p) {
+		error = copyin((void*)PS_STRINGS, &pstr, sizeof(pstr));
+		if (error)
+			return (error);
+		bytes_left = sizeof(psbuf);
+		ps = psbuf;
+		for (i = 0; bytes_left && (i < pstr.ps_nargvstr); i++) {
+			error = copyinstr(pstr.ps_argvstr[i], ps,
+					  bytes_left, &done);
+			/* If too long or malformed, just truncate */
+			if (error) {
+				error = 0;
+				break;
+			}
+			ps += done;
+			bytes_left -= done;
+		}
+	}
+	else {
+		ps = psbuf;
+		bcopy(p->p_comm, ps, MAXCOMLEN);
+		ps[MAXCOMLEN] = '\0';
+		ps += strlen(ps);
+	}
 
 	xlen = ps - psbuf;
 	xlen -= uio->uio_offset;
