@@ -190,7 +190,7 @@ static long *end_ptr = &randtbl[DEG_3 + 1];
  */
 void
 srandom(x)
-	u_int x;
+	unsigned int x;
 {
 	register int i, j;
 
@@ -229,7 +229,7 @@ srandom(x)
  */
 char *
 initstate(seed, arg_state, n)
-	u_int seed;			/* seed for R.N.G. */
+	unsigned int seed;		/* seed for R.N.G. */
 	char *arg_state;		/* pointer to state array */
 	int n;				/* # bytes of state info */
 {
