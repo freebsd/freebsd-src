@@ -93,6 +93,7 @@ _kvm_initvtop(kvm_t *kd)
 	struct vmstate *vm;
 	struct nlist nlist[2];
 	u_long pa;
+	u_long kernbase;
 	pd_entry_t	*PTD;
 
 	vm = (struct vmstate *)_kvm_malloc(kd, sizeof(*vm));
@@ -103,14 +104,23 @@ _kvm_initvtop(kvm_t *kd)
 	kd->vmst = vm;
 	vm->PTD = 0;
 
-	nlist[0].n_name = "_IdlePTD";
+	nlist[0].n_name = "kernbase";
+	nlist[1].n_name = 0;
+
+	if (kvm_nlist(kd, nlist) != 0)
+		kernbase = KERNBASE;	/* for old kernels */
+	else
+		kernbase = nlist[0].n_value;
+
+	nlist[0].n_name = "IdlePTD";
 	nlist[1].n_name = 0;
 
 	if (kvm_nlist(kd, nlist) != 0) {
 		_kvm_err(kd, kd->program, "bad namelist");
 		return (-1);
 	}
-	if (kvm_read(kd, (nlist[0].n_value - KERNBASE), &pa, sizeof(pa)) != sizeof(pa)) {
+	if (kvm_read(kd, (nlist[0].n_value - kernbase), &pa, sizeof(pa)) !=
+	    sizeof(pa)) {
 		_kvm_err(kd, kd->program, "cannot read IdlePTD");
 		return (-1);
 	}
