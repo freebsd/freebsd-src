@@ -1393,31 +1393,24 @@ void sis_rxeoc(sc)
 static void sis_txeof(sc)
 	struct sis_softc	*sc;
 {
-	struct sis_desc		*cur_tx = NULL;
 	struct ifnet		*ifp;
 	u_int32_t		idx;
 
 	ifp = &sc->arpcom.ac_if;
 
-	/* Clear the timeout timer. */
-	ifp->if_timer = 0;
-
 	/*
 	 * Go through our tx list and free mbufs for those
 	 * frames that have been transmitted.
 	 */
-	idx = sc->sis_cdata.sis_tx_cons;
-	while (idx != sc->sis_cdata.sis_tx_prod) {
-		cur_tx = &sc->sis_ldata.sis_tx_list[idx];
+	for (idx = sc->sis_cdata.sis_tx_cons; sc->sis_cdata.sis_tx_cnt > 0;
+	    sc->sis_cdata.sis_tx_cnt--, SIS_INC(idx, SIS_TX_LIST_CNT) ) {
+		struct sis_desc *cur_tx = &sc->sis_ldata.sis_tx_list[idx];
 
 		if (SIS_OWNDESC(cur_tx))
 			break;
 
-		if (cur_tx->sis_ctl & SIS_CMDSTS_MORE) {
-			sc->sis_cdata.sis_tx_cnt--;
-			SIS_INC(idx, SIS_TX_LIST_CNT);
+		if (cur_tx->sis_ctl & SIS_CMDSTS_MORE)
 			continue;
-		}
 
 		if (!(cur_tx->sis_ctl & SIS_CMDSTS_PKT_OK)) {
 			ifp->if_oerrors++;
@@ -1437,16 +1430,15 @@ static void sis_txeof(sc)
 			bus_dmamap_unload(sc->sis_tag, cur_tx->sis_map);
 			bus_dmamap_destroy(sc->sis_tag, cur_tx->sis_map);
 		}
-
-		sc->sis_cdata.sis_tx_cnt--;
-		SIS_INC(idx, SIS_TX_LIST_CNT);
-		ifp->if_timer = 0;
 	}
 
-	sc->sis_cdata.sis_tx_cons = idx;
-
-	if (cur_tx != NULL)
+	if (idx != sc->sis_cdata.sis_tx_cons) {
+		/* we freed up some buffers */
+		sc->sis_cdata.sis_tx_cons = idx;
 		ifp->if_flags &= ~IFF_OACTIVE;
+	}
+
+	ifp->if_timer = (sc->sis_cdata.sis_tx_cnt == 0) ? 0 : 5;
 
 	return;
 }
