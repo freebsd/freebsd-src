@@ -326,46 +326,58 @@ main(argc, argv)
 				altflags |= ALTF_NFSV3;
 			getmntopts(optarg, mopts, &mntflags, &altflags);
 			set_flags(&altflags, &nfsargsp->flags, FALSE);
+printf("altflags= %x, optarg = %s\n", altflags, optarg);
 			/*
 			 * Handle altflags which don't map directly to
 			 * mount flags.
 			 */
-			if(altflags & ALTF_BG)
+			if (altflags & ALTF_BG)
 				opflags |= BGRND;
-			if(altflags & ALTF_MNTUDP)
+			if (altflags & ALTF_MNTUDP)
 				mnttcp_ok = 0;
-			if(altflags & ALTF_TCP) {
+			if (altflags & ALTF_TCP) {
 				nfsargsp->sotype = SOCK_STREAM;
 				nfsproto = IPPROTO_TCP;
 			}
-			if(altflags & ALTF_PORT) {
+			if (altflags & ALTF_PORT) {
 				/*
 				 * XXX Converting from a string to an int
 				 * and back again is silly, and we should
 				 * allow /etc/services names.
 				 */
-				asprintf(&portspec, "%d",
-				    atoi(strstr(optarg, "port=") + 5));
-				if (portspec == NULL)
-					err(1, "asprintf");
+				p = strstr(optarg, "port=");
+				if (p) {
+					asprintf(&portspec, "%d",
+					    atoi(p + 5));
+					if (portspec == NULL)
+						err(1, "asprintf");
+				}
 			}
 			mountmode = ANY;
-			if(altflags & ALTF_NFSV2)
+			if (altflags & ALTF_NFSV2)
 				mountmode = V2;
-			if(altflags & ALTF_NFSV3)
+			if (altflags & ALTF_NFSV3)
 				mountmode = V3;
-			if(altflags & ALTF_ACREGMIN)
-				nfsargsp->acregmin = atoi(strstr(optarg,
-				    "acregmin=") + 9);
-			if(altflags & ALTF_ACREGMAX)
-				nfsargsp->acregmax = atoi(strstr(optarg,
-				    "acregmax=") + 9);
-			if(altflags & ALTF_ACDIRMIN)
-				nfsargsp->acdirmin = atoi(strstr(optarg,
-				    "acdirmin=") + 9);
-			if(altflags & ALTF_ACDIRMAX)
-				nfsargsp->acdirmax = atoi(strstr(optarg,
-				    "acdirmax=") + 9);
+			if (altflags & ALTF_ACREGMIN) {
+				p = strstr(optarg, "acregmin=");
+				if (p)
+					nfsargsp->acregmin = atoi(p + 9);
+			}
+			if (altflags & ALTF_ACREGMAX) {
+				p = strstr(optarg, "acregmax=");
+				if (p)
+					nfsargsp->acregmax = atoi(p + 9);
+			}
+			if (altflags & ALTF_ACDIRMIN) {
+				p = strstr(optarg, "acdirmin=");
+				if (p)
+					nfsargsp->acdirmin = atoi(p + 9);
+			}
+			if (altflags & ALTF_ACDIRMAX) {
+				p = strstr(optarg, "acdirmax=");
+				if (p)
+					nfsargsp->acdirmax = atoi(p + 9);
+			}
 			break;
 		case 'P':
 			/* obsolete for NFSMNT_RESVPORT, now default */
