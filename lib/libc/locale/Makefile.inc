@@ -5,7 +5,7 @@
 .PATH: ${.CURDIR}/${MACHINE_ARCH}/locale ${.CURDIR}/locale
 
 SRCS+=	big5.c btowc.c collate.c collcmp.c euc.c fix_grouping.c frune.c \
-	gbk.c isctype.c iswctype.c \
+	gb18030.c gbk.c isctype.c iswctype.c \
 	ldpart.c lmessages.c lmonetary.c lnumeric.c localeconv.c mblen.c \
 	mbrlen.c \
 	mbrtowc.c mbrune.c mbsinit.c mbsrtowcs.c mbtowc.c mbstowcs.c \
