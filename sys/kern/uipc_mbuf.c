@@ -37,48 +37,18 @@
 #include "opt_param.h"
 #include <sys/param.h>
 #include <sys/systm.h>
-#include <sys/condvar.h>
 #include <sys/kernel.h>
 #include <sys/lock.h>
 #include <sys/malloc.h>
 #include <sys/mbuf.h>
-#include <sys/mutex.h>
 #include <sys/sysctl.h>
 #include <sys/domain.h>
 #include <sys/protosw.h>
 
-#include <vm/vm.h>
-#include <vm/vm_kern.h>
-#include <vm/vm_extern.h>
-
-#ifndef NMBCLUSTERS
-#define NMBCLUSTERS	(512 + MAXUSERS * 16)
-#endif
-
-static void mbinit(void *);
-SYSINIT(mbuf, SI_SUB_MBUF, SI_ORDER_FIRST, mbinit, NULL)
-
-struct mbuf *mbutl;
-struct mbstat mbstat;
-u_long	mbtypes[MT_NTYPES];
 int	max_linkhdr;
 int	max_protohdr;
 int	max_hdr;
 int	max_datalen;
-int	nmbclusters = NMBCLUSTERS;
-int	nmbufs = NMBCLUSTERS * 4;
-int	nmbcnt;
-u_long	m_mballoc_wid = 0;
-u_long	m_clalloc_wid = 0;
-
-/*
- * freelist header structures...
- * mbffree_lst, mclfree_lst, mcntfree_lst
- */
-struct mbffree_lst mmbfree;
-struct mclfree_lst mclfree;
-struct mcntfree_lst mcntfree;
-struct mtx	mbuf_mtx;
 
 /*
  * sysctl(8) exported objects
@@ -91,419 +61,6 @@ SYSCTL_INT(_kern_ipc, KIPC_MAX_PROTOHDR, max_protohdr, CTLFLAG_RW,
 SYSCTL_INT(_kern_ipc, KIPC_MAX_HDR, max_hdr, CTLFLAG_RW, &max_hdr, 0, "");
 SYSCTL_INT(_kern_ipc, KIPC_MAX_DATALEN, max_datalen, CTLFLAG_RW,
 	   &max_datalen, 0, "");
-SYSCTL_INT(_kern_ipc, OID_AUTO, mbuf_wait, CTLFLAG_RW,
-	   &mbuf_wait, 0, "");
-SYSCTL_STRUCT(_kern_ipc, KIPC_MBSTAT, mbstat, CTLFLAG_RD, &mbstat, mbstat, "");
-SYSCTL_OPAQUE(_kern_ipc, OID_AUTO, mbtypes, CTLFLAG_RD, mbtypes,
-	   sizeof(mbtypes), "LU", "");
-SYSCTL_INT(_kern_ipc, KIPC_NMBCLUSTERS, nmbclusters, CTLFLAG_RD, 
-	   &nmbclusters, 0, "Maximum number of mbuf clusters available");
-SYSCTL_INT(_kern_ipc, OID_AUTO, nmbufs, CTLFLAG_RD, &nmbufs, 0,
-	   "Maximum number of mbufs available"); 
-SYSCTL_INT(_kern_ipc, OID_AUTO, nmbcnt, CTLFLAG_RD, &nmbcnt, 0,
-	   "Maximum number of ext_buf counters available");
-
-TUNABLE_INT("kern.ipc.nmbclusters", &nmbclusters);
-TUNABLE_INT("kern.ipc.nmbufs", &nmbufs);
-TUNABLE_INT("kern.ipc.nmbcnt", &nmbcnt);
-
-static void	m_reclaim(void);
-
-/* Initial allocation numbers */
-#define NCL_INIT	2
-#define NMB_INIT	16
-#define REF_INIT	NMBCLUSTERS 
-
-static void
-tunable_mbinit(void *dummy)
-{
-
-	/*
-	 * Sanity checks and pre-initialization for non-constants.
-	 * This has to be done before VM initialization.
-	 */
-	if (nmbufs < nmbclusters * 2)
-		nmbufs = nmbclusters * 2;
-	if (nmbcnt == 0)
-		nmbcnt = EXT_COUNTERS;
-}
-SYSINIT(tunable_mbinit, SI_SUB_TUNABLES, SI_ORDER_ANY, tunable_mbinit, NULL);
-
-/*
- * Full mbuf subsystem initialization done here.
- *
- * XXX: If ever we have system specific map setups to do, then move them to
- *      machdep.c - for now, there is no reason for this stuff to go there.
- */
-static void
-mbinit(void *dummy)
-{
-	vm_offset_t maxaddr;
-	vm_size_t mb_map_size;
-
-	/*
-	 * Setup the mb_map, allocate requested VM space.
-	 */
-	mb_map_size = (vm_size_t)(nmbufs * MSIZE + nmbclusters * MCLBYTES +
-	    nmbcnt * sizeof(union mext_refcnt));
-	mb_map_size = rounddown(mb_map_size, PAGE_SIZE);
-	mb_map = kmem_suballoc(kmem_map, (vm_offset_t *)&mbutl, &maxaddr,
-	    mb_map_size);
-	/* XXX XXX XXX: mb_map->system_map = 1; */
-
-	/*
-	 * Initialize the free list headers, and setup locks for lists.
-	 */
-	mmbfree.m_head = NULL;
-	mclfree.m_head = NULL;
-	mcntfree.m_head = NULL;
-	mtx_init(&mbuf_mtx, "mbuf free list lock", MTX_DEF);
-	cv_init(&mmbfree.m_starved, "mbuf free list starved cv");
-	cv_init(&mclfree.m_starved, "mbuf cluster free list starved cv");
- 
-	/*
-	 * Initialize mbuf subsystem (sysctl exported) statistics structure.
-	 */
-	mbstat.m_msize = MSIZE;
-	mbstat.m_mclbytes = MCLBYTES;
-	mbstat.m_minclsize = MINCLSIZE;
-	mbstat.m_mlen = MLEN;
-	mbstat.m_mhlen = MHLEN;
-
-	/*
-	 * Perform some initial allocations.
-	 */
-	mtx_lock(&mbuf_mtx);
-	if (m_alloc_ref(REF_INIT, M_DONTWAIT) == 0)
-		goto bad;
-	if (m_mballoc(NMB_INIT, M_DONTWAIT) == 0)
-		goto bad;
-	if (m_clalloc(NCL_INIT, M_DONTWAIT) == 0)
-		goto bad;
-	mtx_unlock(&mbuf_mtx);
-
-	return;
-bad:
-	panic("mbinit: failed to initialize mbuf subsystem!");
-}
-
-/*
- * Allocate at least nmb reference count structs and place them
- * on the ref cnt free list.
- *
- * Must be called with the mcntfree lock held.
- */
-int
-m_alloc_ref(u_int nmb, int how)
-{
-	caddr_t p;
-	u_int nbytes;
-	int i;
-
-	/*
-	 * We don't cap the amount of memory that can be used
-	 * by the reference counters, like we do for mbufs and
-	 * mbuf clusters. In fact, we're absolutely sure that we
-	 * won't ever be going over our allocated space. We keep enough
-	 * space in mb_map to accomodate maximum values of allocatable
-	 * external buffers including, but not limited to, clusters.
-	 * (That's also why we won't have to have wait routines for
-	 * counters).
-	 *
-	 * If we're in here, we're absolutely certain to be returning
-	 * succesfully, as long as there is physical memory to accomodate
-	 * us. And if there isn't, but we're willing to wait, then
-	 * kmem_malloc() will do the only waiting needed.
-	 */
-
-	nbytes = round_page(nmb * sizeof(union mext_refcnt));
-	if (1 /* XXX: how == M_TRYWAIT */)
-		mtx_unlock(&mbuf_mtx);
-	if ((p = (caddr_t)kmem_malloc(mb_map, nbytes, how == M_TRYWAIT ?
-	    M_WAITOK : M_NOWAIT)) == NULL) {
-		if (1 /* XXX: how == M_TRYWAIT */)
-			mtx_lock(&mbuf_mtx);
-		return (0);
-	}
-	nmb = nbytes / sizeof(union mext_refcnt);
-
-	/*
-	 * We don't let go of the mutex in order to avoid a race.
-	 * It is up to the caller to let go of the mutex.
-	 */
-	if (1 /* XXX: how == M_TRYWAIT */)
-		mtx_lock(&mbuf_mtx);
-	for (i = 0; i < nmb; i++) {
-		((union mext_refcnt *)p)->next_ref = mcntfree.m_head;
-		mcntfree.m_head = (union mext_refcnt *)p;
-		p += sizeof(union mext_refcnt);
-		mbstat.m_refree++;
-	}
-	mbstat.m_refcnt += nmb;
-
-	return (1);
-}
-
-/*
- * Allocate at least nmb mbufs and place on mbuf free list.
- *
- * Must be called with the mmbfree lock held.
- */
-int
-m_mballoc(int nmb, int how)
-{
-	caddr_t p;
-	int i;
-	int nbytes;
-
-	nbytes = round_page(nmb * MSIZE);
-	nmb = nbytes / MSIZE;
-
-	/*
-	 * If we've hit the mbuf limit, stop allocating from mb_map.
-	 * Also, once we run out of map space, it will be impossible to
-	 * get any more (nothing is ever freed back to the map).
-	 */
-	if (mb_map_full || ((nmb + mbstat.m_mbufs) > nmbufs))
-		return (0);
-
-	if (1 /* XXX: how == M_TRYWAIT */)
-		mtx_unlock(&mbuf_mtx);
-	p = (caddr_t)kmem_malloc(mb_map, nbytes, how == M_TRYWAIT ?
-		M_WAITOK : M_NOWAIT);
-	if (1 /* XXX: how == M_TRYWAIT */) {
-		mtx_lock(&mbuf_mtx);
-		if (p == NULL)
-			mbstat.m_wait++;
-	}
-
-	/*
-	 * Either the map is now full, or `how' is M_DONTWAIT and there
-	 * are no pages left.
-	 */
-	if (p == NULL)
-		return (0);
-
-	/*
-	 * We don't let go of the mutex in order to avoid a race.
-	 * It is up to the caller to let go of the mutex when done
-	 * with grabbing the mbuf from the free list.
-	 */
-	for (i = 0; i < nmb; i++) {
-		((struct mbuf *)p)->m_next = mmbfree.m_head;
-		mmbfree.m_head = (struct mbuf *)p;
-		p += MSIZE;
-	}
-	mbstat.m_mbufs += nmb;
-	mbtypes[MT_FREE] += nmb;
-	return (1);
-}
-
-/*
- * Once the mb_map has been exhausted and if the call to the allocation macros
- * (or, in some cases, functions) is with M_TRYWAIT, then it is necessary to
- * rely solely on reclaimed mbufs.
- *
- * Here we request for the protocols to free up some resources and, if we
- * still cannot get anything, then we wait for an mbuf to be freed for a 
- * designated (mbuf_wait) time, at most.
- *
- * Must be called with the mmbfree mutex held.
- */
-struct mbuf *
-m_mballoc_wait(void)
-{
-	struct mbuf *p = NULL;
-
-	/*
-	 * See if we can drain some resources out of the protocols.
-	 * We drop the mmbfree mutex to avoid recursing into it in some of
-	 * the drain routines. Clearly, we're faced with a race here because
-	 * once something is freed during the drain, it may be grabbed right
-	 * from under us by some other thread. But we accept this possibility
-	 * in order to avoid a potentially large lock recursion and, more
-	 * importantly, to avoid a potential lock order reversal which may
-	 * result in deadlock (See comment above m_reclaim()).
-	 */
-	mtx_unlock(&mbuf_mtx);
-	m_reclaim();
-
-	mtx_lock(&mbuf_mtx);
-	_MGET(p, M_DONTWAIT);
-
-	if (p == NULL) {
-		int retval;
-
-		m_mballoc_wid++;
-		retval = cv_timedwait(&mmbfree.m_starved, &mbuf_mtx,
-		    mbuf_wait);
-		m_mballoc_wid--;
-
-		/*
-		 * If we got signaled (i.e. didn't time out), allocate.
-		 */
-		if (retval == 0)
-			_MGET(p, M_DONTWAIT);
-	}
-
-	if (p != NULL) {
-		mbstat.m_wait++;
-		if (mmbfree.m_head != NULL)
-			MBWAKEUP(m_mballoc_wid, &mmbfree.m_starved);
-	}
-
-	return (p);
-}
-
-/*
- * Allocate some number of mbuf clusters
- * and place on cluster free list.
- *
- * Must be called with the mclfree lock held.
- */
-int
-m_clalloc(int ncl, int how)
-{
-	caddr_t p;
-	int i;
-	int npg_sz;
-
-	npg_sz = round_page(ncl * MCLBYTES);
-	ncl = npg_sz / MCLBYTES;
-
-	/*
-	 * If the map is now full (nothing will ever be freed to it).
-	 * If we've hit the mcluster number limit, stop allocating from
-	 * mb_map.
-	 */
-	if (mb_map_full || ((ncl + mbstat.m_clusters) > nmbclusters))
-		return (0);
-
-	if (1 /* XXX: how == M_TRYWAIT */)
-		mtx_unlock(&mbuf_mtx);
-	p = (caddr_t)kmem_malloc(mb_map, npg_sz,
-				 how == M_TRYWAIT ? M_WAITOK : M_NOWAIT);
-	if (1 /* XXX: how == M_TRYWAIT */)
-		mtx_lock(&mbuf_mtx);
-
-	/*
-	 * Either the map is now full, or `how' is M_DONTWAIT and there
-	 * are no pages left.
-	 */
-	if (p == NULL)
-		return (0);
-
-	for (i = 0; i < ncl; i++) {
-		((union mcluster *)p)->mcl_next = mclfree.m_head;
-		mclfree.m_head = (union mcluster *)p;
-		p += MCLBYTES;
-		mbstat.m_clfree++;
-	}
-	mbstat.m_clusters += ncl;
-	return (1);
-}
-
-/*
- * Once the mb_map submap has been exhausted and the allocation is called with
- * M_TRYWAIT, we rely on the mclfree list. If nothing is free, we will
- * block on a cv for a designated amount of time (mbuf_wait) or until we're
- * signaled due to sudden mcluster availability.
- *
- * Must be called with the mclfree lock held.
- */
-caddr_t
-m_clalloc_wait(void)
-{
-	caddr_t p = NULL;
-	int retval;
-
-	m_clalloc_wid++;
-	retval = cv_timedwait(&mclfree.m_starved, &mbuf_mtx, mbuf_wait);
-	m_clalloc_wid--;
-
-	/*
-	 * Now that we (think) that we've got something, try again.
-	 */
-	if (retval == 0)
-		_MCLALLOC(p, M_DONTWAIT);
-
-	if (p != NULL) {
-		mbstat.m_wait++;
-		if (mclfree.m_head != NULL)
-			MBWAKEUP(m_clalloc_wid, &mclfree.m_starved);
-	}
-
-	return (p);
-}
-
-/*
- * m_reclaim: drain protocols in hopes to free up some resources...
- *
- * XXX: No locks should be held going in here. The drain routines have
- * to presently acquire some locks which raises the possibility of lock
- * order violation if we're holding any mutex if that mutex is acquired in
- * reverse order relative to one of the locks in the drain routines.
- */
-static void
-m_reclaim(void)
-{
-	struct domain *dp;
-	struct protosw *pr;
-
-#ifdef WITNESS
-	KASSERT(witness_list(curproc) == 0,
-	    ("m_reclaim called with locks held"));
-#endif
-
-	for (dp = domains; dp; dp = dp->dom_next)
-		for (pr = dp->dom_protosw; pr < dp->dom_protoswNPROTOSW; pr++)
-			if (pr->pr_drain)
-				(*pr->pr_drain)();
-	mbstat.m_drain++;
-}
-
-/*
- * Space allocation routines.
- * Some of these are also available as macros
- * for critical paths.
- */
-struct mbuf *
-m_get(int how, int type)
-{
-	struct mbuf *m;
-
-	MGET(m, how, type);
-	return (m);
-}
-
-struct mbuf *
-m_gethdr(int how, int type)
-{
-	struct mbuf *m;
-
-	MGETHDR(m, how, type);
-	return (m);
-}
-
-struct mbuf *
-m_getclr(int how, int type)
-{
-	struct mbuf *m;
-
-	MGET(m, how, type);
-	if (m != NULL)
-		bzero(mtod(m, caddr_t), MLEN);
-	return (m);
-}
-
-struct mbuf *
-m_free(struct mbuf *m)
-{
-	struct mbuf *n;
-
-	MFREE(m, n);
-	return (n);
-}
 
 /*
  * struct mbuf *
@@ -672,17 +229,13 @@ m_copym(struct mbuf *m, int off0, int len, int wait)
 		m = m->m_next;
 		np = &n->m_next;
 	}
-	if (top == NULL) {
-		mtx_lock(&mbuf_mtx);
-		mbstat.m_mcfail++;
-		mtx_unlock(&mbuf_mtx);
-	}
+	if (top == NULL)
+		mbstat.m_mcfail++;	/* XXX: No consistency. */
+
 	return (top);
 nospace:
 	m_freem(top);
-	mtx_lock(&mbuf_mtx);
-	mbstat.m_mcfail++;
-	mtx_unlock(&mbuf_mtx);
+	mbstat.m_mcfail++;	/* XXX: No consistency. */
 	return (NULL);
 }
 
@@ -741,9 +294,7 @@ m_copypacket(struct mbuf *m, int how)
 	return top;
 nospace:
 	m_freem(top);
-	mtx_lock(&mbuf_mtx);
-	mbstat.m_mcfail++;
-	mtx_unlock(&mbuf_mtx);
+	mbstat.m_mcfail++;	/* XXX: No consistency. */ 
 	return (NULL);
 }
 
@@ -844,9 +395,7 @@ m_dup(struct mbuf *m, int how)
 
 nospace:
 	m_freem(top);
-	mtx_lock(&mbuf_mtx);
-	mbstat.m_mcfail++;
-	mtx_unlock(&mbuf_mtx);
+	mbstat.m_mcfail++;	/* XXX: No consistency. */
 	return (NULL);
 }
 
@@ -1008,9 +557,7 @@ m_pullup(struct mbuf *n, int len)
 	return (m);
 bad:
 	m_freem(n);
-	mtx_lock(&mbuf_mtx);
-	mbstat.m_mpfail++;
-	mtx_unlock(&mbuf_mtx);
+	mbstat.m_mpfail++;	/* XXX: No consistency. */
 	return (NULL);
 }
 
@@ -1157,7 +704,7 @@ m_copyback(struct mbuf *m0, int off, int len, caddr_t cp)
 		off -= mlen;
 		totlen += mlen;
 		if (m->m_next == NULL) {
-			n = m_getclr(M_DONTWAIT, m->m_type);
+			n = m_get_clrd(M_DONTWAIT, m->m_type);
 			if (n == NULL)
 				goto out;
 			n->m_len = min(MLEN, len + off);
