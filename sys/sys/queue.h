@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)queue.h	8.4 (Berkeley) 1/4/94
- * $Id: queue.h,v 1.3 1995/05/30 08:14:30 rgrimes Exp $
+ * $Id: queue.h,v 1.4 1995/12/03 13:45:34 bde Exp $
  */
 
 #ifndef _SYS_QUEUE_H_
@@ -93,6 +93,13 @@ struct {								\
 		    &(elm)->field.le_next;				\
 	(listelm)->field.le_next = (elm);				\
 	(elm)->field.le_prev = &(listelm)->field.le_next;		\
+}
+
+#define LIST_INSERT_BEFORE(listelm, elm, field) {			\
+	(elm)->field.le_prev = (listelm)->field.le_prev;		\
+	(elm)->field.le_next = (listelm);				\
+	*(listelm)->field.le_prev = (elm);				\
+	(listelm)->field.le_prev = &(elm)->field.le_next;		\
 }
 
 #define LIST_INSERT_HEAD(head, elm, field) {				\
@@ -157,6 +164,13 @@ struct {								\
 		(head)->tqh_last = &(elm)->field.tqe_next;		\
 	(listelm)->field.tqe_next = (elm);				\
 	(elm)->field.tqe_prev = &(listelm)->field.tqe_next;		\
+}
+
+#define TAILQ_INSERT_BEFORE(head, listelm, elm, field) {		\
+	(elm)->field.tqe_prev = (listelm)->field.tqe_prev;		\
+	(elm)->field.tqe_next = (listelm);				\
+	*(listelm)->field.tqe_prev = (elm);				\
+	(listelm)->field.tqe_prev = &(elm)->field.tqe_next;		\
 }
 
 #define TAILQ_REMOVE(head, elm, field) {				\
