@@ -642,6 +642,7 @@ pmap_cache_enter(vm_page_t m, vm_offset_t va)
 	struct tte *tp;
 	int color;
 
+	mtx_assert(&vm_page_queue_mtx, MA_OWNED);
 	KASSERT((m->flags & PG_FICTITIOUS) == 0,
 	    ("pmap_cache_enter: fake page"));
 	PMAP_STATS_INC(pmap_ncache_enter);
@@ -713,6 +714,7 @@ pmap_cache_remove(vm_page_t m, vm_offset_t va)
 	struct tte *tp;
 	int color;
 
+	mtx_assert(&vm_page_queue_mtx, MA_OWNED);
 	CTR3(KTR_PMAP, "pmap_cache_remove: m=%p va=%#lx c=%d", m, va,
 	    m->md.colors[DCACHE_COLOR(va)]);
 	KASSERT((m->flags & PG_FICTITIOUS) == 0,
@@ -783,6 +785,7 @@ pmap_kenter(vm_offset_t va, vm_page_t m)
 	vm_page_t om;
 	u_long data;
 
+	mtx_assert(&vm_page_queue_mtx, MA_OWNED);
 	PMAP_STATS_INC(pmap_nkenter);
 	tp = tsb_kvtotte(va);
 	CTR4(KTR_PMAP, "pmap_kenter: va=%#lx pa=%#lx tp=%p data=%#lx",
@@ -845,6 +848,7 @@ pmap_kremove(vm_offset_t va)
 	struct tte *tp;
 	vm_page_t m;
 
+	mtx_assert(&vm_page_queue_mtx, MA_OWNED);
 	PMAP_STATS_INC(pmap_nkremove);
 	tp = tsb_kvtotte(va);
 	CTR3(KTR_PMAP, "pmap_kremove: va=%#lx tp=%p data=%#lx", va, tp,
@@ -898,11 +902,13 @@ pmap_qenter(vm_offset_t sva, vm_page_t *m, int count)
 
 	PMAP_STATS_INC(pmap_nqenter);
 	va = sva;
+	vm_page_lock_queues();
 	while (count-- > 0) {
 		pmap_kenter(va, *m);
 		va += PAGE_SIZE;
 		m++;
 	}
+	vm_page_unlock_queues();
 	tlb_range_demap(kernel_pmap, sva, va);
 }
 
@@ -917,10 +923,12 @@ pmap_qremove(vm_offset_t sva, int count)
 
 	PMAP_STATS_INC(pmap_nqremove);
 	va = sva;
+	vm_page_lock_queues();
 	while (count-- > 0) {
 		pmap_kremove(va);
 		va += PAGE_SIZE;
 	}
+	vm_page_unlock_queues();
 	tlb_range_demap(kernel_pmap, sva, va);
 }
 
@@ -1048,6 +1056,7 @@ pmap_remove_tte(struct pmap *pm, struct pmap *pm2, struct tte *tp,
 	data = atomic_readandclear_long(&tp->tte_data);
 	if ((data & TD_FAKE) == 0) {
 		m = PHYS_TO_VM_PAGE(TD_PA(data));
+		vm_page_lock_queues();
 		TAILQ_REMOVE(&m->md.tte_list, tp, tte_link);
 		if ((data & TD_WIRED) != 0)
 			pm->pm_stats.wired_count--;
@@ -1061,6 +1070,7 @@ pmap_remove_tte(struct pmap *pm, struct pmap *pm2, struct tte *tp,
 			pm->pm_stats.resident_count--;
 		}
 		pmap_cache_remove(m, va);
+		vm_page_unlock_queues();
 	}
 	TTE_ZERO(tp);
 	if (PMAP_REMOVE_DONE(pm))
@@ -1103,6 +1113,7 @@ pmap_remove_all(vm_page_t m)
 	struct tte *tp;
 	vm_offset_t va;
 
+	mtx_assert(&vm_page_queue_mtx, MA_OWNED);
 	KASSERT((m->flags & (PG_FICTITIOUS|PG_UNMANAGED)) == 0,
 	   ("pmap_remove_all: illegal for unmanaged/fake page %#lx",
 	   VM_PAGE_TO_PHYS(m)));
@@ -1565,6 +1576,7 @@ pmap_page_exists_quick(pmap_t pm, vm_page_t m)
 	struct tte *tp;
 	int loops;
 
+	mtx_assert(&vm_page_queue_mtx, MA_OWNED);
 	if ((m->flags & (PG_FICTITIOUS | PG_UNMANAGED)) != 0)
 		return (FALSE);
 	loops = 0;
@@ -1628,6 +1640,7 @@ pmap_ts_referenced(vm_page_t m)
 	u_long data;
 	int count;
 
+	mtx_assert(&vm_page_queue_mtx, MA_OWNED);
 	if ((m->flags & (PG_FICTITIOUS | PG_UNMANAGED)) != 0)
 		return (0);
 	count = 0;
@@ -1654,8 +1667,9 @@ pmap_is_modified(vm_page_t m)
 {
 	struct tte *tp;
 
+	mtx_assert(&vm_page_queue_mtx, MA_OWNED);
 	if ((m->flags & (PG_FICTITIOUS | PG_UNMANAGED)) != 0)
-		return FALSE;
+		return (FALSE);
 	TAILQ_FOREACH(tp, &m->md.tte_list, tte_link) {
 		if ((tp->tte_data & TD_PV) == 0 ||
 		    !pmap_track_modified(TTE_GET_PMAP(tp), TTE_GET_VA(tp)))
@@ -1672,6 +1686,7 @@ pmap_clear_modify(vm_page_t m)
 	struct tte *tp;
 	u_long data;
 
+	mtx_assert(&vm_page_queue_mtx, MA_OWNED);
 	if ((m->flags & (PG_FICTITIOUS | PG_UNMANAGED)) != 0)
 		return;
 	TAILQ_FOREACH(tp, &m->md.tte_list, tte_link) {
@@ -1689,6 +1704,7 @@ pmap_clear_reference(vm_page_t m)
 	struct tte *tp;
 	u_long data;
 
+	mtx_assert(&vm_page_queue_mtx, MA_OWNED);
 	if ((m->flags & (PG_FICTITIOUS | PG_UNMANAGED)) != 0)
 		return;
 	TAILQ_FOREACH(tp, &m->md.tte_list, tte_link) {
@@ -1706,6 +1722,7 @@ pmap_clear_write(vm_page_t m)
 	struct tte *tp;
 	u_long data;
 
+	mtx_assert(&vm_page_queue_mtx, MA_OWNED);
 	if ((m->flags & (PG_FICTITIOUS | PG_UNMANAGED)) != 0 ||
 	    (m->flags & PG_WRITEABLE) == 0)
 		return;
