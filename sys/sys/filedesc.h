@@ -148,7 +148,7 @@ int	fdalloc(struct thread *p, int want, int *result);
 int	fdavail(struct thread *td, int n);
 void	fdcloseexec(struct thread *td);
 int	fdcheckstd(struct thread *td);
-struct	filedesc *fdcopy(struct thread *td);
+struct	filedesc *fdcopy(struct filedesc *fdp);
 void	fdfree(struct thread *td);
 struct	filedesc *fdinit(struct filedesc *fdp);
 struct	filedesc *fdshare(struct filedesc *fdp);
