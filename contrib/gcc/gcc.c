@@ -37,6 +37,7 @@ compilation is specified by a string called a "spec".  */
 #include <signal.h>
 #include <sys/stat.h>
 #include <errno.h>
+#include <assert.h>
 
 #ifndef _WIN32
 #include <sys/file.h>   /* May get R_OK, etc. on some systems.  */
@@ -4364,6 +4365,8 @@ main (argc, argv)
   if (specs_file != 0 && strcmp (specs_file, "specs"))
     read_specs (specs_file);
 
+  if (specs_file)
+    {
   /* We need to check standard_exec_prefix/just_machine_suffix/specs
       for any override of as, ld and libraries. */
    specs_file =(char *) alloca (strlen (standard_exec_prefix) +
@@ -4373,6 +4376,7 @@ main (argc, argv)
    strcat (specs_file, "specs");
    if (access (specs_file, R_OK) == 0)
      read_specs (specs_file, TRUE);
+    }
 
   /* If not cross-compiling, look for startfiles in the standard places.  */
   /* The fact that these are done here, after reading the specs file,
