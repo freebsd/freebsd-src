@@ -241,14 +241,14 @@ static int blessed_count =
 /*
  * List of all locks in the system.
  */
-STAILQ_HEAD(, lock_object) all_locks = STAILQ_HEAD_INITIALIZER(all_locks);
+TAILQ_HEAD(, lock_object) all_locks = TAILQ_HEAD_INITIALIZER(all_locks);
 
 static struct mtx all_mtx = {
 	{ &lock_class_mtx_sleep,	/* mtx_object.lo_class */
 	  "All locks list",		/* mtx_object.lo_name */
 	  "All locks list",		/* mtx_object.lo_type */
 	  LO_INITIALIZED,		/* mtx_object.lo_flags */
-	  { NULL },			/* mtx_object.lo_list */
+	  { NULL, NULL },		/* mtx_object.lo_list */
 	  NULL },			/* mtx_object.lo_witness */
 	MTX_UNOWNED, 0,			/* mtx_lock, mtx_recurse */
 	TAILQ_HEAD_INITIALIZER(all_mtx.mtx_blocked),
@@ -285,7 +285,7 @@ witness_initialize(void *dummy __unused)
 	mtx_assert(&Giant, MA_NOTOWNED);
 
 	CTR1(KTR_WITNESS, "%s: initializing witness", __func__);
-	STAILQ_INSERT_HEAD(&all_locks, &all_mtx.mtx_object, lo_list);
+	TAILQ_INSERT_HEAD(&all_locks, &all_mtx.mtx_object, lo_list);
 	mtx_init(&w_mtx, "witness lock", NULL, MTX_SPIN | MTX_QUIET |
 	    MTX_NOWITNESS);
 	for (i = 0; i < WITNESS_COUNT; i++)
@@ -313,7 +313,7 @@ witness_initialize(void *dummy __unused)
 
 	/* Iterate through all locks and add them to witness. */
 	mtx_lock(&all_mtx);
-	STAILQ_FOREACH(lock, &all_locks, lo_list) {
+	TAILQ_FOREACH(lock, &all_locks, lo_list) {
 		if (lock->lo_flags & LO_WITNESS)
 			lock->lo_witness = enroll(lock->lo_type,
 			    lock->lo_class);
@@ -352,7 +352,7 @@ witness_init(struct lock_object *lock)
 		    class->lc_name, lock->lo_name);
 
 	mtx_lock(&all_mtx);
-	STAILQ_INSERT_TAIL(&all_locks, lock, lo_list);
+	TAILQ_INSERT_TAIL(&all_locks, lock, lo_list);
 	lock->lo_flags |= LO_INITIALIZED;
 	lock_cur_cnt++;
 	if (lock_cur_cnt > lock_max_cnt)
@@ -388,7 +388,7 @@ witness_destroy(struct lock_object *lock)
 
 	mtx_lock(&all_mtx);
 	lock_cur_cnt--;
-	STAILQ_REMOVE(&all_locks, lock, lock_object, lo_list);
+	TAILQ_REMOVE(&all_locks, lock, lo_list);
 	lock->lo_flags &= ~LO_INITIALIZED;
 	mtx_unlock(&all_mtx);
 }
