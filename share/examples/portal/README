@@ -1,3 +1,4 @@
+$FreeBSD$
 
 This contains a couple of examples for using the portal filing system.
 
@@ -12,7 +13,7 @@ not be considered secure, use with caution.
 
 First off mount the filesystem using something like:
 
-# mount_portal /usr/share/examples/portal/portal.conf /p
+# mount_portalfs /usr/share/examples/portal/portal.conf /p
 
 Then you should be able to do things like
 # cat /p/tcp/localhost/daytime
@@ -25,7 +26,7 @@ Welcome to FreeBSD!
 # cd /tmp/root
 # mkdir bin p
 # cp /bin/sh /bin/cat bin
-# mount_portal /usr/share/examples/portal/portal.conf /tmp/root/p
+# mount_portalfs /usr/share/examples/portal/portal.conf /tmp/root/p
 # chroot /tmp/root
 # pwd
 /
