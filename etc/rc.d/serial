@@ -33,7 +33,7 @@
 
 # Change some defaults for serial devices.
 # Standard defaults are:
-#	dtrwait 300 drainwait 0
+#	dtrwait 300 drainwait `sysctl -n kern.drainwait`
 #	initial cflag from <sys/ttydefaults.h> = cread cs8 hupcl
 #	initial iflag, lflag and oflag all 0
 #	speed 9600
@@ -47,10 +47,11 @@ default() {
 
 	ci=$1; shift	# call in device identifier
 	co=$1; shift	# call out device identifier
+	drainwait=`sysctl -n kern.drainwait`
 
 	for i in $*
 	do
-		comcontrol /dev/tty${ci}${i} dtrwait 300 drainwait 300
+		comcontrol /dev/tty${ci}${i} dtrwait 300 drainwait $drainwait
 		stty < /dev/ttyi${ci}${i} -clocal crtscts hupcl 9600 reprint ^R
 		stty < /dev/ttyl${ci}${i} -clocal -crtscts -hupcl 0
 		stty < /dev/cuai${co}${i} -clocal crtscts hupcl 9600 reprint ^R
