@@ -79,11 +79,6 @@ extern char	*neturg;		/* one past last bye of urgent data */
 
 extern int	pcc, ncc;
 
-#if defined(CRAY2) && defined(UNICOS5)
-extern int unpcc;  /* characters left unprocessed by CRAY-2 terminal routine */
-extern char *unptyip;  /* pointer to remaining characters in buffer */
-#endif
-
 extern int	pty, net;
 extern char	line[16];
 extern int	SYNCHing;		/* we are in TELNET SYNCH mode */
@@ -219,18 +214,7 @@ extern struct {
 	gotDM;			/* when did we last see a data mark */
 } clocks;
 
-
-#if	defined(CRAY2) && defined(UNICOS5)
-extern int	needtermstat;
-#endif
-
 #ifndef	DEFAULT_IM
-# ifdef CRAY
-#  define DEFAULT_IM	"\r\n\r\nCray UNICOS (%h) (%t)\r\n\r\r\n\r"
-# else
-#  ifdef sun
-#   define DEFAULT_IM	"\r\n\r\nSunOS UNIX (%h) (%t)\r\n\r\r\n\r"
-#  else
 #   ifdef ultrix
 #    define DEFAULT_IM	"\r\n\r\nULTRIX (%h) (%t)\r\n\r\r\n\r"
 #   else
@@ -240,6 +224,4 @@ extern int	needtermstat;
 #    define DEFAULT_IM	"\r\n\r\n4.4 BSD UNIX (%h) (%t)\r\n\r\r\n\r"
 #    endif
 #   endif
-#  endif
-# endif
 #endif

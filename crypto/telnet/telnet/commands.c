@@ -40,18 +40,12 @@ static const char sccsid[] = "@(#)commands.c	8.4 (Berkeley) 5/30/95";
 #if	defined(unix)
 #include <sys/param.h>
 #include <sys/un.h>
-#if	defined(CRAY) || defined(sysV88)
-#include <sys/types.h>
-#endif
 #include <sys/file.h>
 #else
 #include <sys/types.h>
 #endif	/* defined(unix) */
 #include <sys/socket.h>
 #include <netinet/in.h>
-#ifdef	CRAY
-#include <fcntl.h>
-#endif	/* CRAY */
 
 #include <string.h>
 #include <signal.h>
@@ -81,12 +75,10 @@ static const char sccsid[] = "@(#)commands.c	8.4 (Berkeley) 5/30/95";
 #include <libtelnet/encrypt.h>
 #endif
 
-#if !defined(CRAY) && !defined(sysV88)
 #include <netinet/in_systm.h>
 # if (defined(vax) || defined(tahoe) || defined(hp300)) && !defined(ultrix)
 # include <machine/endian.h>
 # endif /* vax */
-#endif /* !defined(CRAY) && !defined(sysV88) */
 #include <netinet/ip.h>
 #include <netinet/ip6.h>
 
@@ -935,35 +927,6 @@ static struct setlist Setlist[] = {
     { "ayt",	"alternate AYT character", 0, termAytCharp },
     { 0 }
 };
-
-#if	defined(CRAY) && !defined(__STDC__)
-/* Work around compiler bug in pcc 4.1.5 */
-    void
-_setlist_init()
-{
-#ifndef	KLUDGELINEMODE
-#define	N 5
-#else
-#define	N 6
-#endif
-	Setlist[N+0].charp = &termFlushChar;
-	Setlist[N+1].charp = &termIntChar;
-	Setlist[N+2].charp = &termQuitChar;
-	Setlist[N+3].charp = &termEofChar;
-	Setlist[N+6].charp = &termEraseChar;
-	Setlist[N+7].charp = &termKillChar;
-	Setlist[N+8].charp = &termLiteralNextChar;
-	Setlist[N+9].charp = &termSuspChar;
-	Setlist[N+10].charp = &termRprntChar;
-	Setlist[N+11].charp = &termWerasChar;
-	Setlist[N+12].charp = &termStartChar;
-	Setlist[N+13].charp = &termStopChar;
-	Setlist[N+14].charp = &termForw1Char;
-	Setlist[N+15].charp = &termForw2Char;
-	Setlist[N+16].charp = &termAytChar;
-#undef	N
-}
-#endif	/* defined(CRAY) && !defined(__STDC__) */
 
     static struct setlist *
 getset(name)
