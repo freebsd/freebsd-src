@@ -1,6 +1,4 @@
-/* $FreeBSD$ */
 /* $NetBSD: dec_kn8ae.c,v 1.15 1998/02/13 00:12:50 thorpej Exp $ */
-
 /*
  * Copyright (c) 1997 by Matthew Jacob
  * NASA AMES Research Center.
@@ -30,6 +28,9 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  */
+
+#include <sys/cdefs.h>
+__FBSDID("$FreeBSD$");
 
 #include <sys/param.h>
 #include <sys/systm.h>

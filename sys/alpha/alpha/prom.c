@@ -1,5 +1,3 @@
-/* $NetBSD: prom.c,v 1.22 1998/02/27 04:03:00 thorpej Exp $ */
-
 /* 
  * Copyright (c) 1992, 1994, 1995, 1996 Carnegie Mellon University
  * All Rights Reserved.
@@ -24,12 +22,11 @@
  * any improvements or extensions that they make and grant Carnegie Mellon
  * the rights to redistribute these changes.
  *
- * $FreeBSD$
  */
 
 #include <sys/cdefs.h>			/* RCS ID & Copyright macro defns */
-
 /* __KERNEL_RCSID(0, "$NetBSD: prom.c,v 1.22 1998/02/27 04:03:00 thorpej Exp $"); */
+__FBSDID("$FreeBSD$");
 
 #include <sys/param.h>
 #include <sys/systm.h>

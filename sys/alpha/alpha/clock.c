@@ -1,6 +1,3 @@
-/* $FreeBSD$ */
-/* $NetBSD: clock.c,v 1.20 1998/01/31 10:32:47 ross Exp $ */
-
 /*
  * Copyright (c) 1988 University of Utah.
  * Copyright (c) 1992, 1993
@@ -41,7 +38,11 @@
  * from: Utah Hdr: clock.c 1.18 91/01/21
  *
  *	@(#)clock.c	8.1 (Berkeley) 6/10/93
+ *	$NetBSD: clock.c,v 1.20 1998/01/31 10:32:47 ross Exp $
  */
+
+#include <sys/cdefs.h>
+__FBSDID("$FreeBSD$");
 
 #include "opt_clock.h"
 

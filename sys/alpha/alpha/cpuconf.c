@@ -1,6 +1,3 @@
-/* $FreeBSD$ */
-/*	$NetBSD: cpuconf.c,v 1.10 1998/03/20 21:48:21 thorpej Exp $	*/
-
 /*
  * Copyright (c) 1996 Christopher G. Demetriou.  All rights reserved.
  *
@@ -29,7 +26,12 @@
  * THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+ *
+ *	$NetBSD: cpuconf.c,v 1.10 1998/03/20 21:48:21 thorpej Exp $
  */
+
+#include <sys/cdefs.h>
+__FBSDID("$FreeBSD$");
 
 #include <sys/param.h>
 #include <sys/systm.h>

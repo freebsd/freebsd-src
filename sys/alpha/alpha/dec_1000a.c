@@ -1,5 +1,4 @@
 /* $NetBSD: dec_1000a.c,v 1.5 1999/04/15 22:06:47 thorpej Exp $ */
-
 /*
  * Copyright (c) 1998 The NetBSD Foundation, Inc.
  * All rights reserved.
@@ -70,8 +69,10 @@
 /*
  * Additional Copyright (c) 1999 by Andrew Gallatin
  *
- * $FreeBSD$
  */
+
+#include <sys/cdefs.h>
+__FBSDID("$FreeBSD$");
 
 #include "opt_ddb.h"
 

@@ -1,6 +1,4 @@
 /* $NetBSD: dec_kn20aa.c,v 1.38 1998/04/17 02:45:19 mjacob Exp $ */
-/* $FreeBSD$ */
-
 /*
  * Copyright (c) 1995, 1996, 1997 Carnegie-Mellon University.
  * All rights reserved.
@@ -30,6 +28,9 @@
 /*
  * Additional Copyright (c) 1997 by Matthew Jacob for NASA/Ames Research Center
  */
+
+#include <sys/cdefs.h>
+__FBSDID("$FreeBSD$");
 
 #include "opt_ddb.h"
 

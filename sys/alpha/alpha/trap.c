@@ -1,6 +1,4 @@
-/* $FreeBSD$ */
 /* $NetBSD: trap.c,v 1.31 1998/03/26 02:21:46 thorpej Exp $ */
-
 /*
  * Copyright (c) 1994, 1995, 1996 Carnegie-Mellon University.
  * All rights reserved.
@@ -27,6 +25,9 @@
  * any improvements or extensions that they make and grant Carnegie the
  * rights to redistribute these changes.
  */
+
+#include <sys/cdefs.h>
+__FBSDID("$FreeBSD$");
 
 /* #include "opt_fix_unaligned_vax_fp.h" */
 #include "opt_ddb.h"

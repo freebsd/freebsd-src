@@ -1,5 +1,3 @@
-/* $FreeBSD$ */
-
 /*
  * Copyright (c) 1995, 1996, 1997 Carnegie-Mellon University.
  * All rights reserved.
@@ -46,6 +44,9 @@
  * - embedded floppy, PC keyboard interface, PS/2 mouse interface, 2 serial
  *   ports and a parallel port. All of this hanging off the ISA bridge
  */
+
+#include <sys/cdefs.h>
+__FBSDID("$FreeBSD$");
 
 #include "opt_ddb.h"
 
