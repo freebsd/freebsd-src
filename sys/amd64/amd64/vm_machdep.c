@@ -38,7 +38,7 @@
  *
  *	from: @(#)vm_machdep.c	7.3 (Berkeley) 5/13/91
  *	Utah $Hdr: vm_machdep.c 1.16.1.1 89/06/23$
- *	$Id: vm_machdep.c,v 1.59 1996/04/18 21:34:28 phk Exp $
+ *	$Id: vm_machdep.c,v 1.60 1996/04/25 06:20:06 phk Exp $
  */
 
 #include "npx.h"
@@ -92,7 +92,7 @@ static int		bouncefree;
 
 #define SIXTEENMEG (4096*4096)
 #define MAXBKVA 1024
-int		maxbkva = MAXBKVA*NBPG;
+int		maxbkva = MAXBKVA*PAGE_SIZE;
 
 /* special list that can be used at interrupt time for eventual kva free */
 static struct kvasfree {
@@ -210,7 +210,7 @@ more:
 	if (!bmfreeing && kvasfreecnt) {
 		bmfreeing = 1;
 		for (i = 0; i < kvasfreecnt; i++) {
-			for(off=0;off<kvaf[i].size;off+=NBPG) {
+			for(off=0;off<kvaf[i].size;off+=PAGE_SIZE) {
 				pmap_kremove( kvaf[i].addr + off);
 			}
 			kmem_free_wakeup(io_map, kvaf[i].addr,
@@ -253,13 +253,13 @@ int count;
 	vm_offset_t kva;
 	vm_offset_t pa;
 	if( bouncepages == 0) {
-		kva = (vm_offset_t) malloc(count*NBPG, M_TEMP, M_WAITOK);
+		kva = (vm_offset_t) malloc(count*PAGE_SIZE, M_TEMP, M_WAITOK);
 		return kva;
 	}
-	kva = vm_bounce_kva(count*NBPG, 1);
+	kva = vm_bounce_kva(count*PAGE_SIZE, 1);
 	for(i=0;i<count;i++) {
 		pa = vm_bounce_page_find(1);
-		pmap_kenter(kva + i * NBPG, pa);
+		pmap_kenter(kva + i * PAGE_SIZE, pa);
 	}
 	return kva;
 }
@@ -279,10 +279,10 @@ vm_bounce_kva_alloc_free(kva, count)
 		return;
 	}
 	for(i = 0; i < count; i++) {
-		pa = pmap_kextract(kva + i * NBPG);
+		pa = pmap_kextract(kva + i * PAGE_SIZE);
 		vm_bounce_page_free(pa, 1);
 	}
-	vm_bounce_kva_free(kva, count*NBPG, 0);
+	vm_bounce_kva_free(kva, count*PAGE_SIZE, 0);
 }
 
 /*
@@ -329,7 +329,7 @@ vm_bounce_alloc(bp)
 
 	vapstart = trunc_page(vastart);
 	vapend = round_page(vaend);
-	countvmpg = (vapend - vapstart) / NBPG;
+	countvmpg = (vapend - vapstart) / PAGE_SIZE;
 
 /*
  * if any page is above 16MB, then go into bounce-buffer mode
@@ -341,7 +341,7 @@ vm_bounce_alloc(bp)
 			++dobounceflag;
 		if( pa == 0)
 			panic("vm_bounce_alloc: Unmapped page");
-		va += NBPG;
+		va += PAGE_SIZE;
 	}
 	if (dobounceflag == 0)
 		return;
@@ -352,7 +352,7 @@ vm_bounce_alloc(bp)
 /*
  * allocate a replacement kva for b_addr
  */
-	kva = vm_bounce_kva(countvmpg*NBPG, 1);
+	kva = vm_bounce_kva(countvmpg*PAGE_SIZE, 1);
 #if 0
 	printf("%s: vapstart: %x, vapend: %x, countvmpg: %d, kva: %x ",
 		(bp->b_flags & B_READ) ? "read":"write",
@@ -366,7 +366,7 @@ vm_bounce_alloc(bp)
 			 * allocate a replacement page
 			 */
 			vm_offset_t bpa = vm_bounce_page_find(1);
-			pmap_kenter(kva + (NBPG * i), bpa);
+			pmap_kenter(kva + (PAGE_SIZE * i), bpa);
 #if 0
 			printf("r(%d): (%x,%x,%x) ", i, va, pa, bpa);
 #endif
@@ -374,15 +374,15 @@ vm_bounce_alloc(bp)
 			 * if we are writing, the copy the data into the page
 			 */
 			if ((bp->b_flags & B_READ) == 0) {
-				bcopy((caddr_t) va, (caddr_t) kva + (NBPG * i), NBPG);
+				bcopy((caddr_t) va, (caddr_t) kva + (PAGE_SIZE * i), PAGE_SIZE);
 			}
 		} else {
 			/*
 			 * use original page
 			 */
-			pmap_kenter(kva + (NBPG * i), pa);
+			pmap_kenter(kva + (PAGE_SIZE * i), pa);
 		}
-		va += NBPG;
+		va += PAGE_SIZE;
 	}
 
 /*
@@ -397,7 +397,7 @@ vm_bounce_alloc(bp)
  * put our new kva into the buffer (offset by original offset)
  */
 	bp->b_data = (caddr_t) (((vm_offset_t) kva) |
-				((vm_offset_t) bp->b_savekva & (NBPG - 1)));
+				((vm_offset_t) bp->b_savekva & PAGE_MASK));
 #if 0
 	printf("b_savekva: %x, newva: %x\n", bp->b_savekva, bp->b_data);
 #endif
@@ -482,7 +482,7 @@ vm_bounce_free(bp)
 	bouncekvaend= round_page((vm_offset_t)bp->b_data + bp->b_bufsize);
 
 /*
-	printf("freeva: %d\n", (bouncekvaend - bouncekva) / NBPG);
+	printf("freeva: %d\n", (bouncekvaend - bouncekva) / PAGE_SIZE);
 */
 	vm_bounce_kva_free( bouncekva, (bouncekvaend - bouncekva), 0);
 	bp->b_data = bp->b_savekva;
@@ -522,7 +522,7 @@ vm_bounce_init()
 
 	for(i=0;i<bouncepages;i++) {
 		vm_offset_t pa;
-		if( (pa = pmap_kextract((vm_offset_t) bouncememory + i * NBPG)) >= SIXTEENMEG)
+		if( (pa = pmap_kextract((vm_offset_t) bouncememory + i * PAGE_SIZE)) >= SIXTEENMEG)
 			panic("bounce memory out of range");
 		if( pa == 0)
 			panic("bounce memory not resident");
@@ -753,7 +753,7 @@ vunmapbuf(bp)
 
 	for (addr = (caddr_t)trunc_page((vm_offset_t) bp->b_data);
 		addr < bp->b_data + bp->b_bufsize;
-		addr += NBPG)
+		addr += PAGE_SIZE)
 		pmap_kremove((vm_offset_t) addr);
 
 	bp->b_data = bp->b_saveaddr;
@@ -764,7 +764,7 @@ vunmapbuf(bp)
  */
 	for (addr = (caddr_t)trunc_page((vm_offset_t) bp->b_data);
 		addr < bp->b_data + bp->b_bufsize;
-		addr += NBPG) {
+		addr += PAGE_SIZE) {
 	/*
 	 * release the data page
 	 */
@@ -793,7 +793,7 @@ cpu_reset() {
 #endif
 
 	/* force a shutdown by unmapping entire address space ! */
-	bzero((caddr_t) PTD, NBPG);
+	bzero((caddr_t) PTD, PAGE_SIZE);
 
 	/* "good night, sweet prince .... <THUNK!>" */
 	pmap_update();

@@ -24,7 +24,7 @@
  * the rights to redistribute these changes.
  *
  *	from: Mach, [92/04/03  16:51:14  rvb]
- *	$Id: boot.c,v 1.47 1996/03/08 06:29:06 bde Exp $
+ *	$Id: boot.c,v 1.48 1996/04/07 14:28:00 bde Exp $
  */
 
 
@@ -202,7 +202,7 @@ loadprog(void)
 	/********************************************************/
 	/* Load the Initialised data after the text		*/
 	/********************************************************/
-	while (addr & CLOFSET)
+	while (addr & PAGE_MASK)
                 *(char *)addr++ = 0;
 
 	printf("data=0x%x ", head.a_data);
@@ -224,9 +224,9 @@ loadprog(void)
 	addr += head.a_bss;
 
 	/* Pad to a page boundary. */
-	pad = (unsigned)addr % NBPG;
+	pad = (unsigned)addr & PAGE_MASK;
 	if (pad != 0) {
-		pad = NBPG - pad;
+		pad = PAGE_SIZE - pad;
 		addr += pad;
 	}
 	bootinfo.bi_symtab = addr;

@@ -28,7 +28,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *	$Id: imgact_linux.c,v 1.13 1996/03/19 15:02:33 bde Exp $
+ *	$Id: imgact_linux.c,v 1.14 1996/05/01 02:42:32 bde Exp $
  */
 
 #include <sys/param.h>
@@ -97,7 +97,7 @@ exec_linux_imgact(imgp)
      */
     if (a_out->a_entry < virtual_offset ||
 	a_out->a_entry >= virtual_offset + a_out->a_text ||
-	a_out->a_text % NBPG || a_out->a_data % NBPG)
+	a_out->a_text & PAGE_MASK || a_out->a_data & PAGE_MASK)
 	return (-1);
 
     /* text + data can't exceed file size */
@@ -125,7 +125,7 @@ exec_linux_imgact(imgp)
      * Currently we cannot handle misalinged file offsets,
      * and so we read in the entire image (what a waste).
      */
-    if (file_offset & PGOFSET) {
+    if (file_offset & PAGE_MASK) {
 #ifdef DEBUG
 	printf("imgact: Non page aligned binary %d\n", file_offset);
 #endif

@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)wd.c	7.2 (Berkeley) 5/9/91
- *	$Id: wd.c,v 1.105 1996/03/27 18:49:54 bde Exp $
+ *	$Id: wd.c,v 1.106 1996/04/18 21:37:43 phk Exp $
  */
 
 /* TODO:
@@ -1792,7 +1792,7 @@ wddump(dev_t dev)
 		return (ENXIO);
 
 	/* Size of memory to dump, in disk sectors. */
-	num = (u_long)Maxmem * NBPG / du->dk_dd.d_secsize;
+	num = (u_long)Maxmem * PAGE_SIZE / du->dk_dd.d_secsize;
 
 	secpertrk = du->dk_dd.d_nsectors;
 	secpercyl = du->dk_dd.d_secpercyl;
@@ -1906,11 +1906,11 @@ out:
 			}
 			if (du->dk_flags & DKFL_32BIT)
 				outsl(du->dk_port + wd_data,
-				      CADDR1 + ((int)addr & (NBPG - 1)),
+				      CADDR1 + ((int)addr & PAGE_MASK),
 				      DEV_BSIZE / sizeof(long));
 			else
 				outsw(du->dk_port + wd_data,
-				      CADDR1 + ((int)addr & (NBPG - 1)),
+				      CADDR1 + ((int)addr & PAGE_MASK),
 				      DEV_BSIZE / sizeof(short));
 			addr += DEV_BSIZE;
 			if ((unsigned)addr % (1024 * 1024) == 0)
