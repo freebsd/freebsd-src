@@ -711,6 +711,7 @@ again:
 	if ((flags & RFSTOPPED) == 0) {
 		mtx_lock_spin(&sched_lock);
 		p2->p_state = PRS_NORMAL;
+		TD_SET_CAN_RUN(td2);
 		setrunqueue(td2);
 		mtx_unlock_spin(&sched_lock);
 	}

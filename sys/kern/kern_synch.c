@@ -285,7 +285,7 @@ schedcpu(arg)
 					awake = 1;
 					ke->ke_flags &= ~KEF_DIDRUN;
 				} else if ((ke->ke_state == KES_THREAD) &&
-				    (ke->ke_thread->td_state == TDS_RUNNING)) {
+				    (TD_IS_RUNNING(ke->ke_thread))) {
 					awake = 1;
 					/* Do not clear KEF_DIDRUN */
 				} else if (ke->ke_flags & KEF_DIDRUN) {
@@ -361,8 +361,7 @@ schedcpu(arg)
 					     (kg->kg_user_pri / RQ_PPQ));
 
 					td->td_priority = kg->kg_user_pri;
-					if (changedqueue &&
-					    td->td_state == TDS_RUNQ) {
+					if (changedqueue && TD_ON_RUNQ(td)) {
 						/* this could be optimised */
 						remrunqueue(td);
 						td->td_priority =
@@ -515,15 +514,17 @@ msleep(ident, mtx, priority, wmesg, timo)
 	}
 
 	KASSERT(p != NULL, ("msleep1"));
-	KASSERT(ident != NULL && td->td_state == TDS_RUNNING, ("msleep"));
+	KASSERT(ident != NULL && TD_IS_RUNNING(td), ("msleep"));
+
+	CTR5(KTR_PROC, "msleep: thread %p (pid %d, %s) on %s (%p)",
+	    td, p->p_pid, p->p_comm, wmesg, ident);
 
 	td->td_wchan = ident;
 	td->td_wmesg = wmesg;
 	td->td_ksegrp->kg_slptime = 0;
 	td->td_priority = priority & PRIMASK;
-	CTR5(KTR_PROC, "msleep: thread %p (pid %d, %s) on %s (%p)",
-	    td, p->p_pid, p->p_comm, wmesg, ident);
 	TAILQ_INSERT_TAIL(&slpque[LOOKUP(ident)], td, td_slpq);
+	TD_SET_ON_SLEEPQ(td);
 	if (timo)
 		callout_reset(&td->td_slpcallout, timo, endtsleep, td);
 	/*
@@ -546,20 +547,20 @@ msleep(ident, mtx, priority, wmesg, timo)
 		mtx_lock_spin(&sched_lock);
 		PROC_UNLOCK(p);
 		if (sig != 0) {
-			if (td->td_wchan != NULL)
+			if (TD_ON_SLEEPQ(td))
 				unsleep(td);
-		} else if (td->td_wchan == NULL)
+		} else if (!TD_ON_SLEEPQ(td))
 			catch = 0;
 	} else
 		sig = 0;
-	if (td->td_wchan != NULL) {
+	if (TD_ON_SLEEPQ(td)) {
 		p->p_stats->p_ru.ru_nvcsw++;
-		td->td_state = TDS_SLP;
+		TD_SET_SLEEPING(td);
 		mi_switch();
 	}
 	CTR3(KTR_PROC, "msleep resume: thread %p (pid %d, %s)", td, p->p_pid,
 	    p->p_comm);
-	KASSERT(td->td_state == TDS_RUNNING, ("running but not TDS_RUNNING"));
+	KASSERT(TD_IS_RUNNING(td), ("running but not TDS_RUNNING"));
 	td->td_flags &= ~TDF_SINTR;
 	if (td->td_flags & TDF_TIMEOUT) {
 		td->td_flags &= ~TDF_TIMEOUT;
@@ -577,10 +578,10 @@ msleep(ident, mtx, priority, wmesg, timo)
 		 * has a chance to run and the callout may end up waking up
 		 * the wrong msleep().  Yuck.
 		 */
-		td->td_flags |= TDF_TIMEOUT;
-		td->td_state = TDS_SLP;
+		TD_SET_SLEEPING(td);
 		p->p_stats->p_ru.ru_nivcsw++;
 		mi_switch();
+		td->td_flags &= ~TDF_TIMOFAIL;
 	}
 	mtx_unlock_spin(&sched_lock);
 
@@ -621,35 +622,23 @@ endtsleep(arg)
 {
 	register struct thread *td = arg;
 
-	CTR3(KTR_PROC, "endtsleep: thread %p (pid %d, %s)", td, td->td_proc->p_pid,
-	    td->td_proc->p_comm);
+	CTR3(KTR_PROC, "endtsleep: thread %p (pid %d, %s)",
+	    td, td->td_proc->p_pid, td->td_proc->p_comm);
 	mtx_lock_spin(&sched_lock);
 	/*
 	 * This is the other half of the synchronization with msleep()
 	 * described above.  If the TDS_TIMEOUT flag is set, we lost the
 	 * race and just need to put the process back on the runqueue.
 	 */
-	if ((td->td_flags & TDF_TIMEOUT) != 0) {
-		td->td_flags &= ~TDF_TIMEOUT;
-		if (td->td_proc->p_sflag & PS_INMEM) {
-			setrunqueue(td);
-			maybe_resched(td);
-		} else {
-			td->td_state = TDS_SWAPPED;
-			if ((td->td_proc->p_sflag & PS_SWAPPINGIN) == 0) {
-				td->td_proc->p_sflag |= PS_SWAPINREQ;
-				wakeup(&proc0);
-			}
-		}
-	} else if (td->td_wchan != NULL) {
-		if (td->td_state == TDS_SLP)  /* XXXKSE */
-			setrunnable(td);
-		else
-			unsleep(td);
+	if (TD_ON_SLEEPQ(td)) {
+		TAILQ_REMOVE(&slpque[LOOKUP(td->td_wchan)], td, td_slpq);
+		TD_CLR_ON_SLEEPQ(td);
 		td->td_flags |= TDF_TIMEOUT;
 	} else {
 		td->td_flags |= TDF_TIMOFAIL;
 	}
+	TD_CLR_SLEEPING(td);
+	setrunnable(td);
 	mtx_unlock_spin(&sched_lock);
 }
 
@@ -664,25 +653,18 @@ void
 abortsleep(struct thread *td)
 {
 
-	mtx_lock_spin(&sched_lock);
+	mtx_assert(&sched_lock, MA_OWNED);
 	/*
 	 * If the TDF_TIMEOUT flag is set, just leave. A
 	 * timeout is scheduled anyhow.
 	 */
 	if ((td->td_flags & (TDF_TIMEOUT | TDF_SINTR)) == TDF_SINTR) {
-		if (td->td_wchan != NULL) {
-			if (td->td_state == TDS_SLP) {  /* XXXKSE */
-				setrunnable(td);
-			} else {
-				/*
-				 * Probably in a suspended state..
-				 * um.. dunno XXXKSE
-				 */
-				unsleep(td);
-			}
+		if (TD_ON_SLEEPQ(td)) {
+			unsleep(td);
+			TD_CLR_SLEEPING(td);
+			setrunnable(td);
 		}
 	}
-	mtx_unlock_spin(&sched_lock);
 }
 
 /*
@@ -693,9 +675,9 @@ unsleep(struct thread *td)
 {
 
 	mtx_lock_spin(&sched_lock);
-	if (td->td_wchan != NULL) {
+	if (TD_ON_SLEEPQ(td)) {
 		TAILQ_REMOVE(&slpque[LOOKUP(td->td_wchan)], td, td_slpq);
-		td->td_wchan = NULL;
+		TD_CLR_ON_SLEEPQ(td);
 	}
 	mtx_unlock_spin(&sched_lock);
 }
@@ -710,7 +692,6 @@ wakeup(ident)
 	register struct slpquehead *qp;
 	register struct thread *td;
 	struct thread *ntd;
-	struct ksegrp *kg;
 	struct proc *p;
 
 	mtx_lock_spin(&sched_lock);
@@ -718,30 +699,13 @@ wakeup(ident)
 restart:
 	for (td = TAILQ_FIRST(qp); td != NULL; td = ntd) {
 		ntd = TAILQ_NEXT(td, td_slpq);
-		p = td->td_proc;
 		if (td->td_wchan == ident) {
-			TAILQ_REMOVE(qp, td, td_slpq);
-			td->td_wchan = NULL;
-			if (td->td_state == TDS_SLP) {
-				/* OPTIMIZED EXPANSION OF setrunnable(p); */
-				CTR3(KTR_PROC, "wakeup: thread %p (pid %d, %s)",
-				    td, p->p_pid, p->p_comm);
-				kg = td->td_ksegrp;
-				if (kg->kg_slptime > 1)
-					updatepri(kg);
-				kg->kg_slptime = 0;
-				if (p->p_sflag & PS_INMEM) {
-					setrunqueue(td);
-					maybe_resched(td);
-				} else {
-					td->td_state = TDS_SWAPPED;
-					if ((p->p_sflag & PS_SWAPPINGIN) == 0) {
-						p->p_sflag |= PS_SWAPINREQ;
-						wakeup(&proc0);
-					}
-				}
-				/* END INLINE EXPANSION */
-			}
+			unsleep(td);
+			TD_CLR_SLEEPING(td);
+			setrunnable(td);
+			p = td->td_proc;
+			CTR3(KTR_PROC,"wakeup: thread %p (pid %d, %s)",
+			    td, p->p_pid, p->p_comm);
 			goto restart;
 		}
 	}
@@ -761,39 +725,19 @@ wakeup_one(ident)
 	register struct thread *td;
 	register struct proc *p;
 	struct thread *ntd;
-	struct ksegrp *kg;
 
 	mtx_lock_spin(&sched_lock);
 	qp = &slpque[LOOKUP(ident)];
-restart:
 	for (td = TAILQ_FIRST(qp); td != NULL; td = ntd) {
 		ntd = TAILQ_NEXT(td, td_slpq);
-		p = td->td_proc;
 		if (td->td_wchan == ident) {
-			TAILQ_REMOVE(qp, td, td_slpq);
-			td->td_wchan = NULL;
-			if (td->td_state == TDS_SLP) {
-				/* OPTIMIZED EXPANSION OF setrunnable(p); */
-				CTR3(KTR_PROC,"wakeup1: thread %p (pid %d, %s)",
-				    td, p->p_pid, p->p_comm);
-				kg = td->td_ksegrp;
-				if (kg->kg_slptime > 1)
-					updatepri(kg);
-				kg->kg_slptime = 0;
-				if (p->p_sflag & PS_INMEM) {
-					setrunqueue(td);
-					maybe_resched(td);
-					break;
-				} else {
-					td->td_state = TDS_SWAPPED;
-					if ((p->p_sflag & PS_SWAPPINGIN) == 0) {
-						p->p_sflag |= PS_SWAPINREQ;
-						wakeup(&proc0);
-					}
-				}
-				/* END INLINE EXPANSION */
-				goto restart;
-			}
+			unsleep(td);
+			TD_CLR_SLEEPING(td);
+			setrunnable(td);
+			p = td->td_proc;
+			CTR3(KTR_PROC,"wakeup1: thread %p (pid %d, %s)",
+			    td, p->p_pid, p->p_comm);
+			break;
 		}
 	}
 	mtx_unlock_spin(&sched_lock);
@@ -816,11 +760,11 @@ mi_switch(void)
 
 	mtx_assert(&sched_lock, MA_OWNED | MA_NOTRECURSED);
 	KASSERT((ke->ke_state == KES_THREAD), ("mi_switch: kse state?"));
-	KASSERT((td->td_state != TDS_RUNQ), ("mi_switch: called by old code"));
+	KASSERT(!TD_ON_RUNQ(td), ("mi_switch: called by old code"));
 #ifdef INVARIANTS
-	if (td->td_state != TDS_MTX &&
-	    td->td_state != TDS_RUNQ &&
-	    td->td_state != TDS_RUNNING)
+	if (!TD_ON_MUTEX(td) &&
+	    !TD_ON_RUNQ(td) &&
+	    !TD_IS_RUNNING(td))
 		mtx_assert(&Giant, MA_NOTOWNED);
 #endif
 	KASSERT(td->td_critnest == 1,
@@ -891,7 +835,7 @@ mi_switch(void)
 	 * then put it back on the run queue as it has not been suspended
 	 * or stopped or any thing else similar.
 	 */
-	if (td->td_state == TDS_RUNNING) {
+	if (TD_IS_RUNNING(td)) {
 		KASSERT(((ke->ke_flags & KEF_IDLEKSE) == 0),
 		    ("Idle thread in mi_switch with wrong state"));
 		/* Put us back on the run queue (kse and all). */
@@ -950,39 +894,33 @@ setrunnable(struct thread *td)
 		break;
 	}
 	switch (td->td_state) {
-	case 0:
 	case TDS_RUNNING:
-	case TDS_IWAIT:
-	case TDS_SWAPPED:
+	case TDS_RUNQ:
+		return;
+	case TDS_INHIBITED:
+		/*
+		 * If we are only inhibited because we are swapped out
+		 * then arange to swap in this process. Otherwise just return.
+		 */
+		if (td->td_inhibitors != TDI_SWAPPED)
+			return;
+	case TDS_CAN_RUN:
+		break;
 	default:
-		printf("state is %d", td->td_state);
+		printf("state is 0x%x", td->td_state);
 		panic("setrunnable(2)");
-	case TDS_SUSPENDED:
-		thread_unsuspend(p);
-		break;
-	case TDS_SLP:			/* e.g. when sending signals */
-		if (td->td_flags & TDF_CVWAITQ)
-			cv_waitq_remove(td);
-		else
-			unsleep(td);
-	case TDS_UNQUEUED:  /* being put back onto the queue */
-	case TDS_NEW:	/* not yet had time to suspend */
-	case TDS_RUNQ:	/* not yet had time to suspend */
-		break;
 	}
-	kg = td->td_ksegrp;
-	if (kg->kg_slptime > 1)
-		updatepri(kg);
-	kg->kg_slptime = 0;
 	if ((p->p_sflag & PS_INMEM) == 0) {
-		td->td_state = TDS_SWAPPED;
 		if ((p->p_sflag & PS_SWAPPINGIN) == 0) {
 			p->p_sflag |= PS_SWAPINREQ;
 			wakeup(&proc0);
 		}
 	} else {
-		if (td->td_state != TDS_RUNQ)
-			setrunqueue(td); /* XXXKSE */
+		kg = td->td_ksegrp;
+		if (kg->kg_slptime > 1)
+			updatepri(kg);
+		kg->kg_slptime = 0;
+		setrunqueue(td);
 		maybe_resched(td);
 	}
 }

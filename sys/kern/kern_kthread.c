@@ -76,6 +76,7 @@ kthread_create(void (*func)(void *), void *arg,
 {
 	int error;
 	va_list ap;
+	struct thread *td;
 	struct proc *p2;
 
 	if (!proc0.p_stats /* || proc0.p_stats->p_start.tv_sec == 0 */)
@@ -103,13 +104,15 @@ kthread_create(void (*func)(void *), void *arg,
 	va_end(ap);
 
 	/* call the processes' main()... */
-	cpu_set_fork_handler(FIRST_THREAD_IN_PROC(p2), func, arg);
+	td = FIRST_THREAD_IN_PROC(p2);
+	cpu_set_fork_handler(td, func, arg);
+	TD_SET_CAN_RUN(td);
 
 	/* Delay putting it on the run queue until now. */
 	mtx_lock_spin(&sched_lock);
 	p2->p_sflag |= PS_INMEM;
 	if (!(flags & RFSTOPPED)) {
-		setrunqueue(FIRST_THREAD_IN_PROC(p2)); 
+		setrunqueue(td); 
 	}
 	mtx_unlock_spin(&sched_lock);
 
