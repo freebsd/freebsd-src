@@ -274,7 +274,7 @@ usage:
 				continue;
 			}
 		}
-		printf(stderr, "\n");
+		fprintf(stderr, "\n");
 	}
 
 	argc--;
