@@ -300,7 +300,7 @@ fork1(td, flags, pages, procp)
 	 */
 	sx_xlock(&allproc_lock);
 	uid = td->td_ucred->cr_ruid;
-	if ((nprocs >= maxproc - 10 && suser(td->td_ucred) != 0) ||
+	if ((nprocs >= maxproc - 10 && suser(td) != 0) ||
 	    nprocs >= maxproc) {
 		error = EAGAIN;
 		goto fail;
