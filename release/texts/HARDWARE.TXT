@@ -370,10 +370,13 @@ SmartRAID IV SCSI/RAID controllers are supported.  The DPT SmartRAID/CACHE V
 is not yet supported.
 
 AMI MegaRAID Express and Enterprise family controllers (all models).
+Booting from these controllers is not supported.
 
-Mylex DAC960 controllers with 3.x and 4.x firmware, including the
-P, PL, PJ, PG and PTL (AcceleRAID 250).  Other AcceleRAID models may
-function but have not been tested.
+Mylex DAC960 and DAC1164 controllers with 3.x and 4.x firmware,
+including the P, PL, PJ, PG and PTL (AcceleRAID 250).  Other
+AcceleRAID models may function but have not been tested.  Booting from
+these controllers is not supported, and enabling the controller BIOS may
+cause the FreeBSD bootstrap to fail.
 
 SymBios (formerly NCR) 53C810, 53C810a, 53C815, 53C820, 53C825a, 53C860,
 53C875, 53C875e, 53C875j, 53C885, 53C895 and 53C896 PCI SCSI controllers:
