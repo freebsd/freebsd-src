@@ -70,10 +70,11 @@ main(int argc, char *argv[])
 	double denom;
 	int ch, fd, random_exit, randomize_lines, random_type, ret,
 		selected, unique_output, unbuffer_output;
-	char *ep, *filename;
+	char *ep;
+	const char *filename;
 
 	denom = 0;
-	filename = NULL;
+	filename = "/dev/fd/0";
 	random_type = RANDOM_TYPE_UNSET;
 	random_exit = randomize_lines = random_type = unbuffer_output = 0;
 	unique_output = 1;
@@ -84,9 +85,7 @@ main(int argc, char *argv[])
 			break;
 		case 'f':
 			randomize_lines = 1;
-			if (!strcmp(optarg, "-"))
-				filename = strdup("/dev/fd/0");
-			else
+			if (strcmp(optarg, "-") != 0)
 				filename = optarg;
 			break;
 		case 'l':
