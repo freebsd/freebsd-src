@@ -343,8 +343,8 @@ _aout_tools=	usr.bin/size usr.bin/strip gnu/usr.bin/as gnu/usr.bin/ld
 
 tools::
 .for _tool in ${_strfile} ${_aout_tools} usr.bin/gensetdefs \
-    gnu/usr.bin/binutils usr.bin/objformat usr.bin/yacc gnu/usr.bin/bison \
-    gnu/usr.bin/cc
+    gnu/usr.bin/binutils usr.bin/objformat usr.bin/yacc usr.bin/colldef \
+    gnu/usr.bin/bison gnu/usr.bin/cc
 	cd ${.CURDIR}/${_tool}; \
 		${MAKE} obj; \
 		${MAKE} depend; \
