@@ -434,8 +434,5 @@ AcpiProcessorSleep (
     ACPI_HANDLE             ProcessorHandle,
     UINT32                  *PmTimerTicks);
 
-ACPI_STATUS
-AcpiSetSystemSleepState (
-    UINT8                   SleepState);
 
 #endif /* __ACXFACE_H__ */
