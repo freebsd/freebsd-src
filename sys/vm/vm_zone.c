@@ -417,6 +417,7 @@ sysctl_vm_zone(SYSCTL_HANDLER_ARGS)
 	int error, len;
 	char tmpbuf[128];
 	vm_zone_t z;
+	char *p;
 
 	mtx_lock(&zone_mtx);
 	len = snprintf(tmpbuf, sizeof(tmpbuf),
@@ -425,13 +426,17 @@ sysctl_vm_zone(SYSCTL_HANDLER_ARGS)
 	SLIST_FOREACH(z, &zlist, zent) {
 		mtx_lock(&z->zmtx);
 		len = snprintf(tmpbuf, sizeof(tmpbuf),
-		    "%-14.14s %6.6u, %8.8u, %6.6u, %6.6u, %8.8u\n",
+		    "%-12.12s  %6.6u, %8.8u, %6.6u, %6.6u, %8.8u\n",
 		    z->zname, z->zsize, z->zmax, (z->ztotal - z->zfreecnt),
 		    z->zfreecnt, z->znalloc);
+		for (p = tmpbuf + 12; p > tmpbuf && *p == ' '; --p)
+			/* nothing */ ;
+		p[1] = ':';
 		mtx_unlock(&z->zmtx);
 		if (SLIST_NEXT(z, zent) == NULL)
 			tmpbuf[len - 1] = 0;
-		error = SYSCTL_OUT(req, tmpbuf, len);
+		if ((error = SYSCTL_OUT(req, tmpbuf, len)) != 0)
+			break;
 	}
 	mtx_unlock(&zone_mtx);
 	return (error);
