@@ -406,7 +406,7 @@ fore_buf_supply_1s(fup)
 			bdp->bsd_handle = bhp;
 			KB_DATASTART(m, cp, caddr_t);
 			bhp->bh_dma = bdp->bsd_buffer = vtophys(cp);
-			if (bdp->bsd_buffer == NULL) {
+			if (bdp->bsd_buffer == 0) {
 				/*
 				 * Unable to assign dma address - free up
 				 * this descriptor's buffer
@@ -546,7 +546,7 @@ fore_buf_supply_1l(fup)
 			bdp->bsd_handle = bhp;
 			KB_DATASTART(m, cp, caddr_t);
 			bhp->bh_dma = bdp->bsd_buffer = vtophys(cp);
-			if (bdp->bsd_buffer == NULL) {
+			if (bdp->bsd_buffer == 0) {
 				/*
 				 * Unable to assign dma address - free up
 				 * this descriptor's buffer

@@ -1979,7 +1979,7 @@ lio_listio(struct thread *td, struct lio_listio_args *uap)
 	cbptr = uap->acb_list;
 	for (i = 0; i < uap->nent; i++) {
 		iocb = (struct aiocb *)(intptr_t)fuword(&cbptr[i]);
-		if (((intptr_t)iocb != -1) && ((intptr_t)iocb != NULL)) {
+		if (((intptr_t)iocb != -1) && ((intptr_t)iocb != 0)) {
 			error = _aio_aqueue(td, iocb, lj, 0);
 			if (error == 0)
 				nentqueued++;

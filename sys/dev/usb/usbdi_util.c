@@ -289,7 +289,7 @@ usbd_get_report(usbd_interface_handle iface, int type, int id, void *data,
 	usb_device_request_t req;
 
 	DPRINTFN(4, ("usbd_set_report: len=%d\n", len));
-	if (id == NULL)
+	if (id == 0)
 		return (USBD_IOERROR);
 	usbd_interface2device_handle(iface, &dev);
 	req.bmRequestType = UT_READ_CLASS_INTERFACE;

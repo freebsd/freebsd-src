@@ -44,13 +44,13 @@ AcpiOsInitialize(void)
      */
     PnPBIOStable = NULL;
 
-    return(NULL);
+    return(0);
 }
 
 ACPI_STATUS
 AcpiOsTerminate(void)
 {
-    return(NULL);
+    return(0);
 }
 
 ACPI_STATUS

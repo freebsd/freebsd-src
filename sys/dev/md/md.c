@@ -349,7 +349,7 @@ s_write(struct indir *ip, off_t offset, uintptr_t ptr)
 		up = lip[li]->array[idx];
 		KASSERT(up == (uintptr_t)cip, ("md screwed up"));
 		del_indir(cip);
-		lip[li]->array[idx] = NULL;
+		lip[li]->array[idx] = 0;
 		lip[li]->used--;
 		cip = lip[li];
 	}

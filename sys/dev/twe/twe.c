@@ -824,7 +824,7 @@ twe_init_connection(struct twe_softc *sc, int mode)
 
     /* get a command */
     if (twe_get_request(sc, &tr))
-	return(NULL);
+	return(0);
 
     /* build the command */
     cmd = &tr->tr_command;
