@@ -30,7 +30,7 @@
 .\" SUCH DAMAGE.
 .\"
 .\"     @(#)route.8	8.3 (Berkeley) 3/19/94
-.\"	$Id: route.8,v 1.7.2.2 1998/07/17 20:13:49 jkh Exp $
+.\"	$Id: route.8,v 1.7.2.3 1998/07/21 06:50:20 charnier Exp $
 .\"
 .Dd March 19, 1994
 .Dt ROUTE 8
@@ -40,7 +40,7 @@
 .Nd manually manipulate the routing tables
 .Sh SYNOPSIS
 .Nm route
-.Op Fl nqv
+.Op Fl dnqtv
 .Ar command
 .Oo
 .Op Ar modifiers
@@ -140,7 +140,7 @@ is the destination host or network,
 is the next-hop intermediary via which packets should be routed.
 Routes to a particular host may be distinguished from those to
 a network by interpreting the Internet address specified as the
-.Ar destination argument.
+.Ar destination argument .
 The optional modifiers
 .Fl net
 and
@@ -329,5 +329,5 @@ command appeared in
 .Bx 4.2 .
 .Sh BUGS
 The first paragraph may have slightly exaggerated
-.Xr routed Ns 's
+.Xr routed 8 Ns 's
 abilities.
