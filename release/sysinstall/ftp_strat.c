@@ -4,7 +4,7 @@
  * This is probably the last attempt in the `sysinstall' line, the next
  * generation being slated to essentially a complete rewrite.
  *
- * $Id: ftp_strat.c,v 1.7.2.39 1995/11/04 17:16:40 jkh Exp $
+ * $Id: ftp_strat.c,v 1.14 1996/04/28 03:26:57 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -21,13 +21,6 @@
  * 2. Redistributions in binary form must reproduce the above copyright
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
- * 3. All advertising materials mentioning features or use of this software
- *    must display the following acknowledgement:
- *	This product includes software developed by Jordan Hubbard
- *	for the FreeBSD Project.
- * 4. The name of Jordan Hubbard or the FreeBSD project may not be used to
- *    endorse or promote products derived from this software without specific
- *    prior written permission.
  *
  * THIS SOFTWARE IS PROVIDED BY JORDAN HUBBARD ``AS IS'' AND
  * ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
@@ -59,24 +52,23 @@ extern int FtpPort;
 static char *lastRequest;
 
 static Boolean
-get_new_host(Device *dev, Boolean tentative)
+get_new_host(Device *dev, Boolean probe)
 {
     Boolean i;
     int j;
     char *oldTitle = MenuMediaFTP.title;
     char *cp = variable_get(VAR_FTP_ONERROR);
 
-    if (tentative || (cp && strcmp(cp, "reselect")))
+    if (probe || (cp && strcmp(cp, "reselect")))
 	i = TRUE;
     else {
 	i = FALSE;
-	dialog_clear();
 	msgConfirm("The %s file failed to load from the FTP site you\n"
 		   "selected.  Please select another one from the FTP menu.", lastRequest ? lastRequest : "requested");
 	MenuMediaFTP.title = "Request failed - please select another site";
 	j = mediaSetFTP(NULL);
 	MenuMediaFTP.title = oldTitle;
-	if (j == RET_SUCCESS) {
+	if (DITEM_STATUS(j) == DITEM_SUCCESS) {
 	    /* Bounce the link if necessary */
 	    if (ftpInitted) {
 		msgDebug("Bouncing FTP connection before reselecting new host.\n");
@@ -107,6 +99,7 @@ ftpShouldAbort(Device *dev, int retries)
 	if (isDebug())
 	    msgDebug("Aborting FTP connection.\n");
 	dev->shutdown(dev);
+	(void)dev->init(dev);
     }
     return rval;
 }
@@ -124,25 +117,27 @@ mediaInitFTP(Device *dev)
 
     if (isDebug())
 	msgDebug("Init routine for FTP called.  Net device is %x\n", netDevice);
-    if (!netDevice->init(netDevice))
+    if (!netDevice->init(netDevice)) {
+	if (isDebug())
+	    msgDebug("InitFTP: Net device init returns FALSE\n");
 	return FALSE;
+    }
 
     if (!ftp && (ftp = FtpInit()) == NULL) {
-	dialog_clear();
 	msgConfirm("FTP initialisation failed!");
 	return FALSE;
     }
+
     cp = variable_get(VAR_FTP_PATH);
     if (!cp) {
-	dialog_clear();
 	msgConfirm("%s is not set!", VAR_FTP_PATH);
 	return FALSE;
     }
+
     if (isDebug())
 	msgDebug("Attempting to open connection for URL: %s\n", cp);
     hostname = variable_get(VAR_HOSTNAME);
     if (strncmp("ftp://", cp, 6) != NULL) {
-	dialog_clear();
 	msgConfirm("Invalid URL: %s\n(A URL must start with `ftp://' here)", cp);
 	return FALSE;
     }
@@ -165,10 +160,10 @@ mediaInitFTP(Device *dev)
     }
     msgNotify("Looking up host %s..", hostname);
     if ((gethostbyname(hostname) == NULL) && (inet_addr(hostname) == INADDR_NONE)) {
-	dialog_clear();
 	msgConfirm("Cannot resolve hostname `%s'!  Are you sure that your\n"
-		   "name server, gateway and network interface are configured?", hostname);
+		   "name server, gateway and network interface are correctly configured?", hostname);
 	netDevice->shutdown(netDevice);
+	tcpOpenDialog(netDevice);
 	return FALSE;
     }
     user = variable_get(VAR_FTP_USER);
@@ -187,10 +182,8 @@ retry:
     if (FtpOpen(ftp, hostname, login_name, password) != 0) {
 	if (variable_get(VAR_NO_CONFIRM))
 	    msgNotify("Couldn't open FTP connection to %s", hostname);
-	else {
-	    dialog_clear();
+	else
 	    msgConfirm("Couldn't open FTP connection to %s", hostname);
-	}
 	if (ftpShouldAbort(dev, ++retries) || !get_new_host(dev, FALSE))
 	    return FALSE;
 	goto retry;
@@ -199,7 +192,7 @@ retry:
     FtpPassive(ftp, !strcmp(variable_get(VAR_FTP_STATE), "passive"));
     FtpBinary(ftp, 1);
     if (dir && *dir != '\0') {
-	msgNotify("Attempt to chdir to distribution in %s..", dir);
+	msgDebug("Attempt to chdir to distribution in %s\n", dir);
 	if ((i = FtpChdir(ftp, dir)) != 0) {
 	    if (i == -2 || ftpShouldAbort(dev, ++retries))
 		goto punt;
@@ -227,7 +220,7 @@ punt:
 }
 
 int
-mediaGetFTP(Device *dev, char *file, Boolean tentative)
+mediaGetFTP(Device *dev, char *file, Boolean probe)
 {
     int fd;
     int nretries;
@@ -246,7 +239,7 @@ mediaGetFTP(Device *dev, char *file, Boolean tentative)
 	    if (!dev->init(dev))
 		return -2;
 	}
-	else if (tentative || ftpShouldAbort(dev, ++nretries))
+	else if (probe || ftpShouldAbort(dev, ++nretries))
 	    return -1;
 	else {
 	    /* Try some alternatives */
@@ -268,7 +261,7 @@ mediaGetFTP(Device *dev, char *file, Boolean tentative)
 
 	    case 4:
 		fp = file;
-		if (get_new_host(dev, tentative)) {
+		if (get_new_host(dev, probe)) {
 		    nretries = 0;
 		    continue;
 		}

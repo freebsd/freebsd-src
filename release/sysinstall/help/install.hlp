@@ -1,4 +1,4 @@
-                QUICK INSTALLATION GUIDE FOR FREEBSD 2.1
+                QUICK INSTALLATION GUIDE FOR FREEBSD 2.2
 
 This manual documents the process of installing FreeBSD on your
 machine.  Please also see the Hardware Guide for hardware-specific
@@ -28,7 +28,7 @@ Table of Contents:
 
 3.1     Repairing an existing FreeBSD installation.
 
-3.2     Upgrading from FreeBSD 2.0.5
+3.2     Upgrading from FreeBSD 2.1
 
 
 1.0     DOS user's Question and Answer section
@@ -72,8 +72,14 @@ such is your desire.
 
 1.3     Can I mount my DOS extended partitions?
 
-Unfortunately, this remains unsupported.  All the framework is in place
-for doing so, but it didn't get done in time for the 2.1 installation.
+Yes. DOS extended partitions are mapped in at the end of the other
+``slices'' in FreeBSD, e.g. your D: drive might be /dev/sd0s5,
+your E: drive /dev/sd0s6, and so on. This example assumes, of
+course, that your extended partition is on SCSI drive 0. For IDE drives,
+substitute ``wd'' for ``sd'' appropriately. You otherwise mount extended
+partitions exactly like you would mount any other DOS drive, e.g.:
+
+mount -t msdos /dev/sd0s5 /dos_d
 
 
 1.4     Can I run DOS binaries under FreeBSD?
@@ -534,13 +540,13 @@ systems and their contents.  Some UNIX administration experience *is*
 required to use the fixit option!
 
 
-3.2     Upgrading from FreeBSD 2.0.5
+3.2     Upgrading from FreeBSD 2.1
 ---     ----------------------------
 
 It must first be said that this upgrade DOES NOT take a particularly
 sophisticated approach to the upgrade problem, it being more a question
 of providing what seemed "good enough" at the time.  A truly polished
-upgrade that deals properly with the broad spectrum of installed 2.0.5
+upgrade that deals properly with the broad spectrum of installed 2.1
 systems would be nice to have, but until that gets written what you get is
 this - the brute-force approach!
 
@@ -569,7 +575,7 @@ close to the edge, that's all we can say!
 NOTE to 2.0 users: We're sorry, but the "slice" changes that were
 added in FreeBSD 2.0.5 made automated upgrades pretty difficult due to
 the fact that a complete reinstall is pretty much called for.  Things
-may still *work* after a 2.1 upgrade, but you will also no doubt
+may still *work* after a 2.2 upgrade, but you will also no doubt
 receive many warnings at boot time about non-aligned slices and such;
 we really do recommend a fresh installation for 2.0 systems!  (But
 back up your user data first :-).

@@ -4,7 +4,7 @@
  * This is probably the last attempt in the `sysinstall' line, the next
  * generation being slated to essentially a complete rewrite.
  *
- * $Id: cdrom.c,v 1.7.2.12 1995/11/03 12:02:23 jkh Exp $
+ * $Id: cdrom.c,v 1.13 1996/04/23 01:29:10 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -21,13 +21,6 @@
  * 2. Redistributions in binary form must reproduce the above copyright
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
- * 3. All advertising materials mentioning features or use of this software
- *    must display the following acknowledgement:
- *	This product includes software developed by Jordan Hubbard
- *	for the FreeBSD Project.
- * 4. The name of Jordan Hubbard or the FreeBSD project may not be used to
- *    endorse or promote products derived from this software without specific
- *    prior written permission.
  *
  * THIS SOFTWARE IS PROVIDED BY JORDAN HUBBARD ``AS IS'' AND
  * ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
@@ -58,9 +51,15 @@
 #include <sys/mount.h>
 #undef CD9660
 
-/* This isn't static, like the others, since it's often useful to know whether or not we have a CDROM
-   available in some of the other installation screens. */
-Boolean cdromMounted;
+/*
+ * This isn't static, like the others, since it's often useful to know whether
+ * or not we have a CDROM available in some of the other installation screens.
+ * This also isn't a boolean like the others since we have 3 states for it:
+ * 0 = cdrom isn't mounted, 1 = cdrom is mounted and we mounted it, 2 = cdrom
+ * was already mounted when we came in and we should leave it that way when
+ * we leave.
+ */
+int cdromMounted;
 
 Boolean
 mediaInitCDROM(Device *dev)
@@ -79,8 +78,9 @@ mediaInitCDROM(Device *dev)
     args.fspec = dev->devname;
     args.flags = 0;
 
-    if (mount(MOUNT_CD9660, "/cdrom", MNT_RDONLY, (caddr_t) &args) == -1) {
-	dialog_clear();
+    if (directory_exists("/cdrom/dists"))
+	cdromMounted = 2;
+    else if (mount(MOUNT_CD9660, "/cdrom", MNT_RDONLY, (caddr_t) &args) == -1) {
 	msgConfirm("Error mounting %s on /cdrom: %s (%u)", dev->devname, strerror(errno), errno);
 	return FALSE;
     }
@@ -92,25 +92,23 @@ mediaInitCDROM(Device *dev)
     snprintf(specialrel, 80, "/cdrom/%s/dists", variable_get(VAR_RELNAME));
     if (stat("/cdrom/dists", &sb) && stat(specialrel, &sb)) {
 	if (errno == ENOENT) {
-	    dialog_clear();
 	    msgConfirm("Couldn't locate the directory `dists' anywhere on the CD.\n"
 		       "Is this a FreeBSD CDROM?  Is the release version set properly\n"
 		       "in the Options editor?");
 	    return FALSE;
 	}
 	else {
-	    dialog_clear();
 	    msgConfirm("Error trying to stat the CDROM's dists directory: %s", strerror(errno));
 	    return FALSE;
 	}
     }
-    cdromMounted = TRUE;
+    cdromMounted = 1;
     msgDebug("Mounted CDROM device %s on /cdrom\n", dev->devname);
     return TRUE;
 }
 
 int
-mediaGetCDROM(Device *dev, char *file, Boolean tentative)
+mediaGetCDROM(Device *dev, char *file, Boolean probe)
 {
     char	buf[PATH_MAX];
 
@@ -131,14 +129,12 @@ mediaGetCDROM(Device *dev, char *file, Boolean tentative)
 void
 mediaShutdownCDROM(Device *dev)
 {
-    if (!RunningAsInit || !cdromMounted)
+    if (!RunningAsInit || !cdromMounted || cdromMounted == 2)
 	return;
     msgDebug("Unmounting %s from /cdrom\n", dev->devname);
-    if (unmount("/cdrom", MNT_FORCE) != 0) {
-	dialog_clear();
+    if (unmount("/cdrom", MNT_FORCE) != 0)
 	msgConfirm("Could not unmount the CDROM from /cdrom: %s", strerror(errno));
-    }
     msgDebug("Unmount successful\n");
-    cdromMounted = FALSE;
+    cdromMounted = 0;
     return;
 }

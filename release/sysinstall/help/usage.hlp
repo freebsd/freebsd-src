@@ -6,22 +6,16 @@ encounter during this installation:
 
 KEY             ACTION
 ---             ------
+SPACE           Select or toggle the current item.
+RETURN          Continue or invoke selected menu button.
 UP ARROW        Move to previous item (or up, in a text field).
 DOWN ARROW      Move to next item (or down, in a text field).
 TAB             Move to next item or group.
 RIGHT ARROW     Move to next item or group (same as TAB).
 SHIFT-TAB       Move to previous item or group.
 LEFT ARROW      Move to previous item or group (same as SHIFT-TAB).
-RETURN          Select item.
 PAGE UP         In text boxes, scrolls up one page.
 PAGE DOWN       In text boxes, scrolls down one page.
-SPACE           In "radio" or multiple choice menus, toggle the current
-                item.  In help screens, scroll to next page of text.
-F1              Help (in screens that provide it).
-
-In text fields, the amount of text above the current point will be
-displayed as a percentage in the lower right corner.  100% means
-you're at the bottom of the available text.
 
 If you see small "^(-)" or "v(+)" symbols at the edges of a menu, it
 means that there are more items above or below the current one that
@@ -29,8 +23,9 @@ aren't being shown (due to insufficient screen space).  Using the
 up/down arrow keys will cause the menu to scroll.  The PageUp and
 PageDown keys will scroll by entire screens.
 
-When an arrow symbol disappears, it means you are at the top (or
-bottom) of the menu.
+In text fields, the amount of text above the current point will be
+displayed as a percentage in the lower right corner.  A value of
+100% means that you're at the bottom of the available text.
 
 Selecting OK in a menu will confirm whatever action it's controlling.
 Selecting Cancel will cancel the operation and generally return you to

@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: devices.c,v 1.36.2.11 1995/11/15 06:57:02 jkh Exp $
+ * $Id: devices.c,v 1.45 1996/04/23 01:29:12 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -19,13 +19,6 @@
  * 2. Redistributions in binary form must reproduce the above copyright
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
- * 3. All advertising materials mentioning features or use of this software
- *    must display the following acknowledgement:
- *	This product includes software developed by Jordan Hubbard
- *	for the FreeBSD Project.
- * 4. The name of Jordan Hubbard or the FreeBSD project may not be used to
- *    endorse or promote products derived from this software without specific
- *    prior written permission.
  *
  * THIS SOFTWARE IS PROVIDED BY JORDAN HUBBARD ``AS IS'' AND
  * ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
@@ -55,16 +48,6 @@
 #include <netinet/in_var.h>
 #include <arpa/inet.h>
 
-#define	NSIP
-#include <netns/ns.h>
-#include <netns/ns_if.h>
-#include <netdb.h>
-
-#define EON
-#include <netiso/iso.h>
-#include <netiso/iso_var.h>
-#include <sys/protosw.h>
-
 #include <ctype.h>
 
 static Device *Devices[DEV_MAX];
@@ -76,17 +59,11 @@ static struct {
     char *description;
 } device_names[] = {
     { DEVICE_TYPE_CDROM,	"cd0a",		"SCSI CDROM drive"					},
-    { DEVICE_TYPE_CDROM,	"cd1a",		"SCSI CDROM drive (2nd unit)"				},
     { DEVICE_TYPE_CDROM,	"mcd0a",	"Mitsumi (old model) CDROM drive"			},
-    { DEVICE_TYPE_CDROM,	"mcd1a",	"Mitsumi (old model) CDROM drive (2nd unit)"		},
     { DEVICE_TYPE_CDROM,	"scd0a",	"Sony CDROM drive - CDU31/33A type",			},
-    { DEVICE_TYPE_CDROM,	"scd1a",	"Sony CDROM drive - CDU31/33A type (2nd unit)"		},
     { DEVICE_TYPE_CDROM,	"matcd0a",	"Matsushita CDROM ('sound blaster' type)"		},
-    { DEVICE_TYPE_CDROM,	"matcd1a",	"Matsushita CDROM (2nd unit)"				},
     { DEVICE_TYPE_CDROM,	"wcd0c",	"ATAPI IDE CDROM"					},
-    { DEVICE_TYPE_CDROM,	"wcd1c",	"ATAPI IDE CDROM (2nd unit)"				},
     { DEVICE_TYPE_TAPE, 	"rst0",		"SCSI tape drive"					},
-    { DEVICE_TYPE_TAPE, 	"rst1",		"SCSI tape drive (2nd unit)"				},
     { DEVICE_TYPE_TAPE, 	"rft0",		"Floppy tape drive (QIC-02)"				},
     { DEVICE_TYPE_TAPE, 	"rwt0",		"Wangtek tape drive"					},
     { DEVICE_TYPE_DISK, 	"sd",		"SCSI disk device"					},
@@ -102,6 +79,7 @@ static struct {
     { DEVICE_TYPE_NETWORK,	"sl",		"Serial-line IP (SLIP) interface"			},
     { DEVICE_TYPE_NETWORK,	"ppp",		"Point-to-Point Protocol (PPP) interface"		},
     { DEVICE_TYPE_NETWORK,	"de",		"DEC DE435 PCI NIC or other DC21040-AA based card"	},
+    { DEVICE_TYPE_NETWORK,	"fxp",		"Intel EtherExpress Pro/100B PCI Fast Ethernet card"	},
     { DEVICE_TYPE_NETWORK,	"ed",		"WD/SMC 80xx; Novell NE1000/2000; 3Com 3C503 cards"	},
     { DEVICE_TYPE_NETWORK,	"ep",		"3Com 3C509 ethernet card"				},
     { DEVICE_TYPE_NETWORK,	"el",		"3Com 3C501 ethernet card"				},
@@ -131,21 +109,18 @@ new_device(char *name)
 Boolean
 dummyInit(Device *dev)
 {
-    msgDebug("Dummy init called for %s\n", dev->name);
     return TRUE;
 }
 
 int
-dummyGet(Device *dev, char *dist, Boolean tentative)
+dummyGet(Device *dev, char *dist, Boolean probe)
 {
-    msgDebug("Dummy get called for %s\n", dev->name);
     return -1;
 }
 
 Boolean
 dummyClose(Device *dev, int fd)
 {
-    msgDebug("Dummy [default] close called for %s with fd of %d.\n", dev->name, fd);
     if (!close(fd))
 	return TRUE;
     return FALSE;
@@ -154,7 +129,6 @@ dummyClose(Device *dev, int fd)
 void
 dummyShutdown(Device *dev)
 {
-    msgDebug("Dummy shutdown called for %s\n", dev->name);
     return;
 }
 
@@ -227,7 +201,7 @@ deviceGetAll(void)
 
 	    /* Look for existing DOS partitions to register */
 	    for (c1 = d->chunks->part; c1; c1 = c1->next) {
-		if (c1->type == fat) {
+		if (c1->type == fat || c1->type == extended) {
 		    Device *dev;
 		    char devname[80];
 
@@ -253,8 +227,8 @@ deviceGetAll(void)
 	switch(device_names[i].type) {
 	case DEVICE_TYPE_CDROM:
 	    fd = deviceTry(device_names[i].name, try);
-	    if (fd >= 0) {
-		if (fd) close(fd);
+	    if (fd >= 0 || errno == EBUSY) {	/* EBUSY if already mounted */
+		if (fd >= 0) close(fd);
 		(void)deviceRegister(device_names[i].name, device_names[i].description, strdup(try),
 				     DEVICE_TYPE_CDROM, TRUE, mediaInitCDROM, mediaGetCDROM, NULL,
 				     mediaShutdownCDROM, NULL);
@@ -305,12 +279,10 @@ deviceGetAll(void)
 
     s = socket(AF_INET, SOCK_DGRAM, 0);
     if (s < 0) {
-	dialog_clear();
 	msgConfirm("ifconfig: socket");
 	return;
     }
     if (ioctl(s, SIOCGIFCONF, (char *) &ifc) < 0) {
-	dialog_clear();
 	msgConfirm("ifconfig (SIOCGIFCONF)");
 	return;
     }
@@ -329,7 +301,6 @@ deviceGetAll(void)
 	msgDebug("Found a device of type network named: %s\n", ifptr->ifr_name);
 	close(s);
 	if ((s = socket(AF_INET, SOCK_DGRAM, 0)) < 0) {
-	    dialog_clear();
 	    msgConfirm("ifconfig: socket");
 	    continue;
 	}
@@ -375,7 +346,7 @@ deviceCount(Device **devs)
  * menu is cloned.
  */
 DMenu *
-deviceCreateMenu(DMenu *menu, DeviceType type, int (*hook)())
+deviceCreateMenu(DMenu *menu, DeviceType type, int (*hook)(dialogMenuItem *d), int (*check)(dialogMenuItem *d))
 {
     Device **devs;
     int numdevs;
@@ -387,24 +358,21 @@ deviceCreateMenu(DMenu *menu, DeviceType type, int (*hook)())
 	return NULL;
 
     for (numdevs = 0; devs[numdevs]; numdevs++);
-    tmp = (DMenu *)safe_malloc(sizeof(DMenu) + (sizeof(DMenuItem) * (numdevs + 1)));
+    tmp = (DMenu *)safe_malloc(sizeof(DMenu) + (sizeof(dialogMenuItem) * (numdevs + 1)));
     bcopy(menu, tmp, sizeof(DMenu));
     for (i = 0; devs[i]; i++) {
-	tmp->items[i].title = devs[i]->name;
+	tmp->items[i].prompt = devs[i]->name;
 	for (j = 0; device_names[j].name; j++) {
 	    if (!strncmp(devs[i]->name, device_names[j].name, strlen(device_names[j].name))) {
-		tmp->items[i].prompt = device_names[j].description;
+		tmp->items[i].title = device_names[j].description;
 		break;
 	    }
 	}
 	if (!device_names[j].name)
-	    tmp->items[i].prompt = "<unknown device type>";
-	tmp->items[i].type = DMENU_CALL;
-	tmp->items[i].ptr = hook;
-	tmp->items[i].disabled = FALSE;
-	tmp->items[i].check = NULL;
+	    tmp->items[i].title = "<unknown device type>";
+	tmp->items[i].fire = hook;
+	tmp->items[i].checked = check;
     }
-    tmp->items[i].type = DMENU_NOP;
     tmp->items[i].title = NULL;
     return tmp;
 }

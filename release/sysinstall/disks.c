@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: disks.c,v 1.31.2.36 1995/12/11 16:30:19 jkh Exp $
+ * $Id: disks.c,v 1.44 1996/04/28 03:26:49 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -19,13 +19,6 @@
  * 2. Redistributions in binary form must reproduce the above copyright
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
- * 3. All advertising materials mentioning features or use of this software
- *    must display the following acknowledgement:
- *	This product includes software developed by Jordan Hubbard
- *	for the FreeBSD Project.
- * 4. The name of Jordan Hubbard or the FreeBSD project may not be used to
- *    endorse or promote products derived from this software without specific
- *    prior written permission.
  *
  * THIS SOFTWARE IS PROVIDED BY JORDAN HUBBARD ``AS IS'' AND
  * ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
@@ -80,7 +73,6 @@ print_chunks(Disk *d)
     if ((!d->bios_cyl || d->bios_cyl > 65536) || (!d->bios_hd || d->bios_hd > 256) || (!d->bios_sect || d->bios_sect >= 64)) {
 	int sz;
 
-	dialog_clear();
 	msgConfirm("WARNING:  The current geometry for %s is incorrect.  Using\n"
 		   "a default geometry of 64 heads and 32 sectors.  If this geometry\n"
 		   "is incorrect or you are unsure as to whether or not it's correct,\n"
@@ -126,97 +118,13 @@ print_command_summary()
     mvprintw(14, 0, "The following commands are supported (in upper or lower case):");
     mvprintw(16, 0, "A = Use Entire Disk    B = Bad Block Scan     C = Create Partition");
     mvprintw(17, 0, "D = Delete Partition   G = Set Drive Geometry S = Set Bootable");
-    mvprintw(18, 0, "U = Undo All Changes   Q = Finish             W = Write Changes");
+    mvprintw(18, 0, "U = Undo All Changes   Q = Finish");
+    if (!RunningAsInit)
+	mvprintw(18, 48, "W = Write Changes");
     mvprintw(20, 0, "The currently selected partition is displayed in ");
     attrset(A_REVERSE); addstr("reverse"); attrset(A_NORMAL); addstr(" video.");
     mvprintw(21, 0, "Use F1 or ? to get more help, arrow keys to move.");
     move(0, 0);
-}
-
-/* Partition a disk based wholly on which variables are set */
-static void
-scriptPartition(Device *dev, Disk *d)
-{
-    char *cp;
-    int i, sz;
-
-    record_chunks(d);
-    cp = variable_get(VAR_GEOMETRY);
-    if (cp) {
-	msgDebug("Setting geometry from script to: %s\n", cp);
-	d->bios_cyl = strtol(cp, &cp, 0);
-	d->bios_hd = strtol(cp + 1, &cp, 0);
-	d->bios_sect = strtol(cp + 1, 0, 0);
-    }
-
-    cp = variable_get(VAR_DISKSPACE);
-    if (cp) {
-	if (!strcmp(cp, "free")) {
-	    /* Do free disk space case */
-	    for (i = 0; chunk_info[i]; i++) {
-		/* If a chunk is at least 10MB in size, use it. */
-		if (chunk_info[i]->type == unused && chunk_info[i]->size > (10 * ONE_MEG)) {
-		    Create_Chunk(d, chunk_info[i]->offset, chunk_info[i]->size, freebsd, 3,
-				 (chunk_info[i]->flags & CHUNK_ALIGN));
-		    variable_set2(DISK_PARTITIONED, "yes");
-		    break;
-		}
-	    }
-	    if (!chunk_info[i]) {
-		dialog_clear();
-		msgConfirm("Unable to find any free space on this disk!");
-		return;
-	    }
-	}
-	else if (!strcmp(cp, "all")) {
-	    /* Do all disk space case */
-	    msgDebug("Warning:  Devoting all of disk %s to FreeBSD.\n", d->name);
-
-	    All_FreeBSD(d, FALSE);
-	}
-	else if (!strcmp(cp, "exclusive")) {
-	    /* Do really-all-the-disk-space case */
-	    msgDebug("Warning:  Devoting all of disk %s to FreeBSD.\n", d->name);
-
-	    All_FreeBSD(d, TRUE);
-	}
-	else if ((sz = strtol(cp, &cp, 0))) {
-	    /* Look for sz bytes free */
-	    if (*cp && toupper(*cp) == 'M')
-		sz *= ONE_MEG;
-	    for (i = 0; chunk_info[i]; i++) {
-		/* If a chunk is at least sz MB, use it. */
-		if (chunk_info[i]->type == unused && chunk_info[i]->size >= sz) {
-		    Create_Chunk(d, chunk_info[i]->offset, sz, freebsd, 3, (chunk_info[i]->flags & CHUNK_ALIGN));
-		    variable_set2(DISK_PARTITIONED, "yes");
-		    break;
-		}
-	    }
-	    if (!chunk_info[i]) {
-		dialog_clear();
-		msgConfirm("Unable to find %d free blocks on this disk!", sz);
-		return;
-	    }
-	}
-	else if (!strcmp(cp, "existing")) {
-	    /* Do existing FreeBSD case */
-	    for (i = 0; chunk_info[i]; i++) {
-		if (chunk_info[i]->type == freebsd)
-		    break;
-	    }
-	    if (!chunk_info[i]) {
-		dialog_clear();
-		msgConfirm("Unable to find any existing FreeBSD partitions on this disk!");
-		return;
-	    }
-	}
-	else {
-	    dialog_clear();
-	    msgConfirm("`%s' is an invalid value for %s - is config file valid?", cp, VAR_DISKSPACE);
-	    return;
-	}
-	variable_set2(DISK_PARTITIONED, "yes");
-    }
 }
 
 static u_char *
@@ -232,7 +140,6 @@ getBootMgr(char *dname)
 	/* Figure out what kind of MBR the user wants */
 	sprintf(str, "Install Boot Manager for drive %s?", dname);
 	MenuMBRType.title = str;
-	dialog_clear();
 	i = dmenuOpenSimple(&MenuMBRType);
     }
     else {
@@ -267,10 +174,12 @@ diskPartition(Device *dev, Disk *d)
     Boolean chunking;
     char *msg = NULL;
     u_char *mbrContents;
+    WINDOW *w;
 
     chunking = TRUE;
     keypad(stdscr, TRUE);
 
+    w = savescr();
     clear();
     record_chunks(d);
     while (chunking) {
@@ -329,7 +238,9 @@ diskPartition(Device *dev, Disk *d)
 			       "uncooperative with other potential operating systems on the\n"
 			       "same disk.  It will lead instead to a totally dedicated disk,\n"
 			       "starting at the very first sector, bypassing all BIOS geometry\n"
-			       "considerations.\n"
+			       "considerations.  This precludes the existance of any boot\n"
+			       "manager or other stuff in sector 0, since the BSD bootstrap\n"
+			       "will live there.\n"
 			       "You will run into serious trouble with ST-506 and ESDI drives\n"
 			       "and possibly some IDE drives (e.g. drives running under the\n"
 			       "control of sort of disk manager).  SCSI drives are considerably\n"
@@ -342,7 +253,7 @@ diskPartition(Device *dev, Disk *d)
 	    variable_set2(DISK_PARTITIONED, "yes");
 	    record_chunks(d);
 	}
-	    break;
+	break;
 
 	case 'B':
 	    if (chunk_info[current_chunk]->type != freebsd)
@@ -378,6 +289,7 @@ diskPartition(Device *dev, Disk *d)
 	    }
 	    break;
 
+	case '\177':
 	case 'D':
 	    if (chunk_info[current_chunk]->type == unused)
 		msg = "Partition is already unused!";
@@ -414,9 +326,8 @@ diskPartition(Device *dev, Disk *d)
 		break;
 	    d = Open_Disk(d->name);
 	    if (!d) {
-		dialog_clear();
 		msgConfirm("Can't reopen disk %s! Internal state is probably corrupted", d->name);
-		return;
+		break;
 	    }
 	    Free_Disk(dev->private);
 	    dev->private = d;
@@ -425,12 +336,11 @@ diskPartition(Device *dev, Disk *d)
 	    break;
 
 	case 'W':
-	    if (!msgYesNo("Are you SURE you want to write this now?  You do also\n"
-			  "have the option of not modifying the disk until *all*\n"
-			  "configuration information has been entered, at which\n"
-			  "point you can do it all at once.  If you're unsure, then\n"
-			  "PLEASE CHOOSE NO at this dialog!  This option is DANGEROUS\n"
-			  "if you do not know EXACTLY what you are doing!")) {
+	    if (!msgYesNo("WARNING:  This should only be used for modifying an\n"
+			  "EXISTING installation - DO NOT USE this option if you\n"
+			  "are installing FreeBSD for the first time!  This is not\n"
+			  "an option for use during the standard install.\n\n"
+			  "Are you absolutely sure you want to do this now?")) {
 		variable_set2(DISK_PARTITIONED, "yes");
 		clear();
 
@@ -442,19 +352,19 @@ diskPartition(Device *dev, Disk *d)
 		    && (mbrContents = getBootMgr(d->name)) != NULL)
 		    Set_Boot_Mgr(d, mbrContents);
 
-		if (diskPartitionWrite(NULL) != RET_SUCCESS) {
-		    dialog_clear();
+		if (DITEM_STATUS(diskPartitionWrite(NULL)) != DITEM_SUCCESS)
 		    msgConfirm("Disk partition write returned an error status!");
-		}
-		else {
+		else
 		    msgConfirm("Wrote FDISK partition information out successfully.");
-		}
 	    }
 	    break;
 
 	case '|':
 	    if (!msgYesNo("Are you SURE you want to go into Wizard mode?\n"
 			  "No seat belts whatsoever are provided!")) {
+		WINDOW *w;
+
+		w = savescr();
 		dialog_clear();
 		end_dialog();
 		DialogActive = FALSE;
@@ -463,6 +373,7 @@ diskPartition(Device *dev, Disk *d)
 		dialog_clear();
 		DialogActive = TRUE;
 		record_chunks(d);
+		restorescr(w);
 	    }
 	    else
 		msg = "Wise choice!";
@@ -489,46 +400,40 @@ diskPartition(Device *dev, Disk *d)
     p = CheckRules(d);
     if (p) {
 	dialog_clear();
-	msgConfirm(p);
+	dialog_mesgbox("Disk partitioning warning:", p, -1, -1);
 	free(p);
     }
-    dialog_clear();
+    restorescr(w);
 }
 
 static int
-partitionHook(char *str)
+partitionHook(dialogMenuItem *selected)
 {
     Device **devs = NULL;
 
-    /* Clip garbage off the ends */
-    string_prune(str);
-    str = string_skipwhite(str);
-    /* Try and open all the disks */
-    while (str) {
-	char *cp;
-
-	cp = index(str, '\n');
-	if (cp)
-	   *cp++ = 0;
-	if (!*str) {
-	    beep();
-	    return 0;
-	}
-	devs = deviceFind(str, DEVICE_TYPE_DISK);
-	if (!devs) {
-	    dialog_clear();
-	    msgConfirm("Unable to find disk %s!", str);
-	    return 0;
-	}
-	devs[0]->enabled = TRUE;
-	diskPartition(devs[0], (Disk *)devs[0]->private);
-	str = cp;
+    devs = deviceFind(selected->prompt, DEVICE_TYPE_DISK);
+    if (!devs) {
+	msgConfirm("Unable to find disk %s!", selected->prompt);
+	return DITEM_FAILURE;
     }
-    return devs ? 1 : 0;
+    devs[0]->enabled = TRUE;
+    diskPartition(devs[0], (Disk *)devs[0]->private);
+    return DITEM_SUCCESS;
+}
+
+static int
+partitionCheck(dialogMenuItem *selected)
+{
+    Device **devs = NULL;
+
+    devs = deviceFind(selected->prompt, DEVICE_TYPE_DISK);
+    if (!devs || devs[0]->enabled == FALSE)
+	return FALSE;
+    return TRUE;
 }
 
 int
-diskPartitionEditor(char *str)
+diskPartitionEditor(dialogMenuItem *self)
 {
     DMenu *menu;
     Device **devs;
@@ -539,65 +444,53 @@ diskPartitionEditor(char *str)
     devs = deviceFind(cp, DEVICE_TYPE_DISK);
     cnt = deviceCount(devs);
     if (!cnt) {
-	dialog_clear();
 	msgConfirm("No disks found!  Please verify that your disk controller is being\n"
 		   "properly probed at boot time.  See the Hardware Guide on the\n"
 		   "Documentation menu for clues on diagnosing this type of problem.");
-	i = RET_FAIL;
+	i = DITEM_FAILURE;
     }
     else if (cnt == 1) {
 	devs[0]->enabled = TRUE;
-	if (str && !strcmp(str, "script"))
-	    scriptPartition(devs[0], (Disk *)devs[0]->private);
-	else
-	    diskPartition(devs[0], (Disk *)devs[0]->private);
-	i = RET_SUCCESS;
-	variable_set2(DISK_SELECTED, "yes");
+	diskPartition(devs[0], (Disk *)devs[0]->private);
+	i = DITEM_SUCCESS;
     }
     else {
-	menu = deviceCreateMenu(&MenuDiskDevices, DEVICE_TYPE_DISK, partitionHook);
+	menu = deviceCreateMenu(&MenuDiskDevices, DEVICE_TYPE_DISK, partitionHook, partitionCheck);
 	if (!menu) {
-	    dialog_clear();
 	    msgConfirm("No devices suitable for installation found!\n\n"
 		       "Please verify that your disk controller (and attached drives)\n"
 		       "were detected properly.  This can be done by pressing the\n"
 		       "[Scroll Lock] key and using the Arrow keys to move back to\n"
 		       "the boot messages.  Press [Scroll Lock] again to return.");
-	    i = RET_FAIL;
+	    i = DITEM_FAILURE;
 	}
 	else {
-	    if (!dmenuOpenSimple(menu))
-		i = RET_FAIL;
-	    else  {
-		i = RET_SUCCESS;
-		variable_set2(DISK_SELECTED, "yes");
-	    }
+	    i = dmenuOpenSimple(menu) ? DITEM_SUCCESS : DITEM_FAILURE;
 	    free(menu);
 	}
+	i = i | DITEM_RESTORE | DITEM_RECREATE;
     }
     return i;
 }
 
 int
-diskPartitionWrite(char *str)
+diskPartitionWrite(dialogMenuItem *self)
 {
     Device **devs;
     char *cp;
     int i;
 
     if ((cp = variable_get(DISK_PARTITIONED)) && strcmp(cp, "yes"))
-	return RET_SUCCESS;
+	return DITEM_SUCCESS;
     else if (!cp) {
-	dialog_clear();
 	msgConfirm("You must partition the disk(s) before this option can be used.");
-	return RET_FAIL;
+	return DITEM_FAILURE;
     }
 
     devs = deviceFind(NULL, DEVICE_TYPE_DISK);
     if (!devs) {
-	dialog_clear();
 	msgConfirm("Unable to find any disks to write to??");
-	return RET_FAIL;
+	return DITEM_FAILURE;
     }
 
     for (i = 0; devs[i]; i++) {
@@ -610,9 +503,8 @@ diskPartitionWrite(char *str)
 	Set_Boot_Blocks(d, boot1, boot2);
 	msgNotify("Writing partition information to drive %s", d->name);
 	if (Write_Disk(d)) {
-	    dialog_clear();
 	    msgConfirm("ERROR: Unable to write data to disk %s!", d->name);
-	    return RET_FAIL;
+	    return DITEM_FAILURE;
 	}
 	/* Now scan for bad blocks, if necessary */
 	for (c1 = d->chunks->part; c1; c1 = c1->next) {
@@ -621,19 +513,15 @@ diskPartitionWrite(char *str)
 
 		msgNotify("Running bad block scan on partition %s", c1->name);
 		ret = vsystem("bad144 -v /dev/r%s 1234", c1->name);
-		if (ret) {
-		    dialog_clear();
+		if (ret)
 		    msgConfirm("Bad144 init on %s returned status of %d!", c1->name, ret);
-		}
 		ret = vsystem("bad144 -v -s /dev/r%s", c1->name);
-		if (ret) {
-		    dialog_clear();
+		if (ret)
 		    msgConfirm("Bad144 scan on %s returned status of %d!", c1->name, ret);
-		}
 	    }
 	}
     }
     /* Now it's not "yes", but "written" */
     variable_set2(DISK_PARTITIONED, "written");
-    return RET_SUCCESS;
+    return DITEM_SUCCESS;
 }

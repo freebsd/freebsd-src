@@ -101,6 +101,13 @@ Media Type:   Which media type is being used.
     was last selected in the Media menu.  It's also a convenient short-cut
     to the media menu itself.
 
+Editor:       Which text editor to use.
+
+    The default editor with sysinstall is `ee' - a small editor which
+    also displays its keybindings and is hence often easier to use
+    for the UNIX novice.  Those with a preference for, say, vi could
+    enter /usr/bin/vi using this option.
+
 
 Use Defaults:  Use default values.
 

@@ -1,5 +1,5 @@
 /*
- * $Id: tcpip.c,v 1.30.2.16 1995/11/06 07:27:31 jkh Exp $
+ * $Id: tcpip.c,v 1.37 1996/04/28 00:37:38 jkh Exp $
  *
  * Copyright (c) 1995
  *      Gary J Palmer. All rights reserved.
@@ -14,13 +14,6 @@
  * 2. Redistributions in binary form must reproduce the above copyright
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
- * 3. All advertising materials mentioning features or use of this software
- *    must display the following acknowledgement:
- *      This product includes software developed by Gary J Palmer
- *	for the FreeBSD Project.
- * 4. The name of Gary J Palmer or the FreeBSD Project may
- *    not be used to endorse or promote products derived from this software
- *    without specific prior written permission.
  *
  * THIS SOFTWARE IS PROVIDED BY GARY J PALMER ``AS IS'' AND ANY EXPRESS OR
  * IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES
@@ -53,6 +46,9 @@
 #include "dialog.priv.h"
 #include "colors.h"
 #include "sysinstall.h"
+
+/* The help file for the TCP/IP setup screen */
+#define TCP_HELPFILE		"tcp"
 
 /* These are nasty, but they make the layout structure a lot easier ... */
 
@@ -180,7 +176,7 @@ tcpInstallDevice(char *str)
     string_prune(str);
     str = string_skipwhite(str);
     if (!*str)
-	return RET_FAIL;
+	return DITEM_FAILURE;
     devs = deviceFind(str, DEVICE_TYPE_NETWORK);
     if (devs && (dp = devs[0])) {
 	char temp[512], ifn[255];
@@ -222,14 +218,14 @@ tcpInstallDevice(char *str)
 	}
 	mediaDevice = dp;
     }
-    return dp ? RET_SUCCESS : RET_FAIL;
+    return dp ? DITEM_SUCCESS : DITEM_FAILURE;
 }
     
 /* This is it - how to get TCP setup values */
 int
 tcpOpenDialog(Device *devp)
 {
-    WINDOW              *ds_win;
+    WINDOW              *ds_win, *save;
     ComposeObj          *obj = NULL;
     ComposeObj		*first, *last;
     int                 n=0, quit=FALSE, cancel=FALSE, ret;
@@ -238,6 +234,7 @@ tcpOpenDialog(Device *devp)
     char		help[FILENAME_MAX];
     char		title[80];
 
+    save = savescr();
     /* We need a curses window */
     ds_win = newwin(LINES, COLS, 0, 0);
     if (ds_win == 0)
@@ -509,27 +506,24 @@ tcpOpenDialog(Device *devp)
 	}
 	if (ipaddr[0])
 	    variable_set2(VAR_IPADDR, ipaddr);
-	return RET_SUCCESS;
+	restorescr(save);
+	return DITEM_SUCCESS;
     }
-    return RET_FAIL;
+    restorescr(save);
+    return DITEM_FAILURE;
 }
 
 static int
-netHook(char *str)
+netHook(dialogMenuItem *self)
 {
     Device **devs;
 
-    /* Clip garbage off the ends */
-    string_prune(str);
-    str = string_skipwhite(str);
-    if (!*str)
-	return RET_FAIL;
-    devs = deviceFind(str, DEVICE_TYPE_NETWORK);
+    devs = deviceFind(self->prompt, DEVICE_TYPE_NETWORK);
     if (devs) {
 	tcpOpenDialog(devs[0]);
 	mediaDevice = devs[0];
     }
-    return devs ? RET_DONE : RET_FAIL;
+    return devs ? DITEM_LEAVE_MENU : DITEM_FAILURE;
 }
 
 /* Get a network device */
@@ -551,11 +545,14 @@ tcpDeviceSelect(void)
 	/* If we're running in user mode, assume network already up */
 	if (RunningAsInit)
 	    tcpOpenDialog(devs[0]);
+	else
+	    msgConfirm("Since you're running multi-user, we'll assume\n"
+		       "that the network is already up.");
 	mediaDevice = devs[0];
 	status = TRUE;
     }
     else {
-	menu = deviceCreateMenu(&MenuNetworkDevice, DEVICE_TYPE_NETWORK, netHook);
+	menu = deviceCreateMenu(&MenuNetworkDevice, DEVICE_TYPE_NETWORK, netHook, NULL);
 	if (!menu)
 	    msgFatal("Unable to create network device menu!  Argh!");
 	status = dmenuOpenSimple(menu);
@@ -566,9 +563,9 @@ tcpDeviceSelect(void)
 
 /* Do it from a menu that doesn't care about status */
 int
-tcpMenuSelect(char *str)
+tcpMenuSelect(dialogMenuItem *self)
 {
     (void)tcpDeviceSelect();
     configResolv();
-    return RET_SUCCESS;
+    return DITEM_SUCCESS | DITEM_RECREATE | DITEM_RESTORE;
 }

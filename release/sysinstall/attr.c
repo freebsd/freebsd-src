@@ -4,7 +4,7 @@
  * This is probably the last attempt in the `sysinstall' line, the next
  * generation being slated to essentially a complete rewrite.
  *
- * $Id: attr.c,v 1.3.2.5 1995/10/21 20:02:56 jkh Exp $
+ * $Id: attr.c,v 1.6 1996/04/23 01:29:09 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -21,13 +21,6 @@
  * 2. Redistributions in binary form must reproduce the above copyright
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
- * 3. All advertising materials mentioning features or use of this software
- *    must display the following acknowledgement:
- *	This product includes software developed by Jordan Hubbard
- *	for the FreeBSD Project.
- * 4. The name of Jordan Hubbard or the FreeBSD project may not be used to
- *    endorse or promote products derived from this software without specific
- *    prior written permission.
  *
  * THIS SOFTWARE IS PROVIDED BY JORDAN HUBBARD ``AS IS'' AND
  * ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
@@ -54,9 +47,8 @@ attr_parse_file(Attribs *attr, char *file)
     int fd;
 
     if ((fd = open(file, O_RDONLY)) == -1) {
-	dialog_clear();
 	msgConfirm("Cannot open the information file `%s': %s (%d)", file, strerror(errno), errno);
-	return RET_FAIL;
+	return DITEM_FAILURE;
     }
     return attr_parse(attr, fd);
 }
@@ -159,7 +151,7 @@ attr_parse(Attribs *attr, int fd)
     if (isDebug())
 	msgDebug("Finished parsing %d attributes.\n", num_attribs);
 	
-    return RET_SUCCESS;
+    return DITEM_SUCCESS;
 }
 
 char *
