@@ -624,23 +624,18 @@ struct proc {
 #define	P_STOPPROF	0x00040	/* Has thread in requesting to stop prof */
 #define	P_SUGID		0x00100	/* Had set id privileges since last exec. */
 #define	P_SYSTEM	0x00200	/* System proc: no sigs, stats or swapping. */
+#define	P_SINGLE_EXIT	0x00400	/* Threads suspending should exit, not wait */
+#define	P_TRACED	0x00800	/* Debugged process being traced. */
 #define	P_WAITED	0x01000	/* Someone is waiting for us */
 #define	P_WEXIT		0x02000	/* Working on exiting. */
 #define	P_EXEC		0x04000	/* Process called exec. */
 #define	P_THREADED	0x08000	/* Process is using threads. */
 #define	P_CONTINUED	0x10000	/* Proc has continued from a stopped state. */
-#define	P_PROTECTED	0x100000 /* Do not kill on memory overcommit. */
-
-/* flags that control how threads may be suspended for some reason */
-#define	P_STOPPED_SIG		0x20000	/* Stopped due to SIGSTOP/SIGTSTP */
-#define	P_STOPPED_TRACE		0x40000	/* Stopped because of tracing */
+#define	P_STOPPED_SIG	0x20000	/* Stopped due to SIGSTOP/SIGTSTP */
+#define	P_STOPPED_TRACE	0x40000	/* Stopped because of tracing */
 #define	P_STOPPED_SINGLE	0x80000	/* Only one thread can continue */
 					/* (not to user) */
-#define	P_SINGLE_EXIT		0x00400	/* Threads suspending should exit, */
-					/* not wait */
-#define	P_TRACED		0x00800	/* Debugged process being traced. */
-#define	P_STOPPED		(P_STOPPED_SIG|P_STOPPED_SINGLE|P_STOPPED_TRACE)
-#define	P_SHOULDSTOP(p)		((p)->p_flag & P_STOPPED)
+#define	P_PROTECTED	0x100000 /* Do not kill on memory overcommit. */
 
 /* Should be moved to machine-dependent areas. */
 #define	P_COWINPROGRESS	0x400000 /* Snapshot copy-on-write in progress. */
@@ -648,6 +643,9 @@ struct proc {
 #define	P_JAILED	0x1000000 /* Process is in jail. */
 #define	P_ALTSTACK	0x2000000 /* Have alternate signal stack. */
 #define	P_INEXEC	0x4000000 /* Process is in execve(). */
+
+#define	P_STOPPED		(P_STOPPED_SIG|P_STOPPED_SINGLE|P_STOPPED_TRACE)
+#define	P_SHOULDSTOP(p)		((p)->p_flag & P_STOPPED)
 
 /* These flags are kept in p_sflag and are protected with sched_lock. */
 #define	PS_INMEM	0x00001	/* Loaded into memory. */
