@@ -450,13 +450,13 @@ int attach_awe(void)
 {
 	/* check presence of AWE32 card */
 	if (! awe_detect()) {
-		printk("AWE32: not detected\n");
+		printk("AWE32: not detected");
 		return ;
 	}
 
 	/* check AWE32 ports are available */
 	if (awe_check_port()) {
-		printk("AWE32: I/O area already used.\n");
+		printk("AWE32: I/O area already used.");
 		return ;
 	}
 
@@ -466,7 +466,7 @@ int attach_awe(void)
 	PERMANENT_MALLOC(awe_voice_list *, infos,
 			 AWE_MAX_INFOS * sizeof(awe_voice_list) );
 	if (samples == NULL || infos == NULL) {
-		printk("AWE32: can't allocate sample tables\n");
+		printk("AWE32: can't allocate sample tables");
 		return ;
 	}
 
@@ -487,10 +487,9 @@ int attach_awe(void)
 	/* intialize AWE32 hardware */
 	awe_initialize();
 
-#if 0	/* Drivers shouldn't be this chatty by default */
-	printk("<AWE32 SynthCard (%dk)>\n", (int)awe_mem_size/1024);
-#endif
 	sprintf(awe_info.name, "AWE32 Synth (%dk)", (int)awe_mem_size/1024);
+
+	conf_printf(awe_info.name, hw_config);
 
 	/* set reverb & chorus modes */
 	awe_set_reverb_mode(reverb_mode);
