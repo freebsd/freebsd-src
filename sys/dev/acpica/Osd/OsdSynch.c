@@ -33,18 +33,17 @@
 
 #include "acpi.h"
 
+#include "opt_acpi.h"
 #include <sys/kernel.h>
 #include <sys/lock.h>
 #include <sys/malloc.h>
 #include <sys/mutex.h>
+#include <sys/sysctl.h>
 
 #define _COMPONENT	ACPI_OS_SERVICES
 MODULE_NAME("SYNCH")
 
 static MALLOC_DEFINE(M_ACPISEM, "acpisem", "ACPI semaphore");
-
-/* disable semaphores - AML in the field doesn't use them correctly */
-#define ACPI_NO_SEMAPHORES
 
 /*
  * Simple counting semaphore implemented using a mutex. (Subsequently used
@@ -54,7 +53,20 @@ struct acpi_semaphore {
     struct mtx	as_mtx;
     UINT32	as_units;
     UINT32	as_maxunits;
+    UINT32	as_pendings;
+    UINT32	as_resetting;
+    UINT32	as_timeouts;
 };
+
+#ifndef ACPI_NO_SEMAPHORES
+#ifndef ACPI_SEMAPHORES_MAX_PENDING
+#define ACPI_SEMAPHORES_MAX_PENDING	4
+#endif
+static int	acpi_semaphore_debug = 0;
+TUNABLE_INT("debug.acpi_semaphore_debug", &acpi_semaphore_debug);
+SYSCTL_INT(_debug, OID_AUTO, acpi_semaphore_debug, CTLFLAG_RW,
+    &acpi_semaphore_debug, 0, "");
+#endif
 
 ACPI_STATUS
 AcpiOsCreateSemaphore(UINT32 MaxUnits, UINT32 InitialUnits, ACPI_HANDLE *OutHandle)
@@ -72,12 +84,15 @@ AcpiOsCreateSemaphore(UINT32 MaxUnits, UINT32 InitialUnits, ACPI_HANDLE *OutHand
     if ((as = malloc(sizeof(*as), M_ACPISEM, M_NOWAIT)) == NULL)
 	return_ACPI_STATUS(AE_NO_MEMORY);
 
+    bzero(as, sizeof(*as));
     mtx_init(&as->as_mtx, "ACPI semaphore", MTX_DEF);
     as->as_units = InitialUnits;
     as->as_maxunits = MaxUnits;
+    as->as_pendings = as->as_resetting = as->as_timeouts = 0;
 
-    DEBUG_PRINT(TRACE_MUTEX, ("created semaphore %p max %d, initial %d\n", 
-			      as, InitialUnits, MaxUnits));
+    ACPI_DEBUG_PRINT((ACPI_DB_MUTEX,
+	"created semaphore %p max %d, initial %d\n", 
+	as, InitialUnits, MaxUnits));
 
     *OutHandle = (ACPI_HANDLE)as;
     return_ACPI_STATUS(AE_OK);
@@ -95,7 +110,7 @@ AcpiOsDeleteSemaphore (ACPI_HANDLE Handle)
 
     FUNCTION_TRACE(__func__);
 
-    DEBUG_PRINT(TRACE_MUTEX, ("destroyed semaphore %p\n", as));
+    ACPI_DEBUG_PRINT((ACPI_DB_MUTEX, "destroyed semaphore %p\n", as));
     mtx_destroy(&as->as_mtx);
     free(Handle, M_ACPISEM);
     return_ACPI_STATUS(AE_OK);
@@ -116,27 +131,58 @@ AcpiOsWaitSemaphore(ACPI_HANDLE Handle, UINT32 Units, UINT32 Timeout)
     struct acpi_semaphore	*as = (struct acpi_semaphore *)Handle;
     ACPI_STATUS			result;
     int				rv, tmo;
+    struct timeval		timeouttv, currenttv, timelefttv;
 
     FUNCTION_TRACE(__func__);
 
     if (as == NULL)
 	return_ACPI_STATUS(AE_BAD_PARAMETER);
 
-    /* a timeout of -1 means "forever" */
-    if (Timeout == -1) {
+    if (cold)
+	return_ACPI_STATUS(AE_OK);
+
+#if 0
+    if (as->as_units < Units && as->as_timeouts > 10) {
+	printf("%s: semaphore %p too many timeouts, resetting\n", __func__, as);
+	mtx_lock(&as->as_mtx);
+	as->as_units = as->as_maxunits;
+	if (as->as_pendings)
+	    as->as_resetting = 1;
+	as->as_timeouts = 0;
+	wakeup(as);
+	mtx_unlock(&as->as_mtx);
+	return_ACPI_STATUS(AE_TIME);
+    }
+
+    if (as->as_resetting) {
+	return_ACPI_STATUS(AE_TIME);
+    }
+#endif
+
+    /* a timeout of WAIT_FOREVER means "forever" */
+    if (Timeout == WAIT_FOREVER) {
 	tmo = 0;
+	timeouttv.tv_sec = ((0xffff/1000) + 1);	/* cf. ACPI spec */
+	timeouttv.tv_usec = 0;
     } else {
 	/* compute timeout using microseconds per tick */
 	tmo = (Timeout * 1000) / (1000000 / hz);
 	if (tmo <= 0)
 	    tmo = 1;
+	timeouttv.tv_sec  = Timeout / 1000;
+	timeouttv.tv_usec = (Timeout % 1000) * 1000;
     }
 
+    /* calculate timeout value in timeval */
+    getmicrotime(&currenttv);
+    timevaladd(&timeouttv, &currenttv);
+
     mtx_lock(&as->as_mtx);
-    DEBUG_PRINT(TRACE_MUTEX, ("get %d units from semaphore %p (has %d), timeout %d\n",
-			      Units, as, as->as_units, Timeout));
+    ACPI_DEBUG_PRINT((ACPI_DB_MUTEX,
+	"get %d units from semaphore %p (has %d), timeout %d\n",
+	Units, as, as->as_units, Timeout));
     for (;;) {
-	if (as->as_inits == ACPI_NO_UNIT_LIMIT) {
+	if (as->as_units == ACPI_NO_UNIT_LIMIT) {
 	    result = AE_OK;
 	    break;
 	}
@@ -145,20 +191,89 @@ AcpiOsWaitSemaphore(ACPI_HANDLE Handle, UINT32 Units, UINT32 Timeout)
 	    result = AE_OK;
 	    break;
 	}
-	if (Timeout < 0) {
+
+	/* limit number of pending treads */
+	if (as->as_pendings >= ACPI_SEMAPHORES_MAX_PENDING) {
 	    result = AE_TIME;
 	    break;
 	}
-	DEBUG_PRINT(TRACE_MUTEX, ("semaphore blocked, calling msleep(%p, %p, %d, \"acpisem\", %d)\n",
-				  as, as->as_mtx, 0, tmo));
-	
-	rv = msleep(as, &as->as_mtx, 0, "acpisem", tmo);
-	DEBUG_PRINT(TRACE_MUTEX, ("msleep returned %d\n", rv));
+
+	/* if timeout values of zero is specified, return immediately */
+	if (Timeout == 0) {
+	    result = AE_TIME;
+	    break;
+	}
+
+	ACPI_DEBUG_PRINT((ACPI_DB_MUTEX,
+	    "semaphore blocked, calling msleep(%p, %p, %d, \"acsem\", %d)\n",
+	    as, &as->as_mtx, PCATCH, tmo));
+
+	as->as_pendings++;
+
+	if (acpi_semaphore_debug) {
+	    printf("%s: Sleep %d, pending %d, semaphore %p, thread %d\n",
+		__func__, Timeout, as->as_pendings, as, AcpiOsGetThreadId());
+	}
+
+	rv = msleep(as, &as->as_mtx, PCATCH, "acsem", tmo);
+
+	as->as_pendings--;
+
+#if 0
+	if (as->as_resetting) {
+	    /* semaphore reset, return immediately */
+	    if (as->as_pendings == 0) {
+		as->as_resetting = 0;
+	    }
+	    result = AE_TIME;
+	    break;
+	}
+#endif
+
+	ACPI_DEBUG_PRINT((ACPI_DB_MUTEX, "msleep(%d) returned %d\n", tmo, rv));
 	if (rv == EWOULDBLOCK) {
 	    result = AE_TIME;
 	    break;
 	}
+
+	/* check if we already awaited enough */
+	timelefttv = timeouttv;
+	getmicrotime(&currenttv);
+	timevalsub(&timelefttv, &currenttv);
+	if (timelefttv.tv_sec < 0) {
+	    ACPI_DEBUG_PRINT((ACPI_DB_MUTEX, "await semaphore %p timeout\n", as));
+	    result = AE_TIME;
+	    break;
+	}
+
+	/* adjust timeout for the next sleep */
+	tmo = (timelefttv.tv_sec * 1000000 + timelefttv.tv_usec) / (1000000 / hz);
+	if (tmo <= 0)
+	    tmo = 1;
+
+	if (acpi_semaphore_debug) {
+	    printf("%s: Wakeup timeleft(%lu, %lu), tmo %u, semaphore %p, thread %d\n",
+		__func__, timelefttv.tv_sec, timelefttv.tv_usec, tmo, as, AcpiOsGetThreadId());
+	}
     }
+
+    if (acpi_semaphore_debug) {
+	if (result == AE_TIME && Timeout > 0) {
+	    printf("%s: Timeout %d, pending %d, semaphore %p\n",
+		__func__, Timeout, as->as_pendings, as);
+	}
+	if (result == AE_OK && (as->as_timeouts > 0 || as->as_pendings > 0)) {
+	    printf("%s: Acquire %d, units %d, pending %d, semaphore %p, thread %d\n",
+		__func__, Units, as->as_units, as->as_pendings, as, AcpiOsGetThreadId());
+	}
+    }
+
+    if (result == AE_TIME) {
+	as->as_timeouts++;
+    } else {
+	as->as_timeouts = 0;
+    }
+
     mtx_unlock(&as->as_mtx);
 
     return_ACPI_STATUS(result);
@@ -179,13 +294,20 @@ AcpiOsSignalSemaphore(ACPI_HANDLE Handle, UINT32 Units)
 	return_ACPI_STATUS(AE_BAD_PARAMETER);
 
     mtx_lock(&as->as_mtx);
-    DEBUG_PRINT(TRACE_MUTEX, ("return %d units to semaphore %p (has %d)\n",
-			      Units, as, as->as_units));
+    ACPI_DEBUG_PRINT((ACPI_DB_MUTEX,
+	"return %d units to semaphore %p (has %d)\n",
+	Units, as, as->as_units));
     if (as->as_units != ACPI_NO_UNIT_LIMIT) {
 	as->as_units += Units;
 	if (as->as_units > as->as_maxunits)
 	    as->as_units = as->as_maxunits;
     }
+
+    if (acpi_semaphore_debug && (as->as_timeouts > 0 || as->as_pendings > 0)) {
+	printf("%s: Release %d, units %d, pending %d, semaphore %p, thread %d\n",
+	    __func__, Units, as->as_units, as->as_pendings, as, AcpiOsGetThreadId());
+    }
+
     wakeup(as);
     mtx_unlock(&as->as_mtx);
     return_ACPI_STATUS(AE_OK);

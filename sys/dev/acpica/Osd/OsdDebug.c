@@ -84,8 +84,9 @@ AcpiOsSignal (
     switch(Function) {
     case ACPI_SIGNAL_FATAL:
 	fatal = (ACPI_SIGNAL_FATAL_INFO *)Info;
-	panic("ACPI fatal signal, type 0x%x  code 0x%x  argument 0x%x",
+	printf("ACPI fatal signal, type 0x%x  code 0x%x  argument 0x%x",
 	      fatal->Type, fatal->Code, fatal->Argument);
+	Debugger("AcpiOsSignal");
 	break;
 	
     case ACPI_SIGNAL_BREAKPOINT:
