@@ -147,7 +147,6 @@ typedef struct {
 #define VAR_SUB_GLOBAL	1   /* Apply substitution globally */
 #define VAR_MATCH_START	2   /* Match at start of word */
 #define VAR_MATCH_END	4   /* Match at end of word */
-#define VAR_NO_SUB	8   /* Substitution is non-global and already done */
 } VarPattern;
 
 static int VarCmp __P((ClientData, ClientData));
@@ -883,9 +882,9 @@ VarSubstitute (word, addSpace, buf, patternp)
     VarPattern	*pattern = (VarPattern *) patternp;
 
     wordLen = strlen(word);
-    if ((pattern->flags & VAR_NO_SUB) == 0) {
+    if (1) { /* substitute in each word of the variable */
 	/*
-	 * Still substituting -- break it down into simple anchored cases
+	 * Break substitution down into simple anchored cases
 	 * and if none of them fits, perform the general substitution case.
 	 */
 	if ((pattern->flags & VAR_MATCH_START) &&
@@ -967,7 +966,7 @@ VarSubstitute (word, addSpace, buf, patternp)
 	     * Pattern is unanchored: search for the pattern in the word using
 	     * String_FindSubstring, copying unmatched portions and the
 	     * right-hand-side for each match found, handling non-global
-	     * subsititutions correctly, etc. When the loop is done, any
+	     * substitutions correctly, etc. When the loop is done, any
 	     * remaining part of the word (word and wordLen are adjusted
 	     * accordingly through the loop) is copied straight into the
 	     * buffer.
@@ -990,12 +989,8 @@ VarSubstitute (word, addSpace, buf, patternp)
 		    Buf_AddBytes(buf, pattern->rightLen, (Byte *)pattern->rhs);
 		    wordLen -= (cp - word) + pattern->leftLen;
 		    word = cp + pattern->leftLen;
-		    if (wordLen == 0) {
+		    if (wordLen == 0 || (pattern->flags & VAR_SUB_GLOBAL) == 0){
 			done = TRUE;
-		    }
-		    if ((pattern->flags & VAR_SUB_GLOBAL) == 0) {
-			done = TRUE;
-			pattern->flags |= VAR_NO_SUB;
 		    }
 		} else {
 		    done = TRUE;
@@ -1015,14 +1010,9 @@ VarSubstitute (word, addSpace, buf, patternp)
 	    return ((Buf_Size(buf) != origSize) || addSpace);
 	}
 	/*
-	 * Common code for anchored substitutions: if performed a substitution
-	 * and it's not supposed to be global, mark the pattern as requiring
-	 * no more substitutions. addSpace was set TRUE if characters were
-	 * added to the buffer.
+	 * Common code for anchored substitutions:
+	 * addSpace was set TRUE if characters were added to the buffer.
 	 */
-	if ((pattern->flags & VAR_SUB_GLOBAL) == 0) {
-	    pattern->flags |= VAR_NO_SUB;
-	}
 	return (addSpace);
     }
  nosub:
