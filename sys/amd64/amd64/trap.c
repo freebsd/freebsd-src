@@ -190,6 +190,15 @@ trap(frame)
 #endif
 
 	atomic_add_int(&cnt.v_trap, 1);
+	type = frame.tf_trapno;
+
+#ifdef DDB
+	if (db_active) {
+		eva = (type == T_PAGEFLT ? rcr2() : 0);
+		trap_fatal(&frame, eva);
+		goto out;
+	}
+#endif
 
 	if ((frame.tf_eflags & PSL_I) == 0) {
 		/*
@@ -199,7 +208,6 @@ trap(frame)
 		 * interrupts disabled until they are accidentally
 		 * enabled later.
 		 */
-		type = frame.tf_trapno;
 		if (ISPL(frame.tf_cs) == SEL_UPL || (frame.tf_eflags & PSL_VM))
 			printf(
 			    "pid %ld (%s): trap %d with interrupts disabled\n",
@@ -222,7 +230,6 @@ trap(frame)
 	}
 
 	eva = 0;
-	type = frame.tf_trapno;
 	code = frame.tf_err;
 	if (type == T_PAGEFLT) {
 		/*
