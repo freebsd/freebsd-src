@@ -25,7 +25,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd December 27, 2001
+.Dd December 30, 2001
 .Dt SPPP 4
 .Os
 .Sh NAME
@@ -120,11 +120,13 @@ late during the negotiation, which might cause the remote peer to make
 wrong assumptions.
 .Pp
 In a similar spirit the remote address can be set to the magical
-value 0.0.0.1 which means that we don't care what address the remote
+value
+.Ns 0.0.0. Ns Em \&*
+which means that we don't care what address the remote
 side will use, as long as it is not 0.0.0.0.
 This is useful if your ISP has several dial-in
 servers.  You can of course
-.Nm route Cm add Ar something_or_other 0.0.0.1
+.Nm route Cm add Ar something_or_other 0.0.0. Ns Em \&*
 and it will do exactly what you would want it to.
 .Pp
 The PAP and CHAP authentication protocols as described in RFC 1334,
