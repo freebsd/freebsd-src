@@ -1119,7 +1119,7 @@ END(tl0_sftrap)
 	.macro	tl1_split
 	rdpr	%wstate, %g1
 	wrpr	%g1, WSTATE_NESTED, %wstate
-	save	%sp, -CCFSZ, %sp
+	save	%sp, -(CCFSZ + TF_SIZEOF), %sp
 	.endm
 
 	.macro	tl1_setup	type
@@ -2737,8 +2737,6 @@ END(tl0_ret)
  * the outs don't need to be saved.
  */
 ENTRY(tl1_trap)
-	sub	%sp, TF_SIZEOF, %sp
-
 	rdpr	%tstate, %l0
 	rdpr	%tpc, %l1
 	rdpr	%tnpc, %l2
@@ -2846,8 +2844,6 @@ END(tl1_trap)
  * void tl1_intr(u_int level, u_int mask)
  */
 ENTRY(tl1_intr)
-	sub	%sp, TF_SIZEOF, %sp
-
 	rdpr	%tstate, %l0
 	rdpr	%tpc, %l1
 	rdpr	%tnpc, %l2
