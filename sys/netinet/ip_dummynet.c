@@ -10,7 +10,7 @@
  *
  * This software is provided ``AS IS'' without any warranties of any kind.
  *
- *	$Id: ip_dummynet.c,v 1.13 1999/05/04 07:30:07 luigi Exp $
+ *	$Id: ip_dummynet.c,v 1.14 1999/05/04 16:20:30 luigi Exp $
  */
 
 /*
@@ -353,10 +353,10 @@ dummynet_io(int pipe_nr, int dir,
 	/*
 	 * and again, dst might be a pointer into *ro...
 	 */
-	if (dst == &ro->ro_dst) /* dst points into ro */
-	    dst = &(pkt->ro.ro_dst) ;
+	if (dst == (struct sockaddr_in *)&ro->ro_dst) /* dst points into ro */
+	    dst = (struct sockaddr_in *)&(pkt->ro.ro_dst) ;
 
-	pkt->dn_dst = dst;
+	pkt->dn_dst = dst;		/* XXX this can't be right! */
     }
     if (pipe->r.head == NULL)
 	pipe->r.head = pkt;
