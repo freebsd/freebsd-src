@@ -126,6 +126,7 @@ NULLFS		opt_dontuse.h
 NWFS		opt_dontuse.h
 PORTALFS	opt_dontuse.h
 PROCFS		opt_dontuse.h
+PSEUDOFS	opt_dontuse.h
 UMAPFS		opt_dontuse.h
 NTFS		opt_dontuse.h
 HPFS		opt_dontuse.h
