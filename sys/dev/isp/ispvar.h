@@ -58,7 +58,7 @@
 #endif
 
 #define	ISP_CORE_VERSION_MAJOR	1
-#define	ISP_CORE_VERSION_MINOR	12
+#define	ISP_CORE_VERSION_MINOR	14
 
 /*
  * Vector for bus specific code to provide specific services.
@@ -230,11 +230,12 @@ typedef struct {
 
 typedef struct {
 	u_int32_t		isp_fwoptions	: 16,
-						: 7,
+						: 4,
 				loop_seen_once	: 1,
 				isp_loopstate	: 3,	/* Current Loop State */
 				isp_fwstate	: 3,	/* ISP F/W state */
 				isp_gotdparms	: 1,
+				isp_topo	: 3,
 				isp_onfabric	: 1;
 	u_int8_t		isp_loopid;	/* hard loop id */
 	u_int8_t		isp_alpa;	/* ALPA */
@@ -259,11 +260,11 @@ typedef struct {
 	 */
 	struct lportdb {
 		u_int
-					loopid	: 8,
-						: 4,
-					fabdev	: 1,
-					roles	: 2,
-					valid	: 1;
+					loopid		: 8,
+							: 4,
+					loggedin	: 1,
+					roles		: 2,
+					valid		: 1;
 		u_int32_t		portid;
 		u_int64_t		node_wwn;
 		u_int64_t		port_wwn;
@@ -289,6 +290,12 @@ typedef struct {
 #define	LOOP_LIP_RCVD		1
 #define	LOOP_PDB_RCVD		2
 #define	LOOP_READY		7
+
+#define	TOPO_NL_PORT		0
+#define	TOPO_FL_PORT		1
+#define	TOPO_N_PORT		2
+#define	TOPO_F_PORT		3
+#define	TOPO_PTP_STUB		4
 
 /*
  * Soft Structure per host adapter
