@@ -148,7 +148,7 @@ struct cdevsw usb_cdevsw = {
 };
 #endif
 
-Static usbd_status usb_discover(struct usb_softc *);
+Static usbd_status usb_discover(void *);
 Static void	usb_create_event_thread(void *);
 Static void	usb_event_thread(void *);
 
@@ -161,7 +161,7 @@ Static TAILQ_HEAD(, usb_event_q) usb_events =
 	TAILQ_HEAD_INITIALIZER(usb_events);
 Static int usb_nevents = 0;
 Static struct selinfo usb_selevent;
-Static struct proc *usb_async_proc;  /* process who wants USB SIGIO */
+Static struct proc *usb_async_proc;  /* process that wants USB SIGIO */
 Static int usb_dev_open = 0;
 
 Static int usb_get_next_event(struct usb_event *);
@@ -273,8 +273,7 @@ USB_ATTACH(usb)
 }
 
 void
-usb_create_event_thread(arg)
-	void *arg;
+usb_create_event_thread(void *arg)
 {
 	struct usb_softc *sc = arg;
 
@@ -287,8 +286,7 @@ usb_create_event_thread(arg)
 }
 
 void
-usb_event_thread(arg)
-	void *arg;
+usb_event_thread(void *arg)
 {
 	struct usb_softc *sc = arg;
 	int to;
@@ -312,7 +310,7 @@ usb_event_thread(arg)
 		(void)tsleep(&sc->sc_bus->needs_explore, PWAIT, "usbevt", to);
 		DPRINTFN(2,("usb_event_thread: woke up\n"));
 	}
-	sc->sc_event_thread = 0;
+	sc->sc_event_thread = NULL;
 
 	/* In case parent is waiting for us to exit. */
 	wakeup(sc);
@@ -323,9 +321,7 @@ usb_event_thread(arg)
 
 #if defined(__NetBSD__) || defined(__OpenBSD__)
 int
-usbctlprint(aux, pnp)
-	void *aux;
-	const char *pnp;
+usbctlprint(void *aux, const char *pnp)
 {
 	/* only "usb"es can attach to host controllers */
 	if (pnp)
@@ -336,10 +332,7 @@ usbctlprint(aux, pnp)
 #endif /* defined(__NetBSD__) || defined(__OpenBSD__) */
 
 int
-usbopen(dev, flag, mode, p)
-	dev_t dev;
-	int flag, mode;
-	usb_proc_ptr p;
+usbopen(dev_t dev, int flag, int mode, usb_proc_ptr p)
 {
 	int unit = USBUNIT(dev);
 	struct usb_softc *sc;
@@ -361,10 +354,7 @@ usbopen(dev, flag, mode, p)
 }
 
 int
-usbread(dev, uio, flag)
-	dev_t dev;
-	struct uio *uio;
-	int flag;
+usbread(dev_t dev, struct uio *uio, int flag)
 {
 	struct usb_event ue;
 	int unit = USBUNIT(dev);
@@ -398,10 +388,7 @@ usbread(dev, uio, flag)
 }
 
 int
-usbclose(dev, flag, mode, p)
-	dev_t dev;
-	int flag, mode;
-	usb_proc_ptr p;
+usbclose(dev_t dev, int flag, int mode, usb_proc_ptr p)
 {
 	int unit = USBUNIT(dev);
 
@@ -414,12 +401,7 @@ usbclose(dev, flag, mode, p)
 }
 
 int
-usbioctl(devt, cmd, data, flag, p)
-	dev_t devt;
-	u_long cmd;
-	caddr_t data;
-	int flag;
-	usb_proc_ptr p;
+usbioctl(dev_t devt, u_long cmd, caddr_t data, int flag, usb_proc_ptr p)
 {
 	struct usb_softc *sc;
 	int unit = USBUNIT(devt);
@@ -463,7 +445,7 @@ usbioctl(devt, cmd, data, flag, p)
 		ohcidebug = ((*(int *)data) & 0x00ff0000) >> 16;
 #endif
 		break;
-#endif
+#endif /* USB_DEBUG */
 	case USB_REQUEST:
 	{
 		struct usb_ctl_request *ur = (void *)data;
@@ -528,7 +510,7 @@ usbioctl(devt, cmd, data, flag, p)
 		if (addr < 1 || addr >= USB_MAX_DEVICES)
 			return (EINVAL);
 		dev = sc->sc_bus->devices[addr];
-		if (dev == 0)
+		if (dev == NULL)
 			return (ENXIO);
 		usbd_fill_deviceinfo(dev, di, 1);
 		break;
@@ -545,10 +527,7 @@ usbioctl(devt, cmd, data, flag, p)
 }
 
 int
-usbpoll(dev, events, p)
-	dev_t dev;
-	int events;
-	usb_proc_ptr p;
+usbpoll(dev_t dev, int events, usb_proc_ptr p)
 {
 	int revents, mask, s;
 	int unit = USBUNIT(dev);
@@ -556,16 +535,14 @@ usbpoll(dev, events, p)
 	if (unit == USB_DEV_MINOR) {
 		revents = 0;
 		mask = POLLIN | POLLRDNORM;
-
+		
 		s = splusb();
-		if ((events & mask) && usb_nevents > 0)
+		if (events & mask && usb_nevents > 0)
 			revents |= events & mask;
-		if (revents == 0 && (events & mask)) {
-			DPRINTFN(2,("usb: sleeping on %p\n", &usb_selevent));
+		if (revents == 0 && events & mask)
 			selrecord(p, &usb_selevent);
-		}
 		splx(s);
-
+		
 		return (revents);
 	} else {
 #if defined(__FreeBSD__)
@@ -578,9 +555,10 @@ usbpoll(dev, events, p)
 
 /* Explore device tree from the root. */
 usbd_status
-usb_discover(sc)
-	struct usb_softc *sc;
+usb_discover(void *v)
 {
+	struct usb_softc *sc = v;
+
 #if defined(__FreeBSD__)
 	/* splxxx should be changed to mutexes for preemption safety some day */
 	int s;
@@ -612,8 +590,7 @@ usb_discover(sc)
 }
 
 void
-usb_needs_explore(bus)
-	usbd_bus_handle bus;
+usb_needs_explore(usbd_bus_handle bus)
 {
 	bus->needs_explore = 1;
 	wakeup(&bus->needs_explore);
@@ -621,8 +598,7 @@ usb_needs_explore(bus)
 
 /* Called at splusb() */
 int
-usb_get_next_event(ue)
-	struct usb_event *ue;
+usb_get_next_event(struct usb_event *ue)
 {
 	struct usb_event_q *ueq;
 
@@ -642,9 +618,7 @@ usb_get_next_event(ue)
 }
 
 void
-usbd_add_event(type, dev)
-	int type;
-	usbd_device_handle dev;
+usbd_add_event(int type, usbd_device_handle dev)
 {
 	struct usb_event_q *ueq, *ueq_next;
 	struct usb_event ue;
@@ -694,9 +668,7 @@ usbd_add_event(type, dev)
 
 #if defined(__NetBSD__) || defined(__OpenBSD__)
 int
-usb_activate(self, act)
-	device_ptr_t self;
-	enum devact act;
+usb_activate(device_ptr_t self, enum devact act)
 {
 	struct usb_softc *sc = (struct usb_softc *)self;
 	usbd_device_handle dev = sc->sc_port.device;
@@ -719,9 +691,7 @@ usb_activate(self, act)
 }
 
 int
-usb_detach(self, flags)
-	device_ptr_t self;
-	int flags;
+usb_detach(device_ptr_t self, int flags)
 {
 	struct usb_softc *sc = (struct usb_softc *)self;
 
