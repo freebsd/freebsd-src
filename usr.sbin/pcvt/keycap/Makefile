@@ -22,7 +22,7 @@ MAN5	=	man5/keycap.${MAN5EXT}
 
 beforeinstall:
 	@if [ ! -d ${LIBDIR} ]; then mkdir ${LIBDIR};fi
-	@echo "Saving old keycap database"
+	@${ECHO} "Saving old keycap database"
 	-mv -f ${DESTDIR}${CAPPATH} ${DESTDIR}${CAPPATH}.BAK
 	install -c -m ${LIBMODE} -o ${LIBOWN} -g ${LIBGRP} \
 	${.CURDIR}/${KEYCAPSRC} ${DESTDIR}${CAPPATH}
