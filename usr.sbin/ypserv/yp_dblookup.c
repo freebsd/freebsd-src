@@ -29,7 +29,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: yp_dblookup.c,v 1.4 1996/07/07 19:04:33 wpaul Exp wpaul $
+ *	$Id: yp_dblookup.c,v 1.2 1996/12/22 15:54:15 wpaul Exp $
  *
  */
 #include <stdio.h>
@@ -47,11 +47,11 @@
 #include "yp_extern.h"
 
 #ifndef lint
-static const char rcsid[] = "$Id: yp_dblookup.c,v 1.4 1996/07/07 19:04:33 wpaul Exp wpaul $";
+static const char rcsid[] = "$Id: yp_dblookup.c,v 1.2 1996/12/22 15:54:15 wpaul Exp $";
 #endif
 
 int ypdb_debug = 0;
-int yp_errno = YP_TRUE;
+enum ypstat yp_errno = YP_TRUE;
 
 #define PERM_SECURE (S_IRUSR|S_IWUSR)
 HASHINFO openinfo = {
@@ -459,22 +459,29 @@ again:
  *                   the supplied key value in the database.
  */
 
+#ifdef DB_CACHE
+int yp_get_record(dbp,key,data,allow)
+	DB *dbp;
+#else
 int yp_get_record(domain,map,key,data,allow)
 	const char *domain;
 	const char *map;
+#endif
 	const DBT *key;
 	DBT *data;
 	int allow;
 {
+#ifndef DB_CACHE
 	DB *dbp;
+#endif
 	int rval = 0;
 #ifndef DB_CACHE
 	static unsigned char buf[YPMAXRECORD];
 #endif
 
 	if (ypdb_debug)
-		yp_error("Looking up key [%.*s] in map [%s]",
-			  key->size, key->data, map);
+		yp_error("Looking up key [%.*s]",
+			  key->size, key->data);
 
 	/*
 	 * Avoid passing back magic "YP_*" entries unless
@@ -484,13 +491,11 @@ int yp_get_record(domain,map,key,data,allow)
 	if (!allow && !strncmp(key->data, "YP_", 3))
 		return(YP_NOKEY);
 
-#ifdef DB_CACHE
-	if ((dbp = yp_open_db_cache(domain, map, NULL, 0)) == NULL) {
-#else
+#ifndef DB_CACHE
 	if ((dbp = yp_open_db(domain, map)) == NULL) {
-#endif
 		return(yp_errno);
 	}
+#endif
 
 	if ((rval = (dbp->get)(dbp, key, data, 0)) != 0) {
 #ifdef DB_CACHE
@@ -591,7 +596,7 @@ int yp_next_record(dbp,key,data,all,allow)
 	static unsigned char datbuf[YPMAXRECORD];
 #endif
 
-	if (key == NULL || key->data == NULL) {
+	if (key == NULL || !key->size || key->data == NULL) {
 		rval = yp_first_record(dbp,key,data,allow);
 		if (rval == YP_NOKEY)
 			return(YP_NOMORE);
@@ -657,3 +662,87 @@ int yp_next_record(dbp,key,data,all,allow)
 
 	return(YP_TRUE);
 }
+
+#ifdef DB_CACHE
+/*
+ * Database glue functions.
+ */
+
+static DB *yp_currmap_db = NULL;
+static int yp_allow_db = 0;
+
+ypstat yp_select_map(map, domain, key, allow)
+	char *map;
+	char *domain;
+	keydat *key;
+	int allow;
+{
+	yp_currmap_db = yp_open_db_cache(domain, map, key->keydat_val,
+							key->keydat_len);
+
+	yp_allow_db = allow;
+	return(yp_errno);
+}
+
+ypstat yp_getbykey(key, val)
+	keydat *key;
+	valdat *val;
+{
+	DBT db_key = { NULL, 0 }, db_val = { NULL, 0 };
+	ypstat rval;
+
+	db_key.data = key->keydat_val;
+	db_key.size = key->keydat_len;
+
+	rval = yp_get_record(yp_currmap_db,
+				&db_key, &db_val, yp_allow_db);
+
+	if (rval == YP_TRUE) {
+		val->valdat_val = db_val.data;
+		val->valdat_len = db_val.size;
+	}
+
+	return(rval);
+}
+
+ypstat yp_firstbykey(key, val)
+	keydat *key;
+	valdat *val;
+{
+	DBT db_key = { NULL, 0 }, db_val = { NULL, 0 };
+	ypstat rval;
+
+	rval = yp_first_record(yp_currmap_db, &db_key, &db_val, yp_allow_db);
+
+	if (rval == YP_TRUE) {
+		key->keydat_val = db_key.data;
+		key->keydat_len = db_key.size;
+		val->valdat_val = db_val.data;
+		val->valdat_len = db_val.size;
+	}
+
+	return(rval);
+}
+
+ypstat yp_nextbykey(key, val)
+	keydat *key;
+	valdat *val;
+{
+	DBT db_key = { NULL, 0 }, db_val = { NULL, 0 };
+	ypstat rval;
+
+	db_key.data = key->keydat_val;
+	db_key.size = key->keydat_len;
+
+	rval = yp_next_record(yp_currmap_db, &db_key, &db_val, 0, yp_allow_db);
+
+	if (rval == YP_TRUE) {
+		key->keydat_val = db_key.data;
+		key->keydat_len = db_key.size;
+		val->valdat_val = db_val.data;
+		val->valdat_len = db_val.size;
+	}
+
+	return(rval);
+}
+#endif
