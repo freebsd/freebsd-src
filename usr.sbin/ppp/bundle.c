@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: bundle.c,v 1.13 1998/06/06 20:50:54 brian Exp $
+ *	$Id: bundle.c,v 1.14 1998/06/07 00:16:37 brian Exp $
  */
 
 #include <sys/param.h>
@@ -300,12 +300,46 @@ bundle_RemainingAutoLoadTime(struct bundle *bundle)
   return -1;
 }
 
+static void
+bundle_LinkAdded(struct bundle *bundle, struct datalink *dl)
+{
+  bundle->phys_type.all |= dl->physical->type;
+  if (dl->state == DATALINK_OPEN)
+    bundle->phys_type.open |= dl->physical->type;
+
+  /* Note: We only re-add links that are DATALINK_OPEN */
+  if (dl->physical->type == PHYS_AUTO &&
+      bundle->autoload.timer.state == TIMER_STOPPED &&
+      dl->state != DATALINK_OPEN &&
+      bundle->phase == PHASE_NETWORK)
+    bundle->autoload.running = 1;
+
+  if ((bundle->phys_type.open & (PHYS_DEDICATED|PHYS_DDIAL))
+      != bundle->phys_type.open && bundle->idle.timer.state == TIMER_STOPPED)
+    /* We may need to start our idle timer */
+    bundle_StartIdleTimer(bundle);
+}
+
+static void
+bundle_LinksRemoved(struct bundle *bundle)
+{
+  struct datalink *dl;
+
+  bundle->phys_type.all = bundle->phys_type.open = 0;
+  for (dl = bundle->links; dl; dl = dl->next)
+    bundle_LinkAdded(bundle, dl);
+
+  if ((bundle->phys_type.open & (PHYS_DEDICATED|PHYS_DDIAL))
+      == bundle->phys_type.open)
+    bundle_StopIdleTimer(bundle);
+}
 
 static void
 bundle_LayerUp(void *v, struct fsm *fp)
 {
   /*
    * The given fsm is now up
+   * If it's an LCP, adjust our phys_mode.open value.
    * If it's an LCP set our mtu (if we're multilink, add up the link
    * speeds and set the MRRU) and start our autoload timer.
    * If it's an NCP, tell our -background parent to go away.
@@ -314,6 +348,9 @@ bundle_LayerUp(void *v, struct fsm *fp)
   struct bundle *bundle = (struct bundle *)v;
 
   if (fp->proto == PROTO_LCP) {
+    struct physical *p = link2physical(fp->link);
+
+    bundle_LinkAdded(bundle, p->dl);
     if (bundle->ncp.mp.active) {
       struct datalink *dl;
 
@@ -324,7 +361,7 @@ bundle_LayerUp(void *v, struct fsm *fp)
       tun_configure(bundle, bundle->ncp.mp.peer_mrru);
       bundle->autoload.running = 1;
     } else {
-      bundle->ifp.Speed = modem_Speed(link2physical(fp->link));
+      bundle->ifp.Speed = modem_Speed(p);
       tun_configure(bundle, fsm2lcp(fp)->his_mru);
     }
   } else if (fp->proto == PROTO_IPCP) {
@@ -339,6 +376,7 @@ bundle_LayerDown(void *v, struct fsm *fp)
   /*
    * The given FSM has been told to come down.
    * If it's our last NCP, stop the idle timer.
+   * If it's an LCP, adjust our phys_type.open value and any timers.
    * If it's an LCP and we're in multilink mode, adjust our tun
    * speed and make sure our minimum sequence number is adjusted.
    */
@@ -347,27 +385,30 @@ bundle_LayerDown(void *v, struct fsm *fp)
 
   if (fp->proto == PROTO_IPCP)
     bundle_StopIdleTimer(bundle);
-  else if (fp->proto == PROTO_LCP && bundle->ncp.mp.active) {
-    struct datalink *dl;
-    struct datalink *lost;
+  else if (fp->proto == PROTO_LCP) {
+    bundle_LinksRemoved(bundle);  /* adjust timers & phys_type values */
+    if (bundle->ncp.mp.active) {
+      struct datalink *dl;
+      struct datalink *lost;
 
-    bundle->ifp.Speed = 0;
-    lost = NULL;
-    for (dl = bundle->links; dl; dl = dl->next)
-      if (fp == &dl->physical->link.lcp.fsm)
-        lost = dl;
-      else if (dl->state == DATALINK_OPEN)
-        bundle->ifp.Speed += modem_Speed(dl->physical);
+      bundle->ifp.Speed = 0;
+      lost = NULL;
+      for (dl = bundle->links; dl; dl = dl->next)
+        if (fp == &dl->physical->link.lcp.fsm)
+          lost = dl;
+        else if (dl->state == DATALINK_OPEN)
+          bundle->ifp.Speed += modem_Speed(dl->physical);
 
-    if (bundle->ifp.Speed)
-      /* Don't configure down to a speed of 0 */
-      tun_configure(bundle, bundle->ncp.mp.link.lcp.his_mru);
+      if (bundle->ifp.Speed)
+        /* Don't configure down to a speed of 0 */
+        tun_configure(bundle, bundle->ncp.mp.link.lcp.his_mru);
 
-    if (lost)
-      mp_LinkLost(&bundle->ncp.mp, lost);
-    else
-      log_Printf(LogERROR, "Oops, lost an unrecognised datalink (%s) !\n",
-                 fp->link->name);
+      if (lost)
+        mp_LinkLost(&bundle->ncp.mp, lost);
+      else
+        log_Printf(LogERROR, "Oops, lost an unrecognised datalink (%s) !\n",
+                   fp->link->name);
+    }
   }
 }
 
@@ -501,8 +542,8 @@ bundle_UpdateSet(struct descriptor *d, fd_set *r, fd_set *w, fd_set *e, int *n)
         bundle_StartAutoLoadTimer(bundle, 1);
     }
 
-    if (r &&
-        (bundle->phase == PHASE_NETWORK || bundle->phys_type & PHYS_AUTO)) {
+    if (r && (bundle->phase == PHASE_NETWORK ||
+              bundle->phys_type.all & PHYS_AUTO)) {
       /* enough surplus so that we can tell if we're getting swamped */
       want = bundle->cfg.autoload.max.packets + nlinks * 2;
       /* but at least 20 packets ! */
@@ -792,7 +833,8 @@ bundle_Create(const char *prefix, int type, const char **argv)
   bundle.cfg.autoload.max.timeout = 0;
   bundle.cfg.autoload.min.packets = 0;
   bundle.cfg.autoload.min.timeout = 0;
-  bundle.phys_type = type;
+  bundle.phys_type.all = type;
+  bundle.phys_type.open = 0;
 
   bundle.links = datalink_Create("deflink", &bundle, type);
   if (bundle.links == NULL) {
@@ -1223,8 +1265,8 @@ void
 bundle_StartIdleTimer(struct bundle *bundle)
 {
   timer_Stop(&bundle->idle.timer);
-  if ((bundle->phys_type & (PHYS_DEDICATED|PHYS_DDIAL)) != bundle->phys_type &&
-      bundle->cfg.idle_timeout) {
+  if ((bundle->phys_type.open & (PHYS_DEDICATED|PHYS_DDIAL)) !=
+      bundle->phys_type.open && bundle->cfg.idle_timeout) {
     bundle->idle.timer.func = bundle_IdleTimeout;
     bundle->idle.timer.name = "idle";
     bundle->idle.timer.load = bundle->cfg.idle_timeout * SECTICKS;
@@ -1261,29 +1303,6 @@ int
 bundle_IsDead(struct bundle *bundle)
 {
   return !bundle->links || (bundle->phase == PHASE_DEAD && bundle->CleaningUp);
-}
-
-static void
-bundle_LinkAdded(struct bundle *bundle, struct datalink *dl)
-{
-  bundle->phys_type |= dl->physical->type;
-  if (dl->physical->type == PHYS_AUTO &&
-      bundle->autoload.timer.state == TIMER_STOPPED &&
-      bundle->phase == PHASE_NETWORK)
-    bundle->autoload.running = 1;
-}
-
-static void
-bundle_LinksRemoved(struct bundle *bundle)
-{
-  struct datalink *dl;
-
-  bundle->phys_type = 0;
-  for (dl = bundle->links; dl; dl = dl->next)
-    bundle_LinkAdded(bundle, dl);
-
-  if ((bundle->phys_type & (PHYS_DEDICATED|PHYS_DDIAL)) == bundle->phys_type)
-    timer_Stop(&bundle->idle.timer);
 }
 
 static struct datalink *
@@ -1547,25 +1566,28 @@ bundle_SetMode(struct bundle *bundle, struct datalink *dl, int mode)
   if (omode == mode)
     return 1;
 
-  if (mode == PHYS_AUTO && !(bundle->phys_type & PHYS_AUTO))
-    /* Changing to demand-dial mode */
+  if (mode == PHYS_AUTO && !(bundle->phys_type.all & PHYS_AUTO))
+    /* First auto link */
     if (bundle->ncp.ipcp.peer_ip.s_addr == INADDR_ANY) {
-      log_Printf(LogWARN, "You must `set ifaddr' before changing mode to %s\n",
-                 mode2Nam(mode));
+      log_Printf(LogWARN, "You must `set ifaddr' or `open' before"
+                 " changing mode to %s\n", mode2Nam(mode));
       return 0;
     }
 
   if (!datalink_SetMode(dl, mode))
     return 0;
 
-  if (mode == PHYS_AUTO && !(bundle->phys_type & PHYS_AUTO))
+  if (mode == PHYS_AUTO && !(bundle->phys_type.all & PHYS_AUTO) &&
+      bundle->phase != PHASE_NETWORK)
+    /* First auto link, we need an interface */
     ipcp_InterfaceUp(&bundle->ncp.ipcp);
 
   /* Regenerate phys_type and adjust autoload & idle timers */
   bundle_LinksRemoved(bundle);
 
-  if (omode == PHYS_AUTO && !(bundle->phys_type & PHYS_AUTO))
-    /* Changing from demand-dial mode */
+  if (omode == PHYS_AUTO && !(bundle->phys_type.all & PHYS_AUTO) &&
+      bundle->phase != PHASE_NETWORK)
+    /* No auto links left */
     ipcp_CleanInterface(&bundle->ncp.ipcp);
 
   return 1;

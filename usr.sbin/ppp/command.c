@@ -17,7 +17,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: command.c,v 1.138 1998/06/08 20:23:44 brian Exp $
+ * $Id: command.c,v 1.139 1998/06/10 00:16:06 brian Exp $
  *
  */
 #include <sys/types.h>
@@ -124,7 +124,7 @@
 #define NEG_DNS		50
 
 const char Version[] = "2.0-beta";
-const char VersionDate[] = "$Date: 1998/06/08 20:23:44 $";
+const char VersionDate[] = "$Date: 1998/06/10 00:16:06 $";
 
 static int ShowCommand(struct cmdargs const *);
 static int TerminalCommand(struct cmdargs const *);
@@ -265,7 +265,7 @@ LoadCommand(struct cmdargs const *arg)
   else
     name = "default";
 
-  if (!system_IsValid(name, arg->prompt, arg->bundle->phys_type)) {
+  if (!system_IsValid(name, arg->prompt, arg->bundle->phys_type.all)) {
     log_Printf(LogERROR, "%s: Label not allowed\n", name);
     return 1;
   } else {
@@ -298,7 +298,7 @@ DialCommand(struct cmdargs const *arg)
 
   if ((arg->cx && !(arg->cx->physical->type & (PHYS_INTERACTIVE|PHYS_AUTO)))
       || (!arg->cx &&
-          (arg->bundle->phys_type & ~(PHYS_INTERACTIVE|PHYS_AUTO)))) {
+          (arg->bundle->phys_type.all & ~(PHYS_INTERACTIVE|PHYS_AUTO)))) {
     log_Printf(LogWARN, "Manual dial is only available for auto and"
               " interactive links\n");
     return 1;
@@ -1141,7 +1141,7 @@ SetInterfaceAddr(struct cmdargs const *arg)
   }
 
   if (hisaddr && !ipcp_UseHisaddr(arg->bundle, hisaddr,
-                                  arg->bundle->phys_type & PHYS_AUTO))
+                                  arg->bundle->phys_type.all & PHYS_AUTO))
     return 4;
 
   return 0;
