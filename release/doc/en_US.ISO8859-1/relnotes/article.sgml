@@ -711,7 +711,7 @@
       the root filesystem due to the use of shared libraries.  This
       feature can be disabled in a <literal>buildworld</literal> by
       defining the Makefile variable
-      <varname>WITHOUT_DYNAMICROOT</varname>.  Note that
+      <varname>NO_DYNAMICROOT</varname>.  Note that
       statically-linked, crunched executables are available in the
       <filename>/rescue</filename> directory for use during system
       repair and recovery operations.</para>
