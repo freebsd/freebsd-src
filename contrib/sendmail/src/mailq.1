@@ -9,15 +9,16 @@
 .\" the sendmail distribution.
 .\"
 .\"
-.\"     $Id: mailq.1,v 8.19 2002/04/12 05:07:58 gshapiro Exp $
+.\"     $Id: mailq.1,v 8.19.2.1 2002/09/26 23:03:39 gshapiro Exp $
 .\"
-.TH MAILQ 1 "$Date: 2000/12/23 19:37:48 $"
+.TH MAILQ 1 "$Date: 2002/09/26 23:03:39 $"
 .SH NAME
 mailq
 \- print the mail queue
 .SH SYNOPSIS
 .B mailq
 .RB [ \-Ac ]
+.RB [ \-q... ]
 .RB [ \-v ]
 .SH DESCRIPTION
 .B Mailq
@@ -53,6 +54,27 @@ Show the mail submission queue specified in
 .I /etc/mail/submit.cf
 instead of the MTA queue specified in
 .IR /etc/mail/sendmail.cf .
+.TP
+\fB\-q\fR[\fI!\fR]I substr
+Limit processed jobs to those containing
+.I substr
+as a substring of the queue id or not when
+.I !
+is specified.
+.TP
+\fB\-q\fR[\fI!\fR]R substr
+Limit processed jobs to those containing
+.I substr
+as a substring of one of the recipients or not when
+.I !
+is specified.
+.TP
+\fB\-q\fR[\fI!\fR]S substr
+Limit processed jobs to those containing
+.I substr
+as a substring of the sender or not when
+.I !
+is specified.
 .TP
 .B \-v
 Print verbose information.  
