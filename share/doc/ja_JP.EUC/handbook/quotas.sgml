@@ -1,6 +1,6 @@
-<!-- $Id$ -->
+<!-- $Id: quotas.sgml,v 1.4 1997/02/22 13:01:46 peter Exp $ -->
 <!-- The FreeBSD Japanese Documentation Project -->
-<!-- Original revision: 1.4 -->
+<!-- Original revision: 1.6 -->
 
 <!-- This is an SGML document in the linuxdoc DTD describing
      disk quotas under FreeBSD.  By Mike Pritchard, 1996.

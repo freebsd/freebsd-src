@@ -1,6 +1,6 @@
-<!-- $Id$ -->
+<!-- $Id: userppp.sgml,v 1.4 1997/02/22 13:02:20 peter Exp $ -->
 <!-- The FreeBSD Japanese Documentation Project -->
-<!-- Original revision: 1.11 -->
+<!-- Original revision: 1.12 -->
 
 <sect> ユーザ PPP のセットアップ <label id="userppp">
 

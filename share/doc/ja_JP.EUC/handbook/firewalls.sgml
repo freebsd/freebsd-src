@@ -1,6 +1,6 @@
-<!-- $Id$ -->
+<!-- $Id: firewalls.sgml,v 1.5 1997/02/22 13:00:59 peter Exp $ -->
 <!-- The FreeBSD Japanese Documentation Project -->
-<!-- Original revision: 1.16 -->
+<!-- Original revision: 1.17 -->
 
 <sect><heading> ファイアウォール <label id="firewalls"></heading>
 

@@ -1,6 +1,6 @@
-<!-- $Id$ -->
+<!-- $Id: nfs.sgml,v 1.5 1997/02/22 13:01:30 peter Exp $ -->
 <!-- The FreeBSD Japanese Documentation Project -->
-<!-- Original revision: 1.8 -->
+<!-- Original revision: 1.9 -->
 
 <sect><heading>NFS<label id="nfs"></heading>
 
