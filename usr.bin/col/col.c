@@ -101,7 +101,6 @@ void	flush_blanks __P((void));
 void	free_line __P((LINE *));
 int	main __P((int, char **));
 void	usage __P((void));
-void	wrerr __P((void));
 void   *xmalloc __P((void *, size_t));
 
 CSET	last_set;		/* char_set of last char printed */
@@ -113,9 +112,9 @@ int	nblank_lines;		/* # blanks after last flushed line */
 int	no_backspaces;		/* if not to output any backspaces */
 
 #define	PUTC(ch) \
-	do {				\
-		if (putchar(ch) == EOF) \
-			wrerr();	\
+	do {					\
+		if (putchar(ch) == EOF)		\
+			errx(1, "write error");	\
 	} while (0)
 
 int
@@ -135,7 +134,7 @@ main(argc, argv)
 	int nflushd_lines;		/* number of lines that were flushed */
 	int adjust, opt, warned;
 
-	(void) setlocale(LC_CTYPE, "");
+	(void)setlocale(LC_CTYPE, "");
 
 	max_bufd_lines = 128;
 	compress_spaces = 1;		/* compress spaces into tabs */
@@ -284,8 +283,8 @@ main(argc, argv)
 			int need;
 
 			need = l->l_lsize ? l->l_lsize * 2 : 90;
-			l->l_line = (CHAR *)xmalloc((void *) l->l_line,
-			    (unsigned) need * sizeof(CHAR));
+			l->l_line = xmalloc(l->l_line,
+			    (unsigned)need * sizeof(CHAR));
 			l->l_lsize = need;
 		}
 		c = &l->l_line[l->l_line_len++];
@@ -340,7 +339,7 @@ flush_lines(nflush)
 		}
 		nblank_lines++;
 		if (l->l_line)
-			(void)free((void *)l->l_line);
+			(void)free(l->l_line);
 		free_line(l);
 	}
 	if (lines)
@@ -401,15 +400,15 @@ flush_line(l)
 		 */
 		if (l->l_lsize > sorted_size) {
 			sorted_size = l->l_lsize;
-			sorted = (CHAR *)xmalloc((void *)sorted,
+			sorted = xmalloc(sorted,
 			    (unsigned)sizeof(CHAR) * sorted_size);
 		}
 		if (l->l_max_col >= count_size) {
 			count_size = l->l_max_col + 1;
-			count = (int *)xmalloc((void *)count,
+			count = xmalloc(count,
 			    (unsigned)sizeof(int) * count_size);
 		}
-		memset((char *)count, 0, sizeof(int) * l->l_max_col + 1);
+		memset(count, 0, sizeof(int) * l->l_max_col + 1);
 		for (i = nchars, c = l->l_line; --i >= 0; c++)
 			count[c->c_column]++;
 
@@ -494,7 +493,7 @@ alloc_line()
 	int i;
 
 	if (!line_freelist) {
-		l = (LINE *)xmalloc((void *)NULL, sizeof(LINE) * NALLOC);
+		l = xmalloc(NULL, sizeof(LINE) * NALLOC);
 		line_freelist = l;
 		for (i = 1; i < NALLOC; i++, l++)
 			l->l_next = l + 1;
@@ -522,8 +521,8 @@ xmalloc(p, size)
 	size_t size;
 {
 
-	if (!(p = (void *)realloc(p, size)))
-		err(1, NULL);
+	if (!(p = realloc(p, size)))
+		err(1, (char *)NULL);
 	return (p);
 }
 
@@ -533,13 +532,6 @@ usage()
 
 	(void)fprintf(stderr, "usage: col [-bfhx] [-l nline]\n");
 	exit(1);
-}
-
-void
-wrerr()
-{
-
-	errx(1, "write error");
 }
 
 void
