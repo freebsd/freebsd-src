@@ -70,6 +70,7 @@ procfs_doprocstatus(PFS_FILL_ARGS)
 	struct thread *tdfirst;
 	struct tty *tp;
 	struct ucred *cr;
+	const char *wmesg;
 	char *pc;
 	char *sep;
 	int pid, ppid, pgid, sid;
@@ -95,7 +96,7 @@ procfs_doprocstatus(PFS_FILL_ARGS)
 			sbuf_putc(sb, *pc);
 	} while (*++pc);
 	sbuf_printf(sb, " %d %d %d %d ", pid, ppid, pgid, sid);
-	if ((p->p_flag&P_CONTROLT) && (tp = sess->s_ttyp))
+	if ((p->p_flag & P_CONTROLT) && (tp = sess->s_ttyp))
 		sbuf_printf(sb, "%d,%d ", major(tp->t_dev), minor(tp->t_dev));
 	else
 		sbuf_printf(sb, "%d,%d ", -1, -1);
@@ -115,6 +116,18 @@ procfs_doprocstatus(PFS_FILL_ARGS)
 	}
 
 	mtx_lock_spin(&sched_lock);
+	if (p->p_flag & P_THREADED)
+		wmesg = "-kse- ";
+	else {
+		tdfirst = FIRST_THREAD_IN_PROC(p);
+		if (tdfirst->td_wchan != NULL) {
+			KASSERT(tdfirst->td_wmesg != NULL,
+			    ("wchan %p has no wmesg", tdfirst->td_wchan));
+			wmesg = tdfirst->td_wmesg;
+		} else
+			wmesg = "nochan";
+	}
+
 	if (p->p_sflag & PS_INMEM) {
 		struct timeval ut, st;
 
@@ -130,14 +143,7 @@ procfs_doprocstatus(PFS_FILL_ARGS)
 		sbuf_printf(sb, " -1,-1 -1,-1 -1,-1");
 	}
 
-	if (p->p_flag & P_THREADED)
-		sbuf_printf(sb, " %s", "-kse- ");
-	else {
-		tdfirst = FIRST_THREAD_IN_PROC(p);	/* XXX diff from td? */
-		sbuf_printf(sb, " %s",
-		    (tdfirst->td_wchan && tdfirst->td_wmesg) ?
-		    tdfirst->td_wmesg : "nochan");
-	}
+	sbuf_printf(sb, " %s", wmesg);
 
 	cr = p->p_ucred;
 
