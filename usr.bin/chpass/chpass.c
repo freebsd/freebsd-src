@@ -37,9 +37,11 @@ static const char copyright[] =
 	The Regents of the University of California.  All rights reserved.\n";
 #endif /* not lint */
 
+#if 0
 #ifndef lint
-static const char sccsid[] = "From: @(#)chpass.c	8.4 (Berkeley) 4/2/94";
+static char sccsid[] = "@(#)chpass.c	8.4 (Berkeley) 4/2/94";
 #endif /* not lint */
+#endif
 
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
@@ -292,7 +294,7 @@ usage(void)
 
 	(void)fprintf(stderr,
 #ifdef YP
-		"usage: chpass [-l] [-y] [-d domain [-h host]] [-a list] [-p encpass] [-s shell] [-e mmm dd yy] [user]\n");
+		"usage: chpass [-o] [-l] [-y] [-d domain] [-h host] [-a list] [-p encpass] [-s shell] [-e mmm dd yy] [user]\n");
 #else
 		"usage: chpass [-a list] [-p encpass] [-s shell] [-e mmm dd yy] [user]\n");
 #endif
