@@ -554,21 +554,21 @@ svr4_sys_sigpending(td, uap)
 	struct thread *td;
 	struct svr4_sys_sigpending_args *uap;
 {
+	struct proc *p;
 	sigset_t bss;
-	int *retval;
 	svr4_sigset_t sss;
 
-	DPRINTF(("@@@ svr4_sys_sigpending(%d)\n", td->td_proc->p_pid));
-	retval = td->td_retval;
+	p = td->td_proc;
+	DPRINTF(("@@@ svr4_sys_sigpending(%d)\n", p->p_pid));
 	switch (uap->what) {
 	case 1:	/* sigpending */
 		if (uap->mask == NULL)
 			return 0;
-		PROC_LOCK(td->td_proc);
-		bss = td->td_proc->p_siglist;
+		PROC_LOCK(p);
+		bss = p->p_siglist;
 		SIGSETOR(bss, td->td_siglist);
 		SIGSETAND(bss, td->td_sigmask);
-		PROC_UNLOCK(td->td_proc);
+		PROC_UNLOCK(p);
 		bsd_to_svr4_sigset(&bss, &sss);
 		break;
 
