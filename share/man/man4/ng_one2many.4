@@ -30,11 +30,11 @@
 .\" THIS SOFTWARE, EVEN IF WHISTLE COMMUNICATIONS IS ADVISED OF THE POSSIBILITY
 .\" OF SUCH DAMAGE.
 .\" 
-.\" Author: Archie Cobbs <archie@freebsd.org>
+.\" Author: Archie Cobbs <archie@FreeBSD.org>
 .\"
 .\" $FreeBSD$
 .\"
-.Dd November 15, 2000
+.Dd January 26, 2001
 .Dt NG_ONE2MANY 4
 .Os FreeBSD
 .Sh NAME
@@ -60,9 +60,9 @@ hooks are forwarded out the
 hook.
 Packets received on the
 .Dv one
-hook are forwarded out one of the
+hook are forwarded out one or more of the
 .Dv many
-hooks; which hook is determined by the node's configured
+hooks; which hook(s) is determined by the node's configured
 transmit algorithm.
 Packets are not altered in any way.
 .Pp
@@ -71,10 +71,19 @@ Packets are never delivered out a many hook that is down.
 How a link is determined to be up or down depends on the node's
 configured link failure detection algorithm.
 .Sh TRANSMIT ALGORITHMS
-At this time, the only algorithm for determing the outgoing
-.Dv many
-hook is a simple round-robin delivery algorithm.
+.Bl -tag -width foo
+.It NG_ONE2MANY_XMIT_ROUNDROBIN
 Packets are delivered out the many hooks in sequential order.
+Each packet goes out on a different
+.Dv many
+hook.
+.It NG_ONE2MANY_XMIT_ALL
+Packets are delivered out all the
+.Dv many
+hooks. Each packet goes out each 
+.Dv many
+hook.
+.El
 .Pp
 In the future other algorithms may be added as well.
 .Sh LINK FAILURE DETECTION
@@ -206,4 +215,10 @@ The
 node type was implemented in
 .Fx 4.2 .
 .Sh AUTHORS
-.An Archie Cobbs Aq archie@freebsd.org
+The one2many netgraph node (with round-robin algorithm) was written by
+.An Archie Cobbs
+.Aq archie@freebsd.org .
+The all algorithm was added by
+.An Rogier R. Mulhuijzen
+.Aq drwilco@drwilco.net .
+
