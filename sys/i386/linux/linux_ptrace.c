@@ -388,7 +388,7 @@ linux_ptrace(struct thread *td, struct linux_ptrace_args *uap)
 		}
 
 		/* not currently stopped */
-		if ((p->p_flag & (P_TRACED|P_WAITED)) == 0) {
+		if (!P_SHOULDSTOP(p) || (p->p_flag & P_WAITED) == 0) {
 			error = EBUSY;
 			goto fail;
 		}
