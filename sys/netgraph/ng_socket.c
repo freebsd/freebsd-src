@@ -306,10 +306,10 @@ ngd_send(struct socket *so, int flags, struct mbuf *m, struct sockaddr *addr,
 {
 	struct ngpcb *const pcbp = sotongpcb(so);
 	struct sockaddr_ng *const sap = (struct sockaddr_ng *) addr;
-	char   *hookname = NULL;
 	meta_p  mp = NULL;
 	int     len, error;
-	hook_p  hook;
+	hook_p  hook = NULL;
+	char	hookname[NG_HOOKLEN + 1];
 
 	if ((pcbp == NULL) || (control != NULL)) {
 		error = EINVAL;
@@ -319,26 +319,42 @@ ngd_send(struct socket *so, int flags, struct mbuf *m, struct sockaddr *addr,
 		error = ENOTCONN;
 		goto release;
 	}
-	if (addr == NULL) {
-		error = EDESTADDRREQ;
-		goto release;
-	}
+	/*
+	 * If the user used any of these ways to not specify an address
+	 * then handle specially.
+	 */
+	if ((sap == NULL)
+	|| ((len = sap->sg_len) <= 2)
+	|| (*sap->sg_data == '\0')) {
+		if (pcbp->sockdata->node->numhooks != 1) {
+			error = EDESTADDRREQ;
+			goto release;
+		}
+		/*
+		 * if exactly one hook exists, just use it.
+		 * Special case to allow write(2) to work on an ng_socket.
+		 */
+		hook = LIST_FIRST(&pcbp->sockdata->node->hooks);
+	} else {
+		if (len > NG_HOOKLEN) {
+			error = EINVAL;
+			goto release;
+		}
 
-	/* Allocate an expendable buffer for the hook name, chop off
-	 * the sockaddr header, and make sure it's NUL terminated */
-	len = sap->sg_len - 2;
-	MALLOC(hookname, char *, len + 1, M_NETGRAPH, M_WAITOK);
-	if (hookname == NULL) {
-		error = ENOMEM;
-		goto release;
-	}
-	bcopy(sap->sg_data, hookname, len);
-	hookname[len] = '\0';
+		/*
+		 * chop off the sockaddr header, and make sure it's NUL
+		 * terminated
+		 */
+		bcopy(sap->sg_data, hookname, len);
+		hookname[len] = '\0';
 
-	/* Find the correct hook from 'hookname' */
-	LIST_FOREACH(hook, &pcbp->sockdata->node->hooks, hooks) {
-		if (strcmp(hookname, hook->name) == 0)
-			break;
+		/* Find the correct hook from 'hookname' */
+		LIST_FOREACH(hook, &pcbp->sockdata->node->hooks, hooks) {
+			if (strcmp(hookname, hook->name) == 0)
+				break;
+		}
+		if (hook == NULL)
+			error = EHOSTUNREACH;
 	}
 
 	/* Send data (OK if hook is NULL) */
@@ -817,7 +833,7 @@ ngs_rcvdata(hook_p hook, struct mbuf *m, meta_p meta)
 }
 
 /*
- * Dook disconnection
+ * Hook disconnection
  *
  * For this type, removal of the last link destroys the node
  * if the NOLINGER flag is set.
