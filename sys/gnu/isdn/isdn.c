@@ -1,6 +1,6 @@
-/* @(#)$Id: isdn.c,v 1.12 1995/12/17 21:17:48 phk Exp $
+/* @(#)$Id: isdn.c,v 1.13 1996/06/12 05:02:21 gpalmer Exp $
  *******************************************************************************
- *  II - Version 0.1 $Revision: 1.12 $   $State: Exp $
+ *  II - Version 0.1 $Revision: 1.13 $   $State: Exp $
  *
  * Copyright 1994 Dietmar Friede
  *******************************************************************************
@@ -39,8 +39,7 @@
 #include <sys/devfsext.h>
 #endif /*DEVFS*/
 
-#include "gnu/isdn/isdn_ioctl.h"
-
+#include <gnu/isdn/isdn_ioctl.h>
 
 isdn_appl_t     isdn_appl[N_ISDN_APPL];
 isdn_ctrl_t     isdn_ctrl[N_ISDN_CTRL];
