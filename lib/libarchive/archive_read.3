@@ -39,6 +39,7 @@
 .Nm archive_read_support_format_cpio ,
 .Nm archive_read_support_format_iso9660 ,
 .Nm archive_read_support_format_tar ,
+.Nm archive_read_support_format_zip ,
 .Nm archive_read_open ,
 .Nm archive_read_open_fd ,
 .Nm archive_read_open_file ,
@@ -77,6 +78,8 @@
 .Fn archive_read_support_format_iso9660 "struct archive *"
 .Ft int
 .Fn archive_read_support_format_tar "struct archive *"
+.Ft int
+.Fn archive_read_support_format_zip "struct archive *"
 .Ft int
 .Fn archive_read_open "struct archive *" "void *client_data" "archive_open_archive_callback *" "archive_read_archive_callback *" "archive_close_archive_callback *"
 .Ft int
@@ -122,7 +125,7 @@ Sets the block size used for reading the archive data.
 This controls the size that will be used when invoking the read
 callback function.
 The default is 20 records or 10240 bytes for tar formats.
-.It Fn archive_read_support_comression_all , Fn archive_read_support_compression_bzip2 , Fn archive_read_support_compression_compress , Fn archive_read_support_compression_gzip , Fn archive_read_support_compression_none
+.It Fn archive_read_support_compression_all , Fn archive_read_support_compression_bzip2 , Fn archive_read_support_compression_compress , Fn archive_read_support_compression_gzip , Fn archive_read_support_compression_none
 Enables auto-detection code and decompression support for the
 specified compression.
 Note that
@@ -131,7 +134,7 @@ is always enabled by default.
 For convenience,
 .Fn archive_read_support_compression_all
 enables all available decompression code.
-.It Fn archive_read_support_format_all , Fn archive_read_support_format_cpio , Fn archive_read_support_format_iso9660 , Fn archive_read_support_format_tar
+.It Fn archive_read_support_format_all , Fn archive_read_support_format_cpio , Fn archive_read_support_format_iso9660 , Fn archive_read_support_format_tar, Fn archive_read_support_format_zip
 Enables support---including auto-detection code---for the
 specified archive format.
 For example,
@@ -233,7 +236,9 @@ By default, they are ignored.
 Note that restoring of atime is not currently supported.
 .It Cm ARCHIVE_EXTRACT_NO_OVERWRITE
 Existing files on disk will not be overwritten.
-By default, existing files are unlinked before the new entry is written.
+By default, existing regular files are truncated and overwritten;
+existing directories will have their permissions updated;
+other pre-existing objects are unlinked and recreated from scratch.
 .It Cm ARCHIVE_EXTRACT_UNLINK
 Existing files on disk will be unlinked and recreated from scratch.
 By default, existing files are truncated and rewritten, but
@@ -401,9 +406,9 @@ myclose(struct archive *a, void *client_data)
 Most functions return zero on success, non-zero on error.
 The possible return codes include:
 .Cm ARCHIVE_OK
-(the operation succeeded)
+(the operation succeeded),
 .Cm ARCHIVE_WARN
-(the operation succeeded but a non-critical error was encountered)
+(the operation succeeded but a non-critical error was encountered),
 .Cm ARCHIVE_EOF
 (end-of-archive was encountered),
 .Cm ARCHIVE_RETRY
@@ -467,3 +472,24 @@ The
 library was written by
 .An Tim Kientzle Aq kientzle@acm.org .
 .Sh BUGS
+Directories are actually extracted in two distinct phases.
+Directories are created during
+.Fn archive_read_extract ,
+but final permissions are not set until
+.Fn archive_read_close .
+This separation is necessary to correctly handle borderline
+cases such as a non-writable directory containing
+files, but can cause unexpected results.
+In particular, directory permissions are not fully
+restored until the archive is closed.
+If you use
+.Xr chdir 2
+to change the current directory between calls to
+.Fn archive_read_extract
+or before calling
+.Fn archive_read_close ,
+you may confuse the permission-setting logic with
+the result that directory permissions are restored
+incorrectly.
+
+
