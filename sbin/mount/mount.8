@@ -447,7 +447,11 @@ for more information.)
 file system table
 .El
 .Sh SEE ALSO
+.Xr getfacl 1 ,
+.Xr setfacl 1 ,
 .Xr mount 2 ,
+.Xr acl 3 ,
+.Xr mac 4 ,
 .Xr fstab 5 ,
 .Xr kldload 8 ,
 .Xr mount_cd9660 8 ,
@@ -468,11 +472,7 @@ file system table
 .Xr mount_udf 8 ,
 .Xr mount_umapfs 8 ,
 .Xr mount_unionfs 8 ,
-.Xr umount 8 ,
-.Xr acl 3 ,
-.Xr getfacl 1 ,
-.Xr setfacl 1 ,
-.Xr mac 3
+.Xr umount 8
 .Sh BUGS
 It is possible for a corrupted file system to cause a crash.
 .Sh CAVEATS
