@@ -10,6 +10,7 @@ MAN8=	mk-amd-map.8
 CLEANFILES+=nfs_prot.h
 RPCCOM = rpcgen
 NFS_PROT_X= /usr/include/rpcsvc/nfs_prot.x
+DPSRCS= nfs_prot.h
 
 nfs_prot.h: ${NFS_PROT_X}
 	${RPCCOM} -h ${NFS_PROT_X} -o ${.TARGET}
