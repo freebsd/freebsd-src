@@ -163,8 +163,10 @@ static struct rl_type re_devs[] = {
 		"RealTek 8139C+ 10/100BaseTX" },
 	{ RT_VENDORID, RT_DEVICEID_8169, RL_HWREV_8169,
 		"RealTek 8169 Gigabit Ethernet" },
-	{ RT_VENDORID, RT_DEVICEID_8169, RL_HWREV_8110,
-		"RealTek 8169S/8110S Single-chip Gigabit Ethernet" },
+	{ RT_VENDORID, RT_DEVICEID_8169, RL_HWREV_8169S,
+		"RealTek 8169S Single-chip Gigabit Ethernet" },
+	{ RT_VENDORID, RT_DEVICEID_8169, RL_HWREV_8110S,
+		"RealTek 8110S Single-chip Gigabit Ethernet" },
 	{ 0, 0, 0, NULL }
 };
 
@@ -178,7 +180,8 @@ static struct rl_hwrev re_hwrevs[] = {
 	{ RL_HWREV_8139D, RL_8139, "8139D/8100B/8100C" },
 	{ RL_HWREV_8139CPLUS, RL_8139CPLUS, "C+"},
 	{ RL_HWREV_8169, RL_8169, "8169"},
-	{ RL_HWREV_8110, RL_8169, "8169S/8110S"},
+	{ RL_HWREV_8169S, RL_8169, "8169S"},
+	{ RL_HWREV_8110S, RL_8169, "8110S"},
 	{ RL_HWREV_8100, RL_8139, "8100"},
 	{ RL_HWREV_8101, RL_8139, "8101"},
 	{ 0, 0, NULL }
