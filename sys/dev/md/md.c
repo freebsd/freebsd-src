@@ -85,6 +85,7 @@
 #include <vm/vm_page.h>
 #include <vm/vm_pager.h>
 #include <vm/swap_pager.h>
+#include <vm/uma.h>
 
 #define MD_MODVER 1
 
@@ -172,9 +173,11 @@ struct md_s {
 	unsigned opencount;
 	unsigned secsize;
 	unsigned flags;
+	char name[20];
 
 	/* MD_MALLOC related fields */
 	struct indir *indir;
+	uma_zone_t uma;
 
 	/* MD_PRELOAD related fields */
 	u_char *pl_ptr;
@@ -213,9 +216,26 @@ static void
 del_indir(struct indir *ip)
 {
 
-	free(ip->array, M_MD);
+	free(ip->array, M_MDSECT);
 	free(ip, M_MD);
 }
+
+static void
+destroy_indir(struct md_s *sc, struct indir *ip)
+{
+	int i;
+
+	for (i = 0; i < NINDIR; i++) {
+		if (!ip->array[i])
+			continue;
+		if (ip->shift)
+			destroy_indir(sc, (struct indir*)(ip->array[i]));
+		else if (ip->array[i] > 255)
+			uma_zfree(sc->uma, (void *)(ip->array[i]));
+	}
+	del_indir(ip);
+}
+
 
 /*
  * This function does the math and alloctes the top level "indir" structure
@@ -422,8 +442,8 @@ mdstart_malloc(struct md_s *sc, struct bio *bp)
 			} else {
 				sp = s_read(sc->indir, secno);
 				if (sp <= 255)
-					sp = (uintptr_t) malloc(
-					    sc->secsize, M_MDSECT, M_NOWAIT);
+					sp = (uintptr_t) uma_zalloc(
+					    sc->uma, M_NOWAIT);
 				if (sp == 0) {
 					error = ENOMEM;
 				} else {
@@ -436,7 +456,7 @@ mdstart_malloc(struct md_s *sc, struct bio *bp)
 			error = EOPNOTSUPP;
 		}
 		if (osp > 255)
-			free((void*)osp, M_MDSECT);
+			uma_zfree(sc->uma, (void*)osp);
 		if (error)
 			break;
 		secno++;
@@ -614,6 +634,7 @@ mdnew(int unit)
 		return (NULL);
 	sc = (struct md_s *)malloc(sizeof *sc, M_MD, M_WAITOK | M_ZERO);
 	sc->unit = unit;
+	sprintf(sc->name, "md%d", unit);
 	LIST_INSERT_HEAD(&md_softc_list, sc, list);
 	/* XXX: UNLOCK(unique unit numbers) */
 	return (sc);
@@ -699,10 +720,11 @@ mdcreate_malloc(struct md_ioctl *mdio)
 	sc->nsect = mdio->md_size;
 	sc->flags = mdio->md_options & (MD_COMPRESS | MD_FORCE);
 	sc->indir = dimension(sc->nsect);
+	sc->uma = uma_zcreate(sc->name, sc->secsize,
+	    NULL, NULL, NULL, NULL, 0x1ff, 0);
 	if (mdio->md_options & MD_RESERVE) {
 		for (u = 0; u < sc->nsect; u++) {
-			sp = (uintptr_t) malloc( sc->secsize,
-			    M_MDSECT, M_NOWAIT | M_ZERO);
+			sp = (uintptr_t) uma_zalloc(sc->uma, M_NOWAIT | M_ZERO);
 			if (sp != 0)
 				error = s_write(sc->indir, u, sp, NULL);
 			else
@@ -846,14 +868,10 @@ mddestroy(struct md_s *sc, struct thread *td)
 	if (sc->object != NULL) {
 		vm_pager_deallocate(sc->object);
 	}
-#if 0
-	if (sc->secp != NULL) {
-		for (u = 0; u < sc->nsect; u++)
-			if ((uintptr_t)sc->secp[u] > 255)
-				free(sc->secp[u], M_MDSECT);
-		free(sc->secp, M_MD);
-	}
-#endif
+	if (sc->indir)
+		destroy_indir(sc, sc->indir);
+	if (sc->uma)
+		uma_zdestroy(sc->uma);
 
 	/* XXX: LOCK(unique unit numbers) */
 	LIST_REMOVE(sc, list);
