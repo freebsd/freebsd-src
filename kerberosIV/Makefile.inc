@@ -70,7 +70,9 @@ TELNETOBJDIR=	${.CURDIR}/../../lib/libtelnet
 .endif
 
 CFLAGS+= -I${.CURDIR}/../../include -Wall -DHAVE_CONFIG_H \
-	-I${INCLUDEOBJDIR} -DBINDIR=\"/usr/bin\" -DSBINDIR=\"/usr/sbin\"
+	-I${INCLUDEOBJDIR} \
+	-DBINDIR=\"/usr/bin\" -DSBINDIR=\"/usr/sbin\" \
+	-DLIBEXECDIR=\"/usr/libexec\"
 
 protos.h: ${KRB4DIR}/include/protos.H
 	ln -sf ${.ALLSRC} ${.TARGET} 
