@@ -167,6 +167,7 @@ acl_t	acl_get_fd(int _fd);
 acl_t	acl_get_fd_np(int fd, acl_type_t _type);
 acl_t	acl_get_file(const char *_path_p, acl_type_t _type);
 void	*acl_get_qualifier(acl_entry_t _entry_d);
+int	acl_get_perm_np(acl_permset_t _permset_d, acl_perm_t _perm);
 int	acl_get_permset(acl_entry_t _entry_d, acl_permset_t *_permset_p);
 int	acl_get_tag_type(acl_entry_t _entry_d, acl_tag_t *_tag_type_p);
 acl_t	acl_init(int _count);
