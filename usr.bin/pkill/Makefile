@@ -4,7 +4,7 @@
 PROG=	pkill
 SRCS=	pkill.c
 MAN=	pkill.1
-WARNS?=	1
+WARNS?=	5
 
 LDADD+=	-lkvm
 DPADD+=	${LIBKVM}
