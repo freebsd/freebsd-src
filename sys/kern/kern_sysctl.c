@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)kern_sysctl.c	8.4 (Berkeley) 4/14/94
- * $Id: kern_sysctl.c,v 1.28 1995/07/31 10:07:31 mpp Exp $
+ * $Id: kern_sysctl.c,v 1.30 1995/10/28 13:07:23 phk Exp $
  */
 
 /*
@@ -58,88 +58,77 @@
 #include <sys/user.h>
 
 /* BEGIN_MIB */
-SYSCTL_NODE(,CTL_KERN,		kern,	0,	"High kernel, proc, limits &c");
-SYSCTL_NODE(,CTL_VM,		vm,	0,	"Virtual memory");
-SYSCTL_NODE(,CTL_FS,		fs,	0,	"File system");
-SYSCTL_NODE(,CTL_NET,		net,	0,	"Network, (see socket.h)");
-SYSCTL_NODE(,CTL_DEBUG,		debug,	0,	"Debugging");
-SYSCTL_NODE(,CTL_HW,		hw,	0,	"hardware");
-SYSCTL_NODE(,CTL_MACHDEP,	machdep,0,	"machine dependent");
-SYSCTL_NODE(,CTL_USER,		user,	0,	"user-level");
+SYSCTL_NODE(, CTL_KERN,	  kern,   CTLFLAG_RW, 0, 
+	"High kernel, proc, limits &c");
+SYSCTL_NODE(, CTL_VM,	  vm,     CTLFLAG_RW, 0, 
+	"Virtual memory");
+SYSCTL_NODE(, CTL_FS,	  fs,     CTLFLAG_RW, 0, 
+	"File system");
+SYSCTL_NODE(, CTL_NET,	  net,    CTLFLAG_RW, 0, 
+	"Network, (see socket.h)");
+SYSCTL_NODE(, CTL_DEBUG,  debug,  CTLFLAG_RW, 0, 
+	"Debugging");
+SYSCTL_NODE(, CTL_HW,	  hw,     CTLFLAG_RW, 0, 
+	"hardware");
+SYSCTL_NODE(, CTL_MACHDEP, machdep, CTLFLAG_RW, 0, 
+	"machine dependent");
+SYSCTL_NODE(, CTL_USER,	  user,   CTLFLAG_RW, 0, 
+	"user-level");
 
-SYSCTL_STRING(_kern,KERN_OSTYPE, ostype,
-	CTLFLAG_RD, ostype, 0, "");
+SYSCTL_STRING(_kern, KERN_OSRELEASE, osrelease, CTLFLAG_RD, osrelease, 0, "");
 
-SYSCTL_STRING(_kern,KERN_OSRELEASE, osrelease,
-	CTLFLAG_RD, osrelease, 0, "");
+SYSCTL_INT(_kern, KERN_OSREV, osrevision, CTLFLAG_RD, 0, BSD, "");
 
-SYSCTL_INT(_kern,KERN_OSREV, osrevision,
-	CTLFLAG_RD, 0, BSD, "");
+SYSCTL_STRING(_kern, KERN_VERSION, version, CTLFLAG_RD, version, 0, "");
 
-SYSCTL_STRING(_kern,KERN_VERSION, version,
-	CTLFLAG_RD, version, 0, "");
+SYSCTL_STRING(_kern, KERN_OSTYPE, ostype, CTLFLAG_RD, ostype, 0, "");
 
 extern int osreldate;
-SYSCTL_INT(_kern,KERN_OSRELDATE, osreldate,
-	CTLFLAG_RD, &osreldate, 0, "");
+SYSCTL_INT(_kern, KERN_OSRELDATE, osreldate, CTLFLAG_RD, &osreldate, 0, "");
 
-SYSCTL_INT(_kern,KERN_MAXVNODES, maxvnodes,
-	CTLFLAG_RD, &desiredvnodes, 0, "");
+SYSCTL_INT(_kern, KERN_MAXVNODES, maxvnodes, CTLFLAG_RD, &desiredvnodes, 0, "");
 
-SYSCTL_INT(_kern,KERN_MAXPROC, maxproc,
-	CTLFLAG_RD, &maxproc, 0, "");
+SYSCTL_INT(_kern, KERN_MAXPROC, maxproc, CTLFLAG_RD, &maxproc, 0, "");
 
-SYSCTL_INT(_kern,KERN_MAXPROCPERUID,maxprocperuid,
+SYSCTL_INT(_kern, KERN_MAXPROCPERUID, maxprocperuid,
 	CTLFLAG_RD, &maxprocperuid, 0, "");
 
-SYSCTL_INT(_kern,KERN_MAXFILESPERPROC, maxfilesperproc,
+SYSCTL_INT(_kern, KERN_MAXFILESPERPROC, maxfilesperproc,
 	CTLFLAG_RD, &maxfilesperproc, 0, "");
 
-SYSCTL_INT(_kern,KERN_ARGMAX, argmax,
-	CTLFLAG_RD, 0, ARG_MAX, "");
+SYSCTL_INT(_kern, KERN_ARGMAX, argmax, CTLFLAG_RD, 0, ARG_MAX, "");
 
-SYSCTL_INT(_kern,KERN_POSIX1, posix1version,
-	CTLFLAG_RD, 0, _POSIX_VERSION, "");
+SYSCTL_INT(_kern, KERN_POSIX1, posix1version, CTLFLAG_RD, 0, _POSIX_VERSION, "");
 
-SYSCTL_INT(_kern,KERN_NGROUPS, ngroups,
-	CTLFLAG_RD, 0, NGROUPS_MAX, "");
+SYSCTL_INT(_kern, KERN_NGROUPS, ngroups, CTLFLAG_RD, 0, NGROUPS_MAX, "");
 
-SYSCTL_INT(_kern,KERN_JOB_CONTROL, job_control,
-	CTLFLAG_RD, 0, 1, "");
+SYSCTL_INT(_kern, KERN_JOB_CONTROL, job_control, CTLFLAG_RD, 0, 1, "");
 
-SYSCTL_INT(_kern,KERN_MAXFILES, maxfiles,
-	CTLFLAG_RW, &maxfiles, 0, "");
+SYSCTL_INT(_kern, KERN_MAXFILES, maxfiles, CTLFLAG_RW, &maxfiles, 0, "");
 
 #ifdef _POSIX_SAVED_IDS
-SYSCTL_INT(_kern,KERN_SAVED_IDS, saved_ids,
-	CTLFLAG_RD, 0, 1, "");
+SYSCTL_INT(_kern, KERN_SAVED_IDS, saved_ids, CTLFLAG_RD, 0, 1, "");
 #else 
-SYSCTL_INT(_kern,KERN_SAVED_IDS, saved_ids,
-	CTLFLAG_RD, 0, 0, "");
+SYSCTL_INT(_kern, KERN_SAVED_IDS, saved_ids, CTLFLAG_RD, 0, 0, "");
 #endif
 
 char kernelname[MAXPATHLEN] = "/kernel";	/* XXX bloat */
 
-SYSCTL_STRING(_kern,KERN_BOOTFILE, bootfile,
+SYSCTL_STRING(_kern, KERN_BOOTFILE, bootfile,
 	CTLFLAG_RW, kernelname, sizeof kernelname, "");
 
-SYSCTL_STRUCT(_kern,KERN_BOOTTIME, boottime,
+SYSCTL_STRUCT(_kern, KERN_BOOTTIME, boottime,
 	CTLFLAG_RW, &boottime, timeval, "");
 
-SYSCTL_STRING(_hw,HW_MACHINE, machine,
-	CTLFLAG_RD, machine, 0, "");
+SYSCTL_STRING(_hw, HW_MACHINE, machine, CTLFLAG_RD, machine, 0, "");
 
-SYSCTL_STRING(_hw,HW_MACHINE, model,
-	CTLFLAG_RD, cpu_model, 0, "");
+SYSCTL_STRING(_hw, HW_MACHINE, model, CTLFLAG_RD, cpu_model, 0, "");
 
-SYSCTL_INT(_hw,HW_NCPU, ncpu,
-	CTLFLAG_RD, 0, 1, "");
+SYSCTL_INT(_hw, HW_NCPU, ncpu, CTLFLAG_RD, 0, 1, "");
 
-SYSCTL_INT(_hw,HW_BYTEORDER, byteorder,
-	CTLFLAG_RD, 0, BYTE_ORDER, "");
+SYSCTL_INT(_hw, HW_BYTEORDER, byteorder, CTLFLAG_RD, 0, BYTE_ORDER, "");
 
-SYSCTL_INT(_hw,HW_PAGESIZE, pagesize,
-	CTLFLAG_RD, 0, PAGE_SIZE, "");
+SYSCTL_INT(_hw, HW_PAGESIZE, pagesize, CTLFLAG_RD, 0, PAGE_SIZE, "");
 
 /* END_MIB */
 
@@ -149,21 +138,57 @@ static int
 sysctl_kern_updateinterval SYSCTL_HANDLER_ARGS
 {
 	int error = sysctl_handle_int(oidp,
-		oidp->oid_arg1,oidp->oid_arg2,
-		oldp,oldlenp,newp,newlen);
+		oidp->oid_arg1, oidp->oid_arg2,
+		oldp, oldlenp, newp, newlen);
 	if (!error)
 		wakeup(&vfs_update_wakeup);
 	return error;
 }
 
-SYSCTL_PROC(_kern,KERN_UPDATEINTERVAL, update, CTLTYPE_INT|CTLFLAG_RD,
-	&vfs_update_interval, 0, sysctl_kern_updateinterval,"");
+SYSCTL_PROC(_kern, KERN_UPDATEINTERVAL, update, CTLTYPE_INT|CTLFLAG_RW,
+	&vfs_update_interval, 0, sysctl_kern_updateinterval, "");
+
+
+char hostname[MAXHOSTNAMELEN];
+int hostnamelen;
+static int
+sysctl_kern_hostname SYSCTL_HANDLER_ARGS
+{
+	int error = sysctl_handle_string(oidp,
+		oidp->oid_arg1, oidp->oid_arg2,
+		oldp, oldlenp, newp, newlen);
+	if (newp && (error == 0 || error == ENOMEM))
+		hostnamelen = newlen;
+	return error;
+}
+
+SYSCTL_PROC(_kern, KERN_HOSTNAME, hostname, CTLTYPE_STRING|CTLFLAG_RW,
+	&hostname, sizeof(hostname), sysctl_kern_hostname, "");
+
+
+char domainname[MAXHOSTNAMELEN];
+int domainnamelen;
+static int
+sysctl_kern_domainname SYSCTL_HANDLER_ARGS
+{
+	int error = sysctl_handle_string(oidp,
+		oidp->oid_arg1, oidp->oid_arg2,
+		oldp, oldlenp, newp, newlen);
+	if (newp && (error == 0 || error == ENOMEM))
+		domainnamelen = newlen;
+	return error;
+}
+
+SYSCTL_PROC(_kern, KERN_DOMAINNAME, domainname, CTLTYPE_STRING|CTLFLAG_RW,
+	&domainname, sizeof(domainname), sysctl_kern_domainname, "");
+
+long hostid;
+/* Some trouble here, if sizeof (int) != sizeof (long) */
+SYSCTL_INT(_kern, KERN_HOSTID, hostid, CTLFLAG_RW, &hostid, 0, "");
 
 int
 sysctl_handle_int SYSCTL_HANDLER_ARGS
 {
-	int error = 0;
-
 	/* If there isn't sufficient space to return */
 	if (oldp && *oldlenp < sizeof(int))
 		return (ENOMEM);
@@ -178,25 +203,25 @@ sysctl_handle_int SYSCTL_HANDLER_ARGS
 
 	*oldlenp = sizeof(int);
 	if (oldp && arg1 )
-		error = copyout(arg1, oldp, sizeof(int));
+		bcopy(arg1, oldp, sizeof(int));
 	else if (oldp)
-		error = copyout(&arg2, oldp, sizeof(int));
-	if (error == 0 && newp)
-		error = copyin(newp, arg1, sizeof(int));
-	return (error);
+		bcopy(&arg2, oldp, sizeof(int));
+	if (newp)
+		bcopy(newp, arg1, sizeof(int));
+	return (0);
 }
 
 int
 sysctl_handle_string SYSCTL_HANDLER_ARGS
 {
-	int len, error = 0, rval = 0;
+	int len, error=0;
 	char *str = (char *)arg1;
 
 	len = strlen(str) + 1;
 
 	if (oldp && *oldlenp < len) {
 		len = *oldlenp;
-		rval = ENOMEM;
+		error=ENOMEM;
 	}
 
 	if (newp && newlen >= arg2)
@@ -204,43 +229,32 @@ sysctl_handle_string SYSCTL_HANDLER_ARGS
 
 	if (oldp) {
 		*oldlenp = len;
-		error = copyout(str, oldp, len);
-		if (error)
-			rval = error;
+		bcopy(str, oldp, len);
 	}
-	if ((error == 0 || error == ENOMEM) && newp) {
-		error = copyin(newp, str, newlen);
-		if (error)
-			rval = error;
+
+	if (newp) {
+		bcopy(newp, str, newlen);
 		str[newlen] = 0;
 	}
-	return (rval);
+	return (error);
 }
 
 int
 sysctl_handle_opaque SYSCTL_HANDLER_ARGS
 {
-	int error = 0, rval = 0;
-
-	if (oldp && *oldlenp < arg2) {
+	if (oldp && *oldlenp < arg2) 
 		return (ENOMEM);
-	}
 
 	if (newp && newlen != arg2)
 		return (EINVAL);
 
 	if (oldp) {
 		*oldlenp = arg2;
-		error = copyout(arg1, oldp, arg2);
-		if (error)
-			rval = error;
+		bcopy(arg1, oldp, arg2);
 	}
-	if ((error == 0 || error == ENOMEM) && newp) {
-		error = copyin(newp, arg1, arg2);
-		if (error)
-			rval = error;
-	}
-	return (rval);
+	if (newp) 
+		bcopy(newp, arg1, arg2);
+	return (0);
 }
 
 #ifdef DEBUG
@@ -265,7 +279,74 @@ struct sysctl_args {
 	size_t	newlen;
 };
 
+
+
+/*
+ * Traverse our tree, and find the right node, execute whatever it points
+ * at, and return the resulting error code.
+ * We work entirely in kernel-space at this time.
+ */
+
 extern struct linker_set sysctl_;
+
+int sysctl_dummy;
+
+int
+sysctl_root SYSCTL_HANDLER_ARGS
+{
+	int *name = (int *) arg1;
+	int namelen = arg2;
+	int indx, i, j;
+	struct sysctl_oid **oidpp;
+	struct linker_set *lsp = &sysctl_;
+
+	j = lsp->ls_length;
+	oidpp = (struct sysctl_oid **) lsp->ls_items;
+
+	indx = 0;
+	while (j-- && indx < CTL_MAXNAME) {
+		if (*oidpp &&
+		    ((void *)&sysctl_dummy != (void *)*oidpp) &&
+		    ((*oidpp)->oid_number == name[indx])) {
+			indx++;
+			if (((*oidpp)->oid_kind & CTLTYPE) == CTLTYPE_NODE) {
+				if ((*oidpp)->oid_handler)
+					goto found;
+				if (indx == namelen) 
+					return ENOENT;
+				lsp = (struct linker_set*)(*oidpp)->oid_arg1;
+				j = lsp->ls_length;
+				oidpp = (struct sysctl_oid **)lsp->ls_items;
+			} else {
+				if (indx != namelen) 
+					return EISDIR;
+				goto found;
+			}
+		} else {
+			oidpp++;
+		}
+	}
+	return EJUSTRETURN;
+found:
+
+	/* If writing isn't allowed */
+	if (newp && !((*oidpp)->oid_kind & CTLFLAG_WR))
+		return (EPERM);
+
+	if (!(*oidpp)->oid_handler) 
+		return EINVAL;
+
+	if (((*oidpp)->oid_kind & CTLTYPE) == CTLTYPE_NODE) {
+		i = ((*oidpp)->oid_handler) (*oidpp,
+					name + indx, namelen - indx,
+					oldp, oldlenp, newp, newlen);
+	} else {
+		i = ((*oidpp)->oid_handler) (*oidpp,
+					(*oidpp)->oid_arg1, (*oidpp)->oid_arg2,
+					oldp, oldlenp, newp, newlen);
+	}
+	return (i);
+}
 
 int
 __sysctl(p, uap, retval)
@@ -277,8 +358,8 @@ __sysctl(p, uap, retval)
 	u_int savelen = 0, oldlen = 0;
 	sysctlfn *fn;
 	int name[CTL_MAXNAME];
-        struct linker_set *lsp;
-	struct sysctl_oid **oidp;
+	void *oldp = 0;
+	void *newp = 0;
 
 	if (uap->new != NULL && (error = suser(p->p_ucred, &p->p_acflag)))
 		return (error);
@@ -294,71 +375,58 @@ __sysctl(p, uap, retval)
  	if (error)
 		return (error);
 
-	oidp = (struct sysctl_oid **) &sysctl_.ls_items[0];
-
-	for (i=0; *oidp && i < CTL_MAXNAME; oidp++) {
-		if ((*oidp)->oid_arg1 == (void *) *oidp)
-			continue;
-		if ((*oidp)->oid_number != name[i])
-			continue;
-		i++;
-		if (((*oidp)->oid_kind & CTLTYPE) == CTLTYPE_NODE) {
-			if (i == uap->namelen) 
-				/* XXX fail when "old" goes away */
-				goto old;
-	                lsp = (struct linker_set*)(*oidp)->oid_arg1;
-	                oidp = (struct sysctl_oid **) &lsp->ls_items[0];
-		} else {
-			if (i != uap->namelen) 
-				/* XXX fail when "old" goes away */
-				goto old;
-			goto found;
-		}
-	}
-	/* XXX fail when "old" goes away */
-	goto old;
-found:
-#if 0
-	printf("Found <%s> %x %p\n",
-		(*oidp)->oid_name, (*oidp)->oid_kind, (*oidp)->oid_arg1);
-#endif
-
-	if ((*oidp)->oid_kind & CTLFLAG_NOLOCK)
-		dolock = 0;
-
 	if (uap->oldlenp &&
 	    (error = copyin(uap->oldlenp, &oldlen, sizeof(oldlen))))
 		return (error);
 
-	if (uap->old != NULL) {
-		if (!useracc(uap->old, oldlen, B_WRITE))
-			return (EFAULT);
-		while (memlock.sl_lock) {
-			memlock.sl_want = 1;
-			(void) tsleep((caddr_t)&memlock, PRIBIO+1, "sysctl", 0);
-			memlock.sl_locked++;
-		}
-		memlock.sl_lock = 1;
-		if (dolock)
-			vslock(uap->old, oldlen);
-		savelen = oldlen;
+	if (uap->old) 
+		oldp = malloc(oldlen, M_TEMP, M_WAITOK);
+
+	if (uap->newlen) {
+		newp = malloc(uap->newlen, M_TEMP, M_WAITOK);
+		error = copyin(uap->new, newp, uap->newlen);
+	}
+	if (error) {
+		if (oldp)
+			free(oldp, M_TEMP);
+		if (newp)
+			free(newp, M_TEMP);
+		return error;
 	}
 
-	/* If writing isn't allowed */
-	if (uap->new && !((*oidp)->oid_kind & CTLFLAG_WR))
-		return (EPERM);
+	error = sysctl_root(0, name, uap->namelen, oldp, &oldlen, 
+	newp, uap->newlen);
+#if 0
+	if (error) {
+		printf("SYSCTL_ROOT: ");
+		for(i=0;i<uap->namelen;i++)
+			printf("%d ", name[i]);
+		printf("= %d\n", error);
+	}
+#endif
 
-	if ((*oidp)->oid_handler) {
-		i = ((*oidp)->oid_handler) (*oidp,
-					(*oidp)->oid_arg1, (*oidp)->oid_arg2,
-					uap->old,&oldlen,uap->new,uap->newlen);
-		if (i)
-			error = i;
-	} else
-		return EINVAL;
-	goto over_and_out;
+        if (!error || error == ENOMEM) {
+		if (uap->oldlenp) {
+			i = copyout(&oldlen, uap->oldlenp, sizeof(oldlen));
+			if (i)
+				error = i;
+		}
+		if ((error == ENOMEM || !error ) && oldp) {
+			i = copyout(oldp, uap->old, oldlen);
+			if (i)
+				error = i;
+			free(oldp, M_TEMP);
+		}
+		if (newp)
+			free(newp, M_TEMP);
+		return (error);
+	}
 
-    old:
+	if (oldp)
+		free(oldp, M_TEMP);
+	if (newp)
+		free(newp, M_TEMP);
+
 	switch (name[0]) {
 	case CTL_KERN:
 		fn = kern_sysctl;
@@ -372,6 +440,12 @@ found:
 		fn = vm_sysctl;
 		break;
 	case CTL_NET:
+#if 0
+		printf("SYSCTL_NET: ");
+		for(i=0;i<uap->namelen;i++)
+			printf("%d ", name[i]);
+		printf("\n");
+#endif
 		fn = net_sysctl;
 		break;
 	case CTL_FS:
@@ -388,10 +462,6 @@ found:
 	default:
 		return (EOPNOTSUPP);
 	}
-	if (uap->oldlenp &&
-	    (error = copyin(uap->oldlenp, &oldlen, sizeof(oldlen))))
-		return (error);
-
 	if (uap->old != NULL) {
 		if (!useracc(uap->old, oldlen, B_WRITE))
 			return (EFAULT);
@@ -409,7 +479,8 @@ found:
 
 	error = (*fn)(name + 1, uap->namelen - 1, uap->old, &oldlen,
 	    uap->new, uap->newlen, p);
-     over_and_out:
+
+
 	if (uap->old != NULL) {
 		if (dolock)
 			vsunlock(uap->old, savelen, B_WRITE);
@@ -430,11 +501,6 @@ found:
 /*
  * Attributes stored in the kernel.
  */
-char hostname[MAXHOSTNAMELEN];
-int hostnamelen;
-char domainname[MAXHOSTNAMELEN];
-int domainnamelen;
-long hostid;
 int securelevel = -1;
 
 /*
@@ -450,7 +516,7 @@ kern_sysctl(name, namelen, oldp, oldlenp, newp, newlen, p)
 	size_t newlen;
 	struct proc *p;
 {
-	int error, level, inthostid;
+	int error, level;
 	dev_t ndumpdev;
 
 	/* all sysctl names at this level are terminal */
@@ -469,27 +535,6 @@ kern_sysctl(name, namelen, oldp, oldlenp, newp, newlen, p)
 			return (EPERM);
 		securelevel = level;
 		return (0);
-	case KERN_HOSTNAME:
-		error = sysctl_string(oldp, oldlenp, newp, newlen,
-		    hostname, sizeof(hostname));
-		if (newp)
-			if (error == 0 || error == ENOMEM)
-				hostnamelen = newlen;
-		return (error);
-	case KERN_DOMAINNAME:
-		error = sysctl_string(oldp, oldlenp, newp, newlen,
-		    domainname, sizeof(domainname));
-		if (newp)
-			if (error == 0 || error == ENOMEM)
-				domainnamelen = newlen;
-		return (error);
-	case KERN_HOSTID:
-		inthostid = hostid;  /* XXX assumes sizeof long <= sizeof int */
-		error =  sysctl_int(oldp, oldlenp, newp, newlen, &inthostid);
-		hostid = inthostid;
-		return (error);
-	case KERN_CLOCKRATE:
-		return (sysctl_clockrate(oldp, oldlenp));
 	case KERN_VNODE:
 		return (sysctl_vnode(oldp, oldlenp));
 	case KERN_PROC:

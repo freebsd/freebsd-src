@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)sysctl.h	8.1 (Berkeley) 6/2/93
- * $Id: sysctl.h,v 1.26 1995/10/28 13:07:27 phk Exp $
+ * $Id: sysctl.h,v 1.27 1995/11/03 18:29:44 wollman Exp $
  */
 
 #ifndef _SYS_SYSCTL_H_
@@ -77,7 +77,7 @@ struct ctlname {
 #define CTLFLAG_NOLOCK	0x20000000	/* XXX Don't Lock */
 
 #ifdef KERNEL
-#define SYSCTL_HANDLER_ARGS (struct sysctl_oid *oidp, void *arg1, int arg2,\
+#define SYSCTL_HANDLER_ARGS (struct sysctl_oid *oidp, void *arg1, int arg2, \
 	void *oldp, size_t *oldlenp, void *newp, size_t newlen )
 
 struct sysctl_oid {
@@ -93,43 +93,45 @@ int sysctl_handle_int SYSCTL_HANDLER_ARGS;
 int sysctl_handle_string SYSCTL_HANDLER_ARGS;
 int sysctl_handle_opaque SYSCTL_HANDLER_ARGS;
 
+extern int sysctl_dummy;	/* make sure all NODEs are there */
+
 /* This is the "raw" function for a mib-oid */
-#define SYSCTL_OID(parent,number,name,kind,arg1,arg2,handler,descr) \
+#define SYSCTL_OID(parent, number, name, kind, arg1, arg2, handler, descr) \
 	static const struct sysctl_oid sysctl__##parent##_##name = { \
 		number, kind, arg1, arg2, #name, handler }; \
 	TEXT_SET(sysctl_##parent, sysctl__##parent##_##name);
 
 /* This makes a node from which other oids can hang */
-#define SYSCTL_NODE(parent,number,name,handler,descr) \
+#define SYSCTL_NODE(parent, number, name, access, handler, descr) \
 	extern struct linker_set sysctl_##parent##_##name; \
-	SYSCTL_OID(parent,number,name, CTLTYPE_NODE, \
-		(void*)&sysctl_##parent##_##name,0,handler,descr); \
-	TEXT_SET(sysctl_##parent##_##name, sysctl__##parent##_##name);
+	SYSCTL_OID(parent, number, name, CTLTYPE_NODE|access, \
+		(void*)&sysctl_##parent##_##name, 0, handler, descr); \
+	TEXT_SET(sysctl_##parent##_##name, sysctl_dummy);
 
 /* This is a string len can be 0 to indicate '\0' termination */
-#define SYSCTL_STRING(parent,number,name,access,arg,len,descr) \
-	SYSCTL_OID(parent,number,name, CTLTYPE_STRING|access,\
-		arg,len,sysctl_handle_string,descr);
+#define SYSCTL_STRING(parent, number, name, access, arg, len, descr) \
+	SYSCTL_OID(parent, number, name, CTLTYPE_STRING|access, \
+		arg, len, sysctl_handle_string, descr);
 
 /* This is a integer, if ptr is NULL, val is returned */
-#define SYSCTL_INT(parent,number,name,access,ptr,val,descr) \
-	SYSCTL_OID(parent,number,name,CTLTYPE_INT|access,\
-		ptr,val,sysctl_handle_int,descr);
+#define SYSCTL_INT(parent, number, name, access, ptr, val, descr) \
+	SYSCTL_OID(parent, number, name, CTLTYPE_INT|access, \
+		ptr, val, sysctl_handle_int, descr);
 
 /* This is anything, specified by a pointer and a lenth */
-#define SYSCTL_OPAQUE(parent,number,name,access,ptr,len,descr) \
-	SYSCTL_OID(parent,number,name,CTLTYPE_OPAQUE|access,\
-		ptr,len,sysctl_handle_opaque,descr);
+#define SYSCTL_OPAQUE(parent, number, name, access, ptr, len, descr) \
+	SYSCTL_OID(parent, number, name, CTLTYPE_OPAQUE|access, \
+		ptr, len, sysctl_handle_opaque, descr);
 
 /* This is a struct, specified by a pointer and type */
-#define SYSCTL_STRUCT(parent,number,name,access,ptr,type,descr) \
-	SYSCTL_OID(parent,number,name,CTLTYPE_OPAQUE|access,\
-		ptr,sizeof(struct type),sysctl_handle_opaque,descr);
+#define SYSCTL_STRUCT(parent, number, name, access, ptr, type, descr) \
+	SYSCTL_OID(parent, number, name, CTLTYPE_OPAQUE|access, \
+		ptr, sizeof(struct type), sysctl_handle_opaque, descr);
 
 /* Needs a proc.  Specify by pointer and arg */
-#define SYSCTL_PROC(parent,number,name,access,ptr,arg,handler,descr) \
-	SYSCTL_OID(parent,number,name,access,\
-		ptr,arg,handler,descr);
+#define SYSCTL_PROC(parent, number, name, access, ptr, arg, handler, descr) \
+	SYSCTL_OID(parent, number, name, access, \
+		ptr, arg, handler, descr);
 #endif /* KERNEL */
 
 /*
