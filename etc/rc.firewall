@@ -121,6 +121,9 @@ case ${firewall_type} in
 	# Allow TCP through if setup succeeded
 	${fwcmd} add pass tcp from any to any established
 
+	# Allow IP fragments to pass through
+	${fwcmd} add pass all from any to any frag
+
 	# Allow setup of incoming email
 	${fwcmd} add pass tcp from any to ${ip} 25 setup
 
@@ -177,6 +180,9 @@ case ${firewall_type} in
 
 	# Allow TCP through if setup succeeded
 	${fwcmd} add pass tcp from any to any established
+
+	# Allow IP fragments to pass through
+	${fwcmd} add pass all from any to any frag
 
 	# Allow setup of incoming email
 	${fwcmd} add pass tcp from any to ${oip} 25 setup
