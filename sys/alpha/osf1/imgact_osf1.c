@@ -214,14 +214,17 @@ exec_osf1_imgact(struct image_params *imgp)
 	/* .. bss .. */
 	if (round_page(bsize)) {
 		baddr = bss_start;
+		mtx_lock(&vm_mtx);
 		if ((error = vm_map_find(&vmspace->vm_map, NULL,
 		    (vm_offset_t) 0, &baddr, round_page(bsize), FALSE,
 		    VM_PROT_ALL, VM_PROT_ALL, FALSE))) {
+			mtx_unlock(&vm_mtx);
 			DPRINTF(("%s(%d): error = %d\n", __FILE__, __LINE__,
 			    error));
 			goto bail;
 
 		}
+		mtx_unlock(&vm_mtx);
 	}
 	
 
