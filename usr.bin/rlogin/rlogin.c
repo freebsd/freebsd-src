@@ -58,6 +58,7 @@ __FBSDID("$FreeBSD$");
  */
 
 #include <sys/param.h>
+#include <sys/ioctl.h>
 #include <sys/socket.h>
 #include <sys/time.h>
 #include <sys/resource.h>
@@ -76,7 +77,7 @@ __FBSDID("$FreeBSD$");
 #include <paths.h>
 #include <pwd.h>
 #include <setjmp.h>
-#include <sgtty.h>
+#include <termios.h>
 #include <signal.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -92,17 +93,13 @@ __FBSDID("$FreeBSD$");
 #define	SIGUSR1	30
 #endif
 
-int eight, litout, rem;
+int eight, rem;
+struct termios deftty;
+
 int family = PF_UNSPEC;
 
 int noescape;
 u_char escapechar = '~';
-
-const char *speeds[] = {
-	"0", "50", "75", "110", "134", "150", "200", "300", "600", "1200",
-	"1800", "2400", "4800", "9600", "19200", "38400", "57600", "115200"
-#define	MAX_SPEED_LENGTH	(sizeof("115200") - 1)
-};
 
 #define	get_window_size(fd, wp)	ioctl(fd, TIOCGWINSZ, wp)
 struct	winsize winsize;
@@ -131,13 +128,14 @@ main(int argc, char *argv[])
 {
 	struct passwd *pw;
 	struct servent *sp;
-	struct sgttyb ttyb;
+	struct termios tty;
 	long omask;
 	int argoff, ch, dflag, Dflag, one;
 	uid_t uid;
 	char *host, *localname, *p, *user, term[1024];
+	speed_t ospeed;
 	struct sockaddr_storage ss;
-	int sslen;
+	int i, len, len2, sslen;
 
 	argoff = dflag = Dflag = 0;
 	one = 1;
@@ -157,7 +155,7 @@ main(int argc, char *argv[])
 		argoff = 1;
 	}
 
-#define	OPTIONS	"468DELde:i:l:"
+#define	OPTIONS	"468DEKde:i:l:"
 	while ((ch = getopt(argc - argoff, argv + argoff, OPTIONS)) != -1)
 		switch(ch) {
 		case '4':
@@ -176,9 +174,6 @@ main(int argc, char *argv[])
 			break;
 		case 'E':
 			noescape = 1;
-			break;
-		case 'L':
-			litout = 1;
 			break;
 		case 'd':
 			dflag = 1;
@@ -220,14 +215,15 @@ main(int argc, char *argv[])
 	if (sp == NULL)
 		errx(1, "login/tcp: unknown service");
 
-#define	MAX_TERM_LENGTH	(sizeof(term) - 1 - MAX_SPEED_LENGTH - 1)
-
-	(void)strncpy(term, (p = getenv("TERM")) ? p : "network",
-		      MAX_TERM_LENGTH);
-	term[MAX_TERM_LENGTH] = '\0';
-	if (ioctl(0, TIOCGETP, &ttyb) == 0) {
-		(void)strcat(term, "/");
-		(void)strcat(term, speeds[(int)ttyb.sg_ospeed]);
+	if ((p = getenv("TERM")) != NULL)
+		(void)strlcpy(term, p, sizeof(term));
+	len = strlen(term);
+	if (len < (sizeof(term) - 1) && tcgetattr(0, &tty) == 0) {
+		/* start at 2 to include the / */
+		for (ospeed = i = cfgetospeed(&tty), len2 = 2; i > 9; len2++)
+			i /= 10;
+		if (len + len2 < sizeof(term))
+			(void)snprintf(term + len, len2 + 1, "/%d", ospeed);
 	}
 
 	(void)get_window_size(0, &winsize);
@@ -272,39 +268,22 @@ main(int argc, char *argv[])
 	/*NOTREACHED*/
 }
 
-int child, defflags, deflflags, tabflag;
-char deferase, defkill;
-struct tchars deftc;
-struct ltchars defltc;
-struct tchars notc = { -1, -1, -1, -1, -1, -1 };
-struct ltchars noltc = { -1, -1, -1, -1, -1, -1 };
+int child;
 
 void
 doit(long omask)
 {
-	struct sgttyb sb;
 
-	(void)ioctl(0, TIOCGETP, (char *)&sb);
-	defflags = sb.sg_flags;
-	tabflag = defflags & TBDELAY;
-	defflags &= ECHO | CRMOD;
-	deferase = sb.sg_erase;
-	defkill = sb.sg_kill;
-	(void)ioctl(0, TIOCLGET, &deflflags);
-	(void)ioctl(0, TIOCGETC, &deftc);
-	notc.t_startc = deftc.t_startc;
-	notc.t_stopc = deftc.t_stopc;
-	(void)ioctl(0, TIOCGLTC, &defltc);
 	(void)signal(SIGINT, SIG_IGN);
 	setsignal(SIGHUP);
 	setsignal(SIGQUIT);
+	mode(1);
 	child = fork();
 	if (child == -1) {
 		warn("fork");
 		done(1);
 	}
 	if (child == 0) {
-		mode(1);
 		if (reader(omask) == 0) {
 			msg("connection closed");
 			exit(0);
@@ -425,11 +404,12 @@ writer(void)
 			}
 		} else if (local) {
 			local = 0;
-			if (c == '.' || c == deftc.t_eofc) {
+			if (c == '.' || CCEQ(deftty.c_cc[VEOF], c)) {
 				echo(c);
 				break;
 			}
-			if (c == defltc.t_suspc || c == defltc.t_dsuspc) {
+			if (CCEQ(deftty.c_cc[VSUSP], c) ||
+			    CCEQ(deftty.c_cc[VDSUSP], c)) {
 				bol = 1;
 				echo(c);
 				stop(c);
@@ -443,8 +423,10 @@ writer(void)
 			msg("line gone");
 			break;
 		}
-		bol = c == defkill || c == deftc.t_eofc ||
-		    c == deftc.t_intrc || c == defltc.t_suspc ||
+		bol = CCEQ(deftty.c_cc[VKILL], c) ||
+		    CCEQ(deftty.c_cc[VEOF], c) ||
+		    CCEQ(deftty.c_cc[VINTR], c) ||
+		    CCEQ(deftty.c_cc[VSUSP], c) ||
 		    c == '\r' || c == '\n';
 	}
 }
@@ -476,7 +458,7 @@ stop(char cmdc)
 {
 	mode(0);
 	(void)signal(SIGCHLD, SIG_IGN);
-	(void)kill(cmdc == defltc.t_suspc ? 0 : getpid(), SIGTSTP);
+	(void)kill(CCEQ(deftty.c_cc[VSUSP], cmdc) ? 0 : getpid(), SIGTSTP);
 	(void)signal(SIGCHLD, catch_child);
 	mode(1);
 	sigwinch(0);			/* check for size changes */
@@ -532,11 +514,10 @@ char rcvbuf[8 * 1024];
 void
 oob(int signo __unused)
 {
-	struct sgttyb sb;
-	int atmark, n, out, rcvd;
+	struct termios tty;
+	int atmark, n, rcvd;
 	char waste[BUFSIZ], mark;
 
-	out = O_RDWR;
 	rcvd = 0;
 	while (recv(rem, &mark, 1, MSG_OOB) < 0) {
 		switch (errno) {
@@ -567,25 +548,17 @@ oob(int signo __unused)
 		(void)kill(ppid, SIGUSR1);
 	}
 	if (!eight && (mark & TIOCPKT_NOSTOP)) {
-		(void)ioctl(0, TIOCGETP, (char *)&sb);
-		sb.sg_flags &= ~CBREAK;
-		sb.sg_flags |= RAW;
-		(void)ioctl(0, TIOCSETN, (char *)&sb);
-		notc.t_stopc = -1;
-		notc.t_startc = -1;
-		(void)ioctl(0, TIOCSETC, (char *)&notc);
+		(void)tcgetattr(0, &tty);
+		tty.c_iflag &= ~IXON;
+		(void)tcsetattr(0, TCSANOW, &tty);
 	}
 	if (!eight && (mark & TIOCPKT_DOSTOP)) {
-		(void)ioctl(0, TIOCGETP, (char *)&sb);
-		sb.sg_flags &= ~RAW;
-		sb.sg_flags |= CBREAK;
-		(void)ioctl(0, TIOCSETN, (char *)&sb);
-		notc.t_stopc = deftc.t_stopc;
-		notc.t_startc = deftc.t_startc;
-		(void)ioctl(0, TIOCSETC, (char *)&notc);
+		(void)tcgetattr(0, &tty);
+		tty.c_iflag |= (deftty.c_iflag & IXON);
+		(void)tcsetattr(0, TCSANOW, &tty);
 	}
 	if (mark & TIOCPKT_FLUSHWRITE) {
-		(void)ioctl(1, TIOCFLUSH, (char *)&out);
+		(void)tcflush(1, TCIOFLUSH);
 		for (;;) {
 			if (ioctl(rem, SIOCATMARK, &atmark) < 0) {
 				warn("ioctl");
@@ -665,42 +638,31 @@ reader(int omask)
 void
 mode(int f)
 {
-	struct ltchars *ltc;
-	struct sgttyb sb;
-	struct tchars *tc;
-	int lflags;
+	struct termios tty;
 
-	(void)ioctl(0, TIOCGETP, (char *)&sb);
-	(void)ioctl(0, TIOCLGET, (char *)&lflags);
-	switch(f) {
+	switch (f) {
 	case 0:
-		sb.sg_flags &= ~(CBREAK|RAW|TBDELAY);
-		sb.sg_flags |= defflags|tabflag;
-		tc = &deftc;
-		ltc = &defltc;
-		sb.sg_kill = defkill;
-		sb.sg_erase = deferase;
-		lflags = deflflags;
+		(void)tcsetattr(0, TCSANOW, &deftty);
 		break;
 	case 1:
-		sb.sg_flags |= (eight ? RAW : CBREAK);
-		sb.sg_flags &= ~defflags;
-		/* preserve tab delays, but turn off XTABS */
-		if ((sb.sg_flags & TBDELAY) == XTABS)
-			sb.sg_flags &= ~TBDELAY;
-		tc = &notc;
-		ltc = &noltc;
-		sb.sg_kill = sb.sg_erase = -1;
-		if (litout)
-			lflags |= LLITOUT;
+		(void)tcgetattr(0, &deftty);
+		tty = deftty;
+		/* This is loosely derived from sys/kern/tty_compat.c. */
+		tty.c_lflag &= ~(ECHO|ICANON|ISIG|IEXTEN);
+		tty.c_iflag &= ~ICRNL;
+		tty.c_oflag &= ~OPOST;
+		tty.c_cc[VMIN] = 1;
+		tty.c_cc[VTIME] = 0;
+		if (eight) {
+			tty.c_iflag &= IXOFF;
+			tty.c_cflag &= ~(CSIZE|PARENB);
+			tty.c_cflag |= CS8;
+		}
+		(void)tcsetattr(0, TCSANOW, &tty);
 		break;
 	default:
 		return;
 	}
-	(void)ioctl(0, TIOCSLTC, (char *)ltc);
-	(void)ioctl(0, TIOCSETC, (char *)tc);
-	(void)ioctl(0, TIOCSETN, (char *)&sb);
-	(void)ioctl(0, TIOCLSET, (char *)&lflags);
 }
 
 /* ARGSUSED */
@@ -731,7 +693,7 @@ usage(void)
 {
 	(void)fprintf(stderr,
 	"usage: rlogin [-46%s]%s[-e char] [-i localname] [-l username] host\n",
-	    "8DELd", " ");
+	    "8DEd", " ");
 	exit(1);
 }
 

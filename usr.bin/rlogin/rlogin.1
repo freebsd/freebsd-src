@@ -40,7 +40,7 @@
 .Nd remote login
 .Sh SYNOPSIS
 .Ar rlogin
-.Op Fl 468DELd
+.Op Fl 468DEd
 .Op Fl e Ar char
 .Op Fl i Ar localname
 .Op Fl l Ar username
@@ -78,14 +78,6 @@ Stop any character from being recognized as an escape character.
 When used with the
 .Fl 8
 option, this provides a completely transparent connection.
-.It Fl L
-Allow the
-.Nm
-session to be run in
-.Dq litout
-(see
-.Xr tty 4 )
-mode.
 .It Fl d
 Turn on socket debugging (see
 .Xr setsockopt 2 )
