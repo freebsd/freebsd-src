@@ -58,7 +58,8 @@ CFLAGS+=	-mcmodel=medlow -msoft-float
 #
 .if ${MACHINE_ARCH} == "amd64"
 CFLAGS+=	-mcmodel=kernel -mno-red-zone \
-		-mfpmath=387 -mno-sse -mno-sse2 -mno-mmx -mno-3dnow -msoft-float
+		-mfpmath=387 -mno-sse -mno-sse2 -mno-mmx -mno-3dnow \
+		-msoft-float -fno-asynchronous-unwind-tables
 .endif
 
 #
