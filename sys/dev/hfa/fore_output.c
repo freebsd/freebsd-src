@@ -23,7 +23,7 @@
  * Copies of this Software may be made, however, the above copyright
  * notice must be reproduced on all copies.
  *
- *	@(#) $Id: fore_output.c,v 1.1 1998/09/15 08:22:55 phk Exp $
+ *	@(#) $Id: fore_output.c,v 1.2 1998/10/31 20:06:53 phk Exp $
  *
  */
 
@@ -38,7 +38,7 @@
 #include <dev/hfa/fore_include.h>
 
 #ifndef lint
-__RCSID("@(#) $Id: fore_output.c,v 1.1 1998/09/15 08:22:55 phk Exp $");
+__RCSID("@(#) $Id: fore_output.c,v 1.2 1998/10/31 20:06:53 phk Exp $");
 #endif
 
 
@@ -301,7 +301,7 @@ retry:
 		 * Get start of data onto full-word alignment
 		 */
 		KB_DATASTART(m, cp, caddr_t);
-		if (align = ((u_int)cp) & (XMIT_SEG_ALIGN - 1)) {
+		if ((align = ((u_int)cp) & (XMIT_SEG_ALIGN - 1)) != 0) {
 			/*
 			 * Gotta slide the data up
 			 */

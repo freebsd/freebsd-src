@@ -23,7 +23,7 @@
  * Copies of this Software may be made, however, the above copyright
  * notice must be reproduced on all copies.
  *
- *	@(#) $Id: eni_transmit.c,v 1.2 1998/10/18 11:58:57 phk Exp $
+ *	@(#) $Id: eni_transmit.c,v 1.3 1998/10/31 20:06:45 phk Exp $
  *
  */
 
@@ -43,7 +43,7 @@
 #include <dev/hea/eni_var.h>
 
 #ifndef lint
-__RCSID("@(#) $Id: eni_transmit.c,v 1.2 1998/10/18 11:58:57 phk Exp $");
+__RCSID("@(#) $Id: eni_transmit.c,v 1.3 1998/10/31 20:06:45 phk Exp $");
 #endif
 
 /*
@@ -463,7 +463,7 @@ retry:
 		 * Get start of data onto full-word alignment
 		 */
 		KB_DATASTART ( m, cp, caddr_t );
-		if ( align = ((u_int)cp) & (sizeof(u_long)-1)) {
+		if ((align = ((u_int)cp) & (sizeof(u_long)-1)) != 0) {
 			/*
 			 * Gotta slide the data up
 			 */
@@ -622,7 +622,7 @@ retry:
 	 * AAL5 PDUs need an extra two words for control/length and
 	 * CRC. Check for AAL5 and add requirements here.
 	 */
-	if (aal5 = (evp->ev_connvc->cvc_attr.aal.type == ATM_AAL5))
+	if ((aal5 = (evp->ev_connvc->cvc_attr.aal.type == ATM_AAL5)) != 0)
 		size = pdulen + 2 * sizeof(long);
 	else
 		size = pdulen;

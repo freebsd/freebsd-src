@@ -26,7 +26,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *      $Id$
+ *      $Id: cam_xpt_sim.h,v 1.1 1998/09/15 06:33:23 gibbs Exp $
  */
 
 #ifndef _CAM_CAM_XPT_SIM_H
@@ -43,7 +43,7 @@ u_int32_t	xpt_freeze_simq(struct cam_sim *sim, u_int count);
 void		xpt_release_simq(struct cam_sim *sim, int run_queue);
 u_int32_t	xpt_freeze_devq(struct cam_path *path, u_int count);
 void		xpt_release_devq(struct cam_ed *dev, int run_queue);
-void		xpt_done(union ccb *done_ccb);
+void		xpt_done(volatile union ccb *done_ccb);
 #endif /* KERNEL */
 
 #endif /* _CAM_CAM_XPT_SIM_H */
