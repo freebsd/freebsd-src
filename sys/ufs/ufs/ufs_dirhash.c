@@ -1062,7 +1062,7 @@ ufsdirhash_recycle(int wanted)
 static void
 ufsdirhash_init()
 {
-	ufsdirhash_zone = uma_zcreate("DIRHASH", DH_NBLKOFF * sizeof(daddr_t),
+	ufsdirhash_zone = uma_zcreate("DIRHASH", DH_NBLKOFF * sizeof(doff_t),
 	    NULL, NULL, NULL, NULL, UMA_ALIGN_PTR, 0);
 	mtx_init(&ufsdirhash_mtx, "dirhash list", NULL, MTX_DEF);
 	TAILQ_INIT(&ufsdirhash_list);
