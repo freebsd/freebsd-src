@@ -116,6 +116,7 @@
 #define	GV_BIO_REBUILD	0x20
 #define	GV_BIO_CHECK	0x40
 #define	GV_BIO_PARITY	0x80
+#define	GV_BIO_RETRY	0x100
 
 /*
  * hostname is 256 bytes long, but we don't need to shlep multiple copies in
