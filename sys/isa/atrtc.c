@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)clock.c	7.2 (Berkeley) 5/12/91
- *	$Id: clock.c,v 1.31 1995/01/19 22:05:27 ats Exp $
+ *	$Id: clock.c,v 1.32 1995/03/16 18:11:58 bde Exp $
  */
 
 /*
@@ -92,6 +92,7 @@
 
 int	adjkerntz = 0;		/* offset from CMOS clock */
 int	disable_rtc_set	= 0;	/* disable resettodr() if != 0 */
+u_int	idelayed;
 #ifdef I586_CPU
 int	pentium_mhz;
 #endif
@@ -124,6 +125,7 @@ void
 clkintr(struct clockframe frame)
 {
 	hardclock(&frame);
+	setdelayed();
 }
 #else
 void
@@ -132,15 +134,18 @@ clkintr(struct clockframe frame)
 	timer_func(&frame);
 	switch (timer0_state) {
 	case 0:
+		setdelayed();
 		break;
 	case 1:
 		if ((timer0_prescaler_count += timer0_max_count)
 		    >= hardclock_max_count) {
 			hardclock(&frame);
+			setdelayed();
 			timer0_prescaler_count -= hardclock_max_count;
 		}
 		break;
 	case 2:
+		setdelayed();
 		timer0_max_count = TIMER_DIV(new_rate);
 		timer0_overflow_threshold =
 			timer0_max_count - TIMER0_LATCH_COUNT;
@@ -157,6 +162,7 @@ clkintr(struct clockframe frame)
 		if ((timer0_prescaler_count += timer0_max_count)
 		    >= hardclock_max_count) {
 			hardclock(&frame);
+			setdelayed();
 			timer0_max_count = hardclock_max_count;
 			timer0_overflow_threshold =
 				timer0_max_count - TIMER0_LATCH_COUNT;
