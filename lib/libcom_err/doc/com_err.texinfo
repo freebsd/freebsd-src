@@ -1,7 +1,6 @@
 \input texinfo @c -*-texinfo-*-
 
 @c $FreeBSD$
-@c $Source: /home/ncvs/src/lib/libcom_err/doc/com_err.texinfo,v $
 
 @c Note that although this source file is in texinfo format (more
 @c or less), it is not yet suitable for turning into an ``info''
