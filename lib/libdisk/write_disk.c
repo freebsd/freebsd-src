@@ -163,6 +163,22 @@ Write_Int32(u_int32_t *p, u_int32_t v)
     bp[2] = (v >> 16) & 0xff;
     bp[3] = (v >> 24) & 0xff;
 }
+
+#ifndef __alpha__
+/*
+ * Special install-time configuration for the i386 boot0 boot manager.
+ */
+static void
+Cfg_Boot_Mgr(u_char *mbr, int edd)
+{
+    if (mbr[0x1b0] == 0x66 && mbr[0x1b1] == 0xbb) {
+	if (edd)
+	    mbr[0x1bb] |= 0x80;	/* Packet mode on */
+	else
+	    mbr[0x1bb] &= 0x7f;	/* Packet mode off */
+    }
+}
+#endif
 #endif
 
 int
@@ -180,6 +196,9 @@ Write_Disk(struct disk *d1)
 	int PC98_EntireDisk = 0;
 #else
 	int s[4];
+#ifndef __alpha__
+	int need_edd = 0;	/* Need EDD (packet interface) */
+#endif
 #endif
 	int one = 1;
 	int zero = 0;
@@ -255,6 +274,7 @@ Write_Disk(struct disk *d1)
 			dp[j].dp_ssect = 0xff;
 			dp[j].dp_shd = 0xff;
 			dp[j].dp_scyl = 0xff;
+			need_edd++;
 		} else {
 			dp[j].dp_ssect = i % d1->bios_sect;
 			i -= dp[j].dp_ssect++;
@@ -357,8 +377,10 @@ Write_Disk(struct disk *d1)
 			write_block(fd,WHERE(2+i,d1),&d1->bootmenu[i * 512]);
 #else
 	mbr = read_block(fd,WHERE(0,d1));
-	if (d1->bootmgr)
+	if (d1->bootmgr) {
 		memcpy(mbr,d1->bootmgr,DOSPARTOFF);
+		Cfg_Boot_Mgr(mbr, need_edd);
+        }
 	memcpy(mbr+DOSPARTOFF,dp,sizeof *dp * NDOSPART);
 	mbr[512-2] = 0x55;
 	mbr[512-1] = 0xaa;
