@@ -94,6 +94,7 @@ check_bound(struct fdlist *fdl, char *uaddr)
 
 	fd = __rpc_nconf2fd(fdl->nconf);
 	if (fd < 0) {
+		free(na->buf);
 		free(na);
 		return (TRUE);
 	}
@@ -101,6 +102,7 @@ check_bound(struct fdlist *fdl, char *uaddr)
 	ans = bind(fd, (struct sockaddr *)na->buf, na->len);
 
 	close(fd);
+	free(na->buf);
 	free(na);
 
 	return (ans == 0 ? FALSE : TRUE);
