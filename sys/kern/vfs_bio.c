@@ -377,7 +377,7 @@ waitrunningbufspace(void)
  *	bit if the newly extended portion of the buffer does not contain
  *	valid data.
  */
-static __inline__
+static __inline
 void
 vfs_buf_test_cache(struct buf *bp,
 		  vm_ooffset_t foff, vm_offset_t off, vm_offset_t size,
@@ -394,7 +394,7 @@ vfs_buf_test_cache(struct buf *bp,
 }
 
 /* Wake up the buffer deamon if necessary */
-static __inline__
+static __inline
 void
 bd_wakeup(int dirtybuflevel)
 {
@@ -410,7 +410,7 @@ bd_wakeup(int dirtybuflevel)
  * bd_speedup - speedup the buffer cache flushing code
  */
 
-static __inline__
+static __inline
 void
 bd_speedup(void)
 {
