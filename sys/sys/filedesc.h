@@ -35,7 +35,7 @@
  */
 
 #ifndef _SYS_FILEDESC_H_
-#define _SYS_FILEDESC_H_
+#define	_SYS_FILEDESC_H_
 
 #include <sys/queue.h>
 
@@ -55,8 +55,6 @@
  */
 #define NDFILE		20
 #define NDEXTENT	50		/* 250 bytes in 256-byte alloc. */
-
-struct klist;
 
 struct filedesc {
 	struct	file **fd_ofiles;	/* file structures for open files */
@@ -102,7 +100,7 @@ struct filedesc0 {
 #define OFILESIZE (sizeof(struct file *) + sizeof(char))
 
 /*
- * This structure that holds the information needed to send a SIGIO or
+ * This structure holds the information needed to send a SIGIO or
  * a SIGURG signal to a process or process group when new data arrives
  * on a device or socket.  The structure is placed on an SLIST belonging
  * to the proc or pgrp so that the entire list may be revoked when the
@@ -126,28 +124,24 @@ struct	sigio {
 SLIST_HEAD(sigiolst, sigio);
 
 #ifdef _KERNEL
-/*
- * Kernel global variables and routines.
- */
-int	dupfdopen __P((struct filedesc *, int, int, int, int));
+int	closef __P((struct file *fp, struct proc *p));
+int	dupfdopen __P((struct filedesc *fdp, int indx, int dfd, int mode,
+		       int error));
+int	falloc __P((struct proc *p, struct file **resultfp, int *resultfd));
 int	fdalloc __P((struct proc *p, int want, int *result));
 int	fdavail __P((struct proc *p, int n));
-int	falloc __P((struct proc *p, struct file **resultfp, int *resultfd));
-void	ffree __P((struct file *));
-struct	filedesc *fdinit __P((struct proc *p));
-struct	filedesc *fdshare __P((struct proc *p));
+void	fdcloseexec __P((struct proc *p));
 struct	filedesc *fdcopy __P((struct proc *p));
 void	fdfree __P((struct proc *p));
-int	closef __P((struct file *fp,struct proc *p));
-void	fdcloseexec __P((struct proc *p));
+struct	filedesc *fdinit __P((struct proc *p));
+struct	filedesc *fdshare __P((struct proc *p));
+void	ffree __P((struct file *fp));
+pid_t	fgetown __P((struct sigio *sigio));
+int	fsetown __P((pid_t pgid, struct sigio **sigiop));
+void	funsetown __P((struct sigio *sigio));
+void	funsetownlst __P((struct sigiolst *sigiolst));
 int	getvnode __P((struct filedesc *fdp, int fd, struct file **fpp));
-int	fdissequential __P((struct file *));
-void	fdsequential __P((struct file *, int));
-pid_t	fgetown __P((struct sigio *));
-int	fsetown __P((pid_t, struct sigio **));
-void	funsetown __P((struct sigio *));
-void	funsetownlst __P((struct sigiolst *));
 void	setugidsafety __P((struct proc *p));
-#endif
+#endif /* _KERNEL */
 
-#endif
+#endif /* !_SYS_FILEDESC_H_ */
