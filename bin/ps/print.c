@@ -500,7 +500,7 @@ cputime(KINFO *k, VARENT *ve)
 	if (decimal_point == '\0')
 		decimal_point = localeconv()->decimal_point[0];
 	v = ve->var;
-	if (!k->ki_valid) {
+	if (k->ki_p->ki_stat == SZOMB || !k->ki_valid) {
 		secs = 0;
 		psecs = 0;
 	} else {
