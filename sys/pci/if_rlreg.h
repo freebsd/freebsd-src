@@ -593,6 +593,9 @@ struct rl_stats {
 				 RL_RDESC_STAT_FRAGLEN)
 #define RL_PKTSZ(x)		((x) >> 3)
 
+#define RL_ADDR_LO(y)	((u_int64_t) (y) & 0xFFFFFFFF)
+#define RL_ADDR_HI(y)	((u_int64_t) (y) >> 32)
+
 struct rl_softc;
 
 struct rl_dmaload_arg {
@@ -615,15 +618,15 @@ struct rl_list_data {
 	bus_dma_tag_t		rl_stag;	/* stats mapping tag */
 	bus_dmamap_t		rl_smap;	/* stats map */
 	struct rl_stats		*rl_stats;
-	u_int32_t		rl_stats_addr;
+	bus_addr_t		rl_stats_addr;
 	bus_dma_tag_t		rl_rx_list_tag;
 	bus_dmamap_t		rl_rx_list_map;
 	struct rl_desc		*rl_rx_list;
-	u_int32_t		rl_rx_list_addr;
+	bus_addr_t		rl_rx_list_addr;
 	bus_dma_tag_t		rl_tx_list_tag;
 	bus_dmamap_t		rl_tx_list_map;
 	struct rl_desc		*rl_tx_list;
-	u_int32_t		rl_tx_list_addr;
+	bus_addr_t		rl_tx_list_addr;
 };
 
 struct rl_softc {
