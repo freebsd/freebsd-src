@@ -40,6 +40,8 @@
         ..
         ic
         ..
+        ieee488
+        ..
         iicbus
         ..
         ofw
@@ -104,6 +106,8 @@
     gnu
         posix
         ..
+    ..
+    gpib
     ..
     isofs
         cd9660
