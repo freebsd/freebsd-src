@@ -274,9 +274,7 @@ installFixitFloppy(dialogMenuItem *self)
 	if (msgYesNo("Unable to mount the fixit floppy - do you want to try again?") != 0)
 	    return DITEM_FAILURE;
     }
-    dialog_clear();
-    end_dialog();
-    DialogActive = FALSE;
+
     if (!directory_exists("/tmp"))
 	(void)symlink("/mnt2/tmp", "/tmp");
     if (!directory_exists("/var/tmp/vi.recover")) {
@@ -299,7 +297,20 @@ installFixitFloppy(dialogMenuItem *self)
     if (!file_readable(TERMCAP_FILE))
 	create_termcap();
     if (!(child = fork())) {
+	int i, fd;
 	struct termios foo;
+	extern int login_tty(int);
+
+	ioctl(0, TIOCNOTTY, NULL);
+	for (i = getdtablesize(); i >= 0; --i)
+	    close(i);
+	fd = open("/dev/ttyv3", O_RDWR);
+	ioctl(0, TIOCSCTTY, &fd);
+	dup2(0, 1);
+	dup2(0, 2);
+	DebugFD = 2;
+	if (login_tty(fd) == -1)
+	    msgDebug("fixit: I can't set the controlling terminal.\n");
 
 	signal(SIGTTOU, SIG_IGN);
 	if (tcgetattr(0, &foo) != -1) {
@@ -317,13 +328,14 @@ installFixitFloppy(dialogMenuItem *self)
 	msgDebug("fixit shell: Failed to execute shell!\n");
 	return -1;
     }
-    else
+    else {
+	msgNotify("Waiting for fixit shell to exit.  Go to VTY4 now by\n"
+		  "typing ALT-F4.  When you are done, type ``exit'' to exit\n"
+		  "the fixit shell and be returned here.");
 	(void)waitpid(child, &waitstatus, 0);
-
-    DialogActive = TRUE;
-    clear();
-    dialog_clear();
+    }
     unmount("/mnt2", MNT_FORCE);
+    dialog_clear();
     msgConfirm("Please remove the fixit floppy now.");
     return DITEM_SUCCESS;
 }

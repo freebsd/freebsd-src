@@ -1,1 +1,1 @@
-#define RELEASE_NAME	"__RELEASE"
+#define RELEASE_NAME	"2.2-BETA"
