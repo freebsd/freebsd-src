@@ -82,14 +82,12 @@ long	dev_bsize = 1;	/* recalculated below */
 long	blocksperfile;	/* output blocks per file */
 char	*host = NULL;	/* remote host (if any) */
 
-static long numarg __P((char *, long, long));
-static void obsolete __P((int *, char **[]));
-static void usage __P((void));
+static long numarg(const char *, long, long);
+static void obsolete(int *, char **[]);
+static void usage(void) __dead2;
 
 int
-main(argc, argv)
-	int argc;
-	char *argv[];
+main(int argc, char *argv[])
 {
 	struct stat sb;
 	ino_t ino;
@@ -513,7 +511,7 @@ main(argc, argv)
 }
 
 static void
-usage()
+usage(void)
 {
 	fprintf(stderr,
 		"usage: dump [-0123456789ac"
@@ -532,9 +530,7 @@ usage()
  * range (except that a vmax of 0 means unlimited).
  */
 static long
-numarg(meaning, vmin, vmax)
-	char *meaning;
-	long vmin, vmax;
+numarg(const char *meaning, long vmin, long vmax)
 {
 	char *p;
 	long val;
@@ -548,8 +544,7 @@ numarg(meaning, vmin, vmax)
 }
 
 void
-sig(signo)
-	int signo;
+sig(int signo)
 {
 	switch(signo) {
 	case SIGALRM:
@@ -575,8 +570,7 @@ sig(signo)
 }
 
 char *
-rawname(cp)
-	char *cp;
+rawname(char *cp)
 {
 	static char rawbuf[MAXPATHLEN];
 	char *dp;
@@ -596,11 +590,10 @@ rawname(cp)
 	if (dp == NULL)
 		return (NULL);
 	*dp = '\0';
-	(void)strncpy(rawbuf, cp, MAXPATHLEN - 1);
-	rawbuf[MAXPATHLEN-1] = '\0';
+	(void)strlcpy(rawbuf, cp, MAXPATHLEN - 1);
 	*dp = '/';
-	(void)strncat(rawbuf, "/r", MAXPATHLEN - 1 - strlen(rawbuf));
-	(void)strncat(rawbuf, dp + 1, MAXPATHLEN - 1 - strlen(rawbuf));
+	(void)strlcat(rawbuf, "/r", MAXPATHLEN - 1 - strlen(rawbuf));
+	(void)strlcat(rawbuf, dp + 1, MAXPATHLEN - 1 - strlen(rawbuf));
 	return (rawbuf);
 }
 
@@ -610,9 +603,7 @@ rawname(cp)
  *	getopt(3) will like.
  */
 static void
-obsolete(argcp, argvp)
-	int *argcp;
-	char **argvp[];
+obsolete(int *argcp, char **argvp[])
 {
 	int argc, flags;
 	char *ap, **argv, *flagsp, **nargv, *p;
