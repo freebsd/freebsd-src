@@ -162,44 +162,6 @@ struct frame_info *fr;
        }
 }
 
-CORE_ADDR
-fbsd_kern_frame_chain (fr)
-struct frame_info *fr;
-{
-       struct minimal_symbol *sym;
-       CORE_ADDR this_saved_pc;
-       enum frametype frametype;
-
-       this_saved_pc = read_memory_integer (fr->frame + 4, 4);
-       sym = lookup_minimal_symbol_by_pc (this_saved_pc);
-       frametype = tf_normal;
-       if (sym != NULL) {
-               if (strcmp (SYMBOL_NAME(sym), "calltrap") == 0)
-                       frametype = tf_trap;
-               else if (strncmp (SYMBOL_NAME(sym), "Xresume", 7) == 0)
-                       frametype = tf_interrupt;
-               else if (strcmp (SYMBOL_NAME(sym), "_Xsyscall") == 0)
-                       frametype = tf_syscall;
-       }
-
-       switch (frametype) {
-       case tf_normal:
-               return (read_memory_integer (fr->frame, 4));
-
-#define oEBP   offsetof(struct trapframe, tf_ebp)
-
-       case tf_trap:
-               return (read_memory_integer (fr->frame + 8 + oEBP, 4));
-
-       case tf_interrupt:
-               return (read_memory_integer (fr->frame + 16 + oEBP, 4));
-
-       case tf_syscall:
-               return (read_memory_integer (fr->frame + 8 + oEBP, 4));
-#undef oEBP
-       }
-}
-
 static CORE_ADDR
 ksym_lookup (name)
 const char *name;

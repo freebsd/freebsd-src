@@ -35,21 +35,6 @@ extern void i386_float_info PARAMS ((void));
 
 #define IN_SOLIB_CALL_TRAMPOLINE(pc, name) STREQ (name, "_DYNAMIC")
 
-/* FRAME_CHAIN takes a frame's nominal address and produces the frame's
-   chain-pointer.
-   In the case of the i386, the frame's nominal address
-   is the address of a 4-byte word containing the calling frame's address.  */
-
-extern CORE_ADDR fbsd_kern_frame_chain (struct frame_info *);
-#undef FRAME_CHAIN
-#define FRAME_CHAIN(thisframe)  \
-  (kernel_debugging ? fbsd_kern_frame_chain(thisframe) : \
-  ((thisframe)->signal_handler_caller \
-   ? (thisframe)->frame \
-   : (!inside_entry_file ((thisframe)->pc) \
-      ? read_memory_integer ((thisframe)->frame, 4) \
-      : 0)))
-
 /* Saved Pc.  Get it from sigcontext if within sigtramp.  */
 
 extern CORE_ADDR fbsd_kern_frame_saved_pc (struct frame_info *);
