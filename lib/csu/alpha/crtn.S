@@ -1,4 +1,4 @@
-/*
+/*-
  * Copyright 2000 David O'Brien, John D. Polstra.
  * All rights reserved.
  *
@@ -41,5 +41,5 @@
 	ret $31,($26),1
 
 
-.section	.rodata
-	.ascii "$FreeBSD$\0"
+	.section .rodata
+.ascii "$FreeBSD$\0"
