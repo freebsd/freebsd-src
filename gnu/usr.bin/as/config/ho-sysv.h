@@ -21,7 +21,9 @@
 
 #define HO_USG
 
+#ifdef USG
 #define setbuffer(stream, buf, size) setvbuf((stream), (buf), _IOLBF, (size))
+#endif
 
 extern int free();
 extern char *malloc();
