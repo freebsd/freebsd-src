@@ -784,13 +784,10 @@ ieattach(struct isa_device *dvp)
 	       ie->arpcom.ac_enaddr, ":");
 
 	ifp->if_flags = IFF_BROADCAST | IFF_SIMPLEX | IFF_MULTICAST;
-	ifp->if_output = ether_output;
 	ifp->if_start = iestart;
 	ifp->if_ioctl = ieioctl;
 	ifp->if_init = ieinit;
-	ifp->if_type = IFT_ETHER;
-	ifp->if_addrlen = 6;
-	ifp->if_hdrlen = 14;
+	ifp->if_snd.ifq_maxlen = IFQ_MAXLEN;
 
 	if (ie->hard_type == IE_EE16)
 		EVENTHANDLER_REGISTER(shutdown_post_sync, ee16_shutdown,
@@ -1124,6 +1121,7 @@ ie_packet_len(int unit, struct ie_softc * ie)
 static __inline int
 ieget(int unit, struct ie_softc *ie, struct mbuf **mp)
 {
+	struct	ether_header eh;
 	struct	mbuf *m, *top, **mymp;
 	int	offset;
 	int	totlen, resid;
@@ -1134,18 +1132,10 @@ ieget(int unit, struct ie_softc *ie, struct mbuf **mp)
 	if (totlen <= 0)
 		return (-1);
 
-	MGETHDR(m, M_DONTWAIT, MT_DATA);
-	if (!m) {
-		ie_drop_packet_buffer(unit, ie);
-		/* XXXX if_ierrors++; */
-		return (-1);
-	}
-
 	/*
 	 * Snarf the Ethernet header.
 	 */
-	bcopy((v_caddr_t) ie->cbuffs[ie->rbhead], mtod(m, caddr_t),
-		sizeof (struct ether_header));
+	bcopy((caddr_t)ie->cbuffs[ie->rbhead], &eh, sizeof(struct ether_header));
 	/* ignore cast-qual warning here */
 
 	/*
@@ -1154,7 +1144,7 @@ ieget(int unit, struct ie_softc *ie, struct mbuf **mp)
 	 * This is only a consideration when FILTER is defined; i.e., when
 	 * we are either running BPF or doing multicasting.
 	 */
-	if (!check_eh(ie, mtod(m, struct ether_header *))) {
+	if (!check_eh(ie, &eh)) {
 		m_free(m);
 		ie_drop_packet_buffer(unit, ie);
 		ie->arpcom.ac_if.if_ierrors--;	/* just this case, it's not an
@@ -1163,16 +1153,19 @@ ieget(int unit, struct ie_softc *ie, struct mbuf **mp)
 		return (-1);
 	}
 
-	/* XXX way too complicated, check carefully XXXX */
+	MGETHDR(m, M_DONTWAIT, MT_DATA);
+	if (!m) {
+		ie_drop_packet_buffer(unit, ie);
+		/* XXXX if_ierrors++; */
+		return (-1);
+	}
 
 	*mp = m;
 	m->m_pkthdr.rcvif = &ie->arpcom.ac_if;
-	/* deduct header just copied; m_len must reflect space avail below */
-	m->m_len = MHLEN - sizeof (struct ether_header);
-	m->m_pkthdr.len = totlen;
+	m->m_len = MHLEN;
+	resid = m->m_pkthdr.len = totlen;
+	top = 0;
 
-	resid = totlen - sizeof (struct ether_header);	/* remaining data */
-	top = NULL;
 	mymp = &top;
 
 	/*
@@ -1213,10 +1206,11 @@ ieget(int unit, struct ie_softc *ie, struct mbuf **mp)
 		mymp = &m->m_next;
 	} while (resid > 0);
 
-	resid = totlen - sizeof (struct ether_header);	/* remaining data */
-	offset = sizeof (struct ether_header);		/* packet offset */
+	resid = totlen;					/* remaining data */
+	offset = 0;					/* packet offset */
+	thismboff = 0;					/* offset in m */
+
 	m = top;					/* current mbuf */
-	thismboff = sizeof (struct ether_header);	/* offset in m */
 	head = ie->rbhead;				/* current rx buffer */
 
 	/*
