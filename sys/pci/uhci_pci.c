@@ -1,4 +1,4 @@
-/*	FreeBSD $Id: uhci_pci.c,v 1.9 1999/01/22 00:36:46 n_hibma Exp $ */
+/*	FreeBSD $Id: uhci_pci.c,v 1.1 1999/02/18 21:42:19 n_hibma Exp $ */
 
 /*
  * Copyright (c) 1998 The NetBSD Foundation, Inc.
@@ -128,7 +128,7 @@ uhci_pci_probe(pcici_t config_id, pcidi_t device_id)
 static void
 uhci_pci_attach(pcici_t config_id, int unit)
 {
-	int id;
+	int id, legsup;
 	char *typestr;
 	usbd_status r;
 	uhci_softc_t *sc = NULL;
@@ -165,9 +165,8 @@ uhci_pci_attach(pcici_t config_id, int unit)
 			typestr = "unknown";
 			break;
 		}
-		printf("usb%d: USB version %s, interrupting at %d\n", unit,
-			typestr,
-			(int)pci_conf_read(config_id,PCI_INTERRUPT_REG) & 0xff);
+		printf("usb%d: USB version %s, chip rev. %d\n", unit, typestr,
+			(int) pci_conf_read(config_id, PCIR_REVID) & 0xff);
 	}
 
 	/* Figure out vendor for root hub descriptor. */
@@ -193,9 +192,7 @@ uhci_pci_attach(pcici_t config_id, int unit)
 	 */
 	sc->sc_bus.bdev = device_add_child(root_bus, "usb", unit, sc);
 	if (!sc->sc_bus.bdev) {
-		printf("%s%d: could not add USB device to root bus\n",
-			device_get_name(sc->sc_bus.bdev),
-			device_get_unit(sc->sc_bus.bdev));
+		printf("usb%d: could not add USB device to root bus\n", unit);
 		return;
 	}
 
@@ -212,6 +209,18 @@ uhci_pci_attach(pcici_t config_id, int unit)
 	default:
 		printf("(New UHCI DeviceId=0x%08x)\n", id);
 		device_set_desc(sc->sc_bus.bdev, uhci_device_generic);
+	}
+
+	legsup = pci_conf_read(config_id, PCI_LEGSUP);
+	if ( ! (legsup & PCI_LEGSUP_USBPIRQDEN) ) {
+#if ! (defined(USBVERBOSE) || defined(USB_DEBUG))
+		if (bootverbose)
+#endif
+			printf("%s%d: PIRQD enable not set\n",
+				device_get_name(sc->sc_bus.bdev),
+				device_get_unit(sc->sc_bus.bdev));
+		legsup |= PCI_LEGSUP_USBPIRQDEN;
+		pci_conf_write(config_id, PCI_LEGSUP, legsup);
 	}
 
 	r = uhci_init(sc);
