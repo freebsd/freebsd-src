@@ -915,8 +915,6 @@ ndis_convert_res(arg)
 
 #if __FreeBSD_version < 600022
 	SLIST_INIT(&brl_rev);
-#else
-	STAILQ_INIT(&brl_rev);
 #endif
 
 	rl = malloc(sizeof(ndis_resource_list) +
@@ -963,7 +961,7 @@ ndis_convert_res(arg)
 
 		SLIST_FOREACH(brle, &brl_rev, link) {
 #else
-		STAILQ_FOREACH(brle, &brl, link) {
+		STAILQ_FOREACH(brle, brl, link) {
 #endif
 			switch (brle->type) {
 			case SYS_RES_IOPORT:
@@ -1003,9 +1001,9 @@ ndis_convert_res(arg)
 
 	block->nmb_rlist = rl;
 
+#if __FreeBSD_version < 600022
 bad:
 
-#if __FreeBSD_version < 600022
 	while (!SLIST_EMPTY(&brl_rev)) {
 		n = SLIST_FIRST(&brl_rev);
 		SLIST_REMOVE_HEAD(&brl_rev, link);
