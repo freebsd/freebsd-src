@@ -55,8 +55,9 @@ __FBSDID("$FreeBSD$");
  *	returning an error from the server function implies a fatal error
  *	such as a badly constructed rpc request that should be dropped without
  *	a reply.
- *	For Version 3, nfsm_reply() does not return for the error case, since
- *	most version 3 rpcs return more than the status for error cases.
+ *	For nfsm_reply(), the case where error == EBADRPC is treated
+ *	specially; after constructing a reply, it does an immediate
+ *	`goto nfsmout' to avoid getting any V3 post-op status appended.
  *
  * Other notes:
  *	Warning: always pay careful attention to resource cleanup on return
@@ -416,13 +417,12 @@ out:
 	nfsm_reply(NFSX_WCCORFATTR(v3));
 	if (v3) {
 		nfsm_srvwcc_data(preat_ret, &preat, postat_ret, vap);
-		error = 0;
-		goto nfsmout;
-	} else {
-		/* v2 non-error case (see nfsm_reply). */
+	} else if (!error) {
+		/* v2 non-error case. */
 		fp = nfsm_build(struct nfs_fattr *, NFSX_V2FATTR);
 		nfsm_srvfillattr(vap, fp);
 	}
+	error = 0;
 	/* fall through */
 
 nfsmout:
@@ -703,12 +703,11 @@ out:
 	vput(vp);
 	vp = NULL;
 	nfsm_reply(NFSX_POSTOPATTR(v3) + NFSX_UNSIGNED);
-	if (v3) {
+	if (v3)
 		nfsm_srvpostop_attr(getret, &attr);
-		if (error) {
-			error = 0;
-			goto nfsmout;
-		}
+	if (error) {
+		error = 0;
+		goto nfsmout;
 	}
 	if (uiop->uio_resid > 0) {
 		len -= uiop->uio_resid;
@@ -1175,11 +1174,12 @@ ereply:
 			nfsver = boottime;
 		*tl++ = txdr_unsigned(nfsver.tv_sec);
 		*tl = txdr_unsigned(nfsver.tv_usec);
-	} else {
-		/* v2, non-error case (see nfsm_reply). */
+	} else if (!error) {
+		/* v2 non-error case. */
 		fp = nfsm_build(struct nfs_fattr *, NFSX_V2FATTR);
 		nfsm_srvfillattr(vap, fp);
 	}
+	error = 0;
 nfsmout:
 	if (vp)
 		vput(vp);
@@ -1730,12 +1730,12 @@ nfsrv_create(struct nfsrv_descript *nfsd, struct nfssvc_sock *slp,
 						td);
 				}
 			}
-		} else if (
-			vap->va_type == VCHR ||
-			vap->va_type == VBLK ||
-			vap->va_type == VFIFO
-		) {
+		} else if (vap->va_type == VCHR || vap->va_type == VBLK ||
+		    vap->va_type == VFIFO) {
 			/*
+			 * NFSv2-specific code for creating device nodes
+			 * and fifos.
+			 *
 			 * Handle SysV FIFO node special cases.  All other
 			 * devices require super user to access.
 			 */
@@ -1743,13 +1743,13 @@ nfsrv_create(struct nfsrv_descript *nfsd, struct nfssvc_sock *slp,
 				vap->va_type = VFIFO;
                         if (vap->va_type != VFIFO &&
                             (error = suser_xxx(cred, 0, 0))) {
-				goto nfsmreply0;
+				goto ereply;
                         }
 			vap->va_rdev = rdev;
 			error = VOP_MKNOD(nd.ni_dvp, &nd.ni_vp, &nd.ni_cnd, vap);
 			if (error) {
 				NDFREE(&nd, NDF_ONLY_PNBUF);
-				goto nfsmreply0;
+				goto ereply;
 			}
 			vput(nd.ni_vp);
 			nd.ni_vp = NULL;
@@ -1773,15 +1773,13 @@ nfsrv_create(struct nfsrv_descript *nfsd, struct nfssvc_sock *slp,
 
 			error = lookup(&nd);
 			nd.ni_dvp = NULL;
+			if (error)
+				goto ereply;
 
-			if (error != 0) {
-				nfsm_reply(0);
-				/* fall through on certain errors */
-			}
 			nfsrv_object_create(nd.ni_vp);
 			if (nd.ni_cnd.cn_flags & ISSYMLINK) {
 				error = EINVAL;
-				goto nfsmreply0;
+				goto ereply;
 			}
 		} else {
 			error = ENXIO;
@@ -1823,17 +1821,14 @@ ereply:
 			nfsm_srvpostop_attr(0, vap);
 		}
 		nfsm_srvwcc_data(dirfor_ret, &dirfor, diraft_ret, &diraft);
-		error = 0;
-	} else {
-		/* v2 non-error case (see nfsm_reply). */
+	} else if (!error) {
+		/* v2 non-error case. */
 		nfsm_srvfhtom(fhp, v3);
 		fp = nfsm_build(struct nfs_fattr *, NFSX_V2FATTR);
 		nfsm_srvfillattr(vap, fp);
 	}
-	goto nfsmout;
+	error = 0;
 
-nfsmreply0:
-	nfsm_reply(0);
 nfsmout:
 	if (nd.ni_startdir) {
 		vrele(nd.ni_startdir);
@@ -2784,8 +2779,8 @@ out:
 			nfsm_srvpostop_attr(0, vap);
 		}
 		nfsm_srvwcc_data(dirfor_ret, &dirfor, diraft_ret, &diraft);
-	} else {
-		/* v2, non-error case (see nfsm_reply) */
+	} else if (!error) {
+		/* v2 non-error case. */
 		nfsm_srvfhtom(fhp, v3);
 		fp = nfsm_build(struct nfs_fattr *, NFSX_V2FATTR);
 		nfsm_srvfillattr(vap, fp);
