@@ -1,5 +1,5 @@
 <HTML>
-<! $Id: bugs.html,v 1.1 1998/09/26 17:23:01 abial Exp $ >
+<! $Id: bugs.html,v 1.2 1998/09/26 17:39:21 abial Exp $ >
 <HEAD>
    <TITLE>History and Bug fixes</TITLE>
 </HEAD>
@@ -16,6 +16,13 @@ the list before reporting a new one.</p>
 
 <h3>PicoBSD 0.41</h3>
 <ul>
+<li>
+	1998.10.12: Two small buglets has been discovered, and fixed in CVS
+	copy of the sources. 'kget' utility was dumping core due to unexpected
+	change in behaviour of dumpnlist. 'ns' utility poorly handled other
+	netmasks than class C network.
+	<p>I prepared new tar archive containing these corrected sources.</p>
+</li>
 <li>
 	1998.09.26: Yes, this took more than just "a few days"... :-(. This is
 	mainly a bugfix release of 0.4 - almost no new features were added,
@@ -102,7 +109,7 @@ the list before reporting a new one.</p>
 </ul>
 
 <h5>Last modified:
-Mon Sep  7 23:32:13 PDT 1998
+Mon Oct 12 00:51:45 PDT 1998
 </h5>
 
 <HR align="center" width="100%">
