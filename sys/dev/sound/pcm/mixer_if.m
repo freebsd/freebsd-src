@@ -64,6 +64,3 @@ METHOD u_int32_t setrecsrc {
 	struct snd_mixer *m;
 	u_int32_t src
 };
-
-
-
