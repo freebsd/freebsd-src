@@ -45,7 +45,6 @@ __FBSDID("$FreeBSD$");
 #include <sys/selinfo.h>
 #include <sys/uio.h>
 #include <sys/unistd.h>
-#include <sys/vnode.h>
 
 #include <machine/bus.h>
 #include <machine/cpu.h>
@@ -105,7 +104,7 @@ random_read(struct cdev *dev __unused, struct uio *uio, int flag)
 
 	/* Blocking logic */
 	while (!random_systat.seeded && !error) {
-		if (flag & IO_NDELAY)
+		if (flag & O_NONBLOCK)
 			error = EWOULDBLOCK;
 		else {
 			printf("Entropy device is blocking.\n");
