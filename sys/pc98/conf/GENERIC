@@ -12,7 +12,7 @@
 # latest information.
 #
 # An exhaustive list of options and more detailed explanations of the
-# device lines is also present in the ./NOTES configuration file. If you are
+# device lines is also present in the NOTES configuration file. If you are
 # in doubt as to the purpose or necessity of a line, check first in NOTES.
 #
 # $FreeBSD$
@@ -26,7 +26,7 @@ ident		GENERIC
 maxusers	32
 
 #To statically compile in device wiring instead of /boot/device.hints
-#hints		"GENERIC.hints"
+#hints		"GENERIC.hints"		#Default places to look for devices.
 
 #makeoptions	DEBUG=-g		#Build kernel with gdb(1) debug symbols
 
@@ -38,13 +38,13 @@ options 	FFS			#Berkeley Fast Filesystem
 options 	FFS_ROOT		#FFS usable as root device [keep this!]
 options 	SOFTUPDATES		#Enable FFS soft updates support
 options 	MFS			#Memory Filesystem
-#options 	DEVFS			#Device Filesystem
 options 	MD_ROOT			#MD is a potential root device
 options 	NFS			#Network Filesystem
 options 	NFS_ROOT		#NFS usable as root device, NFS required
 options 	MSDOSFS			#MSDOS Filesystem
 options 	CD9660			#ISO 9660 Filesystem
 options 	CD9660_ROOT		#CD-ROM usable as root, CD9660 required
+#options 	DEVFS			#Device Filesystem
 options 	PROCFS			#Process filesystem
 options 	COMPAT_43		#Compatible with BSD 4.3 [KEEP THIS!]
 options 	SCSI_DELAY=15000	#Delay (in ms) before probing SCSI
@@ -60,12 +60,11 @@ options 	SYSVMSG			#SYSV-style message queues
 options 	SYSVSEM			#SYSV-style semaphores
 options 	P1003_1B		#Posix P1003_1B real-time extensions
 options 	_KPOSIX_PRIORITY_SCHEDULING
-#options 	KBD_INSTALL_CDEV	# install a CDEV entry in /dev
+options 	KBD_INSTALL_CDEV	# install a CDEV entry in /dev
 
 # To make an SMP kernel, the next two are needed
 #options 	SMP			# Symmetric MultiProcessor Kernel
 #options 	APIC_IO			# Symmetric (APIC) I/O
-# Optionally these may need tweaked, (defaults shown):
 
 device		isa
 device		pci
@@ -83,7 +82,7 @@ device		wcd		#IDE CD-ROM
 #device		wst		#IDE Tape (e.g. Travan)
 
 # SCSI Controllers
-device		adv
+device		adv		# Advansys scsi adapters
 device		ahc		# AHA2940 and onboard AIC7xxx devices
 device		amd		# AMD 53C974 (Teckram DC-390(T))
 device		isp		# Qlogic family
@@ -94,8 +93,7 @@ device		sym		# NCR/Symbios Logic (newer chipsets + those of `ncr')
 options 	BS_TARG_SAFEMODE
 device		bs	1
 
-# PC-9801-100
-device		aic
+device		aic		# PC-9801-100
 
 device		ncv		# NCR 53C500
 device		nsp		# Workbit Ninja SCSI-3
@@ -108,15 +106,10 @@ device		sa		# Sequential Access (tape etc)
 device		cd		# CD
 device		pass		# Passthrough device (direct SCSI access)
 
-# RAID controllers
-#device		ida		# Compaq Smart RAID
-#device		amr		# AMI MegaRAID
-#device		mlx		# Mylex DAC960 family
-
 # keyboard driver
-device		pckbd	1
+device		pckbd	1	# at keyboard
 
-device		gdc
+device		gdc		# GDC screen
 
 # splash screen/screen saver
 device		splash
@@ -129,17 +122,24 @@ device		npx
 
 # Power management support (see NOTES for more options)
 #device		apm
+# Add suspend/resume support for the i8254.
+#device		pmtimer
+
+# Audio support
+device		pcm		# Windows Sound System
+#device		sbc		# Sound Blaster 16
 
 # PCCARD (PCMCIA) support
-device		card
-device		pcic
+device		card		# pccard bus
+device		pcic		# PCMCIA bridge
 
 # Serial (COM) ports
 options 	COM_MULTIPORT
 #options 	COM_ESP		# ESP98
-device		sio
+device		sio		# 8250, 16[45]50, 8251 based serial ports
 
 device		mse
+#device		joy
 
 # NEW Parallel port
 device		ppc
@@ -151,7 +151,6 @@ device		ppi		# Parallel port interface device
 # OLD Parallel port
 # Please stay olpt driver after ppc driver
 device		olpt	1
-
 
 # PCI Ethernet NICs.
 device		de		# DEC/Intel DC21x4x (``Tulip'')
@@ -169,48 +168,26 @@ device		sf		# Adaptec AIC-6915 (``Starfire'')
 device		sis		# Silicon Integrated Systems SiS 900/SiS 7016
 device		ste		# Sundance ST201 (D-Link DFE-550TX)
 device		tl		# Texas Instruments ThunderLAN
-device		tx		# SMC 9432TX (83c170 ``EPIC'')
+device		tx		# SMC EtherPower II (83c170 ``EPIC'')
 device		vr		# VIA Rhine, Rhine II
 device		wb		# Winbond W89C840F
 device		xl		# 3Com 3c90x (``Boomerang'', ``Cyclone'')
 
-# ISA Ethernet NICs.
-
-# DP8390 NIC
-device		ed
-
-# MB86960A NIC
-options 	FE_8BIT_SUPPORT		# LAC-98 support
-device		fe
-
-device		ep
+# ISA Ethernet NICs.  pccard nics included.
+device		ed		# NE[12]000, SMC Ultra, 3c503, DS8390 cards
+device		ep		# Etherlink III based cards
+options 	FE_8BIT_SUPPORT	# LAC-98 support
+device		fe		# Fujitsu MB8696x based cards
 #device		lnc
-device		sn
+device		sn		# SMC's 9000 series of ethernet chips
 device		snc
+device		xe		# Xircom pccard ethernet
 
-# WaveLAN/IEEE 802.11 wireless NICs. Note: the WaveLAN/IEEE really
-# exists only as a PCMCIA device, so there is no ISA attatement needed
-# and resources will always be dynamically assigned by the pccard code.
-device		wi
-# Aironet 4500/4800 802.11 wireless NICs. Note: the declaration below will
-# work for PCMCIA and PCI cards, as well as ISA cards set to ISA PnP
-# mode (the factory default). If you set the switches on your ISA
-# card for a manually chosen I/O address and IRQ, you must specify
-# those paremeters here.
-device		an
-# BayStack 660 and others
-device		awi
-# Xircom pccard ethernet
-device		xe
-
-#device		joy
-
-# Windows Sound System
-#device		pcm
-#
-# Sound Blaster 16 (This device need the bridge driver.)
-#device		pcm
-#device		sbc
+# Wireless NIC cards
+device		an		# Aironet 4500/4800 802.11 wireless NICs.
+device		awi		# BayStack 660 and others
+device		wi		# WaveLAN/IEEE 802.11 wireless NICs.
+#device		wl		# Older non 802.11 Wavelan wireless NIC.
 
 # Pseudo devices - the number indicates how many units to allocated.
 device		random		# Entropy device
