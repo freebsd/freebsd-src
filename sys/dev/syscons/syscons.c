@@ -25,7 +25,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *	$Id: syscons.c,v 1.305 1999/05/31 11:25:13 phk Exp $
+ *	$Id: syscons.c,v 1.307 1999/06/22 14:13:31 yokota Exp $
  */
 
 #include "sc.h"
@@ -2610,8 +2610,9 @@ scan_esc(scr_stat *scp, u_char c)
 	    if (n > scp->xsize - scp->xpos)
 		n = scp->xsize - scp->xpos;
 	    count = scp->xsize - (scp->xpos + n);
-	    sc_vtb_delete(&scp->vtb, scp->cursor_pos, n,
-			  sc->scr_map[0x20], scp->term.cur_color);
+	    sc_vtb_move(&scp->vtb, scp->cursor_pos + n, scp->cursor_pos, count);
+	    sc_vtb_erase(&scp->vtb, scp->cursor_pos + count, n,
+			 sc->scr_map[0x20], scp->term.cur_color);
 	    mark_for_update(scp, scp->cursor_pos);
 	    mark_for_update(scp, scp->cursor_pos + n + count - 1);
 	    break;
@@ -2621,8 +2622,9 @@ scan_esc(scr_stat *scp, u_char c)
 	    if (n > scp->xsize - scp->xpos)
 		n = scp->xsize - scp->xpos;
 	    count = scp->xsize - (scp->xpos + n);
-	    sc_vtb_ins(&scp->vtb, scp->cursor_pos, n,
-		       sc->scr_map[0x20], scp->term.cur_color);
+	    sc_vtb_move(&scp->vtb, scp->cursor_pos, scp->cursor_pos + n, count);
+	    sc_vtb_erase(&scp->vtb, scp->cursor_pos, n,
+			 sc->scr_map[0x20], scp->term.cur_color);
 	    mark_for_update(scp, scp->cursor_pos);
 	    mark_for_update(scp, scp->cursor_pos + n + count - 1);
 	    break;
