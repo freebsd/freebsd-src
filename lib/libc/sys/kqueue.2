@@ -100,7 +100,7 @@ determines the size of
 If
 .Fa timeout
 is a non-NULL pointer, it specifies a maximum interval to wait
-for an event.  If
+for an event, which will be interpreted as a struct timespec.  If
 .Fa timeout
 is a NULL pointer,
 .Fn kevent
@@ -400,6 +400,8 @@ A signal was delivered before the timeout expired and before any
 events were placed on the kqueue for return.
 .It Bq Er EINVAL
 The specified time limit or filter is invalid.
+.It Bq Er ENOENT
+The event could not be found to be modified or deleted.
 .It Bq Er ENOMEM
 No memory was available to register the event.
 .It Bq Er ESRCH
