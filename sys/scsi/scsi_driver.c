@@ -35,7 +35,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $Id: scsi_driver.c,v 1.3 1995/03/04 20:50:51 dufault Exp $
+ * $Id: scsi_driver.c,v 1.4 1995/03/05 20:01:44 dufault Exp $
  *
  */
 #include <sys/types.h>
@@ -59,6 +59,12 @@ scsi_goaway(struct kern_devconf *kdc, int force) /* XXX should do a lot more */
 	return 0;
 }
 
+/* scsi_device_attach: Attach a SCSI device.  This routine will
+ * print out the device address, what it is, then call the type
+ * attach function and when that returns print a newline.  If the
+ * type attach will make LOT's of noise it should print a leading
+ * newline and then the address using sc_print_addr.  See "sd.c".
+ */
 int scsi_device_attach(struct scsi_link *sc_link)
 {
 	errval errcode;
@@ -78,6 +84,8 @@ int scsi_device_attach(struct scsi_link *sc_link)
 	makedev(major(dev), sc_link->dev_unit) );
 
 	errcode = (device->attach) ? (*(device->attach))(sc_link) : 0;
+
+	printf("\n");
 
 	if (errcode == 0)
 		sc_link->flags |= device->link_flags;

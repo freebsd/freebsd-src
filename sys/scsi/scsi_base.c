@@ -8,7 +8,7 @@
  * file.
  * 
  * Written by Julian Elischer (julian@dialix.oz.au)
- *      $Id: scsi_base.c,v 1.20 1995/02/15 07:44:07 davidg Exp $
+ *      $Id: scsi_base.c,v 1.21 1995/03/04 20:50:49 dufault Exp $
  */
 
 #define SPLSD splbio
@@ -656,6 +656,7 @@ void scsi_sense_print(xs)
 	u_int32 key;
 	u_int32 info;
 	errval  errcode;
+	int asc, ascq;
 
 	/* This sense key text now matches what is in the SCSI spec
 	 * (Yes, even the capitals)
@@ -701,20 +702,20 @@ void scsi_sense_print(xs)
 			case 0x7:	/* DATA PROTECT */
 				break;
 			case 0x8:	/* BLANK CHECK */
-				printf(" requested size: %ld (decimal)",
+				printf(" req sz: %ld (decimal)",
 				    info);
 				break;
 			default:
 				if (info)
-					printf(" info:%08lx", info);
+					printf(" info:%lx", info);
 			}
 		}
 		else if (info)
-			printf(" info(inval):%08lx", info);
+			printf(" info?:%lx", info);
 
 		if (ext->extra_len >= 4) {
 			if (memcmp(ext->cmd_spec_info, "\0\0\0\0", 4)) {
-				printf(" csi:%02x,%02x,%02x,%02x",
+				printf(" csi:%x,%x,%x,%x",
 				ext->cmd_spec_info[0],
 				ext->cmd_spec_info[1],
 				ext->cmd_spec_info[2],
@@ -722,21 +723,19 @@ void scsi_sense_print(xs)
 			}
 		}
 
-		if (ext->extra_len >= 5 && ext->add_sense_code) {
-			printf(" asc:%02x", ext->add_sense_code);
-		}
+		asc = (ext->extra_len >= 5) ? ext->add_sense_code : 0;
+		ascq = (ext->extra_len >= 6) ? ext->add_sense_code_qual : 0;
 
-		if (ext->extra_len >= 6 && ext->add_sense_code_qual) {
-			printf(" ascq:%02x", ext->add_sense_code_qual);
-		}
-
+		if (asc || ascq)
+			printf(" asc:%x,%x %s", asc, ascq, scsi_sense_desc(asc, ascq));
+			
 		if (ext->extra_len >= 7 && ext->fru) {
-			printf(" fru:%02x", ext->fru);
+			printf(" fru:%x", ext->fru);
 		}
 
 		if (ext->extra_len >= 10 && 
 		(ext->sense_key_spec_1 & SSD_SCS_VALID)) {
-			printf(" sks:%02x,%04x", ext->sense_key_spec_1,
+			printf(" sks:%x,%x", ext->sense_key_spec_1,
 			(ext->sense_key_spec_2 |
 			ext->sense_key_spec_3));
 		}

@@ -14,7 +14,7 @@
  *
  * Ported to run under 386BSD by Julian Elischer (julian@dialix.oz.au) Sept 1992
  *
- *      $Id: sd.c,v 1.52 1995/03/04 20:51:03 dufault Exp $
+ *      $Id: sd.c,v 1.53 1995/03/06 05:36:59 davidg Exp $
  */
 
 #define SPLSD splbio
@@ -185,6 +185,9 @@ sdattach(struct scsi_link *sc_link)
 
 	dp = &(sd->params);
 
+	printf("\n");
+	sc_print_addr(sc_link);
+
 	if (sc_link->adapter->adapter_info) {
 		sd->ad_info = ((*(sc_link->adapter->adapter_info)) (sc_link->adapter_unit));
 		sd->cmdscount = sd->ad_info & AD_INF_MAX_CMDS;
@@ -208,7 +211,7 @@ sdattach(struct scsi_link *sc_link)
 	 * -- this avoids the division below from falling over
 	 */
 	if(dp->secsiz == 0) dp->secsiz = 512;
-	printf("%ldMB (%ld total sec), %d cyl, %d head, %d sec, bytes/sec %d\n",
+	printf("%ldMB (%ld sectors), %d C %d H %d S/T %d B/S",
 	    dp->disksize / ((1024L * 1024L) / dp->secsiz),
 	    dp->disksize,
 	    dp->cyls,
