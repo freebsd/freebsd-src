@@ -385,6 +385,22 @@ g_bde_contribute(struct bio *bp, off_t bytes, int error)
 }
 
 /*
+ * This is the common case "we're done with this work package" function
+ */
+
+static void
+g_bde_work_done(struct g_bde_work *wp, int error)
+{
+
+	g_bde_contribute(wp->bp, wp->length, error);
+	if (wp->sp != NULL)
+		g_bde_delete_sector(wp->softc, wp->sp);
+	if (wp->ksp != NULL)
+		g_bde_release_keysector(wp);
+	g_bde_delete_work(wp);
+}
+
+/*
  * A write operation has finished.  When we have all expected cows in the
  * barn close the door and call it a day.
  */
@@ -413,9 +429,7 @@ g_bde_write_done(struct bio *bp)
 
 	if (wp->bp->bio_cmd == BIO_DELETE) {
 		KASSERT(sp == wp->sp, ("trashed delete op"));
-		g_bde_contribute(wp->bp, wp->length, wp->error);
-		g_bde_delete_sector(sc, sp);
-		g_bde_delete_work(wp);
+		g_bde_work_done(wp, wp->error);
 		mtx_unlock(&sc->worklist_mutex);
 		return;
 	}
@@ -428,11 +442,8 @@ g_bde_write_done(struct bio *bp)
 	} else {
 		sp->state = VALID;
 	}
-	if (wp->sp == NULL && wp->ksp != NULL && wp->ksp->state == VALID) {
-		g_bde_contribute(wp->bp, wp->length, wp->error);
-		g_bde_release_keysector(wp);
-		g_bde_delete_work(wp);
-	}
+	if (wp->sp == NULL && wp->ksp != NULL && wp->ksp->state == VALID)
+		g_bde_work_done(wp, wp->error);
 	mtx_unlock(&sc->worklist_mutex);
 	return;
 }
@@ -536,22 +547,22 @@ void
 g_bde_worker(void *arg)
 {
 	struct g_bde_softc *sc;
-	struct g_bde_work *wp;
+	struct g_bde_work *wp, *twp;
 	struct g_geom *gp;
-	int busy, error;
+	int restart, error;
 
 	gp = arg;
 	sc = gp->softc;
 
 	mtx_lock(&sc->worklist_mutex);
 	for (;;) {
-		busy = 0;
+		restart = 0;
 		g_trace(G_T_TOPOLOGY, "g_bde_worker scan");
-		TAILQ_FOREACH(wp, &sc->worklist, list) {
+		TAILQ_FOREACH_SAFE(wp, &sc->worklist, list, twp) {
 			KASSERT(wp != NULL, ("NULL wp"));
 			KASSERT(wp->softc != NULL, ("NULL wp->softc"));
 			if (wp->state != WAIT)
-				continue;		/* Not interesting here */
+				continue;	/* Not interesting here */
 
 			KASSERT(wp->bp != NULL, ("NULL wp->bp"));
 			KASSERT(wp->sp != NULL, ("NULL wp->sp"));
@@ -562,60 +573,52 @@ g_bde_worker(void *arg)
 				if (wp->ksp->state == IO)
 					continue;
 				KASSERT(wp->ksp->state == VALID,
-				    ("Illegal sector state (JUNK ?)"));
+				    ("Illegal sector state (%d)",
+				    wp->ksp->state));
 			}
 
-			if (wp->bp->bio_cmd == BIO_READ &&
-			     wp->sp->state == IO)
+			if (wp->bp->bio_cmd == BIO_READ && wp->sp->state == IO)
 				continue;
 
 			if (wp->ksp != NULL && wp->ksp->error != 0) {
-				g_bde_contribute(wp->bp, wp->length,
-				    wp->ksp->error);
-				g_bde_delete_sector(sc, wp->sp);
-				g_bde_release_keysector(wp);
-				g_bde_delete_work(wp);
-				busy++;
-				break;
+				g_bde_work_done(wp, wp->ksp->error);
+				continue;
 			} 
 			switch(wp->bp->bio_cmd) {
 			case BIO_READ:
 				if (wp->ksp == NULL) {
 					KASSERT(wp->error != 0,
 					    ("BIO_READ, no ksp and no error"));
-					g_bde_contribute(wp->bp, wp->length,
-						    wp->error);
-				} else {
-					if (wp->sp->error == 0) {
-						mtx_unlock(&sc->worklist_mutex);
-						g_bde_crypt_read(wp);
-						mtx_lock(&sc->worklist_mutex);
-					}
-					g_bde_contribute(wp->bp, wp->length,
-						    wp->sp->error);
+					g_bde_work_done(wp, wp->error);
+					break;
 				}
-				g_bde_delete_sector(sc, wp->sp);
-				if (wp->ksp != NULL)
-					g_bde_release_keysector(wp);
-				g_bde_delete_work(wp);
+				if (wp->sp->error != 0) {
+					g_bde_work_done(wp, wp->sp->error);
+					break;
+				}
+				mtx_unlock(&sc->worklist_mutex);
+				g_bde_crypt_read(wp);
+				mtx_lock(&sc->worklist_mutex);
+				restart++;
+				g_bde_work_done(wp, wp->sp->error);
 				break;
 			case BIO_WRITE:
 				wp->state = FINISH;
-				KASSERT(wp->sp->owner == wp, ("Write not owner sp"));
-				KASSERT(wp->ksp->owner == wp, ("Write not owner ksp"));
+				KASSERT(wp->sp->owner == wp,
+				    ("Write not owner sp"));
+				KASSERT(wp->ksp->owner == wp,
+				    ("Write not owner ksp"));
 				mtx_unlock(&sc->worklist_mutex);
 				g_bde_crypt_write(wp);
 				mtx_lock(&sc->worklist_mutex);
+				restart++;
 				error = g_bde_start_write(wp->sp);
 				if (error) {
-					g_bde_contribute(wp->bp, wp->length, error);
-					g_bde_release_keysector(wp);
-					g_bde_delete_sector(sc, wp->sp);
-					g_bde_delete_work(wp);
+					g_bde_work_done(wp, error);
 					break;
 				}
 				error = g_bde_start_write(wp->ksp);
-				if (wp->error == 0)
+				if (wp->error != 0)
 					wp->error = error;
 				break;
 			case BIO_DELETE:
@@ -623,13 +626,14 @@ g_bde_worker(void *arg)
 				mtx_unlock(&sc->worklist_mutex);
 				g_bde_crypt_delete(wp);
 				mtx_lock(&sc->worklist_mutex);
+				restart++;
 				g_bde_start_write(wp->sp);
 				break;
 			}
-			busy++;
-			break;
+			if (restart)
+				break;
 		}
-		if (!busy) {
+		if (!restart) {
 			/*
 			 * We don't look for our death-warrant until we are
 			 * idle.  Shouldn't make a difference in practice.
@@ -638,7 +642,7 @@ g_bde_worker(void *arg)
 				break;
 			g_trace(G_T_TOPOLOGY, "g_bde_worker sleep");
 			error = msleep(sc, &sc->worklist_mutex,
-			    PRIBIO, "g_bde", hz);
+			    PRIBIO, "-", hz);
 			if (error == EWOULDBLOCK) {
 				/*
 				 * Loose our skey cache in an orderly fashion.
@@ -678,46 +682,43 @@ g_bde_start2(struct g_bde_work *wp)
 	KASSERT(wp->softc != NULL, ("NULL wp->softc"));
 	g_trace(G_T_TOPOLOGY, "g_bde_start2(%p)", wp);
 	sc = wp->softc;
-	if (wp->bp->bio_cmd == BIO_READ) {
+	switch (wp->bp->bio_cmd) {
+	case BIO_READ:
 		wp->sp = g_bde_new_sector(wp, 0);
 		if (wp->sp == NULL) {
-			g_bde_contribute(wp->bp, wp->length, ENOMEM);
-			g_bde_delete_work(wp);
+			g_bde_work_done(wp, ENOMEM);
 			return;
 		}
 		wp->sp->size = wp->length;
 		wp->sp->data = wp->data;
 		if (g_bde_start_read(wp->sp) != 0) {
-			g_bde_contribute(wp->bp, wp->length, ENOMEM);
-			g_bde_delete_sector(sc, wp->sp);
-			g_bde_delete_work(wp);
+			g_bde_work_done(wp, ENOMEM);
 			return;
 		}
 		g_bde_read_keysector(sc, wp);
 		if (wp->ksp == NULL)
 			wp->error = ENOMEM;
-	} else if (wp->bp->bio_cmd == BIO_DELETE) {
+		break;
+	case BIO_DELETE:
 		wp->sp = g_bde_new_sector(wp, wp->length);
 		if (wp->sp == NULL) {
-			g_bde_contribute(wp->bp, wp->length, ENOMEM);
-			g_bde_delete_work(wp);
+			g_bde_work_done(wp, ENOMEM);
 			return;
 		}
-	} else if (wp->bp->bio_cmd == BIO_WRITE) {
+		break;
+	case BIO_WRITE:
 		wp->sp = g_bde_new_sector(wp, wp->length);
 		if (wp->sp == NULL) {
-			g_bde_contribute(wp->bp, wp->length, ENOMEM);
-			g_bde_delete_work(wp);
+			g_bde_work_done(wp, ENOMEM);
 			return;
 		}
 		g_bde_read_keysector(sc, wp);
 		if (wp->ksp == NULL) {
-			g_bde_contribute(wp->bp, wp->length, ENOMEM);
-			g_bde_delete_sector(sc, wp->sp);
-			g_bde_delete_work(wp);
+			g_bde_work_done(wp, ENOMEM);
 			return;
 		}
-	} else {
+		break;
+	default:
 		KASSERT(0 == 1, 
 		    ("Wrong bio_cmd %d in g_bde_start2", wp->bp->bio_cmd));
 	}
