@@ -35,7 +35,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: syscons.c,v 1.62 1994/10/02 14:08:57 ache Exp $
+ *	$Id: syscons.c,v 1.63 1994/10/02 17:41:42 phk Exp $
  */
 
 #include "sc.h"
@@ -1458,7 +1458,7 @@ exchange_scr(void)
 	old_scp->crt_base = old_scp->scr_buf;
 	move_crsr(old_scp, old_scp->xpos, old_scp->ypos);
 	cur_console = new_scp;
-	if (old_scp->mode != new_scp->mode)
+	if (old_scp->mode != new_scp->mode || (old_scp->status & UNKNOWN_MODE))
 		set_mode(new_scp);
 	new_scp->crt_base = Crtat;
 	move_crsr(new_scp, new_scp->xpos, new_scp->ypos);
