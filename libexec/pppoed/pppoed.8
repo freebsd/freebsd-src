@@ -51,7 +51,7 @@ by negotiating a session then envoking a
 program.  The negotiation is implemented by the
 .Dq pppoe
 netgraph node.  See
-.Xr ng_pppoe 8
+.Xr ng_pppoe 4
 for details.
 .Pp
 .Nm
@@ -91,7 +91,7 @@ is not given.  The child process will have standard input and standard output
 attached to the same
 .Xr netgraph 4
 data socket
-.Pq see Xr ng_socket 8
+.Pq see Xr ng_socket 4
 when started.
 .Pp
 Upon invocation,
@@ -169,9 +169,9 @@ and the following to
 .Xr NgSetDebug 3 ,
 .Xr netgraph 4 ,
 .Xr syslog.conf 5 ,
-.Xr ng_ether 8 ,
-.Xr ng_pppoe 8 ,
-.Xr ng_socket 8 ,
+.Xr ng_ether 4 ,
+.Xr ng_pppoe 4 ,
+.Xr ng_socket 4 ,
 .Xr ppp 8 ,
 .Xr syslogd 8
 .Sh BUGS

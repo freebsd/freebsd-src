@@ -80,7 +80,7 @@ These functions facilitate user-mode program participation in the kernel
 graph-based networking system, by utilizing the netgraph
 .Em socket
 node type (see
-.Xr ng_socket 8 ) .
+.Xr ng_socket 4 ) .
 .Pp
 .Fn NgMkSockNode
 should be called first, to create a new
@@ -246,7 +246,7 @@ in the kernel configuration
 file, or else the
 .Xr netgraph 4
 and
-.Xr ng_socket 8
+.Xr ng_socket 4
 KLD modules must have been loaded via
 .Xr kldload 8 .
 .Sh DIAGNOSTICS
