@@ -1595,6 +1595,9 @@ swap_pager_isswapped(vm_object_t object, struct swdevt *sp)
 	int i;
 
 	VM_OBJECT_LOCK_ASSERT(object, MA_OWNED);
+	if (object->type != OBJT_SWAP)
+		return (0);
+
 	for (bcount = 0; bcount < object->un_pager.swp.swp_bcount; bcount++) {
 		struct swblock *swap;
 
