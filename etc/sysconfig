@@ -4,7 +4,7 @@
 # This is sysconfig - a file full of useful variables that you can set 
 # to change the default startup behavior of your system.
 #
-#	$Id: sysconfig,v 1.29 1995/12/28 01:24:04 jkh Exp $
+#	$Id: sysconfig,v 1.30 1996/01/05 17:00:27 bde Exp $
 
 ######################### Start Of Local Configuration Section ###########
 
@@ -104,8 +104,13 @@ route_loopback="${hostname} localhost"
 # Set to the host you'd like set as your default router, or NO for none.
 defaultrouter=NO
 
+# This is the routing daemon you want to use.  Possible options are
+# currently NO (for none), `routed' and `gated'.  Also see `routerflags'
+# for startup flags.
+router=routed
+
 # These are the flags you'd like to start the routing daemon with
-routedflags=-q
+routerflags=-q
 
 # timed flags, or NO if you don't want to start the time daemon
 timedflags=NO
