@@ -34,7 +34,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id$
+ *	$Id: args.c,v 1.8 1997/02/22 14:02:41 peter Exp $
  */
 
 #ifndef lint
@@ -101,6 +101,8 @@ jcl(argv)
 	in.dbsz = out.dbsz = 512;
 
 	while ((oper = *++argv) != NULL) {
+		if ((oper = strdup(oper)) == NULL)
+			errx(1, "unable to allocate space for the argument \"%s\"", *argv);
 		if ((arg = strchr(oper, '=')) == NULL)
 			errx(1, "unknown operand %s", oper);
 		*arg++ = '\0';
