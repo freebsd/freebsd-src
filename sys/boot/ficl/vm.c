@@ -176,7 +176,7 @@ STRINGINFO vmGetWord0(FICL_VM *pVM)
     char *pSrc      = vmGetInBuf(pVM);
     char *pEnd      = vmGetInBufEnd(pVM);
     STRINGINFO si;
-    UNS32 count = 0;
+    FICL_UNS count = 0;
     char ch;
 
     pSrc = skipSpace(pSrc, pEnd);
@@ -595,7 +595,7 @@ char *ultoa(FICL_UNS value, char *string, int radix )
 
         while (ud.lo)
         {
-            result = ficlLongDiv(ud, (UNS32)radix);
+            result = ficlLongDiv(ud, (FICL_UNS)radix);
             ud.lo = result.quot;
             *cp++ = digits[result.rem];
         }

@@ -14,9 +14,6 @@
 #include <stdlib.h>
 #else
 #include <stand.h>
-#ifdef __i386__
-#include <machine/cpufunc.h>
-#endif
 #endif
 #include "ficl.h"
 
@@ -80,39 +77,6 @@ void  ficlFree   (void *p)
     free(p);
 }
 
-#ifndef TESTMAIN
-#ifdef __i386__
-/* 
- * outb ( port# c -- )
- * Store a byte to I/O port number port#
- */
-void
-ficlOutb(FICL_VM *pVM)
-{
-	u_char c;
-	u_int32_t port;
-
-	port=stackPopUNS(pVM->pStack);
-	c=(u_char)stackPopINT(pVM->pStack);
-	outb(port,c);
-}
-
-/*
- * inb ( port# -- c )
- * Fetch a byte from I/O port number port#
- */
-void
-ficlInb(FICL_VM *pVM)
-{
-	u_char c;
-	u_int32_t port;
-
-	port=stackPopUNS(pVM->pStack);
-	c=inb(port);
-	stackPushINT(pVM->pStack,c);
-}
-#endif
-#endif
 
 /*
 ** Stub function for dictionary access control - does nothing
