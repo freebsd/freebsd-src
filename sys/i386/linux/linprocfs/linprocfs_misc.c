@@ -1,4 +1,6 @@
 /*
+ * Copyright (c) 2000 Dag-Erling Coïdan Smørgrav
+ * Copyright (c) 1999 Pierre Beyssac
  * Copyright (c) 1993 Jan-Simon Pendry
  * Copyright (c) 1993
  *	The Regents of the University of California.  All rights reserved.
