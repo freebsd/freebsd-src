@@ -40,6 +40,7 @@ static char sccsid[] = "@(#)keylogin.c 1.4 91/03/11 Copyr 1986 Sun Micro";
  * Set secret key on local machine
  */
 #include <stdio.h>
+#include <stdlib.h>
 #include <string.h>
 #include <pwd.h>
 #include <unistd.h>

@@ -53,6 +53,7 @@ static const char rcsid[] =
 #include <errno.h>
 #include <stdio.h>
 #include <stdlib.h>
+#include <string.h>
 #include <pwd.h>
 
 int donice __P((int, int, int));

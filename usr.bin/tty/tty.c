@@ -46,6 +46,7 @@ static const char rcsid[] =
 #endif /* not lint */
 
 #include <stdio.h>
+#include <stdlib.h>
 #include <unistd.h>
 
 static void usage __P((void));
