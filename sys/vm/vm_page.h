@@ -244,6 +244,7 @@ extern struct mtx vm_page_queue_free_mtx;
 #define PG_NOSYNC	0x0400		/* do not collect for syncer */
 #define PG_UNMANAGED	0x0800		/* No PV management for page */
 #define PG_MARKER	0x1000		/* special queue marker page */
+#define	PG_SLAB		0x2000		/* object pointer is actually a slab */
 
 /*
  * Misc constants.
