@@ -44,8 +44,6 @@ _pthread_detach(pthread_t pthread)
 {
 	struct pthread *curthread = _get_curthread();
 	struct pthread *joiner;
-	kse_critical_t crit;
-	int dead;
 	int rval = 0;
 
 	/* Check for invalid calling parameters: */
@@ -56,7 +54,6 @@ _pthread_detach(pthread_t pthread)
 	else if ((rval = _thr_ref_add(curthread, pthread,
 	    /*include dead*/1)) != 0) {
 		/* Return an error: */
-		_thr_leave_cancellation_point(curthread);
 	}
 
 	/* Check if the thread is already detached: */
@@ -91,20 +88,11 @@ _pthread_detach(pthread_t pthread)
 			}
 			joiner = NULL;
 		}
-		dead = (pthread->flags & THR_FLAGS_GC_SAFE) != 0;
 		THR_SCHED_UNLOCK(curthread, pthread);
-
-		if (dead != 0) {
-			crit = _kse_critical_enter();
-			KSE_LOCK_ACQUIRE(curthread->kse, &_thread_list_lock);
-			THR_GCLIST_ADD(pthread);
-			KSE_LOCK_RELEASE(curthread->kse, &_thread_list_lock);
-			_kse_critical_leave(crit);
-		}
 		_thr_ref_delete(curthread, pthread);
 
 		/* See if there is a thread waiting in pthread_join(): */
-		if (joiner != NULL) {
+		if (joiner != NULL && _thr_ref_add(curthread, joiner, 0) == 0) {
 			/* Lock the joiner before fiddling with it. */
 			THR_SCHED_LOCK(curthread, joiner);
 			if (joiner->join_status.thread == pthread) {
@@ -118,6 +106,7 @@ _pthread_detach(pthread_t pthread)
 				_thr_setrunnable_unlocked(joiner);
 			}
 			THR_SCHED_UNLOCK(curthread, joiner);
+			_thr_ref_delete(curthread, joiner);
 		}
 	}
 

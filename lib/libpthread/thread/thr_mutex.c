@@ -325,6 +325,7 @@ mutex_trylock_common(struct pthread *curthread, pthread_mutex_t *mutex)
 			/* Lock the mutex for the running thread: */
 			(*mutex)->m_owner = curthread;
 
+			THR_SCHED_LOCK(curthread, curthread);
 			/* Track number of priority mutexes owned: */
 			curthread->priority_mutex_count++;
 
@@ -335,6 +336,7 @@ mutex_trylock_common(struct pthread *curthread, pthread_mutex_t *mutex)
 			(*mutex)->m_prio = curthread->active_priority;
 			(*mutex)->m_saved_prio =
 			    curthread->inherited_priority;
+			THR_SCHED_UNLOCK(curthread, curthread);
 
 			/* Add to the list of owned mutexes: */
 			MUTEX_ASSERT_NOT_OWNED(*mutex);
@@ -358,6 +360,7 @@ mutex_trylock_common(struct pthread *curthread, pthread_mutex_t *mutex)
 			/* Lock the mutex for the running thread: */
 			(*mutex)->m_owner = curthread;
 
+			THR_SCHED_LOCK(curthread, curthread);
 			/* Track number of priority mutexes owned: */
 			curthread->priority_mutex_count++;
 
@@ -371,7 +374,7 @@ mutex_trylock_common(struct pthread *curthread, pthread_mutex_t *mutex)
 			    curthread->inherited_priority;
 			curthread->inherited_priority =
 			    (*mutex)->m_prio;
-
+			THR_SCHED_UNLOCK(curthread, curthread);
 			/* Add to the list of owned mutexes: */
 			MUTEX_ASSERT_NOT_OWNED(*mutex);
 			TAILQ_INSERT_TAIL(&curthread->mutexq,
@@ -503,6 +506,7 @@ mutex_lock_common(struct pthread *curthread, pthread_mutex_t *m)
 				 * region (holding the mutex lock); we should
 				 * be able to safely set the state.
 				 */
+				THR_LOCK_SWITCH(curthread);
 				THR_SET_STATE(curthread, PS_MUTEX_WAIT);
 
 				/* Unlock the mutex structure: */
@@ -510,6 +514,7 @@ mutex_lock_common(struct pthread *curthread, pthread_mutex_t *m)
 
 				/* Schedule the next thread: */
 				_thr_sched_switch(curthread);
+				THR_UNLOCK_SWITCH(curthread);
 			}
 			break;
 
@@ -520,6 +525,7 @@ mutex_lock_common(struct pthread *curthread, pthread_mutex_t *m)
 				/* Lock the mutex for this thread: */
 				(*m)->m_owner = curthread;
 
+				THR_SCHED_LOCK(curthread, curthread);
 				/* Track number of priority mutexes owned: */
 				curthread->priority_mutex_count++;
 
@@ -529,7 +535,6 @@ mutex_lock_common(struct pthread *curthread, pthread_mutex_t *m)
 				 * Make sure the thread's scheduling lock is
 				 * held while priorities are adjusted.
 				 */
-				THR_SCHED_LOCK(curthread, curthread);
 				(*m)->m_prio = curthread->active_priority;
 				(*m)->m_saved_prio =
 				    curthread->inherited_priority;
@@ -561,17 +566,18 @@ mutex_lock_common(struct pthread *curthread, pthread_mutex_t *m)
 				 * region (holding the mutex lock); we should
 				 * be able to safely set the state.
 				 */
-				THR_SET_STATE(curthread, PS_MUTEX_WAIT);
-
 				if (curthread->active_priority > (*m)->m_prio)
 					/* Adjust priorities: */
 					mutex_priority_adjust(curthread, *m);
 
+				THR_LOCK_SWITCH(curthread);
+				THR_SET_STATE(curthread, PS_MUTEX_WAIT);
 				/* Unlock the mutex structure: */
 				THR_LOCK_RELEASE(curthread, &(*m)->m_lock);
 
 				/* Schedule the next thread: */
 				_thr_sched_switch(curthread);
+				THR_UNLOCK_SWITCH(curthread);
 			}
 			break;
 
@@ -591,6 +597,7 @@ mutex_lock_common(struct pthread *curthread, pthread_mutex_t *m)
 				 */
 				(*m)->m_owner = curthread;
 
+				THR_SCHED_LOCK(curthread, curthread);
 				/* Track number of priority mutexes owned: */
 				curthread->priority_mutex_count++;
 
@@ -601,7 +608,6 @@ mutex_lock_common(struct pthread *curthread, pthread_mutex_t *m)
 				 * scheduling lock is held while priorities
 				 * are adjusted.
 				 */
-				THR_SCHED_LOCK(curthread, curthread);
 				curthread->active_priority = (*m)->m_prio;
 				(*m)->m_saved_prio =
 				    curthread->inherited_priority;
@@ -636,6 +642,8 @@ mutex_lock_common(struct pthread *curthread, pthread_mutex_t *m)
 				 * region (holding the mutex lock); we should
 				 * be able to safely set the state.
 				 */
+
+				THR_LOCK_SWITCH(curthread);
 				THR_SET_STATE(curthread, PS_MUTEX_WAIT);
 
 				/* Unlock the mutex structure: */
@@ -643,7 +651,7 @@ mutex_lock_common(struct pthread *curthread, pthread_mutex_t *m)
 
 				/* Schedule the next thread: */
 				_thr_sched_switch(curthread);
-
+				THR_UNLOCK_SWITCH(curthread);
 				/*
 				 * The threads priority may have changed while
 				 * waiting for the mutex causing a ceiling
@@ -749,9 +757,15 @@ _mutex_cv_unlock(pthread_mutex_t *m)
 int
 _mutex_cv_lock(pthread_mutex_t *m)
 {
+	struct  pthread *curthread;
 	int	ret;
-	if ((ret = _pthread_mutex_lock(m)) == 0)
+
+	curthread = _get_curthread();
+	if ((ret = _pthread_mutex_lock(m)) == 0) {
+		THR_LOCK_ACQUIRE(curthread, &(*m)->m_lock);
 		(*m)->m_refcount--;
+		THR_LOCK_RELEASE(curthread, &(*m)->m_lock);
+	}
 	return (ret);
 }
 
@@ -807,6 +821,8 @@ mutex_self_lock(struct pthread *curthread, pthread_mutex_t m)
 		 * What SS2 define as a 'normal' mutex.  Intentionally
 		 * deadlock on attempts to get a lock you already own.
 		 */
+
+		THR_LOCK_SWITCH(curthread);
 		THR_SET_STATE(curthread, PS_DEADLOCK);
 
 		/* Unlock the mutex structure: */
@@ -814,6 +830,7 @@ mutex_self_lock(struct pthread *curthread, pthread_mutex_t m)
 
 		/* Schedule the next thread: */
 		_thr_sched_switch(curthread);
+		THR_UNLOCK_SWITCH(curthread);
 		break;
 
 	case PTHREAD_MUTEX_RECURSIVE:
@@ -917,12 +934,12 @@ mutex_unlock_common(pthread_mutex_t *m, int add_reference)
 				curthread->active_priority =
 				    MAX(curthread->inherited_priority,
 				    curthread->base_priority);
-				THR_SCHED_UNLOCK(curthread, curthread);
 
 				/*
 				 * This thread now owns one less priority mutex.
 				 */
 				curthread->priority_mutex_count--;
+				THR_SCHED_UNLOCK(curthread, curthread);
 
 				/* Remove the mutex from the threads queue. */
 				MUTEX_ASSERT_IS_OWNED(*m);
@@ -974,12 +991,12 @@ mutex_unlock_common(pthread_mutex_t *m, int add_reference)
 				curthread->active_priority =
 				    MAX(curthread->inherited_priority,
 				    curthread->base_priority);
-				THR_SCHED_UNLOCK(curthread, curthread);
 
 				/*
 				 * This thread now owns one less priority mutex.
 				 */
 				curthread->priority_mutex_count--;
+				THR_SCHED_UNLOCK(curthread, curthread);
 
 				/* Remove the mutex from the threads queue. */
 				MUTEX_ASSERT_IS_OWNED(*m);

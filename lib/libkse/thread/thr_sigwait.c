@@ -134,11 +134,10 @@ _sigwait(const sigset_t *set, int *sig)
 		curthread->data.sigwait = &waitset;
 
 		/* Wait for a signal: */
-		THR_SCHED_LOCK(curthread, curthread);
+		THR_LOCK_SWITCH(curthread);
 		THR_SET_STATE(curthread, PS_SIGWAIT);
-		THR_SCHED_UNLOCK(curthread, curthread);
 		_thr_sched_switch(curthread);
-
+		THR_UNLOCK_SWITCH(curthread);
 		/* Return the signal number to the caller: */
 		*sig = curthread->signo;
 

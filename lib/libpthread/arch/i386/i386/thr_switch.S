@@ -103,9 +103,11 @@ ENTRY(_thread_switch)
 	 * all registers are now moved out of mailbox, 
 	 * it's safe to set current thread pointer
 	 */
+	cmpl	$0, %ecx
+	je	8f
 	movl	%ebx,(%ecx)
-	popl	%ecx			/* %ecx off stack */
+8:	popl	%ecx			/* %ecx off stack */
 	popl	%ebx			/* %ebx off stack */
 	popfl				/* flags off stack */
-5:	ret				/* %eip off stack */
+9:	ret				/* %eip off stack */
 

@@ -267,6 +267,7 @@ _pthread_cond_wait(pthread_cond_t *cond, pthread_mutex_t *mutex)
 					 * lock); we should be able to safely
 					 * set the state.
 					 */
+					THR_LOCK_SWITCH(curthread);
 					THR_SET_STATE(curthread, PS_COND_WAIT);
 
 					/* Remember the CV: */
@@ -280,6 +281,7 @@ _pthread_cond_wait(pthread_cond_t *cond, pthread_mutex_t *mutex)
 					_thr_sched_switch(curthread);
 
 					curthread->data.cond = NULL;
+					THR_UNLOCK_SWITCH(curthread);
 
 					/*
 					 * XXX - This really isn't a good check
@@ -324,8 +326,10 @@ _pthread_cond_wait(pthread_cond_t *cond, pthread_mutex_t *mutex)
 					 * that the mutex be reaquired prior to
 					 * cancellation.
 					 */
-					if (done != 0)
+					if (done != 0) {
 						rval = _mutex_cv_lock(mutex);
+						unlock_mutex = 1;
+					}
 				}
 			}
 			break;
@@ -475,6 +479,7 @@ _pthread_cond_timedwait(pthread_cond_t * cond, pthread_mutex_t * mutex,
 					 * lock); we should be able to safely
 					 * set the state.
 					 */
+					THR_LOCK_SWITCH(curthread);
 					THR_SET_STATE(curthread, PS_COND_WAIT);
 
 					/* Remember the CV: */
@@ -488,6 +493,7 @@ _pthread_cond_timedwait(pthread_cond_t * cond, pthread_mutex_t * mutex,
 					_thr_sched_switch(curthread);
 
 					curthread->data.cond = NULL;
+					THR_UNLOCK_SWITCH(curthread);
 
 					/*
 					 * XXX - This really isn't a good check
