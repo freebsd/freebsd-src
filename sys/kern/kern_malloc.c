@@ -507,6 +507,12 @@ malloc_uninit(data)
 {
 	struct malloc_type *type = (struct malloc_type *)data;
 	struct malloc_type *t;
+#ifdef INVARIANTS
+	struct kmembuckets *kbp;
+	struct freelist *freep;
+	long indx;
+	int s;
+#endif
 
 	if (type->ks_magic != M_MAGIC)
 		panic("malloc type lacks magic");
@@ -516,6 +522,24 @@ malloc_uninit(data)
 
 	if (type->ks_limit == 0)
 		panic("malloc_uninit on uninitialized type");
+
+#ifdef INVARIANTS
+	s = splmem();
+	for (indx = 0; indx < MINBUCKET + 16; indx++) {
+		kbp = bucket + indx;
+		freep = (struct freelist*)kbp->kb_next;
+		while (freep) {
+			if (freep->type == type)
+				freep->type = M_FREE;
+			freep = (struct freelist*)freep->next;
+		}
+	}
+	splx(s);
+
+	if (type->ks_memuse != 0)
+		printf("malloc_uninit: %ld bytes of '%s' still allocated\n",
+		    type->ks_memuse, type->ks_shortdesc);
+#endif
 
 	if (type == kmemstatistics)
 		kmemstatistics = type->ks_next;
