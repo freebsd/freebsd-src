@@ -254,6 +254,17 @@ kern_execve(td, fname, argv, envv, mac_p)
 	PROC_LOCK(p);
 	KASSERT((p->p_flag & P_INEXEC) == 0,
 	    ("%s(): process already has P_INEXEC flag", __func__));
+	if (p->p_flag & P_HADTHREADS) {
+		if (thread_single(SINGLE_EXIT)) {
+			PROC_UNLOCK(p);
+			mtx_unlock(&Giant);
+			return (ERESTART);	/* Try again later. */
+		}
+		/*
+		 * If we get here all other threads are dead,
+		 * and threading mode has been turned off
+		 */
+	}
 	p->p_flag |= P_INEXEC;
 	PROC_UNLOCK(p);
 
@@ -344,23 +355,6 @@ interpret:
 	error = exec_map_first_page(imgp);
 	if (error)
 		goto exec_fail_dealloc;
-
-	PROC_LOCK(p);
-	if (p->p_flag & P_HADTHREADS) {
-		if (thread_single(SINGLE_EXIT)) {
-			PROC_UNLOCK(p);
-			error = ERESTART;
-			goto exec_fail_dealloc;
-		}
-		/*
-		 * If we get here all other threads are dead,
-		 * and threading mode has been turned off.
-		 * Returning to the user from this point on
-		 * may confuse the thread library as some threads
-		 * will have just "died".
-		 */
-	}
-	PROC_UNLOCK(p);
 
 	/*
 	 *	If the current process has a special image activator it
