@@ -8,7 +8,4 @@ MOUNT=	${.CURDIR}/../mount
 CFLAGS+= -DNFS -I${MOUNT}
 .PATH:	${MOUNT}
 
-DPADD=	${LIBRPC}
-LDADD=	-lrpc
-
 .include <bsd.prog.mk>
