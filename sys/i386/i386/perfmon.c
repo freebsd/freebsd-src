@@ -26,7 +26,7 @@
  * OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: perfmon.c,v 1.16 1998/12/07 21:58:18 archie Exp $
+ *	$Id: perfmon.c,v 1.17 1999/01/12 00:19:32 eivind Exp $
  */
 
 #include <sys/param.h>
@@ -160,7 +160,7 @@ perfmon_stop(int pmc)
 
 	if (perfmon_inuse & (1 << pmc)) {
 		disable_intr();
-		pmc_shadow[pmc] = rdmsr(msr_pmc[pmc]);
+		pmc_shadow[pmc] = rdmsr(msr_pmc[pmc]) & 0xffffffffffULL;
 		ctl_shadow[pmc] &= ~(PMCF_EN << 16);
 		writectl(pmc);
 		enable_intr();
@@ -177,7 +177,7 @@ perfmon_read(int pmc, quad_t *val)
 
 	if (perfmon_inuse & (1 << pmc)) {
 		if (ctl_shadow[pmc] & (PMCF_EN << 16))
-			*val = rdmsr(msr_pmc[pmc]);
+			*val = rdmsr(msr_pmc[pmc]) & 0xffffffffffULL;
 		else
 			*val = pmc_shadow[pmc];
 		return 0;
