@@ -386,6 +386,7 @@ int vm_page_asleep(vm_page_t m, char *msg, char *busy);
 #endif
 void vm_page_zero_invalid(vm_page_t m, boolean_t setvalid);
 void vm_page_free_toq(vm_page_t m);
+void vm_page_zero_idle_wakeup(void);
 
 #endif				/* _KERNEL */
 #endif				/* !_VM_PAGE_ */
