@@ -36,7 +36,7 @@
  *
  *	@(#)procfs_vnops.c	8.6 (Berkeley) 2/7/94
  *
- *	$Id: procfs_vnops.c,v 1.4 1994/08/18 22:35:15 wollman Exp $
+ *	$Id: procfs_vnops.c,v 1.5 1994/09/21 03:47:07 wollman Exp $
  */
 
 /*
@@ -74,7 +74,11 @@ static struct pfsnames {
 } procent[] = {
 #define N(s) sizeof(s)-1, s
 	/* namlen, nam, type */
+	{  N("."),	Pproc },
+	{  N(".."),	Proot },
+#if 0
 	{  N("file"),	Pfile },
+#endif
 	{  N("mem"),	Pmem },
 	{  N("regs"),	Pregs },
 	{  N("fpregs"),	Pfpregs },
@@ -395,15 +399,17 @@ procfs_getattr(ap)
 
 	switch (pfs->pfs_type) {
 	case Proot:
-		vap->va_nlink = 2;
+		vap->va_nlink = nprocs + 3;
 		vap->va_uid = 0;
 		vap->va_gid = 0;
+		vap->va_bytes = vap->va_size = DEV_BSIZE;
 		break;
 
 	case Pproc:
-		vap->va_nlink = 2;
+		vap->va_nlink = Nprocent;
 		vap->va_uid = procp->p_ucred->cr_uid;
 		vap->va_gid = procp->p_ucred->cr_gid;
+		vap->va_bytes = vap->va_size = DEV_BSIZE;
 		break;
 
 	case Pfile:
@@ -704,7 +710,7 @@ procfs_readdir(ap)
 
 		p = allproc;
 
-#define PROCFS_XFILES	1	/* number of other entries, like "curproc" */
+#define PROCFS_XFILES	3	/* number of other entries, like "curproc" */
 		pcnt = PROCFS_XFILES;
 
 		while (p && uio->uio_resid >= UIO_MX) {
@@ -714,6 +720,16 @@ procfs_readdir(ap)
 
 			switch (i) {
 			case 0:
+				dp->d_fileno = PROCFS_FILENO(0, Proot);
+				dp->d_namlen = sprintf(dp->d_name, ".");
+				break;
+
+			case 1:
+				dp->d_fileno = PROCFS_FILENO(0, Proot);
+				dp->d_namlen = sprintf(dp->d_name, "..");
+				break;
+
+			case 2:
 				/* ship out entry for "curproc" */
 				dp->d_fileno = PROCFS_FILENO(PID_MAX+1, Pproc);
 				dp->d_namlen = sprintf(dp->d_name, "curproc");
