@@ -1058,7 +1058,7 @@ pfioctl(struct cdev *dev, u_long cmd, caddr_t addr, int flags, struct proc *p)
 
 	/* XXX keep in sync with switch() below */
 #ifdef __FreeBSD__
-	if (securelevel_gt(td->td_ucred, 1))
+	if (securelevel_gt(td->td_ucred, 2))
 #else
 	if (securelevel > 1)
 #endif
