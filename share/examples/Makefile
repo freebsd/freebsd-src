@@ -133,6 +133,8 @@ XFILES=	BSD_daemon/FreeBSD.pfa \
 	kld/syscall/test/call.c \
 	libvgl/Makefile \
 	libvgl/demo.c \
+	mdoc/POSIX-copyright \
+	mdoc/deshallify.sh \
 	mdoc/example.1 \
 	mdoc/example.3 \
 	mdoc/example.4 \
