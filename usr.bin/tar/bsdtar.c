@@ -433,7 +433,6 @@ main(int argc, char **argv)
 #endif
 			break;
 		default:
-			bsdtar_warnc(bsdtar, 0, "Unrecognized option -c", optopt);
 			usage(bsdtar);
 		}
 	}
