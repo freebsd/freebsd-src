@@ -347,11 +347,26 @@ escape:
 			sp->cis->manuf, sp->cis->vers);
 		return;
 	}
+	/*
+	 * Copy CIS_MANUF_ID and CIS_FUNC_EXT from "struct cis"
+	 * to "struct slot" 
+	 */
 	if (sp->cis->lan_nid && sp->cis->lan_nid[0] == sizeof(sp->eaddr)) {
 		bcopy(sp->cis->lan_nid + 1, sp->eaddr, sizeof(sp->eaddr));
 		sp->flags |= EADDR_CONFIGED;
 	} else {
 		bzero(sp->eaddr, sizeof(sp->eaddr));
+	}
+	if (sp->cis->manufacturer && sp->cis->product) {
+		sp->manufacturer=sp->cis->manufacturer;
+		sp->product=sp->cis->product;
+		if(sp->cis->prodext) {
+			sp->prodext=sp->cis->prodext; /* For xe driver */
+		}
+	} else {
+		sp->manufacturer=0;
+		sp->product=0;
+		sp->prodext=0;
 	}
 
 	if (cp->ether) {
@@ -968,6 +983,13 @@ setup_slot(struct slot *sp)
 		    drv.iobase + sp->io.size - 1, drv.mem, drv.memsize, 
 		    sp->irq, drv.flags);
 	}
+	/*
+	 * Copy CIS_MANUF_ID from "struct slot" to "struct dev_desc"
+	 * This means moving CIS_MANUF_ID to kernel driver area.
+	 */
+	drv.manufacturer = sp->manufacturer;
+	drv.product = sp->product;
+	drv.prodext = sp->prodext;
 	/*
 	 * If the driver fails to be connected to the device,
 	 * then it may mean that the driver did not recognise it.
