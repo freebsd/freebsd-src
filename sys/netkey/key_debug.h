@@ -1,4 +1,7 @@
 /*
+ * modified by Jun-ichiro itojun Itoh <itojun@itojun.org>, 1997
+ */
+/*
  * in6_debug.h  --  Insipired by Craig Metz's Net/2 in6_debug.h, but
  *                  not quite as heavyweight (initially, anyway).
  *
@@ -66,6 +69,8 @@ Research Laboratory (NRL).
 
 ----------------------------------------------------------------------*/
 
+#ifdef KERNEL
+
 /* IDL_* is IPv6 Debug Level */
 
 #define IDL_ALL 0xFFFFFFFE  /* Report all messages. */
@@ -87,7 +92,7 @@ Research Laboratory (NRL).
  * cause a few compilers to complain.
  */
 
-#ifdef INET6_DEBUG
+#ifdef KEY_DEBUG
 
 /*
  * DPRINTF() is a general printf statement.  The "arg" is literally what
@@ -127,25 +132,52 @@ Research Laboratory (NRL).
  */
 #define DP(lev, var, fmt) DPRINTF(IDL_ ## lev, (#var " = %" #fmt "\n", var))
 
-#ifndef SOCKADDR
-#define SOCKADDR struct sockaddr
-#endif /* SOCKADDR */
+struct inpcb;
 
-void dump_buf __P((char *, int));
-void dump_sockaddr __P((SOCKADDR *));
-void dump_smart_sockaddr __P((SOCKADDR *));
-void dump_keytblnode __P((struct key_tblnode *));
-void dump_secassoc __P((struct key_secassoc *));
-void dump_keymsghdr __P((struct key_msghdr *));
+extern void in6_debug_init __P((void));
+#ifdef INET6
+extern void dump_in6_addr __P((struct in6_addr *));
+#endif
+extern void dump_in_addr __P((struct in_addr *));
+#ifdef INET6
+extern void dump_sockaddr_in6 __P((struct sockaddr_in6 *));
+#endif
+extern void dump_sockaddr_in __P((struct sockaddr_in *));
+extern void dump_sockaddr __P((struct sockaddr *));
+extern void dump_sockaddr_dl __P((struct sockaddr_dl *));
+extern void dump_smart_sockaddr __P((struct sockaddr *));
+#ifdef INET6
+extern void dump_ipv6 __P((struct ip6 *));
+extern void dump_ipv6_icmp __P((struct icmp6 *));
+#endif /*INET6*/
+extern void dump_mbuf_hdr __P((struct mbuf *));
+extern void dump_mbuf __P((struct mbuf *));
+extern void dump_mchain __P((struct mbuf *));
+extern void dump_tcpdump __P((struct mbuf *));
+extern void dump_ifa __P((struct ifaddr *));
+extern void dump_ifp __P((struct ifnet *));
+extern void dump_route __P((struct route *));
+extern void dump_rtentry __P((struct rtentry *));
+extern void dump_inpcb __P((struct inpcb *));
+#ifdef INET6
+extern void dump_in6pcb __P((struct in6pcb *));
+#endif
+extern void dump_buf __P((char *, int));
+extern void dump_keytblnode __P((struct key_tblnode *));
+extern void dump_secassoc __P((struct key_secassoc *));
+extern void dump_keymsghdr __P((struct key_msghdr *));
+extern void dump_keymsginfo __P((struct key_msgdata *));
 
-#else   /* ! INET6_DEBUG */
+#else   /* ! KEY_DEBUG */
 
 #define DPRINTF(lev,arg) 
 #define DDO(lev, stmt) 
 #define DP(x, y, z) 
 
-#endif  /* INET6_DEBUG */
+#endif  /* KEY_DEBUG */
 
 #ifndef INET6_DEBUG_C
 extern unsigned int in6_debug_level;
 #endif
+
+#endif /*KERNEL*/

@@ -2,7 +2,7 @@
 # LINT -- config file for checking all the sources, tries to pull in
 #	as much of the source tree as it can.
 #
-#	$Id: LINT,v 1.411 1998/02/21 10:11:41 eivind Exp $
+#	$Id: LINT,v 1.412 1998/02/24 22:24:46 phk Exp $
 #
 # NB: You probably don't want to try running a kernel built from this
 # file.  Instead, you should start from GENERIC, and add options from
@@ -1401,8 +1401,8 @@ options		"I586_PMC_GUPROF=0x70000"
 options		"IBCS2"
 # broken:
 #options		IPFILTER
-# broken:
-#options		KEY
+options		KEY
+options		KEY_DEBUG
 options		LOCKF_DEBUG
 options		LOUTB
 options		KBD_MAXRETRY=4

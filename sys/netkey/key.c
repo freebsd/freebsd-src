@@ -1,3 +1,6 @@
+/*
+ * modified by Jun-ichiro itojun Itoh <itojun@itojun.org>, 1997
+ */
 /*----------------------------------------------------------------------
   key.c :         Key Management Engine for BSD
 
@@ -71,6 +74,10 @@ official policies, either expressed or implied, of the US Naval
 Research Laboratory (NRL).
 
 ----------------------------------------------------------------------*/
+
+#include "opt_key.h"
+
+#ifdef KEY
 
 #include <sys/param.h>
 #include <sys/systm.h>
@@ -188,18 +195,21 @@ key_secassoc2msghdr(struct key_secassoc *secassoc,
     return(-1);
 
   km->type = secassoc->type;
+  km->vers = secassoc->vers;
   km->state = secassoc->state;
   km->label = secassoc->label;
   km->spi = secassoc->spi;
   km->keylen = secassoc->keylen;
+  km->ekeylen = secassoc->ekeylen;
   km->ivlen = secassoc->ivlen;
   km->algorithm = secassoc->algorithm;
   km->lifetype = secassoc->lifetype;
   km->lifetime1 = secassoc->lifetime1;
   km->lifetime2 = secassoc->lifetime2;
+  km->antireplay = secassoc->antireplay;
 
   /*
-   *  Stuff src/dst/from/key/iv in buffer after
+   *  Stuff src/dst/from/key/iv/ekey in buffer after
    *  the message header.
    */
   cp = (char *)(km + 1);
@@ -251,6 +261,14 @@ key_secassoc2msghdr(struct key_secassoc *secassoc,
     ADVANCE(cp, secassoc->ivlen);
   }
 
+  DPRINTF(IDL_FINISHED, ("sa2msghdr: 6\n"));
+  keyinfo->ekey = cp;
+  keyinfo->ekeylen = secassoc->ekeylen;
+  if (secassoc->ekeylen) {
+    bcopy((char *)(secassoc->ekey), cp, secassoc->ekeylen);
+    ADVANCE(cp, secassoc->ekeylen);
+  }
+
   DDO(IDL_FINISHED,printf("msgbuf(len=%d):\n",(char *)cp - (char *)km));
   DDO(IDL_FINISHED,dump_buf((char *)km, (char *)cp - (char *)km));
   DPRINTF(IDL_FINISHED, ("sa2msghdr: 6\n"));
@@ -275,15 +293,18 @@ key_msghdr2secassoc(struct key_secassoc *secassoc,
 
   secassoc->len = sizeof(*secassoc);
   secassoc->type = km->type;
+  secassoc->vers = km->vers;
   secassoc->state = km->state;
   secassoc->label = km->label;
   secassoc->spi = km->spi;
   secassoc->keylen = km->keylen;
+  secassoc->ekeylen = km->ekeylen;
   secassoc->ivlen = km->ivlen;
   secassoc->algorithm = km->algorithm;
   secassoc->lifetype = km->lifetype;
   secassoc->lifetime1 = km->lifetime1;
   secassoc->lifetime2 = km->lifetime2;
+  secassoc->antireplay = km->antireplay;
 
   if (keyinfo->src) {
     KMALLOC(secassoc->src, SOCKADDR *, keyinfo->src->sa_len);
@@ -342,6 +363,21 @@ key_msghdr2secassoc(struct key_secassoc *secassoc,
     bcopy((char *)keyinfo->key, (char *)secassoc->key, secassoc->keylen);
   } else
     secassoc->key = NULL;
+
+  if (secassoc->ekeylen) {
+    KMALLOC(secassoc->ekey, caddr_t, secassoc->ekeylen);
+    if (secassoc->ekey == 0) {
+      DPRINTF(IDL_ERROR,("msghdr2secassoc: can't allocate mem for ekey\n"));
+      if (secassoc->iv)
+	KFREE(secassoc->iv);
+      if (secassoc->key)
+	KFREE(secassoc->key);
+      return(-1);
+    }
+    bcopy((char *)keyinfo->ekey, (char *)secassoc->ekey, secassoc->ekeylen);
+  } else
+    secassoc->ekey = NULL;
+
   return(0);
 }
 
@@ -364,8 +400,8 @@ addrpart_equal(SOCKADDR *sa1, SOCKADDR *sa2)
 	    ((struct sockaddr_in *)sa2)->sin_addr.s_addr);
 #ifdef INET6
   case AF_INET6:
-    return (IN6_ADDR_EQUAL(((struct sockaddr_in6 *)sa1)->sin6_addr, 
-			   ((struct sockaddr_in6 *)sa2)->sin6_addr));
+    return (IN6_ARE_ADDR_EQUAL(&((struct sockaddr_in6 *)sa1)->sin6_addr, 
+			       &((struct sockaddr_in6 *)sa2)->sin6_addr));
 #endif /* INET6 */
   }
   return(0);
@@ -467,7 +503,7 @@ key_createkey(char *buf, u_int type, SOCKADDR *src, SOCKADDR *dst,
     (char *)&(((struct sockaddr_in *)(a))->sin_addr)
 
 #define ADDRSIZE(a) \
-    ((a)->sa_family == AF_INET6) ? sizeof(struct in_addr6) : \
+    ((a)->sa_family == AF_INET6) ? sizeof(struct in6_addr) : \
     sizeof(struct in_addr)  
 #else /* INET6 */
 #define ADDRPART(a) (char *)&(((struct sockaddr_in *)(a))->sin_addr)
@@ -533,7 +569,7 @@ key_sosearch(u_int type, SOCKADDR *src, SOCKADDR *dst, struct socket *so)
  *        flag = 1  purge all entries
  *        flag = 0  delete entries with socket pointer matching socket  
  ----------------------------------------------------------------------*/
-static void
+void
 key_sodelete(struct socket *socket, int flag)
 {
   struct key_so2spinode *prevnp, *np;
@@ -739,6 +775,13 @@ key_add(struct key_secassoc *secassoc)
 #endif /* 0 */
 
   /*
+   * initialization for anti-replay services.
+   */
+  secassoc->sequence = 0;
+  secassoc->replayright = 0;
+  secassoc->replaywindow = 0;
+
+  /*
    *  Check if secassoc with same spi exists before adding
    */
   bzero((char *)&buf, sizeof(buf));
@@ -856,14 +899,16 @@ key_dump(struct socket *so)
   struct key_msgdata keyinfo;
   struct key_msghdr *km;
   struct key_tblnode *keynode;
+  int kmlen;
 
   /*
    * Routine to dump the key table to a routing socket
    * Use for debugging only!
    */
 
-  KMALLOC(km, struct key_msghdr *, sizeof(struct key_msghdr) +
-	  3 * MAX_SOCKADDR_SZ + MAX_KEY_SZ + MAX_IV_SZ);
+  kmlen = sizeof(struct key_msghdr) + 3 * MAX_SOCKADDR_SZ + MAX_KEY_SZ
+		+ MAX_IV_SZ;
+  KMALLOC(km, struct key_msghdr *, kmlen);
   if (!km)
     return(ENOBUFS);
 
@@ -886,7 +931,16 @@ key_dump(struct socket *so)
 	     ROUNDUP(keynode->secassoc->dst->sa_len) +
 	     ROUNDUP(keynode->secassoc->from->sa_len) +
 	     ROUNDUP(keynode->secassoc->keylen) + 
-	     ROUNDUP(keynode->secassoc->ivlen));
+	     ROUNDUP(keynode->secassoc->ivlen) + 
+	     ROUNDUP(keynode->secassoc->ekeylen));
+
+      if (kmlen < len) {
+	KFREE(km);
+	kmlen = len;
+	KMALLOC(km, struct key_msghdr *, kmlen);
+	if (!km)
+	  return(ENOBUFS);
+      }
 
       if (key_secassoc2msghdr(keynode->secassoc, km, &keyinfo) != 0)
 	panic("key_dump");
@@ -999,6 +1053,8 @@ key_delete(struct key_secassoc *secassoc)
       KFREE(keynode->secassoc->iv);
     if (keynode->secassoc->key)
       KFREE(keynode->secassoc->key);
+    if (keynode->secassoc->ekey)
+      KFREE(keynode->secassoc->ekey);
     KFREE(keynode->secassoc);
     if (keynode->solist)
       KFREE(keynode->solist);
@@ -1019,15 +1075,25 @@ key_flush(void)
 {
   struct key_tblnode *keynode;
   int i;
+#if 1
+  int timo;
+#endif
 
   /* 
    * This is slow, but simple.
    */
   DPRINTF(IDL_FINISHED,("Flushing key table..."));
   for (i = 0; i < KEYTBLSIZE; i++) {
-    while ((keynode = keytable[i].next))
+    timo = 0;
+    while ((keynode = keytable[i].next)) {
       if (key_delete(keynode->secassoc) != 0)
 	panic("key_flush");
+      timo++;
+      if (10000 < timo) {
+printf("key_flush: timo exceeds limit; terminate the loop to prevent hangup\n");
+	break;
+      }
+    }
   }
   DPRINTF(IDL_FINISHED,("done\n"));
 }
@@ -1040,8 +1106,8 @@ key_flush(void)
  *      entry with that same spi value remains in the table).
  ----------------------------------------------------------------------*/
 int
-key_getspi(u_int type, SOCKADDR *src, SOCKADDR *dst, u_int32_t lowval, 
-	   u_int32_t highval, u_int32_t *spi)
+key_getspi(u_int type, u_int vers, SOCKADDR *src, SOCKADDR *dst,
+	u_int32_t lowval, u_int32_t highval, u_int32_t *spi)
 {
   struct key_secassoc *secassoc;
   struct key_tblnode *keynode, *prevkeynode;
@@ -1095,6 +1161,7 @@ key_getspi(u_int type, SOCKADDR *src, SOCKADDR *dst, u_int32_t lowval,
 	DPRINTF(IDL_FINISHED,("getspi: indx=%d\n",indx));
 	secassoc->len = sizeof(struct key_secassoc);
 	secassoc->type = type;
+	secassoc->vers = vers;
 	secassoc->spi = val;
 	secassoc->state |= K_LARVAL;
 	if (my_addr(secassoc->dst))
@@ -1205,6 +1272,8 @@ key_update(struct key_secassoc *secassoc)
     KFREE(keynode->secassoc->key);
   if (keynode->secassoc->iv)
     KFREE(keynode->secassoc->iv);
+  if (keynode->secassoc->ekey)
+    KFREE(keynode->secassoc->ekey);
 
   /*
    *  We now copy the secassoc over. We don't need to copy
@@ -1439,10 +1508,12 @@ key_acquire(u_int type, SOCKADDR *src, SOCKADDR *dst)
   if (success) {
     if (!ap) {
       DPRINTF(IDL_EVENT,("Adding new entry in acquirelist\n"));
-      KMALLOC(ap, struct key_acquirelist *, sizeof(struct key_acquirelist));
+      KMALLOC(ap, struct key_acquirelist *,
+	sizeof(struct key_acquirelist) + dst->sa_len);
       if (ap == 0)
 	return(success ? 0 : -1);
       bzero((char *)ap, sizeof(struct key_acquirelist));
+      ap->target = (struct sockaddr *)(ap + 1);
       bcopy((char *)dst, (char *)ap->target, dst->sa_len);
       ap->type = etype;
       ap->next = key_acquirelist->next;
@@ -1752,8 +1823,8 @@ key_xdata(struct key_msghdr *km, struct key_msgdata *kip, int parseflag)
   ADVANCE(cp, kip->dst->sa_len);
   if (parseflag == 1) {
     kip->from = 0;
-    kip->key = kip->iv = 0;
-    kip->keylen = kip->ivlen = 0;
+    kip->key = kip->iv = kip->ekey = 0;
+    kip->keylen = kip->ivlen = kip->ekeylen = 0;
     return(0);
   }
  
@@ -1774,10 +1845,18 @@ key_xdata(struct key_msghdr *km, struct key_msgdata *kip, int parseflag)
     kip->key = 0;
 
   /* Grab iv */
-  if ((kip->ivlen = km->ivlen))
+  if ((kip->ivlen = km->ivlen)) {
     kip->iv = cp;
-  else
+    ADVANCE(cp, km->ivlen);
+  } else
     kip->iv = 0;
+
+  /* Grab ekey */
+  if ((kip->ekeylen = km->ekeylen)) {
+    kip->ekey = cp;
+    ADVANCE(cp, km->ekeylen);
+  } else 
+    kip->ekey = 0;
 
   return (0);
 }
@@ -1841,6 +1920,8 @@ key_parse(struct key_msghdr **kmp, struct socket *so, int *dstfamily)
 	KFREE(secassoc->key);
       if (secassoc->iv)
 	KFREE(secassoc->iv);
+      if (secassoc->ekey)
+	KFREE(secassoc->ekey);
       KFREE(secassoc);
       if (keyerror == -2) {
 	senderr(EEXIST);
@@ -1868,6 +1949,8 @@ key_parse(struct key_msghdr **kmp, struct socket *so, int *dstfamily)
 	KFREE(secassoc->iv);
       if (secassoc->key)
 	KFREE(secassoc->key);
+      if (secassoc->ekey)
+	KFREE(secassoc->ekey);
       KFREE(secassoc);
       senderr(ESRCH);
     }
@@ -1875,6 +1958,8 @@ key_parse(struct key_msghdr **kmp, struct socket *so, int *dstfamily)
       KFREE(secassoc->iv);
     if (secassoc->key)
       KFREE(secassoc->key);
+    if (secassoc->ekey)
+      KFREE(secassoc->ekey);
     KFREE(secassoc);
     break;
   case KEY_UPDATE:
@@ -1897,6 +1982,8 @@ key_parse(struct key_msghdr **kmp, struct socket *so, int *dstfamily)
 	KFREE(secassoc->iv);
       if (secassoc->key)
 	KFREE(secassoc->key);
+      if (secassoc->ekey)
+	KFREE(secassoc->ekey);
       KFREE(secassoc);
       senderr(keyerror);
     }
@@ -1921,7 +2008,8 @@ key_parse(struct key_msghdr **kmp, struct socket *so, int *dstfamily)
       DPRINTF(IDL_EVENT,("keyoutput: Found secassoc!\n"));
       newlen = sizeof(struct key_msghdr) + ROUNDUP(secassoc->src->sa_len) +
 	ROUNDUP(secassoc->dst->sa_len) + ROUNDUP(secassoc->from->sa_len) +
-	  ROUNDUP(secassoc->keylen) + ROUNDUP(secassoc->ivlen);
+	  ROUNDUP(secassoc->keylen) + ROUNDUP(secassoc->ivlen) +
+	  ROUNDUP(secassoc->ekeylen);
       DPRINTF(IDL_EVENT,("keyoutput: newlen=%d\n", newlen));
       if (newlen > km->key_msglen) {
 	struct key_msghdr *newkm;
@@ -1953,7 +2041,7 @@ key_parse(struct key_msghdr **kmp, struct socket *so, int *dstfamily)
     if (key_xdata(km, &keyinfo, 1) < 0)
       goto parsefail;
 
-    if ((keyerror = key_getspi(km->type, keyinfo.src, keyinfo.dst, 
+    if ((keyerror = key_getspi(km->type, km->vers, keyinfo.src, keyinfo.dst, 
 			       km->lifetime1, km->lifetime2, 
 			       &(km->spi))) != 0) {
       DPRINTF(IDL_CRITICAL,("keyoutput: getspi failed error=%d\n", keyerror));
@@ -2014,18 +2102,23 @@ key_sendup(s, km)
 	struct key_msghdr *km;
 {
   struct mbuf *m;
+
+  if (!km)
+    panic("km == NULL in key_sendup\n");
   MGETHDR(m, M_WAIT, MT_DATA);
   m->m_len = m->m_pkthdr.len = 0;
   m->m_next = 0;
   m->m_nextpkt = 0;
   m->m_pkthdr.rcvif = 0;
-  m_copyback(m, 0, km->key_msglen, (caddr_t)km);
+  if (km)
+    m_copyback(m, 0, km->key_msglen, (caddr_t)km);
   
   if (sbappendaddr(&(s->so_rcv), &key_addr, m, NULL)) {
     sorwakeup(s);
     return 1;
-  } else 
-    m_freem(m);
+  } else {
+    if (m) m_freem(m);
+  }
 
   return(0);
 }
@@ -2076,15 +2169,15 @@ my_addr(sa)
   switch(sa->sa_family) {
 #ifdef INET6
   case AF_INET6:
-    for (i6a = in6_ifaddr; i6a; i6a = i6a->i6a_next) {
-      if (IN6_ADDR_EQUAL(((struct sockaddr_in6 *)sa)->sin6_addr, 
-			 i6a->i6a_addr.sin6_addr))
+    for (i6a = in6_ifaddr; i6a; i6a = i6a->ia_next) {	/*XXX*/
+      if (IN6_ARE_ADDR_EQUAL(&((struct sockaddr_in6 *)sa)->sin6_addr,
+			     &i6a->ia_addr.sin6_addr))
 	return(1);
     }
     break;
 #endif /* INET6 */
   case AF_INET:
-    for (ia = in_ifaddr; ia; ia = ia->ia_next) {
+    for (ia = in_ifaddrhead.tqh_first; ia; ia = ia->ia_link.tqe_next) {
       if (((struct sockaddr_in *)sa)->sin_addr.s_addr == 
 	   ia->ia_addr.sin_addr.s_addr) 
 	return(1);
@@ -2139,7 +2232,8 @@ key_output(struct mbuf *m, struct socket *so)
   km->key_errno = error = key_parse(&km, so, &dstfamily);
   DPRINTF(IDL_MAJOR_EVENT, ("Back from key_parse\n"));
 flush:
-  key_sendup(so, km);
+  if (km)
+    key_sendup(so, km);
 #if 0
   {
     struct rawcb *rp = 0;
@@ -2209,6 +2303,7 @@ key_usrreq(struct socket *so, int req, struct mbuf *m, struct mbuf *nam,
   }
   s = splnet();
   error = raw_usrreq(so, req, m, nam, control);
+  if (!so) return error;
   rp = sotorawcb(so);
 
   if (req == PRU_ATTACH && rp) {
@@ -2225,7 +2320,19 @@ key_usrreq(struct socket *so, int req, struct mbuf *m, struct mbuf *nam,
       keyso_cb.ip6_count++;
 #endif /* INET6 */
     keyso_cb.any_count++;
+#if 0 /*itojun*/
     rp->rcb_faddr = &key_addr;
+#else
+  {
+    struct mbuf *m;
+    MGET(m, M_DONTWAIT, MT_DATA);
+    if (m) {
+      rp->rcb_faddr = mtod(m, struct sockaddr *);
+      bcopy(&key_addr, rp->rcb_faddr, sizeof(SOCKADDR));
+    } else
+      rp->rcb_faddr = NULL;
+  }
+#endif
     soisconnected(so);   /* Key socket, like routing socket, must be
 			    connected. */
 
@@ -2262,12 +2369,17 @@ struct protosw keysw[] = {
 { SOCK_RAW,	&keydomain,	0,		PR_ATOMIC|PR_ADDR,
   raw_input,	key_output,	raw_ctlinput,	0,
   key_usrreq,
-  key_cbinit
-}
+  key_cbinit,	0,		0,		0,
+  0,
+},
 };
 
 struct domain keydomain =
     { PF_KEY, "key", key_init, 0, 0,
       keysw, &keysw[sizeof(keysw)/sizeof(keysw[0])] };
 
-DOMAIN_SET(key)
+#ifdef __FreeBSD__
+DOMAIN_SET(key);
+#endif
+
+#endif /*KEY*/

@@ -340,6 +340,7 @@ netipx/spx_usrreq.c	optional ipx
 #netiso/tuba_table.c	optional iso tuba
 #netiso/tuba_usrreq.c	optional iso tuba
 netkey/key.c		optional key
+netkey/key_debug.c	optional key_debug
 netnatm/natm.c		optional natm
 netnatm/natm_pcb.c	optional natm
 netnatm/natm_proto.c	optional natm
