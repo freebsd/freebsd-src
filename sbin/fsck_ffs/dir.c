@@ -53,7 +53,7 @@ __FBSDID("$FreeBSD$");
 #include "fsck.h"
 
 const char	*lfname = "lost+found";
-int	lfmode = 01777;
+int	lfmode = 0700;
 struct	dirtemplate emptydir = {
 	0, DIRBLKSIZ, DT_UNKNOWN, 0, "",
 	0, 0, DT_UNKNOWN, 0, ""
