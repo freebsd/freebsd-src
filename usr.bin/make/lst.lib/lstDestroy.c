@@ -68,7 +68,6 @@ void
 Lst_Destroy(Lst *list, FreeProc *freeProc)
 {
     LstNode *ln;
-    LstNode *tln;
 
     if (!Lst_Valid(list)) {
 	/*
@@ -78,22 +77,19 @@ Lst_Destroy(Lst *list, FreeProc *freeProc)
 	return;
     }
 
-    if (list->lastPtr == NULL) {
+    if (list->firstPtr == NULL) {
 	free(list);
 	return;
     }
-    /* To ease scanning */
-    list->lastPtr->nextPtr = NULL;
-
-    if (freeProc) {
-	for (ln = list->firstPtr; ln != NULL; ln = tln) {
-	     tln = ln->nextPtr;
+    if (freeProc != NOFREE) {
+	while ((ln = list->firstPtr) != NULL) {
+	    list->firstPtr = ln->nextPtr;
 	     (*freeProc)(ln->datum);
 	     free(ln);
 	}
     } else {
-	for (ln = list->firstPtr; ln != NULL; ln = tln) {
-	     tln = ln->nextPtr;
+	while ((ln = list->firstPtr) != NULL) {
+	    list->firstPtr = ln->nextPtr;
 	     free(ln);
 	}
     }
