@@ -415,10 +415,12 @@ DBPRINT(("getattr\n"));
 		vap->va_rdev = dev2udev(vp->v_rdev);
 		vap->va_mode |= (S_IFCHR);
 		break;
+#if nolonger
 	case	DEV_BDEV:
 		vap->va_rdev = dev2budev(vp->v_rdev);
 		vap->va_mode |= (S_IFBLK);
 		break;
+#endif
 	case	DEV_SLNK:
 		break;
 	}
