@@ -116,11 +116,14 @@ return
 in integer format.
 .Fn ilogb \*(Pm\*(If
 returns
-.Dv INT_MAX
+.Dv INT_MAX ,
+.Fn ilogb \*(Pm\*(Na
+returns
+.Dv FP_ILOGBNAN
 and
 .Fn ilogb 0
 returns
-.Dv INT_MIN .
+.Dv FP_ILOGB0 .
 .Pp
 .Fn nextafter
 and
