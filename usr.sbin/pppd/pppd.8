@@ -1,5 +1,5 @@
 .\" manual page [] for pppd 2.0
-.\" $Id: pppd.8,v 1.5 1996/05/02 19:21:40 mpp Exp $
+.\" $Id: pppd.8,v 1.6 1996/07/03 23:23:03 mpp Exp $
 .\" SH section heading
 .\" SS subsection heading
 .\" LP paragraph
@@ -70,6 +70,11 @@ packets to be sent or received.
 Use the executable or shell command specified by \fI<p>\fR to set up the
 serial line.  This script would typically use the "chat" program to
 dial the modem and start the remote ppp session.
+.TP
+.B connect-max-attempts \fI<n>
+Attempt dial-out connection to remote system no more than specified number
+of times (default = 1).  If the connection is not made, pppd will exit.
+Requires that \fBpersist\fR has been specified.
 .TP
 .B crtscts
 Use hardware flow control (i.e. RTS/CTS) to control the flow of data on
