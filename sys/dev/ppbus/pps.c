@@ -257,6 +257,7 @@ ppshcpoll(void *arg)
 
 	if (!(sc->busy & ~1))
 		return;
+	mtx_lock_spin(&sc->mtx);
 	sc->timeout = timeout(ppshcpoll, sc, 1);
 	i = ppb_rdtr(sc->ppbus);
 	if (i == sc->lastdata) 
@@ -272,6 +273,7 @@ ppshcpoll(void *arg)
 		k += k;
 	}
 	sc->lastdata = i;
+	mtx_unlock_spin(&sc->mtx);
 }
 
 static void
@@ -281,10 +283,10 @@ ppsintr(void *arg)
 	struct pps_data *sc = DEVTOSOFTC(ppsdev);
 	device_t ppbus = sc->ppbus;
 
-	mtx_lock(&sc->mtx);
+	mtx_lock_spin(&sc->mtx);
 	pps_capture(&sc->pps[0]);
 	if (!(ppb_rstr(ppbus) & nACK)) {
-		mtx_unlock(&sc->mtx);
+		mtx_unlock_spin(&sc->mtx);
 		return;
 	}
 	if (sc->pps[0].ppsparam.mode & PPS_ECHOASSERT) 
@@ -292,7 +294,7 @@ ppsintr(void *arg)
 	pps_event(&sc->pps[0], PPS_CAPTUREASSERT);
 	if (sc->pps[0].ppsparam.mode & PPS_ECHOASSERT) 
 		ppb_wctr(ppbus, IRQENABLE);
-	mtx_unlock(&sc->mtx);
+	mtx_unlock_spin(&sc->mtx);
 }
 
 static int
@@ -302,9 +304,9 @@ ppsioctl(struct cdev *dev, u_long cmd, caddr_t data, int flags, struct thread *t
 	int subdev = (intptr_t)dev->si_drv2;
 	int err;
 
-	mtx_lock(&sc->mtx);
+	mtx_lock_spin(&sc->mtx);
 	err = pps_ioctl(cmd, data, &sc->pps[subdev]);
-	mtx_unlock(&sc->mtx);
+	mtx_unlock_spin(&sc->mtx);
 	return (err);
 }
 
