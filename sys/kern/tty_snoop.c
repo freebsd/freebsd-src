@@ -287,10 +287,10 @@ snpopen(dev, flag, mode, p)
 		return (error);
 
 	if (dev->si_drv1 == NULL) {
-		int mynor = minor(dev);
-
+		if (!(dev->si_flags & SI_NAMED))
+			make_dev(&snp_cdevsw, minor(dev), UID_ROOT, GID_WHEEL,
+			    0600, "snp%d", dev2unit(dev));
 		dev->si_drv1 = snp = malloc(sizeof(*snp), M_SNP, M_WAITOK|M_ZERO);
-		make_dev(&snp_cdevsw, mynor, 0, 0, 0600, "snp%d", mynor);
 	} else
 		return (EBUSY);
 
@@ -365,6 +365,7 @@ snpclose(dev, flags, fmt, p)
 	free(snp->snp_buf, M_SNP);
 	snp->snp_flags &= ~SNOOP_OPEN;
 	dev->si_drv1 = NULL;
+	destroy_dev(dev);
 
 	return (snp_detach(snp));
 }
@@ -505,10 +506,25 @@ snppoll(dev, events, p)
 static void snp_drvinit __P((void *unused));
 
 static void
+snp_clone(void *arg, char *name, int namelen, dev_t *dev)
+{
+	int u;
+
+	if (*dev != NODEV)
+		return;
+	if (dev_stdclone(name, NULL, "snp", &u) != 1)
+		return;
+	*dev = make_dev(&snp_cdevsw, unit2minor(u), UID_ROOT, GID_WHEEL, 0600,
+	    "snp%d", u);
+	return;
+}
+
+static void
 snp_drvinit(unused)
 	void *unused;
 {
 
+	EVENTHANDLER_REGISTER(dev_clone, snp_clone, 0, 1000);
 	cdevsw_add(&snp_cdevsw);
 }
 
