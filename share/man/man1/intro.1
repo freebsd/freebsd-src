@@ -32,7 +32,7 @@
 .\"     @(#)intro.1	8.2 (Berkeley) 12/30/93
 .\" $FreeBSD$
 .\"
-.Dd December 30, 1993
+.Dd October 21, 2001
 .Dt INTRO 1
 .Os
 .Sh NAME
@@ -55,14 +55,18 @@ and line printer commands.
 .Pp
 All commands set a status value upon exit which may be tested
 to see if the command completed normally.
-The exit values and their meanings are explained in the individual
-manuals.  Traditionally, the value 0 signifies successful
-completion of the command.
+Traditionally, the value 0 signifies successful
+completion of the command, while a value >0 indicates an error.
+Some commands attempt to describe the nature of the failure by using
+errors codes as defined in
+.Xr sysexits 3 ,
+while others simply set the status to an arbitrary value >0 (typically 1).
 .Sh SEE ALSO
 .Xr apropos 1 ,
 .Xr man 1 ,
 .Xr intro 2 ,
 .Xr intro 3 ,
+.Xr sysexits 3 ,
 .Xr intro 4 ,
 .Xr intro 5 ,
 .Xr intro 6 ,
