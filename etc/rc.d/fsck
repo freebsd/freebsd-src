@@ -39,7 +39,6 @@ fsck_start()
 		else
 			fsck -p
 		fi
-		;;
 
 		case $? in
 		0)
