@@ -29,7 +29,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $Id: uthread_nanosleep.c,v 1.7 1999/08/05 12:15:18 deischen Exp $
+ * $Id: uthread_nanosleep.c,v 1.8 1999/08/19 23:06:10 alfred Exp $
  */
 #include <stdio.h>
 #include <errno.h>
@@ -49,7 +49,7 @@ nanosleep(const struct timespec * time_to_sleep,
 
 	/* Check if the time to sleep is legal: */
 	if (time_to_sleep == NULL || time_to_sleep->tv_sec < 0 ||
-		time_to_sleep->tv_nsec < 0 || time_to_sleep->tv_nsec > 1000000000) {
+		time_to_sleep->tv_nsec < 0 || time_to_sleep->tv_nsec >= 1000000000) {
 		/* Return an EINVAL error : */
 		errno = EINVAL;
 		ret = -1;
