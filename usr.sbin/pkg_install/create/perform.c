@@ -1,5 +1,6 @@
 #ifndef lint
-static const char *rcsid = "$Id: perform.c,v 1.35 1997/06/06 12:19:11 jkh Exp $";
+static const char rcsid[] =
+	"$Id: perform.c,v 1.36 1997/07/04 04:48:02 jkh Exp $";
 #endif
 
 /*
@@ -25,7 +26,7 @@ static const char *rcsid = "$Id: perform.c,v 1.35 1997/06/06 12:19:11 jkh Exp $"
 #include "lib.h"
 #include "create.h"
 
-#include <errno.h>
+#include <err.h>
 #include <signal.h>
 #include <sys/syslimits.h>
 #include <sys/wait.h>
@@ -56,7 +57,8 @@ pkg_perform(char **pkgs)
     else {
 	pkg_in = fopen(Contents, "r");
 	if (!pkg_in)
-	    barf("Unable to open contents file '%s' for input.", Contents);
+	    cleanup(0), errx(2, "unable to open contents file '%s' for input",
+				Contents);
     }
     plist.head = plist.tail = NULL;
 
@@ -168,10 +170,10 @@ pkg_perform(char **pkgs)
     /* Finally, write out the packing list */
     fp = fopen(CONTENTS_FNAME, "w");
     if (!fp)
-	barf("Can't open file %s for writing.", CONTENTS_FNAME);
+	cleanup(0), errx(2, "can't open file %s for writing", CONTENTS_FNAME);
     write_plist(&plist, fp);
     if (fclose(fp))
-	barf("Error while closing %s.", CONTENTS_FNAME);
+	cleanup(0), errx(2, "error while closing %s", CONTENTS_FNAME);
 
     /* And stick it into a tar ball */
     make_dist(home, pkg, suffix, &plist);
@@ -223,21 +225,22 @@ make_dist(char *home, char *pkg, char *suffix, Package *plist)
 
     /* Set up a pipe for passing the filenames, and fork off a tar process. */
     if (pipe(pipefds) == -1)
-	barf("Cannot create pipe: %s", strerror(errno));
+	cleanup(0), errx(2, "cannot create pipe");
     if ((pid = fork()) == -1)
-	barf("Cannot fork process for tar: %s", strerror(errno));
+	cleanup(0), errx(2, "cannot fork process for tar");
     if (pid == 0) {	/* The child */
 	dup2(pipefds[0], 0);
 	close(pipefds[0]);
 	close(pipefds[1]);
 	execv("/usr/bin/tar", args);
-	barf("Failed to execute tar command: %s", strerror(errno));
+	cleanup(0);
+	errx(2, "failed to execute tar command");
     }
 
     /* Meanwhile, back in the parent process ... */
     close(pipefds[0]);
     if ((totar = fdopen(pipefds[1], "w")) == NULL)
-	barf("fdopen failed: %s", strerror(errno));
+	cleanup(0), errx(2, "fdopen failed");
 
     fprintf(totar, "%s\n", CONTENTS_FNAME);
     fprintf(totar, "%s\n", COMMENT_FNAME);
@@ -267,18 +270,21 @@ make_dist(char *home, char *pkg, char *suffix, Package *plist)
     wait(&ret);
     /* assume either signal or bad exit is enough for us */
     if (ret)
-	barf("tar command failed with code %d", ret);
+	cleanup(0), errx(2, "tar command failed with code %d", ret);
 }
 
 static void
 sanity_check()
 {
     if (!Comment)
-	barf("Required package comment string is missing (-c comment).");
+	cleanup(0), errx(2,
+		"required package comment string is missing (-c comment)");
     if (!Desc)
-	barf("Required package description string is missing (-d desc).");
+	cleanup(0), errx(2,
+		"required package description string is missing (-d desc)");
     if (!Contents)
-	barf("Required package contents list is missing (-f [-]file).");
+	cleanup(0), errx(2,
+		"required package contents list is missing (-f [-]file)");
 }
 
 

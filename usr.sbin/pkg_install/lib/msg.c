@@ -1,5 +1,6 @@
 #ifndef lint
-static const char *rcsid = "$Id$";
+static const char rcsid[] =
+	"$Id: msg.c,v 1.8 1997/02/22 16:09:50 peter Exp $";
 #endif
 
 /*
@@ -23,42 +24,16 @@ static const char *rcsid = "$Id$";
  *
  */
 
+#include <err.h>
 #include "lib.h"
 
 /* Die a relatively simple death */
 void
 upchuck(const char *err)
 {
-    fprintf(stderr, "Fatal error during execution: ");
-    perror(err);
+    warn("fatal error during execution: %s", err);
     cleanup(0);
     exit(1);
-}
-
-/* Die a more complex death */
-void
-barf(const char *err, ...)
-{
-    va_list args;
-
-    va_start(args, err);
-    vfprintf(stderr, err, args);
-    fputc('\n', stderr);
-    va_end(args);
-    cleanup(0);
-    exit(2);
-}
-
-/* Get annoyed about something but don't go to pieces over it */
-void
-whinge(const char *err, ...)
-{
-    va_list args;
-
-    va_start(args, err);
-    vfprintf(stderr, err, args);
-    fputc('\n', stderr);
-    va_end(args);
 }
 
 /*
@@ -79,7 +54,7 @@ y_or_n(Boolean def, const char *msg, ...)
      */
     tty = fopen("/dev/tty", "r");
     if (!tty)
-	barf("Can't open /dev/tty!\n");
+	cleanup(0), errx(2, "can't open /dev/tty!");
     while (ch != 'Y' && ch != 'N') {
 	vfprintf(stderr, msg, args);
 	if (def)

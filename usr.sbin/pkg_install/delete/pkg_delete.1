@@ -21,7 +21,7 @@
 .Os FreeBSD 2.0
 .Sh NAME
 .Nm pkg_delete
-.Nd a utility for deleting previously installed software package distributions.
+.Nd a utility for deleting previously installed software package distributions
 .Sh SYNOPSIS
 .Nm
 .Op Fl vDdnf
@@ -63,28 +63,24 @@ command to examine the installed package control files.
 .Ef
 
 .Sh OPTIONS
-The following command line options are supported.
+The following command line options are supported:
 .Bl -tag -width indent
 .It Ar pkg-name ...
 The named packages are deinstalled.
 .It Fl v
-Turns on verbose output.
-.Em "Optional."
+Turn on verbose output.
 .It Fl D
 If a deinstallation script exists for a given package, do not execute it.
-.Em "Optional."
 .It Fl n
 Don't actually deinstall a package, just report the steps that
 would be taken if it were.
-.Em "Optional."
 .It Fl p Ar prefix
-Sets
+Set
 .Ar prefix
 as the directory in which to delete files from any installed packages
 which do not explicitly set theirs.  For most packages, the prefix will
 be set automatically to the installed location by
 .Xr pkg_add 1 .
-.Em "Optional."
 .It Fl d
 Remove empty directories created by file cleanup.  By default, only
 files/directories explicitly listed in a package's contents (either as
@@ -94,16 +90,14 @@ directive) will be removed at deinstallation time.  This option tells
 .Nm
 to also remove any directories that were emptied as a result of removing
 the package.  
-.Em "Optional."
 .It Fl f
 Force removal of the package, even if a dependency is recorded or the
 deinstall or require script fails.
-.Em "Optional."
 .El
 
 .Pp
 .Sh TECHNICAL DETAILS
-.Nm
+.Nm Pkg_delete
 does pretty much what it says.  It examines installed package records in 
 .Pa /var/db/pkg/<pkg-name> ,
 deletes the package contents, and finally removes the package records.
