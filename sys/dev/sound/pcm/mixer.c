@@ -79,7 +79,6 @@ static struct cdevsw mixer_cdevsw = {
 	.d_close =	mixer_close,
 	.d_ioctl =	mixer_ioctl,
 	.d_name =	"mixer",
-	.d_maj =	SND_CDEV_MAJOR,
 };
 
 #ifdef USING_DEVFS

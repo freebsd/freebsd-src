@@ -52,7 +52,6 @@ struct cdevsw dsp_cdevsw = {
 	.d_poll =	dsp_poll,
 	.d_mmap =	dsp_mmap,
 	.d_name =	"dsp",
-	.d_maj =	SND_CDEV_MAJOR,
 };
 
 #ifdef USING_DEVFS
