@@ -57,6 +57,7 @@
 #include <sys/wait.h>
 #include <readline/history.h>
 #include <readline/readline.h>
+#include <devstat.h>
 
 static void dorename(struct vinum_rename_msg *msg, const char *oldname, const char *name, int maxlen);
 
@@ -431,9 +432,46 @@ vinum_start(int argc, char *argv[], char *arg0[])
     struct _ioctl_reply reply;
     struct vinum_ioctl_msg *message = (struct vinum_ioctl_msg *) &reply;
 
-    if (argc == 0)					    /* start everything */
-	fprintf(stderr, "start must have an argument\n");
-    else {						    /* start specified objects */
+    if (argc == 0) {					    /* start everything */
+	int devs = getnumdevs();
+	struct statinfo statinfo;
+	char *namelist;
+	char *enamelist;				    /* end of name list */
+	int i;
+	char **token;					    /* list of tokens */
+	int tokens;					    /* and their number */
+
+	statinfo.dinfo = malloc(devs * sizeof(struct statinfo));
+	namelist = malloc(devs * (DEVSTAT_NAME_LEN + 8));
+	token = malloc((devs + 1) * sizeof(char *));
+	if ((statinfo.dinfo == NULL) || (namelist == NULL) || (token == NULL)) {
+	    fprintf(stderr, "Can't allocate memory for drive list\n");
+	    return;
+	}
+	token[0] = "read";				    /* make a read command of this mess */
+	tokens = 1;					    /* so far, it's the only token */
+
+	getdevs(&statinfo);				    /* find out what devices we have */
+	namelist[0] = '\0';				    /* start with empty namelist */
+	enamelist = namelist;				    /* point to the end of the list */
+
+	for (i = 0; i < devs; i++) {
+	    struct devstat *stat = &statinfo.dinfo->devices[i];
+
+	    if (((stat->device_type & DEVSTAT_TYPE_MASK) == DEVSTAT_TYPE_DIRECT) /* disk device */
+	    &&((stat->device_type & DEVSTAT_TYPE_PASS) == 0) /* and not passthrough */
+	    &&((stat->device_name[0] != '\0'))) {	    /* and it has a name */
+		sprintf(enamelist, "/dev/%s%d", stat->device_name, stat->unit_number);
+		token[tokens] = enamelist;		    /* point to it */
+		tokens++;				    /* one more token */
+		enamelist = &enamelist[strlen(enamelist) + 1]; /* and start beyond the end */
+	    }
+	}
+	free(statinfo.dinfo);				    /* don't need the list any more */
+	vinum_read(tokens, token, &token[0]);		    /* start the system */
+	free(namelist);
+	free(token);
+    } else {						    /* start specified objects */
 	int index;
 	enum objecttype type;
 

@@ -117,12 +117,13 @@ int tokens;						    /* number of tokens */
 int 
 main(int argc, char *argv[])
 {
-#if RAID5
-#define VINUMMOD "Vinum"
-#else
 #define VINUMMOD "vinum"
-#endif
+#define WRONGMOD "Vinum"				    /* don't want this one */
 
+    if (modfind(WRONGMOD) >= 0) {			    /* wrong module loaded, */
+	fprintf(stderr, "Wrong module loaded: %s.  Please start %s.\n", WRONGMOD, WRONGMOD);
+	exit(1);
+    }
     if (modfind(VINUMMOD) < 0) {
 	/* need to load the vinum module */
 	if (kldload(VINUMMOD) < 0 || modfind(VINUMMOD) < 0) {
