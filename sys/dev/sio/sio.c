@@ -265,8 +265,9 @@ struct com_s {
 
 	struct resource *irqres;
 	struct resource *ioportres;
-	void *cookie;
-	dev_t devs[6];
+	int	ioportrid;
+	void	*cookie;
+	dev_t	devs[6];
 
 	/*
 	 * Data area for output buffers.  Someday we should build the output
@@ -448,7 +449,8 @@ siodetach(dev)
 		bus_release_resource(dev, SYS_RES_IRQ, 0, com->irqres);
 	}
 	if (com->ioportres)
-		bus_release_resource(dev, SYS_RES_IOPORT, 0, com->ioportres);
+		bus_release_resource(dev, SYS_RES_IOPORT, com->ioportrid,
+				     com->ioportres);
 	if (com->tp && (com->tp->t_state & TS_ISOPEN)) {
 		device_printf(dev, "still open, forcing close\n");
 		(*linesw[com->tp->t_line].l_close)(com->tp, 0);
@@ -931,6 +933,7 @@ sioattach(dev, xrid, rclk)
 	bzero(com, sizeof *com);
 	com->unit = unit;
 	com->ioportres = port;
+	com->ioportrid = rid;
 	com->bst = rman_get_bustag(port);
 	com->bsh = rman_get_bushandle(port);
 	com->cfcr_image = CFCR_8BITS;
