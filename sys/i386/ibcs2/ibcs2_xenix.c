@@ -26,7 +26,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *	$Id: ibcs2_xenix.c,v 1.1 1994/10/14 08:53:12 sos Exp $
+ *	$Id: ibcs2_xenix.c,v 1.2 1995/02/03 21:31:35 bde Exp $
  */
 
 #include <i386/ibcs2/ibcs2.h>
@@ -267,11 +267,7 @@ ibcs2_cxenix(struct proc *p, void *args, int *retval)
 #endif
 			break;
 		case 6:		/* _SC_SAVED_IDS */
-#ifdef _POSIX_SAVED_IDS
-			*retval = (_POSIX_SAVED_IDS);
-#else
 			*retval = (0);
-#endif
 			break;
 		case 7:		/* _SC_VERSION */
 			*retval = (_POSIX_VERSION);
