@@ -20,7 +20,7 @@
  * 4. Neither the name of the Company nor the names of its contributors
  *    may be used to endorse or promote products derived from this software
  *    without specific prior written permission.
- *  
+ *
  * This software is provided ``as is'', and any express or implied
  * warranties, including, but not limited to, the implied warranties of
  * merchantability and fitness for a particular purpose are disclaimed.
@@ -38,7 +38,7 @@
 
 /*
  * Command keywords that vinum knows.  These include both user-level
- * and kernel-level stuff 
+ * and kernel-level stuff
  */
 
 /*
@@ -119,6 +119,9 @@ enum keyword {
     kw_info,
     kw_quit,
     kw_max,
+    kw_setstate,
+    kw_checkparity,
+    kw_rebuildparity,
     kw_invalid_keyword = -1
 };
 
