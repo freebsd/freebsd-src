@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)if.h	8.1 (Berkeley) 6/10/93
- * $Id: if.h,v 1.6 1994/08/21 05:11:40 paul Exp $
+ * $Id: if.h,v 1.7 1994/10/01 19:44:38 wollman Exp $
  */
 
 #ifndef _NET_IF_H_
@@ -233,7 +233,8 @@ struct ifaddr {
 	struct	sockaddr *ifa_netmask;	/* used to determine subnet */
 	struct	ifnet *ifa_ifp;		/* back-pointer to interface */
 	struct	ifaddr *ifa_next;	/* next address for interface */
-	void	(*ifa_rtrequest)();	/* check or clean routes (+ or -)'d */
+	void	(*ifa_rtrequest)	/* check or clean routes (+ or -)'d */
+		__P((int, struct rtentry *, struct sockaddr *));
 	u_short	ifa_flags;		/* mostly rt_flags for cloning */
 	short	ifa_refcnt;		/* extra to malloc for link info */
 	int	ifa_metric;		/* cost of going out this interface */

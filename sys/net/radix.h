@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)radix.h	8.1 (Berkeley) 6/10/93
- * $Id: radix.h,v 1.3 1994/08/21 05:11:45 paul Exp $
+ * $Id: radix.h,v 1.4 1994/11/02 04:41:23 wollman Exp $
  */
 
 #ifndef _NET_RADIX_H_
@@ -98,6 +98,8 @@ extern struct radix_mask {
 
 #define MKFree(m) { (m)->rm_mklist = rn_mkfreelist; rn_mkfreelist = (m);}
 
+typedef int walktree_f_t __P((struct radix_node *, /*struct walkarg*/ void *));
+
 struct radix_node_head {
 	struct	radix_node *rnh_treetop;
 	int	rnh_addrsize;		/* permit, but not require fixed keys */
@@ -117,7 +119,7 @@ struct radix_node_head {
 	struct	radix_node *(*rnh_matchpkt)	/* locate based on packet hdr */
 		__P((void *v, struct radix_node_head *head));
 	int	(*rnh_walktree)			/* traverse tree */
-		__P((struct radix_node_head *head, int (*f)(), void *w));
+		__P((struct radix_node_head *head, walktree_f_t *f, void *w));
 	void	(*rnh_close)	/* do something when the last ref drops */
 		__P((struct radix_node *rn, struct radix_node_head *head));
 	struct	radix_node rnh_nodes[3];	/* empty tree for common case */
@@ -139,7 +141,7 @@ struct radix_node_head {
 void	 rn_init __P((void));
 int	 rn_inithead __P((void **, int));
 int	 rn_refines __P((void *, void *));
-int	 rn_walktree __P((struct radix_node_head *, int (*)(), void *));
+int	 rn_walktree __P((struct radix_node_head *, walktree_f_t *, void *));
 struct radix_node
 	 *rn_addmask __P((void *, int, int)),
 	 *rn_addroute __P((void *, void *, struct radix_node_head *,
@@ -153,4 +155,5 @@ struct radix_node
 	 *rn_search_m __P((void *, struct radix_node *, void *));
 
 #endif /*KERNEL*/
-#endif /* _RADIX_H_ */
+
+#endif /* !_NET_RADIX_H_ */
