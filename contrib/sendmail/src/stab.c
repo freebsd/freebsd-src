@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1998-2000 Sendmail, Inc. and its suppliers.
+ * Copyright (c) 1998-2001 Sendmail, Inc. and its suppliers.
  *	All rights reserved.
  * Copyright (c) 1983, 1995-1997 Eric P. Allman.  All rights reserved.
  * Copyright (c) 1988, 1993
@@ -12,7 +12,7 @@
  */
 
 #ifndef lint
-static char id[] = "@(#)$Id: stab.c,v 8.40.16.3 2000/10/09 02:46:12 gshapiro Exp $";
+static char id[] = "@(#)$Id: stab.c,v 8.40.16.7 2001/05/07 22:06:41 gshapiro Exp $";
 #endif /* ! lint */
 
 #include <sendmail.h>
@@ -160,8 +160,8 @@ stab(name, type, op)
 		break;
 
 #ifdef LDAPMAP
-	  case ST_LDAP:
-		len = sizeof s->s_ldap;
+	  case ST_LMAP:
+		len = sizeof s->s_lmap;
 		break;
 #endif /* LDAPMAP */
 

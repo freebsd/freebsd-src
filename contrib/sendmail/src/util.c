@@ -12,7 +12,7 @@
  */
 
 #ifndef lint
-static char id[] = "@(#)$Id: util.c,v 8.225.2.1.2.19 2001/02/22 18:56:24 gshapiro Exp $";
+static char id[] = "@(#)$Id: util.c,v 8.225.2.1.2.23 2001/05/17 18:10:18 gshapiro Exp $";
 #endif /* ! lint */
 
 #include <sendmail.h>
@@ -378,13 +378,120 @@ xalloc(sz)
 	if (sz <= 0)
 		sz = 1;
 
+	ENTER_CRITICAL();
 	p = malloc((unsigned) sz);
+	LEAVE_CRITICAL();
 	if (p == NULL)
 	{
 		syserr("!Out of memory!!");
-		/* exit(EX_UNAVAILABLE); */
+
+		/* NOTREACHED */
+		exit(EX_UNAVAILABLE);
 	}
 	return p;
+}
+/*
+**  XREALLOC -- Reallocate memory and bitch wildly on failure.
+**
+**	THIS IS A CLUDGE.  This should be made to give a proper
+**	error -- but after all, what can we do?
+**
+**	Parameters:
+**		ptr -- original area.
+**		sz -- size of new area to allocate.
+**
+**	Returns:
+**		pointer to data region.
+**
+**	Side Effects:
+**		Memory is allocated.
+*/
+
+char *
+xrealloc(ptr, sz)
+	void *ptr;
+	size_t sz;
+{
+	register char *p;
+
+	/* some systems can't handle size zero mallocs */
+	if (sz <= 0)
+		sz = 1;
+
+	ENTER_CRITICAL();
+	p = realloc(ptr, (unsigned) sz);
+	LEAVE_CRITICAL();
+	if (p == NULL)
+	{
+		syserr("!Out of memory!!");
+
+		/* NOTREACHED */
+		exit(EX_UNAVAILABLE);
+	}
+	return p;
+}
+/*
+**  XCALLOC -- Allocate memory and bitch wildly on failure.
+**
+**	THIS IS A CLUDGE.  This should be made to give a proper
+**	error -- but after all, what can we do?
+**
+**	Parameters:
+**		num -- number of items to allocate
+**		sz -- size of new area to allocate.
+**
+**	Returns:
+**		pointer to data region.
+**
+**	Side Effects:
+**		Memory is allocated.
+*/
+
+char *
+xcalloc(num, sz)
+	size_t num;
+	size_t sz;
+{
+	register char *p;
+
+	/* some systems can't handle size zero mallocs */
+	if (num <= 0)
+		num = 1;
+	if (sz <= 0)
+		sz = 1;
+
+	ENTER_CRITICAL();
+	p = calloc((unsigned) num, (unsigned) sz);
+	LEAVE_CRITICAL();
+	if (p == NULL)
+	{
+		syserr("!Out of memory!!");
+
+		/* NOTREACHED */
+		exit(EX_UNAVAILABLE);
+	}
+	return p;
+}
+/*
+**  SM_FREE -- Free memory safely.
+**
+**	Parameters:
+**		ptr -- area to free
+**
+**	Returns:
+**		none.
+**
+**	Side Effects:
+**		Memory is freed.
+*/
+
+void
+sm_free(ptr)
+	void *ptr;
+{
+	ENTER_CRITICAL();
+	free(ptr);
+	LEAVE_CRITICAL();
 }
 /*
 **  COPYPLIST -- copy list of pointers.
@@ -502,13 +609,13 @@ log_sendmail_pid(e)
 	}
 	else
 	{
-		long pid;
+		pid_t pid;
 		extern char *CommandLineArgs;
 
-		pid = (long) getpid();
+		pid = getpid();
 
 		/* write the process id on line 1 */
-		fprintf(pidf, "%ld\n", pid);
+		fprintf(pidf, "%ld\n", (long) pid);
 
 		/* line 2 contains all command line flags */
 		fprintf(pidf, "%s\n", CommandLineArgs);
@@ -1212,6 +1319,13 @@ static void
 readtimeout(timeout)
 	time_t timeout;
 {
+	/*
+	**  NOTE: THIS CAN BE CALLED FROM A SIGNAL HANDLER.  DO NOT ADD
+	**	ANYTHING TO THIS ROUTINE UNLESS YOU KNOW WHAT YOU ARE
+	**	DOING.
+	*/
+
+	errno = ETIMEDOUT;
 	longjmp(CtxReadTimeout, 1);
 }
 /*
@@ -1271,7 +1385,7 @@ fgetfolded(buf, n, f)
 			memmove(nbp, bp, p - bp);
 			p = &nbp[p - bp];
 			if (bp != buf)
-				free(bp);
+				sm_free(bp);
 			bp = nbp;
 			n = nn - (p - bp);
 		}
@@ -1836,13 +1950,13 @@ shorten_hostname(host)
 **		pid of the process -- -1 if it failed.
 */
 
-int
+pid_t
 prog_open(argv, pfd, e)
 	char **argv;
 	int *pfd;
 	ENVELOPE *e;
 {
-	int pid;
+	pid_t pid;
 	int i;
 	int save_errno;
 	int fdv[2];
@@ -1873,6 +1987,11 @@ prog_open(argv, pfd, e)
 
 	/* child -- close stdin */
 	(void) close(0);
+
+	/* Reset global flags */
+	RestartRequest = NULL;
+	ShutdownRequest = NULL;
+	PendingSignal = 0;
 
 	/* stdout goes back to parent */
 	(void) close(fdv[0]);
@@ -2119,7 +2238,7 @@ denlstring(s, strict, logattacks)
 	{
 		/* allocate more space */
 		if (bp != NULL)
-			free(bp);
+			sm_free(bp);
 		bp = xalloc(l);
 		bl = l;
 	}
@@ -2199,7 +2318,7 @@ path_is_dir(pathname, createflag)
 **		none
 */
 
-static struct procs	*ProcListVec = NULL;
+static struct procs	*volatile ProcListVec = NULL;
 static int		ProcListSize = 0;
 
 void
@@ -2238,7 +2357,7 @@ proc_list_add(pid, task, type)
 		{
 			memmove(npv, ProcListVec,
 				ProcListSize * sizeof (struct procs));
-			free(ProcListVec);
+			sm_free(ProcListVec);
 		}
 		for (i = ProcListSize; i < ProcListSize + PROC_LIST_SEG; i++)
 		{
@@ -2252,7 +2371,7 @@ proc_list_add(pid, task, type)
 	}
 	ProcListVec[i].proc_pid = pid;
 	if (ProcListVec[i].proc_task != NULL)
-		free(ProcListVec[i].proc_task);
+		sm_free(ProcListVec[i].proc_task);
 	ProcListVec[i].proc_task = newstr(task);
 	ProcListVec[i].proc_type = type;
 
@@ -2283,7 +2402,7 @@ proc_list_set(pid, task)
 		if (ProcListVec[i].proc_pid == pid)
 		{
 			if (ProcListVec[i].proc_task != NULL)
-				free(ProcListVec[i].proc_task);
+				sm_free(ProcListVec[i].proc_task);
 			ProcListVec[i].proc_task = newstr(task);
 			break;
 		}
@@ -2297,6 +2416,10 @@ proc_list_set(pid, task)
 **
 **	Returns:
 **		type of process
+**
+**	NOTE:	THIS CAN BE CALLED FROM A SIGNAL HANDLER.  DO NOT ADD
+**		ANYTHING TO THIS ROUTINE UNLESS YOU KNOW WHAT YOU ARE
+**		DOING.
 */
 
 int
