@@ -4,7 +4,7 @@
  * This is probably the last attempt in the `sysinstall' line, the next
  * generation being slated to essentially a complete rewrite.
  *
- * $Id: sysinstall.h,v 1.85 1996/11/07 08:03:28 jkh Exp $
+ * $Id: sysinstall.h,v 1.82.2.3 1996/11/07 09:08:16 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -433,6 +433,7 @@ extern int	dmenuSystemCommand(dialogMenuItem *tmp);
 extern int	dmenuSystemCommandBox(dialogMenuItem *tmp);
 extern int	dmenuExit(dialogMenuItem *tmp);
 extern int	dmenuSetVariable(dialogMenuItem *tmp);
+extern int	dmenuSetKmapVariable(dialogMenuItem *tmp);
 extern int	dmenuSetVariables(dialogMenuItem *tmp);
 extern int	dmenuToggleVariable(dialogMenuItem *tmp);
 extern int	dmenuSetFlag(dialogMenuItem *tmp);
@@ -491,6 +492,8 @@ extern int	installFilesystems(dialogMenuItem *self);
 extern int	installVarDefaults(dialogMenuItem *self);
 extern Boolean	copySelf(void);
 
+/* keymap.c */
+extern int	loadKeymap(const char *lang);
 
 /* label.c */
 extern int	diskLabelEditor(dialogMenuItem *self);

@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: menus.c,v 1.94 1996/11/07 18:30:59 jkh Exp $
+ * $Id: menus.c,v 1.89.2.4 1996/11/07 18:31:38 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -289,13 +289,14 @@ DMenu MenuInitial = {
       { "Exit Install",	NULL, NULL, dmenuExit },
       { "1 Usage",	"Quick start - How to use this menu system",		NULL, dmenuDisplayFile, NULL, "usage" },
       { "2 Doc",	"Installation instructions, README, etc.",		NULL, dmenuSubmenu, NULL, &MenuDocumentation },
-      { "3 Options",	"Go to the options editor",				NULL, optionsEditor },
-      { "4 Novice",	"Begin a novice installation (for beginners)",		NULL, installNovice },
-      { "5 Express",	"Begin a quick installation (for the impatient)",	NULL, installExpress },
-      { "6 Custom",	"Begin a custom installation (for experts)",		NULL, dmenuSubmenu, NULL, &MenuInstallCustom },
-      { "7 Fixit",	"Go into repair mode with CDROM or floppy",		NULL, dmenuSubmenu, NULL, &MenuFixit },
-      { "8 Upgrade",	"Upgrade an existing system",			NULL, installUpgrade },
-      { "9 Configure",	"Do post-install configuration of FreeBSD",		NULL, dmenuSubmenu, NULL, &MenuConfigure },
+      { "3 Keymap",	"Select a keyboard language.",				NULL, dmenuSubmenu, NULL, &MenuSysconsKeymap },
+      { "4 Options",	"Go to the options editor",				NULL, optionsEditor },
+      { "5 Novice",	"Begin a novice installation (for beginners)",		NULL, installNovice },
+      { "6 Express",	"Begin a quick installation (for the impatient)",	NULL, installExpress },
+      { "7 Custom",	"Begin a custom installation (for experts)",		NULL, dmenuSubmenu, NULL, &MenuInstallCustom },
+      { "8 Fixit",	"Go into repair mode with CDROM or floppy",		NULL, dmenuSubmenu, NULL, &MenuFixit },
+      { "9 Upgrade",	"Upgrade an existing system",			NULL, installUpgrade },
+      { "c Configure",	"Do post-install configuration of FreeBSD",		NULL, dmenuSubmenu, NULL, &MenuConfigure },
       { "0 Index",	"Glossary of functions.",		NULL, dmenuSubmenu, NULL, &MenuIndex },
       { NULL } },
 };
@@ -1165,21 +1166,33 @@ DMenu MenuSysconsKeymap = {
     "The default system console driver for FreeBSD (syscons) defaults\n\
 to a standard \"American\" keyboard map.  Users in other countries\n\
 (or with different keyboard preferences) may wish to choose one of\n\
-the other keymaps below.",
+the other keymaps below.\n\
+Note that sysinstall itself does only guarantee to use the part of\n\
+the keyboard mapping that is required to generate the ANSI character\n\
+subset, but the desired mapping will be remembered later.",
     "Choose a keyboard map",
     NULL,
-{ { "Danish CP865", "Danish Code Page 865 keymap", dmenuVarCheck, dmenuSetVariable, NULL, "keymap=danish.cp865" },
-  { "Danish ISO", "Danish ISO keymap", dmenuVarCheck, dmenuSetVariable, NULL, "keymap=danish.iso" },
-  { "French ISO", "French ISO keymap", dmenuVarCheck, dmenuSetVariable, NULL, "keymap=fr.iso" },
-  { "German CP850", "German Code Page 850 keymap", dmenuVarCheck, dmenuSetVariable, NULL, "keymap=german.cp850"	},
-  { "German ISO", "German ISO keymap", dmenuVarCheck, dmenuSetVariable, NULL, "keymap=german.iso" },
-  { "Italian", "Italian ISO keymap", dmenuVarCheck, dmenuSetVariable, NULL, "keymap=it.iso" },
-  { "Japanese 106", "Japanese 106 keymap",  dmenuVarCheck, dmenuSetVariable, NULL, "keymap=jp.106" },
-  { "Swedish CP850", "Swedish Code Page 850 keymap", dmenuVarCheck, dmenuSetVariable, NULL, "keymap=swedish.cp850" },
-  { "Swedish ISO", "Swedish ISO keymap", dmenuVarCheck, dmenuSetVariable, NULL, "keymap=swedish.iso" },
-  { "U.K. CP850", "United Kingdom Code Page 850 keymap", dmenuVarCheck, dmenuSetVariable, NULL, "keymap=uk.cp850" },
-  { "U.K. ISO", "United Kingdom ISO keymap", dmenuVarCheck, dmenuSetVariable, NULL, "keymap=uk.iso" },
-  { "U.S. ISO", "United States ISO keymap", dmenuVarCheck, dmenuSetVariable, NULL, "keymap=us.iso" },
+{ { "Belgian", "Belgian ISO keymap", dmenuVarCheck, dmenuSetKmapVariable, NULL, "keymap=be.iso" },
+  { "Brazil CP850", "Brazil CP850 keymap", dmenuVarCheck, dmenuSetKmapVariable, NULL, "keymap=br275.cp850" },
+  { "Brazil ISO", "Brazil ISO keymap", dmenuVarCheck, dmenuSetKmapVariable, NULL, "keymap=br275.iso" },
+  { "Danish CP865", "Danish Code Page 865 keymap", dmenuVarCheck, dmenuSetKmapVariable, NULL, "keymap=danish.cp865" },
+  { "Danish ISO", "Danish ISO keymap", dmenuVarCheck, dmenuSetKmapVariable, NULL, "keymap=danish.iso" },
+  { "French ISO", "French ISO keymap", dmenuVarCheck, dmenuSetKmapVariable, NULL, "keymap=fr.iso" },
+  { "German CP850", "German Code Page 850 keymap", dmenuVarCheck, dmenuSetKmapVariable, NULL, "keymap=german.cp850"	},
+  { "German ISO", "German ISO keymap", dmenuVarCheck, dmenuSetKmapVariable, NULL, "keymap=german.iso" },
+  { "Italian", "Italian ISO keymap", dmenuVarCheck, dmenuSetKmapVariable, NULL, "keymap=it.iso" },
+  { "Japanese 106", "Japanese 106 keymap",  dmenuVarCheck, dmenuSetKmapVariable, NULL, "keymap=jp.106" },
+  { "Norway ISO", "Norwegian ISO keymap", dmenuVarCheck, dmenuSetKmapVariable, NULL, "keymap=norwegian.iso" },
+  { "Russia CP866", "Russian CP866 keymap", dmenuVarCheck, dmenuSetKmapVariable, NULL, "keymap=ru.cp866" },
+  { "Russia KOI8-R", "Russian KOI8-R keymap", dmenuVarCheck, dmenuSetKmapVariable, NULL, "keymap=ru.koi8-r" },
+  { "Spanish", "Spanish ISO keymap", dmenuVarCheck, dmenuSetKmapVariable, NULL, "keymap=spanish.iso" },
+  { "Swedish CP850", "Swedish Code Page 850 keymap", dmenuVarCheck, dmenuSetKmapVariable, NULL, "keymap=swedish.cp850" },
+  { "Swedish ISO", "Swedish ISO keymap", dmenuVarCheck, dmenuSetKmapVariable, NULL, "keymap=swedish.iso" },
+  { "Swiss German", "Swiss German ISO keymap", dmenuVarCheck, dmenuSetKmapVariable, NULL, "keymap=swissgerman.iso.kbd" },
+  { "U.K. CP850", "United Kingdom Code Page 850 keymap", dmenuVarCheck, dmenuSetKmapVariable, NULL, "keymap=uk.cp850" },
+  { "U.K. ISO", "United Kingdom ISO keymap", dmenuVarCheck, dmenuSetKmapVariable, NULL, "keymap=uk.iso" },
+  { "U.S. Dvorak", "United States Dvorak keymap", dmenuVarCheck, dmenuSetKmapVariable, NULL, "keymap=us.dvorak" },
+  { "U.S. ISO", "United States ISO keymap", dmenuVarCheck, dmenuSetKmapVariable, NULL, "keymap=us.iso" },
   { NULL } },
 };
 
