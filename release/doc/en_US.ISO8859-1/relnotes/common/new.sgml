@@ -15,6 +15,15 @@
     <holder role="mailto:doc@FreeBSD.org">The &os; Documentation Project</holder>
   </copyright>
 
+  <legalnotice id="trademarks" role="trademarks">
+    &tm-attrib.freebsd;
+    &tm-attrib.ibm;
+    &tm-attrib.ieee;
+    &tm-attrib.intel;
+    &tm-attrib.sparc;
+    &tm-attrib.general;
+  </legalnotice>
+
   <abstract>
     <para>The release notes for &os; &release.current; contain a summary
       of the changes made to the &os; base system since &release.prev;.
@@ -113,6 +122,13 @@
   <sect2 id="kernel">
     <title>Kernel Changes</title>
 
+    <para>The &man.jail.8; feature now supports a new sysctl
+      <varname>security.jail.chflags_allowed</varname>, which controls the
+      behavior of &man.chflags.1; within a jail.
+      If set to <literal>0</literal> (the default), then a jailed <username>root</username> user is
+      treated as an unprivileged user; if set to <literal>1</literal>, then
+      a jailed root user is treated the same as an unjailed <username>root</username> user.</para>
+
     <para arch="alpha,amd64,i386">The loader tunable <varname>debug.mpsafevm</varname>
       has been enabled by default.</para>
 
@@ -152,6 +168,9 @@
 	power utilization by adjusting the processor speed.  More
 	details can be found in the &man.cpufreq.4; manual page.</para>
 
+      <para>The pcii driver has been added to support GPIB-PCIIA IEEE-488
+	cards.</para>
+
       <para arch="sparc64">The rtc driver has been added to support
 	the MC146818-compatible clock found on some &ultrasparc; II
 	and III models.</para>
@@ -179,6 +198,9 @@
 	<para>The &man.ctau.4; driver is now MPSAFE.</para>
 
 	<para>The &man.cx.4; driver is now MPSAFE.</para>
+
+	<para>The &man.ed.4; driver now supports the &man.altq.4;
+	  framework.</para>
 
 	<para>In the &man.em.4; driver, hardware support for VLAN
 	  tagging is now disabled by default due to some interactions
@@ -218,6 +240,12 @@
       <para>The MTU feedback in IPv6 has been disabled when the sender writes
 	data that must be fragmented.</para>
 
+      <para>The &man.ipfw.4; system can work with
+	<varname>debug.mpsafenet</varname>=<literal>1</literal>
+	(this tunable is <literal>1</literal> by default)
+	when the <literal>gid</literal>, <literal>jail</literal>,
+	and/or <literal>uid</literal> rule options are used.</para>
+
       <para>The &man.ipfw.8; <literal>ipfw fwd</literal> rule now supports
 	the full packet destination manipulation when the kernel option
 	<literal>options IPFIREWALL_FORWARD_EXTENDED</literal> is specified
@@ -227,6 +255,9 @@
 	packets destined to locally configured IP addresses.
 	Note that &man.ipfw.8; rules have to be carefully crafted to
 	make sure that things like PMTU discovery do not break.</para>
+
+      <para>&man.ipnat.8; now allows redirect rules to
+	work for non-TCP/UDP packets.</para>
 
       <para>Ongoing work is reducing the use of the Giant lock by the
 	network protocol stack and improving the locking
@@ -244,6 +275,9 @@
 
       <para>Several bugs in the TCP SACK implementation have been
 	fixed.</para>
+
+      <para>The KAME IPv4 IPsec implementation integrated
+	in &os; now supports TCP-MD5.</para>
 
       <para>Random ephemeral port number allocation has led to some
         problems with port reuse at high connection rates.  This
@@ -266,6 +300,9 @@
 
       <para>The &man.hptmv.4; driver, which supports the HighPoint
 	RocketRAID 182x series, has been added.</para>
+
+      <para>The &man.ips.4; driver now support kernel crash dumps
+	on some modern ServeRAID models.</para>
 
       <para>The &man.matcd.4; driver has been removed.</para>
 
@@ -314,16 +351,52 @@
   <sect2 id="userland">
     <title>Userland Changes</title>
 
+    <para>The &man.ftpd.8; program now uses the <literal>212</literal>
+      and <literal>213</literal> status codes for directory
+      and file status correctly (<literal>211</literal> was used in
+      the previous versions).  This behavior is described in RFC 959.
+      </para>
+
+    <para>The &man.getaddrinfo.3; function now queries <literal>A</literal>
+      DNS resource records before <literal>AAAA</literal> records
+      when <literal>AF_UNSPEC</literal> is specified.
+      Some broken DNS servers return <literal>NXDOMAIN</literal>
+      against non-existent <literal>AAAA</literal> queries,
+      even when it should return <literal>NOERROR</literal>
+      with empty return records.  This is a problem for an IPv4/IPv6 dual
+      stack node because the <literal>NXDOMAIN</literal> returned
+      by the first query of an <literal>AAAA</literal> record makes
+      the querying server stop attempting to resolve the <literal>A</literal>
+      record if any.  Also, this behavior has been recognized as a potential
+      denial-of-service attack (see <ulink url="http://www.kb.cert.org/vuls/id/714121"></ulink>
+      for more details).
+      Note that although the query order has been changed,
+      the returned result still includes
+      <literal>AF_INET6</literal> records before
+      <literal>AF_INET</literal> records.</para>
+
     <para>The <literal>create</literal> command of the &man.gpt.8;
       utility now supports a <option>-f</option> command-line flag to
       force creation of a GPT even when there is an MBR record on a
       disk.</para>
+
+    <para>The gvinum(8) utility now supports
+      <command>checkparity</command>,
+      <command>rebuildparity</command>, and
+      <command>setstate</command>
+      subcommands.</para>
 
     <para>The <filename>libarchive</filename> library (as well as the
       &man.tar.1; command that uses it) now has support for reading ISO
       images (with optional RockRidge extensions) and ZIP archives
       (with <literal>deflate</literal> and <literal>none</literal>
       compression).</para>
+
+    <para>The <filename>libgpib</filename> library has been added to
+      give userland access to GPIB devices (using the the pcii driver)
+      via the
+      <function>ib<replaceable>foo</replaceable></function>
+      API.</para>
 
     <para>A number of bugfixes for <filename>libpthread</filename>
       have been merged from HEAD.</para>
@@ -372,12 +445,20 @@
       flag to generate a calendar for a specified month in the current
       year.</para>
 
+    <para>The &man.periodic.8; security output now supports the display of
+      information about blocked packet counts from &man.pf.4;.</para>
+
     <para>The &man.ppp.8; program now implements an
       <option>echo</option> parameter, which allows LCP ECHOs to be
       enabled independently of LQR reports.  Older versions of
       &man.ppp.8; would revert to LCP ECHO mode on negotiation
       failure.  It is now necessary to specify <command>enable
       echo</command> to get this behaviour.</para>
+
+    <para>Two bugs in the &man.pppd.8; program have been fixed.
+      They may result in an incorrect CBCP response,
+      which violates the Microsoft PPP Callback Control Protocol
+      section 3.2.</para>
 
     <para>The &man.rm.1; utility now supports an <option>-I</option>
       option that asks for confirmation (once) if recursively
@@ -419,6 +500,12 @@
 
     <sect3 id="rc-scripts">
       <title><filename>/etc/rc.d</filename> Scripts</title>
+
+      <para>&man.rc.conf.5; now supports changes of network interface names
+	at boot time.  For example:</para>
+
+      <programlisting>ifconfig_fxp0_name="net0"
+ifconfig_net0="inet 10.0.0.1/16"</programlisting>
 
       <para>&man.rc.conf.5; now supports the <varname>tmpmfs_flags</varname>
 	and <varname>varmfs_flags</varname> variables.
@@ -501,7 +588,7 @@
 
     <para>The supported version of the
       <application>GNOME</application> desktop environment has been
-      updated from 2.6.2 to 2.8.3.
+      updated from 2.6.2 to 2.10.
 
       <note>
 	<para>Users of older versions of the
@@ -513,11 +600,11 @@
 	  will cause serious problems.
 	  <application>GNOME</application> desktop users should read
 	  the instructions carefully at
-	  <ulink url="&url.base;/gnome/docs/faq28.html"></ulink>
+	  <ulink url="&url.base;/gnome/docs/faq210.html"></ulink>
 	  and use the
 	  <ulink url="&url.base;/gnome/gnome_upgrade.sh"><filename>gnome_upgrade.sh</filename></ulink>
 	  script to properly upgrade to
-	  <application>GNOME</application> 2.8.3.</para>
+	  <application>GNOME</application> 2.10.</para>
 
 	<para>For casual users of the various
 	  <application>GNOME</application> libraries,
