@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *      $Id: busdma_machdep.c,v 1.7 1998/07/11 07:45:28 bde Exp $
+ *      $Id: busdma_machdep.c,v 1.8 1998/09/15 10:03:42 gibbs Exp $
  */
 
 #include <sys/param.h>
@@ -459,7 +459,7 @@ bus_dmamap_load(bus_dma_tag_t dmat, bus_dmamap_t map, void *buf,
 
 	if (buflen != 0) {
 		printf("bus_dmamap_load: Too many segs! buf_len = 0x%lx\n",
-		       buflen);
+		       (u_long)buflen);
 		error = EFBIG;
 	}
 
