@@ -26,7 +26,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *      $Id: cam_xpt.c,v 1.8 1998/09/20 05:03:34 gibbs Exp $
+ *      $Id: cam_xpt.c,v 1.9 1998/09/20 07:14:36 gibbs Exp $
  */
 #include <sys/param.h>
 #include <sys/systm.h>
@@ -274,14 +274,6 @@ static struct xpt_quirk_entry xpt_quirk_table[] =
 		/*quirks*/0, /*mintags*/0, /*maxtags*/32
 	},
         {
-		/* Doesn't understand EVP Serial Requests */
-		{
-			T_CDROM, SIP_MEDIA_REMOVABLE,
-			"TOSHIBA", "CD-ROM XM-3401TA", "1094"
-		},
-		CAM_QUIRK_NOSERIAL, /*mintags*/0, /*maxtags*/0
-        },
-        {
 		/*
 		 * Hack until multiple-luns are supported by
 		 * the target mode code.
@@ -292,6 +284,14 @@ static struct xpt_quirk_entry xpt_quirk_table[] =
 		},
 		CAM_QUIRK_NOLUNS, /*mintags*/0, /*maxtags*/0
         },
+	{
+		/* I can't believe I need a quirk for DPT volumes. */
+		{
+			T_ANY, SIP_MEDIA_FIXED|SIP_MEDIA_REMOVABLE,
+			"DPT", "*", "*"
+		},
+		CAM_QUIRK_NOSERIAL|CAM_QUIRK_NOLUNS, /*mintags*/0, /*maxtags*/64
+	},
 	{
 		/* Really only one LUN */
 		{

@@ -25,7 +25,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *      $Id$
+ *      $Id: cam.c,v 1.1 1998/09/15 06:33:23 gibbs Exp $
  */
 #include <sys/param.h>
 
@@ -35,10 +35,11 @@ void
 cam_strvis(u_int8_t *dst, const u_int8_t *src, int srclen, int dstlen)
 {
 
-	/* Trim leading/trailing spaces. */
+	/* Trim leading/trailing spaces, nulls. */
 	while (srclen > 0 && src[0] == ' ')
 		src++, srclen--;
-	while (srclen > 0 && src[srclen-1] == ' ')
+	while (srclen > 0
+	    && (src[srclen-1] == ' ' || src[srclen-1] == '\0'))
 		srclen--;
 
 	while (srclen > 0 && dstlen > 1) {
