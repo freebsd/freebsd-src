@@ -426,8 +426,11 @@ ipsec4_process_packet(
 				error = EFAULT;
 			}
 			if (error) {
-				if (mp)
+				if (mp) {
+					/* XXX: Should never happen! */
 					m_freem(mp);
+				}
+				m = NULL; /* ipip_output() already freed it */
 				goto bad;
 			}
 			m = mp, mp = NULL;
