@@ -29,7 +29,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: aic7870.c,v 1.37.2.3 1996/11/05 08:56:59 gibbs Exp $
+ *	$Id: aic7870.c,v 1.43 1996/11/11 05:26:14 gibbs Exp $
  */
 
 #if defined(__FreeBSD__)
@@ -336,7 +336,7 @@ ahc_pci_attach(parent, self, aux)
 	paddr = NULL;
 #if defined(__FreeBSD__)
 	io_port = 0;
-#ifndef AHC_FORCE_PIO
+#ifdef AHC_ALLOW_MEMIO
 	if (pci_map_mem(config_id, PCI_BASEADR1, &vaddr, &paddr) == 0)
 #endif
 		if (pci_map_port(config_id, PCI_BASEADR0, &io_port) == 0)
