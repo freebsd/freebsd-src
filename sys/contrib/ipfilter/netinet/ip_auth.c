@@ -47,7 +47,7 @@ static const char rcsid[] = "@(#)$FreeBSD$";
 # include <sys/stream.h>
 # include <sys/kmem.h>
 #endif
-#if (_BSDI_VERSION >= 199802) || (__FreeBSD_Version >= 400000)
+#if (_BSDI_VERSION >= 199802) || (__FreeBSD_version >= 400000)
 # include <sys/queue.h>
 #endif
 #if defined(__NetBSD__) || defined(__OpenBSD__) || defined(bsdi)
