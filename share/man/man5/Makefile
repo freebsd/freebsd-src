@@ -12,7 +12,6 @@ MAN=	acct.5 \
 	device.hints.5 \
 	dir.5 \
 	disktab.5 \
-	drivers.conf.5 \
 	elf.5 \
 	ethers.5 \
 	eui64.5 \
