@@ -23,7 +23,7 @@
  * any improvements or extensions that they make and grant Carnegie the
  * rights to redistribute these changes.
  *
- *	$Id: db_trace.c,v 1.23 1997/07/20 08:37:17 bde Exp $
+ *	$Id: db_trace.c,v 1.24 1997/08/18 06:58:06 charnier Exp $
  */
 
 #include <sys/param.h>
@@ -187,7 +187,7 @@ db_nextframe(fp, ip)
 	 */
 	tf = (struct trapframe *) ((int)*fp + 8);
 
-	esp = CS_SECURE(tf->tf_cs) ? tf->tf_esp : (int)&tf->tf_esp;
+	esp = (ISPL(tf->tf_cs) == SEL_UPL) ?  tf->tf_esp : (int)&tf->tf_esp;
 	switch (frame_type) {
 	case TRAP:
 		if (INKERNEL((int) tf)) {
