@@ -1,4 +1,4 @@
-/*	$Id: msdosfs_vnops.c,v 1.16.2.1 1995/06/02 10:57:50 davidg Exp $ */
+/*	$Id: msdosfs_vnops.c,v 1.16.2.2 1995/06/02 11:01:07 davidg Exp $ */
 /*	$NetBSD: msdosfs_vnops.c,v 1.20 1994/08/21 18:44:13 ws Exp $	*/
 
 /*-
@@ -1087,6 +1087,7 @@ msdosfs_rename(ap)
 				error = ENOTEMPTY;
 				goto bad;
 			}
+			cache_purge(DETOV(tddep));
 		} else {		/* destination is file */
 			if (sourceisadirectory) {
 				error = EISDIR;
