@@ -897,6 +897,12 @@ ng_ksocket_rcvdata(hook_p hook, item_p item)
 	struct mbuf *m;
 	struct sa_tag *stag;
 
+	/* Avoid reentrantly sending on the socket */
+	if (SOCKBUF_OWNED(&so->so_snd)) {
+		NG_FREE_ITEM(item);
+		return (EDEADLK);
+	}
+
 	/* Extract data */
 	NGI_GET_M(item, m);
 	NG_FREE_ITEM(item);
