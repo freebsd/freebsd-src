@@ -6,7 +6,7 @@
  * this stuff is worth it, you can buy me a beer in return.   Poul-Henning Kamp
  * ----------------------------------------------------------------------------
  *
- * $Id: timepps.h,v 1.2 1998/06/12 23:15:40 phk Exp $
+ * $Id: timepps.h,v 1.3 1998/06/13 09:30:24 phk Exp $
  *
  * The is a FreeBSD protype version of the "draft-mogul-pps-api-02.txt" 
  * specification for Pulse Per Second timing interfaces.  
@@ -61,7 +61,7 @@ typedef struct {
 
 
 #define PPS_CAPTUREASSERT	0x01
-#define PPS_CAPTURECLEAR	0x01
+#define PPS_CAPTURECLEAR	0x02
 #define PPS_CAPTUREBOTH		0x03
 
 #define PPS_OFFSETASSERT	0x10
