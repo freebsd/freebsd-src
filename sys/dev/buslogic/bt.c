@@ -29,7 +29,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *      $Id: bt.c,v 1.13 1998/12/11 03:50:35 gibbs Exp $
+ *      $Id: bt.c,v 1.13.2.1 1999/03/08 21:39:34 gibbs Exp $
  */
 
  /*
@@ -73,6 +73,10 @@
 #include <vm/pmap.h>
  
 #include <dev/buslogic/btreg.h>
+
+#ifndef MAX
+#define MAX(a, b) ((a) > (b) ? (a) : (b))
+#endif
 
 struct bt_softc *bt_softcs[NBT];
 
@@ -1467,7 +1471,7 @@ btexecuteccb(void *arg, bus_dma_segment_t *dm_segs, int nseg, int error)
 		 * timeout causing us to start recovery operations.
 		 */
 		printf("%s: Encountered busy mailbox with %d out of %d "
-		       "commands active!!!", bt_name(bt), bt->active_ccbs,
+		       "commands active!!!\n", bt_name(bt), bt->active_ccbs,
 		       bt->max_ccbs);
 		untimeout(bttimeout, bccb, ccb->ccb_h.timeout_ch);
 		if (nseg != 0)
@@ -1839,29 +1843,39 @@ bt_cmd(struct bt_softc *bt, bt_op_t opcode, u_int8_t *params, u_int param_len,
 {
 	u_int	timeout;
 	u_int	status;
+	u_int	saved_status;
 	u_int	intstat;
 	u_int	reply_buf_size;
 	int	s;
 	int	cmd_complete;
+	int	error;
 
 	/* No data returned to start */
 	reply_buf_size = reply_len;
 	reply_len = 0;
 	intstat = 0;
 	cmd_complete = 0;
+	saved_status = 0;
+	error = 0;
 
 	bt->command_cmp = 0;
 	/*
-	 * Wait up to 1 sec. for the adapter to become
+	 * Wait up to 10 sec. for the adapter to become
 	 * ready to accept commands.
 	 */
-	timeout = 10000;
+	timeout = 100000;
 	while (--timeout) {
-
 		status = bt_inb(bt, STATUS_REG);
 		if ((status & HA_READY) != 0
 		 && (status & CMD_REG_BUSY) == 0)
 			break;
+		/*
+		 * Throw away any pending data which may be
+		 * left over from earlier commands that we
+		 * timedout on.
+		 */
+		if ((status & DATAIN_REG_READY) != 0)
+			(void)bt_inb(bt, DATAIN_REG);
 		DELAY(100);
 	}
 	if (timeout == 0) {
@@ -1876,81 +1890,80 @@ bt_cmd(struct bt_softc *bt, bt_op_t opcode, u_int8_t *params, u_int param_len,
 	bt_outb(bt, COMMAND_REG, opcode);
 
 	/*
-	 * Wait for up to 1sec to get the parameter list sent
+	 * Wait for up to 1sec for each byte of the the
+	 * parameter list sent to be sent.
 	 */
 	timeout = 10000;
 	while (param_len && --timeout) {
 		DELAY(100);
+		s = splcam();
 		status = bt_inb(bt, STATUS_REG);
 		intstat = bt_inb(bt, INTSTAT_REG);
+		splx(s);
 		if ((intstat & (INTR_PENDING|CMD_COMPLETE))
 		 == (INTR_PENDING|CMD_COMPLETE)) {
+			saved_status = status;
 			cmd_complete = 1;
 			break;
 		}
 		if (bt->command_cmp != 0) {
-			status = bt->latched_status;
+			saved_status = bt->latched_status;
 			cmd_complete = 1;
 			break;
 		}
 		if ((status & DATAIN_REG_READY) != 0)
 			break;
+
 		if ((status & CMD_REG_BUSY) == 0) {
 			bt_outb(bt, COMMAND_REG, *params++);
 			param_len--;
+			timeout = 10000;
 		}
 	}
 	if (timeout == 0) {
 		printf("%s: bt_cmd: Timeout sending parameters, "
 		       "status = 0x%x\n", bt_name(bt), status);
-		return (ETIMEDOUT);
+		cmd_complete = 1;
+		saved_status = status;
+		error = ETIMEDOUT;
 	}
 
 	/*
-	 * The BOP_MODIFY_IO_ADDR does not issue a CMD_COMPLETE, but
-	 * it should update the status register.  So, we wait for
-	 * the CMD_REG_BUSY status to clear and check for a command
-	 * failure.
-	 */
-	if (cmd_complete == 0 && opcode == BOP_MODIFY_IO_ADDR) {
-
-		while (--cmd_timeout) {
-			status = bt_inb(bt, STATUS_REG);
-			if ((status & CMD_REG_BUSY) == 0) {
-				if ((status & CMD_INVALID) != 0) {
-					printf("%s: bt_cmd - Modify I/O Address"
-					       " invalid\n", bt_name(bt));
-					return (EINVAL);
-				}
-				return (0);
-			}
-			DELAY(100);
-		}
-		if (timeout == 0) {
-			printf("%s: bt_cmd: Timeout on Modify I/O Address CMD, "
-			       "status = 0x%x\n", bt_name(bt), status);
-			return (ETIMEDOUT);
-		}
-	}
-
-	/*
-	 * For all other commands, we wait for any output data
-	 * and the final comand completion interrupt.
+	 * Wait for the command to complete.
 	 */
 	while (cmd_complete == 0 && --cmd_timeout) {
 
+		s = splcam();
 		status = bt_inb(bt, STATUS_REG);
 		intstat = bt_inb(bt, INTSTAT_REG);
-		if ((intstat & (INTR_PENDING|CMD_COMPLETE))
-		 == (INTR_PENDING|CMD_COMPLETE))
-			break;
+		splx(s);
 
 		if (bt->command_cmp != 0) {
-			status = bt->latched_status;
-			break;
-		}
-
-		if ((status & DATAIN_REG_READY) != 0) {
+ 			/*
+			 * Our interrupt handler saw CMD_COMPLETE
+			 * status before we did.
+			 */
+			cmd_complete = 1;
+			saved_status = bt->latched_status;
+		} else if ((intstat & (INTR_PENDING|CMD_COMPLETE))
+			== (INTR_PENDING|CMD_COMPLETE)) {
+			/*
+			 * Our poll (in case interrupts are blocked)
+			 * saw the CMD_COMPLETE interrupt.
+			 */
+			cmd_complete = 1;
+			saved_status = status;
+		} else if (opcode == BOP_MODIFY_IO_ADDR
+			&& (status & CMD_REG_BUSY) == 0) {
+			/*
+			 * The BOP_MODIFY_IO_ADDR does not issue a CMD_COMPLETE,
+			 * but it should update the status register.  So, we
+			 * consider this command complete when the CMD_REG_BUSY
+			 * status clears.
+			 */
+			saved_status = status;
+			cmd_complete = 1;
+		} else if ((status & DATAIN_REG_READY) != 0) {
 			u_int8_t data;
 
 			data = bt_inb(bt, DATAIN_REG);
@@ -1961,20 +1974,26 @@ bt_cmd(struct bt_softc *bt, bt_op_t opcode, u_int8_t *params, u_int param_len,
 				       "for opcode 0x%x\n", bt_name(bt),
 				       opcode);
 			}
+			/*
+			 * Reset timeout to ensure at least a second
+			 * between response bytes.
+			 */
+			cmd_timeout = MAX(cmd_timeout, 10000);
 			reply_len++;
-		}
 
-		if ((opcode == BOP_FETCH_LRAM)
-		 && (status & HA_READY) != 0)
-			break;
+		} else if ((opcode == BOP_FETCH_LRAM)
+			&& (status & HA_READY) != 0) {
+				saved_status = status;
+				cmd_complete = 1;
+		}
 		DELAY(100);
 	}
-	if (timeout == 0) {
-		printf("%s: bt_cmd: Timeout waiting for reply data and "
-		       "command complete.\n%s: status = 0x%x, intstat = 0x%x, "
-		       "reply_len = %d\n", bt_name(bt), bt_name(bt), status,
-		       intstat, reply_len);
-		return (ETIMEDOUT);
+	if (cmd_timeout == 0) {
+		printf("%s: bt_cmd: Timeout waiting for command (%x) "
+		       "to complete.\n%s: status = 0x%x, intstat = 0x%x, "
+		       "rlen %d\n", bt_name(bt), opcode, bt_name(bt),
+		       status, intstat, reply_len);
+		error = (ETIMEDOUT);
 	}
 
 	/*
@@ -1985,10 +2004,13 @@ bt_cmd(struct bt_softc *bt, bt_op_t opcode, u_int8_t *params, u_int param_len,
 	bt_intr(bt);
 	splx(s);
 	
+	if (error != 0)
+		return (error);
+
 	/*
 	 * If the command was rejected by the controller, tell the caller.
 	 */
-	if ((status & CMD_INVALID) != 0) {
+	if ((saved_status & CMD_INVALID) != 0) {
 		/*
 		 * Some early adapters may not recover properly from
 		 * an invalid command.  If it appears that the controller
@@ -2009,7 +2031,6 @@ bt_cmd(struct bt_softc *bt, bt_op_t opcode, u_int8_t *params, u_int param_len,
 		return (EINVAL);
 	}
 
-	
 	if (param_len > 0) {
 		/* The controller did not accept the full argument list */
 	 	return (E2BIG);
@@ -2104,8 +2125,9 @@ btfetchtransinfo(struct bt_softc *bt, struct ccb_trans_settings* cts)
 		       DEFAULT_CMD_TIMEOUT);
 
 	if (error != 0) {
-		printf("%s: btfetchtransinfo - Inquire Setup Info Failed\n",
-		       bt_name(bt));
+		printf("%s: btfetchtransinfo - Inquire Setup Info Failed %x\n",
+		       bt_name(bt), error);
+		cts->valid = 0;
 		return;
 	}
 
@@ -2160,6 +2182,7 @@ btfetchtransinfo(struct bt_softc *bt, struct ccb_trans_settings* cts)
 		if (error != 0) {
 			printf("%s: btfetchtransinfo - Inquire Sync "
 			       "Info Failed 0x%x\n", bt_name(bt), error);
+			cts->valid = 0;
 			return;
 		}
 		sync_period = sync_info.sync_rate[target] * 100;
