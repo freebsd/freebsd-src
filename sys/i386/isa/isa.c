@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)isa.c	7.2 (Berkeley) 5/13/91
- *	$Id: isa.c,v 1.25 1994/09/20 05:07:11 bde Exp $
+ *	$Id: isa.c,v 1.26 1994/09/30 05:35:55 swallace Exp $
  */
 
 /*
@@ -317,13 +317,35 @@ isa_configure() {
 /*
  * Configure an ISA device.
  */
+ 
+ 
+static void config_isadev_c();
+ 
 static void
 config_isadev(isdp, mp)
+     struct isa_device *isdp;
+     u_int *mp;
+{
+	config_isadev_c(isdp, mp, 0);
+}
+ 
+void
+reconfig_isadev(isdp, mp)
 	struct isa_device *isdp;
 	u_int *mp;
 {
+	config_isadev_c(isdp, mp, 1);
+}
+
+static void
+config_isadev_c(isdp, mp, reconfig)
+	struct isa_device *isdp;
+	u_int *mp;
+	int reconfig;
+{
 	u_int checkbits;
 	int id_alive;
+	int last_alive;
 	struct isa_driver *dp = isdp->id_driver;
  
  	checkbits = 0;
@@ -339,11 +361,17 @@ config_isadev(isdp, mp)
 #ifndef ALLOW_CONFLICT_MEMADDR
 	checkbits |= CC_MEMADDR;
 #endif
-	if (haveseen_isadev(isdp, checkbits))
+	if (!reconfig && haveseen_isadev(isdp, checkbits))
 		return;
-	if (isdp->id_maddr) {
+	if (!reconfig && isdp->id_maddr) {
 		isdp->id_maddr -= 0xa0000; /* XXX should be a define */
 		isdp->id_maddr += atdevbase;
+	}
+	if (reconfig) {
+		last_alive = isdp->id_alive;
+	}
+	else {
+		last_alive = 0;
 	}
 	id_alive = (*dp->probe)(isdp);
 	if (id_alive) {
@@ -354,50 +382,52 @@ config_isadev(isdp, mp)
 		 * 16 it will not report I/O addresses.
 		 * Rod Grimes 04/26/94
 		 */
-		printf("%s%d", dp->name, isdp->id_unit);
-		if (id_alive != -1) {
- 			printf(" at 0x%x", isdp->id_iobase);
- 			if ((isdp->id_iobase + id_alive - 1) !=
- 			     isdp->id_iobase) {
- 				printf("-0x%x",
-				       isdp->id_iobase + id_alive - 1);
-			}
-		}
-		if (isdp->id_irq)
-			printf(" irq %d", ffs(isdp->id_irq) - 1);
-		if (isdp->id_drq != -1)
-			printf(" drq %d", isdp->id_drq);
-		if (isdp->id_maddr)
-			printf(" maddr 0x%lx", kvtop(isdp->id_maddr));
-		if (isdp->id_msize)
-			printf(" msize %d", isdp->id_msize);
-		if (isdp->id_flags)
-			printf(" flags 0x%x", isdp->id_flags);
-		if (isdp->id_iobase) {
-			if (isdp->id_iobase < 0x100) {
-				printf(" on motherboard\n");
-			} else {
-				if (isdp->id_iobase >= 0x1000) {
-					printf (" on eisa\n");
-				} else {
-					printf (" on isa\n");
+		if (!isdp->id_reconfig) {
+			printf("%s%d", dp->name, isdp->id_unit);
+			if (id_alive != -1) {
+ 				printf(" at 0x%x", isdp->id_iobase);
+ 				if ((isdp->id_iobase + id_alive - 1) !=
+ 				     isdp->id_iobase) {
+ 					printf("-0x%x",
+					       isdp->id_iobase + id_alive - 1);
 				}
 			}
-		}
-		/*
-		 * Check for conflicts again.  The driver may have changed
-		 * *dvp.  We should weaken the early check since the
-		 * driver may have been able to change *dvp to avoid
-		 * conflicts if given a chance.  We already skip the early
-		 * check for IRQs and force a check for IRQs in the next
-		 * group of checks.
-		 */
+			if (isdp->id_irq)
+				printf(" irq %d", ffs(isdp->id_irq) - 1);
+			if (isdp->id_drq != -1)
+				printf(" drq %d", isdp->id_drq);
+			if (isdp->id_maddr)
+				printf(" maddr 0x%lx", kvtop(isdp->id_maddr));
+			if (isdp->id_msize)
+				printf(" msize %d", isdp->id_msize);
+			if (isdp->id_flags)
+				printf(" flags 0x%x", isdp->id_flags);
+			if (isdp->id_iobase) {
+				if (isdp->id_iobase < 0x100) {
+					printf(" on motherboard\n");
+				} else {
+					if (isdp->id_iobase >= 0x1000) {
+						printf (" on eisa\n");
+					} else {
+						printf (" on isa\n");
+					}
+				}
+			}
+			/*
+			 * Check for conflicts again.  The driver may have 
+			 * changed *dvp.  We should weaken the early check 
+			 * since the driver may have been able to change 
+			 * *dvp to avoid conflicts if given a chance.  We 
+			 * already skip the early check for IRQs and force 
+			 * a check for IRQs in the next group of checks.
+		 	 */
 #ifndef ALLOW_CONFLICT_IRQ
-		checkbits |= CC_IRQ;
+			checkbits |= CC_IRQ;
 #endif
-		if (haveseen_isadev(isdp, checkbits))
-			return;
-		isdp->id_alive = id_alive;
+			if (haveseen_isadev(isdp, checkbits))
+				return;
+			isdp->id_alive = id_alive;
+		}
 		(*dp->attach)(isdp);
 		if (isdp->id_irq) {
 			if (mp)
@@ -408,11 +438,28 @@ config_isadev(isdp, mp)
 			INTREN(isdp->id_irq);
 		}
 	} else {
-		printf("%s%d not found", dp->name, isdp->id_unit);
-		if (isdp->id_iobase) {
-			printf(" at 0x%x", isdp->id_iobase);
+		if (isdp->id_reconfig) {
+			(*dp->attach)(isdp); /* reconfiguration attach */
 		}
-		printf("\n");
+		if (!last_alive) {
+			if (!isdp->id_reconfig) {
+				printf("%s%d not found", dp->name, isdp->id_unit);
+				if (isdp->id_iobase) {
+					printf(" at 0x%x", isdp->id_iobase);
+				}
+				printf("\n");
+			}
+		}	
+		else {
+			/* This code has not been tested.... */
+			if (isdp->id_irq) {
+				INTRDIS(isdp->id_irq);
+				unregister_intr(ffs(isdp->id_irq) - 1, 
+						isdp->id_intr);
+				if (mp)
+					INTRUNMASK(*mp, isdp->id_irq);
+			}
+		}
 	}
 }
 

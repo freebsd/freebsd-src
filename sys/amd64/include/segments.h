@@ -35,7 +35,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)segments.h	7.1 (Berkeley) 5/9/91
- *	$Id: segments.h,v 1.3 1993/11/07 17:43:08 wollman Exp $
+ *	$Id: segments.h,v 1.4 1994/01/31 10:27:13 davidg Exp $
  */
 
 #ifndef _MACHINE_SEGMENTS_H_
@@ -211,7 +211,11 @@ struct region_descriptor {
 #define	GPANIC_SEL	5	/* Task state to consider panic from */
 #define	GPROC0_SEL	6	/* Task state process slot zero and up */
 #define	GUSERLDT_SEL	7	/* User LDT */
-#define NGDT 	GUSERLDT_SEL+1
+#define GAPMCODE32_SEL	8	/* APM BIOS 32-bit interface (32bit Code) */
+#define GAPMCODE16_SEL	9	/* APM BIOS 32-bit interface (16bit Code) */
+#define GAPMDATA_SEL	10	/* APM BIOS 32-bit interface (Data) */
+
+#define NGDT 	(GAPMDATA_SEL+1)
 
 /*
  * Entries in the Local Descriptor Table (LDT)
