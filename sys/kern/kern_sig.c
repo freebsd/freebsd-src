@@ -1967,8 +1967,6 @@ toolong:
  * then it passes on a vnode and a size limit to the process-specific
  * coredump routine if there is one; if there _is not_ one, it returns
  * ENOSYS; otherwise it returns the error from the process-specific routine.
- *
- * XXX: VOP_GETATTR() here requires holding the vnode lock.
  */
 
 static int
@@ -2021,6 +2019,14 @@ restart:
 	NDFREE(&nd, NDF_ONLY_PNBUF);
 	vp = nd.ni_vp;
 
+	/* Don't dump to non-regular files or files with links. */
+	if (vp->v_type != VREG ||
+	    VOP_GETATTR(vp, &vattr, cred, td) || vattr.va_nlink != 1) {
+		VOP_UNLOCK(vp, 0, td);
+		error = EFAULT;
+		goto out2;
+	}
+
 	VOP_UNLOCK(vp, 0, td);
 	lf.l_whence = SEEK_SET;
 	lf.l_start = 0;
@@ -2040,12 +2046,6 @@ restart:
 		goto restart;
 	}
 
-	/* Don't dump to non-regular files or files with links. */
-	if (vp->v_type != VREG ||
-	    VOP_GETATTR(vp, &vattr, cred, td) || vattr.va_nlink != 1) {
-		error = EFAULT;
-		goto out1;
-	}
 	VATTR_NULL(&vattr);
 	vattr.va_size = 0;
 	vn_lock(vp, LK_EXCLUSIVE | LK_RETRY, td);
@@ -2060,7 +2060,6 @@ restart:
 	  p->p_sysent->sv_coredump(td, vp, limit) :
 	  ENOSYS;
 
-out1:
 	lf.l_type = F_UNLCK;
 	VOP_ADVLOCK(vp, (caddr_t)p, F_UNLCK, &lf, F_FLOCK);
 	vn_finished_write(mp);
