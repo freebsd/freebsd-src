@@ -72,6 +72,8 @@ routine is called.
 If a success code of zero is
 returned, the driver can assume that it will be the one attached, but
 must not hold any resources when the probe routine returns.
+A driver may assume that the softc is preserved when it returns
+a success code of zero.
 .Sh RETURN VALUES
 A value equal to or less than zero indicates success, greater than
 zero indicates an error (errno).
