@@ -21,6 +21,8 @@
 #include "config.h"
 #endif
 
+#include <sys/types.h>
+
 #include <stdio.h>
 #ifdef STDC_HEADERS
 #include <string.h>
@@ -39,12 +41,12 @@ argmatch (arg, optlist)
      char **optlist;
 {
   int i;			/* Temporary index in OPTLIST. */
-  int arglen;			/* Length of ARG. */
+  size_t arglen;		/* Length of ARG. */
   int matchind = -1;		/* Index of first nonexact match. */
   int ambiguous = 0;		/* If nonzero, multiple nonexact match(es). */
-
+  
   arglen = strlen (arg);
-
+  
   /* Test all elements for either exact match or abbreviated matches.  */
   for (i = 0; optlist[i]; i++)
     {

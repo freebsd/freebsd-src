@@ -1,11 +1,11 @@
 $CVSid: @(#)README 1.32 94/10/22 $
 
-			CVS Kit, Version 1.4 Alpha
+				CVS Kit
 
-		  Copyright (c) 1993-1994 Brian Berliner
-	      Copyright (c) 1992 Brian Berliner and Jeff Polk
-		  Copyright (c) 1989-1992, Brian Berliner
-			    All Rights Reserved
+		Copyright (c) 1993-1994 Brian Berliner
+	   Copyright (c) 1992 Brian Berliner and Jeff Polk
+	       Copyright (c) 1989-1992, Brian Berliner
+			 All Rights Reserved
 
     This program is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -23,9 +23,14 @@ $CVSid: @(#)README 1.32 94/10/22 $
 
 -------------------------------------------------------------------------------
 
-Welcome to the CVS 1.4 Alpha release!  We thank you for taking the time to
-test this (potentially unstable) release and report bugs (ideally, with
-fixes).  To report bugs, run the "cvsbug" program and fill out the template:
+Welcome to CVS!
+
+Bug reports are accepted, however note that someone may or may not
+feel like taking care of your bug report.  Support contracts are
+available from Cyclic Software (http://www.cyclic.com).
+
+To report bugs send mail to bug-cvs@prep.ai.mit.edu, or run the "cvsbug"
+program and fill out the template:
 
 	$ cvsbug
 
@@ -33,12 +38,11 @@ The "cvsbug" program is installed in the same location as the "cvs"
 program.  If your installation failed, you may need to run "cvsbug"
 directly out of the "src" directory as "src/cvsbug.sh".
 
-While we cannot promise to be responsive to said bugs, we do appreciate
-your support through this Alpha process.  Please consult the INSTALL file
-for information on tested configurations.  If you have a comment about an
-already tested configuration, or have tried CVS on a new configuration,
-please write to the above address and let us know!  Free software only
-works if we all help out.
+Please consult the INSTALL file for information on tested
+configurations.  If you have a comment about an already tested
+configuration, or have tried CVS on a new configuration, please write
+to the above address and let us know!  Free software only works if we
+all help out.
 
 Finally, we cannot guarantee that this release will not completely wipe out
 all of your work from your system.  We do some simple testing before each
@@ -48,7 +52,7 @@ SOFTWARE IS SUPPLIED COMPLETELY "AS IS".  NO WARRANTY....
 
 Thanks for your support!
 
-	-The CVS Alpha Team
+	-The CVS Team, and the Cyclic CVS Hackers
 
 -------------------------------------------------------------------------------
 
@@ -78,14 +82,14 @@ Special note to current CVS 1.3 users:
 --> You can skip this section and go straight to "Installation" if you  <--
 --> have not been running any previous releases of CVS.                 <--
 
-See the ChangeLog file in this directory to find out what has changed from
-CVS 1.3.
+See the NEWS file for a description of features new in this version.
 
-Some files have been renamed from the CVS 1.3 distribution.  If you're not
-careful, this can cause your build of CVS 1.4 to fail in strange ways.  In
-particular, be sure to remove the src/config.h file (which is now
-src/options.h), as the correct config.h file is generated automatically by
-the "configure" stage of installation (and installed in this directory).
+Some files have been renamed from the CVS 1.3 distribution.  If you're
+not careful, this can cause your CVS build to fail in strange ways.
+In particular, be sure to remove the src/config.h file (which is now
+src/options.h), as the correct config.h file is generated
+automatically by the "configure" stage of installation (and installed
+in this directory).
 
 -------------------------------------------------------------------------------
 
@@ -95,31 +99,25 @@ Please read the INSTALL file for installation instructions.  Brief summary:
 
 	$ ./configure
 	$ make
+	$ make check	# optional, long-running, step
 	$ make install
 	$ cvsinit
 
 -------------------------------------------------------------------------------
 
-Mailing Lists:
+* How do I get up-to-date information and information about other
+versions of CVS?
 
-I have setup the following mailing list for CVS users and other interested
-parties.  I have no idea what kind of volume will be generated on this
-list.  Nor can I guarantee to personally respond to questions posted to the
-list.  Anyway, the mailing list is:
+On the web, http://www.winternet.com/~zoo/cvs/ or
+http://www.loria.fr/~molli/cvs-index.html.
 
-	info-cvs-request@prep.ai.mit.edu
-		Requests for addition to or removal from the mailing list
-		must be sent to this address.  Problems with the list
-		(like bounced mail) should also be sent here.  Please be
-		specific about your email address.
+The mailing list for CVS is info-cvs@prep.ai.mit.edu.  Send
+subscription and removal requests for that list to
+info-cvs-requests@prep.ai.mit.edu.
 
-	info-cvs@prep.ai.mit.edu
-		Questions, bugs, porting problems, hints, or whatever
-		can be sent to this address.  A Frequently Asked Questions
-		(FAQ) my be available from host "think.com" in the
-		"/pub/cvs" directory.  Please consult the FAQ before
-		sending questions to info-cvs.  DO NOT SEND ADDITION AND
-		REMOVAL REQUESTS TO THIS ALIAS.
+[Historical note: info-cvs@prep.ai.mit.edu is now the union of
+ info-cvs@prep and cyclic-cvs@cyclic.com.  Please use the prep
+ address.]
 
 -------------------------------------------------------------------------------
 
@@ -170,6 +168,9 @@ Paul Sander, HaL Computer Systems, Inc. <paul@hal.com> wrote and
 contributed the code in lib/sighandle.c.  I added support for POSIX, BSD,
 and non-POSIX/non-BSD systems.
 
+Jim Kingdon and others at Cygnus Support <info@cygnus.com> wrote the
+remote repository access code.
+
 In addition to the above contributors, the following Beta testers deserve
 special mention for their support.  If I have left off your name, I
 apologize.  Just write to me and let me know!
@@ -203,5 +204,4 @@ contributed GNU Emacs CVS-mode in contrib/pcl-cvs.
 
 -------------------------------------------------------------------------------
 
-					Brian Berliner
-					berliner@sun.com
+				Cyclic Software <info@cyclic.com>

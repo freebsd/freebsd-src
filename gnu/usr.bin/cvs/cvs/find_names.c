@@ -1,17 +1,17 @@
 /*
  * Copyright (c) 1992, Brian Berliner and Jeff Polk
  * Copyright (c) 1989-1992, Brian Berliner
- *
+ * 
  * You may distribute under the terms of the GNU General Public License as
  * specified in the README file that comes with the CVS 1.4 kit.
- *
+ * 
  * Find Names
- *
+ * 
  * Finds all the pertinent file names, both from the administration and from the
  * repository
- *
+ * 
  * Find Dirs
- *
+ * 
  * Finds all pertinent sub-directories of the checked out instantiation and the
  * repository (and optionally the attic)
  */
@@ -19,8 +19,8 @@
 #include "cvs.h"
 
 #ifndef lint
-static char rcsid[] = "$CVSid: @(#)find_names.c 1.45 94/10/22 $";
-USE(rcsid)
+static const char rcsid[] = "$CVSid: @(#)find_names.c 1.45 94/10/22 $";
+USE(rcsid);
 #endif
 
 static int find_dirs PROTO((char *dir, List * list, int checkadm));
@@ -31,6 +31,7 @@ static List *filelist;
 /*
  * add the key from entry on entries list to the files list
  */
+static int add_entries_proc PROTO((Node *, void *));
 static int
 add_entries_proc (node, closure)
      Node *node;
@@ -49,9 +50,11 @@ add_entries_proc (node, closure)
 /*
  * compare two files list node (for sort)
  */
+static int fsortcmp PROTO ((const Node *, const Node *));
 static int
 fsortcmp (p, q)
-    Node *p, *q;
+    const Node *p;
+    const Node *q;
 {
     return (strcmp (p->key, q->key));
 }
@@ -74,8 +77,7 @@ Find_Names (repository, which, aflag, optentries)
     if (which & W_LOCAL)
     {
 	/* parse the entries file (if it exists) */
-	entries = ParseEntries (aflag);
-
+	entries = Entries_Open (aflag);
 	if (entries != NULL)
 	{
 	    /* walk the entries file adding elements to the files list */
@@ -85,7 +87,7 @@ Find_Names (repository, which, aflag, optentries)
 	    if (optentries != NULL)
 		*optentries = entries;
 	    else
-		dellist (&entries);
+		Entries_Close (entries);
 	}
     }
 
@@ -174,7 +176,7 @@ find_rcs (dir, list)
     /* read the dir, grabbing the ,v files */
     while ((dp = readdir (dirp)) != NULL)
     {
-	if (fnmatch (RCSPAT, dp->d_name, 0) == 0)
+	if (fnmatch (RCSPAT, dp->d_name, 0) == 0) 
 	{
 	    char *comma;
 
@@ -221,7 +223,7 @@ find_dirs (dir, list, checkadm)
 	    continue;
 
 #ifdef DT_DIR
-	if (dp->d_type != DT_DIR)
+	if (dp->d_type != DT_DIR) 
 	{
 	    if (dp->d_type != DT_UNKNOWN && dp->d_type != DT_LNK)
 		continue;
@@ -258,12 +260,7 @@ find_dirs (dir, list, checkadm)
 	    /* check for new style */
 	    (void) sprintf (tmp, "%s/%s/%s", dir, dp->d_name, CVSADM);
 	    if (!isdir (tmp))
-	    {
-		/* and old style */
-		(void) sprintf (tmp, "%s/%s/%s", dir, dp->d_name, OCVSADM);
-		if (!isdir (tmp))
-		    continue;
-	    }
+		continue;
 	}
 
 	/* put it in the list */

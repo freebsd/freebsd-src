@@ -19,10 +19,11 @@ If you have been using a previous version of pcl-cvs (for instance
 1.02 which is distributed with CVS 1.3) you should read through the
 file NEWS to see what has changed.
 
-This release has been tested under Emacs 18.59, Emacs 19.10 and Lucid
+This release has been tested under Emacs 18.59, Emacs 19.28 and Lucid
 Emacs 19.6.  Emacs 19.10 unfortunately has a file named cookie.el that
-collides with the cookie.el that is distributed in Elib.  We are
-trying to find a solution to that problem.  In the mean time, there is
+collides with the cookie.el that is distributed in Elib.  This
+conflict was resolved in 19.11.  For earlier versions, there are
 instructions in Elib 0.07 for how to work around the problem.
 
 				Per Cederqvist
+				(updated by Jim Blandy)

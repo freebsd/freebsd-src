@@ -1,4 +1,5 @@
-#!/usr/local/bin/perl -w
+#! xPERL_PATHx
+# -*-Perl-*-
 #
 # Perl filter to handle the log messages from the checkin of files in
 # a directory.  This script will group the lists of files by log
@@ -10,27 +11,27 @@
 #
 # Contributed by David Hampton <hampton@cisco.com>
 #
+# hacked greatly by Greg A. Woods <woods@planix.com>
 
-############################################################
-#
-# Configurable options
-#
-############################################################
-#
-# Do cisco Systems, Inc. specific nonsense.
-#
-$cisco_systems = 1;
+# Usage: log_accum.pl [-d] [-s] [-M module] [[-m mailto] ...] [-f logfile]
+#	-d		- turn on debugging
+#	-m mailto	- send mail to "mailto" (multiple)
+#	-M modulename	- set module name to "modulename"
+#	-f logfile	- write commit messages to logfile too
+#	-s		- *don't* run "cvs status -v" for each file
 
 #
-# Recipient of all mail messages
+#	Configurable options
 #
-$mailto = "sw-notification@cisco.com";
 
-############################################################
+$MAILER	       = "Mail";	# set this to something that takes "-s"
+
 #
-# Constants
+#	End user configurable options.
 #
-############################################################
+
+# Constants (don't change these!)
+#
 $STATE_NONE    = 0;
 $STATE_CHANGED = 1;
 $STATE_ADDED   = 2;
@@ -38,82 +39,113 @@ $STATE_REMOVED = 3;
 $STATE_LOG     = 4;
 
 $LAST_FILE     = "/tmp/#cvs.lastdir";
+
 $CHANGED_FILE  = "/tmp/#cvs.files.changed";
 $ADDED_FILE    = "/tmp/#cvs.files.added";
 $REMOVED_FILE  = "/tmp/#cvs.files.removed";
 $LOG_FILE      = "/tmp/#cvs.files.log";
+
 $FILE_PREFIX   = "#cvs.files";
 
-$VERSION_FILE  = "version";
-$TRUNKREV_FILE = "TrunkRev";
-$CHANGES_FILE  = "Changes";
-$CHANGES_TEMP  = "Changes.tmp";
-
-############################################################
 #
-# Subroutines
+#	Subroutines
 #
-############################################################
-
-sub format_names {
-    local($dir, @files) = @_;
-    local(@lines);
-    $lines[0] = sprintf(" %-08s", $dir);
-    foreach $file (@files) {
-	if (length($lines[$#lines]) + length($file) > 60) {
-	    $lines[++$#lines] = sprintf(" %8s", " ");
-	}
-	$lines[$#lines] .= " ".$file;
-    }
-    @lines;
-}
 
 sub cleanup_tmpfiles {
-    local($all) = @_;
     local($wd, @files);
 
     $wd = `pwd`;
-    chdir("/tmp");
+    chdir("/tmp") || die("Can't chdir('/tmp')\n");
     opendir(DIR, ".");
-    if ($all == 1) {
-	push(@files, grep(/$id$/, readdir(DIR)));
-    } else {
-	push(@files, grep(/^$FILE_PREFIX.*$id$/, readdir(DIR)));
-    }
+    push(@files, grep(/^$FILE_PREFIX\..*\.$id$/, readdir(DIR)));
     closedir(DIR);
     foreach (@files) {
 	unlink $_;
     }
+    unlink $LAST_FILE . "." . $id;
+
     chdir($wd);
 }
 
 sub write_logfile {
     local($filename, @lines) = @_;
-    open(FILE, ">$filename") || die ("Cannot open log file $filename.\n");
-    print(FILE join("\n", @lines), "\n");
+
+    open(FILE, ">$filename") || die("Cannot open log file $filename.\n");
+    print FILE join("\n", @lines), "\n";
     close(FILE);
 }
 
-sub append_to_file {
+sub append_to_logfile {
+    local($filename, @lines) = @_;
+
+    open(FILE, ">$filename") || die("Cannot open log file $filename.\n");
+    print FILE join("\n", @lines), "\n";
+    close(FILE);
+}
+
+sub format_names {
+    local($dir, @files) = @_;
+    local(@lines);
+
+    $format = "\t%-" . sprintf("%d", length($dir)) . "s%s ";
+
+    $lines[0] = sprintf($format, $dir, ":");
+
+    if ($debug) {
+	print STDERR "format_names(): dir = ", $dir, "; files = ", join(":", @files), ".\n";
+    }
+    foreach $file (@files) {
+	if (length($lines[$#lines]) + length($file) > 65) {
+	    $lines[++$#lines] = sprintf($format, " ", " ");
+	}
+	$lines[$#lines] .= $file . " ";
+    }
+
+    @lines;
+}
+
+sub format_lists {
+    local(@lines) = @_;
+    local(@text, @files, $lastdir);
+
+    if ($debug) {
+	print STDERR "format_lists(): ", join(":", @lines), "\n";
+    }
+    @text = ();
+    @files = ();
+    $lastdir = shift @lines;	# first thing is always a directory
+    if ($lastdir !~ /.*\/$/) {
+	die("Damn, $lastdir doesn't look like a directory!\n");
+    }
+    foreach $line (@lines) {
+	if ($line =~ /.*\/$/) {
+	    push(@text, &format_names($lastdir, @files));
+	    $lastdir = $line;
+	    @files = ();
+	} else {
+	    push(@files, $line);
+	}
+    }
+    push(@text, &format_names($lastdir, @files));
+
+    @text;
+}
+
+sub append_names_to_file {
     local($filename, $dir, @files) = @_;
+
     if (@files) {
-	local(@lines) = &format_names($dir, @files);
-	open(FILE, ">>$filename") || die ("Cannot open file $filename.\n");
-	print(FILE join("\n", @lines), "\n");
+	open(FILE, ">>$filename") || die("Cannot open file $filename.\n");
+	print FILE $dir, "\n";
+	print FILE join("\n", @files), "\n";
 	close(FILE);
     }
-}
-
-sub write_line {
-    local($filename, $line) = @_;
-    open(FILE, ">$filename") || die("Cannot open file $filename.\n");
-    print(FILE $line, "\n");
-    close(FILE);
 }
 
 sub read_line {
     local($line);
     local($filename) = @_;
+
     open(FILE, "<$filename") || die("Cannot open file $filename.\n");
     $line = <FILE>;
     close(FILE);
@@ -121,23 +153,11 @@ sub read_line {
     $line;
 }
 
-sub read_file {
-    local(@text);
-    local($filename, $leader) = @_;
-    open(FILE, "<$filename") || return ();
-    while (<FILE>) {
-	chop;
-	push(@text, sprintf("  %-10s  %s", $leader, $_));
-	$leader = "";
-    }
-    close(FILE);
-    @text;
-}
-
 sub read_logfile {
     local(@text);
     local($filename, $leader) = @_;
-    open(FILE, "<$filename") || die ("Cannot open log file $filename.\n");
+
+    open(FILE, "<$filename");
     while (<FILE>) {
 	chop;
 	push(@text, $leader.$_);
@@ -146,110 +166,179 @@ sub read_logfile {
     @text;
 }
 
-sub bump_version {
-    local($trunkrev, $editnum, $version);
-
-    $trunkrev = &read_line("$ENV{'CVSROOT'}/$repository/$TRUNKREV_FILE");
-    $editnum  = &read_line("$ENV{'CVSROOT'}/$repository/$VERSION_FILE");
-    &write_line("$ENV{'CVSROOT'}/$repository/$VERSION_FILE", $editnum+1);
-    $version = $trunkrev . "(" . $editnum . ")";
-}
-
 sub build_header {
-    local($version) = @_;
     local($header);
     local($sec,$min,$hour,$mday,$mon,$year) = localtime(time);
-    $header = sprintf("%-8s  %s  %02d/%02d/%02d %02d:%02d:%02d",
-		       $login, $version, $year%100, $mon+1, $mday,
-		       $hour, $min, $sec);
-}
-
-sub do_changes_file {
-    local($changes, $tmpchanges);
-    local(@text) = @_;
-
-    $changes = "$ENV{'CVSROOT'}/$repository/$CHANGES_FILE";
-    $tmpchanges = "$ENV{'CVSROOT'}/$repository/$CHANGES_TEMP";
-    if (rename($changes, $tmpchanges) != 1) {
-	die("Cannot rename $changes to $tmpchanges.\n");
-    }
-    open(CHANGES, ">$changes") || die("Cannot open $changes.\n");
-    open(TMPCHANGES, "<$tmpchanges") || die("Cannot open $tmpchanges.\n");
-    print(CHANGES join("\n", @text), "\n\n");
-    print(CHANGES <TMPCHANGES>);
-    close(CHANGES);
-    close(TMPCHANGES);
-    unlink($tmpchanges);
+    $header = sprintf("CVSROOT:\t%s\nModule name:\t%s\nChanges by:\t%s@%s\t%02d/%02d/%02d %02d:%02d:%02d",
+		      $cvsroot,
+		      $modulename,
+		      $login, $hostdomain,
+		      $year%100, $mon+1, $mday,
+		      $hour, $min, $sec);
 }
 
 sub mail_notification {
     local($name, @text) = @_;
-    open(MAIL, "| mail -s \"Source Repository Modification\" $name");
-    print(MAIL join("\n", @text));
+    open(MAIL, "| $MAILER -s \"CVS Update: " . $modulename . "\" " . $name);
+    print MAIL join("\n", @text), "\n";
     close(MAIL);
 }
 
-#############################################################
-#
-# Main Body
-#
-############################################################
+sub write_commitlog {
+    local($logfile, @text) = @_;
+
+    open(FILE, ">>$logfile");
+    print FILE join("\n", @text), "\n";
+    close(FILE);
+}
 
 #
+#	Main Body
+#
+
 # Initialize basic variables
 #
-$id = getpgrp();
+$debug = 0;
+$id = getpgrp();		# note, you *must* use a shell which does setpgrp()
 $state = $STATE_NONE;
-$login = getlogin || (getpwuid($<))[0] || die("Unknown user $<.\n");
-@files = split(' ', $ARGV[0]);
+$login = getlogin || (getpwuid($<))[0] || "nobody";
+chop($hostname = `hostname`);
+chop($domainname = `domainname`);
+$hostdomain = $hostname . $domainname;
+$cvsroot = $ENV{'CVSROOT'};
+$do_status = 1;
+$modulename = "";
+
+# parse command line arguments (file list is seen as one arg)
+#
+while (@ARGV) {
+    $arg = shift @ARGV;
+
+    if ($arg eq '-d') {
+	$debug = 1;
+	print STDERR "Debug turned on...\n";
+    } elsif ($arg eq '-m') {
+	$mailto = "$mailto " . shift @ARGV;
+    } elsif ($arg eq '-M') {
+	$modulename = shift @ARGV;
+    } elsif ($arg eq '-s') {
+	$do_status = 0;
+    } elsif ($arg eq '-f') {
+	($commitlog) && die("Too many '-f' args\n");
+	$commitlog = shift @ARGV;
+    } else {
+	($donefiles) && die("Too many arguments!  Check usage.\n");
+	$donefiles = 1;
+	@files = split(/ /, $arg);
+    }
+}
+($mailto) || die("No -m mail recipient specified\n");
+
+# for now, the first "file" is the repository directory being committed,
+# relative to the $CVSROOT location
+#
 @path = split('/', $files[0]);
-$repository = @path[0];
+
+# XXX there are some ugly assumptions in here about module names and
+# XXX directories relative to the $CVSROOT location -- really should
+# XXX read $CVSROOT/CVSROOT/modules, but that's not so easy to do, since
+# XXX we have to parse it backwards.
+#
+if ($modulename eq "") {
+    $modulename = $path[0];	# I.e. the module name == top-level dir
+}
 if ($#path == 0) {
     $dir = ".";
 } else {
-    $dir = join('/', @path[1..$#path]);
+    $dir = join('/', @path);
 }
-#print("ARGV  - ", join(":", @ARGV), "\n");
-#print("files - ", join(":", @files), "\n");
-#print("path  - ", join(":", @path), "\n");
-#print("dir   - ", $dir, "\n");
-#print("id    - ", $id, "\n");
+$dir = $dir . "/";
 
+if ($debug) {
+    print STDERR "module - ", $modulename, "\n";
+    print STDERR "dir    - ", $dir, "\n";
+    print STDERR "path   - ", join(":", @path), "\n";
+    print STDERR "files  - ", join(":", @files), "\n";
+    print STDERR "id     - ", $id, "\n";
+}
+
+# Check for a new directory first.  This appears with files set as follows:
 #
-# Check for a new directory first.  This will always appear as a
-# single item in the argument list, and an empty log message.
+#    files[0] - "path/name/newdir"
+#    files[1] - "-"
+#    files[2] - "New"
+#    files[3] - "directory"
 #
-if ($ARGV[0] =~ /New directory/) {
-    $version = &bump_version if ($cisco_systems != 0);
-    $header = &build_header($version);
+if ($files[2] =~ /New/ && $files[3] =~ /directory/) {
+    local(@text);
+
     @text = ();
-    push(@text, $header);
+    push(@text, &build_header());
     push(@text, "");
-    push(@text, "  ".$ARGV[0]);
-    &do_changes_file(@text) if ($cisco_systems != 0);
+    push(@text, $files[0]);
+    push(@text, "");
+
+    while (<STDIN>) {
+	chop;			# Drop the newline
+	push(@text, $_);
+    }
+
     &mail_notification($mailto, @text);
+
     exit 0;
 }
 
+# Check for an import command.  This appears with files set as follows:
 #
+#    files[0] - "path/name"
+#    files[1] - "-"
+#    files[2] - "Imported"
+#    files[3] - "sources"
+#
+if ($files[2] =~ /Imported/ && $files[3] =~ /sources/) {
+    local(@text);
+
+    @text = ();
+    push(@text, &build_header());
+    push(@text, "");
+    push(@text, $files[0]);
+    push(@text, "");
+
+    while (<STDIN>) {
+	chop;			# Drop the newline
+	push(@text, $_);
+    }
+
+    &mail_notification($mailto, @text);
+
+    exit 0;
+}
+
 # Iterate over the body of the message collecting information.
 #
 while (<STDIN>) {
     chop;			# Drop the newline
+
+    if (/^In directory/) {
+	push(@log_lines, $_);
+	push(@log_lines, "");
+	next;
+    }
+
     if (/^Modified Files/) { $state = $STATE_CHANGED; next; }
     if (/^Added Files/)    { $state = $STATE_ADDED;   next; }
     if (/^Removed Files/)  { $state = $STATE_REMOVED; next; }
     if (/^Log Message/)    { $state = $STATE_LOG;     next; }
-    s/^[ \t\n]+//;		# delete leading space
-    s/[ \t\n]+$//;		# delete trailing space
+
+    s/^[ \t\n]+//;		# delete leading whitespace
+    s/[ \t\n]+$//;		# delete trailing whitespace
     
-    push (@changed_files, split) if ($state == $STATE_CHANGED);
-    push (@added_files,   split) if ($state == $STATE_ADDED);
-    push (@removed_files, split) if ($state == $STATE_REMOVED);
-    push (@log_lines,     $_)    if ($state == $STATE_LOG);
+    if ($state == $STATE_CHANGED) { push(@changed_files, split); }
+    if ($state == $STATE_ADDED)   { push(@added_files,   split); }
+    if ($state == $STATE_REMOVED) { push(@removed_files, split); }
+    if ($state == $STATE_LOG)     { push(@log_lines,     $_); }
 }
 
-#
 # Strip leading and trailing blank lines from the log message.  Also
 # compress multiple blank lines in the body of the message down to a
 # single blank line.
@@ -268,64 +357,140 @@ for ($i = $#log_lines; $i > 0; $i--) {
     }
 }
 
-#
-# Find the log file that matches this log message
+if ($debug) {
+    print STDERR "Searching for log file index...";
+}
+# Find an index to a log file that matches this log message
 #
 for ($i = 0; ; $i++) {
-    last if (! -e "$LOG_FILE.$i.$id");
+    local(@text);
+
+    last if (! -e "$LOG_FILE.$i.$id"); # the next available one
     @text = &read_logfile("$LOG_FILE.$i.$id", "");
-    last if ($#text == -1);
-    last if (join(" ", @log_lines) eq join(" ", @text));
+    last if ($#text == -1);	# nothing in this file, use it
+    last if (join(" ", @log_lines) eq join(" ", @text)); # it's the same log message as another
+}
+if ($debug) {
+    print STDERR " found log file at $i.$id, now writing tmp files.\n";
+}
+
+# Spit out the information gathered in this pass.
+#
+&append_names_to_file("$CHANGED_FILE.$i.$id", $dir, @changed_files);
+&append_names_to_file("$ADDED_FILE.$i.$id",   $dir, @added_files);
+&append_names_to_file("$REMOVED_FILE.$i.$id", $dir, @removed_files);
+&write_logfile("$LOG_FILE.$i.$id", @log_lines);
+
+# Check whether this is the last directory.  If not, quit.
+#
+if ($debug) {
+    print STDERR "Checking current dir against last dir.\n";
+}
+$_ = &read_line("$LAST_FILE.$id");
+
+if ($_ ne $cvsroot . "/" . $files[0]) {
+    if ($debug) {
+	print STDERR sprintf("Current directory %s is not last directory %s.\n", $cvsroot . "/" .$files[0], $_);
+    }
+    exit 0;
+}
+if ($debug) {
+    print STDERR sprintf("Current directory %s is last directory %s -- all commits done.\n", $files[0], $_);
 }
 
 #
-# Spit out the information gathered in this pass.
+#	End Of Commits!
 #
-&write_logfile("$LOG_FILE.$i.$id", @log_lines);
-&append_to_file("$ADDED_FILE.$i.$id",   $dir, @added_files);
-&append_to_file("$CHANGED_FILE.$i.$id", $dir, @changed_files);
-&append_to_file("$REMOVED_FILE.$i.$id", $dir, @removed_files);
 
-#
-# Check whether this is the last directory.  If not, quit.
-#
-$_ = &read_line("$LAST_FILE.$id");
-exit 0 if (! grep(/$files[0]$/, $_));
-
-#
 # This is it.  The commits are all finished.  Lump everything together
 # into a single message, fire a copy off to the mailing list, and drop
 # it on the end of the Changes file.
 #
-# Get the full version number
-#
-$version = &bump_version if ($cisco_systems != 0);
-$header = &build_header($version);
 
 #
 # Produce the final compilation of the log messages
 #
 @text = ();
-push(@text, $header);
+@status_txt = ();
+push(@text, &build_header());
 push(@text, "");
+
 for ($i = 0; ; $i++) {
-    last if (! -e "$LOG_FILE.$i.$id");
-    push(@text, &read_file("$CHANGED_FILE.$i.$id", "Modified:"));
-    push(@text, &read_file("$ADDED_FILE.$i.$id", "Added:"));
-    push(@text, &read_file("$REMOVED_FILE.$i.$id", "Removed:"));
-    push(@text, "  Log:");
-    push(@text, &read_logfile("$LOG_FILE.$i.$id", "  "));
-    push(@text, "");
+    last if (! -e "$LOG_FILE.$i.$id"); # we're done them all!
+    @lines = &read_logfile("$CHANGED_FILE.$i.$id", "");
+    if ($#lines >= 0) {
+	push(@text, "Modified files:");
+	push(@text, &format_lists(@lines));
+    }
+    @lines = &read_logfile("$ADDED_FILE.$i.$id", "");
+    if ($#lines >= 0) {
+	push(@text, "Added files:");
+	push(@text, &format_lists(@lines));
+    }
+    @lines = &read_logfile("$REMOVED_FILE.$i.$id", "");
+    if ($#lines >= 0) {
+	push(@text, "Removed files:");
+	push(@text, &format_lists(@lines));
+    }
+    if ($#text >= 0) {
+	push(@text, "");
+    }
+    @lines = &read_logfile("$LOG_FILE.$i.$id", "\t");
+    if ($#lines >= 0) {
+	push(@text, "Log message:");
+	push(@text, @lines);
+	push(@text, "");
+    }
+    if ($do_status) {
+	local(@changed_files);
+
+	@changed_files = ();
+	push(@changed_files, &read_logfile("$CHANGED_FILE.$i.$id", ""));
+	push(@changed_files, &read_logfile("$ADDED_FILE.$i.$id", ""));
+	push(@changed_files, &read_logfile("$REMOVED_FILE.$i.$id", ""));
+
+	if ($debug) {
+	    print STDERR "main: pre-sort changed_files = ", join(":", @changed_files), ".\n";
+	}
+	sort(@changed_files);
+	if ($debug) {
+	    print STDERR "main: post-sort changed_files = ", join(":", @changed_files), ".\n";
+	}
+
+	foreach $dofile (@changed_files) {
+	    if ($dofile =~ /\/$/) {
+		next;		# ignore the silly "dir" entries
+	    }
+	    if ($debug) {
+		print STDERR "main(): doing 'cvs -nQq status -v $dofile'\n";
+	    }
+	    open(STATUS, "-|") || exec 'cvs', '-nQq', 'status', '-v', $dofile;
+	    while (<STATUS>) {
+		chop;
+		push(@status_txt, $_);
+	    }
+	}
+    }
 }
-if ($cisco_systems != 0) {
-    @ddts = grep(/^CSCdi/, split(' ', join(" ", @text)));
-    $text[0] .= "  " . join(" ", @ddts);
+
+# Write to the commitlog file
+#
+if ($commitlog) {
+    &write_commitlog($commitlog, @text);
 }
+
+if ($#status_txt >= 0) {
+    push(@text, @status_txt);
+}
+
+# Mailout the notification.
 #
-# Put the log message at the beginning of the Changes file and mail
-# out the notification.
-#
-&do_changes_file(@text) if ($cisco_systems != 0);
 &mail_notification($mailto, @text);
-&cleanup_tmpfiles(1);
+
+# cleanup
+#
+if (! $debug) {
+    &cleanup_tmpfiles();
+}
+
 exit 0;

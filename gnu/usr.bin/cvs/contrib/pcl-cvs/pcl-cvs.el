@@ -37,13 +37,13 @@
 ;;; -------------------------------------------------------
 ;;;	    START OF THINGS TO CHECK WHEN INSTALLING
 
-(defvar cvs-program "/usr/gnu/bin/cvs"
+(defvar cvs-program "/usr/local/bin/cvs"
   "*Full path to the cvs executable.")
 
-(defvar cvs-diff-program "/usr/gnu/bin/diff"
+(defvar cvs-diff-program "/usr/local/bin/diff"
   "*Full path to the diff program.")
 
-(defvar cvs-rmdir-program "/usr/gnu/bin/rmdir"
+(defvar cvs-rmdir-program "/bin/rmdir"
   "*Full path to the rmdir program. Typically /bin/rmdir.")
 
 ;; Uncomment the following line if you are running on 18.57 or earlier.
@@ -63,6 +63,20 @@
   "*Specifies where the (current) cvs master repository is.
 Overrides the $CVSROOT variable by sending \" -d dir\" to all cvs commands.
 This switch is useful if you have multiple CVS repositories.")
+
+(defvar cvs-cvsroot-required t
+  "*Specifies whether CVS needs to be told where the repository is.
+
+In CVS 1.3, if your CVSROOT environment variable is not set, and you
+do not set the `cvs-cvsroot' lisp variable, CVS will have no idea
+where to find the repository, and refuse to run.  CVS 1.4 and later
+store the repository path with the working directories, so most
+operations don't need to be told where the repository is.
+
+If you work with multiple repositories with CVS 1.4, it's probably
+advisable to leave your CVSROOT environment variable unset, set this
+variable to nil, and let CVS figure out where the repository is for
+itself.")
 
 (defvar cvs-stdout-file nil
   "Name of the file that holds the output that CVS sends to stdout.
@@ -214,7 +228,7 @@ the process when a cvs update process is running.")
 ;;;			 slash.
 ;;;  file-name		 The file name.
 ;;;  base-revision       The revision that the working file was based on.
-;;;                      Onlyy valid for MERGED and CONFLICT files.
+;;;                      Only valid for MERGED and CONFLICT files.
 ;;;  cvs-diff-buffer	 A buffer that contains a 'cvs diff file'.
 ;;;  backup-diff-buffer	 A buffer that contains a 'diff file backup-file'.
 ;;;  full-log		 The output from cvs, unparsed.
@@ -450,7 +464,8 @@ Both LOCAL and DONT-CHANGE-DISC may be non-nil simultaneously.
   (if (not (file-exists-p cvs-program))
       (error "%s: file not found (check setting of cvs-program)"
 	     cvs-program))
-  (if (not (or (getenv "CVSROOT") cvs-cvsroot))
+  (if (and cvs-cvsroot-required
+	   (not (or (getenv "CVSROOT") cvs-cvsroot)))
       (error "Both cvs-cvsroot and environment variable CVSROOT unset."))
   (let* ((this-dir (file-name-as-directory (expand-file-name directory)))
 	 (update-buffer (generate-new-buffer
@@ -571,6 +586,7 @@ Full documentation is in the Texinfo file.  These are the most useful commands:
 \\[cvs-mode-emerge]   Run emerge on base revision/backup file.
 \\[cvs-mode-acknowledge] Delete line from buffer.    \\[cvs-mode-ignore]   Add file to the .cvsignore file.
 \\[cvs-mode-log]   Run ``cvs log''.            \\[cvs-mode-status]   Run ``cvs status''.
+\\[cvs-mode-changelog-commit]  Like \\[cvs-mode-commit], but get default log text from ChangeLog.
 \\[cvs-mode-undo-local-changes]  Revert the last checked in version - discard your changes to the file.
 
 Entry to this mode runs cvs-mode-hook.
@@ -898,12 +914,12 @@ This function returns the last cons-cell in the list that is built."
 	 ;; End of RCVS stuff.
 
 	 ;; CVS is descending a subdirectory.
-	 
-	 ((looking-at "cvs update: Updating \\(.*\\)$")
+	 ;; (The "server" case is there to support Cyclic CVS.)
+	 ((looking-at "cvs \\(update\\|server\\): Updating \\(.*\\)$")
 	  (setq current-dir
 		(cvs-get-current-dir
 		 root-dir
-		 (buffer-substring (match-beginning 1) (match-end 1))))
+		 (buffer-substring (match-beginning 2) (match-end 2))))
 	  (setcdr head (list (cvs-create-fileinfo
 			      'DIRCHANGE current-dir
 			      nil (buffer-substring (match-beginning 0)
@@ -1010,98 +1026,102 @@ second party")
 			   (buffer-substring start (point)))))
 	    (setq head (cdr head))))
 
-       (t
+	 ;; Ignore other messages from Cyclic CVS.
+	 ((looking-at "cvs server:")
+	  (forward-line 1))
 
-	;; CVS has decided to merge someone elses changes into this
-	;; document. This leads to a lot of garbage being printed.
-	;; First there is two lines that contains no information
-	;; that we skip (but we check that we recognize them).
+	 (t
 
-	(let ((complex-start (point))
-	      initial-revision filename)
+	  ;; CVS has decided to merge someone elses changes into this
+	  ;; document. This leads to a lot of garbage being printed.
+	  ;; First there is two lines that contains no information
+	  ;; that we skip (but we check that we recognize them).
 
-	  (cvs-skip-line stdout-buffer stderr-buffer "^RCS file: .*$")
-	  (setq initial-revision
-		(cvs-skip-line stdout-buffer stderr-buffer
-			       "^retrieving revision \\(.*\\)$" 1))
-	  (cvs-skip-line stdout-buffer stderr-buffer
-			 "^retrieving revision .*$")
+	  (let ((complex-start (point))
+		initial-revision filename)
 
-	  ;; Get the file name from the next line.
-
-	  (setq
-	   filename
-	   (cvs-skip-line
-	    stdout-buffer stderr-buffer
-	    "^Merging differences between [0-9.]+ and [0-9.]+ into \\(.*\\)$"
-	    1))
-
-	  (cond
-	   ;; Was it a conflict?
-	   ((looking-at
-	     ;; Allow both RCS 5.5 and 5.6. (5.6 prints "rcs" and " warning").
-	     "^\\(rcs\\)?merge\\( warning\\)?: overlaps during merge$")
-
-	    ;; Yes, this is a conflict.
-	    (cvs-skip-line
-	     stdout-buffer stderr-buffer
-	     "^\\(rcs\\)?merge\\( warning\\)?: overlaps during merge$")
-
+	    (cvs-skip-line stdout-buffer stderr-buffer "^RCS file: .*$")
+	    (setq initial-revision
+		  (cvs-skip-line stdout-buffer stderr-buffer
+				 "^retrieving revision \\(.*\\)$" 1))
 	    (cvs-skip-line stdout-buffer stderr-buffer
-			   "^cvs update: conflicts found in ")
+			   "^retrieving revision .*$")
 
-	    (let ((fileinfo
-		   (cvs-create-fileinfo
-		    'CONFLICT current-dir
-		    filename
-		    (buffer-substring complex-start (point)))))
+	    ;; Get the file name from the next line.
 
-	      (cvs-set-fileinfo->base-revision fileinfo initial-revision)
+	    (setq
+	     filename
+	     (cvs-skip-line
+	      stdout-buffer stderr-buffer
+	      "^Merging differences between [0-9.]+ and [0-9.]+ into \\(.*\\)$"
+	      1))
 
-	      (setcdr head (list fileinfo))
-	      (setq head (cdr head))))
+	    (cond
+	     ;; Was it a conflict?
+	     ((looking-at
+	       ;; Allow both RCS 5.5 and 5.6. (5.6 prints "rcs" and " warning").
+	       "^\\(rcs\\)?merge:?\\( warning\\)?: \\(overlaps\\|conflicts\\) during merge$")
 
-	   ;; Was it a conflict, and was RCS compiled without DIFF3_BIN?
+	      ;; Yes, this is a conflict.
+	      (cvs-skip-line
+	       stdout-buffer stderr-buffer
+	       "^\\(rcs\\)?merge:?\\( warning\\)?: \\(overlaps\\|conflicts\\) during merge$")
 
-	   ((looking-at
-	     ;; Allow both RCS 5.5 and 5.6. (5.6 prints "rcs" and " warning").
-	     "^\\(rcs\\)?merge\\( warning\\)?: overlaps or other probl\
+	      (cvs-skip-line stdout-buffer stderr-buffer
+			     "^cvs \\(update\\|server\\): conflicts found in ")
+
+	      (let ((fileinfo
+		     (cvs-create-fileinfo
+		      'CONFLICT current-dir
+		      filename
+		      (buffer-substring complex-start (point)))))
+
+		(cvs-set-fileinfo->base-revision fileinfo initial-revision)
+
+		(setcdr head (list fileinfo))
+		(setq head (cdr head))))
+
+	     ;; Was it a conflict, and was RCS compiled without DIFF3_BIN?
+
+	     ((looking-at
+	       ;; Allow both RCS 5.5 and 5.6. (5.6 prints "rcs" and " warning").
+	       "^\\(rcs\\)?merge\\( warning\\)?: overlaps or other probl\
 ems during merge$")
 
-	    ;; Yes, this is a conflict.
-	    (cvs-skip-line
-	     stdout-buffer stderr-buffer
-	     "^\\(rcs\\)?merge\\( warning\\)?: overlaps .*during merge$")
+	      ;; Yes, this is a conflict.
+	      (cvs-skip-line
+	       stdout-buffer stderr-buffer
+	       "^\\(rcs\\)?merge\\( warning\\)?: overlaps .*during merge$")
 
-	    (cvs-skip-line stdout-buffer stderr-buffer
-			   "^cvs update: could not merge ")
-	    (cvs-skip-line stdout-buffer stderr-buffer
-			   "^cvs update: restoring .* from backup file ")
+	      (cvs-skip-line stdout-buffer stderr-buffer
+			     "^cvs update: could not merge ")
+	      (cvs-skip-line stdout-buffer stderr-buffer
+			     "^cvs update: restoring .* from backup file ")
 
-	    (let ((fileinfo
-		   (cvs-create-fileinfo
-		    'CONFLICT current-dir
-		    filename
-		    (buffer-substring complex-start (point)))))
+	      (let ((fileinfo
+		     (cvs-create-fileinfo
+		      'CONFLICT current-dir
+		      filename
+		      (buffer-substring complex-start (point)))))
 
-	      (setcdr head (list fileinfo))
-	      (setq head (cdr head))))	   
+		(setcdr head (list fileinfo))
+		(setq head (cdr head))))	   
 
-	   (t
-	    ;; Not a conflict; it must be a succesful merge.
-	    (let ((fileinfo
-		   (cvs-create-fileinfo
-		    'MERGED current-dir
-		    filename
-		    (buffer-substring complex-start (point)))))
-	      (cvs-set-fileinfo->base-revision fileinfo initial-revision)
-	      (setcdr head (list fileinfo))
-	      (setq head (cdr head)))))))))))
+	     (t
+	      ;; Not a conflict; it must be a succesful merge.
+	      (let ((fileinfo
+		     (cvs-create-fileinfo
+		      'MERGED current-dir
+		      filename
+		      (buffer-substring complex-start (point)))))
+		(cvs-set-fileinfo->base-revision fileinfo initial-revision)
+		(setcdr head (list fileinfo))
+		(setq head (cdr head)))))))))))
   head)
 
 
 (defun cvs-parse-stdout (stdout-buffer stderr-buffer head root-dir)
-  "Parse the output from CVS that is written to stderr.
+  "Parse the output from CVS that is written to stdout.
 Args: STDOUT-BUFFER STDERR-BUFFER HEAD ROOT-DIR
 STDOUT-BUFFER is the buffer that holds the output to parse.
 STDERR-BUFFER holds the output that cvs sent to stderr. It is only
@@ -1121,11 +1141,11 @@ This function doesn't return anything particular."
        ;; A: The file is "cvs add"ed, but not "cvs ci"ed.
        ;; R: The file is "cvs remove"ed, but not "cvs ci"ed.
        ;; C: Conflict
-       ;; U: The file is copied from the repository.
+       ;; U, P: The file is copied from the repository.
        ;; ?: Unknown file.
 
 
-       ((looking-at "\\([MARCU?]\\) \\(.*\\)$")
+       ((looking-at "\\([MARCUP?]\\) \\(.*\\)$")
 	(let*
 	    ((c         (char-after (match-beginning 1)))
 	     (full-path
@@ -1137,12 +1157,15 @@ This function doesn't return anything particular."
 			      ((eq c ?R) 'REMOVED)
 			      ((eq c ?C) 'CONFLICT)
 			      ((eq c ?U) 'UPDATED)
+			      ;; generated when Cyclic CVS sends a
+			      ;; patch instead of the full file:
+			      ((eq c ?P) 'UPDATED)
 			      ((eq c ??) 'UNKNOWN))
 			(substring (file-name-directory full-path) 0 -1)
 			(file-name-nondirectory full-path)
 			(buffer-substring (match-beginning 0) (match-end 0)))))
 	  ;; Updated files require no further action.
-	  (if (eq c ?U)
+	  (if (memq c '(?U ?P))
 	      (cvs-set-fileinfo->handled fileinfo t))
 
 	  ;; Link this last on the list.
@@ -1227,6 +1250,7 @@ For use by the cookie package."
   (define-key cvs-mode-map "a"	'cvs-mode-add)
   (define-key cvs-mode-map "b"	'cvs-mode-diff-backup)
   (define-key cvs-mode-map "c"	'cvs-mode-commit)
+  (define-key cvs-mode-map "C"  'cvs-mode-changelog-commit)
   (define-key cvs-mode-map "d"	'cvs-mode-diff-cvs)
   (define-key cvs-mode-map "e"	'cvs-mode-emerge)
   (define-key cvs-mode-map "f"	'cvs-mode-find-file)
@@ -2204,3 +2228,266 @@ If second optional argument REVISION is given, retrieve that revision instead."
     (progn
       (autoload 'pcl-cvs-fontify "pcl-cvs-lucid")
       (add-hook 'cvs-mode-hook 'pcl-cvs-fontify)))
+
+
+(defvar cvs-changelog-full-paragraphs t
+  "If non-nil, include full ChangeLog paragraphs in the CVS log.
+This may be set in the ``local variables'' section of a ChangeLog, to
+indicate the policy for that ChangeLog.
+
+A ChangeLog paragraph is a bunch of log text containing no blank lines;
+a paragraph usually describes a set of changes with a single purpose,
+but perhaps spanning several functions in several files.  Changes in
+different paragraphs are unrelated.
+
+You could argue that the CVS log entry for a file should contain the
+full ChangeLog paragraph mentioning the change to the file, even though
+it may mention other files, because that gives you the full context you
+need to understand the change.  This is the behavior you get when this
+variable is set to t.
+
+On the other hand, you could argue that the CVS log entry for a change
+should contain only the text for the changes which occurred in that
+file, because the CVS log is per-file.  This is the behavior you get
+when this variable is set to nil.")
+
+(defun cvs-changelog-name (directory)
+  "Return the name of the ChangeLog file that handles DIRECTORY.
+This is in DIRECTORY or one of its parents.
+Signal an error if we can't find an appropriate ChangeLog file."
+  (let ((dir (file-name-as-directory directory))
+	file)
+    (while (and dir
+		(not (file-exists-p 
+		      (setq file (expand-file-name "ChangeLog" dir)))))
+      (let ((last dir))
+	(setq dir (file-name-directory (directory-file-name dir)))
+	(if (equal last dir)
+	    (setq dir nil))))
+    (or dir
+	(error "Can't find ChangeLog for %s" directory))
+    file))
+
+(defun cvs-narrow-changelog ()
+  "Narrow to the top page of the current buffer, a ChangeLog file.
+Actually, the narrowed region doesn't include the date line.
+A \"page\" in a ChangeLog file is the area between two dates."
+  (or (eq major-mode 'change-log-mode)
+      (error "cvs-narrow-changelog: current buffer isn't a ChangeLog"))
+
+  (goto-char (point-min))
+
+  ;; Skip date line and subsequent blank lines.
+  (forward-line 1)
+  (if (looking-at "[ \t\n]*\n")
+      (goto-char (match-end 0)))
+
+  (let ((start (point)))
+    (forward-page 1)
+    (narrow-to-region start (point))
+    (goto-char (point-min))))
+
+(defun cvs-changelog-paragraph ()
+  "Return the bounds of the ChangeLog paragraph containing point.
+If we are between paragraphs, return the previous paragraph."
+  (save-excursion
+    (beginning-of-line)
+    (if (looking-at "^[ \t]*$")
+	(skip-chars-backward " \t\n" (point-min)))
+    (list (progn
+	    (if (re-search-backward "^[ \t]*\n" nil 'or-to-limit)
+		(goto-char (match-end 0)))
+	    (point))
+	  (if (re-search-forward "^[ \t\n]*$" nil t)
+	      (match-beginning 0)
+	    (point)))))
+
+(defun cvs-changelog-subparagraph ()
+  "Return the bounds of the ChangeLog subparagraph containing point.
+A subparagraph is a block of non-blank lines beginning with an asterisk.
+If we are between subparagraphs, return the previous subparagraph."
+  (save-excursion
+    (end-of-line)
+    (if (search-backward "*" nil t)
+	(list (progn (beginning-of-line) (point))
+	      (progn 
+		(forward-line 1)
+		(if (re-search-forward "^[ \t]*[\n*]" nil t)
+		    (match-beginning 0)
+		  (point-max))))
+      (list (point) (point)))))
+
+(defun cvs-changelog-entry ()
+  "Return the bounds of the ChangeLog entry containing point.
+The variable `cvs-changelog-full-paragraphs' decides whether an
+\"entry\" is a paragraph or a subparagraph; see its documentation string
+for more details."
+  (if cvs-changelog-full-paragraphs
+      (cvs-changelog-paragraph)
+    (cvs-changelog-subparagraph)))
+
+(defun cvs-changelog-ours-p ()
+  "See if ChangeLog entry at point is for the current user, today.
+Return non-nil iff it is."
+  ;; Code adapted from add-change-log-entry.
+  (looking-at (concat (regexp-quote (substring (current-time-string)
+					       0 10))
+		      ".* "
+		      (regexp-quote (substring (current-time-string) -4))
+		      "[ \t]+"
+		      (regexp-quote (if (boundp 'add-log-full-name)
+                                        add-log-full-name
+                                      user-full-name))
+		      "  <"
+                      (regexp-quote
+                       (if (boundp 'add-log-mailing-address)
+                           add-log-mailing-address
+                         user-mail-address)))))
+
+(defun cvs-relative-path (base child)
+  "Return a directory path relative to BASE for CHILD.
+If CHILD doesn't seem to be in a subdirectory of BASE, just return 
+the full path to CHILD."
+  (let ((base (file-name-as-directory (expand-file-name base)))
+	(child (expand-file-name child)))
+    (or (string= base (substring child 0 (length base)))
+	(error "cvs-relative-path: %s isn't in %s" child base))
+    (substring child (length base))))
+
+(defun cvs-changelog-entries (file)
+  "Return the ChangeLog entries for FILE, and the ChangeLog they came from.
+The return value looks like this:
+  (LOGBUFFER (ENTRYSTART . ENTRYEND) ...)
+where LOGBUFFER is the name of the ChangeLog buffer, and each
+\(ENTRYSTART . ENTRYEND\) pair is a buffer region."
+  (save-excursion
+    (set-buffer (find-file-noselect
+		 (cvs-changelog-name
+		  (file-name-directory
+		   (expand-file-name file)))))
+    (or (eq major-mode 'change-log-mode)
+	(change-log-mode))
+    (goto-char (point-min))
+    (if (looking-at "[ \t\n]*\n")
+	(goto-char (match-end 0)))
+    (if (not (cvs-changelog-ours-p))
+	(list (current-buffer))
+      (save-restriction
+	(cvs-narrow-changelog)
+	(goto-char (point-min))
+
+	;; Search for the name of FILE relative to the ChangeLog.  If that
+	;; doesn't occur anywhere, they're not using full relative
+	;; filenames in the ChangeLog, so just look for FILE; we'll accept
+	;; some false positives.
+	(let ((pattern (cvs-relative-path
+			(file-name-directory buffer-file-name) file)))
+	  (if (or (string= pattern "")
+		  (not (save-excursion
+			 (search-forward pattern nil t))))
+	      (setq pattern file))
+
+	  (let (texts)
+	    (while (search-forward pattern nil t)
+	      (let ((entry (cvs-changelog-entry)))
+		(setq texts (cons entry texts))
+		(goto-char (elt entry 1))))
+
+	    (cons (current-buffer) texts)))))))
+
+(defun cvs-changelog-insert-entries (buffer regions)
+  "Insert those regions in BUFFER specified in REGIONS.
+Sort REGIONS front-to-back first."
+  (let ((regions (sort regions 'car-less-than-car))
+	(last))
+    (while regions
+      (if (and last (< last (car (car regions))))
+	  (newline))
+      (setq last (elt (car regions) 1))
+      (apply 'insert-buffer-substring buffer (car regions))
+      (setq regions (cdr regions)))))
+
+(defun cvs-union (set1 set2)
+  "Return the union of SET1 and SET2, according to `equal'."
+  (while set2
+    (or (member (car set2) set1)
+	(setq set1 (cons (car set2) set1)))
+    (setq set2 (cdr set2)))
+  set1)
+
+(defun cvs-insert-changelog-entries (files)
+  "Given a list of files FILES, insert the ChangeLog entries for them."
+  (let ((buffer-entries nil))
+
+    ;; Add each buffer to buffer-entries, and associate it with the list
+    ;; of entries we want from that file.
+    (while files
+      (let* ((entries (cvs-changelog-entries (car files)))
+	     (pair (assq (car entries) buffer-entries)))
+	(if pair
+	    (setcdr pair (cvs-union (cdr pair) (cdr entries)))
+	  (setq buffer-entries (cons entries buffer-entries))))
+      (setq files (cdr files)))
+
+    ;; Now map over each buffer in buffer-entries, sort the entries for
+    ;; each buffer, and extract them as strings.
+    (while buffer-entries
+      (cvs-changelog-insert-entries (car (car buffer-entries))
+				    (cdr (car buffer-entries)))
+      (if (and (cdr buffer-entries) (cdr (car buffer-entries)))
+	  (newline))
+      (setq buffer-entries (cdr buffer-entries)))))
+
+(defun cvs-edit-delete-common-indentation ()
+  "Unindent the current buffer rigidly until at least one line is flush left."
+  (save-excursion
+    (let ((common 100000))
+      (goto-char (point-min))
+      (while (< (point) (point-max))
+	(if (not (looking-at "^[ \t]*$"))
+	    (setq common (min common (current-indentation))))
+	(forward-line 1))
+      (indent-rigidly (point-min) (point-max) (- common)))))
+
+(defun cvs-mode-changelog-commit ()
+
+  "Check in all marked files, or the current file.
+Ask the user for a log message in a buffer.
+
+This is just like `\\[cvs-mode-commit]', except that it tries to provide
+appropriate default log messages by looking at the ChangeLogs.  The
+idea is to write your ChangeLog entries first, and then use this
+command to commit your changes.
+
+To select default log text, we:
+- find the ChangeLogs for the files to be checked in,
+- verify that the top entry in the ChangeLog is on the current date
+  and by the current user; if not, we don't provide any default text,
+- search the ChangeLog entry for paragraphs containing the names of
+  the files we're checking in, and finally
+- use those paragraphs as the log text."
+
+  (interactive)
+
+  (let* ((cvs-buf (current-buffer))
+	 (marked (cvs-filter (function cvs-committable)
+			     (cvs-get-marked))))
+    (if (null marked)
+	(error "Nothing to commit!")
+      (pop-to-buffer (get-buffer-create cvs-commit-prompt-buffer))
+      (goto-char (point-min))
+
+      (erase-buffer)
+      (cvs-insert-changelog-entries
+       (mapcar (lambda (tin)
+		 (let ((cookie (tin-cookie cvs-cookie-handle tin)))
+		   (expand-file-name 
+		    (cvs-fileinfo->file-name cookie)
+		    (cvs-fileinfo->dir cookie))))
+	       marked))
+      (cvs-edit-delete-common-indentation)
+
+      (cvs-edit-mode)
+      (make-local-variable 'cvs-commit-list)
+      (setq cvs-commit-list marked)
+      (message "Press C-c C-c when you are done editing."))))

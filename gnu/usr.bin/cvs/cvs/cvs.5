@@ -10,19 +10,23 @@ cvs \- Concurrent Versions System support files
 .hy 0
 .na
 .TP
-.B $CVSROOT/CVSROOT/modules,v
-.TP
 .B $CVSROOT/CVSROOT/commitinfo,v
-.TP
-.B $CVSROOT/CVSROOT/loginfo,v
-.TP
-.B $CVSROOT/CVSROOT/rcsinfo,v
-.TP
-.B $CVSROOT/CVSROOT/editinfo,v
 .TP
 .B $CVSROOT/CVSROOT/cvsignore,v
 .TP
+.B $CVSROOT/CVSROOT/cvswrappers,v
+.TP
+.B $CVSROOT/CVSROOT/editinfo,v
+.TP
 .B $CVSROOT/CVSROOT/history
+.TP
+.B $CVSROOT/CVSROOT/loginfo,v
+.TP
+.B $CVSROOT/CVSROOT/modules,v
+.TP
+.B $CVSROOT/CVSROOT/rcsinfo,v
+.TP
+.B $CVSROOT/CVSROOT/taginfo,v
 .ad b
 .hy 1
 .SH DESCRIPTION
@@ -67,6 +71,14 @@ source repository from a particular person or group.
 Or, perhaps, to verify that the changed files conform to the site's
 standards for coding practice.
 .SP
+You can use the `\|cvswrappers\|' file to record
+.B cvs
+wrapper commands to be used when checking files into and out of the
+repository.  Wrappers allow the file or directory to be processed
+on the way in and out of CVS.  The intended uses are many, one
+possible use would be to reformat a C file before the file is checked
+in, so all of the code in the repository looks the same.
+.SP
 You can use the `\|loginfo\|' file to define programs to execute after
 any
 .BR commit ,
@@ -74,6 +86,14 @@ which writes a log entry for changes in the repository.
 These logging programs might be used to append the log message to a file.
 Or send the log message through electronic mail to a group of developers.
 Or, perhaps, post the log message to a particular newsgroup.
+.SP
+You can use the `\|taginfo\|' file to define programs to execute after
+any
+.BR tag or rtag
+operation.  These programs might be used to append a message to a file
+listing the new tag name and the programmer who created it, or send mail
+to a group of developers, or, perhaps, post a message to a particular
+newsgroup.
 .SP
 You can use the `\|rcsinfo\|' file to define forms for log messages.
 .SP
@@ -127,7 +147,7 @@ to get an editable copy of the file.  You should define similar module
 entries for the other configuration files described here (except
 \&`\|history\|').
 The
-.BR cvsinit ( 1 )
+.BR cvsinit ( 8 )
 script will setup a smilar `\|modules\|' file for you automatically.
 .SP
 The `\|modules\|' file may contain blank lines and comments (lines
@@ -210,6 +230,10 @@ source repository.   The `\|commitinfo\|', `\|loginfo\|', and
 to run whenever files in a module are checked out.  \fIprog\fP runs
 with a single argument, the module name.
 .SP
+`\|\fB\-e\fP \fIprog\fP\|' allows you to specify a program \fIprog\fP
+to run whenever files in a module are exported.  \fIprog\fP runs
+with a single argument, the module name.
+.SP
 `\|\fB\-t\fP \fIprog\fP\|' allows you to specify a program \fIprog\fP
 to run whenever files in a module are tagged.  \fIprog\fP runs with two
 arguments:  the module name and the symbolic tag specified to \fBrtag\fP.
@@ -240,6 +264,23 @@ The first entry in the list is the relative path within the source
 repository where the change is being made.
 The remaining arguments list the files that are being modified, added, or
 removed by this \fBcommit\fP invocation.
+.SP
+For `\|taginfo\|', the rest of the
+line is a command-line template to execute.
+The arguments passed to the command are, in order, the
+.I tagname ,
+.I operation
+(i.e. 
+.B add
+for `tag',
+.B mov
+for `tag -F', and
+.B del
+for `tag -d`),
+.I repository ,
+and any remaining are pairs of
+.B "filename revision" .
+A non-zero exit of the filter program will cause the tag to be aborted.
 .SP
 For `\|commitinfo\|', the rest of the line is a command-line template to
 execute.
