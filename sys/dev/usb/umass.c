@@ -976,7 +976,7 @@ USB_ATTACH(umass)
 		sc->state = umass_cbi_state;
 #ifdef USB_DEBUG
 	} else {
-		panic("%s:%d: Unknown proto 0x%02x\n",
+		panic("%s:%d: Unknown proto 0x%02x",
 		      __FILE__, __LINE__, sc->proto);
 #endif
 	}
@@ -991,7 +991,7 @@ USB_ATTACH(umass)
 		sc->transform = umass_rbc_transform;
 #ifdef USB_DEBUG
 	else
-		panic("No transformation defined for command proto 0x%02x\n",
+		panic("No transformation defined for command proto 0x%02x",
 		      sc->proto & UMASS_PROTO_COMMAND);
 #endif
 
@@ -1029,7 +1029,7 @@ USB_ATTACH(umass)
 			USB_ATTACH_ERROR_RETURN;
 		}
 	} else {
-		panic("%s:%d: Unknown proto 0x%02x\n",
+		panic("%s:%d: Unknown proto 0x%02x",
 		      __FILE__, __LINE__, sc->proto);
 	}
 
@@ -1555,7 +1555,7 @@ umass_bbb_state(usbd_xfer_handle xfer, usbd_private_handle priv,
 
 		} else if (sc->transfer_actlen > sc->transfer_datalen) {
 			/* Buffer overrun! Don't let this go by unnoticed */
-			panic("%s: transferred %db instead of %db\n",
+			panic("%s: transferred %db instead of %db",
 				USBDEVNAME(sc->sc_dev),
 				sc->transfer_actlen, sc->transfer_datalen);
 
@@ -1616,7 +1616,7 @@ umass_bbb_state(usbd_xfer_handle xfer, usbd_private_handle priv,
 
 	/***** Default *****/
 	default:
-		panic("%s: Unknown state %d\n",
+		panic("%s: Unknown state %d",
 		      USBDEVNAME(sc->sc_dev), sc->transfer_state);
 	}
 }
@@ -2051,7 +2051,7 @@ umass_cbi_state(usbd_xfer_handle xfer, usbd_private_handle priv,
 
 	/***** Default *****/
 	default:
-		panic("%s: Unknown state %d\n",
+		panic("%s: Unknown state %d",
 		      USBDEVNAME(sc->sc_dev), sc->transfer_state);
 	}
 }
@@ -2552,7 +2552,7 @@ umass_cam_cb(struct umass_softc *sc, void *priv, int residue, int status)
 					     csio->sense_len, DIR_IN,
 					     umass_cam_sense_cb, (void *) ccb);
 			} else {
-				panic("transform(REQUEST_SENSE) failed\n");
+				panic("transform(REQUEST_SENSE) failed");
 			}
 			break;
 		}
@@ -2561,7 +2561,7 @@ umass_cam_cb(struct umass_softc *sc, void *priv, int residue, int status)
 			xpt_done(ccb);
 			break;
 		default:
-			panic("umass_cam_cb called for func_code %d\n",
+			panic("umass_cam_cb called for func_code %d",
 			      ccb->ccb_h.func_code);
 		}
 		break;
@@ -2575,7 +2575,7 @@ umass_cam_cb(struct umass_softc *sc, void *priv, int residue, int status)
 		xpt_done(ccb);
 		break;
 	default:
-		panic("%s: Unknown status %d in umass_cam_cb\n",
+		panic("%s: Unknown status %d in umass_cam_cb",
 			USBDEVNAME(sc->sc_dev), status);
 	}
 }
@@ -2652,7 +2652,7 @@ umass_cam_sense_cb(struct umass_softc *sc, void *priv, int residue, int status)
 					     NULL, 0, DIR_NONE,
 					     umass_cam_quirk_cb, (void *) ccb);
 			} else {
-				panic("transform(TEST_UNIT_READY) failed\n");
+				panic("transform(TEST_UNIT_READY) failed");
 			}
 			break;
 		} else {
