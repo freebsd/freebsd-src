@@ -1165,7 +1165,6 @@ srstart(struct sr_softc *sc)
 	sca_descriptor *txdesc;	/* working descriptor pointr */
 	struct buf_block *blkp;
 
-	hc = sc->hc;
 #ifndef NETGRAPH
 #if BUGGY > 0
 	printf("sr: srstart( ifp=%08x)\n", ifp);
@@ -1174,6 +1173,7 @@ srstart(struct sr_softc *sc)
 	if ((ifp->if_flags & IFF_RUNNING) == 0)
 		return;
 #endif /* NETGRAPH */
+	hc = sc->hc;
 	/*
 	 * It is OK to set the memory window outside the loop because all tx
 	 * buffers and descriptors are assumed to be in the same 16K window.
