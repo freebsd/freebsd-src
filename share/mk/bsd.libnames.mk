@@ -48,6 +48,9 @@ LIBLN?=		"don't use LIBLN, use LIBL"
 LIBM?=		${DESTDIR}${LIBDIR}/libm.a
 LIBMD?=		${DESTDIR}${LIBDIR}/libmd.a
 LIBMENU?=	${DESTDIR}${LIBDIR}/libmenu.a
+.if !defined(NO_SENDMAIL)
+LIBMILTER?=	${DESTDIR}${LIBDIR}/libmilter.a
+.endif
 LIBMP?=		${DESTDIR}${LIBDIR}/libmp.a
 LIBMYTINFO?=	"don't use LIBMYTINFO, use LIBNCURSES"
 LIBNCP?=	${DESTDIR}${LIBDIR}/libncp.a
