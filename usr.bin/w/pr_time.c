@@ -59,11 +59,12 @@ pr_attime(started, now)
 	time_t *started, *now;
 {
 	static char buf[256];
-	struct tm *tp;
+	struct tm tp, tm;
 	time_t diff;
 	char fmt[20];
 
-	tp = localtime(started);
+	tp = *localtime(started);
+	tm = *localtime(now);
 	diff = *now - *started;
 
 	/* If more than a week, use day-month-year. */
@@ -71,7 +72,11 @@ pr_attime(started, now)
 		(void)strcpy(fmt, "%d%b%y");
 
 	/* If not today, use day-hour-am/pm. */
-	else if (*now / 86400 != *started / 86400) {
+	else if (tm.tm_mday != tp.tm_mday ||
+		 tm.tm_mon != tp.tm_mon ||
+		 tm.tm_year != tp.tm_year) {
+	/* The line below does not take DST into consideration */
+	/* else if (*now / 86400 != *started / 86400) { */
 		(void)strcpy(fmt, __CONCAT("%a%", "I%p"));
 	}
 
@@ -80,7 +85,7 @@ pr_attime(started, now)
 		(void)strcpy(fmt, __CONCAT("%l:%", "M%p"));
 	}
 
-	(void)strftime(buf, sizeof(buf) - 1, fmt, tp);
+	(void)strftime(buf, sizeof(buf) - 1, fmt, &tp);
 	buf[sizeof(buf) - 1] = '\0';
 	(void)printf("%s", buf);
 }
