@@ -1,5 +1,5 @@
 
-		  Release notes for OpenPAM Eelgrass
+		  Release notes for OpenPAM Feterita
 		  ==================================
 
 This release corresponds to the code used in FreeBSD-CURRENT as of the
@@ -24,6 +24,6 @@ NOTE: to the person who sent me MacOS patches in July 2002: I have
 lost your name and email address.  Please contact me so I can give you
 proper credit for your contribution.
 
-Please direct bug reports and inquiries to des@freebsd.org.
+Please direct bug reports and inquiries to <des@freebsd.org>.
 
-$P4: //depot/projects/openpam/RELNOTES#20 $
+$P4: //depot/projects/openpam/RELNOTES#21 $

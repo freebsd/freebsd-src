@@ -33,7 +33,7 @@
 .\"
 .\" $P4$
 .\"
-.Dd February 10, 2004
+.Dd February 1, 2005
 .Dt PAM_OPEN_SESSION 3
 .Os
 .Sh NAME
@@ -50,11 +50,12 @@
 The
 .Nm
 sets up a user session for a previously
-authenticated user.  The session should later be torn down by a call to
+authenticated user.
+The session should later be torn down by a call to
 .Xr pam_close_session 3 .
 .Pp
 The
-.Va flags
+.Fa flags
 argument is the binary or of zero or more of the following
 values:
 .Bl -tag -width 18n
@@ -103,7 +104,7 @@ The
 function and this manual page were developed for the
 .Fx
 Project by ThinkSec AS and Network Associates Laboratories, the
-Security Research Division of Network Associates, Inc.  under
+Security Research Division of Network Associates, Inc.& under
 DARPA/SPAWAR contract N66001-01-C-8035
 .Pq Dq CBOSS ,
 as part of the DARPA CHATS research program.

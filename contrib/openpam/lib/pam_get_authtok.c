@@ -31,7 +31,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $P4: //depot/projects/openpam/lib/pam_get_authtok.c#27 $
+ * $P4: //depot/projects/openpam/lib/pam_get_authtok.c#28 $
  */
 
 #include <sys/param.h>
@@ -142,9 +142,9 @@ pam_get_authtok(pam_handle_t *pamh,
 
 /**
  * The =pam_get_authtok function returns the cached authentication token,
- * or prompts the user if no token is currently cached.  Either way, a
- * pointer to the authentication token is stored in the location pointed
- * to by the =authtok argument.
+ * or prompts the user if no token is currently cached.
+ * Either way, a pointer to the authentication token is stored in the
+ * location pointed to by the =authtok argument.
  *
  * The =item argument must have one of the following values:
  *
@@ -157,13 +157,13 @@ pam_get_authtok(pam_handle_t *pamh,
  *
  * The =prompt argument specifies a prompt to use if no token is cached.
  * If it is =NULL, the =PAM_AUTHTOK_PROMPT or =PAM_OLDAUTHTOK_PROMPT item,
- * as appropriate, will be used.  If that item is also =NULL, a hardcoded
- * default prompt will be used.
+ * as appropriate, will be used.
+ * If that item is also =NULL, a hardcoded default prompt will be used.
  *
  * If =item is set to =PAM_AUTHTOK and there is a non-null =PAM_OLDAUTHTOK
  * item, =pam_get_authtok will ask the user to confirm the new token by
- * retyping it.  If there is a mismatch, =pam_get_authtok will return
- * =PAM_TRY_AGAIN.
+ * retyping it.
+ * If there is a mismatch, =pam_get_authtok will return =PAM_TRY_AGAIN.
  *
  * >pam_get_item
  * >pam_get_user

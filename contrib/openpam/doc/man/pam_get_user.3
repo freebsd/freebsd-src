@@ -33,7 +33,7 @@
 .\"
 .\" $P4$
 .\"
-.Dd February 10, 2004
+.Dd February 1, 2005
 .Dt PAM_GET_USER 3
 .Os
 .Sh NAME
@@ -55,20 +55,22 @@ specified to
 If no user was specified, nor set using
 .Xr pam_set_item 3 ,
 .Nm
-will prompt for a user name.  Either way,
-a pointer to the user name is stored in the location pointed to by the
-.Va user
+will prompt for a user name.
+Either way, a pointer to the user name is stored in the location
+pointed to by the
+.Fa user
 argument.
 .Pp
 The
-.Va prompt
+.Fa prompt
 argument specifies a prompt to use if no user name is
-cached.  If it is
+cached.
+If it is
 .Dv NULL ,
 the
 .Dv PAM_USER_PROMPT
-will be used.  If that
-item is also
+will be used.
+If that item is also
 .Dv NULL ,
 a hardcoded default prompt will be used.
 .Pp
@@ -102,7 +104,7 @@ The
 function and this manual page were developed for the
 .Fx
 Project by ThinkSec AS and Network Associates Laboratories, the
-Security Research Division of Network Associates, Inc.  under
+Security Research Division of Network Associates, Inc.& under
 DARPA/SPAWAR contract N66001-01-C-8035
 .Pq Dq CBOSS ,
 as part of the DARPA CHATS research program.

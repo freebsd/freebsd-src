@@ -33,7 +33,7 @@
 .\"
 .\" $P4$
 .\"
-.Dd February 10, 2004
+.Dd February 1, 2005
 .Dt PAM_GET_AUTHTOK 3
 .Os
 .Sh NAME
@@ -50,14 +50,14 @@
 The
 .Nm
 function returns the cached authentication token,
-or prompts the user if no token is currently cached.  Either way, a
-pointer to the authentication token is stored in the location pointed
-to by the
-.Va authtok
+or prompts the user if no token is currently cached.
+Either way, a pointer to the authentication token is stored in the
+location pointed to by the
+.Fa authtok
 argument.
 .Pp
 The
-.Va item
+.Fa item
 argument must have one of the following values:
 .Bl -tag -width 18n
 .It Dv PAM_AUTHTOK
@@ -69,7 +69,7 @@ authentication tokens.
 .El
 .Pp
 The
-.Va prompt
+.Fa prompt
 argument specifies a prompt to use if no token is cached.
 If it is
 .Dv NULL ,
@@ -78,13 +78,13 @@ the
 or
 .Dv PAM_OLDAUTHTOK_PROMPT
 item,
-as appropriate, will be used.  If that item is also
+as appropriate, will be used.
+If that item is also
 .Dv NULL ,
-a hardcoded
-default prompt will be used.
+a hardcoded default prompt will be used.
 .Pp
 If
-.Va item
+.Fa item
 is set to
 .Dv PAM_AUTHTOK
 and there is a non-null
@@ -92,7 +92,8 @@ and there is a non-null
 item,
 .Nm
 will ask the user to confirm the new token by
-retyping it.  If there is a mismatch,
+retyping it.
+If there is a mismatch,
 .Nm
 will return
 .Dv PAM_TRY_AGAIN .
@@ -126,7 +127,7 @@ The
 function and this manual page were developed for the
 .Fx
 Project by ThinkSec AS and Network Associates Laboratories, the
-Security Research Division of Network Associates, Inc.  under
+Security Research Division of Network Associates, Inc.& under
 DARPA/SPAWAR contract N66001-01-C-8035
 .Pq Dq CBOSS ,
 as part of the DARPA CHATS research program.

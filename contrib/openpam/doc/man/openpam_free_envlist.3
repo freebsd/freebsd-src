@@ -34,54 +34,30 @@
 .\" $P4$
 .\"
 .Dd February 1, 2005
-.Dt PAM_PROMPT 3
+.Dt OPENPAM_FREE_ENVLIST 3
 .Os
 .Sh NAME
-.Nm pam_prompt
-.Nd call the conversation function
+.Nm openpam_free_envlist
+.Nd free an environment list
 .Sh LIBRARY
 .Lb libpam
 .Sh SYNOPSIS
 .In sys/types.h
 .In security/pam_appl.h
-.Ft "int"
-.Fn pam_prompt "pam_handle_t *pamh" "int style" "char **resp" "const char *fmt" "..."
+.In security/openpam.h
+.Ft "void"
+.Fn openpam_free_envlist "char **envlist"
 .Sh DESCRIPTION
 The
 .Nm
-function constructs a message from the specified format
-string and arguments and passes it to the given PAM context's
-conversation function.
-.Pp
-A pointer to the response, or
-.Dv NULL
-if the conversation function did
-not return one, is stored in the location pointed to by the
-.Fa resp
-argument.
-.Pp
-See
-.Xr pam_vprompt 3
-for further details.
-.Pp
-.Sh RETURN VALUES
-The
-.Nm
-function returns one of the following values:
-.Bl -tag -width 18n
-.It Bq Er PAM_BUF_ERR
-Memory buffer error.
-.It Bq Er PAM_CONV_ERR
-Conversation failure.
-.It Bq Er PAM_SYSTEM_ERR
-System error.
-.El
+function is a convenience function which
+frees all the environment variables in an environment list, and the
+list itself.
+It is suitable for freeing the return value from
+.Xr pam_getenvlist 3 .
 .Sh SEE ALSO
 .Xr pam 3 ,
-.Xr pam_error 3 ,
-.Xr pam_info 3 ,
-.Xr pam_strerror 3 ,
-.Xr pam_vprompt 3
+.Xr pam_getenvlist 3
 .Sh STANDARDS
 The
 .Nm

@@ -33,7 +33,7 @@
 .\"
 .\" $P4$
 .\"
-.Dd February 10, 2004
+.Dd February 1, 2005
 .Dt PAM_VPROMPT 3
 .Os
 .Sh NAME
@@ -50,16 +50,16 @@
 The
 .Nm
 function constructs a string from the
-.Va fmt
+.Fa fmt
 and
-.Va ap
+.Fa ap
 arguments using
 .Xr vsnprintf 3 ,
 and passes it to the given PAM context's
 conversation function.
 .Pp
 The
-.Va style
+.Fa style
 argument specifies the type of interaction requested, and
 must be one of the following:
 .Bl -tag -width 18n
@@ -80,7 +80,7 @@ A pointer to the response, or
 .Dv NULL
 if the conversation function did
 not return one, is stored in the location pointed to by the
-.Va resp
+.Fa resp
 argument.
 .Pp
 The message and response should not exceed
@@ -121,7 +121,7 @@ The
 function and this manual page were developed for the
 .Fx
 Project by ThinkSec AS and Network Associates Laboratories, the
-Security Research Division of Network Associates, Inc.  under
+Security Research Division of Network Associates, Inc.& under
 DARPA/SPAWAR contract N66001-01-C-8035
 .Pq Dq CBOSS ,
 as part of the DARPA CHATS research program.
