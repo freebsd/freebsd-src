@@ -59,6 +59,7 @@
 void ia64_ap_startup(void);
 
 extern vm_offset_t vhpt_base, vhpt_size;
+extern u_int64_t ia64_lapic_address;
 
 #define	LID_SAPIC_ID(x)		((int)((x) >> 24) & 0xff)
 #define	LID_SAPIC_EID(x)	((int)((x) >> 16) & 0xff)
@@ -349,7 +350,7 @@ ipi_send(u_int64_t lid, int ipi)
 	volatile u_int64_t *pipi;
 	u_int64_t vector;
 
-	pipi = ia64_memory_address(PAL_PIB_DEFAULT_ADDR |
+	pipi = ia64_memory_address(ia64_lapic_address |
 	    ((lid & LID_SAPIC_MASK) >> 12));
 	vector = (u_int64_t)(ipi_vector[ipi] & 0xff);
 	CTR3(KTR_SMP, "ipi_send(%p, %ld), cpuid=%d", pipi, vector,
