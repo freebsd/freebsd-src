@@ -31,7 +31,7 @@
 .\" SUCH DAMAGE.
 .\"
 .\"	From: @(#)pstat.8	8.4 (Berkeley) 4/19/94
-.\"	$Id: pstat.8,v 1.6 1996/01/20 07:28:52 mpp Exp $
+.\"	$Id: pstat.8,v 1.7 1996/04/17 20:50:44 joerg Exp $
 .\"
 .Dd October 7, 1995
 .Dt PSTAT 8
@@ -42,7 +42,7 @@
 .Nd display system data structures
 .Sh SYNOPSIS
 .Nm pstat
-.Op Fl Tfknstv
+.Op Fl Tfiknstv
 .Op Fl M Ar core
 .Op Fl N Ar system
 .Pp
@@ -347,6 +347,10 @@ lease was evicted (nqnfs)
 Number of bytes in an ordinary file, or
 major and minor device of special file.
 .El
+.It Fl i
+Same as
+.Fl v ,
+present for backwards-compatibility.
 .El
 .Sh FILES
 .Bl -tag -width /dev/kmemxxx -compact
