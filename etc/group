@@ -1,4 +1,4 @@
-wheel:*:0:root,bill,lynne
+wheel:*:0:root
 daemon:*:1:daemon
 kmem:*:2:root
 sys:*:3:root
