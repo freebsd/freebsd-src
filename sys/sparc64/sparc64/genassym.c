@@ -61,6 +61,7 @@
 #include <machine/tlb.h>
 #include <machine/tsb.h>
 #include <machine/tstate.h>
+#include <machine/utrap.h>
 
 ASSYM(KERNBASE, KERNBASE);
 
@@ -69,6 +70,7 @@ ASSYM(ENAMETOOLONG, ENAMETOOLONG);
 
 ASSYM(KSTACK_PAGES, KSTACK_PAGES);
 ASSYM(KSTACK_GUARD_PAGES, KSTACK_GUARD_PAGES);
+ASSYM(PANIC_STACK_PAGES, PANIC_STACK_PAGES);
 ASSYM(UAREA_PAGES, UAREA_PAGES);
 ASSYM(PAGE_SIZE, PAGE_SIZE);
 
@@ -155,6 +157,8 @@ ASSYM(NIV, NIV);
 ASSYM(KEF_ASTPENDING, KEF_ASTPENDING);
 ASSYM(KEF_NEEDRESCHED, KEF_NEEDRESCHED);
 
+ASSYM(MD_UTRAP, offsetof(struct mdproc, md_utrap));
+
 ASSYM(P_COMM, offsetof(struct proc, p_comm));
 ASSYM(P_MD, offsetof(struct proc, p_md));
 ASSYM(P_PID, offsetof(struct proc, p_pid));
@@ -234,3 +238,5 @@ ASSYM(TF_FPRS, offsetof(struct trapframe, tf_fprs));
 ASSYM(TF_PIL, offsetof(struct trapframe, tf_pil));
 ASSYM(TF_WSTATE, offsetof(struct trapframe, tf_wstate));
 ASSYM(TF_SIZEOF, sizeof(struct trapframe));
+
+ASSYM(UT_MAX, UT_MAX);
