@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1995-1998 John Birrell <jb@cimlogic.com.au>.
+ * Copyright (c) 1995-1998 John Birrell <jb@cimlogic.com.au>
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -29,7 +29,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $Id: uthread_writev.c,v 1.1.2.2 1998/02/13 01:35:57 julian Exp $
+ * $Id: uthread_writev.c,v 1.1.2.3 1998/05/26 22:07:28 jb Exp $
  *
  */
 #include <sys/types.h>
@@ -48,6 +48,7 @@ writev(int fd, const struct iovec * iov, int iovcnt)
 {
 	int	blocking;
 	int	idx = 0;
+	int	type;
 	ssize_t cnt;
 	ssize_t n;
 	ssize_t num = 0;
@@ -70,8 +71,18 @@ writev(int fd, const struct iovec * iov, int iovcnt)
 	memcpy(p_iov,iov,iovcnt * sizeof(struct iovec));
 
 	/* Lock the file descriptor for write: */
-	if ((ret = _thread_fd_lock(fd, FD_WRITE, NULL,
-	    __FILE__, __LINE__)) == 0) {
+	if ((ret = _FD_LOCK(fd, FD_WRITE, NULL)) == 0) {
+		/* Get the read/write mode type: */
+		type = _thread_fd_table[fd]->flags & O_ACCMODE;
+
+		/* Check if the file is not open for write: */
+		if (type != O_WRONLY && type != O_RDWR) {
+			/* File is not open for write: */
+			errno = EBADF;
+			_FD_UNLOCK(fd, FD_WRITE);
+			return (-1);
+		}
+
 		/* Check if file operations are to block */
 		blocking = ((_thread_fd_table[fd]->flags & O_NONBLOCK) == 0);
 
@@ -134,7 +145,7 @@ writev(int fd, const struct iovec * iov, int iovcnt)
 			 * write:
 			 */
 			if (blocking && ((n < 0 && (errno == EWOULDBLOCK ||
-			    errno == EAGAIN)) || idx < iovcnt)) {
+			    errno == EAGAIN)) || (n >= 0 && idx < iovcnt))) {
 				_thread_run->data.fd.fd = fd;
 				_thread_kern_set_timeout(NULL);
 
@@ -168,7 +179,7 @@ writev(int fd, const struct iovec * iov, int iovcnt)
 				/* Return the number of bytes written: */
 				ret = num;
 		}
-		_thread_fd_unlock(fd, FD_RDWR);
+		_FD_UNLOCK(fd, FD_RDWR);
 	}
 
 	/* If memory was allocated for the array, free it: */

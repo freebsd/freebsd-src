@@ -1,4 +1,4 @@
-#	$Id: Makefile,v 1.1 1998/08/25 12:35:16 jb Exp $
+#	$Id: Makefile,v 1.1 1998/09/30 07:14:02 jb Exp $
 
 PROG=		sigsuspend
 SRCS=		sigsuspend.c

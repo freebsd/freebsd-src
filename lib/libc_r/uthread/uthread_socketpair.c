@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1995 John Birrell <jb@cimlogic.com.au>.
+ * Copyright (c) 1995-1998 John Birrell <jb@cimlogic.com.au>
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -29,7 +29,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $Id: uthread_socketpair.c,v 1.3 1997/04/01 22:52:43 jb Exp $
+ * $Id: uthread_socketpair.c,v 1.1.2.1 1997/06/24 00:28:12 julian Exp $
  *
  */
 #include <sys/types.h>

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1995 John Birrell <jb@cimlogic.com.au>.
+ * Copyright (c) 1995-1998 John Birrell <jb@cimlogic.com.au>
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -45,7 +45,7 @@ accept(int fd, struct sockaddr * name, int *namelen)
 	int             ret;
 
 	/* Lock the file descriptor: */
-	if ((ret = _thread_fd_lock(fd, FD_RDWR, NULL, __FILE__, __LINE__)) == 0) {
+	if ((ret = _FD_LOCK(fd, FD_RDWR, NULL)) == 0) {
 		/* Enter a loop to wait for a connection request: */
 		while ((ret = _thread_sys_accept(fd, name, namelen)) < 0) {
 			/* Check if the socket is to block: */
@@ -57,13 +57,15 @@ accept(int fd, struct sockaddr * name, int *namelen)
 
 				/* Set the timeout: */
 				_thread_kern_set_timeout(NULL);
+				_thread_run->interrupted = 0;
 
 				/* Schedule the next thread: */
 				_thread_kern_sched_state(PS_FDR_WAIT, __FILE__, __LINE__);
 
 				/* Check if the wait was interrupted: */
-				if (errno == EINTR) {
+				if (_thread_run->interrupted) {
 					/* Return an error status: */
+					errno = EINTR;
 					ret = -1;
 					break;
 				}
@@ -88,8 +90,8 @@ accept(int fd, struct sockaddr * name, int *namelen)
 			ret = -1;
 		}
 		/* 
-                 * If the parent socket was blocking, make sure that
-                 * the new socket is also set blocking here (as the
+		 * If the parent socket was blocking, make sure that
+		 * the new socket is also set blocking here (as the
 		 * call to _thread_fd_table_init() above will always 
 		 * set the new socket flags to non-blocking, as that 
 		 * will be the inherited state of the new socket.
@@ -98,7 +100,7 @@ accept(int fd, struct sockaddr * name, int *namelen)
 			_thread_fd_table[ret]->flags &= ~O_NONBLOCK;
 
 		/* Unlock the file descriptor: */
-		_thread_fd_unlock(fd, FD_RDWR);
+		_FD_UNLOCK(fd, FD_RDWR);
 	}
 	/* Return the socket file descriptor or -1 on error: */
 	return (ret);

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1995 John Birrell <jb@cimlogic.com.au>.
+ * Copyright (c) 1995-1998 John Birrell <jb@cimlogic.com.au>
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -42,9 +42,9 @@ int
 connect(int fd, const struct sockaddr * name, int namelen)
 {
 	struct sockaddr tmpname;
-	int             ret, tmpnamelen;
+	int             errnolen, ret, tmpnamelen;
 
-	if ((ret = _thread_fd_lock(fd, FD_RDWR, NULL, __FILE__, __LINE__)) == 0) {
+	if ((ret = _FD_LOCK(fd, FD_RDWR, NULL)) == 0) {
 		if ((ret = _thread_sys_connect(fd, name, namelen)) < 0) {
 			if (!(_thread_fd_table[fd]->flags & O_NONBLOCK) &&
 			((errno == EWOULDBLOCK) || (errno == EINPROGRESS) ||
@@ -63,13 +63,14 @@ connect(int fd, const struct sockaddr * name, int namelen)
 					 * Get the error, this function
 					 * should not fail 
 					 */
-					_thread_sys_getsockopt(fd, SOL_SOCKET, SO_ERROR, &errno, &tmpnamelen);
+					errnolen = sizeof(errno);
+					_thread_sys_getsockopt(fd, SOL_SOCKET, SO_ERROR, &errno, &errnolen);
 				}
 			} else {
 				ret = -1;
 			}
 		}
-		_thread_fd_unlock(fd, FD_RDWR);
+		_FD_UNLOCK(fd, FD_RDWR);
 	}
 	return (ret);
 }

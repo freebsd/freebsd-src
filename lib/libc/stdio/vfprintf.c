@@ -39,7 +39,7 @@
 static char sccsid[] = "@(#)vfprintf.c	8.1 (Berkeley) 6/4/93";
 #endif
 static const char rcsid[] =
-		"$Id: vfprintf.c,v 1.9.2.1 1998/02/10 20:40:20 ache Exp $";
+		"$Id: vfprintf.c,v 1.9.2.2 1998/02/17 17:33:54 jkh Exp $";
 #endif /* LIBC_SCCS and not lint */
 
 /*
@@ -63,10 +63,7 @@ static const char rcsid[] =
 
 #include "local.h"
 #include "fvwrite.h"
-#ifdef _THREAD_SAFE
-#include <pthread.h>
-#include "pthread_private.h"
-#endif
+#include "libc_private.h"
 
 /* Define FLOATING_POINT to get floating point. */
 #define	FLOATING_POINT
@@ -421,23 +418,17 @@ vfprintf(fp, fmt0, ap)
         }
         
 
-#ifdef _THREAD_SAFE
-	_thread_flockfile(fp,__FILE__,__LINE__);
-#endif
+	FLOCKFILE(fp);
 	/* sorry, fprintf(read_only_file, "") returns EOF, not 0 */
 	if (cantwrite(fp)) {
-#ifdef _THREAD_SAFE
-		_thread_funlockfile(fp);
-#endif
+		FUNLOCKFILE(fp);
 		return (EOF);
 	}
 
 	/* optimise fprintf(stderr) (and other unbuffered Unix files) */
 	if ((fp->_flags & (__SNBF|__SWR|__SRW)) == (__SNBF|__SWR) &&
 	    fp->_file >= 0) {
-#ifdef _THREAD_SAFE
-		_thread_funlockfile(fp);
-#endif
+		FUNLOCKFILE(fp);
 		return (__sbprintf(fp, fmt0, ap));
 	}
 
@@ -873,9 +864,7 @@ done:
 error:
 	if (__sferror(fp))
 		ret = EOF;
-#ifdef _THREAD_SAFE
-	_thread_funlockfile(fp);
-#endif
+	FUNLOCKFILE(fp);
         if ((argtable != NULL) && (argtable != statargtable))
                 free (argtable);
 	return (ret);

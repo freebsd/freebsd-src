@@ -39,40 +39,58 @@
 int
 pthread_kill(pthread_t pthread, int sig)
 {
-	int             rval = 0;
-	int             status;
-	pthread_t	p_pthread;
+	int ret;
 
 	/* Check for invalid signal numbers: */
 	if (sig < 0 || sig >= NSIG)
 		/* Invalid signal: */
-		rval = EINVAL;
-	else {
-		/* Assume that the search will succeed: */
-		rval = 0;
+		ret = EINVAL;
 
-		/* Block signals: */
-		_thread_kern_sig_block(&status);
+	/* Ignored signals get dropped on the floor. */
+	else if (_thread_sigact[sig - 1].sa_handler == SIG_IGN)
+		ret = 0;
 
-		/* Search for the thread: */
-		p_pthread = _thread_link_list;
-		while (p_pthread != NULL && p_pthread != pthread) {
-			p_pthread = p_pthread->nxt;
-		}
+	/* Find the thread in the list of active threads: */
+	else if ((ret = _find_thread(pthread)) == 0) {
+		switch (pthread->state) {
+		case PS_SIGSUSPEND:
+			/*
+			 * Only wake up the thread if the signal is unblocked
+			 * and there is a handler installed for the signal.
+			 */
+			if (!sigismember(&pthread->sigmask, sig) &&
+			    _thread_sigact[sig - 1].sa_handler != SIG_DFL) {
+				/* Change the state of the thread to run: */
+				PTHREAD_NEW_STATE(pthread,PS_RUNNING);
 
-		/* Check if the thread was not found: */
-		if (p_pthread == NULL)
-			/* Can't find the thread: */
-			rval = ESRCH;
-		else
+				/* Return the signal number: */
+				pthread->signo = sig;
+			}
 			/* Increment the pending signal count: */
-			p_pthread->sigpend[sig] += 1;
+			sigaddset(&pthread->sigpend,sig);
+			break;
 
-		/* Unblock signals: */
-		_thread_kern_sig_unblock(status);
+		case PS_SIGWAIT:
+			/* Wake up the thread if the signal is blocked. */
+			if (sigismember(pthread->data.sigwait, sig)) {
+				/* Change the state of the thread to run: */
+				PTHREAD_NEW_STATE(pthread,PS_RUNNING);
+
+				/* Return the signal number: */
+				pthread->signo = sig;
+			} else
+				/* Increment the pending signal count. */
+				sigaddset(&pthread->sigpend,sig);
+			break;
+
+		default:
+			/* Increment the pending signal count: */
+			sigaddset(&pthread->sigpend,sig);
+			break;
+		}
 	}
 
 	/* Return the completion status: */
-	return (rval);
+	return (ret);
 }
 #endif

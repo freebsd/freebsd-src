@@ -32,9 +32,12 @@
  */
 #include <stdlib.h>
 #include <errno.h>
+#include <string.h>
 #ifdef _THREAD_SAFE
 #include <pthread.h>
 #include "pthread_private.h"
+
+static spinlock_t static_init_lock = _SPINLOCK_INITIALIZER;
 
 int
 pthread_mutex_init(pthread_mutex_t * mutex,
@@ -43,33 +46,30 @@ pthread_mutex_init(pthread_mutex_t * mutex,
 	enum pthread_mutextype type;
 	pthread_mutex_t	pmutex;
 	int             ret = 0;
-	int             status;
 
 	if (mutex == NULL) {
 		ret = EINVAL;
 	} else {
 		/* Check if default mutex attributes: */
-		if (mutex_attr == NULL || *mutex_attr == NULL) {
+		if (mutex_attr == NULL || *mutex_attr == NULL)
 			/* Default to a fast mutex: */
 			type = MUTEX_TYPE_FAST;
-		} else if ((*mutex_attr)->m_type >= MUTEX_TYPE_MAX) {
+
+		else if ((*mutex_attr)->m_type >= MUTEX_TYPE_MAX)
 			/* Return an invalid argument error: */
 			ret = EINVAL;
-		} else {
+		else
 			/* Use the requested mutex type: */
 			type = (*mutex_attr)->m_type;
-		}
 
 		/* Check no errors so far: */
 		if (ret == 0) {
-			if ((pmutex = (pthread_mutex_t) malloc(sizeof(struct pthread_mutex))) == NULL) {
+			if ((pmutex = (pthread_mutex_t)
+			    malloc(sizeof(struct pthread_mutex))) == NULL)
 				ret = ENOMEM;
-			} else {
+			else {
 				/* Reset the mutex flags: */
 				pmutex->m_flags = 0;
-
-				/* Block signals: */
-				_thread_kern_sig_block(&status);
 
 				/* Process according to mutex type: */
 				switch (type) {
@@ -96,14 +96,13 @@ pthread_mutex_init(pthread_mutex_t * mutex,
 					pmutex->m_flags |= MUTEX_FLAGS_INITED;
 					pmutex->m_owner = NULL;
 					pmutex->m_type = type;
+					memset(&pmutex->lock, 0,
+					    sizeof(pmutex->lock));
 					*mutex = pmutex;
 				} else {
 					free(pmutex);
 					*mutex = NULL;
 				}
-
-				/* Unblock signals: */
-				_thread_kern_sig_unblock(status);
 			}
 		}
 	}
@@ -114,53 +113,52 @@ pthread_mutex_init(pthread_mutex_t * mutex,
 int
 pthread_mutex_destroy(pthread_mutex_t * mutex)
 {
-	int             ret = 0;
-	int             status;
+	int ret = 0;
 
-	if (mutex == NULL || *mutex == NULL) {
+	if (mutex == NULL || *mutex == NULL)
 		ret = EINVAL;
-	} else {
-		/* Block signals: */
-		_thread_kern_sig_block(&status);
+	else {
+		/* Lock the mutex structure: */
+		_SPINLOCK(&(*mutex)->lock);
 
-		/* Process according to mutex type: */
-		switch ((*mutex)->m_type) {
-		/* Fast mutex: */
-		case MUTEX_TYPE_FAST:
-			/* Nothing to do here. */
-			break;
+		/*
+		 * Free the memory allocated for the mutex
+		 * structure:
+		 */
+		free(*mutex);
 
-		/* Counting mutex: */
-		case MUTEX_TYPE_COUNTING_FAST:
-			/* Reset the mutex count: */
-			(*mutex)->m_data.m_count = 0;
-			break;
-
-		/* Trap undefined mutex types: */
-		default:
-			/* Return an invalid argument error: */
-			ret = EINVAL;
-			break;
-		}
-
-		/* Clean up the mutex in case that others want to use it: */
-		_thread_queue_init(&(*mutex)->m_queue);
-		(*mutex)->m_owner = NULL;
-		(*mutex)->m_flags = 0;
-
-		/* Unblock signals: */
-		_thread_kern_sig_unblock(status);
+		/*
+		 * Leave the caller's pointer NULL now that
+		 * the mutex has been destroyed:
+		 */
+		*mutex = NULL;
 	}
 
 	/* Return the completion status: */
 	return (ret);
 }
 
+static int
+init_static (pthread_mutex_t *mutex)
+{
+	int ret;
+
+	_SPINLOCK(&static_init_lock);
+
+	if (*mutex == NULL)
+		ret = pthread_mutex_init(mutex, NULL);
+	else
+		ret = 0;
+
+	_SPINUNLOCK(&static_init_lock);
+
+	return(ret);
+}
+
 int
 pthread_mutex_trylock(pthread_mutex_t * mutex)
 {
 	int             ret = 0;
-	int             status;
 
 	if (mutex == NULL)
 		ret = EINVAL;
@@ -169,10 +167,9 @@ pthread_mutex_trylock(pthread_mutex_t * mutex)
 	 * If the mutex is statically initialized, perform the dynamic
 	 * initialization:
 	 */
-	else if (*mutex != NULL ||
-	    (ret = pthread_mutex_init(mutex,NULL)) == 0) {
-		/* Block signals: */
-		_thread_kern_sig_block(&status);
+	else if (*mutex != NULL || (ret = init_static(mutex)) == 0) {
+		/* Lock the mutex structure: */
+		_SPINLOCK(&(*mutex)->lock);
 
 		/* Process according to mutex type: */
 		switch ((*mutex)->m_type) {
@@ -216,8 +213,8 @@ pthread_mutex_trylock(pthread_mutex_t * mutex)
 			break;
 		}
 
-		/* Unblock signals: */
-		_thread_kern_sig_unblock(status);
+		/* Unlock the mutex structure: */
+		_SPINUNLOCK(&(*mutex)->lock);
 	}
 
 	/* Return the completion status: */
@@ -228,7 +225,6 @@ int
 pthread_mutex_lock(pthread_mutex_t * mutex)
 {
 	int             ret = 0;
-	int             status;
 
 	if (mutex == NULL)
 		ret = EINVAL;
@@ -237,10 +233,9 @@ pthread_mutex_lock(pthread_mutex_t * mutex)
 	 * If the mutex is statically initialized, perform the dynamic
 	 * initialization:
 	 */
-	else if (*mutex != NULL ||
-	    (ret = pthread_mutex_init(mutex,NULL)) == 0) {
-		/* Block signals: */
-		_thread_kern_sig_block(&status);
+	else if (*mutex != NULL || (ret = init_static(mutex)) == 0) {
+		/* Lock the mutex structure: */
+		_SPINLOCK(&(*mutex)->lock);
 
 		/* Process according to mutex type: */
 		switch ((*mutex)->m_type) {
@@ -262,11 +257,14 @@ pthread_mutex_lock(pthread_mutex_t * mutex)
 					 */
 					_thread_queue_enq(&(*mutex)->m_queue, _thread_run);
 
+					/* Unlock the mutex structure: */
+					_SPINUNLOCK(&(*mutex)->lock);
+
 					/* Block signals: */
 					_thread_kern_sched_state(PS_MUTEX_WAIT, __FILE__, __LINE__);
 
-					/* Block signals: */
-					_thread_kern_sig_block(NULL);
+					/* Lock the mutex again: */
+					_SPINLOCK(&(*mutex)->lock);
 				}
 			}
 			break;
@@ -292,11 +290,14 @@ pthread_mutex_lock(pthread_mutex_t * mutex)
 					 */
 					_thread_queue_enq(&(*mutex)->m_queue, _thread_run);
 
+					/* Unlock the mutex structure: */
+					_SPINUNLOCK(&(*mutex)->lock);
+
 					/* Block signals: */
 					_thread_kern_sched_state(PS_MUTEX_WAIT, __FILE__, __LINE__);
 
-					/* Block signals: */
-					_thread_kern_sig_block(NULL);
+					/* Lock the mutex again: */
+					_SPINLOCK(&(*mutex)->lock);
 				}
 			}
 
@@ -311,8 +312,8 @@ pthread_mutex_lock(pthread_mutex_t * mutex)
 			break;
 		}
 
-		/* Unblock signals: */
-		_thread_kern_sig_unblock(status);
+		/* Unlock the mutex structure: */
+		_SPINUNLOCK(&(*mutex)->lock);
 	}
 
 	/* Return the completion status: */
@@ -323,13 +324,12 @@ int
 pthread_mutex_unlock(pthread_mutex_t * mutex)
 {
 	int             ret = 0;
-	int             status;
 
 	if (mutex == NULL || *mutex == NULL) {
 		ret = EINVAL;
 	} else {
-		/* Block signals: */
-		_thread_kern_sig_block(&status);
+		/* Lock the mutex structure: */
+		_SPINLOCK(&(*mutex)->lock);
 
 		/* Process according to mutex type: */
 		switch ((*mutex)->m_type) {
@@ -379,8 +379,8 @@ pthread_mutex_unlock(pthread_mutex_t * mutex)
 			break;
 		}
 
-		/* Unblock signals: */
-		_thread_kern_sig_unblock(status);
+		/* Unlock the mutex structure: */
+		_SPINUNLOCK(&(*mutex)->lock);
 	}
 
 	/* Return the completion status: */

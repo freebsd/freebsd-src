@@ -39,16 +39,13 @@
 static char sccsid[] = "@(#)puts.c	8.1 (Berkeley) 6/4/93";
 #endif
 static const char rcsid[] =
-		"$Id$";
+		"$Id: puts.c,v 1.6 1998/04/11 07:40:46 jb Exp $";
 #endif /* LIBC_SCCS and not lint */
 
 #include <stdio.h>
 #include <string.h>
 #include "fvwrite.h"
-#ifdef _THREAD_SAFE
-#include <pthread.h>
-#include "pthread_private.h"
-#endif
+#include "libc_private.h"
 
 /*
  * Write the given string to stdout, appending a newline.
@@ -69,12 +66,8 @@ puts(s)
 	uio.uio_resid = c + 1;
 	uio.uio_iov = &iov[0];
 	uio.uio_iovcnt = 2;
-#ifdef _THREAD_SAFE
-	_thread_flockfile(stdout,__FILE__,__LINE__);
-#endif
+	FLOCKFILE(stdout);
 	retval = __sfvwrite(stdout, &uio) ? EOF : '\n';
-#ifdef _THREAD_SAFE
-	_thread_funlockfile(stdout);
-#endif
+	FUNLOCKFILE(stdout);
 	return (retval);
 }

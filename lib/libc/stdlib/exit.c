@@ -42,6 +42,15 @@ static char sccsid[] = "@(#)exit.c	8.1 (Berkeley) 6/4/93";
 void (*__cleanup)();
 
 /*
+ * This variable is zero until a process has created a thread.
+ * It is used to avoid calling locking functions in libc when they
+ * are not required. By default, libc is intended to be(come)
+ * thread-safe, but without a (significant) penalty to non-threaded
+ * processes.
+ */
+int	__isthreaded	= 0;
+
+/*
  * Exit, flushing stdio buffers if necessary.
  */
 void
@@ -50,6 +59,12 @@ exit(status)
 {
 	register struct atexit *p;
 	register int n;
+
+#ifdef	_THREAD_SAFE
+	extern int _thread_autoinit_dummy_decl;
+	/* Ensure that the auto-initialization routine is linked in: */
+	_thread_autoinit_dummy_decl = 1;
+#endif
 
 	for (p = __atexit; p; p = p->next)
 		for (n = p->ind; --n >= 0;)

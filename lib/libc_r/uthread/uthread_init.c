@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1995 John Birrell <jb@cimlogic.com.au>.
+ * Copyright (c) 1995-1998 John Birrell <jb@cimlogic.com.au>
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -38,13 +38,14 @@
 #include <stdlib.h>
 #include <string.h>
 #include <fcntl.h>
+#include <paths.h>
 #include <unistd.h>
 #include <sys/time.h>
+#include <sys/ttycom.h>
 #ifdef _THREAD_SAFE
 #include <machine/reg.h>
 #include <pthread.h>
 #include "pthread_private.h"
-extern int _thread_autoinit_dummy_decl;
 
 #ifdef GCC_2_8_MADE_THREAD_AWARE
 typedef void *** (*dynamic_handler_allocator)();
@@ -77,16 +78,40 @@ static void ***dynamic_allocator_handler_fn()
 void
 _thread_init(void)
 {
+	int		fd;
 	int             flags;
 	int             i;
 	struct sigaction act;
-	/* Ensure that the auto-initialization routine is linked in: */
-	_thread_autoinit_dummy_decl = 1;
 
 	/* Check if this function has already been called: */
 	if (_thread_initial)
 		/* Only initialise the threaded application once. */
 		return;
+
+	/*
+	 * Check for the special case of this process running as
+	 * or in place of init as pid = 1:
+	 */
+	if (getpid() == 1) {
+		/*
+		 * Setup a new session for this process which is
+		 * assumed to be running as root.
+		 */
+    		if (setsid() == -1)
+			PANIC("Can't set session ID");
+    		if (revoke(_PATH_CONSOLE) != 0)
+			PANIC("Can't revoke console");
+    		if ((fd = _thread_sys_open(_PATH_CONSOLE, O_RDWR)) < 0)
+			PANIC("Can't open console");
+    		if (setlogin("root") == -1)
+			PANIC("Can't set login to root");
+    		if (_thread_sys_ioctl(fd,TIOCSCTTY, (char *) NULL) == -1)
+			PANIC("Can't set controlling terminal");
+    		if (_thread_sys_dup2(fd,0) == -1 ||
+    		    _thread_sys_dup2(fd,1) == -1 ||
+    		    _thread_sys_dup2(fd,2) == -1)
+			PANIC("Can't dup2");
+	}
 
 	/* Get the standard I/O flags before messing with them : */
 	for (i = 0; i < 3; i++)
@@ -96,7 +121,7 @@ _thread_init(void)
 
 	/*
 	 * Create a pipe that is written to by the signal handler to prevent
-	 * signals being missed in calls to _thread_sys_select: 
+	 * signals being missed in calls to _select: 
 	 */
 	if (_thread_sys_pipe(_thread_kern_pipe) != 0) {
 		/* Cannot create pipe, so abort: */
@@ -144,7 +169,6 @@ _thread_init(void)
 		_thread_queue_init(&(_thread_initial->join_queue));
 
 		/* Initialise the rest of the fields: */
-		_thread_initial->parent_thread = NULL;
 		_thread_initial->specific_data = NULL;
 		_thread_initial->cleanup = NULL;
 		_thread_initial->queue = NULL;
@@ -155,47 +179,40 @@ _thread_init(void)
 		_thread_link_list = _thread_initial;
 		_thread_run = _thread_initial;
 
+		/* Initialise the global signal action structure: */
+		sigfillset(&act.sa_mask);
+		act.sa_handler = (void (*) ()) _thread_sig_handler;
+		act.sa_flags = 0;
+
 		/* Enter a loop to get the existing signal status: */
 		for (i = 1; i < NSIG; i++) {
 			/* Check for signals which cannot be trapped: */
 			if (i == SIGKILL || i == SIGSTOP) {
 			}
+
 			/* Get the signal handler details: */
-			else if (_thread_sys_sigaction(i, NULL, &act) != 0) {
+			else if (_thread_sys_sigaction(i, NULL,
+			    &_thread_sigact[i - 1]) != 0) {
 				/*
 				 * Abort this process if signal
 				 * initialisation fails: 
 				 */
 				PANIC("Cannot read signal handler info");
 			}
-			/* Set the signal handler for the initial thread: */
-			else if (sigaction(i, &act, NULL) != 0) {
-				/*
-				 * Abort this process if signal
-				 * initialisation fails: 
-				 */
-				PANIC("Cannot initialise signal handler for initial thread");
-			}
 		}
 
-		/* Initialise the global signal action structure: */
-		sigfillset(&act.sa_mask);
-		act.sa_handler = (void (*) ()) _thread_sig_handler;
-		act.sa_flags = SA_RESTART;
-
-		/* Enter a loop to initialise the rest of the signals: */
-		for (i = 1; i < NSIG; i++) {
-			/* Check for signals which cannot be trapped: */
-			if (i == SIGKILL || i == SIGSTOP) {
-			}
-			/* Initialise the signal for default handling: */
-			else if (_thread_sys_sigaction(i, &act, NULL) != 0) {
-				/*
-				 * Abort this process if signal
-				 * initialisation fails: 
-				 */
-				PANIC("Cannot initialise signal handler");
-			}
+		/*
+		 * Install the signal handler for the most important
+		 * signals that the user-thread kernel needs. Actually
+		 * SIGINFO isn't really needed, but it is nice to have.
+		 */
+		if (_thread_sys_sigaction(SIGVTALRM, &act, NULL) != 0 ||
+		    _thread_sys_sigaction(SIGINFO  , &act, NULL) != 0 ||
+		    _thread_sys_sigaction(SIGCHLD  , &act, NULL) != 0) {
+			/*
+			 * Abort this process if signal initialisation fails: 
+			 */
+			PANIC("Cannot initialise signal handler");
 		}
 
 		/* Get the table size: */
@@ -233,6 +250,11 @@ _thread_init(void)
 	/* Setup the gcc exception handler per thread. */
 	__set_dynamic_handler_allocator( dynamic_allocator_handler_fn );
 #endif /* GCC_2_8_MADE_THREAD_AWARE */
+
+	/* Initialise the garbage collector mutex and condition variable. */
+	if (pthread_mutex_init(&_gc_mutex,NULL) != 0 ||
+	    pthread_cond_init(&_gc_cond,NULL) != 0)
+		PANIC("Failed to initialise garbage collector mutex or condvar");
 
 	return;
 }

@@ -39,27 +39,20 @@
 static char sccsid[] = "@(#)rewind.c	8.1 (Berkeley) 6/4/93";
 #endif
 static const char rcsid[] =
-		"$Id$";
+		"$Id: rewind.c,v 1.6 1998/04/11 07:40:46 jb Exp $";
 #endif /* LIBC_SCCS and not lint */
 
 #include <errno.h>
 #include <stdio.h>
-#ifdef _THREAD_SAFE
-#include <pthread.h>
-#include "pthread_private.h"
-#endif
+#include "libc_private.h"
 
 void
 rewind(fp)
 	register FILE *fp;
 {
-#ifdef _THREAD_SAFE
-	_thread_flockfile(fp,__FILE__,__LINE__);
-#endif
+	FLOCKFILE(fp);
 	(void) fseek(fp, 0L, SEEK_SET);
 	clearerr(fp);
-#ifdef _THREAD_SAFE
-	_thread_funlockfile(fp);
-#endif
+	FUNLOCKFILE(fp);
 	errno = 0;      /* not required, but seems reasonable */
 }

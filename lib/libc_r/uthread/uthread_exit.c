@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1995 John Birrell <jb@cimlogic.com.au>.
+ * Copyright (c) 1995-1998 John Birrell <jb@cimlogic.com.au>
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -102,8 +102,15 @@ pthread_exit(void *status)
 	long            l;
 	pthread_t       pthread;
 
-	/* Block signals: */
-	_thread_kern_sig_block(NULL);
+	/* Check if this thread is already in the process of exiting: */
+	if ((_thread_run->flags & PTHREAD_EXITING) != 0) {
+		char msg[128];
+		snprintf(msg,"Thread %p has called pthread_exit() from a destructor. POSIX 1003.1 1996 s16.2.5.2 does not allow this!",_thread_run);
+		PANIC(msg);
+	}
+
+	/* Flag this thread as exiting: */
+	_thread_run->flags |= PTHREAD_EXITING;
 
 	/* Save the return value: */
 	_thread_run->ret = status;
@@ -126,77 +133,29 @@ pthread_exit(void *status)
 		PTHREAD_NEW_STATE(pthread,PS_RUNNING);
 	}
 
-	/* Check if the running thread is at the head of the linked list: */
-	if (_thread_link_list == _thread_run) {
-		/* There is no previous thread: */
-		_thread_link_list = _thread_run->nxt;
-	} else {
-		/* Point to the first thread in the list: */
-		pthread = _thread_link_list;
-
-		/*
-		 * Enter a loop to find the thread in the linked list before
-		 * the running thread: 
-		 */
-		while (pthread != NULL && pthread->nxt != _thread_run) {
-			/* Point to the next thread: */
-			pthread = pthread->nxt;
-		}
-
-		/* Check that a previous thread was found: */
-		if (pthread != NULL) {
-			/*
-			 * Point the previous thread to the one after the
-			 * running thread: 
-			 */
-			pthread->nxt = _thread_run->nxt;
-		}
-	}
-
-	/* Check if this is a signal handler thread: */
-	if (_thread_run->parent_thread != NULL) {
-		/*
-		 * Enter a loop to search for other threads with the same
-		 * parent: 
-		 */
-		for (pthread = _thread_link_list; pthread != NULL; pthread = pthread->nxt) {
-			/* Compare the parent thread pointers: */
-			if (pthread->parent_thread == _thread_run->parent_thread) {
-				/*
-				 * The parent thread is waiting on at least
-				 * one other signal handler. Exit the loop
-				 * now that this is known. 
-				 */
-				break;
-			}
-		}
-
-		/*
-		 * Check if the parent is not waiting on any other signal
-		 * handler threads and if it hasn't died in the meantime:
-		 */
-		if (pthread == NULL && _thread_run->parent_thread->state != PS_DEAD) {
-			/* Allow the parent thread to run again: */
-			PTHREAD_NEW_STATE(_thread_run->parent_thread,PS_RUNNING);
-		}
-		/* Get the signal number: */
-		l = (long) _thread_run->arg;
-		sig = (int) l;
-
-		/* Unblock the signal from the parent thread: */
-		sigdelset(&_thread_run->parent_thread->sigmask, sig);
-	}
 	/*
-	 * This thread will never run again. Add it to the list of dead
-	 * threads: 
+	 * Lock the garbage collector mutex to ensure that the garbage
+	 * collector is not using the dead thread list.
 	 */
-	_thread_run->nxt = _thread_dead;
+	if (pthread_mutex_lock(&_gc_mutex) != 0)
+		PANIC("Cannot lock gc mutex");
+
+	/* Add this thread to the list of dead threads. */
+	_thread_run->nxt_dead = _thread_dead;
 	_thread_dead = _thread_run;
 
 	/*
-	 * The running thread is no longer in the thread link list so it will
-	 * now die: 
+	 * Signal the garbage collector thread that there is something
+	 * to clean up.
 	 */
+	if (pthread_cond_signal(&_gc_cond) != 0)
+		PANIC("Cannot signal gc cond");
+
+	/* Unlock the garbage collector mutex: */
+	if (pthread_mutex_unlock(&_gc_mutex) != 0)
+		PANIC("Cannot lock gc mutex");
+
+	/* This this thread will never be re-scheduled. */
 	_thread_kern_sched_state(PS_DEAD, __FILE__, __LINE__);
 
 	/* This point should not be reached. */

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1995 John Birrell <jb@cimlogic.com.au>.
+ * Copyright (c) 1995-1998 John Birrell <jb@cimlogic.com.au>
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -41,22 +41,19 @@ int
 fcntl(int fd, int cmd,...)
 {
 	int             flags = 0;
+	int		nonblock;
 	int             oldfd;
 	int             ret;
-	int             status;
 	va_list         ap;
 
-	/* Block signals: */
-	_thread_kern_sig_block(&status);
-
 	/* Lock the file descriptor: */
-	if ((ret = _thread_fd_lock(fd, FD_RDWR, NULL, __FILE__, __LINE__)) == 0) {
+	if ((ret = _FD_LOCK(fd, FD_RDWR, NULL)) == 0) {
 		/* Initialise the variable argument list: */
 		va_start(ap, cmd);
 
 		/* Process according to file control command type: */
 		switch (cmd) {
-			/* Duplicate a file descriptor: */
+		/* Duplicate a file descriptor: */
 		case F_DUPFD:
 			/*
 			 * Get the file descriptor that the caller wants to
@@ -83,17 +80,47 @@ fcntl(int fd, int cmd,...)
 			}
 			break;
 		case F_SETFD:
+			flags = va_arg(ap, int);
+			ret = _thread_sys_fcntl(fd, cmd, flags);
 			break;
 		case F_GETFD:
+			ret = _thread_sys_fcntl(fd, cmd, 0);
 			break;
 		case F_GETFL:
 			ret = _thread_fd_table[fd]->flags;
 			break;
 		case F_SETFL:
+			/*
+			 * Get the file descriptor flags passed by the
+			 * caller:
+			 */
 			flags = va_arg(ap, int);
-			if ((ret = _thread_sys_fcntl(fd, cmd, flags | O_NONBLOCK)) == 0) {
-				_thread_fd_table[fd]->flags = flags;
-			}
+
+			/*
+			 * Check if the user wants a non-blocking file
+			 * descriptor:
+			 */
+			nonblock = flags & O_NONBLOCK;
+
+			/* Set the file descriptor flags: */
+			if ((ret = _thread_sys_fcntl(fd, cmd, flags | O_NONBLOCK)) != 0) {
+
+			/* Get the flags so that we behave like the kernel: */
+			} else if ((flags = _thread_sys_fcntl(fd,
+			    F_GETFL, 0)) == -1) {
+				/* Error getting flags: */
+				ret = -1;
+
+			/*
+			 * Check if the file descriptor is non-blocking
+			 * with respect to the user:
+			 */
+			} else if (nonblock)
+				/* A non-blocking descriptor: */
+				_thread_fd_table[fd]->flags = flags | O_NONBLOCK;
+			else
+				/* Save the flags: */
+				_thread_fd_table[fd]->flags = flags & ~O_NONBLOCK;
 			break;
 		default:
 			/* Might want to make va_arg use a union */
@@ -105,10 +132,8 @@ fcntl(int fd, int cmd,...)
 		va_end(ap);
 
 		/* Unlock the file descriptor: */
-		_thread_fd_unlock(fd, FD_RDWR);
+		_FD_UNLOCK(fd, FD_RDWR);
 	}
-	/* Unblock signals: */
-	_thread_kern_sig_unblock(status);
 
 	/* Return the completion status: */
 	return (ret);

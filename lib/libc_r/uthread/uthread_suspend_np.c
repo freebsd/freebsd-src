@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1995 John Birrell <jb@cimlogic.com.au>.
+ * Copyright (c) 1995-1998 John Birrell <jb@cimlogic.com.au>.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -35,32 +35,24 @@
 #include <pthread.h>
 #include "pthread_private.h"
 
+/* Suspend a thread: */
 int
 pthread_suspend_np(pthread_t thread)
 {
-	int		ret	= -1;
-	pthread_t	pthread;
-	/*
-	 * Search for the thread in the linked list.
-	 */
-	for (pthread = _thread_link_list; pthread != NULL && ret == -1; pthread = pthread->nxt) {
-		/* Is this the thread? */
-		if (pthread == thread) {
-			/* Found the thread. Is it running? */
-			if (pthread->state != PS_RUNNING &&
-				pthread->state != PS_SUSPENDED) {
-			    /* The thread operation has been interrupted */
-			    _thread_seterrno(pthread,EINTR);
-			}
-			/* Suspend the thread. */
-			PTHREAD_NEW_STATE(pthread,PS_SUSPENDED);
-			ret = 0;
+	int ret;
+
+	/* Find the thread in the list of active threads: */
+	if ((ret = _find_thread(thread)) == 0) {
+		/* The thread exists. Is it running? */
+		if (thread->state != PS_RUNNING &&
+		    thread->state != PS_SUSPENDED) {
+			/* The thread operation has been interrupted */
+			_thread_seterrno(thread,EINTR);
+			thread->interrupted = 1;
 		}
-	}
-	/* Check if thread was not found. */
-	if (ret == -1) {
-		/* No such thread */
-		errno = ESRCH;
+
+		/* Suspend the thread. */
+		PTHREAD_NEW_STATE(thread,PS_SUSPENDED);
 	}
 	return(ret);
 }

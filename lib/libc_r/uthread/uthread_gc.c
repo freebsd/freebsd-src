@@ -29,7 +29,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: uthread_gc.c,v 1.1 1998/09/30 06:36:56 jb Exp $
+ *	$Id: uthread_gc.c,v 1.2 1998/09/30 19:17:51 dt Exp $
  *
  * Garbage collector thread. Frees memory allocated for dead threads.
  *
@@ -191,9 +191,16 @@ _thread_gc(pthread_addr_t arg)
 		 * memory to free this time around.
 		 */
 		if (!f_done && p_stack == NULL && pthread_cln == NULL) {
-			/* Get the current time. */
-			if (clock_gettime(CLOCK_REALTIME,&abstime) != 0)
+			/* Get the current time. 
+                         *
+                         * Note that we can't use clock_gettime(2) on 2.2.x;
+                         * use gettimeofday(2) instead.
+                         */
+                        struct timeval abstimeval;
+                        
+			if (gettimeofday(&abstimeval, NULL) != 0)
 				PANIC("gc cannot get time");
+                        TIMEVAL_TO_TIMESPEC(&abstimeval, &abstime);
 
 			/*
 			 * Do a backup poll in 10 seconds if no threads

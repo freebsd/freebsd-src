@@ -33,12 +33,12 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: Ovfork.S,v 1.3 1996/01/22 00:00:56 julian Exp $
+ *	$Id: Ovfork.S,v 1.4 1996/05/05 07:56:09 peter Exp $
  */
 
 #if defined(SYSLIBC_RCS) && !defined(lint)
 	.text
-	.asciz "$Id: Ovfork.S,v 1.3 1996/01/22 00:00:56 julian Exp $"
+	.asciz "$Id: Ovfork.S,v 1.4 1996/05/05 07:56:09 peter Exp $"
 #endif /* SYSLIBC_RCS and not lint */
 
 #include "DEFS.h"
@@ -52,50 +52,21 @@
  *
  */
 
+#ifdef _THREAD_SAFE
+ENTRY(_thread_sys_vfork)
+#else
 ENTRY(vfork)
+#endif
 	popl	%ecx		/* my rta into ecx */
 	lea	SYS_vfork,%eax
 	KERNCALL
-	jb	verror
-vforkok:
-	cmpl	$0,%edx		/* child process? */
-	jne	child		/* yes */
-	jmp 	parent 
-#ifdef	_THREAD_SAFE
-	/*
-	 * Threaded version using __error().
-	 */
-	.globl	CNAME(__error)
-	.type	CNAME(__error),@function
-verror:
-	pushl	%eax
-#ifdef PIC
-	call	PIC_PLT(CNAME(__error))
-#else
-	call	CNAME(__error)
-#endif
-	popl	%ecx
-	movl	%ecx,(%eax)
-	movl	$-1,%eax
-	movl	$-1,%edx
-#else	/* !_THREAD_SAFE */
-	/*
-	 * Non-threaded version using global errno.
-	 */
-	.globl	CNAME(errno)
-verror:
-#ifdef PIC
-	PIC_PROLOGUE
-	movl	PIC_GOT(CNAME(errno)), %edx
-	movl	%eax,(%edx)
-	PIC_EPILOGUE
-#else
-	movl	%eax,CNAME(errno)
-#endif
-	movl	$-1,%eax
-#endif	/* !_THREAD_SAFE */
-	jmp	%ecx
-child:
+	jb	2f
+	cmpl	$0,%edx		/* parent process? */
+	je	1f		/* yes */
 	movl	$0,%eax
-parent:
+1:
 	jmp	%ecx
+2:
+	pushl	%ecx
+	PIC_PROLOGUE
+	jmp     PIC_PLT(HIDENAME(cerror))
