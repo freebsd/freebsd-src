@@ -47,6 +47,7 @@
  *
  */
 struct device;			/* XXX */
+struct resource;		/* XXX */
 
 extern struct platform {
 	/*
@@ -75,6 +76,10 @@ extern struct platform {
 	void    (*pci_intr_disable) __P((int));
 	void    (*pci_intr_enable) __P((int));
 	int	(*pci_setup_ide_intr) __P((int chan, void (*fn)(void*), void *arg));
+	int     (*isa_setup_intr) __P((struct device *, struct device *,
+		struct resource *, int, void *, void *, void **));
+	int     (*isa_teardown_intr) __P((struct device *, struct device *,
+		struct resource *, void *));
 } platform;
 
 /*
@@ -116,7 +121,9 @@ const char	*alpha_variation_name __P((u_int64_t variation,
 const char	*alpha_unknown_sysname __P((void));
 
 extern struct cpuinit cpuinit[];
+extern struct cpuinit api_cpuinit[];
 extern int ncpuinit;
+extern int napi_cpuinit;
 extern void platform_not_configured __P((int));
 extern void platform_not_supported __P((int));
 
