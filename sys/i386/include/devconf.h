@@ -22,7 +22,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: devconf.h,v 1.9 1995/05/30 08:00:37 rgrimes Exp $
+ *	$Id: devconf.h,v 1.10 1995/11/05 04:43:22 gibbs Exp $
  */
 /*
  * devconf.h - machine-dependent device configuration table
@@ -67,12 +67,16 @@ struct machdep_devconf {
 #define kdc_eisa kdc_parentdata
 #define kdc_scsi kdc_parentdata
 
+
+
+/* XXX Don't do this, compile time increases too much 
 #include <i386/isa/isa_device.h>
 #include <i386/eisa/eisaconf.h>
 #include <pci/pcireg.h>
 #include <pci/pcivar.h>
 #include <scsi/scsi_all.h>
 #include <scsi/scsiconf.h>
+*/
 
 #define CPU_EXTERNALLEN (0)
 #define DISK_EXTERNALLEN (sizeof(int))
