@@ -52,7 +52,7 @@ ARCH_SRCS = s_copysign.S s_copysignf.S
 ARCH_SUBDIR= i387
 ARCH_SRCS = e_acos.S e_asin.S e_atan2.S e_exp.S e_fmod.S e_log.S e_log10.S \
 	    e_remainder.S e_scalb.S e_sqrt.S s_atan.S s_ceil.S s_copysign.S \
-	    s_cos.S s_finite.S s_floor.S s_logb.S \
+	    s_cos.S s_finite.S s_floor.S s_llrint.S s_logb.S s_lrint.S \
 	    s_rint.S s_scalbn.S s_significand.S s_sin.S s_tan.S
 # Broken:
 # ARCH_SRCS+=	s_log1p.S
@@ -86,8 +86,9 @@ COMMON_SRCS= b_exp.c b_log.c b_tgamma.c \
 	s_floor.c s_floorf.c s_fmax.c s_fmaxf.c s_fmaxl.c s_fmin.c \
 	s_fminf.c s_fminl.c s_frexp.c s_frexpf.c s_ilogb.c s_ilogbf.c \
 	s_ilogbl.c s_isfinite.c s_isnan.c s_isnormal.c s_ldexpf.c \
-	s_lib_version.c s_log1p.c \
-	s_log1pf.c s_logb.c s_logbf.c s_matherr.c s_modff.c \
+	s_lib_version.c s_llrint.c s_llrintf.c s_llround.c s_llroundf.c \
+	s_log1p.c s_log1pf.c s_logb.c s_logbf.c s_lrint.c s_lrintf.c \
+	s_lround.c s_lroundf.c s_matherr.c s_modff.c \
 	s_nearbyint.c s_nextafter.c s_nextafterf.c \
 	s_rint.c s_rintf.c s_round.c s_roundf.c \
 	s_scalbln.c s_scalbn.c s_scalbnf.c s_signbit.c \
@@ -132,7 +133,7 @@ INCS=	fenv.h math.h
 MAN=	acos.3 acosh.3 asin.3 asinh.3 atan.3 atan2.3 atanh.3 ceil.3 \
 	cimag.3 cos.3 cosh.3 erf.3 exp.3 fabs.3 fdim.3 feclearexcept.3 \
 	fegetenv.3 fegetround.3 fenv.3 floor.3 fmax.3 fmod.3 hypot.3 ieee.3 \
-	ieee_test.3 j0.3 lgamma.3 math.3 rint.3 round.3 \
+	ieee_test.3 j0.3 lgamma.3 lrint.3 lround.3 math.3 rint.3 round.3 \
 	signbit.3 sin.3 sinh.3 sqrt.3 tan.3 tanh.3 trunc.3
 
 MLINKS+=acos.3 acosf.3
@@ -177,6 +178,8 @@ MLINKS+=ieee_test.3 significand.3 ieee_test.3 significandf.3
 MLINKS+=j0.3 j1.3 j0.3 jn.3 j0.3 y0.3 j0.3 y1.3 j0.3 y1f.3 j0.3 yn.3
 MLINKS+=j0.3 j0f.3 j0.3 j1f.3 j0.3 jnf.3 j0.3 y0f.3 j0.3 ynf.3
 MLINKS+=lgamma.3 gamma.3 lgamma.3 gammaf.3 lgamma.3 lgammaf.3 lgamma.3 tgamma.3
+MLINKS+=lrint.3 llrint.3 lrint.3 llrintf.3 lrint.3 lrintf.3
+MLINKS+=lround.3 llround.3 lround.3 llroundf.3 lround.3 lroundf.3
 MLINKS+=rint.3 rintf.3 rint.3 nearbyint.3 rint.3 nearbyintf.3
 MLINKS+=round.3 roundf.3
 MLINKS+=sin.3 sinf.3
