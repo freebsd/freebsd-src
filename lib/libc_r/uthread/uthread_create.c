@@ -39,7 +39,10 @@
 #include <stddef.h>
 #include <sys/time.h>
 #include <machine/reg.h>
+#include "namespace.h"
 #include <pthread.h>
+#include "un-namespace.h"
+
 #include "pthread_private.h"
 #include "libc_private.h"
 
@@ -88,7 +91,7 @@ _pthread_create(pthread_t *thread, const pthread_attr_t *attr,
 		/* Check if default thread attributes are required: */
 		if (attr == NULL || *attr == NULL) {
 			/* Use the default thread attributes: */
-			pattr = &pthread_attr_default;
+			pattr = &_pthread_attr_default;
 		} else {
 			pattr = *attr;
 		}
@@ -244,8 +247,8 @@ _pthread_create(pthread_t *thread, const pthread_attr_t *attr,
 			 * Start a garbage collector thread
 			 * if necessary.
 			 */
-			if (f_gc && pthread_create(&gc_thread,NULL,
-				    _thread_gc,NULL) != 0)
+			if (f_gc && _pthread_create(&gc_thread, NULL,
+				    _thread_gc, NULL) != 0)
 				PANIC("Can't create gc thread");
 
 		}
@@ -264,7 +267,7 @@ _thread_start(void)
 	_thread_kern_in_sched = 0;
 
 	/* Run the current thread's start routine with argument: */
-	pthread_exit(curthread->start_routine(curthread->arg));
+	_pthread_exit(curthread->start_routine(curthread->arg));
 
 	/* This point should never be reached. */
 	PANIC("Thread has resumed after exit");

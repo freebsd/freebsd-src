@@ -944,7 +944,7 @@ SCLASS struct pthread *_thread_initial
 #endif
 
 /* Default thread attributes: */
-SCLASS struct pthread_attr pthread_attr_default
+SCLASS struct pthread_attr _pthread_attr_default
 #ifdef GLOBAL_PTHREAD_PRIVATE
 = { SCHED_RR, 0, TIMESLICE_USEC, PTHREAD_DEFAULT_PRIORITY,
 	PTHREAD_CREATE_RUNNING, PTHREAD_CREATE_JOINABLE, NULL, NULL, NULL,
@@ -954,20 +954,11 @@ SCLASS struct pthread_attr pthread_attr_default
 #endif
 
 /* Default mutex attributes: */
-SCLASS struct pthread_mutex_attr pthread_mutexattr_default
-#ifdef GLOBAL_PTHREAD_PRIVATE
-= { PTHREAD_MUTEX_DEFAULT, PTHREAD_PRIO_NONE, 0, 0 };
-#else
-;
-#endif
+#define	PTHREAD_MUTEXATTR_DEFAULT \
+	{ PTHREAD_MUTEX_DEFAULT, PTHREAD_PRIO_NONE, 0, 0 }
 
 /* Default condition variable attributes: */
-SCLASS struct pthread_cond_attr pthread_condattr_default
-#ifdef GLOBAL_PTHREAD_PRIVATE
-= { COND_TYPE_FAST, 0 };
-#else
-;
-#endif
+#define	PTHREAD_CONDATTR_DEFAULT	{ COND_TYPE_FAST, 0 }
 
 /*
  * Standard I/O file descriptors need special flag treatment since
