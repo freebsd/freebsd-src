@@ -114,8 +114,8 @@ static driver_t exphy_driver = {
 
 DRIVER_MODULE(xlphy, miibus, exphy_driver, exphy_devclass, 0, 0);
 
-int	exphy_service __P((struct mii_softc *, struct mii_data *, int));
-void	exphy_reset __P((struct mii_softc *));
+static int	exphy_service __P((struct mii_softc *, struct mii_data *, int));
+static void	exphy_reset __P((struct mii_softc *));
 
 static int exphy_probe(dev)
 	device_t		dev;
@@ -221,7 +221,7 @@ static int exphy_detach(dev)
 	return(0);
 }
 
-int
+static int
 exphy_service(sc, mii, cmd)
 	struct mii_softc *sc;
 	struct mii_data *mii;
@@ -272,16 +272,16 @@ exphy_service(sc, mii, cmd)
 
 	case MII_TICK:
 		/*
-		 * Only used for autonegotiation.
-		 */
-		if (IFM_SUBTYPE(ife->ifm_media) != IFM_AUTO)
-			return (0);
-
-		/*
 		 * Is the interface even up?
 		 */
 		if ((mii->mii_ifp->if_flags & IFF_UP) == 0)
 			return (0);
+
+		/*
+		 * Only used for autonegotiation.
+		 */
+		if (IFM_SUBTYPE(ife->ifm_media) != IFM_AUTO)
+			break;
 
 		/*
 		 * The 3Com PHY's autonegotiation doesn't need to be
@@ -294,14 +294,11 @@ exphy_service(sc, mii, cmd)
 	ukphy_status(sc);
 
 	/* Callback if something changed. */
-	if (sc->mii_active != mii->mii_media_active || cmd == MII_MEDIACHG) {
-		MIIBUS_STATCHG(sc->mii_dev);
-		sc->mii_active = mii->mii_media_active;
-	}
+	mii_phy_update(sc, cmd);
 	return (0);
 }
 
-void
+static void
 exphy_reset(sc)
 	struct mii_softc *sc;
 {

@@ -315,24 +315,16 @@ mlphy_service(xsc, mii, cmd)
 			return (0);
 
 		/*
-		 * Only used for autonegotiation.
-		 */
-		if (IFM_SUBTYPE(ife->ifm_media) != IFM_AUTO)
-			return (0);
-
-		/*
 		 * Is the interface even up?
 		 */
 		if ((mii->mii_ifp->if_flags & IFF_UP) == 0)
 			return (0);
 
 		/*
-		 * Only retry autonegotiation every 5 seconds.
+		 * Only used for autonegotiation.
 		 */
-		if (++sc->mii_ticks != 5)
-			return (0);
-		
-		sc->mii_ticks = 0;
+		if (IFM_SUBTYPE(ife->ifm_media) != IFM_AUTO)
+			break;
 
 		/*
 		 * Check to see if we have link.  If we do, we don't
@@ -355,11 +347,17 @@ mlphy_service(xsc, mii, cmd)
 			if (!msc->ml_linked) {
 				msc->ml_linked = 1;
 				mlphy_status(sc);
-				break;
 			}
-			return(0);
+			break;
 		}
 
+		/*
+		 * Only retry autonegotiation every 5 seconds.
+		 */
+		if (++sc->mii_ticks != 5)
+			return (0);
+		
+		sc->mii_ticks = 0;
 		msc->ml_linked = 0;
 		mii->mii_media_active = IFM_NONE;
 		mii_phy_reset(sc);
@@ -382,15 +380,12 @@ mlphy_service(xsc, mii, cmd)
 		(void) (*other->mii_service)(other, mii, MII_POLLSTAT);
 		other->mii_inst = other_inst;
 		sc->mii_active = other->mii_active;
+		sc->mii_status = other->mii_status;
 	} else
 		ukphy_status(sc);
 
 	/* Callback if something changed. */
-	if (sc->mii_active != mii->mii_media_active || cmd == MII_MEDIACHG) {
-		MIIBUS_STATCHG(sc->mii_dev);
-		sc->mii_active = mii->mii_media_active;
-	}
-
+	mii_phy_update(sc, cmd);
 	return (0);
 }
 

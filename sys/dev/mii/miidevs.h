@@ -72,6 +72,7 @@
 #define	MII_OUI_TI	0x080028	/* Texas Instruments */
 #define	MII_OUI_XAQTI	0x00e0ae	/* XaQti Corp. */
 #define	MII_OUI_MARVELL	0x005043	/* Marvell Semiconductor */
+#define	MII_OUI_xxMARVELL	0x000ac2	/* Marvell Semiconductor */
 
 /* in the 79c873, AMD uses another OUI (which matches Davicom!) */
 #define	MII_OUI_xxAMD	0x00606e	/* Advanced Micro Devices */
@@ -191,4 +192,7 @@
 
 /* Marvell Semiconductor PHYs */
 #define	MII_MODEL_MARVELL_E1000	0x0000
-#define	MII_STR_MARVELL_E1000	"Marvell Semiconductor 88E1000* gigabit PHY"
+#define	MII_STR_MARVELL_E1000	"Marvell 88E1000 Gigabit PHY"
+#define	MII_MODEL_xxMARVELL_E1000	0x0005
+#define	MII_STR_xxMARVELL_E1000	"Marvell 88E1000 Gigabit PHY"
+

@@ -65,6 +65,7 @@ oui TDK				0x00c039	TDK
 oui TI				0x080028	Texas Instruments
 oui XAQTI			0x00e0ae	XaQti Corp.
 oui MARVELL			0x005043	Marvell Semiconductor
+oui xxMARVELL			0x000ac2	Marvell Semiconductor
 
 /* in the 79c873, AMD uses another OUI (which matches Davicom!) */
 oui xxAMD			0x00606e	Advanced Micro Devices
@@ -154,4 +155,6 @@ model xxTI 100VGPMI		0x0002 ThunderLAN 100VG-AnyLan media interface
 model XAQTI XMACII		0x0000 XaQti Corp. XMAC II gigabit interface
 
 /* Marvell Semiconductor PHYs */
-model MARVELL E1000		0x0000 Marvell Semiconductor 88E1000* gigabit PHY
+model MARVELL E1000		0x0000 Marvell 88E1000 Gigabit PHY
+model xxMARVELL E1000		0x0005 Marvell 88E1000 Gigabit PHY
+
