@@ -46,13 +46,14 @@
  * in Germany will I accept domestic beer.  This code may or may not work
  * and I certainly make no claims as to its fitness for *any* purpose.
  * 
- * $Id: kern_threads.c,v 1.9 1998/10/25 17:44:51 phk Exp $
+ * $Id: kern_threads.c,v 1.10 1998/12/15 17:38:33 des Exp $
  */
 
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/kernel.h>
 #include <sys/proc.h>
+#include <sys/resourcevar.h>
 #include <sys/sysproto.h>
 
 /*
@@ -146,6 +147,7 @@ yield(struct proc *p, struct yield_args *uap) {
 	s = splhigh();
 	p->p_priority = MAXPRI;
 	setrunqueue(p);
+	p->p_stats->p_ru.ru_nvcsw++;
 	mi_switch();
 	splx(s);
 
