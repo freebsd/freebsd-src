@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)tty.h	8.6 (Berkeley) 1/21/94
- * $Id: tty.h,v 1.15 1995/03/29 19:03:02 ache Exp $
+ * $Id: tty.h,v 1.16 1995/04/01 11:58:27 ache Exp $
  */
 
 #ifndef _SYS_TTY_H_
@@ -210,6 +210,7 @@ int	 q_to_b __P((struct clist *q, char *cp, int cc));
 int	 unputc __P((struct clist *q));
 
 int	ttcompat __P((struct tty *tp, int com, caddr_t data, int flag));
+int     ttsetcompat __P((struct tty *tp, int *com, caddr_t data, struct termios *term));
 
 int	 nullmodem __P((struct tty *tp, int flag));
 int	 tputchar __P((int c, struct tty *tp));
