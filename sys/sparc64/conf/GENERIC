@@ -199,7 +199,7 @@ options 	PCI_ENABLE_IO_MODES	# Enable all PCI resources
 options 	KTR
 options 	KTR_COMPILE=0xffffffff
 options 	KTR_ENTRIES=8192
-options 	KTR_MASK=0
+options 	KTR_MASK=KTR_TRAP
 
 options 	OFW_PCI_DEBUG
 
