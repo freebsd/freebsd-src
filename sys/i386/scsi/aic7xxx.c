@@ -31,7 +31,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *      $Id: aic7xxx.c,v 1.67 1996/05/21 18:37:25 gibbs Exp $
+ *      $Id: aic7xxx.c,v 1.68 1996/05/22 00:04:12 dima Exp $
  */
 /*
  * TODO:
@@ -392,6 +392,7 @@ ahc_scsirate(ahc, scsirate, period, offset, channel, target )
 
 	for (i = 0; i < ahc_num_syncrates; i++) {
 		u_char ultra_enb;
+		u_char sxfrctl0;
 		u_long ultra_enb_addr;
 
 		if ((ahc_syncrates[i].period - period) >= 0) {
@@ -420,11 +421,17 @@ ahc_scsirate(ahc, scsirate, period, offset, channel, target )
 			if(channel == 'B' || target > 7)
 				ultra_enb_addr++;
 			ultra_enb = inb(ultra_enb_addr);	
-			if (ahc_syncrates[i].sxfr & ULTRA_SXFR)
+			sxfrctl0 = inb(SXFRCTL0 + ahc->baseport);
+			if (ahc_syncrates[i].sxfr & ULTRA_SXFR) {
 				ultra_enb |= 0x01 << (target & 0x07);
-			else
+				sxfrctl0 |= ULTRAEN;
+			}
+			else {
 				ultra_enb &= ~(0x01 << (target & 0x07));
+				sxfrctl0 &= ~ULTRAEN;
+			}
 			outb(ultra_enb_addr, ultra_enb);
+			outb(SXFRCTL0 + ahc->baseport, sxfrctl0);
 			
 			if(bootverbose) {
 				printf("ahc%d: target %d synchronous at %sMHz,"
@@ -908,8 +915,8 @@ ahc_intr(arg)
 						 * end of the queue instead.
 						 */
 						int i;
-						int saved_queue[AHC_SCB_MAX];
-						int queued = inb(QINCNT + iobase) & ahc->qcntmask;
+						u_char saved_queue[AHC_SCB_MAX];
+						u_char queued = inb(QINCNT + iobase) & ahc->qcntmask;
 
 						/* Count the command we removed already */
 						saved_queue[0] = disc_scb;
@@ -1542,7 +1549,7 @@ clear:
 			u_char flags;
 
 			xs = scb->xs;
-                        xs->error = XS_SELTIMEOUT;
+			xs->error = XS_SELTIMEOUT;
 			/*
 			 * Clear any pending messages for the timed out
 			 * target, and mark the target as free
@@ -2654,8 +2661,8 @@ ahc_reset_device(ahc, target, channel, timedout_scb, xs_error)
 	 * Search the QINFIFO.
 	 */
 	{
-		int saved_queue[AHC_SCB_MAX];
-		int queued = inb(QINCNT + iobase) & ahc->qcntmask;
+		u_char saved_queue[AHC_SCB_MAX];
+		u_char queued = inb(QINCNT + iobase) & ahc->qcntmask;
 
 		for (i = 0; i < (queued - found); i++) {
 			saved_queue[i] = inb(QINFIFO + iobase);
