@@ -20,10 +20,6 @@
         ..
     ..
     libdata
-        doscmd
-            fonts
-            ..
-        ..
         gcc
         ..
         ldscripts
