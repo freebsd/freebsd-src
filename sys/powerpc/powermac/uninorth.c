@@ -81,9 +81,6 @@ static void		uninorth_write_config(device_t, u_int, u_int, u_int,
 			    u_int, u_int32_t, int);
 static int		uninorth_route_interrupt(device_t, device_t, int);
 
-static bus_space_tag_t	uninorth_alloc_bus_tag(struct uninorth_softc *sc,
-			    int type);
-
 /*
  * Local routines.
  */
@@ -230,11 +227,6 @@ uninorth_attach(device_t dev)
 			return (ENXIO);
 		}
 	}
-
-#if 0
-	sc->sc_iot = uninorth_alloc_bus_tag(sc, PCI_IO_BUS_SPACE);
-	sc->sc_memt = uninorth_alloc_bus_tag(sc, PCI_MEMORY_BUS_SPACE);
-#endif
 
 	device_add_child(dev, "pci", device_get_unit(dev));
 	return (bus_generic_attach(dev));
@@ -399,28 +391,6 @@ uninorth_activate_resource(device_t bus, device_t child, int type, int rid,
 
 	return (rman_activate_resource(res));
 }
-
-#if 0
-static bus_space_tag_t
-uninorth_alloc_bus_tag(struct uninorth_softc *sc, int type)
-{
-	bus_space_tag_t	bt;
-
-	bt = (bus_space_tag_t)malloc(sizeof(struct bus_space_tag), M_DEVBUF,
-	    M_NOWAIT | M_ZERO);
-	if (bt == NULL)
-		panic("uninorth_alloc_bus_tag: out of memory");
-
-	bzero(bt, sizeof(struct bus_space_tag));
-	bt->cookie = sc;
-#if 0
-	bt->parent = sc->sc_bustag;
-#endif
-	bt->type = type;
-
-	return (bt);
-}
-#endif
 
 static int
 uninorth_enable_config(struct uninorth_softc *sc, u_int bus, u_int slot,
