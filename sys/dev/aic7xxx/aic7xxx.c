@@ -36,7 +36,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *      $Id: aic7xxx.c,v 1.2 1998/09/16 03:26:10 mjacob Exp $
+ *      $Id: aic7xxx.c,v 1.3 1998/09/18 03:42:16 gibbs Exp $
  */
 /*
  * A few notes on features of the driver.
@@ -205,13 +205,11 @@ static void	ahc_fetch_devinfo(struct ahc_softc *ahc,
 				  struct ahc_devinfo *devinfo);
 static void	ahc_compile_devinfo(struct ahc_devinfo *devinfo,
 				    u_int target, char channel);
-static u_int8_t	ahc_abort_wscb(struct ahc_softc *ahc, u_int8_t scbpos,
-			       u_int8_t prev);
+static u_int	ahc_abort_wscb(struct ahc_softc *ahc, u_int scbpos, u_int prev);
 static void	ahc_done(struct ahc_softc *ahc, struct scb *scbp);
 static void	ahc_handle_target_cmd(struct ahc_softc *ahc);
-static void 	ahc_handle_seqint(struct ahc_softc *ahc, u_int8_t intstat);
-static void	ahc_handle_scsiint(struct ahc_softc *ahc,
-				   u_int8_t intstat);
+static void 	ahc_handle_seqint(struct ahc_softc *ahc, u_int intstat);
+static void	ahc_handle_scsiint(struct ahc_softc *ahc, u_int intstat);
 static void	ahc_handle_reqinit(struct ahc_softc *ahc,
 				   struct scb *scb);
 static int	ahc_parse_msg(struct ahc_softc *ahc, struct scb *scb,
@@ -227,21 +225,23 @@ static int	ahc_check_patch(struct ahc_softc *ahc,
 static void	ahc_download_instr(struct ahc_softc *ahc,
 				   int instrptr, u_int8_t *dconsts);
 static int	ahc_match_scb(struct scb *scb, int target, char channel,
-			      int lun, u_int8_t tag);
+			      int lun, u_int tag);
 #ifdef AHC_DEBUG
 static void	ahc_print_scb(struct scb *scb);
 #endif
-static u_int8_t ahc_find_scb(struct ahc_softc *ahc, struct scb *scb);
+static u_int	ahc_find_scb(struct ahc_softc *ahc, struct scb *scb);
 static int	ahc_search_qinfifo(struct ahc_softc *ahc, int target,
-				   char channel, int lun, u_int8_t tag,
+				   char channel, int lun, u_int tag,
 				   u_int32_t status, ahc_search_action action);
 static int	ahc_reset_channel(struct ahc_softc *ahc, char channel,
 				  int initiate_reset);
 static int	ahc_abort_scbs(struct ahc_softc *ahc, int target,
-			       char channel, int lun, u_int8_t tag,
+			       char channel, int lun, u_int tag,
 			       u_int32_t status);
-static u_int8_t	ahc_rem_scb_from_disc_list(struct ahc_softc *ahc,
-					   u_int8_t prev, u_int8_t scbptr);
+static int	ahc_search_disc_list(struct ahc_softc *ahc, int target,
+				     char channel, int lun, u_int tag);
+static u_int	ahc_rem_scb_from_disc_list(struct ahc_softc *ahc,
+					   u_int prev, u_int scbptr);
 static void	ahc_add_curscb_to_free_list(struct ahc_softc *ahc);
 static void	ahc_clear_intstat(struct ahc_softc *ahc);
 static void	ahc_reset_current_bus(struct ahc_softc *ahc);
@@ -262,10 +262,9 @@ static void	ahc_set_width(struct ahc_softc *ahc,
 			      struct ahc_devinfo *devinfo,
 			      struct cam_path *path, u_int width, u_int type);
 static void	ahc_construct_sdtr(struct ahc_softc *ahc,
-				   u_int8_t period, u_int8_t offset);
+				   u_int period, u_int offset);
  
-static void	ahc_construct_wdtr(struct ahc_softc *ahc,
-				   u_int8_t bus_width);
+static void	ahc_construct_wdtr(struct ahc_softc *ahc, u_int bus_width);
 
 static void	ahc_calc_residual(struct scb *scb);
 
@@ -279,8 +278,8 @@ static __inline void pause_sequencer(struct ahc_softc *ahc);
 static __inline void unpause_sequencer(struct ahc_softc *ahc,
 				       int unpause_always);
 static __inline void restart_sequencer(struct ahc_softc *ahc);
-static __inline u_int8_t ahc_index_busy_tcl(struct ahc_softc *ahc,
-					    u_int8_t tcl, int unbusy);
+static __inline u_int ahc_index_busy_tcl(struct ahc_softc *ahc,
+					 u_int tcl, int unbusy);
  
 static __inline void	 ahc_busy_tcl(struct ahc_softc *ahc, struct scb *scb);
 
@@ -330,10 +329,10 @@ restart_sequencer(struct ahc_softc *ahc)
 	unpause_sequencer(ahc, /*unpause_always*/TRUE);
 }
 
-static __inline u_int8_t
-ahc_index_busy_tcl(struct ahc_softc *ahc, u_int8_t tcl, int unbusy)
+static __inline u_int
+ahc_index_busy_tcl(struct ahc_softc *ahc, u_int tcl, int unbusy)
 {
-	u_int8_t scbid;
+	u_int scbid;
 
 	scbid = ahc->untagged_scbs[tcl];
 	if (unbusy)
@@ -520,9 +519,9 @@ ahc_free(ahc)
 int
 ahc_reset(struct ahc_softc *ahc)
 {
-        u_int8_t hcntrl;
-	u_int8_t sblkctl;
-	int	 wait;
+        u_int	hcntrl;
+	u_int	sblkctl;
+	int	wait;
 	
 	ahc_outb(ahc, HCNTRL, CHIPRST | ahc->pause);
 	/*
@@ -705,7 +704,7 @@ ahc_set_syncrate(struct ahc_softc *ahc, struct ahc_devinfo *devinfo,
 				scsirate |= offset & SOFS;
 			}
 			if ((type & AHC_TRANS_ACTIVE) == AHC_TRANS_ACTIVE) {
-				u_int8_t  sxfrctl0;
+				u_int sxfrctl0;
 
 				sxfrctl0 = ahc_inb(ahc, SXFRCTL0);
 				sxfrctl0 &= ~FAST20;
@@ -767,8 +766,8 @@ ahc_set_width(struct ahc_softc *ahc, struct ahc_devinfo *devinfo,
 	oldwidth = ahc->transinfo[devinfo->target_offset].current.width;
 
 	if ((type & AHC_TRANS_CUR) != 0 && oldwidth != width) {
-		struct	 ccb_trans_settings neg;
-		u_int8_t scsirate;
+		struct	ccb_trans_settings neg;
+		u_int	scsirate;
 
 		scsirate =  ahc->transinfo[devinfo->target_offset].scsirate;
 		scsirate &= ~WIDEXFER;
@@ -899,7 +898,7 @@ ahc_attach(struct ahc_softc *ahc)
 static void
 ahc_fetch_devinfo(struct ahc_softc *ahc, struct ahc_devinfo *devinfo)
 {
-	u_int8_t saved_tcl;
+	u_int saved_tcl;
 
 	saved_tcl = ahc_inb(ahc, SAVED_TCL);
 	ahc_compile_devinfo(devinfo, (saved_tcl >> 4) & 0x0f,
@@ -923,8 +922,8 @@ ahc_compile_devinfo(struct ahc_devinfo *devinfo, u_int target, char channel)
 void
 ahc_intr(void *arg)
 {
-	struct	 ahc_softc *ahc;
-	u_int8_t intstat;
+	struct	ahc_softc *ahc;
+	u_int	intstat;
 
 	ahc = (struct ahc_softc *)arg; 
 
@@ -953,8 +952,8 @@ ahc_intr(void *arg)
 #endif
 
 	if (intstat & CMDCMPLT) {
-		struct	 scb *scb;
-		u_int8_t scb_index;
+		struct scb *scb;
+		u_int  scb_index;
 
 		ahc_outb(ahc, CLRINT, CLRCMDINT);
 		while (ahc->qoutfifo[ahc->qoutfifonext] != SCB_LIST_NULL) {
@@ -1120,7 +1119,7 @@ ahc_handle_target_cmd(struct ahc_softc *ahc)
 }
 
 static void
-ahc_handle_seqint(struct ahc_softc *ahc, u_int8_t intstat)
+ahc_handle_seqint(struct ahc_softc *ahc, u_int intstat)
 {
 	struct scb *scb;
 	struct ahc_devinfo devinfo;
@@ -1140,6 +1139,7 @@ ahc_handle_seqint(struct ahc_softc *ahc, u_int8_t intstat)
 		/* Ensure we don't leave the selection hardware on */
 		ahc_outb(ahc, SCSISEQ,
 			 ahc_inb(ahc, SCSISEQ) & (ENSELI|ENRSELI|ENAUTOATNP));
+
 		printf("%s:%c:%d: no active SCB for reconnecting "
 		       "target - issuing BUS DEVICE RESET\n",
 		       ahc_name(ahc), devinfo.channel, devinfo.target);
@@ -1150,7 +1150,7 @@ ahc_handle_seqint(struct ahc_softc *ahc, u_int8_t intstat)
 	}
 	case SEND_REJECT: 
 	{
-		u_int8_t rejbyte = ahc_inb(ahc, ACCUM);
+		u_int rejbyte = ahc_inb(ahc, ACCUM);
 		printf("%s:%c:%d: Warning - unknown message received from "
 		       "target (0x%x).  Rejecting\n", 
 		       ahc_name(ahc), devinfo.channel, devinfo.target, rejbyte);
@@ -1213,9 +1213,8 @@ ahc_handle_seqint(struct ahc_softc *ahc, u_int8_t intstat)
 		 * target.  If we did, this is a signal that
 		 * the target is refusing negotiation.
 		 */
-
-		u_int8_t scb_index;
-		u_int8_t last_msg;
+		u_int scb_index;
+		u_int last_msg;
 
 		scb_index = ahc_inb(ahc, SCB_TAG);
 		scb = ahc->scb_data->scbarray[scb_index];
@@ -1315,9 +1314,9 @@ ahc_handle_seqint(struct ahc_softc *ahc, u_int8_t intstat)
 	}
 	case BAD_STATUS:
 	{
-		u_int8_t scb_index;
-		struct	 hardware_scb *hscb;
-		struct	 ccb_scsiio *csio;
+		u_int  scb_index;
+		struct hardware_scb *hscb;
+		struct ccb_scsiio *csio;
 		/*
 		 * The sequencer will notify us when a command
 		 * has an error that would be of interest to
@@ -1615,8 +1614,8 @@ ahc_handle_seqint(struct ahc_softc *ahc, u_int8_t intstat)
 		 * when the controller is in this mode, so we have
 		 * no way of knowing how large the overrun was.
 		 */
-		u_int8_t scbindex = ahc_inb(ahc, SCB_TAG);
-		u_int8_t lastphase = ahc_inb(ahc, LASTPHASE);
+		u_int scbindex = ahc_inb(ahc, SCB_TAG);
+		u_int lastphase = ahc_inb(ahc, LASTPHASE);
 		int i;
 
 		scb = ahc->scb_data->scbarray[scbindex];
@@ -1692,11 +1691,11 @@ unpause:
 }
 
 static void
-ahc_handle_scsiint(struct ahc_softc *ahc, u_int8_t intstat)
+ahc_handle_scsiint(struct ahc_softc *ahc, u_int intstat)
 {
-	u_int8_t scb_index;
-	u_int8_t status;
-	struct scb *scb;
+	u_int	scb_index;
+	u_int	status;
+	struct	scb *scb;
 
 	scb_index = ahc_inb(ahc, SCB_TAG);
 	status = ahc_inb(ahc, SSTAT1);
@@ -1724,9 +1723,9 @@ ahc_handle_scsiint(struct ahc_softc *ahc, u_int8_t intstat)
 		 * that the busfree was in response to one of
 		 * our abort requests.
 		 */
-		u_int8_t lastphase = ahc_inb(ahc, LASTPHASE);
-		u_int8_t saved_tcl = ahc_inb(ahc, SAVED_TCL);
-		u_int8_t target = (saved_tcl >> 4) & 0x0f;
+		u_int lastphase = ahc_inb(ahc, LASTPHASE);
+		u_int saved_tcl = ahc_inb(ahc, SAVED_TCL);
+		u_int target = (saved_tcl >> 4) & 0x0f;
 		char channel = saved_tcl & SELBUSB ? 'B': 'A';
 		int printerror = 1;
 
@@ -1758,7 +1757,7 @@ ahc_handle_scsiint(struct ahc_softc *ahc, u_int8_t intstat)
 			case MSG_BUS_DEV_RESET:
 				ahc_handle_devreset(ahc, target, channel,
 						    CAM_BDR_SENT, AC_SENT_BDR,
-						    "Bus Device Reset Sent",
+						    "Bus Device Reset",
 						    /*verbose_only*/FALSE);
 				printerror = 0;
 				break;
@@ -1768,7 +1767,7 @@ ahc_handle_scsiint(struct ahc_softc *ahc, u_int8_t intstat)
 		}
 		if (printerror != 0) {
 			if (scb != NULL) {
-				u_int8_t tag;
+				u_int tag;
 
 				if ((scb->hscb->control & TAG_ENB) != 0)
 					tag = scb->hscb->tag;
@@ -1796,8 +1795,8 @@ ahc_handle_scsiint(struct ahc_softc *ahc, u_int8_t intstat)
 		ahc_outb(ahc, CLRINT, CLRSCSIINT);
 		restart_sequencer(ahc);
 	} else if ((status & SELTO) != 0) {
-		u_int8_t scbptr;
-		u_int8_t nextscb;
+		u_int scbptr;
+		u_int nextscb;
 
 		scbptr = ahc_inb(ahc, WAITING_SCBH);
 		ahc_outb(ahc, SCBPTR, scbptr);
@@ -1854,9 +1853,9 @@ ahc_handle_scsiint(struct ahc_softc *ahc, u_int8_t intstat)
 		 * Determine the bus phase and
 		 * queue an appropriate message
 		 */
-		char	 *phase;
-		u_int8_t mesg_out = MSG_NOOP;
-		u_int8_t lastphase = ahc_inb(ahc, LASTPHASE);
+		char *phase;
+		u_int mesg_out = MSG_NOOP;
+		u_int lastphase = ahc_inb(ahc, LASTPHASE);
 
 		xpt_print_path(scb->ccb->ccb_h.path);
 
@@ -1921,8 +1920,8 @@ ahc_handle_scsiint(struct ahc_softc *ahc, u_int8_t intstat)
 static void
 ahc_handle_reqinit(struct ahc_softc *ahc, struct scb *scb)
 { 
-	struct	 ahc_devinfo devinfo;
-	u_int8_t simode1;
+	struct	ahc_devinfo devinfo;
+	u_int	simode1;
 
 	ahc_fetch_devinfo(ahc, &devinfo);
 
@@ -1931,7 +1930,7 @@ ahc_handle_reqinit(struct ahc_softc *ahc, struct scb *scb)
 	{
 		int	lastbyte;
 		int	phasemis;
-		u_int8_t bus_phase;
+		u_int	bus_phase;
 
 		if (ahc->msg_len == 0)
 			panic("REQINIT interrupt with no active message");
@@ -2106,8 +2105,8 @@ ahc_parse_msg(struct ahc_softc *ahc, struct scb *scb,
 		}
 		case MSG_EXT_WDTR:
 		{
-			struct	 ccb_trans_settings neg;
-			u_int8_t bus_width;
+			struct	ccb_trans_settings neg;
+			u_int	bus_width;
 
 			if (ahc->msg_buf[1] != MSG_EXT_WDTR_LEN) {
 				reject = TRUE;
@@ -2229,7 +2228,7 @@ ahc_handle_devreset(struct ahc_softc *ahc, int target, char channel,
 	struct cam_path *path;
 	path_id_t path_id;
 	u_int16_t targ_mask;
-	u_int8_t targ_scsirate;
+	u_int	  targ_scsirate;
 	int scratch_offset = target;
 	int found;
 	int error;
@@ -2403,10 +2402,10 @@ ahc_probe_scbs(struct ahc_softc *ahc) {
 int
 ahc_init(struct ahc_softc *ahc)
 {
-	int       max_targ = 15;
-	int	  i;
-	int	  term;
-	u_int8_t  scsi_conf, sxfrctl1;
+	int	max_targ = 15;
+	int	i;
+	int	term;
+	u_int	scsi_conf, sxfrctl1;
 
 #ifdef AHC_PRINT_SRAM
 	printf("Scratch Ram:");
@@ -3837,11 +3836,11 @@ ahc_check_patch(struct ahc_softc *ahc, struct patch **start_patch,
 static void
 ahc_download_instr(struct ahc_softc *ahc, int instrptr, u_int8_t *dconsts)
 {
-	union	 ins_formats instr;
-	struct	 ins_format1 *fmt1_ins;
-	struct	 ins_format3 *fmt3_ins;
-	int	 fmt3;
-	u_int8_t opcode;
+	union	ins_formats instr;
+	struct	ins_format1 *fmt1_ins;
+	struct	ins_format3 *fmt3_ins;
+	int	fmt3;
+	u_int	opcode;
 
 	/* Structure copy */
 	instr = *(union ins_formats*)&seqprog[instrptr * 4];
@@ -3978,13 +3977,13 @@ ahc_set_recoveryscb(struct ahc_softc *ahc, struct scb *scb) {
 static void
 ahc_timeout(void *arg)
 {
-	struct	 scb *scb;
-	struct	 ahc_softc *ahc;
-	int	 s, found;
-	u_int8_t bus_state;
-	int	 target;
-	int	 lun;
-	char	 channel;
+	struct	scb *scb;
+	struct	ahc_softc *ahc;
+	int	s, found;
+	u_int	bus_state;
+	int	target;
+	int	lun;
+	char	channel;
 
 	scb = (struct scb *)arg; 
 	ahc = (struct ahc_softc *)scb->ccb->ccb_h.ccb_ahc_ptr;
@@ -4096,7 +4095,7 @@ bus_reset:
 		 * get another timeout 2 seconds later which will attempt
 		 * a bus reset.
 		 */
-		u_int8_t active_scb_index;
+		u_int active_scb_index;
 
 		active_scb_index = ahc_inb(ahc, SCB_TAG);
 
@@ -4108,7 +4107,7 @@ bus_reset:
 			 * If the active SCB is not from our device,
 			 * assume that another device is hogging the bus
 			 * and wait for it's timeout to expire before
-			 * taking addition action.
+			 * taking additional action.
 			 */ 
 			active_scb = ahc->scb_data->scbarray[active_scb_index];
 			if (active_scb->hscb->tcl != scb->hscb->tcl
@@ -4147,7 +4146,6 @@ bus_reset:
 			}
 
 			if (disconnected) {
-				u_int8_t hscb_index;
 
 				ahc_set_recoveryscb(ahc, scb);
 				/*
@@ -4156,18 +4154,17 @@ bus_reset:
 				scb->hscb->control |= MK_MESSAGE;
 				scb->flags |= SCB_QUEUED_MSG
 					   |  SCB_DEVICE_RESET;
-				hscb_index = ahc_find_scb(ahc, scb);
-				if (hscb_index != SCB_LIST_NULL) {
-					u_int8_t scb_control;
-					u_int8_t saved_scbptr;
 
-					saved_scbptr = ahc_inb(ahc, SCBPTR);
-					ahc_outb(ahc, SCBPTR, hscb_index);
-					scb_control = ahc_inb(ahc, SCB_CONTROL);
-					ahc_outb(ahc, SCB_CONTROL,
-						 scb_control | MK_MESSAGE);
-					ahc_outb(ahc, SCBPTR, saved_scbptr);
-				}
+				/*
+				 * Remove this SCB from the disconnected
+				 * list so that a reconnect at this point
+				 * causes a BDR.
+				 */
+				ahc_search_disc_list(ahc, target, channel, lun,
+						     scb->hscb->tag);
+				ahc_index_busy_tcl(ahc, scb->hscb->tcl,
+						   /*unbusy*/TRUE);
+
 				/*
 				 * Actually re-queue this SCB in case we can
 				 * select the device before it reconnects.
@@ -4215,7 +4212,7 @@ bus_reset:
  * SCB_LIST_NULL if unsuccessful.  This routine assumes that the
  * card is already paused.
  */
-static u_int8_t
+static u_int
 ahc_find_scb(struct ahc_softc *ahc, struct scb *scb)
 {
 	u_int8_t saved_scbptr;
@@ -4236,7 +4233,7 @@ ahc_find_scb(struct ahc_softc *ahc, struct scb *scb)
 
 static int
 ahc_search_qinfifo(struct ahc_softc *ahc, int target, char channel,
-		   int lun, u_int8_t tag, u_int32_t status,
+		   int lun, u_int tag, u_int32_t status,
 		   ahc_search_action action)
 {
 	struct	 scb *scbp;
@@ -4299,12 +4296,12 @@ ahc_search_qinfifo(struct ahc_softc *ahc, int target, char channel,
  */
 static int
 ahc_abort_scbs(struct ahc_softc *ahc, int target, char channel,
-	       int lun, u_int8_t tag, u_int32_t status)
+	       int lun, u_int tag, u_int32_t status)
 {
-	struct	 scb *scbp;
-	u_int8_t active_scb;
-	int	 i;
-	int	 found;
+	struct	scb *scbp;
+	u_int	active_scb;
+	int	i;
+	int	found;
 
 	/* restore this when we're done */
 	active_scb = ahc_inb(ahc, SCBPTR);
@@ -4346,32 +4343,8 @@ ahc_abort_scbs(struct ahc_softc *ahc, int target, char channel,
 	 * Go through the disconnected list and remove any entries we
 	 * have queued for completion, 0'ing their control byte too.
 	 */
-	{
-		u_int8_t next, prev;
+	ahc_search_disc_list(ahc, target, channel, lun, tag);
 
-		next = ahc_inb(ahc, DISCONNECTED_SCBH);
-		prev = SCB_LIST_NULL;
-
-		while (next != SCB_LIST_NULL) {
-			u_int8_t scb_index;
-
-			ahc_outb(ahc, SCBPTR, next);
-			scb_index = ahc_inb(ahc, SCB_TAG);
-			if (scb_index >= ahc->scb_data->numscbs) {
-				panic("Disconnected List inconsistency. "
-				      "SCB index == %d, yet numscbs == %d.",
-				      scb_index, ahc->scb_data->numscbs);
-			}
-			scbp = ahc->scb_data->scbarray[scb_index];
-			if (ahc_match_scb(scbp, target, channel, lun, tag)) {
-				next = ahc_rem_scb_from_disc_list(ahc, prev,
-								  next);
-			} else {
-				prev = next;
-				next = ahc_inb(ahc, SCB_NEXT);
-			}
-		}
-	}
 	/*
 	 * Go through the hardware SCB array looking for commands that
 	 * were active but not on any list.
@@ -4416,10 +4389,51 @@ ahc_abort_scbs(struct ahc_softc *ahc, int target, char channel,
 	return found;
 }
 
-static u_int8_t
-ahc_rem_scb_from_disc_list(struct ahc_softc *ahc, u_int8_t prev, u_int8_t scbptr)
+static int
+ahc_search_disc_list(struct ahc_softc *ahc, int target, char channel,
+		     int lun, u_int tag)
 {
-	u_int8_t next;
+	struct	scb *scbp;
+	u_int	next;
+	u_int	prev;
+	u_int	count;
+	u_int	active_scb;
+
+	count = 0;
+	next = ahc_inb(ahc, DISCONNECTED_SCBH);
+	prev = SCB_LIST_NULL;
+
+	/* restore this when we're done */
+	active_scb = ahc_inb(ahc, SCBPTR);
+
+	while (next != SCB_LIST_NULL) {
+		u_int scb_index;
+
+		ahc_outb(ahc, SCBPTR, next);
+		scb_index = ahc_inb(ahc, SCB_TAG);
+		if (scb_index >= ahc->scb_data->numscbs) {
+			panic("Disconnected List inconsistency. "
+			      "SCB index == %d, yet numscbs == %d.",
+			      scb_index, ahc->scb_data->numscbs);
+		}
+		scbp = ahc->scb_data->scbarray[scb_index];
+		if (ahc_match_scb(scbp, target, channel, lun, tag)) {
+			next = ahc_rem_scb_from_disc_list(ahc, prev,
+							  next);
+			count++;
+		} else {
+			prev = next;
+			next = ahc_inb(ahc, SCB_NEXT);
+		}
+	}
+	ahc_outb(ahc, SCBPTR, active_scb);
+	return (count);
+}
+
+static u_int
+ahc_rem_scb_from_disc_list(struct ahc_softc *ahc, u_int prev, u_int scbptr)
+{
+	u_int next;
 
 	ahc_outb(ahc, SCBPTR, scbptr);
 	next = ahc_inb(ahc, SCB_NEXT);
@@ -4451,10 +4465,10 @@ ahc_add_curscb_to_free_list(struct ahc_softc *ahc)
  * Manipulate the waiting for selection list and return the
  * scb that follows the one that we remove.
  */
-static u_int8_t
-ahc_abort_wscb(struct ahc_softc *ahc, u_int8_t scbpos, u_int8_t prev)
+static u_int
+ahc_abort_wscb(struct ahc_softc *ahc, u_int scbpos, u_int prev)
 {       
-	u_int8_t curscb, next;
+	u_int curscb, next;
 
 	/*
 	 * Select the SCB we want to abort and
@@ -4600,8 +4614,7 @@ ahc_reset_channel(struct ahc_softc *ahc, char channel, int initiate_reset)
 }
 
 static int
-ahc_match_scb (struct scb *scb, int target, char channel, 
-	       int lun, u_int8_t tag)
+ahc_match_scb (struct scb *scb, int target, char channel, int lun, u_int tag)
 {
 	int targ = SCB_TARGET(scb);
 	char chan = SCB_CHANNEL(scb);
@@ -4620,7 +4633,7 @@ ahc_match_scb (struct scb *scb, int target, char channel,
 }
 
 static void
-ahc_construct_sdtr(struct ahc_softc *ahc, u_int8_t period, u_int8_t offset)
+ahc_construct_sdtr(struct ahc_softc *ahc, u_int period, u_int offset)
 {
 	ahc->msg_buf[ahc->msg_index++] = MSG_EXTENDED;
 	ahc->msg_buf[ahc->msg_index++] = MSG_EXT_SDTR_LEN;
@@ -4631,7 +4644,7 @@ ahc_construct_sdtr(struct ahc_softc *ahc, u_int8_t period, u_int8_t offset)
 }
 
 static void
-ahc_construct_wdtr(struct ahc_softc *ahc, u_int8_t bus_width)
+ahc_construct_wdtr(struct ahc_softc *ahc, u_int bus_width)
 {
 	ahc->msg_buf[ahc->msg_index++] = MSG_EXTENDED;
 	ahc->msg_buf[ahc->msg_index++] = MSG_EXT_WDTR_LEN;
