@@ -1,5 +1,5 @@
 #
-# $Id: Makefile,v 1.5 1998/10/11 18:13:42 markm Exp $
+# $Id: Makefile,v 1.7 1999/05/02 15:29:52 markm Exp $
 #
 
 PROG=	suidperl
@@ -11,7 +11,7 @@ DPADD=	lib/auto/DynaLoader/DynaLoader.a ${LIBPERL} ${LIBM} ${LIBCRYPT}
 LDADD=	lib/auto/DynaLoader/DynaLoader.a -lperl -lm -lcrypt
 BINOWN=	root
 BINMODE=4511
-LINKS=	${BINDIR}/${PROG} ${BINDIR}/sperl5.00502
+LINKS=	${BINDIR}/${PROG} ${BINDIR}/sperl5.00503
 
 
 CLEANFILES=	config.h config.sh config_h.sh writemain writemain.sh \

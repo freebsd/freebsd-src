@@ -1,5 +1,5 @@
 #
-# $Id: Makefile,v 1.1 1998/09/09 07:20:27 markm Exp $
+# $Id: Makefile,v 1.3 1999/05/02 15:29:48 markm Exp $
 #
 
 PODS=	perl.pod perl5004delta.pod perlapio.pod perlbook.pod perlbot.pod \
@@ -31,6 +31,6 @@ CLEANFILES+= ${.OBJDIR}/${I}.pod ${I}.1
 install:
 	cd ${PERL5SRC}/pod ;\
 	${INSTALL} ${COPY} -o ${MANOWN} -g ${MANGRP} -m ${MANMODE} \
-		${PODS} ${DESTDIR}/usr/libdata/perl/5.00502/pod
+		${PODS} ${DESTDIR}/usr/libdata/perl/5.00503/pod
 
 .PATH: ${PERL5SRC}/pod
