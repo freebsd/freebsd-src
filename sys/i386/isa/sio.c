@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)com.c	7.5 (Berkeley) 5/16/91
- *	$Id: sio.c,v 1.196 1998/02/13 12:45:56 phk Exp $
+ *	$Id: sio.c,v 1.197 1998/02/14 16:17:17 nate Exp $
  */
 
 #include "opt_comconsole.h"
@@ -92,7 +92,6 @@
 #include "card.h"
 #if NCARD > 0
 #include <pccard/cardinfo.h>
-#include <pccard/driver.h>
 #include <pccard/slot.h>
 #endif
 
