@@ -67,8 +67,8 @@ static const char rcsid[] =
 #define	SECURE		2
 #define	PERM_INSECURE	(S_IRUSR|S_IWUSR|S_IRGRP|S_IROTH)
 #define	PERM_SECURE	(S_IRUSR|S_IWUSR)
-#define LEGACY_VERSION	_PW_VERSION(3)
-#define CURRENT_VERSION	_PW_VERSION(4)
+#define LEGACY_VERSION(x)  _PW_VERSIONED(x, 3)
+#define CURRENT_VERSION(x) _PW_VERSIONED(x, 4)
 
 HASHINFO openinfo = {
 	4096,		/* bsize */
@@ -229,7 +229,7 @@ main(int argc, char *argv[])
 		pw_db = dbopen(_PATH_MP_DB, O_RDONLY, 0, DB_HASH, NULL);
 		if (!pw_db)
 			error(_MP_DB);
-		buf[0] = _PW_KEYBYNAME | CURRENT_VERSION;
+		buf[0] = CURRENT_VERSION(_PW_KEYBYNAME);
 		len = strlen(username);
 
 		/* Only check that username fits in buffer */
@@ -245,7 +245,7 @@ main(int argc, char *argv[])
 			while (*p++)
 				;
 
-			buf[0] = _PW_KEYBYUID | CURRENT_VERSION;
+			buf[0] = CURRENT_VERSION(_PW_KEYBYUID);
 			memmove(buf + 1, p, sizeof(int));
 			key.data = (u_char *)buf;
 			key.size = sizeof(int) + 1;
@@ -372,7 +372,7 @@ main(int argc, char *argv[])
 			sdata.size = p - sbuf;
 
 			/* Store insecure by name. */
-			tbuf[0] = _PW_KEYBYNAME | CURRENT_VERSION;
+			tbuf[0] = CURRENT_VERSION(_PW_KEYBYNAME);
 			len = strlen(pwd.pw_name);
 			memmove(tbuf + 1, pwd.pw_name, len);
 			key.size = len + 1;
@@ -380,7 +380,7 @@ main(int argc, char *argv[])
 				error("put");
 
 			/* Store insecure by number. */
-			tbuf[0] = _PW_KEYBYNUM | CURRENT_VERSION;
+			tbuf[0] = CURRENT_VERSION(_PW_KEYBYNUM);
 			store = htonl(cnt);
 			memmove(tbuf + 1, &store, sizeof(store));
 			key.size = sizeof(store) + 1;
@@ -388,7 +388,7 @@ main(int argc, char *argv[])
 				error("put");
 
 			/* Store insecure by uid. */
-			tbuf[0] = _PW_KEYBYUID | CURRENT_VERSION;
+			tbuf[0] = CURRENT_VERSION(_PW_KEYBYUID);
 			store = htonl(pwd.pw_uid);
 			memmove(tbuf + 1, &store, sizeof(store));
 			key.size = sizeof(store) + 1;
@@ -396,7 +396,7 @@ main(int argc, char *argv[])
 				error("put");
 
 			/* Store secure by name. */
-			tbuf[0] = _PW_KEYBYNAME | CURRENT_VERSION;
+			tbuf[0] = CURRENT_VERSION(_PW_KEYBYNAME);
 			len = strlen(pwd.pw_name);
 			memmove(tbuf + 1, pwd.pw_name, len);
 			key.size = len + 1;
@@ -404,7 +404,7 @@ main(int argc, char *argv[])
 				error("put");
 
 			/* Store secure by number. */
-			tbuf[0] = _PW_KEYBYNUM | CURRENT_VERSION;
+			tbuf[0] = CURRENT_VERSION(_PW_KEYBYNUM);
 			store = htonl(cnt);
 			memmove(tbuf + 1, &store, sizeof(store));
 			key.size = sizeof(store) + 1;
@@ -412,7 +412,7 @@ main(int argc, char *argv[])
 				error("put");
 
 			/* Store secure by uid. */
-			tbuf[0] = _PW_KEYBYUID | CURRENT_VERSION;
+			tbuf[0] = CURRENT_VERSION(_PW_KEYBYUID);
 			store = htonl(pwd.pw_uid);
 			memmove(tbuf + 1, &store, sizeof(store));
 			key.size = sizeof(store) + 1;
@@ -421,7 +421,7 @@ main(int argc, char *argv[])
 
 			/* Store insecure and secure special plus and special minus */
 			if (pwd.pw_name[0] == '+' || pwd.pw_name[0] == '-') {
-				tbuf[0] = _PW_KEYYPBYNUM | CURRENT_VERSION;
+				tbuf[0] = CURRENT_VERSION(_PW_KEYYPBYNUM);
 				store = htonl(ypcnt);
 				memmove(tbuf + 1, &store, sizeof(store));
 				ypcnt++;
@@ -473,7 +473,7 @@ main(int argc, char *argv[])
 			sdata.size = p - sbuf;
 
 			/* Store insecure by name. */
-			tbuf[0] = _PW_KEYBYNAME | LEGACY_VERSION;
+			tbuf[0] = LEGACY_VERSION(_PW_KEYBYNAME);
 			len = strlen(pwd.pw_name);
 			memmove(tbuf + 1, pwd.pw_name, len);
 			key.size = len + 1;
@@ -481,21 +481,21 @@ main(int argc, char *argv[])
 				error("put");
 
 			/* Store insecure by number. */
-			tbuf[0] = _PW_KEYBYNUM | LEGACY_VERSION;
+			tbuf[0] = LEGACY_VERSION(_PW_KEYBYNUM);
 			memmove(tbuf + 1, &cnt, sizeof(cnt));
 			key.size = sizeof(cnt) + 1;
 			if ((dp->put)(dp, &key, &data, method) == -1)
 				error("put");
 
 			/* Store insecure by uid. */
-			tbuf[0] = _PW_KEYBYUID | LEGACY_VERSION;
+			tbuf[0] = LEGACY_VERSION(_PW_KEYBYUID);
 			memmove(tbuf + 1, &pwd.pw_uid, sizeof(pwd.pw_uid));
 			key.size = sizeof(pwd.pw_uid) + 1;
 			if ((dp->put)(dp, &key, &data, methoduid) == -1)
 				error("put");
 
 			/* Store secure by name. */
-			tbuf[0] = _PW_KEYBYNAME | LEGACY_VERSION;
+			tbuf[0] = LEGACY_VERSION(_PW_KEYBYNAME);
 			len = strlen(pwd.pw_name);
 			memmove(tbuf + 1, pwd.pw_name, len);
 			key.size = len + 1;
@@ -503,14 +503,14 @@ main(int argc, char *argv[])
 				error("put");
 
 			/* Store secure by number. */
-			tbuf[0] = _PW_KEYBYNUM | LEGACY_VERSION;
+			tbuf[0] = LEGACY_VERSION(_PW_KEYBYNUM);
 			memmove(tbuf + 1, &cnt, sizeof(cnt));
 			key.size = sizeof(cnt) + 1;
 			if ((sdp->put)(sdp, &key, &sdata, method) == -1)
 				error("put");
 
 			/* Store secure by uid. */
-			tbuf[0] = _PW_KEYBYUID | LEGACY_VERSION;
+			tbuf[0] = LEGACY_VERSION(_PW_KEYBYUID);
 			memmove(tbuf + 1, &pwd.pw_uid, sizeof(pwd.pw_uid));
 			key.size = sizeof(pwd.pw_uid) + 1;
 			if ((sdp->put)(sdp, &key, &sdata, methoduid) == -1)
@@ -518,7 +518,7 @@ main(int argc, char *argv[])
 
 			/* Store insecure and secure special plus and special minus */
 			if (pwd.pw_name[0] == '+' || pwd.pw_name[0] == '-') {
-				tbuf[0] = _PW_KEYYPBYNUM | LEGACY_VERSION;
+				tbuf[0] = LEGACY_VERSION(_PW_KEYYPBYNUM);
 				memmove(tbuf + 1, &ypcnt, sizeof(cnt));
 				ypcnt++;
 				key.size = sizeof(cnt) + 1;
@@ -550,7 +550,13 @@ main(int argc, char *argv[])
 	if (yp_enabled) {
 		buf[0] = yp_enabled + 2;
 		data.size = 1;
-		tbuf[0] = _PW_KEYYPENABLED | LEGACY_VERSION;
+		key.size = 1;
+		tbuf[0] = CURRENT_VERSION(_PW_KEYYPENABLED);
+		if ((dp->put)(dp, &key, &data, method) == -1)
+			error("put");
+		if ((sdp->put)(sdp, &key, &data, method) == -1)
+			error("put");
+		tbuf[0] = LEGACY_VERSION(_PW_KEYYPENABLED);
 		key.size = 1;
 		if ((dp->put)(dp, &key, &data, method) == -1)
 			error("put");
