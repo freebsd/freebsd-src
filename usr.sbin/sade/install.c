@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: install.c,v 1.209 1998/07/18 09:42:00 jkh Exp $
+ * $Id: install.c,v 1.210 1998/08/31 17:47:52 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -709,10 +709,9 @@ try_media:
 
     need_bin = Dists & DIST_BIN;
     i = distExtractAll(self);
-    if (DITEM_STATUS(i) == DITEM_SUCCESS) {
-	if (need_bin && !(Dists & DIST_BIN))
-	    i = installFixup(self);
-    }
+    /* Only do fixup if bin dist was successfully extracted */
+    if (need_bin && !(Dists & DIST_BIN))
+	i |= installFixup(self);
     /* When running as init, *now* it's safe to grab the rc.foo vars */
     installEnvironment();
 
