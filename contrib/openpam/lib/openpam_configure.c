@@ -31,7 +31,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $P4: //depot/projects/openpam/lib/openpam_configure.c#1 $
+ * $P4: //depot/projects/openpam/lib/openpam_configure.c#2 $
  */
 
 #include <ctype.h>
@@ -50,7 +50,7 @@
 #define MAX_OPTIONS	256
 
 static int
-openpam_read_policy_file(pam_handle_t *pamh,
+openpam_read_policy_file(pam_chain_t *policy[],
 	const char *service,
 	const char *filename,
 	int style)
@@ -186,7 +186,7 @@ openpam_read_policy_file(pam_handle_t *pamh,
 		 * Finally, add the module at the end of the
 		 * appropriate chain and bump the counter.
 		 */
-		r = openpam_add_module(pamh, chain, flag, p, optc, optv);
+		r = openpam_add_module(policy, chain, flag, p, optc, optv);
 		if (r != PAM_SUCCESS)
 			return (-r);
 		++n;
@@ -214,14 +214,8 @@ static const char *openpam_policy_path[] = {
 	NULL
 };
 
-/*
- * OpenPAM internal
- *
- * Configure a service
- */
-
-int
-openpam_configure(pam_handle_t *pamh,
+static int
+openpam_load_policy(pam_chain_t *policy[],
 	const char *service)
 {
 	const char **path;
@@ -235,24 +229,62 @@ openpam_configure(pam_handle_t *pamh,
 			filename = malloc(len + strlen(service) + 1);
 			if (filename == NULL) {
 				openpam_log(PAM_LOG_ERROR, "malloc(): %m");
-				return (PAM_BUF_ERR);
+				return (-PAM_BUF_ERR);
 			}
 			strcpy(filename, *path);
 			strcat(filename, service);
-			r = openpam_read_policy_file(pamh,
+			r = openpam_read_policy_file(policy,
 			    service, filename, PAM_D_STYLE);
 			free(filename);
 		} else {
-			r = openpam_read_policy_file(pamh,
+			r = openpam_read_policy_file(policy,
 			    service, *path, PAM_CONF_STYLE);
 		}
-		if (r < 0)
-			return (-r);
-		if (r > 0)
-			return (PAM_SUCCESS);
+		if (r != 0)
+			return (r);
 	}
 
-	return (PAM_SYSTEM_ERR);
+	return (0);
+}
+
+/*
+ * OpenPAM internal
+ *
+ * Configure a service
+ */
+
+int
+openpam_configure(pam_handle_t *pamh,
+	const char *service)
+{
+	pam_chain_t *other[PAM_NUM_CHAINS];
+	int i, n, r;
+
+	/* try own configuration first */
+	r = openpam_load_policy(pamh->chains, service);
+	if (r < 0)
+		return (-r);
+	for (i = n = 0; i < PAM_NUM_CHAINS; ++i) {
+		if (pamh->chains[i] != NULL)
+			++n;
+	}
+	if (n == PAM_NUM_CHAINS)
+		return (PAM_SUCCESS);
+
+	/* fill in the blanks with "other" */
+	openpam_load_policy(other, PAM_OTHER);
+	if (r < 0)
+		return (-r);
+	for (i = n = 0; i < PAM_NUM_CHAINS; ++i) {
+		if (pamh->chains[i] == NULL) {
+			pamh->chains[i] = other[i];
+			other[i] = NULL;
+		}
+		if (pamh->chains[i] != NULL)
+			++n;
+	}
+	openpam_clear_chains(other);
+	return (n > 0 ? PAM_SUCCESS : PAM_SYSTEM_ERR);
 }
 
 /*

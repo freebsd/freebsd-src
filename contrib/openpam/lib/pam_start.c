@@ -31,7 +31,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $P4: //depot/projects/openpam/lib/pam_start.c#13 $
+ * $P4: //depot/projects/openpam/lib/pam_start.c#14 $
  */
 
 #include <stdlib.h>
@@ -66,8 +66,6 @@ pam_start(const char *service,
 		goto fail;
 
 	r = openpam_configure(ph, service);
-	if (r != PAM_SUCCESS && r != PAM_BUF_ERR)
-		r = openpam_configure(ph, PAM_OTHER);
 	if (r != PAM_SUCCESS)
 		goto fail;
 
