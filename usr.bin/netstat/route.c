@@ -33,10 +33,10 @@
 
 #ifndef lint
 #if 0
-static char sccsid[] = "From: @(#)route.c	8.3 (Berkeley) 3/9/94";
+static char sccsid[] = "From: @(#)route.c	8.6 (Berkeley) 4/28/95";
 #endif
 static const char rcsid[] =
-	"$Id: route.c,v 1.4 1995/04/06 06:09:44 jkh Exp $";
+	"$Id: route.c,v 1.5 1995/05/30 06:32:53 rgrimes Exp $";
 #endif /* not lint */
 
 #include <sys/param.h>
@@ -91,6 +91,7 @@ struct bits {
 	{ RTF_WASCLONED,'W' },
 	{ RTF_PRCLONING,'c' },
 	{ RTF_PROTO3,	'3' },
+	{ RTF_BLACKHOLE,'B' },
 	{ 0 }
 };
 
@@ -103,6 +104,7 @@ int	do_rtent = 0;
 struct	rtentry rtentry;
 struct	radix_node rnode;
 struct	radix_mask rmask;
+struct	radix_node_head *rt_tables[AF_MAX+1];
 
 int	NewTree = 0;
 
@@ -111,7 +113,7 @@ static void p_tree __P((struct radix_node *));
 static void p_rtnode __P(());
 static void ntreestuff __P(());
 static void np_rtentry __P((struct rt_msghdr *));
-static void p_sockaddr __P((struct sockaddr *, int, int));
+static void p_sockaddr __P((struct sockaddr *, struct sockaddr *, int, int));
 static void p_flags __P((int, char *));
 static void p_rtentry __P((struct rtentry *));
 
@@ -188,7 +190,7 @@ pr_family(af)
 }
 
 /* column widths; each followed by one space */
-#define	WID_DST		16	/* width of destination column */
+#define	WID_DST		18	/* width of destination column */
 #define	WID_GW		18	/* width of gateway column */
 
 /*
@@ -238,7 +240,7 @@ again:
 				p_rtnode();
 		} else {
 			p_sockaddr(kgetsa((struct sockaddr *)rnode.rn_key),
-			    0, 44);
+				   NULL, 0, 44);
 			putchar('\n');
 		}
 		if (rn = rnode.rn_dupedkey)
@@ -265,7 +267,7 @@ p_rtnode()
 		if (rnode.rn_mask) {
 			printf("\t  mask ");
 			p_sockaddr(kgetsa((struct sockaddr *)rnode.rn_mask),
-				    0, -1);
+				   NULL, 0, -1);
 		} else if (rm == 0)
 			return;
 	} else {
@@ -277,7 +279,15 @@ p_rtnode()
 		sprintf(nbuf, " %d refs, ", rmask.rm_refs);
 		printf(" mk = %8.8x {(%d),%s",
 			rm, -1 - rmask.rm_b, rmask.rm_refs ? nbuf : " ");
-		p_sockaddr(kgetsa((struct sockaddr *)rmask.rm_mask), 0, -1);
+		if (rmask.rm_flags & RNF_NORMAL) {
+			struct radix_node rnode_aux;
+			printf(" <normal>, ");
+			kget(rmask.rm_leaf, rnode_aux);
+			p_sockaddr(kgetsa((struct sockaddr *)rnode_aux.rn_mask),
+				    NULL, 0, -1);
+		} else
+		    p_sockaddr(kgetsa((struct sockaddr *)rmask.rm_mask),
+				NULL, 0, -1);
 		putchar('}');
 		if (rm = rmask.rm_mklist)
 			printf(" ->");
@@ -346,21 +356,21 @@ np_rtentry(rtm)
 		old_af = af;
 	}
 	if (rtm->rtm_addrs == RTA_DST)
-		p_sockaddr(sa, 0, 36);
+		p_sockaddr(sa, NULL, 0, 36);
 	else {
-		p_sockaddr(sa, rtm->rtm_flags, 16);
+		p_sockaddr(sa, NULL, rtm->rtm_flags, 16);
 		if (sa->sa_len == 0)
 			sa->sa_len = sizeof(long);
 		sa = (struct sockaddr *)(sa->sa_len + (char *)sa);
-		p_sockaddr(sa, 0, 18);
+		p_sockaddr(sa, NULL, 0, 18);
 	}
 	p_flags(rtm->rtm_flags & interesting, "%-6.6s ");
 	putchar('\n');
 }
 
 static void
-p_sockaddr(sa, flags, width)
-	struct sockaddr *sa;
+p_sockaddr(sa, mask, flags, width)
+	struct sockaddr *sa, *mask;
 	int flags, width;
 {
 	char workbuf[128], *cplim;
@@ -371,10 +381,16 @@ p_sockaddr(sa, flags, width)
 	    {
 		register struct sockaddr_in *sin = (struct sockaddr_in *)sa;
 
-		cp = (sin->sin_addr.s_addr == 0) ? "default" :
-		      ((flags & RTF_HOST) ?
-			routename(sin->sin_addr.s_addr) :
-			netname(sin->sin_addr.s_addr, 0L));
+		if (sin->sin_addr.s_addr == INADDR_ANY)
+			cp = "default";
+		else if (flags & RTF_HOST)
+			cp = routename(sin->sin_addr.s_addr);
+		else if (mask)
+			cp = netname(sin->sin_addr.s_addr,
+				     ntohl(((struct sockaddr_in *)mask)
+					   ->sin_addr.s_addr));
+		else
+			cp = netname(sin->sin_addr.s_addr, 0L);
 		break;
 	    }
 
@@ -458,6 +474,8 @@ p_rtentry(rt)
 	static struct ifnet ifnet, *lastif;
 	static char name[16];
 	static char prettyname[9];
+	struct sockaddr *sa;
+	struct sockaddr addr, mask;
 
 	/*
 	 * Don't print protocol-cloned routes unless -a.
@@ -465,8 +483,16 @@ p_rtentry(rt)
 	if(rt->rt_parent && !aflag)
 		return;
 
-	p_sockaddr(kgetsa(rt_key(rt)), rt->rt_flags, WID_DST);
-	p_sockaddr(kgetsa(rt->rt_gateway), RTF_HOST, WID_GW);
+	if (!(sa = kgetsa(rt_key(rt))))
+		bzero(&addr, sizeof addr);
+	else
+		addr = *sa;
+	if (!rt_mask(rt) || !(sa = kgetsa(rt_mask(rt))))
+		bzero(&mask, sizeof mask);
+	else
+		mask = *sa;
+	p_sockaddr(&addr, &mask, rt->rt_flags, WID_DST);
+	p_sockaddr(kgetsa(rt->rt_gateway), NULL, RTF_HOST, WID_GW);
 	p_flags(rt->rt_flags, "%-6.6s ");
 	printf("%6d %8d ", rt->rt_refcnt, rt->rt_use);
 	if (rt->rt_ifp) {
@@ -501,26 +527,14 @@ routename(in)
 	register char *cp;
 	static char line[MAXHOSTNAMELEN + 1];
 	struct hostent *hp;
-	static char domain[MAXHOSTNAMELEN + 1];
-	static int first = 1;
 
-	if (first) {
-		first = 0;
-		if (gethostname(domain, MAXHOSTNAMELEN) == 0 &&
-		    (cp = index(domain, '.')))
-			(void) strcpy(domain, cp + 1);
-		else
-			domain[0] = 0;
-	}
 	cp = 0;
 	if (!nflag) {
 		hp = gethostbyaddr((char *)&in, sizeof (struct in_addr),
 			AF_INET);
 		if (hp) {
-			if ((cp = index(hp->h_name, '.')) &&
-			    !strcmp(cp + 1, domain))
-				*cp = 0;
 			cp = hp->h_name;
+			trimdomain(cp);
 		}
 	}
 	if (cp)
@@ -534,6 +548,51 @@ routename(in)
 	return (line);
 }
 
+static u_long
+forgemask(a)
+	u_long a;
+{
+	u_long m;
+
+	if (IN_CLASSA(a))
+		m = IN_CLASSA_NET;
+	else if (IN_CLASSB(a))
+		m = IN_CLASSB_NET;
+	else
+		m = IN_CLASSC_NET;
+	return (m);
+}
+
+static void
+domask(dst, addr, mask)
+	char *dst;
+	u_long addr, mask;
+{
+	register int b, i;
+
+	if (!mask || (forgemask(addr) == mask)) {
+		*dst = '\0';
+		return;
+	}
+	i = 0;
+	for (b = 0; b < 32; b++)
+		if (mask & (1 << b)) {
+			register int bb;
+
+			i = b;
+			for (bb = b+1; bb < 32; bb++)
+				if (!(mask & (1 << bb))) {
+					i = -1;	/* noncontig */
+					break;
+				}
+			break;
+		}
+	if (i == -1)
+		sprintf(dst, "&0x%lx", mask);
+	else
+		sprintf(dst, "/%d", 32-i);
+}
+
 /*
  * Return the name of the network whose address is given.
  * The address is assumed to be that of a net or subnet, not a host.
@@ -545,22 +604,26 @@ netname(in, mask)
 	char *cp = 0;
 	static char line[MAXHOSTNAMELEN + 1];
 	struct netent *np = 0;
-	u_long net;
-	register int i;
+	u_long net, omask;
+	register u_long i;
 	int subnetshift;
 
 	i = ntohl(in);
+	omask = mask;
 	if (!nflag && i) {
 		if (mask == 0) {
-			if (IN_CLASSA(i)) {
-				mask = IN_CLASSA_NET;
+			switch (mask = forgemask(i)) {
+			case IN_CLASSA_NET:
 				subnetshift = 8;
-			} else if (IN_CLASSB(i)) {
-				mask = IN_CLASSB_NET;
+				break;
+			case IN_CLASSB_NET:
 				subnetshift = 8;
-			} else {
-				mask = IN_CLASSC_NET;
+				break;
+			case IN_CLASSC_NET:
 				subnetshift = 4;
+				break;
+			default:
+				abort();
 			}
 			/*
 			 * If there are more bits than the standard mask
@@ -574,9 +637,12 @@ netname(in, mask)
 		net = i & mask;
 		while ((mask & 1) == 0)
 			mask >>= 1, net >>= 1;
-		np = getnetbyaddr(net, AF_INET);
-		if (np)
+		if (!(np = getnetbyaddr(i, AF_INET)))
+			np = getnetbyaddr(net, AF_INET);
+		if (np) {
 			cp = np->n_name;
+			trimdomain(cp);
+		}
 	}
 	if (cp)
 		strncpy(line, cp, sizeof(line) - 1);
@@ -589,6 +655,7 @@ netname(in, mask)
 	else
 		sprintf(line, "%u.%u.%u.%u", C(i >> 24),
 			C(i >> 16), C(i >> 8), C(i));
+	domask(line+strlen(line), i, omask);
 	return (line);
 }
 
