@@ -77,7 +77,7 @@ struct physical {
   int type;                    /* What sort of PHYS_* link are we ? */
   struct async async;          /* Our async state */
   struct hdlc hdlc;            /* Our hdlc state */
-  int fd;                      /* File fdescriptor for this device */
+  int fd;                      /* File descriptor for this device */
   struct mbuf *out;            /* mbuf that suffered a short write */
   int connect_count;
   struct datalink *dl;         /* my owner */

@@ -232,7 +232,7 @@ radius_Process(struct radius *r, int got)
 }
 
 /*
- * We've either timed out or select()ed on the read fdescriptor
+ * We've either timed out or select()ed on the read descriptor
  */
 static void
 radius_Continue(struct radius *r, int sel)
@@ -270,7 +270,7 @@ radius_Read(struct fdescriptor *d, struct bundle *bundle, const fd_set *fdset)
 }
 
 /*
- * Behave as a struct fdescriptor (fdescriptor.h)
+ * Behave as a struct fdescriptor (descriptor.h)
  */
 static int
 radius_UpdateSet(struct fdescriptor *d, fd_set *r, fd_set *w, fd_set *e, int *n)
@@ -289,7 +289,7 @@ radius_UpdateSet(struct fdescriptor *d, fd_set *r, fd_set *w, fd_set *e, int *n)
 }
 
 /*
- * Behave as a struct fdescriptor (fdescriptor.h)
+ * Behave as a struct fdescriptor (descriptor.h)
  */
 static int
 radius_IsSet(struct fdescriptor *d, const fd_set *fdset)
@@ -300,7 +300,7 @@ radius_IsSet(struct fdescriptor *d, const fd_set *fdset)
 }
 
 /*
- * Behave as a struct fdescriptor (fdescriptor.h)
+ * Behave as a struct fdescriptor (descriptor.h)
  */
 static int
 radius_Write(struct fdescriptor *d, struct bundle *bundle, const fd_set *fdset)

@@ -66,7 +66,7 @@ struct bundle {
 
   struct {
     char Name[20];            /* The /dev/XXXX name */
-    int fd;                   /* The /dev/XXXX fdescriptor */
+    int fd;                   /* The /dev/XXXX descriptor */
     unsigned header : 1;      /* Family header sent & received ? */
   } dev;
 
