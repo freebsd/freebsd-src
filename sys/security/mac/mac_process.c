@@ -799,6 +799,10 @@ mac_policy_register(struct mac_policy_conf *mpc)
 			mpc->mpc_ops->mpo_check_vnode_getextattr =
 			    mpe->mpe_function;
 			break;
+		case MAC_CHECK_VNODE_LINK:
+			mpc->mpc_ops->mpo_check_vnode_link =
+			    mpe->mpe_function;
+			break;
 		case MAC_CHECK_VNODE_LOOKUP:
 			mpc->mpc_ops->mpo_check_vnode_lookup =
 			    mpe->mpe_function;
@@ -1828,6 +1832,32 @@ mac_check_vnode_getextattr(struct ucred *cred, struct vnode *vp,
 
 	MAC_CHECK(check_vnode_getextattr, cred, vp, &vp->v_label,
 	    attrnamespace, name, uio);
+	return (error);
+}
+
+int
+mac_check_vnode_link(struct ucred *cred, struct vnode *dvp,
+    struct vnode *vp, struct componentname *cnp)
+{
+
+	int error;
+
+	ASSERT_VOP_LOCKED(dvp, "mac_check_vnode_link");
+	ASSERT_VOP_LOCKED(vp, "mac_check_vnode_link");
+
+	if (!mac_enforce_fs)
+		return (0);
+
+	error = vn_refreshlabel(dvp, cred);
+	if (error)
+		return (error);
+
+	error = vn_refreshlabel(vp, cred);
+	if (error)
+		return (error);
+
+	MAC_CHECK(check_vnode_link, cred, dvp, &dvp->v_label, vp,
+	    &vp->v_label, cnp);
 	return (error);
 }
 
