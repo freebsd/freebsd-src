@@ -141,7 +141,7 @@ main(argc, argv)
 			break;
 
 		case 't':
-			if (selhead.tqh_first != NULL)
+			if (!TAILQ_EMPTY(&selhead))
 				errx(1, "only one -t option may be specified.");
 
 			maketypelist(optarg);
@@ -350,7 +350,7 @@ selected(type)
 	struct entry *e;
 
 	/* If no type specified, it's always selected. */
-	for (e = selhead.tqh_first; e != NULL; e = e->entries.tqe_next)
+	TAILQ_FOREACH(e, &selhead, entries)
 		if (!strncmp(e->type, type, MFSNAMELEN))
 			return which == IN_LIST ? 1 : 0;
 
@@ -364,7 +364,7 @@ getoptions(type)
 {
 	struct entry *e;
 
-	for (e = opthead.tqh_first; e != NULL; e = e->entries.tqe_next)
+	TAILQ_FOREACH(e, &opthead, entries)
 		if (!strncmp(e->type, type, MFSNAMELEN))
 			return e->options;
 	return "";
@@ -383,7 +383,7 @@ addoption(optstr)
 
 	*newoptions++ = '\0';
 
-	for (e = opthead.tqh_first; e != NULL; e = e->entries.tqe_next)
+	TAILQ_FOREACH(e, &opthead, entries)
 		if (!strncmp(e->type, optstr, MFSNAMELEN)) {
 			catopt(&e->options, newoptions);
 			return;
