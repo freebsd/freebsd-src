@@ -16,7 +16,7 @@
  */
 
 /*
- * $Id: irs.h,v 8.6 2001/05/29 05:47:00 marka Exp $
+ * $Id: irs.h,v 8.7.6.2 2003/06/02 06:06:58 marka Exp $
  */
 
 #ifndef _IRS_H_INCLUDED
@@ -30,7 +30,6 @@
 #include <netdb.h>
 #include <resolv.h>
 #include <pwd.h>
-#include <netgroup.h>
 
 /*
  * This is the group map class.
@@ -199,18 +198,58 @@ struct nwent {
 #define	irs_dns_acc	__irs_dns_acc
 #define	irs_nis_acc	__irs_nis_acc
 #define	irs_irp_acc	__irs_irp_acc
+#define	irs_destroy	__irs_destroy
+#define	irs_dns_gr	__irs_dns_gr
+#define	irs_dns_ho	__irs_dns_ho
+#define	irs_dns_nw	__irs_dns_nw
+#define	irs_dns_pr	__irs_dns_pr
+#define	irs_dns_pw	__irs_dns_pw
+#define	irs_dns_sv	__irs_dns_sv
+#define	irs_gen_gr	__irs_gen_gr
+#define	irs_gen_ho	__irs_gen_ho
+#define	irs_gen_ng	__irs_gen_ng
+#define	irs_gen_nw	__irs_gen_nw
+#define	irs_gen_pr	__irs_gen_pr
+#define	irs_gen_pw	__irs_gen_pw
+#define	irs_gen_sv	__irs_gen_sv
+#define	irs_irp_get_full_response	__irs_irp_get_full_response
+#define	irs_irp_gr	__irs_irp_gr
+#define	irs_irp_ho	__irs_irp_ho
+#define	irs_irp_is_connected	__irs_irp_is_connected
+#define	irs_irp_ng	__irs_irp_ng
+#define	irs_irp_nw	__irs_irp_nw
+#define	irs_irp_pr	__irs_irp_pr
+#define	irs_irp_pw	__irs_irp_pw
+#define	irs_irp_read_line	__irs_irp_read_line
+#define	irs_irp_sv	__irs_irp_sv
+#define	irs_lcl_gr	__irs_lcl_gr
+#define	irs_lcl_ho	__irs_lcl_ho
+#define	irs_lcl_ng	__irs_lcl_ng
+#define	irs_lcl_nw	__irs_lcl_nw
+#define	irs_lcl_pr	__irs_lcl_pr
+#define	irs_lcl_pw	__irs_lcl_pw
+#define	irs_lcl_sv	__irs_lcl_sv
+#define	irs_nis_gr	__irs_nis_gr
+#define	irs_nis_ho	__irs_nis_ho
+#define	irs_nis_ng	__irs_nis_ng
+#define	irs_nis_nw	__irs_nis_nw
+#define	irs_nis_pr	__irs_nis_pr
+#define	irs_nis_pw	__irs_nis_pw
+#define	irs_nis_sv	__irs_nis_sv
+#define	net_data_create	__net_data_create
+#define	net_data_destroy	__net_data_destroy
+#define	net_data_minimize	__net_data_minimize
 
 /*
  * Externs.
  */
-extern struct irs_acc *	irs_gen_acc __P((const char *options, 
-					 const char *conf_file));
-extern struct irs_acc *	irs_lcl_acc __P((const char *options));
-extern struct irs_acc *	irs_dns_acc __P((const char *options));
-extern struct irs_acc *	irs_nis_acc __P((const char *options));
-extern struct irs_acc *	irs_irp_acc __P((const char *options));
+extern struct irs_acc *	irs_gen_acc __P((const char *, const char *));
+extern struct irs_acc *	irs_lcl_acc __P((const char *));
+extern struct irs_acc *	irs_dns_acc __P((const char *));
+extern struct irs_acc *	irs_nis_acc __P((const char *));
+extern struct irs_acc *	irs_irp_acc __P((const char *));
 
-extern void		irs_destroy(void);
+extern void		irs_destroy __P((void));
 
 /*
  * These forward declarations are for the semi-private functions in
@@ -229,102 +268,78 @@ struct net_data;			/* forward */
  * the default interface will use net_data_create by default.  Servers will
  * probably want net_data_init (one call per client)
  */
-struct net_data *net_data_create(const char *conf_file);
-struct net_data *net_data_init(const char *conf_file);
-void		net_data_destroy(void *p);
+struct net_data *net_data_create __P((const char *));
+struct net_data *net_data_init __P((const char *));
+void		net_data_destroy __P((void *));
 	
-extern struct group    *getgrent_p __P((struct net_data *net_data));
-extern struct group    *getgrnam_p __P((const char *name,
-					struct net_data *net_data));
-extern struct group    *getgrgid_p __P((gid_t gid,
-					struct net_data *net_data));
-extern int 		setgroupent_p __P((int stayopen,
-					   struct net_data *net_data));
-extern void 		endgrent_p __P((struct net_data *net_data));
-extern int		getgrouplist_p __P((const char *name,
-					    gid_t basegid,
-					    gid_t *groups,
-					    int *ngroups,
-					    struct net_data *net_data));
+extern struct group    *getgrent_p __P((struct net_data *));
+extern struct group    *getgrnam_p __P((const char *, struct net_data *));
+extern struct group    *getgrgid_p __P((gid_t, struct net_data *));
+extern int 		setgroupent_p __P((int, struct net_data *));
+extern void 		endgrent_p __P((struct net_data *));
+extern int		getgrouplist_p __P((const char *, gid_t, gid_t *, int *,
+					    struct net_data *));
 
 #ifdef SETGRENT_VOID
-extern void 		setgrent_p __P((struct net_data *net_data));
+extern void 		setgrent_p __P((struct net_data *));
 #else
-extern int 		setgrent_p __P((struct net_data *net_data));
+extern int 		setgrent_p __P((struct net_data *));
 #endif
 
-extern struct hostent 	*gethostbyname_p __P((const char *name,
-					      struct net_data *net_data));
-extern struct hostent 	*gethostbyname2_p __P((const char *name, int af,
-					       struct net_data *net_data));
-extern struct hostent 	*gethostbyaddr_p __P((const char *addr, int len,
-					      int af,
-					      struct net_data *net_data));
-extern struct hostent 	*gethostent_p __P((struct net_data *net_data));
-extern void 		sethostent_p __P((int stayopen,
-					  struct net_data *net_data));
-extern void 		endhostent_p __P((struct net_data *net_data));
-extern struct hostent 	*getipnodebyname_p __P((const char *name, int af,
-					       int flags, int *errp,
-					       struct net_data *net_data));
-extern struct hostent 	*getipnodebyaddr_p __P((const void *addr, size_t len,
-					      int af, int *errp,
-					      struct net_data *net_data));
+extern struct hostent 	*gethostbyname_p __P((const char *,
+					      struct net_data *));
+extern struct hostent 	*gethostbyname2_p __P((const char *, int,
+					       struct net_data *));
+extern struct hostent 	*gethostbyaddr_p __P((const char *, int, int,
+					      struct net_data *));
+extern struct hostent 	*gethostent_p __P((struct net_data *));
+extern void 		sethostent_p __P((int, struct net_data *));
+extern void 		endhostent_p __P((struct net_data *));
+extern struct hostent 	*getipnodebyname_p __P((const char *, int, int, int *,
+					       struct net_data *));
+extern struct hostent 	*getipnodebyaddr_p __P((const void *, size_t,
+					      int, int *, struct net_data *));
 
-extern struct netent 	*getnetent_p __P((struct net_data *net_data));
-extern struct netent 	*getnetbyname_p __P((const char *name,
-					     struct net_data *net_data));
-extern struct netent 	*getnetbyaddr_p __P((unsigned long net, int type,
-					     struct net_data *net_data));
-extern void		setnetent_p __P((int stayopen,
-					 struct net_data *net_data));
-extern void		endnetent_p __P((struct net_data *net_data));
+extern struct netent 	*getnetent_p __P((struct net_data *));
+extern struct netent 	*getnetbyname_p __P((const char *, struct net_data *));
+extern struct netent 	*getnetbyaddr_p __P((unsigned long, int,
+					     struct net_data *));
+extern void		setnetent_p __P((int, struct net_data *));
+extern void		endnetent_p __P((struct net_data *));
 
-extern void		setnetgrent_p __P((const char *netgroup,
-					   struct net_data *net_data));
-extern void		endnetgrent_p __P((struct net_data *net_data));
-extern int		innetgr_p __P((const char *netgroup,
-				       const char *host,
-				       const char *user,
-				       const char *domain,
-				       struct net_data *net_data));
-extern int		getnetgrent_p __P((const char **host, const char **user,
-					   const char **domain,
-					   struct net_data *net_data));
+extern void		setnetgrent_p __P((const char *, struct net_data *));
+extern void		endnetgrent_p __P((struct net_data *));
+extern int		innetgr_p __P((const char *, const char *, const char *,
+				       const char *, struct net_data *));
+extern int		getnetgrent_p __P((const char **, const char **,
+					   const char **, struct net_data *));
 
-extern struct protoent  *getprotoent_p __P((struct net_data *net_data));
-extern struct protoent  *getprotobyname_p __P((const char *name,
-					       struct net_data *net_data));
-extern struct protoent	*getprotobynumber_p __P((int proto,
-						 struct net_data *net_data));
-extern void		setprotoent_p __P((int stayopen,
-					   struct net_data *net_data));
-extern void		endprotoent_p __P((struct net_data *net_data));
+extern struct protoent  *getprotoent_p __P((struct net_data *));
+extern struct protoent  *getprotobyname_p __P((const char *,
+					       struct net_data *));
+extern struct protoent	*getprotobynumber_p __P((int, struct net_data *));
+extern void		setprotoent_p __P((int, struct net_data *));
+extern void		endprotoent_p __P((struct net_data *));
 
 
-extern struct passwd 	*getpwent_p __P((struct net_data *net_data));
-extern struct passwd 	*getpwnam_p __P((const char *name,
-					 struct net_data *net_data));
-extern struct passwd 	*getpwuid_p __P((uid_t uid,
-					 struct net_data *net_data));
-extern int		setpassent_p __P((int stayopen,
-					  struct net_data *net_data));
-extern void		endpwent_p __P((struct net_data *net_data));
+extern struct passwd 	*getpwent_p __P((struct net_data *));
+extern struct passwd 	*getpwnam_p __P((const char *, struct net_data *));
+extern struct passwd 	*getpwuid_p __P((uid_t, struct net_data *));
+extern int		setpassent_p __P((int, struct net_data *));
+extern void		endpwent_p __P((struct net_data *));
 
 #ifdef SETPWENT_VOID
-extern void		setpwent_p __P((struct net_data *net_data));
+extern void		setpwent_p __P((struct net_data *));
 #else
-extern int		setpwent_p __P((struct net_data *net_data));
+extern int		setpwent_p __P((struct net_data *));
 #endif
 
-extern struct servent 	*getservent_p __P((struct net_data *net_data));
-extern struct servent 	*getservbyname_p __P((const char *name,
-					      const char *proto,
-					      struct net_data *net_data));
-extern struct servent 	*getservbyport_p __P((int port, const char *proto,
-					      struct net_data *net_data));
-extern void		setservent_p __P((int stayopen,
-					  struct net_data *net_data));
-extern void		endservent_p __P((struct net_data *net_data));
+extern struct servent 	*getservent_p __P((struct net_data *));
+extern struct servent 	*getservbyname_p __P((const char *, const char *,
+					      struct net_data *));
+extern struct servent 	*getservbyport_p __P((int, const char *,
+					      struct net_data *));
+extern void		setservent_p __P((int, struct net_data *));
+extern void		endservent_p __P((struct net_data *));
 
 #endif /*_IRS_H_INCLUDED*/

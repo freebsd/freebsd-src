@@ -767,6 +767,7 @@ options {
   [ sortlist { \fIaddress_match_list\fR }; ]
   [ rrset-order { \fIorder_spec\fR ; [ \fIorder_spec\fR ; ... ] }; ]
   [ preferred-glue ( A | AAAA ); ]
+  [ edns-udp-size \fInumber\fR; ]
 };
 .Ed
 .Ss Definition and Usage
@@ -954,7 +955,7 @@ with
 .Ic maintain-ixfr-base ,
 and 
 .Ic rfc2308-type1 
-is order dependant. 
+is order dependent. 
 .It Ic host-statistics
 If
 .Li yes ,
@@ -968,7 +969,7 @@ can consume huge amounts of memory.
 .It Ic maintain-ixfr-base
 If
 .Li yes ,
-a IXFR database file is kept for all dynamicaly updated zones.
+a IXFR database file is kept for all dynamically updated zones.
 This enables the server to answer IXFR queries which can speed up
 zone transfers enormously.
 The default is
@@ -1285,7 +1286,7 @@ address must appear in the remote end's
 .Nm allow-transfer
 option for the zones being transferred, if one is specified.  This statement sets the
 .Nm transfer-source
-for all zones, but can be overriden on a per-zone basis by includinga 
+for all zones, but can be overridden on a per-zone basis by including a
 .Nm transfer-source
 statement within the zone block in the configuration file.
 .El
@@ -1552,6 +1553,16 @@ in the answer to a priming query.
 This can be achieved by setting
 .Ic preferred-glue A;
 which will add A records before other types in the additional section. 
+.Ss EDNS
+Some firewalls fail to pass EDNS/UDP messages that are larger than
+certain size, 512 or the UDP reassembly buffer.
+To allow EDNS to
+work across such firewalls it is necessary to advertise a EDNS
+buffer size that is small enough to not trigger failures.
+.Ic edns-udp-size
+can be use to adjust the advertised size.
+Values less than 512 will be increased to 512 and values greater than
+4096 will be truncated to 4096.
 .Ss Tuning
 .Bl -tag -width 0n
 .It Ic lame-ttl
@@ -1971,7 +1982,7 @@ statement, to be used for transaction security when talking to the
 remote server.
 The
 .Ic key
-statememnt must come before the
+statement must come before the
 .Ic server
 statement that references it.
 .Pp

@@ -1,5 +1,5 @@
 #if !defined(lint) && !defined(SABER)
-static const char rcsid[] = "$Id: nsupdate.c,v 8.27 2001/06/18 14:43:46 marka Exp $";
+static const char rcsid[] = "$Id: nsupdate.c,v 8.30 2003/04/03 05:51:07 marka Exp $";
 #endif /* not lint */
 
 /*
@@ -155,9 +155,6 @@ main(int argc, char **argv) {
 	struct map *mp;
 	ns_updrec *rrecp;
 	ns_updque listuprec;
-	extern int getopt();
-	extern char *optarg;
-	extern int optind, opterr, optopt;
 	ns_tsig_key key;
 	char *keyfile=NULL, *keyname=NULL;
 
@@ -398,11 +395,15 @@ main(int argc, char **argv) {
 		(void) getword_str(buf2, sizeof buf2, &startp, endp);
 
 		if (isdigit(buf2[0])) { /* ttl */
-		    r_ttl = strtoul(buf2, 0, 10);
-		    if (errno == ERANGE && r_ttl == ULONG_MAX) {
+		    u_long tmp_ttl;
+		    errno = 0;
+		    tmp_ttl = strtoul(buf2, 0, 10);
+		    if ((errno == ERANGE && tmp_ttl == ULONG_MAX) ||
+			tmp_ttl > 0x7fffffffUL) {
 			fprintf(stderr, "oversized ttl: %s\n", buf2);
 			exit (1);
 		    }
+		    r_ttl = tmp_ttl;
 		    (void) getword_str(buf2, sizeof buf2, &startp, endp);
 		}
 
