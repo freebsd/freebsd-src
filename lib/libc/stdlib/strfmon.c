@@ -297,10 +297,11 @@ strfmon(s, maxsize, format, va_alist)
 			PRINT(' ');
 
 		if (sign_posn == 0) {
-			if (flags & IS_NEGATIVE)
+			if (flags & IS_NEGATIVE) {
 				PRINT('(');
-			else
+			} else {
 				PRINT(' ');
+			}
 		}
 
 		if (cs_precedes == 1) {
