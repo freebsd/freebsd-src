@@ -61,9 +61,9 @@
   052   '.'    ':'    nop    nop    '>'    nop    nop    nop     O
   053   '-'    '_'    ns     ns     '*'    nop    nop    nop     O
   054   rshift rshift rshift rshift rshift rshift rshift rshift  O
-  055   '*'    '*'    nscr   nscr   '*'    '*'    nscr   nscr    O
+  055   '*'    '*'    '*'    '*'    '*'    '*'    '*'    '*'     O
   056   lalt   lalt   lalt   lalt   lalt   lalt   lalt   lalt    O
-  057   ' '    ' '    nul    ' '    ' '    ' '    ' '    ' '     O
+  057   ' '    ' '    nul    ' '    ' '    ' '    susp   ' '     O
   058   clock  clock  clock  clock  clock  clock  clock  clock   O
   059   fkey01 fkey13 fkey25 fkey37 scr01  scr11  scr01  scr11   O
   060   fkey02 fkey14 fkey26 fkey38 scr02  scr12  scr02  scr12   O
@@ -98,7 +98,7 @@
   089   cr     cr     cr     cr     cr     cr     cr     cr      O
   090   rctrl  rctrl  rctrl  rctrl  rctrl  rctrl  rctrl  rctrl   O
   091   '/'    '/'    '/'    '/'    '/'    '/'    '/'    '/'     O
-  092   nscr   nop    debug  nop    nop    nop    nop    nop     O
+  092   nscr   nscr   debug  debug  nop    nop    nop    nop     O
   093   ralt   ralt   ralt   ralt   ralt   ralt   ralt   ralt    O
   094   fkey49 fkey49 fkey49 fkey49 fkey49 fkey49 fkey49 fkey49  O
   095   fkey50 fkey50 fkey50 fkey50 fkey50 fkey50 fkey50 fkey50  O
@@ -110,7 +110,7 @@
   101   fkey59 fkey59 fkey59 fkey59 fkey59 fkey59 fkey59 fkey59  O
   102   fkey60 fkey60 fkey60 fkey60 fkey60 fkey60 fkey60 fkey60  O
   103   fkey61 fkey61 fkey61 fkey61 fkey61 fkey61 boot   fkey61  O
-  104   slock  slock  slock  slock  slock  slock  slock  slock   O
+  104   slock  saver  slock  saver  susp   nop    susp   nop     O
 # the left Windows key. If you would like to use them,
 # program these keys with:
 # kbdcontrol -f 62 'strings you would like to send'
