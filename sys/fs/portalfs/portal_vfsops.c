@@ -59,23 +59,13 @@
 
 static MALLOC_DEFINE(M_PORTALFSMNT, "PORTAL mount", "PORTAL mount structure");
 
-static int	portal_init __P((struct vfsconf *));
 static int	portal_mount __P((struct mount *mp, char *path, caddr_t data,
 				  struct nameidata *ndp, struct proc *p));
-static int	portal_start __P((struct mount *mp, int flags, struct proc *p));
 static int	portal_unmount __P((struct mount *mp, int mntflags,
 				    struct proc *p));
 static int	portal_root __P((struct mount *mp, struct vnode **vpp));
 static int	portal_statfs __P((struct mount *mp, struct statfs *sbp,
 				   struct proc *p));
-
-static int
-portal_init(vfsp)
-	struct vfsconf *vfsp;
-{
-
-	return (0);
-}
 
 /*
  * Mount the per-process file descriptors (/dev/fd)
@@ -152,16 +142,6 @@ portal_mount(mp, path, data, ndp, p)
 #endif
 
 	(void)portal_statfs(mp, &mp->mnt_stat, p);
-	return (0);
-}
-
-static int
-portal_start(mp, flags, p)
-	struct mount *mp;
-	int flags;
-	struct proc *p;
-{
-
 	return (0);
 }
 
@@ -263,30 +243,18 @@ portal_statfs(mp, sbp, p)
 	return (0);
 }
 
-#define portal_fhtovp ((int (*) __P((struct mount *, struct fid *, \
-	    struct sockaddr *, struct vnode **, int *, struct ucred **)))eopnotsupp)
-#define portal_quotactl ((int (*) __P((struct mount *, int, uid_t, caddr_t, \
-	    struct proc *)))eopnotsupp)
-#define portal_sync ((int (*) __P((struct mount *, int, struct ucred *, \
-	    struct proc *)))nullop)
-#define portal_sysctl ((int (*) __P((int *, u_int, void *, size_t *, void *, \
-	    size_t, struct proc *)))eopnotsupp)
-#define portal_vget ((int (*) __P((struct mount *, ino_t, struct vnode **))) \
-	    eopnotsupp)
-#define portal_vptofh ((int (*) __P((struct vnode *, struct fid *)))eopnotsupp)
-
 static struct vfsops portal_vfsops = {
 	portal_mount,
-	portal_start,
+	vfs_stdstart,
 	portal_unmount,
 	portal_root,
-	portal_quotactl,
+	vfs_stdquotactl,
 	portal_statfs,
-	portal_sync,
-	portal_vget,
-	portal_fhtovp,
-	portal_vptofh,
-	portal_init,
+	vfs_stdsync,
+	vfs_stdvget,
+	vfs_stdfhtovp,
+	vfs_stdvptofh,
+	vfs_stdinit,
 };
 
 VFS_SET(portal_vfsops, portal, VFCF_SYNTHETIC);
