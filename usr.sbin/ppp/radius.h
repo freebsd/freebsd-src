@@ -23,10 +23,17 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id:$
+ *	$Id: radius.h,v 1.1 1999/01/28 01:56:34 brian Exp $
  */
 
 struct radius {
+  struct descriptor desc;	/* We're a sort of (selectable) descriptor */
+  struct {
+    int fd;			/* We're selecting on this */
+    struct rad_handle *rad;	/* Using this to talk to our lib */
+    struct pppTimer timer;	/* for this long */
+    struct authinfo *auth;	/* Tell this about success/failure */
+  } cx;
   unsigned valid : 1;           /* Is this structure valid ? */
   unsigned vj : 1;              /* FRAMED Compression */
   struct in_addr ip;            /* FRAMED IP */
@@ -38,11 +45,14 @@ struct radius {
   } cfg;
 };
 
+#define descriptor2radius(d) \
+  ((d)->type == RADIUS_DESCRIPTOR ? (struct radius *)(d) : NULL)
+
 struct bundle;
 
 extern void radius_Init(struct radius *);
 extern void radius_Destroy(struct radius *);
 
 extern void radius_Show(struct radius *, struct prompt *);
-extern int radius_Authenticate(struct radius *, struct bundle *, const char *,
-                               const char *, const char *);
+extern void radius_Authenticate(struct radius *, struct authinfo *,
+                                const char *, const char *, const char *);

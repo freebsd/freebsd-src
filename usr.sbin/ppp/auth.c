@@ -17,7 +17,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: auth.c,v 1.36 1999/02/01 13:42:24 brian Exp $
+ * $Id: auth.c,v 1.37 1999/02/02 09:35:17 brian Exp $
  *
  *	TODO:
  *		o Implement check against with registered IP addresses.
@@ -208,11 +208,6 @@ auth_Validate(struct bundle *bundle, const char *name,
   char *vector[5];
   char buff[LINE_LEN];
 
-#ifndef NORADIUS
-  if (*bundle->radius.cfg.file)
-    return radius_Authenticate(&bundle->radius, bundle, name, key, NULL);
-#endif
-
   fp = OpenSecret(SECRETFILE);
   if (fp != NULL) {
     while (fgets(buff, sizeof buff, fp)) {
@@ -278,8 +273,9 @@ AuthTimeout(void *vauthp)
 
   timer_Stop(&authp->authtimer);
   if (--authp->retry > 0) {
+    authp->id++;
+    (*authp->fn.req)(authp);
     timer_Start(&authp->authtimer);
-    (*authp->ChallengeFunc)(authp, ++authp->id, authp->physical);
   } else {
     log_Printf(LogPHASE, "Auth: No response from server\n");
     datalink_AuthNotOk(authp->physical->dl);
@@ -287,26 +283,28 @@ AuthTimeout(void *vauthp)
 }
 
 void
-auth_Init(struct authinfo *authinfo)
+auth_Init(struct authinfo *authp, struct physical *p, auth_func req,
+          auth_func success, auth_func failure)
 {
-  memset(authinfo, '\0', sizeof(struct authinfo));
-  authinfo->cfg.fsmretry = DEF_FSMRETRY;
+  memset(authp, '\0', sizeof(struct authinfo));
+  authp->cfg.fsmretry = DEF_FSMRETRY;
+  authp->fn.req = req;
+  authp->fn.success = success;
+  authp->fn.failure = failure;
+  authp->physical = p;
 }
 
 void
-auth_StartChallenge(struct authinfo *authp, struct physical *physical,
-                   void (*chal)(struct authinfo *, int, struct physical *))
+auth_StartReq(struct authinfo *authp)
 {
-  authp->ChallengeFunc = chal;
-  authp->physical = physical;
   timer_Stop(&authp->authtimer);
   authp->authtimer.func = AuthTimeout;
   authp->authtimer.name = "auth";
   authp->authtimer.load = authp->cfg.fsmretry * SECTICKS;
-  authp->authtimer.arg = (void *) authp;
+  authp->authtimer.arg = (void *)authp;
   authp->retry = 3;
   authp->id = 1;
-  (*authp->ChallengeFunc)(authp, authp->id, physical);
+  (*authp->fn.req)(authp);
   timer_Start(&authp->authtimer);
 }
 
@@ -314,5 +312,42 @@ void
 auth_StopTimer(struct authinfo *authp)
 {
   timer_Stop(&authp->authtimer);
-  authp->physical = NULL;
+}
+
+struct mbuf *
+auth_ReadHeader(struct authinfo *authp, struct mbuf *bp)
+{
+  int len;
+
+  len = mbuf_Length(bp);
+  if (len >= sizeof authp->in.hdr) {
+    bp = mbuf_Read(bp, (u_char *)&authp->in.hdr, sizeof authp->in.hdr);
+    if (len >= ntohs(authp->in.hdr.length))
+      return bp;
+  }
+
+  mbuf_Free(bp);
+  return NULL;
+}
+
+struct mbuf *
+auth_ReadName(struct authinfo *authp, struct mbuf *bp, int len)
+{
+  if (len > sizeof authp->in.name - 1)
+    log_Printf(LogERROR, "auth_ReadName: Name too long (%d) !\n", len);
+  else {
+    int mlen = mbuf_Length(bp);
+
+    if (len > mlen)
+      log_Printf(LogERROR, "auth_ReadName: Short packet !\n");
+    else {
+      bp = mbuf_Read(bp, (u_char *)authp->in.name, len);
+      authp->in.name[len] = '\0';
+      return bp;
+    }
+  }
+
+  *authp->in.name = '\0';
+  mbuf_Free(bp);
+  return NULL;
 }

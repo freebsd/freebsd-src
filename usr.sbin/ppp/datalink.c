@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: datalink.c,v 1.27 1999/02/01 13:42:24 brian Exp $
+ *	$Id: datalink.c,v 1.28 1999/02/02 09:35:17 brian Exp $
  */
 
 #include <sys/param.h>
@@ -469,7 +469,7 @@ datalink_LayerUp(void *v, struct fsm *fp)
   struct datalink *dl = (struct datalink *)v;
 
   if (fp->proto == PROTO_LCP) {
-    datalink_GotAuthname(dl, "", 0);
+    datalink_GotAuthname(dl, "");
     dl->physical->link.lcp.auth_ineed = dl->physical->link.lcp.want_auth;
     dl->physical->link.lcp.auth_iwait = dl->physical->link.lcp.his_auth;
     if (dl->physical->link.lcp.his_auth || dl->physical->link.lcp.want_auth) {
@@ -479,21 +479,19 @@ datalink_LayerUp(void *v, struct fsm *fp)
                 Auth2Nam(dl->physical->link.lcp.his_auth),
                 Auth2Nam(dl->physical->link.lcp.want_auth));
       if (dl->physical->link.lcp.his_auth == PROTO_PAP)
-        auth_StartChallenge(&dl->pap, dl->physical, pap_SendChallenge);
+        auth_StartReq(&dl->pap);
       if (dl->physical->link.lcp.want_auth == PROTO_CHAP)
-        auth_StartChallenge(&dl->chap.auth, dl->physical, chap_SendChallenge);
+        auth_StartReq(&dl->chap.auth);
     } else
       datalink_AuthOk(dl);
   }
 }
 
 void
-datalink_GotAuthname(struct datalink *dl, const char *name, int len)
+datalink_GotAuthname(struct datalink *dl, const char *name)
 {
-  if (len >= sizeof dl->peer.authname)
-    len = sizeof dl->peer.authname - 1;
-  strncpy(dl->peer.authname, name, len);
-  dl->peer.authname[len] = '\0';
+  strncpy(dl->peer.authname, name, sizeof dl->peer.authname - 1);
+  dl->peer.authname[sizeof dl->peer.authname - 1] = '\0';
 }
 
 void
@@ -724,14 +722,14 @@ datalink_Create(const char *name, struct bundle *bundle, int type)
   dl->fsmp.LayerFinish = datalink_LayerFinish;
   dl->fsmp.object = dl;
 
-  auth_Init(&dl->pap);
-  auth_Init(&dl->chap.auth);
-
   if ((dl->physical = modem_Create(dl, type)) == NULL) {
     free(dl->name);
     free(dl);
     return NULL;
   }
+
+  pap_Init(&dl->pap, dl->physical);
+  chap_Init(&dl->chap, dl->physical);
   cbcp_Init(&dl->cbcp, dl->physical);
   chat_Init(&dl->chat, dl->physical, NULL, 1, NULL);
 
@@ -774,17 +772,18 @@ datalink_Clone(struct datalink *odl, const char *name)
   dl->parent = odl->parent;
   memcpy(&dl->fsmp, &odl->fsmp, sizeof dl->fsmp);
   dl->fsmp.object = dl;
-  auth_Init(&dl->pap);
-  dl->pap.cfg.fsmretry = odl->pap.cfg.fsmretry;
-
-  auth_Init(&dl->chap.auth);
-  dl->chap.auth.cfg.fsmretry = odl->chap.auth.cfg.fsmretry;
 
   if ((dl->physical = modem_Create(dl, PHYS_INTERACTIVE)) == NULL) {
     free(dl->name);
     free(dl);
     return NULL;
   }
+  pap_Init(&dl->pap, dl->physical);
+  dl->pap.cfg.fsmretry = odl->pap.cfg.fsmretry;
+
+  chap_Init(&dl->chap, dl->physical);
+  dl->chap.auth.cfg.fsmretry = odl->chap.auth.cfg.fsmretry;
+
   memcpy(&dl->physical->cfg, &odl->physical->cfg, sizeof dl->physical->cfg);
   memcpy(&dl->physical->link.lcp.cfg, &odl->physical->link.lcp.cfg,
          sizeof dl->physical->link.lcp.cfg);
@@ -1180,14 +1179,6 @@ iov2datalink(struct bundle *bundle, struct iovec *iov, int *niov, int maxiov,
   dl->fsmp.LayerFinish = datalink_LayerFinish;
   dl->fsmp.object = dl;
 
-  retry = dl->pap.cfg.fsmretry;
-  auth_Init(&dl->pap);
-  dl->pap.cfg.fsmretry = retry;
-
-  retry = dl->chap.auth.cfg.fsmretry;
-  auth_Init(&dl->chap.auth);
-  dl->chap.auth.cfg.fsmretry = retry;
-
   dl->physical = iov2modem(dl, iov, niov, maxiov, fd);
 
   if (!dl->physical) {
@@ -1195,6 +1186,14 @@ iov2datalink(struct bundle *bundle, struct iovec *iov, int *niov, int maxiov,
     free(dl);
     dl = NULL;
   } else {
+    retry = dl->pap.cfg.fsmretry;
+    pap_Init(&dl->pap, dl->physical);
+    dl->pap.cfg.fsmretry = retry;
+
+    retry = dl->chap.auth.cfg.fsmretry;
+    chap_Init(&dl->chap, dl->physical);
+    dl->chap.auth.cfg.fsmretry = retry;
+
     cbcp_Init(&dl->cbcp, dl->physical);
     chat_Init(&dl->chat, dl->physical, NULL, 1, NULL);
 

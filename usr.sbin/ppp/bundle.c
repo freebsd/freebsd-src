@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: bundle.c,v 1.43 1999/01/06 00:08:03 brian Exp $
+ *	$Id: bundle.c,v 1.44 1999/01/28 01:56:30 brian Exp $
  */
 
 #include <sys/param.h>
@@ -32,7 +32,6 @@
 #include <net/if.h>
 #include <arpa/inet.h>
 #include <net/route.h>
-#include <net/if_dl.h>
 #include <netinet/in_systm.h>
 #include <netinet/ip.h>
 #include <sys/un.h>
@@ -558,6 +557,10 @@ bundle_UpdateSet(struct descriptor *d, fd_set *r, fd_set *w, fd_set *e, int *n)
     }
   }
 
+#ifndef NORADIUS
+  result += descriptor_UpdateSet(&bundle->radius.desc, r, w, e, n);
+#endif
+
   /* Which links need a select() ? */
   for (dl = bundle->links; dl; dl = dl->next)
     result += descriptor_UpdateSet(&dl->desc, r, w, e, n);
@@ -582,6 +585,11 @@ bundle_IsSet(struct descriptor *d, const fd_set *fdset)
     if (descriptor_IsSet(&dl->desc, fdset))
       return 1;
 
+#ifndef NORADIUS
+  if (descriptor_IsSet(&bundle->radius.desc, fdset))
+    return 1;
+#endif
+
   if (descriptor_IsSet(&bundle->ncp.mp.server.desc, fdset))
     return 1;
 
@@ -600,6 +608,11 @@ bundle_DescriptorRead(struct descriptor *d, struct bundle *bundle,
   for (dl = bundle->links; dl; dl = dl->next)
     if (descriptor_IsSet(&dl->desc, fdset))
       descriptor_Read(&dl->desc, bundle, fdset);
+
+#ifndef NORADIUS
+  if (descriptor_IsSet(&bundle->radius.desc, fdset))
+    descriptor_Read(&bundle->radius.desc, bundle, fdset);
+#endif
 
   if (FD_ISSET(bundle->dev.fd, fdset)) {
     struct tun_data tun;
