@@ -2161,9 +2161,14 @@ comparam(tp, t)
 		 * latencies are reasonable for humans.  Serial comms
 		 * protocols shouldn't expect anything better since modem
 		 * latencies are larger.
+		 *
+		 * The fifo trigger level cannot be set at RX_HIGH for high
+		 * speed connections without further work on reducing 
+		 * interrupt disablement times in other parts of the system,
+		 * without producing silo overflow errors.
 		 */
 		com->fifo_image = t->c_ospeed <= 4800
-				  ? FIFO_ENABLE : FIFO_ENABLE | FIFO_RX_HIGH;
+				  ? FIFO_ENABLE : FIFO_ENABLE | FIFO_RX_MEDHI;
 #ifdef COM_ESP
 		/*
 		 * The Hayes ESP card needs the fifo DMA mode bit set
