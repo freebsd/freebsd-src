@@ -53,7 +53,10 @@
 .Op Fl h Ar hostname
 .Op Fl m Ar automounts_prefix
 .Op Fl I Ar dir
-.Op Fl D Ar name[=string]]
+.Oo
+.Fl D
+.Ar name Ns Op = Ns Ar string
+.Oc
 .Op Fl U Ar name
 .Ar config ...
 .Sh DESCRIPTION
@@ -143,7 +146,9 @@ will be displayed, and all information discovered when performing the semantic
 analysis phase will be displayed.  Each verbose message
 is output to the standard output on a line starting with a `#'
 character.
-.It Fl D Ar name[=string]
+.It Fl D Xo
+.Ar name Ns Op = Ns Ar string
+.Xc
 Defines a symbol
 .Ar name
 for the preprocessor when reading the configuration files.
