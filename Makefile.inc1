@@ -1,5 +1,5 @@
 #
-#	$Id: Makefile.inc1,v 1.35 1998/10/16 14:22:54 bde Exp $
+#	$Id: Makefile.inc1,v 1.36 1998/10/17 11:56:20 bde Exp $
 #
 # Make command line options:
 #	-DCLOBBER will remove /usr/include
@@ -805,6 +805,7 @@ build-tools:
 		usr.bin/file2c		\
 		usr.bin/find		\
 		usr.bin/gencat		\
+		usr.bin/gensetdefs	\
 		usr.bin/id		\
 		usr.bin/join		\
 		usr.bin/lorder		\
