@@ -29,8 +29,8 @@ DPADD+=	 ${LIBKRB} ${LIBCOM_ERR}
 	((${MAKE_KERBEROS5} == "yes") || (${MAKE_KERBEROS5} == "YES"))
 DISTRIBUTION=krb5
 CFLAGS+= -DKRB5
-LDADD+=	 -lkrb5 -lkafs -lasn1 -lcom_err -lmd -L${.OBJDIR}/../../../kerberos5/lib/libroken -lroken
-DPADD+=	 ${LIBKRB5} ${LIBCOM_ERR} ${LIBKAFS} ${LIBASN1} ${LIBMD}
+LDADD+=	 -lkrb5 -lasn1 -lcom_err -lmd -L${.OBJDIR}/../../../kerberos5/lib/libroken -lroken -lcrypt
+DPADD+=	 ${LIBKRB5} ${LIBCOM_ERR} ${LIBASN1} ${LIBMD} ${LIBCRYPT}
 .endif # MAKE_KERBEROS5
 
 .include <bsd.prog.mk>
