@@ -53,6 +53,7 @@ extern Function *rl_last_func;
 
 extern void _rl_init_argument ();
 extern int _rl_set_mark_at_pos ();
+extern void _rl_fix_point ();
 extern void _rl_abort_internal ();
 
 extern char *xmalloc (), *xrealloc ();
@@ -384,7 +385,11 @@ int
 rl_kill_region (count, ignore)
      int count, ignore;
 {
-  return (region_kill_internal (1));
+  int r;
+
+  r = region_kill_internal (1);
+  _rl_fix_point (1);
+  return r;
 }
 
 /* Copy COUNT words to the kill ring.  DIR says which direction we look
@@ -521,7 +526,7 @@ rl_yank_nth_arg (count, ignore)
      inserts it right *after* rl_point. */
   if (rl_editing_mode == vi_mode)
     {
-      rl_vi_append_mode ();
+      rl_vi_append_mode (1, ignore);
       rl_insert_text (" ");
     }
 #endif /* VI_MODE */

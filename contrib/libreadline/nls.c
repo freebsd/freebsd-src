@@ -25,6 +25,8 @@
 #  include <config.h>
 #endif
 
+#include <sys/types.h>
+
 #if defined (HAVE_UNISTD_H)
 #  include <unistd.h>
 #endif /* HAVE_UNISTD_H */
@@ -46,7 +48,11 @@
 extern int _rl_convert_meta_chars_to_ascii;
 extern int _rl_output_meta_chars;
 extern int _rl_meta_flag;
-    
+
+/* Functions imported from shell.c */
+extern char *get_env_value ();
+
+#if !defined (HAVE_SETLOCALE)    
 /* A list of legal values for the LANG or LC_CTYPE environment variables.
    If a locale name in this list is the value for the LC_ALL, LC_CTYPE,
    or LANG environment variable (using the first of those with a value),
@@ -69,6 +75,7 @@ static char *legal_lang_values[] =
 
 static char *normalize_codeset ();
 static char *find_codeset ();
+#endif /* !HAVE_SETLOCALE */
 
 /* Check for LC_ALL, LC_CTYPE, and LANG and use the first with a value
    to decide the defaults for 8-bit character input and output.  Returns
@@ -76,12 +83,33 @@ static char *find_codeset ();
 int
 _rl_init_eightbit ()
 {
+/* If we have setlocale(3), just check the current LC_CTYPE category
+   value, and go into eight-bit mode if it's not C or POSIX. */
+#if defined (HAVE_SETLOCALE)
+  char *t;
+
+  /* Set the LC_CTYPE locale category from environment variables. */
+  t = setlocale (LC_CTYPE, "");
+  if (t && *t && (t[0] != 'C' || t[1]) && (STREQ (t, "POSIX") == 0))
+    {
+      _rl_meta_flag = 1;
+      _rl_convert_meta_chars_to_ascii = 0;
+      _rl_output_meta_chars = 1;
+      return (1);
+    }
+  else
+    return (0);
+
+#else /* !HAVE_SETLOCALE */
   char *lspec, *t;
   int i;
 
-  lspec = getenv ("LC_ALL");
-  if (lspec == 0) lspec = getenv ("LC_CTYPE");
-  if (lspec == 0) lspec = getenv ("LANG");
+  /* We don't have setlocale.  Finesse it.  Check the environment for the
+     appropriate variables and set eight-bit mode if they have the right
+     values. */
+  lspec = get_env_value ("LC_ALL");
+  if (lspec == 0) lspec = get_env_value ("LC_CTYPE");
+  if (lspec == 0) lspec = get_env_value ("LANG");
   if (lspec == 0 || (t = normalize_codeset (lspec)) == 0)
     return (0);
   for (i = 0; t && legal_lang_values[i]; i++)
@@ -90,15 +118,15 @@ _rl_init_eightbit ()
 	_rl_meta_flag = 1;
 	_rl_convert_meta_chars_to_ascii = 0;
 	_rl_output_meta_chars = 1;
-#if defined (HAVE_SETLOCALE)
-	setlocale (LC_CTYPE, lspec);
-#endif
 	break;
       }
   free (t);
   return (legal_lang_values[i] ? 1 : 0);
+
+#endif /* !HAVE_SETLOCALE */
 }
 
+#if !defined (HAVE_SETLOCALE)
 static char *
 normalize_codeset (codeset)
      char *codeset;
@@ -196,3 +224,4 @@ find_codeset (name, lenp)
 
   return result;
 }
+#endif /* !HAVE_SETLOCALE */
