@@ -24,7 +24,7 @@
 .\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 .\" SUCH DAMAGE.
 .\"
-.\" Author: Hartmut Brandt <harti@freebsd.org>
+.\" Author: Hartmut Brandt <harti@FreeBSD.org>
 .\"
 .\" $FreeBSD$
 .\"
@@ -35,11 +35,12 @@
 .Os
 .Sh NAME
 .Nm fatm
-.Nd Device driver for Fore PCA200E ATM interfaces
+.Nd "device driver for Fore PCA200E ATM interfaces"
 .Sh SYNOPSIS
 .Cd device fatm
 .Cd device utopia
 .Cd device atm
+.Pp
 .Cd options NATM
 .Sh DESCRIPTION
 The
@@ -61,37 +62,38 @@ For configuring the card for IP see
 The following sysctls are recognized by the driver additionally to those
 handled by
 .Xr utopia 4 :
-.Bl -tag -width XXX
-.It Cm hw.atm.fatmN.stats
+.Bl -tag -width indent
+.It Va hw.atm.fatm Ns Ar N Ns Va .stats
 Returns a device specific statistic list of
-.Dv uint32_t
+.Vt uint32_t
 statistic counters.
-.It Cm hw.atm.fatmN.istats
+.It Va hw.atm.fatm Ns Ar N Ns Va .istats
 Returns a list of
-.Dv uint32_t
+.Vt uint32_t
 with internal driver statistics.
-.It Cm hw.atm.fatmN.retry_tx
+.It Va hw.atm.fatm Ns Ar N Ns Va .retry_tx
 If this is set packets are stuffed back into the interface's send queue when
 the cards transmit queue is found to be full.
 They are transmitted later.
 If this is not set the packets are dropped.
 It may be useful to set this
 if only UBR traffic is sent.
-.It Cm hw.atm.fatmN.debug
-.Em (only if debugging enabled)
+.It Va hw.atm.fatm Ns Ar N Ns Va .debug
+.Bf Em
+(Only if debugging enabled.)
+.Ef
 These are debugging flags.
 See
-.Fn if_fatmvar.h
+.Pa src/sys/dev/fatm/if_fatmvar.h
 for the possible flags.
 .El
 .Pp
 The driver supports the media options
-.Ar sdh ,
-.Ar noscramb
+.Cm sdh , noscramb
 and
-.Ar unassigned
+.Cm unassigned
 (see
-.Xr utopia 4 ).
+.Xr utopia 4 ) .
 .Sh DIAGNOSTICS
 .Bd -literal
 fatm0: <FORE PCA200E> mem 0xd5800000-0xd59fffff irq 9 at device 9.0 on pci0
@@ -110,4 +112,4 @@ See
 .Xr hatm 4
 for a better card.
 .Sh AUTHORS
-.An Harti Brandt Aq harti@freebsd.org .
+.An Harti Brandt Aq harti@FreeBSD.org
