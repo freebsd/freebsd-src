@@ -328,28 +328,28 @@ received confirmation of this.
 ----    ----------------
 
 IDE
-ATA:
-	Acerlabs Aladdin
-	AMD 756
-	CMD 646
-	Cypress 82C693
-	HighPoint HPT366
-	Intel PIIX
-	Intel PIIX3
-	Intel PIIX4
-	Intel ICH
-	Promise Fasttrak-33
-	Promise Fasttrak-66
-	Promise Ultra-33
-	Promise Ultra-66
-	SiS 5591
-	VIA 82C586
-	VIA 82C686
+ATA controllers:
+    Acerlabs Aladdin
+    AMD 756
+    CMD 646
+    Cypress 82C693
+    HighPoint HPT366
+    Intel PIIX
+    Intel PIIX3
+    Intel PIIX4
+    Intel ICH
+    Promise Fasttrak-33
+    Promise Fasttrak-66
+    Promise Ultra-33
+    Promise Ultra-66
+    SiS 5591
+    VIA 82C586
+    VIA 82C686
 
 WD1003 (any generic MFM/RLL - obsolete)
 WD1007 (any generic ESDI - obsolete)
-* Note: now that the wd driver has been replaced by the ata driver framework
-which does not have bad144 support the true MFM/RLL/ESDI drives/adapters 
+* Note: now that the wd driver has been replaced by the ata driver framework,
+which does not have bad144 support, the true MFM/RLL/ESDI drives/adapters 
 have become obsolete.
 
 Adaptec 1535 ISA SCSI controllers
@@ -418,24 +418,22 @@ in the StorageWorks family, eg. KZPSC, KZPAC.  EISA adaptes are not
 supported.
 
 Qlogic Controllers:
-
-	Qlogic 1020, 1040 SCSI and Ultra SCSI Host Adaptes
-	Qlogic 1240 dual Ultra SCSI controllers
-	Qlogic 1080 Ultra2 LVD and 1280 Dual Ultra2 LVD Controllers
-	Qlogic 12160 Ultra3 LVD Controllers
-	Qlogic 2100 and Qlogic 2200 Fibre Channel SCSI Controllers
+    Qlogic 1020, 1040 SCSI and Ultra SCSI Host Adaptes
+    Qlogic 1240 dual Ultra SCSI controllers
+    Qlogic 1080 Ultra2 LVD and 1280 Dual Ultra2 LVD Controllers
+    Qlogic 12160 Ultra3 LVD Controllers
+    Qlogic 2100 and Qlogic 2200 Fibre Channel SCSI Controllers
 
 SymBios (formerly NCR) 53C810, 53C810a, 53C815, 53C820, 53C825a, 53C860,
 53C875, 53C875e, 53C875j, 53C885, 53C895 and 53C896 PCI SCSI controllers:
-        ASUS SC-200
-        Data Technology DTC3130 (all variants)
-	DawiControl DC2976UW
-	Diamond FirePort (all)
-        NCR cards (all)
-        Symbios cards (all)
-        Tekram DC390W, 390U and 390F
-        Tyan S1365
-
+    ASUS SC-200
+    Data Technology DTC3130 (all variants)
+    DawiControl DC2976UW
+    Diamond FirePort (all)
+    NCR cards (all)
+    Symbios cards (all)
+    Tekram DC390W, 390U and 390F
+    Tyan S1365
 
 DTC 3290 EISA SCSI controller in 1542 emulation mode.
 
@@ -458,29 +456,29 @@ The following CD-ROM type systems are supported at this time:
 
 Unmaintained drivers, they might or might not work for your hardware:
 
-  (mcd)   Mitsumi proprietary CD-ROM interface (all models)
+(mcd)   Mitsumi proprietary CD-ROM interface (all models)
 
 4.2.    Network cards
 ----    -------------
 
 Adaptec Duralink PCI fast ethernet adapters based on the Adaptec
 AIC-6915 fast ethernet controller chip, including the following:
-  ANA-62011 64-bit single port 10/100baseTX adapter
-  ANA-62022 64-bit dual port 10/100baseTX adapter
-  ANA-62044 64-bit quad port 10/100baseTX adapter
-  ANA-69011 32-bit single port 10/100baseTX adapter
-  ANA-62020 64-bit single port 100baseFX adapter
+    ANA-62011 64-bit single port 10/100baseTX adapter
+    ANA-62022 64-bit dual port 10/100baseTX adapter
+    ANA-62044 64-bit quad port 10/100baseTX adapter
+    ANA-69011 32-bit single port 10/100baseTX adapter
+    ANA-62020 64-bit single port 100baseFX adapter
 
 Allied-Telesyn AT1700 and RE2000 cards
 
 Alteon Networks PCI gigabit ethernet NICs based on the Tigon 1 and Tigon 2
 chipsets, including the following:
-  Alteon AceNIC (Tigon 1 and 2)
-  3Com 3c985-SX (Tigon 1 and 2)
-  Netgear GA620 (Tigon 2)
-  Silicon Graphics Gigabit Ethernet
-  DEC/Compaq EtherWORKS 1000
-  NEC Gigabit Ethernet
+    3Com 3c985-SX (Tigon 1 and 2)
+    Alteon AceNIC (Tigon 1 and 2)
+    DEC/Compaq EtherWORKS 1000
+    NEC Gigabit Ethernet
+    Netgear GA620 (Tigon 2)
+    Silicon Graphics Gigabit Ethernet
 
 AMD PCnet/PCI (79c970 & 53c974 or 79c974)
 
@@ -489,95 +487,97 @@ WD8003EBT, WD8003W, WD8013W, WD8003S, WD8003SBT and WD8013EBT
 based clones.  SMC Elite Ultra is also supported.
 
 RealTek 8129/8139 fast ethernet NICs including the following:
-  Allied Telesyn AT2550
-  Allied Telesyn AT2500TX
-  Genius GF100TXR (RTL8139)
-  NDC Communications NE100TX-E
-  OvisLink LEF-8129TX
-  OvisLink LEF-8139TX
-  Netronix Inc. EA-1210 NetEther 10/100
-  KTX-9130TX 10/100 Fast Ethernet
-  Accton "Cheetah" EN1027D (MPX 5030/5038; RealTek 8139 clone?)
-  SMC EZ Card 10/100 PCI 1211-TX
-
+    Accton "Cheetah" EN1027D (MPX 5030/5038; RealTek 8139 clone?)
+    Allied Telesyn AT2550
+    Allied Telesyn AT2500TX
+    Genius GF100TXR (RTL8139)
+    KTX-9130TX 10/100 Fast Ethernet
+    NDC Communications NE100TX-E
+    Netronix Inc. EA-1210 NetEther 10/100
+    OvisLink LEF-8129TX
+    OvisLink LEF-8139TX
+    SMC EZ Card 10/100 PCI 1211-TX
+    
 Lite-On 82c168/82c169 PNIC fast ethernet NICs including the following:
-  LinkSys EtherFast LNE100TX
-  NetGear FA310-TX Rev. D1
-  Matrox FastNIC 10/100
-  Kingston KNE110TX
+    Kingston KNE110TX
+    LinkSys EtherFast LNE100TX
+    Matrox FastNIC 10/100
+    NetGear FA310-TX Rev. D1
 
 Macronix 98713, 98713A, 98715, 98715A and 98725 fast ethernet NICs
-  Accton EN1217 (98715A)
-  Adico AE310TX (98715A)
-  CNet Pro120A (98713 or 98713A)
-  CNet Pro120B (98715)
-  NDC Communications SFA100A (98713A)
-  SVEC PN102TX (98713)
+    Accton EN1217 (98715A)
+    Adico AE310TX (98715A)
+    CNet Pro120A (98713 or 98713A)
+    CNet Pro120B (98715)
+    NDC Communications SFA100A (98713A)
+    SVEC PN102TX (98713)
 
 Macronix/Lite-On PNIC II LC82C115 fast ethernet NICs including the following:
-  LinkSys EtherFast LNE100TX Version 2
+    LinkSys EtherFast LNE100TX Version 2
 
 Winbond W89C840F fast ethernet NICs including the following:
-  Trendware TE100-PCIE
+    Trendware TE100-PCIE
 
 VIA Technologies VT3043 "Rhine I" and VT86C100A "Rhine II" fast ethernet
 NICs including the following:
-  Hawking Technologies PN102TX
-  D-Link DFE-530TX
-  AOpen/Acer ALN-320
+    AOpen/Acer ALN-320
+    D-Link DFE-530TX
+    Hawking Technologies PN102TX
 
 Silicon Integrated Systems SiS 900 and SiS 7016 PCI fast ethernet NICs
 
 Sundance Technologies ST201 PCI fast ethernet NICs including
 the following:
-  D-Link DFE-550TX
+    D-Link DFE-550TX
 
 SysKonnect SK-984x PCI gigabit ethernet cards including the following:
-  SK-9841 1000baseLX single mode fiber, single port
-  SK-9842 1000baseSX multimode fiber, single port
-  SK-9843 1000baseLX single mode fiber, dual port
-  SK-9844 1000baseSX multimode fiber, dual port
+    SK-9841 1000baseLX single mode fiber, single port
+    SK-9842 1000baseSX multimode fiber, single port
+    SK-9843 1000baseLX single mode fiber, dual port
+    SK-9844 1000baseSX multimode fiber, dual port
 
 Texas Instruments ThunderLAN PCI NICs, including the following:
-  Compaq Netelligent 10, 10/100, 10/100 Proliant, 10/100 Dual-Port
-  Compaq Netelligent 10/100 TX Embedded UTP, 10 T PCI UTP/Coax, 10/100 TX UTP
-  Compaq NetFlex 3P, 3P Integrated, 3P w/ BNC
-  Olicom OC-2135/2138, OC-2325, OC-2326 10/100 TX UTP
-  Racore 8165 10/100baseTX
-  Racore 8148 10baseT/100baseTX/100baseFX multi-personality
+    Compaq Netelligent 10, 10/100, 10/100 Proliant, 10/100 Dual-Port
+    Compaq Netelligent 10/100 TX Embedded UTP, 10 T PCI UTP/Coax, 10/100 TX UTP
+    Compaq NetFlex 3P, 3P Integrated, 3P w/ BNC
+    Olicom OC-2135/2138, OC-2325, OC-2326 10/100 TX UTP
+    Racore 8165 10/100baseTX
+    Racore 8148 10baseT/100baseTX/100baseFX multi-personality
 
-ADMtek AL981-based PCI fast ethernet NICs
-ADMtek AN985-based PCI fast ethernet NICs
+ADMtek Inc. AL981-based PCI fast ethernet NICs
+
+ADMtek Inc. AN985-based PCI fast ethernet NICs
+
 ADMtek Inc. AN986-based USB ethernet NICs including the following:
-  LinkSys USB100TX
-  Billionton USB100
-  Melco Inc. LU-ATX
-  D-Link DSB-650TX
-  SMC 2202USB
+    Billionton USB100
+    D-Link DSB-650TX
+    LinkSys USB100TX
+    Melco Inc. LU-ATX
+    SMC 2202USB
 
 CATC USB-EL1210A-based USB ethernet NICs including the following:
-  CATC Netmate
-  CATC Netmate II
-  Belkin F5U011
-  Belkin F5U111
+    Belkin F5U011
+    Belkin F5U111
+    CATC Netmate
+    CATC Netmate II
 
 Kawasaki LSI KU5KUSB101B-based USB ethernet NICs including
 the following:
-  LinkSys USB10T
-  Entrega NET-USB-E45
-  Peracom USB Ethernet Adapter
-  3Com 3c19250
-  ADS Technologies USB-10BT
-  ATen UC10T
-  Netgear EA101
-  D-Link DSB-650
-  SMC 2102USB
-  SMC 2104USB
-  Corega USB-T
+    3Com 3c19250
+    ADS Technologies USB-10BT
+    ATen UC10T
+    Corega USB-T
+    D-Link DSB-650
+    Entrega NET-USB-E45
+    LinkSys USB10T
+    Netgear EA101
+    Peracom USB Ethernet Adapter
+    SMC 2102USB
+    SMC 2104USB
 
 ASIX Electronics AX88140A PCI NICs, including the following:
-  Alfa Inc. GFC2204
-  CNet Pro110B
+    Alfa Inc. GFC2204
+    CNet Pro110B
 
 DEC EtherWORKS III NICs (DE203, DE204, and DE205)
 DEC EtherWORKS II NICs (DE200, DE201, DE202, and DE422)
@@ -586,7 +586,7 @@ DEC FDDI (DEFPA/DEFEA) NICs
 
 Davicom DM9100 and DM9102 PCI fast ethernet NICs, including the
 following:
-  Jaton Corporation XPressNet
+    Jaton Corporation XPressNet
 
 Efficient ENI-155p ATM PCI
 
@@ -628,29 +628,29 @@ Toshiba ethernet cards
 
 NE2000 compatible PC-Card (PCMCIA) Ethernet/FastEthernet cards,
 including the following:
-  AR-P500 Ethernet card
-  Accton EN2212/EN2216/UE2216(OEM)
-  Allied Telesis CentreCOM LA100-PCM_V2
-  AmbiCom 10BaseT card
-  BayNetworks NETGEAR FA410TXC Fast Ethernet
-  CNet BC40 adapter
-  COREGA Ether PCC-T/EtherII PCC-T
-  Compex Net-A adapter
-  CyQ've ELA-010
-  D-Link DE-650/660
-  Danpex EN-6200P2
-  IO DATA PCLATE
-  IBM Creditcard Ethernet I/II
-  IC-CARD Ethernet/IC-CARD+ Ethernet
-  Linksys EC2T/PCMPC100
-  Melco LPC-T
-  NDC Ethernet Instant-Link
-  National Semiconductor InfoMover NE4100
-  Network Everywhere Ethernet 10BaseT PC Card
-  Planex FNW-3600-T
-  Socket LP-E
-  Surecom EtherPerfect EP-427
-  Telecom Device SuperSocket RE450T
+    AR-P500 Ethernet card
+    Accton EN2212/EN2216/UE2216(OEM)
+    Allied Telesis CentreCOM LA100-PCM_V2
+    AmbiCom 10BaseT card
+    BayNetworks NETGEAR FA410TXC Fast Ethernet
+    CNet BC40 adapter
+    COREGA Ether PCC-T/EtherII PCC-T
+    Compex Net-A adapter
+    CyQ've ELA-010
+    D-Link DE-650/660
+    Danpex EN-6200P2
+    IO DATA PCLATE
+    IBM Creditcard Ethernet I/II
+    IC-CARD Ethernet/IC-CARD+ Ethernet
+    Linksys EC2T/PCMPC100
+    Melco LPC-T
+    NDC Ethernet Instant-Link
+    National Semiconductor InfoMover NE4100
+    Network Everywhere Ethernet 10BaseT PC Card
+    Planex FNW-3600-T
+    Socket LP-E
+    Surecom EtherPerfect EP-427
+    Telecom Device SuperSocket RE450T
 
 Megahertz X-Jack Ethernet PC-Card CC-10BT
 
@@ -674,33 +674,22 @@ USB ethernet controllers.
 
 
 USB Host Controllers:
-
-ALi Aladdin-V.
-
-AMD-756.
-
-CMD Tech 670 & 673.
-
-Intel 82371SB (PIIX3).
-Intel 82371AB and EB chipsets (PIIX4).
-
-NEC uPD 9210.
-
-OPTi 82C861 (FireLink).
-
-SiS 5571.
-
-VIA 83C572 USB.
-
-and any other UHCI or OHCI compliant motherboard chipset (no exceptions
-known).
+    ALi Aladdin-V.
+    AMD-756.
+    CMD Tech 670 & 673.
+    Intel 82371SB (PIIX3).
+    Intel 82371AB and EB chipsets (PIIX4).
+    NEC uPD 9210.
+    OPTi 82C861 (FireLink).
+    SiS 5571.
+    VIA 83C572 USB.
+    and any other UHCI or OHCI compliant motherboard chipset (no exceptions
+    known).
 
 
 PCI plug-in USB host controllers:
-
-ADS Electronics PCI plug-in card (2 ports).
-
-Entrega PCI plug-in card (4 ports).
+    ADS Electronics PCI plug-in card (2 ports).
+    Entrega PCI plug-in card (4 ports).
 
 
 Specific devices reported to be working (see for USB ethernet devices supported
@@ -855,20 +844,23 @@ ep:	3Com 3C529 network adapter
 4.7.    Multimedia
 ----    ----------
 
-Adlib, SoundBlaster, SoundBlaster Pro, ProAudioSpectrum, Gravis UltraSound
-and Roland MPU-401 sound cards.
-(by Voxware)
+Soundcards supported by Voxware:
+    Adlib
+    SoundBlaster, SoundBlaster Pro,
+    ProAudioSpectrum
+    Gravis UltraSound
+    Roland MPU-401 sound cards
 
-SoundBlaster(including ViBRA16)
-Advance Asound 100, 110 and Logic ALS120
-ESS ES1868, ES1869, ES1879 and ES1888
-MSS/WSS Compatible DSPs
-Gravis UltraSound MAX/PnP
-Trident 4DWave DX/NX
-ENSONIQ AudioPCI ES1370/1371
-NeoMagic 256AV/ZX
-Crystal Semiconductor CS461x/462x/428x
-(by newpcm)
+Soundcards supported by newpcm:
+    Advance Asound 100, 110 and Logic ALS120
+    Crystal Semiconductor CS461x/462x/428x
+    ENSONIQ AudioPCI ES1370/1371
+    ESS ES1868, ES1869, ES1879 and ES1888
+    Gravis UltraSound MAX/PnP
+    MSS/WSS Compatible DSPs
+    NeoMagic 256AV/ZX
+    SoundBlaster, Soundblaster Pro, Soundblaster AWE-32, Soundblaster AWE-64
+    Trident 4DWave DX/NX
 
 Matrox Meteor Video frame grabber
 Creative Labs Video Spigot frame grabber
