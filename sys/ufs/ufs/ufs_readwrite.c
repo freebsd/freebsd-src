@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)ufs_readwrite.c	8.11 (Berkeley) 5/8/95
- * $Id: ufs_readwrite.c,v 1.47 1998/03/30 09:56:31 phk Exp $
+ * $Id: ufs_readwrite.c,v 1.49 1998/04/06 18:18:50 peter Exp $
  */
 
 #define	BLKSIZE(a, b, c)	blksize(a, b, c)
@@ -450,6 +450,12 @@ ffs_getpages(ap)
 	bsize = vp->v_mount->mnt_stat.f_iosize;
 	pindex = mreq->pindex;
 	foff = IDX_TO_OFF(pindex) /* + ap->a_offset should be zero */;
+
+	if (bsize < PAGE_SIZE)
+		return vnode_pager_generic_getpages(ap->a_vp, ap->a_m,
+						    ap->a_count,
+						    ap->a_reqpage);
+	    
 
 	if (firstindex == 0)
 		vp->v_lastr = 0;
