@@ -1,4 +1,4 @@
-<!-- $Id: contrib.sgml,v 1.161 1996/12/04 08:07:44 obrien Exp $ -->
+<!-- $Id: contrib.sgml,v 1.162 1996/12/05 01:47:33 nate Exp $ -->
 <!-- The FreeBSD Documentation Project -->
 
 <!-- Please try to keep the file 'avail' (from CVSROOT) 
@@ -154,11 +154,11 @@
         <tag/Postmaster/ &a.jmb; 
         <tag/Public Relations/ &a.jkh 
         <tag/Release Coordinator/ &a.jkh 
-	<tag/Security Officer/ &a.pst
+	<tag/Security Officers/ &a.pst; and &a.guido
         <tag/Source Repository Manager/ &a.peter 
         <tag/Ports Manager/ &a.asami 
-        <tag/System Administration/ &a.gpalmer 
-        <tag/Webmasters/ &a.jkh; and &a.jfieber
+        <tag/Webmaster/ &a.jfieber
+        <tag/FAQ/ &a.pds
         <tag/XFree86 Project, Inc. Liason/ &a.rich 
       </descrip>
 
