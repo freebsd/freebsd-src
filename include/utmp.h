@@ -51,7 +51,7 @@
 #define	UT_HOSTSIZE	16
 
 struct lastlog {
-	time_t	ll_time;
+	int32_t	ll_time;
 	char	ll_line[UT_LINESIZE];
 	char	ll_host[UT_HOSTSIZE];
 };
@@ -60,7 +60,7 @@ struct utmp {
 	char	ut_line[UT_LINESIZE];
 	char	ut_name[UT_NAMESIZE];
 	char	ut_host[UT_HOSTSIZE];
-	time_t	ut_time;
+	int32_t	ut_time;
 };
 
 #endif /* !_UTMP_H_ */
