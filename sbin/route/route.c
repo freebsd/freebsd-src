@@ -42,7 +42,7 @@ static const char copyright[] =
 static char sccsid[] = "@(#)route.c	8.3 (Berkeley) 3/19/94";
 #endif
 static const char rcsid[] =
-	"$Id$";
+	"$Id: route.c,v 1.29 1998/07/28 06:25:35 charnier Exp $";
 #endif /* not lint */
 
 #include <sys/param.h>
@@ -581,28 +581,34 @@ newroute(argc, argv)
 				flags |= RTF_STATIC;
 				break;
 			case K_IFA:
-				argc--;
+				if (!--argc)
+					usage((char *)NULL);
 				(void) getaddr(RTA_IFA, *++argv, 0);
 				break;
 			case K_IFP:
-				argc--;
+				if (!--argc)
+					usage((char *)NULL);
 				(void) getaddr(RTA_IFP, *++argv, 0);
 				break;
 			case K_GENMASK:
-				argc--;
+				if (!--argc)
+					usage((char *)NULL);
 				(void) getaddr(RTA_GENMASK, *++argv, 0);
 				break;
 			case K_GATEWAY:
-				argc--;
+				if (!--argc)
+					usage((char *)NULL);
 				(void) getaddr(RTA_GATEWAY, *++argv, 0);
 				break;
 			case K_DST:
-				argc--;
+				if (!--argc)
+					usage((char *)NULL);
 				ishost = getaddr(RTA_DST, *++argv, &hp);
 				dest = *argv;
 				break;
 			case K_NETMASK:
-				argc--;
+				if (!--argc)
+					usage((char *)NULL);
 				(void) getaddr(RTA_NETMASK, *++argv, 0);
 				/* FALLTHROUGH */
 			case K_NET:
@@ -616,7 +622,8 @@ newroute(argc, argv)
 			case K_SSTHRESH:
 			case K_RTT:
 			case K_RTTVAR:
-				argc--;
+				if (!--argc)
+					usage((char *)NULL);
 				set_metric(*++argv, key);
 				break;
 			default:
