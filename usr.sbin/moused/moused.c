@@ -46,7 +46,7 @@
 
 #ifndef lint
 static const char rcsid[] =
-	"$Id: moused.c,v 1.14 1998/01/20 03:38:36 yokota Exp $";
+	"$Id: moused.c,v 1.15 1998/02/04 06:46:33 ache Exp $";
 #endif /* not lint */
 
 #include <err.h>
@@ -805,7 +805,7 @@ static unsigned char proto[][7] = {
     {	0xf8,	0x80,	0x00,	0x00,	5,    0x00,  0xff }, /* MouseSystems */
     {	0xe0,	0x80,	0x80,	0x00,	3,    0x00,  0xff }, /* Logitech */
     {	0xe0,	0x80,	0x80,	0x00,	3,    0x00,  0xff }, /* MMSeries */
-    { 	0x40,	0x40,	0x40,	0x00,	3,   ~0x23,  0x00 }, /* MouseMan */
+    { 	0x40,	0x40,	0x40,	0x00,	3,   ~0x33,  0x00 }, /* MouseMan */
     {	0xf8,	0x80,	0x00,	0x00,	5,    0x00,  0xff }, /* Bus */
     {	0xf8,	0x80,	0x00,	0x00,	5,    0x00,  0xff }, /* InPort */
     {	0xc0,	0x00,	0x00,	0x00,	3,    0x00,  0xff }, /* PS/2 mouse */
@@ -1338,12 +1338,13 @@ r_protocol(u_char rBuf, mousestatus_t *act)
     {
     case MOUSE_PROTO_MS:		/* Microsoft */
     case MOUSE_PROTO_LOGIMOUSEMAN:	/* MouseMan/TrackMan */
+	act->button = act->obutton & MOUSE_BUTTON4DOWN;
 	if (rodent.flags & ChordMiddle)
-	    act->button = ((pBuf[0] & MOUSE_MSS_BUTTONS) == MOUSE_MSS_BUTTONS)
+	    act->button |= ((pBuf[0] & MOUSE_MSS_BUTTONS) == MOUSE_MSS_BUTTONS)
 		? MOUSE_BUTTON2DOWN 
 		: butmapmss[(pBuf[0] & MOUSE_MSS_BUTTONS) >> 4];
 	else
-	    act->button = (act->obutton & MOUSE_BUTTON2DOWN)
+	    act->button |= (act->obutton & MOUSE_BUTTON2DOWN)
 		| butmapmss[(pBuf[0] & MOUSE_MSS_BUTTONS) >> 4];
 	act->dx = (char)(((pBuf[0] & 0x03) << 6) | (pBuf[1] & 0x3F));
 	act->dy = (char)(((pBuf[0] & 0x0C) << 4) | (pBuf[2] & 0x3F));
