@@ -30,7 +30,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id$
+ *	$Id: shutdown.c,v 1.4.2.2 1997/06/23 06:29:54 charnier Exp $
  */
 
 #ifndef lint
@@ -196,6 +196,7 @@ main(argc, argv)
 		if (forkpid)
 			errx(0, "[pid %d]", forkpid);
 	}
+	setsid();
 #endif
 	openlog("shutdown", LOG_CONS, LOG_AUTH);
 	loop();
