@@ -1824,7 +1824,7 @@ sequencer_select (int dev, struct fileinfo *file, int sel_type, select_table * w
 #endif
 
 void
-sequencer_timer (void)
+sequencer_timer (void *arg)
 {
   seq_startplay ();
 }
