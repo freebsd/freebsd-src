@@ -44,14 +44,14 @@
  * SUCH DAMAGE.
  *End copyright
  *
- *      $Id: su.c,v 1.12 1995/12/10 20:34:53 bde Exp $
+ *      $Id: su.c,v 1.13 1995/12/14 19:13:36 bde Exp $
  *
  * Tabstops 4
  * XXX devfs entries for this device should be handled by generic scsiconfig
  * Add a bdevsw interface.. ?
  */
 
-#include <sys/types.h>
+#include <sys/param.h>
 #include <sys/conf.h>
 #include <sys/errno.h>
 #include <sys/stat.h>

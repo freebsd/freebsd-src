@@ -1,4 +1,4 @@
-#include <sys/types.h>
+#include <sys/param.h>
 
 #include <scsi/scsiconf.h>
 
