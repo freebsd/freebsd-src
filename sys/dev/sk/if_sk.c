@@ -31,7 +31,6 @@
  * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF
  * THE POSSIBILITY OF SUCH DAMAGE.
  */
-
 /*
  * Copyright (c) 2003 Nathan L. Binkert <binkertn@umich.edu>
  *
@@ -47,6 +46,9 @@
  * ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
  * OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  */
+
+#include <sys/cdefs.h>
+__FBSDID("$FreeBSD$");
 
 /*
  * SysKonnect SK-NET gigabit ethernet driver for FreeBSD. Supports
@@ -66,7 +68,6 @@
  * Department of Electrical Engineering
  * Columbia University, New York City
  */
-
 /*
  * The SysKonnect gigabit ethernet adapters consist of two main
  * components: the SysKonnect GEnesis controller chip and the XaQti Corp.
@@ -84,9 +85,6 @@
  * both XMACs to operate as independent interfaces.
  */
  
-#include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
-
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/sockio.h>

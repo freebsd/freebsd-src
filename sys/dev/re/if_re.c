@@ -30,6 +30,9 @@
  * THE POSSIBILITY OF SUCH DAMAGE.
  */
 
+#include <sys/cdefs.h>
+__FBSDID("$FreeBSD$");
+
 /*
  * RealTek 8139C+/8169/8169S/8110S PCI NIC driver
  *
@@ -104,9 +107,6 @@
  * jumbo frames larger than 7.5K, so the max MTU possible with this
  * driver is 7500 bytes.
  */
-
-#include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
 
 #include <sys/param.h>
 #include <sys/endian.h>
