@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id$
+ * $Id: msg.c,v 1.1.1.1 1995/04/27 12:50:34 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -129,3 +129,38 @@ msgFatal(char *fmt, ...)
     systemShutdown();
 }
 
+/* Put up a message in a popup confirmation box */
+void
+msgConfirm(char *fmt, ...)
+{
+    va_list args;
+    char *errstr;
+
+    errstr = (char *)malloc(FILENAME_MAX);
+    va_start(args, fmt);
+    vsnprintf(errstr, FILENAME_MAX, fmt, args);
+    va_end(args);
+    use_helpline(NULL);
+    use_helpfile(NULL);
+    dialog_mesgbox("User Confirmation Request", errstr, -1, -1);
+    free(errstr);
+}
+
+/* Put up a message in a popup yes/no box and return 1 for YES, 0 for NO */
+int
+msgYesNo(char *fmt, ...)
+{
+    va_list args;
+    char *errstr;
+    int ret;
+
+    errstr = (char *)malloc(FILENAME_MAX);
+    va_start(args, fmt);
+    vsnprintf(errstr, FILENAME_MAX, fmt, args);
+    va_end(args);
+    use_helpline(NULL);
+    use_helpfile(NULL);
+    ret = dialog_yesno("User Confirmation Request", errstr, -1, -1);
+    free(errstr);
+    return ret;
+}

@@ -1,7 +1,7 @@
 /*
  * Miscellaneous support routines..
  *
- * $Id: misc.c,v 1.1.1.1 1995/04/27 12:50:35 jkh Exp $
+ * $Id: misc.c,v 1.2 1995/04/29 19:33:04 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -96,6 +96,18 @@ safe_free(void *ptr)
 {
     if (ptr)
 	free(ptr);
+}
+
+/* A malloc that checks errors */
+void *
+safe_malloc(size_t size)
+{
+    void *ptr;
+
+    ptr = malloc(size);
+    if (!ptr)
+	msgFatal("Out of memory!");
+    return ptr;
 }
 
 /*
