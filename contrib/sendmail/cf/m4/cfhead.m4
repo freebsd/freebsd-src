@@ -225,7 +225,6 @@ define(`confRECEIVED_HEADER', `_REC_HDR_
 	_REC_TLS_
 	_REC_END_')
 define(`confSEVEN_BIT_INPUT', `False')
-define(`confEIGHT_BIT_HANDLING', `pass8')
 define(`confALIAS_WAIT', `10')
 define(`confMIN_FREE_BLOCKS', `100')
 define(`confBLANK_SUB', `.')
@@ -254,4 +253,4 @@ define(`confMILTER_MACROS_ENVRCPT', ``{rcpt_mailer}, {rcpt_host}, {rcpt_addr}'')
 
 
 divert(0)dnl
-VERSIONID(`$Id: cfhead.m4,v 8.76.4.15 2001/02/14 04:07:20 gshapiro Exp $')
+VERSIONID(`$Id: cfhead.m4,v 8.76.4.16 2001/03/06 22:56:36 ca Exp $')
