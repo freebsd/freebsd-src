@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: config.c,v 1.19 1996/03/18 15:27:44 jkh Exp $
+ * $Id: config.c,v 1.20 1996/03/19 11:51:36 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -408,7 +408,9 @@ configRoutedFlags(char *str)
 int
 configPackages(char *str)
 {
-    PkgNode top, plist;
+    static PkgNode top, plist;
+    static Boolean index_initted = FALSE;
+    PkgNodePtr tmp;
     int fd;
 
     if (!mediaVerify())
@@ -416,31 +418,34 @@ configPackages(char *str)
 
     if (!mediaDevice->init(mediaDevice))
 	return RET_FAIL;
-    
-    msgNotify("Attempting to fetch packages/INDEX file from selected media.");
-    fd = mediaDevice->get(mediaDevice, "packages/INDEX", TRUE);
-    if (fd < 0) {
-	dialog_clear();
-	msgConfirm("Unable to get packages/INDEX file from selected media.\n"
-		   "This may be because the packages collection is not available at\n"
-		   "on the distribution media you've chosen (most likely an FTP site\n"
-		   "without the packages collection mirrored).  Please verify media\n"
-		   "(or path to media) and try again.  If your local site does not\n"
-		   "carry the packages collection, then we recommend either a CD\n"
-		   "distribution or the master distribution on ftp.freebsd.org.");
-	return RET_FAIL;
-    }
-    msgNotify("Got INDEX successfully, now building packages menu..");
-    index_init(&top, &plist);
-    if (index_read(fd, &top)) {
-	dialog_clear();
-	msgConfirm("I/O or format error on packages/INDEX file.\n"
-		   "Please verify media (or path to media) and try again.");
+
+    if (!index_initted) {
+	msgNotify("Attempting to fetch packages/INDEX file from selected media.");
+	fd = mediaDevice->get(mediaDevice, "packages/INDEX", TRUE);
+	if (fd < 0) {
+	    dialog_clear();
+	    msgConfirm("Unable to get packages/INDEX file from selected media.\n"
+		       "This may be because the packages collection is not available at\n"
+		       "on the distribution media you've chosen (most likely an FTP site\n"
+		       "without the packages collection mirrored).  Please verify media\n"
+		       "(or path to media) and try again.  If your local site does not\n"
+		       "carry the packages collection, then we recommend either a CD\n"
+		       "distribution or the master distribution on ftp.freebsd.org.");
+	    return RET_FAIL;
+	}
+	msgNotify("Got INDEX successfully, now building packages menu..");
+	index_init(&top, &plist);
+	if (index_read(fd, &top)) {
+	    dialog_clear();
+	    msgConfirm("I/O or format error on packages/INDEX file.\n"
+		       "Please verify media (or path to media) and try again.");
+	    mediaDevice->close(mediaDevice, fd);
+	    return RET_FAIL;
+	}
 	mediaDevice->close(mediaDevice, fd);
-	return RET_FAIL;
+	index_sort(&top);
+	index_initted = TRUE;
     }
-    mediaDevice->close(mediaDevice, fd);
-    index_sort(&top);
     while (1) {
 	int ret, pos, scroll;
 
@@ -465,7 +470,14 @@ configPackages(char *str)
 	    break;
 	}
     }
-    index_node_free(&top, &plist);
+    tmp = &plist;
+    while (tmp) {
+        PkgNodePtr tmp2 = tmp->next;
+           
+        safe_free(tmp);
+        tmp = tmp2;
+    }
+    index_init(NULL, &plist);
     mediaDevice->shutdown(mediaDevice);
     return RET_SUCCESS;
 }

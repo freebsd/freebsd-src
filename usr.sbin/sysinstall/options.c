@@ -4,7 +4,7 @@
  * This is probably the last attempt in the `sysinstall' line, the next
  * generation being slated for what's essentially a complete rewrite.
  *
- * $Id: options.c,v 1.27 1995/11/06 12:49:25 jkh Exp $
+ * $Id: options.c,v 1.28 1996/03/19 12:08:00 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -181,7 +181,6 @@ fire(Option opt)
     else if (opt.type == OPT_IS_VAR) {
 	if (opt.data) {
 	    (void)variable_get_value(opt.aux, opt.data);
-	    dialog_clear();
 	}
 	else if (variable_get(opt.aux))
 	    variable_unset(opt.aux);
@@ -269,9 +268,8 @@ optionsEditor(char *str)
 	    continue;
 
 	case ' ':
-	    dialog_clear();
+	    clear();
 	    fire(Options[currOpt]);
-	    dialog_clear();
 	    clear();
 	    continue;
 

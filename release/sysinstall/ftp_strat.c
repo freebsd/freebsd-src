@@ -4,7 +4,7 @@
  * This is probably the last attempt in the `sysinstall' line, the next
  * generation being slated to essentially a complete rewrite.
  *
- * $Id: ftp_strat.c,v 1.9 1996/03/02 07:31:53 jkh Exp $
+ * $Id: ftp_strat.c,v 1.10 1996/03/19 12:23:54 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -200,7 +200,7 @@ retry:
     FtpPassive(ftp, !strcmp(variable_get(VAR_FTP_STATE), "passive"));
     FtpBinary(ftp, 1);
     if (dir && *dir != '\0') {
-	msgNotify("Attempt to chdir to distribution in %s..", dir);
+	msgDebug("Attempt to chdir to distribution in %s\n", dir);
 	if ((i = FtpChdir(ftp, dir)) != 0) {
 	    if (i == -2 || ftpShouldAbort(dev, ++retries))
 		goto punt;

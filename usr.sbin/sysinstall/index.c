@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: index.c,v 1.20 1995/11/12 20:47:12 jkh Exp $
+ * $Id: index.c,v 1.21 1996/03/18 15:27:51 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -53,7 +53,7 @@
 #define MAX_MENU	13
 #define _MAX_DESC	62
 
-static int	index_extract_one(Device *dev, PkgNodePtr top, PkgNodePtr who);
+static int	index_extract_one(Device *dev, PkgNodePtr top, PkgNodePtr who, Boolean depended);
 
 /* Smarter strdup */
 inline char *
@@ -185,7 +185,6 @@ copy_to_sep(char *to, char *from, int sep)
 
     tok = strchr(from, sep);
     if (!tok) {
-	fprintf(stderr, "missing '%c' token.\n", sep);
 	*to = '\0';
 	return 0;
     }
@@ -272,53 +271,22 @@ index_read(int fd, PkgNodePtr papa)
 void
 index_init(PkgNodePtr top, PkgNodePtr plist)
 {
-    top->next = top->kids = NULL;
-    top->name = "Package Selection";
-    top->type = PLACE;
-    top->desc = fetch_desc(top->name);
-    top->data = NULL;
-
-    plist->next = plist->kids = NULL;
-    plist->name = "Package Targets";
-    plist->type = PLACE;
-    plist->desc = fetch_desc(plist->name);
-    plist->data = NULL;
-}
-
-void
-index_entry_free(IndexEntryPtr top)
-{
-    safe_free(top->name);
-    safe_free(top->path);
-    safe_free(top->prefix);
-    safe_free(top->comment);
-    safe_free(top->descrfile);
-    safe_free(top->maintainer);
-    free(top);
-}
-
-void
-index_node_free(PkgNodePtr top, PkgNodePtr plist)
-{
-    PkgNodePtr tmp;
-
-    tmp = plist;
-    while (tmp) {
-	PkgNodePtr tmp2 = tmp->next;
-	    
-	safe_free(tmp);
-	tmp = tmp2;
+    if (top) {
+	top->next = top->kids = NULL;
+	top->name = "Package Selection";
+	top->type = PLACE;
+	top->desc = fetch_desc(top->name);
+	top->data = NULL;
     }
-
-    for (tmp = top; tmp; tmp = tmp->next) {
-	free(tmp->name);
-	if (tmp->type == PACKAGE && tmp->data)
-	    index_entry_free((IndexEntryPtr)tmp->data);
-	if (tmp->kids)
-	    index_node_free(tmp->kids, NULL);
+    if (plist) {
+	plist->next = plist->kids = NULL;
+	plist->name = "Package Targets";
+	plist->type = PLACE;
+	plist->desc = fetch_desc(plist->name);
+	plist->data = NULL;
     }
 }
-	
+
 void
 index_print(PkgNodePtr top, int level)
 {
@@ -398,7 +366,7 @@ index_search(PkgNodePtr top, char *str, PkgNodePtr *tp)
 	    return p;
 
 	/* If tp, we're looking for both a package and a pointer to the place it's in */
-	if (tp && strstr(p->name, str)) {
+	if (tp && !strcmp(p->name, str)) {
 	    *tp = top;
 	    return p;
 	}
@@ -511,14 +479,14 @@ index_menu(PkgNodePtr top, PkgNodePtr plist, int *pos, int *scroll)
 			    np->next = plist->kids;
 			    plist->kids = np;
 			    standout();
-			    mvprintw(23, 0, "Selected packages were added to selection list\n", kp->name);
+			    mvprintw(24, 0, "Selected packages were added to selection list\n", kp->name);
 			    standend();
 			    refresh();
 			}
 		    }
 		    else if (sp) {
 			standout();
-			mvprintw(23, 0, "Deleting unselected packages from selection list\n", kp->name);
+			mvprintw(24, 0, "Deleting unselected packages from selection list\n", kp->name);
 			standend();
 			refresh();
 			index_delete(sp);
@@ -567,33 +535,33 @@ index_extract(Device *dev, PkgNodePtr top, PkgNodePtr plist)
     int status = RET_SUCCESS;
 
     for (tmp = plist->kids; tmp; tmp = tmp->next)
-	status = index_extract_one(dev, top, tmp);
+	status = index_extract_one(dev, top, tmp, FALSE);
     return status;
 }
 
 static int
-index_extract_one(Device *dev, PkgNodePtr top, PkgNodePtr who)
+index_extract_one(Device *dev, PkgNodePtr top, PkgNodePtr who, Boolean depended)
 {
     int status = RET_SUCCESS;
     PkgNodePtr tmp2;
+    IndexEntryPtr id = who->data;
 
-    if (((IndexEntryPtr)who->data)->deps) {
+    if (id && id->deps && strlen(id->deps)) {
 	char t[1024], *cp, *cp2;
 
-	strcpy(t, ((IndexEntryPtr)who->data)->deps);
+	strcpy(t, id->deps);
 	cp = t;
-	while (cp) {
+	while (cp && status == RET_SUCCESS) {
 	    if ((cp2 = index(cp, ' ')) != NULL)
 		*cp2 = '\0';
-	    if (index_search(top, cp, &tmp2)) {
-		status = index_extract_one(dev, top, tmp2);
+	    if ((tmp2 = index_search(top, cp, NULL)) != NULL) {
+		status = index_extract_one(dev, top, tmp2, TRUE);
 		if (status != RET_SUCCESS) {
-		    msgDebug("Loading of dependant package %s failed\n", cp);
-		    break;
+		    if (variable_get(VAR_NO_CONFIRM))
+			msgNotify("Loading of dependant package %s failed", cp);
+		    else
+			msgConfirm("Loading of dependant package %s failed", cp);
 		}
-		status = package_extract(dev, cp);
-		if (status != RET_SUCCESS)
-		    break;
 		if (cp2)
 		    cp = cp2 + 1;
 		else
@@ -603,6 +571,6 @@ index_extract_one(Device *dev, PkgNodePtr top, PkgNodePtr who)
     }
     /* Done with the deps?  Load the real m'coy */
     if (status == RET_SUCCESS)
-	status = package_extract(dev, who->name);
+	status = package_extract(dev, who->name, depended);
     return status;
 }
