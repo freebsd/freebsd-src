@@ -24,7 +24,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: if_fxp.c,v 1.31 1997/03/21 08:00:11 davidg Exp $
+ *	$Id: if_fxp.c,v 1.32 1997/03/24 11:33:46 bde Exp $
  */
 
 /*
@@ -450,7 +450,7 @@ txloop:
 	/*
 	 * Grab a packet to transmit.
 	 */
-	IF_DEQUEUE(&sc->arpcom.ac_if.if_snd, mb_head);
+	IF_DEQUEUE(&ifp->if_snd, mb_head);
 	if (mb_head == NULL) {
 		/*
 		 * No more packets to send.
@@ -603,7 +603,8 @@ fxp_intr(arg)
 			 * again in fxp_start().
 			 */
 			ifp->if_timer = 0;
-			fxp_start(ifp);
+			if (ifp->if_snd.ifq_head != NULL)
+				fxp_start(ifp);
 		}
 		/*
 		 * Process receiver interrupts. If a no-resource (RNR)
@@ -657,8 +658,6 @@ rcvloop:
 				goto rcvloop;
 			}
 			if (statack & FXP_SCB_STATACK_RNR) {
-				struct fxp_csr *csr = sc->csr;
-
 				fxp_scb_wait(csr);
 				csr->scb_general = vtophys(sc->rfa_headm->m_ext.ext_buf);
 				csr->scb_command = FXP_SCB_COMMAND_RU_START;
