@@ -54,13 +54,13 @@ atomic_set_32(volatile u_int32_t *p, u_int32_t v)
 	u_int32_t temp;
 
 	__asm __volatile (
-		"1:\tlwarx %0, 0, %2\n\t"	/* load old value */
-		"or %0, %0, %3\n\t"		/* calculate new value */
+		"1:\tlwarx %0, 0, %1\n\t"	/* load old value */
+		"or %0, %0, %2\n\t"		/* calculate new value */
 		"stwcx. %0, 0, %1\n\t"		/* attempt to store */
 		"bne- 1\n\t"			/* spin if failed */
 		"eieio\n"			/* drain to memory */
-		: "=&r" (temp), "=r" (*p)
-		: "r" (*p), "r" (v)
+		: "=&r" (temp)
+		: "r" (p), "r" (v)
 		: "memory");
 }
 
@@ -70,13 +70,13 @@ atomic_clear_32(volatile u_int32_t *p, u_int32_t v)
 	u_int32_t temp;
 
 	__asm __volatile (
-		"1:\tlwarx %0, 0, %2\n\t"	/* load old value */
-		"andc %0, %0, %3\n\t"		/* calculate new value */
+		"1:\tlwarx %0, 0, %1\n\t"	/* load old value */
+		"andc %0, %0, %2\n\t"		/* calculate new value */
 		"stwcx. %0, 0, %1\n\t"		/* attempt to store */
 		"bne- 1\n\t"			/* spin if failed */
 		"eieio\n"			/* drain to memory */
-		: "=&r" (temp), "=r" (*p)
-		: "r" (*p), "r" (v)
+		: "=&r" (temp)
+		: "r" (p), "r" (v)
 		: "memory");
 }
 
@@ -86,13 +86,13 @@ atomic_add_32(volatile u_int32_t *p, u_int32_t v)
 	u_int32_t temp;
 
 	__asm __volatile (
-		"1:\tlwarx %0, 0, %2\n\t"	/* load old value */
-		"add %0, %0, %3\n\t"		/* calculate new value */
+		"1:\tlwarx %0, 0, %1\n\t"	/* load old value */
+		"add %0, %0, %2\n\t"		/* calculate new value */
 		"stwcx. %0, 0, %1\n\t"		/* attempt to store */
 		"bne- 1\n\t"			/* spin if failed */
 		"eieio\n"			/* Old McDonald had a farm */
-		: "=&r" (temp), "=r" (*p)
-		: "r" (*p), "r" (v)
+		: "=&r" (temp)
+		: "r" (p), "r" (v)
 		: "memory");
 }
 
@@ -102,13 +102,13 @@ atomic_subtract_32(volatile u_int32_t *p, u_int32_t v)
 	u_int32_t temp;
 
 	__asm __volatile (
-		"1:\tlwarx %0, 0, %2\n\t"	/* load old value */
-		"sub %0, %3, %0\n\t"		/* calculate new value */
+		"1:\tlwarx %0, 0, %1\n\t"	/* load old value */
+		"sub %0, %2, %0\n\t"		/* calculate new value */
 		"stwcx. %0, 0, %1\n\t"		/* attempt to store */
 		"bne- 1\n\t"			/* spin if failed */
 		"eieio\n"			/* drain to memory */
-		: "=&r" (temp), "=r" (*p)
-		: "r" (*p), "r" (v)
+		: "=&r" (temp)
+		: "r" (p), "r" (v)
 		: "memory");
 }
 
@@ -119,13 +119,13 @@ atomic_readandclear_32(volatile u_int32_t *addr)
 
 	__asm __volatile (
 		"\teieio\n"			/* memory barrier */
-		"1:\tlwarx %0, 0, %3\n\t"	/* load old value */
+		"1:\tlwarx %0, 0, %2\n\t"	/* load old value */
 		"li %1, 0\n\t"			/* load new value */
 		"stwcx. %1, 0, %2\n\t"		/* attempt to store */
 		"bne- 1\n\t"			/* spin if failed */
 		"eieio\n"			/* drain to memory */
-		: "=&r"(result), "=&r"(temp), "=r" (*addr)
-		: "r"(*addr)
+		: "=&r"(result), "=&r"(temp)
+		: "r"(addr)
 		: "memory");
 
 	return result;

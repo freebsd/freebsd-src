@@ -93,15 +93,16 @@ extern int imask[];
 /* Following code should be implemented with lwarx/stwcx to avoid
  * the disable/enable. i need to read the manual once more.... */
 static __inline void
-softintr(ipl)
-	int ipl;
+softintr(int ipl)
 {
-	int msrsave;
+	unsigned int	msrsave;
 
-	__asm__ volatile("mfmsr %0" : "=r"(msrsave));
-	__asm__ volatile("mtmsr %0" :: "r"(msrsave & ~PSL_EE));
+	msrsave = mfmsr();
+	mtmsr(msrsave & ~PSL_EE);
+
 	ipending |= 1 << ipl;
-	__asm__ volatile("mtmsr %0" :: "r"(msrsave));
+
+	mtmsr(msrsave);
 }
 
 #define	ICU_LEN		64
