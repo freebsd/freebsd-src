@@ -67,30 +67,15 @@ controller	fdc0	at isa? port IO_FD1 irq 6 drq 2
 device		fd0	at fdc0 drive 0
 device		fd1	at fdc0 drive 1
 
-# IDE controller and disks
-controller	wdc0	at isa? port IO_WD1 irq 14
-device		wd0	at wdc0 drive 0
-device		wd1	at wdc0 drive 1
-
-controller	wdc1	at isa? port IO_WD2 irq 15
-device		wd2	at wdc1 drive 0
-device		wd3	at wdc1 drive 1
-
-# ATAPI devices on wdc?
-device		wcd0		#IDE CD-ROM
-device		wfd0		#IDE Floppy (e.g. LS-120)
-device		wst0		#IDE Tape (e.g. Travan)
-
-# The 'ATA' driver supports all ATA and ATAPI devices.
-# It can reuse the majors of wd.c for booting purposes.
-# You only need one "controller ata0" for it to find all
-# PCI ATA/ATAPI devices on modern machines.
-#controller	ata0
-#device		atadisk0	# ATA disk drives
-#device		atapicd0	# ATAPI CDROM drives
-#device		atapifd0	# ATAPI floppy drives
-#device		atapist0	# ATAPI tape drives
-#options 	ATA_STATIC_ID		#Static dev number like old `wd' driver
+# ATA and ATAPI devices
+controller	ata0	at isa? port IO_WD1 irq 14
+controller	ata1	at isa? port IO_WD2 irq 15
+controller	ata2
+device		atadisk0	# ATA disk drives
+device		atapicd0	# ATAPI CDROM drives
+device		atapifd0	# ATAPI floppy drives
+device		atapist0	# ATAPI tape drives
+options 	ATA_STATIC_ID		#Static device numbering
 #options 	ATA_ENABLE_ATAPI_DMA	#Enable DMA on ATAPI devices
 
 # SCSI Controllers
