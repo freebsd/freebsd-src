@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: menus.c,v 1.41.2.10 1995/06/01 21:04:00 jkh Exp $
+ * $Id: menus.c,v 1.41.2.11 1995/06/02 15:31:28 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -577,6 +577,23 @@ clearFlags(char *str)
     return 1;  /* Gross, but forces menu rebuild */
 }
 
+static char *
+ftpFlagCheck(DMenuItem *item)
+{
+    /* Verify that everything's sane */
+    if ((OptFlags & (OPT_FTP_ABORT + OPT_FTP_RESELECT)) == (OPT_FTP_ABORT + OPT_FTP_RESELECT))
+	OptFlags &= ~OPT_FTP_RESELECT;
+    if (!(OptFlags & (OPT_FTP_ABORT + OPT_FTP_RESELECT)))
+	OptFlags |= OPT_FTP_ABORT;
+    if ((OptFlags & (OPT_FTP_ACTIVE + OPT_FTP_PASSIVE)) == (OPT_FTP_ACTIVE + OPT_FTP_PASSIVE))
+	OptFlags &= ~OPT_FTP_ACTIVE;
+    if (!(OptFlags & (OPT_FTP_ACTIVE + OPT_FTP_PASSIVE)))
+	OptFlags |= OPT_FTP_PASSIVE;
+    if (*((unsigned int *)item->ptr) & item->parm)
+        return "ON";
+    return "OFF";
+}
+
 /* The installation options menu */
 DMenu MenuOptions = {
     DMENU_MULTIPLE_TYPE | DMENU_SELECTION_RETURNS,
@@ -590,10 +607,14 @@ be at various stages.",
 	DMENU_SET_FLAG,		&OptFlags, OPT_NFS_SECURE, 0, dmenuFlagCheck	},
       { "NFS Slow", "User is using a slow PC or ethernet card",
 	DMENU_SET_FLAG,		&OptFlags, OPT_SLOW_ETHER, 0, dmenuFlagCheck		},
+      { "FTP Abort", "On transfer failure, abort",
+	DMENU_SET_FLAG,		&OptFlags, OPT_FTP_ABORT, 0, ftpFlagCheck	},
       { "FTP Reselect", "On transfer failure, ask for another host",
-	DMENU_SET_FLAG,		&OptFlags, OPT_FTP_RESELECT, 0, dmenuFlagCheck	},
+	DMENU_SET_FLAG,		&OptFlags, OPT_FTP_RESELECT, 0, ftpFlagCheck	},
+      { "FTP active", "Use \"active mode\" for standard FTP",
+	DMENU_SET_FLAG,		&OptFlags, OPT_FTP_ACTIVE, 0, ftpFlagCheck	},
       { "FTP passive", "Use \"passive mode\" for firewalled FTP",
-	DMENU_SET_FLAG,		&OptFlags, OPT_FTP_PASSIVE, 0, dmenuFlagCheck	},
+	DMENU_SET_FLAG,		&OptFlags, OPT_FTP_PASSIVE, 0, ftpFlagCheck	},
       { "Extra Debugging", "Toggle the extra debugging flag",
 	DMENU_SET_FLAG,		&OptFlags, OPT_DEBUG, 0, dmenuFlagCheck	},
       { "Yes To All", "Assume \"Yes\" answers to all non-critical dialogs",
