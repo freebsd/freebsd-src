@@ -1039,7 +1039,7 @@ icmp6_notify_error(m, off, icmp6len, code)
 			goto freeit;
 		if (in6_embedscope(&icmp6dst.sin6_addr, &icmp6dst,
 				   NULL, NULL)) {
-			/* should be impossbile */
+			/* should be impossible */
 			nd6log((LOG_DEBUG,
 			    "icmp6_notify_error: in6_embedscope failed\n"));
 			goto freeit;
@@ -1059,7 +1059,7 @@ icmp6_notify_error(m, off, icmp6len, code)
 		}
 		if (in6_embedscope(&icmp6src.sin6_addr, &icmp6src,
 				   NULL, NULL)) {
-			/* should be impossbile */
+			/* should be impossible */
 			nd6log((LOG_DEBUG,
 			    "icmp6_notify_error: in6_embedscope failed\n"));
 			goto freeit;
