@@ -45,6 +45,11 @@ PnP and PCI BIOS), as well as power management (superseding APM) and
 other features.
 ACPI core support is provided by the ACPI CA reference implementation
 from Intel.
+.Pp
+Note that the
+.Nm
+driver is automatically loaded by the bootloader, and should not normally
+be compiled into the kernel.
 .Sh ENVIRONMENT
 This support is still experimental, and thus there are many debugging
 and tuning options which are managed via the kernel environment
@@ -83,15 +88,17 @@ The supported layers are:
 .It
 .Li ACPI_RESOURCES
 .It
-.Li ACPI_POWER
+.Li ACPI_DEBUGGER
+.It
+.Li ACPI_OS_SERVICES
 .It
 .Li ACPI_BUS
+.It
+.Li ACPI_SYSTEM
 .It
 .Li ACPI_POWER
 .It
 .Li ACPI_EC
-.It
-.Li ACPI_PROCESSOR
 .It
 .Li ACPI_AC_ADAPTER
 .It
@@ -99,13 +106,11 @@ The supported layers are:
 .It
 .Li ACPI_BUTTON
 .It
-.Li ACPI_SYSTEM
+.Li ACPI_PROCESSOR
 .It
 .Li ACPI_THERMAL
 .It
-.Li ACPI_DEBUGGER
-.It
-.Li ACPI_OS_SERVICES
+.Li ACPI_FAN
 .It
 .Li ACPI_ALL_COMPONENTS
 .El
@@ -114,73 +119,73 @@ The supported levels are:
 .Pp
 .Bl -item -offset indent -compact
 .It
-.Li ACPI_OK
+.Li ACPI_LV_OK
 .It
-.Li ACPI_INFO
+.Li ACPI_LV_INFO
 .It
-.Li ACPI_WARN
+.Li ACPI_LV_WARN
 .It
-.Li ACPI_ERROR
+.Li ACPI_LV_ERROR
 .It
-.Li ACPI_FATAL
+.Li ACPI_LV_FATAL
 .It
-.Li ACPI_DEBUG_OBJECT
+.Li ACPI_LV_DEBUG_OBJECT
 .It
-.Li ACPI_ALL
+.Li ACPI_LV_ALL_EXCEPTIONS
 .It
-.Li TRACE_THREADS
+.Li ACPI_LV_THREADS
 .It
-.Li TRACE_PARSE
+.Li ACPI_LV_PARSE
 .It
-.Li TRACE_DISPATCH
+.Li ACPI_LV_DISPATCH
 .It
-.Li TRACE_LOAD
+.Li ACPI_LV_LOAD
 .It
-.Li TRACE_EXEC
+.Li ACPI_LV_EXEC
 .It
-.Li TRACE_NAMES
+.Li ACPI_LV_NAMES
 .It
-.Li TRACE_OPREGION
+.Li ACPI_LV_OPREGION
 .It
-.Li TRACE_BFIELD
+.Li ACPI_LV_BFIELD
 .It
-.Li TRACE_TRASH
+.Li ACPI_LV_TRASH
 .It
-.Li TRACE_TABLES
+.Li ACPI_LV_TABLES
 .It
-.Li TRACE_FUNCTIONS
+.Li ACPI_LV_FUNCTIONS
 .It
-.Li TRACE_VALUES
+.Li ACPI_LV_VALUES
 .It
-.Li TRACE_OBJECTS
+.Li ACPI_LV_OBJECTS
 .It
-.Li TRACE_ALLOCATIONS
+.Li ACPI_LV_ALLOCATIONS
 .It
-.Li TRACE_RESOURCES
+.Li ACPI_LV_RESOURCES
 .It
-.Li TRACE_IO
+.Li ACPI_LV_IO
 .It
-.Li TRACE_INTERRUPTS
+.Li ACPI_LV_INTERRUPTS
 .It
-.Li TRACE_USER_REQUESTS
+.Li ACPI_LV_USER_REQUESTS
 .It
-.Li TRACE_PACKAGE
+.Li ACPI_LV_PACKAGE
 .It
-.Li TRACE_MUTEX
+.Li ACPI_LV_MUTEX
 .It
-.Li TRACE_INIT
+.Li ACPI_LV_INIT
 .It
-.Li TRACE_ALL
+.Li ACPI_LV_ALL
 .It
-.Li VERBOSE_AML_DISASSEMBLE
+.Li ACPI_DB_AML_DISASSEMBLE
 .It
-.Li VERBOSE_INFO
+.Li ACPI_DB_VERBOSE_INFO
 .It
-.Li VERBOSE_TABLES
+.Li ACPI_DB_FULL_TABLES
 .It
-.Li VERBOSE_EVENTS
+.Li ACPI_DB_EVENTS
 .It
-.Li VERBOSE_ALL
+.Li ACPI_DB_VERBOSE
 .El
 .Pp
 Selection of the appropriate layer and level values is important
@@ -280,6 +285,8 @@ This manual page was written by
 The kernel device is
 .Cd device acpica
 for historical reasons.
-It will change to
-.Cd device acpi
-at some time in the future.
+.Pp
+If the
+.Nm
+driver is loaded as a module when it is already linked as part of the
+kernel, odd things may happen.
