@@ -212,7 +212,7 @@ static	struct ip_srcrt {
 struct sockaddr_in *ip_fw_fwd_addr;
 
 static void	save_rte __P((u_char *, struct in_addr));
-static int	ip_dooptions __P((struct mbuf *));
+static int	ip_dooptions __P((struct mbuf *, int));
 static void	ip_forward __P((struct mbuf *, int));
 static void	ip_freef __P((struct ipq *));
 #ifdef IPDIVERT
@@ -475,7 +475,7 @@ pass:
 	 * to be sent and the original packet to be freed).
 	 */
 	ip_nhops = 0;		/* for source routed packets */
-	if (hlen > sizeof (struct ip) && ip_dooptions(m)) {
+	if (hlen > sizeof (struct ip) && ip_dooptions(m, 0)) {
 #ifdef IPFIREWALL_FORWARD
 		ip_fw_fwd_addr = NULL;
 #endif
@@ -633,6 +633,19 @@ pass:
 	return;
 
 ours:
+#ifdef IPSTEALTH
+	/*
+	 * IPSTEALTH: Process non-routing options only
+	 * if the packet is destined for us.
+	 */
+	if (ipstealth && hlen > sizeof (struct ip) && ip_dooptions(m, 1)) {
+#ifdef IPFIREWALL_FORWARD
+		ip_fw_fwd_addr = NULL;
+#endif
+		return;
+	}
+#endif /* IPSTEALTH */
+
 	/* Count the packet in the ip address stats */
 	if (ia != NULL) {
 		ia->ia_ifa.if_ipackets++;
@@ -1153,12 +1166,18 @@ ip_drain()
  * Do option processing on a datagram,
  * possibly discarding it if bad options are encountered,
  * or forwarding it if source-routed.
+ * The pass argument is used when operating in the IPSTEALTH
+ * mode to tell what options to process:
+ * [LS]SRR (pass 0) or the others (pass 1).
+ * The reason for as many as two passes is that when doing IPSTEALTH,
+ * non-routing options should be processed only if the packet is for us.
  * Returns 1 if packet has been forwarded/freed,
  * 0 if the packet should be processed further.
  */
 static int
-ip_dooptions(m)
+ip_dooptions(m, pass)
 	struct mbuf *m;
+	int pass;
 {
 	register struct ip *ip = mtod(m, struct ip *);
 	register u_char *cp;
@@ -1203,6 +1222,10 @@ ip_dooptions(m)
 		 */
 		case IPOPT_LSRR:
 		case IPOPT_SSRR:
+#ifdef IPSTEALTH
+			if (ipstealth && pass > 0)
+				break;
+#endif
 			if (optlen < IPOPT_OFFSET + sizeof(*cp)) {
 				code = &cp[IPOPT_OLEN] - (u_char *)ip;
 				goto bad;
@@ -1238,7 +1261,10 @@ ip_dooptions(m)
 				save_rte(cp, ip->ip_src);
 				break;
 			}
-
+#ifdef IPSTEALTH
+			if (ipstealth)
+				goto dropit;
+#endif
 			if (!ip_dosourceroute) {
 				if (ipforwarding) {
 					char buf[16]; /* aaa.bbb.ccc.ddd\0 */
@@ -1257,6 +1283,9 @@ nosourcerouting:
 					/*
 					 * Not acting as a router, so silently drop.
 					 */
+#ifdef IPSTEALTH
+dropit:
+#endif
 					ipstat.ips_cantforward++;
 					m_freem(m);
 					return (1);
@@ -1292,6 +1321,10 @@ nosourcerouting:
 			break;
 
 		case IPOPT_RR:
+#ifdef IPSTEALTH
+			if (ipstealth && pass == 0)
+				break;
+#endif
 			if (optlen < IPOPT_OFFSET + sizeof(*cp)) {
 				code = &cp[IPOPT_OFFSET] - (u_char *)ip;
 				goto bad;
@@ -1325,6 +1358,10 @@ nosourcerouting:
 			break;
 
 		case IPOPT_TS:
+#ifdef IPSTEALTH
+			if (ipstealth && pass == 0)
+				break;
+#endif
 			code = cp - (u_char *)ip;
 			if (optlen < 4 || optlen > 40) {
 				code = &cp[IPOPT_OLEN] - (u_char *)ip;
