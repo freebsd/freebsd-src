@@ -735,6 +735,15 @@ including the following:
   Xircom Cardbus Ethernet 10/100
   Xircom Cardbus Ethernet II 10/100
 
+Xircom CreditCard adapters(16bit) and workalikes
+    Accton EN2226/Fast EtherCard (16-bit verison)
+    Compaq Netelligent 10/100 PC Card
+    Intel EtherExpress PRO/100 Mobile Adapter (16-bit verison)
+    Xircom Realport card + modem(Ethernet part)
+    Xircom CreditCard Ethernet 10/100
+    Xircom CreditCard 10Base-T "CreditCard Ethernet Adaptor IIps" (PS-CE2-10)
+    Xircom CreditCard Ethernet 10/100 + modem (Ethernet part)
+
 
 4.3.    USB
 ----    ---
