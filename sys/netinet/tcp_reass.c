@@ -2847,10 +2847,7 @@ tcp_newreno(tp, th)
 		 *  is called)
 		 */
 		tp->snd_cwnd = tp->t_maxseg + (th->th_ack - tp->snd_una);
-                (void) tcp_output(tp);
-
 		(void) tcp_output(tp);
-
 		tp->snd_cwnd = ocwnd;
 		if (SEQ_GT(onxt, tp->snd_nxt))
 			tp->snd_nxt = onxt;
