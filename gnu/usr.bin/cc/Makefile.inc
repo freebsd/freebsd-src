@@ -1,5 +1,5 @@
 #
-# $Id: Makefile.inc,v 1.23 1998/03/08 05:29:43 peter Exp $
+# $Id: Makefile.inc,v 1.24 1998/10/26 18:27:32 imp Exp $
 #
 
 # Sometimes this is .include'd several times...
@@ -14,22 +14,6 @@ MD_FILE=	${GCCDIR}/config/${MACHINE_ARCH}/${MACHINE_ARCH}.md
 OUT_FILE=	${MACHINE_ARCH}.c
 OUT_OBJ=	${MACHINE_ARCH}
 .PATH:		${GCCDIR}/config/${MACHINE_ARCH}
-
-.if ${MACHINE_ARCH} != "i386"
-BINFORMAT=	elf
-.else
-# Pick aout for now. the elf config is not binary compatable.
-BINFORMAT?=	aout
-#BINFORMAT?=	elf
-.endif
-
-# same backend, just change compiled-in default.
-.if ${BINFORMAT} == aout
-CFLAGS+=	-DFREEBSD_AOUT
-.endif
-.if ${BINFORMAT} == elf
-CFLAGS+=	-DFREEBSD_ELF
-.endif
 
 target=		${MACHINE_ARCH}-unknown-freebsd
 version!=	sed -e 's/.*\"\([^ \"]*\)[ \"].*/\1/' < ${GCCDIR}/version.c
