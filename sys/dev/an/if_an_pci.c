@@ -120,7 +120,7 @@ static int an_probe_pci(device_t dev)
 
 	while(t->an_name != NULL) {
 		if (pci_get_vendor(dev) == t->an_vid &&
-		    pci_get_vendor(dev) == t->an_did) {
+		    pci_get_device(dev) == t->an_did) {
 			device_set_desc(dev, t->an_name);
 			return(0);
 		}
