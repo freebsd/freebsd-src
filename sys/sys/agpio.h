@@ -37,6 +37,9 @@
 
 /*
  * Macros to manipulate AGP mode words.
+ *
+ * SBA = Sideband Address Port
+ * FW  = Fast Writes
  */
 #define AGP_MODE_GET_RQ(x)		(((x) & 0xff000000U) >> 24)
 #define AGP_MODE_GET_SBA(x)		(((x) & 0x00000200U) >> 9)
