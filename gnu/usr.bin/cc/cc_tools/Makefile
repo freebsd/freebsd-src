@@ -134,10 +134,8 @@ config.h:
 	echo '#include "insn-flags.h"'			>> ${.TARGET}
 	echo '#endif'					>> ${.TARGET}
 
-#	KEEP THIS IN SYNC with src/gcc/lib/libgcc/Makefile !!
 tconfig.h:
-	echo '#ifdef IN_GCC'				> ${.TARGET}
-	echo 'struct rtx_def;'				>> ${.TARGET}
+	echo 'struct rtx_def;'				> ${.TARGET}
 	echo 'typedef struct rtx_def *rtx;'		>> ${.TARGET}
 	echo 'struct rtvec_def;'			>> ${.TARGET}
 	echo 'typedef struct rtvec_def *rtvec;'		>> ${.TARGET}
@@ -170,12 +168,9 @@ tconfig.h:
 	echo '# define POSIX'				>> ${.TARGET}
 	echo '#endif'					>> ${.TARGET}
 	echo '#define CONFIG_SJLJ_EXCEPTIONS 0'		>> ${.TARGET}
-	echo '#endif /* IN_GCC */'			>> ${.TARGET}
 
 tm_p.h:
-	echo '#ifdef IN_GCC'					> ${.TARGET}
 	echo '#include "${GCC_CPU}/${GCC_CPU}-protos.h"'	>> ${.TARGET}
-	echo '#endif'						>> ${.TARGET}
 	echo '#include "tm-preds.h"'				>> ${.TARGET}
 
 safe-ctype.h: Makefile
