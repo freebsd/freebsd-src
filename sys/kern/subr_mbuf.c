@@ -1380,6 +1380,11 @@ m_free(struct mbuf *mb)
 	int cchnum;
 	short persist = 0;
 
+#ifdef INVARIANTS
+	if (mb->m_flags & M_FREELIST)
+		panic("m_free detected a mbuf double-free");
+	mb->m_flags |= M_FREELIST;
+#endif
 	if ((mb->m_flags & M_PKTHDR) != 0)
 		m_tag_delete_chain(mb, NULL);
 	nb = mb->m_next;
@@ -1422,6 +1427,11 @@ m_freem(struct mbuf *mb)
 	short persist;
 
 	while (mb != NULL) {
+#ifdef INVARIANTS
+		if (mb->m_flags & M_FREELIST)
+			panic("m_freem detected a mbuf double-free");
+		mb->m_flags |= M_FREELIST;
+#endif
 		if ((mb->m_flags & M_PKTHDR) != 0)
 			m_tag_delete_chain(mb, NULL);
 		persist = 0;
