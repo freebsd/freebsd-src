@@ -74,13 +74,13 @@ as:
 .Pp
 .Bd -literal
 struct timeval {
-	long	tv_sec;		/* seconds since Jan. 1, 1970 */
+	long	tv_sec;		/* seconds */
 	long	tv_usec;	/* and microseconds */
 };
 
 struct timezone {
-	int	tz_minuteswest; /* of Greenwich */
-	int	tz_dsttime;	/* type of dst correction to apply */
+	int	tz_minuteswest; /* minutes west of Greenwich */
+	int	tz_dsttime;	/* type of dst correction */
 };
 .Ed
 .Pp

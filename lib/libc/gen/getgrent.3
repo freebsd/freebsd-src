@@ -30,7 +30,7 @@
 .\" SUCH DAMAGE.
 .\"
 .\"     From: @(#)getgrent.3	8.2 (Berkeley) 4/19/94
-.\"	$Id: getgrent.3,v 1.4 1996/05/23 01:04:14 mpp Exp $
+.\"	$Id: getgrent.3,v 1.10 1997/02/28 05:46:19 mpp Exp $
 .\"
 .Dd September 29, 1994
 .Dt GETGRENT 3
@@ -76,8 +76,8 @@ file
 struct group {
 	char	*gr_name;	/* group name */
 	char	*gr_passwd;	/* group password */
-	gid_t	gr_gid;		/* group id */
-	char	**gr_mem;	/* null terminated list of group members */
+	int	gr_gid;		/* group id */
+	char	**gr_mem;	/* group members */
 };
 .Ed
 .Pp
@@ -167,9 +167,9 @@ have no return value.
 group database file
 .El
 .Sh SEE ALSO
-.Fn getpwent 3 ,
-.Fn group 5 ,
-.Fn yp 4
+.Xr getpwent 3 ,
+.Xr yp 4 ,
+.Xr group 5
 .Sh HISTORY
 The functions
 .Fn endgrent ,

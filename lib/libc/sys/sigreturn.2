@@ -40,14 +40,28 @@
 .Sh SYNOPSIS
 .Fd #include <signal.h>
 .Bd -literal
-struct sigcontext {
-	int sc_onstack;
-	int sc_mask;
-	int sc_sp;
-	int sc_fp;
-	int sc_ap;
-	int sc_pc;
-	int sc_ps;
+struct	sigcontext {
+	int	sc_onstack;		/* sigstack state to restore */
+	int	sc_mask;		/* signal mask to restore */
+	int	sc_esp;			/* machine state */
+	int	sc_ebp;
+	int	sc_isp;
+	int	sc_eip;
+	int	sc_efl;
+	int	sc_es;
+	int	sc_ds;
+	int	sc_cs;
+	int	sc_ss;
+	int	sc_edi;
+	int	sc_esi;
+	int	sc_ebx;
+	int	sc_edx;
+	int	sc_ecx;
+	int	sc_eax;
+#  define sc_sp sc_esp
+#  define sc_fp sc_ebp
+#  define sc_pc sc_eip
+#  define sc_ps sc_efl
 };
 .Ed
 .Ft int

@@ -54,9 +54,14 @@ is a pointer to a
 .Fn statfs
 structure defined as follows:
 .Bd -literal
-typedef quad fsid_t;
+typedef struct fsid { int32_t val[2]; } fsid_t; /* file system id type */
 
-#define MNAMELEN 90	/* length of buffer for returned name */
+/*
+ * file system statistics
+ */
+
+#define MFSNAMELEN 16	/* length of fs type name, including null */
+#define MNAMELEN   90	/* length of buffer for returned name */
 
 struct statfs {
 long	f_spare2;	  /* placeholder */
@@ -95,6 +100,8 @@ char	f_mntfromname[MNAMELEN];  /* mounted filesystem */
 #define MOUNT_UNION	15	/* Union (translucent) Filesystem */
 #define MOUNT_DEVFS	16	/* existing device Filesystem */
 #define MOUNT_EXT2FS	17	/* Linux EXT2FS */
+#define MOUNT_TFS	18	/* Netcon Novell filesystem */
+#define MOUNT_MAXTYPE	18
 .Ed
 .Pp
 Fields that are undefined for a particular file system are set to -1.
