@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)com.c	7.5 (Berkeley) 5/16/91
- *	$Id: sio.c,v 1.70 1995/02/28 23:21:33 ache Exp $
+ *	$Id: sio.c,v 1.71 1995/03/16 18:12:04 bde Exp $
  */
 
 #include "sio.h"
@@ -1577,8 +1577,10 @@ repeat:
 				recv_data = (u_char) *buf++;
 				if (line_status
 				    & (LSR_BI | LSR_FE | LSR_OE | LSR_PE)) {
+					/* char must be 0 to detect */
+					/* break in ttyinput()      */
 					if (line_status & LSR_BI)
-						recv_data |= TTY_BI;
+						recv_data = TTY_BI;
 					if (line_status & LSR_FE)
 						recv_data |= TTY_FE;
 					if (line_status & LSR_OE)
