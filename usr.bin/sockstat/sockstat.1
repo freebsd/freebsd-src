@@ -27,7 +27,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd August 7, 2001
+.Dd September 7, 2004
 .Dt SOCKSTAT 1
 .Os
 .Sh NAME
@@ -121,6 +121,21 @@ if the endpoint could not be determined.
 The address the foreign end of the socket is bound to (see
 .Xr getpeername 2 ) .
 .El
+.Pp
+Note that TCP sockets in the
+.Dv AF_INET
+or
+.Dv AF_INET6
+domains that are not in one of the
+.Dv LISTEN ,
+.Dv SYN_SENT ,
+or
+.Dv ESTABLISHED
+states may not be shown by
+.Nm ;
+use
+.Xr netstat 1
+to examine them instead.
 .Sh SEE ALSO
 .Xr fstat 1 ,
 .Xr netstat 1 ,
