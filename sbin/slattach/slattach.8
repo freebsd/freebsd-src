@@ -1,0 +1,90 @@
+.\" Copyright (c) 1986, 1991, 1993
+.\"	The Regents of the University of California.  All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\" 3. All advertising materials mentioning features or use of this software
+.\"    must display the following acknowledgement:
+.\"	This product includes software developed by the University of
+.\"	California, Berkeley and its contributors.
+.\" 4. Neither the name of the University nor the names of its contributors
+.\"    may be used to endorse or promote products derived from this software
+.\"    without specific prior written permission.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE REGENTS AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE REGENTS OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\"     @(#)slattach.8	8.2 (Berkeley) 4/1/94
+.\"
+.Dd April 1, 1994
+.Dt SLATTACH 8
+.Os BSD 4.3
+.Sh NAME
+.Nm slattach
+.Nd attach serial lines as network interfaces
+.Sh SYNOPSIS
+.Nm Slattach
+.Ar ttyname Op Ar baudrate
+.Sh DESCRIPTION
+.Nm Slattach
+is used to assign a tty line to a network interface,
+and to define the network source and destination addresses.
+The following operands are supported by
+.Nm slattach :
+.Bl -tag -width Ar
+.It Ar ttyname
+Specifies the name of the tty device.
+.Ar Ttyname
+should be a string of the form
+.Ql ttyXX ,
+or
+.Ql /dev/ttyXX .
+.It Ar baudrate
+Specifies the speed of the connection. If not specified, the
+default of 9600 is used.
+.El
+.Pp
+Only the super-user may attach a network interface.
+.Pp
+To detach the interface, use
+.Dq Li ifconfig interface-name down
+after killing off the
+.Nm slattach
+process.
+.Ar Interface-name
+is the name that is shown by
+.Xr netstat 1
+.Sh EXAMPLES
+.Bd -literal -offset indent -compact
+slattach ttyh8
+slattach /dev/tty01 4800
+.Ed
+.Sh DIAGNOSTICS
+Messages indicating the specified interface does not exit, the
+requested address is unknown, the user is not privileged and
+tried to alter an interface's configuration.
+.Sh SEE ALSO
+.Xr netstat 1 ,
+.Xr netintro 4 ,
+.Xr ifconfig 8 ,
+.Xr rc 8
+.Sh HISTORY
+The
+.Nm
+command appeared in
+.Bx 4.3 .

@@ -1,0 +1,138 @@
+.\" Copyright (c) 1983, 1991, 1993
+.\"	The Regents of the University of California.  All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\" 3. All advertising materials mentioning features or use of this software
+.\"    must display the following acknowledgement:
+.\"	This product includes software developed by the University of
+.\"	California, Berkeley and its contributors.
+.\" 4. Neither the name of the University nor the names of its contributors
+.\"    may be used to endorse or promote products derived from this software
+.\"    without specific prior written permission.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE REGENTS AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE REGENTS OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\"     @(#)tunefs.8	8.2 (Berkeley) 12/11/93
+.\"
+.Dd December 11, 1993
+.Dt TUNEFS 8
+.Os BSD 4.2
+.Sh NAME
+.Nm tunefs
+.Nd tune up an existing file system
+.Sh SYNOPSIS
+.Nm tunefs
+.Op Fl a Ar maxcontig
+.Op Fl d Ar rotdelay
+.Op Fl e Ar maxbpg
+.Op Fl m Ar minfree
+.Bk -words
+.Op Fl o Ar optimize_preference
+.Ek
+.Op Ar special | Ar filesys
+.Sh DESCRIPTION
+.Nm Tunefs
+is designed to change the dynamic parameters of a file system
+which affect the layout policies.
+The parameters which are to be changed are indicated by the flags
+given below:
+.Bl -tag -width Ds
+.It Fl a Ar maxcontig
+This specifies the maximum number of contiguous blocks that will
+be laid out before forcing a rotational delay (see
+.Fl d
+below).
+The default value is one, since most device drivers require
+an interrupt per disk transfer.
+Device drivers that can chain several buffers together in a single
+transfer should set this to the maximum chain length.
+.It Fl d Ar rotdelay
+This specifies the expected time (in milliseconds)
+to service a transfer completion
+interrupt and initiate a new transfer on the same disk.
+It is used to decide how much rotational spacing to place between
+successive blocks in a file.
+.It Fl e Ar maxbpg
+This indicates the maximum number of blocks any single file can
+allocate out of a cylinder group before it is forced to begin
+allocating blocks from another cylinder group.
+Typically this value is set to about one quarter of the total blocks
+in a cylinder group.
+The intent is to prevent any single file from using up all the
+blocks in a single cylinder group,
+thus degrading access times for all files subsequently allocated
+in that cylinder group.
+The effect of this limit is to cause big files to do long seeks
+more frequently than if they were allowed to allocate all the blocks
+in a cylinder group before seeking elsewhere.
+For file systems with exclusively large files,
+this parameter should be set higher.
+.It Fl m Ar minfree
+This value specifies the percentage of space held back
+from normal users; the minimum free space threshold.
+The default value used is 10%.
+This value can be set to zero, however up to a factor of three
+in throughput will be lost over the performance obtained at a 10%
+threshold.
+Note that if the value is raised above the current usage level,
+users will be unable to allocate files until enough files have
+been deleted to get under the higher threshold.
+.It Fl o Ar optimize_preference
+The file system can either try to minimize the time spent
+allocating blocks, or it can attempt to minimize the space
+fragmentation on the disk.
+If the value of minfree (see above) is less than 10%,
+then the file system should optimize for space to avoid
+running out of full sized blocks.
+For values of minfree greater than or equal to 10%,
+fragmentation is unlikely to be problematical, and
+the file system can be optimized for time.
+.El
+.Sh SEE ALSO
+.Xr fs 5 ,
+.Xr dumpfs 8 ,
+.Xr newfs 8 ,
+.Xr mkfs 8
+.Rs
+.%A M. McKusick
+.%A W. Joy
+.%A S. Leffler
+.%A R. Fabry
+.%T "A Fast File System for UNIX"
+.%J "ACM Transactions on Computer Systems 2"
+.%N 3
+.%P pp 181-197
+.%D August 1984
+.%O "(reprinted in the BSD System Manager's Manual, SMM:5)"
+.Re
+.Sh BUGS
+This program should work on mounted and active file systems.
+Because the super-block is not kept in the buffer cache,
+the changes will only take effect if the program
+is run on dismounted file systems.
+To change the root file system, the system must be rebooted
+after the file system is tuned.
+.Pp
+You can tune a file system, but you can't tune a fish.
+.Sh HISTORY
+The
+.Nm
+command appeared in
+.Bx 4.2 .
