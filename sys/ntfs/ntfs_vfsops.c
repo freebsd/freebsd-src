@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: ntfs_vfsops.c,v 1.9 1999/02/02 01:54:54 semen Exp $
+ *	$Id: ntfs_vfsops.c,v 1.3 1999/04/20 21:06:43 semenu Exp $
  */
 
 
@@ -885,7 +885,6 @@ static struct vfsops ntfs_vfsops = {
 	ntfs_fhtovp,
 	ntfs_vptofh,
 	ntfs_init,
-	NULL,
 	NULL
 };
 VFS_SET(ntfs_vfsops, ntfs, 0);
