@@ -31,7 +31,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $P4: //depot/projects/openpam/lib/openpam_dynamic.c#4 $
+ * $P4: //depot/projects/openpam/lib/openpam_dynamic.c#5 $
  */
 
 #include <dlfcn.h>
@@ -80,7 +80,7 @@ openpam_dynamic(const char *path)
 		module->func[i] = dlsym(dlh, _pam_sm_func_name[i]);
 		if (module->func[i] == NULL)
 			openpam_log(PAM_LOG_DEBUG, "%s: %s(): %s",
-			    vpath, _pam_sm_func_name[i], dlerror());
+			    path, _pam_sm_func_name[i], dlerror());
 	}
 	return (module);
  buf_err:
