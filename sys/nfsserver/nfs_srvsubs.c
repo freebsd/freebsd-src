@@ -1974,6 +1974,7 @@ nfsrv_fhtovp(fhp, lockflag, vpp, cred, slp, nam, rdonlyp, kerbflag, pubflag)
 		if (saddr->sin_family == AF_INET &&
 		    ntohs(saddr->sin_port) >= IPPORT_RESERVED) {
 			vput(*vpp);
+			*vpp = NULL;
 			return (NFSERR_AUTHERR | AUTH_TOOWEAK);
 		}
 	}
@@ -1984,10 +1985,12 @@ nfsrv_fhtovp(fhp, lockflag, vpp, cred, slp, nam, rdonlyp, kerbflag, pubflag)
 	if (exflags & MNT_EXKERB) {
 		if (!kerbflag) {
 			vput(*vpp);
+			*vpp = NULL;
 			return (NFSERR_AUTHERR | AUTH_TOOWEAK);
 		}
 	} else if (kerbflag) {
 		vput(*vpp);
+		*vpp = NULL;
 		return (NFSERR_AUTHERR | AUTH_TOOWEAK);
 	} else if (cred->cr_uid == 0 || (exflags & MNT_EXPORTANON)) {
 		cred->cr_uid = credanon->cr_uid;
