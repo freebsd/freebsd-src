@@ -49,11 +49,28 @@ mk156|toshiba156|Toshiba MK156 156Mb:\
 	:ph#257250:oh#31500:bh#4096:fh#512:th=4.2BSD:	
 
 cp3100|Connor Peripherals 100MB IDE:\
-	:dt=ST506:ty=winchester:se#512:nt#8:ns#33:nc#766:sf: \
+	:dt=ST506:ty=winchester:se#512:nt#8:ns#33:nc#766: \
 	:pa#12144:oa#0:ta=4.2BSD:ba#4096:fa#512: \
 	:pb#12144:ob#12144:tb=swap: \
 	:pc#202224:oc#0: \
 	:ph#177936:oh#24288:th=4.2BSD:bh#4096:fh#512:
+
+# a == root
+# b == swap
+# c == d == whole disk
+# e == /var
+# f == scratch
+# h == /usr
+
+cp3100new|Connor Peripherals 100MB IDE, with a different configuration:\
+	:dt=ST506:ty=winchester:se#512:nt#8:ns#33:nc#766: \
+	:pa#15840:oa#0:ta=4.2BSD:ba#4096:fa#512: \
+	:pb#24288:ob#15840:tb=swap: \
+	:pc#202224:oc#0: \
+	:pd#202224:od#0: \
+	:pe#15840:oe#40128:te=4.2BSD:be#4096:fe#512: \
+	:pg#15840:og#55968:tg=4.2BSD:bg#4096:fg#512: \
+	:ph#130416:oh#71808:th=4.2BSD:bh#4096:fh#512:
 
 floppy|floppy3|3in|3.5in High Density Floppy:\
 	:ty=floppy:se#512:nt#2:rm#300:ns#18:nc#80:\
@@ -63,6 +80,7 @@ floppy|floppy3|3in|3.5in High Density Floppy:\
 
 floppy5|5in|5.25in High Density Floppy:\
 	:ty=floppy:se#512:nt#2:rm#300:ns#15:nc#80:\
+	:pa#2400:oa#0:ba#4096:fa#512:
 	:pb#2400:ob#0:bb#4096:fb#512:
 	:pc#2400:oc#0:bc#4096:fc#512:
 
