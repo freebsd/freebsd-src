@@ -41,6 +41,8 @@ static const char rcsid[] =
 #endif /* LIBC_SCCS and not lint */
 
 #include <sys/param.h>
+#include <sys/lock.h>
+#include <sys/mutex.h>
 #include <sys/time.h>
 #include <sys/resource.h>
 #include <sys/proc.h>
