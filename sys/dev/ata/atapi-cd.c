@@ -1186,13 +1186,15 @@ acd_read_toc(struct acd_softc *cdp)
     int8_t ccb[16];
     struct g_provider *pp;
 
-    bzero(&cdp->toc, sizeof(cdp->toc));
-    bzero(ccb, sizeof(ccb));
+    if (acd_test_ready(cdp->device))
+	return;
 
-    if (acd_test_ready(cdp->device) != 0)
+    if (!(cdp->device->flags & ATA_D_MEDIA_CHANGED))
 	return;
 
     cdp->device->flags &= ~ATA_D_MEDIA_CHANGED;
+    bzero(&cdp->toc, sizeof(cdp->toc));
+    bzero(ccb, sizeof(ccb));
     cdp->disk_size = -1;			/* hack for GEOM SOS */
 
     len = sizeof(struct ioc_toc_header) + sizeof(struct cd_toc_entry);
