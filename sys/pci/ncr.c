@@ -1,6 +1,6 @@
 /**************************************************************************
 **
-**  $Id: ncr.c,v 1.33 1995/03/21 22:14:27 se Exp $
+**  $Id: ncr.c,v 1.34 1995/03/22 11:00:23 se Exp $
 **
 **  Device driver for the   NCR 53C810   PCI-SCSI-Controller.
 **
@@ -788,6 +788,7 @@ struct dsb {
 	struct scr_tblmove smsg  ;
 	struct scr_tblmove smsg2 ;
 	struct scr_tblmove cmd   ;
+	struct scr_tblmove scmd  ;
 	struct scr_tblmove sense ;
 	struct scr_tblmove data [MAX_SCATTER];
 };
@@ -895,6 +896,12 @@ struct ccb {
 	*/
 
 	ccb_p		next_ccb;
+
+	/*
+	**	Sense command
+	*/
+
+	u_char		sensecmd[6];
 
 	/*
 	**	Tag for this transfer.
@@ -1217,7 +1224,7 @@ static	void	ncr_attach	(pcici_t tag, int unit);
 
 
 static char ident[] =
-	"\n$Id: ncr.c,v 1.33 1995/03/21 22:14:27 se Exp $\n";
+	"\n$Id: ncr.c,v 1.34 1995/03/22 11:00:23 se Exp $\n";
 
 u_long	ncr_version = NCR_VERSION
 	+ (u_long) sizeof (struct ncb)
@@ -1235,13 +1242,6 @@ ncb_p		ncrp [MAX_UNITS];
 static int ncr_debug = SCSI_DEBUG_FLAGS;
 
 int ncr_cache; /* to be alligned _NOT_ static */
-
-/*
-**	SCSI cmd to get the SCSI sense data
-*/
-
-static u_char rs_cmd  [6] =
-	{ 0x03, 0, 0, 0, sizeof (struct scsi_sense_data), 0 };
 
 /*==========================================================
 **
@@ -1782,8 +1782,8 @@ static	struct script script0 = {
 	/*
 	**	Send the GETCC command
 	*/
-/*>>>*/	SCR_MOVE_ABS (6) ^ SCR_COMMAND,
-		(ncrcmd) &rs_cmd,
+/*>>>*/	SCR_MOVE_TBL ^ SCR_COMMAND,
+		offsetof (struct dsb, scmd),
 	SCR_JUMP,
 		PADDR (dispatch),
 
@@ -3826,6 +3826,18 @@ static INT32 ncr_start (struct scsi_xfer * xp)
 	cp->phys.cmd.addr		= vtophys (cmd);
 	cp->phys.cmd.size		= xp->cmdlen;
 	/*
+	**	sense command
+	*/
+	cp->phys.scmd.addr		= vtophys (&cp->sensecmd);
+	cp->phys.scmd.size		= 6;
+	/*
+	**	patch requested size into sense command
+	*/
+	cp->sensecmd[0]			= 0x03;
+	cp->sensecmd[4]			= sizeof(struct scsi_sense_data);
+	if (xp->req_sense_length)
+		cp->sensecmd[4]		= xp->req_sense_length;
+	/*
 	**	sense data
 	*/
 	cp->phys.sense.addr		= vtophys (&cp->xfer->sense);
@@ -4014,14 +4026,10 @@ void ncr_complete (ncb_p np, ccb_p cp)
 	**	Check for extended errors.
 	*/
 
-	if (cp->xerr_status != XE_OK && !(cp->scsi_status & S_SENSE)) {
+	if (cp->xerr_status != XE_OK) {
 		PRINT_ADDR(xp);
 		switch (cp->xerr_status) {
 		case XE_EXTRA_DATA:
-			if (cp->scsi_status & S_SENSE) {
-				cp->xerr_status = XE_OK;
-				break;
-			};
 			printf ("extraneous data discarded.\n");
 			break;
 		case XE_BAD_PHASE:
