@@ -3,6 +3,6 @@
 #
 
 PROG=	ipsockopt
-NOMAN=
+NO_MAN=
 
 .include <bsd.prog.mk>

@@ -30,7 +30,7 @@
 #		second, and there may be multiple pairs. The files 
 #		are hard-linked.
 #
-# NOMANCOMPRESS	If you do not want unformatted manual pages to be 
+# NO_MANCOMPRESS	If you do not want unformatted manual pages to be 
 #		compressed when they are installed. [not set]
 #
 # NOMLINKS	If you do not want install manual page links. [not set]
@@ -77,10 +77,10 @@ MAN+=	${MAN${sect}}
 _manpages:
 all-man: _manpages
 
-.if defined(NOMANCOMPRESS)
+.if defined(NO_MANCOMPRESS)
 
 # Make special arrangements to filter to a temporary file at build time
-# for NOMANCOMPRESS.
+# for NO_MANCOMPRESS.
 .if defined(MANFILTER)
 FILTEXTENSION=		.filt
 .else
@@ -162,7 +162,7 @@ maninstall: _maninstall
 _maninstall:
 .if defined(MAN) && !empty(MAN)
 _maninstall: ${MAN}
-.if defined(NOMANCOMPRESS)
+.if defined(NO_MANCOMPRESS)
 .if defined(MANFILTER)
 .for page in ${MAN}
 	${MINSTALL} ${page:T:S/$/${FILTEXTENSION}/g} \

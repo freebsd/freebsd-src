@@ -2,6 +2,6 @@
 
 PROG=	tgmath
 CFLAGS+= -fno-builtin -std=c99
-NOMAN=
+NO_MAN=
 
 .include <bsd.prog.mk>

@@ -5,7 +5,7 @@
 .PATH: ${.CURDIR}/../cc_tools ${GCCDIR}
 
 PROG=	protoize
-NOMAN=
+NO_MAN=
 
 # things are rather hard-coded, we work around that here
 CFLAGS+= -DDEFAULT_TARGET_VERSION=\"\"

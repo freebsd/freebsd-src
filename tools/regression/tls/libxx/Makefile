@@ -5,6 +5,6 @@ SHLIB_MAJOR=	1
 
 SRCS=	xx.c
 #CFLAGS+=-mtls-dialect=sun
-NOMAN=
+NO_MAN=
 
 .include <bsd.lib.mk>

@@ -1,6 +1,6 @@
 # $FreeBSD$
 
-NOOBJ=
+NO_OBJ=
 BINDIR=	/usr/share/examples/smbfs
 FILES=	dot.nsmbrc
 

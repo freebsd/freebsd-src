@@ -1,7 +1,7 @@
 # $FreeBSD$
 
 PROG=	localeck
-NOMAN=
+NO_MAN=
 WARNS?=	4
 
 LOCALEDIR?= /usr/share/locale

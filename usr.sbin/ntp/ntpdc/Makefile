@@ -3,7 +3,7 @@
 .PATH: ${.CURDIR}/../../../contrib/ntp/ntpdc
 
 PROG=	ntpdc
-NOMAN=
+NO_MAN=
 SRCS= 	ntpdc.c ntpdc_ops.c version.c
 
 CFLAGS+= -I${.CURDIR}/../../../contrib/ntp/include -I${.CURDIR}/../

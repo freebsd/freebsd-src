@@ -9,6 +9,6 @@ FILES1DIR=	/usr/share/skel
 FILES2DIR=	/usr/share/skel
 FILES1MODE=	0644
 FILES2MODE=	0600
-NOOBJ=
+NO_OBJ=
 
 .include <bsd.prog.mk>

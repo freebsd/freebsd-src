@@ -1,7 +1,7 @@
 # $FreeBSD$
 
 PROG=	koi2alt
-NOMAN=
+NO_MAN=
 
 CFLAGS+= -I${.CURDIR}/../../common_source
 

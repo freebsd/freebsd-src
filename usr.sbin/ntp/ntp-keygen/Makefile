@@ -4,7 +4,7 @@
        ${.CURDIR}/../../../contrib/ntp/ntpd
 
 PROG=	ntp-keygen
-NOMAN=
+NO_MAN=
 SRCS=	ntp-keygen.c
 
 CFLAGS+= -I${.CURDIR}/../../../contrib/ntp/include -I${.CURDIR}/../

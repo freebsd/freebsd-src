@@ -74,7 +74,7 @@ ${PROG}: ${OBJS}
 
 .endif
 
-.if	!defined(NOMAN) && !defined(MAN) && \
+.if	!defined(NO_MAN) && !defined(MAN) && \
 	!defined(MAN1) && !defined(MAN2) && !defined(MAN3) && \
 	!defined(MAN4) && !defined(MAN5) && !defined(MAN6) && \
 	!defined(MAN7) && !defined(MAN8) && !defined(MAN9) && \
@@ -85,7 +85,7 @@ MAN1=	${MAN}
 .endif
 
 all: objwarn ${PROG} ${SCRIPTS}
-.if !defined(NOMAN)
+.if !defined(NO_MAN)
 all: _manpages
 .endif
 
@@ -177,7 +177,7 @@ NLSNAME?=	${PROG}
 .include <bsd.incs.mk>
 .include <bsd.links.mk>
 
-.if !defined(NOMAN)
+.if !defined(NO_MAN)
 realinstall: _maninstall
 .ORDER: beforeinstall _maninstall
 .endif
@@ -191,7 +191,7 @@ lint: ${SRCS:M*.c}
 .endif
 .endif
 
-.if !defined(NOMAN)
+.if !defined(NO_MAN)
 .include <bsd.man.mk>
 .endif
 

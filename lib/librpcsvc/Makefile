@@ -27,7 +27,7 @@ SRCS+= ${GENSRCS} ${OTHERSRCS} ${SECRPCSRCS}
 
 CLEANFILES+= ${GENSRCS}
 
-NOMAN=
+NO_MAN=
 
 .include <bsd.lib.mk>
 

@@ -17,7 +17,7 @@ _BIND.include.dist=	BIND.include.dist
 .endif
 .endif
 
-NOOBJ=
+NO_OBJ=
 FILESDIR= /etc/mtree
 
 .include <bsd.prog.mk>

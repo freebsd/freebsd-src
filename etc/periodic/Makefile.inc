@@ -1,5 +1,5 @@
 # $FreeBSD$
 
 BINDIR=	/etc/periodic/${.CURDIR:T}
-NOOBJ=
+NO_OBJ=
 FILESMODE= 755

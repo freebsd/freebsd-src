@@ -2,7 +2,7 @@
 
 PROG=	boot1.elf
 INTERNALPROG=
-NOMAN=
+NO_MAN=
 FILES=	boot1
 SRCS=	_start.s boot1.c
 

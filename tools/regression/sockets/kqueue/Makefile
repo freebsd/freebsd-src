@@ -3,6 +3,6 @@
 #
 
 PROG=	kqueue
-NOMAN=
+NO_MAN=
 
 .include <bsd.prog.mk>

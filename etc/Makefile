@@ -65,7 +65,7 @@ ETCMAIL=Makefile README mailer.conf access.sample virtusertable.sample \
 FREEBSD=COPYRIGHT
 
 afterinstall:
-.if !defined(NOMAN)
+.if !defined(NO_MAN)
 	cd ${.CURDIR}/../share/man; ${MAKE} makedb
 .endif
 

@@ -359,7 +359,7 @@ release rerelease:
 .endif
 	mkdir -p ${CHROOTDIR}
 	@echo ">>> make release for ${TARGET} started on `LC_ALL=C TZ=GMT date`"
-	cd ${WORLDDIR} && ${NATIVEMAKE} -DNOGAMES -DNOHTML -DNOINFO -DNOMAN \
+	cd ${WORLDDIR} && ${NATIVEMAKE} -DNOGAMES -DNOHTML -DNOINFO -DNO_MAN \
 	    -DNOPROFILE installworld DESTDIR=${CHROOTDIR}
 	cd ${WORLDDIR}/etc && ${NATIVEMAKE} distribution DESTDIR=${CHROOTDIR}
 	if [ -f /etc/resolv.conf ]; then \

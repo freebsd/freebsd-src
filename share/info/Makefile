@@ -1,7 +1,7 @@
 #       @(#)Makefile    8.1 (Berkeley) 6/5/93
 # $FreeBSD$
 
-NOOBJ=
+NO_OBJ=
 
 .include <bsd.prog.mk>
 
