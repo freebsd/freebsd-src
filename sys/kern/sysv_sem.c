@@ -877,6 +877,8 @@ semop(td, uap)
 	struct thread *td;
 	struct semop_args *uap;
 {
+#define SMALL_SOPS	8
+	struct sembuf small_sops[SMALL_SOPS];
 	int semid = uap->semid;
 	size_t nsops = uap->nsops;
 	struct sembuf *sops;
@@ -900,16 +902,20 @@ semop(td, uap)
 		return (EINVAL);
 
 	/* Allocate memory for sem_ops */
-	if (nsops > seminfo.semopm) {
+	if (nsops <= SMALL_SOPS)
+		sops = small_sops;
+	else if (nsops <= seminfo.semopm)
+		sops = malloc(nsops * sizeof(*sops), M_TEMP, M_WAITOK);
+	else {
 		DPRINTF(("too many sops (max=%d, nsops=%d)\n", seminfo.semopm,
 		    nsops));
 		return (E2BIG);
 	}
-	sops = malloc(nsops * sizeof(sops[0]), M_SEM, M_WAITOK);
 	if ((error = copyin(uap->sops, sops, nsops * sizeof(sops[0]))) != 0) {
 		DPRINTF(("error = %d from copyin(%08x, %08x, %d)\n", error,
 		    uap->sops, sops, nsops * sizeof(sops[0])));
-		free(sops, M_SEM);
+		if (sops != small_sops)
+			free(sops, M_SEM);
 		return (error);
 	}
 
@@ -1137,7 +1143,8 @@ done:
 	td->td_retval[0] = 0;
 done2:
 	mtx_unlock(sema_mtxp);
-	free(sops, M_SEM);
+	if (sops != small_sops)
+		free(sops, M_SEM);
 	return (error);
 }
 
