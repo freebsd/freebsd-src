@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: bundle.c,v 1.1.2.5 1998/02/07 20:49:23 brian Exp $
+ *	$Id: bundle.c,v 1.1.2.6 1998/02/08 19:29:43 brian Exp $
  */
 
 #include <sys/param.h>
@@ -64,6 +64,7 @@
 #include "lcp.h"
 #include "ccp.h"
 #include "async.h"
+#include "descriptor.h"
 #include "physical.h"
 #include "modem.h"
 #include "main.h"

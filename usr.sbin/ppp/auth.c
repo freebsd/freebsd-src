@@ -17,7 +17,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: auth.c,v 1.27.2.5 1998/02/02 19:33:33 brian Exp $
+ * $Id: auth.c,v 1.27.2.6 1998/02/07 20:49:18 brian Exp $
  *
  *	TODO:
  *		o Implement check against with registered IP addresses.
@@ -48,6 +48,7 @@
 #include "hdlc.h"
 #include "async.h"
 #include "link.h"
+#include "descriptor.h"
 #include "physical.h"
 #include "lcpproto.h"
 

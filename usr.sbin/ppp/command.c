@@ -17,7 +17,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: command.c,v 1.131.2.10 1998/02/06 02:24:09 brian Exp $
+ * $Id: command.c,v 1.131.2.11 1998/02/07 20:49:32 brian Exp $
  *
  */
 #include <sys/param.h>
@@ -75,6 +75,7 @@
 #include "auth.h"
 #include "async.h"
 #include "link.h"
+#include "descriptor.h"
 #include "physical.h"
 
 struct in_addr ifnetmask;

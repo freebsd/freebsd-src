@@ -18,7 +18,7 @@
  *		Columbus, OH  43221
  *		(614)451-1883
  *
- * $Id: chat.c,v 1.44.2.3 1998/02/06 02:22:07 brian Exp $
+ * $Id: chat.c,v 1.44.2.4 1998/02/06 02:23:30 brian Exp $
  *
  *  TODO:
  *	o Support more UUCP compatible control sequences.
@@ -55,6 +55,7 @@
 #include "lcp.h"
 #include "link.h"
 #include "async.h"
+#include "descriptor.h"
 #include "physical.h"
 #include "chat.h"
 

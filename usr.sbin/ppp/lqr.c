@@ -17,7 +17,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: lqr.c,v 1.22.2.5 1998/02/02 19:33:37 brian Exp $
+ * $Id: lqr.c,v 1.22.2.6 1998/02/07 20:49:50 brian Exp $
  *
  *	o LQR based on RFC1333
  *
@@ -43,6 +43,7 @@
 #include "async.h"
 #include "throughput.h"
 #include "link.h"
+#include "descriptor.h"
 #include "physical.h"
 #include "bundle.h"
 #include "lqr.h"

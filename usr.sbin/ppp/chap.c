@@ -17,7 +17,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: chap.c,v 1.28.2.6 1998/02/02 19:33:33 brian Exp $
+ * $Id: chap.c,v 1.28.2.7 1998/02/07 20:49:30 brian Exp $
  *
  *	TODO:
  */
@@ -59,6 +59,7 @@
 #include "async.h"
 #include "throughput.h"
 #include "link.h"
+#include "descriptor.h"
 #include "physical.h"
 #include "bundle.h"
 

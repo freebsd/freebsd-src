@@ -17,7 +17,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: modem.c,v 1.77.2.10 1998/02/07 22:22:45 brian Exp $
+ * $Id: modem.c,v 1.77.2.11 1998/02/08 01:31:27 brian Exp $
  *
  *  TODO:
  */
@@ -66,6 +66,7 @@
 
 /* We're defining a physical device, and thus need the real headers. */
 #include "link.h"
+#include "descriptor.h"
 #include "physical.h"
 
 
@@ -79,6 +80,7 @@ static void modem_StartOutput(struct link *);
 static int modem_IsActive(struct link *);
 static void modem_Hangup(struct link *, int);
 static void modem_Destroy(struct link *);
+static void modem_DescriptorRead(struct descriptor *, struct bundle *);
 
 struct physical *
 modem_Create(const char *name)
@@ -100,6 +102,12 @@ modem_Create(const char *name)
   p->rts_cts = 1;
   p->speed = MODEM_SPEED;
   p->parity = CS8;
+  p->desc.type = PHYSICAL_DESCRIPTOR;
+  p->desc.UpdateSet = Physical_UpdateSet;
+  p->desc.IsSet = Physical_IsSet;
+  p->desc.Read = modem_DescriptorRead;
+  p->desc.Write = Physical_DescriptorWrite;
+
   return p;
 }
 
@@ -977,3 +985,41 @@ int mode;
 
 #endif
 
+static void
+modem_DescriptorRead(struct descriptor *d, struct bundle *bundle)
+{
+  struct physical *p = descriptor2physical(d);
+  u_char rbuff[MAX_MRU], *cp;
+  int n;
+
+  LogPrintf(LogDEBUG, "descriptor2physical; %p -> %p\n", d, p);
+
+  /* something to read from modem */
+  if (LcpInfo.fsm.state <= ST_CLOSED)
+    nointr_usleep(10000);
+
+  n = Physical_Read(p, rbuff, sizeof rbuff);
+  if ((mode & MODE_DIRECT) && n <= 0) {
+    reconnect(RECON_TRUE);
+    link_Close(&p->link, bundle, 0);
+  } else
+    LogDumpBuff(LogASYNC, "ReadFromModem", rbuff, n);
+
+  if (LcpInfo.fsm.state <= ST_CLOSED) {
+    /* In dedicated mode, we just discard input until LCP is started */
+    if (!(mode & MODE_DEDICATED)) {
+      cp = HdlcDetect(p, rbuff, n);
+      if (cp) {
+        /* LCP packet is detected. Turn ourselves into packet mode */
+        if (cp != rbuff) {
+          /* XXX missing return value checks */
+          Physical_Write(p, rbuff, cp - rbuff);
+          Physical_Write(p, "\r\n", 2);
+        }
+        PacketMode(bundle, 0);
+      } else if (VarTerm)
+        write(fileno(VarTerm), rbuff, n);
+    }
+  } else if (n > 0)
+    async_Input(bundle, rbuff, n, p);
+}

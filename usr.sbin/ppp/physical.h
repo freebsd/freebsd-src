@@ -16,12 +16,13 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- *  $Id: physical.h,v 1.1.2.4 1998/02/06 02:22:28 brian Exp $
+ *  $Id: physical.h,v 1.1.2.5 1998/02/06 02:24:29 brian Exp $
  *
  */
 
 struct physical {
   struct link link;
+  struct descriptor desc;
   struct async async;          /* Our async state */
   int fd;                      /* File descriptor for this device */
   int mbits;                   /* Current DCD status */
@@ -44,8 +45,16 @@ struct physical {
   struct termios ios;          /* To be able to reset from raw mode */
 };
 
-#define physical2link(p) ((struct link *)p)
-#define link2physical(l) (l->type == PHYSICAL_LINK ? (struct physical *)l : 0)
+#define field2phys(fp, name) \
+  ((struct physical *)((char *)fp - (int)(&((struct physical *)0)->name)))
+
+#define physical2link(p) (&(p)->link)
+#define link2physical(l) \
+  ((l)->type == PHYSICAL_LINK ? field2phys(l, link) : NULL)
+
+#define physical2descriptor(p) (&(p)->desc)
+#define descriptor2physical(d) \
+  ((d)->type == PHYSICAL_DESCRIPTOR ? field2phys(d, desc) : NULL)
 
 int Physical_GetFD(struct physical *);
 int Physical_IsATTY(struct physical *);
@@ -77,3 +86,6 @@ void Physical_DupAndClose(struct physical *);
 ssize_t Physical_Read(struct physical *phys, void *buf, size_t nbytes);
 ssize_t Physical_Write(struct physical *phys, const void *buf, size_t nbytes);
 int Physical_ReportProtocolStatus(struct cmdargs const *);
+int Physical_UpdateSet(struct descriptor *, fd_set *, fd_set *, fd_set *, int *);
+int Physical_IsSet(struct descriptor *, fd_set *);
+void Physical_DescriptorWrite(struct descriptor *);

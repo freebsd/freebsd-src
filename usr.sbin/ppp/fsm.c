@@ -17,7 +17,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: fsm.c,v 1.27.2.7 1998/02/06 02:24:10 brian Exp $
+ * $Id: fsm.c,v 1.27.2.8 1998/02/07 20:49:35 brian Exp $
  *
  *  TODO:
  *		o Refer loglevel for log output
@@ -47,6 +47,7 @@
 #include "throughput.h"
 #include "async.h"
 #include "link.h"
+#include "descriptor.h"
 #include "physical.h"
 #include "bundle.h"
 

@@ -17,7 +17,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: main.c,v 1.121.2.14 1998/02/08 11:07:31 brian Exp $
+ * $Id: main.c,v 1.121.2.15 1998/02/08 19:29:45 brian Exp $
  *
  *	TODO:
  *		o Add commands for traffic summary, version display, etc.
@@ -76,6 +76,7 @@
 #include "tun.h"
 #include "route.h"
 #include "link.h"
+#include "descriptor.h"
 #include "physical.h"
 
 #ifndef O_NONBLOCK
@@ -693,38 +694,6 @@ ReadTty(struct bundle *bundle)
   }
 }
 
-
-/*
- *  Here, we'll try to detect HDLC frame
- */
-
-static const char *FrameHeaders[] = {
-  "\176\377\003\300\041",
-  "\176\377\175\043\300\041",
-  "\176\177\175\043\100\041",
-  "\176\175\337\175\043\300\041",
-  "\176\175\137\175\043\100\041",
-  NULL,
-};
-
-static const u_char *
-HdlcDetect(struct physical *physical, u_char * cp, int n)
-{
-  const char *ptr, *fp, **hp;
-
-  cp[n] = '\0';			/* be sure to null terminated */
-  ptr = NULL;
-  for (hp = FrameHeaders; *hp; hp++) {
-    fp = *hp;
-    if (Physical_IsSync(physical))
-      fp++;
-    ptr = strstr((char *) cp, fp);
-    if (ptr)
-      break;
-  }
-  return ((const u_char *) ptr);
-}
-
 static struct pppTimer RedialTimer;
 
 static void
@@ -901,16 +870,8 @@ DoLoop(struct bundle *bundle)
       qlen = link_QueueLen(physical2link(bundle->physical));
     }
 
-    if (link_IsActive(physical2link(bundle->physical))) {
-      /* XXX-ML this should probably be abstracted */
-      if (Physical_GetFD(bundle->physical) + 1 > nfds)
-	nfds = Physical_GetFD(bundle->physical) + 1;
-      Physical_FD_SET(bundle->physical, &rfds);
-      Physical_FD_SET(bundle->physical, &efds);
-      if (qlen > 0) {
-	Physical_FD_SET(bundle->physical, &wfds);
-      }
-    }
+    descriptor_UpdateSet(&bundle->physical->desc, &rfds, &wfds, &efds, &nfds);
+
     if (server >= 0) {
       if (server + 1 > nfds)
 	nfds = server + 1;
@@ -975,7 +936,7 @@ DoLoop(struct bundle *bundle)
       break;
     }
     if ((netfd >= 0 && FD_ISSET(netfd, &efds)) ||
-	(Physical_FD_ISSET(bundle->physical, &efds))) {
+        descriptor_IsSet(&bundle->physical->desc, &efds)) {
       LogPrintf(LogALERT, "Exception detected.\n");
       break;
     }
@@ -1016,50 +977,21 @@ DoLoop(struct bundle *bundle)
       IsInteractive(1);
       Prompt(bundle);
     }
+
     if (netfd >= 0 && FD_ISSET(netfd, &rfds))
       /* something to read from tty */
       ReadTty(bundle);
-    if (Physical_FD_ISSET(bundle->physical, &wfds)) {
+
+    if (descriptor_IsSet(&bundle->physical->desc, &wfds)) {
       /* ready to write into modem */
-      link_StartOutput(physical2link(bundle->physical));
+      descriptor_Write(&bundle->physical->desc);
       if (!link_IsActive(physical2link(bundle->physical)))
         dial_up = 1;
     }
-    if (Physical_FD_ISSET(bundle->physical, &rfds)) {
-      /* something to read from modem */
-      if (LcpInfo.fsm.state <= ST_CLOSED)
-	nointr_usleep(10000);
-      n = Physical_Read(bundle->physical, rbuff, sizeof rbuff);
-      if ((mode & MODE_DIRECT) && n <= 0) {
-        reconnect(RECON_TRUE);
-        link_Close(&bundle->physical->link, bundle, 0);
-      } else
-	LogDumpBuff(LogASYNC, "ReadFromModem", rbuff, n);
 
-      if (LcpInfo.fsm.state <= ST_CLOSED) {
-	/*
-	 * In dedicated mode, we just discard input until LCP is started.
-	 */
-	if (!(mode & MODE_DEDICATED)) {
-	  cp = HdlcDetect(bundle->physical, rbuff, n);
-	  if (cp) {
-	    /*
-	     * LCP packet is detected. Turn ourselves into packet mode.
-	     */
-	    if (cp != rbuff) {
-	      /* XXX missing return value checks */
-	      Physical_Write(bundle->physical, rbuff, cp - rbuff);
-	      Physical_Write(bundle->physical, "\r\n", 2);
-	    }
-	    PacketMode(bundle, 0);
-	  } else if (VarTerm)
-	    write(fileno(VarTerm), rbuff, n);
-	}
-      } else {
-	if (n > 0)
-	  async_Input(bundle, rbuff, n, bundle->physical);
-      }
-    }
+    if (descriptor_IsSet(&bundle->physical->desc, &rfds))
+      descriptor_Read(&bundle->physical->desc, bundle);
+
     if (bundle->tun_fd >= 0 && FD_ISSET(bundle->tun_fd, &rfds)) {
       /* something to read from tun */
       n = read(bundle->tun_fd, &tun, sizeof tun);

@@ -17,7 +17,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: hdlc.c,v 1.28.2.6 1998/02/02 19:33:35 brian Exp $
+ * $Id: hdlc.c,v 1.28.2.7 1998/02/07 20:49:36 brian Exp $
  *
  *	TODO:
  */
@@ -51,6 +51,7 @@
 #include "modem.h"
 #include "ccp.h"
 #include "link.h"
+#include "descriptor.h"
 #include "physical.h"
 
 static struct hdlcstat {
@@ -558,4 +559,35 @@ HdlcInput(struct bundle *bundle, struct mbuf * bp, struct physical *physical)
   HisLqrSave.SaveInPackets++;
 
   DecodePacket(bundle, proto, bp, physical2link(physical));
+}
+
+/*
+ *  Detect a HDLC frame
+ */
+
+static const char *FrameHeaders[] = {
+  "\176\377\003\300\041",
+  "\176\377\175\043\300\041",
+  "\176\177\175\043\100\041",
+  "\176\175\337\175\043\300\041",
+  "\176\175\137\175\043\100\041",
+  NULL,
+};
+
+u_char *
+HdlcDetect(struct physical *physical, u_char *cp, int n)
+{
+  const char *ptr, *fp, **hp;
+
+  cp[n] = '\0';			/* be sure to null terminated */
+  ptr = NULL;
+  for (hp = FrameHeaders; *hp; hp++) {
+    fp = *hp;
+    if (Physical_IsSync(physical))
+      fp++;
+    ptr = strstr((char *) cp, fp);
+    if (ptr)
+      break;
+  }
+  return (u_char *)ptr;
 }
