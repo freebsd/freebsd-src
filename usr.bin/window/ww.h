@@ -34,7 +34,10 @@
  * SUCH DAMAGE.
  *
  *	@(#)ww.h	8.1 (Berkeley) 6/6/93
+ * $FreeBSD$
  */
+
+#include <sys/types.h>
 
 #ifdef OLD_TTY
 #include <sgtty.h>
