@@ -25,12 +25,13 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *	$Id: vidcontrol.c,v 1.15 1997/02/22 16:14:08 peter Exp $
+ *	$Id: vidcontrol.c,v 1.16 1997/03/07 01:34:47 brian Exp $
  */
 
 #include <ctype.h>
 #include <stdio.h>
 #include <stdlib.h>
+#include <unistd.h>
 #include <string.h>
 #include <machine/console.h>
 #include <sys/errno.h>
