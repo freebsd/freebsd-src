@@ -26,7 +26,7 @@
 #
 # killall - kill processes by name
 #
-# $Id: killall.pl,v 1.8 1997/02/22 19:55:24 peter Exp $
+# $Id: killall.pl,v 1.9 1998/01/01 17:24:43 wosch Exp $
 
 
 $ENV{'PATH'} = '/bin:/usr/bin'; # security
@@ -84,18 +84,24 @@ foreach (sort{$a <=> $b} grep(/^[0-9]/, readdir(PROCFS))) {
 	    # quote meta characters
 	    ($programMatch = $program) =~ s/(\W)/\\$1/g if $match;
 
-	    if ( # match program name
-	        ($proc[$PROC_NAME] eq $program ||
-	         ($match && $proc[$PROC_NAME] =~ /$programMatch/i)
-	         ) &&
-	        # id test
-	        ($proc[$PROC_EUID] eq $id || # effective uid
-	         $proc[$PROC_RUID] eq $id || # real uid
-	         !$id))			 # root
-	    {
-	        push(@kill, $pid) if !$pidu{"$pid"};
-		$pidu{"$pid"} = $pid;
-	        $thiskill{"$program"}++;
+            # match program name
+	    if ($proc[$PROC_NAME] eq $program ||
+		($match && $proc[$PROC_NAME] =~ /$programMatch/i)) {
+		
+		# id test
+		if ($proc[$PROC_EUID] eq $id || # effective uid
+		    $proc[$PROC_RUID] eq $id || # real uid
+		    !$id)			# root
+		{
+		    push(@kill, $pid) if !$pidu{"$pid"};
+		    $pidu{"$pid"} = $pid;
+		    $thiskill{"$program"}++;
+		} 
+		
+		# process exists, but does not belong to you
+		else {
+		    $notkillable{"$program"}++;
+		}
 	    }
 	}
     }
@@ -105,7 +111,11 @@ closedir PROCFS;
 
 # nothing found
 foreach $program (@ARGV) {
-    warn "No matching processes ``$program''\n" unless $thiskill{"$program"};
+    if (!$thiskill{"$program"}) {
+	print STDERR "No matching processes ``$program''"; 
+	print STDERR " belonging to you" if $notkillable{"$program"};
+	print STDERR "\n";
+    }
 }
 
 
