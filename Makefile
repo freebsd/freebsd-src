@@ -235,7 +235,7 @@ universe:
 .for arch in i386 sparc64 alpha ia64 amd64
 .for mach in ${arch} ${${arch}_mach}
 	@echo ">> ${mach} started on `LC_ALL=C date`"
-	-cd ${.CURDIR} && ${MAKE} buildworld \
+	-cd ${.CURDIR} && ${MAKE} ${JFLAG} buildworld \
 	    TARGET_ARCH=${arch} TARGET=${mach} \
 	    __MAKE_CONF=/dev/null \
 	    > _.${mach}.buildworld 2>&1
@@ -244,7 +244,7 @@ universe:
 	-cd ${.CURDIR}/sys/${mach}/conf && ${MAKE} LINT \
 	    > ${.CURDIR}/_.${mach}.makeLINT 2>&1
 .endif
-	cd ${.CURDIR} && ${MAKE} buildkernels TARGET_ARCH=${arch} TARGET=${mach}
+	cd ${.CURDIR} && ${MAKE} ${JFLAG} buildkernels TARGET_ARCH=${arch} TARGET=${mach}
 	@echo ">> ${mach} completed on `LC_ALL=C date`"
 .endfor
 .endfor
@@ -260,7 +260,7 @@ KERNCONFS!=	cd ${.CURDIR}/sys/${TARGET}/conf && \
 
 buildkernels:
 .for kernel in ${KERNCONFS}
-	-cd ${.CURDIR} && ${MAKE} buildkernel \
+	-cd ${.CURDIR} && ${MAKE} ${JFLAG} buildkernel \
 	    KERNCONF=${kernel} \
 	    __MAKE_CONF=/dev/null \
 	    > _.${TARGET}.${kernel} 2>&1
