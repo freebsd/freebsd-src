@@ -4,7 +4,7 @@
  * THIS FILE AUTOMATICALLY GENERATED.  DO NOT EDIT.
  *
  * generated from:
- *	FreeBSD: src/sys/dev/pccard/pccarddevs,v 1.53 2003/06/17 12:29:20 imp Exp 
+ *	FreeBSD: src/sys/dev/pccard/pccarddevs,v 1.54 2003/07/11 09:15:21 imp Exp 
  */
 /* $NetBSD: pcmciadevs,v 1.182 2003/04/09 02:09:55 christos Exp $ */
 /* $OpenBSD: pcmciadevs,v 1.93 2002/06/21 08:31:10 henning Exp $ */
@@ -100,6 +100,7 @@
 #define	PCMCIA_VENDOR_BUFFALO	0x026f	/* BUFFALO (Melco Corporation) */
 #define	PCMCIA_VENDOR_LINKSYS2	0x0274	/* The Linksys Group */
 #define	PCMCIA_VENDOR_IODATA2	0x028a	/* I-O DATA */
+#define	PCMCIA_VENDOR_ASUS	0x02aa	/* ASUS */
 #define	PCMCIA_VENDOR_NWN	0x0602	/* No Wires Needed */
 #define	PCMCIA_VENDOR_BREEZECOM	0x0a02	/* BreezeCOM */
 #define	PCMCIA_VENDOR_NEWMEDIA2	0x10cd	/* NewMedia */
@@ -204,6 +205,11 @@
 #define	PCMCIA_CIS_ARTEM_ONAIR	{ NULL, NULL, NULL, NULL }
 #define	PCMCIA_PRODUCT_ARTEM_ONAIR	0x0001
 #define	PCMCIA_STR_ARTEM_ONAIR	"ARtem OnAir"
+
+/* ASUS WL-100 */
+#define	PCMCIA_CIS_ASUS_WL-100	{ NULL, NULL, NULL, NULL }
+#define	PCMCIA_PRODUCT_ASUS_WL-100	0x0002
+#define	PCMCIA_STR_ASUS_WL-100	"ASUS ASUS SpaceLink WL-100 Wireless LAN"
 
 /* Bay Networks */
 #define	PCMCIA_CIS_BAY_STACK_650	{ NULL, NULL, NULL, NULL }
