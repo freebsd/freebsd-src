@@ -1,4 +1,4 @@
-/* $Id: bootinfo.h,v 1.2 1998/07/05 12:13:18 dfr Exp $ */
+/* $Id: bootinfo.h,v 1.3 1998/10/14 09:53:24 peter Exp $ */
 /*
  * Copyright (c) 1994, 1995, 1996 Carnegie-Mellon University.
  * All rights reserved.
@@ -56,7 +56,7 @@ struct bootinfo_v1 {
 	u_long	pad[6];			/* 184: rsvd for future use	*/
 	char	*envp;			/* 232:	start of environment	*/
 	u_long	kernend;		/* 240: end of kernel		*/
-	u_long	modbase;		/* 248: FreeBSD module base	*/
+	u_long	modptr;			/* 248: FreeBSD module base	*/
 					/* 256: total size		*/
 };
 
