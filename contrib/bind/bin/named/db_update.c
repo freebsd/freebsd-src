@@ -1,6 +1,6 @@
 #if !defined(lint) && !defined(SABER)
 static const char sccsid[] = "@(#)db_update.c	4.28 (Berkeley) 3/21/91";
-static const char rcsid[] = "$Id: db_update.c,v 8.45 2000/12/23 08:14:36 vixie Exp $";
+static const char rcsid[] = "$Id: db_update.c,v 8.46 2001/02/08 02:05:51 marka Exp $";
 #endif /* not lint */
 
 /*
@@ -140,8 +140,8 @@ isRefByNS(const char *name, struct hashbuf *htp) {
  *		if you start at NS.CRL.. here, you're in the cache
  *	    DEC.COM SOA (primary)
  *	CRL.DEC.COM NS  (in primary)
- *	CRL.DEC.COM SOA (secondary)
- *	CRL.DEC.COM NS  (in secondary)
+ *	CRL.DEC.COM SOA (slave)
+ *	CRL.DEC.COM NS  (in slave)
  *		if you start at CRL.. here, you find the CRL.DEC.COM zone
  *		if you start at NS.CRL.. here, you're in the CRL.. zone
  */
@@ -504,7 +504,7 @@ db_update(const char *name,
 					 * being served by the same server.
 					 * named will send NS records for
 					 * sub.a.b.c during zone transfer of
-					 * a.b.c zone.  If we're secondary for
+					 * a.b.c zone.  If we're slave for
 					 * both zones, and we reload zone
 					 * a.b.c, we'll get the NS records
 					 * (and possibly A records to go with

@@ -1,5 +1,5 @@
 #if !defined(lint) && !defined(SABER)
-static char     rcsid[] = "$Id: db_ixfr.c,v 8.23 2000/12/23 08:14:35 vixie Exp $";
+static char     rcsid[] = "$Id: db_ixfr.c,v 8.23.2.2 2001/05/03 03:53:18 marka Exp $";
 #endif
 
 /*
@@ -102,8 +102,8 @@ ixfr_get_change_list(struct zoneinfo *zp,
 		}
 		INIT_LINK(dl, d_link);
 		INIT_LIST(dl->d_changes);
-		ret = ixfr_getdelta(zp, fp, zp->z_ixfr_base, origin, &dl->d_changes,
-				    &old_serial, &new_serial);
+		ret = ixfr_getdelta(zp, fp, zp->z_ixfr_base, origin,
+				    &dl->d_changes, &old_serial, &new_serial);
 		switch (ret) {
 		case DBIXFR_ERROR:
 			ns_warning(ns_log_db, "Logical error in %s: unlinking", 
@@ -374,6 +374,7 @@ ixfr_getdelta(struct zoneinfo *zp, FILE *fp, const char *filename, char *origin,
 	char           *dname, *cp, *cp1;
 	char            buf[MAXDATA];
 	u_int32_t       serial, ttl;
+	u_int32_t	current_serial;
 	int             nonempty_lineno = -1, prev_pktdone = 0, cont = 0,
 			inside_next = 0;
 	int             id;
@@ -481,6 +482,16 @@ ixfr_getdelta(struct zoneinfo *zp, FILE *fp, const char *filename, char *origin,
 				*buf = '\0';
 			n = sscanf(cp, "origin %s class %s serial %lu",
 				   origin, sclass, &serial);
+			if (current_serial == 0)
+				current_serial = serial;
+			else if (current_serial != serial) {
+				ns_debug(ns_log_update, 1,
+					 "%s:line %d serial # askew %d %d",
+					 filename, lineno, serial,
+					 current_serial);
+				current_serial = serial;
+				err++;
+			}
 			if (n != 3 || ns_samename(origin, zp->z_origin) != 1)
 				err++;
 			if (cp)
@@ -647,8 +658,9 @@ ixfr_getdelta(struct zoneinfo *zp, FILE *fp, const char *filename, char *origin,
 					err++;
 					break;
 				}
-				if (opcode == ADD && i == 0)
+				if (opcode == ADD)
 					*new_serial = n;
+				current_serial = n;
 				PUTLONG(n, cp);
 				for (i = 0; i < 4; i++) {
 					if (!getword(buf, sizeof buf, fp, 1)) {

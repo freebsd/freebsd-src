@@ -1,5 +1,5 @@
 #ifndef lint
-static const char rcsid[] = "$Id: dig.c,v 8.44 2000/12/23 08:14:31 vixie Exp $";
+static const char rcsid[] = "$Id: dig.c,v 8.46 2001/04/01 17:35:01 vixie Exp $";
 #endif
 
 /*
@@ -924,6 +924,7 @@ main(int argc, char **argv) {
 		if (delay < wait) {
 			sleep(wait - delay);
 		}
+		tv1 = tv2;
 	}
 	return (eecode);
 }
@@ -964,7 +965,7 @@ where:	server,\n\
 	fputs("\
 notes:	defname and search don't work; use fully-qualified names.\n\
 	this is DiG version " VSTRING "\n\
-	$Id: dig.c,v 8.44 2000/12/23 08:14:31 vixie Exp $\n\
+	$Id: dig.c,v 8.46 2001/04/01 17:35:01 vixie Exp $\n\
 ", stderr);
 }
 

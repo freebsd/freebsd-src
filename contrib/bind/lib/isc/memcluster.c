@@ -20,10 +20,11 @@
    bigger and some debugging info stuck before and after the region given 
    back to the caller. */
 /* #define DEBUGGING_MEMCLUSTER */
+#define MEMCLUSTER_ATEND
 
 
 #if !defined(LINT) && !defined(CODECENTER)
-static const char rcsid[] = "$Id: memcluster.c,v 8.19 1999/10/13 17:11:22 vixie Exp $";
+static const char rcsid[] = "$Id: memcluster.c,v 8.20 2001/02/13 23:14:54 marka Exp $";
 #endif /* not lint */
 
 #include "port_before.h"
@@ -397,8 +398,19 @@ __memput_record(void *mem, size_t size, const char *file, int line) {
 	e->file = file;
 	e->line = line;
 #endif
+#ifdef MEMCLUSTER_ATEND
+	e->next = NULL;
+	el = freelists[new_size];
+	while (el != NULL && el->next != NULL)
+		el = el->next;
+	if (el)
+		el->next = e;
+	else
+		freelists[new_size] = e;
+#else
 	e->next = freelists[new_size];
 	freelists[new_size] = (void *)e;
+#endif
 #else
 	((memcluster_element *)mem)->next = freelists[new_size];
 	freelists[new_size] = (memcluster_element *)mem;

@@ -10,6 +10,21 @@ artifacts including BIND, INN, and DHCP.
 Note that BIND 8 is in "end-of-life", having been replaced by BIND 9.  See
 http://www.isc.org/ for more details.
 
+BIND 8.2.4 Highlights
+	NSAP processing was not RFC 1706 compliant. NOTE: OLD MASTER FILES
+	NEED TO BE CORRECTED (0x added to NSAP) AND CACHE FILES REMOVED.
+	Fixes long-standing protocol incompatibility in DNSSEC support.
+	Avoids fwd'ing to root name servers if response will be rejected.
+	new port/cygwin contributed by s_c_biggs@bigfoot.com.
+	new contrib/mdnkit (V1.3) from author.
+	new contrib/adm from official ftp site.
+	new contrib/host from author.
+	new contrib/dnsp from author.
+	fixed file descriptor leak in resolver.
+	fixed a major memory leak in the processing of dynamic updates.
+	numerous portability improvements.
+	numerous bug fixes.
+
 BIND 8.2.3 Highlights
 
 	Improved support for Windows NT and Windows 2000.

@@ -1,6 +1,6 @@
 #if !defined(lint) && !defined(SABER)
 static const char sccsid[] = "@(#)ns_maint.c	4.39 (Berkeley) 3/2/91";
-static const char rcsid[] = "$Id: ns_maint.c,v 8.117 2001/01/25 05:50:55 marka Exp $";
+static const char rcsid[] = "$Id: ns_maint.c,v 8.122 2001/03/01 06:26:31 marka Exp $";
 #endif /* not lint */
 
 /*
@@ -926,6 +926,7 @@ startxfer(struct zoneinfo *zp) {
 	zp->z_flags |= Z_XFER_RUNNING;
 	zp->z_xferpid = pid;
 	xfers_running++;
+	xfers_deferred--;
 	if (zp->z_max_transfer_time_in)
 		zp->z_time = tt.tv_sec + zp->z_max_transfer_time_in;
 	else
@@ -1172,6 +1173,10 @@ remove_zone(struct zoneinfo *zp, const char *verb) {
 #endif
 	if ((zp->z_flags & Z_NOTIFY) != 0)
 		ns_stopnotify(zp->z_origin, zp->z_class);
+	if ((zp->z_flags & Z_NEED_XFER) != 0) {
+		zp->z_flags &= ~Z_NEED_XFER;
+		xfers_deferred--;
+	}
 	ns_stopxfrs(zp);
 	do_reload(zp->z_origin, zp->z_type, zp->z_class, 1);
 	ns_notice(ns_log_config, "%s zone \"%s\" (%s) %s",
@@ -1278,7 +1283,7 @@ purge_nonglue_2(const char *dname, struct hashbuf *htp, int class,
 					    zonecut &&
 					    !valid_glue(dp, name, belowcut)) {
 						if (log)
-						    ns_error(ns_log_db,
+						    ns_error(ns_log_load,
 	        "zone: %s/%s: non-glue record %s bottom of zone: %s/%s",
 							 *dname ? dname : ".",
 						         p_class(dp->d_class),
@@ -1624,8 +1629,6 @@ endxfer() {
 						ns_notice(ns_log_default,
 							"IXFR Merge failed %s",
 							  zp->z_ixfr_tmp);
-					zp->z_flags &=
-						~(Z_XFER_RUNNING|Z_XFER_ABORTED|Z_XFER_GONE);
 						ns_retrytime(zp, tt.tv_sec);
 						sched_zone_maint(zp);
 					}
@@ -1635,7 +1638,7 @@ endxfer() {
 					if (!(zp->z_flags & Z_SYSLOGGED)) {
 						zp->z_flags |= Z_SYSLOGGED;
 						ns_notice(ns_log_default,
-		      "zoneref: Masters for secondary zone \"%s\" unreachable",
+		      "zoneref: Masters for slave zone \"%s\" unreachable",
 							  zp->z_origin);
 					}
 					ns_retrytime(zp, tt.tv_sec);
@@ -1712,7 +1715,6 @@ tryxfer() {
 		if ((xfers = nxfers(zp)) != -1 &&
 		    xfers < server_options->transfers_per_ns &&
 		    (zp->z_flags & Z_NEED_XFER)) {
-			xfers_deferred--;
 			startxfer(zp);
 			sched_zone_maint(zp);
 		}
@@ -1912,7 +1914,7 @@ ns_reload(void) {
 	INSIST(reloading == 0);
 	qflush();
 	sq_flush(NULL);
-	reloading++;	/* To force transfer if secondary and backing up. */
+	reloading++;	/* To force transfer if slave and backing up. */
 	confmtime = ns_init(conffile);
 	time(&resettime);
 	reloading--;
@@ -1946,20 +1948,21 @@ void
 make_new_zones(void) {
 	struct zoneinfo *zp;
 	int n;
+	int newzones = (nzones == 0) ? INITIALZONES : NEWZONES;
 
 	ns_debug(ns_log_config, 1, "Adding %d template zones", NEWZONES);
 	zp = (struct zoneinfo *)
-		memget((nzones + NEWZONES) * sizeof(struct zoneinfo));
+		memget((nzones + newzones) * sizeof(struct zoneinfo));
 	if (zp == NULL)
 		panic("no memory for more zones", NULL);
-	memset(zp, 0, (nzones + NEWZONES) * sizeof(struct zoneinfo));
+	memset(zp, 0, (nzones + newzones) * sizeof(struct zoneinfo));
 	if (zones != NULL) {
 		memcpy(zp, zones, nzones * sizeof(struct zoneinfo));
 		memput(zones, nzones * sizeof(struct zoneinfo));
 	}
 	zones = zp;
 	block_signals();
-	for (n = 0; n < NEWZONES; n++) {
+	for (n = 0; n < newzones; n++) {
 		INIT_LINK(&zones[nzones], z_reloadlink);
 		INIT_LINK(&zones[nzones], z_freelink);
 		if (nzones != 0)

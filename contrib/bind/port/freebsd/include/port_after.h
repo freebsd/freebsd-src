@@ -33,6 +33,7 @@
 #if (!defined(BSD)) || (BSD < 199306)
 #include <sys/bitypes.h>
 #endif
+#include <sys/time.h>
 
 /*
  * We need to know the IPv6 address family number even on IPv4-only systems.

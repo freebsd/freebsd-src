@@ -100,4 +100,3 @@
 #define SERV_R_BAD NULL
 
 #define IRS_LCL_SV_DB
-
