@@ -1,4 +1,4 @@
-/* $Header: /src/pub/tcsh/sh.dol.c,v 3.47 2001/07/25 15:48:04 christos Exp $ */
+/* $Header: /src/pub/tcsh/sh.dol.c,v 3.50 2002/06/25 19:02:11 christos Exp $ */
 /*
  * sh.dol.c: Variable substitutions
  */
@@ -14,11 +14,7 @@
  * 2. Redistributions in binary form must reproduce the above copyright
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
- * 3. All advertising materials mentioning features or use of this software
- *    must display the following acknowledgement:
- *	This product includes software developed by the University of
- *	California, Berkeley and its contributors.
- * 4. Neither the name of the University nor the names of its contributors
+ * 3. Neither the name of the University nor the names of its contributors
  *    may be used to endorse or promote products derived from this software
  *    without specific prior written permission.
  *
@@ -36,7 +32,7 @@
  */
 #include "sh.h"
 
-RCSID("$Id: sh.dol.c,v 3.47 2001/07/25 15:48:04 christos Exp $")
+RCSID("$Id: sh.dol.c,v 3.50 2002/06/25 19:02:11 christos Exp $")
 
 /*
  * C shell
@@ -585,10 +581,8 @@ Dgetdol()
 		c = DgetC(0);
 	    } while (Isdigit(c));
 	    unDredc(c);
-	    if (subscr < 0) {
-		dolerror(vp->v_name);
-		return;
-	    }
+	    if (subscr < 0)
+		stderror(ERR_RANGE);
 	    if (subscr == 0) {
 		if (bitset) {
 		    dolp = dolzero ? STR1 : STR0;
@@ -651,7 +645,7 @@ Dgetdol()
 	dolp = (vp || getenv(short2str(name))) ? STR1 : STR0;
 	goto eatbrac;
     }
-    if (vp == 0) {
+    if (vp == NULL || vp->vec == NULL) {
 	np = str2short(getenv(short2str(name)));
 	if (np) {
 	    fixDolMod();

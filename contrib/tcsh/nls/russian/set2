@@ -1,8 +1,8 @@
-$ $Id: set2,v 1.1 2001/03/18 19:06:39 christos Exp $
+$ $Id: set2,v 1.2 2002/03/08 17:46:50 christos Exp $
 $ Signal names
 $set 2 
 1 Нулевой сигнал
-2 Hangup
+2 Разрыв связи
 3 Прерывание
 4 Выход
 5 Неверная инструкция
@@ -23,29 +23,29 @@ $set 2
 20 Неверный системный вызов
 21 Broken pipe
 22 Alarm clock
-23 Прерван
-24 Child status change
-25 Death of child
+23 Прервано
+24 Изменение состояния потомка
+25 Смерть потомка
 26 Apollo-specific fault
 27 Потомок остановился или завершился
 28 Потомок завершился
-29 Power failure
+29 Сбой питания
 30 Resource Lost
 31 Break (Ctrl-Break)
 32 Input/output possible signal
-33 Asynchronous I/O (select)
+33 Асинхронный ввод/вывод (select)
 34 Urgent condition on I/O channel
 35 Multitasking wake-up
 36 Multitasking kill
 37 Fortran asynchronous I/O completion
 38 Recovery
-39 Uncorrectable memory error
+39 Неисправимая ошибка памяти
 40 CPU time limit exceeded
 41 System shutdown imminent
 42 micro-tasking group-no wakeup flag set
 43 Thread error - (use cord -T for detailed info)
-44 CRAY Y-MP register parity error
-45 Information request
+44 Ошибка четности в регистре CRAY Y-MP
+45 Запрос на информацию
 46 Suspended (signal)
 47 Stopped (signal)
 48 Suspended

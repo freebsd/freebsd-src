@@ -1,4 +1,4 @@
-/* $Header: /src/pub/tcsh/sh.err.c,v 3.35 2000/11/11 23:03:36 christos Exp $ */
+/* $Header: /src/pub/tcsh/sh.err.c,v 3.36 2002/03/08 17:36:46 christos Exp $ */
 /*
  * sh.err.c: Error printing routines. 
  */
@@ -14,11 +14,7 @@
  * 2. Redistributions in binary form must reproduce the above copyright
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
- * 3. All advertising materials mentioning features or use of this software
- *    must display the following acknowledgement:
- *	This product includes software developed by the University of
- *	California, Berkeley and its contributors.
- * 4. Neither the name of the University nor the names of its contributors
+ * 3. Neither the name of the University nor the names of its contributors
  *    may be used to endorse or promote products derived from this software
  *    without specific prior written permission.
  *
@@ -37,7 +33,7 @@
 #define _h_sh_err		/* Don't redefine the errors	 */
 #include "sh.h"
 
-RCSID("$Id: sh.err.c,v 3.35 2000/11/11 23:03:36 christos Exp $")
+RCSID("$Id: sh.err.c,v 3.36 2002/03/08 17:36:46 christos Exp $")
 
 /*
  * C Shell

@@ -1,4 +1,4 @@
-$ $Id: set1,v 1.1 2000/01/14 22:57:31 christos Exp $
+$ $Id: set1,v 1.2 2001/09/03 02:13:26 kim Exp $
 $ Error messages
 $set 1 
 1 Kielioppivirhe
@@ -137,4 +137,4 @@ $set 1
 134 Käyttö: unlimit [-fh] [rajoitteet (limits)]
 135 Muuttujalle $%S ei voida asettaa arvoa
 136 Viitattua työtä ei ole
-137 Tuntematon colorls -muuttuja `%c%c'
+137 Tuntematon colorls-muuttuja `%c%c'
