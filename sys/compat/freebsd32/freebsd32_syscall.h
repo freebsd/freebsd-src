@@ -66,7 +66,7 @@
 				/* 62 is obsolete ofstat */
 				/* 63 is obsolete ogetkerninfo */
 				/* 64 is obsolete ogetpagesize */
-				/* 65 is obsolete omsync */
+#define	FREEBSD32_SYS_msync	65
 #define	FREEBSD32_SYS_vfork	66
 				/* 67 is obsolete vread */
 				/* 68 is obsolete vwrite */
