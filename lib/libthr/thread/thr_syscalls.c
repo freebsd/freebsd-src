@@ -272,6 +272,21 @@ pselect(int count, fd_set *rfds, fd_set *wfds, fd_set *efds,
 	return (ret);
 }
 
+__weak_reference(_raise, raise);
+
+int
+_raise(int sig)
+{
+	int error;
+
+	error = pthread_kill(pthread_self(), sig);
+	if (error != 0) {
+		errno = error;
+		error = -1;
+	}
+	return (error);
+}
+
 __weak_reference(_read, read);
 
 ssize_t
@@ -324,13 +339,11 @@ _sigaction(int sig, const struct sigaction *act, struct sigaction *oact)
 	struct sigaction oldact, wrapperact;
 	int error;
 
-	/* Detect invalid signals. Signal SIGTHR is silently ignored */
+	/* Detect invalid signals. */
 	if (sig < 1 || sig > NSIG) {
 		errno = EINVAL;
 		return (-1);
 	}
-	if (sig == SIGTHR)
-		return (0);
 
 	/*
 	 * If act is not NULL the library's signal wrapper is passed into the
@@ -348,7 +361,7 @@ _sigaction(int sig, const struct sigaction *act, struct sigaction *oact)
 		    tmpact->sa_handler != SIG_IGN) {
 			bcopy((const void *)tmpact, (void *)&wrapperact,
 			    sizeof(struct sigaction));
-			tmpact->sa_flags &= SA_SIGINFO;
+			wrapperact.sa_flags |= SA_SIGINFO;
 			wrapperact.sa_sigaction = &_thread_sig_wrapper;
 			tmpact = &wrapperact;
 		}
