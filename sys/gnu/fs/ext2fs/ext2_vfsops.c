@@ -95,6 +95,9 @@ VFS_SET(ext2fs_vfsops, ext2fs, MOUNT_EXT2FS, 0);
 #endif
 
 extern u_long nextgennumber;
+#ifdef __FreeBSD__
+int ext2fs_inode_hash_lock;
+#endif
 
 /*
  * Called by main() when ufs is going to be mounted as root.
@@ -887,8 +890,25 @@ ext2_vget(mp, ino, vpp)
 
 	ump = VFSTOUFS(mp);
 	dev = ump->um_dev;
+restart:
 	if ((*vpp = ufs_ihashget(dev, ino)) != NULL)
 		return (0);
+
+#ifdef __FreeBSD__
+	/*
+	 * Lock out the creation of new entries in the FFS hash table in
+	 * case getnewvnode() or MALLOC() blocks, otherwise a duplicate
+	 * may occur!
+	 */
+	if (ext2fs_inode_hash_lock) {
+		while (ext2fs_inode_hash_lock) {
+			ext2fs_inode_hash_lock = -1;
+			tsleep(&ext2fs_inode_hash_lock, PVM, "ffsvgt", 0);
+		}
+		goto restart;
+	}
+	ext2fs_inode_hash_lock = 1;
+#endif
 
 	/* Allocate a new vnode/inode. */
 	if (error = getnewvnode(VT_UFS, mp, ext2_vnodeop_p, &vp)) {
@@ -901,7 +921,9 @@ ext2_vget(mp, ino, vpp)
 	 */
 	type = ump->um_devvp->v_tag == VT_MFS ? M_MFSNODE : M_FFSNODE; /* XXX */
 	MALLOC(ip, struct inode *, sizeof(struct inode), type, M_WAITOK);
+#ifndef __FreeBSD__
 	insmntque(vp, mp);
+#endif
 	bzero((caddr_t)ip, sizeof(struct inode));
 	vp->v_data = ip;
 	ip->i_vnode = vp;
@@ -920,6 +942,13 @@ ext2_vget(mp, ino, vpp)
 	 */
 	ufs_ihashins(ip);
 
+#ifdef __FreeBSD__
+	if (ext2fs_inode_hash_lock < 0)
+		wakeup(&ext2fs_inode_hash_lock);
+	ext2fs_inode_hash_lock = 0;
+#endif
+
+	/* Read in the disk contents for the inode, copy into the inode. */
 	/* Read in the disk contents for the inode, copy into the inode. */
 #if 0
 printf("ext2_vget(%d) dbn= %d ", ino, fsbtodb(fs, ino_to_fsba(fs, ino)));
