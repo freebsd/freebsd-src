@@ -22,14 +22,14 @@
    675 Mass Ave, Cambridge, MA 02139, USA. */
 #define READLINE_LIBRARY
 
+#if defined (HAVE_CONFIG_H)
+#  include "config.h"
+#endif
+
 #include <sys/types.h>
 #include <signal.h>
 #include <errno.h>
 #include <stdio.h>
-
-#if defined (HAVE_CONFIG_H)
-#  include "config.h"
-#endif
 
 #if defined (HAVE_UNISTD_H)
 #  include <unistd.h>
