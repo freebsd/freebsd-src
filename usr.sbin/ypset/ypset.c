@@ -27,15 +27,19 @@
  * SUCH DAMAGE.
  */
 
-#ifndef LINT
-static char rcsid[] = "ypset.c,v 1.3 1993/06/12 00:02:37 deraadt Exp";
-#endif
+#ifndef lint
+static const char rcsid[] =
+	"$Id$";
+#endif /* not lint */
 
+#include <err.h>
+#include <netdb.h>
+#include <stdio.h>
+#include <string.h>
+#include <unistd.h>
 #include <sys/param.h>
 #include <sys/types.h>
 #include <sys/socket.h>
-#include <stdio.h>
-#include <netdb.h>
 #include <rpc/rpc.h>
 #include <rpc/xdr.h>
 #include <rpcsvc/yp.h>
@@ -45,13 +49,14 @@ struct dom_binding{};
 
 extern bool_t xdr_domainname();
 
+static void
 usage()
 {
-	fprintf(stderr, "Usage:\n");
-	fprintf(stderr, "\typset [-h host ] [-d domain] server\n");
+	fprintf(stderr, "usage: ypset [-h host] [-d domain] server\n");
 	exit(1);
 }
 
+int
 bind_tohost(sin, dom, server)
 struct sockaddr_in *sin;
 char *dom, *server;
@@ -64,10 +69,8 @@ char *dom, *server;
 	int r;
 	unsigned long server_addr;
 
-	if( (port=htons(getrpcport(server, YPPROG, YPPROC_NULL, IPPROTO_UDP))) == 0) {
-		fprintf(stderr, "%s not running ypserv.\n", server);
-		exit(1);
-	}
+	if( (port=htons(getrpcport(server, YPPROG, YPPROC_NULL, IPPROTO_UDP))) == 0)
+		errx(1, "%s not running ypserv", server);
 
 	bzero(&ypsd, sizeof ypsd);
 
@@ -77,8 +80,7 @@ char *dom, *server;
 		       (u_long *)&ypsd.ypsetdom_binding.ypbind_binding_addr,
 		       sizeof (unsigned long));
 	} else if( (long)(server_addr = inet_addr (server)) == -1) {
-		fprintf(stderr, "can't find address for %s\n", server);
-		exit(1);
+		errx(1, "can't find address for %s", server);
 	} else
 		bcopy (&server_addr,
 		       *(u_long *)&ypsd.ypsetdom_binding.ypbind_binding_addr,
@@ -94,8 +96,7 @@ char *dom, *server;
 	sock = RPC_ANYSOCK;
 	client = clntudp_create(sin, YPBINDPROG, YPBINDVERS, tv, &sock);
 	if (client==NULL) {
-		fprintf(stderr, "can't yp_bind: Reason: %s\n",
-			yperr_string(YPERR_YPBIND));
+		warnx("can't yp_bind, reason: %s", yperr_string(YPERR_YPBIND));
 		return YPERR_YPBIND;
 	}
 	client->cl_auth = authunix_create_default();
@@ -103,7 +104,7 @@ char *dom, *server;
 	r = clnt_call(client, YPBINDPROC_SETDOM,
 		xdr_ypbind_setdom, &ypsd, xdr_void, NULL, tv);
 	if(r) {
-		fprintf(stderr, "Sorry, cannot ypset for domain %s on host.\n", dom);
+		warnx("sorry, cannot ypset for domain %s on host", dom);
 		clnt_destroy(client);
 		return YPERR_YPBIND;
 	}
@@ -136,11 +137,8 @@ char **argv;
 		case 'h':
 			if( (sin.sin_addr.s_addr=inet_addr(optarg)) == -1) {
 				hent = gethostbyname(optarg);
-				if(hent==NULL) {
-					fprintf(stderr, "ypset: host %s unknown\n",
-						optarg);
-					exit(1);
-				}
+				if(hent==NULL)
+					errx(1, "host %s unknown", optarg);
 				bcopy(&hent->h_addr_list[0], &sin.sin_addr,
 					sizeof sin.sin_addr);
 			}
