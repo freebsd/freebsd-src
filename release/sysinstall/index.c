@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: index.c,v 1.59 1998/12/22 12:31:25 jkh Exp $
+ * $Id: index.c,v 1.60 1999/01/11 12:45:18 asami Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -46,7 +46,17 @@
 #define MAX_MENU	12
 #define _MAX_DESC	55
 
+/* A structure holding the root, top and plist pointer at once */
+struct ListPtrs
+{
+    PkgNodePtr root;	/* root of tree */
+    PkgNodePtr top;	/* part of tree we handle */
+    PkgNodePtr plist;	/* list of selected packages */
+};
+typedef struct ListPtrs* ListPtrsPtr;
+
 static int	index_extract_one(Device *dev, PkgNodePtr top, PkgNodePtr who, Boolean depended);
+static void	index_recorddeps(Boolean add, PkgNodePtr root, IndexEntryPtr ie);
 
 /* Smarter strdup */
 inline char *
@@ -180,6 +190,8 @@ new_index(char *name, char *pathto, char *prefix, char *comment, char *descr, ch
     tmp->descrfile =	strip(_strdup(descr));
     tmp->maintainer =	_strdup(maint);
     tmp->deps =		_strdup(deps);
+    tmp->depc =		0;
+    tmp->installed =	package_exists(name);
     return tmp;
 }
 
@@ -267,6 +279,7 @@ int
 index_read(FILE *fp, PkgNodePtr papa)
 {
     char name[127], pathto[255], prefix[255], comment[255], descr[127], maint[127], cats[511], deps[511];
+    PkgNodePtr i;
 
     while (index_parse(fp, name, pathto, prefix, comment, descr, maint, cats, deps) != EOF) {
 	char *cp, *cp2, tmp[511];
@@ -283,6 +296,15 @@ index_read(FILE *fp, PkgNodePtr papa)
 	/* Add to special "All" category */
 	index_register(papa, "All", idx);
     }
+
+    /* Adjust dependency counts */
+    for (i = papa->kids; i != NULL; i = i->next)
+	if (strcmp(i->name, "All") == 0)
+	    break;
+    for (i = i->kids; i != NULL; i = i->next)
+	if (((IndexEntryPtr)i->data)->installed)
+	    index_recorddeps(TRUE, papa, i->data);
+
     return 0;
 }
 
@@ -407,13 +429,20 @@ index_search(PkgNodePtr top, char *str, PkgNodePtr *tp)
 int
 pkg_checked(dialogMenuItem *self)
 {
-    PkgNodePtr kp = self->data, plist = (PkgNodePtr)self->aux;
+    ListPtrsPtr lists = (ListPtrsPtr)self->aux;
+    PkgNodePtr kp = self->data, plist = lists->plist;
     int i;
 
     i = index_search(plist, kp->name, NULL) ? TRUE : FALSE;
-    if (kp->type == PACKAGE && plist)
-	return i || package_exists(kp->name);
-    else
+    if (kp->type == PACKAGE && plist) {
+	IndexEntryPtr ie = kp->data;
+	int markD, markX;
+
+	markD = ie->depc > 0; /* needed as dependency */
+	markX = i || ie->installed; /* selected or installed */
+	self->mark = markX ? 'X' : 'D';
+	return markD || markX;
+    } else
 	return FALSE;
 }
 
@@ -421,42 +450,57 @@ int
 pkg_fire(dialogMenuItem *self)
 {
     int ret;
-    PkgNodePtr sp, kp = self->data, plist = (PkgNodePtr)self->aux;
+    ListPtrsPtr lists = (ListPtrsPtr)self->aux;
+    PkgNodePtr sp, kp = self->data, plist = lists->plist;
 
     if (!plist)
 	ret = DITEM_FAILURE;
     else if (kp->type == PACKAGE) {
+	IndexEntryPtr ie = kp->data;
+
 	sp = index_search(plist, kp->name, NULL);
 	/* Not already selected? */
 	if (!sp) {
-	    if (!package_exists(kp->name)) {
+	    if (!ie->installed) {
 		PkgNodePtr np = (PkgNodePtr)safe_malloc(sizeof(PkgNode));
 
 		*np = *kp;
 		np->next = plist->kids;
 		plist->kids = np;
+		index_recorddeps(TRUE, lists->root, ie);
 		msgInfo("Added %s to selection list", kp->name);
 	    }
-	    else {
+	    else if (ie->depc == 0) {
 		WINDOW *save = savescr();
 
 		if (!msgYesNo("Do you really want to delete %s from the system?", kp->name))
 		    if (vsystem("pkg_delete %s %s", isDebug() ? "-v" : "", kp->name))
 			msgConfirm("Warning:  pkg_delete of %s failed.\n  Check debug output for details.", kp->name);
+		    else {
+			ie->installed = 0;
+			index_recorddeps(FALSE, lists->root, ie);
+		    }
 		restorescr(save);
 	    }
+	    else
+		msgConfirm("Warning: Package %s is needed by\n  %d other installed package%s.",
+			   kp->name, ie->depc, (ie->depc != 1) ? "s" : "");
 	}
 	else {
+	    index_recorddeps(FALSE, lists->root, ie);
 	    msgInfo("Removed %s from selection list", kp->name);
 	    index_delete(sp);
 	}
 	ret = DITEM_SUCCESS;
+	/* Mark menu for redraw if we had dependencies */
+	if (strlen(ie->deps) > 0)
+	    ret |= DITEM_REDRAW;
     }
     else {	/* Not a package, must be a directory */
 	int p, s;
 		    
 	p = s = 0;
-	index_menu(kp, plist, &p, &s);
+	index_menu(lists->root, kp, plist, &p, &s);
 	ret = DITEM_SUCCESS | DITEM_CONTINUE;
     }
     return ret;
@@ -473,14 +517,19 @@ pkg_selected(dialogMenuItem *self, int is_selected)
 }
 
 int
-index_menu(PkgNodePtr top, PkgNodePtr plist, int *pos, int *scroll)
+index_menu(PkgNodePtr root, PkgNodePtr top, PkgNodePtr plist, int *pos, int *scroll)
 {
+    struct ListPtrs lists;
     int n, rval, maxname;
     int curr, max;
     PkgNodePtr kp;
     dialogMenuItem *nitems;
     Boolean hasPackages;
     WINDOW *w;
+
+    lists.root = root;
+    lists.top = top;
+    lists.plist = plist;
 
     hasPackages = FALSE;
     nitems = NULL;
@@ -525,7 +574,7 @@ index_menu(PkgNodePtr top, PkgNodePtr plist, int *pos, int *scroll)
 		SAFE_STRCPY(buf, kp->desc);
 	    if (strlen(buf) > (_MAX_DESC - maxname))
 		buf[_MAX_DESC - maxname] = '\0';
-	    nitems = item_add(nitems, kp->name, buf, pkg_checked, pkg_fire, pkg_selected, kp, (int)plist, &curr, &max);
+	    nitems = item_add(nitems, kp->name, buf, pkg_checked, pkg_fire, pkg_selected, kp, (int)&lists, &curr, &max);
 	    ++n;
 	    kp = kp->next;
 	}
@@ -551,7 +600,7 @@ recycle:
 
 		    /* These need to be set to point at the found item, actually.  Hmmm! */
 		    pos = scroll = 0;
-		    index_menu(menu, plist, &pos, &scroll);
+		    index_menu(root, menu, plist, &pos, &scroll);
 		}
 		else
 		    msgConfirm("Search string: %s yielded no hits.", cp);
@@ -612,7 +661,41 @@ index_extract_one(Device *dev, PkgNodePtr top, PkgNodePtr who, Boolean depended)
 	}
     }
     /* Done with the deps?  Load the real m'coy */
-    if (DITEM_STATUS(status) == DITEM_SUCCESS)
+    if (DITEM_STATUS(status) == DITEM_SUCCESS) {
 	status = package_extract(dev, who->name, depended);
+	if (DITEM_STATUS(status) == DITEM_SUCCESS)
+	    id->installed = 1;
+    }
     return status;
+}
+
+static void
+index_recorddeps(Boolean add, PkgNodePtr root, IndexEntryPtr ie)
+{
+   char depends[1024], *space, *todo;
+   PkgNodePtr found;
+   IndexEntryPtr found_ie;
+
+   SAFE_STRCPY(depends, ie->deps);
+   for (todo = depends; todo != NULL; ) {
+      space = index(todo, ' ');
+      if (space != NULL)
+	 *space = '\0';
+
+      if (strlen(todo) > 0) { /* only non-empty dependencies */
+	  found = index_search(root, todo, NULL);
+	  if (found != NULL) {
+	      found_ie = found->data;
+	      if (add)
+		  ++found_ie->depc;
+	      else
+		  --found_ie->depc;
+	  }
+      }
+
+      if (space != NULL)
+	 todo = space + 1;
+      else
+	 todo = NULL;
+   }
 }
