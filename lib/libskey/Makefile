@@ -11,6 +11,11 @@ MAN5=	skey.access.5
 
 CFLAGS+=-DPERMIT_CONSOLE -D_SKEY_INTERNAL -I${.CURDIR}
 
+.if ${BINFORMAT} == elf
+DPADD+= ${LIBCRYPT} ${LIBMD}
+LDADD+=	-lcrypt -lmd
+.endif
+
 beforeinstall:
 	${INSTALL} -C -o ${BINOWN} -g ${BINGRP} -m 444 ${.CURDIR}/skey.h \
 		${DESTDIR}/usr/include
