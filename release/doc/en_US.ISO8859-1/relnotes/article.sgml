@@ -733,6 +733,12 @@
 	Prism 2.5-based NICs.  104/128-bit WEP now works on Prism
 	cards. &merged;</para>
 
+      <para>The &man.wi.4; driver now supports using a &os; host as
+	a wireless access point.  This functionality can be enabled 
+	using the <literal>mediaopt hostap</literal> option of 
+	&man.ifconfig.8;.  This feature requires a wireless 
+	adapter based on the Prism II chipset.</para>
+
       <para>The &man.xl.4; driver now supports the 3Com 3C556 and
 	3C556B MiniPCI adapters used on some laptops. &merged;</para>
 
@@ -932,10 +938,10 @@ options HZ=1000 # not compulsory but strongly recommended</programlisting>
       </para>
 
       <para>TCP now supports RFC 1948 (Defending Against Sequence
-	Number Attacks).  This functionality is controlled by the
-	<varname>net.inet.tcp.strict_rfc1948</varname> and
+	Number Attacks).  The
 	<varname>net.inet.tcp.isn_reseed_interval</varname> sysctl
-	variables. &merged;</para>
+	variable controls the reseeding of the secret data used in
+	the RFC 1948 initial sequence number calculations. &merged;</para>
 
       <para>The TCP implementation in &os; now implements a cache of
 	outstanding, received SYN segments.  Incoming SYN segments now
