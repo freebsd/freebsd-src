@@ -76,13 +76,13 @@ amd64/amd64/tsc.c		standard
 amd64/amd64/uma_machdep.c	standard
 amd64/amd64/vm_machdep.c	standard
 amd64/amd64/in_cksum.c		optional inet
+amd64/amd64/fpu.c		standard
 
 amd64/isa/clock.c		standard
 amd64/isa/intr_machdep.c	standard
 amd64/isa/isa.c			standard
 amd64/isa/isa_dma.c		standard
 amd64/isa/ithread.c		standard
-amd64/isa/npx.c			standard
 
 amd64/pci/pci_cfgreg.c		optional	pci
 amd64/pci/pci_bus.c		optional	pci
