@@ -468,7 +468,8 @@ typedef	struct	ipflog	{
  * with this!
  */
 #if (defined(NetBSD) && (NetBSD > 199609) && (NetBSD <= 1991011)) || \
-    (defined(NetBSD1_2) && NetBSD1_2 > 1)
+    (defined(NetBSD1_2) && NetBSD1_2 > 1) || (defined(__FreeBSD_version) && \
+     (__FreeBSD_version >= 500011))
 # if (NetBSD >= 199905)
 #  define PFIL_HOOKS
 # endif

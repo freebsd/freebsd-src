@@ -69,6 +69,7 @@
 #include "opt_inet.h"
 #include "opt_inet6.h"
 #include "opt_ipsec.h"
+#include "opt_pfil_hooks.h"
 
 #include <sys/param.h>
 #include <sys/malloc.h>
@@ -83,6 +84,9 @@
 
 #include <net/if.h>
 #include <net/route.h>
+#ifdef PFIL_HOOKS
+#include <net/pfil.h>
+#endif
 
 #include <netinet/in.h>
 #include <netinet/in_var.h>
@@ -157,6 +161,11 @@ ip6_output(m0, opt, ro, flags, im6o, ifpp)
 	struct route_in6 *ro_pmtu = NULL;
 	int hdrsplit = 0;
 	int needipsec = 0;
+#ifdef PFIL_HOOKS
+	struct packet_filter_hook *pfh;
+	struct mbuf *m1;
+	int rv;
+#endif /* PFIL_HOOKS */
 #ifdef IPSEC
 	int needipsectun = 0;
 	struct socket *so;
@@ -840,6 +849,25 @@ skip_ipsec2:;
 		m->m_pkthdr.rcvif = NULL;
 	}
 
+#ifdef PFIL_HOOKS
+	/*
+	 * Run through list of hooks for output packets.
+	 */
+	m1 = m;
+	pfh = pfil_hook_get(PFIL_OUT, &inetsw[ip_protox[IPPROTO_IPV6]].pr_pfh);
+	for (; pfh; pfh = pfh->pfil_link.tqe_next)
+		if (pfh->pfil_func) {
+			rv = pfh->pfil_func(ip6, sizeof(*ip6), ifp, 1, &m1);
+			if (rv) {
+				error = EHOSTUNREACH;
+				goto done;
+			}
+			m = m1;
+			if (m == NULL)
+				goto done;
+			ip6 = mtod(m, struct ip6_hdr *);
+		}
+#endif /* PFIL_HOOKS */
 	/*
 	 * Send the packet to the outgoing interface.
 	 * If necessary, do IPv6 fragmentation before sending.
