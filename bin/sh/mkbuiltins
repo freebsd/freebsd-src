@@ -39,7 +39,7 @@
 
 temp=`/usr/bin/mktemp -t ka`
 havejobs=0
-if grep '^#define JOBS[	 ]*1' shell.h > /dev/null
+if grep '^#define[	 ]*JOBS[	 ]*1' shell.h > /dev/null
 then	havejobs=1
 fi
 havehist=1
