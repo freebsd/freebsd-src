@@ -41,7 +41,7 @@
  * the manufacturer or anyone else might provide better documentation,
  * so this file (and the driver) will then have a better quality.
  *
- *	$Id: mcdreg.h,v 1.5 1994/11/12 13:26:13 ache Exp $
+ *	$Id: mcdreg.h,v 1.6 1994/12/24 13:24:02 ache Exp $
  */
 
 #ifndef MCD_H
@@ -135,9 +135,9 @@ typedef unsigned char	bcd_t;
 #define	MCD_READUPC		0xA2	/* Get UPC info	*/
 #define	MCD_CMDSETVOLUME	0xAE	/* sets mcd_volume */
 #define	MCD_CMDREAD1		0xB0	/* read n sectors */
-#define	MCD_CMDREAD2		0xC0	/* read from-to */
+#define	MCD_CMDSINGLESPEEDREAD	0xC0	/* read	from-to	*/
 #define	MCD_CMDSTARTAUDIOMSF	0xC1	/* read	audio data */
-#define	MCD_CMDREADFAST		0xC1	/* Read	lots of	data from the drive */
+#define	MCD_CMDDOUBLESPEEDREAD	0xC1	/* Read	lots of	data from the drive */
 #define	MCD_CMDGETDRIVEMODE	0xC2	/* Get the drive mode */
 #define	MCD_CMDREAD		0xC3	/* Read	data from the drive */
 #define	MCD_CMDSETINTERLEAVE	0xC8	/* Adjust the interleave */
