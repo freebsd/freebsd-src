@@ -1158,9 +1158,11 @@ psignal(p, sig)
 				goto out;
 			SIGDELSET(p->p_siglist, sig);
 			p->p_xstat = sig;
+			PROCTREE_LOCK(PT_SHARED);
 			if ((p->p_pptr->p_procsig->ps_flag & PS_NOCLDSTOP) == 0)
 				psignal(p->p_pptr, SIGCHLD);
 			stop(p);
+			PROCTREE_LOCK(PT_RELEASE);
 			goto out;
 		} else
 			goto runfast;
@@ -1296,14 +1298,17 @@ issignal(p)
 			 * stopped until released by the parent.
 			 */
 			p->p_xstat = sig;
+			PROCTREE_LOCK(PT_SHARED);
 			psignal(p->p_pptr, SIGCHLD);
 			do {
 				stop(p);
+				PROCTREE_LOCK(PT_RELEASE);
 				mtx_enter(&sched_lock, MTX_SPIN);
 				DROP_GIANT_NOSWITCH();
 				mi_switch();
 				mtx_exit(&sched_lock, MTX_SPIN);
 				PICKUP_GIANT();
+				PROCTREE_LOCK(PT_SHARED);
 			} while (!trace_req(p)
 				 && p->p_flag & P_TRACED);
 
@@ -1369,9 +1374,11 @@ issignal(p)
 				    prop & SA_TTYSTOP))
 					break;	/* == ignore */
 				p->p_xstat = sig;
+				PROCTREE_LOCK(PT_SHARED);
 				stop(p);
 				if ((p->p_pptr->p_procsig->ps_flag & PS_NOCLDSTOP) == 0)
 					psignal(p->p_pptr, SIGCHLD);
+				PROCTREE_LOCK(PT_RELEASE);
 				mtx_enter(&sched_lock, MTX_SPIN);
 				DROP_GIANT_NOSWITCH();
 				mi_switch();
@@ -1414,13 +1421,15 @@ issignal(p)
 /*
  * Put the argument process into the stopped state and notify the parent
  * via wakeup.  Signals are handled elsewhere.  The process must not be
- * on the run queue.
+ * on the run queue.  Must be called with at least a shared hold of the
+ * proctree lock.
  */
 void
 stop(p)
 	register struct proc *p;
 {
 
+	PROCTREE_ASSERT(PT_SHARED);
 	mtx_enter(&sched_lock, MTX_SPIN);
 	p->p_stat = SSTOP;
 	p->p_flag &= ~P_WAITED;

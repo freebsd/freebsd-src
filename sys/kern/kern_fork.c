@@ -476,8 +476,10 @@ again:
 		pptr = initproc;
 	else
 		pptr = p1;
+	PROCTREE_LOCK(PT_EXCLUSIVE);
 	p2->p_pptr = pptr;
 	LIST_INSERT_HEAD(&pptr->p_children, p2, p_sibling);
+	PROCTREE_LOCK(PT_RELEASE);
 	LIST_INIT(&p2->p_children);
 	LIST_INIT(&p2->p_heldmtx);
 	LIST_INIT(&p2->p_contested);
