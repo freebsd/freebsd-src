@@ -307,30 +307,30 @@ a specification, and whitespace (except for newlines) are ignored:
 .Bl -tag -width Ds
 .It Xo
 .Ic #
-.No Ar comment ...
+.Ar comment ...
 .Xc
 Lines beginning with a "#" are comments and are ignored.
 .It Xo
 .Ic g
-.No Ar spec1
-.No Ar spec2
-.No Ar spec3
+.Ar spec1
+.Ar spec2
+.Ar spec3
 .Xc
 Set the BIOS geometry used in partition calculations.  There must be
 three values specified, with a letter preceding each number:
 .Bl -tag -width Ds
 .Sm off
-.It Cm c No Ar num
+.It Cm c Ar num
 .Sm on
 Set the number of cylinders to
 .Ar num .
 .Sm off
-.It Cm h No Ar num
+.It Cm h Ar num
 .Sm on
 Set the number of heads to
 .Ar num .
 .Sm off
-.It Cm s No Ar num
+.It Cm s Ar num
 .Sm on
 Set the number of sectors/track to
 .Ar num .
@@ -365,10 +365,10 @@ g       s63     h39     c1019
 .Ed
 .It Xo
 .Ic p
-.No Ar partition
-.No Ar type
-.No Ar start
-.No Ar length
+.Ar partition
+.Ar type
+.Ar start
+.Ar length
 .Xc
 Set the partition given by
 .Ar partition
@@ -422,7 +422,7 @@ p       1       165     1       2503871
 .Ed
 .It Xo
 .Ic a
-.No Ar partition
+.Ar partition
 .Xc
 Make
 .Ar partition
