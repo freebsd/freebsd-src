@@ -4,7 +4,7 @@
 # This is sysconfig - a file full of useful variables that you can set 
 # to change the default startup behavior of your system.
 #
-#	$Id: sysconfig,v 1.3 1995/03/22 03:29:55 ache Exp $
+#	$Id: sysconfig,v 1.4 1995/03/22 18:00:36 jkh Exp $
 
 ######################### Start Of Syscons Section #######################
 
@@ -130,3 +130,11 @@ accounting=NO
 # Uncomment next line to activate italian locale
 # LANG=it_IT.ISO8859-1; export LANG
 # For full list of locales, check /usr/share/locale/*
+
+######################### End Of Netconfig Section #######################
+
+######################### Start Of Misc Section #######################
+
+# Set to YES if you want ibcs2 emulation loaded at startup
+ibcs2=NO
+
