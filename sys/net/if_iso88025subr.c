@@ -77,6 +77,9 @@
 #include <netipx/ipx_if.h>
 #endif
 
+static int iso88025_resolvemulti (struct ifnet *, struct sockaddr **,
+				  struct sockaddr *));
+
 #define IFP2AC(IFP) ((struct arpcom *)IFP)
 
 void
@@ -530,6 +533,90 @@ iso88025_input(ifp, th, m)
 		return;
 	}
 	netisr_dispatch(isr, m);
+}
+
+static int
+iso88025_resolvemulti (ifp, llsa, sa)
+	struct ifnet *ifp;
+	struct sockaddr **llsa;
+	struct sockaddr *sa;
+{
+	struct sockaddr_dl *sdl;
+	struct sockaddr_in *sin;
+#ifdef INET6
+	struct sockaddr_in6 *sin6;
+#endif
+	u_char *e_addr;
+
+	switch(sa->sa_family) {
+	case AF_LINK:
+		/*
+		 * No mapping needed. Just check that it's a valid MC address.
+		 */
+		sdl = (struct sockaddr_dl *)sa;
+		e_addr = LLADDR(sdl);
+		if ((e_addr[0] & 1) != 1) {
+			return (EADDRNOTAVAIL);
+		}
+		*llsa = 0;
+		return (0);
+
+#ifdef INET
+	case AF_INET:
+		sin = (struct sockaddr_in *)sa;
+		if (!IN_MULTICAST(ntohl(sin->sin_addr.s_addr))) {
+			return (EADDRNOTAVAIL);
+		}
+		MALLOC(sdl, struct sockaddr_dl *, sizeof *sdl, M_IFMADDR,
+		       M_WAITOK|M_ZERO);
+		sdl->sdl_len = sizeof *sdl;
+		sdl->sdl_family = AF_LINK;
+		sdl->sdl_index = ifp->if_index;
+		sdl->sdl_type = IFT_ISO88025;
+		sdl->sdl_alen = ISO88025_ADDR_LEN;
+		e_addr = LLADDR(sdl);
+		ETHER_MAP_IP_MULTICAST(&sin->sin_addr, e_addr);
+		*llsa = (struct sockaddr *)sdl;
+		return (0);
+#endif
+#ifdef INET6
+	case AF_INET6:
+		sin6 = (struct sockaddr_in6 *)sa;
+		if (IN6_IS_ADDR_UNSPECIFIED(&sin6->sin6_addr)) {
+			/*
+			 * An IP6 address of 0 means listen to all
+			 * of the Ethernet multicast address used for IP6.
+			 * (This is used for multicast routers.)
+			 */
+			ifp->if_flags |= IFF_ALLMULTI;
+			*llsa = 0;
+			return (0);
+		}
+		if (!IN6_IS_ADDR_MULTICAST(&sin6->sin6_addr)) {
+			return (EADDRNOTAVAIL);
+		}
+		MALLOC(sdl, struct sockaddr_dl *, sizeof *sdl, M_IFMADDR,
+		       M_WAITOK|M_ZERO);
+		sdl->sdl_len = sizeof *sdl;
+		sdl->sdl_family = AF_LINK;
+		sdl->sdl_index = ifp->if_index;
+		sdl->sdl_type = IFT_ISO88025;
+		sdl->sdl_alen = ISO88025_ADDR_LEN;
+		e_addr = LLADDR(sdl);
+		ETHER_MAP_IPV6_MULTICAST(&sin6->sin6_addr, e_addr);
+		*llsa = (struct sockaddr *)sdl;
+		return (0);
+#endif
+
+	default:
+		/*
+		 * Well, the text isn't quite right, but it's the name
+		 * that counts...
+		 */
+		return (EAFNOSUPPORT);
+	}
+
+	return (0);
 }
 
 static moduledata_t iso88025_mod = {
