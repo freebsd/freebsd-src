@@ -672,7 +672,8 @@ turnstile_unpend(struct turnstile *ts)
 	/*
 	 * Wake up all the pending threads.  If a thread is not blocked
 	 * on a lock, then it is currently executing on another CPU in
-	 * turnstile_wait().  Set a flag to force it to try to acquire
+	 * turnstile_wait() or sitting on a run queue waiting to resume
+	 * in turnstile_wait().  Set a flag to force it to try to acquire
 	 * the lock again instead of blocking.
 	 */
 	while (!TAILQ_EMPTY(&pending_threads)) {
@@ -687,7 +688,7 @@ turnstile_unpend(struct turnstile *ts)
 			setrunqueue(td);
 		} else {
 			td->td_flags |= TDF_TSNOBLOCK;
-			MPASS(TD_IS_RUNNING(td));
+			MPASS(TD_IS_RUNNING(td) || TD_ON_RUNQ(td));
 		}
 	}
 	mtx_unlock_spin(&sched_lock);
