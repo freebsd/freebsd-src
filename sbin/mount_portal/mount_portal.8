@@ -35,7 +35,7 @@
 .\" SUCH DAMAGE.
 .\"
 .\"	@(#)mount_portal.8	8.3 (Berkeley) 3/27/94
-.\"	$Id: mount_portal.8,v 1.3 1998/07/06 07:19:25 charnier Exp $
+.\"	$Id: mount_portal.8,v 1.4 1998/12/15 18:59:06 dillon Exp $
 .\"
 .Dd March 27, 1994
 .Dt MOUNT_PORTAL 8
@@ -102,7 +102,7 @@ specified as "ANY" to allow any other host to connect to the socket. A
 port number of 0 will dynamically allocate a port, this can be
 discovered by calling
 .Xr getsockname 8
-with the returned file descriptor. Privilaged ports can only be bound to
+with the returned file descriptor. Privileged ports can only be bound to
 by the super-user.
 The
 .Pa tcp
