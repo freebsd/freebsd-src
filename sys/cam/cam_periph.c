@@ -975,7 +975,7 @@ camperiphdone(struct cam_periph *periph, union ccb *done_ccb)
 				sense_key = saved_ccb->csio.sense_data.flags;
 				sense_key &= SSD_KEY;
 				if (sense_key != SSD_KEY_NO_SENSE) {
-					saved_ccb->ccb_h.flags |=
+					saved_ccb->ccb_h.status |=
 					    CAM_AUTOSNS_VALID;
 					xpt_print_path(saved_ccb->ccb_h.path);
 					printf("Recovered Sense\n");
