@@ -1,4 +1,4 @@
-<!-- $Id$ -->
+<!-- $Id: ports.sgml,v 1.23 1997/02/22 12:59:06 peter Exp $ -->
 <!-- The FreeBSD Documentation Project -->
 
 <sect><heading>The Ports collection<label id="ports"></heading>
@@ -90,7 +90,7 @@ can be built in the same way.
 If you look at a port skeleton (either on <htmlurl
 url="file://localhost/usr/ports/shells/bash" name="your FreeBSD
 system"> or <htmlurl
-url="ftp://www.freebsd.org/pub/FreeBSD/ports/shells/bash" name="the
+url="ftp://ftp.freebsd.org/pub/FreeBSD/ports/shells/bash" name="the
 FTP site">) and expect to find all sorts of pointy-headed rocket
 science lurking there, you may be disappointed by the one or two
 rather unexciting-looking files and directories you find there.
