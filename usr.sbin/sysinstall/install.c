@@ -573,7 +573,7 @@ nodisks:
 	variable_set2("gateway_enable", "YES", 1);
 
     dialog_clear_norefresh();
-    if (!msgNoYes("Do you want to configure inetd and simple internet services?"))
+    if (!msgNoYes("Do you want to configure inetd and the network services that it provides?"))
         configInetd(self);
 
     dialog_clear_norefresh();
