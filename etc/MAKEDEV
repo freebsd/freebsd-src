@@ -1532,7 +1532,7 @@ tun*)
 	ntun=`expr $i : 'tun\(.*\)$'`
 	unit=0
 	while [ $unit -le $ntun ]; do
-		mknod tun$unit c 52 `unit2minor $unit` root:wheel
+		mknod tun$unit c 52 `unit2minor $unit`
 		unit=$(($unit + 1))
 	done
 	;;
