@@ -1,4 +1,6 @@
+#ifdef __FreeBSD__
 #include <ctype.h>
+#endif
 #include <unctrl.h>
 
 char *
@@ -6,7 +8,11 @@ char *
 {
     static char buffer[3] = "^x";
 
-    if (isgraph(uch)) {
+#ifdef __FreeBSD__
+    if (isprint(uch)) {
+#else
+    if ((uch & 0x60) != 0 && uch != 0x7F) {
+#endif
 	/*
 	 * Printable character. Simply return the character as a one-character
 	 * string.

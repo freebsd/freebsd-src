@@ -11,7 +11,7 @@
 */
 
 #include <stdlib.h>
-#include <nterm.h>
+#include "terminfo.h"
 #include "curses.priv.h"
 
 WINDOW * newwin(int num_lines, int num_columns, int begy, int begx)
@@ -83,6 +83,8 @@ int	i;
 
 	win->_pary = begy;
 	win->_parx = begx;
+	win->_attrs = orig->_attrs;
+	win->_bkgd = orig->_bkgd;
 
 	for (i = 0; i < num_lines; i++)
 	    win->_line[i] = &orig->_line[begy++][begx];
@@ -142,6 +144,7 @@ WINDOW	*win;
 
 	win->_flags      = 0;
 	win->_attrs      = A_NORMAL;
+	win->_bkgd       = ' ';
 
 	win->_clear      = (num_lines == lines  &&  num_columns == columns);
 	win->_idlok      = FALSE;

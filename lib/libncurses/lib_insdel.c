@@ -14,10 +14,10 @@
 
 #include <stdlib.h>
 #include "curses.priv.h"
-#include <nterm.h>
+#include "terminfo.h"
 
 int
-winsdel(WINDOW *win, int n)
+winsdelln(WINDOW *win, int n)
 {
 	int ret, sscroll, stop, sbot;
 

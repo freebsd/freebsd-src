@@ -84,15 +84,16 @@ int	m, n;
 		return ERR;
 
 	T(("three"));
-	if ((pminrow + smaxrow > win->_maxy) || (pmincol + smaxcol > win->_maxx))
+	if ((pminrow + smaxrow - sminrow > win->_maxy) ||
+	    (pmincol + smaxcol - smincol > win->_maxx))
 		return ERR;
 
 	T(("pad being refreshed"));
 
-	for (i = pminrow, m = sminrow; i <= smaxrow + pminrow; i++, m++) {
-		j = pmincol; 
-		n = j + smincol;
-		for (; j <= pmincol + smaxcol; j++, n++) {
+	for (i = pminrow, m = sminrow; i <= pminrow + smaxrow-sminrow;
+	     i++, m++) {
+		for (j = pmincol, n = smincol; j <= pmincol + smaxcol-smincol;
+		     j++, n++) {
 		    if (win->_line[i][j] != newscr->_line[m][n]) {
 			newscr->_line[m][n] = win->_line[i][j];
 

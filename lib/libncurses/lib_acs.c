@@ -5,7 +5,7 @@
 
 
 #include "curses.priv.h"
-#include <nterm.h>
+#include "terminfo.h"
 #include <string.h>
 
 /* line graphics */
@@ -67,7 +67,7 @@ void init_acs()
 	acs_map['0'] = (chtype)'#' & A_CHARTEXT;
 
 	if (ena_acs != NULL)
-		tputs(ena_acs, 1, _outc);
+		putp(ena_acs);
 
 	if (acs_chars != NULL) {
 	    int i = 0;
@@ -91,8 +91,7 @@ void init_acs()
 	}
 #ifdef TRACE
 	else {
-		if (_tracing)
-			_tracef("acsc not defined, using default mapping");
+		T(("acsc not defined, using default mapping"));
 	}
 #endif
 }

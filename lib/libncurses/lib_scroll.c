@@ -14,43 +14,100 @@
 
 #include <stdlib.h>
 #include "curses.priv.h"
-#include <nterm.h>
+#include "terminfo.h"
+
+void scroll_window(WINDOW *win, int n, int regtop, int regbottom)
+{
+int	line, i;
+chtype	*ptr, *temp;
+chtype  **saved;
+chtype	blank = ' ';
+
+    	saved = (chtype **)malloc(sizeof(chtype *) * abs(n));
+
+    	if (n < 0) {
+		/* save overwritten lines */
+		
+		for (i = 0; i < -n; i++)
+			saved[i] = win->_line[regbottom-i];
+
+		/* shift n lines */
+		
+		for (line = regbottom; line >= regtop-n; line--)
+			win->_line[line] = win->_line[line+n];
+
+		/* restore saved lines and blank them */
+
+		for (i = 0, line = regtop; line < regtop-n; line++, i++) {
+			win->_line[line] = saved[i];
+			temp = win->_line[line];
+		    	for (ptr = temp; ptr - temp <= win->_maxx; ptr++)
+				*ptr = blank;
+		}
+	} else {
+		/* save overwritten lines */
+		
+		for (i = 0; i < n; i++)
+			saved[i] = win->_line[regtop+i];
+
+		/* shift n lines */
+		
+		for (line = regtop; line <= regbottom-n; line++)
+			win->_line[line] = win->_line[line+n];
+
+		/* restore saved lines and blank them */
+
+		for (i = 0, line = regbottom; line > regbottom - n; line--, i++) {
+			win->_line[line] = saved[i];
+			temp = win->_line[line];
+		    	for (ptr = temp; ptr - temp <= win->_maxx; ptr++)
+				*ptr = blank;
+		}
+	}
+	
+	free(saved);
+}
 
 int
 wscrl(WINDOW *win, int n)
 {
-int     line, i, touched = 0;
-chtype	*ptr, *temp;
-chtype  **saved, **newsaved = NULL, **cursaved = NULL;
-chtype	blank = ' ';
+int physical = FALSE;
+int i;
 
 	T(("wscrl(%x,%d) called", win, n));
 
-    if (! win->_scroll)
+	if (! win->_scroll)
 		return ERR;
 
 	if (n == 0)
 		return OK;
-
-    /* test for scrolling region == entire screen */
 
 	/* as an optimization, if the scrolling region is the entire screen
 	   scroll the physical screen */
 	/* should we extend this to include smaller scrolling ranges by using
 	   change_scroll_region? */
 
-    if (   win->_begx == 0 && win->_maxx == columns - 1
-	&& !memory_above && !memory_below
-	&& ((win->_regtop == 0 && win->_regbottom == lines - 1
-	     && (   (n < 0 && (parm_rindex || scroll_reverse))
-		 || (n > 0 && (parm_index || scroll_forward))
-		)
-	    ) || (win->_idlok && (parm_insert_line || insert_line)
-		  && (parm_delete_line || delete_line)
-		 )
+	if (   win->_begx == 0 && win->_maxx == columns - 1
+	    && !memory_above && !memory_below
+	    && ((win->_regtop == 0 && win->_regbottom == lines - 1
+		 && (   (n < 0 && (parm_rindex || scroll_reverse))
+		     || (n > 0 && (parm_index || scroll_forward))
+		    )
+		) || (win->_idlok && (parm_insert_line || insert_line)
+		      && (parm_delete_line || delete_line)
+		     )
+	       )
 	   )
-       ) {
+    		physical = TRUE;
+
+	if (physical == TRUE) {
 		wrefresh(win);
+		scroll_window(curscr, n, win->_begy+win->_regtop, win->_begy+win->_regbottom);
+		scroll_window(newscr, n, win->_begy+win->_regtop, win->_begy+win->_regbottom);
+	}
+	scroll_window(win, n, win->_regtop, win->_regbottom);
+
+	if (physical == TRUE) {
 		if (n < 0) {
 			if (   win->_regtop == 0 && win->_regbottom == lines - 1
 			    && (parm_rindex || scroll_reverse)
@@ -118,107 +175,8 @@ chtype	blank = ' ';
 		}
 
 		mvcur(-1, -1, win->_cury, win->_curx);
-		touched = 1;
-	}
+	} else 
+	    	touchline(win, win->_regtop, win->_regbottom - win->_regtop + 1);
 
-    saved = (chtype **)malloc(sizeof(chtype *) * abs(n));
-    if (touched) {
-	newsaved = (chtype **)malloc(sizeof(chtype *) * abs(n));
-	cursaved = (chtype **)malloc(sizeof(chtype *) * abs(n));
-    }
-
-    if (n < 0) {
-	/* save overwritten lines */
-
-	for (i = 0; i < -n; i++) {
-	    saved[i] = win->_line[win->_regbottom-i];
-	    if (touched) {
-		newsaved[i] = newscr->_line[win->_begy+win->_regbottom-i];
-		cursaved[i] = curscr->_line[win->_begy+win->_regbottom-i];
-	    }
-	}
-
-	/* shift n lines */
-
-	for (line = win->_regbottom; line >= win->_regtop - n; line--) {
-	    win->_line[line] = win->_line[line+n];
-	    if (touched) {
-		newscr->_line[win->_begy+line] = newscr->_line[win->_begy+line+n];
-		curscr->_line[win->_begy+line] = curscr->_line[win->_begy+line+n];
-	    }
-	}
-
-	/* restore saved lines and blank them */
-
-	for (i = 0, line = win->_regtop; line < win->_regtop-n; line++, i++) {
-	    win->_line[line] = saved[i];
-	    if (touched) {
-		newscr->_line[win->_begy+line] = newsaved[i];
-		curscr->_line[win->_begy+line] = cursaved[i];
-	    }
-	    temp = win->_line[line];
-	    for (ptr = temp; ptr - temp <= win->_maxx; ptr++)
-		*ptr = blank;
-	    if (touched) {
-		temp = newscr->_line[win->_begy+line];
-		for (ptr = temp; ptr - temp <= newscr->_maxx; ptr++)
-		    *ptr = blank;
-		temp = curscr->_line[win->_begy+line];
-		for (ptr = temp; ptr - temp <= curscr->_maxx; ptr++)
-		    *ptr = blank;
-	    }
-	}
-    } else {
-	/* save overwritten lines */
-
-	for (i = 0; i < n; i++) {
-	    saved[i] = win->_line[win->_regtop+i];
-	    if (touched) {
-		newsaved[i] = newscr->_line[win->_begy+win->_regtop+i];
-		cursaved[i] = curscr->_line[win->_begy+win->_regtop+i];
-	    }
-	}
-
-	/* shift n lines */
-
-	for (line = win->_regtop; line <= win->_regbottom - n; line++) {
-	    win->_line[line] = win->_line[line+n];
-	    if (touched) {
-		newscr->_line[win->_begy+line] = newscr->_line[win->_begy+line+n];
-		curscr->_line[win->_begy+line] = curscr->_line[win->_begy+line+n];
-	    }
-	}
-
-	/* restore saved lines and blank them */
-
-	for (i = 0, line = win->_regbottom; line > win->_regbottom - n; line--, i++) {
-	    win->_line[line] = saved[i];
-	    if (touched) {
-		newscr->_line[win->_begy+line] = newsaved[i];
-		curscr->_line[win->_begy+line] = cursaved[i];
-	    }
-	    temp = win->_line[line];
-	    for (ptr = temp; ptr - temp <= win->_maxx; ptr++)
-		*ptr = blank;
-	    if (touched) {
-		temp = newscr->_line[win->_begy+line];
-		for (ptr = temp; ptr - temp <= newscr->_maxx; ptr++)
-		    *ptr = blank;
-		temp = curscr->_line[win->_begy+line];
-		for (ptr = temp; ptr - temp <= curscr->_maxx; ptr++)
-		    *ptr = blank;
-	    }
-	}
-    }
-	
-    free(saved);
-    if (touched) {
-	free(newsaved);
-	free(cursaved);
-    }
-
-    if (!touched)
-	touchline(win, win->_regtop, win->_regbottom - win->_regtop + 1);
-
-    return OK;
+    	return OK;
 }

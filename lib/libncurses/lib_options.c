@@ -11,15 +11,20 @@
 */
 
 #include <stdlib.h>
-#include <nterm.h>
+#include "terminfo.h"
 #include "curses.priv.h"
 
 int idlok(WINDOW *win, int flag)
 {
 	T(("idlok(%x,%d) called", win, flag));
 
-   	if (insert_line  ||  delete_line || parm_insert_line || parm_delete_line) {
-		win->_idlok = flag;
+	if (flag == FALSE) {
+		win->_idlok = FALSE;
+		return OK;
+	}
+
+	if ((insert_line || parm_insert_line) && (delete_line || parm_delete_line)) {
+		win->_idlok = TRUE;
 	}
 	return OK; 
 }
@@ -42,6 +47,10 @@ int leaveok(WINDOW *win, int flag)
 	T(("leaveok(%x,%d) called", win, flag));
 
    	win->_leave = flag;
+   	if (flag == TRUE)
+   		curs_set(0);
+   	else
+   		curs_set(1);
 	return OK; 
 }
 
@@ -102,9 +111,9 @@ int keypad(WINDOW *win, int flag)
    	win->_use_keypad = flag;
 
 	if (flag  &&  keypad_xmit)
-	    tputs(keypad_xmit, 1, _outc);
+	    putp(keypad_xmit);
 	else if (! flag  &&  keypad_local)
-	    tputs(keypad_local, 1, _outc);
+	    putp(keypad_local);
 	    
 	if (SP->_keytry == UNINITIALISED)
 	    init_keytry();
@@ -120,9 +129,9 @@ int meta(WINDOW *win, int flag)
 	win->_use_meta = flag;
 
 	if (flag  &&  meta_on)
-	    tputs(meta_on, 1, _outc);
+	    putp(meta_on);
 	else if (! flag  &&  meta_off)
-	    tputs(meta_off, 1, _outc);
+	    putp(meta_off);
 	return OK; 
 }
 
@@ -226,4 +235,18 @@ struct try      *ptr, *savedptr;
 	
 	ptr->value = code;
 	return;
+}
+
+int typeahead(int fd)
+{
+
+	T(("typeahead(%d) called", fd));
+	SP->_checkfd = fd;
+	return OK;
+}
+
+int intrflush(WINDOW *win, bool flag)
+{
+	T(("intrflush(%x, %d) called", win, flag));
+	return OK;
 }

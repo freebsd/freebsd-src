@@ -40,7 +40,7 @@ The routine \fBattrset\fR sets the current attributes of the given window to
 turning any other attributes on or off.  The routine \fBattron\fR turns on the
 named attributes without affecting any others.  The routine \fBstandout\fR is
 the same as \fBattron(A_STANDOUT)\fR.  The routine \fBstandend\fR is the same
-as \fBattrset(A_NORMAL)\fR or \fBattrest(0)\fR, that is, it turns off all
+as \fBattrset(A_NORMAL)\fR or \fBattrset(0)\fR, that is, it turns off all
 attributes.
 .SS Attributes
 The following video attributes, defined in \fB<ncurses.h>\fR, can be passed to
@@ -70,9 +70,6 @@ The following macro is the reverse of \fBCOLOR_PAIR(\fR\fIn\fR\fB)\fR:
 The return values of these routines are not neaningful (many are implemented
 as macro-expanded assignments and simply return their argument).  The SVr4
 manual page claims (falsely) that these routines always return \fB1\fR.
-.SH BUGS
-As of 1.8.2, ncurses attributes still have a tendency to stick on in some
-circumstances where SVr4 curses attributes would turn off.
 .SH NOTES
 Note that \fBattroff\fR, \fBwattroff\fR, \fBattron\fR, \fBwattron\fR,
 \fBattrset\fR, \fBwattrset\fR, \fBstandend\fR and \fBstandout\fR may be macros.

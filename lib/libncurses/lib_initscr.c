@@ -18,11 +18,11 @@ WINDOW *initscr()
 #ifdef TRACE
 	_init_trace();
 
-	if (_tracing)
-	    _tracef("initscr() called");
+	T(("initscr() called"));
 #endif
+
   	if (newterm(getenv("TERM"), stdout, stdin) == NULL)
-		return NULL;
+    	return NULL;
 	else {
 		def_shell_mode();
 		def_prog_mode();

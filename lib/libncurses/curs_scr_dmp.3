@@ -18,13 +18,13 @@ from (to) a file
 The \fBscr_dump\fR routine dumps the current contents of the virtual screen
 to the file \fIfilename\fR.
 
-With the \fBscr_restore\fR routine, the virtual screen is set to the contents
+The \fBscr_restore\fR routine sets the virtual screen to the contents
 of \fIfilename\fR, which must have been written using \fBscr_dump\fR.  The next
 call to \fBdoupdate\fR restores the screen to the way it looked in the dump
 file.
 
-With the \fBscr_init\fR routine, the contents of \fIfilename\fR are read in and
-used to initialize the \fBncurses\fR data structures about what the terminal
+The \fBscr_init\fR routine reads in the contents of \fIfilename\fR and uses
+them to initialize the \fBncurses\fR data structures about what the terminal
 currently has on its screen.  If the data is determined to be valid,
 \fBncurses\fR bases its next update of the screen on this information rather
 than clearing the screen and starting from scratch.  \fBscr_init\fR is used
@@ -45,6 +45,8 @@ All routines return the integer \fBERR\fR upon failure and \fBOK\fR
 upon success.
 .SH NOTES
 Note that \fBscr_init\fR, \fBscr_set\fR, and \fBscr_restore\fR may be macros.
+.BUGS
+The time-stamp and rmcup/nrrmc checks are not implemented in \fBncurses\fR(3X).
 .SH SEE ALSO
 \fBncurses\fR(3X), \fBcurs_initscr\fR(3X), \fBcurs_refresh\fR(3X),
 \fBcurs_util\fR(3X), \fBsystem\fR(3S)

@@ -100,8 +100,10 @@ requested \fIvisibility\fR is not supported.
 .SH NOTES
 Note that \fBgetsyx\fR is a macro, so \fB&\fR is not necessary before
 the variables \fIy\fR and \fIx\fR.
-.SH BUGS
-The return value of curs_set is currently incorrect.
+
+The SVr4 man pages warn that the return value of \fBcurs_set\fR "is currently
+incorrect".  This implementation gets it right, but it may be unwise to count
+on the correctness of the return value anywhere else.
 .SH SEE ALSO
 \fBncurses\fR(3X), \fBcurs_initscr\fR(3X), \fBcurs_outopts\fR(3X), \fBcurs_refresh\fR(3X),
 \fBcurs_scr_dump\fR(3X), \fBcurs_slk\fR(3X)

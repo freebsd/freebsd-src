@@ -7,7 +7,6 @@
  *	lib_kernel.c
  *
  *	Misc. low-level routines:
- *		wattron()
  *		reset_prog_mode()
  *		reset_shell_mode()
  *		baudrate()
@@ -21,13 +20,39 @@
  */
 
 #include "curses.priv.h"
-#include <nterm.h>
+#include "terminfo.h"
 
 int wattron(WINDOW *win, chtype at)
 {
-	win->_attrs &= (unsigned long)0xffff00ff;
-	win->_attrs |= at;
+	T(("wattron(%x,%s) current = %s", win, _traceattr(at), _traceattr(win->_attrs)));
+	if (PAIR_NUMBER(at) > 0x00) {
+		win->_attrs = (win->_attrs & ~A_COLOR) | at ;
+		T(("new attribute is %s", _traceattr(win->_attrs)));
+	} else {
+  		win->_attrs |= at;
+		T(("new attribute is %s", _traceattr(win->_attrs)));
+	}
 	return OK;
+}
+
+int wattroff(WINDOW *win, chtype at)
+{
+#define IGNORE_COLOR_OFF FALSE
+
+	T(("wattroff(%x,%s) current = %s", win, _traceattr(at), _traceattr(win->_attrs)));
+	if (IGNORE_COLOR_OFF == TRUE) {
+		if (PAIR_NUMBER(at) == 0xff) /* turn off color */
+			win->_attrs &= ~at;
+		else /* leave color alone */
+			win->_attrs &= ~(at|~A_COLOR);
+	} else {
+		if (PAIR_NUMBER(at) > 0x00) /* turn off color */
+			win->_attrs &= ~at;
+		else /* leave color alone */
+			win->_attrs &= ~(at|~A_COLOR);
+	}
+	T(("new attribute is %s", _traceattr(win->_attrs)));
+  	return OK;
 }
 
 #ifndef MYTINFO
@@ -61,6 +86,8 @@ int reset_shell_mode()
 
 int curs_set(int vis)
 {
+int cursor = SP->_cursor;
+
 	T(("curs_set(%d)", vis));
 
 	if (vis < 0 || vis > 2)
@@ -69,20 +96,43 @@ int curs_set(int vis)
 	switch(vis) {
 	case 2:
 		if (cursor_visible)
-			tputs(cursor_visible, 1, _outc);
+			putp(cursor_visible);
 		break;
 	case 1:
 		if (cursor_normal)
-			tputs(cursor_normal, 1, _outc);
+			putp(cursor_normal);
 		break;
 	case 0:
 		if (cursor_invisible)
-			tputs(cursor_invisible, 1, _outc);
+			putp(cursor_invisible);
 		break;
 	}
-	return OK;	
+	SP->_cursor = vis;
+	return cursor;
 }
 
+int delay_output(int ms)
+{
+int speed;
+
+	T(("delay_output(%d) called", ms));
+
+	if (!no_pad_char && (speed = baudrate()) == ERR)
+		return(ERR);
+	else {
+		register int    nullcount;
+
+		if (!no_pad_char)
+			for (nullcount = ms * 1000 / speed; nullcount > 0; nullcount--)
+				putc(*pad_char, SP->_ofp);
+		(void) fflush(SP->_ofp);
+		if (no_pad_char)
+			napms(ms);
+	}
+
+      	return OK;
+}
+    
 /*
  *	erasechar()
  *
@@ -208,10 +258,9 @@ int
 baudrate()
 {
 int i, ret;
-#ifdef UNTRACE
-	if (_tracing)
-	    _tracef("baudrate() called");
-#endif
+
+	T(("baudrate() called"));
+
 #ifdef TERMIOS
 	ret = cfgetospeed(&cur_term->Nttyb);
 #else

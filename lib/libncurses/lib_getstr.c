@@ -42,7 +42,7 @@ int ch;
 	noecho();
 	noraw();
 	cbreak();
-	keypad(win, FALSE);
+	keypad(win, TRUE);
 
 	erasec = erasechar();
 	killc = killchar();
@@ -81,25 +81,25 @@ int ch;
 	   	}
 	}
 
-    win->_curx = 0;
-    if (win->_cury < win->_maxy)
-       win->_cury++;
+    	win->_curx = 0;
+    	if (win->_cury < win->_maxy)
+       		win->_cury++;
 	wrefresh(win);
 
-	if (! oldnl)
+	if (oldnl == FALSE)
 	    nonl();
 
-	if (oldecho)
+	if (oldecho == TRUE)
 	    echo();
 
-	if (oldraw)
+	if (oldraw == TRUE)
 	    raw();
 
-	if (! oldcbreak)
+	if (oldcbreak == FALSE)
 	    nocbreak();
 
-	if (oldkeypad)
-		keypad(win, TRUE);
+	if (oldkeypad == FALSE)
+		keypad(win, FALSE);
 
 	if (ch == ERR) {
 		*str = '\0';
@@ -107,7 +107,7 @@ int ch;
 	}
 	*str = '\0';
 
-	T(("wgetnstr returns %s", oldstr));
+	T(("wgetnstr returns \"%s\"", visbuf(oldstr)));
 
 	return(OK);
 }

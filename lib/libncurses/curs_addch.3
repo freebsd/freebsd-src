@@ -91,16 +91,16 @@ All routines return the integer \fBERR\fR upon failure and an integer value
 other than \fBERR\fR upon successful completion, unless otherwise noted in the
 preceding routine descriptions.
 .SH BUGS
-The ncurses implementation does not yet handle insertion of a character at the
-bottom-rightmost position of the screen correctly.  If the terminal has the
-auto_right_margin property, the real screen will be scrolled up one regardless
-of whether scrollok has been enabled for \fBstdscr\fR.
-
-The entry points \fBechochar\fR and \fBwechochar\fR are not yet implemented in
-ncurses 1.8.1.
 .SH NOTES
 Note that \fBaddch\fR, \fBmvaddch\fR, \fBmvwaddch\fR, and
 \fBechochar\fR may be macros.
+
+On 386 and 486 consoles, giving \fBwechochar\fR an argument with its high
+bit set will produce the corresponding high-half ASCIIZ graphic (SVr4 curses
+also has this feature but does not document it).  A control-character argument,
+however, will not typically produce the corresponding graphic; 
+characters such as CR, NL, FF and TAB are typically interpreted by the console
+driver itself, and ESC will be interpreted as the leader of a control sequence.
 .SH SEE ALSO
 \fBncurses\fR(3X), \fBcurs_attr\fR(3X), \fBcurs_clear\fR(3X),
 \fBcurs_inch\fR(3X), \fBcurs_outopts\fR(3X), \fBcurs_refresh\fR(3X),

@@ -1,10 +1,12 @@
+NCURSES 1.8.6 - July 24, 1994
+-----------------------------
 This file is intended to help people interested in working
 on fixing ncurses, enhancing it, or porting it to other
 platforms.
 
 PORTABILITY:
-The file matrix is an attempt and centralizing all portability
-information. The top line contains the different options, down
+The file matrix is an attempt at centralizing all portability
+information. The top line lists the different options, down
 the leftside are the operating systems supported. If an option
 is not needed then it should have an entry of NONE. Note the
 use of ':' to terminate each field. If somebody knows awk better
@@ -23,13 +25,14 @@ SRCDIR:		the directory where the terminfo database lives
 CC:		ANSI C compiler
 FLAGS:		standard compiler flags
 EXTRA:		extra flags needed by individual systems
-	Linux:	-DBROKEN_TCDRAIN tcdrain() is broken on Linux
 	Sun:	-DSUNIOCTL <sys/ioctl.h> conflicts with <termios.h>
 	HP-UX:	-D_HPUX_SOURCE so that we get POSIX and XOPEN features.
 	SVR4:	-DBROKEN_TIOCGETWINSZ guess what?
+	AIX:	-DSYS_SELECT if you need <sys/select.h>
 BASE:		The directory under which headers and libraries will
 		be installed.
-INSTALL:	The name of an intelligent install program. GNU install works.
+INSTALL:	The name of an install program similar to BSD's (ie. understands
+		-m, -g, -o, etc.) GNU install works.
 
 The awk script in script.src reads matrix and generates all the Config.*
 files. 
