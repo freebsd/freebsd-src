@@ -40,6 +40,7 @@
 #include <sys/param.h>
 #include <sys/conf.h>
 #include <sys/buf.h>
+#include <sys/mount.h>
 #include <sys/systm.h>
 #include <sys/reboot.h>
 #include <sys/disklabel.h>
@@ -75,11 +76,6 @@ struct	swdevt swdevt[] = {
 	{ NODEV,	0,	0 },
 };
 int	dmmin, dmmax, dmtext;
-#endif
-
-#ifdef NFS
-extern int (*mountroot)  __P((void));
-extern int nfs_mountroot __P((void));
 #endif
 
 void gets __P((char *));
@@ -147,8 +143,8 @@ bad:
 		printf("use dk%%d\n");
 		goto retry;
 	}
-#ifdef NFS
-	if (mountroot == nfs_mountroot) {
+	/* XXX */
+	if (strcmp(mountrootfsname, "nfs") == 0) {
 		/*
 		 * The NFS code in nfs_vfsops.c handles root and swap
 		 * for us if we're booting diskless. This is just to
@@ -157,7 +153,6 @@ bad:
 		dumplo = -1;
 		return;
 	}
-#endif
 	unit = 0;
 	for (gc = genericconf; gc->gc_name; gc++) {
 		for (bd = 0; bd < nblkdev; bd++) {
