@@ -63,7 +63,7 @@ struct member_entry *mtable[TABLESIZE];
 static void
 usage(void)
 {
-	fprintf (stderr,"usage: revnetgroup -u|-h [-f netgroup file]\n");
+	fprintf (stderr,"usage: revnetgroup -u | -h [-f netgroup_file]\n");
 	exit(1);
 }
 
