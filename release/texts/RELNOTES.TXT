@@ -77,17 +77,37 @@ ASIX Electronics AX88140A chip.
 Integrated isdn4bsd from the isdn4bsd project group into the
 regular system.
 
+System console driver (sc0) now broken into individual stand-alone
+modules, partly in preparation for USB keyboards, mice, etc.
+
+Phillips I2C/SMBUS support.
+
+Initial support for USB devices (some keyboards, mice).
+
 
 1.2. SECURITY FIXES
 -------------------
+See ftp://ftp.freebsd.org/pub/FreeBSD/CERT/ for details:
+  CERT Advisory CA-98-13-tcp-denial-of-service closed.
+  FreeBSD-SA-98:08 (IP fragmentation denial of service) closed.
+
+KerberosIV more fully supported.
+
 
 1.3. USERLAND CHANGES
 ---------------------
-
 When using ipfw(8) with the syntax of the first synopsis line from the
 man page (i. e., with a rules file), it can now optionally be run through
 a preprocessor (m4, cpp) so it's possible to use symbolic names and other
 constructs that make maintenance easier.
+
+Support for PAM (Pluggable Authentication Modules) including
+modules for radius, TACACS, S/Key, Kerberos, Unix (passwd) and
+other authentication methods.
+ 
+Sendmail upgraded to version 8.9.2.
+
+AMD, texinfo, global and many other various utilities updated.
 
 
 2. Supported Configurations
