@@ -59,7 +59,7 @@ void Cond_End(void);
 
 /* for.c */
 int For_Eval(char *);
-void For_Run(void);
+void For_Run(int);
 
 /* main.c */
 void Main_ParseArgLine(char *);
@@ -86,7 +86,7 @@ void Parse_AddIncludeDir(char *);
 void Parse_File(char *, FILE *);
 void Parse_Init(void);
 void Parse_End(void);
-void Parse_FromString(char *);
+void Parse_FromString(char *, int);
 Lst Parse_MainName(void);
 
 /* str.c */
