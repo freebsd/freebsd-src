@@ -87,6 +87,47 @@ printstatus(struct fdc_status *fdcsp, int terse)
 
 static struct fd_type fd_types_auto[1];
 
+#ifdef PC98
+
+static struct fd_type fd_types_12m[] = {
+{ 15,2,0xFF,0x1B,80,2400,0,2,0x54,1,0,FL_MFM },	/* 1.2M */
+#if 0
+{ 10,2,0xFF,0x10,82,1640,1,2,0x30,1,0,FL_MFM },	/* 820K */
+{ 10,2,0xFF,0x10,80,1600,1,2,0x30,1,0,FL_MFM },	/* 800K */
+#endif
+{  9,2,0xFF,0x20,80,1440,1,2,0x50,1,0,FL_MFM },	/* 720K */
+{  9,2,0xFF,0x20,40, 720,1,2,0x50,1,0,FL_MFM|FL_2STEP },/* 360K */
+{  8,2,0xFF,0x2A,80,1280,1,2,0x50,1,0,FL_MFM },	/* 640K */
+{  8,3,0xFF,0x35,77,1232,0,2,0x74,1,0,FL_MFM },	/* 1.23M 1024/sec */
+#if 0
+{  8,3,0xFF,0x35,80,1280,0,2,0x74,1,0,FL_MFM },	/* 1.28M 1024/sec */
+#endif
+};
+
+static struct fd_type fd_types_144m[] = {
+#if 0
+{ 21,2,0xFF,0x04,82,3444,2,2,0x0C,2,0,FL_MFM },	/* 1.72M in 3mode */
+{ 18,2,0xFF,0x1B,82,2952,2,2,0x54,1,0,FL_MFM },	/* 1.48M in 3mode */
+#endif
+{ 18,2,0xFF,0x1B,80,2880,2,2,0x54,1,0,FL_MFM },	/* 1.44M in 3mode */
+{ 15,2,0xFF,0x1B,80,2400,0,2,0x54,1,0,FL_MFM },	/* 1.2M */
+#if 0
+{ 10,2,0xFF,0x10,82,1640,1,2,0x30,1,0,FL_MFM },	/* 820K */
+{ 10,2,0xFF,0x10,80,1600,1,2,0x30,1,0,FL_MFM },	/* 800K */
+#endif
+{  9,2,0xFF,0x20,80,1440,1,2,0x50,1,0,FL_MFM },	/* 720K */
+{  9,2,0xFF,0x20,40, 720,1,2,0x50,1,0,FL_MFM|FL_2STEP },/* 360K */
+{  8,2,0xFF,0x2A,80,1280,1,2,0x50,1,0,FL_MFM },	/* 640K */
+{  8,3,0xFF,0x35,77,1232,0,2,0x74,1,0,FL_MFM },	/* 1.23M 1024/sec */
+#if 0
+{  8,3,0xFF,0x35,80,1280,0,2,0x74,1,0,FL_MFM },	/* 1.28M 1024/sec */
+{  9,3,0xFF,0x35,82,1476,0,2,0x47,1,0,FL_MFM },	/* 1.48M 1024/sec 9sec */
+{ 10,3,0xFF,0x1B,82,1640,2,2,0x54,1,0,FL_MFM },	/* 1.64M in 3mode - Reserve */
+#endif
+};
+
+#else /* PC98 */
+
 static struct fd_type fd_types_288m[] =
 {
 #if 0
@@ -134,6 +175,8 @@ static struct fd_type fd_types_360k[] =
 {
 {  9,2,0xFF,0x2A,40, 720,FDC_250KBPS,2,0x50,1,0,FL_MFM }, /*  360K */
 };
+
+#endif /* PC98 */
 
 /*
  * Parse a format string, and fill in the parameter pointed to by `out'.
@@ -241,15 +284,15 @@ parse_fmt(const char *s, enum fd_drivetype type,
 			default:
 				abort(); /* paranoia */
 
+#ifndef PC98
 			case FDT_360K:
 			case FDT_720K:
 				if (j == 250)
 					out->trans = FDC_250KBPS;
-				else {
-				  badspeed:
+				else
 					errx(EX_USAGE, "bad speed %d", j);
-				}
 				break;
+#endif
 
 			case FDT_12M:
 				if (j == 300)
@@ -257,20 +300,22 @@ parse_fmt(const char *s, enum fd_drivetype type,
 				else if (j == 500)
 					out->trans = FDC_500KBPS;
 				else
-					goto badspeed;
+					errx(EX_USAGE, "bad speed %d", j);
 				break;
 
+#ifndef PC98
 			case FDT_288M:
 				if (j == 1000)
 					out->trans = FDC_1MBPS;
 				/* FALLTHROUGH */
+#endif
 			case FDT_144M:
 				if (j == 250)
 					out->trans = FDC_250KBPS;
 				else if (j == 500)
 					out->trans = FDC_500KBPS;
 				else
-					goto badspeed;
+					errx(EX_USAGE, "bad speed %d", j);
 				break;
 			}
 			break;
@@ -373,6 +418,7 @@ get_fmt(int size, enum fd_drivetype type)
 	default:
 		return (0);
 
+#ifndef PC98
 	case FDT_360K:
 		fdtp = fd_types_360k;
 		n = sizeof fd_types_360k / sizeof(struct fd_type);
@@ -382,6 +428,7 @@ get_fmt(int size, enum fd_drivetype type)
 		fdtp = fd_types_720k;
 		n = sizeof fd_types_720k / sizeof(struct fd_type);
 		break;
+#endif
 
 	case FDT_12M:
 		fdtp = fd_types_12m;
@@ -393,18 +440,25 @@ get_fmt(int size, enum fd_drivetype type)
 		n = sizeof fd_types_144m / sizeof(struct fd_type);
 		break;
 
+#ifndef PC98
 	case FDT_288M:
 		fdtp = fd_types_288m;
 		n = sizeof fd_types_288m / sizeof(struct fd_type);
 		break;
+#endif
 	}
 
 	if (size == -1)
 		return fd_types_auto;
 
 	for (i = 0; i < n; i++, fdtp++)
+#ifdef PC98
+		if (((128 << fdtp->secsize) * fdtp->size / 1024) == size)
+			return (fdtp);
+#else
 		if (fdtp->size / 2 == size)
 			return (fdtp);
+#endif
 
 	return (0);
 }
@@ -442,29 +496,35 @@ getname(enum fd_drivetype t, const char **name, const char **descr)
 		*descr = "unknown drive type";
 		break;
 
+#ifndef PC98
 	case FDT_360K:
 		*name = "360K";
 		*descr = "5.25\" double-density";
 		break;
+#endif
 
 	case FDT_12M:
 		*name = "1.2M";
 		*descr = "5.25\" high-density";
 		break;
 
+#ifndef PC98
 	case FDT_720K:
 		*name = "720K";
 		*descr = "3.5\" double-density";
 		break;
+#endif
 
 	case FDT_144M:
 		*name = "1.44M";
 		*descr = "3.5\" high-density";
 		break;
 
+#ifndef PC98
 	case FDT_288M:
 		*name = "2.88M";
 		*descr = "3.5\" extra-density";
 		break;
+#endif
 	}
 }
