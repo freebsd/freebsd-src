@@ -40,17 +40,20 @@ device		fhc
 #
 
 device		genclock	# Generic clock interface
-device		eeprom		# eeprom (really an ebus driver for the MK48Txx)
+device		eeprom		# eeprom (really a front-end for the MK48Txx)
 device		"mk48txx"	# Mostek MK48T02, MK48T08, MK48T59 clock
 
 #
 # Optional devices:
 #
 
+device		creator		# Creator, Creator3D and Elite3D graphics cards
+
+device		ofw_console	# Open Firmware console device
+option 		OFWCONS_POLL_HZ=4 # 20 or more works best on Ultra2
+
 device		sab		# Siemens SAB82532 based serial ports
 device		zs		# Zilog 8530 based serial ports
-
-option 		OFWCONS_POLL_HZ=4	# 20 or more works best on Ultra2
 
 
 #####################################################################
@@ -61,66 +64,71 @@ nodevice	atkbdc
 nodevice	atkbd
 nodevice	psm
 nodevice	vga
-nodevice	splash
-nodevice	sc
-nodevice	blank_saver
 nodevice	daemon_saver
-nodevice	fade_saver
-nodevice	fire_saver
-nodevice	green_saver
-nodevice	logo_saver
-nodevice	rain_saver
 nodevice	star_saver
-nodevice	warp_saver
 nodevice	bktr
 nodevice	fdc
 nodevice	ppc
-nodevice	gusc
-nodevice	sbc
-nodevice	pcm
+nodevice	sound
+nodevice	"snd_ad1816"
+nodevice	"snd_als4000"
+nodevice	"snd_au88x0"
+nodevice	snd_cmi
+nodevice	"snd_cs4281"
+nodevice	snd_csa
+nodevice	"snd_ds1"
+nodevice	"snd_emu10k1"
+nodevice	"snd_es137x"
+nodevice	snd_ess
+nodevice	"snd_fm801"
+nodevice	snd_gusc
+nodevice	snd_ich
+nodevice	snd_maestro
+nodevice	"snd_maestro3"
+nodevice	snd_mss
+nodevice	snd_neomagic
+nodevice	"snd_sb16"
+nodevice	"snd_sb8"
+nodevice	snd_sbc
+nodevice	snd_solo
+nodevice	"snd_t4dwave"
+nodevice	"snd_via8233"
+nodevice	"snd_via82c686"
+nodevice	snd_vibes
+nodevice	"snd_vortex1"
+nodevice	snd_uaudio
 nodevice	aha
 nodevice	bt
 nodevice	wds
 nodevice	ep
 nodevice	ex
-nodevice	vinum
+nodevice	sio
 
 
 #####################################################################
 # Options we don't want to deal with
 
+nooption	FDC_DEBUG
+nooption	COM_ESP
+nooption	CONSPEED
 nooption	VGA_DEBUG
 nooption	SC_RENDER_DEBUG
 nooption	SC_DEBUG_LEVEL
 nooption	PPC_DEBUG
 nooption	PPC_PROBE_CHIPSET
 nooption	SC_NO_SUSPEND_VTYSWITCH
-nooption	SC_NO_SYSMOUSE
-nooption	SC_NO_HISTORY
 nooption	SC_NO_FONT_LOADING
-nooption	SC_NO_CUTPASTE
-nooption	SC_TWOBUTTON_MOUSE
-nooption	SC_CUT_SEPCHARS
-nooption	SC_CUT_SPACES2TABS
 nooption	SC_KERNEL_CONS_REV_ATTR
 nooption	SC_KERNEL_CONS_ATTR
 nooption	SC_NORM_REV_ATTR
 nooption	SC_NORM_ATTR
-nooption	SC_PIXEL_MODE
-nooption	SC_MOUSE_CHAR
-nooption	SC_HISTORY_SIZE
-nooption	SC_DISABLE_REBOOT
-nooption	SC_DISABLE_KDBKEY
 nooption	SC_DFLT_FONT
 nooption	SC_ALT_MOUSE_IMAGE
-nooption	MAXCONS
 nooption	VGA_WIDTH90
 nooption	VGA_SLOW_IOACCESS
 nooption	VGA_ALT_SEQACCESS
 nooption	PSM_RESETAFTERSUSPEND
 nooption	PSM_HOOKRESUME
-nooption	KBD_INSTALL_CDEV
-nooption	KBD_DISABLE_KEYMAP_LOAD
 nooption	ATKBD_DFLT_KEYMAP
 nooption	EXT2FS
 
