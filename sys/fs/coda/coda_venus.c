@@ -200,6 +200,7 @@ venus_open(void *mdp, CodaFid *fid, int flag,
 	struct ucred *cred, struct proc *p,
 /*out*/	struct cdev **dev, ino_t *inode)
 {
+#if 0
     int cflag;
     DECL(coda_open);			/* sets Isize & Osize */
     ALLOC(coda_open);			/* sets inp & outp */
@@ -218,6 +219,9 @@ venus_open(void *mdp, CodaFid *fid, int flag,
 
     CODA_FREE(inp, coda_open_size);
     return error;
+#else
+    return (EOPNOTSUPP);
+#endif
 }
 
 int
