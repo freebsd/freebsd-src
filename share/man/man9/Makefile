@@ -59,6 +59,12 @@ MAN=	BUF_LOCK.9 BUF_LOCKFREE.9 BUF_LOCKINIT.9 BUF_REFCNT.9 \
 	namei.9 \
 	panic.9 pbuf.9 pci.9 pfil.9 pfind.9 pgfind.9 \
 	physio.9 printf.9 pseudofs.9 psignal.9 \
+	pmap.9 pmap_activate.9 pmap_addr_hint.9 pmap_change_wiring.9 \
+	pmap_clear_modify.9 pmap_copy.9 pmap_enter.9 pmap_extract.9 \
+	pmap_growkernel.9 pmap_init.9 pmap_is_modified.9 pmap_map.9 \
+	pmap_mincore.9 pmap_object_init_pt.9 pmap_page_exists_quick.9 \
+	pmap_page_protect.9 pmap_pinit.9 pmap_prefault.9 pmap_qenter.9 \
+	pmap_release.9 pmap_remove.9 pmap_zero_page.9 \
 	random.9 resettodr.9 resource_int_value.9 resource_query_string.9 \
 	rtalloc.9 rtentry.9 runqueue.9  random_harvest.9 rijndael.9 \
 	rman.9 \
@@ -203,6 +209,16 @@ MLINKS+=pci.9 pci_get_powerstate.9 pci.9 pci_set_powerstate.9
 MLINKS+=pci.9 pci_find_bsf.9 pci.9 pci_find_device.9
 MLINKS+=pfil.9 pfil_hook_get.9 pfil.9 pfil_add_hook.9 pfil.9 pfil_remove_hook.9
 MLINKS+=pfind.9 zpfind.9
+MLINKS+=pmap_clear_modify.9 pmap_clear_reference.9
+MLINKS+=pmap_copy.9 pmap_copy_page.9
+MLINKS+=pmap_extract.9 pmap_extract_and_hold.9
+MLINKS+=pmap_init.9 pmap_init2.9
+MLINKS+=pmap_is_modified.9 pmap_ts_modified.9
+MLINKS+=pmap_page_protect.9 pmap_protect.9
+MLINKS+=pmap_pinit.9 pmap_pinit0.9 pmap_pinit2.9
+MLINKS+=pmap_qenter.9 pmap_qremove.9
+MLINKS+=pmap_remove.9 pmap_remove_all.9 pmap_remove_pages.9
+MLINKS+=pmap_zero_page.9 pmap_zero_area.9 pmap_zero_idle.9
 MLINKS+=psignal.9 gsignal.9 psignal.9 pgsignal.9
 MLINKS+=random.9 srandom.9 random.9 arc4random.9 random.9 read_random.9
 MLINKS+=random.9 arc4rand.9
