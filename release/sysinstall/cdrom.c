@@ -122,9 +122,10 @@ mediaInitCDROM(Device *dev)
 		       "try again.", mountpoint);
 	}
 	else {
-	    if (variable_cmp(VAR_RELNAME, cp)
-		&& variable_cmp(VAR_RELNAME, "none")
-		&& variable_cmp(VAR_RELNAME, "any") && !bogusCDOK) {
+	    if (variable_cmp(VAR_RELNAME, cp) &&
+		variable_cmp(VAR_RELNAME, "any") &&
+		variable_cmp(cp, "any") &&
+		!bogusCDOK) {
 		msgConfirm("Warning: The version of the FreeBSD CD currently in the drive\n"
 			   "(%s) does not match the version of the boot floppy\n"
 			   "(%s).\n\n"
@@ -143,10 +144,11 @@ mediaInitCDROM(Device *dev)
 		    bogusCDOK = TRUE;
 	    }
 	    if ((cp = property_find(cd_attr, "CD_MACHINE_ARCH")) != NULL) {
+		if (strcmp(cp, "any") &&
 #ifdef __alpha__
-		if (strcmp(cp, "alpha")) {
+		  strcmp(cp, "alpha")) {
 #else
-		if (strcmp(cp, "x86")) {
+		  strcmp(cp, "x86")) {
 #endif
 		    msgConfirm("Fatal: The FreeBSD install CD currently in the drive\n"
 			   "is for the %s architecture, not the machine you're using.\n\n"

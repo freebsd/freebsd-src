@@ -141,9 +141,9 @@ try:
     }
 
     /* Give it a shot - can't hurt to try and zoom in if we can, unless the release is set to
-       __RELEASE or "none" which signifies that it's not set */
+       __RELEASE or "any" which signifies that it's not set */
     rel = variable_get(VAR_RELNAME);
-    if (strcmp(rel, "__RELEASE") && strcmp(rel, "none"))
+    if (strcmp(rel, "__RELEASE") && strcmp(rel, "any"))
 	i = ftpChdir(OpenConn, rel);
     else
 	i = 0;
@@ -152,7 +152,7 @@ try:
 		      "FTP server.  You may need to visit a different server for\n"
 		      "the release you're trying to fetch or go to the Options\n"
 		      "menu and to set the release name to explicitly match what's\n"
-		      "available on %s (or set to \"none\").\n\n"
+		      "available on %s (or set to \"any\").\n\n"
 		      "Would you like to select another FTP server?",
 		      rel, hostname)) {
 	    variable_unset(VAR_FTP_PATH);

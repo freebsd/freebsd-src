@@ -95,7 +95,7 @@ mediaCheck(Option opt)
 
 #define TAPE_PROMPT	"Please enter the tape block size in 512 byte blocks:"
 #define NEWFS_PROMPT	"Please enter newfs(8) parameters:"
-#define RELNAME_PROMPT	"Please specify the release you wish to load or\n\"none\" for a generic release install:"
+#define RELNAME_PROMPT	"Please specify the release you wish to load or\n\"any\" for a generic release install:"
 #define BPKG_PROMPT	"Please specify the name of the HTML browser package:"
 #define BBIN_PROMPT	"Please specify a full pathname to the HTML browser binary:"
 #define EDITOR_PROMPT	"Please specify the name of the text editor you wish to use:"
