@@ -2,7 +2,7 @@
 /******************************************************************************
  *
  * Module Name: exstore - AML Interpreter object store support
- *              $Revision: 169 $
+ *              $Revision: 172 $
  *
  *****************************************************************************/
 
@@ -199,7 +199,7 @@ AcpiExStore (
             return_ACPI_STATUS (AE_OK);
         }
 
-        /*lint: -fallthrough */
+        /*lint -fallthrough */
 
     default:
 
@@ -387,6 +387,13 @@ AcpiExStoreObjectToIndex (
         {
             AcpiUtRemoveReference (ObjDesc);
             *(IndexDesc->Reference.Where) = NewDesc;
+
+            /* If same as the original source, add a reference */
+
+            if (NewDesc == SourceDesc)
+            {
+                AcpiUtAddReference (NewDesc);
+            }
         }
         break;
 
@@ -560,8 +567,12 @@ AcpiExStoreObjectToNode (
              * Store the new NewDesc as the new value of the Name, and set
              * the Name's type to that of the value being stored in it.
              * SourceDesc reference count is incremented by AttachObject.
+             *
+             * Note: This may change the type of the node if an explicit store
+             * has been performed such that the node/object type has been
+             * changed.
              */
-            Status = AcpiNsAttachObject (Node, NewDesc, TargetType);
+            Status = AcpiNsAttachObject (Node, NewDesc, NewDesc->Common.Type);
 
             ACPI_DEBUG_PRINT ((ACPI_DB_EXEC,
                 "Store %s into %s via Convert/Attach\n",

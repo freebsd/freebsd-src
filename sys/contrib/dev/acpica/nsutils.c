@@ -2,7 +2,7 @@
  *
  * Module Name: nsutils - Utilities for accessing ACPI namespace, accessing
  *                        parents and siblings and Scope manipulation
- *              $Revision: 112 $
+ *              $Revision: 113 $
  *
  *****************************************************************************/
 
@@ -124,6 +124,57 @@
 
 #define _COMPONENT          ACPI_NAMESPACE
         ACPI_MODULE_NAME    ("nsutils")
+
+
+/*******************************************************************************
+ *
+ * FUNCTION:    AcpiNsReportError
+ *
+ * PARAMETERS:  ModuleName          - Caller's module name (for error output)
+ *              LineNumber          - Caller's line number (for error output)
+ *              ComponentId         - Caller's component ID (for error output)
+ *              Message             - Error message to use on failure
+ *
+ * RETURN:      None
+ *
+ * DESCRIPTION: Print warning message
+ *
+ ******************************************************************************/
+
+void
+AcpiNsReportError (
+    NATIVE_CHAR             *ModuleName,
+    UINT32                  LineNumber,
+    UINT32                  ComponentId,
+    char                    *InternalName,
+    ACPI_STATUS             LookupStatus)
+{
+    ACPI_STATUS             Status;
+    char                    *Name;
+
+    
+    Status = AcpiNsExternalizeName (ACPI_UINT32_MAX, InternalName, NULL, &Name);
+
+    AcpiOsPrintf ("%8s-%04d: *** Error: Looking up ", 
+        ModuleName, LineNumber);
+
+    if (Name)
+    {
+        AcpiOsPrintf ("[%s]", Name);
+    }
+    else
+    {
+        AcpiOsPrintf ("[COULD NOT EXTERNALIZE NAME]");
+    }
+
+    AcpiOsPrintf (" in namespace, %s\n", 
+        AcpiFormatException (LookupStatus));
+
+    if (Name)
+    {
+        ACPI_MEM_FREE (Name);
+    }
+}
 
 
 /*******************************************************************************

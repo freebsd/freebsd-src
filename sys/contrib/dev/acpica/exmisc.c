@@ -2,7 +2,7 @@
 /******************************************************************************
  *
  * Module Name: exmisc - ACPI AML (p-code) execution - specific opcodes
- *              $Revision: 108 $
+ *              $Revision: 109 $
  *
  *****************************************************************************/
 
@@ -121,7 +121,6 @@
 #include "acpi.h"
 #include "acinterp.h"
 #include "amlcode.h"
-#include "acdispat.h"
 
 
 #define _COMPONENT          ACPI_EXECUTER

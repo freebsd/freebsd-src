@@ -1,7 +1,7 @@
 /******************************************************************************
  *
  * Module Name: dswload - Dispatcher namespace load callbacks
- *              $Revision: 70 $
+ *              $Revision: 75 $
  *
  *****************************************************************************/
 
@@ -202,18 +202,14 @@ AcpiDsLoad1BeginOp (
     ACPI_STATUS             Status;
     ACPI_OBJECT_TYPE        ObjectType;
     NATIVE_CHAR             *Path;
+    UINT32                  Flags;
 
 
     ACPI_FUNCTION_NAME ("DsLoad1BeginOp");
 
+
     Op = WalkState->Op;
     ACPI_DEBUG_PRINT ((ACPI_DB_DISPATCH, "Op=%p State=%p\n", Op, WalkState));
-
-
-    if (Op && (Op->Common.AmlOpcode == AML_INT_NAMEDFIELD_OP))
-    {
-        ACPI_DEBUG_PRINT ((ACPI_DB_DISPATCH, "Op=%p State=%p\n", Op, WalkState));
-    }
 
     /* We are only interested in opcodes that have an associated name */
 
@@ -221,6 +217,15 @@ AcpiDsLoad1BeginOp (
     {
         if (!(WalkState->OpInfo->Flags & AML_NAMED))
         {
+#if 0
+            if ((WalkState->OpInfo->Class == AML_CLASS_EXECUTE) ||
+                (WalkState->OpInfo->Class == AML_CLASS_CONTROL))
+            {
+                AcpiOsPrintf ("\n\n***EXECUTABLE OPCODE %s***\n\n", WalkState->OpInfo->Name);
+                *OutOp = Op;
+                return (AE_CTRL_SKIP);
+            }
+#endif
             *OutOp = Op;
             return (AE_OK);
         }
@@ -241,7 +246,33 @@ AcpiDsLoad1BeginOp (
     ObjectType = WalkState->OpInfo->ObjectType;
 
     ACPI_DEBUG_PRINT ((ACPI_DB_DISPATCH,
-        "State=%p Op=%p Type=%X\n", WalkState, Op, ObjectType));
+        "State=%p Op=%p [%s] ", WalkState, Op, AcpiUtGetTypeName (ObjectType)));
+
+    /*
+     * Setup the search flags.
+     *
+     * Since we are entering a name into the namespace, we do not want to 
+     *    enable the search-to-root upsearch.
+     *
+     * There are only two conditions where it is acceptable that the name
+     *    already exists:
+     *    1) the Scope() operator can reopen a scoping object that was 
+     *       previously defined (Scope, Method, Device, etc.)
+     *    2) Whenever we are parsing a deferred opcode (OpRegion, Buffer, 
+     *       BufferField, or Package), the name of the object is already 
+     *       in the namespace.
+     */
+    Flags = ACPI_NS_NO_UPSEARCH;
+    if ((WalkState->Opcode != AML_SCOPE_OP) &&
+        (!(WalkState->ParseFlags & ACPI_PARSE_DEFERRED_OP)))
+    {
+        Flags |= ACPI_NS_ERROR_IF_FOUND;
+        ACPI_DEBUG_PRINT_RAW ((ACPI_DB_DISPATCH, "Cannot already exist\n"));
+    }
+    else
+    {
+        ACPI_DEBUG_PRINT_RAW ((ACPI_DB_DISPATCH, "Both Find or Create allowed\n"));
+    }
 
     /*
      * Enter the named type into the internal namespace.  We enter the name
@@ -249,11 +280,60 @@ AcpiDsLoad1BeginOp (
      * arguments to the opcode must be created as we go back up the parse tree later.
      */
     Status = AcpiNsLookup (WalkState->ScopeInfo, Path, ObjectType,
-                    ACPI_IMODE_LOAD_PASS1, ACPI_NS_NO_UPSEARCH, WalkState, &(Node));
-
+                    ACPI_IMODE_LOAD_PASS1, Flags, WalkState, &(Node));
     if (ACPI_FAILURE (Status))
     {
+        ACPI_REPORT_NSERROR (Path, Status);
         return (Status);
+    }
+
+    /*
+     * For the scope op, we must check to make sure that the target is
+     * one of the opcodes that actually opens a scope
+     */
+    if (WalkState->Opcode == AML_SCOPE_OP)
+    {
+        switch (Node->Type)
+        {
+        case ACPI_TYPE_ANY:         /* Scope nodes are untyped (ANY) */
+        case ACPI_TYPE_DEVICE:
+        case ACPI_TYPE_POWER:
+        case ACPI_TYPE_PROCESSOR:
+        case ACPI_TYPE_THERMAL:
+
+            /* These are acceptable types */
+            break;
+
+        case ACPI_TYPE_INTEGER:
+        case ACPI_TYPE_STRING:
+        case ACPI_TYPE_BUFFER:
+
+            /* 
+             * These types we will allow, but we will change the type.  This
+             * enables some existing code of the form:
+             *
+             *  Name (DEB, 0)
+             *  Scope (DEB) { ... }
+             *
+             * Note: silently change the type here.  On the second pass, we will report a warning
+             */
+
+            ACPI_DEBUG_PRINT ((ACPI_DB_INFO, "Type override - [%4.4s] had invalid type (%s) for Scope operator, changed to (Scope)\n", 
+                Path, AcpiUtGetTypeName (Node->Type)));
+
+            Node->Type = ACPI_TYPE_ANY;
+            WalkState->ScopeInfo->Common.Value = ACPI_TYPE_ANY;
+            break;
+
+       default:
+
+            /* All other types are an error */
+
+            ACPI_REPORT_ERROR (("Invalid type (%s) for target of Scope operator [%4.4s] (Cannot override)\n", 
+                AcpiUtGetTypeName (Node->Type), Path));
+
+            return (AE_AML_OPERAND_TYPE);
+        }
     }
 
     if (!Op)
@@ -314,9 +394,9 @@ AcpiDsLoad1EndOp (
 
     ACPI_FUNCTION_NAME ("DsLoad1EndOp");
 
+
     Op = WalkState->Op;
     ACPI_DEBUG_PRINT ((ACPI_DB_DISPATCH, "Op=%p State=%p\n", Op, WalkState));
-
 
     /* We are only interested in opcodes that have an associated name */
 
@@ -504,36 +584,86 @@ AcpiDsLoad2BeginOp (
                         ACPI_IMODE_EXECUTE, ACPI_NS_NO_UPSEARCH, WalkState, &(Node));
     }
 
-    if (ACPI_SUCCESS (Status))
+    if (ACPI_FAILURE (Status))
     {
+        ACPI_REPORT_NSERROR (BufferPtr, Status);
+        return_ACPI_STATUS (Status);
+    }
+
+    /*
+     * For the scope op, we must check to make sure that the target is
+     * one of the opcodes that actually opens a scope
+     */
+    if (WalkState->Opcode == AML_SCOPE_OP)
+    {
+        switch (Node->Type)
+        {
+        case ACPI_TYPE_ANY:         /* Scope nodes are untyped (ANY) */
+        case ACPI_TYPE_DEVICE:
+        case ACPI_TYPE_POWER:
+        case ACPI_TYPE_PROCESSOR:
+        case ACPI_TYPE_THERMAL:
+
+            /* These are acceptable types */
+            break;
+
+        case ACPI_TYPE_INTEGER:
+        case ACPI_TYPE_STRING:
+        case ACPI_TYPE_BUFFER:
+
+            /* 
+             * These types we will allow, but we will change the type.  This
+             * enables some existing code of the form:
+             *
+             *  Name (DEB, 0)
+             *  Scope (DEB) { ... }
+             */
+
+            ACPI_REPORT_WARNING (("Type override - [%4.4s] had invalid type (%s) for Scope operator, changed to (Scope)\n", 
+                BufferPtr, AcpiUtGetTypeName (Node->Type)));
+
+            Node->Type = ACPI_TYPE_ANY;
+            WalkState->ScopeInfo->Common.Value = ACPI_TYPE_ANY;
+            break;
+
+       default:
+
+            /* All other types are an error */
+
+            ACPI_REPORT_ERROR (("Invalid type (%s) for target of Scope operator [%4.4s]\n", 
+                AcpiUtGetTypeName (Node->Type), BufferPtr));
+
+            return (AE_AML_OPERAND_TYPE);
+        }
+    }
+
+    if (!Op)
+    {
+        /* Create a new op */
+
+        Op = AcpiPsAllocOp (WalkState->Opcode);
         if (!Op)
         {
-            /* Create a new op */
-
-            Op = AcpiPsAllocOp (WalkState->Opcode);
-            if (!Op)
-            {
-                return_ACPI_STATUS (AE_NO_MEMORY);
-            }
-
-            /* Initialize the new op */
-
-            if (Node)
-            {
-                Op->Named.Name = Node->Name.Integer;
-            }
-            if (OutOp)
-            {
-                *OutOp = Op;
-            }
+            return_ACPI_STATUS (AE_NO_MEMORY);
         }
 
-        /*
-         * Put the Node in the "op" object that the parser uses, so we
-         * can get it again quickly when this scope is closed
-         */
-        Op->Common.Node = Node;
+        /* Initialize the new op */
+
+        if (Node)
+        {
+            Op->Named.Name = Node->Name.Integer;
+        }
+        if (OutOp)
+        {
+            *OutOp = Op;
+        }
     }
+
+    /*
+     * Put the Node in the "op" object that the parser uses, so we
+     * can get it again quickly when this scope is closed
+     */
+    Op->Common.Node = Node;
 
     return_ACPI_STATUS (Status);
 }
@@ -856,7 +986,10 @@ AcpiDsLoad2EndOp (
              */
             Op->Common.Node = NewNode;
         }
-
+        else
+        {
+            ACPI_REPORT_NSERROR (Arg->Common.Value.String, Status);
+        }
         break;
 
 

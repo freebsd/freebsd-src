@@ -1,7 +1,7 @@
 /*******************************************************************************
  *
  * Module Name: dmnames - AML disassembler, names, namestrings, pathnames
- *              $Revision: 3 $
+ *              $Revision: 4 $
  *
  ******************************************************************************/
 
@@ -145,7 +145,19 @@ AcpiDmValidateName (
     char                    *Name,
     ACPI_PARSE_OBJECT       *Op)
 {
+
 #if 0
+    if ((!Name) ||
+        (!Op->Common.Parent))
+    {
+        return;
+    }
+
+    if (!Op->Common.Node)
+    {
+        AcpiOsPrintf (" /**** Name not found or not accessible from this scope ****/ ");
+    }
+
     ACPI_PARSE_OBJECT       *TargetOp;
 
 

@@ -1,7 +1,7 @@
 /******************************************************************************
  *
  * Name: aclocal.h - Internal data types used across the ACPI subsystem
- *       $Revision: 175 $
+ *       $Revision: 176 $
  *
  *****************************************************************************/
 
@@ -758,8 +758,8 @@ typedef struct acpi_parseobj_asl
     UINT32                      AmlSubtreeLength;
     UINT32                      FinalAmlLength;
     UINT32                      FinalAmlOffset;
+    UINT32                      CompileFlags;
     UINT16                      ParseOpcode;
-    UINT16                      CompileFlags;
     UINT8                       AmlOpcodeLength;
     UINT8                       AmlPkgLenBytes;
     UINT8                       Extra;
