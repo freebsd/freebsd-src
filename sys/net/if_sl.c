@@ -165,7 +165,7 @@ static MALLOC_DEFINE(M_SL, "sl", "SLIP Interface");
 #define	ABT_COUNT	3	/* count of escapes for abort */
 #define	ABT_WINDOW	(ABT_COUNT*2+2)	/* in seconds - time to count */
 
-LIST_HEAD(sl_list, sl_softc) sl_list;
+static LIST_HEAD(sl_list, sl_softc) sl_list;
 
 #define FRAME_END	 	0xc0		/* Frame End */
 #define FRAME_ESCAPE		0xdb		/* Frame Esc */

@@ -103,7 +103,7 @@ static int faithmodevent __P((module_t, int, void *));
 
 static MALLOC_DEFINE(M_FAITH, FAITHNAME, "Firewall Assisted Tunnel Interface");
 static struct rman faithunits[1];
-LIST_HEAD(, faith_softc) faith_softc_list;
+static LIST_HEAD(, faith_softc) faith_softc_list;
 
 int	faith_clone_create __P((struct if_clone *, int *));
 void	faith_clone_destroy __P((struct ifnet *));

@@ -135,7 +135,7 @@ struct stf_softc {
 	LIST_ENTRY(stf_softc) sc_list;	/* all stf's are linked */
 };
 
-LIST_HEAD(, stf_softc) stf_softc_list;
+static LIST_HEAD(, stf_softc) stf_softc_list;
 
 static MALLOC_DEFINE(M_STF, STFNAME, "6to4 Tunnel Interface");
 static struct rman stfunits[1];

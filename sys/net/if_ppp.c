@@ -130,7 +130,7 @@
 #include <net/ppp_comp.h>
 #endif
 
-struct ppp_softc ppp_softc[NPPP];
+static struct ppp_softc ppp_softc[NPPP];
 
 /* XXX layering violation */
 extern void	pppasyncattach __P((void *));
