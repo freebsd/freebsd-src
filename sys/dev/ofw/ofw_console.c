@@ -276,7 +276,7 @@ ofw_cons_probe(struct consdev *cp)
 		return;
 	}
 
-	cp->cn_pri = CN_INTERNAL;
+	cp->cn_pri = CN_LOW;
 }
 
 static void
