@@ -61,8 +61,8 @@ dnl FEATURE(relay_based_on_MX)
 
 dnl DNS based black hole lists
 dnl --------------------------------
-dnl DNS based black hole lists come and up on a regular basis
-dnl do this file will not serve as a database of the available servers.
+dnl DNS based black hole lists come and go on a regular basis
+dnl so this file will not serve as a database of the available servers.
 dnl For that, visit http://dmoz.org/Computers/Internet/Abuse/Spam/Blacklists/
 
 dnl Uncomment to activate Realtime Blackhole List
