@@ -83,6 +83,8 @@ usage(void)
 		    "       at -c job [job ...]\n"
 		    "       at [-f file] -t [[CC]YY]MMDDhhmm[.SS]\n"
 		    "       at -r job [job ...]\n"
+		    "       at -l -q queuename\n"
+		    "       at -l [job ...]\n"
 		    "       atq [-q x] [-v]\n"
 		    "       atrm job [job ...]\n"
 		    "       batch [-f file] [-m]\n");
