@@ -138,17 +138,23 @@ cpu_thread_clean(struct thread *td)
 void
 cpu_thread_setup(struct thread *td)
 {
+	struct pcb *pcb;
+
+	pcb = (struct pcb *)((td->td_kstack + KSTACK_PAGES * PAGE_SIZE -
+	    sizeof(struct pcb)) & ~0x3fUL);
+	td->td_frame = (struct trapframe *)pcb - 1;
+	td->td_pcb = pcb;
 }
 
 void
 cpu_set_upcall(struct thread *td, void *v)
 {
-	struct pcb *pcb = v;
 	struct trapframe *tf;
 	struct frame *fr;
+	struct pcb *pcb;
 
-	tf = (struct trapframe *)pcb - 1;
-	td->td_frame = tf;
+	pcb = td->td_pcb;
+	tf = td->td_frame;
 	fr = (struct frame *)tf - 1;
 	fr->fr_local[0] = (u_long)fork_return;
 	fr->fr_local[1] = (u_long)td;
