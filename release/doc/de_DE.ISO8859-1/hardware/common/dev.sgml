@@ -28,8 +28,8 @@
 	this file to fix "missed" conversions are likely to break the
 	build.
 
-	$FreeBSDde: de-docproj/relnotes/de_DE.ISO8859-1/hardware/common/dev.sgml,v 1.3.2.19 2002/10/12 12:49:45 mheinen Exp $
-	basiert auf: 1.13.2.68
+	$FreeBSDde: de-docproj/relnotes/de_DE.ISO8859-1/hardware/common/dev.sgml,v 1.3.2.20 2002/10/16 11:52:26 ue Exp $
+	basiert auf: 1.13.2.69
 -->
 
 <sect1>
@@ -882,11 +882,6 @@
         <listitem>
           <para>SCSI Ger&auml;te (dazu geh&ouml;ren auch ProAudio
             Spectrum und SoundBlaster SCSI) (&man.cd.4;)</para>
-        </listitem>
-
-        <listitem arch="i386">
-          <para>Matsushita/Panasonic (Creative SoundBlaster)
-            Ger&auml;te (562/563 models) (&man.matcd.4;)</para>
         </listitem>
 
         <listitem arch="i386">

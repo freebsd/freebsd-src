@@ -1,6 +1,6 @@
 <!--
-  $FreeBSDde: de-docproj/relnotes/de_DE.ISO8859-1/relnotes/common/new.sgml,v 1.3.2.98 2002/10/13 10:18:37 ue Exp $
-  basiert auf: 1.22.2.302
+  $FreeBSDde: de-docproj/relnotes/de_DE.ISO8859-1/relnotes/common/new.sgml,v 1.3.2.99 2002/10/16 20:44:18 ue Exp $
+  basiert auf: 1.22.2.303
 -->
 
 <articleinfo>
@@ -151,7 +151,10 @@
     <sect3>
       <title>Festplatten und Massenspeicher</title>
 
-      <para></para>
+      <para>Der Treiber &man.matcd.4; mu&szlig;te aus
+	lizenzrechtlichen Gr&uuml;nden entfernt werden.  Dies geschah
+	schon in &release.prev;, wurde aber versehentlich nicht in den
+	Release Notes erw&auml;hnt.</para>
 
     </sect3>
 
@@ -201,7 +204,8 @@
     <sect3>
       <title>Zus&auml;tzliche Software</title>
 
-      <para></para>
+      <para><application>cvs</application> ist jetzt in der Version
+	1.11.2 verf&uuml;gbar.</para>
 
     </sect3>
 
