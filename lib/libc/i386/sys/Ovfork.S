@@ -57,10 +57,6 @@ ENTRY(__sys_vfork)
 	lea	SYS_vfork,%eax
 	KERNCALL
 	jb	2f
-	cmpl	$0,%edx		/* parent process? */
-	je	1f		/* yes */
-	movl	$0,%eax
-1:
 	jmp	*%ecx
 2:
 	pushl	%ecx
