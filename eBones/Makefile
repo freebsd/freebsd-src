@@ -1,10 +1,10 @@
 #	From: @(#)Makefile	5.1 (Berkeley) 6/25/90
-#	$Id: Makefile,v 1.4 1994/11/20 23:39:44 wollman Exp $
+#	$Id: Makefile,v 1.5 1995/01/14 20:50:36 wollman Exp $
 
-SUBDIR=	include
+SUBDIR=	include des acl kdb krb libkadm
 
-SUBDIR+= des acl ext_srvtab include kdb kdb_destroy kdb_edit \
-	 kdb_init kdb_util kdestroy kerberos kinit klist krb ksrvtgt \
+SUBDIR+= ext_srvtab kdb_destroy kdb_edit \
+	 kdb_init kdb_util kdestroy kerberos kinit klist ksrvtgt \
 	 kstash man
 #
 # MISSING AND PROBABLY BOGUS: register registerd make_keypair
