@@ -32,13 +32,17 @@
  */
 
 #ifndef lint
-static char copyright[] =
+static const char copyright[] =
 "@(#) Copyright (c) 1983, 1990, 1993\n\
 	The Regents of the University of California.  All rights reserved.\n";
 #endif /* not lint */
 
 #ifndef lint
+#if 0
 static char sccsid[] = "@(#)rlogin.c	8.1 (Berkeley) 6/6/93";
+#endif
+static const char rcsid[] =
+	"$Id$";
 #endif /* not lint */
 
 /*
@@ -55,6 +59,7 @@ static char sccsid[] = "@(#)rlogin.c	8.1 (Berkeley) 6/6/93";
 #include <netinet/ip.h>
 #include <netinet/tcp.h>
 
+#include <err.h>
 #include <errno.h>
 #include <fcntl.h>
 #include <netdb.h>
@@ -235,10 +240,8 @@ main(argc, argv)
 	if (*argv)
 		usage();
 
-	if (!(pw = getpwuid(uid = getuid()))) {
-		(void)fprintf(stderr, "rlogin: unknown user id.\n");
-		exit(1);
-	}
+	if (!(pw = getpwuid(uid = getuid())))
+		errx(1, "unknown user id");
 	if (!user)
 		user = pw->pw_name;
 
@@ -255,10 +258,8 @@ main(argc, argv)
 #endif
 	if (sp == NULL)
 		sp = getservbyname("login", "tcp");
-	if (sp == NULL) {
-		(void)fprintf(stderr, "rlogin: login/tcp: unknown service.\n");
-		exit(1);
-	}
+	if (sp == NULL)
+		errx(1, "login/tcp: unknown service");
 
 #define	MAX_TERM_LENGTH	(sizeof(term) - 1 - MAX_SPEED_LENGTH - 1)
 
@@ -291,11 +292,8 @@ try_connect:
 
 		/* Fully qualify hostname (needed for krb_realmofhost). */
 		hp = gethostbyname(host);
-		if (hp != NULL && !(host = strdup(hp->h_name))) {
-			(void)fprintf(stderr, "rlogin: %s\n",
-			    strerror(ENOMEM));
-			exit(1);
-		}
+		if (hp != NULL && !(host = strdup(hp->h_name)))
+			errx(1, "%s", strerror(ENOMEM));
 
 		rem = KSUCCESS;
 		errno = 0;
@@ -314,11 +312,8 @@ try_connect:
 		if (rem < 0) {
 			use_kerberos = 0;
 			sp = getservbyname("login", "tcp");
-			if (sp == NULL) {
-				(void)fprintf(stderr,
-				    "rlogin: unknown service login/tcp.\n");
-				exit(1);
-			}
+			if (sp == NULL)
+				errx(1, "unknown service login/tcp");
 			if (errno == ECONNREFUSED)
 				warning("remote host doesn't support Kerberos");
 			if (errno == ENOENT)
@@ -327,11 +322,8 @@ try_connect:
 		}
 	} else {
 #ifdef CRYPT
-		if (doencrypt) {
-			(void)fprintf(stderr,
-			    "rlogin: the -x flag requires Kerberos authentication.\n");
-			exit(1);
-		}
+		if (doencrypt)
+			errx(1, "the -x flag requires Kerberos authentication");
 #endif /* CRYPT */
 		rem = rcmd(&host, sp->s_port, pw->pw_name, user, term, 0);
 	}
@@ -344,15 +336,14 @@ try_connect:
 
 	if (dflag &&
 	    setsockopt(rem, SOL_SOCKET, SO_DEBUG, &one, sizeof(one)) < 0)
-		(void)fprintf(stderr, "rlogin: setsockopt: %s.\n",
-		    strerror(errno));
+		warn("setsockopt");
 	if (Dflag &&
 	    setsockopt(rem, IPPROTO_TCP, TCP_NODELAY, &one, sizeof(one)) < 0)
-		perror("rlogin: setsockopt NODELAY (ignored)");
+		warn("setsockopt NODELAY (ignored)");
 
 	one = IPTOS_LOWDELAY;
 	if (setsockopt(rem, IPPROTO_IP, IP_TOS, (char *)&one, sizeof(int)) < 0)
-		perror("rlogin: setsockopt TOS (ignored)");
+		warn("setsockopt TOS (ignored)");
 
 	(void)setuid(uid);
 	doit(omask);
@@ -388,7 +379,7 @@ doit(omask)
 	setsignal(SIGQUIT);
 	child = fork();
 	if (child == -1) {
-		(void)fprintf(stderr, "rlogin: fork: %s.\n", strerror(errno));
+		warn("fork");
 		done(1);
 	}
 	if (child == 0) {
@@ -712,8 +703,7 @@ oob(signo)
 		(void)ioctl(1, TIOCFLUSH, (char *)&out);
 		for (;;) {
 			if (ioctl(rem, SIOCATMARK, &atmark) < 0) {
-				(void)fprintf(stderr, "rlogin: ioctl: %s.\n",
-				    strerror(errno));
+				warn("ioctl");
 				break;
 			}
 			if (atmark)
@@ -791,8 +781,7 @@ reader(omask)
 		if (rcvcnt < 0) {
 			if (errno == EINTR)
 				continue;
-			(void)fprintf(stderr, "rlogin: read: %s.\n",
-			    strerror(errno));
+			warn("read");
 			return (-1);
 		}
 	}
