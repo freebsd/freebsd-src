@@ -42,7 +42,7 @@ static const char copyright[] =
 static char sccsid[] = "@(#)su.c	8.3 (Berkeley) 4/2/94";
 */
 static const char rcsid[] =
-	"$Id: su.c,v 1.13 1996/03/11 22:14:52 markm Exp $";
+	"$Id: su.c,v 1.14 1996/10/07 10:00:58 joerg Exp $";
 #endif /* not lint */
 
 #include <sys/param.h>
@@ -60,6 +60,14 @@ static const char rcsid[] =
 #include <syslog.h>
 #include <unistd.h>
 
+#ifdef LOGIN_CAP
+#include <login_cap.h>
+#ifdef LOGIN_CAP_AUTH
+#undef SKEY
+#undef KERBEROS
+#endif
+#endif
+
 #ifdef	SKEY
 #include <skey.h>
 #endif
@@ -75,9 +83,9 @@ static int kerberos(char *username, char *user, int uid, char *pword);
 static int koktologin(char *name, char *toname);
 
 int use_kerberos = 1;
-#else
+#else /* !KERBEROS */
 #define	ARGSTR	"-flm"
-#endif
+#endif /* KERBEROS */
 
 char   *ontty __P((void));
 int	chshell __P((char *));
@@ -98,6 +106,13 @@ main(argc, argv)
 	uid_t ruid;
 	int asme, ch, asthem, fastlogin, prio, i;
 	enum { UNSET, YES, NO } iscsh = UNSET;
+#ifdef LOGIN_CAP
+	login_cap_t *lc;
+	int setwhat;
+#ifdef LOGIN_CAP_AUTH
+	char *style, *approvep, *auth_method = NULL;
+#endif
+#endif
 	char shellbuf[MAXPATHLEN];
 
 #ifdef WHEELSU
@@ -166,18 +181,33 @@ main(argc, argv)
 	username = strdup(pwd->pw_name);
 	if (username == NULL)
 		err(1, NULL);
-	if (asme)
-		if (pwd->pw_shell && *pwd->pw_shell)
-			shell = strcpy(shellbuf,  pwd->pw_shell);
-		else {
+	if (asme) {
+		if (pwd->pw_shell != NULL && *pwd->pw_shell != '\0') {
+			/* copy: pwd memory is recycled */
+			shell = strncpy(shellbuf,  pwd->pw_shell, sizeof shellbuf);
+			shellbuf[sizeof shellbuf - 1] = '\0';
+		} else {
 			shell = _PATH_BSHELL;
 			iscsh = NO;
 		}
+	}
+
+#ifdef LOGIN_CAP_AUTH
+	if (auth_method = strchr(user, ':')) {
+		*auth_method = '\0';
+		auth_method++;
+		if (*auth_method == '\0')
+			auth_method = NULL;
+	}
+#endif /* !LOGIN_CAP_AUTH */
 
 	/* get target login information, default to root */
 	if ((pwd = getpwnam(user)) == NULL) {
 		errx(1, "unknown login: %s", user);
 	}
+#ifdef LOGIN_CAP
+	lc = login_getclass(pwd);
+#endif
 
 #ifdef WHEELSU
 	targetpass = strdup(pwd->pw_passwd);
@@ -209,6 +239,40 @@ main(argc, argv)
 		}
 		/* if target requires a password, verify it */
 		if (*pwd->pw_passwd) {
+#ifdef LOGIN_CAP_AUTH
+		/*
+		 * This hands off authorisation to an authorisation program,
+		 * depending on the styles available for the "auth-su",
+		 * authorisation styles.
+		 */
+		if ((style = login_getstyle(lc, auth_method, "su")) == NULL)
+			errx(1, "auth method available for su.\n");
+		if (authenticate(user, lc ? lc->lc_class : "default", style, "su") != 0) {
+#ifdef WHEELSU
+			if (!iswheelsu || authenticate(username, lc ? lc->lc_class : "default", style, "su") != 0) {
+#endif /* WHEELSU */
+			{
+			fprintf(stderr, "Sorry\n");
+			syslog(LOG_AUTH|LOG_WARNING,"BAD SU %s to %s%s", username, user, ontty());
+			exit(1);
+			}
+		}
+
+		/*
+		 * If authentication succeeds, run any approval
+		 * program, if applicable for this class.
+		 */
+		approvep = login_getcapstr(lc, "approve", NULL, NULL);
+		if (approvep==NULL || auth_script(approvep, approvep, username, lc->lc_class, 0) == 0) {
+			int     r = auth_scan(AUTH_OKAY);
+			/* See what the authorise program says */
+			if (!(r & AUTH_ROOTOKAY) && pwd->pw_uid == 0) {
+				fprintf(stderr, "Sorry\n");
+				syslog(LOG_AUTH|LOG_WARNING,"UNAPPROVED ROOT SU %s%s", user, ontty());
+				exit(1);
+			}
+		}
+#else /* !LOGIN_CAP_AUTH */
 #ifdef	SKEY
 #ifdef WHEELSU
 			if (iswheelsu) {
@@ -216,12 +280,9 @@ main(argc, argv)
 			}
 #endif /* WHEELSU */
 			p = skey_getpass("Password:", pwd, 1);
-			if (!(!strcmp(pwd->pw_passwd,
-				      skey_crypt(p, pwd->pw_passwd, pwd, 1))
+			if (!(!strcmp(pwd->pw_passwd, skey_crypt(p, pwd->pw_passwd, pwd, 1))
 #ifdef WHEELSU
-			      || (iswheelsu && !strcmp(targetpass, 
-						       crypt(p, 
-							     targetpass)))
+			      || (iswheelsu && !strcmp(targetpass, crypt(p,targetpass)))
 #endif /* WHEELSU */
 			      )) {
 #else
@@ -229,15 +290,11 @@ main(argc, argv)
 			if (strcmp(pwd->pw_passwd, crypt(p, pwd->pw_passwd))) {
 #endif
 #ifdef KERBEROS
-	    			if (!use_kerberos || (use_kerberos &&
-	    			    kerberos(username, user, pwd->pw_uid, p))
-					)
+	    			if (!use_kerberos || (use_kerberos && kerberos(username, user, pwd->pw_uid, p)))
 #endif
 					{
 					fprintf(stderr, "Sorry\n");
-					syslog(LOG_AUTH|LOG_WARNING,
-						"BAD SU %s to %s%s", username,
-						user, ontty());
+					syslog(LOG_AUTH|LOG_WARNING, "BAD SU %s to %s%s", username, user, ontty());
 					exit(1);
 				}
 			}
@@ -246,6 +303,7 @@ main(argc, argv)
 				pwd = getpwnam(user);
 			}
 #endif /* WHEELSU */
+#endif /* LOGIN_CAP_AUTH */
 		}
 		if (pwd->pw_expire && time(NULL) >= pwd->pw_expire) {
 			fprintf(stderr, "Sorry - account expired\n");
@@ -279,6 +337,20 @@ main(argc, argv)
 		    iscsh = strcmp(p, "tcsh") ? NO : YES;
 	}
 
+	(void)setpriority(PRIO_PROCESS, 0, prio);
+
+#ifdef LOGIN_CAP
+	/* Set everything now except the environment & umask */
+	setwhat = LOGIN_SETALL & ~(LOGIN_SETPATH|LOGIN_SETUMASK|LOGIN_SETENV);
+	/*
+	 * Don't touch resource/priority settings if -m has been
+	 * used or -l hasn't, and we're not su'ing to root.
+	 */
+        if ((asme || !asthem) && pwd->pw_uid)
+		setwhat &= ~(LOGIN_SETPRIORITY|~LOGIN_SETRESOURCES);
+	if (setusercontext(lc, pwd, pwd->pw_uid, setwhat) < 0)
+		err(1, "setusercontext");
+#else
 	/* set permissions */
 	if (setgid(pwd->pw_gid) < 0)
 		err(1, "setgid");
@@ -286,13 +358,19 @@ main(argc, argv)
 		errx(1, "initgroups failed");
 	if (setuid(pwd->pw_uid) < 0)
 		err(1, "setuid");
+#endif
 
 	if (!asme) {
 		if (asthem) {
 			p = getenv("TERM");
 			cleanenv[0] = NULL;
 			environ = cleanenv;
+#ifdef LOGIN_CAP
+			/* set the su'd user's environment & umask */
+			setusercontext(lc, pwd, pwd->pw_uid, LOGIN_SETPATH|LOGIN_SETUMASK|LOGIN_SETENV);
+#else
 			(void)setenv("PATH", _PATH_DEFPATH, 1);
+#endif
 			if (p)
 				(void)setenv("TERM", p, 1);
 			if (chdir(pwd->pw_dir) < 0)
@@ -303,7 +381,6 @@ main(argc, argv)
 		(void)setenv("HOME", pwd->pw_dir, 1);
 		(void)setenv("SHELL", shell, 1);
 	}
-
 	if (iscsh == YES) {
 		if (fastlogin)
 			*np-- = "-f";
@@ -318,7 +395,7 @@ main(argc, argv)
 		syslog(LOG_NOTICE|LOG_AUTH, "%s to %s%s",
 		    username, user, ontty());
 
-	(void)setpriority(PRIO_PROCESS, 0, prio);
+	login_close(lc);
 
 	execv(shell, np);
 	err(1, "%s", shell);
@@ -328,12 +405,14 @@ int
 chshell(sh)
 	char *sh;
 {
+	int  r = 0;
 	char *cp;
 
-	while ((cp = getusershell()) != NULL)
-		if (strcmp(cp, sh) == 0)
-			return (1);
-	return (0);
+	setusershell();
+	while (!r && (cp = getusershell()) != NULL)
+		r = strcmp(cp, sh) == 0;
+	endusershell();
+	return r;
 }
 
 char *
@@ -475,10 +554,10 @@ koktologin(name, toname)
 		return (1);
 	kdata = &kdata_st;
 	memset((char *)kdata, 0, sizeof(*kdata));
-	(void)strcpy(kdata->pname, name);
-	(void)strcpy(kdata->pinst,
-	    ((strcmp(toname, "root") == 0) ? "root" : ""));
-	(void)strcpy(kdata->prealm, realm);
+	(void)strncpy(kdata->pname, name, sizeof kdata->pname - 1);
+	(void)strncpy(kdata->pinst,
+	    ((strcmp(toname, "root") == 0) ? "root" : ""), sizeof kdata->pinst - 1);
+	(void)strncpy(kdata->prealm, realm, sizeof kdata->prealm - 1);
 	return (kuserok(kdata, toname));
 }
 #endif
