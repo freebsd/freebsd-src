@@ -207,6 +207,11 @@ static struct ispmdvec mdvec_2200 = {
 #define	PCI_QLOGIC_ISP2200	\
 	((PCI_PRODUCT_QLOGIC_ISP2200 << 16) | PCI_VENDOR_QLOGIC)
 
+/*
+ * Odd case for some AMI raid cards... We need to *not* attach to this.
+ */
+#define	AMI_RAID_SUBVENDOR_ID	0x101e
+
 #define	IO_MAP_REG	0x10
 #define	MEM_MAP_REG	0x14
 
@@ -262,6 +267,9 @@ isp_pci_probe(device_t dev)
 		device_set_desc(dev, "Qlogic ISP 1280 PCI SCSI Adapter");
 		break;
 	case PCI_QLOGIC_ISP12160:
+		if (pci_get_subvendor(dev) == AMI_RAID_SUBVENDOR_ID) {
+			return (ENXIO);
+		}
 		device_set_desc(dev, "Qlogic ISP 12160 PCI SCSI Adapter");
 		break;
 	case PCI_QLOGIC_ISP2100:
