@@ -32,7 +32,11 @@
  */
 
 #ifndef lint
+#if 0
 static char sccsid[] = "@(#)api_bsd.c	8.2 (Berkeley) 1/7/94";
+#endif
+static const char rcsid[] =
+	"$Id$";
 #endif /* not lint */
 
 #if	defined(unix)
@@ -68,7 +72,7 @@ char	*string;		/* if non-zero, where to connect to */
     struct hostent *hp;
     struct storage_descriptor sd;
     extern char *getenv();
-    char thehostname[100];
+    char thehostname[MAXHOSTNAMELEN];
     char keyname[100];
     char inkey[100];
     FILE *keyfile;

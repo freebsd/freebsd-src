@@ -907,7 +907,7 @@ int	(*translator)();	/* Translates ascii string to integer */
 		GotIt = Position(environPointer, keybdPointer);
 	    }
 	    if (!GotIt) {
-		GotIt = Position("/etc/map3270", keybdPointer);
+		GotIt = Position("/usr/share/misc/map3270", keybdPointer);
 	    }
 	}
 	if (!GotIt) {
@@ -915,7 +915,7 @@ int	(*translator)();	/* Translates ascii string to integer */
 		GotIt = Position(environPointer, "unknown");
 	    }
 	    if (!GotIt) {
-		GotIt = Position("/etc/map3270", keybdPointer);
+		GotIt = Position("/usr/share/misc/map3270", keybdPointer);
 	    }
 	}
 	if (!GotIt) {
