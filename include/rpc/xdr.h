@@ -1,4 +1,3 @@
-/* @(#)xdr.h	2.2 88/07/29 4.0 RPCSRC */
 /*
  * Sun RPC is a product of Sun Microsystems, Inc. and is provided for
  * unrestricted use provided that this legend is included on all tape
@@ -26,8 +25,11 @@
  * Sun Microsystems, Inc.
  * 2550 Garcia Avenue
  * Mountain View, California  94043
+ *
+ *	from: @(#)xdr.h 1.19 87/04/22 SMI
+ *	from: @(#)xdr.h	2.2 88/07/29 4.0 RPCSRC
+ *	$Id: xdr.h,v 1.1 1993/10/27 05:41:07 paul Exp $
  */
-/*      @(#)xdr.h 1.19 87/04/22 SMI      */
 
 /*
  * xdr.h, External Data Representation Serialization Routines.
@@ -35,8 +37,9 @@
  * Copyright (C) 1984, Sun Microsystems, Inc.
  */
 
-#ifndef __XDR_HEADER__
-#define __XDR_HEADER__
+#ifndef _RPC_XDR_H
+#define _RPC_XDR_H
+#include <sys/cdefs.h>
 
 /*
  * XDR provides a conventional way for converting between C data
@@ -221,28 +224,31 @@ struct xdr_discrim {
 /*
  * These are the "generic" xdr routines.
  */
-extern bool_t	xdr_void();
-extern bool_t	xdr_int();
-extern bool_t	xdr_u_int();
-extern bool_t	xdr_long();
-extern bool_t	xdr_u_long();
-extern bool_t	xdr_short();
-extern bool_t	xdr_u_short();
-extern bool_t	xdr_bool();
-extern bool_t	xdr_enum();
-extern bool_t	xdr_array();
-extern bool_t	xdr_bytes();
-extern bool_t	xdr_opaque();
-extern bool_t	xdr_string();
-extern bool_t	xdr_union();
-extern bool_t	xdr_char();
-extern bool_t	xdr_u_char();
-extern bool_t	xdr_vector();
-extern bool_t	xdr_float();
-extern bool_t	xdr_double();
-extern bool_t	xdr_reference();
-extern bool_t	xdr_pointer();
-extern bool_t	xdr_wrapstring();
+__BEGIN_DECLS
+extern bool_t	xdr_void	__P((void));
+extern bool_t	xdr_int		__P((XDR *, int *));
+extern bool_t	xdr_u_int	__P((XDR *, u_int *));
+extern bool_t	xdr_long	__P((XDR *, long *));
+extern bool_t	xdr_u_long	__P((XDR *, u_long *));
+extern bool_t	xdr_short	__P((XDR *, short *));
+extern bool_t	xdr_u_short	__P((XDR *, u_short *));
+extern bool_t	xdr_bool	__P((XDR *, bool_t *));
+extern bool_t	xdr_enum	__P((XDR *, enum_t *));
+extern bool_t	xdr_array	__P((XDR *, char **, u_int *, u_int, u_int, xdrproc_t));
+extern bool_t	xdr_bytes	__P((XDR *, char **, u_int *, u_int));
+extern bool_t	xdr_opaque	__P((XDR *, caddr_t, u_int));
+extern bool_t	xdr_string	__P((XDR *, char **, u_int));
+extern bool_t	xdr_union	__P((XDR *, enum_t *, char *, struct xdr_discrim *, xdrproc_t));
+extern bool_t	xdr_char	__P((XDR *, char *));
+extern bool_t	xdr_u_char	__P((XDR *, char *));
+extern bool_t	xdr_vector	__P((XDR *, char *, u_int, u_int, xdrproc_t));
+extern bool_t	xdr_float	__P((XDR *, float *));
+extern bool_t	xdr_double	__P((XDR *, double *));
+extern bool_t	xdr_reference	__P((XDR *, caddr_t *, u_int, xdrproc_t));
+extern bool_t	xdr_pointer	__P((XDR *, caddr_t *, u_int, xdrproc_t));
+extern bool_t	xdr_wrapstring	__P((XDR *, char **));
+extern void	xdr_free 	__P((xdrproc_t, char *));
+__END_DECLS
 
 /*
  * Common opaque bytes objects used by many rpc protocols;
@@ -260,11 +266,26 @@ extern bool_t   xdr_netobj();
  * These are the public routines for the various implementations of
  * xdr streams.
  */
-extern void   xdrmem_create();		/* XDR using memory buffers */
-extern void   xdrstdio_create();	/* XDR using stdio library */
-extern void   xdrrec_create();		/* XDR pseudo records for tcp */
-extern bool_t xdrrec_endofrecord();	/* make end of xdr record */
-extern bool_t xdrrec_skiprecord();	/* move to beginning of next record */
-extern bool_t xdrrec_eof();		/* true if no more input */
+__BEGIN_DECLS
+/* XDR using memory buffers */
+extern void   xdrmem_create	__P((XDR *, char *, u_int, enum xdr_op));
 
-#endif !__XDR_HEADER__
+#ifdef _STDIO_H_
+/* XDR using stdio library */
+extern void   xdrstdio_create	__P((XDR *, FILE *, enum xdr_op));
+#endif
+
+/* XDR pseudo records for tcp */
+extern void   xdrrec_create	__P((XDR *, u_int, u_int, char *, int (*)(), int (*)()));
+
+/* make end of xdr record */
+extern bool_t xdrrec_endofrecord __P((XDR *, int));
+
+/* move to beginning of next record */
+extern bool_t xdrrec_skiprecord	__P((XDR *));
+
+/* true if no more input */
+extern bool_t xdrrec_eof	__P((XDR *));
+__END_DECLS
+
+#endif /* !_RPC_XDR_H */

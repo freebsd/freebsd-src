@@ -1,4 +1,3 @@
-/* @(#)types.h	2.3 88/08/15 4.0 RPCSRC */
 /*
  * Sun RPC is a product of Sun Microsystems, Inc. and is provided for
  * unrestricted use provided that this legend is included on all tape
@@ -26,25 +25,32 @@
  * Sun Microsystems, Inc.
  * 2550 Garcia Avenue
  * Mountain View, California  94043
+ *
+ *	from: @(#)types.h 1.18 87/07/24 SMI
+ *	from: @(#)types.h	2.3 88/08/15 4.0 RPCSRC
+ *	$Id: types.h,v 1.1 1993/10/27 05:41:04 paul Exp $
  */
-/*      @(#)types.h 1.18 87/07/24 SMI      */
 
 /*
  * Rpc additions to <sys/types.h>
  */
-#ifndef __TYPES_RPC_HEADER__
-#define __TYPES_RPC_HEADER__
+#ifndef _RPC_TYPES_H
+#define _RPC_TYPES_H
 
 #define	bool_t	int
 #define	enum_t	int
-#define	FALSE	(0)
-#define	TRUE	(1)
 #define __dontcare__	-1
+
+#ifndef FALSE
+#	define FALSE	(0)
+#endif
+#ifndef TRUE
+#	define TRUE	(1)
+#endif
 #ifndef NULL
-#	define NULL 0
+#	define NULL	0
 #endif
 
-void *malloc();
 #define mem_alloc(bsize)	malloc(bsize)
 #define mem_free(ptr, bsize)	free(ptr)
 
@@ -54,10 +60,7 @@ void *malloc();
 #include <sys/time.h>
 
 #ifndef INADDR_LOOPBACK
-#define       INADDR_LOOPBACK         (u_long)0x7F000001
-#endif
-#ifndef MAXHOSTNAMELEN
-#define        MAXHOSTNAMELEN  64
+#define	INADDR_LOOPBACK		(u_long)0x7F000001
 #endif
 
-#endif /* ndef __TYPES_RPC_HEADER__ */
+#endif /* !_RPC_TYPES_H */

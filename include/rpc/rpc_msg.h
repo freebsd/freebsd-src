@@ -1,4 +1,3 @@
-/* @(#)rpc_msg.h	2.1 88/07/29 4.0 RPCSRC */
 /*
  * Sun RPC is a product of Sun Microsystems, Inc. and is provided for
  * unrestricted use provided that this legend is included on all tape
@@ -26,8 +25,11 @@
  * Sun Microsystems, Inc.
  * 2550 Garcia Avenue
  * Mountain View, California  94043
+ *
+ *	from: @(#)rpc_msg.h 1.7 86/07/16 SMI
+ *	from: @(#)rpc_msg.h	2.1 88/07/29 4.0 RPCSRC
+ *	$Id: rpc_msg.h,v 1.1 1993/10/27 05:40:49 paul Exp $
  */
-/*      @(#)rpc_msg.h 1.7 86/07/16 SMI      */
 
 /*
  * rpc_msg.h
@@ -35,6 +37,9 @@
  *
  * Copyright (C) 1984, Sun Microsystems, Inc.
  */
+
+#ifndef _RPC_RPCMSG_H
+#define _RPC_RPCMSG_H
 
 #define RPC_MSG_VERSION		((u_long) 2)
 #define RPC_SERVICE_PORT	((u_short) 2048)
@@ -153,14 +158,14 @@ struct rpc_msg {
 #define	acpted_rply	ru.RM_rmb.ru.RP_ar
 #define	rjcted_rply	ru.RM_rmb.ru.RP_dr
 
-
+__BEGIN_DECLS
 /*
  * XDR routine to handle a rpc message.
  * xdr_callmsg(xdrs, cmsg)
  * 	XDR *xdrs;
  * 	struct rpc_msg *cmsg;
  */
-extern bool_t	xdr_callmsg();
+extern bool_t	xdr_callmsg	__P((XDR *, struct rpc_msg *));
 
 /*
  * XDR routine to pre-serialize the static part of a rpc message.
@@ -168,7 +173,7 @@ extern bool_t	xdr_callmsg();
  * 	XDR *xdrs;
  * 	struct rpc_msg *cmsg;
  */
-extern bool_t	xdr_callhdr();
+extern bool_t	xdr_callhdr	__P((XDR *, struct rpc_msg *));
 
 /*
  * XDR routine to handle a rpc reply.
@@ -176,7 +181,7 @@ extern bool_t	xdr_callhdr();
  * 	XDR *xdrs;
  * 	struct rpc_msg *rmsg;
  */
-extern bool_t	xdr_replymsg();
+extern bool_t	xdr_replymsg	__P((XDR *, struct rpc_msg *));
 
 /*
  * Fills in the error part of a reply message.
@@ -184,4 +189,7 @@ extern bool_t	xdr_replymsg();
  * 	struct rpc_msg *msg;
  * 	struct rpc_err *error;
  */
-extern void	_seterr_reply();
+extern void	_seterr_reply	__P((struct rpc_msg *, struct rpc_err *));
+__END_DECLS
+
+#endif /* !_RPC_RPCMSG_H */

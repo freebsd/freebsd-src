@@ -1,4 +1,3 @@
-/* @(#)pmap_rmt.h	2.1 88/07/29 4.0 RPCSRC; from 1.2 88/02/08 SMI */
 /*
  * Sun RPC is a product of Sun Microsystems, Inc. and is provided for
  * unrestricted use provided that this legend is included on all tape
@@ -26,6 +25,10 @@
  * Sun Microsystems, Inc.
  * 2550 Garcia Avenue
  * Mountain View, California  94043
+ *
+ *	from: @(#)pmap_rmt.h 1.2 88/02/08 SMI 
+ *	from: @(#)pmap_rmt.h	2.1 88/07/29 4.0 RPCSRC
+ *	$Id: pmap_rmt.h,v 1.1 1993/10/27 05:40:41 paul Exp $
  */
 
 /*
@@ -35,13 +38,15 @@
  * Copyright (C) 1986, Sun Microsystems, Inc.
  */
 
+#ifndef _RPC_PMAPRMT_H
+#define _RPC_PMAPRMT_H
+#include <sys/cdefs.h>
+
 struct rmtcallargs {
 	u_long prog, vers, proc, arglen;
 	caddr_t args_ptr;
 	xdrproc_t xdr_args;
 };
-
-bool_t xdr_rmtcall_args();
 
 struct rmtcallres {
 	u_long *port_ptr;
@@ -50,4 +55,9 @@ struct rmtcallres {
 	xdrproc_t xdr_results;
 };
 
-bool_t xdr_rmtcallres();
+__BEGIN_DECLS
+extern bool_t xdr_rmtcall_args	__P((XDR *, struct rmtcallargs *));
+extern bool_t xdr_rmtcallres	__P((XDR *, struct rmtcallres *));
+__END_DECLS
+
+#endif /* !_RPC_PMAPRMT_H */
