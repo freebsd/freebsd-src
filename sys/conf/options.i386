@@ -148,7 +148,6 @@ IPR_VJ			opt_i4b.h
 IPR_LOG			opt_i4b.h
 
 # Device options
-DEV_ACPI		opt_acpi.h
 DEV_APIC		opt_apic.h
 DEV_NPX			opt_npx.h
 
