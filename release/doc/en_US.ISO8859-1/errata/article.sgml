@@ -255,6 +255,10 @@ boot</screen>
       <filename>/etc/libmap.conf</filename>.
       More details can be found in <filename>/usr/src/UPDATING</filename>
       (20040303 and 20040130).</para>
+
+    <para>(12 Nov 2004) The &man.em.4; driver behaves incorrectly when
+      the VLAN support and promiscuous mode are enabled at the same time.
+      A fix is being tested and will be merged to the 5.3 errata branch.</para>
   </sect1>
 
   <sect1 id="late-news">
