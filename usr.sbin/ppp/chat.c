@@ -18,7 +18,7 @@
  *		Columbus, OH  43221
  *		(614)451-1883
  *
- * $Id: chat.c,v 1.41 1997/12/23 22:38:51 brian Exp $
+ * $Id: chat.c,v 1.42 1997/12/24 09:28:54 brian Exp $
  *
  *  TODO:
  *	o Support more UUCP compatible control sequences.
@@ -66,6 +66,7 @@ static int abort_next, timeout_next;
 static int numaborts;
 static char *AbortStrings[50];
 static char inbuff[IBSIZE * 2 + 1];
+static jmp_buf ChatEnv;
 
 #define	MATCH	1
 #define	NOMATCH	0
@@ -275,6 +276,92 @@ connect_log(const char *str, int single_p)
     flush_log();
 }
 
+static void
+ExecStr(char *command, char *out, int olen)
+{
+  pid_t pid;
+  int fids[2];
+  char *vector[MAXARGS], *startout, *endout;
+  int stat, nb;
+
+  LogPrintf(LogCHAT, "Exec: %s\n", command);
+  MakeArgs(command, vector, VECSIZE(vector));
+
+  if (pipe(fids) < 0) {
+    LogPrintf(LogCHAT, "Unable to create pipe in ExecStr: %s\n",
+	      strerror(errno));
+    longjmp(ChatEnv, 2);
+  }
+  if ((pid = fork()) == 0) {
+    TermTimerService();
+    signal(SIGINT, SIG_DFL);
+    signal(SIGQUIT, SIG_DFL);
+    signal(SIGTERM, SIG_DFL);
+    signal(SIGHUP, SIG_DFL);
+    signal(SIGALRM, SIG_DFL);
+    if (modem == 2) {
+      int nmodem;
+      nmodem = dup(modem);
+      close(modem);
+      modem = nmodem;
+    }
+    close(fids[0]);
+    dup2(fids[1], 2);
+    close(fids[1]);
+    dup2(modem, 0);
+    dup2(modem, 1);
+    if ((nb = open("/dev/tty", O_RDWR)) > 3) {
+      dup2(nb, 3);
+      close(nb);
+    }
+    setuid(geteuid());
+    execvp(vector[0], vector);
+    fprintf(stderr, "execvp failed: %s: %s\n", vector[0], strerror(errno));
+    exit(127);
+  } else {
+    char *name = strdup(vector[0]);
+
+    close(fids[1]);
+    endout = out + olen - 1;
+    startout = out;
+    while (out < endout) {
+      nb = read(fids[0], out, 1);
+      if (nb <= 0)
+	break;
+      out++;
+    }
+    *out = '\0';
+    close(fids[0]);
+    close(fids[1]);
+    waitpid(pid, &stat, WNOHANG);
+    if (WIFSIGNALED(stat)) {
+      LogPrintf(LogWARN, "%s: signal %d\n", name, WTERMSIG(stat));
+      free(name);
+      longjmp(ChatEnv, 3);
+    } else if (WIFEXITED(stat)) {
+      switch (WEXITSTATUS(stat)) {
+        case 0:
+          free(name);
+          break;
+        case 127:
+          LogPrintf(LogWARN, "%s: %s\n", name, startout);
+          free(name);
+          longjmp(ChatEnv, 4);
+          break;
+        default:
+          LogPrintf(LogWARN, "%s: exit %d\n", name, WEXITSTATUS(stat));
+          free(name);
+          longjmp(ChatEnv, 5);
+          break;
+      }
+    } else {
+      LogPrintf(LogWARN, "%s: Unexpected exit result\n", name);
+      free(name);
+      longjmp(ChatEnv, 6);
+    }
+  }
+}
+
 static int
 WaitforString(const char *estr)
 {
@@ -284,16 +371,33 @@ WaitforString(const char *estr)
   fd_set rfds;
   int i, nfds, nb;
   char buff[IBSIZE];
-
-
 #ifdef SIGALRM
   int omask;
 
   omask = sigblock(sigmask(SIGALRM));
 #endif
   clear_log();
-  ExpandString(estr, buff, sizeof buff, 0);
-  LogPrintf(LogCHAT, "Wait for (%d): %s --> %s\n", TimeoutSec, estr, buff);
+  if (*estr == '!') {
+    ExpandString(estr + 1, buff, sizeof buff, 0);
+    ExecStr(buff, buff, sizeof buff);
+  } else {
+    ExpandString(estr, buff, sizeof buff, 0);
+  }
+  if (LogIsKept(LogCHAT)) {
+    s = buff + strlen(buff) - 1;
+    while (s >= buff && *s == '\n')
+      s--;
+    if (!strcmp(estr, buff))
+      LogPrintf(LogCHAT, "Wait for (%d): %.*s\n",
+                TimeoutSec, s - buff + 1, buff);
+    else
+      LogPrintf(LogCHAT, "Wait for (%d): %s --> %.*s\n",
+                TimeoutSec, estr, s - buff + 1, buff);
+  }
+
+  if (buff[0] == '\0')
+    return (MATCH);
+
   str = buff;
   inp = inbuff;
 
@@ -413,74 +517,6 @@ WaitforString(const char *estr)
 }
 
 static void
-ExecStr(char *command, char *out)
-{
-  int pid;
-  int fids[2];
-  char *vector[MAXARGS];
-  int stat, nb;
-  char *cp;
-  char tmp[300];
-
-  cp = inbuff + strlen(inbuff) - 1;
-  while (cp > inbuff) {
-    if (*cp < ' ' && *cp != '\t') {
-      cp++;
-      break;
-    }
-    cp--;
-  }
-  if (snprintf(tmp, sizeof tmp, "%s %s", command, cp) >= sizeof tmp) {
-    LogPrintf(LogCHAT, "Too long string to ExecStr: \"%s\"\n", command);
-    return;
-  }
-  MakeArgs(tmp, vector, VECSIZE(vector));
-
-  if (pipe(fids) < 0) {
-    LogPrintf(LogCHAT, "Unable to create pipe in ExecStr: %s\n",
-	      strerror(errno));
-    return;
-  }
-  pid = fork();
-  if (pid == 0) {
-    TermTimerService();
-    signal(SIGINT, SIG_DFL);
-    signal(SIGQUIT, SIG_DFL);
-    signal(SIGTERM, SIG_DFL);
-    signal(SIGHUP, SIG_DFL);
-    signal(SIGALRM, SIG_DFL);
-    close(fids[0]);
-    if (dup2(fids[1], 1) < 0) {
-      LogPrintf(LogCHAT, "dup2(fids[1], 1) in ExecStr: %s\n", strerror(errno));
-      return;
-    }
-    close(fids[1]);
-    nb = open("/dev/tty", O_RDWR);
-    if (dup2(nb, 0) < 0) {
-      LogPrintf(LogCHAT, "dup2(nb, 0) in ExecStr: %s\n", strerror(errno));
-      return;
-    }
-    setuid(geteuid());
-    LogPrintf(LogCHAT, "exec: %s\n", command);
-    pid = execvp(command, (char **)vector);
-    LogPrintf(LogCHAT, "execvp failed for (%d/%d): %s\n", pid, errno, command);
-    exit(127);
-  } else {
-    close(fids[1]);
-    for (;;) {
-      nb = read(fids[0], out, 1);
-      if (nb <= 0)
-	break;
-      out++;
-    }
-    *out = '\0';
-    close(fids[0]);
-    close(fids[1]);
-    waitpid(pid, &stat, WNOHANG);
-  }
-}
-
-static void
 SendString(const char *str)
 {
   char *cp;
@@ -499,14 +535,18 @@ SendString(const char *str)
   } else {
     if (*str == '!') {
       ExpandString(str + 1, buff + 2, sizeof buff - 2, 0);
-      ExecStr(buff + 2, buff + 2);
+      ExecStr(buff + 2, buff + 2, sizeof buff - 2);
     } else {
       ExpandString(str, buff + 2, sizeof buff - 2, 1);
     }
     if (strstr(str, "\\P"))	/* Do not log the password itself. */
-      LogPrintf(LogCHAT, "sending: %s\n", str);
-    else
-      LogPrintf(LogCHAT, "sending: %s\n", buff + 2);
+      LogPrintf(LogCHAT, "Sending: %s", str);
+    else {
+      cp = buff + strlen(buff + 2) + 1;
+      while (cp >= buff + 2 && *cp == '\n')
+        cp--;
+      LogPrintf(LogCHAT, "Sending: %.*s\n", cp - buff - 1, buff + 2);
+    }
     cp = buff;
     if (DEV_IS_SYNC)
       memcpy(buff, "\377\003", 2);	/* Prepend HDLC header */
@@ -531,9 +571,8 @@ ExpectString(char *str)
     ++timeout_next;
     return (MATCH);
   }
-  LogPrintf(LogCHAT, "Expecting %s\n", str);
+  LogPrintf(LogCHAT, "Expecting: %s\n", str);
   while (*str) {
-
     /*
      * Check whether if string contains sub-send-expect.
      */
@@ -571,7 +610,6 @@ ExpectString(char *str)
 	return (MATCH);
       }
     } else {
-
       /*
        * Simple case. Wait for string.
        */
@@ -581,7 +619,6 @@ ExpectString(char *str)
   return (MATCH);
 }
 
-static jmp_buf ChatEnv;
 static void (*oint) (int);
 
 static void
@@ -596,15 +633,17 @@ DoChat(char *script)
 {
   char *vector[MAXARGS];
   char *const *argv;
-  int argc, n, state;
+  int argc, n, state, err;
 
   if (!script || !*script)
     return MATCH;
 
-  /* While we're chatting, we want an INT to fail us */
-  if (setjmp(ChatEnv)) {
+  if ((err = setjmp(ChatEnv))) {
     signal(SIGINT, oint);
-    return (-1);
+    if (err == 1)
+      /* Caught a SIGINT during chat */
+      return (-1);
+    return (NOMATCH);
   }
   oint = signal(SIGINT, StopDial);
 
