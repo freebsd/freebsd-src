@@ -612,11 +612,12 @@ vm_pageout_map_deactivate_pages(map, desired)
  * which we know can be trivially freed.
  */
 void
-vm_pageout_page_free(vm_page_t m) {
+vm_pageout_page_free(vm_page_t m)
+{
 	vm_object_t object = m->object;
 	int type = object->type;
 
-	GIANT_REQUIRED;
+	mtx_assert(&vm_page_queue_mtx, MA_OWNED);
 	if (type == OBJT_SWAP || type == OBJT_DEFAULT)
 		vm_object_reference(object);
 	vm_page_busy(m);
