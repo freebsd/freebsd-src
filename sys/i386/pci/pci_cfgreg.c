@@ -60,7 +60,7 @@ static struct mtx pcicfg_mtx;
  * apparently undocumented anywhere.  Assume these are completely bogus
  * and map them to 255, which means "none".
  */
-static __inline__ int 
+static __inline int 
 pci_i386_map_intline(int line)
 {
 	if (line == 0 || line >= 128)

@@ -225,7 +225,7 @@ static int	ng_units_in_use = 0;
 /*
  * Get the family descriptor from the family ID
  */
-static __inline__ iffam_p
+static __inline iffam_p
 get_iffam_from_af(sa_family_t family)
 {
 	iffam_p iffam;
@@ -242,7 +242,7 @@ get_iffam_from_af(sa_family_t family)
 /*
  * Get the family descriptor from the hook
  */
-static __inline__ iffam_p
+static __inline iffam_p
 get_iffam_from_hook(priv_p priv, hook_p hook)
 {
 	int k;
@@ -257,7 +257,7 @@ get_iffam_from_hook(priv_p priv, hook_p hook)
  * Get the hook from the iffam descriptor
  */
 
-static __inline__ hook_p *
+static __inline hook_p *
 get_hook_from_iffam(priv_p priv, iffam_p iffam)
 {
 	return (&priv->hooks[iffam - gFamilies]);
@@ -266,7 +266,7 @@ get_hook_from_iffam(priv_p priv, iffam_p iffam)
 /*
  * Get the iffam descriptor from the name
  */
-static __inline__ iffam_p
+static __inline iffam_p
 get_iffam_from_name(const char *name)
 {
 	iffam_p iffam;
@@ -284,7 +284,7 @@ get_iffam_from_name(const char *name)
  * Find the first free unit number for a new interface.
  * Increase the size of the unit bitmap as necessary.
  */
-static __inline__ int
+static __inline int
 ng_iface_get_unit(int *unit)
 {
 	int index, bit;
@@ -320,7 +320,7 @@ ng_iface_get_unit(int *unit)
 /*
  * Free a no longer needed unit number.
  */
-static __inline__ void
+static __inline void
 ng_iface_free_unit(int unit)
 {
 	int index, bit;

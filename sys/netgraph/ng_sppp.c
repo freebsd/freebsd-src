@@ -116,7 +116,7 @@ static unsigned char	ng_units_in_use = 0;
  * Find the first free unit number for a new interface.
  * Increase the size of the unit bitmap as necessary.
  */
-static __inline__ int
+static __inline int
 ng_sppp_get_unit (int *unit)
 {
 	int index, bit;
@@ -156,7 +156,7 @@ ng_sppp_get_unit (int *unit)
 /*
  * Free a no longer needed unit number.
  */
-static __inline__ void
+static __inline void
 ng_sppp_free_unit (int unit)
 {
 	int index, bit;
