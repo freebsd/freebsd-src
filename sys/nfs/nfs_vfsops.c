@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)nfs_vfsops.c	8.3 (Berkeley) 1/4/94
- * $Id: nfs_vfsops.c,v 1.20 1995/08/30 17:24:15 dfr Exp $
+ * $Id: nfs_vfsops.c,v 1.21 1995/11/14 09:37:19 phk Exp $
  */
 
 #include <sys/param.h>
@@ -68,10 +68,15 @@
 #include <nfs/nfsdiskless.h>
 #include <nfs/nqnfs.h>
 
-struct nfsstats nfsstats;
-static int nfs_sysctl(int *, u_int, void *, size_t *, void *, size_t,
-		      struct proc *);
-extern int nfs_ticks;
+extern int	nfs_mountroot __P((void));
+
+extern int	nfs_ticks;
+
+struct nfsstats	nfsstats;
+
+static int	nfs_iosize __P((struct nfsmount *nmp));
+static int	nfs_sysctl(int *, u_int, void *, size_t *, void *, size_t,
+			   struct proc *);
 
 /*
  * nfs vfs operations.
@@ -107,7 +112,6 @@ VFS_SET(nfs_vfsops, nfs, MOUNT_NFS, VFCF_NETWORK);
 struct nfs_diskless nfs_diskless = { 0 };
 int nfs_diskless_valid = 0;
 
-void nfs_disconnect __P((struct nfsmount *));
 void nfsargs_ntoh __P((struct nfs_args *));
 static struct mount *nfs_mountdiskless __P((char *, char *, int,
     struct sockaddr_in *, struct nfs_args *, register struct vnode **));
