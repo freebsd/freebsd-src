@@ -3,6 +3,8 @@
 
 #include <stdio.h>
 #include <signal.h>
+#include <stdlib.h>
+#include <unistd.h>
 #include "hack.h"
 
 #ifdef QUEST
@@ -11,7 +13,6 @@
 #define	gamename	"hack"
 #endif
 
-extern char *getlogin(), *getenv();
 extern char plname[PL_NSIZ], pl_character[PL_CSIZ];
 extern struct permonst mons[CMNUM+2];
 extern char genocided[], fut_geno[];
@@ -461,6 +462,7 @@ boolean wr;
 		) {
 		/* revoke */
 		setgid(getgid());
+		setuid(getuid());
 	}
 #endif
 
