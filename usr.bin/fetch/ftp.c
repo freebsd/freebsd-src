@@ -26,7 +26,7 @@
  * OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: ftp.c,v 1.3 1997/02/10 18:49:40 wollman Exp $
+ *	$Id: ftp.c,v 1.3.2.1 1997/03/10 07:12:49 fenner Exp $
  */
 
 #include <sys/types.h>
@@ -370,7 +370,7 @@ ftp_retrieve(struct fetch_state *fs)
 		if (env) {
 			errno = 0;
 			ul = strtoul(env, &ep, 0);
-			if (*env && *ep && errno == 0 && ul <= INT_MAX)
+			if (*env && *ep == '\0' && errno == 0 && ul <= INT_MAX)
 				fs->fs_timeout = ul;
 			else
 				warnx("`%s': invalid FTP timeout", env);
