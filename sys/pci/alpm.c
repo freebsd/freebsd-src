@@ -37,7 +37,6 @@
 #include <sys/bus.h>
 #include <sys/uio.h>
 
-#include <machine/clock.h>
 
 #include <machine/bus_pio.h>
 #include <machine/bus_memio.h>

@@ -42,7 +42,6 @@
 #include <sys/disk.h>
 
 #include <machine/bus.h>
-#include <machine/clock.h>
 #include <sys/rman.h>
 
 #include <dev/mlx/mlxio.h>

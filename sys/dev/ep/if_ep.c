@@ -79,7 +79,6 @@
 #include <net/ethernet.h>
 #include <net/bpf.h>
 
-#include <machine/clock.h>
 
 #include <dev/ep/if_epreg.h>
 #include <dev/ep/if_epvar.h>

@@ -251,7 +251,6 @@ DRIVER_MODULE(gdc, isa, gdcdriver, gdc_devclass, 0, 0);
 
 /* LOW-LEVEL */
 
-#include <machine/clock.h>
 
 #include <pc98/pc98/30line.h>
 

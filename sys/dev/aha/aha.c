@@ -65,7 +65,6 @@
  
 #include <machine/bus_pio.h>
 #include <machine/bus.h>
-#include <machine/clock.h>
 
 #include <cam/cam.h>
 #include <cam/cam_ccb.h>

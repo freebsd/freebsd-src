@@ -77,7 +77,6 @@
 
 #include <net/bpf.h>
 
-#include <machine/clock.h>      /* for DELAY */
 #include <sys/bus.h>
 
 #include <dev/usb/usb.h>

@@ -57,7 +57,6 @@
 #include <sys/disklabel.h>
 #include <sys/bus.h>
 
-#include <machine/clock.h>
 #include <machine/stdarg.h>
 
 #include <i386/isa/isa_device.h>

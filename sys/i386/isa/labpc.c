@@ -57,7 +57,6 @@
 #include <sys/bus.h>
 
 #ifdef LOUTB
-#include <machine/clock.h>
 #endif
 
 #include <i386/isa/isa_device.h>

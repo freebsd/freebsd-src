@@ -43,7 +43,6 @@
 #include <sys/socket.h>
 #include <sys/socketvar.h>
 #include <sys/syslog.h>
-#include <machine/clock.h>
 #include <net/if.h>
 #include <netinet/in.h>
 #include <netinet/if_ether.h>

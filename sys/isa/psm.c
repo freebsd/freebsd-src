@@ -76,7 +76,6 @@
 #include <sys/select.h>
 #include <sys/uio.h>
 
-#include <machine/clock.h>
 #include <machine/limits.h>
 #include <sys/mouse.h>
 #include <machine/resource.h>

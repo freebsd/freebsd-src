@@ -83,7 +83,6 @@
 
 #include <machine/bus.h>
 #include <machine/resource.h>
-#include <machine/clock.h>
 #include <machine/md_var.h>
 #include <machine/bus_pio.h>
 #include <sys/rman.h>

@@ -128,7 +128,6 @@
 #include <sys/bus.h>		/* used by smbus and newbus */
 #endif
 
-#include <machine/clock.h>      /* for DELAY */
 #include <pci/pcivar.h>
 
 #if (__FreeBSD_version >=300000)

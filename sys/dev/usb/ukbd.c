@@ -50,7 +50,6 @@
 #include <sys/ioccom.h>
 #include <sys/module.h>
 #include <sys/bus.h>
-#include <machine/clock.h>
 #include <sys/file.h>
 #include <sys/select.h>
 #include <sys/proc.h>
@@ -217,7 +216,6 @@ DRIVER_MODULE(ukbd, uhub, ukbd_driver, ukbd_devclass, ukbd_driver_load, 0);
 
 #include <machine/limits.h>
 #include <sys/kbio.h>
-#include <machine/clock.h>
 
 #define UKBD_DEFAULT	0
 

@@ -77,7 +77,6 @@
 #include <sys/socket.h>
 #include <sys/sockio.h>
 #include <sys/mbuf.h>
-#include <machine/clock.h>
 
 #include <sys/bus.h>
 #include <machine/bus.h>

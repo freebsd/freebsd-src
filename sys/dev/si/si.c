@@ -60,7 +60,6 @@ static const char si_copyright1[] =  "@(#) Copyright (C) Specialix International
 #include <sys/rman.h>
 #include <machine/resource.h>
 
-#include <machine/clock.h>
 
 #include <vm/vm.h>
 #include <vm/pmap.h>

@@ -73,7 +73,6 @@
 #include <sys/devicestat.h>
 #include <sys/malloc.h>
 #include <machine/bootinfo.h>
-#include <machine/clock.h>
 #include <sys/cons.h>
 #include <machine/md_var.h>
 #ifdef PC98

@@ -52,7 +52,6 @@
 #include <sys/fcntl.h>
 #include <sys/uio.h>
 #include <sys/bus.h>
-#include <machine/clock.h>
 #include <vm/vm.h>
 #include <vm/pmap.h>
 #include <i386/isa/isa_device.h>

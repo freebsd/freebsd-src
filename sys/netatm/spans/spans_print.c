@@ -40,7 +40,6 @@
 #include <sys/types.h>
 #include <sys/time.h>
 #include <sys/socket.h>
-#include <machine/clock.h>
 #include <net/if.h>
 #include <netinet/in.h>
 #include <netatm/port.h>

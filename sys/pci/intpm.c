@@ -33,7 +33,6 @@
 #include <machine/bus_memio.h>
 #include <machine/bus.h>
 
-#include <machine/clock.h>
 #include <sys/uio.h>
 #include <sys/module.h>
 #include <sys/bus.h>

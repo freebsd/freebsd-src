@@ -37,7 +37,6 @@
 #include <sys/uio.h>
 #include <sys/fcntl.h>
 
-#include <machine/clock.h>
 #include <machine/bus.h>
 #include <machine/resource.h>
 #include <sys/rman.h>

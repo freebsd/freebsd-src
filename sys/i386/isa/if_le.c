@@ -57,7 +57,6 @@
 #include <netinet/if_ether.h>
 
 
-#include <machine/clock.h>
 
 #include <i386/isa/isa_device.h>
 #include <i386/isa/icu.h>

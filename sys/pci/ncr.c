@@ -181,7 +181,6 @@
 #include <sys/kernel.h>
 #include <sys/sysctl.h>
 #include <sys/bus.h>
-#include <machine/clock.h>
 #include <machine/md_var.h>
 #include <machine/bus.h>
 #include <machine/resource.h>

@@ -34,7 +34,6 @@
 #include <sys/bus.h>
 #include <sys/malloc.h>
 
-#include <machine/clock.h>
 
 #endif
 

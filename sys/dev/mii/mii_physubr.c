@@ -49,7 +49,6 @@
 #include <sys/module.h>
 #include <sys/bus.h>
 
-#include <machine/clock.h>
 
 #include <net/if.h>
 #include <net/if_media.h>

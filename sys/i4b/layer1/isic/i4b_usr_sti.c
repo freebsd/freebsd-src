@@ -48,7 +48,6 @@
 #include <sys/systm.h>
 
 #ifdef __FreeBSD__
-#include <machine/clock.h>
 #include <machine/bus.h>
 #include <machine/resource.h>
 #include <sys/bus.h>
