@@ -17,7 +17,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: fsm.c,v 1.27.2.1 1998/01/29 00:49:19 brian Exp $
+ * $Id: fsm.c,v 1.27.2.2 1998/01/30 19:45:39 brian Exp $
  *
  *  TODO:
  *		o Refer loglevel for log output
@@ -77,9 +77,9 @@ StoppedTimeout(void *v)
     StopTimer(&fp->OpenTimer);
   }
   if (link_IsActive(fp->link))
-    DownConnection();
-  else
     FsmDown(fp);
+  else
+    DownConnection();
 }
 
 void
@@ -202,7 +202,7 @@ FsmUp(struct fsm * fp)
 }
 
 void
-FsmDown(struct fsm * fp)
+FsmDown(struct fsm *fp)
 {
   switch (fp->state) {
     case ST_CLOSED:
@@ -226,7 +226,7 @@ FsmDown(struct fsm * fp)
 }
 
 void
-FsmClose(struct fsm * fp)
+FsmClose(struct fsm *fp)
 {
   switch (fp->state) {
     case ST_STARTING:
@@ -674,7 +674,7 @@ FsmRecvProtoRej(struct fsm *fp, struct fsmheader *lhp, struct mbuf *bp)
       LogPrintf(LogERROR, "FsmRecvProtoRej: Not a physical link !\n");
     break;
   case PROTO_CCP:
-    fp = &CcpFsm;
+    fp = &CcpInfo.fsm;
     (fp->LayerFinish) (fp);
     switch (fp->state) {
     case ST_CLOSED:
@@ -779,7 +779,10 @@ FsmRecvResetAck(struct fsm * fp, struct fsmheader * lhp, struct mbuf * bp)
   pfree(bp);
 }
 
-static const struct fsmcodedesc FsmCodes[] = {
+static const struct fsmcodedesc {
+  void (*action) (struct fsm *, struct fsmheader *, struct mbuf *);
+  const char *name;
+} FsmCodes[] = {
   {FsmRecvConfigReq, "Configure Request",},
   {FsmRecvConfigAck, "Configure Ack",},
   {FsmRecvConfigNak, "Configure Nak",},
@@ -794,7 +797,7 @@ static const struct fsmcodedesc FsmCodes[] = {
   {FsmRecvIdent, "Ident",},
   {FsmRecvTimeRemain, "Time Remain",},
   {FsmRecvResetReq, "Reset Request",},
-  {FsmRecvResetAck, "Reset Ack",},
+  {FsmRecvResetAck, "Reset Ack",}
 };
 
 void
@@ -810,7 +813,8 @@ FsmInput(struct fsm * fp, struct mbuf * bp)
     return;
   }
   lhp = (struct fsmheader *) MBUF_CTOP(bp);
-  if (lhp->code == 0 || lhp->code > fp->max_code) {
+  if (lhp->code == 0 || lhp->code > fp->max_code ||
+      lhp->code > sizeof FsmCodes / sizeof *FsmCodes) {
     pfree(bp);			/* XXX: Should send code reject */
     return;
   }

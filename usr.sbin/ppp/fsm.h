@@ -15,7 +15,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: fsm.h,v 1.16.2.1 1998/01/29 00:49:21 brian Exp $
+ * $Id: fsm.h,v 1.16.2.2 1998/01/30 19:45:40 brian Exp $
  *
  *	TODO:
  */
@@ -49,11 +49,11 @@ struct fsm {
   const char *name;		/* Name of protocol */
   u_short proto;		/* Protocol number */
   u_short max_code;
-  int open_mode;
+  int open_mode;		/* Delay before config REQ (-1 forever) */
   int state;			/* State of the machine */
   u_char reqid;			/* Next request id */
   int restart;			/* Restart counter value */
-  int maxconfig;
+  int maxconfig;		/* Max config REQ (overridden in Init funcs) */
 
   struct pppTimer FsmTimer;	/* Restart Timer */
   struct pppTimer OpenTimer;	/* Delay before opening */
@@ -73,15 +73,15 @@ struct fsm {
   /* The link layer active with this FSM. */
   struct link *link;
 
-  void (*LayerUp) (struct fsm *);
-  void (*LayerDown) (struct fsm *);
-  void (*LayerStart) (struct fsm *);
-  void (*LayerFinish) (struct fsm *);
-  void (*InitRestartCounter) (struct fsm *);
-  void (*SendConfigReq) (struct fsm *);
-  void (*SendTerminateReq) (struct fsm *);
-  void (*SendTerminateAck) (struct fsm *);
-  void (*DecodeConfig) (u_char *, int, int);
+  void (*LayerUp) (struct fsm *);            /* Layer is now up (tlu) */
+  void (*LayerDown) (struct fsm *);          /* About to come down (tld) */
+  void (*LayerStart) (struct fsm *);         /* Layer about to start up (tls) */
+  void (*LayerFinish) (struct fsm *);        /* Layer now down (tlf) */
+  void (*InitRestartCounter) (struct fsm *); /* Set fsm timer load */
+  void (*SendConfigReq) (struct fsm *);      /* Send REQ please */
+  void (*SendTerminateReq) (struct fsm *);   /* Term REQ just sent */
+  void (*SendTerminateAck) (struct fsm *);   /* Send Term ACK please */
+  void (*DecodeConfig) (u_char *, int, int); /* Deal with incoming data */
 };
 
 struct fsmheader {
@@ -106,11 +106,7 @@ struct fsmheader {
 #define	CODE_RESETREQ	14	/* Used in CCP */
 #define	CODE_RESETACK	15	/* Used in CCP */
 
-struct fsmcodedesc {
-  void (*action) (struct fsm *, struct fsmheader *, struct mbuf *);
-  const char *name;
-};
-
+/* Minimum config req size.  This struct is *only* used for it's size */
 struct fsmconfig {
   u_char type;
   u_char length;

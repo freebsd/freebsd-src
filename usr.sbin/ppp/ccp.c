@@ -17,7 +17,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: ccp.c,v 1.30.2.2 1998/01/29 20:45:13 brian Exp $
+ * $Id: ccp.c,v 1.30.2.3 1998/01/30 19:45:27 brian Exp $
  *
  *	TODO:
  *		o Support other compression protocols
@@ -43,8 +43,6 @@
 #include "pred.h"
 #include "deflate.h"
 
-struct ccpstate CcpInfo = { -1, -1, -1, -1, -1, -1 };
-
 static void CcpSendConfigReq(struct fsm *);
 static void CcpSendTerminateReq(struct fsm *);
 static void CcpSendTerminateAck(struct fsm *);
@@ -55,29 +53,30 @@ static void CcpLayerUp(struct fsm *);
 static void CcpLayerDown(struct fsm *);
 static void CcpInitRestartCounter(struct fsm *);
 
-struct fsm CcpFsm = {
-  "CCP",
-  PROTO_CCP,
-  CCP_MAXCODE,
-  0,
-  ST_INITIAL,
-  0, 0, 0,
-  {0, 0, 0, NULL, NULL, NULL},	/* FSM timer */
-  {0, 0, 0, NULL, NULL, NULL},	/* Open timer */
-  {0, 0, 0, NULL, NULL, NULL},	/* Stopped timer */
-  LogCCP,
-
-  NULL,
-
-  CcpLayerUp,
-  CcpLayerDown,
-  CcpLayerStart,
-  CcpLayerFinish,
-  CcpInitRestartCounter,
-  CcpSendConfigReq,
-  CcpSendTerminateReq,
-  CcpSendTerminateAck,
-  CcpDecodeConfig,
+struct ccpstate CcpInfo = {
+  {
+    "CCP",
+    PROTO_CCP,
+    CCP_MAXCODE,
+    0,
+    ST_INITIAL,
+    0, 0, 0,
+    {0, 0, 0, NULL, NULL, NULL},	/* FSM timer */
+    {0, 0, 0, NULL, NULL, NULL},	/* Open timer */
+    {0, 0, 0, NULL, NULL, NULL},	/* Stopped timer */
+    LogCCP,
+    NULL,
+    CcpLayerUp,
+    CcpLayerDown,
+    CcpLayerStart,
+    CcpLayerFinish,
+    CcpInitRestartCounter,
+    CcpSendConfigReq,
+    CcpSendTerminateReq,
+    CcpSendTerminateAck,
+    CcpDecodeConfig,
+  },
+  -1, -1, -1, -1, -1, -1
 };
 
 static char const *cftypes[] = {
@@ -125,7 +124,8 @@ int
 ReportCcpStatus(struct cmdargs const *arg)
 {
   if (VarTerm) {
-    fprintf(VarTerm, "%s [%s]\n", CcpFsm.name, StateNames[CcpFsm.state]);
+    fprintf(VarTerm, "%s [%s]\n", CcpInfo.fsm.name,
+            StateNames[CcpInfo.fsm.state]);
     fprintf(VarTerm, "My protocol = %s, His protocol = %s\n",
             protoname(CcpInfo.my_proto), protoname(CcpInfo.his_proto));
     fprintf(VarTerm, "Output: %ld --> %ld,  Input: %ld --> %ld\n",
@@ -135,30 +135,25 @@ ReportCcpStatus(struct cmdargs const *arg)
   return 0;
 }
 
-static void
-ccpstateInit(void)
-{
-  if (CcpInfo.in_init)
-    (*algorithm[CcpInfo.in_algorithm]->i.Term)();
-  if (CcpInfo.out_init)
-    (*algorithm[CcpInfo.out_algorithm]->o.Term)();
-  memset(&CcpInfo, '\0', sizeof CcpInfo);
-  CcpInfo.in_algorithm = CcpInfo.out_algorithm = -1;
-  CcpInfo.his_proto = CcpInfo.my_proto = -1;
-  CcpInfo.reset_sent = CcpInfo.last_reset = -1;
-}
-
 void
 CcpInit(struct link *l)
 {
-  FsmInit(&CcpFsm, l);
-  ccpstateInit();
-  CcpFsm.maxconfig = 10;
+  /* Initialise ourselves */
+  FsmInit(&CcpInfo.fsm, l);
+  CcpInfo.his_proto = CcpInfo.my_proto = -1;
+  CcpInfo.reset_sent = CcpInfo.last_reset = -1;
+  CcpInfo.in_algorithm = CcpInfo.out_algorithm = -1;
+  CcpInfo.his_reject = CcpInfo.my_reject = 0;
+  CcpInfo.out_init = CcpInfo.in_init = 0;
+  CcpInfo.uncompout = CcpInfo.compout = 0;
+  CcpInfo.uncompin = CcpInfo.compin = 0;
+  CcpInfo.fsm.maxconfig = 10;
 }
 
 static void
 CcpInitRestartCounter(struct fsm *fp)
 {
+  /* Set fsm timer load */
   fp->FsmTimer.load = VarRetryTimeout * SECTICKS;
   fp->restart = 5;
 }
@@ -166,6 +161,7 @@ CcpInitRestartCounter(struct fsm *fp)
 static void
 CcpSendConfigReq(struct fsm *fp)
 {
+  /* Send config REQ please */
   u_char *cp;
   int f;
 
@@ -189,6 +185,7 @@ CcpSendConfigReq(struct fsm *fp)
 void
 CcpSendResetReq(struct fsm *fp)
 {
+  /* We can't read our input - ask peer to reset */
   LogPrintf(LogCCP, "SendResetReq(%d)\n", fp->reqid);
   CcpInfo.reset_sent = fp->reqid;
   CcpInfo.last_reset = -1;
@@ -198,12 +195,13 @@ CcpSendResetReq(struct fsm *fp)
 static void
 CcpSendTerminateReq(struct fsm *fp)
 {
-  /* Fsm has just send a terminate request */
+  /* Term REQ just sent by FSM */
 }
 
 static void
 CcpSendTerminateAck(struct fsm *fp)
 {
+  /* Send Term ACK please */
   LogPrintf(LogCCP, "CcpSendTerminateAck\n");
   FsmOutput(fp, CODE_TERMACK, fp->reqid++, NULL, 0);
 }
@@ -211,6 +209,7 @@ CcpSendTerminateAck(struct fsm *fp)
 void
 CcpRecvResetReq(struct fsm *fp)
 {
+  /* Got a reset REQ, reset outgoing dictionary */
   if (CcpInfo.out_init)
     (*algorithm[CcpInfo.out_algorithm]->o.Reset)();
 }
@@ -218,21 +217,30 @@ CcpRecvResetReq(struct fsm *fp)
 static void
 CcpLayerStart(struct fsm *fp)
 {
+  /* We're about to start up ! */
   LogPrintf(LogCCP, "CcpLayerStart.\n");
 }
 
 static void
 CcpLayerFinish(struct fsm *fp)
 {
+  /* We're now down */
   LogPrintf(LogCCP, "CcpLayerFinish.\n");
-  ccpstateInit();
+  if (CcpInfo.in_init) {
+    (*algorithm[CcpInfo.in_algorithm]->i.Term)();
+    CcpInfo.in_init = 0;
+  }
+  if (CcpInfo.out_init) {
+    (*algorithm[CcpInfo.out_algorithm]->o.Term)();
+    CcpInfo.out_init = 0;
+  }
 }
 
 static void
 CcpLayerDown(struct fsm *fp)
 {
+  /* About to come down */
   LogPrintf(LogCCP, "CcpLayerDown.\n");
-  ccpstateInit();
 }
 
 /*
@@ -241,6 +249,7 @@ CcpLayerDown(struct fsm *fp)
 static void
 CcpLayerUp(struct fsm *fp)
 {
+  /* We're now up */
   LogPrintf(LogCCP, "CcpLayerUp(%d).\n", fp->state);
   if (!CcpInfo.in_init && CcpInfo.in_algorithm >= 0 &&
       CcpInfo.in_algorithm < NALGORITHMS)
@@ -270,27 +279,40 @@ CcpLayerUp(struct fsm *fp)
 void
 CcpUp()
 {
-  FsmUp(&CcpFsm);
+  /* Lower layers are ready.... go */
+  FsmUp(&CcpInfo.fsm);
   LogPrintf(LogCCP, "CCP Up event!!\n");
+}
+
+void
+CcpDown()
+{
+  /* Physical link is gone - sudden death */
+  if (CcpInfo.fsm.state >= ST_CLOSED) {
+    FsmDown(&CcpInfo.fsm);
+    /* FsmDown() results in a CcpLayerDown() if we're currently open. */
+    CcpLayerFinish(&CcpInfo.fsm);
+  }
 }
 
 void
 CcpOpen()
 {
+  /* Start CCP please */
   int f;
 
   for (f = 0; f < NALGORITHMS; f++)
     if (Enabled(algorithm[f]->Conf)) {
-      CcpFsm.open_mode = 0;
-      FsmOpen(&CcpFsm);
+      CcpInfo.fsm.open_mode = 0;
+      FsmOpen(&CcpInfo.fsm);
       break;
     }
 
   if (f == NALGORITHMS)
     for (f = 0; f < NALGORITHMS; f++)
       if (Acceptable(algorithm[f]->Conf)) {
-        CcpFsm.open_mode = OPEN_PASSIVE;
-        FsmOpen(&CcpFsm);
+        CcpInfo.fsm.open_mode = OPEN_PASSIVE;
+        FsmOpen(&CcpInfo.fsm);
         break;
       }
 }
@@ -298,6 +320,7 @@ CcpOpen()
 static void
 CcpDecodeConfig(u_char *cp, int plen, int mode_type)
 {
+  /* Deal with incoming data */
   int type, length;
   int f;
 
@@ -384,11 +407,12 @@ CcpDecodeConfig(u_char *cp, int plen, int mode_type)
 void
 CcpInput(struct mbuf *bp)
 {
+  /* Got PROTO_CCP from link */
   if (phase == PHASE_NETWORK)
-    FsmInput(&CcpFsm, bp);
+    FsmInput(&CcpInfo.fsm, bp);
   else {
-    if (phase > PHASE_NETWORK)
-      LogPrintf(LogCCP, "Error: Unexpected CCP in phase %d\n", phase);
+    if (phase < PHASE_NETWORK)
+      LogPrintf(LogCCP, "Error: Unexpected CCP in phase %d (ignored)\n", phase);
     pfree(bp);
   }
 }
@@ -396,6 +420,7 @@ CcpInput(struct mbuf *bp)
 void
 CcpResetInput(u_char id)
 {
+  /* Got a reset ACK, reset incoming dictionary */
   if (CcpInfo.reset_sent != -1) {
     if (id != CcpInfo.reset_sent) {
       LogPrintf(LogWARN, "CCP: Incorrect ResetAck (id %d, not %d) ignored\n",
@@ -419,6 +444,7 @@ CcpResetInput(u_char id)
 int
 CcpOutput(struct link *l, int pri, u_short proto, struct mbuf *m)
 {
+  /* Compress outgoing data */
   if (CcpInfo.out_init)
     return (*algorithm[CcpInfo.out_algorithm]->o.Write)(l, pri, proto, m);
   return 0;
@@ -427,10 +453,11 @@ CcpOutput(struct link *l, int pri, u_short proto, struct mbuf *m)
 struct mbuf *
 CompdInput(u_short *proto, struct mbuf *m)
 {
+  /* Decompress incoming data */
   if (CcpInfo.reset_sent != -1) {
     /* Send another REQ and put the packet in the bit bucket */
     LogPrintf(LogCCP, "ReSendResetReq(%d)\n", CcpInfo.reset_sent);
-    FsmOutput(&CcpFsm, CODE_RESETREQ, CcpInfo.reset_sent, NULL, 0);
+    FsmOutput(&CcpInfo.fsm, CODE_RESETREQ, CcpInfo.reset_sent, NULL, 0);
     pfree(m);
   } else if (CcpInfo.in_init)
     return (*algorithm[CcpInfo.in_algorithm]->i.Read)(proto, m);
@@ -440,6 +467,7 @@ CompdInput(u_short *proto, struct mbuf *m)
 void
 CcpDictSetup(u_short proto, struct mbuf *m)
 {
+  /* Add incoming data to the dictionary */
   if (CcpInfo.in_init)
     (*algorithm[CcpInfo.in_algorithm]->i.DictSetup)(proto, m);
 }

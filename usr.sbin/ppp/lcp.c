@@ -17,7 +17,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: lcp.c,v 1.55.2.3 1998/01/30 01:33:45 brian Exp $
+ * $Id: lcp.c,v 1.55.2.4 1998/01/30 19:45:47 brian Exp $
  *
  * TODO:
  *	o Limit data field length by MRU
@@ -76,17 +76,40 @@ struct lqrreq {
   u_long period;		/* Reporting interval */
 };
 
-struct lcpstate LcpInfo;
-
-static void LcpSendConfigReq(struct fsm *);
-static void LcpSendTerminateReq(struct fsm *);
-static void LcpSendTerminateAck(struct fsm *);
-static void LcpDecodeConfig(u_char *, int, int);
-static void LcpInitRestartCounter(struct fsm *);
 static void LcpLayerUp(struct fsm *);
 static void LcpLayerDown(struct fsm *);
 static void LcpLayerStart(struct fsm *);
 static void LcpLayerFinish(struct fsm *);
+static void LcpInitRestartCounter(struct fsm *);
+static void LcpSendConfigReq(struct fsm *);
+static void LcpSendTerminateReq(struct fsm *);
+static void LcpSendTerminateAck(struct fsm *);
+static void LcpDecodeConfig(u_char *, int, int);
+
+struct lcpstate LcpInfo = {
+  {
+    "LCP",				/* Name of protocol */
+    PROTO_LCP,				/* Protocol Number */
+    LCP_MAXCODE,
+    1,					/* Open mode delay */
+    ST_INITIAL,				/* State of machine */
+    0, 0, 0,
+    {0, 0, 0, NULL, NULL, NULL},	/* FSM timer */
+    {0, 0, 0, NULL, NULL, NULL},	/* Open timer */
+    {0, 0, 0, NULL, NULL, NULL},	/* Stopped timer */
+    LogLCP,
+    NULL,
+    LcpLayerUp,
+    LcpLayerDown,
+    LcpLayerStart,
+    LcpLayerFinish,
+    LcpInitRestartCounter,
+    LcpSendConfigReq,
+    LcpSendTerminateReq,
+    LcpSendTerminateAck,
+    LcpDecodeConfig,
+  }
+};
 
 static const char *cftypes[] = {
   /* Check out the latest ``Assigned numbers'' rfc (rfc1700.txt) */
@@ -118,58 +141,30 @@ static const char *cftypes[] = {
 
 #define NCFTYPES (sizeof cftypes/sizeof cftypes[0])
 
-struct fsm LcpFsm = {
-  "LCP",			/* Name of protocol */
-  PROTO_LCP,			/* Protocol Number */
-  LCP_MAXCODE,
-  1,				/* Open mode delay */
-  ST_INITIAL,			/* State of machine */
-  0, 0, 0,
-  {0, 0, 0, NULL, NULL, NULL},	/* FSM timer */
-  {0, 0, 0, NULL, NULL, NULL},	/* Open timer */
-  {0, 0, 0, NULL, NULL, NULL},	/* Stopped timer */
-  LogLCP,
-
-  NULL,
-
-  LcpLayerUp,
-  LcpLayerDown,
-  LcpLayerStart,
-  LcpLayerFinish,
-  LcpInitRestartCounter,
-  LcpSendConfigReq,
-  LcpSendTerminateReq,
-  LcpSendTerminateAck,
-  LcpDecodeConfig,
-};
-
 static void
-LcpReportTime(void *data)
+LcpReportTime(void *v)
 {
-  struct pppTimer *me = (struct pppTimer *)data;
+  /* Moan about HDLC errors */
+  struct pppTimer *ReportTimer = (struct pppTimer *)v;
 
   if (LogIsKept(LogDEBUG)) {
-    time_t t;
-
-    time(&t);
+    time_t t = time(NULL);
     LogPrintf(LogDEBUG, "LcpReportTime: %s\n", ctime(&t));
   }
-
-  StopTimer(me);
-  me->state = TIMER_STOPPED;
-  StartTimer(me);
+  StopTimer(ReportTimer);
+  ReportTimer->state = TIMER_STOPPED;
+  StartTimer(ReportTimer);
   HdlcErrorCheck();
 }
 
 int
 ReportLcpStatus(struct cmdargs const *arg)
 {
-  struct fsm *fp = &LcpFsm;
-
   if (!VarTerm)
     return 1;
 
-  fprintf(VarTerm, "%s [%s]\n", fp->name, StateNames[fp->state]);
+  fprintf(VarTerm, "%s [%s]\n", LcpInfo.fsm.name,
+          StateNames[LcpInfo.fsm.state]);
   fprintf(VarTerm,
 	  " his side: MRU %d, ACCMAP %08lx, PROTOCOMP %d, ACFCOMP %d,\n"
 	  "           MAGIC %08lx, REJECT %04x\n",
@@ -190,12 +185,10 @@ ReportLcpStatus(struct cmdargs const *arg)
   return 0;
 }
 
-/*
- * Generate random number which will be used as magic number.
- */
 static u_int32_t
 GenerateMagic(void)
 {
+  /* Generate random number which will be used as magic number */
   randinit();
   return (random());
 }
@@ -203,31 +196,38 @@ GenerateMagic(void)
 void
 LcpInit(struct physical *physical)
 {
-  FsmInit(&LcpFsm, physical2link(physical));
+  /* Initialise ourselves */
+  FsmInit(&LcpInfo.fsm, physical2link(physical));
   HdlcInit();
-  memset(&LcpInfo, '\0', sizeof LcpInfo);
-  LcpInfo.want_mru = VarMRU;
+
   LcpInfo.his_mru = DEF_MRU;
   LcpInfo.his_accmap = 0xffffffff;
+  LcpInfo.his_magic = 0;
+  LcpInfo.his_lqrperiod = 0;
+  LcpInfo.his_protocomp = 0;
+  LcpInfo.his_acfcomp = 0;
+  LcpInfo.his_auth = 0;
+
+  LcpInfo.want_mru = VarMRU;
   LcpInfo.want_accmap = VarAccmap;
   LcpInfo.want_magic = GenerateMagic();
-  LcpInfo.want_auth = LcpInfo.his_auth = 0;
-  if (Enabled(ConfChap))
-    LcpInfo.want_auth = PROTO_CHAP;
-  else if (Enabled(ConfPap))
-    LcpInfo.want_auth = PROTO_PAP;
-  if (Enabled(ConfLqr))
-    LcpInfo.want_lqrperiod = VarLqrTimeout * 100;
-  if (Enabled(ConfAcfcomp))
-    LcpInfo.want_acfcomp = 1;
-  if (Enabled(ConfProtocomp))
-    LcpInfo.want_protocomp = 1;
-  LcpFsm.maxconfig = 10;
+  LcpInfo.want_auth = Enabled(ConfChap) ? PROTO_CHAP :
+                      Enabled(ConfPap) ?  PROTO_PAP : 0;
+  LcpInfo.want_lqrperiod = Enabled(ConfLqr) ?  VarLqrTimeout * 100 : 0;
+  LcpInfo.want_protocomp = Enabled(ConfProtocomp) ? 1 : 0;
+  LcpInfo.want_acfcomp = Enabled(ConfAcfcomp) ? 1 : 0;
+
+  LcpInfo.his_reject = LcpInfo.my_reject = 0;
+  LcpInfo.auth_iwait = LcpInfo.auth_ineed = 0;
+  LcpInfo.LcpFailedMagic = 0;
+  memset(&LcpInfo.ReportTimer, '\0', sizeof LcpInfo.ReportTimer);
+  LcpInfo.fsm.maxconfig = 10;
 }
 
 static void
 LcpInitRestartCounter(struct fsm * fp)
 {
+  /* Set fsm timer load */
   fp->FsmTimer.load = VarRetryTimeout * SECTICKS;
   fp->restart = 5;
 }
@@ -313,6 +313,7 @@ do {								\
 static void
 LcpSendConfigReq(struct fsm *fp)
 {
+  /* Send config REQ please */
   struct physical *p = link2physical(fp->link);
   u_char *cp;
   struct lcp_opt o;
@@ -362,23 +363,23 @@ LcpSendConfigReq(struct fsm *fp)
 }
 
 void
-LcpSendProtoRej(u_char * option, int count)
+LcpSendProtoRej(u_char *option, int count)
 {
-  struct fsm *fp = &LcpFsm;
-
+  /* Don't understand `option' */
   LogPrintf(LogLCP, "LcpSendProtoRej\n");
-  FsmOutput(fp, CODE_PROTOREJ, fp->reqid, option, count);
+  FsmOutput(&LcpInfo.fsm, CODE_PROTOREJ, LcpInfo.fsm.reqid, option, count);
 }
 
 static void
 LcpSendTerminateReq(struct fsm * fp)
 {
-  /* Fsm has just send a terminate request */
+  /* Term REQ just sent by FSM */
 }
 
 static void
 LcpSendTerminateAck(struct fsm * fp)
 {
+  /* Send Term ACK please */
   LogPrintf(LogLCP, "LcpSendTerminateAck.\n");
   FsmOutput(fp, CODE_TERMACK, fp->reqid++, NULL, 0);
 }
@@ -386,6 +387,7 @@ LcpSendTerminateAck(struct fsm * fp)
 static void
 LcpLayerStart(struct fsm *fp)
 {
+  /* We're about to start up ! */
   struct physical *p = link2physical(fp->link);
 
   LogPrintf(LogLCP, "LcpLayerStart\n");
@@ -408,25 +410,28 @@ StopAllTimers(void)
 static void
 LcpLayerFinish(struct fsm *fp)
 {
+  /* We're now down */
   struct physical *p = link2physical(fp->link);
 
   LogPrintf(LogLCP, "LcpLayerFinish\n");
+  LcpInfo.LcpFailedMagic = 0;
   link_Close(fp->link, 0);
   StopAllTimers();
+  CcpInfo.fsm.restart = 0;
+  IpcpInfo.fsm.restart = 0;
+
   /* We're down at last.  Lets tell background and direct mode to get out */
-  if (p) {
+  if (p)
     NewPhase(p, PHASE_DEAD);
-    LcpInit(p);
-  } else
+  else
     LogPrintf(LogERROR, "LcpLayerFinish: Not a physical link !\n");
-  IpcpInit(fp->link);
-  CcpInit(fp->link);
   Prompt();
 }
 
 static void
 LcpLayerUp(struct fsm *fp)
 {
+  /* We're now up */
   struct physical *p = link2physical(fp->link);
 
   LogPrintf(LogLCP, "LcpLayerUp\n");
@@ -449,8 +454,9 @@ LcpLayerUp(struct fsm *fp)
 static void
 LcpLayerDown(struct fsm * fp)
 {
-  StopAllTimers();
+  /* About to come down */
   OsLinkdown();
+
   LogPrintf(LogLCP, "LcpLayerDown\n");
   /*
    * OsLinkdown() brings CCP & IPCP down, then waits 'till we go from
@@ -461,30 +467,35 @@ LcpLayerDown(struct fsm * fp)
 void
 LcpUp()
 {
-  FsmUp(&LcpFsm);
+  /* Lower layers are ready.... go */
   LcpInfo.LcpFailedMagic = 0;
+  FsmUp(&LcpInfo.fsm);
 }
 
 void
 LcpDown()
-{				/* Sudden death */
-  LcpInfo.LcpFailedMagic = 0;
-  FsmDown(&LcpFsm);
+{
+  /* Physical link is gone - sudden death */
+  CcpDown();	/* CCP must come down */
+  IpcpDown();	/* IPCP must come down */
+  FsmDown(&LcpInfo.fsm);
   /* FsmDown() results in a LcpLayerDown() if we're currently open. */
-  LcpLayerFinish(&LcpFsm);
+  LcpLayerFinish(&LcpInfo.fsm);
 }
 
 void
 LcpOpen(int open_mode)
 {
-  LcpFsm.open_mode = open_mode;
+  /* Start LCP please (with the given open_mode) */
+  LcpInfo.fsm.open_mode = open_mode;
   LcpInfo.LcpFailedMagic = 0;
-  FsmOpen(&LcpFsm);
+  FsmOpen(&LcpInfo.fsm);
 }
 
 void
 LcpClose(struct fsm *fp)
 {
+  /* Stop LCP please */
   struct physical *p = link2physical(fp->link);
 
   if (p)
@@ -494,15 +505,12 @@ LcpClose(struct fsm *fp)
 
   OsInterfaceDown(0);
   FsmClose(fp);
-  LcpInfo.LcpFailedMagic = 0;
 }
 
-/*
- *	XXX: Should validate option length
- */
 static void
 LcpDecodeConfig(u_char *cp, int plen, int mode_type)
 {
+  /* Deal with incoming PROTO_LCP */
   int type, length, sz, pos;
   u_int32_t *lp, magic, accmap;
   u_short mtu, mru, *sp, proto;
@@ -684,7 +692,7 @@ LcpDecodeConfig(u_char *cp, int plen, int mode_type)
       break;
 
     case TY_QUALPROTO:
-      req = (struct lqrreq *) cp;
+      req = (struct lqrreq *)cp;
       LogPrintf(LogLCP, "%s proto %x, interval %dms\n",
                 request, ntohs(req->proto), ntohl(req->period) * 10);
       switch (mode_type) {
@@ -858,5 +866,6 @@ reqreject:
 void
 LcpInput(struct mbuf * bp)
 {
-  FsmInput(&LcpFsm, bp);
+  /* Got PROTO_LCP from link */
+  FsmInput(&LcpInfo.fsm, bp);
 }

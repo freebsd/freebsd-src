@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: phase.c,v 1.6.4.3 1998/01/30 01:33:46 brian Exp $
+ *	$Id: phase.c,v 1.6.4.4 1998/01/30 19:46:01 brian Exp $
  */
 
 #include <sys/param.h>
@@ -36,6 +36,7 @@
 #include "mbuf.h"
 #include "log.h"
 #include "timer.h"
+#include "fsm.h"
 #include "lcp.h"
 #include "lcpproto.h"
 #include "auth.h"

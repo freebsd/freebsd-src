@@ -17,7 +17,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: lqr.c,v 1.22.2.2 1998/01/30 01:33:46 brian Exp $
+ * $Id: lqr.c,v 1.22.2.3 1998/01/30 19:45:51 brian Exp $
  *
  *	o LQR based on RFC1333
  *
@@ -67,16 +67,15 @@ struct echolqr {
 static void
 SendEchoReq(void)
 {
-  struct fsm *fp = &LcpFsm;
   struct echolqr *lqr, lqrdata;
 
-  if (fp->state == ST_OPENED) {
+  if (LcpInfo.fsm.state == ST_OPENED) {
     lqr = &lqrdata;
     lqr->magic = htonl(LcpInfo.want_magic);
     lqr->signature = htonl(SIGNATURE);
     LogPrintf(LogLQM, "Send echo LQR [%d]\n", echoseq);
     lqr->sequence = htonl(echoseq++);
-    FsmOutput(fp, CODE_ECHOREQ, fp->reqid++,
+    FsmOutput(&LcpInfo.fsm, CODE_ECHOREQ, LcpInfo.fsm.reqid++,
 	      (u_char *) lqr, sizeof(struct echolqr));
   }
 }
@@ -126,7 +125,7 @@ SendLqrReport(void *v)
       LogPrintf(LogPHASE, "** 1 Too many ECHO packets are lost. **\n");
       lqmmethod = 0;		/* Prevent rcursion via LcpClose() */
       reconnect(RECON_TRUE);
-      LcpClose(&LcpFsm);
+      LcpClose(&LcpInfo.fsm);
     } else {
       bp = mballoc(sizeof(struct lqrdata), MB_LQR);
       HdlcOutput(physical2link(physical), PRI_LINK, PROTO_LQR, bp);
@@ -137,7 +136,7 @@ SendLqrReport(void *v)
       LogPrintf(LogPHASE, "** 2 Too many ECHO packets are lost. **\n");
       lqmmethod = 0;		/* Prevent rcursion via LcpClose() */
       reconnect(RECON_TRUE);
-      LcpClose(&LcpFsm);
+      LcpClose(&LcpInfo.fsm);
     } else
       SendEchoReq();
   }

@@ -15,7 +15,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: lcp.h,v 1.16.2.1 1998/01/29 00:49:25 brian Exp $
+ * $Id: lcp.h,v 1.16.2.2 1998/01/30 01:33:45 brian Exp $
  *
  *	TODO:
  */
@@ -23,6 +23,7 @@
 #define	REJECTED(p, x)	((p)->his_reject & (1<<(x)))
 
 struct lcpstate {
+  struct fsm fsm;		/* The finite state machine */
   u_int16_t his_mru;		/* Peers maximum packet size */
   u_int32_t his_accmap;		/* Peeers async char control map */
   u_int32_t his_magic;		/* Peers magic number */
@@ -72,7 +73,6 @@ struct lcp_opt {
 struct physical;
 
 extern struct lcpstate LcpInfo;
-extern struct fsm LcpFsm;
 
 extern void LcpInit(struct physical *);
 extern void LcpUp(void);

@@ -17,7 +17,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: os.c,v 1.42 1998/01/21 02:15:23 brian Exp $
+ * $Id: os.c,v 1.42.2.1 1998/01/29 23:11:40 brian Exp $
  *
  */
 #include <sys/param.h>
@@ -238,6 +238,10 @@ OsLinkup()
     else
       LogPrintf(LogLCP, "OsLinkup: %s\n", s);
 
+    /*
+     * XXX this stuff should really live in the FSM.  Our config should
+     * associate executable sections in files with events.
+     */
     if (SelectSystem(inet_ntoa(IpcpInfo.want_ipaddr), LINKUPFILE) < 0) {
       if (GetLabel()) {
 	if (SelectSystem(GetLabel(), LINKUPFILE) < 0)
@@ -258,25 +262,30 @@ OsLinkIsUp()
 void
 OsLinkdown()
 {
-  char *s;
+  char *s = NULL;
   int Level;
 
   if (linkup) {
-    s = (char *) inet_ntoa(peer_addr);
+    s = inet_ntoa(peer_addr);
     Level = LogIsKept(LogLINK) ? LogLINK : LogIPCP;
     LogPrintf(Level, "OsLinkdown: %s\n", s);
+  }
 
-    FsmDown(&IpcpFsm);	/* IPCP must come down */
-    FsmDown(&CcpFsm);	/* CCP must come down */
+  FsmClose(&IpcpInfo.fsm);
+  FsmClose(&CcpInfo.fsm);
 
+  if (linkup) {
+    /*
+     * XXX this stuff should really live in the FSM.  Our config should
+     * associate executable sections in files with events.
+     */
     linkup = 0;
-    if (SelectSystem(s, LINKDOWNFILE) < 0) {
+    if (SelectSystem(s, LINKDOWNFILE) < 0)
       if (GetLabel()) {
 	if (SelectSystem(GetLabel(), LINKDOWNFILE) < 0)
 	  SelectSystem("MYADDR", LINKDOWNFILE);
       } else
 	SelectSystem("MYADDR", LINKDOWNFILE);
-    }
   }
 }
 
@@ -287,7 +296,11 @@ OsInterfaceDown(int final)
   int s;
 
   OsLinkdown();
-  if (!final && (mode & MODE_DAEMON))	/* We still want interface alive */
+  if (!final && (mode & MODE_DAEMON))
+    /*
+     * We still want the interface alive - in case we're closing because of
+     * an LQR problem (and are going to re-open)
+     */
     return (0);
   s = socket(AF_INET, SOCK_DGRAM, 0);
   if (s < 0) {

@@ -17,7 +17,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: command.c,v 1.131.2.2 1998/01/29 23:11:33 brian Exp $
+ * $Id: command.c,v 1.131.2.3 1998/01/30 19:45:32 brian Exp $
  *
  */
 #include <sys/param.h>
@@ -170,9 +170,9 @@ DialCommand(struct cmdargs const *arg)
   int tries;
   int res;
 
-  if (LcpFsm.state > ST_CLOSED) {
+  if (LcpInfo.fsm.state > ST_CLOSED) {
     if (VarTerm)
-      fprintf(VarTerm, "LCP state is [%s]\n", StateNames[LcpFsm.state]);
+      fprintf(VarTerm, "LCP state is [%s]\n", StateNames[LcpInfo.fsm.state]);
     return 0;
   }
 
@@ -482,22 +482,22 @@ ShowStopped(struct cmdargs const *arg)
     return 0;
 
   fprintf(VarTerm, " Stopped Timer:  LCP: ");
-  if (!LcpFsm.StoppedTimer.load)
+  if (!LcpInfo.fsm.StoppedTimer.load)
     fprintf(VarTerm, "Disabled");
   else
-    fprintf(VarTerm, "%ld secs", LcpFsm.StoppedTimer.load / SECTICKS);
+    fprintf(VarTerm, "%ld secs", LcpInfo.fsm.StoppedTimer.load / SECTICKS);
 
   fprintf(VarTerm, ", IPCP: ");
-  if (!IpcpFsm.StoppedTimer.load)
+  if (!IpcpInfo.fsm.StoppedTimer.load)
     fprintf(VarTerm, "Disabled");
   else
-    fprintf(VarTerm, "%ld secs", IpcpFsm.StoppedTimer.load / SECTICKS);
+    fprintf(VarTerm, "%ld secs", IpcpInfo.fsm.StoppedTimer.load / SECTICKS);
 
   fprintf(VarTerm, ", CCP: ");
-  if (!CcpFsm.StoppedTimer.load)
+  if (!CcpInfo.fsm.StoppedTimer.load)
     fprintf(VarTerm, "Disabled");
   else
-    fprintf(VarTerm, "%ld secs", CcpFsm.StoppedTimer.load / SECTICKS);
+    fprintf(VarTerm, "%ld secs", CcpInfo.fsm.StoppedTimer.load / SECTICKS);
 
   fprintf(VarTerm, "\n");
 
@@ -742,7 +742,7 @@ Prompt()
     pauth = " ON ";
   else
     pauth = " on ";
-  if (IpcpFsm.state == ST_OPENED && phase == PHASE_NETWORK)
+  if (IpcpInfo.fsm.state == ST_OPENED && phase == PHASE_NETWORK)
     pconnect = "PPP";
   else
     pconnect = "ppp";
@@ -840,9 +840,9 @@ ShowCommand(struct cmdargs const *arg)
 static int
 TerminalCommand(struct cmdargs const *arg)
 {
-  if (LcpFsm.state > ST_CLOSED) {
+  if (LcpInfo.fsm.state > ST_CLOSED) {
     if (VarTerm)
-      fprintf(VarTerm, "LCP state is [%s]\n", StateNames[LcpFsm.state]);
+      fprintf(VarTerm, "LCP state is [%s]\n", StateNames[LcpInfo.fsm.state]);
     return 1;
   }
   if (!IsInteractive(1))
@@ -865,9 +865,9 @@ QuitCommand(struct cmdargs const *arg)
 {
   if (VarTerm) {
     DropClient(1);
-    if (mode & MODE_INTER)
-      Cleanup(EX_NORMAL);
-    else if (arg->argc > 0 && !strcasecmp(*arg->argv, "all") && VarLocalAuth&LOCAL_AUTH)
+    if ((mode & MODE_INTER) ||
+        (arg->argc > 0 && !strcasecmp(*arg->argv, "all") &&
+         VarLocalAuth&LOCAL_AUTH))
       Cleanup(EX_NORMAL);
   }
 
@@ -878,7 +878,7 @@ static int
 CloseCommand(struct cmdargs const *arg)
 {
   reconnect(RECON_FALSE);
-  LcpClose(&LcpFsm);
+  LcpClose(&LcpInfo.fsm);
   return 0;
 }
 
@@ -988,16 +988,16 @@ SetRedialTimeout(struct cmdargs const *arg)
 static int
 SetStoppedTimeout(struct cmdargs const *arg)
 {
-  LcpFsm.StoppedTimer.load = 0;
-  IpcpFsm.StoppedTimer.load = 0;
-  CcpFsm.StoppedTimer.load = 0;
+  LcpInfo.fsm.StoppedTimer.load = 0;
+  IpcpInfo.fsm.StoppedTimer.load = 0;
+  CcpInfo.fsm.StoppedTimer.load = 0;
   if (arg->argc <= 3) {
     if (arg->argc > 0) {
-      LcpFsm.StoppedTimer.load = atoi(arg->argv[0]) * SECTICKS;
+      LcpInfo.fsm.StoppedTimer.load = atoi(arg->argv[0]) * SECTICKS;
       if (arg->argc > 1) {
-	IpcpFsm.StoppedTimer.load = atoi(arg->argv[1]) * SECTICKS;
+	IpcpInfo.fsm.StoppedTimer.load = atoi(arg->argv[1]) * SECTICKS;
 	if (arg->argc > 2)
-	  CcpFsm.StoppedTimer.load = atoi(arg->argv[2]) * SECTICKS;
+	  CcpInfo.fsm.StoppedTimer.load = atoi(arg->argv[2]) * SECTICKS;
       }
     }
     return 0;

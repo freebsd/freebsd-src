@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: deflate.c,v 1.6.4.2 1998/01/30 01:33:45 brian Exp $
+ *	$Id: deflate.c,v 1.6.4.3 1998/01/30 19:45:33 brian Exp $
  */
 
 #include <sys/param.h>
@@ -41,10 +41,10 @@
 #include "vars.h"
 #include "hdlc.h"
 #include "timer.h"
+#include "fsm.h"
 #include "lcp.h"
 #include "ccp.h"
 #include "lcpproto.h"
-#include "fsm.h"
 #include "throughput.h"
 #include "link.h"
 #include "deflate.h"
@@ -227,7 +227,7 @@ DeflateInput(u_short *proto, struct mbuf *mi)
       LogPrintf(LogERROR, "DeflateInput: Seq error: Got %d, expected %d\n",
                 seq, InputState.seqno);
       pfree(mi_head);
-      CcpSendResetReq(&CcpFsm);
+      CcpSendResetReq(&CcpInfo.fsm);
       return NULL;
     }
   }
@@ -264,7 +264,7 @@ DeflateInput(u_short *proto, struct mbuf *mi)
                 res, InputState.cx.msg ? InputState.cx.msg : "");
       pfree(mo_head);
       pfree(mi);
-      CcpSendResetReq(&CcpFsm);
+      CcpSendResetReq(&CcpInfo.fsm);
       return NULL;
     }
 
@@ -305,7 +305,7 @@ DeflateInput(u_short *proto, struct mbuf *mi)
   if (first) {
     LogPrintf(LogERROR, "DeflateInput: Length error\n");
     pfree(mo_head);
-    CcpSendResetReq(&CcpFsm);
+    CcpSendResetReq(&CcpInfo.fsm);
     return NULL;
   }
 
@@ -387,7 +387,7 @@ DeflateDictSetup(u_short proto, struct mbuf *mi)
                 res, InputState.cx.msg ? InputState.cx.msg : "");
       LogPrintf(LogERROR, "DeflateDictSetup: avail_in %d, avail_out %d\n",
                 InputState.cx.avail_in, InputState.cx.avail_out);
-      CcpSendResetReq(&CcpFsm);
+      CcpSendResetReq(&CcpInfo.fsm);
       mbfree(mi_head);		/* lose our allocated ``head'' buf */
       return;
     }

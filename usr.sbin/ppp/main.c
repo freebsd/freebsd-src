@@ -17,7 +17,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: main.c,v 1.121.2.2 1998/01/29 23:11:39 brian Exp $
+ * $Id: main.c,v 1.121.2.3 1998/01/30 19:45:53 brian Exp $
  *
  *	TODO:
  *		o Add commands for traffic summary, version display, etc.
@@ -227,7 +227,7 @@ CloseSession(int signo)
   }
   LogPrintf(LogPHASE, "Signal %d, terminate.\n", signo);
   reconnect(RECON_FALSE);
-  LcpClose(&LcpFsm);
+  LcpClose(&LcpInfo.fsm);
   Cleanup(EX_TERM);
 }
 
@@ -655,7 +655,7 @@ ReadTty(void)
 	/*
 	 * XXX: Should check carrier.
 	 */
-	if (LcpFsm.state <= ST_CLOSED)
+	if (LcpInfo.fsm.state <= ST_CLOSED)
 	  PacketMode(0);
 	break;
       case '.':
@@ -798,14 +798,14 @@ DoLoop(void)
     /*
      * If the link is down and we're in DDIAL mode, bring it back up.
      */
-    if (mode & MODE_DDIAL && LcpFsm.state <= ST_CLOSED)
+    if (mode & MODE_DDIAL && LcpInfo.fsm.state <= ST_CLOSED)
       dial_up = 1;
 
     /*
      * If we lost carrier and want to re-establish the connection due to the
      * "set reconnect" value, we'd better bring the line back up.
      */
-    if (LcpFsm.state <= ST_CLOSED) {
+    if (LcpInfo.fsm.state <= ST_CLOSED) {
       if (!dial_up && reconnectState == RECON_TRUE) {
 	if (++reconnectCount <= VarReconnectTries) {
 	  LogPrintf(LogPHASE, "Connection lost, re-establish (%d/%d)\n",
@@ -1019,7 +1019,7 @@ DoLoop(void)
     }
     if (Physical_FD_ISSET(pppVars.physical, &rfds)) {
       /* something to read from modem */
-      if (LcpFsm.state <= ST_CLOSED)
+      if (LcpInfo.fsm.state <= ST_CLOSED)
 	nointr_usleep(10000);
       n = Physical_Read(pppVars.physical, rbuff, sizeof rbuff);
       if ((mode & MODE_DIRECT) && n <= 0) {
@@ -1027,7 +1027,7 @@ DoLoop(void)
       } else
 	LogDumpBuff(LogASYNC, "ReadFromModem", rbuff, n);
 
-      if (LcpFsm.state <= ST_CLOSED) {
+      if (LcpInfo.fsm.state <= ST_CLOSED) {
 	/*
 	 * In dedicated mode, we just discard input until LCP is started.
 	 */
@@ -1092,7 +1092,7 @@ DoLoop(void)
        * Process on-demand dialup. Output packets are queued within tunnel
        * device until IPCP is opened.
        */
-      if (LcpFsm.state <= ST_CLOSED && (mode & MODE_AUTO) &&
+      if (LcpInfo.fsm.state <= ST_CLOSED && (mode & MODE_AUTO) &&
 	  (pri = PacketCheck(rbuff, n, FL_DIAL)) >= 0)
         dial_up = 1;
 

@@ -26,7 +26,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: pred.c,v 1.20.2.1 1998/01/29 00:49:30 brian Exp $
+ *	$Id: pred.c,v 1.20.2.2 1998/01/30 19:46:04 brian Exp $
  */
 
 #include <sys/param.h>
@@ -248,7 +248,7 @@ Pred1Input(u_short *proto, struct mbuf *bp)
     len &= 0x7fff;
     if (len != len1) {		/* Error is detected. Send reset request */
       LogPrintf(LogCCP, "Pred1: Length error\n");
-      CcpSendResetReq(&CcpFsm);
+      CcpSendResetReq(&CcpInfo.fsm);
       pfree(bp);
       pfree(wp);
       return NULL;
@@ -285,7 +285,7 @@ Pred1Input(u_short *proto, struct mbuf *bp)
     return wp;
   } else {
     LogDumpBp(LogHDLC, "Bad FCS", wp);
-    CcpSendResetReq(&CcpFsm);
+    CcpSendResetReq(&CcpInfo.fsm);
     pfree(wp);
   }
   pfree(bp);

@@ -18,7 +18,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: pap.c,v 1.20.2.2 1998/01/30 01:33:46 brian Exp $
+ * $Id: pap.c,v 1.20.2.3 1998/01/30 19:46:00 brian Exp $
  *
  *	TODO:
  */
@@ -186,7 +186,7 @@ PapInput(struct mbuf * bp, struct physical *physical)
 	} else {
 	  SendPapCode(php->id, PAP_NAK, "Login incorrect", physical);
 	  reconnect(RECON_FALSE);
-	  LcpClose(&LcpFsm);
+	  LcpClose(&LcpInfo.fsm);
 	}
 	break;
       case PAP_ACK:
@@ -208,7 +208,7 @@ PapInput(struct mbuf * bp, struct physical *physical)
 	cp[len] = 0;
 	LogPrintf(LogPHASE, "Received PAP_NAK (%s)\n", cp);
 	reconnect(RECON_FALSE);
-	LcpClose(&LcpFsm);
+	LcpClose(&LcpInfo.fsm);
 	break;
       }
     }

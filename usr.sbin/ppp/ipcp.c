@@ -17,7 +17,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: ipcp.c,v 1.50.2.2 1998/01/29 23:11:36 brian Exp $
+ * $Id: ipcp.c,v 1.50.2.3 1998/01/30 19:45:44 brian Exp $
  *
  *	TODO:
  *		o More RFC1772 backwoard compatibility
@@ -65,42 +65,41 @@ struct compreq {
   u_char compcid;
 };
 
-struct ipcpstate IpcpInfo = { MAX_VJ_STATES, 1 };
-
-static void IpcpSendConfigReq(struct fsm *);
-static void IpcpSendTerminateAck(struct fsm *);
-static void IpcpSendTerminateReq(struct fsm *);
-static void IpcpDecodeConfig(u_char *, int, int);
-static void IpcpLayerStart(struct fsm *);
-static void IpcpLayerFinish(struct fsm *);
 static void IpcpLayerUp(struct fsm *);
 static void IpcpLayerDown(struct fsm *);
+static void IpcpLayerStart(struct fsm *);
+static void IpcpLayerFinish(struct fsm *);
 static void IpcpInitRestartCounter(struct fsm *);
+static void IpcpSendConfigReq(struct fsm *);
+static void IpcpSendTerminateReq(struct fsm *);
+static void IpcpSendTerminateAck(struct fsm *);
+static void IpcpDecodeConfig(u_char *, int, int);
 
-struct fsm IpcpFsm = {
-  "IPCP",
-  PROTO_IPCP,
-  IPCP_MAXCODE,
-  0,
-  ST_INITIAL,
-  0, 0, 0,
-
-  {0, 0, 0, NULL, NULL, NULL},	/* FSM timer */
-  {0, 0, 0, NULL, NULL, NULL},	/* Open timer */
-  {0, 0, 0, NULL, NULL, NULL},	/* Stopped timer */
-  LogIPCP,
-
-  NULL,
-
-  IpcpLayerUp,
-  IpcpLayerDown,
-  IpcpLayerStart,
-  IpcpLayerFinish,
-  IpcpInitRestartCounter,
-  IpcpSendConfigReq,
-  IpcpSendTerminateReq,
-  IpcpSendTerminateAck,
-  IpcpDecodeConfig,
+struct ipcpstate IpcpInfo = {
+  {
+    "IPCP",
+    PROTO_IPCP,
+    IPCP_MAXCODE,
+    0,
+    ST_INITIAL,
+    0, 0, 0,
+    {0, 0, 0, NULL, NULL, NULL},	/* FSM timer */
+    {0, 0, 0, NULL, NULL, NULL},	/* Open timer */
+    {0, 0, 0, NULL, NULL, NULL},	/* Stopped timer */
+    LogIPCP,
+    NULL,
+    IpcpLayerUp,
+    IpcpLayerDown,
+    IpcpLayerStart,
+    IpcpLayerFinish,
+    IpcpInitRestartCounter,
+    IpcpSendConfigReq,
+    IpcpSendTerminateReq,
+    IpcpSendTerminateAck,
+    IpcpDecodeConfig,
+  },
+  MAX_VJ_STATES,
+  1
 };
 
 static const char *cftypes[] = {
@@ -139,12 +138,11 @@ IpcpAddOutOctets(int n)
 int
 ReportIpcpStatus(struct cmdargs const *arg)
 {
-  struct fsm *fp = &IpcpFsm;
-
   if (!VarTerm)
     return 1;
-  fprintf(VarTerm, "%s [%s]\n", fp->name, StateNames[fp->state]);
-  if (IpcpFsm.state == ST_OPENED) {
+  fprintf(VarTerm, "%s [%s]\n", IpcpInfo.fsm.name,
+          StateNames[IpcpInfo.fsm.state]);
+  if (IpcpInfo.fsm.state == ST_OPENED) {
     fprintf(VarTerm, " his side: %s, %s\n",
 	    inet_ntoa(IpcpInfo.his_ipaddr), vj2asc(IpcpInfo.his_compproto));
     fprintf(VarTerm, " my  side: %s, %s\n",
@@ -175,6 +173,7 @@ ReportIpcpStatus(struct cmdargs const *arg)
 void
 IpcpDefAddress()
 {
+  /* Setup default IP addresses (`hostname` -> 0.0.0.0) */
   struct hostent *hp;
   char name[200];
 
@@ -227,9 +226,10 @@ ShowInitVJ(struct cmdargs const *args)
 void
 IpcpInit(struct link *l)
 {
+  /* Initialise ourselves */
+  FsmInit(&IpcpInfo.fsm, l);
   if (iplist_isvalid(&IpcpInfo.DefHisChoice))
     iplist_setrandpos(&IpcpInfo.DefHisChoice);
-  FsmInit(&IpcpFsm, l);
   IpcpInfo.his_compproto = 0;
   IpcpInfo.his_reject = IpcpInfo.my_reject = 0;
 
@@ -260,13 +260,14 @@ IpcpInit(struct link *l)
     IpcpInfo.want_compproto = 0;
 
   IpcpInfo.heis1172 = 0;
-  IpcpFsm.maxconfig = 10;
+  IpcpInfo.fsm.maxconfig = 10;
   throughput_init(&IpcpInfo.throughput);
 }
 
 static void
 IpcpInitRestartCounter(struct fsm * fp)
 {
+  /* Set fsm timer load */
   fp->FsmTimer.load = VarRetryTimeout * SECTICKS;
   fp->restart = 5;
 }
@@ -274,6 +275,7 @@ IpcpInitRestartCounter(struct fsm * fp)
 static void
 IpcpSendConfigReq(struct fsm *fp)
 {
+  /* Send config REQ please */
   struct physical *p = link2physical(fp->link);
   u_char *cp;
   struct lcp_opt o;
@@ -308,12 +310,13 @@ IpcpSendConfigReq(struct fsm *fp)
 static void
 IpcpSendTerminateReq(struct fsm * fp)
 {
-  /* Fsm has just send a terminate request */
+  /* Term REQ just sent by FSM */
 }
 
 static void
 IpcpSendTerminateAck(struct fsm * fp)
 {
+  /* Send Term ACK please */
   LogPrintf(LogIPCP, "IpcpSendTerminateAck\n");
   FsmOutput(fp, CODE_TERMACK, fp->reqid++, NULL, 0);
 }
@@ -321,31 +324,33 @@ IpcpSendTerminateAck(struct fsm * fp)
 static void
 IpcpLayerStart(struct fsm * fp)
 {
+  /* We're about to start up ! */
   LogPrintf(LogIPCP, "IpcpLayerStart.\n");
 }
 
 static void
 IpcpLayerFinish(struct fsm * fp)
 {
+  /* We're now down */
   LogPrintf(LogIPCP, "IpcpLayerFinish.\n");
+  /* Better tell LCP that it's all over (we're the only NCP) */
   reconnect(RECON_FALSE);
-  LcpClose(&LcpFsm);
+  LcpClose(&LcpInfo.fsm);
 }
 
 static void
 IpcpLayerDown(struct fsm * fp)
 {
+  /* About to come down */
   LogPrintf(LogIPCP, "IpcpLayerDown.\n");
   throughput_stop(&IpcpInfo.throughput);
   throughput_log(&IpcpInfo.throughput, LogIPCP, NULL);
 }
 
-/*
- *  Called when IPCP has reached to OPEN state
- */
 static void
 IpcpLayerUp(struct fsm * fp)
 {
+  /* We're now up */
   char tbuff[100];
 
   Prompt();
@@ -375,19 +380,33 @@ IpcpLayerUp(struct fsm * fp)
 void
 IpcpUp()
 {
-  FsmUp(&IpcpFsm);
+  /* Lower layers are ready.... go */
+  FsmUp(&IpcpInfo.fsm);
   LogPrintf(LogIPCP, "IPCP Up event!!\n");
+}
+
+void
+IpcpDown()
+{
+  /* Physical link is gone - sudden death */
+  if (IpcpInfo.fsm.state >= ST_CLOSED) {
+    FsmDown(&IpcpInfo.fsm);
+    /* FsmDown() results in an IpcpLayerDown() if we're currently open. */
+    IpcpLayerFinish(&IpcpInfo.fsm);
+  }
 }
 
 void
 IpcpOpen()
 {
-  FsmOpen(&IpcpFsm);
+  /* Start IPCP please */
+  FsmOpen(&IpcpInfo.fsm);
 }
 
 static int
-AcceptableAddr(struct in_range * prange, struct in_addr ipaddr)
+AcceptableAddr(struct in_range *prange, struct in_addr ipaddr)
 {
+  /* Is the given IP in the given range ? */
   LogPrintf(LogDEBUG, "requested = %x\n", htonl(ipaddr.s_addr));
   LogPrintf(LogDEBUG, "range = %x\n", htonl(prange->ipaddr.s_addr));
   LogPrintf(LogDEBUG, "/%x\n", htonl(prange->mask.s_addr));
@@ -400,6 +419,7 @@ AcceptableAddr(struct in_range * prange, struct in_addr ipaddr)
 static void
 IpcpDecodeConfig(u_char * cp, int plen, int mode_type)
 {
+  /* Deal with incoming PROTO_IPCP */
   int type, length;
   u_long *lp, compproto;
   struct compreq *pcomp;
@@ -469,7 +489,7 @@ IpcpDecodeConfig(u_char * cp, int plen, int mode_type)
 	  IpcpInfo.want_ipaddr = ipaddr;
 	} else {
 	  LogPrintf(LogIPCP, "%s: Unacceptable address!\n", inet_ntoa(ipaddr));
-          FsmClose(&IpcpFsm);
+          FsmClose(&IpcpInfo.fsm);
 	}
 	break;
       case MODE_REJ:
@@ -676,12 +696,14 @@ IpcpDecodeConfig(u_char * cp, int plen, int mode_type)
 void
 IpcpInput(struct mbuf * bp)
 {
-  FsmInput(&IpcpFsm, bp);
+  /* Got PROTO_IPCP from link */
+  FsmInput(&IpcpInfo.fsm, bp);
 }
 
 int
 UseHisaddr(const char *hisaddr, int setaddr)
 {
+  /* Use `hisaddr' for the peers address (set iface if `setaddr') */
   memset(&IpcpInfo.DefHisAddress, '\0', sizeof IpcpInfo.DefHisAddress);
   iplist_reset(&IpcpInfo.DefHisChoice);
   if (strpbrk(hisaddr, ",-")) {

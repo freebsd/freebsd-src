@@ -17,7 +17,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: hdlc.c,v 1.28.2.2 1998/01/29 23:11:34 brian Exp $
+ * $Id: hdlc.c,v 1.28.2.3 1998/01/30 19:45:41 brian Exp $
  *
  *	TODO:
  */
@@ -151,7 +151,7 @@ HdlcOutput(struct link *l, int pri, u_short proto, struct mbuf *bp)
   u_short fcs;
 
   if ((proto & 0xfff1) == 0x21)		/* Network Layer protocol */
-    if (CcpFsm.state == ST_OPENED)
+    if (CcpInfo.fsm.state == ST_OPENED)
       if (CcpOutput(l, pri, proto, bp))
         return;
 
@@ -378,7 +378,7 @@ DecodePacket(u_short proto, struct mbuf * bp, struct link *l)
    * If proto isn't PROTO_COMPD, we still want to pass it to the
    * decompression routines so that the dictionary's updated
    */
-  if (CcpFsm.state == ST_OPENED)
+  if (CcpInfo.fsm.state == ST_OPENED)
     if (proto == PROTO_COMPD) {
       if ((bp = CompdInput(&proto, bp)) == NULL)
         return;
