@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)vfs_subr.c	8.31 (Berkeley) 5/26/95
- * $Id: vfs_subr.c,v 1.160 1998/08/12 20:17:42 bde Exp $
+ * $Id: vfs_subr.c,v 1.161 1998/08/29 13:13:10 bde Exp $
  */
 
 /*
@@ -119,6 +119,7 @@ struct mntlist mountlist;	/* mounted filesystem list */
 struct simplelock mountlist_slock;
 static struct simplelock mntid_slock;
 struct simplelock mntvnode_slock;
+int	nfs_mount_type = -1;
 static struct simplelock vnode_free_list_slock;
 static struct simplelock spechash_slock;
 struct nfs_public nfs_pub;	/* publicly exported FS */
