@@ -27,10 +27,12 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- * $Id: ibcs2_sysvec.c,v 1.7 1998/04/28 18:15:05 eivind Exp $
+ * $Id: ibcs2_sysvec.c,v 1.8 1998/09/14 05:36:47 jdp Exp $
  */
 
 #include <sys/param.h>
+#include <sys/kernel.h>
+#include <sys/module.h>
 #include <sys/sysent.h>
 #include <sys/signalvar.h>
 #include <i386/ibcs2/ibcs2_syscall.h>
@@ -58,3 +60,20 @@ struct sysentvec ibcs2_svr3_sysvec = {
 	"IBCS2 COFF",
 	NULL		/* we don't have a COFF coredump function */
 };
+
+/*
+ * Create an "ibcs2" module that does nothing but allow checking for
+ * the presence of the subsystem.
+ */
+static int
+ibcs2_modevent(module_t mod, modeventtype_t type, void *unused)
+{
+	/* Do not care */
+	return 0;
+}
+moduledata_t ibcs2_mod = {
+	"ibcs2",
+	ibcs2_modevent,
+	0
+};
+DECLARE_MODULE(ibcs2, ibcs2_mod, SI_SUB_PSEUDO, SI_ORDER_ANY);
