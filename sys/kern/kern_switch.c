@@ -34,6 +34,7 @@
 #include <sys/mutex.h>
 #include <sys/proc.h>
 #include <sys/queue.h>
+#include <machine/critical.h>
 
 /*
  * Global run queue.

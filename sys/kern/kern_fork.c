@@ -70,6 +70,7 @@
 
 #include <sys/vmmeter.h>
 #include <sys/user.h>
+#include <machine/critical.h>
 
 static MALLOC_DEFINE(M_ATFORK, "atfork", "atfork callback");
 

@@ -300,11 +300,6 @@ intr_restore(critical_t psr)
 	__asm __volatile ("mov psr.l=%0;; srlz.d" :: "r" (psr));
 }
 
-void	cpu_critical_enter(void);
-void	cpu_critical_exit(void);
-void	cpu_critical_fork_exit(void);
-void	cpu_thread_link(struct thread *td);
-
 #endif /* _KERNEL */
 
 #endif /* !_MACHINE_CPUFUNC_H_ */

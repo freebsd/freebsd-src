@@ -19,27 +19,6 @@
 #include <sys/sysctl.h>
 #include <sys/ucontext.h>
 
-void
-cpu_critical_enter(void)
-{
-	struct thread *td;
-	critical_t pil;
-
-	td = curthread;
-	pil = rdpr(pil);
-	wrpr(pil, 0, 14);
-	td->td_md.md_savecrit = pil;
-} 
- 
-void
-cpu_critical_exit(void)
-{
-	struct thread *td;
-
-	td = curthread;
-	wrpr(pil, td->td_md.md_savecrit, 0); 
-}
-
 /*
  * cpu_critical_fork_exit() - cleanup after fork
  */

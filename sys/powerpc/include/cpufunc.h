@@ -132,12 +132,6 @@ powerpc_get_pcpup(void)
 	return(ret);
 }
 
-void	cpu_critical_enter(void);
-void	cpu_critical_exit(void);
-void	cpu_critical_fork_exit(void);
-void	cpu_thread_link(struct thread *td);
-
-
 #endif /* _KERNEL */
 
 #endif /* !_MACHINE_CPUFUNC_H_ */
