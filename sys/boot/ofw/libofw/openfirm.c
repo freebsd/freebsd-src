@@ -97,21 +97,23 @@ int
 OF_test(char *name)
 {
 	static struct {
-		char	*name;
-		int	nargs;
-		int	nreturns;
-		char	*service;
-		int	missing;
+		cell_t	name;
+		cell_t	nargs;
+		cell_t	nreturns;
+		cell_t	service;
+		cell_t	missing;
 	} args = {
-		"test",
+		(cell_t)"test",
 		1,
 		1,
+		0,
+		0
 	};
 
-	args.service = name;
+	args.service = (cell_t)name;
 	if (openfirmware(&args) == -1)
 		return -1;
-	return args.missing;
+	return (int)args.missing;
 }
 
 /* Return firmware millisecond count. */
@@ -119,18 +121,19 @@ int
 OF_milliseconds()
 {
 	static struct {
-		char	*name;
-		int	nargs;
-		int	nreturns;
-		int	ms;
+		cell_t	name;
+		cell_t	nargs;
+		cell_t	nreturns;
+		cell_t	ms;
 	} args = {
-		"milliseconds",
+		(cell_t)"milliseconds",
 		0,
 		1,
+		0
 	};
 	
 	openfirmware(&args);
-	return args.ms;
+	return (int)args.ms;
 }
 
 /*
@@ -142,21 +145,23 @@ phandle_t
 OF_peer(phandle_t node)
 {
 	static struct {
-		char		*name;
-		int		nargs;
-		int		nreturns;
-		phandle_t	node;
-		phandle_t	next;
+		cell_t		name;
+		cell_t		nargs;
+		cell_t		nreturns;
+		cell_t		node;
+		cell_t		next;
 	} args = {
-		"peer",
+		(cell_t)"peer",
 		1,
 		1,
+		0,
+		0
 	};
 
-	args.node = node;
+	args.node = (u_int)node;
 	if (openfirmware(&args) == -1)
 		return -1;
-	return args.next;
+	return (phandle_t)args.next;
 }
 
 /* Return the first child of this node or 0. */
@@ -164,21 +169,23 @@ phandle_t
 OF_child(phandle_t node)
 {
 	static struct {
-		char		*name;
-		int		nargs;
-		int		nreturns;
-		phandle_t	node;
-		phandle_t	child;
+		cell_t		name;
+		cell_t		nargs;
+		cell_t		nreturns;
+		cell_t		node;
+		cell_t		child;
 	} args = {
-		"child",
+		(cell_t)"child",
 		1,
 		1,
+		0,
+		0
 	};
 
-	args.node = node;
+	args.node = (u_int)node;
 	if (openfirmware(&args) == -1)
 		return -1;
-	return args.child;
+	return (phandle_t)args.child;
 }
 
 /* Return the parent of this node or 0. */
@@ -186,21 +193,23 @@ phandle_t
 OF_parent(phandle_t node)
 {
 	static struct {
-		char		*name;
-		int		nargs;
-		int		nreturns;
-		phandle_t	node;
-		phandle_t	parent;
+		cell_t		name;
+		cell_t		nargs;
+		cell_t		nreturns;
+		cell_t		node;
+		cell_t		parent;
 	} args = {
-		"parent",
+		(cell_t)"parent",
 		1,
 		1,
+		0,
+		0
 	};
 
-	args.node = node;
+	args.node = (u_int)node;
 	if (openfirmware(&args) == -1)
 		return -1;
-	return args.parent;
+	return (phandle_t)args.parent;
 }
 
 /* Return the package handle that corresponds to an instance handle. */
@@ -208,21 +217,23 @@ phandle_t
 OF_instance_to_package(ihandle_t instance)
 {
 	static struct {
-		char		*name;
-		int		nargs;
-		int		nreturns;
-		ihandle_t	instance;
-		phandle_t	package;
+		cell_t	name;
+		cell_t	nargs;
+		cell_t	nreturns;
+		cell_t	instance;
+		cell_t	package;
 	} args = {
-		"instance-to-package",
+		(cell_t)"instance-to-package",
 		1,
 		1,
+		0,
+		0
 	};
 	
-	args.instance = instance;
+	args.instance = (u_int)instance;
 	if (openfirmware(&args) == -1)
 		return -1;
-	return args.package;
+	return (phandle_t)args.package;
 }
 
 /* Get the length of a property of a package. */
@@ -230,23 +241,26 @@ int
 OF_getproplen(phandle_t package, char *propname)
 {
 	static struct {
-		char		*name;
-		int		nargs;
-		int		nreturns;
-		phandle_t	package;
-		char 		*propname;
-		int		proplen;
+		cell_t	name;
+		cell_t	nargs;
+		cell_t	nreturns;
+		cell_t	package;
+		cell_t	propname;
+		cell_t	proplen;
 	} args = {
-		"getproplen",
+		(cell_t)"getproplen",
 		2,
 		1,
+		0,
+		0,
+		0
 	};
 
-	args.package = package;
-	args.propname = propname;
+	args.package = (u_int)package;
+	args.propname = (cell_t)propname;
 	if (openfirmware(&args) == -1)
 		return -1;
-	return args.proplen;
+	return (int)args.proplen;
 }
 
 /* Get the value of a property of a package. */
@@ -254,27 +268,32 @@ int
 OF_getprop(phandle_t package, char *propname, void *buf, int buflen)
 {
 	static struct {
-		char		*name;
-		int		nargs;
-		int		nreturns;
-		phandle_t	package;
-		char		*propname;
-		void		*buf;
-		int		buflen;
-		int		size;
+		cell_t		name;
+		cell_t		nargs;
+		cell_t		nreturns;
+		cell_t		package;
+		cell_t		propname;
+		cell_t		buf;
+		cell_t		buflen;
+		cell_t		size;
 	} args = {
-		"getprop",
+		(cell_t)"getprop",
 		4,
 		1,
+		0,
+		0,
+		0,
+		0,
+		0
 	};
 	
-	args.package = package;
-	args.propname = propname;
-	args.buf = buf;
-	args.buflen = buflen;
+	args.package = (u_int)package;
+	args.propname = (cell_t)propname;
+	args.buf = (cell_t)buf;
+	args.buflen = (u_int)buflen;
 	if (openfirmware(&args) == -1)
 		return -1;
-	return args.size;
+	return (int)args.size;
 }
 
 /* Get the next property of a package. */
@@ -282,25 +301,29 @@ int
 OF_nextprop(phandle_t package, char *previous, char *buf)
 {
 	static struct {
-		char		*name;
-		int		nargs;
-		int		nreturns;
-		phandle_t	package;
-		char 		*previous;
-		char		*buf;
-		int		flag;
+		cell_t		name;
+		cell_t		nargs;
+		cell_t		nreturns;
+		cell_t		package;
+		cell_t		previous;
+		cell_t		buf;
+		cell_t		flag;
 	} args = {
-		"nextprop",
+		(cell_t)"nextprop",
 		3,
 		1,
+		0,
+		0,
+		0,
+		0
 	};
 
-	args.package = package;
-	args.previous = previous;
-	args.buf = buf;
+	args.package = (u_int)package;
+	args.previous = (cell_t)previous;
+	args.buf = (cell_t)buf;
 	if (openfirmware(&args) == -1)
 		return -1;
-	return args.flag;
+	return (int)args.flag;
 }
 
 /* Set the value of a property of a package. */
@@ -309,27 +332,32 @@ int
 OF_setprop(phandle_t package, char *propname, void *buf, int len)
 {
 	static struct {
-		char		*name;
-		int		nargs;
-		int		nreturns;
-		phandle_t	package;
-		char		*propname;
-		void		*buf;
-		int		len;
-		int		size;
+		cell_t		name;
+		cell_t		nargs;
+		cell_t		nreturns;
+		cell_t		package;
+		cell_t		propname;
+		cell_t		buf;
+		cell_t		len;
+		cell_t		size;
 	} args = {
-		"setprop",
+		(cell_t)"setprop",
 		4,
 		1,
+		0,
+		0,
+		0,
+		0,
+		0
 	};
 	
-	args.package = package;
-	args.propname = propname;
-	args.buf = buf;
-	args.len = len;
+	args.package = (u_int)package;
+	args.propname = (cell_t)propname;
+	args.buf = (cell_t)buf;
+	args.len = (u_int)len;
 	if (openfirmware(&args) == -1)
 		return -1;
-	return args.size;
+	return (int)args.size;
 }
 
 /* Convert a device specifier to a fully qualified pathname. */
@@ -337,47 +365,55 @@ int
 OF_canon(const char *device, char *buf, int len)
 {
 	static struct {
-		char	*name;
-		int	nargs;
-		int	nreturns;
-		char	*device;
-		char	*buf;
-		int	len;
-		int	size;
+		cell_t	name;
+		cell_t	nargs;
+		cell_t	nreturns;
+		cell_t	device;
+		cell_t	buf;
+		cell_t	len;
+		cell_t	size;
 	} args = {
-		"canon",
+		(cell_t)"canon",
 		3,
 		1,
+		0,
+		0,
+		0,
+		0
 	};
 	
-	args.device = (char *)(uintptr_t *)device;
-	args.buf = buf;
-	args.len = len;
+	args.device = (cell_t)device;
+	args.buf = (cell_t)buf;
+	args.len = (cell_t)len;
 	if (openfirmware(&args) == -1)
 		return -1;
-	return args.size;
+	return (int)args.size;
 }
 
 /* Return a package handle for the specified device. */
 phandle_t
 OF_finddevice(const char *device)
 {
+	int i;
 	static struct {
-		char		*name;
-		int		nargs;
-		int		nreturns;
-		char		*device;
-		phandle_t	package;
+		cell_t		name;
+		cell_t		nargs;
+		cell_t		nreturns;
+		cell_t		device;
+		cell_t		package;
 	} args = {
-		"finddevice",
+		(cell_t)"finddevice",
 		1,
 		1,
+		0,
+		0
 	};	
 	
-	args.device = (char *)(uintptr_t *)device;
+	args.device = (cell_t)device;
 	if (openfirmware(&args) == -1)
 		return -1;
-	return args.package;
+
+	return (phandle_t)args.package;
 }
 
 /* Return the fully qualified pathname corresponding to an instance. */
@@ -385,25 +421,29 @@ int
 OF_instance_to_path(ihandle_t instance, char *buf, int len)
 {
 	static struct {
-		char		*name;
-		int		nargs;
-		int		nreturns;
-		ihandle_t	instance;
-		char		*buf;
-		int		len;
-		int		size;
+		cell_t		name;
+		cell_t		nargs;
+		cell_t		nreturns;
+		cell_t		instance;
+		cell_t		buf;
+		cell_t		len;
+		cell_t		size;
 	} args = {
-		"instance-to-path",
+		(cell_t)"instance-to-path",
 		3,
 		1,
+		0,
+		0,
+		0,
+		0
 	};
 
-	args.instance = instance;
-	args.buf = buf;
-	args.len = len;
+	args.instance = (u_int)instance;
+	args.buf = (cell_t)buf;
+	args.len = (u_int)len;
 	if (openfirmware(&args) == -1)
 		return -1;
-	return(args.size);
+	return (int)args.size;
 }
 
 /* Return the fully qualified pathname corresponding to a package. */
@@ -411,25 +451,29 @@ int
 OF_package_to_path(phandle_t package, char *buf, int len)
 {
 	static struct {
-		char		*name;
-		int		nargs;
-		int		nreturns;
-		phandle_t	package;
-		char		*buf;
-		int		len;
-		int		size;
+		cell_t		name;
+		cell_t		nargs;
+		cell_t		nreturns;
+		cell_t		package;
+		cell_t		buf;
+		cell_t		len;
+		cell_t		size;
 	} args = {
-		"package-to-path",
+		(cell_t)"package-to-path",
 		3,
 		1,
+		0,
+		0,
+		0,
+		0
 	};
 
-	args.package = package;
-	args.buf = buf;
-	args.len = len;
+	args.package = (u_int)package;
+	args.buf = (cell_t)buf;
+	args.len = (u_int)len;
 	if (openfirmware(&args) == -1)
 		return -1;
-	return(args.size);
+	return (int)args.size;
 }
 
 /*  Call the method in the scope of a given instance. */
@@ -438,16 +482,19 @@ OF_call_method(char *method, ihandle_t instance, int nargs, int nreturns, ...)
 {
 	va_list ap;
 	static struct {
-		char		*name;
-		int		nargs;
-		int		nreturns;
-		char		*method;
-		ihandle_t	instance;
-		int		args_n_results[12];
+		cell_t		name;
+		cell_t		nargs;
+		cell_t		nreturns;
+		cell_t		method;
+		cell_t		instance;
+		cell_t		args_n_results[12];
 	} args = {
-		"call-method",
+		(cell_t)"call-method",
 		2,
 		1,
+		0,
+		0,
+		{ 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 }
 	};
 	int *ip, n;
 
@@ -455,17 +502,18 @@ OF_call_method(char *method, ihandle_t instance, int nargs, int nreturns, ...)
 		return -1;
 	args.nargs = nargs + 2;
 	args.nreturns = nreturns + 1;
-	args.method = method;
-	args.instance = instance;
+	args.method = (cell_t)method;
+	args.instance = (u_int)instance;
 	va_start(ap, nreturns);
-	for (ip = args.args_n_results + (n = nargs); --n >= 0;)
+	for (ip = (int *)(args.args_n_results + (n = nargs)); --n >= 0;)
 		*--ip = va_arg(ap, int);
 
 	if (openfirmware(&args) == -1)
 		return -1;
 	if (args.args_n_results[nargs])
-		return args.args_n_results[nargs];
-	for (ip = args.args_n_results + nargs + (n = args.nreturns); --n > 0;)
+		return (int)args.args_n_results[nargs];
+	for (ip = (int *)(args.args_n_results + nargs + (n = args.nreturns));
+	    --n > 0;)
 		*va_arg(ap, int *) = *--ip;
 	va_end(ap);
 	return 0;
@@ -480,22 +528,24 @@ ihandle_t
 OF_open(char *device)
 {
 	static struct {
-		char		*name;
-		int		nargs;
-		int		nreturns;
-		char		*device;
-		ihandle_t	instance;
+		cell_t		name;
+		cell_t		nargs;
+		cell_t		nreturns;
+		cell_t		device;
+		cell_t		instance;
 	} args = {
-		"open",
+		(cell_t)"open",
 		1,
 		1,
+		0,
+		0
 	};
 	
-	args.device = device;
+	args.device = (cell_t)device;
 	if (openfirmware(&args) == -1 || args.instance == 0) {
 		return -1;
 	}
-	return args.instance;
+	return (ihandle_t)args.instance;
 }
 
 /* Close an instance. */
@@ -503,17 +553,18 @@ void
 OF_close(ihandle_t instance)
 {
 	static struct {
-		char		*name;
-		int		nargs;
-		int		nreturns;
-		ihandle_t	instance;
+		cell_t		name;
+		cell_t		nargs;
+		cell_t		nreturns;
+		cell_t		instance;
 	} args = {
-		"close",
+		(cell_t)"close",
 		1,
 		0,
+		0
 	};
 	
-	args.instance = instance;
+	args.instance = (u_int)instance;
 	openfirmware(&args);
 }
 
@@ -522,22 +573,26 @@ int
 OF_read(ihandle_t instance, void *addr, int len)
 {
 	static struct {
-		char		*name;
-		int		nargs;
-		int		nreturns;
-		ihandle_t	instance;
-		void		*addr;
-		int		len;
-		int		actual;
+		cell_t		name;
+		cell_t		nargs;
+		cell_t		nreturns;
+		cell_t		instance;
+		cell_t		addr;
+		cell_t		len;
+		cell_t		actual;
 	} args = {
-		"read",
+		(cell_t)"read",
 		3,
 		1,
+		0,
+		0,
+		0,
+		0
 	};
 
-	args.instance = instance;
-	args.addr = addr;
-	args.len = len;
+	args.instance = (u_int)instance;
+	args.addr = (cell_t)addr;
+	args.len = (u_int)len;
 
 #if defined(OPENFIRM_DEBUG)
 	printf("OF_read: called with instance=%08x, addr=%p, len=%d\n",
@@ -552,7 +607,7 @@ OF_read(ihandle_t instance, void *addr, int len)
 	    args.instance, args.addr, args.len, args.actual);
 #endif
 
-	return args.actual;
+	return (int)args.actual;
 }
 
 /* Write to an instance. */
@@ -560,25 +615,29 @@ int
 OF_write(ihandle_t instance, void *addr, int len)
 {
 	static struct {
-		char		*name;
-		int		nargs;
-		int		nreturns;
-		ihandle_t	instance;
-		void		*addr;
-		int		len;
-		int		actual;
+		cell_t		name;
+		cell_t		nargs;
+		cell_t		nreturns;
+		cell_t		instance;
+		cell_t		addr;
+		cell_t		len;
+		cell_t		actual;
 	} args = {
-		"write",
+		(cell_t)"write",
 		3,
 		1,
+		0,
+		0,
+		0,
+		0
 	};
 
-	args.instance = instance;
-	args.addr = addr;
-	args.len = len;
+	args.instance = (u_int)instance;
+	args.addr = (cell_t)addr;
+	args.len = (u_int)len;
 	if (openfirmware(&args) == -1)
 		return -1;
-	return args.actual;
+	return (int)args.actual;
 }
 
 /* Seek to a position. */
@@ -586,25 +645,29 @@ int
 OF_seek(ihandle_t instance, u_int64_t pos)
 {
 	static struct {
-		char		*name;
-		int		nargs;
-		int		nreturns;
-		ihandle_t	instance;
-		int		poshi;
-		int		poslo;
-		int		status;
+		cell_t		name;
+		cell_t		nargs;
+		cell_t		nreturns;
+		cell_t		instance;
+		cell_t		poshi;
+		cell_t		poslo;
+		cell_t		status;
 	} args = {
-		"seek",
+		(cell_t)"seek",
 		3,
 		1,
+		0,
+		0,
+		0,
+		0
 	};
 	
-	args.instance = instance;
-	args.poshi = (int)(pos >> 32);
-	args.poslo = (int)pos;
+	args.instance = (u_int)instance;
+	args.poshi = pos >> 32;
+	args.poslo = pos;
 	if (openfirmware(&args) == -1)
 		return -1;
-	return args.status;
+	return (int)args.status;
 }
 
 /*
@@ -616,25 +679,67 @@ void *
 OF_claim(void *virt, u_int size, u_int align)
 {
 	static struct {
-		char	*name;
-		int	 nargs;
-		int	 nreturns;
-		void	 *virt;
-		u_int	 size;
-		u_int	 align;
-		void	 *baseaddr;
+		cell_t	name;
+		cell_t	nargs;
+		cell_t	nreturns;
+		cell_t	virt;
+		cell_t	size;
+		cell_t	align;
+		cell_t	baseaddr;
 	} args = {
-		"claim",
+		(cell_t)"claim",
 		3,
 		1,
+		0,
+		0,
+		0,
+		0
 	};
 
-	args.virt = virt;
+	args.virt = (cell_t)virt;
 	args.size = size;
 	args.align = align;
 	if (openfirmware(&args) == -1)
 		return (void *)-1;
-	return args.baseaddr;
+	return (void *)args.baseaddr;
+}
+
+/* Allocate an area of physical memory */
+void *
+OF_alloc_phys(size_t size, int align)
+{
+	static struct {
+		cell_t	name;
+		cell_t	nargs;
+		cell_t	nret;
+		cell_t	method;
+		cell_t	ihandle;
+		cell_t	align;
+		cell_t	size;
+		cell_t	status;
+		cell_t	phys_hi;
+		cell_t	phys_low;
+	} args = {
+		(cell_t)"call-method",
+		4,
+		3,
+		(cell_t)"claim",
+		0,
+		0,
+		0,
+		0,	/* ret */
+		0,
+		0,
+	};
+
+	args.ihandle = memory;
+	args.size = size;
+	args.align = align;
+
+	if (openfirmware(&args) == -1)
+		return (void *)-1;
+
+	return (void *)(args.phys_hi << 32 | args.phys_low);
 }
 
 /* Release an area of memory. */
@@ -642,18 +747,20 @@ void
 OF_release(void *virt, u_int size)
 {
 	static struct {
-		char	*name;
-		int	nargs;
-		int	nreturns;
-		void	*virt;
-		u_int	size;
+		cell_t	name;
+		cell_t	nargs;
+		cell_t	nreturns;
+		cell_t	virt;
+		cell_t	size;
 	} args = {
-		"release",
+		(cell_t)"release",
 		2,
 		0,
+		0,
+		0
 	};
 	
-	args.virt = virt;
+	args.virt = (cell_t)virt;
 	args.size = size;
 	openfirmware(&args);
 }
@@ -667,17 +774,18 @@ void
 OF_boot(char *bootspec)
 {
 	static struct {
-		char	*name;
-		int	nargs;
-		int	nreturns;
-		char	*bootspec;
+		cell_t	name;
+		cell_t	nargs;
+		cell_t	nreturns;
+		cell_t	bootspec;
 	} args = {
-		"boot",
+		(cell_t)"boot",
 		1,
 		0,
+		0
 	};
 
-	args.bootspec = bootspec;
+	args.bootspec = (cell_t)bootspec;
 	openfirmware(&args);
 	for (;;);			/* just in case */
 }
@@ -687,17 +795,16 @@ void
 OF_enter()
 {
 	static struct {
-		char *name;
-		int nargs;
-		int nreturns;
+		cell_t	name;
+		cell_t	nargs;
+		cell_t	nreturns;
 	} args = {
-		"enter",
+		(cell_t)"enter",
 		0,
 		0
 	};
 
 	openfirmware(&args);
-	return;				/* We may come back. */
 }
 
 /* Shut down and drop back to the OpenFirmware interface. */
@@ -705,11 +812,11 @@ void
 OF_exit()
 {
 	static struct {
-		char *name;
-		int nargs;
-		int nreturns;
+		cell_t	name;
+		cell_t	nargs;
+		cell_t	nreturns;
 	} args = {
-		"exit",
+		(cell_t)"exit",
 		0,
 		0
 	};
@@ -719,29 +826,34 @@ OF_exit()
 }
 
 /* Free <size> bytes starting at <virt>, then call <entry> with <arg>. */
-#if 0
+#ifdef	__notyet__
 void
 OF_chain(void *virt, u_int size, void (*entry)(), void *arg, u_int len)
 {
 	static struct {
-		char	*name;
-		int	nargs;
-		int	nreturns;
-		void	*virt;
-		u_int	size;
-		void	(*entry)();
-		void	*arg;
-		u_int	len;
+		cell_t	name;
+		cell_t	nargs;
+		cell_t	nreturns;
+		cell_t	virt;
+		cell_t	size;
+		cell_t	entry;
+		cell_t	arg;
+		cell_t	len;
 	} args = {
-		"chain",
+		(cell_t)"chain",
 		5,
 		0,
+		0,
+		0,
+		0,
+		0,
+		0
 	};
 
-	args.virt = virt;
+	args.virt = (cell_t)virt;
 	args.size = size;
-	args.entry = entry;
-	args.arg = arg;
+	args.entry = (cell_t)entry;
+	args.arg = (cell_t)arg;
 	args.len = len;
 	openfirmware(&args);
 }
