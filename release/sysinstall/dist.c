@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: dist.c,v 1.35.2.29 1995/06/07 20:50:13 jkh Exp $
+ * $Id: dist.c,v 1.35.2.30 1995/06/09 11:51:21 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -396,7 +396,7 @@ distExtract(char *parent, Distribution *me)
 		status = TRUE;
 	    else {
 		status = msgYesNo("Unable to transfer the %s distribution from %s.\nDo you want to retry this distribution later?", me[i].my_name, mediaDevice->name);
-		if (status && !msgYesNo("Would you like to clear all distributions from the %s group?", path))
+		if (status && !msgYesNo("Would you like to clear all distributions from the parent\ngroup of %s?", path))
 		    *(me[i].my_mask) = 0;
 	    }
 	}
