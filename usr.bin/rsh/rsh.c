@@ -42,7 +42,7 @@ static const char copyright[] =
 static char sccsid[] = "From: @(#)rsh.c	8.3 (Berkeley) 4/6/94";
 #endif
 static const char rcsid[] =
-	"$Id: rsh.c,v 1.14 1998/02/20 04:50:50 jb Exp $";
+	"$Id: rsh.c,v 1.15 1998/03/23 07:46:23 charnier Exp $";
 #endif /* not lint */
 
 #include <sys/types.h>
@@ -57,6 +57,7 @@ static const char rcsid[] =
 
 #include <err.h>
 #include <errno.h>
+#include <libutil.h>
 #include <pwd.h>
 #include <signal.h>
 #include <stdio.h>
@@ -102,6 +103,9 @@ main(argc, argv)
 	uid_t uid;
 	char *args, *host, *p, *user;
 	int timeout = 0;
+#ifdef KERBEROS
+	char *k;
+#endif
 
 	argoff = asrsh = dflag = nflag = 0;
 	one = 1;
@@ -207,6 +211,9 @@ main(argc, argv)
 
 	sp = NULL;
 #ifdef KERBEROS
+	k = auth_getval("auth_list");
+	if (k && !strstr(k, "kerberos"))
+	    use_kerberos = 0;
 	if (use_kerberos) {
 		sp = getservbyname((doencrypt ? "ekshell" : "kshell"), "tcp");
 		if (sp == NULL) {
