@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: mp.c,v 1.17 1998/10/24 01:08:45 brian Exp $
+ *	$Id: mp.c,v 1.18 1999/01/28 01:56:33 brian Exp $
  */
 
 #include <sys/param.h>
@@ -44,6 +44,11 @@
 #include <termios.h>
 #include <unistd.h>
 
+#include "layer.h"
+#ifndef NOALIAS
+#include "alias_cmd.h"
+#endif
+#include "vjcomp.h"
 #include "ua.h"
 #include "defs.h"
 #include "command.h"
@@ -65,7 +70,7 @@
 #include "descriptor.h"
 #include "physical.h"
 #include "chat.h"
-#include "lcpproto.h"
+#include "proto.h"
 #include "filter.h"
 #include "mp.h"
 #include "chap.h"
@@ -193,7 +198,7 @@ mp_Init(struct mp *mp, struct bundle *bundle)
   mp->inbufs = NULL;
   mp->bundle = bundle;
 
-  mp->link.type = MP_LINK;
+  mp->link.type = LOGICAL_LINK;
   mp->link.name = "mp";
   mp->link.len = sizeof *mp;
 
@@ -218,6 +223,14 @@ mp_Init(struct mp *mp, struct bundle *bundle)
 
   lcp_Init(&mp->link.lcp, mp->bundle, &mp->link, NULL);
   ccp_Init(&mp->link.ccp, mp->bundle, &mp->link, &mp->fsmp);
+
+  link_EmptyStack(&mp->link);
+  link_Stack(&mp->link, &protolayer);
+  link_Stack(&mp->link, &ccplayer);
+  link_Stack(&mp->link, &vjlayer);
+#ifndef NOALIAS
+  link_Stack(&mp->link, &aliaslayer);
+#endif
 }
 
 int
@@ -323,8 +336,8 @@ mp_linkInit(struct mp_link *mplink)
   mplink->weight = 1500;
 }
 
-void
-mp_Input(struct mp *mp, struct mbuf *m, struct physical *p)
+static void
+mp_Assemble(struct mp *mp, struct mbuf *m, struct physical *p)
 {
   struct mp_header mh, h;
   struct mbuf *q, *last;
@@ -490,7 +503,8 @@ mp_Input(struct mp *mp, struct mbuf *m, struct physical *p)
         if (log_IsKept(LogDEBUG))
           log_Printf(LogDEBUG, "MP: Reassembled frags %ld-%lu, length %d\n",
                     first, (u_long)h.seq, mbuf_Length(q));
-        hdlc_DecodePacket(mp->bundle, proto, q, &mp->link);
+        q = mbuf_Contiguous(q);
+        link_PullPacket(&mp->link, MBUF_CTOP(q), q->cnt, mp->bundle);
       }
 
       mp->seq.next_in = seq = inc_seq(mp->local_is12bit, h.seq);
@@ -521,9 +535,27 @@ mp_Input(struct mp *mp, struct mbuf *m, struct physical *p)
   }
 }
 
+struct mbuf *
+mp_Input(struct bundle *bundle, struct link *l, struct mbuf *bp)
+{
+  struct physical *p = link2physical(l);
+
+  if (!bundle->ncp.mp.active)
+    /* Let someone else deal with it ! */
+    return bp;
+
+  if (p == NULL) {
+    log_Printf(LogWARN, "DecodePacket: Can't do MP inside MP !\n");
+    mbuf_Free(bp);
+  } else
+    mp_Assemble(&bundle->ncp.mp, bp, p);
+
+  return NULL;
+}
+
 static void
-mp_Output(struct mp *mp, struct link *l, struct mbuf *m, u_int32_t begin,
-          u_int32_t end)
+mp_Output(struct mp *mp, struct bundle *bundle, struct link *l,
+          struct mbuf *m, u_int32_t begin, u_int32_t end)
 {
   struct mbuf *mo;
 
@@ -548,8 +580,7 @@ mp_Output(struct mp *mp, struct link *l, struct mbuf *m, u_int32_t begin,
               mp->out.seq, mbuf_Length(mo), l->name);
   mp->out.seq = inc_seq(mp->peer_is12bit, mp->out.seq);
 
-  if (!ccp_Compress(&l->ccp, l, PRI_NORMAL, PROTO_MP, mo))
-    hdlc_Output(l, PRI_NORMAL, PROTO_MP, mo);
+  link_PushPacket(l, mo, bundle, PRI_NORMAL, PROTO_MP);
 }
 
 int
@@ -600,7 +631,7 @@ mp_FillQueues(struct bundle *bundle)
       /* this link has got stuff already queued.  Let it continue */
       continue;
 
-    if (!link_QueueLen(&mp->link) && !ip_FlushPacket(&mp->link, bundle))
+    if (!link_QueueLen(&mp->link) && !ip_PushPacket(&mp->link, bundle))
       /* Nothing else to send */
       break;
 
@@ -624,7 +655,7 @@ mp_FillQueues(struct bundle *bundle)
           len -= mo->cnt;
           m = mbuf_Read(m, MBUF_CTOP(mo), mo->cnt);
         }
-        mp_Output(mp, &dl->physical->link, mo, begin, end);
+        mp_Output(mp, bundle, &dl->physical->link, mo, begin, end);
         begin = 0;
       }
 
@@ -1028,7 +1059,7 @@ mp_LinkLost(struct mp *mp, struct datalink *dl)
 {
   if (mp->seq.min_in == dl->mp.seq)
     /* We've lost the link that's holding everything up ! */
-    mp_Input(mp, NULL, NULL);
+    mp_Assemble(mp, NULL, NULL);
 }
 
 void

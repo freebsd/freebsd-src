@@ -17,7 +17,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: ccp.c,v 1.45 1999/03/31 14:21:44 brian Exp $
+ * $Id: ccp.c,v 1.46 1999/05/02 14:33:39 brian Exp $
  *
  *	TODO:
  *		o Support other compression protocols
@@ -33,13 +33,14 @@
 #include <string.h>
 #include <termios.h>
 
+#include "layer.h"
 #include "defs.h"
 #include "command.h"
 #include "mbuf.h"
 #include "log.h"
 #include "timer.h"
 #include "fsm.h"
-#include "lcpproto.h"
+#include "proto.h"
 #include "lcp.h"
 #include "ccp.h"
 #include "pred.h"
@@ -144,11 +145,13 @@ ccp_ReportStatus(struct cmdargs const *arg)
 
   prompt_Printf(arg->prompt, "%s: %s [%s]\n", l->name, ccp->fsm.name,
                 State2Nam(ccp->fsm.state));
-  prompt_Printf(arg->prompt, " My protocol = %s, His protocol = %s\n",
-                protoname(ccp->my_proto), protoname(ccp->his_proto));
-  prompt_Printf(arg->prompt, " Output: %ld --> %ld,  Input: %ld --> %ld\n",
-                ccp->uncompout, ccp->compout,
-                ccp->compin, ccp->uncompin);
+  if (ccp->fsm.state == ST_OPENED) {
+    prompt_Printf(arg->prompt, " My protocol = %s, His protocol = %s\n",
+                  protoname(ccp->my_proto), protoname(ccp->his_proto));
+    prompt_Printf(arg->prompt, " Output: %ld --> %ld,  Input: %ld --> %ld\n",
+                  ccp->uncompout, ccp->compout,
+                  ccp->compin, ccp->uncompin);
+  }
 
   prompt_Printf(arg->prompt, "\n Defaults: ");
   prompt_Printf(arg->prompt, "FSM retry = %us, max %u Config"
@@ -529,18 +532,19 @@ CcpDecodeConfig(struct fsm *fp, u_char *cp, int plen, int mode_type,
   }
 }
 
-void
-ccp_Input(struct ccp *ccp, struct bundle *bundle, struct mbuf *bp)
+extern struct mbuf *
+ccp_Input(struct bundle *bundle, struct link *l, struct mbuf *bp)
 {
   /* Got PROTO_CCP from link */
   if (bundle_Phase(bundle) == PHASE_NETWORK)
-    fsm_Input(&ccp->fsm, bp);
+    fsm_Input(&l->ccp.fsm, bp);
   else {
     if (bundle_Phase(bundle) < PHASE_NETWORK)
       log_Printf(LogCCP, "%s: Error: Unexpected CCP in phase %s (ignored)\n",
-                 ccp->fsm.link->name, bundle_PhaseName(bundle));
+                 l->ccp.fsm.link->name, bundle_PhaseName(bundle));
     mbuf_Free(bp);
   }
+  return NULL;
 }
 
 static void
@@ -571,42 +575,40 @@ CcpRecvResetAck(struct fsm *fp, u_char id)
     (*algorithm[ccp->in.algorithm]->i.Reset)(ccp->in.state);
 }
 
-int
-ccp_Compress(struct ccp *ccp, struct link *l, int pri, u_short proto,
-             struct mbuf *m)
+static struct mbuf *
+ccp_LayerPush(struct bundle *b, struct link *l, struct mbuf *bp,
+              int pri, u_short *proto)
 {
-  /*
-   * Compress outgoing data.  It's already deemed to be suitable Network
-   * Layer data.
-   */
-  if (ccp->fsm.state == ST_OPENED && ccp->out.state != NULL)
-    return (*algorithm[ccp->out.algorithm]->o.Write)
-             (ccp->out.state, ccp, l, pri, proto, m);
-  return 0;
+  if (PROTO_COMPRESSIBLE(*proto) && l->ccp.fsm.state == ST_OPENED &&
+      l->ccp.out.state != NULL)
+    return (*algorithm[l->ccp.out.algorithm]->o.Write)
+             (l->ccp.out.state, &l->ccp, l, pri, proto, bp);
+
+  return bp;
 }
 
-struct mbuf *
-ccp_Decompress(struct ccp *ccp, u_short *proto, struct mbuf *bp)
+static struct mbuf *
+ccp_LayerPull(struct bundle *b, struct link *l, struct mbuf *bp, u_short *proto)
 {
   /*
    * If proto isn't PROTO_[I]COMPD, we still want to pass it to the
    * decompression routines so that the dictionary's updated
    */
-  if (ccp->fsm.state == ST_OPENED) {
+  if (l->ccp.fsm.state == ST_OPENED) {
     if (*proto == PROTO_COMPD || *proto == PROTO_ICOMPD) {
       /* Decompress incoming data */
-      if (ccp->reset_sent != -1)
+      if (l->ccp.reset_sent != -1)
         /* Send another REQ and put the packet in the bit bucket */
-        fsm_Output(&ccp->fsm, CODE_RESETREQ, ccp->reset_sent, NULL, 0);
-      else if (ccp->in.state != NULL)
-        return (*algorithm[ccp->in.algorithm]->i.Read)
-                 (ccp->in.state, ccp, proto, bp);
+        fsm_Output(&l->ccp.fsm, CODE_RESETREQ, l->ccp.reset_sent, NULL, 0);
+      else if (l->ccp.in.state != NULL)
+        return (*algorithm[l->ccp.in.algorithm]->i.Read)
+                 (l->ccp.in.state, &l->ccp, proto, bp);
       mbuf_Free(bp);
       bp = NULL;
-    } else if (PROTO_COMPRESSIBLE(*proto) && ccp->in.state != NULL)
+    } else if (PROTO_COMPRESSIBLE(*proto) && l->ccp.in.state != NULL)
       /* Add incoming Network Layer traffic to our dictionary */
-      (*algorithm[ccp->in.algorithm]->i.DictSetup)
-        (ccp->in.state, ccp, *proto, bp);
+      (*algorithm[l->ccp.in.algorithm]->i.DictSetup)
+        (l->ccp.in.state, &l->ccp, *proto, bp);
   }
 
   return bp;
@@ -638,3 +640,5 @@ ccp_SetOpenMode(struct ccp *ccp)
 
   return 0;				/* No CCP at all */
 }
+
+struct layer ccplayer = { LAYER_CCP, "ccp", ccp_LayerPush, ccp_LayerPull };

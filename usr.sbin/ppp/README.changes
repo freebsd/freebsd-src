@@ -83,3 +83,5 @@ o Ppp now accepts M$CHAP (as well as normal CHAP) by default.  If this
 o The ``set device'' command now expects each device to be specified as an
   argument rather than concatentating all arguments and splitting based
   on commas and spaces.
+o The ``show modem'' command is depricated and has been changed to
+  ``show physical''.

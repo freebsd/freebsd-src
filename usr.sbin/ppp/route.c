@@ -17,7 +17,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: route.c,v 1.54 1998/10/22 02:32:50 brian Exp $
+ * $Id: route.c,v 1.55 1999/01/28 01:56:34 brian Exp $
  *
  */
 
@@ -40,6 +40,7 @@
 #include <sys/sysctl.h>
 #include <termios.h>
 
+#include "layer.h"
 #include "defs.h"
 #include "command.h"
 #include "mbuf.h"

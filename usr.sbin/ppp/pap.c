@@ -18,7 +18,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: pap.c,v 1.33 1999/03/31 14:21:45 brian Exp $
+ * $Id: pap.c,v 1.34 1999/04/01 11:05:23 brian Exp $
  *
  *	TODO:
  */
@@ -32,6 +32,7 @@
 #include <string.h>
 #include <termios.h>
 
+#include "layer.h"
 #include "mbuf.h"
 #include "log.h"
 #include "defs.h"
@@ -42,7 +43,7 @@
 #include "pap.h"
 #include "lqr.h"
 #include "hdlc.h"
-#include "lcpproto.h"
+#include "proto.h"
 #include "async.h"
 #include "throughput.h"
 #include "ccp.h"
@@ -93,8 +94,7 @@ pap_Req(struct authinfo *authp)
   cp += namelen;
   *cp++ = keylen;
   memcpy(cp, bundle->cfg.auth.key, keylen);
-
-  hdlc_Output(&authp->physical->link, PRI_LINK, PROTO_PAP, bp);
+  link_PushPacket(&authp->physical->link, bp, bundle, PRI_LINK, PROTO_PAP);
 }
 
 static void
@@ -117,7 +117,8 @@ SendPapCode(struct authinfo *authp, int code, const char *message)
   memcpy(cp, message, mlen);
   log_Printf(LogPHASE, "Pap Output: %s\n", papcodes[code]);
 
-  hdlc_Output(&authp->physical->link, PRI_LINK, PROTO_PAP, bp);
+  link_PushPacket(&authp->physical->link, bp, authp->physical->dl->bundle,
+                  PRI_LINK, PROTO_PAP);
 }
 
 static void
@@ -150,38 +151,45 @@ pap_Init(struct authinfo *pap, struct physical *p)
   auth_Init(pap, p, pap_Req, pap_Success, pap_Failure);
 }
 
-void
-pap_Input(struct physical *p, struct mbuf *bp)
+struct mbuf *
+pap_Input(struct bundle *bundle, struct link *l, struct mbuf *bp)
 {
+  struct physical *p = link2physical(l);
   struct authinfo *authp = &p->dl->pap;
   u_char nlen, klen, *key;
 
-  if (bundle_Phase(p->dl->bundle) != PHASE_NETWORK &&
-      bundle_Phase(p->dl->bundle) != PHASE_AUTHENTICATE) {
+  if (p == NULL) {
+    log_Printf(LogERROR, "pap_Input: Not a physical link - dropped\n");
+    mbuf_Free(bp);
+    return NULL;
+  }
+
+  if (bundle_Phase(bundle) != PHASE_NETWORK &&
+      bundle_Phase(bundle) != PHASE_AUTHENTICATE) {
     log_Printf(LogPHASE, "Unexpected pap input - dropped !\n");
     mbuf_Free(bp);
-    return;
+    return NULL;
   }
 
   if ((bp = auth_ReadHeader(authp, bp)) == NULL &&
       ntohs(authp->in.hdr.length) == 0) {
     log_Printf(LogWARN, "Pap Input: Truncated header !\n");
-    return;
+    return NULL;
   }
 
   if (authp->in.hdr.code == 0 || authp->in.hdr.code > MAXPAPCODE) {
     log_Printf(LogPHASE, "Pap Input: %d: Bad PAP code !\n", authp->in.hdr.code);
     mbuf_Free(bp);
-    return;
+    return NULL;
   }
 
   if (authp->in.hdr.code != PAP_REQUEST && authp->id != authp->in.hdr.id &&
-      Enabled(p->dl->bundle, OPT_IDCHECK)) {
+      Enabled(bundle, OPT_IDCHECK)) {
     /* Wrong conversation dude ! */
     log_Printf(LogPHASE, "Pap Input: %s dropped (got id %d, not %d)\n",
                papcodes[authp->in.hdr.code], authp->in.hdr.id, authp->id);
     mbuf_Free(bp);
-    return;
+    return NULL;
   }
   authp->id = authp->in.hdr.id;		/* We respond with this id */
 
@@ -212,12 +220,12 @@ pap_Input(struct physical *p, struct mbuf *bp)
       key[klen] = '\0';
 
 #ifndef NORADIUS
-      if (*p->dl->bundle->radius.cfg.file)
-        radius_Authenticate(&p->dl->bundle->radius, authp, authp->in.name,
+      if (*bundle->radius.cfg.file)
+        radius_Authenticate(&bundle->radius, authp, authp->in.name,
                             key, NULL);
       else
 #endif
-      if (auth_Validate(p->dl->bundle, authp->in.name, key, p))
+      if (auth_Validate(bundle, authp->in.name, key, p))
         pap_Success(authp);
       else
         pap_Failure(authp);
@@ -246,4 +254,5 @@ pap_Input(struct physical *p, struct mbuf *bp)
   }
 
   mbuf_Free(bp);
+  return NULL;
 }

@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: mp.h,v 1.3 1998/05/23 17:05:28 brian Exp $
+ *	$Id: mp.h,v 1.4 1998/08/25 17:48:43 brian Exp $
  */
 
 struct mbuf;
@@ -126,7 +126,7 @@ extern void mp_Init(struct mp *, struct bundle *);
 extern void mp_linkInit(struct mp_link *);
 extern int mp_Up(struct mp *, struct datalink *);
 extern void mp_Down(struct mp *);
-extern void mp_Input(struct mp *, struct mbuf *, struct physical *);
+extern struct mbuf *mp_Input(struct bundle *, struct link *, struct mbuf *);
 extern int mp_FillQueues(struct bundle *);
 extern int mp_SetDatalinkWeight(struct cmdargs const *);
 extern int mp_ShowStatus(struct cmdargs const *);

@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: throughput.c,v 1.7 1998/06/12 17:45:41 brian Exp $
+ *	$Id: throughput.c,v 1.8 1998/06/12 20:12:26 brian Exp $
  */
 
 #include <sys/types.h>
@@ -65,16 +65,16 @@ throughput_disp(struct pppThroughput *t, struct prompt *prompt)
   prompt_Printf(prompt, "Connect time: %d secs\n", secs_up);
   if (secs_up == 0)
     secs_up = 1;
-  prompt_Printf(prompt, "%ld octets in, %ld octets out\n",
+  prompt_Printf(prompt, "%qu octets in, %qu octets out\n",
                 t->OctetsIn, t->OctetsOut);
   if (t->rolling) {
-    prompt_Printf(prompt, "  overall   %5ld bytes/sec\n",
+    prompt_Printf(prompt, "  overall   %6qu bytes/sec\n",
                   (t->OctetsIn+t->OctetsOut)/secs_up);
-    prompt_Printf(prompt, "  currently %5d bytes/sec\n", t->OctetsPerSecond);
-    prompt_Printf(prompt, "  peak      %5d bytes/sec on %s",
+    prompt_Printf(prompt, "  currently %6qu bytes/sec\n", t->OctetsPerSecond);
+    prompt_Printf(prompt, "  peak      %6qu bytes/sec on %s",
                   t->BestOctetsPerSecond, ctime(&t->BestOctetsPerSecondTime));
   } else
-    prompt_Printf(prompt, "Overall %ld bytes/sec\n",
+    prompt_Printf(prompt, "Overall %qu bytes/sec\n",
                   (t->OctetsIn+t->OctetsOut)/secs_up);
 }
 
@@ -87,19 +87,19 @@ throughput_log(struct pppThroughput *t, int level, const char *title)
 
     secs_up = t->uptime ? time(NULL) - t->uptime : 0;
     if (title)
-      log_Printf(level, "%s: Connect time: %d secs: %ld octets in, %ld octets"
+      log_Printf(level, "%s: Connect time: %d secs: %qu octets in, %qu octets"
                 " out\n", title, secs_up, t->OctetsIn, t->OctetsOut);
     else
-      log_Printf(level, "Connect time: %d secs: %ld octets in, %ld octets out\n",
+      log_Printf(level, "Connect time: %d secs: %qu octets in, %qu octets out\n",
                 secs_up, t->OctetsIn, t->OctetsOut);
     if (secs_up == 0)
       secs_up = 1;
     if (t->rolling)
-      log_Printf(level, " total %ld bytes/sec, peak %d bytes/sec on %s",
+      log_Printf(level, " total %qu bytes/sec, peak %qu bytes/sec on %s",
                 (t->OctetsIn+t->OctetsOut)/secs_up, t->BestOctetsPerSecond,
                 ctime(&t->BestOctetsPerSecondTime));
     else
-      log_Printf(level, " total %ld bytes/sec\n",
+      log_Printf(level, " total %qu bytes/sec\n",
                 (t->OctetsIn+t->OctetsOut)/secs_up);
   }
 }
@@ -108,7 +108,7 @@ static void
 throughput_sampler(void *v)
 {
   struct pppThroughput *t = (struct pppThroughput *)v;
-  u_long old;
+  unsigned long long old;
 
   timer_Stop(&t->Timer);
 
@@ -148,13 +148,13 @@ throughput_stop(struct pppThroughput *t)
 }
 
 void
-throughput_addin(struct pppThroughput *t, int n)
+throughput_addin(struct pppThroughput *t, long long n)
 {
   t->OctetsIn += n;
 }
 
 void
-throughput_addout(struct pppThroughput *t, int n)
+throughput_addout(struct pppThroughput *t, long long n)
 {
   t->OctetsOut += n;
 }
@@ -174,14 +174,14 @@ throughput_clear(struct pppThroughput *t, int clear_type, struct prompt *prompt)
     int secs_up;
 
     secs_up = t->uptime ? time(NULL) - t->uptime : 1;
-    prompt_Printf(prompt, "overall cleared (was %5ld bytes/sec)\n",
+    prompt_Printf(prompt, "overall cleared (was %6qu bytes/sec)\n",
                   (t->OctetsIn + t->OctetsOut)/secs_up);
     t->OctetsIn = t->OctetsOut = 0;
     t->uptime = time(NULL);
   } 
 
   if (clear_type & THROUGHPUT_CURRENT) {
-    prompt_Printf(prompt, "current cleared (was %5d bytes/sec)\n",
+    prompt_Printf(prompt, "current cleared (was %6qu bytes/sec)\n",
                   t->OctetsPerSecond);
     t->OctetsPerSecond = 0;
   }
@@ -193,7 +193,7 @@ throughput_clear(struct pppThroughput *t, int clear_type, struct prompt *prompt)
     last = time_buf + strlen(time_buf);
     if (last > time_buf && *--last == '\n')
       *last = '\0';
-    prompt_Printf(prompt, "peak    cleared (was %5d bytes/sec on %s)\n",
+    prompt_Printf(prompt, "peak    cleared (was %6qu bytes/sec on %s)\n",
                    t->BestOctetsPerSecond, time_buf); 
     t->BestOctetsPerSecond = 0;
     t->BestOctetsPerSecondTime = time(NULL);

@@ -17,7 +17,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: auth.c,v 1.42 1999/02/26 21:28:06 brian Exp $
+ * $Id: auth.c,v 1.43 1999/03/31 14:21:44 brian Exp $
  *
  *	TODO:
  *		o Implement check against with registered IP addresses.
@@ -34,6 +34,7 @@
 #include <termios.h>
 #include <unistd.h>
 
+#include "layer.h"
 #include "mbuf.h"
 #include "defs.h"
 #include "log.h"
@@ -52,7 +53,7 @@
 #include "link.h"
 #include "descriptor.h"
 #include "chat.h"
-#include "lcpproto.h"
+#include "proto.h"
 #include "filter.h"
 #include "mp.h"
 #ifndef NORADIUS

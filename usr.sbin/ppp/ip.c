@@ -17,7 +17,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: ip.c,v 1.57 1999/04/26 08:54:34 brian Exp $
+ * $Id: ip.c,v 1.58 1999/05/01 11:31:29 brian Exp $
  *
  *	TODO:
  *		o Return ICMP message for filterd packet
@@ -40,15 +40,11 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <termios.h>
 #include <unistd.h>
 
-#ifndef NOALIAS
-#ifdef __FreeBSD__
-#include <alias.h>
-#else
-#include "alias.h"
-#endif
-#endif
+#include "layer.h"
+#include "proto.h"
 #include "mbuf.h"
 #include "log.h"
 #include "defs.h"
@@ -99,7 +95,7 @@ PortMatch(int op, u_short pport, u_short rport)
 }
 
 /*
- *  Check a packet against with defined filters
+ *  Check a packet against a defined filter
  */
 static int
 FilterCheck(struct ip *pip, struct filter *filter)
@@ -384,124 +380,42 @@ PacketCheck(struct bundle *bundle, char *cp, int nb, struct filter *filter)
   }
 }
 
-void
-ip_Input(struct bundle *bundle, struct mbuf * bp)
+struct mbuf *
+ip_Input(struct bundle *bundle, struct link *l, struct mbuf *bp)
 {
-  u_char *cp;
-  struct mbuf *wp;
   int nb, nw;
   struct tun_data tun;
-  struct ip *pip = (struct ip *)tun.data;
-#ifndef NOALIAS
-  struct ip *piip = (struct ip *)((char *)pip + (pip->ip_hl << 2));
-#endif
+  struct ip *pip;
+
+  if (bundle->ncp.ipcp.fsm.state != ST_OPENED) {
+    log_Printf(LogWARN, "ip_Input: IPCP not open - packet dropped\n");
+    mbuf_Free(bp);
+    return NULL;
+  }
 
   tun_fill_header(tun, AF_INET);
-  cp = tun.data;
-  nb = 0;
-  for (wp = bp; wp; wp = wp->next) {	/* Copy to contiguous region */
-    if (sizeof tun.data - (cp - tun.data) < wp->cnt) {
-      log_Printf(LogWARN, "ip_Input: Packet too large (%d) - dropped\n",
-                mbuf_Length(bp));
-      mbuf_Free(bp);
-      return;
-    }
-    memcpy(cp, MBUF_CTOP(wp), wp->cnt);
-    cp += wp->cnt;
-    nb += wp->cnt;
+  nb = mbuf_Length(bp);
+  mbuf_Read(bp, tun.data, nb);
+
+  if (PacketCheck(bundle, tun.data, nb, &bundle->filter.in) < 0)
+    return NULL;
+
+  pip = (struct ip *)tun.data;
+  if (!(FilterCheck(pip, &bundle->filter.alive) & A_DENY))
+    bundle_StartIdleTimer(bundle);
+
+  ipcp_AddInOctets(&bundle->ncp.ipcp, nb);
+
+  nb += sizeof tun - sizeof tun.data;
+  nw = write(bundle->dev.fd, &tun, nb);
+  if (nw != nb) {
+    if (nw == -1)
+      log_Printf(LogERROR, "ip_Input: wrote %d, got %s\n", nb, strerror(errno));
+    else
+      log_Printf(LogERROR, "ip_Input: wrote %d, got %d\n", nb, nw);
   }
 
-#ifndef NOALIAS
-  if (bundle->AliasEnabled && pip->ip_p != IPPROTO_IGMP &&
-      (pip->ip_p != IPPROTO_IPIP || !IN_CLASSD(ntohl(piip->ip_dst.s_addr)))) {
-    struct tun_data *frag;
-    int iresult;
-    char *fptr;
-
-    iresult = PacketAliasIn(tun.data, sizeof tun.data);
-    nb = ntohs(((struct ip *) tun.data)->ip_len);
-
-    if (nb > MAX_MRU) {
-      log_Printf(LogWARN, "ip_Input: Problem with IP header length\n");
-      mbuf_Free(bp);
-      return;
-    }
-    if (iresult == PKT_ALIAS_OK
-	|| iresult == PKT_ALIAS_FOUND_HEADER_FRAGMENT) {
-      if (PacketCheck(bundle, tun.data, nb, &bundle->filter.in) < 0) {
-	mbuf_Free(bp);
-	return;
-      }
-
-      if (!(FilterCheck(pip, &bundle->filter.alive) & A_DENY))
-        bundle_StartIdleTimer(bundle);
-
-      ipcp_AddInOctets(&bundle->ncp.ipcp, nb);
-
-      nb = ntohs(((struct ip *) tun.data)->ip_len);
-      nb += sizeof tun - sizeof tun.data;
-      nw = write(bundle->dev.fd, &tun, nb);
-      if (nw != nb) {
-        if (nw == -1)
-	  log_Printf(LogERROR, "ip_Input: wrote %d, got %s\n", nb,
-                    strerror(errno));
-        else
-	  log_Printf(LogERROR, "ip_Input: wrote %d, got %d\n", nb, nw);
-      }
-
-      if (iresult == PKT_ALIAS_FOUND_HEADER_FRAGMENT) {
-	while ((fptr = PacketAliasGetFragment(tun.data)) != NULL) {
-	  PacketAliasFragmentIn(tun.data, fptr);
-	  nb = ntohs(((struct ip *) fptr)->ip_len);
-          frag = (struct tun_data *)
-	    ((char *)fptr - sizeof tun + sizeof tun.data);
-          nb += sizeof tun - sizeof tun.data;
-	  nw = write(bundle->dev.fd, frag, nb);
-	  if (nw != nb) {
-            if (nw == -1)
-	      log_Printf(LogERROR, "ip_Input: wrote %d, got %s\n", nb,
-                        strerror(errno));
-            else
-	      log_Printf(LogERROR, "ip_Input: wrote %d, got %d\n", nb, nw);
-          }
-	  free(frag);
-	}
-      }
-    } else if (iresult == PKT_ALIAS_UNRESOLVED_FRAGMENT) {
-      nb = ntohs(((struct ip *) tun.data)->ip_len);
-      nb += sizeof tun - sizeof tun.data;
-      frag = (struct tun_data *)malloc(nb);
-      if (frag == NULL)
-	log_Printf(LogALERT, "ip_Input: Cannot allocate memory for fragment\n");
-      else {
-        tun_fill_header(*frag, AF_INET);
-	memcpy(frag->data, tun.data, nb - sizeof tun + sizeof tun.data);
-	PacketAliasSaveFragment(frag->data);
-      }
-    }
-  } else
-#endif /* #ifndef NOALIAS */
-  {			/* no aliasing */
-    if (PacketCheck(bundle, tun.data, nb, &bundle->filter.in) < 0) {
-      mbuf_Free(bp);
-      return;
-    }
-
-    if (!(FilterCheck(pip, &bundle->filter.alive) & A_DENY))
-      bundle_StartIdleTimer(bundle);
-
-    ipcp_AddInOctets(&bundle->ncp.ipcp, nb);
-
-    nb += sizeof tun - sizeof tun.data;
-    nw = write(bundle->dev.fd, &tun, nb);
-    if (nw != nb) {
-      if (nw == -1)
-	log_Printf(LogERROR, "ip_Input: wrote %d, got %s\n", nb, strerror(errno));
-      else
-        log_Printf(LogERROR, "ip_Input: wrote %d, got %d\n", nb, nw);
-    }
-  }
-  mbuf_Free(bp);
+  return NULL;
 }
 
 void
@@ -512,7 +426,15 @@ ip_Enqueue(struct ipcp *ipcp, int pri, char *ptr, int count)
   if (pri < 0 || pri > sizeof ipcp->Queue / sizeof ipcp->Queue[0])
     log_Printf(LogERROR, "Can't store in ip queue %d\n", pri);
   else {
-    bp = mbuf_Alloc(count, MB_IPQ);
+    /*
+     * We allocate an extra 6 bytes, four at the front and two at the end.
+     * This is an optimisation so that we need to do less work in
+     * mbuf_Prepend() in acf_LayerPush() and proto_LayerPush() and
+     * appending in hdlc_LayerPush().
+     */
+    bp = mbuf_Alloc(count + 6, MB_IPQ);
+    bp->offset += 4;
+    bp->cnt -= 6;
     memcpy(MBUF_CTOP(bp), ptr, count);
     mbuf_Enqueue(&ipcp->Queue[pri], bp);
   }
@@ -541,11 +463,12 @@ ip_QueueLen(struct ipcp *ipcp)
 }
 
 int
-ip_FlushPacket(struct link *l, struct bundle *bundle)
+ip_PushPacket(struct link *l, struct bundle *bundle)
 {
   struct ipcp *ipcp = &bundle->ncp.ipcp;
   struct mqueue *queue;
   struct mbuf *bp;
+  struct ip *pip;
   int cnt;
 
   if (ipcp->fsm.state != ST_OPENED)
@@ -554,16 +477,13 @@ ip_FlushPacket(struct link *l, struct bundle *bundle)
   for (queue = &ipcp->Queue[PRI_FAST]; queue >= ipcp->Queue; queue--)
     if (queue->top) {
       bp = mbuf_Contiguous(mbuf_Dequeue(queue));
-      if (bp) {
-        struct ip *pip = (struct ip *)MBUF_CTOP(bp);
-
-	cnt = mbuf_Length(bp);
-        if (!(FilterCheck(pip, &bundle->filter.alive) & A_DENY))
-          bundle_StartIdleTimer(bundle);
-	vj_SendFrame(l, bp, bundle);
-        ipcp_AddOutOctets(ipcp, cnt);
-	return 1;
-      }
+      cnt = mbuf_Length(bp);
+      pip = (struct ip *)MBUF_CTOP(bp);
+      if (!(FilterCheck(pip, &bundle->filter.alive) & A_DENY))
+        bundle_StartIdleTimer(bundle);
+      link_PushPacket(l, bp, bundle, PRI_NORMAL, PROTO_IP);
+      ipcp_AddOutOctets(ipcp, cnt);
+      return 1;
     }
 
   return 0;
