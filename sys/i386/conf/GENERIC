@@ -101,7 +101,9 @@ device		stg		# TMC 18C30/18C50
 
 # RAID controllers interfaced to the SCSI subsystem
 device		asr		# DPT SmartRAID V, VI and Adaptec SCSI RAID
+device		ciss		# Compaq Smart RAID 5*
 device		dpt		# DPT Smartcache III, IV - See NOTES for options!
+device		iir		# Intel Integrated RAID
 device		mly		# Mylex AcceleRAID/eXtremeRAID
 
 # SCSI peripherals
