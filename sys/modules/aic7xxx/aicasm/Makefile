@@ -23,4 +23,8 @@ cleandir:
 	${MAKE} -f ${.CURDIR}/../../../dev/aic7xxx/aicasm/Makefile \
 	MAKESRCPATH=${.CURDIR}/../../../dev/aic7xxx/aicasm cleandir
 
+cleandepend:
+	${MAKE} -f ${.CURDIR}/../../../dev/aic7xxx/aicasm/Makefile \
+	MAKESRCPATH=${.CURDIR}/../../../dev/aic7xxx/aicasm cleandepend
+
 install:
