@@ -388,6 +388,15 @@ arstrategy(struct bio *bp)
 		biodone(bp);
 		return;
 	    }
+	    if (bp->bio_cmd == BIO_READ) {
+		if ((buf1->bp.bio_pblkno <
+		     (rdp->disks[buf1->drive].last_lba - AR_PROXIMITY) ||
+		     buf1->bp.bio_pblkno >
+		     (rdp->disks[buf1->drive].last_lba + AR_PROXIMITY) ||
+		     !(rdp->disks[buf1->drive].flags & AR_DF_ONLINE)) &&
+		     (rdp->disks[buf1->drive+rdp->width].flags & AR_DF_ONLINE))
+			buf1->drive = buf1->drive + rdp->width;
+	    }
 	    if (bp->bio_cmd == BIO_WRITE) {
 		if (rdp->disks[buf1->drive + rdp->width].flags & AR_DF_ONLINE) {
 		    if (rdp->disks[buf1->drive].flags & AR_DF_ONLINE) {
@@ -405,15 +414,6 @@ arstrategy(struct bio *bp)
 		    else
 			buf1->drive = buf1->drive + rdp->width;
 		}
-	    }
-	    if (bp->bio_cmd == BIO_READ) {
-		if ((buf1->bp.bio_pblkno <
-		     (rdp->disks[buf1->drive].last_lba - AR_PROXIMITY) ||
-		     buf1->bp.bio_pblkno >
-		     (rdp->disks[buf1->drive].last_lba + AR_PROXIMITY) ||
-		     !(rdp->disks[buf1->drive].flags & AR_DF_ONLINE)) &&
-		     (rdp->disks[buf1->drive+rdp->width].flags & AR_DF_ONLINE))
-			buf1->drive = buf1->drive + rdp->width;
 	    }
 	    buf1->bp.bio_dev = AD_SOFTC(rdp->disks[buf1->drive])->dev;
 	    buf1->bp.bio_dev->AD_STRATEGY((struct bio *)buf1);

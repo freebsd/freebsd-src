@@ -28,7 +28,6 @@
  * $FreeBSD$
  */
 
-#include "pci.h"
 #include "opt_ata.h"
 #include <sys/param.h>
 #include <sys/systm.h>
@@ -311,9 +310,10 @@ ataioctl(dev_t dev, u_long cmd, caddr_t addr, int32_t flag, struct thread *td)
 	    splx(s);
 	    return error;
 
+#ifdef DEV_ATADISK
 	case ATAREBUILD:
 	    return ata_raid_rebuild(iocmd->channel);
-
+#endif
 	case ATAGMODE:
 	    if (!device || !(ch = device_get_softc(device)))
 		return ENXIO;

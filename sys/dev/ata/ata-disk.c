@@ -86,7 +86,7 @@ static int ad_version(u_int16_t);
 /* internal vars */
 static u_int32_t adp_lun_map = 0;
 static int ata_dma = 1;
-static int ata_wc = 0;
+static int ata_wc = 1;
 static int ata_tags = 0; 
 TUNABLE_INT("hw.ata.ata_dma", &ata_dma);
 TUNABLE_INT("hw.ata.wc", &ata_wc);
