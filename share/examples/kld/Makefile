@@ -64,7 +64,9 @@
 # OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 # SUCH DAMAGE.
 #
+#	$FreeBSD$
+#
 
-SUBDIR=	cdev syscall
+SUBDIR=	cdev syscall dyn_sysctl
 
 .include <bsd.subdir.mk>
