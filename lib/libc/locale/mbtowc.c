@@ -43,22 +43,20 @@ __FBSDID("$FreeBSD$");
 #include <rune.h>
 
 int
-mbtowc(pwc, s, n)
-	wchar_t * __restrict pwc;
-	const char * __restrict s;
-	size_t n;
+mbtowc(wchar_t * __restrict pwc, const char * __restrict s, size_t n)
 {
-	char const *e;
+	const char *e;
 	rune_t r;
 
-	if (s == 0 || *s == 0)
-		return (0);	/* No support for state dependent encodings. */
+	if (s == NULL || *s == '\0')
+		/* No support for state dependent encodings. */
+		return (0);	
 
 	if ((r = sgetrune(s, n, &e)) == _INVALID_RUNE) {
 		errno = EILSEQ;
 		return (s - e);
 	}
-	if (pwc)
+	if (pwc != NULL)
 		*pwc = r;
 	return (e - s);
 }

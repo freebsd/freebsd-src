@@ -38,19 +38,18 @@
 __FBSDID("$FreeBSD$");
 
 #include <errno.h>
-#include <stdlib.h>
 #include <stddef.h>
+#include <stdlib.h>
 #include <rune.h>
 
 int
-mblen(s, n)
-	const char *s;
-	size_t n;
+mblen(const char *s, size_t n)
 {
-	char const *e;
+	const char *e;
 
-	if (s == 0 || *s == 0)
-		return (0);	/* No support for state dependent encodings. */
+	if (s == NULL || *s == '\0')
+		/* No support for state dependent encodings. */
+		return (0);	
 
 	if (sgetrune(s, n, &e) == _INVALID_RUNE) {
 		errno = EILSEQ;
