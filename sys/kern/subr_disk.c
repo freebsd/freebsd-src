@@ -117,7 +117,9 @@ diskopen(dev_t dev, int oflags, int devtype, struct proc *p)
 
 	while (dp->d_flags & DISKFLAG_LOCK) {
 		dp->d_flags |= DISKFLAG_WANTED;
-		tsleep(dp, PRIBIO | PCATCH, "diskopen", hz);
+		error = tsleep(dp, PRIBIO | PCATCH, "diskopen", hz);
+		if (error)
+			return (error);
 	}
 	dp->d_flags |= DISKFLAG_LOCK;
 
