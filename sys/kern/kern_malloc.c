@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)kern_malloc.c	8.3 (Berkeley) 1/4/94
- * $Id: kern_malloc.c,v 1.44 1998/02/23 07:41:23 dyson Exp $
+ * $Id: kern_malloc.c,v 1.45 1998/03/08 09:56:49 julian Exp $
  */
 
 #include "opt_vm.h"
@@ -213,9 +213,10 @@ malloc(size, type, flags)
 	for (lp = (long *)va; lp < end; lp++) {
 		if (*lp == WEIRD_ADDR)
 			continue;
-		printf("%s %d of object %p size %ld %s %s (0x%lx != 0x%x)\n",
-			"Data modified on freelist: word", lp - (long *)va,
-			va, size, "previous type", savedtype, *lp, WEIRD_ADDR);
+		printf("%s %ld of object %p size %lu %s %s (0x%lx != 0x%lx)\n",
+			"Data modified on freelist: word",
+			(long)(lp - (long *)va), (void *)va, size,
+			"previous type", savedtype, *lp, (u_long)WEIRD_ADDR);
 		break;
 	}
 	freep->spare0 = 0;
@@ -262,7 +263,7 @@ free(addr, type)
 
 #ifdef DIAGNOSTIC
 	if ((char *)addr < kmembase || (char *)addr >= kmemlimit) {
-		panic("free: address 0x%x out of range", addr);
+		panic("free: address %p out of range", (void *)addr);
 	}
 #endif
 	kup = btokup(addr);
@@ -279,8 +280,8 @@ free(addr, type)
 	else
 		alloc = addrmask[kup->ku_indx];
 	if (((u_long)addr & alloc) != 0)
-		panic("free: unaligned addr 0x%x, size %d, type %s, mask %d",
-			addr, size, type->ks_shortdesc, alloc);
+		panic("free: unaligned addr %p, size %ld, type %s, mask %ld",
+		    (void *)addr, size, type->ks_shortdesc, alloc);
 #endif /* DIAGNOSTIC */
 	if (size > MAXALLOCSAVE) {
 		kmem_free(kmem_map, (vm_offset_t)addr, ctob(kup->ku_pagecnt));
