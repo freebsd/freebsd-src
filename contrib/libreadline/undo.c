@@ -38,7 +38,6 @@
 #  include "ansi_stdlib.h"
 #endif /* HAVE_STDLIB_H */
 
-#include <setjmp.h>
 #include <stdio.h>
 
 /* System-specific feature definitions and include files. */

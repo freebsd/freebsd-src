@@ -42,7 +42,7 @@
 #  define D_NAMLEN(d)   ((d)->d_namlen)
 #endif /* !HAVE_DIRENT_H */
 
-#if defined (STRUCT_DIRENT_HAS_D_INO)
+#if defined (STRUCT_DIRENT_HAS_D_INO) && !defined (STRUCT_DIRENT_HAS_D_FILENO)
 #  define d_fileno d_ino
 #endif
 

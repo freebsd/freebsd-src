@@ -53,11 +53,12 @@
 /* System-specific feature definitions and include files. */
 #include "rldefs.h"
 
-#include "tcap.h"
-
-#if defined (GWINSZ_IN_SYS_IOCTL)
+#if defined (GWINSZ_IN_SYS_IOCTL) && !defined (TIOCGWINSZ)
 #  include <sys/ioctl.h>
-#endif /* GWINSZ_IN_SYS_IOCTL */
+#endif /* GWINSZ_IN_SYS_IOCTL && !TIOCGWINSZ */
+
+#include "rltty.h"
+#include "tcap.h"
 
 /* Some standard library routines. */
 #include "readline.h"
@@ -68,6 +69,13 @@ extern FILE *_rl_in_stream, *_rl_out_stream;
 extern int readline_echoing_p;
 extern int _rl_bell_preference;
 extern Keymap _rl_keymap;
+
+/* Functions imported from bind.c */
+extern void _rl_bind_if_unbound ();
+
+/* Functions imported from shell.c */
+extern void set_lines_and_columns ();
+extern char *get_env_value ();
 
 /* **************************************************************** */
 /*								    */
@@ -84,8 +92,10 @@ static int tcap_initialized;
 static int dumb_term;
 
 #if !defined (__linux__)
-/* If this causes problems, add back the `extern'. */
-/*extern*/ char PC, *BC, *UP;
+#  if defined (__EMX__) || defined (NEED_EXTERN_PC)
+extern 
+#  endif /* __EMX__ || NEED_EXTERN_PC */
+char PC, *BC, *UP;
 #endif /* __linux__ */
 
 /* Some strings to control terminal actions.  These are output by tputs (). */
@@ -139,45 +149,6 @@ int _rl_enable_keypad;
 /* Non-zero means the user wants to enable a meta key. */
 int _rl_enable_meta = 1;
 
-/* Re-initialize the terminal considering that the TERM/TERMCAP variable
-   has changed. */
-int
-rl_reset_terminal (terminal_name)
-     char *terminal_name;
-{
-  _rl_init_terminal_io (terminal_name);
-  return 0;
-}
-
-#if !defined (SHELL)
-static void
-set_lines_and_columns (lines, cols)
-     int lines, cols;
-{
-  char *b;
-
-#if defined (HAVE_PUTENV)
-  b = xmalloc (24);
-  sprintf (b, "LINES=%d", lines);
-  putenv (b);
-  b = xmalloc (24);
-  sprintf (b, "COLUMNS=%d", cols);
-  putenv (b);
-#else /* !HAVE_PUTENV */
-#  if defined (HAVE_SETENV)
-  b = xmalloc (8);
-  sprintf (b, "%d", lines);
-  setenv ("LINES", b, 1);
-  b = xmalloc (8);
-  sprintf (b, "%d", cols);
-  setenv ("COLUMNS", b, 1);
-#  endif /* HAVE_SETENV */
-#endif /* !HAVE_PUTENV */
-}
-#else /* SHELL */
-extern void set_lines_and_columns ();
-#endif /* SHELL */
-
 /* Get readline's idea of the screen size.  TTY is a file descriptor open
    to the terminal.  If IGNORE_ENV is true, we do not pay attention to the
    values of $LINES and $COLUMNS.  The tests for TERM_STRING_BUFFER being
@@ -190,6 +161,9 @@ _rl_get_screen_size (tty, ignore_env)
 #if defined (TIOCGWINSZ)
   struct winsize window_size;
 #endif /* TIOCGWINSZ */
+#if defined (__EMX__)
+  int sz[2];
+#endif
 
 #if defined (TIOCGWINSZ)
   if (ioctl (tty, TIOCGWINSZ, &window_size) == 0)
@@ -199,11 +173,17 @@ _rl_get_screen_size (tty, ignore_env)
     }
 #endif /* TIOCGWINSZ */
 
+#if defined (__EMX__)
+  _scrsize (sz);
+  screenwidth = sz[0];
+  screenheight = sz[1];
+#endif
+
   /* Environment variable COLUMNS overrides setting of "co" if IGNORE_ENV
      is unset. */
   if (screenwidth <= 0)
     {
-      if (ignore_env == 0 && (ss = getenv ("COLUMNS")))
+      if (ignore_env == 0 && (ss = get_env_value ("COLUMNS")))
 	screenwidth = atoi (ss);
 
       if (screenwidth <= 0 && term_string_buffer)
@@ -214,7 +194,7 @@ _rl_get_screen_size (tty, ignore_env)
      is unset. */
   if (screenheight <= 0)
     {
-      if (ignore_env == 0 && (ss = getenv ("LINES")))
+      if (ignore_env == 0 && (ss = get_env_value ("LINES")))
 	screenheight = atoi (ss);
 
       if (screenheight <= 0 && term_string_buffer)
@@ -334,7 +314,7 @@ _rl_init_terminal_io (terminal_name)
   int tty;
   Keymap xkeymap;
 
-  term = terminal_name ? terminal_name : getenv ("TERM");
+  term = terminal_name ? terminal_name : get_env_value ("TERM");
 
   if (term_string_buffer == 0)
     term_string_buffer = xmalloc (2032);
@@ -443,6 +423,16 @@ rl_get_termcap (cap)
   return ((char *)NULL);
 }
 
+/* Re-initialize the terminal considering that the TERM/TERMCAP variable
+   has changed. */
+int
+rl_reset_terminal (terminal_name)
+     char *terminal_name;
+{
+  _rl_init_terminal_io (terminal_name);
+  return 0;
+}
+
 /* A function for the use of tputs () */
 int
 _rl_output_character_function (c)
@@ -536,7 +526,7 @@ outchar (c)
   return putc (c, rl_outstream);
 }
 
-int
+void
 _rl_enable_meta_key ()
 {
   if (term_has_meta && term_mm)
