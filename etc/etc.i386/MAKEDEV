@@ -93,7 +93,7 @@
 #	isdn*	ISDN devices
 #	labpc*	National Instrument's Lab-PC and LAB-PC+
 #
-#	$Id: MAKEDEV,v 1.95.4.4 1995/09/26 07:41:19 davidg Exp $
+#	$Id: MAKEDEV,v 1.95.4.5 1995/10/17 21:42:38 davidg Exp $
 #
 
 PATH=/sbin:/bin/:/usr/bin:/usr/sbin:
@@ -161,7 +161,7 @@ case $i in
 all)
 	sh MAKEDEV std						# standard
 	sh MAKEDEV wd0 wd1 wd2 wd3 fd0 fd1 sd0 sd1 sd2 sd3	# bdev, disk
-	sh MAKEDEV cd0 mcd0 scd0 matcd0				# bdev, cdrom
+	sh MAKEDEV cd0 mcd0 scd0 matcd0	wcd0			# bdev, cdrom
 	sh MAKEDEV ft0 wt0 st0					# bdev, tape
 	sh MAKEDEV ttyd0 ttyd1 ttyd2 ttyd3			# cdev, serial
 	sh MAKEDEV cuaa0 cuaa1 cuaa2 cuaa3			# cdev, serial
