@@ -25,7 +25,7 @@
 # (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
 # THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #
-#	$Id$
+#	$Id: fetch_err.et,v 1.1 1998/11/06 22:14:08 des Exp $
 #
 et ftch
     ec FETCH_ABORT,	"Operation aborted"
@@ -46,4 +46,5 @@ et ftch
     ec FETCH_UNAVAIL,	"File is not available"
     ec FETCH_UNKNOWN,	"Unknown error"
     ec FETCH_URL,	"Invalid URL"
+    ec FETCH_VERBOSE,	""
 end

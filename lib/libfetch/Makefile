@@ -1,27 +1,25 @@
-#	$Id: Makefile,v 1.8 1998/11/07 08:59:38 des Exp $
+#	$Id: Makefile,v 1.9 1998/12/15 12:24:26 des Exp $
 
 LIB=		fetch
 CFLAGS+=	-I. -Wall -pedantic
 .if !defined(DEBUG)
 CFLAGS+=	-DNDEBUG
 .endif
-SRCS=		fetch.c common.c ftp.c http.c file.c fetch_err.c
-DPSRCS=		ftperr.inc httperr.inc fetch_err.c fetch_err.h
+SRCS=		fetch.c common.c ftp.c http.c file.c fetch_err.c \
+		fetch_err.h ftperr.h httperr.h
 MAN3=		fetch.3
-CLEANFILES=	${DPSRCS}
+CLEANFILES=	fetch_err.c fetch_err.h ftperr.h httperr.h
 
 SHLIB_MAJOR=    1
 SHLIB_MINOR=	0
 
-beforedepend: ${DPSRCS}
-
-beforeinstall: fetch.h fetch_err.h
+beforeinstall:
 	${INSTALL} -C -o ${BINOWN} -g ${BINGRP} -m 444 ${.CURDIR}/fetch.h \
 		${DESTDIR}/usr/include
 	${INSTALL} -C -o ${BINOWN} -g ${BINGRP} -m 444 fetch_err.h \
 		${DESTDIR}/usr/include
 
-ftperr.inc: ftp.errors
+ftperr.h: ftp.errors
 	@echo "static struct fetcherr _ftp_errlist[] = {" > ${.TARGET}
 	@cat ${.ALLSRC} \
 	  | grep -v ^# \
@@ -32,8 +30,7 @@ ftperr.inc: ftp.errors
 	@echo "    { -1, FETCH_UNKNOWN, \"Unknown FTP error\" }" >> ${.TARGET}
 	@echo "};" >> ${.TARGET}
 
-
-httperr.inc: http.errors
+httperr.h: http.errors
 	@echo "static struct fetcherr _http_errlist[] = {" > ${.TARGET}
 	@cat ${.ALLSRC} \
 	  | grep -v ^# \
@@ -44,11 +41,10 @@ httperr.inc: http.errors
 	@echo "    { -1, FETCH_UNKNOWN, \"Unknown HTTP error\" }" >> ${.TARGET}
 	@echo "};" >> ${.TARGET}
 
+hdrs: fetch_err.h
+
+.ORDER: fetch_err.c fetch_err.h
 fetch_err.c fetch_err.h: fetch_err.et
 	compile_et -lang c ${.ALLSRC}
 
 .include <bsd.lib.mk>
-
-.if !exists(${DEPENDFILE})
-${OBJS} ${POBJS} ${SOBJS}: ${DPSRCS}
-.endif

@@ -25,16 +25,18 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *	$Id: common.c,v 1.1 1998/11/05 19:48:16 des Exp $
+ *	$Id: common.c,v 1.2 1998/11/06 22:14:08 des Exp $
  */
 
-#include <sys/types.h>
+#include <sys/param.h>
 #include <sys/socket.h>
 #include <netinet/in.h>
 
 #include <com_err.h>
 #include <errno.h>
 #include <netdb.h>
+#include <stdlib.h>
+#include <stdio.h>
 #include <string.h>
 #include <unistd.h>
 
@@ -49,7 +51,7 @@
  */
 static struct fetcherr _netdb_errlist[] = {
     { HOST_NOT_FOUND,	FETCH_RESOLV,	"Host not found" },
-    { TRY_AGAIN,	FETCH_RESOLV,	"Transient resolver failure" },
+    { TRY_AGAIN,	FETCH_TEMP,	"Transient resolver failure" },
     { NO_RECOVERY,	FETCH_RESOLV,	"Non-recoverable resolver failure" },
     { NO_DATA,		FETCH_RESOLV,	"No address record" },
     { -1,		FETCH_UNKNOWN,	"Unknown resolver error" }
@@ -94,7 +96,8 @@ _fetch_seterr(struct fetcherr *p, int e)
 	_fetch_init_com_err();
 
     n = _fetch_finderr(p, e);
-    com_err("libfetch", p[n].cat, "(%d %s)", e, p[n].string);
+    fetchLastErrCode = p[n].cat;
+    com_err("libfetch", fetchLastErrCode, "(%03d %s)", e, p[n].string);
 }
 
 /*
@@ -103,38 +106,39 @@ _fetch_seterr(struct fetcherr *p, int e)
 void
 _fetch_syserr(void)
 {
-    int cat;
+    int e;
+    e = errno;
     
     if (!com_err_initialized)
 	_fetch_init_com_err();
 
     switch (errno) {
     case 0:
-	cat = FETCH_OK;
+	fetchLastErrCode = FETCH_OK;
 	break;
     case EPERM:
     case EACCES:
     case EROFS:
     case EAUTH:
     case ENEEDAUTH:
-	cat = FETCH_AUTH;
+	fetchLastErrCode = FETCH_AUTH;
 	break;
     case ENOENT:
     case EISDIR: /* XXX */
-	cat = FETCH_UNAVAIL;
+	fetchLastErrCode = FETCH_UNAVAIL;
 	break;
     case ENOMEM:
-	cat = FETCH_MEMORY;
+	fetchLastErrCode = FETCH_MEMORY;
 	break;
     case EBUSY:
     case EAGAIN:	
-	cat = FETCH_TEMP;
+	fetchLastErrCode = FETCH_TEMP;
 	break;
     case EEXIST:
-	cat = FETCH_EXISTS;
+	fetchLastErrCode = FETCH_EXISTS;
 	break;
     case ENOSPC:
-	cat = FETCH_FULL;
+	fetchLastErrCode = FETCH_FULL;
 	break;
     case EADDRINUSE:
     case EADDRNOTAVAIL:
@@ -142,23 +146,50 @@ _fetch_syserr(void)
     case ENETUNREACH:
     case ENETRESET:
     case EHOSTUNREACH:
-	cat = FETCH_NETWORK;
+	fetchLastErrCode = FETCH_NETWORK;
 	break;
     case ECONNABORTED:
     case ECONNRESET:
-	cat = FETCH_ABORT;
+	fetchLastErrCode = FETCH_ABORT;
 	break;
     case ETIMEDOUT:
-	cat = FETCH_TIMEOUT;
+	fetchLastErrCode = FETCH_TIMEOUT;
 	break;
     case ECONNREFUSED:
     case EHOSTDOWN:
-	cat = FETCH_DOWN;
+	fetchLastErrCode = FETCH_DOWN;
 	break;
     default:
-	cat = FETCH_UNKNOWN;
+	fetchLastErrCode = FETCH_UNKNOWN;
     }
-    com_err("libfetch", cat, "(%02d %s)", errno, strerror(errno));
+    com_err("libfetch", fetchLastErrCode, "(%03d %s)", e, strerror(e));
+}
+
+
+/*
+ * Emit status message
+ */
+int
+_fetch_info(char *fmt, ...)
+{
+    va_list ap;
+    char *s;
+    
+    if (!com_err_initialized)
+	_fetch_init_com_err();
+
+    va_start(ap, fmt);
+    vasprintf(&s, fmt, ap);
+    va_end(ap);
+
+    if (s == NULL) {
+	com_err("libfetch", FETCH_MEMORY, "");
+	return -1;
+    } else {
+	com_err("libfetch", FETCH_VERBOSE, "%s", s);
+	free(s);
+	return 0;
+    }
 }
 
 
@@ -168,7 +199,7 @@ _fetch_syserr(void)
  * Establish a TCP connection to the specified port on the specified host.
  */
 int
-fetchConnect(char *host, int port)
+fetchConnect(char *host, int port, int verbose)
 {
     struct sockaddr_in sin;
     struct hostent *he;
@@ -177,6 +208,9 @@ fetchConnect(char *host, int port)
 #ifndef NDEBUG
     fprintf(stderr, "\033[1m---> %s:%d\033[m\n", host, port);
 #endif
+
+    if (verbose)
+	_fetch_info("looking up %s", host);
     
     /* look up host name */
     if ((he = gethostbyname(host)) == NULL) {
@@ -184,6 +218,9 @@ fetchConnect(char *host, int port)
 	return -1;
     }
 
+    if (verbose)
+	_fetch_info("connecting to %s:%d", host, port);
+    
     /* set up socket address structure */
     bzero(&sin, sizeof(sin));
     bcopy(he->h_addr, (char *)&sin.sin_addr, he->h_length);

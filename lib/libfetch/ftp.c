@@ -25,7 +25,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *	$Id: ftp.c,v 1.6 1998/11/05 19:48:17 des Exp $
+ *	$Id: ftp.c,v 1.7 1998/11/06 22:14:08 des Exp $
  */
 
 /*
@@ -55,7 +55,7 @@
  *
  */
 
-#include <sys/types.h>
+#include <sys/param.h>
 #include <sys/socket.h>
 #include <netinet/in.h>
 #include <sys/errno.h>
@@ -71,7 +71,7 @@
 
 #include "fetch.h"
 #include "common.h"
-#include "ftperr.inc"
+#include "ftperr.h"
 
 #define FTP_DEFAULT_TO_ANONYMOUS
 #define FTP_ANONYMOUS_USER	"ftp"
@@ -275,7 +275,7 @@ ouch:
  * Log on to FTP server
  */
 static FILE *
-_ftp_connect(char *host, int port, char *user, char *pwd)
+_ftp_connect(char *host, int port, char *user, char *pwd, int verbose)
 {
     int sd, e, pp = FTP_DEFAULT_PORT;
     char *p, *q;
@@ -289,12 +289,12 @@ _ftp_connect(char *host, int port, char *user, char *pwd)
 	}
 	if (q)
 	    *q = 0;
-	sd = fetchConnect(p, pp);
+	sd = fetchConnect(p, pp, verbose);
 	if (q)
 	    *q = ':';
     } else {
 	/* no proxy, go straight to target */
-	sd = fetchConnect(host, port);
+	sd = fetchConnect(host, port, verbose);
     }
 
     /* check connection */
@@ -398,7 +398,8 @@ fetchXxxFTP(struct url *url, char *oper, char *mode, char *flags)
 
     /* connect to server */
     if (!cf) {
-	cf = _ftp_connect(url->host, url->port, url->user, url->pwd);
+	cf = _ftp_connect(url->host, url->port, url->user, url->pwd,
+			  (strchr(flags, 'v') != NULL));
 	if (!cf)
 	    return NULL;
 	if (cached_socket)
