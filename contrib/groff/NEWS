@@ -1,6 +1,244 @@
 This file describes recent user-visible changes in groff.  Bug fixes
 are not described.  There are more details in the man pages.
 
+Groff
+-----
+
+o `-mFOO' will now search first for `FOO.tmac' and then for `tmac.FOO'.  The
+  old behaviour has been changed to overcome problems with platforms which
+  have an 8+3 file name limit, and platforms which have other versions of
+  troff installed also. Additionally, all macro files have been renamed
+  using the latter scheme to avoid 8+3 name clashes.
+
+o The new environment variable GROFF_BIN_PATH will be checked for programs
+  groff is calling (preprocessors, troff, and output devices) before PATH.
+  If not set, it defaults to the directory where the groff binary is
+  located.  Previously, it was PATH only.  The nroff script will only use
+  GROFF_BIN_PATH to find the groff binary but passes both the GROFF_BIN_PATH
+  and PATH environment variable to groff.
+
+Troff
+-----
+
+o The mdoc package has been completely rewritten, using the full power of
+  GNU troff to remove limitations of Unix troff (which is no longer
+  supported).  Most important changes are:
+
+  . No argument limit.
+  . Almost all macros are parsed and callable (if it makes sense).
+  . `.Lb': prints library names
+  . `.Nm <punctuation>' now works as expected; `.Nm "" <punctuation>' has
+    been withdrawn.
+  . Updated `.St' command
+  . `.Fx': prints FreeBSD
+  . `.Ox': prints OpenBSD
+  . `.Bsx': prints BSD/OS
+  . `.Brq', `.Bro', `.Brc': brace enclosure macros
+  . `.Bd -centered': center lines
+  . `.Bl -xwidth <string>': interpret <string> and use the resulting width
+  . support for double-sided printing (-rD1 command line switch)
+  . support for 11pt and 12pt document sizes (-rS11, -rS12 command line
+    switches)
+
+  `groff_mdoc.man' replaces `groff_mdoc.samples.man'; it now completely
+  documents the mdoc package.
+
+  Great care has been taken to assure backwards compatibility.  If you
+  encounter any abnormal results, please report them to bug-groff@gnu.org.
+
+o A new command line option for the `man' macros (similar to the `mdoc'
+  package has been implemented: `-rcR=1' (now the default in nroff mode) will
+  produce one single, very long page instead of multiple pages.  `-rcR=0'
+  will deactivate it.
+
+o The `return' request has been added to return immediately from a macro.
+
+o A new request `nop' (no operation) has been added which is similar to
+  `if 1'.  For example,
+
+    .if t \{\
+    Hallo!
+    .\}
+
+  can now be written as
+
+    .if t \{\
+    .  nop Hallo!
+    .\}
+
+o `box' and `boxa' are two new requests which behave similarly to `di' and
+  `da' but don't include a partially filled line (which is restored after
+  ending the diversion).
+
+o The `asciify' request has been extended to `unformat' space characters
+  and some other escape sequences also.
+
+  `\ ' will no longer be unformatted as a space but remains an unpaddable,
+  unbreakable space character.
+
+o The new `unformat' request is similar to `asciify' but only handles space
+  characters and tabs specially if the diversion is reread, retaining font
+  information.  This makes it possible to reformat diversions; for example
+  the following
+
+    .ll 3i
+    .
+    a01 a02 a03 a04 a05 a06 a07 a08 a09 a10.
+    .
+    .box box1
+    .ev 1
+    .nf
+    \f[B]b01 b02 b03 b04 b05 b06 b07 b08 b09 b10.\f[P]
+    .br
+    .ev
+    .box
+    .
+    c01 c02 c03 c04 c05 c06 c07 c08 c09 c10.
+    .
+    .unformat box1
+    .box1
+
+  gives
+
+    a01  a02  a03  a04 a05 a06 a07
+    a08 a09 a10.  c01 c02 c03  c04
+    c05  c06 c07 c08 c09 c10.  b01
+    b02 b03 b04 b05  b06  b07  b08
+    b09 b10.
+
+  Without the `unformat' request, space characters are converted to word
+  space nodes which are no longer stretchable, and the result would be
+
+    a01  a02  a03  a04 a05 a06 a07
+    a08 a09 a10.  c01 c02 c03  c04
+    c05  c06 c07 c08 c09 c10.  b01
+    b02 b03 b04 b05 b06 b07 b08
+    b09 b10.
+
+o The new request `linetabs' controls the `line-tabs' mode.  In line-tabs
+  mode, tab distances are computed relative to the (current) output line.
+  Otherwise they are taken relative to the input line.  For example, the
+  following
+
+    .ds x a\t\c
+    .ds y b\t\c
+    .ds z c
+    .ta 1i 3i
+    \*x
+    \*y
+    \*z
+
+  yields
+
+    a         b         c
+
+  In line-tabs mode, the same code gives
+
+    a         b                   c
+
+  The new read-only number register `.linetabs' returns 1 if in line-tabs
+  mode, and 0 otherwise.
+
+o Two new requests `tm1' and `tmc' have been added to improve writing
+  messages to the terminal.  `tm1' is similar to `tm' but allows leading
+  whitespace.  `tmc' is similar to `tm1' but doesn't emit a final newline.
+
+o A new request `dei' (define indirect) has been added.  The first and
+  second parameter of `dei' are taken from string registers rather than
+  directly; this very special request is needed to make `trace.tmac'
+  independent from the escape character (which might even be disabled).
+
+o It is now possible to save and restore the escape character with two new
+  requests `ecs' and `ecr'.
+
+o The new escape sequence \B'...' is an analogon to `\A': If the string
+  within the delimiters is a valid numeric expression, return character `1',
+  and `0' otherwise.
+
+o The new escape sequence `\:' inserts a zero-width break point.  This is
+  similar to `\%' but without a soft hyphen character.
+
+o The `tr' request can now map characters onto `\~'.
+
+o Calling the `fam' request without an argument switches back to the
+  previous font family.
+
+o The new read-only register `.int' is set to a positive value if the last
+  output line is interrupted (i.e., if it contains `\c').
+
+o The `writem' request is not new, but hasn't been documented before.  This
+  is similar to `write' but instead of a string the contents of a given
+  macro or string is written to a stream.
+
+o The read/write number register `hp' to get/set the current horizontal
+  position relative to the input line isn't new but hasn't been documented
+  properly before.
+
+o `\X' and `\Y' are no transparent for end-of-sentence recognition.
+
+o The `cu' request in nroff mode now works as documented (i.e., it does
+  underline spaces also).
+
+Nroff
+-----
+
+Option -v shows the version number.
+
+Grog
+----
+
+o The grog script will now work in non-compatibility mode also (which is the
+  default).  As usual, use the `-C' option to activate compatibility mode.
+
+o Option -v shows the version number.
+
+Grops
+-----
+
+A new option `-P' resp. a new environment variable `GROPS_PROLOGUE' has been
+added to select a different prologue file.
+
+The effect of the former `-mpsnew' option to access more Type 1 characters
+is now the default and no longer available.  To get the old behaviour (i.e.,
+emulation of some glyphs by composition) use `-mpsold'.
+
+Miscellaneous
+-------------
+
+o For security reasons the following changes have been done:
+
+  . The tmac.safer file has been replaced with a built-in solution; .open,
+    .opena, .pso, .sy, and .pi are completely disabled in safer mode (which
+    is the default); to enable these requests the `-U' command line flag
+    must be used.
+
+  . Files specified with the .mso request or given with the `-m' command
+    line option, and hyphenation patterns loaded with `.hpf' are no longer
+    searched in the current directory by default (besides the usual tmac
+    path). Instead, the home directory is used. To add the current
+    directory, either use the `-U' or `-M' command line option or set the
+    GROFF_TMAC_PATH environment variable to an appropriate value.
+
+  . troffrc, troffrc-end, and eqnrc are neither searched in the current nor
+    in the home directory (even if -U is given).  Use -M or GROFF_TMAC_PATH
+    to change that.
+
+  . Similarly, the current directory is no longer part of the font path.
+    Use the `-F' command line option or the GROFF_FONT_PATH environment
+    variable if you really need the current directory.
+
+o groff will now install its data files into
+  /usr/local/share/groff/<version> by default, following the GNU standard.
+  Additionally, a local tmac directory (by default
+  /usr/local/share/groff/site-tmac) will be scanned before the standard tmac
+  directory.  Wrapper files for system-specific macro packages (if
+  necessary) are put into /usr/local/lib/groff/site-tmac; this directory
+  will be searched before the local tmac directory.
+
+o All programs now have option `-v' to show the version number; they will
+  exit immediately afterwards, following the GNU standards.  Additionally,
+  `--version' and `--help' have been added, doing the obvious actions.
+
 VERSION 1.16.1
 ==============
 

@@ -1,4 +1,8 @@
-# gendef filename var=val var=val
+#
+# gendef filename var=val var=val ...
+#
+# This script is used to generate src/include/defs.h
+#
 
 file=$1
 shift
@@ -26,3 +30,5 @@ test -r $file && cmp -s $t $file || cp $t $file
 rm -f $t
 
 exit 0
+
+# eof

@@ -1,0 +1,1302 @@
+.ig \"-*- nroff -*-
+Copyright (C) 1989-2000 Free Software Foundation, Inc.
+
+Permission is granted to make and distribute verbatim copies of
+this manual provided the copyright notice and this permission notice
+are preserved on all copies.
+
+Permission is granted to copy and distribute modified versions of this
+manual under the conditions for verbatim copying, provided that the
+entire resulting derived work is distributed under the terms of a
+permission notice identical to this one.
+
+Permission is granted to copy and distribute translations of this
+manual into another language, under the above conditions for modified
+versions, except that this permission notice may be included in
+translations approved by the Free Software Foundation instead of in
+the original English.
+..
+.de TQ
+.br
+.ns
+.TP \\$1
+..
+.\" Like TP, but if specified indent is more than half
+.\" the current line-length - indent, use the default indent.
+.de Tp
+.ie \\n(.$=0:((0\\$1)*2u>(\\n(.lu-\\n(.iu)) .TP
+.el .TP "\\$1"
+..
+.\" The BSD man macros can't handle " in arguments to font change macros,
+.\" so use \(ts instead of ".
+.tr \(ts"
+.TH @G@REFER @MAN1EXT@ "@MDATE@" "Groff Version @VERSION@"
+.SH NAME
+@g@refer \- preprocess bibliographic references for groff
+.SH SYNOPSIS
+.nr a \n(.j
+.ad l
+.nr i \n(.i
+.in +\w'\fB@g@refer 'u
+.ti \niu
+.B @g@refer
+.de OP
+.ie \\n(.$-1 .RI "[\ \fB\\$1\fP" "\\$2" "\ ]"
+.el .RB "[\ " "\\$1" "\ ]"
+..
+.OP \-benvCPRS
+.OP \-a n
+.OP \-c fields
+.OP \-f n
+.OP \-i fields
+.OP \-k field
+.OP \-l m,n
+.OP \-p filename
+.OP \-s fields
+.OP \-t n
+.OP \-B field.macro
+.RI [\  filename \|.\|.\|.\ ]
+.br
+.ad \na
+.PP
+It is possible to have whitespace between a command line option and its
+parameter.
+.SH DESCRIPTION
+This file documents the GNU version of
+.BR refer ,
+which is part of the groff document formatting system.
+.B refer
+copies the contents of
+.IR filename \|.\|.\|.
+to the standard output,
+except that lines between
+.B .[
+and
+.B .]
+are interpreted as citations,
+and lines between
+.B .R1
+and
+.B .R2
+are interpreted as commands about how citations are to be processed.
+.LP
+Each citation specifies a reference.
+The citation can specify a reference that is contained in
+a bibliographic database by giving a set of keywords
+that only that reference contains.
+Alternatively it can specify a reference by supplying a database
+record in the citation.
+A combination of these alternatives is also possible.
+.LP
+For each citation,
+.B refer
+can produce a mark in the text.
+This mark consists of some label which can be separated from
+the text and from other labels in various ways.
+For each reference it also outputs
+.B groff
+commands that can be used by a macro package to produce a formatted
+reference for each citation.
+The output of
+.B refer
+must therefore be processed using a suitable macro package.
+The
+.B \-ms
+and
+.B \-me
+macros are both suitable.
+The commands to format a citation's reference can be output immediately after
+the citation,
+or the references may be accumulated,
+and the commands output at some later point.
+If the references are accumulated, then multiple citations of the same
+reference will produce a single formatted reference.
+.LP
+The interpretation of lines between
+.B .R1
+and
+.B .R2
+as commands is a new feature of GNU refer.
+Documents making use of this feature can still be processed by
+Unix refer just by adding the lines
+.RS
+.LP
+.nf
+.ft B
+\&.de R1
+\&.ig R2
+\&..
+.ft
+.fi
+.RE
+to the beginning of the document.
+This will cause
+.B troff
+to ignore everything between
+.B .R1
+and
+.BR .R2 .
+The effect of some commands can also be achieved by options.
+These options are supported mainly for compatibility with Unix refer.
+It is usually more convenient to use commands.
+.LP
+.B refer
+generates
+.B .lf
+lines so that filenames and line numbers in messages produced
+by commands that read
+.B refer
+output will be correct;
+it also interprets lines beginning with
+.B .lf
+so that filenames and line numbers in the messages and
+.B .lf
+lines that it produces will be accurate even if the input has been
+preprocessed by a command such as
+.BR @g@soelim (@MAN1EXT@).
+.SH OPTIONS
+.LP
+Most options are equivalent to commands
+(for a description of these commands see the
+.B Commands
+subsection):
+.TP
+.B \-b
+.B
+no-label-in-text; no-label-in-reference
+.TP
+.B \-e
+.B accumulate
+.TP
+.B \-n
+.B no-default-database
+.TP
+.B \-C
+.B compatible
+.TP
+.B \-P
+.B move-punctuation
+.TP
+.B \-S
+.B
+label "(A.n|Q) ', ' (D.y|D)"; bracket-label " (" ) "; "
+.TP
+.BI \-a n
+.B reverse
+.BI A n
+.TP
+.BI \-c fields
+.B capitalize
+.I fields
+.TP
+.BI \-f n
+.B label
+.BI % n
+.TP
+.BI \-i fields
+.B search-ignore
+.I fields
+.TP
+.B \-k
+.B label
+.B L\(ti%a
+.TP
+.BI \-k field
+.B label
+.IB field \(ti%a
+.TP
+.B \-l
+.B label
+.BI A.nD.y%a
+.TP
+.BI \-l m
+.B label
+.BI A.n+ m D.y%a
+.TP
+.BI \-l, n
+.B label
+.BI A.nD.y\- n %a
+.TP
+.BI \-l m , n
+.B label
+.BI A.n+ m D.y\- n %a
+.TP
+.BI \-p filename
+.B database
+.I filename
+.TP
+.BI \-s spec
+.B sort
+.I spec
+.TP
+.BI \-t n
+.B search-truncate
+.I n
+.LP
+These options are equivalent to the following commands with the
+addition that the filenames specified on the command line are
+processed as if they were arguments to the
+.B bibliography
+command instead of in the normal way:
+.TP
+.B \-B
+.B
+annotate X AP; no-label-in-reference
+.TP
+.BI \-B field . macro
+.B annotate
+.I field
+.IB macro ;
+.B no-label-in-reference
+.LP
+The following options have no equivalent commands:
+.TP
+.B \-v
+Print the version number.
+.TP
+.B \-R
+Don't recognize lines beginning with
+.BR .R1 / .R2 .
+.SH USAGE
+.SS Bibliographic databases
+The bibliographic database is a text file consisting of records
+separated by one or more blank lines.
+Within each record fields start with a
+.B %
+at the beginning of a line.
+Each field has a one character name that immediately follows the
+.BR % .
+It is best to use only upper and lower case letters for the names
+of fields.
+The name of the field should be followed by exactly one space,
+and then by the contents of the field.
+Empty fields are ignored.
+The conventional meaning of each field is as follows:
+.TP
+.B A
+The name of an author.
+If the name contains a title such as
+.B Jr.
+at the end,
+it should be separated from the last name by a comma.
+There can be multiple occurrences of the
+.B A
+field.
+The order is significant.
+It is a good idea always to supply an
+.B A
+field or a 
+.B Q
+field.
+.TP
+.B B
+For an article that is part of a book, the title of the book
+.TP
+.B C
+The place (city) of publication.
+.TP
+.B D
+The date of publication.
+The year should be specified in full.
+If the month is specified, the name rather than the number of the month
+should be used, but only the first three letters are required.
+It is a good idea always to supply a
+.B D
+field;
+if the date is unknown, a value such as
+.B in press
+or
+.B unknown
+can be used.
+.TP
+.B E
+For an article that is part of a book, the name of an editor of the book.
+Where the work has editors and no authors,
+the names of the editors should be given as
+.B A
+fields and
+.B ,\ (ed)
+or
+.B ,\ (eds)
+should be appended to the last author.
+.TP
+.B G
+US Government ordering number.
+.TP
+.B I
+The publisher (issuer).
+.TP
+.B J
+For an article in a journal, the name of the journal.
+.TP
+.B K
+Keywords to be used for searching.
+.TP
+.B L
+Label.
+.TP
+.B N
+Journal issue number.
+.TP
+.B O
+Other information.
+This is usually printed at the end of the reference.
+.TP
+.B P
+Page number.
+A range of pages can be specified as
+.IB m \- n\fR.
+.TP
+.B Q
+The name of the author, if the author is not a person.
+This will only be used if there are no
+.B A
+fields.
+There can only be one
+.B Q
+field.
+.TP
+.B R
+Technical report number.
+.TP
+.B S
+Series name.
+.TP
+.B T
+Title.
+For an article in a book or journal,
+this should be the title of the article.
+.TP
+.B V
+Volume number of the journal or book.
+.TP
+.B X
+Annotation.
+.LP
+For all fields except
+.B A
+and
+.BR E ,
+if there is more than one occurrence of a particular field in a record,
+only the last such field will be used.
+.LP
+If accent strings are used, they should follow the character to be accented.
+This means that the
+.B AM
+macro must be used with the
+.B \-ms
+macros.
+Accent strings should not be quoted:
+use one
+.B \e
+rather than two.
+.SS Citations
+The format of a citation is
+.RS
+.BI .[ opening-text
+.br
+.I
+flags keywords
+.br
+.I fields
+.br
+.BI .] closing-text
+.RE
+.LP
+The
+.IR opening-text ,
+.IR closing-text
+and
+.I flags
+components are optional.
+Only one of the
+.I keywords
+and
+.I fields
+components need be specified.
+.LP
+The
+.I keywords
+component says to search the bibliographic databases for a reference
+that contains all the words in
+.IR keywords .
+It is an error if more than one reference if found.
+.LP
+The
+.I fields
+components specifies additional fields to replace or supplement
+those specified in the reference.
+When references are being accumulated and the
+.I keywords
+component is non-empty,
+then additional fields should be specified only on the first
+occasion that a particular reference is cited,
+and will apply to all citations of that reference.
+.LP
+The
+.I opening-text
+and
+.I closing-text
+component specifies strings to be used to bracket the label instead
+of the strings specified in the
+.B bracket-label
+command.
+If either of these components is non-empty,
+the strings specified in the
+.B bracket-label
+command will not be used;
+this behaviour can be altered using the
+.B [
+and
+.B ]
+flags.
+Note that leading and trailing spaces are significant for these components.
+.LP
+The
+.I flags
+component is a list of
+non-alphanumeric characters each of which modifies the treatment
+of this particular citation.
+Unix refer will treat these flags as part of the keywords and
+so will ignore them since they are non-alphanumeric.
+The following flags are currently recognized:
+.TP
+.B #
+This says to use the label specified by the
+.B short-label
+command,
+instead of that specified by the
+.B label
+command.
+If no short label has been specified, the normal label will be used.
+Typically the short label is used with author-date labels
+and consists of only the date and possibly a disambiguating letter;
+the
+.B #
+is supposed to be suggestive of a numeric type of label.
+.TP
+.B [
+Precede
+.I opening-text
+with the first string specified in the
+.B bracket-label
+command.
+.TP
+.B ]
+Follow
+.I closing-text
+with the second string specified in the
+.B bracket-label
+command.
+.LP
+One advantages of using the
+.B [
+and
+.B ]
+flags rather than including the brackets in
+.I opening-text
+and
+.I closing-text
+is that
+you can change the style of bracket used in the document just by changing the
+.B bracket-label
+command.
+Another advantage is that sorting and merging of citations
+will not necessarily be inhibited if the flags are used.
+.LP
+If a label is to be inserted into the text,
+it will be attached to the line preceding the
+.B .[
+line.
+If there is no such line, then an extra line will be inserted before the
+.B .[
+line and a warning will be given.
+.LP
+There is no special notation for making a citation to multiple references.
+Just use a sequence of citations, one for each reference.
+Don't put anything between the citations.
+The labels for all the citations will be attached to the line preceding
+the first citation.
+The labels may also be sorted or merged.
+See the description of the
+.B <>
+label expression, and of the
+.B sort-adjacent-labels
+and
+.B abbreviate-label-ranges
+command.
+A label will not be merged if its citation has a non-empty
+.I opening-text
+or
+.IR closing-text .
+However, the labels for a citation using the
+.B ]
+flag and without any
+.I closing-text
+immediately followed by a citation using the
+.B [
+flag and without any
+.I opening-text
+may be sorted and merged
+even though the first citation's
+.I opening-text
+or the second citation's
+.I closing-text
+is non-empty.
+(If you wish to prevent this just make the first citation's
+.I closing-text
+.BR \e& .)
+.SS Commands
+Commands are contained between lines starting with
+.B .R1
+and
+.BR .R2 .
+Recognition of these lines can be prevented by the
+.B \-R
+option.
+When a
+.B .R1
+line is recognized any accumulated references are flushed out.
+Neither
+.B .R1
+nor
+.B .R2
+lines,
+nor anything between them
+is output.
+.LP
+Commands are separated by newlines or 
+.BR ; s.
+.B #
+introduces a comment that extends to the end of the line
+(but does not conceal the newline).
+Each command is broken up into words.
+Words are separated by spaces or tabs.
+A word that begins with
+.B \(ts
+extends to the next
+.B \(ts
+that is not followed by another
+.BR \(ts .
+If there is no such
+.B \(ts
+the word extends to the end of the line.
+Pairs of
+.B \(ts
+in a word beginning with
+.B \(ts
+collapse to a single
+.BR \(ts .
+Neither
+.B #
+nor
+.B ;
+are recognized inside
+.BR \(ts s.
+A line can be continued by ending it with
+.BR \e ;
+this works everywhere except after a
+.BR # .
+.LP
+.ds n \fR*
+Each command
+.I name
+that is marked with \*n has an associated negative command
+.BI no- name
+that undoes the effect of
+.IR name .
+For example, the
+.B no-sort
+command specifies that references should not be sorted.
+The negative commands take no arguments.
+.LP
+In the following description each argument must be a single word;
+.I field
+is used for a single upper or lower case letter naming a field;
+.I fields
+is used for a sequence of such letters;
+.I m
+and
+.I n
+are used for a non-negative numbers;
+.I string
+is used for an arbitrary string;
+.I filename
+is used for the name of a file.
+.Tp \w'\fBabbreviate-label-ranges'u+2n
+.BI abbreviate\*n\  fields\ string1\ string2\ string3\ string4
+Abbreviate the first names of
+.IR fields .
+An initial letter will be separated from another initial letter by
+.IR string1 ,
+from the last name by
+.IR string2 ,
+and from anything else
+(such as a
+.B von
+or
+.BR de )
+by
+.IR string3 .
+These default to a period followed by a space.
+In a hyphenated first name,
+the initial of the first part of the name will be separated from the hyphen by
+.IR string4 ;
+this defaults to a period.
+No attempt is made to handle any ambiguities that might
+result from abbreviation.
+Names are abbreviated before sorting and before
+label construction.
+.TP
+.BI abbreviate-label-ranges\*n\  string
+Three or more adjacent labels that refer to consecutive references
+will be abbreviated to a label consisting
+of the first label, followed by
+.I string
+followed by the last label.
+This is mainly useful with numeric labels.
+If
+.I string
+is omitted it defaults to
+.BR \- .
+.TP
+.B accumulate\*n
+Accumulate references instead of writing out each reference
+as it is encountered.
+Accumulated references will be written out whenever a reference
+of the form
+.RS
+.IP
+.B .[
+.br
+.B $LIST$
+.br
+.B .]
+.LP
+is encountered,
+after all input files hve been processed,
+and whenever
+.B .R1
+line is recognized.
+.RE
+.TP
+.BI annotate\*n\  field\ string
+.I field
+is an annotation;
+print it at the end of the reference as a paragraph preceded by the line
+.RS
+.IP
+.BI . string
+.LP
+If
+.I macro
+is omitted it will default to
+.BR AP ;
+if
+.I field
+is also omitted it will default to
+.BR X .
+Only one field can be an annotation.
+.RE
+.TP
+.BI articles\  string \fR\|.\|.\|. 
+.IR string \|.\|.\|.
+are definite or indefinite articles, and should be ignored at the beginning of
+.B T
+fields when sorting.
+Initially,
+.BR the ,
+.B a
+and
+.B an
+are recognized as articles. 
+.TP
+.BI bibliography\  filename \fR\|.\|.\|.
+Write out all the references contained in the bibliographic databases
+.IR filename \|.\|.\|.
+.TP
+.BI bracket-label\  string1\ string2\ string3
+In the text, bracket each label
+with
+.I string1
+and
+.IR string2 .
+An occurrence of
+.I string2
+immediately followed by
+.I string1
+will be turned into
+.IR string3 .
+The default behaviour is
+.RS
+.IP
+.B
+bracket-label \e*([. \e*(.] ", "
+.RE
+.TP
+.BI capitalize\  fields
+Convert
+.I fields
+to caps and small caps.
+.TP
+.B compatible\*n
+Recognize
+.B .R1
+and
+.B .R2
+even when followed by a character other than space or newline.
+.TP
+.BI database\  filename \fR\|.\|.\|.
+Search the bibliographic databases
+.IR filename \|.\|.\|.
+For each
+.I filename
+if an index
+.IB filename @INDEX_SUFFIX@
+created by
+.BR @g@indxbib (@MAN1EXT@)
+exists, then it will be searched instead;
+each index can cover multiple databases.
+.TP
+.BI date-as-label\*n\  string
+.I string
+is a label expression that specifies a string with which to replace the
+.B D
+field after constructing the label.
+See the
+.B "Label expressions"
+subsection for a description of label expressions.
+This command is useful if you do not want explicit labels in the
+reference list, but instead want to handle any necessary
+disambiguation by qualifying the date in some way.
+The label used in the text would typically be some combination of the
+author and date.
+In most cases you should also use the
+.B no-label-in-reference
+command.
+For example,
+.RS
+.IP
+.B
+date-as-label D.+yD.y%a*D.-y
+.LP
+would attach a disambiguating letter to the year part of the
+.B D
+field in the reference.
+.RE
+.TP
+.B default-database\*n
+The default database should be searched.
+This is the default behaviour, so the negative version of
+this command is more useful.
+refer determines whether the default database should be searched
+on the first occasion that it needs to do a search.
+Thus a
+.B no-default-database
+command must be given before then,
+in order to be effective.
+.TP
+.BI discard\*n\  fields
+When the reference is read,
+.I fields
+should be discarded;
+no string definitions for
+.I fields
+will be output.
+Initially,
+.I fields
+are
+.BR XYZ .
+.TP
+.BI et-al\*n\  string\ m\ n
+Control use of
+.B
+et al
+in the evaluation of
+.B @
+expressions in label expressions.
+If the number of authors needed to make the author sequence
+unambiguous is
+.I u
+and the total number of authors is
+.I t
+then the last
+.IR t \|\-\| u
+authors will be replaced by
+.I string
+provided that
+.IR t \|\-\| u
+is not less than
+.I m
+and
+.I t
+is not less than
+.IR n .
+The default behaviour is
+.RS
+.IP
+.B
+et-al " et al" 2 3
+.RE
+.TP
+.BI include\  filename
+Include
+.I filename
+and interpret the contents as commands.
+.TP
+.BI join-authors\  string1\ string2\ string3
+This says how authors should be joined together.
+When there are exactly two authors, they will be joined with
+.IR string1 .
+When there are more than two authors, all but the last two will
+be joined with
+.IR string2 ,
+and the last two authors will be joined with
+.IR string3 .
+If
+.I string3
+is omitted,
+it will default to
+.IR string1 ;
+if
+.I string2
+is also omitted it will also default to
+.IR string1 .
+For example,
+.RS
+.IP
+.B
+join-authors " and " ", " ", and "
+.LP
+will restore the default method for joining authors.
+.RE
+.TP
+.B label-in-reference\*n
+When outputting the reference,
+define the string
+.B [F
+to be the reference's label.
+This is the default behaviour; so the negative version
+of this command is more useful.
+.TP
+.B label-in-text\*n
+For each reference output a label in the text.
+The label will be separated from the surrounding text as described in the
+.B bracket-label
+command.
+This is the default behaviour; so the negative version
+of this command is more useful.
+.TP
+.BI label\  string
+.I string
+is a label expression describing how to label each reference.
+.TP
+.BI separate-label-second-parts\  string
+When merging two-part labels, separate the second part of the second
+label from the first label with
+.IR string .
+See the description of the
+.B <>
+label expression.
+.TP
+.B move-punctuation\*n
+In the text, move any punctuation at the end of line past the label.
+It is usually a good idea to give this command unless you are using
+superscripted numbers as labels.
+.TP
+.BI reverse\*n\  string
+Reverse the fields whose names
+are in
+.IR string .
+Each field name can be followed by a number which says
+how many such fields should be reversed.
+If no number is given for a field, all such fields will be reversed.
+.TP
+.BI search-ignore\*n\  fields
+While searching for keys in databases for which no index exists,
+ignore the contents of
+.IR fields .
+Initially, fields
+.B XYZ
+are ignored.
+.TP
+.BI search-truncate\*n\  n
+Only require the first
+.I n
+characters of keys to be given.
+In effect when searching for a given key
+words in the database are truncated to the maximum of
+.I n
+and the length of the key.
+Initially
+.I n
+is 6.
+.TP
+.BI short-label\*n\  string
+.I string
+is a label expression that specifies an alternative (usually shorter)
+style of label.
+This is used when the
+.B #
+flag is given in the citation.
+When using author-date style labels, the identity of the author
+or authors is sometimes clear from the context, and so it
+may be desirable to omit the author or authors from the label.
+The
+.B short-label
+command will typically be used to specify a label containing just
+a date and possibly a disambiguating letter.
+.TP
+.BI sort\*n\  string
+Sort references according to
+.BR string .
+References will automatically be accumulated.
+.I string
+should be a list of field names, each followed by a number,
+indicating how many fields with the name should be used for sorting.
+.B +
+can be used to indicate that all the fields with the name should be used.
+Also 
+.B .
+can be used to indicate the references should be sorted using the
+(tentative) label.
+(The
+.B
+Label expressions
+subsection describes the concept of a tentative label.)
+.TP
+.B sort-adjacent-labels\*n
+Sort labels that are adjacent in the text according to their
+position in the reference list.
+This command should usually be given if the
+.B abbreviate-label-ranges
+command has been given,
+or if the label expression contains a
+.B <>
+expression.
+This will have no effect unless references are being accumulated.
+.SS Label expressions
+.LP
+Label expressions can be evaluated both normally and tentatively. 
+The result of normal evaluation is used for output. 
+The result of tentative evaluation, called the
+.I
+tentative label,
+is used to gather the information
+that normal evaluation needs to disambiguate the label.
+Label expressions specified by the
+.B date-as-label
+and
+.B short-label
+commands are not evaluated tentatively.
+Normal and tentative evaluation are the same for all types
+of expression other than
+.BR @ ,
+.BR * ,
+and
+.B %
+expressions. 
+The description below applies to normal evaluation,
+except where otherwise specified. 
+.TP
+.I field
+.TQ
+.I field\ n
+The
+.IR n -th
+part of
+.IR field . 
+If
+.I n
+is omitted, it defaults to 1. 
+.TP
+.BI ' string '
+The characters in
+.I string
+literally. 
+.TP
+.B @
+All the authors joined as specified by the
+.B join-authors
+command.
+The whole of each author's name will be used.
+However, if the references are sorted by author
+(that is the sort specification starts with
+.BR A+ ),
+then authors' last names will be used instead, provided that this does
+not introduce ambiguity,
+and also an initial subsequence of the authors may be used
+instead of all the authors, again provided that this does not
+introduce ambiguity.
+The use of only the last name for the
+.IR i -th
+author of some reference
+is considered to be ambiguous if
+there is some other reference,
+such that the first
+.IR i \|-\|1
+authors of the references are the same,
+the
+.IR i -th
+authors are not the same,
+but the
+.IR i -th
+authors' last names are the same.
+A proper initial subsequence of the sequence
+of authors for some reference is considered to be ambiguous if there is
+a reference with some other sequence of authors which also has
+that subsequence as a proper initial subsequence.
+When an initial subsequence of authors is used, the remaining
+authors are replaced by the string specified by the
+.B et-al
+command;
+this command may also specify additional requirements that must be
+met before an initial subsequence can be used.
+.B @
+tentatively evaluates to a canonical representation of the authors,
+such that authors that compare equally for sorting purpose
+will have the same representation.
+.TP
+.BI % n
+.TQ
+.B %a
+.TQ
+.B %A
+.TQ
+.B %i
+.TQ
+.B %I
+The serial number of the reference formatted according to the character
+following the
+.BR % . 
+The serial number of a reference is 1 plus the number of earlier references
+with same tentative label as this reference.
+These expressions tentatively evaluate to an empty string.
+.TP
+.IB expr *
+If there is another reference with the same tentative label as
+this reference, then
+.IR expr ,
+otherwise an empty string.
+It tentatively evaluates to an empty string.
+.TP
+.IB expr + n
+.TQ
+.IB expr \- n
+The first
+.RB ( + )
+or last
+.RB ( \- )
+.I n
+upper or lower case letters or digits of
+.IR expr .
+Troff special characters (such as
+.BR \e('a )
+count as a single letter.
+Accent strings are retained but do not count towards the total.
+.TP
+.IB expr .l
+.I expr
+converted to lowercase. 
+.TP
+.IB expr .u
+.I expr
+converted to uppercase. 
+.TP
+.IB expr .c
+.I expr
+converted to caps and small caps. 
+.TP
+.IB expr .r
+.I expr
+reversed so that the last name is first.
+.TP
+.IB expr .a
+.I expr
+with first names abbreviated.
+Note that fields specified in the
+.B abbreviate
+command are abbreviated before any labels are evaluated.
+Thus
+.B .a
+is useful only when you want a field to be abbreviated in a label
+but not in a reference.
+.TP
+.IB expr .y
+The year part of
+.IR expr . 
+.TP
+.IB expr .+y
+The part of
+.I expr
+before the year, or the whole of
+.I expr
+if it does not contain a year.
+.TP
+.IB expr .\-y
+The part of
+.I expr
+after the year, or an empty string if
+.I expr
+does not contain a year.
+.TP
+.IB expr .n
+The last name part of
+.IR expr . 
+.TP
+.IB expr1 \(ti expr2
+.I expr1
+except that if the last character of
+.I expr1
+is
+.B \-
+then it will be replaced by
+.IR expr2 . 
+.TP
+.I expr1\ expr2
+The concatenation of
+.I expr1
+and
+.IR expr2 . 
+.TP
+.IB expr1 | expr2
+If
+.I expr1
+is non-empty then
+.I expr1
+otherwise
+.IR expr2 . 
+.TP
+.IB expr1 & expr2
+If
+.I expr1
+is non-empty
+then
+.I expr2
+otherwise an empty string.
+.TP
+.IB expr1 ? expr2 : expr3
+If
+.I expr1
+is non-empty
+then
+.I expr2
+otherwise
+.IR expr3 . 
+.TP
+.BI < expr >
+The label is in two parts, which are separated by
+.IR expr .
+Two adjacent two-part labels which have the same first part will be
+merged by appending the second part of the second label onto the first
+label separated by the string specified in the
+.B separate-label-second-parts
+command (initially, a comma followed by a space); the resulting label
+will also be a two-part label with the same first part as before
+merging, and so additional labels can be merged into it.
+Note that it is permissible for the first part to be empty;
+this maybe desirable for expressions used in the
+.B short-label
+command.
+.TP
+.BI ( expr )
+The same as
+.IR expr .
+Used for grouping.
+.LP
+The above expressions are listed in order of precedence
+(highest first);
+.B &
+and
+.B |
+have the same precedence.
+.SS Macro interface
+Each reference starts with a call to the macro
+.BR ]- .
+The string
+.B [F
+will be defined to be the label for this reference,
+unless the
+.B no-label-in-reference
+command has been given.
+There then follows a series of string definitions,
+one for each field:
+string
+.BI [ X
+corresponds to field
+.IR X .
+The number register
+.B [P
+is set to 1 if the
+.B P
+field contains a range of pages.
+The
+.BR [T ,
+.B [A
+and
+.B [O
+number registers are set to 1 according as the
+.BR T ,
+.B A
+and
+.B O
+fields end with one of the characters
+.BR .?! .
+The
+.B [E
+number register will be set to 1 if the
+.B [E
+string contains more than one name.
+The reference is followed by a call to the
+.B ][
+macro.
+The first argument to this macro gives a number representing
+the type of the reference.
+If a reference contains a
+.B J
+field, it will be classified as type 1,
+otherwise if it contains a
+.B B
+field, it will type 3,
+otherwise if it contains a
+.B G
+or
+.B R
+field it will be type 4,
+otherwise if contains a
+.B I
+field it will be type 2,
+otherwise it will be type 0.
+The second argument is a symbolic name for the type:
+.BR other ,
+.BR journal-article ,
+.BR book ,
+.B article-in-book
+or
+.BR tech-report .
+Groups of references that have been accumulated
+or are produced by the
+.B bibliography
+command are preceded by a call to the
+.B ]<
+macro and followed by a call to the
+.B ]>
+macro.
+.SH FILES
+.Tp \w'\fB@DEFAULT_INDEX@'u+2n
+.B @DEFAULT_INDEX@
+Default database.
+.TP
+.IB file @INDEX_SUFFIX@
+Index files.
+.SH "SEE ALSO"
+.BR @g@indxbib (@MAN1EXT@),
+.BR @g@lookbib (@MAN1EXT@),
+.BR lkbib (@MAN1EXT@)
+.br
+.SH BUGS
+In label expressions,
+.B <>
+expressions are ignored inside
+.BI . char
+expressions.

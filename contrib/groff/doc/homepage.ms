@@ -2,9 +2,9 @@
 .\" with groff.
 .\"
 .\"
-.\" To make it work with other output devices also, we include tmac.arkup
+.\" To make it work with other output devices also, we include arkup.tmac
 .\" directly.
-.mso tmac.arkup
+.mso arkup.tmac
 .\"
 .LP
 .\"
@@ -139,16 +139,18 @@ bug-groff@gnu.org      for reporting bugs
 groff@gnu.org          for general discussion of groff
 groff-commit@ffii.org  a read-only list showing logs of
                        commitments to the CVS repository
-\fR
+\fP
 .fi
 .RE
 .sp
 .LP
-Note that groff@gnu.org is an alias for groff@ffii.org; you must be
-subscribed to the `groff' and `groff-commit' lists to send mails.
+Note that groff@gnu.org is an alias for
+.MAILTO groff@ffii.org groff@ffii.org ;
+you must be subscribed to the `groff' and `groff-commit' lists to send mails.
 .LP
 To subscribe, send e-mail to [list]-request@[domain] (example:
-groff-request@ffii.org) with the word `subscribe' in either the
+.MAILTO groff-request@ffii.org groff-request@ffii.org )
+with the word `subscribe' in either the
 subject or body of the e-mail (don't include the quotes).
 .LP
 GNU groff was written by
@@ -157,6 +159,6 @@ It is now maintained by
 .MAILTO Ted.Harding@nessie.mcc.ac.uk "Ted Harding"
 and
 .MAILTO wl@gnu.org "Werner Lemberg" .
-.LINE
+.br
 .
 .\" EOF
