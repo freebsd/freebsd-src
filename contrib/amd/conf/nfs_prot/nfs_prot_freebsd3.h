@@ -64,7 +64,8 @@ struct nfs_fh3;
 # include <nfs/rpcv2.h>
 #endif /* HAVE_NFS_RPCV2_H */
 #ifdef HAVE_NFS_NFS_H
-# include <nfs/nfs.h>
+# include <nfsclient/nfs.h>
+# include <nfsserver/nfs.h>
 #endif /* HAVE_NFS_NFS_H */
 #ifdef	HAVE_UFS_UFS_UFSMOUNT_H
 # include <ufs/ufs/ufsmount.h>

@@ -41,14 +41,12 @@
 .Nd mount nfs file systems
 .Sh SYNOPSIS
 .Nm
-.Op Fl 23KNPTUbcdilqs
+.Op Fl 23NPTUbcdils
 .Op Fl D Ar deadthresh
 .Op Fl I Ar readdirsize
-.Op Fl L Ar leaseterm
 .Op Fl R Ar retrycnt
 .Op Fl a Ar maxreadahead
 .Op Fl g Ar maxgroups
-.Op Fl m Ar realm
 .Op Fl o Ar options
 .Op Fl r Ar readsize
 .Op Fl t Ar timeout
@@ -102,36 +100,15 @@ gigabytes.
 .It Fl 3
 Use the NFS Version 3 protocol.
 .It Fl D
-Used with NQNFS to set the
+Set the
 .Dq "dead server threshold"
-to the specified number of round trip timeout intervals.
-After a
-.Dq "dead server threshold"
-of retransmit timeouts,
-cached data for the unresponsive server is assumed to still be valid.
-Values may be set in the range of 1 - 9, with 9 referring to an
-.Dq "infinite dead threshold"
-(i.e. never assume cached data still valid).
-This option is not generally recommended and is really an experimental
-feature.
+to the specified number of round trip timeout intervals before a
+.Dq "server not responding"
+message is displayed.
 .It Fl I
 Set the readdir read size to the specified value.
 The value should normally
 be a multiple of DIRBLKSIZ that is <= the read size for the mount.
-.It Fl K
-Pass Kerberos authenticators to the server for client-to-server
-user-credential mapping.
-This requires that the kernel be built with the NFSKERB option.
-The use of this option will prevent the kernel from compiling
-unless calls to the appropriate Kerberos encryption routines
-are provided in the NFS source.
-(Refer to the INTERNET-DRAFT titled
-.%T "Authentication Mechanisms for ONC RPC" ,
-for more information.)
-.It Fl L
-Used with NQNFS to set the lease term to the specified number of seconds.
-Only use this argument for mounts with a large round trip delay.
-Values are normally in the 10-30 second range.
 .It Fl N
 Do
 .Em not
@@ -206,11 +183,6 @@ Try this option and see whether performance improves or degrades.
 Probably
 most useful for client to server network interconnects with a large bandwidth
 times delay product.
-.It Fl m
-Set the Kerberos realm to the string argument.
-Used with the
-.Fl K
-option for mounts to other realms.
 .It Fl o
 Options are specified with a
 .Fl o
@@ -254,9 +226,6 @@ Same as
 .It intr
 Same as
 .Fl i .
-.It kerb
-Same as
-.Fl K .
 .It nfsv2
 Same as
 .Fl 2 .
@@ -275,9 +244,6 @@ Same as
 .It seqpacket
 Same as
 .Fl p .
-.It nqnfs
-Same as
-.Fl q .
 .It soft
 Same as
 .Fl s .
@@ -285,13 +251,6 @@ Same as
 Same as
 .Fl T .
 .El
-.It Fl q
-Use the Not Quite NFS (NQNFS) protocol.
-This experimental protocol is NFS Version 2 with leasing extensions
-similar to those found in NFS Version 3.
-The interoperability of this protocol with other systems is
-very limited and its implementation is not widely used.
-Do not use this option unless you know exactly what you are doing!
 .It Fl r
 Set the read data size to the specified value.
 It should normally be a power of 2 greater than or equal to 1024.

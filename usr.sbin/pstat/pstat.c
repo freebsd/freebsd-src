@@ -61,8 +61,8 @@ static const char rcsid[] =
 #include <sys/stat.h>
 #include <nfs/rpcv2.h>
 #include <nfs/nfsproto.h>
-#include <nfs/nfs.h>
-#include <nfs/nfsnode.h>
+#include <nfsclient/nfs.h>
+#include <nfsclient/nfsnode.h>
 #include <sys/ioctl.h>
 #include <sys/ioctl_compat.h>	/* XXX NTTYDISC is too well hidden */
 #include <sys/tty.h>
@@ -537,12 +537,6 @@ nfs_print(vp)
 		*flags++ = 'M';
 	if (flag & NWRITEERR)
 		*flags++ = 'E';
-	if (flag & NQNFSNONCACHE)
-		*flags++ = 'X';
-	if (flag & NQNFSWRITE)
-		*flags++ = 'O';
-	if (flag & NQNFSEVICTED)
-		*flags++ = 'G';
 	if (flag & NACC)
 		*flags++ = 'A';
 	if (flag & NUPD)
