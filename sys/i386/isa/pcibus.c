@@ -1,6 +1,6 @@
 /**************************************************************************
 **
-**  $Id: pcibus.c,v 1.2 1995/02/09 20:16:19 se Exp $
+**  $Id: pcibus.c,v 1.3 1995/02/25 17:51:18 se Exp $
 **
 **  pci bus subroutines for i386 architecture.
 **
@@ -45,22 +45,17 @@
 #define HAS_CPUFUNC_H
 #endif
 
-#include <types.h>
-#include <param.h>
-#include <kernel.h>
+#include <sys/param.h>
+#include <sys/systm.h>
+#include <sys/kernel.h>
+
+#include <i386/isa/icu.h>
 #include <i386/isa/isa.h>
 #include <i386/isa/isa_device.h>
-#include <i386/isa/icu.h>
-
-#ifdef HAS_CPUFUNC_H
-#include <i386/include/cpufunc.h>
-#endif
 
 #include <pci/pcivar.h>
 #include <pci/pcireg.h>
 #include <pci/pcibus.h>
-
-extern int printf();
 
 static char pci_mode;
 

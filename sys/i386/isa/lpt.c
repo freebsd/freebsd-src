@@ -46,7 +46,7 @@
  * SUCH DAMAGE.
  *
  *	from: unknown origin, 386BSD 0.1
- *	$Id: lpt.c,v 1.23 1994/11/13 21:14:30 nate Exp $
+ *	$Id: lpt.c,v 1.24 1994/11/16 06:09:29 phk Exp $
  */
 
 /*
@@ -114,11 +114,11 @@
 #include <sys/syslog.h>
 #include <sys/devconf.h>
 
+#include <machine/lpt.h>
+
 #include <i386/isa/isa.h>
 #include <i386/isa/isa_device.h>
 #include <i386/isa/lptreg.h>
-
-#include <i386/include/lpt.h>
 
 #ifdef INET
 #include <sys/mbuf.h>

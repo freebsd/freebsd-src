@@ -35,7 +35,7 @@
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
  *	From: if_ep.c,v 1.9 1994/01/25 10:46:29 deraadt Exp $
- *	$Id: if_ep.c,v 1.9 1994/05/02 22:27:33 ats Exp $
+ *	$Id: if_zp.c,v 1.1 1995/02/17 02:22:52 phk Exp $
  */
 /*-
  * TODO:
@@ -183,7 +183,7 @@ enum memtype { COMMON, ATTRIBUTE };
 
 #include "apm.h"
 #if NAPM > 0
-#include "i386/include/apm_bios.h"
+#include <machine/apm_bios.h>
 #endif /* NAPM > 0 */
 
 #endif	/* MACH_KERNEL */
@@ -258,13 +258,13 @@ static unsigned char card_info[256];
 
 int zpprobe __P((struct isa_device *));
 int zpattach __P((struct isa_device *));
-int zpioctl __P((struct ifnet * ifp, int, caddr_t));
+static int zpioctl __P((struct ifnet * ifp, int, caddr_t));
 static u_short read_eeprom_data __P((int, int));
 
 void zpinit __P((int));
 void zpintr __P((int));
-void zpmbuffill __P((caddr_t));
-void zpmbufempty __P((struct zp_softc *));
+void zpmbuffill __P((void *));
+static void zpmbufempty __P((struct zp_softc *));
 void zpread __P((struct zp_softc *));
 void zpreset __P((int));
 void zpstart __P((struct ifnet *));
@@ -1106,7 +1106,7 @@ zpinit(unit)
 	 */
 	sc->last_mb = 0;
 	sc->next_mb = 0;
-	zpmbuffill((caddr_t)sc);
+	zpmbuffill(sc);
 #endif	/* MACH_KERNEL */
 #ifdef	MACH_KERNEL
 #if 0	/* seiji */
@@ -1767,7 +1767,7 @@ zpread(sc)
 				if (m == 0)
 					goto out;
 			} else {
-				timeout(zpmbuffill, (caddr_t)sc, 0);
+				timeout(zpmbuffill, sc, 0);
 				sc->next_mb = (sc->next_mb + 1) % MAX_MBS;
 			}
 			if (totlen >= MINCLSIZE)
@@ -2217,7 +2217,7 @@ f_is_eeprom_busy(is)
 #ifndef	MACH_KERNEL
 void
 zpmbuffill(sp)
-	caddr_t sp;
+	void	*sp;
 {
 	struct zp_softc *sc = (struct zp_softc *)sp;
 	int     s, i;

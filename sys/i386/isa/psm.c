@@ -49,23 +49,23 @@
 
 #if NPSM > 0
 
-#include <param.h>
-#include <kernel.h>
-#include <systm.h>
-#include <buf.h>
-#include <malloc.h>
-#include <ioctl.h>
-#include <tty.h>
-#include <file.h>
-#include <proc.h>
-#include <vnode.h>
-
-#include <i386/include/mouse.h>
-#include <i386/isa/isa_device.h>
-
-#ifdef 0
-#include "syslog.h"		/* For debugging */
+#include <sys/param.h>
+#include <sys/systm.h>
+#include <sys/kernel.h>
+#include <sys/buf.h>
+#include <sys/malloc.h>
+#include <sys/ioctl.h>
+#include <sys/tty.h>
+#include <sys/file.h>
+#include <sys/proc.h>
+#include <sys/vnode.h>
+#if 0
+#include <sys/syslog.h>		/* For debugging */
 #endif
+
+#include <machine/mouse.h>
+
+#include <i386/isa/isa_device.h>
 
 #define DATA	0       /* Offset for data port, read-write */
 #define CNTRL	4       /* Offset for control port, write-only */
