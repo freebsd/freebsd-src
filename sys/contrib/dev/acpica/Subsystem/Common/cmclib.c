@@ -1,7 +1,7 @@
 /******************************************************************************
  *
  * Module Name: cmclib - Local implementation of C library functions
- * $Revision: 29 $
+ * $Revision: 32 $
  *
  *****************************************************************************/
 
@@ -9,7 +9,7 @@
  *
  * 1. Copyright Notice
  *
- * Some or all of this work - Copyright (c) 1999, 2000, Intel Corp.
+ * Some or all of this work - Copyright (c) 1999, 2000, 2001, Intel Corp.
  * All rights reserved.
  *
  * 2. License
@@ -454,7 +454,7 @@ AcpiCmMemcpy (
 void *
 AcpiCmMemset (
     void                    *Dest,
-    UINT32                  Value,
+    NATIVE_UINT             Value,
     NATIVE_UINT             Count)
 {
     NATIVE_CHAR             *New = (NATIVE_CHAR *) Dest;
@@ -630,6 +630,7 @@ static const UINT8 _acpi_ctype[257] = {
 #define IS_LOWER(c)  (_acpi_ctype[(unsigned char)(c)] & (_ACPI_LO))
 #define IS_DIGIT(c)  (_acpi_ctype[(unsigned char)(c)] & (_ACPI_DI))
 #define IS_SPACE(c)  (_acpi_ctype[(unsigned char)(c)] & (_ACPI_SP))
+#define IS_XDIGIT(c) (_acpi_ctype[(unsigned char)(c)] & (_ACPI_XD))
 
 
 /*******************************************************************************
@@ -770,7 +771,7 @@ UINT32
 AcpiCmStrtoul (
     const NATIVE_CHAR       *String,
     NATIVE_CHAR             **Terminator,
-    UINT32                  Base)
+    NATIVE_UINT             Base)
 {
     UINT32                  converted = 0;
     UINT32                  index;

@@ -1,7 +1,7 @@
 /*******************************************************************************
  *
  * Module Name: nssearch - Namespace search
- *              $Revision: 61 $
+ *              $Revision: 64 $
  *
  ******************************************************************************/
 
@@ -9,7 +9,7 @@
  *
  * 1. Copyright Notice
  *
- * Some or all of this work - Copyright (c) 1999, 2000, Intel Corp.
+ * Some or all of this work - Copyright (c) 1999, 2000, 2001, Intel Corp.
  * All rights reserved.
  *
  * 2. License
@@ -164,16 +164,26 @@ AcpiNsSearchNode (
 
     FUNCTION_TRACE ("NsSearchNode");
 
+
+#ifdef ACPI_DEBUG
+    if (TRACE_NAMES & AcpiDbgLevel)
     {
-        DEBUG_EXEC (NATIVE_CHAR *ScopeName = AcpiNsGetTablePathname (Node));
-        DEBUG_PRINT (TRACE_NAMES,
-            ("NsSearchNode: Searching %s [%p]\n",
-            ScopeName, Node));
-        DEBUG_PRINT (TRACE_NAMES,
-            ("NsSearchNode: For %4.4s (type %X)\n",
-            &TargetName, Type));
-        DEBUG_EXEC (AcpiCmFree (ScopeName));
+        NATIVE_CHAR         *ScopeName;
+        
+        ScopeName = AcpiNsGetTablePathname (Node);
+        if (ScopeName)
+        {
+            DEBUG_PRINT (TRACE_NAMES,
+                ("NsSearchNode: Searching %s [%p]\n",
+                ScopeName, Node));
+            DEBUG_PRINT (TRACE_NAMES,
+                ("NsSearchNode: For %4.4s (type %X)\n",
+                &TargetName, Type));
+
+            AcpiCmFree (ScopeName);
+        }
     }
+#endif
 
 
     /*
@@ -439,6 +449,16 @@ AcpiNsSearchAndEnter (
                                     Type, ReturnNode);
     if (Status != AE_NOT_FOUND)
     {
+        /*
+         * If we found it AND the request specifies that a
+         * find is an error, return the error
+         */
+        if ((Status == AE_OK) &&
+            (Flags & NS_ERROR_IF_FOUND))
+        {
+            Status = AE_EXIST;
+        }
+
         /*
          * Either found it or there was an error
          * -- finished either way

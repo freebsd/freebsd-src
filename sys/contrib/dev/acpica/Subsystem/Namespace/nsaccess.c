@@ -1,7 +1,7 @@
 /*******************************************************************************
  *
  * Module Name: nsaccess - Top-level functions for accessing ACPI namespace
- *              $Revision: 116 $
+ *              $Revision: 119 $
  *
  ******************************************************************************/
 
@@ -9,7 +9,7 @@
  *
  * 1. Copyright Notice
  *
- * Some or all of this work - Copyright (c) 1999, 2000, Intel Corp.
+ * Some or all of this work - Copyright (c) 1999, 2000, 2001, Intel Corp.
  * All rights reserved.
  *
  * 2. License
@@ -225,9 +225,9 @@ AcpiNsRootInitialize (void)
             switch (InitVal->Type)
             {
 
-            case ACPI_TYPE_NUMBER:
+            case ACPI_TYPE_INTEGER:
 
-                ObjDesc->Number.Value =
+                ObjDesc->Integer.Value =
                         (ACPI_INTEGER) STRTOUL (InitVal->Val, NULL, 10);
                 break;
 
@@ -322,14 +322,14 @@ UnlockAndExit:
  *
  * FUNCTION:    AcpiNsLookup
  *
- * PARAMETERS:  PrefixNode  - Search scope if name is not fully qualified
+ * PARAMETERS:  PrefixNode      - Search scope if name is not fully qualified
  *              Pathname        - Search pathname, in internal format
  *                                (as represented in the AML stream)
  *              Type            - Type associated with name
  *              InterpreterMode - IMODE_LOAD_PASS2 => add name if not found
  *              Flags           - Flags describing the search restrictions
  *              WalkState       - Current state of the walk
- *              ReturnNode  - Where the Node is placed (if found
+ *              ReturnNode      - Where the Node is placed (if found
  *                                or created successfully)
  *
  * RETURN:      Status
@@ -352,7 +352,7 @@ AcpiNsLookup (
     ACPI_NAMESPACE_NODE     **ReturnNode)
 {
     ACPI_STATUS             Status;
-    ACPI_NAMESPACE_NODE      *PrefixNode;
+    ACPI_NAMESPACE_NODE     *PrefixNode;
     ACPI_NAMESPACE_NODE     *CurrentNode = NULL;
     ACPI_NAMESPACE_NODE     *ScopeToPush = NULL;
     ACPI_NAMESPACE_NODE     *ThisNode = NULL;
@@ -361,8 +361,9 @@ AcpiNsLookup (
     BOOLEAN                 NullNamePath = FALSE;
     OBJECT_TYPE_INTERNAL    TypeToCheckFor;
     OBJECT_TYPE_INTERNAL    ThisSearchType;
+    UINT32                  LocalFlags = Flags & ~NS_ERROR_IF_FOUND;
 
-    DEBUG_ONLY_MEMBERS      (UINT32 i)
+    DEBUG_EXEC              (UINT32 i;)
 
 
     FUNCTION_TRACE ("NsLookup");
@@ -605,6 +606,7 @@ AcpiNsLookup (
         if (!NumSegments)
         {
             ThisSearchType = Type;
+            LocalFlags = Flags;
         }
 
         /* Pluck one ACPI name from the front of the pathname */
@@ -615,7 +617,7 @@ AcpiNsLookup (
 
         Status = AcpiNsSearchAndEnter (SimpleName, WalkState,
                                         CurrentNode, InterpreterMode,
-                                        ThisSearchType, Flags,
+                                        ThisSearchType, LocalFlags,
                                         &ThisNode);
 
         if (ACPI_FAILURE (Status))

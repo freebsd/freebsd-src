@@ -1,7 +1,7 @@
 /******************************************************************************
  *
  * Module Name: cmxface - External interfaces for "global" ACPI functions
- *              $Revision: 57 $
+ *              $Revision: 62 $
  *
  *****************************************************************************/
 
@@ -9,7 +9,7 @@
  *
  * 1. Copyright Notice
  *
- * Some or all of this work - Copyright (c) 1999, 2000, Intel Corp.
+ * Some or all of this work - Copyright (c) 1999, 2000, 2001, Intel Corp.
  * All rights reserved.
  *
  * 2. License
@@ -149,12 +149,7 @@ AcpiInitializeSubsystem (
 {
     ACPI_STATUS             Status;
 
-
     FUNCTION_TRACE ("AcpiInitializeSubsystem");
-
-    DEBUG_PRINT_RAW (ACPI_OK,
-        ("ACPI: Core Subsystem version [%s]\n", ACPI_CA_VERSION));
-    DEBUG_PRINT (ACPI_INFO, ("Initializing ACPI Subsystem...\n"));
 
 
     /* Initialize all globals used by the subsystem */
@@ -442,16 +437,25 @@ AcpiGetSystemInfo (
     OutBuffer->Length = sizeof (ACPI_SYSTEM_INFO);
     InfoPtr = (ACPI_SYSTEM_INFO *) OutBuffer->Pointer;
 
-    /* TBD [Future]: need a version number, or use the version string */
-    InfoPtr->AcpiCaVersion      = 0x1234;
+    InfoPtr->AcpiCaVersion      = ACPI_CA_VERSION;
 
     /* System flags (ACPI capabilities) */
 
     InfoPtr->Flags              = AcpiGbl_SystemFlags;
 
     /* Timer resolution - 24 or 32 bits  */
-
-    InfoPtr->TimerResolution    = AcpiHwPmtResolution ();
+    if (!AcpiGbl_FADT)
+    {
+        InfoPtr->TimerResolution = 0;
+    }
+    else if (AcpiGbl_FADT->TmrValExt == 0)
+    {
+        InfoPtr->TimerResolution = 24;
+    }
+    else
+    {
+        InfoPtr->TimerResolution = 32;
+    }
 
     /* Clear the reserved fields */
 
