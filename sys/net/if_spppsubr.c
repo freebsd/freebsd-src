@@ -38,6 +38,7 @@
 
 #include <sys/systm.h>
 #include <sys/kernel.h>
+#include <sys/module.h>
 #include <sys/sockio.h>
 #include <sys/socket.h>
 #include <sys/syslog.h>
@@ -417,8 +418,29 @@ static const struct cp *cps[IDX_COUNT] = {
 	&chap,			/* IDX_CHAP */
 };
 
+static int
+sppp_modevent(module_t mod, int type, void *unused)
+{
+	switch (type) {
+	case MOD_LOAD:
+		break;
+	case MOD_UNLOAD:
+		return EACCES;
+		break;
+	default:
+		break;
+	}
+	return 0;
+}
+static moduledata_t spppmod = {
+	"sppp",
+	sppp_modevent,
+	0
+};
+MODULE_VERSION(sppp, 1);
+DECLARE_MODULE(sppp, spppmod, SI_SUB_DRIVERS, SI_ORDER_ANY);
 
-/*
+/*
  * Exported functions, comprising our interface to the lower layer.
  */
 
@@ -430,7 +452,6 @@ sppp_input(struct ifnet *ifp, struct mbuf *m)
 {
 	struct ppp_header *h;
 	struct ifqueue *inq = 0;
-	int s;
 	struct sppp *sp = (struct sppp *)ifp;
 	int debug = ifp->if_flags & IFF_DEBUG;
 
@@ -647,7 +668,7 @@ sppp_output(struct ifnet *ifp, struct mbuf *m,
 		 * become invalid. So we
 		 * - don't let packets with src ip addr 0 thru
 		 * - we flag TCP packets with src ip 0 as an error
-		 */	
+		 */
 
 		if(ip->ip_src.s_addr == INADDR_ANY)	/* -hm */
 		{
@@ -658,7 +679,7 @@ sppp_output(struct ifnet *ifp, struct mbuf *m,
 			else
 				return(0);
 		}
-		
+
 		/*
 		 * Put low delay, telnet, rlogin and ftp control packets
 		 * in front of the queue.
@@ -786,8 +807,9 @@ sppp_attach(struct ifnet *ifp)
 #if 0
 	sp->pp_flags = PP_KEEPALIVE;
 #endif
-	sp->pp_fastq.ifq_maxlen = 32;
-	sp->pp_cpq.ifq_maxlen = 20;
+ 	sp->pp_if.if_snd.ifq_maxlen = 32;
+ 	sp->pp_fastq.ifq_maxlen = 32;
+ 	sp->pp_cpq.ifq_maxlen = 20;
 	sp->pp_loopcnt = 0;
 	sp->pp_alivecnt = 0;
 	sp->pp_seq = 0;
@@ -948,7 +970,7 @@ sppp_ioctl(struct ifnet *ifp, IOCTL_CMD_T cmd, void *data)
 		}
 
 		if (going_down) {
-			if (sp->pp_mode != IFF_CISCO) 
+			if (sp->pp_mode != IFF_CISCO)
 				lcp.Close(sp);
 			else if (sp->pp_tlf)
 				(sp->pp_tlf)(sp);
@@ -958,7 +980,7 @@ sppp_ioctl(struct ifnet *ifp, IOCTL_CMD_T cmd, void *data)
 		}
 
 		if (going_up) {
-			if (sp->pp_mode != IFF_CISCO) 
+			if (sp->pp_mode != IFF_CISCO)
 				lcp.Close(sp);
 			sp->pp_mode = newmode;
 			if (sp->pp_mode == 0) {
@@ -1017,8 +1039,7 @@ sppp_ioctl(struct ifnet *ifp, IOCTL_CMD_T cmd, void *data)
 	return rv;
 }
 
-
-/*
+/*
  * Cisco framing implementation.
  */
 
@@ -1115,7 +1136,7 @@ sppp_cisco_send(struct sppp *sp, int type, long par1, long par2)
 #if defined(__FreeBSD__) && __FreeBSD__ >= 3
 	getmicrouptime(&tv);
 #endif
-	
+
 	MGETHDR (m, M_DONTWAIT, MT_DATA);
 	if (! m)
 		return;
@@ -1151,7 +1172,7 @@ sppp_cisco_send(struct sppp *sp, int type, long par1, long par2)
 		ifp->if_oerrors++;
 }
 
-/*
+/*
  * PPP protocol implementation.
  */
 
@@ -1260,6 +1281,16 @@ sppp_cp_input(const struct cp *cp, struct sppp *sp, struct mbuf *m)
 			/* fall through... */
 		case STATE_ACK_SENT:
 		case STATE_REQ_SENT:
+			/*
+			 * sppp_cp_change_state() have the side effect of
+			 * restarting the timeouts. We want to avoid that
+			 * if the state don't change, otherwise we won't
+			 * ever timeout and resend a configuration request
+			 * that got lost.
+			 */
+			if (sp->state[cp->protoidx] == (rv ? STATE_ACK_SENT:
+			    STATE_REQ_SENT))
+				break;
 			sppp_cp_change_state(cp, sp, rv?
 					     STATE_ACK_SENT: STATE_REQ_SENT);
 			break;
@@ -1355,6 +1386,13 @@ sppp_cp_input(const struct cp *cp, struct sppp *sp, struct mbuf *m)
 		case STATE_REQ_SENT:
 		case STATE_ACK_SENT:
 			sp->rst_counter[cp->protoidx] = sp->lcp.max_configure;
+			/*
+			 * Slow things down a bit if we think we might be
+			 * in loopback. Depend on the timeout to send the
+			 * next configuration request.
+			 */
+			if (sp->pp_loopcnt)
+				break;
 			(cp->scr)(sp);
 			break;
 		case STATE_OPENED:
@@ -1493,6 +1531,7 @@ sppp_cp_input(const struct cp *cp, struct sppp *sp, struct mbuf *m)
 		    ntohl (*(long*)(h+1)) == sp->lcp.magic) {
 			/* Line loopback mode detected. */
 			printf(SPP_FMT "loopback\n", SPP_ARGS(ifp));
+			sp->pp_loopcnt = MAXALIVECNT * 5;
 			if_down (ifp);
 			sppp_qflush (&sp->pp_cpq);
 
@@ -1721,7 +1760,7 @@ sppp_to_event(const struct cp *cp, struct sppp *sp)
 		case STATE_STOPPING:
 			sppp_cp_send(sp, cp->proto, TERM_REQ, ++sp->pp_seq,
 				     0, 0);
-			TIMEOUT(cp->TO, (void *)sp, sp->lcp.timeout, 
+			TIMEOUT(cp->TO, (void *)sp, sp->lcp.timeout,
 			    sp->ch[cp->protoidx]);
 			break;
 		case STATE_REQ_SENT:
@@ -1762,12 +1801,13 @@ sppp_cp_change_state(const struct cp *cp, struct sppp *sp, int newstate)
 	case STATE_REQ_SENT:
 	case STATE_ACK_RCVD:
 	case STATE_ACK_SENT:
-		TIMEOUT(cp->TO, (void *)sp, sp->lcp.timeout, 
+		TIMEOUT(cp->TO, (void *)sp, sp->lcp.timeout,
 		    sp->ch[cp->protoidx]);
 		break;
 	}
 }
-/*
+
+/*
  *--------------------------------------------------------------------------*
  *                                                                          *
  *                         The LCP implementation.                          *
@@ -1799,6 +1839,11 @@ sppp_lcp_up(struct sppp *sp)
 {
 	STDDCL;
 
+	sp->pp_alivecnt = 0;
+	sp->lcp.opts = (1 << LCP_OPT_MAGIC);
+	sp->lcp.magic = 0;
+	sp->lcp.protos = 0;
+	sp->lcp.mru = sp->lcp.their_mru = PP_MTU;
 	/*
 	 * If this interface is passive or dial-on-demand, and we are
 	 * still in Initial state, it means we've got an incoming
@@ -1845,11 +1890,11 @@ sppp_lcp_down(struct sppp *sp)
 			log(LOG_DEBUG,
 			    SPP_FMT "Down event (carrier loss)\n",
 			    SPP_ARGS(ifp));
+		sp->pp_flags &= ~PP_CALLIN;
+		if (sp->state[IDX_LCP] != STATE_INITIAL)
+			lcp.Close(sp);
+		ifp->if_flags &= ~IFF_RUNNING;
 	}
-	sp->pp_flags &= ~PP_CALLIN;
-	if (sp->state[IDX_LCP] != STATE_INITIAL)
-		lcp.Close(sp);
-	ifp->if_flags &= ~IFF_RUNNING;
 }
 
 static void
@@ -1911,10 +1956,14 @@ sppp_lcp_RCR(struct sppp *sp, struct lcp_header *h, int len)
 		switch (*p) {
 		case LCP_OPT_MAGIC:
 			/* Magic number. */
-			/* fall through, both are same length */
+			if (len >= 6 && p[1] == 6)
+				continue;
+			if (debug)
+				log(-1, "[invalid] ");
+			break;
 		case LCP_OPT_ASYNC_MAP:
 			/* Async control character map. */
-			if (len >= 6 || p[1] == 6)
+			if (len >= 6 && p[1] == 6)
 				continue;
 			if (debug)
 				log(-1, "[invalid] ");
@@ -1989,25 +2038,12 @@ sppp_lcp_RCR(struct sppp *sp, struct lcp_header *h, int len)
 			nmagic = (u_long)p[2] << 24 |
 				(u_long)p[3] << 16 | p[4] << 8 | p[5];
 			if (nmagic != sp->lcp.magic) {
+				sp->pp_loopcnt = 0;
 				if (debug)
 					log(-1, "0x%lx ", nmagic);
 				continue;
 			}
-			/*
-			 * Local and remote magics equal -- loopback?
-			 */
-			if (sp->pp_loopcnt >= MAXALIVECNT*5) {
-				printf (SPP_FMT "loopback\n",
-					SPP_ARGS(ifp));
-				sp->pp_loopcnt = 0;
-				if (ifp->if_flags & IFF_UP) {
-					if_down(ifp);
-					sppp_qflush(&sp->pp_cpq);
-					/* XXX ? */
-					lcp.Down(sp);
-					lcp.Up(sp);
-				}
-			} else if (debug)
+			if (debug && sp->pp_loopcnt < MAXALIVECNT*5)
 				log(-1, "[glitch] ");
 			++sp->pp_loopcnt;
 			/*
@@ -2072,7 +2108,21 @@ sppp_lcp_RCR(struct sppp *sp, struct lcp_header *h, int len)
 		rlen += p[1];
 	}
 	if (rlen) {
-		if (++sp->fail_counter[IDX_LCP] >= sp->lcp.max_failure) {
+		/*
+		 * Local and remote magics equal -- loopback?
+		 */
+		if (sp->pp_loopcnt >= MAXALIVECNT*5) {
+			if (sp->pp_loopcnt == MAXALIVECNT*5)
+				printf (SPP_FMT "loopback\n",
+					SPP_ARGS(ifp));
+			if (ifp->if_flags & IFF_UP) {
+				if_down(ifp);
+				sppp_qflush(&sp->pp_cpq);
+				/* XXX ? */
+				lcp.Down(sp);
+				lcp.Up(sp);
+			}
+		} else if (++sp->fail_counter[IDX_LCP] >= sp->lcp.max_failure) {
 			if (debug)
 				log(-1, " max_failure (%d) exceeded, "
 				       "send conf-rej\n",
@@ -2083,7 +2133,6 @@ sppp_lcp_RCR(struct sppp *sp, struct lcp_header *h, int len)
 				log(-1, " send conf-nak\n");
 			sppp_cp_send (sp, PPP_LCP, CONF_NAK, h->ident, rlen, buf);
 		}
-		return 0;
 	} else {
 		if (debug)
 			log(-1, " send conf-ack\n");
@@ -2440,7 +2489,8 @@ sppp_lcp_check_and_close(struct sppp *sp)
 
 	lcp.Close(sp);
 }
-/*
+
+/*
  *--------------------------------------------------------------------------*
  *                                                                          *
  *                        The IPCP implementation.                          *
@@ -2604,7 +2654,7 @@ sppp_ipcp_RCR(struct sppp *sp, struct lcp_header *h, int len)
 			    (hisaddr == 1 && desiredaddr != 0)) {
 				/*
 				 * Peer's address is same as our value,
-				 * or we have set it to 0.0.0.1 to 
+				 * or we have set it to 0.0.0.1 to
 				 * indicate that we do not really care,
 				 * this is agreeable.  Gonna conf-ack
 				 * it.
@@ -2834,8 +2884,7 @@ sppp_ipcp_scr(struct sppp *sp)
 	sppp_cp_send(sp, PPP_IPCP, CONF_REQ, sp->confid[IDX_IPCP], i, &opt);
 }
 
-
-/*
+/*
  *--------------------------------------------------------------------------*
  *                                                                          *
  *                        The CHAP implementation.                          *
@@ -2965,7 +3014,7 @@ sppp_chap_input(struct sppp *sp, struct mbuf *m)
 			}
 			break;
 		}
-		
+
 		if (debug) {
 			log(LOG_DEBUG,
 			    SPP_FMT "chap input <%s id=0x%x len=%d name=",
@@ -3074,7 +3123,7 @@ sppp_chap_input(struct sppp *sp, struct mbuf *m)
 			sppp_print_string(sp->hisauth.name,
 					  sppp_strnlen(sp->hisauth.name, AUTHNAMELEN));
 			log(-1, "\n");
-		}    
+		}
 		if (debug) {
 			log(LOG_DEBUG, SPP_FMT "chap input(%s) "
 			    "<%s id=0x%x len=%d name=",
@@ -3317,7 +3366,8 @@ sppp_chap_scr(struct sppp *sp)
 		       sp->myauth.name,
 		       0);
 }
-/*
+
+/*
  *--------------------------------------------------------------------------*
  *                                                                          *
  *                        The PAP implementation.                           *
@@ -3625,7 +3675,8 @@ sppp_pap_scr(struct sppp *sp)
 		       (size_t)pwdlen, sp->myauth.secret,
 		       0);
 }
-/*
+
+/*
  * Random miscellaneous functions.
  */
 
@@ -3884,7 +3935,7 @@ sppp_set_ip_addr(struct sppp *sp, u_long src)
 		si->sin_addr.s_addr = htonl(src);
 
 		/* add new route */
-		error = rtinit(ifa, (int)RTM_ADD, RTF_HOST);		
+		error = rtinit(ifa, (int)RTM_ADD, RTF_HOST);
 		if (debug && error)
 		{
 			log(LOG_DEBUG, SPP_FMT "sppp_set_ip_addr: rtinit ADD failed, error=%d",
@@ -3892,7 +3943,7 @@ sppp_set_ip_addr(struct sppp *sp, u_long src)
 		}
 #endif
 	}
-}			
+}
 
 static int
 sppp_params(struct sppp *sp, u_long cmd, void *data)
@@ -4024,7 +4075,7 @@ sppp_phase_network(struct sppp *sp)
 	/* if no NCP is starting, all this was in vain, close down */
 	sppp_lcp_check_and_close(sp);
 }
-	
+
 
 static const char *
 sppp_cp_type_name(u_char type)
