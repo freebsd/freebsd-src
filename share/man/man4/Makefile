@@ -70,8 +70,8 @@ MAN=	aac.4 \
 	fwohci.4 \
 	fxp.4 \
 	gbde.4 \
-	gem.4 \
 	gdb.4 \
+	gem.4 \
 	geom.4 \
 	gif.4 \
 	gre.4 \
@@ -147,7 +147,6 @@ MAN=	aac.4 \
 	ncv.4 \
 	netgraph.4 \
 	netintro.4 \
-	ng_UI.4 \
 	ng_async.4 \
 	ng_atm.4 \
 	ng_atmpif.4 \
@@ -158,6 +157,7 @@ MAN=	aac.4 \
 	ng_btsocket.4 \
 	ng_cisco.4 \
 	ng_device.4 \
+	nge.4 \
 	ng_echo.4 \
 	ng_etf.4 \
 	ng_ether.4 \
@@ -186,9 +186,9 @@ MAN=	aac.4 \
 	ng_tee.4 \
 	ng_tty.4 \
 	ng_ubt.4 \
+	ng_UI.4 \
 	ng_uni.4 \
 	ng_vjc.4 \
-	nge.4 \
 	nmdm.4 \
 	nsp.4 \
 	null.4 \
@@ -318,7 +318,10 @@ MAN=	aac.4 \
 
 MLINKS=	agp.4 agpgart.4
 MLINKS+=an.4 if_an.4
-MLINKS+=ata.4 acd.4 ata.4 ad.4 ata.4 afd.4 ata.4 ast.4
+MLINKS+=ata.4 acd.4 \
+	ata.4 ad.4 \
+	ata.4 afd.4 \
+	ata.4 ast.4
 MLINKS+=aue.4 if_aue.4
 MLINKS+=awi.4 if_awi.4
 MLINKS+=axe.4 if_axe.4
@@ -335,7 +338,9 @@ MLINKS+=em.4 if_em.4
 MLINKS+=en.4 if_en.4
 MLINKS+=faith.4 if_faith.4
 MLINKS+=fatm.4 if_fatm.4
-MLINKS+=fd.4 stderr.4 fd.4 stdin.4 fd.4 stdout.4
+MLINKS+=fd.4 stderr.4 \
+	fd.4 stdin.4 \
+	fd.4 stdout.4
 MLINKS+=fpa.4 fea.4
 MLINKS+=fwe.4 if_fwe.4
 MLINKS+=fxp.4 if_fxp.4
@@ -347,7 +352,9 @@ MLINKS+=gx.4 if_gx.4
 MLINKS+=hatm.4 if_hatm.4
 MLINKS+=hme.4 if_hme.4
 MLINKS+=idt.4 if_idt.4
-MLINKS+=ipfirewall.4 ipacct.4 ipfirewall.4 ipaccounting.4 ipfirewall.4 ipfw.4
+MLINKS+=ipfirewall.4 ipaccounting.4 \
+	ipfirewall.4 ipacct.4 \
+	ipfirewall.4 ipfw.4
 MLINKS+=kue.4 if_kue.4
 MLINKS+=lge.4 if_lge.4
 MLINKS+=lo.4 loop.4
@@ -355,15 +362,15 @@ MLINKS+=lp.4 plip.4
 MLINKS+=md.4 vn.4
 MLINKS+=mem.4 kmem.4
 MLINKS+=my.4 if_my.4
-MLINKS+=netintro.4 net.4
-MLINKS+=netintro.4 networking.4
+MLINKS+=netintro.4 net.4 \
+	netintro.4 networking.4
 MLINKS+=nge.4 if_nge.4
 MLINKS+=oldcard.4 card.4
 MLINKS+=patm.4 if_patm.4
 MLINKS+=pccbb.4 cbb.4
-MLINKS+=pcm.4 als4000.4
-MLINKS+=pcm.4 emu10k1.4
-MLINKS+=pcm.4 snd.4
+MLINKS+=pcm.4 als4000.4 \
+	pcm.4 emu10k1.4 \
+	pcm.4 snd.4
 MLINKS+=pcn.4 if_pcn.4
 MLINKS+=pcvt.4 vt.4
 MLINKS+=ppp.4 if_ppp.4
@@ -371,10 +378,10 @@ MLINKS+=re.4 if_re.4
 MLINKS+=rl.4 if_rl.4
 MLINKS+=rue.4 if_rue.4
 MLINKS+=sbsh.4 if_sbsh.4
-MLINKS+=scsi.4 CAM.4
-MLINKS+=scsi.4 SCSI.4
-MLINKS+=scsi.4 cam.4
-MLINKS+=scsi.4 scbus.4
+MLINKS+=scsi.4 CAM.4 \
+	scsi.4 cam.4 \
+	scsi.4 scbus.4 \
+	scsi.4 SCSI.4
 MLINKS+=sf.4 if_sf.4
 MLINKS+=sis.4 if_sis.4
 MLINKS+=sk.4 if_sk.4
