@@ -46,10 +46,17 @@ struct acpi_batteries {
 };
 
 static TAILQ_HEAD(,acpi_batteries) acpi_batteries;
-static int			acpi_batteries_initted = 0;
-static int			acpi_batteries_units = 0;
+static int			acpi_batteries_initted;
+static int			acpi_batteries_units;
 static int			acpi_battery_info_expire = 5;
 static struct acpi_battinfo	acpi_battery_battinfo;
+ACPI_SERIAL_DECL(battery, "ACPI generic battery");
+
+int
+acpi_battery_get_info_expire(void)
+{
+    return (acpi_battery_info_expire);
+}
 
 int
 acpi_battery_get_units(void)
@@ -61,22 +68,27 @@ int
 acpi_battery_get_battdesc(int logical_unit, struct acpi_battdesc *battdesc)
 {
     struct acpi_batteries *bp;
-    int i;
+    int error, i;
 
+    error = ENXIO;
+    ACPI_SERIAL_BEGIN(battery);
     if (logical_unit < 0 || logical_unit >= acpi_batteries_units)
-	return (ENXIO);
+	goto out;
 
     i = 0;
     TAILQ_FOREACH(bp, &acpi_batteries, link) {
 	if (logical_unit == i) {
 	    battdesc->type = bp->battdesc.type;
 	    battdesc->phys_unit = bp->battdesc.phys_unit;
-	    return (0);
+	    error = 0;
+	    break;
 	}
 	i++;
     }
 
-    return (ENXIO);
+out:
+    ACPI_SERIAL_END(battery);
+    return (error);
 }
 
 int
@@ -106,12 +118,6 @@ acpi_battery_get_battinfo(int unit, struct acpi_battinfo *battinfo)
 
 out:
     return (error);
-}
-
-int
-acpi_battery_get_info_expire(void)
-{
-    return (acpi_battery_info_expire);
 }
 
 static int
@@ -165,34 +171,34 @@ acpi_battery_init(void)
     device_t		 dev;
     int	 		 error;
 
+    ACPI_SERIAL_ASSERT(battery);
+
+    error = ENXIO;
     dev = devclass_get_device(devclass_find("acpi"), 0);
     if (dev == NULL)
-	return (ENXIO);
+	goto out;
     sc = device_get_softc(dev);
-    if (sc == NULL)
-	return (ENXIO);
 
-    error = 0;
     TAILQ_INIT(&acpi_batteries);
-    acpi_batteries_initted = 1;
 
+    /* XXX We should back out registered ioctls on error. */
     error = acpi_register_ioctl(ACPIIO_BATT_GET_UNITS, acpi_battery_ioctl,
-				NULL);
+	NULL);
     if (error != 0)
-	return (error);
+	goto out;
     error = acpi_register_ioctl(ACPIIO_BATT_GET_BATTDESC, acpi_battery_ioctl,
-				NULL);
+	NULL);
     if (error != 0)
-	return (error);
+	goto out;
     error = acpi_register_ioctl(ACPIIO_BATT_GET_BATTINFO, acpi_battery_ioctl,
-				NULL);
+	NULL);
     if (error != 0)
-	return (error);
+	goto out;
 
     sysctl_ctx_init(&sc->acpi_battery_sysctl_ctx);
     sc->acpi_battery_sysctl_tree = SYSCTL_ADD_NODE(&sc->acpi_battery_sysctl_ctx,
-				   SYSCTL_CHILDREN(sc->acpi_sysctl_tree),
-				   OID_AUTO, "battery", CTLFLAG_RD, 0, "");
+	SYSCTL_CHILDREN(sc->acpi_sysctl_tree), OID_AUTO, "battery", CTLFLAG_RD,
+	0, "");
     SYSCTL_ADD_PROC(&sc->acpi_battery_sysctl_ctx,
 	SYSCTL_CHILDREN(sc->acpi_battery_sysctl_tree),
 	OID_AUTO, "life", CTLTYPE_INT | CTLFLAG_RD,
@@ -213,6 +219,9 @@ acpi_battery_init(void)
 	OID_AUTO, "info_expire", CTLFLAG_RD | CTLFLAG_RW,
 	&acpi_battery_info_expire, 0, "");
 
+    acpi_batteries_initted = TRUE;
+
+out:
     return (error);
 }
 
@@ -227,33 +236,41 @@ acpi_battery_register(int type, int phys_unit)
     if (bp == NULL)
 	return (ENOMEM);
 
+    ACPI_SERIAL_BEGIN(battery);
+    if (!acpi_batteries_initted && (error = acpi_battery_init()) != 0) {
+	printf("acpi_battery_register failed for unit %d\n", phys_unit);
+	goto out;
+    }
     bp->battdesc.type = type;
     bp->battdesc.phys_unit = phys_unit;
-    if (acpi_batteries_initted == 0) {
-	if ((error = acpi_battery_init()) != 0) {
-	    free(bp, M_ACPIBATT);
-	    return (error);
-	}
-    }
-		
     TAILQ_INSERT_TAIL(&acpi_batteries, bp, link);
     acpi_batteries_units++;
 
-    return (0);
+out:
+    ACPI_SERIAL_END(battery);
+    if (error)
+	free(bp, M_ACPIBATT);
+    return (error);
 }
 
 int
 acpi_battery_remove(int type, int phys_unit)
 {
     struct acpi_batteries *bp, *tmp;
+    int ret;
 
+    ret = ENOENT;
+    ACPI_SERIAL_BEGIN(battery);
     TAILQ_FOREACH_SAFE(bp, &acpi_batteries, link, tmp) {
 	if (bp->battdesc.type == type && bp->battdesc.phys_unit == phys_unit) {
 	    TAILQ_REMOVE(&acpi_batteries, bp, link);
 	    acpi_batteries_units--;
-	    free(bp, M_ACPIBATT);
-	    return (0);
+	    ret = 0;
+	    break;
 	}
     }
-    return (ENOENT);
+    ACPI_SERIAL_END(battery);
+    if (ret == 0)
+	free(bp, M_ACPIBATT);
+    return (ret);
 }
