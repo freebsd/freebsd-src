@@ -232,6 +232,9 @@ struct ipsecstat {
 	u_quad_t out_esphist[256];
 	u_quad_t out_ahhist[256];
 	u_quad_t out_comphist[256];
+
+	u_quad_t spdcachelookup;
+	u_quad_t spdcachemiss;
 };
 
 /* statistics for ipsec processing */
