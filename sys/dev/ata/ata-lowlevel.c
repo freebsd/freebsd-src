@@ -532,7 +532,8 @@ ata_reset(struct ata_channel *ch)
     ATA_IDX_OUTB(ch, ATA_ALTSTAT, ATA_A_IDS | ATA_A_RESET);
     DELAY(10000); 
     ATA_IDX_OUTB(ch, ATA_ALTSTAT, ATA_A_IDS);
-    DELAY(10000);
+    DELAY(100000);
+    ATA_IDX_INB(ch, ATA_ERROR);
 
     /* wait for BUSY to go inactive */
     for (timeout = 0; timeout < 310; timeout++) {
