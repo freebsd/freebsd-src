@@ -137,10 +137,12 @@ ports-all
 #ports-palm
 #ports-print
 #ports-russian
+#ports-science
 #ports-security
 #ports-shells
 #ports-sysutils
 #ports-textproc
+#ports-ukrainian
 #ports-vietnamese
 #ports-www
 #ports-x11
