@@ -20,9 +20,6 @@ UPPER		'A' - 'Z' 0xb3 0xb4 0xb6 0xb7 0xbd 0xe0 - 0xff
 XDIGIT          '0' - '9' 'a' - 'f' 'A' - 'F'
 BLANK		' ' '\t' 0x9a
 PRINT		0x20 - 0x7e 0x80 - 0xff
-# IDEOGRAM
-# SPECIAL
-# PHONEGRAM
 
 MAPLOWER       	<'A' - 'Z' : 'a'>
 MAPLOWER       	<'a' - 'z' : 'a'>
@@ -38,6 +35,7 @@ MAPLOWER	<0xbd  0xad>
 MAPLOWER        <0xad  0xad>
 MAPLOWER	<0xe0 - 0xff : 0xc0>
 MAPLOWER	<0xc0 - 0xdf : 0xc0>
+
 MAPUPPER       	<'A' - 'Z' : 'A'>
 MAPUPPER       	<'a' - 'z' : 'A'>
 MAPUPPER        <0xb3  0xb3>
@@ -52,6 +50,7 @@ MAPUPPER        <0xbd  0xbd>
 MAPUPPER	<0xad  0xbd>
 MAPUPPER	<0xe0 - 0xff : 0xe0>
 MAPUPPER	<0xc0 - 0xdf : 0xe0>
+
 TODIGIT       	<'0' - '9' : 0>
 TODIGIT       	<'A' - 'F' : 10>
 TODIGIT       	<'a' - 'f' : 10>

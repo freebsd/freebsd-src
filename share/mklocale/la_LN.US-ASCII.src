@@ -1,8 +1,10 @@
 /*
- * Standard LOCALE_CTYPE for the ASCII Locale
+ * Standard LOCALE_CTYPE for the US-ASCII Locale
+ *
+ * $FreeBSD$
  */
 ENCODING        "NONE"
-VARIABLE        Strict 7bit ASCII locale
+VARIABLE        Strict 7bit US-ASCII locale
 
 ALPHA		'A' - 'Z' 'a' - 'z'
 CONTROL		0x00 - 0x1f 0x7f
@@ -15,14 +17,13 @@ UPPER		'A' - 'Z'
 XDIGIT          '0' - '9' 'a' - 'f' 'A' - 'F'
 BLANK		' ' '\t'
 PRINT		0x20 - 0x7e
-# IDEOGRAM
-# SPECIAL
-# PHONEGRAM
 
 MAPLOWER       	<'A' - 'Z' : 'a'>
 MAPLOWER       	<'a' - 'z' : 'a'>
+
 MAPUPPER       	<'A' - 'Z' : 'A'>
 MAPUPPER       	<'a' - 'z' : 'A'>
+
 TODIGIT       	<'0' - '9' : 0>
 TODIGIT       	<'A' - 'F' : 10>
 TODIGIT       	<'a' - 'f' : 10>
