@@ -39,6 +39,7 @@
 
 #include <sys/param.h>
 #ifdef KERNEL
+#include "opt_vinum.h"
 #include <sys/systm.h>
 #include <sys/kernel.h>
 #endif
