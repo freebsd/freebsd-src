@@ -12,7 +12,7 @@
  *
  * This software is provided ``AS IS'' without any warranties of any kind.
  *
- *	$Id: ip_fw.c,v 1.103.2.1 1999/03/31 14:10:59 nsayer Exp $
+ *	$Id: ip_fw.c,v 1.103.2.2 1999/04/01 14:56:17 nsayer Exp $
  */
 
 /*
@@ -62,7 +62,7 @@ static int fw_verbose = 1;
 #else
 static int fw_verbose = 0;
 #endif
-static int fw_one_pass = 0; /* XXX */
+static int fw_one_pass = 1 ;
 #ifdef IPFIREWALL_VERBOSE_LIMIT
 static int fw_verbose_limit = IPFIREWALL_VERBOSE_LIMIT;
 #else
