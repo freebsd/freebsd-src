@@ -37,7 +37,7 @@
  *OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  *SUCH DAMAGE.
  *
- *	$Id$
+ *	$Id: aic7xxx.seq,v 1.46.2.14 1997/04/04 19:49:26 gibbs Exp $
  *
  *-M************************************************************************/
 
@@ -72,7 +72,8 @@ reset:
 	mvi	SCSISEQ, ENRSELI|ENAUTOATNP;
 	call	clear_target_state;
 poll_for_work:
-	test	SSTAT0,SELDI|SELDO	jnz selection;
+	test	SSTAT0,SELDO	jnz select;
+	test	SSTAT0,SELDI	jnz reselect;
 	test	SCSISEQ, ENSELO	jnz poll_for_work;
 .if ( TWIN_CHANNEL )
 	/*
@@ -82,7 +83,8 @@ poll_for_work:
 	 * either a selection or reselection occurs.
 	 */
 	xor	SBLKCTL,SELBUSB;	/* Toggle to the other bus */
-	test	SSTAT0,SELDI|SELDO	jnz selection;
+	test	SSTAT0,SELDO	jnz select;
+	test	SSTAT0,SELDI	jnz reselect;
 	test	SCSISEQ, ENSELO	jnz poll_for_work;
 	xor	SBLKCTL,SELBUSB;	/* Toggle back */
 .endif
@@ -203,8 +205,6 @@ initialize_scsiid:
  * Reselection has been initiated by a target. Make a note that we've been
  * reselected, but haven't seen an IDENTIFY message from the target yet.
  */
-selection:
-	test	SSTAT0, SELDI	jz select;
 reselect:
 	clr	MSG_LEN;	/* Don't have anything in the mesg buffer */
 	mvi	CLRSINT0, CLRSELDI;
