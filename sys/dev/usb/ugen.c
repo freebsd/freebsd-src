@@ -406,6 +406,7 @@ ugenopen(struct cdev *dev, int flag, int mode, usb_proc_ptr p)
 
 	if (endpt == USB_CONTROL_ENDPOINT) {
 		sc->sc_is_open[USB_CONTROL_ENDPOINT] = 1;
+		sc->sc_refcnt++;
 		return (0);
 	}
 
@@ -516,6 +517,7 @@ ugenopen(struct cdev *dev, int flag, int mode, usb_proc_ptr p)
 		}
 	}
 	sc->sc_is_open[endpt] = 1;
+	sc->sc_refcnt++;
 	return (0);
 }
 
@@ -543,6 +545,8 @@ ugenclose(struct cdev *dev, int flag, int mode, usb_proc_ptr p)
 	if (endpt == USB_CONTROL_ENDPOINT) {
 		DPRINTFN(5, ("ugenclose: close control\n"));
 		sc->sc_is_open[endpt] = 0;
+		if (--sc->sc_refcnt == 0)
+			usb_detach_wakeup(USBDEV(sc->sc_dev));
 		return (0);
 	}
 
@@ -578,6 +582,8 @@ ugenclose(struct cdev *dev, int flag, int mode, usb_proc_ptr p)
 		}
 	}
 	sc->sc_is_open[endpt] = 0;
+	if (--sc->sc_refcnt == 0)
+		usb_detach_wakeup(USBDEV(sc->sc_dev));
 
 	return (0);
 }
@@ -734,10 +740,7 @@ ugenread(struct cdev *dev, struct uio *uio, int flag)
 
 	USB_GET_SC(ugen, UGENUNIT(dev), sc);
 
-	sc->sc_refcnt++;
 	error = ugen_do_read(sc, endpt, uio, flag);
-	if (--sc->sc_refcnt < 0)
-		usb_detach_wakeup(USBDEV(sc->sc_dev));
 	return (error);
 }
 
@@ -834,10 +837,7 @@ ugenwrite(struct cdev *dev, struct uio *uio, int flag)
 
 	USB_GET_SC(ugen, UGENUNIT(dev), sc);
 
-	sc->sc_refcnt++;
 	error = ugen_do_write(sc, endpt, uio, flag);
-	if (--sc->sc_refcnt < 0)
-		usb_detach_wakeup(USBDEV(sc->sc_dev));
 	return (error);
 }
 
@@ -886,12 +886,13 @@ USB_DETACH(ugen)
 	}
 
 	s = splusb();
-	if (--sc->sc_refcnt >= 0) {
+	if (sc->sc_refcnt > 0) {
 		/* Wake everyone */
 		for (i = 0; i < USB_MAX_ENDPOINTS; i++)
 			wakeup(&sc->sc_endpoints[i][IN]);
 		/* Wait for processes to go away. */
-		usb_detach_wait(USBDEV(sc->sc_dev));
+		while (sc->sc_refcnt > 0)
+			usb_detach_wait(USBDEV(sc->sc_dev));
 	}
 	splx(s);
 
@@ -1401,10 +1402,7 @@ ugenioctl(struct cdev *dev, u_long cmd, caddr_t addr, int flag, usb_proc_ptr p)
 
 	USB_GET_SC(ugen, UGENUNIT(dev), sc);
 
-	sc->sc_refcnt++;
 	error = ugen_do_ioctl(sc, endpt, cmd, addr, flag, p);
-	if (--sc->sc_refcnt < 0)
-		usb_detach_wakeup(USBDEV(sc->sc_dev));
 	return (error);
 }
 
