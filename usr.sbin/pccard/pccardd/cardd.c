@@ -544,7 +544,7 @@ assign_card_index(struct cis * cis)
 		for (cio = cp->io; cio; cio = cio->next) {
 			resource.size = cio->size;
 			resource.min = cio->addr;
-			resource.max = resource.min + cio->size;
+			resource.max = resource.min + cio->size - 1;
 			if (ioctl(fd, PIOCSRESOURCE, &resource) < 0) {
 				perror("ioctl (PIOCSRESOURCE)");
 			       exit(1);
@@ -697,7 +697,7 @@ assign_io(struct slot *sp)
 					j = bit_fns(io_avail, IOPORTS, i,
 							sio->size, sio->size);
 					res.min = j;
-					res.max = j + sio->size ;
+					res.max = j + sio->size - 1;
 					if (ioctl(fd, PIOCSRESOURCE, &res) < 0) {
 						perror("ioctl (PIOCSRESOURCE)");
 						exit(1);
