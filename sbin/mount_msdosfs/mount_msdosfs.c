@@ -62,7 +62,7 @@ static const char rcsid[] =
 
 /*
  * XXX - no way to specify "foo=<bar>"-type options; that's what we'd
- * want for "-u", "-g", "-m", "-L", "-D", and "-W".
+ * want for "-u", "-g", "-m", "-M", "-L", "-D", and "-W".
  */
 static struct mntopt mopts[] = {
 	MOPT_STDOPTS,
@@ -312,12 +312,14 @@ a_mask(s)
 void
 usage()
 {
-	fprintf(stderr, "%s\n%s\n", 
 #ifdef TRANSITION_PERIOD_HACK
-	"usage: mount_msdosfs [-o options] [-u user] [-g group] [-m mask] [-s] [-l]",
-	"                     [-9] [-L locale] [-D dos-codepage] [-W table] bdev dir");
+	fprintf(stderr, "%s\n%s\n%s\n",
+	"usage: mount_msdosfs [-o options] [-u user] [-g group] [-m mask] [-M mask]"
+	"                     [-s] [-l] [-9] [-L locale] [-D dos-codepage] [-W table]"
+	"                     bdev dir");
 #else
-	"usage: mount_msdosfs [-o options] [-u user] [-g group] [-m mask]",
+	fprintf(stderr, "%s\n%s\n",
+	"usage: mount_msdosfs [-o options] [-u user] [-g group] [-m mask] [-M mask]",
 	"                     [-s] [-l] [-9] [-L locale] [-D dos-codepage] bdev dir");
 #endif
 	exit(EX_USAGE);
