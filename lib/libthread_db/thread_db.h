@@ -1,4 +1,5 @@
 /*
+ * Copyright (c) 2004 David Xu <davidxu@freebsd.org>
  * Copyright (c) 2004 Marcel Moolenaar
  * All rights reserved.
  *
@@ -71,8 +72,20 @@ typedef struct {
 
 typedef enum {
 	TD_EVENT_NONE = 0,
-	TD_CREATE =	0x0001,
-	TD_DEATH =	0x0002,
+	TD_CATCHSIG =	0x0001,
+	TD_CONCURRENCY=	0x0002,
+	TD_CREATE =	0x0004,
+	TD_DEATH =	0x0008,
+	TD_IDLE =	0x0010,
+	TD_LOCK_TRY =	0x0020,
+	TD_PREEMPT =	0x0040,
+	TD_PRI_INHERIT=	0x0080,
+	TD_READY =	0x0100,
+	TD_REAP =	0x0200,
+	TD_SLEEP =	0x0400,
+	TD_SWITCHFROM =	0x0800,
+	TD_SWITCHTO =	0x1000,
+	TD_TIMEOUT =	0x2000,
 	TD_ALL_EVENTS = ~0
 } td_thr_events_e;
 
@@ -87,10 +100,17 @@ typedef struct {
 
 typedef unsigned int td_thr_events_t;
 
-/* XXX can't be it... */
+typedef enum {
+	NOTIFY_BPT,		/* User inserted breakpoint. */
+	NOTIFY_AUTOBPT,		/* Automatic breakpoint. */
+	NOTIFY_SYSCALL		/* Invocation of system call. */
+} td_notify_e;
+
 typedef struct {
+	td_notify_e	type;
 	union {
 		psaddr_t bptaddr;
+		int syscallno;
 	} u;
 } td_notify_t;
 
@@ -151,18 +171,7 @@ typedef enum
 	TD_THR_USER
 } td_thr_type_e;
 
-typedef int thread_key_t;
-
-#if 0
-typedef struct td_thrinfo_t {
-	unsigned int	ti_user_flags;
-	psaddr_t	ti_pc;
-	psaddr_t	ti_sp;
-	short		ti_flags;
-	uchar_t		ti_preemptflag;
-	uchar_t		ti_pirecflag;
-};
-#endif
+typedef pthread_key_t thread_key_t;
 
 typedef struct {
 	const td_thragent_t *ti_ta_p;
