@@ -1,4 +1,4 @@
-#	$Id: Makefile,v 1.67 1997/12/07 18:07:37 bde Exp $
+#	$Id: Makefile,v 1.68 1997/12/09 11:36:36 jamil Exp $
 
 MAN4=   aha.4 ahb.4 ahc.4 aic.4 alog.4 apm.4 ar.4 asc.4 bt.4 cx.4 cy.4 de.4 \
         dgb.4 ed.4 eg.4 el.4 ep.4 ex.4 gsc.4 fdc.4 fe.4 fxp.4 ie.4 io.4 \
@@ -6,7 +6,7 @@ MAN4=   aha.4 ahb.4 ahc.4 aic.4 alog.4 apm.4 ar.4 asc.4 bt.4 cx.4 cy.4 de.4 \
         meteor.4 mouse.4 mse.4 mtio.4 nca.4 ncr.4 npx.4 \
         pcvt.4 perfmon.4 pnp.4 psm.4 \
 	qcam.4 scd.4 screen.4 sb.4 sea.4 si.4 sio.4 \
-	spkr.4 sr.4 sysmouse.4 tw.4 uha.4 vx.4 wd.4 wl.4 wt.4 ze.4 zp.4
+	spkr.4 sr.4 sysmouse.4 tw.4 uha.4 vx.4 wd.4 wfd.4 wl.4 wt.4 ze.4 zp.4
 
 MLINKS=		aha.4 ../aha.4
 MLINKS+=	ahb.4 ../ahb.4
@@ -66,6 +66,7 @@ MLINKS+=	sysmouse.4 ../sysmouse.4
 MLINKS+=	tw.4 ../tw.4
 MLINKS+=	uha.4 ../uha.4
 MLINKS+=	wd.4 ../wd.4
+MLINKS+=	wfd.4 ../wfd.4
 MLINKS+=	wl.4 ../wl.4
 MLINKS+=	wt.4 ../wt.4
 MLINKS+=	vx.4 ../vx.4
