@@ -55,6 +55,7 @@
 #include <sys/fcntl.h>
 #include <sys/kernel.h>
 #include <sys/sysctl.h>
+#include <sys/bus.h>
 
 #include <machine/clock.h>
 
@@ -62,6 +63,10 @@
 #include <vm/pmap.h>
 
 #include <i386/isa/isa_device.h>
+
+#ifndef COMPAT_OLDISA
+#error "The dgm device requires the old isa compatibility shims"
+#endif
 
 #include <gnu/i386/isa/dgmfep.h>
 #include <gnu/i386/isa/dgmbios.h>
@@ -200,8 +205,13 @@ static	void	disc_optim	__P((struct tty	*tp, struct termios *t));
 
 
 struct isa_driver	dgmdriver = {
-	dgmprobe, dgmattach, "dgm",0
+	INTR_TYPE_TTY,
+	dgmprobe,
+	dgmattach,
+	"dgm",
+	0
 };
+COMPAT_ISA_DRIVER(dgm, dgmdriver);
 
 static	d_open_t	dgmopen;
 static	d_close_t	dgmclose;

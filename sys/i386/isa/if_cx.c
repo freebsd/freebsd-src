@@ -35,12 +35,18 @@
 #include <sys/sockio.h>
 #include <sys/socket.h>
 #include <sys/conf.h>
+#include <sys/bus.h>
 
 #include <net/if.h>
 
 #include <net/bpf.h>
 
 #include <i386/isa/isa_device.h>
+
+#ifndef COMPAT_OLDISA
+#error "The cx device requires the old isa compatibility shims"
+#endif
+
 #define watchdog_func_t void(*)(struct ifnet *)
 #define start_func_t    void(*)(struct ifnet*)
 
@@ -294,7 +300,13 @@ cxattach (struct isa_device *id)
 	return (1);
 }
 
-struct isa_driver cxdriver = { cxprobe, cxattach, "cx" };
+struct isa_driver cxdriver = {
+	INTR_TYPE_NET,
+	cxprobe,
+	cxattach,
+	"cx"
+};
+COMPAT_ISA_DRIVER(cx, cxdriver);
 
 /*
  * Process an ioctl request.

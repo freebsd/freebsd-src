@@ -54,6 +54,7 @@
 #define b_actf	bio_queue.tqe_next
 #include <sys/dataacq.h>
 #include <sys/conf.h>
+#include <sys/bus.h>
 
 #ifdef LOUTB
 #include <machine/clock.h>
@@ -277,8 +278,14 @@ static struct ctlr **labpcs;	/* XXX: Should be dynamic */
 
 static int labpcattach(struct isa_device *dev);
 static int labpcprobe(struct isa_device *dev);
-struct isa_driver labpcdriver =
-	{ labpcprobe, labpcattach, "labpc", 0  };
+struct isa_driver labpcdriver = {
+	INTR_TYPE_TTY,
+	labpcprobe,
+	labpcattach,
+	"labpc",
+	0
+};
+COMPAT_ISA_DRIVER(labpc, labpcdriver);
 
 static	d_open_t	labpcopen;
 static	d_close_t	labpcclose;

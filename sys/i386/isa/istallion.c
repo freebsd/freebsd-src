@@ -51,12 +51,17 @@
 #include <sys/conf.h>
 #include <sys/fcntl.h>
 #include <sys/uio.h>
+#include <sys/bus.h>
 #include <machine/clock.h>
 #include <vm/vm.h>
 #include <vm/pmap.h>
 #include <i386/isa/isa_device.h>
 #include <machine/cdk.h>
 #include <machine/comstats.h>
+
+#ifndef COMPAT_OLDISA
+#error "The stli device requires the old isa compatibility shims"
+#endif
 
 /*****************************************************************************/
 
@@ -622,8 +627,12 @@ static char	*stli_stalgetmemptr(stlibrd_t *brdp, unsigned long offset,
  *	Declare the driver isa structure.
  */
 struct isa_driver	stlidriver = {
-	stliprobe, stliattach, stli_drvname
+	INTR_TYPE_TTY,
+	stliprobe,
+	stliattach,
+	stli_drvname
 };
+COMPAT_ISA_DRIVER(stli, stlidriver);
 
 /*****************************************************************************/
 

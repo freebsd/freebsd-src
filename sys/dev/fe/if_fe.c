@@ -75,9 +75,11 @@
 
 #include <sys/param.h>
 #include <sys/systm.h>
+#include <sys/kernel.h>
 #include <sys/sockio.h>
 #include <sys/mbuf.h>
 #include <sys/socket.h>
+#include <sys/bus.h>
 
 #include <net/ethernet.h>
 #include <net/if.h>
@@ -95,6 +97,10 @@
 
 #include <i386/isa/isa_device.h>
 #include <i386/isa/icu.h>
+
+#ifndef COMPAT_OLDISA
+#error "The fe device requires the old isa compatibility shims"
+#endif
 
 /* PCCARD suport */
 /* XXX FIXME! doesn't work with new pccard code, must be converted! */
@@ -264,11 +270,13 @@ static void	fe_emptybuffer	( struct fe_softc * );
 /* Driver struct used in the config code.  This must be public (external.)  */
 struct isa_driver fedriver =
 {
+	INTR_TYPE_NET,
 	fe_probe,
 	fe_attach,
 	"fe",
 	1			/* It's safe to mark as "sensitive"  */
 };
+COMPAT_ISA_DRIVER(fe, fedriver);
 
 /*
  * Fe driver specific constants which relate to 86960/86965.

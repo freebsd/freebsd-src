@@ -40,12 +40,13 @@
 
 #include <sys/param.h>
 #include <sys/systm.h>
+#include <sys/kernel.h>
 #include <sys/fcntl.h>
 #include <sys/malloc.h>
 #include <sys/tty.h>
 #include <sys/proc.h>
 #include <sys/conf.h>
-#include <sys/kernel.h>
+#include <sys/bus.h>
 
 #include <i386/isa/isa_device.h>
 
@@ -787,8 +788,12 @@ COMPAT_PCI_DRIVER (rp_pci, rp_pcidevice);
 static timeout_t rpdtrwakeup;
 
 struct isa_driver rpdriver = {
-	rpprobe, rpattach, "rp"
-     };
+	INTR_TYPE_TTY,
+	rpprobe,
+	rpattach,
+	"rp"
+};
+COMPAT_ISA_DRIVER(rp, rpdriver);
 
 static	char	driver_name[] = "rp";
 

@@ -52,6 +52,7 @@
 #include <sys/fcntl.h>
 #include <sys/kernel.h>
 #include <sys/sysctl.h>
+#include <sys/bus.h>
 
 #include <machine/clock.h>
 
@@ -59,6 +60,10 @@
 #include <vm/pmap.h>
 
 #include <i386/isa/isa_device.h>
+
+#ifndef COMPAT_OLDISA
+#error "The dgb device requires the old isa compatibility shims"
+#endif
 
 #include <gnu/i386/isa/dgbios.h>
 #include <gnu/i386/isa/dgfep.h>
@@ -197,8 +202,13 @@ static	void	disc_optim	__P((struct tty	*tp, struct termios *t));
 
 
 struct isa_driver	dgbdriver = {
-	dgbprobe, dgbattach, "dgb",0
+	INTR_TYPE_TTY,
+	dgbprobe,
+	dgbattach,
+	"dgb",
+	0
 };
+COMPAT_ISA_DRIVER(dgb, dgbdriver);
 
 static	d_open_t	dgbopen;
 static	d_close_t	dgbclose;
