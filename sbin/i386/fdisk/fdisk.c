@@ -26,7 +26,7 @@
 
 #ifndef lint
 static const char rcsid[] =
-	"$Id: fdisk.c,v 1.27 1998/11/26 12:24:35 joerg Exp $";
+	"$Id: fdisk.c,v 1.27.2.1 1999/01/31 19:48:00 rnordier Exp $";
 #endif /* not lint */
 
 #include <sys/disklabel.h>
@@ -117,48 +117,15 @@ typedef struct cmd {
 } CMD;
 
 
+static int B_flag  = 0;		/* replace boot code */
 static int a_flag  = 0;		/* set active partition */
-static int b_flag  = 0;		/* replace boot code */
+static char *b_flag = NULL;	/* path to boot code */
 static int i_flag  = 0;		/* replace partition data */
 static int u_flag  = 0;		/* update partition data */
 static int t_flag  = 0;		/* test only, if f_flag is given */
 static char *f_flag = NULL;	/* Read config info from file */
 static int v_flag  = 0;		/* Be verbose */
 
-static unsigned char bootcode[] = {
-0x33, 0xc0, 0xfa, 0x8e, 0xd0, 0xbc, 0x00, 0x7c, 0x8e, 0xc0, 0x8e, 0xd8, 0xfb, 0x8b, 0xf4, 0xbf,
-0x00, 0x06, 0xb9, 0x00, 0x02, 0xfc, 0xf3, 0xa4, 0xea, 0x1d, 0x06, 0x00, 0x00, 0xb0, 0x04, 0xbe,
-0xbe, 0x07, 0x80, 0x3c, 0x80, 0x74, 0x0c, 0x83, 0xc6, 0x10, 0xfe, 0xc8, 0x75, 0xf4, 0xbe, 0xbd,
-0x06, 0xeb, 0x43, 0x8b, 0xfe, 0x8b, 0x14, 0x8b, 0x4c, 0x02, 0x83, 0xc6, 0x10, 0xfe, 0xc8, 0x74,
-0x0a, 0x80, 0x3c, 0x80, 0x75, 0xf4, 0xbe, 0xbd, 0x06, 0xeb, 0x2b, 0xbd, 0x05, 0x00, 0xbb, 0x00,
-0x7c, 0xb8, 0x01, 0x02, 0xcd, 0x13, 0x73, 0x0c, 0x33, 0xc0, 0xcd, 0x13, 0x4d, 0x75, 0xef, 0xbe,
-0x9e, 0x06, 0xeb, 0x12, 0x81, 0x3e, 0xfe, 0x7d, 0x55, 0xaa, 0x75, 0x07, 0x8b, 0xf7, 0xea, 0x00,
-0x7c, 0x00, 0x00, 0xbe, 0x85, 0x06, 0x2e, 0xac, 0x0a, 0xc0, 0x74, 0x06, 0xb4, 0x0e, 0xcd, 0x10,
-0xeb, 0xf4, 0xfb, 0xeb, 0xfe,
-'M', 'i', 's', 's', 'i', 'n', 'g', ' ',
-	'o', 'p', 'e', 'r', 'a', 't', 'i', 'n', 'g', ' ', 's', 'y', 's', 't', 'e', 'm', 0,
-'E', 'r', 'r', 'o', 'r', ' ', 'l', 'o', 'a', 'd', 'i', 'n', 'g', ' ',
-	'o', 'p', 'e', 'r', 'a', 't', 'i', 'n', 'g', ' ', 's', 'y', 's', 't', 'e', 'm', 0,
-'I', 'n', 'v', 'a', 'l', 'i', 'd', ' ',
-	'p', 'a', 'r', 't', 'i', 't', 'i', 'o', 'n', ' ', 't', 'a', 'b', 'l', 'e', 0,
-'A', 'u', 't', 'h', 'o', 'r', ' ', '-', ' ',
-	'S', 'i', 'e', 'g', 'm', 'a', 'r', ' ', 'S', 'c', 'h', 'm', 'i', 'd', 't', 0,0,0,
-
-  0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,
-  0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,
-  0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,
-  0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,
-  0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,
-  0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,
-  0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,
-  0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,
-  0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,
-  0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,
-  0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,
-  0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,
-  0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0
-};
-
 struct part_type
 {
  unsigned char type;
@@ -246,67 +213,49 @@ static int string(char *str, char **ans);
 int
 main(int argc, char *argv[])
 {
-	int	i;
+	int	c, i;
 
-	for ( argv++ ; --argc ; argv++ ) { register char *token = *argv;
-		if (*token++ != '-' || !*token)
+	while ((c = getopt(argc, argv, "Bab:f:ituv1234")) != -1)
+		switch (c) {
+		case 'B':
+			B_flag = 1;
 			break;
-		else { register int flag;
-			for ( ; (flag = *token++) ; ) {
-				switch (flag) {
-				case '1':
-					partition = 1;
-					break;
-				case '2':
-					partition = 2;
-					break;
-				case '3':
-					partition = 3;
-					break;
-				case '4':
-					partition = 4;
-					break;
-				case 'a':
-					a_flag = 1;
-					break;
-				case 'b':
-					b_flag = 1;
-					break;
-				case 'f':
-					if (*token)
-					{
-					    f_flag = token;
-					    token = "";
-					}
-					else
-					{
-					    if (argc == 1)
-						usage();
-					    --argc;
-					    f_flag = *++argv;
-					}
-					/*
-					 * u_flag is needed, because we're
-					 * writing to the disk.
-					 */
-					u_flag = 1;
-					break;
-				case 'i':
-					i_flag = 1;
-				case 'u':
-					u_flag = 1;
-					break;
-				case 't':
-					t_flag = 1;
-				case 'v':
-					v_flag = 1;
-					break;
-				default:
-					usage();
-				}
-			}
+		case 'a':
+			a_flag = 1;
+			break;
+		case 'b':
+			b_flag = optarg;
+			break;
+		case 'f':
+			f_flag = optarg;
+			break;
+		case 'i':
+			i_flag = 1;
+			break;
+		case 't':
+			t_flag = 1;
+			break;
+		case 'u':
+			u_flag = 1;
+			break;
+		case 'v':
+			v_flag = 1;
+			break;
+		case '1':
+		case '2':
+		case '3':
+		case '4':
+			partition = c - '0';
+			break;
+		default:
+			usage();
 		}
-	}
+	if (f_flag || i_flag)
+		u_flag = 1;
+	if (t_flag)
+		v_flag = 1;
+	argc -= optind;
+	argv += optind;
 
 	if (argc > 0)
 	{
@@ -325,7 +274,7 @@ main(int argc, char *argv[])
 	}
 	else
 	{
-		int i, rv = 0;
+		int rv = 0;
 
 		for(i = 0; disks[i]; i++)
 		{
@@ -385,10 +334,10 @@ main(int argc, char *argv[])
 	    if (u_flag || a_flag)
 		change_active(partition);
 
-	    if (b_flag)
+	    if (B_flag)
 		change_code();
 
-	    if (u_flag || a_flag || b_flag) {
+	    if (u_flag || a_flag || B_flag) {
 		if (!t_flag)
 		{
 		    printf("\nWe haven't changed the partition table yet.  ");
@@ -413,8 +362,9 @@ main(int argc, char *argv[])
 static void
 usage()
 {
-	fprintf(stderr,
- "usage: fdisk {-a|-b|-i|-u} [-f configfile [-t] [-v]] [-{1,2,3,4}] [disk]\n");
+	fprintf(stderr, "%s%s",
+		"usage: fdisk [-Baitu] [-b bootcode] [-1234] [disk]\n",
+ 		"       fdisk -f configfile [-itv] [disk]\n");
         exit(1);
 }
 
@@ -472,7 +422,14 @@ print_part(int i)
 static void
 init_boot(void)
 {
-	memcpy(mboot.bootinst, bootcode, sizeof(bootcode));
+	const char *fname;
+	int fd;
+
+	fname = b_flag ? b_flag : "/boot/mbr";
+	if ((fd = open(fname, O_RDONLY)) == -1 ||
+	    read(fd, mboot.bootinst, DOSPARTOFF) == -1 ||
+	    close(fd))
+		err(1, "%s", fname);
 	mboot.signature = BOOT_MAGIC;
 }
 
@@ -666,7 +623,7 @@ struct stat 	st;
 	if ( !(st.st_mode & S_IFCHR) )
 		warnx("device %s is not character special", disk);
 	if ((fd = open(disk,
-	    a_flag || b_flag || u_flag ? O_RDWR : O_RDONLY)) == -1) {
+	    a_flag || B_flag || u_flag ? O_RDWR : O_RDONLY)) == -1) {
 		if(errno == ENXIO)
 			return -2;
 		warnx("can't open device %s", disk);
