@@ -36,6 +36,7 @@ SUBDIR=	adjkerntz \
 	kldunload \
 	ldconfig \
 	md5 \
+	mdconfig \
 	mknod \
 	mount \
 	mount_cd9660 \
