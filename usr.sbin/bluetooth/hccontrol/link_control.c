@@ -35,14 +35,14 @@
 #include <string.h>
 #include "hccontrol.h"
 
-static void hci_inquiry_response (int n, u_int8_t **b);
+static void hci_inquiry_response (int n, uint8_t **b);
 
 /* Send Inquiry command to the unit */
 static int
 hci_inquiry(int s, int argc, char **argv)
 {
 	int			 n0, n1, n2, timo;
-	u_int8_t		 b[512];
+	uint8_t			 b[512];
 	ng_hci_inquiry_cp	 cp;
 	ng_hci_event_pkt_t	*e = (ng_hci_event_pkt_t *) b;
 
@@ -117,7 +117,7 @@ wait_for_more:
 	case NG_HCI_EVENT_INQUIRY_RESULT: {
 		ng_hci_inquiry_result_ep	*ir = 
 				(ng_hci_inquiry_result_ep *)(e + 1);
-		u_int8_t			*r = (u_int8_t *)(ir + 1);
+		uint8_t				*r = (uint8_t *)(ir + 1);
 
 		fprintf(stdout, "Inquiry result, num_responses=%d\n",
 			ir->num_responses);
@@ -144,15 +144,15 @@ wait_for_more:
 
 /* Print Inquiry_Result event */
 static void
-hci_inquiry_response(int n, u_int8_t **b)
+hci_inquiry_response(int n, uint8_t **b)
 {
 	struct inquiry_response {
 		bdaddr_t	bdaddr;
-		u_int8_t	page_scan_rep_mode;
-		u_int8_t	page_scan_period_mode;
-		u_int8_t	page_scan_mode;
-		u_int8_t	class[NG_HCI_CLASS_SIZE];
-		u_int16_t	clock_offset;
+		uint8_t		page_scan_rep_mode;
+		uint8_t		page_scan_period_mode;
+		uint8_t		page_scan_mode;
+		uint8_t		class[NG_HCI_CLASS_SIZE];
+		uint16_t	clock_offset;
 	}			*ir = (struct inquiry_response *)(*b);
 
 	fprintf(stdout, "Inquiry result #%d\n", n);
@@ -312,14 +312,14 @@ hci_disconnect(int s, int argc, char **argv)
 		if (sscanf(argv[1], "%d", &n) != 1 || n <= 0x00 || n > 0xff)
 			return (USAGE);
 
-		cp.reason = (u_int8_t) (n & 0xff);
+		cp.reason = (uint8_t) (n & 0xff);
 
 	case 1:
 		/* connection handle */
 		if (sscanf(argv[0], "%d", &n) != 1 || n <= 0 || n > 0x0eff)
 			return (USAGE);
 
-		cp.con_handle = (u_int16_t) (n & 0x0fff);
+		cp.con_handle = (uint16_t) (n & 0x0fff);
 		cp.con_handle = htole16(cp.con_handle);
 		break;
 
@@ -390,7 +390,7 @@ hci_add_sco_connection(int s, int argc, char **argv)
 		if (n == 0)
 			return (USAGE);
 
-		cp.pkt_type = (u_int16_t) (n & 0x0fff);
+		cp.pkt_type = (uint16_t) (n & 0x0fff);
 		cp.pkt_type = htole16(cp.pkt_type);
 
 	case 1:
@@ -398,7 +398,7 @@ hci_add_sco_connection(int s, int argc, char **argv)
 		if (sscanf(argv[0], "%d", &n) != 1 || n <= 0 || n > 0x0eff)
 			return (USAGE);
 
-		cp.con_handle = (u_int16_t) (n & 0x0fff);
+		cp.con_handle = (uint16_t) (n & 0x0fff);
 		cp.con_handle = htole16(cp.con_handle);
 		break;
 
@@ -462,14 +462,14 @@ hci_change_connection_packet_type(int s, int argc, char **argv)
 		if (sscanf(argv[0], "%d", &n) != 1 || n <= 0 || n > 0x0eff)
 			return (USAGE);
 
-		cp.con_handle = (u_int16_t) (n & 0x0fff);
+		cp.con_handle = (uint16_t) (n & 0x0fff);
 		cp.con_handle = htole16(cp.con_handle);
 
 		/* packet type */
 		if (sscanf(argv[1], "%x", &n) != 1)
 			return (USAGE);
 
-		cp.pkt_type = (u_int16_t) (n & 0xffff);
+		cp.pkt_type = (uint16_t) (n & 0xffff);
 		cp.pkt_type = htole16(cp.pkt_type);
 		break;
 

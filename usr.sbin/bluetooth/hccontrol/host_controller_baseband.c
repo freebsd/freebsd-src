@@ -64,9 +64,9 @@ hci_hexa2int8(const char *a)
 	return ((hi << 4) | lo);
 }
 
-/* Convert ascii hex string to the u_int8_t[] */
+/* Convert ascii hex string to the uint8_t[] */
 static int
-hci_hexstring2array(char const *s, u_int8_t *a, int asize)
+hci_hexstring2array(char const *s, uint8_t *a, int asize)
 {
 	int	i, l, b;
 
@@ -145,7 +145,7 @@ hci_write_pin_type(int s, int argc, char **argv)
 		if (sscanf(argv[0], "%d", &n) != 1 || n < 0 || n > 1)
 			return (USAGE);
 
-		cp.pin_type = (u_int8_t) n;
+		cp.pin_type = (uint8_t) n;
 		break;
 
 	default:
@@ -183,7 +183,7 @@ hci_read_stored_link_key(int s, int argc, char **argv)
 		union {
 			ng_hci_command_compl_ep		cc;
 			ng_hci_return_link_keys_ep	key;
-			u_int8_t			b[NG_HCI_EVENT_PKT_SIZE];
+			uint8_t				b[NG_HCI_EVENT_PKT_SIZE];
 		}					ep;
 	} __attribute__ ((packed))			event;
 
@@ -257,7 +257,7 @@ again:
 	case NG_HCI_EVENT_RETURN_LINK_KEYS: {
 		struct _key {
 			bdaddr_t	bdaddr;
-			u_int8_t	key[NG_HCI_KEY_SIZE];
+			uint8_t		key[NG_HCI_KEY_SIZE];
 		} __attribute__ ((packed))	*k = NULL;
 
 		fprintf(stdout, "Event: Number of keys: %d\n",
@@ -293,7 +293,7 @@ hci_write_stored_link_key(int s, int argc, char **argv)
 	struct {
 		ng_hci_write_stored_link_key_cp	p;
 		bdaddr_t			bdaddr;
-		u_int8_t			key[NG_HCI_KEY_SIZE];
+		uint8_t				key[NG_HCI_KEY_SIZE];
 	}					cp;
 	ng_hci_write_stored_link_key_rp		rp;
 	int32_t					n;
@@ -489,7 +489,7 @@ hci_write_connection_accept_timeout(int s, int argc, char **argv)
 		if (sscanf(argv[0], "%d", &n) != 1 || n < 1 || n > 0xb540)
 			return (USAGE);
 
-		cp.timeout = (u_int16_t) n;
+		cp.timeout = (uint16_t) n;
 		cp.timeout = htole16(cp.timeout);
 		break;
 
@@ -554,7 +554,7 @@ hci_write_page_timeout(int s, int argc, char **argv)
 		if (sscanf(argv[0], "%d", &n) != 1 || n < 1 || n > 0xffff)
 			return (USAGE);
 
-		cp.timeout = (u_int16_t) n;
+		cp.timeout = (uint16_t) n;
 		cp.timeout = htole16(cp.timeout);
 		break;
 
@@ -618,7 +618,7 @@ hci_write_scan_enable(int s, int argc, char **argv)
 		if (sscanf(argv[0], "%d", &n) != 1 || n < 0 || n > 3)
 			return (USAGE);
 
-		cp.scan_enable = (u_int8_t) n;
+		cp.scan_enable = (uint8_t) n;
 		break;
 
 	default:
@@ -686,13 +686,13 @@ hci_write_page_scan_activity(int s, int argc, char **argv)
 		if (sscanf(argv[0], "%d", &n) != 1 || n < 0x12 || n > 0x1000)
 			return (USAGE);
 
-		cp.page_scan_interval = (u_int16_t) n;
+		cp.page_scan_interval = (uint16_t) n;
 
 		/* page scan window */
 		if (sscanf(argv[0], "%d", &n) != 1 || n < 0x12 || n > 0x1000)
 			return (USAGE);
 
-		cp.page_scan_window = (u_int16_t) n;
+		cp.page_scan_window = (uint16_t) n;
 
 		if (cp.page_scan_window > cp.page_scan_interval)
 			return (USAGE);
@@ -767,13 +767,13 @@ hci_write_inquiry_scan_activity(int s, int argc, char **argv)
 		if (sscanf(argv[0], "%d", &n) != 1 || n < 0x12 || n > 0x1000)
 			return (USAGE);
 
-		cp.inquiry_scan_interval = (u_int16_t) n;
+		cp.inquiry_scan_interval = (uint16_t) n;
 
 		/* inquiry scan window */
 		if (sscanf(argv[0], "%d", &n) != 1 || n < 0x12 || n > 0x1000)
 			return (USAGE);
 
-		cp.inquiry_scan_window = (u_int16_t) n;
+		cp.inquiry_scan_window = (uint16_t) n;
 
 		if (cp.inquiry_scan_window > cp.inquiry_scan_interval)
 			return (USAGE);
@@ -843,7 +843,7 @@ hci_write_authentication_enable(int s, int argc, char **argv)
 		if (sscanf(argv[0], "%d", &n) != 1 || n < 0 || n > 1)
 			return (USAGE);
 
-		cp.auth_enable = (u_int8_t) n;
+		cp.auth_enable = (uint8_t) n;
 		break;
 
 	default:
@@ -906,7 +906,7 @@ hci_write_encryption_mode(int s, int argc, char **argv)
 		if (sscanf(argv[0], "%d", &n) != 1 || n < 0 || n > 2)
 			return (USAGE);
 
-		cp.encryption_mode = (u_int8_t) n;
+		cp.encryption_mode = (uint8_t) n;
 		break;
 
 	default:
@@ -1050,7 +1050,7 @@ hci_write_voice_settings(int s, int argc, char **argv)
 		if (sscanf(argv[0], "%x", &n) != 1)
 			return (USAGE);
 
-		cp.settings = (u_int16_t) n;
+		cp.settings = (uint16_t) n;
 		cp.settings = htole16(cp.settings);
 		break;
 
@@ -1114,7 +1114,7 @@ hci_write_number_broadcast_retransmissions(int s, int argc, char **argv)
 		if (sscanf(argv[0], "%d", &n) != 1 || n < 0 || n > 0xff)
 			return (USAGE);
 
-		cp.counter = (u_int8_t) n;
+		cp.counter = (uint8_t) n;
 		break;
 
 	default:
@@ -1184,7 +1184,7 @@ hci_write_hold_mode_activity(int s, int argc, char **argv)
 		if (sscanf(argv[0], "%d", &n) != 1 || n < 0 || n > 4)
 			return (USAGE);
 
-		cp.hold_mode_activity = (u_int8_t) n;
+		cp.hold_mode_activity = (uint8_t) n;
 		break;
 
 	default:
@@ -1247,7 +1247,7 @@ hci_write_sco_flow_control_enable(int s, int argc, char **argv)
 		if (sscanf(argv[0], "%d", &n) != 1 || n < 0 || n > 1)
 			return (USAGE);
 
-		cp.flow_control = (u_int8_t) n;
+		cp.flow_control = (uint8_t) n;
 		break;
 
 	default:
@@ -1285,7 +1285,7 @@ hci_read_link_supervision_timeout(int s, int argc, char **argv)
 		if (sscanf(argv[0], "%d", &n) != 1 || n <= 0 || n > 0x0eff)
 			return (USAGE);
 
-		cp.con_handle = (u_int16_t) (n & 0x0fff);
+		cp.con_handle = (uint16_t) (n & 0x0fff);
 		cp.con_handle = htole16(cp.con_handle);
 		break;
 
@@ -1330,14 +1330,14 @@ hci_write_link_supervision_timeout(int s, int argc, char **argv)
 		if (sscanf(argv[0], "%d", &n) != 1 || n <= 0 || n > 0x0eff)
 			return (USAGE);
 
-		cp.con_handle = (u_int16_t) (n & 0x0fff);
+		cp.con_handle = (uint16_t) (n & 0x0fff);
 		cp.con_handle = htole16(cp.con_handle);
 
 		/* link supervision timeout */
 		if (sscanf(argv[1], "%d", &n) != 1 || n < 0 || n > 0xeff)
 			return (USAGE);
 
-		cp.timeout = (u_int16_t) (n & 0x0fff);
+		cp.timeout = (uint16_t) (n & 0x0fff);
 		cp.timeout = htole16(cp.timeout);
 		break;
 

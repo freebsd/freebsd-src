@@ -50,7 +50,7 @@ hci_role_discovery(int s, int argc, char **argv)
 		if (sscanf(argv[0], "%d", &n) != 1 || n <= 0 || n > 0x0eff)
 			return (USAGE);
 
-		cp.con_handle = (u_int16_t) (n & 0x0fff);
+		cp.con_handle = (uint16_t) (n & 0x0fff);
 		cp.con_handle = htole16(cp.con_handle);
 		break;
 
@@ -166,7 +166,7 @@ hci_read_link_policy_settings(int s, int argc, char **argv)
 		if (sscanf(argv[0], "%d", &n) != 1 || n <= 0 || n > 0x0eff)
 			return (USAGE);
 
-		cp.con_handle = (u_int16_t) (n & 0x0fff);
+		cp.con_handle = (uint16_t) (n & 0x0fff);
 		cp.con_handle = htole16(cp.con_handle);
 		break;
 
@@ -209,14 +209,14 @@ hci_write_link_policy_settings(int s, int argc, char **argv)
 		if (sscanf(argv[0], "%d", &n) != 1 || n <= 0 || n > 0x0eff)
 			return (USAGE);
 
-		cp.con_handle = (u_int16_t) (n & 0x0fff);
+		cp.con_handle = (uint16_t) (n & 0x0fff);
 		cp.con_handle = htole16(cp.con_handle);
 
 		/* link policy settings */
 		if (sscanf(argv[1], "%x", &n) != 1)
 			return (USAGE);
 
-		cp.settings = (u_int16_t) (n & 0x0ffff);
+		cp.settings = (uint16_t) (n & 0x0ffff);
 		cp.settings = htole16(cp.settings);
 		break;
 
