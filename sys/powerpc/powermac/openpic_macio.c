@@ -107,7 +107,7 @@ static driver_t openpic_ofw_driver = {
 
 static devclass_t openpic_ofw_devclass;
 
-DRIVER_MODULE(openpic_ofw, nexus, openpic_ofw_driver, openpic_ofw_devclass, 
+DRIVER_MODULE(openpic_ofw, nexus, openpic_ofw_driver, openpic_ofw_devclass,
     0, 0);
 
 static void
@@ -118,10 +118,8 @@ openpic_ofw_identify(driver_t *driver, device_t parent)
 	char type[40];
 
 	pic = OF_finddevice("mpic");
-	if (pic == -1) {
-		printf("could not find mpic!\n");
+	if (pic == -1)
 		return;
-	}
 
 	OF_getprop(pic, "device_type", type, sizeof(type));
 
@@ -145,9 +143,9 @@ openpic_ofw_probe(device_t dev)
 	if (strcmp(name, "openpic") != 0 ||
 	    strcmp(type, "macio") != 0)
 		return (ENXIO);
-	
+
 	device_set_desc(dev, OPENPIC_DEVSTR);
-	return (0);	
+	return (0);
 }
 
 static int
@@ -181,7 +179,7 @@ static driver_t openpic_macio_driver = {
 
 static devclass_t openpic_macio_devclass;
 
-DRIVER_MODULE(openpicmacio, macio, openpic_macio_driver, 
+DRIVER_MODULE(openpicmacio, macio, openpic_macio_driver,
     openpic_macio_devclass, 0, 0);
 
 static int
