@@ -699,8 +699,8 @@ const struct puc_device_description puc_devices[] = {
 	/* VScom PCI-200L: 2S */
 	{   "VScom PCI-200L",
 	    NULL,
-	    {	0x14d2, 0x8020,	0, 0	},
-	    {	0xffff, 0xffff,	0, 0	},
+	    {	0x14d2,	0x8020,	0,	0	},
+	    {	0xffff,	0xffff,	0,	0	},
 	    {
 		{ PUC_PORT_TYPE_COM, 0x14, 0x00, COM_FREQ * 8},
 		{ PUC_PORT_TYPE_COM, 0x18, 0x00, COM_FREQ * 8},
