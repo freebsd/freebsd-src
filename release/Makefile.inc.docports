@@ -36,7 +36,6 @@ MINIMALDOCPORTS= \
 	ports/textproc/dsssl-docbook-modular \
 	ports/textproc/html \
 	ports/textproc/iso8879 \
-	ports/textproc/jade \
 	ports/textproc/libxml2 \
 	ports/textproc/libxslt \
 	ports/textproc/linuxdoc \
@@ -44,3 +43,8 @@ MINIMALDOCPORTS= \
 	ports/textproc/sgmlformat \
 	ports/www/links \
 	ports/www/tidy
+.if ${MACHINE_ARCH} == "alpha"
+MINIMALDOCPORTS+=	ports/textproc/openjade
+.else
+MINIMALDOCPORTS+=	ports/textproc/jade
+.endif
