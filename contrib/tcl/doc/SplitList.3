@@ -5,10 +5,10 @@
 '\" See the file "license.terms" for information on usage and redistribution
 '\" of this file, and for a DISCLAIMER OF ALL WARRANTIES.
 '\" 
-'\" SCCS: @(#) SplitList.3 1.19 96/03/25 20:07:46
+'\" SCCS: @(#) SplitList.3 1.20 96/06/05 18:00:16
 '\" 
 .so man.macros
-.TH Tcl_SplitList 3 7.4 Tcl "Tcl Library Procedures"
+.TH Tcl_SplitList 3 7.5 Tcl "Tcl Library Procedures"
 .BS
 .SH NAME
 Tcl_SplitList, Tcl_Merge, Tcl_ScanElement, Tcl_ConvertElement \- manipulate Tcl lists
@@ -85,9 +85,11 @@ code = Tcl_SplitList(interp, string, &argc, &argv);
 .CE
 Then you should eventually free the storage with a call like the
 following:
+.VS
 .CS
-free((char *) argv);
+Tcl_Free((char *) argv);
 .CE
+.VE
 .PP
 \fBTcl_SplitList\fR normally returns \fBTCL_OK\fR, which means the list was
 successfully parsed.
@@ -110,9 +112,11 @@ it will be parsed into \fIargc\fR words whose values will
 be the same as the \fIargv\fR strings passed to \fBTcl_Merge\fR.
 \fBTcl_Merge\fR will modify the list elements with braces and/or
 backslashes in order to produce proper Tcl list structure.
+.VS
 The result string is dynamically allocated
-using \fBmalloc()\fR;  the caller must eventually release the space
-using \fBfree()\fR.
+using \fBTcl_Alloc\fR;  the caller must eventually release the space
+using \fBTcl_Free\fR.
+.VE
 .PP
 If the result of \fBTcl_Merge\fR is passed to \fBTcl_SplitList\fR,
 the elements returned by \fBTcl_SplitList\fR will be identical to

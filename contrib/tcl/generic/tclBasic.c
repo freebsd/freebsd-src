@@ -11,7 +11,7 @@
  * See the file "license.terms" for information on usage and redistribution
  * of this file, and for a DISCLAIMER OF ALL WARRANTIES.
  *
- * SCCS: @(#) tclBasic.c 1.210 96/03/25 17:17:54
+ * SCCS: @(#) tclBasic.c 1.211 96/05/10 17:48:04
  */
 
 #include "tclInt.h"
@@ -19,6 +19,16 @@
 #   include "tclPort.h"
 #endif
 #include "patchlevel.h"
+
+/*
+ * This variable indicates to the close procedures of channel drivers that
+ * we are in the middle of an interpreter deletion, and hence in "implicit"
+ * close mode. In that mode, the close procedures should not close the
+ * OS handle for standard IO channels. Since interpreter deletion may be
+ * recursive, this variable is actually a counter of the levels of nesting.
+ */
+
+int tclInInterpreterDeletion = 0;
 
 /*
  * Static procedures in this file:
@@ -570,6 +580,13 @@ DeleteInterpProc(interp)
     }
 
     /*
+     * Increment the interp deletion counter, so that close procedures
+     * for channel drivers can notice that we are in "implicit" close mode.
+     */
+
+    tclInInterpreterDeletion++;
+    
+    /*
      * First delete all the commands.  There's a special hack here
      * because "tkerror" is just a synonym for "bgerror" (they share
      * a Command structure).  Just delete the hash table entry for
@@ -676,6 +693,15 @@ DeleteInterpProc(interp)
 	iPtr->tracePtr = nextPtr;
     }
 
+    /*
+     * Finally decrement the nested interpreter deletion counter.
+     */
+    
+    tclInInterpreterDeletion--;
+    if (tclInInterpreterDeletion < 0) {
+        tclInInterpreterDeletion = 0;
+    }
+    
     ckfree((char *) iPtr);
 }
 

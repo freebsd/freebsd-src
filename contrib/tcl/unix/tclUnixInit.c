@@ -8,7 +8,7 @@
  * See the file "license.terms" for information on usage and redistribution
  * of this file, and for a DISCLAIMER OF ALL WARRANTIES.
  *
- * SCCS: @(#) tclUnixInit.c 1.10 96/03/12 09:05:59
+ * SCCS: @(#) tclUnixInit.c 1.14 96/07/10 15:45:24
  */
 
 #include "tclInt.h"
@@ -17,7 +17,13 @@
 #   include <sys/utsname.h>
 #endif
 #if defined(__FreeBSD__)
-#include <floatingpoint.h>
+#   include <floatingpoint.h>
+#endif
+#if defined(__bsdi__)
+#   include <sys/param.h>
+#   if _BSDI_VERSION > 199501
+#	include <dlfcn.h>
+#   endif
 #endif
 
 /*
@@ -34,7 +40,7 @@ static char defaultLibraryDir[200] = TCL_LIBRARY;
  * initialization.
  */
 
-static char *initScript =
+static char initScript[] =
 "proc init {} {\n\
     global tcl_library tcl_version tcl_patchLevel env\n\
     rename init {}\n\
@@ -43,14 +49,15 @@ static char *initScript =
 	lappend dirs $env(TCL_LIBRARY)\n\
     }\n\
     lappend dirs [info library]\n\
-    lappend dirs [file dirname [file dirname [info nameofexecutable]]]/lib/tcl$tcl_version\n\
+    set parentDir [file dirname [file dirname [info nameofexecutable]]]\n\
+    lappend dirs $parentDir/lib/tcl$tcl_version\n\
     if [string match {*[ab]*} $tcl_patchLevel] {\n\
 	set lib tcl$tcl_patchLevel\n\
     } else {\n\
 	set lib tcl$tcl_version\n\
     }\n\
-    lappend dirs [file dirname [file dirname [pwd]]]/$lib/library\n\
-    lappend dirs [file dirname [pwd]]/library\n\
+    lappend dirs [file dirname $parentDir]/$lib/library\n\
+    lappend dirs $parentDir/library\n\
     foreach i $dirs {\n\
 	set tcl_library $i\n\
 	if ![catch {uplevel #0 source $i/init.tcl}] {\n\
@@ -131,6 +138,13 @@ TclPlatformInit(interp)
 #ifdef __FreeBSD__
 	fpsetround(FP_RN);
 	fpsetmask(0L);
+#endif
+
+#if defined(__bsdi__) && (_BSDI_VERSION > 199501)
+	/*
+	 * Find local symbols. Don't report an error if we fail.
+	 */
+	(void) dlopen (NULL, RTLD_NOW);
 #endif
 	initialized = 1;
     }

@@ -10,7 +10,7 @@
  * See the file "license.terms" for information on usage and redistribution
  * of this file, and for a DISCLAIMER OF ALL WARRANTIES.
  *
- * SCCS: @(#) tcl.h 1.266 96/04/10 11:25:19
+ * SCCS: @(#) tcl.h 1.269 96/06/13 16:36:48
  */
 
 #ifndef _TCL
@@ -21,16 +21,26 @@
  * compilers.  We use this method because there is no autoconf equivalent.
  */
 
-#if defined(_WIN32) && !defined(__WIN32__)
-#   define __WIN32__
+#ifndef __WIN32__
+#   if defined(_WIN32) || defined(WIN32)
+#	define __WIN32__
+#   endif
 #endif
 
 #ifdef __WIN32__
-#   undef USE_PROTOTYPE
-#   undef HAS_STDARG
-#   define USE_PROTOTYPE
-#   define HAS_STDARG
-#endif
+#   ifndef USE_PROTOTYPE
+#	define USE_PROTOTYPE 1
+#   endif
+#   ifndef HAS_STDARG
+#	define HAS_STDARG 1
+#   endif
+#   ifndef USE_PROTOTYPE
+#	define USE_PROTOTYPE 1
+#   endif
+#   ifndef USE_TCLALLOC
+#	define USE_TCLALLOC 1
+#   endif
+#endif /* __WIN32__ */
 
 #ifndef BUFSIZ
 #include <stdio.h>
@@ -343,8 +353,16 @@ typedef struct Tcl_DString {
  * of debugging hooks defined in tclCkalloc.c.
  */
 
+EXTERN char *		Tcl_Alloc _ANSI_ARGS_((unsigned int size));
+EXTERN void		Tcl_Free _ANSI_ARGS_((char *ptr));
+EXTERN char *		Tcl_Realloc _ANSI_ARGS_((char *ptr,
+			    unsigned int size));
+
 #ifdef TCL_MEM_DEBUG
 
+#  define Tcl_Alloc(x) Tcl_DbCkalloc(x, __FILE__, __LINE__)
+#  define Tcl_Free(x)  Tcl_DbCkfree(x, __FILE__, __LINE__)
+#  define Tcl_Realloc(x,y) Tcl_DbCkrealloc((x), (y),__FILE__, __LINE__)
 #  define ckalloc(x) Tcl_DbCkalloc(x, __FILE__, __LINE__)
 #  define ckfree(x)  Tcl_DbCkfree(x, __FILE__, __LINE__)
 #  define ckrealloc(x,y) Tcl_DbCkrealloc((x), (y),__FILE__, __LINE__)
@@ -355,10 +373,15 @@ EXTERN void		Tcl_ValidateAllMemory _ANSI_ARGS_((char *file,
 
 #else
 
-#  define ckalloc(x) malloc(x)
-#  define ckfree(x)  free(x)
-#  define ckrealloc(x,y) realloc(x,y)
-
+#  if USE_TCLALLOC
+#     define ckalloc(x) Tcl_Alloc(x)
+#     define ckfree(x) Tcl_Free(x)
+#     define ckrealloc(x,y) Tcl_Realloc(x,y)
+#  else
+#     define ckalloc(x) malloc(x)
+#     define ckfree(x)  free(x)
+#     define ckrealloc(x,y) realloc(x,y)
+#  endif
 #  define Tcl_DumpActiveMemory(x)
 #  define Tcl_ValidateAllMemory(x,y)
 
@@ -695,8 +718,9 @@ EXTERN void		Tcl_CallWhenDeleted _ANSI_ARGS_((Tcl_Interp *interp,
 			    ClientData clientData));
 EXTERN void		Tcl_CancelIdleCall _ANSI_ARGS_((Tcl_IdleProc *idleProc,
 			    ClientData clientData));
-EXTERN VOID *		Tcl_Ckalloc _ANSI_ARGS_((unsigned int size));
-EXTERN void		Tcl_Ckfree _ANSI_ARGS_((char *ptr));
+#define Tcl_Ckalloc Tcl_Alloc
+#define Tcl_Ckfree Tcl_Free
+#define Tcl_Ckrealloc Tcl_Realloc
 EXTERN int		Tcl_Close _ANSI_ARGS_((Tcl_Interp *interp,
         		    Tcl_Channel chan));
 EXTERN int		Tcl_CommandComplete _ANSI_ARGS_((char *cmd));

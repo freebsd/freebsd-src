@@ -9,7 +9,7 @@
  * See the file "license.terms" for information on usage and redistribution
  * of this file, and for a DISCLAIMER OF ALL WARRANTIES.
  *
- * SCCS: @(#) tclIO.c 1.211 96/04/18 09:59:06
+ * SCCS: @(#) tclIO.c 1.227 96/07/30 09:26:30
  */
 
 #include	"tclInt.h"
@@ -203,6 +203,13 @@ typedef struct Channel {
 #define INPUT_SAW_CR		(1<<12)	/* Channel is in CRLF eol input
 					 * translation mode and the last
                                          * byte seen was a "\r". */
+#define CHANNEL_DEAD		(1<<13)	/* The channel has been closed by
+					 * the exit handler (on exit) but
+                                         * not deallocated. When any IO
+                                         * operation sees this flag on a
+                                         * channel, it does not call driver
+                                         * level functions to avoid referring
+                                         * to deallocated data. */
 
 /*
  * For each channel handler registered in a call to Tcl_CreateChannelHandler,
@@ -282,13 +289,6 @@ typedef struct ChannelHandlerEvent {
 } ChannelHandlerEvent;
 
 /*
- * Static buffer used to sprintf channel option values and return
- * them to the caller.
- */
-
-static char optionVal[128];
-
-/*
  * Static variables to hold channels for stdin, stdout and stderr.
  */
 
@@ -315,6 +315,8 @@ static void		ChannelHandlerSetupProc _ANSI_ARGS_((
 			    ClientData clientData, int flags));
 static void		ChannelEventScriptInvoker _ANSI_ARGS_((
 			    ClientData clientData, int flags));
+static void		CleanupChannelHandlers _ANSI_ARGS_((
+			    Tcl_Interp *interp, Channel *chanPtr));
 static int		CloseChannel _ANSI_ARGS_((Tcl_Interp *interp,
                             Channel *chanPtr, int errorCode));
 static void		CloseChannelsOnExit _ANSI_ARGS_((ClientData data));
@@ -352,6 +354,50 @@ static int		ScanInputForEOL _ANSI_ARGS_((Channel *chanPtr,
 /*
  *----------------------------------------------------------------------
  *
+ * TclFindChannel --
+ *
+ *	Finds a channel given two Tcl_Files.
+ *
+ * Results:
+ *	The Tcl_Channel found. Also returns nonzero in fileUsedPtr output
+ *	parameter if it finds that the Tcl_File is already used in another
+ *	channel.
+ *
+ * Side effects:
+ *	None.
+ *
+ *----------------------------------------------------------------------
+ */
+
+Tcl_Channel
+TclFindFileChannel(inFile, outFile, fileUsedPtr)
+    Tcl_File inFile, outFile;		/* Channel has these Tcl_Files. */
+    int *fileUsedPtr;
+{
+    Channel *chanPtr;
+    
+    *fileUsedPtr = 0;
+    for (chanPtr = firstChanPtr;
+             chanPtr != (Channel *) NULL;
+             chanPtr = chanPtr->nextChanPtr) {
+        if ((chanPtr->inFile == inFile) && (chanPtr->outFile == outFile)) {
+            return (Tcl_Channel) chanPtr;
+        }
+        if ((inFile != (Tcl_File) NULL) && (chanPtr->inFile == inFile)) {
+            *fileUsedPtr = 1;
+            return (Tcl_Channel) NULL;
+        }
+        if ((outFile != (Tcl_File) NULL) && (chanPtr->outFile == outFile)) {
+            *fileUsedPtr = 1;
+            return (Tcl_Channel) NULL;
+        }
+    }
+    return (Tcl_Channel) NULL;
+}
+
+/*
+ *----------------------------------------------------------------------
+ *
  * Tcl_SetStdChannel --
  *
  *	This function is used to change the channels that are used
@@ -373,7 +419,7 @@ Tcl_SetStdChannel(channel, type)
 {
     switch (type) {
 	case TCL_STDIN:
-	    stdinInitialized = 1;
+            stdinInitialized = 1;
 	    stdinChannel = channel;
 	    break;
 	case TCL_STDOUT:
@@ -564,22 +610,48 @@ CloseChannelsOnExit(clientData)
         nextChanPtr = chanPtr->nextChanPtr;
 
         /*
-         * Close it only if the refcount indicates that the channel is not
-         * referenced from any interpreter. If it is, that interpreter will
-         * close the channel when it gets destroyed.
+         * Set the channel back into blocking mode to ensure that we wait
+         * for all data to flush out.
          */
+        
+        (void) Tcl_SetChannelOption(NULL, (Tcl_Channel) chanPtr,
+                "-blocking", "on");
     
         if (chanPtr->refCount <= 0) {
-                                 
-            /*
-             * Switch the channel back into synchronous mode to ensure that it
-             * gets flushed now.
+
+	    /*
+             * Close it only if the refcount indicates that the channel is not
+             * referenced from any interpreter. If it is, that interpreter will
+             * close the channel when it gets destroyed.
              */
 
-            (void) Tcl_SetChannelOption(NULL, (Tcl_Channel) chanPtr,
-                    "-blocking", "on");
-
             Tcl_Close((Tcl_Interp *) NULL, (Tcl_Channel) chanPtr);
+        } else {
+
+            /*
+             * The refcount is greater than zero, so flush the channel.
+             */
+
+            Tcl_Flush((Tcl_Channel) chanPtr);
+
+            /*
+             * And close the OS level handles using the driver function:
+             */
+
+            (chanPtr->typePtr->closeProc) (chanPtr->instanceData,
+                    (Tcl_Interp *) NULL, chanPtr->inFile, chanPtr->outFile);
+
+            /*
+             * Finally, we clean up the fields in the channel data structure
+             * since all of them have been deleted already. We mark the
+             * channel with CHANNEL_DEAD to prevent any further IO operations
+             * on it.
+             */
+
+            chanPtr->inFile = (Tcl_File) NULL;
+            chanPtr->outFile = (Tcl_File) NULL;
+            chanPtr->instanceData = (ClientData) NULL;
+            chanPtr->flags |= CHANNEL_DEAD;
         }
     }
 }
@@ -609,7 +681,7 @@ GetChannelTable(interp)
     Tcl_Interp *interp;
 {
     Tcl_HashTable *hTblPtr;	/* Hash table of channels. */
-    Tcl_Channel stdinChannel, stdoutChannel, stderrChannel;
+    Tcl_Channel stdinChan, stdoutChan, stderrChan;
 
     hTblPtr = (Tcl_HashTable *) Tcl_GetAssocData(interp, "tclIO", NULL);
     if (hTblPtr == (Tcl_HashTable *) NULL) {
@@ -627,17 +699,17 @@ GetChannelTable(interp)
          */
 
         if (Tcl_IsSafe(interp) == 0) {
-	    stdinChannel = Tcl_GetStdChannel(TCL_STDIN);
-            if (stdinChannel != NULL) {
-                Tcl_RegisterChannel(interp, stdinChannel);
+            stdinChan = Tcl_GetStdChannel(TCL_STDIN);
+            if (stdinChan != NULL) {
+                Tcl_RegisterChannel(interp, stdinChan);
             }
-	    stdoutChannel = Tcl_GetStdChannel(TCL_STDOUT);
-            if (stdoutChannel != NULL) {
-                Tcl_RegisterChannel(interp, stdoutChannel);
+            stdoutChan = Tcl_GetStdChannel(TCL_STDOUT);
+            if (stdoutChan != NULL) {
+                Tcl_RegisterChannel(interp, stdoutChan);
             }
-	    stderrChannel = Tcl_GetStdChannel(TCL_STDERR);
-            if (stderrChannel != NULL) {
-                Tcl_RegisterChannel(interp, stderrChannel);
+            stderrChan = Tcl_GetStdChannel(TCL_STDERR);
+            if (stderrChan != NULL) {
+                Tcl_RegisterChannel(interp, stderrChan);
             }
         }
 
@@ -776,8 +848,29 @@ Tcl_UnregisterChannel(interp, chan)
         return TCL_OK;
     }
     Tcl_DeleteHashEntry(hPtr);
+
+    /*
+     * Remove channel handlers that refer to this interpreter, so that they
+     * will not be present if the actual close is delayed and more events
+     * happen on the channel. This may occur if the channel is shared between
+     * several interpreters, or if the channel has async flushing active.
+     */
+    
+    CleanupChannelHandlers(interp, chanPtr);
+
     chanPtr->refCount--;
     if (chanPtr->refCount <= 0) {
+
+        /*
+         * Ensure that if there is another buffer, it gets flushed
+         * whether or not we are doing a background flush.
+         */
+
+        if ((chanPtr->curOutPtr != NULL) &&
+                (chanPtr->curOutPtr->nextAdded >
+                        chanPtr->curOutPtr->nextRemoved)) {
+            chanPtr->flags |= BUFFER_READY;
+        }
         chanPtr->flags |= CHANNEL_CLOSED;
         if (!(chanPtr->flags & BG_FLUSH_SCHEDULED)) {
             if (Tcl_Close(interp, chan) != TCL_OK) {
@@ -995,7 +1088,7 @@ Tcl_CreateChannel(typePtr, chanName, inFile, outFile, instanceData)
         channelExitHandlerCreated = 1;
         Tcl_CreateExitHandler(CloseChannelsOnExit, (ClientData) NULL);
     }
-
+    
     /*
      * Install this channel in the first empty standard channel slot.
      */
@@ -1272,6 +1365,18 @@ FlushChannel(interp, chanPtr, calledFromAsyncFlush)
                                          * channel driver operations. */
 
     errorCode = 0;
+
+    /*
+     * Prevent writing on a dead channel -- a channel that has been closed
+     * but not yet deallocated. This can occur if the exit handler for the
+     * channel deallocation runs before all channels are deregistered in
+     * all interpreters.
+     */
+    
+    if (chanPtr->flags & CHANNEL_DEAD) {
+        Tcl_SetErrno(EINVAL);
+        return -1;
+    }
     
     /*
      * Loop over the queued buffers and attempt to flush as
@@ -1342,6 +1447,7 @@ FlushChannel(interp, chanPtr, calledFromAsyncFlush)
              */
             
             if (errorCode == EINTR) {
+                errorCode = 0;
                 continue;
             }
 
@@ -1370,6 +1476,7 @@ FlushChannel(interp, chanPtr, calledFromAsyncFlush)
                      */
                     
                     TclWaitForFile(chanPtr->outFile, TCL_WRITABLE, -1);
+                    errorCode = 0;
                     continue;
                 }
             }
@@ -1464,12 +1571,25 @@ CloseChannel(interp, chanPtr, errorCode)
     Channel *chanPtr;			/* The channel to close. */
     int errorCode;			/* Status of operation so far. */
 {
-    int result;				/* Of calling driver close
+    int result = 0;			/* Of calling driver close
                                          * operation. */
     Channel *prevChanPtr;		/* Preceding channel in list of
                                          * all channels - used to splice a
                                          * channel out of the list on close. */
     
+        
+    /*
+     * Remove the channel from the standard channel table.
+     */
+    
+    if (Tcl_GetStdChannel(TCL_STDIN) == (Tcl_Channel) chanPtr) {
+	Tcl_SetStdChannel(NULL, TCL_STDIN);
+    } else if (Tcl_GetStdChannel(TCL_STDOUT) == (Tcl_Channel) chanPtr) {
+	Tcl_SetStdChannel(NULL, TCL_STDOUT);
+    } else if (Tcl_GetStdChannel(TCL_STDERR) == (Tcl_Channel) chanPtr) {
+	Tcl_SetStdChannel(NULL, TCL_STDERR);
+    } 
+
     /*
      * No more input can be consumed so discard any leftover input.
      */
@@ -1504,8 +1624,10 @@ CloseChannel(interp, chanPtr, errorCode)
         char c;
 
         c = (char) chanPtr->outEofChar;
-        (chanPtr->typePtr->outputProc) (chanPtr->instanceData,
-                chanPtr->outFile, &c, 1, &dummy);
+        if (!(chanPtr->flags & CHANNEL_DEAD)) {
+            (chanPtr->typePtr->outputProc) (chanPtr->instanceData,
+                    chanPtr->outFile, &c, 1, &dummy);
+        }
     }
 
     /*
@@ -1537,16 +1659,17 @@ CloseChannel(interp, chanPtr, errorCode)
         prevChanPtr->nextChanPtr = chanPtr->nextChanPtr;
     }
 
-    if (chanPtr->channelName != (char *) NULL) {
-        ckfree(chanPtr->channelName);
-    }
-
     /*
      * OK, close the channel itself.
      */
         
-    result = (chanPtr->typePtr->closeProc) (chanPtr->instanceData, interp,
-            chanPtr->inFile, chanPtr->outFile);
+    if (!(chanPtr->flags & CHANNEL_DEAD)) {
+        result = (chanPtr->typePtr->closeProc) (chanPtr->instanceData, interp,
+                chanPtr->inFile, chanPtr->outFile);
+    }
+    if (chanPtr->channelName != (char *) NULL) {
+        ckfree(chanPtr->channelName);
+    }
     
     /*
      * If we are being called synchronously, report either
@@ -1610,18 +1733,6 @@ Tcl_Close(interp, chan)
     if (chanPtr->refCount > 0) {
         panic("called Tcl_Close on channel with refcount > 0");
     }
-        
-    /*
-     * Remove the channel from the standard channel table.
-     */
-
-    if (Tcl_GetStdChannel(TCL_STDIN) == chan) {
-	Tcl_SetStdChannel(NULL, TCL_STDIN);
-    } else if (Tcl_GetStdChannel(TCL_STDOUT) == chan) {
-	Tcl_SetStdChannel(NULL, TCL_STDOUT);
-    } else if (Tcl_GetStdChannel(TCL_STDERR) == chan) {
-	Tcl_SetStdChannel(NULL, TCL_STDERR);
-    } 
 
     /*
      * Remove all the channel handler records attached to the channel
@@ -2064,6 +2175,18 @@ GetInput(chanPtr)
     int result;				/* Of calling driver. */
     int nread;				/* How much was read from channel? */
     ChannelBuffer *bufPtr;		/* New buffer to add to input queue. */
+
+    /*
+     * Prevent reading from a dead channel -- a channel that has been closed
+     * but not yet deallocated, which can happen if the exit handler for
+     * channel cleanup has run but the channel is still registered in some
+     * interpreter.
+     */
+    
+    if (chanPtr->flags & CHANNEL_DEAD) {
+        Tcl_SetErrno(EINVAL);
+        return -1;
+    }
 
     /*
      * See if we can fill an existing buffer. If we can, read only
@@ -2894,6 +3017,18 @@ Tcl_Seek(chan, offset, mode)
     }
 
     /*
+     * Disallow seek on dead channels -- channels that have been closed but
+     * not yet been deallocated. Such channels can be found if the exit
+     * handler for channel cleanup has run but the channel is still
+     * registered in an interpreter.
+     */
+
+    if (chanPtr->flags & CHANNEL_DEAD) {
+        Tcl_SetErrno(EINVAL);
+        return -1;
+    }
+    
+    /*
      * Disallow seek on channels whose type does not have a seek procedure
      * defined. This means that the channel does not support seeking.
      */
@@ -3066,6 +3201,18 @@ Tcl_Tell(chan)
     if (chanPtr->unreportedError != 0) {
         Tcl_SetErrno(chanPtr->unreportedError);
         chanPtr->unreportedError = 0;
+        return -1;
+    }
+
+    /*
+     * Disallow tell on dead channels -- channels that have been closed but
+     * not yet been deallocated. Such channels can be found if the exit
+     * handler for channel cleanup has run but the channel is still
+     * registered in an interpreter.
+     */
+
+    if (chanPtr->flags & CHANNEL_DEAD) {
+        Tcl_SetErrno(EINVAL);
         return -1;
     }
 
@@ -3316,8 +3463,21 @@ Tcl_GetChannelOption(chan, optionName, dsPtr)
 {
     Channel *chanPtr;		/* The real IO channel. */
     size_t len;			/* Length of optionName string. */
+    char optionVal[128];	/* Buffer for sprintf. */
 
     chanPtr = (Channel *) chan;
+
+    /*
+     * Disallow options on dead channels -- channels that have been closed but
+     * not yet been deallocated. Such channels can be found if the exit
+     * handler for channel cleanup has run but the channel is still
+     * registered in an interpreter.
+     */
+
+    if (chanPtr->flags & CHANNEL_DEAD) {
+        Tcl_SetErrno(EINVAL);
+        return TCL_ERROR;
+    }
 
     /*
      * If the optionName is NULL it means that we want a list of all
@@ -3374,8 +3534,8 @@ Tcl_GetChannelOption(chan, optionName, dsPtr)
         if (len == 0) {
             Tcl_DStringAppendElement(dsPtr, "-eofchar");
         }
-        if ((chanPtr->flags & (TCL_READABLE|TCL_WRITABLE)) ==
-                (TCL_READABLE|TCL_WRITABLE)) {
+        if (((chanPtr->flags & (TCL_READABLE|TCL_WRITABLE)) ==
+                (TCL_READABLE|TCL_WRITABLE)) && (len == 0)) {
             Tcl_DStringStartSublist(dsPtr);
         }
         if (chanPtr->flags & TCL_READABLE) {
@@ -3398,8 +3558,8 @@ Tcl_GetChannelOption(chan, optionName, dsPtr)
                 Tcl_DStringAppendElement(dsPtr, buf);
             }
         }
-        if ((chanPtr->flags & (TCL_READABLE|TCL_WRITABLE)) ==
-                (TCL_READABLE|TCL_WRITABLE)) {
+        if (((chanPtr->flags & (TCL_READABLE|TCL_WRITABLE)) ==
+                (TCL_READABLE|TCL_WRITABLE)) && (len == 0)) {
             Tcl_DStringEndSublist(dsPtr);
         }
         if (len > 0) {
@@ -3412,8 +3572,8 @@ Tcl_GetChannelOption(chan, optionName, dsPtr)
         if (len == 0) {
             Tcl_DStringAppendElement(dsPtr, "-translation");
         }
-        if ((chanPtr->flags & (TCL_READABLE|TCL_WRITABLE)) ==
-                (TCL_READABLE|TCL_WRITABLE)) {
+        if (((chanPtr->flags & (TCL_READABLE|TCL_WRITABLE)) ==
+                (TCL_READABLE|TCL_WRITABLE)) && (len == 0)) {
             Tcl_DStringStartSublist(dsPtr);
         }
         if (chanPtr->flags & TCL_READABLE) {
@@ -3438,8 +3598,8 @@ Tcl_GetChannelOption(chan, optionName, dsPtr)
                 Tcl_DStringAppendElement(dsPtr, "lf");
             }
         }
-        if ((chanPtr->flags & (TCL_READABLE|TCL_WRITABLE)) ==
-                (TCL_READABLE|TCL_WRITABLE)) {
+        if (((chanPtr->flags & (TCL_READABLE|TCL_WRITABLE)) ==
+                (TCL_READABLE|TCL_WRITABLE)) && (len == 0)) {
             Tcl_DStringEndSublist(dsPtr);
         }
         if (len > 0) {
@@ -3489,6 +3649,18 @@ Tcl_SetChannelOption(interp, chan, optionName, newValue)
     char **argv;
 
     chanPtr = (Channel *) chan;
+
+    /*
+     * Disallow options on dead channels -- channels that have been closed but
+     * not yet been deallocated. Such channels can be found if the exit
+     * handler for channel cleanup has run but the channel is still
+     * registered in an interpreter.
+     */
+
+    if (chanPtr->flags & CHANNEL_DEAD) {
+        Tcl_SetErrno(EINVAL);
+        return -1;
+    }
     
     len = strlen(optionName);
 
@@ -3765,6 +3937,61 @@ Tcl_SetChannelOption(interp, chan, optionName, newValue)
     }
 
     return TCL_ERROR;
+}
+
+/*
+ *----------------------------------------------------------------------
+ *
+ * CleanupChannelHandlers --
+ *
+ *	Removes channel handlers that refer to the supplied interpreter,
+ *	so that if the actual channel is not closed now, these handlers
+ *	will not run on subsequent events on the channel. This would be
+ *	erroneous, because the interpreter no longer has a reference to
+ *	this channel.
+ *
+ * Results:
+ *	None.
+ *
+ * Side effects:
+ *	Removes channel handlers.
+ *
+ *----------------------------------------------------------------------
+ */
+
+static void
+CleanupChannelHandlers(interp, chanPtr)
+    Tcl_Interp *interp;
+    Channel *chanPtr;
+{
+    EventScriptRecord *sPtr, *prevPtr, *nextPtr;
+
+    /*
+     * Remove fileevent records on this channel that refer to the
+     * given interpreter.
+     */
+    
+    for (sPtr = chanPtr->scriptRecordPtr,
+             prevPtr = (EventScriptRecord *) NULL;
+             sPtr != (EventScriptRecord *) NULL;
+             sPtr = nextPtr) {
+        nextPtr = sPtr->nextPtr;
+        if (sPtr->interp == interp) {
+            if (prevPtr == (EventScriptRecord *) NULL) {
+                chanPtr->scriptRecordPtr = nextPtr;
+            } else {
+                prevPtr->nextPtr = nextPtr;
+            }
+
+            Tcl_DeleteChannelHandler((Tcl_Channel) chanPtr,
+                    ChannelEventScriptInvoker, (ClientData) sPtr);
+
+            Tcl_EventuallyFree((ClientData) sPtr->script, TCL_DYNAMIC);
+            ckfree((char *) sPtr);
+        } else {
+            prevPtr = sPtr;
+        }
+    }
 }
 
 /*
@@ -4464,11 +4691,14 @@ ChannelEventScriptInvoker(clientData, mask)
     /*
      * On error, cause a background error and remove the channel handler
      * and the script record.
+     *
+     * NOTE: Must delete channel handler before causing the background error
+     * because the background error may want to reinstall the handler.
      */
     
     if (result != TCL_OK) {
-        Tcl_BackgroundError(interp);
         DeleteScriptRecord(interp, chanPtr, mask);
+        Tcl_BackgroundError(interp);
     }
     Tcl_Release((ClientData) chanPtr);
     Tcl_Release((ClientData) script);

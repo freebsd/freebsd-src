@@ -3,7 +3,7 @@
 # Default system startup file for Tcl-based applications.  Defines
 # "unknown" procedure and auto-load facilities.
 #
-# SCCS: @(#) init.tcl 1.54 96/04/21 13:55:08
+# SCCS: @(#) init.tcl 1.57 96/07/23 08:53:03
 #
 # Copyright (c) 1991-1993 The Regents of the University of California.
 # Copyright (c) 1994-1996 Sun Microsystems, Inc.
@@ -24,7 +24,10 @@ if {[lsearch -exact $auto_path [info library]] < 0} {
 }
 package unknown tclPkgUnknown
 if {[info commands exec] == ""} {
-    # Some machines, such as the Macintosh, do not have exec 
+
+    # Some machines, such as the Macintosh, do not have exec. Also, on all
+    # platforms, safe interpreters do not have exec.
+
     set auto_noexec 1
 }
 set errorCode ""
@@ -228,7 +231,7 @@ proc auto_execok name {
     }
     set auto_execs($name) 0
     if {[file pathtype $name] != "relative"} {
-	foreach ext {.exe .bat .cmd} {
+	foreach ext {{} .exe .bat .cmd} {
 	    if {[file exists ${name}${ext}]
 		&& ![file isdirectory ${name}${ext}]} {
 		set auto_execs($name) 1
@@ -249,7 +252,7 @@ proc auto_execok name {
 	if {$dir == ""} {
 	    set dir .
 	}
-	foreach ext {.exe .bat .cmd} {
+	foreach ext {{} .exe .bat .cmd} {
 	    set file [file join $dir ${name}${ext}]
 	    if {[file exists $file] && ![file isdirectory $file]} {
 		set auto_execs($name) 1
@@ -295,7 +298,7 @@ proc auto_execok name {
 # Destroy all cached information for auto-loading and auto-execution,
 # so that the information gets recomputed the next time it's needed.
 # Also delete any procedures that are listed in the auto-load index
-# except those related to auto-loading.
+# except those defined in this file.
 #
 # Arguments: 
 # None.
@@ -303,8 +306,9 @@ proc auto_execok name {
 proc auto_reset {} {
     global auto_execs auto_index auto_oldpath
     foreach p [info procs] {
-	if {[info exists auto_index($p)] && ($p != "unknown")
-		&& ![string match auto_* $p]} {
+	if {[info exists auto_index($p)] && ![string match auto_* $p]
+		&& ([lsearch -exact {unknown pkg_mkIndex tclPkgSetup
+			tclPkgUnknown} $p] < 0)} {
 	    rename $p {}
 	}
     }
@@ -411,6 +415,17 @@ proc pkg_mkIndex {dir args} {
 	# that there are no recursive package inclusions.
 
 	set c [interp create]
+
+	# If Tk is loaded in the parent interpreter, load it into the
+	# child also, in case the extension depends on it.
+
+	foreach pkg [info loaded] {
+	    if {[lindex $pkg 1] == "Tk"} {
+		$c eval {set argv {-geometry +0+0}}
+		load [lindex $pkg 0] Tk $c
+		break
+	    }
+	}
 	$c eval [list set file $file]
 	if [catch {
 	    $c eval {
@@ -420,20 +435,25 @@ proc pkg_mkIndex {dir args} {
 		set dir ""		;# in case file is pkgIndex.tcl
 		set pkgs ""
 
-		# The "file join ." command below is necessary.  Without it,
-		# if the file name has no \'s and we're on UNIX, the
-		# LD_LIBRARY_PATH search mechanism will be invoked, which
-		# could cause the wrong file to be used.
+		# Try to load the file if it has the shared library extension,
+		# otherwise source it.  It's important not to try to load
+		# files that aren't shared libraries, because on some systems
+		# (like SunOS) the loader will abort the whole application
+		# when it gets an error.
 
-		if [catch {load [file join . $file]}] {
-		    if [catch {source $file}] {
-			puts $errorInfo
-			error "can't either load or source $file"
-		    } else {
-			set type source
-		    }
-		} else {
+		if {[string compare [file extension $file] \
+			[info sharedlibextension]] == 0} {
+
+		    # The "file join ." command below is necessary.  Without
+		    # it, if the file name has no \'s and we're on UNIX, the
+		    # load command will invoke the LD_LIBRARY_PATH search
+		    # mechanism, which could cause the wrong file to be used.
+
+		    load [file join . $file]
 		    set type load
+		} else {
+		    source $file
+		    set type source
 		}
 		foreach i [info commands] {
 		    set cmds($i) 1
@@ -443,14 +463,14 @@ proc pkg_mkIndex {dir args} {
 		}
 		foreach i [package names] {
 		    if {([string compare [package provide $i] ""] != 0)
-			    && ([string compare $i Tcl] != 0)} {
+			    && ([string compare $i Tcl] != 0)
+			    && ([string compare $i Tk] != 0)} {
 			lappend pkgs [list $i [package provide $i]]
 		    }
 		}
 	    }
 	} msg] {
-	    interp delete $c
-	    error $msg $errorInfo $errorCode
+	    puts "error while loading or sourcing $file: $msg"
 	}
 	foreach pkg [$c eval set pkgs] {
 	    lappend files($pkg) [list $file [$c eval set type] \
@@ -460,8 +480,8 @@ proc pkg_mkIndex {dir args} {
     }
     foreach pkg [lsort [array names files]] {
 	append index "\npackage ifneeded $pkg\
-		\"tclPkgSetup \$dir [lrange $pkg 0 0] [lrange $pkg 1 1]\
-		[list $files($pkg)]\""
+		\[list tclPkgSetup \$dir [lrange $pkg 0 0] [lrange $pkg 1 1]\
+		[list $files($pkg)]\]"
     }
     set f [open pkgIndex.tcl w]
     puts $f $index
