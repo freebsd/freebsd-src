@@ -57,7 +57,9 @@ Allow write access to observed tty.
 .It Ar tty
 Tty may be specified as an tty-style device, such as a pseudo tty device,
 a virtual console, or a serial line, etc.
-Names may be preceded by "/dev/".
+Names may be preceded by
+.Pa /dev/ .
+.El
 .Sh OPERATION
 While running in interactive mode, all user input is discarded except for:
 .Pp
@@ -69,6 +71,7 @@ Exit
 Clear screen.
 .It Sy "<control-X>"
 Change attached tty.
+.El
 .Sh RESTRICTIONS
 Only the superuser can run
 .Nm Ns .
