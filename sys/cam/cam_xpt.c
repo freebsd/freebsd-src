@@ -954,7 +954,6 @@ xptioctl(dev_t dev, u_long cmd, caddr_t addr, int flag, struct proc *p)
 			}
 			/* FALLTHROUGH */
 		case XPT_SCAN_LUN:
-		case XPT_RESET_DEV:
 		case XPT_ENG_INQ:  /* XXX not implemented yet */
 		case XPT_ENG_EXEC:
 
@@ -2779,6 +2778,7 @@ xpt_action(union ccb *start_ccb)
 	}
 	case XPT_TARGET_IO:
 	case XPT_CONT_TARGET_IO:
+	case XPT_RESET_DEV:
 	case XPT_ENG_EXEC:
 	{
 		struct cam_path *path;
@@ -2832,7 +2832,6 @@ xpt_action(union ccb *start_ccb)
 		/* FALLTHROUGH */
 #endif
 	case XPT_ABORT:
-	case XPT_RESET_DEV:
 	case XPT_ACCEPT_TARGET_IO:
 	case XPT_EN_LUN:
 	case XPT_IMMED_NOTIFY:

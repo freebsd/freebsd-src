@@ -138,7 +138,7 @@ typedef enum {
 				/* Abort the specified CCB */
 	XPT_RESET_BUS		= 0x11 | XPT_FC_XPT_ONLY,
 				/* Reset the specified SCSI bus */
-	XPT_RESET_DEV		= 0x12,
+	XPT_RESET_DEV		= 0x12 | XPT_FC_QUEUED,
 				/* Bus Device Reset the specified SCSI device */
 	XPT_TERM_IO		= 0x13,
 				/* Terminate the I/O process */
