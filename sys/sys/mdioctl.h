@@ -55,10 +55,10 @@ struct md_ioctl {
 	unsigned	md_unit;	/* unit number */
 	enum md_types	md_type ;	/* type of disk */
 	char		*md_file;	/* pathname of file to mount */
-	unsigned	md_size;	/* size of disk in DEV_BSIZE units */
+	off_t		md_mediasize;	/* size of disk in bytes */
+	unsigned	md_sectorsize;	/* sectorsize */
 	unsigned	md_options;	/* options */
 	u_int64_t	md_base;	/* base address */
-	int		md_secsize;	/* sectorsize */
 	int		md_fwheads;	/* firmware heads */
 	int		md_fwsectors;	/* firmware sectors */
 	int		md_pad[MDNPAD];	/* padding for future ideas */

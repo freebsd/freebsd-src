@@ -14,13 +14,17 @@
 #include <stdlib.h>
 #include <fcntl.h>
 #include <unistd.h>
+#include <inttypes.h>
+#include <libutil.h>
 #include <string.h>
 #include <err.h>
+
 #include <sys/ioctl.h>
 #include <sys/param.h>
 #include <sys/module.h>
 #include <sys/linker.h>
 #include <sys/mdioctl.h>
+#include <sys/stat.h>
 #include <sys/sysctl.h>
 #include <sys/queue.h>
 
@@ -55,6 +59,7 @@ main(int argc, char **argv)
 	char *p;
 	int cmdline = 0;
 
+	bzero(&mdio, sizeof(mdio));
 	for (;;) {
 		ch = getopt(argc, argv, "ab:df:lno:s:S:t:u:x:y:");
 		if (ch == -1)
@@ -116,6 +121,13 @@ main(int argc, char **argv)
 			fd = open(optarg, O_RDONLY);
 			if (fd < 0)
 				err(1, "could not open %s", optarg);
+			else if (mdio.md_mediasize == 0) {
+				struct stat sb;
+
+				if (fstat(fd, &sb) == -1)
+					err(1, "could not stat %s", optarg);
+				mdio.md_mediasize = sb.st_size;
+			}
 			close(fd);
 			break;
 		case 'o':
@@ -151,21 +163,24 @@ main(int argc, char **argv)
 		case 'S':
 			if (cmdline != 2)
 				usage();
-			mdio.md_secsize = strtoul(optarg, &p, 0);
+			mdio.md_sectorsize = strtoul(optarg, &p, 0);
 			break;
 		case 's':
 			if (cmdline != 2)
 				usage();
-			mdio.md_size = strtoul(optarg, &p, 0);
+			mdio.md_mediasize = (off_t)strtoumax(optarg, &p, 0);
 			if (p == NULL || *p == '\0')
-				;
+				mdio.md_mediasize *= DEV_BSIZE;
 			else if (*p == 'k' || *p == 'K')
-				mdio.md_size *= (1024 / DEV_BSIZE);
+				mdio.md_mediasize <<= 10;
 			else if (*p == 'm' || *p == 'M')
-				mdio.md_size *= (1024 * 1024 / DEV_BSIZE);
+				mdio.md_mediasize <<= 20;
 			else if (*p == 'g' || *p == 'G')
-				mdio.md_size *= (1024 * 1024 * 1024 / DEV_BSIZE);
-			else
+				mdio.md_mediasize <<= 30;
+			else if (*p == 't' || *p == 'T') {
+				mdio.md_mediasize <<= 30;
+				mdio.md_mediasize <<= 10;
+			} else
 				errx(1, "Unknown suffix on -s argument");
 			break;
 		case 'u':
@@ -202,7 +217,7 @@ main(int argc, char **argv)
 		err(1, "open(/dev/%s)", MDCTL_NAME);
 	if (cmdline == 2
 	    && (mdio.md_type == MD_MALLOC || mdio.md_type == MD_SWAP))
-		if (mdio.md_size == 0)
+		if (mdio.md_mediasize == 0)
 			errx(1, "must specify -s for -t malloc or -t swap");
 	if (cmdline == 2 && mdio.md_type == MD_VNODE)
 		if (mdio.md_file == NULL)
@@ -256,6 +271,16 @@ list(const int fd)
 	return (0);
 }
 
+static void
+prthumanval(int64_t bytes)
+{
+	char buf[6];
+
+	humanize_number(buf, sizeof(buf) - (bytes < 0 ? 0 : 1),
+	    bytes, "", HN_AUTOSCALE, HN_B | HN_NOSPACE | HN_DECIMAL);
+	(void)printf("%6s", buf);
+}
+
 int
 query(const int fd, const int unit)
 {
@@ -266,24 +291,24 @@ query(const int fd, const int unit)
 	if (ioctl(fd, MDIOCQUERY, &mdio) < 0)
 		err(1, "ioctl(/dev/%s)", MDCTL_NAME);
 
+	(void)printf("%s%d\t", MD_NAME, mdio.md_unit);
 	switch (mdio.md_type) {
 	case MD_MALLOC:
-		(void)printf("%s%d\tmalloc\t%d KBytes\n", MD_NAME,
-		    mdio.md_unit, mdio.md_size / 2);
+		(void)printf("malloc");
 		break;
 	case MD_PRELOAD:
-		(void)printf("%s%d\tpreload\t%d KBytes\n", MD_NAME,
-		    mdio.md_unit, mdio.md_size / 2);
+		(void)printf("preload");
 		break;
 	case MD_SWAP:
-		(void)printf("%s%d\tswap\t%d KBytes\n", MD_NAME,
-		    mdio.md_unit, mdio.md_size / 2);
+		(void)printf("swap");
 		break;
 	case MD_VNODE:
-		(void)printf("%s%d\tvnode\t%d KBytes\n", MD_NAME,
-		    mdio.md_unit, mdio.md_size / 2);
+		(void)printf("vnode");
 		break;
 	}
+	printf("\t");
+	prthumanval(mdio.md_mediasize);
+	printf("\n");
 
 	return (0);
 }
