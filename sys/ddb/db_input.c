@@ -329,8 +329,8 @@ db_readline(lstart, lsize)
 	    /* Maintain input line history for non-empty lines. */
 	    if (++db_lhistidx == db_lhist_nlines) {
 		/* Rotate history. */
-		ovbcopy(db_lhistory + db_lhistlsize, db_lhistory,
-			db_lhistlsize * (db_lhist_nlines - 1));
+		bcopy(db_lhistory + db_lhistlsize, db_lhistory,
+		      db_lhistlsize * (db_lhist_nlines - 1));
 		db_lhistidx--;
 	    }
 	    bcopy(lstart, db_lhistory + db_lhistidx * db_lhistlsize,
