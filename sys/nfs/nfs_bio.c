@@ -758,10 +758,18 @@ again:
 			vnode_pager_setsize(vp, np->n_size);
 		}
 		bufsize = biosize;
+#if 0
+		/*
+		 * This optimization causes problems if the file grows while
+		 * blocked in nfs_getcacheblk().  Not only can data be lost,
+		 * but b_dirtyoff/end/b_validoff/end can wind up greater then
+		 * b_bufsize, resulting in general memory corruption.
+		 */
 		if ((off_t)(lbn + 1) * biosize > np->n_size) {
 			bufsize = np->n_size - (off_t)lbn * biosize;
 			bufsize = (bufsize + DEV_BSIZE - 1) & ~(DEV_BSIZE - 1);
 		}
+#endif
 		bp = nfs_getcacheblk(vp, lbn, bufsize, p);
 		if (!bp)
 			return (EINTR);
@@ -773,6 +781,8 @@ again:
 
 		if ((off_t)bp->b_blkno * DEV_BSIZE + bp->b_dirtyend > np->n_size)
 			bp->b_dirtyend = np->n_size - (off_t)bp->b_blkno * DEV_BSIZE;
+		if (bp->b_dirtyend <= bp->b_dirtyoff)
+			bp->b_dirtyend = bp->b_dirtyoff = 0;
 
 		/*
 		 * If the new write will leave a contiguous dirty
@@ -1277,6 +1287,7 @@ nfs_doio(bp, cr, p)
 		}
 	    } else {
 		bp->b_resid = 0;
+		bp->b_dirtyend = bp->b_dirtyoff = 0;
 		biodone(bp);
 		return (0);
 	    }
