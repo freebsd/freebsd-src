@@ -95,7 +95,7 @@ time_t timenow;
 char hostname[MAXHOSTNAMELEN + 1];	/* hostname */
 char *daytime;			/* timenow in human readable form */
 
-static struct conf_entry *parse_file();
+static struct conf_entry *parse_file(char **files);
 static char *sob(char *p);
 static char *son(char *p);
 static char *missing_field(char *p, char *errline);
@@ -121,7 +121,7 @@ main(int argc, char **argv)
 	PRS(argc, argv);
 	if (needroot && getuid() && geteuid())
 		errx(1, "must have root privs");
-	p = q = parse_file();
+	p = q = parse_file(argv + optind);
 
 	while (p) {
 		do_entry(p);
@@ -214,7 +214,6 @@ PRS(int argc, char **argv)
 	if ((p = strchr(hostname, '.'))) {
 		*p = '\0';
 	}
-	optind = 1;		/* Start options parsing */
 	while ((c = getopt(argc, argv, "nrvFf:a:t:")) != -1)
 		switch (c) {
 		case 'n':
@@ -253,11 +252,12 @@ usage(void)
  * process
  */
 static struct conf_entry *
-parse_file(void)
+parse_file(char **files)
 {
 	FILE *f;
 	char line[BUFSIZ], *parse, *q;
 	char *errline, *group;
+	char **p;
 	struct conf_entry *first = NULL;
 	struct conf_entry *working = NULL;
 	struct passwd *pass;
@@ -274,6 +274,21 @@ parse_file(void)
 		if ((line[0] == '\n') || (line[0] == '#'))
 			continue;
 		errline = strdup(line);
+
+		q = parse = missing_field(sob(line), errline);
+		parse = son(line);
+		if (!*parse)
+			errx(1, "malformed line (missing fields):\n%s", errline);
+		*parse = '\0';
+
+		if (*files) {
+			for (p = files; *p; ++p)
+				if (strcmp(*p, q) == 0)
+					break;
+			if (!*p)
+				continue;
+		}
+
 		if (!first) {
 			working = (struct conf_entry *) malloc(sizeof(struct conf_entry));
 			first = working;
@@ -281,12 +296,6 @@ parse_file(void)
 			working->next = (struct conf_entry *) malloc(sizeof(struct conf_entry));
 			working = working->next;
 		}
-
-		q = parse = missing_field(sob(line), errline);
-		parse = son(line);
-		if (!*parse)
-			errx(1, "malformed line (missing fields):\n%s", errline);
-		*parse = '\0';
 		working->log = strdup(q);
 
 		q = parse = missing_field(sob(++parse), errline);
