@@ -137,7 +137,7 @@ i386_unpend(void)
 				break;
 			case 1:		/* bit 1 - statclock */
 				mtx_lock_spin(&sched_lock);
-				statclock_process(curthread,
+				statclock_process(curthread->td_kse,
 				    (register_t)i386_unpend, 0);
 				mtx_unlock_spin(&sched_lock);
 				break;

@@ -671,23 +671,32 @@ calcru(p, up, sp, ip)
 {
 	/* {user, system, interrupt, total} {ticks, usec}; previous tu: */
 	u_int64_t ut, uu, st, su, it, iu, tt, tu, ptu;
+	u_int64_t uut = 0, sut = 0, iut = 0;
+	int s;
 	struct timeval tv;
 	struct bintime bt;
+	struct kse *ke;
+	struct ksegrp *kg;
 
 	mtx_assert(&sched_lock, MA_OWNED);
 	/* XXX: why spl-protect ?  worst case is an off-by-one report */
 
-	ut = p->p_uticks;
-	st = p->p_sticks;
-	it = p->p_iticks;
+	FOREACH_KSEGRP_IN_PROC(p, kg) {
+		/* we could accumulate per ksegrp and per process here*/
+		FOREACH_KSE_IN_GROUP(kg, ke) {
+			s = splstatclock();
+			ut = ke->ke_uticks;
+			st = ke->ke_sticks;
+			it = ke->ke_iticks;
+			splx(s);
 
-	tt = ut + st + it;
-	if (tt == 0) {
-		st = 1;
-		tt = 1;
-	}
+			tt = ut + st + it;
+			if (tt == 0) {
+				st = 1;
+				tt = 1;
+			}
 		
-	if (curthread->td_proc == p) {
+			if (ke == curthread->td_kse) {
 		/*
 		 * Adjust for the current time slice.  This is actually fairly
 		 * important since the error here is on the order of a time
@@ -696,59 +705,64 @@ calcru(p, up, sp, ip)
 		 * processors also being 'current'.
 		 */
 				
-		binuptime(&bt);
-		bintime_sub(&bt, PCPU_PTR(switchtime));
-		bintime_add(&bt, &p->p_runtime);
-	} else {
-		bt = p->p_runtime;
-	}
-	bintime2timeval(&bt, &tv);
-	tu = (u_int64_t)tv.tv_sec * 1000000 + tv.tv_usec;
-	ptu = p->p_uu + p->p_su + p->p_iu;
-	if (tu < ptu || (int64_t)tu < 0) {
-		/* XXX no %qd in kernel.  Truncate. */
-		printf("calcru: negative time of %ld usec for pid %d (%s)\n",
-		       (long)tu, p->p_pid, p->p_comm);
-		tu = ptu;
-	}
+				binuptime(&bt);
+				bintime_sub(&bt, PCPU_PTR(switchtime));
+				bintime_add(&bt, &p->p_runtime);
+			} else {
+				bt = p->p_runtime;
+			}
+			bintime2timeval(&bt, &tv);
+			tu = (u_int64_t)tv.tv_sec * 1000000 + tv.tv_usec;
+			ptu = ke->ke_uu + ke->ke_su + ke->ke_iu;
+			if (tu < ptu || (int64_t)tu < 0) {
+				/* XXX no %qd in kernel.  Truncate. */
+				printf("calcru: negative time of %ld usec for pid %d (%s)\n",
+		       		(long)tu, p->p_pid, p->p_comm);
+				tu = ptu;
+			}
 
-	/* Subdivide tu. */
-	uu = (tu * ut) / tt;
-	su = (tu * st) / tt;
-	iu = tu - uu - su;
+			/* Subdivide tu. */
+			uu = (tu * ut) / tt;
+			su = (tu * st) / tt;
+			iu = tu - uu - su;
 		
-	/* Enforce monotonicity. */
-	if (uu < p->p_uu || su < p->p_su || iu < p->p_iu) {
-		if (uu < p->p_uu)
-			uu = p->p_uu;
-		else if (uu + p->p_su + p->p_iu > tu)
-			uu = tu - p->p_su - p->p_iu;
-		if (st == 0)
-			su = p->p_su;
-		else {
-			su = ((tu - uu) * st) / (st + it);
-			if (su < p->p_su)
-				su = p->p_su;
-			else if (uu + su + p->p_iu > tu)
-				su = tu - uu - p->p_iu;
-		}
-		KASSERT(uu + su + p->p_iu <= tu,
-		    	("calcru: monotonisation botch 1"));
-		iu = tu - uu - su;
-		KASSERT(iu >= p->p_iu,
-		    	("calcru: monotonisation botch 2"));
-	}
-	p->p_uu = uu;
-	p->p_su = su;
-	p->p_iu = iu;
-
-	up->tv_sec = uu / 1000000;
-	up->tv_usec = uu % 1000000;
-	sp->tv_sec = su / 1000000;
-	sp->tv_usec = su % 1000000;
+			/* Enforce monotonicity. */
+			if (uu < ke->ke_uu || su < ke->ke_su || iu < ke->ke_iu) {
+				if (uu < ke->ke_uu)
+					uu = ke->ke_uu;
+				else if (uu + ke->ke_su + ke->ke_iu > tu)
+					uu = tu - ke->ke_su - ke->ke_iu;
+				if (st == 0)
+					su = ke->ke_su;
+				else {
+					su = ((tu - uu) * st) / (st + it);
+					if (su < ke->ke_su)
+						su = ke->ke_su;
+					else if (uu + su + ke->ke_iu > tu)
+						su = tu - uu - ke->ke_iu;
+				}
+				KASSERT(uu + su + ke->ke_iu <= tu,
+		    		("calcru: monotonisation botch 1"));
+				iu = tu - uu - su;
+				KASSERT(iu >= ke->ke_iu,
+		    		("calcru: monotonisation botch 2"));
+			}
+			ke->ke_uu = uu;
+			ke->ke_su = su;
+			ke->ke_iu = iu;
+			uut += uu;
+			sut += su;
+			iut += iu;
+		
+		} /* end kse loop */
+	} /* end kseg loop */
+	up->tv_sec = uut / 1000000;
+	up->tv_usec = uut % 1000000;
+	sp->tv_sec = sut / 1000000;
+	sp->tv_usec = sut % 1000000;
 	if (ip != NULL) {
-		ip->tv_sec = iu / 1000000;
-		ip->tv_usec = iu % 1000000;
+		ip->tv_sec = iut / 1000000;
+		ip->tv_usec = iut % 1000000;
 	}
 }
 
