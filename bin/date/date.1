@@ -33,7 +33,7 @@
 .\" SUCH DAMAGE.
 .\"
 .\"     @(#)date.1	8.3 (Berkeley) 4/28/95
-.\"	$Id: date.1,v 1.8.2.1 1997/02/28 07:54:32 mpp Exp $
+.\"	$Id: date.1,v 1.8.2.2 1997/08/17 20:31:58 brian Exp $
 .\"
 .Dd November 17, 1993
 .Dt DATE 1
@@ -171,6 +171,11 @@ is affected by the following evironment variables:
 .Bl -tag -width Ds
 .It Ev TZ
 The timezone to use when displaying dates.
+The normal format is a pathname relative to
+.Dq Pa /usr/share/zoneinfo .
+For example, the command
+.Dq TZ=America/Los_Angeles date
+displays the current time in California.
 See
 .Xr environ 7
 for more information.
