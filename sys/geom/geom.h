@@ -169,6 +169,7 @@ struct g_provider {
 	TAILQ_ENTRY(g_provider)	orphan;
 	int			index;
 	off_t			mediasize;
+	u_int			sectorsize;
 };
 
 /*

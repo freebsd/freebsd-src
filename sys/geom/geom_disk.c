@@ -99,6 +99,7 @@ g_disk_access(struct g_provider *pp, int r, int w, int e)
 		error = 0;
 	}
         pp->mediasize = dp->d_mediasize;
+        pp->sectorsize = dp->d_sectorsize;
 	return (error);
 }
 

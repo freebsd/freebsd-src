@@ -162,6 +162,7 @@ g_pc98_taste(struct g_class *mp, struct g_provider *pp, int flags)
 			g_topology_lock();
 			pp2 = g_slice_addslice(gp, i,
 			    start, length,
+			    sectorsize,
 			    "%ss%d", pp->name, 1 + i);
 			g_topology_unlock();
 			g_error_provider(pp2, 0);

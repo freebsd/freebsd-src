@@ -369,6 +369,7 @@ g_bsd_modify(struct g_geom *gp, struct disklabel *dl)
 		error = g_slice_config(gp, i, G_SLICE_CONFIG_CHECK,
 		    (off_t)ppp->p_offset * dl->d_secsize,
 		    (off_t)ppp->p_size * dl->d_secsize,
+		     dl->d_secsize,
 		    "%s%c", gp->name, 'a' + i);
 		if (error) {
 			g_topology_unlock();
@@ -382,6 +383,7 @@ g_bsd_modify(struct g_geom *gp, struct disklabel *dl)
 		g_slice_config(gp, i, G_SLICE_CONFIG_SET,
 		    (off_t)ppp->p_offset * dl->d_secsize,
 		    (off_t)ppp->p_size * dl->d_secsize,
+		     dl->d_secsize,
 		    "%s%c", gp->name, 'a' + i);
 	}
 	return (0);

@@ -242,8 +242,9 @@ g_mbr_taste(struct g_class *mp, struct g_provider *pp, int insist)
 			ms->type[i] = dp[i].dp_typ;
 			g_topology_lock();
 			pp2 = g_slice_addslice(gp, i,
-			    ((off_t)dp[i].dp_start) << 9ULL,
-			    ((off_t)dp[i].dp_size) << 9ULL,
+			    (off_t)dp[i].dp_start << 9ULL,
+			    (off_t)dp[i].dp_size << 9ULL,
+			    sectorsize,
 			    "%ss%d", gp->name, i + 1);
 			g_topology_unlock();
 		}
@@ -378,6 +379,7 @@ g_mbrext_taste(struct g_class *mp, struct g_provider *pp, int insist __unused)
 				pp2 = g_slice_addslice(gp, slice,
 				    (((off_t)dp[0].dp_start) << 9ULL) + off,
 				    ((off_t)dp[0].dp_size) << 9ULL,
+				    sectorsize,
 				    "%*.*s%d",
 				    strlen(gp->name) - 1,
 				    strlen(gp->name) - 1,

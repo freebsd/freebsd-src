@@ -172,6 +172,7 @@ g_sunlabel_taste(struct g_class *mp, struct g_provider *pp, int flags)
 			pp2 = g_slice_addslice(gp, i,
 			    ((off_t)v * csize) << 9ULL,
 			    ((off_t)u) << 9ULL,
+			    sectorsize,
 			    "%s%c", pp->name, 'a' + i);
 			g_topology_unlock();
 			g_error_provider(pp2, 0);

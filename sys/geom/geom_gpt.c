@@ -226,6 +226,7 @@ g_gpt_taste(struct g_class *mp, struct g_provider *pp, int insist)
 			(void)g_slice_addslice(gp, i, 
 			    ent->ent_lba_start * secsz,
 			    (1 + ent->ent_lba_end - ent->ent_lba_start) * secsz,
+			    secsz,
 			    "%s%c%d", gp->name, ps, i + 1);
 			g_topology_unlock();
 			npart++;
