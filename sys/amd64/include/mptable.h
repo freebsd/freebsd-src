@@ -2777,10 +2777,14 @@ forward_signal(struct proc *p)
 		return;
 	if (!forward_signal_enabled)
 		return;
+	mtx_enter(&sched_lock, MTX_SPIN);
 	while (1) {
-		if (p->p_stat != SRUN)
+		if (p->p_stat != SRUN) {
+			mtx_exit(&sched_lock, MTX_SPIN);
 			return;
+		}
 		id = p->p_oncpu;
+		mtx_exit(&sched_lock, MTX_SPIN);
 		if (id == 0xff)
 			return;
 		map = (1<<id);
@@ -2798,8 +2802,11 @@ forward_signal(struct proc *p)
 				break;
 			}
 		}
-		if (id == p->p_oncpu)
+		mtx_enter(&sched_lock, MTX_SPIN);
+		if (id == p->p_oncpu) {
+			mtx_exit(&sched_lock, MTX_SPIN);
 			return;
+		}
 	}
 }
 
