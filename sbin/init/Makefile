@@ -1,13 +1,13 @@
 #	@(#)Makefile	8.1 (Berkeley) 7/19/93
-#	$Id: Makefile,v 1.7 1996/05/04 08:16:20 markm Exp $
+#	$Id: Makefile,v 1.8 1996/09/05 17:14:50 bde Exp $
 
 PROG=	init
 MAN8=	init.8
 BINMODE=500
 INSTALLFLAGS=-fschg
-CFLAGS+=-DDEBUGSHELL -DSECURE
+CFLAGS+=-DDEBUGSHELL -DSECURE -DLOGIN_CAP
 
-.if exists(../../secure) && !defined(NOCRYPT) && !defined(NOSECURE)
+.if exists(${.CURDIR}/../../secure) && !defined(NOCRYPT) && !defined(NOSECURE)
 DISTRIBUTION=des
 DPADD=	${LIBUTIL} ${DESCRYPTOBJDIR}/libdescrypt.a
 LDADD=	-lutil -L${DESCRYPTOBJDIR} -ldescrypt
