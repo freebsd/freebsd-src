@@ -6,7 +6,7 @@
 .\" this stuff is worth it, you can buy me a beer in return.   Poul-Henning Kamp
 .\" ----------------------------------------------------------------------------
 .\"
-.\" $Id: malloc.ms,v 1.2 1996/09/29 18:36:13 phk Exp $
+.\" $Id: malloc.ms,v 1.3 1996/10/04 14:01:55 wosch Exp $
 .\"
 .ds RH Malloc and free
 .NH
@@ -36,8 +36,8 @@ is changed to free and if one or both of the surrounding chunks
 are free, they are collapsed to one.
 .PP
 A third kind of request, 
-.B realloc(3)
-exists, it will resize
+.B realloc(3) ,
+will resize
 a chunk, trying to avoid copying the contents if possible.
 It is seldom used, and has only had a significant impact on performance
 in a few special situations.
@@ -63,10 +63,10 @@ A best-fit algorithm can be used instead of first-fit at an expense
 of memory, because statistically fewer chances to brk(2) backwards will 
 present themselves.
 .IP
-Splitting the list in two, once for used and one for free chunks to
+Splitting the list in two, one for used and one for free chunks, to
 speed the searching.
 .IP
-Putting free chunks on one of several free-list depending on the size
+Putting free chunks on one of several free lists, depending on their size,
 to speed allocation.
 .IP
 \&...

@@ -6,7 +6,7 @@
 .\" this stuff is worth it, you can buy me a beer in return.   Poul-Henning Kamp
 .\" ----------------------------------------------------------------------------
 .\"
-.\" $Id: intro.ms,v 1.1 1996/04/13 08:30:14 phk Exp $
+.\" $Id: intro.ms,v 1.2 1996/11/14 08:10:30 phk Exp $
 .\"
 .ds RH Introduction
 .NH
@@ -49,7 +49,7 @@ of the current subroutine is intact.
 .PP
 Due to the nature of normal use of the stack, there is no corresponding
 "free" operator, but instead the space is returned when the current
-function returns to its caller and the stack frame is dismanteled.
+function returns to its caller and the stack frame is dismantled.
 This is the cause of much grief, and probably the single most important
 reason that alloca(3) is not, and should not be, used widely.
 .PP
@@ -66,9 +66,9 @@ front for brk(2).
 .PP
 In addition to these two memory resources, modern virtual memory kernels
 provide the mmap(2)/mmunmap(2) interface which allows almost complete
-control over any bit of virtual memory in the process address room.
+control over any bit of virtual memory in the process address space.
 .PP
 Because of the generality of the mmap(2) interface and the way the 
 data structures representing the regions are laid out, sbrk(2) is actually
-faster in use than the equivalent mmap(2) call, simply because the
+faster in use than the equivalent mmap(2) call, simply because
 mmap(2) has to search for information that is implicit in the sbrk(2) call.
