@@ -93,6 +93,8 @@ uint32_t cpu_reset_address = 0;
 int cold = 1;
 vm_offset_t vector_page;
 
+long realmem = 0;
+
 void
 sendsig(catcher, sig, mask, code)
 	sig_t catcher;
@@ -242,6 +244,7 @@ cpu_startup(void *dummy)
 	m = vm_page_alloc(NULL, 0, VM_ALLOC_NOOBJ | VM_ALLOC_ZERO);
 	pmap_kenter_user(ARM_TP_ADDRESS, VM_PAGE_TO_PHYS(m));
 #endif
+	realmem = physmem;
 	
 }
 
