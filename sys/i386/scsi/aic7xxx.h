@@ -30,7 +30,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: aic7xxx.h,v 1.23 1996/03/31 03:15:31 gibbs Exp $
+ *	$Id: aic7xxx.h,v 1.25 1996/04/20 21:29:27 gibbs Exp $
  */
 
 #ifndef _AIC7XXX_H_
@@ -132,15 +132,18 @@ struct scb {
 	STAILQ_ENTRY(scb)	links;	/* for chaining */
 	struct scsi_xfer *xs;	/* the scsi_xfer for this cmd */
 	int	flags;
-#define	SCB_FREE		0x00
-#define	SCB_ACTIVE		0x01
-#define	SCB_ABORTED		0x02
-#define	SCB_DEVICE_RESET	0x04
-#define	SCB_IMMED		0x08
-#define	SCB_SENSE		0x10
-#define	SCB_TIMEDOUT		0x20
-#define	SCB_QUEUED_FOR_DONE	0x40
-#define SCB_PAGED_OUT		0x80
+#define	SCB_FREE		0x000
+#define	SCB_ACTIVE		0x001
+#define	SCB_ABORTED		0x002
+#define	SCB_DEVICE_RESET	0x004
+#define	SCB_IMMED		0x008
+#define	SCB_SENSE		0x010
+#define	SCB_TIMEDOUT		0x020
+#define	SCB_QUEUED_FOR_DONE	0x040
+#define	SCB_PAGED_OUT		0x080
+#define	SCB_WAITINGQ		0x100
+#define	SCB_ASSIGNEDQ		0x200
+#define	SCB_SENTORDEREDTAG	0x400
 	u_char	position;	/* Position in card's scbarray */
 	struct ahc_dma_seg ahc_dma[AHC_NSEG] __attribute__ ((packed));
 	struct scsi_sense sense_cmd;	/* SCSI command block */
@@ -182,6 +185,7 @@ struct ahc_data {
 	u_short sdtrpending;		/* Pending SDTR to these targets */
 	u_short wdtrpending;		/* Pending WDTR to these targets */
 	u_short	tagenable;		/* Targets that can handle tagqueing */
+	u_short	orderedtag;		/* Targets to use ordered tag on */
 	u_short	discenable;		/* Targets allowed to disconnect */
 	u_char	our_id;			/* our scsi id */
 	u_char	our_id_b;		/* B channel scsi id */
