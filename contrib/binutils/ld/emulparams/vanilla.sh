@@ -1,5 +1,0 @@
-SCRIPT_NAME=vanilla
-TEXT_START_ADDR=??
-TARGET_PAGE_SIZE=??
-ARCH=unknown
-TEMPLATE_NAME=vanilla

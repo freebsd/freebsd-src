@@ -1,6 +1,0 @@
-@set EDITION 4.0
-@set VERSION 4.0
-@set UPDATED 31 December 1998
-@set UPDATE-MONTH December 1998
-
-@set LASTCHANGE Thu Dec 31 10:17:05 EST 1998
