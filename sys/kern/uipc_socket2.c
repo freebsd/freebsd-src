@@ -848,13 +848,23 @@ sbcreatecontrol(p, size, type, level)
 	register struct cmsghdr *cp;
 	struct mbuf *m;
 
-	if (CMSG_SPACE((u_int)size) > MLEN)
+	if (CMSG_SPACE((u_int)size) > MCLBYTES)
 		return ((struct mbuf *) NULL);
 	if ((m = m_get(M_DONTWAIT, MT_CONTROL)) == NULL)
 		return ((struct mbuf *) NULL);
+	if (CMSG_SPACE((u_int)size) > MLEN) {
+		MCLGET(m, M_DONTWAIT);
+		if ((m->m_flags & M_EXT) == 0) {
+			m_free(m);
+			return ((struct mbuf *) NULL);
+		}
+	}
 	cp = mtod(m, struct cmsghdr *);
-	/* XXX check size? */
-	(void)memcpy(CMSG_DATA(cp), p, size);
+	m->m_len = 0;
+	KASSERT(CMSG_SPACE((u_int)size) <= M_TRAILINGSPACE(m),
+	    ("sbcreatecontrol: short mbuf"));
+	if (p != NULL)
+		(void)memcpy(CMSG_DATA(cp), p, size);
 	m->m_len = CMSG_SPACE(size);
 	cp->cmsg_len = CMSG_LEN(size);
 	cp->cmsg_level = level;
