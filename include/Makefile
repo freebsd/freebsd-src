@@ -1,5 +1,5 @@
 #	From: @(#)Makefile	8.2 (Berkeley) 1/4/94
-#	$Id: Makefile,v 1.31 1995/11/12 19:29:08 markm Exp $
+#	$Id: Makefile,v 1.32 1996/01/22 00:02:22 julian Exp $
 #
 # Doing a make install builds /usr/include
 #
@@ -92,6 +92,7 @@ copies:
 	rm -rf ${DESTDIR}/usr/include/${LUDIR}
 	mkdir ${DESTDIR}/usr/include/${LUDIR}
 	chown ${BINOWN}.${BINGRP} ${DESTDIR}/usr/include/${LUDIR}
+	chmod 755 ${DESTDIR}/usr/include/${LUDIR}
 	@-for i in ${LDIRS} ${UDIRS}; do				\
 		${ECHO} ${SHARED} $$i;					\
 		rm -rf ${DESTDIR}/usr/include/$$i;			\
