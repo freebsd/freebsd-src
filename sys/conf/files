@@ -371,8 +371,6 @@ dev/ispfw/ispfw.c	optional ispfw
 dev/lge/if_lge.c	optional lge
 dev/lmc/if_lmc.c	optional lmc
 dev/lnc/if_lnc.c	optional lnc
-dev/lnc/if_lnc_isa.c	optional lnc isa
-dev/lnc/if_lnc_pc98.c	optional lnc isa
 dev/lnc/if_lnc_pci.c	optional lnc pci
 dev/ncv/ncr53c500.c	optional ncv
 dev/ncv/ncr53c500_pccard.c	optional ncv card
