@@ -36,9 +36,6 @@ SUBDIR+=	pam_opie
 SUBDIR+=	pam_permit
 SUBDIR+=	pam_radius
 SUBDIR+=	pam_skey
-.if exists(${.CURDIR}/../../../crypto/openssh) && !defined(NOCRYPT) && !defined(NO_OPENSSL) && !defined(NO_OPENSSH)
-SUBDIR+=	pam_ssh
-.endif
 SUBDIR+=	pam_tacplus
 SUBDIR+=	pam_unix
 
