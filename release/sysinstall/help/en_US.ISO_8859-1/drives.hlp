@@ -1,20 +1,21 @@
-Select the drives you wish FreeBSD to be able to use.
+Select the drive(s) you wish FreeBSD to be able to use.
 
 If you are going to actually install some portion of FreeBSD on a
-drive, then PLEASE BE VERY CERTAIN that the Geometry reported in the
+drive then PLEASE BE VERY CERTAIN that the Geometry reported in the
 Partition Editor (see Installation Menu) is the correct one for your
 drive and controller combination!
 
 IDE drives often have a certain geometry set during the PC BIOS setup,
 or (in the case of larger IDE drives) have their geometry "remapped"
 by either the IDE controller or a special boot-sector translation
-utility (such as that by OnTrack Systems).  In these cases, knowing
+utility such as that by OnTrack Systems.  In these cases, knowing
 the correct geometry gets even more complicated as it's not something
 you can easily tell by looking at the drive or the PC BIOS setup.  The
 best way of determining your geometry in such situations is to boot
 DOS (from the hard disk, not a floppy!) and run the ``pfdisk'' utility
-provided in the tools/ subdirectory.  It will report the geometry that
-DOS sees, which is generally the correct one.
+provided in the tools/ subdirectory of the FreeBSD CDROM or FTP site.
+It will report the geometry that DOS sees, which is generally the
+correct one.
 
 FreeBSD does its best to guess all of this automatically, of course,
 but it sometimes fails which is why it's a good idea to check it.  The
