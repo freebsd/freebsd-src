@@ -229,7 +229,7 @@ atkbdc_add_child(device_t bus, int order, char *name, int unit)
 	if (!ivar)
 		return NULL;
 
-	child = device_add_child(bus, NULL, -1);
+	child = device_add_child_ordered(bus, order, name, unit);
 	if (child == NULL) {
 		free(ivar, M_ATKBDDEV);
 		return child;
