@@ -1,5 +1,5 @@
 #	from: @(#)bsd.lib.mk	5.26 (Berkeley) 5/2/91
-#	$Id: bsd.lib.mk,v 1.58 1997/06/18 03:39:34 asami Exp $
+#	$Id: bsd.lib.mk,v 1.59 1997/06/21 15:40:32 jkh Exp $
 #
 
 .if exists(${.CURDIR}/../Makefile.inc)
@@ -186,10 +186,12 @@ _EXTRADEPEND::
 	    > $$TMP; \
 	mv $$TMP ${DEPENDFILE}
 .endif
+.if !defined(NOEXTRADEPEND)
 _EXTRADEPEND::
 	echo lib${LIB}.so.${SHLIB_MAJOR}.${SHLIB_MINOR}: \
 	    `${LDDESTDIRENV} ${CC} -shared -Wl,-f ${LDDESTDIR} ${LDADD}` \
 	    >> ${DEPENDFILE}
+.endif
 
 .if !target(install)
 .if !target(beforeinstall)
