@@ -328,9 +328,39 @@ adjustrunqueue( struct thread *td, int newpri)
 
 static void
 maybe_preempt_in_ksegrp(struct thread *td)
+#if  !defined(SMP)
 {
 	struct thread *running_thread;
-#if  defined(SMP)
+
+#ifndef FULL_PREEMPTION
+	int pri;
+	pri = td->td_priority;
+	if (!(pri >= PRI_MIN_ITHD && pri <= PRI_MAX_ITHD))
+		return;
+#endif
+	mtx_assert(&sched_lock, MA_OWNED);
+	running_thread = curthread;
+
+	if (running_thread->td_ksegrp != td->td_ksegrp)
+		return;
+
+	if (td->td_priority > running_thread->td_priority)
+		return;
+#ifdef PREEMPTION
+	if (running_thread->td_critnest > 1) 
+		running_thread->td_pflags |= TDP_OWEPREEMPT;
+	 else 		
+		 mi_switch(SW_INVOL, NULL);
+	
+#else
+	running_thread->td_flags |= TDF_NEEDRESCHED;
+#endif
+	return;
+}
+
+#else /* SMP */
+{
+	struct thread *running_thread;
 	int worst_pri;
 	struct ksegrp *kg;
 	cpumask_t cpumask,dontuse;
@@ -403,12 +433,6 @@ maybe_preempt_in_ksegrp(struct thread *td)
 	}	
 #endif
 
-#else
-	running_thread = curthread;
-	KASSERT(running_thread->td_ksegrp == td->td_ksegrp,
-	    ("maybe_preempt_in_ksegrp: No chance to run thread"));
-#endif
-
 	if (td->td_priority > running_thread->td_priority)
 		return;
 #ifdef PREEMPTION
@@ -422,6 +446,8 @@ maybe_preempt_in_ksegrp(struct thread *td)
 #endif
 	return;
 }
+#endif /* !SMP */
+
 
 int limitcount;
 void
