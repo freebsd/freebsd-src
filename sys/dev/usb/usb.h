@@ -53,6 +53,10 @@
 #include <dev/usb/usb_port.h>
 #endif /* _KERNEL */
 
+/* These two defines are used by usbd to autoload the usb kld */
+#define USB_KLD		"usb"		/* name of usb module */
+#define USB_UHUB	"usb/uhub"	/* root hub */
+
 #define USB_STACK_VERSION 2
 
 #define USB_MAX_DEVICES 128
