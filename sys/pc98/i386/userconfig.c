@@ -46,7 +46,7 @@
  ** (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  ** THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  **
- **      $Id: userconfig.c,v 1.65.2.2 1999/02/07 11:21:07 kato Exp $
+ **      $Id: userconfig.c,v 1.65.2.3 1999/02/10 13:04:13 kato Exp $
  **/
 
 /**
@@ -1012,11 +1012,10 @@ findconflict(DEV_LIST *list)
 	    if ((dp->drq > 0) &&		/* drq conflict? */
 		(dp->drq == sp->drq))
 		dp->conflicts = 1;
-	    if ((dp->maddr > 0) &&		/* maddr conflict? */
-		(dp->maddr == sp->maddr))
-		dp->conflicts = 1;
-	    if ((dp->msize > 0) &&		/* msize conflict? */
-		(dp->msize == sp->msize))
+	    if ((sp->maddr > 0) &&		/* maddr/msize conflict? */
+		(dp->maddr > 0) &&
+		(sp->maddr + ((sp->msize == 0) ? 1 : sp->msize) > dp->maddr) &&
+		(dp->maddr + ((dp->msize == 0) ? 1 : dp->msize) > sp->maddr))
 		dp->conflicts = 1;
 	}
 	count += dp->conflicts;			/* count conflicts */
@@ -2525,7 +2524,7 @@ visuserconfig(void)
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *      $Id: userconfig.c,v 1.65.2.2 1999/02/07 11:21:07 kato Exp $
+ *      $Id: userconfig.c,v 1.65.2.3 1999/02/10 13:04:13 kato Exp $
  */
 
 #include "scbus.h"
