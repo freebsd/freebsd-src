@@ -106,17 +106,21 @@ and
 .Fn fetchPutURL
 constitute the recommended interface to the
 .Nm fetch
-library. They examine the URL passed to them to determine the transfer
+library.
+They examine the URL passed to them to determine the transfer
 method, and call the appropriate lower-level functions to perform the
-actual transfer. The 
+actual transfer.
+The 
 .Fa flags
-argument is a string of characters which specify transfer options. The
+argument is a string of characters which specify transfer options.
+The
 meaning of the individual flags is scheme-dependent, and is detailed
 in the appropriate section below.
 .Pp
 .Fn fetchStatURL
 attempts to obtain the requested document's metadata and fill in the
-structure pointed to by it's second argument. The
+structure pointed to by it's second argument.
+The
 .Fa url_stat
 structure is defined as follows in
 .Aq Pa fetch.h :
@@ -130,9 +134,11 @@ struct url_stat {
 .Pp
 .Fn fetchListURL
 attempts to list the contents of the directory pointed to by the URL
-provided. If successful, it returns a malloced array of
+provided.
+If successful, it returns a malloced array of
 .Fa url_ent
-structures. The
+structures.
+The
 .Fa url_ent
 structure is defined as follows in
 .Aq Pa fetch.h :
@@ -160,7 +166,8 @@ is:
 .Ed
 .Pp
 Note that some components of the URL are not necessarily relevant to
-all URL schemes. For instance, the file scheme only needs the <scheme>
+all URL schemes.
+For instance, the file scheme only needs the <scheme>
 and <document> components.
 .Pp
 The pointer returned by
@@ -187,7 +194,8 @@ All of the
 and
 .Fn fetchPutXXX
 functions return a pointer to a stream which can be used to read or
-write data from or to the requested document, respectively. Note that
+write data from or to the requested document, respectively.
+Note that
 although the implementation details of the individual access methods
 vary, it can generally be assumed that a stream returned by one of the
 .Fn fetchGetXXX
@@ -199,7 +207,8 @@ functions is write-only.
 and
 .Fn fetchPutFile
 provide access to documents which are files in a locally mounted file
-system. Only the <document> component of the URL is used.
+system.
+Only the <document> component of the URL is used.
 .Pp
 .Fn fetchGetFile
 does not accept any flags.
@@ -207,7 +216,8 @@ does not accept any flags.
 .Fn fetchPutFile
 accepts the
 .Fa a
-(append to file) flag. If that flag is specified, the data written to
+(append to file) flag.
+If that flag is specified, the data written to
 the stream returned by
 .Fn fetchPutFile
 will be appended to the previous contents of the file, instead of
@@ -246,7 +256,8 @@ The
 .Fn fetchGetHTTP
 and
 .Fn fetchPutHTTP
-functions implement the HTTP/1.1 protocol. With a little luck, there's
+functions implement the HTTP/1.1 protocol.
+With a little luck, there's
 even a chance that they comply with RFC2068.
 .Pp
 If the
@@ -267,7 +278,8 @@ is currently unimplemented.
 .Fn fetchParseURL
 returns a pointer to a
 .Fa struct url
-containing the individual components of the URL. If it is
+containing the individual components of the URL.
+If it is
 unable to allocate memory, or the URL is syntactically incorrect,
 .Fn fetchParseURL
 returns a NULL pointer.
@@ -282,7 +294,8 @@ access the requested document, or NULL if an error occurred.
 .Nm Libfetch
 uses the Common Error Library
 .Nm ( libcom_err )
-to report errors. The error code passed to
+to report errors.
+The error code passed to
 .Fn com_err
 is one of:
 .Bl -tag -width Er
@@ -388,7 +401,8 @@ and
 This manual page was written by
 .An Dag-Erling Coïdan Smørgrav Aq des@FreeBSD.org
 .Sh BUGS
-Some parts of the library are not yet implemented. The most notable
+Some parts of the library are not yet implemented.
+The most notable
 examples of this are
 .Fn fetchPutHTTP ,
 .Fn fetchStatHTTP ,
@@ -400,27 +414,32 @@ There's no way to select a proxy at run-time other than setting the
 .Ev HTTP_PROXY
 or
 .Ev FTP_PROXY
-environment variables as appropriate. There is also no way to stop the
+environment variables as appropriate.
+There is also no way to stop the
 FTP and HTTP functions from trying to use a proxy if these variables
 are set.
 .Pp
-HTTP authentication doesn't work. I'm not sure that's a bug in my
+HTTP authentication doesn't work.
+I'm not sure that's a bug in my
 code; as far as I can determine,
 .Nm libfetch
 handles HTTP/1.1 basic authentication correctly as outlined in
 RFC2068, but I haven't been able to find an HTTP server that honors
-the Authentication: header field. Also,
+the Authentication: header field.
+Also,
 .Nm libfetch
 does not attempt to interpret and respond to authentication requests
 from the HTTP server.
 .Pp
-No attempt is made to encode spaces etc. within URLs. Spaces in the
+No attempt is made to encode spaces etc. within URLs.
+Spaces in the
 document part of an URLshould be replaced with "%20" in HTTP URLs and
 "\\ " in FTP URLs.
 .Pp
 Error numbers are unique only within a certain context; the error
 codes used for FTP and HTTP overlap, as do those used for resolver and
-system errors. For instance, error code 202 means "Command not
+system errors.
+For instance, error code 202 means "Command not
 implemented, superfluous at this site" in an FTP context and
 "Accepted" in an HTTP context.
 .Pp

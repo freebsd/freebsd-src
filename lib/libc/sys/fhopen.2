@@ -61,13 +61,15 @@ opens the file referenced by
 .Fa fhp
 for reading and/or writing as specified by the argument
 .Fa flags
-and returns the file descriptor to the calling process. The
+and returns the file descriptor to the calling process.
+The
 .Fa flags
 are specified by
 .Em or Ns 'ing
 together the flags used for the
 .Xr open 2
-call. All said flags are valid except for
+call.
+All said flags are valid except for
 .Dv O_CREAT .
 .Pp
 .Fn fhstat

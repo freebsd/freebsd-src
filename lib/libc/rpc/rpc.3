@@ -39,7 +39,8 @@ auth_destroy(auth)
 A macro that destroys the authentication information associated with
 .IR auth .
 Destruction usually involves deallocation of private data
-structures. The use of
+structures.
+The use of
 .I auth
 is undefined after calling
 .BR auth_destroy(\|) .
@@ -57,7 +58,8 @@ authnone_create(\|)
 Create and returns an
 .SM RPC
 authentication handle that passes nonusable authentication
-information with each remote procedure call. This is the
+information with each remote procedure call.
+This is the
 default authentication used by
 .SM RPC.
 .if t .ne 10
@@ -169,7 +171,8 @@ resultproc_t eachresult;
 Like
 .BR callrpc(\|) ,
 except the call message is broadcast to all locally
-connected broadcast nets. Each time it receives a
+connected broadcast nets.
+Each time it receives a
 response, this routine calls
 .BR eachresult(\|) ,
 whose form is:
@@ -201,7 +204,8 @@ waits for more replies; otherwise it returns with appropriate
 status.
 .IP
 Warning: broadcast sockets are limited in size to the
-maximum transfer unit of the data link. For ethernet,
+maximum transfer unit of the data link.
+For ethernet,
 this value is 1500 bytes.
 .br
 .if t .ne 13
@@ -252,7 +256,8 @@ clnt_destroy(clnt)
 .IP
 A macro that destroys the client's
 .SM RPC
-handle. Destruction usually involves deallocation
+handle.
+Destruction usually involves deallocation
 of private data structures, including
 .I clnt
 itself.  Use of
@@ -282,7 +287,8 @@ Generic client creation routine.
 identifies the name of the remote host where the server
 is located.
 .I proto
-indicates which kind of transport protocol to use. The
+indicates which kind of transport protocol to use.
+The
 currently supported values for this field are \(lqudp\(rq
 and \(lqtcp\(rq.
 Default timeouts are set, but can be modified using
@@ -315,7 +321,8 @@ about a client object.
 .I req
 indicates the type of operation, and
 .I info
-is a pointer to the information. For both
+is a pointer to the information.
+For both
 .SM UDP
 and
 .SM TCP\s0,
@@ -573,7 +580,8 @@ This allows simulation of
 and acquisition of
 .SM RPC
 overheads, such as round trip times, without any
-kernel interference. This routine returns
+kernel interference.
+This routine returns
 .SM NULL
 if it fails.
 .br
@@ -599,7 +607,8 @@ version
 .IR versnum ;
 the client uses
 .SM TCP/IP
-as a transport. The remote program is located at Internet
+as a transport.
+The remote program is located at Internet
 address
 .IR *addr .
 If
@@ -651,7 +660,8 @@ version
 .IR versnum ;
 the client uses
 .SM UDP/IP
-as a transport. The remote program is located at Internet
+as a transport.
+The remote program is located at Internet
 address
 .IR addr .
 If
@@ -705,7 +715,8 @@ on
 .IR versnum ;
 the client uses
 .SM UDP/IP
-as a transport. The remote program is located at Internet
+as a transport.
+The remote program is located at Internet
 address
 .IR addr .
 If
@@ -851,7 +862,8 @@ The parameter
 .I *portp
 will be modified to the program's port number if the
 procedure
-succeeds. The definitions of other parameters are discussed
+succeeds.
+The definitions of other parameters are discussed
 in
 .B callrpc(\|)
 and
@@ -880,7 +892,8 @@ and
 .I port
 on the machine's
 .B portmap
-service. The value of
+service.
+The value of
 .I protocol
 is most likely
 .B
@@ -909,7 +922,8 @@ and
 .B ports
 on the machine's
 .B portmap
-service. This routine returns one if it succeeds, zero
+service.
+This routine returns one if it succeeds, zero
 otherwise.
 .br
 .if t .ne 15
@@ -1004,7 +1018,8 @@ service side's
 read file descriptor bit mask; it is suitable as a template parameter
 to the
 .B select
-system call. This is only of interest
+system call.
+This is only of interest
 if a service implementor does not call
 .BR svc_run(\|) ,
 but rather does his own asynchronous event processing.
@@ -1032,7 +1047,8 @@ int svc_fds;
 .IP
 Similar to
 .BR svc_fedset(\|) ,
-but limited to 32 descriptors. This
+but limited to 32 descriptors.
+This
 interface is obsoleted by
 .BR svc_fdset(\|) .
 .br
@@ -1143,7 +1159,8 @@ int rdfds;
 .IP
 Similar to
 .BR svc_getreqset(\|) ,
-but limited to 32 descriptors. This interface is obsoleted by
+but limited to 32 descriptors.
+This interface is obsoleted by
 .BR svc_getreqset(\|) .
 .br
 .if t .ne 17
@@ -1212,12 +1229,14 @@ svc_run(\|)
 .fi
 .ft R
 .IP
-This routine never returns. It waits for
+This routine never returns.
+It waits for
 .SM RPC
 requests to arrive, and calls the appropriate service
 procedure using
 .B svc_getreq(\|)
-when one arrives. This procedure is usually waiting for a
+when one arrives.
+This procedure is usually waiting for a
 .B select(\|)
 system call to return.
 .br
@@ -1291,7 +1310,8 @@ svcerr_decode(xprt)
 .ft R
 .IP
 Called by a service dispatch routine that cannot successfully
-decode its parameters. See also
+decode its parameters.
+See also
 .BR svc_getargs(\|) .
 .br
 .if t .ne 7
@@ -1321,7 +1341,8 @@ svcerr_noprog(xprt)
 .IP
 Called when the desired program is not registered with the
 .SM RPC
-package. Service implementors usually do not need this routine.
+package.
+Service implementors usually do not need this routine.
 .br
 .if t .ne 7
 .LP
@@ -1337,7 +1358,8 @@ svcerr_progvers(xprt)
 Called when the desired version of a program is not registered
 with the
 .SM RPC
-package. Service implementors usually do not need this routine.
+package.
+Service implementors usually do not need this routine.
 .br
 .if t .ne 7
 .LP
@@ -1434,7 +1456,8 @@ is the transport's socket descriptor, and
 is the transport's port number.
 This routine returns
 .SM NULL
-if it fails. Since
+if it fails.
+Since
 .SM TCP\s0-based
 .SM RPC
 uses buffered
@@ -1455,7 +1478,8 @@ u_int recvsize;
 .fi
 .ft R
 .IP
-Create a service on top of any open descriptor. Typically,
+Create a service on top of any open descriptor.
+Typically,
 this
 descriptor is a connected socket for a stream protocol such
 as
@@ -1488,7 +1512,8 @@ which may be
 in which case a new socket is created.
 If the socket is not bound to a local
 .SM UDP
-port, then this routine binds it to an arbitrary port. Upon
+port, then this routine binds it to an arbitrary port.
+Upon
 completion,
 \fB\%xprt\->xp_sock\fR
 is the transport's socket descriptor, and
@@ -1516,7 +1541,8 @@ struct accepted_reply *ar;
 .IP
 Used for encoding
 .SM RPC
-reply messages. This routine is useful for users who
+reply messages.
+This routine is useful for users who
 wish to generate
 \s-1RPC\s0-style
 messages without using the
@@ -1536,7 +1562,8 @@ struct authunix_parms *aupp;
 .IP
 Used for describing
 .SM UNIX
-credentials. This routine is useful for users
+credentials.
+This routine is useful for users
 who wish to generate these credentials without using the
 .SM RPC
 authentication package.

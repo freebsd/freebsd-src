@@ -55,13 +55,15 @@ respectively.
 .Pp
 The
 .Fn pthread_testcancel
-function creates a cancellation point in the calling thread. The
+function creates a cancellation point in the calling thread.
+The
 .Fn pthread_testcancel
 function has no effect if cancelability is disabled.
 .Pp
 .Ss Cancelability States
 The cancelability state of a thread determines the action taken upon
-receipt of a cancellation request. The thread may control cancellation in
+receipt of a cancellation request.
+The thread may control cancellation in
 a number of ways.
 .Pp
 Each thread maintains its own
@@ -79,7 +81,8 @@ new or pending cancellation requests may be acted upon at any time.
 When cancelability is enabled and the cancelability type is
 .Dv PTHREAD_CANCEL_DEFERRED ,
 cancellation requests are held pending until a cancellation point (see
-below) is reached. If cancelability is disabled, the setting of the
+below) is reached.
+If cancelability is disabled, the setting of the
 cancelability type has no immediate effect as all cancellation requests
 are held pending; however, once cancelability is enabled again the new
 type will be in effect.
@@ -114,7 +117,8 @@ If successful, the
 .Fn pthread_setcancelstate
 and
 .Fn pthread_setcanceltype
-functions will return zero. Otherwise, an error number shall be returned to
+functions will return zero.
+Otherwise, an error number shall be returned to
 indicate the error.
 .Pp
 The
@@ -122,22 +126,27 @@ The
 and
 .Fn pthread_setcanceltype
 functions are used to control the points at which a thread may be
-asynchronously canceled. For cancellation control to be usable in modular
+asynchronously canceled.
+For cancellation control to be usable in modular
 fashion, some rules must be followed.
 .Pp
 For purposes of this discussion, consider an object to be a generalization
-of a procedure. It is a set of procedures and global variables written as
-a unit and called by clients not known by the object. Objects may depend
+of a procedure.
+It is a set of procedures and global variables written as
+a unit and called by clients not known by the object.
+Objects may depend
 on other objects.
 .Pp
 First, cancelability should only be disabled on entry to an object, never
-explicitly enabled. On exit from an object, the cancelability state should
+explicitly enabled.
+On exit from an object, the cancelability state should
 always be restored to its value on entry to the object.
 .Pp
 This follows from a modularity argument: if the client of an object (or the
 client of an object that uses that object) has disabled cancelability, it is
 because the client doesn't want to have to worry about how to clean up if the
-thread is canceled while executing some sequence of actions. If an object
+thread is canceled while executing some sequence of actions.
+If an object
 is called in such a state and it enables cancelability and a cancellation
 request is pending for that thread, then the thread will be canceled,
 contrary to the wish of the client that disabled.
@@ -146,7 +155,8 @@ Second, the cancelability type may be explicitly set to either
 .Em deferred
 or
 .Em asynchronous
-upon entry to an object. But as with the cancelability state, on exit from
+upon entry to an object.
+But as with the cancelability state, on exit from
 an object that cancelability type should always be restored to its value on
 entry to the object.
 .Pp

@@ -51,7 +51,8 @@ by any thread in a process, with a given
 .Fa once_control ,
 will call the
 .Fn init_routine
-with no arguments. Subsequent calls to
+with no arguments.
+Subsequent calls to
 .Fn pthread_once
 with the same
 .Fa once_control
@@ -61,14 +62,16 @@ On return from
 .Fn pthread_once ,
 it is guaranteed that
 .Fn init_routine
-has completed. The
+has completed.
+The
 .Fa once_control
 parameter is used to determine whether the associated initialization
 routine has been called.
 .Pp
 The function
 .Fn pthread_once
-is not a cancellation point. However, if
+is not a cancellation point.
+However, if
 .Fn init_routine
 is a cancellation point and is cancelled, the effect on
 .Fa once_control is as if 
@@ -90,7 +93,8 @@ has automatic storage duration or is not initialized by
 .Sh RETURN VALUES
 If successful,  the
 .Fn pthread_once
-function will return zero. Otherwise an error number will be returned to
+function will return zero.
+Otherwise an error number will be returned to
 indicate the error.
 .Sh ERRORS
 None.

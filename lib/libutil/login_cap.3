@@ -146,7 +146,8 @@ or
 .Fn login_getuserclass .
 If the referenced user has no login class specified in
 .Pa /etc/master.passwd ,
-the class name is NULL or an empty string. If the class
+the class name is NULL or an empty string.
+If the class
 specified does not exist in the database, each of these
 functions will search for a record with an id of "default",
 with that name returned in the

@@ -116,7 +116,8 @@ If mode
 .Dv ISVTX
 (the `sticky bit') is set on a directory,
 an unprivileged user may not delete or rename
-files of other users in that directory. The sticky bit may be
+files of other users in that directory.
+The sticky bit may be
 set by any user on a directory which the user owns or has appropriate
 permissions.
 For more details of the properties of the sticky bit, see
@@ -129,15 +130,19 @@ created within this directory are set
 to be the same as the owner of that directory.
 If this function is enabled, new directories will inherit
 the bit from their parents.  Execute bits are removed from
-the file, and it will not be given to root. This behavior does not change the
+the file, and it will not be given to root.
+This behavior does not change the
 requirements for the user to be allowed to write the file, but only the eventual
-owner after it has been created. Group inheritance is not effected.
+owner after it has been created.
+Group inheritance is not effected.
 .Pp
 This feature is designed for use on fileservers serving PC users via
-ftp, SAMBA, or netatalk. It provides security holes for shell users and as
+ftp, SAMBA, or netatalk.
+It provides security holes for shell users and as
 such should not be used on shell machines, especially on home directories.
 This option requires the SUIDDIR
-option in the kernel to work. Only UFS filesystems support this option.
+option in the kernel to work.
+Only UFS filesystems support this option.
 For more details of the suiddir mount option, see 
 .Xr mount 8 .
 .Pp
