@@ -219,7 +219,9 @@ do {									\
 extern devclass_t gem_devclass;
 
 int	gem_attach(struct gem_softc *);
-int	gem_detach(struct gem_softc *);
+void	gem_detach(struct gem_softc *);
+void	gem_suspend(struct gem_softc *);
+void	gem_resume(struct gem_softc *);
 void	gem_intr(void *);
 
 int	gem_mediachange(struct ifnet *);

@@ -350,6 +350,55 @@ fail_ptag:
 	return (error);
 }
 
+void
+gem_detach(sc)
+	struct gem_softc *sc;
+{
+	struct ifnet *ifp = &sc->sc_arpcom.ac_if;
+	int i;
+
+	ether_ifdetach(ifp);
+	gem_stop(ifp, 1);
+	device_delete_child(sc->sc_dev, sc->sc_miibus);
+
+	for (i = 0; i < GEM_NRXDESC; i++) {
+		if (sc->sc_rxsoft[i].rxs_dmamap != NULL)
+			bus_dmamap_destroy(sc->sc_rdmatag,
+			    sc->sc_rxsoft[i].rxs_dmamap);
+	}
+	for (i = 0; i < GEM_TXQUEUELEN; i++) {
+		if (sc->sc_txsoft[i].txs_dmamap != NULL)
+			bus_dmamap_destroy(sc->sc_tdmatag,
+			    sc->sc_txsoft[i].txs_dmamap);
+	}
+	bus_dmamap_unload(sc->sc_cdmatag, sc->sc_cddmamap);
+	bus_dmamem_free(sc->sc_cdmatag, sc->sc_control_data,
+	    sc->sc_cddmamap);
+	bus_dma_tag_destroy(sc->sc_cdmatag);
+	bus_dma_tag_destroy(sc->sc_tdmatag);
+	bus_dma_tag_destroy(sc->sc_rdmatag);
+	bus_dma_tag_destroy(sc->sc_pdmatag);
+}
+
+void
+gem_suspend(sc)
+	struct gem_softc *sc;
+{
+	struct ifnet *ifp = &sc->sc_arpcom.ac_if;
+
+	gem_stop(ifp, 0);
+}
+
+void
+gem_resume(sc)
+	struct gem_softc *sc;
+{
+	struct ifnet *ifp = &sc->sc_arpcom.ac_if;
+
+	if (ifp->if_flags & IFF_UP)
+		gem_init(ifp);
+}
+
 static void
 gem_cddma_callback(xsc, segs, nsegs, error)
 	void *xsc;
@@ -1833,43 +1882,3 @@ gem_setladrf(sc)
 chipit:
 	bus_space_write_4(t, h, GEM_MAC_RX_CONFIG, v);
 }
-
-#if notyet
-
-/*
- * gem_power:
- *
- *	Power management (suspend/resume) hook.
- */
-void
-static gem_power(why, arg)
-	int why;
-	void *arg;
-{
-	struct gem_softc *sc = arg;
-	struct ifnet *ifp = &sc->sc_arpcom.ac_if;
-	int s;
-
-	s = splnet();
-	switch (why) {
-	case PWR_SUSPEND:
-	case PWR_STANDBY:
-		gem_stop(ifp, 1);
-		if (sc->sc_power != NULL)
-			(*sc->sc_power)(sc, why);
-		break;
-	case PWR_RESUME:
-		if (ifp->if_flags & IFF_UP) {
-			if (sc->sc_power != NULL)
-				(*sc->sc_power)(sc, why);
-			gem_init(ifp);
-		}
-		break;
-	case PWR_SOFTSUSPEND:
-	case PWR_SOFTSTANDBY:
-	case PWR_SOFTRESUME:
-		break;
-	}
-	splx(s);
-}
-#endif

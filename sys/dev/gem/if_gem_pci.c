@@ -77,12 +77,19 @@ struct gem_pci_softc {
 
 static int	gem_pci_probe(device_t);
 static int	gem_pci_attach(device_t);
-
+static int	gem_pci_detach(device_t);
+static int	gem_pci_suspend(device_t);
+static int	gem_pci_resume(device_t);
 
 static device_method_t gem_pci_methods[] = {
 	/* Device interface */
 	DEVMETHOD(device_probe,		gem_pci_probe),
 	DEVMETHOD(device_attach,	gem_pci_attach),
+	DEVMETHOD(device_detach,	gem_pci_detach),
+	DEVMETHOD(device_suspend,	gem_pci_suspend),
+	DEVMETHOD(device_resume,	gem_pci_resume),
+	/* Use the suspend handler here, it is all that is required. */
+	DEVMETHOD(device_shutdown,	gem_pci_suspend),
 
 	/* bus interface */
 	DEVMETHOD(bus_print_child,	bus_generic_print_child),
@@ -201,4 +208,41 @@ fail_ires:
 fail_sres:
 	bus_release_resource(dev, SYS_RES_MEMORY, gsc->gsc_srid, gsc->gsc_sres);
 	return (ENXIO);
+}
+
+static int
+gem_pci_detach(dev)
+	device_t dev;
+{
+	struct gem_pci_softc *gsc = device_get_softc(dev);
+	struct gem_softc *sc = &gsc->gsc_gem;
+
+	gem_detach(sc);
+
+	bus_teardown_intr(dev, gsc->gsc_ires, gsc->gsc_ih);
+	bus_release_resource(dev, SYS_RES_IRQ, gsc->gsc_irid, gsc->gsc_ires);
+	bus_release_resource(dev, SYS_RES_MEMORY, gsc->gsc_srid, gsc->gsc_sres);
+	return (0);
+}
+
+static int
+gem_pci_suspend(dev)
+	device_t dev;
+{
+	struct gem_pci_softc *gsc = device_get_softc(dev);
+	struct gem_softc *sc = &gsc->gsc_gem;
+
+	gem_suspend(sc);
+	return (0);
+}
+
+static int
+gem_pci_resume(dev)
+	device_t dev;
+{
+	struct gem_pci_softc *gsc = device_get_softc(dev);
+	struct gem_softc *sc = &gsc->gsc_gem;
+
+	gem_resume(sc);
+	return (0);
 }
