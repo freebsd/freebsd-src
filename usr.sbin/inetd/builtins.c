@@ -117,11 +117,10 @@ initring(void)
 			*endring++ = i;
 }
 
+/* Character generator */
 /* ARGSUSED */
 void
-chargen_dg(int s, struct servtab *sep)		/* Character generator */
-	      
-	                    
+chargen_dg(int s, struct servtab *sep)
 {
 	struct sockaddr_storage ss;
 	static char *rs;
@@ -155,11 +154,10 @@ chargen_dg(int s, struct servtab *sep)		/* Character generator */
 	(void) sendto(s, text, sizeof(text), 0, (struct sockaddr *)&ss, size);
 }
 
+/* Character generator */
 /* ARGSUSED */
 void
-chargen_stream(int s, struct servtab *sep)		/* Character generator */
-	      
-	                    
+chargen_stream(int s, struct servtab *sep)
 {
 	int len;
 	char *rs, text[LINESIZ+2];
@@ -193,11 +191,10 @@ chargen_stream(int s, struct servtab *sep)		/* Character generator */
  * character string without any regard for input.
  */
 
+/* Return human-readable time of day */
 /* ARGSUSED */
 void
-daytime_dg(int s, struct servtab *sep)		/* Return human-readable time of day */
-	      
-	                    
+daytime_dg(int s, struct servtab *sep)
 {
 	char buffer[256];
 	time_t now;
@@ -219,11 +216,10 @@ daytime_dg(int s, struct servtab *sep)		/* Return human-readable time of day */
 		      (struct sockaddr *)&ss, size);
 }
 
+/* Return human-readable time of day */
 /* ARGSUSED */
 void
-daytime_stream(int s, struct servtab *sep)		/* Return human-readable time of day */
-	      
-	                             
+daytime_stream(int s, struct servtab *sep __unused)
 {
 	char buffer[256];
 	time_t now;
@@ -239,22 +235,20 @@ daytime_stream(int s, struct servtab *sep)		/* Return human-readable time of day
  * is sent.
  */
 
+/* Discard service -- ignore data */
 /* ARGSUSED */
 void
-discard_dg(int s, struct servtab *sep)		/* Discard service -- ignore data */
-	      
-	                             
+discard_dg(int s, struct servtab *sep)
 {
 	char buffer[BUFSIZE];
 
 	(void) read(s, buffer, sizeof(buffer));
 }
 
+/* Discard service -- ignore data */
 /* ARGSUSED */
 void
-discard_stream(int s, struct servtab *sep)		/* Discard service -- ignore data */
-	      
-	                    
+discard_stream(int s, struct servtab *sep)
 {
 	int ret;
 	char buffer[BUFSIZE];
@@ -274,11 +268,10 @@ discard_stream(int s, struct servtab *sep)		/* Discard service -- ignore data */
  * received.
  */
 
+/* Echo service -- echo data back */
 /* ARGSUSED */
 void
-echo_dg(int s, struct servtab *sep)			/* Echo service -- echo data back */
-	      
-	                    
+echo_dg(int s, struct servtab *sep)
 {
 	char buffer[65536]; /* Should be sizeof(max datagram). */
 	int i;
@@ -296,11 +289,10 @@ echo_dg(int s, struct servtab *sep)			/* Echo service -- echo data back */
 	(void) sendto(s, buffer, i, 0, (struct sockaddr *)&ss, size);
 }
 
+/* Echo service -- echo data back */
 /* ARGSUSED */
 void
-echo_stream(int s, struct servtab *sep)		/* Echo service -- echo data back */
-	      
-	                    
+echo_stream(int s, struct servtab *sep)
 {
 	char buffer[BUFSIZE];
 	int i;
@@ -325,11 +317,10 @@ echo_stream(int s, struct servtab *sep)		/* Echo service -- echo data back */
 #define ID_HIDDEN	"HIDDEN-USER"	/* Hiden at user's request. */
 #define ID_UNKNOWN	"UNKNOWN-ERROR"	/* Everything else. */
 
+/* Generic ident_stream error-sending func */
 /* ARGSUSED */
 void
-iderror(int lport, int fport, int s, const char *er)	/* Generic ident_stream error-sending func */
-	                    
-	               
+iderror(int lport, int fport, int s, const char *er)
 {
 	char *p;
 
@@ -344,11 +335,10 @@ iderror(int lport, int fport, int s, const char *er)	/* Generic ident_stream err
 	exit(0);
 }
 
+/* Ident service (AKA "auth") */
 /* ARGSUSED */
 void
-ident_stream(int s, struct servtab *sep)		/* Ident service (AKA "auth") */
-	      
-	                    
+ident_stream(int s, struct servtab *sep)
 {
 	struct utsname un;
 	struct stat sb;
