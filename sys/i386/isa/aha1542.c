@@ -12,13 +12,6 @@
  * on the understanding that TFS is not responsible for the correct
  * functioning of this software in any circumstances.
  *
- *
- * PATCHES MAGIC                LEVEL   PATCH THAT GOT US HERE
- * --------------------         -----   ----------------------
- * CURRENT PATCH LEVEL:         1       00098
- * --------------------         -----   ----------------------
- *
- * 16 Feb 93	Julian Elischer		ADDED for SCSI system
  */
 
 /*
@@ -28,9 +21,25 @@
 /*
  * HISTORY
  * $Log: aha1542.c,v $
+ * Revision 1.2  1993/07/15  17:52:58  davidg
+ * Modified attach printf's so that the output is compatible with the "new"
+ * way of doing things. There still remain several drivers that need to
+ * be updated.  Also added a compile-time option to pccons to switch the
+ * control and caps-lock keys (REVERSE_CAPS_CTRL) - added for my personal
+ * sanity.
+ *
  * Revision 1.1.1.1  1993/06/12  14:57:59  rgrimes
  * Initial import, 0.1 + pk 0.2.4-B1
  *
+ * Revision 1.3  93/05/22  16:51:18  julian
+ * set up  dev->dev_pic before it's needed for OSF
+ * 
+ * Revision 1.2  93/05/07  11:40:27  julian
+ * fixed SLEEPTIME calculation
+ * 
+ * Revision 1.1  93/05/07  11:14:03  julian
+ * Initial revision
+ * 
  * Revision 1.6  1992/08/24  21:01:58  jason
  * many changes and bugfixes for osf1
  *
@@ -610,6 +619,7 @@ struct isa_dev *dev;
 #endif
 #else /* !defined(OSF) */
  
+	dev->dev_pic = aha_dma[unit];
  	chp->ih_level = dev->dev_pic;
  	chp->ih_handler = dev->dev_intr[0];
  	chp->ih_resolver = i386_resolver;
@@ -1572,7 +1582,7 @@ struct	aha_ccb	*ccb;
 
 extern int 	hz;
 #define ONETICK 500 /* milliseconds */
-#define SLEEPTIME ((hz * 1000) / ONETICK)
+#define SLEEPTIME ((hz * ONETICK) / 1000)
 aha_timeout(arg)
 int	arg;
 {

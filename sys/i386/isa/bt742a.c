@@ -13,17 +13,36 @@
  * functioning of this software in any circumstances.
  *
  *
- * PATCHES MAGIC                LEVEL   PATCH THAT GOT US HERE
- * --------------------         -----   ----------------------
- * CURRENT PATCH LEVEL:         1       00098
- * --------------------         -----   ----------------------
- *
- * 16 Feb 93	Julian Elischer		ADDED for SCSI system
  */
 
 /*
  * HISTORY
  * $Log: bt742a.c,v $
+ * Revision 1.1.1.1  1993/06/12  14:57:58  rgrimes
+ * Initial import, 0.1 + pk 0.2.4-B1
+ *
+ * Revision 1.11  93/05/27  13:39:52  julian
+ * Enable mail box round-robin scheme by new host adapter command appeared
+ *  at FirmWare V3.31 ( This release is shipped without testing at V3.31 )
+ * 
+ * Revision 1.10  93/05/22  16:38:22  julian
+ * under OSF, the dev_pic must be set up before it's used.
+ * was only done ifndef OSF.
+ * 
+ * Revision 1.9  93/05/07  11:37:24  julian
+ * fix SLEEPTIME calculation.
+ * 
+ * Revision 1.8  93/05/07  11:27:00  julian
+ * Merge with 1.7.1
+ * 
+ * Revision 1.7.1 1993/01/01  04:01:02  amurai
+ * Basically this modification fixes 'doesn't take command' issue 
+ * that occured on FirmWare V3.30
+ *  - Using IN/OUT mail box as round-robin for reducing I/O bus cycle
+ *    and interrupts.
+ *  - Print out routine are ifdef'ed rather than just 'if (flags)'
+ *    for perfomance.
+ *
  * Revision 1.7  1992/08/24  22:40:16  jason
  * BIG_DMA ifdef for 512 dma segments instead of 128 segments
  *
@@ -52,7 +71,7 @@
  */
 
 /*
- * bt742a BT-1542A SCSI driver
+ * bt742a SCSI driver
  */
 
 #include <sys/types.h>
@@ -99,7 +118,7 @@
 #if	NDDB > 0
 int	Debugger();
 #else	NDDB
-#define	Debugger() panic("should call debugger here (adaptec.c)")
+#define	Debugger() panic("should call debugger here (bt742a.c)")
 #endif	NDDB
 #endif	__386BSD__
 
@@ -166,6 +185,11 @@ typedef unsigned long int physaddr;
 #define BT_MBX_INIT_EXTENDED	0x81	/* Mbx initialization */
 #define BT_INQUIRE_EXTENDED	0x8D	/* Adapter Setup Inquiry */
 
+/* Follows command appeared at FirmWare 3.31 */
+#define BT_ROUND_ROBIN	0x8f		/* Enable/Disable(default) round robin */
+#define   BT_DISABLE		0x00	/* Parameter value for Disable */
+#define   BT_ENABLE		0x01	/* Parameter value for Enable */
+
 struct bt_cmd_buf {
 	 u_char byte[16];	
 };
@@ -174,7 +198,7 @@ struct bt_cmd_buf {
  * BT_INTR_PORT bits (read)
  */
 
-#define BT_ANY_INTR		0x80	/* Any interrupt */
+#define BT_ANY_INTR	0x80	/* Any interrupt */
 #define BT_SCRD		0x08	/* SCSI reset detected */
 #define BT_HACC		0x04	/* Command complete */
 #define BT_MBOA		0x02	/* MBX out empty */
@@ -184,22 +208,38 @@ struct bt_cmd_buf {
  * Mail box defs 
  */
 
-#define BT_MBX_SIZE		16	/* mail box size */
+#define BT_MBX_SIZE		  255	/* mail box size  (MAX 255 MBxs) */
+#define BT_CCB_SIZE		  32	/* store up to 32CCBs at any one time */ 
+					/* in bt742a H/W ( Not MAX ? )        */
+
+#define bt_nextmbx( wmb, mbx, mbio ) \
+	if ( (wmb) == &((mbx)->mbio[BT_MBX_SIZE - 1 ]) ) { \
+		(wmb) = &((mbx)->mbio[0]); \
+	} else { \
+		(wmb)++; \
+	}
+
+
+typedef struct bt_mbx_out {
+	physaddr	ccb_addr;
+	unsigned char	dummy[3];
+	unsigned char	cmd;
+} BT_MBO;
+
+typedef struct bt_mbx_in{
+	physaddr	ccb_addr;
+	unsigned char	btstat;
+	unsigned char 	sdstat;
+	unsigned char	dummy;
+	unsigned char	stat;
+} BT_MBI;
 
 struct bt_mbx
 {
-	struct bt_mbx_out {
-		physaddr	ccb_addr;
-		unsigned char	dummy[3];
-		unsigned char	cmd;
-	} mbo [BT_MBX_SIZE];
-	struct bt_mbx_in{
-		physaddr	ccb_addr;
-		unsigned char	btstat;
-		unsigned char 	sdstat;
-		unsigned char	dummy;
-		unsigned char	stat;
-	} mbi[BT_MBX_SIZE];
+	BT_MBO mbo[BT_MBX_SIZE];
+	BT_MBI mbi[BT_MBX_SIZE];
+	BT_MBO *tmbo;			/* Target Mail Box out */
+	BT_MBI *tmbi;			/* Target Mail Box in  */
 };
 
 /*
@@ -304,7 +344,13 @@ long int	bt_furtherest = 0;	/* longest time in the timeout queue */
 #define BT_INV_CCB	0x1a	/* Invalid CCB or segment list */
 #define BT_ABORTED	42	/* pseudo value from driver */
 
-
+struct bt_boardID
+{
+	u_char	board_type;
+	u_char	custom_feture;
+	char	firm_revision;
+	u_char	firm_version;
+};
 
 struct bt_setup
 {
@@ -315,9 +361,8 @@ struct bt_setup
 	u_char	bus_on;
 	u_char	bus_off;
 	u_char	num_mbx;
-	u_char	mbx[4];
-	struct
-	{
+	u_char	mbx[3];
+	struct {
 		u_char	offset:4;
 		u_char	period:3;
 		u_char	valid:1;
@@ -374,7 +419,7 @@ short			bt_base[NBT];		/* base port for each board */
 #endif	MACH
 struct	bt_mbx		bt_mbx[NBT];
 struct	bt_ccb		*bt_ccb_free[NBT];
-struct	bt_ccb		bt_ccb[NBT][BT_MBX_SIZE];
+struct	bt_ccb		bt_ccb[NBT][BT_CCB_SIZE];
 struct	scsi_xfer	bt_scsi_xfer[NBT];
 struct	isa_dev		*btinfo[NBT];
 struct	bt_ccb		*bt_get_ccb();
@@ -407,15 +452,6 @@ struct	isa_driver	btdriver = { btprobe, btattach, "bt"};
 #endif	__386BSD__
 
 static	int	btunit = 0;
-
-#define bt_abortmbx(mbx) \
-	(mbx)->cmd = BT_MBO_ABORT; \
-	outb(BT_CMD_DATA_PORT, BT_START_SCSI);
-#define bt_startmbx(mbx) \
-	(mbx)->cmd = BT_MBO_START; \
-	outb(BT_CMD_DATA_PORT, BT_START_SCSI);
-
-
 
 int	bt_scsi_cmd();
 int	bt_timeout();
@@ -605,6 +641,7 @@ struct isa_dev *dev;
 	* If it's there, put in it's interrupt vectors	*
 	\***********************************************/
 #ifdef	MACH
+	dev->dev_pic = bt_int[unit];
 #if defined(OSF)				/* OSF */
 	chp->ih_level = dev->dev_pic;
 	chp->ih_handler = dev->dev_intr[0];
@@ -618,7 +655,6 @@ struct isa_dev *dev;
 	else
 		panic("Unable to add bt interrupt handler");
 #else 						/* CMU */
-	dev->dev_pic = bt_int[unit];
 	take_dev_irq(dev);
 #endif /* !defined(OSF) */
 	printf("port=%x spl=%d\n", dev->dev_addr, dev->dev_spl);
@@ -678,25 +714,50 @@ int	unit;
 \***********************************************/
 btintr(unit)
 {
+	BT_MBI 	      *wmbi;
+	struct bt_mbx *wmbx;
 	struct bt_ccb *ccb;
 	unsigned char stat;
-	register i;
+	int	      i,wait;
+	int	      found = 0;
 
+#ifdef UTEST
 	if(scsi_debug & PRINTROUTINES)
 		printf("btintr ");
+#endif
 	/***********************************************\
 	* First acknowlege the interrupt, Then if it's	*
 	* not telling about a completed operation	*
 	* just return. 					*
 	\***********************************************/
 	stat = inb(BT_INTR_PORT);
-	outb(BT_CTRL_STAT_PORT, BT_IRST);
-	if(scsi_debug & TRACEINTERRUPTS)
-		printf("int = 0x%x ",stat);
-	if (! (stat & BT_MBIF))
+
+	/* Mail Box out empty ? */
+	if ( stat & BT_MBOA ) {
+		printf("Available Free mbo post\n");
+ 		/* Disable MBO available interrupt */
+		outb(BT_CMD_DATA_PORT,BT_MBO_INTR_EN);
+		wait = BT_CMD_TIMEOUT_FUDGE * delaycount; 
+		for (i=0; i< wait; i++)
+		{
+			if (!(inb(BT_CTRL_STAT_PORT) & BT_CDF))
+				break;
+		}
+		if (i >=  wait)
+		{
+			printf("bt_intr: bt742a cmd/data port full\n");
+			outb(BT_CTRL_STAT_PORT, BT_SRST); 
+			return 1;
+		}
+		outb(BT_CMD_DATA_PORT, 0x00);	/* Disable */
+		wakeup(&bt_mbx[unit]);
+		outb(BT_CTRL_STAT_PORT, BT_IRST);
 		return 1;
-	if(scsi_debug & TRACEINTERRUPTS)
-		printf("mbxi ");
+	}
+	if (! (stat & BT_MBIF)) {
+		outb(BT_CTRL_STAT_PORT, BT_IRST);
+		return 1;
+	}
 #if defined(OSF)
 	if (!bt_attached[unit])
 	{
@@ -706,57 +767,81 @@ btintr(unit)
 	/***********************************************\
 	* If it IS then process the competed operation	*
 	\***********************************************/
-	for (i = 0; i < BT_MBX_SIZE; i++)
-	{
-		if (bt_mbx[unit].mbi[i].stat != BT_MBI_FREE)
+	wmbx = &bt_mbx[unit];
+	wmbi = wmbx->tmbi;
+AGAIN:
+	while ( wmbi->stat != BT_MBI_FREE ) { 
+		found++;
+		ccb = (struct bt_ccb *)PHYSTOKV((wmbi->ccb_addr));
+		if((stat =  wmbi->stat) != BT_MBI_OK)
 		{
-			ccb = (struct bt_ccb *)PHYSTOKV(
-					(bt_mbx[unit].mbi[i].ccb_addr));
-			if((bt_debug & BT_SHOWCCBS) && ccb)
-				printf("<int ccb(%x)>",ccb);
-			if((stat =  bt_mbx[unit].mbi[i].stat) != BT_MBI_OK)
+			switch(stat)
 			{
-				switch(stat)
-				{
-				case	BT_MBI_ABORT:
-					if(bt_debug & BT_SHOWMISC)
-						printf("abort ");
-					ccb->host_stat = BT_ABORTED;
-					break;
+			case	BT_MBI_ABORT:
+#ifdef UTEST
+				if(bt_debug & BT_SHOWMISC)
+					printf("abort ");
+#endif
+				ccb->host_stat = BT_ABORTED;
+				break;
 
-				case	BT_MBI_UNKNOWN:
-					ccb = (struct bt_ccb *)0;
-					if(bt_debug & BT_SHOWMISC)
-						printf("unknown ccb for abort");
-					break;
+			case	BT_MBI_UNKNOWN:
+				ccb = (struct bt_ccb *)0;
+#ifdef UTEST
+				if(bt_debug & BT_SHOWMISC)
+					printf("unknown ccb for abort");
+#endif
+				break;
 
-				case	BT_MBI_ERROR:
-					break;
+			case	BT_MBI_ERROR:
+				break;
 
-				default:
-					panic("Impossible mbxi status");
+			default:
+				panic("Impossible mbxi status");
 
-				}
-				if((bt_debug & BT_SHOWCMDS ) && ccb)
-				{
-					u_char	*cp;
-					cp = ccb->scsi_cmd;
-					printf("op=%x %x %x %x %x %x\n", 
-						cp[0], cp[1], cp[2],
-						cp[3], cp[4], cp[5]);
-					printf("stat %x for mbi[%d]\n"
-						, bt_mbx[unit].mbi[i].stat, i);
-					printf("addr = 0x%x\n", ccb);
-				}
 			}
-			if(ccb)
+#ifdef UTEST
+			if((bt_debug & BT_SHOWCMDS ) && ccb)
 			{
-				bt_remove_timeout(ccb);
-				bt_done(unit,ccb);
+				u_char	*cp;
+				cp = ccb->scsi_cmd;
+				printf("op=%x %x %x %x %x %x\n", 
+					cp[0], cp[1], cp[2],
+					cp[3], cp[4], cp[5]);
+				printf("stat %x for mbi addr = 0x%08x\n"
+					, wmbi->stat, wmbi );
+				printf("addr = 0x%x\n", ccb);
 			}
-			bt_mbx[unit].mbi[i].stat = BT_MBI_FREE;
+#endif
+		}
+		wmbi->stat = BT_MBI_FREE;
+		if(ccb)
+		{
+			bt_remove_timeout(ccb);
+			bt_done(unit,ccb);
+		}
+
+		/* Set the IN mail Box pointer for next */
+		bt_nextmbx( wmbi, wmbx, mbi );
+	}
+	if ( !found ) {
+		for ( i = 0; i < BT_MBX_SIZE; i++) {
+			if ( wmbi->stat != BT_MBI_FREE ) {
+				found ++;
+				break;
+			}
+			bt_nextmbx( wmbi, wmbx, mbi );
+		}
+		if ( !found ) {
+			printf("bt%02d: mbi at 0x%08x should be found, stat=%02x..resync\n",
+				unit, wmbi, stat ); 
+		} else {
+			found = 0;
+			goto AGAIN;
 		}
 	}
+	wmbx->tmbi = wmbi;
+	outb(BT_CTRL_STAT_PORT, BT_IRST);
 	return(1);
 }
 
@@ -768,9 +853,11 @@ bt_free_ccb(unit,ccb, flags)
 struct bt_ccb *ccb;
 {
 	unsigned int opri;
-	
+
+#ifdef UTEST	
 	if(scsi_debug & PRINTROUTINES)
 		printf("ccb%d(0x%x)> ",unit,flags);
+#endif
 	if (!(flags & SCSI_NOMASK)) 
 	  	opri = splbio();
 
@@ -789,16 +876,20 @@ struct bt_ccb *ccb;
 }
 
 /***********************************************\
-* Get a free ccb (and hence mbox-out entry)	*
+* Get a free ccb 				*
 \***********************************************/
 struct bt_ccb *
 bt_get_ccb(unit,flags)
 {
-	unsigned opri;
+	unsigned      opri;
 	struct bt_ccb *rc;
+	struct bt_mbx *wmbx;	/* Mail Box pointer specified unit */
+	BT_MBO	      *wmbo;	/* Out Mail Box pointer */
 
+#ifdef UTEST
 	if(scsi_debug & PRINTROUTINES)
 		printf("<ccb%d(0x%x) ",unit,flags);
+#endif
 	if (!(flags & SCSI_NOMASK)) 
 	  	opri = splbio();
 	/***********************************************\
@@ -811,15 +902,95 @@ bt_get_ccb(unit,flags)
 	}
 	if (rc) 
 	{
+		/* Get CCB from from free list */
 		bt_ccb_free[unit] = rc->next;
 		rc->flags = CCB_ACTIVE;
+#ifdef HE	
+		/* Get the Target OUT mail Box pointer */
+		wmbx = &bt_mbx[unit];
+		wmbo = wmbx->tmbo;
+		while ( wmbo->cmd != BT_MBO_FREE ) {
+ 			/* Enable MBO available interrupt */
+			outb(BT_CMD_DATA_PORT,BT_MBO_INTR_EN);
+			printf("Wait free mbo.."); /* AMURAI */
+			sleep( wmbx, PRIBIO);
+			printf("Got free mbo\n");  /* AMURAI */
+		} 
+
+		/* Link CCB to the Mail Box */
+		rc->mbx        = wmbo;
+		wmbo->ccb_addr = KVTOPHYS(rc);
+
+		/* Set the OUT mail Box pointer for next */
+		bt_nextmbx( wmbo, wmbx, mbo );
+		wmbx->tmbo = wmbo;
+#endif
 	}
 	if (!(flags & SCSI_NOMASK)) 
 		splx(opri);
+	
 	return(rc);
 }
-		
+/***********************************************\
+* Get a MBO and then Send it	 		*
+\***********************************************/
+BT_MBO *bt_send_mbo( int unit,
+	             int flags,
+		     int cmd,
+		     struct bt_ccb *ccb )
+{
+	unsigned      opri;
+	BT_MBO	      *wmbo;	/* Mail Box Out pointer */
+	struct bt_mbx *wmbx;	/* Mail Box pointer specified unit */
+	int	      i, wait;
 
+	wmbx = &bt_mbx[unit];
+
+	if (!(flags & SCSI_NOMASK)) 
+	  	opri = splbio();
+
+	/* Get the Target OUT mail Box pointer and move to Next */
+	wmbo = wmbx->tmbo;
+	wmbx->tmbo = ( wmbo == &( wmbx->mbo[BT_MBX_SIZE - 1 ] ) ?
+	               &(wmbx->mbo[0]) : wmbo + 1 );
+
+	/* 
+         * Check the outmail box is free or not
+	 * Note: Under the normal operation, it shuld NOT happen to wait.
+         */
+	while ( wmbo->cmd != BT_MBO_FREE ) {
+
+		wait = BT_CMD_TIMEOUT_FUDGE * delaycount; 
+ 		/* Enable MBO available interrupt */
+		outb(BT_CMD_DATA_PORT,BT_MBO_INTR_EN);
+		for (i=0; i< wait; i++)
+		{
+			if (!(inb(BT_CTRL_STAT_PORT) & BT_CDF))
+				break;
+		}
+		if (i >=  wait)
+		{
+			printf("bt_send_mbo: bt742a cmd/data port full\n");
+			outb(BT_CTRL_STAT_PORT, BT_SRST); 
+			return( (BT_MBO *)0 );
+		}
+		outb(BT_CMD_DATA_PORT, 0x01);	/* Enable */
+		sleep( wmbx, PRIBIO);
+	}
+
+	/* Link CCB to the Mail Box */
+	wmbo->ccb_addr	= KVTOPHYS(ccb);
+	ccb->mbx	= wmbo;
+	wmbo->cmd	= cmd;
+
+	/* Send it ! */
+	outb(BT_CMD_DATA_PORT, BT_START_SCSI);
+
+	if (!(flags & SCSI_NOMASK)) 
+		splx(opri);
+
+	return(wmbo);
+}
 /***********************************************\
 * We have a ccb which has been processed by the	*
 * adaptor, now we look to see how the operation	*
@@ -831,8 +1002,10 @@ struct bt_ccb *ccb;
 	struct	scsi_sense_data *s1,*s2;
 	struct	scsi_xfer *xs = ccb->xfer;
 
+#ifdef UTEST
 	if(scsi_debug & (PRINTROUTINES | TRACEINTERRUPTS))
 		printf("bt_done ");
+#endif
 	/***********************************************\
 	* Otherwise, put the results of the operation	*
 	* into the xfer and call whoever started it	*
@@ -851,19 +1024,23 @@ struct bt_ccb *ccb;
 			{
 			case	BT_ABORTED:	/* No response */
 			case	BT_SEL_TIMEOUT:	/* No response */
+#ifdef UTEST
 				if (bt_debug & BT_SHOWMISC)
 				{
 					printf("timeout reported back\n");
 				}
+#endif
 				xs->error = XS_TIMEOUT;
 				break;
 			default:	/* Other scsi protocol messes */
 				xs->error = XS_DRIVER_STUFFUP;
+#ifdef UTEST
 				if (bt_debug & BT_SHOWMISC)
 				{
 					printf("unexpected host_stat: %x\n",
 						ccb->host_stat);
 				}
+#endif
 			}
 
 		}
@@ -880,11 +1057,13 @@ struct bt_ccb *ccb;
 				xs->error = XS_BUSY;
 				break;
 			default:
+#ifdef UTEST
 				if (bt_debug & BT_SHOWMISC)
 				{
 					printf("unexpected target_stat: %x\n",
 						ccb->target_stat);
 				}
+#endif
 				xs->error = XS_DRIVER_STUFFUP;
 			}
 		}
@@ -924,8 +1103,10 @@ int	unit;
 	}
 	if (i >= BT_RESET_TIMEOUT)
 	{
+#ifdef UTEST
 		if (bt_debug & BT_SHOWMISC)
 			printf("bt_init: No answer from bt742a board\n");
+#endif
 		return(ENXIO);
 	}
 
@@ -935,8 +1116,8 @@ int	unit;
 	* level						*
 	\***********************************************/
 #ifdef	__386BSD__
-	printf("bt%d reading board settings, ",unit);
-#define	PRNT(x)
+	printf("bt%d board settings,",unit);
+#define	PRNT(x) printf(x)
 #else	__386BSD__
 	printf("bt%d:",unit);
 #define	PRNT(x) printf(x)
@@ -947,31 +1128,31 @@ int	unit;
 	{
 	case	EISADMA:
 		bt_dma[unit] = -1;
-		PRNT("eisa dma ");
+		PRNT("eisa dma,");
 		break;
 	case	CHAN0:
 		outb(0x0b, 0x0c);
 		outb(0x0a, 0x00);
 		bt_dma[unit] = 0;
-		PRNT("dma=0 ");
+		PRNT("dma=0,");
 		break;
 	case	CHAN5:
 		outb(0xd6, 0xc1);
 		outb(0xd4, 0x01);
 		bt_dma[unit] = 5;
-		PRNT("dma=5 ");
+		PRNT("dma=5,");
 		break;
 	case	CHAN6:
 		outb(0xd6, 0xc2);
 		outb(0xd4, 0x02);
 		bt_dma[unit] = 6;
-		PRNT("dma=6 ");
+		PRNT("dma=6,");
 		break;
 	case	CHAN7:
 		outb(0xd6, 0xc3);
 		outb(0xd4, 0x03);
 		bt_dma[unit] = 7;
-		PRNT("dma=7 ");
+		PRNT("dma=7,");
 		break;
 	default:
 		printf("illegal dma setting %x\n",conf.chan);
@@ -981,27 +1162,27 @@ int	unit;
 	{
 	case	INT9:
 		bt_int[unit] = 9;
-		PRNT("int=9 ");
+		PRNT("int=9,");
 		break;
 	case	INT10:
 		bt_int[unit] = 10;
-		PRNT("int=10 ");
+		PRNT("int=10,");
 		break;
 	case	INT11:
 		bt_int[unit] = 11;
-		PRNT("int=11 ");
+		PRNT("int=11,");
 		break;
 	case	INT12:
 		bt_int[unit] = 12;
-		PRNT("int=12 ");
+		PRNT("int=12,");
 		break;
 	case	INT14:
 		bt_int[unit] = 14;
-		PRNT("int=14 ");
+		PRNT("int=14,");
 		break;
 	case	INT15:
 		bt_int[unit] = 15;
-		PRNT("int=15 ");
+		PRNT("int=15,");
 		break;
 	default:
 		printf("illegal int setting\n");
@@ -1012,7 +1193,6 @@ int	unit;
 	/***********************************************\
 	* Initialize mail box 				*
 	\***********************************************/
-
 	*((physaddr *)ad) = KVTOPHYS(&bt_mbx[unit]);
 	bt_cmd(unit,5, 0, 0, 0, BT_MBX_INIT_EXTENDED
 		, BT_MBX_SIZE
@@ -1022,22 +1202,80 @@ int	unit;
 		, ad[3]);
 
 	/***********************************************\
-	* link the ccb's with the mbox-out entries and	*
-	* into a free-list				*
+	* Set Pointer chain null for just in case       *
+	* Link the ccb's into a free-list W/O mbox	*
+	* Initilize Mail Box stat to Free               *
 	\***********************************************/
-	for (i=0; i < BT_MBX_SIZE; i++) {
-		bt_ccb[unit][i].next = bt_ccb_free[unit];
-		bt_ccb_free[unit] = &bt_ccb[unit][i];
-		bt_ccb_free[unit]->flags = CCB_FREE;
-		bt_ccb_free[unit]->mbx = &bt_mbx[unit].mbo[i];
-		bt_mbx[unit].mbo[i].ccb_addr = KVTOPHYS(bt_ccb_free[unit]) ;
+	if ( bt_ccb_free[unit]  !=  (struct bt_ccb *)0 ) {
+		printf("bt_ccb_free is NOT initialized but init here\n ");
+		bt_ccb_free[unit]        =  (struct bt_ccb *)0;
 	}
+	for (i=0; i < BT_CCB_SIZE; i++) {
+		bt_ccb[unit][i].next     = bt_ccb_free[unit];
+		bt_ccb_free[unit]        = &bt_ccb[unit][i];
+		bt_ccb_free[unit]->flags = CCB_FREE;
+	}
+	for (i=0; i < BT_MBX_SIZE; i++) {
+		bt_mbx[unit].mbo[i].cmd  = BT_MBO_FREE;
+		bt_mbx[unit].mbi[i].stat = BT_MBI_FREE;
+	}
+
+	/***********************************************\
+	* Set up Initial mail box for round-robin       *
+	\***********************************************/
+	bt_mbx[unit].tmbo = &bt_mbx[unit].mbo[0];
+	bt_mbx[unit].tmbi = &bt_mbx[unit].mbi[0];
+	bt_inquire_setup_information( unit );
+
+	/*  Enable round-robin scheme - appeared at FirmWare 3.31 */
+	bt_cmd(unit, 1, 0, 0, 0, BT_ROUND_ROBIN, BT_ENABLE );
 
 	/***********************************************\
 	* Note that we are going and return (to probe)	*
 	\***********************************************/
 	bt_initialized[unit]++;
 	return( 0 );
+}
+bt_inquire_setup_information( unit )
+int	unit;
+{
+	struct	bt_setup setup;
+	struct	bt_boardID bID;
+	int	i;
+
+	/* Inquire Board ID to Bt742 for FirmWare Version */
+	bt_cmd(unit, 0, sizeof(bID), 0, &bID, BT_INQUIRE );
+	printf("ver%c.%c,", bID.firm_revision, bID.firm_version );
+
+	/*  Ask setup information to Bt742 */
+	bt_cmd(unit, 1, sizeof(setup), 0, &setup, BT_SETUP_GET, sizeof(setup) );
+
+	if ( setup.sync_neg ) {
+		printf("sync,");
+	} else {
+		printf("async,");
+	}
+
+	if ( setup.parity ) {
+		printf("parity,");
+	} else {
+		printf("no parity,");
+	}
+
+	printf("%dmbxs,%dccbs", setup.num_mbx,
+		sizeof(bt_ccb)/(sizeof(struct bt_ccb) * NBT) );
+
+	for ( i = 0; i < 8; i++ ) {
+		if( !setup.sync[i].offset &&
+		    !setup.sync[i].period &&
+		    !setup.sync[i].valid	)
+			continue;
+
+		printf("\ndev%02d Offset=%d,Transfer period=%d, Synchronous? %s",i,
+			setup.sync[i].offset, setup.sync[i].period, 
+			setup.sync[i].valid  ? "Yes" : "No" );
+	}
+	
 }
 
 
@@ -1079,9 +1317,12 @@ struct scsi_xfer *xs;
 	int	unit =xs->adapter;
 	int	bytes_this_seg,bytes_this_page,datalen,flags;
 	struct	iovec	*iovp;
+	BT_MBO	*mbo;
 
+#ifdef UTEST
 	if(scsi_debug & PRINTROUTINES)
 		printf("bt_scsi_cmd ");
+#endif
 	/***********************************************\
 	* get a ccb (mbox-out) to use. If the transfer	*
 	* is from a buf (possibly from interrupt time)	*
@@ -1104,12 +1345,10 @@ struct scsi_xfer *xs;
 		xs->error = XS_DRIVER_STUFFUP;
 		return(TRY_AGAIN_LATER);
 	}
-
+#ifdef UTEST
 	if(bt_debug & BT_SHOWCCBS)
 				printf("<start ccb(%x)>",ccb);
-	if (ccb->mbx->cmd != BT_MBO_FREE)
-		printf("MBO not free\n");
-
+#endif
 	/***********************************************\
 	* Put all the arguments for the xfer in the ccb	*
 	\***********************************************/
@@ -1147,10 +1386,12 @@ struct scsi_xfer *xs;
 			{
 				sg->seg_addr = (physaddr)iovp->iov_base;
 				xs->datalen += sg->seg_len = iovp->iov_len;	
+#ifdef UTEST
 				if(scsi_debug & SHOWSCATGATH)
 					printf("(0x%x@0x%x)"
 							,iovp->iov_len
 							,iovp->iov_base);
+#endif
 				sg++;
 				iovp++;
 				seg++;
@@ -1163,8 +1404,10 @@ struct scsi_xfer *xs;
 			* Set up the scatter gather block		*
 			\***********************************************/
 		
+#ifdef UTEST
 			if(scsi_debug & SHOWSCATGATH)
 				printf("%d @0x%x:- ",xs->datalen,xs->data);
+#endif
 			datalen		=	xs->datalen;
 			thiskv		=	(int)xs->data;
 			thisphys	=	KVTOPHYS(thiskv);
@@ -1176,8 +1419,10 @@ struct scsi_xfer *xs;
 				/* put in the base address */
 				sg->seg_addr = thisphys;
 		
+#ifdef UTEST
 				if(scsi_debug & SHOWSCATGATH)
 					printf("0x%x",thisphys);
+#endif
 	
 				/* do it at least once */
 				nextphys = thisphys;	
@@ -1206,16 +1451,20 @@ struct scsi_xfer *xs;
 				/********************************************\
 				* next page isn't contiguous, finish the seg *
 				\********************************************/
+#ifdef UTEST
 				if(scsi_debug & SHOWSCATGATH)
 					printf("(0x%x)",bytes_this_seg);
+#endif
 				sg->seg_len = bytes_this_seg;	
 				sg++;
 				seg++;
 			}
 		} /*end of iov/kv decision */
 		ccb->data_length = seg * sizeof(struct bt_scat_gath);
+#ifdef UTEST
 		if(scsi_debug & SHOWSCATGATH)
 			printf("\n");
+#endif
 		if (datalen)
 		{ /* there's still data, must have run out of segs! */
 			printf("bt_scsi_cmd%d: more than %d DMA segs\n",
@@ -1240,6 +1489,7 @@ struct scsi_xfer *xs;
 	{
 		bcopy(xs->cmd, ccb->scsi_cmd, ccb->scsi_cmd_length);
 	}
+#ifdef UTEST
 	if(scsi_debug & SHOWCOMMANDS)
 	{
 		u_char	*b = ccb->scsi_cmd;
@@ -1266,79 +1516,93 @@ struct scsi_xfer *xs;
 			);
 		}
 	}
-	bt_startmbx(ccb->mbx);
+#endif
+	if ( bt_send_mbo( unit, flags, BT_MBO_START, ccb ) == (BT_MBO *)0 )
+	{
+		xs->error = XS_DRIVER_STUFFUP;
+		bt_free_ccb(unit,ccb,flags);
+		return(TRY_AGAIN_LATER);
+	}
 	/***********************************************\
 	* Usually return SUCCESSFULLY QUEUED		*
 	\***********************************************/
+#ifdef UTEST
 	if(scsi_debug & TRACEINTERRUPTS)
 		printf("cmd_sent ");
+#endif
 	if (!(flags & SCSI_NOMASK))
 	{
 		bt_add_timeout(ccb,xs->timeout);
 		return(SUCCESSFULLY_QUEUED);
-	}
+	} else
 	/***********************************************\
 	* If we can't use interrupts, poll on completion*
 	\***********************************************/
 	{
 		int done = 0;
 		int count = delaycount * xs->timeout / BT_SCSI_TIMEOUT_FUDGE;
+		struct bt_mbx *wmbx = &bt_mbx[unit];
+		BT_MBI        *wmbi = wmbx->tmbi;
+		unsigned char stat;
+#ifdef UTEST
 		if(scsi_debug & TRACEINTERRUPTS)
 			printf("wait ");
+#endif
 		while((!done) && count)
 		{
-			i=0;
-			while ( (!done) && i<BT_MBX_SIZE)
-			{
-				if ((bt_mbx[unit].mbi[i].stat != BT_MBI_FREE )
-				   && (PHYSTOKV(bt_mbx[unit].mbi[i].ccb_addr)
-					== (int)ccb))
-				{
-					bt_mbx[unit].mbi[i].stat = BT_MBI_FREE;
-					bt_done(unit,ccb);
-					done++;
-				}
-				i++;
+			stat = inb(BT_INTR_PORT) & (BT_ANY_INTR | BT_MBIF );
+			if ( !( stat & BT_ANY_INTR )       ||
+			      ( wmbi->stat == BT_MBI_FREE )||
+			      (PHYSTOKV(wmbi->ccb_addr) 
+					!= (int)ccb      ) ) {
+				count--;
+				continue;
 			}
-			count--;
+			wmbi->stat = BT_MBI_FREE;
+			bt_done(unit,ccb);
+			done ++;
+			outb(BT_CTRL_STAT_PORT, BT_IRST);
+			/* Set the IN mail Box pointer for next */
+			bt_nextmbx( wmbi, wmbx, mbi );
+			wmbx->tmbi = wmbi;
 		}
-		if (!count)
+		if (!count && !done)
 		{
+#ifdef UTEST
 			if (!(xs->flags & SCSI_SILENT))
 				printf("cmd fail\n");
-			bt_abortmbx(ccb->mbx);
+#endif
+	                bt_send_mbo( unit, flags, BT_MBO_ABORT, ccb );
 			count = delaycount * 2000 / BT_SCSI_TIMEOUT_FUDGE;
 			while((!done) && count)
 			{
-				i=0;
-				while ( (!done) && i<BT_MBX_SIZE)
-				{
-					if ((bt_mbx[unit].mbi[i].stat != BT_MBI_FREE )
-				   	&& (PHYSTOKV((bt_mbx[unit].mbi[i].ccb_addr)
-						== (int)ccb)))
-					{
-						bt_mbx[unit].mbi[i].stat = BT_MBI_FREE;
-						bt_done(unit,ccb);
-						done++;
-					}
-					i++;
+				if ( !( stat & BT_ANY_INTR )       ||
+			      	      ( wmbi->stat == BT_MBI_FREE )||
+			     	      ( PHYSTOKV(wmbi->ccb_addr )
+						 != (int)ccb     ) ) {
+					count--;
+					continue;
 				}
-				count--;
+				wmbi->stat = BT_MBI_FREE;
+				bt_done(unit,ccb);
+				done ++;
+				outb(BT_CTRL_STAT_PORT, BT_IRST);
+				/* Set the IN mail Box pointer for next */
+				bt_nextmbx( wmbi, wmbx, mbi );
+				wmbx->tmbi = wmbi;
 			}
-			if(!count)
+			if(!count && !done)
 			{
 				printf("abort failed in wait\n");
 				ccb->mbx->cmd = BT_MBO_FREE;
 			}
 			bt_free_ccb(unit,ccb,flags);
-			btintr(unit);
 			xs->error = XS_DRIVER_STUFFUP;
 			return(HAD_ERROR);
 		}
-		btintr(unit);
 		if(xs->error) return(HAD_ERROR);
 		return(COMPLETE);
-	} 
+	}
 }
 
 /*
@@ -1436,7 +1700,7 @@ struct	bt_ccb	*ccb;
 
 extern int 	hz;
 #define ONETICK 500 /* milliseconds */
-#define SLEEPTIME ((hz * 1000) / ONETICK)
+#define SLEEPTIME ((hz * ONETICK) / 1000)
 bt_timeout(arg)
 int	arg;
 {
@@ -1461,17 +1725,17 @@ int	arg;
 			* Unlink it from the queue		*
 			\***************************************/
 			bt_remove_timeout(ccb);
-
-			/***************************************\
-			* If The ccb's mbx is not free, then	*
-			* the board has gone south		*
-			\***************************************/
-			if(ccb->mbx->cmd != BT_MBO_FREE)
+ 			/***************************************\
+ 			* If The ccb's mbx is not free, then	*
+ 			* the board has gone Far East ?         *
+ 			\***************************************/
+ 			if((struct bt_ccb *)PHYSTOKV(ccb->mbx->ccb_addr)==ccb &&
+ 			    ccb->mbx->cmd != BT_MBO_FREE )
 			{
-				printf("bt%d not taking commands!\n"
-							,unit);
-				Debugger();
-			}
+ 				printf("bt%d not taking commands!\n"
+ 							,unit);
+ 				Debugger();
+ 			}
 			/***************************************\
 			* If it has been through before, then	*
 			* a previous abort has failed, don't	*
@@ -1479,15 +1743,16 @@ int	arg;
 			\***************************************/
 			if(ccb->flags == CCB_ABORTED) /* abort timed out */
 			{
-				printf("AGAIN");
+				printf("Abort Operation has timed out.\n");
 				ccb->xfer->retries = 0; /* I MEAN IT ! */
 				ccb->host_stat = BT_ABORTED;
 				bt_done(unit,ccb);
 			}
 			else	/* abort the operation that has timed out */
 			{
-				printf("\n");
-				bt_abortmbx(ccb->mbx);
+				printf("Try to abort\n");
+	                	bt_send_mbo( unit, ~SCSI_NOMASK,
+					     BT_MBO_ABORT, ccb );
 					/* 2 secs for the abort */
 				bt_add_timeout(ccb,2000 + ONETICK);
 				ccb->flags = CCB_ABORTED;
