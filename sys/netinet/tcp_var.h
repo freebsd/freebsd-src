@@ -491,7 +491,7 @@ struct inpcb *
 	 tcp_quench(struct inpcb *, int);
 void	 tcp_respond(struct tcpcb *, void *,
 	    struct tcphdr *, struct mbuf *, tcp_seq, tcp_seq, int);
-int	 tcp_twrespond(struct tcptw *, int);
+int	 tcp_twrespond(struct tcptw *, struct socket *, struct mbuf *, int);
 struct rtentry *
 	 tcp_rtlookup(struct in_conninfo *);
 void	 tcp_setpersist(struct tcpcb *);
