@@ -95,7 +95,7 @@ devopen(void)
 	{
 #ifdef	EMBEDDED_DISKLABEL
 		dl = &disklabel;
-#else	EMBEDDED_DISKLABEL
+#else	/* EMBEDDED_DISKLABEL */
 #ifdef PC98
 		p = Bread(dosdev_copy, 1);
 		dptr = (struct dos_partition *)p;
@@ -123,7 +123,7 @@ devopen(void)
 		dl=((struct disklabel *)p);
 		disklabel = *dl;	/* structure copy (maybe useful later)*/
 #endif /* PC98 */
-#endif	EMBEDDED_DISKLABEL
+#endif /* EMBEDDED_DISKLABEL */
 		if (dl->d_magic != DISKMAGIC) {
 			printf("bad disklabel\n");
 			return 1;
