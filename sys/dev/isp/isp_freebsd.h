@@ -1,5 +1,4 @@
-/* $Id: isp_freebsd.h,v 1.16 1999/07/02 23:10:34 mjacob Exp $ */
-/* release_6_5_99 */
+/* $Id: isp_freebsd.h,v 1.17 1999/07/05 20:42:07 mjacob Exp $ */
 /*
  * Qlogic ISP SCSI Host Adapter FreeBSD Wrapper Definitions (CAM version)
  *---------------------------------------
@@ -94,6 +93,7 @@ struct isposinfo {
 };
 #define	SIMQFRZ_RESOURCE	0x1
 #define	SIMQFRZ_LOOPDOWN	0x2
+#define	SIMQFRZ_TIMED		0x4
 
 #define	isp_sim		isp_osinfo.sim
 #define	isp_path	isp_osinfo.path
@@ -188,6 +188,7 @@ extern void isp_done(struct ccb_scsiio *);
 #define	CMD_COMPLETE		0
 #define	CMD_EAGAIN		1
 #define	CMD_QUEUED		2
+#define	CMD_RQLATER		3
 #define	STOP_WATCHDOG(f, s)
 
 extern void isp_attach(struct ispsoftc *);
