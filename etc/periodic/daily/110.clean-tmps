@@ -1,6 +1,6 @@
 #!/bin/sh
 #
-# $Id: 110.clean-tmps,v 1.1.1.1 1997/08/16 17:04:00 pst Exp $
+# $Id: 110.clean-tmps,v 1.2 1997/09/01 11:07:55 ache Exp $
 #
 # This is a security hole, never use 'find' on a public directory
 # with -exec rm -f as root.  This can be exploited to delete any file
@@ -26,7 +26,7 @@ fi
 if [ -d /var/tmp ]; then
     cd /var/tmp && {
 	find . ! -name . -atime +7 -ctime +3 -exec rm -f -- {} \;
-	find -d . ! -name . ! name vi.recover -type d -mtime +1 -exec rmdir -- {} \; \
+	find -d . ! -name . ! -name vi.recover -type d -mtime +1 -exec rmdir -- {} \; \
 		>/dev/null 2>&1
     }
 fi
