@@ -24,7 +24,7 @@
  * the rights to redistribute these changes.
  *
  *	from: Mach, Revision 2.2  92/04/04  11:36:43  rpd
- *	$Id: table.c,v 1.9 1996/03/08 05:15:54 bde Exp $
+ *	$Id: table.c,v 1.10 1996/04/07 14:28:05 bde Exp $
  */
 
 /*
@@ -140,3 +140,4 @@ char *devs[] = { "wd", "dk", "fd", "wt", "sd", 0 };
 char dflname[] = "/kernel";
 char *name = dflname;
 unsigned long tw_chars = 0x5C2D2F7C;	/* "\-/|" */
+char *dflt_name;
