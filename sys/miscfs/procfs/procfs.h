@@ -37,7 +37,7 @@
  *	@(#)procfs.h	8.9 (Berkeley) 5/14/95
  *
  * From:
- *	$Id: procfs.h,v 1.19 1998/05/19 00:00:13 tegge Exp $
+ *	$Id: procfs.h,v 1.20 1998/07/07 04:08:44 bde Exp $
  */
 
 /*
@@ -56,7 +56,8 @@ typedef enum {
 	Pnote,		/* process notifier */
 	Pnotepg,	/* process group notifier */
 	Pmap,		/* memory map */
-	Ptype		/* executable type */
+	Ptype,		/* executable type */
+	Pcmdline	/* command line */
 } pfstype;
 
 /*
@@ -154,6 +155,7 @@ int procfs_doctl __P((struct proc *, struct proc *, struct pfsnode *pfsp, struct
 int procfs_dostatus __P((struct proc *, struct proc *, struct pfsnode *pfsp, struct uio *uio));
 int procfs_domap __P((struct proc *, struct proc *, struct pfsnode *pfsp, struct uio *uio));
 int procfs_dotype __P((struct proc *, struct proc *, struct pfsnode *pfsp, struct uio *uio));
+int procfs_docmdline __P((struct proc *, struct proc *, struct pfsnode *pfsp, struct uio *uio));
 
 /* Return 1 if process has special kernel digging privileges */
 int procfs_kmemaccess __P((struct proc *));

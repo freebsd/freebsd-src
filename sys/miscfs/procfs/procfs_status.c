@@ -37,7 +37,7 @@
  *	@(#)procfs_status.c	8.4 (Berkeley) 6/15/94
  *
  * From:
- *	$Id: procfs_status.c,v 1.10 1997/08/02 14:32:17 bde Exp $
+ *	$Id: procfs_status.c,v 1.11 1998/07/11 07:45:45 bde Exp $
  */
 
 #include <sys/param.h>
@@ -145,5 +145,42 @@ procfs_dostatus(curp, p, pfs, uio)
 	else
 		error = uiomove(ps, xlen, uio);
 
+	return (error);
+}
+
+int
+procfs_docmdline(curp, p, pfs, uio)
+	struct proc *curp;
+	struct proc *p;
+	struct pfsnode *pfs;
+	struct uio *uio;
+{
+	char *ps;
+	int xlen;
+	int error;
+	char psbuf[256];
+
+	if (uio->uio_rw != UIO_READ)
+		return (EOPNOTSUPP);
+
+	/*
+	 * For now, this is a hack.  To implement this fully would require
+	 * groping around in the process address space to follow argv etc.
+	 */
+	ps = psbuf;
+	bcopy(p->p_comm, ps, MAXCOMLEN);
+	ps[MAXCOMLEN] = '\0';
+	ps += strlen(ps);
+
+	ps += sprintf(ps, "\n");
+
+	xlen = ps - psbuf;
+	xlen -= uio->uio_offset;
+	ps = psbuf + uio->uio_offset;
+	xlen = min(xlen, uio->uio_resid);
+	if (xlen <= 0)
+		error = 0;
+	else
+		error = uiomove(ps, xlen, uio);
 	return (error);
 }
