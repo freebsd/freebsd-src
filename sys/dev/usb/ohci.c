@@ -553,9 +553,8 @@ ohci_alloc_std_chain(struct ohci_pipe *opipe, ohci_softc_t *sc,
 		 * We can describe the above using maxsegsz = 4k and nsegs = 2
 		 * in the future.
 		 */
-		if (OHCI_PAGE(dataphys) == OHCI_PAGE(DMAADDR(dma, offset +
-		    len - 1)) || len - (OHCI_PAGE_SIZE -
-		    OHCI_PAGE_OFFSET(dataphys)) <= OHCI_PAGE_SIZE) {
+		if ((OHCI_PAGE_OFFSET(dataphys) + len) <=
+		    (2 * OHCI_PAGE_SIZE)) {
 			/* we can handle it in this TD */
 			curlen = len;
 		} else {
