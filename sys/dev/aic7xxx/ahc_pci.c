@@ -28,7 +28,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $Id$
+ * $Id: //depot/aic7xxx/freebsd/dev/aic7xxx/ahc_pci.c#7 $
  *
  * $FreeBSD$
  */
@@ -219,8 +219,11 @@ ahc_pci_map_int(struct ahc_softc *ahc)
 	ahc->platform_data->irq =
 	    bus_alloc_resource(ahc->dev_softc, SYS_RES_IRQ, &zero,
 			       0, ~0, 1, RF_ACTIVE | RF_SHAREABLE);
-	if (ahc->platform_data->irq == NULL)
+	if (ahc->platform_data->irq == NULL) {
+		device_printf(ahc->dev_softc,
+			      "bus_alloc_resource() failed to allocate IRQ\n");
 		return (ENOMEM);
+	}
 	ahc->platform_data->irq_res_type = SYS_RES_IRQ;
 	return (ahc_map_int(ahc));
 }
