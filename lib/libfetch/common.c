@@ -60,7 +60,7 @@ static struct fetcherr _netdb_errlist[] = {
 };
 
 /* End-of-Line */
-static char ENDL[2] = "\r\n";
+static const char ENDL[2] = "\r\n";
 
 
 /*** Error-reporting functions ***********************************************/
@@ -154,7 +154,7 @@ _fetch_syserr(void)
  * Emit status message
  */
 void
-_fetch_info(char *fmt, ...)
+_fetch_info(const char *fmt, ...)
 {
     va_list ap;
     
@@ -171,7 +171,7 @@ _fetch_info(char *fmt, ...)
  * Return the default port for a scheme
  */
 int
-_fetch_default_port(char *scheme)
+_fetch_default_port(const char *scheme)
 {
     struct servent *se;
 
@@ -188,7 +188,7 @@ _fetch_default_port(char *scheme)
  * Return the default proxy port for a scheme
  */
 int
-_fetch_default_proxy_port(char *scheme)
+_fetch_default_proxy_port(const char *scheme)
 {
     if (strcasecmp(scheme, SCHEME_FTP) == 0)
 	return FTP_DEFAULT_PROXY_PORT;
@@ -201,7 +201,7 @@ _fetch_default_proxy_port(char *scheme)
  * Establish a TCP connection to the specified port on the specified host.
  */
 int
-_fetch_connect(char *host, int port, int af, int verbose)
+_fetch_connect(const char *host, int port, int af, int verbose)
 {
     char pbuf[10];
     struct addrinfo hints, *res, *res0;
@@ -333,15 +333,15 @@ _fetch_getln(int fd, char **buf, size_t *size, size_t *len)
  * XXX currently does not enforce timeout
  */
 int
-_fetch_putln(int fd, char *str, size_t len)
+_fetch_putln(int fd, const char *str, size_t len)
 {
     struct iovec iov[2];
     ssize_t wlen;
 
     /* XXX should enforce timeout */
-    iov[0].iov_base = str;
+    iov[0].iov_base = (char *)str;
     iov[0].iov_len = len;
-    iov[1].iov_base = ENDL;
+    iov[1].iov_base = (char *)ENDL;
     iov[1].iov_len = sizeof ENDL;
     wlen = writev(fd, iov, 2);
     DEBUG(fprintf(stderr, "\033[1m>>> %s\n\033[m", str));
@@ -353,7 +353,7 @@ _fetch_putln(int fd, char *str, size_t len)
 
 int
 _fetch_add_entry(struct url_ent **p, int *size, int *len,
-		 char *name, struct url_stat *stat)
+		 const char *name, struct url_stat *stat)
 {
     struct url_ent *tmp;
 
