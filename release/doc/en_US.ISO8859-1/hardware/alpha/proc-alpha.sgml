@@ -5,7 +5,7 @@
 	$FreeBSD$
 -->
 <sect1>
-  <title>Supported Processors and Motherboards</title>
+  <title>Supported processors and motherboards</title>
 
   <para>This section is maintained by &a.wilko;.</para>
 
@@ -23,14 +23,14 @@
     <para>The information is structured as follows:
       <itemizedlist>
         <listitem>
-	  <para>general hardware requirements to run &os; on Alpha.</para>
+	  <para>general hardware requirements to run &os; on alpha.</para>
 	</listitem>
         <listitem>
           <para>system specific information for each of the
-          systems/boards supported  by &os;/alpha.</para>
+          systems/boards supported  by &os;.</para>
         </listitem>
 	<listitem>
-	  <para>information on expansion boards for &os;/alpha,
+	  <para>information on expansion boards for &os;,
 	  including things that differ from what is in the generic
 	  supported hardware list.</para>
 	</listitem>
@@ -39,16 +39,15 @@
 
     <note>
       <para>You will see references to DEC, Digital Equipment Corporation and 
-      Compaq used more or less interchangeably. Now that Compaq has acquired Digital 
-      Equipment it would be more correct to refer to
-      Compaq-only.</para>
+      Compaq used more or less interchangeably. Now that Compaq has acquired 
+      Digital Equipment it would be more correct to refer to Compaq only.</para>
     </note>
   </sect2>
 
   <sect2>
-    <title>In general, what do you need to run &os;/alpha?</title>
+    <title>In general, what do you need to run &os; on an Alpha?</title>
 
-    <para>Obviously you will need an Alpha machine that &os;/alpha
+    <para>Obviously you will need an Alpha machine that &os;
     knows about.  Alpha machines are NOT like PCs. There are
     considerable differences between the various chip sets and
     mainboard designs. This means that a kernel needs to know the
@@ -69,13 +68,13 @@
     AlphaBIOS menu). In other cases you will have to re-flash the ROMs
     with SRM code. Check on
     http://ftp.digital.com/pub/DEC/Alpha/firmware to see what is
-    available for your particular system. In any case: no SRM means no
+    available for your particular system. In any case: no SRM means 
+    <emphasis>no</emphasis>
     &os; (or NetBSD, OpenBSD, Tru64 Unix or OpenVMS for that
     matter). With the demise of WindowsNT/alpha a lot of former NT
     boxes are sold on the second hand market. They have little or no
     trade-in value when they are NT-only from the console
-    perspective. So, be suspicious if the price appears too
-    good.</para>
+    perspective. So, be suspicious if the price appears too good.</para>
 
     <para>Known non-SRM machines are:
       <itemizedlist>
@@ -106,7 +105,7 @@
     rather different (read: cheaper) price tag.</para>
 
     <para>As part of the SRM you will get the so called OSF/1 PAL code
-    (OSF/1 being the initial name of Digital's Unix offering on
+    (OSF/1 being the initial name of Digital's UNIX offering on
     Alpha). The PAL code can be thought of as a software abstraction
     layer between the hardware and the operating system. It uses
     normal CPU instruction plus a handful of privileged instructions
@@ -135,7 +134,7 @@
     their lives as WinNT boxes. The ARC or AlphaBIOS knows about
     <emphasis>other</emphasis> adapter types that it can boot from
     than the SRM. For example you can boot from an Adaptec 2940UW with
-    ARC but (generally) not with SRM. Some newer machine types have
+    ARC/AlphaBios but (generally) not with SRM. Some newer machine types have
     introduced Adaptec boot support. Please consult the machine
     specific section for details.</para>
 
@@ -146,7 +145,7 @@
     that can boot from IDE disks and CDROMs. Check the machine
     specific section for details.</para>
 
-    <para>&os;/alpha 4.0 and later can be booted from the
+    <para>&os; 4.0 and later can be booted from the
     distribution CDROM.  Earlier versions needed booting from a
     2-floppy set.</para>
 
@@ -165,7 +164,7 @@
     <para>Alpha machines can be run with SRM on a graphics console or
     on a serial console. ARC can be run on a serial consoles if need
     be. VT100 emulation with 8 bit controls should at least allow you
-    to switch from ARC to SRM mode without having to install a
+    to switch from ARC/AlphaBIOS to SRM mode without having to install a
     graphics card first.</para>
 
     <para>If you want to run your Alpha without a monitor/graphics
@@ -183,20 +182,20 @@
     street will work in an Alpha machine. Things like S3 Trio64,
     Mach64, and Matrox Millennium generally work. Old ET4000 based ISA
     cards have also worked for me. But ask around first before buying.
-    Please note that TGA cards are not supported as &os; console
+    Please note that TGA cards are not currently supported as &os; console
     display cards.</para>
 
     <para>Most PCI devices from the PC-world will also work in
-    &os;/alpha PCI-based machines. Check the
+    &os; PCI-based machines. Check the
     <filename>/sys/alpha/conf/GENERIC</filename> file for the latest word
     on this. Be careful to check the appropriate machine type's
     discussion in case you want to use PCI cards that have PCI bridge
     chips on them.  In some cases you might encounter problems with
     PCI cards not handling PCI parity correctly. This can lead to
     panics. PCI parity checking can be disabled using the following
-    SRM command: <userinput>SET PCI_PARITY OFF</userinput>. This is not a &os; problem,
-    all operating systems running on Alpha hardware will need this
-    workaround.</para>
+    SRM command: <userinput>SET PCI_PARITY OFF</userinput>. 
+    This is not a &os; problem, all operating systems running on 
+    Alpha hardware will need this workaround.</para>
 
     <para>If your system (also) contains EISA expansion slots you will
     need to run the EISA Configuration Utility (ECU) after you have
@@ -217,10 +216,10 @@
     (read: faster / more modern).</para>
 
     <para>For memory you want at least 32 Mbytes. I have had
-    &os;/alpha run on a 16 Mbyte system but you will not like
+    &os; run on a 16 Mbyte system but you will not like
     that. Kernel build times halved when going to 32 Mbytes. Note that
     the SRM steals 2Mbyte from the total system memory (and keeps
-    it). For more serious use 64Mbyte or more is recommended.</para>
+    it). For more serious use 64 Mbytes or more are recommended.</para>
 
     <para>While on the subject of memory: pay close attention to the
     type of memory your machine uses. There are very different memory
@@ -235,12 +234,12 @@
   <sect2>
     <title>System-Specific information</title>
 
-    <para>Below is an overview of the hardware that &os;/alpha runs
-    on.  This list will definitely grow, a look in
-    <filename>/sys/alpha/conf/GENERIC</filename> can be enlightening. 
-    Alpha machines are
-    often best known by their project code name. When known these are
-    listed below in parentheses.</para>
+    <para>Below is an overview of the hardware that &os; runs on. This list 
+    will definitely grow, a look in 
+    <filename>/sys/alpha/conf/GENERIC</filename> can be enlightening.</para>
+ 
+    <para>Alpha machines are often best known by their project code name. 
+    Where known these are listed below in parentheses.</para>
 
     <sect3>    
       <title>AXPpci33 (<quote>NoName</quote>)</title>
@@ -255,8 +254,8 @@
       particularly fast in case of cache misses. As long as you stay
       inside the on-chip cache the CPU is comparable to a 21064 (first
       generation Alpha). These boards should be very cheap to obtain
-      these days (even here in the Netherlands they were sold new for
-      US$ 25).</para>
+      these days. It is a full-fledged 64 bit CPU, just don't expect
+      miracles as far as speed goes.</para>
 
       <para>Features:
         <itemizedlist>
@@ -264,9 +263,6 @@
 	    <para>21066 Alpha CPU at 166 MHz or 21066A CPU at 233MHz
 	    (21068 CPUs are also possible, but are even slower. Never
 	    seen/used one)</para>
-	  </listitem>	    
-	  <listitem>
-	    <para>memory bus: 64 bits</para>
 	  </listitem>
 	  <listitem>
 	    <para>on-board Bcache / L2 cache: 0, 256k or 1 Mbyte (uses
@@ -277,23 +273,53 @@
 	    mainboard models)</para>
 	  </listitem>
 	  <listitem>
-	    <para>memory: PS/2 style 72 pin 36 bit Fast Page Mode SIMMs, 
-	    70ns or better, installed in pairs of 2, 4 SIMM sockets,
-	    uses ECC</para>
+	    <para>memory: 
+              <itemizedlist>
+               <listitem>
+	         <para>bus width: 64 bits</para>
+               </listitem>
+               <listitem>
+                 <para>PS/2 style 72 pin 36 bit Fast Page Mode SIMMs</para>
+               </listitem>
+               <listitem>
+	         <para>70ns or better</para>
+               </listitem>
+               <listitem>
+                 <para>installed in pairs of 2
+               </listitem>
+               <listitem>
+               <para>4 SIMM sockets</para>
+               </listitem>
+               <listitem>
+	         <para>uses ECC</para>
+               </listitem>
+              </itemizedlist></para>
 	  </listitem>
 	  <listitem>
 	    <para>512kB Flash ROM for the console code.</para>
 	  </listitem>
 	  <listitem>
-	    <para>2x 16550A serial ports, 1x parallel port, floppy
-	    interface</para>
+	    <para>2x 16550A serial ports</para>
+	  </listitem>
+	  <listitem>
+	    <para>1x parallel port</para>
+	  </listitem>
+	  <listitem>
+	    <para>floppy interface</para>
 	  </listitem>
 	  <listitem>
 	    <para>1x embedded IDE interface</para>
 	  </listitem>
 	  <listitem>
-	    <para>expansion: 3 32 bit PCI slots (1 shared with ISA), plus
-	    5 ISA slots (1 shared with PCI)</para>
+	    <para>expansion:
+	    <itemizedlist>
+	      <listitem>
+	        <para>3 32 bit PCI slots (1 shared with ISA)</para>
+	      </listitem>
+	      <listitem>
+	        <para>5 ISA slots (1 shared with PCI)</para>
+	      </listitem>
+	    </itemizedlist></para>
 	  </listitem>
 	  <listitem>
 	    <para>embedded Fast SCSI using a Symbios 53C810
@@ -324,7 +350,8 @@
 
       <programlisting>device ata0 at isa? port IO_WD1 irq 14</programlisting>
 
-      <para>The SRM console unfortunately cannot boot from IDE disks.</para>
+      <para>The SRM console unfortunately cannot <emphasis>boot</emphasis>
+      from IDE disks.</para>
 
       <para>Make sure you use true 36 bit SIMMs, and only FPM (Fast
       Page Mode). EDO RAM or SIMMs with fake parity <emphasis>will not
@@ -343,8 +370,10 @@
       <para>The kernel configuration file for a NoName kernel must
       contain:</para>
 
-<programlisting>options		DEC_AXPPCI_33           
-cpu			EV4</programlisting>
+      <programlisting>
+	options	DEC_AXPPCI_33           
+	cpu	EV4
+      </programlisting>
 
     </sect3>
 
@@ -365,40 +394,56 @@ cpu			EV4</programlisting>
 	    233MHz</para>
 	  </listitem>
 	  <listitem>
-	    <para>memory bus: 64 bits</para>
-	  </listitem>
-	  <listitem>
 	    <para>on-board Bcache / L2 cache: COAST-like 256 kByte
             cache module; 233MHz models have 512kByte of cache; 
 	    166MHz models have soldered-on 256kB caches</para>
 	  </listitem>
 	  <listitem>
-<para>PS/2 mouse & keyboard port</para>
+            <para>PS/2 mouse & keyboard port</para>
+	  </listitem>
+          <listitem>
+            <para>memory:
+              <itemizedlist>
+               <listitem>
+                 <para>bus width: 64 bits</para>
+               </listitem>
+               <listitem>
+                 <para>PS/2 style 72 pin 36 bit Fast Page Mode SIMMs</para>
+               </listitem>
+               <listitem>
+                 <para>70ns or better</para>
+               </listitem>
+               <listitem>
+                 <para>installed in pairs of 2
+               </listitem>
+               <listitem>
+               <para>4 SIMM sockets</para>
+               </listitem>
+               <listitem>
+                 <para>uses ECC</para>
+               </listitem>
+              </itemizedlist></para>
+          </listitem>
+	  <listitem>
+            <para>2x 16550A serial ports, 1x parallel port, 
+            floppy interface</para>
 	  </listitem>
 	  <listitem>
-<para>memory: PS/2 style 72 pin 36 bit Fast Page Mode SIMMs, 
-	  70ns or better,
-          installed in pairs of 2,
-	  4 SIMM sockets
-	  uses ECC</para>
+            <para>Intel 82378ZB PCI to ISA bridge</para>
 	  </listitem>
 	  <listitem>
-<para>2x 16550A serial ports, 1x parallel port, floppy interface</para>
+            <para>1x embedded 21040 based 10Mbit Ethernet, AUI and
+            10base2 connector</para>
 	  </listitem>
 	  <listitem>
-<para>Intel 82378ZB PCI to ISA bridge</para>
+            <para>expansion: 1 32 bit PCI slot, 2 PCMCIA slots</para>
 	  </listitem>
 	  <listitem>
-<para>1x embedded 21040 based 10Mbit Ethernet, AUI or 10base2 connector</para>
+            <para>on-board Crystal CS4231 or AD1848 sound chip</para>
 	  </listitem>
 	  <listitem>
-<para>expansion: 1 32 bit PCI slot, 2 PCMCIA slots</para>
-	  </listitem>
-	  <listitem>
-<para>on-board Crystal CS4231 or AD1848 sound chip</para>
-	  </listitem>
-	  <listitem>
-<para>embedded Fast SCSI using a Symbios 53C810 chip on the PCI riser card</para>
+            <para>embedded Fast SCSI using a Symbios 53C810 chip on the 
+            PCI riser card</para>
 	  </listitem>
 	</itemizedlist>
       </para>
@@ -412,18 +457,18 @@ cpu			EV4</programlisting>
       drive. Mounting stuff may have come with your Multia. Adding a
       3.5&quot; disk is not a recommended upgrade due to the limited power
       rating of the power supply and the extremely marginal cooling of
-      the system box. Don't!</para>
+      the system box. <emphasis>Don't!</emphasis></para>
 
       <para>Multia also has 2 PCMCIA expansion slots. These are
-      currently unsupported.</para>
+      currently unsupported by &os;.</para>
 
       <para>The CPU might or might not be socketed, check before
       considering CPU upgrade hacks. The low-end Multias have a
       soldered-in CPU.</para>
 
-      <para>It comes with a TGA based graphics on-board. Which is not
-      suitable for console use with &os;. Which means you will have
-      to run it using a serial console. Note that the boot of the
+      <para>It comes with a TGA based graphics on-board. TGA is not
+      currently suitable for console use with &os;. This means you will have
+      to run Multia using a serial console. Note that the boot of the
       installation disk will appear to work fine using the TGA
       console, but then switches to using the serial port. This is
       even mentioned during by installer (but never read by the human
@@ -436,51 +481,57 @@ cpu			EV4</programlisting>
       used.</para>
 
       <para>Although the Multia SRM supports booting from floppy this
-      is problematic.  Typical errors look like:
+      can be problematic. Typically the errors look like:
 
-<screen>*** Soft Error - Error #10 - FDC: Data overrun or underrun</screen>
+      <screen>
+	*** Soft Error - Error #10 - FDC: Data overrun or underrun
+      </screen>
 
-      This is not a
-      &os; problem, it is a SRM problem. The best available
+      This is not a &os; problem, it is a SRM problem. The best available
       workaround to install &os; is to boot from a SCSI CDROM.</para>
 
       <para>Sound works fine using &man.pcm.4; driver and a line in the
       kernel configuration file as follows for the Crystal CS4231
       chip:</para>
 
-<programlisting>device pcm0 at isa? port 0x530  irq 9 drq 3 flags 0x15</programlisting>
+      <programlisting>
+        device pcm0 at isa? port 0x530  irq 9 drq 3 flags 0x15
+      </programlisting>
 
       <para>I have not yet been successful in getting my Multia with
       the AD1848 to play any sound.</para>
 
       <para>While verifying playback I was reminded of the lack of CPU
-      power of the 166MHz CPU: MP3 only plays acceptable using 22kHz
+      power of the 166MHz CPU. MP3 only plays acceptable using 22kHz
       down-sampling.</para>
 
       <para>Multias are somewhat notorious for dying of heat
       strokes. The very compact box does not really allow cooling air
       access very well. Please use the Multia on its vertical stand,
-      don't put it horizontally (<quote>pizza style</quote>).  Replacing the fan
-      with something which pushes around more air is
+      don't put it horizontally (<quote>pizza style</quote>).  Replacing the 
+      fan with something which pushes around more air is
       recommended. Beware of PCI cards with high power consumption.
       If your system has died you might want to check on the
-      Multia-Heat-Death pages at the <ulink url="http://www.netbsd.org/">NetBSD Web site</ulink>.</para>
+      Multia-Heat-Death pages at the 
+      <ulink url="http://www.netbsd.org/">NetBSD Web site</ulink>.</para>
 
       <para>The Intel 82378ZB PCI to ISA bridge enables the use of an
       IDE disk. This requires a line in the kernel configuration file
       as follows:</para>
 
-<programlisting>device ata0 at isa? port IO_WD1 irq 14</programlisting>
+      <programlisting>device ata0 at isa? port IO_WD1 irq 14</programlisting>
 
       <para>The IDE connector pin spacing is thought for 2.5&quot; laptop
       disks. A 3.5&quot; IDE disk would not fit in the case anyway. At
       least not without sacrificing your only PCI slot.</para>
 
-      <para>The SRM console does not know how to boot from IDE disks unfortunately.</para>
+      <para>The SRM console does not know how to boot from IDE 
+      disks unfortunately.</para>
 
       <para>In case you want to change the internal hard drive: the
-      internal flat cable running from the PCI riser board to the 2.5&quot;
-      (!!) hard drive has a finer pitch than the standard SCSI flat
+      internal flat cable running from the PCI riser board to the 
+      <emphasis>2.5&quot;</emphasis>
+      hard drive has a finer pitch than the standard SCSI flat
       cables. Otherwise it would not fit on the 2.5&quot; drives. There are
       also riser cards that have a standard-pitch SCSI cable attached
       to it, which will fit an ordinary SCSI disk.</para>
@@ -495,13 +546,16 @@ cpu			EV4</programlisting>
       <para>The kernel configuration file for a Multia kernel must
       contain:</para>
 
-<programlisting>options		DEC_AXPPCI_33
-cpu			EV4</programlisting>
+      <programlisting>
+	options	DEC_AXPPCI_33
+	cpu	EV4
+      </programlisting>
 
-      <para>Recommended reading on Multia can be found at <ulink
-      url="http://www.netbsd.org/Ports/alpha/multiafaq.html">http://www.netbsd.org/Ports/alpha/multiafaq.html</ulink>
-      or <ulink
-      url="http://www.brouhaha.com/~eric/computers/udb.html">http://www.brouhaha.com/~eric/computers/udb.html</ulink>.</para>
+      <para>Recommended reading on Multia can be found at 
+      <ulink url="http://www.netbsd.org/Ports/alpha/multiafaq.html">
+      http://www.netbsd.org/Ports/alpha/multiafaq.html</ulink>
+      or <ulink url="http://www.brouhaha.com/~eric/computers/udb.html">
+      http://www.brouhaha.com/~eric/computers/udb.html</ulink>.</para>
 
     </sect3>
 
@@ -511,8 +565,9 @@ cpu			EV4</programlisting>
       <para>The Miata is a small tower machine intended to be put
       under a desk. There are multiple Miata variants. The original
       Miata is the MX5 model. Because it suffers from a number of
-      hardware design flaws a redesign was performed, yielding the
-      MiataGL. Unfortunately the boxes are quite indistinguishable.
+      hardware design flaws a redesign was done, yielding the
+      MiataGL. Unfortunately the variants are not easily distinguishable 
+      from the outside of the case.
       An easy check is to see if the back of the machine sports two
       USB connectors. If yes, it is a MiataGL.</para>
 
@@ -526,12 +581,13 @@ cpu			EV4</programlisting>
       in general systems are named like PWS[433,500,600]a[u].
 
       <para>There was also a Miata model with a special CPU cooling
-      system by Kryotech.  That one has a different enclosure.</para>
+      system by Kryotech. The Kryotech has a special cooling system in a 
+      different enclosure.</para>
 
       <para>Features:
         <itemizedlist>
 	  <listitem>
-	    <para>21164A EV56 Alpha CPU, at 433, 500 or 600MHz</para>
+	    <para>21164A EV56 Alpha CPU at 433, 500 or 600MHz</para>
 	  </listitem>
 	  <listitem>
 	    <para>21174 Core Logic (<quote>Pyxis</quote>) chip set</para>
@@ -540,15 +596,24 @@ cpu			EV4</programlisting>
 	    <para>on-board Bcache / L3 cache: 0, 2 or 4 Mbytes (uses a
 	    cache module)</para>
 	  </listitem>
-	  <listitem>
-	    <para>memory bus: 128 bits wide, ECC protected</para>
+	  <listitem><para>memory:</para>
+	    <para><itemizedlist>
+	      <listitem>
+	        <para>bus width: 128 bits wide, ECC protected</para>
+	      </listitem>
+	      <listitem>
+	        <para>unbuffered SDRAMs DIMMs, installed in pairs of 2 
+              </listitem>
+	      <listitem>
+		<para>6 DIMM sockets</para>
+	      </listitem>
+	      <listitem>
+		<para>maximum memory 1.5 Gbytes</para>
+	      </listitem>
+	    </itemizedlist></para>
 	  </listitem>
 	  <listitem>
-	    <para>memory: Miata uses unbuffered SDRAMs, installed in
-	    pairs of 2, 6 DIMM sockets, 1.5 Gbytes max</para>
-	  </listitem>
-	  <listitem>
-	    <para>on-board Fast Ethernet based on:
+	    <para>on-board Fast Ethernet:
 	    <itemizedlist>
 	      <listitem>
 	        <para>MX5 uses a 21142 or 21143 Ethernet chip
@@ -572,10 +637,14 @@ cpu			EV4</programlisting>
 	    <para>1x Ultra-Wide SCSI Qlogic 1040 [MiataGL only]</para>
 	  </listitem>
 	  <listitem>
-	    <para>expansion: 2 64-bit PCI slots, 3 32-bit PCI slots
-	    (behind a DEC PCI-PCI bridge chip), 3 ISA slots
-	    (physically shared with the 32 bit PCI slots, via an
-	    Intel 82378IB PCI to ISA bridge chip)</para>
+	    <para>2 64-bit PCI slots</para>
+	  </listitem>
+	  <listitem>
+            <para>3 32-bit PCI slots (behind a DEC PCI-PCI bridge chip)</para>
+	  </listitem>
+	  <listitem>
+            <para>3 ISA slots (physically shared with the 32 bit PCI slots, 
+              via an Intel 82378IB PCI to ISA bridge chip)</para>
 	  </listitem>
 	  <listitem>
 	    <para>2x 16550A serial port</para>
@@ -622,36 +691,33 @@ cpu			EV4</programlisting>
 
       <para>The complete command is:
 
-<screen><prompt>&gt;&gt;&gt;</prompt> <userinput>set pci_device_override <replaceable>vendor_id</replaceable><replaceable>device_id</replaceable></userinput></screen>
+        <screen><prompt>&gt;&gt;&gt;</prompt> <userinput>set pci_device_override <replaceable>&lt;vendor_id&gt;</replaceable><replaceable>&lt;device_id&gt;</replaceable></userinput></screen>
       </para>
 
       <para>For example:</para>
 
 <screen><prompt>&gt;&gt;&gt;</prompt> <userinput>set pci_device_override 88c15333</userinput></screen>
 
-      <para>A more radical approach is to use:</para>
+      <para>The most radical approach is to use:</para>
 
 <screen><prompt>&gt;&gt;&gt;</prompt> <userinput>set pci_device_override -1</userinput></screen>
 
       <para>This disables PCI ID checking altogether, so that you
-      can stick in any random PCI card without its ID getting
-      checked. For this to work you need a sufficiently new SRM in
-      your Miata. Again: do this on your own risk.<para>
+      can install any PCI card without its ID getting
+      checked. For this to work you need a reasonable current SRM version.
+      <caution><para>Do this on your own risk.</para></caution></para>
 
       <para>The kernel reports it when it sees a buggy Pyxis chip:
-
 <screen>Sep 16 18:39:43 miata /kernel: cia0: Pyxis, pass 1
 Sep 16 18:39:43 miata /kernel: cia0: extended capabilities: 1&lt;BWEN&gt;
 Sep 16 18:39:43 miata /kernel: cia0: WARNING: Pyxis pass 1 DMA bug; no bets...</screen>
       </para>
-
       <para>A MiataGL probes as:
-
+A
 <screen>Jan  3 12:22:32 miata /kernel: cia0: Pyxis, pass 1
 Jan  3 12:22:32 miata /kernel: cia0: extended capabilities: 1&lt;BWEN&gt;
 Jan  3 12:22:32 miata /kernel: pcib0: &lt;2117x PCI host bus adapter&gt; on cia0</screen>
       </para>
-
       <para>MiataGL does not have the DMA problems of the MX5. PCI
       cards that make the MX5 SRM choke when installed in the 64bit
       slots are accepted without problems by the MiataGL SRM.</para>
@@ -664,8 +730,8 @@ Jan  3 12:22:32 miata /kernel: pcib0: &lt;2117x PCI host bus adapter&gt; on cia0
       <para>The Miata SRM can boot from IDE CDROM drives. Hard disk
       boot is known to work for both MiataGL and MX5 disks, so you
       can root &os; from an IDE disk. Speeds on MX5 are around 14
-      Mbytes/sec assuming a suitable drive. The CMD646 chip will
-      support up to WDMA2 mode as the silicon is too buggy for use
+      Mbytes/sec assuming a suitable drive. Miata's CMD646 chip will
+      support up to WDMA2 mode as the chip is too buggy for use
       with UDMA.</para>
 
       <para>The MiataGL has a faster PCI-PCI bridge chip on the PCI
@@ -681,10 +747,10 @@ Jan  3 12:22:32 miata /kernel: pcib0: &lt;2117x PCI host bus adapter&gt; on cia0
       <para>Both MX5 and MiataGL have an on-board sound chip, an
       ESS1888. It emulates a SoundBlaster and can be enabled by
       putting
-
-      <programlisting>device pcm0
-device sbc0</programlisting>
-
+      <programlisting>
+	device pcm0
+	device sbc0
+      </programlisting>
       in your kernel configuration file.</para>
 
       <para>in case your Miata has the optional cache board
@@ -703,10 +769,9 @@ device sbc0</programlisting>
 
       <para>If you experience SRM errors like 
 
-<screen>ERROR:  scancode 0xa3 not supported on PCXAL</screen> 
+      <screen>ERROR:  scancode 0xa3 not supported on PCXAL</screen> 
 
-      after halting
-      &os; you should update your SRM firmware to V7.2-1 or
+      after halting &os; you should update your SRM firmware to V7.2-1 or
       later. This SRM version is first available on the Firmware
       Update CD V5.7, or on <ulink
       url="http://www.compaq.com/">http://www.compaq.com/</ulink> The
@@ -719,11 +784,14 @@ device sbc0</programlisting>
       even when the machine is switched off.</para>
 
       <para>The kernel configuration file for a Miata kernel must
-      contain:</para>
+      contain:
+      <programlisting>
+	options	DEC_ST550               
+	cpu	EV5
+      </programlisting></para>
 
-<programlisting>options         DEC_ST550               
-cpu		EV5</programlisting>
     </sect3>
+
     <sect3>
       <title>DEC3000 family (the <quote>Bird</quote> machines)</title>
 
@@ -819,18 +887,37 @@ cpu		EV5</programlisting>
 	    MHz)</para>
 	  </listitem>
 	  <listitem>
-	    <para>memory bus: 256 bit, with ECC (DEC3000/500-class) or
-	    64 bit, with ECC (DEC3000/300-class)</para>
+	    <para>memory:
+	    <itemizedlist>
+	      <listitem>
+		<para>bus width: 256 bit, with ECC</para>
+	      </listitem>
+	      <listitem>
+		<para>proprietary 100pin SIMMs</para>
+	      </listitem>
+	      <listitem>
+		<para>installed in sets of 8 [DEC3000/500-class]</para>
+	      </listitem>
+	    </itemizedlist></para>
+	   </listitem>
+	   <listitem>
+	    <para><emphasis>or</emphasis></para>
+	   </listitem>
+	   <listitem>
+	     <para><itemizedlist> 
+	      <listitem>
+		<para>bus width: 64 bit, with ECC</para>
+	      </listitem>
+	      <listitem>
+		<para>PS/2 style 72pin 36 bit FPM SIMMs 70ns or better</para>
+	      </listitem>
+	      <listitem>
+		<para>used in pairs of 2 [DEC3000/300-class]</para>
+	      </listitem>
+	     </itemizedlist></para>
 	  </listitem>
 	  <listitem>
-	    <para>memory: proprietary 100pin SIMMs installed in sets
- 	    of 8 [DEC3000/500-class] or PS/2 style 72pin 36 bit FPM
- 	    SIMMs, 70ns or better used in pairs of 2
- 	    (DEC3000/300-class)</para>
-	  </listitem>
-	  <listitem>
-	    <para>Bcache / L2 cache: varying sizes, 512 kB to 2
-	    Mbyte</para>
+	    <para>Bcache / L2 cache: varying sizes, 512 kB to 2 Mbyte</para>
 	  </listitem>
 	  <listitem>
 	    <para>built-in 10Mbit Ethernet based on a Lance 7990 chip,
@@ -858,13 +945,13 @@ cpu		EV5</programlisting>
       </para>
 
       <para>Currently DEC3000 machines can only be used diskless on
-      &os;/alpha. The reason for this is that the SCSI drivers needed
+      &os;. The reason for this is that the SCSI drivers needed
       for the TC SCSI adapters were not brought into CAM that the
       recent &os; versions use. TC option cards for single (PMAZ-A) or
-      dual fast SCSI (PMAZC-AA) are also available.  And currently
+      dual fast SCSI (PMAZC-AA) are also available.  These cards currently
       have no drivers on &os; either.<para>
 
-      <para>DEC3000/300 has 5Mbytes/sec SCSI on-board. This bus is
+      <para>DEC3000/300 has 5 MBytes/sec SCSI on-board. This bus is
       used for both internal and external devices. DEC3000/500 has 2
       SCSI buses. One is for internal devices only, the other one is
       for external devices only.<para>
@@ -872,14 +959,14 @@ cpu		EV5</programlisting>
       <para>Floppy devices found in the DEC3000s are attached to the
       SCSI bus (via a bridge card). This makes it possible to boot from them
       using the same device names as ordinary SCSI hard-disks, for example:
-        <screen><prompt>&gt;&gt;&gt;</prompt> <userinput>BOOT DKA300</userinput></screen>
+      <screen><prompt>&gt;&gt;&gt;</prompt> <userinput>BOOT DKA300</userinput></screen>
       </para>
 
       <para>The 3000/300 series has a half-speed TurboChannel compared
       to the other 3000 machines. Some TC expansion cards have
       troubles with the half-speed bus. Caveat emptor.</para>
 
-      <para>ISDN does not work on &os;/alpha.</para>
+      <para>ISDN does not work on &os;.</para>
 
       <para>DEC3000/300-class uses standard 36 bit, 72 pin Fast Page
       Mode SIMMs.  EDO SIMMs, 32 or 33 bit SIMMs all will not work in
@@ -1007,304 +1094,496 @@ cpu		EV5</programlisting>
 
       <para>For the DEC3000/[4-9]00 series machines the kernel config
       file must contain:
-
-<programlisting>options         DEC_3000_500           
-cpu		EV4</programlisting>
+      <programlisting>
+	options	DEC_3000_500           
+	cpu	EV4
+      </programlisting>
       </para>
 
       <para>For the DEC3000/300 (<quote>Pelican</quote>) machines the
       kernel config file must contain:
-
-<programlisting>options         DEC_3000_300            
-cpu		EV4</programlisting>
+      <programlisting>
+	options	DEC_3000_300            
+	cpu	EV4
+      </programlisting>
       </para>
     </sect3>
 
     <sect3>
       <title>Evaluation Board 64plus (<quote>EB64+</quote>), Aspen Alpine</title>
-<programlisting>
-In its attempts to popularize the Alpha CPU DEC produced a number of so
-called Evaluation Boards. The EB64+ family boards have the following feature
-set:
 
-- 21064 or 21064A CPU, 150 to 275MHz 
-- memory bus: 128 bit
-- memory:  PS/2 style 72 pin 33 bit Fast Page Mode SIMMs, 
-	   70ns or better,
-           installed in sets of 4
-           8 SIMM sockets
-           uses parity
-- Bcache / L2 cache: 512 kByte, 1 Mbyte or 2 Mbytes
-- 21072 ("APECS") chip set 
-- Intel 82378ZB PCI to ISA bridge chip ('Saturn')
-- dual 16550A serial ports
-- Symbios 53C810 Fast-SCSI
-- embedded 10 Mbit Ethernet
-- 2 PCI slots
-- 3 ISA slots
+      <para>In its attempts to popularize the Alpha CPU DEC produced a number 
+      of so called Evaluation Boards. The EB64+ family boards have the 
+      following feature set:</para>
 
-Aspen Alpine:
-Aspen Alpine is slightly different, but is close enough to the EB64+ to
-run an EB64+ SRM EPROM (mine did..). The Aspen Alpine does not have 
-an embedded Ethernet, has 3 instead of 2 PCI slots. It comes with 2 Mbytes
-of cache already soldered onto the mainboard. It has jumpers to select
-the use of 60, 70 or 80ns SIMM speeds.
+      <para><itemizedlist>
+        <listitem>
+          <para>21064 or 21064A CPU, 150 to 275 MHz</para>
+        </listitem>
+        <listitem>
+          <para>memory:  
+             <itemizedlist>
+               <listitem>
+                 <para>memory buswidth: 128 bit</para>
+               </listitem>
+               <listitem>
+                 <para>PS/2 style 72 pin 33 bit Fast Page Mode SIMMs</para>
+               </listitem>
+               <listitem>
+	         <para>70ns or better</para>
+               </listitem>
+               <listitem>
+                 <para>installed in sets of 4</para>
+               </listitem>
+               <listitem>
+                 <para>8 SIMM sockets</para>
+               </listitem>
+               <listitem>
+                 <para>uses parity memory</para>
+               </listitem>
+             </itemizedlist>
+        </listitem>
+        <listitem>
+	  <para>Bcache / L2 cache: 512 kByte, 1 Mbyte or 2 Mbytes</para>
+        </listitem>
+        <listitem>
+          <para>21072 (<quote>APECS</quote>) chip set</para>
+        </listitem>
+        <listitem>
+          <para>Intel 82378ZB PCI to ISA bridge chip (<quote>Saturn</quote>)
+          </para>
+        </listitem>
+        <listitem>
+          <para>dual 16550A serial ports</para>
+        </listitem>
+        <listitem>
+          <para>Symbios 53C810 Fast-SCSI</para>
+        </listitem>
+        <listitem>
+          <para>embedded 10 Mbit Ethernet</para>
+        </listitem>
+        <listitem>
+          <para>2 PCI slots</para>
+        </listitem>
+        <listitem>
+          <para>3 ISA slots</para>
+        </listitem>
+      </itemizedlist></para>
 
-Memory:
-36 bits SIMMs work fine, 3 bits simply remain unused.
+      <para>Aspen Alpine is slightly different, but is close enough to the 
+      EB64+ to run an EB64+ SRM EPROM (mine did..). The Aspen Alpine does 
+      not have an embedded Ethernet, has 3 instead of 2 PCI slots. It comes 
+      with 2 Mbytes of cache already soldered onto the mainboard. It has 
+      jumpers to select the use of 60, 70 or 80ns SIMM speeds.</para>
 
-SRM:
-The SRM console code is housed in an UV-erasable EPROM. No easy flash SRM
-upgrades for the EB64+ The latest SRM version available for EB64+ is quite
-ancient anyway.
+      <para>36 bits SIMMs work fine, 3 bits simply remain unused.</para>
 
-SCSI: 
-The EB64+ SRM can boot both 53C810 and Qlogic1040 SCSI adapters. Pitfall for
-the Qlogic is that the firmware that is down-loaded by the SRM onto the
-Qlogic chip is very old. There are no updates for the EB64+ SRM available. 
-So you are stuck with old Qlogic bits too. I have had quite some problems
-when I wanted to use Ultra-SCSI drives on the Alpine with Qlogic. The
-&os;/alpha kernel can be compiled to include a much newer Qlogic firmware
-revision. This is not the default because it adds hundreds of kBytes worth
-of bloat to the kernel. In &os; 4.1 and later the isp firmware is contained 
-in a kernel loadable module. All of this might mean that you need to use a
-non-Qlogic adapter to boot from. 
+      <para>The SRM console code is housed in an UV-erasable EPROM. No 
+      easy flash SRM upgrades for the EB64+ The latest SRM version available 
+      for EB64+ is quite ancient anyway.</para>
 
-For the EB64+ class machines the kernel config file must contain:
+      <para>The EB64+ SRM can boot both 53C810 and Qlogic1040 SCSI adapters. 
+      Pitfall for the Qlogic is that the firmware that is down-loaded by 
+      the SRM onto the Qlogic chip is very old. There are no updates for the 
+      EB64+ SRM available. So you are stuck with old Qlogic bits too. 
+      I have had quite some problems when I wanted to use Ultra-SCSI drives 
+      on the Alpine with Qlogic. The &os; kernel can be compiled to include 
+      a much newer Qlogic firmware revision. This is not the default because 
+      it adds hundreds of kBytes worth of bloat to the kernel. In &os; 4.1 
+      and later the isp firmware is contained in a kernel loadable module. 
+      All of this might mean that you need to use a non-Qlogic adapter to 
+      boot from.</para>
+
+      <para>For the EB64+ class machines the kernel config file must contain:
+      <programlisting>
 	options         DEC_EB64PLUS            
 	cpu		EV4
+      </programlisting></para>
 
-*
-* Evaluation Board 164 ("EB164, PC164, PC164LX, PC164SX") family
-*
+   </sect3>
 
-EB164 is a newer design evaluation board, based on the 21164A CPU. This
-design has been used to 'spin off' multiple variations, some of which are
-used by OEM manufacturers/assembly shops. Samsung did its own PC164LX
-which has only 32 bit PCI, whereas the Digital variant has 64 bit PCI.
+   <sect3>
+      <title>Evaluation Board 164 (<quote>EB164, PC164, PC164LX, 
+      PC164SX</quote>) family</title>
 
-Features:
-- 21164A, multiple speed variants [EB164, PC164, PC164LX]
-  21164PC 			  [only on PC164SX]
-- 21174 (Alcor) chip set
-- Bcache / L3 cache:  EB164 uses special cache-SIMMs
-- memory bus: 128 bit / 256 bit
-- memory:  PS/2 style SIMMs in sets of 4 or 8, 
-	   36 bit, Fast Page Mode, uses ECC, [EB164 and PC164]
-	   SDRAM DIMMs in sets of 2, uses ECC [PC164SX and PC164LX]
-- dual 16550A serial ports
-- PS/2 style keyboard & mouse
-- floppy controller
-- parallel port
-- 32 bits PCI
-- 64 bits PCI [some models]
-- ISA slots via an Intel 82378ZB PCI to ISA bridge chip
+      <para>EB164 is a newer design evaluation board, based on the 21164A 
+      CPU. This design has been used to 'spin off' multiple variations, 
+      some of which are used by OEM manufacturers/assembly shops. Samsung 
+      did its own PC164LX which has only 32 bit PCI, whereas the Digital 
+      variant has 64 bit PCI.</para>
 
-Memory:
-Using 8 SIMMs for a 256bit wide memory can yield interesting speedups over
-a 4 SIMM/128bit wide memory. Obviously all 8 SIMMs must be of the same type
-to make this work. The system must be explicitly setup to use the 
-8 SIMM memory arrangement. You must have 8 SIMMs, 4 SIMMs distributed 
-over 2 banks does not work.
+      <para><itemizedlist>
+        <listitem>
+          <para>21164A, multiple speed variants [EB164, PC164, PC164LX]</para>
+        </listitem>
+ 	<listitem>
+  	  <para>21164PC [only on PC164SX]</para>
+        </listitem>
+        <listitem>
+          <para>21174 (Alcor) chip set</para>
+        </listitem>
+        <listitem>
+          <para>Bcache / L3 cache:  EB164 uses special cache-SIMMs</para>
+        </listitem>
+        <listitem>
+          <para>memory bus: 128 bit / 256 bit</para>
+        </listitem>
+        <listitem>
+          <para><itemizedlist>
+	    <listitem>
+              <para>memory:  PS/2 style SIMMs in sets of 4 or 8</para>
+            </listitem>
+	    <listitem>
+	      <para>36 bit, Fast Page Mode, uses ECC, [EB164 / PC164]</para>
+            </listitem>
+	    <listitem>
+	      <para>SDRAM DIMMs in sets of 2, uses ECC [PC164SX / PC164LX]</para>
+            </listitem></itemizedlist>
+          </para>
+        </listitem>
+        <listitem>
+           <para>dual 16550A serial ports</para>
+        </listitem>
+        <listitem>
+           <para>PS/2 style keyboard & mouse</para>
+        </listitem>
+        <listitem>
+           <para>floppy controller</para>
+        </listitem>
+        <listitem>
+           <para>parallel port</para>
+        </listitem>
+        <listitem>
+           <para>32 bits PCI</para>
+        </listitem>
+        <listitem>
+           <para>64 bits PCI [some models]</para>
+        </listitem>
+        <listitem>
+           <para>ISA slots via an Intel 82378ZB PCI to ISA bridge chip</para>
+        </listitem>
+      </itemizedlist></para>
 
-SCSI:
-The SRM can boot from Qlogic 10xx boards or the Symbios 53C810[A]. 
+      <para>Using 8 SIMMs for a 256bit wide memory can yield interesting 
+      speedups over a 4 SIMM/128bit wide memory. Obviously all 8 SIMMs must 
+      be of the same type to make this work. The system must be explicitly 
+      setup to use the 8 SIMM memory arrangement. You must have 8 SIMMs, 
+      4 SIMMs distributed over 2 banks does not work.</para>
 
-Newer Symbios 810 revisions like the Symbios 810AE are not recognized by
-the SRM on PC164. PC164 SRM does not appear to recognize a Symbios 53C895 
-based host adapter (tested with a Tekram DC-390U2W). On the other hand 
-some no-name Symbios 53C985 board has been reported to work.
+      <para>The SRM can boot from Qlogic 10xx boards or the Symbios 53C810[A].
+      Newer Symbios 810 revisions like the Symbios 810AE are not recognized by
+      the SRM on PC164. PC164 SRM does not appear to recognize a Symbios 53C895 
+      based host adapter (tested with a Tekram DC-390U2W). On the other hand 
+      some no-name Symbios 53C985 board has been reported to work.
+      Cards like the Tekram DC-390F (Symbios875 based) have been confirmed to 
+      work fine on the PC164. Unfortunately this seems to be dependent on the 
+      actual version of the chip/board.</para>
 
-Cards like the Tekram DC-390F (Symbios875 based) have been confirmed to 
-work fine on the PC164. Unfortunately this seems to be dependent on the 
-actual version of the chip/board. 
+      <para>Symbios 53C825[a] will also work as boot adapter. Diamond 
+      FirePort, although based on Symbios chips, is not bootable by the 
+      PC164SX SRM. PC164SX is reported to boot fine with Symbios825, 
+      Symbios875 and Symbios876 based cards. In addition, Adaptec 
+      2940U and 2940UW are reported to work for booting (verified on 
+      SRM V5.7-1). Adaptec 2930U2 and 2940U2[W] do not work.</para>
 
-Symbios 53C825[a] will also work as boot adapter. Diamond FirePort, although 
-based on Symbios chips, is not bootable by the PC164SX SRM. 
-PC164SX is reported to boot fine with Symbios825, Symbios875 and Symbios876 
-based cards. In addition, Adaptec 2940U and 2940UW are reported to work for
-booting (verified on SRM V5.7-1). Adaptec 2930U2 and 2940U2[W] do not work.
+      <para>164LX and 164SX with SRM firmware version 5.8 or later can boot 
+      from Adaptec 2940-series adapters.</para>
 
-LX and SX with SRM firmware version 5.8 or later can boot from Adaptec
-2940-series adapters.
+      <para>In summary: this family of machines is 'blessed' with a 
+      challenging compatibility as far as SCSI adapters go.</para>
 
-In summary: this family of machines is 'blessed' with a challenging 
-compatibility as far as SCSI adapters go.
+      <para>On PC164 the SRM sometimes seems to loose its variable settings. 
+      "For PC164, current superstition says that, to avoid losing settings,
+      you want to first downgrade to SRM 4.x and then upgrade to a 5.x"
+      One sample error that was observed was: "ERROR: ISA table corrupt!".
+      A sequence of a downgrade to SRM4.9, an 'isacfg -init' and an 'init'
+      made the problem go away. Some PC164 owners report they have never seen 
+      the problem. </para>
 
-SRM quirks:
-PC164 the SRM sometimes seems to loose its variable settings. 
-"For PC164, current superstition says that, to avoid losing settings,
-you want to first downgrade to SRM 4.x and then upgrade to a 5.x"
-One sample error that was observed was: "ERROR: ISA table corrupt!".
-A sequence of a downgrade to SRM4.9, an 'isacfg -init' and an 'init'
-made the problem go away. Some PC164 owners report they have never seen 
-the problem. 
+      <para>On PC164SX the AlphaBIOS allows you a selection to select 'SRM' to
+      be used as console on the next power up. This selection does 
+      not appear to have any effect. In other words, you will get the 
+      AlphaBIOS regardless of what you select. The fix is to reflash the 
+      console ROM with the SRM code for PC164SX. This will overwrite the 
+      AlphaBIOS and will get you the SRM console you desire. The SRM code 
+      can be found on the Compaq Web site.</para>
 
-On PC164SX the AlphaBIOS allows you a selection to select 'SRM' to
-be used as console on the next power up. This selection does not appear to
-have any effect. In other words, you will get to the AlphaBIOS regardless
-of what you select. The fix is to reflash the console ROM with the SRM 
-code for PC164SX. This will overwrite the AlphaBIOS and will get you the
-SRM console you desire. The SRM code can be found on the Compaq Web site.
+      <para>PC164 can boot from IDE disks assuming your SRM version is 
+      recent enough.</para>
 
-IDE:
-PC164 can boot from IDE disks assuming your SRM version is recent enough.
+      <para>EB164 needs a power supply that supplies 3.3 Volts. PC164 does 
+      not implement the PS_ON signal that ATX power supplies need to switch on. 
+      A simple switch pulling this signal to ground fixes this problem.</para>
 
-Power:
-EB164 needs a power supply that supplies 3.3 Volts. PC164 does not implement
-the PS_ON signal that ATX power supplies need to switch on. A simple switch
-pulling this signal to ground fixes this problem.
-
-For the EB164 class machines the kernel config file must contain:
-        options         DEC_EB164
-        cpu             EV5
-</programlisting>
+      <para>For the EB164 class machines the kernel config file must 
+      contain:
+	<programlisting>
+          options         DEC_EB164
+          cpu             EV5
+        </programlisting></para>
     </sect3>
 
     <sect3>
       <title>AlphaStation 200 (<quote>Mustang</quote>) and 400
       (<quote>Avanti</quote>) series</title>
-<programlisting>
-The Digital AlphaStation 200 and 400 series systems are early PCI based
-workstations for the lower end. The 200 and 250 series is a desktop box, the 
-400 series is a desk-side mini-tower.
 
-Features:
-- 21064 or 21064A CPU at speeds of 166 to 333 MHz
-- DECchip 21071-AA (core logic chip-set) consisting of:
-    Cache/memory controller (one 21071-CA chip)
-    PCI interface (one 21071-DA chip)
-    Data path (two 21071-BA chips)
-- Bcache / L2 cache: 512 Kbytes (200 and 400 series)
-		     2048KBytes (250 series)
-- memory bus: 64 bit
-- memory: 8 to 384 MBytes of RAM,
-	  70 ns or better Fast Page DRAM,
-          in three pairs (200 and 400 series)
-	  in two quads, so banks of four. (250 series)
-	  uses parity 
-- PS/2 keyboard and mouse port
-- two 16550 serial ports
-- parallel port
-- floppy disk interface
-- 32 bit PCI expansion slots (3 for 400 series, 2 for 200 & 250 series)
-- ISA expansion slots (4 for 400 series, 2 for 200 & 250 series) 
-  (some ISA/PCI slots are physically shared)
-- embedded 21040-based Ethernet (200 & 250 series)
-- embedded Symbios 53c810 Fast SCSI-2 chip
-- Intel 82378IB ("Saturn") PCI-ISA bridge chip
-- graphics is embedded TGA or PCI VGA (model dependent)
-- 16 bit sound (on 200 & 250 series)
+    <para>The Digital AlphaStation 200 and 400 series systems are early 
+    low end PCI based workstations. The 200 and 250 series are 
+    desktop boxes, the 400 series is a desk-side mini-tower.</para>
 
-Memory:
-the system uses parity memory SIMMs, but it does not need 36 bit wide SIMMs.
-33 bit wide SIMMs are sufficient, 36 bit SIMMs are acceptable too. EDO or 32
-bit SIMMs will not work. 4, 8, 16, 32 and 64 Mbyte SIMMs are supported.
+    <para>Features:
+    <itemizedlist>
+      <listitem>
+        <para>21064 or 21064A CPU at speeds of 166 up to 333 MHz</para>
+      </listitem>
+      <listitem>
+        <para>DECchip 21071-AA (core logic chip-set) consisting of:
+	<itemizedlist>
+          <listitem>
+	    <para>Cache/memory controller (one 21071-CA chip)</para>
+	  </listitem>
+	  <listitem>
+            <para>PCI interface (one 21071-DA chip)</para>
+	  </listitem>
+	  <listitem>
+            <para>Data path (two 21071-BA chips)</para>
+	  </listitem>
+	</itemizedlist></para>
+      </listitem>
+      <listitem>
+        <para>Bcache / L2 cache: 512 Kbytes (200 and 400 series) or 2048KBytes (250 series)</para>
+      </listitem>
+      <listitem>
+	<para>memory:
+        <itemizedlist>
+	  <listitem>
+	    <para>64 bit bus width</para>
+          </listitem>
+	  <listitem>
+            <para>8 to 384 MBytes of RAM</para>
+          </listitem>
+	  <listitem>
+	    <para>70 ns or better Fast Page DRAM</para>
+          </listitem>
+	  <listitem>
+            <para>in three pairs (200 and 400 series)</para>
+          </listitem>
+	  <listitem>
+	    <para>in two quads, so banks of four. (250 series)</para>
+          </listitem>
+	  <listitem>
+	     <para>memory subsystem uses parity</para>
+	  </listitem>
+        </itemizedlist></para>
+      </listitem>
+      <listitem>
+        <para>PS/2 keyboard and mouse port</para>
+      </listitem>
+      <listitem>
+        <para>two 16550 serial ports</para>
+      </listitem>
+      <listitem>
+        <para>parallel port</para>
+      </listitem>
+      <listitem>
+        <para>floppy disk interface</para>
+      </listitem>
+      <listitem>
+        <para>32 bit PCI expansion slots (3 for 400 series, 2 for 200 & 250 series)</para>
+      </listitem>
+      <listitem>
+        <para>ISA expansion slots (4 for 400 series, 2 for 200 & 250 series) 
+        (some ISA/PCI slots are physically shared)</para>
+      </listitem>
+      <listitem>
+        <para>embedded 21040-based Ethernet (200 & 250 series)</para>
+      </listitem>
+      <listitem>
+        <para>embedded Symbios 53c810 Fast SCSI-2 chip</para>
+      </listitem>
+      <listitem>
+        <para>Intel 82378IB ("Saturn") PCI-ISA bridge chip</para>
+      </listitem>
+      <listitem>
+        <para>graphics is embedded TGA or PCI VGA (model dependent)</para>
+      </listitem>
+      <listitem>
+        <para>16 bit sound (on 200 & 250 series)</para>
+      </listitem>
+    </itemizedlist></para>
 
-Sound:
-The AS200 & AS250 sound hardware is reported to work OK assuming you have 
-the following line in your kernel config file:
+    <para>The systems use parity memory SIMMs, but these do not need 36 bit 
+    wide SIMMs. 33 bit wide SIMMs are sufficient, 36 bit SIMMs are 
+    acceptable too. EDO or 32 bit SIMMs will not work. 4, 8, 16, 32 and 
+    64 Mbyte SIMMs are supported.</para>
 
-	device pcm0 at isa? port 0x530 irq 9 drq 0 flags 0x10011
+    <para>The AS200 & AS250 sound hardware is reported to work OK assuming 
+    you have the following line in your kernel config file:
+    <programlisting>
+      device pcm0 at isa? port 0x530 irq 9 drq 0 flags 0x10011
+    </programlisting></para>
 
-SCSI:
-AlphaStation 200 & 250 series has an automatic SCSI terminator. This means that 
-as soon as you plug a cable onto the external SCSI connector the internal
-terminator of the system is disabled. It also means that you should not
-leave unterminated cables plugged into the machine.
+    <para>AlphaStation 200 & 250 series have an automatic SCSI terminator. 
+    This means that as soon as you plug a cable onto the external SCSI 
+    connector the internal terminator of the system is disabled. It also 
+    means that you should not leave unterminated cables plugged into 
+    the machine.</para>
 
-AlphaStation 400 series have an SRM variable that controls termination. In
-case you have external SCSI devices connected you must set this SRM
-variable using: "set control_scsi_term external". If only internal SCSI devices
-are present use: "set control_scsi_term internal"
+    <para>AlphaStation 400 series have an SRM variable that controls 
+    termination. In case you have external SCSI devices connected you 
+    must set this SRM variable using &gt;&gt;&gt; 
+    <userinput> set control_scsi_term external
+    </userinput>. If only internal SCSI devices are present use: 
+    &gt;&gt;&gt;<userinput> set control_scsi_term internal</userinput></para>
 
-For the AlphaStation-[24][05]00 machines the kernel config file must contain:
-        options         DEC_2100_A50
-	cpu		EV4
-</programlisting>
+    <para>For the AlphaStation-[24][05]00 machines the kernel config file 
+    must contain:
+    <programlisting>
+	options	DEC_2100_A50
+	cpu	EV4
+    </programlisting></para>
     </sect3>
 
     <sect3>
       <title>AlphaStation 500 and 600 (<quote>Alcor</quote> &
-      <quote>Maverick</quote> for EV5, <quote>Bret</quote> for
-      EV56)</title>
+      <quote>Maverick</quote> for EV5, <quote>Bret</quote> for EV56)</title>
 
-<programlisting>
-AS500 and 600 were the high-end EV5 / PCI based workstations. EV6 based
-machines have in the meantime taken their place as front runners. AS500 is
-a desktop in a dark blue case (TopGun blue), AS600 is a sturdy desk-side box.
-AS600 has a nice LCD panel to observe the early stages of SRM startup.
+    <para>AS500 and 600 were the high-end EV5 / PCI based workstations. 
+    EV6 based machines have in the meantime taken their place as front 
+    runners. AS500 is a desktop in a dark blue case (TopGun blue), 
+    AS600 is a sturdy desk-side box. AS600 has a nice LCD panel to observe 
+    the early stages of SRM startup.</para>
 
-Features:
-- 21164 EV5 CPU at 266, 300, 333, 366, 400, 433, 466, or 500 MHz (AS500)
-		at 266, 300 or 333 MHz (AS600)
-- 21171 or 21172 (Alcor) core logic chip-set
-- cache: 2 or 4 Mb L3 / Bcache (AS600 at 266 MHz)
+    <para>Features:
+    <itemizedlist>
+      <listitem>
+        <para>21164 EV5 CPU at 266, 300, 333, 366, 400, 433, 466, or 
+	500 MHz (AS500) or at 266, 300 or 333 MHz (AS600)<para>
+      </listitem>
+      <listitem>
+        <para>21171 or 21172 (Alcor) core logic chip-set</para>
+      </listitem>
+      <listitem>
+        <para>cache: 2 or 4 Mb L3 / Bcache (AS600 at 266 MHz)
 	 4 Mb L3 / Bcache (AS600 at 300 MHz)
 	 2 or 8 Mb L3 / Bcache (8 Mb on 500 MHz version only)
-         2 to 16 Mb L3 / Bcache (AS600; 3 cache-SIMM slots)
-- memory bus: 256 bits, uses ECC
-- memory: AS500: industry standard 8 byte wide DIMMs
-          	 8 DIMM slots
-	  	 installed in sets of 4,
-	  	 maximum memory is 1 Gb (512 Mb max on 333 MHz CPUs)
-		 uses ECC 
-  	  AS600: industry standard 36 bit Fast Page Mode SIMMs
-		 32 SIMM slots,
-	         installed in sets of 8,
-	         maximum memory is 1 Gb
-	         uses ECC
-- Qlogic 1020 based wide SCSI bus (1 bus/chip for AS500, 2 for AS600)
-- 21040 based 10 Mbit Ethernet adapter with both Thinwire and UTP connectors
-- expansion: AS500: 3 32-bit PCI slots
+         2 to 16 Mb L3 / Bcache (AS600; 3 cache-SIMM slots)</para>
+      </listitem>
+      <listitem>
+        <para>memory bus: 256 bits
+      </listitem>
+      <listitem><para>AS500 memory:
+	  <itemizedlist>
+	    <listitem>
+	      <para>industry standard 8 byte wide buffered DIMMs</para>
+            </listitem>
+            <listitem>
+              <para>8 DIMM slots</para>
+            </listitem>
+            <listitem>
+	      <para>installed in sets of 4</para>
+            </listitem>
+            <listitem>
+	      <para>maximum memory is 1 Gb (512 Mb max on 333 MHz CPUs)</para>
+            </listitem>
+            <listitem>
+	      <para>uses ECC </para>
+            </listitem>
+	  </itemizedlist></para>
+       <listitem><para>AS600 memory:
+	  <itemizedlist>
+	    <listitem>
+  	      <para>industry standard 36 bit Fast Page Mode SIMMs</para>
+            </listitem>
+            <listitem>
+              <para>32 SIMM slots</para>
+            </listitem>
+            <listitem>
+              <para>installed in sets of 8</para>
+            </listitem>
+            <listitem>
+	      <para>maximum memory is 1 Gb</para>
+            </listitem>
+            <listitem>
+	      <para>uses ECC</para>
+            </listitem>
+	  </itemizedlist></para>
+      </listitem>
+      <listitem>
+        <para>Qlogic 1020 based wide SCSI bus (1 bus/chip for AS500, 
+	2 buses/chip for AS600)</para>
+      </listitem>
+      <listitem>
+        <para>21040 based 10 Mbit Ethernet adapter, both Thinwire 
+	and UTP connectors</para>
+      </listitem>
+      <listitem>
+        <para>expansion: AS500: 3 32-bit PCI slots
 	     	    1 64-bit PCI slot
 	     AS600: 2 32-bit PCI slot 
                     3 64-bit PCI slots
 		    1 PCI/EISA physically shared slot
 		    3 EISA slots
 		    1 PCI and 1 EISA slot are occupied by default
-- 21050 PCI-to-PCI bridge chip
-- Intel 82375EB PCI-EISA bridge (AS600 only)
-- 2 16550A serial ports
-- 1 parallel port
-- 16 bit audio Windows Sound System,
-  in dedicated slot (AS500)
-  in EISA slot (AS600, this is an ISA card)
-- PS/2 keyboard and mouse port
+        </para>
+      </listitem>
+      <listitem>
+        <para>21050 PCI-to-PCI bridge chip</para>
+      </listitem>
+      <listitem>
+        <para>Intel 82375EB PCI-EISA bridge (AS600 only)</para>
+      </listitem>
+      <listitem>
+        <para>2 16550A serial ports</para>
+      </listitem>
+      <listitem>
+        <para>1 parallel port</para>
+      </listitem>
+      <listitem>
+        <para>16 bit audio Windows Sound System, in a dedicated slot (AS500)
+        in EISA slot (AS600, this is an ISA card)</para>
+      </listitem>
+      <listitem>
+        <para>PS/2 keyboard and mouse port</para>
+      </listitem>
+    </itemizedlist></para>
 
-SCSI:
-Early machines had Fast SCSI interfaces, later ones are Ultra SCSI capable.
-AS500 shares its single SCSI bus with internal and external devices. For a
-Fast SCSI bus you are limited to 1.8 meters bus length external to the box.
-+++ This is what some DEC docs suggest. Did they ever go Ultra?
+    <para>Early machines had Fast SCSI interfaces, later ones are Ultra 
+    SCSI capable. AS500 shares its single SCSI bus with internal and external 
+    devices. For a Fast SCSI bus you are limited to 1.8 meters bus 
+    length external to the box. +++ This is what some DEC docs suggest. 
+    Did they ever go UltraSCSI?</para>
 
-AS600 has one Qlogic chip dedicated to the internal devices whereas the
-other one is dedicated to external SCSI devices.
+    <para>AS600 has one Qlogic SCSI chip dedicated to the internal devices 
+    whereas the other Qlogic SCSI chip is dedicated to external SCSI devices.
+    </para>
 
-Memory:
-In AS500 DIMMs are installed in sets of 4, in 'physically interleaved'
-layout. So, a bank of 4 DIMMs is *not* 4 adjacent DIMMs!
+    <para>In AS500 DIMMs are installed in sets of 4, in 'physically 
+    interleaved' layout. So, a bank of 4 DIMMs is *not* 4 physically 
+    adjacent DIMMs!</para>
 
-In AS600 the memory SIMMs are placed onto two memory daughter cards. SIMMs
-are installed in sets of 8. Both memory daughter cards must be populated
-identical. 
+    <para>In AS600 the memory SIMMs are placed onto two memory daughter 
+    cards. SIMMs are installed in sets of 8. Both memory daughter cards must 
+    be populated identically.</para>
 
-PCI:
-AS600 has a peculiarity for its PCI slots. AS600 (or rather the PCI
-expansion card containing the SCSI adapters) does not allow I/O port 
-mapping, therefore all devices behind it must use memory mapping.  
-If you have problems getting the SCSI adapters to work, add the following 
-option to /boot/loader.rc: 
+    <para>AS600 has a peculiarity for its PCI slots. AS600 (or rather the 
+    PCI expansion card containing the SCSI adapters) does not allow I/O port 
+    mapping, therefore all devices behind it must use memory mapping. If you 
+    have problems getting the Qlogic SCSI adapters to work, add the following 
+    option to /boot/loader.rc: 
 
-        set isp_mem_map=0xff                                        
+    <programlisting>set isp_mem_map=0xff</programlisting> 
         
-This may need to be typed at the boot loader prompt before booting the
-installation kernel.                                                 
+    This may need to be typed at the boot loader prompt before booting the
+    installation kernel.</para>
 
-For the AlphaStation-[56]00 machines the kernel config file must contain:
-	options         DEC_KN20AA 
-	cpu		EV5
-</programlisting>
+    <para>For the AlphaStation-[56]00 machines the kernel config file 
+    must contain:
+    <programlisting>
+	options	DEC_KN20AA 
+	cpu	EV5
+    </programlisting></para>
+
     </sect3>
 
     <sect3>
@@ -1446,7 +1725,7 @@ adapters in addition to the usual set of Qlogic and Symbios/NCR adapters.
 
 EIDE:
 The base model comes with a FUJITSU 9.5GB ATA disk as its boot device.
-&os;/alpha works just fine using EIDE disks on Webbrick. DS10 has 2 IDE 
+&os; works just fine using EIDE disks on Webbrick. DS10 has 2 IDE 
 interfaces on the mainboard.
 
 Expansion:
@@ -2223,7 +2502,7 @@ kernel config file. The 'cpu EV5' is mandatory to keep config(8) happy.
   <sect2>
     <title>Supported Hardware Overview</title>
 
-    <para>A word of caution: the installed base for &os;/alpha is not
+    <para>A word of caution: the installed base for &os; is not
     nearly as large as for &os;/Intel. This means that the enormous
     variation of PCI/ISA expansion cards out there has much less
     chance of having been tested on alpha than on Intel. This is not
@@ -2265,7 +2544,7 @@ kernel config file. The 'cpu EV5' is mandatory to keep config(8) happy.
     driver). Some new SRM versions are known to recognize the Intel
     8255x Ethernet chips as driven by the &os; &man.fxp.4; driver. But
     beware: the &man.fxp.4; driver is reported not to work correctly
-    with &os;/alpha (although it works excellently on &os;/x86).</para>
+    with &os; (although it works excellently on &os;/x86).</para>
 
     <para>DEC DEFPA PCI FDDI network adapters are supported on alpha.</para>
 
