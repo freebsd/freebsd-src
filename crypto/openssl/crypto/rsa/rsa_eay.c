@@ -1,4 +1,5 @@
 /* crypto/rsa/rsa_eay.c */
+/* $FreeBSD$ */
 /* Copyright (C) 1995-1998 Eric Young (eay@cryptsoft.com)
  * All rights reserved.
  *
@@ -87,7 +88,7 @@ static RSA_METHOD rsa_pkcs1_eay_meth={
 	NULL,
 	};
 
-RSA_METHOD *RSA_PKCS1_SSLeay(void)
+RSA_METHOD *RSA_PKCS1(void)
 	{
 	return(&rsa_pkcs1_eay_meth);
 	}
