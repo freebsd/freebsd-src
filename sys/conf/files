@@ -358,14 +358,14 @@ dev/gem/if_gem.c	optional gem
 dev/gem/if_gem_pci.c	optional gem pci
 dev/gx/if_gx.c		optional gx
 dev/hea/eni.c		optional hea nowerror
-dev/hea/eni_buffer.c	optional hea
+dev/hea/eni_buffer.c	optional hea nowerror
 dev/hea/eni_globals.c	optional hea
 dev/hea/eni_if.c	optional hea
 dev/hea/eni_init.c	optional hea
 dev/hea/eni_intr.c	optional hea
 dev/hea/eni_receive.c	optional hea
 dev/hea/eni_transmit.c	optional hea
-dev/hea/eni_vcm.c	optional hea
+dev/hea/eni_vcm.c	optional hea nowerror
 dev/hea/hea_pci.c	optional hea pci
 dev/hea/hea_freebsd.c	optional hea
 dev/hfa/fore_buffer.c	optional hfa
