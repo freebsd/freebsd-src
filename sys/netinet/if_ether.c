@@ -593,10 +593,12 @@ in_arpinput(m)
 		    isaddr.s_addr == ia->ia_addr.sin_addr.s_addr)
 			goto match;
 	/*
-	 * No match, use the first address on the receive interface
+	 * No match, use the first inet address on the receive interface
 	 * as a dummy address for the rest of the function.
 	 */
-	ifa = TAILQ_FIRST(&ifp->if_addrhead);
+	TAILQ_FOREACH(ifa, &ifp->if_addrhead, ifa_link)
+		if (ifa->ifa_addr && ifa->ifa_addr->sa_family == AF_INET)
+			break;
 	if (ifa == NULL) {
 		m_freem(m);
 		return;
