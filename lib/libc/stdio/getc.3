@@ -91,6 +91,10 @@ from the stream pointed at by
 If successful, these routines return the next requested object
 from the
 .Fa stream .
+Character values are returned as an
+.Li unsigned char
+converted to an
+.Li int .
 If the stream is at end-of-file or a read error occurs,
 the routines return
 .Dv EOF .
