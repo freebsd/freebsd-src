@@ -121,7 +121,7 @@ char uarea0[UAREA_PAGES * PAGE_SIZE];
 struct trapframe frame0;
 
 vm_offset_t kstack0;
-vm_offset_t kstack0_phys;
+vm_paddr_t kstack0_phys;
 
 struct kva_md_info kmi;
 

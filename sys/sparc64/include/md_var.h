@@ -42,7 +42,7 @@ extern	char	_end[];
 extern	long	Maxmem;
 
 extern	vm_offset_t kstack0;
-extern	vm_offset_t kstack0_phys;
+extern	vm_paddr_t kstack0_phys;
 
 struct	pcpu;
 
@@ -50,7 +50,7 @@ void	cpu_halt(void);
 void	cpu_identify(u_long vers, u_int clock, u_int id);
 void	cpu_reset(void);
 void	cpu_setregs(struct pcpu *pc);
-int	is_physical_memory(vm_offset_t addr);
+int	is_physical_memory(vm_paddr_t addr);
 void	swi_vm(void *v);
 
 cpu_block_copy_t spitfire_block_copy;

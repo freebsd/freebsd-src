@@ -59,7 +59,7 @@ struct cpu_start_args {
 
 struct ipi_cache_args {
 	u_int	ica_mask;
-	u_long	ica_pa;
+	vm_paddr_t ica_pa;
 };
 
 struct ipi_tlb_args {
@@ -110,7 +110,7 @@ extern	char tl_ipi_tlb_range_demap[];
 #if defined(_MACHINE_PMAP_H_) && defined(_SYS_MUTEX_H_)
 
 static __inline void *
-ipi_dcache_page_inval(void *func, vm_offset_t pa)
+ipi_dcache_page_inval(void *func, vm_paddr_t pa)
 {
 	struct ipi_cache_args *ica;
 
@@ -125,7 +125,7 @@ ipi_dcache_page_inval(void *func, vm_offset_t pa)
 }
 
 static __inline void *
-ipi_icache_page_inval(void *func, vm_offset_t pa)
+ipi_icache_page_inval(void *func, vm_paddr_t pa)
 {
 	struct ipi_cache_args *ica;
 
@@ -215,13 +215,13 @@ ipi_wait(void *cookie)
 #else
 
 static __inline void *
-ipi_dcache_page_inval(void *func, vm_offset_t pa)
+ipi_dcache_page_inval(void *func, vm_paddr_t pa)
 {
 	return (NULL);
 }
 
 static __inline void *
-ipi_icache_page_inval(void *func, vm_offset_t pa)
+ipi_icache_page_inval(void *func, vm_paddr_t pa)
 {
 	return (NULL);
 }

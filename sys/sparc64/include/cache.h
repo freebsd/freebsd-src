@@ -95,15 +95,15 @@ struct cacheinfo {
 	u_int	ec_l2linesize;
 };
 
-typedef void dcache_page_inval_t(vm_offset_t pa);
-typedef void icache_page_inval_t(vm_offset_t pa);
+typedef void dcache_page_inval_t(vm_paddr_t pa);
+typedef void icache_page_inval_t(vm_paddr_t pa);
 
 void	cache_init(phandle_t node);
 
-void	cheetah_dcache_page_inval(vm_offset_t pa);
-void	cheetah_icache_page_inval(vm_offset_t pa);
-void	spitfire_dcache_page_inval(vm_offset_t pa);
-void	spitfire_icache_page_inval(vm_offset_t pa);
+dcache_page_inval_t cheetah_dcache_page_inval;
+icache_page_inval_t cheetah_icache_page_inval;
+dcache_page_inval_t spitfire_dcache_page_inval;
+icache_page_inval_t spitfire_icache_page_inval;
 
 extern dcache_page_inval_t *dcache_page_inval;
 extern icache_page_inval_t *icache_page_inval;

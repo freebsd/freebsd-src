@@ -319,7 +319,7 @@ nexus_dmamap_destroy(bus_dma_tag_t pdmat, bus_dma_tag_t ddmat, bus_dmamap_t map)
 static int
 _nexus_dmamap_load_buffer(bus_dma_tag_t ddmat, bus_dma_segment_t segs[],
     void *buf, bus_size_t buflen, struct thread *td, int flags,
-    vm_offset_t *lastaddrp, int *segp, int first)
+    bus_addr_t *lastaddrp, int *segp, int first)
 {
 	bus_size_t sgsize;
 	bus_addr_t curaddr, lastaddr, baddr, bmask;
@@ -416,7 +416,7 @@ nexus_dmamap_load(bus_dma_tag_t pdmat, bus_dma_tag_t ddmat, bus_dmamap_t map,
 #else
 	bus_dma_segment_t dm_segments[BUS_DMAMAP_NSEGS];
 #endif
-	vm_offset_t lastaddr;
+	bus_addr_t lastaddr;
 	int error, nsegs;
 
 	error = _nexus_dmamap_load_buffer(ddmat, dm_segments, buf, buflen,
@@ -453,7 +453,7 @@ nexus_dmamap_load_mbuf(bus_dma_tag_t pdmat, bus_dma_tag_t ddmat,
 	error = 0;
 	if (m0->m_pkthdr.len <= ddmat->dt_maxsize) {
 		int first = 1;
-		vm_offset_t lastaddr = 0;
+		bus_addr_t lastaddr = 0;
 		struct mbuf *m;
 
 		for (m = m0; m != NULL && error == 0; m = m->m_next) {
@@ -487,7 +487,7 @@ nexus_dmamap_load_uio(bus_dma_tag_t pdmat, bus_dma_tag_t ddmat,
     bus_dmamap_t map, struct uio *uio, bus_dmamap_callback2_t *callback,
     void *callback_arg, int flags)
 {
-	vm_offset_t lastaddr;
+	bus_addr_t lastaddr;
 #ifdef __GNUC__
 	bus_dma_segment_t dm_segments[ddmat->dt_nsegments];
 #else
@@ -721,7 +721,7 @@ sparc64_bus_mem_map(bus_space_tag_t tag, bus_space_handle_t handle,
 	vm_offset_t addr;
 	vm_offset_t sva;
 	vm_offset_t va;
-	vm_offset_t pa;
+	vm_paddr_t pa;
 	vm_size_t vsz;
 	u_long pm_flags;
 

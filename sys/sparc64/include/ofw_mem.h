@@ -30,13 +30,13 @@
 #define	_MACHINE_OFW_MEM_H_
 
 struct ofw_mem_region {
-	vm_offset_t mr_start;
-	vm_offset_t mr_size;
+	vm_paddr_t mr_start;
+	vm_size_t mr_size;
 };
 
 struct ofw_map {
 	vm_offset_t om_start;
-	vm_offset_t om_size;
+	vm_size_t om_size;
 	u_long	om_tte;
 };
 

@@ -315,7 +315,7 @@ cpu_wait(struct proc *p)
 }
 
 int
-is_physical_memory(vm_offset_t addr)
+is_physical_memory(vm_paddr_t addr)
 {
 	struct ofw_mem_region *mr;
 
@@ -339,7 +339,7 @@ void *
 uma_small_alloc(uma_zone_t zone, int bytes, u_int8_t *flags, int wait)
 {
 	static vm_pindex_t color;
-	vm_offset_t pa;
+	vm_paddr_t pa;
 	vm_page_t m;
 	int pflags;
 	void *va;

@@ -340,9 +340,10 @@ psycho_attach(device_t dev)
 	struct upa_regs *reg;
 	struct ofw_pci_bdesc obd;
 	struct psycho_desc *desc;
+	vm_paddr_t pcictl_offs;
 	phandle_t node;
 	u_int64_t csr;
-	u_long pcictl_offs, mlen;
+	u_long mlen;
 	int psycho_br[2];
 	int n, i, nreg, rid;
 #if defined(PSYCHO_DEBUG) || defined(PSYCHO_STRAY)
@@ -375,13 +376,13 @@ psycho_attach(device_t dev)
 	if (sc->sc_mode == PSYCHO_MODE_PSYCHO) {
 		if (nreg <= 2)
 			panic("psycho_attach: %d not enough registers", nreg);
-		sc->sc_basepaddr = (vm_offset_t)UPA_REG_PHYS(&reg[2]);
+		sc->sc_basepaddr = (vm_paddr_t)UPA_REG_PHYS(&reg[2]);
 		mlen = UPA_REG_SIZE(&reg[2]);
 		pcictl_offs = UPA_REG_PHYS(&reg[0]);
 	} else {
 		if (nreg <= 0)
 			panic("psycho_attach: %d not enough registers", nreg);
-		sc->sc_basepaddr = (vm_offset_t)UPA_REG_PHYS(&reg[0]);
+		sc->sc_basepaddr = (vm_paddr_t)UPA_REG_PHYS(&reg[0]);
 		mlen = UPA_REG_SIZE(reg);
 		pcictl_offs = sc->sc_basepaddr + PSR_PCICTL0;
 	}
