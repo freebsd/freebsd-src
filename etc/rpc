@@ -62,6 +62,6 @@ nfs_acl		100227
 sadmind		100232
 nisd		100300	rpc.nisd
 nispasswd	100303	rpc.nispasswdd
-ufsd		100233	ufsd
+ufsd		100233
 pcnfsd		150001	pcnfs
 amd		300019
