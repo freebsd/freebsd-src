@@ -1,5 +1,5 @@
 #	from: @(#)bsd.prog.mk	5.26 (Berkeley) 6/25/91
-#	$Id: bsd.prog.mk,v 1.11 1994/10/25 18:09:44 bde Exp $
+#	$Id: bsd.prog.mk,v 1.12 1994/11/13 21:05:27 phk Exp $
 
 .if exists(${.CURDIR}/../Makefile.inc)
 .include "${.CURDIR}/../Makefile.inc"
@@ -22,63 +22,39 @@ BINOWN?=	bin
 BINMODE?=	555
 
 INSTALL?=	install
-.if !defined(DESTDIR)
-LIBCRT0?=	/usr/lib/crt0.o
-LIBC?=		/usr/lib/libc.a
-LIBCOMPAT?=	/usr/lib/libcompat.a
-LIBCRYPT?=	/usr/lib/libcrypt.a
-LIBCURSES?=	/usr/lib/libcurses.a
-LIBDBM?=	/usr/lib/libdbm.a
-LIBDES?=	/usr/lib/libdes.a
-LIBDIALOG?=	/usr/lib/libdialog.a
-LIBGNUMALLOC?=	/usr/lib/libgnumalloc.a
-LIBGNUREGEX?=	/usr/lib/libgnuregex.a
-LIBL?=		/usr/lib/libl.a
-LIBKDB?=	/usr/lib/libkdb.a
-LIBKRB?=	/usr/lib/libkrb.a
-LIBM?=		/usr/lib/libm.a
-LIBMD?=		/usr/lib/libmd.a
-LIBMP?=		/usr/lib/libmp.a
-LIBMYTINFO?=	/usr/lib/libmytinfo.a
-LIBNCURSES?=	/usr/lib/libncurses.a
-LIBPC?=		/usr/lib/libpc.a
-LIBPLOT?=	/usr/lib/libplot.a
-LIBREADLINE?=	/usr/lib/libreadline.a
-LIBRESOLV?=	/usr/lib/libresolv.a
-LIBRPCSVC?=	/usr/lib/librpcsvc.a
-LIBSKEY?=	/usr/lib/libskey.a
-LIBTELNET?=	/usr/lib/libtelnet.a
-LIBTERMCAP?=	/usr/lib/libtermcap.a
-LIBUTIL?=	/usr/lib/libutil.a
-.else
+
 LIBCRT0?=	${DESTDIR}/usr/lib/crt0.o
 LIBC?=		${DESTDIR}/usr/lib/libc.a
 LIBCOMPAT?=	${DESTDIR}/usr/lib/libcompat.a
 LIBCRYPT?=	${DESTDIR}/usr/lib/libcrypt.a
 LIBCURSES?=	${DESTDIR}/usr/lib/libcurses.a
-LIBDBM?=	${DESTDIR}/usr/lib/libdbm.a
-LIBDES?=	${DESTDIR}/usr/lib/libdes.a
+LIBDES?=	${DESTDIR}/usr/lib/libdes.a	# XXX doesn't exist
 LIBDIALOG?=	${DESTDIR}/usr/lib/libdialog.a
+LIBEDIT?=	${DESTDIR}/usr/lib/libedit.a
+LIBGCC?=	${DESTDIR}/usr/lib/libgcc.a
 LIBGNUMALLOC?=	${DESTDIR}/usr/lib/libgnumalloc.a
 LIBGNUREGEX?=	${DESTDIR}/usr/lib/libgnuregex.a
+LIBKDB?=	${DESTDIR}/usr/lib/libkdb.a	# XXX doesn't exist
+LIBKRB?=	${DESTDIR}/usr/lib/libkrb.a	# XXX doesn't exist
+LIBKVM?=	${DESTDIR}/usr/lib/libkvm.a
 LIBL?=		${DESTDIR}/usr/lib/libl.a
-LIBKDB?=	${DESTDIR}/usr/lib/libkdb.a
-LIBKRB?=	${DESTDIR}/usr/lib/libkrb.a
 LIBM?=		${DESTDIR}/usr/lib/libm.a
 LIBMD?=		${DESTDIR}/usr/lib/libmd.a
-LIBMP?=		${DESTDIR}/usr/lib/libmp.a
+LIBMP?=		${DESTDIR}/usr/lib/libmp.a	# XXX doesn't exist
 LIBMYTINFO?=	${DESTDIR}/usr/lib/libmytinfo.a
 LIBNCURSES?=	${DESTDIR}/usr/lib/libncurses.a
-LIBPC?=		${DESTDIR}/usr/lib/libpc.a
-LIBPLOT?=	${DESTDIR}/usr/lib/libplot.a
+LIBPC?=		${DESTDIR}/usr/lib/libpc.a	# XXX doesn't exist
+LIBPLOT?=	${DESTDIR}/usr/lib/libplot.a	# XXX doesn't exist
 LIBREADLINE?=	${DESTDIR}/usr/lib/libreadline.a
 LIBRESOLV?=	${DESTDIR}/usr/lib/libresolv.a
 LIBRPCSVC?=	${DESTDIR}/usr/lib/librpcsvc.a
+LIBSCRYPT?=	${DESTDIR}/usr/lib/libscrypt.a	# XXX don't use, use LIBCRYPT
 LIBSKEY?=	${DESTDIR}/usr/lib/libskey.a
 LIBTELNET?=	${DESTDIR}/usr/lib/libtelnet.a
 LIBTERMCAP?=	${DESTDIR}/usr/lib/libtermcap.a
 LIBUTIL?=	${DESTDIR}/usr/lib/libutil.a
-.endif
+LIBY?=		${DESTDIR}/usr/lib/liby.a
+
 .if defined(NOSHARED)
 LDFLAGS+= -static
 .endif
