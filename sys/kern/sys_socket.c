@@ -50,7 +50,7 @@
 #include <net/route.h>
 
 struct	fileops socketops =
-    { soo_read, soo_write, soo_ioctl, soo_poll, soo_close };
+    { soo_read, soo_write, soo_ioctl, soo_poll, soo_stat, soo_close };
 
 /* ARGSUSED */
 int
@@ -155,10 +155,12 @@ soo_poll(fp, events, cred, p)
 }
 
 int
-soo_stat(so, ub)
-	register struct socket *so;
-	register struct stat *ub;
+soo_stat(fp, ub, p)
+	struct file *fp;
+	struct stat *ub;
+	struct proc *p;
 {
+	struct socket *so = (struct socket *)fp->f_data;
 
 	bzero((caddr_t)ub, sizeof (*ub));
 	ub->st_mode = S_IFSOCK;
