@@ -1,6 +1,6 @@
 #!/bin/sh -
 #
-#	$Id: rc.i386,v 1.4 1995/04/04 17:34:55 ache Exp $
+#	$Id: rc.i386,v 1.5 1995/04/06 02:38:37 jkh Exp $
 #	Do i386 specific processing
 #
 
@@ -9,12 +9,12 @@ echo -n 'enabling FreeBSD/386 options:'
 # Start the SCO binary emulation if requested.
 if [ "X${ibcs2}" = X"YES" ]; then
 # Re-enable this if ibcs2 ever shuts up.
-# 	echo -n ' ibcs2';   ibcs2
+# 	echo -n ' ibcs2';	ibcs2
 	ibcs2
 fi
 
 if [ "X${xtend}" != X"NO" -a -x /usr/libexec/xtend ]; then
- 	echo -n ' xtend';   /usr/libexec/xtend
+ 	echo -n ' xtend';	/usr/libexec/xtend
 fi
 
 ##########################################################################
@@ -43,7 +43,7 @@ fi
 
 # keyrate
 if [ "X${keyrate}" != X"NO" ]; then
-	echo -n ' keyrate';    kbdcontrol -r ${keyrate}
+	echo -n ' keyrate';	kbdcontrol -r ${keyrate}
 fi
 
 # change function keys
@@ -64,7 +64,7 @@ fi
 
 # cursor type
 if [ "X${cursor}" != X"NO" ]; then
-	echo -n ' cursor';  vidcontrol -c ${cursor}
+	echo -n ' cursor';	vidcontrol -c ${cursor}
 fi
 
 # screen mapping
