@@ -28,7 +28,7 @@ __FBSDID("$FreeBSD$");
 void *
 tfind(vkey, vrootp, compar)
 	const void *vkey;		/* key to be found */
-	void **vrootp;			/* address of the tree root */
+	void * const *vrootp;		/* address of the tree root */
 	int (*compar)(const void *, const void *);
 {
 	node_t **rootp = (node_t **)vrootp;
