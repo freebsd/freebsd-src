@@ -284,6 +284,7 @@ static struct witness_order_list_entry order_lists[] = {
 	{ "zstty", &lock_class_mtx_spin },
 	{ "ng_node", &lock_class_mtx_spin },
 	{ "ng_worklist", &lock_class_mtx_spin },
+	{ "taskqueue_fast", &lock_class_mtx_spin },
 	{ "ithread table lock", &lock_class_mtx_spin },
 	{ "sched lock", &lock_class_mtx_spin },
 	{ "callout", &lock_class_mtx_spin },
