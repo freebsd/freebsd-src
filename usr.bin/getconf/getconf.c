@@ -48,9 +48,9 @@ static void	do_pathconf(const char *name, int key, const char *path);
 static void
 usage(void)
 {
-	fprintf(stderr, "usage:\n"
-		"\tgetconf [-v prog_env] system_var\n"
-		"\tgetconf [-v prog_env] path_var pathname\n");
+	fprintf(stderr,
+"usage: getconf [-v prog_env] system_var\n"
+"       getconf [-v prog_env] path_var pathname\n");
 	exit(EX_USAGE);
 }
 

@@ -403,8 +403,8 @@ static void
 usage()
 {
 
-	(void)fprintf(stderr, "usage: nl [-p] [-b type] [-d delim] [-f type] \
-[-h type] [-i incr] [-l num]\n\t[-n format] [-s sep] [-v startnum] [-w width] \
-[file]\n");
+	(void)fprintf(stderr,
+"usage: nl [-p] [-b type] [-d delim] [-f type] [-h type] [-i incr] [-l num]\n"
+"          [-n format] [-s sep] [-v startnum] [-w width] [file]\n");
 	exit(EXIT_FAILURE);
 }
