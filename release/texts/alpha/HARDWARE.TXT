@@ -99,7 +99,7 @@ with ARC but not with SRM.
 Some adapters that cannot be booted from work fine for data-only disks
 (e.g. Adaptec 2940x boards). The differences between SRM and ARC could also
 get you pre-packaged IDE CDROMs and hard drives in some (former NT) systems. 
-SRM versions versions exist (depends on the mainboard) that can also boot 
+SRM versions exist (depends on the mainboard) that can also boot 
 from IDE disks. 
 
 FreeBSD/alpha 4.0 and later can be booted from the distribution CDROM.
