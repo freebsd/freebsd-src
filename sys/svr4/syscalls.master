@@ -1,4 +1,6 @@
-;	@(#)syscalls.master	8.1 (Berkeley) 7/19/93
+ $FreeBSD$
+;	from: @(#)syscalls.master	8.1 (Berkeley) 7/19/93
+;
 ; System call name/number master file (or rather, slave, from SVR4).
 ; Processed to create svr4_sysent.c, svr4_syscalls.c and svr4_syscall.h.
 
@@ -19,9 +21,9 @@
 ;	LIBCOMPAT included on COMPAT #ifdef, and placed in syscall.h
 ;	OBSOL	obsolete, not included in system, only specifies name
 ;	UNIMPL	not implemented, placeholder only
-;
-; $FreeBSD$
-;
+
+; #ifdef's, etc. may be included, and are copied to the output files.
+
 #include <sys/types.h>
 #include <sys/sysent.h>
 #include <sys/sysproto.h>
@@ -31,8 +33,6 @@
 #include <svr4/svr4_types.h>
 #include <svr4/svr4_signal.h>
 #include <svr4/svr4_proto.h>
-
-; #ifdef's, etc. may be included, and are copied to the output files.
 
 0	UNIMPL	SVR4	unused
 1	NOPROTO	POSIX	{ void exit(int rval); } exit rexit_args void
