@@ -74,6 +74,8 @@ static const char sccsid[] = "From: @(#)xinstall.c	8.1 (Berkeley) 7/21/93";
 #define MAP_FAILED ((void *)-1)	/* from <sys/mman.h> */
 #endif
 
+#define MAX_CMP_SIZE	(16 * 1024 * 1024)
+
 #define	DIRECTORY	0x01		/* Tell install it's a directory. */
 #define	SETFLAGS	0x02		/* Tell install to set flags. */
 #define	NOCHANGEBITS	(UF_IMMUTABLE | UF_APPEND | SF_IMMUTABLE | SF_APPEND)
@@ -528,7 +530,7 @@ compare(int from_fd, const char *from_name __unused, size_t from_len,
 	if (from_len != to_len)
 		return 1;
 
-	if (from_len <= 8 * 1024 * 1024) {
+	if (from_len <= MAX_CMP_SIZE) {
 		done_compare = 0;
 		if (trymmap(from_fd) && trymmap(to_fd)) {
 			p = mmap(NULL, from_len, PROT_READ, MAP_SHARED, from_fd, (off_t)0);
