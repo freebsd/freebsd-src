@@ -3,7 +3,7 @@
 #
 # modified for PC-9801
 #
-#	$Id: files.pc98,v 1.102 1999/07/26 12:12:58 kato Exp $
+#	$Id: files.pc98,v 1.103 1999/07/30 11:40:55 kato Exp $
 #
 # The long compile-with and dependency lines are required because of
 # limitations in config: backslash-newline doesn't work in strings, and
@@ -307,31 +307,34 @@ i386/linux/linux_stats.c	optional	compat_linux
 i386/linux/linux_sysent.c	optional	compat_linux
 i386/linux/linux_sysvec.c	optional	compat_linux
 i386/linux/linux_util.c		optional	compat_linux
-i4b/layer1/i4b_isic.c		optional	isic
-i4b/layer1/i4b_isic_isa.c	optional	isic
-i4b/layer1/i4b_isic_pnp.c	optional	isic
-i4b/layer1/i4b_isic_pci.c	optional	isic
-i4b/layer1/i4b_isic_pcmcia.c	optional	isic
-i4b/layer1/i4b_isac.c		optional	isic
-i4b/layer1/i4b_hscx.c		optional	isic
-i4b/layer1/i4b_l1.c		optional	isic
-i4b/layer1/i4b_l1fsm.c		optional	isic
-i4b/layer1/i4b_bchan.c		optional	isic
-i4b/layer1/i4b_tel_s08.c	optional	isic
-i4b/layer1/i4b_tel_s016.c	optional	isic
-i4b/layer1/i4b_tel_s0163.c	optional	isic
-i4b/layer1/i4b_tel_s0P.c	optional	isic
-i4b/layer1/i4b_ctx_s0P.c	optional	isic
+i4b/layer1/i4b_asuscom_ipac.c	optional	isic
 i4b/layer1/i4b_avm_a1.c		optional	isic
 i4b/layer1/i4b_avm_fritz_pci.c	optional	isic
 i4b/layer1/i4b_avm_fritz_pcmcia.c optional	isic
-i4b/layer1/i4b_usr_sti.c	optional	isic
-i4b/layer1/i4b_itk_ix1.c	optional	isic
+i4b/layer1/i4b_avm_fritz_pnp.c	optional	isic
+i4b/layer1/i4b_bchan.c		optional	isic
+i4b/layer1/i4b_ctx_s0P.c	optional	isic
 i4b/layer1/i4b_drn_ngo.c	optional	isic
-i4b/layer1/i4b_sws.c		optional	isic
 i4b/layer1/i4b_dynalink.c	optional	isic
 i4b/layer1/i4b_elsa_qs1i.c	optional	isic
 i4b/layer1/i4b_elsa_qs1p.c	optional	isic
+i4b/layer1/i4b_hscx.c		optional	isic
+i4b/layer1/i4b_isac.c		optional	isic
+i4b/layer1/i4b_isic.c		optional	isic
+i4b/layer1/i4b_isic_isa.c	optional	isic
+i4b/layer1/i4b_isic_pci.c	optional	isic
+i4b/layer1/i4b_isic_pcmcia.c	optional	isic
+i4b/layer1/i4b_isic_pnp.c	optional	isic
+i4b/layer1/i4b_itk_ix1.c	optional	isic
+i4b/layer1/i4b_l1.c		optional	isic
+i4b/layer1/i4b_l1fsm.c		optional	isic
+i4b/layer1/i4b_siemens_isurf.c	optional	isic
+i4b/layer1/i4b_sws.c		optional	isic
+i4b/layer1/i4b_tel_s016.c	optional	isic
+i4b/layer1/i4b_tel_s0163.c	optional	isic
+i4b/layer1/i4b_tel_s08.c	optional	isic
+i4b/layer1/i4b_tel_s0P.c	optional	isic
+i4b/layer1/i4b_usr_sti.c	optional	isic
 libkern/bcd.c			standard
 libkern/divdi3.c		standard
 libkern/inet_ntoa.c		standard
