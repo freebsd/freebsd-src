@@ -248,14 +248,6 @@
 		set to 0, an interrupt will not be assigned and the
 		controller will operate in polled mode only.
 
-	set machdep.bios.pnp=disable
-
-		Disable the use of the PnP BIOS (i386 only)
-
-	set machdep.bios.pci=disable
-
-		Disable the use of the PCI BIOS (i386 only)
-
 	set net.inet.tcp.tcbhashsize=<value>	TCBHASHSIZE
 
 		Overrides the compile-time set value of TCBHASHSIZE or
