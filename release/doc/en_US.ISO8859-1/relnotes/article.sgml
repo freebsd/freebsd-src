@@ -591,7 +591,7 @@
       been removed.  The Memory Filesystem (MFS) has also been
       removed.</para>
 
-      <para>BurnProof(TM) support, for applicable ATAPI CD-ROM burners, is now
+      <para>The BurnProof(TM) feature, for applicable ATAPI CD-ROM burners, is now
       supported. &merged;</para>
 
       <para arch="alpha">A bug that made certain CDROM drives fail to
@@ -610,7 +610,7 @@
 
       <para>Some problems in &man.sa.4; error handling have been
       fixed, including the <quote>tape drive spinning indefinitely
-      upon mt stat</quote> problem.</para>
+      upon &man.mt.1; <option>stat</option></quote> problem.</para>
 
     </sect3>
 
@@ -706,11 +706,11 @@
       Maestro-1, Maestro-2, and Maestro-2e; Forte Media fm801, ESS
       Maestro-2e, and VIA Technologies VT82C686A sound card/chipsets,
       and has received some other updates. 
-      Separate drivers for the SoundBlaster 8 and Soundblaster 16 now
+      Separate drivers for the SoundBlaster 8 and SoundBlaster 16 now
       replace an older, unified driver.  A driver for the CMedia
       CMI8338/CMI8738 sound chips has been added.  A driver for the
       CS4281 sound chip has been added.  A driver for the S3
-      Sonicvibes chipset has been added. &merged;</para>
+      SonicVibes chipset has been added. &merged;</para>
 
       <para arch="i386">A driver for the Advance Logic ALS4000 has
       been added. &merged;</para>
@@ -724,7 +724,7 @@
       <programlisting>snd_maestro3_load="YES"</programlisting>
 
       <para>The &man.bktr.4; driver has been updated to 2.18.  This
-      update provides a number of new features:  New tuner
+      update provides a number of new features.  New tuner
       types have been added, and improvements to the KLD module and to
       memory allocation have been made.  Bugs in &man.devfs.5; when
       unloading and reloading have been fixed.
@@ -780,7 +780,7 @@
         <application>isdn4bsd</application> driver. &merged;</para> 
 
 	<para>Active CAPI-based ISDN cards manufacured by AVM are now
-	supported using the &man.i4bcapi.4; and the &man.iavc.4; driver. The
+	supported using the &man.i4bcapi.4; and the &man.iavc.4; driver.  The
 	supported cards are the AVM B1 PCI and AVM B1 ISA Basic Rate
 	cards and the AVM T1 Primary Rate cards. &merged;</para>
 
