@@ -66,6 +66,9 @@ extern struct devsw efifs_dev;
 extern struct devsw efi_disk;
 extern struct netif_driver efi_net;
 
+/* Find EFI network resources */
+extern void efinet_init_driver(void);
+
 /* Wrapper over EFI filesystems. */
 extern struct fs_ops efi_fsops;
 
@@ -79,3 +82,7 @@ extern ssize_t		efi_readin(int fd, vm_offset_t dest, size_t len);
 
 extern int		efi_boot(void);
 extern int		efi_autoload(void);
+
+struct bootinfo;
+struct preloaded_file;
+extern int		bi_load(struct bootinfo *, struct preloaded_file *);
