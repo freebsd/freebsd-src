@@ -246,8 +246,8 @@ USB_ATTACH(ulpt)
 		    id->bInterfaceNumber == ifcd->bInterfaceNumber) {
 			if (id->bInterfaceClass == UICLASS_PRINTER &&
 			    id->bInterfaceSubClass == UISUBCLASS_PRINTER &&
-			    (id->bInterfaceProtocol == UIPROTO_PRINTER_BI ||
-			     id->bInterfaceProtocol == UIPROTO_PRINTER_1284))
+			    (id->bInterfaceProtocol == UIPROTO_PRINTER_BI /* ||
+			     id->bInterfaceProtocol == UIPROTO_PRINTER_1284 */))
 				goto found;
 			altno++;
 		}
