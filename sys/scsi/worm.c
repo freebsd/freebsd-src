@@ -37,7 +37,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *      $Id: worm.c,v 1.11 1995/11/29 10:49:07 julian Exp $
+ *      $Id: worm.c,v 1.12 1995/11/29 14:41:09 julian Exp $
  */
 
 /* XXX This is PRELIMINARY.
@@ -177,19 +177,7 @@ wormstart(unit, flags)
 	struct scsi_link *sc_link = SCSI_LINK(&worm_switch, unit);
 	struct scsi_data *worm = sc_link->sd;
 	register struct buf *bp = 0;
-	struct
-	{
-		u_char	op_code;
-		u_char	byte2;
-		u_char	lba3;	/* I don't want to worry about packing */
-		u_char	lba2;
-		u_char	lba1;
-		u_char	lba0;
-		u_char	reserved;
-		u_char  tl1;
-		u_char  tl0;
-		u_char	ctl;
-	} cmd;
+	struct scsi_rw_big cmd;
 
 	u_int32 lba;	/* Logical block address */
 	u_int32 tl;		/* Transfer length */
@@ -238,8 +226,8 @@ wormstart(unit, flags)
 		lba = bp->b_blkno / (worm->blk_size / DEV_BSIZE);
 		tl = bp->b_bcount / worm->blk_size;
 
-		scsi_uto4b(lba, &cmd.lba3);
-		scsi_uto2b(tl, &cmd.tl1);
+		scsi_uto4b(lba, &cmd.addr_3);
+		scsi_uto2b(tl, &cmd.length2);
 
 		/*
 		 * go ask the adapter to do all this for us
@@ -254,7 +242,6 @@ wormstart(unit, flags)
 			bp,
 			flags | SCSI_NOSLEEP) == SUCCESSFULLY_QUEUED) {
 		} else {
-badnews:
 			printf("worm%ld: oops not queued\n", unit);
 			if (bp) {
 				bp->b_flags |= B_ERROR;
@@ -263,6 +250,7 @@ badnews:
 			}
 		}
 	} /* go back and see if we can cram more work in.. */
+badnews:
 }
 
 static void
