@@ -1,7 +1,7 @@
 #	@(#)Makefile	8.1 (Berkeley) 6/4/93
 
 # XXX MISSING:		libmp libplot
-SUBDIR=	libc libcompat libcurses libedit libkvm libm libmd \
+SUBDIR=	libc libcompat libcurses libedit libkvm libmd \
 	libresolv librpcsvc libtelnet libterm libutil liby
 
 .if	${MACHINE} == "tahoe"
@@ -10,6 +10,12 @@ SUBDIR+=csu/tahoe.pcc
 SUBDIR+=csu/vax.pcc
 .else
 SUBDIR+=csu/${MACHINE}
+.endif
+
+.if !defined(WANT_MSUN)
+SUBDIR+= libm
+.else
+SUBDIR+= msun
 .endif
 
 .include <bsd.subdir.mk>
