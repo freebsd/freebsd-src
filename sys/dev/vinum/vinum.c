@@ -154,8 +154,9 @@ vinum_inactive(int confopen)
     if (confopen && (vinum_conf.flags & VF_OPEN))	    /* open by vinum(8)? */
 	return 0;					    /* can't do it while we're open */
     lock_config();
-    for (i = 0; i < vinum_conf.volumes_used; i++) {
-	if ((VOL[i].flags & VF_OPEN)) {			    /* volume is open */
+    for (i = 0; i < vinum_conf.volumes_allocated; i++) {
+	if ((VOL[i].state > volume_down)
+	    && (VOL[i].flags & VF_OPEN)) {		    /* volume is open */
 	    can_do = 0;
 	    break;
 	}
@@ -175,14 +176,14 @@ void
 free_vinum(int cleardrive)
 {
     int i;
-    int drives_used = vinum_conf.drives_used;
+    int drives_allocated = vinum_conf.drives_allocated;
 
     if (DRIVE != NULL) {
 	if (cleardrive) {				    /* remove the vinum config */
-	    for (i = 0; i < drives_used; i++)
+	    for (i = 0; i < drives_allocated; i++)
 		remove_drive(i);			    /* remove the drive */
 	} else {					    /* keep the config */
-	    for (i = 0; i < drives_used; i++)
+	    for (i = 0; i < drives_allocated; i++)
 		free_drive(&DRIVE[i]);			    /* close files and things */
 	}
 	Free(DRIVE);
@@ -198,7 +199,7 @@ free_vinum(int cleardrive)
     if (SD != NULL)
 	Free(SD);
     if (PLEX != NULL) {
-	for (i = 0; i < vinum_conf.plexes_used; i++) {
+	for (i = 0; i < vinum_conf.plexes_allocated; i++) {
 	    struct plex *plex = &vinum_conf.plex[i];
 
 	    if (plex->state != plex_unallocated) {	    /* we have real data there */
@@ -268,7 +269,7 @@ vinumopen(dev_t dev,
     switch (device->type) {
     case VINUM_VOLUME_TYPE:
 	index = Volno(dev);
-	if (index >= vinum_conf.volumes_used)
+	if (index >= vinum_conf.volumes_allocated)
 	    return ENXIO;				    /* no such device */
 	vol = &VOL[index];
 
@@ -289,14 +290,15 @@ vinumopen(dev_t dev,
 	}
 
     case VINUM_PLEX_TYPE:
-	if (Volno(dev) >= vinum_conf.volumes_used)
+	if (Volno(dev) >= vinum_conf.volumes_allocated)
 	    return ENXIO;
 	index = Plexno(dev);				    /* get plex index in vinum_conf */
-	if (index >= vinum_conf.plexes_used)
+	if (index >= vinum_conf.plexes_allocated)
 	    return ENXIO;				    /* no such device */
 	plex = &PLEX[index];
 
 	switch (plex->state) {
+	case plex_referenced:
 	case plex_unallocated:
 	    return EINVAL;
 
@@ -306,11 +308,12 @@ vinumopen(dev_t dev,
 	}
 
     case VINUM_SD_TYPE:
-	if ((Volno(dev) >= vinum_conf.volumes_used) ||	    /* no such volume */
-	    (Plexno(dev) >= vinum_conf.plexes_used))	    /* or no such plex */
+	if ((Volno(dev) >= vinum_conf.volumes_allocated)    /* no such volume */
+	||(Plexno(dev) >= vinum_conf.plexes_allocated))	    /* or no such plex */
 	    return ENXIO;				    /* no such device */
 	index = Sdno(dev);				    /* get the subdisk number */
-	if (index >= vinum_conf.subdisks_used)
+	if ((index >= vinum_conf.subdisks_allocated)	    /* not a valid SD entry */
+	||(SD[index].state < sd_obsolete))		    /* or SD is not real */
 	    return ENXIO;				    /* no such device */
 	sd = &SD[index];
 
@@ -364,7 +367,7 @@ vinumclose(dev_t dev,
     /* First, decide what we're looking at */
     switch (device->type) {
     case VINUM_VOLUME_TYPE:
-	if (index >= vinum_conf.volumes_used)
+	if (index >= vinum_conf.volumes_allocated)
 	    return ENXIO;				    /* no such device */
 	vol = &VOL[index];
 
@@ -385,20 +388,20 @@ vinumclose(dev_t dev,
 	}
 
     case VINUM_PLEX_TYPE:
-	if (Volno(dev) >= vinum_conf.volumes_used)
+	if (Volno(dev) >= vinum_conf.volumes_allocated)
 	    return ENXIO;
 	index = Plexno(dev);				    /* get plex index in vinum_conf */
-	if (index >= vinum_conf.plexes_used)
+	if (index >= vinum_conf.plexes_allocated)
 	    return ENXIO;				    /* no such device */
 	PLEX[index].flags &= ~VF_OPEN;			    /* reset our flags */
 	return 0;
 
     case VINUM_SD_TYPE:
-	if ((Volno(dev) >= vinum_conf.volumes_used) ||	    /* no such volume */
-	    (Plexno(dev) >= vinum_conf.plexes_used))	    /* or no such plex */
+	if ((Volno(dev) >= vinum_conf.volumes_allocated) || /* no such volume */
+	    (Plexno(dev) >= vinum_conf.plexes_allocated))   /* or no such plex */
 	    return ENXIO;				    /* no such device */
 	index = Sdno(dev);				    /* get the subdisk number */
-	if (index >= vinum_conf.subdisks_used)
+	if (index >= vinum_conf.subdisks_allocated)
 	    return ENXIO;				    /* no such device */
 	SD[index].flags &= ~VF_OPEN;			    /* reset our flags */
 	return 0;
