@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)ufs_vnops.c	8.10 (Berkeley) 4/1/94
- * $Id: ufs_vnops.c,v 1.8 1994/10/06 21:07:04 davidg Exp $
+ * $Id: ufs_vnops.c,v 1.9 1994/10/08 01:41:15 phk Exp $
  */
 
 #include <sys/param.h>
@@ -1893,6 +1893,9 @@ ufs_vinit(mntp, specops, fifoops, vpp)
 	case VFIFO:
 		vp->v_op = fifoops;
 		break;
+	default:
+		break;
+	
 	}
 	if (ip->i_number == ROOTINO)
                 vp->v_flag |= VROOT;
