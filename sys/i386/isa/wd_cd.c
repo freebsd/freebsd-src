@@ -25,7 +25,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *	$Id: atapi-cd.c,v 1.3 1998/10/15 08:11:54 sos Exp $
+ *	$Id: atapi-cd.c,v 1.4 1998/10/30 10:57:09 luigi Exp $
  */
 
 #include "wdc.h"
@@ -1152,7 +1152,7 @@ acd_read_toc(struct acd *cdp)
         else
             printf("%ld:%ld audio ", cdp->info.volsize / 75 / 60,
                 cdp->info.volsize / 75 % 60);
-        printf("(%ld sectors (%d bytes)), %d tracks\n", 
+        printf("(%ld sectors (%ld bytes)), %d tracks\n", 
 	    cdp->info.volsize, cdp->info.blksize,
             cdp->toc.hdr.ending_track - cdp->toc.hdr.starting_track + 1);
     }
