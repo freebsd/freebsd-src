@@ -196,9 +196,8 @@ cd9660_mount(mp, path, data, ndp, td)
 	mode_t accessmode;
 	struct iso_mnt *imp = 0;
 
-	if ((mp->mnt_flag & MNT_ROOTFS) != 0) {
+	if (path == NULL)	/* We are doing the initial root mount */
 		return (iso_mountroot(mp, td));
-	}
 	if ((error = copyin(data, (caddr_t)&args, sizeof (struct iso_args))))
 		return (error);
 
