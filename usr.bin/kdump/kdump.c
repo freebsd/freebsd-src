@@ -97,7 +97,7 @@ main(int argc, char *argv[])
 
 	(void) setlocale(LC_CTYPE, "");
 
-	while ((ch = getopt(argc,argv,"f:dlm:np:ERTt:")) != -1)
+	while ((ch = getopt(argc,argv,"f:dElm:np:RTt:")) != -1)
 		switch((char)ch) {
 		case 'f':
 			tracefile = optarg;
@@ -574,6 +574,6 @@ void
 usage(void)
 {
 	(void)fprintf(stderr,
-	    "usage: kdump [-dnlRT] [-f trfile] [-m maxdata] [-t [cnisuw]]\n");
+    "usage: kdump [-dEnlRT] [-f trfile] [-m maxdata] [-p pid] [-t [cnisuw]]\n");
 	exit(1);
 }
