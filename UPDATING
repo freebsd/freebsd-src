@@ -19,6 +19,9 @@ minimal number of processes, if possible, for that patch.  For those
 updates that don't have an advisory, or to be safe, you can do a full
 build and install as described in the COMMON ITEMS section.
 
+20020731:	p12
+	A bounds checking error in the XDR decoder was corrected.
+
 20020730:	p11	FreeBSD-SA-02:32.pppd
 	A race condition in pppd(8) was corrected.
 
