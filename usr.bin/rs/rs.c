@@ -42,7 +42,7 @@ static const char copyright[] =
 static char sccsid[] = "@(#)rs.c	8.1 (Berkeley) 6/6/93";
 #endif
 static const char rcsid[] =
-	"$Id$";
+	"$Id: rs.c,v 1.3 1997/08/07 06:42:37 charnier Exp $";
 #endif /* not lint */
 
 /*
@@ -55,6 +55,7 @@ static const char rcsid[] =
 #include <ctype.h>
 #include <stdio.h>
 #include <stdlib.h>
+#include <string.h>
 
 long	flags;
 #define	TRANSPOSE	000001
