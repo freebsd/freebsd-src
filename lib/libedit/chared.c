@@ -148,7 +148,7 @@ protected int
 ce__isword(p)
     int p;
 {
-    return isalpha(p) || isdigit(p) || strchr("*?_-.[]~=", p) != NULL;
+    return isalpha((unsigned char) p) || isdigit((unsigned char) p) || strchr("*?_-.[]~=", p) != NULL;
 }
 
 
@@ -159,7 +159,7 @@ protected int
 cv__isword(p)
     int p;
 {
-    return !isspace(p);
+    return !isspace((unsigned char) p);
 }
 
 

@@ -256,7 +256,7 @@ ed_move_to_beg(el, c)
 
     if (el->el_map.type == MAP_VI) {
         /* We want FIRST non space character */
-        while (isspace(*el->el_line.cursor))
+	while (isspace((unsigned char) *el->el_line.cursor))
 	    el->el_line.cursor++;
 	if (el->el_chared.c_vcmd.action & DELETE) {
 	    cv_delfini(el);
@@ -408,7 +408,7 @@ ed_digit(el, c)
     EditLine *el;
     int c;
 {
-    if (!isdigit(c))
+    if (!isdigit((unsigned char) c))
 	return CC_ERROR;
 
     if (el->el_state.doingarg) {
@@ -451,7 +451,7 @@ ed_argument_digit(el, c)
     EditLine *el;
     register int c;
 {
-    if (!isdigit(c))
+    if (!isdigit((unsigned char) c))
 	return CC_ERROR;
 
     if (el->el_state.doingarg) {

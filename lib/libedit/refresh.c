@@ -43,7 +43,6 @@ static char sccsid[] = "@(#)refresh.c	8.1 (Berkeley) 6/4/93";
  */
 #include "sys.h"
 #include <stdio.h>
-#include <ctype.h>
 #include <unistd.h>
 #include <string.h>
 
@@ -98,6 +97,7 @@ re_addc(el, c)
     int c;
 {
     c &= 0xFF;
+
     if (isprint(c)) {
 	re_putc(el, c);
 	return;

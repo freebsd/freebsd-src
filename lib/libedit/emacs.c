@@ -298,8 +298,8 @@ em_upper_case(el, c)
 		      el->el_state.argument, ce__isword);
 
     for (cp = el->el_line.cursor; cp < ep; cp++)
-	if (islower(*cp))
-	    *cp = toupper(*cp);
+	if (islower((unsigned char)*cp))
+	    *cp = toupper((unsigned char)*cp);
 
     el->el_line.cursor = ep;
     if (el->el_line.cursor > el->el_line.lastchar)
@@ -324,16 +324,16 @@ em_capitol_case(el, c)
 		      el->el_state.argument, ce__isword);
 
     for (cp = el->el_line.cursor; cp < ep; cp++) {
-	if (isalpha(*cp)) {
-	    if (islower(*cp))
-		*cp = toupper(*cp);
+	if (isalpha((unsigned char)*cp)) {
+	    if (islower((unsigned char)*cp))
+		*cp = toupper((unsigned char)*cp);
 	    cp++;
 	    break;
 	}
     }
     for (; cp < ep; cp++)
-	if (isupper(*cp))
-	    *cp = tolower(*cp);
+	if (isupper((unsigned char)*cp))
+	    *cp = tolower((unsigned char)*cp);
 
     el->el_line.cursor = ep;
     if (el->el_line.cursor > el->el_line.lastchar)
@@ -357,8 +357,8 @@ em_lower_case(el, c)
 		      el->el_state.argument, ce__isword);
 
     for (cp = el->el_line.cursor; cp < ep; cp++)
-	if (isupper(*cp))
-	    *cp = tolower(*cp);
+	if (isupper((unsigned char)*cp))
+	    *cp = tolower((unsigned char)*cp);
 
     el->el_line.cursor = ep;
     if (el->el_line.cursor > el->el_line.lastchar)
