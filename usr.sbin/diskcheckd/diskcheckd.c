@@ -34,6 +34,7 @@ static const char rcsid[] =
 #include <err.h>
 #include <errno.h>
 #include <fcntl.h>
+#include <limits.h>
 #include <paths.h>
 #include <signal.h>
 #include <stdio.h>
@@ -49,27 +50,25 @@ static const char rcsid[] =
 #define	_PATH_CONF	"/etc/diskcheckd.conf"
 #define	_PATH_SAVE	_PATH_VARDB"diskcheckd.offsets"
 
-#define	MAXRATE	(128 << 10)
-#define	MINRATE	512
+#define	READ_SIZE (64 << 10)
 
 struct disk {
 	int fd;
 	char *device;
 	off_t size;
 	int secsize;
-	int days, rate, errors;
+	int days, rate, errors, interval, next;
 };
 
 volatile sig_atomic_t got_sighup = 0, got_sigterm = 0;
 
-char **getdisknames(void);
+char **getdisknames(char **, int);
 off_t dseek(struct disk *, off_t, int);
 struct disk *readconf(const char *);
 void getdisksize(struct disk *);
 void logreaderror(struct disk *, int);
 void readchunk(struct disk *, char *);
 void readoffsets(struct disk *, const char *);
-void setdiskrate(struct disk *);
 void sighup(int);
 void sigterm(int);
 void updateproctitle(struct disk *);
@@ -80,7 +79,7 @@ int
 main(int argc, char *argv[]) {
 	char *buf;
 	struct disk *disks, *dp;
-	int ch, ok;
+	int ch, ok, minwait, nextwait;
 	struct sigaction sa;
 	int counter, debug;
 	const char *conf_file, *save_file;
@@ -131,19 +130,41 @@ main(int argc, char *argv[]) {
 	disks = readconf(conf_file);
 	readoffsets(disks, save_file);
 
-	if ((buf = malloc(MAXRATE)) == NULL) {
+	if ((buf = malloc(READ_SIZE)) == NULL) {
 		syslog(LOG_NOTICE, "malloc failure: %m");
 		exit(EXIT_FAILURE);
 	}
 
-	/* The main disk checking loop. */
+	/* The main disk checking loop.
+	 *
+	 * We wait the shortest amount of time we need to before
+	 * another disk is due for a read -- this time is updated
+	 * in the 'nextwait' variable, which is then copied to
+	 * 'minwait'.  After a sleep, 'minwait' is subtracted from
+	 * each disk's 'next' field, and when that reaches zero,
+	 * that disk is read again.
+	 */
 	counter = 0;
+	minwait = 0;
 	while (!got_sigterm) {
 		ok = 0;
+		nextwait = INT_MAX;
 		for (dp = disks; dp->device != NULL; dp++)
 			if (dp->fd != -1) {
-				ok = 1;
-				readchunk(dp, buf);
+				if ((dp->next -= minwait) == 0) {
+					ok = 1;
+					readchunk(dp, buf);
+				}
+
+				/* XXX debugging */
+				if (dp->next < 0) {
+					syslog(LOG_NOTICE,
+					  "dp->next < 0 for %s", dp->device);
+					abort();
+				}
+
+				if (dp->next < nextwait)
+					nextwait = dp->next;
 			}
 
 		if (!ok) {
@@ -151,13 +172,15 @@ main(int argc, char *argv[]) {
 			exit(EXIT_FAILURE);
 		}
 
-		if (counter % 300 == 0) {
+		if (counter >= 300) {
 			updateproctitle(disks);
 			writeoffsets(disks, save_file);
+			counter = 0;
 		}
 
-		counter++;
-		sleep(1);
+		minwait = nextwait;
+		sleep(minwait);
+		counter += minwait;
 
 		if (got_sighup) {
 			/*
@@ -189,7 +212,8 @@ readchunk(struct disk *dp, char *buf) {
 	ssize_t n;
 	int s;
 
-	n = read(dp->fd, buf, dp->rate);
+	dp->next = dp->interval;
+	n = read(dp->fd, buf, READ_SIZE);
 	if (n == 0) {
 		eof:
 		syslog(LOG_INFO, "reached end of %s with %d errors",
@@ -203,9 +227,9 @@ readchunk(struct disk *dp, char *buf) {
 	/*
 	 * Read error, retry in smaller chunks.
 	 */
-	logreaderror(dp, dp->rate);
+	logreaderror(dp, READ_SIZE);
 
-	for (s = 0; s < dp->rate; s += 512) {
+	for (s = 0; s < READ_SIZE; s += 512) {
 		n = read(dp->fd, buf, 512);
 		if (n == 0)
 			goto eof;
@@ -464,6 +488,8 @@ readconf(const char *conf_file) {
 	double dval;
 	long lval;
 	int linenum;
+	char **skip;
+	int numskip;
 
 	if ((fp = fopen(conf_file, "r")) == NULL) {
 		syslog(LOG_NOTICE, "open %s failure: %m", conf_file);
@@ -473,6 +499,8 @@ readconf(const char *conf_file) {
 	numdisks = 0;
 	disks = NULL;
 	linenum = 0;
+	skip = NULL;
+	numskip = 0;
 
 	/* Step 1: read and parse the configuration file. */
 	while (fgets(buf, sizeof buf, fp) != NULL) {
@@ -482,6 +510,37 @@ readconf(const char *conf_file) {
 			line++;
 		if (*line == '#' || *line == '\n' || *line == '\0')
 			continue;
+
+		/* First, if the line starts with '!', this is a disk name
+		 * to ignore.  For example, '!md' will skip all '/dev/md*'
+		 * devices.
+		 */
+		if (*line == '!') {
+			line++;
+			while (isspace(*line))
+				line++;
+			field = strsep(&line, " \t\n");
+			if (field == NULL || *field == '\0') {
+				syslog(LOG_NOTICE, "%s:%d: missing disk name",
+				  conf_file, linenum);
+				continue;
+			}
+
+			numskip++;
+			if ((skip = reallocf(skip,
+			  numskip * sizeof (*skip))) == NULL) {
+				syslog(LOG_NOTICE, "reallocf failure: %m");
+				exit(EXIT_FAILURE);
+			}
+
+			if ((skip[numskip-1] = strdup(field)) == NULL) {
+				syslog(LOG_NOTICE, "strdup failure: %m");
+				exit(EXIT_FAILURE);
+			}
+
+			continue;
+		}
+
 		fields = flags = 0;
 		while ((field = strsep(&line, " \t\n")) != NULL) {
 			if (*field == '\0')
@@ -509,6 +568,8 @@ readconf(const char *conf_file) {
 				dp->fd = -1;
 				dp->rate = -1;
 				dp->size = -1;
+				dp->interval = -1;
+				dp->next = 0;
 				break;
 			case 1:
 				/* size */
@@ -602,7 +663,7 @@ readconf(const char *conf_file) {
 	onumdisks = numdisks;
 	for (dp = disks; dp < disks + onumdisks; dp++) {
 		if (strcmp(dp->device, "*") == 0) {
-			for (np = np0 = getdisknames(); *np != NULL; np++) {
+			for (np = np0 = getdisknames(skip, numskip); *np != NULL; np++) {
 				odisks = disks;
 				if ((disks = reallocf(disks,
 				    (numdisks + 1) * sizeof (*disks))) == NULL) {
@@ -617,6 +678,8 @@ readconf(const char *conf_file) {
 				disks[numdisks].rate = dp->rate;
 				disks[numdisks].size = dp->size;
 				disks[numdisks].days = dp->days;
+				disks[numdisks].interval = dp->interval;
+				disks[numdisks].next = 0;
 				disks[numdisks].device = *np;
 				numdisks++;
 			}
@@ -648,16 +711,20 @@ readconf(const char *conf_file) {
 		dp->errors = 0;
 
 		/*
-		 * Set the rate appropriately.  We read in blocks of this
-		 * size, so make it a power of 2 as close as possible to the
-		 * specified/calculated rate, and make it in the range
-		 * MINRATE..MAXRATE.
+		 * Set the rate appropriately.  We always read 64KB blocks,
+		 * at a rate of 1 block per n seconds, where we adjust n to
+		 * make the overall rate close to what the user specified.
 		 */
 		if (dp->size < 0)
 			getdisksize(dp);
 		if (dp->rate < 0)
 			dp->rate = dp->size / (dp->days * 86400);
-		setdiskrate(dp);
+
+		if (dp->rate == 0)
+			/* paranoia, should never really happen */
+			dp->interval = READ_SIZE;
+		else
+			dp->interval = READ_SIZE / dp->rate;
 	}
 
 	if (numdisks == 0) {
@@ -698,36 +765,6 @@ getdisksize(struct disk *dp) {
 		    dp->device, label.d_secsize);
 }
 
-/*
- * Find the nearest power of 2 to the calculated or specified rate, limited
- * to somewhere between MINRATE and MAXRATE.
- */
-void
-setdiskrate(struct disk *dp) {
-	int s, r;
-	int above, below;
-
-	if (dp->rate <= MINRATE)
-		dp->rate = MINRATE;
-	else if (dp->rate >= MAXRATE)
-		dp->rate = MAXRATE;
-	else {
-		for (r = dp->rate, s = 0; r != 0; s++)
-			r >>= 1;
-
-		/*
-		 * "above" and "below" are the closest power-of-2 numbers to the
-		 * calculated rate.
-		 */
-		above = 1 << s;
-		below = 1 << (s - 1);
-		if (above - dp->rate < dp->rate - below)
-			dp->rate = above;
-		else
-			dp->rate = below;
-	}
-}
-
 off_t
 dseek(struct disk *dp, off_t offset, int whence) {
 	off_t n;
@@ -746,10 +783,11 @@ dseek(struct disk *dp, off_t offset, int whence) {
  * is returned.
  */
 char **
-getdisknames(void) {
+getdisknames(char **skip, int numskip) {
 	char *string, *field;
 	size_t size, numdisks;
 	char **disks;
+	int i;
 
 	if (sysctlbyname("kern.disks", NULL, &size, NULL, 0) != 0 &&
 	    errno != ENOMEM) {
@@ -768,6 +806,13 @@ getdisknames(void) {
 	disks = NULL;
 	numdisks = 0;
 	while ((field = strsep(&string, " ")) != NULL) {
+		/* check for disks we ignore */
+		for (i = 0; i < numskip; i++)
+			if (strncmp(field, skip[i], strlen(skip[i])) == 0)
+				break;
+		if (i < numskip)
+			continue;
+
 		if ((disks = reallocf(disks,
 		  (numdisks + 1) * sizeof (*disks))) == NULL) {
 			syslog(LOG_NOTICE, "reallocf failure: %m");
