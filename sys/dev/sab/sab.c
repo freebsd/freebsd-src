@@ -132,7 +132,7 @@ static int sabtty_detach(device_t dev);
 
 static int sabtty_intr(struct sabtty_softc *sc);
 static void sabtty_softintr(struct sabtty_softc *sc);
-static int sabttybreak(struct tty *tp, int brk);
+static void sabttybreak(struct tty *tp, int brk);
 static int sabttymodem(struct tty *tp, int biton, int bitoff);
 static int sabtty_param(struct sabtty_softc *sc, struct tty *tp,
     struct termios *t);
@@ -734,7 +734,7 @@ sabttyclose(struct cdev *dev, int flags, int mode, struct thread *td)
 	return (0);
 }
 
-static int
+static void
 sabttybreak(struct tty *tp, int brk)
 {
 	struct sabtty_softc *sc;
@@ -746,7 +746,6 @@ sabttybreak(struct tty *tp, int brk)
 	else
 		SAB_WRITE(sc, SAB_DAFO,
 		    SAB_READ(sc, SAB_DAFO) & ~SAB_DAFO_XBRK);
-	return (0);
 }
 
 static void
