@@ -29,6 +29,16 @@ Report problems and direct all questions to:
 
 /*
  * $Log: rlog.c,v $
+ * Revision 1.7  1995/10/28  21:50:58  peter
+ * First part of import conflict merge from rcs-5.7 import.
+ *
+ * All those $Log$ entries, combined with the whitespace changes are a real
+ * pain.
+ *
+ * I'm committing this now, before it's completely finished to get it compiling
+ * and working again ASAP.  Some of the FreeBSD specific features are not working
+ * in this commit yet (mainly rlog stuff and $FreeBSD$ support)
+ *
  * Revision 5.18  1995/06/16 06:19:24  eggert
  * Update FSF address.
  *
@@ -219,7 +229,7 @@ static struct rcslockers *lockerlist;
 static struct stateattri *statelist;
 
 
-mainProg(rlogId, "rlog", "$Id: rlog.c,v 5.18 1995/06/16 06:19:24 eggert Exp $")
+mainProg(rlogId, "rlog", "$Id: rlog.c,v 1.7 1995/10/28 21:50:58 peter Exp $")
 {
 	static char const cmdusage[] =
 		"\nrlog usage: rlog -{bhLNRt} -ddates -l[lockers] -r[revs] -sstates -Vn -w[logins] -xsuff -zzone file ...";
@@ -462,6 +472,7 @@ mainProg(rlogId, "rlog", "$Id: rlog.c,v 5.18 1995/06/16 06:19:24 eggert Exp $")
 		putrunk();
 		putree(Head);
 	    }
+	    aputs("----------------------------\n", out);
 	    aputs("=============================================================================\n",out);
 	  }
 	Ofclose(out);
