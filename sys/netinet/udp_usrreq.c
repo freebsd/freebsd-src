@@ -837,7 +837,7 @@ udp_output(inp, m, addr, control, td)
 	M_PREPEND(m, sizeof(struct udpiphdr), M_DONTWAIT);
 	if (m == 0) {
 		error = ENOBUFS;
-		goto release;
+		goto disconnect;
 	}
 
 	/*
@@ -878,6 +878,12 @@ udp_output(inp, m, addr, control, td)
 	error = ip_output(m, inp->inp_options, NULL, ipflags,
 	    inp->inp_moptions, inp);
 	return (error);
+
+disconnect:
+	if (addr) {
+		in_pcbdisconnect(inp);
+		inp->inp_laddr = laddr;
+	}
 
 release:
 	m_freem(m);
