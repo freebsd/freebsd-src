@@ -532,7 +532,7 @@ ich_pci_attach(device_t dev)
 		goto bad;
 	}
 
-	if (pcm_register(dev, sc, 1, 2))
+	if (pcm_register(dev, sc, 1, sc->hasmic? 2 : 1))
 		goto bad;
 
 	pcm_addchan(dev, PCMDIR_PLAY, &ichchan_class, sc);		/* play */
@@ -540,8 +540,8 @@ ich_pci_attach(device_t dev)
 	if (sc->hasmic)
 		pcm_addchan(dev, PCMDIR_REC, &ichchan_class, sc);	/* record mic */
 
-	snprintf(status, SND_STATUSLEN, "at io 0x%lx, 0x%lx irq %ld",
-		 rman_get_start(sc->nambar), rman_get_start(sc->nabmbar), rman_get_start(sc->irq));
+	snprintf(status, SND_STATUSLEN, "at io 0x%lx, 0x%lx irq %ld bufsz %u",
+		 rman_get_start(sc->nambar), rman_get_start(sc->nabmbar), rman_get_start(sc->irq), sc->bufsz);
 
 	pcm_setstatus(dev, status);
 
