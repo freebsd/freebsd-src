@@ -423,18 +423,20 @@ getnfsargs(spec, nfsargsp)
 			warnx("bad net address %s", hostp);
 			return (0);
 		}
-		if ((nfsargsp->flags & NFSMNT_KERB) &&
-		    (hp = gethostbyaddr((char *)&saddr.sin_addr.s_addr,
+	} else if ((hp = gethostbyname(hostp)) != NULL) {
+		bcopy(hp->h_addr, (caddr_t)&saddr.sin_addr, hp->h_length);
+	} else {
+		warnx("can't get net id for host");
+		return (0);
+        }
+#ifdef KERBEROS
+	if ((nfsargsp->flags & NFSMNT_KERB)) {
+		if ((hp = gethostbyaddr((char *)&saddr.sin_addr.s_addr,
 		    sizeof (u_long), AF_INET)) == (struct hostent *)0) {
 			warnx("can't reverse resolve net address");
 			return (0);
 		}
-	} else if ((hp = gethostbyname(hostp)) == NULL) {
-		warnx("can't get net id for host");
-		return (0);
-	}
-#ifdef KERBEROS
-	if (nfsargsp->flags & NFSMNT_KERB) {
+		bcopy(hp->h_addr, (caddr_t)&saddr.sin_addr, hp->h_length);
 		strncpy(inst, hp->h_name, INST_SZ);
 		inst[INST_SZ - 1] = '\0';
 		if (cp = strchr(inst, '.'))
@@ -442,7 +444,6 @@ getnfsargs(spec, nfsargsp)
 	}
 #endif /* KERBEROS */
 
-	bcopy(hp->h_addr, (caddr_t)&saddr.sin_addr, hp->h_length);
 	nfhret.stat = EACCES;	/* Mark not yet successful */
 	while (retrycnt > 0) {
 		saddr.sin_family = AF_INET;
