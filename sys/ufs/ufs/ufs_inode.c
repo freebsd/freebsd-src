@@ -43,6 +43,7 @@
 #include "opt_ufs.h"
 
 #include <sys/param.h>
+#include <sys/systm.h>
 #include <sys/vnode.h>
 #include <sys/lock.h>
 #include <sys/mount.h>
