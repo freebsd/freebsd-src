@@ -29,10 +29,10 @@
 #ifndef	_MACHINE_TLB_H_
 #define	_MACHINE_TLB_H_
 
-#define	TLB_SLOT_COUNT			64
+#define	TLB_SLOT_COUNT			64	/* XXX */
 
 #define	TLB_SLOT_TSB_KERNEL_MIN		62	/* XXX */
-#define	TLB_SLOT_KERNEL			63
+#define	TLB_SLOT_KERNEL			63	/* XXX */
 
 #define	TLB_DAR_SLOT_SHIFT		(3)
 #define	TLB_DAR_SLOT(slot)		((slot) << TLB_DAR_SLOT_SHIFT)
@@ -89,170 +89,91 @@ extern int kernel_tlb_slots;
 extern struct tte *kernel_ttes;
 
 /*
- * Some tlb operations must be atomical, so no interrupt or trap can be allowed
+ * Some tlb operations must be atomic, so no interrupt or trap can be allowed
  * while they are in progress. Traps should not happen, but interrupts need to
  * be explicitely disabled. critical_enter() cannot be used here, since it only
  * disables soft interrupts.
- * XXX: is something like this needed elsewhere, too?
  */
-
-static __inline void
-tlb_dtlb_context_primary_demap(void)
-{
-	stxa(TLB_DEMAP_PRIMARY | TLB_DEMAP_CONTEXT, ASI_DMMU_DEMAP, 0);
-	membar(Sync);
-}
-
-static __inline void
-tlb_dtlb_page_demap(struct pmap *pm, vm_offset_t va)
-{
-	u_int ctx;
-
-	ctx = pm->pm_context[PCPU_GET(cpuid)];
-	if (ctx == TLB_CTX_KERNEL) {
-		stxa(TLB_DEMAP_VA(va) | TLB_DEMAP_NUCLEUS | TLB_DEMAP_PAGE,
-		    ASI_DMMU_DEMAP, 0);
-		membar(Sync);
-	} else if (ctx != -1) {
-		stxa(TLB_DEMAP_VA(va) | TLB_DEMAP_PRIMARY | TLB_DEMAP_PAGE,
-		    ASI_DMMU_DEMAP, 0);
-		membar(Sync);
-	}
-}
-
-static __inline void
-tlb_dtlb_store(vm_offset_t va, u_long ctx, struct tte tte)
-{
-	u_long pst;
-
-	pst = intr_disable();
-	stxa(AA_DMMU_TAR, ASI_DMMU,
-	    TLB_TAR_VA(va) | TLB_TAR_CTX(ctx));
-	stxa(0, ASI_DTLB_DATA_IN_REG, tte.tte_data);
-	membar(Sync);
-	intr_restore(pst);
-}
-
-static __inline void
-tlb_dtlb_store_slot(vm_offset_t va, u_long ctx, struct tte tte, int slot)
-{
-	u_long pst;
-
-	pst = intr_disable();
-	stxa(AA_DMMU_TAR, ASI_DMMU, TLB_TAR_VA(va) | TLB_TAR_CTX(ctx));
-	stxa(TLB_DAR_SLOT(slot), ASI_DTLB_DATA_ACCESS_REG, tte.tte_data);
-	membar(Sync);
-	intr_restore(pst);
-}
-
-static __inline void
-tlb_itlb_context_primary_demap(void)
-{
-	stxa(TLB_DEMAP_PRIMARY | TLB_DEMAP_CONTEXT, ASI_IMMU_DEMAP, 0);
-	membar(Sync);
-}
-
-static __inline void
-tlb_itlb_page_demap(struct pmap *pm, vm_offset_t va)
-{
-	u_int ctx;
-
-	ctx = pm->pm_context[PCPU_GET(cpuid)];
-	if (ctx == TLB_CTX_KERNEL) {
-		stxa(TLB_DEMAP_VA(va) | TLB_DEMAP_NUCLEUS | TLB_DEMAP_PAGE,
-		    ASI_IMMU_DEMAP, 0);
-		flush(KERNBASE);
-	} else if (ctx != -1) {
-		stxa(TLB_DEMAP_VA(va) | TLB_DEMAP_PRIMARY | TLB_DEMAP_PAGE,
-		    ASI_IMMU_DEMAP, 0);
-		membar(Sync);
-	}
-}
-
-static __inline void
-tlb_itlb_store(vm_offset_t va, u_long ctx, struct tte tte)
-{
-	u_long pst;
-
-	pst = intr_disable();
-	stxa(AA_IMMU_TAR, ASI_IMMU, TLB_TAR_VA(va) | TLB_TAR_CTX(ctx));
-	stxa(0, ASI_ITLB_DATA_IN_REG, tte.tte_data);
-	if (ctx == TLB_CTX_KERNEL)
-		flush(va);
-	else {
-		/*
-		 * flush probably not needed and impossible here, no access to
-		 * user page.
-		 */
-		membar(Sync);
-	}
-	intr_restore(pst);
-}
 
 static __inline void
 tlb_context_demap(struct pmap *pm)
 {
-	u_int ctx;
+	void *cookie;
+	u_long s;
 
-	ctx = pm->pm_context[PCPU_GET(cpuid)];
-	if (ctx != -1) {
-		tlb_dtlb_context_primary_demap();
-		tlb_itlb_context_primary_demap();
+	cookie = ipi_tlb_context_demap(pm);
+	if (pm->pm_active & PCPU_GET(cpumask)) {
+		KASSERT(pm->pm_context[PCPU_GET(cpuid)] != -1,
+		    ("tlb_context_demap: inactive pmap?"));
+		s = intr_disable();
+		stxa(TLB_DEMAP_PRIMARY | TLB_DEMAP_CONTEXT, ASI_DMMU_DEMAP, 0);
+		stxa(TLB_DEMAP_PRIMARY | TLB_DEMAP_CONTEXT, ASI_IMMU_DEMAP, 0);
+		membar(Sync);
+		intr_restore(s);
 	}
-}
-
-static __inline void
-tlb_itlb_store_slot(vm_offset_t va, u_long ctx, struct tte tte, int slot)
-{
-	u_long pst;
-
-	pst = intr_disable();
-	stxa(AA_IMMU_TAR, ASI_IMMU, TLB_TAR_VA(va) | TLB_TAR_CTX(ctx));
-	stxa(TLB_DAR_SLOT(slot), ASI_ITLB_DATA_ACCESS_REG, tte.tte_data);
-	flush(va);
-	intr_restore(pst);
+	ipi_wait(cookie);
 }
 
 static __inline void
 tlb_page_demap(u_int tlb, struct pmap *pm, vm_offset_t va)
 {
-	if (tlb & TLB_DTLB)
-		tlb_dtlb_page_demap(pm, va);
-	if (tlb & TLB_ITLB)
-		tlb_itlb_page_demap(pm, va);
+	u_long flags;
+	void *cookie;
+	u_long s;
+
+	cookie = ipi_tlb_page_demap(tlb, pm, va);
+	if (pm->pm_active & PCPU_GET(cpumask)) {
+		KASSERT(pm->pm_context[PCPU_GET(cpuid)] != -1,
+		    ("tlb_page_demap: inactive pmap?"));
+		if (pm == kernel_pmap)
+			flags = TLB_DEMAP_NUCLEUS | TLB_DEMAP_PAGE;
+		else
+			flags = TLB_DEMAP_PRIMARY | TLB_DEMAP_PAGE;
+	
+		s = intr_disable();
+		if (tlb & TLB_DTLB) {
+			stxa(TLB_DEMAP_VA(va) | flags, ASI_DMMU_DEMAP, 0);
+			membar(Sync);
+		}
+		if (tlb & TLB_ITLB) {
+			stxa(TLB_DEMAP_VA(va) | flags, ASI_IMMU_DEMAP, 0);
+			membar(Sync);
+		}
+		intr_restore(s);
+	}
+	ipi_wait(cookie);
 }
 
 static __inline void
 tlb_range_demap(struct pmap *pm, vm_offset_t start, vm_offset_t end)
 {
-	for (; start < end; start += PAGE_SIZE)
-		tlb_page_demap(TLB_DTLB | TLB_ITLB, pm, start);
+	vm_offset_t va;
+	void *cookie;
+	u_long flags;
+	u_long s;
+
+	cookie = ipi_tlb_range_demap(pm, start, end);
+	if (pm->pm_active & PCPU_GET(cpumask)) {
+		KASSERT(pm->pm_context[PCPU_GET(cpuid)] != -1,
+		    ("tlb_range_demap: inactive pmap?"));
+		if (pm == kernel_pmap)
+			flags = TLB_DEMAP_NUCLEUS | TLB_DEMAP_PAGE;
+		else
+			flags = TLB_DEMAP_PRIMARY | TLB_DEMAP_PAGE;
+	
+		s = intr_disable();
+		for (va = start; va < end; va += PAGE_SIZE) {
+			stxa(TLB_DEMAP_VA(va) | flags, ASI_DMMU_DEMAP, 0);
+			stxa(TLB_DEMAP_VA(va) | flags, ASI_IMMU_DEMAP, 0);
+			membar(Sync);
+		}
+		intr_restore(s);
+	}
+	ipi_wait(cookie);
 }
 
-static __inline void
-tlb_tte_demap(struct tte tte, struct pmap *pm)
-{
-	tlb_page_demap(TD_GET_TLB(tte.tte_data), pm, TV_GET_VA(tte.tte_vpn));
-}
-
-static __inline void
-tlb_store(u_int tlb, vm_offset_t va, u_long ctx, struct tte tte)
-{
-	KASSERT(ctx != -1, ("tlb_store: invalid context"));
-	if (tlb & TLB_DTLB)
-		tlb_dtlb_store(va, ctx, tte);
-	if (tlb & TLB_ITLB)
-		tlb_itlb_store(va, ctx, tte);
-}
-
-static __inline void
-tlb_store_slot(u_int tlb, vm_offset_t va, u_long ctx, struct tte tte, int slot)
-{
-	KASSERT(ctx != -1, ("tlb_store_slot: invalid context"));
-	if (tlb & TLB_DTLB)
-		tlb_dtlb_store_slot(va, ctx, tte, slot);
-	if (tlb & TLB_ITLB)
-		tlb_itlb_store_slot(va, ctx, tte, slot);
-}
+#define	tlb_tte_demap(tte, pm) \
+	tlb_page_demap(TD_GET_TLB((tte).tte_data), pm, \
+	    TV_GET_VA((tte).tte_vpn));
 
 #endif /* !_MACHINE_TLB_H_ */
