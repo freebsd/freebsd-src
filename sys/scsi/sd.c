@@ -14,7 +14,7 @@
  *
  * Ported to run under 386BSD by Julian Elischer (julian@dialix.oz.au) Sept 1992
  *
- *      $Id: sd.c,v 1.80 1995/12/11 04:57:07 dyson Exp $
+ *      $Id: sd.c,v 1.81 1995/12/11 05:02:52 dyson Exp $
  */
 
 #define SPLSD splbio
@@ -44,8 +44,6 @@
 #include <vm/pmap.h>
 #include <machine/md_var.h>
 #include <i386/i386/cons.h>		/* XXX *//* for aborting dump */
-
-extern int	SCSI_DEVICE_ENTRIES __P((int sd));
 
 static u_int32 sdstrats, sdqueues;
 
@@ -250,7 +248,7 @@ sdattach(struct scsi_link *sc_link)
 /*
  * open the device. Make sure the partition info is a up-to-date as can be.
  */
-errval
+static errval
 sd_open(dev, mode, fmt, p, sc_link)
 	dev_t	dev;
 	int	mode;
@@ -373,7 +371,7 @@ bad:
  * close the device.. only called if we are the LAST occurence of an open
  * device.  Convenient now but usually a pain.
  */
-errval
+static errval
 sd_close(dev, fflag, fmt, p, sc_link)
 	dev_t	dev;
 	int	fflag;
@@ -397,7 +395,7 @@ sd_close(dev, fflag, fmt, p, sc_link)
  * can understand.  The transfer is described by a buf and will include
  * only one physical transfer.
  */
-void
+static void
 sd_strategy(struct buf *bp, struct scsi_link *sc_link)
 {
 	u_int32 opri;
@@ -497,7 +495,7 @@ sdstrategy1(struct buf *bp)
  * must be called at the correct (highish) spl level
  * sdstart() is called at SPLSD  from sdstrategy and scsi_done
  */
-void
+static void
 sdstart(u_int32 unit, u_int32 flags)
 {
 	register struct	scsi_link *sc_link = SCSI_LINK(&sd_switch, unit);
@@ -595,7 +593,7 @@ bad:
  * Perform special action on behalf of the user
  * Knows about the internals of this device
  */
-errval
+static errval
 sd_ioctl(dev_t dev, int cmd, caddr_t addr, int flag, struct proc *p,
 	 struct scsi_link *sc_link)
 {
@@ -810,7 +808,7 @@ sd_get_parms(unit, flags)
 	return 0;
 }
 
-int
+static int
 sdsize(dev_t dev)
 {
 	struct scsi_data *sd;
@@ -835,7 +833,8 @@ sdsize(dev_t dev)
  * so many times) and it may save your butt.
  */
 
-int sd_sense_handler(struct scsi_xfer *xs)
+static int
+sd_sense_handler(struct scsi_xfer *xs)
 {
 	struct scsi_sense_data *sense;
 	struct scsi_inquiry_data *inqbuf;
@@ -877,7 +876,7 @@ int sd_sense_handler(struct scsi_xfer *xs)
  * dump all of physical memory into the partition specified, starting
  * at offset 'dumplo' into the partition.
  */
-errval
+static errval
 sddump(dev_t dev)
 {				/* dump core after a system crash */
 	struct disklabel *lp;
