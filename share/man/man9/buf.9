@@ -29,13 +29,13 @@
 .\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 .\" SUCH DAMAGE.
 .\"
-.\"	$Id: buf.9,v 1.1 1998/12/22 19:47:48 dillon Exp $
+.\"	$Id: buf.9,v 1.2 1999/02/01 22:55:54 mpp Exp $
 .\"
 .Dd December 22, 1998
 .Dt BUF 9
 .Os
 .Sh NAME
-.Nm BUF/BP
+.Nm BUF
 .Nd Kernel Buffer I/O scheme used in FreeBSD VM system
 .Sh DESCRIPTION
 .Pp
@@ -112,12 +112,13 @@ instantiated VM Buffers (struct buf's) prevent their underlying pages in the
 buffer cache from being freed.  This can complicate the life of the paging
 system.
 .Pp
-.Sh SEE ALSO
-.Pp
-.Xr <fillmein> 9
+.\" .Sh SEE ALSO
+.\" .Xr <fillmein> 9
 .Sh HISTORY
 The
 .Nm
 manual page was originally written by Matthew Dillon and first appeared 
-in FreeBSD-3.0.1, December 1998.
+in
+.Fx 3.0.1 ,
+December 1998.
 

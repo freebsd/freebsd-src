@@ -116,7 +116,7 @@ and return
 immediately.  It is expected that the caller will at some point call
 .Fn await
 and then retry the allocation.  Depending on the routine in question, the
-caller may decide to propogate the temporary failure up the call chain
+caller may decide to propagate the temporary failure up the call chain
 and actually have some other higher level routine block on the async wait
 that
 .Fn malloc
