@@ -125,11 +125,7 @@ char *syscallnames[] = {
 	"old.sigstack",		/* 112 = old sigstack */
 	"old.recvmsg",		/* 113 = old recvmsg */
 	"old.sendmsg",		/* 114 = old sendmsg */
-#ifdef TRACE
-	"vtrace",			/* 115 = vtrace */
-#else
 	"obs_vtrace",			/* 115 = obsolete vtrace */
-#endif
 	"gettimeofday",			/* 116 = gettimeofday */
 	"getrusage",			/* 117 = getrusage */
 	"getsockopt",			/* 118 = getsockopt */
