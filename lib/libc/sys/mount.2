@@ -140,7 +140,7 @@ filesystem is described by the
 manual page.
 .Pp
 The
-.Fn umount
+.Fn unmount
 function call disassociates the filesystem from the specified
 mount point
 .Fa dir .
@@ -174,7 +174,7 @@ and the variable
 is set to indicate the error.
 .Pp
 The
-.Fn umount
+.Fn unmount
 function returns the value 0 if the umount succeeded; otherwise -1 is returned
 and the variable
 .Va errno
@@ -278,7 +278,7 @@ points outside the process's allocated address space.
 .El
 .Pp
 The
-.Fn umount
+.Fn unmount
 function may fail with one of the following errors:
 .Bl -tag -width [ENOTBLK]
 .It Bq Er EPERM
@@ -320,6 +320,6 @@ Some of the error codes need translation to more obvious messages.
 .Sh HISTORY
 .Fn Mount
 and
-.Fn umount
+.Fn unmount
 function calls appeared in
 .At v6 .
