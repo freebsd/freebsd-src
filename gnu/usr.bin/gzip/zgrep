@@ -2,8 +2,8 @@
 
 # zgrep -- a wrapper around a grep program that decompresses files as needed
 # Adapted from a version sent by Charles Levert <charles@comm.polymtl.ca>
-
-PATH="/usr/local/bin:$PATH"; export PATH
+#
+# $Id: zgrep,v 1.2 1999/05/28 13:23:21 kris Exp $
 
 prog=`echo $0 | sed 's|.*/||'`
 case "$prog" in

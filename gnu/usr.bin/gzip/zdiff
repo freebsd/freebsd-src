@@ -8,8 +8,9 @@
 # If two files are specified, then they are  uncompressed  (if
 # necessary) and fed to cmp or diff.  The exit status from cmp
 # or diff is preserved.
+#
+# $Id: zdiff,v 1.4 1999/05/28 13:23:18 kris Exp $
 
-PATH="/usr/local/bin:$PATH"; export PATH
 prog=`echo $0 | sed 's|.*/||'`
 case "$prog" in
   *cmp) comp=${CMP-cmp}   ;;
