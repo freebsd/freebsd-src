@@ -117,6 +117,8 @@ recvtftp(d, pkt, len, tleft)
 {
 	struct tftphdr *t;
 
+	errno = 0;
+
 	len = readudp(d, pkt, len, tleft);
 
 	if (len < 4)
