@@ -581,6 +581,8 @@ Play_Relative_Addresses:
 		else if (tr1 > n)
 			tr1 = n;
 
+		tr1--;
+
 		if (msf) {
 			tm = toc_buffer[tr1].addr.msf.minute;
 			ts = toc_buffer[tr1].addr.msf.second;
@@ -596,8 +598,6 @@ Play_Relative_Addresses:
 			printf ("Track %d is not that long.\n", tr1);
 			return (0);
 		}
-
-		tr1--;
 
 		f1 += tf;
 		if (f1 >= 75) {
