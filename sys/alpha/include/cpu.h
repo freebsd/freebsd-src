@@ -52,8 +52,6 @@
 
 #include <machine/frame.h>
 
-#define	cpu_getstack(td)		(alpha_pal_rdusp())
-
 /*
  * Arguments to hardclock and gatherstats encapsulate the previous
  * machine state in an opaque clockframe.  One the Alpha, we use
@@ -98,66 +96,13 @@ struct clockframe {
 
 #ifdef _KERNEL
 
-struct pcb;
-struct thread;
-struct reg;
-struct rpb;
-struct trapframe;
-
-extern struct rpb *hwrpb;
-extern volatile int mc_expected, mc_received;
+#define	cpu_getstack(td)	(alpha_pal_rdusp())
+#define	get_cyclecount		alpha_rpcc
 
 void	cpu_halt(void);
 void	cpu_reset(void);
 void	fork_trampoline(void);					/* MAGIC */
 void	swi_vm(void *);
-
-/* XXX the following should not be here. */
-void	XentArith(u_int64_t, u_int64_t, u_int64_t);		/* MAGIC */
-void	XentIF(u_int64_t, u_int64_t, u_int64_t);		/* MAGIC */
-void	XentInt(u_int64_t, u_int64_t, u_int64_t);		/* MAGIC */
-void	XentMM(u_int64_t, u_int64_t, u_int64_t);		/* MAGIC */
-void	XentRestart(void);					/* MAGIC */
-void	XentSys(u_int64_t, u_int64_t, u_int64_t);		/* MAGIC */
-void	XentUna(u_int64_t, u_int64_t, u_int64_t);		/* MAGIC */
-void	alpha_init(u_long, u_long, u_long, u_long, u_long);
-void	alpha_fpstate_check(struct thread *td);
-void	alpha_fpstate_drop(struct thread *td);
-void	alpha_fpstate_save(struct thread *td, int write);
-void	alpha_fpstate_switch(struct thread *td);
-int	alpha_pa_access(u_long);
-int	badaddr	(void *, size_t);
-int	badaddr_read(void *, size_t, void *);
-u_int64_t console_restart(u_int64_t, u_int64_t, u_int64_t);
-void	dumpconf(void);
-void	exception_return(void);					/* MAGIC */
-void	frametoreg(struct trapframe *, struct reg *);
-long	fswintrberr(void);					/* MAGIC */
-void	init_prom_interface(struct rpb*);
-void	interrupt(unsigned long, unsigned long, unsigned long,
-	    struct trapframe *);
-void	machine_check(unsigned long, struct trapframe *, unsigned long,
-	    unsigned long);
-u_int64_t hwrpb_checksum(void);
-void	hwrpb_restart_setup(void);
-void	regdump(struct trapframe *);
-void	regtoframe(struct reg *, struct trapframe *);
-void	savectx(struct pcb *);
-void	set_iointr(void (*)(void *, unsigned long));
-void    switch_exit(struct thread *);				/* MAGIC */
-void	syscall(u_int64_t, struct trapframe *);
-void	trap(unsigned long, unsigned long, unsigned long, unsigned long,
-	    struct trapframe *);
-
-/*
- * Return contents of in-cpu fast counter as a sort of "bogo-time"
- * for non-critical timing.
- */
-static __inline u_int64_t
-get_cyclecount(void)
-{
-	return (alpha_rpcc());
-}
 
 #endif /* _KERNEL */
 

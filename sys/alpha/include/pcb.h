@@ -57,4 +57,8 @@ struct pcb {
 	unsigned long	pcb_accessaddr;		/* for [fs]uswintr	[SW] */
 };
 
+#ifdef _KERNEL
+void	savectx(struct pcb *);
+#endif
+
 #endif	/* _MACHINE_PCB_H */

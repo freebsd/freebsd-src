@@ -36,6 +36,7 @@
 __FBSDID("$FreeBSD$");
 
 #include "opt_ddb.h"
+#include "opt_dev_sc.h"
 
 #include <sys/param.h>
 #include <sys/reboot.h>
@@ -43,15 +44,16 @@ __FBSDID("$FreeBSD$");
 #include <sys/termios.h>
 #include <sys/bus.h>
 
-#include <machine/rpb.h>
-#include <machine/cpuconf.h>
 #include <machine/clock.h>
+#include <machine/cpuconf.h>
+#include <machine/md_var.h>
+#include <machine/rpb.h>
+
 #include <pci/pcireg.h>
 #include <pci/pcivar.h>
 #include <alpha/pci/apecsreg.h>
 #include <alpha/pci/apecsvar.h>
 
-#include "opt_dev_sc.h"
 #ifndef	CONSPEED
 #define	CONSPEED TTYDEF_SPEED
 #endif

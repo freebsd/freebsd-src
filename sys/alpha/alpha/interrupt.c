@@ -51,11 +51,12 @@ __FBSDID("$FreeBSD$");
 #include <sys/unistd.h>
 #include <sys/vmmeter.h>
 
-#include <machine/reg.h>
-#include <machine/frame.h>
-#include <machine/cpuconf.h>
 #include <machine/bwx.h>
+#include <machine/cpuconf.h>
+#include <machine/frame.h>
 #include <machine/intr.h>
+#include <machine/md_var.h>
+#include <machine/reg.h>
 #include <machine/rpb.h>
 #include <machine/smp.h>
 

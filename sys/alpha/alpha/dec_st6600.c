@@ -28,24 +28,25 @@
 __FBSDID("$FreeBSD$");
 
 #include "opt_ddb.h"
+#include "opt_dev_sc.h"
+
 #include <sys/param.h>
 #include <sys/reboot.h>
 #include <sys/systm.h>
 #include <sys/kernel.h>
 #include <sys/module.h>
 #include <sys/bus.h>
-#include <machine/intr.h>
-
 #include <sys/termios.h>
 
-#include <machine/rpb.h>
-#include <machine/cpuconf.h>
 #include <machine/clock.h>
+#include <machine/cpuconf.h>
+#include <machine/md_var.h>
+#include <machine/intr.h>
+#include <machine/rpb.h>
+
 #include <pci/pcireg.h>
 #include <pci/pcivar.h>
 #include <alpha/pci/tsunamivar.h>
-
-#include "opt_dev_sc.h"
 
 #ifndef	CONSPEED
 #define	CONSPEED TTYDEF_SPEED
