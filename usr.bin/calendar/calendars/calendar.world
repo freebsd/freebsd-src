@@ -1,0 +1,18 @@
+/*
+ * World wide calendar files, except national calendars
+ *
+ * $Id: calendar.world,v 1.1 1996/01/28 19:12:24 wosch Exp $
+ */
+
+#ifndef _calendar_world_
+#define _calendar_world_
+
+#include <calendar.birthday>
+#include <calendar.christian>
+#include <calendar.computer>
+#include <calendar.history>
+#include <calendar.holiday>
+#include <calendar.judaic>
+#include <calendar.music>
+
+#endif /* !_calendar_world_ */

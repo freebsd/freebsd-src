@@ -1,3 +1,12 @@
+/*
+ * Christian
+ *
+ * $Id: calendar.christian,v 1.2 1996/01/28 19:12:24 wosch Exp $
+ */
+
+#ifndef _calendar_christian_
+#define _calendar_christian_
+
 01/06*	Epiphany
 02/11*	Shrove Tuesday / Mardi Gras (day before Ash Wednesday)
 02/08*	Ash Wednesday (First day of Lent)
@@ -14,3 +23,5 @@
 10/18	Feast Day of St. Luke
 12/03*	First Sunday of Advent (4th Sunday before Christmas)
 12/06	St. Nicholas' Day
+
+#endif /* !_calendar_christian_ */
