@@ -1249,8 +1249,8 @@ mbnambuf_flush(struct dirent *dp)
 		mbnambuf_init();
 		return (NULL);
 	}
-	nambuf_ptr[nambuf_len] = '\0';
 	memcpy(dp->d_name, nambuf_ptr, nambuf_len);
+	dp->d_name[nambuf_len] = '\0';
 	dp->d_namlen = nambuf_len;
 
 	mbnambuf_init();
