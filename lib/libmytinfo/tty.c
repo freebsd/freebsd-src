@@ -107,6 +107,8 @@ _check_tty() {
 
 int
 def_prog_mode() {
+	if (cur_term == NULL)
+		return ERR;
 #ifdef USE_WINSZ
 #ifdef TIOCGWINSZ
 	if (ioctl(cur_term->fd, TIOCGWINSZ, &cur_term->prog_winsz) < 0)
@@ -125,6 +127,8 @@ def_prog_mode() {
 
 int
 def_shell_mode() {
+	if (cur_term == NULL)
+		return ERR;
 	cur_term->termcap = 0;
 #ifdef USE_WINSZ
 #ifdef TIOCGWINSZ
@@ -139,8 +143,12 @@ def_shell_mode() {
 #endif
 }
 
+
+#pragma weak reset_prog_mode
 int
 reset_prog_mode() {
+	if (cur_term == NULL)
+		return ERR;
 #ifdef USE_TERMIO
 	return ioctl(cur_term->fd, TCSETA, &cur_term->prog_mode)==0 ? OK : ERR;
 #else
@@ -148,8 +156,11 @@ reset_prog_mode() {
 #endif
 }
 
+#pragma weak reset_shell_mode
 int
 reset_shell_mode() {
+	if (cur_term == NULL)
+		return ERR;
 #ifdef USE_TERMIO
 	return ioctl(cur_term->fd, TCSETA, &cur_term->shell_mode)==0 ? OK : ERR;
 #else
