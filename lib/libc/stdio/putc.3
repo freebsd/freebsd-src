@@ -73,18 +73,12 @@ to the output stream pointed to by
 .Pp
 The
 .Fn putc
-macro acts essentially identically to
-.Fn fputc ,
-but is a macro that expands in-line.
-It may evaluate
-.Fa stream
-more than once, so arguments given to
-.Fn putc
-should not be expressions with potential side effects.
+function acts essentially identically to
+.Fn fputc .
 .Pp
 The
 .Fn putchar
-macro
+function
 is identical to
 .Fn putc
 with an output stream of
