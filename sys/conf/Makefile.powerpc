@@ -49,12 +49,9 @@ CFLAGS=	${COPTFLAGS} ${CWARNFLAGS} ${DEBUG} ${COPTS}
 # XXX LOCORE means "don't declare C stuff" not "for locore.s".
 ASM_CFLAGS= -x assembler-with-cpp -DLOCORE ${CFLAGS}
 
-# Use the default object format for genassym, etc.
-GEN_CFLAGS= ${COPTFLAGS} ${CWARNFLAGS} ${DEBUG} ${COPTS} -U_KERNEL
-
 # Select the correct set of tools. Can't set OBJFORMAT here because it
 # doesn't get exported into the environment, and if it were exported
-# then it might break building of genassym, etc.
+# then it might break building of utilities.
 .if ${KERNFORMAT} == "elf"
 FMT=		-elf
 .else
@@ -76,10 +73,10 @@ PROF+=	-mprofiler-epilogue
 # can override the others.
 CFLAGS+=	${CONF_CFLAGS}
 
-NORMAL_C= ${CC} -c ${CFLAGS} ${PROF} $<
-NORMAL_C_C= ${CC} -c ${CFLAGS} ${PROF} $<
-NORMAL_S= ${CC} -c ${ASM_CFLAGS} $<
-PROFILE_C= ${CC} -c ${CFLAGS} $<
+NORMAL_C= ${CC} -c ${CFLAGS} ${PROF} ${.IMPSRC}
+NORMAL_C_C= ${CC} -c ${CFLAGS} ${PROF} ${.IMPSRC}
+NORMAL_S= ${CC} -c ${ASM_CFLAGS} ${.IMPSRC}
+PROFILE_C= ${CC} -c ${CFLAGS} ${.IMPSRC}
 
 GEN_CFILES= $S/$M/$M/genassym.c
 # setdef0.c and setdef1.c are intentionally
@@ -144,9 +141,9 @@ ${SYSTEM_OBJS}: vnode_if.h ${BEFORE_DEPEND:M*.h}
 .endif
 
 clean:
-	rm -f *.o *.so *.So *.ko *.s eddep errs genassym gensetdefs \
-	      ${KERNEL} ${FULLKERNEL} linterrs makelinks param.c \
-	      setdef[01].c setdefs.h symbols.exclude symbols.sort tags \
+	rm -f *.o *.so *.So *.ko *.s eddep errs genassym \
+	      ${FULLKERNEL} ${KERNEL} linterrs makelinks param.c \
+	      setdef[01].c setdefs.h tags \
 	      vers.c vnode_if.c vnode_if.h ${CLEAN}
 
 #lint: /tmp param.c
@@ -186,15 +183,14 @@ assym.s: genassym.o
 	genassym genassym.o >assym.s
 
 genassym.o: $S/$M/$M/genassym.c
-	${CC} -c ${GEN_CFLAGS} $S/$M/$M/genassym.c
+	${CC} -c ${CFLAGS} $S/$M/$M/genassym.c
 
 ${SYSTEM_OBJS} genassym.o vers.o: opt_global.h
 
 depend: assym.s param.c vnode_if.h ${BEFORE_DEPEND} \
 	    ${CFILES} ${SYSTEM_CFILES} ${GEN_CFILES} ${SFILES} ${SYSTEM_SFILES}
 	rm -f .newdep
-	mkdep -a -f .newdep ${CFLAGS} ${CFILES} ${SYSTEM_CFILES}
-	mkdep -a -f .newdep ${GEN_CFLAGS} ${GEN_CFILES}
+	mkdep -a -f .newdep ${CFLAGS} ${CFILES} ${SYSTEM_CFILES} ${GEN_CFILES}
 	env MKDEP_CPP="${CC} -E" \
 	    mkdep -a -f .newdep ${ASM_CFLAGS} ${SFILES} ${SYSTEM_SFILES}
 	rm -f .depend
