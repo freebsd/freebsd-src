@@ -36,4 +36,8 @@ oid.h: tree.def
 tree.c tree.h: tree.def
 	gensnmptree -l < ${.ALLSRC}
 
+MANFILTER=	sed -e 's%@MODPATH@%${LIBDIR}/%g'		\
+		    -e 's%@DEFPATH@%${DEFSDIR}/%g'		\
+		    -e 's%@MIBSPATH@%${BMIBSDIR}/%g'
+
 .include <bsd.prog.mk>
