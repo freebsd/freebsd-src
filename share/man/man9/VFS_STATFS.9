@@ -28,7 +28,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd July 24, 1996
+.Dd January 7, 2005
 .Os
 .Dt VFS_STATFS 9
 .Sh NAME
@@ -41,17 +41,74 @@
 .Ft int
 .Fn VFS_STATFS "struct mount *mp" "struct statfs *sbp" "struct thread *td"
 .Sh DESCRIPTION
-This call returns various pieces of information about the file system,
+The
+.Fn VFS_STATFS
+macro returns various pieces of information about the file system,
 including recommended I/O sizes, free space, free inodes, etc.
 .Pp
-Its arguments are:
+The arguments it expects are:
 .Bl -tag -width sbp
 .It Fa mp
 The file system.
 .It Fa sbp
-Return parameter for the file system's status.
+A
+.Dt statfs
+structure, as defined by
+.In sys/mount.h ,
+into which information is placed about the file system.
 .It Fa td
 The thread which is querying the file system.
+.El
+.Pp
+The fields of
+.Ft "struct statfs"
+related to the file system are as follows:
+.Bl -tag -width ".Fa f_mntfromname"
+.It Va f_type
+Type of file system.
+.It Va f_flags
+A copy of mount exported flags.
+.It Va f_bsize
+Fragment size.
+.It Va f_iosize
+Optimal transfer block size.
+.It Va f_blocks
+The total number of data blocks in the file system.
+.It Va f_bfree
+The number of free blocks in the file system.
+.It Va f_bavail
+The number of free blocks available to non-superuser processes.
+.It Va f_files
+The total number of file nodes in the file system.
+.It Va f_ffree
+The number of free nodes available to non-superuser processes.
+.It Va f_syncwrites
+The number of synchronous writes since the file system was mounted.
+.It Va f_asyncwrites
+The number of asynchronous writes since the file system was mounted.
+.It Va f_syncreads
+The number of synchronous reads since the file system was mounted.
+.It Va f_asyncreads
+The number of asynchronous reads since the file system was mounted.
+.It Va f_namemax
+The maximum file name length for this file system.
+.It Va f_owner
+The user ID of the user that mounted the file system.
+.It Va f_fsid
+Unique file system ID.
+.It Va f_fstypename
+The file system type name; a string of at most
+.Dv MFSNAMELEN
+bytes.
+.It Va f_mntfromname
+The device name the file system was mounted from; a string of at most
+.Dv MNAMELEN
+bytes.
+.It Va f_mntonname
+The name of the directory on which the file system is mounted;
+a string of at most
+.Dv MNAMELEN
+bytes.
 .El
 .Sh SEE ALSO
 .Xr VFS 9 ,
