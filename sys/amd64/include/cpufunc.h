@@ -30,7 +30,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: cpufunc.h,v 1.76 1998/01/25 23:45:41 kato Exp $
+ *	$Id: cpufunc.h,v 1.77 1998/05/11 02:13:47 dyson Exp $
  */
 
 /*
@@ -228,7 +228,7 @@ cpu_invlpg(void *addr)
 #else  /* !SMP */
 
 static __inline void
-invlpg(void *addr)
+invlpg(u_int addr)
 {
 	__asm   __volatile("invlpg %0"::"m"(*(char *)addr):"memory");
 }
