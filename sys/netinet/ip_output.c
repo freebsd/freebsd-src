@@ -1071,8 +1071,10 @@ ip_pcbopts(optname, pcbopt, m)
 		if (opt == IPOPT_NOP)
 			optlen = 1;
 		else {
+			if (cnt < IPOPT_OLEN + sizeof(*cp))
+				goto bad;
 			optlen = cp[IPOPT_OLEN];
-			if (optlen <= IPOPT_OLEN || optlen > cnt)
+			if (optlen < IPOPT_OLEN + sizeof(*cp) || optlen > cnt)
 				goto bad;
 		}
 		switch (opt) {

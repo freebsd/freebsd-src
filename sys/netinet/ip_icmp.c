@@ -618,8 +618,11 @@ icmp_reflect(m)
 			    if (opt == IPOPT_NOP)
 				    len = 1;
 			    else {
+				    if (cnt < IPOPT_OLEN + sizeof(*cp))
+					    break;
 				    len = cp[IPOPT_OLEN];
-				    if (len <= 0 || len > cnt)
+				    if (len < IPOPT_OLEN + sizeof(*cp) ||
+				        len > cnt)
 					    break;
 			    }
 			    /*
