@@ -580,15 +580,12 @@ changepath(newval)
 	int index;
 	int firstchange;
 	int bltin;
-	int hasdot;
 
 	old = pathval();
 	new = newval;
 	firstchange = 9999;	/* assume no change */
-	index = hasdot = 0;
+	index = 0;
 	bltin = -1;
-	if (*new == ':')
-		hasdot++;
 	for (;;) {
 		if (*old != *new) {
 			firstchange = index;
@@ -602,17 +599,10 @@ changepath(newval)
 		if (*new == '%' && bltin < 0 && prefix("builtin", new + 1))
 			bltin = index;
 		if (*new == ':') {
-			char c = *(new+1);
-
 			index++;
-			if (c == ':' || c == '\0' || (c == '.' && 
-			   ((c = *(new+2)) == ':' || c == '\0')))
-				hasdot++;
 		}
 		new++, old++;
 	}
-	if (hasdot && geteuid() == 0)
-		out2str("sh: warning: running as root with dot in PATH\n");
 	if (builtinloc < 0 && bltin >= 0)
 		builtinloc = bltin;		/* zap builtins */
 	if (builtinloc >= 0 && bltin < 0)
