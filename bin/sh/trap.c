@@ -106,8 +106,8 @@ sigstring_to_signum(char *sig)
 
 		if (strncasecmp(sig, "sig", 3) == 0)
 			sig += 3;
-		for (n = 1; n < NSIG; n++)
-			if (strcasecmp(sys_signame[n], sig) == 0)
+		for (n = 1; n < sys_nsig; n++)
+			if (sys_signame[n] && strcasecmp(sys_signame[n], sig) == 0)
 				return (n);
 	}
 	return (-1);
@@ -122,7 +122,7 @@ printsignals(void)
 {
 	int n;
 
-	for (n = 1; n < NSIG; n++) {
+	for (n = 1; n < sys_nsig; n++) {
 		out1fmt("%s", sys_signame[n]);
 		if (n == (NSIG / 2) || n == (NSIG - 1))
 			out1str("\n");
@@ -142,7 +142,7 @@ trapcmd(int argc, char **argv)
 	int signo;
 
 	if (argc <= 1) {
-		for (signo = 0 ; signo < NSIG ; signo++) {
+		for (signo = 0 ; signo < sys_nsig ; signo++) {
 			if (trap[signo] != NULL)
 				out1fmt("trap -- '%s' %s\n", trap[signo],
 					(signo) ? sys_signame[signo] : "exit");
