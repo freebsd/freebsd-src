@@ -36,7 +36,7 @@ static char sccsid[] = "@(#)measure.c	8.1 (Berkeley) 6/6/93";
 #endif /* not lint */
 
 #ifdef sgi
-#ident "$Revision: 1.8 $"
+#ident "$Revision: 1.1.1.1 $"
 #endif
 
 #include "globals.h"
@@ -151,8 +151,8 @@ measure(maxmsec, wmsec, hname, addr, print)
 		 */
 		if (trials < TRIALS) {
 			trials++;
-			oicp->icmp_otime = ((tcur.tv_sec % SECDAY) * 1000
-					    + tcur.tv_usec / 1000);
+			oicp->icmp_otime = ntohl((tcur.tv_sec % SECDAY) * 1000
+						 + tcur.tv_usec / 1000);
 			oicp->icmp_cksum = 0;
 			oicp->icmp_cksum = in_cksum((u_short*)oicp,
 						    sizeof(*oicp));
