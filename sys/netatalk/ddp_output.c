@@ -112,6 +112,14 @@ ddp_route( struct mbuf *m, struct route *ro)
     struct ifnet	*ifp = NULL;
     u_short		net;
 
+#if 0
+    /* Check for net zero, node zero ("myself") */
+    if (satosat(&ro->ro_dst)->sat_addr.s_net == ATADDR_ANYNET
+        && satosat(&ro->ro_dst)->sat_addr.s_node == ATADDR_ANYNODE) {
+	    /* Find the loopback interface */
+    }
+#endif
+
     /*
      * if we have a route, find the ifa that refers to this route.
      * I.e The ifa used to get to the gateway.
@@ -187,3 +195,4 @@ printf( "ddp_route: oops\n" );
     return((*ifp->if_output)( ifp,
 	m, (struct sockaddr *)&gate, NULL)); /* XXX */
 }
+
