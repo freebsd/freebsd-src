@@ -54,11 +54,11 @@ Note that the
 .Sq raw
 partitions of the disks
 .Pa should not
-be combined.  Each component partition should be offset at least one
-cylinder from the beginning of the component disk.  This avoids potential
-conflicts between the component disk's disklabel and the
-.Nm ccd's
-disklabel.  The kernel will only allow component partitions of type FS_BSDFFS.
+be combined.  The kernel will only allow component partitions of type
+FS_BSDFFS (type
+.Dq 4.2BSD
+as shown as
+.Xr disklabel 8 ).
 .Pp
 In order to compile in support for the ccd, you must add a line similar
 to the following to your kernel configuration file:
@@ -109,6 +109,7 @@ Utah.
 .Xr MAKEDEV 8 ,
 .Xr ccdconfig 8 ,
 .Xr config 8 ,
+.Xr disklabel 8 ,
 .Xr fsck 8 ,
 .Xr mount 8 ,
 .Xr newfs 8 .
