@@ -218,9 +218,10 @@ acpi_fujitsu_attach(device_t dev)
 	    acpi_fujitsu_notify_handler, sc);
 
 	/* Snag our default values for the buttons / button states. */
-	if (!acpi_fujitsu_init(sc)) {
+	ACPI_SERIAL_BEGIN(fujitsu);
+	if (!acpi_fujitsu_init(sc))
 		device_printf(dev, "Couldn't initialize button states!\n");
-	}
+	ACPI_SERIAL_END(fujitsu);
 
 	return (0);
 }
