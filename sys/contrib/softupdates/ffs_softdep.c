@@ -213,8 +213,6 @@ static	void add_to_worklist __P((struct worklist *));
 static	void softdep_disk_io_initiation __P((struct buf *));
 static	void softdep_disk_write_complete __P((struct buf *));
 static	void softdep_deallocate_dependencies __P((struct buf *));
-static	int softdep_fsync __P((struct vnode *));
-static	int softdep_process_worklist __P((struct mount *));
 static	void softdep_move_dependencies __P((struct buf *, struct buf *));
 static	int softdep_count_dependencies __P((struct buf *bp, int));
 
@@ -521,7 +519,7 @@ add_to_worklist(wk)
  * ordering ensures that no new <vfsid, inum, lbn> triples will be generated
  * until all the old ones have been purged from the dependency lists.
  */
-static int 
+int 
 softdep_process_worklist(matchmnt)
 	struct mount *matchmnt;
 {
@@ -3690,7 +3688,7 @@ merge_inode_lists(inodedep)
  * If we are doing an fsync, then we must ensure that any directory
  * entries for the inode have been written after the inode gets to disk.
  */
-static int
+int
 softdep_fsync(vp)
 	struct vnode *vp;	/* the "in_core" copy of the inode */
 {
