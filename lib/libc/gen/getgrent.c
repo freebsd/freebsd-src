@@ -409,7 +409,10 @@ unpack:
 		strcpy(resultbuf, result);
 		free(result);
 		if(result = strchr(resultbuf, '\n')) *result = '\0';
-		return(_gr_breakout_yp(gr, resultbuf));
+		if (_gr_breakout_yp(gr, resultbuf))
+			return(1);
+		else
+			goto tryagain;
 	}
 }
 
