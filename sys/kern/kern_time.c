@@ -482,11 +482,12 @@ setitimer(struct thread *td, struct setitimer_args *uap)
 		PROC_LOCK(p);
 		if (timevalisset(&p->p_realtimer.it_value))
 			callout_stop(&p->p_itcallout);
-		if (timevalisset(&aitv.it_value)) 
+		getmicrouptime(&ctv);
+		if (timevalisset(&aitv.it_value)) {
 			callout_reset(&p->p_itcallout, tvtohz(&aitv.it_value),
 			    realitexpire, p);
-		getmicrouptime(&ctv);
-		timevaladd(&aitv.it_value, &ctv);
+			timevaladd(&aitv.it_value, &ctv);
+		}
 		oitv = p->p_realtimer;
 		p->p_realtimer = aitv;
 		PROC_UNLOCK(p);
