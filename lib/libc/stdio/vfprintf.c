@@ -899,7 +899,7 @@ error:
  * Find all arguments when a positional parameter is encountered.  Returns a
  * table, indexed by argument number, of pointers to each arguments.  The
  * initial argument table should be an array of STATIC_ARG_TBL_SIZE entries.
- * It will be replaces with a malloc-ed on if it overflows.
+ * It will be replaces with a malloc-ed one if it overflows.
  */ 
 static void
 __find_arguments (fmt0, ap, argtable)
@@ -925,8 +925,8 @@ __find_arguments (fmt0, ap, argtable)
 #define ADDTYPE(type) \
 	((nextarg >= tablesize) ? \
 		__grow_type_table(nextarg, &typetable, &tablesize) : 0, \
-	typetable[nextarg++] = type, \
-	(nextarg > tablemax) ? tablemax = nextarg : 0)
+	(nextarg > tablemax) ? tablemax = nextarg : 0, \
+	typetable[nextarg++] = type)
 
 #define	ADDSARG() \
 	((flags&LONGINT) ? ADDTYPE(T_LONG) : \
@@ -1179,20 +1179,24 @@ __grow_type_table (nextarg, typetable, tablesize)
 	unsigned char **typetable;
 	int *tablesize;
 {
-	unsigned char *oldtable = *typetable;
-	int newsize = *tablesize * 2;
+	unsigned char *const oldtable = *typetable;
+	const int oldsize = *tablesize;
+	unsigned char *newtable;
+	int newsize = oldsize * 2;
 
-	if (*tablesize == STATIC_ARG_TBL_SIZE) {
-		*typetable = (unsigned char *)
-		    malloc (sizeof (unsigned char) * newsize);
-		bcopy (oldtable, *typetable, *tablesize);
+	if (newsize < nextarg + 1)
+		newsize = nextarg + 1;
+	if (oldsize == STATIC_ARG_TBL_SIZE) {
+		if ((newtable = malloc(newsize)) == NULL)
+			abort();			/* XXX handle better */
+		bcopy(oldtable, newtable, oldsize);
 	} else {
-		*typetable = (unsigned char *)
-		    reallocf (typetable, sizeof (unsigned char) * newsize);
-
+		if ((newtable = reallocf(oldtable, newsize)) == NULL)
+			abort();			/* XXX handle better */
 	}
-	memset (&typetable [*tablesize], T_UNUSED, (newsize - *tablesize));
+	memset(&newtable[oldsize], T_UNUSED, newsize - oldsize);
 
+	*typetable = newtable;
 	*tablesize = newsize;
 }
 
