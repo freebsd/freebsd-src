@@ -26,7 +26,7 @@
 .\" (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
 .\" THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 .\"
-.\" $Id: VOP_REMOVE.9,v 1.1 1997/03/03 18:00:36 dfr Exp $
+.\" $Id: VOP_REMOVE.9,v 1.2 1997/03/04 10:02:36 dfr Exp $
 .\"
 .Dd July 24, 1996
 .Os
@@ -93,7 +93,7 @@ vop_remove(struct vnode *dvp, struct vnode *vp, struct componentname *cnp)
 }
 .Ed
 .Sh ERRORS
-.Bl -tag -width [ENOTEMPTY]
+.Bl -tag -width Er
 .It Bq Er EPERM
 the file is immutable
 .It Bq Er ENOTEMPTY
