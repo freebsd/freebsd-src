@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)clock.c	7.2 (Berkeley) 5/12/91
- *	$Id: clock.c,v 1.22 1997/05/28 09:04:26 kato Exp $
+ *	$Id: clock.c,v 1.23 1997/05/30 09:57:08 kato Exp $
  */
 
 /*
@@ -67,6 +67,7 @@
 #endif
 #include <machine/cpu.h>
 #include <machine/frame.h>
+#include <machine/ipl.h>
 
 #include <i386/isa/icu.h>
 #ifdef PC98
