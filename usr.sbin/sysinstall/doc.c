@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: doc.c,v 1.1 1995/10/20 07:03:40 jkh Exp $
+ * $Id: doc.c,v 1.2 1995/10/20 14:24:41 jkh Exp $
  *
  * Jordan Hubbard
  *
@@ -25,7 +25,7 @@
 int
 docBrowser(char *junk)
 {
-    char *browser = variable_get(BROWSER_PACKAGE);
+    char *browser = variable_get(VAR_BROWSER_PACKAGE);
  
     /* Make sure we were started at a reasonable time */
     if (!strcmp(variable_get(SYSTEM_STATE), "init")) {
@@ -44,14 +44,14 @@ docBrowser(char *junk)
 		   "try again.", browser);
 	return RET_FAIL;
     }
-    if (!file_executable(variable_get(BROWSER_BINARY))) {
+    if (!file_executable(variable_get(VAR_BROWSER_BINARY))) {
 	if (!msgYesNo("Hmmm.  The %s package claims to have installed, but I can't\n"
 		      "find its binary in %s!  You may wish to try a different\n"
 		      "location to load the package from (go to Media menu) and see if that\n"
 		      "makes a difference.\n\n"
 		      "I suggest that we remove the version that was extracted since it does\n"
 		      "not appear to be correct.   Would you like me to do that now?"))
-	    vsystem("pkg_delete %s %s", !strcmp(variable_get(CPIO_VERBOSITY_LEVEL), "high") ? "-v" : "", browser);
+	    vsystem("pkg_delete %s %s", !strcmp(variable_get(VAR_CPIO_VERBOSITY), "high") ? "-v" : "", browser);
 	return RET_FAIL;
     }
 
@@ -64,7 +64,7 @@ docBrowser(char *junk)
 int
 docShowDocument(char *str)
 {
-    char *browser = variable_get(BROWSER_BINARY);
+    char *browser = variable_get(VAR_BROWSER_BINARY);
 
     if (!file_executable(browser)) {
 	msgConfirm("Can't find the browser in %s!  Please ensure that it's\n"

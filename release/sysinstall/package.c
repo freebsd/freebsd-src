@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: package.c,v 1.7 1995/10/20 22:36:06 jkh Exp $
+ * $Id: package.c,v 1.8 1995/10/21 20:03:07 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -85,7 +85,7 @@ package_extract(Device *dev, char *name)
 	    tpid = fork();
 	    if (!tpid) {
 		dup2(fd, 0);
-		i = vsystem("tar %s-xzf -", !strcmp(variable_get(CPIO_VERBOSITY_LEVEL), "high") ? "-v " : "");
+		i = vsystem("tar %s-xzf -", !strcmp(variable_get(VAR_CPIO_VERBOSITY), "high") ? "-v " : "");
 		if (isDebug())
 		    msgDebug("tar command returns %d status\n", i);
 		exit(i);
@@ -95,7 +95,7 @@ package_extract(Device *dev, char *name)
 		
 		tpid = waitpid(tpid, &pstat, 0);
 		if (vsystem("(pwd; cat +CONTENTS) | pkg_add %s-S",
-			    !strcmp(variable_get(CPIO_VERBOSITY_LEVEL), "high") ? "-v " : ""))
+			    !strcmp(variable_get(VAR_CPIO_VERBOSITY), "high") ? "-v " : ""))
 		    msgConfirm("An error occurred while trying to pkg_add %s.\n"
 			       "Please check debugging screen for possible further details.", path);
 		else
