@@ -48,8 +48,8 @@
 #include <vm/pmap.h>
 
 #include <sys/digiio.h>
-#include <digi/digireg.h>
-#include <digi/digi.h>
+#include <dev/digi/digireg.h>
+#include <dev/digi/digi.h>
 
 /* Valid i/o addresses are any of these with either 0 or 4 added */
 static u_long digi_validio[] = {
