@@ -24,6 +24,7 @@ BTX=	${.OBJDIR}/../btx
 BTX=	${.CURDIR}/../btx
 .endif
 
+REL1=	0x700
 ORG1=	0x7c00
 ORG2=	0x1000
 
@@ -68,8 +69,10 @@ boot2.o: boot2.c ${.CURDIR}/../../common/ufsread.c
 
 boot2.h: boot1.out
 	${NM} -t d ${.ALLSRC} | awk '/([0-9])+ T xread/ \
-	 	{ x = $$1 - ORG1; printf("#define XREADORG 0x7%x\n", x) }' \
-	 	ORG1=`printf "%d" ${ORG1}` > boot2.h
+	 	{ x = $$1 - ORG1; \
+		printf("#define XREADORG %#x\n", REL1 + x) }' \
+	 	ORG1=`printf "%d" ${ORG1}` \
+		REL1=`printf "%d" ${REL1}` > boot2.h
 
 boot2: boot2.ldr boot2.bin ${BTX}/btx/btx
 	btxld -v -E ${ORG2} -f bin -b ${BTX}/btx/btx -l boot2.ldr \
