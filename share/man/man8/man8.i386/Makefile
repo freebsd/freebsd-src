@@ -4,6 +4,4 @@
 MAN8=	MAKEDEV.8
 MANSUBDIR=/i386
 
-MLINKS= MAKEDEV.8 ../MAKEDEV.8 ../rc.i386.8 rc.i386.8
-
 .include <bsd.prog.mk>
