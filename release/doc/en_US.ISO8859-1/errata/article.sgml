@@ -1,0 +1,241 @@
+<!-- 
+	FreeBSD errata document.  Unlike some of the other RELNOTESng
+	files, this file should remain as a single SGML file, so that
+	the dollar FreeBSD dollar header has a meaningful modification
+	time.  This file is all but useless without a datestamp on it,
+	so we'll take some extra care to make sure it has one.
+
+	(If we didn't do this, then the file with the datestamp might
+	not be the one that received the last change in the document.)
+
+-->
+
+<!DOCTYPE article PUBLIC "-//FreeBSD//DTD DocBook V4.1-Based Extension//EN" [
+<!ENTITY % man PUBLIC "-//FreeBSD//ENTITIES DocBook Manual Page Entities//EN">
+%man;
+<!ENTITY % authors PUBLIC  "-//FreeBSD//ENTITIES DocBook Author Entities//EN">
+%authors;
+<!ENTITY % mlists PUBLIC "-//FreeBSD//ENTITIES DocBook Mailing List Entities//EN">
+%mlists;
+<!ENTITY % release PUBLIC "-//FreeBSD//ENTITIES Release Specification//EN">
+%release;
+]>
+
+<article>
+  <articleinfo>
+    <title>&os;
+<![ %release.type.snapshot [
+    &release.prev;
+]]>
+<![ %release.type.release [
+    &release.current;
+]]>
+    Errata</title>
+
+    <corpauthor>
+    The &os; Project
+    </corpauthor>
+
+    <pubdate>$FreeBSD$</pubdate>
+
+    <copyright>
+      <year>2000</year>
+      <year>2001</year>
+      <year>2002</year>
+      <holder role="mailto:doc@FreeBSD.org">The FreeBSD Documentation Project</holder>
+    </copyright>
+  </articleinfo>
+
+  <abstract>
+    <para>This document lists errata items for &os; 
+<![ %release.type.snapshot [
+      &release.prev;,
+]]>
+<![ %release.type.release [
+      &release.current;,
+]]>
+      containing significant information discovered after the release.
+      This information includes security advisories, as well as news
+      relating to the software or documentation that could affect its
+      operation or usability.  An up-to-date version of this document
+      should always be consulted before installing this version of
+      &os;.</para>
+
+    <para>This errata document for &os; 
+<![ %release.type.snapshot [
+      &release.prev;
+]]>
+<![ %release.type.release [
+      &release.current;
+]]>
+      will be maintained until the release of &os; &release.next;.</para>
+  </abstract>
+
+  <sect1>
+    <title>Introduction</title>
+
+    <para>This errata document contains <quote>late-breaking news</quote>
+      about &os;
+<![ %release.type.snapshot [
+      &release.prev;.
+]]>
+<![ %release.type.release [
+      &release.current;.
+]]>
+      Before installing this version, it is important to consult this
+      document to learn about any post-release discoveries or problems
+      that may already have been found and fixed.</para>
+
+    <para>Any version of this errata document actually distributed
+      with the release (for example, on a CDROM distribution) will be
+      out of date by definition, but other copies are kept updated on
+      the Internet and should be consulted as the <quote>current
+      errata</quote> for this release.  These other copies of the
+      errata are located at <ulink
+      url="http://www.FreeBSD.org/releases/"></ulink>, plus any sites
+      which keep up-to-date mirrors of this location.</para>
+
+    <para>Source and binary snapshots of &os; &release.branch; also
+      contain up-to-date copies of this document (as of the time of
+      the snapshot).</para>
+
+    <para>For a list of all &os; CERT security advisories, see <ulink
+      url="http://www.FreeBSD.org/security/"></ulink> or <ulink
+      url="ftp://ftp.FreeBSD.org/pub/FreeBSD/CERT/"></ulink>.</para>
+
+  </sect1>
+
+  <sect1>
+    <title>Security Advisories</title>
+
+<![ %release.type.release [
+    <para>No active security advisories.</para>
+]]>
+
+<![ %release.type.snapshot [
+    <para>Support for per-user <filename>~/.login_conf</filename>
+      files (as documented in &man.login.conf.5;) was disabled
+      due to incorrect merging of local and global settings.  This
+      problem has been fixed in &os; &release.current;.</para>
+
+    <para>A local root vulnerability in
+      <application>UUCP</application> was corrected before the release
+      of &os; &release.prev; and documented in security advisory
+      <ulink url="ftp://ftp.FreeBSD.org/pub/FreeBSD/CERT/advisories/FreeBSD-SA-01:62.uucp.asc">FreeBSD-SA-01:62</ulink>.
+      The release notes mentioned the correction,
+      but not the security advisory, which was issued after the
+      release date of &release.prev;.</para>
+
+    <para>A security hole in <application>OpenSSH</application> could
+      allow users to execute code with arbitrary privileges
+      if <literal>UseLogin yes</literal> was set, has been
+      closed.  Note that the default value of this setting is
+      <literal>UseLogin no</literal>.  For more information, including
+      workarounds and bugfixes, see security advisory
+      <ulink url="ftp://ftp.FreeBSD.org/pub/FreeBSD/CERT/advisories/FreeBSD-SA-01:63.openssh.asc">FreeBSD-SA-01:63</ulink>.</para>
+
+    <para>The use of an insecure temporary directory by
+      &man.pkg.add.1; could permit a local attacker to modify the
+      contents of binary packages while they were being installed.
+      This hole has been closed.  For more information, see security advisory
+      <ulink url="ftp://ftp.FreeBSD.org/pub/FreeBSD/CERT/advisories/FreeBSD-SA-02:01.pkg_add.asc">FreeBSD-SA-02:01</ulink>.</para>
+
+    <para>A race condition in &man.pw.8;, which could expose the
+      contents of <filename>/etc/master.passwd</filename>, has been
+      eliminated.  For more information, including workarounds and
+      bugfixes, see security advisory 
+      <ulink url="ftp://ftp.FreeBSD.org/pub/FreeBSD/CERT/advisories/FreeBSD-SA-02:02.pw.asc">FreeBSD-SA-02:02</ulink>.</para>
+
+    <para>A bug in &man.k5su.8; could have allowed a process that had
+      given up superuser privileges to regain them.  This bug has been
+      fixed.  (See security advisory <ulink 
+      url="ftp://ftp.FreeBSD.org/pub/FreeBSD/CERT/advisories/FreeBSD-SA-02:07.k5su.asc">FreeBSD-SA-02:07</ulink>.)</para>
+
+    <para>A race condition in the &man.exec.3; system call, which
+      could result in local users obtaining increased privileges, has
+      been fixed.  For more information, including bugfixes, see
+      security advisory <ulink
+      url="ftp://ftp.FreeBSD.org/pub/FreeBSD/CERT/advisories/FreeBSD-SA-02:08.exec.asc">FreeBSD-SA-02:08</ulink>.)</para>
+
+]]>
+  </sect1>
+
+  <sect1>
+    <title>System Update Information</title>
+
+<![ %release.type.release [
+    <para>No active updates.</para>
+]]>
+
+<![ %release.type.snapshot [
+    <para>The handling of some types of comments in &man.printcap.5;
+      files is faulty.  If a comment line ends in
+      <literal>:\</literal> (the characters normally used to indicate
+      the continuation of a printer definition), the line following
+      the comment will be parsed as a part of the previous printer
+      definition.</para>
+
+    <para>One of the release notes refers to the
+      <varname>net.inet.tcp.tcp_seq_genscheme</varname> sysctl variable
+      for enabling improved compatability in TCP's initial sequence
+      number generation algorithm.  This variable was rendered
+      unnecessary by the adoption of an algorithm based on RFC 1948,
+      which restores proper operation in all cases while maintaining a
+      high level of unpredictability in initial sequence numbers.</para>
+
+    <para>The <filename>tools/</filename> directory of a &os; CDROM
+      distribution typically contains some DOS programs for i386
+      machines, such as <filename>fdimage.exe</filename> and
+      <filename>fips.exe</filename>.  This directory was inadvertently
+      omitted from the initial 4.4-RELEASE ISO images generated by the &os;
+      Project.  Corrected versions of the
+      <filename>4.4-install.iso</filename> and
+      <filename>4.4-mini.iso</filename> ISO images were regenerated on
+      Saturday, 22 September 2001.  For those who need these DOS-mode
+      tools and do not wish to re-fetch the ISO images, the contents of the
+      <filename>tools/</filename> 
+      directory are available by anonymous FTP at <ulink
+      url="ftp://ftp.FreeBSD.org/pub/FreeBSD/tools"></ulink> (many
+      mirrors also have a copy of this directory).</para>
+
+    <para>One of the items in the release notes gave a workaround
+      for hangs during PCCARD ejection, but gave the wrong syntax for
+      the necessary command.  The correct command line is:
+
+    <screen>&prompt.root; <userinput>pccardc power <replaceable>slot</replaceable> 0</userinput></screen>
+
+    <para>On the i386, the minimum memory requirement for installing
+      &os; via &man.sysinstall.8; is 16MB, with 4&ndash;8MB required
+      to run &os; with a pared-down kernel.  The installation
+      instructions in <filename>INSTALL.TXT</filename> (and other
+      renditions thereof) cited somewhat lower figures.</para> 
+
+    <para>A release note mentioned the merging of two libraries used
+      for password authentication hashing, but listed their names
+      incorrectly.  The libraries that were merged were
+      <filename>libscrypt</filename> and
+      <filename>libdescrypt</filename>; the new unified
+      library is called <filename>libcrypt</filename>.</para>
+
+    <para>A problem has been noted with an increasing number of device
+      drivers that make heavy use of and, in some cases, can overflow,
+      the kernel stack.  This problem has an easily-identifable
+      signature; processes randomly receive a
+      <literal>SIGPROF</literal> signal and may die with the message
+      <errorname>Profiling time alarm</errorname>.  For those users
+      experiencing this problem, a workaround is to edit
+      <filename>/src/sys/i386/include/param.h</filename> and change
+      the line which reads:
+
+      <programlisting>#define UPAGES  2</programlisting>
+
+      to read:
+
+      <programlisting>#define UPAGES  3</programlisting>
+
+      It will be necessary to recompile the kernel and reboot for the
+      change to take effect.  This problem has been fixed in &os;
+      &release.current;.</para>
+]]>
+  </sect1>
+</article>
