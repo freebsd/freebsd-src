@@ -64,7 +64,7 @@ extern kvm_t *kd;
 extern int vflg;
 extern int Pid;
 
-udev_t dev2udev(dev_t dev);
+udev_t dev2udev(struct cdev *dev);
 
 /* Additional filesystem types */
 int isofs_filestat(struct vnode *vp, struct filestat *fsp);
