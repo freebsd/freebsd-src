@@ -115,7 +115,6 @@ main(int argc, char **argv)
 	struct bsdtar		*bsdtar, bsdtar_storage;
 	struct passwd		*pwent;
 	int			 opt;
-	int			 i;
 	char			 mode;
 	char			 buff[16];
 
@@ -391,16 +390,7 @@ main(int argc, char **argv)
 	if (bsdtar->user_uname != NULL)
 		free(bsdtar->user_uname);
 
-	for (i = 0; i < bsdtar_hash_size; i++) {
-		if (bsdtar->uname_lookup[i].uname != NULL)
-			free(bsdtar->uname_lookup[i].uname);
-	}
-
-	for (i = 0; i < bsdtar_hash_size; i++) {
-		if (bsdtar->gname_lookup[i].gname != NULL)
-			free(bsdtar->gname_lookup[i].gname);
-	}
-
+	cleanup_exclusions(bsdtar);
 	return 0;
 }
 

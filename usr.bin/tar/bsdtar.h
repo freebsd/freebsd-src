@@ -32,15 +32,13 @@
 #include <archive.h>
 #include <stdio.h>
 
-/* Data for exclusion/inclusion handling: defined in matching.c */
-struct matching;
-struct links_entry;
-struct archive_dir_entry;
-
 /*
- * The internal state for the "bsdtar" program.  This is registered
- * with the 'archive' structure so that this information will be
- * available to the read/write callbacks.
+ * The internal state for the "bsdtar" program.
+ *
+ * Keeping all of the state in a structure like this simplifies memory
+ * leak testing (at exit, anything left on the heap is suspect).  A
+ * pointer to this structure is passed to most bsdtar internal
+ * functions.
  */
 struct bsdtar {
 	/* Options */
@@ -66,31 +64,22 @@ struct bsdtar {
 	int		  fd;
 
 	/* Miscellaneous state information */
-	size_t		  u_width; /* for 'list_item' */
-	size_t		  gs_width; /* For 'list_item' */
-	char		 *user_uname; /* User running this program */
-	uid_t		  user_uid; /* UID running this program */
 	int		  argc;
 	char		**argv;
+	size_t		  gs_width; /* For 'list_item' in read.c */
+	size_t		  u_width; /* for 'list_item' in read.c */
+	char		 *user_uname; /* User running this program */
+	uid_t		  user_uid; /* UID running this program */
 
-	struct matching	 *matching;
-
-	struct links_entry	*links_head;
-	struct archive_dir_entry *archive_dir_head, *archive_dir_tail;
-
-	/* An arbitrary prime number. */
-	#define bsdtar_hash_size 71
-	/* A simple hash of uid/uname for caching uname lookups. */
-	struct {
-		uid_t uid;
-		char *uname;
-	} uname_lookup[bsdtar_hash_size];
-
-	/* A simple hash of gid/gname for caching gname lookups. */
-	struct {
-		gid_t gid;
-		char *gname;
-	} gname_lookup[bsdtar_hash_size];
+        /*
+	 * Data for various subsystems.  Full definitions are located in
+	 * the file where they are used.
+	 */
+	struct archive_dir	*archive_dir;	/* for write.c */
+	struct gname_cache	*gname_cache;	/* for write.c */
+	struct links_cache	*links_cache;	/* for write.c */
+	struct matching		*matching;	/* for matching.c */
+	struct uname_cache	*uname_cache;	/* for write.c */
 };
 
 const char	*bsdtar_progname(void);
@@ -100,15 +89,12 @@ void	cleanup_exclusions(struct bsdtar *);
 void	exclude(struct bsdtar *, const char *pattern);
 int	excluded(struct bsdtar *, const char *pathname);
 void	include(struct bsdtar *, const char *pattern);
-
 void	safe_fprintf(FILE *, const char *fmt, ...);
-
 void	tar_mode_c(struct bsdtar *bsdtar);
 void	tar_mode_r(struct bsdtar *bsdtar);
 void	tar_mode_t(struct bsdtar *bsdtar);
 void	tar_mode_u(struct bsdtar *bsdtar);
 void	tar_mode_x(struct bsdtar *bsdtar);
-
 int	unmatched_inclusions(struct bsdtar *bsdtar);
 void	usage(void);
 int	yes(const char *fmt, ...);
