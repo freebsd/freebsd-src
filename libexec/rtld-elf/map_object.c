@@ -27,9 +27,11 @@
 
 #include <sys/param.h>
 #include <sys/mman.h>
+#include <sys/stat.h>
 
 #include <errno.h>
 #include <stddef.h>
+#include <stdlib.h>
 #include <string.h>
 #include <unistd.h>
 
@@ -46,7 +48,7 @@ static int protflags(int);	/* Elf flags -> mmap protection */
  * for the shared object.  Returns NULL on failure.
  */
 Obj_Entry *
-map_object(int fd, const char *path)
+map_object(int fd, const char *path, const struct stat *sb)
 {
     Obj_Entry *obj;
     union {
@@ -60,6 +62,7 @@ map_object(int fd, const char *path)
     int nsegs;
     Elf_Phdr *phdyn;
     Elf_Phdr *phphdr;
+    Elf_Phdr *phinterp;
     caddr_t mapbase;
     size_t mapsize;
     Elf_Off base_offset;
@@ -134,10 +137,13 @@ map_object(int fd, const char *path)
     phdr = (Elf_Phdr *) (u.buf + u.hdr.e_phoff);
     phlimit = phdr + u.hdr.e_phnum;
     nsegs = 0;
-    phdyn = NULL;
-    phphdr = NULL;
+    phdyn = phphdr = phinterp = NULL;
     while (phdr < phlimit) {
 	switch (phdr->p_type) {
+
+	case PT_INTERP:
+	    phinterp = phdr;
+	    break;
 
 	case PT_LOAD:
 	    if (nsegs >= 2) {
@@ -226,23 +232,62 @@ map_object(int fd, const char *path)
 	}
     }
 
-    obj = CNEW(Obj_Entry);
+    obj = obj_new();
+    if (sb != NULL) {
+	obj->dev = sb->st_dev;
+	obj->ino = sb->st_ino;
+    }
     obj->mapbase = mapbase;
     obj->mapsize = mapsize;
     obj->textsize = round_page(segs[0]->p_vaddr + segs[0]->p_memsz) -
       base_vaddr;
     obj->vaddrbase = base_vaddr;
     obj->relocbase = mapbase - base_vaddr;
-    obj->dynamic = (const Elf_Dyn *)
-      (mapbase + (phdyn->p_vaddr - base_vaddr));
+    obj->dynamic = (const Elf_Dyn *) (obj->relocbase + phdyn->p_vaddr);
     if (u.hdr.e_entry != 0)
-	obj->entry = (caddr_t) (mapbase + (u.hdr.e_entry - base_vaddr));
+	obj->entry = (caddr_t) (obj->relocbase + u.hdr.e_entry);
     if (phphdr != NULL) {
-	obj->phdr = (const Elf_Phdr *)
-	  (mapbase + (phphdr->p_vaddr - base_vaddr));
+	obj->phdr = (const Elf_Phdr *) (obj->relocbase + phphdr->p_vaddr);
 	obj->phsize = phphdr->p_memsz;
     }
+    if (phinterp != NULL)
+	obj->interp = (const char *) (obj->relocbase + phinterp->p_vaddr);
 
+    return obj;
+}
+
+void
+obj_free(Obj_Entry *obj)
+{
+    Objlist_Entry *elm;
+
+    free(obj->path);
+    while (obj->needed != NULL) {
+	Needed_Entry *needed = obj->needed;
+	obj->needed = needed->next;
+	free(needed);
+    }
+    while (!STAILQ_EMPTY(&obj->dldags)) {
+	elm = STAILQ_FIRST(&obj->dldags);
+	STAILQ_REMOVE_HEAD(&obj->dldags, link);
+	free(elm);
+    }
+    while (!STAILQ_EMPTY(&obj->dagmembers)) {
+	elm = STAILQ_FIRST(&obj->dagmembers);
+	STAILQ_REMOVE_HEAD(&obj->dagmembers, link);
+	free(elm);
+    }
+    free(obj);
+}
+
+Obj_Entry *
+obj_new(void)
+{
+    Obj_Entry *obj;
+
+    obj = CNEW(Obj_Entry);
+    STAILQ_INIT(&obj->dldags);
+    STAILQ_INIT(&obj->dagmembers);
     return obj;
 }
 
