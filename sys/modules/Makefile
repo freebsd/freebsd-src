@@ -162,6 +162,7 @@ SUBDIR+=3dfx \
 	awi \
 	bktr \
 	coff \
+	drm \
 	ed \
 	em \
 	ep \
@@ -205,7 +206,6 @@ SUBDIR+=aac \
 	cbb \
 	ciss \
 	cm \
-	drm \
 	el \
 	exca \
 	iir \
