@@ -108,8 +108,8 @@ static void fw_attach_dev (struct firewire_comm *);
 #ifdef FW_VMACCESS
 static void fw_vmaccess (struct fw_xfer *);
 #endif
-struct fw_xfer *asyreqq (struct firewire_comm *, u_int8_t, u_int8_t, u_int8_t,
-	u_int32_t, u_int32_t, void (*)(struct fw_xfer *));
+struct fw_xfer *asyreqq (struct firewire_comm *, uint8_t, uint8_t, uint8_t,
+	uint32_t, uint32_t, void (*)(struct fw_xfer *));
 static int fw_bmr (struct firewire_comm *);
 
 static device_method_t firewire_methods[] = {
@@ -686,14 +686,14 @@ fw_busreset(struct firewire_comm *fc)
 
 	newrom = malloc(CROMSIZE, M_FW, M_NOWAIT | M_ZERO);
 	src = &fc->crom_src_buf->src;
-	crom_load(src, (u_int32_t *)newrom, CROMSIZE);
+	crom_load(src, (uint32_t *)newrom, CROMSIZE);
 	if (bcmp(newrom, fc->config_rom, CROMSIZE) != 0) {
 		/* bump generation and reload */
 		src->businfo.generation ++;
 		/* generation must be between 0x2 and 0xF */
 		if (src->businfo.generation < 2)
 			src->businfo.generation ++;
-		crom_load(src, (u_int32_t *)newrom, CROMSIZE);
+		crom_load(src, (uint32_t *)newrom, CROMSIZE);
 		bcopy(newrom, (void *)fc->config_rom, CROMSIZE);
 	}
 	free(newrom, M_FW);
@@ -831,7 +831,7 @@ void fw_init(struct firewire_comm *fc)
  * To lookup bound process from IEEE1394 address.
  */
 struct fw_bind *
-fw_bindlookup(struct firewire_comm *fc, u_int16_t dest_hi, u_int32_t dest_lo)
+fw_bindlookup(struct firewire_comm *fc, uint16_t dest_hi, uint32_t dest_lo)
 {
 	u_int64_t addr;
 	struct fw_bind *tfw;
@@ -1135,7 +1135,7 @@ fw_phy_config(struct firewire_comm *fc, int root_node, int gap_count)
  * Dump self ID. 
  */
 static void
-fw_print_sid(u_int32_t sid)
+fw_print_sid(uint32_t sid)
 {
 	union fw_self_id *s;
 	s = (union fw_self_id *) &sid;
@@ -1151,16 +1151,16 @@ fw_print_sid(u_int32_t sid)
 /*
  * To receive self ID. 
  */
-void fw_sidrcv(struct firewire_comm* fc, u_int32_t *sid, u_int len)
+void fw_sidrcv(struct firewire_comm* fc, uint32_t *sid, u_int len)
 {
-	u_int32_t *p;
+	uint32_t *p;
 	union fw_self_id *self_id;
 	u_int i, j, node, c_port = 0, i_branch = 0;
 
-	fc->sid_cnt = len /(sizeof(u_int32_t) * 2);
+	fc->sid_cnt = len /(sizeof(uint32_t) * 2);
 	fc->status = FWBUSINIT;
 	fc->max_node = fc->nodeid & 0x3f;
-	CSRARC(fc, NODE_IDS) = ((u_int32_t)fc->nodeid) << 16;
+	CSRARC(fc, NODE_IDS) = ((uint32_t)fc->nodeid) << 16;
 	fc->status = FWBUSCYMELECT;
 	fc->topology_map->crc_len = 2;
 	fc->topology_map->generation ++;
@@ -1220,19 +1220,19 @@ void fw_sidrcv(struct firewire_comm* fc, u_int32_t *sid, u_int len)
 	device_printf(fc->bdev, "%d nodes", fc->max_node + 1);
 	/* CRC */
 	fc->topology_map->crc = fw_crc16(
-			(u_int32_t *)&fc->topology_map->generation,
+			(uint32_t *)&fc->topology_map->generation,
 			fc->topology_map->crc_len * 4);
 	fc->speed_map->crc = fw_crc16(
-			(u_int32_t *)&fc->speed_map->generation,
+			(uint32_t *)&fc->speed_map->generation,
 			fc->speed_map->crc_len * 4);
 	/* byteswap and copy to CSR */
-	p = (u_int32_t *)fc->topology_map;
+	p = (uint32_t *)fc->topology_map;
 	for (i = 0; i <= fc->topology_map->crc_len; i++)
 		CSRARC(fc, TOPO_MAP + i * 4) = htonl(*p++);
-	p = (u_int32_t *)fc->speed_map;
+	p = (uint32_t *)fc->speed_map;
 	CSRARC(fc, SPED_MAP) = htonl(*p++);
 	CSRARC(fc, SPED_MAP + 4) = htonl(*p++);
-	/* don't byte-swap u_int8_t array */
+	/* don't byte-swap uint8_t array */
 	bcopy(p, &CSRARC(fc, SPED_MAP + 8), (fc->speed_map->crc_len - 1)*4);
 
 	fc->max_hop = fc->max_node - i_branch;
@@ -1319,7 +1319,7 @@ fw_bus_explore(struct firewire_comm *fc )
 {
 	int err = 0;
 	struct fw_device *fwdev, *pfwdev, *tfwdev;
-	u_int32_t addr;
+	uint32_t addr;
 	struct fw_xfer *xfer;
 	struct fw_pkt *fp;
 
@@ -1442,8 +1442,8 @@ done:
 
 /* Portable Async. request read quad */
 struct fw_xfer *
-asyreqq(struct firewire_comm *fc, u_int8_t spd, u_int8_t tl, u_int8_t rt,
-	u_int32_t addr_hi, u_int32_t addr_lo,
+asyreqq(struct firewire_comm *fc, uint8_t spd, uint8_t tl, uint8_t rt,
+	uint32_t addr_hi, uint32_t addr_lo,
 	void (*hand) (struct fw_xfer*))
 {
 	struct fw_xfer *xfer;
@@ -1489,7 +1489,7 @@ fw_bus_explore_callback(struct fw_xfer *xfer)
 	struct csrhdr *chdr;
 	struct csrdir *csrd;
 	struct csrreg *csrreg;
-	u_int32_t offset;
+	uint32_t offset;
 
 	
 	if(xfer == NULL) {
@@ -1517,9 +1517,9 @@ fw_bus_explore_callback(struct fw_xfer *xfer)
 	rfp = &xfer->recv.hdr;
 #if 0
 	{
-		u_int32_t *qld;
+		uint32_t *qld;
 		int i;
-		qld = (u_int32_t *)xfer->recv.buf;
+		qld = (uint32_t *)xfer->recv.buf;
 		printf("len:%d\n", xfer->recv.len);
 		for( i = 0 ; i <= xfer->recv.len && i < 32; i+= 4){
 			printf("0x%08x ", rfp->mode.ld[i/4]);
@@ -1710,7 +1710,7 @@ fw_get_tlabel(struct firewire_comm *fc, struct fw_xfer *xfer)
 	u_int i;
 	struct tlabel *tl, *tmptl;
 	int s;
-	static u_int32_t label = 0;
+	static uint32_t label = 0;
 
 	s = splfw();
 	for( i = 0 ; i < 0x40 ; i ++){
@@ -1767,9 +1767,9 @@ fw_rcv_copy(struct fw_rcv_buf *rb)
 
 	/* special handling for RRESQ */
 	if (pkt->mode.hdr.tcode == FWTCODE_RRESQ &&
-	    p != NULL && res >= sizeof(u_int32_t)) {
-		*(u_int32_t *)p = pkt->mode.rresq.data;
-		rb->xfer->recv.pay_len = sizeof(u_int32_t);
+	    p != NULL && res >= sizeof(uint32_t)) {
+		*(uint32_t *)p = pkt->mode.rresq.data;
+		rb->xfer->recv.pay_len = sizeof(uint32_t);
 		return;
 	}
 
@@ -1808,9 +1808,9 @@ fw_rcv(struct fw_rcv_buf *rb)
 	int i, len, oldstate;
 #if 0
 	{
-		u_int32_t *qld;
+		uint32_t *qld;
 		int i;
-		qld = (u_int32_t *)buf;
+		qld = (uint32_t *)buf;
 		printf("spd %d len:%d\n", spd, len);
 		for( i = 0 ; i <= len && i < 32; i+= 4){
 			printf("0x%08x ", ntohl(qld[i/4]));
@@ -2108,7 +2108,7 @@ fw_try_bmr(void *arg)
 static void
 fw_vmaccess(struct fw_xfer *xfer){
 	struct fw_pkt *rfp, *sfp = NULL;
-	u_int32_t *ld = (u_int32_t *)xfer->recv.buf;
+	uint32_t *ld = (uint32_t *)xfer->recv.buf;
 
 	printf("vmaccess spd:%2x len:%03x data:%08x %08x %08x %08x\n",
 			xfer->spd, xfer->recv.len, ntohl(ld[0]), ntohl(ld[1]), ntohl(ld[2]), ntohl(ld[3]));
@@ -2137,7 +2137,7 @@ fw_vmaccess(struct fw_xfer *xfer){
 			xfer->send.buf = malloc(12, M_FW, M_NOWAIT);
 			xfer->send.len = 12;
 			sfp->mode.wres.tcode = FWTCODE_WRES;
-			*((u_int32_t *)(ntohl(rfp->mode.wreqb.dest_lo))) = rfp->mode.wreqq.data;
+			*((uint32_t *)(ntohl(rfp->mode.wreqb.dest_lo))) = rfp->mode.wreqq.data;
 			sfp->mode.wres.rtcode = 0;
 			break;
 		case FWTCODE_RREQB:
@@ -2145,7 +2145,7 @@ fw_vmaccess(struct fw_xfer *xfer){
 			xfer->send.len = 16 + ntohs(rfp->mode.rreqb.len);
 			sfp = (struct fw_pkt *)xfer->send.buf;
 			bcopy((caddr_t)ntohl(rfp->mode.rreqb.dest_lo),
-				sfp->mode.rresb.payload, (u_int16_t)ntohs(rfp->mode.rreqb.len));
+				sfp->mode.rresb.payload, (uint16_t)ntohs(rfp->mode.rreqb.len));
 			sfp->mode.rresb.tcode = FWTCODE_RRESB;
 			sfp->mode.rresb.len = rfp->mode.rreqb.len;
 			sfp->mode.rresb.rtcode = 0;
@@ -2155,7 +2155,7 @@ fw_vmaccess(struct fw_xfer *xfer){
 			xfer->send.buf = malloc(16, M_FW, M_NOWAIT);
 			xfer->send.len = 16;
 			sfp = (struct fw_pkt *)xfer->send.buf;
-			sfp->mode.rresq.data = *(u_int32_t *)(ntohl(rfp->mode.rreqq.dest_lo));
+			sfp->mode.rresq.data = *(uint32_t *)(ntohl(rfp->mode.rreqq.dest_lo));
 			sfp->mode.wres.tcode = FWTCODE_RRESQ;
 			sfp->mode.rresb.rtcode = 0;
 			break;
@@ -2180,9 +2180,9 @@ fw_vmaccess(struct fw_xfer *xfer){
 /*
  * CRC16 check-sum for IEEE1394 register blocks.
  */
-u_int16_t
-fw_crc16(u_int32_t *ptr, u_int32_t len){
-	u_int32_t i, sum, crc = 0;
+uint16_t
+fw_crc16(uint32_t *ptr, uint32_t len){
+	uint32_t i, sum, crc = 0;
 	int shift;
 	len = (len + 3) & ~3;
 	for(i = 0 ; i < len ; i+= 4){
@@ -2192,7 +2192,7 @@ fw_crc16(u_int32_t *ptr, u_int32_t len){
 		}
 		crc &= 0xffff;
 	}
-	return((u_int16_t) crc);
+	return((uint16_t) crc);
 }
 
 static int
@@ -2201,7 +2201,7 @@ fw_bmr(struct firewire_comm *fc)
 	struct fw_device fwdev;
 	union fw_self_id *self_id;
 	int cmstr;
-	u_int32_t quad;
+	uint32_t quad;
 
 	/* Check to see if the current root node is cycle master capable */
 	self_id = fw_find_self_id(fc, fc->max_node);

@@ -72,13 +72,13 @@ typedef struct fwohci_softc {
 		bus_dma_tag_t dmat;
 	} arrq, arrs, atrq, atrs, it[OHCI_DMA_ITCH], ir[OHCI_DMA_IRCH];
 	u_int maxrec;
-	u_int32_t *sid_buf;
+	uint32_t *sid_buf;
 	struct fwdma_alloc sid_dma;
 	struct fwdma_alloc crom_dma;
 	struct fwdma_alloc dummy_dma;
-	u_int32_t intmask, irstat, itstat;
+	uint32_t intmask, irstat, itstat;
 #if FWOHCI_TASKQUEUE
-	u_int32_t intstat;
+	uint32_t intstat;
 	struct task fwohci_task_complete;
 #endif
 } fwohci_softc_t;
