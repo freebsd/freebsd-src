@@ -238,10 +238,11 @@ _getenv_static(const char *name)
 	for (cp = kern_envp; cp != NULL; cp = kernenv_next(cp)) {
 		for (ep = cp; (*ep != '=') && (*ep != 0); ep++)
 			;
+		if (*ep != '=')
+			continue;
 		len = ep - cp;
-		if (*ep == '=')
-			ep++;
-		if (!strncmp(name, cp, len))
+		ep++;
+		if (!strncmp(name, cp, len) && name[len] == 0)
 			return (ep);
 	}
 	return (NULL);
