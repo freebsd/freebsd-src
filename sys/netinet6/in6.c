@@ -88,11 +88,9 @@
 #include <netinet/in.h>
 #include <netinet/in_var.h>
 #include <netinet/if_ether.h>
-#ifndef SCOPEDROUTING
 #include <netinet/in_systm.h>
 #include <netinet/ip.h>
 #include <netinet/in_pcb.h>
-#endif
 
 #include <netinet/ip6.h>
 #include <netinet6/ip6_var.h>
@@ -101,9 +99,7 @@
 #include <netinet6/ip6_mroute.h>
 #include <netinet6/in6_ifattach.h>
 #include <netinet6/scope6_var.h>
-#ifndef SCOPEDROUTING
 #include <netinet6/in6_pcb.h>
-#endif
 
 #include <net/net_osdep.h>
 
@@ -832,22 +828,18 @@ in6_update_ifa(ifp, ifra, ia)
 	    (dst6.sin6_family == AF_INET6)) {
 		int scopeid;
 
-#ifndef SCOPEDROUTING
 		if ((error = in6_recoverscope(&dst6,
 		    &ifra->ifra_dstaddr.sin6_addr, ifp)) != 0)
 			return (error);
-#endif
 		scopeid = in6_addr2scopeid(ifp, &dst6.sin6_addr);
 		if (dst6.sin6_scope_id == 0) /* user omit to specify the ID. */
 			dst6.sin6_scope_id = scopeid;
 		else if (dst6.sin6_scope_id != scopeid)
 			return (EINVAL); /* scope ID mismatch. */
-#ifndef SCOPEDROUTING
 		if ((error = in6_embedscope(&dst6.sin6_addr, &dst6, NULL, NULL))
 		    != 0)
 			return (error);
 		dst6.sin6_scope_id = 0; /* XXX */
-#endif
 	}
 	/*
 	 * The destination address can be specified only for a p2p or a
@@ -1460,7 +1452,6 @@ in6_lifaddr_ioctl(so, cmd, data, ifp, td)
 				break;
 
 			bcopy(IFA_IN6(ifa), &candidate, sizeof(candidate));
-#ifndef SCOPEDROUTING
 			/*
 			 * XXX: this is adhoc, but is necessary to allow
 			 * a user to specify fe80::/64 (not /10) for a
@@ -1468,7 +1459,6 @@ in6_lifaddr_ioctl(so, cmd, data, ifp, td)
 			 */
 			if (IN6_IS_ADDR_LINKLOCAL(&candidate))
 				candidate.s6_addr16[1] = 0;
-#endif
 			candidate.s6_addr32[0] &= mask.s6_addr32[0];
 			candidate.s6_addr32[1] &= mask.s6_addr32[1];
 			candidate.s6_addr32[2] &= mask.s6_addr32[2];
@@ -1481,24 +1471,19 @@ in6_lifaddr_ioctl(so, cmd, data, ifp, td)
 		ia = ifa2ia6(ifa);
 
 		if (cmd == SIOCGLIFADDR) {
-#ifndef SCOPEDROUTING
 			struct sockaddr_in6 *s6;
-#endif
 
 			/* fill in the if_laddrreq structure */
 			bcopy(&ia->ia_addr, &iflr->addr, ia->ia_addr.sin6_len);
-#ifndef SCOPEDROUTING		/* XXX see above */
 			s6 = (struct sockaddr_in6 *)&iflr->addr;
 			if (IN6_IS_ADDR_LINKLOCAL(&s6->sin6_addr)) {
 				s6->sin6_addr.s6_addr16[1] = 0;
 				s6->sin6_scope_id =
 				    in6_addr2scopeid(ifp, &s6->sin6_addr);
 			}
-#endif
 			if ((ifp->if_flags & IFF_POINTOPOINT) != 0) {
 				bcopy(&ia->ia_dstaddr, &iflr->dstaddr,
 				    ia->ia_dstaddr.sin6_len);
-#ifndef SCOPEDROUTING		/* XXX see above */
 				s6 = (struct sockaddr_in6 *)&iflr->dstaddr;
 				if (IN6_IS_ADDR_LINKLOCAL(&s6->sin6_addr)) {
 					s6->sin6_addr.s6_addr16[1] = 0;
@@ -1506,7 +1491,6 @@ in6_lifaddr_ioctl(so, cmd, data, ifp, td)
 					    in6_addr2scopeid(ifp,
 					    &s6->sin6_addr);
 				}
-#endif
 			} else
 				bzero(&iflr->dstaddr, sizeof(iflr->dstaddr));
 
@@ -1836,9 +1820,6 @@ in6_is_addr_deprecated(sa6)
 	for (ia = in6_ifaddr; ia; ia = ia->ia_next) {
 		if (IN6_ARE_ADDR_EQUAL(&ia->ia_addr.sin6_addr,
 				       &sa6->sin6_addr) &&
-#ifdef SCOPEDROUTING
-		    ia->ia_addr.sin6_scope_id == sa6->sin6_scope_id &&
-#endif
 		    (ia->ia6_flags & IN6_IFF_DEPRECATED) != 0)
 			return (1); /* true */
 

@@ -488,10 +488,6 @@ ip6_input(m)
 		dst6->sin6_len = sizeof(struct sockaddr_in6);
 		dst6->sin6_family = AF_INET6;
 		dst6->sin6_addr = ip6->ip6_dst;
-#ifdef SCOPEDROUTING
-		ip6_forward_rt.ro_dst.sin6_scope_id =
-			in6_addr2scopeid(m->m_pkthdr.rcvif, &ip6->ip6_dst);
-#endif
 
 		rtalloc_ign((struct route *)&ip6_forward_rt, RTF_PRCLONING);
 	}

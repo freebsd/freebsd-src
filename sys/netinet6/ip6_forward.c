@@ -508,14 +508,12 @@ ip6_forward(m, srcrt)
 	}
 	else
 		origifp = rt->rt_ifp;
-#ifndef SCOPEDROUTING
 	/*
 	 * clear embedded scope identifiers if necessary.
 	 * in6_clearscope will touch the addresses only when necessary.
 	 */
 	in6_clearscope(&ip6->ip6_src);
 	in6_clearscope(&ip6->ip6_dst);
-#endif
 
 #ifdef PFIL_HOOKS
 	/*
