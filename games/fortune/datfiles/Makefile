@@ -42,7 +42,6 @@ fortunes-o.dat: fortunes-o
 	    strfile -Crsx ${.ALLSRC} ${.TARGET}
 
 fortunes-o: fortunes-o.${TYPE}
-	PATH=$$PATH:/usr/games:${.OBJDIR}/../../caesar \
-	    caesar 13 < ${.ALLSRC} > ${.TARGET}
+	tr a-zA-Z n-za-mN-ZA-M < ${.ALLSRC} > ${.TARGET}
 
 .include <bsd.prog.mk>
