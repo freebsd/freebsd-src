@@ -29,7 +29,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *      $Id: scan.l,v 1.2 1997/03/16 17:31:59 bde Exp $
+ *      $Id: aicasm_scan.l,v 1.3 1997/06/27 19:38:51 gibbs Exp $
  */
 
 #include <sys/types.h>
@@ -40,8 +40,8 @@
 #include <sysexits.h>
 #include <sys/queue.h>
 
-#include "aic7xxx_asm.h"
-#include "symbol.h"
+#include "aicasm.h"
+#include "aicasm_symbol.h"
 #include "y.tab.h"
 %}
 
