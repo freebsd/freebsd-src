@@ -66,8 +66,7 @@ INLINE_LIMIT?=	15000
 .endif
 
 #
-# For AMD64, use a medium model for now.  We'll switch to "kernel"
-# once pmap is ready.  Be excessively careful to not generate FPU code.
+# For AMD64, be excessively careful to not generate FPU code.
 #
 .if ${MACHINE_ARCH} == "amd64"
 CFLAGS+=	-mcmodel=kernel -mno-red-zone \
