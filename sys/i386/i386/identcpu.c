@@ -55,12 +55,10 @@ __FBSDID("$FreeBSD$");
 #include <machine/asmacros.h>
 #include <machine/clock.h>
 #include <machine/cputypes.h>
+#include <machine/intr_machdep.h>
+#include <machine/md_var.h>
 #include <machine/segments.h>
 #include <machine/specialreg.h>
-#include <machine/md_var.h>
-
-#include <i386/isa/icu.h>
-#include <i386/isa/intr_machdep.h>
 
 #define	IDENTBLUE_CYRIX486	0
 #define	IDENTBLUE_IBMCPU	1
