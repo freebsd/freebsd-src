@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)if_sl.c	8.6 (Berkeley) 2/1/94
- * $Id: if_sl.c,v 1.29 1995/08/30 00:33:20 bde Exp $
+ * $Id: if_sl.c,v 1.30 1995/09/09 18:10:24 davidg Exp $
  */
 
 /*
@@ -199,8 +199,8 @@ static struct linesw slipdisc =
  * Called from boot code to establish sl interfaces.
  */
 static void
-slattach(udata)
-	void *udata;
+slattach(dummy)
+	void *dummy;
 {
 	register struct sl_softc *sc;
 	register int i = 0;
@@ -315,8 +315,7 @@ slclose(tp,flag)
 	register struct sl_softc *sc;
 	int s;
 
-	if (ttywflush(tp))
-		ttyflush(tp, FREAD | FWRITE);
+	ttyflush(tp, FREAD | FWRITE);
 	/*
 	 * XXX the placement of the following spl is misleading.  tty
 	 * interrupts must be blocked across line discipline switches
@@ -496,17 +495,19 @@ slstart(tp)
 
 	for (;;) {
 		/*
-		 * If there is more in the output queue, just send it now.
-		 * We are being called in lieu of ttstart and must do what
-		 * it would.
+		 * Call output process whether or not there is more in the
+		 * output queue.  We are being called in lieu of ttstart
+		 * and must do what it would.
 		 */
+		(*tp->t_oproc)(tp);
+
 		if (tp->t_outq.c_cc != 0) {
 			if (sc != NULL)
 				sc->sc_flags &= ~SC_OUTWAIT;
-			(*tp->t_oproc)(tp);
 			if (tp->t_outq.c_cc > SLIP_HIWAT)
 				return 0;
 		}
+
 		/*
 		 * This happens briefly when the line shuts down.
 		 */
