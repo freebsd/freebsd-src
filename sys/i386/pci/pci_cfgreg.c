@@ -90,16 +90,20 @@ static int
 pcibios_cfgread(pcicfgregs *cfg, int reg, int bytes)
 {
 	struct bios_regs args;
+	u_int mask;
     
 	switch(bytes) {
 	case 1:
 		args.eax = PCIBIOS_READ_CONFIG_BYTE;
+		mask = 0xff;
 		break;
 	case 2:
 		args.eax = PCIBIOS_READ_CONFIG_WORD;
+		mask = 0xffff;
 		break;
 	case 4:
 		args.eax = PCIBIOS_READ_CONFIG_DWORD;
+		mask = 0xffffffff;
 		break;
 	default:
 		return(-1);
@@ -108,7 +112,7 @@ pcibios_cfgread(pcicfgregs *cfg, int reg, int bytes)
 	args.edi = reg;
 	bios32(&args, PCIbios.ventry, GSEL(GCODE_SEL, SEL_KPL));
 	/* check call results? */
-	return(args.ecx);
+	return(args.ecx & mask);
 }
 
 static void
