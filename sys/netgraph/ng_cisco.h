@@ -50,6 +50,7 @@
 /* Hook names */
 #define NG_CISCO_HOOK_DOWNSTREAM	"downstream"
 #define NG_CISCO_HOOK_INET		"inet"
+#define NG_CISCO_HOOK_INET6		"inet6"
 #define NG_CISCO_HOOK_APPLETALK		"atalk"
 #define NG_CISCO_HOOK_IPX		"ipx"
 #define NG_CISCO_HOOK_DEBUG		"debug"
