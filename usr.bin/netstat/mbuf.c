@@ -56,7 +56,7 @@ typedef int bool;
 
 static struct mbtypenames {
 	short	mt_type;
-	char	*mt_name;
+	const char *mt_name;
 } mbtypenames[] = {
 	{ MT_DATA,	"data" },
 	{ MT_OOBDATA,	"oob data" },
@@ -95,9 +95,9 @@ static struct mbtypenames {
  * Print mbuf statistics.
  */
 void
-mbpr(u_long mbaddr, u_long mbtaddr, u_long nmbcaddr, u_long nmbufaddr,
-    u_long mblimaddr, u_long cllimaddr, u_long cpusaddr, u_long pgsaddr,
-    u_long mbpaddr)
+mbpr(u_long mbaddr, u_long mbtaddr __unused, u_long nmbcaddr, u_long nmbufaddr,
+    u_long mblimaddr, u_long cllimaddr, u_long cpusaddr __unused,
+    u_long pgsaddr, u_long mbpaddr)
 {
 	int i, j, nmbufs, nmbclusters, page_size, num_objs;
 	u_int mbuf_limit, clust_limit;

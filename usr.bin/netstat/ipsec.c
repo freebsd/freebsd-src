@@ -235,7 +235,7 @@ print_ipsecstats(void)
 }
 
 void
-ipsec_stats(u_long off __unused, char *name, int af __unused)
+ipsec_stats(u_long off __unused, const char *name, int af1 __unused)
 {
 	if (off == 0)
 		return;
@@ -259,7 +259,7 @@ pfkey_msgtype_names(int x)
 }
 
 void
-pfkey_stats(u_long off __unused, char *name, int af __unused)
+pfkey_stats(u_long off __unused, const char *name, int af1 __unused)
 {
 	struct pfkeystat pfkeystat;
 	unsigned first, type;
