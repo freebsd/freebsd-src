@@ -160,26 +160,33 @@ ad_attach(struct ata_softc *scp, int32_t device)
     if ((adp->num_tags = (AD_PARAM->queuelen & 0x1f) + 1))
 	adp->flags |= AD_F_TAG_ENABLED;
 
+    if (bootverbose) {
+	printf("ad%d: <%.40s/%.8s> ATA-%d disk at ata%d as %s\n", 
+	       adp->lun, AD_PARAM->model, AD_PARAM->revision,
+	       ad_version(AD_PARAM->versmajor), scp->lun,
+	       (adp->unit == ATA_MASTER) ? "master" : "slave ");
 
-    if (bootverbose)
+	 printf("ad%d: %luMB (%u sectors), %u cyls, %u heads, %u S/T, %u B/S\n",
+	       adp->lun, adp->total_secs / ((1024L * 1024L)/DEV_BSIZE),
+	       adp->total_secs, 
+	       adp->total_secs / (adp->heads * adp->sectors),
+	       adp->heads, adp->sectors, DEV_BSIZE);
+
+	printf("ad%d: %d secs/int, %d depth queue, %s\n", 
+	       adp->lun, adp->transfersize / DEV_BSIZE, adp->num_tags,
+	       ata_mode2str(adp->controller->mode[ATA_DEV(adp->unit)]));
+
 	printf("ad%d: piomode=%d dmamode=%d udmamode=%d cblid=%d\n",
 	       adp->lun, ata_pmode(AD_PARAM), ata_wmode(AD_PARAM), 
 	       ata_umode(AD_PARAM), AD_PARAM->cblid);
 
-    printf("ad%d: <%s/%s> ATA-%d disk at ata%d as %s\n", 
-	   adp->lun, AD_PARAM->model, AD_PARAM->revision,
-	   ad_version(AD_PARAM->versmajor), scp->lun,
-	   (adp->unit == ATA_MASTER) ? "master" : "slave ");
-
-    printf("ad%d: %luMB (%u sectors), %u cyls, %u heads, %u S/T, %u B/S\n",
-	   adp->lun, adp->total_secs / ((1024L * 1024L)/DEV_BSIZE),
-	   adp->total_secs, 
-	   adp->total_secs / (adp->heads * adp->sectors),
-	   adp->heads, adp->sectors, DEV_BSIZE);
-
-    printf("ad%d: %d secs/int, %d depth queue, %s\n", 
-	   adp->lun, adp->transfersize / DEV_BSIZE, adp->num_tags,
-	   ata_mode2str(adp->controller->mode[ATA_DEV(adp->unit)]));
+    }
+    else
+	printf("ad%d: %luMB disk <%.40s> at ata%d as %s mode %s\n",
+	       adp->lun, adp->total_secs / ((1024L * 1024L) / DEV_BSIZE),
+	       AD_PARAM->model, scp->lun,
+	       (adp->unit == ATA_MASTER) ? "master" : "slave ",
+	       ata_mode2str(adp->controller->mode[ATA_DEV(adp->unit)]));
 
     devstat_add_entry(&adp->stats, "ad", adp->lun, DEV_BSIZE,
 		      DEVSTAT_NO_ORDERED_TAGS,
@@ -356,7 +363,7 @@ ad_transfer(struct ad_request *request)
 	count = howmany(request->bytecount, DEV_BSIZE);
 	if (count > 256) {
 	    count = 256;
-	    printf("ad_transfer: count=%d not supported\n", count);
+	    printf("ad%d: count=%d not supported\n", adp->lun, count);
 	}
 
 	if (adp->flags & AD_F_LBA_ENABLED) {
@@ -396,26 +403,26 @@ ad_transfer(struct ad_request *request)
 	if (ata_command(adp->controller, adp->unit, cmd, 
 			cylinder, head, sector, count, 0, ATA_IMMEDIATE))
 	    printf("ad%d: wouldn't take transfer command\n", adp->lun);
+
+	/* if this is a DMA transfer, start it, return and wait for interrupt */
+	if (request->flags & AR_F_DMA_USED) {
+	    ata_dmastart(adp->controller);
+	    return;
+	}
+
     }
    
-    /* if this is a DMA transaction start it, return and wait for interrupt */
-    if (request->flags & AR_F_DMA_USED) {
-	ata_dmastart(adp->controller);
-	return;
-    }
-
     /* calculate this transfer length */
     request->currentsize = min(request->bytecount, adp->transfersize);
 
     /* if this is a PIO read operation, return and wait for interrupt */
-    if (request->flags & AR_F_READ) {
+    if (request->flags & AR_F_READ)
 	return;
-    }
 
     /* ready to write PIO data ? */
     if (ata_wait(adp->controller, adp->unit, 
 		 (ATA_S_READY | ATA_S_DSC | ATA_S_DRQ)) < 0)
-	printf("ad_transfer: timeout waiting for DRQ");
+	printf("ad%d: timeout waiting for DRQ", adp->lun);
     
     /* output the data */
     if (adp->controller->flags & ATA_USE_16BIT)
@@ -426,8 +433,6 @@ ad_transfer(struct ad_request *request)
 	outsl(adp->controller->ioaddr + ATA_DATA,
 	      (void *)((uintptr_t)request->data + request->donecount),
 	      request->currentsize / sizeof(int32_t));
-
-    request->bytecount -= request->currentsize;
 }
 
 int32_t
@@ -444,9 +449,11 @@ ad_interrupt(struct ad_request *request)
     if (ata_wait(adp->controller, adp->unit, 0) < 0)
 	 printf("ad_interrupt: timeout waiting for status");
 
+    /* do we have a corrected soft error ? */
     if (adp->controller->status & ATA_S_CORR)
 	    printf("ad%d: soft error ECC corrected\n", adp->lun); 
 
+    /* did any real errors happen ? */
     if ((adp->controller->status & ATA_S_ERROR) ||
 	(request->flags & AR_F_DMA_USED && dma_stat != ATA_BMSTAT_INTERRUPT)) {
 oops:
@@ -456,7 +463,8 @@ oops:
 	       request->blockaddr + (request->donecount / DEV_BSIZE)); 
 
 	/* if this is a UDMA CRC error, reinject request */
-	if (adp->controller->error & ATA_E_ICRC) {
+	if (request->flags & AR_F_DMA_USED &&
+	    adp->controller->error & ATA_E_ICRC) {
 	    untimeout((timeout_t *)ad_timeout, request,request->timeout_handle);
 
 	    if (request->retries++ < AD_MAX_RETRIES)
@@ -474,8 +482,7 @@ oops:
 	/* if using DMA, try once again in PIO mode */
 	if (request->flags & AR_F_DMA_USED) {
 	    untimeout((timeout_t *)ad_timeout, request,request->timeout_handle);
-	    ata_dmainit(adp->controller, adp->unit, 
-			ata_pmode(AD_PARAM), -1, -1);
+	    ata_dmainit(adp->controller, adp->unit, ata_pmode(AD_PARAM), -1,-1);
 	    request->flags |= AR_F_FORCE_PIO;
 	    adp->flags &= ~AD_F_DMA_ENABLED;
 	    TAILQ_INSERT_HEAD(&adp->controller->ata_queue, request, chain);
@@ -488,10 +495,8 @@ oops:
     }
 
     /* if we arrived here with forced PIO mode, DMA doesn't work right */
-    if (request->flags & AR_F_FORCE_PIO) {
-	printf("ad%d: DMA problem encountered, fallback to PIO mode\n",
-	       adp->lun);
-    }
+    if (request->flags & AR_F_FORCE_PIO)
+	printf("ad%d: DMA problem, fallback to PIO mode\n", adp->lun);
 
     /* if this was a PIO read operation, get the data */
     if (!(request->flags & AR_F_DMA_USED) &&
@@ -518,31 +523,26 @@ oops:
 		 (void *)((uintptr_t)request->data + request->donecount), 
 		 request->currentsize / sizeof(int32_t));
 
-	request->bytecount -= request->currentsize;
     }
 
-    /* if this was a DMA operation finish up */
-    if ((request->flags & AR_F_DMA_USED) && !(request->flags & AR_F_ERROR))
+    /* finish up transfer */
+    if (request->flags & AR_F_ERROR) {
+	request->bp->b_error = EIO;
+	request->bp->b_flags |= B_ERROR;
+    } 
+    else {
 	request->bytecount -= request->currentsize;
-
-    /* finish up this tranfer, check for more work on this buffer */
-    if (adp->controller->active == ATA_ACTIVE_ATA) {
-	if (request->flags & AR_F_ERROR) {
-	    request->bp->b_error = EIO;
-	    request->bp->b_flags |= B_ERROR;
-	} 
-	else {
-	    request->donecount += request->currentsize;
-	    if (request->bytecount > 0) {
-		ad_transfer(request);
-		return ATA_OP_CONTINUES;
-	    }
+	request->donecount += request->currentsize;
+	if (request->bytecount > 0) {
+	    ad_transfer(request);
+	    return ATA_OP_CONTINUES;
 	}
-
-	request->bp->b_resid = request->bytecount;
-	devstat_end_transaction_buf(&adp->stats, request->bp);
-	biodone(request->bp);
     }
+
+    request->bp->b_resid = request->bytecount;
+    devstat_end_transaction_buf(&adp->stats, request->bp);
+    biodone(request->bp);
+
     /* disarm timeout for this transfer */
     untimeout((timeout_t *)ad_timeout, request, request->timeout_handle);
 
@@ -556,16 +556,19 @@ ad_reinit(struct ad_softc *adp)
 {
     /* reinit disk parameters */
     ata_command(adp->controller, adp->unit, ATA_C_SET_MULTI, 0, 0, 0,
-		adp->transfersize / DEV_BSIZE, 0, ATA_IMMEDIATE);
-    ata_wait(adp->controller, adp->unit, ATA_S_READY);
-    ata_dmainit(adp->controller, adp->unit, ata_pmode(AD_PARAM),
-		ata_wmode(AD_PARAM), ata_umode(AD_PARAM));
+		adp->transfersize / DEV_BSIZE, 0, ATA_WAIT_READY);
+    if (adp->flags & AD_F_DMA_ENABLED)
+	ata_dmainit(adp->controller, adp->unit, ata_pmode(AD_PARAM),
+		    ata_wmode(AD_PARAM), ata_umode(AD_PARAM));
+    else
+	ata_dmainit(adp->controller, adp->unit, ata_pmode(AD_PARAM), -1, -1);
 }
 
 static void
 ad_timeout(struct ad_request *request)
 {
     struct ad_softc *adp = request->device;
+    int32_t s = splbio();
 
     adp->controller->running = NULL;
     printf("ad%d: ad_timeout: lost disk contact - resetting\n", adp->lun);
@@ -592,6 +595,7 @@ ad_timeout(struct ad_request *request)
 	free(request, M_AD);
     }
     ata_reinit(adp->controller);
+    splx(s);
 }
 
 static int32_t

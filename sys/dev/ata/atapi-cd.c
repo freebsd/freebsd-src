@@ -137,7 +137,6 @@ acdattach(struct atapi_softc *atp)
     cdp->cap.cur_write_speed = ntohs(cdp->cap.cur_write_speed);
     cdp->cap.max_vol_levels = ntohs(cdp->cap.max_vol_levels);
     cdp->cap.buf_size = ntohs(cdp->cap.buf_size);
-    acd_describe(cdp);
 
     /* if this is a changer device, allocate the neeeded lun's */
     if (cdp->cap.mech == MST_MECH_CHANGER) {
@@ -171,8 +170,9 @@ acdattach(struct atapi_softc *atp)
 		}
 		tmpcdp->slot = count;
 		tmpcdp->changer_info = chp;
-		printf("acd%d: changer slot %d %s\n", acdnlun, count,
-		       (chp->slot[count].present ? "CD present" : "empty"));
+		if (bootverbose)
+		    printf("acd%d: changer slot %d %s\n", acdnlun, count,
+			   (chp->slot[count].present ? "CD present" : "empty"));
 		acdnlun++;
 	    }
 	    sprintf(string, "acd%d-", cdp->lun);
@@ -186,9 +186,10 @@ acdattach(struct atapi_softc *atp)
 	devstat_add_entry(cdp->stats, "acd", cdp->lun, DEV_BSIZE,
 			  DEVSTAT_NO_ORDERED_TAGS,
 			  DEVSTAT_TYPE_CDROM | DEVSTAT_TYPE_IF_IDE,
-			  0x178);
+			  DEVSTAT_PRIORITY_CD);
 	acdnlun++;
     }
+    acd_describe(cdp);
     return 0;
 }
 
@@ -220,21 +221,15 @@ acd_init_lun(struct atapi_softc *atp, int32_t lun, struct devstat *stats)
     else
 	acd->stats = stats;
     dev = make_dev(&acd_cdevsw, dkmakeminor(lun, 0, 0),
-		   UID_ROOT, GID_OPERATOR, 0644, "racd%da", lun);
-    dev->si_drv1 = acd;
-    dev->si_iosize_max = 252 * DEV_BSIZE;
-    dev = make_dev(&acd_cdevsw, dkmakeminor(lun, 0, RAW_PART),
-		   UID_ROOT, GID_OPERATOR, 0644, "racd%dc", lun);
-    dev->si_drv1 = acd;
-    dev->si_iosize_max = 252 * DEV_BSIZE;
-    dev = make_dev(&acd_cdevsw, dkmakeminor(lun, 0, 0),
 		   UID_ROOT, GID_OPERATOR, 0644, "acd%da", lun);
     dev->si_drv1 = acd;
     dev->si_iosize_max = 252 * DEV_BSIZE;
+    dev->si_bsize_phys = 2048; /* XXX SOS */
     dev = make_dev(&acd_cdevsw, dkmakeminor(lun, 0, RAW_PART),
 		   UID_ROOT, GID_OPERATOR, 0644, "acd%dc", lun);
     dev->si_drv1 = acd;
     dev->si_iosize_max = 252 * DEV_BSIZE;
+    dev->si_bsize_phys = 2048; /* XXX SOS */
     if ((acd->atp->devname = malloc(8, M_ACD, M_NOWAIT)))
         sprintf(acd->atp->devname, "acd%d", acd->lun);
     return acd;
@@ -246,165 +241,186 @@ acd_describe(struct acd_softc *cdp)
     int32_t comma = 0;
     int8_t *mechanism;
 
-    printf("acd%d: <%.40s/%.8s> %s drive at ata%d as %s\n",
-	   cdp->lun, ATA_PARAM(cdp->atp->controller, cdp->atp->unit)->model, 
-	   ATA_PARAM(cdp->atp->controller, cdp->atp->unit)->revision,
-	   (cdp->cap.write_dvdr) ? "DVD-R" : 
+    if (bootverbose) {
+	printf("acd%d: <%.40s/%.8s> %s drive at ata%d as %s\n",
+	       cdp->lun, ATA_PARAM(cdp->atp->controller, cdp->atp->unit)->model,
+	       ATA_PARAM(cdp->atp->controller, cdp->atp->unit)->revision,
+	       (cdp->cap.write_dvdr) ? "DVD-R" : 
 		(cdp->cap.write_dvdram) ? "DVD-RAM" : 
-		    (cdp->cap.write_cdrw) ? "CD-RW" :
-			(cdp->cap.write_cdr) ? "CD-R" : 
-			    (cdp->cap.read_dvdrom) ? "DVD-ROM" : "CDROM",
-	   cdp->atp->controller->lun,
-	   (cdp->atp->unit == ATA_MASTER) ? "master" : "slave ");
+		 (cdp->cap.write_cdrw) ? "CD-RW" :
+		  (cdp->cap.write_cdr) ? "CD-R" : 
+		   (cdp->cap.read_dvdrom) ? "DVD-ROM" : "CDROM",
+	       cdp->atp->controller->lun,
+	       (cdp->atp->unit == ATA_MASTER) ? "master" : "slave");
 
-    printf("acd%d:", cdp->lun);
-    if (cdp->cap.cur_read_speed) {
-	printf(" read %dKB/s", cdp->cap.cur_read_speed * 1000 / 1024);
-	if (cdp->cap.max_read_speed) 
-	    printf(" (%dKB/s)", cdp->cap.max_read_speed * 1000 / 1024);
-	if ((cdp->cap.cur_write_speed) &&
-	    (cdp->cap.write_cdr || cdp->cap.write_cdrw || 
-	     cdp->cap.write_dvdr || cdp->cap.write_dvdram)) {
-	    printf(" write %dKB/s", cdp->cap.cur_write_speed * 1000 / 1024);
-	    if (cdp->cap.max_write_speed)
-		printf(" (%dKB/s)", cdp->cap.max_write_speed * 1000 / 1024);
+	printf("acd%d:", cdp->lun);
+	if (cdp->cap.cur_read_speed) {
+	    printf(" read %dKB/s", cdp->cap.cur_read_speed * 1000 / 1024);
+	    if (cdp->cap.max_read_speed) 
+		printf(" (%dKB/s)", cdp->cap.max_read_speed * 1000 / 1024);
+	    if ((cdp->cap.cur_write_speed) &&
+		(cdp->cap.write_cdr || cdp->cap.write_cdrw || 
+		 cdp->cap.write_dvdr || cdp->cap.write_dvdram)) {
+		printf(" write %dKB/s", cdp->cap.cur_write_speed * 1000 / 1024);
+		if (cdp->cap.max_write_speed)
+		    printf(" (%dKB/s)", cdp->cap.max_write_speed * 1000 / 1024);
+	    }
+	    comma = 1;
 	}
-	comma = 1;
-    }
-    if (cdp->cap.buf_size) {
-	printf("%s %dKB buffer", comma ? "," : "", cdp->cap.buf_size);
-	comma = 1;
-    }
-    printf("%s %s\n", 
-	   comma ? "," : "", ata_mode2str(cdp->atp->controller->mode[
-	   ATA_DEV(cdp->atp->unit)]));
+	if (cdp->cap.buf_size) {
+	    printf("%s %dKB buffer", comma ? "," : "", cdp->cap.buf_size);
+	    comma = 1;
+	}
+	printf("%s %s\n", 
+	       comma ? "," : "", ata_mode2str(
+		cdp->atp->controller->mode[ATA_DEV(cdp->atp->unit)]));
 
-    printf("acd%d: Reads:", cdp->lun);
-    comma = 0;
-    if (cdp->cap.read_cdr) {
-	printf(" CD-R"); comma = 1;
-    }
-    if (cdp->cap.read_cdrw) {
-	printf("%s CD-RW", comma ? "," : ""); comma = 1;
-    }
-    if (cdp->cap.cd_da) {
-	if (cdp->cap.cd_da_stream)
-	    printf("%s CD-DA stream", comma ? "," : "");
-	else
-	    printf("%s CD-DA", comma ? "," : "");
-	comma = 1;
-    }
-    if (cdp->cap.read_dvdrom) {
-	printf("%s DVD-ROM", comma ? "," : ""); comma = 1;
-    }
-    if (cdp->cap.read_dvdr) {
-	printf("%s DVD-R", comma ? "," : ""); comma = 1;
-    }
-    if (cdp->cap.read_dvdram) {
-	printf("%s DVD-RAM", comma ? "," : ""); comma = 1;
-    }
-    if (cdp->cap.read_packet)
-	printf("%s packet", comma ? "," : "");
-
-    if (cdp->cap.write_cdr || cdp->cap.write_cdrw || 
-	cdp->cap.write_dvdr || cdp->cap.write_dvdram) {
-	printf("\nacd%d: Writes:", cdp->lun);
+	printf("acd%d: Reads:", cdp->lun);
 	comma = 0;
-	if (cdp->cap.write_cdr) {
-	    printf(" CD-R" ); comma = 1;
+	if (cdp->cap.read_cdr) {
+	    printf(" CD-R"); comma = 1;
 	}
-	if (cdp->cap.write_cdrw) {
+	if (cdp->cap.read_cdrw) {
 	    printf("%s CD-RW", comma ? "," : ""); comma = 1;
 	}
-	if (cdp->cap.write_dvdr) {
+	if (cdp->cap.cd_da) {
+	    if (cdp->cap.cd_da_stream)
+	    printf("%s CD-DA stream", comma ? "," : "");
+	    else
+	    printf("%s CD-DA", comma ? "," : "");
+	    comma = 1;
+	}
+	if (cdp->cap.read_dvdrom) {
+	    printf("%s DVD-ROM", comma ? "," : ""); comma = 1;
+	}
+	if (cdp->cap.read_dvdr) {
 	    printf("%s DVD-R", comma ? "," : ""); comma = 1;
 	}
-	if (cdp->cap.write_dvdram) {
-	    printf("%s DVD-RAM", comma ? "," : ""); comma = 1; 
+	if (cdp->cap.read_dvdram) {
+	    printf("%s DVD-RAM", comma ? "," : ""); comma = 1;
 	}
-	if (cdp->cap.test_write)
-	    printf("%s test write", comma ? "," : "");
-    }
-    if (cdp->cap.audio_play) {
-	printf("\nacd%d: Audio: ", cdp->lun);
-	if (cdp->cap.audio_play)
-	    printf("play");
-	if (cdp->cap.max_vol_levels)
-	    printf(", %d volume levels", cdp->cap.max_vol_levels);
-    }
-    printf("\nacd%d: Mechanism: ", cdp->lun);
-    switch (cdp->cap.mech) {
-    case MST_MECH_CADDY:
-	mechanism = "caddy"; break;
-    case MST_MECH_TRAY:
-	mechanism = "tray"; break;
-    case MST_MECH_POPUP:
-	mechanism = "popup"; break;
-    case MST_MECH_CHANGER:
-	mechanism = "changer"; break;
-    case MST_MECH_CARTRIDGE:
-	mechanism = "cartridge"; break;
-    default:
-	mechanism = 0; break;
-    }
-    if (mechanism)
-	printf("%s%s", cdp->cap.eject ? "ejectable " : "", mechanism);
-    else if (cdp->cap.eject)
-	printf("ejectable");
+	if (cdp->cap.read_packet)
+	    printf("%s packet", comma ? "," : "");
 
-    if (cdp->cap.mech != MST_MECH_CHANGER) {
-	printf("\nacd%d: Medium: ", cdp->lun);
-	switch (cdp->cap.medium_type & MST_TYPE_MASK_HIGH) {
-	case MST_CDROM:
-	    printf("CD-ROM "); break;
-	case MST_CDR:
-	    printf("CD-R "); break;
-	case MST_CDRW:
-	    printf("CD-RW "); break;
-	case MST_DOOR_OPEN:
-	    printf("door open"); break;
-	case MST_NO_DISC:
-	    printf("no/blank disc inside"); break;
-	case MST_FMT_ERROR:
-	    printf("medium format error"); break;
+	if (cdp->cap.write_cdr || cdp->cap.write_cdrw || 
+	    cdp->cap.write_dvdr || cdp->cap.write_dvdram) {
+	    printf("\nacd%d: Writes:", cdp->lun);
+	    comma = 0;
+	    if (cdp->cap.write_cdr) {
+		printf(" CD-R" ); comma = 1;
+	    }
+	    if (cdp->cap.write_cdrw) {
+		printf("%s CD-RW", comma ? "," : ""); comma = 1;
+	    }
+	    if (cdp->cap.write_dvdr) {
+		printf("%s DVD-R", comma ? "," : ""); comma = 1;
+	    }
+	    if (cdp->cap.write_dvdram) {
+		printf("%s DVD-RAM", comma ? "," : ""); comma = 1; 
+	    }
+	    if (cdp->cap.test_write)
+		printf("%s test write", comma ? "," : "");
 	}
-	if ((cdp->cap.medium_type & MST_TYPE_MASK_HIGH) < MST_TYPE_MASK_HIGH) {
-	    switch (cdp->cap.medium_type & MST_TYPE_MASK_LOW) {
-	    case MST_DATA_120:
-		printf("120mm data disc loaded"); break;
-	    case MST_AUDIO_120:
-		printf("120mm audio disc loaded"); break;
-	    case MST_COMB_120:
-		printf("120mm data/audio disc loaded"); break;
-	    case MST_PHOTO_120:
-		printf("120mm photo disc loaded"); break;
-	    case MST_DATA_80:
-		printf("80mm data disc loaded"); break;
-	    case MST_AUDIO_80:
-		printf("80mm audio disc loaded"); break;
-	    case MST_COMB_80:
-		printf("80mm data/audio disc loaded"); break;
-	    case MST_PHOTO_80:
-		printf("80mm photo disc loaded"); break;
-	    case MST_FMT_NONE:
-		switch (cdp->cap.medium_type & MST_TYPE_MASK_HIGH) {
-		case MST_CDROM:
-		    printf("unknown medium"); break;
-		case MST_CDR:
-		case MST_CDRW:
-		    printf("blank medium"); break;
+	if (cdp->cap.audio_play) {
+	    printf("\nacd%d: Audio: ", cdp->lun);
+	    if (cdp->cap.audio_play)
+		printf("play");
+	    if (cdp->cap.max_vol_levels)
+		printf(", %d volume levels", cdp->cap.max_vol_levels);
+	}
+	printf("\nacd%d: Mechanism: ", cdp->lun);
+	switch (cdp->cap.mech) {
+	case MST_MECH_CADDY:
+	    mechanism = "caddy"; break;
+	case MST_MECH_TRAY:
+	    mechanism = "tray"; break;
+	case MST_MECH_POPUP:
+	    mechanism = "popup"; break;
+	case MST_MECH_CHANGER:
+	    mechanism = "changer"; break;
+	case MST_MECH_CARTRIDGE:
+	    mechanism = "cartridge"; break;
+	default:
+	    mechanism = 0; break;
+	}
+	if (mechanism)
+	    printf("%s%s", cdp->cap.eject ? "ejectable " : "", mechanism);
+	else if (cdp->cap.eject)
+	    printf("ejectable");
+
+	if (cdp->cap.mech != MST_MECH_CHANGER) {
+	    printf("\nacd%d: Medium: ", cdp->lun);
+	    switch (cdp->cap.medium_type & MST_TYPE_MASK_HIGH) {
+	    case MST_CDROM:
+		printf("CD-ROM "); break;
+	    case MST_CDR:
+		printf("CD-R "); break;
+	    case MST_CDRW:
+		printf("CD-RW "); break;
+	    case MST_DOOR_OPEN:
+		printf("door open"); break;
+	    case MST_NO_DISC:
+		printf("no/blank disc inside"); break;
+	    case MST_FMT_ERROR:
+		printf("medium format error"); break;
+	    }
+	    if ((cdp->cap.medium_type & MST_TYPE_MASK_HIGH)<MST_TYPE_MASK_HIGH){
+		switch (cdp->cap.medium_type & MST_TYPE_MASK_LOW) {
+		case MST_DATA_120:
+		    printf("120mm data disc loaded"); break;
+		case MST_AUDIO_120:
+		    printf("120mm audio disc loaded"); break;
+		case MST_COMB_120:
+		    printf("120mm data/audio disc loaded"); break;
+		case MST_PHOTO_120:
+		    printf("120mm photo disc loaded"); break;
+		case MST_DATA_80:
+		    printf("80mm data disc loaded"); break;
+		case MST_AUDIO_80:
+		    printf("80mm audio disc loaded"); break;
+		case MST_COMB_80:
+		    printf("80mm data/audio disc loaded"); break;
+		case MST_PHOTO_80:
+		    printf("80mm photo disc loaded"); break;
+		case MST_FMT_NONE:
+		    switch (cdp->cap.medium_type & MST_TYPE_MASK_HIGH) {
+		    case MST_CDROM:
+			printf("unknown medium"); break;
+		    case MST_CDR:
+		    case MST_CDRW:
+			printf("blank medium"); break;
+		    }
+		    break;
+		default:
+		    printf("unknown type=0x%x", cdp->cap.medium_type); break;
 		}
-		break;
-	    default:
-		printf("unknown type=0x%x", cdp->cap.medium_type); break;
 	    }
 	}
+	if (cdp->cap.lock)
+	    printf(cdp->cap.locked ? ", locked" : ", unlocked");
+	if (cdp->cap.prevent)
+	    printf(", lock protected");
+	printf("\n");
     }
-    if (cdp->cap.lock)
-	printf(cdp->cap.locked ? ", locked" : ", unlocked");
-    if (cdp->cap.prevent)
-	printf(", lock protected");
-    printf("\n");
+    else {
+	char changer[32];
+
+	bzero(changer, sizeof(changer));
+	if (cdp->changer_info)
+	    sprintf(changer, " with %d CD changer", cdp->changer_info->slots);
+
+	printf("acd%d: %s%s <%.40s> at ata%d as %s mode %s\n",
+	       cdp->lun, (cdp->cap.write_dvdr) ? "DVD-R" : 
+			  (cdp->cap.write_dvdram) ? "DVD-RAM" : 
+			   (cdp->cap.write_cdrw) ? "CD-RW" :
+			    (cdp->cap.write_cdr) ? "CD-R" : 
+			     (cdp->cap.read_dvdrom) ? "DVD-ROM" : "CDROM",
+	       changer, ATA_PARAM(cdp->atp->controller, cdp->atp->unit)->model,
+	       cdp->atp->controller->lun,
+	       (cdp->atp->unit == ATA_MASTER) ? "master" : "slave",
+	       ata_mode2str(cdp->atp->controller->mode[ATA_DEV(cdp->atp->unit)])
+	       );
+    }
 }
 
 static __inline void 
@@ -442,7 +458,6 @@ acdopen(dev_t dev, int32_t flags, int32_t fmt, struct proc *p)
 	    cdp->flags |= F_WRITING;
     }
 
-    dev->si_bsize_phys = 2048; /* XXX SOS */
     if (!cdp->refcnt) {
 	acd_prevent_allow(cdp, 1);
 	cdp->flags |= F_LOCKED;
@@ -916,7 +931,6 @@ acdioctl(dev_t dev, u_long cmd, caddr_t addr, int32_t flag, struct proc *p)
 		error = EINVAL;
 		break;
 	    }
-	    cdp->next_writeable_addr = track_info.next_writeable_addr;
 	    *(int*)addr = track_info.next_writeable_addr;
 	}
 	break;
@@ -926,7 +940,6 @@ acdioctl(dev_t dev, u_long cmd, caddr_t addr, int32_t flag, struct proc *p)
 	    error = EINVAL;
 	    printf("acd%d: sequence error (disk already open)\n", cdp->lun);
 	}
-	cdp->next_writeable_addr = 0;
 	cdp->flags &= ~(F_WRITTEN | F_TRACK_OPEN);
 	cdp->flags |= F_DISK_OPEN;
 	break;
@@ -1074,21 +1087,24 @@ acd_start(struct acd_softc *cdp)
     }
 
     bzero(ccb, sizeof(ccb));
-    if (bp->b_flags & B_READ) {
-	lba = bp->b_blkno / (cdp->block_size / DEV_BSIZE);
-	ccb[0] = ATAPI_READ_BIG;
-    }
-    else {
-	lba = cdp->next_writeable_addr + (bp->b_offset / cdp->block_size);
-	ccb[0] = ATAPI_WRITE_BIG;
-    }
     count = (bp->b_bcount + (cdp->block_size - 1)) / cdp->block_size;
+    if (bp->b_flags & B_PHYS)
+	lba = bp->b_offset / cdp->block_size;
+    else
+	lba = bp->b_blkno / (cdp->block_size / DEV_BSIZE);
 
+    if (bp->b_flags & B_READ) {
+	ccb[0] = ATAPI_READ_CD;
+	ccb[9] = 0x10;	/* read user data only */
+    }
+    else
+	ccb[0] = ATAPI_WRITE_BIG;
     ccb[1] = 0;
     ccb[2] = lba>>24;
     ccb[3] = lba>>16;
     ccb[4] = lba>>8;
     ccb[5] = lba;
+    ccb[6] = count>>16;
     ccb[7] = count>>8;
     ccb[8] = count;
 
