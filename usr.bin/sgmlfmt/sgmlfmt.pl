@@ -1,5 +1,5 @@
 #!/usr/bin/perl
-# $Id: sgmlfmt.pl,v 1.2 1995/05/18 03:01:28 jfieber Exp $
+# $Id: sgmlfmt.pl,v 1.3 1995/06/30 15:19:12 jfieber Exp $
 
 # Format an sgml document tagged according to the linuxdoc DTD.
 # by John Fieber <jfieber@freebsd.org> for the FreeBSD documentation
@@ -10,10 +10,10 @@
 #  -format              outputfile         format
 #  -------------------------------------------------------------
 #   -html               inputfile.html     HTML
-#   -txt | -ascii       inputfile.txt      ascii text
+#   -txt | -ascii       inputfile.ascii    ascii text
 #   -tex | -latex       inputfile.tex      LaTeX
 #   -nroff              inputfile.nroff    groff for ms macros
-#   -ps                 inputfile.txt      postscript
+#   -ps                 inputfile.ps       postscript
 #
 #   -links              For each <label id="foo">, make a symbolic
 #                       link foo.html -> inputfile-n.html.  
@@ -133,7 +133,7 @@ sub gen_nroff {
 
 sub gen_ascii {
     &sgmlparse(infile, "nroff");
-    open(outfile, "| groff -T ascii -t -ms | col -b > $fileroot.txt");
+    open(outfile, "| groff -T ascii -t -ms | col -b > $fileroot.ascii");
     while (<infile>) {
 	print outfile;
     }
@@ -612,7 +612,7 @@ for ($i = 0; $i < $fcount; $i++) {
 	if ($gen{'nroff'}) { 
 	    print "generating $fileroot.nroff...\n"; &gen_nroff(); }
 	if ($gen{'txt'} || $gen{'ascii'}) { 
-	    print "generating $fileroot.txt...\n"; &gen_ascii(); }
+	    print "generating $fileroot.ascii...\n"; &gen_ascii(); }
 	if ($gen{'ps'}) { 
 	    print "generating $fileroot.ps...\n"; &gen_ps(); }
     }
