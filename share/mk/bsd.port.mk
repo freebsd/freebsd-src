@@ -6,18 +6,23 @@
 #	bsd.port.mk - 940820 Jordan K. Hubbard.
 #	This file is in the public domain.
 #
-# $Id: bsd.port.mk,v 1.165.2.24 1997/03/06 08:33:34 asami Exp $
+# $Id: bsd.port.mk,v 1.165.2.25 1997/04/15 08:38:36 asami Exp $
 #
 # Please view me with 4 column tabs!
 
-# This is for this file, not for the ports that includes it, so it's
-# not called MAINTAINER -- the person to contact if you have questions/
-# suggestions about bsd.port.mk.
-#
-# If you are not him, you are not allowed to commit to this file without
-# his permission. :)
-#
+# There are two different types of "maintainers" in the whole ports
+# framework concept.  Maintainers of the bsd.port*.mk files
+# are listed below in the ${OSNAME}_MAINTAINER entries (this file
+# is used by multiple *BSD flavors).  You should consult them directly
+# if you have any questions/suggestions regarding this file since only
+# they are allowed to modify the master copies in the CVS repository!
 
+# For each port, the MAINTAINER variable is what you should consult for
+# contact information on the person(s) to contact if you have questions/
+# suggestions about that specific port.  By default (if no MAINTAINER
+# is listed), a port is maintained by the subscribers of the ports@freebsd.org
+# mailing list, and any correspondece should be directed there.
+#
 FreeBSD_MAINTAINER=	asami@FreeBSD.ORG
 OpenBSD_MAINTAINER=	imp@OpenBSD.ORG
 
