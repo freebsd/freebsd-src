@@ -52,6 +52,9 @@ static char sccsid[] = "@(#)edit.c	8.3 (Berkeley) 4/2/94";
 #include <pw_util.h>
 
 #include "chpass.h"
+#ifdef YP
+#include "pw_yp.h"
+#endif /* YP */
 
 extern char *tempname;
 
@@ -94,8 +97,13 @@ display(fd, pw)
 		pw_error(tempname, 1, 1);
 
 	(void)fprintf(fp,
-	    "#Changing user database information for %s.\n", pw->pw_name);
+#ifdef YP
+	    "#Changing %s information for %s.\n", _use_yp ? "NIS" : "user database", pw->pw_name);
+	if (!uid && !_use_yp) {
+#else
+	    "#Changing user database information for %s.\n", pw->pw_name)
 	if (!uid) {
+#endif /* YP */
 		(void)fprintf(fp, "Login: %s\n", pw->pw_name);
 		(void)fprintf(fp, "Password: %s\n", pw->pw_passwd);
 		(void)fprintf(fp, "Uid [#]: %d\n", pw->pw_uid);
