@@ -26,26 +26,24 @@
  *
  *	i4b_ihfc_l1.c - hfc layer 1 handler
  *	-----------------------------------
- *
  *	The idea of this file is to separate hfcs/sp/pci data/signal
  *	handling and the I4B data/signal handling.
  *
  *	Everything which has got anything to do with I4B has been put here!
  *
  *      last edit-date: [Wed Jul 19 09:41:03 2000]
- *
  *      $Id: i4b_ihfc_l1if.c,v 1.10 2000/09/19 13:50:36 hm Exp $
  *
- * $FreeBSD$
- *
  *---------------------------------------------------------------------------*/
+
+#include <sys/cdefs.h>
+__FBSDID("$FreeBSD$");
 
 #include <sys/param.h>
 #include <sys/kernel.h>
 #include <sys/systm.h>
 #include <sys/mbuf.h>
 #include <sys/socket.h>
-
 
 #include <net/if.h>
 

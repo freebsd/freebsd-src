@@ -32,12 +32,12 @@
  *
  *	i4b_ifpnp_avm.c: AVM Fritz!Card PnP hardware driver
  *	---------------------------------------------------
- *
- * $FreeBSD$
- *
  *      last edit-date: [Fri Jan 12 17:05:28 2001]
  *
  *---------------------------------------------------------------------------*/
+
+#include <sys/cdefs.h>
+__FBSDID("$FreeBSD$");
 
 #include "opt_i4b.h"
 
