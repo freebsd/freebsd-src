@@ -268,6 +268,23 @@ gctl_get_param(struct gctl_req *req, const char *param, int *len)
 	return (NULL);
 }
 
+void *
+gctl_get_paraml(struct gctl_req *req, const char *param, int len)
+{
+	int i;
+	void *p;
+
+	p = gctl_get_param(req, param, &i);
+	if (p == NULL)
+		gctl_error(req, "Missing %s argument", param);
+	else if (i != len) {
+		g_free(p);
+		p = NULL;
+		gctl_error(req, "Wrong length %s argument", param);
+	}
+	return (p);
+}
+
 static struct g_class*
 gctl_get_class(struct gctl_req *req)
 {
