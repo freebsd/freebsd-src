@@ -65,13 +65,14 @@
  * any improvements or extensions that they make and grant Carnegie the
  * rights to redistribute these changes.
  *
- * $Id: vm_pageout.c,v 1.125 1998/08/24 08:39:38 dfr Exp $
+ * $Id: vm_pageout.c,v 1.126 1998/09/04 08:06:57 dfr Exp $
  */
 
 /*
  *	The proverbial page-out daemon.
  */
 
+#include "opt_vm.h"
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/kernel.h>
