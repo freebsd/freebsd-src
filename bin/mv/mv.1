@@ -43,7 +43,7 @@
 .Nd move files
 .Sh SYNOPSIS
 .Nm
-.Op Fl f | Fl i
+.Op Fl f | Fl i | Fl n
 .Op Fl v
 .Ar source target
 .Nm
@@ -81,6 +81,8 @@ path.
 .Fl f
 option overrides any previous
 .Fl i
+or
+.Fl n
 options.)
 .It Fl i
 Cause
@@ -96,6 +98,17 @@ the move is attempted.
 .Fl i
 option overrides any previous
 .Fl f
+or
+.Fl n
+options.)
+.It Fl n
+Do not overwriting an existing file.
+(The
+.Fl n
+option overrides any previous
+.Fl f
+or
+.Fl i
 options.)
 .It Fl v
 Cause
