@@ -97,9 +97,8 @@ is the text string:
 Since
 .Nm
 can only be called after the system enters single-user mode,
-it can not be used to create dumps
-for system panics during kernel initialization.  In such cases you
-have to use
+it can not be used to create dumps for system panics during
+kernel initialization.  In such cases use
 .Va dumpdev
 tunable provided by
 .Xr loader 8
