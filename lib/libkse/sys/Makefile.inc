@@ -68,24 +68,24 @@ ${SASM}: ${.CURDIR}/../libc/${MACHINE}/SYS.h /usr/include/sys/syscall.h
 
 ${THREADASM}: ${.CURDIR}/../libc/${MACHINE}/SYS.h /usr/include/sys/syscall.h
 	@${ECHO} creating ${.PREFIX}.o
-	@printf '#include "SYS.h"\nPRSYSCALL(${.PREFIX})\n' | \
-	    ${CPP} ${CFLAGS:M-[ID]*} ${AINC} | ${AS} -o ${.PREFIX}.o
-	@${LD} -x -r ${.PREFIX}.o
-	@mv a.out ${.PREFIX}.o
+	@printf '#include "SYS.h"\nPRSYSCALL(${.PREFIX})\n' > ${.PREFIX}.S
+	@${CC} ${CFLAGS:M-[ID]*} ${AINC} -c ${.PREFIX}.S -o ${.PREFIX}.o
+	@rm -f ${.PREFIX}.S
 
 PTHREADASM=	${THREADASM:.o=.po}
 ${PTHREADASM}: ${.CURDIR}/../libc/${MACHINE}/SYS.h /usr/include/sys/syscall.h
 	@${ECHO} creating ${.PREFIX}.po
-	@printf '#include "SYS.h"\nPRSYSCALL(${.PREFIX})\n' | \
-	    ${CPP} -DPROF ${CFLAGS:M-[ID]*} ${AINC} | ${AS} -o ${.PREFIX}.po
-	@${LD} -x -r ${.PREFIX}.po
-	@mv a.out ${.PREFIX}.po
+	@printf '#include "SYS.h"\nPRSYSCALL(${.PREFIX})\n' > ${.PREFIX}.S
+	@${CC} -DPROF ${CFLAGS:M-[ID]*} ${AINC} -c ${.PREFIX}.S -o ${.PREFIX}.po
+	@rm -f ${.PREFIX}.S
 
 STHREADASM=	${THREADASM:.o=.so}
 ${STHREADASM}: ${.CURDIR}/../libc/${MACHINE}/SYS.h /usr/include/sys/syscall.h
 	@${ECHO} creating ${.PREFIX}.so
-	@printf '#include "SYS.h"\nPRSYSCALL(${.PREFIX})\n' | \
-	    ${CPP} -DPIC ${CFLAGS:M-[ID]*} ${AINC} | ${AS} -k -o ${.PREFIX}.so
+	@printf '#include "SYS.h"\nPRSYSCALL(${.PREFIX})\n' > ${.PREFIX}.S
+	${CC} -fpic -DPIC ${CFLAGS:M-[ID]*} ${AINC} -c ${.PREFIX}.S -o ${.PREFIX}.so
+	@${LD} -O ${.TARGET} -x -r ${.TARGET}
+	@rm -f ${.PREFIX}.S
 
 ${PSEUDO}: ${.CURDIR}/../libc/${MACHINE}/SYS.h /usr/include/sys/syscall.h
 	@${ECHO} creating ${.PREFIX}.o
@@ -110,21 +110,21 @@ ${SPSEUDO}: ${.CURDIR}/../libc/${MACHINE}/SYS.h /usr/include/sys/syscall.h
 
 ${THREADPSEUDO}: ${.CURDIR}/../libc/${MACHINE}/SYS.h /usr/include/sys/syscall.h
 	@${ECHO} creating ${.PREFIX}.o
-	@printf '#include "SYS.h"\nPPSEUDO(${.PREFIX},${.PREFIX:S/_//})\n' | \
-	    ${CPP} ${CFLAGS:M-[ID]*} ${AINC} | ${AS} -o ${.PREFIX}.o
-	@${LD} -x -r ${.PREFIX}.o
-	@mv a.out ${.PREFIX}.o
+	@printf '#include "SYS.h"\nPPSEUDO(${.PREFIX},${.PREFIX:S/_//})\n' > ${.PREFIX}.S
+	@${CC} ${CFLAGS:M-[ID]*} ${AINC} -c ${.PREFIX}.S -o ${.PREFIX}.o
+	@rm -f ${.PREFIX}.S
 
 THREADPPSEUDO=${THREADPSEUDO:.o=.po}
 ${THREADPPSEUDO}: ${.CURDIR}/../libc/${MACHINE}/SYS.h /usr/include/sys/syscall.h
 	@${ECHO} creating ${.PREFIX}.po
-	@printf '#include "SYS.h"\nPPSEUDO(${.PREFIX},${.PREFIX:S/_//})\n' | \
-	    ${CPP} -DPROF ${CFLAGS:M-[ID]*} ${AINC} | ${AS} -o ${.PREFIX}.po
-	@${LD} -x -r ${.PREFIX}.po
-	@mv a.out ${.PREFIX}.po
+	@printf '#include "SYS.h"\nPPSEUDO(${.PREFIX},${.PREFIX:S/_//})\n' > ${.PREFIX}.S
+	@${CC} -DPROF ${CFLAGS:M-[ID]*} ${AINC} -c ${.PREFIX}.S -o ${.PREFIX}.po
+	@rm -f ${.PREFIX}.S
 
 THREADSPSEUDO=${THREADPSEUDO:.o=.so}
 ${THREADSPSEUDO}: ${.CURDIR}/../libc/${MACHINE}/SYS.h /usr/include/sys/syscall.h
 	@${ECHO} creating ${.PREFIX}.so
-	@printf '#include "SYS.h"\nPPSEUDO(${.PREFIX},${.PREFIX:S/_//})\n' | \
-	    ${CPP} -DPIC ${CFLAGS:M-[ID]*} ${AINC} | ${AS} -k -o ${.PREFIX}.so
+	@printf '#include "SYS.h"\nPPSEUDO(${.PREFIX},${.PREFIX:S/_//})\n' > ${.PREFIX}.S
+	${CC} -fpic -DPIC ${CFLAGS:M-[ID]*} ${AINC} -c ${.PREFIX}.S -o ${.PREFIX}.so
+	@${LD} -O ${.TARGET} -x -r ${.TARGET}
+	@rm -f ${.PREFIX}.S
