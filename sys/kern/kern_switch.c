@@ -189,6 +189,7 @@ runq_choose(struct runq *rq)
 	if ((pri = runq_findbit(rq)) != -1) {
 		rqh = &rq->rq_queues[pri];
 		p = TAILQ_FIRST(rqh);
+		KASSERT(p != NULL, ("runq_choose: no proc on busy queue"));
 		CTR3(KTR_RUNQ, "runq_choose: pri=%d p=%p rqh=%p", pri, p, rqh);
 		TAILQ_REMOVE(rqh, p, p_procq);
 		if (TAILQ_EMPTY(rqh)) {
@@ -210,6 +211,7 @@ runq_init(struct runq *rq)
 {
 	int i;
 
+	bzero(rq, sizeof *rq);
 	for (i = 0; i < RQ_NQS; i++)
 		TAILQ_INIT(&rq->rq_queues[i]);
 }
