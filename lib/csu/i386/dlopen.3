@@ -30,168 +30,184 @@
 .\" Copyright (c) 1991 Sun Microsystems, Inc.
 .\"
 .\" @(#) dlopen.3 1.6 90/01/31 SMI
-.TH DLOPEN 3 "24 September 1989"
-.SH NAME
-dlopen, dlsym, dlerror, dlclose \- simple programmatic interface to the dynamic linker
-.SH SYNOPSIS
-.nf
-.ft B
-#include <dlfcn.h>
-.LP
-.ft B
-.nf
-void *dlopen(path, mode)
-const char *path; int mode;
-.fi
-.ft R
-.LP
-.ft B
-.nfvoid *dlopen(path, mode)
-.fi
-.ft R
-.LP
-.ft B
-.nf
-void *dlsym(handle, symbol)
-void *handle; const char *symbol;
-.fi
-.ft R
-.LP
-.ft B
-.nf
-char *dlerror(\|)
-.fi
-.ft R
-.LP
-.ft B
-.nf
-int dlclose(handle);
-void *handle;
-.fi
-.ft R
-.ft R
-.fi
-.SH DESCRIPTION
-.IX "dlopen()" "" "\fLdlopen()\fP \(em dynamically load a shared object"
-.IX "programmatic interface to dynamic linker" dlopen() "" \fLdlopen()\fP
-.IX "dlsym()" "" "\fLdlsym()\fP \(em dynamically lookup a symbol"
-.IX "programmatic interface to dynamic linker" dlsym "" \fLdlsym()\fP
-.IX "dlerror()" "" "\fLdlerror()\fP \(em dynamic linking error string"
-.IX "programmatic interface to dynamic linker" dlerror() "" \fLdlerror()\fP
-.IX "dlclose()" "" "\fLdlclose()\fP \(em unload a shared object"
-.IX "programmatic interface to dynamic linker" dlclose() "" \fLdlclose()\fP
-.LP
+.Dd September 24, 1989
+.Os FreeBSD
+.Dt DLOPEN 3
+.Sh NAME
+.Nm dlopen, dlsym, dlerror, dlclose
+.Nd programmatic interface to the dynamic linker
+.Sh SYNOPSIS
+.Fd #include <dlfcn.h>
+.Ft void *
+.Fn dlopen "char *path" "int mode"
+.Ft void *
+.Fn dlsym "void *handle" "char *symbol"
+.Ft char *
+.Fn dlerror "void"
+.Ft int
+.Fn dlclose "void *handle"
+.Sh DESCRIPTION
 These functions provide a simple programmatic interface to the services of the
-dynamic link-editor.
-Operations are provided to add a new shared object to an
-program's address space, obtain the address bindings of symbols defined by such
+dynamic linker.
+Operations are provided to add new shared objects to a
+program's address space, to obtain the address bindings of symbols
+defined by such
 objects, and to remove such objects when their use is no longer required.
-.LP
-.B dlopen(\|)
+.Pp
+.Fn dlopen
 provides access to the shared object in 
-.IR path ,
+.Fa path ,
 returning a descriptor that can be used for later
 references to the object in calls to 
-.B dlsym(\|)
+.Fn dlsym
 and
-.BR dlclose(\|) .
+.Fn dlclose .
 If
-.I path
+.Fa path
 was not in the address space prior to the call to
-.BR dlopen(\|) ,
-then it will be placed in the address space, and if it defines a function
-with the name 
-.I _init
-that function will be called by 
-.BR dlopen(\|) .
-If, however,
-.I path
+.Fn dlopen ,
+it is placed in the address space.
+When an object is first loaded into the address space in this way, its
+function
+.Fn _init ,
+if any, is called by the dynamic linker.
+(Note that
+.Ql _init
+is the name as expressed in the C language.
+From assembly language, the name would appear as
+.Ql __init
+instead.)
+If
+.Fa path
 has already been placed in the address space in a previous call to
-.BR dlopen(\|) , 
-then it will not be added a
-second time, although a count of 
-.B dlopen(\|)
+.Fn dlopen , 
+it is not added a second time, although a reference count of 
+.Fn dlopen
 operations on
-.I path
-will be maintained.
-.I mode
-is an integer containing flags describing options to be applied to the opening
-and loading process \(em it is reserved for future expansion and must always have
-the value 1.
+.Fa path
+is maintained.
 A null pointer supplied for 
-.I path
-is interpreted as a reference to the \*(lqmain\*(rq
+.Fa path
+is interpreted as a reference to the main
 executable of the process.
+.Fa mode
+controls the way in which external function references from the
+loaded object are bound to their referents.
+It must contains one of the following values:
+.Bl -tag -width RTLD_LAZYX
+.It Dv RTLD_LAZY
+Each external function reference is resolved when the function is first
+called.
+.It Dv RTLD_NOW
+All external function references are bound immediately by
+.Fn dlopen .
+.El
+.Pp
+.Dv RTLD_LAZY
+is normally preferred, for reasons of efficiency.
+However,
+.Dv RTLD_NOW
+is useful to ensure that any undefined symbols are discovered during the
+call to
+.Fn dlopen .
 If 
-.B dlopen(\|)
-fails, it will return a null pointer.
-.LP
-.B dlsym(\|)
+.Fn dlopen
+fails, it returns a null pointer, and sets an error condition which may
+be interrogated with
+.Fn dlerror .
+.Pp
+.Fn dlsym
 returns the address binding of the symbol described in the null-terminated
 character string
-.I symbol
+.Fa symbol ,
 as it occurs in the shared object identified by
-.IR handle .
+.Fa handle .
+Note that
+.Fa symbol
+is the assembly language representation of the symbol name.
+The assembly language representation of a C language symbol contains an
+extra underscore at the beginning.
+For example, the symbol
+.Ql foo
+in C would appear as
+.Ql _foo
+in assembly language, and in the
+.Fa symbol
+argument to
+.Fn dlsym .
 The symbols exported by objects added to the address space by 
-.B dlopen(\|)
-can be accessed 
-.I only
-through calls to
-.BR dlsym(\|) ,
-such symbols do not supersede any definition of those symbols already present
+.Fn dlopen
+can be accessed only through calls to
+.Fn dlsym .
+Such symbols do not supersede any definition of those symbols already present
 in the address space when the object is loaded, nor are they available to
-satisfy \*(lqnormal\*(rq dynamic linking references.
-.B dlsym(\|)
-returns a null pointer if the symbol can not be found.
+satisfy normal dynamic linking references.
 A null pointer supplied as the value of 
-.I handle
+.Fa handle
 is interpreted as a reference to the executable from which the call to 
-.B dlsym(\|)
-is being made \(em thus a shared object can reference its own symbols.
-.LP
-.B dlerror
+.Fn dlsym
+is being made.  Thus a shared object can reference its own symbols.
+.Fn dlsym
+returns a null pointer if the symbol cannot be found, and sets an error
+condition which may be queried with
+.Fn dlerror .
+.Pp
+.Fn dlerror
 returns a null-terminated character string describing the last error that
-occurred during a
-.BR dlopen(\|) ,
-.BR dlsym(\|) ,
+occurred during a call to
+.Fn dlopen ,
+.Fn dlsym ,
 or
-.BR dlclose(\|) .
-If no such error has occurred, then 
-.B dlerror(\|)
-will return a null pointer.
+.Fn dlclose .
+If no such error has occurred,
+.Fn dlerror
+returns a null pointer.
 At each call to
-.BR dlerror(\|) ,
-the \*(lqlast error\*(rq indication will be reset, thus in the case of two calls
+.Fn dlerror ,
+the error indication is reset.  Thus in the case of two calls
 to
-.BR dlerror(\|) ,
-and where the second call follows the first immediately, the second call
+.Fn dlerror ,
+where the second call follows the first immediately, the second call
 will always return a null pointer.
-.LP
-.B dlclose(\|)
+.Pp
+.Fn dlclose
 deletes a reference to the shared object referenced by
-.IR handle .
-If the reference count drops to 0, then if the object referenced by 
-.I handle
-defines a function 
-.IR _fini ,
-that function will be called, the object
-removed from the address space, and 
-.I handle
-destroyed.
+.Fa handle .
+If the reference count drops to 0, the object is removed from the
+address space, and
+.Fa handle
+is rendered invalid.
+Just before removing a shared object in this way, the dynamic linker
+calls the object's
+.Fn _fini
+function, if such a function is defined by the object.
+As with
+.Ql _init ,
+.Ql _fini
+is the C language name of the function.
 If 
-.B dlclose(\|)
-is successful, it will return a value of 0.
-A failing call to
-.B dlclose(\|)
-will return a non-zero value.
-.LP
+.Fn dlclose
+is successful, it returns a value of 0.
+Otherwise it returns -1, and sets an error condition that can be
+interrogated with
+.Fn dlerror .
+.Pp
 The object-intrinsic functions 
-.I _init
+.Fn _init
 and
-.I _fini
-are called with no arguments and treated as though their types were
-.BR void .
-.SH SEE ALSO
-.BR ld (1),
-.BR link (5)
-.SH NOTES
+.Fn _fini
+are called with no arguments, and are not expected to return values.
+.Sh ERRORS
+.Fn dlopen
+and
+.Fn dlsym
+return the null pointer in the event of errors.
+.Fn dlclose
+returns 0 on success, or -1 if an error occurred.
+Whenever an error has been detected, a message detailing it can be
+retrieved via a call to
+.Fn dlerror .
+.Sh SEE ALSO
+.Xr ld 1 ,
+.Xr link 5 ,
+.Xr rtld 1
