@@ -1252,8 +1252,8 @@ mn_attach (pcici_t tag, int unit)
 		printf("mn%d: could not map interrupt\n", sc->unit);
 		return;
 	}
-	pci_map_mem(tag, PCI_MAP_REG_START, &sc->m0v, &sc->m0p);
-	pci_map_mem(tag, PCI_MAP_REG_START + 4, &sc->m1v, &sc->m1p);
+	pci_map_mem(tag, PCIR_MAPS, &sc->m0v, &sc->m0p);
+	pci_map_mem(tag, PCIR_MAPS + 4, &sc->m1v, &sc->m1p);
 
 	u = pci_conf_read(tag, PCIR_COMMAND);
 	pci_conf_write(tag, PCIR_COMMAND, u | PCIM_CMD_PERRESPEN | PCIM_CMD_BUSMASTEREN | PCIM_CMD_MEMEN);
