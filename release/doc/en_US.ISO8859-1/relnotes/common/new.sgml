@@ -449,6 +449,11 @@
 	Extensions (<acronym>SSE</acronym>) has been introduced.  The
 	<literal>CPU_ENABLE_SSE</literal> kernel option controls
 	whether support is compiled into the kernel. &merged;</para>
+
+      <para arch="i386">The <literal>CPU_ATHLON_SSE_HACK</literal>
+	kernel option has been added, which attempts to enable the SSE
+	feature bit on newer Athlon CPUs if the BIOS has forgotten to
+	enable it.</para>
     </sect3>
 
     <sect3>
@@ -1228,6 +1233,9 @@ options HZ=1000 # not compulsory but strongly recommended</programlisting>
 	Hauppauge Model 44xxx WinTV Cards (the ones with no audio mux)
 	has been added. &merged;</para>
 
+      <para arch="i386">The ufm driver, supporting the D-Link DSB-R100
+	USB Radio, has been added. &merged;</para>
+
       <para>When sound modules are built, one can now load all the
 	drivers and infrastructure by <command>kldload
 	snd</command>. &merged;</para>
@@ -1619,6 +1627,11 @@ options HZ=1000 # not compulsory but strongly recommended</programlisting>
     <para>&man.atacontrol.8; has been added to control various aspects
       of the &man.ata.4; driver.</para>
 
+    <para arch="sparc64">The system &man.awk.1; refers to
+      <application>BWK awk</application> on the &arch; platform.  It
+      remains <application>GNU awk</application> on other
+      platforms.</para>
+
     <para arch="i386">&man.boot98cfg.8;, a PC-98 boot manager
       installation and configuration utility, has been
       added. &merged;</para>
@@ -1703,6 +1716,10 @@ options HZ=1000 # not compulsory but strongly recommended</programlisting>
     <para>A number of buffer overflows in &man.config.8; have been
       fixed. &merged;</para>
 
+    <para>&man.ctags.1; no longer creates a corrupt tags file if the
+      source file used <literal>//</literal> (C++-style)
+      comments. &merged;</para>
+
     <para>The &man.daemon.8; program, a command-line interface to
       &man.daemon.3;, has been added.  It detaches itself from its
       controlling terminal and executes a program specified on the
@@ -1741,6 +1758,9 @@ options HZ=1000 # not compulsory but strongly recommended</programlisting>
     <para>&man.dump.8; now supplies progress information in its
       process title, useful for monitoring automated
       backups. &merged;</para>
+
+    <para>&man.dump.8; now supports a new <option>-S</option> to allow
+      it to just print out the dump size estimates and exit.</para>
 
     <para>&man.edquota.8; now takes a <option>-f</option> option to
       allow limiting the prototype quota distribution (specified with
@@ -1966,6 +1986,9 @@ options HZ=1000 # not compulsory but strongly recommended</programlisting>
     <para>&man.last.1; now implements a <option>-d</option> that
       provides a <quote>snapshot</quote> of who was logged in at a
       particular date and time. &merged;</para>
+
+    <para>&man.last.1; now supports a <option>-y</option> flag, which
+      causes the year to be included in the session start time.</para>
 
     <para>The &man.lastlogin.8; utility, which prints the last login
       time of each user, has been imported from
@@ -2603,6 +2626,12 @@ options HZ=1000 # not compulsory but strongly recommended</programlisting>
       <para><application>am-utils</application> has been updated to
 	6.0.7.</para>
 
+      <para><application>awk</application> from Bell Labs (variously
+	known as <quote>BWK awk</quote> or <quote>The One True
+	AWK</quote>) has been imported.  It is available as
+	<command>awk</command> on the sparc64 architecture, and
+	<command>nawk</command> on other architectures.</para>
+
       <para><application>bc</application> has been updated from 1.04 to
 	1.06. &merged;</para>
 
@@ -2648,7 +2677,9 @@ options HZ=1000 # not compulsory but strongly recommended</programlisting>
 	3.113. &merged;</para>
      
       <para><application>GNU awk</application> has been updated to
-	3.1.0.</para>
+	3.1.0.  It is available as <command>gawk</command> on the
+	sparc64 architecture, and as <command>awk</command> on other
+	architectures.</para>
 
       <para><application>gperf</application> has been updated to
 	2.7.2.</para>
@@ -2685,6 +2716,9 @@ options HZ=1000 # not compulsory but strongly recommended</programlisting>
 
       <para><application>libreadline</application> has been updated to
 	4.2.</para>
+
+      <para><application>lint</application> has been updated to
+	snapshot of NetBSD &man.lint.1; as of 3 March 2002.</para>
 
       <para><application>Linux-PAM</application> has been updated to
 	0.75. &merged;</para>
