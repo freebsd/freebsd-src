@@ -36,7 +36,7 @@
 .Os
 .Sh NAME
 .Nm ath
-.Nd "Atheros IEEE 802.11 driver"
+.Nd "Atheros IEEE 802.11 wireless network driver"
 .Sh SYNOPSIS
 .Cd "device ath"
 .Cd "device ath_hal"
@@ -95,9 +95,9 @@ The driver may also be configured to operate in hostap mode.
 In this mode a host may function as an access point (base station).
 Access points are different than operating in IBSS mode.
 They operate in BSS mode.
-They allow for easier roaming and bridge all ethernet traffic such
+They allow for easier roaming and bridge all Ethernet traffic such
 that machines connected via an access point appear to be on the local
-ethernet segment.
+Ethernet segment.
 .Pp
 For more information on configuring this device, see
 .Xr ifconfig 8 .
@@ -211,11 +211,11 @@ The driver was unable to allocate contiguous memory for the transmit
 and receive descriptors.
 This usually indicates system memory is scarce and/or fragmented.
 .It "ath%d: unable to setup a data xmit queue!"
-The request to the HAL to setup the transmit queue for normal
+The request to the HAL to set up the transmit queue for normal
 data frames failed.
 This should not happen.
 .It "ath%d: unable to setup a beacon xmit queue!"
-The request to the HAL to setup the transmit queue for 802.11 beacon frames
+The request to the HAL to set up the transmit queue for 802.11 beacon frames
 frames failed.
 This should not happen.
 .It "ath%d: 802.11 address: %s"
