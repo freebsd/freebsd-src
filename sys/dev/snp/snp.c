@@ -381,7 +381,6 @@ snpopen(dev, flag, mode, td)
 	struct thread *td;
 {
 	struct snoop *snp;
-	int error;
 
 	if (dev->si_drv1 == NULL) {
 		if (!(dev->si_flags & SI_NAMED))
