@@ -14,13 +14,16 @@
 #include "cvs.h"
 
 #ifndef lint
-static char rcsid[] = "$CVSid: @(#)create_adm.c 1.28 94/09/23 $";
-USE(rcsid)
+static const char rcsid[] = "$CVSid: @(#)create_adm.c 1.28 94/09/23 $";
+USE(rcsid);
 #endif
 
+/* update_dir includes dir as its last component.  */
+
 void
-Create_Admin (dir, repository, tag, date)
+Create_Admin (dir, update_dir, repository, tag, date)
     char *dir;
+    char *update_dir;
     char *repository;
     char *tag;
     char *date;
@@ -29,6 +32,18 @@ Create_Admin (dir, repository, tag, date)
     char *cp;
     char tmp[PATH_MAX];
 
+#ifdef SERVER_SUPPORT
+    if (trace)
+      {
+	char wd[PATH_MAX];
+	getwd (wd);
+	fprintf (stderr, "%c-> Create_Admin (%s, %s, %s, %s, %s) in %s\n",
+		 (server_active) ? 'S' : ' ',
+                dir, update_dir, repository, tag ? tag : "",
+                date ? date : "", wd);
+      }
+#endif
+
     if (noexec)
 	return;
 
@@ -36,24 +51,9 @@ Create_Admin (dir, repository, tag, date)
 	(void) sprintf (tmp, "%s/%s", dir, CVSADM);
     else
 	(void) strcpy (tmp, CVSADM);
-
     if (isfile (tmp))
-	error (1, 0, "there is a version here already");
-    else
-    {
-	if (dir != NULL)
-	    (void) sprintf (tmp, "%s/%s", dir, OCVSADM);
-	else
-	    (void) strcpy (tmp, OCVSADM);
+	error (1, 0, "there is a version in %s already", update_dir);
 
-	if (isfile (tmp))
-	    error (1, 0, "there is a version here already");
-    }
-
-    if (dir != NULL)
-	(void) sprintf (tmp, "%s/%s", dir, CVSADM);
-    else
-	(void) strcpy (tmp, CVSADM);
     make_directory (tmp);
 
 #ifdef CVSADM_ROOT
@@ -65,7 +65,14 @@ Create_Admin (dir, repository, tag, date)
 	(void) sprintf (tmp, "%s/%s", dir, CVSADM_REP);
     else
 	(void) strcpy (tmp, CVSADM_REP);
-    fout = open_file (tmp, "w+");
+    fout = fopen (tmp, "w+");
+    if (fout == NULL)
+    {
+	if (update_dir[0] == '\0')
+	    error (1, errno, "cannot open %s", tmp);
+	else
+	    error (1, errno, "cannot open %s/%s", update_dir, CVSADM_REP);
+    }
     cp = repository;
     strip_path (cp);
 
@@ -84,20 +91,54 @@ Create_Admin (dir, repository, tag, date)
     }
 #endif
 
-    if (fprintf (fout, "%s\n", cp) == EOF)
-	error (1, errno, "write to %s failed", tmp);
+    if (fprintf (fout, "%s\n", cp) < 0)
+    {
+	if (update_dir[0] == '\0')
+	    error (1, errno, "write to %s failed", tmp);
+	else
+	    error (1, errno, "write to %s/%s failed", update_dir, CVSADM_REP);
+    }
     if (fclose (fout) == EOF)
-	error (1, errno, "cannot close %s", tmp);
+    {
+	if (update_dir[0] == '\0')
+	    error (1, errno, "cannot close %s", tmp);
+	else
+	    error (1, errno, "cannot close %s/%s", update_dir, CVSADM_REP);
+    }
 
     /* now, do the Entries file */
     if (dir != NULL)
 	(void) sprintf (tmp, "%s/%s", dir, CVSADM_ENT);
     else
 	(void) strcpy (tmp, CVSADM_ENT);
-    fout = open_file (tmp, "w+");
+    fout = fopen (tmp, "w+");
+    if (fout == NULL)
+    {
+	if (update_dir[0] == '\0')
+	    error (1, errno, "cannot open %s", tmp);
+	else
+	    error (1, errno, "cannot open %s/%s", update_dir, CVSADM_ENT);
+    }
     if (fclose (fout) == EOF)
-	error (1, errno, "cannot close %s", tmp);
+    {
+	if (update_dir[0] == '\0')
+	    error (1, errno, "cannot close %s", tmp);
+	else
+	    error (1, errno, "cannot close %s/%s", update_dir, CVSADM_ENT);
+    }
 
     /* Create a new CVS/Tag file */
     WriteTag (dir, tag, date);
+
+#ifdef SERVER_SUPPORT
+    if (server_active)
+      server_set_sticky (update_dir, repository, tag, date);
+
+    if (trace)
+      {
+	fprintf (stderr, "%c<- Create_Admin\n",
+		 (server_active) ? 'S' : ' ');
+      }
+#endif
+
 }

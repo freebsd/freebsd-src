@@ -11,8 +11,8 @@
 #include "cvs.h"
 
 #ifndef lint
-static char rcsid[] = "$CVSid: @(#)status.c 1.56 94/10/07 $";
-USE(rcsid)
+static const char rcsid[] = "$CVSid: @(#)status.c 1.56 94/10/07 $";
+USE(rcsid);
 #endif
 
 static Dtype status_dirproc PROTO((char *dir, char *repos, char *update_dir));
@@ -26,7 +26,7 @@ static int long_format = 0;
 static char *xfile;
 static List *xsrcfiles;
 
-static char *status_usage[] =
+static const char *const status_usage[] =
 {
     "Usage: %s %s [-vlR] [files...]\n",
     "\t-v\tVerbose format; includes tag information for the file\n",
@@ -38,7 +38,7 @@ static char *status_usage[] =
 int
 status (argc, argv)
     int argc;
-    char *argv[];
+    char **argv;
 {
     int c;
     int err = 0;
@@ -69,9 +69,34 @@ status (argc, argv)
     argc -= optind;
     argv += optind;
 
+    wrap_setup ();
+
+#ifdef CLIENT_SUPPORT
+    if (client_active) {
+      start_server ();
+
+      ign_setup ();
+
+      if (long_format)
+	send_arg("-v");
+      if (local)
+	send_arg("-l");
+
+      /* XXX This should only need to send file info; the file
+	 contents themselves will not be examined.  */
+      send_files (argc, argv, local, 0);
+
+      if (fprintf (to_server, "status\n") < 0)
+	error (1, errno, "writing to server");
+      err = get_responses_and_close ();
+
+      return err;
+    }
+#endif
+
     /* start the recursion processor */
-    err = start_recursion (status_fileproc, (int (*) ()) NULL, status_dirproc,
-			   (int (*) ()) NULL, argc, argv, local,
+    err = start_recursion (status_fileproc, (FILESDONEPROC) NULL, status_dirproc,
+			   (DIRLEAVEPROC) NULL, argc, argv, local,
 			   W_LOCAL, 0, 1, (char *) NULL, 1, 0);
 
     return (err);
@@ -104,6 +129,11 @@ status_fileproc (file, update_dir, repository, entries, srcfiles)
 	case T_CHECKOUT:
 	    sstat = "Needs Checkout";
 	    break;
+#ifdef SERVER_SUPPORT
+	case T_PATCH:
+	    sstat = "Needs Patch";
+	    break;
+#endif
 	case T_CONFLICT:
 	    sstat = "Unresolved Conflict";
 	    break;
@@ -143,6 +173,10 @@ status_fileproc (file, update_dir, repository, entries, srcfiles)
 	(void) printf ("   Working revision:\tNo entry for %s\n", file);
     else if (vers->vn_user[0] == '0' && vers->vn_user[1] == '\0')
 	(void) printf ("   Working revision:\tNew file!\n");
+#ifdef SERVER_SUPPORT
+    else if (server_active)
+	(void) printf ("   Working revision:\t%s\n", vers->vn_user);
+#endif
     else
 	(void) printf ("   Working revision:\t%s\t%s\n", vers->vn_user,
 		       vers->ts_rcs);
@@ -181,17 +215,17 @@ status_fileproc (file, update_dir, repository, entries, srcfiles)
 		}
 	    }
 	}
-	else
+	else if (!really_quiet)
 	    (void) printf ("   Sticky Tag:\t\t(none)\n");
 
 	if (edata->date)
 	    (void) printf ("   Sticky Date:\t\t%s\n", edata->date);
-	else
+	else if (!really_quiet)
 	    (void) printf ("   Sticky Date:\t\t(none)\n");
 
 	if (edata->options && edata->options[0])
 	    (void) printf ("   Sticky Options:\t%s\n", edata->options);
-	else
+	else if (!really_quiet)
 	    (void) printf ("   Sticky Options:\t(none)\n");
 
 	if (long_format && vers->srcfile)
