@@ -298,6 +298,8 @@ smbfs_reclaim(ap)
 	
 	SMBVDEBUG("%s,%d\n", np->n_name, vp->v_usecount);
 
+	KASSERT((np->n_flag & NOPEN) == 0, ("file not closed before reclaim"));
+
 	smbfs_hash_lock(smp, p);
 
 	dvp = (np->n_parent && (np->n_flag & NREFPARENT)) ?
@@ -305,7 +307,6 @@ smbfs_reclaim(ap)
 
 	if (np->n_hash.le_prev)
 		LIST_REMOVE(np, n_hash);
-	cache_purge(vp);
 	if (smp->sm_root == np) {
 		SMBVDEBUG("root vnode\n");
 		smp->sm_root = NULL;
@@ -315,20 +316,13 @@ smbfs_reclaim(ap)
 	if (np->n_name)
 		smbfs_name_free(np->n_name);
 	FREE(np, M_SMBNODE);
-	if (dvp) {
-		VI_LOCK(dvp);
-		if (dvp->v_usecount >= 1) {
-			VI_UNLOCK(dvp);
-			vrele(dvp);
-			/*
-			 * Indicate that we released something; see comment
-			 * in smbfs_unmount().
-			 */
-			smp->sm_didrele = 1;
-		} else {
-			VI_UNLOCK(dvp);
-			SMBERROR("BUG: negative use count for parent!\n");
-		}
+	if (dvp != NULL) {
+		vrele(dvp);
+		/*
+		 * Indicate that we released something; see comment
+		 * in smbfs_unmount().
+		 */
+		smp->sm_didrele = 1;
 	}
 	return 0;
 }
@@ -345,15 +339,24 @@ smbfs_inactive(ap)
 	struct vnode *vp = ap->a_vp;
 	struct smbnode *np = VTOSMB(vp);
 	struct smb_cred scred;
-	int error;
+	struct vattr va;
 
 	SMBVDEBUG("%s: %d\n", VTOSMB(vp)->n_name, vp->v_usecount);
-	if (np->n_opencount) {
-		error = smbfs_vinvalbuf(vp, V_SAVE, cred, p, 1);
+	if ((np->n_flag & NOPEN) != 0) {
 		smb_makescred(&scred, p, cred);
-		error = smbfs_smb_close(np->n_mount->sm_share, np->n_fid, 
-		   &np->n_mtime, &scred);
-		np->n_opencount = 0;
+		smbfs_vinvalbuf(vp, V_SAVE, cred, p, 1);
+		if (vp->v_type == VREG) {
+			VOP_GETATTR(vp, &va, cred, p);
+			smbfs_smb_close(np->n_mount->sm_share, np->n_fid,
+			    &np->n_mtime, &scred);
+		} else if (vp->v_type == VDIR) {
+			if (np->n_dirseq != NULL) {
+				smbfs_findclose(np->n_dirseq, &scred);
+				np->n_dirseq = NULL;
+			}
+		}
+		np->n_flag &= ~NOPEN;
+		smbfs_attr_cacheremove(vp);
 	}
 	VOP_UNLOCK(vp, 0, p);
 	return (0);

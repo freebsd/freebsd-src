@@ -48,17 +48,17 @@ MALLOC_DECLARE(M_SMBTEMP);
 #define	MODULE_VERSION(name, ver)
 #define	PDROP	0x200	/* OR'd with pri to stop re-entry of interlock mutex */
 
-#define SMBERROR(format, args...) printf("%s: "format, __FUNCTION__ ,## args)
-#define SMBPANIC(format, args...) printf("%s: "format, __FUNCTION__ ,## args)
+#define SMBERROR(format, args...) printf("%s: "format, __func__ ,## args)
+#define SMBPANIC(format, args...) printf("%s: "format, __func__ ,## args)
 
 #ifdef SMB_SOCKET_DEBUG
-#define SMBSDEBUG(format, args...) printf("%s: "format, __FUNCTION__ ,## args)
+#define SMBSDEBUG(format, args...) printf("%s: "format, __func__ ,## args)
 #else
 #define SMBSDEBUG(format, args...)
 #endif
 
 #ifdef SMB_IOD_DEBUG
-#define SMBIODEBUG(format, args...) printf("%s: "format, __FUNCTION__ ,## args)
+#define SMBIODEBUG(format, args...) printf("%s: "format, __func__ ,## args)
 #else
 #define SMBIODEBUG(format, args...)
 #endif
@@ -86,42 +86,6 @@ void m_dumpm(struct mbuf *m);
 #define	smb_sl_unlock(mtx)		simple_unlock(mtx)
 
 #define SMB_STRFREE(p)	do { if (p) smb_strfree(p); } while(0)
-
-/*
- * The simple try/catch/finally interface.
- * With GCC it is possible to allow more than one try/finally block per
- * function, but we'll avoid it to maintain portability.
- */
-#define itry		{						\
-				__label__ _finlab, _catchlab;		\
-				int _tval;				\
-
-#define icatch(var)							\
-				goto _finlab;				\
-				(void)&&_catchlab;			\
-				_catchlab:				\
-				var = _tval;
-
-#define ifinally		(void)&&_finlab;			\
-				_finlab:				
-#define iendtry		}
-
-#define inocatch							\
-				goto _finlab;				\
-				(void)&&_catchlab;			\
-				_catchlab:				\
-
-#define ithrow(t)	do {						\
-				if ((_tval = (int)(t)) != 0)		\
-					goto _catchlab;			\
-			} while (0)
-
-#define ierror(t,e)	do {						\
-				if (t) {				\
-					_tval = e;			\
-					goto _catchlab;			\
-				}					\
-			} while (0)
 
 typedef u_int16_t	smb_unichar;
 typedef	smb_unichar	*smb_uniptr;
@@ -154,6 +118,7 @@ void smb_strfree(char *s);
 void smb_memfree(void *s);
 void *smb_zmalloc(unsigned long size, struct malloc_type *type, int flags);
 
+int  smb_calcmackey(struct smb_vc *vcp);
 int  smb_encrypt(const u_char *apwd, u_char *C8, u_char *RN);
 int  smb_ntencrypt(const u_char *apwd, u_char *C8, u_char *RN);
 int  smb_maperror(int eclass, int eno);
@@ -163,6 +128,9 @@ int  smb_put_dstring(struct mbchain *mbp, struct smb_vc *vcp,
 	const char *src, int caseopt);
 int  smb_put_string(struct smb_rq *rqp, const char *src);
 int  smb_put_asunistring(struct smb_rq *rqp, const char *src);
+int  smb_rq_sign(struct smb_rq *rqp);
+int  smb_rq_verify(struct smb_rq *rqp);
+
 int  smb_checksmp(void);
 
 /*
@@ -171,6 +139,5 @@ int  smb_checksmp(void);
 int kthread_create2(void (*func)(void *), void *arg,
     struct proc **newpp, int flags, const char *fmt, ...);
 int msleep(void *chan, struct simplelock *mtx, int pri, const char *wmesg, int timo);
-
 
 #endif /* !_NETSMB_SMB_SUBR_H_ */

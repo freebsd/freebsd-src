@@ -28,12 +28,14 @@
  * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
- *
- * $FreeBSD$
  */
+
+#include <sys/cdefs.h>
+__FBSDID("$FreeBSD$");
  
 #include <sys/param.h>
 #include <sys/systm.h>
+#include <sys/endian.h>
 #include <sys/proc.h>
 #include <sys/kernel.h>
 #include <sys/kthread.h>
@@ -138,30 +140,38 @@ smb_iod_connect(struct smbiod *iod)
 		break;
 	}
 	vcp->vc_genid++;
-	error = 0;
-	itry {
-		ithrow(SMB_TRAN_CREATE(vcp, p));
-		SMBIODEBUG("tcreate\n");
-		if (vcp->vc_laddr) {
-			ithrow(SMB_TRAN_BIND(vcp, vcp->vc_laddr, p));
-		}
-		SMBIODEBUG("tbind\n");
-		ithrow(SMB_TRAN_CONNECT(vcp, vcp->vc_paddr, p));
-		SMB_TRAN_SETPARAM(vcp, SMBTP_SELECTID, &iod->iod_flags);
-		iod->iod_state = SMBIOD_ST_TRANACTIVE;
-		SMBIODEBUG("tconnect\n");
-/*		vcp->vc_mid = 0;*/
-		ithrow(smb_smb_negotiate(vcp, &iod->iod_scred));
-		SMBIODEBUG("snegotiate\n");
-		ithrow(smb_smb_ssnsetup(vcp, &iod->iod_scred));
-		iod->iod_state = SMBIOD_ST_VCACTIVE;
-		SMBIODEBUG("completed\n");
-		smb_iod_invrq(iod);
-	} icatch(error) {
-		smb_iod_dead(iod);
-	} ifinally {
-	} iendtry;
-	return error;
+	error = (int)SMB_TRAN_CREATE(vcp, p);
+	if (error)
+		goto fail;
+	SMBIODEBUG("tcreate\n");
+	if (vcp->vc_laddr) {
+		error = (int)SMB_TRAN_BIND(vcp, vcp->vc_laddr, p);
+		if (error)
+			goto fail;
+	}
+	SMBIODEBUG("tbind\n");
+	error = (int)SMB_TRAN_CONNECT(vcp, vcp->vc_paddr, p);
+	if (error)
+		goto fail;
+	SMB_TRAN_SETPARAM(vcp, SMBTP_SELECTID, &iod->iod_flags);
+	iod->iod_state = SMBIOD_ST_TRANACTIVE;
+	SMBIODEBUG("tconnect\n");
+	/* vcp->vc_mid = 0;*/
+	error = (int)smb_smb_negotiate(vcp, &iod->iod_scred);
+	if (error)
+		goto fail;
+	SMBIODEBUG("snegotiate\n");
+	error = (int)smb_smb_ssnsetup(vcp, &iod->iod_scred);
+	if (error)
+		goto fail;
+	iod->iod_state = SMBIOD_ST_VCACTIVE;
+	SMBIODEBUG("completed\n");
+	smb_iod_invrq(iod);
+	return (0);
+
+ fail:
+	smb_iod_dead(iod);
+	return (error);
 }
 
 static int
@@ -232,9 +242,11 @@ smb_iod_sendrq(struct smbiod *iod, struct smb_rq *rqp)
 		if (vcp->vc_maxmux != 0 && iod->iod_muxcnt >= vcp->vc_maxmux)
 			return 0;
 #endif
-		*rqp->sr_rqtid = htoles(ssp ? ssp->ss_tid : SMB_TID_UNKNOWN);
-		*rqp->sr_rquid = htoles(vcp ? vcp->vc_smbuid : 0);
+		*rqp->sr_rqtid = htole16(ssp ? ssp->ss_tid : SMB_TID_UNKNOWN);
+		*rqp->sr_rquid = htole16(vcp ? vcp->vc_smbuid : 0);
 		mb_fixhdr(&rqp->sr_rq);
+		if (vcp->vc_hflags2 & SMB_FLAGS2_SECURITY_SIGNATURE)
+			smb_rq_sign(rqp);
 	}
 	if (rqp->sr_sendcnt++ > 5) {
 		rqp->sr_flags |= SMBR_RESTART;
@@ -247,7 +259,7 @@ smb_iod_sendrq(struct smbiod *iod, struct smb_rq *rqp)
 	}
 	SMBSDEBUG("M:%04x, P:%04x, U:%04x, T:%04x\n", rqp->sr_mid, 0, 0, 0);
 	m_dumpm(rqp->sr_rq.mb_top);
-	m = m_copym(rqp->sr_rq.mb_top, 0, M_COPYALL, M_WAIT);
+	m = m_copym(rqp->sr_rq.mb_top, 0, M_COPYALL, M_WAITOK);
 	error = rqp->sr_lerror = m ? SMB_TRAN_SEND(vcp, m, p) : ENOBUFS;
 	if (error == 0) {
 		getnanotime(&rqp->sr_timesent);
@@ -556,6 +568,7 @@ smb_iod_sendall(struct smbiod *iod)
 			}
 			break;
 		    default:
+			break;
 		}
 		if (herror)
 			break;

@@ -149,7 +149,7 @@ struct smb_vc_info {
 	int		flags;
 	enum smbiod_state iodstate;
 	struct smb_sopt	sopt;
-	char		srvname[SMB_MAXSRVNAMELEN];
+	char		srvname[SMB_MAXSRVNAMELEN + 1];
 	char		vcname[128];
 };
 
@@ -267,13 +267,19 @@ struct smb_vc {
 	u_short		vc_mid;		/* multiplex id */
 	struct smb_sopt	vc_sopt;	/* server options */
 	int		vc_txmax;	/* max tx/rx packet size */
+	int		vc_rxmax;	/* max readx data size */
+	int		vc_wxmax;	/* max writex data size */
 	struct smbiod *	vc_iod;
 	struct smb_slock vc_stlock;
+	u_int32_t	vc_seqno;	/* my next sequence number */
+	u_int8_t	*vc_mackey;	/* MAC key */
+	int		vc_mackeylen;	/* length of MAC key */
 };
 
 #define vc_maxmux	vc_sopt.sv_maxmux
 #define	vc_flags	obj.co_flags
 
+#define SMB_UNICODE_STRINGS(vcp)	((vcp)->vc_hflags2 & SMB_FLAGS2_UNICODE)
 
 /*
  * smb_share structure describes connection to the given SMB share (tree).

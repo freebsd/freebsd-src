@@ -30,6 +30,7 @@
  * SUCH DAMAGE.
  *
  * $Id: rap.c,v 1.8 2001/02/24 15:56:05 bp Exp $
+ * $FreeBSD$
  *
  * This is very simple implementation of RAP protocol.
  */
@@ -40,7 +41,7 @@
 #include <err.h>
 #include <stdio.h>
 #include <unistd.h>
-#include <strings.h>
+#include <string.h>
 #include <stdlib.h>
 #include <sysexits.h>
 

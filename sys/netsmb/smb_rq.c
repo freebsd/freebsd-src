@@ -28,11 +28,14 @@
  * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
- *
- * $FreeBSD$
  */
+
+#include <sys/cdefs.h>
+__FBSDID("$FreeBSD$");
+
 #include <sys/param.h>
 #include <sys/systm.h>
+#include <sys/endian.h>
 #include <sys/kernel.h>
 #include <sys/malloc.h>
 #include <sys/proc.h>
@@ -111,6 +114,7 @@ smb_rq_new(struct smb_rq *rqp, u_char cmd)
 	struct smb_vc *vcp = rqp->sr_vc;
 	struct mbchain *mbp = &rqp->sr_rq;
 	int error;
+	u_int16_t flags2;
 
 	rqp->sr_sendcnt = 0;
 	mb_done(mbp);
@@ -122,8 +126,20 @@ smb_rq_new(struct smb_rq *rqp, u_char cmd)
 	mb_put_uint8(mbp, cmd);
 	mb_put_uint32le(mbp, 0);		/* DosError */
 	mb_put_uint8(mbp, vcp->vc_hflags);
-	mb_put_uint16le(mbp, vcp->vc_hflags2);
-	mb_put_mem(mbp, tzero, 12, MB_MSYSTEM);
+	flags2 = vcp->vc_hflags2;
+	if (cmd == SMB_COM_TRANSACTION || cmd == SMB_COM_TRANSACTION_SECONDARY)
+		flags2 &= ~SMB_FLAGS2_UNICODE;
+	if (cmd == SMB_COM_NEGOTIATE)
+		flags2 &= ~SMB_FLAGS2_SECURITY_SIGNATURE;
+	mb_put_uint16le(mbp, flags2);
+	if ((flags2 & SMB_FLAGS2_SECURITY_SIGNATURE) == 0) {
+		mb_put_mem(mbp, tzero, 12, MB_MSYSTEM);
+		rqp->sr_rqsig = NULL;
+	} else {
+		mb_put_uint16le(mbp, 0 /*scred->sc_p->p_pid >> 16*/);
+		rqp->sr_rqsig = (u_int8_t *)mb_reserve(mbp, 8);
+		mb_put_uint16le(mbp, 0);
+	}
 	rqp->sr_rqtid = (u_int16_t*)mb_reserve(mbp, sizeof(u_int16_t));
 	mb_put_uint16le(mbp, 1 /*scred->sc_p->p_pid & 0xffff*/);
 	rqp->sr_rquid = (u_int16_t*)mb_reserve(mbp, sizeof(u_int16_t));
@@ -238,7 +254,7 @@ smb_rq_bend(struct smb_rq *rqp)
 	bcnt = rqp->sr_rq.mb_count;
 	if (bcnt > 0xffff)
 		SMBERROR("byte count too large (%d)\n", bcnt);
-	*rqp->sr_bcount = bcnt;
+	*rqp->sr_bcount = htole16(bcnt);
 }
 
 int
@@ -345,6 +361,10 @@ smb_rq_reply(struct smb_rq *rqp)
 	error = md_get_uint16le(mdp, &rqp->sr_rpuid);
 	error = md_get_uint16le(mdp, &rqp->sr_rpmid);
 
+	if (error == 0 &&
+	    (rqp->sr_vc->vc_hflags2 & SMB_FLAGS2_SECURITY_SIGNATURE))
+		error = smb_rq_verify(rqp);
+
 	SMBSDEBUG("M:%04x, P:%04x, U:%04x, T:%04x, E: %d:%d\n",
 	    rqp->sr_rpmid, rqp->sr_rppid, rqp->sr_rpuid, rqp->sr_rptid,
 	    rqp->sr_errclass, rqp->sr_serror);
@@ -414,12 +434,10 @@ smb_t2_placedata(struct mbuf *mtop, u_int16_t offset, u_int16_t count,
 	struct mbuf *m, *m0;
 	int len;
 
-	m0 = m_split(mtop, offset, M_WAIT);
+	m0 = m_split(mtop, offset, M_WAITOK);
 	if (m0 == NULL)
 		return EBADRPC;
-	for(len = 0, m = m0; m->m_next; m = m->m_next)
-		len += m->m_len;
-	len += m->m_len;
+	len = m_length(m0, &m);
 	m->m_len -= len - count;
 	if (mdp->md_top == NULL) {
 		md_initm(mdp, m0);
@@ -573,6 +591,7 @@ smb_t2_request_int(struct smb_t2rq *t2p)
 		return error;
 	rqp->sr_flags |= SMBR_MULTIPACKET;
 	t2p->t2_rq = rqp;
+	rqp->sr_t2 = t2p;
 	mbp = &rqp->sr_rq;
 	smb_rq_wstart(rqp);
 	mb_put_uint16le(mbp, totpcount);
@@ -647,6 +666,7 @@ smb_t2_request_int(struct smb_t2rq *t2p)
 	if (error)
 		goto bad;
 	while (leftpcount || leftdcount) {
+		t2p->t2_flags |= SMBT2_SECONDARY;
 		error = smb_rq_new(rqp, t2p->t_name ? 
 		    SMB_COM_TRANSACTION_SECONDARY : SMB_COM_TRANSACTION2_SECONDARY);
 		if (error)

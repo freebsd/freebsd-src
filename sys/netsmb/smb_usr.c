@@ -28,9 +28,11 @@
  * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
- *
- * $FreeBSD$
  */
+
+#include <sys/cdefs.h>
+__FBSDID("$FreeBSD$");
+
 #include <sys/param.h>
 #include <sys/malloc.h>
 #include <sys/kernel.h>
@@ -41,6 +43,7 @@
 #include <sys/socket.h>
 #include <sys/socketvar.h>
 #include <sys/sysctl.h>
+#include <sys/mbuf.h>
 
 #include <sys/iconv.h>
 
@@ -61,8 +64,12 @@ smb_usr_vc2spec(struct smbioc_ossn *dp, struct smb_vcspec *spec)
 	int flags = 0;
 
 	bzero(spec, sizeof(*spec));
+
+#ifdef NETSMB_NO_ANON_USER
 	if (dp->ioc_user[0] == 0)
 		return EINVAL;
+#endif
+
 	if (dp->ioc_server == NULL)
 		return EINVAL;
 	if (dp->ioc_localcs[0] == 0) {
@@ -295,8 +302,7 @@ smb_usr_t2request(struct smb_share *ssp, struct smbioc_t2rq *dp,
 	struct mdchain *mdp;
 	int error, len;
 
-	if (dp->ioc_tparamcnt > 0xffff || dp->ioc_tdatacnt > 0xffff ||
-	    dp->ioc_setupcnt > 3)
+	if (dp->ioc_setupcnt > 3)
 		return EINVAL;
 	error = smb_t2_init(t2p, SSTOCP(ssp), dp->ioc_setup[0], scred);
 	if (error)

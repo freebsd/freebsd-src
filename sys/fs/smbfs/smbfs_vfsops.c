@@ -71,7 +71,7 @@ static int smbfs_version = SMBFS_VERSION;
 vm_zone_t smbfsmount_zone;
 #endif
 
-SYSCTL_NODE(_vfs, OID_AUTO, smbfs, CTLFLAG_RW, 0, "SMB/CIFS file system");
+SYSCTL_NODE(_vfs, OID_AUTO, smbfs, CTLFLAG_RW, 0, "SMB/CIFS filesystem");
 SYSCTL_INT(_vfs_smbfs, OID_AUTO, version, CTLFLAG_RD, &smbfs_version, 0, "");
 SYSCTL_INT(_vfs_smbfs, OID_AUTO, debuglevel, CTLFLAG_RW, &smbfs_debuglevel, 0, "");
 
@@ -402,7 +402,7 @@ smbfs_statfs(struct mount *mp, struct statfs *sbp, struct proc *p)
 		return error;
 	sbp->f_flags = 0;		/* copy of mount exported flags */
 	if (sbp != &mp->mnt_stat) {
-		sbp->f_fsid = mp->mnt_stat.f_fsid;	/* file system id */
+		sbp->f_fsid = mp->mnt_stat.f_fsid;	/* filesystem id */
 		sbp->f_owner = mp->mnt_stat.f_owner;	/* user that mounted the filesystem */
 		sbp->f_type = mp->mnt_vfc->vfc_typenum;	/* type of filesystem */
 		bcopy(mp->mnt_stat.f_mntonname, sbp->f_mntonname, MNAMELEN);
