@@ -65,7 +65,7 @@
  * any improvements or extensions that they make and grant Carnegie the
  * rights to redistribute these changes.
  *
- * $Id: vm_pageout.c,v 1.140 1999/04/06 03:14:56 peter Exp $
+ * $Id: vm_pageout.c,v 1.141 1999/04/23 20:29:57 dt Exp $
  */
 
 /*
@@ -138,7 +138,6 @@ static int vm_daemon_needed;
 #endif
 extern int nswiodone;
 extern int vm_swap_size;
-extern int vfs_update_wakeup;
 static int vm_pageout_stats_max=0, vm_pageout_stats_interval = 0;
 static int vm_pageout_full_stats_interval = 0;
 static int vm_pageout_stats_free_max=0, vm_pageout_algorithm_lru=0;
@@ -1117,10 +1116,7 @@ rescan0:
 		(cnt.v_free_target + cnt.v_cache_min) ) {
 		if (vnodes_skipped &&
 		    (cnt.v_cache_count + cnt.v_free_count) < cnt.v_free_min) {
-			if (!vfs_update_wakeup) {
-				vfs_update_wakeup = 1;
-				wakeup(&vfs_update_wakeup);
-			}
+			(void) speedup_syncer();
 		}
 #if !defined(NO_SWAPPING)
 		if (vm_swap_enabled &&
