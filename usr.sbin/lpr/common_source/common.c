@@ -115,7 +115,7 @@ getq(pp, namelist)
 	register int nitems;
 	struct stat stbuf;
 	DIR *dirp;
-	int arraysz;
+	int arraysz, statres;
 
 	seteuid(euid);
 	if ((dirp = opendir(pp->spool_dir)) == NULL) {
@@ -140,9 +140,10 @@ getq(pp, namelist)
 		if (d->d_name[0] != 'c' || d->d_name[1] != 'f')
 			continue;	/* daemon control files only */
 		seteuid(euid);
-		if (stat(d->d_name, &stbuf) < 0)
-			continue;	/* Doesn't exist */
+		statres = stat(d->d_name, &stbuf);
 		seteuid(uid);
+		if (statres < 0)
+			continue;	/* Doesn't exist */
 		q = (struct jobqueue *)malloc(sizeof(time_t) + strlen(d->d_name)
 		    + 1);
 		if (q == NULL)
