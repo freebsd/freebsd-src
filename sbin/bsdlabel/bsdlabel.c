@@ -413,7 +413,8 @@ readlabel(int f)
 	(void)lseek(f, (off_t)0, SEEK_SET);
 	if (read(f, bootarea, BBSIZE) < BBSIZE)
 		err(4, "%s", specname);
-	bsd_disklabel_le_dec((u_char *)bootarea + labeloffset, &lab);
+	bsd_disklabel_le_dec((u_char *)bootarea + labeloffset, &lab,
+	    MAXPARTITIONS);
 	return (&lab);
 }
 
