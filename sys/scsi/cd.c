@@ -14,7 +14,7 @@
  *
  * Ported to run under 386BSD by Julian Elischer (julian@tfs.com) Sept 1992
  *
- *      $Id: cd.c,v 1.95 1998/07/04 22:30:23 julian Exp $
+ *      $Id: cd.c,v 1.96 1998/07/11 07:45:56 bde Exp $
  */
 
 #include "opt_bounce.h"
@@ -31,6 +31,7 @@
 #include <sys/buf.h>
 #include <sys/cdio.h>
 #include <sys/disklabel.h>
+#include <sys/diskslice.h>
 #include <sys/dkstat.h>
 #include <sys/kernel.h>
 #ifdef DEVFS
@@ -48,6 +49,7 @@
 
 static errval cd_get_parms __P((int, int));
 static u_int32_t cd_size __P((int unit, int flags));
+static d_strategy_t cdstrategy1;
 static errval cd_get_mode __P((u_int32_t, struct cd_mode_data *, u_int32_t));
 static errval cd_set_mode __P((u_int32_t unit, struct cd_mode_data *));
 static errval cd_read_toc __P((u_int32_t, u_int32_t, u_int32_t, struct cd_toc_entry *,
@@ -62,7 +64,6 @@ static errval cd_play_big __P((u_int32_t unit, u_int32_t blk, u_int32_t len));
 #endif
 static errval cd_play_tracks __P((u_int32_t, u_int32_t, u_int32_t, u_int32_t, u_int32_t));
 static errval cd_read_subchannel __P((u_int32_t, u_int32_t, u_int32_t, int, struct cd_sub_channel_info *, u_int32_t));
-static errval cd_getdisklabel __P((u_int8_t));
 
 static	d_open_t	cdopen;
 static	d_read_t	cdread;
@@ -81,17 +82,17 @@ static struct cdevsw cd_cdevsw = {
 
 static int32_t cdstrats, cdqueues;
 
-#define CDUNIT(DEV)      ((minor(DEV)&0xF8) >> 3)    /* 5 bit unit */
-#define CDSETUNIT(DEV, U) makedev(major(DEV), ((U) << 3))
+#define	CDUNIT(dev)	dkunit(dev)
 
-#define PAGESIZ 	4096
-#define SECSIZE 2048	/* XXX */	/* default only */
+/* XXX introduce a dkmodunit() macro for this. */
+#define CDSETUNIT(DEV, U) \
+	makedev(major(DEV), dkmakeminor((U), dkslice(DEV), dkpart(DEV)))
+
 #define	CDOUTSTANDING	2
 #define	CDRETRIES	1
 #define LEADOUT         0xaa            /* leadout toc entry */
 
-#define PARTITION(z)	(minor(z) & 0x07)
-#define RAW_PART        2
+#define	PARTITION(dev)	dkpart(dev)
 
 static void	cdstart(u_int32_t unit, u_int32_t flags);
 
@@ -102,17 +103,11 @@ struct scsi_data {
 		u_int32_t blksize;
 		u_long  disksize;	/* total number sectors */
 	} params;
-	struct disklabel disklabel;
-	u_int32_t partflags[MAXPARTITIONS];	/* per partition flags */
-#define CDOPEN	0x01
-	u_int32_t openparts;	/* one bit for each open partition */
-	u_int32_t xfer_block_wait;
+	struct diskslices *dk_slices;	/* virtual drives */
 	struct buf_queue_head buf_queue;
 	int dkunit;
 #ifdef	DEVFS
-	void	*ra_devfs_token;
-	void	*rc_devfs_token;
-	void	*a_devfs_token;
+	void	*b_devfs_token;
 	void	*c_devfs_token;
 	void	*ctl_devfs_token;
 #endif
@@ -180,6 +175,9 @@ cdattach(struct scsi_link *sc_link)
 	u_int32_t unit;
 	struct cd_parms *dp;
 	struct scsi_data *cd = sc_link->sd;
+#ifdef DEVFS
+	int mynor;
+#endif
 
 	unit = sc_link->dev_unit;
 	dp = &(cd->params);
@@ -213,24 +211,19 @@ cdattach(struct scsi_link *sc_link)
 	cd->flags |= CDINIT;
 	cd_registerdev(unit);
 #ifdef DEVFS
-#define CD_UID	UID_ROOT
-#define CD_GID	GID_OPERATOR
-	cd->ra_devfs_token = 
-		devfs_add_devswf(&cd_cdevsw, unit * 8, DV_CHR, CD_UID, 
-				CD_GID, 0640, "rcd%da", unit);
-	cd->rc_devfs_token = 
-		devfs_add_devswf(&cd_cdevsw, (unit * 8 ) + RAW_PART, DV_CHR,
-				CD_UID, CD_GID, 0640, "rcd%dc", unit);
-	cd->a_devfs_token = 
-		devfs_add_devswf(&cd_cdevsw, unit * 8, DV_BLK, CD_UID, 
-				CD_GID, 0640, "cd%da", unit);
-	cd->c_devfs_token = 
-		devfs_add_devswf(&cd_cdevsw, (unit * 8 ) + RAW_PART, DV_BLK,
-				CD_UID, CD_GID, 0640, "cd%dc", unit);
-	cd->ctl_devfs_token =
-		devfs_add_devswf(&cd_cdevsw, (unit * 8) | SCSI_CONTROL_MASK,
-				 DV_CHR,
-				 UID_ROOT, GID_WHEEL, 0600, "rcd%d.ctl", unit);
+	mynor = dkmakeminor(unit, WHOLE_DISK_SLICE, RAW_PART);
+	cd->b_devfs_token = devfs_add_devswf(&cd_cdevsw, mynor, DV_BLK,
+					     UID_ROOT, GID_OPERATOR, 0640,
+					     "cd%d", unit);
+	cd->c_devfs_token = devfs_add_devswf(&cd_cdevsw, mynor, DV_CHR,
+					     UID_ROOT, GID_OPERATOR, 0640,
+					     "rcd%d", unit);
+	mynor = dkmakeminor(unit, 0, 0);	/* XXX */
+	cd->ctl_devfs_token = devfs_add_devswf(&cd_cdevsw,
+					       mynor | SCSI_CONTROL_MASK,
+					       DV_CHR,
+					       UID_ROOT, GID_WHEEL, 0600,
+					       "rcd%d.ctl", unit);
 #endif
 
 	return 0;
@@ -244,12 +237,12 @@ cd_open(dev_t dev, int flags, int fmt, struct proc *p,
 	struct scsi_link *sc_link)
 {
 	errval  errcode = 0;
-	u_int32_t unit, part;
+	u_int32_t unit;
+	struct disklabel label;
 	struct scsi_data *cd;
 	int n;
 
 	unit = CDUNIT(dev);
-	part = PARTITION(dev);
 
 	cd = sc_link->sd;
 	/*
@@ -259,8 +252,8 @@ cd_open(dev_t dev, int flags, int fmt, struct proc *p,
 		return (ENXIO);
 
 	SC_DEBUG(sc_link, SDEV_DB1,
-	    ("cd_open: dev=0x%lx (unit %lu,partition %lu)\n",
-	    (u_long)dev, (u_long)unit, (u_long)part));
+	    ("cd_open: dev=0x%lx (unit %lu,partition %d)\n",
+	    (u_long)dev, (u_long)unit, PARTITION(dev)));
 	/*
 	 * Check that it is still responding and ok.
 	 * if the media has been changed this will result in a
@@ -271,13 +264,19 @@ cd_open(dev_t dev, int flags, int fmt, struct proc *p,
 	scsi_test_unit_ready(sc_link, SCSI_SILENT);
 
 	/*
-	 * If it's been invalidated, and not everybody has closed it then
-	 * forbid re-entry.  (may have changed media)
+	 * If it's been invalidated, then forget the label.
 	 */
-	if ((!(sc_link->flags & SDEV_MEDIA_LOADED))
-	    && (cd->openparts)) {
-		SC_DEBUG(sc_link, SDEV_DB2, ("unit attn, but openparts?\n"));
-		return (ENXIO);
+	if (!(sc_link->flags & SDEV_MEDIA_LOADED) && cd->dk_slices != NULL) {
+		/*
+		 * If somebody still has it open, then forbid re-entry.
+		 */
+		if (dsisopen(cd->dk_slices)) {
+			SC_DEBUG(sc_link, SDEV_DB2,
+			    ("unit attn, but openparts?\n"));
+			return (ENXIO);
+		}
+
+		dsgone(&cd->dk_slices);
 	}
 
 	/*
@@ -316,46 +315,47 @@ cd_open(dev_t dev, int flags, int fmt, struct proc *p,
 		goto bad;
 	}
 	SC_DEBUG(sc_link, SDEV_DB3, ("Params loaded "));
+
 	/*
-	 * Make up some partition information
+	 * Build prototype label for whole disk.
+	 * Should put manufacturer and model in d_typename and d_packname.
+	 * Should take information about different data tracks from the
+	 * TOC and put it in the partition table.
 	 */
-	cd_getdisklabel(unit);
-	SC_DEBUG(sc_link, SDEV_DB3, ("Disklabel fabricated "));
+	bzero(&label, sizeof label);
+	label.d_type = DTYPE_SCSI;
+	strncpy(label.d_typename, "scsi cd_rom", sizeof(label.d_typename));
+	label.d_secsize = cd->params.blksize;
+	label.d_secperunit = cd->params.disksize;
+	label.d_flags = D_REMOVABLE;
 	/*
-	 * Check the partition is legal
+	 * Make partition 'a' cover the whole disk.  This is a temporary
+	 * compatibility hack.  The 'a' partition should not exist, so
+	 * the slice code won't create it.  The slice code will make
+	 * partition (RAW_PART + 'a') cover the whole disk and fill in
+	 * some more defaults.
 	 */
-	if(part != RAW_PART) {
-		/*
-	 	 *  Check that the partition CAN exist
-	 	 */
-		if (part >= cd->disklabel.d_npartitions) {
-			SC_DEBUG(sc_link, SDEV_DB3, ("partition %lu > %u\n",
-			    (u_long)part, cd->disklabel.d_npartitions));
-			errcode = ENXIO;
-			goto bad;
-		}
-		/*
-	 	 *  and that it DOES exist
-	 	 */
-		if (cd->disklabel.d_partitions[part].p_fstype == FS_UNUSED) {
-			SC_DEBUG(sc_link, SDEV_DB3, ("part %lu type UNUSED\n",
-			    (u_long)part));
-			errcode = ENXIO;
-			goto bad;
-		}
-	}
-	cd->partflags[part] |= CDOPEN;
-	cd->openparts |= (1 << part);
+	label.d_partitions[0].p_size = label.d_secperunit;
+	label.d_partitions[0].p_fstype = FS_OTHER;
+
+	/* Initialize slice tables. */
+	errcode = dsopen("cd", dev, fmt, DSO_NOLABELS | DSO_ONESLICE,
+			 &cd->dk_slices, &label, cdstrategy1,
+			 (ds_setgeom_t *)NULL, &cd_cdevsw, &cd_cdevsw);
+	if (errcode != 0)
+		goto bad;
+	SC_DEBUG(sc_link, SDEV_DB3, ("Slice tables initialized "));
+
 	SC_DEBUG(sc_link, SDEV_DB3, ("open complete\n"));
 	sc_link->flags |= SDEV_MEDIA_LOADED;
 	return 0;
- bad:
 
+ bad:
 	/*
 	 *  if we would have been the only open
 	 * then leave things back as they were
 	 */
-	if (!(cd->openparts)) {
+	if (!dsisopen(cd->dk_slices)) {
 		sc_link->flags &= ~SDEV_OPEN;
 		scsi_prevent(sc_link, PR_ALLOW, SCSI_SILENT);
 	}
@@ -370,21 +370,13 @@ static errval
 cd_close(dev_t dev, int flag, int fmt, struct proc *p,
 	 struct scsi_link *sc_link)
 {
-	u_int8_t  unit, part;
 	struct scsi_data *cd;
 
-	unit = CDUNIT(dev);
-	part = PARTITION(dev);
 	cd = sc_link->sd;
-
-	SC_DEBUG(sc_link, SDEV_DB2, ("cd%d: closing part %d\n", unit, part));
-	cd->partflags[part] &= ~CDOPEN;
-	cd->openparts &= ~(1 << part);
-
-	/*
-	 * If we were the last open of the entire device, release it.
-	 */
-	if (!(cd->openparts)) {
+	SC_DEBUG(sc_link, SDEV_DB2, ("cd%d: closing part %d\n",
+	    CDUNIT(dev), PARTITION(dev)));
+	dsclose(dev, fmt, cd->dk_slices);
+	if (!dsisopen(cd->dk_slices)) {
 		scsi_prevent(sc_link, PR_ALLOW, SCSI_SILENT);
 		sc_link->flags &= ~SDEV_OPEN;
 	}
@@ -426,21 +418,13 @@ cd_strategy(struct buf *bp, struct scsi_link *sc_link)
 		bp->b_error = EROFS;
 		goto bad;
 	}
+
 	/*
-	 * Decide which unit and partition we are talking about
+	 * Do bounds checking, adjust transfer, and set b_pblkno.
 	 */
-	if (PARTITION(bp->b_dev) != RAW_PART) {
-		/*
-		 * do bounds checking, adjust transfer. if error, process.
-		 * if end of partition, just return
-		 */
-		if (bounds_check_with_label(bp, &cd->disklabel, 1) <= 0)
-			goto done;
-		/* otherwise, process transfer request */
-	} else {
-		bp->b_pblkno = bp->b_blkno;
-		bp->b_resid = 0;
-	}
+	if (dscheck(bp, cd->dk_slices) <= 0)
+		goto done;
+
 	opri = SPLCD();
 
 	/*
@@ -476,6 +460,16 @@ cd_strategy(struct buf *bp, struct scsi_link *sc_link)
 	return;
 }
 
+static void
+cdstrategy1(struct buf *bp)
+{
+	/*
+	 * XXX - do something to make cdstrategy() but not this block while
+	 * we're doing dsinit() and dsioctl().
+	 */
+	cdstrategy(bp);
+}
+
 /*
  * cdstart looks to see if there is a buf waiting for the device
  * and that the device is not already busy. If both are true,
@@ -500,7 +494,6 @@ cdstart(unit, flags)
 	register struct buf *bp = 0;
 	struct scsi_rw_big cmd;
 	u_int32_t blkno, nblk;
-	struct partition *p;
 	struct scsi_link *sc_link = SCSI_LINK(&cd_switch, unit);
 	struct scsi_data *cd = sc_link->sd;
 
@@ -530,18 +523,9 @@ cdstart(unit, flags)
 	}
 	/*
 	 * We have a buf, now we should make a command
-	 *
-	 * First, translate the block to absolute and put it in terms of the
-	 * logical blocksize of the device.  Really a bit silly until we have
-	 * real partitions, but.
 	 */
-	blkno = bp->b_blkno / (cd->params.blksize / 512);
-	if (PARTITION(bp->b_dev) != RAW_PART) {
-		p = cd->disklabel.d_partitions + PARTITION(bp->b_dev);
-		blkno += p->p_offset;
-	}
-	nblk = (bp->b_bcount + (cd->params.blksize - 1)) / (cd->params.blksize);
-	/* what if something asks for 512 bytes not on a 2k boundary? *//*XXX */
+	blkno = bp->b_pblkno;
+	nblk = bp->b_bcount / cd->params.blksize;
 
 	/*
 	 *  Fill out the scsi command
@@ -593,15 +577,13 @@ static errval
 cd_ioctl(dev_t dev, u_long cmd, caddr_t addr, int flag, struct proc *p,
 	 struct scsi_link *sc_link)
 {
-	errval  error = 0;
-	u_int8_t  unit, part;
+	errval error;
+	u_int32_t unit;
 	register struct scsi_data *cd;
 
 	/*
 	 * Find the device that the user is talking about
 	 */
-	unit = CDUNIT(dev);
-	part = PARTITION(dev);
 	cd = sc_link->sd;
 	SC_DEBUG(sc_link, SDEV_DB2, ("cdioctl 0x%lx ", cmd));
 
@@ -610,40 +592,26 @@ cd_ioctl(dev_t dev, u_long cmd, caddr_t addr, int flag, struct proc *p,
 	 */
 	if (!(sc_link->flags & SDEV_MEDIA_LOADED))
 		return (EIO);
+
+	if (cmd == DIOCSBAD)
+		return (EINVAL);	/* XXX */
+#if 0
+	/* Wait until we have exclusive access to the device. */
+	/* XXX this is how sd does it.  How did we work without this? */
+	error = scsi_device_lock(sc_link);
+	if (error)
+		return error;
+#endif
+	error = dsioctl("cd", dev, cmd, addr, flag, &cd->dk_slices,
+			cdstrategy1, (ds_setgeom_t *)NULL);
+	scsi_device_unlock(sc_link);
+	if (error != ENOIOCTL)
+		return (error);
+	if (PARTITION(dev) != RAW_PART)
+		return (ENOTTY);
+	error = 0;
+	unit = CDUNIT(dev);
 	switch (cmd) {
-
-	case DIOCSBAD:
-		error = EINVAL;
-		break;
-
-	case DIOCGDINFO:
-		*(struct disklabel *) addr = cd->disklabel;
-		break;
-
-	case DIOCGPART:
-		((struct partinfo *) addr)->disklab = &cd->disklabel;
-		((struct partinfo *) addr)->part =
-		    &cd->disklabel.d_partitions[PARTITION(dev)];
-		break;
-
-		/*
-		 * a bit silly, but someone might want to test something on a
-		 * section of cdrom.
-		 */
-	case DIOCWDINFO:
-	case DIOCSDINFO:
-		if ((flag & FWRITE) == 0)
-			error = EBADF;
-		else
-			error = setdisklabel(&cd->disklabel,
-			    (struct disklabel *) addr, 0);
-		if (error == 0)
-			break;
-
-	case DIOCWLABEL:
-		error = EBADF;
-		break;
-
 	case CDIOCPLAYTRACKS:
 		{
 			struct ioc_play_track *args
@@ -1065,66 +1033,10 @@ cd_ioctl(dev_t dev, u_long cmd, caddr_t addr, int flag, struct proc *p,
 		return (cd_reset(unit));
 		break;
 	default:
-		if(part == RAW_PART)
-			error = scsi_do_ioctl(dev, cmd, addr, flag, p, sc_link);
-		else
-			error = ENOTTY;
+		error = scsi_do_ioctl(dev, cmd, addr, flag, p, sc_link);
 		break;
 	}
 	return (error);
-}
-
-/*
- * Load the label information on the named device
- * Actually fabricate a disklabel
- *
- * EVENTUALLY take information about different
- * data tracks from the TOC and put it in the disklabel
- */
-static errval
-cd_getdisklabel(unit)
-	u_int8_t  unit;
-{
-	/*unsigned int n, m; */
-	struct scsi_data *cd;
-
-	cd = SCSI_DATA(&cd_switch, unit);
-
-	bzero(&cd->disklabel, sizeof(struct disklabel));
-	/*
-	 * make partition 0 the whole disk
-	 */
-	strncpy(cd->disklabel.d_typename, "scsi cd_rom", 16);
-	strncpy(cd->disklabel.d_packname, "fictitious", 16);
-	cd->disklabel.d_secsize = cd->params.blksize;	/* as long as it's not 0 */
-	cd->disklabel.d_nsectors = 100;
-	cd->disklabel.d_ntracks = 1;
-	cd->disklabel.d_ncylinders = (cd->params.disksize / 100) + 1;
-	cd->disklabel.d_secpercyl = 100;
-	cd->disklabel.d_secperunit = cd->params.disksize;
-	cd->disklabel.d_rpm = 300;
-	cd->disklabel.d_interleave = 1;
-	cd->disklabel.d_flags = D_REMOVABLE;
-
-	/*
-	 * remember that comparisons with the partition are done
-	 * assuming the blocks are 512 bytes so fudge it.
-	 */
-	cd->disklabel.d_npartitions = 1;
-	cd->disklabel.d_partitions[0].p_offset = 0;
-	cd->disklabel.d_partitions[0].p_size
-	    = cd->params.disksize * (cd->params.blksize / 512);
-	cd->disklabel.d_partitions[0].p_fstype = 9;
-
-	cd->disklabel.d_magic = DISKMAGIC;
-	cd->disklabel.d_magic2 = DISKMAGIC;
-	cd->disklabel.d_checksum = dkcksum(&(cd->disklabel));
-
-	/*
-	 * Signal to other users and routines that we now have a
-	 * disklabel that represents the media (maybe)
-	 */
-	return (ESUCCESS);
 }
 
 /*
