@@ -1,4 +1,0 @@
-$ $Id: set12,v 1.3 1996/04/26 20:31:52 christos Exp $
-$ sh.dir.c
-$set 12 
-1 %s: Trying to start from "%s"\n

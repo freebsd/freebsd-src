@@ -1,6 +1,0 @@
-#! /bin/sh
-# $FreeBSD$
-
-L=/home/ctm/log.dequeue
-/usr/sbin/ctm_dequeue -n 1 -l $L /home/ctm/queue/ctm-cvs-cur
-/usr/sbin/ctm_dequeue -n 1 -l $L /home/ctm/queue/ctm-src-cur

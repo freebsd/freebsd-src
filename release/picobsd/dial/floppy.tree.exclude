@@ -1,7 +1,0 @@
-etc/disktab
-etc/inetd.conf
-etc/ppp.conf
-etc/ppp.linkup
-etc/rc.serial
-etc/remote
-etc/snmpd.conf

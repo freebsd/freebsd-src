@@ -1,5 +1,0 @@
-From: Roesinger Eric <ROESINGE@tce.com>
-Date: Sat, 28 Jul 2001 18:43:43 -0500
-
-It would be useful to be able to use '--remove-files' with '--diff',
-to remove all files that compare successfully, when verifying a backup.

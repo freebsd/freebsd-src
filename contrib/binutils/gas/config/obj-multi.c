@@ -1,4 +1,0 @@
-/* foo */
-
-#include "as.h"
-

@@ -1,1 +1,0 @@
-ldflags='-L/usr/ucblib'

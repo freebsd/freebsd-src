@@ -1,6 +1,0 @@
-# All alphas get an IEEE complaint set of libraries.
-MULTILIB_OPTIONS = mieee
-MULTILIB_DIRNAMES = ieee
-
-LIBGCC = stmp-multilib
-INSTALL_LIBGCC = install-multilib

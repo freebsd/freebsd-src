@@ -1,4 +1,0 @@
-log: SING error
--Inf gawk: reg/log.awk:1: warning: log called with negative argument -1
-log: DOMAIN error
-NaN 4.60517

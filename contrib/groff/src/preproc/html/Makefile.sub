@@ -1,6 +1,0 @@
-PROG=pre-grohtml
-# MAN1=pre-grohtml.n
-MAN1=
-XLIBS=$(LIBGROFF)
-OBJS=pre-html.o pushbackbuffer.o
-CCSRCS=$(srcdir)/pre-html.cc $(srcdir)/pushbackbuffer.cc

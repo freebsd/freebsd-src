@@ -1,7 +1,0 @@
-[1mhelp[m	Simple help system for PicoBSD
-
-	This command displays short description of the commands included
-	on PicoBSD floppy. When invoked with no argument, it displays this
-	text :-). Any other argument is treated as a name of file located in
-	/help.a archive on the floppy, and this file is displayed page by
-	page.

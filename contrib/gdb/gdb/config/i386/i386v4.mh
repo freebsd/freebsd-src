@@ -1,9 +1,0 @@
-# Host: Intel 386 running SVR4
-
-XM_FILE= xm-i386v4.h
-XDEPFILES= 
-# for network communication
-XM_CLIBS= -lsocket -lnsl
-
-NAT_FILE= nm-i386v4.h
-NATDEPFILES= corelow.o core-regset.o solib.o procfs.o fork-child.o i386v4-nat.o

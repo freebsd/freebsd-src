@@ -1,7 +1,0 @@
-PROG=lookbib
-MAN1=lookbib.n
-XLIBS=$(LIBBIB) $(LIBGROFF)
-MLIB=$(LIBM)
-OBJS=lookbib.o
-CCSRCS=$(srcdir)/lookbib.cc
-NAMEPREFIX=$(g)

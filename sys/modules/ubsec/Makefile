@@ -1,9 +1,0 @@
-# $FreeBSD$
-
-.PATH:	${.CURDIR}/../../dev/ubsec
-KMOD	= ubsec
-SRCS	= ubsec.c
-SRCS   += device_if.h bus_if.h pci_if.h
-SRCS   += opt_bdg.h opt_bus.h crypto_if.h
-
-.include <bsd.kmod.mk>

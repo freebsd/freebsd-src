@@ -1,6 +1,0 @@
-PROG=pfbtops
-MAN1=pfbtops.n
-OBJS=pfbtops.o
-CSRCS=$(srcdir)/pfbtops.c
-XLIBS=$(LIBGROFF)
-MLIB=$(LIBM)

@@ -1,4 +1,0 @@
-@set UPDATED 23 March 2002
-@set UPDATED-MONTH March 2002
-@set EDITION 4.2
-@set VERSION 4.2

@@ -1,6 +1,0 @@
-PROG=lkbib
-MAN1=lkbib.n
-XLIBS=$(LIBBIB) $(LIBGROFF)
-MLIB=$(LIBM)
-OBJS=lkbib.o
-CCSRCS=$(srcdir)/lkbib.cc

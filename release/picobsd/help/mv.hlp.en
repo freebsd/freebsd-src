@@ -1,9 +1,0 @@
-[1mmv[m	move files
-
-	Usage:
-
-	mv [-f | -i] source target
-	mv [-f | -i] source ... directory
-
-	-f	Do not prompt for confirmation
-	-i	Prompt for confirmation
