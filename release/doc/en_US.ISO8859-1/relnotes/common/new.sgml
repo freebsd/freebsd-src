@@ -153,19 +153,19 @@
       <title>Network Protocols</title>
 
       <para>&man.ipfw.4; rules now support comma-separated address lists
-        (like <literal>1.2.3.4, 5.6.7.8/30, 9.10.11.12/22</literal>),
-        and allows spaces after commas to make lists of addresses more readable.</para>
+        (such as <literal>1.2.3.4, 5.6.7.8/30, 9.10.11.12/22</literal>),
+        and allow spaces after commas to make lists of addresses more readable.</para>
 
-      <para>&man.ipfw.4; rules now support C++-style comment.
-        The comment is stored together with the rule and appears using
-        &man.ipfw.8; <literal>show</literal> command.</para>
+      <para>&man.ipfw.4; rules now support C++-style comments.
+        Each comment is stored together with its rule and appears using
+        the &man.ipfw.8; <literal>show</literal> command.</para>
 
-      <para>&man.ipfw.8; now allows to modify &man.ipfw.4; rules in set 31,
+      <para>&man.ipfw.8; can now modify &man.ipfw.4; rules in set 31,
         which was read-only and used for the default rules.
         They can be deleted by <command>ipfw delete set 31</command>
         command but are not deleted
-        by <command>ipfw flush</command> command.
-        So this implements a flexible form of <quote>persistent
+        by the <command>ipfw flush</command> command.
+        This implements a flexible form of <quote>persistent
           rules</quote>.  More details can be found in &man.ipfw.8;.</para>
 
       <para>The proatm driver has been added to
