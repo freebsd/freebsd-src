@@ -1,7 +1,7 @@
 /*
  *  Written by Julian Elischer (julian@DIALix.oz.au)
  *
- *	$Header: /home/ncvs/src/sys/miscfs/devfs/devfs_vnops.c,v 1.20 1996/04/07 01:15:02 joerg Exp $
+ *	$Header: /home/ncvs/src/sys/miscfs/devfs/devfs_vnops.c,v 1.21 1996/06/12 05:08:34 gpalmer Exp $
  *
  * symlinks can wait 'til later.
  */
@@ -102,7 +102,7 @@ DBPRINT(("lookup\n"));
 	/*
 	 * Check accessiblity of directory.
 	 */
-	if (dir_node->type != DEV_DIR)
+	if (dir_node->type != DEV_DIR) /* XXX or symlink? */
 	{
 		return (ENOTDIR);
 	}
@@ -272,7 +272,7 @@ DBPRINT(("MKACCESS "));
 		if ((dir_node->mode & ISVTX) &&
 		    cnp->cn_cred->cr_uid != 0 &&
 		    cnp->cn_cred->cr_uid != dir_node->uid &&
-		    new_node->uid != cnp->cn_cred->cr_uid) {
+		    cnp->cn_cred->cr_uid != new_node->uid) {
 			VOP_UNLOCK((*result_vnode));
 			return (EPERM);
 		}
@@ -974,8 +974,7 @@ abortit:
 	/*
 	 * Check we are doing legal things WRT the new flags
 	 */
-	if ((fp->flags & (IMMUTABLE | APPEND))
-	  || (tdp->flags & APPEND) /*XXX eh?*/ ) {
+	if (fp->flags & (IMMUTABLE | APPEND)) {
 		error = EPERM;
 		goto abortit;
 	}
@@ -1101,7 +1100,6 @@ abortit:
 	 */
 	if ((tp && (tp->flags & (IMMUTABLE | APPEND)))
 	  || (fp->flags & (IMMUTABLE | APPEND))
-	  || (tdp->flags & APPEND) /*XXX eh?*/
 	  || (fdp->flags & APPEND)) {
 		error = EPERM;
 		goto abortit;
@@ -1264,6 +1262,7 @@ devfs_rmdir(struct vop_rmdir_args *ap)
 DBPRINT(("rmdir\n"));
 	return 0;
 }
+#endif
 
 static int
 devfs_symlink(struct vop_symlink_args *ap)
@@ -1275,10 +1274,27 @@ devfs_symlink(struct vop_symlink_args *ap)
                 char *a_target;
         } */
 {
-	return EINVAL;
+	int err;
+	dn_p dnp;
+	union typeinfo by;
+	devnm_p nm_p;
+	struct vnode *vp;
+
 DBPRINT(("symlink\n"));
+	if(err = devfs_vntodn(ap->a_dvp,&dnp)) {
+		return err;
+	}
+		
+	by.Slnk.name = ap->a_target;
+	by.Slnk.namelen = strlen(ap->a_target);
+	dev_add_entry(	ap->a_cnp->cn_nameptr, dnp, DEV_SLNK, &by, &nm_p);
+	if(err = devfs_dntovn(nm_p->dnp,&vp) ) {
+		return err;
+	}
+	*ap->a_vpp = vp;
+	VOP_SETATTR(vp, ap->a_vap, ap->a_cnp->cn_cred, ap->a_cnp->cn_proc);
+	return 0;
 }
-#endif
 
 /*
  * Vnode op for readdir
@@ -1389,7 +1405,6 @@ DBPRINT(("readdir\n"));
 
 /*
  */
-#ifdef notyet
 static int
 devfs_readlink(struct vop_readlink_args *ap)
         /*struct vop_readlink_args {
@@ -1398,10 +1413,26 @@ devfs_readlink(struct vop_readlink_args *ap)
                 struct ucred *a_cred;
         } */
 {
+	struct vnode *vp = ap->a_vp;
+	struct uio *uio = ap->a_uio;
+	dn_p lnk_node;
+	int error = 0;
+
+
 DBPRINT(("readlink\n"));
-	return 0;
+/*  set up refs to dir */
+	if (error = devfs_vntodn(vp,&lnk_node))
+		return error;
+	if(lnk_node->type != DEV_SLNK)
+		return(EINVAL);
+	if (error = VOP_ACCESS(vp, VREAD, ap->a_cred, NULL)) { /* XXX */
+		return error;
+	}
+	error = uiomove(lnk_node->by.Slnk.name, lnk_node->by.Slnk.namelen, uio);
+	return error;
 }
 
+#ifdef notyet
 static int
 devfs_abortop(struct vop_abortop_args *ap)
         /*struct vop_abortop_args {
@@ -1638,9 +1669,11 @@ devfs_dropvnode(dn_p dnp)
 #define devfs_seek ((int (*) __P((struct  vop_seek_args *)))nullop)
 #define devfs_mkdir ((int (*) __P((struct  vop_mkdir_args *)))devfs_enotsupp)
 #define devfs_rmdir ((int (*) __P((struct  vop_rmdir_args *)))devfs_enotsupp)
+/*
 #define devfs_symlink ((int (*) __P((struct vop_symlink_args *)))devfs_enotsupp)
 #define devfs_readlink \
 	((int (*) __P((struct  vop_readlink_args *)))devfs_enotsupp)
+*/
 #define devfs_abortop ((int (*) __P((struct  vop_abortop_args *)))nullop)
 #define devfs_lock ((int (*) __P((struct  vop_lock_args *)))nullop)
 #define devfs_unlock ((int (*) __P((struct  vop_unlock_args *)))nullop)
@@ -1775,7 +1808,7 @@ static struct vnodeopv_entry_desc dev_spec_vnodeop_entries[] = {
 	{ &vop_rename_desc, (vop_t *)spec_rename },	/* rename */
 	{ &vop_mkdir_desc, (vop_t *)spec_mkdir },	/* mkdir */
 	{ &vop_rmdir_desc, (vop_t *)spec_rmdir },	/* rmdir */
-	{ &vop_symlink_desc, (vop_t *)spec_symlink },	/* symlink */
+	{ &vop_symlink_desc, (vop_t *)devfs_symlink },	/* symlink */
 	{ &vop_readdir_desc, (vop_t *)spec_readdir },	/* readdir */
 	{ &vop_readlink_desc, (vop_t *)spec_readlink },	/* readlink */
 	{ &vop_abortop_desc, (vop_t *)spec_abortop },	/* abortop */
