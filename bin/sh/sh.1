@@ -33,14 +33,14 @@
 .\" SUCH DAMAGE.
 .\"
 .\"	@(#)sh.1	8.6 (Berkeley) 5/4/95
-.\"	$Id: sh.1,v 1.7 1996/09/01 10:21:39 peter Exp $
+.\"	$Id: sh.1,v 1.8 1996/09/03 14:15:59 peter Exp $
 .\"
 .na
 .TH SH 1
 .SH NAME
 sh \- command interpreter (shell)
 .SH SYNOPSIS
-sh [-/+aCefnuvxIimsVEb] [-/+o longname] [arg ...]
+sh [-/+aCefnpuvxIimsVEb] [-/+o longname] [arg ...]
 .SH DESCRIPTION
 .LP
 Sh is the standard command interpreter for the system.
@@ -158,6 +158,15 @@ Disable pathname expansion.
 If not interactive, read commands but do not
 execute them.  This is useful for checking the
 syntax of shell scripts.
+.TP
+-p    privileged
+Turn on privileged mode.  This mode is enabled on startup
+if either the effective user or group id is not equal to the
+real user or group id.  Turning this mode off sets the
+effective user and group ids to the real user and group ids.
+Also on interactive shells and when enabled, this mode sources
+/etc/suid_profile (instead of ~/.profile) after /etc/profile
+and ignores the contents of the \fBENV\fP variable.
 .TP
 -u    nounset
 Write a message to standard error when attempting

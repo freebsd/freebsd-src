@@ -33,7 +33,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: options.c,v 1.6 1995/10/09 17:56:32 joerg Exp $
+ *	$Id: options.c,v 1.7 1996/09/01 10:21:16 peter Exp $
  */
 
 #ifndef lint
@@ -92,6 +92,7 @@ procargs(argc, argv)
 		argptr++;
 	for (i = 0; i < NOPTS; i++)
 		optlist[i].val = 2;
+	privileged = (getuid() != geteuid() || getgid() != getegid());
 	options(1);
 	if (*argptr == NULL && minusc == NULL)
 		sflag = 1;
@@ -184,6 +185,10 @@ options(cmdline)
 				if (*argptr)
 					argptr++;
 			} else {
+				if (c == 'p' && !val && privileged) {
+					(void) setuid(getuid());
+					(void) setgid(getgid());
+				}
 				setoption(c, val);
 			}
 		}
@@ -205,6 +210,10 @@ minus_o(name, val)
 	} else {
 		for (i = 0; i < NOPTS; i++)
 			if (equal(name, optlist[i].name)) {
+				if (!val && privileged && equal(name, "privileged")) {
+					(void) setuid(getuid());
+					(void) setgid(getgid());
+				}
 				setoption(optlist[i].letter, val);
 				return;
 			}
