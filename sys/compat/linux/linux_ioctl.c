@@ -33,6 +33,7 @@
 #include <sys/sysproto.h>
 #include <sys/cdio.h>
 #include <sys/dvdio.h>
+#include <sys/disk.h>
 #include <sys/consio.h>
 #include <sys/ctype.h>
 #include <sys/disklabel.h>
@@ -111,20 +112,27 @@ linux_ioctl_disk(struct thread *td, struct linux_ioctl_args *args)
 {
 	struct file *fp;
 	int error;
-	struct disklabel dl;
+	u_int sectorsize;
+	off_t mediasize;
 
 	if ((error = fget(td, args->fd, &fp)) != 0)
 		return (error);
 	switch (args->cmd & 0xffff) {
 	case LINUX_BLKGETSIZE:
-		/* XXX: wrong, should use DIOCGMEDIASIZE/DIOCGSECTORSIZE */
-		error = fo_ioctl(fp, DIOCGDINFO, (caddr_t)&dl, td->td_ucred,
-		    td);
+		error = fo_ioctl(fp, DIOCGSECTORSIZE,
+		    (caddr_t)&sectorsize, td->td_ucred, td);
+		if (!error)
+			error = fo_ioctl(fp, DIOCGMEDIASIZE,
+			    (caddr_t)&mediasize, td->td_ucred, td);
 		fdrop(fp, td);
 		if (error)
 			return (error);
-		return (copyout(&(dl.d_secperunit), (void *)args->arg,
-		     sizeof(dl.d_secperunit)));
+		sectorsize = mediasize / sectorsize;
+		/*
+		 * XXX: How do we know we return the right size of integer ?
+		 */
+		return (copyout(&sectorsize, (void *)args->arg,
+		    sizeof(sectorsize)));
 	}
 	fdrop(fp, td);
 	return (ENOIOCTL);
