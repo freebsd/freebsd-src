@@ -316,11 +316,11 @@ pcib_alloc_resource(device_t dev, device_t child, int type, int *rid,
 		    start = 0;
 #else
 		if (start < sc->iobase)
-		    printf("start (%x) < sc->iobase (%x)\n", start, sc->iobase);
+		    printf("start (%lx) < sc->iobase (%x)\n", start, sc->iobase);
 		if (end > sc->iolimit)
-		    printf("end (%x) > sc->iolimit (%x)\n", end, sc->iolimit);
+		    printf("end (%lx) > sc->iolimit (%x)\n", end, sc->iolimit);
 		if (end < start)
-		    printf("end (%x) < start (%x)\n", end, start);
+		    printf("end (%lx) < start (%lx)\n", end, start);
 #endif
 	    }
 	    if (!pcib_is_isa_io(start) &&
@@ -353,11 +353,11 @@ pcib_alloc_resource(device_t dev, device_t child, int type, int *rid,
 		    start = 0;
 #else
 		if (start < sc->membase && end > sc->membase)
-		    printf("start (%x) < sc->membase (%x)\n", start, sc->membase);
+		    printf("start (%lx) < sc->membase (%x)\n", start, sc->membase);
 		if (end > sc->memlimit)
-		    printf("end (%x) > sc->memlimit (%x)\n", end, sc->memlimit);
+		    printf("end (%lx) > sc->memlimit (%x)\n", end, sc->memlimit);
 		if (end < start) 
-		    printf("end (%x) < start (%x)\n", end, start);
+		    printf("end (%lx) < start (%lx)\n", end, start);
 #endif
 	    }
 	    if (!pcib_is_isa_mem(start) &&
