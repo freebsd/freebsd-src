@@ -35,6 +35,37 @@
 
 #include "setfacl.h"
 
+static int merge_user_group(acl_entry_t *entry, acl_entry_t *entry_new);
+
+static int
+merge_user_group(acl_entry_t *entry, acl_entry_t *entry_new)
+{
+	acl_permset_t permset;
+	int have_entry;
+	uid_t *id, *id_new;
+
+	have_entry = 0;
+
+	id = acl_get_qualifier(*entry);
+	if (id == NULL)
+		err(1, "acl_get_qualifier() failed");
+	id_new = acl_get_qualifier(*entry_new);
+	if (id_new == NULL)
+		err(1, "acl_get_qualifier() failed");
+	if (*id == *id_new) {
+		/* any other matches */
+		if (acl_get_permset(*entry, &permset) == -1)
+			err(1, "acl_get_permset() failed");
+		if (acl_set_permset(*entry_new, permset) == -1)
+			err(1, "acl_set_permset() failed");
+		have_entry = 1;
+	}
+	acl_free(id);
+	acl_free(id_new);
+
+	return (have_entry);
+}
+
 /*
  * merge an ACL into existing file's ACL
  */
@@ -46,7 +77,6 @@ merge_acl(acl_t acl, acl_t *prev_acl)
 	acl_t acl_new;
 	acl_tag_t tag, tag_new;
 	int entry_id, entry_id_new, have_entry;
-	uid_t *id, *id_new;
 
 	if (acl_type == ACL_TYPE_ACCESS)
 		acl_new = acl_dup(prev_acl[ACCESS_ACL]);
@@ -83,26 +113,8 @@ merge_acl(acl_t acl, acl_t *prev_acl)
 			switch(tag) {
 			case ACL_USER:
 			case ACL_GROUP:
-				id = acl_get_qualifier(entry);
-				if (id == NULL)
-					err(1, "acl_get_qualifier() failed");
-				id_new = acl_get_qualifier(entry_new);
-				if (id_new == NULL)
-					err(1, "acl_get_qualifier() failed");
-				if (*id == *id_new) {
-					/* any other matches */
-					if (acl_get_permset(entry, &permset)
-					    == -1)
-						err(1,
-						    "acl_get_permset() failed");
-					if (acl_set_permset(entry_new, permset)
-					    == -1)
-						err(1,
-						    "acl_set_permset() failed");
-					have_entry = 1;
-				}
-				acl_free(id);
-				acl_free(id_new);
+				have_entry = merge_user_group(&entry,
+				    &entry_new);
 				if (have_entry == 0)
 					break;
 				/* FALLTHROUGH */
@@ -142,7 +154,6 @@ merge_acl(acl_t acl, acl_t *prev_acl)
 		acl_free(prev_acl[DEFAULT_ACL]);
 		prev_acl[DEFAULT_ACL] = acl_new;
 	}
-
 
 	return (0);
 }
