@@ -21,6 +21,10 @@ build and install as described in the COMMON ITEMS section.
 	Correct a double-free bug and disable a dangerous feature in
 	cvs.
 
+20030129:
+	Correct a bug where the xe(4) driver would discard a full-sized
+	(1500-byte) Ethernet frame.
+
 20030117:
 	FreeBSD 5.0-RELEASE
 
