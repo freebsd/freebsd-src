@@ -202,7 +202,6 @@ SUBDIR+=3dfx \
 	hfa \
 	i2c \
 	ibcs2 \
-	ida \
 	ie \
 	linprocfs \
 	linux \
@@ -246,6 +245,7 @@ SUBDIR+=aac \
 	el \
 	ex \
 	exca \
+	ida \
 	idt \
 	iir \
 	ips \
