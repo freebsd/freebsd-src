@@ -2,7 +2,7 @@
 # LINT -- config file for checking all the sources, tries to pull in
 #	as much of the source tree as it can.
 #
-#	$Id: LINT,v 1.503 1998/11/11 21:29:09 msmith Exp $
+#	$Id: LINT,v 1.504 1998/11/15 20:08:49 eivind Exp $
 #
 # NB: You probably don't want to try running a kernel built from this
 # file.  Instead, you should start from GENERIC, and add options from
@@ -791,6 +791,14 @@ options 	"TUNE_1542"
 # More info in ftp://ftp.udel.edu/pub/ntp/kernel.tar.Z
 
 options		PPS_SYNC
+
+# If you see the "calcru: negative time of %ld usec for pid %d (%s)\n"
+# message you probably have some broken sw/hw which disables interrupts
+# for too long.  You can make the system more resistant to this by
+# choosing a high value for NTIMECOUNTER.  The default is 5, there
+# is no upper limit but more than a couple of hundred are not productive.
+
+options		"NTIMECOUNTER=20"
 
 # Enable PnP support in the kernel.  This allows you to automaticly
 # attach to PnP cards for drivers that support it and allows you to

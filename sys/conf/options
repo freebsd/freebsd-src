@@ -1,4 +1,4 @@
-#	$Id: options,v 1.106 1998/10/28 08:37:10 dfr Exp $
+#	$Id: options,v 1.107 1998/11/05 14:28:17 dg Exp $
 #
 #        On the handling of kernel options   
 # 
@@ -54,6 +54,7 @@ KTRACE
 MD5
 MFS_ROOT	opt_mfs.h
 MFS_ROOT_SIZE	opt_mfs.h
+NTIMECOUNTER	opt_ntp.h
 EXPORTMFS	opt_mfs.h
 NO_LKM
 NSWAPDEV	opt_swap.h

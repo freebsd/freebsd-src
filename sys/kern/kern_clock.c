@@ -37,7 +37,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)kern_clock.c	8.5 (Berkeley) 1/21/94
- * $Id: kern_clock.c,v 1.83 1998/10/26 06:13:18 bde Exp $
+ * $Id: kern_clock.c,v 1.84 1998/11/23 09:34:19 sos Exp $
  */
 
 #include <sys/param.h>
@@ -67,11 +67,14 @@
 #include <machine/smp.h>
 #endif
 
+/* This is where the NTIMECOUNTER option hangs out */
+#include "opt_ntp.h"
+
 /*
  * Number of timecounters used to implement stable storage
  */
 #ifndef NTIMECOUNTER
-#define NTIMECOUNTER	2
+#define NTIMECOUNTER	5
 #endif
 
 static MALLOC_DEFINE(M_TIMECOUNTER, "timecounter", 
@@ -80,7 +83,7 @@ static MALLOC_DEFINE(M_TIMECOUNTER, "timecounter",
 static void initclocks __P((void *dummy));
 SYSINIT(clocks, SI_SUB_CLOCKS, SI_ORDER_FIRST, initclocks, NULL)
 
-static void tco_forward __P((void));
+static void tco_forward __P((int force));
 static void tco_setscales __P((struct timecounter *tc));
 static __inline unsigned tco_delta __P((struct timecounter *tc));
 
@@ -222,7 +225,7 @@ hardclock(frame)
 	if (stathz == 0)
 		statclock(frame);
 
-	tco_forward();
+	tco_forward(0);
 	ticks++;
 
 	/*
@@ -624,14 +627,14 @@ microuptime(struct timeval *tv)
 }
 
 void
-nanouptime(struct timespec *tv)
+nanouptime(struct timespec *ts)
 {
 	unsigned count;
 	u_int64_t delta;
 	struct timecounter *tc;
 
 	tc = (struct timecounter *)timecounter;
-	tv->tv_sec = tc->tc_offset_sec;
+	ts->tv_sec = tc->tc_offset_sec;
 	count = tco_delta(tc);
 	delta = tc->tc_offset_nano;
 	delta += ((u_int64_t)count * tc->tc_scale_nano_f);
@@ -639,9 +642,9 @@ nanouptime(struct timespec *tv)
 	delta += ((u_int64_t)count * tc->tc_scale_nano_i);
 	if (delta >= 1000000000) {
 		delta -= 1000000000;
-		tv->tv_sec++;
+		ts->tv_sec++;
 	}
-	tv->tv_nsec = delta;
+	ts->tv_nsec = delta;
 }
 
 static void
@@ -709,7 +712,7 @@ set_timecounter(struct timespec *ts)
 		boottime.tv_sec--;
 	}
 	/* fiddle all the little crinkly bits around the fiords... */
-	tco_forward();
+	tco_forward(1);
 }
 
 
@@ -757,7 +760,7 @@ sync_other_counter(void)
 }
 
 static void
-tco_forward(void)
+tco_forward(int force)
 {
 	struct timecounter *tc, *tco;
 
@@ -777,6 +780,7 @@ tco_forward(void)
 	if (timedelta != 0) {
 		tc->tc_offset_nano += (u_int64_t)(tickdelta * 1000) << 32;
 		timedelta -= tickdelta;
+		force++;
 	}
 
 	while (tc->tc_offset_nano >= 1000000000ULL << 32) {
@@ -786,7 +790,11 @@ tco_forward(void)
 		tc->tc_adjustment = tc->tc_tweak->tc_adjustment;
 		ntp_update_second(tc);	/* XXX only needed if xntpd runs */
 		tco_setscales(tc);
+		force++;
 	}
+
+	if (!force)
+		return;
 
 	tc->tc_offset_micro = (tc->tc_offset_nano / 1000) >> 32;
 
