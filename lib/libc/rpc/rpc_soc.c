@@ -78,8 +78,8 @@ static char sccsid[] = "@(#)rpc_soc.c 1.41 89/05/02 Copyr 1988 Sun Micro";
 
 extern mutex_t	rpcsoc_lock;
 
-static CLIENT *clnt_com_create __P((struct sockaddr_in *, rpcprog_t, rpcvers_t,
-				    int *, u_int, u_int, char *));
+static CLIENT *clnt_com_create(struct sockaddr_in *, rpcprog_t, rpcvers_t,
+    int *, u_int, u_int, char *);
 static SVCXPRT *svc_com_create(int, u_int, u_int, char *);
 static bool_t rpc_wrap_bcast(char *, struct netbuf *, struct netconfig *);
 

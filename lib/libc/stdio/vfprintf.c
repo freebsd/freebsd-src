@@ -113,11 +113,11 @@ enum typeid {
 };
 
 static int	__sprint(FILE *, struct __suio *);
-static int	__sbprintf __P((FILE *, const char *, va_list)) __printflike(2, 0);
-static char	*__ujtoa __P((uintmax_t, char *, int, int, char *, int,
-		     char, const char *));
-static char	*__ultoa __P((u_long, char *, int, int, char *, int,
-		     char, const char *));
+static int	__sbprintf(FILE *, const char *, va_list) __printflike(2, 0);
+static char	*__ujtoa(uintmax_t, char *, int, int, char *, int, char,
+		    const char *);
+static char	*__ultoa(u_long, char *, int, int, char *, int, char,
+		    const char *);
 static void	__find_arguments(const char *, va_list, union arg **);
 static void	__grow_type_table(int, enum typeid **, int *);
 

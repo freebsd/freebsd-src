@@ -36,8 +36,8 @@ static const char rcsid[] = "$FreeBSD$";
 # define SPRINTF(x) ((size_t)sprintf x)
 #endif
 
-static char *	inet_net_ntop_ipv4 __P((const u_char *src, int bits,
-					char *dst, size_t size));
+static char *	inet_net_ntop_ipv4(const u_char *src, int bits, char *dst,
+		    size_t size);
 
 /*
  * char *

@@ -70,13 +70,14 @@ struct __kvm {
 /*
  * Functions used internally by kvm, but across kvm modules.
  */
-void	 _kvm_err __P((kvm_t *kd, const char *program, const char *fmt, ...)) __printflike(3, 4);
+void	 _kvm_err(kvm_t *kd, const char *program, const char *fmt, ...)
+	    __printflike(3, 4);
 void	 _kvm_freeprocs(kvm_t *kd);
 void	 _kvm_freevtop(kvm_t *);
 int	 _kvm_initvtop(kvm_t *);
 int	 _kvm_kvatop(kvm_t *, u_long, u_long *);
 void	*_kvm_malloc(kvm_t *kd, size_t);
 void	*_kvm_realloc(kvm_t *kd, void *, size_t);
-void	 _kvm_syserr
-	    __P((kvm_t *kd, const char *program, const char *fmt, ...)) __printflike(3, 4);
+void	 _kvm_syserr (kvm_t *kd, const char *program, const char *fmt, ...)
+	    __printflike(3, 4);
 int	 _kvm_uvatop(kvm_t *, const struct proc *, u_long, u_long *);
