@@ -35,7 +35,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)trap.c	7.4 (Berkeley) 5/13/91
- *	$Id: trap.c,v 1.72 1996/02/25 03:02:46 dyson Exp $
+ *	$Id: trap.c,v 1.73 1996/03/02 19:37:41 peter Exp $
  */
 
 /*
@@ -691,7 +691,7 @@ static void
 trap_fatal(frame)
 	struct trapframe *frame;
 {
-	int code, type, eva;
+	int code, type, eva, ss, esp;
 	struct soft_segment_descriptor softseg;
 
 	code = frame->tf_err;
@@ -710,14 +710,25 @@ trap_fatal(frame)
 			code & PGEX_W ? "write" : "read",
 			code & PGEX_P ? "protection violation" : "page not present");
 	}
-	printf("instruction pointer	= 0x%x:0x%x\n", frame->tf_cs & 0xffff, frame->tf_eip);
+	printf("instruction pointer	= 0x%x:0x%x\n",
+	       frame->tf_cs & 0xffff, frame->tf_eip);
+	if (ISPL(frame->tf_cs) == SEL_UPL) {
+		ss = frame->tf_ss & 0xffff;
+		esp = frame->tf_esp;
+	} else {
+		ss = GSEL(GDATA_SEL, SEL_KPL);
+		esp = (int)&frame->tf_esp;
+	}
+	printf("stack pointer	        = 0x%x:0x%x\n", ss, esp);
+	printf("frame pointer	        = 0x%x:0x%x\n", ss, frame->tf_ebp);
 	printf("code segment		= base 0x%x, limit 0x%x, type 0x%x\n",
-	    softseg.ssd_base, softseg.ssd_limit, softseg.ssd_type);
+	       softseg.ssd_base, softseg.ssd_limit, softseg.ssd_type);
 	printf("			= DPL %d, pres %d, def32 %d, gran %d\n",
-	    softseg.ssd_dpl, softseg.ssd_p, softseg.ssd_def32, softseg.ssd_gran);
+	       softseg.ssd_dpl, softseg.ssd_p, softseg.ssd_def32,
+	       softseg.ssd_gran);
 	printf("processor eflags	= ");
 	if (frame->tf_eflags & PSL_T)
-		printf("trace/trap, ");
+		printf("trace trap, ");
 	if (frame->tf_eflags & PSL_I)
 		printf("interrupt enabled, ");
 	if (frame->tf_eflags & PSL_NT)
