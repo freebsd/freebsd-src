@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)clock.c	7.2 (Berkeley) 5/12/91
- *	$Id: clock.c,v 1.76 1997/02/22 09:35:59 peter Exp $
+ *	$Id: clock.c,v 1.78 1997/03/05 00:54:00 gpalmer Exp $
  */
 
 /*
@@ -514,7 +514,8 @@ calibrate_clocks(void)
 	u_int count, prev_count, tot_count;
 	int sec, start_sec, timeout;
 
-	printf("Calibrating clock(s) ... ");
+	if (bootverbose)
+	        printf("Calibrating clock(s) ... ");
 	if (!(rtcin(RTC_STATUSD) & RTCSD_PWR))
 		goto fail;
 	timeout = 100000000;
@@ -587,15 +588,19 @@ calibrate_clocks(void)
 	 */
 	if (cpu_class == CPUCLASS_586 || cpu_class == CPUCLASS_686) {
 		set_i586_ctr_freq((u_int)rdtsc(), tot_count);
-		printf("i586 clock: %u Hz, ", i586_ctr_freq);
+		if (bootverbose)
+		        printf("i586 clock: %u Hz, ", i586_ctr_freq);
 	}
 #endif
 
-	printf("i8254 clock: %u Hz\n", tot_count);
+	if (bootverbose)
+	        printf("i8254 clock: %u Hz\n", tot_count);
 	return (tot_count);
 
 fail:
-	printf("failed, using default i8254 clock of %u Hz\n", timer_freq);
+	if (bootverbose)
+	        printf("failed, using default i8254 clock of %u Hz\n",
+		       timer_freq);
 	return (timer_freq);
 }
 
@@ -653,8 +658,10 @@ startrtclock()
 #endif
 		timer_freq = freq;
 	} else {
-		printf("%d Hz differs from default of %d Hz by more than 1%%\n",
-		       freq, timer_freq);
+		if (bootverbose)
+			printf(
+		    "%d Hz differs from default of %d Hz by more than 1%%\n",
+			       freq, timer_freq);
 #if defined(I586_CPU) || defined(I686_CPU)
 		i586_ctr_freq = 0;
 #endif
@@ -682,7 +689,8 @@ startrtclock()
 		DELAY(1000000);
 		set_i586_ctr_freq((u_int)rdtsc(), timer_freq);
 #ifdef CLK_USE_I586_CALIBRATION
-		printf("i586 clock: %u Hz\n", i586_ctr_freq);
+		if (bootverbose)
+			printf("i586 clock: %u Hz\n", i586_ctr_freq);
 #endif
 	}
 #endif
