@@ -66,7 +66,7 @@
  * any improvements or extensions that they make and grant Carnegie the
  * rights to redistribute these changes.
  *
- * $Id: vm_fault.c,v 1.30 1995/09/11 00:45:15 dyson Exp $
+ * $Id: vm_fault.c,v 1.31 1995/09/14 13:42:52 dyson Exp $
  */
 
 /*
@@ -88,7 +88,7 @@
 #include <vm/vm_pager.h>
 #include <vm/vnode_pager.h>
 
-int vm_fault_additional_pages __P((vm_object_t, vm_offset_t, vm_page_t, int, int, vm_page_t *, int *));
+int vm_fault_additional_pages __P((vm_page_t, int, int, vm_page_t *, int *));
 
 #define VM_FAULT_READ_AHEAD 4
 #define VM_FAULT_READ_BEHIND 3
@@ -184,8 +184,9 @@ RetryFault:;
 	 * search.
 	 */
 
-	if ((result = vm_map_lookup(&map, vaddr, fault_type, &entry, &first_object,
-	    &first_offset, &prot, &wired, &su)) != KERN_SUCCESS) {
+	if ((result = vm_map_lookup(&map, vaddr,
+		fault_type, &entry, &first_object,
+		&first_offset, &prot, &wired, &su)) != KERN_SUCCESS) {
 		return (result);
 	}
 
@@ -269,17 +270,18 @@ RetryFault:;
 				goto RetryFault;
 			}
 
-			if ((m->flags & PG_CACHE) &&
-			    (cnt.v_free_count + cnt.v_cache_count) < cnt.v_free_reserved) {
-				UNLOCK_AND_DEALLOCATE;
-				VM_WAIT;
-				goto RetryFault;
-			}
-
 			/*
 			 * Mark page busy for other processes, and the pagedaemon.
 			 */
 			m->flags |= PG_BUSY;
+			if ((m->flags & PG_CACHE) &&
+			    (cnt.v_free_count + cnt.v_cache_count) < cnt.v_free_reserved) {
+				UNLOCK_AND_DEALLOCATE;
+				VM_WAIT;
+				PAGE_WAKEUP(m);
+				goto RetryFault;
+			}
+
 			if (m->valid && ((m->valid & VM_PAGE_BITS_ALL) != VM_PAGE_BITS_ALL) &&
 				 m->object != kernel_object && m->object != kmem_object) {
 				goto readrest;
@@ -293,20 +295,7 @@ RetryFault:;
 				UNLOCK_AND_DEALLOCATE;
 				return (KERN_PROTECTION_FAILURE);
 			}
-#if 0	/* XXX is this really necessary? */
-			if (swap_pager_full && !object->backing_object &&
-			    (object->type == OBJT_DEFAULT ||
-			    (object->type == OBJT_SWAP && 
-			     !vm_pager_has_page(object, offset + object->paging_offset, NULL, NULL)))) {
-				if (vaddr < VM_MAXUSER_ADDRESS && curproc && curproc->p_pid >= 48) {	/* XXX */
-					printf("Process %lu killed by vm_fault -- out of swap\n", (u_long) curproc->p_pid);
-					psignal(curproc, SIGKILL);
-					curproc->p_estcpu = 0;
-					curproc->p_nice = PRIO_MIN;
-					resetpriority(curproc);
-				}
-			}
-#endif
+
 			/*
 			 * Allocate a new page for this object/offset pair.
 			 */
@@ -338,7 +327,6 @@ readrest:
 			 * vm_page_t passed to the routine.
 			 */
 			faultcount = vm_fault_additional_pages(
-			    first_object, first_offset,
 			    m, VM_FAULT_READ_BEHIND, VM_FAULT_READ_AHEAD,
 			    marray, &reqpage);
 
@@ -351,6 +339,7 @@ readrest:
 			rv = faultcount ?
 			    vm_pager_get_pages(object, marray, faultcount,
 				reqpage) : VM_PAGER_FAIL;
+
 			if (rv == VM_PAGER_OK) {
 				/*
 				 * Found the page. Leave it busy while we play
@@ -370,6 +359,7 @@ readrest:
 
 				pmap_clear_modify(VM_PAGE_TO_PHYS(m));
 				m->valid = VM_PAGE_BITS_ALL;
+				m->flags |= PG_BUSY;
 				hardfault++;
 				break;
 			}
@@ -669,6 +659,8 @@ readrest:
 		}
 	}
 
+	if ((m->flags & PG_BUSY) == 0)
+		printf("page not busy: %d\n", m->offset);
 	/*
 	 * Unlock everything, and return
 	 */
@@ -861,48 +853,12 @@ vm_fault_copy_entry(dst_map, src_map, dst_entry, src_entry)
 
 
 /*
- * looks page up in shadow chain
- */
-
-int
-vm_fault_page_lookup(object, offset, rtobject, rtoffset, rtm)
-	vm_object_t object;
-	vm_offset_t offset;
-	vm_object_t *rtobject;
-	vm_offset_t *rtoffset;
-	vm_page_t *rtm;
-{
-	vm_page_t m;
-
-	*rtm = 0;
-	*rtoffset = 0;
-
-	while (!(m = vm_page_lookup(object, offset))) {
-		if (vm_pager_has_page(object,
-			object->paging_offset + offset, NULL, NULL)) {
-			*rtobject = object;
-			*rtoffset = offset;
-			return 1;
-		}
-		if (!object->backing_object || (object == *rtobject))
-			return 0;
-		else {
-			offset += object->backing_object_offset;
-			object = object->backing_object;
-		}
-	}
-	*rtobject = object;
-	*rtoffset = offset;
-	*rtm = m;
-	return 1;
-}
-
-/*
  * This routine checks around the requested page for other pages that
- * might be able to be faulted in.
+ * might be able to be faulted in.  This routine brackets the viable
+ * pages for the pages to be paged in.
  *
  * Inputs:
- *	first_object, first_offset, m, rbehind, rahead
+ *	m, rbehind, rahead
  *
  * Outputs:
  *  marray (array of vm_page_t), reqpage (index of requested page)
@@ -911,30 +867,22 @@ vm_fault_page_lookup(object, offset, rtobject, rtoffset, rtm)
  *  number of pages in marray
  */
 int
-vm_fault_additional_pages(first_object, first_offset, m, rbehind, raheada, marray, reqpage)
-	vm_object_t first_object;
-	vm_offset_t first_offset;
+vm_fault_additional_pages(m, rbehind, rahead, marray, reqpage)
 	vm_page_t m;
 	int rbehind;
-	int raheada;
+	int rahead;
 	vm_page_t *marray;
 	int *reqpage;
 {
 	int i;
 	vm_object_t object;
 	vm_offset_t offset, startoffset, endoffset, toffset, size;
-	vm_object_t rtobject;
 	vm_page_t rtm;
-	vm_offset_t rtoffset;
-	vm_offset_t offsetdiff;
-	int rahead;
 	int treqpage;
 	int cbehind, cahead;
 
 	object = m->object;
 	offset = m->offset;
-
-	offsetdiff = offset - first_offset;
 
 	/*
 	 * if the requested page is not available, then give up now
@@ -944,55 +892,48 @@ vm_fault_additional_pages(first_object, first_offset, m, rbehind, raheada, marra
 		object->paging_offset + offset, &cbehind, &cahead))
 		return 0;
 
-	if (object->backing_object == NULL) {
-		if (raheada > cahead) {
-			raheada = cahead;
-		}
-		if (rbehind > cbehind) {
-			rbehind = cbehind;
-		}
+	if ((cbehind == 0) && (cahead == 0)) {
+		*reqpage = 0;
+		marray[0] = m;
+		return 1;
+	}
+
+	if (rahead > cahead) {
+		rahead = cahead;
+	}
+
+	if (rbehind > cbehind) {
+		rbehind = cbehind;
 	}
 
 	/*
 	 * try to do any readahead that we might have free pages for.
 	 */
-	rahead = raheada;
 	if ((rahead + rbehind) >
-		((cnt.v_free_count + cnt.v_cache_count) - 2*cnt.v_free_reserved)) {
-		rahead = ((cnt.v_free_count + cnt.v_cache_count) -
-			2*cnt.v_free_reserved) / 2;
-		rbehind = rahead;
-		if (!rahead)
-			pagedaemon_wakeup();
-	}
-	/*
-	 * if we don't have any free pages, then just read one page.
-	 */
-	if (rahead <= 0) {
+		((cnt.v_free_count + cnt.v_cache_count) - cnt.v_free_reserved)) {
+		pagedaemon_wakeup();
 		*reqpage = 0;
 		marray[0] = m;
 		return 1;
 	}
+
 	/*
 	 * scan backward for the read behind pages -- in memory or on disk not
 	 * in same object
 	 */
-	toffset = offset - NBPG;
+	toffset = offset - PAGE_SIZE;
 	if (toffset < offset) {
-		if (rbehind * NBPG > offset)
-			rbehind = offset / NBPG;
-		startoffset = offset - rbehind * NBPG;
+		if (rbehind * PAGE_SIZE > offset)
+			rbehind = offset / PAGE_SIZE;
+		startoffset = offset - rbehind * PAGE_SIZE;
 		while (toffset >= startoffset) {
-			rtobject = object;
-			if (!vm_fault_page_lookup(first_object,
-				toffset - offsetdiff, &rtobject, &rtoffset, &rtm) ||
-			    rtm != 0 || rtobject != object) {
-				startoffset = toffset + NBPG;
+			if (vm_page_lookup( object, toffset)) {
+				startoffset = toffset + PAGE_SIZE;
 				break;
 			}
 			if (toffset == 0)
 				break;
-			toffset -= NBPG;
+			toffset -= PAGE_SIZE;
 		}
 	} else {
 		startoffset = offset;
@@ -1002,34 +943,35 @@ vm_fault_additional_pages(first_object, first_offset, m, rbehind, raheada, marra
 	 * scan forward for the read ahead pages -- in memory or on disk not
 	 * in same object
 	 */
-	toffset = offset + NBPG;
-	endoffset = offset + (rahead + 1) * NBPG;
-	while (toffset < object->size && toffset < endoffset) {
-		rtobject = object;
-		if (!vm_fault_page_lookup(first_object,
-			toffset - offsetdiff, &rtobject, &rtoffset, &rtm) ||
-		    rtm != 0 || rtobject != object) {
+	toffset = offset + PAGE_SIZE;
+	endoffset = offset + (rahead + 1) * PAGE_SIZE;
+	if (endoffset > object->size)
+		endoffset = object->size;
+	while (toffset < endoffset) {
+		if ( vm_page_lookup(object, toffset)) {
 			break;
-		}
-		toffset += NBPG;
+		}	
+		toffset += PAGE_SIZE;
 	}
 	endoffset = toffset;
 
 	/* calculate number of bytes of pages */
-	size = (endoffset - startoffset) / NBPG;
+	size = (endoffset - startoffset) / PAGE_SIZE;
 
 	/* calculate the page offset of the required page */
-	treqpage = (offset - startoffset) / NBPG;
+	treqpage = (offset - startoffset) / PAGE_SIZE;
 
 	/* see if we have space (again) */
-	if ((cnt.v_free_count + cnt.v_cache_count) > (cnt.v_free_reserved + size)) {
+	if ((cnt.v_free_count + cnt.v_cache_count) >
+		(cnt.v_free_reserved + size)) {
 		/*
 		 * get our pages and don't block for them
 		 */
 		for (i = 0; i < size; i++) {
 			if (i != treqpage) {
 				rtm = vm_page_alloc(object,
-					startoffset + i * NBPG, VM_ALLOC_NORMAL);
+					startoffset + i * PAGE_SIZE,
+					VM_ALLOC_NORMAL);
 				if (rtm == NULL) {
 					if (i < treqpage) {
 						int j;
