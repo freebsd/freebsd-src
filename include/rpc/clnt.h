@@ -275,7 +275,6 @@ struct rpc_timers {
 
 #define NULLPROC ((rpcproc_t)0)
 
-__BEGIN_DECLS
 /*
  * Below are the client handle creation routines for the various
  * implementations of client side rpc.  They can return NULL if a
