@@ -97,7 +97,10 @@
 /* #undef HAVE___ARGZ_STRINGIFY */
 
 /* Define if you have the atoll function.  */
+#ifndef BOOTSTRAPPING
+/* FreeBSD didn't always have atoll(3). */
 #define HAVE_ATOLL 1
+#endif
 
 /* Define if you have the atoq function.  */
 /* #undef HAVE_ATOQ */
