@@ -529,10 +529,11 @@ cond_queue_enq(pthread_cond_t cond, pthread_t pthread)
 static inline int
 cond_init(pthread_cond_t *cond)
 {
+	int error = 0;
 	_SPINLOCK(&static_cond_lock);
 	if (*cond == PTHREAD_COND_INITIALIZER)
-		return (_pthread_cond_init(cond, NULL));
+		error = _pthread_cond_init(cond, NULL);
 	_SPINUNLOCK(&static_cond_lock);
-	return (0);
+	return (error);
 }
 
