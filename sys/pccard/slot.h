@@ -46,7 +46,6 @@
 #include <machine/bus.h>
 #include <sys/rman.h>
 #include <machine/resource.h>
-#include <i386/isa/isa_device.h>
 
 /*
  *	Controller data - Specific to each slot controller.
