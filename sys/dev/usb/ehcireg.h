@@ -235,6 +235,7 @@ typedef struct {
 #define EHCI_QTD_GET_TOGGLE(x)	(((x) >> 31) &  0x1)
 #define EHCI_QTD_TOGGLE		0x80000000
 	ehci_physaddr_t	qtd_buffer[EHCI_QTD_NBUFFERS];
+	ehci_physaddr_t qtd_buffer_hi[EHCI_QTD_NBUFFERS];
 } ehci_qtd_t;
 #define EHCI_QTD_ALIGN 32
 
