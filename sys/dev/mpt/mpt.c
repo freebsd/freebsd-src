@@ -39,16 +39,16 @@ static int maxwait_ack = 0;
 static int maxwait_int = 0;
 static int maxwait_state = 0;
 
-static __inline u_int32_t mpt_rd_db(mpt_softc_t *mpt);
-static __inline  u_int32_t mpt_rd_intr(mpt_softc_t *mpt);
+static INLINE u_int32_t mpt_rd_db(mpt_softc_t *mpt);
+static INLINE  u_int32_t mpt_rd_intr(mpt_softc_t *mpt);
 
-static __inline u_int32_t
+static INLINE u_int32_t
 mpt_rd_db(mpt_softc_t *mpt)
 {
 	return mpt_read(mpt, MPT_OFFSET_DOORBELL);
 }
 
-static __inline u_int32_t
+static INLINE u_int32_t
 mpt_rd_intr(mpt_softc_t *mpt)
 {
 	return mpt_read(mpt, MPT_OFFSET_INTR_STATUS);
@@ -91,7 +91,7 @@ mpt_check_doorbell(mpt_softc_t *mpt)
 {
 	u_int32_t db = mpt_rd_db(mpt);
 	if (MPT_STATE(db) != MPT_DB_STATE_RUNNING) {
-		device_printf(mpt->dev, "Device not running!\n");
+		mpt_prt(mpt, "Device not running");
 		mpt_print_db(db);
 	}
 }
@@ -119,13 +119,12 @@ int
 mpt_soft_reset(mpt_softc_t *mpt)
 {
 	if (mpt->verbose) {
-		device_printf(mpt->dev,"soft reset\n");
+		mpt_prt(mpt, "soft reset");
 	}
 
 	/* Have to use hard reset if we are not in Running state */
 	if (MPT_STATE(mpt_rd_db(mpt)) != MPT_DB_STATE_RUNNING) {
-		device_printf(mpt->dev,
-		    "soft reset failed: device not running\n");
+		mpt_prt(mpt, "soft reset failed: device not running");
 		return MPT_FAIL;
 	}
 
@@ -134,7 +133,7 @@ mpt_soft_reset(mpt_softc_t *mpt)
 	 * processing. So don't waste our time.
 	 */
 	if (MPT_DB_IS_IN_USE(mpt_rd_db(mpt))) {
-		device_printf(mpt->dev, "soft reset failed: doorbell wedged\n");
+		mpt_prt(mpt, "soft reset failed: doorbell wedged");
 		return MPT_FAIL;
 	}
 
@@ -142,14 +141,13 @@ mpt_soft_reset(mpt_softc_t *mpt)
 	mpt_write(mpt, MPT_OFFSET_DOORBELL,
 	    MPI_FUNCTION_IOC_MESSAGE_UNIT_RESET << MPI_DOORBELL_FUNCTION_SHIFT);
 	if (mpt_wait_db_ack(mpt) != MPT_OK) {
-		device_printf(mpt->dev, "soft reset failed: ack timeout\n");
+		mpt_prt(mpt, "soft reset failed: ack timeout");
 		return MPT_FAIL;
 	}
 
 	/* Wait for the IOC to reload and come out of reset state */
 	if (mpt_wait_state(mpt, MPT_DB_STATE_READY) != MPT_OK) {
-		device_printf(mpt->dev,
-		    "soft reset failed: device did not start running\n");
+		mpt_prt(mpt, "soft reset failed: device did not start running");
 		return MPT_FAIL;
 	}
 
@@ -166,7 +164,7 @@ mpt_hard_reset(mpt_softc_t *mpt)
 	 * released by LSI. It's function is undocumented!
 	 */
 	if (mpt->verbose) {
-		device_printf(mpt->dev, "hard reset\n");
+		mpt_prt(mpt, "hard reset");
 	}
 	mpt_read(mpt, MPT_OFFSET_FUBAR);
 
@@ -216,7 +214,7 @@ mpt_reset(mpt_softc_t *mpt)
 		/* Wait for the IOC to reload and come out of reset state */
 		ret = mpt_wait_state(mpt, MPT_DB_STATE_READY);
 		if (ret != MPT_OK) {
-			device_printf(mpt->dev, "failed to reset device\n");
+			mpt_prt(mpt, "failed to reset device");
 		}
 	}
 
@@ -264,19 +262,19 @@ mpt_send_cmd(mpt_softc_t *mpt, request_t *req)
 	if (mpt->verbose > 1) {
 		u_int32_t *pReq;
 		pReq = req->req_vbuf;
-		device_printf(mpt->dev, "Send Request %d (0x%lx):\n",
-		    req->index, (long) req->req_pbuf);
-		device_printf(mpt->dev, "%08X %08X %08X %08X\n",
+		mpt_prt(mpt, "Send Request %d (0x%x):",
+		    req->index, req->req_pbuf);
+		mpt_prt(mpt, "%08x %08x %08x %08x",
 		    pReq[0], pReq[1], pReq[2], pReq[3]);
-		device_printf(mpt->dev, "%08X %08X %08X %08X\n",
+		mpt_prt(mpt, "%08x %08x %08x %08x",
 		    pReq[4], pReq[5], pReq[6], pReq[7]);
-		device_printf(mpt->dev, "%08X %08X %08X %08X\n",
+		mpt_prt(mpt, "%08x %08x %08x %08x",
 		    pReq[8], pReq[9], pReq[10], pReq[11]);
-		device_printf(mpt->dev, "%08X %08X %08X %08X\n",
+		mpt_prt(mpt, "%08x %08x %08x %08x",
 		    pReq[12], pReq[13], pReq[14], pReq[15]);
 	}
 	bus_dmamap_sync(mpt->request_dmat, mpt->request_dmap,
-	   BUS_DMASYNC_PREWRITE);
+	    BUS_DMASYNC_PREWRITE);
 	req->debug = REQ_ON_CHIP;
 	mpt_write(mpt, MPT_OFFSET_REQUEST_Q, (u_int32_t) req->req_pbuf);
 }
@@ -316,8 +314,7 @@ mpt_send_handshake_cmd(mpt_softc_t *mpt, size_t len, void *cmd)
 	     (MPT_STATE(data) != MPT_DB_STATE_RUNNING)	&&
 	     (MPT_STATE(data) != MPT_DB_STATE_FAULT))	||
 	    (  MPT_DB_IS_IN_USE(data) )) {
-		device_printf(mpt->dev,
-		    "handshake aborted due to invalid doorbell state\n");
+		mpt_prt(mpt, "handshake aborted due to invalid doorbell state");
 		mpt_print_db(data);
 		return(EBUSY);
 	}
@@ -340,7 +337,7 @@ mpt_send_handshake_cmd(mpt_softc_t *mpt, size_t len, void *cmd)
 
 	/* Wait for the chip to notice */
 	if (mpt_wait_db_int(mpt) != MPT_OK) {
-		device_printf(mpt->dev, "mpt_send_handshake_cmd timeout1!\n");
+		mpt_prt(mpt, "mpt_send_handshake_cmd timeout1");
 		return ETIMEDOUT;
 	}
 
@@ -348,7 +345,7 @@ mpt_send_handshake_cmd(mpt_softc_t *mpt, size_t len, void *cmd)
 	mpt_write(mpt, MPT_OFFSET_INTR_STATUS, 0);
 
 	if (mpt_wait_db_ack(mpt) != MPT_OK) {
-		device_printf(mpt->dev, "mpt_send_handshake_cmd timeout2!\n");
+		mpt_prt(mpt, "mpt_send_handshake_cmd timeout2");
 		return ETIMEDOUT;
 	}
 
@@ -356,8 +353,8 @@ mpt_send_handshake_cmd(mpt_softc_t *mpt, size_t len, void *cmd)
 	for (i = 0; i < len; i++) {
 		mpt_write(mpt, MPT_OFFSET_DOORBELL, *data32++);
 		if (mpt_wait_db_ack(mpt) != MPT_OK) {
-			device_printf(mpt->dev,
-			    "mpt_send_handshake_cmd timeout! index = %d\n", i);
+			mpt_prt(mpt,
+			    "mpt_send_handshake_cmd timeout! index = %d", i);
 			return ETIMEDOUT;
 		}
 	}
@@ -380,7 +377,7 @@ mpt_recv_handshake_reply(mpt_softc_t *mpt, size_t reply_len, void *reply)
 
 	/* Get first word */
 	if (mpt_wait_db_int(mpt) != MPT_OK) {
-		device_printf(mpt->dev, "mpt_recv_handshake_cmd timeout1!\n");
+		mpt_prt(mpt, "mpt_recv_handshake_cmd timeout1");
 		return ETIMEDOUT;
 	}
 	*data16++ = mpt_read(mpt, MPT_OFFSET_DOORBELL) & MPT_DB_DATA_MASK;
@@ -388,7 +385,7 @@ mpt_recv_handshake_reply(mpt_softc_t *mpt, size_t reply_len, void *reply)
 
 	/* Get Second Word */
 	if (mpt_wait_db_int(mpt) != MPT_OK) {
-		device_printf(mpt->dev, "mpt_recv_handshake_cmd timeout2!\n");
+		mpt_prt(mpt, "mpt_recv_handshake_cmd timeout2");
 		return ETIMEDOUT;
 	}
 	*data16++ = mpt_read(mpt, MPT_OFFSET_DOORBELL) & MPT_DB_DATA_MASK;
@@ -396,10 +393,9 @@ mpt_recv_handshake_reply(mpt_softc_t *mpt, size_t reply_len, void *reply)
 
 	/* With the second word, we can now look at the length */
 	if (mpt->verbose > 1 && ((reply_len >> 1) != hdr->MsgLength)) {
-		device_printf(mpt->dev,
-			"reply length does not match message length: "
-			"got 0x%02x, expected 0x%02lx\n",
-			hdr->MsgLength << 2, (long) (reply_len << 1));
+		mpt_prt(mpt, "reply length does not match message length: "
+			"got 0x%02x, expected 0x%02x",
+			hdr->MsgLength << 2, reply_len << 1);
 	}
 
 	/* Get rest of the reply; but don't overflow the provided buffer */
@@ -409,8 +405,7 @@ mpt_recv_handshake_reply(mpt_softc_t *mpt, size_t reply_len, void *reply)
 		u_int16_t datum;
 
 		if (mpt_wait_db_int(mpt) != MPT_OK) {
-			device_printf(mpt->dev,
-			    "mpt_recv_handshake_cmd timeout3!\n");
+			mpt_prt(mpt, "mpt_recv_handshake_cmd timeout3");
 			return ETIMEDOUT;
 		}
 		datum = mpt_read(mpt, MPT_OFFSET_DOORBELL);
@@ -423,7 +418,7 @@ mpt_recv_handshake_reply(mpt_softc_t *mpt, size_t reply_len, void *reply)
 
 	/* One more wait & clear at the end */
 	if (mpt_wait_db_int(mpt) != MPT_OK) {
-		device_printf(mpt->dev, "mpt_recv_handshake_cmd timeout4!\n");
+		mpt_prt(mpt, "mpt_recv_handshake_cmd timeout4");
 		return ETIMEDOUT;
 	}
 	mpt_write(mpt, MPT_OFFSET_INTR_STATUS, 0);
@@ -542,16 +537,16 @@ mpt_read_cfg_header(mpt_softc_t *mpt, int PageType, int PageNumber,
 		DELAY(500);
 		mpt_intr(mpt);
 		if (++count == 1000) {
-			device_printf(mpt->dev, "read_cfg_header timed out\n");
+			mpt_prt(mpt, "read_cfg_header timed out");
 			return (-1);
 		}
 	} while (req->debug == REQ_ON_CHIP);
 
 	reply = (MSG_CONFIG_REPLY *) MPT_REPLY_PTOV(mpt, req->sequence);
         if ((reply->IOCStatus & MPI_IOCSTATUS_MASK) != MPI_IOCSTATUS_SUCCESS) {
-		device_printf(mpt->dev,
-		    "mpt_read_cfg_header: Config Info Status %x\n",
+		mpt_prt(mpt, "mpt_read_cfg_header: Config Info Status %x",
 		    reply->IOCStatus);
+		mpt_free_reply(mpt, (req->sequence << 1));
 		return (-1);
 	}
 	bcopy(&reply->Header, rslt, sizeof (fCONFIG_PAGE_HEADER));
@@ -575,11 +570,11 @@ mpt_read_cfg_page(mpt_softc_t *mpt, int PageAddress, fCONFIG_PAGE_HEADER *hdr)
 	req = mpt_get_request(mpt);
 
 	cfgp = req->req_vbuf;
- 	amt = (cfgp->Header.PageLength * sizeof (uint32_t));
 	bzero(cfgp, MPT_REQUEST_AREA);
 	cfgp->Action = MPI_CONFIG_ACTION_PAGE_READ_CURRENT;
 	cfgp->Function = MPI_FUNCTION_CONFIG;
 	cfgp->Header = *hdr;
+ 	amt = (cfgp->Header.PageLength * sizeof (u_int32_t));
 	cfgp->Header.PageType &= MPI_CONFIG_PAGETYPE_MASK;
 	cfgp->PageAddress = PageAddress;
 	se = (SGE_SIMPLE32 *) &cfgp->PageBufferSGE;
@@ -598,16 +593,16 @@ mpt_read_cfg_page(mpt_softc_t *mpt, int PageAddress, fCONFIG_PAGE_HEADER *hdr)
 		DELAY(500);
 		mpt_intr(mpt);
 		if (++count == 1000) {
-			device_printf(mpt->dev, "read_cfg_page timed out\n");
+			mpt_prt(mpt, "read_cfg_page timed out");
 			return (-1);
 		}
 	} while (req->debug == REQ_ON_CHIP);
 
 	reply = (MSG_CONFIG_REPLY *) MPT_REPLY_PTOV(mpt, req->sequence);
         if ((reply->IOCStatus & MPI_IOCSTATUS_MASK) != MPI_IOCSTATUS_SUCCESS) {
-		device_printf(mpt->dev,
-		    "mpt_read_cfg_page: Config Info Status %x\n",
+		mpt_prt(mpt, "mpt_read_cfg_page: Config Info Status %x",
 		    reply->IOCStatus);
+		mpt_free_reply(mpt, (req->sequence << 1));
 		return (-1);
 	}
 	mpt_free_reply(mpt, (req->sequence << 1));
@@ -652,16 +647,16 @@ mpt_write_cfg_page(mpt_softc_t *mpt, int PageAddress, fCONFIG_PAGE_HEADER *hdr)
 	hdr_attr = hdr->PageType & MPI_CONFIG_PAGEATTR_MASK;
 	if (hdr_attr != MPI_CONFIG_PAGEATTR_CHANGEABLE &&
 	    hdr_attr != MPI_CONFIG_PAGEATTR_PERSISTENT) {
-		device_printf(mpt->dev, "page type 0x%x not changeable\n",
+		mpt_prt(mpt, "page type 0x%x not changeable",
 		    hdr->PageType & MPI_CONFIG_PAGETYPE_MASK);
 		return (-1);
 	}
 	hdr->PageType &= MPI_CONFIG_PAGETYPE_MASK;
 
- 	amt = (cfgp->Header.PageLength * sizeof (uint32_t));
 	cfgp->Action = MPI_CONFIG_ACTION_PAGE_WRITE_CURRENT;
 	cfgp->Function = MPI_FUNCTION_CONFIG;
 	cfgp->Header = *hdr;
+ 	amt = (cfgp->Header.PageLength * sizeof (u_int32_t));
 	cfgp->PageAddress = PageAddress;
 
 	se = (SGE_SIMPLE32 *) &cfgp->PageBufferSGE;
@@ -690,6 +685,8 @@ mpt_write_cfg_page(mpt_softc_t *mpt, int PageAddress, fCONFIG_PAGE_HEADER *hdr)
 		amt = sizeof (fCONFIG_PAGE_SCSI_DEVICE_1);
 	}
 	bcopy(hdr, ((caddr_t)req->req_vbuf)+CFG_DATA_OFF, amt);
+	/* Restore stripped out attributes */
+	hdr->PageType |= hdr_attr;
 
 	mpt_check_doorbell(mpt);
 	mpt_send_cmd(mpt, req);
@@ -699,25 +696,20 @@ mpt_write_cfg_page(mpt_softc_t *mpt, int PageAddress, fCONFIG_PAGE_HEADER *hdr)
 		mpt_intr(mpt);
 		if (++count == 1000) {
 			hdr->PageType |= hdr_attr;
-			device_printf(mpt->dev,
-			    "mpt_write_cfg_page timed out\n");
+			mpt_prt(mpt, "mpt_write_cfg_page timed out");
 			return (-1);
 		}
 	} while (req->debug == REQ_ON_CHIP);
 
 	reply = (MSG_CONFIG_REPLY *) MPT_REPLY_PTOV(mpt, req->sequence);
         if ((reply->IOCStatus & MPI_IOCSTATUS_MASK) != MPI_IOCSTATUS_SUCCESS) {
-		device_printf(mpt->dev,
-		    "mpt_write_cfg_page: Config Info Status %x\n",
+		mpt_prt(mpt, "mpt_write_cfg_page: Config Info Status %x",
 		    reply->IOCStatus);
+		mpt_free_reply(mpt, (req->sequence << 1));
 		return (-1);
 	}
 	mpt_free_reply(mpt, (req->sequence << 1));
 
-	/*
-	 * Restore stripped out attributes
-	 */
-	hdr->PageType |= hdr_attr;
 	mpt_free_request(mpt, req);
 	return (0);
 }
@@ -736,7 +728,7 @@ mpt_read_config_info_spi(mpt_softc_t *mpt)
 		return (-1);
 	}
 	if (mpt->verbose > 1) {
-		device_printf(mpt->dev, "SPI Port Page 0 Header: %x %x %x %x\n",
+		mpt_prt(mpt, "SPI Port Page 0 Header: %x %x %x %x",
 		    mpt->mpt_port_page0.Header.PageVersion,
 		    mpt->mpt_port_page0.Header.PageLength,
 		    mpt->mpt_port_page0.Header.PageNumber,
@@ -749,7 +741,7 @@ mpt_read_config_info_spi(mpt_softc_t *mpt)
 		return (-1);
 	}
 	if (mpt->verbose > 1) {
-		device_printf(mpt->dev, "SPI Port Page 1 Header: %x %x %x %x\n",
+		mpt_prt(mpt, "SPI Port Page 1 Header: %x %x %x %x",
 		    mpt->mpt_port_page1.Header.PageVersion,
 		    mpt->mpt_port_page1.Header.PageLength,
 		    mpt->mpt_port_page1.Header.PageNumber,
@@ -763,7 +755,7 @@ mpt_read_config_info_spi(mpt_softc_t *mpt)
 	}
 
 	if (mpt->verbose > 1) {
-		device_printf(mpt->dev, "SPI Port Page 2 Header: %x %x %x %x\n",
+		mpt_prt(mpt, "SPI Port Page 2 Header: %x %x %x %x",
 		    mpt->mpt_port_page1.Header.PageVersion,
 		    mpt->mpt_port_page1.Header.PageLength,
 		    mpt->mpt_port_page1.Header.PageNumber,
@@ -777,8 +769,8 @@ mpt_read_config_info_spi(mpt_softc_t *mpt)
 			return (-1);
 		}
 		if (mpt->verbose > 1) {
-			device_printf(mpt->dev,
-			    "SPI Target %d Device Page 0 Header: %x %x %x %x\n",
+			mpt_prt(mpt,
+			    "SPI Target %d Device Page 0 Header: %x %x %x %x",
 			    i, mpt->mpt_dev_page0[i].Header.PageVersion,
 			    mpt->mpt_dev_page0[i].Header.PageLength,
 			    mpt->mpt_dev_page0[i].Header.PageNumber,
@@ -791,8 +783,8 @@ mpt_read_config_info_spi(mpt_softc_t *mpt)
 			return (-1);
 		}
 		if (mpt->verbose > 1) {
-			device_printf(mpt->dev,
-			    "SPI Target %d Device Page 1 Header: %x %x %x %x\n",
+			mpt_prt(mpt,
+			    "SPI Target %d Device Page 1 Header: %x %x %x %x",
 			    i, mpt->mpt_dev_page1[i].Header.PageVersion,
 			    mpt->mpt_dev_page1[i].Header.PageLength,
 			    mpt->mpt_dev_page1[i].Header.PageNumber,
@@ -808,35 +800,35 @@ mpt_read_config_info_spi(mpt_softc_t *mpt)
 
 	rv = mpt_read_cfg_page(mpt, 0, &mpt->mpt_port_page0.Header);
 	if (rv) {
-		device_printf(mpt->dev, "failed to read SPI Port Page 0\n");
+		mpt_prt(mpt, "failed to read SPI Port Page 0");
 	} else if (mpt->verbose > 1) {
-		device_printf(mpt->dev,
-		    "SPI Port Page 0: Capabilities %x PhysicalInterface %x\n",
+		mpt_prt(mpt,
+		    "SPI Port Page 0: Capabilities %x PhysicalInterface %x",
 		    mpt->mpt_port_page0.Capabilities,
 		    mpt->mpt_port_page0.PhysicalInterface);
 	}
 
 	rv = mpt_read_cfg_page(mpt, 0, &mpt->mpt_port_page1.Header);
 	if (rv) {
-		device_printf(mpt->dev, "failed to read SPI Port Page 1\n");
+		mpt_prt(mpt, "failed to read SPI Port Page 1");
 	} else if (mpt->verbose > 1) {
-		device_printf(mpt->dev,
-		    "SPI Port Page 1: Configuration %x OnBusTimerValue %x\n",
+		mpt_prt(mpt,
+		    "SPI Port Page 1: Configuration %x OnBusTimerValue %x",
 		    mpt->mpt_port_page1.Configuration,
 		    mpt->mpt_port_page1.OnBusTimerValue);
 	}
 
 	rv = mpt_read_cfg_page(mpt, 0, &mpt->mpt_port_page2.Header);
 	if (rv) {
-		device_printf(mpt->dev, "failed to read SPI Port Page 2\n");
+		mpt_prt(mpt, "failed to read SPI Port Page 2");
 	} else if (mpt->verbose > 1) {
-		device_printf(mpt->dev,
-		    "SPI Port Page 2: Flags %x Settings %x\n",
+		mpt_prt(mpt,
+		    "SPI Port Page 2: Flags %x Settings %x",
 		    mpt->mpt_port_page2.PortFlags,
 		    mpt->mpt_port_page2.PortSettings);
 		for (i = 0; i < 16; i++) {
-			device_printf(mpt->dev,
-		  	    "SPI Port Page 2 Tgt %d: timo %x SF %x Flags %x\n",
+			mpt_prt(mpt,
+		  	    "SPI Port Page 2 Tgt %d: timo %x SF %x Flags %x",
 			    i, mpt->mpt_port_page2.DeviceSettings[i].Timeout,
 			    mpt->mpt_port_page2.DeviceSettings[i].SyncFactor,
 			    mpt->mpt_port_page2.DeviceSettings[i].DeviceFlags);
@@ -846,25 +838,23 @@ mpt_read_config_info_spi(mpt_softc_t *mpt)
 	for (i = 0; i < 16; i++) {
 		rv = mpt_read_cfg_page(mpt, i, &mpt->mpt_dev_page0[i].Header);
 		if (rv) {
-			device_printf(mpt->dev,
-			    "cannot read SPI Tgt %d Device Page 0\n", i);
+			mpt_prt(mpt, "cannot read SPI Tgt %d Device Page 0", i);
 			continue;
 		}
 		if (mpt->verbose > 1) {
-			device_printf(mpt->dev,
-			    "SPI Tgt %d Page 0: NParms %x Information %x\n",
+			mpt_prt(mpt,
+			    "SPI Tgt %d Page 0: NParms %x Information %x",
 			    i, mpt->mpt_dev_page0[i].NegotiatedParameters,
 			    mpt->mpt_dev_page0[i].Information);
 		}
 		rv = mpt_read_cfg_page(mpt, i, &mpt->mpt_dev_page1[i].Header);
 		if (rv) {
-			device_printf(mpt->dev,
-			    "cannot read SPI Tgt %d Device Page 1\n", i);
+			mpt_prt(mpt, "cannot read SPI Tgt %d Device Page 1", i);
 			continue;
 		}
 		if (mpt->verbose > 1) {
-			device_printf(mpt->dev,
-			    "SPI Tgt %d Page 1: RParms %x Configuration %x\n",
+			mpt_prt(mpt,
+			    "SPI Tgt %d Page 1: RParms %x Configuration %x",
 			    i, mpt->mpt_dev_page1[i].RequestedParameters,
 			    mpt->mpt_dev_page1[i].Configuration);
 		}
@@ -887,8 +877,8 @@ mpt_set_initial_config_spi(mpt_softc_t *mpt)
 
 	if (mpt->mpt_port_page1.Configuration != pp1val) {
 		fCONFIG_PAGE_SCSI_PORT_1 tmp;
-		device_printf(mpt->dev,
-		    "SPI Port Page 1 Config value bad (%x)- should be %x\n",
+		mpt_prt(mpt,
+		    "SPI Port Page 1 Config value bad (%x)- should be %x",
 		    mpt->mpt_port_page1.Configuration, pp1val);
 		tmp = mpt->mpt_port_page1;
 		tmp.Configuration = pp1val;
@@ -899,8 +889,8 @@ mpt_set_initial_config_spi(mpt_softc_t *mpt)
 			return (-1);
 		}
 		if (tmp.Configuration != pp1val) {
-			device_printf(mpt->dev,
-			    "failed to reset SPI Port Page 1 Config value\n");
+			mpt_prt(mpt,
+			    "failed to reset SPI Port Page 1 Config value");
 			return (-1);
 		}
 		mpt->mpt_port_page1 = tmp;
@@ -912,8 +902,8 @@ mpt_set_initial_config_spi(mpt_softc_t *mpt)
 		tmp.RequestedParameters = 0;
 		tmp.Configuration = 0;
 		if (mpt->verbose > 1) {
-			device_printf(mpt->dev,
-			    "Set Tgt %d SPI DevicePage 1 values to %x 0 %x\n",
+			mpt_prt(mpt,
+			    "Set Tgt %d SPI DevicePage 1 values to %x 0 %x",
 			    i, tmp.RequestedParameters, tmp.Configuration);
 		}
 		if (mpt_write_cfg_page(mpt, i, &tmp.Header)) {
@@ -924,41 +914,12 @@ mpt_set_initial_config_spi(mpt_softc_t *mpt)
 		}
 		mpt->mpt_dev_page1[i] = tmp;
 		if (mpt->verbose > 1) {
-			device_printf(mpt->dev,
-		 	    "SPI Tgt %d Page 1: RParm %x Configuration %x\n", i,
+			mpt_prt(mpt,
+		 	    "SPI Tgt %d Page 1: RParm %x Configuration %x", i,
 			    mpt->mpt_dev_page1[i].RequestedParameters,
 			    mpt->mpt_dev_page1[i].Configuration);
 		}
 	}
-
-	/*
-	 * If the BIOS hasn't been enabled, the SCSI Port Page2 device
-	 * parameter are apparently complete nonsense. I've had partially
-	 * sensible Page2 settings on *one* bus, but nothing on another-
-	 * it's ridiculous.
-	 *
-	 * For that matter, the Port Page 0 parameters are *also* nonsense,
-	 * so the offset and period and currently connected physical interface
-	 * is also nonsense.
-	 *
-	 * This makes it very difficult to try and figure out what maximum
-	 * settings we could have. Therefore, we'll synthesize the maximums
-	 * here.
-	 */
-	for (i = 0; i < 16; i++) {
-		mpt->mpt_port_page2.DeviceSettings[i].DeviceFlags =
-		    MPI_SCSIPORTPAGE2_DEVICE_DISCONNECT_ENABLE |
-		    MPI_SCSIPORTPAGE2_DEVICE_TAG_QUEUE_ENABLE;
-	}
-	mpt->mpt_port_page0.Capabilities =
-	    MPI_SCSIPORTPAGE0_CAP_IU |
-	    MPI_SCSIPORTPAGE0_CAP_DT |
-	    MPI_SCSIPORTPAGE0_CAP_QAS |
-	    MPI_SCSIPORTPAGE0_CAP_WIDE |
-	    (31 << 16) |			/* offset */
-	    (8 << 8);				/* period */
-	mpt->mpt_port_page0.PhysicalInterface =
-	    MPI_SCSIPORTPAGE0_PHY_SIGNAL_LVD;
 	return (0);
 }
 
@@ -983,7 +944,7 @@ mpt_send_port_enable(mpt_softc_t *mpt, int port)
 
 	mpt_check_doorbell(mpt);
 	if (mpt->verbose > 1) {
-		device_printf(mpt->dev, "enabling port %d\n", port);
+		mpt_prt(mpt, "enabling port %d", port);
 	}
 	mpt_send_cmd(mpt, req);
 
@@ -992,7 +953,7 @@ mpt_send_port_enable(mpt_softc_t *mpt, int port)
 		DELAY(500);
 		mpt_intr(mpt);
 		if (++count == 100000) {
-			device_printf(mpt->dev, "port enable timed out\n");
+			mpt_prt(mpt, "port enable timed out");
 			return (-1);
 		}
 	} while (req->debug == REQ_ON_CHIP);
@@ -1023,8 +984,7 @@ mpt_send_event_request(mpt_softc_t *mpt, int onoff)
 
 	mpt_check_doorbell(mpt);
 	if (mpt->verbose > 1) {
-		device_printf(mpt->dev, "%sabling async events\n",
-		    onoff? "en" : "dis");
+		mpt_prt(mpt, "%sabling async events", onoff? "en" : "dis");
 	}
 	mpt_send_cmd(mpt, req);
 
@@ -1069,7 +1029,7 @@ mpt_init(mpt_softc_t *mpt, u_int32_t who)
 	}
 
 	if (mpt->verbose > 1) {
-		device_printf(mpt->dev, "doorbell req = %s\n",
+		mpt_prt(mpt, "doorbell req = %s",
 		    mpt_ioc_diag(mpt_read(mpt, MPT_OFFSET_DOORBELL)));
 	}
 
@@ -1105,12 +1065,12 @@ mpt_init(mpt_softc_t *mpt, u_int32_t who)
 		}
 
 		if (mpt_get_iocfacts(mpt, &facts) != MPT_OK) {
-			device_printf(mpt->dev, "mpt_get_iocfacts failed\n");
+			mpt_prt(mpt, "mpt_get_iocfacts failed");
 			continue;
 		}
 
 		if (mpt->verbose > 1) {
-			device_printf(mpt->dev,
+			mpt_prt(mpt,
 			    "IOCFACTS: GlobalCredits=%d BlockSize=%u "
 			    "Request Frame Size %u\n", facts.GlobalCredits,
 			    facts.BlockSize, facts.RequestFrameSize);
@@ -1119,12 +1079,12 @@ mpt_init(mpt_softc_t *mpt, u_int32_t who)
 		mpt->request_frame_size = facts.RequestFrameSize;
 
 		if (mpt_get_portfacts(mpt, &pfp) != MPT_OK) {
-			device_printf(mpt->dev, "mpt_get_portfacts failed\n");
+			mpt_prt(mpt, "mpt_get_portfacts failed");
 			continue;
 		}
 
 		if (mpt->verbose > 1) {
-			device_printf(mpt->dev,
+			mpt_prt(mpt,
 			    "PORTFACTS: Type %x PFlags %x IID %d MaxDev %d\n",
 			    pfp.PortType, pfp.ProtocolFlags, pfp.PortSCSIID,
 			    pfp.MaxDevices);
@@ -1132,12 +1092,12 @@ mpt_init(mpt_softc_t *mpt, u_int32_t who)
 
 		if (pfp.PortType != MPI_PORTFACTS_PORTTYPE_SCSI &&
 		    pfp.PortType != MPI_PORTFACTS_PORTTYPE_FC) {
-			device_printf(mpt->dev, "Unsupported Port Type (%x)\n",
+			mpt_prt(mpt, "Unsupported Port Type (%x)",
 			    pfp.PortType);
 			return (ENXIO);
 		}
 		if (!(pfp.ProtocolFlags & MPI_PORTFACTS_PROTOCOL_INITIATOR)) {
-			device_printf(mpt->dev, "initiator role unsupported\n");
+			mpt_prt(mpt, "initiator role unsupported");
 			return (ENXIO);
 		}
 		if (pfp.PortType == MPI_PORTFACTS_PORTTYPE_FC) {
@@ -1148,21 +1108,20 @@ mpt_init(mpt_softc_t *mpt, u_int32_t who)
 		mpt->mpt_ini_id = pfp.PortSCSIID;
 
 		if (mpt_send_ioc_init(mpt, who) != MPT_OK) {
-			device_printf(mpt->dev, "mpt_send_ioc_init failed\n");
+			mpt_prt(mpt, "mpt_send_ioc_init failed");
 			continue;
 		}
 
 		if (mpt->verbose > 1) {
-			device_printf(mpt->dev, "mpt_send_ioc_init ok\n");
+			mpt_prt(mpt, "mpt_send_ioc_init ok");
 		}
 
 		if (mpt_wait_state(mpt, MPT_DB_STATE_RUNNING) != MPT_OK) {
-			device_printf(mpt->dev,
-			    "IOC failed to go to run state\n");
+			mpt_prt(mpt, "IOC failed to go to run state");
 			continue;
 		}
 		if (mpt->verbose > 1) {
-			device_printf(mpt->dev, "IOC now at RUNSTATE\n");
+			mpt_prt(mpt, "IOC now at RUNSTATE");
 		}
 
 		/*
@@ -1202,12 +1161,12 @@ mpt_init(mpt_softc_t *mpt, u_int32_t who)
 		 * Now enable the port
 		 */
 		if (mpt_send_port_enable(mpt, 0) != MPT_OK) {
-			device_printf(mpt->dev, "failed to enable port 0\n");
+			mpt_prt(mpt, "failed to enable port 0");
 			continue;
 		}
 
 		if (mpt->verbose > 1) {
-			device_printf(mpt->dev, "enabled port 0\n");
+			mpt_prt(mpt, "enabled port 0");
 		}
 
 		/* Everything worked */
@@ -1215,12 +1174,12 @@ mpt_init(mpt_softc_t *mpt, u_int32_t who)
 	}
 
 	if (try >= MPT_MAX_TRYS) {
-		device_printf(mpt->dev, "failed to initialize IOC\n");
+		mpt_prt(mpt, "failed to initialize IOC");
 		return (EIO);
 	}
 
 	if (mpt->verbose > 1) {
-		device_printf(mpt->dev, "enabling interrupts\n");
+		mpt_prt(mpt, "enabling interrupts");
 	}
 
 	mpt_enable_ints(mpt);
