@@ -110,6 +110,9 @@ struct mac_policy_ops {
 		    struct label *label);
 	void	(*mpo_create_devfs_directory)(char *dirname, int dirnamelen,
 		    struct devfs_dirent *de, struct label *label);
+	void	(*mpo_create_devfs_symlink)(struct ucred *cred,
+		    struct devfs_dirent *dd, struct label *ddlabel,
+		    struct devfs_dirent *de, struct label *delabel);
 	void	(*mpo_create_devfs_vnode)(struct devfs_dirent *de,
 		    struct label *direntlabel, struct vnode *vp,
 		    struct label *vnodelabel);
@@ -387,6 +390,7 @@ enum mac_op_constant {
 	MAC_INTERNALIZE,
 	MAC_CREATE_DEVFS_DEVICE,
 	MAC_CREATE_DEVFS_DIRECTORY,
+	MAC_CREATE_DEVFS_SYMLINK,
 	MAC_CREATE_DEVFS_VNODE,
 	MAC_CREATE_VNODE,
 	MAC_CREATE_MOUNT,
