@@ -336,7 +336,7 @@ main(int argc, char *argv[])
 
 		sectorsize = DEV_BSIZE;
 		fssize *= secperblk;
-		if (pp != NULL);
+		if (pp != NULL)
 			pp->p_size *= secperblk;
 	}
 	mkfs(pp, special);
