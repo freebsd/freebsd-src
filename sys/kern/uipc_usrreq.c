@@ -30,7 +30,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	@(#)uipc_usrreq.c	8.3 (Berkeley) 1/4/94
+ *	@(#)uipc_usrreq.c	8.9 (Berkeley) 5/14/95
  */
 
 #include <sys/param.h>
@@ -61,6 +61,7 @@ struct	sockaddr sun_noname = { sizeof(sun_noname), AF_UNIX };
 ino_t	unp_ino;			/* prototype for fake inode numbers */
 
 /*ARGSUSED*/
+int
 uipc_usrreq(so, req, m, nam, control)
 	struct socket *so;
 	int req;
@@ -313,6 +314,7 @@ u_long	unpdg_recvspace = 4*1024;
 
 int	unp_rights;			/* file descriptors in flight */
 
+int
 unp_attach(so)
 	struct socket *so;
 {
@@ -346,6 +348,7 @@ unp_attach(so)
 	return (0);
 }
 
+void
 unp_detach(unp)
 	register struct unpcb *unp;
 {
@@ -376,6 +379,7 @@ unp_detach(unp)
 	}
 }
 
+int
 unp_bind(unp, nam, p)
 	struct unpcb *unp;
 	struct mbuf *nam;
@@ -388,7 +392,7 @@ unp_bind(unp, nam, p)
 	struct nameidata nd;
 
 	NDINIT(&nd, CREATE, FOLLOW | LOCKPARENT, UIO_SYSSPACE,
-		soun->sun_path, p);
+	    soun->sun_path, p);
 	if (unp->unp_vnode != NULL)
 		return (EINVAL);
 	if (nam->m_len == MLEN) {
@@ -412,17 +416,18 @@ unp_bind(unp, nam, p)
 	VATTR_NULL(&vattr);
 	vattr.va_type = VSOCK;
 	vattr.va_mode = ACCESSPERMS;
-	LEASE_CHECK(nd.ni_dvp, p, p->p_ucred, LEASE_WRITE);
+	VOP_LEASE(nd.ni_dvp, p, p->p_ucred, LEASE_WRITE);
 	if (error = VOP_CREATE(nd.ni_dvp, &nd.ni_vp, &nd.ni_cnd, &vattr))
 		return (error);
 	vp = nd.ni_vp;
 	vp->v_socket = unp->unp_socket;
 	unp->unp_vnode = vp;
 	unp->unp_addr = m_copy(nam, 0, (int)M_COPYALL);
-	VOP_UNLOCK(vp);
+	VOP_UNLOCK(vp, 0, p);
 	return (0);
 }
 
+int
 unp_connect(so, nam, p)
 	struct socket *so;
 	struct mbuf *nam;
@@ -478,6 +483,7 @@ bad:
 	return (error);
 }
 
+int
 unp_connect2(so, so2)
 	register struct socket *so;
 	register struct socket *so2;
@@ -509,6 +515,7 @@ unp_connect2(so, so2)
 	return (0);
 }
 
+void
 unp_disconnect(unp)
 	struct unpcb *unp;
 {
@@ -546,6 +553,7 @@ unp_disconnect(unp)
 }
 
 #ifdef notdef
+void
 unp_abort(unp)
 	struct unpcb *unp;
 {
@@ -554,6 +562,7 @@ unp_abort(unp)
 }
 #endif
 
+void
 unp_shutdown(unp)
 	struct unpcb *unp;
 {
@@ -564,6 +573,7 @@ unp_shutdown(unp)
 		socantrcvmore(so);
 }
 
+void
 unp_drop(unp, errno)
 	struct unpcb *unp;
 	int errno;
@@ -587,6 +597,7 @@ unp_drain()
 }
 #endif
 
+int
 unp_externalize(rights)
 	struct mbuf *rights;
 {
@@ -618,6 +629,7 @@ unp_externalize(rights)
 	return (0);
 }
 
+int
 unp_internalize(control, p)
 	struct mbuf *control;
 	struct proc *p;
@@ -652,9 +664,9 @@ unp_internalize(control, p)
 }
 
 int	unp_defer, unp_gcing;
-int	unp_mark();
 extern	struct domain unixdomain;
 
+void
 unp_gc()
 {
 	register struct file *fp, *nextfp;
@@ -666,10 +678,10 @@ unp_gc()
 		return;
 	unp_gcing = 1;
 	unp_defer = 0;
-	for (fp = filehead; fp; fp = fp->f_filef)
+	for (fp = filehead.lh_first; fp != 0; fp = fp->f_list.le_next)
 		fp->f_flag &= ~(FMARK|FDEFER);
 	do {
-		for (fp = filehead; fp; fp = fp->f_filef) {
+		for (fp = filehead.lh_first; fp != 0; fp = fp->f_list.le_next) {
 			if (fp->f_count == 0)
 				continue;
 			if (fp->f_flag & FDEFER) {
@@ -747,8 +759,9 @@ unp_gc()
 	 * 91/09/19, bsy@cs.cmu.edu
 	 */
 	extra_ref = malloc(nfiles * sizeof(struct file *), M_FILE, M_WAITOK);
-	for (nunref = 0, fp = filehead, fpp = extra_ref; fp; fp = nextfp) {
-		nextfp = fp->f_filef;
+	for (nunref = 0, fp = filehead.lh_first, fpp = extra_ref; fp != 0;
+	    fp = nextfp) {
+		nextfp = fp->f_list.le_next;
 		if (fp->f_count == 0)
 			continue;
 		if (fp->f_count == fp->f_msgcount && !(fp->f_flag & FMARK)) {
@@ -760,23 +773,24 @@ unp_gc()
 	for (i = nunref, fpp = extra_ref; --i >= 0; ++fpp)
 		sorflush((struct socket *)(*fpp)->f_data);
 	for (i = nunref, fpp = extra_ref; --i >= 0; ++fpp)
-		closef(*fpp);
+		closef(*fpp, (struct proc *)NULL);
 	free((caddr_t)extra_ref, M_FILE);
 	unp_gcing = 0;
 }
 
+void
 unp_dispose(m)
 	struct mbuf *m;
 {
-	int unp_discard();
 
 	if (m)
 		unp_scan(m, unp_discard);
 }
 
+void
 unp_scan(m0, op)
 	register struct mbuf *m0;
-	int (*op)();
+	void (*op) __P((struct file *));
 {
 	register struct mbuf *m;
 	register struct file **rp;
@@ -803,6 +817,7 @@ unp_scan(m0, op)
 	}
 }
 
+void
 unp_mark(fp)
 	struct file *fp;
 {
@@ -813,6 +828,7 @@ unp_mark(fp)
 	fp->f_flag |= (FMARK|FDEFER);
 }
 
+void
 unp_discard(fp)
 	struct file *fp;
 {

@@ -35,7 +35,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	@(#)kern_synch.c	8.6 (Berkeley) 1/21/94
+ *	@(#)kern_synch.c	8.9 (Berkeley) 5/19/95
  */
 
 #include <sys/param.h>
@@ -167,7 +167,7 @@ schedcpu(arg)
 	register unsigned int newcpu;
 
 	wakeup((caddr_t)&lbolt);
-	for (p = (struct proc *)allproc; p != NULL; p = p->p_next) {
+	for (p = allproc.lh_first; p != 0; p = p->p_list.le_next) {
 		/*
 		 * Increment time in/out of memory and sleep time
 		 * (if sleeping).  We ignore overflow; with 16-bit int's
@@ -249,7 +249,7 @@ updatepri(p)
  * of 2.  Shift right by 8, i.e. drop the bottom 256 worth.
  */
 #define TABLESIZE	128
-#define LOOKUP(x)	(((int)(x) >> 8) & (TABLESIZE - 1))
+#define LOOKUP(x)	(((long)(x) >> 8) & (TABLESIZE - 1))
 struct slpque {
 	struct proc *sq_head;
 	struct proc **sq_tailp;
@@ -551,6 +551,10 @@ mi_switch()
 	register long s, u;
 	struct timeval tv;
 
+#ifdef DEBUG
+	if (p->p_simple_locks)
+		panic("sleep: holding simple lock");
+#endif
 	/*
 	 * Compute the amount of time during which the current
 	 * process was running, and add that to its total so far.
@@ -600,6 +604,7 @@ mi_switch()
  * Initialize the (doubly-linked) run queues
  * to be empty.
  */
+void
 rqinit()
 {
 	register int i;

@@ -30,7 +30,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	@(#)tty_tb.c	8.1 (Berkeley) 6/10/93
+ *	@(#)tty_tb.c	8.2 (Berkeley) 1/9/95
  */
 
 #include "tb.h"
@@ -310,7 +310,9 @@ poldecode(tc, cp, polpos)
 /*ARGSUSED*/
 tbioctl(tp, cmd, data, flag)
 	struct tty *tp;
+	u_long cmd;
 	caddr_t data;
+	int flag;
 {
 	register struct tb *tbp = (struct tb *)tp->T_LINEP;
 

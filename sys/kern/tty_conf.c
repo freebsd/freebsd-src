@@ -35,7 +35,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	@(#)tty_conf.c	8.4 (Berkeley) 1/21/94
+ *	@(#)tty_conf.c	8.5 (Berkeley) 1/9/95
  */
 
 #include <sys/param.h>
@@ -52,7 +52,7 @@
 #define	ttyerrinput ((int (*) __P((int c, struct tty *)))enodev)
 #define	ttyerrstart ((int (*) __P((struct tty *)))enodev)
 
-int	nullioctl __P((struct tty *tp, int cmd, caddr_t data,
+int	nullioctl __P((struct tty *tp, u_long cmd, caddr_t data,
 			int flag, struct proc *p));
 
 #include "tb.h"
@@ -60,7 +60,7 @@ int	nullioctl __P((struct tty *tp, int cmd, caddr_t data,
 int	tbopen __P((dev_t dev, struct tty *tp));
 int	tbclose __P((struct tty *tp, int flags));
 int	tbread __P((struct tty *, struct uio *, int flags));
-int	tbioctl __P((struct tty *tp, int cmd, caddr_t data,
+int	tbioctl __P((struct tty *tp, u_long cmd, caddr_t data,
 			int flag, struct proc *p));
 int	tbinput __P((int c, struct tty *tp));
 #endif
@@ -69,7 +69,7 @@ int	tbinput __P((int c, struct tty *tp));
 #if NSL > 0
 int	slopen __P((dev_t dev, struct tty *tp));
 int	slclose __P((struct tty *tp, int flags));
-int	sltioctl __P((struct tty *tp, int cmd, caddr_t data,
+int	sltioctl __P((struct tty *tp, u_long cmd, caddr_t data,
 			int flag, struct proc *p));
 int	slinput __P((int c, struct tty *tp));
 int	slstart __P((struct tty *tp));
@@ -113,7 +113,7 @@ int	nlinesw = sizeof (linesw) / sizeof (linesw[0]);
 /*ARGSUSED*/
 nullioctl(tp, cmd, data, flags, p)
 	struct tty *tp;
-	int cmd;
+	u_long cmd;
 	char *data;
 	int flags;
 	struct proc *p;

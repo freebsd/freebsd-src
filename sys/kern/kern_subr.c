@@ -35,7 +35,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	@(#)kern_subr.c	8.3 (Berkeley) 1/21/94
+ *	@(#)kern_subr.c	8.4 (Berkeley) 2/14/95
  */
 
 #include <sys/param.h>
@@ -44,6 +44,7 @@
 #include <sys/malloc.h>
 #include <sys/queue.h>
 
+int
 uiomove(cp, n, uio)
 	register caddr_t cp;
 	register int n;
@@ -101,17 +102,20 @@ uiomove(cp, n, uio)
 /*
  * Give next character to user as result of read.
  */
+int
 ureadc(c, uio)
 	register int c;
 	register struct uio *uio;
 {
 	register struct iovec *iov;
 
+	if (uio->uio_resid <= 0)
+		panic("ureadc: non-positive resid");
 again:
-	if (uio->uio_iovcnt == 0 || uio->uio_resid == 0)
-		panic("ureadc");
+	if (uio->uio_iovcnt <= 0)
+		panic("ureadc: non-positive iovcnt");
 	iov = uio->uio_iov;
-	if (iov->iov_len == 0) {
+	if (iov->iov_len <= 0) {
 		uio->uio_iovcnt--;
 		uio->uio_iov++;
 		goto again;
@@ -143,6 +147,7 @@ again:
 /*
  * Get next character written in by user from uio.
  */
+int
 uwritec(uio)
 	struct uio *uio;
 {
@@ -153,7 +158,7 @@ uwritec(uio)
 		return (-1);
 again:
 	if (uio->uio_iovcnt <= 0)
-		panic("uwritec");
+		panic("uwritec: non-positive iovcnt");
 	iov = uio->uio_iov;
 	if (iov->iov_len == 0) {
 		uio->uio_iov++;

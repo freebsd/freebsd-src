@@ -39,7 +39,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	@(#)subr_autoconf.c	8.1 (Berkeley) 6/10/93
+ *	@(#)subr_autoconf.c	8.3 (Berkeley) 5/17/94
  *
  * from: $Header: subr_autoconf.c,v 1.12 93/02/01 19:31:48 torek Exp $ (LBL)
  */
@@ -47,6 +47,7 @@
 #include <sys/param.h>
 #include <sys/device.h>
 #include <sys/malloc.h>
+#include <libkern/libkern.h>
 
 /*
  * Autoconfiguration subroutines.
@@ -283,15 +284,16 @@ config_attach(parent, cf, aux, print)
 		void **nsp;
 
 		if (old == 0) {
-			nsp = malloc(MINALLOCSIZE, M_DEVBUF, M_WAITOK);	/*XXX*/
-			bzero(nsp, MINALLOCSIZE);
-			cd->cd_ndevs = MINALLOCSIZE / sizeof(void *);
+			new = max(MINALLOCSIZE / sizeof(void *),
+			    dev->dv_unit + 1);
+			newbytes = new * sizeof(void *);
+			nsp = malloc(newbytes, M_DEVBUF, M_WAITOK);	/*XXX*/
+			bzero(nsp, newbytes);
 		} else {
 			new = cd->cd_ndevs;
 			do {
 				new *= 2;
 			} while (new <= dev->dv_unit);
-			cd->cd_ndevs = new;
 			oldbytes = old * sizeof(void *);
 			newbytes = new * sizeof(void *);
 			nsp = malloc(newbytes, M_DEVBUF, M_WAITOK);	/*XXX*/
@@ -299,6 +301,7 @@ config_attach(parent, cf, aux, print)
 			bzero(&nsp[old], newbytes - oldbytes);
 			free(cd->cd_devs, M_DEVBUF);
 		}
+		cd->cd_ndevs = new;
 		cd->cd_devs = nsp;
 	}
 	if (cd->cd_devs[dev->dv_unit])

@@ -35,7 +35,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	@(#)init_main.c	8.9 (Berkeley) 1/21/94
+ *	@(#)init_main.c	8.16 (Berkeley) 5/14/95
  */
 
 #include <sys/param.h>
@@ -57,6 +57,7 @@
 #include <sys/protosw.h>
 #include <sys/reboot.h>
 #include <sys/user.h>
+#include <sys/syscallargs.h>
 
 #include <ufs/ufs/quota.h>
 
@@ -106,8 +107,8 @@ main(framep)
 	register struct filedesc0 *fdp;
 	register struct pdevinit *pdev;
 	register int i;
-	int s, rval[2];
-	extern int (*mountroot) __P((void));
+	int s;
+	register_t rval[2];
 	extern struct pdevinit pdevinit[];
 	extern void roundrobin __P((void *));
 	extern void schedcpu __P((void *));
@@ -130,13 +131,19 @@ main(framep)
 	cpu_startup();
 
 	/*
+	 * Initialize process and pgrp structures.
+	 */
+	procinit();
+
+	/*
 	 * Create process 0 (the swapper).
 	 */
-	allproc = (volatile struct proc *)p;
-	p->p_prev = (struct proc **)&allproc;
+	LIST_INSERT_HEAD(&allproc, p, p_list);
 	p->p_pgrp = &pgrp0;
-	pgrphash[0] = &pgrp0;
-	pgrp0.pg_mem = p;
+	LIST_INSERT_HEAD(PGRPHASH(0), &pgrp0, pg_hash);
+	LIST_INIT(&pgrp0.pg_members);
+	LIST_INSERT_HEAD(&pgrp0.pg_members, p, p_pglist);
+
 	pgrp0.pg_session = &session0;
 	session0.s_count = 1;
 	session0.s_leader = p;
@@ -191,10 +198,8 @@ main(framep)
 	p->p_sigacts = &p->p_addr->u_sigacts;
 
 	/*
-	 * Initialize per uid information structure and charge
-	 * root for one process.
+	 * Charge root for one process.
 	 */
-	usrinfoinit();
 	(void)chgproccnt(0, 1);
 
 	rqinit();
@@ -242,15 +247,16 @@ main(framep)
 	schedcpu(NULL);
 
 	/* Mount the root file system. */
-	if ((*mountroot)())
+	if (vfs_mountroot())
 		panic("cannot mount root");
+	mountlist.cqh_first->mnt_flag |= MNT_ROOTFS;
 
 	/* Get the vnode for '/'.  Set fdp->fd_fd.fd_cdir to reference it. */
-	if (VFS_ROOT(mountlist.tqh_first, &rootvnode))
+	if (VFS_ROOT(mountlist.cqh_first, &rootvnode))
 		panic("cannot find root vnode");
 	fdp->fd_fd.fd_cdir = rootvnode;
 	VREF(fdp->fd_fd.fd_cdir);
-	VOP_UNLOCK(rootvnode);
+	VOP_UNLOCK(rootvnode, 0, p);
 	fdp->fd_fd.fd_rdir = NULL;
 	swapinit();
 
@@ -313,8 +319,14 @@ start_init(p, framep)
 	void *framep;
 {
 	vm_offset_t addr;
-	struct execve_args args;
-	int options, i, retval[2], error;
+	struct execve_args /* {
+		syscallarg(char *) path;
+		syscallarg(char **) argp;
+		syscallarg(char **) envp;
+	} */ args;
+	int options, i, error;
+	register_t retval[2];
+	char flags[4] = "-", *flagsp;
 	char **pathp, *path, *ucp, **uap, *arg0, *arg1;
 
 	initproc = p;
@@ -338,53 +350,59 @@ start_init(p, framep)
 
 	for (pathp = &initpaths[0]; (path = *pathp) != NULL; pathp++) {
 		/*
-		 * Move out the boot flag argument.
+		 * Construct the boot flag argument.
 		 */
 		options = 0;
+		flagsp = flags + 1;
 		ucp = (char *)USRSTACK;
-		(void)subyte(--ucp, 0);		/* trailing zero */
 		if (boothowto & RB_SINGLE) {
-			(void)subyte(--ucp, 's');
+			*flagsp++ = 's';
 			options = 1;
 		}
 #ifdef notyet
                 if (boothowto & RB_FASTBOOT) {
-			(void)subyte(--ucp, 'f');
+			*flagsp++ = 'f';
 			options = 1;
 		}
 #endif
-		if (options == 0)
-			(void)subyte(--ucp, '-');
-		(void)subyte(--ucp, '-');		/* leading hyphen */
-		arg1 = ucp;
+		/*
+		 * Move out the flags (arg 1), if necessary.
+		 */
+		if (options != 0) {
+			*flagsp++ = '\0';
+			i = flagsp - flags;
+			(void)copyout((caddr_t)flags, (caddr_t)(ucp -= i), i);
+			arg1 = ucp;
+		}
 
 		/*
 		 * Move out the file name (also arg 0).
 		 */
-		for (i = strlen(path) + 1; i >= 0; i--)
-			(void)subyte(--ucp, path[i]);
+		i = strlen(path) + 1;
+		(void)copyout((caddr_t)path, (caddr_t)(ucp -= i), i);
 		arg0 = ucp;
 
 		/*
 		 * Move out the arg pointers.
 		 */
-		uap = (char **)((int)ucp & ~(NBPW-1));
+		uap = (char **)((long)ucp & ~ALIGNBYTES);
 		(void)suword((caddr_t)--uap, 0);	/* terminator */
-		(void)suword((caddr_t)--uap, (int)arg1);
-		(void)suword((caddr_t)--uap, (int)arg0);
+		if (options != 0)
+			(void)suword((caddr_t)--uap, (long)arg1);
+		(void)suword((caddr_t)--uap, (long)arg0);
 
 		/*
 		 * Point at the arguments.
 		 */
-		args.fname = arg0;
-		args.argp = uap;
-		args.envp = NULL;
+		SCARG(&args, path) = arg0;
+		SCARG(&args, argp) = uap;
+		SCARG(&args, envp) = NULL;
 
 		/*
 		 * Now try to exec the program.  If can't for any reason
 		 * other than it doesn't exist, complain.
 		 */
-		if ((error = execve(p, &args, &retval)) == 0)
+		if ((error = execve(p, &args, retval)) == 0)
 			return;
 		if (error != ENOENT)
 			printf("exec %s: error %d\n", path, error);

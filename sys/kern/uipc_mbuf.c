@@ -30,7 +30,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	@(#)uipc_mbuf.c	8.2 (Berkeley) 1/4/94
+ *	@(#)uipc_mbuf.c	8.4 (Berkeley) 2/14/95
  */
 
 #include <sys/param.h>
@@ -51,17 +51,13 @@ extern	vm_map_t mb_map;
 struct	mbuf *mbutl;
 char	*mclrefcnt;
 
+void
 mbinit()
 {
 	int s;
 
-#if CLBYTES < 4096
-#define NCL_INIT	(4096/CLBYTES)
-#else
-#define NCL_INIT	1
-#endif
 	s = splimp();
-	if (m_clalloc(NCL_INIT, M_DONTWAIT) == 0)
+	if (m_clalloc(max(4096/CLBYTES, 1), M_DONTWAIT) == 0)
 		goto bad;
 	splx(s);
 	return;
@@ -75,6 +71,7 @@ bad:
  * Must be called at splimp.
  */
 /* ARGSUSED */
+int
 m_clalloc(ncl, nowait)
 	register int ncl;
 	int nowait;
@@ -137,6 +134,7 @@ m_retryhdr(i, t)
 	return (m);
 }
 
+void
 m_reclaim()
 {
 	register struct domain *dp;
@@ -323,6 +321,7 @@ nospace:
  * Copy data from an mbuf chain starting "off" bytes from the beginning,
  * continuing for "len" bytes, into the indicated buffer.
  */
+void
 m_copydata(m, off, len, cp)
 	register struct mbuf *m;
 	register int off;
@@ -358,6 +357,7 @@ m_copydata(m, off, len, cp)
  * Both chains must be of the same type (e.g. MT_DATA).
  * Any m_pkthdr is not updated.
  */
+void
 m_cat(m, n)
 	register struct mbuf *m, *n;
 {
@@ -378,6 +378,7 @@ m_cat(m, n)
 	}
 }
 
+void
 m_adj(mp, req_len)
 	struct mbuf *mp;
 	int req_len;
@@ -603,8 +604,12 @@ m_devget(buf, totlen, off0, ifp, copy)
 	cp = buf;
 	epkt = cp + totlen;
 	if (off) {
-		cp += off + 2 * sizeof(u_short);
-		totlen -= 2 * sizeof(u_short);
+		/*
+		 * If 'off' is non-zero, packet is trailer-encapsulated,
+		 * so we have to skip the type and length fields.
+		 */
+		cp += off + 2 * sizeof(u_int16_t);
+		totlen -= 2 * sizeof(u_int16_t);
 	}
 	MGETHDR(m, M_DONTWAIT, MT_DATA);
 	if (m == 0)
