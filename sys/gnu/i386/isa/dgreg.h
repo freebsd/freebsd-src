@@ -1,5 +1,5 @@
 /*-
- *  dgreg.h $Id: dgreg.h,v 1.2 1995/10/04 21:51:26 jkh Exp $
+ *  dgreg.h $Id: dgreg.h,v 1.1.2.1 1995/10/07 04:28:06 davidg Exp $
  *
  *  Digiboard driver.
  *
@@ -15,9 +15,9 @@
  *      (Chelyabinsk, Russia)
  *      babkin@hq.icb.chel.su
  */
-
+/*
 #define DEBUG  
-
+*/
 #define MAX_DGB_PORTS	32
 
 /* digi.h */
@@ -357,4 +357,19 @@ struct channel {
 #	define DPRINT3(a1,a2,a3)
 #	define DPRINT4(a1,a2,a3,a4)
 #	define DPRINT5(a1,a2,a3,a4,a5)
+#endif
+
+/*Helg*/
+#ifdef HDEBUG
+#	define HPRINT1(a1)	(printf(a1))
+#	define HPRINT2(a1,a2)	(printf(a1,a2) )
+#	define HPRINT3(a1,a2,a3)	( printf(a1,a2,a3) )
+#	define HPRINT4(a1,a2,a3,a4)	( printf(a1,a2,a3,a4))
+#	define HPRINT5(a1,a2,a3,a4,a5)	( printf(a1,a2,a3,a4,a5))
+#else
+#	define HPRINT1(a1)
+#	define HPRINT2(a1,a2)
+#	define HPRINT3(a1,a2,a3)
+#	define HPRINT4(a1,a2,a3,a4)
+#	define HPRINT5(a1,a2,a3,a4,a5)
 #endif
