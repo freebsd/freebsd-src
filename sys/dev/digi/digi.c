@@ -1129,7 +1129,7 @@ digiioctl(dev_t dev, u_long cmd, caddr_t data, int flag, struct proc *p)
 			return (error);
 
 		case DIGIIO_MODEL:
-			*(digiModel_t *)data = sc->model;
+			*(enum digi_model *)data = sc->model;
 			return (0);
 
 		case DIGIIO_IDENT:

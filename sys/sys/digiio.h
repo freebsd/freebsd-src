@@ -26,15 +26,10 @@
  * $FreeBSD$
  */
 
-typedef struct {
-	int32_t size;
-	const u_int8_t *data;
-} digiDescriptor_t;
-
 /*
  * A very small subset of cards.
  */
-typedef enum {
+enum digi_model {
 	PCXE,
 	PCXEVE,
 	PCXI,
@@ -42,7 +37,7 @@ typedef enum {
 	PCCX,
 	PCIEPCX,
 	PCIXR
-} digiModel_t;
+};
 
 enum {
 	DIGIDB_INIT = (1<<0),
@@ -62,5 +57,5 @@ enum {
 #define	DIGIIO_REINIT	_IO('e', 'A')
 #define	DIGIIO_DEBUG	_IOW('e', 'B', int)
 #define	DIGIIO_RING	_IO('e', 'C')
-#define	DIGIIO_MODEL	_IOR('e', 'D', digiModel_t)
+#define	DIGIIO_MODEL	_IOR('e', 'D', enum digi_model)
 #define	DIGIIO_IDENT	_IOW('e', 'E', char *)

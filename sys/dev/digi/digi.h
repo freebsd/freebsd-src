@@ -180,7 +180,7 @@ struct digi_softc {
 	int win_bits;
 	int mem_size;
 	int mem_seg;
-	digiModel_t model;
+	enum digi_model model;
 	const struct digi_control_signals *csigs;
 	int opencnt;
 	unsigned pcibus : 1;		/* On a PCI bus ? */
