@@ -9,8 +9,8 @@ cd $TESTDIR
 
 jot -w '%X' -s ',' 100 1 200 | diff -u regress.out -
 if [ $? -eq 0 ]; then
-  echo "Test detected no regression, output matches."
+  echo "PASS: Test detected no regression, output matches."
 else
-  echo "Test failed: regression detected.  See above."
+  echo "FAIL: Test failed: regression detected.  See above."
   exit 1
 fi
