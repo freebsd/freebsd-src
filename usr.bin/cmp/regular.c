@@ -74,9 +74,12 @@ c_regular(fd1, file1, skip1, len1, fd2, file2, skip2, len2)
 	if ((p1 = (u_char *)mmap(NULL,
 	    (size_t)length, PROT_READ, 0, fd1, skip1)) == (u_char *)-1)
 		err(ERR_EXIT, "%s", file1);
+
+	madvise(p1, length, MADV_SEQUENTIAL);
 	if ((p2 = (u_char *)mmap(NULL,
 	    (size_t)length, PROT_READ, 0, fd2, skip2)) == (u_char *)-1)
 		err(ERR_EXIT, "%s", file2);
+	madvise(p2, length, MADV_SEQUENTIAL);
 
 	dfound = 0;
 	for (byte = line = 1; length--; ++p1, ++p2, ++byte) {
