@@ -29,7 +29,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $Id: uthread_write.c,v 1.8 1998/06/10 22:28:45 jb Exp $
+ * $Id: uthread_write.c,v 1.9 1998/06/14 09:36:11 jb Exp $
  *
  */
 #include <sys/types.h>
@@ -45,7 +45,6 @@ ssize_t
 write(int fd, const void *buf, size_t nbytes)
 {
 	int	blocking;
-	int	status;
 	int	type;
 	ssize_t n;
 	ssize_t num = 0;

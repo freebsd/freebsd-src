@@ -29,7 +29,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $Id: uthread_kern.c,v 1.10 1998/04/29 09:59:02 jb Exp $
+ * $Id: uthread_kern.c,v 1.11 1998/04/30 21:50:29 jb Exp $
  *
  */
 #include <errno.h>
@@ -59,7 +59,6 @@ _thread_kern_sched(struct sigcontext * scp)
 #ifndef	__alpha__
 	char           *fdata;
 #endif
-	int             i;
 	int             prio = -1;
 	pthread_t       pthread;
 	pthread_t       pthread_h = NULL;

@@ -46,7 +46,6 @@ pthread_mutex_init(pthread_mutex_t * mutex,
 	enum pthread_mutextype type;
 	pthread_mutex_t	pmutex;
 	int             ret = 0;
-	int             status;
 
 	if (mutex == NULL) {
 		ret = EINVAL;

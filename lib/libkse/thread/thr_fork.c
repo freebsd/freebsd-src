@@ -42,7 +42,6 @@ pid_t
 fork(void)
 {
 	int             flags;
-	int             status;
 	pid_t           ret;
 	pthread_t	pthread;
 	pthread_t	pthread_next;
