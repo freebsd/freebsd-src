@@ -399,7 +399,7 @@ ok:
 	 *       6 bit zero
 	 *	10 bit max cylinder (0 based)
 	 *	 8 bit max head (0 based)
-	 *	 8 bit zero
+	 *	 2 bit zero
 	 *	 6 bit max sector (1 based) = # sectors
 	 */
 	movb	%cl, %al		/* Upper two bits of cylinder count */
