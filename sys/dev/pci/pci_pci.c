@@ -132,31 +132,67 @@ static int
 pcib_attach(device_t dev)
 {
     struct pcib_softc	*sc;
-    device_t		pcib, child;
-    int			b, s, f;
+    device_t		child;
+    u_int8_t		iolow;
 
     sc = device_get_softc(dev);
     sc->dev = dev;
-    pcib = device_get_parent(dev);
-    b = pci_get_bus(dev);
-    s = pci_get_slot(dev);
-    f = pci_get_function(dev);
 
-    sc->secbus    = PCIB_READ_CONFIG(pcib, b, s, f, PCIR_SECBUS_1, 1);
-    sc->subbus    = PCIB_READ_CONFIG(pcib, b, s, f, PCIR_SUBBUS_1, 1);
-    sc->secstat   = PCIB_READ_CONFIG(pcib, b, s, f, PCIR_SECSTAT_1, 2);
-    sc->bridgectl = PCIB_READ_CONFIG(pcib, b, s, f, PCIR_BRIDGECTL_1, 2);
-    sc->seclat    = PCIB_READ_CONFIG(pcib, b, s, f, PCIR_SECLAT_1, 1);
-    sc->iobase    = PCI_PPBIOBASE(PCIB_READ_CONFIG(pcib, b, s, f, PCIR_IOBASEH_1, 2),
-				  PCIB_READ_CONFIG(pcib, b, s, f, PCIR_IOBASEL_1, 1));
-    sc->iolimit   = PCI_PPBIOLIMIT(PCIB_READ_CONFIG(pcib, b, s, f, PCIR_IOLIMITH_1, 2),
-				   PCIB_READ_CONFIG(pcib, b, s, f, PCIR_IOLIMITL_1, 1));
-    sc->membase   = PCI_PPBMEMBASE(0, PCIB_READ_CONFIG(pcib, b, s, f, PCIR_MEMBASE_1, 2));
-    sc->memlimit  = PCI_PPBMEMLIMIT(0, PCIB_READ_CONFIG(pcib, b, s, f, PCIR_MEMLIMIT_1, 2));
-    sc->pmembase  = PCI_PPBMEMBASE((pci_addr_t)PCIB_READ_CONFIG(pcib, b, s, f, PCIR_PMBASEH_1, 4),
-				   PCIB_READ_CONFIG(pcib, b, s, f, PCIR_PMBASEL_1, 2));
-    sc->pmemlimit = PCI_PPBMEMLIMIT((pci_addr_t)PCIB_READ_CONFIG(pcib, b, s, f,PCIR_PMLIMITH_1, 4),
-				    PCIB_READ_CONFIG(pcib, b, s, f, PCIR_PMLIMITL_1, 2));
+    /*
+     * Get current bridge configuration.
+     */
+    sc->secbus    = pci_read_config(dev, PCIR_SECBUS_1, 1);
+    sc->subbus    = pci_read_config(dev, PCIR_SUBBUS_1, 1);
+    sc->secstat   = pci_read_config(dev, PCIR_SECSTAT_1, 2);
+    sc->bridgectl = pci_read_config(dev, PCIR_BRIDGECTL_1, 2);
+    sc->seclat    = pci_read_config(dev, PCIR_SECLAT_1, 1);
+
+    /*
+     * Determine current I/O decode.
+     */
+    iolow = pci_read_config(dev, PCIR_IOBASEL_1, 1);
+    if ((iolow & PCIM_BRIO_MASK) == PCIM_BRIO_32) {
+	sc->iobase = PCI_PPBIOBASE(pci_read_config(dev, PCIR_IOBASEH_1, 2),
+				   pci_read_config(dev, PCIR_IOBASEL_1, 1));
+    } else {
+	sc->iobase = PCI_PPBIOBASE(0, pci_read_config(dev, PCIR_IOBASEL_1, 1));
+    }
+
+    iolow = pci_read_config(dev, PCIR_IOLIMITL_1, 1);
+    if ((iolow & PCIM_BRIO_MASK) == PCIM_BRIO_32) {
+	sc->iolimit = PCI_PPBIOLIMIT(pci_read_config(dev, PCIR_IOLIMITH_1, 2),
+				   pci_read_config(dev, PCIR_IOLIMITL_1, 1));
+    } else {
+	sc->iolimit = PCI_PPBIOLIMIT(0, pci_read_config(dev, PCIR_IOLIMITL_1, 1));
+    }
+
+    /*
+     * Determine current memory decode.
+     */
+    sc->membase   = PCI_PPBMEMBASE(0, pci_read_config(dev, PCIR_MEMBASE_1, 2));
+    sc->memlimit  = PCI_PPBMEMLIMIT(0, pci_read_config(dev, PCIR_MEMLIMIT_1, 2));
+    sc->pmembase  = PCI_PPBMEMBASE((pci_addr_t)pci_read_config(dev, PCIR_PMBASEH_1, 4),
+				   pci_read_config(dev, PCIR_PMBASEL_1, 2));
+    sc->pmemlimit = PCI_PPBMEMLIMIT((pci_addr_t)pci_read_config(dev, PCIR_PMLIMITH_1, 4),
+				    pci_read_config(dev, PCIR_PMLIMITL_1, 2));
+
+    /*
+     * Quirk handling.
+     */
+    switch (pci_get_devid(dev)) {
+	case 0x12258086:		/* Intel 82454KX/GX (Orion) */
+	{
+	    u_int8_t	supbus;
+
+	    supbus = pci_read_config(dev, 0x41, 1);
+	    if (supbus != 0xff) {
+		sc->secbus = supbus + 1;
+		sc->subbus = supbus + 1;
+	    }
+	}
+	break;
+    }
+
 
     if (bootverbose) {
 	device_printf(dev, "  secondary bus     %d\n", sc->secbus);
@@ -247,6 +283,9 @@ pcib_alloc_resource(device_t dev, device_t child, int type, int *rid,
 			      sc->iobase, sc->iolimit);
 		return(NULL);
 	    }
+	    if (bootverbose)
+		device_printf(sc->dev, "device %s%d requested decoded I/O range 0x%lx-0x%lx\n",
+			      device_get_name(child), device_get_unit(child), start, end);
 	    break;
 
 	    /*
@@ -264,11 +303,16 @@ pcib_alloc_resource(device_t dev, device_t child, int type, int *rid,
 			      sc->membase, sc->memlimit, sc->pmembase, sc->pmemlimit);
 		return(NULL);
 	    }
+	    if (bootverbose)
+		device_printf(sc->dev, "device %s%d requested decoded memory range 0x%lx-0x%lx\n",
+			      device_get_name(child), device_get_unit(child), start, end);
+	    break;
+
 	default:
+	    break;
 	}
     }
-    device_printf(sc->dev, "resource request type %d 0x%lx-0x%lx decodes OK\n",
-		  type, start, end);
+
     /*
      * Bridge is OK decoding this resource, so pass it up.
      */
@@ -281,7 +325,7 @@ pcib_alloc_resource(device_t dev, device_t child, int type, int *rid,
 static int
 pcib_maxslots(device_t dev)
 {
-    return(31);
+    return(PCI_SLOTMAX);
 }
 
 /*
