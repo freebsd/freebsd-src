@@ -80,11 +80,15 @@ ncp_chkintr(struct ncp_conn *conn, struct proc *p)
 
 	if (p == NULL)
 		return 0;
+	PROC_LOCK(p);
 	tmpset = p->p_siglist;
 	SIGSETNAND(tmpset, p->p_sigmask);
 	SIGSETNAND(tmpset, p->p_sigignore);
-	if (SIGNOTEMPTY(p->p_siglist) && NCP_SIGMASK(tmpset))
+	if (SIGNOTEMPTY(p->p_siglist) && NCP_SIGMASK(tmpset)) {
+		PROC_UNLOCK(p);
                 return EINTR;
+	}
+	PROC_UNLOCK(p);
 	return 0;
 }
 
