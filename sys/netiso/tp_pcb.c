@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)tp_pcb.c	8.1 (Berkeley) 6/10/93
- * $Id: tp_pcb.c,v 1.2 1994/08/02 07:51:20 davidg Exp $
+ * $Id: tp_pcb.c,v 1.3 1994/11/15 14:23:06 bde Exp $
  */
 
 /***********************************************************
@@ -63,7 +63,7 @@ SOFTWARE.
 /* 
  * ARGO TP
  *
- * $Header: /home/ncvs/src/sys/netiso/tp_pcb.c,v 1.2 1994/08/02 07:51:20 davidg Exp $
+ * $Header: /home/ncvs/src/sys/netiso/tp_pcb.c,v 1.3 1994/11/15 14:23:06 bde Exp $
  * $Source: /home/ncvs/src/sys/netiso/tp_pcb.c,v $
  *
  *
@@ -88,6 +88,7 @@ SOFTWARE.
 #include <sys/protosw.h>
 #include <sys/errno.h>
 #include <sys/time.h>
+#include <sys/queue.h>
 
 #include <netiso/argo_debug.h>
 #include <netiso/tp_param.h>

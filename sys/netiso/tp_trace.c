@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)tp_trace.c	8.1 (Berkeley) 6/10/93
- * $Id$
+ * $Id: tp_trace.c,v 1.2 1994/08/02 07:51:30 davidg Exp $
  */
 
 /***********************************************************
@@ -63,7 +63,7 @@ SOFTWARE.
 /* 
  * ARGO TP
  *
- * $Header: /home/ncvs/src/sys/netiso/tp_trace.c,v 1.1.1.1 1994/05/24 10:06:42 rgrimes Exp $
+ * $Header: /home/ncvs/src/sys/netiso/tp_trace.c,v 1.2 1994/08/02 07:51:30 davidg Exp $
  * $Source: /home/ncvs/src/sys/netiso/tp_trace.c,v $
  *
  * The whole protocol trace module.
@@ -80,6 +80,7 @@ SOFTWARE.
 #include <sys/mbuf.h>
 #include <sys/socket.h>
 #include <sys/time.h>
+#include <sys/queue.h>
 
 #include <netiso/tp_param.h>
 #include <netiso/tp_timer.h>
