@@ -131,6 +131,7 @@ void
 sem_ref(struct ksem *ks)
 {
 
+	mtx_assert(&sem_lock, MA_OWNED);
 	ks->ks_ref++;
 	DP(("sem_ref: ks = %p, ref = %d\n", ks, ks->ks_ref));
 }
@@ -140,6 +141,7 @@ void
 sem_rel(struct ksem *ks)
 {
 
+	mtx_assert(&sem_lock, MA_OWNED);
 	DP(("sem_rel: ks = %p, ref = %d\n", ks, ks->ks_ref - 1));
 	if (--ks->ks_ref == 0)
 		sem_free(ks);
