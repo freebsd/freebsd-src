@@ -183,6 +183,8 @@ usb_block_allocmem(bus_dma_tag_t tag, size_t size, size_t align,
 	    usbmem_callback, p, 0))
 		goto memfree;
 
+	/* XXX - override the tag, ok since we never free it */
+	p->tag = tag;
 	*dmap = p;
 	return (USBD_NORMAL_COMPLETION);
 
