@@ -1161,6 +1161,7 @@ struct ndis_packet {
 	void			*np_softc;
 	void			*np_m0;
 	int			np_txidx;
+	kspin_lock		np_lock;
 };
 
 typedef struct ndis_packet ndis_packet;
