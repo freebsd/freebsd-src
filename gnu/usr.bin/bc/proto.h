@@ -38,14 +38,8 @@
 #endif
 
 /* Include the standard library header files. */
-#ifndef NO_UNISTD
 #include <unistd.h>
-#endif
-#ifndef NO_STDLIB
-#ifdef __STDC__
 #include <stdlib.h>
-#endif
-#endif
 
 /* Define the _PROTOTYPE macro if it is needed. */
 
