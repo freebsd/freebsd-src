@@ -1,0 +1,176 @@
+'\"
+'\" Copyright (c) 1992-1995 Karl Lehenbauer and Mark Diekhans.
+'\" Copyright (c) 1995-1996 Sun Microsystems, Inc.
+'\"
+'\" This documentation is derived from the time and date facilities of
+'\" TclX, by Mark Diekhans and Karl Lehenbauer.
+'\" 
+'\" See the file "license.terms" for information on usage and redistribution
+'\" of this file, and for a DISCLAIMER OF ALL WARRANTIES.
+'\" 
+'\" SCCS: @(#) clock.n 1.12 96/04/16 08:20:08
+'\" 
+.so man.macros
+.TH clock n 7.4 Tcl "Tcl Built-In Commands"
+.BS
+'\" Note:  do not modify the .SH NAME line immediately below!
+.SH NAME
+clock \- Obtain and manipulate time
+.SH SYNOPSIS
+\fBclock \fIoption\fR ?\fIarg arg ...\fR?
+.BE
+
+.SH DESCRIPTION
+.PP
+This command performs one of several operations that may obtain
+or manipulate strings or values that represent some notion of
+time.  The \fIoption\fR argument determines what action is carried
+out by the command.  The legal \fIoptions\fR (which may be
+abbreviated) are:
+.TP
+\fBclock clicks\fR
+Return a high-resolution time value as a system-dependent integer
+value.  The unit of the value is system-dependent but should be the
+highest resolution clock available on the system such as a CPU cycle
+counter. This value should only be used for the relative measurement
+of elapsed time.
+.TP
+\fBclock format \fIclockValue\fR ?\fB\-format \fIstring\fR? ?\fB\-gmt \fIboolean\fR?
+Converts an integer time value, typically returned by
+\fBclock seconds\fR, \fBclock scan\fR, or the \fBatime\fR, \fBmtime\fR,
+or \fBctime\fR options of the \fBfile\fR command, to human-readable
+form.  If the \fB\-format\fR argument is present the next argument is a
+string that describes how the date and time are to be formatted.
+Field descriptors consist of a \fB%\fR followed by a field
+descriptor character.  All other characters are copied into the result.
+Valid field descriptors are:
+.RS
+.IP \fB%%\fR
+Insert a %.
+.IP \fB%a\fR
+Abbreviated weekday name. (Mon, Tue, etc.)
+.IP \fB%A\fR
+Full weekday name. (Monday, Tuesday, etc.)
+.IP \fB%b\fR
+Abbreviated month name. (Jan, Feb, etc.)
+.IP \fB%B\fR
+Full month name.
+.IP \fB%d\fR
+Day of month (01 - 31).
+.IP \fB%D\fR
+Date as %m/%d/%y.
+.IP \fB%e\fR
+Day of month (1 - 31), no leading zeros.
+.IP \fB%h\fR
+Abbreviated month name.
+.IP \fB%H\fR
+Hour (00 - 23).
+.IP \fB%I\fR
+Hour (00 - 12).
+.IP \fB%j\fR
+Day number of year (001 - 366).
+.IP \fB%m\fR
+Month number (01 - 12).
+.IP \fB%M\fR
+Minute (00 - 59).
+.IP \fB%n\fR
+Insert a newline.
+.IP \fB%p\fR
+AM or PM.
+.IP \fB%r\fR
+Time as %I:%M:%S %p.
+.IP \fB%R\fR
+Time as %H:%M.
+.IP \fB%S\fR
+Seconds (00 - 59).
+.IP \fB%t\fR
+Insert a tab.
+.IP \fB%T\fR
+Time as %H:%M:%S.
+.IP \fB%U\fR
+Week number of year (01 - 52), Sunday is the first day of the week.
+.IP \fB%w\fR
+Weekday number (Sunday = 0).
+.IP \fB%W\fR
+Week number of year (01 - 52), Monday is the first day of the week.
+.IP \fB%x\fR
+Local specific date format.
+.IP \fB%X\fR
+Local specific time format.
+.IP \fB%y\fR
+Year within century (00 - 99).
+.IP \fB%Y\fR
+Year as ccyy (e.g. 1990)
+.IP \fB%Z\fR
+Time zone name.
+.RE
+.sp
+.RS
+If the \fB\-format\fR argument is not specified, the format string 
+"\fB%a %b %d %H:%M:%S %Z %Y\fR" is used.  If the \fB\-gmt\fR argument
+is present the next argument must be a boolean which if true specifies
+that the time will be formatted as Greenwich Mean Time. If false
+then the local timezone will be used as defined by the operating
+environment.
+.RE
+.TP
+\fBclock scan \fIdateString\fR ?\fB\-base \fIclockVal\fR? ?\fB\-gmt \fIboolean\fR?
+Convert \fIdateString\fR to an integer clock value (see \fBclock seconds\fR).
+This command can parse and convert virtually any standard date and/or time
+string, which can include standard time zone mnemonics.  If only a time is
+specified, the current date is assumed.  If the string does not contain a
+time zone mnemonic, the local time zone is assumed, unless the \fB\-gmt\fR 
+argument is true, in which case the clock value is calculated assuming
+that the specified time is relative to Greenwich Mean Time.
+.sp
+If the \fB\-base\fR flag is specified, the next argument should contain
+an integer clock value.  Only the date in this value is used, not the
+time.  This is useful for determining the time on a specific day or
+doing other date-relative conversions.
+.sp
+The \fIdateString\fR consists of zero or more specifications of the
+following form:
+.RS
+.TP
+\fItime\fR
+A time of day, which is of the form: \fIhh\fR?\fI:mm\fR?\fI:ss\fR?? 
+?\fImeridian\fR? ?\fIzone\fR? or \fIhhmm \fR?\fImeridian\fR? 
+?\fIzone\fR?. If no meridian is specified, \fIhh\fR is interpreted on
+a 24-hour clock.
+.TP
+\fIdate\fR
+A specific month and day with optional year.  The
+acceptable formats are \fImm/dd\fR?\fI/yy\fR?, \fImonthname dd\fR
+?, \fIyy\fR?, \fIdd monthname \fR?\fIyy\fR? and \fIday, dd monthname
+yy\fR.  The default year is the current year.  If the year is less
+then 100, then 1900 is added to it.
+.TP
+\fIrelative time\fR
+A specification relative to the current time.  The format is \fInumber
+unit\fR acceptable units are \fByear\fR, \fBfortnight\fR, \fBmonth\fR, \fBweek\fR, \fBday\fR,
+\fBhour\fR, \fBminute\fR (or \fBmin\fR), and \fBsecond\fR (or \fBsec\fR).  The
+unit can be specified as a singular or plural, as in \fB3 weeks\fR.
+These modifiers may also be specified:
+\fBtomorrow\fR, \fByesterday\fR, \fBtoday\fR, \fBnow\fR,
+\fBlast\fR, \fBthis\fR, \fBnext\fR, \fBago\fR.
+.RE
+.sp
+.RS
+The actual date is calculated according to the following steps.
+First, any absolute date and/or time is processed and converted.
+Using that time as the base, day-of-week specifications are added.
+Next, relative specifications are used.  If a date or day is
+specified, and no absolute or relative time is given, midnight is
+used.  Finally, a correction is applied so that the correct hour of
+the day is produced after allowing for daylight savings time
+differences.
+.RE
+.TP
+\fBclock seconds\fR
+Return the current date and time as a system-dependent integer value.  The
+unit of the value is seconds, allowing it to be used for relative time
+calculations.  The value is usually defined as total elapsed time from
+an ``epoch''.  You shouldn't assume the value of the epoch.
+
+.SH KEYWORDS
+clock, date, time

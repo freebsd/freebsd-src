@@ -1,0 +1,95 @@
+'\"
+'\" Copyright (c) 1989-1993 The Regents of the University of California.
+'\" Copyright (c) 1994-1996 Sun Microsystems, Inc.
+'\"
+'\" See the file "license.terms" for information on usage and redistribution
+'\" of this file, and for a DISCLAIMER OF ALL WARRANTIES.
+'\" 
+'\" SCCS: @(#) CrtMathFnc.3 1.8 96/03/25 19:59:55
+'\" 
+.so man.macros
+.TH Tcl_CreateMathFunc 3 7.0 Tcl "Tcl Library Procedures"
+.BS
+.SH NAME
+Tcl_CreateMathFunc \- Define a new math function for expressions
+.SH SYNOPSIS
+.nf
+\fB#include <tcl.h>\fR
+.sp
+\fBTcl_CreateMathFunc\fR(\fIinterp, name, numArgs, argTypes, proc, clientData\fR)
+.SH ARGUMENTS
+.AS Tcl_ValueType clientData
+.AP Tcl_Interp *interp in
+Interpreter in which new function will be defined.
+.AP char *name in
+Name for new function.
+.AP int numArgs in
+Number of arguments to new function;  also gives size of \fIargTypes\fR array.
+.AP Tcl_ValueType *argTypes in
+Points to an array giving the permissible types for each argument to
+function.
+.AP Tcl_MathProc *proc in
+Procedure that implements the function.
+.AP ClientData clientData in
+Arbitrary one-word value to pass to \fIproc\fR when it is invoked.
+.BE
+
+.SH DESCRIPTION
+.PP
+Tcl allows a number of mathematical functions to be used in
+expressions, such as \fBsin\fR, \fBcos\fR, and \fBhypot\fR.
+\fBTcl_CreateMathFunc\fR allows applications to add additional functions
+to those already provided by Tcl or to replace existing functions.
+\fIName\fR is the name of the function as it will appear in expressions.
+If \fIname\fR doesn't already exist as a function then a new function
+is created.  If it does exist, then the existing function is replaced.
+\fINumArgs\fR and \fIargTypes\fR describe the arguments to the function.
+Each entry in the \fIargTypes\fR array must be either TCL_INT, TCL_DOUBLE,
+or TCL_EITHER to indicate whether the corresponding argument must be an
+integer, a double-precision floating value, or either, respectively.
+.PP
+Whenever the function is invoked in an expression Tcl will invoke
+\fIproc\fR.  \fIProc\fR should have arguments and result that match
+the type \fBTcl_MathProc\fR:
+.CS
+typedef int Tcl_MathProc(
+	ClientData \fIclientData\fR,
+	Tcl_Interp *\fIinterp\fR,
+	Tcl_Value *\fIargs\fR,
+	Tcl_Value *\fIresultPtr\fR);
+.CE
+.PP
+When \fIproc\fR is invoked the \fIclientData\fR and \fIinterp\fR
+arguments will be the same as those passed to \fBTcl_CreateMathFunc\fR.
+\fIArgs\fR will point to an array of \fInumArgs\fR Tcl_Value structures,
+which describe the actual arguments to the function:
+.CS
+typedef struct Tcl_Value {
+	Tcl_ValueType \fItype\fR;
+.VS
+.VE
+	long \fIintValue\fR;
+	double \fIdoubleValue\fR;
+} Tcl_Value;
+.CE
+.PP
+The \fItype\fR field indicates the type of the argument and is
+either TCL_INT or TCL_DOUBLE.
+It will match the \fIargTypes\fR value specified for the function unless
+the \fIargTypes\fR value was TCL_EITHER. Tcl converts
+the argument supplied in the expression to the type requested in
+\fIargTypes\fR, if that is necessary.
+Depending on the value of the \fItype\fR field, the \fIintValue\fR
+or \fIdoubleValue\fR field will contain the actual value of the argument.
+.PP
+\fIProc\fR should compute its result and store it either as an integer
+in \fIresultPtr->intValue\fR or as a floating value in
+\fIresultPtr->doubleValue\fR.
+It should set also \fIresultPtr->type\fR to either TCL_INT or TCL_DOUBLE
+to indicate which value was set.
+Under normal circumstances \fIproc\fR should return TCL_OK.
+If an error occurs while executing the function, \fIproc\fR should
+return TCL_ERROR and leave an error message in \fIinterp->result\fR.
+
+.SH KEYWORDS
+expression, mathematical function

@@ -1,0 +1,386 @@
+# Commands covered:  history
+#
+# This file contains a collection of tests for one or more of the Tcl
+# built-in commands.  Sourcing this file into Tcl runs the tests and
+# generates output for errors.  No output means no errors were found.
+#
+# Copyright (c) 1991-1993 The Regents of the University of California.
+# Copyright (c) 1994 Sun Microsystems, Inc.
+#
+# See the file "license.terms" for information on usage and redistribution
+# of this file, and for a DISCLAIMER OF ALL WARRANTIES.
+#
+# SCCS: @(#) history.test 1.11 96/02/16 08:55:57
+  
+if {[info commands history] == ""} {
+    puts stdout "This version of Tcl was built without the history command;\n"
+    puts stdout "history tests will be skipped.\n"
+    return
+}
+
+if {[string compare test [info procs test]] == 1} then {source defs}
+
+set num [history nextid]
+history keep 3
+history add {set a 12345}
+history add {set b [format {A test %s} string]}
+history add {Another test}
+
+# "history event"
+
+test history-1.1 {event option} {history event -1} \
+	{set b [format {A test %s} string]}
+test history-1.2 {event option} {history event $num} \
+	{set a 12345}
+test history-1.3 {event option} {history event [expr $num+2]} \
+	{Another test}
+test history-1.4 {event option} {history event set} \
+	{set b [format {A test %s} string]}
+test history-1.5 {event option} {history e "* a*"} \
+	{set a 12345}
+test history-1.6 {event option} {catch {history event *gorp} msg} 1
+test history-1.7 {event option} {
+    catch {history event *gorp} msg
+    set msg
+} {no event matches "*gorp"}
+test history-1.8 {event option} {history event} \
+	{set b [format {A test %s} string]}
+test history-1.9 {event option} {catch {history event 123 456} msg} 1
+test history-1.10 {event option} {
+    catch {history event 123 456} msg
+    set msg
+} {wrong # args: should be "history event ?event?"}
+
+# "history redo"
+
+set a 0
+history redo -2
+test history-2.1 {redo option} {set a} 12345
+set b 0
+history redo
+test history-2.2 {redo option} {set b} {A test string}
+test history-2.3 {redo option} {catch {history redo -3 -4}} 1
+test history-2.4 {redo option} {
+    catch {history redo -3 -4} msg
+    set msg
+} {wrong # args: should be "history redo ?event?"}
+
+# "history add"
+
+history add "set a 444" exec
+test history-3.1 {add option} {set a} 444
+test history-3.2 {add option} {catch {history add "set a 444" execGorp}} 1
+test history-3.3 {add option} {
+    catch {history add "set a 444" execGorp} msg
+    set msg
+} {bad argument "execGorp": should be "exec"}
+test history-3.4 {add option} {catch {history add "set a 444" a} msg} 1
+test history-3.5 {add option} {
+    catch {history add "set a 444" a} msg
+    set msg
+} {bad argument "a": should be "exec"}
+history add "set a 555" e
+test history-3.6 {add option} {set a} 555
+history add "set a 666"
+test history-3.7 {add option} {set a} 555
+test history-3.8 {add option} {catch {history add "set a 666" e f} msg} 1
+test history-3.9 {add option} {
+    catch {history add "set a 666" e f} msg
+    set msg
+} {wrong # args: should be "history add event ?exec?"}
+
+# "history change"
+
+history change "A test value"
+test history-4.1 {change option} {history event [expr {[history n]-1}]} \
+	"A test value"
+history c "Another test" -1
+test history-4.2 {change option} {history e} "Another test"
+test history-4.3 {change option} {history event [expr {[history n]-1}]} \
+	"A test value"
+test history-4.4 {change option} {catch {history change Foo 4 10}} 1
+test history-4.5 {change option} {
+    catch {history change Foo 4 10} msg
+    set msg
+} {wrong # args: should be "history change newValue ?event?"}
+test history-4.6 {change option} {
+    catch {history change Foo [expr {[history n]-4}]}
+} 1
+test history-4.7 {change option} {
+    catch {history change Foo [expr {[history n]-4}]}
+    set msg
+} {wrong # args: should be "history change newValue ?event?"}
+
+# "history info"
+
+set num [history n]
+history add set\ a\ {b\nc\ d\ e}
+history add {set b 1234}
+history add set\ c\ {a\nb\nc}
+test history-5.1 {info option} {history info} [format {%6d  set a {b
+	c d e}
+%6d  set b 1234
+%6d  set c {a
+	b
+	c}} $num [expr $num+1] [expr $num+2]]
+test history-5.2 {info option} {history i 2} [format {%6d  set b 1234
+%6d  set c {a
+	b
+	c}} [expr $num+1] [expr $num+2]]
+test history-5.3 {info option} {catch {history i 2 3}} 1
+test history-5.4 {info option} {
+    catch {history i 2 3} msg
+    set msg
+} {wrong # args: should be "history info ?count?"}
+test history-5.5 {info option} {history} [format {%6d  set a {b
+	c d e}
+%6d  set b 1234
+%6d  set c {a
+	b
+	c}} $num [expr $num+1] [expr $num+2]]
+
+# "history keep"
+
+history add "foo1"
+history add "foo2"
+history add "foo3"
+history keep 2
+test history-6.1 {keep option} {history event [expr [history n]-1]} foo3
+test history-6.2 {keep option} {history event -1} foo2
+test history-6.3 {keep option} {catch {history event -3}} 1
+test history-6.4 {keep option} {
+    catch {history event -3} msg
+    set msg
+} {event "-3" is too far in the past}
+history k 5
+test history-6.5 {keep option} {history event -1} foo2
+test history-6.6 {keep option} {history event -2} {}
+test history-6.7 {keep option} {history event -3} {}
+test history-6.8 {keep option} {history event -4} {}
+test history-6.9 {keep option} {catch {history event -5}} 1
+test history-6.10 {keep option} {catch {history keep 4 6}} 1
+test history-6.11 {keep option} {
+    catch {history keep 4 6} msg
+    set msg
+} {wrong # args: should be "history keep number"}
+test history-6.12 {keep option} {catch {history keep}} 1
+test history-6.13 {keep option} {
+    catch {history keep} msg
+    set msg
+} {wrong # args: should be "history keep number"}
+test history-6.14 {keep option} {catch {history keep -3}} 1
+test history-6.15 {keep option} {
+    catch {history keep -3} msg
+    set msg
+} {illegal keep count "-3"}
+
+# "history nextid"
+
+set num [history n]
+history add "Testing"
+history add "Testing2"
+test history-7.1 {nextid option} {history event} "Testing"
+test history-7.2 {nextid option} {history next} [expr $num+2]
+test history-7.3 {nextid option} {catch {history nextid garbage}} 1
+test history-7.4 {nextid option} {
+    catch {history nextid garbage} msg
+    set msg
+} {wrong # args: should be "history nextid"}
+
+# "history substitute"
+
+test history-8.1 {substitute option} {
+    history add "set a {test foo test b c test}"
+    history add "Test command 2"
+    set a 0
+    history substitute foo bar -1
+    set a
+} {test bar test b c test}
+test history-8.2 {substitute option} {
+    history add "set a {test foo test b c test}"
+    history add "Test command 2"
+    set a 0
+    history substitute test gorp
+    set a
+} {gorp foo gorp b c gorp}
+test history-8.3 {substitute option} {
+    history add "set a {test foo test b c test}"
+    history add "Test command 2"
+    set a 0
+    history sub " te" to
+    set a
+} {test footost b ctost}
+test history-8.4 {substitute option} {catch {history sub xxx yyy}} 1
+test history-8.5 {substitute option} {
+    catch {history sub xxx yyy} msg
+    set msg
+} {"xxx" doesn't appear in event}
+test history-8.6 {substitute option} {catch {history s a b -10}} 1
+test history-8.7 {substitute option} {
+    catch {history s a b -10} msg
+    set msg
+} {event "-10" is too far in the past}
+test history-8.8 {substitute option} {catch {history s a b -1 20}} 1
+test history-8.9 {substitute option} {
+    catch {history s a b -1 20} msg
+    set msg
+} {wrong # args: should be "history substitute old new ?event?"}
+
+# "history words"
+
+test history-9.1 {words option} {
+    history add {word0 word1 word2 a b c word6}
+    history add foo
+    history words 0-$
+} {word0 word1 word2 a b c word6}
+test history-9.2 {words option} {
+    history add {word0 word1 word2 a b c word6}
+    history add foo
+    history w 2 -1
+} word2
+test history-9.3 {words option} {
+    history add {word0 word1 word2 a b c word6}
+    history add foo
+    history wo $
+} word6
+test history-9.4 {words option} {catch {history w 1--1} msg} 1
+test history-9.5 {words option} {
+    catch {history w 1--1} msg
+    set msg
+} {bad word selector "1--1": should be num-num or pattern}
+test history-9.6 {words option} {
+    history add {word0 word1 word2 a b c word6}
+    history add foo
+    history w w
+} {}
+test history-9.7 {words option} {
+    history add {word0 word1 word2 a b c word6}
+    history add foo
+    history w *2
+} word2
+test history-9.8 {words option} {
+    history add {word0 word1 word2 a b c word6}
+    history add foo
+    history w *or*
+} {word0 word1 word2 word6}
+test history-9.9 {words option} {catch {history words 10}} 1
+test history-9.10 {words option} {
+    catch {history words 10} msg
+    set msg
+} {word selector "10" specified non-existent words}
+test history-9.11 {words option} {catch {history words 1 -1 20}} 1
+test history-9.12 {words option} {
+    catch {history words 1 -1 20} msg
+    set msg
+} {wrong # args: should be "history words num-num/pat ?event?"}
+
+# history revision
+
+test history-10.1 {history revision} {
+    set a 0
+    history a {set a 12345}
+    history a {set a [history e]} exec
+    set a
+} {set a 12345}
+test history-10.2 {history revision} {
+    set a 0
+    history a {set a 12345}
+    history a {set a [history e]} exec
+    history a foo
+    history ev -1
+} {set a {set a 12345}}
+test history-10.3 {history revision} {
+    set a 0
+    history a {set a 12345}
+    history a {set a [history e]} exec
+    history a foo
+    history a {history r -2} exec
+    history a {set a 12345}
+    history ev -1
+} {set a {set a 12345}}
+test history-10.4 {history revision} {
+    history a {set a 12345}
+    history a {history s 123 999} exec
+    history a foo
+    history ev -1
+} {set a 99945}
+test history-10.5 {history revision} {
+    history add {word0 word1 word2 a b c word6}
+    history add {set [history w 3] [list [history w 0] [history w {[ab]}]]} exec
+    set a
+} {word0 {a b}}
+test history-10.6 {history revision} {
+    history add {word0 word1 word2 a b c word6}
+    history add {set [history w 3] [list [history w 0] [history w {[ab]}]]} exec
+    history add foo
+    history ev
+} {set a [list word0 {a b}]}
+test history-10.7 {history revision} {
+    history add {word0 word1 word2 a b c word6}
+    history add {set [history w 3] [list [history w 0] [history w {[ab]}]]} exec
+    history add {format b}
+    history add {word0 word1 word2 a b c word6}
+    set a 0
+    history add {set [history subs b a -2] [list abc [history r -2] [history w 1-3]]} exec
+    history add foo
+    history ev
+} {set [format a] [list abc [format b] {word1 word2 a}]}
+test history-10.8 {history revision} {
+    history add {set a 12345}
+    concat a b c
+    history add {history redo; set b 44} exec
+    history add foo
+    history ev
+} {set a 12345; set b 44}
+test history-10.9 {history revision} {
+    history add {set a 12345}
+    history add {history redo; history change "A simple test"; history subs 45 xx} exec
+    set a
+} 123xx
+test history-10.10 {history revision} {
+    history add {set a 12345}
+    history add {history redo; history change "A simple test"; history subs 45 xx} exec
+    history add foo
+    history e
+} {A simple test}
+test history-10.11 {history revision} {
+    history add {word0 word1 $ a b c word6}
+    history add {set a [history w 4-[history word 2]]} exec
+    set a
+} {b c word6}
+test history-10.12 {history revision} {
+    history add {word0 word1 $ a b c word6}
+    history add {set a [history w 4-[history word 2]]} exec
+    history add foo
+    history e
+} {set a {b c word6}}
+test history-10.13 {history revision} {
+    history add {history word 0} exec
+    history add foo
+    history e
+} {history word 0}
+test history-10.14 {history revision} {
+    history add {set a [history word 0; format c]} exec
+    history add foo
+    history e
+} {set a [history word 0; format c]}
+test history-10.15 {history revision even when nested} {
+    proc x {a b} {history word $a $b}
+    history add {word1 word2 word3 word4}
+    history add {set a [x 1-3 -1]} exec
+    history add foo
+    history e
+} {set a {word2 word3 word4}}
+test history-10.16 {disable history revision in nested history evals} {
+    history add {word1 word2 word3 word4}
+    history add {set a [history words 0]; history add foo; set a [history words 0]} exec
+    history e
+} {set a word1; history add foo; set a [history words 0]}
+
+# miscellaneous
+
+test history-11.1 {miscellaneous} {catch {history gorp} msg} 1
+test history-11.2 {miscellaneous} {
+    catch {history gorp} msg
+    set msg
+} {bad option "gorp": must be add, change, event, info, keep, nextid, redo, substitute, or words}

@@ -1,0 +1,106 @@
+# Commands covered:  subst
+#
+# This file contains a collection of tests for one or more of the Tcl
+# built-in commands.  Sourcing this file into Tcl runs the tests and
+# generates output for errors.  No output means no errors were found.
+#
+# Copyright (c) 1994 The Regents of the University of California.
+# Copyright (c) 1994 Sun Microsystems, Inc.
+#
+# See the file "license.terms" for information on usage and redistribution
+# of this file, and for a DISCLAIMER OF ALL WARRANTIES.
+#
+# SCCS: @(#) subst.test 1.7 96/02/16 08:56:30
+
+if {[string compare test [info procs test]] == 1} then {source defs}
+
+test subst-1.1 {basics} {
+    list [catch {subst} msg] $msg
+} {1 {wrong # args: should be "subst ?-nobackslashes? ?-nocommands? ?-novariables? string"}}
+test subst-1.2 {basics} {
+    list [catch {subst a b c} msg] $msg
+} {1 {wrong # args: should be "subst ?-nobackslashes? ?-nocommands? ?-novariables? string"}}
+
+test subst-2.1 {simple strings} {
+    subst {}
+} {}
+test subst-2.2 {simple strings} {
+    subst a
+} a
+test subst-2.3 {simple strings} {
+    subst abcdefg
+} abcdefg
+
+test subst-3.1 {backslash substitutions} {
+    subst {\x\$x\[foo bar]\\}
+} "x\$x\[foo bar]\\"
+
+test subst-4.1 {variable substitutions} {
+    set a 44
+    subst {$a}
+} {44}
+test subst-4.2 {variable substitutions} {
+    set a 44
+    subst {x$a.y{$a}.z}
+} {x44.y{44}.z}
+test subst-4.3 {variable substitutions} {
+    catch {unset a}
+    set a(13) 82
+    set i 13
+    subst {x.$a($i)}
+} {x.82}
+catch {unset a}
+set long {This is a very long string, intentionally made so long that it
+	will overflow the static character size for dstrings, so that
+	additional memory will have to be allocated by subst.  That way,
+	if the subst procedure forgets to free up memory while returning
+	an error, there will be memory that isn't freed (this will be
+	detected when the tests are run under a checking memory allocator
+	such as Purify).}
+test subst-4.4 {variable substitutions} {
+    list [catch {subst {$long $a}} msg] $msg
+} {1 {can't read "a": no such variable}}
+
+test subst-5.1 {command substitutions} {
+    subst {[concat {}]}
+} {}
+test subst-5.2 {command substitutions} {
+    subst {[concat A test string]}
+} {A test string}
+test subst-5.3 {command substitutions} {
+    subst {x.[concat foo].y.[concat bar].z}
+} {x.foo.y.bar.z}
+test subst-5.3 {command substitutions} {
+    list [catch {subst {$long [set long] [bogus_command]}} msg] $msg
+} {1 {invalid command name "bogus_command"}}
+
+test subst-6.1 {clear the result after command substitution} {
+    catch {unset a}
+    list [catch {subst {[concat foo] $a}} msg] $msg
+} {1 {can't read "a": no such variable}}
+
+test subst-7.1 {switches} {
+    list [catch {subst foo bar} msg] $msg
+} {1 {wrong # args: should be "subst ?-nobackslashes? ?-nocommands? ?-novariables? string"}}
+test subst-7.2 {switches} {
+    list [catch {subst -no bar} msg] $msg
+} {1 {bad switch "-no": must be -nobackslashes, -nocommands, or -novariables}}
+test subst-7.3 {switches} {
+    list [catch {subst -bogus bar} msg] $msg
+} {1 {bad switch "-bogus": must be -nobackslashes, -nocommands, or -novariables}}
+test subst-7.4 {switches} {
+    set x 123
+    subst -nobackslashes {abc $x [expr 1+2] \\\x41}
+} {abc 123 3 \\\x41}
+test subst-7.5 {switches} {
+    set x 123
+    subst -nocommands {abc $x [expr 1+2] \\\x41}
+} {abc 123 [expr 1+2] \A}
+test subst-7.6 {switches} {
+    set x 123
+    subst -novariables {abc $x [expr 1+2] \\\x41}
+} {abc $x 3 \A}
+test subst-7.7 {switches} {
+    set x 123
+    subst -nov -nob -noc {abc $x [expr 1+2] \\\x41}
+} {abc $x [expr 1+2] \\\x41}

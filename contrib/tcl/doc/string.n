@@ -1,0 +1,132 @@
+'\"
+'\" Copyright (c) 1993 The Regents of the University of California.
+'\" Copyright (c) 1994-1996 Sun Microsystems, Inc.
+'\"
+'\" See the file "license.terms" for information on usage and redistribution
+'\" of this file, and for a DISCLAIMER OF ALL WARRANTIES.
+'\" 
+'\" SCCS: @(#) string.n 1.7 96/03/25 20:24:06
+'\" 
+.so man.macros
+.TH string n 7.4 Tcl "Tcl Built-In Commands"
+.BS
+'\" Note:  do not modify the .SH NAME line immediately below!
+.SH NAME
+string \- Manipulate strings
+.SH SYNOPSIS
+\fBstring \fIoption arg \fR?\fIarg ...?\fR
+.BE
+
+.SH DESCRIPTION
+.PP
+Performs one of several string operations, depending on \fIoption\fR.
+The legal \fIoption\fRs (which may be abbreviated) are:
+.TP
+\fBstring compare \fIstring1 string2\fR
+Perform a character-by-character comparison of strings \fIstring1\fR and
+\fIstring2\fR in the same way as the C \fBstrcmp\fR procedure.  Return
+\-1, 0, or 1, depending on whether \fIstring1\fR is lexicographically
+less than, equal to, or greater than \fIstring2\fR.
+.TP
+\fBstring first \fIstring1 string2\fR
+Search \fIstring2\fR for a sequence of characters that exactly match
+the characters in \fIstring1\fR.  If found, return the index of the
+first character in the first such match within \fIstring2\fR.  If not
+found, return \-1.
+.TP
+\fBstring index \fIstring charIndex\fR
+Returns the \fIcharIndex\fR'th character of the \fIstring\fR
+argument.  A \fIcharIndex\fR of 0 corresponds to the first
+character of the string.
+If \fIcharIndex\fR is less than 0 or greater than
+or equal to the length of the string then an empty string is
+returned.
+.TP
+\fBstring last \fIstring1 string2\fR
+Search \fIstring2\fR for a sequence of characters that exactly match
+the characters in \fIstring1\fR.  If found, return the index of the
+first character in the last such match within \fIstring2\fR.  If there
+is no match, then return \-1.
+.TP
+\fBstring length \fIstring\fR
+Returns a decimal string giving the number of characters in \fIstring\fR.
+.TP
+\fBstring match \fIpattern\fR \fIstring\fR
+See if \fIpattern\fR matches \fIstring\fR; return 1 if it does, 0
+if it doesn't.  Matching is done in a fashion similar to that
+used by the C-shell.  For the two strings to match, their contents
+must be identical except that the following special sequences
+may appear in \fIpattern\fR:
+.RS
+.IP \fB*\fR 10
+Matches any sequence of characters in \fIstring\fR,
+including a null string.
+.IP \fB?\fR 10
+Matches any single character in \fIstring\fR.
+.IP \fB[\fIchars\fB]\fR 10
+Matches any character in the set given by \fIchars\fR.  If a sequence
+of the form
+\fIx\fB\-\fIy\fR appears in \fIchars\fR, then any character
+between \fIx\fR and \fIy\fR, inclusive, will match.
+.IP \fB\e\fIx\fR 10
+Matches the single character \fIx\fR.  This provides a way of
+avoiding the special interpretation of the characters
+\fB*?[]\e\fR in \fIpattern\fR.
+.RE
+.TP
+\fBstring range \fIstring first last\fR
+Returns a range of consecutive characters from \fIstring\fR, starting
+with the character whose index is \fIfirst\fR and ending with the
+character whose index is \fIlast\fR.  An index of 0 refers to the
+first character of the string.  \fILast\fR may be \fBend\fR (or any
+abbreviation of it) to refer to the last character of the string.
+If \fIfirst\fR is less than zero then it is treated as if it were zero, and
+if \fIlast\fR is greater than or equal to the length of the string then
+it is treated as if it were \fBend\fR.  If \fIfirst\fR is greater than
+\fIlast\fR then an empty string is returned.
+.TP
+\fBstring tolower \fIstring\fR
+Returns a value equal to \fIstring\fR except that all upper case
+letters have been converted to lower case.
+.TP
+\fBstring toupper \fIstring\fR
+Returns a value equal to \fIstring\fR except that all lower case
+letters have been converted to upper case.
+.TP
+\fBstring trim \fIstring\fR ?\fIchars\fR?
+Returns a value equal to \fIstring\fR except that any leading
+or trailing characters from the set given by \fIchars\fR are
+removed.
+If \fIchars\fR is not specified then white space is removed
+(spaces, tabs, newlines, and carriage returns).
+.TP
+\fBstring trimleft \fIstring\fR ?\fIchars\fR?
+Returns a value equal to \fIstring\fR except that any
+leading characters from the set given by \fIchars\fR are
+removed.
+If \fIchars\fR is not specified then white space is removed
+(spaces, tabs, newlines, and carriage returns).
+.TP
+\fBstring trimright \fIstring\fR ?\fIchars\fR?
+Returns a value equal to \fIstring\fR except that any
+trailing characters from the set given by \fIchars\fR are
+removed.
+If \fIchars\fR is not specified then white space is removed
+(spaces, tabs, newlines, and carriage returns).
+.TP
+\fBstring wordend \fIstring index\fR
+.VS
+Returns the index of the character just after the last one in the
+word containing character \fIindex\fR of \fIstring\fR.
+A word is considered to be any contiguous range of alphanumeric
+or underscore characters, or any single character other than these.
+.TP
+\fBstring wordstart \fIstring index\fR
+Returns the index of the first character in the
+word containing character \fIindex\fR of \fIstring\fR.
+A word is considered to be any contiguous range of alphanumeric
+or underscore characters, or any single character other than these.
+.VE
+
+.SH KEYWORDS
+case conversion, compare, index, match, pattern, string, word

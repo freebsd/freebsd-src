@@ -1,0 +1,34 @@
+'\"
+'\" Copyright (c) 1993 The Regents of the University of California.
+'\" Copyright (c) 1994-1996 Sun Microsystems, Inc.
+'\"
+'\" See the file "license.terms" for information on usage and redistribution
+'\" of this file, and for a DISCLAIMER OF ALL WARRANTIES.
+'\" 
+'\" SCCS: @(#) unset.n 1.5 96/03/25 20:26:21
+'\" 
+.so man.macros
+.TH unset n "" Tcl "Tcl Built-In Commands"
+.BS
+'\" Note:  do not modify the .SH NAME line immediately below!
+.SH NAME
+unset \- Delete variables
+.SH SYNOPSIS
+\fBunset \fIname \fR?\fIname name ...\fR?
+.BE
+
+.SH DESCRIPTION
+.PP
+This command removes one or more variables.
+Each \fIname\fR is a variable name, specified in any of the
+ways acceptable to the \fBset\fR command.
+If a \fIname\fR refers to an element of an array then that
+element is removed without affecting the rest of the array.
+If a \fIname\fR consists of an array name with no parenthesized
+index, then the entire array is deleted.
+The \fBunset\fR command returns an empty string as result.
+An error occurs if any of the variables doesn't exist, and any variables
+after the non-existent one are not deleted.
+
+.SH KEYWORDS
+remove, variable
