@@ -75,6 +75,7 @@ void	 checknologin __P((void));
 void	 dolastlog __P((int));
 void	 getloginname __P((void));
 void	 motd __P((void));
+void	 change_passwd __P((void));
 int	 rootterm __P((char *));
 void	 sigint __P((int));
 void	 sleepexit __P((int));
@@ -317,10 +318,11 @@ main(argc, argv)
 
 	if (pwd->pw_change || pwd->pw_expire)
 		(void)gettimeofday(&tp, (struct timezone *)NULL);
+
 	if (pwd->pw_change)
 		if (tp.tv_sec >= pwd->pw_change) {
 			(void)printf("Sorry -- your password has expired.\n");
-			sleepexit(1);
+			change_passwd();
 		} else if (pwd->pw_change - tp.tv_sec <
 		    2 * DAYSPERWEEK * SECSPERDAY && !quietlog)
 			(void)printf("Warning: your password expires on %s",
@@ -600,3 +602,27 @@ sleepexit(eval)
 	(void)sleep(5);
 	exit(eval);
 }
+
+void
+change_passwd()
+{
+	int pid, status, w;
+	register void (*istat)(), (*qstat)();
+
+	if (( pid=fork() ) == 0)
+		{
+		execl( "/usr/bin/passwd", "passwd", NULL );
+		fprintf( stderr, "ERROR: Can't execute passwd!\n" );
+		sleepexit( 1 );
+		}
+
+	istat = signal( SIGINT,  SIG_IGN );	
+	qstat = signal( SIGQUIT, SIG_IGN );
+
+	while ((w = wait( &status )) != pid && w != -1)
+		;
+
+	signal( SIGINT,  istat );
+	signal( SIGQUIT, qstat );
+}
+
