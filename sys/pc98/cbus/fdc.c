@@ -47,7 +47,7 @@
  * SUCH DAMAGE.
  *
  *	from:	@(#)fd.c	7.4 (Berkeley) 5/25/91
- *	$Id: fd.c,v 1.59 1999/05/07 10:11:14 phk Exp $
+ *	$Id: fd.c,v 1.60 1999/05/09 04:34:28 kato Exp $
  *
  */
 
@@ -2457,8 +2457,9 @@ fdstate(fdc_p fdc)
 			 * If all motors were off, then the controller was
 			 * reset, so it has lost track of the current
 			 * cylinder.  Recalibrate to handle this case.
+			 * But first, discard the results of the reset.
 			 */
-			fdc->state = STARTRECAL;
+			fdc->state = RESETCOMPLETE;
 		}
 		return (1);	/* will return immediatly */
 	default:
