@@ -1,4 +1,4 @@
-#	$Id: Makefile,v 1.246.2.16 1996/12/13 07:55:02 jkh Exp $
+#	$Id: Makefile,v 1.246.2.17 1996/12/14 09:46:18 phk Exp $
 #
 # How to roll a release:
 #
@@ -445,10 +445,12 @@ ftp.1:
 	mkdir -p ${FD}
 	cd ${RD} && find floppies -print | cpio -dumpl ${FD}
 	cd ${RD}/dists && find . -print | cpio -dumpl ${FD}
+	cp ${.CURDIR}/ABOUT.TXT ${FD}/ABOUT.TXT
 	cp ${.CURDIR}/sysinstall/help/readme.hlp ${FD}/README.TXT
 	cp ${.CURDIR}/sysinstall/help/hardware.hlp ${FD}/HARDWARE.TXT
 	cp ${.CURDIR}/sysinstall/help/install.hlp ${FD}/INSTALL.TXT
 	cp ${.CURDIR}/sysinstall/help/relnotes.hlp ${FD}/RELNOTES.TXT
+	cp ${.CURDIR}/floppies/README.TXT ${FD}/floppies/README.TXT
 
 #
 # --==## Setup a suitable cdrom-area ##==--
