@@ -1,5 +1,5 @@
 # Makefile for libdialog
-# $Id: Makefile,v 1.7 1995/02/15 19:43:49 ache Exp $
+# $Id: Makefile,v 1.8 1995/04/20 17:39:25 ache Exp $
 
 LIB=    dialog
 SRCS=   kernel.c rc.c checklist.c inputbox.c menubox.c msgbox.c \
@@ -13,7 +13,11 @@ DPADD+= ${LIBNCURSES} ${LIBMYTINFO}
 
 beforeinstall:
 	-cd ${.CURDIR}; cmp -s dialog.h ${DESTDIR}/usr/include/dialog.h || \
-	    install -c -o ${BINOWN} -g ${BINGRP} -m 444 dialog.h \
-	    ${DESTDIR}/usr/include
+	      install -c -o ${BINOWN} -g ${BINGRP} -m 444 dialog.h \
+	      ${DESTDIR}/usr/include
+	-cd ${.CURDIR}; cmp -s ui_objects.h \
+	    ${DESTDIR}/usr/include/ui_objects.h || \
+	      install -c -o ${BINOWN} -g ${BINGRP} -m 444 ui_objects.h \
+	      ${DESTDIR}/usr/include
 
 .include <bsd.lib.mk>
