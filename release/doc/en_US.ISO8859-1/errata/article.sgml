@@ -139,6 +139,21 @@
       security fix branch and the &release.branch; development branch.  For
       more information, see security advisory
       <ulink url="ftp://ftp.FreeBSD.org/pub/FreeBSD/CERT/advisories/FreeBSD-SA-03:08.realpath.asc">FreeBSD-SA-03:08</ulink>.</para>
+
+    <para>The kernel contains a bug that could allow it to attempt
+      delivery of invalid signals, leading to a kernel panic.
+      This bug has been fixed on the &release.branch; development
+      branch and the &release.prev; security fix branch.  For more
+      information, see security advisory
+      <ulink url="ftp://ftp.FreeBSD.org/pub/FreeBSD/CERT/advisories/FreeBSD-SA-03:09.signal.asc">FreeBSD-SA-03:09</ulink>.</para>
+
+    <para>A bug in the iBCS2 emulation module could result in
+      disclosing the contents of kernel memory.  (Note that this
+      module is not enabled in &os; by default.)  This bug has been
+      fixed on the &release.branch; development branch and the
+      &release.prev; security fix branch.  More information can be
+      found in security advisory
+      <ulink url="ftp://ftp.FreeBSD.org/pub/FreeBSD/CERT/advisories/FreeBSD-SA-03:10.ibcs2.asc">FreeBSD-SA-03:10</ulink>.</para>
 ]]>
   </sect1>
 
