@@ -35,7 +35,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)trap.c	7.4 (Berkeley) 5/13/91
- *	$Id: trap.c,v 1.43 1995/01/09 16:04:39 davidg Exp $
+ *	$Id: trap.c,v 1.44 1995/01/14 13:20:10 bde Exp $
  */
 
 /*
@@ -460,23 +460,12 @@ trap_pfault(frame, usermode)
 		/* Fault the pte only if needed: */
 		*(volatile char *)v += 0;	
 
-		ptepg = (vm_page_t) pmap_pte_vm_page(vm_map_pmap(map), v);
-		vm_page_hold(ptepg);
+		pmap_use_pt( vm_map_pmap(map), va);
 
 		/* Fault in the user page: */
 		rv = vm_fault(map, va, ftype, FALSE);
 
-		vm_page_unhold(ptepg);
-
-		/*
-		 * page table pages don't need to be kept if they
-		 * are not held
-		 */
-		if( ptepg->hold_count == 0 && ptepg->wire_count == 0) {
-			pmap_page_protect( VM_PAGE_TO_PHYS(ptepg),
-				VM_PROT_NONE);
-			vm_page_free(ptepg);
-		}
+		pmap_unuse_pt( vm_map_pmap(map), va);
 
 		--p->p_lock;
 	} else {
