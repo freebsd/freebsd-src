@@ -28,7 +28,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: kern_exec.c,v 1.21 1995/05/30 08:05:24 rgrimes Exp $
+ *	$Id: kern_exec.c,v 1.22 1995/08/24 10:32:37 davidg Exp $
  */
 
 #include <sys/param.h>
@@ -61,6 +61,12 @@ static int exec_check_permissions(struct image_params *);
  * is a pointer to a `const struct execsw', hence the double pointer here.
  */
 const struct execsw **execsw = (const struct execsw **)&execsw_set.ls_items[0];
+
+struct execve_args {
+        char    *fname; 
+        char    **argv;
+        char    **envv; 
+};
 
 /*
  * execve() system call.

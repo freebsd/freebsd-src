@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)kern_fork.c	8.6 (Berkeley) 4/8/94
- * $Id: kern_fork.c,v 1.11 1995/03/16 18:12:32 bde Exp $
+ * $Id: kern_fork.c,v 1.12 1995/05/30 08:05:27 rgrimes Exp $
  */
 
 #include <sys/param.h>
@@ -54,6 +54,10 @@
 #include <vm/vm.h>
 
 static int fork1(struct proc *, int, int *);
+
+struct fork_args {
+        int     dummy;
+};
 
 /* ARGSUSED */
 int

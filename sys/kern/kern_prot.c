@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)kern_prot.c	8.6 (Berkeley) 1/21/94
- * $Id: kern_prot.c,v 1.11 1995/04/29 11:46:15 ache Exp $
+ * $Id: kern_prot.c,v 1.12 1995/06/15 22:32:03 ache Exp $
  */
 
 /*
@@ -52,7 +52,7 @@
 #include <sys/times.h>
 #include <sys/malloc.h>
 
-struct args {
+struct getpid_args {
 	int	dummy;
 };
 
@@ -60,7 +60,7 @@ struct args {
 int
 getpid(p, uap, retval)
 	struct proc *p;
-	struct args *uap;
+	struct getpid_args *uap;
 	int *retval;
 {
 
@@ -71,11 +71,14 @@ getpid(p, uap, retval)
 	return (0);
 }
 
+struct getppid_args {
+        int     dummy;
+};
 /* ARGSUSED */
 int
 getppid(p, uap, retval)
 	struct proc *p;
-	struct args *uap;
+	struct getppid_args *uap;
 	int *retval;
 {
 
@@ -84,10 +87,14 @@ getppid(p, uap, retval)
 }
 
 /* Get process group ID; note that POSIX getpgrp takes no parameter */
+struct getpgrp_args {
+        int     dummy;
+};
+
 int
 getpgrp(p, uap, retval)
 	struct proc *p;
-	struct args *uap;
+	struct getpgrp_args *uap;
 	int *retval;
 {
 
@@ -95,11 +102,15 @@ getpgrp(p, uap, retval)
 	return (0);
 }
 
+struct getuid_args {
+        int     dummy;
+};
+
 /* ARGSUSED */
 int
 getuid(p, uap, retval)
 	struct proc *p;
-	struct args *uap;
+	struct getuid_args *uap;
 	int *retval;
 {
 
@@ -110,11 +121,15 @@ getuid(p, uap, retval)
 	return (0);
 }
 
+struct geteuid_args {
+        int     dummy;
+};
+
 /* ARGSUSED */
 int
 geteuid(p, uap, retval)
 	struct proc *p;
-	struct args *uap;
+	struct geteuid_args *uap;
 	int *retval;
 {
 
@@ -122,11 +137,15 @@ geteuid(p, uap, retval)
 	return (0);
 }
 
+struct getgid_args {
+        int     dummy;
+};
+
 /* ARGSUSED */
 int
 getgid(p, uap, retval)
 	struct proc *p;
-	struct args *uap;
+	struct getgid_args *uap;
 	int *retval;
 {
 
@@ -142,11 +161,15 @@ getgid(p, uap, retval)
  * via getgroups.  This syscall exists because it is somewhat painful to do
  * correctly in a library function.
  */
+struct getegid_args {
+        int     dummy;
+};
+
 /* ARGSUSED */
 int
 getegid(p, uap, retval)
 	struct proc *p;
-	struct args *uap;
+	struct getegid_args *uap;
 	int *retval;
 {
 
@@ -182,11 +205,15 @@ getgroups(p, uap, retval)
 	return (0);
 }
 
+struct getsid_args {
+        int     dummy;
+};
+
 /* ARGSUSED */
 int
 setsid(p, uap, retval)
 	register struct proc *p;
-	struct args *uap;
+	struct getsid_args *uap;
 	int *retval;
 {
 
