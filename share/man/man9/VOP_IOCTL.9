@@ -63,13 +63,16 @@ Most filesystems do not implement this entry point.
 The file should not be locked on entry.
 .Sh RETURN VALUES
 If successful, zero is returned, otherwise an appropriate error code.
+.Pp
+If the ioctl is not recognized or not handled, ENOTTY should be returned.
 .Sh PSEUDOCODE
 .Bd -literal
 int
 vop_ioctl(struct vnode *vp, int command, caddr_t data, int fflag,
 	  struct ucred *cred, struct thread *td)
 {
-    return EOPNOTSUPP;
+
+    return ENOTTY;
 }
 .Ed
 .Sh SEE ALSO
