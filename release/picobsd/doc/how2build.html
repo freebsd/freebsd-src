@@ -1,5 +1,5 @@
 <html>
-<! $Id: how2build.html,v 1.2 1998/08/19 16:59:36 abial Exp $ >
+<! $Id: how2build.html,v 1.1.1.1 1998/08/27 17:38:42 abial Exp $ >
 <head>
 <title><center>PicoBSD Development Kit</center></title>
 </head>
@@ -14,7 +14,11 @@
 	you'll need.  Also, I assume you run quite -current system with
 	full sources installed.
 
-<p>	NOTE: there were some mysterious interactions between vn(4) driver and
+<p>	NOTE1: beginning with version 0.4, PicoBSD sources are maintained as
+	part of official FreeBSD CVS repository, so if you have recent
+	source tree you can find them in /src/release/picobsd.</p>
+
+<p>	NOTE2: there were some mysterious interactions between vn(4) driver and
 	'disklabel auto' in versions earlier than 3.0. There is another set
 	of scripts prepared by <A HREF="mailto:dinesh@alphaque.com">Dinesh Nair
 	</a> which allows to build PicoBSD floppies on a earlier systems.</p>
@@ -24,10 +28,15 @@
 <li>	Change working directory (<code>cd build</code>) and run the
 	<code>./build</code> script. Select target language, size of MFS and
 	one of pre-canned setups (personal dialup, dialin server or
-	router-like). Details of each setup are contained in
-	dial/, isp/ and net/ directories respectively. You should at least
+	router-like). Details of each setup are contained in dial/,
+	router/, isp/ and net/ directories respectively. You should at least
 	check <code>${TYPE}/config/PICOBSD</code> file to make sure it contains
 	the drivers you want.
+
+<p>	You can also choose a special type called 'custom'. You'll need to
+	supply the full path to your own custom config tree constructed
+	exactly like one of the standard config directories.</p>
+
 <p>	I also recommend to adjust the ISA devices parameters to
 	match the ones of your hardware - though PicoBSD can save the
 	changes from UserConfig, this way it will produce smaller
