@@ -35,7 +35,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)machdep.c	7.4 (Berkeley) 6/3/91
- *	$Id: machdep.c,v 1.209.2.4 1996/12/14 22:37:51 jkh Exp $
+ *	$Id: machdep.c,v 1.209.2.5 1996/12/15 09:54:01 davidg Exp $
  */
 
 #include "npx.h"
@@ -656,8 +656,7 @@ sigreturn(p, uap, retval)
 		p->p_sigacts->ps_sigstk.ss_flags |= SS_ONSTACK;
 	else
 		p->p_sigacts->ps_sigstk.ss_flags &= ~SS_ONSTACK;
-	p->p_sigmask = scp->sc_mask &~
-	    (sigmask(SIGKILL)|sigmask(SIGCONT)|sigmask(SIGSTOP));
+	p->p_sigmask = scp->sc_mask & ~sigcantmask;
 	regs[tEBP] = scp->sc_fp;
 	regs[tESP] = scp->sc_sp;
 	regs[tEIP] = scp->sc_pc;
