@@ -79,7 +79,13 @@ int			atm_print_data = 0;
 int			atm_version = ATM_VERSION;
 struct timeval		atm_debugtime = {0, 0};
 
-uma_zone_t atm_attributes_zone;
+struct sp_info	atm_attributes_pool = {
+	"atm attributes pool",		/* si_name */
+	sizeof(Atm_attributes),		/* si_blksiz */
+	10,				/* si_blkcnt */
+	100				/* si_maxallow */
+};
+
 
 /*
  * Local functions
@@ -93,7 +99,13 @@ static KTimeout_ret	atm_timexp(void *);
 static struct atm_time	*atm_timeq = NULL;
 static struct atm_time	atm_compactimer = {0, 0};
 
-static uma_zone_t atm_stackq_zone;
+static struct sp_info	atm_stackq_pool = {
+	"Service stack queue pool",	/* si_name */
+	sizeof(struct stackq_entry),	/* si_blksiz */
+	10,				/* si_blkcnt */
+	10				/* si_maxallow */
+};
+
 
 /*
  * Initialize ATM kernel
@@ -122,17 +134,6 @@ atm_initialize()
 	atm_intrq.ifq_maxlen = ATM_INTRQ_MAX;
 	mtx_init(&atm_intrq.ifq_mtx, "atm_inq", NULL, MTX_DEF);
 	atmintrq_present = 1;
-
-	atm_attributes_zone = uma_zcreate("atm_attributes",
-	    sizeof(Atm_attributes), (uma_ctor)&atm_uma_ctor, NULL, NULL, NULL,
-	    UMA_ALIGN_PTR, 0);
-	uma_zone_set_max(atm_attributes_zone, 100);
-
-	atm_stackq_zone = uma_zcreate("atm_stackq",
-	    sizeof(struct stackq_entry), (uma_ctor)&atm_uma_ctor, NULL, NULL,
-	    NULL,
-	    UMA_ALIGN_PTR, 0);
-	uma_zone_set_max(atm_stackq_zone, 10);
 
 	register_netisr(NETISR_ATM, atm_intr);
 
@@ -745,7 +746,7 @@ atm_stack_enq(cmd, func, token, cvp, arg1, arg2)
 	/*
 	 * Get a new queue entry for this call
 	 */
-	sqp = uma_zalloc(atm_stackq_zone, 0);
+	sqp = (struct stackq_entry *)atm_allocate(&atm_stackq_pool);
 	if (sqp == NULL) {
 		(void) splx(s);
 		return (ENOMEM);
