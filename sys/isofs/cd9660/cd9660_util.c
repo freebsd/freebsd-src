@@ -64,8 +64,10 @@
  */
 int
 isofncmp(fn, fnlen, isofn, isolen)
-	u_char *fn, *isofn;
-	int fnlen, isolen;
+	u_char *fn;
+	int fnlen;
+	u_char *isofn;
+	int isolen;
 {
 	int i, j;
 	unsigned char c;
@@ -122,8 +124,9 @@ isofncmp(fn, fnlen, isofn, isolen)
  */
 void
 isofntrans(infn, infnlen, outfn, outfnlen, original, assoc)
-	u_char *infn, *outfn;
+	u_char *infn;
 	int infnlen;
+	u_char *outfn;
 	u_short *outfnlen;
 	int original;
 	int assoc;
