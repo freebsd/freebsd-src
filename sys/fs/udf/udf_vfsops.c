@@ -446,10 +446,11 @@ udf_mountfs(struct vnode *devvp, struct mount *mp, struct thread *td) {
 	brelse(bp);
 	bp = NULL;
 
-	TAILQ_INIT(&udfmp->udf_tqh);
 	devvp->v_rdev->si_mountpoint = mp;
 
 	mtx_init(&udfmp->hash_mtx, "udf_hash", NULL, MTX_DEF);
+	udfmp->hashtbl = phashinit(UDF_HASHTBLSIZE, M_UDFMOUNT, &udfmp->hashsz);
+
 	return 0;
 
 bail:
@@ -482,6 +483,10 @@ udf_unmount(struct mount *mp, int mntflags, struct thread *td)
 
 	if (udfmp->s_table != NULL)
 		FREE(udfmp->s_table, M_UDFSTABLE);
+
+	if (udfmp->hashtbl != NULL)
+		FREE(udfmp->hashtbl, M_UDFMOUNT);
+
 	FREE(udfmp, M_UDFMOUNT);
 
 	mp->mnt_data = (qaddr_t)0;
