@@ -481,3 +481,6 @@ To see the MAC addresses of the NICs on your system, type
 You can save your kernel startup configuration with kget(8).  The
 Configuration can be edited at boot time with 'boot -c' command in loader.
 See boot(8), loader(8) for details.
+%
+You can open up a new split-screen window in (n)vi with :N or :E and then
+use ^w to switch between the two.
