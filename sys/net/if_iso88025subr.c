@@ -315,7 +315,7 @@ iso88025_output(ifp, m, dst, rt0)
 		(void)memcpy((caddr_t)edst, (caddr_t)sd->ether_dhost,
 			     ISO88025_ADDR_LEN);
 		(void)memcpy((caddr_t)gen_th.iso88025_shost,
-			(caddr_t)sd->ether_shost, ISO88025_ADDR_LEN);
+			     (caddr_t)sd->ether_shost, ISO88025_ADDR_LEN);
 		rif_len = 0;
 		break;
 	}
@@ -412,6 +412,9 @@ iso88025_input(ifp, th, m)
 	getmicrotime(&ifp->if_lastchange);
 	ifp->if_ibytes += m->m_pkthdr.len + sizeof(*th);
 
+	/*
+	 * Set mbuf flags for bcast/mcast.
+	 */
 	if (th->iso88025_dhost[0] & 1) {
 		if (bcmp((caddr_t)iso88025_broadcastaddr,
 			 (caddr_t)th->iso88025_dhost, ISO88025_ADDR_LEN) == 0)
@@ -516,7 +519,7 @@ iso88025_input(ifp, th, m)
 			l->llc_ssap = c;
 			if (m->m_flags & (M_BCAST | M_MCAST))
 				bcopy((caddr_t)ac->ac_enaddr, 
-			      		(caddr_t)th->iso88025_dhost,
+				      (caddr_t)th->iso88025_dhost,
 					ISO88025_ADDR_LEN);
 			sa.sa_family = AF_UNSPEC;
 			sa.sa_len = sizeof(sa);
