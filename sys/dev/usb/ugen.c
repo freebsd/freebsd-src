@@ -122,14 +122,6 @@ struct ugen_endpoint {
 		void *dmabuf;
 		u_int16_t sizes[UGEN_NISORFRMS];
 	} isoreqs[UGEN_NISOREQS];
-	struct {
-		usbd_xfer_handle xfer;
-		int err;
-		int len;
-		int maxlen;
-		void *buf;
-		int datardy;
-	} bulkreq;
 };
 
 struct ugen_softc {
@@ -216,7 +208,6 @@ Static void ugenintr(usbd_xfer_handle xfer, usbd_private_handle addr,
 		     usbd_status status);
 Static void ugen_isoc_rintr(usbd_xfer_handle xfer, usbd_private_handle addr,
 			    usbd_status status);
-Static void ugen_rdcb(usbd_xfer_handle, usbd_private_handle, usbd_status);
 Static int ugen_do_read(struct ugen_softc *, int, struct uio *, int);
 Static int ugen_do_write(struct ugen_softc *, int, struct uio *, int);
 Static int ugen_do_ioctl(struct ugen_softc *, int, u_long,
@@ -504,32 +495,6 @@ ugenopen(struct cdev *dev, int flag, int mode, usb_proc_ptr p)
 				  edesc->bEndpointAddress, 0, &sce->pipeh);
 			if (err)
 				return (EIO);
-
-			if (dir == OUT)
-				break;
-
-			/* If this is the read pipe, set up an async xfer. */
-			isize = UGETW(edesc->wMaxPacketSize);
-			if (isize == 0)	/* shouldn't happen */
-				return (EINVAL);
-			sce->bulkreq.buf = malloc(isize, M_USBDEV, M_WAITOK);
-			DPRINTFN(5, ("ugenopen: bulk endpt=%d,isize=%d\n",
-				     endpt, isize));
-			sce->bulkreq.xfer = usbd_alloc_xfer(sc->sc_udev);
-			if (sce->bulkreq.xfer == 0) {
-				free(sce->bulkreq.buf, M_USBDEV);
-				return (ENOMEM);
-			}
-			sce->bulkreq.maxlen = isize;
-			sce->bulkreq.err = 0;
-			sce->bulkreq.datardy = 0;
-			usbd_setup_xfer(sce->bulkreq.xfer, sce->pipeh, sce,
-			    sce->bulkreq.buf, sce->bulkreq.maxlen,
-			    sce->state & UGEN_SHORT_OK ?
-			    USBD_SHORT_XFER_OK : 0, sce->timeout,
-			    ugen_rdcb);
-			usbd_transfer(sce->bulkreq.xfer);
-
 			break;
 		case UE_ISOCHRONOUS:
 			if (dir == OUT)
@@ -651,15 +616,6 @@ ugenclose(struct cdev *dev, int flag, int mode, usb_proc_ptr p)
 			sce->ibuf = NULL;
 			clfree(&sce->q);
 		}
-
-		if (sce->bulkreq.buf != NULL)
-			free(sce->bulkreq.buf, M_USBDEV);
-		if (sce->bulkreq.xfer != NULL) {
-			ugen_rdcb(sce->bulkreq.xfer, sce, USBD_INTERRUPTED);
-			usbd_free_xfer(sce->bulkreq.xfer);
-			sce->bulkreq.xfer = NULL;
-		}
-
 	}
 	sc->sc_is_open[endpt] = 0;
 	UGEN_DEV_CLOSE(dev, sc);
@@ -667,43 +623,13 @@ ugenclose(struct cdev *dev, int flag, int mode, usb_proc_ptr p)
 	return (0);
 }
 
-Static void
-ugen_rdcb(usbd_xfer_handle xfer, usbd_private_handle priv, usbd_status status)
-{
-	struct ugen_endpoint *sce;
-
-	sce = priv;
-
-	if (status != USBD_NORMAL_COMPLETION) {
-		if (status == USBD_INTERRUPTED)
-			sce->bulkreq.err = EINTR;
-		else if (status == USBD_TIMEOUT)
-			sce->bulkreq.err = ETIMEDOUT;
-		else
-			sce->bulkreq.err = EIO;
-	} else {
-		sce->bulkreq.err = 0;
-		sce->bulkreq.datardy = 1;
-		usbd_get_xfer_status(xfer, NULL, NULL,
-		    &sce->bulkreq.len, NULL);
-	}
-
-	if (sce->state & UGEN_ASLP) {
-		sce->state &= ~UGEN_ASLP;
-		wakeup(sce);
-	}
-
-	selwakeuppri(&sce->rsel, PZERO);
-
-	return;
-}
-
 Static int
 ugen_do_read(struct ugen_softc *sc, int endpt, struct uio *uio, int flag)
 {
 	struct ugen_endpoint *sce = &sc->sc_endpoints[endpt][IN];
 	u_int32_t n, tn;
-	int isize;
+	char buf[UGEN_BBSIZE];
+	usbd_xfer_handle xfer;
 	usbd_status err;
 	int s;
 	int error = 0;
@@ -765,47 +691,32 @@ ugen_do_read(struct ugen_softc *sc, int endpt, struct uio *uio, int flag)
 		}
 		break;
 	case UE_BULK:
-		isize = UGETW(sce->edesc->wMaxPacketSize);
-		while ((n = min(isize, uio->uio_resid)) != 0) {
+ 		xfer = usbd_alloc_xfer(sc->sc_udev);
+ 		if (xfer == 0)
+ 			return (ENOMEM);
+ 		while ((n = min(UGEN_BBSIZE, uio->uio_resid)) != 0) {
 			DPRINTFN(1, ("ugenread: start transfer %d bytes\n",n));
 			tn = n;
-
-			/* Wait for data to be ready. */
-
-			while (sce->bulkreq.datardy == 0) {
-				sce->state |= UGEN_ASLP;
-				error = tsleep(sce, PCATCH | PZERO,
-				    "ugenrd", 0);
-				if (sce->bulkreq.err || error) {
-					sce->state &= ~UGEN_ASLP;
-					break;
-				}
-			}
-
-			err = sce->bulkreq.err;
-			if (err == EIO) {
-				error = ENXIO;
-				break;
-			}
-			tn = sce->bulkreq.len;
-			error = uiomove(sce->bulkreq.buf, tn, uio);
-
-			/* Set up a new transfer. */
-
-			sce->bulkreq.datardy = 0;
-			usbd_setup_xfer(sce->bulkreq.xfer, sce->pipeh, sce,
-			    sce->bulkreq.buf, sce->bulkreq.maxlen,
-			    sce->state & UGEN_SHORT_OK ?
-			    USBD_SHORT_XFER_OK : 0, sce->timeout, ugen_rdcb);
-			usbd_transfer(sce->bulkreq.xfer);
-
-			if (err)
-				break;
-
-			DPRINTFN(1, ("ugenread: got %d bytes\n", tn));
-			if (error || tn < n)
-				break;
-		}
+ 			err = usbd_bulk_transfer(
+ 				xfer, sce->pipeh,
+ 				sce->state & UGEN_SHORT_OK ?
+ 				    USBD_SHORT_XFER_OK : 0,
+ 				sce->timeout, buf, &tn, "ugenrb");
+ 			if (err) {
+ 				if (err == USBD_INTERRUPTED)
+ 					error = EINTR;
+ 				else if (err == USBD_TIMEOUT)
+ 					error = ETIMEDOUT;
+ 				else
+ 					error = EIO;
+ 				break;
+  			}
+  			DPRINTFN(1, ("ugenread: got %d bytes\n", tn));
+ 			error = uiomove(buf, tn, uio);
+  			if (error || tn < n)
+  				break;
+  		}
+ 		usbd_free_xfer(xfer);
 		break;
 	case UE_ISOCHRONOUS:
 		s = splusb();
@@ -995,12 +906,6 @@ ugenpurge(struct cdev *dev)
 	sce = &sc->sc_endpoints[endpt][IN];
 	if (sce->pipeh)
 		usbd_abort_pipe(sce->pipeh);
-	/* cancel async bulk transfer */
-	if (sce->bulkreq.xfer != NULL) {
-		ugen_rdcb(sce->bulkreq.xfer, sce, USBD_IOERROR);
-		usbd_free_xfer(sce->bulkreq.xfer);
-		sce->bulkreq.xfer = NULL;
-	}
 }
 #endif
 
@@ -1026,10 +931,6 @@ USB_DETACH(ugen)
 			sce = &sc->sc_endpoints[i][dir];
 			if (sce->pipeh)
 				usbd_abort_pipe(sce->pipeh);
-			/* cancel async bulk transfer */
-			if (sce->bulkreq.xfer != NULL)
-				ugen_rdcb(sce->bulkreq.xfer,
-				    sce, USBD_IOERROR);
 		}
 	}
 
@@ -1321,19 +1222,6 @@ ugen_do_ioctl(struct ugen_softc *sc, int endpt, u_long cmd,
 			sce->state |= UGEN_SHORT_OK;
 		else
 			sce->state &= ~UGEN_SHORT_OK;
-		/*
-		 * If this is a bulk data pipe awaiting data, then we
-		 * need to restart the current operation with the new
-		 * short transfer status set.
-		 */
-		if (sce->bulkreq.xfer != NULL && sce->bulkreq.datardy == 0) {
-			usbd_abort_pipe(sce->pipeh);
-			usbd_setup_xfer(sce->bulkreq.xfer, sce->pipeh, sce,
-			    sce->bulkreq.buf, sce->bulkreq.maxlen,
-			    sce->state & UGEN_SHORT_OK ?
-			    USBD_SHORT_XFER_OK : 0, sce->timeout, ugen_rdcb);
-			usbd_transfer(sce->bulkreq.xfer);
-		}
 		return (0);
 	case USB_SET_TIMEOUT:
 		sce = &sc->sc_endpoints[endpt][IN];
@@ -1626,20 +1514,12 @@ ugenpoll(struct cdev *dev, int events, usb_proc_ptr p)
 		break;
 	case UE_BULK:
 		/*
-		 * We have async transfers for reads now, so we can
-		 * select on those. Writes tend to complete immediately
-		 * so we can get away without async code for those,
-		 * though we should probably do async bulk out transfers
-		 * too at some point.
+		 * We have no easy way of determining if a read will
+		 * yield any data or a write will happen.
+		 * Pretend they will.
 		 */
-		if (events & (POLLIN | POLLRDNORM)) {
-			if (sce->bulkreq.datardy)
-				revents |= events & (POLLIN | POLLRDNORM);
-			else
-				selrecord(p, &sce->rsel);
-		}
-		if (events & (POLLOUT | POLLWRNORM))
-			revents |= events & (POLLOUT | POLLWRNORM);
+		revents |= events &
+			   (POLLIN | POLLRDNORM | POLLOUT | POLLWRNORM);
 		break;
 	default:
 		break;
