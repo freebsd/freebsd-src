@@ -52,7 +52,7 @@
 #define	CTR_LIMIT	0x08
 
 
-static unsigned counter_get_timecount(struct timecounter *tc);
+static unsigned int counter_get_timecount(struct timecounter *tc);
 
 struct ct_softc {
 	bus_space_tag_t		sc_tag;
