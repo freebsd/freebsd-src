@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: menus.c,v 1.141 1997/07/16 05:22:41 jkh Exp $
+ * $Id: menus.c,v 1.142 1997/09/10 10:15:39 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -221,7 +221,7 @@ DMenu MenuIndex = {
       { "Commit",		"Commit any pending actions (dangerous!)", NULL, installCustomCommit },
       { "Console settings",	"Customize system console behavior.",	NULL, dmenuSubmenu, NULL, &MenuSyscons },
       { "Configure",		"The system configuration menu.",	NULL, dmenuSubmenu, NULL, &MenuConfigure },
-      { "Defaults, Load",	"Load default settings.",		NULL, variableLoad },
+      { "Defaults, Load",	"Load default settings.",		NULL, dispatch_load_floppy },
       { "Device, Mouse",	"The mouse configuration menu.",	NULL, dmenuSubmenu, NULL, &MenuMouse },
       { "Dists, All",		"Root of the distribution tree.",	NULL, dmenuSubmenu, NULL, &MenuDistributions },
       { "Dists, Basic",		"Basic FreeBSD distribution menu.",	NULL, dmenuSubmenu, NULL, &MenuSubDistributions },
@@ -314,7 +314,7 @@ DMenu MenuInitial = {
       { "8 Fixit",	"Enter repair mode with CDROM/floppy or start shell",	NULL, dmenuSubmenu, NULL, &MenuFixit },
       { "9 Upgrade",	"Upgrade an existing system",			NULL, installUpgrade },
       { "c Configure",	"Do post-install configuration of FreeBSD",	NULL, dmenuSubmenu, NULL, &MenuConfigure },
-      { "l Load Config","Load default install configuration",		NULL, variableLoad },
+      { "l Load Config","Load default install configuration",		NULL, dispatch_load_floppy },
       { "0 Index",	"Glossary of functions",			NULL, dmenuSubmenu, NULL, &MenuIndex },
       { NULL } },
 };
