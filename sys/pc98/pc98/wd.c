@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)wd.c	7.2 (Berkeley) 5/9/91
- *	$Id: wd.c,v 1.53 1998/05/06 08:25:58 kato Exp $
+ *	$Id: wd.c,v 1.54 1998/05/07 08:37:27 kato Exp $
  */
 
 /* TODO:
@@ -2303,7 +2303,8 @@ failed:
 			du->dk_dd.d_ntracks * du->dk_dd.d_nsectors;
 		du->dk_dd.d_secperunit = 
 			du->dk_dd.d_secpercyl * du->dk_dd.d_ncylinders;
-		if (du->dk_dd.d_secperunit < wp->wdp_lbasize) {
+		if (wp->wdp_cylinders == 16383 &&
+		    du->dk_dd.d_secperunit < wp->wdp_lbasize) {
 			du->dk_dd.d_secperunit = wp->wdp_lbasize;
 			du->dk_dd.d_ncylinders = 
 				du->dk_dd.d_secperunit / du->dk_dd.d_secpercyl;
