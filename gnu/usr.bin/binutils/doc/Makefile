@@ -2,7 +2,7 @@
 
 .include "../Makefile.inc0"
 
-GDBDIR=	${.CURDIR}/../../../../contrib/gdb.291
+GDBDIR=	${.CURDIR}/../../../../contrib/gdb
 CONTRIBDIR= ${.CURDIR}/../../../../contrib
 
 .PATH: ${SRCDIR}/gas/doc ${SRCDIR}/ld ${SRCDIR}/bfd/doc ${GDBDIR}/gdb/doc
