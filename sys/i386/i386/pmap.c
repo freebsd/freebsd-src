@@ -1165,7 +1165,6 @@ _pmap_allocpte(pmap, ptepindex)
 	unsigned ptepindex;
 {
 	vm_paddr_t ptepa;
-	vm_offset_t pteva;
 	vm_page_t m;
 
 	/*
@@ -1174,6 +1173,8 @@ _pmap_allocpte(pmap, ptepindex)
 	VM_OBJECT_LOCK(pmap->pm_pteobj);
 	m = vm_page_grab(pmap->pm_pteobj, ptepindex,
 	    VM_ALLOC_WIRED | VM_ALLOC_ZERO | VM_ALLOC_RETRY);
+	if ((m->flags & PG_ZERO) == 0)
+		pmap_zero_page(m);
 
 	KASSERT(m->queue == PQ_NONE,
 		("_pmap_allocpte: %p->queue != PQ_NONE", m));
@@ -1195,18 +1196,6 @@ _pmap_allocpte(pmap, ptepindex)
 	pmap->pm_pdir[ptepindex] =
 		(pd_entry_t) (ptepa | PG_U | PG_RW | PG_V | PG_A | PG_M);
 
-	/*
-	 * Try to use the new mapping, but if we cannot, then
-	 * do it with the routine that maps the page explicitly.
-	 */
-	if ((m->flags & PG_ZERO) == 0) {
-		if (pmap_is_current(pmap)) {
-			pteva = VM_MAXUSER_ADDRESS + i386_ptob(ptepindex);
-			bzero((caddr_t) pteva, PAGE_SIZE);
-		} else {
-			pmap_zero_page(m);
-		}
-	}
 	vm_page_lock_queues();
 	m->valid = VM_PAGE_BITS_ALL;
 	vm_page_flag_clear(m, PG_ZERO);
