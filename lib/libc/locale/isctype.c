@@ -178,5 +178,5 @@ int
 digittoint(c)
 	int c;
 {
-	return (__maskrune((c), 0xFF));
+	return (__istype((c), 0xFF));
 }
