@@ -113,8 +113,8 @@ ext2_alloc(ip, lbn, bpref, size, cred, bnp)
 	fs = ip->i_e2fs;
 #if DIAGNOSTIC
 	if ((u_int)size > fs->s_blocksize || blkoff(fs, size) != 0) {
-		printf("dev = 0x%x, bsize = %d, size = %d, fs = %s\n",
-		    ip->i_dev, fs->s_blocksize, size, fs->fs_fsmnt);
+		printf("dev = 0x%lx, bsize = %lu, size = %d, fs = %s\n",
+		    (u_long)ip->i_dev, fs->s_blocksize, size, fs->fs_fsmnt);
 		panic("ext2_alloc: bad size");
 	}
 	if (cred == NOCRED)
