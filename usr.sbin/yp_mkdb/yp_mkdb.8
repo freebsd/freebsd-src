@@ -28,7 +28,7 @@
 .\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 .\" SUCH DAMAGE.
 .\"
-.\"	$Id: yp_mkdb.8,v 1.5 1997/02/22 16:14:49 peter Exp $
+.\"	$Id: yp_mkdb.8,v 1.2.2.1 1997/03/06 08:00:57 mpp Exp $
 .\"
 .Dd March 12, 1996
 .Dt YP_MKDB 8
@@ -109,7 +109,7 @@ behavior of the 'match' procedure in
 slightly. If a match query fails (because the server couldn't find
 a record that matched the supplied key), and the
 .Em YP_INTERDOMAIN
-key exists within the queried may,
+key exists within the queried map,
 .Xr ypserv 8
 will try to match the entry again using a DNS lookup. Note that this
 special behavior only applies to the
@@ -137,7 +137,7 @@ inspect the contents of an existing NIS database.
 When generating an NIS map, encode
 .Nm inputfile
 as a special entry in the database with a key of
-.Em YP_INPUT_FILE.
+.Em YP_INPUT_FILE .
 .Pp
 .It Op Fl o Ar outputfile
 .Pp
