@@ -38,7 +38,7 @@
  */
 
 /*
- *  March 28 1995
+ *  $Id: if_ep.c,v 1.13 1995/04/10 07:54:34 root Exp root $
  *
  *  Promiscuous mode added and interrupt logic slightly changed
  *  to reduce the number of adapter failures. Transceiver select
@@ -619,6 +619,16 @@ epinit(unit)
     outw(BASE + EP_COMMAND, SET_RX_EARLY_THRESH | sc->rx_early_thresh);
 
     /*
+     * These clever computations look very interesting
+     * but the fixed threshold gives near no output errors
+     * and if it as low as 16 bytes it gives the max. throughput.
+     * We think that processor is anyway quicker than Ethernet
+	 * (and this should be true for any 386 and higher)
+     */
+
+    outw(BASE + EP_COMMAND, SET_TX_START_THRESH | 16);
+
+    /*
      * Store up a bunch of mbuf's for use later. (MAX_MBS). First we free up
      * any that we had in case we're being called from intr or somewhere
      * else.
@@ -692,7 +702,15 @@ startagain:
     /* compute the Tx start threshold for this packet */
     sc->tx_start_thresh = len =
 	(((len * (64 - sc->tx_rate)) >> 6) & ~3) + 16;
+#if 0
+    /*
+     * The following string does something strange with the card and
+     * we get a lot of output errors due to it so it's commented out
+     * and we use fixed threshold (see above)
+     */
+
     outw(BASE + EP_COMMAND, SET_TX_START_THRESH | len);
+#endif
 
     for (top = m; m != 0; m = m->m_next)
 	if(ep_ftst(F_ACCESS_32_BITS)) {
@@ -757,6 +775,9 @@ epintr(unit)
     register struct ep_softc *sc = &ep_softc[unit];
     struct ifnet *ifp = &sc->arpcom.ac_if;
     struct mbuf *m;
+    int x;
+
+    x=splbio();
 
     outw(BASE + EP_COMMAND, SET_INTR_MASK); /* disable all Ints */
 
@@ -793,6 +814,7 @@ rescan:
 	    printf("ep%d: Status: %x\n", unit, status); 
 #endif
 	    epinit(unit);
+	    splx(x);
 	    return;
 	}
 	if (status & S_TX_COMPLETE) {
@@ -846,6 +868,7 @@ rescan:
     /* re-enable Ints */
     outw(BASE + EP_COMMAND, SET_INTR_MASK | S_5_INTS);
 
+    splx(x);
 }
 
 void
