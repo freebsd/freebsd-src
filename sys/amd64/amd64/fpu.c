@@ -725,26 +725,37 @@ npx_intr(dummy)
 	u_short control;
 	struct intrframe *frame;
 
-	mtx_lock(&Giant);
-	if (PCPU_GET(npxproc) == NULL || !npx_exists) {
+	if (!npx_exists) {
 		printf("npxintr: npxproc = %p, curproc = %p, npx_exists = %d\n",
 		       PCPU_GET(npxproc), curproc, npx_exists);
 		panic("npxintr from nowhere");
 	}
-	if (PCPU_GET(npxproc) != curproc) {
-		printf("npxintr: npxproc = %p, curproc = %p, npx_exists = %d\n",
-		       PCPU_GET(npxproc), curproc, npx_exists);
-		panic("npxintr from non-current process");
-	}
-
 	outb(0xf0, 0);
+	mtx_lock_spin(&sched_lock);
+	if (PCPU_GET(npxproc) != curproc) {
+		/*
+		 * Interrupt handling (for this or another interrupt) has
+		 * switched npxproc from underneath us before we managed
+		 * to handle this interrupt.  Just ignore this interrupt.
+		 * Control will eventually return to the instruction that
+		 * caused it and it will repeat.  In the npx_ex16 case,
+		 * then we will eventually (usually soon) win the race.
+		 * In the npx_irq13 case, we will always lose the race
+		 * because we have switched to the IRQ13 thread.  This will
+		 * be fixed later.
+		 */
+		mtx_unlock_spin(&sched_lock);
+		return;
+	}
 	fnstsw(&PCPU_GET(curpcb)->pcb_savefpu.sv_ex_sw);
 	fnstcw(&control);
 	fnclex();
+	mtx_unlock_spin(&sched_lock);
 
 	/*
 	 * Pass exception to process.
 	 */
+	mtx_lock(&Giant);
 	frame = (struct intrframe *)&dummy;	/* XXX */
 	if ((ISPL(frame->if_cs) == SEL_UPL) || (frame->if_eflags & PSL_VM)) {
 		/*
