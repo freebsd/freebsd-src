@@ -29,7 +29,7 @@
  * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF
  * THE POSSIBILITY OF SUCH DAMAGE.
  *
- *	$Id: if_xl.c,v 1.41 1998/08/20 14:32:40 wpaul Exp $
+ *	$Id: if_xl.c,v 1.44 1998/08/23 21:30:02 wpaul Exp $
  */
 
 /*
@@ -124,7 +124,7 @@
 
 #ifndef lint
 static char rcsid[] =
-	"$Id: if_xl.c,v 1.41 1998/08/20 14:32:40 wpaul Exp $";
+	"$Id: if_xl.c,v 1.44 1998/08/23 21:30:02 wpaul Exp $";
 #endif
 
 /*
@@ -221,7 +221,7 @@ static void xl_testpacket	__P((struct xl_softc *));
  * the 'command in progress' bit may never clear. Hence, we wait
  * only a finite amount of time to avoid getting caught in an
  * infinite loop. Normally this delay routine would be a macro,
- * but it isn't called during normal operation so we can aford
+ * but it isn't called during normal operation so we can afford
  * to make it a function.
  */
 static void xl_wait(sc)
@@ -1768,7 +1768,7 @@ again:
 	 * Handle the 'end of channel' condition. When the upload
 	 * engine hits the end of the RX ring, it will stall. This
 	 * is our cue to flush the RX ring, reload the uplist pointer
-	 * regtser and unstall the engine.
+	 * register and unstall the engine.
 	 * XXX This is actually a little goofy. With the ThunderLAN
 	 * chip, you get an interrupt when the receiver hits the end
 	 * of the receive ring, which tells you exactly when you
@@ -1899,17 +1899,14 @@ static void xl_intr(arg)
 	sc = arg;
 	ifp = &sc->arpcom.ac_if;
 
+	/* Disable interrupts. */
+	CSR_WRITE_2(sc, XL_COMMAND, XL_CMD_INTR_ENB);
 
 	for (;;) {
 
 		status = CSR_READ_2(sc, XL_STATUS);
 
-		if ((status & (XL_STAT_UP_COMPLETE |
-				XL_STAT_DOWN_COMPLETE |
-				XL_STAT_TX_COMPLETE |
-				XL_STAT_STATSOFLOW |
-				XL_STAT_INTLATCH |
-				XL_STAT_ADFAIL)) == 0)
+		if ((status & XL_INTRS) == 0)
 			break;
 
 		if (status & XL_STAT_UP_COMPLETE) {
@@ -1947,6 +1944,9 @@ static void xl_intr(arg)
 		CSR_WRITE_2(sc, XL_STATUS, XL_CMD_INTR_ACK|XL_STAT_INTREQ|
 							XL_STAT_INTLATCH);
 	}
+
+	/* Re-enable interrupts. */
+	CSR_WRITE_2(sc, XL_COMMAND, XL_CMD_INTR_ENB|XL_INTRS);
 
 	XL_SEL_WIN(7);
 
@@ -2182,6 +2182,23 @@ static void xl_start(ifp)
 	 */
 	ifp->if_timer = 5;
 
+	/*
+	 * XXX Under certain conditions, usually on slower machines
+	 * where interrupts may be dropped, it's possible for the
+	 * adapter to chew up all the buffers in the receive ring
+	 * and stall, without us being able to do anything about it.
+	 * To guard against this, we need to make a pass over the
+	 * RX queue to make sure there aren't any packets pending.
+	 * Doing it here means we can flush the receive ring at the
+	 * same time the chip is DMAing the transmit descriptors we
+	 * just gave it.
+ 	 *
+	 * 3Com goes to some lengths to emphasize the Parallel Tasking (tm)
+	 * nature of their chips in all their marketing literature;
+	 * we may as well take advantage of it. :)
+	 */
+	xl_rxeof(sc);
+
 	return;
 }
 
@@ -2191,7 +2208,7 @@ static void xl_init(xsc)
 	struct xl_softc		*sc = xsc;
 	struct ifnet		*ifp = &sc->arpcom.ac_if;
 	int			s, i;
-	u_int16_t		rxfilt = 0, rxintrs = 0;
+	u_int16_t		rxfilt = 0;
 	u_int16_t		phy_bmcr = 0;
 
 	if (sc->xl_autoneg)
@@ -2321,15 +2338,9 @@ static void xl_init(xsc)
 	/*
 	 * Enable interrupts.
 	 */
-	rxintrs = XL_STAT_UP_COMPLETE|XL_STAT_STATSOFLOW|
-		XL_STAT_ADFAIL|XL_STAT_DOWN_COMPLETE|XL_STAT_TX_COMPLETE;
-
-	CSR_WRITE_2(sc, XL_COMMAND, XL_CMD_STAT_ENB|rxintrs);
-	CSR_WRITE_2(sc, XL_COMMAND, XL_CMD_INTR_ACK|XL_STAT_INTLATCH|
-						    XL_STAT_TX_AVAIL|
-						    XL_STAT_RX_EARLY|
-						    XL_STAT_INTREQ);
-	CSR_WRITE_2(sc, XL_COMMAND, XL_CMD_INTR_ENB|rxintrs|XL_STAT_INTLATCH);
+	CSR_WRITE_2(sc, XL_COMMAND, XL_CMD_INTR_ACK|0xFF);
+	CSR_WRITE_2(sc, XL_COMMAND, XL_CMD_STAT_ENB|XL_INTRS);
+	CSR_WRITE_2(sc, XL_COMMAND, XL_CMD_INTR_ENB|XL_INTRS);
 
 	/* Set the RX early threshold */
 	CSR_WRITE_2(sc, XL_COMMAND, XL_CMD_RX_SET_THRESH|(XL_PACKET_SIZE >>2));
@@ -2556,6 +2567,7 @@ static void xl_stop(sc)
 
 	CSR_WRITE_2(sc, XL_COMMAND, XL_CMD_RX_DISABLE);
 	CSR_WRITE_2(sc, XL_COMMAND, XL_CMD_STATS_DISABLE);
+	CSR_WRITE_2(sc, XL_COMMAND, XL_CMD_INTR_ENB);
 	CSR_WRITE_2(sc, XL_COMMAND, XL_CMD_RX_DISCARD);
 	xl_wait(sc);
 	CSR_WRITE_2(sc, XL_COMMAND, XL_CMD_TX_DISABLE);
@@ -2566,7 +2578,6 @@ static void xl_stop(sc)
 	CSR_WRITE_2(sc, XL_COMMAND, XL_CMD_TX_RESET);
 	xl_wait(sc);
 	CSR_WRITE_2(sc, XL_COMMAND, XL_CMD_INTR_ACK|XL_STAT_INTLATCH);
-	CSR_WRITE_2(sc, XL_COMMAND, XL_CMD_INTR_ENB|0x0000);
 
 	/* Stop the stats updater. */
 	untimeout(xl_stats_update, sc, sc->xl_stat_ch);
