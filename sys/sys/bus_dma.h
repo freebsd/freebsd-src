@@ -69,8 +69,16 @@
  */
 /* $FreeBSD$ */
 
-#ifndef _I386_BUS_DMA_H_
-#define _I386_BUS_DMA_H_
+#ifndef _BUS_DMA_H_
+#define _BUS_DMA_H_
+
+/*
+ * Machine independent interface for mapping physical addresses to peripheral
+ * bus 'physical' addresses, and assisting with DMA operations.
+ *
+ * XXX This file is always included from <machine/bus_dma.h> and should not
+ *     (yet) be included directly.
+ */
 
 /*
  * Flags used in various bus DMA methods.
@@ -84,6 +92,14 @@
 #define	BUS_DMA_BUS2		0x20
 #define	BUS_DMA_BUS3		0x40
 #define	BUS_DMA_BUS4		0x80
+
+/*
+ * The following two flags are non-standard or specific to only certain
+ * architectures
+ */
+#define	BUS_DMA_NOWRITE		0x100
+#define	BUS_DMA_NOCACHE		0x200
+#define	BUS_DMA_ISA		0x400	/* map memory for AXP ISA dma */
 
 /* Forwards needed by prototypes below. */
 struct mbuf;
@@ -144,6 +160,11 @@ typedef enum {
 typedef void bus_dma_lock_t(void *, bus_dma_lock_op_t);
 
 /*
+ * Generic helper function for manipulating mutexes.
+ */
+void busdma_lock_mutex(void *arg, bus_dma_lock_op_t op);
+
+/*
  * Allocate a device specific dma_tag encapsulating the constraints of
  * the parent tag in addition to other restrictions specified:
  *
@@ -178,6 +199,26 @@ int bus_dma_tag_create(bus_dma_tag_t parent, bus_size_t alignment,
 int bus_dma_tag_destroy(bus_dma_tag_t dmat);
 
 /*
+ * A function that processes a successfully loaded dma map or an error
+ * from a delayed load map.
+ */
+typedef void bus_dmamap_callback_t(void *, bus_dma_segment_t *, int, int);
+
+/*
+ * Like bus_dmamap_callback but includes map size in bytes.  This is
+ * defined as a separate interface to maintain compatibility for users
+ * of bus_dmamap_callback_t--at some point these interfaces should be merged.
+ */
+typedef void bus_dmamap_callback2_t(void *, bus_dma_segment_t *, int, bus_size_t, int);
+
+/*
+ * XXX sparc64 uses the same interface, but a much different implementation.
+ *     <machine/bus_dma.h> for the sparc64 arch contains the equivalent
+ *     declarations.
+ */
+#if !defined(__sparc64__)
+
+/*
  * Allocate a handle for mapping from kva/uva/physical
  * address space into bus device space.
  */
@@ -204,24 +245,12 @@ int bus_dmamem_alloc(bus_dma_tag_t dmat, void** vaddr, int flags,
 void bus_dmamem_free(bus_dma_tag_t dmat, void *vaddr, bus_dmamap_t map);
 
 /*
- * A function that processes a successfully loaded dma map or an error
- * from a delayed load map.
- */
-typedef void bus_dmamap_callback_t(void *, bus_dma_segment_t *, int, int);
-
-/*
  * Map the buffer buf into bus space using the dmamap map.
  */
 int bus_dmamap_load(bus_dma_tag_t dmat, bus_dmamap_t map, void *buf,
 		    bus_size_t buflen, bus_dmamap_callback_t *callback,
 		    void *callback_arg, int flags);
 
-/*
- * Like bus_dmamap_callback but includes map size in bytes.  This is
- * defined as a separate interface to maintain compatibility for users
- * of bus_dmamap_callback_t--at some point these interfaces should be merged.
- */
-typedef void bus_dmamap_callback2_t(void *, bus_dma_segment_t *, int, bus_size_t, int);
 /*
  * Like bus_dmamap_load but for mbufs.  Note the use of the
  * bus_dmamap_callback2_t interface.
@@ -259,9 +288,6 @@ void _bus_dmamap_unload(bus_dma_tag_t dmat, bus_dmamap_t map);
 #define bus_dmamap_unload(dmat, dmamap) 		\
 	if ((dmamap) != NULL)				\
 		_bus_dmamap_unload(dmat, dmamap)
+#endif /* __sparc64__ */
 
-/*
- * Generic helper function for manipulating mutexes.
- */
-void busdma_lock_mutex(void *arg, bus_dma_lock_op_t op);
-#endif /* _I386_BUS_DMA_H_ */
+#endif /* _BUS_DMA_H_ */

@@ -25,9 +25,9 @@
  */
 /* $FreeBSD$ */
 
-#ifndef _AMD64_BUS_DMA_H_
-#define _AMD64_BUS_DMA_H_
+#ifndef _IA64_BUS_DMA_H_
+#define _IA64_BUS_DMA_H_
 
 #include <sys/bus_dma.h>
 
-#endif /* _AMD64_BUS_DMA_H_ */
+#endif /* _IA64_BUS_DMA_H_ */
