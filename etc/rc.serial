@@ -1,5 +1,5 @@
 #!/bin/sh
-# $Id: rc.serial,v 1.10 1998/03/13 13:33:09 danny Exp $
+# $Id: rc.serial,v 1.11 1998/03/13 22:03:03 danny Exp $
 
 # Change some defaults for serial devices.
 # Standard defaults are:
@@ -20,11 +20,11 @@ default() {
 
 	for i in $*
 	do
-		comcontrol /dev/tty$ci$i dtrwait 300 drainwait 0
-		stty </dev/ttyi$ci$i -clocal  crtscts  hupcl 9600 reprint ^R
-		stty </dev/ttyl$ci$i -clocal -crtscts -hupcl 0
-		stty </dev/cuai$co$i -clocal  crtscts  hupcl 9600 reprint ^R
-		stty </dev/cual$co$i -clocal -crtscts -hupcl 0
+		comcontrol /dev/tty${ci}${i} dtrwait 300 drainwait 0
+		stty < /dev/ttyi${ci}${i} -clocal  crtscts  hupcl 9600 reprint ^R
+		stty < /dev/ttyl${ci}${i} -clocal -crtscts -hupcl 0
+		stty < /dev/cuai${co}${i} -clocal  crtscts  hupcl 9600 reprint ^R
+		stty < /dev/cual${co}${i} -clocal -crtscts -hupcl 0
 	done
 }
 
@@ -37,14 +37,14 @@ maybe() {
 	for i in $*
 	do
 		# Don't use ^R; it breaks bash's ^R when typed ahead.
-		stty </dev/ttyi$ci$i reprint undef
-		stty </dev/cuai$co$i reprint undef
+		stty < /dev/ttyi${ci}${i} reprint undef
+		stty < /dev/cuai${co}${i} reprint undef
 		# Lock clocal off on dialin device for security.
-		stty </dev/ttyl$ci$i clocal
+		stty < /dev/ttyl${ci}${i} clocal
 		# Lock the speeds to use old binaries that don't support them.
 		# Any legal speed works to lock the initial speed.
-		stty </dev/ttyl$ci$i 300
-		stty </dev/cual$co$i 300
+		stty < /dev/ttyl${ci}${i} 300
+		stty < /dev/cual${co}${i} 300
 	done
 }
 
@@ -57,13 +57,13 @@ modem() {
 	for i in $*
 	do
 		# may depend on modem
-		comcontrol /dev/tty$ci$i dtrwait 100 drainwait 180
+		comcontrol /dev/tty${ci}${i} dtrwait 100 drainwait 180
 		# Lock crtscts on.
 		# Speed reasonable for V42bis.
-		stty </dev/ttyi$ci$i crtscts 57600
-		stty </dev/ttyl$ci$i crtscts
-		stty </dev/cuai$co$i crtscts 57600
-		stty </dev/cual$co$i crtscts
+		stty < /dev/ttyi${ci}${i} crtscts 57600
+		stty < /dev/ttyl${ci}${i} crtscts
+		stty < /dev/cuai${co}${i} crtscts 57600
+		stty < /dev/cual${co}${i} crtscts
 	done
 }
 
@@ -77,10 +77,10 @@ mouse() {
 	do
 		# Lock clocal on, hupcl off.
 		# Standard speed for Microsoft mouse.
-		stty </dev/ttyi$ci$i clocal -hupcl 1200
-		stty </dev/ttyl$ci$i clocal  hupcl
-		stty </dev/cuai$co$i clocal -hupcl 1200
-		stty </dev/cual$co$i clocal  hupcl
+		stty < /dev/ttyi${ci}${i} clocal -hupcl 1200
+		stty < /dev/ttyl${ci}${i} clocal  hupcl
+		stty < /dev/cuai${co}${i} clocal -hupcl 1200
+		stty < /dev/cual${co}${i} clocal  hupcl
 	done
 }
 
@@ -95,12 +95,12 @@ terminal() {
 	ci=$1; shift
 	co=$1; shift
 
-	modem $ci $co $*
+	modem ${ci} ${co} $*
 	for i in $*
 	do
-		comcontrol /dev/tty$ci$i dtrwait 0
-		stty </dev/ttyi$ci$i 115200
-		stty </dev/cuai$co$i 115200
+		comcontrol /dev/tty${ci}${i} dtrwait 0
+		stty < /dev/ttyi${ci}${i} 115200
+		stty < /dev/cuai${co}${i} 115200
 	done
 }
 

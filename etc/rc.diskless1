@@ -57,9 +57,9 @@ chkerr $? "mount of /usr"
 #
 
 bootp_ifc=`route -n get default | fgrep interface | awk '{ print $2; }'`
-bootp_ipa=`ifconfig $bootp_ifc | fgrep inet | head -1 | awk '{ print $2; }'`
+bootp_ipa=`ifconfig ${bootp_ifc} | fgrep inet | head -1 | awk '{ print $2; }'`
 
-echo "Interface $bootp_ifc IP-Address $bootp_ipa"
+echo "Interface ${bootp_ifc} IP-Address ${bootp_ipa}"
 
 umount /usr
 
@@ -97,4 +97,3 @@ sysctl -w kern.bootfile=/conf/ME/kernel
 # system /etc/rc.diskless2
 
 diskless_mount="/etc/rc.diskless2"
-
