@@ -245,7 +245,7 @@ CRUNCH_TARGETS+=fixit-small
 .endif
 .endif
 
-.if !defined(NOFLOPPIES)
+.if !defined(NO_FLOPPIES)
 EXTRAS= floppies.1 floppies.2 floppies.3
 .endif
 EXTRAS+= ftp.1
@@ -1082,7 +1082,7 @@ makeFloppySet:
 .if !defined(SPLITFILE)
 	@echo "SPLITFILE undefined in ${.TARGET}" && exit 1
 .endif
-	${.CURDIR}/scripts/split-file.sh ${SPLITFILE} \
+	sh ${.CURDIR}/scripts/split-file.sh ${SPLITFILE} \
 	    ${RD}/floppyset/${FLOPPYBASE} ${FLPSPLITSIZE} "${FLOPPYDESC}"
 	( splitfile=${SPLITDIR}/`basename ${SPLITFILE}`.split ; \
 	lines=`cat $${splitfile} | wc -l`; \
