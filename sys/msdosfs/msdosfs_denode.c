@@ -501,26 +501,19 @@ detrunc(dep, length, flags, cred, p)
 			bn = cntobn(pmp, eofentry);
 			error = bread(pmp->pm_devvp, bn, pmp->pm_bpcluster,
 			    NOCRED, &bp);
-		} else {
-			bn = de_blk(pmp, length);
-			error = bread(DETOV(dep), bn, pmp->pm_bpcluster,
-			    NOCRED, &bp);
-		}
-		if (error) {
-			brelse(bp);
+			if (error) {
+				brelse(bp);
 #ifdef MSDOSFS_DEBUG
-			printf("detrunc(): bread fails %d\n", error);
+				printf("detrunc(): bread fails %d\n", error);
 #endif
-			return (error);
+				return (error);
+			}
+			bzero(bp->b_data + boff, pmp->pm_bpcluster - boff);
+			if (flags & IO_SYNC)
+				bwrite(bp);
+			else
+				bdwrite(bp);
 		}
-		/*
-		 * is this the right place for it?
-		 */
-		bzero(bp->b_data + boff, pmp->pm_bpcluster - boff);
-		if (flags & IO_SYNC)
-			bwrite(bp);
-		else
-			bdwrite(bp);
 	}
 
 	/*
