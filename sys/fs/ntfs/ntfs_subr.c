@@ -40,6 +40,7 @@
 #include <sys/file.h>
 #include <sys/malloc.h>
 #include <sys/lock.h>
+#include <sys/iconv.h>
 
 /* #define NTFS_DEBUG 1 */
 #include <fs/ntfs/ntfs.h>
@@ -66,6 +67,8 @@ static wchar *ntfs_toupper_tab;
 #define NTFS_TOUPPER(ch)	(ntfs_toupper_tab[(ch)])
 static struct lock ntfs_toupper_lock;
 static signed int ntfs_toupper_usecount;
+
+struct iconv_functions *ntfs_iconv = NULL;
 
 /* support macro for ntfs_ntvattrget() */
 #define NTFS_AALPCMP(aalp,type,name,namelen) (				\
@@ -665,20 +668,41 @@ ntfs_uastricmp(ntmp, ustr, ustrlen, astr, astrlen)
 	const char *astr;
 	size_t astrlen;
 {
-	size_t             i;
-	int             res;
+	int len;
+	size_t i, j, mbstrlen = astrlen;
+	int res;
+	wchar wc;
 
-	/*
-	 * XXX We use NTFS_82U(NTFS_U28(c)) to get rid of unicode
-	 * symbols not covered by translation table
-	 */
-	for (i = 0; i < ustrlen && i < astrlen; i++) {
-		res = ((int) NTFS_TOUPPER(NTFS_82U(NTFS_U28(ustr[i])))) -
-			((int)NTFS_TOUPPER(NTFS_82U(astr[i])));
-		if (res)
-			return res;
+	if (ntmp->ntm_ic_l2u) {
+		for (i = 0, j = 0; i < ustrlen && j < astrlen; i++, j++) {
+			if (j < astrlen -1) {
+				wc = (wchar)astr[j]<<8 | (astr[j+1]&0xFF);
+				len = 2;
+			} else {
+				wc = (wchar)astr[j]<<8 & 0xFF00;
+				len = 1;
+			}
+			res = ((int) NTFS_TOUPPER(ustr[i])) -
+				((int)NTFS_TOUPPER(NTFS_82U(wc, &len)));
+			j += len - 1;
+			mbstrlen -= len - 1;
+
+			if (res)
+				return res;
+		}
+	} else {
+		/*
+		 * We use NTFS_82U(NTFS_U28(c)) to get rid of unicode
+		 * symbols not covered by translation table
+		 */
+		for (i = 0; i < ustrlen && i < astrlen; i++) {
+			res = ((int) NTFS_TOUPPER(NTFS_82U(NTFS_U28(ustr[i]), &len))) -
+				((int)NTFS_TOUPPER(NTFS_82U((wchar)astr[i], &len)));
+			if (res)
+				return res;
+		}
 	}
-	return (ustrlen - astrlen);
+	return (ustrlen - mbstrlen);
 }
 
 /*
@@ -692,15 +716,25 @@ ntfs_uastrcmp(ntmp, ustr, ustrlen, astr, astrlen)
 	const char *astr;
 	size_t astrlen;
 {
-	size_t             i;
-	int             res;
+	char u, l;
+	size_t i, j, mbstrlen = astrlen;
+	int res;
+	wchar wc;
 
-	for (i = 0; (i < ustrlen) && (i < astrlen); i++) {
-		res = (int) (((char)NTFS_U28(ustr[i])) - astr[i]);
+	for (i = 0, j = 0; (i < ustrlen) && (j < astrlen); i++, j++) {
+		res = 0;
+		wc = NTFS_U28(ustr[i]);
+		u = (char)(wc>>8);
+		l = (char)wc;
+		if (u != '\0' && j < astrlen -1) {
+			res = (int) (u - astr[j++]);
+			mbstrlen--;
+		}
+		res = (res<<8) + (int) (l - astr[j]);
 		if (res)
 			return res;
 	}
-	return (ustrlen - astrlen);
+	return (ustrlen - mbstrlen);
 }
 
 /* 
@@ -2003,10 +2037,17 @@ ntfs_toupper_unuse()
 int
 ntfs_u28_init(
 	struct ntfsmount *ntmp,
-	wchar *u2w)
+	wchar *u2w,
+	char *cs_local,
+	char *cs_ntfs)
 {
 	char ** u28;
 	int i, j, h, l;
+
+	if (ntfs_iconv && cs_local) {
+		ntfs_iconv->open(cs_local, cs_ntfs, &ntmp->ntm_ic_u2l);
+		return (0);
+	}
 
 	MALLOC(u28, char **, 256 * sizeof(char*), M_TEMP, M_WAITOK | M_ZERO);
 
@@ -2034,8 +2075,12 @@ ntfs_u28_uninit(struct ntfsmount *ntmp)
 	char ** u28;
 	int i;
 
-	if (ntmp->ntm_u28 == NULL)
+	if (ntmp->ntm_u28 == NULL) {
+		if (ntfs_iconv && ntmp->ntm_ic_u2l) {
+			ntfs_iconv->close(ntmp->ntm_ic_u2l);
+		}
 		return (0);
+	}
 
 	u28 = ntmp->ntm_u28;
 
@@ -2051,22 +2096,21 @@ ntfs_u28_uninit(struct ntfsmount *ntmp)
 int
 ntfs_82u_init(
 	struct ntfsmount *ntmp,
-	u_int16_t *u2w)
+	char *cs_local,
+	char *cs_ntfs)
 {
 	wchar * _82u;
 	int i;
 
+	if (ntfs_iconv && cs_local) {
+		ntfs_iconv->open(cs_ntfs, cs_local, &ntmp->ntm_ic_l2u);
+		return (0);
+	}
+
 	MALLOC(_82u, wchar *, 256 * sizeof(wchar), M_TEMP, M_WAITOK);
 
-	if (u2w == NULL) {
-		for (i=0; i<256; i++)
+	for (i=0; i<256; i++)
 			_82u[i] = i;
-	} else {
-		for (i=0; i<128; i++)
-			_82u[i] = i;
-		for (i=0; i<128; i++)
-			_82u[i+128] = u2w[i];
-	}
 
 	ntmp->ntm_82u = _82u;
 
@@ -2076,6 +2120,14 @@ ntfs_82u_init(
 int
 ntfs_82u_uninit(struct ntfsmount *ntmp)
 {
+
+	if (ntmp->ntm_82u == NULL) {
+		if (ntfs_iconv && ntmp->ntm_ic_l2u) {
+			ntfs_iconv->close(ntmp->ntm_ic_l2u);
+		}
+		return (0);
+	}
+
 	FREE(ntmp->ntm_82u, M_TEMP);
 	return (0);
 }
@@ -2086,16 +2138,68 @@ ntfs_82u_uninit(struct ntfsmount *ntmp)
  * and substitutes a '_' for it if the result would be '\0';
  * something better has to be definitely though out
  */
-char
+wchar
 ntfs_u28(
 	struct ntfsmount *ntmp, 
 	wchar wc)
 {
-	char * p;
+	char *p, *outp, inbuf[3], outbuf[3];
+	size_t ilen, olen;
+
+	if (ntfs_iconv && ntmp->ntm_ic_u2l) {
+		ilen = olen = 2;
+
+		inbuf[0] = (char)(wc>>8);
+		inbuf[1] = (char)wc;
+		inbuf[2] = '\0';
+		p = inbuf;
+		outp = outbuf;
+		ntfs_iconv->convchr(ntmp->ntm_ic_u2l, (const char **)&p, &ilen,
+				    &outp, &olen);
+		if (olen == 1) {
+			return ((wchar)(outbuf[0]));
+		} else if (olen == 0) {
+			return ((wchar)((outbuf[0]<<8) | (outbuf[1]&0xFF)));
+		}
+		return ('?');
+	}
 
 	p = ntmp->ntm_u28[(wc>>8)&0xFF];
 	if (p == NULL)
 		return ('_');
 	return (p[wc&0xFF]);
+}
+
+wchar
+ntfs_82u(
+	struct ntfsmount *ntmp, 
+	wchar wc,
+	int *len)
+{
+	char *p, *outp, inbuf[3], outbuf[3];
+	wchar uc;
+	size_t ilen, olen;
+
+	if (ntfs_iconv && ntmp->ntm_ic_l2u) {
+		ilen = (size_t)*len;
+		olen = 2;
+
+		inbuf[0] = (char)(wc>>8);
+		inbuf[1] = (char)wc;
+		inbuf[2] = '\0';
+		p = inbuf;
+		outp = outbuf;
+		ntfs_iconv->convchr(ntmp->ntm_ic_l2u, (const char **)&p, &ilen,
+				    &outp, &olen);
+		*len -= (int)ilen;
+		uc = (wchar)((outbuf[0]<<8) | (outbuf[1]&0xFF));
+
+		return (uc);
+	}
+
+	if (ntmp->ntm_82u != NULL)
+		return (ntmp->ntm_82u[wc&0xFF]);
+
+	return ('?');
 }
 

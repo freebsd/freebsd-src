@@ -95,11 +95,10 @@ struct msdosfsmount {
 	u_int pm_curfat;	/* current fat for FAT32 (0 otherwise) */
 	u_int *pm_inusemap;	/* ptr to bitmap of in-use clusters */
 	u_int pm_flags;		/* see below */
-	u_int16_t pm_u2w[128];  /* Local->Unicode table */
-	u_int8_t  pm_ul[128];   /* Local upper->lower table */
-	u_int8_t  pm_lu[128];   /* Local lower->upper table */
-	u_int8_t  pm_d2u[128];  /* DOS->local table */
-	u_int8_t  pm_u2d[128];  /* Local->DOS table */
+	void *pm_u2w;	/* Local->Unicode iconv handle */
+	void *pm_w2u;	/* Unicode->Local iconv handle */
+	void *pm_u2d;	/* Unicode->DOS iconv handle */
+	void *pm_d2u;	/* DOS->Local iconv handle */
 };
 /* Byte offset in FAT on filesystem pmp, cluster cn */
 #define	FATOFS(pmp, cn)	((cn) * (pmp)->pm_fatmult / (pmp)->pm_fatdiv)
@@ -218,10 +217,9 @@ struct msdosfs_args {
 	int	flags;		/* see below */
 	int magic;		/* version number */
 	u_int16_t u2w[128];     /* Local->Unicode table */
-	u_int8_t  ul[128];      /* Local upper->lower table */
-	u_int8_t  lu[128];      /* Local lower->upper table */
-	u_int8_t  d2u[128];     /* DOS->local table */
-	u_int8_t  u2d[128];     /* Local->DOS table */
+	char	*cs_win;	/* Windows(Unicode) Charset */
+	char	*cs_dos;	/* DOS Charset */
+	char	*cs_local;	/* Local Charset */
 };
 
 /*
@@ -230,13 +228,11 @@ struct msdosfs_args {
 #define	MSDOSFSMNT_SHORTNAME	1	/* Force old DOS short names only */
 #define	MSDOSFSMNT_LONGNAME	2	/* Force Win'95 long names */
 #define	MSDOSFSMNT_NOWIN95	4	/* Completely ignore Win95 entries */
-#define MSDOSFSMNT_U2WTABLE     0x10    /* Local->Unicode and local<->DOS   */
-					/* tables loaded                    */
-#define MSDOSFSMNT_ULTABLE      0x20    /* Local upper<->lower table loaded */
+#define	MSDOSFSMNT_KICONV	0x10    /* Use libiconv to convert chars */
 /* All flags above: */
 #define	MSDOSFSMNT_MNTOPT \
 	(MSDOSFSMNT_SHORTNAME|MSDOSFSMNT_LONGNAME|MSDOSFSMNT_NOWIN95 \
-	 |MSDOSFSMNT_U2WTABLE|MSDOSFSMNT_ULTABLE)
+	 |MSDOSFSMNT_KICONV)
 #define	MSDOSFSMNT_RONLY	0x80000000	/* mounted read-only	*/
 #define	MSDOSFSMNT_WAITONFAT	0x40000000	/* mounted synchronous	*/
 #define	MSDOSFS_FATMIRROR	0x20000000	/* FAT is mirrored */

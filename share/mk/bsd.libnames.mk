@@ -49,6 +49,7 @@ LIBISC?=	${DESTDIR}${LIBDIR}/libisc.a
 LIBKADM5CLNT?=	${DESTDIR}${LIBDIR}/libkadm5clnt.a # XXX in secure dist, not base
 LIBKADM5SRV?=	${DESTDIR}${LIBDIR}/libkadm5srv.a # XXX in secure dist, not base
 LIBKEYCAP?=	${DESTDIR}${LIBDIR}/libkeycap.a
+LIBKICONV?=	${DESTDIR}${LIBDIR}/libkiconv.a
 LIBKRB5?=	${DESTDIR}${LIBDIR}/libkrb5.a	# XXX in secure dist, not base
 LIBKVM?=	${DESTDIR}${LIBDIR}/libkvm.a
 LIBL?=		${DESTDIR}${LIBDIR}/libl.a

@@ -57,6 +57,8 @@ static const char rcsid[] =
 #include <sys/param.h>
 #include <sys/mount.h>
 #include <sys/../isofs/cd9660/cd9660_mount.h>
+#include <sys/module.h>
+#include <sys/iconv.h>
 
 #include <arpa/inet.h>
 
@@ -82,6 +84,7 @@ struct mntopt mopts[] = {
 };
 
 int	get_ssector(const char *dev);
+int	set_charset(struct iso_args *, const char *);
 void	usage(void);
 
 int
@@ -95,7 +98,9 @@ main(int argc, char **argv)
 	mntflags = opts = verbose = 0;
 	memset(&args, 0, sizeof args);
 	args.ssector = -1;
-	while ((ch = getopt(argc, argv, "begjo:rs:v")) != -1)
+	args.cs_disk = NULL;
+	args.cs_local = NULL;
+	while ((ch = getopt(argc, argv, "begjo:rs:vC:")) != -1)
 		switch (ch) {
 		case 'b':
 			opts |= ISOFSMNT_BROKENJOLIET;
@@ -120,6 +125,11 @@ main(int argc, char **argv)
 			break;
 		case 'v':
 			verbose++;
+			break;
+		case 'C':
+			if (set_charset(&args, optarg) == -1)
+				err(EX_OSERR, "cd9660_iconv");
+			opts |= ISOFSMNT_KICONV;
 			break;
 		case '?':
 		default:
@@ -180,7 +190,7 @@ void
 usage(void)
 {
 	(void)fprintf(stderr,
-		"usage: mount_cd9660 [-egrv] [-o options] [-s startsector] special node\n");
+		"usage: mount_cd9660 [-egrv] [-o options] [-s startsector] [-C charset ] special node\n");
 	exit(EX_USAGE);
 }
 
@@ -224,4 +234,32 @@ get_ssector(const char *dev)
 		return -1;
 
 	return ntohl(toc_buffer[i].addr.lba);
+}
+
+int
+set_charset(struct iso_args *args, const char *localcs)
+{
+	int error;
+
+	if (modfind("cd9660_iconv") < 0)
+		if (kldload("cd9660_iconv") < 0 || modfind("cd9660_iconv") < 0) {
+			warnx( "cannot find or load \"cd9660_iconv\" kernel module");
+			return (-1);
+		}
+
+	if ((args->cs_disk = malloc(ICONV_CSNMAXLEN)) == NULL)
+		return (-1);
+	if ((args->cs_local = malloc(ICONV_CSNMAXLEN)) == NULL)
+		return (-1);
+	strncpy(args->cs_disk, ENCODING_UNICODE, ICONV_CSNMAXLEN);
+	strncpy(args->cs_local, kiconv_quirkcs(localcs, KICONV_VENDOR_MICSFT),
+	    ICONV_CSNMAXLEN);
+	error = kiconv_add_xlat16_cspair(args->cs_local, args->cs_disk, 0);
+	if (error)
+		return (-1);
+	error = kiconv_add_xlat16_cspair(args->cs_disk, args->cs_local, 0);
+	if (error)
+		return (-1);
+
+	return (0);
 }
