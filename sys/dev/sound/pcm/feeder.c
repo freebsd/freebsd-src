@@ -194,11 +194,13 @@ chn_addfeeder(struct pcm_channel *c, struct feeder_class *fc, struct pcm_feederd
 
 	nf->source = c->feeder;
 
+	/* XXX we should use the lowest common denominator for align */
 	if (nf->align > 0)
 		c->align += nf->align;
 	else if (nf->align < 0 && c->align < -nf->align)
 		c->align = -nf->align;
-
+	if (c->feeder != NULL)
+		c->feeder->parent = nf;
 	c->feeder = nf;
 
 	return 0;
@@ -370,6 +372,20 @@ chn_fmtchain(struct pcm_channel *c, u_int32_t *to)
 #endif
 
 	return (c->direction == PCMDIR_REC)? best : c->feeder->desc->out;
+}
+
+void
+feeder_printchain(struct pcm_feeder *head)
+{
+	struct pcm_feeder *f;
+
+	printf("feeder chain (head @%p)\n", head);
+	f = head;
+	while (f != NULL) {
+		printf("%s/%d @ %p\n", f->class->name, f->desc->idx, f);
+		f = f->source;
+	}
+	printf("[end]\n\n");
 }
 
 /*****************************************************************************/
