@@ -1,7 +1,7 @@
 #
 # GENERIC -- Generic machine with WD/AHx/NCR/BTx family disks
 #
-#	$Id: GENERIC,v 1.53 1995/12/10 22:14:15 bde Exp $
+#	$Id: GENERIC,v 1.54 1995/12/12 08:46:34 gibbs Exp $
 #
 
 machine		"i386"
@@ -19,7 +19,7 @@ options		MSDOSFS			#MSDOS Filesystem
 options		"CD9660"		#ISO 9660 Filesystem
 options		PROCFS			#Process filesystem
 options		"COMPAT_43"		#Compatible with BSD 4.3
-options		"SCSI_DELAY=15"		#Be pessimistic about Joe SCSI device
+options		SCSI_DELAY=15		#Be pessimistic about Joe SCSI device
 options		BOUNCE_BUFFERS		#include support for DMA bounce buffers
 options		UCONSOLE		#Allow users to grab the console
 
@@ -80,11 +80,11 @@ device		scd0	at isa? port 0x230 bio
 device		sc0	at isa? port "IO_KBD" tty irq 1 vector scintr
 # Enable this and PCVT_FREEBSD for pcvt vt220 compatible console driver
 #device		vt0	at isa? port "IO_KBD" tty irq 1 vector pcrint
-#options		"PCVT_FREEBSD=210"	# pcvt running on FreeBSD >= 2.0.5
+#options		PCVT_FREEBSD=210	# pcvt running on FreeBSD >= 2.0.5
 #options		XSERVER			# include code for XFree86
 #options		FAT_CURSOR		# start with block cursor
 # If you have a ThinkPAD, uncomment this along with the rest of the PCVT lines
-#options		"PCVT_SCANSET=2"	# IBM keyboards are non-std
+#options		PCVT_SCANSET=2		# IBM keyboards are non-std
 
 device		npx0	at isa? port "IO_NPX" irq 13 vector npxintr
 
