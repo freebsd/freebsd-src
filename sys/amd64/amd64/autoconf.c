@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)autoconf.c	7.1 (Berkeley) 5/9/91
- *	$Id: autoconf.c,v 1.75 1997/09/09 12:48:56 jmg Exp $
+ *	$Id: autoconf.c,v 1.76 1997/09/21 21:38:03 gibbs Exp $
  */
 
 /*
@@ -270,10 +270,7 @@ configure(dummy)
 
 		printf("Device configuration finished.\n");
 	}
-	setconf();
 	cold = 0;
-	if (bootverbose)
-		printf("configure() finished.\n");
 }
 
 void
@@ -367,6 +364,8 @@ cpu_rootconf()
 	if (!mountrootfsname) {
 		panic("Nobody wants to mount my root for me");
 	}
+
+	setconf();
 }
 
 void
