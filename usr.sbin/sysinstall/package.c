@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: package.c,v 1.44 1996/08/01 12:35:51 jkh Exp $
+ * $Id: package.c,v 1.45 1996/08/03 10:11:41 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -180,6 +180,10 @@ package_extract(Device *dev, char *name, Boolean depended)
 	    }
 	    else
 		msgNotify("Package %s was added successfully", name);
+
+	    /* Now catch any stragglers */
+	    while (wait4(-1, &tot, WNOHANG, NULL));
+
 	    sleep(1);
 	    restorescr(w);
 	    sigpipe_caught = FALSE;
