@@ -66,6 +66,7 @@ MDXFileChunk(const char *filename, char *buf, off_t ofs, off_t len)
 	len = stbuf.st_size - ofs;
     if (lseek(f, ofs, SEEK_SET) < 0) return 0;
     n = len;
+    i = 0;
     while (n > 0) {
 	if (n > sizeof(buffer))
 	    i = read(f, buffer, sizeof(buffer));
