@@ -5,7 +5,7 @@
 # an MFS ($1 = YES) or will have the floppy image all to itself ($1 = NO).
 
 if [ $# -lt 1 ]; then
-	echo "usage: $0 YES|NO
+	echo "usage: $0 YES|NO"
 	exit 1
 fi
 
