@@ -90,7 +90,6 @@ msdosfs_lookup(ap)
 	struct componentname *cnp = ap->a_cnp;
 	daddr_t bn;
 	int error;
-	int lockparent;
 	int wantparent;
 	int slotcount;
 	int slotoffset = 0;
@@ -116,7 +115,6 @@ msdosfs_lookup(ap)
 	int wincnt = 1;
 	int chksum = -1, chksum_ok;
 	int olddos = 1;
-	cnp->cn_flags &= ~PDIRUNLOCK;
 
 #ifdef MSDOSFS_DEBUG
 	printf("msdosfs_lookup(): looking for %s\n", cnp->cn_nameptr);
@@ -124,7 +122,6 @@ msdosfs_lookup(ap)
 	dp = VTODE(vdp);
 	pmp = dp->de_pmp;
 	*vpp = NULL;
-	lockparent = flags & LOCKPARENT;
 	wantparent = flags & (LOCKPARENT | WANTPARENT);
 #ifdef MSDOSFS_DEBUG
 	printf("msdosfs_lookup(): vdp %p, dp %p, Attr %02x\n",
@@ -383,10 +380,6 @@ notfound:
 		 * information cannot be used.
 		 */
 		cnp->cn_flags |= SAVENAME;
-		if (!lockparent) {
-			VOP_UNLOCK(vdp, 0, td);
-			cnp->cn_flags |= PDIRUNLOCK;
-		}
 		return (EJUSTRETURN);
 	}
 	/*
@@ -474,10 +467,6 @@ foundroot:
 		if (error)
 			return (error);
 		*vpp = DETOV(tdp);
-		if (!lockparent) {
-			VOP_UNLOCK(vdp, 0, td);
-			cnp->cn_flags |= PDIRUNLOCK;
-		}
 		return (0);
 	}
 
@@ -507,10 +496,6 @@ foundroot:
 			return (error);
 		*vpp = DETOV(tdp);
 		cnp->cn_flags |= SAVENAME;
-		if (!lockparent) {
-			VOP_UNLOCK(vdp, 0, td);
-			cnp->cn_flags |= PDIRUNLOCK;
-		}
 		return (0);
 	}
 
@@ -536,20 +521,10 @@ foundroot:
 	pdp = vdp;
 	if (flags & ISDOTDOT) {
 		VOP_UNLOCK(pdp, 0, td);
-		cnp->cn_flags |= PDIRUNLOCK;
 		error = deget(pmp, cluster, blkoff,  &tdp);
 		if (error) {
 			vn_lock(pdp, LK_EXCLUSIVE | LK_RETRY, td); 
-			cnp->cn_flags &= ~PDIRUNLOCK;
 			return (error);
-		}
-		if (lockparent && (flags & ISLASTCN)) {
-			error = vn_lock(pdp, LK_EXCLUSIVE, td);
-			if (error) {
-				vput(DETOV(tdp));
-				return (error);
-			}
-			cnp->cn_flags &= ~PDIRUNLOCK;
 		}
 		*vpp = DETOV(tdp);
 	} else if (dp->de_StartCluster == scn && isadir) {
@@ -558,10 +533,6 @@ foundroot:
 	} else {
 		if ((error = deget(pmp, cluster, blkoff, &tdp)) != 0)
 			return (error);
-		if (!lockparent || !(flags & ISLASTCN)) {
-			VOP_UNLOCK(pdp, 0, td);
-			cnp->cn_flags |= PDIRUNLOCK;
-		}
 		*vpp = DETOV(tdp);
 	}
 

@@ -146,7 +146,6 @@ ufs_lookup(ap)
 	struct vnode *tdp;		/* returned by VFS_VGET */
 	doff_t enduseful;		/* pointer past last used dir slot */
 	u_long bmask;			/* block offset mask */
-	int lockparent;			/* 1 => lockparent flag is set */
 	int wantparent;			/* 1 => wantparent or lockparent flag */
 	int namlen, error;
 	struct vnode **vpp = ap->a_vpp;
@@ -158,7 +157,6 @@ ufs_lookup(ap)
 
 	bp = NULL;
 	slotoffset = -1;
-	cnp->cn_flags &= ~PDIRUNLOCK;
 /*
  *  XXX there was a soft-update diff about this I couldn't merge.
  * I think this was the equiv.
@@ -167,7 +165,6 @@ ufs_lookup(ap)
 
 	vdp = ap->a_dvp;
 	dp = VTOI(vdp);
-	lockparent = flags & LOCKPARENT;
 	wantparent = flags & (LOCKPARENT|WANTPARENT);
 
 	/*
@@ -442,10 +439,6 @@ notfound:
 		 * information cannot be used.
 		 */
 		cnp->cn_flags |= SAVENAME;
-		if (!lockparent) {
-			VOP_UNLOCK(vdp, 0, td);
-			cnp->cn_flags |= PDIRUNLOCK;
-		}
 		return (EJUSTRETURN);
 	}
 	/*
@@ -523,10 +516,6 @@ found:
 			return (EPERM);
 		}
 		*vpp = tdp;
-		if (!lockparent) {
-			VOP_UNLOCK(vdp, 0, td);
-			cnp->cn_flags |= PDIRUNLOCK;
-		}
 		return (0);
 	}
 
@@ -550,10 +539,6 @@ found:
 			return (error);
 		*vpp = tdp;
 		cnp->cn_flags |= SAVENAME;
-		if (!lockparent) {
-			VOP_UNLOCK(vdp, 0, td);
-			cnp->cn_flags |= PDIRUNLOCK;
-		}
 		return (0);
 	}
 
@@ -578,18 +563,12 @@ found:
 	 */
 	pdp = vdp;
 	if (flags & ISDOTDOT) {
-		if ((VFS_VGET(pdp->v_mount, dp->i_ino, LK_NOWAIT | LK_EXCLUSIVE,
-		    &tdp)) != 0) {
-			VOP_UNLOCK(pdp, 0, td);	/* race to get the inode */
-			error = VFS_VGET(pdp->v_mount, dp->i_ino,
-			    LK_EXCLUSIVE, &tdp);
+		VOP_UNLOCK(pdp, 0, td);	/* race to get the inode */
+		error = VFS_VGET(pdp->v_mount, dp->i_ino,
+		    LK_EXCLUSIVE, &tdp);
+		if (error) {
 			vn_lock(pdp, LK_EXCLUSIVE | LK_RETRY, td);
-			if (error)
-				return (error);
-		}
-		if (!lockparent || !(flags & ISLASTCN)) {
-			VOP_UNLOCK(pdp, 0, td);
-			cnp->cn_flags |= PDIRUNLOCK;
+			return (error);
 		}
 		*vpp = tdp;
 	} else if (dp->i_number == dp->i_ino) {
@@ -599,10 +578,6 @@ found:
 		error = VFS_VGET(pdp->v_mount, dp->i_ino, LK_EXCLUSIVE, &tdp);
 		if (error)
 			return (error);
-		if (!lockparent || !(flags & ISLASTCN)) {
-			VOP_UNLOCK(pdp, 0, td);
-			cnp->cn_flags |= PDIRUNLOCK;
-		}
 		*vpp = tdp;
 	}
 
