@@ -795,7 +795,6 @@ static int sis_attach(dev)
 
 	mtx_init(&sc->sis_mtx, device_get_nameunit(dev), MTX_NETWORK_LOCK,
 	    MTX_DEF | MTX_RECURSE);
-	SIS_LOCK(sc);
 
 	if (pci_get_device(dev) == SIS_DEVICEID_900)
 		sc->sis_type = SIS_TYPE_900;
@@ -1116,11 +1115,9 @@ static int sis_attach(dev)
 	ifp->if_data.ifi_hdrlen = sizeof(struct ether_vlan_header);
 
 	callout_handle_init(&sc->sis_stat_ch);
-	SIS_UNLOCK(sc);
 	return(0);
 
 fail:
-	SIS_UNLOCK(sc);
 	mtx_destroy(&sc->sis_mtx);
 	return(error);
 }
