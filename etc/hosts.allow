@@ -1,6 +1,6 @@
 #
 # hosts.allow access control file for "tcp wrapped" apps.
-# $Id: hosts.allow,v 1.2 1999/04/08 19:08:53 markm Exp $
+# $Id: hosts.allow,v 1.3 1999/05/08 02:19:25 obrien Exp $
 #
 # NOTE: The hosts.deny file is not longer used.  Instead, put both 'allow'
 #       and 'deny' rules in the hosts.allow file.
@@ -31,6 +31,12 @@ sendmail : localhost : allow
 sendmail : .nice.guy.example.com : allow
 sendmail : .evil.cracker.example.com : deny
 sendmail : ALL : allow
+
+# Exim is an alternative to sendmail, available in the ports tree
+exim : localhost : allow
+exim : .nice.guy.example.com : allow
+exim : .evil.cracker.example.com : deny
+exim : ALL : allow
 
 # Portmapper is used for all RPC services; protect your NFS!
 portmap : localhost : allow
