@@ -135,10 +135,23 @@ Normally this is the same as the name of the node.
 Returns the global index of the associated interface as a 32 bit integer.
 .It Dv NGM_ETHER_GET_ENADDR
 Returns the device's unique six byte Ethernet address.
+.It Dv NGM_ETHER_SET_ENADDR
+Sets the device's unique six byte Ethernet address.
+This control message is equivalent to using the
+.Dv SIOCSIFLLADDR
+.Xr ioctl 2
+system call.
 .It Dv NGM_ETHER_SET_PROMISC
 Enable or disable promiscuous mode.
 This message includes a single 32 bit integer flag that enables or
 disables promiscuous mode on the interface.
+.It Dv NGM_ETHER_GET_PROMISC
+Get the current value of the node's promiscuous flag.
+The returned value is always either one or zero.
+Note that this flag reflects the node's own promiscuous setting
+and does not necessarily reflect the promiscuous state of the actual
+interface, which can be affected by other means (e.g.,
+.Xr bpf 4 ) .
 .It Dv NGM_ETHER_SET_AUTOSRC
 Sets the automatic source address override flag.
 This message includes a single 32 bit integer flag that causes
@@ -147,6 +160,9 @@ address field overwritten with the device's unique Ethernet address.
 If this flag is set to zero, the source address in outgoing packets
 is not modified.
 The default setting for this flag is enabled.
+.It Dv NGM_ETHER_GET_AUTOSRC
+Get the current value of the node's source address override flag.
+The returned value is always either one or zero.
 .El
 .Sh SHUTDOWN
 This node is persistent for as long as the interface exists.
