@@ -1,4 +1,4 @@
-#	$Id: Makefile,v 1.188 1995/05/29 01:28:21 phk Exp $
+#	$Id: Makefile,v 1.189 1995/05/29 02:12:50 phk Exp $
 #
 # How to roll a release:
 #
@@ -335,7 +335,7 @@ release.8: write_mfs_in_kernel
 	cd ${RD}/trees/bin/usr/share/FAQ/Text && \
 		install -c RELNOTES.FreeBSD ${RD}/mfsfd/stand/help/en_US.ISO8859-1/RELNOTES && \
 		install -c README ${RD}/mfsfd/stand/help/en_US.ISO8859-1/README
-	(cd ${RD}/mfsfd/stand/help && tar cf - | gzip -9 > ../help.tgz)
+	(cd ${RD}/mfsfd/stand/help && tar cf - * | gzip -9 > ../help.tgz)
 	(cd ${RD}/mfsfd/stand && rm -rf help)
 	( 								\
 	a=`expr ${BOOTMFSSIZE} \* 2` &&					\
