@@ -81,14 +81,13 @@ gdb_cpu_getreg(int regnum, size_t *regsz)
 }
 
 void
-gdb_cpu_setreg(int regnum, register_t val)
+gdb_cpu_setreg(int regnum, void *val)
 {
 
-	val = __bswap64(val);
 	switch (regnum) {
 	case GDB_REG_PC:
-		kdb_thrctx->pcb_rip = val;
+		kdb_thrctx->pcb_rip = *(register_t *)val;
 		if (kdb_thread  == curthread)
-			kdb_frame->tf_rip = val;
+			kdb_frame->tf_rip = *(register_t *)val;
 	}
 }
