@@ -62,20 +62,14 @@ static d_poll_t		random_poll;
 #define RANDOM_MINOR	3
 
 static struct cdevsw random_cdevsw = {
-	/* open */	random_open,
-	/* close */	random_close,
-	/* read */	random_read,
-	/* write */	random_write,
-	/* ioctl */	random_ioctl,
-	/* poll */	random_poll,
-	/* mmap */	nommap,
-	/* strategy */	nostrategy,
-	/* name */	"random",
-	/* maj */	CDEV_MAJOR,
-	/* dump */	nodump,
-	/* psize */	nopsize,
-	/* flags */	0,
-	/* kqfilter */	NULL
+	.d_open =	random_open,
+	.d_close =	random_close,
+	.d_read =	random_read,
+	.d_write =	random_write,
+	.d_ioctl =	random_ioctl,
+	.d_poll =	random_poll,
+	.d_name =	"random",
+	.d_maj =	CDEV_MAJOR,
 };
 
 static void random_kthread(void *);

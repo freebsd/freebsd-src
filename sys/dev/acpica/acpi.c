@@ -74,19 +74,11 @@ static d_ioctl_t	acpiioctl;
 
 #define CDEV_MAJOR 152
 static struct cdevsw acpi_cdevsw = {
-	/* open */	acpiopen,
-	/* close */	acpiclose,
-	/* read */	noread,
-	/* write */	nowrite,
-	/* ioctl */	acpiioctl,
-	/* poll */	nopoll,
-	/* mmap */	nommap,
-	/* strategy */	nostrategy,
-	/* name */	"acpi",
-	/* maj */	CDEV_MAJOR,
-	/* dump */	nodump,
-	/* psize */	nopsize,
-	/* flags */	0
+	.d_open =	acpiopen,
+	.d_close =	acpiclose,
+	.d_ioctl =	acpiioctl,
+	.d_name =	"acpi",
+	.d_maj =	CDEV_MAJOR,
 };
 
 static const char* sleep_state_names[] = {

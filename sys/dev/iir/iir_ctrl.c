@@ -69,20 +69,13 @@ static d_ioctl_t	iir_ioctl;
 
 /* Normally, this is a static structure.  But we need it in pci/iir_pci.c */
 static struct cdevsw iir_cdevsw = {
-        /* open */      iir_open,
-        /* close */     iir_close,
-        /* read */      iir_read,
-        /* write */     iir_write,
-        /* ioctl */     iir_ioctl,
-        /* poll */      nopoll,
-        /* mmap */      nommap,
-        /* strategy */  nostrategy,
-        /* name */      "iir",
-        /* maj */       CDEV_MAJOR,
-        /* dump */      nodump,
-        /* psize */     nopsize,
-        /* flags */     0,
-        /* kqfilter */  nokqfilter
+	.d_open =	iir_open,
+	.d_close =	iir_close,
+	.d_read =	iir_read,
+	.d_write =	iir_write,
+	.d_ioctl =	iir_ioctl,
+	.d_name =	"iir",
+	.d_maj =	CDEV_MAJOR,
 };
 
 #ifndef SDEV_PER_HBA

@@ -242,20 +242,16 @@ static	d_ioctl_t	dgbioctl;
 
 #define	CDEV_MAJOR	58
 static struct cdevsw dgb_cdevsw = {
-	/* open */	dgbopen,
-	/* close */	dgbclose,
-	/* read */	ttyread,
-	/* write */	ttywrite,
-	/* ioctl */	dgbioctl,
-	/* poll */	ttypoll,
-	/* mmap */	nommap,
-	/* strategy */	nostrategy,
-	/* name */	"dgb",
-	/* maj */	CDEV_MAJOR,
-	/* dump */	nodump,
-	/* psize */	nopsize,
-	/* flags */	D_TTY | D_KQFILTER,
-	/* kqfilter */	ttykqfilter,
+	.d_open =	dgbopen,
+	.d_close =	dgbclose,
+	.d_read =	ttyread,
+	.d_write =	ttywrite,
+	.d_ioctl =	dgbioctl,
+	.d_poll =	ttypoll,
+	.d_name =	"dgb",
+	.d_maj =	CDEV_MAJOR,
+	.d_flags =	D_TTY | D_KQFILTER,
+	.d_kqfilter =	ttykqfilter,
 };
 
 static	speed_t	dgbdefaultrate = TTYDEF_SPEED;

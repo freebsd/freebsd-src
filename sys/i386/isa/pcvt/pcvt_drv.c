@@ -96,20 +96,17 @@ static	d_mmap_t	pcvt_mmap;
 #define	CDEV_MAJOR	12
 
 static struct cdevsw vt_cdevsw = {
-	/* open */	pcvt_open,
-	/* close */	pcvt_close,
-	/* read */	ttyread,
-	/* write */	ttywrite,
-	/* ioctl */	pcvt_ioctl,
-	/* poll */	ttypoll,
-	/* mmap */	pcvt_mmap,
-	/* strategy */	nostrategy,
-	/* name */	"vt",
-	/* maj */	CDEV_MAJOR,
-	/* dump */	nodump,
-	/* psize */	nopsize,
-	/* flags */	D_TTY | D_KQFILTER,
-	/* kqfilter */	ttykqfilter,
+	.d_open =	pcvt_open,
+	.d_close =	pcvt_close,
+	.d_read =	ttyread,
+	.d_write =	ttywrite,
+	.d_ioctl =	pcvt_ioctl,
+	.d_poll =	ttypoll,
+	.d_mmap =	pcvt_mmap,
+	.d_name =	"vt",
+	.d_maj =	CDEV_MAJOR,
+	.d_flags =	D_TTY | D_KQFILTER,
+	.d_kqfilter =	ttykqfilter,
 };
 
 static int pcvt_probe(device_t dev);

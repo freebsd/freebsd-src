@@ -55,19 +55,15 @@ static d_close_t	acdclose;
 static d_ioctl_t	acdioctl;
 static d_strategy_t	acdstrategy;
 static struct cdevsw acd_cdevsw = {
-	/* open */	acdopen,
-	/* close */	acdclose,
-	/* read */	physread,
-	/* write */	physwrite,
-	/* ioctl */	acdioctl,
-	/* poll */	nopoll,
-	/* mmap */	nommap,
-	/* strategy */	acdstrategy,
-	/* name */	"acd",
-	/* maj */	117,
-	/* dump */	nodump,
-	/* psize */	nopsize,
-	/* flags */	D_DISK | D_TRACKCLOSE,
+	.d_open =	acdopen,
+	.d_close =	acdclose,
+	.d_read =	physread,
+	.d_write =	physwrite,
+	.d_ioctl =	acdioctl,
+	.d_strategy =	acdstrategy,
+	.d_name =	"acd",
+	.d_maj =	117,
+	.d_flags =	D_DISK | D_TRACKCLOSE,
 };
 
 /* prototypes */

@@ -114,19 +114,14 @@ static d_poll_t ngdpoll;
 
 #define NGD_CDEV_MAJOR 20
 static struct cdevsw ngd_cdevsw = {
-        /* open */      ngdopen,
-        /* close */     ngdclose,
-        /* read */      ngdread,
-        /* write */     ngdwrite,
-        /* ioctl */     ngdioctl,
-        /* poll */      ngdpoll,
-        /* mmap */      nommap,
-        /* strategy */  nostrategy,
-        /* name */      "ngd",
-        /* maj */       NGD_CDEV_MAJOR,
-        /* dump */      nodump,
-        /* psize */     nopsize,
-        /* flags */     0,
+	.d_open =	ngdopen,
+	.d_close =	ngdclose,
+	.d_read =	ngdread,
+	.d_write =	ngdwrite,
+	.d_ioctl =	ngdioctl,
+	.d_poll =	ngdpoll,
+	.d_name =	"ngd",
+	.d_maj =	NGD_CDEV_MAJOR,
 };
 
 /* 

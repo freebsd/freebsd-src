@@ -135,19 +135,14 @@ static d_poll_t seqpoll;
 
 #define CDEV_MAJOR SEQ_CDEV_MAJOR
 static struct cdevsw seq_cdevsw = {
-	/* open */	seqopen,
-	/* close */	seqclose,
-	/* read */	seqread,
-	/* write */	seqwrite,
-	/* ioctl */	seqioctl,
-	/* poll */	seqpoll,
-	/* mmap */	nommap,
-	/* strategy */	nostrategy,
-	/* name */	"midi", /* XXX */
-	/* maj */	CDEV_MAJOR,
-	/* dump */	nodump,
-	/* psize */	nopsize,
-	/* flags */	0,
+	.d_open =	seqopen,
+	.d_close =	seqclose,
+	.d_read =	seqread,
+	.d_write =	seqwrite,
+	.d_ioctl =	seqioctl,
+	.d_poll =	seqpoll,
+	.d_name =	"midi", /* XXX */
+	.d_maj =	CDEV_MAJOR,
 };
 
 

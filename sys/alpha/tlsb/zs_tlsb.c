@@ -69,19 +69,14 @@ static	d_ioctl_t	zsioctl;
 
 #define CDEV_MAJOR 135
 static struct cdevsw zs_cdevsw = {
-	/* open */	zsopen,
-	/* close */	zsclose,
-	/* read */	ttyread,
-	/* write */	ttywrite,
-	/* ioctl */	zsioctl,
-	/* poll */	ttypoll,
-	/* mmap */	nommap,
-	/* strategy */	nostrategy,
-	/* name */	"zs",
-	/* maj */	CDEV_MAJOR,
-	/* dump */	nodump,
-	/* psize */	nopsize,
-	/* flags */	0,
+	.d_open =	zsopen,
+	.d_close =	zsclose,
+	.d_read =	ttyread,
+	.d_write =	ttywrite,
+	.d_ioctl =	zsioctl,
+	.d_poll =	ttypoll,
+	.d_name =	"zs",
+	.d_maj =	CDEV_MAJOR,
 };
 
 static void	zsstart(struct tty *);

@@ -59,19 +59,14 @@ static	d_ioctl_t	sscioctl;
 
 #define CDEV_MAJOR 97
 static struct cdevsw ssc_cdevsw = {
-	/* open */	sscopen,
-	/* close */	sscclose,
-	/* read */	ttyread,
-	/* write */	ttywrite,
-	/* ioctl */	sscioctl,
-	/* poll */	ttypoll,
-	/* mmap */	nommap,
-	/* strategy */	nostrategy,
-	/* name */	"ssc",
-	/* maj */	CDEV_MAJOR,
-	/* dump */	nodump,
-	/* psize */	nopsize,
-	/* flags */	0,
+	.d_open =	sscopen,
+	.d_close =	sscclose,
+	.d_read =	ttyread,
+	.d_write =	ttywrite,
+	.d_ioctl =	sscioctl,
+	.d_poll =	ttypoll,
+	.d_name =	"ssc",
+	.d_maj =	CDEV_MAJOR,
 };
 
 static struct tty *ssc_tp = NULL;

@@ -160,20 +160,16 @@ static void sabttystop(struct tty *tp, int rw);
 static int sabttyparam(struct tty *tp, struct termios *t);
 
 static struct cdevsw sabtty_cdevsw = {
-	/* open */	sabttyopen,
-	/* close */	sabttyclose,
-	/* read */	ttyread,
-	/* write */	ttywrite,
-	/* ioctl */	sabttyioctl,
-	/* poll */	ttypoll,
-	/* mmap */	nommap,
-	/* strategy */	nostrategy,
-	/* name */	"sabtty",
-	/* major */	MAJOR_AUTO,
-	/* dump */	nodump,
-	/* psize */	nopsize,
-	/* flags */	D_TTY | D_KQFILTER,
-	/* kqfilter */	ttykqfilter,
+	.d_open =	sabttyopen,
+	.d_close =	sabttyclose,
+	.d_read =	ttyread,
+	.d_write =	ttywrite,
+	.d_ioctl =	sabttyioctl,
+	.d_poll =	ttypoll,
+	.d_name =	"sabtty",
+	.d_maj =	MAJOR_AUTO,
+	.d_flags =	D_TTY | D_KQFILTER,
+	.d_kqfilter =	ttykqfilter,
 };
 
 static device_method_t sab_methods[] = {

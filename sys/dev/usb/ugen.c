@@ -138,19 +138,14 @@ d_poll_t  ugenpoll;
 #define UGEN_CDEV_MAJOR	114
 
 Static struct cdevsw ugen_cdevsw = {
-	/* open */	ugenopen,
-	/* close */	ugenclose,
-	/* read */	ugenread,
-	/* write */	ugenwrite,
-	/* ioctl */	ugenioctl,
-	/* poll */	ugenpoll,
-	/* mmap */	nommap,
-	/* strategy */	nostrategy,
-	/* name */	"ugen",
-	/* maj */	UGEN_CDEV_MAJOR,
-	/* dump */	nodump,
-	/* psize */	nopsize,
-	/* flags */	0,
+	.d_open =	ugenopen,
+	.d_close =	ugenclose,
+	.d_read =	ugenread,
+	.d_write =	ugenwrite,
+	.d_ioctl =	ugenioctl,
+	.d_poll =	ugenpoll,
+	.d_name =	"ugen",
+	.d_maj =	UGEN_CDEV_MAJOR,
 #if __FreeBSD_version < 500014
 	/* bmaj */	-1
 #endif

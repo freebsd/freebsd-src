@@ -288,19 +288,15 @@ static struct periph_driver cddriver =
 PERIPHDRIVER_DECLARE(cd, cddriver);
 
 static struct cdevsw cd_cdevsw = {
-	/* open */	cdopen,
-	/* close */	cdclose,
-	/* read */	physread,
-	/* write */	physwrite,
-	/* ioctl */	cdioctl,
-	/* poll */	nopoll,
-	/* mmap */	nommap,
-	/* strategy */	cdstrategy,
-	/* name */	"cd",
-	/* maj */	CD_CDEV_MAJOR,
-	/* dump */	nodump,
-	/* psize */	nopsize,
-	/* flags */	D_DISK,
+	.d_open =	cdopen,
+	.d_close =	cdclose,
+	.d_read =	physread,
+	.d_write =	physwrite,
+	.d_ioctl =	cdioctl,
+	.d_strategy =	cdstrategy,
+	.d_name =	"cd",
+	.d_maj =	CD_CDEV_MAJOR,
+	.d_flags =	D_DISK,
 };
 
 static int num_changers;

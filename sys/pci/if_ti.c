@@ -192,19 +192,11 @@ static	d_close_t	ti_close;
 static	d_ioctl_t	ti_ioctl2;
 
 static struct cdevsw ti_cdevsw = {
-        /* open */      ti_open,
-        /* close */     ti_close,
-        /* read */      noread,
-        /* write */     nowrite,
-        /* ioctl */     ti_ioctl2,
-        /* poll */      seltrue,
-        /* mmap */      nommap,
-        /* strategy */  nostrategy,
-        /* name */      "ti",
-        /* maj */       TI_CDEV_MAJOR,
-        /* dump */      nodump,
-        /* psize */     nopsize,
-        /* flags */     0,
+	.d_open =	ti_open,
+	.d_close =	ti_close,
+	.d_ioctl =	ti_ioctl2,
+	.d_name =	"ti",
+	.d_maj =	TI_CDEV_MAJOR,
 };
 
 static int ti_probe		(device_t);

@@ -747,20 +747,13 @@ cryptoioctl(dev_t dev, u_long cmd, caddr_t data, int flag, struct thread *td)
 
 #define	CRYPTO_MAJOR	70		/* from openbsd */
 static struct cdevsw crypto_cdevsw = {
-	/* open */	cryptoopen,
-	/* close */	nullclose,
-	/* read */	cryptoread,
-	/* write */	cryptowrite,
-	/* ioctl */	cryptoioctl,
-	/* poll */	nopoll,
-	/* mmap */	nommap,
-	/* strategy */	nostrategy,
-	/* dev name */	"crypto",
-	/* dev major */	CRYPTO_MAJOR,
-	/* dump */	nodump,
-	/* psize */	nopsize,
-	/* flags */	0,
-	/* kqfilter */	NULL
+	.d_open =	cryptoopen,
+	.d_close =	nullclose,
+	.d_read =	cryptoread,
+	.d_write =	cryptowrite,
+	.d_ioctl =	cryptoioctl,
+	.d_name =	"crypto",
+	.d_maj =	CRYPTO_MAJOR,
 };
 static dev_t crypto_dev;
 

@@ -94,19 +94,11 @@ static d_close_t        amr_close;
 static d_ioctl_t        amr_ioctl;
 
 static struct cdevsw amr_cdevsw = {
-		/* open */	amr_open,
-		/* close */	amr_close,
-		/* read */	noread,
-		/* write */	nowrite,
-		/* ioctl */	amr_ioctl,
-		/* poll */	nopoll,
-		/* mmap */	nommap,
-		/* strategy */	nostrategy,
-		/* name */ 	"amr",
-		/* maj */	AMR_CDEV_MAJOR,
-		/* dump */	nodump,
-		/* psize */ 	nopsize,
-		/* flags */	0,
+	.d_open =	amr_open,
+	.d_close =	amr_close,
+	.d_ioctl =	amr_ioctl,
+	.d_name =	"amr",
+	.d_maj =	AMR_CDEV_MAJOR,
 };
 
 /*

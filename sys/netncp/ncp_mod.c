@@ -64,19 +64,11 @@ static dev_t		ncp_dev;
 static d_ioctl_t	ncp_ioctl;
 
 static struct cdevsw ncp_cdevsw = {
-	/* open */	nullopen,
-	/* close */	nullclose,
-	/* read */	noread,
-	/* write */	nowrite,
-	/* ioctl */	ncp_ioctl,
-	/* poll */	nopoll,
-	/* mmap */	nommap,
-	/* strategy */	nostrategy,
-	/* name */	"ncp",
-	/* maj */	MAJOR_AUTO,
-	/* dump */	nodump,
-	/* psize */	nopsize,
-	/* flags */	0
+	.d_open =	nullopen,
+	.d_close =	nullclose,
+	.d_ioctl =	ncp_ioctl,
+	.d_name =	"ncp",
+	.d_maj =	MAJOR_AUTO,
 };
 
 static int ncp_conn_frag_rq(struct ncp_conn *, struct thread *,

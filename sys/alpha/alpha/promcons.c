@@ -64,19 +64,14 @@ static	d_ioctl_t	promioctl;
 
 #define CDEV_MAJOR 97
 static struct cdevsw prom_cdevsw = {
-	/* open */	promopen,
-	/* close */	promclose,
-	/* read */	ttyread,
-	/* write */	ttywrite,
-	/* ioctl */	promioctl,
-	/* poll */	ttypoll,
-	/* mmap */	nommap,
-	/* strategy */	nostrategy,
-	/* name */	"prom",
-	/* maj */	CDEV_MAJOR,
-	/* dump */	nodump,
-	/* psize */	nopsize,
-	/* flags */	0,
+	.d_open =	promopen,
+	.d_close =	promclose,
+	.d_read =	ttyread,
+	.d_write =	ttywrite,
+	.d_ioctl =	promioctl,
+	.d_poll =	ttypoll,
+	.d_name =	"prom",
+	.d_maj =	CDEV_MAJOR,
 };
 
 

@@ -577,19 +577,11 @@ DATA_SET (mode0_pciset, mode0_pcidev);
  */
 #define	CDEV_MAJOR 154	 /* preferred default character major */
 STATIC struct cdevsw asr_cdevsw = {
-	asr_open,	/* open	    */
-	asr_close,	/* close    */
-	noread,		/* read	    */
-	nowrite,	/* write    */
-	asr_ioctl,	/* ioctl    */
-	nopoll,		/* poll	    */
-	nommap,		/* mmap	    */
-	nostrategy,	/* strategy */
-	"asr",	/* name	    */
-	CDEV_MAJOR,	/* maj	    */
-	nodump,		/* dump	    */
-	nopsize,	/* psize    */
-	0,		/* flags    */
+	.d_open =	asr_open,
+	.d_close =	asr_close,
+	.d_ioctl =	asr_ioctl,
+	.d_name =	"asr",
+	.d_maj =	CDEV_MAJOR,
 };
 
 #ifdef ASR_MEASURE_PERFORMANCE

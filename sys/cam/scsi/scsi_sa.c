@@ -426,19 +426,15 @@ PERIPHDRIVER_DECLARE(sa, sadriver);
 #define SA_CDEV_MAJOR 14
 
 static struct cdevsw sa_cdevsw = {
-	/* open */	saopen,
-	/* close */	saclose,
-	/* read */	physread,
-	/* write */	physwrite,
-	/* ioctl */	saioctl,
-	/* poll */	nopoll,
-	/* mmap */	nommap,
-	/* strategy */	sastrategy,
-	/* name */	"sa",
-	/* maj */	SA_CDEV_MAJOR,
-	/* dump */	nodump,
-	/* psize */	nopsize,
-	/* flags */	D_TAPE,
+	.d_open =	saopen,
+	.d_close =	saclose,
+	.d_read =	physread,
+	.d_write =	physwrite,
+	.d_ioctl =	saioctl,
+	.d_strategy =	sastrategy,
+	.d_name =	"sa",
+	.d_maj =	SA_CDEV_MAJOR,
+	.d_flags =	D_TAPE,
 };
 
 static int

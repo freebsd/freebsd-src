@@ -70,19 +70,13 @@ static d_ioctl_t agp_ioctl;
 static d_mmap_t agp_mmap;
 
 static struct cdevsw agp_cdevsw = {
-	/* open */	agp_open,
-	/* close */	agp_close,
-	/* read */	noread,
-	/* write */	nowrite,
-	/* ioctl */	agp_ioctl,
-	/* poll */	nopoll,
-	/* mmap */	agp_mmap,
-	/* strategy */	nostrategy,
-	/* name */	"agp",
-	/* maj */	CDEV_MAJOR,
-	/* dump */	nodump,
-	/* psize */	nopsize,
-	/* flags */	D_TTY,
+	.d_open =	agp_open,
+	.d_close =	agp_close,
+	.d_ioctl =	agp_ioctl,
+	.d_mmap =	agp_mmap,
+	.d_name =	"agp",
+	.d_maj =	CDEV_MAJOR,
+	.d_flags =	D_TTY,
 };
 
 static devclass_t agp_devclass;
