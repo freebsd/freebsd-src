@@ -286,9 +286,9 @@ main(int argc, char *argv[])
 			syslog(LOG_ERR, "chroot: %s: %m", chroot_dir);
 			exit(1);
 		}
-		chdir( "/" );
-		setuid(nobody->pw_uid);
+		chdir("/");
 		setgroups(1, &nobody->pw_gid);
+		setuid(nobody->pw_uid);
 	}
 
 	len = sizeof(me);
