@@ -1,4 +1,4 @@
-Hardware Documentation Guide:  $Id: hardware.hlp,v 1.30 1997/10/17 06:48:35 msmith Exp $
+Hardware Documentation Guide:  $Id: hardware.hlp,v 1.31 1997/10/19 13:13:04 joerg Exp $
 
 Contents last changed:  Jan 14th, 1997
 
@@ -88,16 +88,15 @@ lpt1    dyn     dyn     n/a     n/a     Printer Port 1
 
 de0     n/a     n/a     n/a     n/a     DEC DC21x40 PCI based cards
                                         (including 21140 100bT cards)
-ed0     280     5       dyn     d8000   WD & SMC 80xx; Novell NE1000 &
+ed0     280     10      dyn     d8000   WD & SMC 80xx; Novell NE1000 &
                                         NE2000; 3Com 3C503; HP PC Lan+
-ed1     300     5       dyn     d8000   Same as ed0
 eg0     310     5       dyn     dyn     3Com 3C505
 ep0     300     10      dyn     dyn     3Com 3C509
 ex0     dyn     dyn     dyn     n/a     Intel EtherExpress Pro/10 cards
 fe0     300     dyn     n/a     n/a     Allied-Telesis AT1700, RE2000 and
                                         Fujitsu FMV-180 series cards.
 fxp0    dyn     dyn     n/a     dyn     Intel EtherExpress Pro/100B
-ie0     360     7       dyn     d0000   AT&T StarLAN 10 and EN100;
+ie0     300     10      dyn     d0000   AT&T StarLAN 10 and EN100;
                                         3Com 3C507; NI5210
 ix0     300     10      dyn     d0000   Intel EtherExpress cards
 ex0     dyn     dyn     dyn     dyn     Intel EtherExpress Pro/10 cards
