@@ -7,11 +7,11 @@
  * information.
  *
  * If you make additions to this file for your system, please send me
- * the information, to arnold@gnu.ai.mit.edu.
+ * the information, to arnold@gnu.org.
  */
 
 /* 
- * Copyright (C) 1995-1997 the Free Software Foundation, Inc.
+ * Copyright (C) 1995-1999 the Free Software Foundation, Inc.
  * 
  * This file is part of GAWK, the GNU implementation of the
  * AWK Programming Language.
@@ -56,4 +56,11 @@
 /* For sequent, based on email with Aron Griffis <agriffis@calypso.coat.com> */
 #ifdef _SEQUENT_
 #undef HAVE_MMAP
+#endif
+
+/* For BeOS, from mc@whoever.com */
+#if defined(__dest_os) && __dest_os == __be_os
+#define BROKEN_STRNCASECMP
+#define ELIDE_CODE
+#include <alloca.h>
 #endif

@@ -3,7 +3,7 @@
  */
 
 /* 
- * Copyright (C) 1986, 1988, 1989, 1991 - 97 the Free Software Foundation, Inc.
+ * Copyright (C) 1986, 1988, 1989, 1991-1999 the Free Software Foundation, Inc.
  * 
  * This file is part of GAWK, the GNU implementation of the
  * AWK Programming Language.
@@ -272,7 +272,10 @@ NODE *symbol, *subs;
 		fatal("attempt to use scalar as array");
 
 	if (symbol->var_array == NULL) {
-		symbol->type = Node_var_array;
+		if (symbol->type != Node_var_array) {
+			unref(symbol->var_value);
+			symbol->type = Node_var_array;
+		}
 		symbol->array_size = symbol->table_size = 0;	/* sanity */
 		symbol->flags &= ~ARRAYMAXED;
 		grow_table(symbol);
@@ -360,13 +363,14 @@ NODE *symbol, *tree;
 			last = bucket, bucket = bucket->ahnext)
 		if (cmp_nodes(bucket->ahname, subs) == 0)
 			break;
-	free_temp(subs);
 	if (bucket == NULL) {
 		if (do_lint)
 			warning("delete: index `%s' not in array `%s'",
 				subs->stptr, symbol->vname);
+		free_temp(subs);
 		return;
 	}
+	free_temp(subs);
 	if (last != NULL)
 		last->ahnext = bucket->ahnext;
 	else
