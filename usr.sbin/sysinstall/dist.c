@@ -95,7 +95,6 @@ static Distribution DistTable[] = {
 #endif
     DTE_TARBALL("ports",    &Dists, PORTS,    "/usr"),
     DTE_TARBALL("local",    &Dists, LOCAL,    "/"),
-    DTE_PACKAGE("perl",	    &Dists, PERL,     "perl"),
     DTE_SUBDIST("X.Org",    &Dists, XORG,     XOrgDistTable),
     { NULL },
 };

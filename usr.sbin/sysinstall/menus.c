@@ -997,8 +997,6 @@ DMenu MenuSubDistributions = {
 	dmenuFlagCheck,	dmenuSetFlag, NULL, &Dists, '[', 'X', ']', DIST_PORTS },
       { " local",	"Local additions collection",
 	dmenuFlagCheck,	dmenuSetFlag, NULL, &Dists, '[', 'X', ']', DIST_LOCAL},
-      { " perl",	"The Perl distribution",
-	dmenuFlagCheck, dmenuSetFlag, NULL, &Dists, '[', 'X', ']', DIST_PERL },
       { " X.Org",	"The X.Org distribution",
 	x11FlagCheck,	distSetXOrg },
       { NULL } },
