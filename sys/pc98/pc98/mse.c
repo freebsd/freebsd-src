@@ -11,7 +11,7 @@
  * this software for any purpose.  It is provided "as is"
  * without express or implied warranty.
  *
- * $Id: mse.c,v 1.13 1997/11/19 11:35:52 kato Exp $
+ * $Id: mse.c,v 1.14 1997/12/09 11:57:59 kato Exp $
  */
 /*
  * Driver for the Logitech and ATI Inport Bus mice for use with 386bsd and
@@ -73,7 +73,6 @@ static int mseattach(struct isa_device *);
 struct	isa_driver msedriver = {
 	mseprobe, mseattach, "mse"
 };
-
 
 static	d_open_t	mseopen;
 static	d_close_t	mseclose;
@@ -251,13 +250,15 @@ static struct mse_types {
 				/* Disable interrupts routine */
 	void	(*m_get) __P((u_int port, int *dx, int *dy, int *but));
 				/* and get mouse status */
-#ifndef PC98
 	mousehw_t   m_hw;	/* buttons iftype type model hwid */
 	mousemode_t m_mode;	/* proto rate res accel level size mask */
-#endif
 } mse_types[] = {
 #ifdef PC98
-	{ MSE_98BUSMOUSE, mse_probe98m, mse_enable98m, mse_disable98m, mse_get98m },
+	{ MSE_98BUSMOUSE,
+	  mse_probe98m, mse_enable98m, mse_disable98m, mse_get98m,
+	  { 2, MOUSE_IF_BUS, MOUSE_MOUSE, MOUSE_MODEL_GENERIC, 0, },
+	  { MOUSE_PROTO_BUS, -1, -1, 0, 0, MOUSE_MSC_PACKETSIZE, 
+	    { MOUSE_MSC_SYNCMASK, MOUSE_MSC_SYNC, }, }, },
 #else
 	{ MSE_ATIINPORT, 
 	  mse_probeati, mse_enableati, mse_disableati, mse_getati,
@@ -290,10 +291,8 @@ mseprobe(idp)
 			sc->sc_enablemouse = mse_types[i].m_enable;
 			sc->sc_disablemouse = mse_types[i].m_disable;
 			sc->sc_getmouse = mse_types[i].m_get;
-#ifndef PC98
 			sc->hw = mse_types[i].m_hw;
 			sc->mode = mse_types[i].m_mode;
-#endif
 			return (1);
 		}
 		i++;
@@ -911,8 +910,8 @@ mse_get98m(port, dx, dy, but)
 
 	*but = (inb(port + PORT_A) >> 5) & 7;
 
-	*dx += x;
-	*dy += y;
+	*dx = x;
+	*dy = y;
 
 	outb(port + HC, HC_NO_CLEAR);	/* HC = 0 */
 
