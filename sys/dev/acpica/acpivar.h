@@ -60,6 +60,8 @@ struct acpi_softc {
     int			acpi_standby_sx;
     int			acpi_suspend_sx;
 
+    int			acpi_s4bios;
+
     int			acpi_verbose;
 
     bus_dma_tag_t	acpi_waketag;

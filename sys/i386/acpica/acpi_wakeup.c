@@ -52,6 +52,8 @@
 
 #include "acpi.h"
 
+#include <dev/acpica/acpica_support.h>
+
 #include <dev/acpica/acpivar.h>
 
 #include "acpi_wakecode.h"
@@ -236,7 +238,13 @@ acpi_sleep_machdep(struct acpi_softc *sc, int state)
 			acpi_printcpu();
 		}
 
-		if ((status = AcpiEnterSleepState(state)) != AE_OK) {
+		if (state == ACPI_STATE_S4 && sc->acpi_s4bios) {
+			status = AcpiEnterSleepStateS4Bios();
+		} else {
+			status = AcpiEnterSleepState(state);
+		}
+
+		if (status != AE_OK) {
 			device_printf(sc->acpi_dev,
 				"AcpiEnterSleepState failed - %s\n",
 				AcpiFormatException(status));

@@ -439,7 +439,9 @@ AcpiTbGetAllTables (
      * Get the DSDT (We know that the FADT is valid now)
      */
     Status = AcpiTbGetTable ((ACPI_PHYSICAL_ADDRESS) ACPI_GET_ADDRESS (AcpiGbl_FADT->XDsdt),
-                                TablePtr, &TableInfo);
+                                ((AcpiGbl_DSDT) ?
+                                 AcpiGbl_DSDT: TablePtr), &TableInfo);
+
     if (ACPI_FAILURE (Status))
     {
         return_ACPI_STATUS (Status);
