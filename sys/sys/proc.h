@@ -167,7 +167,7 @@ struct	proc {
 	int	p_traceflag;		/* Kernel trace points. */
 	struct	vnode *p_tracep;	/* Trace to vnode. */
 
-	int	p_siglist;		/* Signals arrived but not delivered. */
+	sigset_t p_siglist;		/* Signals arrived but not delivered. */
 
 	struct	vnode *p_textvp;	/* Vnode of executable. */
 
@@ -271,6 +271,7 @@ struct	proc {
 #define P_DEADLKTREAT   0x800000 /* lock aquisition - deadlock treatment */
 
 #define P_JAILED	0x1000000 /* Process is in jail */
+#define P_NEWSIGSET	0x2000000 /* Process uses new sigset_t */
 
 /*
  * MOVE TO ucred.h?

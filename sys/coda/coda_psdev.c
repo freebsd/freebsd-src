@@ -75,6 +75,10 @@ extern int coda_nc_initialized;    /* Set if cache has been initialized */
 
 #define CTL_C
 
+#ifdef CTL_C
+#include <sys/signalvar.h>
+#endif
+
 int coda_psdev_print_entry = 0;
 static
 int outstanding_upcalls = 0;
@@ -485,7 +489,8 @@ coda_call(mntinfo, inSize, outSize, buffer)
 	int error;
 #ifdef	CTL_C
 	struct proc *p = curproc;
-	unsigned int psig_omask = p->p_sigmask;
+	sigset_t psig_omask = p->p_sigmask;
+	sigset_t tempset;
 	int i;
 #endif
 	if (mntinfo == NULL) {
@@ -541,36 +546,56 @@ coda_call(mntinfo, inSize, outSize, buffer)
 	 */
 	i = 0;
 	do {
-	    error = tsleep(&vmp->vm_sleep, (coda_call_sleep|coda_pcatch), "coda_call", hz*2);
-	    if (error == 0)
-	    	break;
-	    else if (error == EWOULDBLOCK) {
+		error = tsleep(&vmp->vm_sleep,
+			       (coda_call_sleep|coda_pcatch), "coda_call",
+			       hz*2);
+		if (error == 0)
+			break;
+		else if (error == EWOULDBLOCK) {
 #ifdef	CODA_VERBOSE
-		    printf("coda_call: tsleep TIMEOUT %d sec\n", 2+2*i);
+			printf("coda_call: tsleep TIMEOUT %d sec\n", 2+2*i);
 #endif
-    	    } else if (p->p_siglist == sigmask(SIGIO)) {
-		    p->p_sigmask |= p->p_siglist;
+		}
+		else {
+			SIGEMPTYSET(tempset);
+			SIGADDSET(tempset, SIGIO);
+			if (SIGSETEQ(p->p_siglist, tempset)) {
+				SIGADDSET(p->p_sigmask, SIGIO);
 #ifdef	CODA_VERBOSE
-		    printf("coda_call: tsleep returns %d SIGIO, cnt %d\n", error, i);
+				printf("coda_call: tsleep returns %d SIGIO, cnt %d\n",
+				       error, i);
 #endif
-    	    } else if (p->p_siglist == sigmask(SIGALRM)) {
-		    p->p_sigmask |= p->p_siglist;
+			} else {
+				SIGDELSET(tempset, SIGIO);
+				SIGADDSET(tempset, SIGALRM);
+				if (SIGSETEQ(p->p_siglist, tempset)) {
+					SIGADDSET(p->p_sigmask, SIGALRM);
 #ifdef	CODA_VERBOSE
-		    printf("coda_call: tsleep returns %d SIGALRM, cnt %d\n", error, i);
+					printf("coda_call: tsleep returns %d SIGALRM, cnt %d\n",
+					       error, i);
 #endif
-	    } else {
-		    printf("coda_call: tsleep returns %d, cnt %d\n", error, i);
-		    printf("coda_call: siglist = %x, sigmask = %x, mask %x\n",
-			    p->p_siglist, p->p_sigmask,
-			    p->p_siglist & ~p->p_sigmask);
-		    break;
-#ifdef	notyet
-		    p->p_sigmask |= p->p_siglist;
-		    printf("coda_call: new mask, siglist = %x, sigmask = %x, mask %x\n",
-			    p->p_siglist, p->p_sigmask,
-			    p->p_siglist & ~p->p_sigmask);
+				}
+				else {
+					printf("coda_call: tsleep returns %d, cnt %d\n",
+					       error, i);
+
+#if notyet
+					tempset = p->p_siglist;
+					SIGSETNAND(tempset, p->p_sigmask);
+					printf("coda_call: siglist = %p, sigmask = %p, mask %p\n",
+					       p->p_siglist, p->p_sigmask,
+					       tempset);
+					break;
+					SIGSETOR(p->p_sigmask, p->p_siglist);
+					tempset = p->p_siglist;
+					SIGSETNAND(tempset, p->p_sigmask);
+					printf("coda_call: new mask, siglist = %p, sigmask = %p, mask %p\n",
+					       p->p_siglist, p->p_sigmask,
+					       tempset);
 #endif
-	    }
+				}
+			}
+		}
 	} while (error && i++ < 128 && VC_OPEN(vcp));
 	p->p_sigmask = psig_omask;
 #else

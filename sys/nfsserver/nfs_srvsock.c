@@ -55,6 +55,7 @@
 #include <sys/syslog.h>
 #include <sys/tprintf.h>
 #include <sys/sysctl.h>
+#include <sys/signalvar.h>
 
 #include <netinet/in.h>
 #include <netinet/tcp.h>
@@ -1501,14 +1502,16 @@ nfs_sigintr(nmp, rep, p)
 	struct nfsreq *rep;
 	register struct proc *p;
 {
+	sigset_t tmpset;
 
+	tmpset = p->p_siglist;
+	SIGSETNAND(tmpset, p->p_sigmask);
+	SIGSETNAND(tmpset, p->p_sigignore);
 	if (rep && (rep->r_flags & R_SOFTTERM))
 		return (EINTR);
 	if (!(nmp->nm_flag & NFSMNT_INT))
 		return (0);
-	if (p && p->p_siglist &&
-	    (((p->p_siglist & ~p->p_sigmask) & ~p->p_sigignore) &
-	    NFSINT_SIGMASK))
+	if (p && SIGNOTEMPTY(p->p_siglist) && NFSINT_SIGMASK(tmpset))
 		return (EINTR);
 	return (0);
 }

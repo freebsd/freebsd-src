@@ -173,7 +173,7 @@ exit1(p, rv)
 	 */
 	p->p_flag &= ~(P_TRACED | P_PPWAIT);
 	p->p_flag |= P_WEXIT;
-	p->p_siglist = 0;
+	SIGEMPTYSET(p->p_siglist);
 	if (timevalisset(&p->p_realtimer.it_value))
 		untimeout(realitexpire, (caddr_t)p, p->p_ithandle);
 

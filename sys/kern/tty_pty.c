@@ -243,10 +243,9 @@ ptsread(dev, uio, flag)
 again:
 	if (pti->pt_flags & PF_REMOTE) {
 		while (isbackground(p, tp)) {
-			if ((p->p_sigignore & sigmask(SIGTTIN)) ||
-			    (p->p_sigmask & sigmask(SIGTTIN)) ||
-			    p->p_pgrp->pg_jobc == 0 ||
-			    p->p_flag & P_PPWAIT)
+			if (SIGISMEMBER(p->p_sigignore, SIGTTIN) ||
+			    SIGISMEMBER(p->p_sigmask, SIGTTIN) ||
+			    p->p_pgrp->pg_jobc == 0 || p->p_flag & P_PPWAIT)
 				return (EIO);
 			pgsignal(p->p_pgrp, SIGTTIN, 1);
 			error = ttysleep(tp, &lbolt, TTIPRI | PCATCH, "ptsbg",
