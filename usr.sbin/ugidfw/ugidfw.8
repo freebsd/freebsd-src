@@ -1,12 +1,12 @@
 .\" Copyright (c) 2002 Networks Associates Technology, Inc.
 .\" All rights reserved.
-.\" 
+.\"
 .\" This software was developed for the FreeBSD Project by Chris
 .\" Costello at Safeport Network Services and NAI Labs, the Security
 .\" Research Division of Network Associates, Inc. under DARPA/SPAWAR
 .\" contract N66001-01-C-8035 ("CBOSS"), as part of the DARPA CHATS
 .\" research program.
-.\" 
+.\"
 .\" Redistribution and use in source and binary forms, with or without
 .\" modification, are permitted provided that the following conditions
 .\" are met:
@@ -18,7 +18,7 @@
 .\" 3. The names of the authors may not be used to endorse or promote
 .\"    products derived from this software without specific prior written
 .\"    permission.
-.\" 
+.\"
 .\" THIS SOFTWARE IS PROVIDED BY THE AUTHORS AND CONTRIBUTORS ``AS IS'' AND
 .\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
 .\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
@@ -30,14 +30,15 @@
 .\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
 .\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 .\" SUCH DAMAGE.
-.\" 
+.\"
 .\" $FreeBSD$
-.Dd OCTOBER 11, 2002
-.Os
+.\"
+.Dd October 11, 2002
 .Dt UGIDFW 8
+.Os
 .Sh NAME
 .Nm ugidfw
-.Nd firewall-like access controls for file system objects
+.Nd "firewall-like access controls for file system objects"
 .Sh SYNOPSIS
 .Nm
 .Cm list
@@ -46,8 +47,8 @@
 .Ar rulenum
 .Cm subject
 .Op Cm not
-.Op uid Ar uid
-.Op gid Ar gid
+.Op Cm uid Ar uid
+.Op Cm gid Ar gid
 .Cm object
 .Op Cm not
 .Op Cm uid Ar uid
@@ -60,16 +61,16 @@
 .Sh DESCRIPTION
 The
 .Nm
-command provides an
+utility provides an
 .Xr ipfw 8 Ns -like
 interface to manage accesses to file system objects by UID and GID,
 supported by the
-.Nm mac_bsdextended
+.Xr mac_bsdextended 4
 .Xr mac 9
 policy.
 .Pp
 The arguments are as follows:
-.Bl -tag -width 6n -offset indent
+.Bl -tag -width indent -offset indent
 .It Cm list
 Produces a list of all the current
 .Nm
@@ -78,8 +79,8 @@ rules in the system.
 .Cm set Ar rulenum
 .Cm subject
 .Op Cm not
-.Op uid Ar uid
-.Op gid Ar gid
+.Op Cm uid Ar uid
+.Op Cm gid Ar gid
 .Cm object
 .Op Cm not
 .Op Cm uid Ar uid
@@ -89,7 +90,7 @@ rules in the system.
 .Xc
 Add a new rule or modify an existing rule.
 The arguments are as follows:
-.Bl -tag -width 7n
+.Bl -tag -width ".Ar rulenum"
 .It Ar rulenum
 Rule number.
 Entries with a lower rule number
@@ -105,7 +106,7 @@ will yield a slight performance increase.
 .Xc
 Subjects performing an operation must match
 (or, if
-.Dq not
+.Cm not
 is specified, must
 .Em not
 match)
@@ -122,7 +123,7 @@ for the rule to be applied.
 .Xc
 Objects must be owned by
 (or, if
-.Dq not
+.Cm not
 is specified, must
 .Em not
 be owned by)
@@ -143,34 +144,37 @@ the rule will allow for the operation.
 Conversely, not including it will cause the operation
 to be denied.
 The definitions of each character are as follows:
-.Bl -tag -width 3n -compact -offset indent
-.It Sq a
-Administrative operations
-.It Sq r
-Read access
-.It Sq s
-Access to file attributes
-.It Sq w
-Write access
-.It Sq x
-Execute access
-.It Sq n
-None
+.Pp
+.Bl -tag -width ".Cm w" -compact -offset indent
+.It Cm a
+administrative operations
+.It Cm r
+read access
+.It Cm s
+access to file attributes
+.It Cm w
+write access
+.It Cm x
+execute access
+.It Cm n
+none
 .El
 .El
-.It Cd remove Ar rulenum
+.It Cm remove Ar rulenum
 Disable and remove the rule with the specified rule number.
 .El
 .Sh SEE ALSO
+.Xr mac_bsdextended 4 ,
 .Xr mac 9
 .Sh HISTORY
 The
 .Nm
-command first appeared in
+utility first appeared in
 .Fx 5.0 .
 .Sh AUTHORS
 This software was contributed to the
 .Fx
 Project by NAI Labs, the Security Research Division of Network Associates
-Inc. under DARPA/SPAWAR contract N66001-01-C-8035 ("CBOSS"),
+Inc. under DARPA/SPAWAR contract N66001-01-C-8035
+.Pq Dq CBOSS ,
 as part of the DARPA CHATS research program.
