@@ -35,9 +35,12 @@
  * SUCH DAMAGE.
  *
  *	@(#)pt_conf.c	8.1 (Berkeley) 6/5/93
- *
- * $Id$
  */
+
+#ifndef lint
+static const char rcsid[] =
+	"$Id$";
+#endif /* not lint */
 
 #include <sys/types.h>
 #include <sys/param.h>
