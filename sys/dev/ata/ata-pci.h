@@ -51,6 +51,7 @@ struct ata_pci_controller {
     struct ata_chip_id	 *chip;
     int			(*chipinit)(device_t);
     int			(*allocate)(device_t, struct ata_channel *);
+    void		(*reset)(struct ata_channel *);
     void		(*dmainit)(struct ata_channel *);
     void		(*setmode)(struct ata_device *, int);
     void		(*locking)(struct ata_channel *, int);
