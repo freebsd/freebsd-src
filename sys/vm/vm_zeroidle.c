@@ -118,9 +118,9 @@ vm_pagezero(void)
 
 	rtp.prio = RTP_PRIO_MAX;
 	rtp.type = RTP_PRIO_IDLE;
-	PROC_LOCK(p);
+	mtx_lock_spin(&sched_lock);
 	rtp_to_pri(&rtp, &p->p_pri);
-	PROC_UNLOCK(p);
+	mtx_unlock_spin(&sched_lock);
 
 	for (;;) {
 		if (vm_page_zero_check()) {
