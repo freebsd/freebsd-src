@@ -760,8 +760,15 @@ psycho_powerfail(void *arg)
 {
 
 	/* We lost power.  Try to shut down NOW. */
+#ifdef DEBUGGER_ON_POWERFAIL
+	struct psycho_softc *sc = (struct psycho_softc *)arg;
+
+	Debugger("powerfail");
+	PSYCHO_WRITE8(sc, PSR_POWER_INT_CLR, 0);
+#else
 	printf("Power Failure Detected: Shutting down NOW.\n");
 	shutdown_nice(0);
+#endif
 }
 
 #ifdef PSYCHO_MAP_WAKEUP
