@@ -47,6 +47,7 @@ static const char rcsid[] =
 
 #include <sys/param.h>
 #include <sys/time.h>
+#include <sys/sysctl.h>
 
 #include <err.h>
 #include <locale.h>
@@ -74,6 +75,7 @@ char    *namp;
 char    hostname[MAXHOSTNAMELEN];
 WINDOW  *wnd;
 int     CMDLINE;
+int     use_kvm = 1;
 
 static	WINDOW *wload;			/* one line window for load average */
 
@@ -82,7 +84,7 @@ main(argc, argv)
 	int argc;
 	char **argv;
 {
-	char errbuf[80];
+	char errbuf[80], dummy;
 	size_t	size;
 	int	err;
 
@@ -107,9 +109,29 @@ main(argc, argv)
 		argc--, argv++;
 	}
 	kd = kvm_openfiles(NULL, NULL, NULL, O_RDONLY, errbuf);
+	if (kd != NULL) {
+		/* 
+		 * Try to actually read something, we may be in a jail, and
+		 * have /dev/null opened as /dev/mem.
+		 */
+		if (kvm_nlist(kd, namelist) != 0 || namelist[0].n_value == 0 || 
+		    kvm_read(kd, namelist[0].n_value, &dummy, sizeof(dummy)) !=
+		    sizeof(dummy)) {
+			kvm_close(kd);
+			kd = NULL;
+		}
+	}
 	if (kd == NULL) {
-		error("%s", errbuf);
-		exit(1);
+		/* 
+		 * Maybe we are lacking permissions? Retry, this time with bogus
+		 * devices. We can now use sysctl only.
+		 */
+		use_kvm = 0;
+		kd = kvm_openfiles("/dev/null", "/dev/null", "/dev/null", O_RDONLY, errbuf);
+		if (kd == NULL) {
+			error("%s", errbuf);
+			exit(1);
+		}
 	}
 	signal(SIGINT, die);
 	signal(SIGQUIT, die);

@@ -49,12 +49,20 @@ struct  cmdtab {
 	char	c_flags;		/* see below */
 };
 
+/* 
+ * If we are started with privileges, use a kmem interface for netstat handling,
+ * otherwise use sysctl.
+ * In case of many open sockets, the sysctl handling might become slow.
+ */
+extern int use_kvm; 
+
 #define	CF_INIT		0x1		/* been initialized */
 #define	CF_LOADAV	0x2		/* display w/ load average */
 
 #define	TCP	0x1
 #define	UDP	0x2
 
+#define GETSYSCTL(name, var) getsysctl(name, &(var), sizeof(var))
 #define KREAD(addr, buf, len)  kvm_ckread((addr), (buf), (len))
 #define NVAL(indx)  namelist[(indx)].n_value
 #define NPTR(indx)  (void *)NVAL((indx))

@@ -74,7 +74,43 @@ static const char rcsid[] =
 
 static struct Info {
 	long	time[CPUSTATES];
-	struct	vmmeter Cnt;
+	u_int v_swtch;		/* context switches */
+	u_int v_trap;		/* calls to trap */
+	u_int v_syscall;	/* calls to syscall() */
+	u_int v_intr;		/* device interrupts */
+	u_int v_soft;		/* software interrupts */
+	/*
+	 * Virtual memory activity.
+	 */
+	u_int v_vm_faults;	/* number of address memory faults */
+	u_int v_cow_faults;	/* number of copy-on-writes */
+	u_int v_zfod;		/* pages zero filled on demand */
+	u_int v_ozfod;		/* optimized zero fill pages */
+	u_int v_swapin;		/* swap pager pageins */
+	u_int v_swapout;	/* swap pager pageouts */
+	u_int v_swappgsin;	/* swap pager pages paged in */
+	u_int v_swappgsout;	/* swap pager pages paged out */
+	u_int v_vnodein;	/* vnode pager pageins */
+	u_int v_vnodeout;	/* vnode pager pageouts */
+	u_int v_vnodepgsin;	/* vnode_pager pages paged in */
+	u_int v_vnodepgsout;	/* vnode pager pages paged out */
+	u_int v_intrans;	/* intransit blocking page faults */
+	u_int v_reactivated;	/* number of pages reactivated from free list */
+	u_int v_pdwakeups;	/* number of times daemon has awaken from sleep */
+	u_int v_pdpages;	/* number of pages analyzed by daemon */
+
+	u_int v_dfree;		/* pages freed by daemon */
+	u_int v_pfree;		/* pages freed by exiting processes */
+	u_int v_tfree;		/* total pages freed */
+	/*
+	 * Distribution of page usages.
+	 */
+	u_int v_page_size;	/* page size in bytes */
+	u_int v_free_count;	/* number of pages free */
+	u_int v_wire_count;	/* number of pages wired down */
+	u_int v_active_count;	/* number of pages active */
+	u_int v_inactive_count;	/* number of pages inactive */
+	u_int v_cache_count;	/* number of pages on buffer cache queue */
 	struct	vmtotal Total;
 	struct	nchstats nchstats;
 	long	nchcount;
@@ -88,8 +124,6 @@ static struct Info {
 
 struct statinfo cur, last, run;
 
-#define	cnt s.Cnt
-#define oldcnt s1.Cnt
 #define	total s.Total
 #define	nchtotal s.nchstats
 #define	oldnchtotal s1.nchstats
@@ -142,21 +176,6 @@ closekre(w)
 	wrefresh(w);
 }
 
-
-static struct nlist namelist[] = {
-#define X_CNT		0
-	{ "_cnt" },
-#define	X_INTRNAMES	1
-	{ "_intrnames" },
-#define	X_EINTRNAMES	2
-	{ "_eintrnames" },
-#define	X_INTRCNT	3
-	{ "_intrcnt" },
-#define	X_EINTRCNT	4
-	{ "_eintrcnt" },
-	{ "" },
-};
-
 /*
  * These constants define where the major pieces are laid out
  */
@@ -191,18 +210,7 @@ initkre()
 	char *intrnamebuf, *cp;
 	int i;
 
-	if (namelist[0].n_type == 0) {
-		if (kvm_nlist(kd, namelist)) {
-			nlisterr(namelist);
-			return(0);
-		}
-		if (namelist[0].n_type == 0) {
-			error("No namelist");
-			return(0);
-		}
-	}
-
-	if (num_devices = getnumdevs() < 0) {
+	if ((num_devices = getnumdevs()) < 0) {
 		warnx("%s", devstat_errbuf);
 		return(0);
 	}
@@ -218,14 +226,13 @@ initkre()
 		return(0);
 
 	if (nintr == 0) {
-		nintr = (namelist[X_EINTRCNT].n_value -
-			namelist[X_INTRCNT].n_value) / sizeof (long);
+		GETSYSCTL("hw.nintr", nintr);
 		intrloc = calloc(nintr, sizeof (long));
 		intrname = calloc(nintr, sizeof (long));
-		intrnamebuf = malloc(namelist[X_EINTRNAMES].n_value -
-			namelist[X_INTRNAMES].n_value);
-		if (intrnamebuf == 0 || intrname == 0 || intrloc == 0) {
-			error("Out of memory\n");
+		intrnamebuf = sysctl_dynread("hw.intrnames", NULL);
+		if (intrnamebuf == NULL || intrname == NULL || 
+		    intrloc == NULL) {
+			error("Out of memory");
 			if (intrnamebuf)
 				free(intrnamebuf);
 			if (intrname)
@@ -235,8 +242,6 @@ initkre()
 			nintr = 0;
 			return(0);
 		}
-		NREAD(X_INTRNAMES, intrnamebuf, NVAL(X_EINTRNAMES) -
-			NVAL(X_INTRNAMES));
 		for (cp = intrnamebuf, i = 0; i < nintr; i++) {
 			intrname[i] = cp;
 			cp += strlen(cp) + 1;
@@ -453,7 +458,7 @@ showkre()
 	putfloat(avenrun[1], STATROW, STATCOL + 23, 6, 2, 0);
 	putfloat(avenrun[2], STATROW, STATCOL + 29, 6, 2, 0);
 	mvaddstr(STATROW, STATCOL + 53, buf);
-#define pgtokb(pg)	((pg) * cnt.v_page_size / 1024)
+#define pgtokb(pg)	((pg) * s.v_page_size / 1024)
 	putint(pgtokb(total.t_arm), MEMROW + 2, MEMCOL + 3, 8);
 	putint(pgtokb(total.t_armshr), MEMROW + 2, MEMCOL + 11, 8);
 	putint(pgtokb(total.t_avm), MEMROW + 2, MEMCOL + 19, 9);
@@ -469,34 +474,34 @@ showkre()
 	putint(total.t_sl, PROCSROW + 1, PROCSCOL + 12, 3);
 	putint(total.t_sw, PROCSROW + 1, PROCSCOL + 15, 3);
 	if (extended_vm_stats == 0) {
-		PUTRATE(Cnt.v_zfod, VMSTATROW + 0, VMSTATCOL + 4, 5);
+		PUTRATE(v_zfod, VMSTATROW + 0, VMSTATCOL + 4, 5);
 	}
-	PUTRATE(Cnt.v_cow_faults, VMSTATROW + 1, VMSTATCOL + 3, 6);
-	putint(pgtokb(cnt.v_wire_count), VMSTATROW + 2, VMSTATCOL, 9);
-	putint(pgtokb(cnt.v_active_count), VMSTATROW + 3, VMSTATCOL, 9);
-	putint(pgtokb(cnt.v_inactive_count), VMSTATROW + 4, VMSTATCOL, 9);
-	putint(pgtokb(cnt.v_cache_count), VMSTATROW + 5, VMSTATCOL, 9);
-	putint(pgtokb(cnt.v_free_count), VMSTATROW + 6, VMSTATCOL, 9);
-	PUTRATE(Cnt.v_dfree, VMSTATROW + 7, VMSTATCOL, 9);
-	PUTRATE(Cnt.v_pfree, VMSTATROW + 8, VMSTATCOL, 9);
-	PUTRATE(Cnt.v_reactivated, VMSTATROW + 9, VMSTATCOL, 9);
-	PUTRATE(Cnt.v_pdwakeups, VMSTATROW + 10, VMSTATCOL, 9);
-	PUTRATE(Cnt.v_pdpages, VMSTATROW + 11, VMSTATCOL, 9);
-	PUTRATE(Cnt.v_intrans, VMSTATROW + 12, VMSTATCOL, 9);
+	PUTRATE(v_cow_faults, VMSTATROW + 1, VMSTATCOL + 3, 6);
+	putint(pgtokb(s.v_wire_count), VMSTATROW + 2, VMSTATCOL, 9);
+	putint(pgtokb(s.v_active_count), VMSTATROW + 3, VMSTATCOL, 9);
+	putint(pgtokb(s.v_inactive_count), VMSTATROW + 4, VMSTATCOL, 9);
+	putint(pgtokb(s.v_cache_count), VMSTATROW + 5, VMSTATCOL, 9);
+	putint(pgtokb(s.v_free_count), VMSTATROW + 6, VMSTATCOL, 9);
+	PUTRATE(v_dfree, VMSTATROW + 7, VMSTATCOL, 9);
+	PUTRATE(v_pfree, VMSTATROW + 8, VMSTATCOL, 9);
+	PUTRATE(v_reactivated, VMSTATROW + 9, VMSTATCOL, 9);
+	PUTRATE(v_pdwakeups, VMSTATROW + 10, VMSTATCOL, 9);
+	PUTRATE(v_pdpages, VMSTATROW + 11, VMSTATCOL, 9);
+	PUTRATE(v_intrans, VMSTATROW + 12, VMSTATCOL, 9);
 
 	if (extended_vm_stats) {
-	    PUTRATE(Cnt.v_zfod, VMSTATROW + 11, VMSTATCOL - 16, 9);
-	    PUTRATE(Cnt.v_ozfod, VMSTATROW + 12, VMSTATCOL - 16, 9);
+	    PUTRATE(v_zfod, VMSTATROW + 11, VMSTATCOL - 16, 9);
+	    PUTRATE(v_ozfod, VMSTATROW + 12, VMSTATCOL - 16, 9);
 	    putint(
-		((s.Cnt.v_ozfod < s.Cnt.v_zfod) ?
-		    s.Cnt.v_ozfod * 100 / s.Cnt.v_zfod : 
+		((s.v_ozfod < s.v_zfod) ?
+		    s.v_ozfod * 100 / s.v_zfod : 
 		    0
 		),
 		VMSTATROW + 13, 
 		VMSTATCOL - 16,
 		9
 	    );
-	    PUTRATE(Cnt.v_tfree, VMSTATROW + 14, VMSTATCOL - 16, 9);
+	    PUTRATE(v_tfree, VMSTATROW + 14, VMSTATCOL - 16, 9);
 	}
 
 	putint(s.bufspace/1024, VMSTATROW + 13, VMSTATCOL, 9);
@@ -504,20 +509,20 @@ showkre()
 	putint(s.desiredvnodes, VMSTATROW + 15, VMSTATCOL, 9);
 	putint(s.numvnodes, VMSTATROW + 16, VMSTATCOL, 9);
 	putint(s.freevnodes, VMSTATROW + 17, VMSTATCOL, 9);
-	PUTRATE(Cnt.v_vnodein, PAGEROW + 2, PAGECOL + 5, 5);
-	PUTRATE(Cnt.v_vnodeout, PAGEROW + 2, PAGECOL + 10, 5);
-	PUTRATE(Cnt.v_swapin, PAGEROW + 2, PAGECOL + 17, 5);
-	PUTRATE(Cnt.v_swapout, PAGEROW + 2, PAGECOL + 22, 5);
-	PUTRATE(Cnt.v_vnodepgsin, PAGEROW + 3, PAGECOL + 5, 5);
-	PUTRATE(Cnt.v_vnodepgsout, PAGEROW + 3, PAGECOL + 10, 5);
-	PUTRATE(Cnt.v_swappgsin, PAGEROW + 3, PAGECOL + 17, 5);
-	PUTRATE(Cnt.v_swappgsout, PAGEROW + 3, PAGECOL + 22, 5);
-	PUTRATE(Cnt.v_swtch, GENSTATROW + 1, GENSTATCOL, 5);
-	PUTRATE(Cnt.v_trap, GENSTATROW + 1, GENSTATCOL + 5, 5);
-	PUTRATE(Cnt.v_syscall, GENSTATROW + 1, GENSTATCOL + 10, 5);
-	PUTRATE(Cnt.v_intr, GENSTATROW + 1, GENSTATCOL + 15, 5);
-	PUTRATE(Cnt.v_soft, GENSTATROW + 1, GENSTATCOL + 20, 5);
-	PUTRATE(Cnt.v_vm_faults, GENSTATROW + 1, GENSTATCOL + 25, 5);
+	PUTRATE(v_vnodein, PAGEROW + 2, PAGECOL + 5, 5);
+	PUTRATE(v_vnodeout, PAGEROW + 2, PAGECOL + 10, 5);
+	PUTRATE(v_swapin, PAGEROW + 2, PAGECOL + 17, 5);
+	PUTRATE(v_swapout, PAGEROW + 2, PAGECOL + 22, 5);
+	PUTRATE(v_vnodepgsin, PAGEROW + 3, PAGECOL + 5, 5);
+	PUTRATE(v_vnodepgsout, PAGEROW + 3, PAGECOL + 10, 5);
+	PUTRATE(v_swappgsin, PAGEROW + 3, PAGECOL + 17, 5);
+	PUTRATE(v_swappgsout, PAGEROW + 3, PAGECOL + 22, 5);
+	PUTRATE(v_swtch, GENSTATROW + 1, GENSTATCOL, 5);
+	PUTRATE(v_trap, GENSTATROW + 1, GENSTATCOL + 5, 5);
+	PUTRATE(v_syscall, GENSTATROW + 1, GENSTATCOL + 10, 5);
+	PUTRATE(v_intr, GENSTATROW + 1, GENSTATCOL + 15, 5);
+	PUTRATE(v_soft, GENSTATROW + 1, GENSTATCOL + 20, 5);
+	PUTRATE(v_vm_faults, GENSTATROW + 1, GENSTATCOL + 25, 5);
 	mvprintw(DISKROW, DISKCOL + 5, "                              ");
 	for (i = 0, c = 0; i < num_devices && c < MAXDRIVES; i++)
 		if (dev_select[i].selected) {
@@ -721,51 +726,48 @@ getinfo(s, st)
 	enum state st;
 {
 	struct devinfo *tmp_dinfo;
-	size_t len, size;
-	int mib[2], err;
+	size_t size;
+	int mib[2];
 
-	len = sizeof(s->time);
-	err = sysctlbyname("kern.cp_time", &s->time, &len, NULL, 0);
-	if (err || len != sizeof(s->time))
-		perror("kern.cp_time");
-
-	len = sizeof(cur.cp_time);
-	err = sysctlbyname("kern.cp_time", &cur.cp_time, &len, NULL, 0);
-	if (err || len != sizeof(cur.cp_time))
-		perror("kern.cp_time");
-
-	NREAD(X_CNT, &s->Cnt, sizeof s->Cnt);
-
-	len = sizeof(s->bufspace);
-	err = sysctlbyname("vfs.bufspace", &s->bufspace, &len, NULL, 0);
-	if (err || len != sizeof(s->bufspace))
-		perror("vfs.bufspace");
-
-	len = sizeof(s->desiredvnodes);
-	err = sysctlbyname("kern.maxvnodes", &s->desiredvnodes, &len, NULL, 0);
-	if (err || len != sizeof(s->desiredvnodes))
-		perror("kern.maxvnodes");
-
-	len = sizeof(s->numvnodes);
-	err = sysctlbyname("debug.numvnodes", &s->numvnodes, &len, NULL, 0);
-	if (err || len != sizeof(s->numvnodes))
-		perror("debug.numvnodes");
-
-	len = sizeof(s->freevnodes);
-	err = sysctlbyname("debug.freevnodes", &s->freevnodes, &len, NULL, 0);
-	if (err || len != sizeof(s->freevnodes))
-		perror("debug.freevnodes");
-
-	len = sizeof(s->nchstats);
-	err = sysctlbyname("vfs.cache.nchstats", &s->nchstats, &len, NULL, 0);
-	if (err || len != sizeof(s->nchstats))
-		perror("vfs.cache.nchstats");
-
-	NREAD(X_INTRCNT, s->intrcnt, nintr * LONG);
-
-	len = sizeof(s->numdirtybuffers);
-	err = sysctlbyname("vfs.numdirtybuffers", &s->numdirtybuffers, &len,
-	    NULL, 0);
+	GETSYSCTL("kern.cp_time", s->time);
+	GETSYSCTL("kern.cp_time", cur.cp_time);
+	GETSYSCTL("vm.stats.sys.v_swtch", s->v_swtch);
+	GETSYSCTL("vm.stats.sys.v_trap", s->v_trap);
+	GETSYSCTL("vm.stats.sys.v_syscall", s->v_syscall);
+	GETSYSCTL("vm.stats.sys.v_intr", s->v_intr);
+	GETSYSCTL("vm.stats.sys.v_soft", s->v_soft);
+	GETSYSCTL("vm.stats.vm.v_vm_faults", s->v_vm_faults);
+	GETSYSCTL("vm.stats.vm.v_cow_faults", s->v_cow_faults);
+	GETSYSCTL("vm.stats.vm.v_zfod", s->v_zfod);
+	GETSYSCTL("vm.stats.vm.v_ozfod", s->v_ozfod);
+	GETSYSCTL("vm.stats.vm.v_swapin", s->v_swapin);
+	GETSYSCTL("vm.stats.vm.v_swapout", s->v_swapout);
+	GETSYSCTL("vm.stats.vm.v_swappgsin", s->v_swappgsin);
+	GETSYSCTL("vm.stats.vm.v_swappgsout", s->v_swappgsout);
+	GETSYSCTL("vm.stats.vm.v_vnodein", s->v_vnodein);
+	GETSYSCTL("vm.stats.vm.v_vnodeout", s->v_vnodeout);
+	GETSYSCTL("vm.stats.vm.v_vnodepgsin", s->v_vnodepgsin);
+	GETSYSCTL("vm.stats.vm.v_vnodepgsout", s->v_vnodepgsout);
+	GETSYSCTL("vm.stats.vm.v_intrans", s->v_intrans);
+	GETSYSCTL("vm.stats.vm.v_reactivated", s->v_reactivated);
+	GETSYSCTL("vm.stats.vm.v_pdwakeups", s->v_pdwakeups);
+	GETSYSCTL("vm.stats.vm.v_pdpages", s->v_pdpages);
+	GETSYSCTL("vm.stats.vm.v_dfree", s->v_dfree);
+	GETSYSCTL("vm.stats.vm.v_pfree", s->v_pfree);
+	GETSYSCTL("vm.stats.vm.v_tfree", s->v_tfree);
+	GETSYSCTL("vm.stats.vm.v_page_size", s->v_page_size);
+	GETSYSCTL("vm.stats.vm.v_free_count", s->v_free_count);
+	GETSYSCTL("vm.stats.vm.v_wire_count", s->v_wire_count);
+	GETSYSCTL("vm.stats.vm.v_active_count", s->v_active_count);
+	GETSYSCTL("vm.stats.vm.v_inactive_count", s->v_inactive_count);
+	GETSYSCTL("vm.stats.vm.v_cache_count", s->v_cache_count);
+	GETSYSCTL("vfs.bufspace", s->bufspace);
+	GETSYSCTL("kern.maxvnodes", s->desiredvnodes);
+	GETSYSCTL("debug.numvnodes", s->numvnodes);
+	GETSYSCTL("debug.freevnodes", s->freevnodes);
+	GETSYSCTL("vfs.cache.nchstats", s->nchstats);
+	GETSYSCTL("vfs.numdirtybuffers", s->numdirtybuffers);
+	getsysctl("hw.intrcnt", s->intrcnt, nintr * LONG);
 
 	size = sizeof(s->Total);
 	mib[0] = CTL_VM;
