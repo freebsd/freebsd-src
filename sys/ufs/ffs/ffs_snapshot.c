@@ -100,7 +100,6 @@ static int snapacct_ufs2(struct vnode *, ufs2_daddr_t *, ufs2_daddr_t *,
     struct fs *, ufs_lbn_t, int);
 static int mapacct_ufs2(struct vnode *, ufs2_daddr_t *, ufs2_daddr_t *,
     struct fs *, ufs_lbn_t, int);
-static int ffs_copyonwrite(struct vnode *, struct buf *);
 static int readblock(struct vnode *vp, struct buf *, ufs2_daddr_t);
 
 /*
@@ -561,7 +560,6 @@ loop:
 	if (ip->i_nextsnap.tqe_prev != 0)
 		panic("ffs_snapshot: %d already on list", ip->i_number);
 	TAILQ_INSERT_TAIL(&sn->sn_head, ip, i_nextsnap);
-	devvp->v_rdev->si_copyonwrite = ffs_copyonwrite;
 	devvp->v_vflag |= VV_COPYONWRITE;
 	VI_UNLOCK(devvp);
 	ASSERT_VOP_LOCKED(vp, "ffs_snapshot vp");
@@ -1451,7 +1449,6 @@ ffs_snapremove(vp)
 		if (TAILQ_FIRST(&sn->sn_head) != 0) {
 			VI_UNLOCK(devvp);
 		} else {
-			devvp->v_rdev->si_copyonwrite = 0;
 			snapblklist = sn->sn_blklist;
 			sn->sn_blklist = 0;
 			sn->sn_listsize = 0;
@@ -1893,7 +1890,6 @@ ffs_snapshot_mount(mp)
 	VOP_UNLOCK(vp, 0, td);
 	VI_LOCK(devvp);
 	ASSERT_VOP_LOCKED(devvp, "ffs_snapshot_mount");
-	devvp->v_rdev->si_copyonwrite = ffs_copyonwrite;
 	sn->sn_listsize = snaplistsize;
 	sn->sn_blklist = (daddr_t *)snapblklist;
 	devvp->v_vflag |= VV_COPYONWRITE;
@@ -1933,7 +1929,6 @@ ffs_snapshot_unmount(mp)
 	lockdestroy(&sn->sn_lock);
 	free(sn, M_UFSMNT);
 	ASSERT_VOP_LOCKED(devvp, "ffs_snapshot_unmount");
-	devvp->v_rdev->si_copyonwrite = 0;
 	devvp->v_rdev->si_snapdata = NULL;
 	devvp->v_vflag &= ~VV_COPYONWRITE;
 	VI_UNLOCK(devvp);
@@ -1943,7 +1938,7 @@ ffs_snapshot_unmount(mp)
  * Check for need to copy block that is about to be written,
  * copying the block if necessary.
  */
-static int
+int
 ffs_copyonwrite(devvp, bp)
 	struct vnode *devvp;
 	struct buf *bp;

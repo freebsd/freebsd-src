@@ -94,7 +94,6 @@ struct cdev {
 			int __sid_bsize_phys; /* min physical block size */
 			int __sid_bsize_best; /* optimal block size */
 			struct snapdata *__sid_snapdata;
-			int (*__sid_copyonwrite)(struct vnode *, struct buf *);
 		} __si_disk;
 	} __si_u;
 	char		__si_namebuf[SPECNAMELEN + 1];
@@ -105,7 +104,6 @@ struct cdev {
 #define si_bsize_phys	__si_u.__si_disk.__sid_bsize_phys
 #define si_bsize_best	__si_u.__si_disk.__sid_bsize_best
 #define si_snapdata	__si_u.__si_disk.__sid_snapdata
-#define si_copyonwrite	__si_u.__si_disk.__sid_copyonwrite
 
 #ifdef _KERNEL
 
