@@ -69,23 +69,42 @@
  * working! Once you have added the new field, you will need to add code
  * to initialize it in two places: kern/kern_proc.c in the function
  * fill_kinfo_proc and in lib/libkvm/kvm_proc.c in the function kvm_proclist.
+ *
+ * KI_NSPARE is the number of spare-longs to define in the array at the
+ * end of kinfo_proc.  It may need to be overridden on a platform-specific
+ * basis as new fields are added.
  */
-#if defined(__alpha__) || defined(__ia64__) || defined(__sparc64__) || \
-    defined(__amd64__)
-#define	KINFO_PROC_SIZE	912		/* the correct size for kinfo_proc */
-#define	KI_NSPARE	16		/* number of spare longs to define */
+#define	KI_NSPARE	17
+
+#ifdef __alpha__
+#define	KINFO_PROC_SIZE	912
 #endif
-#if defined(__i386__) || defined(__arm__)
-#define	KINFO_PROC_SIZE	648		/* the correct size for kinfo_proc */
-#define	KI_NSPARE	15
+#ifdef __amd64__
+#define	KINFO_PROC_SIZE	912
 #endif
-#ifdef  __powerpc__
-#define	KINFO_PROC_SIZE	656
+#ifdef __arm__
+#undef KI_NSPARE			/* Fewer spare longs on this arch */
 #define	KI_NSPARE	16
+#define	KINFO_PROC_SIZE	648
 #endif
-#ifndef	KINFO_PROC_SIZE
-#error	"Unknown architecture"
+#ifdef __ia64__
+#define	KINFO_PROC_SIZE 912
 #endif
+#ifdef __i386__
+#undef KI_NSPARE			/* Fewer spare longs on this arch */
+#define	KI_NSPARE	16
+#define	KINFO_PROC_SIZE	648
+#endif
+#ifdef __powerpc__
+#define	KINFO_PROC_SIZE	656
+#endif
+#ifdef __sparc64__
+#define	KINFO_PROC_SIZE 912
+#endif
+#ifndef KINFO_PROC_SIZE
+#error "Unknown architecture"
+#endif
+
 #define	WMESGLEN	8		/* size of returned wchan message */
 #define	LOCKNAMELEN	8		/* size of returned lock name */
 #define	OCOMMLEN	16		/* size of returned ki_ocomm name */
@@ -165,9 +184,8 @@ struct kinfo_proc {
 	void	*ki_kstack;		/* kernel virtual addr of stack */
 	struct	timeval ki_childstime;	/* system time used by children */
 	struct	timeval ki_childutime;	/* user time used by children */
-	segsz_t	ki_ps_segsz1;		/* used by `ps', for its processing */
-	float	ki_ps_float1;		/* used by `ps', for its processing */
-	int	ki_spare_int1;		/* unused (just here for alignment) */
+	pid_t	ki_tid;			/* XXXKSE thread id */
+	int	ki_numthreads;		/* XXXKSE number of threads in total */
 	long	ki_spare[KI_NSPARE];	/* spare room for later growth */
 };
 void fill_kinfo_proc(struct proc *, struct kinfo_proc *);
