@@ -1,7 +1,7 @@
 #
 # Bmakefile for sgmlsasp
 #
-# $id$
+# $Id$
 #
 
 PROG= sgmlsasp

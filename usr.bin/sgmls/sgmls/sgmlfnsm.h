@@ -86,6 +86,7 @@ UNCH          *pubfield P((UNCH *,UNCH *,UNCH,UNS *));
 UNCH          *replace P((UNCH *,UNCH *));
 UNCH          *sandwich P((UNCH *,UNCH *,UNCH *));
 UNIV           saverr P((unsigned int,struct parse *,UNCH *,UNCH *));
+UNIV           savmderr P((unsigned int,UNCH *,UNCH *));
 VOID           scbset P((void));
 VOID	       sdinit P((void));
 VOID           setcurchar P((int));

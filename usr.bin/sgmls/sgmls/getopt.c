@@ -132,7 +132,7 @@ char *opts;
 		else
 			optarg = argv[optind++];
 		sp = 1;
-	}
+	} 
 	else {
 		if (argv[optind][++sp] == '\0') {
 			sp = 1;

@@ -49,13 +49,12 @@ UNCH *ename;                  /* Entity name (with length and EOS). */
      /* Get the entity control block, if the entity has been defined. */
      if ((ecb = (PECB)hfind((THASH)etab, ename, hash(ename, ENTHASH)))==0
 	 || ecb->estore == 0) {
-          if ( ename[1]==lex.d.pero
-            || ecbdeflt==0
-            || (ecb = usedef(ename))==0 ) {
-               sgmlerr(ename[1] == lex.d.pero || ecbdeflt == 0 ? 35 : 150,
-		       (struct parse *)0, ename+1, (UNCH *)0);
+          if (ename[1] == lex.d.pero || ecbdeflt == 0) {
+               sgmlerr(35, (struct parse *)0, ename+1, (UNCH *)0);
                return(ENTUNDEF);
           }
+          else
+	       ecb = usedef(ename);
      }
      return(entopen(ecb));
 }
@@ -74,6 +73,7 @@ struct entity *ecb;           /* Entity control block. */
           sgmlerr(34, (struct parse *)0, ecb->ename+1, ntoa(ENTLVL));
           return(ENTMAX);
      }
+     if (docelsw) sgmlerr(234, (struct parse *)0, (UNCH *)0, (UNCH *)0);
      /* If entity is an etd, pi, or data, return it without creating an scb. */
      switch (ecb->estore) {
      case ESN:
@@ -99,6 +99,8 @@ struct entity *ecb;           /* Entity control block. */
      case ESC:
      case ESX:
 	  datalen = ustrlen(ecb->etx.c);
+	  /* Ignore reference to empty CDATA entity. */
+	  if (datalen == 0 && ecb->estore == ESC) return(0);
           data = ecb->etx.c;
           entdatsw = (ecb->estore==ESC) ? CDECONT : SDECONT;
           return(ENTDATA);
@@ -169,7 +171,8 @@ int entget()
 {
      RSCC += (CCO = FPOS-FBUF);
                                    /* Characters-in-record (ignore EOB/EOF). */
-     tagctr += CCO;                /* Update tag length counter. */
+     if (es == tages)
+	  tagctr += CCO;           /* Update tag length counter. */
      switch (*FPOS) {
      case EOBCHAR:                 /* End of file buffer: refill it. */
           rbufs[-2] = FPOS[-2];
@@ -227,9 +230,10 @@ UNCH *ename;                  /* Entity name (with length and EOS). */
      else {
       /* Move entity name into fpi. */
       fpidf.fpinm = ename + 1;
-      if ((etx.x = entgen(&fpidf))==0) return (PECB)0;
+      if ((etx.x = entgen(&fpidf))==0)
+	  sgmlerr(150, (struct parse *)0, ename + 1, (UNCH *)0);
       if (estore==ESN) {
-       memcpy((UNIV)(pne=(PNE)rmalloc((UNS)NESZ)),(UNIV)ecbdeflt->etx.n,(UNS)NESZ);
+           memcpy((UNIV)(pne=(PNE)rmalloc((UNS)NESZ)),(UNIV)ecbdeflt->etx.n,(UNS)NESZ);
            NEID(pne) = etx.x;
            etx.n = pne;
       }
@@ -288,7 +292,8 @@ int es;                      /* Local index to scbs. */
 	  SCB.pushback = FPOS[-1];
           FBUF = 0;                /* Indicate pending file. */
           RSCC += off;             /* Update characters-in-record counter. */
-          tagctr += off;           /* Update tag length counter. */
+	  if (es == tages)
+	       tagctr += off;      /* Update tag length counter. */
 	  iopend(SCBFCB, off, rbufs);
           return;
      }
@@ -386,7 +391,7 @@ UNCH *parm2;                  /* Additional parameters (or NULL). */
 {
      struct error err;
      errorinit(&err, subdcl ? MDERR : MDERR2, number);
-     err.parmno = parmno;
+     err.parmno = parmno; 
      err.subdcl = subdcl;
      err.eparm[0] = (UNIV)parm1;
      err.eparm[1] = (UNIV)parm2;
@@ -424,6 +429,24 @@ UNCH *parm2;                  /* Error message parameters. */
      err.errsp = ptrsrch(pcbtab, (UNIV)pcb);
      err.eparm[0] = (UNIV)parm1;
      err.eparm[1] = (UNIV)parm2;
+     scbset();
+     return msgsave(&err);
+}
+/* SAVMDERR: Save an md error for possible later use.
+*/
+UNIV savmderr(number, parm1, parm2)
+UNS number;                   /* Error number. */
+UNCH *parm1;                  /* Additional parameters (or NULL). */
+UNCH *parm2;                  /* Additional parameters (or NULL). */
+{
+     struct error err;
+     errorinit(&err, subdcl ? MDERR : MDERR2, number);
+     err.parmno = parmno; 
+     err.subdcl = subdcl;
+     err.eparm[0] = (UNIV)parm1;
+     err.eparm[1] = (UNIV)parm2;
+     err.errsp = (sizeof(pcbtab)/sizeof(pcbtab[0])) + ptrsrch(mdnmtab,
+							      (UNIV)mdname);
      scbset();
      return msgsave(&err);
 }
