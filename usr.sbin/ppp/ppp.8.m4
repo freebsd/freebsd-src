@@ -5148,7 +5148,7 @@ The optimum value is just over twice the MTU value.
 If
 .Ar value
 is unspecified or zero, the default kernel controlled value is used.
-.It set server|socket Ar TcpPort|LocalName|none|open|closed Op password Op Ar mask
+.It "set server|socket" Ar TcpPort|LocalName|none|open|closed Op password Op Ar mask
 This command tells
 .Nm
 to listen on the given socket or
