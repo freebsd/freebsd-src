@@ -37,7 +37,7 @@
  *
  *      @(#)bpf.c	8.2 (Berkeley) 3/28/94
  *
- * $Id: bpf.c,v 1.26 1996/06/08 08:18:43 bde Exp $
+ * $Id: bpf.c,v 1.26.2.1 1997/02/13 22:36:06 bde Exp $
  */
 
 #include "bpfilter.h"
@@ -115,6 +115,7 @@ SYSCTL_INT(_debug, OID_AUTO, bpf_bufsize, CTLFLAG_RW,
  */
 static struct bpf_if	*bpf_iflist;
 static struct bpf_d	bpf_dtab[NBPFILTER];
+static int		bpf_dtab_init;
 
 static int	bpf_allocbufs __P((struct bpf_d *));
 static void	bpf_attachd __P((struct bpf_d *d, struct bpf_if *bp));
@@ -1293,9 +1294,11 @@ bpfattach(ifp, dlt, hdrlen)
 	/*
 	 * Mark all the descriptors free if this hasn't been done.
 	 */
-	if (!D_ISFREE(&bpf_dtab[0]))
+	if (!bpf_dtab_init) {
 		for (i = 0; i < NBPFILTER; ++i)
 			D_MARKFREE(&bpf_dtab[i]);
+		bpf_dtab_init = 1;
+	}
 
 	if (bootverbose)
 		printf("bpf: %s%d attached\n", ifp->if_name, ifp->if_unit);
