@@ -3,6 +3,10 @@
 #	$FreeBSD$
 #
 7:095:Moscow:Russia
+7:::Kazakhstan
+7:::Kirgizstan
+7:::Tadzhikistan
+7:::Uzbekistan
 20:2:Cairo:Egypt, Arab Rep. of
 20:3:Alexandria:Egypt, Arab Rep. of
 20:66:Port Said:Egypt, Arab Rep. of
@@ -44,25 +48,14 @@
 32:3:Antwerp:Belgium
 32:41:Liege (Luik):Belgium
 32:9:Ghent (Gand):Belgium
-33:1:Paris:France
-33:20:Lille:France
-33:26:Reims:France
-33:35:Le Havre:France
-33:35:Rouen:France
-33:56:Bordeaux:France
-33:61:Toulouse:France
+33:1:Paris and surrounds:France
+33:2:NW region:France
+33:3:NE region:France
+33:4:SE region:France
+33:4:Corsica:France
+33:5:SW region:France
 33:628::Andorra
-33:67:Montpellier:France
-33:76:Grenoble:France
-33:77:St. Etienne:France
-33:7:Lyon:France
-33:88:Strasbourg:France
-33:91:Marseille:France
 33:93::Monaco
-33:93:Nice:France
-33:94:Toulon:France
-33:98:Brest:France
-33:99:Rennes:France
 34:1:Madrid:Spain
 34:28:Las Palmas (Canary Is.):Spain
 34:3:Barcelona:Spain
@@ -379,6 +372,7 @@
 376:::Andorra
 378:549::San Marino
 380:44:Kiev:Ukraine
+380:::Turkmenistan
 381:11:Belgrade:Yugoslavia
 381:11:Belgrade:Serbia
 381:81:Titograd:Montenegro
