@@ -42,6 +42,7 @@
 #include <unistd.h>
 #include <stdlib.h>
 #include <signal.h>
+#include <string.h>
 #include <err.h>
 #else
 #include <sys/systm.h>
@@ -301,10 +302,8 @@ g_slice_orphan(struct g_consumer *cp)
 
 	gp = cp->geom;
 	gp->flags |= G_GEOM_WITHER;
-	/* First prevent any new requests */
 	error = cp->provider->error;
 	LIST_FOREACH(pp, &gp->provider, provider)
 		g_orphan_provider(pp, error);
-
 	return;
 }
