@@ -126,7 +126,7 @@ main(int argc, char *argv[])
       errx(1, "can't create directory '%s'", X10DIR);
     }
   }
-  snprintf(logpath, sizeof(logpath), "%s/%s" X10DIR, X10LOGNAME);
+  snprintf(logpath, sizeof(logpath), "%s/%s", X10DIR, X10LOGNAME);
   if((Log = fopen(logpath, "a")) == NULL)
     errx(1, "can't open log file '%s'", logpath);
   chown(logpath, pw->pw_uid, gr->gr_gid);
@@ -363,7 +363,7 @@ dohup(void)
 
   fprintf(Log, "%s:  SIGHUP received, reopening Log\n", thedate());
   fclose(Log);
-  snprintf(logpath, sizeof(logpath), "%s/%s" X10DIR, X10LOGNAME);
+  snprintf(logpath, sizeof(logpath), "%s/%s", X10DIR, X10LOGNAME);
   if((Log = fopen(logpath, "a")) == NULL)
     errx(1, "can't open log file '%s'", logpath);
   hup_flag = 0;
