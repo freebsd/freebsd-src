@@ -63,6 +63,7 @@ static OPTION const options[] = {
 	{ "(",		c_simple,	f_openparen,	0 },
 	{ ")",		c_simple,	f_closeparen,	0 },
 	{ "-a",		c_and,		NULL,		0 },
+	{ "-acl",	c_acl,		f_acl,		0 },
 	{ "-amin",	c_Xmin,		f_Xmin,		F_TIME_A },
 	{ "-and",	c_and,		NULL,		0 },
 	{ "-anewer",	c_newer,	f_newer,	F_TIME_A },
