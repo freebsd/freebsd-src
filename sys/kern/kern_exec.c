@@ -43,6 +43,7 @@
 #include <sys/pioctl.h>
 #include <sys/malloc.h>
 #include <sys/namei.h>
+#include <sys/resourcevar.h>
 #include <sys/sysent.h>
 #include <sys/shm.h>
 #include <sys/sysctl.h>
@@ -294,7 +295,7 @@ interpret:
 		 */
 		p->p_ucred = crcopy(p->p_ucred);
 		if (attr.va_mode & VSUID)
-			p->p_ucred->cr_uid = attr.va_uid;
+			change_euid(p, attr.va_uid);
 		if (attr.va_mode & VSGID)
 			p->p_ucred->cr_gid = attr.va_gid;
 		setsugid(p);

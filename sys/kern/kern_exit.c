@@ -472,7 +472,7 @@ loop:
 			/*
 			 * Decrement the count of procs running with this uid.
 			 */
-			(void)chgproccnt(p->p_cred->p_ruid, -1, 0);
+			(void)chgproccnt(p->p_cred->p_uidinfo, -1, 0);
 
 			/*
 			 * Release reference to text vnode
@@ -485,6 +485,7 @@ loop:
 			 */
 			if (--p->p_cred->p_refcnt == 0) {
 				crfree(p->p_ucred);
+				uifree(p->p_cred->p_uidinfo);
 				FREE(p->p_cred, M_SUBPROC);
 				p->p_cred = NULL;
 			}
