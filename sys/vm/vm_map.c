@@ -1659,6 +1659,7 @@ vm_map_user_pageable(map, start, real_end, new_pageable)
 		 * becomes completely unwired, unwire its physical pages and
 		 * mappings.
 		 */
+		entry = start_entry;
 		while ((entry != &map->header) && (entry->start < end)) {
 			KASSERT(entry->eflags & MAP_ENTRY_USER_WIRED, ("expected USER_WIRED on entry %p", entry));
 			entry->eflags &= ~MAP_ENTRY_USER_WIRED;
