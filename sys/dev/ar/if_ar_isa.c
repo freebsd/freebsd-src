@@ -685,8 +685,8 @@ top_arstart:
 	/*
 	 * See if we have space for more packets.
 	 */
-#ifndef NETGRAPH
 	if(sc->txb_inuse == AR_TX_BLOCKS) {
+#ifndef NETGRAPH
 		ifp->if_flags |= IFF_OACTIVE;	/* yes, mark active */
 #else	/* NETGRAPH */
 /*XXX*/		/*ifp->if_flags |= IFF_OACTIVE;*/	/* yes, mark active */
