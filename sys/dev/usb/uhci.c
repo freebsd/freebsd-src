@@ -801,60 +801,6 @@ uhci_dump(void)
 {
 	uhci_dump_all(thesc);
 }
-
-void
-uhci_dump_ii(uhci_intr_info_t *ii)
-{
-	usbd_pipe_handle pipe;
-	usb_endpoint_descriptor_t *ed;
-	usbd_device_handle dev;
-
-#ifdef DIAGNOSTIC
-#define DONE ii->isdone
-#else
-#define DONE 0
-#endif
-	if (ii == NULL) {
-		printf("ii NULL\n");
-		return;
-	}
-	if (ii->xfer == NULL) {
-		printf("ii %p: done=%d xfer=NULL\n",
-		       ii, DONE);
-		return;
-	}
-	pipe = ii->xfer->pipe;
-	if (pipe == NULL) {
-		printf("ii %p: done=%d xfer=%p pipe=NULL\n",
-		       ii, DONE, ii->xfer);
-		return;
-	}
-	ed = pipe->endpoint->edesc;
-	dev = pipe->device;
-	printf("ii %p: done=%d xfer=%p dev=%p vid=0x%04x pid=0x%04x addr=%d pipe=%p ep=0x%02x attr=0x%02x\n", 
-	       ii, DONE, ii->xfer, dev, 
-		UGETW(dev->ddesc.idVendor), 
-		UGETW(dev->ddesc.idProduct),
-	       dev->address, pipe,
-	       ed->bEndpointAddress, ed->bmAttributes);
-#undef DONE
-}
-
-void uhci_dump_iis(struct uhci_softc *);
-void
-uhci_dump_iis(sc)
-	struct uhci_softc *sc;
-{
-	uhci_intr_info_t *ii;
-
-	printf("intr_info list:\n");
-	for (ii = LIST_FIRST(&sc->sc_intrhead); ii; ii = LIST_NEXT(ii, list))
-		uhci_dump_ii(ii);
-}
-
-void iidump(void);
-void iidump() { uhci_dump_iis(thesc); }
-
 #endif
 
 void
@@ -964,6 +910,20 @@ uhci_dump_ii(uhci_intr_info_t *ii)
 	       ed->bEndpointAddress, ed->bmAttributes);
 #undef DONE
 }
+
+void uhci_dump_iis(struct uhci_softc *sc);
+void
+uhci_dump_iis(struct uhci_softc *sc)
+{
+	uhci_intr_info_t *ii;
+
+	printf("intr_info list:\n");
+	for (ii = LIST_FIRST(&sc->sc_intrhead); ii; ii = LIST_NEXT(ii, list))
+		uhci_dump_ii(ii);
+}
+
+void iidump(void);
+void iidump(void) { uhci_dump_iis(thesc); }
 
 #endif
 
