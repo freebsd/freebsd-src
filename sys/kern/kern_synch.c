@@ -467,9 +467,7 @@ mi_switch(void)
 	p = td->td_proc;		/* XXX */
 	KASSERT(!TD_ON_RUNQ(td), ("mi_switch: called by old code"));
 #ifdef INVARIANTS
-	if (!TD_ON_LOCK(td) &&
-	    !TD_ON_RUNQ(td) &&
-	    !TD_IS_RUNNING(td))
+	if (!TD_ON_LOCK(td) && !TD_IS_RUNNING(td))
 		mtx_assert(&Giant, MA_NOTOWNED);
 #endif
 	KASSERT(td->td_critnest == 1,
