@@ -65,7 +65,7 @@
  * any improvements or extensions that they make and grant Carnegie the
  * rights to redistribute these changes.
  *
- * $Id: vm_pageout.c,v 1.84 1996/07/30 03:08:19 dyson Exp $
+ * $Id: vm_pageout.c,v 1.85 1996/09/08 20:44:48 dyson Exp $
  */
 
 /*
@@ -931,8 +931,8 @@ vm_size_t count;
 	cnt.v_pageout_free_min = (2*MAXBSIZE)/PAGE_SIZE +
 		cnt.v_interrupt_free_min;
 	cnt.v_free_reserved = vm_pageout_page_count +
-		cnt.v_pageout_free_min + (count / 768);
-	cnt.v_free_min += cnt.v_free_reserved + PQ_L2_SIZE;
+		cnt.v_pageout_free_min + (count / 768) + PQ_L2_SIZE;
+	cnt.v_free_min += cnt.v_free_reserved;
 	return 1;
 }
 
