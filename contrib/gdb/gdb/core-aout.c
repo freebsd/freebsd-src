@@ -1,21 +1,23 @@
 /* Extract registers from a "standard" core file, for GDB.
-   Copyright (C) 1988-1998  Free Software Foundation, Inc.
+   Copyright 1988, 1989, 1990, 1991, 1992, 1993, 1994, 1995, 1996, 1998,
+   1999, 2000, 2001 Free Software Foundation, Inc.
 
-This file is part of GDB.
+   This file is part of GDB.
 
-This program is free software; you can redistribute it and/or modify
-it under the terms of the GNU General Public License as published by
-the Free Software Foundation; either version 2 of the License, or
-(at your option) any later version.
+   This program is free software; you can redistribute it and/or modify
+   it under the terms of the GNU General Public License as published by
+   the Free Software Foundation; either version 2 of the License, or
+   (at your option) any later version.
 
-This program is distributed in the hope that it will be useful,
-but WITHOUT ANY WARRANTY; without even the implied warranty of
-MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-GNU General Public License for more details.
+   This program is distributed in the hope that it will be useful,
+   but WITHOUT ANY WARRANTY; without even the implied warranty of
+   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+   GNU General Public License for more details.
 
-You should have received a copy of the GNU General Public License
-along with this program; if not, write to the Free Software
-Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.  */
+   You should have received a copy of the GNU General Public License
+   along with this program; if not, write to the Free Software
+   Foundation, Inc., 59 Temple Place - Suite 330,
+   Boston, MA 02111-1307, USA.  */
 
 /* Typically used on systems that have a.out format executables.
    corefile.c is supposed to contain the more machine-independent
@@ -25,21 +27,22 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.  */
 #include "defs.h"
 
 #ifdef HAVE_PTRACE_H
-# include <ptrace.h>
+#include <ptrace.h>
 #else
-# ifdef HAVE_SYS_PTRACE_H
-#  include <sys/ptrace.h>
-# endif
+#ifdef HAVE_SYS_PTRACE_H
+#include <sys/ptrace.h>
+#endif
 #endif
 
 #include <sys/types.h>
 #include <sys/param.h>
 #include "gdbcore.h"
-#include "value.h" /* For supply_register.  */
-#include "inferior.h" /* For ARCH_NUM_REGS. */
+#include "value.h"		/* For supply_register.  */
+#include "regcache.h"
 
 /* These are needed on various systems to expand REGISTER_U_ADDR.  */
 #ifndef USG
+#include "gdb_dirent.h"
 #include <sys/file.h>
 #include "gdb_stat.h"
 #include <sys/user.h>
@@ -53,9 +56,9 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.  */
 #include <sys/core.h>
 #endif
 
-static void fetch_core_registers PARAMS ((char *, unsigned, int, CORE_ADDR));
+static void fetch_core_registers (char *, unsigned, int, CORE_ADDR);
 
-void _initialize_core_aout PARAMS ((void));
+void _initialize_core_aout (void);
 
 /* Extract the register values out of the core file and store
    them where `read_register' will find them.
@@ -63,25 +66,22 @@ void _initialize_core_aout PARAMS ((void));
    CORE_REG_SECT points to the register values themselves, read into memory.
    CORE_REG_SIZE is the size of that area.
    WHICH says which set of registers we are handling (0 = int, 2 = float
-         on machines where they are discontiguous).
+   on machines where they are discontiguous).
    REG_ADDR is the offset from u.u_ar0 to the register values relative to
-            core_reg_sect.  This is used with old-fashioned core files to
-	    locate the registers in a large upage-plus-stack ".reg" section.
-	    Original upage address X is at location core_reg_sect+x+reg_addr.
+   core_reg_sect.  This is used with old-fashioned core files to
+   locate the registers in a large upage-plus-stack ".reg" section.
+   Original upage address X is at location core_reg_sect+x+reg_addr.
  */
 
 static void
-fetch_core_registers (core_reg_sect, core_reg_size, which, reg_addr)
-     char *core_reg_sect;
-     unsigned core_reg_size;
-     int which;
-     CORE_ADDR reg_addr;
+fetch_core_registers (char *core_reg_sect, unsigned core_reg_size, int which,
+		      CORE_ADDR reg_addr)
 {
   int regno;
   CORE_ADDR addr;
   int bad_reg = -1;
-  CORE_ADDR reg_ptr = -reg_addr; /* Original u.u_ar0 is -reg_addr. */
-  int numregs = ARCH_NUM_REGS;
+  CORE_ADDR reg_ptr = -reg_addr;	/* Original u.u_ar0 is -reg_addr. */
+  int numregs = NUM_REGS;
 
   /* If u.u_ar0 was an absolute address in the core file, relativize it now,
      so we can use it as an offset into core_reg_sect.  When we're done,
@@ -98,8 +98,8 @@ fetch_core_registers (core_reg_sect, core_reg_size, which, reg_addr)
       if (addr >= core_reg_size
 	  && bad_reg < 0)
 	bad_reg = regno;
-    else
-      supply_register (regno, core_reg_sect + addr);
+      else
+	supply_register (regno, core_reg_sect + addr);
     }
 
   if (bad_reg >= 0)
@@ -113,13 +113,11 @@ fetch_core_registers (core_reg_sect, core_reg_size, which, reg_addr)
    BLOCKEND is the address of the end of the user structure.  */
 
 CORE_ADDR
-register_addr (regno, blockend)
-     int regno;
-     CORE_ADDR blockend;
+register_addr (int regno, CORE_ADDR blockend)
 {
   CORE_ADDR addr;
 
-  if (regno < 0 || regno >= ARCH_NUM_REGS)
+  if (regno < 0 || regno >= NUM_REGS)
     error ("Invalid register number %d.", regno);
 
   REGISTER_U_ADDR (addr, blockend, regno);
@@ -128,19 +126,21 @@ register_addr (regno, blockend)
 }
 
 #endif /* REGISTER_U_ADDR */
-
 
+
 /* Register that we are able to handle aout (trad-core) file formats.  */
 
 static struct core_fns aout_core_fns =
 {
-  bfd_target_unknown_flavour,
-  fetch_core_registers,
-  NULL
+  bfd_target_unknown_flavour,		/* core_flavour */
+  default_check_format,			/* check_format */
+  default_core_sniffer,			/* core_sniffer */
+  fetch_core_registers,			/* core_read_registers */
+  NULL					/* next */
 };
 
 void
-_initialize_core_aout ()
+_initialize_core_aout (void)
 {
   add_core_fns (&aout_core_fns);
 }
