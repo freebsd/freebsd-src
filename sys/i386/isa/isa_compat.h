@@ -28,7 +28,6 @@
 
 #include "vt.h"
 #include "wdc.h"
-#include "cx.h"
 #include "el.h"
 #include "le.h"
 #include "lnc.h"
@@ -74,7 +73,6 @@ struct old_isa_driver {
 
 extern struct isa_driver  vtdriver;
 extern struct isa_driver wdcdriver;
-extern struct isa_driver  cxdriver;
 extern struct isa_driver  eldriver;
 extern struct isa_driver  ledriver;
 extern struct isa_driver lncdriver;
@@ -190,9 +188,6 @@ static struct old_isa_driver old_drivers[] = {
 #endif
 #if NLNC > 0
 	{ INTR_TYPE_NET, &lncdriver },
-#endif
-#if NCX > 0
-	{ INTR_TYPE_NET, &cxdriver },
 #endif
 #if NEL > 0
 	{ INTR_TYPE_NET, &eldriver },
