@@ -104,7 +104,7 @@ struct ums_softc {
 	u_char *sc_ibuf;
 	u_int8_t sc_iid;
 	int sc_isize;
-	struct hid_location sc_loc_x, sc_loc_y, sc_loc_z;
+	struct hid_location sc_loc_x, sc_loc_y, sc_loc_z, sc_loc_t;
 	struct hid_location *sc_loc_btn;
 
 	usb_callout_t callout_handle;	/* for spurious button ups */
@@ -114,6 +114,7 @@ struct ums_softc {
 
 	int flags;		/* device configuration */
 #define UMS_Z		0x01	/* z direction available */
+#define UMS_T		0x02	/* aa direction available (tilt) */
 #define UMS_SPUR_BUT_UP	0x02	/* spurious button up events */
 	int nbuttons;
 #define MAX_BUTTONS	7	/* chosen because sc_buttons is u_char */
@@ -140,7 +141,7 @@ Static void ums_intr(usbd_xfer_handle xfer,
 			  usbd_private_handle priv, usbd_status status);
 
 Static void ums_add_to_queue(struct ums_softc *sc,
-				int dx, int dy, int dz, int buttons);
+				int dx, int dy, int dz, int dt, int buttons);
 Static void ums_add_to_queue_timeout(void *priv);
 
 Static int  ums_enable(void *);
@@ -269,12 +270,25 @@ USB_ATTACH(ums)
 	if (hid_locate(desc, size, HID_USAGE2(HUP_GENERIC_DESKTOP, HUG_Z),
 		       hid_input, &sc->sc_loc_z, &flags) ||
 	    hid_locate(desc, size, HID_USAGE2(HUP_GENERIC_DESKTOP, HUG_WHEEL),
+		       hid_input, &sc->sc_loc_z, &flags) ||
+	    hid_locate(desc, size, HID_USAGE2(HUP_GENERIC_DESKTOP, HUG_TWHEEL),
 		       hid_input, &sc->sc_loc_z, &flags)) {
 		if ((flags & MOUSE_FLAGS_MASK) != MOUSE_FLAGS) {
 			sc->sc_loc_z.size = 0;	/* Bad Z coord, ignore it */
 		} else {
 			sc->flags |= UMS_Z;
 		}
+	}
+
+	/* The Microsoft Wireless Intellimouse 2.0 reports it's wheel
+	 * using 0x0048 (i've called it HUG_TWHEEL) and seems to expect
+	 * you to know that the byte after the wheel is the tilt axis.
+	 * There are no other HID axis descriptors other than X,Y and 
+	 * TWHEEL */
+	if (hid_locate(desc, size, HID_USAGE2(HUP_GENERIC_DESKTOP, HUG_TWHEEL),
+			hid_input, &sc->sc_loc_t, &flags)) {
+			sc->sc_loc_t.pos = sc->sc_loc_t.pos + 8;
+			sc->flags |= UMS_T;
 	}
 
 	/* figure out the number of buttons */
@@ -290,8 +304,9 @@ USB_ATTACH(ums)
 		USB_ATTACH_ERROR_RETURN;
 	}
 
-	printf("%s: %d buttons%s\n", USBDEVNAME(sc->sc_dev),
-	       sc->nbuttons, sc->flags & UMS_Z? " and Z dir." : "");
+	printf("%s: %d buttons%s%s.\n", USBDEVNAME(sc->sc_dev),
+	       sc->nbuttons, sc->flags & UMS_Z? " and Z dir" : "", 
+	       sc->flags & UMS_T?" and a TILT dir": "");
 
 	for (i = 1; i <= sc->nbuttons; i++)
 		hid_locate(desc, size, HID_USAGE2(HUP_BUTTON, i),
@@ -408,15 +423,16 @@ ums_intr(xfer, addr, status)
 {
 	struct ums_softc *sc = addr;
 	u_char *ibuf;
-	int dx, dy, dz;
+	int dx, dy, dz, dt;
 	u_char buttons = 0;
 	int i;
 
 #define UMS_BUT(i) ((i) < 3 ? (((i) + 2) % 3) : (i))
 
 	DPRINTFN(5, ("ums_intr: sc=%p status=%d\n", sc, status));
-	DPRINTFN(5, ("ums_intr: data = %02x %02x %02x\n",
-		     sc->sc_ibuf[0], sc->sc_ibuf[1], sc->sc_ibuf[2]));
+	DPRINTFN(5, ("ums_intr: data = %02x %02x %02x %02x %02x %02x\n",
+		     sc->sc_ibuf[0], sc->sc_ibuf[1], sc->sc_ibuf[2],
+		     sc->sc_ibuf[3], sc->sc_ibuf[4], sc->sc_ibuf[5]));
 
 	if (status == USBD_CANCELLED)
 		return;
@@ -425,32 +441,56 @@ ums_intr(xfer, addr, status)
 		DPRINTF(("ums_intr: status=%d\n", status));
 		if (status == USBD_STALLED)
 		    usbd_clear_endpoint_stall_async(sc->sc_intrpipe);
-		return;
+		if(status != USBD_IOERROR)
+			return;
 	}
 
 	ibuf = sc->sc_ibuf;
-	if (sc->sc_iid) {
-		if (*ibuf++ != sc->sc_iid)
-			return;
+	/*
+	 * The M$ Wireless Intellimouse 2.0 sends 1 extra leading byte of
+	 * data compared to most USB mice. This byte frequently switches
+	 * from 0x01 (usual state) to 0x02. I assume it is to allow
+	 * extra, non-standard, reporting (say battery-life). However
+	 * at the same time it generates a left-click message on the button
+	 * byte which causes spurious left-click's where there shouldn't be.
+	 * This should sort that.
+	 * Currently it's the only user of UMS_T so use it as an identifier.
+	 * We probably should switch to some more official quirk.
+	 */
+	if (sc->flags & UMS_T) {
+		if (sc->sc_iid) {
+			if (*ibuf++ == 0x02)
+				return;
+		}
+	} else {
+		if (sc->sc_iid) {
+			if (*ibuf++ != sc->sc_iid)
+				return;
+		}
 	}
 
 	dx =  hid_get_data(ibuf, &sc->sc_loc_x);
 	dy = -hid_get_data(ibuf, &sc->sc_loc_y);
 	dz = -hid_get_data(ibuf, &sc->sc_loc_z);
+	if (sc->flags & UMS_T)
+		dt = -hid_get_data(ibuf, &sc->sc_loc_t);
+	else
+		dt = 0;
 	for (i = 0; i < sc->nbuttons; i++)
 		if (hid_get_data(ibuf, &sc->sc_loc_btn[i]))
 			buttons |= (1 << UMS_BUT(i));
 
-	if (dx || dy || dz || (sc->flags & UMS_Z)
+	if (dx || dy || dz || dt || (sc->flags & UMS_Z)
 	    || buttons != sc->status.button) {
-		DPRINTFN(5, ("ums_intr: x:%d y:%d z:%d buttons:0x%x\n",
-			dx, dy, dz, buttons));
+		DPRINTFN(5, ("ums_intr: x:%d y:%d z:%d t:%d buttons:0x%x\n",
+			dx, dy, dz, dt, buttons));
 
 		sc->status.button = buttons;
 		sc->status.dx += dx;
 		sc->status.dy += dy;
 		sc->status.dz += dz;
-
+		/* sc->status.dt += dt;*/ /* no way to export this yet */
+		
 		/* Discard data in case of full buffer */
 		if (sc->qcount == sizeof(sc->qbuf)) {
 			DPRINTF(("Buffer full, discarded packet"));
@@ -466,13 +506,13 @@ ums_intr(xfer, addr, status)
 		 * In any other case we delete the timeout event.
 		 */
 		if (sc->flags & UMS_SPUR_BUT_UP &&
-		    dx == 0 && dy == 0 && dz == 0 && buttons == 0) {
+		    dx == 0 && dy == 0 && dz == 0 && dt == 0 && buttons == 0) {
 			usb_callout(sc->callout_handle, MS_TO_TICKS(50 /*msecs*/),
 				    ums_add_to_queue_timeout, (void *) sc);
 		} else {
 			usb_uncallout(sc->callout_handle,
 				      ums_add_to_queue_timeout, (void *) sc);
-			ums_add_to_queue(sc, dx, dy, dz, buttons);
+			ums_add_to_queue(sc, dx, dy, dz, dt, buttons);
 		}
 	}
 }
@@ -484,12 +524,12 @@ ums_add_to_queue_timeout(void *priv)
 	int s;
 
 	s = splusb();
-	ums_add_to_queue(sc, 0, 0, 0, 0);
+	ums_add_to_queue(sc, 0, 0, 0, 0, 0);
 	splx(s);
 }
 
 Static void
-ums_add_to_queue(struct ums_softc *sc, int dx, int dy, int dz, int buttons)
+ums_add_to_queue(struct ums_softc *sc, int dx, int dy, int dz, int dt, int buttons)
 {
 	/* Discard data in case of full buffer */
 	if (sc->qhead+sc->mode.packetsize > sizeof(sc->qbuf)) {
@@ -503,6 +543,8 @@ ums_add_to_queue(struct ums_softc *sc, int dx, int dy, int dz, int buttons)
 	if (dy < -256)		dy = -256;
 	if (dz >  126)		dz =  126;
 	if (dz < -128)		dz = -128;
+	if (dt >  126)		dt =  126;
+        if (dt < -128)		dt = -128;
 
 	sc->qbuf[sc->qhead] = sc->mode.syncmask[1];
 	sc->qbuf[sc->qhead] |= ~buttons & MOUSE_MSC_BUTTONS;
@@ -550,7 +592,7 @@ ums_enable(v)
 	sc->qhead = sc->qtail = 0;
 	sc->status.flags = 0;
 	sc->status.button = sc->status.obutton = 0;
-	sc->status.dx = sc->status.dy = sc->status.dz = 0;
+	sc->status.dx = sc->status.dy = sc->status.dz /* = sc->status.dt */ = 0;
 
 	callout_handle_init((struct callout_handle *)&sc->callout_handle);
 
@@ -807,10 +849,11 @@ ums_ioctl(struct cdev *dev, u_long cmd, caddr_t addr, int flag, usb_proc_ptr p)
 		*status = sc->status;
 		sc->status.obutton = sc->status.button;
 		sc->status.button = 0;
-		sc->status.dx = sc->status.dy = sc->status.dz = 0;
+		sc->status.dx = sc->status.dy
+		    = sc->status.dz = /* sc->status.dt = */ 0;
 		splx(s);
 
-		if (status->dx || status->dy || status->dz)
+		if (status->dx || status->dy || status->dz /* || status->dt */)
 			status->flags |= MOUSE_POSCHANGED;
 		if (status->button != status->obutton)
 			status->flags |= MOUSE_BUTTONSCHANGED;
