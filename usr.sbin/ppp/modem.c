@@ -17,7 +17,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: modem.c,v 1.74 1998/01/10 01:55:10 brian Exp $
+ * $Id: modem.c,v 1.75 1998/01/20 22:47:42 brian Exp $
  *
  *  TODO:
  */
@@ -35,8 +35,6 @@
 #include <string.h>
 #include <sys/ioctl.h>
 #include <sys/tty.h>
-#include <termios.h>
-#include <time.h>
 #include <unistd.h>
 #include <utmp.h>
 
@@ -293,7 +291,7 @@ StartModemTimer(void)
   StartTimer(&ModemTimer);
 }
 
-struct parity {
+static struct parity {
   const char *name;
   const char *name1;
   int set;

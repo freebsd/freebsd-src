@@ -17,13 +17,12 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: filter.c,v 1.20 1997/12/13 02:37:22 brian Exp $
+ * $Id: filter.c,v 1.21 1997/12/24 09:28:57 brian Exp $
  *
  *	TODO: Shoud send ICMP error message when we discard packets.
  */
 
 #include <sys/param.h>
-#include <sys/socket.h>
 #include <netinet/in.h>
 #include <arpa/inet.h>
 #include <netdb.h>
@@ -269,7 +268,7 @@ ParseUdpOrTcp(int argc, char const *const *argv, int proto)
   return (0);
 }
 
-const char *opname[] = {"none", "eq", "gt", NULL, "lt"};
+static const char *opname[] = {"none", "eq", "gt", NULL, "lt"};
 
 static int
 Parse(int argc, char const *const *argv, struct filterent * ofp)

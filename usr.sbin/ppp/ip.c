@@ -17,7 +17,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: ip.c,v 1.36 1998/01/04 20:26:37 brian Exp $
+ * $Id: ip.c,v 1.37 1998/01/11 17:53:18 brian Exp $
  *
  *	TODO:
  *		o Return ICMP message for filterd packet
@@ -25,8 +25,9 @@
  */
 #include <sys/param.h>
 #include <sys/time.h>
-#include <sys/select.h>
 #include <sys/socket.h>
+#include <net/if.h>
+#include <net/if_tun.h>
 #include <netinet/in.h>
 #include <netinet/in_systm.h>
 #include <netinet/ip.h>
@@ -34,8 +35,6 @@
 #include <netinet/udp.h>
 #include <netinet/tcp.h>
 #include <arpa/inet.h>
-#include <net/if.h>
-#include <net/if_tun.h>
 
 #ifndef NOALIAS
 #include <alias.h>
@@ -53,7 +52,6 @@
 #include "defs.h"
 #include "timer.h"
 #include "fsm.h"
-#include "lcpproto.h"
 #include "hdlc.h"
 #include "loadalias.h"
 #include "vars.h"

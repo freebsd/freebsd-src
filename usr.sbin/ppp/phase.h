@@ -15,7 +15,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: phase.h,v 1.7 1997/08/25 00:29:25 brian Exp $
+ * $Id: phase.h,v 1.8 1997/10/26 01:03:32 brian Exp $
  *
  *	TODO:
  */
@@ -25,7 +25,6 @@
 #define	PHASE_AUTHENTICATE	2	/* Being authenticated */
 #define	PHASE_NETWORK		3
 #define	PHASE_TERMINATE		4	/* Terminating link */
-#define PHASE_OSLINKED		5	/* The OS is linked up */
 
 extern int phase;			/* Curent phase */
 

@@ -17,7 +17,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: main.c,v 1.117 1998/01/11 17:53:21 brian Exp $
+ * $Id: main.c,v 1.118 1998/01/20 22:47:41 brian Exp $
  *
  *	TODO:
  *		o Add commands for traffic summary, version display, etc.
@@ -27,13 +27,12 @@
 #include <sys/time.h>
 #include <sys/select.h>
 #include <sys/socket.h>
+#include <net/if.h>
+#include <net/if_tun.h>
 #include <netinet/in.h>
 #include <netinet/in_systm.h>
 #include <netinet/ip.h>
 #include <arpa/inet.h>
-#include <netdb.h>
-#include <net/if.h>
-#include <net/if_tun.h>
 
 #include <errno.h>
 #include <fcntl.h>
@@ -44,7 +43,6 @@
 #include <string.h>
 #include <sys/time.h>
 #include <sys/wait.h>
-#include <sysexits.h>
 #include <termios.h>
 #include <unistd.h>
 
@@ -69,7 +67,6 @@
 #include "ip.h"
 #include "sig.h"
 #include "server.h"
-#include "lcpproto.h"
 #include "main.h"
 #include "vjcomp.h"
 #include "async.h"
