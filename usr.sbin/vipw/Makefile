@@ -3,5 +3,6 @@
 
 PROG=	vipw
 SRCS=	pw_util.c vipw.c
+MAN=	vipw.8
 
 .include <bsd.prog.mk>

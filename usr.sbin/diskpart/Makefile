@@ -2,5 +2,6 @@
 # $FreeBSD$
 
 PROG=	diskpart
+MAN=	diskpart.8
 
 .include <bsd.prog.mk>

@@ -4,6 +4,7 @@
 PROG=		ngctl
 SRCS=		main.c mkpeer.c config.c connect.c name.c show.c list.c \
 		msg.c debug.c shutdown.c rmhook.c status.c types.c
+MAN=		ngctl.8
 DPADD+=		${LIBNETGRAPH}
 LDADD+=		-lnetgraph
 COPTS+=		-Wall

@@ -16,6 +16,7 @@
 
 PROG=	mld6query
 SRCS=	mld6.c
+MAN=	mld6query.8
 
 CFLAGS+= -DINET6 -DIPSEC
 

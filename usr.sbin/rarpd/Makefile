@@ -2,6 +2,7 @@
 # $FreeBSD$
 
 PROG=	rarpd
+MAN=	rarpd.8
 
 CFLAGS+= -DTFTP_DIR=\"/tftpboot\"
 

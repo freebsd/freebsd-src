@@ -2,7 +2,6 @@
 
 PROG=	vidcontrol
 SRCS=	vidcontrol.c decode.c
-MAN1=	${PROG}.1
 
 CFLAGS += -Wall
 

@@ -2,6 +2,5 @@
 # $FreeBSD$
 
 PROG=	lptest
-MAN1=	${PROG}.1
 
 .include <bsd.prog.mk>
