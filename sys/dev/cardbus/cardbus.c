@@ -316,7 +316,7 @@ cardbus_driver_added(device_t cbdev, driver_t *driver)
 	/* XXX check if 16-bit or cardbus! */
 	int numdevs;
 	device_t *devlist;
-	int tmp, cardattached;
+	int tmp;
 
 	device_get_children(cbdev, &devlist, &numdevs);
 
