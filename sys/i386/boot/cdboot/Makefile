@@ -1,4 +1,4 @@
-#	$Id: Makefile,v 1.3 1997/07/21 16:12:52 bde Exp $
+#	$Id: Makefile,v 1.4 1998/03/12 12:26:47 bde Exp $
 #
 
 PROG=	boot
@@ -8,7 +8,6 @@ SRCS+=  probe_keyboard.c io.c cdrom.c malloc.c
 
 .PATH:	${.CURDIR}/../biosboot
 
-BINDIR=		/usr/mdec
 BINMODE=	444
 CFLAGS=		-O2 -malign-functions=0 -malign-jumps=0 -malign-loops=0 \
 		-mno-486 \
@@ -47,10 +46,6 @@ CFLAGS+=	-DCONSPEED=${BOOT_COMCONSOLE_SPEED}
 
 CLEANFILES+=	boot.img boot.nohdr boot.strip
 LDFLAGS+=	-N -T 0 -nostdlib
-#LINKS=		${BINDIR}/sdboot ${BINDIR}/wdboot\
-#		${BINDIR}/sdboot ${BINDIR}/fdboot\
-#		${BINDIR}/bootsd ${BINDIR}/bootwd\
-#		${BINDIR}/bootsd ${BINDIR}/bootfd
 NOSHARED=	YES
 NOMAN=
 STRIP=
@@ -68,8 +63,8 @@ BOOTSTACK=	0xFFF0
 
 boot.strip:	boot
 	cp -p boot boot.strip
-	strip boot.strip
-	size boot.strip
+	strip -aout boot.strip
+	size -aout boot.strip
 
 boot.nohdr:	boot.strip
 	dd if=boot.strip of=boot.nohdr ibs=32 skip=1 obs=1024b
