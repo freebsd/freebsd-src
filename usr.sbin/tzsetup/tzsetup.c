@@ -643,7 +643,7 @@ main(int argc, char **argv)
 	int c, fd;
 	int (*dialog_utc)(unsigned char *, unsigned char *, int, int);
 
-#if defined(__alpha__)
+#if defined(__alpha__) || defined(__sparc64__)
 	dialog_utc = dialog_yesno;
 #else
 	dialog_utc = dialog_noyes;
