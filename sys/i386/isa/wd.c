@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)wd.c	7.2 (Berkeley) 5/9/91
- *	$Id: wd.c,v 1.183 1999/01/11 22:14:22 julian Exp $
+ *	$Id: wd.c,v 1.184 1999/01/12 01:04:38 eivind Exp $
  */
 
 /* TODO:
@@ -69,7 +69,6 @@
 #include "opt_hw_wdog.h"
 #include "opt_ide_delay.h"
 #include "opt_wd.h"
-#include "pci.h"
 
 #include <sys/param.h>
 #include <sys/dkbad.h>
@@ -312,30 +311,16 @@ wdprobe(struct isa_device *dvp)
 	du->dk_ctrlr = dvp->id_unit;
 	interface = du->dk_ctrlr / 2;
 	du->dk_interface = interface;
-#if !defined(DISABLE_PCI_IDE) && (NPCI > 0)
-#ifdef ALI_V
-	if ((wddma[interface].wdd_candma) && 
-	   ((du->dk_dmacookie = wddma[interface].wdd_candma(dvp->id_iobase,du->dk_ctrlr)) != NULL))
-	{
-		du->dk_port = dvp->id_iobase;
-		du->dk_altport = wddma[interface].wdd_altiobase(du->dk_dmacookie);
-	} else {
-		du->dk_port = dvp->id_iobase;
-		du->dk_altport = du->dk_port + wd_ctlr;
-	}
-#endif
-        if (wddma[interface].wdd_candma) {
-           du->dk_dmacookie = wddma[interface].wdd_candma(dvp->id_iobase,du->dk_ctrlr);
-           du->dk_port = dvp->id_iobase;
-           du->dk_altport = wddma[interface].wdd_altiobase(du->dk_dmacookie);
-        } else {
-                du->dk_port = dvp->id_iobase;
-                du->dk_altport = du->dk_port + wd_ctlr;
-        }
-#else
 	du->dk_port = dvp->id_iobase;
-	du->dk_altport = du->dk_port + wd_ctlr;
-#endif
+	if (wddma[interface].wdd_candma != NULL) {
+		du->dk_dmacookie =
+		    wddma[interface].wdd_candma(dvp->id_iobase, du->dk_ctrlr);
+		du->dk_altport =
+		    wddma[interface].wdd_altiobase(du->dk_dmacookie);
+	}
+	if (du->dk_altport == 0)
+		du->dk_altport = du->dk_port + wd_ctlr;
+
 	/* check if we have registers that work */
 	outb(du->dk_port + wd_sdh, WDSD_IBM);   /* set unit 0 */
 	outb(du->dk_port + wd_cyl_lo, 0xa5);	/* wd_cyl_lo is read/write */
