@@ -30,11 +30,11 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: gfmt.c,v 1.3 1995/03/19 13:29:23 joerg Exp $
+ *	$Id: gfmt.c,v 1.4 1995/05/30 00:07:26 rgrimes Exp $
  */
 
 #ifndef lint
-static char sccsid[] = "@(#)gfmt.c	8.6 (Berkeley) 4/2/94";
+static char const sccsid[] = "@(#)gfmt.c	8.6 (Berkeley) 4/2/94";
 #endif /* not lint */
 
 #include <sys/types.h>
