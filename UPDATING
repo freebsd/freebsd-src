@@ -31,6 +31,9 @@ NOTE TO PEOPLE WHO THINK THAT 5.0-CURRENT IS SLOW:
 	an alternative MTA.  Setting mta_start_script to "" will
 	also prevent any MTA from being started at boot.
 
+20020403:
+	UCONSOLE is no longer a valid kernel option.
+
 20020315:
 	FreeBSD 5.0 DP-1 was basically branched today.
 
