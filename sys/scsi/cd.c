@@ -14,7 +14,7 @@
  *
  * Ported to run under 386BSD by Julian Elischer (julian@tfs.com) Sept 1992
  *
- *      $Id: cd.c,v 1.22 1994/08/31 06:17:43 davidg Exp $
+ *      $Id: cd.c,v 1.23 1994/08/31 22:50:08 se Exp $
  */
 
 #define SPLCD splbio
@@ -57,7 +57,7 @@ int32   cdstrats, cdqueues;
 
 #define PAGESIZ 	4096
 #define SECSIZE 2048	/* XXX */	/* default only */
-#define	CDOUTSTANDING	1
+#define	CDOUTSTANDING	2
 #define	CDRETRIES	1
 
 #define	UNITSHIFT	3
