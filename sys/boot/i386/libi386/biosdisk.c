@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: biosdisk.c,v 1.12 1998/10/09 07:11:19 msmith Exp $
+ *	$Id: biosdisk.c,v 1.13 1998/10/11 10:01:55 peter Exp $
  */
 
 /*
@@ -42,6 +42,8 @@
 #include <sys/disklabel.h>
 #include <sys/diskslice.h>
 #include <sys/reboot.h>
+
+#include <stdarg.h>
 
 #include <bootstrap.h>
 #include <btxv86.h>
@@ -101,7 +103,7 @@ static int	bd_int13probe(struct bdinfo *bd);
 
 static int	bd_init(void);
 static int	bd_strategy(void *devdata, int flag, daddr_t dblk, size_t size, void *buf, size_t *rsize);
-static int	bd_open(struct open_file *f, void *vdev);
+static int	bd_open(struct open_file *f, ...);
 static int	bd_close(struct open_file *f);
 
 struct devsw biosdisk = {
@@ -208,12 +210,16 @@ bd_int13probe(struct bdinfo *bd)
  *  slice before it?)
  */
 static int 
-bd_open(struct open_file *f, void *vdev)
+bd_open(struct open_file *f, ...)
 {
-    struct i386_devdesc		*dev = (struct i386_devdesc *)vdev;
+    va_list			ap;
+    struct i386_devdesc		*dev;
     struct open_disk		*od;
     int				error;
 
+    va_start(ap, f);
+    dev = va_arg(ap, struct i386_devdesc *);
+    va_end(ap);
     if ((error = bd_opendisk(&od, dev)))
 	return(error);
     
