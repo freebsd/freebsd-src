@@ -350,35 +350,6 @@ void do_order()
 	Tbl.str_flags |= STR_ORDERED;
 }
 
-int collcmp (c1, c2)
-int c1, c2;
-{
-	static char s1[2], s2[2];
-
-	if (   (isascii(c1) && isascii(c2))
-	    || (!isalpha(c1) && !isalpha(c2))
-	   )
-		return (c1 - c2);
-	if (isalpha(c1) && !isalpha(c2)) {
-		if (isupper(c1))
-			return ('A' - c2);
-		else
-			return ('a' - c2);
-	} else if (isalpha(c2) && !isalpha(c1)) {
-		if (isupper(c2))
-			return (c1 - 'A');
-		else
-			return (c1 - 'a');
-	}
-	if (isupper(c1) && islower(c2))
-		return (-1);
-	else if (islower(c1) && isupper(c2))
-		return (1);
-	s1[0] = c1;
-	s2[0] = c2;
-	return strcoll(s1, s2);
-}
-
 /*
  * cmp_str:
  *	Compare two strings in the file
@@ -395,7 +366,7 @@ STR	*p1, *p2;
 
 	c1 = (unsigned char) p1->first;
 	c2 = (unsigned char) p2->first;
-	if ((r = collcmp(c1, c2)) != 0)
+	if ((r = collate_range_cmp(c1, c2)) != 0)
 		return r;
 
 	(void) fseek(Sort_1, p1->pos, 0);
@@ -415,7 +386,7 @@ STR	*p1, *p2;
 			if (isupper(c2))
 				c2 = tolower(c2);
 		}
-		if ((r = collcmp(c1, c2)) != 0)
+		if ((r = collate_range_cmp(c1, c2)) != 0)
 			return r;
 		SET_N(n1, c1);
 		SET_N(n2, c2);
@@ -426,7 +397,7 @@ STR	*p1, *p2;
 		c1 = 0;
 	if (IS_END(c2, n2))
 		c2 = 0;
-	return collcmp(c1, c2);
+	return collate_range_cmp(c1, c2);
 }
 
 /*
