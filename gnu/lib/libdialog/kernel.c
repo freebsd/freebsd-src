@@ -99,7 +99,8 @@ void init_dialog(void)
     exit(-1);
 #endif
 
-  initscr();     /* Init curses */
+  if (initscr() == NULL)     /* Init curses */
+    exit(-1);
   keypad(stdscr, TRUE);
   cbreak();
   noecho();
