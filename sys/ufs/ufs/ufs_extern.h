@@ -31,26 +31,28 @@
  * SUCH DAMAGE.
  *
  *	@(#)ufs_extern.h	8.10 (Berkeley) 5/14/95
- * $Id: ufs_extern.h,v 1.20 1997/10/16 10:50:11 phk Exp $
+ * $Id: ufs_extern.h,v 1.21 1997/10/16 11:59:09 phk Exp $
  */
 
 #ifndef _UFS_UFS_EXTERN_H_
 #define	_UFS_UFS_EXTERN_H_
 
-struct buf;
+struct componentname;
 struct direct;
-struct fid;
-struct flock;
+struct indir;
 struct inode;
 struct mount;
-struct nameidata;
 struct proc;
 struct sockaddr;
 struct ucred;
-struct uio;
-struct vattr;
+struct ufid;
 struct vfsconf;
 struct vnode;
+struct vop_bmap_args;
+struct vop_cachedlookup_args;
+struct vop_generic_args;
+struct vop_inactive_args;
+struct vop_reclaim_args;
 
 int	ufs_vnoperate __P((struct vop_generic_args *));
 int	ufs_vnoperatefifo __P((struct vop_generic_args *));
