@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)tcp_subr.c	8.1 (Berkeley) 6/10/93
- * $Id: tcp_subr.c,v 1.5 1994/10/08 22:39:58 phk Exp $
+ * $Id: tcp_subr.c,v 1.6 1995/02/09 23:13:25 wollman Exp $
  */
 
 #include <sys/param.h>
@@ -68,10 +68,8 @@
 int 	tcp_mssdflt = TCP_MSS;
 int 	tcp_rttdflt = TCPTV_SRTTDFLT / PR_SLOWHZ;
 int	tcp_do_rfc1323 = 1;
-#ifdef TTCP
 int	tcp_do_rfc1644 = 1;
 static	void tcp_cleartaocache(void);
-#endif
 
 extern	struct inpcb *tcp_last_inpcb;
 
@@ -83,10 +81,8 @@ tcp_init()
 {
 
 	tcp_iss = 1;		/* wrong */
-#ifdef TTCP
 	tcp_ccgen = 1;
 	tcp_cleartaocache();
-#endif
 	tcb.inp_next = tcb.inp_prev = &tcb;
 	if (max_protohdr < sizeof(struct tcpiphdr))
 		max_protohdr = sizeof(struct tcpiphdr);
@@ -235,10 +231,8 @@ tcp_newtcpcb(inp)
 
 	if (tcp_do_rfc1323)
 		tp->t_flags = (TF_REQ_SCALE|TF_REQ_TSTMP);
-#ifdef TTCP
 	if (tcp_do_rfc1644)
 		tp->t_flags |= TF_REQ_CC;
-#endif
 	tp->t_inpcb = inp;
 	/*
 	 * Init srtt to TCPTV_SRTTBASE (0), so we can tell that we have no
@@ -495,7 +489,6 @@ tcp_rtlookup(inp)
 	return rt;
 }
 
-#ifdef TTCP
 /*
  * Return a pointer to the cached information about the remote host.
  * The cached information is stored in the protocol specific part of
@@ -526,4 +519,3 @@ tcp_gettaocache(inp)
 static void
 tcp_cleartaocache(void)
 { }
-#endif /* TTCP */
