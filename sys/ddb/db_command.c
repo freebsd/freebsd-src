@@ -23,7 +23,7 @@
  * any improvements or extensions that they make and grant Carnegie the
  * rights to redistribute these changes.
  *
- *	$Id: db_command.c,v 1.18 1995/12/10 19:07:49 bde Exp $
+ *	$Id: db_command.c,v 1.19 1996/08/27 19:46:28 pst Exp $
  */
 
 /*
@@ -35,11 +35,9 @@
  * Command dispatcher.
  */
 #include <sys/param.h>
+#include <sys/kernel.h>
 #include <sys/reboot.h>
 #include <sys/systm.h>
-
-#include <vm/vm.h>
-#include <vm/vm_extern.h>
 
 #include <ddb/ddb.h>
 #include <ddb/db_command.h>
@@ -51,16 +49,21 @@
 /*
  * Exported global variables
  */
+struct linker_set	db_cmd_set;
 boolean_t	db_cmd_loop_done;
-jmp_buf		db_jmpbuf;
 db_addr_t	db_dot;
+jmp_buf		db_jmpbuf;
 db_addr_t	db_last_addr;
 db_addr_t	db_prev;
 db_addr_t	db_next;
+struct linker_set	db_show_cmd_set;
 
 static db_cmdfcn_t	db_fncall;
 static db_cmdfcn_t	db_gdb;
 static db_cmdfcn_t	db_panic;
+
+/* XXX this is actually forward-static. */
+extern struct command	db_show_cmds[];
 
 /*
  * if 'ed' style: 'dot' is set at start of last item printed,
@@ -82,20 +85,6 @@ db_skip_to_eol()
 }
 
 /*
- * Command table
- */
-struct command {
-	char *	name;		/* command name */
-	db_cmdfcn_t *fcn;	/* function to call */
-	int	flag;		/* extra info: */
-#define	CS_OWN		0x1	    /* non-standard syntax */
-#define	CS_MORE		0x2	    /* standard syntax, but may have other
-				       words at end */
-#define	CS_SET_DOT	0x100	    /* set dot after command */
-	struct command *more;	/* another level of command */
-};
-
-/*
  * Results of command search.
  */
 #define	CMD_UNIQUE	0
@@ -104,22 +93,27 @@ struct command {
 #define	CMD_AMBIGUOUS	3
 #define	CMD_HELP	4
 
-static void	db_cmd_list __P((struct command *table));
+static void	db_cmd_list __P((struct command *table,
+				 struct command **aux_tablep));
 static int	db_cmd_search __P((char *name, struct command *table,
+				   struct command **aux_tablep,
 				   struct command **cmdp));
 static void	db_command __P((struct command **last_cmdp,
-				struct command *cmd_table));
+				struct command *cmd_table,
+				struct command **aux_cmd_tablep));
 
 /*
  * Search for command prefix.
  */
 static int
-db_cmd_search(name, table, cmdp)
+db_cmd_search(name, table, aux_tablep, cmdp)
 	char *		name;
 	struct command	*table;
+	struct command	**aux_tablep;
 	struct command	**cmdp;	/* out */
 {
 	struct command	*cmd;
+	struct command	**aux_cmdp;
 	int		result = CMD_NONE;
 
 	for (cmd = table; cmd->name != 0; cmd++) {
@@ -152,6 +146,38 @@ db_cmd_search(name, table, cmdp)
 		}
 	    }
 	}
+	if (result == CMD_NONE && aux_tablep != 0)
+	    /* XXX repeat too much code. */
+	    for (aux_cmdp = aux_tablep; *aux_cmdp != 0; aux_cmdp++) {
+		register char *lp;
+		register char *rp;
+		register int  c;
+
+		lp = name;
+		rp = (*aux_cmdp)->name;
+		while ((c = *lp) == *rp) {
+		    if (c == 0) {
+			/* complete match */
+			*cmdp = *aux_cmdp;
+			return (CMD_UNIQUE);
+		    }
+		    lp++;
+		    rp++;
+		}
+		if (c == 0) {
+		    /* end of name, not end of command -
+		       partial match */
+		    if (result == CMD_FOUND) {
+			result = CMD_AMBIGUOUS;
+			/* but keep looking for a full match -
+			   this lets us match single letters */
+		    }
+		    else {
+			*cmdp = *aux_cmdp;
+			result = CMD_FOUND;
+		    }
+		}
+	    }
 	if (result == CMD_NONE) {
 	    /* check for 'help' */
 		if (name[0] == 'h' && name[1] == 'e'
@@ -162,21 +188,30 @@ db_cmd_search(name, table, cmdp)
 }
 
 static void
-db_cmd_list(table)
+db_cmd_list(table, aux_tablep)
 	struct command *table;
+	struct command **aux_tablep;
 {
 	register struct command *cmd;
+	register struct command **aux_cmdp;
 
 	for (cmd = table; cmd->name != 0; cmd++) {
 	    db_printf("%-12s", cmd->name);
 	    db_end_line();
 	}
+	if (aux_tablep == 0)
+	    return;
+	for (aux_cmdp = aux_tablep; *aux_cmdp != 0; aux_cmdp++) {
+	    db_printf("%-12s", (*aux_cmdp)->name);
+	    db_end_line();
+	}
 }
 
 static void
-db_command(last_cmdp, cmd_table)
+db_command(last_cmdp, cmd_table, aux_cmd_tablep)
 	struct command	**last_cmdp;	/* IN_OUT */
 	struct command	*cmd_table;
+	struct command	**aux_cmd_tablep;
 {
 	struct command	*cmd;
 	int		t;
@@ -210,6 +245,7 @@ db_command(last_cmdp, cmd_table)
 	    while (cmd_table) {
 		result = db_cmd_search(db_tok_string,
 				       cmd_table,
+				       aux_cmd_tablep,
 				       &cmd);
 		switch (result) {
 		    case CMD_NONE:
@@ -221,16 +257,22 @@ db_command(last_cmdp, cmd_table)
 			db_flush_lex();
 			return;
 		    case CMD_HELP:
-			db_cmd_list(cmd_table);
+			db_cmd_list(cmd_table, aux_cmd_tablep);
 			db_flush_lex();
 			return;
 		    default:
 			break;
 		}
 		if ((cmd_table = cmd->more) != 0) {
+		    /* XXX usually no more aux's. */
+		    aux_cmd_tablep = 0;
+		    if (cmd_table == db_show_cmds)
+			aux_cmd_tablep =
+			    (struct command **)&db_show_cmd_set.ls_items[0];
+
 		    t = db_read_token();
 		    if (t != tIDENT) {
-			db_cmd_list(cmd_table);
+			db_cmd_list(cmd_table, aux_cmd_tablep);
 			db_flush_lex();
 			return;
 		    }
@@ -332,11 +374,6 @@ static struct command db_show_cmds[] = {
 #if 0
 	{ "thread",	db_show_one_thread,	0,	0 },
 #endif
-	{ "map",	vm_map_print,		0,	0 },
-	{ "object",	vm_object_print,	0,	0 },
-#if 0
-	{ "page",	vm_page_print,		0,	0 },
-#endif
 #if 0
 	{ "port",	ipc_port_print,		0,	0 },
 #endif
@@ -418,7 +455,8 @@ db_command_loop()
 	    db_printf("db> ");
 	    (void) db_read_line();
 
-	    db_command(&db_last_command, db_command_table);
+	    db_command(&db_last_command, db_command_table,
+		       (struct command **)&db_cmd_set.ls_items[0]);
 	}
 }
 
