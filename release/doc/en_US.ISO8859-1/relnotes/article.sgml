@@ -3535,7 +3535,7 @@ options HZ=1000 # not compulsory but strongly recommended</programlisting>
 	8.3.3. &merged;</para>
 
       <para><application>Binutils</application> has been updated to
-	2.12.1 (specifically, a post-release snapshot from 22 June 2002).</para>
+	2.12.1 (specifically, a post-release snapshot from 22 June 2002). &merged;</para>
 
       <para role="historic"><application>bzip2</application> 1.0.2 has been imported;
 	this brings the &man.bzip2.1; program and the
@@ -3677,15 +3677,7 @@ options HZ=1000 # not compulsory but strongly recommended</programlisting>
         imported.  It breaks down the system startup functionality
         into a number of small, <quote>task-oriented</quote> scripts
         in <filename>/etc/rc.d</filename>, with dynamic-determined
-        ordering of startup scripts performed at boot-time.
-
-	<note>
-	  <para>This feature is currently disabled by default.  It can
-	    be enabled by setting <literal>rc_ng="YES"</literal> in
-	    <filename>/etc/rc.conf</filename>.</para>
-	</note>
-
-	</para>
+        ordering of startup scripts performed at boot-time.</para>
 
       <para role="historic">&man.routed.8; has been updated to version
 	2.22. &merged;</para>
@@ -3739,8 +3731,8 @@ options HZ=1000 # not compulsory but strongly recommended</programlisting>
       <sect4>
 	<title>CVS</title>
 
-	<para role="historic"><application>cvs</application> has been updated to
-	  1.11.1p1. &merged;</para>
+	<para><application>cvs</application> has been updated to
+	  1.11.2.</para>
 
 	<para role="historic">The default value for &man.cvs.1;'s
 	  <envar>CVS_RSH</envar> variable is now
