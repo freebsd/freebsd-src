@@ -85,7 +85,7 @@ static struct cdevsw my_devsw = {
     nowrite,
     mydev_ioctl,
     nostop,
-    nullreset,
+    noreset,
     nodevtotty,
     NULL,
     nommap,
