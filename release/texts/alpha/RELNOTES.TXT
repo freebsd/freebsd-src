@@ -262,6 +262,9 @@ profiles" at install-time.  These profiles enable different levels of
 system security by enabling or disabling various system services in
 rc.conf(5) on new installs. [MERGED]
 
+A bug in which malformed ELF executable images can hang the system has
+been fixed (see security advisory FreeBSD-SA-00:41). [MERGED]
+
 A security hole in Linux emulation was fixed (see security advisory
 FreeBSD-SA-00:42).  [MERGED]
 
@@ -295,8 +298,9 @@ FreeBSD-SA-00:69).  [MERGED]
 The "nat deny_incoming" command in ppp(8) now works correctly (see
 security advisory FreeBSD-SA-00:70).  [MERGED]
 
-A bug in OpenSSH in which a server was unable to disable ssh-agent or
-X11 forwarding was fixed.  [MERGED]
+A vulnerability in csh(1)/tcsh(1) temporary files that could allow
+overwriting of arbitary user-writable files has been closed (see
+security advisory FreeBSD-SA-00:76). [MERGED]
 
 The ssh(1) binary is no longer SUID root by default.
 
@@ -307,7 +311,19 @@ ticket files. [MERGED]
 telnet(1) now does a better job of sanitizing its environment. [MERGED]
 
 Several vulnerabilities in procfs(4) were fixed (see security advisory
-FreeBSD-SA-00:78).  [MERGED]
+FreeBSD-SA-00:77).  [MERGED]
+
+A bug in OpenSSH in which a server was unable to disable ssh-agent or
+X11 forwarding was fixed (see security advisory FreeBSD-SA-01:01).  
+[MERGED]
+
+A bug in ipfw(8) and ipfw6(8) in which inbound TCP segments could
+incorrectly be treated as being part of an "established" connection
+has been fixed (see security advisory FreeBSD-SA-01:08).  [MERGED]
+
+A bug in crontab(8) that could allow users to read any file on the
+system in valid crontab(5) syntax has been fixed (see security
+advisory FreeBSD-SA-01:09).  [MERGED]
 
 
 1.3. USERLAND CHANGES
