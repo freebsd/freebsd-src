@@ -1,6 +1,6 @@
 // Components for manipulating sequences of characters -*- C++ -*-
 
-// Copyright (C) 1997, 1998, 1999, 2000, 2001, 2002
+// Copyright (C) 1997, 1998, 1999, 2000, 2001, 2002, 2003
 // Free Software Foundation, Inc.
 //
 // This file is part of the GNU ISO C++ Library.  This library is free
@@ -137,14 +137,14 @@ namespace std
       _S_construct(_InIter __beg, _InIter __end, const _Alloc& __a, 
 		   forward_iterator_tag)
       {
-	size_type __dnew = static_cast<size_type>(distance(__beg, __end));
-
 	if (__beg == __end && __a == _Alloc())
 	  return _S_empty_rep()._M_refcopy();
 
 	// NB: Not required, but considered best practice.
 	if (__builtin_expect(__beg == _InIter(), 0))
 	  __throw_logic_error("attempt to create string with null pointer");
+
+	size_type __dnew = static_cast<size_type>(std::distance(__beg, __end));
 	
 	// Check for out_of_range and length_error exceptions.
 	_Rep* __r = _Rep::_S_create(__dnew, __a);
@@ -254,6 +254,117 @@ namespace std
 	}
       return *this;
     }
+
+   template<typename _CharT, typename _Traits, typename _Alloc>
+     basic_string<_CharT, _Traits, _Alloc>&
+     basic_string<_CharT, _Traits, _Alloc>::
+     assign(const basic_string& __str, size_type __pos, size_type __n)
+     {
+       const size_type __strsize = __str.size();
+       if (__pos > __strsize)
+	 __throw_out_of_range("basic_string::assign");
+       const bool __testn = __n < __strsize - __pos;
+       const size_type __newsize = __testn ? __n : __strsize - __pos;
+       return this->assign(__str._M_data() + __pos, __newsize);
+     }
+
+   template<typename _CharT, typename _Traits, typename _Alloc>
+     basic_string<_CharT, _Traits, _Alloc>&
+     basic_string<_CharT, _Traits, _Alloc>::
+     assign(const _CharT* __s, size_type __n)
+     {
+       if (__n > this->max_size())
+	 __throw_length_error("basic_string::assign");
+       if (_M_rep()->_M_is_shared() || less<const _CharT*>()(__s, _M_data())
+	   || less<const _CharT*>()(_M_data() + this->size(), __s))
+	 return _M_replace_safe(_M_ibegin(), _M_iend(), __s, __s + __n);
+       else
+	 {
+	   // Work in-place
+	   const size_type __pos = __s - _M_data();
+	   if (__pos >= __n)
+	     traits_type::copy(_M_data(), __s, __n);
+	   else if (__pos)
+	     traits_type::move(_M_data(), __s, __n);
+	   _M_rep()->_M_length = __n;
+	   _M_data()[__n] = _Rep::_S_terminal;  // grr.
+	   return *this;
+	 }
+     }
+
+   template<typename _CharT, typename _Traits, typename _Alloc>
+     basic_string<_CharT, _Traits, _Alloc>&
+     basic_string<_CharT, _Traits, _Alloc>::
+     insert(size_type __pos1, const basic_string& __str,
+            size_type __pos2, size_type __n)
+     {
+       const size_type __strsize = __str.size();
+       if (__pos2 > __strsize)
+	 __throw_out_of_range("basic_string::insert");
+       const bool __testn = __n < __strsize - __pos2;
+       const size_type __newsize = __testn ? __n : __strsize - __pos2;
+       return this->insert(__pos1, __str._M_data() + __pos2, __newsize);
+     }
+
+   template<typename _CharT, typename _Traits, typename _Alloc>
+     basic_string<_CharT, _Traits, _Alloc>&
+     basic_string<_CharT, _Traits, _Alloc>::
+     insert(size_type __pos, const _CharT* __s, size_type __n)
+     {
+       const size_type __size = this->size();
+       if (__pos > __size)
+         __throw_out_of_range("basic_string::insert");
+       if (__size > this->max_size() - __n)
+         __throw_length_error("basic_string::insert");
+       if (_M_rep()->_M_is_shared() || less<const _CharT*>()(__s, _M_data())
+           || less<const _CharT*>()(_M_data() + __size, __s))
+         return _M_replace_safe(_M_ibegin() + __pos, _M_ibegin() + __pos,
+                                __s, __s + __n);
+       else
+         {
+           // Work in-place. If _M_mutate reallocates the string, __s
+           // does not point anymore to valid data, therefore we save its
+           // offset, then we restore it.
+           const size_type __off = __s - _M_data();
+           _M_mutate(__pos, 0, __n);
+           __s = _M_data() + __off;
+           _CharT* __p = _M_data() + __pos;
+           if (__s  + __n <= __p)
+             traits_type::copy(__p, __s, __n);
+           else if (__s >= __p)
+             traits_type::copy(__p, __s + __n, __n);
+           else
+             {
+               traits_type::copy(__p, __s, __p - __s);
+               traits_type::copy(__p + (__p-__s), __p + __n, __n - (__p-__s));
+             }
+           return *this;
+         }
+     }
+ 
+   template<typename _CharT, typename _Traits, typename _Alloc>
+     basic_string<_CharT, _Traits, _Alloc>&
+     basic_string<_CharT, _Traits, _Alloc>::
+     replace(size_type __pos, size_type __n1, const _CharT* __s,
+	     size_type __n2)
+     {
+       const size_type __size = this->size();
+       if (__pos > __size)
+         __throw_out_of_range("basic_string::replace");
+       const bool __testn1 = __n1 < __size - __pos;
+       const size_type __foldn1 = __testn1 ? __n1 : __size - __pos;
+       if (__size - __foldn1 > this->max_size() - __n2)
+         __throw_length_error("basic_string::replace");
+       if (_M_rep()->_M_is_shared() || less<const _CharT*>()(__s, _M_data())
+           || less<const _CharT*>()(_M_data() + __size, __s))
+         return _M_replace_safe(_M_ibegin() + __pos,
+				_M_ibegin() + __pos + __foldn1, __s, __s + __n2);
+       // Todo: optimized in-place replace.
+       else
+	 return _M_replace(_M_ibegin() + __pos, _M_ibegin() + __pos + __foldn1,
+			   __s, __s + __n2,
+			   typename iterator_traits<const _CharT*>::iterator_category());
+     }
   
   template<typename _CharT, typename _Traits, typename _Alloc>
     void
@@ -523,7 +634,7 @@ namespace std
       _M_replace_safe(iterator __i1, iterator __i2, _ForwardIter __k1, 
 		      _ForwardIter __k2)
       {
-	size_type __dnew = static_cast<size_type>(distance(__k1, __k2));
+	size_type __dnew = static_cast<size_type>(std::distance(__k1, __k2));
 	size_type __dold = __i2 - __i1;
 	size_type __dmax = this->max_size();
 
@@ -578,7 +689,8 @@ namespace std
       // Iff appending itself, string needs to pre-reserve the
       // correct size so that _M_mutate does not clobber the
       // iterators formed here.
-      size_type __len = min(__str.size() - __pos, __n) + this->size();
+      size_type __len = std::min(size_type(__str.size() - __pos),
+				 __n) + this->size();
       if (__len > this->capacity())
 	this->reserve(__len);
       return _M_replace_safe(_M_iend(), _M_iend(), __str._M_check(__pos),
@@ -709,7 +821,7 @@ namespace std
       size_type __size = this->size();
       if (__n <= __size)
 	{
-	  __pos = std::min(__size - __n, __pos);
+	  __pos = std::min(size_type(__size - __n), __pos);
 	  const _CharT* __data = _M_data();
 	  do 
 	    {
@@ -848,8 +960,8 @@ namespace std
       if (__pos > __size)
 	__throw_out_of_range("basic_string::compare");
       
-      size_type __rsize= min(__size - __pos, __n);
-      size_type __len = min(__rsize, __osize);
+      size_type __rsize= std::min(size_type(__size - __pos), __n);
+      size_type __len = std::min(__rsize, __osize);
       int __r = traits_type::compare(_M_data() + __pos, __str.data(), __len);
       if (!__r)
 	__r = __rsize - __osize;
@@ -867,9 +979,9 @@ namespace std
       if (__pos1 > __size || __pos2 > __osize)
 	__throw_out_of_range("basic_string::compare");
       
-      size_type __rsize = min(__size - __pos1, __n1);
-      size_type __rosize = min(__osize - __pos2, __n2);
-      size_type __len = min(__rsize, __rosize);
+      size_type __rsize = std::min(size_type(__size - __pos1), __n1);
+      size_type __rosize = std::min(size_type(__osize - __pos2), __n2);
+      size_type __len = std::min(__rsize, __rosize);
       int __r = traits_type::compare(_M_data() + __pos1, 
 				     __str.data() + __pos2, __len);
       if (!__r)
@@ -885,7 +997,7 @@ namespace std
     {
       size_type __size = this->size();
       size_type __osize = traits_type::length(__s);
-      size_type __len = min(__size, __osize);
+      size_type __len = std::min(__size, __osize);
       int __r = traits_type::compare(_M_data(), __s, __len);
       if (!__r)
 	__r = __size - __osize;
@@ -903,8 +1015,8 @@ namespace std
 	__throw_out_of_range("basic_string::compare");
       
       size_type __osize = traits_type::length(__s);
-      size_type __rsize = min(__size - __pos, __n1);
-      size_type __len = min(__rsize, __osize);
+      size_type __rsize = std::min(size_type(__size - __pos), __n1);
+      size_type __len = std::min(__rsize, __osize);
       int __r = traits_type::compare(_M_data() + __pos, __s, __len);
       if (!__r)
 	__r = __rsize - __osize;
@@ -921,9 +1033,9 @@ namespace std
       if (__pos > __size)
 	__throw_out_of_range("basic_string::compare");
       
-      size_type __osize = min(traits_type::length(__s), __n2);
-      size_type __rsize = min(__size - __pos, __n1);
-      size_type __len = min(__rsize, __osize);
+      size_type __osize = std::min(traits_type::length(__s), __n2);
+      size_type __rsize = std::min(size_type(__size - __pos), __n1);
+      size_type __len = std::min(__rsize, __osize);
       int __r = traits_type::compare(_M_data() + __pos, __s, __len);
       if (!__r)
 	__r = __rsize - __osize;
@@ -937,7 +1049,7 @@ namespace std
     {
       typedef typename _Alloc::size_type size_type;
       size_type __strsize = __str.size();
-      size_type __bytes = min(__strsize, __bufsiz - 1);
+      size_type __bytes = std::min(__strsize, __bufsiz - 1);
       _Traits::copy(__buf, __str.data(), __bytes);
       __buf[__bytes] = _CharT();
     }
@@ -945,6 +1057,7 @@ namespace std
   // Inhibit implicit instantiations for required instantiations,
   // which are defined via explicit instantiations elsewhere.  
   // NB: This syntax is a GNU extension.
+#if _GLIBCPP_EXTERN_TEMPLATE
   extern template class basic_string<char>;
   extern template 
     basic_istream<char>& 
@@ -973,6 +1086,7 @@ namespace std
   extern template 
     basic_istream<wchar_t>& 
     getline(basic_istream<wchar_t>&, wstring&);
+#endif
 #endif
 } // namespace std
 

@@ -390,7 +390,7 @@ namespace std
       __s.flags(__os.flags());
       __s.imbue(__os.getloc());
       __s.precision(__os.precision());
-      __s << '(' << __x.real() << "," << __x.imag() << ')';
+      __s << '(' << __x.real() << ',' << __x.imag() << ')';
       return __os << __s.str();
     }
 
@@ -456,7 +456,7 @@ namespace std
     inline _Tp
     norm(const complex<_Tp>& __z)
     {
-      return _Norm_helper<__is_floating<_Tp>::_M_type>::_S_do_it(__z);
+      return _Norm_helper<__is_floating<_Tp>::_M_type && !_GLIBCPP_FAST_MATH>::_S_do_it(__z);
     }
 
   template<typename _Tp>
@@ -565,24 +565,30 @@ namespace std
     }
 
   template<typename _Tp>
-    inline complex<_Tp>
+    complex<_Tp>
     pow(const complex<_Tp>& __x, const _Tp& __y)
     {
-      return exp(__y * log(__x));
+      if (__x.imag() == _Tp())
+        return pow(__x.real(), __y);
+
+      complex<_Tp> __t = log(__x);
+      return polar(exp(__y * __t.real()), __y * __t.imag());
     }
 
   template<typename _Tp>
     inline complex<_Tp>
     pow(const complex<_Tp>& __x, const complex<_Tp>& __y)
     {
-      return exp(__y * log(__x));
+      return __x == _Tp() ? _Tp() : exp(__y * log(__x));
     }
 
   template<typename _Tp>
     inline complex<_Tp>
     pow(const _Tp& __x, const complex<_Tp>& __y)
     {
-      return exp(__y * log(__x));
+      return __x == _Tp()
+        ? _Tp()
+        : polar(pow(__x, __y.real()), __y.imag() * log(__x));
     }
 
   // 26.2.3  complex specializations
