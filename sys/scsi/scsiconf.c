@@ -16,7 +16,7 @@
  *
  * New configuration setup: dufault@hda.com
  *
- *      $Id: scsiconf.c,v 1.32 1995/07/17 23:37:59 gibbs Exp $
+ *      $Id: scsiconf.c,v 1.33 1995/08/16 16:13:53 bde Exp $
  */
 
 #include <sys/types.h>
@@ -635,11 +635,11 @@ void scsi_configure_finish(void)
  * to get all their devices configured in.
  */
 void
-scsi_attachdevs(sc_link_proto)
-	struct scsi_link *sc_link_proto;
+scsi_attachdevs(scbus)
+	struct scsibus_data *scbus;
 {
 	int scsibus;
-	struct scsibus_data *scbus;
+	struct scsi_link *sc_link_proto = scbus->adapter_link;
 
 	if ( (scsibus = scsi_bus_conf(sc_link_proto)) == -1) {
 		return;
@@ -652,12 +652,17 @@ scsi_attachdevs(sc_link_proto)
 		sc_link_proto->opennings = 1;
 	}
 	sc_link_proto->scsibus = scsibus;
-	scbus = malloc(sizeof(struct scsibus_data), M_TEMP, M_NOWAIT);
-	if(scbus == 0 || extend_set(scbusses, scsibus, scbus) == 0) {
+	/*
+	 * Allocate our target-lun space.
+	 */
+	scbus->sc_link = (struct scsi_link *(*)[][8])malloc(
+		sizeof(struct scsi_link *[scbus->maxtarg + 1][8]),
+		M_TEMP, M_NOWAIT);
+	if(scbus == 0 || scbus->sc_link == 0
+	   || extend_set(scbusses, scsibus, scbus) == 0) {
 		panic("scsi_attachdevs: malloc");
 	}
-	bzero(scbus, sizeof(struct scsibus_data));
-	scbus->adapter_link = sc_link_proto;
+	bzero(scbus->sc_link, sizeof(struct scsi_link*[scbus->maxtarg + 1][8]));
 #if defined(SCSI_DELAY) && SCSI_DELAY > 2
 	printf("%s%d waiting for scsi devices to settle\n",
 	    sc_link_proto->adapter->name, sc_link_proto->adapter_unit);
@@ -860,6 +865,31 @@ static errval
 #endif /* NSCTARG > 0 */
 
 /*
+ * Allocate a scsibus_data structure
+ * The target/lun area is dynamically allocated in scsi_attachdevs after
+ * the controller driver has a chance to update the maxtarg field.
+ */
+struct scsibus_data*
+scsi_alloc_bus()
+{
+	struct scsibus_data *scbus;
+	/*
+	 * Prepare the scsibus_data area for the upperlevel
+	 * scsi code.
+	 */
+	scbus = malloc(sizeof(struct scsibus_data), M_TEMP, M_NOWAIT);
+	if(!scbus) {
+                printf("scsi_alloc_bus: - cannot malloc!\n");
+                return NULL;
+	}
+	bzero(scbus, sizeof(struct scsibus_data));
+	/* Setup the defaults */
+	scbus->maxtarg = 7;
+	scbus->maxlun = 7;
+	return scbus;
+}
+
+/*
  * Probe the requested scsi bus. It must be already set up.
  * targ and lun optionally narrow the search if not -1
  */
@@ -883,18 +913,18 @@ scsi_probe_bus(int bus, int targ, int lun)
 	sc_link_proto = scsibus_data->adapter_link;
 	scsi_addr = sc_link_proto->adapter_targ;
 	if(targ == -1){
-		maxtarg = 7;
+		maxtarg = scsibus_data->maxtarg;
 		mintarg = 0;
 	} else {
-		if((targ < 0 ) || (targ > 7)) return EINVAL;
+		if((targ < 0 ) || (targ > scsibus_data->maxtarg)) return EINVAL;
 		maxtarg = mintarg = targ;
 	}
 
 	if(lun == -1){
-		maxlun = 7;
+		maxlun = scsibus_data->maxlun;
 		minlun = 0;
 	} else {
-		if((lun < 0 ) || (lun > 7)) return EINVAL;
+		if((lun < 0 ) || (lun > scsibus_data->maxlun)) return EINVAL;
 		maxlun = minlun = lun;
 	}
 
@@ -908,7 +938,7 @@ scsi_probe_bus(int bus, int targ, int lun)
 			 * The spot appears to already have something
 			 * linked in, skip past it. Must be doing a 'reprobe'
 			 */
-			if(scsibus_data->sc_link[targ][lun])
+			if((*scsibus_data->sc_link)[targ][lun])
 			{/* don't do this one, but check other luns */
 				maybe_more = 1;
 				continue;
@@ -943,7 +973,7 @@ scsi_probe_bus(int bus, int targ, int lun)
 				if (scsi_alloc_unit(sc_link)) {
 
 					if (scsi_device_attach(sc_link) == 0) {
-						scsibus_data->sc_link[targ][lun] = sc_link;
+						(*scsibus_data->sc_link)[targ][lun] = sc_link;
 						sc_link = NULL;		/* it's been used */
 					}
 					else
@@ -973,7 +1003,7 @@ scsi_link_get(bus, targ, lun)
 {
 	struct scsibus_data *scsibus_data =
 	 (struct scsibus_data *)extend_get(scbusses, bus);
-	return (scsibus_data) ? scsibus_data->sc_link[targ][lun] : 0;
+	return (scsibus_data) ? (*scsibus_data->sc_link)[targ][lun] : 0;
 }
 
 /* make_readable: Make the inquiry data readable.  Anything less than a ' '

@@ -616,6 +616,7 @@ wdsattach(struct isa_device *dev)
   static u_long versprobe=0;	/* max 32 controllers */
   int r;
   int unit = dev->id_unit;
+  struct scsibus_data *scbus;
 
   masunit = dev->id_unit;
 
@@ -634,9 +635,18 @@ wdsattach(struct isa_device *dev)
   wds[unit].sc_link.device = &wds_dev;
   wds[unit].sc_link.flags = SDEV_BOUNCE;
 
+  /*
+   * Prepare the scsibus_data area for the upperlevel
+   * scsi code.
+   */
+  scbus = scsi_alloc_bus();
+  if(!scbus)
+    return 0;
+  scbus->adapter_link = &wds[unit].sc_link;
+
   kdc_wds[unit].kdc_state = DC_BUSY;
 
-  scsi_attachdevs(&wds[unit].sc_link);
+  scsi_attachdevs(scbus);
 
   return 1;
 }
