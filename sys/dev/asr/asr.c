@@ -112,6 +112,7 @@
 #include <sys/cdefs.h>
 #include <sys/param.h>	/* TRUE=1 and FALSE=0 defined here */
 #include <sys/kernel.h>
+#include <sys/module.h>
 #include <sys/systm.h>
 #include <sys/malloc.h>
 #include <sys/conf.h>

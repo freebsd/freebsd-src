@@ -40,6 +40,7 @@
 #include <sys/types.h>
 
 #include <sys/kernel.h>
+#include <sys/module.h>
 #include <sys/malloc.h>
 #include <sys/conf.h>
 #include <sys/sysctl.h>

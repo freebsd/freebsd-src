@@ -45,6 +45,7 @@
 #include <sys/kernel.h>
 #include <sys/mbuf.h>
 #include <sys/malloc.h>
+#include <sys/module.h>
 #include <sys/tty.h>
 #include <sys/syslog.h>
 #include <sys/fcntl.h>

@@ -36,6 +36,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/linker.h>
 #include <sys/fbio.h>
 #include <sys/kernel.h>
+#include <sys/module.h>
 
 #include <dev/fb/fbreg.h>
 #include <dev/fb/splashreg.h>

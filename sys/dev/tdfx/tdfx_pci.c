@@ -50,7 +50,8 @@ __FBSDID("$FreeBSD$");
 #include <sys/filio.h>
 #include <sys/ioccom.h>
 #include <sys/kernel.h>
-#include	<sys/malloc.h>
+#include <sys/module.h>
+#include <sys/malloc.h>
 #include <sys/mman.h>
 #include <sys/signalvar.h>
 #include <sys/systm.h>
