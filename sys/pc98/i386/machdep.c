@@ -35,7 +35,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)machdep.c	7.4 (Berkeley) 6/3/91
- *	$Id: machdep.c,v 1.95 1998/09/15 03:50:08 kato Exp $
+ *	$Id: machdep.c,v 1.96 1998/09/28 08:25:29 kato Exp $
  */
 
 #include "apm.h"
@@ -217,8 +217,8 @@ sysctl_machdep_msgbuf SYSCTL_HANDLER_ARGS
 {
 	int error;
 
-	/* Unwind the buffer, so that is linear (possibly starting with
-	 * some initial nulls.
+	/* Unwind the buffer, so that it's linear (possibly starting with
+	 * some initial nulls).
 	 */
 	error=sysctl_handle_opaque(oidp,msgbufp->msg_ptr+msgbufp->msg_bufr,
 		msgbufp->msg_size-msgbufp->msg_bufr,req);
@@ -231,7 +231,28 @@ sysctl_machdep_msgbuf SYSCTL_HANDLER_ARGS
 }
 
 SYSCTL_PROC(_machdep, OID_AUTO, msgbuf, CTLTYPE_STRING|CTLFLAG_RD,
-	0, 0, sysctl_machdep_msgbuf, "A","");
+	0, 0, sysctl_machdep_msgbuf, "A","Contents of kernel message buffer");
+
+static int msgbuf_clear;
+
+static int
+sysctl_machdep_msgbuf_clear SYSCTL_HANDLER_ARGS
+{
+	int error;
+	error = sysctl_handle_int(oidp, oidp->oid_arg1, oidp->oid_arg2,
+		req);
+	if (!error && req->newptr) {
+		/* Clear the buffer and reset write pointer */
+		bzero(msgbufp->msg_ptr,msgbufp->msg_size);
+		msgbufp->msg_bufr=msgbufp->msg_bufx=0;
+		msgbuf_clear=0;
+	}
+	return (error);
+}
+
+SYSCTL_PROC(_machdep, OID_AUTO, msgbuf_clear, CTLTYPE_INT|CTLFLAG_RW,
+	&msgbuf_clear, 0, sysctl_machdep_msgbuf_clear, "I",
+	"Clear kernel message buffer");
 
 int bootverbose = 0, Maxmem = 0;
 #ifdef PC98
