@@ -57,7 +57,7 @@ pam_sm_authenticate(pam_handle_t *pamh, int flags __unused,
 {
 	struct opie opie;
 	struct passwd *pwent;
-	char *luser, *rhost;
+	const char *luser, *rhost;
 	int r;
 
 	r = pam_get_item(pamh, PAM_USER, (const void **)&luser);
@@ -73,9 +73,10 @@ pam_sm_authenticate(pam_handle_t *pamh, int flags __unused,
 	r = pam_get_item(pamh, PAM_RHOST, (const void **)&rhost);
 	if (r != PAM_SUCCESS)
 		return (r);
+	if (rhost == NULL)
+		rhost = "localhost";
 
-	if ((rhost == NULL || opieaccessfile(rhost)) &&
-	    opiealways(pwent->pw_dir) != 0)
+	if (opieaccessfile(rhost) != 0 && opiealways(pwent->pw_dir) != 0)
 		return (PAM_SUCCESS);
 
 	PAM_VERBOSE_ERROR("Refused; remote host is not in opieaccess");
