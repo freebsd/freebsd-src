@@ -34,7 +34,7 @@
 		(create-link
 		  (list (list "HREF" "mailto:questions@FreeBSD.org"))
                   (literal "questions@FreeBSD.org"))
-                (literal ">.")
+                (literal ">.")))
             (make element gi: "p"
                   attributes: (list (list "align" "center"))
               (make element gi: "small"  
@@ -48,10 +48,11 @@
 
             (make element gi: "p"
                   attributes: (list (list "align" "center"))
+              (make element gi: "small"  
 	      (literal "For questions about this documentation, e-mail <")
 	      (create-link (list (list "HREF" "mailto:doc@FreeBSD.org"))
                 (literal "doc@FreeBSD.org"))
-	      (literal ">."))))))
+	      (literal ">.")))))
       ]]>
 
     </style-specification-body>
