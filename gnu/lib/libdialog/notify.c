@@ -38,7 +38,7 @@ dialog_notify(char *msg)
     }
     tmphlp = get_helpline();
     use_helpline("Press enter to continue");
-    dialog_mesgbox("Message", msg, -1, -1, TRUE);
+    dialog_mesgbox("Message", msg, -1, -1);
     restore_helpline(tmphlp);
     touchwin(w);
     wrefresh(w);
