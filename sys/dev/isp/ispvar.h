@@ -515,7 +515,6 @@ int isp_control __P((struct ispsoftc *, ispctl_t, void *));
  * (each platform must provide such a function)
  *
  * Assumes all locks are held and that no reentrancy issues need be dealt with.
- *
  */
 
 typedef enum {
@@ -523,9 +522,9 @@ typedef enum {
 	ISPASYNC_BUS_RESET,		/* Bus Was Reset */
 	ISPASYNC_LOOP_DOWN,		/* FC Loop Down */
 	ISPASYNC_LOOP_UP,		/* FC Loop Up */
-	ISPASYNC_PDB_CHANGED,		/* FC Port Data Base Changed */
-	ISPASYNC_CHANGE_NOTIFY,		/* FC SNS Change Notification */
-	ISPASYNC_FABRIC_DEV,		/* FC New Fabric Device */
+	ISPASYNC_CHANGE_NOTIFY,		/* FC SNS or Port Database Changed */
+	ISPASYNC_FABRIC_DEV,		/* FC Fabric Device Arrived/Left */
+	ISPASYNC_LOGGED_INOUT,		/* FC Object Logged In/Out */
 	ISPASYNC_TARGET_MESSAGE,	/* target message */
 	ISPASYNC_TARGET_EVENT,		/* target asynchronous event */
 	ISPASYNC_TARGET_ACTION		/* other target command action */
