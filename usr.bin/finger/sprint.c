@@ -109,7 +109,7 @@ sflag_print()
 				pn->name, MAXREALNAME, namelen,
 				pn->realname ? pn->realname : "");
 			if (!w->loginat) {
-				(void)printf("  *     *  No logins   ");
+				(void)printf("  *     *   No logins   ");
 				goto office;
 			}
 			(void)putchar(w->info == LOGGEDIN && !w->writable ?
