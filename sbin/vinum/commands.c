@@ -36,7 +36,7 @@
  * otherwise) arising in any way out of the use of this software, even if
  * advised of the possibility of such damage.
  *
- * $Id: commands.c,v 1.9 1999/10/13 02:33:26 grog Exp grog $
+ * $Id: commands.c,v 1.10 2000/01/03 04:31:58 grog Exp grog $
  * $FreeBSD$
  */
 
@@ -426,7 +426,7 @@ initsd(int sdno, int dowait)
     int sdfh;						    /* and for subdisk */
     char buf[MAXPLEXINITSIZE];
     int initsize;					    /* actual size to write */
-    long long sdsize;					    /* size of subdisk */
+    int64_t sdsize;					    /* size of subdisk */
     int retval;
 
     if (dowait == 0) {
@@ -608,7 +608,7 @@ vinum_start(int argc, char *argv[], char *arg0[])
 			for (sdno = 0; sdno < plex.subdisks; sdno++) {
 			    get_plex_sd_info(&sd, object, sdno);
 			    if ((sd.state >= sd_empty)
-				&& (sd.state <= sd_reviving)) {	/* candidate for init */
+				&& (sd.state <= sd_reviving)) {	/* candidate for start */
 				message->index = sd.sdno;   /* pass object number */
 				message->type = sd_object;  /* it's a subdisk */
 				message->state = object_up;
@@ -659,6 +659,19 @@ vinum_start(int argc, char *argv[], char *arg0[])
 		    message->type = type;		    /* and type of object */
 		    message->state = object_up;
 		    message->force = force;		    /* don't force it, use a larger hammer */
+
+		    /*
+		     * We don't do any checking here.
+		     * The kernel module has a better
+		     * understanding of these things,
+		     * let it do it.
+		     */
+		    if (SSize != 0) {			    /* specified a size for init or revive */
+			if (SSize < 512)
+			    SSize <<= DEV_BSHIFT;
+			message->blocksize = SSize;
+		    } else
+			message->blocksize = 0;
 		    ioctl(superdev, VINUM_SETSTATE, message);
 		    if (reply.error != 0) {
 			if ((reply.error == EAGAIN)	    /* we're reviving */
@@ -1185,13 +1198,120 @@ vinum_rename(int argc, char *argv[], char *argv0[])
 }
 
 /*
- * Replace an object.  Currently only defined for a drive: move all
- * the subdisks on a drive to a new drive.
+ * Move objects:
+ *
+ * mv <dest> <src> ...
+ */
+void
+vinum_mv(int argc, char *argv[], char *argv0[])
+{
+    int i;						    /* loop index */
+    int srcobj;
+    int destobj;
+    enum objecttype srct;
+    enum objecttype destt;
+    int sdno;
+    struct _ioctl_reply reply;
+    struct vinum_ioctl_msg *msg = (struct vinum_ioctl_msg *) &reply;
+
+    if (argc < 2) {
+	fprintf(stderr, "Usage: \tmove <dest> <src> ...\n");
+	return;
+    }
+    /* Get current config */
+    if (ioctl(superdev, VINUM_GETCONFIG, &vinum_conf) < 0) {
+	perror("Cannot get vinum config\n");
+	return;
+    }
+    /* Get our destination */
+    destobj = find_object(argv[0], &destt);
+    if (destobj == -1) {
+	fprintf(stderr, "Can't find %s\n", argv[0]);
+	return;
+    }
+    /* Verify that the target is a drive */
+    if (destt != drive_object) {
+	fprintf(stderr, "%s is not a drive\n", argv[0]);
+	return;
+    }
+    for (i = 1; i < argc; i++) {			    /* for all the sources */
+	srcobj = find_object(argv[i], &srct);
+	if (srcobj == -1) {
+	    fprintf(stderr, "Can't find %s\n", argv[i]);
+	    continue;
+	}
+	msg->index = destobj;
+	switch (srct) {					    /* Handle the source object */
+	case drive_object:				    /* Move all subdisks on the drive to dst. */
+	    get_drive_info(&drive, srcobj);		    /* get info on drive */
+	    for (sdno = 0; sdno < vinum_conf.subdisks_allocated; ++sdno) {
+		get_sd_info(&sd, sdno);
+		if (sd.driveno == srcobj) {
+		    msg->index = destobj;
+		    msg->otherobject = sd.sdno;
+		    if (ioctl(superdev, VINUM_MOVE, msg) < 0)
+			fprintf(stderr,
+			    "Can't move %s (part of %s) to %s: %s (%d)\n",
+			    sd.name,
+			    drive.label.name,
+			    argv[0],
+			    strerror(reply.error),
+			    reply.error);
+		}
+	    }
+	    break;
+
+	case sd_object:
+	    msg->otherobject = srcobj;
+	    if (ioctl(superdev, VINUM_MOVE, msg) < 0)
+		fprintf(stderr,
+		    "Can't move %s to %s: %s (%d)\n",
+		    sd.name,
+		    argv[0],
+		    strerror(reply.error),
+		    reply.error);
+	    break;
+
+	case plex_object:
+	    get_plex_info(&plex, srcobj);
+	    for (sdno = 0; sdno < plex.subdisks; ++sdno) {
+		get_plex_sd_info(&sd, plex.plexno, sdno);
+		msg->index = destobj;
+		msg->otherobject = sd.sdno;
+		if (ioctl(superdev, VINUM_MOVE, msg) < 0)
+		    fprintf(stderr,
+			"Can't move %s (part of %s) to %s: %s (%d)\n",
+			sd.name,
+			plex.name,
+			argv[0],
+			strerror(reply.error),
+			reply.error);
+	    }
+	    break;
+
+	case volume_object:
+	case invalid_object:
+	default:
+	    fprintf(stderr, "Can't move %s (inappropriate object).\n", argv[i]);
+	    break;
+	}
+	if (reply.error)
+	    fprintf(stderr,
+		"Can't move %s to %s: %s (%d)\n",
+		argv[i],
+		argv[0],
+		strerror(reply.error),
+		reply.error);
+    }
+}
+
+/*
+ * Replace objects.  Not implemented, may never be.
  */
 void
 vinum_replace(int argc, char *argv[], char *argv0[])
 {
-    fprintf(stderr, "replace not implemented yet\n");
+    fprintf(stderr, "'replace' not implemented yet.  Use 'move' instead\n");
 }
 
 /* Primitive help function */
@@ -1236,6 +1356,8 @@ vinum_help(int argc, char *argv[], char *argv0[])
 	"          Write a copy of the current configuration to file.\n"
 	"makedev\n"
 	"          Remake the device nodes in /dev/vinum.\n"
+	"move drive [subdisk | plex | drive]\n"
+	"          Move the subdisks of the specified object(s) to drive.\n"
 	"quit\n"
 	"          Exit the vinum program when running in interactive mode.  Nor-\n"
 	"          mally this would be done by entering the EOF character.\n"
@@ -1584,13 +1706,13 @@ vinum_stripe(int argc, char *argv[], char *argv0[])
 	    objectname,
 	    o,
 	    drive->label.name,
-	    maxsize);
+	    (long long) maxsize);
 	if (vflag)
 	    printf("    sd name %s.p0.s%d drive %s size %lldb\n",
 		objectname,
 		o,
 		drive->label.name,
-		maxsize);
+		(long long) maxsize);
 	ioctl(superdev, VINUM_CREATE, buffer);
 	if (reply->error != 0) {			    /* error in config */
 	    if (reply->msg[0])
@@ -1755,14 +1877,14 @@ vinum_mirror(int argc, char *argv[], char *argv0[])
 		p,
 		o >> 1,
 		drive->label.name,
-		maxsize[p]);
+		(long long) maxsize[p]);
 	    if (vflag)
 		printf("    sd name %s.p%d.s%d drive %s size %lldb\n",
 		    objectname,
 		    p,
 		    o >> 1,
 		    drive->label.name,
-		    maxsize[p]);
+		    (long long) maxsize[p]);
 	    ioctl(superdev, VINUM_CREATE, buffer);
 	    if (reply->error != 0) {			    /* error in config */
 		if (reply->msg[0])
