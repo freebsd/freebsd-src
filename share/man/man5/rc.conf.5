@@ -24,7 +24,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd October 28, 2004
+.Dd November 9, 2004
 .Dt RC.CONF 5
 .Os
 .Sh NAME
@@ -240,6 +240,21 @@ is not writable.
 Controls the size of a created
 .Pa /tmp
 memory file system.
+.It Va tmpmfs_flags
+Extra options passed to the
+.Xr mdmfs 8
+utility when the memory file system for
+.Pa /tmp
+is created.
+The default is
+.Dq Li -S ,
+which inhibits the use of softupdates on
+.Pa /tmp
+to waste as little space as possible.
+See
+.Xr mdmfs 8
+for other options you can use in
+.Li tmpmfs_flags .
 .It Va varmfs
 Controls the creation of a
 .Pa /var
@@ -255,6 +270,21 @@ is not writable.
 Controls the size of a created
 .Pa /var
 memory file system.
+.It Va varmfs_flags
+Extra options passed to the
+.Xr mdmfs 8
+utility when the memory file system for
+.Pa /var
+is created.
+The default is
+.Dq Li -S ,
+which inhibits the use of softupdates on
+.Pa /var
+to waste as little space as possible.
+See
+.Xr mdmfs 8
+for other options you can use in
+.Li varmfs_flags .
 .It Va populate_var
 Controls the automatic population of the
 .Pa /var
@@ -264,7 +294,7 @@ Always happens if set to
 and never happens if set to
 .Dq Li NO .
 If set to anything else, a memory file system is created if
-.Pa /tmp
+.Pa /var
 is not writable.
 Note that this process requires access to certain commands in
 .Pa /usr
@@ -428,6 +458,11 @@ must also be set to
 and
 .Xr divert 4
 sockets must be enabled in the kernel.
+If the kernel was not built with
+.Cd "options IPDIVERT" ,
+the
+.Pa ipdivert.ko
+kernel module will be loaded.
 .It Va natd_interface
 .Pq Vt str
 This is the name of the public interface on which
@@ -1596,6 +1631,25 @@ is set to
 these are the flags to pass to the
 .Xr ntpd 8
 daemon.
+.It Va ntpd_sync_on_start
+.Pq Vt bool
+If set to
+.Dq Li YES ,
+.Xr ntpd 8
+is run with the
+.Op Fl g
+flag, which syncs the system's clock on startup.
+See
+.Xr ntpd 8
+for more information regarding the
+.Op Fl g
+option.
+This is a preferred alternative to using
+.Xr ntpdate 1
+or specifying the
+.Pa /etc/rc.conf
+tunable
+.Op Ar ntpdate_enable .
 .It Va nis_client_enable
 .Pq Vt bool
 If set to
@@ -2199,6 +2253,21 @@ If not set to
 this is the actual screen saver to use
 .Li ( blank , snake , daemon ,
 etc).
+.It Va moused_nondefault_enable
+.Pq Vt str
+If set to
+.Dq Li NO
+the mouse device specified on
+the command line is not automatically treated as enabled by the
+.Pa /etc/rc.d/moused
+script.
+Having this variable set to
+.Dq Li YES
+allows a
+.Xr usb 4
+mouse,
+for example,
+to be enabled as soon as it is plugged in.
 .It Va moused_enable
 .Pq Vt str
 If set to
@@ -2298,7 +2367,7 @@ is set to
 .Dq Li YES ,
 this is the actual port the mouse is on.
 It might be
-.Pa /dev/cuaa0
+.Pa /dev/cuad0
 for a COM1 serial mouse,
 .Pa /dev/psm0
 for a PS/2 mouse or
@@ -2417,7 +2486,12 @@ man page.
 .Pq Vt str
 Indicates the device (usually a swap partition) to which a crash dump
 should be written in the event of a system crash.
-The value of this variable is passed as the argument to
+If the value of this variable is
+.Dq Li AUTO ,
+the first suitable swap device listed in
+.Pa /etc/fstab
+will be used as dump device.
+Otherwise, the value of this variable is passed as the argument to
 .Xr dumpon 8 .
 To disable crash dumps, set this variable to
 .Dq Li NO .
@@ -2561,13 +2635,6 @@ see
 .Xr lomac 4
 for a complete description of the LOMAC model, as well as its impact
 on system operation.
-.It Va start_vinum
-.Pq Vt bool
-Set to
-.Dq Li YES
-to start
-.Xr vinum 8
-at system boot time.
 .It Va sshd_program
 .Pq Vt str
 Path to the SSH server program
@@ -2624,6 +2691,48 @@ is set to
 these are the flags passed to the
 .Xr watchdogd 8
 daemon.
+.It Va performance_cx_lowest
+.Pq Vt str
+CPU idle state to use while on AC power.
+The string
+.Dq Li LOW
+indicates that 
+.Xr acpi 4
+should use the lowest power state available while
+.Dq Li HIGH
+indicates that the lowest latency state (less power savings) should be used.
+.It Va performance_throttle_state
+.Pq Vt str
+CPU throttling state to use while on AC power.
+The string
+.Dq Li LOW
+indicates that 
+.Xr acpi 4
+should use the lowest throttling state available while
+.Dq Li HIGH
+indicates that the highest performance state (less power savings) should be
+used.
+.It Va economy_throttle_state
+.Pq Vt str
+CPU throttling state to use when off AC power.
+The string
+.Dq Li LOW
+indicates that 
+.Xr acpi 4
+should use the lowest throttling state available while
+.Dq Li HIGH
+indicates that the highest performance state (less power savings) should be
+used.
+.It Va economy_cx_lowest
+.Pq Vt str
+CPU idle state to use when off AC power.
+The string
+.Dq Li LOW
+indicates that 
+.Xr acpi 4
+should use the lowest power state available while
+.Dq Li HIGH
+indicates that the lowest latency state (less power savings) should be used.
 .It Va jail_enable
 .Pq Vt bool
 If set to
@@ -2980,11 +3089,6 @@ ruleset file.
 The default
 .Xr mac_bsdextended 4
 ruleset file to load.
-.It Va swapoff
-.Pq Vt bool
-Set to
-.Dq Li YES
-to remove swap partitions upon shutdown.
 .It Va ramdisk_units
 .Pq Vt str
 A list of one or more ramdisk units to configure with
@@ -3077,6 +3181,7 @@ device and the mount point will be changed.
 .Xr kldxref 8 ,
 .Xr lpd 8 ,
 .Xr mdconfig 8 ,
+.Xr mdmfs 8 ,
 .Xr mountd 8 ,
 .Xr moused 8 ,
 .Xr mrouted 8 ,
@@ -3103,7 +3208,6 @@ device and the mount point will be changed.
 .Xr syslogd 8 ,
 .Xr timed 8 ,
 .Xr usbd 8 ,
-.Xr vinum 8 ,
 .Xr yp 8 ,
 .Xr ypbind 8 ,
 .Xr ypserv 8 ,
