@@ -92,6 +92,7 @@ struct ng_pptpgre_conf {
     u_char      enabled;          /* enables traffic flow */
     u_char      enableDelayedAck; /* enables delayed acks */
     u_char      enableAlwaysAck;  /* always send ack with data */
+    u_char      enableWindowing;  /* enable windowing algorithm */
     u_int16_t   cid;              /* my call id */
     u_int16_t   peerCid;          /* peer call id */
     u_int16_t   recvWin;          /* peer recv window size */
@@ -110,6 +111,14 @@ is a useful optimization and should generally be turned on.
 .Va enableAlwaysAck
 field enables sending acknowledgements with every data packet, which
 is probably helpful as well.
+.Pp
+.Va enableWindowing
+enables the PPTP packet windowing mechanism specified by the protocol.
+Disabling this will cause the node to violate the protocol, possibly
+confusing other PPTP peers, but often results in better performance.
+The windowing mechanism is a design error in the PPTP protocol;
+L2TP, the successor to PPTP, removes it.
+.Pp
 The remaining fields are as supplied by the PPTP virtual call setup process.
 .It Dv NGM_PPTPGRE_GET_CONFIG
 Returns the current configuration as a

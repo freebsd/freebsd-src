@@ -486,12 +486,15 @@ ng_pptpgre_xmit(node_p node, struct mbuf *m, meta_p meta)
 	/* Check if there's data */
 	if (m != NULL) {
 
-		/* Is our transmit window full? */
-		if ((u_int32_t)PPTP_SEQ_DIFF(priv->xmitSeq, priv->recvAck)
-		      >= a->xmitWin) {
-			priv->stats.xmitDrops++;
-			NG_FREE_DATA(m, meta);
-			return (ENOBUFS);
+		/* Check if windowing is enabled */
+		if (priv->conf.enableWindowing) {
+			/* Is our transmit window full? */
+			if ((u_int32_t)PPTP_SEQ_DIFF(priv->xmitSeq,
+			    priv->recvAck) >= a->xmitWin) {
+				priv->stats.xmitDrops++;
+				NG_FREE_DATA(m, meta);
+				return (ENOBUFS);
+			}
 		}
 
 		/* Sanity check frame length */
@@ -511,8 +514,10 @@ ng_pptpgre_xmit(node_p node, struct mbuf *m, meta_p meta)
 	/* Include sequence number if packet contains any data */
 	if (m != NULL) {
 		gre->hasSeq = 1;
-		a->timeSent[priv->xmitSeq - priv->recvAck]
-		    = ng_pptpgre_time(node);
+		if (priv->conf.enableWindowing) {
+			a->timeSent[priv->xmitSeq - priv->recvAck]
+			    = ng_pptpgre_time(node);
+		}
 		priv->xmitSeq++;
 		gre->data[0] = htonl(priv->xmitSeq);
 	}
@@ -652,33 +657,36 @@ bad:
 		priv->recvAck = ack;
 
 		/* Update adaptive timeout stuff */
-		sample = ng_pptpgre_time(node) - a->timeSent[index];
-		diff = sample - a->rtt;
-		a->rtt += PPTP_ACK_ALPHA(diff);
-		if (diff < 0)
-			diff = -diff;
-		a->dev += PPTP_ACK_BETA(diff - a->dev);
-		a->ato = a->rtt + PPTP_ACK_CHI(a->dev);
-		if (a->ato > PPTP_MAX_TIMEOUT)
-			a->ato = PPTP_MAX_TIMEOUT;
-		if (a->ato < PPTP_MIN_TIMEOUT)
-			a->ato = PPTP_MIN_TIMEOUT;
+		if (priv->conf.enableWindowing) {
+			sample = ng_pptpgre_time(node) - a->timeSent[index];
+			diff = sample - a->rtt;
+			a->rtt += PPTP_ACK_ALPHA(diff);
+			if (diff < 0)
+				diff = -diff;
+			a->dev += PPTP_ACK_BETA(diff - a->dev);
+			a->ato = a->rtt + PPTP_ACK_CHI(a->dev);
+			if (a->ato > PPTP_MAX_TIMEOUT)
+				a->ato = PPTP_MAX_TIMEOUT;
+			if (a->ato < PPTP_MIN_TIMEOUT)
+				a->ato = PPTP_MIN_TIMEOUT;
 
-		/* Shift packet transmit times in our transmit window */
-		ovbcopy(a->timeSent + index + 1, a->timeSent,
-		    sizeof(*a->timeSent) * (PPTP_XMIT_WIN - (index + 1)));
+			/* Shift packet transmit times in our transmit window */
+			ovbcopy(a->timeSent + index + 1, a->timeSent,
+			    sizeof(*a->timeSent)
+			      * (PPTP_XMIT_WIN - (index + 1)));
 
-		/* If we sent an entire window, increase window size by one */
-		if (PPTP_SEQ_DIFF(ack, a->winAck) >= 0
-		    && a->xmitWin < PPTP_XMIT_WIN) {
-			a->xmitWin++;
-			a->winAck = ack + a->xmitWin;
+			/* If we sent an entire window, increase window size */
+			if (PPTP_SEQ_DIFF(ack, a->winAck) >= 0
+			    && a->xmitWin < PPTP_XMIT_WIN) {
+				a->xmitWin++;
+				a->winAck = ack + a->xmitWin;
+			}
+
+			/* Stop/(re)start receive ACK timer as necessary */
+			ng_pptpgre_stop_recv_ack_timer(node);
+			if (priv->recvAck != priv->xmitSeq)
+				ng_pptpgre_start_recv_ack_timer(node);
 		}
-
-		/* Stop/(re)start receive ACK timer as necessary */
-		ng_pptpgre_stop_recv_ack_timer(node);
-		if (priv->recvAck != priv->xmitSeq)
-			ng_pptpgre_start_recv_ack_timer(node);
 	}
 badAck:
 
@@ -747,6 +755,9 @@ ng_pptpgre_start_recv_ack_timer(node_p node)
 	struct ng_pptpgre_ackp *const a = &priv->ackp;
 	int remain, ticks;
 
+	if (!priv->conf.enableWindowing)
+		return;
+
 	/* Compute how long until oldest unack'd packet times out,
 	   and reset the timer to that time. */
 	KASSERT(a->rackTimerPtr == NULL, ("%s: rackTimer", __FUNCTION__));
@@ -782,6 +793,9 @@ ng_pptpgre_stop_recv_ack_timer(node_p node)
 {
 	const priv_p priv = node->private;
 	struct ng_pptpgre_ackp *const a = &priv->ackp;
+
+	if (!priv->conf.enableWindowing)
+		return;
 
 	if (callout_stop(&a->rackTimer)) {
 		FREE(a->rackTimerPtr, M_NETGRAPH);
