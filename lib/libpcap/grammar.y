@@ -22,7 +22,7 @@
  */
 #ifndef lint
 static char rcsid[] =
-    "@(#) $Header: grammar.y,v 1.39 94/06/14 20:09:25 leres Exp $ (LBL)";
+    "@(#) $Header: /home/ncvs/src/lib/libpcap/grammar.y,v 1.1.1.1 1995/01/20 04:13:06 jkh Exp $ (LBL)";
 #endif
 
 #include <sys/types.h>
@@ -40,6 +40,8 @@ static char rcsid[] =
 #include <pcap-namedb.h>
 
 #include "gencode.h"
+
+#define yylval pcap_lval
 
 #define QSET(q, p, d, a) (q).proto = (p),\
 			 (q).dir = (d),\
