@@ -43,30 +43,28 @@ __FBSDID("$FreeBSD$");
 #include <sys/types.h>
 
 #include <limits.h>
-#include <string.h>
 
 #define	wsize	sizeof(u_int)
 #define	wmask	(wsize - 1)
 
 #ifdef BZERO
+#include <strings.h>
+
 #define	RETURN	return
 #define	VAL	0
 #define	WIDEVAL	0
 
 void
-bzero(dst0, length)
-	void *dst0;
-	size_t length;
+bzero(void *dst0, size_t length)
 #else
+#include <string.h>
+
 #define	RETURN	return (dst0)
 #define	VAL	c0
 #define	WIDEVAL	c
 
 void *
-memset(dst0, c0, length)
-	void *dst0;
-	int c0;
-	size_t length;
+memset(void *dst0, int c0, size_t length)
 #endif
 {
 	size_t t;

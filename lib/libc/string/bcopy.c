@@ -40,8 +40,6 @@ static char sccsid[] = "@(#)bcopy.c	8.1 (Berkeley) 6/4/93";
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
-#include <string.h>
-
 /*
  * sizeof(word) MUST BE A POWER OF TWO
  * SO THAT wmask BELOW IS ALL ONES
@@ -56,21 +54,22 @@ typedef	int word;		/* "word" used for optimal copy speed */
  * This is the routine that actually implements
  * (the portable versions of) bcopy, memcpy, and memmove.
  */
+#if defined(MEMCOPY) || defined(MEMMOVE)
+#include <string.h>
+
+void *
 #ifdef MEMCOPY
-void *
-memcpy(dst0, src0, length)
+memcpy
 #else
-#ifdef MEMMOVE
-void *
-memmove(dst0, src0, length)
+memmove
+#endif
+(void *dst0, const void *src0, size_t length)
 #else
+#include <strings.h>
+
 void
-bcopy(src0, dst0, length)
+bcopy(const void *src0, void *dst0, size_t length)
 #endif
-#endif
-	void *dst0;
-	const void *src0;
-	size_t length;
 {
 	char *dst = dst0;
 	const char *src = src0;
