@@ -1,4 +1,4 @@
-<!-- $Id: basics.sgml,v 1.4 1995/10/22 00:41:53 jfieber Exp $ -->
+<!-- $Id: basics.sgml,v 1.5 1995/12/11 15:09:02 jkh Exp $ -->
 <!-- The FreeBSD Documentation Project -->
 
 <chapt><heading>Unix Basics<label id="basics"></heading>
@@ -89,7 +89,7 @@
 	  mode of <tt>emacs</tt>.
 	      
           To use the <tt>info(1)</tt> command, simply type:
-          <tscreen>% <bf>info</bf></tscreen>.  For a brief
+          <tscreen>% <bf>info</bf></tscreen>  For a brief
           introduction, type <tt><bf>h</bf></tt>.  For a quick
           command reference, type <tt><bf>?</bf></tt>.
 
