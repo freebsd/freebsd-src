@@ -41,7 +41,7 @@ driver provides support for a
 media changer.
 It allows many slots of media to be multiplexed between
 a number of drives.  The changer device may optionally be equipped
-with a bar code reader, which reads label informationen attached to
+with a bar code reader, which reads label information attached to
 the media.
 .Pp
 A SCSI adapter must also be separately configured into the system
@@ -76,7 +76,7 @@ has included the driver).
 .Sh IOCTLS
 User mode programs communicate with the changer driver through a
 number of ioctls which are described below.  Changer element addresses
-used in the communcation between the kernel and the changer device are
+used in the communication between the kernel and the changer device are
 mapped to zero-based logical addresses.  Element types are specified
 as follows:
 .Bl -tag -width CHET_MT
@@ -233,7 +233,7 @@ changer_voltag_t ces_avoltag;   /* alternate volume tag */
 u_char           ces_idvalid;   /* ces_scsi_id is valid */
 u_char           ces_scsi_id;   /* SCSI id of element (if ces_idvalid is nonzero) */
 u_char           ces_lunvalid;  /* ces_scsi_lun is valid */
-u_char           ces_scsi_lun;  /* SCSI lun of elemtne (if ces_lunvalid is nonzero) */
+u_char           ces_scsi_lun;  /* SCSI lun of element (if ces_lunvalid is nonzero) */
 .Ed
 .Pp
 The ces_addr field contains the address of the element in the
@@ -267,7 +267,7 @@ and a Breece Hill Q47 (60 slot, four DLT drives, barcode reader).
 .Pp
 Many of the features the
 .Nm
-driver supports are not thouroghly tested due to the fact that the
+driver supports are not throughly tested due to the fact that the
 devices available for testing do not support the necessary commands.
 This is true for alternate volume tags, media flipping, import/export
 element handling, multiple picker operation and other things.
