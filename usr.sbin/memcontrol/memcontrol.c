@@ -150,7 +150,6 @@ listfunc(int memfd, int argc, char *argv[])
 {
     struct mem_range_desc	*mrd;
     int				nd, i, j;
-    int				error;
     int				ch;
     int				showall = 0;
     char			*owner;
