@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)nfs.h	8.4 (Berkeley) 5/1/95
- * $Id$
+ * $Id: nfs.h,v 1.22 1997/02/22 09:42:34 peter Exp $
  */
 
 #ifndef _NFS_NFS_H_
@@ -324,10 +324,12 @@ struct nfsstats {
  * fs.nfs sysctl(3) identifiers
  */
 #define NFS_NFSSTATS	1		/* struct: struct nfsstats */
+#define NFS_NFSPRIVPORT	2		/* int: prohibit nfs to resvports */
 
 #define FS_NFS_NAMES { \
 		       { 0, 0 }, \
 		       { "nfsstats", CTLTYPE_STRUCT }, \
+		       { "nfsprivport", CTLTYPE_INT }, \
 }
 
 /*

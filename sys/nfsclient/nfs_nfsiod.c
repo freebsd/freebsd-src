@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)nfs_syscalls.c	8.5 (Berkeley) 3/30/95
- * $Id: nfs_syscalls.c,v 1.18 1997/02/22 09:42:42 peter Exp $
+ * $Id: nfs_syscalls.c,v 1.19 1997/03/22 06:53:11 bde Exp $
  */
 
 #include <sys/param.h>
@@ -107,6 +107,10 @@ static void	nfsd_rt __P((int sotype, struct nfsrv_descript *nd,
 			     int cacherep));
 static int	nfssvc_addsock __P((struct file *,struct mbuf *));
 static int	nfssvc_nfsd __P((struct nfsd_srvargs *,caddr_t,struct proc *));
+
+static int nfs_privport = 0;
+SYSCTL_INT(_vfs_nfs, NFS_NFSPRIVPORT, nfs_privport, CTLFLAG_RW, &nfs_privport, 0, "");
+
 /*
  * NFS server system calls
  * getfh() lives here too, but maybe should move to kern/vfs_syscalls.c
@@ -592,7 +596,24 @@ nfssvc_nfsd(nsd, argp, p)
 			nd->nd_procnum = NFSPROC_NOOP;
 			nd->nd_repstat = (NFSERR_AUTHERR | AUTH_TOOWEAK);
 			cacherep = RC_DOIT;
+		    } else if (nfs_privport) {
+			/* Check if source port is privileged */
+			u_short port;
+			u_long  addr;
+			struct mbuf *nam = nd->nd_nam;
+			struct sockaddr_in *sin;
+
+			sin = mtod(nam, struct sockaddr_in *);
+			port = ntohs(sin->sin_port);
+			if (port >= IPPORT_RESERVED) {
+			    nd->nd_procnum = NFSPROC_NOOP;
+			    nd->nd_repstat = (NFSERR_AUTHERR | AUTH_TOOWEAK);
+			    cacherep = RC_DOIT;
+			    printf("NFS request from unprivileged port (%s:%d)\n",
+				   inet_ntoa(sin->sin_addr), port);
+			}
 		    }
+
 		}
 
 		/*
