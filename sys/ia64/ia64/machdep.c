@@ -710,9 +710,8 @@ ia64_init()
 	}
 
 	/*
-	 * Force verbose mode and single-user for a while.
+	 * Force single-user for a while.
 	 */
-	bootverbose = 1;
 	boothowto |= RB_SINGLE;
 
 	/*
