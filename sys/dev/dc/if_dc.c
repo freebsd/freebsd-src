@@ -2618,21 +2618,25 @@ static void dc_txeof(sc)
 			continue;
 		}
 
-		if (DC_IS_XIRCOM(sc)) {
+		if (DC_IS_XIRCOM(sc) || DC_IS_CONEXANT(sc)) {
 			/*
 			 * XXX: Why does my Xircom taunt me so?
 			 * For some reason it likes setting the CARRLOST flag
-			 * even when the carrier is there. wtf?!? */
+			 * even when the carrier is there. wtf?!?
+			 * Who knows, but Conexant chips have the
+			 * same problem. Maybe they took lessons
+			 * from Xircom.
+			 */
 			if (/*sc->dc_type == DC_TYPE_21143 &&*/
 			    sc->dc_pmode == DC_PMODE_MII &&
 			    ((txstat & 0xFFFF) & ~(DC_TXSTAT_ERRSUM|
-						   DC_TXSTAT_NOCARRIER)))
+			    DC_TXSTAT_NOCARRIER)))
 				txstat &= ~DC_TXSTAT_ERRSUM;
 		} else {
 			if (/*sc->dc_type == DC_TYPE_21143 &&*/
 			    sc->dc_pmode == DC_PMODE_MII &&
 			    ((txstat & 0xFFFF) & ~(DC_TXSTAT_ERRSUM|
-						   DC_TXSTAT_NOCARRIER|DC_TXSTAT_CARRLOST)))
+			    DC_TXSTAT_NOCARRIER|DC_TXSTAT_CARRLOST)))
 				txstat &= ~DC_TXSTAT_ERRSUM;
 		}
 
