@@ -349,7 +349,7 @@ atpic_handle_intr(struct intrframe iframe)
 {
 	struct intsrc *isrc;
 
-	KASSERT((uint)iframe.if_vec < ICU_LEN,
+	KASSERT((u_int)iframe.if_vec < ICU_LEN,
 	    ("unknown int %d\n", iframe.if_vec));
 	isrc = &atintrs[iframe.if_vec].at_intsrc;
 
