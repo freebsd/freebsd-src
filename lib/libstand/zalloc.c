@@ -26,7 +26,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: zalloc.c,v 1.2 1998/09/26 03:24:14 dillon Exp $
+ *	$Id: zalloc.c,v 1.3 1998/09/26 10:48:50 dfr Exp $
  */
 
 /*
@@ -69,79 +69,6 @@
 
 #include "zalloc_defs.h"
 
-Prototype struct MemPool *DummyStructMemPool;
-Library void *znalloc(struct MemPool *mpool, iaddr_t bytes);
-Library void *zalloc(struct MemPool *mpool, iaddr_t bytes);
-Library void *zallocAlign(struct MemPool *mpool, iaddr_t bytes, iaddr_t align);
-Library void *zxalloc(struct MemPool *mp, void *addr1, void *addr2, iaddr_t bytes);
-Library void *znxalloc(struct MemPool *mp, void *addr1, void *addr2, iaddr_t bytes);
-Library char *zallocStr(struct MemPool *mpool, const char *s, int slen);
-Library void zfree(struct MemPool *mpool, void *ptr, iaddr_t bytes);
-Library void zfreeStr(struct MemPool *mpool, char *s);
-Library void zinitPool(struct MemPool *mp, const char *id, void (*fpanic)(const char *ctl, ...), int (*freclaim)(struct MemPool *memPool, iaddr_t bytes), void *pBase, iaddr_t pSize);
-Library void zclearPool(struct MemPool *mp);
-Library void znop(const char *ctl, ...);
-Library int znot(struct MemPool *memPool, iaddr_t bytes);
-Library void zallocstats(struct MemPool *mp);
-
-/*
- * znop() - panic function if none supplied.
- */
-
-void
-znop(const char *ctl, ...)
-{
-}
-
-/*
- * znot() - reclaim function if none supplied
- */
-
-int
-znot(struct MemPool *memPool, iaddr_t bytes)
-{
-    return(-1);
-}
-
-#ifndef MALLOCLIB
-
-/*
- * zalloc() -	allocate and zero memory from pool.  Call reclaim
- *		and retry if appropriate, return NULL if unable to allocate
- *		memory.
- */
-
-void *
-zalloc(MemPool *mp, iaddr_t bytes)
-{
-    void *ptr;
-
-    if ((ptr = znalloc(mp, bytes)) != NULL)
-	bzero(ptr, bytes);
-    return(ptr);
-}
-
-/*
- * zallocAlign() - allocate and zero memory from pool, enforce specified
- *		   alignment (must be power of 2) on allocated memory.
- */
-
-void *
-zallocAlign(struct MemPool *mp, iaddr_t bytes, iaddr_t align)
-{
-    void *ptr;
-
-    --align;
-    bytes = (bytes + align) & ~align;
-
-    if ((ptr = znalloc(mp, bytes)) != NULL) {
-	bzero(ptr, bytes);
-    }
-    return(ptr);
-}
-
-#endif
-
 /*
  * znalloc() -	allocate memory (without zeroing) from pool.  Call reclaim
  *		and retry if appropriate, return NULL if unable to allocate
@@ -161,148 +88,27 @@ znalloc(MemPool *mp, iaddr_t bytes)
     if (bytes == 0)
 	return((void *)-1);
 
-    do {
-	/*
-	 * locate freelist entry big enough to hold the object.  If all objects
-	 * are the same size, this is a constant-time function.
-	 */
-
-	if (bytes <= mp->mp_Size - mp->mp_Used) {
-	    MemNode **pmn;
-	    MemNode *mn;
-
-	    for (pmn = &mp->mp_First; (mn=*pmn) != NULL; pmn = &mn->mr_Next) {
-		if (bytes > mn->mr_Bytes)
-		    continue;
-
-		/*
-		 *  Cut a chunk of memory out of the beginning of this
-		 *  block and fixup the link appropriately.
-		 */
-
-		{
-		    char *ptr = (char *)mn;
-
-		    if (mn->mr_Bytes == bytes) {
-			*pmn = mn->mr_Next;
-		    } else {
-			mn = (MemNode *)((char *)mn + bytes);
-			mn->mr_Next  = ((MemNode *)ptr)->mr_Next;
-			mn->mr_Bytes = ((MemNode *)ptr)->mr_Bytes - bytes;
-			*pmn = mn;
-		    }
-		    mp->mp_Used += bytes;
-		    return(ptr);
-		}
-	    }
-	}
-    } while (mp->mp_Reclaim(mp, bytes) == 0);
-
     /*
-     * Memory pool is full, return NULL.
-     */
-
-    return(NULL);
-}
-
-#ifndef MALLOCLIB
-
-/*
- * z[n]xalloc() -  allocate memory from within a specific address region.
- *		   If allocating AT a specific address, then addr2 must be
- *		   set to addr1 + bytes (and this only works if addr1 is
- *		   already aligned).  addr1 and addr2 are aligned by
- *		   MEMNODE_SIZE_MASK + 1 (i.e. they wlill be 8 or 16 byte 
- *		   aligned depending on the machine core).
- */
-
-void *
-zxalloc(MemPool *mp, void *addr1, void *addr2, iaddr_t bytes)
-{
-    void *ptr;
-
-    if ((ptr = znxalloc(mp, addr1, addr2, bytes)) != NULL)
-	bzero(ptr, bytes);
-    return(ptr);
-}
-
-void *
-znxalloc(MemPool *mp, void *addr1, void *addr2, iaddr_t bytes)
-{
-    /*
-     * align according to pool object size (can be 0).  This is
-     * inclusive of the MEMNODE_SIZE_MASK minimum alignment.
-     */
-    bytes = (bytes + MEMNODE_SIZE_MASK) & ~MEMNODE_SIZE_MASK;
-    addr1= (void *)(((iaddr_t)addr1 + MEMNODE_SIZE_MASK) & ~MEMNODE_SIZE_MASK);
-    addr2= (void *)(((iaddr_t)addr2 + MEMNODE_SIZE_MASK) & ~MEMNODE_SIZE_MASK);
-
-    if (bytes == 0)
-	return((void *)addr1);
-
-    /*
-     * Locate freelist entry big enough to hold the object that is within
-     * the allowed address range.
+     * locate freelist entry big enough to hold the object.  If all objects
+     * are the same size, this is a constant-time function.
      */
 
     if (bytes <= mp->mp_Size - mp->mp_Used) {
 	MemNode **pmn;
 	MemNode *mn;
 
-	for (pmn = &mp->mp_First; (mn = *pmn) != NULL; pmn = &mn->mr_Next) {
-	    int mrbytes = mn->mr_Bytes;
-	    int offset = 0;
+	for (pmn = &mp->mp_First; (mn=*pmn) != NULL; pmn = &mn->mr_Next) {
+	    if (bytes > mn->mr_Bytes)
+		continue;
 
 	    /*
-	     * offset from base of mn to satisfy addr1.  0 or positive
+	     *  Cut a chunk of memory out of the beginning of this
+	     *  block and fixup the link appropriately.
 	     */
 
-	    if ((char *)mn < (char *)addr1)
-		offset = (char *)addr1 - (char *)mn;
-
-	    /*
-	     * truncate mrbytes to satisfy addr2.  mrbytes may go negative
-	     * if the mn is beyond the last acceptable address.
-	     */
-
-	    if ((char *)mn + mrbytes > (char *)addr2)
-		mrbytes = (saddr_t)((iaddr_t)addr2 - (iaddr_t)mn); /* signed */
-
-	    /*
-	     * beyond last acceptable address.
-	     *
-	     * before first acceptable address (if offset > mrbytes, the
-	     * second conditional will always succeed).
-	     *
-	     * area overlapping acceptable address range is not big enough.
-	     */
- 
-	    if (mrbytes < 0)
-		break;
-
-	    if (mrbytes - offset < bytes)
-		continue;		  
-
-	    /*
-	     *  Cut a chunk of memory out of the block and fixup the link
-	     *  appropriately.
-	     *
-	     *  If offset != 0, we have to cut a chunk out from the middle of 
-	     *  the block.
-	     */
-
-	    if (offset) {
-		MemNode *mnew = (MemNode *)((char *)mn + offset);
-
-		mnew->mr_Bytes = mn->mr_Bytes - offset;
-		mnew->mr_Next = mn->mr_Next;
-		mn->mr_Bytes = offset;
-		mn->mr_Next = mnew;
-		pmn = &mn->mr_Next;
-		mn = mnew;
-	    }
 	    {
 		char *ptr = (char *)mn;
+
 		if (mn->mr_Bytes == bytes) {
 		    *pmn = mn->mr_Next;
 		} else {
@@ -316,10 +122,13 @@ znxalloc(MemPool *mp, void *addr1, void *addr2, iaddr_t bytes)
 	    }
 	}
     }
+
+    /*
+     * Memory pool is full, return NULL.
+     */
+
     return(NULL);
 }
-
-#endif
 
 /*
  * zfree() - free previously allocated memory
@@ -343,15 +152,8 @@ zfree(MemPool *mp, void *ptr, iaddr_t bytes)
 
     if ((char *)ptr < (char *)mp->mp_Base || 
 	(char *)ptr + bytes > (char *)mp->mp_End ||
-	((iaddr_t)ptr & MEMNODE_SIZE_MASK) != 0
-    ) {
-	mp->mp_Panic(
-	    "zfree(%s,0x%08lx,%d): wild pointer",
-	    mp->mp_Ident,
-	    (long)ptr,
-	    bytes
-	);
-    }
+	((iaddr_t)ptr & MEMNODE_SIZE_MASK) != 0)
+	panic("zfree(%p,%d): wild pointer", ptr, bytes);
 
     /*
      * free the segment
@@ -374,13 +176,8 @@ zfree(MemPool *mp, void *ptr, iaddr_t bytes)
 		/*
 		 * range check
 		 */
-		if ((char *)ptr + bytes > (char *)mn) {
-		    mp->mp_Panic("zfree(%s,0x%08lx,%d): corrupt memlist1",
-			mp->mp_Ident,
-			(long)ptr,
-			bytes
-		    );
-		}
+		if ((char *)ptr + bytes > (char *)mn)
+		    panic("zfree(%p,%d): corrupt memlist1",ptr, bytes);
 
 		/*
 		 * merge against next area or create independant area
@@ -410,13 +207,8 @@ zfree(MemPool *mp, void *ptr, iaddr_t bytes)
 		return;
 		/* NOT REACHED */
 	    }
-	    if ((char *)ptr < (char *)mn + mn->mr_Bytes) {
-		mp->mp_Panic("zfree(%s,0x%08lx,%d): corrupt memlist2",
-		    mp->mp_Ident,
-		    (long)ptr,
-		    bytes
-		);
-	    }
+	    if ((char *)ptr < (char *)mn + mn->mr_Bytes)
+		panic("zfree(%p,%d): corrupt memlist2", ptr, bytes);
 	}
 	/*
 	 * We are beyond the last MemNode, append new MemNode.  Merge against
@@ -434,67 +226,6 @@ zfree(MemPool *mp, void *ptr, iaddr_t bytes)
 	    mn = (MemNode *)pmn;
 	}
     }
-}
-
-#ifndef MALLOCLIB
-
-/*
- * zallocStr() - allocate memory and copy string.
- */
-
-char *
-zallocStr(MemPool *mp, const char *s, int slen)
-{
-    char *ptr;
-
-    if (slen < 0)
-	slen = strlen(s);
-    if ((ptr = znalloc(mp, slen + 1)) != NULL) {
-	bcopy(s, ptr, slen);
-	ptr[slen] = 0;
-    }
-    return(ptr);
-}
-
-/*
- * zfreeStr() - free memory associated with an allocated string.
- */
-
-void
-zfreeStr(MemPool *mp, char *s)
-{
-    zfree(mp, s, strlen(s) + 1);
-}
-
-#endif
-
-/*
- * zinitpool() - initialize a memory pool
- */
-
-void 
-zinitPool(
-    MemPool *mp,
-    const char *id, 
-    void (*fpanic)(const char *ctl, ...),
-    int (*freclaim)(MemPool *memPool, iaddr_t bytes),
-    void *pBase, 
-    iaddr_t pSize
-) {
-    if (fpanic == NULL)
-	fpanic = znop;
-    if (freclaim == NULL)
-	freclaim = znot;
-
-    if (id != (const char *)-1)
-	mp->mp_Ident = id;
-    mp->mp_Base = pBase;
-    mp->mp_End  = (char *)pBase + pSize;
-    mp->mp_First = NULL;
-    mp->mp_Size = pSize;
-    mp->mp_Used = pSize;
-    mp->mp_Panic = fpanic;
-    mp->mp_Reclaim = freclaim;
 }
 
 /*
@@ -533,27 +264,6 @@ zextendPool(MemPool *mp, void *base, iaddr_t bytes)
     mp->mp_Size += bytes;
 }
 
-#ifndef MALLOCLIB
-
-/*
- * zclearpool() - Free all memory associated with a memory pool,
- *		  destroying any previous allocations.  Commonly
- *		  called afte zinitPool() to make a pool available
- *		  for use.
- */
-
-void
-zclearPool(MemPool *mp)
-{
-    MemNode *mn = mp->mp_Base;
-
-    mn->mr_Next = NULL;
-    mn->mr_Bytes = mp->mp_Size;
-    mp->mp_First = mn;
-}
-
-#endif
-
 #ifdef ZALLOCDEBUG
 
 void
@@ -564,7 +274,7 @@ zallocstats(MemPool *mp)
     int fcount = 0;
     MemNode *mn;
 
-    printf("Pool %s, %d bytes reserved", mp->mp_Ident, (int) mp->mp_Size);
+    printf("%d bytes reserved", (int) mp->mp_Size);
 
     mn = mp->mp_First;
 

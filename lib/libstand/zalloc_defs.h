@@ -26,19 +26,17 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: zalloc_defs.h,v 1.1 1998/09/26 01:42:39 msmith Exp $
+ *	$Id: zalloc_defs.h,v 1.2 1998/09/26 10:48:50 dfr Exp $
  */
 
 /*
  * DEFS.H
  */
 
-#define USEPANIC		/* call panic() to register errors */
 #define USEGUARD		/* use stard/end guard bytes */
 #define USEENDGUARD
 #define DMALLOCDEBUG		/* add debugging code to gather stats */
 #define ZALLOCDEBUG
-#define MALLOCLIB		/* don't build unnecessary zalloc parts */
 
 #include <string.h>
 #include "stand.h"
