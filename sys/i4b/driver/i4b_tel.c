@@ -26,12 +26,12 @@
  *
  *	i4b_tel.c - device driver for ISDN telephony
  *	--------------------------------------------
- *
- * $FreeBSD$
- *
  *	last edit-date: [Tue Aug 27 13:54:08 2002]
  *
  *---------------------------------------------------------------------------*/
+
+#include <sys/cdefs.h>
+__FBSDID("$FreeBSD$");
 
 #include "i4btel.h"
 
@@ -60,7 +60,6 @@
 #include <i4b/layer4/i4b_l4.h>
 
 /* minor number: lower 6 bits = unit number */
-
 #define UNITBITS	6
 #define UNITMASK	0x3f
 #define	UNIT(n)		(minor(n) & UNITMASK)

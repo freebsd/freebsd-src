@@ -26,19 +26,17 @@
  *
  *	i4b_ifpi2_l1fsm.c - AVM Fritz PCI layer 1 I.430 state machine
  *	------------------------------------------------------------
- *
  *	$Id$ 
  *
- * $FreeBSD$
- *
- *
  *---------------------------------------------------------------------------*/
+
+#include <sys/cdefs.h>
+__FBSDID("$FreeBSD$");
 
 #include <sys/param.h>
 #include <sys/kernel.h>
 #include <sys/systm.h>
 #include <sys/socket.h>
-
 
 #include <net/if.h>
 

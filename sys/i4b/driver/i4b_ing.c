@@ -26,12 +26,12 @@
  *
  *	i4b_ing.c - isdn4bsd B-channel to netgraph driver
  *	-------------------------------------------------
- *
- * $FreeBSD$
- *
  *	last edit-date: [Sat Mar  9 14:09:53 2002]
  *
  *---------------------------------------------------------------------------*/ 
+
+#include <sys/cdefs.h>
+__FBSDID("$FreeBSD$");
 
 #include "i4bing.h"
 

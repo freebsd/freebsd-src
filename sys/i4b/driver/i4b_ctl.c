@@ -26,12 +26,12 @@
  *
  *	i4b_ctl.c - i4b system control port driver
  *	------------------------------------------
- *
- * $FreeBSD$
- *
  *	last edit-date: [Sun Mar 17 09:49:24 2002]
  *
  *---------------------------------------------------------------------------*/
+
+#include <sys/cdefs.h>
+__FBSDID("$FreeBSD$");
 
 #include <sys/param.h>
 #include <sys/ioccom.h>

@@ -27,13 +27,12 @@
  *
  *	i4b_ifpi2_isac.c - i4b Fritz PCI Version 2 ISACSX handler
  *	--------------------------------------------
- *
  *	$Id$ 
  *
- * $FreeBSD$
- *
- *
  *---------------------------------------------------------------------------*/
+
+#include <sys/cdefs.h>
+__FBSDID("$FreeBSD$");
 
 #include "opt_i4b.h"
 

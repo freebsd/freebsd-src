@@ -24,9 +24,10 @@
  *
  * capi/iavc/iavc_lli.c
  *		The AVM ISDN controllers' Low Level Interface.
- *
- * $FreeBSD$
  */
+
+#include <sys/cdefs.h>
+__FBSDID("$FreeBSD$");
 
 #include <sys/param.h>
 #include <sys/kernel.h>

@@ -26,12 +26,12 @@
  *
  *	i4b_rbch.c - device driver for raw B channel data
  *	---------------------------------------------------
- *
- * $FreeBSD$
- *
  *	last edit-date: [Sun Mar 17 09:51:03 2002]
  *
  *---------------------------------------------------------------------------*/
+
+#include <sys/cdefs.h>
+__FBSDID("$FreeBSD$");
 
 #include "i4brbch.h"
 
