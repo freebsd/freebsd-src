@@ -254,9 +254,8 @@ mkfs(pp, fsys, fi, fo)
 		sblock.fs_inodefmt = FS_44INODEFMT;
 		sblock.fs_maxsymlinklen = MAXSYMLINKLEN;
 	}
-	if (Uflag) {
+	if (Uflag)
 		sblock.fs_flags |= FS_DOSOFTDEP;
-	}
 	/*
 	 * Validate the given file system size.
 	 * Verify that its last block can actually be accessed.
@@ -677,12 +676,13 @@ next:
 		    fsys, sblock.fs_size * NSPF(&sblock), sblock.fs_ncyl,
 		    "cylinders", sblock.fs_ntrak, sblock.fs_nsect);
 #define B2MBFACTOR (1 / (1024.0 * 1024.0))
-		printf("\t%.1fMB in %d cyl groups (%d c/g, %.2fMB/g, %d i/g)%s\n",
+		printf(
+		    "\t%.1fMB in %d cyl groups (%d c/g, %.2fMB/g, %d i/g)%s\n",
 		    (float)sblock.fs_size * sblock.fs_fsize * B2MBFACTOR,
 		    sblock.fs_ncg, sblock.fs_cpg,
 		    (float)sblock.fs_fpg * sblock.fs_fsize * B2MBFACTOR,
 		    sblock.fs_ipg,
-			sblock.fs_flags & FS_DOSOFTDEP ? " SOFTUPDATES" : "");
+		    sblock.fs_flags & FS_DOSOFTDEP ? " SOFTUPDATES" : "");
 #undef B2MBFACTOR
 	}
 	/*
