@@ -379,19 +379,21 @@ ithread_schedule(struct ithd *ithread)
 		return (EINVAL);
 
 	ctd = curthread;
+	td = ithread->it_td;
+	p = td->td_proc;
 	/*
 	 * If any of the handlers for this ithread claim to be good
 	 * sources of entropy, then gather some.
 	 */
 	if (harvest.interrupt && ithread->it_flags & IT_ENTROPY) {
+		CTR3(KTR_INTR, "%s: pid %d (%s) gathering entropy", __func__,
+		    p->p_pid, p->p_comm);
 		entropy.vector = ithread->it_vector;
 		entropy.proc = ctd->td_proc;
 		random_harvest(&entropy, sizeof(entropy), 2, 0,
 		    RANDOM_INTERRUPT);
 	}
 
-	td = ithread->it_td;
-	p = td->td_proc;
 	KASSERT(p != NULL, ("ithread %s has no process", ithread->it_name));
 	CTR4(KTR_INTR, "%s: pid %d: (%s) need = %d",
 	    __func__, p->p_pid, p->p_comm, ithread->it_need);
