@@ -36,19 +36,10 @@
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
-#include "opt_kstack_pages.h"
-#include "opt_mac.h"
-
 #include <sys/param.h>
 #include <sys/systm.h>
-#include <sys/lock.h>
-#include <sys/mac.h>
-#include <sys/malloc.h>
-#include <sys/mutex.h>
 #include <sys/proc.h>
-#include <sys/smp.h>
 #include <sys/sysproto.h>
-#include <sys/user.h>
 #include <sys/syscall.h>
 #include <sys/sysent.h>
 
