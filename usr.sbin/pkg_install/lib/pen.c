@@ -1,5 +1,5 @@
 #ifndef lint
-static const char *rcsid = "$Id: pen.c,v 1.19 1995/10/25 15:38:35 jkh Exp $";
+static const char *rcsid = "$Id: pen.c,v 1.20 1996/02/09 12:05:26 jkh Exp $";
 #endif
 
 /*
@@ -87,7 +87,7 @@ make_playpen(char *pen, size_t sz)
     }
     if (Verbose) {
 	if (sz)
-	    fprintf(stderr, "Requested space: %d bytes, free space: %d bytes in %s\n", (int)sz, min_free(pen), pen);
+	    fprintf(stderr, "Requested space: %d bytes, free space: %qd bytes in %s\n", (int)sz, min_free(pen), pen);
     }
     if (min_free(pen) < sz) {
 	rmdir(pen);
@@ -130,7 +130,7 @@ leave_playpen(char *save)
     signal(SIGINT, oldsig);
 }
 
-size_t
+off_t
 min_free(char *tmpdir)
 {
     struct statfs buf;
@@ -139,5 +139,5 @@ min_free(char *tmpdir)
 	perror("Error in statfs");
 	return -1;
     }
-    return buf.f_bavail * buf.f_bsize;
+    return (off_t)buf.f_bavail * (off_t)buf.f_bsize;
 }
