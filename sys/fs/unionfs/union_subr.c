@@ -1155,37 +1155,32 @@ union_vn_close(vp, fmode, cred, td)
 	return (VOP_CLOSE(vp, fmode, cred, td));
 }
 
-#if 0
-
 /*
  *	union_removed_upper:
  *
- *	called with union_node unlocked. XXX
+ *	An upper-only file/directory has been removed; un-cache it so
+ *	that unionfs vnode gets reclaimed and the last uppervp reference
+ *	disappears.
+ *
+ *	Called with union_node unlocked.
  */
 
 void
 union_removed_upper(un)
 	struct union_node *un;
 {
-	struct thread *td = curthread;	/* XXX */
-	struct vnode **vpp;
-
-	/*
-	 * Do not set the uppervp to NULLVP.  If lowervp is NULLVP,
-	 * union node will have neither uppervp nor lowervp.  We remove
-	 * the union node from cache, so that it will not be referrenced.
-	 */
-	union_newupper(un, NULLVP);
-	if (un->un_dircache != NULL)
-		union_dircache_free(un);
+	struct thread *td = curthread;
 
 	if (un->un_flags & UN_CACHED) {
+		int hash = UNION_HASH(un->un_uppervp, un->un_lowervp);
+
+		while (union_list_lock(hash))
+			continue;
 		un->un_flags &= ~UN_CACHED;
 		LIST_REMOVE(un, un_cache);
+		union_list_unlock(hash);
 	}
 }
-
-#endif
 
 /*
  * Determine whether a whiteout is needed
