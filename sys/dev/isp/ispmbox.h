@@ -33,7 +33,6 @@
 /*
  * Mailbox Command Opcodes
  */
-
 #define MBOX_NO_OP			0x0000
 #define MBOX_LOAD_RAM			0x0001
 #define MBOX_EXEC_FIRMWARE		0x0002
@@ -176,25 +175,55 @@ typedef struct {
 #define	ASYNC_HUNG_SCSI			0x800C
 #define	ASYNC_KILLED_BUS		0x800D
 #define	ASYNC_BUS_TRANSIT		0x800E	/* LVD -> HVD, eg. */
-#define	ASYNC_CMD_CMPLT			0x8020
-#define	ASYNC_CTIO_DONE			0x8021
-
-/* for ISP2100 only */
 #define	ASYNC_LIP_OCCURRED		0x8010
 #define	ASYNC_LOOP_UP			0x8011
 #define	ASYNC_LOOP_DOWN			0x8012
 #define	ASYNC_LOOP_RESET		0x8013
 #define	ASYNC_PDB_CHANGED		0x8014
 #define	ASYNC_CHANGE_NOTIFY		0x8015
-
-/* for ISP2200 only */
+#define	ASYNC_CMD_CMPLT			0x8020
+#define	ASYNC_CTIO_DONE			0x8021
+#define	ASYNC_IP_XMIT_DONE		0x8022
+#define	ASYNC_IP_RECV_DONE		0x8023
+#define	ASYNC_IP_BROADCAST		0x8024
+#define	ASYNC_IP_RCVQ_LOW		0x8025
+#define	ASYNC_IP_RCVQ_EMPTY		0x8026
+#define	ASYNC_IP_RECV_DONE_ALIGNED	0x8027
 #define	ASYNC_PTPMODE			0x8030
+#define	ASYNC_RIO1			0x8031
+#define	ASYNC_RIO2			0x8032
+#define	ASYNC_RIO3			0x8033
+#define	ASYNC_RIO4			0x8034
+#define	ASYNC_RIO5			0x8035
 #define	ASYNC_CONNMODE			0x8036
 #define		ISP_CONN_LOOP		1
 #define		ISP_CONN_PTP		2
 #define		ISP_CONN_BADLIP		3
 #define		ISP_CONN_FATAL		4
 #define		ISP_CONN_LOOPBACK	5
+#define	ASYNC_RIO_RESP			0x8040
+#define	ASYNC_RIO_COMP			0x8042
+/*
+ * 2.01.31 2200 Only. Need Bit 13 in Mailbox 1 for Set Firmware Options
+ * mailbox command to enable this.
+ */
+#define	ASYNC_QFULL_SENT		0x8049
+
+/*
+ * Mailbox Usages
+ */
+
+#define	WRITE_REQUEST_QUEUE_IN_POINTER(isp, value)	\
+	ISP_WRITE(isp, INMAILBOX4, value)
+
+#define	READ_REQUEST_QUEUE_OUT_POINTER(isp)	\
+	ISP_READ(isp, OUTMAILBOX4)
+
+#define	WRITE_RESPONSE_QUEUE_IN_POINTER(isp, value)	\
+	ISP_WRITE(isp, INMAILBOX5, value)
+
+#define	READ_RESPONSE_QUEUE_OUT_POINTER(isp)	\
+	ISP_READ(isp, OUTMAILBOX5)
 
 /*
  * Command Structure Definitions
@@ -205,16 +234,27 @@ typedef struct {
 	u_int32_t	ds_count;
 } ispds_t;
 
+typedef struct {
+	u_int64_t	ds_base;
+	u_int32_t	ds_count;
+} ispds64_t;
+
+typedef struct {
+	u_int16_t	ds_type;	/* 0-> ispds_t, 1-> ispds64_t */
+	u_int32_t	ds_segment;	/* unused */
+	u_int32_t	ds_base;	/* 32 bit address of DSD list */
+} ispdslist_t;
+
+
+/*
+ * These elements get swizzled around for SBus instances.
+ */
 #define	_ISP_SWAP8(a, b)	{	\
 	u_int8_t tmp;			\
 	tmp = a;			\
 	a = b;				\
 	b = tmp;			\
 }
-
-/*
- * These elements get swizzled around for SBus instances.
- */
 typedef struct {
 	u_int8_t	rqs_entry_type;
 	u_int8_t	rqs_entry_count;
@@ -258,14 +298,19 @@ typedef struct {
 #define	RQSTYPE_CTIO1		0x0f	/* Target Mode */
 #define	RQSTYPE_STATUS_CONT	0x10
 #define	RQSTYPE_T2RQS		0x11
-
+#define	RQSTYPE_IP_XMIT		0x13
 #define	RQSTYPE_T4RQS		0x15
-#define	RQSTYPE_ATIO2		0x16
-#define	RQSTYPE_CTIO2		0x17
+#define	RQSTYPE_ATIO2		0x16	/* Target Mode */
+#define	RQSTYPE_CTIO2		0x17	/* Target Mode */
 #define	RQSTYPE_CSET0		0x18
 #define	RQSTYPE_T3RQS		0x19
-
-#define	RQSTYPE_CTIO3		0x1f
+#define	RQSTYPE_IP_XMIT_64	0x1b
+#define	RQSTYPE_CTIO4		0x1e	/* Target Mode */
+#define	RQSTYPE_CTIO3		0x1f	/* Target Mode */
+#define	RQSTYPE_RIO1		0x21
+#define	RQSTYPE_RIO2		0x22
+#define	RQSTYPE_IP_RECV		0x23
+#define	RQSTYPE_IP_RECV_CONT	0x24
 
 
 #define	ISP_RQDSEG	4
@@ -493,6 +538,20 @@ typedef struct {
 #define	ISP_FW_ATTR_CLASS2	0x08
 #define	ISP_FW_ATTR_FCTAPE	0x10
 #define	ISP_FW_ATTR_IP		0x20
+
+/*
+ * Reduced Interrupt Operation Response Queue Entreis
+ */
+
+typedef struct {
+	isphdr_t	req_header;
+	u_int32_t	req_handles[15];
+} isp_rio1_t;
+
+typedef struct {
+	isphdr_t	req_header;
+	u_int16_t	req_handles[30];
+} isp_rio2_t;
 
 /*
  * FC (ISP2100) specific data structures
