@@ -1352,62 +1352,52 @@ diskLabelNonInteractive(Device *dev)
 
 	if (label_chunk_info[i].type == PART_SLICE) {
 	    char name[512];
-	    int entries = 1;
+	    char typ[10], mpoint[50];
+	    int entries;
 
-	    while (entries) {
+	    for (entries = 1;; entries++) {
+		int sz, soft = 0;
 		snprintf(name, sizeof name, "%s-%d", c1->name, entries);
-		if ((cp = variable_get(name)) != NULL) {
-		    int sz, soft = 0;
-		    char typ[10], mpoint[50];
+		if ((cp = variable_get(name)) == NULL)
+		    break;
+		if (sscanf(cp, "%s %d %s %d", typ, &sz, mpoint, &soft) < 3) {
+		    msgConfirm("For slice entry %s, got an invalid detail entry of: %s",  c1->name, cp);
+		    status = DITEM_FAILURE;
+		    break;
+		} else {
+		    Chunk *tmp;
 
-		    if (sscanf(cp, "%s %d %s %d", typ, &sz, mpoint, &soft) < 3) {
-			msgConfirm("For slice entry %s, got an invalid detail entry of: %s",  c1->name, cp);
+		    if (!strcmp(typ, "swap")) {
+			type = PART_SWAP;
+			strcpy(mpoint, "SWAP");
+		    } else {
+			type = PART_FILESYSTEM;
+			if (!strcmp(mpoint, "/"))
+			    flags |= CHUNK_IS_ROOT;
+			else
+			    flags &= ~CHUNK_IS_ROOT;
+		    }
+		    if (!sz)
+			sz = space_free(c1);
+		    if (sz > space_free(c1)) {
+			msgConfirm("Not enough free space to create partition: %s", mpoint);
 			status = DITEM_FAILURE;
-			continue;
+			break;
 		    }
-		    else {
-			Chunk *tmp;
-
-			if (!strcmp(typ, "swap")) {
-			    type = PART_SWAP;
-			    strcpy(mpoint, "SWAP");
-			}
-			else {
-			    type = PART_FILESYSTEM;
-			    if (!strcmp(mpoint, "/"))
-				flags |= CHUNK_IS_ROOT;
-			    else
-				flags &= ~CHUNK_IS_ROOT;
-			}
-			if (!sz)
-			    sz = space_free(c1);
-			if (sz > space_free(c1)) {
-			    msgConfirm("Not enough free space to create partition: %s", mpoint);
-			    status = DITEM_FAILURE;
-			    continue;
-			}
-			if (!(tmp = Create_Chunk_DWIM(d, c1, sz, part,
-						      (type == PART_SWAP) ? FS_SWAP : FS_BSDFFS, flags))) {
-			    msgConfirm("Unable to create from partition spec: %s. Too big?", cp);
-			    status = DITEM_FAILURE;
-			    break;
-			}
-			else {
-			    tmp->private_data = new_part(mpoint, TRUE);
-			    tmp->private_free = safe_free;
-			    ((PartInfo *)tmp->private_data)->soft = soft;
-			    status = DITEM_SUCCESS;
-			}
+		    if (!(tmp = Create_Chunk_DWIM(d, c1, sz, part,
+			(type == PART_SWAP) ? FS_SWAP : FS_BSDFFS, flags))) {
+			msgConfirm("Unable to create from partition spec: %s. Too big?", cp);
+			status = DITEM_FAILURE;
+			break;
+		    } else {
+			tmp->private_data = new_part(mpoint, TRUE);
+			tmp->private_free = safe_free;
+			((PartInfo *)tmp->private_data)->soft = soft;
+			status = DITEM_SUCCESS;
 		    }
-		    entries++;
-		}
-		else {
-		    /* No more matches, leave the loop */
-		    entries = 0;
 		}
 	    }
-	}
-	else {
+	} else {
 	    /* Must be something we can set a mountpoint for */
 	    cp = variable_get(c1->name);
 	    if (cp) {
