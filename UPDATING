@@ -17,6 +17,11 @@ NOTE TO PEOPLE WHO THINK THAT 5.0-CURRENT IS SLOW:
 	developers choose to disable these features on build machines
 	to maximize performance.
 
+20030610:
+	Remove deprecated locale names and transition period code
+	for them, finishing switching to the new scheme. Check your
+	LANG environment variable.
+
 20030509:
 	CCD has been changed to be a fully GEOMified class.  Kernel
 	and ccdconfig(8) needs to be in sync, this is particularly
