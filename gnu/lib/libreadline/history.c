@@ -50,7 +50,7 @@ extern int errno;
 #endif /* !errno */
 
 #include "memalloc.h"
-#include "history.h"
+#include <readline/history.h>
 
 #if defined (STATIC_MALLOC)
 static char *xmalloc (), *xrealloc ();

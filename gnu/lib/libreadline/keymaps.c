@@ -26,7 +26,7 @@
 #endif /* HAVE_STDLIB_H */
 
 #include "rlconf.h"
-#include "keymaps.h"
+#include <readline/keymaps.h>
 #include "emacs_keymap.c"
 
 #ifdef VI_MODE
