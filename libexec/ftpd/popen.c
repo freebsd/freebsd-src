@@ -33,7 +33,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: popen.c,v 1.4 1996/09/22 21:53:32 wosch Exp $
+ *	$Id: popen.c,v 1.4.2.1 1996/11/21 16:35:53 phk Exp $
  */
 
 #if 0
@@ -54,6 +54,9 @@ static char sccsid[] = "@(#)popen.c	8.3 (Berkeley) 4/6/94";
 #include <unistd.h>
 
 #include "extern.h"
+#ifdef	INTERNAL_LS
+#include "pathnames.h"
+#endif
 
 #define	MAXUSRARGS	100
 #define	MAXGLOBARGS	1000
@@ -111,7 +114,13 @@ ftpd_popen(program, type)
 	gargv[gargc] = NULL;
 
 	iop = NULL;
-	switch(pid = vfork()) {
+#ifdef	INTERNAL_LS
+	fflush(NULL);
+	pid = (strcmp(gargv[0], _PATH_LS) == 0) ? fork() : vfork();
+#else
+	pid = vfork();
+#endif
+	switch(pid) {
 	case -1:			/* error */
 		(void)close(pdes[0]);
 		(void)close(pdes[1]);
@@ -132,6 +141,14 @@ ftpd_popen(program, type)
 			}
 			(void)close(pdes[1]);
 		}
+#ifdef	INTERNAL_LS
+		if (strcmp(gargv[0], _PATH_LS) == 0) {
+			extern	int optreset;
+			/* Reset getopt for ls_main() */
+			optreset = optind = optopt = 1;
+			exit(ls_main(gargc, gargv));
+		}
+#endif
 		execv(gargv[0], gargv);
 		_exit(1);
 	}
