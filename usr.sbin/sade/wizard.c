@@ -169,8 +169,9 @@ slice_wizard(Disk *d)
 	if (!strcasecmp(*cmds,"write")) {
 	    printf("Write=%d\n",
 		   Fake ? 0 : Write_Disk(d));
+	    q = strdup(d->name);
 	    Free_Disk(d);
-	    d = Open_Disk(d->name);
+	    d = Open_Disk(q);
 	    continue;
 	}
 	if (strcasecmp(*cmds,"help"))
@@ -192,9 +193,6 @@ slice_wizard(Disk *d)
 	printf("read [disk]\t\t");
 	printf("scan\n");
 	printf("write\t\t");
-	printf("ENUM:\n\t");
-	for(i=0;chunk_n[i];i++)
-	    printf("%d = %s%s",i,chunk_n[i],i == 4 ? "\n\t" : "  ");
 	printf("\n");
 
     }
