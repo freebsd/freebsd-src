@@ -16,7 +16,7 @@ APISTUFF=	ex_notcl.c ex_noperl.c
 
 #TCLINTERP=	yes	#we don't have it in the base tree
 #TKNVI=		yes	#not ready, needs X11, tk, doesn't quite work yet
-#PERLINTERP=	yes	#works
+#PERLINTERP=	yes	#works if perl has no thread support built in
 
 APISTUFF=	ex_tcl.c ex_perl.c
 
@@ -83,7 +83,7 @@ CFLAGS+=	-DHAVE_TCL_INTERP -I${DESTDIR}/usr/include/tcl
 .if defined(PERLINTERP)
 .PATH:		${SRCDIR}/perl_api
 
-# Perl "knows" how to compile it's components. Ask it for details...
+# Perl "knows" how to compile its components. Ask it for details...
 PERLLIB!=	${PERL} -MConfig -e 'print $$Config{privlib}'
 PERLCPPFLAGS!=	cd ${SRCDIR}/build; ${PERL} -MExtUtils::Embed -e 'ccflags;perl_inc'
 PERLLIBS!=	cd ${SRCDIR}/build; ${PERL} -MExtUtils::Embed -e 'ldopts'
