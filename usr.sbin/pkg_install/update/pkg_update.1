@@ -29,15 +29,37 @@
 .Os FreeBSD
 .Sh NAME
 .Nm pkg_update
-.Nd update an installed package
+.Nd update an installed package.
 .Sh SYNOPSIS
 .Nm
+.Op Fl nv
+.Op Fl r Ar oldpkg
+.Ar newpkg.tgz
 .Sh DESCRIPTION
 The
 .Nm
-command is used to update an installed packaged, adjusting all other
-packages dependencies to take account of the update.
+command is used to update an already installed package. It takes care
+of propagating dependencies from the replaced versions to the newly
+installed version. It would normally be used to replace all currently
+installed versions of a package with a more current version. It can
+also be used to revert a package to an older version by specifying the
+version to be replaced with the
+.Fl r
+option.
 .Pp
+The following options are available:
+.Bl -tag -width indent
+.It Fl n
+Print the actions to be performed but don't actually do them.
+.It Fl r Ar oldpkg
+Replace the specified version of the package. Normally
+.Nm
+will replace all installed versions of a package with the new version.
+This isn't always desirable since for some packages it is expected
+that multiple versions will be installed at the same time.
+This option allows a specific version to be replaced.
+.It Fl v
+Enable verbose output.
 .Sh SEE ALSO
 .Xr pkg_add 1 ,
 .Xr pkg_create 1 ,
