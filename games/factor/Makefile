@@ -4,6 +4,13 @@
 PROG=	factor
 SRCS=	factor.c pr_tbl.c
 CFLAGS+=-I${.CURDIR}/../primes
+
+.if exists(${.CURDIR}/../../crypto) && !defined(NO_OPENSSL)
+CFLAGS+=-DHAVE_OPENSSL
+LDADD+=	-lcrypto
+DPADD+=	${LIBCRYPTO}
+.endif
+
 MAN=	factor.6
 MLINKS+=factor.6 primes.6
 .PATH:	${.CURDIR}/../primes
