@@ -204,7 +204,7 @@ copy_plist(const char *home, Package *plist)
 					 p->name);
 		    last_chdir = home;
 		}
-		if (add_count > maxargs - where_count) {
+		if (add_count < 0 || add_count > maxargs - where_count) {
 		    cleanup(0);
 		    errx(2, "%s: oops, miscounted strings!", __func__);
 		}
@@ -242,7 +242,7 @@ copy_plist(const char *home, Package *plist)
 					 " -C %s %s",
 					 mythere ? mythere : where,
 					 p->name);
-		if (add_count > maxargs - where_count) {
+		if (add_count < 0 || add_count > maxargs - where_count) {
 		    cleanup(0);
 		    errx(2, "%s: oops, miscounted strings!", __func__);
 		}
