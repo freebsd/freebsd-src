@@ -8,11 +8,10 @@
 #include <sys/socket.h>
 #include <netinet/in.h>
 #include <arpa/inet.h>
+#include "alias.h"
 
 #include "command.h"
 #include "vars.h"
-
-#include "alias.h"
 
 static int
 StrToAddr (char *, struct in_addr* addr);
