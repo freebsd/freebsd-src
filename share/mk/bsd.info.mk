@@ -1,4 +1,4 @@
-#	$Id: bsd.info.mk,v 1.40 1997/06/21 15:40:31 jkh Exp $
+#	$Id: bsd.info.mk,v 1.1 1997/10/02 21:17:10 wosch Exp wosch $
 #
 # The include file <bsd.info.mk> handles installing GNU (tech)info files.
 # Texinfo is a documentation system that uses a single source
@@ -93,30 +93,29 @@ FORMATS?=	info
 ${DESTDIR}${INFODIR}/${INFODIRFILE}:
 	@(cd /usr/src/share/info; make install)
 
-.texi.info:
+.texi.info .texinfo.info:
 	${MAKEINFO} ${MAKEINFOFLAGS} -I ${.CURDIR} -I ${SRCDIR} ${.IMPSRC} \
 		-o ${.TARGET}.new
 	mv -f ${.TARGET}.new ${.TARGET}
 
-.texinfo.info:
-	${MAKEINFO} ${MAKEINFOFLAGS} -I ${.CURDIR} -I ${SRCDIR} ${.IMPSRC} \
-		-o ${.TARGET}.new
+.texi.dvi .texinfo.dvi:
+	env TEXINPUTS=${.CURDIR}:${SRCDIR}:$$TEXINPUTS \
+		tex ${.IMPSRC} </dev/null
+	env TEXINPUTS=${.CURDIR}:${SRCDIR}:$$TEXINPUTS \
+		tex ${.IMPSRC} </dev/null
+
+.texinfo.latin1 .texi.latin1:
+	perl -npe 's/(^\s*\\input\s+texinfo\s+)/$$1\n@tex\n\\global\\hsize=120mm\n@end tex\n\n/' ${.IMPSRC} >> ${.IMPSRC:T:R}-la.texi
+	env TEXINPUTS=${.CURDIR}:${SRCDIR}:$$TEXINPUTS \
+		tex ${.IMPSRC:T:R}-la.texi </dev/null
+	env TEXINPUTS=${.CURDIR}:${SRCDIR}:$$TEXINPUTS \
+		tex ${.IMPSRC:T:R}-la.texi </dev/null
+	dvips -o /dev/stdout ${.IMPSRC:T:R}-la.dvi | \
+		dvips2ascii > ${.TARGET}.new
 	mv -f ${.TARGET}.new ${.TARGET}
-
-.texi.dvi:
-	env TEXINPUTS=${.CURDIR}:${SRCDIR}:$$TEXINPUTS \
-		tex ${.IMPSRC} </dev/null
-
-.texinfo.dvi:
-	env TEXINPUTS=${.CURDIR}:${SRCDIR}:$$TEXINPUTS \
-		tex ${.IMPSRC} </dev/null
 
 .dvi.ps:
 	dvips -o ${.TARGET} ${.IMPSRC} 	
-
-.ps.latin1:
-	dvips2ascii ${.IMPSRC} > ${.TARGET}.new
-	mv -f ${.TARGET}.new ${.TARGET}
 
 .PATH: ${.CURDIR} ${SRCDIR}
 
@@ -178,8 +177,15 @@ depend: _SUBDIR
 	@echo -n
 
 .for _f in ${FORMATS}
-CLEANFILES+=${INFO:S/$/.${_f}*/g}
+CLEANFILES+=${INFO:S/$/.${_f}*/g} ${INFO:S/$/-la.${_f}*/g}
 .endfor
+CLEANFILES+= ${INFO:S/$/-la.texi/g}
+
+# tex garbage
+.for _f in aux cp fn ky log out pg toc tp vr dvi
+CLEANFILES+=	${INFO:S/$/.${_f}/g} ${INFO:S/$/-la.${_f}/g}
+.endfor
+
 
 .if !defined(NOINFO) && defined(INFO)
 install: ${INSTALLINFODIRS} _SUBDIR
