@@ -63,6 +63,7 @@ static char sccsid[] = "@(#)mkmakefile.c	8.1 (Berkeley) 6/6/93";
 
 static	struct file_list *fcur;
 char *tail();
+extern int old_config_present;
 
 /*
  * Lookup a file, by name.
@@ -139,6 +140,7 @@ makefile()
 	char line[BUFSIZ];
 	struct opt *op;
 	struct users *up;
+	int warn_make_clean = 0;
 
 	read_files();
 	strcpy(line, "Makefile.");
@@ -157,19 +159,27 @@ makefile()
 	fprintf(ofp, "IDENT=");
 	if (profiling)
 		fprintf(ofp, " -DGPROF");
+
 	if (cputype == 0) {
 		printf("cpu type must be specified\n");
 		exit(1);
 	}
+#if 0
+	/* XXX: moved to cputype.h */
 	{ struct cputype *cp;
 	  for (cp = cputype; cp; cp = cp->cpu_next)
 		fprintf(ofp, " -D%s", cp->cpu_name);
 	}
-	for (op = opt; op; op = op->op_next)
-		if (op->op_value)
-			fprintf(ofp, " -D%s=\"%s\"", op->op_name, op->op_value);
-		else
-			fprintf(ofp, " -D%s", op->op_name);
+#endif
+	for (op = opt; op; op = op->op_next) {
+		if (!op->op_ownfile) {
+			warn_make_clean++;
+			if (op->op_value)
+				fprintf(ofp, " -D%s=%s", op->op_name, op->op_value);
+			else
+				fprintf(ofp, " -D%s", op->op_name);
+		}
+	}
 	fprintf(ofp, "\n");
 	if ((unsigned)machine > NUSERS) {
 		printf("maxusers config info isn't present, using vax\n");
@@ -220,6 +230,15 @@ makefile()
 	}
 	(void) fclose(ifp);
 	(void) fclose(ofp);
+#ifdef notyet
+	if (warn_make_clean) {
+		printf("WARNING: Unknown options used (not in ../../conf/options or ./options.%s).\n", machinename);
+	 	if (old_config_present) {
+			printf("It is VERY important that you do a ``make clean'' before recompiling!\n");
+		}
+	}
+	printf("Don't forget to do a ``make depend''\n");
+#endif
 }
 
 /*
@@ -395,6 +414,7 @@ nextparam:
 		}
 	if (std) {
 		dp = (struct device *) malloc(sizeof *dp);
+		bzero(dp, sizeof *dp);
 		init_dev(dp);
 		dp->d_name = ns(wd);
 		dp->d_type = PSEUDO_DEVICE;

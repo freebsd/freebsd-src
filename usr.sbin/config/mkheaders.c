@@ -140,7 +140,7 @@ do_header(dev, hname, count)
 			break;
 		fl = (struct file_list *) malloc(sizeof *fl);
 		bzero(fl, sizeof(*fl));
-		fl->f_fn = inw;
+		fl->f_fn = inw;		/* malloced */
 		fl->f_type = inc;
 		fl->f_next = fl_head;
 		fl_head = fl;
@@ -149,6 +149,7 @@ do_header(dev, hname, count)
 	if (count == oldcount) {
 		for (fl = fl_head; fl != NULL; fl = tflp) {
 			tflp = fl->f_next;
+			free(fl->f_fn);
 			free(fl);
 		}
 		return;
@@ -156,7 +157,7 @@ do_header(dev, hname, count)
 	if (oldcount == -1) {
 		fl = (struct file_list *) malloc(sizeof *fl);
 		bzero(fl, sizeof(*fl));
-		fl->f_fn = name;
+		fl->f_fn = ns(name); /* malloced */
 		fl->f_type = count;
 		fl->f_next = fl_head;
 		fl_head = fl;
@@ -170,6 +171,7 @@ do_header(dev, hname, count)
 		fprintf(outf,
 		    "#define %s %u\n", fl->f_fn, count ? fl->f_type : 0);
 		tflp = fl->f_next;
+		free(fl->f_fn);
 		free(fl);
 	}
 	(void) fclose(outf);
