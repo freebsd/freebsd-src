@@ -46,6 +46,7 @@ __FBSDID("$FreeBSD$");
 
 extern size_t	_none_mbrtowc(wchar_t * __restrict, const char * __restrict, size_t,
 		    mbstate_t * __restrict);
+extern int	_none_mbsinit(const mbstate_t *);
 extern size_t	_none_wcrtomb(char * __restrict, wchar_t, mbstate_t * __restrict);
 extern rune_t	__emulated_sgetrune(const char *, size_t, const char **);
 extern int	__emulated_sputrune(rune_t, char *, size_t, char **);
@@ -259,5 +260,6 @@ _RuneLocale *_CurrentRuneLocale = &_DefaultRuneLocale;
 int __mb_cur_max = 1;
 size_t (*__mbrtowc)(wchar_t * __restrict, const char * __restrict, size_t,
     mbstate_t * __restrict) = _none_mbrtowc;
+int (*__mbsinit)(const mbstate_t *) = _none_mbsinit;
 size_t (*__wcrtomb)(char * __restrict, wchar_t, mbstate_t * __restrict) =
     _none_wcrtomb;

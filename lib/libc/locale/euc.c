@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 2002, 2003 Tim J. Robbins. All rights reserved.
+ * Copyright (c) 2002-2004 Tim J. Robbins. All rights reserved.
  * Copyright (c) 1993
  *	The Regents of the University of California.  All rights reserved.
  *
@@ -38,23 +38,25 @@
 #if defined(LIBC_SCCS) && !defined(lint)
 static char sccsid[] = "@(#)euc.c	8.1 (Berkeley) 6/4/93";
 #endif /* LIBC_SCCS and not lint */
-#include <sys/cdefs.h>
+#include <sys/param.h>
 __FBSDID("$FreeBSD$");
 
-#include <sys/types.h>
-
 #include <errno.h>
+#include <limits.h>
 #include <runetype.h>
 #include <stdlib.h>
+#include <string.h>
 #include <wchar.h>
 
 extern size_t (*__mbrtowc)(wchar_t * __restrict, const char * __restrict,
     size_t, mbstate_t * __restrict);
+extern int (*__mbsinit)(const mbstate_t *);
 extern size_t (*__wcrtomb)(char * __restrict, wchar_t, mbstate_t * __restrict);
 
 int	_EUC_init(_RuneLocale *);
 size_t	_EUC_mbrtowc(wchar_t * __restrict, const char * __restrict, size_t,
 	    mbstate_t * __restrict);
+int	_EUC_mbsinit(const mbstate_t *);
 size_t	_EUC_wcrtomb(char * __restrict, wchar_t, mbstate_t * __restrict);
 
 typedef struct {
@@ -62,6 +64,11 @@ typedef struct {
 	wchar_t	bits[4];
 	wchar_t	mask;
 } _EucInfo;
+
+typedef struct {
+	int	count;
+	u_char	bytes[MB_LEN_MAX];
+} _EucState;
 
 int
 _EUC_init(_RuneLocale *rl)
@@ -111,7 +118,15 @@ _EUC_init(_RuneLocale *rl)
 	__mb_cur_max = new__mb_cur_max;
 	__mbrtowc = _EUC_mbrtowc;
 	__wcrtomb = _EUC_wcrtomb;
+	__mbsinit = _EUC_mbsinit;
 	return (0);
+}
+
+int
+_EUC_mbsinit(const mbstate_t *ps)
+{
+
+	return (ps == NULL || ((_EucState *)ps)->count == 0);
 }
 
 #define	CEI	((_EucInfo *)(_CurrentRuneLocale->variable))
@@ -130,14 +145,28 @@ _euc_set(u_int c)
 
 size_t
 _EUC_mbrtowc(wchar_t * __restrict pwc, const char * __restrict s, size_t n,
-    mbstate_t * __restrict ps __unused)
+    mbstate_t * __restrict ps)
 {
-	int len, remain, set;
+	_EucState *es;
+	int len, ocount, remain, set;
 	wchar_t wc;
+	size_t ncopy;
 
-	if (s == NULL)
-		/* Reset to initial shift state (no-op) */
-		return (0);
+	es = (_EucState *)ps;
+
+	if (s == NULL) {
+		s = "";
+		n = 1;
+		pwc = NULL;
+	}
+
+	ncopy = MIN(MIN(n, MB_CUR_MAX), sizeof(es->bytes) - es->count);
+	memcpy(es->bytes + es->count, s, ncopy);
+	ocount = es->count;
+	es->count += ncopy;
+	s = (char *)es->bytes;
+	n = es->count;
+
 	if (n == 0 || (size_t)(len = CEI->count[set = _euc_set(*s)]) > n)
 		/* Incomplete multibyte sequence */
 		return ((size_t)-2);
@@ -158,7 +187,8 @@ _EUC_mbrtowc(wchar_t * __restrict pwc, const char * __restrict s, size_t n,
 	wc = (wc & ~CEI->mask) | CEI->bits[set];
 	if (pwc != NULL)
 		*pwc = wc;
-	return (wc == L'\0' ? 0 : len);
+	es->count = 0;
+	return (wc == L'\0' ? 0 : len - ocount);
 }
 
 size_t

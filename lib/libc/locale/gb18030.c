@@ -29,22 +29,30 @@
  * See gb18030(5) for details.
  */
 
-#include <sys/cdefs.h>
+#include <sys/param.h>
 __FBSDID("$FreeBSD$");
 
 #include <errno.h>
 #include <runetype.h>
 #include <stdlib.h>
+#include <string.h>
 #include <wchar.h>
 
 extern size_t (*__mbrtowc)(wchar_t * __restrict, const char * __restrict,
     size_t, mbstate_t * __restrict);
+extern int (*__mbsinit)(const mbstate_t *);
 extern size_t (*__wcrtomb)(char * __restrict, wchar_t, mbstate_t * __restrict);
 
 int	_GB18030_init(_RuneLocale *);
-size_t  _GB18030_mbrtowc(wchar_t * __restrict, const char * __restrict, size_t,
+size_t	_GB18030_mbrtowc(wchar_t * __restrict, const char * __restrict, size_t,
 	    mbstate_t * __restrict);
-size_t  _GB18030_wcrtomb(char * __restrict, wchar_t, mbstate_t * __restrict);
+int	_GB18030_mbsinit(const mbstate_t *);
+size_t	_GB18030_wcrtomb(char * __restrict, wchar_t, mbstate_t * __restrict);
+
+typedef struct {
+	int	count;
+	u_char	bytes[4];
+} _GB18030State;
 
 int
 _GB18030_init(_RuneLocale *rl)
@@ -52,22 +60,44 @@ _GB18030_init(_RuneLocale *rl)
 
 	__mbrtowc = _GB18030_mbrtowc;
 	__wcrtomb = _GB18030_wcrtomb;
+	__mbsinit = _GB18030_mbsinit;
 	_CurrentRuneLocale = rl;
 	__mb_cur_max = 4;
 
 	return (0);
 }
 
+int
+_GB18030_mbsinit(const mbstate_t *ps)
+{
+
+	return (ps == NULL || ((_GB18030State *)ps)->count == 0);
+}
+
 size_t
 _GB18030_mbrtowc(wchar_t * __restrict pwc, const char * __restrict s,
-    size_t n, mbstate_t * __restrict ps __unused)
+    size_t n, mbstate_t * __restrict ps)
 {
+	_GB18030State *gs;
 	wchar_t wch;
-	int ch, len;
+	int ch, len, ocount;
+	size_t ncopy;
 
-	if (s == NULL)
-		/* Reset to initial shift state (no-op) */
-		return (0);
+	gs = (_GB18030State *)ps;
+
+	if (s == NULL) {
+		s = "";
+		n = 1;
+		pwc = NULL;
+	}
+
+	ncopy = MIN(MIN(n, MB_CUR_MAX), sizeof(gs->bytes) - gs->count);
+	memcpy(gs->bytes + gs->count, s, ncopy);
+	ocount = gs->count;
+	gs->count += ncopy;
+	s = (char *)gs->bytes;
+	n = gs->count;
+
 	if (n == 0)
 		/* Incomplete multibyte sequence */
 		return ((size_t)-2);
@@ -116,7 +146,8 @@ _GB18030_mbrtowc(wchar_t * __restrict pwc, const char * __restrict s,
 
 	if (pwc != NULL)
 		*pwc = wch;
-	return (wch == L'\0' ? 0 : len);
+	gs->count = 0;
+	return (wch == L'\0' ? 0 : len - ocount);
 ilseq:
 	errno = EILSEQ;
 	return ((size_t)-1);
@@ -132,7 +163,6 @@ _GB18030_wcrtomb(char * __restrict s, wchar_t wc,
 	if (s == NULL)
 		/* Reset to initial shift state (no-op) */
 		return (1);
-
 	if ((wc & ~0x7fffffff) != 0)
 		goto ilseq;
 	if (wc & 0x7f000000) {

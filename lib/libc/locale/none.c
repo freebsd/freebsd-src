@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 2002, 2003 Tim J. Robbins. All rights reserved.
+ * Copyright (c) 2002-2004 Tim J. Robbins. All rights reserved.
  * Copyright (c) 1993
  *	The Regents of the University of California.  All rights reserved.
  *
@@ -51,11 +51,13 @@ __FBSDID("$FreeBSD$");
 
 extern size_t (*__mbrtowc)(wchar_t * __restrict, const char * __restrict,
     size_t, mbstate_t * __restrict);
+extern int (*__mbsinit)(const mbstate_t *);
 extern size_t (*__wcrtomb)(char * __restrict, wchar_t, mbstate_t * __restrict);
 
 int	_none_init(_RuneLocale *);
 size_t	_none_mbrtowc(wchar_t * __restrict, const char * __restrict, size_t,
 	    mbstate_t * __restrict);
+int	_none_mbsinit(const mbstate_t *);
 size_t	_none_wcrtomb(char * __restrict, wchar_t, mbstate_t * __restrict);
 
 int
@@ -63,10 +65,22 @@ _none_init(_RuneLocale *rl)
 {
 
 	__mbrtowc = _none_mbrtowc;
+	__mbsinit = _none_mbsinit;
 	__wcrtomb = _none_wcrtomb;
 	_CurrentRuneLocale = rl;
 	__mb_cur_max = 1;
 	return(0);
+}
+
+int
+_none_mbsinit(const mbstate_t *ps __unused)
+{
+
+	/*
+	 * Encoding is not state dependent - we are always in the
+	 * initial state.
+	 */
+	return (1);
 }
 
 size_t
