@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)vfs_subr.c	8.13 (Berkeley) 4/18/94
- * $Id: vfs_subr.c,v 1.36 1995/08/25 20:49:44 bde Exp $
+ * $Id: vfs_subr.c,v 1.37 1995/10/28 08:50:08 bde Exp $
  */
 
 /*
@@ -1538,7 +1538,7 @@ loop:
 		if (VOP_ISLOCKED(vp) && (flags != MNT_WAIT))
 			continue;
 		if (vp->v_object &&
-		   (((vm_object_t) vp->v_object)->flags & OBJ_WRITEABLE)) {
+		   (((vm_object_t) vp->v_object)->flags & OBJ_MIGHTBEDIRTY)) {
 			vm_object_page_clean(vp->v_object, 0, 0, TRUE, TRUE);
 		}
 	}
