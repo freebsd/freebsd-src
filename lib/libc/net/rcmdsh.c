@@ -57,17 +57,18 @@ __FBSDID("$FreeBSD$");
  * program in place of a direct rcmd(3) function call so as to
  * avoid having to be root.  Note that rport is ignored.
  */
-/* ARGSUSED */
 int
 rcmdsh(ahost, rport, locuser, remuser, cmd, rshprog)
 	char **ahost;
-	int rport __unused;
+	int rport;
 	const char *locuser, *remuser, *cmd, *rshprog;
 {
-	struct hostent *hp;
-	int cpid, sp[2];
+	struct addrinfo hints, *res;
+	int cpid, sp[2], error;
 	char *p;
 	struct passwd *pw;
+	char num[8];
+	static char hbuf[NI_MAXHOST];
 
 	/* What rsh/shell to use. */
 	if (rshprog == NULL)
@@ -81,11 +82,23 @@ rcmdsh(ahost, rport, locuser, remuser, cmd, rshprog)
 
 	/* Validate remote hostname. */
 	if (strcmp(*ahost, "localhost") != 0) {
-		if ((hp = gethostbyname(*ahost)) == NULL) {
-			herror(*ahost);
+		memset(&hints, 0, sizeof(hints));
+		hints.ai_flags = AI_CANONNAME;
+		hints.ai_family = PF_UNSPEC;
+		hints.ai_socktype = SOCK_STREAM;
+		(void)snprintf(num, sizeof(num), "%d", ntohs(rport));
+		error = getaddrinfo(*ahost, num, &hints, &res);
+		if (error) {
+			fprintf(stderr, "rcmdsh: getaddrinfo: %s\n",
+				gai_strerror(error));
 			return (-1);
 		}
-		*ahost = hp->h_name;
+		if (res->ai_canonname) {
+			strncpy(hbuf, res->ai_canonname, sizeof(hbuf) - 1);
+			hbuf[sizeof(hbuf) - 1] = '\0';
+			*ahost = hbuf;
+		}
+		freeaddrinfo(res);
 	}
 
 	/* Get a socketpair we'll use for stdin and stdout. */
