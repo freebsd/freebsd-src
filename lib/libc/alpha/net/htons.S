@@ -25,8 +25,11 @@
  *
  * any improvements or extensions that they make and grant Carnegie the
  * rights to redistribute these changes.
+ *
+ * $FreeBSD$
  */
 
-#define	NAME	htons
+#define	ALIAS	htons
+#define	NAME	__htons
 
 #include "byte_swap_2.S"

@@ -28,6 +28,7 @@
  * rights to redistribute these changes.
  */
 
-#define	NAME	ntohl
+#define	ALIAS	ntohl
+#define	NAME	__ntohl
 
 #include "byte_swap_4.S"

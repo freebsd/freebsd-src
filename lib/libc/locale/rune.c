@@ -41,6 +41,7 @@ static char sccsid[] = "@(#)rune.c	8.1 (Berkeley) 6/4/93";
 #endif /* LIBC_SCCS and not lint */
 
 #include "namespace.h"
+#include <arpa/inet.h>
 #include <rune.h>
 #include <stdio.h>
 #include <string.h>

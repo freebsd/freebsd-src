@@ -1,4 +1,4 @@
-/*
+/*-
  * Copyright (c) 1987, 1991 Regents of the University of California.
  * All rights reserved.
  *
@@ -30,12 +30,14 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	from: @(#)endian.h	7.8 (Berkeley) 4/3/91
+ *	@(#)endian.h	7.8 (Berkeley) 4/3/91
  * $FreeBSD$
  */
 
 #ifndef _MACHINE_ENDIAN_H_
 #define	_MACHINE_ENDIAN_H_
+
+#include <machine/ansi.h>
 
 /*
  * Define the order of 32-bit words in 64-bit words.
@@ -43,42 +45,22 @@
 #define	_QUAD_HIGHWORD 1
 #define	_QUAD_LOWWORD 0
 
-#ifndef _POSIX_SOURCE
-
 /*
  * Definitions for byte order, according to byte significance from low
  * address to high.
  */
+#ifndef _POSIX_SOURCE
 #define	LITTLE_ENDIAN	1234	/* LSB first: i386, vax */
 #define	BIG_ENDIAN	4321	/* MSB first: 68000, ibm, net */
 #define	PDP_ENDIAN	3412	/* LSB first in word, MSW first in long */
 
 #define	BYTE_ORDER	LITTLE_ENDIAN
-
-#ifndef _KERNEL
-#include <sys/cdefs.h>
-#endif
-#include <machine/ansi.h>
-
-__BEGIN_DECLS
-__uint32_t	htonl(__uint32_t);
-__uint16_t	htons(__uint16_t);
-__uint32_t	ntohl(__uint32_t);
-__uint16_t	ntohs(__uint16_t);
-__END_DECLS
+#endif /* ! _POSIX_SOURCE */
 
 #ifdef __GNUC__
 
 static __inline __uint32_t
-__uint16_swap_uint32(__uint32_t __x)
-{
-	__asm ("rorl $16, %0" : "+r" (__x));
-
-	return __x;
-}
-
-static __inline __uint32_t
-__uint8_swap_uint32(__uint32_t __x)
+__htonl(__uint32_t __x)
 {
 #if defined(_KERNEL) && (defined(I486_CPU) || defined(I586_CPU) || defined(I686_CPU)) && !defined(I386_CPU)
 	__asm ("bswap %0" : "+r" (__x));
@@ -92,29 +74,27 @@ __uint8_swap_uint32(__uint32_t __x)
 }
 
 static __inline __uint16_t
-__uint8_swap_uint16(__uint16_t __x)
+__htons(__uint16_t __x)
 {
 	__asm ("xchgb %h0, %b0" : "+q" (__x));
 
 	return __x;
 }
 
-/*
- * Macros for network/external number representation conversion.
- */
-#define	ntohl	__uint8_swap_uint32
-#define	ntohs	__uint8_swap_uint16
-#define	htonl	__uint8_swap_uint32
-#define	htons	__uint8_swap_uint16
+static __inline __uint32_t
+__ntohl(__uint32_t __x)
+{
 
-#endif	/* __GNUC__ */
+	return (__htonl(__x));
+}
 
-#define	NTOHL(x)	((x) = ntohl(x))
-#define	NTOHS(x)	((x) = ntohs(x))
-#define	HTONL(x)	((x) = htonl(x))
-#define	HTONS(x)	((x) = htons(x))
+static __inline __uint16_t
+__ntohs(__uint16_t __x)
+{
 
+	return (__htons(__x));
+}
 
-#endif /* ! _POSIX_SOURCE */
+#endif /* __GNUC__ */
 
 #endif /* !_MACHINE_ENDIAN_H_ */

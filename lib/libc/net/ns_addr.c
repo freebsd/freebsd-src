@@ -41,6 +41,7 @@ static char sccsid[] = "@(#)ns_addr.c	8.1 (Berkeley) 6/7/93";
 #endif /* LIBC_SCCS and not lint */
 
 #include <sys/param.h>
+#include <arpa/inet.h>
 #include <netns/ns.h>
 #include <stdio.h>
 #include <string.h>

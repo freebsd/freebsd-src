@@ -46,6 +46,7 @@
 
 /* Machine type dependent parameters. */
 #include <sys/stdint.h>			/* includes <machine/ansi.h> */
+#include <machine/endian.h>
 #include <machine/types.h>
 
 #ifndef _POSIX_SOURCE
@@ -122,12 +123,6 @@ typedef	u_int32_t	dev_t;		/* device number */
 
 #endif /* !_KERNEL */
 
-/*
- * XXX: Deprecated;
- * byteorder(3) functions now defined in <arpa/inet.h>.
- */
-#include <machine/endian.h>
-
 #ifdef	_BSD_CLOCK_T_
 typedef	_BSD_CLOCK_T_	clock_t;
 #undef	_BSD_CLOCK_T_
@@ -141,18 +136,6 @@ typedef	_BSD_CLOCKID_T_	clockid_t;
 #ifdef _BSD_FFLAGS_T_
 typedef _BSD_FFLAGS_T_	fflags_t;	/* file flags */
 #undef _BSD_FFLAGS_T_
-#endif
-
-/* XXX: Deprecated; now defined in <arpa/inet.h>. */
-#ifndef _IN_ADDR_T_DECLARED_
-typedef	__uint32_t	in_addr_t;
-#define	_IN_ADDR_T_DECLARED_
-#endif
-
-/* XXX: Deprecated; now defined in <arpa/inet.h>. */
-#ifndef _IN_PORT_T_DECLARED_
-typedef	__uint16_t	in_port_t;
-#define	_IN_PORT_T_DECLARED_
 #endif
 
 #ifdef	_BSD_SIZE_T_

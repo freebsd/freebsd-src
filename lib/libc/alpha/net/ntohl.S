@@ -25,8 +25,11 @@
  *
  * any improvements or extensions that they make and grant Carnegie the
  * rights to redistribute these changes.
+ *
+ * $FreeBSD$
  */
 
-#define	NAME	ntohl
+#define	ALIAS	ntohl
+#define	NAME	__ntohl
 
 #include "byte_swap_4.S"

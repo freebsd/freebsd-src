@@ -1661,8 +1661,8 @@ encap_send(ip, vifp, m)
      */
     ip = (struct ip *)((caddr_t)ip_copy + sizeof(multicast_encap_iphdr));
     --ip->ip_ttl;
-    HTONS(ip->ip_len);
-    HTONS(ip->ip_off);
+    ip->ip_len = htons(ip->ip_len);
+    ip->ip_off = htons(ip->ip_off);
     ip->ip_sum = 0;
     mb_copy->m_data += sizeof(multicast_encap_iphdr);
     ip->ip_sum = in_cksum(mb_copy, ip->ip_hl << 2);

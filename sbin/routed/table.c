@@ -298,7 +298,7 @@ ag_check(naddr	dst,
 	naddr xaddr;
 	int x;
 
-	NTOHL(dst);
+	dst = ntohl(dst);
 
 	/* Punt non-contiguous subnet masks.
 	 *

@@ -43,7 +43,9 @@
 
 #include <machine/asm.h>
 
-ENTRY(ntohs)
+        .weak CNAME(ntohs)
+        .set CNAME(ntohs),CNAME(__ntohs)
+ENTRY(__ntohs)
 	movzwl	4(%esp),%eax
 	xchgb	%al,%ah
 	ret

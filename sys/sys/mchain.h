@@ -48,23 +48,23 @@
 #define	htoleq(x)	((int64_t)(x))
 #define	letohq(x)	((int64_t)(x))
 
-#define htobes(x)	(htons(x))
-#define betohs(x)	(ntohs(x))
-#define htobel(x)	(htonl(x))
-#define betohl(x)	(ntohl(x))
+#define htobes(x)	(__htons(x))
+#define betohs(x)	(__ntohs(x))
+#define htobel(x)	(__htonl(x))
+#define betohl(x)	(__ntohl(x))
 
 static __inline int64_t
 htobeq(int64_t x)
 {
-	return (int64_t)htonl((u_int32_t)(x >> 32)) |
-	    (int64_t)htonl((u_int32_t)(x & 0xffffffff)) << 32;
+	return (int64_t)__htonl((u_int32_t)(x >> 32)) |
+	    (int64_t)__htonl((u_int32_t)(x & 0xffffffff)) << 32;
 }
 
 static __inline int64_t
 betohq(int64_t x)
 {
-	return (int64_t)ntohl((u_int32_t)(x >> 32)) |
-	    (int64_t)ntohl((u_int32_t)(x & 0xffffffff)) << 32;
+	return (int64_t)__ntohl((u_int32_t)(x >> 32)) |
+	    (int64_t)__ntohl((u_int32_t)(x & 0xffffffff)) << 32;
 }
 
 #else	/* (BYTE_ORDER == LITTLE_ENDIAN) */

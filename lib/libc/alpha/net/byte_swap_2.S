@@ -25,12 +25,14 @@
  *
  * any improvements or extensions that they make and grant Carnegie the
  * rights to redistribute these changes.
+ *
+ * $FreeBSD$
  */
 
 #include <machine/asm.h>
 
-#ifndef NAME
-#define	NAME byte_swap_2
+#if !defined(ALIAS) || !defined(NAME)
+#error ALIAS or NAME not defined
 #endif
 
 /*
@@ -38,6 +40,7 @@
  *
  * Argument is an unsigned 2-byte integer (u_int16_t).
  */
+XLEAF(ALIAS, 1)
 LEAF(NAME, 1)			/* a0 contains 0x0123 */
 	extbl	a0, 0, t0	/* t0 = 0x  23 */
 	extbl	a0, 1, t1	/* t1 = 0x  01 */
