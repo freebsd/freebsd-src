@@ -33,7 +33,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: options.c,v 1.7 1996/09/01 10:21:16 peter Exp $
+ *	$Id: options.c,v 1.8 1996/10/29 03:12:48 steve Exp $
  */
 
 #ifndef lint
@@ -408,6 +408,7 @@ atend:
 		if (*p == '\0' && (p = *shellparam.optnext++) == NULL) {
 			out1fmt("No arg for -%c option\n", c);
 			c = '?';
+			shellparam.optnext--;
 			goto out;
 		}
 		setvar("OPTARG", p, 0);
