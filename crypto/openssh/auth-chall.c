@@ -77,7 +77,7 @@ get_challenge(Authctxt *authctxt, char *devs)
 {
 	static char challenge[1024];
 	struct opie opie;
-	if (opiechallenge(&opie, authctxt->user, challenge) == -1)
+	if (opiechallenge(&opie, authctxt->user, challenge) != 0)
 		return NULL;
 	strlcat(challenge, "\nS/Key Password: ", sizeof challenge);
 	return challenge;
