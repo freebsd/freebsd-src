@@ -36,7 +36,7 @@
 static char sccsid[] = "@(#)mkioconf.c	8.2 (Berkeley) 1/21/94";
 #endif
 static const char rcsid[] =
-	"$Id: mkioconf.c,v 1.25.2.1 1997/09/16 06:57:10 charnier Exp $";
+	"$Id: mkioconf.c,v 1.25.2.2 1997/09/17 06:38:49 charnier Exp $";
 #endif /* not lint */
 
 #include <err.h>
@@ -696,6 +696,7 @@ i386_ioconf()
 			isa_biotab(fp, "wdc");
 		if (seen_fdc)
 			isa_biotab(fp, "fdc");
+		isa_devtab(fp, "cam", &dev_id);
 		isa_devtab(fp, "tty", &dev_id);
 		isa_devtab(fp, "net", &dev_id);
 		isa_devtab(fp, "null", &dev_id);
