@@ -568,7 +568,11 @@ populate_mfs_tree() {
 
     if [ -f ${dst}/stand/sshd ] ; then
 	log "Creating host key for sshd"
-	ssh-keygen -f ${dst}/etc/ssh_host_key -N "" -C "root@picobsd"
+	if [ -f ${dst}/etc/ssh_host_key ] ; then
+	    log "Using existing host key"
+	else
+	    ssh-keygen -f ${dst}/etc/ssh_host_key -N "" -C "root@picobsd"
+	fi
     fi
 
     if [ -d ${MY_TREE}/mfs_tree ]; then
@@ -806,7 +810,7 @@ set_defaults
 while [ true ]; do
     case $1 in
     --src)	# set the source path instead of /usr/src
-	SRC=$2
+	SRC=`(cd $2; pwd)`
 	shift
 	;;
     --init)
