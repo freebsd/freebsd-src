@@ -61,7 +61,7 @@
  * any improvements or extensions that they make and grant Carnegie the
  * rights to redistribute these changes.
  *
- * $Id: vm_object.c,v 1.41 1995/04/09 06:03:49 davidg Exp $
+ * $Id: vm_object.c,v 1.42 1995/04/16 03:11:28 davidg Exp $
  */
 
 /*
@@ -123,8 +123,8 @@ int vm_object_cache_max;
 
 struct vm_object_hash_head vm_object_hashtable[VM_OBJECT_HASH_COUNT];
 
-long object_collapses = 0;
-long object_bypasses = 0;
+long object_collapses;
+long object_bypasses;
 
 static void
 _vm_object_allocate(size, object)
@@ -1667,6 +1667,8 @@ vm_object_page_lookup(object, offset)
 	return m;
 }
 
+#ifdef DDB
+
 int
 _vm_object_in_map(map, object, entry)
 	vm_map_t map;
@@ -1744,6 +1746,7 @@ vm_object_in_map( object)
 	return 0;
 }
 
+
 void
 vm_object_check() {
 	int i;
@@ -1789,8 +1792,6 @@ vm_object_check() {
 	}
 }
 
-#define DEBUG
-#if defined(DEBUG) || defined(DDB)
 /*
  *	vm_object_print:	[ debug ]
  */
@@ -1838,4 +1839,4 @@ vm_object_print(object, full)
 		printf("\n");
 	indent -= 2;
 }
-#endif				/* defined(DEBUG) || defined(DDB) */
+#endif /* DDB */

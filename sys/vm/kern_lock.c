@@ -61,7 +61,7 @@
  * any improvements or extensions that they make and grant Carnegie the
  * rights to redistribute these changes.
  *
- * $Id: kern_lock.c,v 1.3 1995/01/09 16:05:30 davidg Exp $
+ * $Id: kern_lock.c,v 1.4 1995/03/01 21:37:37 davidg Exp $
  */
 
 /*
@@ -154,7 +154,7 @@ int lock_wait_time = 100;
   * It is silly to spin on a uni-processor as if we thought something magical
   * would happen to the want_write bit while we are executing.
   */
-int lock_wait_time = 0;
+int lock_wait_time;
 
 #endif				/* NCPUS > 1 */
 

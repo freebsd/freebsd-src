@@ -65,7 +65,7 @@
  * any improvements or extensions that they make and grant Carnegie the
  * rights to redistribute these changes.
  *
- * $Id: vm_pageout.c,v 1.44 1995/03/28 05:58:35 davidg Exp $
+ * $Id: vm_pageout.c,v 1.45 1995/04/09 06:03:53 davidg Exp $
  */
 
 /*
@@ -92,7 +92,7 @@ extern vm_map_t kmem_map;
 int vm_pages_needed;		/* Event on which pageout daemon sleeps */
 int vm_pagescanner;		/* Event on which pagescanner sleeps */
 
-int vm_pageout_pages_needed = 0;/* flag saying that the pageout daemon needs pages */
+int vm_pageout_pages_needed;	/* flag saying that the pageout daemon needs pages */
 int vm_page_pagesfreed;
 
 extern int npendingio;
@@ -113,7 +113,7 @@ extern int vfs_update_wakeup;
 int vm_pageout_page_count = VM_PAGEOUT_PAGE_COUNT;
 int vm_pageout_req_do_stats;
 
-int vm_page_max_wired = 0;	/* XXX max # of wired pages system-wide */
+int vm_page_max_wired;		/* XXX max # of wired pages system-wide */
 
 /*
  * vm_pageout_clean:
