@@ -24,7 +24,7 @@
  *
  * commenced: Sun Sep 27 18:14:01 PDT 1992
  *
- *      $Id: aic7xxx.c,v 1.57 1996/03/11 02:48:41 gibbs Exp $
+ *      $Id: aic7xxx.c,v 1.58 1996/03/22 16:26:26 gibbs Exp $
  */
 /*
  * TODO:
@@ -53,8 +53,6 @@
 #include <dev/aic7xxx/aic7xxx_reg.h>
 
 #define PAGESIZ 4096
-
-#define MAX_TAGS 4;
 
 #include <sys/kernel.h>
 #define KVTOPHYS(x)   vtophys(x)
