@@ -771,7 +771,7 @@ ata_testregs(struct ata_softc *scp)
     outb(scp->ioaddr + ATA_ERROR, 0x58);
     outb(scp->ioaddr + ATA_CYL_LSB, 0xa5);
     return (inb(scp->ioaddr + ATA_ERROR) != 0x58 &&
-	    inb(scp->ioaddr + ATA_CYL_LSB) == 0xa5) ? 1 : 0;
+	    inb(scp->ioaddr + ATA_CYL_LSB) == 0xa5);
 }
 
 static int
@@ -1259,6 +1259,7 @@ ata_reset(struct ata_softc *scp, int *mask)
     DELAY(10000);
     inb(scp->ioaddr + ATA_ERROR);
     DELAY(3000);
+    scp->devices = 0;
 
     /* in some setups we dont want to test for a slave */
     if (scp->flags & ATA_NO_SLAVE)
@@ -1275,8 +1276,6 @@ ata_reset(struct ata_softc *scp, int *mask)
 		if (inb(scp->ioaddr + ATA_CYL_LSB) == ATAPI_MAGIC_LSB &&
 		    inb(scp->ioaddr + ATA_CYL_MSB) == ATAPI_MAGIC_MSB)
 		    scp->devices |= ATA_ATAPI_MASTER;
-		else if (status0 != 0x00 && ata_testregs(scp))
-	    	    scp->devices |= ATA_ATA_MASTER;
 	    }
 	}
 	if (status1 & ATA_S_BUSY) {
@@ -1288,8 +1287,6 @@ ata_reset(struct ata_softc *scp, int *mask)
 		if (inb(scp->ioaddr + ATA_CYL_LSB) == ATAPI_MAGIC_LSB &&
 		    inb(scp->ioaddr + ATA_CYL_MSB) == ATAPI_MAGIC_MSB)
 		    scp->devices |= ATA_ATAPI_SLAVE;
-		else if (status1 != 0x00 && ata_testregs(scp))
-	    	    scp->devices |= ATA_ATA_SLAVE;
 	    }
 	}
 	if (*mask == 0x01)      /* wait for master only */
@@ -1305,6 +1302,7 @@ ata_reset(struct ata_softc *scp, int *mask)
     }	
     DELAY(1);
     outb(scp->altioaddr, ATA_A_4BIT);
+
     if (status0 & ATA_S_BUSY)
 	*mask &= ~0x01;
     if (status1 & ATA_S_BUSY)
@@ -1313,7 +1311,20 @@ ata_reset(struct ata_softc *scp, int *mask)
 	ata_printf(scp, -1, "mask=%02x status0=%02x status1=%02x\n", 
 		   *mask, status0, status1);
     if (!mask)
-	scp->devices = 0;
+	return;
+
+    if (status0 != 0x00 && !(scp->devices & ATA_ATAPI_MASTER)) {
+        outb(scp->ioaddr + ATA_DRIVE, (ATA_D_IBM | ATA_MASTER));
+        DELAY(1);
+        if (ata_testregs(scp))
+            scp->devices |= ATA_ATA_MASTER;
+    }
+    if (status1 != 0x00 && !(scp->devices & ATA_ATAPI_SLAVE)) {
+        outb(scp->ioaddr + ATA_DRIVE, (ATA_D_IBM | ATA_SLAVE));
+        DELAY(1);
+        if (ata_testregs(scp))
+            scp->devices |= ATA_ATA_SLAVE;
+    }
 }
 
 int
