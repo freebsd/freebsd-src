@@ -79,8 +79,9 @@ functions open and close the necessary pathways to access the raw
 statistics information in the kernel.
 These functions are likely to
 open one or more files and cache the file descriptors locally.
+The
 .Fn geom_stats_open
-returns zero on success, and sets
+function returns zero on success, and sets
 .Va errno
 if not.
 .Pp
@@ -101,8 +102,9 @@ as possible, no guarantee is given that it will actually be so.
 The snapshot must be freed again using the
 .Fn geom_stats_snapshot_free
 function.
+The
 .Fn geom_stats_snapshot_get
-returns
+function returns
 .Dv NULL
 on failure.
 .Pp
