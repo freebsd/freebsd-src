@@ -86,7 +86,6 @@ acl_entry_compare(struct acl_entry *a, struct acl_entry *b)
 	return (0);
 }
 
-
 /*
  * acl_sort -- sort ACL entries.
  * Give the opportunity to fail, althouh we don't currently have a way
@@ -102,48 +101,17 @@ acl_sort(acl_t acl)
 	return (0);
 }
 
-
 /*
- * acl_posix1e -- use a heuristic to determine if this is a POSIX.1e
- * semantics ACL.  This will be used by other routines to determine if
- * they should call acl_sort() on the ACL before submitting to the kernel,
- * as the POSIX.1e ACL semantics code requires sorted ACL submission.
- * Also, acl_valid will use this to determine if it understands the
- * semantics enough to check that the ACL is correct.
+ * acl_posix1e -- in what situations should we acl_sort before submission?
+ * We apply posix1e ACL semantics for any ACL of type ACL_TYPE_ACCESS or
+ * ACL_TYPE_DEFAULT
  */
 int
-acl_posix1e(acl_t acl)
+acl_posix1e(acl_t acl, acl_type_t type)
 {
-	int	i;
 
-	/* assume it's POSIX.1e, and return 0 if otherwise */
-
-	for (i = 0; i < acl->acl_cnt; i++) {
-		/* is the tag type POSIX.1e? */
-		switch(acl->acl_entry[i].ae_tag) {
-		case ACL_USER_OBJ:
-		case ACL_USER:
-		case ACL_GROUP_OBJ:
-		case ACL_GROUP:
-		case ACL_MASK:
-		case ACL_OTHER:
-			break;
-
-		default:
-			return (0);
-		}
-
-		/* are the permissions POSIX.1e, or FreeBSD extensions? */
-		if (((acl->acl_entry[i].ae_perm | ACL_POSIX1E_BITS) !=
-		    ACL_POSIX1E_BITS) &&
-		    ((acl->acl_entry[i].ae_perm | ACL_PERM_BITS) !=
-		    ACL_PERM_BITS))
-			return (0);
-	}
-
-	return(1);
+	return ((type == ACL_TYPE_ACCESS) || (type == ACL_TYPE_DEFAULT));
 }
-
 
 /*
  * acl_check -- given an ACL, check its validity.  This is mirrored from
@@ -385,7 +353,6 @@ acl_perm_to_string(acl_perm_t perm, ssize_t buf_len, char *buf)
 	return (0);
 }
 
-
 /*
  * given a string, return a permission describing it
  */
@@ -419,8 +386,6 @@ acl_string_to_perm(char *string, acl_perm_t *perm)
 	return (0);
 }
 
-
-
 /*
  * Add an ACL entry without doing much checking, et al
  */
@@ -442,7 +407,3 @@ acl_add_entry(acl_t acl, acl_tag_t tag, uid_t id, acl_perm_t perm)
 
 	return (0);
 }
-
-
-
-

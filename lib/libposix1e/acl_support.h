@@ -36,7 +36,7 @@
 
 int	acl_check(struct acl *acl);
 int	acl_sort(acl_t acl);
-int	acl_posix1e(acl_t acl);
+int	acl_posix1e(acl_t acl, acl_type_t type);
 int	acl_id_to_name(acl_tag_t tag, uid_t id, ssize_t buf_len, char *buf);
 int	acl_name_to_id(acl_tag_t tag, char *name, uid_t *id);
 int	acl_perm_to_string(acl_perm_t perm, ssize_t buf_len, char *buf);

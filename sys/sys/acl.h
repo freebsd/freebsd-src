@@ -74,6 +74,7 @@ typedef struct acl	*acl_t;
 
 #define	ACL_TYPE_ACCESS	0x00000000
 #define	ACL_TYPE_DEFAULT	0x00000001
+#define ACL_TYPE_AFS	0x00000003
 
 /*
  * Possible flags in a_perm field
@@ -134,19 +135,22 @@ __END_DECLS
  */
 __BEGIN_DECLS
 int	acl_calc_mask(acl_t *acl_p);
-int	acl_delete_def_fd(int filedes);
+int	acl_delete_fd_np(int filedes, acl_type_t type);
+int	acl_delete_file_np(const char *path_p, acl_type_t type);
 int	acl_delete_def_file(const char *path_p);
 int	acl_free(void *obj_p);
 acl_t	acl_from_text(const char *buf_p);
-acl_t	acl_get_fd(int fd, acl_type_t type);
+acl_t	acl_get_fd(int fd);
+acl_t	acl_get_fd_np(int fd, acl_type_t type);
 acl_t	acl_get_file(const char *path_p, acl_type_t type);
 acl_t	acl_init(int count);
-int	acl_set_fd(int fd, acl_t acl, acl_type_t type);
+int	acl_set_fd(int fd, acl_t acl);
+int	acl_set_fd_np(int fd, acl_t acl, acl_type_t type);
 int	acl_set_file(const char *path_p, acl_type_t type, acl_t acl);
 char	*acl_to_text(acl_t acl, ssize_t *len_p);
 int	acl_valid(acl_t acl);
-int	acl_valid_fd(int fd, acl_type_t type, acl_t acl);
-int	acl_valid_file(const char *path_p, acl_type_t type, acl_t acl);
+int	acl_valid_fd_np(int fd, acl_type_t type, acl_t acl);
+int	acl_valid_file_np(const char *path_p, acl_type_t type, acl_t acl);
 __END_DECLS
 
 #endif /* !_KERNEL */

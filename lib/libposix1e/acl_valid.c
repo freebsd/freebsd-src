@@ -69,7 +69,7 @@ acl_valid_file(const char *pathp, acl_type_t type, acl_t acl)
 {
 	int	error;
 
-	if (acl_posix1e(acl)) {
+	if (acl_posix1e(acl, type)) {
 		error = acl_sort(acl);
 		if (error) {
 			errno = error;
@@ -86,7 +86,7 @@ acl_valid_fd(int fd, acl_type_t type, acl_t acl)
 {
 	int	error;
 
-	if (acl_posix1e(acl)) {
+	if (acl_posix1e(acl, type)) {
 		error = acl_sort(acl);
 		if (error) {
 			errno = error;
