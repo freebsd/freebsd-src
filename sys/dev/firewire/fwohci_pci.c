@@ -95,6 +95,10 @@ fwohci_pci_probe( device_t dev )
 		device_set_desc(dev, "NEC uPD72870");
 		return 0;
 	}
+	if (id == (FW_VENDORID_NEC | FW_DEVICE_UPD72873)) {
+		device_set_desc(dev, "NEC uPD72873");
+		return 0;
+	}
 	if (id == (FW_VENDORID_NEC | FW_DEVICE_UPD72874)) {
 		device_set_desc(dev, "NEC uPD72874");
 		return 0;
