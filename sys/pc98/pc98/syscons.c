@@ -26,7 +26,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *  $Id: syscons.c,v 1.13.2.6 1997/01/20 12:39:07 kato Exp $
+ *  $Id: syscons.c,v 1.13.2.7 1997/01/21 07:24:37 kato Exp $
  */
 
 #include "sc.h"
@@ -69,6 +69,7 @@
 #ifdef PC98
 #define KANJI
 #include <pc98/pc98/pc98.h>
+#include <pc98/pc98/pc98_machdep.h>
 #include <i386/isa/isa_device.h>
 #include <i386/isa/timerreg.h>
 #include <i386/isa/kbdtables.h>
