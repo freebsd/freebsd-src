@@ -3,7 +3,7 @@
 #	bsd.port.mk - 940820 Jordan K. Hubbard.
 #	This file is in the public domain.
 #
-# $Id: bsd.port.mk,v 1.54 1994/10/13 08:08:56 jkh Exp $
+# $Id: bsd.port.mk,v 1.55 1994/10/13 10:33:35 jkh Exp $
 #
 # Please view me with 4 column tabs!
 
@@ -33,7 +33,7 @@
 # DISTFILES		- Name(s) of archive file(s) containing distribution
 #				  (default: ${DISTDIR}/${DISTNAME}${EXTRACT_SUFX}).
 # EXTRACT_ONLY		- If defined, a subset of ${DISTFILES} you want to
-#			  actually extract.
+#			  	actually extract.
 # PATCHDIR 		- A directory containing any required patches.
 # SCRIPTDIR 	- A directory containing any auxilliary scripts.
 # FILESDIR 		- A directory containing any miscellaneous additional files.
@@ -51,6 +51,10 @@
 # HAS_CONFIGURE	- Says that the port has its own configure script.
 # GNU_CONFIGURE	- Set if you are using GNU configure (optional).
 # CONFIGURE_ARGS - Pass these args to configure, if $HAS_CONFIGURE.
+# IS_INTERACTIVE - Set this if your port needs to interact with the user
+#				during a build.  User can then decide to skip this port by
+#				setting BATCH, or compile ONLY interactive ports by setting
+#				INTERACTIVE.
 # DEPENDS		- A list of other ports this package depends on being
 #				  made first, relative to ${PORTSDIR} (e.g. x11/tk, lang/tcl,
 #				  etc).
@@ -151,7 +155,38 @@ HAS_CONFIGURE=		yes
 .endif
 
 .MAIN: all
+
+# If we're in BATCH mode and the port is interactive, or we're in
+# interactive mode and the port is non-interactive, skip all the important
+# targets.  The reason we have two modes is that one might want to leave
+# a build in BATCH mode running overnight, then come back in the morning
+# and do _only_ the interactive ones that required your intervention.
+# This allows you to do both.
+#
+.if (defined(IS_INTERACTIVE) && defined(BATCH)) || (!defined(IS_INTERACTIVE) && defined(INTERACTIVE))
+all:
+	@${DO_NADA}
+pre-build:
+	@${DO_NADA}
+build:
+	@${DO_NADA}
+pre-install:
+	@${DO_NADA}
+install:
+	@${DO_NADA}
+pre-fetch:
+	@${DO_NADA}
+fetch:
+	@${DO_NADA}
+pre-configure:
+	@${DO_NADA}
+configure:
+	@${DO_NADA}
+.endif
+
+.if !target(all)
 all: extract configure build
+.endif
 
 .if !target(is_depended)
 is_depended:	all install
@@ -319,7 +354,6 @@ fetch: pre-fetch
 			echo ">> Attempting to fetch it from a master site."; \
 			for site in ${MASTER_SITES}; do \
 				if ${NCFTP} ${NCFTPFLAGS} $${site}$${file}; then \
-					echo ">> $$file Fetched!" ; \
 					break; \
 				fi \
 			done; \
