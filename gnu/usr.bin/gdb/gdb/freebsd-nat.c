@@ -17,7 +17,7 @@ You should have received a copy of the GNU General Public License
 along with this program; if not, write to the Free Software
 Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
 
-	$Id: freebsd-nat.c,v 1.6 1995/05/09 13:59:22 rgrimes Exp $
+	$Id: freebsd-nat.c,v 1.7 1995/05/30 04:57:05 rgrimes Exp $
 */
 
 #include <sys/types.h>
@@ -480,7 +480,7 @@ kvtophys (fd, addr)
 CORE_ADDR addr;
 {
 	CORE_ADDR v;
-	struct pte pte;
+	unsigned int pte;
 	static CORE_ADDR PTD = -1;
 	CORE_ADDR current_ptd;
 
@@ -527,17 +527,17 @@ CORE_ADDR addr;
 	 * Read the first-level page table (ptd).
 	 */
 	v = current_ptd + ((unsigned)addr >> PD_SHIFT) * sizeof pte;
-	if (physrd(fd, v, (char *)&pte, sizeof pte) < 0 || pte.pg_v == 0)
+	if (physrd(fd, v, (char *)&pte, sizeof pte) < 0 || (pte&PG_V) == 0)
 		return (~0);
 
 	/*
 	 * Read the second-level page table.
 	 */
-	v = i386_ptob(pte.pg_pfnum) + ((addr&PT_MASK) >> PG_SHIFT) * sizeof pte;
-	if (physrd(fd, v, (char *) &pte, sizeof(pte)) < 0 || pte.pg_v == 0)
+	v = (pte&PG_FRAME) + ((addr >> PAGE_SHIFT)&(NPTEPG-1)) * sizeof pte;
+	if (physrd(fd, v, (char *) &pte, sizeof(pte)) < 0 || (pte&PG_V) == 0)
 		return (~0);
 
-	addr = i386_ptob(pte.pg_pfnum) + (addr & PGOFSET);
+	addr = (pte & PG_FRAME) + (addr & PGOFSET);
 #if 0
 	printf("vtophys(%x) -> %x\n", oldaddr, addr);
 #endif
@@ -605,7 +605,7 @@ kernel_core_file_hook(fd, addr, buf, len)
 			break;
 		}
 		/* we can't read across a page boundary */
-		i = min(len, NBPG - (addr & PGOFSET));
+		i = min(len, PAGE_SIZE - (addr & PGOFSET));
 		if ((cc = physrd(fd, paddr, cp, i)) <= 0) {
 			bzero(cp, len);
 			return (cp - buf);
