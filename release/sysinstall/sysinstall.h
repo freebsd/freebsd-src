@@ -4,7 +4,7 @@
  * This is probably the last attempt in the `sysinstall' line, the next
  * generation being slated to essentially a complete rewrite.
  *
- * $Id: sysinstall.h,v 1.42.2.8 1995/10/04 12:08:23 jkh Exp $
+ * $Id: sysinstall.h,v 1.42.2.9 1995/10/07 11:55:36 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -53,7 +53,6 @@
 #include <sys/wait.h>
 #include "libdisk.h"
 #include "dist.h"
-#include "index.h"
 #include "version.h"
 
 /*** Defines ***/
