@@ -33,18 +33,6 @@
 ** THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 **
 **-------------------------------------------------------------------------
-**
-**  $Log:	pci.h,v $
-**  Revision 2.0.0.1  94/08/18  23:09:26  wolf
-**  Copyright message.
-**  
-**  Revision 2.0  94/07/10  15:53:30  wolf
-**  FreeBSD release.
-**  
-**  Revision 1.0  94/06/07  20:02:21  wolf
-**  Beta release.
-**  
-***************************************************************************
 */
 
 #ifndef __PCI_H__

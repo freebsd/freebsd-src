@@ -1,6 +1,6 @@
 /**************************************************************************
 **
-**  $Id: pci_intel.c,v 1.1 1994/09/06 22:39:11 se Exp $
+**  $Id: pci_intel.c,v 1.2 94/09/15 21:01:52 wolf Exp $
 **
 **  Device driver for INTEL PCI chipsets.
 **
@@ -14,7 +14,7 @@
 **
 **-------------------------------------------------------------------------
 **
-** Copyright (c) 1994 Wolfgang Stanglmeier.  All rights reserved.
+** Copyright (c) 1994 Stefan Esser.  All rights reserved.
 **
 ** Redistribution and use in source and binary forms, with or without
 ** modification, are permitted provided that the following conditions
@@ -39,18 +39,6 @@
 ** THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 **
 **-------------------------------------------------------------------------
-**
-**  $Log: pci_intel.c,v $
- * Revision 1.1  1994/09/06  22:39:11  se
- * Initial revision
- *
- * Revision 1.1  94/09/05  22:38:38  wolf
- * Initial revision
- * 
- * Revision 1.1  94/09/04  16:05:20  wolf
- * Initial revision
- * 
-***************************************************************************
 */
 
 
@@ -69,9 +57,9 @@
 
 static	int	probe1(pcici_t config_id);
 static	int	return0(int unit);
-static	int	intel_attach(pcici_t config_id, pcidi_t type);
-static	int	intel_82424zx_attach(pcici_t config_id, pcidi_t type);
-static	int	intel_82434lx_attach(pcici_t config_id, pcidi_t type);
+static	int	intel_attach(pcici_t config_id);
+static	int	intel_82424zx_attach(pcici_t config_id);
+static	int	intel_82434lx_attach(pcici_t config_id);
 extern	void	printf();
 static	char	confread(pcici_t config_id, int port);
 
@@ -92,7 +80,6 @@ struct	pci_driver intel82378_device = {
 	probe1,
 	intel_attach,
 	0x04848086,
-	0,
 	"intel 82378IB pci-isa bridge",
 	return0
 };
@@ -101,7 +88,6 @@ struct	pci_driver intel82424_device = {
 	probe1,
 	intel_82424zx_attach,
 	0x04838086,
-	0,
 	"intel 82424ZX cache dram controller",
 	return0
 };
@@ -110,7 +96,6 @@ struct	pci_driver intel82375_device = {
 	probe1,
 	intel_attach,
 	0x04828086,
-	0,
 	"intel 82375EB pci-eisa bridge",
 	return0
 };
@@ -119,7 +104,6 @@ struct	pci_driver intel82434_device = {
 	probe1,
 	intel_82434lx_attach,
 	0x04a38086,
-	0,
 	"intel 82434LX pci cache memory controller",
 	return0
 };
@@ -139,12 +123,12 @@ struct condmsg conf82424zx[] =
     { 0x53, 0x01, 0x00, M_EQ, "OFF" },
     { 0x53, 0x01, 0x01, M_EQ, "ON" },
 
-    { 0x56, 0x30, 0x00, M_NE, "\t\nWarning:" },
+    { 0x56, 0x30, 0x00, M_NE, "\n\tWarning:" },
     { 0x56, 0x20, 0x00, M_NE, " NO cache parity!" },
     { 0x56, 0x10, 0x00, M_NE, " NO DRAM parity!" },
-    { 0x55, 0x04, 0x04, M_EQ, "\nWarning: refresh OFF! " },
+    { 0x55, 0x04, 0x04, M_EQ, "\n\tWarning: refresh OFF! " },
 
-    { 0x00, 0x00, 0x00, TRUE, "\t\nCache: " },
+    { 0x00, 0x00, 0x00, TRUE, "\n\tCache: " },
     { 0x52, 0x01, 0x00, M_EQ, "None" },
     { 0x52, 0xc1, 0x01, M_EQ, "64KB" },
     { 0x52, 0xc1, 0x41, M_EQ, "128KB" },
@@ -157,7 +141,7 @@ struct condmsg conf82424zx[] =
     { 0x52, 0x05, 0x01, M_EQ, "3-1-1-1" },
     { 0x52, 0x05, 0x05, M_EQ, "2-1-1-1" },
 
-    { 0x00, 0x00, 0x00, TRUE, "\t\nDRAM:" },
+    { 0x00, 0x00, 0x00, TRUE, "\n\tDRAM:" },
     { 0x55, 0x43, 0x00, M_NE, " page mode" },
     { 0x55, 0x02, 0x02, M_EQ, " code fetch" },
     { 0x55, 0x43, 0x43, M_EQ, "," },
@@ -172,13 +156,13 @@ struct condmsg conf82424zx[] =
     { 0x55, 0x20, 0x00, M_EQ, "X-2-2-2" },
     { 0x55, 0x20, 0x20, M_EQ, "X-1-2-1" },
 
-    { 0x00, 0x00, 0x00, TRUE, "\t\nPCI: CPU->PCI posting " },
+    { 0x00, 0x00, 0x00, TRUE, "\n\tPCI: CPU->PCI posting " },
     { 0x53, 0x02, 0x02, M_EQ, "ON" },
     { 0x53, 0x02, 0x00, M_EQ, "OFF" },
     { 0x00, 0x00, 0x00, TRUE, ", CPU->PCI burst mode " },
     { 0x54, 0x02, 0x02, M_EQ, "ON" },
     { 0x54, 0x02, 0x00, M_EQ, "OFF" },
-    { 0x00, 0x00, 0x00, TRUE, ", PCI->Mem. posting " },
+    { 0x00, 0x00, 0x00, TRUE, ", PCI->Memory posting " },
     { 0x54, 0x01, 0x01, M_EQ, "ON" },
     { 0x54, 0x01, 0x00, M_EQ, "OFF" },
 
@@ -204,11 +188,11 @@ struct condmsg conf82434lx[] =
 
     { 0x53, 0x04, 0x00, M_NE, ", read around write"},
 
-    { 0x71, 0xc0, 0x00, M_NE, "\t\nWarning: NO cache parity!" },
-    { 0x57, 0x20, 0x00, M_NE, "\t\nWarning: NO DRAM parity!" },
-    { 0x55, 0x01, 0x01, M_EQ, "\t\nWarning: refresh OFF! " },
+    { 0x71, 0xc0, 0x00, M_NE, "\n\tWarning: NO cache parity!" },
+    { 0x57, 0x20, 0x00, M_NE, "\n\tWarning: NO DRAM parity!" },
+    { 0x55, 0x01, 0x01, M_EQ, "\n\tWarning: refresh OFF! " },
 
-    { 0x00, 0x00, 0x00, TRUE, "\t\nCache: " },
+    { 0x00, 0x00, 0x00, TRUE, "\n\tCache: " },
     { 0x52, 0x01, 0x00, M_EQ, "None" },
     { 0x52, 0x81, 0x01, M_EQ, "" },
     { 0x52, 0xc1, 0x81, M_EQ, "256KB" },
@@ -220,7 +204,7 @@ struct condmsg conf82434lx[] =
     { 0x52, 0x20, 0x00, M_EQ, "3-2-2-2/4-2-2-2" },
     { 0x52, 0x20, 0x00, M_NE, "3-1-1-1" },
 
-    { 0x00, 0x00, 0x00, TRUE, "\t\nDRAM:" },
+    { 0x00, 0x00, 0x00, TRUE, "\n\tDRAM:" },
     { 0x57, 0x10, 0x00, M_EQ, " page mode" },
 
     { 0x00, 0x00, 0x00, TRUE, " memory clocks=" },
@@ -229,7 +213,7 @@ struct condmsg conf82434lx[] =
     { 0x57, 0xc0, 0x80, M_EQ, "???" },
     { 0x57, 0xc0, 0xc0, M_EQ, "X-3-3-3 (50ns)" },
 
-    { 0x00, 0x00, 0x00, TRUE, "\t\nPCI: CPU->PCI posting " },
+    { 0x00, 0x00, 0x00, TRUE, "\n\tPCI: CPU->PCI posting " },
     { 0x53, 0x02, 0x02, M_EQ, "ON" },
     { 0x53, 0x02, 0x00, M_EQ, "OFF" },
     { 0x00, 0x00, 0x00, TRUE, ", CPU->PCI burst mode " },
@@ -282,7 +266,6 @@ static void writeconfig(pcici_t config_id, struct condmsg *tbl)
     case M_NE:
 		if ((v & tbl->mask) != tbl->value) cond = 1;
 		break;
-    default:
 	    }
 	}
 	if (cond) printf ("%s", tbl->text);
@@ -290,24 +273,24 @@ static void writeconfig(pcici_t config_id, struct condmsg *tbl)
     }
 }
 
-int	intel_attach(pcici_t config_id, pcidi_t type)
+int intel_attach(pcici_t config_id)
 {
-	printf ("        [40] %lx [50] %lx [54] %lx\n",
+	printf ("\t[40] %lx [50] %lx [54] %lx\n",
 		pci_conf_read (config_id, 0x40),
 		pci_conf_read (config_id, 0x50),
 		pci_conf_read (config_id, 0x54));
 	return(0);
 }
 
-int intel_82424zx_attach(pcici_t config_id, pcidi_t type)
+int intel_82424zx_attach(pcici_t config_id)
 {
 	writeconfig (config_id, conf82424zx);
 	return (0);
 }
 
-int	intel_82434lx_attach(pcici_t config_id, pcidi_t type)
+int intel_82434lx_attach(pcici_t config_id)
 {
-	writeconfig (config_id, conf82424zx);
+	writeconfig (config_id, conf82434lx);
 	return (0);
 }
 

@@ -33,23 +33,6 @@
 ** THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 **
 **-------------------------------------------------------------------------
-**
-**  $Log:	pcibios.c,v $
-**  Revision 2.0.0.2  94/08/18  23:04:11  wolf
-**  Copyright message.
-**  New function pci_last_bus().
-**  
-**  Revision 2.0.0.1  94/08/01  20:35:29  wolf
-**  Option: PCI_CONF_MODE to disable pci autodetect code.
-**  Flipped code for mode1 and mode2.
-**  
-**  Revision 2.0  94/07/10  15:53:31  wolf
-**  FreeBSD release.
-**  
-**  Revision 1.0  94/06/07  20:02:20  wolf
-**  Beta release.
-**  
-***************************************************************************
 */
 
 
@@ -64,8 +47,7 @@ extern int printf();
 static char pci_mode;
 
 char ident_pcibios_c[] =
-	"\n$Id: pcibios.c,v 2.0.0.2 94/08/18 23:04:11 wolf Exp $\n"
-	"Copyright (c) 1994, Wolfgang Stanglmeier\n";
+	"\n$Id: pcibios.c,v 2.0.0.2 94/08/18 23:04:11 wolf Exp $\n";
 
 
 /*--------------------------------------------------------------------
