@@ -73,7 +73,6 @@ struct ad_softc {
     struct bio_queue_head	queue;		/* head of request queue */
     struct devstat		stats;		/* devstat entry */
     struct disk			disk;		/* disklabel/slice stuff */
-    dev_t			dev;		/* device place holder */
 };
 
 void ad_attach(struct ata_device *);

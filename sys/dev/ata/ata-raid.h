@@ -35,7 +35,7 @@
 #define AR_READ		0x01
 #define AR_WRITE	0x02
 #define AR_WAIT		0x04
-#define AR_STRATEGY(x)	(x)->bio_dev->si_disk->d_devsw->d_strategy((x))
+#define AR_STRATEGY(x)	(x)->bio_disk->d_strategy((x))
 #define AD_SOFTC(x)	((struct ad_softc *)(x.device->driver))
 #define ATA_MAGIC	"FreeBSD ATA driver RAID "
 
@@ -80,7 +80,6 @@ struct ar_softc {
     u_int64_t		lock_end;	/* end of locked area for rebuild */
     struct disk		disk;		/* disklabel/slice stuff */
     struct proc		*pid;		/* rebuilder process id */
-    dev_t		dev;		/* device place holder */
 };
 
 struct ar_buf {
