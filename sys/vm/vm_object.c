@@ -61,7 +61,7 @@
  * any improvements or extensions that they make and grant Carnegie the
  * rights to redistribute these changes.
  *
- * $Id: vm_object.c,v 1.147 1999/02/08 05:15:54 dillon Exp $
+ * $Id: vm_object.c,v 1.148 1999/02/08 19:00:15 dillon Exp $
  */
 
 /*
@@ -762,8 +762,8 @@ vm_object_madvise(object, pindex, count, advise)
 	end = pindex + count;
 
 	/*
-	 * MADV_FREE special case - free any swap backing store (as well
-	 * as resident pages later on).
+	 * MADV_FREE special case - free any swap backing store now,
+	 * whether or not resident pages can be found later.
 	 */
 
 	if (advise == MADV_FREE) {
@@ -835,24 +835,18 @@ shadowlookup:
 			vm_page_deactivate(m);
 		} else if (advise == MADV_FREE) {
 			/*
-			 * If MADV_FREE_FORCE_FREE is defined, we attempt to
-			 * immediately free the page.  Otherwise we just 
-			 * destroy any swap backing store, mark it clean,
-			 * and stuff it into the cache.
+			 * Mark the page clean.  This will allow the page
+			 * to be freed up by the system.  However, such pages
+			 * are often reused quickly by malloc()/free()
+			 * so we do not do anything that would cause
+			 * a page fault if we can help it.
+			 *
+			 * Specifically, we do not try to actually free
+			 * the page now nor do we try to put it in the
+			 * cache (which would cause a page fault on reuse).
 			 */
 			pmap_clear_modify(VM_PAGE_TO_PHYS(m));
 			m->dirty = 0;
-
-#ifdef MADV_FREE_FORCE_FREE
-			if (tobject->resident_page_count > 1) {
-				vm_page_busy(m);
-				vm_page_protect(m, VM_PROT_NONE);
-				vm_page_free(m);
-			} else
-#endif
-			{
-				vm_page_cache(m);
-			}
 		}
 	}	
 }
