@@ -35,7 +35,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)machdep.c	7.4 (Berkeley) 6/3/91
- *	$Id: machdep.c,v 1.81 1998/03/24 08:27:19 kato Exp $
+ *	$Id: machdep.c,v 1.82 1998/04/07 09:07:53 kato Exp $
  */
 
 #include "apm.h"
@@ -44,6 +44,7 @@
 #include "opt_cpu.h"
 #include "opt_ddb.h"
 #include "opt_maxmem.h"
+#include "opt_msgbuf.h"
 #include "opt_perfmon.h"
 #include "opt_smp.h"
 #include "opt_sysvipc.h"
@@ -126,11 +127,9 @@
 #include <i386/isa/rtc.h>
 #endif
 #include <machine/random.h>
+#include <sys/ptrace.h>
 
 extern void init386 __P((int first));
-extern int ptrace_set_pc __P((struct proc *p, unsigned int addr));
-extern int ptrace_single_step __P((struct proc *p));
-extern int ptrace_write_u __P((struct proc *p, vm_offset_t off, int data));
 extern void dblfault_handler __P((void));
 
 extern void printcpuinfo(void);	/* XXX header file */
@@ -158,7 +157,7 @@ int	bouncepages = 0;
 #endif	/* BOUNCE_BUFFERS */
 
 int	msgbufmapped = 0;		/* set when safe to use msgbuf */
-int _udatasel, _ucodesel;
+int	_udatasel, _ucodesel;
 u_int	atdevbase;
 
 #if defined(SWTCH_OPTIM_STATS)
@@ -1105,6 +1104,7 @@ init386(first)
 	unsigned biosbasemem, biosextmem;
 	struct gate_descriptor *gdp;
 	int gsel_tss;
+	char *cp;
 
 	struct isa_device *idp;
 #ifndef SMP
@@ -1563,7 +1563,7 @@ init386(first)
 	 * calculation, etc.).
 	 */
 	while (phys_avail[pa_indx - 1] + PAGE_SIZE +
-	    round_page(sizeof(struct msgbuf)) >= phys_avail[pa_indx]) {
+	    round_page(MSGBUF_SIZE) >= phys_avail[pa_indx]) {
 		physmem -= atop(phys_avail[pa_indx] - phys_avail[pa_indx - 1]);
 		phys_avail[pa_indx--] = 0;
 		phys_avail[pa_indx--] = 0;
@@ -1572,16 +1572,25 @@ init386(first)
 	Maxmem = atop(phys_avail[pa_indx]);
 
 	/* Trim off space for the message buffer. */
-	phys_avail[pa_indx] -= round_page(sizeof(struct msgbuf));
+	phys_avail[pa_indx] -= round_page(MSGBUF_SIZE);
 
 	avail_end = phys_avail[pa_indx];
 
 	/* now running on new page tables, configured,and u/iom is accessible */
 
 	/* Map the message buffer. */
-	for (off = 0; off < round_page(sizeof(struct msgbuf)); off += PAGE_SIZE)
+	for (off = 0; off < round_page(MSGBUF_SIZE); off += PAGE_SIZE)
 		pmap_enter(kernel_pmap, (vm_offset_t)msgbufp + off,
 			   avail_end + off, VM_PROT_ALL, TRUE);
+
+	cp = (char *)msgbufp;
+	msgbufp = (struct msgbuf *) (cp + MSGBUF_SIZE - sizeof(*msgbufp));
+	if (msgbufp->msg_magic != MSG_MAGIC || msgbufp->msg_ptr != cp) {
+		bzero(cp, MSGBUF_SIZE);
+		msgbufp->msg_magic = MSG_MAGIC;
+		msgbufp->msg_size = (char *)msgbufp - cp;
+		msgbufp->msg_ptr = cp;
+	}
 	msgbufmapped = 1;
 
 	/* make a call gate to reenter kernel with */
@@ -1625,7 +1634,6 @@ f00f_hack(void *unused) {
 	struct region_descriptor r_idt;
 #endif
 	vm_offset_t tmp;
-	int i;
 
 	if (!has_f00f_bug)
 		return;
@@ -1666,6 +1674,28 @@ ptrace_single_step(p)
 {
 	p->p_md.md_regs->tf_eflags |= PSL_T;
 	return (0);
+}
+
+int ptrace_read_u_check(p, addr, len)
+	struct proc *p;
+	vm_offset_t addr;
+	size_t len;
+{
+	vm_offset_t gap;
+
+	if ((vm_offset_t) (addr + len) < addr)
+		return EPERM;
+	if ((vm_offset_t) (addr + len) <= sizeof(struct user))
+		return 0;
+
+	gap = (char *) p->p_md.md_regs - (char *) p->p_addr;
+	
+	if ((vm_offset_t) addr < gap)
+		return EPERM;
+	if ((vm_offset_t) (addr + len) <= 
+	    (vm_offset_t) (gap + sizeof(struct trapframe)))
+		return 0;
+	return EPERM;
 }
 
 int ptrace_write_u(p, off, data)
