@@ -97,8 +97,6 @@ struct isa_device { int dummy; };
 #define	MAGIC(unit) (0xa4d10de0 + unit)
 
 #define SD_F_SIMPLEX		0x00000001
-#define SD_F_EVILSB16		0x00000002
-#define SD_F_EVILERSB16X	0x00000004
 #define SD_F_PRIO_RD		0x10000000
 #define SD_F_PRIO_WR		0x20000000
 #define SD_F_PRIO_SET		(SD_F_PRIO_RD | SD_F_PRIO_WR)
@@ -165,6 +163,7 @@ int pcm_register(device_t dev, void *devinfo, int numplay, int numrec);
 int pcm_setstatus(device_t dev, char *str);
 u_int32_t pcm_getflags(device_t dev);
 void pcm_setflags(device_t dev, u_int32_t val);
+void pcm_setswap(device_t dev, pcm_swap_t *swap);
 
 #endif /* KERNEL */
 
