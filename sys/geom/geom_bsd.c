@@ -227,53 +227,29 @@ g_bsd_lesum(struct disklabel *dl, u_char *p)
 }
 
 static int
-g_bsd_i386(struct g_slicer *gsp, struct g_consumer *cp, int secsize, struct g_bsd_softc *ms)
+g_bsd_try(struct g_slicer *gsp, struct g_consumer *cp, int secsize, struct g_bsd_softc *ms, off_t offset)
 {
 	int error;
 	u_char *buf;
 	struct disklabel *dl;
+	off_t secoff;
 
 	dl = &ms->ondisk;
-	buf = g_read_data(cp, secsize * 1, secsize, &error);
+	secoff = offset % secsize;
+	buf = g_read_data(cp, offset - secoff, secsize, &error);
 	if (buf == NULL || error != 0)
 		return(ENOENT);
-	g_bsd_ledec_disklabel(buf, dl);
+	g_bsd_ledec_disklabel(buf + secoff, dl);
 	if (dl->d_magic == DISKMAGIC &&
 	    dl->d_magic2 == DISKMAGIC &&
-	    g_bsd_lesum(dl, buf) == 0) 
+	    g_bsd_lesum(dl, buf + secoff) == 0) 
 		error = 0;
 	else
 		error = ENOENT;
 	g_free(buf);
 	if (error == 0) {
 		gsp->frontstuff = 16 * secsize;
-		ms->labeloffset = secsize * 1;
-	}
-	return(error);
-}
-
-static int
-g_bsd_alpha(struct g_slicer *gsp, struct g_consumer *cp, int secsize, struct g_bsd_softc *ms)
-{
-	int error;
-	u_char *buf;
-	struct disklabel *dl;
-
-	dl = &ms->ondisk;
-	buf = g_read_data(cp, 0, secsize, &error);
-	if (buf == NULL || error != 0)
-		return(ENOENT);
-	g_bsd_ledec_disklabel(buf + 64, dl);
-	if (dl->d_magic == DISKMAGIC &&
-	    dl->d_magic2 == DISKMAGIC &&
-	    g_bsd_lesum(dl, buf + 64) == 0) 
-		error = 0;
-	else
-		error = ENOENT;
-	g_free(buf);
-	if (error == 0) {
-		gsp->frontstuff = 16 * secsize;
-		ms->labeloffset = 64;
+		ms->labeloffset = offset;
 	}
 	return(error);
 }
@@ -361,9 +337,9 @@ g_bsd_taste(struct g_class *mp, struct g_provider *pp, int flags)
 			printf("g_error %d Mediasize is %lld bytes\n",
 			    error, (long long)mediasize);
 		}
-		error = g_bsd_i386(gsp, cp, secsize, ms);
+		error = g_bsd_try(gsp, cp, secsize, ms, secsize);
 		if (error)
-			error = g_bsd_alpha(gsp, cp, secsize, ms);
+			error = g_bsd_try(gsp, cp, secsize, ms, 64);
 		if (error)
 			break;
 		dl = &ms->ondisk;
