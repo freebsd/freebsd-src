@@ -130,11 +130,8 @@ u_long
 get_time(void)
 {
     struct timeval  timecopy;
-    int             x;
 
-    x = splclock();
-    timecopy = time;
-    splx(x);
+    getmicrotime(&timecopy);
     return timecopy.tv_usec / (1000000 / hz) +
 		(u_long) timecopy.tv_sec * hz;
 }
