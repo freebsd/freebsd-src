@@ -1278,10 +1278,10 @@ static int sk_attach(dev)
 	/*
 	 * Map control/status registers.
 	 */
-	command = pci_read_config(dev, PCI_COMMAND_STATUS_REG, 4);
+	command = pci_read_config(dev, PCIR_COMMAND, 4);
 	command |= (PCIM_CMD_PORTEN|PCIM_CMD_MEMEN|PCIM_CMD_BUSMASTEREN);
-	pci_write_config(dev, PCI_COMMAND_STATUS_REG, command, 4);
-	command = pci_read_config(dev, PCI_COMMAND_STATUS_REG, 4);
+	pci_write_config(dev, PCIR_COMMAND, command, 4);
+	command = pci_read_config(dev, PCIR_COMMAND, 4);
 
 #ifdef SK_USEIOSPACE
 	if (!(command & PCIM_CMD_PORTEN)) {
@@ -1780,7 +1780,8 @@ static void sk_intr_bcom(sc_if)
 		if (!(lstat & BRGPHY_AUXSTS_LINK) && sc_if->sk_link) {
 			mii_mediachg(mii);
 			/* Turn off the link LED. */
-			SK_IF_WRITE_1(sc_if, 0, SK_LINKLED1_CTL, SK_LINKLED_OFF);
+			SK_IF_WRITE_1(sc_if, 0,
+			    SK_LINKLED1_CTL, SK_LINKLED_OFF);
 			sc_if->sk_link = 0;
 		} else if (status & BRGPHY_ISR_LNK_CHG) {
 			sk_miibus_writereg(sc_if->sk_dev, SK_PHYADDR_BCOM,
@@ -1791,6 +1792,7 @@ static void sk_intr_bcom(sc_if)
 			SK_IF_WRITE_1(sc_if, 0, SK_LINKLED1_CTL,
 			    SK_LINKLED_ON|SK_LINKLED_LINKSYNC_OFF|
 			    SK_LINKLED_BLINK_OFF);
+			mii_pollstat(mii);
 		} else {
 			mii_tick(mii);
 			sc_if->sk_tick_ch = timeout(sk_tick, sc_if, hz);
@@ -2182,6 +2184,7 @@ static void sk_init(xsc)
 	SK_IF_WRITE_4(sc_if, 0, SK_RXQ1_BMU_CSR, SK_RXBMU_RX_START);
 
 	/* Enable XMACs TX and RX state machines */
+	SK_XM_CLRBIT_2(sc_if, XM_MMUCMD, XM_MMUCMD_IGNPAUSE);
 	SK_XM_SETBIT_2(sc_if, XM_MMUCMD, XM_MMUCMD_TX_ENB|XM_MMUCMD_RX_ENB);
 
 	ifp->if_flags |= IFF_RUNNING;
