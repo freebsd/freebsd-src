@@ -25,7 +25,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *      $Id: scsi_da.c,v 1.5 1998/09/20 07:17:11 gibbs Exp $
+ *      $Id: scsi_da.c,v 1.6 1998/10/07 02:57:57 ken Exp $
  */
 
 #include "opt_hw_wdog.h"
@@ -255,7 +255,7 @@ daopen(dev_t dev, int flags, int fmt, struct proc *p)
 				   MSG_SIMPLE_Q_TAG,
 				   rcap,
 				   SSD_FULL_SIZE,
-				   /*timeout*/20000);
+				   /*timeout*/60000);
 		ccb->ccb_h.ccb_bp = NULL;
 
 		error = cam_periph_runccb(ccb, daerror, /*cam_flags*/0,
