@@ -2,9 +2,9 @@
 	The FreeBSD Russian Documentation Project
 
 	$FreeBSD$
-	$FreeBSDru: frdp/release/doc/ru_RU.KOI8-R/installation/common/layout.sgml,v 1.3 2004/09/01 12:23:40 den Exp $
+	$FreeBSDru: frdp/release/doc/ru_RU.KOI8-R/installation/common/layout.sgml,v 1.4 2004/09/06 14:05:03 den Exp $
 
-	Original revision: 1.8
+	Original revision: 1.9
 
 	This section contains the contents of the old LAYOUT.TXT file.
 -->
@@ -99,7 +99,7 @@ README.HTM      cdrom.inf       crypto          info            tools</screen>
 	<para>Коллекция портов может быть установлена как любой другой
 	  дистрибутивный набор и требует около 190MB места.  Дальнейшая
 	  информация по коллекции портов может быть получена с
-	  <ulink url="http://www.FreeBSD.org/ru/ports/"></ulink>
+	  <ulink url="&url.base;/ru/ports/"></ulink>
 	  или локально из <filename>/usr/share/doc/handbook</filename>
 	  если вы установили дистрибутивный набор
 	  <filename>doc</filename>.</para>
