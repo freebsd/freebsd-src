@@ -860,6 +860,21 @@ send:
 	    (so->so_options & SO_DONTROUTE), 0);
     }
 	if (error) {
+
+		/*
+		 * We know that the packet was lost, so back out the
+		 * sequence number advance, if any.
+		 */
+		if (tp->t_force == 0 || !callout_active(tp->tt_persist)) {
+			/*
+			 * No need to check for TH_FIN here because
+			 * the TF_SENTFIN flag handles that case.
+			 */
+			if (flags & TH_SYN)
+				tp->snd_nxt--;
+			tp->snd_nxt -= len;
+		}
+
 out:
 		if (error == ENOBUFS) {
 	                if (!callout_active(tp->tt_rexmt) &&
