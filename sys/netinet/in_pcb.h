@@ -246,7 +246,7 @@ struct inpcbinfo {		/* XXX documentation, prefixes */
 };
 
 #define INP_LOCK_INIT(inp, d) \
-	mtx_init(&(inp)->inp_mtx, (d), NULL, MTX_DEF | MTX_RECURSE)
+	mtx_init(&(inp)->inp_mtx, (d), NULL, MTX_DEF | MTX_RECURSE | MTX_DUPOK)
 #define INP_LOCK_DESTROY(inp)	mtx_destroy(&(inp)->inp_mtx)
 #define INP_LOCK(inp)		mtx_lock(&(inp)->inp_mtx)
 #define INP_UNLOCK(inp)		mtx_unlock(&(inp)->inp_mtx)
