@@ -1,8 +1,8 @@
 #	from: @(#)Makefile.inc	5.3 (Berkeley) 2/20/91
-#	$Id$
+#	$Id: Makefile.inc,v 1.4 1997/02/22 15:04:58 peter Exp $
 
 # yp sources
-.PATH: ${.CURDIR}/yp
+.PATH: ${.CURDIR}/../libc/yp
 
 SRCS+=		xdryp.c yp_xdr.c yplib.c
 CLEANFILES+=	yp_xdr.c yp.h

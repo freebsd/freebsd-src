@@ -1,7 +1,8 @@
-#	@(#)Makefile.inc	8.2 (Berkeley) 9/5/93
+#	from @(#)Makefile.inc	8.2 (Berkeley) 9/5/93
+#	$Id$
 
 # machine-independent net sources
-.PATH: ${.CURDIR}/${MACHINE}/net ${.CURDIR}/net
+.PATH: ${.CURDIR}/../libc/${MACHINE}/net ${.CURDIR}/../libc/net
 
 SRCS+=	addr2ascii.c ascii2addr.c base64.c \
 	gethostbydns.c gethostbyht.c gethostbynis.c gethostnamadr.c \
@@ -18,8 +19,10 @@ SRCS+=	addr2ascii.c ascii2addr.c base64.c \
 # iso_addr.c 
 
 # machine-dependent net sources
-.include "${.CURDIR}/${MACHINE}/net/Makefile.inc"
+.include "${.CURDIR}/../libc/${MACHINE}/net/Makefile.inc"
 
+# Only build man pages with libc.
+.if ${LIB} == "c"
 MAN3+=	net/addr2ascii.3 \
 	net/byteorder.3 net/ethers.3 net/gethostbyname.3 net/getnetent.3 \
 	net/getprotoent.3 net/getservent.3 net/inet.3 net/linkaddr.3 \
@@ -51,3 +54,4 @@ MLINKS+=rcmd.3 rresvport.3 rcmd.3 iruserok.3 rcmd.3 ruserok.3
 MLINKS+=resolver.3 dn_comp.3 resolver.3 dn_expand.3 resolver.3 res_init.3 \
 	resolver.3 res_mkquery.3 resolver.3 res_send.3 resolver.3 res_query.3 \
 	resolver.3 res_search.3
+.endif
