@@ -310,10 +310,10 @@ oltr_pci_attach(device_t dev)
 		break;
 	case TRLLD_PCICONFIG_SET_COMMAND:
 		device_printf(dev, "enabling bus master mode\n");
-		command = pci_read_config(dev, PCI_COMMAND_STATUS_REG, 4);
-		pci_write_config(dev, PCI_COMMAND_STATUS_REG,
+		command = pci_read_config(dev, PCIR_COMMAND, 4);
+		pci_write_config(dev, PCIR_COMMAND,
 			(command | PCIM_CMD_BUSMASTEREN), 4);
-		command = pci_read_config(dev, PCI_COMMAND_STATUS_REG, 4);
+		command = pci_read_config(dev, PCIR_COMMAND, 4);
 		if (!(command & PCIM_CMD_BUSMASTEREN)) {
 			device_printf(dev, "failed to enable bus master mode\n");
 			goto config_failed;
