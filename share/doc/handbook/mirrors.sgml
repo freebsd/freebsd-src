@@ -33,16 +33,24 @@ and on CD-ROM from Walnut Creek CDROM:
 <itemize>
 
 <item>
-<htmlurl url="ftp://ftp.physics.usyd.edu.au/FreeBSD"
-	name="ftp://ftp.physics.usyd.edu.au/FreeBSD"><newline>
-	Contact: <htmlurl url="mailto:dawes@xfree86.org"
-	name="dawes@xfree86.org">.
+<htmlurl url="ftp://ftp.au.freebsd.org/pub/FreeBSD"
+	name="ftp://ftp.au.freebsd.org/pub/FreeBSD"><newline>
+<item>
+<htmlurl url="ftp://ftp2.au.freebsd.org/pub/FreeBSD"
+	name="ftp://ftp2.au.freebsd.org/pub/FreeBSD"><newline>
+<item>
+<htmlurl url="ftp://ftp3.au.freebsd.org/pub/FreeBSD"
+	name="ftp://ftp3.au.freebsd.org/pub/FreeBSD"><newline>
+
+</itemize>
+
+<tag>Brazil</tag>
+
+<itemize>
 
 <item>
-<htmlurl url="ftp://minnie.cs.adfa.oz.au/FreeBSD"
-	name="ftp://minnie.cs.adfa.oz.au/FreeBSD"><newline>
-	Contact: <htmlurl url="mailto:wkt@dolphin.cs.adfa.oz.au"
-	name="wkt@dolphin.cs.adfa.oz.au">.
+<htmlurl url="ftp://ftp.br.freebsd.org/pub/FreeBSD"
+	name="ftp://ftp.br.freebsd.org/pub/FreeBSD"><newline>
 
 </itemize>
 
@@ -87,34 +95,23 @@ and on CD-ROM from Walnut Creek CDROM:
 <itemize>
 
 <item>
-<htmlurl url="ftp://ftp1.de.freebsd.org/pub/FreeBSD"
-	name="ftp://ftp1.de.freebsd.org/pub/FreeBSD"><newline>
-	Contact: <htmlurl url="mailto:kuku@gil.physik.rwth-aachen.de"
-	name="kuku@gil.physik.rwth-aachen.de">.
-
+<htmlurl url="ftp://ftp.de.freebsd.org/pub/FreeBSD"
+	name="ftp://ftp.de.freebsd.org/pub/FreeBSD"><newline>
 <item>
-<htmlurl url="ftp://ftp2.de.freebsd.org/pub/unix/FreeBSD"
-	name="ftp://ftp2.de.freebsd.org/pub/unix/FreeBSD"><newline>
-	Contact: <htmlurl url="mailto:ftp@ftp.fb9dv.uni-duisburg.de"
-	name="ftp@ftp.fb9dv.uni-duisburg.de">.
-
+<htmlurl url="ftp://ftp2.de.freebsd.org/pub/FreeBSD"
+	name="ftp://ftp2.de.freebsd.org/pub/FreeBSD"><newline>
 <item>
-<htmlurl url="ftp://ftp3.de.freebsd.org/freebsd"
-	name="ftp://ftp3.de.freebsd.org/freebsd"><newline>
-	Contact: <htmlurl url="mailto:ftp@uni-paderborn.de"
-	name="ftp@uni-paderborn.de">.
-
+<htmlurl url="ftp://ftp3.de.freebsd.org/pub/FreeBSD"
+	name="ftp://ftp3.de.freebsd.org/pub/FreeBSD"><newline>
 <item>
-<htmlurl url="ftp://ftp4.de.freebsd.org/pub/comp/os/bsd/FreeBSD"
-	name="ftp://ftp4.de.freebsd.org/pub/comp/os/bsd/FreeBSD"><newline>
-	Contact: <htmlurl url="mailto:bsd@leo.org"
-	name="bsd@leo.org">.
-
+<htmlurl url="ftp://ftp4.de.freebsd.org/pub/FreeBSD"
+	name="ftp://ftp4.de.freebsd.org/pub/FreeBSD"><newline>
 <item>
-<htmlurl url="ftp://ftp5.de.freebsd.org/pub/soft/unix/bsd/FreeBSD"
-	name="ftp://ftp5.de.freebsd.org/pub/soft/unix/bsd/FreeBSD"><newline>
-	Contact: <htmlurl url="mailto:pdsowner@rcs1.urz.tu-dresden.de"
-	name="pdsowner@rcs1.urz.tu-dresden.de">.
+<htmlurl url="ftp://ftp5.de.freebsd.org/pub/FreeBSD"
+	name="ftp://ftp5.de.freebsd.org/pub/FreeBSD"><newline>
+<item>
+<htmlurl url="ftp://ftp6.de.freebsd.org/pub/FreeBSD"
+	name="ftp://ftp6.de.freebsd.org/pub/FreeBSD"><newline>
 
 </itemize>
 
@@ -159,40 +156,23 @@ and on CD-ROM from Walnut Creek CDROM:
 <itemize>
 
 <item>
-<htmlurl url="ftp://ftp.tokyonet.ad.jp/pub/FreeBSD"
-	name="ftp://ftp.tokyonet.ad.jp/pub/FreeBSD"><newline>
-	Contact: <htmlurl url="mailto:ftpadmin@TokyoNet.AD.JP"
-	name="ftpadmin@TokyoNet.AD.JP">.
-
+<htmlurl url="ftp://ftp.jp.freebsd.org/pub/FreeBSD"
+	name="ftp://ftp.jp.freebsd.org/pub/FreeBSD"><newline>
 <item>
-<htmlurl url="ftp://ftp.nisiq.net/pub/os/FreeBSD"
-	name="ftp://ftp.nisiq.net/pub/os/FreeBSD"><newline>
-	Contact: <htmlurl url="mailto:ftp-admin@nisiq.net"
-	name="ftp-admin@nisiq.net">.
-
+<htmlurl url="ftp://ftp2.jp.freebsd.org/pub/FreeBSD"
+	name="ftp://ftp2.jp.freebsd.org/pub/FreeBSD"><newline>
 <item>
-<htmlurl url="ftp://ftp.iij.ad.jp/pub/FreeBSD"
-	name="ftp://ftp.iij.ad.jp/pub/FreeBSD"><newline>
-	Contact: <htmlurl url="mailto:ftp@ftp.iij.ad.jp"
-	name="ftp@ftp.iij.ad.jp">.
-
+<htmlurl url="ftp://ftp3.jp.freebsd.org/pub/FreeBSD"
+	name="ftp://ftp3.jp.freebsd.org/pub/FreeBSD"><newline>
 <item>
-<htmlurl url="ftp://ftp.kuis.kyoto-u.ac.jp/BSD/FreeBSD"
-	name="ftp://ftp.kuis.kyoto-u.ac.jp/BSD/FreeBSD"><newline>
-	Contact: <htmlurl url="ftp-admin@kuis.kyoto-u.ac.jp"
-	name="ftp-admin@kuis.kyoto-u.ac.jp">.
-
+<htmlurl url="ftp://ftp4.jp.freebsd.org/pub/FreeBSD"
+	name="ftp://ftp4.jp.freebsd.org/pub/FreeBSD"><newline>
 <item>
-<htmlurl url="ftp://ftp.ee.uec.ac.jp/pub/os/mirror/ftp.freebsd.org"
-	name="ftp://ftp.ee.uec.ac.jp/pub/os/mirror/ftp.freebsd.org"><newline>
-	Contact: <htmlurl url="mailto:ftp-admin@ftp.ee.uec.ac.jp"
-	name="ftp-admin@ftp.ee.uec.ac.jp">.
-
+<htmlurl url="ftp://ftp5.jp.freebsd.org/pub/FreeBSD"
+	name="ftp://ftp5.jp.freebsd.org/pub/FreeBSD"><newline>
 <item>
-<htmlurl url="ftp://ftp.u-aizu.ac.jp/pub/os/FreeBSD"
-	name="ftp://ftp.u-aizu.ac.jp/pub/os/FreeBSD"><newline>
-	Contact: <htmlurl url="mailto:ftp-admin@u-aizu.ac.jp"
-	name="ftp-admin@u-aizu.ac.jp">.
+<htmlurl url="ftp://ftp6.jp.freebsd.org/pub/FreeBSD"
+	name="ftp://ftp6.jp.freebsd.org/pub/FreeBSD"><newline>
 
 </itemize>
 
@@ -244,6 +224,16 @@ and on CD-ROM from Walnut Creek CDROM:
 
 </itemize>
 
+<tag>South Africa</tag>
+
+<itemize>
+
+<item>
+<htmlurl url="ftp://ftp.za.freebsd.org/pub/FreeBSD"
+	name="ftp://ftp.za.freebsd.org/pub/FreeBSD"><newline>
+
+</itemize>
+
 <tag>Sweden</tag>
 
 <itemize>
@@ -289,12 +279,6 @@ and on CD-ROM from Walnut Creek CDROM:
 <tag>USA</tag>
 
 <itemize>
-
-<item>
-<htmlurl url="ftp://gatekeeper.dec.com/pub/BSD/FreeBSD"
-	name="ftp://gatekeeper.dec.com/pub/BSD/FreeBSD"><newline>
-	Contact: <htmlurl url="mailto:hubbard@gatekeeper.dec.com"
-	name="hubbard@gatekeeper.dec.com">.
 
 <item>
 <htmlurl url="ftp://ftp.cs.uncc.edu/pub/FreeBSD"
@@ -366,7 +350,7 @@ eBones (Kerberos) from one of the following foreign distribution sites:
 
 <descrip>
 
-<tag>SouthAfrica</tag>
+<tag>South Africa</tag>
 
 <itemize>
 
@@ -389,8 +373,8 @@ eBones (Kerberos) from one of the following foreign distribution sites:
 <itemize>
 
 <item>
-<htmlurl url="ftp://ftp.iqm.unicamp.br/pub/FreeBSD"
-	name="ftp://ftp.iqm.unicamp.br/pub/FreeBSD"><newline>
+<htmlurl url="ftp://ftp.br.freebsd.org/pub/FreeBSD"
+	name="ftp://ftp.br.freebsd.org/pub/FreeBSD"><newline>
 	Contact: Pedro A M Vazquez <htmlurl url="mailto:vazquez@iqm.unicamp.br"
 	name="vazquez@iqm.unicamp.br">.
 
