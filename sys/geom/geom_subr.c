@@ -154,7 +154,10 @@ g_unload_class(void *arg, int flag)
 	mp->config = NULL;
 
 	error = 0;
-	LIST_FOREACH(gp, &mp->geom, geom) {
+	for (;;) {
+		gp = LIST_FIRST(&mp->geom);
+		if (gp == NULL)
+			break;
 		error = mp->destroy_geom(NULL, mp, gp);
 		if (error != 0)
 			break;
@@ -376,6 +379,9 @@ g_new_providerf(struct g_geom *gp, const char *fmt, ...)
 
 	g_topology_assert();
 	G_VALID_GEOM(gp);
+	KASSERT(gp->access != NULL,
+	    ("new provider on geom(%s) without ->access (class %s)",
+	    gp->name, gp->class->name));
 	KASSERT(gp->start != NULL,
 	    ("new provider on geom(%s) without ->start (class %s)",
 	    gp->name, gp->class->name));
@@ -397,7 +403,7 @@ g_new_providerf(struct g_geom *gp, const char *fmt, ...)
 	pp->stat = devstat_new_entry(pp, -1, 0, DEVSTAT_ALL_SUPPORTED,
 	    DEVSTAT_TYPE_DIRECT, DEVSTAT_PRIORITY_MAX);
 	LIST_INSERT_HEAD(&gp->provider, pp, provider);
-	g_post_event(g_new_provider_event, pp, M_WAITOK, pp, NULL);
+	g_post_event(g_new_provider_event, pp, M_WAITOK, pp, gp, NULL);
 	return (pp);
 }
 
