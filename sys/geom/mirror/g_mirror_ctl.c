@@ -231,12 +231,12 @@ g_mirror_ctl_rebuild(struct gctl_req *req, struct g_class *mp)
 		name = gctl_get_asciiparam(req, param);
 		if (name == NULL) {
 			gctl_error(req, "No 'arg%u' argument.", i);
-			return;
+			continue;
 		}
 		disk = g_mirror_find_disk(sc, name);
 		if (disk == NULL) {
 			gctl_error(req, "No such provider: %s.", name);
-			return;
+			continue;
 		}
 		if (g_mirror_ndisks(sc, G_MIRROR_DISK_STATE_ACTIVE) == 1 &&
 		    disk->d_state == G_MIRROR_DISK_STATE_ACTIVE) {
@@ -464,12 +464,12 @@ g_mirror_ctl_remove(struct gctl_req *req, struct g_class *mp)
 		name = gctl_get_asciiparam(req, param);
 		if (name == NULL) {
 			gctl_error(req, "No 'arg%u' argument.", i);
-			return;
+			continue;
 		}
 		disk = g_mirror_find_disk(sc, name);
 		if (disk == NULL) {
 			gctl_error(req, "No such provider: %s.", name);
-			return;
+			continue;
 		}
 		g_mirror_event_send(disk, G_MIRROR_DISK_STATE_DESTROY,
 		    G_MIRROR_EVENT_WAIT);
@@ -512,12 +512,12 @@ g_mirror_ctl_deactivate(struct gctl_req *req, struct g_class *mp)
 		name = gctl_get_asciiparam(req, param);
 		if (name == NULL) {
 			gctl_error(req, "No 'arg%u' argument.", i);
-			return;
+			continue;
 		}
 		disk = g_mirror_find_disk(sc, name);
 		if (disk == NULL) {
 			gctl_error(req, "No such provider: %s.", name);
-			return;
+			continue;
 		}
 		/*
 		 * Do rebuild by resetting syncid and disconnecting disk.
@@ -527,7 +527,7 @@ g_mirror_ctl_deactivate(struct gctl_req *req, struct g_class *mp)
 		disk->d_flags |= G_MIRROR_DISK_FLAG_INACTIVE;
 		disk->d_flags &= ~G_MIRROR_DISK_FLAG_FORCE_SYNC;
 		g_mirror_update_metadata(disk);
-		sc->sc_bump_syncid = G_MIRROR_BUMP_ON_FIRST_WRITE;
+		sc->sc_bump_id |= G_MIRROR_BUMP_SYNCID_OFW;
 		g_mirror_event_send(disk, G_MIRROR_DISK_STATE_DISCONNECTED,
 		    G_MIRROR_EVENT_WAIT);
 	}
