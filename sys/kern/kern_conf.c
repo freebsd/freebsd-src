@@ -270,8 +270,11 @@ make_dev(struct cdevsw *devsw, int minor, uid_t uid, gid_t gid, int perms, const
 		return (dev);
 	}
 	va_start(ap, fmt);
-	i = kvprintf(fmt, NULL, dev->si_name, 32, ap);
-	dev->si_name[i] = '\0';
+	i = vsnrprintf(dev->__si_namebuf, sizeof dev->__si_namebuf, 32, fmt, ap);
+	if (i > (sizeof dev->__si_namebuf - 1)) {
+		printf("WARNING: Device name truncated! (%s)", 
+		    dev->__si_namebuf);
+	}
 	va_end(ap);
 	dev->si_devsw = devsw;
 	dev->si_uid = uid;
@@ -318,8 +321,11 @@ make_dev_alias(dev_t pdev, const char *fmt, ...)
 	dev->si_flags |= SI_NAMED;
 	dev_depends(pdev, dev);
 	va_start(ap, fmt);
-	i = kvprintf(fmt, NULL, dev->si_name, 32, ap);
-	dev->si_name[i] = '\0';
+	i = vsnrprintf(dev->__si_namebuf, sizeof dev->__si_namebuf, 32, fmt, ap);
+	if (i > (sizeof dev->__si_namebuf - 1)) {
+		printf("WARNING: Device name truncated! (%s)", 
+		    dev->__si_namebuf);
+	}
 	va_end(ap);
 
 	if (devfs_create_hook)
