@@ -96,6 +96,76 @@ void	Perror __P((char *op));
 void	shift __P((int f, int new, int old));
 int	checkold __P((struct dkbad *oldbad));
 
+void
+bad_scan(argc, argv, dp, f, bstart, bend)
+	int *argc;
+	char ***argv;
+	struct disklabel *dp;
+	int f;
+	daddr_t bstart,bend;
+{
+	int curr_sec, n;
+	int spc = dp->d_secpercyl;
+	int ss = dp->d_secsize;
+	int trk = dp->d_nsectors;
+	int i;
+	static char *nargv[DKBAD_MAXBAD];
+	static int nargc;
+
+	setbuf(stdout, NULL);
+	setbuf(stderr, NULL);
+
+	i = -1;
+	n = ioctl(f,DIOCSRETRIES,&i);
+	if (n < 0)
+		perror("Couldn't set disk in \"badscan\" mode");
+	nargc = *argc;
+	memcpy(nargv,*argv,nargc * sizeof nargv[0]);
+
+	if (buf == (char *)NULL) {
+		buf = malloc((unsigned)(trk*ss));
+		if (buf == (char *)NULL) {
+			fprintf(stderr, "Out of memory\n");
+			exit(20);
+		}
+	}
+
+	/* scan the entire disk a sector at a time.  Because of all the
+	 * clustering in the kernel, we cannot scan a track at a time, 
+	 * If we do, we may have to read twice over the block to find
+	 * exactly which one failed, and it may not fail second time.
+	 */
+	for (curr_sec = bstart; curr_sec < bend; curr_sec++) {
+
+		if (verbose) {
+			if ((curr_sec % spc) == 0)
+				printf("\r%7d of %7lu blocks (%3lu%%)",
+					curr_sec,bend,(curr_sec*100/bend));
+		}
+
+		lseek(f, curr_sec * ss, L_SET);
+
+		if ((n = read(f, buf, ss)) != ss) {
+			if (verbose)
+				printf("\rBlock: %7d will be marked BAD.\n",
+					curr_sec);
+			else
+				fprintf(stderr, "found bad sector: %d\n",
+					curr_sec);
+			sprintf(buf,"%d",curr_sec);
+			nargv[nargc++] = strdup(buf);
+		}
+	}
+	fprintf(stderr, "\n");
+	nargv[nargc] = 0;
+	*argc = nargc;
+	*argv = &nargv[0];
+	i = 0;
+	n = ioctl(f,DIOCSRETRIES,&i);
+	if (n < 0) 
+		perror("Couldn't reset disk from \"badscan\" mode");
+}
+
 int
 main(argc, argv)
 	int argc;
@@ -131,6 +201,7 @@ main(argc, argv)
 				break;
 			    case 's':		/* scan partition */
 				sflag++;
+				add++;
 				break;
 			    default:
 				if (**argv >= '0' && **argv <= '4') {
@@ -164,7 +235,7 @@ usage:
 			      'a' + RAW_PART);
 	else
 		strcpy(name, argv[0]);
-	f = open(name, argc == 1? O_RDONLY : O_RDWR);
+	f = open(name, !sflag && argc == 1? O_RDONLY : O_RDWR);
 	if (f < 0)
 		Perror(name);
 	if (read(f, label, sizeof(label)) < 0) 
@@ -201,84 +272,12 @@ usage:
 			dp->d_secpercyl, bstart, bend);
 	}
 
-	if (sflag) {		/* search for bad sectors */
-		int curr_sec, tries, n;
-		int spc = dp->d_secpercyl;
-		int ss = dp->d_secsize;
-		int trk = dp->d_nsectors;
-		int step;
-
-		setbuf(stdout, NULL);
-
-		if (buf == (char *)NULL) {
-			buf = malloc((unsigned)(trk*ss));
-			if (buf == (char *)NULL) {
-				fprintf(stderr, "Out of memory\n");
-				exit(20);
-		    	}
-		}
-
-		printf("Starting scan of %s at cylinder %ld\n",
-			name, bstart/spc);
-		step = trk;
-		for (curr_sec = bstart; curr_sec < bend; curr_sec += step) {
-			int gotone = 0;
-
-			if (verbose) {
-				if ((curr_sec % spc) == 0)
-					printf("\r%4d(%7d)", 
-					    curr_sec/spc, curr_sec);
-			}
-			for (tries = 0; tries < RETRIES; tries++) {
-				if (lseek(f, curr_sec * ss, L_SET) < 0) {
-					fprintf(stderr, 
-					    "\nbad144: can't seek sector, %d\n",
-					     curr_sec);
-					gotone = 1;
-				} else
-					break;
-			}
-			if (gotone) {
-				fprintf(stderr, 
-				    "\nbad144: bad sector (seek), %d\n", 
-				    curr_sec);
-				step = 1;
-				continue;
-			}
-			if (step == trk) {
-				if ((n = read(f, buf, (ss*trk))) == (ss*trk)) {
-					continue;
-				}
-			}
-			/* switch to single sector reads */
-			lseek(f, curr_sec * ss, L_SET);
-			step = 1;
-			for (tries = 0; tries < RETRIES; tries++) {
-				if ((n = read(f, buf, ss)) != ss) {
-					fprintf(stderr, 
-					    "\nbad144: can't read sector,
-					     %d\n", curr_sec);
-					gotone = 1;
-					lseek(f, curr_sec * ss, L_SET);
-				} else {
-					if ((curr_sec % trk) == 0) {
-						step = trk;
-					}
-					break;
-				}
-			}
-			if (gotone) {
-				fprintf(stderr, 
-				    "\nbad144: bad sector (read), %d\n",
-				     curr_sec);
-				continue;
-			}
-		}
-		fprintf(stderr, "\n");
-	}
-
 	argc--;
 	argv++;
+
+	if (sflag)
+		bad_scan(&argc,&argv,dp,f,bstart,bend);
+
 	if (argc == 0) {
 		sn = getold(f, &oldbad);
 		printf("bad block information at sector %ld in %s:\n",
