@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)isa.c	7.2 (Berkeley) 5/13/91
- *	$Id: isa.c,v 1.91 1997/06/08 17:14:42 ache Exp $
+ *	$Id: isa.c,v 1.2 1997/06/25 20:12:23 smp Exp smp $
  */
 
 /*
@@ -55,7 +55,7 @@
 #include <machine/ipl.h>
 #include <machine/md_var.h>
 #include <machine/segments.h>
-#if defined(APIC_IO)
+#ifdef APIC_IO
 #include <machine/smp.h>
 #include <machine/apic.h>
 #endif /* APIC_IO */
@@ -520,7 +520,7 @@ config_isadev_c(isdp, mp, reconfig)
 		}
 		(*dp->attach)(isdp);
 		if (isdp->id_irq) {
-#if defined(APIC_IO)
+#ifdef APIC_IO
 			/*
 			 * Some motherboards use upper IRQs for traditional
 			 * ISA INTerrupt sources.  In particular we have
@@ -530,13 +530,13 @@ config_isadev_c(isdp, mp, reconfig)
 			u_int	apic_mask;
 			int	rirq;
 
-			apic_mask = get_isa_apic_mask(isdp->id_irq);
+			apic_mask = isa_apic_mask(isdp->id_irq);
 			if (apic_mask != isdp->id_irq) {
 				rirq = ffs(isdp->id_irq) - 1;
 				isdp->id_irq = apic_mask;
 				undirect_isa_irq(rirq);	/* free for ISA */
 			}
-#endif  /* APIC_IO */
+#endif /* APIC_IO */
 			if (!isdp->id_conflicts
 			    || (!intr_registered(ffs(isdp->id_irq) - 1)
 			    && isdp->id_intr != NULL))
