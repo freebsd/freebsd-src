@@ -1,7 +1,7 @@
 #-*- mode: Fundamental; tab-width: 4; -*-
 # ex:ts=4
 #
-#	$Id: bsd.port.mk,v 1.227.2.42 1998/08/06 10:45:22 markm Exp $
+#	$Id: bsd.port.mk,v 1.227.2.43 1998/08/10 04:03:38 obrien Exp $
 #	$NetBSD: $
 #
 #	bsd.port.mk - 940820 Jordan K. Hubbard.
@@ -105,7 +105,7 @@ OpenBSD_MAINTAINER=	imp@OpenBSD.ORG
 # NO_MTREE		- If set, will not invoke mtree from bsd.port.mk from
 #				  the "install" target.
 # MTREE_FILE	- The name of the mtree file (default: /etc/mtree/BSD.x11.dist
-#				  if USE_IMAKE or USE_X11 is set, /etc/mtree/BSD.local.dist
+#				  if USE_X_PREFIX is set, /etc/mtree/BSD.local.dist
 #				  otherwise.)
 #
 # NO_BUILD		- Use a dummy (do-nothing) build target.
@@ -128,8 +128,8 @@ OpenBSD_MAINTAINER=	imp@OpenBSD.ORG
 # USE_AUTOCONF	- Says that the port uses autoconf.  Implies GNU_CONFIGURE.
 # USE_PERL5		- Says that the port uses perl5 for building and running.
 # USE_IMAKE		- Says that the port uses imake.  Implies USE_X_PREFIX.
-# USE_X_PREFIX	- Says that the port installs in ${X11BASE}.  Implies USE_X11.
-# USE_X11		- Says that the port uses X libraries.
+# USE_X_PREFIX	- Says that the port installs in ${X11BASE}.  Implies USE_XLIB.
+# USE_XLIB		- Says that the port uses X libraries.
 # NO_INSTALL_MANPAGES - For imake ports that don't like the install.man
 #						target.
 # HAS_CONFIGURE	- Says that the port has its own configure script.
@@ -273,6 +273,7 @@ OPSYS!=	uname -s
 
 # Get the operating system revision
 OSREL!=	uname -r | sed -e 's/[-(].*//'
+PLIST_SUB+=	OSREL=${OSREL}
 
 .if exists(${.CURDIR}/../Makefile.inc)
 .include "${.CURDIR}/../Makefile.inc"
@@ -355,7 +356,7 @@ PKGDIR?=		${.CURDIR}/pkg
 USE_X_PREFIX=		yes
 .endif
 .if defined(USE_X_PREFIX)
-USE_X11=		yes
+USE_XLIB=		yes
 .endif
 .if defined(USE_X_PREFIX)
 PREFIX?=		${X11BASE}
@@ -370,12 +371,18 @@ BUILD_DEPENDS+=		gmake:${PORTSDIR}/devel/gmake
 GNU_CONFIGURE=	yes
 BUILD_DEPENDS+=		autoconf:${PORTSDIR}/devel/autoconf
 .endif
+
 .if defined(USE_PERL5)
 BUILD_DEPENDS+=		perl5.00501:${PORTSDIR}/lang/perl5
 RUN_DEPENDS+=		perl5.00501:${PORTSDIR}/lang/perl5
 .endif
-.if defined(USE_X11)
+
+.if defined(USE_XLIB)
 LIB_DEPENDS+=	X11\\.6:${PORTSDIR}/x11/XFree86
+.endif
+
+.if defined(USE_QT)
+LIB_DEPENDS+=	qt\\.1\\.\\\(33\\\|40\\\):${PORTSDIR}/x11-toolkits/qt140
 .endif
 
 .if exists(${PORTSDIR}/../Makefile.inc)
@@ -495,10 +502,11 @@ SCRIPTS_ENV+=	${INSTALL_MACROS}
 COMMENT?=	${PKGDIR}/COMMENT
 DESCR?=		${PKGDIR}/DESCR
 PLIST?=		${PKGDIR}/PLIST
+TMPPLIST?=	${WRKDIR}/PLIST.mktmp
 
 PKG_CMD?=		/usr/sbin/pkg_create
 .if !defined(PKG_ARGS)
-PKG_ARGS=		-v -c ${COMMENT} -d ${DESCR} -f ${PLIST} -p ${PREFIX} -P "`${MAKE} package-depends|sort -u`"
+PKG_ARGS=		-v -c ${COMMENT} -d ${DESCR} -f ${TMPPLIST} -p ${PREFIX} -P "`${MAKE} package-depends|sort -u`"
 .if exists(${PKGDIR}/INSTALL)
 PKG_ARGS+=		-i ${PKGDIR}/INSTALL
 .endif
@@ -552,6 +560,12 @@ TR?=		/usr/bin/tr
 
 # Used to print all the '===>' style prompts - override this to turn them off.
 ECHO_MSG?=		${ECHO}
+
+.for sub in ${PLIST_SUB}
+_sedsubplist!=	sym=`${ECHO} "${sub}" | ${SED} -e 's/=.*//'`; \
+		val=`${ECHO} "${sub}" | ${SED} -e 's/^[^=][^=]*=//'`; \
+		echo "${_sedsubplist} -e s!%%$${sym}%%!$${val}!g"
+.endfor
 
 ALL_TARGET?=		all
 INSTALL_TARGET?=	install
@@ -741,6 +755,12 @@ _MANPAGES+=	${MANN:S%^%${MANNPREFIX}/man/${lang}/mann/%}
 .endif
 
 .endfor
+
+.if defined(_MANPAGES) && defined(NOMANCOMPRESS)
+__MANPAGES:=	${_MANPAGES:S^${PREFIX}/^^:S/""//:S^//^/^g}
+.elif defined(_MANPAGES)
+__MANPAGES:=	${_MANPAGES:S^${PREFIX}/^^:S/""//:S^//^/^g:S/$/.gz/}
+.endif
 
 .if defined(_MANPAGES) && defined(MANCOMPRESSED)
 _MANPAGES:=	${_MANPAGES:S/$/.gz/}
@@ -1204,6 +1224,13 @@ _PORT_USE: .USE
 	fi
 .endif
 .endif
+.if (make(real-install) || make(real-package)) && exists(${PLIST})
+	@>${TMPPLIST}
+.for man in ${__MANPAGES}
+	@${ECHO} ${man} >> ${TMPPLIST}
+.endfor
+	@${SED} ${_sedsubplist} ${PLIST} >> ${TMPPLIST}
+.endif
 	@cd ${.CURDIR} && ${MAKE} ${.MAKEFLAGS} ${.TARGET:S/^real-/pre-/}
 	@if [ -f ${SCRIPTDIR}/${.TARGET:S/^real-/pre-/} ]; then \
 		cd ${.CURDIR} && ${SETENV} ${SCRIPTS_ENV} ${SH} \
@@ -1345,7 +1372,7 @@ reinstall:
 
 .if !target(deinstall)
 deinstall:
-	@${ECHO_MSG} "===> Deinstalling for ${PKGNAME}"
+	@${ECHO_MSG} "===>  Deinstalling for ${PKGNAME}"
 	@pkg_delete -f ${PKGNAME}
 	@${RM} -f ${INSTALL_COOKIE} ${PACKAGE_COOKIE}
 .endif
@@ -1376,7 +1403,7 @@ clean: pre-clean
 		fi; \
 	fi
 .else
-	@${RM} -f ${WRKDIR}/.*_done
+	@${RM} -f ${WRKDIR}/.*_done ${TMPPLIST}
 .endif
 .endif
 
@@ -1562,28 +1589,28 @@ _DEPENDS_USE:	.USE
 		fi; \
 		if expr "$$prog" : \\/ >/dev/null; then \
 			if [ -e "$$prog" ]; then \
-				${ECHO_MSG} "===>  ${PKGNAME} depends on file: $$prog - found"; \
+				${ECHO_MSG} "===>   ${PKGNAME} depends on file: $$prog - found"; \
 				notfound=0; \
 			else \
-				${ECHO_MSG} "===>  ${PKGNAME} depends on file: $$prog - not found"; \
+				${ECHO_MSG} "===>   ${PKGNAME} depends on file: $$prog - not found"; \
 				notfound=1; \
 			fi; \
 		else \
 			if which "$$prog" > /dev/null 2>&1 ; then \
-				${ECHO_MSG} "===>  ${PKGNAME} depends on executable: $$prog - found"; \
+				${ECHO_MSG} "===>   ${PKGNAME} depends on executable: $$prog - found"; \
 				notfound=0; \
 			else \
-				${ECHO_MSG} "===>  ${PKGNAME} depends on executable: $$prog - not found"; \
+				${ECHO_MSG} "===>   ${PKGNAME} depends on executable: $$prog - not found"; \
 				notfound=1; \
 			fi; \
 		fi; \
 		if [ $$notfound != 0 ]; then \
-			${ECHO_MSG} "===>  Verifying $$target for $$prog in $$dir"; \
+			${ECHO_MSG} "===>    Verifying $$target for $$prog in $$dir"; \
 			if [ ! -d "$$dir" ]; then \
-				${ECHO_MSG} ">> No directory for $$prog.  Skipping.."; \
+				${ECHO_MSG} "     >> No directory for $$prog.  Skipping.."; \
 			else \
 				(cd $$dir; ${MAKE} ${.MAKEFLAGS} $$target) ; \
-				${ECHO_MSG} "===>  Returning to build of ${PKGNAME}"; \
+				${ECHO_MSG} "===>   Returning to build of ${PKGNAME}"; \
 			fi; \
 		fi; \
 	done
@@ -1609,15 +1636,15 @@ lib-depends:
 			target=${DEPENDS_TARGET}; \
 		fi; \
 		if /sbin/ldconfig -r | ${GREP} -q -e "-l$$lib"; then \
-			${ECHO_MSG} "===>  ${PKGNAME} depends on shared library: $$lib - found"; \
+			${ECHO_MSG} "===>   ${PKGNAME} depends on shared library: $$lib - found"; \
 		else \
-			${ECHO_MSG} "===>  ${PKGNAME} depends on shared library: $$lib - not found"; \
-			${ECHO_MSG} "===>  Verifying $$target for $$lib in $$dir"; \
+			${ECHO_MSG} "===>   ${PKGNAME} depends on shared library: $$lib - not found"; \
+			${ECHO_MSG} "===>    Verifying $$target for $$lib in $$dir"; \
 			if [ ! -d "$$dir" ]; then \
-				${ECHO_MSG} ">> No directory for $$lib.  Skipping.."; \
+				${ECHO_MSG} "     >> No directory for $$lib.  Skipping.."; \
 			else \
 				(cd $$dir; ${MAKE} ${.MAKEFLAGS} $$target) ; \
-				${ECHO_MSG} "===>  Returning to build of ${PKGNAME}"; \
+				${ECHO_MSG} "===>   Returning to build of ${PKGNAME}"; \
 			fi; \
 		fi; \
 	done
@@ -1636,15 +1663,15 @@ misc-depends:
 		else \
 			target=${DEPENDS_TARGET}; \
 		fi; \
-		${ECHO_MSG} "===>  ${PKGNAME} depends on: $$dir"; \
-		${ECHO_MSG} "===>  Verifying $$target for $$dir"; \
+		${ECHO_MSG} "===>   ${PKGNAME} depends on: $$dir"; \
+		${ECHO_MSG} "===>    Verifying $$target for $$dir"; \
 		if [ ! -d $$dir ]; then \
-			${ECHO_MSG} ">> No directory for $$dir.  Skipping.."; \
+			${ECHO_MSG} "     >> No directory for $$dir.  Skipping.."; \
 		else \
 			(cd $$dir; ${MAKE} ${.MAKEFLAGS} $$target) ; \
 		fi \
 	done
-	@${ECHO_MSG} "===>  Returning to build of ${PKGNAME}"
+	@${ECHO_MSG} "===>   Returning to build of ${PKGNAME}"
 .endif
 .else
 	@${DO_NADA}
@@ -1727,7 +1754,7 @@ readme:
 .endif
 
 README.html:
-	@${ECHO_MSG} "===>  Creating README.html for ${PKGNAME}"
+	@${ECHO_MSG} "===>   Creating README.html for ${PKGNAME}"
 	@${CAT} ${TEMPLATES}/README.port | \
 		${SED} -e 's%%PORT%%'`${ECHO} ${.CURDIR} | ${SED} -e 's.*/\([^/]*/[^/]*\)$$\1'`'g' \
 			-e 's%%PKG%%${PKGNAME}g' \
@@ -1762,13 +1789,13 @@ print-package-depends:
 
 .if !target(fake-pkg)
 fake-pkg:
-	@if [ ! -f ${PLIST} -o ! -f ${COMMENT} -o ! -f ${DESCR} ]; then ${ECHO} "** Missing package files for ${PKGNAME} - installation not recorded."; exit 1; fi
+	@if [ ! -f ${TMPPLIST} -o ! -f ${COMMENT} -o ! -f ${DESCR} ]; then ${ECHO} "** Missing package files for ${PKGNAME} - installation not recorded."; exit 1; fi
 	@if [ ! -d ${PKG_DBDIR} ]; then ${RM} -f ${PKG_DBDIR}; ${MKDIR} ${PKG_DBDIR}; fi
 .if defined(FORCE_PKG_REGISTER)
 	@${RM} -rf ${PKG_DBDIR}/${PKGNAME}
 .endif
 	@if [ ! -d ${PKG_DBDIR}/${PKGNAME} ]; then \
-		${ECHO_MSG} "===>  Registering installation for ${PKGNAME}"; \
+		${ECHO_MSG} "===>   Registering installation for ${PKGNAME}"; \
 		${MKDIR} ${PKG_DBDIR}/${PKGNAME}; \
 		${PKG_CMD} ${PKG_ARGS} -O ${PKGFILE} > ${PKG_DBDIR}/${PKGNAME}/+CONTENTS; \
 		${CP} ${DESCR} ${PKG_DBDIR}/${PKGNAME}/+DESC; \
