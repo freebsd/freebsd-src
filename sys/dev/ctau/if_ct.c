@@ -78,7 +78,7 @@ __FBSDID("$FreeBSD$");
 #   include "opt_netgraph.h"
 #   include <netgraph/ng_message.h>
 #   include <netgraph/netgraph.h>
-#if __FreeBSD_version >= 500000
+#if __FreeBSD_version >= 400000
 #   include <dev/ctau/ng_ct.h>
 #else
 #   include <netgraph/ng_ct.h>
