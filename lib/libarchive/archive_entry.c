@@ -585,6 +585,13 @@ archive_entry_set_mode(struct archive_entry *entry, mode_t m)
 }
 
 void
+archive_entry_set_mtime(struct archive_entry *entry, time_t m, long ns)
+{
+	entry->ae_stat.st_mtime = m;
+	ARCHIVE_STAT_SET_MTIME_NANOS(&entry->ae_stat, ns);
+}
+
+void
 archive_entry_set_pathname(struct archive_entry *entry, const char *name)
 {
 	aes_set_mbs(&entry->ae_pathname, name);
