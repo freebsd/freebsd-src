@@ -132,6 +132,10 @@ __ungetc(int c, FILE *fp)
 		}
 		fp->_flags |= __SRD;
 	}
+
+	if (!(fp->_flags & __SSTR) && _ftello(fp) == 0)
+		return (EOF);
+
 	c = (unsigned char)c;
 
 	/*
