@@ -677,7 +677,7 @@ configXDesktop(dialogMenuItem *self)
 	    write_root_xprofile("xterm &\n[ ! -d $HOME/GNUstep/Library/WindowMaker ] && /usr/X11R6/bin/wmaker.inst\nexec /usr/X11R6/bin/wmaker\n");
 	}
     }
-    else if (!strcmp(desk, "fvwm")) {
+    else if (!strcmp(desk, "fvwm2")) {
 	ret = package_add("fvwm");
 	if (DITEM_STATUS(ret) != DITEM_FAILURE && gotit("fvwm"))
 	    write_root_xprofile("xterm &\nexec fvwm\n");
