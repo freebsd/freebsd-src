@@ -24,12 +24,6 @@
  * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
- *
- * $FreeBSD$
- */
-/*
- * Some code and ideas taken from the old disks.c.
- * static char sccsid[] = "@(#)disks.c	8.1 (Berkeley) 6/6/93";
  */
 /*-
  * Copyright (c) 1980, 1992, 1993
@@ -64,15 +58,24 @@
  * SUCH DAMAGE.
  */
 
+#include <sys/cdefs.h>
+
+__FBSDID("$FreeBSD$");
+
+#ifdef lint
+static const char sccsid[] = "@(#)disks.c	8.1 (Berkeley) 6/6/93";
+#endif
+
 #include <sys/types.h>
 #include <sys/devicestat.h>
 #include <sys/dkstat.h>
 
-#include <string.h>
-#include <devstat.h>
-#include <stdlib.h>
 #include <ctype.h>
+#include <devstat.h>
 #include <err.h>
+#include <stdlib.h>
+#include <string.h>
+
 #include "systat.h"
 #include "extern.h"
 #include "devs.h"
@@ -94,14 +97,14 @@ int num_matches = 0;
 char **specified_devices;
 int num_devices_specified = 0;
 
-static int dsmatchselect(char *args, devstat_select_mode select_mode,
+static int dsmatchselect(const char *args, devstat_select_mode select_mode,
 			 int maxshowdevs, struct statinfo *s1);
-static int dsselect(char *args, devstat_select_mode select_mode,
+static int dsselect(const char *args, devstat_select_mode select_mode,
 		    int maxshowdevs, struct statinfo *s1);
 
 int
-dsinit(int maxshowdevs, struct statinfo *s1, struct statinfo *s2,
-       struct statinfo *s3)
+dsinit(int maxshowdevs, struct statinfo *s1, struct statinfo *s2 __unused,
+       struct statinfo *s3 __unused)
 {
 
 	/*
@@ -141,7 +144,7 @@ dsinit(int maxshowdevs, struct statinfo *s1, struct statinfo *s2,
 }
 
 int
-dscmd(char *cmd, char *args, int maxshowdevs, struct statinfo *s1)
+dscmd(const char *cmd, const char *args, int maxshowdevs, struct statinfo *s1)
 {
 	int retval;
 
@@ -183,25 +186,27 @@ dscmd(char *cmd, char *args, int maxshowdevs, struct statinfo *s1)
 }
 
 static int
-dsmatchselect(char *args, devstat_select_mode select_mode, int maxshowdevs,
+dsmatchselect(const char *args, devstat_select_mode select_mode, int maxshowdevs,
 	      struct statinfo *s1)
 {
-	char **tempstr;
+	char **tempstr, *tmpstr, *tmpstr1;
 	char *tstr[100];
 	int num_args = 0;
-	register int i;
+	int i;
 	int retval = 0;
 
 	/*
 	 * Break the (pipe delimited) input string out into separate
 	 * strings.
 	 */
+	tmpstr = tmpstr1 = strdup(args);
 	for (tempstr = tstr, num_args  = 0;
-	     (*tempstr = strsep(&args, "|")) != NULL && (num_args < 100);
+	     (*tempstr = strsep(&tmpstr1, "|")) != NULL && (num_args < 100);
 	     num_args++)
 		if (**tempstr != '\0')
 			if (++tempstr >= &tstr[100])
 				break;
+	free(tmpstr);
 
 	if (num_args > 99) {
 		warnx("dsmatchselect: too many match arguments");
@@ -241,13 +246,12 @@ dsmatchselect(char *args, devstat_select_mode select_mode, int maxshowdevs,
 }
 
 static int
-dsselect(char *args, devstat_select_mode select_mode, int maxshowdevs,
+dsselect(const char *args, devstat_select_mode select_mode, int maxshowdevs,
 	 struct statinfo *s1)
 {
-	register char *cp;
-	register int i;
+	char *cp, *tmpstr, *tmpstr1, *buffer;
+	int i;
 	int retval = 0;
-	char *index();
 
 	/*
 	 * If we've gone through this code before, free previously
@@ -264,13 +268,14 @@ dsselect(char *args, devstat_select_mode select_mode, int maxshowdevs,
 	/* do an initial malloc */
 	specified_devices = (char **)malloc(sizeof(char *));
 
-	cp = index(args, '\n');
+	tmpstr = tmpstr1 = strdup(args);
+	cp = index(tmpstr1, '\n');
 	if (cp)
 		*cp = '\0';
 	for (;;) {
-		for (cp = args; *cp && isspace(*cp); cp++)
+		for (cp = tmpstr1; *cp && isspace(*cp); cp++)
 			;
-		args = cp;
+		tmpstr1 = cp;
 		for (; *cp && !isspace(*cp); cp++)
 			;
 		if (*cp)
@@ -278,11 +283,9 @@ dsselect(char *args, devstat_select_mode select_mode, int maxshowdevs,
 		if (cp - args == 0)
 			break;
 		for (i = 0; i < num_devices; i++) {
-			char tmpstr[80];
-
-			sprintf(tmpstr, "%s%d", dev_select[i].device_name,
+			asprintf(&buffer, "%s%d", dev_select[i].device_name,
 				dev_select[i].unit_number);
-			if (strcmp(args, tmpstr) == 0) {
+			if (strcmp(buffer, tmpstr1) == 0) {
 				
 				num_devices_specified++;
 
@@ -291,15 +294,19 @@ dsselect(char *args, devstat_select_mode select_mode, int maxshowdevs,
 						sizeof(char *) *
 						num_devices_specified);
 				specified_devices[num_devices_specified -1]=
-					strdup(args);
+					strdup(tmpstr1);
+				free(buffer);
 
 				break;
 			}
+			else
+				free(buffer);
 		}
 		if (i >= num_devices)
 			error("%s: unknown drive", args);
 		args = cp;
 	}
+	free(tmpstr);
 
 	if (num_devices_specified > 0) {
 		last_type = DS_MATCHTYPE_SPEC;

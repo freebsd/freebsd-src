@@ -37,14 +37,14 @@
 #include <curses.h>
 
 struct  cmdtab {
-        char    *c_name;		/* command name */
+        const char *c_name;		/* command name */
         void    (*c_refresh)(void);	/* display refresh */
         void    (*c_fetch)(void);	/* sets up data structures */
         void    (*c_label)(void);	/* label display */
 	int	(*c_init)(void);	/* initialize namelist, etc. */
 	WINDOW	*(*c_open)(void);	/* open display */
 	void	(*c_close)(WINDOW *);	/* close display */
-	int	(*c_cmd)(char *, char *); /* display command interpreter */
+	int	(*c_cmd)(const char *, const char *); /* display command interpreter */
 	void	(*c_reset)(void);	/* reset ``mode since'' display */
 	char	c_flags;		/* see below */
 };

@@ -29,13 +29,15 @@
  * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
- *
- * $FreeBSD$
  */
 
-#ifndef lint
-static char sccsid[] = "@(#)pigs.c	8.2 (Berkeley) 9/23/93";
-#endif /* not lint */
+#include <sys/cdefs.h>
+
+__FBSDID("$FreeBSD$");
+
+#ifdef lint
+static const char sccsid[] = "@(#)pigs.c	8.2 (Berkeley) 9/23/93";
+#endif
 
 /*
  * Pigs display from Bill Reeves at Lucasfilm
@@ -92,7 +94,8 @@ showpigs()
 	register int i, j, y, k;
 	float total;
 	int factor;
-	char *uname, *pname, pidname[30];
+	const char *uname, *pname;
+	char pidname[30];
 
 	if (pt == NULL)
 		return;
@@ -170,11 +173,11 @@ initpigs()
 void
 fetchpigs()
 {
-	register int i;
-	register float time;
-	register float *pctp;
+	int i;
+	float ftime;
+	float *pctp;
 	struct kinfo_proc *kpp;
-	long ctime[CPUSTATES];
+	long c_time[CPUSTATES];
 	double t;
 	static int lastnproc = 0;
 	size_t len;
@@ -201,31 +204,31 @@ fetchpigs()
 	for (i = 0; i < nproc; i++) {
 		pt[i].pt_kp = &kpp[i];
 		pctp = &pt[i].pt_pctcpu;
-		time = kpp[i].ki_swtime;
-		if (time == 0 || (kpp[i].ki_sflag & PS_INMEM) == 0)
+		ftime = kpp[i].ki_swtime;
+		if (ftime == 0 || (kpp[i].ki_sflag & PS_INMEM) == 0)
 			*pctp = 0;
 		else
 			*pctp = ((double) kpp[i].ki_pctcpu /
-					fscale) / (1.0 - exp(time * lccpu));
+					fscale) / (1.0 - exp(ftime * lccpu));
 	}
 	/*
 	 * and for the imaginary "idle" process
 	 */
-	len = sizeof(ctime);
-	err = sysctlbyname("kern.cp_time", &ctime, &len, NULL, 0);
-	if (err || len != sizeof(ctime)) {
+	len = sizeof(c_time);
+	err = sysctlbyname("kern.cp_time", &c_time, &len, NULL, 0);
+	if (err || len != sizeof(c_time)) {
 		perror("kern.cp_time");
 		return;
 	}
 	t = 0;
 	for (i = 0; i < CPUSTATES; i++)
-		t += ctime[i] - stime[i];
+		t += c_time[i] - stime[i];
 	if (t == 0.0)
 		t = 1.0;
 	pt[nproc].pt_kp = NULL;
-	pt[nproc].pt_pctcpu = (ctime[CP_IDLE] - stime[CP_IDLE]) / t;
+	pt[nproc].pt_pctcpu = (c_time[CP_IDLE] - stime[CP_IDLE]) / t;
 	for (i = 0; i < CPUSTATES; i++)
-		stime[i] = ctime[i];
+		stime[i] = c_time[i];
 }
 
 void
@@ -241,6 +244,6 @@ int
 compar(a, b)
 	const void *a, *b;
 {
-	return (((struct p_times *) a)->pt_pctcpu >
-		((struct p_times *) b)->pt_pctcpu)? -1: 1;
+	return (((const struct p_times *) a)->pt_pctcpu >
+		((const struct p_times *) b)->pt_pctcpu)? -1: 1;
 }

@@ -31,69 +31,71 @@
  * SUCH DAMAGE.
  */
 
-#ifndef lint
-#if 0
-static char sccsid[] = "@(#)cmds.c	8.2 (Berkeley) 4/29/95";
-#endif
-static const char rcsid[] =
-  "$FreeBSD$";
-#endif /* not lint */
+#include <sys/cdefs.h>
 
-#include <stdlib.h>
-#include <unistd.h>
-#include <signal.h>
+__FBSDID("$FreeBSD$");
+
+#ifdef lint
+static const char sccsid[] = "@(#)cmds.c	8.2 (Berkeley) 4/29/95";
+#endif
+
 #include <ctype.h>
+#include <signal.h>
+#include <stdlib.h>
 #include <string.h>
+#include <unistd.h>
+
 #include "systat.h"
 #include "extern.h"
 
 void
 command(cmd)
-        char *cmd;
+        const char *cmd;
 {
-        register struct cmdtab *p;
-        register char *cp;
+        struct cmdtab *p;
+        char *cp, *tmpstr, *tmpstr1;
 	int interval, omask;
 
+	tmpstr = tmpstr1 = strdup(cmd);
 	omask = sigblock(sigmask(SIGALRM));
-        for (cp = cmd; *cp && !isspace(*cp); cp++)
+        for (cp = tmpstr1; *cp && !isspace(*cp); cp++)
                 ;
         if (*cp)
                 *cp++ = '\0';
-	if (*cmd == '\0')
+	if (*tmpstr1 == '\0')
 		return;
 	for (; *cp && isspace(*cp); cp++)
 		;
-        if (strcmp(cmd, "quit") == 0 || strcmp(cmd, "q") == 0)
+        if (strcmp(tmpstr1, "quit") == 0 || strcmp(tmpstr1, "q") == 0)
                 die(0);
-	if (strcmp(cmd, "load") == 0) {
+	if (strcmp(tmpstr1, "load") == 0) {
 		load();
 		goto done;
 	}
-        if (strcmp(cmd, "stop") == 0) {
+        if (strcmp(tmpstr1, "stop") == 0) {
                 alarm(0);
                 mvaddstr(CMDLINE, 0, "Refresh disabled.");
                 clrtoeol();
 		goto done;
         }
-	if (strcmp(cmd, "help") == 0) {
-		int col, len;
+	if (strcmp(tmpstr1, "help") == 0) {
+		int _col, _len;
 
-		move(CMDLINE, col = 0);
+		move(CMDLINE, _col = 0);
 		for (p = cmdtab; p->c_name; p++) {
-			len = strlen(p->c_name);
-			if (col + len > COLS)
+			_len = strlen(p->c_name);
+			if (_col + _len > COLS)
 				break;
-			addstr(p->c_name); col += len;
-			if (col + 1 < COLS)
+			addstr(p->c_name); _col += _len;
+			if (_col + 1 < COLS)
 				addch(' ');
 		}
 		clrtoeol();
 		goto done;
 	}
-	interval = atoi(cmd);
+	interval = atoi(tmpstr1);
         if (interval <= 0 &&
-	    (strcmp(cmd, "start") == 0 || strcmp(cmd, "interval") == 0)) {
+	    (strcmp(tmpstr1, "start") == 0 || strcmp(tmpstr1, "interval") == 0)) {
 		interval = *cp ? atoi(cp) : naptime;
                 if (interval <= 0) {
 			error("%d: bad interval.", interval);
@@ -107,9 +109,9 @@ command(cmd)
                 status();
 		goto done;
         }
-	p = lookup(cmd);
+	p = lookup(tmpstr1);
 	if (p == (struct cmdtab *)-1) {
-		error("%s: Ambiguous command.", cmd);
+		error("%s: Ambiguous command.", tmpstr1);
 		goto done;
 	}
         if (p) {
@@ -139,32 +141,33 @@ command(cmd)
                 status();
 		goto done;
         }
-	if (curcmd->c_cmd == 0 || !(*curcmd->c_cmd)(cmd, cp))
-		error("%s: Unknown command.", cmd);
+	if (curcmd->c_cmd == 0 || !(*curcmd->c_cmd)(tmpstr1, cp))
+		error("%s: Unknown command.", tmpstr1);
 done:
 	sigsetmask(omask);
+	free(tmpstr);
 }
 
 struct cmdtab *
 lookup(name)
-	register char *name;
+	const char *name;
 {
-	register char *p, *q;
-	register struct cmdtab *c, *found;
-	register int nmatches, longest;
+	const char *p, *q;
+	struct cmdtab *ct, *found;
+	int nmatches, longest;
 
 	longest = 0;
 	nmatches = 0;
 	found = (struct cmdtab *) 0;
-	for (c = cmdtab; p = c->c_name; c++) {
+	for (ct = cmdtab; (p = ct->c_name); ct++) {
 		for (q = name; *q == *p++; q++)
 			if (*q == 0)		/* exact match? */
-				return (c);
+				return (ct);
 		if (!*q) {			/* the name was a prefix */
 			if (q - name > longest) {
 				longest = q - name;
 				nmatches = 1;
-				found = c;
+				found = ct;
 			} else if (q - name == longest)
 				nmatches++;
 		}
@@ -184,7 +187,7 @@ status()
 
 int
 prefix(s1, s2)
-        register char *s1, *s2;
+        const char *s1, *s2;
 {
 
         while (*s1 == *s2) {
