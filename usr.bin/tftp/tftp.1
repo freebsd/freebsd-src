@@ -167,6 +167,9 @@ protocol, the remote site will probably have some
 sort of file-access restrictions in place.  The
 exact methods are specific to each site and therefore
 difficult to document here.
+.Pp
+Files larger than 33488896 octets (65535 blocks) cannot be transferred
+without client and server supporting blocksize negotiation (RFC1783).
 .Sh HISTORY
 The
 .Nm
