@@ -1083,9 +1083,11 @@ psignal(p, sig)
 			action = SIG_DFL;
 	}
 
+	mtx_enter(&sched_lock, MTX_SPIN);
 	if (p->p_nice > NZERO && action == SIG_DFL && (prop & SA_KILL) &&
 	    (p->p_flag & P_TRACED) == 0)
 		p->p_nice = NZERO;
+	mtx_exit(&sched_lock, MTX_SPIN);
 
 	if (prop & SA_CONT)
 		SIG_STOPSIGMASK(p->p_siglist);
