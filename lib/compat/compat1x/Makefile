@@ -1,4 +1,4 @@
-# $Id$
+# $Id: Makefile,v 1.1 1996/12/23 05:07:21 peter Exp $
 
 DISTRIBUTION=	compat1x
 
@@ -22,7 +22,7 @@ libtermlib.so.1.1: libtermcap.so.1.1
 	ln libtermcap.so.1.1 libtermlib.so.1.1
 
 install:
-	${INSTALL} -c -o ${BINMODE} -g ${BINGRP} -m ${BINMODE} ${LIBS} \
+	${INSTALL} -c -o ${BINOWN} -g ${BINGRP} -m ${BINMODE} ${LIBS} \
 		${DESTDIR}${BINDIR}
 
 # Get all the fruit, even though we don't set PROG
