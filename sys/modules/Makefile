@@ -39,6 +39,7 @@ SUBDIR=	accf_data \
 	kernfs \
 	kue \
 	lge \
+	libiconv \
 	libmchain \
 	linux \
 	md \
