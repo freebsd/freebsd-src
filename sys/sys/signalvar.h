@@ -38,26 +38,29 @@
 #define	_SYS_SIGNALVAR_H_
 
 #include <sys/signal.h>
+#include <sys/proc.h>
 
 /*
  * Kernel signal definitions and data structures,
  * not exported to user programs.
  */
+int	__sigisempty	__P((sigset_t *set));
+int	__sigseteq	__P((sigset_t *set1, sigset_t *set2));
 
 /*
  * Process signal actions and state, needed only within the process
  * (not necessarily resident).
  */
 struct	sigacts {
-	sig_t	ps_sigact[NSIG];	/* disposition of signals */
-	sigset_t ps_catchmask[NSIG];	/* signals to be blocked */
+	sig_t	ps_sigact[_SIG_MAXSIG];	/* disposition of signals */
+	sigset_t ps_catchmask[_SIG_MAXSIG];	/* signals to be blocked */
 	sigset_t ps_sigonstack;		/* signals to take on sigstack */
 	sigset_t ps_sigintr;		/* signals that interrupt syscalls */
 	sigset_t ps_sigreset;		/* signals that reset when caught */
 	sigset_t ps_signodefer;		/* signals not masked while handled */
 	sigset_t ps_siginfo;		/* signals that want SA_SIGINFO args */
 	int	ps_flags;		/* signal flags, below */
-	struct	sigaltstack ps_sigstk;	/* sp & on stack state variable */
+	stack_t	ps_sigstk;		/* sp & on stack state variable */
 	sigset_t ps_usertramp;		/* SunOS compat; libc sigtramp XXX */
 };
 
@@ -65,89 +68,131 @@ struct	sigacts {
 #define	SAS_OLDMASK	0x01		/* need to restore mask before pause */
 #define	SAS_ALTSTACK	0x02		/* have alternate signal stack */
 
-/* additional signal action values, used only temporarily/internally */
-#define	SIG_CATCH	((__sighandler_t *)2)
-#define	SIG_HOLD	((__sighandler_t *)3)
+/*
+ * Compatibility
+ */
+typedef struct {
+	struct osigcontext si_sc;
+	int		si_signo;
+	int		si_code;
+	union sigval	si_value;
+} osiginfo_t;
+
+struct	osigaction {
+	union {
+		void    (*__sa_handler) __P((int));
+		void    (*__sa_sigaction) __P((int, osiginfo_t *, void *));
+	} __sigaction_u;		/* signal handler */
+	osigset_t	sa_mask;	/* signal mask to apply */
+	int		sa_flags;	/* see signal options below */
+};
+
+typedef void __osiginfohandler_t __P((int, osiginfo_t *, void *));
+
+/*
+ * additional signal action values, used only temporarily/internally
+ * NOTE: SIG_HOLD was previously internal only, but has been moved to
+ *       sys/signal.h
+ */
+#define	SIG_CATCH	((__sighandler_t *)3)
 
 /*
  * get signal action for process and signal; currently only for current process
  */
-#define SIGACTION(p, sig)	(p->p_sigacts->ps_sigact[(sig)])
+#define SIGACTION(p, sig)	(p->p_sigacts->ps_sigact[_SIG_IDX(sig)])
 
 /*
- * Determine signal that should be delivered to process p, the current
- * process, 0 if none.  If there is a pending stop signal with default
- * action, the process stops in issignal().
+ * sigset_t manipulation macros
  */
-#define	CURSIG(p)							\
-	(((p)->p_siglist == 0 ||					\
-	    (((p)->p_flag & P_TRACED) == 0 &&				\
-	     ((p)->p_siglist & ~(p)->p_sigmask) == 0)) ?		\
-	    0 : issignal(p))
+#define SIGADDSET(set, signo)						\
+	(set).__bits[_SIG_WORD(signo)] |= _SIG_BIT(signo)
 
-/*
- * Clear a pending signal from a process.
- */
-#define	CLRSIG(p, sig)	{ (p)->p_siglist &= ~sigmask(sig); }
+#define SIGDELSET(set, signo)						\
+	(set).__bits[_SIG_WORD(signo)] &= ~_SIG_BIT(signo)
 
-/*
- * Signal properties and actions.
- * The array below categorizes the signals and their default actions
- * according to the following properties:
- */
-#define	SA_KILL		0x01		/* terminates process by default */
-#define	SA_CORE		0x02		/* ditto and coredumps */
-#define	SA_STOP		0x04		/* suspend process */
-#define	SA_TTYSTOP	0x08		/* ditto, from tty */
-#define	SA_IGNORE	0x10		/* ignore by default */
-#define	SA_CONT		0x20		/* continue if suspended */
-#define	SA_CANTMASK	0x40		/* non-maskable, catchable */
+#define SIGEMPTYSET(set)						\
+	do {								\
+		int __i;						\
+		for (__i = 0; __i < _SIG_WORDS; __i++)			\
+			(set).__bits[__i] = 0;				\
+	} while (0)
 
-#ifdef	SIGPROP
-static int sigprop[NSIG + 1] = {
-	0,			/* unused */
-	SA_KILL,		/* SIGHUP */
-	SA_KILL,		/* SIGINT */
-	SA_KILL|SA_CORE,	/* SIGQUIT */
-	SA_KILL|SA_CORE,	/* SIGILL */
-	SA_KILL|SA_CORE,	/* SIGTRAP */
-	SA_KILL|SA_CORE,	/* SIGABRT */
-	SA_KILL|SA_CORE,	/* SIGEMT */
-	SA_KILL|SA_CORE,	/* SIGFPE */
-	SA_KILL,		/* SIGKILL */
-	SA_KILL|SA_CORE,	/* SIGBUS */
-	SA_KILL|SA_CORE,	/* SIGSEGV */
-	SA_KILL|SA_CORE,	/* SIGSYS */
-	SA_KILL,		/* SIGPIPE */
-	SA_KILL,		/* SIGALRM */
-	SA_KILL,		/* SIGTERM */
-	SA_IGNORE,		/* SIGURG */
-	SA_STOP,		/* SIGSTOP */
-	SA_STOP|SA_TTYSTOP,	/* SIGTSTP */
-	SA_IGNORE|SA_CONT,	/* SIGCONT */
-	SA_IGNORE,		/* SIGCHLD */
-	SA_STOP|SA_TTYSTOP,	/* SIGTTIN */
-	SA_STOP|SA_TTYSTOP,	/* SIGTTOU */
-	SA_IGNORE,		/* SIGIO */
-	SA_KILL,		/* SIGXCPU */
-	SA_KILL,		/* SIGXFSZ */
-	SA_KILL,		/* SIGVTALRM */
-	SA_KILL,		/* SIGPROF */
-	SA_IGNORE,		/* SIGWINCH  */
-	SA_IGNORE,		/* SIGINFO */
-	SA_KILL,		/* SIGUSR1 */
-	SA_KILL,		/* SIGUSR2 */
-};
+#define SIGFILLSET(set)							\
+	do {								\
+		int __i;						\
+		for (__i = 0; __i < _SIG_WORDS; __i++)			\
+			(set).__bits[__i] = ~(unsigned int)0;		\
+	} while (0)
 
-#define	contsigmask	(sigmask(SIGCONT))
-#define	stopsigmask	(sigmask(SIGSTOP) | sigmask(SIGTSTP) | \
-			    sigmask(SIGTTIN) | sigmask(SIGTTOU))
+#define SIGISMEMBER(set, signo)						\
+	((set).__bits[_SIG_WORD(signo)] & _SIG_BIT(signo))
 
-#endif /* SIGPROP */
+#define SIGISEMPTY(set)		__sigisempty(&(set))
+#define SIGNOTEMPTY(set)	(!__sigisempty(&(set)))
 
-#define	sigcantmask	(sigmask(SIGKILL) | sigmask(SIGSTOP))
+#define SIGSETEQ(set1, set2)	__sigseteq(&(set1), &(set2))
+#define SIGSETNEQ(set1, set2)	(!__sigseteq(&(set1), &(set2)))
+
+#define SIGSETOR(set1, set2)						\
+	do {								\
+		int __i;						\
+		for (__i = 0; __i < _SIG_WORDS; __i++)			\
+			(set1).__bits[__i] |= (set2).__bits[__i];	\
+	} while (0)
+
+#define SIGSETAND(set1, set2)						\
+	do {								\
+		int __i;						\
+		for (__i = 0; __i < _SIG_WORDS; __i++)			\
+			(set1).__bits[__i] &= (set2).__bits[__i];	\
+	} while (0)
+
+#define SIGSETNAND(set1, set2)						\
+	do {								\
+		int __i;						\
+		for (__i = 0; __i < _SIG_WORDS; __i++)			\
+			(set1).__bits[__i] &= ~(set2).__bits[__i];	\
+	} while (0)
+
+#define SIG_CANTMASK(set)						\
+	SIGDELSET(set, SIGKILL), SIGDELSET(set, SIGSTOP)
+
+#define SIG_STOPSIGMASK(set)						\
+	SIGDELSET(set, SIGSTOP), SIGDELSET(set, SIGTSTP),		\
+	SIGDELSET(set, SIGTTIN), SIGDELSET(set, SIGTTOU)
+
+#define SIG_CONTSIGMASK(set)						\
+	SIGDELSET(set, SIGCONT)
+
+#define sigcantmask	(sigmask(SIGKILL) | sigmask(SIGSTOP))
+
+#define SIG2OSIG(sig, osig)	osig = (sig).__bits[0]
+#define OSIG2SIG(osig, sig)	SIGEMPTYSET(sig); (sig).__bits[0] = osig
+
+extern __inline int __sigisempty(sigset_t *set)
+{
+	int i;
+
+	for (i = 0; i < _SIG_WORDS; i++) {
+		if (set->__bits[i])
+			return (0);
+	}
+	return (1);
+}
+
+extern __inline int __sigseteq(sigset_t *set1, sigset_t *set2)
+{
+	int i;
+
+	for (i = 0; i < _SIG_WORDS; i++) {
+		if (set1->__bits[i] != set2->__bits[i])
+			return (0);
+	}
+	return (1);
+}
 
 #ifdef KERNEL
+
 struct pgrp;
 struct proc;
 struct sigio;
@@ -168,10 +213,37 @@ void	psignal __P((struct proc *p, int sig));
 void	sigexit __P((struct proc *p, int signum));
 void	siginit __P((struct proc *p));
 void	trapsignal __P((struct proc *p, int sig, u_long code));
-void check_sigacts (void);
+void	check_sigacts __P((void));
+int	__sig_ffs __P((sigset_t *set));
+int	__cursig __P((struct proc *p));
+
 /*
  * Machine-dependent functions:
  */
-void	sendsig __P((sig_t action, int sig, int returnmask, u_long code));
+void	sendsig __P((sig_t action, int sig, sigset_t *retmask, u_long code));
+int	md_sigreturn __P((struct proc *p, void *sigcntxp, sigset_t *mask));
+
+/*
+ * Inline functions:
+ */
+#define	CURSIG(p)	__cursig(p)
+
+/*
+ * Determine signal that should be delivered to process p, the current
+ * process, 0 if none.  If there is a pending stop signal with default
+ * action, the process stops in issignal().
+ */
+extern __inline int __cursig(struct proc *p)
+{
+	sigset_t tmpset;
+
+	tmpset = p->p_siglist;
+	SIGSETNAND(tmpset, p->p_sigmask);
+	return ((SIGISEMPTY(p->p_siglist) ||
+		 (!(p->p_flag & P_TRACED) && SIGISEMPTY(tmpset)))
+		? 0 : issignal(p));
+}
+
 #endif	/* KERNEL */
+
 #endif	/* !_SYS_SIGNALVAR_H_ */
