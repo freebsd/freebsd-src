@@ -169,7 +169,7 @@ static	struct dirrem *newdirrem __P((struct buf *, struct inode *,
 static	void free_diradd __P((struct diradd *));
 static	void free_allocindir __P((struct allocindir *, struct inodedep *));
 static	void free_newdirblk __P((struct newdirblk *));
-static	int indir_trunc __P((struct inode *, ufs_daddr_t, int, ufs_lbn_t,
+static	int indir_trunc __P((struct freeblks *, ufs_daddr_t, int, ufs_lbn_t,
 	    long *));
 static	void deallocate_dependencies __P((struct buf *, struct inodedep *));
 static	void free_allocdirect __P((struct allocdirectlst *,
@@ -1506,7 +1506,7 @@ newfreefrag(ip, blkno, size)
 	MALLOC(freefrag, struct freefrag *, sizeof(struct freefrag),
 		M_FREEFRAG, M_SOFTDEP_FLAGS);
 	freefrag->ff_list.wk_type = D_FREEFRAG;
-	freefrag->ff_state = ip->i_uid & ~ONWORKLIST;	/* XXX - used below */
+	freefrag->ff_state = 0;
 	freefrag->ff_inum = ip->i_number;
 	freefrag->ff_mnt = ITOV(ip)->v_mount;
 	freefrag->ff_devvp = ip->i_devvp;
@@ -1523,15 +1523,9 @@ static void
 handle_workitem_freefrag(freefrag)
 	struct freefrag *freefrag;
 {
-	struct inode tip;
 
-	tip.i_vnode = NULL;
-	tip.i_fs = VFSTOUFS(freefrag->ff_mnt)->um_fs;
-	tip.i_devvp = freefrag->ff_devvp;
-	tip.i_dev = freefrag->ff_devvp->v_rdev;
-	tip.i_number = freefrag->ff_inum;
-	tip.i_uid = freefrag->ff_state & ~ONWORKLIST;	/* XXX - set above */
-	ffs_blkfree(&tip, freefrag->ff_blkno, freefrag->ff_fragsize);
+	ffs_blkfree(VFSTOUFS(freefrag->ff_mnt)->um_fs, freefrag->ff_devvp,
+	    freefrag->ff_blkno, freefrag->ff_fragsize, freefrag->ff_inum);
 	FREE(freefrag, M_FREEFRAG);
 }
 
@@ -1819,8 +1813,10 @@ softdep_setup_freeblocks(ip, length)
 	 */
 	if ((error = bread(ip->i_devvp,
 	    fsbtodb(fs, ino_to_fsba(fs, ip->i_number)),
-	    (int)fs->fs_bsize, NOCRED, &bp)) != 0)
+	    (int)fs->fs_bsize, NOCRED, &bp)) != 0) {
+		brelse(bp);
 		softdep_error("softdep_setup_freeblocks", error);
+	}
 	*((struct dinode *)bp->b_data + ino_to_fsbo(fs, ip->i_number)) =
 	    ip->i_din;
 	/*
@@ -2224,7 +2220,7 @@ handle_workitem_freeblocks(freeblks, flags)
 	struct freeblks *freeblks;
 	int flags;
 {
-	struct inode tip, *ip;
+	struct inode *ip;
 	struct vnode *vp;
 	ufs_daddr_t bn;
 	struct fs *fs;
@@ -2233,13 +2229,7 @@ handle_workitem_freeblocks(freeblks, flags)
 	int error, allerror = 0;
 	ufs_lbn_t baselbns[NIADDR], tmpval;
 
-	tip.i_fs = fs = VFSTOUFS(freeblks->fb_mnt)->um_fs;
-	tip.i_number = freeblks->fb_previousinum;
-	tip.i_devvp = freeblks->fb_devvp;
-	tip.i_dev = freeblks->fb_devvp->v_rdev;
-	tip.i_size = freeblks->fb_oldsize;
-	tip.i_uid = freeblks->fb_uid;
-	tip.i_vnode = NULL;
+	fs = VFSTOUFS(freeblks->fb_mnt)->um_fs;
 	tmpval = 1;
 	baselbns[0] = NDADDR;
 	for (i = 1; i < NIADDR; i++) {
@@ -2254,10 +2244,11 @@ handle_workitem_freeblocks(freeblks, flags)
 	for (level = (NIADDR - 1); level >= 0; level--) {
 		if ((bn = freeblks->fb_iblks[level]) == 0)
 			continue;
-		if ((error = indir_trunc(&tip, fsbtodb(fs, bn), level,
+		if ((error = indir_trunc(freeblks, fsbtodb(fs, bn), level,
 		    baselbns[level], &blocksreleased)) == 0)
 			allerror = error;
-		ffs_blkfree(&tip, bn, fs->fs_bsize);
+		ffs_blkfree(fs, freeblks->fb_devvp, bn, fs->fs_bsize,
+		    freeblks->fb_previousinum);
 		fs->fs_pendingblocks -= nblocks;
 		blocksreleased += nblocks;
 	}
@@ -2267,8 +2258,9 @@ handle_workitem_freeblocks(freeblks, flags)
 	for (i = (NDADDR - 1); i >= 0; i--) {
 		if ((bn = freeblks->fb_dblks[i]) == 0)
 			continue;
-		bsize = blksize(fs, &tip, i);
-		ffs_blkfree(&tip, bn, bsize);
+		bsize = sblksize(fs, freeblks->fb_oldsize, i);
+		ffs_blkfree(fs, freeblks->fb_devvp, bn, bsize,
+		    freeblks->fb_previousinum);
 		fs->fs_pendingblocks -= btodb(bsize);
 		blocksreleased += btodb(bsize);
 	}
@@ -2303,8 +2295,8 @@ handle_workitem_freeblocks(freeblks, flags)
  * blocks.
  */
 static int
-indir_trunc(ip, dbn, level, lbn, countp)
-	struct inode *ip;
+indir_trunc(freeblks, dbn, level, lbn, countp)
+	struct freeblks *freeblks;
 	ufs_daddr_t dbn;
 	int level;
 	ufs_lbn_t lbn;
@@ -2319,7 +2311,7 @@ indir_trunc(ip, dbn, level, lbn, countp)
 	int i, lbnadd, nblocks;
 	int error, allerror = 0;
 
-	fs = ip->i_fs;
+	fs = VFSTOUFS(freeblks->fb_mnt)->um_fs;
 	lbnadd = 1;
 	for (i = level; i > 0; i--)
 		lbnadd *= NINDIR(fs);
@@ -2336,7 +2328,7 @@ indir_trunc(ip, dbn, level, lbn, countp)
 	 * Otherwise we have to read the blocks in from the disk.
 	 */
 	ACQUIRE_LOCK(&lk);
-	if ((bp = incore(ip->i_devvp, dbn)) != NULL &&
+	if ((bp = incore(freeblks->fb_devvp, dbn)) != NULL &&
 	    (wk = LIST_FIRST(&bp->b_dep)) != NULL) {
 		if (wk->wk_type != D_INDIRDEP ||
 		    (indirdep = WK_INDIRDEP(wk))->ir_savebp != bp ||
@@ -2353,9 +2345,12 @@ indir_trunc(ip, dbn, level, lbn, countp)
 		FREE_LOCK(&lk);
 	} else {
 		FREE_LOCK(&lk);
-		error = bread(ip->i_devvp, dbn, (int)fs->fs_bsize, NOCRED, &bp);
-		if (error)
+		error = bread(freeblks->fb_devvp, dbn, (int)fs->fs_bsize,
+		    NOCRED, &bp);
+		if (error) {
+			brelse(bp);
 			return (error);
+		}
 	}
 	/*
 	 * Recursively free indirect blocks.
@@ -2366,11 +2361,12 @@ indir_trunc(ip, dbn, level, lbn, countp)
 		if ((nb = bap[i]) == 0)
 			continue;
 		if (level != 0) {
-			if ((error = indir_trunc(ip, fsbtodb(fs, nb),
+			if ((error = indir_trunc(freeblks, fsbtodb(fs, nb),
 			     level - 1, lbn + (i * lbnadd), countp)) != 0)
 				allerror = error;
 		}
-		ffs_blkfree(ip, nb, fs->fs_bsize);
+		ffs_blkfree(fs, freeblks->fb_devvp, nb, fs->fs_bsize,
+		    freeblks->fb_previousinum);
 		fs->fs_pendingblocks -= nblocks;
 		*countp += nblocks;
 	}
@@ -3132,7 +3128,6 @@ handle_workitem_freefile(freefile)
 	struct freefile *freefile;
 {
 	struct fs *fs;
-	struct inode tip;
 	struct inodedep *idp;
 	int error;
 
@@ -3144,11 +3139,9 @@ handle_workitem_freefile(freefile)
 	if (error)
 		panic("handle_workitem_freefile: inodedep survived");
 #endif
-	tip.i_devvp = freefile->fx_devvp;
-	tip.i_dev = freefile->fx_devvp->v_rdev;
-	tip.i_fs = fs;
 	fs->fs_pendinginodes -= 1;
-	if ((error = ffs_freefile(&tip, freefile->fx_oldinum, freefile->fx_mode)) != 0)
+	if ((error = ffs_freefile(fs, freefile->fx_devvp, freefile->fx_oldinum,
+	     freefile->fx_mode)) != 0)
 		softdep_error("handle_workitem_freefile", error);
 	WORKITEM_FREE(freefile, D_FREEFILE);
 }
@@ -4261,6 +4254,8 @@ softdep_fsync(vp)
 		    &bp);
 		if (error == 0)
 			error = BUF_WRITE(bp);
+		else
+			brelse(bp);
 		vput(pvp);
 		if (error != 0)
 			return (error);
@@ -4785,8 +4780,10 @@ flush_pagedep_deps(pvp, mp, diraddhdp)
 		FREE_LOCK(&lk);
 		if ((error = bread(ump->um_devvp,
 		    fsbtodb(ump->um_fs, ino_to_fsba(ump->um_fs, inum)),
-		    (int)ump->um_fs->fs_bsize, NOCRED, &bp)) != 0)
+		    (int)ump->um_fs->fs_bsize, NOCRED, &bp)) != 0) {
+			brelse(bp);
 			break;
+		}
 		if ((error = BUF_WRITE(bp)) != 0)
 			break;
 		ACQUIRE_LOCK(&lk);
