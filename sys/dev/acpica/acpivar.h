@@ -222,7 +222,21 @@ void		acpi_EnterDebugger(void);
 	device_printf(dev, x);					\
 } while (0)
 
-#define ACPI_DEVINFO_PRESENT(x)	(((x) & 0x9) == 9)
+/* Values for the device _STA (status) method. */
+#define ACPI_STA_PRESENT	(1 << 0)
+#define ACPI_STA_ENABLED	(1 << 1)
+#define ACPI_STA_SHOW_IN_UI	(1 << 2)
+#define ACPI_STA_FUNCTIONAL	(1 << 3)
+#define ACPI_STA_BATT_PRESENT	(1 << 4)
+
+#define ACPI_DEVINFO_PRESENT(x, flags)					\
+	(((x) & (flags)) == (flags))
+#define ACPI_DEVICE_PRESENT(x)						\
+	ACPI_DEVINFO_PRESENT(x, ACPI_STA_PRESENT | ACPI_STA_FUNCTIONAL)
+#define ACPI_BATTERY_PRESENT(x)						\
+	ACPI_DEVINFO_PRESENT(x, ACPI_STA_PRESENT | ACPI_STA_FUNCTIONAL | \
+	    ACPI_STA_BATT_PRESENT)
+
 BOOLEAN		acpi_DeviceIsPresent(device_t dev);
 BOOLEAN		acpi_BatteryIsPresent(device_t dev);
 ACPI_STATUS	acpi_GetHandleInScope(ACPI_HANDLE parent, char *path,
