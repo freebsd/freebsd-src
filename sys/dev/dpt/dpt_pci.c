@@ -126,7 +126,8 @@ dpt_pci_attach (device_t dev)
 		goto bad;
 	}
 
-	dpt = dpt_alloc(dev, rman_get_bustag(io), rman_get_bushandle(io));
+	/* Device registers are offset 0x10 into the register window.  FEH */
+	dpt = dpt_alloc(dev, rman_get_bustag(io), rman_get_bushandle(io) + 0x10);
 	if (dpt == NULL) {
 		error = ENXIO;
 		goto bad;
