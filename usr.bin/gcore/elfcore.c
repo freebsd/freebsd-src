@@ -29,6 +29,7 @@ __FBSDID("$FreeBSD$");
 
 #include <sys/param.h>
 #include <sys/procfs.h>
+#include <sys/linker_set.h>
 #include <machine/elf.h>
 #include <vm/vm_param.h>
 #include <vm/vm.h>
@@ -77,11 +78,26 @@ static void freemap(vm_map_entry_t);
 static void readhdrinfo(pid_t, prstatus_t *, prfpregset_t *, prpsinfo_t *);
 static vm_map_entry_t readmap(pid_t);
 
+static int
+elf_ident(int efd, pid_t pid, char *binfile)
+{
+	Elf_Ehdr hdr;
+	int cnt;
+	uid_t uid;
+
+	cnt = read(efd, &hdr, sizeof(hdr));
+	if (cnt != sizeof(hdr))
+		return (0);
+	if (IS_ELF(hdr))
+		return (1);
+	return (0);
+}
+
 /*
  * Write an ELF coredump for the given pid to the given fd.
  */
 void
-elf_coredump(int fd, pid_t pid)
+elf_coredump(int efd, int fd, pid_t pid)
 {
 	vm_map_entry_t map;
 	struct sseg_closure seginfo;
@@ -357,6 +373,7 @@ elf_putnote(void *dst, size_t *off, const char *name, int type,
 static void
 freemap(vm_map_entry_t map)
 {
+
 	while (map != NULL) {
 		vm_map_entry_t next = map->next;
 		free(map);
@@ -514,3 +531,6 @@ readmap(pid_t pid)
 	free(mapbuf);
 	return map;
 }
+
+struct dumpers elfdump = { elf_ident, elf_coredump };
+TEXT_SET(dumpset, elfdump);
