@@ -471,12 +471,6 @@ op_finished:
     else {
 	request->error = 0;
     	if (request->result) {
-	    printf("atapi: %s - %s skey=%01x asc=%02x ascq=%02x error=%02x\n",
-		   atapi_cmd2str(atp->cmd), 
-		   atapi_skey2str(request->sense.sense_key),
-		   request->sense.sense_key, request->sense.asc, 
-		   request->sense.ascq, request->result & ATAPI_E_MASK);
-
 	    switch ((request->result & ATAPI_SK_MASK)) {
 	    case ATAPI_SK_RESERVED:
 		printf("atapi_error: %s - timeout error = %02x\n", 
@@ -495,7 +489,6 @@ op_finished:
 		break;
 
 	    case ATAPI_SK_NOT_READY:
-		atp->flags |= ATAPI_F_MEDIA_CHANGED;
 		request->error = EBUSY;
 		break;
 
@@ -505,6 +498,11 @@ op_finished:
 		break;
 
 	    default: 
+		printf("atapi: %s - %s asc=%02x ascq=%02x error=%02x\n",
+		       atapi_cmd2str(atp->cmd), 
+		       atapi_skey2str(request->sense.sense_key), 
+		       request->sense.asc, request->sense.ascq,
+		       request->result & ATAPI_E_MASK);
 		request->error = EIO;
 	    }
 	}
@@ -548,12 +546,8 @@ atapi_wait_ready(struct atapi_softc *atp, int32_t timeout)
     int32_t error = 0, timout = timeout * hz;
 
     while (timout > 0) {
-	error = atapi_test_ready(atp);
-	if ((error & ATAPI_SK_MASK) != ATAPI_SK_NOT_READY) 
+	if ((error = atapi_test_ready(atp)) != EBUSY)
 	    break;
-#ifdef ATAPI_DEBUG
-	printf("atapi: waiting on error=%02x\n", error);
-#endif
 	tsleep((caddr_t)&error, PRIBIO, "atpwt", 50);
 	timout -= 50;
     }
