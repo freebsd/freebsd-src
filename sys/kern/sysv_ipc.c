@@ -51,16 +51,11 @@ ipcperm(p, perm, mode)
 	int mode;
 {
 	struct ucred *cred = p->p_ucred;
-	int error;
-
-	error = suser(p);
-	if (!error)
-		return (0);
 
 	/* Check for user match. */
 	if (cred->cr_uid != perm->cuid && cred->cr_uid != perm->uid) {
 		if (mode & IPC_M)
-			return (EPERM);
+			return (suser(p) == 0 ? 0 : EPERM);
 		/* Check for group match. */
 		mode >>= 3;
 		if (!groupmember(perm->gid, cred) &&
@@ -71,7 +66,7 @@ ipcperm(p, perm, mode)
 
 	if (mode & IPC_M)
 		return (0);
-	return ((mode & perm->mode) == mode ? 0 : EACCES);
+	return ((mode & perm->mode) == mode || suser(p) == 0 ? 0 : EACCES);
 }
 
 #endif /* defined(SYSVSEM) || defined(SYSVSHM) || defined(SYSVMSG) */
