@@ -475,7 +475,6 @@ mca_alloc_resource (device_t dev, device_t child, int type, int *rid,
 	int				isdefault;
 	int				passthrough;
 
-	m_dev = device_get_ivars(child);
 	isdefault = (start == 0UL && end == ~0UL);
 	passthrough = (device_get_parent(child) != dev);
 
