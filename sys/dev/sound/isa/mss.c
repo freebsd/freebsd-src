@@ -1131,7 +1131,8 @@ msschan_init(kobj_t obj, void *devinfo, struct snd_dbuf *b, struct pcm_channel *
 	ch->channel = c;
 	ch->buffer = b;
 	ch->dir = dir;
-	if (sndbuf_alloc(ch->buffer, mss->parent_dmat, mss->bufsize) == -1) return NULL;
+	if (sndbuf_alloc(ch->buffer, mss->parent_dmat, mss->bufsize) != 0)
+		return NULL;
 	sndbuf_dmasetup(ch->buffer, (dir == PCMDIR_PLAY)? mss->drq1 : mss->drq2);
 	return ch;
 }

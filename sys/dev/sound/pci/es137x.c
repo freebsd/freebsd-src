@@ -274,7 +274,8 @@ eschan_init(kobj_t obj, void *devinfo, struct snd_dbuf *b, struct pcm_channel *c
 	ch->bufsz = es->bufsz;
 	ch->blksz = ch->bufsz / 2;
 	ch->num = ch->parent->num++;
-	if (sndbuf_alloc(ch->buffer, es->parent_dmat, ch->bufsz) == -1) return NULL;
+	if (sndbuf_alloc(ch->buffer, es->parent_dmat, ch->bufsz) != 0)
+		return NULL;
 	return ch;
 }
 

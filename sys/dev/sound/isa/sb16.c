@@ -671,7 +671,7 @@ sb16chan_init(kobj_t obj, void *devinfo, struct snd_dbuf *b, struct pcm_channel 
 	ch->buffer = b;
 	ch->dir = dir;
 
-	if (sndbuf_alloc(ch->buffer, sb->parent_dmat, sb->bufsize) == -1)
+	if (sndbuf_alloc(ch->buffer, sb->parent_dmat, sb->bufsize) != 0)
 		return NULL;
 
 	return ch;

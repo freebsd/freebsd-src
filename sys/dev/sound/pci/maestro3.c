@@ -383,7 +383,7 @@ m3_pchan_init(kobj_t kobj, void *devinfo, struct snd_dbuf *b, struct pcm_channel
 	ch->channel = c;
 	ch->fmt = AFMT_U8;
 	ch->spd = DSP_DEFAULT_SPEED;
-	if (sndbuf_alloc(ch->buffer, sc->parent_dmat, sc->bufsz) == -1) {
+	if (sndbuf_alloc(ch->buffer, sc->parent_dmat, sc->bufsz) != 0) {
 		device_printf(sc->dev, "m3_pchan_init chn_allocbuf failed\n");
 		return NULL;
 	}
@@ -663,7 +663,7 @@ m3_rchan_init(kobj_t kobj, void *devinfo, struct snd_dbuf *b, struct pcm_channel
 	ch->channel = c;
 	ch->fmt = AFMT_U8;
 	ch->spd = DSP_DEFAULT_SPEED;
-	if (sndbuf_alloc(ch->buffer, sc->parent_dmat, sc->bufsz) == -1) {
+	if (sndbuf_alloc(ch->buffer, sc->parent_dmat, sc->bufsz) != 0) {
 		device_printf(sc->dev, "m3_rchan_init chn_allocbuf failed\n");
 		return NULL;
 	}

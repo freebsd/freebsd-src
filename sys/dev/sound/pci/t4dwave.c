@@ -484,7 +484,7 @@ trpchan_init(kobj_t obj, void *devinfo, struct snd_dbuf *b, struct pcm_channel *
 	ch->buffer = b;
 	ch->parent = tr;
 	ch->channel = c;
-	if (sndbuf_alloc(ch->buffer, tr->parent_dmat, tr->bufsz) == -1)
+	if (sndbuf_alloc(ch->buffer, tr->parent_dmat, tr->bufsz) != 0)
 		return NULL;
 
 	return ch;
@@ -592,7 +592,7 @@ trrchan_init(kobj_t obj, void *devinfo, struct snd_dbuf *b, struct pcm_channel *
 	ch->buffer = b;
 	ch->parent = tr;
 	ch->channel = c;
-	if (sndbuf_alloc(ch->buffer, tr->parent_dmat, tr->bufsz) == -1)
+	if (sndbuf_alloc(ch->buffer, tr->parent_dmat, tr->bufsz) != 0)
 		return NULL;
 
 	return ch;
