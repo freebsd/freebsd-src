@@ -77,6 +77,7 @@ set_Wformat (setting)
    last.  */
 enum format_type { printf_format_type, scanf_format_type,
 		   strftime_format_type, strfmon_format_type,
+		   printf0_format_type,
 		   format_type_error };
 
 typedef struct function_format_info
@@ -84,6 +85,7 @@ typedef struct function_format_info
   enum format_type format_type;	/* type of format (printf, scanf, etc.) */
   unsigned HOST_WIDE_INT format_num;	/* number of format argument */
   unsigned HOST_WIDE_INT first_arg_num;	/* number of first arg (zero for varargs) */
+  int null_format_ok;			/* TRUE if the format string may be NULL */
 } function_format_info;
 
 static bool decode_format_attr		PARAMS ((tree,
@@ -251,7 +253,7 @@ decode_format_attr (args, info, validated_p)
     {
       if (validated_p)
 	abort ();
-      error ("unrecognized format specifier");
+      error_with_decl (getdecls (), "unrecognized format specifier");
       return false;
     }
   else
@@ -542,6 +544,7 @@ typedef struct
   /* Pointer to type of argument expected if '*' is used for a precision,
      or NULL if '*' not used for precisions.  */
   tree *const precision_type;
+  const int null_format_ok;
 } format_kind_info;
 
 
@@ -785,6 +788,18 @@ static const format_char_info print_char_table[] =
   { "S",   1, STD_EXT, { TEX_W,   BADLEN,  BADLEN,  BADLEN,  BADLEN,  BADLEN,  BADLEN,  BADLEN,  BADLEN  }, "-wp",      "R"  },
   /* GNU conversion specifiers.  */
   { "m",   0, STD_EXT, { T89_V,   BADLEN,  BADLEN,  BADLEN,  BADLEN,  BADLEN,  BADLEN,  BADLEN,  BADLEN  }, "-wp",      ""   },
+  /* BSD conversion specifiers.  */
+  /* FreeBSD kernel extensions (src/sys/kern/subr_prf.c).
+     The format %b is supported to decode error registers.
+     Its usage is:	printf("reg=%b\n", regval, "<base><arg>*");
+     which produces:	reg=3<BITTWO,BITONE>
+     The format %D provides a hexdump given a pointer and separator string:
+     ("%6D", ptr, ":")		-> XX:XX:XX:XX:XX:XX
+     ("%*D", len, ptr, " ")	-> XX XX XX XX ...
+   */
+  { "D",   1, STD_EXT, { T89_C,   T89_C,   BADLEN,  BADLEN,  BADLEN,  BADLEN,  BADLEN,  BADLEN,  BADLEN  }, "-wp",      "cR" },
+  { "b",   1, STD_EXT, { T89_C,   T89_C,   BADLEN,  BADLEN,  BADLEN,  BADLEN,  BADLEN,  BADLEN,  BADLEN  }, "-wp",      ""   },
+  { "rz",  0, STD_EXT, { BADLEN,  T89_I,   T89_I,   T89_L,   BADLEN,  BADLEN,  BADLEN,  BADLEN,  BADLEN  }, "-wp0 +#",  "i"  },
   { NULL,  0, 0, NOLENGTHS, NULL, NULL }
 };
 
@@ -849,23 +864,29 @@ static const format_kind_info format_types[] =
     printf_flag_specs, printf_flag_pairs,
     FMT_FLAG_ARG_CONVERT|FMT_FLAG_DOLLAR_MULTIPLE|FMT_FLAG_USE_DOLLAR|FMT_FLAG_EMPTY_PREC_OK,
     'w', 0, 'p', 0, 'L',
-    &integer_type_node, &integer_type_node
+    &integer_type_node, &integer_type_node, 0
   },
   { "scanf",    scanf_length_specs,   scan_char_table,  "*'I", NULL, 
     scanf_flag_specs, scanf_flag_pairs,
     FMT_FLAG_ARG_CONVERT|FMT_FLAG_SCANF_A_KLUDGE|FMT_FLAG_USE_DOLLAR|FMT_FLAG_ZERO_WIDTH_BAD|FMT_FLAG_DOLLAR_GAP_POINTER_OK,
     'w', 0, 0, '*', 'L',
-    NULL, NULL
+    NULL, NULL, 0
   },
   { "strftime", NULL,                 time_char_table,  "_-0^#", "EO",
     strftime_flag_specs, strftime_flag_pairs,
     FMT_FLAG_FANCY_PERCENT_OK, 'w', 0, 0, 0, 0,
-    NULL, NULL
+    NULL, NULL, 0
   },
   { "strfmon",  strfmon_length_specs, monetary_char_table, "=^+(!-", NULL, 
     strfmon_flag_specs, strfmon_flag_pairs,
     FMT_FLAG_ARG_CONVERT, 'w', '#', 'p', 0, 'L',
-    NULL, NULL
+    NULL, NULL, 0
+  },
+  { "printf0",   printf_length_specs,  print_char_table, " +#0-'I", NULL,
+    printf_flag_specs, printf_flag_pairs,
+    FMT_FLAG_ARG_CONVERT|FMT_FLAG_DOLLAR_MULTIPLE|FMT_FLAG_USE_DOLLAR|FMT_FLAG_EMPTY_PREC_OK,
+   'w', 0, 'p', 0, 'L',
+   &integer_type_node, &integer_type_node, 1
   }
 };
 
@@ -918,6 +939,14 @@ static const format_flag_spec *get_flag_spec	PARAMS ((const format_flag_spec *,
 							 int, const char *));
 
 static void check_format_types	PARAMS ((int *, format_wanted_type *));
+
+
+inline static int get_null_fmt_ok (fmttype)
+	enum format_type fmttype;
+{
+  return format_types[(int)fmttype].null_format_ok;
+}
+
 
 /* Decode a format type from a string, returning the type, or
    format_type_error if not valid, in which case the caller should print an
@@ -1477,7 +1506,7 @@ check_format_info_recurse (status, res, info, format_tree, params, arg_num)
 	 specially if info == NULL and add a res->number_null entry for
 	 that case, or maybe add a function pointer to be called at
 	 the end instead of hardcoding check_format_info_main.  */
-      status_warning (status, "null format string");
+      if (!info->null_format_ok) status_warning (status, "null format string");
 
       /* Skip to first argument to check, so we can see if this format
 	 has any arguments (it shouldn't).  */
@@ -1709,6 +1738,54 @@ check_format_info_main (status, res, info, format_chars, format_length,
 	    {
 	      has_operand_number = 1;
 	      main_arg_num = opnum + info->first_arg_num - 1;
+	    }
+	}
+      if (*format_chars == 'b')
+	{
+	  /* There should be an int arg to control the string arg.  */
+	  if (params == 0)
+	    {
+	      status_warning (status, "too few arguments for format");
+	      return;
+	    }
+	    if (info->first_arg_num != 0)
+	    {
+	      cur_param = TREE_VALUE (params);
+	      params = TREE_CHAIN (params);
+	      ++arg_num;
+	      if ((TYPE_MAIN_VARIANT (TREE_TYPE (cur_param))
+		   != integer_type_node)
+		  &&
+		  (TYPE_MAIN_VARIANT (TREE_TYPE (cur_param))
+		   != unsigned_type_node))
+		{
+		  status_warning (status, "bitmap is not type int (arg %d)", arg_num);
+		}
+	    }
+	}
+      if (*format_chars == 'D')
+	{
+	  /* There should be an unsigned char * arg before the string arg.  */
+	  if (params == 0)
+	    {
+	      status_warning (status, "too few arguments for format");
+	      return;
+	    }
+	    if (info->first_arg_num != 0)
+	    {
+	      tree cur_type;
+	      cur_param = TREE_VALUE (params);
+	      params = TREE_CHAIN (params);
+	      ++arg_num;
+	      cur_type = TREE_TYPE (cur_param);
+	      if (TREE_CODE (cur_type) != POINTER_TYPE
+		  || TYPE_MAIN_VARIANT (TREE_TYPE (cur_type))
+		     != unsigned_char_type_node)
+		{
+		  status_warning (status,
+			  "ethernet address is not type unsigned char * (arg %d)",
+			   arg_num);
+		}
 	    }
 	}
 
