@@ -435,8 +435,6 @@ ep_if_init(xsc)
     splx(s);
 }
 
-static const char padmap[] = {0, 3, 2, 1};
-
 static void
 ep_if_start(ifp)
     struct ifnet *ifp;
@@ -465,7 +463,7 @@ startagain:
     for (len = 0, top = m; m; m = m->m_next)
 	len += m->m_len;
 
-    pad = padmap[len & 3];
+    pad = (4 - len) & 3;
 
     /*
      * The 3c509 automatically pads short packets to minimum ethernet length,
