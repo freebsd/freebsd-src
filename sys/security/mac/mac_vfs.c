@@ -133,6 +133,7 @@ TUNABLE_INT("security.mac.enforce_network", &mac_enforce_network);
 static int	mac_enforce_pipe = 1;
 SYSCTL_INT(_security_mac, OID_AUTO, enforce_pipe, CTLFLAG_RW,
     &mac_enforce_pipe, 0, "Enforce MAC policy on pipe operations");
+TUNABLE_INT("security.mac.enforce_pipe", &mac_enforce_pipe);
 
 static int	mac_enforce_process = 1;
 SYSCTL_INT(_security_mac, OID_AUTO, enforce_process, CTLFLAG_RW,
@@ -147,6 +148,7 @@ TUNABLE_INT("security.mac.enforce_socket", &mac_enforce_socket);
 static int     mac_enforce_vm = 1;
 SYSCTL_INT(_security_mac, OID_AUTO, enforce_vm, CTLFLAG_RW,
     &mac_enforce_vm, 0, "Enforce MAC policy on vm operations");
+TUNABLE_INT("security.mac.enforce_vm", &mac_enforce_vm);
 
 static int	mac_label_size = sizeof(struct mac);
 SYSCTL_INT(_security_mac, OID_AUTO, label_size, CTLFLAG_RD,
