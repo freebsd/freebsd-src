@@ -31,12 +31,11 @@
  * SUCH DAMAGE.
  */
 
-#include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
-
 #ifndef lint
 static char sccsid[] = "@(#)gamma.c	8.1 (Berkeley) 6/4/93";
 #endif /* not lint */
+include <sys/cdefs.h>
+__FBSDID("$FreeBSD$");
 
 /*
  * This code by P. McIlroy, Oct 1992;
