@@ -35,7 +35,7 @@
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
  *
- * @(#)pcvt_vtf.c, 3.20, Last Edit-Date: [Wed Feb 22 14:16:13 1995]
+ * @(#)pcvt_vtf.c, 3.20, Last Edit-Date: [Wed Mar 29 20:45:48 1995]
  */
 
 /*---------------------------------------------------------------------------*
@@ -52,6 +52,7 @@
  *	-hm	fixing NOFASTSCROLL operation for MDA/Hercules
  *	-jw/hm	fixing bug in roll_up() and roll_down()
  *	-hm	fastscroll/Crtat bugfix from Lon Willett
+ *	-hm	patch for non-XSERVER/UCONSOLE compiles from Rafal Boni
  *
  *---------------------------------------------------------------------------*/
 
@@ -1936,7 +1937,7 @@ void
 roll_up(struct video_state *svsp, int n)
 {
 
-#if PCVT_NOFASTSCROLL==0
+#if (PCVT_NOFASTSCROLL==0)
 
 	if(svsp->scrr_beg == 0 &&	/* if scroll region is whole screen */
            svsp->scrr_len == svsp->screen_rows &&
@@ -1945,8 +1946,14 @@ roll_up(struct video_state *svsp, int n)
 	     adaptor_type != MDA_ADAPTOR)))	/* and not on MDA/Hercules */
 	{
 		u_short *Memory =
+
+#if defined(PCVT_USL_COMPAT)
 		    (vsp != svsp || (vsp->vt_status & VT_GRAFX)) ?
-					svsp->Memory : Crtat;
+#else
+		    (vsp != svsp) ?
+#endif
+
+				svsp->Memory : Crtat;
 
 		if(svsp->Crtat > (Memory + (svsp->screen_rows - n) *
 					svsp->maxcol))
@@ -1961,7 +1968,12 @@ roll_up(struct video_state *svsp, int n)
 			svsp->Crtat += n * svsp->maxcol;
 		}
 
+#if defined(PCVT_USL_COMPAT)
 		if(vsp == svsp && !(vsp->vt_status & VT_GRAFX))
+#else
+		if(vsp == svsp)
+#endif		
+
 		{
 			outb(addr_6845, CRTC_STARTADRH);
 			outb(addr_6845+1, (svsp->Crtat - Crtat) >> 8);
@@ -1992,7 +2004,7 @@ static void
 roll_down(struct video_state *svsp, int n)
 {
 
-#if PCVT_NOFASTSCROLL==0
+#if (PCVT_NOFASTSCROLL==0)
 	
 	if(svsp->scrr_beg == 0 &&	/* if scroll region is whole screen */
            svsp->scrr_len == svsp->screen_rows &&
@@ -2001,8 +2013,13 @@ roll_down(struct video_state *svsp, int n)
 	     adaptor_type != MDA_ADAPTOR)))	/* and not on MDA/Hercules */
 	{
 		u_short *Memory = 
+
+#if defined(PCVT_USL_COMPAT)
 		    (vsp != svsp || (vsp->vt_status & VT_GRAFX)) ?
-					svsp->Memory : Crtat;
+#else
+		    (vsp != svsp) ?
+#endif
+				svsp->Memory : Crtat;
 
 		if (svsp->Crtat < (Memory + n * svsp->maxcol))
 		{
@@ -2017,7 +2034,12 @@ roll_down(struct video_state *svsp, int n)
 			svsp->Crtat -= n * svsp->maxcol;
 		}
 
+#if defined(PCVT_USL_COMPAT)
 		if(vsp == svsp && !(vsp->vt_status & VT_GRAFX))
+#else
+		if(vsp == svsp)
+#endif		
+
 		{
 			outb(addr_6845, CRTC_STARTADRH);
 			outb(addr_6845+1, (svsp->Crtat - Crtat) >> 8);

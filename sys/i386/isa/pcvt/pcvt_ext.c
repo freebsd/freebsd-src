@@ -35,7 +35,7 @@
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
  *
- * @(#)pcvt_ext.c, 3.20, Last Edit-Date: [Sun Feb 26 12:18:02 1995]
+ * @(#)pcvt_ext.c, 3.20, Last Edit-Date: [Fri Mar 24 20:58:28 1995]
  *
  */
 
@@ -43,9 +43,6 @@
  *
  *	pcvt_ext.c	VT220 Driver Extended Support Routines
  *	------------------------------------------------------
- *
- *	written by Hellmuth Michaelis, hm@hcshh.hcs.de       and
- *	           Joerg Wunsch, joerg_wunsch@uriah.heep.sax.de
  *
  *	-hm	------------ Release 3.00 --------------
  *	-hm	integrating NetBSD-current patches
@@ -62,6 +59,8 @@
  *	-hm	fastscroll/Crtat bugfix from Lon Willett
  *	-hm	bell patch from Thomas Eberhardt for NetBSD
  *	-hm	multiple X server bugfixes from Lon Willett
+ *	-hm	patch from John Kohl fixing tsleep bug in usl_vt_ioctl()
+ *	-hm	bugfix: clear 25th line when switching to a force 24 lines vt
  *
  *---------------------------------------------------------------------------*/
 
@@ -2191,6 +2190,9 @@ switch_screen(int n, int oldgrafx, int newgrafx)
 			 */
 			/* enable display, text mode */
 			outb(GN_DMCNTLM, 0x28);
+
+/* XXX - something missing here ? Joerg ??? */
+
 		}
 
 		/* make status display happy */
@@ -2252,6 +2254,17 @@ switch_screen(int n, int oldgrafx, int newgrafx)
 	{
 		update_led();	/* update led's */
 		update_hp(vsp);	/* update fkey labels, if present */
+
+		/* if we switch to a vt with force 24 lines mode and	*/
+		/* pure VT emulation and 25 rows charset, then we have	*/
+		/* to clear the last line on display ...		*/
+		
+		if(vsp->force24 && (vsp->vt_pure_mode == M_PUREVT) &&
+			(vgacs[vsp->vga_charset].screen_size == SIZ_25ROWS))
+		{
+			fillw(' ', vsp->Crtat + vsp->screen_rows * vsp->maxcol,
+				vsp->maxcol);
+		}
 	}
 }
 
@@ -2587,7 +2600,8 @@ usl_vt_ioctl(Dev_t dev, int cmd, caddr_t data, int flag, struct proc *p)
 			int x = spltty();
 			i = current_video_screen;
 			error = 0;
-			while (current_video_screen == i && !error) {
+			while (current_video_screen == i &&
+			       (error == 0 || error == ERESTART)) {
 				vs[i].vt_status |= VT_WAIT_ACT;
 				error = tsleep((caddr_t)&vs[i].smode,
 					       PZERO | PCATCH, "waitvt", 0);
@@ -2598,7 +2612,8 @@ usl_vt_ioctl(Dev_t dev, int cmd, caddr_t data, int flag, struct proc *p)
 		{
 			int x = spltty();
 			error = 0;
-			while (current_video_screen != i && !error)
+			while (current_video_screen != i &&
+			       (error == 0 || error == ERESTART))
 			{
 				vs[i].vt_status |= VT_WAIT_ACT;
 				error = tsleep((caddr_t)&vs[i].smode,

@@ -32,7 +32,7 @@
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
  *
- * @(#)pcvt_hdr.h, 3.20, Last Edit-Date: [Sun Feb 26 13:12:33 1995]
+ * @(#)pcvt_hdr.h, 3.20, Last Edit-Date: [Wed Mar  8 21:00:00 1995]
  *
  */
 
@@ -58,10 +58,11 @@
  *	-hm	removed PCVT_FAKE_SYSCONS10
  *	-hm	added pcstop (patch from Onno)
  *	-hm	multiple X server bugfixes from Lon Willett
+ *	-hm	patch from Joerg for FreeBSD pre-2.1
  *
  *---------------------------------------------------------------------------*/
 
-#define	PCVT_REL "3.20-b22"	/* driver attach announcement	*/
+#define	PCVT_REL "3.20-b23"	/* driver attach announcement	*/
 				/* see also: pcvt_ioctl.h	*/
 
 #include "param.h"
