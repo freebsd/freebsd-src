@@ -655,6 +655,15 @@ wi_init(void *arg)
 		wi_write_val(sc, WI_RID_PORTTYPE, WI_PORTTYPE_ADHOC);
 		break;
 	case IEEE80211_M_HOSTAP:
+		/*
+		 * For PRISM cards, override the empty SSID, because in
+		 * HostAP mode the controller will lock up otherwise.
+		 */
+		if (sc->sc_firmware_type == WI_INTERSIL &&
+		    ic->ic_des_esslen == 0) {
+			ic->ic_des_essid[0] = ' ';
+			ic->ic_des_esslen = 1;
+		}
 		wi_write_val(sc, WI_RID_PORTTYPE, WI_PORTTYPE_HOSTAP);
 		break;
 	case IEEE80211_M_MONITOR:
