@@ -60,7 +60,7 @@ ${mc:T:R}.cf: ${mc}
 
 all: ${ALL}
 
-install distribution: ${ALL}
+install distribution:
 .if defined(SENDMAIL_MC) && defined(SENDMAIL_CF)
 	@echo ">>> ERROR: Both SENDMAIL_MC and SENDMAIL_CF cannot be set"
 	@false
