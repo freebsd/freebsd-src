@@ -27,7 +27,7 @@
  * rights to redistribute these changes.
  */
 
-#include <machine/asm.h>
+#include "SYS.h"
 
 /*
  * C library -- setjmp, longjmp
@@ -62,7 +62,7 @@ LEAF(setjmp, 1)
 
 	/* see what's blocked */
 	mov	zero, a0
-	CALL(sigblock)				/* see what's blocked */
+	PCALL(sigblock)				/* see what's blocked */
 	stq	v0, (1 * 8)(s0)			/* and remember it in sc_mask */
 
 	lda	sp, -24(sp)			/* sizeof struct sigaltstack */
@@ -115,7 +115,7 @@ END(setjmp)
 LEAF(longjmp, 2)
 	LDGP(pv)
 	stq	a1, (( 0 + 4) * 8)(a0)		/* save return value */
-	CALL(sigreturn)				/* use sigreturn to return */
+	PCALL(sigreturn)			/* use sigreturn to return */
 
 botch:
 	CALL(longjmperror)
