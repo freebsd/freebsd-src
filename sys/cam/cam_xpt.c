@@ -956,7 +956,8 @@ xptioctl(dev_t dev, u_long cmd, caddr_t addr, int flag, struct proc *p)
 	/*
 	 * For the transport layer CAMIOCOMMAND ioctl, we really only want
 	 * to accept CCB types that don't quite make sense to send through a
-	 * passthrough driver.
+	 * passthrough driver. XPT_PATH_INQ is an exception to this, as stated
+	 * in the CAM spec.
 	 */
 	case CAMIOCOMMAND: {
 		union ccb *ccb;
@@ -973,6 +974,7 @@ xptioctl(dev_t dev, u_long cmd, caddr_t addr, int flag, struct proc *p)
 				break;
 			}
 			/* FALLTHROUGH */
+		case XPT_PATH_INQ:
 		case XPT_SCAN_LUN:
 
 			ccb = xpt_alloc_ccb();
@@ -1087,6 +1089,10 @@ xptioctl(dev_t dev, u_long cmd, caddr_t addr, int flag, struct proc *p)
 			error = 0;
 			break;
 		}
+		case XPT_ENG_INQ:
+		case XPT_ENG_EXEC:
+			error = ENOTSUP;
+			break;
 		default:
 			error = EINVAL;
 			break;
