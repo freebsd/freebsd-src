@@ -1131,11 +1131,11 @@ ParseDoDependency (line)
 	     * If it was .NULL, the source is the suffix to use when a file
 	     * has no valid suffix.
 	     */
-	    char  savec;
+	    char  savech;
 	    while (*cp && !isspace ((unsigned char) *cp)) {
 		cp++;
 	    }
-	    savec = *cp;
+	    savech = *cp;
 	    *cp = '\0';
 	    switch (specType) {
 		case Suffixes:
@@ -1156,8 +1156,8 @@ ParseDoDependency (line)
 		default:
 		    break;
 	    }
-	    *cp = savec;
-	    if (savec != '\0') {
+	    *cp = savech;
+	    if (savech != '\0') {
 		cp++;
 	    }
 	    while (*cp && isspace ((unsigned char) *cp)) {
@@ -1190,7 +1190,7 @@ ParseDoDependency (line)
 	    }
 
 	    if (*cp == '(') {
-		GNode	  *gn;
+		GNode	  *gnp;
 
 		sources = Lst_Init (FALSE);
 		if (Arch_ParseArchive (&line, sources, VAR_CMD) != SUCCESS) {
@@ -1200,8 +1200,8 @@ ParseDoDependency (line)
 		}
 
 		while (!Lst_IsEmpty (sources)) {
-		    gn = (GNode *) Lst_DeQueue (sources);
-		    ParseDoSrc (tOp, gn->name, curSrcs);
+		    gnp = (GNode *) Lst_DeQueue (sources);
+		    ParseDoSrc (tOp, gnp->name, curSrcs);
 		}
 		Lst_Destroy (sources, NOFREE);
 		cp = line;
@@ -1479,7 +1479,7 @@ Parse_DoVar (line, ctxt)
     } else if (type == VAR_SHELL) {
 	Boolean	freeCmd = FALSE; /* TRUE if the command needs to be freed, i.e.
 				  * if any variable expansion was performed */
-	char *res, *err;
+	char *res, *error;
 
 	if (strchr(cp, '$') != NULL) {
 	    /*
@@ -1491,12 +1491,12 @@ Parse_DoVar (line, ctxt)
 	    freeCmd = TRUE;
 	}
 
-	res = Cmd_Exec(cp, &err);
+	res = Cmd_Exec(cp, &error);
 	Var_Set(line, res, ctxt);
 	free(res);
 
-	if (err)
-	    Parse_Error(PARSE_WARNING, err, cp);
+	if (error)
+	    Parse_Error(PARSE_WARNING, error, cp);
 
 	if (freeCmd)
 	    free(cp);

@@ -1868,11 +1868,11 @@ Var_Parse (str, ctxt, err, lengthPtr, freePtr)
 		case 'S':
 		{
 		    VarPattern 	    pattern;
-		    char	    delim;
+		    char	    del;
 		    Buffer  	    buf;    	/* Buffer for patterns */
 
 		    pattern.flags = 0;
-		    delim = tstr[1];
+		    del = tstr[1];
 		    tstr += 2;
 
 		    /*
@@ -1893,16 +1893,16 @@ Var_Parse (str, ctxt, err, lengthPtr, freePtr)
 		     * the delimiter (expand the variable substitution).
 		     * The result is left in the Buffer buf.
 		     */
-		    for (cp = tstr; *cp != '\0' && *cp != delim; cp++) {
+		    for (cp = tstr; *cp != '\0' && *cp != del; cp++) {
 			if ((*cp == '\\') &&
-			    ((cp[1] == delim) ||
+			    ((cp[1] == del) ||
 			     (cp[1] == '$') ||
 			     (cp[1] == '\\')))
 			{
 			    Buf_AddByte(buf, (Byte)cp[1]);
 			    cp++;
 			} else if (*cp == '$') {
-			    if (cp[1] != delim) {
+			    if (cp[1] != del) {
 				/*
 				 * If unescaped dollar sign not before the
 				 * delimiter, assume it's a variable
@@ -1936,14 +1936,14 @@ Var_Parse (str, ctxt, err, lengthPtr, freePtr)
 		     * If lhs didn't end with the delimiter, complain and
 		     * return NULL
 		     */
-		    if (*cp != delim) {
+		    if (*cp != del) {
 			*lengthPtr = cp - start + 1;
 			if (*freePtr) {
 			    free(str);
 			}
 			Buf_Destroy(buf, TRUE);
 			Error("Unclosed substitution for %s (%c missing)",
-			      v->name, delim);
+			      v->name, del);
 			return (var_Error);
 		    }
 
@@ -1968,16 +1968,16 @@ Var_Parse (str, ctxt, err, lengthPtr, freePtr)
 		    buf = Buf_Init(0);
 
 		    tstr = cp + 1;
-		    for (cp = tstr; *cp != '\0' && *cp != delim; cp++) {
+		    for (cp = tstr; *cp != '\0' && *cp != del; cp++) {
 			if ((*cp == '\\') &&
-			    ((cp[1] == delim) ||
+			    ((cp[1] == del) ||
 			     (cp[1] == '&') ||
 			     (cp[1] == '\\') ||
 			     (cp[1] == '$')))
 			{
 			    Buf_AddByte(buf, (Byte)cp[1]);
 			    cp++;
-			} else if ((*cp == '$') && (cp[1] != delim)) {
+			} else if ((*cp == '$') && (cp[1] != del)) {
 			    char    *cp2;
 			    int	    len;
 			    Boolean freeIt;
@@ -2001,14 +2001,14 @@ Var_Parse (str, ctxt, err, lengthPtr, freePtr)
 		    /*
 		     * If didn't end in delimiter character, complain
 		     */
-		    if (*cp != delim) {
+		    if (*cp != del) {
 			*lengthPtr = cp - start + 1;
 			if (*freePtr) {
 			    free(str);
 			}
 			Buf_Destroy(buf, TRUE);
 			Error("Unclosed substitution for %s (%c missing)",
-			      v->name, delim);
+			      v->name, del);
 			return (var_Error);
 		    }
 
@@ -2157,10 +2157,10 @@ Var_Parse (str, ctxt, err, lengthPtr, freePtr)
 #ifdef SUNSHCMD
 		case 's':
 		    if (tstr[1] == 'h' && (tstr[2] == endc || tstr[2] == ':')) {
-			char *err;
-			newStr = Cmd_Exec (str, &err);
-			if (err)
-			    Error (err, str);
+			char *error;
+			newStr = Cmd_Exec (str, &error);
+			if (error)
+			    Error (error, str);
 			cp = tstr + 2;
 			termc = *cp;
 			break;
