@@ -38,10 +38,13 @@
 
 #define MAXSHELLCMDLEN	128
 
+struct vm_object;
+
 struct image_params {
 	struct proc *proc;	/* our process struct */
 	struct execve_args *uap; /* syscall arguments */
 	struct vnode *vp;	/* pointer to vnode of file to exec */
+	struct vm_object *object;	/* The vm object for this vp */
 	struct vattr *attr;	/* attributes of file */
 	const char *image_header; /* head of file to exec */
 	char *stringbase;	/* base address of tmp string storage */

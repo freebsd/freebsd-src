@@ -182,6 +182,7 @@ execve(td, uap)
 	imgp->interpreter_name[0] = '\0';
 	imgp->auxargs = NULL;
 	imgp->vp = NULL;
+	imgp->object = NULL;
 	imgp->firstpage = NULL;
 	imgp->ps_strings = 0;
 	imgp->auxarg_size = 0;
@@ -227,6 +228,8 @@ interpret:
 		VOP_UNLOCK(imgp->vp, 0, td);
 		goto exec_fail_dealloc;
 	}
+	VOP_GETVOBJECT(imgp->vp, &imgp->object);
+	vm_object_reference(imgp->object);
 
 	error = exec_map_first_page(imgp);
 	VOP_UNLOCK(imgp->vp, 0, td);
@@ -270,6 +273,8 @@ interpret:
 		/* free name buffer and old vnode */
 		NDFREE(ndp, NDF_ONLY_PNBUF);
 		vrele(ndp->ni_vp);
+		vm_object_deallocate(imgp->object);
+		imgp->object = NULL;
 		/* set new name to that of the interpreter */
 		NDINIT(ndp, LOOKUP, LOCKLEAF | FOLLOW | SAVENAME,
 		    UIO_SYSSPACE, imgp->interpreter_name, td);
@@ -518,6 +523,9 @@ exec_fail_dealloc:
 		NDFREE(ndp, NDF_ONLY_PNBUF);
 		vrele(imgp->vp);
 	}
+
+	if (imgp->object)
+		vm_object_deallocate(imgp->object);
 
 	if (error == 0)
 		goto done2;
