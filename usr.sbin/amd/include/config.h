@@ -27,7 +27,7 @@
 #define AUTH_CREATE_GIDLIST_TYPE gid_t
 
 /* Define configuration date */
-/* #define CONFIG_DATE "Tue Sep  2 16:41:46 CEST 2003" */
+/* #define CONFIG_DATE "Sat Jun 26 15:53:09 CEST 2004" */
 
 /* Define to one of `_getb67', `GETB67', `getb67' for Cray-2 and Cray-YMP
    systems. This function is required for `alloca.c' support on those systems.
@@ -340,6 +340,9 @@
 /* Define if have XFS filesystem (irix) */
 /* #undef HAVE_FS_XFS */
 
+/* Define to 1 if you have the <gdbm/ndbm.h> header file. */
+/* #undef HAVE_GDBM_NDBM_H */
+
 /* Define to 1 if you have the `getccent' function. */
 /* #undef HAVE_GETCCENT */
 
@@ -426,9 +429,6 @@
 
 /* Define to 1 if you have the `ldap_open' function. */
 /* #undef HAVE_LDAP_OPEN */
-
-/* Define to 1 if you have the `gdbm' library (-lgdbm). */
-/* #undef HAVE_LIBGDBM */
 
 /* Define to 1 if you have the <libgen.h> header file. */
 #define HAVE_LIBGEN_H 1
@@ -948,7 +948,7 @@
 /* #undef HAVE_SYS_MACHINE_H */
 
 /* Define to 1 if you have the <sys/mbuf.h> header file. */
-/* #define HAVE_SYS_MBUF_H 1 */
+#define HAVE_SYS_MBUF_H 1
 
 /* Define to 1 if you have the <sys/mman.h> header file. */
 #define HAVE_SYS_MMAN_H 1
@@ -1269,16 +1269,16 @@
 /* #define HOST_CPU "i386" */
 
 /* Define the header version of (linux) hosts (eg. 2.2.10) */
-/* #define HOST_HEADER_VERSION "5.1" */
+/* #define HOST_HEADER_VERSION "5.2" */
 
 /* Define name and version of host machine (eg. solaris2.5.1) */
-/* #define HOST_OS "freebsd5.1" */
+/* #define HOST_OS "freebsd5.2" */
 
 /* Define only name of host machine OS (eg. solaris2) */
 /* #define HOST_OS_NAME "freebsd5" */
 
 /* Define only version of host machine (eg. 2.5.1) */
-/* #define HOST_OS_VERSION "5.1" */
+/* #define HOST_OS_VERSION "5.2" */
 
 /* Define name of host machine's vendor (eg. sun) */
 #define HOST_VENDOR "unknown"
@@ -1848,6 +1848,9 @@
 /* Type of the mount-type field in the mount() system call */
 #define MTYPE_TYPE char *
 
+/* Defined to the header file containing ndbm-compatible definitions */
+#define NEW_DBM_H <ndbm.h>
+
 /* Define the field name for the filehandle within nfs_args_t */
 #define NFS_FH_FIELD fh
 
@@ -1858,19 +1861,19 @@
 #define PACKAGE "am-utils"
 
 /* Define to the address where bug reports for this package should be sent. */
-#define PACKAGE_BUGREPORT "amd-dev@am-utils.org"
+#define PACKAGE_BUGREPORT "am-utils@am-utils.org"
 
 /* Define to the full name of this package. */
 #define PACKAGE_NAME "am-utils"
 
 /* Define to the full name and version of this package. */
-#define PACKAGE_STRING "am-utils 6.0-20030828"
+#define PACKAGE_STRING "am-utils 6.0.10-20040513"
 
 /* Define to the one symbol short name of this package. */
 #define PACKAGE_TARNAME "am-utils"
 
 /* Define to the version of this package. */
-#define PACKAGE_VERSION "6.0-20030828"
+#define PACKAGE_VERSION "6.0.10-20040513"
 
 /* Type of the 6th argument to recvfrom() */
 #define RECVFROM_FROMLEN_TYPE int
@@ -1914,7 +1917,7 @@
 /* #undef USE_UNCONNECTED_NFS_SOCKETS */
 
 /* Version number of package */
-#define VERSION "6.0-20030828"
+#define VERSION "6.0.10-20040513"
 
 /* Define to 1 if your processor stores words with the most significant byte
    first (like Motorola and SPARC, unlike Intel and VAX). */
