@@ -77,7 +77,6 @@
 
 #include <machine/reg.h>
 #include <machine/md_var.h>
-#include <fs/procfs/procfs.h>
 
 #include <vm/vm.h>
 #include <vm/pmap.h>
