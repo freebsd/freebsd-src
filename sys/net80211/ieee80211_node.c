@@ -1607,9 +1607,14 @@ ieee80211_node_join(struct ieee80211com *ic, struct ieee80211_node *ni, int resp
 		newassoc = 0;
 
 	IEEE80211_DPRINTF(ic, IEEE80211_MSG_ASSOC | IEEE80211_MSG_DEBUG,
-	    "[%s] station %s associated at aid %d\n",
-	    ether_sprintf(ni->ni_macaddr), newassoc ? "newly" : "already",
-	    IEEE80211_NODE_AID(ni));
+	    "[%s] station %sassociated at aid %d: %s preamble, %s slot time%s%s\n",
+	    ether_sprintf(ni->ni_macaddr), newassoc ? "" : "re",
+	    IEEE80211_NODE_AID(ni),
+	    ic->ic_flags & IEEE80211_F_SHPREAMBLE ? "short" : "long",
+	    ic->ic_flags & IEEE80211_F_SHSLOT ? "short" : "long",
+	    ic->ic_flags & IEEE80211_F_USEPROT ? ", protection" : "",
+	    ni->ni_flags & IEEE80211_NODE_QOS ? ", QoS" : ""
+	);
 
 	/* give driver a chance to setup state like ni_txrate */
 	if (ic->ic_newassoc)
