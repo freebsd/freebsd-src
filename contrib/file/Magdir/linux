@@ -44,11 +44,6 @@
 # this can be overridden by the DOS executable (COM) entry
 2	string		LILO		Linux/i386 LILO boot/chain loader
 #
-# Debian Packages, from Peter Tobias <tobias@server.et-inf.fho-emden.de>
-0	string		0.9
->8	byte		0x0a		old Debian Binary Package
->>3	byte		>0		\b, created by dpkg 0.9%c
->>4	byte		>0		pl%c
 # PSF fonts, from H. Peter Anvin <hpa@yggdrasil.com>
 0	leshort		0x0436		Linux/i386 PC Screen Font data,
 >2	byte		0		256 characters, no directory,
@@ -60,6 +55,8 @@
 4086	string		SWAP-SPACE	Linux/i386 swap file
 # according to man page of mkswap (8) March 1999
 4086	string		SWAPSPACE2	Linux/i386 swap file (new style)
+>0x400	long		x		%d (4K pages)
+>0x404	long		x		size %d pages
 # ECOFF magic for OSF/1 and Linux (only tested under Linux though)
 #
 #	from Erik Troan (ewt@redhat.com) examining od dumps, so this
@@ -79,28 +76,38 @@
 # and others such as Axel Kohlmeyer <akohlmey@rincewind.chemie.uni-ulm.de>
 # and Nicolás Lichtmaier <nick@debian.org>
 # All known start with: b8 c0 07 8e d8 b8 00 90 8e c0 b9 00 01 29 f6 29
-514		string	HdrS		Linux kernel
->518		leshort	>0
->>529		byte	0		zImage data,
->>529		byte	1		bzImage data,
->0x048c		byte	0x31
->>0x048c	string	x		version %s
->0x0493		byte	0x31
->>0x0493	string	x		version %s
->0x048c		byte	0x32
->>0x048c	string	x		version %s
->0x0493		byte	0x32
->>0x0493	string	x		version %s
->0x04df		byte	0x32
->>0x04df	string	x		version %s
->0x04fb		byte	0x32
->>0x04fb	string	x		version %s
+# Linux kernel boot images (i386 arch) (Wolfram Kleff)
+514	string		HdrS		Linux kernel
+>510	leshort		0xAA55		x86 boot executable
+>>518	leshort		>=3D0x200
+>>529	byte		0		zImage,
+>>>529	byte		1		bzImage,
+>>>(526.s+0x200) string	>\0		version %s,
+>>498	leshort		1		RO-rootFS,
+>>498	leshort		0		RW-rootFS,
+>>508	leshort		>0		root_dev 0x%X,
+>>502	leshort		>0		swap_dev 0x%X,
+>>504	leshort		>0		RAMdisksize %u KB,
+>>506	leshort		0xFFFF		Normal VGA
+>>506	leshort		0xFFFE		Extended VGA
+>>506	leshort		0xFFFD		Prompt for Videomode
+>>506	leshort		>0		Video mode %d
 # This also matches new kernels, which were caught above by "HdrS".
 0		belong	0xb8c0078e	Linux kernel
 >0x1e3		string	Loading		version 1.3.79 or older
 >0x1e9		string	Loading		from prehistoric times
-# LSM entries - Nicolás Lichtmaier <nick@feedback.net.ar>
+
+# System.map files - Nicolás Lichtmaier <nick@debian.org>
+8	string	\ A\ _text	Linux kernel symbol map text
+
+# LSM entries - Nicolás Lichtmaier <nick@debian.org>
 0	string	Begin3	Linux Software Map entry text
+0	string	Begin4	Linux Software Map entry text (new format)
+
+# From Matt Zimmerman
+0       belong  0x4f4f4f4d      User-mode Linux COW file
+>4      belong  x               \b, version %d
+>8      string  >\0             \b, backing file %s
 
 ############################################################################
 # Linux kernel versions

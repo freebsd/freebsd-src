@@ -5,13 +5,7 @@
 #
 #	http://www.seanet.com/users/matts/riffmci/riffmci.htm
 #
-# and
-#
-#	http://www.ora.com/centers/gff/formats/micriff/index.htm
-#
-# and
-#
-#	http://www.jtauber.com/music/encoding/niff/spec/
+# AVI section extended by Patrik Rådman <patrik+file-magic@iki.fi>
 #
 0	string		RIFF		RIFF (little-endian) data
 # RIFF Palette format
@@ -40,8 +34,8 @@
 >>20	leshort		1		\b, Microsoft PCM
 >>>34	leshort		>0		\b, %d bit
 >>20	leshort		2		\b, Microsoft ADPCM
->>20	leshort		6		\b, ITU G.711 a-law
->>20	leshort		7		\b, ITU G.711 u-law
+>>20	leshort		6		\b, ITU G.711 A-law
+>>20	leshort		7		\b, ITU G.711 mu-law
 >>20	leshort		17		\b, IMA ADPCM
 >>20	leshort		20		\b, ITU G.723 ADPCM (Yamaha)
 >>20	leshort		49		\b, GSM 6.10
@@ -52,10 +46,124 @@
 >>22	leshort		=2		\b, stereo
 >>22	leshort		>2		\b, %d channels
 >>24	lelong		>0		%d Hz
+# Corel Draw Picture
+>8	string		CDRA		\b, Corel Draw Picture
 # AVI == Audio Video Interleave
->8      string          AVI\            \b, AVI
+>8	string		AVI\040		\b, AVI
+>>12    string          LIST
+>>>20   string          hdrlavih
+>>>>&36 lelong          x               \b, %lu x
+>>>>&40 lelong          x               %lu,
+>>>>&4  lelong          >1000000        <1 fps,
+>>>>&4  lelong          1000000         1.00 fps,
+>>>>&4  lelong          500000          2.00 fps,
+>>>>&4  lelong          333333          3.00 fps,
+>>>>&4  lelong          250000          4.00 fps,
+>>>>&4  lelong          200000          5.00 fps,
+>>>>&4  lelong          166667          6.00 fps,
+>>>>&4  lelong          142857          7.00 fps,
+>>>>&4  lelong          125000          8.00 fps,
+>>>>&4  lelong          111111          9.00 fps,
+>>>>&4  lelong          100000          10.00 fps,
+# ]9.9,10.1[
+>>>>&4  lelong          <101010
+>>>>>&-4        lelong  >99010
+>>>>>>&-4       lelong  !100000         ~10 fps,
+>>>>&4  lelong          83333           12.00 fps,
+# ]11.9,12.1[
+>>>>&4  lelong          <84034
+>>>>>&-4        lelong  >82645
+>>>>>>&-4       lelong  !83333          ~12 fps,
+>>>>&4  lelong          66667           15.00 fps,
+# ]14.9,15.1[
+>>>>&4  lelong          <67114
+>>>>>&-4        lelong  >66225
+>>>>>>&-4       lelong  !66667          ~15 fps,
+>>>>&4  lelong          50000           20.00 fps,
+>>>>&4  lelong          41708           23.98 fps,
+>>>>&4  lelong          41667           24.00 fps,
+# ]23.9,24.1[
+>>>>&4  lelong          <41841
+>>>>>&-4        lelong  >41494
+>>>>>>&-4       lelong  !41708
+>>>>>>>&-4      lelong  !41667          ~24 fps,
+>>>>&4  lelong          40000           25.00 fps,
+# ]24.9,25.1[
+>>>>&4  lelong          <40161
+>>>>>&-4        lelong  >39841
+>>>>>>&-4       lelong  !40000          ~25 fps,
+>>>>&4  lelong          33367           29.97 fps,
+>>>>&4  lelong          33333           30.00 fps,
+# ]29.9,30.1[
+>>>>&4  lelong          <33445
+>>>>>&-4        lelong  >33223
+>>>>>>&-4       lelong  !33367
+>>>>>>>&-4      lelong  !33333          ~30 fps,
+>>>>&4  lelong          <32224          >30 fps,
+##>>>>&4  lelong          x               (%lu)
+##>>>>&20 lelong          x               %lu frames,
+# Note: The tests below assume that the AVI has 1 or 2 streams,
+#       "vids" optionally followed by "auds".
+#       (Should cover 99.9% of all AVIs.)
+# assuming avih length = 56
+>>>88   string  LIST
+>>>>96  string  strlstrh
+>>>>>108        string  vids    video:
+>>>>>>&0        lelong  0               uncompressed
+# skip past vids strh
+>>>>>>(104.l+108)       string  strf
+>>>>>>>(104.l+132)      lelong          1       RLE 8bpp
+>>>>>>>(104.l+132)      string/c        cvid    Cinepak
+>>>>>>>(104.l+132)      string/c        i263    Intel I.263
+>>>>>>>(104.l+132)      string/c        iv32    Indeo 3.2
+>>>>>>>(104.l+132)      string/c        iv41    Indeo 4.1
+>>>>>>>(104.l+132)      string/c        iv50    Indeo 5.0
+>>>>>>>(104.l+132)      string/c        mp42    Microsoft MPEG-4 v2
+>>>>>>>(104.l+132)      string/c        mp43    Microsoft MPEG-4 v3
+>>>>>>>(104.l+132)      string/c        mjpg    Motion JPEG
+>>>>>>>(104.l+132)      string/c        div3    DivX 3
+>>>>>>>>112             string/c        div3    Low-Motion
+>>>>>>>>112             string/c        div4    Fast-Motion
+>>>>>>>(104.l+132)      string/c        divx    DivX 4
+>>>>>>>(104.l+132)      string/c        dx50    DivX 5
+>>>>>>>(104.l+132)      string/c        xvid    XviD
+>>>>>>>(104.l+132)      lelong  0
+##>>>>>>>(104.l+132)      string  x       (%.4s)
+# skip past first (video) LIST
+>>>>(92.l+96)   string  LIST
+>>>>>(92.l+104) string  strlstrh
+>>>>>>(92.l+116)        string          auds    \b, audio:
+# auds strh length = 56:
+>>>>>>>(92.l+172)       string          strf
+>>>>>>>>(92.l+180)      leshort 0x0001  uncompressed PCM
+>>>>>>>>(92.l+180)      leshort 0x0002  ADPCM
+>>>>>>>>(92.l+180)      leshort 0x0055  MPEG-1 Layer 3
+>>>>>>>>(92.l+180)      leshort 0x2000  Dolby AC3
+>>>>>>>>(92.l+180)      leshort 0x0161  DivX
+##>>>>>>>>(92.l+180)      leshort x       (0x%.4x)
+>>>>>>>>(92.l+182)      leshort 1       (mono,
+>>>>>>>>(92.l+182)      leshort 2       (stereo,
+>>>>>>>>(92.l+182)      leshort >2      (%d channels,
+>>>>>>>>(92.l+184)      lelong  x       %d Hz)
+# auds strh length = 64:
+>>>>>>>(92.l+180)       string          strf
+>>>>>>>>(92.l+188)      leshort 0x0001  uncompressed PCM
+>>>>>>>>(92.l+188)      leshort 0x0002  ADPCM
+>>>>>>>>(92.l+188)      leshort 0x0055  MPEG-1 Layer 3
+>>>>>>>>(92.l+188)      leshort 0x2000  Dolby AC3
+>>>>>>>>(92.l+188)      leshort 0x0161  DivX
+##>>>>>>>>(92.l+188)      leshort x       (0x%.4x)
+>>>>>>>>(92.l+190)      leshort 1       (mono,
+>>>>>>>>(92.l+190)      leshort 2       (stereo,
+>>>>>>>>(92.l+190)      leshort >2      (%d channels,
+>>>>>>>>(92.l+192)      lelong  x       %d Hz)
 # Animated Cursor format
 >8	string		ACON		\b, animated cursor
+# SoundFont 2 <mpruett@sgi.com>
+>8	string		sfbk		SoundFont/Bank
+# MPEG-1 wrapped in a RIFF, apparently
+>8      string          CDXA            \b, wrapped MPEG-1 (CDXA)
+>8	string		4XMV		\b, 4X Movie file 
 
 #
 # XXX - some of the below may only appear in little-endian form.
@@ -93,12 +201,13 @@
 >>22	beshort		=2		\b, stereo
 >>22	beshort		>2		\b, %d channels
 >>24	belong		>0		%d Hz
+# Corel Draw Picture
+>8	string		CDRA		\b, Corel Draw Picture
 # AVI == Audio Video Interleave
->8      string          AVI\            \b, AVI
+>8	string		AVI\040		\b, AVI
 # Animated Cursor format
 >8	string		ACON		\b, animated cursor
 # Notation Interchange File Format (big-endian only)
 >8	string		NIFF		\b, Notation Interchange File Format
-
 # SoundFont 2 <mpruett@sgi.com>
->8	string		sfbk		SoundFont 2
+>8	string		sfbk		SoundFont/Bank

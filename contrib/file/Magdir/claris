@@ -32,7 +32,7 @@
 #          a   t   r   i   s   t  sp   ^   S  cr  nl   d   i   v  sp   #
 
 # .mth Thesaurus
-# statrts with \0 but no magic header
+# starts with \0 but no magic header
 
 # .chy Hyphenation file
 # I am not sure: 000 210 034 000 000

@@ -20,9 +20,9 @@
 0	string	\<PACKAGE=	Maple help file
 0	string	\<HELP\ NAME=	Maple help file
 0	string	\n\<HELP\ NAME=	Maple help file with extra carriage return at start (yuck)
-0	string	#\ Newton	Maple help file, old style
+#0	string	#\ Newton	Maple help file, old style
 0	string	#\ daub	Maple help file, old style
-0	string	#===========	Maple help file, old style
+#0	string	#===========	Maple help file, old style
 
 # .mws
 0	string	\000\000\001\044\000\221	Maple worksheet

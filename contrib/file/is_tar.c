@@ -1,29 +1,85 @@
 /*
+ * Copyright (c) Ian F. Darwin 1986-1995.
+ * Software written by Ian F. Darwin and others;
+ * maintained 1995-present by Christos Zoulas and others.
+ * 
+ * Redistribution and use in source and binary forms, with or without
+ * modification, are permitted provided that the following conditions
+ * are met:
+ * 1. Redistributions of source code must retain the above copyright
+ *    notice immediately at the beginning of the file, without modification,
+ *    this list of conditions, and the following disclaimer.
+ * 2. Redistributions in binary form must reproduce the above copyright
+ *    notice, this list of conditions and the following disclaimer in the
+ *    documentation and/or other materials provided with the distribution.
+ * 3. All advertising materials mentioning features or use of this software
+ *    must display the following acknowledgement:
+ *    This product includes software developed by Ian F. Darwin and others.
+ * 4. The name of the author may not be used to endorse or promote products
+ *    derived from this software without specific prior written permission.
+ *  
+ * THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
+ * ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+ * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+ * ARE DISCLAIMED. IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE FOR
+ * ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+ * DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+ * OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+ * HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+ * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+ * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+ * SUCH DAMAGE.
+ */
+/*
  * is_tar() -- figure out whether file is a tar archive.
  *
  * Stolen (by the author!) from the public domain tar program:
  * Public Domain version written 26 Aug 1985 John Gilmore (ihnp4!hoptoad!gnu).
  *
  * @(#)list.c 1.18 9/23/86 Public Domain - gnu
- * $Id: is_tar.c,v 1.17 2002/07/03 18:26:38 christos Exp $
  *
  * Comments changed and some code/comments reformatted
  * for file command by Ian Darwin.
  */
 
 #include "file.h"
+#include "magic.h"
 #include <string.h>
 #include <ctype.h>
 #include <sys/types.h>
 #include "tar.h"
 
 #ifndef lint
-FILE_RCSID("@(#)$Id: is_tar.c,v 1.17 2002/07/03 18:26:38 christos Exp $")
+FILE_RCSID("@(#)$Id: is_tar.c,v 1.24 2003/11/11 20:01:46 christos Exp $")
 #endif
 
 #define	isodigit(c)	( ((c) >= '0') && ((c) <= '7') )
 
-static int from_oct(int, char *);	/* Decode octal number */
+private int is_tar(const unsigned char *, size_t);
+private int from_oct(int, const char *);	/* Decode octal number */
+
+protected int
+file_is_tar(struct magic_set *ms, const unsigned char *buf, size_t nbytes)
+{
+	/*
+	 * Do the tar test first, because if the first file in the tar
+	 * archive starts with a dot, we can confuse it with an nroff file.
+	 */
+	switch (is_tar(buf, nbytes)) {
+	case 1:
+	        if (file_printf(ms, (ms->flags & MAGIC_MIME) ?
+		    "application/x-tar" : "tar archive") == -1)
+			return -1;
+		return 1;
+	case 2:
+		if (file_printf(ms, (ms->flags & MAGIC_MIME) ?
+		    "application/x-tar, POSIX" : "POSIX tar archive") == -1)
+			return -1;
+		return 1;
+	default:
+		return 0;
+	}
+}
 
 /*
  * Return 
@@ -31,13 +87,13 @@ static int from_oct(int, char *);	/* Decode octal number */
  *	1 for old UNIX tar file,
  *	2 for Unix Std (POSIX) tar file.
  */
-int
-is_tar(unsigned char *buf, int nbytes)
+private int
+is_tar(const unsigned char *buf, size_t nbytes)
 {
-	union record *header = (union record *)buf;
+	const union record *header = (const union record *)(const void *)buf;
 	int	i;
 	int	sum, recsum;
-	char	*p;
+	const char	*p;
 
 	if (nbytes < sizeof(union record))
 		return 0;
@@ -48,7 +104,7 @@ is_tar(unsigned char *buf, int nbytes)
 	p = header->charptr;
 	for (i = sizeof(union record); --i >= 0;) {
 		/*
-		 * We can't use unsigned char here because of old compilers,
+		 * We cannot use unsigned char here because of old compilers,
 		 * e.g. V7.
 		 */
 		sum += 0xFF & *p++;
@@ -74,8 +130,8 @@ is_tar(unsigned char *buf, int nbytes)
  *
  * Result is -1 if the field is invalid (all blank, or nonoctal).
  */
-static int
-from_oct(int digs, char *where)
+private int
+from_oct(int digs, const char *where)
 {
 	int	value;
 
