@@ -126,7 +126,6 @@ CDROM_SET_1="${CDROM_SET_1} www/netscape47-navigator"
 CDROM_SET_1="${CDROM_SET_1} x11/rxvt"
 
 # VERY common build dependencies
-CDROM_SET_1="${CDROM_SET_1} archivers/bzip2"
 CDROM_SET_1="${CDROM_SET_1} archivers/unzip"
 CDROM_SET_1="${CDROM_SET_1} devel/gmake"
 CDROM_SET_1="${CDROM_SET_1} graphics/png"
