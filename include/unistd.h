@@ -74,7 +74,7 @@ typedef	_BSD_UID_T_	uid_t;
 #define	NULL		0	/* null pointer constant */
 #endif
 
-#ifndef _POSIX_SOURCE
+#if __XSI_VISIBLE || __POSIX_VISIBLE >= 200112
 #define	F_ULOCK		0	/* unlock locked section */
 #define	F_LOCK		1	/* lock a section for exclusive use */
 #define	F_TLOCK		2	/* test and lock a section for exclusive use */
@@ -82,6 +82,7 @@ typedef	_BSD_UID_T_	uid_t;
 #endif
 
 __BEGIN_DECLS
+/* 1003.1-1990 */
 void	 _exit(int) __dead2;
 int	 access(const char *, int);
 unsigned int	 alarm(unsigned int);
@@ -137,52 +138,100 @@ extern char *optarg;			/* getopt(3) external variables */
 extern int optind, opterr, optopt;
 int	 getopt(int, char * const [], const char *);
 
-#ifndef	_POSIX_SOURCE
+/* 1003.1b-1993 */
+#if __POSIX_VISIBLE >= 199309
+/*
+ * Need to check old copies of POSIX to determine when each of these
+ * interfaces was added.
+ */
+size_t	 confstr(int, char *, size_t);
+int	 fchown(int, uid_t, gid_t);
+int	 fsync(int);
+
+/* symlink is from .1a and XPG4.2 -- need to check version for the former */
+int	 symlink(const char *, const char *);
+#endif
+
+/* ISO/IEC 9945-1: 1996 */
+#if __POSIX_VISIBLE >= 199506
+/*
+ * ftruncate() was in the POSIX Realtime Extension (it's used for shared
+ * memory), but truncate() was not.
+ */
+#ifndef _FTRUNCATE_DECLARED
+#define	_FTRUNCATE_DECLARED
+int	 ftruncate(int, off_t);
+#endif
+
+int	 getlogin_r(char *, int);
+#endif
+
+/* 1003.1-2001 */
+#if __POSIX_VISIBLE >= 200112
+int	 gethostname(char *, int /* socklen_t */);
+int	 setegid(gid_t);
+int	 seteuid(uid_t);
+#endif
+
+/* X/Open System Interfaces */
+#if __XSI_VISIBLE
+char	*crypt(const char *, const char *);
+/* char	*ctermid(char *); */		/* XXX ??? */
+int	 encrypt(char *, int);
+int	 fchdir(int);
+int	 getpgid(pid_t _pid);
+int	 getsid(pid_t _pid);
+char	*getwd(char *);			/* LEGACY: obsoleted by getcwd() */
+int	 lchown(const char *, uid_t, gid_t);
+int	 lockf(int, int, off_t);
+int	 nice(int);
+ssize_t	 pread(int, void *, size_t, off_t);
+ssize_t	 pwrite(int, const void *, size_t, off_t);
+int	 setpgrp(pid_t _pid, pid_t _pgrp); /* obsoleted by setpgid() */
+int	 setregid(gid_t, gid_t);
+int	 setreuid(uid_t, uid_t);
+/* void	 swab(const void *__restrict, void *__restrict, ssize_t); */
+void	 sync(void);
+unsigned int	 ualarm(unsigned int, unsigned int);
+int	 usleep(unsigned int);
+pid_t	 vfork(void);
+
+/* See comment at ftruncate() above. */
+#ifndef _TRUNCATE_DECLARED
+#define	_TRUNCATE_DECLARED
+int	 truncate(const char *, off_t);
+#endif
+#endif /* __XSI_VISIBLE */
+
+#if __BSD_VISIBLE
 struct timeval;				/* select(2) */
 int	 acct(const char *);
 int	 async_daemon(void);
 int	 brk(const void *);
 int	 chroot(const char *);
-size_t	 confstr(int, char *, size_t);
-char	*crypt(const char *, const char *);
-__const char *
+const char *
 	 crypt_get_format(void);
 int	 crypt_set_format(const char *);
 int	 des_cipher(const char *, char *, long, int);
 int	 des_setkey(const char *key);
-int	 encrypt(char *, int);
 void	 endusershell(void);
 int	 exect(const char *, char * const *, char * const *);
-int	 fchdir(int);
-int	 fchown(int, uid_t, gid_t);
 char	*fflagstostr(u_long);
-int	 fsync(int);
-#ifndef _FTRUNCATE_DECLARED
-#define	_FTRUNCATE_DECLARED
-int	 ftruncate(int, off_t);
-#endif
 int	 getdomainname(char *, int);
 int	 getdtablesize(void);
 int	 getgrouplist(const char *, gid_t, gid_t *, int *);
 long	 gethostid(void);
-int	 gethostname(char *, int);
-int	 getlogin_r(char *, int);
 mode_t	 getmode(const void *, mode_t);
 int	 getpagesize(void) __pure2;
 char	*getpass(const char *);
 int	 getpeereid(int, uid_t *, gid_t *);
-int	 getpgid(pid_t _pid);
 int	 getresgid(gid_t *, gid_t *, gid_t *);
 int	 getresuid(uid_t *, uid_t *, uid_t *);
-int	 getsid(pid_t _pid);
 char	*getusershell(void);
-char	*getwd(char *);			/* obsoleted by getcwd() */
 int	 initgroups(const char *, gid_t);
 int	 iruserok(unsigned long, int, const char *, const char *);
 int	 iruserok_sa(const void *, int, int, const char *, const char *);
 int	 issetugid(void);
-int	 lchown(const char *, uid_t, gid_t);
-int	 lockf(int, int, off_t);
 char	*mkdtemp(char *);
 int	 mknod(const char *, mode_t, dev_t);
 int	 mkstemp(char *);
@@ -190,10 +239,7 @@ int	 mkstemps(char *, int);
 char	*mktemp(char *);
 int	 nfsclnt(int, void *);
 int	 nfssvc(int, void *);
-int	 nice(int);
-ssize_t	 pread(int, void *, size_t, off_t);
 int	 profil(char *, size_t, vm_offset_t, int);
-ssize_t	 pwrite(int, const void *, size_t, off_t);
 int	 rcmd(char **, int, const char *, const char *, const char *, int *);
 int	 rcmd_af(char **, int, const char *,
 		const char *, const char *, int *, int);
@@ -212,44 +258,30 @@ int	 ruserok(const char *, int, const char *, const char *);
 void	*sbrk(intptr_t);
 int	 select(int, fd_set *, fd_set *, fd_set *, struct timeval *);
 int	 setdomainname(const char *, int);
-int	 setegid(gid_t);
-int	 seteuid(uid_t);
 int	 setgroups(int, const gid_t *);
 void	 sethostid(long);
 int	 sethostname(const char *, int);
 int	 setkey(const char *);
 int	 setlogin(const char *);
 void	*setmode(const char *);
-int	 setpgrp(pid_t _pid, pid_t _pgrp); /* obsoleted by setpgid() */
-int	 setregid(gid_t, gid_t);
 int	 setresgid(gid_t, gid_t, gid_t);
 int	 setresuid(uid_t, uid_t, uid_t);
-int	 setreuid(uid_t, uid_t);
 int	 setrgid(gid_t);
 int	 setruid(uid_t);
 void	 setusershell(void);
 int	 strtofflags(char **, u_long *, u_long *);
 int	 swapon(const char *);
-int	 symlink(const char *, const char *);
-void	 sync(void);
 int	 syscall(int, ...);
 off_t	 __syscall(quad_t, ...);
-#ifndef _TRUNCATE_DECLARED
-#define	_TRUNCATE_DECLARED
-int	 truncate(const char *, off_t);
-#endif
 int	 ttyslot(void);
-unsigned int	 ualarm(unsigned int, unsigned int);
 int	 undelete(const char *);
 int	 unwhiteout(const char *);
-int	 usleep(unsigned int);
 void	*valloc(size_t);			/* obsoleted by malloc() */
-pid_t	 vfork(void);
 
 extern char *suboptarg;			/* getsubopt(3) external variable */
 int	 getsubopt(char **, char * const *, char **);
-#endif /* !_POSIX_SOURCE */
 extern int optreset;			/* getopt(3) external variable */
+#endif /* __BSD_VISIBLE */
 __END_DECLS
 
 #endif /* !_UNISTD_H_ */
