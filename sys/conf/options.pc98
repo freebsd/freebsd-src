@@ -16,8 +16,6 @@ POWERFAIL_NMI		opt_trap.h
 AUTO_EOI_1		opt_auto_eoi.h
 AUTO_EOI_2		opt_auto_eoi.h
 I586_PMC_GUPROF		opt_i586_guprof.h
-WLCACHE			opt_wavelan.h
-WLDEBUG			opt_wavelan.h
 COMPAT_OLDISA
 BROKEN_KEYBOARD_RESET	opt_reset.h
 KSTACK_PAGES
