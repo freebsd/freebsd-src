@@ -30,7 +30,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id$
+ *	$Id: ln.c,v 1.4 1994/09/24 02:55:48 davidg Exp $
  */
 
 #ifndef lint
@@ -142,9 +142,9 @@ linkit(target, source, isdir)
 			++p;
 		(void)snprintf(path, sizeof(path), "%s/%s", source, p);
 		source = path;
-		exists = !stat(source, &sb);
+		exists = !lstat(source, &sb);
 	} else
-		exists = !stat(source, &sb);
+		exists = !lstat(source, &sb);
 
 	/*
 	 * If the file exists, and -f was specified, unlink it.
