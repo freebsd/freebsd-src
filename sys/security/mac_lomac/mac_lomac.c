@@ -1,6 +1,6 @@
 /*-
  * Copyright (c) 1999, 2000, 2001, 2002 Robert N. M. Watson
- * Copyright (c) 2001, 2002 Networks Associates Technology, Inc.
+ * Copyright (c) 2001, 2002, 2003 Networks Associates Technology, Inc.
  * All rights reserved.
  *
  * This software was developed by Robert Watson for the TrustedBSD Project.
@@ -717,7 +717,7 @@ mac_lomac_to_string(struct sbuf *sb, struct mac_lomac *mac_lomac)
 		    == -1)
 			return (EINVAL);
 
-		if (sbuf_putc(sb, '-') == -1)
+		if (sbuf_putc(sb, ')') == -1)
 			return (EINVAL);
 	}
 
