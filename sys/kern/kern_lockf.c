@@ -39,7 +39,6 @@
 
 #include <sys/param.h>
 #include <sys/systm.h>
-#include <sys/kernel.h>
 #include <sys/proc.h>
 #include <sys/unistd.h>
 #include <sys/vnode.h>
@@ -55,8 +54,14 @@
 static int maxlockdepth = MAXDEPTH;
 
 #ifdef LOCKF_DEBUG
-#include <vm/vm.h>
+#include <sys/kernel.h>
 #include <sys/sysctl.h>
+
+#include <vm/vm.h>
+
+#include <ufs/ufs/quota.h>
+#include <ufs/ufs/inode.h>
+
 int	lockf_debug = 0;
 SYSCTL_INT(_debug, 4, lockf_debug, CTLFLAG_RW, &lockf_debug, 0, "");
 #endif
