@@ -711,6 +711,9 @@ omapi_message_process_internal (omapi_object_t *mo, omapi_object_t *po)
 			omapi_signal ((omapi_object_t *)m,
 				      "status", ISC_R_SUCCESS,
 				      (omapi_typed_data_t *)0);
+
+		omapi_object_dereference (&object, MDL);
+
 		return status;
 
 	      case OMAPI_OP_NOTIFY:

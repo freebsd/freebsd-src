@@ -43,7 +43,7 @@
 
 #ifndef lint
 static char copyright[] =
-"$Id: discover.c,v 1.42.2.9 2002/03/12 06:46:17 mellon Exp $ Copyright (c) 1995-2001 The Internet Software Consortium.  All rights reserved.\n";
+"$Id: discover.c,v 1.42.2.12 2002/11/03 04:31:55 dhankins Exp $ Copyright (c) 1995-2001 The Internet Software Consortium.  All rights reserved.\n";
 #endif /* not lint */
 
 #include "dhcpd.h"
@@ -540,8 +540,12 @@ void discover_interfaces (state)
 		if (tmp -> next)
 			interface_reference (&next, tmp -> next, MDL);
 		/* skip interfaces that are running already */
-		if (tmp -> flags & INTERFACE_RUNNING)
+		if (tmp -> flags & INTERFACE_RUNNING) {
+			interface_dereference(&tmp, MDL);
+			if(next)
+				interface_reference(&tmp, next, MDL);
 			continue;
+		}
 		if ((tmp -> flags & INTERFACE_AUTOMATIC) &&
 		    state == DISCOVER_REQUESTED)
 			tmp -> flags &= ~(INTERFACE_AUTOMATIC |

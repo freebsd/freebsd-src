@@ -47,7 +47,7 @@
 
 #ifndef lint
 static char copyright[] =
-"$Id: bpf.c,v 1.48.2.1 2002/04/30 05:12:53 murray Exp $ Copyright (c) 1995-2000 The Internet Software Consortium.  All rights reserved.\n";
+"$Id: bpf.c,v 1.48.2.2 2002/06/08 09:29:16 murray Exp $ Copyright (c) 1995-2000 The Internet Software Consortium.  All rights reserved.\n";
 #endif /* not lint */
 
 #include "dhcpd.h"
@@ -423,7 +423,11 @@ ssize_t receive_packet (interface, buf, len, from, hfrom)
 				       interface -> rbuf,
 				       (size_t)interface -> rbuf_max);
 			if (length <= 0) {
+#ifdef __FreeBSD__
+				if (errno == ENXIO) {
+#else
 				if (errno == EIO) {
+#endif
 					dhcp_interface_remove
 						((omapi_object_t *)interface,
 						 (omapi_object_t *)0);
