@@ -14,11 +14,11 @@ SUBDIR+=as ld
 .endif
 
 .if ${MACHINE_ARCH} != "ia64" && ${MACHINE_ARCH} != "sparc64"
-SUBDIR+=cc gperf
+SUBDIR+=cc
 .endif
 
 .if !defined(NO_CXX)
-SUBDIR+=groff
+SUBDIR+=gperf groff
 .endif
 
 .if !defined(NOPERL) && !defined(NO_PERL) && exists(${.CURDIR}/perl)
