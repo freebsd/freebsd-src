@@ -22,7 +22,8 @@ BINMODE=555
 #BINMODE=2555
 EXEMODE=444
 
-.if exists(${X11BASE}/include) && exists(${X11BASE}/lib/libX11.a)
+.if !defined(NO_X) && exists(${X11BASE}/include) && \
+	exists(${X11BASE}/lib/libX11.a)
 CFLAGS+= -I. -I${X11BASE}/include -DDISASSEMBLER
 LDADD= -L${X11BASE}/lib -lX11
 DPADD= ${X11BASE}/lib/libX11.a
