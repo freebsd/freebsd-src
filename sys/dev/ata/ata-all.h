@@ -31,7 +31,13 @@
 /* ATA register defines */
 #define ATA_DATA			0x00	/* data register */
 #define ATA_ERROR			0x01	/* (R) error register */
+#define		ATA_E_NM		0x02	/* no media */
 #define		ATA_E_ABORT		0x04	/* command aborted */
+#define		ATA_E_MCR		0x08	/* media change request */
+#define		ATA_E_IDNF		0x10	/* ID not found */
+#define		ATA_E_MC		0x20	/* media changed */
+#define		ATA_E_UNC		0x40	/* uncorrectable data */
+#define		ATA_E_ICRC		0x80	/* UDMA crc error */
 
 #define ATA_FEATURE			0x01	/* (W) feature register */
 #define		ATA_F_DMA		0x01	/* enable DMA */

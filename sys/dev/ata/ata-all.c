@@ -201,9 +201,10 @@ ata_pcimatch(device_t dev)
 	return "Promise Ultra/66 IDE controller";
     case 0x00041103:
 	return "HighPoint HPT366 IDE controller";
+    case 0x05711106: /* 82c586 & 82c686 */
+	return "VIA Apollo IDE controller";
 
    /* unsupported but known chipsets, generic DMA only */
-    case 0x05711106: /* 82c586 */
     case 0x05961106: /* 82c596 */
 	return "VIA Apollo IDE controller (generic mode)";
     case 0x06401095:

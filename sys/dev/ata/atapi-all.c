@@ -645,11 +645,9 @@ atapi_timeout(struct atapi_request *request)
     if (request->flags & ATAPI_F_DMA_USED)
 	ata_dmadone(atp->controller);
 
-    if (request->retries < ATAPI_MAX_RETRIES) {
-        /* reinject this request */
-        request->retries++;
+    /* if retries still permit, reinject this request */
+    if (request->retries++ < ATAPI_MAX_RETRIES)
         TAILQ_INSERT_HEAD(&atp->controller->atapi_queue, request, chain);
-    }
     else {
         /* retries all used up, return error */
 	request->result = ATAPI_SK_RESERVED | ATAPI_E_ABRT;

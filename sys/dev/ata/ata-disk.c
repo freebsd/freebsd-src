@@ -116,8 +116,8 @@ static __inline int
 udmamode(struct ata_params *ap)
 {
     if (ap->atavalid & 4) {
-	if (ap->udmamodes & 0x10 && ap->cblid) return 4;
-	if (ap->udmamodes & 0x08 && ap->cblid) return 3;
+	if (ap->udmamodes & 0x10) return (ap->cblid ? 4 : 2);
+	if (ap->udmamodes & 0x08) return (ap->cblid ? 3 : 2);
 	if (ap->udmamodes & 0x04) return 2;
 	if (ap->udmamodes & 0x02) return 1;
 	if (ap->udmamodes & 0x01) return 0;
@@ -195,7 +195,7 @@ ad_attach(void *notused)
 		    adp->flags |= AD_F_DMA_ENABLED;
 
 		/* use tagged queueing if supported (not yet) */
-		if ((adp->num_tags = adp->ata_parm->queuelen & 0x1f))
+		if ((adp->num_tags = (adp->ata_parm->queuelen & 0x1f) + 1))
 		    adp->flags |= AD_F_TAG_ENABLED;
 
 		/* store our softc */
@@ -206,9 +206,10 @@ ad_attach(void *notused)
 		      sizeof(revision_buf));
 
 		if (bootverbose)
-		    printf("ad%d: piomode=%d dmamode=%d udmamode=%d\n",
+		    printf("ad%d: piomode=%d dmamode=%d udmamode=%d cblid=%d\n",
 		           adp->lun, apiomode(adp->ata_parm),
-		           wdmamode(adp->ata_parm), udmamode(adp->ata_parm));
+		           wdmamode(adp->ata_parm), udmamode(adp->ata_parm),
+			   adp->ata_parm->cblid);
 
 		printf("ad%d: <%s/%s> ATA-%c disk at ata%d as %s\n", 
 		       adp->lun, model_buf, revision_buf,
@@ -532,14 +533,29 @@ ad_interrupt(struct ad_request *request)
     if (adp->controller->status & (ATA_S_ERROR | ATA_S_CORR) ||
 	(request->flags & AR_F_DMA_USED && dma_stat != ATA_BMSTAT_INTERRUPT)) {
 oops:
-	printf("ad%d: status=%02x error=%02x\n", 
-	       adp->lun, adp->controller->status, adp->controller->error);
 	if (adp->controller->status & ATA_S_ERROR) {
-	    printf("ad_interrupt: hard error\n"); 
-	    request->flags |= AR_F_ERROR;
+	    printf("ad%d: %s %s error blk# %d", adp->lun,
+		   (adp->controller->error & ATA_E_ICRC) ? "UDMA CRC" : "HARD",
+		   (request->flags & AR_F_READ) ? "READ" : "WRITE",
+		   request->blockaddr + (request->donecount / DEV_BSIZE)); 
+	    /* if this is a UDMA CRC error, reinject request */
+	    if (adp->controller->error & ATA_E_ICRC &&
+		request->retries++ < AD_MAX_RETRIES) {
+    		/* disarm timeout for this transfer */
+    		untimeout((timeout_t *)ad_timeout, request, 
+			  request->timeout_handle);
+		TAILQ_INSERT_HEAD(&adp->controller->ata_queue, request, chain);
+		printf(" retrying\n");
+		return ATA_OP_FINISHED;
+	    }
+	    else {
+		printf(" status=%02x error=%02x\n", 
+			adp->controller->status, adp->controller->error);
+		request->flags |= AR_F_ERROR;
+	    }
 	}
-	if (adp->controller->status & ATA_S_CORR)
-	    printf("ad_interrupt: soft error ECC corrected\n"); 
+	else if (adp->controller->status & ATA_S_CORR)
+	    printf("ad%d: soft error ECC corrected\n", adp->lun); 
     }
 
     /* if this was a PIO read operation, get the data */
@@ -634,11 +650,9 @@ ad_timeout(struct ad_request *request)
     if (request->flags & AR_F_DMA_USED)
 	ata_dmadone(adp->controller);
 
-    if (request->retries < AD_MAX_RETRIES) {
-	/* reinject this request */
-	request->retries++;
+    /* if retries still permit, reinject this request */
+    if (request->retries++ < AD_MAX_RETRIES)
 	TAILQ_INSERT_HEAD(&adp->controller->ata_queue, request, chain);
-    }
     else {
 	/* retries all used up, return error */
 	request->bp->b_error = EIO;

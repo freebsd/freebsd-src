@@ -114,10 +114,10 @@ struct ata_params {
     int16_t	enherasetime;
     int16_t	apmlevel;
     int16_t	masterpasswdrev;
-    u_int16_t	masterhwres:8;
-    u_int16_t	slavehwres:5;
-    u_int16_t	cblid:1;
-    u_int16_t	reserved93_1415:2;
+    u_int16_t	masterhwres	:8;
+    u_int16_t	slavehwres	:5;
+    u_int16_t	cblid		:1;
+    u_int16_t	reserved93_1415	:2;
     int16_t	reserved94[32];
     int16_t	rmvstat;
     int16_t	securstat;
