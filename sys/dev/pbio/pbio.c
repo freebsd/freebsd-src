@@ -113,7 +113,6 @@ struct portdata {
  * One of these per allocated device
  */
 struct pbio_softc {
-	int	iobase;			/* I/O base */
 	struct portdata pd[PBIO_NPORTS];/* Per port data */
 	int	iomode;			/* Virtualized I/O mode port value */
 					/* The real port is write-only */
@@ -186,7 +185,7 @@ pbioprobe(device_t dev)
 	/* Set all ports to output */
 	pboutb(scp, PBIO_CFG, 0x80);
 	printf("pbio val(CFG: 0x%03x)=0x%02x (should be 0x80)\n",
-		iobase, pbinb(scp, PBIO_CFG));
+		rman_get_start(scp->res), pbinb(scp, PBIO_CFG));
 	pboutb(scp, PBIO_PORTA, 0xa5);
 	val = pbinb(scp, PBIO_PORTA);
 	printf("pbio val=0x%02x (should be 0xa5)\n", val);
@@ -221,7 +220,6 @@ pbioattach (device_t dev)
 	int i;
 	int		rid;
 	struct pbio_softc *sc;
-	int flags, i, iobase, rid, unit;
 
 	sc = device_get_softc(dev);
 	unit = device_get_unit(dev);
@@ -403,7 +401,7 @@ static int
 pbiowrite(struct cdev *dev, struct uio *uio, int ioflag)
 {
 	struct pbio_softc *scp;
-	int i, iobase, port, ret, towrite, unit;
+	int i, port, ret, towrite, unit;
 	char val, oval;
 	
 	unit = UNIT(dev);
