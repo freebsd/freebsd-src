@@ -46,6 +46,7 @@ __FBSDID("$FreeBSD$");
 #include <ufs/ufs/quota.h>
 #include <ufs/ufs/inode.h>
 #include <ufs/ufs/ufsmount.h>
+#include <ufs/ufs/ufs_extern.h>
 #include <ufs/ffs/fs.h>
 
 #include <vm/vm.h>
