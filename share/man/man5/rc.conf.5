@@ -178,6 +178,11 @@ must be given.
 (bool) Set to 
 .Ar YES
 to disable the display of ipfw rules on the console during boot.
+.It Ar firewall_logging
+(bool) Set to
+.Ar YES
+to enable ipfw events logging. It is equivalent to IPFIREWALL_VERBOSE kernel 
+option.
 .It Ar natd_program
 (str) path to
 .Xr natd 8 .
