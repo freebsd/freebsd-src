@@ -632,7 +632,7 @@ static struct wi_table wi_table[] = {
 	{ WI_RID_STA_IDENTITY, WI_WORDS, "STA Identity:\t\t\t\t" } ,
 	{ WI_RID_CARD_ID, WI_HEXWORDS, "Card ID register:\t\t\t" },
 	{ WI_RID_REG_DOMAINS, WI_REGDOMS, "Regulatory Domains:\t\t\t" },
-	{ WI_RID_TEMP_TYPE, WI_WORDS, "Tempterture Range:\t\t\t" },
+	{ WI_RID_TEMP_TYPE, WI_WORDS, "Temperature Range:\t\t\t" },
 #ifdef WI_EXTRA_INFO
 	{ WI_RID_PRI_SUP_RANGE, WI_WORDS, "PRI Sup Range:\t\t\t\t" },
 	{ WI_RID_CIF_ACT_RANGE, WI_WORDS, "CFI Act Sup Range:\t\t\t" },
