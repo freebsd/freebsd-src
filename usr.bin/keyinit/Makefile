@@ -4,6 +4,8 @@ PROG=	keyinit
 MAN1=   keyinit.1
 SRCS=	skeyinit.c
 
+CFLAGS+= -D_SKEY_INTERNAL
+
 BINOWN=	root
 BINMODE=4555
 
