@@ -42,7 +42,7 @@ static const char copyright[] =
 static char sccsid[] = "@(#)from: inetd.c	8.4 (Berkeley) 4/13/94";
 #endif
 static const char rcsid[] =
-	"$Id: inetd.c,v 1.49 1999/05/11 12:50:14 des Exp $";
+	"$Id: inetd.c,v 1.50 1999/06/17 09:16:08 sheldonh Exp $";
 #endif /* not lint */
 
 /*
@@ -185,8 +185,8 @@ fd_set	allsock;
 int	options;
 int	timingout;
 int	toomany = TOOMANY;
-int	maxchild = MAXCPM;
-int	maxcpm = MAXCHILD;
+int	maxchild = MAXCHILD;
+int	maxcpm = MAXCPM;
 struct	servent *sp;
 struct	rpcent *rpc;
 struct	in_addr bind_address;
@@ -276,32 +276,32 @@ struct biltin {
 	char	*bi_service;		/* internally provided service name */
 	int	bi_socktype;		/* type of socket supported */
 	short	bi_fork;		/* 1 if should fork before call */
-	int	bi_maxchild;		/* max number of children (default) */
+	int	bi_maxchild;		/* max number of children (-1=default) */
 	void	(*bi_fn)();		/* function which performs it */
 } biltins[] = {
 	/* Echo received data */
-	{ "echo",	SOCK_STREAM,	1, 0,	echo_stream },
-	{ "echo",	SOCK_DGRAM,	0, 0,	echo_dg },
+	{ "echo",	SOCK_STREAM,	1, -1,	echo_stream },
+	{ "echo",	SOCK_DGRAM,	0, 1,	echo_dg },
 
 	/* Internet /dev/null */
-	{ "discard",	SOCK_STREAM,	1, 0,	discard_stream },
-	{ "discard",	SOCK_DGRAM,	0, 0,	discard_dg },
+	{ "discard",	SOCK_STREAM,	1, -1,	discard_stream },
+	{ "discard",	SOCK_DGRAM,	0, 1,	discard_dg },
 
 	/* Return 32 bit time since 1970 */
-	{ "time",	SOCK_STREAM,	0, 0,	machtime_stream },
-	{ "time",	SOCK_DGRAM,	0, 0,	machtime_dg },
+	{ "time",	SOCK_STREAM,	0, -1,	machtime_stream },
+	{ "time",	SOCK_DGRAM,	0, 1,	machtime_dg },
 
 	/* Return human-readable time */
-	{ "daytime",	SOCK_STREAM,	0, 0,	daytime_stream },
-	{ "daytime",	SOCK_DGRAM,	0, 0,	daytime_dg },
+	{ "daytime",	SOCK_STREAM,	0, -1,	daytime_stream },
+	{ "daytime",	SOCK_DGRAM,	0, 1,	daytime_dg },
 
 	/* Familiar character generator */
-	{ "chargen",	SOCK_STREAM,	1, 0,	chargen_stream },
-	{ "chargen",	SOCK_DGRAM,	0, 0,	chargen_dg },
+	{ "chargen",	SOCK_STREAM,	1, -1,	chargen_stream },
+	{ "chargen",	SOCK_DGRAM,	0, 1,	chargen_dg },
 
-	{ "tcpmux",	SOCK_STREAM,	1, 0,	(void (*)())tcpmux },
+	{ "tcpmux",	SOCK_STREAM,	1, -1,	(void (*)())tcpmux },
 
-	{ "ident",	SOCK_STREAM,	1, 0,	ident_stream },
+	{ "ident",	SOCK_STREAM,	1, -1,	ident_stream },
 
 	{ NULL }
 };
@@ -1338,8 +1338,8 @@ more:
 			CONFIG, sep->se_service);
 		goto more;
 	}
-	sep->se_maxchild = maxchild;
-	sep->se_maxcpm = maxcpm;
+	sep->se_maxchild = -1;
+	sep->se_maxcpm = -1;
 	if ((s = strchr(arg, '/')) != NULL) {
 		char *eptr;
 		u_long val;
@@ -1351,6 +1351,10 @@ more:
 				CONFIG, sep->se_service);
 			goto more;
 		}
+		if (debug)
+			if (!sep->se_accept && val != 1)
+				warnx("maxchild=%lu for wait service %s"
+				    " not recommended", val, sep->se_service);
 		sep->se_maxchild = val;
 		if (*eptr == '/')
 			sep->se_maxcpm = strtol(eptr + 1, &eptr, 10);
@@ -1410,11 +1414,15 @@ more:
 		sep->se_bi = bi;
 	} else
 		sep->se_bi = NULL;
+	if (sep->se_maxcpm < 0)
+		sep->se_maxcpm = maxcpm;
 	if (sep->se_maxchild < 0) {	/* apply default max-children */
-		if (sep->se_bi)
+		if (sep->se_bi && sep->se_bi->bi_maxchild >= 0)
 			sep->se_maxchild = sep->se_bi->bi_maxchild;
+		else if (sep->se_accept) 
+			sep->se_maxchild = maxchild > 0 ? maxchild : 0;
 		else
-			sep->se_maxchild = sep->se_accept ? 0 : 1;
+			sep->se_maxchild = 1;
 	}
 	if (sep->se_maxchild) {
 		sep->se_pids = malloc(sep->se_maxchild * sizeof(*sep->se_pids));
