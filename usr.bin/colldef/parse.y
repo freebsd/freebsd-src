@@ -25,7 +25,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $Id: parse.y,v 1.8 1997/03/11 14:40:40 peter Exp $
+ * $Id: parse.y,v 1.9 1997/06/26 11:25:17 charnier Exp $
  */
 
 #include <err.h>
@@ -253,7 +253,7 @@ static void
 usage()
 {
 	fprintf(stderr, "usage: colldef [-o out_file] [-I map_dir] [filename]\n");
-	exit(EX_OK);
+	exit(EX_USAGE);
 }
 
 void yyerror(char *fmt, ...)
