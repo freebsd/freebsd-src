@@ -63,6 +63,7 @@ is_IS.ISO8859-15.out:   map.ISO8859-15
 is_IS.ISO8859-1.out:    map.ISO8859-1
 la_LN.ISO8859-15.out:   map.ISO8859-15
 la_LN.ISO8859-1.out:    map.ISO8859-1
+la_LN.ISO8859-2.out:    map.ISO8859-2
 la_LN.ISO8859-4.out:    map.ISO8859-4
 lt_LT.ISO8859-4.out:    map.ISO8859-4
 ru_RU.CP866.out:        map.CP866
