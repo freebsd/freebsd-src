@@ -31,8 +31,6 @@
 #include <sys/param.h>
 #include <sys/kernel.h>
 #include <sys/systm.h>
-#include <sys/time.h>
-#include <sys/types.h>
 #include <sys/buf.h>
 #include <sys/sysctl.h>
 
@@ -56,7 +54,6 @@ devstat_add_entry(struct devstat *ds, const char *dev_name,
 		  devstat_type_flags device_type,
 		  devstat_priority priority)
 {
-	int s;
 	struct devstatlist *devstat_head;
 	struct devstat *ds_tmp;
 
@@ -132,10 +129,7 @@ devstat_add_entry(struct devstat *ds, const char *dev_name,
 	ds->flags = flags;
 	ds->device_type = device_type;
 	ds->priority = priority;
-
-	s = splclock();
 	getmicrotime(&ds->dev_creation_time);
-	splx(s);
 }
 
 /*
@@ -164,8 +158,6 @@ devstat_remove_entry(struct devstat *ds)
 void
 devstat_start_transaction(struct devstat *ds)
 {
-	int s;
-
 	/* sanity check */
 	if (ds == NULL)
 		return;
@@ -175,11 +167,8 @@ devstat_start_transaction(struct devstat *ds)
 	 * to busy.  The start time is really the start of the latest busy
 	 * period.
 	 */
-	if (ds->busy_count == 0) {
-		s = splclock();	
+	if (ds->busy_count == 0)
 		getmicrouptime(&ds->start_time);
-		splx(s);
-	}
 	ds->busy_count++;
 }
 
@@ -190,17 +179,13 @@ void
 devstat_end_transaction(struct devstat *ds, u_int32_t bytes, 
 			devstat_tag_type tag_type, devstat_trans_flags flags)
 {
-	int s;
 	struct timeval busy_time;
 
 	/* sanity check */
 	if (ds == NULL)
 		return;
 
-	s = splclock();
 	getmicrouptime(&ds->last_comp_time);
-	splx(s);
-
 	ds->busy_count--;
 
 	/*
