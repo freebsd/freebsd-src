@@ -129,6 +129,7 @@ db_backtrace(struct thread *td, db_addr_t fp, int count)
 	const char *symname;
 	boolean_t kernel_only = TRUE;
 	boolean_t full = FALSE;
+	int quit;
 
 #if 0
 	{
@@ -148,7 +149,9 @@ db_backtrace(struct thread *td, db_addr_t fp, int count)
 
 	stackframe = fp;
 
-	for (;;) {
+	quit = 0;
+	db_setup_paging(db_simple_pager, &quit, DB_LINES_PER_PAGE);
+	while (!quit) {
 		if (stackframe < PAGE_SIZE)
 			break;
 

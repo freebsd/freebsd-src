@@ -57,10 +57,12 @@ db_backtrace(struct thread *td, struct pcb *pcb, int count)
 	db_expr_t offset;
 	uint64_t bsp, cfm, ip, pfs, reg, sp;
 	c_db_sym_t sym;
-	int args, error, i;
+	int args, error, i, quit;
 
+	quit = 0;
+	db_setup_paging(db_simple_pager, &quit, DB_LINES_PER_PAGE);
 	error = unw_create_from_pcb(&rs, pcb);
-	while (!error && count--) {
+	while (!error && count-- && !quit) {
 		error = unw_get_cfm(&rs, &cfm);
 		if (!error)
 			error = unw_get_bsp(&rs, &bsp);

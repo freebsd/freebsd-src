@@ -96,7 +96,7 @@ db_frame(struct db_variable *vp, db_expr_t *valuep, int op)
  * User stack trace (debugging aid).
  */
 static void
-db_utrace(struct thread *td, struct trapframe *tf)
+db_utrace(struct thread *td, struct trapframe *tf, int count, int *quitp)
 {
 	struct pcb *pcb;
 	db_addr_t sp, rsp, o7, pc;
@@ -108,7 +108,7 @@ db_utrace(struct thread *td, struct trapframe *tf)
 	    FALSE);
 	pc = db_get_value((db_addr_t)&tf->tf_tpc, sizeof(tf->tf_tpc), FALSE);
 	db_printf("user trace: trap %%o7=%#lx\n", o7);
-	while (sp != 0) {
+	while (count-- && sp != 0 && !*quitp) {
 		db_printf("pc %#lx, sp %#lx\n", pc, sp);
 		/* First, check whether the frame is in the pcb. */
 		found = 0;
@@ -134,7 +134,7 @@ db_utrace(struct thread *td, struct trapframe *tf)
 }
 
 static int
-db_print_trap(struct thread *td, struct trapframe *tf)
+db_print_trap(struct thread *td, struct trapframe *tf, int count, int *quitp)
 {
 	struct proc *p;
 	const char *symname;
@@ -212,7 +212,7 @@ db_print_trap(struct thread *td, struct trapframe *tf)
 		db_printf("userland() at ");
 		db_printsym(tpc, DB_STGY_PROC);
 		db_printf("\n");
-		db_utrace(td, tf);
+		db_utrace(td, tf, count, quitp);
 	}
 	return (user);
 }
@@ -229,6 +229,7 @@ db_backtrace(struct thread *td, struct frame *fp, int count)
 	db_addr_t pc;
 	int trap;
 	int user;
+	int quit;
 
 	if (count == -1)
 		count = 1024;
@@ -236,7 +237,9 @@ db_backtrace(struct thread *td, struct frame *fp, int count)
 	trap = 0;
 	user = 0;
 	npc = 0;
-	while (count-- && !user) {
+	quit = 0;
+	db_setup_paging(db_simple_pager, &quit, DB_LINES_PER_PAGE);
+	while (count-- && !user && !quit) {
 		pc = (db_addr_t)db_get_value((db_addr_t)&fp->fr_pc,
 		    sizeof(fp->fr_pc), FALSE);
 		if (trap) {
@@ -260,7 +263,7 @@ db_backtrace(struct thread *td, struct frame *fp, int count)
 			tf = (struct trapframe *)(fp + 1);
 			npc = db_get_value((db_addr_t)&tf->tf_tpc,
 			    sizeof(tf->tf_tpc), FALSE);
-			user = db_print_trap(td, tf);
+			user = db_print_trap(td, tf, count, &quit);
 			trap = 1;
 		} else {
 			db_printf("%s() at ", name);
