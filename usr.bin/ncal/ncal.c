@@ -97,7 +97,6 @@ static struct djswitch {
 	{"RO", "Romania",       {1919,  3, 31}},
 	{"RU", "Russia",        {1918,  1, 31}},
 	{"SI", "Slovenia",      {1919,  3,  4}},
-	{"SU", "USSR",          {1920,  3,  4}},
 	{"SW", "Sweden",        {1753,  2, 17}},
 	{"TR", "Turkey",        {1926, 12, 18}},
 	{"US", "United States", {1752,  9,  2}},
@@ -201,7 +200,11 @@ main(int argc, char *argv[])
 	 */
 	if ((locale = setlocale(LC_TIME, "")) == NULL)
 		warn("setlocale");
-	if (locale == NULL || locale == "C")
+	if (locale == NULL ||
+	    strcmp(locale, "C") == 0 ||
+	    strcmp(locale, "POSIX") == 0 ||
+	    strcmp(locale, "ASCII") == 0 ||
+	    strcmp(locale, "US-ASCII") == 0)
 		locale = "_US";
 	q = switches + sizeof(switches) / sizeof(struct djswitch);
 	for (p = switches; p != q; p++)
