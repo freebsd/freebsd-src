@@ -34,7 +34,7 @@
 .\"
 .\"     from: @(#)dca.4	5.2 (Berkeley) 3/27/91
 .\"	from: com.4,v 1.1 1993/08/06 11:19:07 cgd Exp
-.\"	$Id: sio.4,v 1.5 1994/02/17 11:41:16 ache Exp $
+.\"	$Id: sio.4,v 1.6 1994/02/17 17:44:07 rgrimes Exp $
 .\"
 .Dd February 9, 1994
 .Dt SIO 4 i386
@@ -126,10 +126,22 @@ port is 128 higher than that of the corresponding dialin port. Use
 .Xr stty 1
 to enable or disable modem control as required by your setup.
 .Sh FILES
-.Bl -tag -width Pa
-.It Pa /dev/tty0? for dialin
-.It Pa /dev/cua0? for dialout
+.Bl -tag -width /dev/tty0? -compact
+.It Pa /dev/tty0?
+for hardwired terminals
 .El
+or
+.Bl -tag -width /dev/tty0? -compact
+.It Pa /dev/ttyd?
+for dialin ports (and dialout when bidirectional usage disabled)
+.It Pa /dev/cua0?
+for dialout ports when bidirectional usage enabled
+.El
+.Pp
+If device number more then 10 last character of device name
+belongs to [a-z] set.
+/dev/tty0? and /dev/ttyd? are mutually exclusive, if you have
+/dev/tty0? corresponding /dev/ttyd? must be removed and vice versa.
 .Sh DIAGNOSTICS
 .Bl -diag
 .It sio%d: silo overflow.
