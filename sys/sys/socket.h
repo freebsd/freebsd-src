@@ -37,6 +37,7 @@
 #ifndef _SYS_SOCKET_H_
 #define	_SYS_SOCKET_H_
 
+#include <sys/cdefs.h>
 #include <sys/_types.h>
 #define _NO_NAMESPACE_POLLUTION
 #include <machine/param.h>
@@ -49,23 +50,59 @@
 /*
  * Data types.
  */
+#if __BSD_VISIBLE
+#ifndef _GID_T_DECLARED
+typedef	__gid_t		gid_t;
+#define	_GID_T_DECLARED
+#endif
+
+#ifndef _OFF_T_DECLARED
+typedef	__off_t		off_t;
+#define	_OFF_T_DECLARED
+#endif
+
+#ifndef _PID_T_DECLARED
+typedef	__pid_t		pid_t;
+#define	_PID_T_DECLARED
+#endif
+#endif
+
 #ifndef _SA_FAMILY_T_DECLARED
 typedef	__sa_family_t	sa_family_t;
 #define	_SA_FAMILY_T_DECLARED
 #endif
 
+#ifndef _SIZE_T_DECLARED
+typedef	__size_t	size_t;
+#define	_SIZE_T_DECLARED
+#endif
+ 
 #ifndef _SOCKLEN_T_DECLARED
 typedef	__socklen_t	socklen_t;
 #define	_SOCKLEN_T_DECLARED
 #endif
  
+#ifndef _SSIZE_T_DECLARED
+typedef	__ssize_t	ssize_t;
+#define	_SSIZE_T_DECLARED
+#endif
+
+#if __BSD_VISIBLE 
+#ifndef _UID_T_DECLARED
+typedef	__uid_t		uid_t;
+#define	_UID_T_DECLARED
+#endif
+#endif
+
 /*
  * Types
  */
 #define	SOCK_STREAM	1		/* stream socket */
 #define	SOCK_DGRAM	2		/* datagram socket */
 #define	SOCK_RAW	3		/* raw-protocol interface */
+#if __BSD_VISIBLE
 #define	SOCK_RDM	4		/* reliably-delivered message */
+#endif
 #define	SOCK_SEQPACKET	5		/* sequenced packet stream */
 
 /*
@@ -77,13 +114,17 @@ typedef	__socklen_t	socklen_t;
 #define	SO_KEEPALIVE	0x0008		/* keep connections alive */
 #define	SO_DONTROUTE	0x0010		/* just use interface addresses */
 #define	SO_BROADCAST	0x0020		/* permit sending of broadcast msgs */
+#if __BSD_VISIBLE
 #define	SO_USELOOPBACK	0x0040		/* bypass hardware when possible */
+#endif
 #define	SO_LINGER	0x0080		/* linger on close if data present */
 #define	SO_OOBINLINE	0x0100		/* leave received OOB data in line */
+#if __BSD_VISIBLE
 #define	SO_REUSEPORT	0x0200		/* allow local address & port reuse */
 #define	SO_TIMESTAMP	0x0400		/* timestamp received dgram traffic */
 #define	SO_NOSIGPIPE	0x0800		/* no SIGPIPE from EPIPE */
 #define	SO_ACCEPTFILTER	0x1000		/* there is an accept filter */
+#endif
 
 /*
  * Additional options, not kept in so_options.
@@ -96,8 +137,10 @@ typedef	__socklen_t	socklen_t;
 #define	SO_RCVTIMEO	0x1006		/* receive timeout */
 #define	SO_ERROR	0x1007		/* get error status and clear */
 #define	SO_TYPE		0x1008		/* get socket type */
+#if __BSD_VISIBLE
 #define	SO_LABEL	0x1009		/* socket's MAC label */
 #define	SO_PEERLABEL	0x1010		/* socket's peer's MAC label */
+#endif
 
 /*
  * Structure used for manipulating linger option.
@@ -107,10 +150,12 @@ struct linger {
 	int	l_linger;		/* linger time */
 };
 
+#if __BSD_VISIBLE
 struct accept_filter_arg {
 	char	af_name[16];
 	char	af_arg[256-16];
 };
+#endif
 
 /*
  * Level number for (get/set)sockopt() to apply to socket itself.
@@ -121,9 +166,12 @@ struct accept_filter_arg {
  * Address families.
  */
 #define	AF_UNSPEC	0		/* unspecified */
+#if __BSD_VISIBLE
 #define	AF_LOCAL	1		/* local to host (pipes, portals) */
+#endif
 #define	AF_UNIX		AF_LOCAL	/* backward compatibility */
 #define	AF_INET		2		/* internetwork: UDP, TCP, etc. */
+#if __BSD_VISIBLE
 #define	AF_IMPLINK	3		/* arpanet imp addresses */
 #define	AF_PUP		4		/* pup protocols: e.g. BSP */
 #define	AF_CHAOS	5		/* mit CHAOS protocols */
@@ -151,7 +199,9 @@ struct accept_filter_arg {
 #define	AF_ISDN		26		/* Integrated Services Digital Network*/
 #define	AF_E164		AF_ISDN		/* CCITT E.164 recommendation */
 #define	pseudo_AF_KEY	27		/* Internal key-management function */
+#endif
 #define	AF_INET6	28		/* IPv6 */
+#if __BSD_VISIBLE
 #define	AF_NATM		29		/* native ATM access */
 #define	AF_ATM		30		/* ATM */
 #define pseudo_AF_HDRCMPLT 31		/* Used by BPF to not rewrite headers
@@ -161,16 +211,18 @@ struct accept_filter_arg {
 #define	AF_SLOW		33		/* 802.3ad slow protocol */
 #define	AF_SCLUSTER	34		/* Sitara cluster protocol */
 #define	AF_MAX		35
+#endif
 
 /*
  * Structure used by kernel to store most
  * addresses.
  */
 struct sockaddr {
-	u_char		sa_len;		/* total length */
+	unsigned char	sa_len;		/* total length */
 	sa_family_t	sa_family;	/* address family */
 	char		sa_data[14];	/* actually longer; address value */
 };
+#if __BSD_VISIBLE
 #define	SOCK_MAXADDRLEN	255		/* longest possible addresses */
 
 /*
@@ -178,27 +230,30 @@ struct sockaddr {
  * information in raw sockets.
  */
 struct sockproto {
-	u_short	sp_family;		/* address family */
-	u_short	sp_protocol;		/* protocol */
+	unsigned short	sp_family;		/* address family */
+	unsigned short	sp_protocol;		/* protocol */
 };
+#endif
 
 /*
  * RFC 2553: protocol-independent placeholder for socket addresses
  */
 #define	_SS_MAXSIZE	128U
-#define	_SS_ALIGNSIZE	(sizeof(int64_t))
-#define	_SS_PAD1SIZE	(_SS_ALIGNSIZE - sizeof(u_char) - sizeof(sa_family_t))
-#define	_SS_PAD2SIZE	(_SS_MAXSIZE - sizeof(u_char) - sizeof(sa_family_t) - \
-				_SS_PAD1SIZE - _SS_ALIGNSIZE)
+#define	_SS_ALIGNSIZE	(sizeof(__int64_t))
+#define	_SS_PAD1SIZE	(_SS_ALIGNSIZE - sizeof(unsigned char) - \
+			    sizeof(sa_family_t))
+#define	_SS_PAD2SIZE	(_SS_MAXSIZE - sizeof(unsigned char) - \
+			    sizeof(sa_family_t) - _SS_PAD1SIZE - _SS_ALIGNSIZE)
 
 struct sockaddr_storage {
-	u_char		ss_len;		/* address length */
+	unsigned char	ss_len;		/* address length */
 	sa_family_t	ss_family;	/* address family */
 	char		__ss_pad1[_SS_PAD1SIZE];
-	int64_t		__ss_align;	/* force desired structure storage alignment */
+	__int64_t	__ss_align;	/* force desired struct alignment */
 	char		__ss_pad2[_SS_PAD2SIZE];
 };
 
+#if __BSD_VISIBLE
 /*
  * Protocol families, same as address families for now.
  */
@@ -308,11 +363,20 @@ struct sockaddr_storage {
 	{ "flags", CTLTYPE_STRUCT }, \
 	{ "iflist", CTLTYPE_STRUCT }, \
 }
+#endif /* __BSD_VISIBLE */
 
 /*
  * Maximum queue length specifiable by listen.
  */
 #define	SOMAXCONN	128
+
+#ifndef _STRUCT_IOVEC_DECLARED
+#define	_STRUCT_IOVEC_DECLARED
+struct iovec {
+	void	*iov_base;	/* Base address. */
+	size_t	iov_len;	/* Length. */
+};
+#endif
 
 /*
  * Message header for recvmsg and sendmsg calls.
@@ -335,9 +399,11 @@ struct msghdr {
 #define	MSG_TRUNC	0x10		/* data discarded before delivery */
 #define	MSG_CTRUNC	0x20		/* control data lost before delivery */
 #define	MSG_WAITALL	0x40		/* wait for full request or error */
+#if __BSD_VISIBLE
 #define	MSG_DONTWAIT	0x80		/* this message should be nonblocking */
 #define	MSG_EOF		0x100		/* data completes connection */
 #define MSG_COMPAT      0x8000		/* used in sendit() */
+#endif
 
 /*
  * Header for ancillary data objects in msg_control buffer.
@@ -352,6 +418,7 @@ struct cmsghdr {
 /* followed by	u_char  cmsg_data[]; */
 };
 
+#if __BSD_VISIBLE
 /*
  * While we may have more groups than this, the cmsgcred struct must
  * be able to fit in an mbuf, and NGROUPS_MAX is too large to allow
@@ -374,25 +441,27 @@ struct cmsgcred {
 	short	cmcred_ngroups;		/* number or groups */
 	gid_t	cmcred_groups[CMGROUP_MAX];	/* groups */
 };
+#endif /* __BSD_VISIBLE */
 
 /* given pointer to struct cmsghdr, return pointer to data */
-#define	CMSG_DATA(cmsg)		((u_char *)(cmsg) + \
+#define	CMSG_DATA(cmsg)		((unsigned char *)(cmsg) + \
 				 _ALIGN(sizeof(struct cmsghdr)))
 
 /* given pointer to struct cmsghdr, return pointer to next cmsghdr */
 #define	CMSG_NXTHDR(mhdr, cmsg)	\
-	(((caddr_t)(cmsg) + _ALIGN((cmsg)->cmsg_len) + \
+	(((char *)(cmsg) + _ALIGN((cmsg)->cmsg_len) + \
 	  _ALIGN(sizeof(struct cmsghdr)) > \
-	    (caddr_t)(mhdr)->msg_control + (mhdr)->msg_controllen) ? \
+	    (char *)(mhdr)->msg_control + (mhdr)->msg_controllen) ? \
 	    (struct cmsghdr *)NULL : \
-	    (struct cmsghdr *)((caddr_t)(cmsg) + _ALIGN((cmsg)->cmsg_len)))
+	    (struct cmsghdr *)((char *)(cmsg) + _ALIGN((cmsg)->cmsg_len)))
 
 #define	CMSG_FIRSTHDR(mhdr)	((struct cmsghdr *)(mhdr)->msg_control)
 
+#if __BSD_VISIBLE
 /* RFC 2292 additions */
-	
 #define	CMSG_SPACE(l)		(_ALIGN(sizeof(struct cmsghdr)) + _ALIGN(l))
 #define	CMSG_LEN(l)		(_ALIGN(sizeof(struct cmsghdr)) + (l))
+#endif
 
 #ifdef _KERNEL
 #define	CMSG_ALIGN(n)	_ALIGN(n)
@@ -400,14 +469,17 @@ struct cmsgcred {
 
 /* "Socket"-level control message types: */
 #define	SCM_RIGHTS	0x01		/* access rights (array of int) */
+#if __BSD_VISIBLE
 #define	SCM_TIMESTAMP	0x02		/* timestamp (struct timeval) */
 #define	SCM_CREDS	0x03		/* process creds (struct cmsgcred) */
+#endif
 
+#if __BSD_VISIBLE
 /*
  * 4.3 compat sockaddr, move to compat file later
  */
 struct osockaddr {
-	u_short	sa_family;		/* address family */
+	unsigned short sa_family;	/* address family */
 	char	sa_data[14];		/* up to 14 bytes of direct address */
 };
 
@@ -415,13 +487,14 @@ struct osockaddr {
  * 4.3-compat message header (move to compat file later).
  */
 struct omsghdr {
-	caddr_t	msg_name;		/* optional address */
+	char	*msg_name;		/* optional address */
 	int	msg_namelen;		/* size of address */
 	struct	iovec *msg_iov;		/* scatter/gather array */
 	int	msg_iovlen;		/* # elements in msg_iov */
-	caddr_t	msg_accrights;		/* access rights sent/received */
+	char	*msg_accrights;		/* access rights sent/received */
 	int	msg_accrightslen;
 };
+#endif
 
 /*
  * howto arguments for shutdown(2), specified by Posix.1g.
@@ -430,6 +503,7 @@ struct omsghdr {
 #define	SHUT_WR		1		/* shut down the writing side */
 #define	SHUT_RDWR	2		/* shut down both sides */
 
+#if __BSD_VISIBLE
 /*
  * sendfile(2) header/trailer struct
  */
@@ -439,12 +513,16 @@ struct sf_hdtr {
 	struct iovec *trailers;	/* pointer to an array of trailer struct iovec's */
 	int trl_cnt;		/* number of trailer iovec's */
 };
+#endif
 
 #ifndef	_KERNEL
 
 #include <sys/cdefs.h>
 
 __BEGIN_DECLS
+/*
+ * XXX functions missing restrict type-qualifiers.
+ */
 int	accept(int, struct sockaddr *, socklen_t *);
 int	bind(int, const struct sockaddr *, socklen_t);
 int	connect(int, const struct sockaddr *, socklen_t);
@@ -459,11 +537,16 @@ ssize_t	send(int, const void *, size_t, int);
 ssize_t	sendto(int, const void *,
 	    size_t, int, const struct sockaddr *, socklen_t);
 ssize_t	sendmsg(int, const struct msghdr *, int);
+#if __BSD_VISIBLE
 int	sendfile(int, int, off_t, size_t, struct sf_hdtr *, off_t *, int);
+#endif
 int	setsockopt(int, int, int, const void *, socklen_t);
 int	shutdown(int, int);
 int	socket(int, int, int);
 int	socketpair(int, int, int, int *);
+/*
+ * XXX missing sockatmark().
+ */
 __END_DECLS
 
 #endif /* !_KERNEL */
