@@ -206,21 +206,21 @@ static void
 bwx_writeb(void *handle, u_int32_t offset, u_int8_t val)
 {
     struct bwx_mem_handle *h = handle;
-    stb((vm_offset_t)h->virt1 + offset, val);
+    stb_nb((vm_offset_t)h->virt1 + offset, val);
 }
 
 static void
 bwx_writew(void *handle, u_int32_t offset, u_int16_t val)
 {
     struct bwx_mem_handle *h = handle;
-    stw((vm_offset_t)h->virt2 + offset, val);
+    stw_nb((vm_offset_t)h->virt2 + offset, val);
 }
 
 static void
 bwx_writel(void *handle, u_int32_t offset, u_int32_t val)
 {
     struct bwx_mem_handle *h = handle;
-    stl((vm_offset_t)h->virt4 + offset, val);
+    stl_nb((vm_offset_t)h->virt4 + offset, val);
 }
 
 struct io_ops bwx_io_ops = {
