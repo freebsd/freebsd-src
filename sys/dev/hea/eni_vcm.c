@@ -200,7 +200,7 @@ eni_openvcc ( cup, cvp )
 
 	vct->vci_control = mode << VCI_MODE_SHIFT |
 	    PTI_MODE_TRASH << VCI_PTI_SHIFT |
-	        ( (u_int)(evp->ev_rxbuf) >> ENI_LOC_PREDIV ) << VCI_LOC_SHIFT |
+	        ( (uintptr_t)(evp->ev_rxbuf) >> ENI_LOC_PREDIV ) << VCI_LOC_SHIFT |
 		nsize << VCI_SIZE_SHIFT;
 	vct->vci_descr = 0;		/* Descr = Rdptr = 0 */
 	vct->vci_write = 0;		/* WritePtr = CellCount = 0 */

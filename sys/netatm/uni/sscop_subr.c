@@ -103,7 +103,7 @@ sscop_stat_getelem(m, pelem)
 		/*
 		 * Get element from this buffer
 		 */
-		if ((int)cp & (sizeof(sscop_seq) - 1))
+		if ((intptr_t)cp & (sizeof(sscop_seq) - 1))
 			bcopy(cp, (caddr_t)pelem, sizeof(sscop_seq));
 		else
 			*pelem = *(sscop_seq *)cp;
@@ -593,7 +593,8 @@ sscop_service_xmit(sop)
 			 * Now pass it down the stack
 			 */
 			STACK_CALL(CPCS_UNITDATA_INV, sop->so_lower,
-				sop->so_tokl, sop->so_connvc, (int)n, 0, err);
+				sop->so_tokl, sop->so_connvc, (intptr_t)n, 0,
+				err);
 			if (err) {
 				KB_FREEALL(n);
 				break;
@@ -859,7 +860,7 @@ sscop_proc_xmit(sop)
 	 * Now pass copy down the stack
 	 */
 	STACK_CALL(CPCS_UNITDATA_INV, sop->so_lower, sop->so_tokl,
-		sop->so_connvc, (int)n, 0, err);
+		sop->so_connvc, (intptr_t)n, 0, err);
 	if (err) {
 		KB_FREEALL(n);
 		KB_LEN(ml) -= trlen;

@@ -244,10 +244,10 @@ typedef struct mbuf	KBuffer;
 #define	KB_TAILALIGN(bfr, n) {				\
 	(bfr)->m_len = (n);				\
 	if ((bfr)->m_flags & M_EXT)			\
-		(bfr)->m_data = (caddr_t)(((u_int)(bfr)->m_ext.ext_buf	\
+		(bfr)->m_data = (caddr_t)(((uintptr_t)(bfr)->m_ext.ext_buf \
 			+ (bfr)->m_ext.ext_size - (n)) & ~(sizeof(long) - 1));\
 	else						\
-		(bfr)->m_data = (caddr_t)(((u_int)(bfr)->m_dat + MLEN - (n)) \
+		(bfr)->m_data = (caddr_t)(((uintptr_t)(bfr)->m_dat + MLEN - (n)) \
 			& ~(sizeof(long) - 1));		\
 }
 #define	KB_HEADROOM(bfr, n) {				\

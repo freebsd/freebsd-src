@@ -154,7 +154,7 @@ sscop_bgn_idle(sop, m, trlr)
 	 * Pass connection request up to user
 	 */
 	STACK_CALL(SSCOP_ESTABLISH_IND, sop->so_upper, sop->so_toku,
-		sop->so_connvc, (int)m, source, err);
+		sop->so_connvc, (intptr_t)m, source, err);
 	if (err) {
 		KB_FREEALL(m);
 		sscop_abort(sop, "stack memory\n");
@@ -243,7 +243,7 @@ sscop_bgn_outdisc(sop, m, trlr)
 	 * Tell user about incoming connection
 	 */
 	STACK_CALL(SSCOP_ESTABLISH_IND, sop->so_upper, sop->so_toku,
-		sop->so_connvc, (int)m, source, err);
+		sop->so_connvc, (intptr_t)m, source, err);
 	if (err) {
 		KB_FREEALL(m);
 		sscop_abort(sop, "stack memory\n");
@@ -332,7 +332,7 @@ sscop_bgn_outresyn(sop, m, trlr)
 	 * Now tell user of a "new" incoming connection
 	 */
 	STACK_CALL(SSCOP_ESTABLISH_IND, sop->so_upper, sop->so_toku,
-		sop->so_connvc, (int)m, source, err);
+		sop->so_connvc, (intptr_t)m, source, err);
 	if (err) {
 		KB_FREEALL(m);
 		sscop_abort(sop, "stack memory\n");
@@ -434,7 +434,7 @@ sscop_bgn_inresyn(sop, m, trlr)
 	 * Tell user of incoming connection
 	 */
 	STACK_CALL(SSCOP_ESTABLISH_IND, sop->so_upper, sop->so_toku,
-		sop->so_connvc, (int)m, source, err);
+		sop->so_connvc, (intptr_t)m, source, err);
 	if (err) {
 		KB_FREEALL(m);
 		sscop_abort(sop, "stack memory\n");
@@ -556,7 +556,7 @@ sscop_bgak_outconn(sop, m, trlr)
 		sop->so_flags &= ~SOF_REESTAB;
 	} else {
 		STACK_CALL(SSCOP_ESTABLISH_CNF, sop->so_upper, sop->so_toku,
-			sop->so_connvc, (int)m, 0, err);
+			sop->so_connvc, (intptr_t)m, 0, err);
 		if (err) {
 			KB_FREEALL(m);
 			sscop_abort(sop, "stack memory\n");
@@ -654,7 +654,8 @@ sscop_bgrej_outconn(sop, m, trlr)
 	KBuffer		*m;
 	caddr_t		trlr;
 {
-	int		source, uu, err;
+	int		source, err;
+	intptr_t	uu;
 
 	/*
 	 * Stop retransmit timer
@@ -672,7 +673,7 @@ sscop_bgrej_outconn(sop, m, trlr)
 		uu = SSCOP_UU_NULL;
 		source = SSCOP_SOURCE_SSCOP;
 	} else {
-		uu = (int)m;
+		uu = (intptr_t)m;
 		source = SSCOP_SOURCE_USER;
 	}
 
@@ -936,7 +937,7 @@ sscop_end_inconn(sop, m, trlr)
 	 * Notify user of connection termination
 	 */
 	STACK_CALL(SSCOP_RELEASE_IND, sop->so_upper, sop->so_toku,
-		sop->so_connvc, (int)m, source, err);
+		sop->so_connvc, (intptr_t)m, source, err);
 	if (err) {
 		KB_FREEALL(m);
 		sscop_abort(sop, "stack memory\n");
@@ -2290,7 +2291,7 @@ sscop_ud_all(sop, m, trlr)
 	 * Pass data up to user
 	 */
 	STACK_CALL(SSCOP_UNITDATA_IND, sop->so_upper, sop->so_toku,
-		sop->so_connvc, (int)m, 0, err);
+		sop->so_connvc, (intptr_t)m, 0, err);
 	if (err)
 		KB_FREEALL(m);
 	return;

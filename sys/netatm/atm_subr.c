@@ -380,11 +380,11 @@ atm_untimeout(tip)
 int
 atm_stack_enq(cmd, func, token, cvp, arg1, arg2)
 	int		cmd;
-	void		(*func)(int, void *, int, int);
+	void		(*func)(int, void *, intptr_t, intptr_t);
 	void		*token;
 	Atm_connvc	*cvp;
-	int		arg1;
-	int		arg2;
+	intptr_t	arg1;
+	intptr_t	arg2;
 {
 	struct stackq_entry	*sqp;
 	int		s = splnet();

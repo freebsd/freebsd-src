@@ -58,10 +58,10 @@ __RCSID("@(#) $FreeBSD$");
 /*
  * Local functions
  */
-static void	sscop_resreq_ready(struct sscop *, int, int);
-static void	sscop_resrsp_inresyn(struct sscop *, int, int);
-static void	sscop_recrsp_recovrsp(struct sscop *, int, int);
-static void	sscop_recrsp_inrecov(struct sscop *, int, int);
+static void	sscop_resreq_ready(struct sscop *, intptr_t, intptr_t);
+static void	sscop_resrsp_inresyn(struct sscop *, intptr_t, intptr_t);
+static void	sscop_recrsp_recovrsp(struct sscop *, intptr_t, intptr_t);
+static void	sscop_recrsp_inrecov(struct sscop *, intptr_t, intptr_t);
 
 
 /*
@@ -69,7 +69,7 @@ static void	sscop_recrsp_inrecov(struct sscop *, int, int);
  */
 /* SSCOP_INIT */
 static void	(*sscop_init_tab[SOS_NUMSTATES])
-				(struct sscop *, int, int) = {
+				(struct sscop *, intptr_t, intptr_t) = {
 			sscop_init_inst,	/* SOS_INST */
 			NULL,			/* SOS_IDLE */
 			NULL,			/* SOS_OUTCONN */
@@ -86,7 +86,7 @@ static void	(*sscop_init_tab[SOS_NUMSTATES])
 
 /* SSCOP_TERM */
 static void	(*sscop_term_tab[SOS_NUMSTATES])
-				(struct sscop *, int, int) = {
+				(struct sscop *, intptr_t, intptr_t) = {
 			sscop_term_all,		/* SOS_INST */
 			sscop_term_all,		/* SOS_IDLE */
 			sscop_term_all,		/* SOS_OUTCONN */
@@ -103,7 +103,7 @@ static void	(*sscop_term_tab[SOS_NUMSTATES])
 
 /* SSCOP_ESTABLISH_REQ */
 static void	(*sscop_estreq_tab[SOS_NUMSTATES])
-				(struct sscop *, int, int) = {
+				(struct sscop *, intptr_t, intptr_t) = {
 			NULL,			/* SOS_INST */
 			sscop_estreq_idle,	/* SOS_IDLE */
 			NULL,			/* SOS_OUTCONN */
@@ -120,7 +120,7 @@ static void	(*sscop_estreq_tab[SOS_NUMSTATES])
 
 /* SSCOP_ESTABLISH_RSP */
 static void	(*sscop_estrsp_tab[SOS_NUMSTATES])
-				(struct sscop *, int, int) = {
+				(struct sscop *, intptr_t, intptr_t) = {
 			NULL,			/* SOS_INST */
 			NULL,			/* SOS_IDLE */
 			NULL,			/* SOS_OUTCONN */
@@ -137,7 +137,7 @@ static void	(*sscop_estrsp_tab[SOS_NUMSTATES])
 
 /* SSCOP_RELEASE_REQ */
 static void	(*sscop_relreq_tab[SOS_NUMSTATES])
-				(struct sscop *, int, int) = {
+				(struct sscop *, intptr_t, intptr_t) = {
 			NULL,			/* SOS_INST */
 			NULL,			/* SOS_IDLE */
 			sscop_relreq_outconn,	/* SOS_OUTCONN */
@@ -154,7 +154,7 @@ static void	(*sscop_relreq_tab[SOS_NUMSTATES])
 
 /* SSCOP_DATA_REQ */
 static void	(*sscop_datreq_tab[SOS_NUMSTATES])
-				(struct sscop *, int, int) = {
+				(struct sscop *, intptr_t, intptr_t) = {
 			NULL,			/* SOS_INST */
 			NULL,			/* SOS_IDLE */
 			NULL,			/* SOS_OUTCONN */
@@ -171,7 +171,7 @@ static void	(*sscop_datreq_tab[SOS_NUMSTATES])
 
 /* SSCOP_RESYNC_REQ */
 static void	(*sscop_resreq_tab[SOS_NUMSTATES])
-				(struct sscop *, int, int) = {
+				(struct sscop *, intptr_t, intptr_t) = {
 			NULL,			/* SOS_INST */
 			NULL,			/* SOS_IDLE */
 			NULL,			/* SOS_OUTCONN */
@@ -188,7 +188,7 @@ static void	(*sscop_resreq_tab[SOS_NUMSTATES])
 
 /* SSCOP_RESYNC_RSP */
 static void	(*sscop_resrsp_tab[SOS_NUMSTATES])
-				(struct sscop *, int, int) = {
+				(struct sscop *, intptr_t, intptr_t) = {
 			NULL,			/* SOS_INST */
 			NULL,			/* SOS_IDLE */
 			NULL,			/* SOS_OUTCONN */
@@ -205,7 +205,7 @@ static void	(*sscop_resrsp_tab[SOS_NUMSTATES])
 
 /* SSCOP_RECOVER_RSP */
 static void	(*sscop_recrsp_tab[SOS_NUMSTATES])
-				(struct sscop *, int, int) = {
+				(struct sscop *, intptr_t, intptr_t) = {
 			NULL,			/* SOS_INST */
 			NULL,			/* SOS_IDLE */
 			NULL,			/* SOS_OUTCONN */
@@ -222,7 +222,7 @@ static void	(*sscop_recrsp_tab[SOS_NUMSTATES])
 
 /* SSCOP_UNITDATA_REQ */
 static void	(*sscop_udtreq_tab[SOS_NUMSTATES])
-				(struct sscop *, int, int) = {
+				(struct sscop *, intptr_t, intptr_t) = {
 			NULL,			/* SOS_INST */
 			sscop_udtreq_all,	/* SOS_IDLE */
 			sscop_udtreq_all,	/* SOS_OUTCONN */
@@ -239,7 +239,7 @@ static void	(*sscop_udtreq_tab[SOS_NUMSTATES])
 
 /* SSCOP_RETRIEVE_REQ */
 static void	(*sscop_retreq_tab[SOS_NUMSTATES])
-				(struct sscop *, int, int) = {
+				(struct sscop *, intptr_t, intptr_t) = {
 			NULL,			/* SOS_INST */
 			NULL,			/* SOS_IDLE */
 			NULL,			/* SOS_OUTCONN */
@@ -259,7 +259,7 @@ static void	(*sscop_retreq_tab[SOS_NUMSTATES])
  * Stack command lookup table
  */
 void	(*(*sscop_q2110_aatab[SSCOP_CMD_SIZE]))
-				(struct sscop *, int, int) = {
+				(struct sscop *, intptr_t, intptr_t) = {
 		NULL,
 		sscop_init_tab,
 		sscop_term_tab,
@@ -314,8 +314,8 @@ void	(*(*sscop_q2110_aatab[SSCOP_CMD_SIZE]))
 static void
 sscop_resreq_ready(sop, arg1, arg2)
 	struct sscop	*sop;
-	int		arg1;
-	int		arg2;
+	intptr_t	arg1;
+	intptr_t	arg2;
 {
 
 	/*
@@ -379,8 +379,8 @@ sscop_resreq_ready(sop, arg1, arg2)
 static void
 sscop_resrsp_inresyn(sop, arg1, arg2)
 	struct sscop	*sop;
-	int		arg1;
-	int		arg2;
+	intptr_t	arg1;
+	intptr_t	arg2;
 {
 
 	/*
@@ -429,8 +429,8 @@ sscop_resrsp_inresyn(sop, arg1, arg2)
 static void
 sscop_recrsp_recovrsp(sop, arg1, arg2)
 	struct sscop	*sop;
-	int		arg1;
-	int		arg2;
+	intptr_t	arg1;
+	intptr_t	arg2;
 {
 
 	/*
@@ -480,8 +480,8 @@ sscop_recrsp_recovrsp(sop, arg1, arg2)
 static void
 sscop_recrsp_inrecov(sop, arg1, arg2)
 	struct sscop	*sop;
-	int		arg1;
-	int		arg2;
+	intptr_t	arg1;
+	intptr_t	arg2;
 {
 
 	/*

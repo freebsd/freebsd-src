@@ -1538,7 +1538,7 @@ usf_enc_ie_ident(usf, ie, tbl)
 		/*
 		 * Check whether to send the field
 		 */
-		cp = (char *) ((int)ie + tbl[i].f_offs);
+		cp = (char *) ((intptr_t)ie + tbl[i].f_offs);
 		if (tbl[i].len == 0) {
 			if ((*cp == T_NO || *cp == T_ATM_ABSENT))
 				continue;

@@ -162,7 +162,7 @@ void		ipatm_arpnotify(struct ipvcc *, int);
 void		ipatm_itimeout(struct atm_time *);
 
 	/* ipatm_if.c */
-int		ipatm_nifstat(int, struct atm_nif *, int);
+int		ipatm_nifstat(int, struct atm_nif *, intptr_t);
 
 	/* ipatm_input.c */
 void		ipatm_cpcs_data(void *, KBuffer *);

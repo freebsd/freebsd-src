@@ -52,9 +52,9 @@ struct univcc {
 	void		*uv_toku;	/* Stack upper layer's token */
 	void		*uv_tokl;	/* Stack lower layer's token */
 	void		(*uv_upper)	/* Stack upper layer's interface */
-				(int, void *, int, int);
+				(int, void *, intptr_t, intptr_t);
 	void		(*uv_lower)	/* Stack lower layer's interface */
-				(int, void *, int, int);
+				(int, void *, intptr_t, intptr_t);
 };
 
 /*
@@ -98,10 +98,10 @@ void		sscf_uni_abort(struct univcc *, char *);
 void		sscf_uni_pdu_print(struct univcc *, KBuffer *, char *);
 
 	/* sscf_uni_lower.c */
-void		sscf_uni_lower(int, void *, int, int);
+void		sscf_uni_lower(int, void *, intptr_t, intptr_t);
 
 	/* sscf_uni_upper.c */
-void		sscf_uni_upper(int, void *, int, int);
+void		sscf_uni_upper(int, void *, intptr_t, intptr_t);
 
 
 /*
