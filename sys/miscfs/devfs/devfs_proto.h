@@ -1,21 +1,20 @@
 /* THIS FILE PRODUCED AUTOMATICALLY */
 void  devfs_sinit(caddr_t junk) /*proto*/;
+dn_p dev_findname(dn_p dir,char *name) /*proto*/;
 int	dev_finddir(char *orig_path, dn_p dirnode, int create, dn_p *dn_pp) /*proto*/;
-int	dev_add_node(char *name, dn_p dirnode,devnm_p back, int entrytype, union typeinfo *by, devnm_p *devnm_pp) /*proto*/;
-int	dev_remove(devnm_p devnmp) /*proto*/;
+int	dev_add_name(char *name, dn_p dirnode,devnm_p back, int entrytype, union typeinfo *by, devnm_p *devnm_pp) /*proto*/;
 int	dev_touch(devnm_p key)		/* update the node for this dev */ /*proto*/;
 void	devfs_dn_free(dn_p dnp) /*proto*/;
-int get_cdev_major_num(caddr_t addr)	/*proto*/;
-int get_bdev_major_num(caddr_t addr)	/*proto*/;
 int devfs_add_fronts(devnm_p parent,devnm_p child) /*proto*/;
-dn_p dev_findname(dn_p dir,char *name) /*proto*/;
-int dev_mk_front(dn_p parent, devnm_p back, devnm_p *dnm_pp, struct devfsmount *dvm) /*proto*/;
-int devfs_make_plane(struct devfsmount *devfs_mp_p) /*proto*/;
+void	dev_remove_dev(devnm_p devnmp) /*proto*/;
+int dev_dup_plane(struct devfsmount *devfs_mp_p) /*proto*/;
 void  devfs_free_plane(struct devfsmount *devfs_mp_p) /*proto*/;
-void devfs_remove_fronts(devnm_p devnmp) /*proto*/;
+int dev_dup_name(dn_p parent, devnm_p back, devnm_p *dnm_pp, struct devfsmount *dvm) /*proto*/;
 void dev_free_name(devnm_p devnmp) /*proto*/;
 int devfs_vntodn(struct vnode *vn_p, dn_p *dn_pp) /*proto*/;
 int devfs_dntovn(dn_p dnp, struct vnode **vn_pp) /*proto*/;
+int get_cdev_major_num(caddr_t addr)	/*proto*/;
+int get_bdev_major_num(caddr_t addr)	/*proto*/;
 int devfs_init(void) /*proto*/;
 int devfs_mount( struct mount *mp, char *path, caddr_t data, struct nameidata *ndp, struct proc *p) /*proto*/;
 int mountdevfs( struct mount *mp, struct proc *p) /*proto*/;
