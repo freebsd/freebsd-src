@@ -48,7 +48,6 @@ SUBDIR=	IPXrouted \
 	newsyslog \
 	ngctl \
 	nghook \
-	nslookup \
 	pccard \
 	pciconf \
 	periodic \
