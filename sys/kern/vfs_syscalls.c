@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)vfs_syscalls.c	8.13 (Berkeley) 4/15/94
- * $Id: vfs_syscalls.c,v 1.122 1999/04/27 11:16:25 phk Exp $
+ * $Id: vfs_syscalls.c,v 1.123 1999/04/28 11:37:09 phk Exp $
  */
 
 /* For 4.3 integer FS ID compatibility */
@@ -1020,7 +1020,7 @@ open(p, uap)
 		vn_lock(vp, LK_EXCLUSIVE | LK_RETRY, p);
 		fp->f_flag |= FHASLOCK;
 	}
-	if ((vp->v_type == VREG) && (vp->v_object == NULL))
+	if (vn_canvmio(vp) == TRUE && vp->v_object == NULL)
 		vfs_object_create(vp, p, p->p_ucred);
 	VOP_UNLOCK(vp, 0, p);
 	p->p_retval[0] = indx;
