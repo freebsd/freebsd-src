@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 2000, 2001, 2002, 2003 Mark R V Murray
+ * Copyright (c) 2000-2004 Mark R V Murray
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -37,29 +37,29 @@ __FBSDID("$FreeBSD$");
 #include <sys/queue.h>
 #include <sys/random.h>
 #include <sys/selinfo.h>
-#include <sys/sysctl.h>
 #include <sys/systm.h>
+#include <sys/sysctl.h>
 
 #include <machine/cpu.h>
 
-#include <dev/random/randomdev.h>
+#include <dev/random/randomdev_soft.h>
 
 static int read_random_phony(void *, int);
 
 /* Structure holding the desired entropy sources */
-struct harvest_select harvest = { 0, 0, 0 };
+struct harvest_select harvest = { 0, 0, 0, 0 };
 
 /* hold the address of the routine which is actually called if
  * the randomdev is loaded
  */
-static void (*reap_func)(u_int64_t, void *, u_int, u_int, u_int, enum esource)
-    = NULL;
+static void (*reap_func)(u_int64_t, const void *, u_int, u_int, u_int,
+    enum esource) = NULL;
 static int (*read_func)(void *, int) = read_random_phony;
 
 /* Initialise the harvester at load time */
 void
-random_init_harvester(void (*reaper)(u_int64_t, void *, u_int, u_int, u_int,
-    enum esource), int (*reader)(void *, int))
+random_yarrow_init_harvester(void (*reaper)(u_int64_t, const void *, u_int,
+    u_int, u_int, enum esource), int (*reader)(void *, int))
 {
 	reap_func = reaper;
 	read_func = reader;
@@ -67,7 +67,7 @@ random_init_harvester(void (*reaper)(u_int64_t, void *, u_int, u_int, u_int,
 
 /* Deinitialise the harvester at unload time */
 void
-random_deinit_harvester(void)
+random_yarrow_deinit_harvester(void)
 {
 	reap_func = NULL;
 	read_func = read_random_phony;
@@ -91,7 +91,7 @@ random_harvest(void *entropy, u_int count, u_int bits, u_int frac,
 int
 read_random(void *buf, int count)
 {
-	return (*read_func)(buf, count);
+	return ((*read_func)(buf, count));
 }
 
 /* If the entropy device is not loaded, make a token effort to
@@ -109,13 +109,11 @@ read_random_phony(void *buf, int count)
 	/* Fill buf[] with random(9) output */
 	for (i = 0; i < count; i+= (int)sizeof(u_long)) {
 		randval = random();
-		size = (count - i) < (int)sizeof(u_long)
-		    ? (count - i)
-		    : sizeof(u_long);
+		size = MIN(count - i, sizeof(u_long));
 		memcpy(&((char *)buf)[i], &randval, (size_t)size);
 	}
 
-	return count;
+	return (count);
 }
 
 /* Helper routine to enable kthread_exit() to work while the module is
