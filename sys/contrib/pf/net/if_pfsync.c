@@ -1529,7 +1529,9 @@ int
 pfsync_sendout(sc)
 	struct pfsync_softc *sc;
 {
+#if NBPFILTER > 0
 	struct ifnet *ifp = &sc->sc_if;
+#endif
 	struct mbuf *m;
 
 #ifdef __FreeBSD__
