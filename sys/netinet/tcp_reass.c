@@ -992,8 +992,7 @@ after_listen:
 			    tp->snd_cwnd >= tp->snd_wnd &&
 			    ((!tcp_do_newreno &&
 			      tp->t_dupacks < tcprexmtthresh) ||
-			     (tcp_do_newreno &&
-			      !SEQ_LT(tp->snd_una, tp->snd_recover)))) {
+			     (tcp_do_newreno && !IN_FASTRECOVERY(tp)))) {
 				KASSERT(headlocked, ("headlocked"));
 				INP_INFO_WUNLOCK(&tcbinfo);
 				/*
@@ -1009,7 +1008,9 @@ after_listen:
 					tp->snd_cwnd = tp->snd_cwnd_prev;
 					tp->snd_ssthresh =
 					    tp->snd_ssthresh_prev;
-					tp->snd_high = tp->snd_high_prev;
+					tp->snd_recover = tp->snd_recover_prev;
+					if (tp->t_flags & TF_WASFRECOVERY)
+					    ENTER_FASTRECOVERY(tp);
 					tp->snd_nxt = tp->snd_max;
 					tp->t_badrxtwin = 0;
 				}
@@ -1036,10 +1037,10 @@ after_listen:
 				tcpstat.tcps_rcvackpack++;
 				tcpstat.tcps_rcvackbyte += acked;
 				sbdrop(&so->so_snd, acked);
-				if (SEQ_GT(tp->snd_una, tp->snd_high) &&
-				    SEQ_LEQ(th->th_ack, tp->snd_high))
-					tp->snd_high = th->th_ack - 1;
-				tp->snd_una = tp->snd_recover = th->th_ack;
+				if (SEQ_GT(tp->snd_una, tp->snd_recover) &&
+				    SEQ_LEQ(th->th_ack, tp->snd_recover))
+					tp->snd_recover = th->th_ack - 1;
+				tp->snd_una = th->th_ack;
 				/*
 				 * pull snd_wl2 up to prevent seq wrap relative
 				 * to th_ack.
@@ -1739,8 +1740,7 @@ trimthenstep6:
 					tp->t_dupacks = 0;
 				else if (++tp->t_dupacks > tcprexmtthresh ||
 					 (tcp_do_newreno &&
-					  SEQ_LT(tp->snd_una,
-					  	 tp->snd_recover))) {
+					  IN_FASTRECOVERY(tp))) {
 					tp->snd_cwnd += tp->t_maxseg;
 					(void) tcp_output(tp);
 					goto drop;
@@ -1748,7 +1748,8 @@ trimthenstep6:
 					tcp_seq onxt = tp->snd_nxt;
 					u_int win;
 					if (tcp_do_newreno &&
-					    SEQ_LEQ(th->th_ack, tp->snd_high)) {
+					    SEQ_LEQ(th->th_ack,
+					            tp->snd_recover)) {
 						tp->t_dupacks = 0;
 						break;
 					}
@@ -1757,6 +1758,7 @@ trimthenstep6:
 					if (win < 2)
 						win = 2;
 					tp->snd_ssthresh = win * tp->t_maxseg;
+					ENTER_FASTRECOVERY(tp);
 					tp->snd_recover = tp->snd_max;
 					callout_stop(tp->tt_rexmt);
 					tp->t_rtttime = 0;
@@ -1809,7 +1811,7 @@ trimthenstep6:
 		 * for the other side's cached packets, retract it.
 		 */
 		if (tcp_do_newreno) {
-			if (SEQ_LT(tp->snd_una, tp->snd_recover)) {
+			if (IN_FASTRECOVERY(tp)) {
 				if (SEQ_LT(th->th_ack, tp->snd_recover)) {
 					tcp_newreno_partial_ack(tp, th);
 				} else {
@@ -1879,7 +1881,9 @@ process_ACK:
 			++tcpstat.tcps_sndrexmitbad;
 			tp->snd_cwnd = tp->snd_cwnd_prev;
 			tp->snd_ssthresh = tp->snd_ssthresh_prev;
-			tp->snd_high = tp->snd_high_prev;
+			tp->snd_recover = tp->snd_recover_prev;
+			if (tp->t_flags & TF_WASFRECOVERY)
+				ENTER_FASTRECOVERY(tp);
 			tp->snd_nxt = tp->snd_max;
 			tp->t_badrxtwin = 0;	/* XXX probably not required */ 
 		}
@@ -1933,7 +1937,7 @@ process_ACK:
 		 * Otherwise open linearly: maxseg per window
 		 * (maxseg^2 / cwnd per packet).
 		 */
-		if (!tcp_do_newreno || SEQ_GEQ(tp->snd_una, tp->snd_recover)) {
+		if (!tcp_do_newreno || !IN_FASTRECOVERY(tp)) {
 			register u_int cw = tp->snd_cwnd;
 			register u_int incr = tp->t_maxseg;
 			if (cw > tp->snd_ssthresh)
@@ -1951,12 +1955,13 @@ process_ACK:
 		}
 		sowwakeup(so);
 		/* detect una wraparound */
-		if (SEQ_GEQ(tp->snd_una, tp->snd_recover) &&
-		    SEQ_LT(th->th_ack, tp->snd_recover))
-			tp->snd_recover = th->th_ack;
-		if (SEQ_GT(tp->snd_una, tp->snd_high) &&
-		    SEQ_LEQ(th->th_ack, tp->snd_high))
-			tp->snd_high = th->th_ack - 1;
+		if (tcp_do_newreno && !IN_FASTRECOVERY(tp) &&
+		    SEQ_GT(tp->snd_una, tp->snd_recover) &&
+		    SEQ_LEQ(th->th_ack, tp->snd_recover))
+			tp->snd_recover = th->th_ack - 1;
+		if (tcp_do_newreno && IN_FASTRECOVERY(tp) &&
+		    SEQ_GEQ(th->th_ack, tp->snd_recover))
+			EXIT_FASTRECOVERY(tp);
 		tp->snd_una = th->th_ack;
 		if (SEQ_LT(tp->snd_nxt, tp->snd_una))
 			tp->snd_nxt = tp->snd_una;
