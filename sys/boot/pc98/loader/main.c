@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: main.c,v 1.1.2.1 1999/02/06 07:37:15 kato Exp $
+ *	$Id: main.c,v 1.1.2.2 1999/03/11 10:26:21 kato Exp $
  */
 
 /*
@@ -37,7 +37,7 @@
 #include <sys/reboot.h>
 
 #include "bootstrap.h"
-#include "../../i386/libi386/libi386.h"
+#include "libi386/libi386.h"
 #include "btxv86.h"
 
 /* Arguments passed in from the boot1/boot2 loader */
