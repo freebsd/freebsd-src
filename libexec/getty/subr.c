@@ -36,7 +36,7 @@
 static char sccsid[] = "@(#)from: subr.c	8.1 (Berkeley) 6/4/93";
 #endif
 static const char rcsid[] =
-	"$Id$";
+	"$Id: subr.c,v 1.13 1997/11/21 07:43:52 charnier Exp $";
 #endif /* not lint */
 
 /*
@@ -704,6 +704,7 @@ static struct speedtab {
 	{ 7200,	EXTB },		/* alternative */
 	{ 57600, B57600 },
 	{ 115200, B115200 },
+	{ 230400, B230400 },
 	{ 0 }
 };
 
@@ -713,7 +714,7 @@ speed(val)
 {
 	register struct speedtab *sp;
 
-	if (val <= B115200)
+	if (val <= B230400)
 		return (val);
 
 	for (sp = speedtab; sp->speed; sp++)
