@@ -96,6 +96,7 @@ struct proclist zombproc;
 struct sx allproc_lock;
 struct sx proctree_lock;
 struct mtx pargs_ref_lock;
+struct mtx ppeers_lock;
 uma_zone_t proc_zone;
 uma_zone_t ithread_zone;
 
@@ -118,6 +119,7 @@ procinit()
 	sx_init(&allproc_lock, "allproc");
 	sx_init(&proctree_lock, "proctree");
 	mtx_init(&pargs_ref_lock, "struct pargs.ref", NULL, MTX_DEF);
+	mtx_init(&ppeers_lock, "p_peers", NULL, MTX_DEF);
 	LIST_INIT(&allproc);
 	LIST_INIT(&zombproc);
 	pidhashtbl = hashinit(maxproc / 4, M_PROC, &pidhash);

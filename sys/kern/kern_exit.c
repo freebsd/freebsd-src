@@ -207,8 +207,8 @@ exit1(td, rv)
 	PROC_UNLOCK(p);
 
 	/* Are we a task leader? */
-	PROC_LOCK(p);
 	if (p == p->p_leader) {
+		mtx_lock(&ppeers_lock);
 		q = p->p_peers;
 		while (q != NULL) {
 			PROC_LOCK(q);
@@ -216,10 +216,10 @@ exit1(td, rv)
 			PROC_UNLOCK(q);
 			q = q->p_peers;
 		}
-		while (p->p_peers) 
-			msleep(p, &p->p_mtx, PWAIT, "exit1", 0);
+		while (p->p_peers != NULL) 
+			msleep(p, &ppeers_lock, PWAIT, "exit1", 0);
+		mtx_unlock(&ppeers_lock);
 	}
-	PROC_UNLOCK(p);
 
 #ifdef PGINPROF
 	vmsizmon();
@@ -265,7 +265,7 @@ exit1(td, rv)
 	/*
 	 * Remove ourself from our leader's peer list and wake our leader.
 	 */
-	PROC_LOCK(p->p_leader);
+	mtx_lock(&ppeers_lock);
 	if (p->p_leader->p_peers) {
 		q = p->p_leader;
 		while (q->p_peers != p)
@@ -273,7 +273,7 @@ exit1(td, rv)
 		q->p_peers = p->p_peers;
 		wakeup(p->p_leader);
 	}
-	PROC_UNLOCK(p->p_leader);
+	mtx_unlock(&ppeers_lock);
 
 	/* The next two chunks should probably be moved to vmspace_exit. */
 	vm = p->p_vmspace;
