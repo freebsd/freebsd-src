@@ -1179,6 +1179,7 @@ ndis_load_driver(img, arg)
 
 	block->nmb_ifp = &sc->arpcom.ac_if;
 	block->nmb_dev = sc->ndis_dev;
+	block->nmb_img = img;
 
 	return(0);
 }

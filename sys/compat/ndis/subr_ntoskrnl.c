@@ -59,6 +59,8 @@ __FBSDID("$FreeBSD$");
 #include <compat/ndis/ntoskrnl_var.h>
 
 #define __stdcall __attribute__((__stdcall__))
+#define __regparm __attribute__((regparm(3)))
+
 #define FUNC void(*)(void)
 
 __stdcall static uint32_t ntoskrnl_unicode_equal(ndis_unicode_string *,
@@ -82,13 +84,13 @@ __stdcall static uint8_t ntoskrnl_readreg_uchar(uint8_t *);
 __stdcall static int64_t _allmul(int64_t, int64_t);
 __stdcall static int64_t _alldiv(int64_t, int64_t);
 __stdcall static int64_t _allrem(int64_t, int64_t);
-__stdcall static int64_t _allshr(int64_t, int);
-__stdcall static int64_t _allshl(int64_t, int);
+__regparm static int64_t _allshr(int64_t, uint8_t);
+__regparm static int64_t _allshl(int64_t, uint8_t);
 __stdcall static uint64_t _aullmul(uint64_t, uint64_t);
 __stdcall static uint64_t _aulldiv(uint64_t, uint64_t);
 __stdcall static uint64_t _aullrem(uint64_t, uint64_t);
-__stdcall static uint64_t _aullshr(uint64_t, int);
-__stdcall static uint64_t _aullshl(uint64_t, int);
+__regparm static uint64_t _aullshr(uint64_t, uint8_t);
+__regparm static uint64_t _aullshl(uint64_t, uint8_t);
 __stdcall static void *ntoskrnl_allocfunc(uint32_t, size_t, uint32_t);
 __stdcall static void ntoskrnl_freefunc(void *);
 __stdcall static void ntoskrnl_init_lookaside(paged_lookaside_list *,
@@ -108,11 +110,13 @@ __stdcall static slist_entry *ntoskrnl_pop_slist_ex(/*slist_entry *,
 	kspin_lock * */void);
 __stdcall static void ntoskrnl_lock_dpc(/*kspin_lock * */ void);
 __stdcall static void ntoskrnl_unlock_dpc(/*kspin_lock * */ void);
-__stdcall static void ntoskrnl_interlock_inc(/*volatile uint32_t * */ void);
-__stdcall static void ntoskrnl_interlock_dec(/*volatile uint32_t * */ void);
+__stdcall static uint32_t
+	ntoskrnl_interlock_inc(/*volatile uint32_t * */ void);
+__stdcall static uint32_t
+	ntoskrnl_interlock_dec(/*volatile uint32_t * */ void);
 __stdcall static void ntoskrnl_freemdl(ndis_buffer *);
 __stdcall static void *ntoskrnl_mmaplockedpages(ndis_buffer *, uint8_t);
-__stdcall static void ntoskrnl_create_lock(kspin_lock *);
+__stdcall static void ntoskrnl_init_lock(kspin_lock *);
 __stdcall static void dummy(void);
 __stdcall static size_t ntoskrnl_memcmp(const void *, const void *, size_t);
 
@@ -121,7 +125,7 @@ static struct mtx ntoskrnl_interlock;
 int
 ntoskrnl_libinit()
 {
-	mtx_init(&ntoskrnl_interlock, "ntoskrnllock", MTX_NETWORK_LOCK,
+	mtx_init(&ntoskrnl_interlock, "ntoskrnllock", "ntoskrnl interlock",
 	    MTX_DEF | MTX_RECURSE);
 
 	return(0);
@@ -333,34 +337,34 @@ _aullrem(a, b)
 	return (a % b);
 }
 
-__stdcall static int64_t
+__regparm static int64_t
 _allshl(a, b)
 	int64_t			a;
-	int			b;
+	uint8_t			b;
 {
 	return (a << b);
 }
 
-__stdcall static uint64_t
+__regparm static uint64_t
 _aullshl(a, b)
 	uint64_t		a;
-	int			b;
+	uint8_t			b;
 {
 	return (a << b);
 }
 
-__stdcall static int64_t
+__regparm static int64_t
 _allshr(a, b)
 	int64_t			a;
-	int			b;
+	uint8_t			b;
 {
 	return (a >> b);
 }
 
-__stdcall static uint64_t
+__regparm static uint64_t
 _aullshr(a, b)
 	uint64_t		a;
-	int			b;
+	uint8_t			b;
 {
 	return (a >> b);
 }
@@ -567,7 +571,7 @@ ntoskrnl_unlock_dpc(/*lock*/ void)
 	return;
 }
 
-__stdcall static void
+__stdcall static uint32_t
 ntoskrnl_interlock_inc(/*addend*/ void)
 {
 	volatile uint32_t	*addend;
@@ -578,10 +582,10 @@ ntoskrnl_interlock_inc(/*addend*/ void)
 	(*addend)++;
 	mtx_unlock(&ntoskrnl_interlock);
 
-	return;
+	return(*addend);
 }
 
-__stdcall static void
+__stdcall static uint32_t
 ntoskrnl_interlock_dec(/*addend*/ void)
 {
 	volatile uint32_t	*addend;
@@ -592,7 +596,7 @@ ntoskrnl_interlock_dec(/*addend*/ void)
 	(*addend)--;
 	mtx_unlock(&ntoskrnl_interlock);
 
-	return;
+	return(*addend);
 }
 
 __stdcall static void
@@ -623,19 +627,19 @@ ntoskrnl_mmaplockedpages(buf, accessmode)
 	return(MDL_VA(buf));
 }
 
+/*
+ * The KeInitializeSpinLock(), KefAcquireSpinLockAtDpcLevel()
+ * and KefReleaseSpinLockFromDpcLevel() appear to be analagous
+ * to splnet()/splx() in their use. We can't create a new mutex
+ * lock here because there is no complimentary KeFreeSpinLock()
+ * function. For now, what we do is initialize the lock with
+ * a pointer to the ntoskrnl interlock mutex.
+ */
 __stdcall static void
-ntoskrnl_create_lock(lock)
+ntoskrnl_init_lock(lock)
 	kspin_lock		*lock;
 {
-	struct mtx		*mtx;
-
-	mtx = malloc(sizeof(struct mtx), M_DEVBUF, M_NOWAIT|M_ZERO);
-	if (mtx == NULL)
-                return;
-	mtx_init(mtx, "ntoslock", "ntoskrnl spinlock",
-	    MTX_DEF | MTX_RECURSE | MTX_DUPOK);
-
-	*lock = (kspin_lock)mtx;
+	*lock = (kspin_lock)&ntoskrnl_interlock;
 
 	return;
 }
@@ -715,7 +719,7 @@ image_patch_table ntoskrnl_functbl[] = {
 	{ "InterlockedDecrement",	(FUNC)ntoskrnl_interlock_dec },
 	{ "IoFreeMdl",			(FUNC)ntoskrnl_freemdl },
 	{ "MmMapLockedPages",		(FUNC)ntoskrnl_mmaplockedpages },
-	{ "KeInitializeSpinLock",	(FUNC)ntoskrnl_create_lock },
+	{ "KeInitializeSpinLock",	(FUNC)ntoskrnl_init_lock },
 
 	/*
 	 * This last entry is a catch-all for any function we haven't
