@@ -17,7 +17,7 @@
  *  POSSIBILITY OF SUCH DAMAGE.
  *
  *  ft.c - QIC-40/80 floppy tape driver
- *  $Id: ft.c,v 1.13 1994/10/23 21:27:14 wollman Exp $
+ *  $Id: ft.c,v 1.14 1994/11/15 14:34:42 bde Exp $
  *
  *  06/07/94 v0.9 ++sg
  *  Tape stuck on segment problem should be gone.  Re-wrote buffering
@@ -2057,6 +2057,8 @@ ftopen(dev_t dev, int arg2) {
   if (ftu >= NFT) 
 	return(ENXIO);
   fdc = ft_data[ftu].fdc;
+  if ((fdc == NULL) || (ft_data[ftu].type == NO_TYPE))
+	  return(ENXIO);
   /* check for controller already busy with tape */
   if (fdc->flags & FDC_TAPE_BUSY)
 	return(EBUSY); 
