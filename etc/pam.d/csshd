@@ -1,9 +1,0 @@
-#
-# $FreeBSD$
-#
-# PAM configuration for the "csshd" service
-#
-
-# auth
-auth		sufficient	pam_opie.so	no_warn no_fake_prompts
-auth		requisite	pam_opieaccess.so	no_warn
