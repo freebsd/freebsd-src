@@ -2712,6 +2712,7 @@ audience, either."
 	n = (n & 0x0f0f0f0f) + ((n & 0xf0f0f0f0) >> 4);
 	n = (n & 0x00ff00ff) + ((n & 0xff00ff00) >> 8);
 	n = (n & 0x0000ffff) + ((n & 0xffff0000) >> 16);
+
 -- Count the bits in a word.
 %
 	Never ask your lover if he'd dive in front of an oncoming train for
