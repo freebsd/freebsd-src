@@ -165,7 +165,7 @@ Config_spec:
 
 System_spec:
 	CONFIG System_id System_parameter_list
-	  = { warnx("line %d: root/dump/swap specifications obsolete", yyline);}
+	  = { errx(1, "line %d: root/dump/swap specifications obsolete", yyline);}
 	  |
 	CONFIG System_id
 	  ;
@@ -209,11 +209,8 @@ Option:
 		 */
 		op->op_line = yyline;
 		opt = op;
-		if ((s = strchr(op->op_name, '='))) {
-			warnx("line %d: The `=' in options should not be quoted", yyline);
-			*s = '\0';
-			op->op_value = ns(s + 1);
-		}
+		if ((s = strchr(op->op_name, '=')))
+			errx(1, "line %d: The `=' in options should not be quoted", yyline);
 	      } |
 	Save_id EQUALS Opt_value
 	      = {
@@ -295,7 +292,7 @@ Device_spec:
 		cur.d_name = $2;
 		cur.d_count = $3;
 		if (cur.d_count == 0)
-			warnx("line %d: devices with zero units are not likely to be correct", yyline);
+			errx(1, "line %d: devices with zero units are not likely to be correct", yyline);
 		} ;
 
 %%
@@ -304,7 +301,7 @@ static void
 yyerror(char *s)
 {
 
-	warnx("line %d: %s", yyline + 1, s);
+	errx(1, "line %d: %s", yyline + 1, s);
 }
 
 /*

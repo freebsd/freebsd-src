@@ -77,7 +77,7 @@ headers(void)
 	for (dp = dtab; dp != 0; dp = dp->d_next) {
 		if ((dp->d_type & TYPEMASK) == DEVICE) {
 			if (!(dp->d_type & DEVDONE))
-				printf("Warning: device \"%s\" is unknown\n",
+				errx(1, "Error: device \"%s\" is unknown",
 				       dp->d_name);
 		}
 	}
