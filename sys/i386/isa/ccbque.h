@@ -64,7 +64,7 @@ DEV##_init_ccbque(count)						\
 	int count;							\
 {									\
 	if (CCBTYPE##que.maxccb == 0)					\
-		TAILQ_INIT(&CCBTYPE##que.CCBTYPE##tab)			\
+		TAILQ_INIT(&CCBTYPE##que.CCBTYPE##tab);			\
 	CCBTYPE##que.maxccb += count;					\
 }									\
 									\
@@ -82,7 +82,7 @@ again:									\
 		cb = CCBTYPE##que.CCBTYPE##tab.tqh_first;		\
 		if (cb != NULL)						\
 		{							\
-			TAILQ_REMOVE(&CCBTYPE##que.CCBTYPE##tab, cb, CHAIN)\
+			TAILQ_REMOVE(&CCBTYPE##que.CCBTYPE##tab, cb, CHAIN);\
 			goto out;					\
 		}							\
 		else							\
@@ -116,7 +116,7 @@ DEV##_free_ccb(cb)							\
 {									\
 	int s = splbio();						\
 									\
-	TAILQ_INSERT_TAIL(&CCBTYPE##que.CCBTYPE##tab, cb, CHAIN)	\
+	TAILQ_INSERT_TAIL(&CCBTYPE##que.CCBTYPE##tab, cb, CHAIN);	\
 	CCBTYPE##que.count --;						\
 									\
 	if (CCBTYPE##que.flags & CCB_MWANTED)				\
