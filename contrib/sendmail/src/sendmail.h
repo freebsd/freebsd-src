@@ -48,7 +48,7 @@
 
 #ifdef _DEFINE
 # ifndef lint
-SM_UNUSED(static char SmailId[]) = "@(#)$Id: sendmail.h,v 8.919.2.17 2003/03/12 22:42:52 gshapiro Exp $";
+SM_UNUSED(static char SmailId[]) = "@(#)$Id: sendmail.h,v 8.919.2.28 2003/09/03 19:58:27 ca Exp $";
 # endif /* ! lint */
 #endif /* _DEFINE */
 
@@ -184,6 +184,10 @@ SM_UNUSED(static char SmailId[]) = "@(#)$Id: sendmail.h,v 8.919.2.17 2003/03/12 
 #ifndef INADDR_NONE
 # define INADDR_NONE	0xffffffff
 #endif /* ! INADDR_NONE */
+
+
+/* (f)open() modes for queue files */
+# define QF_O_EXTRA	0
 
 
 /*
@@ -1052,6 +1056,7 @@ struct rewrite
 #define MATCHZERO	CANONHOST
 
 #define MAXMATCH	9	/* max params per rewrite */
+#define MAX_MAP_ARGS	10	/* max arguments for map */
 
 /* external <==> internal mapping table */
 struct metamac
@@ -1696,7 +1701,7 @@ EXTERN int		MilterLogLevel;
 
 # if _FFR_MILTER_PERDAEMON
 /* functions */
-extern void	setup_daemon_milters __P(());
+extern void	setup_daemon_milters __P((void));
 # endif /* _FFR_MILTER_PERDAEMON */
 #endif /* MILTER */
 
@@ -1962,7 +1967,7 @@ extern void	quarantine_queue __P((char *, int));
 extern char	*queuename __P((ENVELOPE *, int));
 extern void	queueup __P((ENVELOPE *, bool, bool));
 extern bool	runqueue __P((bool, bool, bool, bool));
-extern int	run_work_group __P((int, int));
+extern bool	run_work_group __P((int, int));
 extern void	set_def_queueval __P((QUEUEGRP *, bool));
 extern void	setup_queues __P((bool));
 extern bool	setnewqueue __P((ENVELOPE *));
@@ -2118,6 +2123,19 @@ extern unsigned char	tTdvect[100];	/* trace vector */
 			sm_free(var); \
 		var = _newval; \
 	} while (0)
+
+#define _CHECK_RESTART \
+	do \
+	{ \
+		if (ShutdownRequest != NULL) \
+			shutdown_daemon(); \
+		else if (RestartRequest != NULL) \
+			restart_daemon(); \
+		else if (RestartWorkGroup) \
+			restart_marked_work_groups(); \
+	} while (0)
+
+# define CHECK_RESTART _CHECK_RESTART
 
 /*
 **  Global variables.
@@ -2423,7 +2441,7 @@ extern void	cleanstrcpy __P((char *, char *, int));
 extern void	cleanup_shm __P((bool));
 #endif /* SM_CONF_SHM */
 extern void	clrdaemon __P((void));
-extern void	collect __P((SM_FILE_T *, bool, HDR **, ENVELOPE *));
+extern void	collect __P((SM_FILE_T *, bool, HDR **, ENVELOPE *, bool));
 extern time_t	convtime __P((char *, int));
 extern char	**copyplist __P((char **, bool, SM_RPOOL_T *));
 extern void	copy_class __P((int, int));
@@ -2502,7 +2520,7 @@ extern SIGFUNC_DECL	reapchild __P((int));
 extern int	releasesignal __P((int));
 extern void	resetlimits __P((void));
 extern void	restart_daemon __P((void));
-extern void	restart_marked_work_groups __P(());
+extern void	restart_marked_work_groups __P((void));
 extern bool	rfc822_string __P((char *));
 extern bool	savemail __P((ENVELOPE *, bool));
 extern void	seed_random __P((void));

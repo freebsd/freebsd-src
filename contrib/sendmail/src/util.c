@@ -13,7 +13,7 @@
 
 #include <sendmail.h>
 
-SM_RCSID("@(#)$Id: util.c,v 8.363.2.5 2002/12/12 22:50:41 ca Exp $")
+SM_RCSID("@(#)$Id: util.c,v 8.363.2.7 2003/06/02 03:25:39 gshapiro Exp $")
 
 #include <sysexits.h>
 #include <sm/xtrap.h>
@@ -390,7 +390,7 @@ truncate_at_delim(str, len, delim)
 		*p = '\0';
 		if (p - str + 4 < len)
 		{
-			*p++ = ':';
+			*p++ = (char) delim;
 			*p = '\0';
 			(void) sm_strlcat(str, "...", len);
 			return;
@@ -2414,7 +2414,7 @@ str2prt(s)
 **		false -- otherwise
 */
 
-int
+bool
 path_is_dir(pathname, createflag)
 	char *pathname;
 	bool createflag;
