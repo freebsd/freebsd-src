@@ -249,9 +249,11 @@ m_mballoc_wait(int caller, int type)
 	struct mbuf *p;
 	int s;
 
+	s = splimp();
 	m_mballoc_wid++;
 	if ((tsleep(&m_mballoc_wid, PVM, "mballc", mbuf_wait)) == EWOULDBLOCK)
 		m_mballoc_wid--;
+	splx(s);
 
 	/*
 	 * Now that we (think) that we've got something, we will redo an
