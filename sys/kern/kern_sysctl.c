@@ -182,6 +182,7 @@ long hostid;
 int securelevel = -1;
 extern int vfs_update_wakeup;
 extern int vfs_update_interval;
+extern int osreldate;
 
 /*
  * kernel related system variables.
@@ -212,6 +213,8 @@ kern_sysctl(name, namelen, oldp, oldlenp, newp, newlen, p)
 		return (sysctl_rdint(oldp, oldlenp, newp, BSD));
 	case KERN_VERSION:
 		return (sysctl_rdstring(oldp, oldlenp, newp, version));
+	case KERN_OSRELDATE:
+		return (sysctl_rdint(oldp, oldlenp, newp, osreldate));
 	case KERN_MAXVNODES:
 		return(sysctl_int(oldp, oldlenp, newp, newlen, &desiredvnodes));
 	case KERN_MAXPROC:
