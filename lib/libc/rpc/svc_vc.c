@@ -51,6 +51,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/poll.h>
 #include <sys/socket.h>
 #include <sys/un.h>
+#include <sys/time.h>
 #include <sys/uio.h>
 #include <netinet/in.h>
 #include <netinet/tcp.h>
@@ -58,6 +59,7 @@ __FBSDID("$FreeBSD$");
 #include <assert.h>
 #include <err.h>
 #include <errno.h>
+#include <fcntl.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -73,10 +75,13 @@ struct cmessage {
         struct cmsgcred cmcred;
 };
 
+extern rwlock_t svc_fd_lock;
+
 static SVCXPRT *makefd_xprt(int, u_int, u_int);
 static bool_t rendezvous_request(SVCXPRT *, struct rpc_msg *);
 static enum xprt_stat rendezvous_stat(SVCXPRT *);
 static void svc_vc_destroy(SVCXPRT *);
+static void __svc_vc_dodestroy (SVCXPRT *);
 static int read_vc(void *, void *, int);
 static int write_vc(void *, void *, int);
 static enum xprt_stat svc_vc_stat(SVCXPRT *);
@@ -87,12 +92,15 @@ static bool_t svc_vc_reply(SVCXPRT *, struct rpc_msg *);
 static void svc_vc_rendezvous_ops(SVCXPRT *);
 static void svc_vc_ops(SVCXPRT *);
 static bool_t svc_vc_control(SVCXPRT *xprt, const u_int rq, void *in);
+static bool_t svc_vc_rendezvous_control (SVCXPRT *xprt, const u_int rq,
+				   	     void *in);
 static int __msgread_withcred(int, void *, size_t, struct cmessage *);
 static int __msgwrite(int, void *, size_t);
 
 struct cf_rendezvous { /* kept in xprt->xp_p1 for rendezvouser */
 	u_int sendsize;
 	u_int recvsize;
+	int maxrec;
 };
 
 struct cf_conn {  /* kept in xprt->xp_p1 for actual connection */
@@ -100,6 +108,11 @@ struct cf_conn {  /* kept in xprt->xp_p1 for actual connection */
 	u_int32_t x_id;
 	XDR xdrs;
 	char verf_body[MAX_AUTH_BYTES];
+	u_int sendsize;
+	u_int recvsize;
+	int maxrec;
+	bool_t nonblock;
+	struct timeval last_recv_time;
 };
 
 /*
@@ -139,6 +152,7 @@ svc_vc_create(fd, sendsize, recvsize)
 		return NULL;
 	r->sendsize = __rpc_get_t_size(si.si_af, si.si_proto, (int)sendsize);
 	r->recvsize = __rpc_get_t_size(si.si_af, si.si_proto, (int)recvsize);
+	r->maxrec = __svc_maxrec;
 	xprt = mem_alloc(sizeof(SVCXPRT));
 	if (xprt == NULL) {
 		warnx("svc_vc_create: out of memory");
@@ -285,11 +299,14 @@ rendezvous_request(xprt, msg)
 	SVCXPRT *xprt;
 	struct rpc_msg *msg;
 {
-	int sock;
+	int sock, flags;
 	struct cf_rendezvous *r;
+	struct cf_conn *cd;
 	struct sockaddr_storage addr;
 	socklen_t len;
 	struct __rpc_sockinfo si;
+	SVCXPRT *newxprt;
+	fd_set cleanfds;
 
 	assert(xprt != NULL);
 	assert(msg != NULL);
@@ -301,21 +318,30 @@ again:
 	    &len)) < 0) {
 		if (errno == EINTR)
 			goto again;
-	       return (FALSE);
+		/*
+		 * Clean out the most idle file descriptor when we're
+		 * running out.
+		 */
+		if (errno == EMFILE || errno == ENFILE) {
+			cleanfds = svc_fdset;
+			__svc_clean_idle(&cleanfds, 0, FALSE);
+			goto again;
+		}
+		return (FALSE);
 	}
 	/*
 	 * make a new transporter (re-uses xprt)
 	 */
-	xprt = makefd_xprt(sock, r->sendsize, r->recvsize);
-	xprt->xp_rtaddr.buf = mem_alloc(len);
-	if (xprt->xp_rtaddr.buf == NULL)
+	newxprt = makefd_xprt(sock, r->sendsize, r->recvsize);
+	newxprt->xp_rtaddr.buf = mem_alloc(len);
+	if (newxprt->xp_rtaddr.buf == NULL)
 		return (FALSE);
-	memcpy(xprt->xp_rtaddr.buf, &addr, len);
-	xprt->xp_rtaddr.len = len;
+	memcpy(newxprt->xp_rtaddr.buf, &addr, len);
+	newxprt->xp_rtaddr.len = len;
 #ifdef PORTMAP
 	if (addr.ss_family == AF_INET || addr.ss_family == AF_LOCAL) {
-		xprt->xp_raddr = *(struct sockaddr_in *)xprt->xp_rtaddr.buf;
-		xprt->xp_addrlen = sizeof (struct sockaddr_in);
+		newxprt->xp_raddr = *(struct sockaddr_in *)newxprt->xp_rtaddr.buf;
+		newxprt->xp_addrlen = sizeof (struct sockaddr_in);
 	}
 #endif				/* PORTMAP */
 	if (__rpc_fd2sockinfo(sock, &si) && si.si_proto == IPPROTO_TCP) {
@@ -323,6 +349,28 @@ again:
 		/* XXX fvdl - is this useful? */
 		_setsockopt(sock, IPPROTO_TCP, TCP_NODELAY, &len, sizeof (len));
 	}
+
+	cd = (struct cf_conn *)newxprt->xp_p1;
+
+	cd->recvsize = r->recvsize;
+	cd->sendsize = r->sendsize;
+	cd->maxrec = r->maxrec;
+
+	if (cd->maxrec != 0) {
+		flags = fcntl(sock, F_GETFL, 0);
+		if (flags  == -1)
+			return (FALSE);
+		if (fcntl(sock, F_SETFL, flags | O_NONBLOCK) == -1)
+			return (FALSE);
+		if (cd->recvsize > cd->maxrec)
+			cd->recvsize = cd->maxrec;
+		cd->nonblock = TRUE;
+		__xdrrec_setnonblock(&cd->xdrs, cd->maxrec);
+	} else
+		cd->nonblock = FALSE;
+
+	gettimeofday(&cd->last_recv_time, NULL);
+
 	return (FALSE); /* there is never an rpc msg to be processed */
 }
 
@@ -339,14 +387,21 @@ static void
 svc_vc_destroy(xprt)
 	SVCXPRT *xprt;
 {
+	assert(xprt != NULL);
+	
+	xprt_unregister(xprt);
+	__svc_vc_dodestroy(xprt);
+}
+
+static void
+__svc_vc_dodestroy(xprt)
+	SVCXPRT *xprt;
+{
 	struct cf_conn *cd;
 	struct cf_rendezvous *r;
 
-	assert(xprt != NULL);
-
 	cd = (struct cf_conn *)xprt->xp_p1;
 
-	xprt_unregister(xprt);
 	if (xprt->xp_fd != RPC_ANYFD)
 		(void)_close(xprt->xp_fd);
 	if (xprt->xp_port != 0) {
@@ -380,6 +435,30 @@ svc_vc_control(xprt, rq, in)
 	return (FALSE);
 }
 
+static bool_t
+svc_vc_rendezvous_control(xprt, rq, in)
+	SVCXPRT *xprt;
+	const u_int rq;
+	void *in;
+{
+	struct cf_rendezvous *cfp;
+
+	cfp = (struct cf_rendezvous *)xprt->xp_p1;
+	if (cfp == NULL)
+		return (FALSE);
+	switch (rq) {
+		case SVCGET_CONNMAXREC:
+			*(int *)in = cfp->maxrec;
+			break;
+		case SVCSET_CONNMAXREC:
+			cfp->maxrec = *(int *)in;
+			break;
+		default:
+			return (FALSE);
+	}
+	return (TRUE);
+}
+
 /*
  * reads data from the tcp or uip connection.
  * any error is fatal and the connection is closed.
@@ -399,11 +478,27 @@ read_vc(xprtp, buf, len)
 	struct pollfd pollfd;
 	struct sockaddr *sa;
 	struct cmessage *cm;
+	struct cf_conn *cfp;
 
 	xprt = (SVCXPRT *)xprtp;
 	assert(xprt != NULL);
 
 	sock = xprt->xp_fd;
+
+	cfp = (struct cf_conn *)xprt->xp_p1;
+
+	if (cfp->nonblock) {
+		len = read(sock, buf, (size_t)len);
+		if (len < 0) {
+			if (errno == EAGAIN)
+				len = 0;
+			else
+				goto fatal_err;
+		}
+		if (len != 0)
+			gettimeofday(&cfp->last_recv_time, NULL);
+		return len;
+	}
 
 	do {
 		pollfd.fd = sock;
@@ -432,8 +527,10 @@ read_vc(xprtp, buf, len)
 		} else
 			goto fatal_err;
 	} else {
-		if ((len = _read(sock, buf, (size_t)len)) > 0)
+		if ((len = read(sock, buf, (size_t)len)) > 0) {
+			gettimeofday(&cfp->last_recv_time, NULL);
 			return (len);
+		}
 	}
 
 fatal_err:
@@ -454,27 +551,41 @@ write_vc(xprtp, buf, len)
 	SVCXPRT *xprt;
 	int i, cnt;
 	struct sockaddr *sa;
+	struct cf_conn *cd;
+	struct timeval tv0, tv1;
 
 	xprt = (SVCXPRT *)xprtp;
 	assert(xprt != NULL);
+
+	cd = (struct cf_conn *)xprt->xp_p1;
+
+	if (cd->nonblock)
+		gettimeofday(&tv0, NULL);
 	
 	sa = (struct sockaddr *)xprt->xp_rtaddr.buf;
-        if (sa->sa_family == AF_LOCAL) {
-		for (cnt = len; cnt > 0; cnt -= i, buf += i) {
-			if ((i = __msgwrite(xprt->xp_fd, buf,
-			    (size_t)cnt)) < 0) {
-				((struct cf_conn *)(xprt->xp_p1))->strm_stat =
-				    XPRT_DIED;
+	for (cnt = len; cnt > 0; cnt -= i, buf += i) {
+		if (sa->sa_family == AF_LOCAL)
+			i = __msgwrite(xprt->xp_fd, buf, (size_t)cnt);
+		else
+			i = _write(xprt->xp_fd, buf, (size_t)cnt);
+		if (i  < 0) {
+			if (errno != EAGAIN || !cd->nonblock) {
+				cd->strm_stat = XPRT_DIED;
 				return (-1);
 			}
-		}
-	} else {
-		for (cnt = len; cnt > 0; cnt -= i, buf += i) {
-			if ((i = _write(xprt->xp_fd, buf,
-			    (size_t)cnt)) < 0) {
-				((struct cf_conn *)(xprt->xp_p1))->strm_stat =
-				    XPRT_DIED;
-				return (-1);
+			if (cd->nonblock && i != cnt) {
+				/*
+				 * For non-blocking connections, do not
+				 * take more than 2 seconds writing the
+				 * data out.
+				 *
+				 * XXX 2 is an arbitrary amount.
+				 */
+				gettimeofday(&tv1, NULL);
+				if (tv1.tv_sec - tv0.tv_sec >= 2) {
+					cd->strm_stat = XPRT_DIED;
+					return (-1);
+				}
 			}
 		}
 	}
@@ -512,6 +623,11 @@ svc_vc_recv(xprt, msg)
 
 	cd = (struct cf_conn *)(xprt->xp_p1);
 	xdrs = &(cd->xdrs);
+
+	if (cd->nonblock) {
+		if (!__xdrrec_getrec(xdrs, &cd->strm_stat, TRUE))
+			return FALSE;
+	}
 
 	xdrs->x_op = XDR_DECODE;
 	(void)xdrrec_skiprecord(xdrs);
@@ -560,7 +676,7 @@ svc_vc_reply(xprt, msg)
 {
 	struct cf_conn *cd;
 	XDR *xdrs;
-	bool_t stat;
+	bool_t rstat;
 
 	assert(xprt != NULL);
 	assert(msg != NULL);
@@ -570,9 +686,9 @@ svc_vc_reply(xprt, msg)
 
 	xdrs->x_op = XDR_ENCODE;
 	msg->rm_xid = cd->x_id;
-	stat = xdr_replymsg(xdrs, msg);
+	rstat = xdr_replymsg(xdrs, msg);
 	(void)xdrrec_endofrecord(xdrs, TRUE);
-	return (stat);
+	return (rstat);
 }
 
 static void
@@ -619,7 +735,7 @@ svc_vc_rendezvous_ops(xprt)
 		ops.xp_freeargs =
 		    (bool_t (*)(SVCXPRT *, xdrproc_t, void *))abort,
 		ops.xp_destroy = svc_vc_destroy;
-		ops2.xp_control = svc_vc_control;
+		ops2.xp_control = svc_vc_rendezvous_control;
 	}
 	xprt->xp_ops = &ops;
 	xprt->xp_ops2 = &ops2;
@@ -719,4 +835,54 @@ __rpc_get_local_uid(SVCXPRT *transp, uid_t *uid)
 		return (-1); 
 	*uid = cmcred->cmcred_euid;
 	return (0);
+}
+
+/*
+ * Destroy xprts that have not have had any activity in 'timeout' seconds.
+ * If 'cleanblock' is true, blocking connections (the default) are also
+ * cleaned. If timeout is 0, the least active connection is picked.
+ */
+bool_t
+__svc_clean_idle(fd_set *fds, int timeout, bool_t cleanblock)
+{
+	int i, ncleaned;
+	SVCXPRT *xprt, *least_active;
+	struct timeval tv, tdiff, tmax;
+	struct cf_conn *cd;
+
+	gettimeofday(&tv, NULL);
+	tmax.tv_sec = tmax.tv_usec = 0;
+	least_active = NULL;
+	rwlock_wrlock(&svc_fd_lock);
+	for (i = ncleaned = 0; i <= svc_maxfd; i++) {
+		if (FD_ISSET(i, fds)) {
+			xprt = __svc_xports[i];
+			if (xprt == NULL || xprt->xp_ops == NULL ||
+			    xprt->xp_ops->xp_recv != svc_vc_recv)
+				continue;
+			cd = (struct cf_conn *)xprt->xp_p1;
+			if (!cleanblock && !cd->nonblock)
+				continue;
+			if (timeout == 0) {
+				timersub(&tv, &cd->last_recv_time, &tdiff);
+				if (timercmp(&tdiff, &tmax, >)) {
+					tmax = tdiff;
+					least_active = xprt;
+				}
+				continue;
+			}
+			if (tv.tv_sec - cd->last_recv_time.tv_sec > timeout) {
+				__xprt_unregister_unlocked(xprt);
+				__svc_vc_dodestroy(xprt);
+				ncleaned++;
+			}
+		}
+	}
+	if (timeout == 0 && least_active != NULL) {
+		__xprt_unregister_unlocked(least_active);
+		__svc_vc_dodestroy(least_active);
+		ncleaned++;
+	}
+	rwlock_unlock(&svc_fd_lock);
+	return ncleaned > 0 ? TRUE : FALSE;
 }
