@@ -57,8 +57,6 @@
 #include <geom/geom.h>
 #include <geom/geom_slice.h>
 
-#define GEOM_GPT
-
 #define MBR_CLASS_NAME "MBR"
 #define MBREXT_CLASS_NAME "MBREXT"
 
@@ -134,13 +132,12 @@ g_mbr_dumpconf(struct sbuf *sb, char *indent, struct g_geom *gp, struct g_consum
 	gsp = gp->softc;
 	mp = gsp->softc;
 	g_slice_dumpconf(sb, indent, gp, cp, pp);
-	if (indent == NULL) {
-		sbuf_printf(sb, " ty %d", mp->type[pp->index]);
-		return;
-	}
 	if (pp != NULL) {
-		sbuf_printf(sb, "%s<type>%d</type>\n",
-		    indent, mp->type[pp->index]);
+		if (indent == NULL)
+			sbuf_printf(sb, " ty %d", mp->type[pp->index]);
+		else
+			sbuf_printf(sb, "%s<type>%d</type>\n", indent,
+			    mp->type[pp->index]);
 	}
 }
 
@@ -201,28 +198,13 @@ g_mbr_taste(struct g_class *mp, struct g_provider *pp, int insist)
 		if (sectorsize != 512)
 			break;
 		gsp->frontstuff = sectorsize * fwsectors;
-#ifdef GEOM_GPT
-		/*
-		 * XXX: GPT hack: Read the second sector as well and back-off
-		 * if it has the GPT signature. The ultimate behaviour would
-		 * be to back-off if we detect a protective MBR (PMBR).
-		 */
-		buf = g_read_data(cp, 0, 2 * sectorsize, &error);
-#else
 		buf = g_read_data(cp, 0, sectorsize, &error);
-#endif
 		if (buf == NULL || error != 0)
 			break;
 		if (buf[0x1fe] != 0x55 && buf[0x1ff] != 0xaa) {
 			g_free(buf);
 			break;
 		}
-#ifdef GEOM_GPT
-		if (!memcmp(buf + 512, "EFI PART", 8)) {
-			g_free(buf);
-			break;
-		}
-#endif
 		for (i = 0; i < NDOSPART; i++) 
 			g_dec_dos_partition(
 			    buf + DOSPARTOFF + i * sizeof(struct dos_partition),
@@ -242,6 +224,19 @@ g_mbr_taste(struct g_class *mp, struct g_provider *pp, int insist)
 		}
 		npart = 0;
 		for (i = 0; i < NDOSPART; i++) {
+			/* 
+			 * A Protective MBR (PMBR) has a single partition of
+			 * type 0xEE spanning the whole disk. Such a MBR
+			 * protects a GPT on the disk from MBR tools that
+			 * don't know anything about GPT. We're interpreting
+			 * it a bit more loosely: any partition of type 0xEE
+			 * is to be skipped as it doesn't contain any data
+			 * that we should care about. We still allow other
+			 * partitions to be present in the MBR. A PMBR will
+			 * be handled correctly anyway.
+			 */
+			if (dp[i].dp_typ == 0xee)
+				continue;
 			if (dp[i].dp_flag != 0 && dp[i].dp_flag != 0x80)
 				continue;
 			if (dp[i].dp_size == 0)
@@ -319,8 +314,11 @@ g_mbrext_dumpconf(struct sbuf *sb, char *indent, struct g_geom *gp, struct g_con
 	gsp = gp->softc;
 	mp = gsp->softc;
 	if (pp != NULL) {
-		sbuf_printf(sb, "%s<type>%d</type>\n",
-		    indent, mp->type[pp->index]);
+		if (indent == NULL)
+			sbuf_printf(sb, " ty %d", mp->type[pp->index]);
+		else
+			sbuf_printf(sb, "%s<type>%d</type>\n", indent,
+			    mp->type[pp->index]);
 	}
 }
 
