@@ -220,7 +220,7 @@ u_int
 openpic_read(reg)
 	int	reg;
 {
-	char	*addr
+	char	*addr;
 
 	addr = openpic_base + reg;
 
@@ -232,7 +232,7 @@ openpic_write(reg, val)
 	int	reg;
 	u_int	val;
 {
-	char	*addr
+	char	*addr;
 
 	addr = openpic_base + reg;
 
