@@ -17,7 +17,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: mbuf.c,v 1.19 1998/08/07 18:42:50 brian Exp $
+ * $Id: mbuf.c,v 1.20 1998/08/21 18:09:57 brian Exp $
  *
  */
 #include <sys/types.h>
@@ -56,27 +56,20 @@ mbuf_Length(struct mbuf * bp)
 struct mbuf *
 mbuf_Alloc(int cnt, int type)
 {
-  u_char *p;
   struct mbuf *bp;
 
   if (type > MB_MAX)
     log_Printf(LogERROR, "Bad mbuf type %d\n", type);
-  bp = (struct mbuf *) malloc(sizeof(struct mbuf));
+  bp = malloc(sizeof(struct mbuf) + cnt);
   if (bp == NULL) {
     log_Printf(LogALERT, "failed to allocate memory: %ld\n",
                (long)sizeof(struct mbuf));
     AbortProgram(EX_OSERR);
   }
   memset(bp, '\0', sizeof(struct mbuf));
-  p = (u_char *) malloc(cnt);
-  if (p == NULL) {
-    log_Printf(LogALERT, "failed to allocate memory: %d\n", cnt);
-    AbortProgram(EX_OSERR);
-  }
   MemMap[type].fragments++;
   MemMap[type].octets += cnt;
   totalalloced += cnt;
-  bp->base = p;
   bp->size = bp->cnt = cnt;
   bp->type = type;
   bp->pnext = NULL;
@@ -93,7 +86,6 @@ mbuf_FreeSeg(struct mbuf * bp)
     MemMap[bp->type].fragments--;
     MemMap[bp->type].octets -= bp->size;
     totalalloced -= bp->size;
-    free(bp->base);
     free(bp);
     return (nbp);
   }
