@@ -384,7 +384,7 @@ distMaybeSetPorts(dialogMenuItem *self)
 {
     dialog_clear_norefresh();
     if (!msgYesNo("Would you like to install the FreeBSD ports collection?\n\n"
-		  "This will give you ready access to over 5800 ported software packages,\n"
+		  "This will give you ready access to over 6300 ported software packages,\n"
 		  "at a cost of around 100MB of disk space when \"clean\" and possibly\n"
 		  "much more than that when a lot of the distribution tarballs are loaded\n"
 		  "(unless you have the extra discs available from a FreeBSD CD/DVD distribution\n"
