@@ -1,7 +1,7 @@
 #
 # GENERIC -- Generic machine with WD/AHx/NCR/BTx family disks
 #
-#	$Id: GENERIC,v 1.40 1995/04/10 19:12:29 phk Exp $
+#	$Id: GENERIC,v 1.41 1995/04/10 19:13:51 phk Exp $
 #
 
 machine		"i386"
@@ -23,7 +23,7 @@ options		"SCSI_DELAY=15"		#Be pessimistic about Joe SCSI device
 options		BOUNCE_BUFFERS		#include support for DMA bounce buffers
 options		UCONSOLE		#Allow users to grab the console
 
-config		kernel	root on wd0 swap on wd0 and wd1 and sd0 and sd1 and vn0 dumps on wd0
+config		kernel	root on wd0 swap on wd0 and wd1 and wd2 and wd3 sd0 and sd1 and vn0 dumps on wd0
 
 controller	isa0
 controller	pci0
