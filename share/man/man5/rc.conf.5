@@ -1623,6 +1623,11 @@ to not run
 at boot time when
 .Va dumpdir
 is set.
+.It Va savecore_flags
+.Pq Vt str
+If crash dumps are enabled, these are the flags to pass to the
+.Xr savecore 8
+utility.
 .It Va enable_quotas
 .Pq Vt bool
 Set to
