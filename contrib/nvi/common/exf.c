@@ -5,12 +5,17 @@
  *	Keith Bostic.  All rights reserved.
  *
  * See the LICENSE file for redistribution information.
+ *
  */
 
 #include "config.h"
 
 #ifndef lint
+#if 0
 static const char sccsid[] = "@(#)exf.c	10.49 (Berkeley) 10/10/96";
+#endif
+static const char rcsid[] = 
+  "$FreeBSD$";
 #endif /* not lint */
 
 #include <sys/param.h>
@@ -185,7 +190,7 @@ file_init(sp, frp, rcv_name, flags)
 		if (opts_empty(sp, O_DIRECTORY, 0))
 			goto err;
 		(void)snprintf(tname, sizeof(tname),
-		    "%s/vi.XXXXXX", O_STR(sp, O_DIRECTORY));
+		    "%s/vi.XXXXXXXXXX", O_STR(sp, O_DIRECTORY));
 		if ((fd = mkstemp(tname)) == -1) {
 			msgq(sp, M_SYSERR,
 			    "237|Unable to create temporary file");
