@@ -1008,6 +1008,9 @@ void
 crfree(cr)
 	struct ucred *cr;
 {
+	int s;
+
+	s = splhigh();
 	if (cr->cr_ref == 0)
 		panic("Freeing already free credential! %p", cr);
 	
@@ -1021,6 +1024,7 @@ crfree(cr)
 			uifree(cr->cr_uidinfo);
 		FREE((caddr_t)cr, M_CRED);
 	}
+	splx(s);
 }
 
 /*
