@@ -37,6 +37,7 @@
 #include <sys/sysctl.h>
 #include <sys/systm.h>
 
+#include <machine/clock.h>
 #include <pccard/i82365.h>
 #include <pccard/pcic_pci.h>
 #include <pccard/cardinfo.h>
