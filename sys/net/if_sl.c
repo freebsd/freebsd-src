@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)if_sl.c	8.6 (Berkeley) 2/1/94
- * $Id: if_sl.c,v 1.42 1996/06/10 23:07:34 gpalmer Exp $
+ * $Id: if_sl.c,v 1.43 1996/06/12 19:24:01 gpalmer Exp $
  */
 
 /*
@@ -302,7 +302,6 @@ slopen(dev, tp)
 
 			s = splnet();
 			if_up(&sc->sc_if);
-			microtime(&sc->sc_if.if_lastchange);
 			splx(s);
 			return (0);
 		}
