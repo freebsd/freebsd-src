@@ -35,7 +35,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)machdep.c	7.4 (Berkeley) 6/3/91
- *	$Id: machdep.c,v 1.217 1996/12/05 04:28:42 dyson Exp $
+ *	$Id: machdep.c,v 1.218 1996/12/11 05:52:15 dyson Exp $
  */
 
 #include "npx.h"
@@ -336,7 +336,7 @@ again:
 	exec_map = kmem_suballoc(kernel_map, &minaddr, &maxaddr,
 				(16*ARG_MAX), TRUE);
 	exech_map = kmem_suballoc(kernel_map, &minaddr, &maxaddr,
-				(32*PAGE_SIZE), TRUE);
+				(16*PAGE_SIZE), TRUE);
 	u_map = kmem_suballoc(kernel_map, &minaddr, &maxaddr,
 				(maxproc*UPAGES*PAGE_SIZE), FALSE);
 
