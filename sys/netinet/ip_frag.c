@@ -7,7 +7,7 @@
  */
 #if !defined(lint)
 static const char sccsid[] = "@(#)ip_frag.c	1.11 3/24/96 (C) 1993-1995 Darren Reed";
-static const char rcsid[] = "@(#)$Id: ip_frag.c,v 1.1.1.5 1997/11/16 05:55:34 peter Exp $";
+static const char rcsid[] = "@(#)$Id: ip_frag.c,v 1.2 1998/03/21 11:34:06 peter Exp $";
 #endif
 
 #if !defined(_KERNEL) && defined(KERNEL)
@@ -76,11 +76,11 @@ static const char rcsid[] = "@(#)$Id: ip_frag.c,v 1.1.1.5 1997/11/16 05:55:34 pe
 #include "netinet/ip_state.h"
 #include "netinet/ip_auth.h"
 
-ipfr_t	*ipfr_heads[IPFT_SIZE];
-ipfr_t	*ipfr_nattab[IPFT_SIZE];
-ipfrstat_t ipfr_stats;
-int	ipfr_inuse = 0,
-	fr_ipfrttl = 120;	/* 60 seconds */
+static ipfr_t	*ipfr_heads[IPFT_SIZE];
+static ipfr_t	*ipfr_nattab[IPFT_SIZE];
+static ipfrstat_t ipfr_stats;
+static int	ipfr_inuse = 0;
+       int	fr_ipfrttl = 120;	/* 60 seconds */
 #ifdef _KERNEL
 extern	int	ipfr_timer_id;
 #endif

@@ -7,7 +7,7 @@
  */
 #if !defined(lint)
 static const char sccsid[] = "@(#)ip_state.c	1.8 6/5/96 (C) 1993-1995 Darren Reed";
-static const char rcsid[] = "@(#)$Id: ip_state.c,v 1.2 1998/03/21 11:34:27 peter Exp $";
+static const char rcsid[] = "@(#)$Id: ip_state.c,v 1.3 1998/06/20 18:37:51 peter Exp $";
 #endif
 
 #include "opt_ipfilter.h"
@@ -85,9 +85,9 @@ static const char rcsid[] = "@(#)$Id: ip_state.c,v 1.2 1998/03/21 11:34:27 peter
 
 #define	TCP_CLOSE	(TH_FIN|TH_RST)
 
-ipstate_t *ips_table[IPSTATE_SIZE];
-int	ips_num = 0;
-ips_stat_t ips_stats;
+static ipstate_t *ips_table[IPSTATE_SIZE];
+static int	ips_num = 0;
+static ips_stat_t ips_stats;
 #if	(SOLARIS || defined(__sgi)) && defined(_KERNEL)
 extern	kmutex_t	ipf_state;
 #endif
