@@ -38,7 +38,7 @@
  * from: Utah $Hdr: vm_mmap.c 1.6 91/10/21$
  *
  *	@(#)vm_mmap.c	8.4 (Berkeley) 1/12/94
- * $Id: vm_mmap.c,v 1.45 1996/07/27 03:24:00 dyson Exp $
+ * $Id: vm_mmap.c,v 1.46 1996/07/27 04:06:11 dyson Exp $
  */
 
 /*
@@ -72,9 +72,7 @@
 #include <vm/vm_extern.h>
 #include <vm/vm_kern.h>
 #include <vm/vm_page.h>
-#ifdef notyet
-#include <vm/loadaout.h>
-#endif
+#include <vm/default_pager.h>
 
 #ifndef _SYS_SYSPROTO_H_
 struct sbrk_args {
@@ -889,8 +887,10 @@ vm_mmap(map, addr, size, prot, maxprot, flags, handle, foff)
 		/*
 		 * Unnamed anonymous regions always start at 0.
 		 */
-		if (handle == 0)
+		if (handle == 0) {
 			foff = 0;
+			type = OBJT_DEFAULT;
+		}
 	} else {
 		vp = (struct vnode *) handle;
 		if (vp->v_type == VCHR) {
@@ -907,9 +907,15 @@ vm_mmap(map, addr, size, prot, maxprot, flags, handle, foff)
 			type = OBJT_VNODE;
 		}
 	}
-	object = vm_pager_allocate(type, handle, OFF_TO_IDX(objsize), prot, foff);
-	if (object == NULL)
-		return (type == OBJT_DEVICE ? EINVAL : ENOMEM);
+
+	if (type != OBJT_DEFAULT) {
+		object = vm_pager_allocate(type, handle,
+			OFF_TO_IDX(objsize), prot, foff);
+		if (object == NULL)
+			return (type == OBJT_DEVICE ? EINVAL : ENOMEM);
+	} else {
+		object = NULL;
+	}
 
 	/*
 	 * Force device mappings to be shared.
@@ -926,7 +932,6 @@ vm_mmap(map, addr, size, prot, maxprot, flags, handle, foff)
 
 	rv = vm_map_find(map, object, foff, addr, size, fitit,
 		prot, maxprot, docow);
-
 
 	if (rv != KERN_SUCCESS) {
 		/*
@@ -1023,23 +1028,28 @@ vm_mapaout(map, baseaddr, vp, foff, textsize, datasize, bsssize, addr)
 		return EINVAL;
 	}
 
-	/*
-	 * get the object size to allocate
-	 */
-	error = VOP_GETATTR(vp, &vat, p->p_ucred, p);
-	if (error) {
-		vm_map_unlock(map);
-		return error;
-	}
-	objpsize = OFF_TO_IDX(round_page(vat.va_size));
-
+	if ((vp->v_object != 0) &&
+		((((vm_object_t)vp->v_object)->flags & OBJ_DEAD) == 0)) {
+		object = vp->v_object;
+		vm_object_reference(object);
+	} else {
+		/*
+		 * get the object size to allocate
+		 */
+		error = VOP_GETATTR(vp, &vat, p->p_ucred, p);
+		if (error) {
+			vm_map_unlock(map);
+			return error;
+		}
+		objpsize = OFF_TO_IDX(round_page(vat.va_size));
 	/*
 	 * Alloc/reference the object
 	 */
-	object = vm_pager_allocate(OBJT_VNODE, vp,
-		   objpsize, VM_PROT_ALL, foff);
-	if (object == NULL) {
-		goto outnomem;
+		object = vm_pager_allocate(OBJT_VNODE, vp,
+			   objpsize, VM_PROT_ALL, foff);
+		if (object == NULL) {
+			goto outnomem;
+		}
 	}
 
 	/*
