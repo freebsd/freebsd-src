@@ -11,10 +11,8 @@ LINKS+=	${BINDIR}/grep ${BINDIR}/egrep \
 	${BINDIR}/grep ${BINDIR}/fgrep
 MLINKS=	grep.1 egrep.1 grep.1 fgrep.1
 
-DPADD+=	${LIBGNUREGEX}
-DPADD+=	${LIBBZ2}
-LDADD+=	-lgnuregex
-LDADD+=	-lbz2
+DPADD=	${LIBGNUREGEX} ${LIBBZ2}
+LDADD=	-lgnuregex -lbz2
 
 LINKS+=	${BINDIR}/grep ${BINDIR}/bzgrep \
 	${BINDIR}/grep ${BINDIR}/bzegrep \

@@ -40,8 +40,8 @@ PLLINKS= pl_PL
 
 CFLAGS+=-I${.CURDIR} -I${SRCDIR} -I${SRCDIR}/include
 
-DPADD+=		${LIBNCURSES}
-LDADD+=		-lncurses
+DPADD=		${LIBNCURSES}
+LDADD=		-lncurses
 
 CLEANFILES+=${EX}
 
