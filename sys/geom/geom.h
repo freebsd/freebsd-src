@@ -311,6 +311,7 @@ extern struct sx topology_lock;
 #endif /* _KERNEL */
 
 /* geom_ctl.c */
+int gctl_set_param(struct gctl_req *req, const char *param, void *ptr, int len);
 void *gctl_get_param(struct gctl_req *req, const char *param, int *len);
 void *gctl_get_paraml(struct gctl_req *req, const char *param, int len);
 int gctl_error(struct gctl_req *req, const char *fmt, ...);
