@@ -119,9 +119,14 @@ main(argc, argv)
 	struct utmp utmp;
 	int ask, ch, cnt, fflag, hflag, pflag, quietlog, rootlogin, rval;
 	uid_t uid;
-	char *domain, *p, *salt, *ttyn;
+	char *domain, *p, *ep, *salt, *ttyn;
 	char tbuf[MAXPATHLEN + 2], tname[sizeof(_PATH_TTY) + 10];
 	char localhost[MAXHOSTNAMELEN];
+	char full_hostname[MAXHOSTNAMELEN];
+#ifdef	SKEY
+	int permit_passwd = 0;
+	char *skey_getpass(), *skey_crypt();
+#endif
 
 	(void)signal(SIGALRM, timedout);
 	(void)alarm(timeout);
@@ -137,6 +142,7 @@ main(argc, argv)
 	 * -h is used by other servers to pass the name of the remote
 	 *    host to login so that it may be placed in utmp and wtmp
 	 */
+	*full_hostname = '\0';
 	domain = NULL;
 	if (gethostname(localhost, sizeof(localhost)) < 0)
 		syslog(LOG_ERR, "couldn't get local hostname: %m");
@@ -154,6 +160,7 @@ main(argc, argv)
 			if (uid)
 				errx(1, "-h option: %s", strerror(EPERM));
 			hflag = 1;
+			strncpy(full_hostname, optarg, sizeof(full_hostname)-1);
 			if (domain && (p = strchr(optarg, '.')) &&
 			    strcasecmp(p, domain) == 0)
 				*p = 0;
@@ -232,16 +239,33 @@ main(argc, argv)
 		 * is root or the caller isn't changing their uid, don't
 		 * authenticate.
 		 */
-		if (pwd && (*pwd->pw_passwd == '\0' ||
-		    fflag && (uid == 0 || uid == pwd->pw_uid)))
-			break;
+		if (pwd) {
+			if (pwd->pw_uid == 0)
+				rootlogin = 1;
+
+			if (fflag && (uid == 0 || uid == pwd->pw_uid)) {
+				/* already authenticated */
+				break;
+			} else if (pwd->pw_passwd[0] == '\0') {
+				/* pretend password okay */
+				rval = 0;
+				goto ttycheck;
+			}
+		}
+
 		fflag = 0;
-		if (pwd && pwd->pw_uid == 0)
-			rootlogin = 1;
 
 		(void)setpriority(PRIO_PROCESS, 0, -4);
 
+#ifdef	SKEY
+		permit_passwd = skeyaccess(username, tty, 
+					   hostname ? full_hostname : NULL);
+		p = skey_getpass("Password:", pwd, permit_passwd);
+		ep = skey_crypt(p, salt, pwd, permit_passwd);
+#else
 		p = getpass("Password:");
+		ep = crypt(p, salt);
+#endif
 
 		if (pwd) {
 #ifdef KERBEROS
@@ -251,15 +275,16 @@ main(argc, argv)
 			if (rval == 0)
 				authok = 1;
 			else if (rval == 1)
-				rval = strcmp(crypt(p, salt), pwd->pw_passwd);
+				rval = strcmp(ep, pwd->pw_passwd);
 #else
-			rval = strcmp(crypt(p, salt), pwd->pw_passwd);
+			rval = strcmp(ep, pwd->pw_passwd);
 #endif
 		}
 		memset(p, 0, strlen(p));
 
 		(void)setpriority(PRIO_PROCESS, 0, 0);
 
+	ttycheck:
 		/*
 		 * If trying to log in as root without Kerberos,
 		 * but with insecure terminal, refuse the login attempt.
@@ -267,7 +292,7 @@ main(argc, argv)
 #ifdef KERBEROS
 		if (authok == 0)
 #endif
-		if (pwd && rootlogin && !rootterm(tty)) {
+		if (pwd && !rval && rootlogin && !rootterm(tty)) {
 			(void)fprintf(stderr,
 			    "%s login refused on this terminal.\n",
 			    pwd->pw_name);
@@ -395,6 +420,18 @@ main(argc, argv)
 		(void)printf("Warning: no Kerberos tickets issued.\n");
 #endif
 
+#ifdef LOGALL
+	/*
+	 * Syslog each successful login, so we don't have to watch hundreds
+	 * of wtmp or lastlogin files.
+	 */
+	if (hostname) {
+		syslog(LOG_INFO, "login from %s as %s", hostname, pwd->pw_name);
+	} else {
+		syslog(LOG_INFO, "login on %s as %s", tty, pwd->pw_name);
+	}
+#endif
+
 	if (!quietlog) {
 		(void)printf("%s\n\t%s  %s\n\n",
 	    "Copyright (c) 1980, 1983, 1986, 1988, 1990, 1991, 1993, 1994",
@@ -407,6 +444,19 @@ main(argc, argv)
 			(void)printf("You have %smail.\n",
 			    (st.st_mtime > st.st_atime) ? "new " : "");
 	}
+
+#ifdef LOGIN_ACCESS
+	if (login_access(pwd->pw_name, hostname ? full_hostname : tty) == 0) {
+		printf("Permission denied\n");
+		if (hostname)
+			syslog(LOG_NOTICE, "%s LOGIN REFUSED FROM %s",
+				pwd->pw_name, hostname);
+		else
+			syslog(LOG_NOTICE, "%s LOGIN REFUSED ON %s",
+				pwd->pw_name, tty);
+		sleepexit(1);
+	}
+#endif
 
 	(void)signal(SIGALRM, SIG_DFL);
 	(void)signal(SIGQUIT, SIG_DFL);
