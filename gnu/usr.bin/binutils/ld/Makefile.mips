@@ -1,16 +1,16 @@
 #
-# $Id: Makefile.i386,v 1.4 1998/06/04 06:38:17 bde Exp $
+# $Id: Makefile.mips,v 1.1 1999/03/01 04:01:56 imp Exp $
 #
 
 .if	${MACHINE_ARCH} == "mipseb"
 HOST=		mipseb-unknown-freebsdelf
-CFLAGS+=	-DDEFAULT_EMULATION=\"elf_mips\"
-CFLAGS+=	-DTARGET=\"mipseb-unknown-freebsdelf\"
+CFLAGS+=	-DDEFAULT_EMULATION=\"elf32bmip\"
+CFLAGS+=	-DTARGET=\"elf32-bigmips\"
 .endif
 .if	${MACHINE_ARCH} == "mipsel"
 HOST=		mipsel-unknown-freebsdelf
-CFLAGS+=	-DDEFAULT_EMULATION=\"elf_mips\"
-CFLAGS+=	-DTARGET=\"mipsel-unknown-freebsdelf\"
+CFLAGS+=	-DDEFAULT_EMULATION=\"elf32lmip\"
+CFLAGS+=	-DTARGET=\"elf32-littlemips\"
 .endif
 EMS+=		ld_elf32bmip_emulation ld_elf32lmip_emulation
 LDSCRIPTS+=	elf32bmip.x elf32bmip.xbn elf32bmip.xn elf32bmip.xr \
