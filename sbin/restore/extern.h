@@ -31,10 +31,12 @@
  * SUCH DAMAGE.
  *
  *	@(#)extern.h	8.2 (Berkeley) 1/7/94
+ *	$Id$
  */
 
 struct entry	*addentry __P((char *, ino_t, int));
 long		 addfile __P((char *, ino_t, int));
+int		 addwhiteout __P((char *));
 void		 badentry __P((struct entry *, char *));
 void	 	 canon __P((char *, char *, int));
 void		 checkrestore __P((void));
@@ -44,6 +46,7 @@ void		 createleaves __P((char *));
 void		 createlinks __P((void));
 long		 deletefile __P((char *, ino_t, int));
 void		 deleteino __P((ino_t));
+void		 delwhiteout __P((struct entry *));
 ino_t		 dirlookup __P((const char *));
 void 	 	 done __P((int)) __dead2;
 void		 dumpsymtable __P((char *, long));

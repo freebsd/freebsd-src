@@ -34,32 +34,30 @@
  * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
- *
- *	$Id: dirs.c,v 1.10 1997/09/18 14:04:49 phk Exp $
  */
 
 #ifndef lint
+#if 0
 static char sccsid[] = "@(#)dirs.c	8.7 (Berkeley) 5/1/95";
+#endif
+static const char rcsid[] =
+	"$Id$";
 #endif /* not lint */
 
 #include <sys/param.h>
 #include <sys/file.h>
 #include <sys/stat.h>
-#include <sys/time.h>
 
 #include <ufs/ufs/dinode.h>
 #include <ufs/ufs/dir.h>
-#include <ufs/ffs/fs.h>
 #include <protocols/dumprestore.h>
 
+#include <err.h>
 #include <errno.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 #include <unistd.h>
-#include <err.h>
-
-#include <machine/endian.h>
 
 #include "pathnames.h"
 #include "restore.h"
