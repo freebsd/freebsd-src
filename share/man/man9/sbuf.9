@@ -59,11 +59,11 @@
 .Ft int
 .Fn sbuf_setpos "struct sbuf *s" "int pos"
 .Ft int
-.Fn sbuf_bcat "struct sbuf *s" "const char *str" "size_t len"
+.Fn sbuf_bcat "struct sbuf *s" "const void *buf" "size_t len"
 .Ft int
 .Fn sbuf_bcopyin "struct sbuf *s" "const void *uaddr" "size_t len"
 .Ft int
-.Fn sbuf_bcpy "struct sbuf *s" "const char *str" "size_t len"
+.Fn sbuf_bcpy "struct sbuf *s" "const void *buf" "size_t len"
 .Ft int
 .Fn sbuf_cat "struct sbuf *s" "const char *str"
 .Ft int
@@ -177,8 +177,8 @@ The
 .Fn sbuf_bcat
 function appends the first
 .Fa len
-bytes from the byte string
-.Fa str
+bytes from the buffer
+.Fa buf
 to the
 .Fa sbuf .
 .Pp
@@ -195,8 +195,8 @@ function replaces the contents of the
 .Fa sbuf
 with the first
 .Fa len
-bytes from the byte string
-.Fa str .
+bytes from the buffer
+.Fa buf .
 .Pp
 The
 .Fn sbuf_cat
