@@ -229,7 +229,7 @@ lib${LIB}_pic.a:: ${SOBJS}
 .endif
 
 llib-l${LIB}.ln: ${SRCS}
-	${LINT} -C${LIB} ${CFLAGS} ${.ALLSRC:M*.c}
+	${LINT} -C${LIB} ${CFLAGS:M-[DIU]*} ${.ALLSRC:M*.c}
 
 .if !target(clean)
 clean:	_SUBDIR
