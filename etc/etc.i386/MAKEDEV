@@ -39,6 +39,7 @@
 #	sd*	"scsi disks"
 #	cd*	"scsi cdrom disks"
 #	mcd*	"mitsumi cdrom disks"
+#	vn*	"vnode disks"
 #
 # Console ports:
 #	pc*	devices for stock pccons
@@ -71,7 +72,7 @@
 #	socksys iBCS2 socket system driver
 #	vat	VAT compatibility audio driver (requires snd*)
 #
-#	$Id: MAKEDEV,v 1.51 1994/12/03 00:07:49 wollman Exp $
+#	$Id: MAKEDEV,v 1.53 1994/12/03 14:01:01 jkh Exp $
 #
 
 PATH=/sbin:/bin/:/usr/bin:/usr/sbin:
@@ -246,11 +247,12 @@ ft*)
 	;;
 
 
-sd*|wd*)
+sd*|vn*|wd*)
 	umask 2 ; unit=`expr $i : '..\(.*\)'`
 	case $i in
-	sd*) name=sd; blk=4; chr=13;;
-	wd*) name=wd; blk=0; chr=3;;
+	sd*) name=sd; blk=4;  chr=13;;
+	wd*) name=wd; blk=0;  chr=3;;
+	vn*) name=vn; blk=15; chr=43;;
 	esac
 	rm -f $name$unit? r$name$unit?
 	case $unit in
