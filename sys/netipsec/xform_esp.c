@@ -396,6 +396,15 @@ esp_input(struct mbuf *m, struct secasvar *sav, int skip, int protoff)
 	/* Crypto operation descriptor */
 	crp->crp_ilen = m->m_pkthdr.len; /* Total input length */
 	crp->crp_flags = CRYPTO_F_IMBUF;
+	/*
+	 * When using crypto support the operates "synchronously" (e.g.
+	 * software crypto) mark the operation for immediate callback to
+	 * avoid the context switch.  This increases the amount of kernel
+	 * stack required to process a frame but we assume there is enough
+	 * to do this.
+	 */
+	if (CRYPTO_SESID2CAPS(sav->tdb_cryptoid) & CRYPTOCAP_F_SYNC)
+		crp->crp_flags |= CRYPTO_F_CBIMM;
 	crp->crp_buf = (caddr_t) m;
 	crp->crp_callback = esp_input_cb;
 	crp->crp_sid = sav->tdb_cryptoid;
@@ -834,6 +843,15 @@ esp_output(
 	/* Crypto operation descriptor. */
 	crp->crp_ilen = m->m_pkthdr.len; /* Total input length. */
 	crp->crp_flags = CRYPTO_F_IMBUF;
+	/*
+	 * When using crypto support the operates "synchronously" (e.g.
+	 * software crypto) mark the operation for immediate callback to
+	 * avoid the context switch.  This increases the amount of kernel
+	 * stack required to process a frame but we assume there is enough
+	 * to do this.
+	 */
+	if (CRYPTO_SESID2CAPS(sav->tdb_cryptoid) & CRYPTOCAP_F_SYNC)
+		crp->crp_flags |= CRYPTO_F_CBIMM;
 	crp->crp_buf = (caddr_t) m;
 	crp->crp_callback = esp_output_cb;
 	crp->crp_opaque = (caddr_t) tc;
