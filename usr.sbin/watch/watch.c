@@ -415,6 +415,7 @@ main(ac, av)
 				set_dev(dev_name);
 			} else
 				cleanup(-1);
+			break;
 		case SNP_DETACH:
 		case SNP_TTYCLOSE:
 			if (opt_reconn_close)
@@ -424,6 +425,7 @@ main(ac, av)
 				set_dev(dev_name);
 			} else
 				cleanup(-1);
+			break;
 		default:
 			nread = (unsigned)idata;
 			if (nread < (b_size / 2) && (b_size / 2) > MIN_SIZE) {
