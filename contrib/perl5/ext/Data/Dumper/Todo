@@ -29,4 +29,6 @@ where we don't care so much for cross-references).
 =item Implement redesign that allows various backends (Perl, Lisp,
 some-binary-data-format, graph-description-languages, etc.)
 
+=item Dump traversal in breadth-first order
+
 =back

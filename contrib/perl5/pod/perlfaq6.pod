@@ -1,6 +1,6 @@
 =head1 NAME
 
-perlfaq6 - Regexps ($Revision: 1.22 $, $Date: 1998/07/16 14:01:07 $)
+perlfaq6 - Regexps ($Revision: 1.25 $, $Date: 1999/01/08 04:50:47 $)
 
 =head1 DESCRIPTION
 
@@ -128,7 +128,7 @@ L<perlop>):
 
 If you wanted text and not lines, you would use
 
-    perl -0777 -pe 'print "$1\n" while /START(.*?)END/gs' file1 file2 ...
+    perl -0777 -ne 'print "$1\n" while /START(.*?)END/gs' file1 file2 ...
 
 But if you want nested occurrences of C<START> through C<END>, you'll
 run up against the problem described in the question in this section
@@ -387,48 +387,31 @@ See the module String::Approx available from CPAN.
 
 =head2 How do I efficiently match many regular expressions at once?
 
-The following is super-inefficient:
+The following is extremely inefficient:
 
-    while (<FH>) {
-        foreach $pat (@patterns) {
-            if ( /$pat/ ) {
-                # do something
-            }
-        }
-    }
+    # slow but obvious way
+    @popstates = qw(CO ON MI WI MN);
+    while (defined($line = <>)) {
+	for $state (@popstates) {
+	    if ($line =~ /\b$state\b/i) {  
+		print $line;
+		last;
+	    }
+	}
+    }                                        
 
-Instead, you either need to use one of the experimental Regexp extension
-modules from CPAN (which might well be overkill for your purposes),
-or else put together something like this, inspired from a routine
-in Jeffrey Friedl's book:
+That's because Perl has to recompile all those patterns for each of
+the lines of the file.  As of the 5.005 release, there's a much better
+approach, one which makes use of the new C<qr//> operator:
 
-    sub _bm_build {
-        my $condition = shift;
-        my @regexp = @_;  # this MUST not be local(); need my()
-        my $expr = join $condition => map { "m/\$regexp[$_]/o" } (0..$#regexp);
-        my $match_func = eval "sub { $expr }";
-        die if $@;  # propagate $@; this shouldn't happen!
-        return $match_func;
-    }
-
-    sub bm_and { _bm_build('&&', @_) }
-    sub bm_or  { _bm_build('||', @_) }
-
-    $f1 = bm_and qw{
-            xterm
-            (?i)window
-    };
-
-    $f2 = bm_or qw{
-            \b[Ff]ree\b
-            \bBSD\B
-            (?i)sys(tem)?\s*[V5]\b
-    };
-
-    # feed me /etc/termcap, prolly
-    while ( <> ) {
-        print "1: $_" if &$f1;
-        print "2: $_" if &$f2;
+    # use spiffy new qr// operator, with /i flag even
+    use 5.005;
+    @popstates = qw(CO ON MI WI MN);
+    @poppats   = map { qr/\b$_\b/i } @popstates;
+    while (defined($line = <>)) {
+	for $patobj (@poppats) {
+	    print $line if $line =~ /$patobj/;
+	}
     }
 
 =head2 Why don't word-boundary searches with C<\b> work for me?
@@ -460,22 +443,24 @@ not "this" or "island".
 
 =head2 Why does using $&, $`, or $' slow my program down?
 
-Because once Perl sees that you need one of these variables anywhere
-in the program, it has to provide them on each and every pattern
-match.  The same mechanism that handles these provides for the use of
-$1, $2, etc., so you pay the same price for each regexp that contains
-capturing parentheses. But if you never use $&, etc., in your script,
-then regexps I<without> capturing parentheses won't be penalized. So
-avoid $&, $', and $` if you can, but if you can't (and some algorithms
-really appreciate them), once you've used them once, use them at will,
-because you've already paid the price.
+Because once Perl sees that you need one of these variables anywhere in
+the program, it has to provide them on each and every pattern match.
+The same mechanism that handles these provides for the use of $1, $2,
+etc., so you pay the same price for each regexp that contains capturing
+parentheses. But if you never use $&, etc., in your script, then regexps
+I<without> capturing parentheses won't be penalized. So avoid $&, $',
+and $` if you can, but if you can't, once you've used them at all, use
+them at will because you've already paid the price.  Remember that some
+algorithms really appreciate them.  As of the 5.005 release.  the $&
+variable is no longer "expensive" the way the other two are.
 
 =head2 What good is C<\G> in a regular expression?
 
 The notation C<\G> is used in a match or substitution in conjunction the
 C</g> modifier (and ignored if there's no C</g>) to anchor the regular
 expression to the point just past where the last match occurred, i.e. the
-pos() point.
+pos() point.  A failed match resets the position of C<\G> unless the
+C</c> modifier is in effect.
 
 For example, suppose you had a line of text quoted in standard mail
 and Usenet notation, (that is, with leading C<E<gt>> characters), and
@@ -596,25 +581,46 @@ Or like this:
 
 Or like this:
 
-   die "sorry, Perl doesn't (yet) have Martian support )-:\n";
-
-In addition, a sample program which converts half-width to full-width
-katakana (in Shift-JIS or EUC encoding) is available from CPAN as
-
-=for Tom make it so
+    die "sorry, Perl doesn't (yet) have Martian support )-:\n";
 
 There are many double- (and multi-) byte encodings commonly used these
 days.  Some versions of these have 1-, 2-, 3-, and 4-byte characters,
 all mixed.
 
+=head2 How do I match a pattern that is supplied by the user?
+
+Well, if it's really a pattern, then just use
+
+    chomp($pattern = <STDIN>);
+    if ($line =~ /$pattern/) { }
+
+Or, since you have no guarantee that your user entered
+a valid regular expression, trap the exception this way:
+
+    if (eval { $line =~ /$pattern/ }) { }
+
+But if all you really want to search for a string, not a pattern,
+then you should either use the index() function, which is made for
+string searching, or if you can't be disabused of using a pattern
+match on a non-pattern, then be sure to use C<\Q>...C<\E>, documented
+in L<perlre>.
+
+    $pattern = <STDIN>;
+
+    open (FILE, $input) or die "Couldn't open input $input: $!; aborting";
+    while (<FILE>) {
+	print if /\Q$pattern\E/;
+    }
+    close FILE;
+
 =head1 AUTHOR AND COPYRIGHT
 
-Copyright (c) 1997, 1998 Tom Christiansen and Nathan Torkington.
+Copyright (c) 1997-1999 Tom Christiansen and Nathan Torkington.
 All rights reserved.
 
 When included as part of the Standard Version of Perl, or as part of
 its complete documentation whether printed or otherwise, this work
-may be distributed only under the terms of Perl's Artistic License.
+may be distributed only under the terms of Perl's Artistic Licence.
 Any distribution of this file or derivatives thereof I<outside>
 of that package require that special arrangements be made with
 copyright holder.
@@ -624,3 +630,4 @@ are hereby placed into the public domain.  You are permitted and
 encouraged to use this code in your own programs for fun
 or for profit as you see fit.  A simple comment in the code giving
 credit would be courteous but is not required.
+

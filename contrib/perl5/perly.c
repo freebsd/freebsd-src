@@ -1276,6 +1276,7 @@ char *yyrule[] = {
 #define YYMAXDEPTH 500
 #endif
 #endif
+#ifndef PERL_OBJECT
 int yydebug;
 int yynerrs;
 int yyerrflag;
@@ -1284,6 +1285,7 @@ short *yyssp;
 YYSTYPE *yyvsp;
 YYSTYPE yyval;
 YYSTYPE yylval;
+#endif
 #line 643 "perly.y"
  /* PROGRAM */
 #line 1353 "perly.c"
@@ -1405,9 +1407,9 @@ yyloop:
 	    int yypv_index = (yyvsp - yyvs);
 	    yystacksize += YYSTACKSIZE;
 	    ysave->yyvs = yyvs =
-		(YYSTYPE*)realloc((char*)yyvs,yystacksize * sizeof(YYSTYPE));
+		(YYSTYPE*)PerlMem_realloc((char*)yyvs,yystacksize * sizeof(YYSTYPE));
 	    ysave->yyss = yyss =
-		(short*)realloc((char*)yyss,yystacksize * sizeof(short));
+		(short*)PerlMem_realloc((char*)yyss,yystacksize * sizeof(short));
 	    if (!yyvs || !yyss)
 		goto yyoverflow;
 	    yyssp = yyss + yyps_index;
@@ -1460,9 +1462,9 @@ yyinrecovery:
 		    int yyps_index = (yyssp - yyss);
 		    int yypv_index = (yyvsp - yyvs);
 		    yystacksize += YYSTACKSIZE;
-		    ysave->yyvs = yyvs = (YYSTYPE*)realloc((char*)yyvs,
+		    ysave->yyvs = yyvs = (YYSTYPE*)PerlMem_realloc((char*)yyvs,
 			yystacksize * sizeof(YYSTYPE));
-		    ysave->yyss = yyss = (short*)realloc((char*)yyss,
+		    ysave->yyss = yyss = (short*)PerlMem_realloc((char*)yyss,
 			yystacksize * sizeof(short));
 		    if (!yyvs || !yyss)
 			goto yyoverflow;
@@ -1772,10 +1774,10 @@ case 56:
 break;
 case 57:
 #line 302 "perly.y"
-{ char *name = SvPV(((SVOP*)yyvsp[0].opval)->op_sv, PL_na);
+{ STRLEN n_a; char *name = SvPV(((SVOP*)yyvsp[0].opval)->op_sv, n_a);
 			  if (strEQ(name, "BEGIN") || strEQ(name, "END")
 			      || strEQ(name, "INIT"))
-			      CvUNIQUE_on(PL_compcv);
+			      CvSPECIAL_on(PL_compcv);
 			  yyval.opval = yyvsp[0].opval; }
 break;
 case 58:
@@ -1800,7 +1802,7 @@ case 63:
 break;
 case 64:
 #line 325 "perly.y"
-{ CvUNIQUE_on(PL_compcv); /* It's a BEGIN {} */ }
+{ CvSPECIAL_on(PL_compcv); /* It's a BEGIN {} */ }
 break;
 case 65:
 #line 327 "perly.y"
@@ -2109,7 +2111,7 @@ case 134:
 break;
 case 135:
 #line 515 "perly.y"
-{ yyval.opval = newUNOP(OP_DOFILE, 0, scalar(yyvsp[0].opval)); }
+{ yyval.opval = dofile(yyvsp[0].opval); }
 break;
 case 136:
 #line 517 "perly.y"
@@ -2346,9 +2348,9 @@ break;
 	int yypv_index = (yyvsp - yyvs);
 	yystacksize += YYSTACKSIZE;
 	ysave->yyvs = yyvs =
-	    (YYSTYPE*)realloc((char*)yyvs,yystacksize * sizeof(YYSTYPE));
+	    (YYSTYPE*)PerlMem_realloc((char*)yyvs,yystacksize * sizeof(YYSTYPE));
 	ysave->yyss = yyss =
-	    (short*)realloc((char*)yyss,yystacksize * sizeof(short));
+	    (short*)PerlMem_realloc((char*)yyss,yystacksize * sizeof(short));
 	if (!yyvs || !yyss)
 	    goto yyoverflow;
 	yyssp = yyss + yyps_index;

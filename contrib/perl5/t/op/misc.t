@@ -36,7 +36,9 @@ for (@prgs){
     $status = $?;
     $results = `$CAT $tmpfile`;
     $results =~ s/\n+$//;
-    $results =~ s/syntax error/syntax error/i;
+# bison says 'parse error' instead of 'syntax error',
+# various yaccs may or may not capitalize 'syntax'.
+    $results =~ s/^(syntax|parse) error/syntax error/mig;
     $expected =~ s/\n+$//;
     if ( $results ne $expected){
 	print STDERR "PROG: $switch\n$prog\n";
@@ -418,3 +420,29 @@ EXPECT
 destroyed
 destroyed
 ########
+BEGIN {
+  $| = 1;
+  $SIG{__WARN__} = sub {
+    eval { print $_[0] };
+    die "bar\n";
+  };
+  warn "foo\n";
+}
+EXPECT
+foo
+bar
+BEGIN failed--compilation aborted at - line 8.
+########
+use strict;
+my $foo = "ZZZ\n";
+END { print $foo }
+EXPECT
+ZZZ
+########
+eval '
+use strict;
+my $foo = "ZZZ\n";
+END { print $foo }
+';
+EXPECT
+ZZZ

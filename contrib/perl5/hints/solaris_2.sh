@@ -261,25 +261,26 @@ rm -f core
 # XXX
 EOSH
 
-if [ "X$usethreads" = "X$define" ]; then
-    ccflags="-D_REENTRANT $ccflags"
-    # -lpthread needs to come before -lc but after other libraries such
-    # as -lgdbm and such like. We assume here that -lc is present in
-    # libswanted. If that fails to be true in future, then this can be
-    # changed to add pthread to the very end of libswanted.
-    # sched_yield is in -lposix4
-    set `echo X "$libswanted "| sed -e 's/ c / posix4 pthread c /'`
-    shift
-    libswanted="$*"
+# This script UU/usethreads.cbu will get 'called-back' by Configure 
+# after it has prompted the user for whether to use threads.
+cat > UU/usethreads.cbu <<'EOCBU'
+case "$usethreads" in
+$define|true|[yY]*)
+        ccflags="-D_REENTRANT $ccflags"
 
-    # On Solaris 2.6 x86 there is a bug with sigsetjmp() and siglongjmp()
-    # when linked with the threads library, such that whatever positive value
-    # you pass to siglongjmp(), sigsetjmp() returns 1.
-    # Thanks to Simon Parsons <S.Parsons@ftel.co.uk> for this report.
-    # Sun BugID is 4117946, "sigsetjmp always returns 1 when called by
-    # siglongjmp in a MT program". As of 19980622, there is no patch
-    # available.
-    cat >try.c <<'EOM'
+        # sched_yield is in -lposix4
+        set `echo X "$libswanted "| sed -e 's/ c / posix4 pthread c /'`
+        shift
+        libswanted="$*"
+
+        # On Solaris 2.6 x86 there is a bug with sigsetjmp() and siglongjmp()
+        # when linked with the threads library, such that whatever positive
+        # value you pass to siglongjmp(), sigsetjmp() returns 1.
+        # Thanks to Simon Parsons <S.Parsons@ftel.co.uk> for this report.
+        # Sun BugID is 4117946, "sigsetjmp always returns 1 when called by
+        # siglongjmp in a MT program". As of 19980622, there is no patch
+        # available.
+        cat >try.c <<'EOM'
 	/* Test for sig(set|long)jmp bug. */
 	#include <setjmp.h>
 	 
@@ -293,18 +294,20 @@ if [ "X$usethreads" = "X$define" ]; then
 	    siglongjmp(env, 2);
 	}
 EOM
-    if test "`arch`" = i86pc -a "$osvers" = 2.6 \
-    && ${cc:-cc} try.c -lpthread >/dev/null 2>&1 && ./a.out; then
-	d_sigsetjmp=$undef
-	cat << 'EOM' >&2
+        if test "`arch`" = i86pc -a "$osvers" = 2.6 && \
+           ${cc:-cc} try.c -lpthread >/dev/null 2>&1 && ./a.out; then
+ 	    d_sigsetjmp=$undef
+	    cat << 'EOM' >&2
 
 You will see a *** WHOA THERE!!! ***  message from Configure for
 d_sigsetjmp.  Keep the recommended value.  See hints/solaris_2.sh
 for more information.
 
 EOM
-    fi
-fi
+        fi
+	;;
+esac
+EOCBU
 
 # This is just a trick to include some useful notes.
 cat > /dev/null <<'End_of_Solaris_Notes'

@@ -11,7 +11,7 @@ use vars qw(
 	    $Verbose $Keep $Maxlen $CheckForAutoloader $CheckModTime
 	   );
 
-$VERSION = "1.0302";
+$VERSION = "1.0303";
 @ISA = qw(Exporter);
 @EXPORT = qw(&autosplit &autosplit_lib_modules);
 @EXPORT_OK = qw($Verbose $Keep $Maxlen $CheckForAutoloader $CheckModTime);
@@ -219,7 +219,7 @@ sub autosplit_file {
     while (<IN>) {
 	# Skip pod text.
 	$fnr++;
-	$in_pod = 1 if /^=/;
+	$in_pod = 1 if /^=\w/;
 	$in_pod = 0 if /^=cut/;
 	next if ($in_pod || /^=cut/);
 

@@ -776,7 +776,7 @@ while (<$FH>) {
 	/^MODULE\s*=\s*([\w:]+)(?:\s+PACKAGE\s*=\s*([\w:]+))?(?:\s+PREFIX\s*=\s*(\S+))?\s*$/;
 
     if ($OBJ) {
-        s/#if(?:def|\s+defined)\s+(\(__cplusplus\)|__cplusplus)/#if defined(__cplusplus) && !defined(PERL_OBJECT)/;
+        s/#if(?:def\s|\s+defined)\s*(\(__cplusplus\)|__cplusplus)/#if defined(__cplusplus) && !defined(PERL_OBJECT)/;
     }
     print $_;
 }
@@ -1254,30 +1254,37 @@ EOF
 }
 
 # print initialization routine
+
+print Q<<"EOF";
+##ifdef __cplusplus
+#extern "C"
+##endif
+EOF
+
 if ($WantCAPI) {
 print Q<<"EOF";
-#
-##ifdef __cplusplus
-#extern "C"
-##endif
+##ifdef PERL_CAPI
 #XS(boot__CAPI_entry)
-#[[
-#    dXSARGS;
-#    char* file = __FILE__;
-#
-EOF
-} else {
-print Q<<"EOF";
-##ifdef __cplusplus
-#extern "C"
-##endif
-#XS(boot_$Module_cname)
-#[[
-#    dXSARGS;
-#    char* file = __FILE__;
-#
+##else
 EOF
 }
+
+print Q<<"EOF";
+#XS(boot_$Module_cname)
+EOF
+
+if ($WantCAPI) {
+print Q<<"EOF";
+##endif	/* PERL_CAPI */
+EOF
+}
+
+print Q<<"EOF";
+#[[
+#    dXSARGS;
+#    char* file = __FILE__;
+#
+EOF
 
 print Q<<"EOF" if $WantVersionChk ;
 #    XS_VERSION_BOOTCHECK ;
@@ -1312,7 +1319,7 @@ EOF
 
 if ($WantCAPI) { 
 print Q<<"EOF";
-#
+##ifdef PERL_CAPI
 ##define XSCAPI(name) void name(CV* cv, void* pPerl)
 #
 ##ifdef __cplusplus
@@ -1323,7 +1330,7 @@ print Q<<"EOF";
 #    SetCPerlObj(pPerl);
 #    boot__CAPI_entry(cv);
 #]]
-#
+##endif	/* PERL_CAPI */
 EOF
 }
 

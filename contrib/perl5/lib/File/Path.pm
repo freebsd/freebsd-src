@@ -88,7 +88,7 @@ in situations where security is an issue.
 =head1 AUTHORS
 
 Tim Bunce <F<Tim.Bunce@ig.co.uk>> and
-Charles Bailey <F<bailey@genetics.upenn.edu>>
+Charles Bailey <F<bailey@newman.upenn.edu>>
 
 =head1 REVISION
 
@@ -135,8 +135,9 @@ sub mkpath {
 	}
 	print "mkdir $path\n" if $verbose;
 	unless (mkdir($path,$mode)) {
-	    # allow for another process to have created it meanwhile
-	    croak "mkdir $path: $!" unless -d $path;
+	  my $e = $!;
+	  # allow for another process to have created it meanwhile
+	  croak "mkdir $path: $e" unless -d $path;
 	}
 	push(@created, $path);
     }

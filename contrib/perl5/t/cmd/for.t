@@ -1,8 +1,6 @@
 #!./perl
 
-# $RCSfile: for.t,v $$Revision: 4.1 $$Date: 92/08/07 18:27:09 $
-
-print "1..7\n";
+print "1..10\n";
 
 for ($i = 0; $i <= 10; $i++) {
     $x[$i] = $i;
@@ -47,3 +45,13 @@ if ($foo eq '3210abcde') {print "ok 5\n";} else {print "not ok 5 $foo\n";}
 foreach $foo (("ok 6\n","ok 7\n")) {
 	print $foo;
 }
+
+sub foo {
+    for $i (1..5) {
+	return $i if $_[0] == $i;
+    }
+}
+
+print foo(1) == 1 ? "ok" : "not ok", " 8\n";
+print foo(2) == 2 ? "ok" : "not ok", " 9\n";
+print foo(5) == 5 ? "ok" : "not ok", " 10\n";

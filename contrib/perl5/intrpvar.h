@@ -199,6 +199,7 @@ PERLVAR(Isublex_info,	SUBLEXINFO)	/* from toke.c */
 #ifdef USE_THREADS
 PERLVAR(Ithrsv,		SV *)		/* struct perl_thread for main thread */
 PERLVARI(Ithreadnum,	U32,	0)	/* incremented each thread creation */
+PERLVAR(Istrtab_mutex,	perl_mutex)	/* Mutex for string table access */
 #endif /* USE_THREADS */
 
 PERLVARI(Ibytecode_iv_overflows,int,	0)	/* from bytecode.h */

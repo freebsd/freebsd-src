@@ -33,11 +33,11 @@ The symbols C<"%(-?@> sort before the letters, while C<[> and C<\> sort after.
 to try to declare one with a package qualifier on the front.  Use local()
 if you want to localize a package variable.
 
-=item "my" variable %s masks earlier declaration in same scope
+=item "my" variable %s masks earlier declaration in same %s
 
-(W) A lexical variable has been redeclared in the same scope, effectively
-eliminating all access to the previous instance.  This is almost always
-a typographical error.  Note that the earlier variable will still exist
+(W) A lexical variable has been redeclared in the current scope or statement,
+effectively eliminating all access to the previous instance.  This is almost
+always a typographical error.  Note that the earlier variable will still exist
 until the end of the scope or until all closure referents to it are
 destroyed.
 
@@ -142,6 +142,18 @@ Perl yourself.
 (A) You've accidentally run your script through the Bourne shell
 instead of Perl.  Check the #! line, or manually feed your script
 into Perl yourself.
+
+=item         (in cleanup) %s
+
+(W) This prefix usually indicates that a DESTROY() method raised
+the indicated exception.  Since destructors are usually called by
+the system at arbitrary points during execution, and often a vast
+number of times, the warning is issued only once for any number
+of failures that would otherwise result in the same message being
+repeated.
+
+Failure of user callbacks dispatched using the C<G_KEEPERR> flag
+could also result in this warning.  See L<perlcall/G_KEEPERR>.
 
 =item         (Missing semicolon on previous line?)
 
@@ -376,7 +388,7 @@ Perl yourself.
 =item Bareword "%s" not allowed while "strict subs" in use
 
 (F) With "strict subs" in use, a bareword is only allowed as a
-subroutine identifier, in curly braces or to the left of the "=>" symbol.
+subroutine identifier, in curly brackets or to the left of the "=>" symbol.
 Perhaps you need to predeclare a subroutine?
 
 =item Bareword "%s" refers to nonexistent package
@@ -498,6 +510,10 @@ Something like this will reproduce the error:
 
 (F) You called C<perl -x/foo/bar>, but C</foo/bar> is not a directory
 that you can chdir to, possibly because it doesn't exist.
+
+=item Can't check filesystem of script "%s" for nosuid
+
+(P) For some reason you can't check the filesystem of the script for nosuid.
 
 =item Can't coerce %s to integer in %s
 
@@ -1002,6 +1018,14 @@ for information on I<Mastering Regular Expressions>.)
 (W) You tried to do a connect on a closed socket.  Did you forget to check
 the return value of your socket() call?  See L<perlfunc/connect>.
 
+=item Constant is not %s reference
+
+(F) A constant value (perhaps declared using the C<use constant> pragma)
+is being dereferenced, but it amounts to the wrong type of reference.  The
+message indicates the type of reference that was expected. This usually
+indicates a syntax error in dereferencing the constant value.
+See L<perlsub/"Constant Functions"> and L<constant>.
+
 =item Constant subroutine %s redefined
 
 (S) You redefined a subroutine which had previously been eligible for
@@ -1162,7 +1186,7 @@ a return, a goto, or a loop control statement.
 (W) You are blessing a reference to a zero length string.  This has
 the effect of blessing the reference into the package main.  This is
 usually not what you want.  Consider providing a default target
-package, e.g. bless($ref, $p or 'MyPackage');
+package, e.g. bless($ref, $p || 'MyPackage');
 
 =item Fatal VMS error at %s, line %d
 
@@ -1257,7 +1281,6 @@ Did you forget to check the return value of your socket() call?
 
 (S) A warning peculiar to VMS.  The call to C<sys$getuai> underlying the
 C<getpwnam> operator returned an invalid UIC.
-
 
 =item Glob not terminated
 
@@ -1404,7 +1427,7 @@ architecture. On a 32-bit architecture the largest octal literal is
 (S) A warning peculiar to VMS.  Perl keeps track of the number
 of times you've called C<fork> and C<exec>, to determine
 whether the current call to C<exec> should affect the current
-script or a subprocess (see L<perlvms/exec>).  Somehow, this count
+script or a subprocess (see L<perlvms/"exec LIST">).  Somehow, this count
 has become scrambled, so Perl is making a guess and treating
 this C<exec> as a request to terminate the Perl script
 and execute the specified command.
@@ -1413,16 +1436,19 @@ and execute the specified command.
 
 (P) Something went badly wrong in the regular expression parser.
 
-=item internal error: glob failed
+=item glob failed (%s)
 
-(P) Something went wrong with the external program(s) used for C<glob>
-and C<E<lt>*.cE<gt>>.  This may mean that your csh (C shell) is
-broken.  If so, you should change all of the csh-related variables in
-config.sh:  If you have tcsh, make the variables refer to it as if it
-were csh (e.g. C<full_csh='/usr/bin/tcsh'>); otherwise, make them all
-empty (except that C<d_csh> should be C<'undef'>) so that Perl will
-think csh is missing.  In either case, after editing config.sh, run
-C<./Configure -S> and rebuild Perl.
+(W) Something went wrong with the external program(s) used for C<glob>
+and C<E<lt>*.cE<gt>>.  Usually, this means that you supplied a C<glob>
+pattern that caused the external program to fail and exit with a nonzero
+status.  If the message indicates that the abnormal exit resulted in a
+coredump, this may also mean that your csh (C shell) is broken.  If so,
+you should change all of the csh-related variables in config.sh:  If you
+have tcsh, make the variables refer to it as if it were csh (e.g.
+C<full_csh='/usr/bin/tcsh'>); otherwise, make them all empty (except that
+C<d_csh> should be C<'undef'>) so that Perl will think csh is missing.
+In either case, after editing config.sh, run C<./Configure -S> and
+rebuild Perl.
 
 =item internal urp in regexp at /%s/
 
@@ -2322,11 +2348,13 @@ from the user it isn't running under, and isn't in a location where the CGI
 server can't find it, basically, more or less.  Please see the following
 for more information:
 
-	http://www.perl.com/perl/faq/idiots-guide.html
-	http://www.perl.com/perl/faq/perl-cgi-faq.html
+	http://www.perl.com/CPAN/doc/FAQs/cgi/idiots-guide.html
+	http://www.perl.com/CPAN/doc/FAQs/cgi/perl-cgi-faq.html
 	ftp://rtfm.mit.edu/pub/usenet/news.answers/www/cgi-faq
 	http://hoohoo.ncsa.uiuc.edu/cgi/interface.html
 	http://www-genome.wi.mit.edu/WWW/faqs/www-security-faq.html
+
+You should also look at L<perlfaq9>.
 
 =item setegid() not implemented
 
@@ -2404,6 +2432,14 @@ This is almost always an error, because exec() never returns unless
 there was a failure.  You probably wanted to use system() instead,
 which does return.  To suppress this warning, put the exec() in a block
 by itself.
+
+=item Strange *+?{} on zero-length expression
+
+(W) You applied a regular expression quantifier in a place where it
+makes no sense, such as on a zero-width assertion.
+Try putting the quantifier inside the assertion instead.  For example,
+the way to match "abc" provided that it is followed by three
+repetitions of "xyz" is C</abc(?=(?:xyz){3})/>, not C</abc(?=xyz){3}/>.
 
 =item Stub found while resolving method `%s' overloading `%s' in package `%s'
 

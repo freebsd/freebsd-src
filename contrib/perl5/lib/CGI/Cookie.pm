@@ -69,7 +69,9 @@ sub parse {
 	my($key,$value) = split("=");
 	my(@values) = map CGI::unescape($_),split('&',$value);
 	$key = CGI::unescape($key);
-	$results{$key} = $self->new(-name=>$key,-value=>\@values);
+	# A bug in Netscape can cause several cookies with same name to
+	# appear.  The FIRST one in HTTP_COOKIE is the most recent version.
+	$results{$key} ||= $self->new(-name=>$key,-value=>\@values);
     }
     return \%results unless wantarray;
     return %results;
@@ -399,13 +401,12 @@ Get or set the cookie's expiration time.
 
 =head1 AUTHOR INFORMATION
 
-be used and modified freely, but I do request that this copyright
-notice remain attached to the file.  You may modify this module as you
-wish, but if you redistribute a modified version, please attach a note
-listing the modifications you have made.
+Copyright 1997-1998, Lincoln D. Stein.  All rights reserved.  
 
-Address bug reports and comments to:
-lstein@genome.wi.mit.edu
+This library is free software; you can redistribute it and/or modify
+it under the same terms as Perl itself.
+
+Address bug reports and comments to: lstein@cshl.org
 
 =head1 BUGS
 

@@ -26,6 +26,8 @@
 #define SAVEt_HELEM     25
 #define SAVEt_OP	26
 #define SAVEt_HINTS	27
+/* #define SAVEt_ALLOC		28 */ /* defined in 5.005_5x */
+#define SAVEt_GENERIC_SVREF	29
 
 #define SSCHECK(need) if (PL_savestack_ix + need > PL_savestack_max) savestack_grow()
 #define SSPUSHINT(i) (PL_savestack[PL_savestack_ix++].any_i32 = (I32)(i))
@@ -62,7 +64,7 @@
 #define LEAVE_SCOPE(old) if (PL_savestack_ix > old) leave_scope(old)
 
 /*
- * Not using SOFT_CAST on SAVEFREESV and SAVEFREESV
+ * Not using SOFT_CAST on SAVESPTR, SAVEGENERICSV and SAVEFREESV
  * because these are used for several kinds of pointer values
  */
 #define SAVEI16(i)	save_I16(SOFT_CAST(I16*)&(i))
@@ -76,6 +78,7 @@
 #define SAVEFREEOP(o)	save_freeop(SOFT_CAST(OP*)(o))
 #define SAVEFREEPV(p)	save_freepv(SOFT_CAST(char*)(p))
 #define SAVECLEARSV(sv)	save_clearsv(SOFT_CAST(SV**)&(sv))
+#define SAVEGENERICSV(s)	save_generic_svref((SV**)&(s))
 #define SAVEDELETE(h,k,l) \
 	  save_delete(SOFT_CAST(HV*)(h), SOFT_CAST(char*)(k), (I32)(l))
 #ifdef PERL_OBJECT

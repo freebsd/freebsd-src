@@ -664,7 +664,7 @@ Returns the pathname to the fifo at the local end
 
 =item peerpath()
 
-Returns the pathanme to the fifo at the peer end
+Returns the pathname to the fifo at the peer end
 
 =back
 

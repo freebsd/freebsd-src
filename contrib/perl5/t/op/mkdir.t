@@ -15,4 +15,4 @@ print ($! =~ /exist|denied/ ? "ok 3\n" : "# $!\nnot ok 3\n");
 print (-d 'blurfl' ? "ok 4\n" : "not ok 4\n");
 print (rmdir('blurfl') ? "ok 5\n" : "not ok 5\n");
 print (rmdir('blurfl') ? "not ok 6\n" : "ok 6\n");
-print ($! =~ /such|exist/ ? "ok 7\n" : "not ok 7\n");
+print ($! =~ /such|exist|not found/i ? "ok 7\n" : "not ok 7\n");

@@ -84,7 +84,7 @@ variables named with a preceding C<pw_> in front their method names.
 Thus, C<$passwd_obj-E<gt>shell()> corresponds to $pw_shell if you import
 the fields.
 
-The getpw() funtion is a simple front-end that forwards
+The getpw() function is a simple front-end that forwards
 a numeric argument to getpwuid() and the rest to getpwnam().
 
 To access this functionality without the core overrides,

@@ -84,7 +84,7 @@ should be considered a perpetual work in progress
 
 =head2 Newlines
 
-In most operating systems, lines in files are separated with newlines.
+In most operating systems, lines in files are terminated by newlines.
 Just what is used as a newline may vary from OS to OS.  Unix
 traditionally uses C<\012>, one kind of Windows I/O uses C<\015\012>,
 and S<Mac OS> uses C<\015>.
@@ -148,6 +148,13 @@ And this example is actually better than the previous one even for Unix
 platforms, because now any C<\015>'s (C<\cM>'s) are stripped out
 (and there was much rejoicing).
 
+An important thing to remember is that functions that return data
+should translate newlines when appropriate.  Often one line of code
+will suffice:
+
+	$data =~ s/\015?\012/\n/g;
+	return $data;
+
 
 =head2 Numbers endianness and Width
 
@@ -175,7 +182,7 @@ transfer and store numbers always in text format, instead of raw
 binary, or consider using modules like C<Data::Dumper> (included in
 the standard distribution as of Perl 5.005) and C<Storable>.
 
-=head2 Files
+=head2 Files and Filesystems
 
 Most platforms these days structure files in a hierarchical fashion.
 So, it is reasonably safe to assume that any platform supports the
@@ -183,9 +190,9 @@ notion of a "path" to uniquely identify a file on the system.  Just
 how that path is actually written, differs.
 
 While they are similar, file path specifications differ between Unix,
-Windows, S<Mac OS>, OS/2, VMS, S<RISC OS> and probably others.  Unix,
-for example, is one of the few OSes that has the idea of a single root
-directory.
+Windows, S<Mac OS>, OS/2, VMS, VOS, S<RISC OS> and probably others.
+Unix, for example, is one of the few OSes that has the idea of a single
+root directory.
 
 VMS, Windows, and OS/2 can work similarly to Unix with C</> as path
 separator, or in their own idiosyncratic ways (such as having several
@@ -193,6 +200,18 @@ root directories and various "unrooted" device files such NIL: and
 LPT:).
 
 S<Mac OS> uses C<:> as a path separator instead of C</>.
+
+The filesystem may support neither hard links (C<link()>) nor
+symbolic links (C<symlink()>, C<readlink()>, C<lstat()>).
+
+The filesystem may not support neither access timestamp nor change
+timestamp (meaning that about the only portable timestamp is the
+modification timestamp), or one second granularity of any timestamps
+(e.g. the FAT filesystem limits the time granularity to two seconds).
+
+VOS perl can emulate Unix filenames with C</> as path separator.  The
+native pathname characters greater-than, less-than, number-sign, and
+percent-sign are always accepted.
 
 C<RISC OS> perl can emulate Unix filenames with C</> as path
 separator, or go native and use C<.> for path separator and C<:> to
@@ -224,19 +243,21 @@ Also of use is C<File::Basename>, from the standard distribution, which
 splits a pathname into pieces (base filename, full path to directory,
 and file suffix).
 
-Even when on a single platform (if you can call UNIX a single
-platform), remember not to count on the existence or the contents of
-system-specific files, like F</etc/passwd>, F</etc/sendmail.conf>, or
-F</etc/resolv.conf>.  For example the F</etc/passwd> may exist but it
-may not contain the encrypted passwords because the system is using
-some form of enhanced security-- or it may not contain all the
-accounts because the system is using NIS.  If code does need to rely
-on such a file, include a description of the file and its format in
-the code's documentation, and make it easy for the user to override
-the default location of the file.
+Even when on a single platform (if you can call UNIX a single platform),
+remember not to count on the existence or the contents of
+system-specific files or directories, like F</etc/passwd>,
+F</etc/sendmail.conf>, F</etc/resolv.conf>, or even F</tmp/>. For
+example, F</etc/passwd> may exist but it may not contain the encrypted
+passwords because the system is using some form of enhanced security --
+or it may not contain all the accounts because the system is using NIS. 
+If code does need to rely on such a file, include a description of the
+file and its format in the code's documentation, and make it easy for
+the user to override the default location of the file.
+
+Don't assume a text file will end with a newline.
 
 Do not have two files of the same name with different case, like
-F<test.pl> and <Test.pl>, as many platforms have case-insensitive
+F<test.pl> and F<Test.pl>, as many platforms have case-insensitive
 filenames.  Also, try not to have non-word characters (except for C<.>)
 in the names, and keep them to the 8.3 convention, for maximum
 portability.
@@ -246,10 +267,16 @@ Likewise, if using C<AutoSplit>, try to keep the split functions to
 make it so the resulting files have a unique (case-insensitively)
 first 8 characters.
 
-Don't assume C<E<lt>> won't be the first character of a filename.  Always
-use C<E<gt>> explicitly to open a file for reading:
+There certainly can be whitespace in filenames.  Many systems (DOS,
+VMS) cannot have more than one C<"."> in their filenames.
+
+Don't assume C<E<gt>> won't be the first character of a filename.
+Always use C<E<lt>> explicitly to open a file for reading.
 
     open(FILE, "<$existing_file") or die $!;
+
+Actually, though, if filenames might use strange characters, it is
+safest to open it with C<sysopen> instead of C<open>, which is magic.
 
 
 =head2 System Interaction
@@ -279,6 +306,8 @@ C<closedir> instead.
 
 Don't count on per-program environment variables, or per-program current
 directories.
+
+Don't count on specific values of C<$!>.
 
 
 =head2 Interprocess Communication (IPC)
@@ -315,6 +344,7 @@ code, but expose a common interface).
 
 The UNIX System V IPC (C<msg*(), sem*(), shm*()>) is not available
 even in all UNIX platforms.
+
 
 =head2 External Subroutines (XS)
 
@@ -371,7 +401,7 @@ C<Time::Local>.
 Assume very little about character sets.  Do not assume anything about
 the numerical values (C<ord()>, C<chr()>) of characters.  Do not
 assume that the alphabetic characters are encoded contiguously (in
-numerical sense).  Do no assume anything about the ordering of the
+numerical sense).  Do not assume anything about the ordering of the
 characters.  The lowercase letters may come before or after the
 uppercase letters, the lowercase and uppercase may be interlaced so
 that both 'a' and 'A' come before the 'b', the accented and other
@@ -381,10 +411,10 @@ before the 'b'.
 
 =head2 Internationalisation
 
-If you may assume POSIX (a rather large assumption, that: in practise
-that means UNIX) you may read more about the POSIX locale system from
+If you may assume POSIX (a rather large assumption, that in practice
+means UNIX), you may read more about the POSIX locale system from
 L<perllocale>.  The locale system at least attempts to make things a
-little bit more portable or at least more convenient and
+little bit more portable, or at least more convenient and
 native-friendly for non-English users.  The system affects character
 sets and encoding, and date and time formatting, among other things.
 
@@ -476,7 +506,7 @@ Unix flavors:
     FreeBSD      freebsd    freebsd-i386    
     Linux        linux      i386-linux
     HP-UX        hpux       PA-RISC1.1
-    IRIX	 irix       irix
+    IRIX         irix       irix
     OSF1         dec_osf    alpha-dec_osf
     SunOS        solaris    sun4-solaris
     SunOS        solaris    i86pc-solaris
@@ -547,7 +577,8 @@ Also see:
 =item The djgpp environment for DOS, C<http://www.delorie.com/djgpp/>
 
 =item The EMX environment for DOS, OS/2, etc. C<emx@iaehv.nl>,
-C<http://www.juge.com/bbs/Hobb.19.html>
+C<http://www.leo.org/pub/comp/os/os2/leo/gnu/emx+gcc/index.html> or
+C<ftp://hobbes.nmsu.edu/pub/os2/dev/emx>
 
 =item Build instructions for Win32, L<perlwin32>.
 
@@ -578,7 +609,7 @@ limited to 31 characters, and may include any character except C<:>,
 which is reserved as a path separator.
 
 Instead of C<flock>, see C<FSpSetFLock> and C<FSpRstFLock> in the
-C<Mac::Files> module.
+C<Mac::Files> module, or C<chmod(0444, ...)> and C<chmod(0666, ...)>.
 
 In the MacPerl application, you can't run a program from the command line;
 programs that expect C<@ARGV> to be populated can be edited with something
@@ -613,10 +644,9 @@ the application or MPW tool version is running, check:
     $is_ppc    = $MacPerl::Architecture eq 'MacPPC';
     $is_68k    = $MacPerl::Architecture eq 'Mac68K';
 
-S<Mac OS X>, to be based on NeXT's OpenStep OS, will be able to run
-MacPerl natively (in the Blue Box, and even in the Yellow Box, once some
-changes to the toolbox calls are made), but Unix perl will also run
-natively.
+S<Mac OS X>, to be based on NeXT's OpenStep OS, will (in theory) be able
+to run MacPerl natively, but Unix perl will also run natively under the
+built-in Unix environment.
 
 Also see:
 
@@ -727,18 +757,84 @@ Put words C<SUBSCRIBE VMSPERL> in message body.
 =back
 
 
+=head2 VOS
+
+Perl on VOS is discussed in F<README.vos> in the perl distribution.
+Note that perl on VOS can accept either VOS- or Unix-style file
+specifications as in either of the following:
+
+    $ perl -ne "print if /perl_setup/i" >system>notices
+    $ perl -ne "print if /perl_setup/i" /system/notices
+
+or even a mixture of both as in:
+
+    $ perl -ne "print if /perl_setup/i" >system/notices
+
+Note that even though VOS allows the slash character to appear in object
+names, because the VOS port of Perl interprets it as a pathname
+delimiting character, VOS files, directories, or links whose names
+contain a slash character cannot be processed.  Such files must be
+renamed before they can be processed by Perl.
+
+The following C functions are unimplemented on VOS, and any attempt by
+Perl to use them will result in a fatal error message and an immediate
+exit from Perl:  dup, do_aspawn, do_spawn, fork, waitpid.  Once these
+functions become available in the VOS POSIX.1 implementation, you can
+either recompile and rebind Perl, or you can download a newer port from
+ftp.stratus.com.
+
+The value of C<$^O> on VOS is "VOS".  To determine the architecture that
+you are running on without resorting to loading all of C<%Config> you
+can examine the content of the C<@INC> array like so:
+
+    if (grep(/VOS/, @INC)) {
+        print "I'm on a Stratus box!\n";
+    } else {
+        print "I'm not on a Stratus box!\n";
+        die;
+    }
+
+    if (grep(/860/, @INC)) {
+        print "This box is a Stratus XA/R!\n";
+    } elsif (grep(/7100/, @INC)) {
+        print "This box is a Stratus HP 7100 or 8000!\n";
+    } elsif (grep(/8000/, @INC)) {
+        print "This box is a Stratus HP 8000!\n";
+    } else {
+        print "This box is a Stratus 68K...\n";
+    }
+
+Also see:
+
+=over 4
+
+=item L<README.vos>
+
+=item VOS mailing list
+
+There is no specific mailing list for Perl on VOS.  You can post
+comments to the comp.sys.stratus newsgroup, or subscribe to the general
+Stratus mailing list.  Send a letter with "Subscribe Info-Stratus" in
+the message body to majordomo@list.stratagy.com.
+
+=item VOS Perl on the web at C<http://ftp.stratus.com/pub/vos/vos.html>
+
+=back
+
+
 =head2 EBCDIC Platforms
 
 Recent versions of Perl have been ported to platforms such as OS/400 on
-AS/400 minicomputers as well as OS/390 for IBM Mainframes.  Such computers
-use EBCDIC character sets internally (usually Character Code Set ID 00819
-for OS/400 and IBM-1047 for OS/390).  Note that on the mainframe perl
-currently works under the "Unix system services for OS/390" (formerly
-known as OpenEdition).
+AS/400 minicomputers as well as OS/390 & VM/ESA for IBM Mainframes.  Such
+computers use EBCDIC character sets internally (usually Character Code
+Set ID 00819 for OS/400 and IBM-1047 for OS/390 & VM/ESA).  Note that on
+the mainframe perl currently works under the "Unix system services
+for OS/390" (formerly known as OpenEdition) and VM/ESA OpenEdition.
 
-As of R2.5 of USS for OS/390 that Unix sub-system did not support the
-C<#!> shebang trick for script invocation.  Hence, on OS/390 perl scripts
-can executed with a header similar to the following simple script:
+As of R2.5 of USS for OS/390 and Version 2.3 of VM/ESA these Unix
+sub-systems do not support the C<#!> shebang trick for script invocation.
+Hence, on OS/390 and VM/ESA perl scripts can be executed with a header
+similar to the following simple script:
 
     : # use perl
         eval 'exec /usr/local/bin/perl -S $0 ${1+"$@"}'
@@ -752,15 +848,17 @@ an effect on what happens with some perl functions (such as C<chr>,
 C<pack>, C<print>, C<printf>, C<ord>, C<sort>, C<sprintf>, C<unpack>), as
 well as bit-fiddling with ASCII constants using operators like C<^>, C<&>
 and C<|>, not to mention dealing with socket interfaces to ASCII computers
-(see L<"NEWLINES">).
+(see L<Newlines>).
 
 Fortunately, most web servers for the mainframe will correctly translate
 the C<\n> in the following statement to its ASCII equivalent (note that
-C<\r> is the same under both Unix and OS/390):
+C<\r> is the same under both Unix and OS/390 & VM/ESA):
 
     print "Content-type: text/html\r\n\r\n";
 
 The value of C<$^O> on OS/390 is "os390".
+
+The value of C<$^O> on VM/ESA is "vmesa".
 
 Some simple tricks for determining if you are running on an EBCDIC
 platform could include any of the following (perhaps all):
@@ -834,7 +932,7 @@ C<System$Path> contains a single item list.  The filesystem will also
 expand system variables in filenames if enclosed in angle brackets, so
 C<E<lt>System$DirE<gt>.Modules> would look for the file
 S<C<$ENV{'System$Dir'} . 'Modules'>>.  The obvious implication of this is
-that B<fully qualified filenames can start with C<E<lt>E<gt>> and should
+that B<fully qualified filenames can start with C<E<lt>E<gt>>> and should
 be protected when C<open> is used for input.
 
 Because C<.> was in use as a directory separator and filenames could not
@@ -1013,9 +1111,11 @@ bits are meaningless. (Win32)
 
 Only good for changing "owner" and "other" read-write access. (S<RISC OS>)
 
+Access permissions are mapped onto VOS access-control list changes. (VOS)
+
 =item chown LIST
 
-Not implemented. (S<Mac OS>, Win32, Plan9, S<RISC OS>)
+Not implemented. (S<Mac OS>, Win32, Plan9, S<RISC OS>, VOS)
 
 Does nothing, but won't fail. (Win32)
 
@@ -1023,20 +1123,22 @@ Does nothing, but won't fail. (Win32)
 
 =item chroot
 
-Not implemented. (S<Mac OS>, Win32, VMS, Plan9, S<RISC OS>)
+Not implemented. (S<Mac OS>, Win32, VMS, Plan9, S<RISC OS>, VOS, VM/ESA)
 
 =item crypt PLAINTEXT,SALT
 
 May not be available if library or source was not provided when building
 perl. (Win32)
 
+Not implemented. (VOS)
+
 =item dbmclose HASH
 
-Not implemented. (VMS, Plan9)
+Not implemented. (VMS, Plan9, VOS)
 
 =item dbmopen HASH,DBNAME,MODE
 
-Not implemented. (VMS, Plan9)
+Not implemented. (VMS, Plan9, VOS)
 
 =item dump LABEL
 
@@ -1050,19 +1152,21 @@ Invokes VMS debugger. (VMS)
 
 Not implemented. (S<Mac OS>)
 
+Implemented via Spawn. (VM/ESA)
+
 =item fcntl FILEHANDLE,FUNCTION,SCALAR
 
 Not implemented. (Win32, VMS)
 
 =item flock FILEHANDLE,OPERATION
 
-Not implemented (S<Mac OS>, VMS, S<RISC OS>).
+Not implemented (S<Mac OS>, VMS, S<RISC OS>, VOS).
 
 Available only on Windows NT (not on Windows 95). (Win32)
 
 =item fork
 
-Not implemented. (S<Mac OS>, Win32, AmigaOS, S<RISC OS>)
+Not implemented. (S<Mac OS>, Win32, AmigaOS, S<RISC OS>, VOS, VM/ESA)
 
 =item getlogin
 
@@ -1070,7 +1174,7 @@ Not implemented. (S<Mac OS>, S<RISC OS>)
 
 =item getpgrp PID
 
-Not implemented. (S<Mac OS>, Win32, VMS, S<RISC OS>)
+Not implemented. (S<Mac OS>, Win32, VMS, S<RISC OS>, VOS)
 
 =item getppid
 
@@ -1078,7 +1182,7 @@ Not implemented. (S<Mac OS>, Win32, VMS, S<RISC OS>)
 
 =item getpriority WHICH,WHO
 
-Not implemented. (S<Mac OS>, Win32, VMS, S<RISC OS>)
+Not implemented. (S<Mac OS>, Win32, VMS, S<RISC OS>, VOS, VM/ESA)
 
 =item getpwnam NAME
 
@@ -1118,11 +1222,11 @@ Not implemented. (S<Mac OS>)
 
 =item getpwent
 
-Not implemented. (S<Mac OS>, Win32)
+Not implemented. (S<Mac OS>, Win32, VM/ESA)
 
 =item getgrent
 
-Not implemented. (S<Mac OS>, Win32, VMS)
+Not implemented. (S<Mac OS>, Win32, VMS, VM/ESA)
 
 =item gethostent
 
@@ -1166,11 +1270,11 @@ Not implemented. (Plan9, Win32, S<RISC OS>)
 
 =item endpwent
 
-Not implemented. (S<Mac OS>, Win32)
+Not implemented. (S<Mac OS>, Win32, VM/ESA)
 
 =item endgrent
 
-Not implemented. (S<Mac OS>, Win32, VMS, S<RISC OS>)
+Not implemented. (S<Mac OS>, Win32, VMS, S<RISC OS>, VM/ESA)
 
 =item endhostent
 
@@ -1229,6 +1333,9 @@ method of spawning a process. (Win32)
 
 Not implemented. (S<Mac OS>, Win32, VMS, S<RISC OS>)
 
+Link count not updated because hard links are not quite that hard
+(They are sort of half-way between hard and soft links). (AmigaOS)
+
 =item lstat FILEHANDLE
 
 =item lstat EXPR
@@ -1247,7 +1354,7 @@ Return values may be bogus. (Win32)
 
 =item msgrcv ID,VAR,SIZE,TYPE,FLAGS
 
-Not implemented. (S<Mac OS>, Win32, VMS, Plan9, S<RISC OS>)
+Not implemented. (S<Mac OS>, Win32, VMS, Plan9, S<RISC OS>, VOS)
 
 =item open FILEHANDLE,EXPR
 
@@ -1261,6 +1368,8 @@ open to C<|-> and C<-|> are unsupported. (S<Mac OS>, Win32, S<RISC OS>)
 =item pipe READHANDLE,WRITEHANDLE
 
 Not implemented. (S<Mac OS>)
+
+Very limited functionality. (MiNT)
 
 =item readlink EXPR
 
@@ -1280,15 +1389,15 @@ Only reliable on sockets. (S<RISC OS>)
 
 =item semop KEY,OPSTRING
 
-Not implemented. (S<Mac OS>, Win32, VMS, S<RISC OS>)
+Not implemented. (S<Mac OS>, Win32, VMS, S<RISC OS>, VOS)
 
 =item setpgrp PID,PGRP
 
-Not implemented. (S<Mac OS>, Win32, VMS, S<RISC OS>)
+Not implemented. (S<Mac OS>, Win32, VMS, S<RISC OS>, VOS)
 
 =item setpriority WHICH,WHO,PRIORITY
 
-Not implemented. (S<Mac OS>, Win32, VMS, S<RISC OS>)
+Not implemented. (S<Mac OS>, Win32, VMS, S<RISC OS>, VOS)
 
 =item setsockopt SOCKET,LEVEL,OPTNAME,OPTVAL
 
@@ -1302,11 +1411,11 @@ Not implemented. (S<Mac OS>, Plan9)
 
 =item shmwrite ID,STRING,POS,SIZE
 
-Not implemented. (S<Mac OS>, Win32, VMS, S<RISC OS>)
+Not implemented. (S<Mac OS>, Win32, VMS, S<RISC OS>, VOS)
 
 =item socketpair SOCKET1,SOCKET2,DOMAIN,TYPE,PROTOCOL
 
-Not implemented. (S<Mac OS>, Win32, VMS, S<RISC OS>)
+Not implemented. (S<Mac OS>, Win32, VMS, S<RISC OS>, VOS, VM/ESA)
 
 =item stat FILEHANDLE
 
@@ -1330,14 +1439,14 @@ Not implemented. (Win32, VMS, S<RISC OS>)
 
 =item syscall LIST
 
-Not implemented. (S<Mac OS>, Win32, VMS, S<RISC OS>)
+Not implemented. (S<Mac OS>, Win32, VMS, S<RISC OS>, VOS, VM/ESA)
 
 =item sysopen FILEHANDLE,FILENAME,MODE,PERMS
 
 The traditional "0", "1", and "2" MODEs are implemented with different
 numeric values on some systems.  The flags exported by C<Fcntl>
 (O_RDONLY, O_WRONLY, O_RDWR) should work everywhere though.  (S<Mac
-OS>, OS/390)
+OS>, OS/390, VM/ESA)
 
 =item system LIST
 
@@ -1359,6 +1468,11 @@ the child program uses a compatible version of the emulation library.
 I<scalar> will call the native command line direct and no such emulation
 of a child Unix program will exists.  Mileage B<will> vary.  (S<RISC OS>)
 
+Far from being POSIX compliant.  Because there may be no underlying
+/bin/sh tries to work around the problem by forking and execing the
+first token in its argument string.  Handles basic redirection
+("E<lt>" or "E<gt>") on its own behalf. (MiNT)
+
 =item times
 
 Only the first entry returned is nonzero. (S<Mac OS>)
@@ -1375,11 +1489,21 @@ Not useful. (S<RISC OS>)
 
 Not implemented. (VMS)
 
+Truncation to zero-length only. (VOS)
+
+If a FILEHANDLE is supplied, it must be writable and opened in append
+mode (i.e., use C<open(FH, '>>filename')>
+or C<sysopen(FH,...,O_APPEND|O_RDWR)>.  If a filename is supplied, it
+should not be held open elsewhere. (Win32)
+
 =item umask EXPR
 
 =item umask
 
 Returns undef where unavailable, as of version 5.005.
+
+C<umask()> works but the correct permissions are only set when the file
+is finally close()d. (AmigaOS)
 
 =item utime LIST
 
@@ -1395,7 +1519,7 @@ two seconds. (Win32)
 
 =item waitpid PID,FLAGS
 
-Not implemented. (S<Mac OS>)
+Not implemented. (S<Mac OS>, VOS)
 
 Can only be applied to process handles returned for processes spawned
 using C<system(1, ...)>. (Win32)
@@ -1408,19 +1532,43 @@ Not useful. (S<RISC OS>)
 
 =over 4
 
-=item 1.33, 06 August 1998
+=item v1.39, 11 February, 1999
+
+Changes from Jarkko and EMX URL fixes Michael Schwern.  Additional
+note about newlines added.
+
+=item v1.38, 31 December 1998
+
+More changes from Jarkko.
+
+=item v1.37, 19 December 1998
+
+More minor changes.  Merge two separate version 1.35 documents.
+
+=item v1.36, 9 September 1998
+
+Updated for Stratus VOS.  Also known as version 1.35.
+
+=item v1.35, 13 August 1998
+
+Integrate more minor changes, plus addition of new sections under
+L<"ISSUES">: L<"Numbers endianness and Width">,
+L<"Character sets and character encoding">,
+L<"Internationalisation">.
+
+=item v1.33, 06 August 1998
 
 Integrate more minor changes.
 
-=item 1.32, 05 August 1998
+=item v1.32, 05 August 1998
 
 Integrate more minor changes.
 
-=item 1.30, 03 August 1998
+=item v1.30, 03 August 1998
 
 Major update for RISC OS, other minor changes.
 
-=item 1.23, 10 July 1998
+=item v1.23, 10 July 1998
 
 First public release with perl5.005.
 
@@ -1429,16 +1577,20 @@ First public release with perl5.005.
 =head1 AUTHORS / CONTRIBUTORS
 
 Abigail E<lt>abigail@fnx.comE<gt>,
-Charles Bailey E<lt>bailey@genetics.upenn.eduE<gt>,
+Charles Bailey E<lt>bailey@newman.upenn.eduE<gt>,
 Graham Barr E<lt>gbarr@pobox.comE<gt>,
 Tom Christiansen E<lt>tchrist@perl.comE<gt>,
 Nicholas Clark E<lt>Nicholas.Clark@liverpool.ac.ukE<gt>,
 Andy Dougherty E<lt>doughera@lafcol.lafayette.eduE<gt>,
 Dominic Dunlop E<lt>domo@vo.luE<gt>,
+Neale Ferguson E<lt>neale@mailbox.tabnsw.com.auE<gt>
+Paul Green E<lt>Paul_Green@stratus.comE<gt>,
 M.J.T. Guy E<lt>mjtg@cus.cam.ac.ukE<gt>,
+Jarkko Hietaniemi E<lt>jhi@iki.fi<gt>,
 Luther Huffman E<lt>lutherh@stratcom.comE<gt>,
 Nick Ing-Simmons E<lt>nick@ni-s.u-net.comE<gt>,
 Andreas J. KE<ouml>nig E<lt>koenig@kulturbox.deE<gt>,
+Markus Laker E<lt>mlaker@contax.co.ukE<gt>,
 Andrew M. Langmead E<lt>aml@world.std.comE<gt>,
 Paul Moore E<lt>Paul.Moore@uk.origin-it.comE<gt>,
 Chris Nandor E<lt>pudge@pobox.comE<gt>,
@@ -1449,13 +1601,13 @@ Peter Prymmer E<lt>pvhp@forte.comE<gt>,
 Hugo van der Sanden E<lt>hv@crypt0.demon.co.ukE<gt>,
 Gurusamy Sarathy E<lt>gsar@umich.eduE<gt>,
 Paul J. Schinder E<lt>schinder@pobox.comE<gt>,
+Michael G Schwern E<lt>schwern@pobox.comE<gt>,
 Dan Sugalski E<lt>sugalskd@ous.eduE<gt>,
 Nathan Torkington E<lt>gnat@frii.comE<gt>.
 
-This document is maintained by Chris Nandor.
+This document is maintained by Chris Nandor
+E<lt>pudge@pobox.comE<gt>.
 
 =head1 VERSION
 
-Version 1.34, last modified 07 August 1998.
-
-
+Version 1.39, last modified 11 February 1999

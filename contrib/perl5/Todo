@@ -10,9 +10,8 @@ Would be nice to have
 	lexperl
 	Bundled perl preprocessor
 	Use posix calls internally where possible
-	gettimeofday
+	gettimeofday (possibly best left for a module?)
 	format BOTTOM
-	-iprefix.
 	-i rename file only when successfully changed
 	All ARGV input should act like <>
 	report HANDLE [formats].
@@ -23,6 +22,8 @@ Would be nice to have
 	lvalue functions
 	regression/sanity tests for suidperl
 	Full 64 bit support (i.e. "long long")
+	Generalise Errno way of extracting cpp symbols and use that in
+	    Errno and Fcntl (ExtUtils::CppSymbol?)
 
 Possible pragmas
 	debugger

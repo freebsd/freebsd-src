@@ -115,18 +115,21 @@ threadstart(void *arg)
 
     sv = POPs;
     PUTBACK;
+    ENTER;
+    SAVETMPS;
     perl_call_sv(sv, G_ARRAY|G_EVAL);
     SPAGAIN;
     retval = SP - (PL_stack_base + oldmark);
     SP = PL_stack_base + oldmark + 1;
     if (SvCUR(thr->errsv)) {
+	STRLEN n_a;
 	MUTEX_LOCK(&thr->mutex);
 	thr->flags |= THRf_DID_DIE;
 	MUTEX_UNLOCK(&thr->mutex);
 	av_store(av, 0, &PL_sv_no);
 	av_store(av, 1, newSVsv(thr->errsv));
 	DEBUG_S(PerlIO_printf(PerlIO_stderr(), "%p died: %s\n",
-			      thr, SvPV(thr->errsv, PL_na)));
+			      thr, SvPV(thr->errsv, n_a)));
     } else {
 	DEBUG_S(STMT_START {
 	    for (i = 1; i <= retval; i++) {
@@ -138,6 +141,8 @@ threadstart(void *arg)
 	for (i = 1; i <= retval; i++, SP++)
 	    sv_setsv(*av_fetch(av, i, TRUE), SvREFCNT_inc(*SP));
     }
+    FREETMPS;
+    LEAVE;
 
   finishoff:
 #if 0    
@@ -174,7 +179,7 @@ threadstart(void *arg)
     Safefree(PL_screamnext);
     Safefree(PL_reg_start_tmp);
     SvREFCNT_dec(PL_lastscream);
-    /*SvREFCNT_dec(PL_defoutgv);*/
+    SvREFCNT_dec(PL_defoutgv);
 
     MUTEX_LOCK(&thr->mutex);
     DEBUG_S(PerlIO_printf(PerlIO_stderr(),
@@ -233,6 +238,11 @@ newthread (SV *startsv, AV *initargs, char *classname)
     
     savethread = thr;
     thr = new_struct_thread(thr);
+    /* temporarily pretend to be the child thread in case the
+     * XPUSHs() below want to grow the child's stack.  This is
+     * safe, since the other thread is not yet created, and we
+     * are the only ones who know about it */
+    SET_THR(thr);
     SPAGAIN;
     DEBUG_S(PerlIO_printf(PerlIO_stderr(),
 			  "%p: newthread (%p), tid is %u, preparing stack\n",
@@ -244,11 +254,14 @@ newthread (SV *startsv, AV *initargs, char *classname)
 	XPUSHs(SvREFCNT_inc(*av_fetch(initargs, i, FALSE)));
     XPUSHs(SvREFCNT_inc(startsv));
     PUTBACK;
+
+    /* On your marks... */
+    SET_THR(savethread);
+    MUTEX_LOCK(&thr->mutex);
+
 #ifdef THREAD_CREATE
     err = THREAD_CREATE(thr, threadstart);
 #else    
-    /* On your marks... */
-    MUTEX_LOCK(&thr->mutex);
     /* Get set...  */
     sigfillset(&fullmask);
     if (sigprocmask(SIG_SETMASK, &fullmask, &oldmask) == -1)
@@ -279,10 +292,9 @@ newthread (SV *startsv, AV *initargs, char *classname)
 #else
 	err = pthread_create(&thr->self, &attr, threadstart, (void*) thr);
 #endif
-    /* Go */
-    MUTEX_UNLOCK(&thr->mutex);
 #endif
     if (err) {
+	MUTEX_UNLOCK(&thr->mutex);
         DEBUG_S(PerlIO_printf(PerlIO_stderr(),
 			      "%p: create of %p failed %d\n",
 			      savethread, thr, err));
@@ -295,16 +307,23 @@ newthread (SV *startsv, AV *initargs, char *classname)
 	SvREFCNT_dec(startsv);
 	return NULL;
     }
+
 #ifdef THREAD_POST_CREATE
     THREAD_POST_CREATE(thr);
 #else
     if (sigprocmask(SIG_SETMASK, &oldmask, 0))
 	croak("panic: sigprocmask");
 #endif
+
     sv = newSViv(thr->tid);
     sv_magic(sv, thr->oursv, '~', 0, 0);
     SvMAGIC(sv)->mg_private = Thread_MAGIC_SIGNATURE;
-    return sv_bless(newRV_noinc(sv), gv_stashpv(classname, TRUE));
+    sv = sv_bless(newRV_noinc(sv), gv_stashpv(classname, TRUE));
+
+    /* Go */
+    MUTEX_UNLOCK(&thr->mutex);
+
+    return sv;
 #else
     croak("No threads in this perl");
     return &PL_sv_undef;
@@ -371,7 +390,8 @@ join(t)
 	    for (i = 1; i <= AvFILL(av); i++)
 		XPUSHs(sv_2mortal(*av_fetch(av, i, FALSE)));
 	} else {
-	    char *mess = SvPV(*av_fetch(av, 1, FALSE), PL_na);
+	    STRLEN n_a;
+	    char *mess = SvPV(*av_fetch(av, 1, FALSE), n_a);
 	    DEBUG_S(PerlIO_printf(PerlIO_stderr(),
 				  "%p: join propagating die message: %s\n",
 				  thr, mess));
@@ -483,6 +503,7 @@ CODE:
 	    croak("cond_wait for lock that we don't own\n");
 	}
 	MgOWNER(mg) = 0;
+	COND_SIGNAL(MgOWNERCONDP(mg));
 	COND_WAIT(MgCONDP(mg), MgMUTEXP(mg));
 	while (MgOWNER(mg))
 	    COND_WAIT(MgOWNERCONDP(mg), MgMUTEXP(mg));

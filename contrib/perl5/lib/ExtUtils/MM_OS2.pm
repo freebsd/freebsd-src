@@ -15,6 +15,7 @@ sub dlsyms {
 
     my($funcs) = $attribs{DL_FUNCS} || $self->{DL_FUNCS} || {};
     my($vars)  = $attribs{DL_VARS} || $self->{DL_VARS} || [];
+    my($funclist) = $attribs{FUNCLIST} || $self->{FUNCLIST} || [];
     my($imports)  = $attribs{IMPORTS} || $self->{IMPORTS} || {};
     my(@m);
     (my $boot = $self->{NAME}) =~ s/:/_/g;
@@ -27,12 +28,44 @@ $self->{BASEEXT}.def: Makefile.PL
      Mksymlists("NAME" => "', $self->{NAME},
      '", "DLBASE" => "',$self->{DLBASE},
      '", "DL_FUNCS" => ',neatvalue($funcs),
+     ', "FUNCLIST" => ',neatvalue($funclist),
      ', "IMPORTS" => ',neatvalue($imports),
      ', "VERSION" => "',$self->{VERSION},
      '", "DL_VARS" => ', neatvalue($vars), ');\'
 ');
     }
+    if (%{$self->{IMPORTS}}) {
+	# Make import files (needed for static build)
+	-d 'tmp_imp' or mkdir 'tmp_imp', 0777 or die "Can't mkdir tmp_imp";
+	open IMP, '>tmpimp.imp' or die "Can't open tmpimp.imp";
+	my ($name, $exp);
+	while (($name, $exp)= each %{$self->{IMPORTS}}) {
+	    my ($lib, $id) = ($exp =~ /(.*)\.(.*)/) or die "Malformed IMPORT `$exp'";
+	    print IMP "$name $lib $id ?\n";
+	}
+	close IMP or die "Can't close tmpimp.imp";
+	# print "emximp -o tmpimp$Config::Config{lib_ext} tmpimp.imp\n";
+	system "emximp -o tmpimp$Config::Config{lib_ext} tmpimp.imp" 
+	    and die "Cannot make import library: $!, \$?=$?";
+	unlink <tmp_imp/*>;
+	system "cd tmp_imp; $Config::Config{ar} x ../tmpimp$Config::Config{lib_ext}" 
+	    and die "Cannot extract import objects: $!, \$?=$?";      
+    }
     join('',@m);
+}
+
+sub static_lib {
+    my($self) = @_;
+    my $old = $self->ExtUtils::MM_Unix::static_lib();
+    return $old unless %{$self->{IMPORTS}};
+    
+    my @chunks = split /\n{2,}/, $old;
+    shift @chunks unless length $chunks[0]; # Empty lines at the start
+    $chunks[0] .= <<'EOC';
+
+	$(AR) $(AR_STATIC_ARGS) $@ tmp_imp/* && $(RANLIB) $@
+EOC
+    return join "\n\n". '', @chunks;
 }
 
 sub replace_manpage_separator {

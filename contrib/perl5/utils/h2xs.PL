@@ -211,7 +211,7 @@ The usual warnings if it cannot read or write the files involved.
 
 =cut
 
-my( $H2XS_VERSION ) = ' $Revision: 1.18 $ ' =~ /\$Revision:\s+([^\s]+)/;
+my( $H2XS_VERSION ) = ' $Revision: 1.19 $ ' =~ /\$Revision:\s+([^\s]+)/;
 my $TEMPLATE_VERSION = '0.01';
 
 use Getopt::Std;
@@ -499,6 +499,7 @@ sub AUTOLOAD {
 		croak "Your vendor has not defined $module macro \$constname";
 	}
     }
+    no strict 'refs';
     *\$AUTOLOAD = sub () { \$val };
     goto &\$AUTOLOAD;
 }
@@ -591,15 +592,9 @@ if( ! $opt_X ){ # print XS, unless it is disabled
 warn "Writing $ext$modpname/$modfname.xs\n";
 
 print XS <<"END";
-#ifdef __cplusplus
-extern "C" {
-#endif
 #include "EXTERN.h"
 #include "perl.h"
 #include "XSUB.h"
-#ifdef __cplusplus
-}
-#endif
 
 END
 if( @path_h ){
@@ -615,17 +610,14 @@ if( @path_h ){
 if( ! $opt_c ){
 print XS <<"END";
 static int
-not_here(s)
-char *s;
+not_here(char *s)
 {
     croak("$module::%s not implemented on this architecture", s);
     return -1;
 }
 
 static double
-constant(name, arg)
-char *name;
-int arg;
+constant(char *name, int arg)
 {
     errno = 0;
     switch (*name) {

@@ -41,11 +41,11 @@ on tainted data aren't meant to extract safe substrings, but to perform
 other transformations.
 
 When C<use re 'eval'> is in effect, a regex is allowed to contain
-C<(?{ ... })> zero-width assertions even if regular expression contains
-variable interpolation.  That is normally disallowed, since it is a 
+C<(?{ ... })> zero-width assertions even if the regex contains
+variable interpolation.  This is normally disallowed, since it is a 
 potential security risk.  Note that this pragma is ignored when the regular
 expression is obtained from tainted data, i.e.  evaluation is always
-disallowed with tainted regular expresssions.  See L<perlre/(?{ code })>.
+disallowed with tainted regular expressions.  See L<perlre/(?{ code })>.
 
 For the purpose of this pragma, interpolation of precompiled regular 
 expressions (i.e., the result of C<qr//>) is I<not> considered variable

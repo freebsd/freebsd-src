@@ -24,7 +24,7 @@ sub content
 }
 
 # create a thread passing args and immedaietly wait for it.
-my $t = new Thread \&content,("ok 2\n","ok 3\n");
+my $t = new Thread \&content,("ok 2\n","ok 3\n", 1..1000);
 print $t->join;
 
 # check that lock works ...

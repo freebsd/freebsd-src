@@ -141,7 +141,7 @@ you:
 
 If the B<ExtUtils::Embed> module isn't part of your Perl distribution,
 you can retrieve it from
-http://www.perl.com/perl/CPAN/modules/by-module/ExtUtils::Embed.  (If
+http://www.perl.com/perl/CPAN/modules/by-module/ExtUtils/.  (If
 this documentation came from your Perl distribution, then you're
 running 5.004 or better and you already have it.)
 
@@ -285,6 +285,7 @@ the first, a C<float> from the second, and a C<char *> from the third.
    
    main (int argc, char **argv, char **env)
    {
+       STRLEN n_a;
        char *embedding[] = { "", "-e", "0" };
    
        my_perl = perl_alloc();
@@ -303,7 +304,7 @@ the first, a C<float> from the second, and a C<char *> from the third.
    
        /** Treat $a as a string **/
        perl_eval_pv("$a = 'rekcaH lreP rehtonA tsuJ'; $a = reverse($a);", TRUE);
-       printf("a = %s\n", SvPV(perl_get_sv("a", FALSE), PL_na));
+       printf("a = %s\n", SvPV(perl_get_sv("a", FALSE), n_a));
    
        perl_destruct(my_perl);
        perl_free(my_perl);
@@ -325,8 +326,9 @@ possible and in most cases a better strategy to fetch the return value
 from I<perl_eval_pv()> instead.  Example:
 
    ...
+   STRLEN n_a;
    SV *val = perl_eval_pv("reverse 'rekcaH lreP rehtonA tsuJ'", TRUE);
-   printf("%s\n", SvPV(val,PL_na));
+   printf("%s\n", SvPV(val,n_a));
    ...
 
 This way, we avoid namespace pollution by not creating global
@@ -371,6 +373,7 @@ been wrapped here):
  {
      dSP;
      SV* retval;
+     STRLEN n_a;
  
      PUSHMARK(SP);
      perl_eval_sv(sv, G_SCALAR);
@@ -380,7 +383,7 @@ been wrapped here):
      PUTBACK;
  
      if (croak_on_error && SvTRUE(ERRSV))
- 	croak(SvPVx(ERRSV, PL_na));
+ 	croak(SvPVx(ERRSV, n_a));
  
      return retval;
  }
@@ -395,9 +398,10 @@ been wrapped here):
  I32 match(SV *string, char *pattern)
  {
      SV *command = NEWSV(1099, 0), *retval;
+     STRLEN n_a;
  
      sv_setpvf(command, "my $string = '%s'; $string =~ %s",
- 	      SvPV(string,PL_na), pattern);
+ 	      SvPV(string,n_a), pattern);
  
      retval = my_perl_eval_sv(command, TRUE);
      SvREFCNT_dec(command);
@@ -416,9 +420,10 @@ been wrapped here):
  I32 substitute(SV **string, char *pattern)
  {
      SV *command = NEWSV(1099, 0), *retval;
+     STRLEN n_a;
  
      sv_setpvf(command, "$string = '%s'; ($string =~ %s)",
- 	      SvPV(*string,PL_na), pattern);
+ 	      SvPV(*string,n_a), pattern);
  
      retval = my_perl_eval_sv(command, TRUE);
      SvREFCNT_dec(command);
@@ -439,9 +444,10 @@ been wrapped here):
  {
      SV *command = NEWSV(1099, 0);
      I32 num_matches;
+     STRLEN n_a;
  
      sv_setpvf(command, "my $string = '%s'; @array = ($string =~ %s)",
- 	      SvPV(string,PL_na), pattern);
+ 	      SvPV(string,n_a), pattern);
  
      my_perl_eval_sv(command, TRUE);
      SvREFCNT_dec(command);
@@ -459,6 +465,7 @@ been wrapped here):
      AV *match_list;
      I32 num_matches, i;
      SV *text = NEWSV(1099,0);
+     STRLEN n_a;
  
      perl_construct(my_perl);
      perl_parse(my_perl, NULL, 3, embedding, NULL);
@@ -480,7 +487,7 @@ been wrapped here):
      printf("matches: m/(wi..)/g found %d matches...\n", num_matches);
  
      for (i = 0; i < num_matches; i++)
- 	printf("match: %s\n", SvPV(*av_fetch(match_list, i, FALSE),PL_na));
+ 	printf("match: %s\n", SvPV(*av_fetch(match_list, i, FALSE),n_a));
      printf("\n");
  
      /** Remove all vowels from text **/
@@ -488,7 +495,7 @@ been wrapped here):
      if (num_matches) {
  	printf("substitute: s/[aeiou]//gi...%d substitutions made.\n",
  	       num_matches);
- 	printf("Now text is: %s\n\n", SvPV(text,PL_na));
+ 	printf("Now text is: %s\n\n", SvPV(text,n_a));
      }
  
      /** Attempt a substitution **/
@@ -726,6 +733,7 @@ with L<perlfunc/my> whenever possible.
      char *args[] = { "", DO_CLEAN, NULL };
      char filename [1024];
      int exitstatus = 0;
+     STRLEN n_a;
 
      if((perl = perl_alloc()) == NULL) {
         fprintf(stderr, "no memory!");
@@ -747,7 +755,7 @@ with L<perlfunc/my> whenever possible.
 
             /* check $@ */
             if(SvTRUE(ERRSV))
-                fprintf(stderr, "eval error: %s\n", SvPV(ERRSV,PL_na));
+                fprintf(stderr, "eval error: %s\n", SvPV(ERRSV,n_a));
         }
      }
 
@@ -955,7 +963,7 @@ Interfacing to ActiveState's Perl library is quite different from the
 examples in this documentation, as significant changes were made to
 the internal Perl API.  However, it is possible to embed ActiveState's
 Perl runtime.  For details, see the Perl for Win32 FAQ at
-http://www.perl.com/perl/faq/win32/Perl_for_Win32_FAQ.html.
+http://www.perl.com/CPAN/doc/FAQs/win32/perlwin32faq.html.
 
 With the "official" Perl version 5.004 or higher, all the examples
 within this documentation will compile and run untouched, although

@@ -55,7 +55,9 @@ for (@prgs){
     # allow expected output to be written as if $prog is on STDIN
     $results =~ s/tmp\d+/-/g;
     $results =~ s/\n%[A-Z]+-[SIWEF]-.*$// if $Is_VMS;  # clip off DCL status msg
-    $results =~ s/Syntax/syntax/;  # non-standard yacc
+# bison says 'parse error' instead of 'syntax error',
+# various yaccs may or may not capitalize 'syntax'.
+    $results =~ s/^(syntax|parse) error/syntax error/mig;
     $expected =~ s/\n+$//;
     my $prefix = ($results =~ s/^PREFIX\n//) ;
     if ( $results =~ s/^SKIPPED\n//) {

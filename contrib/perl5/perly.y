@@ -1,6 +1,6 @@
 /*    perly.y
  *
- *    Copyright (c) 1991-1997, Larry Wall
+ *    Copyright (c) 1991-1999, Larry Wall
  *
  *    You may distribute under the terms of either the GNU General Public
  *    License or the Artistic License, as specified in the README file.
@@ -299,10 +299,10 @@ startformsub:	/* NULL */	/* start a format subroutine scope */
 			{ $$ = start_subparse(TRUE, 0); }
 	;
 
-subname	:	WORD	{ char *name = SvPV(((SVOP*)$1)->op_sv, PL_na);
+subname	:	WORD	{ STRLEN n_a; char *name = SvPV(((SVOP*)$1)->op_sv, n_a);
 			  if (strEQ(name, "BEGIN") || strEQ(name, "END")
 			      || strEQ(name, "INIT"))
-			      CvUNIQUE_on(PL_compcv);
+			      CvSPECIAL_on(PL_compcv);
 			  $$ = $1; }
 	;
 
@@ -322,7 +322,7 @@ package :	PACKAGE WORD ';'
 	;
 
 use	:	USE startsub
-			{ CvUNIQUE_on(PL_compcv); /* It's a BEGIN {} */ }
+			{ CvSPECIAL_on(PL_compcv); /* It's a BEGIN {} */ }
 		    WORD WORD listexpr ';'
 			{ utilize($1, $2, $4, $5, $6); }
 	;
@@ -512,7 +512,7 @@ term	:	term ASSIGNOP term
 			{ $$ = newUNOP(OP_ENTERSUB, OPf_STACKED,
 			    append_elem(OP_LIST, $3, scalar($2))); }
 	|	DO term	%prec UNIOP
-			{ $$ = newUNOP(OP_DOFILE, 0, scalar($2)); }
+			{ $$ = dofile($2); }
 	|	DO block	%prec '('
 			{ $$ = newUNOP(OP_NULL, OPf_SPECIAL, scope($2)); }
 	|	DO WORD '(' ')'

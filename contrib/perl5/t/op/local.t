@@ -1,8 +1,6 @@
 #!./perl
 
-# $RCSfile: local.t,v $$Revision: 4.1 $$Date: 92/08/07 18:28:04 $
-
-print "1..58\n";
+print "1..69\n";
 
 # XXX known to leak scalars
 $ENV{PERL_DESTRUCT_LEVEL} = 0 unless $ENV{PERL_DESTRUCT_LEVEL} > 3;
@@ -197,4 +195,43 @@ $ENV{_Z_} = 'c';
 print +($ENV{_X_} eq 'a') ? "" : "not ", "ok 56\n";
 print +($ENV{_Y_} eq 'b') ? "" : "not ", "ok 57\n";
 print +($ENV{_Z_} eq 'c') ? "" : "not ", "ok 58\n";
+
+# does implicit localization in foreach skip magic?
+
+$_ = "ok 59,ok 60,";
+my $iter = 0;
+while (/(o.+?),/gc) {
+    print "$1\n";
+    foreach (1..1) { $iter++ }
+    if ($iter > 2) { print "not ok 60\n"; last; }
+}
+
+{
+    package UnderScore;
+    sub TIESCALAR { bless \my $self, shift }
+    sub FETCH { die "read  \$_ forbidden" }
+    sub STORE { die "write \$_ forbidden" }
+    tie $_, __PACKAGE__;
+    my $t = 61;
+    my @tests = (
+	"Nesting"     => sub { print '#'; for (1..3) { print }
+			       print "\n" },			1,
+	"Reading"     => sub { print },				0,
+	"Matching"    => sub { $x = /badness/ },		0,
+	"Concat"      => sub { $_ .= "a" },			0,
+	"Chop"        => sub { chop },				0,
+	"Filetest"    => sub { -x },				0,
+	"Assignment"  => sub { $_ = "Bad" },			0,
+	# XXX whether next one should fail is debatable
+	"Local \$_"   => sub { local $_  = 'ok?'; print },	0,
+	"for local"   => sub { for("#ok?\n"){ print } },	1,
+    );
+    while ( ($name, $code, $ok) = splice(@tests, 0, 3) ) {
+	print "# Testing $name\n";
+	eval { &$code };
+	print(($ok xor $@) ? "ok $t\n" : "not ok $t\n");
+	++$t;
+    }
+    untie $_;
+}
 

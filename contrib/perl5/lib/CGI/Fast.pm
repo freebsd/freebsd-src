@@ -16,7 +16,7 @@ package CGI::Fast;
 # The most recent version and complete docs are available at:
 #   http://www.genome.wi.mit.edu/ftp/pub/software/WWW/cgi_docs.html
 #   ftp://ftp-genome.wi.mit.edu/pub/software/WWW/
-$CGI::Fast::VERSION='1.00a';
+$CGI::Fast::VERSION='1.01';
 
 use CGI;
 use FCGI;
@@ -34,9 +34,11 @@ sub save_request {
 # New is slightly different in that it calls FCGI's
 # accept() method.
 sub new {
-    return undef unless FCGI::accept() >= 0;
-    my($self,@param) = @_;
-    return $CGI::Q = $self->SUPER::new(@param);
+     my ($self, $initializer, @param) = @_;
+     unless (defined $initializer) {
+         return undef unless FCGI::accept() >= 0;
+     }
+     return $CGI::Q = $self->SUPER::new($initializer, @param);
 }
 
 1;
@@ -154,13 +156,12 @@ I haven't tested this very much.
 
 =head1 AUTHOR INFORMATION
 
-be used and modified freely, but I do request that this copyright
-notice remain attached to the file.  You may modify this module as you
-wish, but if you redistribute a modified version, please attach a note
-listing the modifications you have made.
+Copyright 1996-1998, Lincoln D. Stein.  All rights reserved.  
 
-Address bug reports and comments to:
-lstein@genome.wi.mit.edu
+This library is free software; you can redistribute it and/or modify
+it under the same terms as Perl itself.
+
+Address bug reports and comments to: lstein@cshl.org
 
 =head1 BUGS
 

@@ -16,7 +16,7 @@ The C<use sigtrap> and even C<use diagnostics> pragmas may also prove
 useful.
 
 Regarding aesthetics of code lay out, about the only thing Larry
-cares strongly about is that the closing curly brace of
+cares strongly about is that the closing curly bracket of
 a multi-line BLOCK should line up with the keyword that started the construct.
 Beyond that, he has other preferences that aren't so strong:
 

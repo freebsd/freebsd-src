@@ -65,7 +65,7 @@ variables named with a preceding C<tm_> in front their method names.
 Thus, C<$tm_obj-E<gt>mday()> corresponds to $tm_mday if you import
 the fields.
 
-The ctime() funtion provides a way of getting at the 
+The ctime() function provides a way of getting at the 
 scalar sense of the original CORE::localtime() function.
 
 To access this functionality without the core overrides,

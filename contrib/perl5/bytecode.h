@@ -64,7 +64,7 @@ typedef IV IV64;
 	BGET_U32(hi);					\
 	BGET_U32(lo);					\
 	if (sizeof(IV) == 8)				\
-	    arg = (IV) (hi << (sizeof(IV)*4) | lo);	\
+	    arg = ((IV)hi << (sizeof(IV)*4) | lo);	\
 	else if (((I32)hi == -1 && (I32)lo < 0)		\
 		 || ((I32)hi == 0 && (I32)lo >= 0)) {	\
 	    arg = (I32)lo;				\

@@ -49,8 +49,10 @@ rm -f perl.exp
 echo "#!" > perl.exp
 
 # No compat3 since 5.004_50.
-# perlio.sym will added below if needed.
-syms="global.sym interp.sym thread.sym"
+# No interp.sym since 5.005_03.
+# perlio.sym will added later if needed.
+
+syms="global.sym thread.sym"
 
 sed -n '/^[A-Za-z]/ s/^/Perl_/p' $syms                 >> perl.exp
 
@@ -59,7 +61,7 @@ sed -n 's/^PERLVAR.*(I\([^[,]*\).*/PL_\1/p' intrpvar.h >> perl.exp
 sed -n 's/^PERLVAR.*(T\([^[,]*\).*/PL_\1/p' thrdvar.h  >> perl.exp
 
 # 
-# If we use the PerlIO abstraction layer, add its symbols
+# If we use the PerlIO abstraction layer, add its symbols.
 #
 
 if [ $useperlio = "define" ]
@@ -72,7 +74,7 @@ fi
 # not actually be defined, but there's no harm in that).
 #
 
-cat <<END >> perl.exp
+cat >> perl.exp <<END
 perl_init_i18nl10n
 perl_init_i18nl14n
 perl_new_collate
@@ -97,15 +99,32 @@ perl_call_sv
 perl_eval_pv
 perl_eval_sv
 perl_require_pv
+cast_i32
+cast_iv
+cast_uv
+END
+
+case "$ccflags" in
+*-DHIDEMYMALLOC*)
+  cat >>perl.exp <<END
 Mymalloc
 Mycalloc
 Myremalloc
 Myfree
+END
+  ;;
+esac
+
+case "$ccflags" in
+*-DEMBEDMYMALLOC*)
+  cat >>perl.exp <<END
 Perl_malloc
 Perl_calloc
 Perl_realloc
 Perl_free
 END
+  ;;
+esac
 
 # The shebang line nicely sorts as the first one.
 sort -o perl.exp -u perl.exp

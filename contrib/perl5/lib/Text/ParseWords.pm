@@ -63,7 +63,7 @@ sub parse_line {
                         ([\000-\377]*)	       # and the rest
 		       |                       # --OR--
                        ^((?:\\.|[^\\"'])*?)    # an $unquoted text
-		      (\Z(?!\n)|$delimiter|(?!^)(?=["']))  
+		      (\Z(?!\n)|(?-x:$delimiter)|(?!^)(?=["']))  
                                                # plus EOL, delimiter, or quote
                       ([\000-\377]*)	       # the rest
 		      /x;		       # extended layout
