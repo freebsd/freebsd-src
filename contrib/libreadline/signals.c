@@ -87,6 +87,14 @@ static SigHandler *rl_set_sighandler ();
 /*								    */
 /* **************************************************************** */
 
+/* If we're not being compiled as part of bash, initialize handlers for
+   and catch the job control signals (SIGTTIN, SIGTTOU, SIGTSTP) and
+   SIGTERM. */
+#if !defined (SHELL)
+#  define HANDLE_JOB_SIGNALS
+#  define HANDLE_SIGTERM
+#endif /* !SHELL */
+
 #if defined (HAVE_POSIX_SIGNALS)
 typedef struct sigaction sighandler_cxt;
 #  define rl_sigaction(s, nh, oh)	sigaction(s, nh, oh)
@@ -97,9 +105,13 @@ typedef struct { SigHandler *sa_handler; } sighandler_cxt;
 
 static sighandler_cxt old_int, old_alrm;
 
-#if !defined (SHELL)
-static sighandler_cxt old_tstp, old_ttou, old_ttin, old_term;
-#endif /* !SHELL */
+#if defined (HANDLE_JOB_SIGNALS)
+static sighandler_cxt old_tstp, old_ttou, old_ttin;
+#endif /* HANDLE_JOB_SIGNALS */
+
+#if defined (HANDLE_SIGTERM)
+static sighandler_cxt old_term;
+#endif
 
 #if defined (SIGWINCH)
 static sighandler_cxt old_winch;
@@ -116,14 +128,16 @@ rl_signal_handler (sig)
 #else /* !HAVE_POSIX_SIGNALS */
 #  if defined (HAVE_BSD_SIGNALS)
   long omask;
-#  endif /* HAVE_BSD_SIGNALS */
+#  else /* !HAVE_BSD_SIGNALS */
+  sighandler_cxt dummy_cxt;	/* needed for rl_set_sighandler call */
+#  endif /* !HAVE_BSD_SIGNALS */
 #endif /* !HAVE_POSIX_SIGNALS */
 
 #if !defined (HAVE_BSD_SIGNALS) && !defined (HAVE_POSIX_SIGNALS)
   /* Since the signal will not be blocked while we are in the signal
      handler, ignore it until rl_clear_signals resets the catcher. */
   if (sig == SIGINT || sig == SIGALRM)
-    rl_set_sighandler (sig, SIG_IGN, (sighandler_cxt *)NULL);
+    rl_set_sighandler (sig, SIG_IGN, &dummy_cxt);
 #endif /* !HAVE_BSD_SIGNALS && !HAVE_POSIX_SIGNALS */
 
   switch (sig)
@@ -187,6 +201,16 @@ rl_handle_sigwinch (sig)
      int sig;
 {
   SigHandler *oh;
+
+#if defined (MUST_REINSTALL_SIGHANDLERS)
+  sighandler_cxt dummy_winch;
+
+  /* We don't want to change old_winch -- it holds the state of SIGWINCH
+     disposition set by the calling application.  We need this state
+     because we call the application's SIGWINCH handler after updating
+     our own idea of the screen size. */
+  rl_set_sighandler (SIGWINCH, rl_handle_sigwinch, &dummy_winch);
+#endif
 
   if (readline_echoing_p)
     {
@@ -265,7 +289,7 @@ rl_set_signals ()
     rl_sigaction (SIGALRM, &old_alrm, &dummy);
 #endif /* HAVE_POSIX_SIGNALS */
 
-#if !defined (SHELL)
+#if defined (HANDLE_JOB_SIGNALS)
 
 #if defined (SIGTSTP)
   oh = rl_set_sighandler (SIGTSTP, rl_signal_handler, &old_tstp);
@@ -286,9 +310,12 @@ rl_set_signals ()
     }
 #endif /* SIGTTOU */
 
+#endif /* HANDLE_JOB_SIGNALS */
+
+#if defined (HANDLE_SIGTERM)
   /* Handle SIGTERM if we're not being compiled as part of bash. */
   rl_set_sighandler (SIGTERM, rl_signal_handler, &old_term);
-#endif /* !SHELL */
+#endif /* HANDLE_SIGTERM */
 
 #if defined (SIGWINCH)
   rl_set_sighandler (SIGWINCH, rl_handle_sigwinch, &old_winch);
@@ -309,7 +336,7 @@ rl_clear_signals ()
   rl_sigaction (SIGINT, &old_int, &dummy);
   rl_sigaction (SIGALRM, &old_alrm, &dummy);
 
-#if !defined (SHELL)
+#if defined (HANDLE_JOB_SIGNALS)
 
 #if defined (SIGTSTP)
   rl_sigaction (SIGTSTP, &old_tstp, &dummy);
@@ -320,9 +347,11 @@ rl_clear_signals ()
   rl_sigaction (SIGTTIN, &old_ttin, &dummy);
 #endif /* SIGTTOU */
 
-  rl_sigaction (SIGTERM, &old_term, &dummy);
+#endif /* HANDLE_JOB_SIGNALS */
 
-#endif /* !SHELL */
+#if defined (HANDLE_SIGTERM)
+  rl_sigaction (SIGTERM, &old_term, &dummy);
+#endif /* HANDLE_SIGTERM */
 
 #if defined (SIGWINCH)
   sigemptyset (&dummy.sa_mask);

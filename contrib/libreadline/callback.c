@@ -39,6 +39,7 @@
 extern void readline_internal_startup ();
 extern char *readline_internal_teardown ();
 extern int readline_internal_char ();
+extern void _rl_init_line_state ();
 
 extern int _rl_meta_flag;
 extern char *rl_prompt;
@@ -119,6 +120,10 @@ rl_callback_read_char ()
 #endif
       in_handler = 0;
       (*rl_linefunc) (line);
+
+    /* If the user did not clear out the line, do it for him. */
+    if (rl_line_buffer[0])
+      _rl_init_line_state ();
 
     /* Redisplay the prompt if readline_handler_{install,remove} not called. */
       if (in_handler == 0 && rl_linefunc)

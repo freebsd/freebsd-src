@@ -312,7 +312,7 @@ to get a character from the input stream.  By default, it is set to
 (@pxref{Utility Functions}).
 @end deftypevar
 
-@deftypevar {Function *} rl_redisplay_function
+@deftypevar {VFunction *} rl_redisplay_function
 If non-zero, @code{readline} will call indirectly through this pointer
 to update the display with the current contents of the editing buffer.
 By default, it is set to @code{rl_redisplay}, the default @code{readline}
@@ -414,6 +414,11 @@ Makes @var{keymap} the currently active keymap.
 
 @deftypefun Keymap rl_get_keymap_by_name (char *name)
 Return the keymap matching @var{name}.  @var{name} is one which would
+be supplied in a @code{set keymap} inputrc line (@pxref{Readline Init File}).
+@end deftypefun
+
+@deftypefun {char *} rl_get_keymap_name (Keymap keymap)
+Return the name matching @var{keymap}.  @var{name} is one which would
 be supplied in a @code{set keymap} inputrc line (@pxref{Readline Init File}).
 @end deftypefun
 
@@ -576,7 +581,7 @@ that text.
 @node Redisplay
 @subsection Redisplay
 
-@deftypefun int rl_redisplay ()
+@deftypefun void rl_redisplay ()
 Change what's displayed on the screen to reflect the current contents
 of @code{rl_line_buffer}.
 @end deftypefun
@@ -648,6 +653,11 @@ Return the next character available from the keyboard.
 Insert @var{c} into the Readline input stream.  It will be "read"
 before Readline attempts to read characters from the terminal with
 @code{rl_read_key ()}.
+@end deftypefun
+
+@deftypefun rl_extend_line_buffer (int len)
+Ensure that @code{rl_line_buffer} has enough space to hold @var{len}
+characters, possibly reallocating it if necessary.
 @end deftypefun
 
 @deftypefun int rl_initialize ()
@@ -870,7 +880,7 @@ that does the initial simple matching selection algorithm (see
 This is a pointer to the generator function for @code{completion_matches
 ()}.  If the value of @code{rl_completion_entry_function} is
 @code{(Function *)NULL} then the default filename generator function,
-@code{filename_entry_function ()}, is used.
+@code{filename_completion_function ()}, is used.
 @end deftypevar
 
 @node Completion Functions
@@ -1069,7 +1079,7 @@ by @code{rl_filename_quoting_function}.
 @end deftypevar
 
 @deftypevar int rl_inhibit_completion
-If this variable is non-zero, completion is inhibited.  The completion
+If this variable is non-zero, completion is inhibit<ed.  The completion
 character will be inserted as any other bound to @code{self-insert}.
 @end deftypevar
 

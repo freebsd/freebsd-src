@@ -49,17 +49,25 @@
 
 #include <signal.h>
 #include <stdio.h>
-#include <setjmp.h>
+#include "posixjmp.h"
 
 /* System-specific feature definitions and include files. */
 #include "rldefs.h"
 
-#include "tcap.h"
+#if defined (__EMX__)
+#  define INCL_DOSPROCESS
+#  include <os2.h>
+#endif /* __EMX__ */
 
 /* Some standard library routines. */
 #include "readline.h"
 #include "history.h"
 
+#ifndef RL_LIBRARY_VERSION
+#  define RL_LIBRARY_VERSION "2.1-bash"
+#endif
+
+/* Evaluates its arguments multiple times. */
 #define SWAP(s, e)  do { int t; t = s; s = e; e = t; } while (0)
 
 /* NOTE: Functions and variables prefixed with `_rl_' are
@@ -75,7 +83,6 @@ extern void _rl_get_screen_size ();
 
 extern int _rl_enable_meta;
 extern int _rl_term_autowrap;
-extern char *term_backspace, *term_clreol, *term_clrpag;
 extern int screenwidth, screenheight, screenchars;
 
 /* Variables and functions imported from rltty.c. */
@@ -99,9 +106,17 @@ extern int rl_read_key ();
 /* Functions imported from nls.c */
 extern int _rl_init_eightbit ();
 
+/* Functions imported from shell.c */
+extern char *get_env_value ();
+
 /* External redisplay functions and variables from display.c */
 extern void _rl_move_vert ();
 extern void _rl_update_final ();
+extern void _rl_clear_to_eol ();
+extern void _rl_clear_screen ();
+
+extern void _rl_save_prompt ();
+extern void _rl_restore_prompt ();
 
 extern void _rl_erase_at_end_of_line ();
 extern void _rl_move_cursor_relative ();
@@ -153,6 +168,7 @@ static void readline_default_bindings ();
 #endif /* !__GO32__ */
 
 #if defined (__GO32__)
+#  include <go32.h>
 #  include <pc.h>
 #  undef HANDLE_SIGNALS
 #endif /* __GO32__ */
@@ -165,7 +181,7 @@ extern char *xmalloc (), *xrealloc ();
 /*								    */
 /* **************************************************************** */
 
-char *rl_library_version = "2.1";
+char *rl_library_version = RL_LIBRARY_VERSION;
 
 /* A pointer to the keymap that is currently in use.
    By default, it is the standard emacs keymap. */
@@ -173,6 +189,11 @@ Keymap _rl_keymap = emacs_standard_keymap;
 
 /* The current style of editing. */
 int rl_editing_mode = emacs_mode;
+
+/* Non-zero if we called this function from _rl_dispatch().  It's present
+   so functions can find out whether they were called from a key binding
+   or directly from an application. */
+int rl_dispatching;
 
 /* Non-zero if the previous command was a kill command. */
 int _rl_last_command_was_kill = 0;
@@ -208,7 +229,7 @@ int rl_done;
 Function *rl_last_func = (Function *)NULL;
 
 /* Top level environment for readline_internal (). */
-jmp_buf readline_top_level;
+procenv_t readline_top_level;
 
 /* The streams we interact with. */
 FILE *_rl_in_stream, *_rl_out_stream;
@@ -360,7 +381,7 @@ readline_internal_setup ()
       (*rl_redisplay_function) ();
 #if defined (VI_MODE)
       if (rl_editing_mode == vi_mode)
-	rl_vi_insertion_mode ();
+	rl_vi_insertion_mode (1, 0);
 #endif /* VI_MODE */
     }
 }
@@ -498,6 +519,14 @@ readline_internal ()
 }
 
 void
+_rl_init_line_state ()
+{
+  rl_point = rl_end = 0;
+  the_line = rl_line_buffer;
+  the_line[0] = 0;
+}
+
+void
 _rl_set_the_line ()
 {
   the_line = rl_line_buffer;
@@ -551,12 +580,14 @@ _rl_dispatch (key, map)
 	  _rl_suppress_redisplay = (map[key].function == rl_insert) && _rl_input_available ();
 #endif
 
+	  rl_dispatching = 1;
 	  r = (*map[key].function)(rl_numeric_arg * rl_arg_sign, key);
+	  rl_dispatching = 0;
 
 	  /* If we have input pending, then the last command was a prefix
 	     command.  Don't change the state of rl_last_func.  Otherwise,
 	     remember the last command executed in this variable. */
-	  if (!rl_pending_input)
+	  if (!rl_pending_input && map[key].function != rl_digit_argument)
 	    rl_last_func = map[key].function;
 	}
       else
@@ -603,7 +634,7 @@ _rl_dispatch (key, map)
 /*								    */
 /* **************************************************************** */
 
-/* Initliaze readline (and terminal if not already). */
+/* Initialize readline (and terminal if not already). */
 int
 rl_initialize ()
 {
@@ -616,9 +647,7 @@ rl_initialize ()
     }
 
   /* Initalize the current line information. */
-  rl_point = rl_end = 0;
-  the_line = rl_line_buffer;
-  the_line[0] = 0;
+  _rl_init_line_state ();
 
   /* We aren't done yet.  We haven't even gotten started yet! */
   rl_done = 0;
@@ -643,12 +672,41 @@ rl_initialize ()
   return 0;
 }
 
+#if defined (__EMX__)
+static void
+_emx_build_environ ()
+{
+  TIB *tibp;
+  PIB *pibp;
+  char *t, **tp;
+  int c;
+
+  DosGetInfoBlocks (&tibp, &pibp);
+  t = pibp->pib_pchenv;
+  for (c = 1; *t; c++)
+    t += strlen (t) + 1;
+  tp = environ = (char **)xmalloc ((c + 1) * sizeof (char *));
+  t = pibp->pib_pchenv;
+  while (*t)
+    {
+      *tp++ = t;
+      t += strlen (t) + 1;
+    }
+  *tp = 0;
+}
+#endif /* __EMX__ */
+
 /* Initialize the entire state of the world. */
 static void
 readline_initialize_everything ()
 {
+#if defined (__EMX__)
+  if (environ == 0)
+    _emx_build_environ ();
+#endif
+
   /* Find out if we are running in Emacs. */
-  running_in_emacs = getenv ("EMACS") != (char *)0;
+  running_in_emacs = get_env_value ("EMACS") != (char *)0;
 
   /* Set up input and output if they are not already set up. */
   if (!rl_instream)
@@ -664,7 +722,7 @@ readline_initialize_everything ()
   _rl_out_stream = rl_outstream;
 
   /* Allocate data structures. */
-  if (!rl_line_buffer)
+  if (rl_line_buffer == 0)
     rl_line_buffer = xmalloc (rl_line_buffer_len = DEFAULT_BUFFER_SIZE);
 
   /* Initialize the terminal interface. */
@@ -773,44 +831,55 @@ bind_arrow_keys ()
 static int
 rl_digit_loop ()
 {
-  int key, c, sawminus;
+  int key, c, sawminus, sawdigits;
 
   _rl_save_prompt ();
 
-  sawminus = 0;
+  sawminus = sawdigits = 0;
   while (1)
     {
       rl_message ("(arg: %d) ", rl_arg_sign * rl_numeric_arg);
       key = c = rl_read_key ();
 
+      /* If we see a key bound to `universal-argument' after seeing digits,
+	 it ends the argument but is otherwise ignored. */
       if (_rl_keymap[c].type == ISFUNC &&
 	  _rl_keymap[c].function == rl_universal_argument)
 	{
-	  rl_numeric_arg *= 4;
-	  continue;
-	}
-      c = UNMETA (c);
-      if (_rl_digit_p (c))
-	{
-	  rl_numeric_arg = rl_explicit_arg ? (rl_numeric_arg * 10) + c - '0' : c - '0';
-	  rl_explicit_arg = 1;
-	}
-      else
-	{
-	  if (c == '-' && rl_explicit_arg == 0)
+	  if (sawdigits == 0)
 	    {
-	      rl_numeric_arg = sawminus = 1;
-	      rl_arg_sign = -1;
+	      rl_numeric_arg *= 4;
+	      continue;
 	    }
 	  else
 	    {
-	      /* Make M-- command equivalent to M--1 command. */
-	      if (sawminus && rl_numeric_arg == 1 && rl_explicit_arg == 0)
-		rl_explicit_arg = 1;
+	      key = rl_read_key ();
 	      _rl_restore_prompt ();
 	      rl_clear_message ();
 	      return (_rl_dispatch (key, _rl_keymap));
 	    }
+	}
+
+      c = UNMETA (c);
+
+      if (_rl_digit_p (c))
+	{
+	  rl_numeric_arg = rl_explicit_arg ? (rl_numeric_arg * 10) + c - '0' : c - '0';
+	  sawdigits = rl_explicit_arg = 1;
+	}
+      else if (c == '-' && rl_explicit_arg == 0)
+	{
+	  rl_numeric_arg = sawminus = 1;
+	  rl_arg_sign = -1;
+	}
+      else
+	{
+	  /* Make M-- command equivalent to M--1 command. */
+	  if (sawminus && rl_numeric_arg == 1 && rl_explicit_arg == 0)
+	    rl_explicit_arg = 1;
+	  _rl_restore_prompt ();
+	  rl_clear_message ();
+	  return (_rl_dispatch (key, _rl_keymap));
 	}
     }
 
@@ -935,6 +1004,28 @@ rl_delete_text (from, to)
   the_line[rl_end] = '\0';
   return (diff);
 }
+
+/* Fix up point so that it is within the line boundaries after killing
+   text.  If FIX_MARK_TOO is non-zero, the mark is forced within line
+   boundaries also. */
+
+#define _RL_FIX_POINT(x) \
+	do { \
+	if (x > rl_end) \
+	  x = rl_end; \
+	else if (x < 0) \
+	  x = 0; \
+	} while (0)
+
+void
+_rl_fix_point (fix_mark_too)
+     int fix_mark_too;
+{
+  _RL_FIX_POINT (rl_point);
+  if (fix_mark_too)
+    _RL_FIX_POINT (rl_mark);
+}
+#undef _RL_FIX_POINT
 
 /* **************************************************************** */
 /*								    */
@@ -1153,8 +1244,7 @@ rl_refresh_line ()
     memset (row_start + col, 0, (width - col) * 2);
   }
 #else /* !__GO32__ */
-  if (term_clreol)
-    tputs (term_clreol, 1, _rl_output_character_function);
+  _rl_clear_to_eol (0);		/* arg of 0 means to not use spaces */
 #endif /* !__GO32__ */
 
   rl_forced_update_display ();
@@ -1176,13 +1266,7 @@ rl_clear_screen (count, key)
       return 0;
     }
 
-#if !defined (__GO32__)
-  if (term_clrpag)
-    tputs (term_clrpag, 1, _rl_output_character_function);
-  else
-#endif /* !__GO32__ */
-    crlf ();
-
+  _rl_clear_screen ();		/* calls termcap function to clear screen */
   rl_forced_update_display ();
   rl_display_fixed = 1;
 
@@ -1321,8 +1405,11 @@ rl_newline (count, key)
   rl_done = 1;
 
 #if defined (VI_MODE)
-  _rl_vi_done_inserting ();
-  _rl_vi_reset_last ();
+  if (rl_editing_mode == vi_mode)
+    {
+      _rl_vi_done_inserting ();
+      _rl_vi_reset_last ();
+    }
 #endif /* VI_MODE */
 
   if (readline_echoing_p)
@@ -1632,10 +1719,7 @@ rl_transpose_chars (count, key)
   rl_delete_text (rl_point, rl_point + 1);
 
   rl_point += count;
-  if (rl_point > rl_end)
-    rl_point = rl_end;
-  else if (rl_point < 0)
-    rl_point = 0;
+  _rl_fix_point (0);
   rl_insert_text (dummy);
 
   rl_end_undo_group ();
@@ -1988,7 +2072,7 @@ rl_vi_editing_mode (count, key)
 {
 #if defined (VI_MODE)
   rl_editing_mode = vi_mode;
-  rl_vi_insertion_mode ();
+  rl_vi_insertion_mode (1, key);
 #endif /* VI_MODE */
   return 0;
 }
