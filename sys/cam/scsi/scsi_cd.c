@@ -24,7 +24,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *      $Id: scsi_cd.c,v 1.5 1998/10/07 02:57:57 ken Exp $
+ *      $Id: scsi_cd.c,v 1.6 1998/10/12 17:02:37 ken Exp $
  */
 /*
  * Portions of this driver taken from the original FreeBSD cd driver.
@@ -558,7 +558,6 @@ cdasync(void *callback_arg, u_int32_t code,
 static cam_status
 cdregister(struct cam_periph *periph, void *arg)
 {
-	int s;
 	struct cd_softc *softc;
 	struct ccb_setasync csa;
 	struct ccb_getdev *cgd;
@@ -1102,7 +1101,6 @@ cdschedule(struct cam_periph *periph, int priority)
 static void
 cdrunchangerqueue(void *arg)
 {
-	struct timeval cur_time, busy_time;
 	struct cd_softc *softc;
 	struct cdchanger *changer;
 	int called_from_timeout;
@@ -1449,8 +1447,6 @@ cdstart(struct cam_periph *periph, union ccb *start_ccb)
 	struct buf *bp;
 	struct ccb_scsiio *csio;
 	struct scsi_read_capacity_data *rcap;
-	struct partition *p;
-	u_int32_t blkno, nblk;
 	int s;
 
 	softc = (struct cd_softc *)periph->softc;

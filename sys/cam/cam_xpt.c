@@ -26,7 +26,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *      $Id: cam_xpt.c,v 1.21 1998/10/14 21:17:39 ken Exp $
+ *      $Id: cam_xpt.c,v 1.22 1998/10/14 22:51:51 ken Exp $
  */
 #include <sys/param.h>
 #include <sys/systm.h>
@@ -953,7 +953,6 @@ xptioctl(dev_t dev, u_long cmd, caddr_t addr, int flag, struct proc *p)
 		int base_periph_found;
 		int splbreaknum;
 		int s;
-		int i;
 
 		ccb = (union ccb *)addr;
 		unit = ccb->cgdl.unit_number;
@@ -1846,7 +1845,6 @@ xptedtdevicefunc(struct cam_ed *device, void *arg)
 
 	struct ccb_dev_match *cdm;
 	dev_match_ret retval;
-	u_int dev_gen;
 
 	cdm = (struct ccb_dev_match *)arg;
 
@@ -2933,7 +2931,6 @@ xpt_action(union ccb *start_ccb)
 		if ((crs->release_flags & RELSIM_ADJUST_OPENINGS) != 0) {
 
  			if ((dev->inq_data.flags & SID_CmdQue) != 0) {
-				int reduction;
 
 				/* Don't ever go below one opening */
 				if (crs->openings > 0) {
@@ -4729,7 +4726,6 @@ static void
 xpt_scan_lun(struct cam_periph *periph, struct cam_path *path,
 	     cam_flags flags, union ccb *request_ccb)
 {
-	u_int32_t unit;
 	cam_status status;
 	struct cam_path *new_path;
 	struct cam_periph *old_periph;
@@ -5538,7 +5534,6 @@ static void
 xpt_config(void *arg)
 {
 	/* Now that interrupts are enabled, go find our devices */
-	struct cam_eb *bus;
 
 #ifdef CAMDEBUG
 	/* Setup debugging flags and path */
@@ -5631,11 +5626,6 @@ static void
 xpt_finishconfig(struct cam_periph *periph, union ccb *done_ccb)
 {
 	struct	periph_driver **p_drv;
-	struct	cam_eb *bus;
-	struct	cam_et *target;
-	struct	cam_ed *dev;
-	struct	cam_periph  *nperiph;
-	struct	periph_list *periph_head;
 	int	i;
 
 	if (done_ccb != NULL) {

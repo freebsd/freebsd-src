@@ -25,7 +25,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *      $Id: scsi_sa.c,v 1.1 1998/09/15 06:36:34 gibbs Exp $
+ *      $Id: scsi_sa.c,v 1.2 1998/10/02 05:15:27 ken Exp $
  */
 
 #include <sys/param.h>
@@ -810,7 +810,6 @@ saasync(void *callback_arg, u_int32_t code,
 static cam_status
 saregister(struct cam_periph *periph, void *arg)
 {
-	int s;
 	struct sa_softc *softc;
 	struct ccb_setasync csa;
 	struct ccb_getdev *cgd;
@@ -1121,7 +1120,7 @@ samount(struct cam_periph *periph)
 
 	if ((softc->flags & SA_FLAG_TAPE_MOUNTED) == 0) {
 		struct	scsi_read_block_limits_data *rblim;
-		int	buff_mode, comp_enabled, comp_supported;
+		int	comp_enabled, comp_supported;
 		u_int8_t write_protect;
 
 		/*
