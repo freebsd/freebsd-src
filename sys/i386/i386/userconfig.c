@@ -46,7 +46,7 @@
  ** (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  ** THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  **
- **      $Id: userconfig.c,v 1.73 1996/12/14 22:02:58 joerg Exp $
+ **      $Id: userconfig.c,v 1.74 1996/12/14 22:18:43 jkh Exp $
  **/
 
 /**
@@ -2220,7 +2220,7 @@ visuserconfig(void)
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *      $Id: userconfig.c,v 1.73 1996/12/14 22:02:58 joerg Exp $
+ *      $Id: userconfig.c,v 1.74 1996/12/14 22:18:43 jkh Exp $
  */
 
 #include "scbus.h"
@@ -2281,7 +2281,7 @@ static int introfunc(CmdParm *);
 static int lineno;
 
 /* XXX hack */
-#incldue "eisa.h"
+#include "eisa.h"
 #if NEISA > 0
 extern int num_eisa_slots;
 static int set_num_eisa_slots(CmdParm *);
