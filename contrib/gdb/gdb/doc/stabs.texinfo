@@ -6,7 +6,7 @@
 @ifinfo
 @format
 START-INFO-DIR-ENTRY
-* Stabs: (stabs).                 The "stabs" debugging information format.
+* Stabs: (stabs).		The "stabs" debugging information format.
 END-INFO-DIR-ENTRY
 @end format
 @end ifinfo
