@@ -927,8 +927,6 @@ pipe_write(fp, uio, active_cred, flags, td)
 		return(error);
 	}
 		
-	KASSERT(wpipe->pipe_buffer.buffer != NULL, ("pipe buffer gone"));
-
 	orig_resid = uio->uio_resid;
 
 	while (uio->uio_resid) {
