@@ -28,7 +28,19 @@
 
 /*
  * HISTORY
- * $Log:	disk.c,v $
+ * $Log: disk.c,v $
+ * Revision 1.3  1993/07/11  12:02:23  andrew
+ * Fixes from bde, including support for loading @ any MB boundary (e.g. a
+ * kernel linked for 0xfe100000 will load at the 1MB mark) and read-ahead
+ * buffering to speed booting from floppies.  Also works with aha174x
+ * controllers in enhanced mode.
+ *
+ * Revision 1.2  1993/06/18  02:28:58  cgd
+ * make it *do* something when loading the kernel, a la sun twiddling-thing
+ *
+ * Revision 1.1  1993/03/21  18:08:36  cgd
+ * after 0.2.2 "stable" patches applied
+ *
  * Revision 2.2  92/04/04  11:35:49  rpd
  * 	Fabricated from 3.0 bootstrap and 2.5 boot disk.c:
  * 	with support for scsi
@@ -174,14 +186,44 @@ devread()
 	}
 }
 
+#define I_ADDR		((void *) 0)	/* XXX where all reads go */
+
+/* Read ahead buffer large enough for one track on a 1440K floppy.  For
+ * reading from floppies, the bootstrap has to be loaded on a 64K boundary
+ * to ensure that this buffer doesn't cross a 64K DMA boundary.
+ */
+#define RA_SECTORS	18
+static char ra_buf[RA_SECTORS * BPS];
+static int ra_end;
+static int ra_first;
+
 Bread(dosdev,sector)
      int dosdev,sector;
 {
-	int cyl = sector/spc, head = (sector%spc)/spt, secnum = sector%spt;
-	while (biosread(dosdev, cyl,head,secnum))
+	if (sector < ra_first || sector >= ra_end)
 	{
-		printf("Error: C:%d H:%d S:%d\n",cyl,head,secnum);
+		int cyl, head, sec, nsec;
+
+		cyl = sector/spc;
+		head = (sector % spc) / spt;
+		sec = sector % spt;
+		nsec = spt - sec;
+		if (nsec > RA_SECTORS)
+			nsec = RA_SECTORS;
+		twiddle();
+		if (biosread(dosdev, cyl, head, sec, nsec, ra_buf) != 0)
+		{
+		    nsec = 1;
+		    twiddle();
+		    while (biosread(dosdev, cyl, head, sec, nsec, ra_buf) != 0) {
+			printf("Error: C:%d H:%d S:%d\n", cyl, head, sec);
+			twiddle();
+		    }
+		}
+		ra_first = sector;
+		ra_end = sector + nsec;
 	}
+	bcopy(ra_buf + (sector - ra_first) * BPS, I_ADDR, BPS);
 }
 
 badsect(dosdev, sector)

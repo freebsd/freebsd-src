@@ -25,51 +25,83 @@
 #
 # HISTORY
 # $Log: Makefile,v $
-# Revision 2.2	92/04/04  11:33:46  rpd
-#	Fabricated for MACH 3.0
-#	[92/03/30	     mg32]
+# Revision 1.6  1993/07/11  12:02:17  andrew
+# Fixes from bde, including support for loading @ any MB boundary (e.g. a
+# kernel linked for 0xfe100000 will load at the 1MB mark) and read-ahead
+# buffering to speed booting from floppies.  Also works with aha174x
+# controllers in enhanced mode.
+#
+# Revision 1.5  1993/07/04  14:03:03  cgd
+# do the right thing, so things aren't built in /usr/src/sys
+#
+# Revision 1.4  1993/06/18  08:03:14  cgd
+# install floppy boot block, too.
+#
+# Revision 1.3  1993/06/08  03:36:39  deraadt
+# makes more sense if src is mounted readonly
+#
+# Revision 1.2  1993/04/28  08:45:51  deraadt
+# Ensure the rmaouthdr shell script is executable before running it!
+#
+# Revision 1.1  1993/03/21  18:08:11  cgd
+# after 0.2.2 "stable" patches applied
+#
+# 
+# 93/06/30  bde
+#	fd boot is now fast enough.
+#	(Safe) target fd0 and (unsafe) target wd0 to temporarily avoid
+#	updating /use/mdec.
+#
+# 93/06/29  bde
+#	Deleted weirdness for not-really-separate code and data segments.
+#	It is not necessary now that the GDT is dynamically initialized.
+#	table.o doesn't need to be early any more.  boot.sed is not used
+#	any more (delete it).  The shell commands that failed with status
+#	0 no longer exist so the 93/06/28 fixes got deleted.
+#
+#	Use .S extension for asm files to get (g)cc to preprocess them
+#	automatically.
+#
+# 93/06/28  bde
+#	Don't exit 0 from failing shell commands.
 #
 # Thu Sep 10 22:40:23 PDT 1992
 # Ported to 386BSD by Julian Elischer
 # julian@tfs.com
 #
+# Revision 2.2	92/04/04  11:33:46  rpd
+#	Fabricated for MACH 3.0
+#	[92/03/30	     mg32]
+#
+wd0:
+	dd if=boot of=biosboot count=1
+	dd if=boot of=bootbios skip=1
+	disklabel -r -w wd0 nec5655 newboot biosboot bootbios
+	rm biosboot bootbios
 
-CFLAGS	= -O -DDO_BAD144
+NOPROG=	noprog
+NOMAN=	noman
+
+CFLAGS	= -O -DDO_BAD144 -I${.CURDIR}
 LIBS= -lc
-INC= -I../..
+INC= -I${.CURDIR}/../..
 
-# start.o should be first, table.o should be second
+# start.o should be first
 OBJS = start.o table.o boot2.o boot.o asm.o bios.o io.o disk.o sys.o
 
-.SUFFIXES: .s .c .o
+.SUFFIXES: .S .c .o
 
-# These are wierd because we don't want separate code and data segments.. ok?
 .c.o:
-	@echo $(CC) -c $(CFLAGS) $(INC) $*.c
-	-@trap "/bin/rm -f $*.i $*.s; exit 0" 0 1 2 3 10 15; \
-	$(CC)  $(CFLAGS) $(INC) -S $<;	\
-	if [ $$? != 0 ]; then :; else \
-		sed -f boot.sed $*.s > $*.i;	\
-		$(AS) $*.i -o $@; \
-	fi
+	$(CC)  $(CFLAGS) $(INC) -c $<
 
-.s.o:
-	@echo $(AS) -o $*.o $<
-	-@trap "/bin/rm -f $*.i X$*.c; exit 0" 0 1 2 3 10 15; \
-	/bin/rm -f X$*.c;	\
-	ln $*.s X$*.c;	\
-	$(CC) -E $(CFLAGS) X$*.c > $*.i;	\
-	if [ $$? != 0 ]; then :;	\
-	else \
-		$(AS) $*.i -o $@;	\
-	fi
+.S.o:
+	$(CC)  $(CFLAGS) -c $<
 
-
-boot: boot.sed $(OBJS)
+boot: $(OBJS)
 	$(LD) -N -T 0 -o boot $(OBJS) $(LIBS)
 	cp boot boot.sym
 	@strip boot
-	@./rmaouthdr boot boot.tmp
+	@sh ${.CURDIR}/rmaouthdr boot boot.tmp
 	@mv -f boot.tmp boot
 	@ls -l boot
 
@@ -105,27 +137,17 @@ sd:	/usr/mdec/bootsd /usr/mdec/sdboot
 wd:	/usr/mdec/bootwd /usr/mdec/wdboot
 fd:	/usr/mdec/bootfd /usr/mdec/fdboot
 
-#wd0:	/usr/mdec/bootwd /usr/mdec/wdboot
-#	disklabel -r -w wd0 julian julian5 /usr/mdec/wdboot /usr/mdec/bootwd
-#
+all: biosboot bootbios
 
-sd0:	/usr/mdec/bootsd /usr/mdec/sdboot
-	disklabel -r -w sd0 XT-8760 scsitest /usr/mdec/sdboot /usr/mdec/bootsd
+fd0:
+	dd if=boot of=biosboot count=1
+	dd if=boot of=bootbios skip=1
+	disklabel -r -w fd0 floppy bootflpy biosboot bootbios
+	rm biosboot bootbios
 
+install: wd sd fd
 
-#fd0:	/usr/mdec/bootfd /usr/mdec/fdboot
-#	disklabel -r -w fd0 floppy5 bootflpy /usr/mdec/fdboot /usr/mdec/bootfd
-#
-
-install: wd sd 
-# you should use the old floppy booter, it's MUCH faster
-# This one works but it's too slow.
-# besides how many kernels can you fit on a floppy?
-# only use this one if you want to boot a kernel
-# from a hard disk 2 when you've trashed hard disk 1
-#install: wd sd fd
-
-clean:
+clean cleandir:
 	/bin/rm -f *.o *.d boot bootbios biosboot boot.sym
 
-
+.include <bsd.prog.mk>

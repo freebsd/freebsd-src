@@ -27,7 +27,34 @@
  */
 /* 
  * HISTORY
- * $Log:	asm.h,v $
+ * $Log: asm.h,v $
+ * Revision 1.2  1993/07/11  12:02:19  andrew
+ * Fixes from bde, including support for loading @ any MB boundary (e.g. a
+ * kernel linked for 0xfe100000 will load at the 1MB mark) and read-ahead
+ * buffering to speed booting from floppies.  Also works with aha174x
+ * controllers in enhanced mode.
+ *
+ *
+ * 93/06/28  bde
+ *	Deleted addr16 and data16.  These produce the same prefix bytes as
+ *	addr32 and data32 but have confusing names.  There is no way to make
+ *	gas produce 16-bit addresses or operand sizes.  Instead, we let it
+ *	produce 32-bit addresses and operand sizes and explicitly code the
+ *	correct prefix(es) to make the address modes and operand sizes what
+ *	gas thinks they are.  It would be safer to use prefixes before
+ *	_every_ instruction (there are alleady a lot of unnecessary data32's
+ *	before short jumps in case the jumps are actually long).  We must
+ *	avoid "word" instructions becuase gas would produce the wrong prefix
+ *	and there is no way to cancel a prefix.  We sometimes avoid adding
+ *	a prefix using kludges like
+ *		"xorl %eax, %eax	# actually xorw %ax, %ax".
+ *
+ * 93/06/28  bde
+ *	Added addr32.
+ *
+ * Revision 1.1  1993/03/21  18:08:18  cgd
+ * after 0.2.2 "stable" patches applied
+ *
  * Revision 2.7  92/02/29  15:33:41  rpd
  * 	Added ENTRY2.
  * 	[92/02/28            rpd]
@@ -139,11 +166,8 @@
 
 #endif	wheeze
 
+#define addr32	.byte 0x67
 #define data32	.byte 0x66
-#define data16	.byte 0x66
-#define addr16	.byte 0x67
-
-
 
 #ifdef GPROF
 #ifdef	__STDC__

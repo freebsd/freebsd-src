@@ -28,7 +28,10 @@
 
 /*
  * HISTORY
- * $Log:	boot.h,v $
+ * $Log: boot.h,v $
+ * Revision 1.1  1993/03/21  18:08:29  cgd
+ * after 0.2.2 "stable" patches applied
+ *
  * Revision 2.2  92/04/04  11:35:03  rpd
  * 	Fabricated from 3.0 bootstrap.  But too many things are global.
  * 	[92/03/30            mg32]

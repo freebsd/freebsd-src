@@ -28,7 +28,26 @@
 
 /*
  * HISTORY
- * $Log:	table.c,v $
+ * $Log: table.c,v $
+ * Revision 1.2  1993/07/11  12:02:25  andrew
+ * Fixes from bde, including support for loading @ any MB boundary (e.g. a
+ * kernel linked for 0xfe100000 will load at the 1MB mark) and read-ahead
+ * buffering to speed booting from floppies.  Also works with aha174x
+ * controllers in enhanced mode.
+ *
+ *
+ * 93/06/28  bde
+ *	Remove remaining magic numbers that depend on the load address.
+ *	IDTs and many more GDT entries to support my debugger.
+ *
+ * 93/06/27  bde
+ *	Remove unused Gdtr2.
+ *	Remove some magic numbers from Gdtr and Gdt.  The boot loader may
+ *	override the ones related to the standard load address of 0x90000.
+ *
+ * Revision 1.1  1993/03/21  18:08:47  cgd
+ * after 0.2.2 "stable" patches applied
+ *
  * Revision 2.2  92/04/04  11:36:43  rpd
  * 	Fix Intel Copyright as per B. Davies authorization.
  * 	[92/04/03            rvb]
@@ -64,9 +83,6 @@ NEGLIGENCE, OR OTHER TORTIOUS ACTION, ARISING OUT OF OR IN CONNECTION
 WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
 */
 
-#define NGDTENT		6
-#define GDTLIMIT	48	/* NGDTENT * 8 */
-
 /*  Segment Descriptor
  *
  * 31          24         19   16                 7           0
@@ -85,21 +101,51 @@ struct seg_desc {
 	unsigned short	limit_15_0;
 	unsigned short	base_15_0;
 	unsigned char	base_23_16;
-	unsigned char	bit_15_8;
-	unsigned char	bit_23_16;
+	unsigned char	p_dpl_type;
+	unsigned char	g_b_a_limit;
 	unsigned char	base_31_24;
 	};
 
+#define RUN	0		/* not really 0, but filled in at boot time */
 
-struct seg_desc	Gdt[NGDTENT] = {
+struct seg_desc	Gdt[] = {
 	{0x0, 0x0, 0x0, 0x0, 0x0, 0x0},		/* 0x0 : null */
 	{0xFFFF, 0x0, 0x0, 0x9F, 0xCF, 0x0},	/* 0x08 : kernel code */
+			/* 0x9E? */
 	{0xFFFF, 0x0, 0x0, 0x93, 0xCF, 0x0},	/* 0x10 : kernel data */
-	{0xFFFF, 0x0000, 0x9, 0x9E, 0x40, 0x0},	/* 0x18 : boot code */
-	{0xFFFF, 0x0000, 0x9, 0x92, 0x40, 0x0},	/* 0x20 : boot data */
-	{0xFFFF, 0x0000, 0x9, 0x9E, 0x0, 0x0}	/* 0x28 : boot code, 16 bits */
-	};
+			/* 0x92? */
+	{0xFFFF, RUN, RUN, 0x9E, 0x40, 0x0},	/* 0x18 : boot code */
+	{0xFFFF, RUN, RUN, 0x92, 0x40, 0x0},	/* 0x20 : boot data */
+	{0xFFFF, RUN, RUN, 0x9E, 0x0, 0x0},	/* 0x28 : boot code, 16 bits */
+	/* More for bdb. */
+	{},					/* BIOS_CS_INDEX = 6 : null */
+	{},					/* BIOS_TMP_INDEX = 7 : null */
+	{},					/* TSS_INDEX = 8 : null */
+	{0xFFFF, 0x0, 0x0, 0xB2, 0x40, 0x0},	/* DS_286_INDEX = 9 */
+	{0xFFFF, 0x0, 0x0, 0xB2, 0x40, 0x0},	/* ES_286_INDEX = 10 */
+	{},					/* Unused = 11 : null */
+	{0x7FFF, 0x8000, 0xB, 0xB2, 0x40, 0x0},	/* COLOR_INDEX = 12 */
+	{0x7FFF, 0x0, 0xB, 0xB2, 0x40, 0x0},	/* MONO_INDEX = 13 */
+	{0xFFFF, RUN, RUN, 0x9A, 0x40, 0x0},	/* DB_CS_INDEX = 14 */
+	{0xFFFF, RUN, RUN, 0x9A, 0x0, 0x0},	/* DB_CS16_INDEX = 15 */
+	{0xFFFF, RUN, RUN, 0x92, 0x40, 0x0},	/* DB_DS_INDEX = 16 */
+	{8*18-1, RUN, RUN, 0x92, 0x40, 0x0},	/* GDT_INDEX = 17 */
+};
 
+struct idt_desc {
+	unsigned short	entry_15_0;
+	unsigned short	selector;
+	unsigned char	padding;
+	unsigned char	p_dpl_type;
+	unsigned short	entry_31_16;
+};
+
+struct idt_desc	Idt[] = {
+	{},					/* Null (int 0) */
+	{RUN, 0x70, 0, 0x8E, 0},		/* DEBUG_VECTOR = 1 */
+	{},					/* Null (int 2) */
+	{RUN, 0x70, 0, 0xEE, 0},		/* BREAKPOINT_VECTOR = 3 */
+};
 
 struct pseudo_desc {
 	unsigned short	limit;
@@ -107,6 +153,6 @@ struct pseudo_desc {
 	unsigned short	base_high;
 	};
 
-struct pseudo_desc Gdtr = { GDTLIMIT, 0x0400, 9 };
-struct pseudo_desc Gdtr2 = { GDTLIMIT, 0xfe00, 9 };
-			/* boot is loaded at 0x90000, Gdt is at boot+1024 */
+struct pseudo_desc Gdtr = { sizeof Gdt - 1, RUN, RUN };
+struct pseudo_desc Idtr_prot = { sizeof Idt - 1, RUN, RUN };
+struct pseudo_desc Idtr_real = { 0x400 - 1, 0x0, 0x0 };
