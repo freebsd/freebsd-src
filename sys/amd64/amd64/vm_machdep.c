@@ -219,7 +219,7 @@ cpu_thread_setup(struct thread *td)
  * such as those generated in thread_userret() itself.
  */
 void
-cpu_set_upcall(struct thread *td, void *pcb)
+cpu_set_upcall(struct thread *td, struct thread *td0)
 {
 }
 
