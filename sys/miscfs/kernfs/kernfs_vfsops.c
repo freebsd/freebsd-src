@@ -74,7 +74,7 @@ kernfs_mount(mp, path, data, ndp, p)
 	struct proc *p;
 {
 	int error = 0;
-	u_int size;
+	size_t size;
 	struct kernfs_mount *fmp;
 	struct vnode *rvp;
 
