@@ -730,6 +730,8 @@ dsopen(dev, mode, flags, sspp, lp)
 		    )
 			continue;
 		dev1 = dkmodslice(dkmodpart(dev, RAW_PART), slice);
+		if (dev1->si_devsw == NULL)
+			dev1->si_devsw = dev->si_devsw;
 		sname = dsname(dev, unit, slice, RAW_PART, partname);
 		/*
 		 * XXX this should probably only be done for the need_init
