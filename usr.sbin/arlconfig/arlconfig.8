@@ -1,0 +1,236 @@
+.\" Copyright (c) 1997, 1998, 1999
+.\"	Bill Paul <wpaul@ee.columbia.edu> All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\" 3. All advertising materials mentioning features or use of this software
+.\"    must display the following acknowledgement:
+.\"	This product includes software developed by Bill Paul.
+.\" 4. Neither the name of the author nor the names of any co-contributors
+.\"    may be used to endorse or promote products derived from this software
+.\"   without specific prior written permission.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY Bill Paul AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL Bill Paul OR THE VOICES IN HIS HEAD
+.\" BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR
+.\" CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF
+.\" SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS
+.\" INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN
+.\" CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
+.\" ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF
+.\" THE POSSIBILITY OF SUCH DAMAGE.
+.\"
+.\" $FreeBSD$
+.\"
+.Dd August 25,2003
+.Dt ARLCONTROL 8
+.Os
+.Sh NAME
+.Nm arlconfig
+.Nd configure Aironet Arlan 655 device
+.Sh SYNOPSIS
+.Nm
+.Ar iface Cm name Ar name 
+.Nm
+.Ar iface Cm sid Ar SID 
+.Nm
+.Ar iface Cm country Ar country ( Cm 9-15 )
+.Nm
+.Ar iface Cm channel Ar channel
+(depend on 
+.Ar country )
+.Nm
+.Ar iface Cm freq Ar freq ( Cm 2412, 2427, 2442, 2457, 2465 ) 
+.Nm
+.Ar iface Cm spread Ar spread Cm ( 354, 500, 1000, 2000 ) 
+.Nm
+.Ar iface Cm bitrate Ar bitrate ( Cm 0-4) 
+.Nm
+.Ar iface Cm mode Ar mode ( Cm 640 | 655 )
+.Nm
+.Ar iface Cm priority Ar priority ( Cm normal, high, highest )
+.Nm
+.Ar iface Cm stat
+.Nm
+.Ar iface Cm quality Ar seconds [ Cm count Ar <count> ] 
+.Sh DESCRIPTION
+The
+.Nm
+utility controls the operation of Aironet Arlan 655 wireless networking
+devices via the
+.Xr arl 4
+driver.
+Most of the parameters that can be changed are related to the
+Aironet protocol which the Aironet Arlan 655 card implements.
+The parameters include
+the station name, the station operation mode 
+.Ar (point to point or infrastructure) , 
+and the network name of a service
+set to join.
+The
+.Nm
+utility can also be used to view the current NIC status, configuration
+and to dump out the values of the card's statistics counters.
+.Pp
+The
+.Ar iface
+argument given to
+.Nm
+should be the logical interface name associated with the Aironet Arlan 655
+device
+.Li ( arl0 , arl1 ,
+etc.) and must be specified.
+.Sh OPTIONS
+The options are as follows:
+.Bl -tag -width indent
+.It Cm name Ar name 
+Set 
+.Ar Device Name . 
+This 
+parameter is used to establish a 15-byte ASCII name
+for the Arlan 655 Client Card. The 
+.Ar Device Name 
+is optional and may be left blank.
+.Pp
+If you choose to assign a name, while operating in 
+.Ar TMA
+mode, the name will appear in the Arlan Access Point's Registration Table.
+Duplicate names are allowed. 
+.It Cm sid Ar SID 
+Set
+.Ar System Identifier.
+The System Identifier 
+.Ar (SID)
+is a 4-byte, hexadecimal digit value that 
+is attached to each packet sent out over the radio. Establishing a 
+.Ar SID
+allows you to group nodes into a microcelluar network and exclude 
+those nodes that are whiting radio range on other networks.
+.Pp
+The
+.Ar SID
+value must be an even number, cannot exceed  ts and must start with
+00 or 02. Examples of valid SID values are: 00000102, 0200AA14, 00013A18,
+007F6380. The 
+.Ar default 
+SID is 
+.Cm 00000002 .
+.Pp
+Since nodes will only receive packets from other nodes with a matching SID, 
+you must make sure that the Arlan 655 Client Card is set the same SID as 
+other nodes on your network. 
+.It Cm mode Ar mode ( Cm 640 | 655 )
+Use
+.Ar operating mode
+parameter to specify whether you are operating in 
+.Ar TMA , Non-TMA 
+or
+.Ar PSP
+mode. The 
+.Ar default
+setting is 
+.Cm TMA
+mode.  
+.Bl -column ".Em Mode" ".Em Regmode"  -offset indent indent
+.Em "Mode       Registration mode"
+.It 640 Ta TMA 
+.It 655 Ta Non-TMA 
+.It PSP Ta Power save mode 
+.El
+.!!!
+.It Cm country Ar country ( Cm 9-15 )
+.It Cm channel Ar channel
+.It Cm freq Ar freq ( Cm 2412, 2427, 2442, 2457, 2465 ) 
+Chose 
+.Ar country , channel , freq
+ parameters that depend on the
+.Ar contry 
+according to the following table:
+.Bl -column ".Em Country" ".Em Channel" ".Em MHz" -offset indent indent
+.Em "Country      	Ch_Set	MHz"
+.It "North America" Ta 9 Ta "2412, 2427, 2442, 2457, 2465"
+.It "U.S.A        " Ta 9 Ta "2412, 2427, 2442, 2457, 2465"
+.It "Canada       " Ta 9 Ta "2412, 2427, 2442, 2457, 2465"
+.It "Mexico       " Ta 9 Ta "2412, 2427, 2442, 2457, 2465"
+.IT "New Zealand  " Ta 9 Ta "2412, 2427, 2442, 2457, 2465"
+.It "E.T.S.I      " Ta 10 Ta "2412, 2427, 2442, 2457, 2472"
+.It "Japan        " Ta 11 Ta "2484"
+.It "France       " Ta 12 Ta "2457, 2465, 2475"
+.It "Australia    " Ta 13 Ta "2411, 2425, 2439"
+.It "Germany      " Ta 14 Ta "2427, 2442, 2457"
+.It "U.K.(MPT1349)" Ta 15 Ta "2460"
+.It "U.K.         " Ta 15 Ta "2460"
+.It "Spain        " Ta 15 Ta "2460"
+.El
+.It Cm bitrate Ar bitrate ( Cm 0-4) 
+.It Cm spread Ar spread Cm ( 354, 500, 1000, 2000 ) 
+Set device operating bitrate or spread.
+.Bl -column ".Em Rate" ".Em Spread" ".Em kb/s"  -offset indent indent
+.Em "Rate	Spread	kb/s"
+.It 0 Ta - Ta Auto
+.It 1 Ta 354 Ta 354
+.It 2 Ta 512 Ta 512
+.It 3 Ta 1000 Ta 1000
+.It 4 Ta 2000 Ta 2000
+.El
+.It Cm priority Ar priority ( Cm normal, high, highest )
+Use the
+.Ar priority
+parameter to set the priority of the Atlan 655 Radio Media Access Control 
+the values are 
+.Cm normal , high
+or
+.Cm higest .
+The higher the priority set, the more likely this unit wil be first 
+to successfully transmit a packet when multiple units are trying 
+to transmit at the same time.
+.Pp
+The percentage of units on your network that you set to other than
+.Dq normal
+should be kept small - 10 percent or less.  
+.It Cm stat
+Print internal Arlan 655 statistics block.
+.It Cm quality Ar seconds  [ Cm count  Ar <count> ]
+Perform link quality test during 
+.Ar seconds 
+transmitting
+.Ar count 
+packets.
+Currently is broken.
+.El
+.Sh EXAMPLES
+.Bd -literal -offset indent
+alrlconfig arl0 name NODE1 sid 4 freq 2442 
+arlconfig arl0 quality 10 seconds
+arlconfig arl0 status 
+.Pp
+You can configure Arlan 655 card from /etc/start_if.arl0. For example: 
+.Pp
+#!/bin/sh
+/sbin/arlconfig arl0 sid 0x000002 freq 2412 spread 2000 mode 640 
+.Sh SEE ALSO
+.Xr arl 4 ,
+.Xr "Arlan 655 ISA Wireless LAN Client Card User Guide" . 
+.Sh HISTORY
+The
+.Nm
+utility first appeared in
+.Fx 5.3 .
+.Sh BUGS
+Aironet Arlan 640 bridges and Arlan 630 access points don't understand
+country codes other than 9.
+.Sh AUTHORS
+The
+.Nm
+utility was written by
+.Aq ran@styx.aic.net .
+Manpage was written by 
+.An Yuri Kurenkov Aq y.kurenkov@init.ru .  

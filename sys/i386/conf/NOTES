@@ -493,6 +493,7 @@ hint.mse.0.irq="5"
 
 # ar:   Arnet SYNC/570i hdlc sync 2/4 port V.35/X.21 serial driver
 #       (requires sppp)
+# arl:	Aironet Arlan 655 wireless adapters.
 # ath:  Atheros a/b/g WiFi adapters (requires ath_hal and wlan)
 # ctau: Cronyx/Tau sync dual port V.35/RS-232/RS-530/RS-449/X.21/G.703/E1
 #       serial adaptor (requires sppp (default), or NETGRAPH if
@@ -521,6 +522,10 @@ hint.ar.0.at="isa"
 hint.ar.0.port="0x300"
 hint.ar.0.irq="10"
 hint.ar.0.maddr="0xd0000"
+device		arl
+hint.arl.0.at="isa"
+hint.arl.0.irq="9"
+hint.arl.0.maddr="0xd0000"
 device		ctau
 hint.ctau.0.at="isa"
 hint.ctau.0.port="0x240"
