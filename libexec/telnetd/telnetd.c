@@ -30,7 +30,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: telnetd.c,v 1.7 1996/09/22 21:55:46 wosch Exp $
+ *	$Id: telnetd.c,v 1.7.2.1 1997/01/12 21:56:33 joerg Exp $
  */
 
 #ifndef lint
@@ -187,7 +187,7 @@ main(argc, argv)
 	highpty = getnpty();
 #endif /* CRAY */
 
-	while ((ch = getopt(argc, argv, valid_opts)) != EOF) {
+	while ((ch = getopt(argc, argv, valid_opts)) !=  -1) {
 		switch(ch) {
 
 #ifdef	AUTHENTICATION

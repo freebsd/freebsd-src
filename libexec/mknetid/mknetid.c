@@ -35,7 +35,7 @@
  * Center for Telecommunications Research
  * Columbia University, New York City
  *
- *	$Id: mknetid.c,v 1.3 1996/07/12 05:55:38 bde Exp $
+ *	$Id: mknetid.c,v 1.4 1996/10/24 03:33:32 wpaul Exp $
  */
 
 #include <sys/types.h>
@@ -55,7 +55,7 @@
 #include "hash.h"
 
 #ifndef lint
-static const char rcsid[] = "$Id: mknetid.c,v 1.3 1996/07/12 05:55:38 bde Exp $";
+static const char rcsid[] = "$Id: mknetid.c,v 1.4 1996/10/24 03:33:32 wpaul Exp $";
 #endif
 
 #define LINSIZ 1024
@@ -111,7 +111,7 @@ main(argc, argv)
 	char *ptr, *pidptr, *gidptr, *hptr;
 	int quiet = 0;
 
-	while ((ch = getopt(argc, argv, "g:p:h:n:d:q")) != EOF) {
+	while ((ch = getopt(argc, argv, "g:p:h:n:d:q")) !=  -1) {
 		switch(ch) {
 		case 'g':
 			groupfile = optarg;

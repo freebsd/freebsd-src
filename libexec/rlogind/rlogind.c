@@ -30,7 +30,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: rlogind.c,v 1.12.2.1 1997/02/09 04:33:30 imp Exp $
+ *	$Id: rlogind.c,v 1.12.2.2 1997/03/24 06:03:11 imp Exp $
  */
 
 #ifndef lint
@@ -133,7 +133,7 @@ main(argc, argv)
 	openlog("rlogind", LOG_PID | LOG_CONS, LOG_AUTH);
 
 	opterr = 0;
-	while ((ch = getopt(argc, argv, ARGSTR)) != EOF)
+	while ((ch = getopt(argc, argv, ARGSTR)) !=  -1)
 		switch (ch) {
 		case 'D':
 			no_delay = 1;

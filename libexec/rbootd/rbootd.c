@@ -39,7 +39,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)rbootd.c	8.2 (Berkeley) 2/22/94
- *	$Id$
+ *	$Id: rbootd.c,v 1.3 1996/09/22 21:54:32 wosch Exp $
  *
  * Utah $Hdr: rbootd.c 3.1 92/07/06$
  * Author: Jeff Forys, University of Utah CSS
@@ -114,7 +114,7 @@ main(argc, argv)
 	/*
 	 *  Parse any arguments.
 	 */
-	while ((c = getopt(argc, argv, "adi:")) != EOF)
+	while ((c = getopt(argc, argv, "adi:")) !=  -1)
 		switch(c) {
 		    case 'a':
 			BootAny++;
