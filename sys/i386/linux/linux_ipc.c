@@ -25,7 +25,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *  $Id: linux_ipc.c,v 1.1 1995/06/25 17:32:36 sos Exp $
+ *  $Id: linux_ipc.c,v 1.2 1995/11/22 07:43:47 bde Exp $
  */
 
 #include <sys/param.h>
@@ -167,11 +167,11 @@ linux_msgctl(struct proc *p, struct linux_ipc_args *args, int *retval)
 int
 linux_shmat(struct proc *p, struct linux_ipc_args *args, int *retval)
 {
-    struct shmat_args {
+    struct shmat_args /* {
 	int shmid;
 	void *shmaddr;
 	int shmflg;
-    } bsd_args;
+    } */ bsd_args;
     int error;
 
     bsd_args.shmid = args->arg1;
@@ -188,9 +188,9 @@ linux_shmat(struct proc *p, struct linux_ipc_args *args, int *retval)
 int
 linux_shmdt(struct proc *p, struct linux_ipc_args *args, int *retval)
 {
-    struct shmdt_args {
+    struct shmdt_args /* {
 	void *shmaddr;
-    } bsd_args;
+    } */ bsd_args;
 
     bsd_args.shmaddr = args->ptr;
     return shmdt(p, &bsd_args, retval);
@@ -199,11 +199,11 @@ linux_shmdt(struct proc *p, struct linux_ipc_args *args, int *retval)
 int
 linux_shmget(struct proc *p, struct linux_ipc_args *args, int *retval)
 {
-    struct shmget_args {
+    struct shmget_args /* {
 	key_t key;
 	int size;
 	int shmflg;
-    } bsd_args;
+    } */ bsd_args;
 
     bsd_args.key = args->arg1;
     bsd_args.size = args->arg2;
@@ -216,11 +216,11 @@ linux_shmctl(struct proc *p, struct linux_ipc_args *args, int *retval)
 {
     struct shmid_ds bsd_shmid;
     struct linux_shmid_ds linux_shmid;
-    struct shmctl_args {
+    struct shmctl_args /* {
 	int shmid;
 	int cmd;
 	struct shmid_ds *buf;
-    } bsd_args;
+    } */ bsd_args;
     int error;
 
     switch (args->arg2) {
