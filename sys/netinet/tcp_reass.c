@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)tcp_input.c	8.12 (Berkeley) 5/24/95
- *	$Id: tcp_input.c,v 1.65 1997/11/07 08:53:21 phk Exp $
+ *	$Id: tcp_input.c,v 1.66 1997/11/20 20:04:49 wollman Exp $
  */
 
 #include "opt_tcpdebug.h"
@@ -385,10 +385,10 @@ findpcb:
 			char buf[4*sizeof "123"];
 
 			strcpy(buf, inet_ntoa(ti->ti_dst));
-			log(LOG_INFO, "Connection attempt to TCP %s:%d"
-			    " from %s:%d\n",
-			    buf, ntohs(ti->ti_dport),
-			    inet_ntoa(ti->ti_src), ntohs(ti->ti_sport));
+			log(LOG_INFO,
+			    "Connection attempt to TCP %s:%d from %s:%d\n",
+			    buf, ntohs(ti->ti_dport), inet_ntoa(ti->ti_src),
+			    ntohs(ti->ti_sport));
 		}
 		goto dropwithreset;
 	}
