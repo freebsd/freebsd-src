@@ -39,7 +39,7 @@
  * otherwise) arising in any way out of the use of this software, even if
  * advised of the possibility of such damage.
  *
- * $Id: vinuminterrupt.c,v 1.15 1999/08/14 06:25:52 grog Exp $
+ * $Id: vinuminterrupt.c,v 1.6 1999/06/18 00:50:53 grog Exp grog $
  */
 
 #include <dev/vinum/vinumhdr.h>
@@ -58,7 +58,7 @@ void sdio_done(struct buf *bp);
  * The bp parameter is in fact a struct rqelement, which
  * includes a couple of extras at the end.
  */
-void 
+void
 complete_rqe(struct buf *bp)
 {
     struct rqelement *rqe;
@@ -132,7 +132,7 @@ complete_rqe(struct buf *bp)
 	 * In a normal read, we will normally read directly
 	 * into the user buffer.  This doesn't work if
 	 * we're also doing a recovery, so we have to
-	 * copy it 
+	 * copy it
 	 */
 	if (rqe->flags & XFR_NORMAL_READ) {		    /* normal read as well, */
 	    char *src = &rqe->b.b_data[rqe->dataoffset << DEV_BSHIFT]; /* read data is here */
@@ -172,7 +172,7 @@ complete_rqe(struct buf *bp)
 }
 
 /* Free a request block and anything hanging off it */
-void 
+void
 freerq(struct request *rq)
 {
     struct rqgroup *rqg;
@@ -181,7 +181,7 @@ freerq(struct request *rq)
 
     for (rqg = rq->rqg; rqg != NULL; rqg = nrqg) {	    /* through the whole request chain */
 	if (rqg->lock)					    /* got a lock? */
-	    unlockrange(rqg);				    /* yes, free it */
+	    unlockrange(rqg->plexno, rqg->lock);	    /* yes, free it */
 	for (rqno = 0; rqno < rqg->count; rqno++)
 	    if ((rqg->rqe[rqno].flags & XFR_MALLOCED)	    /* data buffer was malloced, */
 	    &&rqg->rqe[rqno].b.b_data)			    /* and the allocation succeeded */
@@ -193,7 +193,7 @@ freerq(struct request *rq)
 }
 
 /* I/O on subdisk completed */
-void 
+void
 sdio_done(struct buf *bp)
 {
     struct sdbuf *sbp;
@@ -221,7 +221,7 @@ sdio_done(struct buf *bp)
 }
 
 /* Start the second phase of a RAID5 group write operation. */
-void 
+void
 complete_raid5_write(struct rqelement *rqe)
 {
     int *sdata;						    /* source */
@@ -247,7 +247,7 @@ complete_raid5_write(struct rqelement *rqe)
      * the same thing in each case: we perform an
      * exclusive or to the parity block.  The only
      * difference is the origin of the data and the
-     * address range. 
+     * address range.
      */
 
     if (rqe->flags & XFR_DEGRADED_WRITE) {		    /* do the degraded write stuff */
@@ -260,7 +260,7 @@ complete_raid5_write(struct rqelement *rqe)
 	     * This can do with improvement.  If we're doing
 	     * both a degraded and a normal write, we don't
 	     * need to xor (nor to read) the part of the block
-	     * that we're going to overwrite.  FIXME XXX 
+	     * that we're going to overwrite.  FIXME XXX
 	     */
 	    rqe = &rqg->rqe[rqno];			    /* this request */
 	    sdata = (int *) (&rqe->b.b_data[rqe->groupoffset << DEV_BSHIFT]); /* old data */
@@ -271,7 +271,7 @@ complete_raid5_write(struct rqelement *rqe)
 	     * we started the request, we zeroed the parity
 	     * block, so the result of adding all the other
 	     * blocks and the block we want to write will be
-	     * the correct parity block.  
+	     * the correct parity block.
 	     */
 	    for (count = 0; count < length; count++)
 		pdata[count] ^= sdata[count];
@@ -294,7 +294,7 @@ complete_raid5_write(struct rqelement *rqe)
 		length = rqe->datalen << (DEV_BSHIFT - 2);  /* and count involved */
 		/*
 		 * "remove" the old data block
-		 * from the parity block 
+		 * from the parity block
 		 */
 		if ((pdata < ((int *) prqe->b.b_data))
 		    || (&pdata[length] > ((int *) (prqe->b.b_data + prqe->b.b_bcount)))

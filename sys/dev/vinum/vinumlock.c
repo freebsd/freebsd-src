@@ -51,10 +51,10 @@
 
 /* Lock a drive, wait if it's in use */
 #if VINUMDEBUG
-int 
+int
 lockdrive(struct drive *drive, char *file, int line)
 #else
-int 
+int
 lockdrive(struct drive *drive)
 #endif
 {
@@ -103,7 +103,7 @@ lockdrive(struct drive *drive)
 }
 
 /* Unlock a drive and let the next one at it */
-void 
+void
 unlockdrive(struct drive *drive)
 {
     drive->flags &= ~VF_LOCKED;
@@ -112,7 +112,7 @@ unlockdrive(struct drive *drive)
 }
 
 /* Lock a volume, wait if it's in use */
-int 
+int
 lockvol(struct volume *vol)
 {
     int error;
@@ -136,7 +136,7 @@ lockvol(struct volume *vol)
 }
 
 /* Unlock a volume and let the next one at it */
-void 
+void
 unlockvol(struct volume *vol)
 {
     vol->flags &= ~VF_LOCKED;
@@ -147,7 +147,7 @@ unlockvol(struct volume *vol)
 }
 
 /* Lock a plex, wait if it's in use */
-int 
+int
 lockplex(struct plex *plex)
 {
     int error;
@@ -171,7 +171,7 @@ lockplex(struct plex *plex)
 }
 
 /* Unlock a plex and let the next one at it */
-void 
+void
 unlockplex(struct plex *plex)
 {
     plex->flags &= ~VF_LOCKED;
@@ -286,23 +286,23 @@ lockrange(daddr_t stripe, struct buf *bp, struct plex *plex)
 }
 
 /* Unlock a volume and let the next one at it */
-void 
-unlockrange(struct rqgroup *rqg)
+void
+unlockrange(int plexno, struct rangelock *lock)
 {
     daddr_t lockaddr;
 
 #ifdef VINUMDEBUG
     if (debug & DEBUG_LASTREQS)
-	logrq(loginfo_unlock, (union rqinfou) rqg->lock, rqg->lock->bp);
+	logrq(loginfo_unlock, (union rqinfou) lock, lock->bp);
 #endif
-    lockaddr = rqg->lock->stripe;
-    rqg->lock->stripe = 0;				    /* no longer used */
-    PLEX[rqg->plexno].usedlocks--;			    /* one less lock */
+    lockaddr = lock->stripe;
+    lock->stripe = 0;					    /* no longer used */
+    PLEX[plexno].usedlocks--;				    /* one less lock */
     wakeup((void *) lockaddr);
 }
 
 /* Get a lock for the global config, wait if it's not available */
-int 
+int
 lock_config(void)
 {
     int error;
@@ -317,7 +317,7 @@ lock_config(void)
 }
 
 /* Unlock and wake up any waiters  */
-void 
+void
 unlock_config(void)
 {
     vinum_conf.flags &= ~VF_LOCKED;
