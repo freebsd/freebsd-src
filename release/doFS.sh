@@ -34,23 +34,11 @@ do
 
 	vnconfig -s labels -c /dev/r${VNDEVICE} fs-image
 
-	sed '/^minimum:/,$d' /etc/disktab > /etc/disktab.tmp
-	cat /etc/disktab.tmp > /etc/disktab
-	rm -f /etc/disktab.tmp
-	(
-	a=`expr ${FSSIZE} \* 2`
-	echo 
-	echo "minimum:ty=mfs:se#512:nt#1:rm#300:\\"
-	echo "	:ns#$a:nc#1:\\"
-	echo "	:pa#$a:oa#0:ba#4096:fa#512:\\"
-	echo "	:pc#$a:oc#0:bc#4096:fc#512:"
-	echo
-	) >> /etc/disktab
-
+	dd if=${RD}/trees/bin/usr/mdec/boot1 of=fs-image conv=notrunc
 	disklabel -w -r -B \
 		-b ${RD}/trees/bin/usr/mdec/fdboot \
 		-s ${RD}/trees/bin/usr/mdec/bootfd \
-		/dev/r${VNDEVICE} minimum
+		/dev/${VNDEVICE} minimum
 
 	newfs -u 0 -t 0 -i ${FSINODE} -m 0 -T minimum -o space /dev/r${VNDEVICE}c
 
@@ -74,38 +62,6 @@ do
 	echo ">>> Filesystem is ${FSSIZE} K, $4 left"
 	echo ">>>     ${FSINODE} bytes/inode, $7 left"
 	echo ">>>   `expr ${FSSIZE} \* 1024 / ${FSINODE}`"
-
-# As far as I can tell, the following has only really caused me great
-# difficulty..
-#
-
-#	if [ $4 -gt 128 ] ; then
-#		echo "Reducing size"
-#		FSSIZE=`expr ${FSSIZE} - $4 / 2`
-#		continue
-#	fi
-#	if [ $7 -gt 128 ] ; then
-#		echo "Increasing bytes per inode"
-#		FSINODE=`expr ${FSINODE} + 8192`
-#		continue
-#	fi
-#	if [ $4 -gt 32 ] ; then
-#		echo "Reducing size"
-#		FSSIZE=`expr ${FSSIZE} - 4`
-#		FSINODE=`expr ${FSINODE} - 1024`
-#		continue
-#	fi
-#	if [ $7 -gt 64 ] ; then
-#		echo "Increasing bytes per inode"
-#		FSINODE=`expr ${FSINODE} + 8192`
-#		continue
-#	fi
-#	if [ $deadlock -eq 0 ] ; then
-#		echo "Avoiding deadlock, giving up"
-#		echo ${FSSIZE} > fs-image.size
-#		break
-#	fi
-#	deadlock=`expr $deadlock - 1`
 	echo ${FSSIZE} > fs-image.size
 	break;
 done
