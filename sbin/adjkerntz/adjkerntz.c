@@ -41,6 +41,7 @@ char copyright[] =
  *
  */
 #include <stdio.h>
+#include <signal.h>
 #include <stdlib.h>
 #include <unistd.h>
 #include <syslog.h>
@@ -53,6 +54,8 @@ char copyright[] =
 #include "pathnames.h"
 
 #define REPORT_PERIOD (30*60)
+
+void fake() {}
 
 int main(argc, argv)
 	int argc;
@@ -69,6 +72,7 @@ int main(argc, argv)
 	time_t initial_sec, final_sec;
 	int ch, init = -1;
 	int disrtcset, need_restore = 0;
+	sigset_t mask, emask;
 
 	while ((ch = getopt(argc, argv, "ai")) != EOF)
 		switch((char)ch) {
@@ -95,9 +99,23 @@ int main(argc, argv)
 	if (access(_PATH_CLOCK, F_OK))
 		return 0;
 
+	sigemptyset(&mask);
+	sigemptyset(&emask);
+	sigaddset(&mask, SIGTERM);
+
 	openlog("adjkerntz", LOG_PID|LOG_PERROR, LOG_DAEMON);
 
+	(void) signal(SIGHUP, SIG_IGN);
+
+	if (init && daemon(0, 1)) {
+		syslog(LOG_ERR, "daemon: %m");
+		return 1;
+	}
+
 again:
+
+	(void) sigprocmask(SIG_BLOCK, &mask, NULL);
+	(void) signal(SIGTERM, fake);
 
 /****** Critical section, do all things as fast as possible ******/
 
@@ -126,6 +144,8 @@ again:
 		 */
 		syslog(LOG_WARNING,
 		"Nonexistent local time -- will retry after %d secs", REPORT_PERIOD);
+		(void) signal(SIGTERM, SIG_DFL);
+		(void) sigprocmask(SIG_UNBLOCK, &mask, NULL);
 		(void) sleep(REPORT_PERIOD);
 		goto again;
 	}
@@ -165,6 +185,8 @@ again:
 			 */
 			syslog(LOG_WARNING,
 		"Nonexistent (final) local time -- will retry after %d secs", REPORT_PERIOD);
+			(void) signal(SIGTERM, SIG_DFL);
+			(void) sigprocmask(SIG_UNBLOCK, &mask, NULL);
 			(void) sleep(REPORT_PERIOD);
 			goto again;
 		}
@@ -240,6 +262,13 @@ again:
 	}
 
 /****** End of critical section ******/
+
+	if (init) {
+		init = 0;
+		/* wait for signals and acts like -a */
+		(void) sigsuspend(&emask);
+		goto again;
+	}
 
 	return 0;
 }
