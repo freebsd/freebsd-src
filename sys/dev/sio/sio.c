@@ -41,7 +41,7 @@
  *					into the patch kit.  Added in sioselect
  *					from com.c.  Added port 4 support.
  */
-static char rcsid[] = "$Header: /a/cvs/386BSD/src/sys.386bsd/i386/isa/sio.c,v 1.3 1993/07/18 21:27:57 rgrimes Exp $";
+static char rcsid[] = "$Header: /a/cvs/386BSD/src/sys.386bsd/i386/isa/sio.c,v 1.4 1993/07/20 00:22:30 jkh Exp $";
 
 #include "sio.h"
 #if NSIO > 0
@@ -670,13 +670,11 @@ bidir_open_top:
 			 * since those are only relevant for logins.  It's
 			 * important to have echo off initially so that the
 			 * line doesn't start blathering before the echo flag
-			 * can be turned off.  It's useful to have clocal on
-			 * initially so that "stty changed-defaults </dev/comx"
-			 * doesn't hang waiting for carrier.
+			 * can be turned off.
 			 */
 			tp->t_iflag = 0;
 			tp->t_oflag = 0;
-			tp->t_cflag = CREAD | CS8 | CLOCAL;
+			tp->t_cflag = CREAD | CS8 | HUPCL;
 			tp->t_lflag = 0;
 			tp->t_ispeed = tp->t_ospeed = comdefaultrate;
 		}
