@@ -202,7 +202,7 @@ seminit(void)
 		suptr->un_proc = NULL;
 	}
 	semu_list = NULL;
-	semexit_hook = &semexit_myhook;
+	at_exit(semexit_myhook);
 }
 
 static int
@@ -215,7 +215,7 @@ semunload(void)
 	free(sem, M_SEM);
 	free(sema, M_SEM);
 	free(semu, M_SEM);
-	semexit_hook = NULL;
+	rm_at_exit(semexit_myhook);
 	return (0);
 }
 
