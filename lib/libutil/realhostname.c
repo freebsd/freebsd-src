@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id:$
+ *	$Id: realhostname.c,v 1.1 1999/04/06 23:02:35 brian Exp $
  */
 
 #include <sys/param.h>
@@ -45,13 +45,13 @@ realhostname(char *host, size_t hsize, const struct in_addr *ip)
 	struct hostent *hp;
 
 	result = HOSTNAME_INVALIDADDR;
-	hp = gethostbyaddr((char *)ip, sizeof *ip, AF_INET);
+	hp = gethostbyaddr((char *)ip, sizeof(*ip), AF_INET);
 
 	if (hp != NULL && strlen(hp->h_name) <= hsize) {
-		char lookup[MAXHOSTNAMELEN + 1];
+		char lookup[MAXHOSTNAMELEN];
 
-		strncpy(lookup, hp->h_name, sizeof lookup - 1);
-		lookup[sizeof lookup - 1] = '\0';
+		strncpy(lookup, hp->h_name, sizeof(lookup) - 1);
+		lookup[sizeof(lookup) - 1] = '\0';
 		hp = gethostbyname(lookup);
 		if (hp == NULL)
 			result = HOSTNAME_INVALIDNAME;
@@ -60,7 +60,7 @@ realhostname(char *host, size_t hsize, const struct in_addr *ip)
 				result = HOSTNAME_INCORRECTNAME;
 				break;
 			}
-			if (!memcmp(*hp->h_addr_list, ip, sizeof *ip)) {
+			if (!memcmp(*hp->h_addr_list, ip, sizeof(*ip))) {
 				strncpy(host, lookup, hsize);
 				return HOSTNAME_FOUND;
 			}
