@@ -202,22 +202,23 @@ vinum_read(int argc, char *argv[], char *arg0[])
     checkupdates();					    /* make sure we're updating */
 }
 
-#ifdef VINUMDEBUG
 void
 vinum_debug(int argc, char *argv[], char *arg0[])
 {
     struct debuginfo info;
 
-    if (argc > 0) {
-	info.param = atoi(argv[0]);
-	info.changeit = 1;
-    } else {
-	info.changeit = 0;
-	sleep(2);					    /* give a chance to leave the window */
-    }
-    ioctl(superdev, VINUM_DEBUG, (caddr_t) & info);
+    if (vinum_conf.flags & VF_HASDEBUG) {
+	if (argc > 0) {
+	    info.param = atoi(argv[0]);
+	    info.changeit = 1;
+	} else {
+	    info.changeit = 0;
+	    sleep(2);					    /* give a chance to leave the window */
+	}
+	ioctl(superdev, VINUM_DEBUG, (caddr_t) & info);
+    } else						    /* no debug in kernel module */
+	fprintf(stderr, "Kernel module does not have debug support\n");
 }
-#endif
 
 void
 vinum_modify(int argc, char *argv[], char *arg0[])
