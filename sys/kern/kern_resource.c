@@ -46,6 +46,7 @@
 #include <sys/systm.h>
 #include <sys/sysproto.h>
 #include <sys/file.h>
+#include <sys/kernel.h>
 #include <sys/resourcevar.h>
 #include <sys/malloc.h>
 #include <sys/proc.h>
@@ -60,6 +61,14 @@
 static int donice __P((struct proc *curp, struct proc *chgp, int n));
 /* dosetrlimit non-static:  Needed by SysVR4 emulator */
 int dosetrlimit __P((struct proc *p, u_int which, struct rlimit *limp));
+
+static MALLOC_DEFINE(M_UIDINFO, "uidinfo", "uidinfo structures");
+#define	UIHASH(uid)	(&uihashtbl[(uid) & uihash])
+static LIST_HEAD(uihashhead, uidinfo) *uihashtbl;
+static u_long uihash;		/* size of hash table - 1 */
+
+static struct uidinfo	*uicreate __P((uid_t uid));
+static struct uidinfo	*uilookup __P((uid_t uid));
 
 /*
  * Resource controls and accounting.
@@ -645,4 +654,137 @@ limcopy(lim)
 	copy->p_lflags = 0;
 	copy->p_refcnt = 1;
 	return (copy);
+}
+
+/*
+ * Find the uidinfo structure for a uid.  This structure is used to
+ * track the total resource consumption (process count, socket buffer
+ * size, etc.) for the uid and impose limits.
+ */
+void
+uihashinit()
+{
+	uihashtbl = hashinit(maxproc / 16, M_UIDINFO, &uihash);
+}
+
+static struct uidinfo *
+uilookup(uid)
+	uid_t uid;
+{
+	struct	uihashhead *uipp;
+	struct	uidinfo *uip;
+
+	uipp = UIHASH(uid);
+	LIST_FOREACH(uip, uipp, ui_hash)
+		if (uip->ui_uid == uid)
+			break;
+
+	return (uip);
+}
+
+static struct uidinfo *
+uicreate(uid)
+	uid_t uid;
+{
+	struct	uidinfo *uip, *norace;
+
+	MALLOC(uip, struct uidinfo *, sizeof(*uip), M_UIDINFO, M_NOWAIT);
+	if (uip == NULL) {
+		MALLOC(uip, struct uidinfo *, sizeof(*uip), M_UIDINFO, M_WAITOK);
+		/*
+		 * if we M_WAITOK we must look afterwards or risk
+		 * redundant entries
+		 */
+		norace = uilookup(uid);
+		if (norace != NULL) {
+			FREE(uip, M_UIDINFO);
+			return (norace);
+		}
+	}
+	LIST_INSERT_HEAD(UIHASH(uid), uip, ui_hash);
+	uip->ui_uid = uid;
+	uip->ui_proccnt = 0;
+	uip->ui_sbsize = 0;
+	uip->ui_ref = 0;
+	return (uip);
+}
+
+struct uidinfo *
+uifind(uid)
+	uid_t uid;
+{
+	struct	uidinfo *uip;
+
+	uip = uilookup(uid);
+	if (uip == NULL)
+		uip = uicreate(uid);
+	uip->ui_ref++;
+	return (uip);
+}
+
+int
+uifree(uip)
+	struct	uidinfo *uip;
+{
+
+	if (--uip->ui_ref == 0) {
+		if (uip->ui_sbsize != 0)
+			/* XXX no %qd in kernel.  Truncate. */
+			printf("freeing uidinfo: uid = %d, sbsize = %ld",
+			    uip->ui_uid, (long)uip->ui_sbsize);
+		if (uip->ui_proccnt != 0)
+			printf("freeing uidinfo: uid = %d, proccnt = %ld",
+			    uip->ui_uid, uip->ui_proccnt);
+		LIST_REMOVE(uip, ui_hash);
+		FREE(uip, M_UIDINFO);
+		return (1);
+	}
+	return (0);
+}
+
+/*
+ * Change the count associated with number of processes
+ * a given user is using.  When 'max' is 0, don't enforce a limit
+ */
+int
+chgproccnt(uip, diff, max)
+	struct	uidinfo	*uip;
+	int	diff;
+	int	max;
+{
+	/* don't allow them to exceed max, but allow subtraction */
+	if (diff > 0 && uip->ui_proccnt + diff > max && max != 0)
+		return (0);
+	uip->ui_proccnt += diff;
+	if (uip->ui_proccnt < 0)
+		printf("negative proccnt for uid = %d", uip->ui_uid);
+	return (1);
+}
+
+/*
+ * Change the total socket buffer size a user has used.
+ */
+int
+chgsbsize(uip, hiwat, to, max)
+	struct	uidinfo	*uip;
+	u_long *hiwat;
+	u_long	to;
+	rlim_t	max;
+{
+	rlim_t new;
+	int s;
+
+	s = splnet();
+	new = uip->ui_sbsize + to - *hiwat;
+	/* don't allow them to exceed max, but allow subtraction */
+	if (to > *hiwat && new > max) {
+		splx(s);
+		return (0);
+	}
+	uip->ui_sbsize = new;
+	*hiwat = to;
+	if (uip->ui_sbsize < 0)
+		printf("negative sbsize for uid = %d", uip->ui_uid);
+	splx(s);
+	return (1);
 }

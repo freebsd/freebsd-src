@@ -61,24 +61,7 @@ SYSCTL_INT(_kern, OID_AUTO, ps_showallprocs, CTLFLAG_RW,
 
 static void pgdelete	__P((struct pgrp *));
 
-/*
- * Structure associated with user cacheing.
- */
-struct uidinfo {
-	LIST_ENTRY(uidinfo) ui_hash;
-	uid_t	ui_uid;
-	long	ui_proccnt;
-	rlim_t	ui_sbsize;
-};
-#define	UIHASH(uid)	(&uihashtbl[(uid) & uihash])
-static LIST_HEAD(uihashhead, uidinfo) *uihashtbl;
-static u_long uihash;		/* size of hash table - 1 */
-
 static void	orphanpg __P((struct pgrp *pg));
-
-static struct uidinfo	*uifind(uid_t uid);
-static struct uidinfo	*uicreate(uid_t uid);
-static int 	uifree(struct uidinfo *uip);
 
 /*
  * Other process lists
@@ -102,126 +85,8 @@ procinit()
 	LIST_INIT(&zombproc);
 	pidhashtbl = hashinit(maxproc / 4, M_PROC, &pidhash);
 	pgrphashtbl = hashinit(maxproc / 4, M_PROC, &pgrphash);
-	uihashtbl = hashinit(maxproc / 16, M_PROC, &uihash);
 	proc_zone = zinit("PROC", sizeof (struct proc), 0, 0, 5);
-}
-
-/*
- * find/create a uidinfo struct for the uid passed in
- */
-static struct uidinfo *
-uifind(uid)
-	uid_t uid;
-{
-	struct uihashhead *uipp;
-	struct uidinfo *uip;
-
-	uipp = UIHASH(uid);
-	LIST_FOREACH(uip, uipp, ui_hash)
-		if (uip->ui_uid == uid)
-			break;
-
-	return (uip);
-}
-
-static struct uidinfo *
-uicreate(uid)
-	uid_t uid;
-{
-	struct uidinfo *uip, *norace;
-
-	MALLOC(uip, struct uidinfo *, sizeof(*uip), M_PROC, M_NOWAIT);
-	if (uip == NULL) {
-		MALLOC(uip, struct uidinfo *, sizeof(*uip), M_PROC, M_WAITOK);
-		/*
-		 * if we M_WAITOK we must look afterwards or risk
-		 * redundant entries
-		 */
-		norace = uifind(uid);
-		if (norace != NULL) {
-			FREE(uip, M_PROC);
-			return (norace);
-		}
-	}
-	LIST_INSERT_HEAD(UIHASH(uid), uip, ui_hash);
-	uip->ui_uid = uid;
-	uip->ui_proccnt = 0;
-	uip->ui_sbsize = 0;
-	return (uip);
-}
-
-static int
-uifree(uip)
-	struct uidinfo *uip;
-{
-
-	if (uip->ui_sbsize == 0 && uip->ui_proccnt == 0) {
-		LIST_REMOVE(uip, ui_hash);
-		FREE(uip, M_PROC);
-		return (1);
-	}
-	return (0);
-}
-
-/*
- * Change the count associated with number of processes
- * a given user is using.  When 'max' is 0, don't enforce a limit
- */
-int
-chgproccnt(uid, diff, max)
-	uid_t	uid;
-	int	diff;
-	int	max;
-{
-	struct uidinfo *uip;
-
-	uip = uifind(uid);
-	if (diff < 0)
-		KASSERT(uip != NULL, ("reducing proccnt: lost count, uid = %d", uid));
-	if (uip == NULL)
-		uip = uicreate(uid);
-	/* don't allow them to exceed max, but allow subtraction */
-	if (diff > 0 && uip->ui_proccnt + diff > max && max != 0) {
-		(void)uifree(uip);
-		return (0);
-	}
-	uip->ui_proccnt += diff;
-	(void)uifree(uip);
-	return (1);
-}
-
-/*
- * Change the total socket buffer size a user has used.
- */
-int
-chgsbsize(uid, hiwat, to, max)
-	uid_t	uid;
-	u_long *hiwat;
-	u_long	to;
-	rlim_t	max;
-{
-	struct uidinfo *uip;
-	rlim_t diff;
-	int s;
-
-	uip = uifind(uid);
-	KASSERT(to >= *hiwat || uip != NULL,
-	    ("reducing sbsize: lost count, uid = %d", uid));
-	if (uip == NULL)
-		uip = uicreate(uid);
-	s = splnet();
-	diff = (rlim_t)to - (rlim_t)*hiwat;
-	/* don't allow them to exceed max, but allow subtraction */
-	if (diff > 0 && uip->ui_sbsize + diff > max) {
-		(void)uifree(uip);
-		splx(s);
-		return (0);
-	}
-	uip->ui_sbsize += diff;
-	*hiwat = to;
-	(void)uifree(uip);
-	splx(s);
-	return (1);
+	uihashinit();
 }
 
 /*

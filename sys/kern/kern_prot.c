@@ -53,8 +53,11 @@
 #include <sys/proc.h>
 #include <sys/malloc.h>
 #include <sys/pioctl.h>
+#include <sys/resourcevar.h>
 
 static MALLOC_DEFINE(M_CRED, "cred", "credentials");
+
+static void change_ruid(struct proc *p, uid_t ruid);
 
 #ifndef _SYS_SYSPROTO_H_
 struct getpid_args {
@@ -426,18 +429,16 @@ setuid(p, uap)
 #endif
 	{
 		/*
-		 * Transfer proc count to new user.
+		 * Set the real uid and transfer proc count to new user.
 		 */
 		if (uid != pc->p_ruid) {
-			(void)chgproccnt(pc->p_ruid, -1, 0);
-			(void)chgproccnt(uid, 1, 0);
+			change_ruid(p, uid);
+			setsugid(p);
 		}
 		/*
 		 * Set real uid
 		 */
 		if (uid != pc->p_ruid) {
-			pc->p_ruid = uid;
-			setsugid(p);
 		}
 		/*
 		 * Set saved uid
@@ -457,8 +458,7 @@ setuid(p, uap)
 	 * Copy credentials so other references do not see our changes.
 	 */
 	if (pc->pc_ucred->cr_uid != uid) {
-		pc->pc_ucred = crcopy(pc->pc_ucred);
-		pc->pc_ucred->cr_uid = uid;
+		change_euid(p, uid);
 		setsugid(p);
 	}
 	return (0);
@@ -489,8 +489,7 @@ seteuid(p, uap)
 	 * not see our changes.
 	 */
 	if (pc->pc_ucred->cr_uid != euid) {
-		pc->pc_ucred = crcopy(pc->pc_ucred);
-		pc->pc_ucred->cr_uid = euid;
+		change_euid(p, euid);
 		setsugid(p);
 	}
 	return (0);
@@ -673,14 +672,11 @@ setreuid(p, uap)
 		return (error);
 
 	if (euid != (uid_t)-1 && pc->pc_ucred->cr_uid != euid) {
-		pc->pc_ucred = crcopy(pc->pc_ucred);
-		pc->pc_ucred->cr_uid = euid;
+		change_euid(p, euid);
 		setsugid(p);
 	}
 	if (ruid != (uid_t)-1 && pc->p_ruid != ruid) {
-		(void)chgproccnt(pc->p_ruid, -1, 0);
-		(void)chgproccnt(ruid, 1, 0);
-		pc->p_ruid = ruid;
+		change_ruid(p, ruid);
 		setsugid(p);
 	}
 	if ((ruid != (uid_t)-1 || pc->pc_ucred->cr_uid != pc->p_ruid) &&
@@ -766,14 +762,11 @@ setresuid(p, uap)
 	    (error = suser_xxx(0, p, PRISON_ROOT)) != 0)
 		return (error);
 	if (euid != (uid_t)-1 && pc->pc_ucred->cr_uid != euid) {
-		pc->pc_ucred = crcopy(pc->pc_ucred);
-		pc->pc_ucred->cr_uid = euid;
+		change_euid(p, euid);
 		setsugid(p);
 	}
 	if (ruid != (uid_t)-1 && pc->p_ruid != ruid) {
-		(void)chgproccnt(pc->p_ruid, -1, 0);
-		(void)chgproccnt(ruid, 1, 0);
-		pc->p_ruid = ruid;
+		change_ruid(p, ruid);
 		setsugid(p);
 	}
 	if (suid != (uid_t)-1 && pc->p_svuid != suid) {
@@ -1013,8 +1006,16 @@ void
 crfree(cr)
 	struct ucred *cr;
 {
-	if (--cr->cr_ref == 0)
+	if (--cr->cr_ref == 0) {
+		/*
+		 * Some callers of crget(), such as nfs_statfs(),
+		 * allocate a temporary credential, but don't
+		 * allocate a uidinfo structure.
+		 */
+		if (cr->cr_uidinfo != NULL)
+			uifree(cr->cr_uidinfo);
 		FREE((caddr_t)cr, M_CRED);
+	}
 }
 
 /*
@@ -1030,6 +1031,7 @@ crcopy(cr)
 		return (cr);
 	newcr = crget();
 	*newcr = *cr;
+	uihold(newcr->cr_uidinfo);
 	crfree(cr);
 	newcr->cr_ref = 1;
 	return (newcr);
@@ -1046,6 +1048,7 @@ crdup(cr)
 
 	newcr = crget();
 	*newcr = *cr;
+	uihold(newcr->cr_uidinfo);
 	newcr->cr_ref = 1;
 	return (newcr);
 }
@@ -1108,4 +1111,51 @@ setsugid(p)
 	p->p_flag |= P_SUGID;
 	if (!(p->p_pfsflags & PF_ISUGID))
 		p->p_stops = 0;
+}
+
+/*
+ * Helper function to change the effective uid of a process
+ */
+void
+change_euid(p, euid)
+	struct	proc *p;
+	uid_t	euid;
+{
+	struct	pcred *pc;
+	struct	uidinfo *uip;
+
+	pc = p->p_cred;
+	/*
+	 * crcopy is essentially a NOP if ucred has a reference count
+	 * of 1, which is true if it has already been copied.
+	 */
+	pc->pc_ucred = crcopy(pc->pc_ucred);
+	uip = pc->pc_ucred->cr_uidinfo;
+	pc->pc_ucred->cr_uid = euid;
+	pc->pc_ucred->cr_uidinfo = uifind(euid);
+	uifree(uip);
+}
+
+/*
+ * Helper function to change the real uid of a process
+ *
+ * The per-uid process count for this process is transfered from
+ * the old uid to the new uid.
+ */
+static void
+change_ruid(p, ruid)
+	struct	proc *p;
+	uid_t	ruid;
+{
+	struct	pcred *pc;
+	struct	uidinfo *uip;
+
+	pc = p->p_cred;
+	(void)chgproccnt(pc->p_uidinfo, -1, 0);
+	uip = pc->p_uidinfo;
+	/* It is assumed that pcred is not shared between processes */
+	pc->p_ruid = ruid;
+	pc->p_uidinfo = uifind(ruid);
+	(void)chgproccnt(pc->p_uidinfo, 1, 0);
+	uifree(uip);
 }

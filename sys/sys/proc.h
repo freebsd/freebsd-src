@@ -306,6 +306,7 @@ struct	pcred {
 	gid_t	p_rgid;			/* Real group id. */
 	gid_t	p_svgid;		/* Saved effective group id. */
 	int	p_refcnt;		/* Number of references. */
+	struct	uidinfo *p_uidinfo;	/* Per uid resource consumption */
 };
 
 
@@ -420,8 +421,6 @@ struct pgrp *pgfind __P((pid_t));	/* Find process group by id. */
 struct vm_zone;
 extern struct vm_zone *proc_zone;
 
-int	chgproccnt __P((uid_t uid, int diff, int max));
-int	chgsbsize __P((uid_t uid, u_long *hiwat, u_long to, rlim_t max));
 int	enterpgrp __P((struct proc *p, pid_t pgid, int mksess));
 void	fixjobc __P((struct proc *p, struct pgrp *pgrp, int entering));
 int	inferior __P((struct proc *p));

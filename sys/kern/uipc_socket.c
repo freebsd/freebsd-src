@@ -180,10 +180,10 @@ sodealloc(so)
 
 	so->so_gencnt = ++so_gencnt;
 	if (so->so_rcv.sb_hiwat)
-		(void)chgsbsize(so->so_cred->cr_uid,
+		(void)chgsbsize(so->so_cred->cr_uidinfo,
 		    &so->so_rcv.sb_hiwat, 0, RLIM_INFINITY);
 	if (so->so_snd.sb_hiwat)
-		(void)chgsbsize(so->so_cred->cr_uid,
+		(void)chgsbsize(so->so_cred->cr_uidinfo,
 		    &so->so_snd.sb_hiwat, 0, RLIM_INFINITY);
 	if (so->so_accf != NULL) {
 		if (so->so_accf->so_accept_filter != NULL && 
