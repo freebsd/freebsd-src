@@ -131,7 +131,7 @@ ia64_efi_init(void)
 	for (i = 0; i < ia64_efi_systab->NumberOfTableEntries; i++) {
 		static EFI_GUID sal = SAL_SYSTEM_TABLE_GUID;
 		static EFI_GUID acpi = ACPI_TABLE_GUID;
-		static EFI_GUID acpi20 = ACPI_TABLE_GUID;
+		static EFI_GUID acpi20 = ACPI_20_TABLE_GUID;
 		if (!memcmp(&conf[i].VendorGuid, &sal, sizeof(EFI_GUID)))
 			saltab = conf[i].VendorTable;
 		if (!memcmp(&conf[i].VendorGuid, &acpi, sizeof(EFI_GUID)))
