@@ -31,6 +31,8 @@
    Modified to make all rmtXXX calls into macros for speed by Jay Fenlason.
    Use -DHAVE_NETDB_H for rexec code, courtesy of Dan Kegel, srs!dan.  */
 
+/* $FreeBSD$ */
+
 #include <stdio.h>
 #include <sys/types.h>
 #include <signal.h>
@@ -276,6 +278,7 @@ __rmt_open (path, oflag, mode, bias)
   char device[CMDBUFSIZE];	/* The remote device name.  */
   char login[CMDBUFSIZE];	/* The remote user name.  */
   char *sys, *dev, *user;	/* For copying into the above buffers.  */
+  char *tar_rsh;
 
   sys = system;
   dev = device;
@@ -370,19 +373,31 @@ __rmt_open (path, oflag, mode, bias)
       setuid (getuid ());
       setgid (getgid ());
 
+      tar_rsh = getenv("TAR_RSH");
+
       if (*login)
 	{
-	  execl ("/usr/bin/rsh", "rsh", "-l", login, system,
-		 "/etc/rmt", (char *) 0);
-	  execlp ("rsh", "rsh", "-l", login, system,
-		 "/etc/rmt", (char *) 0);
+	  if (tar_rsh) {
+	    execlp (tar_rsh, tar_rsh, "-l", login, system,
+		    "/etc/rmt", (char *) 0);
+	  } else {
+	    execl ("/usr/bin/rsh", "rsh", "-l", login, system,
+		   "/etc/rmt", (char *) 0);
+	    execlp ("rsh", "rsh", "-l", login, system,
+		    "/etc/rmt", (char *) 0);
+	  }
 	}
       else
 	{
-	  execl ("/usr/bin/rsh", "rsh", system,
-		 "/etc/rmt", (char *) 0);
-	  execlp ("rsh", "rsh", system,
-		 "/etc/rmt", (char *) 0);
+	  if (tar_rsh) {
+	    execlp (tar_rsh, tar_rsh, system,
+		    "/etc/rmt", (char *) 0);
+	  } else {
+	    execl ("/usr/bin/rsh", "rsh", system,
+		   "/etc/rmt", (char *) 0);
+	    execlp ("rsh", "rsh", system,
+		    "/etc/rmt", (char *) 0);
+	  }
 	}
 
       /* Bad problems if we get here.  */
