@@ -1262,6 +1262,9 @@ sbpnp_probe(device_t dev)
 		break;
 
     	case 0x44008c0e: /* CTL0044 */
+		s = "Creative SB AWE64 Gold";
+		break;
+
     	case 0x45008c0e: /* CTL0045 */
 		s = "Creative AWE64 PnP";
 		break;
