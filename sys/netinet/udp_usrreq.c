@@ -337,15 +337,13 @@ udp_input(m, off)
 			 * for a broadcast or multicast datgram.)
 			 */
 			udpstat.udps_noportbcast++;
-			INP_INFO_RUNLOCK(&udbinfo);
-			goto bad;
+			goto badheadlocked;
 		}
 #ifdef IPSEC
 		/* check AH/ESP integrity. */
 		if (ipsec4_in_reject_so(m, last->inp_socket)) {
 			ipsecstat.in_polvio++;
-			INP_INFO_RUNLOCK(&udbinfo);
-			goto bad;
+			goto badheadlocked;
 		}
 #endif /*IPSEC*/
 		INP_UNLOCK(last);
@@ -358,7 +356,6 @@ udp_input(m, off)
 	 */
 	inp = in_pcblookup_hash(&udbinfo, ip->ip_src, uh->uh_sport,
 	    ip->ip_dst, uh->uh_dport, 1, m->m_pkthdr.rcvif);
-	INP_INFO_RUNLOCK(&udbinfo);
 	if (inp == NULL) {
 		if (log_in_vain) {
 			char buf[4*sizeof "123"];
@@ -372,27 +369,27 @@ udp_input(m, off)
 		udpstat.udps_noport++;
 		if (m->m_flags & (M_BCAST | M_MCAST)) {
 			udpstat.udps_noportbcast++;
-			goto bad;
+			goto badheadlocked;
 		}
 		if (badport_bandlim(BANDLIM_ICMP_UNREACH) < 0)
-			goto bad;
+			goto badheadlocked;
 		if (blackhole)
-			goto bad;
+			goto badheadlocked;
 		*ip = save_ip;
 		ip->ip_len += iphlen;
 		icmp_error(m, ICMP_UNREACH, ICMP_UNREACH_PORT, 0, 0);
 		INP_INFO_RUNLOCK(&udbinfo);
 		return;
 	}
+	INP_LOCK(inp);
+	INP_INFO_RUNLOCK(&udbinfo);
 #ifdef IPSEC
 	if (ipsec4_in_reject_so(m, inp->inp_socket)) {
 		ipsecstat.in_polvio++;
-		INP_INFO_RUNLOCK(&udbinfo);
 		goto bad;
 	}
 #endif /*IPSEC*/
 
-	INP_LOCK(inp);
 	/*
 	 * Construct sockaddr format source address.
 	 * Stuff source address and datagram in user buffer.
@@ -429,6 +426,9 @@ udp_input(m, off)
 	sorwakeup(inp->inp_socket);
 	INP_UNLOCK(inp);
 	return;
+
+badheadlocked:
+	INP_INFO_RUNLOCK(&udbinfo);
 bad:
 	if (inp)
 		INP_UNLOCK(inp);
