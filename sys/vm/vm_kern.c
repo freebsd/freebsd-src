@@ -61,7 +61,7 @@
  * any improvements or extensions that they make and grant Carnegie the
  * rights to redistribute these changes.
  *
- * $Id: vm_kern.c,v 1.21 1996/01/19 03:59:48 dyson Exp $
+ * $Id: vm_kern.c,v 1.22 1996/01/31 12:05:52 davidg Exp $
  */
 
 /*
@@ -314,7 +314,7 @@ kmem_malloc(map, size, waitflag)
 			panic("kmem_malloc: kmem_map too small");
 		return (0);
 	}
-	offset = addr - vm_map_min(kmem_map);
+	offset = addr - VM_MIN_KERNEL_ADDRESS;
 	vm_object_reference(kmem_object);
 	vm_map_insert(map, kmem_object, offset, addr, addr + size,
 		VM_PROT_ALL, VM_PROT_ALL, 0);

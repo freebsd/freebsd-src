@@ -61,7 +61,7 @@
  * any improvements or extensions that they make and grant Carnegie the
  * rights to redistribute these changes.
  *
- * $Id: vm_object.c,v 1.66 1996/03/28 04:53:26 dyson Exp $
+ * $Id: vm_object.c,v 1.67 1996/03/29 06:28:48 davidg Exp $
  */
 
 /*
@@ -1162,12 +1162,14 @@ again:
 	if (size > 4 || size >= object->size / 4) {
 		for (p = object->memq.tqh_first; p != NULL; p = next) {
 			next = p->listq.tqe_next;
-			if (p->wire_count != 0) {
-				vm_page_protect(p, VM_PROT_NONE);
-				p->valid = 0;
-				continue;
-			}
 			if ((start <= p->pindex) && (p->pindex < end)) {
+
+				if (p->wire_count != 0) {
+					vm_page_protect(p, VM_PROT_NONE);
+					p->valid = 0;
+					continue;
+				}
+
 				s = splhigh();
 				if ((p->flags & PG_BUSY) || p->busy) {
 					p->flags |= PG_WANTED;
@@ -1176,6 +1178,7 @@ again:
 					goto again;
 				}
 				splx(s);
+
 				if (clean_only) {
 					vm_page_test_dirty(p);
 					if (p->valid & p->dirty)
