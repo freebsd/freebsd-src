@@ -872,9 +872,6 @@ void	proc_linkup(struct proc *p, struct ksegrp *kg,
 	    struct kse *ke, struct thread *td);
 void	proc_reparent(struct proc *child, struct proc *newparent);
 void	remrunqueue(struct thread *);
-void	resetpriority(struct ksegrp *);
-int	roundrobin_interval(void);
-void	schedclock(struct thread *);
 int	securelevel_ge(struct ucred *cr, int level);
 int	securelevel_gt(struct ucred *cr, int level);
 void	setrunnable(struct thread *);
@@ -886,9 +883,7 @@ void	cpu_idle(void);
 void	cpu_switch(void);
 void	cpu_throw(void) __dead2;
 void	unsleep(struct thread *);
-void	updatepri(struct ksegrp *);
 void	userret(struct thread *, struct trapframe *, u_int);
-void	maybe_resched(struct thread *);
 
 void	cpu_exit(struct thread *);
 void	cpu_sched_exit(struct thread *);
@@ -911,7 +906,6 @@ void	cpu_thread_setup(struct thread *td);
 void	kse_reassign(struct kse *ke);
 void	kse_link(struct kse *ke, struct ksegrp *kg);
 void	ksegrp_link(struct ksegrp *kg, struct proc *p);
-int	kserunnable(void);
 void	make_kse_runnable(struct kse *ke);
 struct thread *signal_upcall(struct proc *p, int sig);
 void	thread_exit(void) __dead2;

@@ -41,6 +41,7 @@
 #include <sys/mutex.h>
 #include <sys/proc.h>
 #include <sys/resource.h>
+#include <sys/sched.h>
 
 #include <posix4/posix4.h>
 
@@ -56,7 +57,7 @@ int ksched_attach(struct ksched **p)
 	struct ksched *ksched= p31b_malloc(sizeof(*ksched));
 
 	ksched->rr_interval.tv_sec = 0;
-	ksched->rr_interval.tv_nsec = 1000000000L / roundrobin_interval();
+	ksched->rr_interval.tv_nsec = 1000000000L / sched_rr_interval();
 
 	*p = ksched;
 	return 0;

@@ -53,6 +53,7 @@
 #include <sys/proc.h>
 #include <sys/pioctl.h>
 #include <sys/resourcevar.h>
+#include <sys/sched.h>
 #include <sys/syscall.h>
 #include <sys/vnode.h>
 #include <sys/acct.h>
@@ -515,6 +516,12 @@ again:
 	p2->p_sflag = PS_INMEM;
 	if (p1->p_sflag & PS_PROFIL)
 		startprofclock(p2);
+	/*
+	 * Allow the scheduler to adjust the priority of the child and
+	 * parent while we hold the sched_lock.
+	 */
+	sched_fork(td->td_ksegrp, kg2);
+
 	mtx_unlock_spin(&sched_lock);
 	p2->p_ucred = crhold(td->td_ucred);
 	td2->td_ucred = crhold(p2->p_ucred);	/* XXXKSE */
@@ -633,12 +640,6 @@ again:
 		p2->p_stops = p1->p_stops;
 		p2->p_pfsflags = p1->p_pfsflags;
 	}
-
-	/*
-	 * set priority of child to be that of parent.
-	 * XXXKSE this needs redefining..
-	 */
-	kg2->kg_estcpu = td->td_ksegrp->kg_estcpu;
 
 	/*
 	 * This begins the section where we must prevent the parent

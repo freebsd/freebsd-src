@@ -51,6 +51,7 @@
 #include <sys/mutex.h>
 #include <sys/proc.h>
 #include <sys/resourcevar.h>
+#include <sys/sched.h>
 #include <sys/signalvar.h>
 #include <sys/smp.h>
 #include <sys/sx.h>
@@ -72,11 +73,8 @@ SYSINIT(sched_setup, SI_SUB_KICK_SCHEDULER, SI_ORDER_FIRST, sched_setup, NULL)
 
 int	hogticks;
 int	lbolt;
-int	sched_quantum;		/* Roundrobin scheduling quantum in ticks. */
 
 static struct callout loadav_callout;
-static struct callout schedcpu_callout;
-static struct callout roundrobin_callout;
 
 struct loadavg averunnable =
 	{ {0, 0, 0}, FSCALE };	/* load average, of runnable procs */
@@ -92,316 +90,6 @@ static fixpt_t cexp[3] = {
 
 static void	endtsleep(void *);
 static void	loadav(void *arg);
-static void	roundrobin(void *arg);
-static void	schedcpu(void *arg);
-
-static int
-sysctl_kern_quantum(SYSCTL_HANDLER_ARGS)
-{
-	int error, new_val;
-
-	new_val = sched_quantum * tick;
-	error = sysctl_handle_int(oidp, &new_val, 0, req);
-        if (error != 0 || req->newptr == NULL)
-		return (error);
-	if (new_val < tick)
-		return (EINVAL);
-	sched_quantum = new_val / tick;
-	hogticks = 2 * sched_quantum;
-	return (0);
-}
-
-SYSCTL_PROC(_kern, OID_AUTO, quantum, CTLTYPE_INT|CTLFLAG_RW,
-	0, sizeof sched_quantum, sysctl_kern_quantum, "I",
-	"Roundrobin scheduling quantum in microseconds");
-
-/*
- * Arrange to reschedule if necessary, taking the priorities and
- * schedulers into account.
- */
-void
-maybe_resched(struct thread *td)
-{
-
-	mtx_assert(&sched_lock, MA_OWNED);
-	if (td->td_priority < curthread->td_priority)
-		curthread->td_kse->ke_flags |= KEF_NEEDRESCHED;
-}
-
-int 
-roundrobin_interval(void)
-{
-	return (sched_quantum);
-}
-
-/*
- * Force switch among equal priority processes every 100ms.
- * We don't actually need to force a context switch of the current process.
- * The act of firing the event triggers a context switch to softclock() and
- * then switching back out again which is equivalent to a preemption, thus
- * no further work is needed on the local CPU.
- */
-/* ARGSUSED */
-static void
-roundrobin(arg)
-	void *arg;
-{
-
-#ifdef SMP
-	mtx_lock_spin(&sched_lock);
-	forward_roundrobin();
-	mtx_unlock_spin(&sched_lock);
-#endif
-
-	callout_reset(&roundrobin_callout, sched_quantum, roundrobin, NULL);
-}
-
-/*
- * Constants for digital decay and forget:
- *	90% of (p_estcpu) usage in 5 * loadav time
- *	95% of (p_pctcpu) usage in 60 seconds (load insensitive)
- *          Note that, as ps(1) mentions, this can let percentages
- *          total over 100% (I've seen 137.9% for 3 processes).
- *
- * Note that schedclock() updates p_estcpu and p_cpticks asynchronously.
- *
- * We wish to decay away 90% of p_estcpu in (5 * loadavg) seconds.
- * That is, the system wants to compute a value of decay such
- * that the following for loop:
- * 	for (i = 0; i < (5 * loadavg); i++)
- * 		p_estcpu *= decay;
- * will compute
- * 	p_estcpu *= 0.1;
- * for all values of loadavg:
- *
- * Mathematically this loop can be expressed by saying:
- * 	decay ** (5 * loadavg) ~= .1
- *
- * The system computes decay as:
- * 	decay = (2 * loadavg) / (2 * loadavg + 1)
- *
- * We wish to prove that the system's computation of decay
- * will always fulfill the equation:
- * 	decay ** (5 * loadavg) ~= .1
- *
- * If we compute b as:
- * 	b = 2 * loadavg
- * then
- * 	decay = b / (b + 1)
- *
- * We now need to prove two things:
- *	1) Given factor ** (5 * loadavg) ~= .1, prove factor == b/(b+1)
- *	2) Given b/(b+1) ** power ~= .1, prove power == (5 * loadavg)
- *
- * Facts:
- *         For x close to zero, exp(x) =~ 1 + x, since
- *              exp(x) = 0! + x**1/1! + x**2/2! + ... .
- *              therefore exp(-1/b) =~ 1 - (1/b) = (b-1)/b.
- *         For x close to zero, ln(1+x) =~ x, since
- *              ln(1+x) = x - x**2/2 + x**3/3 - ...     -1 < x < 1
- *              therefore ln(b/(b+1)) = ln(1 - 1/(b+1)) =~ -1/(b+1).
- *         ln(.1) =~ -2.30
- *
- * Proof of (1):
- *    Solve (factor)**(power) =~ .1 given power (5*loadav):
- *	solving for factor,
- *      ln(factor) =~ (-2.30/5*loadav), or
- *      factor =~ exp(-1/((5/2.30)*loadav)) =~ exp(-1/(2*loadav)) =
- *          exp(-1/b) =~ (b-1)/b =~ b/(b+1).                    QED
- *
- * Proof of (2):
- *    Solve (factor)**(power) =~ .1 given factor == (b/(b+1)):
- *	solving for power,
- *      power*ln(b/(b+1)) =~ -2.30, or
- *      power =~ 2.3 * (b + 1) = 4.6*loadav + 2.3 =~ 5*loadav.  QED
- *
- * Actual power values for the implemented algorithm are as follows:
- *      loadav: 1       2       3       4
- *      power:  5.68    10.32   14.94   19.55
- */
-
-/* calculations for digital decay to forget 90% of usage in 5*loadav sec */
-#define	loadfactor(loadav)	(2 * (loadav))
-#define	decay_cpu(loadfac, cpu)	(((loadfac) * (cpu)) / ((loadfac) + FSCALE))
-
-/* decay 95% of `p_pctcpu' in 60 seconds; see CCPU_SHIFT before changing */
-static fixpt_t	ccpu = 0.95122942450071400909 * FSCALE;	/* exp(-1/20) */
-SYSCTL_INT(_kern, OID_AUTO, ccpu, CTLFLAG_RD, &ccpu, 0, "");
-
-/* kernel uses `FSCALE', userland (SHOULD) use kern.fscale */
-static int	fscale __unused = FSCALE;
-SYSCTL_INT(_kern, OID_AUTO, fscale, CTLFLAG_RD, 0, FSCALE, "");
-
-/*
- * If `ccpu' is not equal to `exp(-1/20)' and you still want to use the
- * faster/more-accurate formula, you'll have to estimate CCPU_SHIFT below
- * and possibly adjust FSHIFT in "param.h" so that (FSHIFT >= CCPU_SHIFT).
- *
- * To estimate CCPU_SHIFT for exp(-1/20), the following formula was used:
- *	1 - exp(-1/20) ~= 0.0487 ~= 0.0488 == 1 (fixed pt, *11* bits).
- *
- * If you don't want to bother with the faster/more-accurate formula, you
- * can set CCPU_SHIFT to (FSHIFT + 1) which will use a slower/less-accurate
- * (more general) method of calculating the %age of CPU used by a process.
- */
-#define	CCPU_SHIFT	11
-
-/*
- * Recompute process priorities, every hz ticks.
- * MP-safe, called without the Giant mutex.
- */
-/* ARGSUSED */
-static void
-schedcpu(arg)
-	void *arg;
-{
-	register fixpt_t loadfac = loadfactor(averunnable.ldavg[0]);
-	struct thread *td;
-	struct proc *p;
-	struct kse *ke;
-	struct ksegrp *kg;
-	int realstathz;
-	int awake;
-
-	realstathz = stathz ? stathz : hz;
-	sx_slock(&allproc_lock);
-	FOREACH_PROC_IN_SYSTEM(p) {
-		mtx_lock_spin(&sched_lock);
-		p->p_swtime++;
-		FOREACH_KSEGRP_IN_PROC(p, kg) { 
-			awake = 0;
-			FOREACH_KSE_IN_GROUP(kg, ke) {
-				/*
-				 * Increment time in/out of memory and sleep
-				 * time (if sleeping).  We ignore overflow;
-				 * with 16-bit int's (remember them?)
-				 * overflow takes 45 days.
-				 */
-				/*
-				 * The kse slptimes are not touched in wakeup
-				 * because the thread may not HAVE a KSE.
-				 */
-				if (ke->ke_state == KES_ONRUNQ) {
-					awake = 1;
-					ke->ke_flags &= ~KEF_DIDRUN;
-				} else if ((ke->ke_state == KES_THREAD) &&
-				    (TD_IS_RUNNING(ke->ke_thread))) {
-					awake = 1;
-					/* Do not clear KEF_DIDRUN */
-				} else if (ke->ke_flags & KEF_DIDRUN) {
-					awake = 1;
-					ke->ke_flags &= ~KEF_DIDRUN;
-				}
-
-				/*
-				 * pctcpu is only for ps?
-				 * Do it per kse.. and add them up at the end?
-				 * XXXKSE
-				 */
-				ke->ke_pctcpu
-				    = (ke->ke_pctcpu * ccpu) >> FSHIFT;
-				/*
-				 * If the kse has been idle the entire second,
-				 * stop recalculating its priority until
-				 * it wakes up.
-				 */
-				if (ke->ke_cpticks == 0)
-					continue;
-#if	(FSHIFT >= CCPU_SHIFT)
-				ke->ke_pctcpu += (realstathz == 100) ?
-				    ((fixpt_t) ke->ke_cpticks) <<
-				    (FSHIFT - CCPU_SHIFT) :
-				    100 * (((fixpt_t) ke->ke_cpticks) <<
-				    (FSHIFT - CCPU_SHIFT)) / realstathz;
-#else
-				ke->ke_pctcpu += ((FSCALE - ccpu) *
-				    (ke->ke_cpticks * FSCALE / realstathz)) >>
-				    FSHIFT;
-#endif
-				ke->ke_cpticks = 0;
-			} /* end of kse loop */
-			/* 
-			 * If there are ANY running threads in this KSEGRP,
-			 * then don't count it as sleeping.
-			 */
-			if (awake) {
-				if (kg->kg_slptime > 1) {
-					/*
-					 * In an ideal world, this should not
-					 * happen, because whoever woke us
-					 * up from the long sleep should have
-					 * unwound the slptime and reset our
-					 * priority before we run at the stale
-					 * priority.  Should KASSERT at some
-					 * point when all the cases are fixed.
-					 */
-					updatepri(kg);
-				}
-				kg->kg_slptime = 0;
-			} else {
-				kg->kg_slptime++;
-			}
-			if (kg->kg_slptime > 1)
-				continue;
-			kg->kg_estcpu = decay_cpu(loadfac, kg->kg_estcpu);
-		      	resetpriority(kg);
-			FOREACH_THREAD_IN_GROUP(kg, td) {
-				int changedqueue;
-				if (td->td_priority >= PUSER) {
-					/*
-					 * Only change the priority
-					 * of threads that are still at their
-					 * user priority. 
-					 * XXXKSE This is problematic
-					 * as we may need to re-order
-					 * the threads on the KSEG list.
-					 */
-					changedqueue =
-					    ((td->td_priority / RQ_PPQ) !=
-					     (kg->kg_user_pri / RQ_PPQ));
-
-					td->td_priority = kg->kg_user_pri;
-					if (changedqueue && TD_ON_RUNQ(td)) {
-						/* this could be optimised */
-						remrunqueue(td);
-						td->td_priority =
-						    kg->kg_user_pri;
-						setrunqueue(td);
-					} else {
-						td->td_priority = kg->kg_user_pri;
-					}
-				}
-			}
-		} /* end of ksegrp loop */
-		mtx_unlock_spin(&sched_lock);
-	} /* end of process loop */
-	sx_sunlock(&allproc_lock);
-	wakeup(&lbolt);
-	callout_reset(&schedcpu_callout, hz, schedcpu, NULL);
-}
-
-/*
- * Recalculate the priority of a process after it has slept for a while.
- * For all load averages >= 1 and max p_estcpu of 255, sleeping for at
- * least six times the loadfactor will decay p_estcpu to zero.
- */
-void
-updatepri(struct ksegrp *kg)
-{
-	register unsigned int newcpu;
-	register fixpt_t loadfac = loadfactor(averunnable.ldavg[0]);
-
-	newcpu = kg->kg_estcpu;
-	if (kg->kg_slptime > 5 * loadfac)
-		kg->kg_estcpu = 0;
-	else {
-		kg->kg_slptime--;	/* the first time was done in schedcpu */
-		while (newcpu && --kg->kg_slptime)
-			newcpu = decay_cpu(loadfac, newcpu);
-		kg->kg_estcpu = newcpu;
-	}
-	resetpriority(kg);
-}
 
 /*
  * We're only looking at 7 bits of the address; everything is
@@ -417,8 +105,7 @@ sleepinit(void)
 {
 	int i;
 
-	sched_quantum = hz/10;
-	hogticks = 2 * sched_quantum;
+	hogticks = (hz / 10) * 2;	/* Default only. */
 	for (i = 0; i < TABLESIZE; i++)
 		TAILQ_INIT(&slpque[i]);
 }
@@ -519,8 +206,6 @@ msleep(ident, mtx, priority, wmesg, timo)
 
 	td->td_wchan = ident;
 	td->td_wmesg = wmesg;
-	td->td_ksegrp->kg_slptime = 0;
-	td->td_priority = priority & PRIMASK;
 	TAILQ_INSERT_TAIL(&slpque[LOOKUP(ident)], td, td_slpq);
 	TD_SET_ON_SLEEPQ(td);
 	if (timo)
@@ -551,11 +236,20 @@ msleep(ident, mtx, priority, wmesg, timo)
 			catch = 0;
 	} else
 		sig = 0;
+
+	/*
+	 * Let the scheduler know we're about to voluntarily go to sleep.
+	 */
+	sched_sleep(td, priority & PRIMASK);
+
 	if (TD_ON_SLEEPQ(td)) {
 		p->p_stats->p_ru.ru_nvcsw++;
 		TD_SET_SLEEPING(td);
 		mi_switch();
 	}
+	/*
+	 * We're awake from voluntary sleep.
+	 */
 	CTR3(KTR_PROC, "msleep resume: thread %p (pid %d, %s)", td, p->p_pid,
 	    p->p_comm);
 	KASSERT(TD_IS_RUNNING(td), ("running but not TDS_RUNNING"));
@@ -754,7 +448,7 @@ mi_switch(void)
 	u_int sched_nest;
 
 	mtx_assert(&sched_lock, MA_OWNED | MA_NOTRECURSED);
-	KASSERT((ke->ke_state == KES_THREAD), ("mi_switch: kse state?"));
+
 	KASSERT(!TD_ON_RUNQ(td), ("mi_switch: called by old code"));
 #ifdef INVARIANTS
 	if (!TD_ON_LOCK(td) &&
@@ -800,38 +494,21 @@ mi_switch(void)
 	PCPU_SET(switchtime, new_switchtime);
 	CTR3(KTR_PROC, "mi_switch: old thread %p (pid %d, %s)", td, p->p_pid,
 	    p->p_comm);
+
 	sched_nest = sched_lock.mtx_recurse;
-	td->td_lastcpu = ke->ke_oncpu;
-	ke->ke_oncpu = NOCPU;
-	ke->ke_flags &= ~KEF_NEEDRESCHED;
-	/*
-	 * At the last moment, if this thread is still marked RUNNING,
-	 * then put it back on the run queue as it has not been suspended
-	 * or stopped or any thing else similar.
-	 */
-	if (TD_IS_RUNNING(td)) {
-		/* Put us back on the run queue (kse and all). */
-		setrunqueue(td);
-	} else if (p->p_flag & P_KSES) {
-		/*
-		 * We will not be on the run queue. So we must be
-		 * sleeping or similar. As it's available,
-		 * someone else can use the KSE if they need it.
-		 * (If bound LOANING can still occur).
-		 */
-		kse_reassign(ke);
-	}
+	sched_switchout(td);
 
 	cpu_switch();		/* SHAZAM!!*/
+
+	sched_lock.mtx_recurse = sched_nest;
+	sched_lock.mtx_lock = (uintptr_t)td;
+	sched_switchin(td);
 
 	/* 
 	 * Start setting up stats etc. for the incoming thread.
 	 * Similar code in fork_exit() is returned to by cpu_switch()
 	 * in the case of a new thread/process.
 	 */
-	td->td_kse->ke_oncpu = PCPU_GET(cpuid);
-	sched_lock.mtx_recurse = sched_nest;
-	sched_lock.mtx_lock = (uintptr_t)td;
 	CTR3(KTR_PROC, "mi_switch: new thread %p (pid %d, %s)", td, p->p_pid,
 	    p->p_comm);
 	if (PCPU_GET(switchtime.sec) == 0)
@@ -855,7 +532,6 @@ void
 setrunnable(struct thread *td)
 {
 	struct proc *p = td->td_proc;
-	struct ksegrp *kg;
 
 	mtx_assert(&sched_lock, MA_OWNED);
 	switch (p->p_state) {
@@ -886,40 +562,8 @@ setrunnable(struct thread *td)
 			p->p_sflag |= PS_SWAPINREQ;
 			wakeup(&proc0);
 		}
-	} else {
-		kg = td->td_ksegrp;
-		if (kg->kg_slptime > 1)
-			updatepri(kg);
-		kg->kg_slptime = 0;
-		setrunqueue(td);
-		maybe_resched(td);
-	}
-}
-
-/*
- * Compute the priority of a process when running in user mode.
- * Arrange to reschedule if the resulting priority is better
- * than that of the current process.
- */
-void
-resetpriority(kg)
-	register struct ksegrp *kg;
-{
-	register unsigned int newpriority;
-	struct thread *td;
-
-	mtx_lock_spin(&sched_lock);
-	if (kg->kg_pri_class == PRI_TIMESHARE) {
-		newpriority = PUSER + kg->kg_estcpu / INVERSE_ESTCPU_WEIGHT +
-		    NICE_WEIGHT * (kg->kg_nice - PRIO_MIN);
-		newpriority = min(max(newpriority, PRI_MIN_TIMESHARE),
-		    PRI_MAX_TIMESHARE);
-		kg->kg_user_pri = newpriority;
-	}
-	FOREACH_THREAD_IN_GROUP(kg, td) {
-		maybe_resched(td);			/* XXXKSE silly */
-	}
-	mtx_unlock_spin(&sched_lock);
+	} else
+		sched_wakeup(td);
 }
 
 /*
@@ -973,48 +617,10 @@ static void
 sched_setup(dummy)
 	void *dummy;
 {
-
-	callout_init(&schedcpu_callout, 1);
-	callout_init(&roundrobin_callout, 0);
 	callout_init(&loadav_callout, 0);
 
 	/* Kick off timeout driven events by calling first time. */
-	roundrobin(NULL);
-	schedcpu(NULL);
 	loadav(NULL);
-}
-
-/*
- * We adjust the priority of the current process.  The priority of
- * a process gets worse as it accumulates CPU time.  The cpu usage
- * estimator (p_estcpu) is increased here.  resetpriority() will
- * compute a different priority each time p_estcpu increases by
- * INVERSE_ESTCPU_WEIGHT
- * (until MAXPRI is reached).  The cpu usage estimator ramps up
- * quite quickly when the process is running (linearly), and decays
- * away exponentially, at a rate which is proportionally slower when
- * the system is busy.  The basic principle is that the system will
- * 90% forget that the process used a lot of CPU time in 5 * loadav
- * seconds.  This causes the system to favor processes which haven't
- * run much recently, and to round-robin among other processes.
- */
-void
-schedclock(td)
-	struct thread *td;
-{
-	struct kse *ke;
-	struct ksegrp *kg;
-
-	KASSERT((td != NULL), ("schedclock: null thread pointer"));
-	ke = td->td_kse;
-	kg = td->td_ksegrp;
-	ke->ke_cpticks++;
-	kg->kg_estcpu = ESTCPULIM(kg->kg_estcpu + 1);
-	if ((kg->kg_estcpu % INVERSE_ESTCPU_WEIGHT) == 0) {
-		resetpriority(kg);
-		if (td->td_priority >= PUSER)
-			td->td_priority = kg->kg_user_pri;
-	}
 }
 
 /*
@@ -1027,8 +633,8 @@ yield(struct thread *td, struct yield_args *uap)
 
 	mtx_assert(&Giant, MA_NOTOWNED);
 	mtx_lock_spin(&sched_lock);
-	td->td_priority = PRI_MAX_TIMESHARE;
 	kg->kg_proc->p_stats->p_ru.ru_nvcsw++;
+	sched_prio(td, PRI_MAX_TIMESHARE);
 	mi_switch();
 	mtx_unlock_spin(&sched_lock);
 	td->td_retval[0] = 0;

@@ -16,6 +16,7 @@
 #include <sys/pcpu.h>
 #include <sys/proc.h>
 #include <sys/resourcevar.h>
+#include <sys/sched.h>
 #include <sys/smp.h>
 #include <sys/unistd.h>
 #ifdef KTRACE
@@ -90,9 +91,9 @@ idle_proc(void *dummy)
 #ifdef DIAGNOSTIC
 		count = 0;
 
-		while (count >= 0 && kserunnable() == 0) {
+		while (count >= 0 && sched_runnable() == 0) {
 #else
-		while (kserunnable() == 0) {
+		while (sched_runnable() == 0) {
 #endif
 		/*
 		 * This is a good place to put things to be done in
