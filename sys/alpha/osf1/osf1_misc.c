@@ -1048,7 +1048,7 @@ osf1_setuid(td, uap)
 	PROC_LOCK(p);
 	oldcred = p->p_ucred;
 
-	if ((error = suser_cred(p->p_ucred, PRISON_ROOT)) != 0 &&
+	if ((error = suser_cred(p->p_ucred, SUSER_ALLOWJAIL)) != 0 &&
 	    uid != oldcred->cr_ruid && uid != oldcred->cr_svuid) {
 		PROC_UNLOCK(p);
 		uifree(uip);
@@ -1102,7 +1102,7 @@ osf1_setgid(td, uap)
 	PROC_LOCK(p);
 	oldcred = p->p_ucred;
 
-	if (((error = suser_cred(p->p_ucred, PRISON_ROOT)) != 0 ) &&
+	if (((error = suser_cred(p->p_ucred, SUSER_ALLOWJAIL)) != 0 ) &&
 	    gid != oldcred->cr_rgid && gid != oldcred->cr_svgid) {
 		PROC_UNLOCK(p);
 		crfree(newcred);

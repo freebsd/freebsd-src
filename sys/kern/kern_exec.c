@@ -536,7 +536,7 @@ interpret:
 		 */
 		setsugid(p);
 #ifdef KTRACE
-		if (p->p_tracevp != NULL && suser_cred(oldcred, PRISON_ROOT)) {
+		if (p->p_tracevp != NULL && suser_cred(oldcred, SUSER_ALLOWJAIL)) {
 			mtx_lock(&ktrace_mtx);
 			p->p_traceflag = 0;
 			tracevp = p->p_tracevp;

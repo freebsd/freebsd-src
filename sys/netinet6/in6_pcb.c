@@ -187,7 +187,7 @@ in6_pcbbind(inp, nam, cred)
 
 			/* GROSS */
 			if (ntohs(lport) < IPV6PORT_RESERVED &&
-			    suser_cred(cred, PRISON_ROOT))
+			    suser_cred(cred, SUSER_ALLOWJAIL))
 				return (EACCES);
 			if (so->so_cred->cr_uid != 0 &&
 			    !IN6_IS_ADDR_MULTICAST(&sin6->sin6_addr)) {

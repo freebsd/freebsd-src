@@ -95,7 +95,7 @@ osethostname(td, uap)
 	name[0] = CTL_KERN;
 	name[1] = KERN_HOSTNAME;
 	mtx_lock(&Giant);
-	if ((error = suser_cred(td->td_ucred, PRISON_ROOT)) == 0) {
+	if ((error = suser_cred(td->td_ucred, SUSER_ALLOWJAIL)) == 0) {
 		error = userland_sysctl(td, name, 2, 0, 0, 0,
 		    uap->hostname, uap->len, 0);
 	}

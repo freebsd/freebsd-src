@@ -996,7 +996,7 @@ tcp_getcred(SYSCTL_HANDLER_ARGS)
 	struct inpcb *inp;
 	int error, s;
 
-	error = suser_cred(req->td->td_ucred, PRISON_ROOT);
+	error = suser_cred(req->td->td_ucred, SUSER_ALLOWJAIL);
 	if (error)
 		return (error);
 	error = SYSCTL_IN(req, addrs, sizeof(addrs));
@@ -1042,7 +1042,7 @@ tcp6_getcred(SYSCTL_HANDLER_ARGS)
 	struct inpcb *inp;
 	int error, s, mapped = 0;
 
-	error = suser_cred(req->td->td_ucred, PRISON_ROOT);
+	error = suser_cred(req->td->td_ucred, SUSER_ALLOWJAIL);
 	if (error)
 		return (error);
 	error = SYSCTL_IN(req, addrs, sizeof(addrs));

@@ -998,7 +998,7 @@ linux_setgroups(struct thread *td, struct linux_setgroups_args *args)
 	 * Keep cr_groups[0] unchanged to prevent that.
 	 */
 
-	if ((error = suser_cred(oldcred, PRISON_ROOT)) != 0) {
+	if ((error = suser_cred(oldcred, SUSER_ALLOWJAIL)) != 0) {
 		PROC_UNLOCK(p);
 		crfree(newcred);
 		return (error);
