@@ -2575,7 +2575,10 @@ ath_rx_proc(void *arg, int npending)
 					    BUS_DMASYNC_POSTREAD);
 					ieee80211_notify_michael_failure(ic,
 					    mtod(m, struct ieee80211_frame *),
-					    ds->ds_rxstat.rs_keyix);
+					    sc->sc_splitmic ?
+					        ds->ds_rxstat.rs_keyix-32 :
+					        ds->ds_rxstat.rs_keyix
+					);
 				}
 			}
 			ifp->if_ierrors++;
