@@ -60,7 +60,7 @@ struct peerid {
 };
 
 struct mpserver {
-  struct descriptor desc;
+  struct fdescriptor desc;
   int fd;			/* listen()ing or connect()ing here */
   struct sockaddr_un socket;	/* On this socket */
 
