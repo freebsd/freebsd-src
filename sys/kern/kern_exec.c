@@ -47,6 +47,7 @@
 #include <sys/shm.h>
 #include <sys/sysctl.h>
 #include <sys/vnode.h>
+#include <sys/aio.h>
 
 #include <vm/vm.h>
 #include <vm/vm_param.h>
@@ -501,6 +502,11 @@ exec_new_vmspace(imgp)
 	vm_map_t map = &vmspace->vm_map;
 
 	imgp->vmspace_destroyed = 1;
+
+	/*
+	 * Prevent a pending AIO from modifying the new address space.
+	 */
+	aio_proc_rundown(imgp->proc);
 
 	/*
 	 * Blow away entire process VM, if address space not shared,
