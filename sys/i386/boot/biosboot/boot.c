@@ -24,7 +24,7 @@
  * the rights to redistribute these changes.
  *
  *	from: Mach, [92/04/03  16:51:14  rvb]
- *	$Id: boot.c,v 1.72 1998/10/01 18:22:46 msmith Exp $
+ *	$Id: boot.c,v 1.73 1998/10/10 14:02:06 bde Exp $
  */
 
 
@@ -196,9 +196,9 @@ static void
 loadprog(void)
 {
 	struct exec head;
-	long int startaddr;
-	long int addr;	/* physical address.. not directly useable */
-	long int bootdev;
+	int startaddr;
+	int addr;	/* physical address.. not directly useable */
+	int bootdev;
 	int i;
 	unsigned pad;
 	char *s, *t;
@@ -340,9 +340,9 @@ loadprog(void)
 	readfile(kernel_config_namebuf, kernel_config, KERNEL_CONFIG_SIZE);
 	pcpy(kernel_config, (char *)&disklabel + ouraddr, KERNEL_CONFIG_SIZE);
 
-	printf("total=0x%x entry point=0x%x\n", (int)addr, (int)startaddr);
-	startprog((int)startaddr, loadflags | RB_BOOTINFO, bootdev,
-		  (int)&bootinfo + ouraddr);
+	printf("total=0x%x entry point=0x%x\n", addr, startaddr);
+	startprog(startaddr, loadflags | RB_BOOTINFO, bootdev,
+		  (unsigned)&bootinfo + ouraddr);
 }
 
 static void
