@@ -1,12 +1,12 @@
 # Makefile for uusched
-# $Id: Makefile,v 1.3 1995/01/23 21:19:45 jkh Exp $
+# $Id: Makefile,v 1.4 1995/01/24 17:32:09 jkh Exp $
 
 BINDIR=		$(bindir)
 
 PROG=	uusched
 SRCS=
 NOMAN=	yes
-NOOBJS=	yes
+NOOBJ=	yes
 STRIP=
 
 uusched:	uusched.in
