@@ -31,6 +31,7 @@
 #include <sys/socket.h>
 #include <sys/un.h>
 
+#include <stdarg.h>
 #include <stdio.h>
 #include <string.h>
 #include <termios.h>
