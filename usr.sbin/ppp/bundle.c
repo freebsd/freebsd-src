@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: bundle.c,v 1.52 1999/05/08 11:06:08 brian Exp $
+ *	$Id: bundle.c,v 1.53 1999/05/12 09:48:41 brian Exp $
  */
 
 #include <sys/param.h>
@@ -719,10 +719,9 @@ bundle_UnlockTun(struct bundle *bundle)
 struct bundle *
 bundle_Create(const char *prefix, int type, const char **argv)
 {
-  int s, enoentcount, err;
-  const char *ifname;
-  struct ifreq ifrq;
   static struct bundle bundle;		/* there can be only one */
+  int enoentcount, err;
+  const char *ifname;
 #ifdef TUNSIFMODE
   int iff;
 #endif
@@ -761,13 +760,6 @@ bundle_Create(const char *prefix, int type, const char **argv)
   bundle.argv0 = argv[0];
   bundle.argv1 = argv[1];
 
-  s = socket(AF_INET, SOCK_DGRAM, 0);
-  if (s < 0) {
-    log_Printf(LogERROR, "bundle_Create: socket(): %s\n", strerror(errno));
-    close(bundle.dev.fd);
-    return NULL;
-  }
-
   ifname = strrchr(bundle.dev.Name, '/');
   if (ifname == NULL)
     ifname = bundle.dev.Name;
@@ -776,7 +768,6 @@ bundle_Create(const char *prefix, int type, const char **argv)
 
   bundle.iface = iface_Create(ifname);
   if (bundle.iface == NULL) {
-    close(s);
     close(bundle.dev.fd);
     return NULL;
   }
@@ -789,38 +780,16 @@ bundle_Create(const char *prefix, int type, const char **argv)
 	       strerror(errno));
 #endif
 
-  /*
-   * Now, bring up the interface.
-   */
-  memset(&ifrq, '\0', sizeof ifrq);
-  strncpy(ifrq.ifr_name, ifname, sizeof ifrq.ifr_name - 1);
-  ifrq.ifr_name[sizeof ifrq.ifr_name - 1] = '\0';
-  if (ID0ioctl(s, SIOCGIFFLAGS, &ifrq) < 0) {
-    log_Printf(LogERROR, "bundle_Create: ioctl(SIOCGIFFLAGS): %s\n",
-	      strerror(errno));
-    close(s);
+  if (!iface_SetFlags(bundle.iface, IFF_UP)) {
     iface_Destroy(bundle.iface);
     bundle.iface = NULL;
     close(bundle.dev.fd);
     return NULL;
   }
-  ifrq.ifr_flags |= IFF_UP;
-  if (ID0ioctl(s, SIOCSIFFLAGS, &ifrq) < 0) {
-    log_Printf(LogERROR, "bundle_Create: ioctl(SIOCSIFFLAGS): %s\n",
-	      strerror(errno));
-    close(s);
-    iface_Destroy(bundle.iface);
-    bundle.iface = NULL;
-    close(bundle.dev.fd);
-    return NULL;
-  }
-
-  close(s);
 
   log_Printf(LogPHASE, "Using interface: %s\n", ifname);
 
   bundle.ifSpeed = 0;
-
   bundle.routing_seq = 0;
   bundle.phase = PHASE_DEAD;
   bundle.CleaningUp = 0;
@@ -899,34 +868,8 @@ bundle_Create(const char *prefix, int type, const char **argv)
 static void
 bundle_DownInterface(struct bundle *bundle)
 {
-  struct ifreq ifrq;
-  int s;
-
   route_IfDelete(bundle, 1);
-
-  s = ID0socket(AF_INET, SOCK_DGRAM, 0);
-  if (s < 0) {
-    log_Printf(LogERROR, "bundle_DownInterface: socket: %s\n", strerror(errno));
-    return;
-  }
-
-  memset(&ifrq, '\0', sizeof ifrq);
-  strncpy(ifrq.ifr_name, bundle->iface->name, sizeof ifrq.ifr_name - 1);
-  ifrq.ifr_name[sizeof ifrq.ifr_name - 1] = '\0';
-  if (ID0ioctl(s, SIOCGIFFLAGS, &ifrq) < 0) {
-    log_Printf(LogERROR, "bundle_DownInterface: ioctl(SIOCGIFFLAGS): %s\n",
-       strerror(errno));
-    close(s);
-    return;
-  }
-  ifrq.ifr_flags &= ~IFF_UP;
-  if (ID0ioctl(s, SIOCSIFFLAGS, &ifrq) < 0) {
-    log_Printf(LogERROR, "bundle_DownInterface: ioctl(SIOCSIFFLAGS): %s\n",
-       strerror(errno));
-    close(s);
-    return;
-  }
-  close(s);
+  iface_ClearFlags(bundle->iface, IFF_UP);
 }
 
 void
