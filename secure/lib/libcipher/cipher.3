@@ -38,11 +38,14 @@
 .Nm setkey ,
 .Nm encrypt ,
 .Nm des_setkey ,
-.Nm des_cipher ,
+.Nm des_cipher
 .Nd DES encryption
+.Sh LIBRARY
+.Lb libcipher
 .Sh SYNOPSIS
+.Fd #include <unistd.h>
 .Ft int
-.Fn setkey "char *key"
+.Fn setkey "const char *key"
 .Ft int
 .Fn encrypt "char *block" "int flag"
 .Ft int
