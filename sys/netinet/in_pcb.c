@@ -1031,11 +1031,11 @@ in_pcbremlists(inp)
 }
 
 int
-prison_xinpcb(struct proc *p, struct inpcb *inp)
+prison_xinpcb(struct thread *td, struct inpcb *inp)
 {
-	if (!jailed(p->p_ucred))
+	if (!jailed(td->td_ucred))
 		return (0);
-	if (ntohl(inp->inp_laddr.s_addr) == prison_getip(p->p_ucred))
+	if (ntohl(inp->inp_laddr.s_addr) == prison_getip(td->td_ucred))
 		return (0);
 	return (1);
 }
