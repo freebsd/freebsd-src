@@ -226,6 +226,8 @@ static symtab_t pnpprod[] = {
     { "MSH0004",	MOUSE_PROTO_INTELLI,	MOUSE_MODEL_INTELLI },
     /* Genius PnP Mouse */
     { "KYE0001",	MOUSE_PROTO_MS,		MOUSE_MODEL_GENERIC },
+    /* MouseSystems SmartScroll Mouse (OEM from Genius?) */
+    { "KYE0002",	MOUSE_PROTO_MS,		MOUSE_MODEL_EASYSCROLL },
     /* Genius NetMouse */
     { "KYE0003",	MOUSE_PROTO_INTELLI,	MOUSE_MODEL_NET },
     /* Genius Kidspad, Easypad and other tablets */
