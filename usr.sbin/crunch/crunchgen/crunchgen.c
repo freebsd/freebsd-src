@@ -488,7 +488,7 @@ void fillin_program(prog_t *p)
 	    p->srcdir = strdup(path);
     }
     if(!p->objdir && p->srcdir) {
-	sprintf(path, "%s/obj", p->srcdir);
+	sprintf(path, "/usr/obj/%s", p->srcdir);
 	if(is_dir(path))
 	    p->objdir = strdup(path);
 	else
