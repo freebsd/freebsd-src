@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)nfs_subs.c	8.3 (Berkeley) 1/4/94
- * $Id: nfs_subs.c,v 1.51 1998/02/06 12:13:57 eivind Exp $
+ * $Id: nfs_subs.c,v 1.52 1998/03/30 09:54:12 phk Exp $
  */
 
 /*
@@ -642,7 +642,6 @@ nfsm_rpchead(cr, nmflag, procid, auth_type, auth_len, auth_str, verf_len,
 	register int i;
 	struct mbuf *mreq, *mb2;
 	int siz, grpsiz, authsiz;
-	struct timeval tv;
 	static u_long base;
 
 	authsiz = nfsm_rndup(auth_len);
@@ -663,15 +662,9 @@ nfsm_rpchead(cr, nmflag, procid, auth_type, auth_len, auth_str, verf_len,
 	 */
 	nfsm_build(tl, u_long *, 8 * NFSX_UNSIGNED);
 
-	/*
-	 * derive initial xid from system time
-	 * XXX time is invalid if root not yet mounted
-	 */
-	if (!base && (rootvp)) {
-		microtime(&tv);
-		base = tv.tv_sec << 12;
-		nfs_xid = base;
-	}
+	/* Get a pretty random xid to start with */
+	if (!nfs_xid) 
+		nfs_xid = random();
 	/*
 	 * Skip zero xid if it should ever happen.
 	 */
