@@ -24,7 +24,7 @@
  * SUCH DAMAGE.
  */
 
-/* $Id: main.c,v 1.3 1996/06/22 21:42:14 jkh Exp $ */
+/* $Id: main.c,v 1.4 1996/06/22 23:24:13 jkh Exp $ */
 
 #include <stdlib.h>
 #include <stdio.h>
@@ -239,8 +239,6 @@ ftpget ()
 		    ftperr (ftp, "Couldn't cd to %s: ", change_to_dir);
 	}
 	size = ftpGetSize (ftp, file_to_get);
-	if (size < 0)
-	    ftperr (ftp, "%s: ", file_to_get);
 	modtime = ftpGetModtime (ftp, file_to_get);
 	if (modtime < -1) {
 	    warnx ("Couldn't get file time for %s - using current time", file_to_get);
