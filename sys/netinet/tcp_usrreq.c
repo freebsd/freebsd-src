@@ -203,6 +203,8 @@ tcp_usr_bind(struct socket *so, struct sockaddr *nam, struct proc *p)
 	 * to them.
 	 */
 	sinp = (struct sockaddr_in *)nam;
+	if (nam->sa_len != sizeof (*sinp))
+		return (EINVAL);
 	if (sinp->sin_family == AF_INET &&
 	    IN_MULTICAST(ntohl(sinp->sin_addr.s_addr))) {
 		error = EAFNOSUPPORT;
@@ -232,6 +234,8 @@ tcp6_usr_bind(struct socket *so, struct sockaddr *nam, struct proc *p)
 	 * to them.
 	 */
 	sin6p = (struct sockaddr_in6 *)nam;
+	if (nam->sa_len != sizeof (*sin6p))
+		return (EINVAL);
 	if (sin6p->sin6_family == AF_INET6 &&
 	    IN6_IS_ADDR_MULTICAST(&sin6p->sin6_addr)) {
 		error = EAFNOSUPPORT;
@@ -322,6 +326,8 @@ tcp_usr_connect(struct socket *so, struct sockaddr *nam, struct proc *p)
 	 * Must disallow TCP ``connections'' to multicast addresses.
 	 */
 	sinp = (struct sockaddr_in *)nam;
+	if (nam->sa_len != sizeof (*sinp))
+		return (EINVAL);
 	if (sinp->sin_family == AF_INET
 	    && IN_MULTICAST(ntohl(sinp->sin_addr.s_addr))) {
 		error = EAFNOSUPPORT;
@@ -352,6 +358,8 @@ tcp6_usr_connect(struct socket *so, struct sockaddr *nam, struct proc *p)
 	 * Must disallow TCP ``connections'' to multicast addresses.
 	 */
 	sin6p = (struct sockaddr_in6 *)nam;
+	if (nam->sa_len != sizeof (*sin6p))
+		return (EINVAL);
 	if (sin6p->sin6_family == AF_INET6
 	    && IN6_IS_ADDR_MULTICAST(&sin6p->sin6_addr)) {
 		error = EAFNOSUPPORT;
