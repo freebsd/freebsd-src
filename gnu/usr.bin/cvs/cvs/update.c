@@ -435,15 +435,15 @@ update_filesdone_proc (err, repository, update_dir)
 	    char from[PATH_MAX], to[PATH_MAX];
 
 	    /* Read all the link pairs from the symlinks file */
-	    while (fgets(from, PATH_MAX, links)) {
-		fgets(to, PATH_MAX, links);
+	    while (fgets(to, PATH_MAX, links)) {
+		fgets(from, PATH_MAX, links);
 
 		/* Strip off the newlines */
 		to[strlen(to) - 1] = '\0';
 		from[strlen(from) - 1] = '\0';
 
 		/* Do it */
-		if (symlink(to, from) == -1) {
+		if (symlink(from, to) == -1) {
 		    error (0, errno, "Unable to create symlink `%s'", to);
 		    return 1;
 		}
