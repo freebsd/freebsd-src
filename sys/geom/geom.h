@@ -160,6 +160,7 @@ struct g_provider {
 	struct g_event		*event;
 	TAILQ_ENTRY(g_provider)	orphan;
 	int			index;
+	off_t			mediasize;
 };
 
 /* geom_dump.c */

@@ -93,6 +93,8 @@ g_disk_access(struct g_provider *pp, int r, int w, int e)
 	} else {
 		error = 0;
 	}
+        pp->mediasize =
+	    dp->d_label.d_secsize * (off_t)dp->d_label.d_secperunit;
 	return (error);
 }
 

@@ -223,65 +223,88 @@ g_io_getattr(char *attr, struct g_consumer *cp, int *len, void *ptr)
 }
 
 void
+g_io_fail(struct bio *bp, int error)
+{
+
+	bp->bio_error = error;
+
+	g_trace(G_T_BIO,
+	    "bio_fail(%p) from %p(%s) to %p(%s) cmd %d error %d\n",
+	    bp, bp->bio_from, bp->bio_from->geom->name,
+	    bp->bio_to, bp->bio_to->name, bp->bio_cmd, bp->bio_error);
+	g_io_deliver(bp);
+	return;
+}
+
+void
 g_io_request(struct bio *bp, struct g_consumer *cp)
 {
 	int error;
+	off_t excess;
 
 	KASSERT(cp != NULL, ("bio_request on thin air"));
 	error = 0;
 	bp->bio_from = cp;
 	bp->bio_to = cp->provider;
+	bp->bio_error = 0;
+	bp->bio_completed = 0;
 
 	/* begin_stats(&bp->stats); */
 
 	atomic_add_int(&cp->biocount, 1);
+	/* Fail on unattached consumers */
 	if (bp->bio_to == NULL)
-		error = ENXIO;
-	if (!error) {
-		switch(bp->bio_cmd) {
-		case BIO_READ:
-		case BIO_GETATTR:
-			if (cp->acr == 0)
-				error = EPERM;
-			break;
-		case BIO_WRITE:
-			if (cp->acw == 0)
-				error = EPERM;
-			break;
-		case BIO_SETATTR:
-		case BIO_DELETE:
-			if ((cp->acw == 0) || (cp->ace == 0))
-				error = EPERM;
-			break;
-		default:
-			error = EPERM;
-			break;
+		return (g_io_fail(bp, ENXIO));
+	/* Fail if access doesn't allow operation */
+	switch(bp->bio_cmd) {
+	case BIO_READ:
+	case BIO_GETATTR:
+		if (cp->acr == 0)
+			return (g_io_fail(bp, EPERM));
+		break;
+	case BIO_WRITE:
+	case BIO_DELETE:
+		if (cp->acw == 0)
+			return (g_io_fail(bp, EPERM));
+		break;
+	case BIO_SETATTR:
+		if ((cp->acw == 0) || (cp->ace == 0))
+			return (g_io_fail(bp, EPERM));
+		break;
+	default:
+		return (g_io_fail(bp, EPERM));
+	}
+	/* if provider is marked for error, don't disturb. */
+	if (bp->bio_to->error)
+		return (g_io_fail(bp, bp->bio_to->error));
+	switch(bp->bio_cmd) {
+	case BIO_READ:
+	case BIO_WRITE:
+	case BIO_DELETE:
+		/* Reject requests past the end of media. */
+		if (bp->bio_offset > bp->bio_to->mediasize)
+			return (g_io_fail(bp, EIO));
+		/* Truncate requests to the end of providers media. */
+		excess = bp->bio_offset + bp->bio_length;
+		if (excess > bp->bio_to->mediasize) {
+			excess -= bp->bio_to->mediasize;
+			bp->bio_length -= excess;
 		}
+		/* Deliver zero length transfers right here. */
+		if (bp->bio_length == 0) 
+			return (g_io_deliver(bp));
+		break;
+	default:
+		break;
 	}
-	/* if provider is marked for error, don't disturb */
-	if (!error)
-		error = bp->bio_to->error;
-	if (error) {
-		bp->bio_error = error;
-		/* finish_stats(&bp->stats); */
-
-		g_trace(G_T_BIO,
-		    "bio_request(%p) from %p(%s) to %p(%s) cmd %d error %d\n",
-		    bp, bp->bio_from, bp->bio_from->geom->name,
-		    bp->bio_to, bp->bio_to->name, bp->bio_cmd, bp->bio_error);
-		g_bioq_enqueue_tail(bp, &g_bio_run_up);
-		mtx_lock(&Giant);
-		wakeup(&g_wait_up);
-		mtx_unlock(&Giant);
-	} else {
-		g_trace(G_T_BIO, "bio_request(%p) from %p(%s) to %p(%s) cmd %d",
-		    bp, bp->bio_from, bp->bio_from->geom->name,
-		    bp->bio_to, bp->bio_to->name, bp->bio_cmd);
-		g_bioq_enqueue_tail(bp, &g_bio_run_down);
-		mtx_lock(&Giant);
-		wakeup(&g_wait_down);
-		mtx_unlock(&Giant);
-	}
+	/* Pass it on down. */
+	g_trace(G_T_BIO, "bio_request(%p) from %p(%s) to %p(%s) cmd %d",
+	    bp, bp->bio_from, bp->bio_from->geom->name,
+	    bp->bio_to, bp->bio_to->name, bp->bio_cmd);
+	g_bioq_enqueue_tail(bp, &g_bio_run_down);
+	mtx_lock(&Giant);
+	wakeup(&g_wait_down);
+	mtx_unlock(&Giant);
 }
 
 void
