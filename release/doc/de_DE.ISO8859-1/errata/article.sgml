@@ -8,8 +8,7 @@
 	(If we didn't do this, then the file with the datestamp might
 	not be the one that received the last change in the document.)
 
-	$FreeBSDde: de-docproj/relnotes/de_DE.ISO8859-1/errata/article.sgml,v 1.7 2002/03/30 00:08:50 ue Exp $
-	$Id: article.sgml,v 1.6 2002/03/10 16:43:21 ue Exp $
+	$FreeBSDde: de-docproj/relnotes/de_DE.ISO8859-1/errata/article.sgml,v 1.9 2002/10/12 18:02:21 ue Exp $
 	basiert auf: 1.9
 -->
 
@@ -22,7 +21,7 @@
 %translators;
 <!ENTITY % mlists PUBLIC "-//FreeBSD//ENTITIES DocBook Mailing List Entities//DE">
 %mlists;
-<!ENTITY % release PUBLIC "-//FreeBSD//ENTITIES Release Specification//DE">
+<!ENTITY % release PUBLIC "-//FreeBSD//ENTITIES Release Specification//EN">
 %release;
 ]>
 
@@ -99,7 +98,7 @@
     <title>Einleitung</title>
 
     <para>Diese Errata enthalten <quote>brandhei&szlig;e</quote>
-      Informationen &uuml; &os; &release.current;.  Bevor Sie diese
+      Informationen &uuml;ber &os; &release.current;.  Bevor Sie diese
       Version installieren, sollten Sie auf jeden Fall dieses Dokument
       lesen, um &uuml;ber Probleme informiert zu werden, die erst nach
       der Ver&ouml;ffentlichung entdeckt (und vielleicht auch schon

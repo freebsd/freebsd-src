@@ -1,6 +1,6 @@
 <!--
   $FreeBSD$
-  $FreeBSDde: de-docproj/relnotes/de_DE.ISO8859-1/installation/common/trouble.sgml,v 1.4 2002/05/26 13:42:22 ue Exp $
+  $FreeBSDde: de-docproj/relnotes/de_DE.ISO8859-1/installation/common/trouble.sgml,v 1.6 2002/10/12 10:41:53 mheinen Exp $
   basiert auf: 1.5
 
 	This file contains the comments of the old TROUBLE.TXT file.
@@ -164,7 +164,8 @@
     <title>Typische Hardware-Probleme</title>
 
     <note>
-      <para>Please send hardware tips for this section to &a.jkh;.</para>
+      <para>Erg&auml;nzungen zu diesem Abschnitt schicken Sie bitte an
+        &a.jkh;.</para>
     </note>
 
     <qandaset>
@@ -368,7 +369,7 @@ boot:</screen>
           <para>Diese CDROM Laufwerke werden nicht von &os;
             unterst&uuml;tzt, da die Befehle zur Ansteuerung dieser
             Laufwerke sind nicht mit denen f&uuml;r die Double-Speed
-            Laufwerke CR-562 and CR-563 identisch sind.</para>
+            Laufwerke CR-562 und CR-563 identisch sind.</para>
 
           <para>Die single-speed Laufwerke CR-522 und CR-523 brauchen
             einen CD-Caddy.</para>

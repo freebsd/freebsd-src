@@ -1,8 +1,7 @@
 <!--
 	$FreeBSD$
-	$FreeBSDde: de-docproj/relnotes/de_DE.ISO8859-1/share/sgml/release.dsl,v 1.4 2002/03/12 15:22:03 ue Exp $
-	$Id: release.dsl,v 1.6 2002/03/10 15:37:20 ue Exp $
-	basiert auf: 1.4
+	$FreeBSDde: de-docproj/relnotes/de_DE.ISO8859-1/share/sgml/release.dsl,v 1.7 2002/10/12 18:21:25 ue Exp $
+	basiert auf: 1.6
 -->
 
 <!DOCTYPE style-sheet PUBLIC "-//James Clark//DTD DSSSL Style Sheet//EN" [

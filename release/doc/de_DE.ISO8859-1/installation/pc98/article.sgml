@@ -1,7 +1,7 @@
 <!--
   $FreeBSD$
-  $FreeBSDde: de-docproj/relnotes/de_DE.ISO8859-1/installation/i386/article.sgml,v 1.4 2002/10/12 18:02:23 ue Exp $
-  basiert auf: 1.3
+  $FreeBSDde: de-docproj/relnotes/de_DE.ISO8859-1/installation/pc98/article.sgml,v 1.2 2002/10/12 18:02:23 ue Exp $
+  basiert auf: 1.1
 -->
 
 <!DOCTYPE article PUBLIC "-//FreeBSD//DTD DocBook V4.1-Based Extension//EN" [
@@ -17,16 +17,16 @@
 
 <!-- Architecture-specific customization -->
 
-<!ENTITY arch "i386">
-<!ENTITY arch.print "IA-32">
+<!ENTITY arch "pc98">
+<!ENTITY arch.print "NEC PC-98x1">
 
 ]>
 
 <article lang="de">
-  &artheader;
-  &abstract;
-  &sect.install;
-  &sect.layout;
-  &sect.upgrade;
-  &sect.trouble;
+&artheader;
+&abstract;
+&sect.install;
+&sect.layout;
+&sect.upgrade;
+&sect.trouble;
 </article>
