@@ -20,7 +20,7 @@
  */
 
 /*
- * $Id: if_ed.c,v 1.29 1994/01/25 22:52:06 ats Exp $
+ * $Id: if_ed.c,v 1.30 1994/01/31 07:34:20 davidg Exp $
  */
 
 #include "ed.h"
@@ -306,6 +306,11 @@ ed_probe_WD80x3(isa_dev)
 		break;
 	case ED_TYPE_WD8003E:
 		sc->type_str = "WD8003E";
+		memsize = 8192;
+		isa16bit = 0;
+		break;
+	case ED_TYPE_WD8003W:
+		sc->type_str = "WD8003W";
 		memsize = 8192;
 		isa16bit = 0;
 		break;
