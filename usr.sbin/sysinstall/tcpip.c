@@ -157,9 +157,8 @@ tcpOpenDialog(Device *devp)
     char		title[80];
 
     if (!RunningAsInit) {
-	if (isDebug())
-	    msgDebug("Running multi-user, assuming that the network is already up\n");
-	return DITEM_SUCCESS;
+	if (!msgYesNo("Running multi-user, assume that the network is already configured?"))
+	    return DITEM_SUCCESS;
     }
     save = savescr();
     dialog_clear_norefresh();
