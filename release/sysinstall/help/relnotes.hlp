@@ -1,6 +1,6 @@
                                  RELEASE NOTES
                                     FreeBSD
-                                 Release 2.0.5
+                                  Release 2.1
 
 1. Technical overview
 ---------------------
@@ -10,7 +10,7 @@ for Intel i386/i486/Pentium (or compatible) based PC's.  It is based
 primarily on software from U.C. Berkeley's CSRG group, with some
 enhancements from NetBSD, 386BSD, and the Free Software Foundation.
 
-Since our release of FreeBSD 2.0 some 8 months ago, the performance,
+Since our release of FreeBSD 2.0 one year ago, the performance,
 feature set, and stability of FreeBSD has improved dramatically.  The
 largest change is a revamped VM system with a merged VM/file buffer
 cache that not only increases performance, but reduces FreeBSD's
@@ -27,7 +27,7 @@ easily understood installation process.  Your feedback on this
 (constantly evolving) process is especially welcome!
 
 In addition to the base distributions, FreeBSD offers a new ported
-software collection with some 270 commonly sought-after programs.  The
+software collection with some 350 commonly sought-after programs.  The
 list of ports ranges from http (WWW) servers, to games, languages,
 editors and almost everything in between.  The entire ports collection
 requires only 10MB of storage, all ports being expressed as "deltas"
@@ -40,9 +40,7 @@ build is retrieved dynamically off of CDROM or a local ftp site, so
 you need only enough disk space to build the ports you want.  (Almost)
 every port is also provided as a pre-compiled "package" which can be
 installed with a simple command (pkg_add) by those who do not wish to
-compile their own ports from source.  See the file:
-        /usr/share/FAQ/Text/ports.FAQ
-for a more complete description of the ports collection.
+compile their own ports from source.
 
 
 Since our first release of FreeBSD 1.0 nearly two years ago, FreeBSD
@@ -55,7 +53,7 @@ have every reason to hope that we'll be able to release quality
 operating systems without further legal encumbrance for some time to
 come!
 
-FreeBSD 2.0.5 represents the culmination of 2 years of work and many
+FreeBSD 2.1 represents the culmination of 2 years of work and many
 thousands of man hours put in by an international development team.
 We hope you enjoy it!
 
@@ -596,7 +594,7 @@ resort!
 
 2. CDROM
 
-FreeBSD 2.0.5 may be ordered on CDROM from:
+FreeBSD 2.1 may be ordered on CDROM from:
 
         Walnut Creek CDROM
         4041 Pike Lane, Suite D
@@ -744,4 +742,4 @@ mentioned, and we sincerely hope you enjoy this release of FreeBSD!
 
                         The FreeBSD Core Team
 
-$Id: RELNOTES,v 1.10 1995/06/10 09:56:30 jkh Exp $
+$Id: relnotes.hlp,v 1.1 1995/09/18 16:53:02 peter Exp $
