@@ -33,7 +33,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	@(#)genassym.c	5.11 (Berkeley) 5/10/91
+ *	from: @(#)genassym.c	5.11 (Berkeley) 5/10/91
  */
 
 #include <sys/cdefs.h>

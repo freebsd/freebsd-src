@@ -37,7 +37,7 @@
  * $FreeBSD$
  */
 
-#ifndef	_MACHINE__STDINT_H_
+#ifndef _MACHINE__STDINT_H_
 #define	_MACHINE__STDINT_H_
 
 #if !defined(__cplusplus) || defined(__STDC_CONSTANT_MACROS)
