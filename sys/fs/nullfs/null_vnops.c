@@ -192,21 +192,6 @@ static int null_bug_bypass = 0;   /* for debugging: enables bypass printf'ing */
 SYSCTL_INT(_debug, OID_AUTO, nullfs_bug_bypass, CTLFLAG_RW, 
 	&null_bug_bypass, 0, "");
 
-static vop_access_t	null_access;
-static vop_createvobject_t	null_createvobject;
-static vop_destroyvobject_t	null_destroyvobject;
-static vop_getattr_t	null_getattr;
-static vop_getvobject_t	null_getvobject;
-static vop_inactive_t	null_inactive;
-static vop_islocked_t	null_islocked;
-static vop_lock_t	null_lock;
-static vop_lookup_t	null_lookup;
-static vop_print_t	null_print;
-static vop_reclaim_t	null_reclaim;
-static vop_rename_t	null_rename;
-static vop_setattr_t	null_setattr;
-static vop_unlock_t	null_unlock;
-
 /*
  * This is the 10-Apr-92 bypass routine.
  *    This version has been optimized for speed, throwing away some
@@ -232,11 +217,7 @@ static vop_unlock_t	null_unlock;
  *   problems on rmdir'ing mount points and renaming?)
  */
 int
-null_bypass(ap)
-	struct vop_generic_args /* {
-		struct vnodeop_desc *a_desc;
-		<other random data follows, presumably>
-	} */ *ap;
+null_bypass(struct vop_generic_args *ap)
 {
 	register struct vnode **this_vp_p;
 	int error;
@@ -354,12 +335,7 @@ null_bypass(ap)
  * if this layer is mounted read-only.
  */
 static int
-null_lookup(ap)
-	struct vop_lookup_args /* {
-		struct vnode * a_dvp;
-		struct vnode ** a_vpp;
-		struct componentname * a_cnp;
-	} */ *ap;
+null_lookup(struct vop_lookup_args *ap)
 {
 	struct componentname *cnp = ap->a_cnp;
 	struct vnode *dvp = ap->a_dvp;
@@ -410,14 +386,7 @@ null_lookup(ap)
  * Setattr call. Disallow write attempts if the layer is mounted read-only.
  */
 static int
-null_setattr(ap)
-	struct vop_setattr_args /* {
-		struct vnodeop_desc *a_desc;
-		struct vnode *a_vp;
-		struct vattr *a_vap;
-		struct ucred *a_cred;
-		struct thread *a_td;
-	} */ *ap;
+null_setattr(struct vop_setattr_args *ap)
 {
 	struct vnode *vp = ap->a_vp;
 	struct vattr *vap = ap->a_vap;
@@ -457,13 +426,7 @@ null_setattr(ap)
  *  We handle getattr only to change the fsid.
  */
 static int
-null_getattr(ap)
-	struct vop_getattr_args /* {
-		struct vnode *a_vp;
-		struct vattr *a_vap;
-		struct ucred *a_cred;
-		struct thread *a_td;
-	} */ *ap;
+null_getattr(struct vop_getattr_args *ap)
 {
 	int error;
 
@@ -478,13 +441,7 @@ null_getattr(ap)
  * Handle to disallow write access if mounted read-only.
  */
 static int
-null_access(ap)
-	struct vop_access_args /* {
-		struct vnode *a_vp;
-		int  a_mode;
-		struct ucred *a_cred;
-		struct thread *a_td;
-	} */ *ap;
+null_access(struct vop_access_args *ap)
 {
 	struct vnode *vp = ap->a_vp;
 	mode_t mode = ap->a_mode;
@@ -515,15 +472,7 @@ null_access(ap)
  * possibly we should.
  */
 static int
-null_rename(ap)
-	struct vop_rename_args /* {
-		struct vnode *a_fdvp;
-		struct vnode *a_fvp;
-		struct componentname *a_fcnp;
-		struct vnode *a_tdvp;
-		struct vnode *a_tvp;
-		struct componentname *a_tcnp;
-	} */ *ap;
+null_rename(struct vop_rename_args *ap)
 {
 	struct vnode *tdvp = ap->a_tdvp;
 	struct vnode *fvp = ap->a_fvp;
@@ -553,12 +502,7 @@ null_rename(ap)
  * vnodes below us on the stack.
  */
 static int
-null_lock(ap)
-	struct vop_lock_args /* {
-		struct vnode *a_vp;
-		int a_flags;
-		struct thread *a_td;
-	} */ *ap;
+null_lock(struct vop_lock_args *ap)
 {
 	struct vnode *vp = ap->a_vp;
 	int flags = ap->a_flags;
@@ -683,12 +627,7 @@ null_lock(ap)
  * vnodes below us on the stack.
  */
 static int
-null_unlock(ap)
-	struct vop_unlock_args /* {
-		struct vnode *a_vp;
-		int a_flags;
-		struct thread *a_td;
-	} */ *ap;
+null_unlock(struct vop_unlock_args *ap)
 {
 	struct vnode *vp = ap->a_vp;
 	int flags = ap->a_flags;
@@ -717,11 +656,7 @@ null_unlock(ap)
 }
 
 static int
-null_islocked(ap)
-	struct vop_islocked_args /* {
-		struct vnode *a_vp;
-		struct thread *a_td;
-	} */ *ap;
+null_islocked(struct vop_islocked_args *ap)
 {
 	struct vnode *vp = ap->a_vp;
 	struct thread *td = ap->a_td;
@@ -742,11 +677,7 @@ null_islocked(ap)
  * for null_inactive to unlock vnode. Thus we will do all those in VOP_RECLAIM.
  */
 static int
-null_inactive(ap)
-	struct vop_inactive_args /* {
-		struct vnode *a_vp;
-		struct thread *a_td;
-	} */ *ap;
+null_inactive(struct vop_inactive_args *ap)
 {
 	struct vnode *vp = ap->a_vp;
 	struct thread *td = ap->a_td;
@@ -766,11 +697,7 @@ null_inactive(ap)
  * Now, the VXLOCK is in force and we're free to destroy the null vnode.
  */
 static int
-null_reclaim(ap)
-	struct vop_reclaim_args /* {
-		struct vnode *a_vp;
-		struct thread *a_td;
-	} */ *ap;
+null_reclaim(struct vop_reclaim_args *ap)
 {
 	struct vnode *vp = ap->a_vp;
 	struct null_node *xp = VTONULL(vp);
@@ -791,10 +718,7 @@ null_reclaim(ap)
 }
 
 static int
-null_print(ap)
-	struct vop_print_args /* {
-		struct vnode *a_vp;
-	} */ *ap;
+null_print(struct vop_print_args *ap)
 {
 	register struct vnode *vp = ap->a_vp;
 	printf("\tvp=%p, lowervp=%p\n", vp, NULLVPTOLOWERVP(vp));
@@ -805,12 +729,7 @@ null_print(ap)
  * Let an underlying filesystem do the work
  */
 static int
-null_createvobject(ap)
-	struct vop_createvobject_args /* {
-		struct vnode *vp;
-		struct ucred *cred;
-		struct thread *td;
-	} */ *ap;
+null_createvobject(struct vop_createvobject_args *ap)
 {
 	struct vnode *vp = ap->a_vp;
 	struct vnode *lowervp = VTONULL(vp) ? NULLVPTOLOWERVP(vp) : NULL;
@@ -829,10 +748,7 @@ null_createvobject(ap)
  * We have nothing to destroy and this operation shouldn't be bypassed.
  */
 static int
-null_destroyvobject(ap)
-	struct vop_destroyvobject_args /* {
-		struct vnode *vp;
-	} */ *ap;
+null_destroyvobject(struct vop_destroyvobject_args *ap)
 {
 	struct vnode *vp = ap->a_vp;
 
@@ -841,11 +757,7 @@ null_destroyvobject(ap)
 }
 
 static int
-null_getvobject(ap)
-	struct vop_getvobject_args /* {
-		struct vnode *vp;
-		struct vm_object **objpp;
-	} */ *ap;
+null_getvobject(struct vop_getvobject_args *ap)
 {
 	struct vnode *lvp = NULLVPTOLOWERVP(ap->a_vp);
 
