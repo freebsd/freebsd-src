@@ -1,6 +1,6 @@
 #!/bin/sh -
 #
-#	$Id: rc.network,v 1.31 1998/09/15 10:49:02 jkoshy Exp $
+#	$Id: rc.network,v 1.32 1998/09/16 20:38:23 cracauer Exp $
 #	From: @(#)netstart	5.9 (Berkeley) 3/30/91
 
 # Note that almost all the user-configurable behavior is no longer in
@@ -24,6 +24,12 @@ network_pass1() {
 	    echo -n ' domain'
     fi
     echo '.'
+
+    # Initial ATM interface configuration
+    if [ "X${atm_enable}" = X"YES" -a -f /etc/rc.atm ]; then
+	    . /etc/rc.atm
+	    atm_pass1
+    fi
 
     # Set up all the network interfaces, calling startup scripts if needed
     for ifn in ${network_interfaces}; do
@@ -87,6 +93,11 @@ network_pass1() {
 		echo "         All ip services are disabled."
 	    fi
 	fi
+    fi
+
+    # Additional ATM interface configuration
+    if [ -n "${atm_pass1_done}" ]; then
+	    atm_pass2
     fi
 
     # Configure routing
@@ -213,6 +224,11 @@ network_pass2() {
     # Start ypupdated if we are running Secure RPC and we are NIS master
     if [ "X$rpc_ypupdated_enable" = X"YES" ]; then
 	    echo -n ' rpc.ypupdated';	rpc.ypupdated
+    fi
+
+    # Start ATM daemons
+    if [ -n "${atm_pass2_done}" ]; then
+	    atm_pass3
     fi
 
     echo '.'
