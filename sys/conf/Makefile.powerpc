@@ -1,6 +1,6 @@
 # Copyright 1990 W. Jolitz
 #	from: @(#)Makefile.i386	7.1 5/10/91
-#	$Id: Makefile.i386,v 1.44 1994/10/03 18:51:35 phk Exp $
+#	$Id: Makefile.i386,v 1.45 1994/10/03 23:03:38 rgrimes Exp $
 #
 # Makefile for FreeBSD
 #
@@ -20,19 +20,19 @@
 # -DTRACE	compile in kernel tracing hooks
 # -DQUOTA	compile in file system quotas
 #
-TOUCH=	touch -f -c
-LD=	/usr/bin/ld
-CC=	cc 
-CPP=	cpp
-DBSYM=	/usr/sbin/dbsym
+TOUCH?=	touch -f -c
+LD?=	/usr/bin/ld
+CC?=	cc 
+CPP?=	cpp
+DBSYM?=	/usr/sbin/dbsym
 .if defined(DEBUG)
 .if defined(NOSTRIP)
-STRIP=  echo '(skipping) strip'
+STRIP?=  echo '(skipping) strip'
 .else
-STRIP=  cp $@ $@.sym; strip
+STRIP?=  cp $@ $@.sym; strip
 .endif
 .else
-STRIP=  strip
+STRIP?=  strip
 .endif
 
 .if exists(./@/.)
@@ -42,9 +42,8 @@ S=	../..
 .endif
 I386=	${S}/i386
 
-.if !defined(CWARNFLAGS)
-CWARNFLAGS=-W -Wreturn-type -Wcomment -Wredundant-decls
-.endif
+CWARNFLAGS?=-W -Wreturn-type -Wcomment -Wredundant-decls
+
 #
 # The following flag is next up for working on:
 # -Wnested-externs 
@@ -52,9 +51,7 @@ CWARNFLAGS=-W -Wreturn-type -Wcomment -Wredundant-decls
 # When working on removing warnings from code, the `-Werror' flag should be
 # of material assistance.
 #
-.if !defined(COPTFLAGS)
-COPTFLAGS=-O
-.endif
+COPTFLAGS?=-O
 INCLUDES= -I. -I$S -I$S/sys
 COPTS=	${INCLUDES} ${IDENT} -DKERNEL -Di386 -DLOAD_ADDRESS=0x${LOAD_ADDRESS}
 ASFLAGS=
