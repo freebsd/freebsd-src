@@ -28,7 +28,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *	$Id: pccard.c,v 1.74 1999/04/27 11:18:08 phk Exp $
+ *	$Id: pccard.c,v 1.75 1999/04/27 18:34:13 jdp Exp $
  */
 
 #include "opt_devfs.h"
@@ -1095,11 +1095,10 @@ find_driver(char *name)
 	return(0);
 }
 
-static crd_devsw_installed = 0;
-
 static void
 crd_drvinit(void *unused)
 {
+	static int crd_devsw_installed;
 	dev_t dev;
 
 	if (!crd_devsw_installed) {
