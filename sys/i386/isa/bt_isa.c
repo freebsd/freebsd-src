@@ -2,7 +2,7 @@
  * Product specific probe and attach routines for:
  *      Buslogic BT-54X and BT-445 cards
  *
- * Copyright (c) 1998 Justin T. Gibbs
+ * Copyright (c) 1998, 1999 Justin T. Gibbs
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -26,7 +26,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: bt_isa.c,v 1.4 1998/10/12 18:53:33 imp Exp $
+ *	$Id: bt_isa.c,v 1.5 1998/11/10 06:44:54 gibbs Exp $
  */
 
 #include <sys/param.h>
@@ -93,9 +93,8 @@ bt_isa_probe(dev)
 
 	/* Attempt to find an adapter */
 	for (;port_index <= max_port_index; port_index++) {
-		config_data_t config_data;
+		struct bt_probe_info info;
 		u_int ioport;
-		int error;
 
 		ioport = bt_iop_from_bio(port_index);
 
@@ -118,50 +117,15 @@ bt_isa_probe(dev)
 		/* We're going to attempt to probe it now, so mark it probed */
 		bt_mark_probed_bio(port_index);
 
-		/* See if there is really a card present */
-		if (bt_probe(bt) || bt_fetch_adapter_info(bt)) {
-			bt_free(bt);
-			continue;
-		}
-
-		/*
-		 * Determine our IRQ, and DMA settings and
-		 * export them to the configuration system.
-		 */
-		error = bt_cmd(bt, BOP_INQUIRE_CONFIG, NULL, /*parmlen*/0,
-			       (u_int8_t*)&config_data, sizeof(config_data),
-			       DEFAULT_CMD_TIMEOUT);
-		if (error != 0) {
-			printf("bt_isa_probe: Could not determine IRQ or DMA "
-			       "settings for adapter at 0x%x.  Failing probe\n",
+		if (bt_port_probe(bt, &info) != 0) {
+			printf("bt_isa_probe: Probe failled for card at 0x%x\n",
 			       ioport);
 			bt_free(bt);
 			continue;
 		}
 
-		if (bt->model[0] == '5') {
-			/* DMA settings only make sense for ISA cards */
-			switch (config_data.dma_chan) {
-			case DMA_CHAN_5:
-				dev->id_drq = 5;
-				break;
-			case DMA_CHAN_6:
-				dev->id_drq = 6;
-				break;
-			case DMA_CHAN_7:
-				dev->id_drq = 7;
-				break;
-			default:
-				printf("bt_isa_probe: Invalid DMA setting "
-				       "detected for adapter at 0x%x.  "
-				       "Failing probe\n", ioport);
-				return (0);
-			}
-		} else {
-			/* VL DMA */
-			dev->id_drq = -1;
-		}
-		dev->id_irq = (config_data.irq << 9);
+		dev->id_drq = info.drq;
+		dev->id_irq = 0x1 << info.irq;
 		dev->id_intr = bt_isa_intr;
 
 		bt_unit++;
