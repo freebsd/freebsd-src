@@ -27,7 +27,13 @@
  * Mountain View, California  94043
  */
 
-#pragma ident	"@(#)keyserv.c	1.15	94/04/25 SMI"
+#ifndef lint
+#if 0
+static char sccsid[] = "@(#)keyserv.c	1.15	94/04/25 SMI";
+#endif
+static const char rcsid[] =
+	"$Id$";
+#endif /* not lint */
 
 /*
  * Copyright (c) 1986 - 1991 by Sun Microsystems, Inc.
@@ -41,18 +47,18 @@
  * process on the local transport only
  */
 
+#include <err.h>
+#include <pwd.h>
 #include <stdio.h>
 #include <stdlib.h>
-#include <pwd.h>
-#include <unistd.h>
 #include <string.h>
+#include <unistd.h>
 #include <sys/stat.h>
 #include <sys/types.h>
 #include <rpc/rpc.h>
 #include <rpc/pmap_clnt.h>
 #include <sys/param.h>
 #include <sys/file.h>
-#include <pwd.h>
 #include <rpc/des_crypt.h>
 #include <rpc/des.h>
 #include <rpc/key_prot.h>
@@ -107,8 +113,6 @@ main(argc, argv)
 	char *argv[];
 {
 	int nflag = 0;
-	extern char *optarg;
-	extern int optind;
 	int c;
 	register SVCXPRT *transp;
 	int sock = RPC_ANYSOCK;
@@ -142,10 +146,8 @@ main(argc, argv)
 
 	load_des(warn, path);
 	__des_crypt_LOCAL = _my_crypt;
-	if (svc_auth_reg(AUTH_DES, _svcauth_des) == -1) {
-		fprintf(stderr, "failed to register AUTH_DES authenticator\n");
-		exit(1);
-	}
+	if (svc_auth_reg(AUTH_DES, _svcauth_des) == -1)
+		errx(1, "failed to register AUTH_DES authenticator");
 
 	if (optind != argc) {
 		usage();
@@ -155,10 +157,8 @@ main(argc, argv)
 	 * Initialize
 	 */
 	(void) umask(066);	/* paranoia */
-	if (geteuid() != 0) {
-		(void) fprintf(stderr, "%s must be run as root\n", argv[0]);
-		exit(1);
-	}
+	if (geteuid() != 0)
+		errx(1, "keyserv must be run as root");
 	setmodulus(HEXMODULUS);
 	getrootkey(&masterkey, nflag);
 
@@ -170,51 +170,31 @@ main(argc, argv)
 	unlink(KEYSERVSOCK);
 
 	transp = svcudp_create(RPC_ANYSOCK);
-	if (transp == NULL) {
-		fprintf(stderr, "cannot create udp service.");
-		exit(1);
-	}
-	if (!svc_register(transp, KEY_PROG, KEY_VERS, keyprogram, IPPROTO_UDP)) {
-		fprintf(stderr, "unable to register (KEY_PROG, KEY_VERS, udp).");
-		exit(1);
-	}
-	if (!svc_register(transp, KEY_PROG, KEY_VERS2, keyprogram, IPPROTO_UDP)) {
-		fprintf(stderr, "unable to register (KEY_PROG, KEY_VERS2, udp).");
-		exit(1);
-	}
+	if (transp == NULL)
+		errx(1, "cannot create udp service");
+	if (!svc_register(transp, KEY_PROG, KEY_VERS, keyprogram, IPPROTO_UDP))
+		errx(1, "unable to register (KEY_PROG, KEY_VERS, udp)");
+	if (!svc_register(transp, KEY_PROG, KEY_VERS2, keyprogram, IPPROTO_UDP))
+		errx(1, "unable to register (KEY_PROG, KEY_VERS2, udp)");
 
 	transp = svctcp_create(RPC_ANYSOCK, 0, 0);
-	if (transp == NULL) {
-		fprintf(stderr, "cannot create tcp service.");
-		exit(1);
-	}
-	if (!svc_register(transp, KEY_PROG, KEY_VERS, keyprogram, IPPROTO_TCP)) {
-		fprintf(stderr, "unable to register (KEY_PROG, KEY_VERS, tcp).");
-		exit(1);
-	}
-	if (!svc_register(transp, KEY_PROG, KEY_VERS2, keyprogram, IPPROTO_TCP)) {
-		fprintf(stderr, "unable to register (KEY_PROG, KEY_VERS2, tcp).");
-		exit(1);
-	}
+	if (transp == NULL)
+		errx(1, "cannot create tcp service");
+	if (!svc_register(transp, KEY_PROG, KEY_VERS, keyprogram, IPPROTO_TCP))
+		errx(1, "unable to register (KEY_PROG, KEY_VERS, tcp)");
+	if (!svc_register(transp, KEY_PROG, KEY_VERS2, keyprogram, IPPROTO_TCP))
+		errx(1, "unable to register (KEY_PROG, KEY_VERS2, tcp)");
 
 	transp = svcunix_create(sock, 0, 0, KEYSERVSOCK);
 	chmod(KEYSERVSOCK, 0666);
-	if (transp == NULL) {
-		fprintf(stderr, "cannot create AF_UNIX service.");
-		exit(1);
-	}
-	if (!svc_register(transp, KEY_PROG, KEY_VERS, keyprogram, 0)) {
-		fprintf(stderr, "unable to register (KEY_PROG, KEY_VERS, unix).");
-		exit(1);
-	}
-	if (!svc_register(transp, KEY_PROG, KEY_VERS2, keyprogram, 0)) {
-		fprintf(stderr, "unable to register (KEY_PROG, KEY_VERS2, unix).");
-		exit(1);
-	}
-	if (!svc_register(transp, CRYPT_PROG, CRYPT_VERS, crypt_prog_1, 0)) {
-		fprintf(stderr, "unable to register (CRYPT_PROG, CRYPT_VERS, unix).");
-		exit(1);
-	}
+	if (transp == NULL)
+		errx(1, "cannot create AF_UNIX service");
+	if (!svc_register(transp, KEY_PROG, KEY_VERS, keyprogram, 0))
+		errx(1, "unable to register (KEY_PROG, KEY_VERS, unix)");
+	if (!svc_register(transp, KEY_PROG, KEY_VERS2, keyprogram, 0))
+		errx(1, "unable to register (KEY_PROG, KEY_VERS2, unix)");
+	if (!svc_register(transp, CRYPT_PROG, CRYPT_VERS, crypt_prog_1, 0))
+		errx(1, "unable to register (CRYPT_PROG, CRYPT_VERS, unix)");
 
 	if (!debugging) {
 		daemon(0,0);
@@ -286,24 +266,21 @@ getrootkey(master, prompt)
 			return (0);
 		}
 		if (read(fd, secret, HEXKEYBYTES) < HEXKEYBYTES) {
-			(void) fprintf(stderr,
-			    "keyserv: the key read from %s was too short.\n",
-			    ROOTKEY);
+			warnx("the key read from %s was too short", ROOTKEY);
 			(void) close(fd);
 			return (0);
 		}
 		(void) close(fd);
 		if (!getnetname(name)) {
-		    (void) fprintf(stderr, "keyserv: \
-failed to generate host's netname when establishing root's key.\n");
+		    warnx(
+	"failed to generate host's netname when establishing root's key");
 		    return (0);
 		}
 		memcpy(netstore.st_priv_key, secret, HEXKEYBYTES);
 		memset(netstore.st_pub_key, 0, HEXKEYBYTES);
 		netstore.st_netname = name;
 		if (pk_netput(0, &netstore) != KEY_SUCCESS) {
-		    (void) fprintf(stderr,
-			"keyserv: could not set root's key and netname.\n");
+		    warnx("could not set root's key and netname");
 		    return (0);
 		}
 		return (1);
@@ -315,13 +292,11 @@ failed to generate host's netname when establishing root's key.\n");
 	passwd2des(passwd, (char *)master);
 	getnetname(name);
 	if (!getsecretkey(name, secret, passwd)) {
-		(void) fprintf(stderr,
-		"Can't find %s's secret key\n", name);
+		warnx("can't find %s's secret key", name);
 		return (0);
 	}
 	if (secret[0] == 0) {
-		(void) fprintf(stderr,
-	"Password does not decrypt secret key for %s\n", name);
+		warnx("password does not decrypt secret key for %s", name);
 		return (0);
 	}
 	(void) pk_setkey(0, secret);
