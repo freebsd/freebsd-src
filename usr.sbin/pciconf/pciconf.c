@@ -29,7 +29,7 @@
 
 #ifndef lint
 static const char rcsid[] =
-	"$Id: pciconf.c,v 1.6 1998/09/15 08:21:13 gibbs Exp $";
+	"$Id: pciconf.c,v 1.7 1998/11/12 00:22:30 ken Exp $";
 #endif /* not lint */
 
 #include <sys/types.h>
@@ -51,7 +51,7 @@ static void readit(const char *, const char *, int);
 static void writeit(const char *, const char *, const char *, int);
 static void chkattached(const char *, int);
 
-static exitstatus = 0;
+static int exitstatus = 0;
 
 static void
 usage()
@@ -169,11 +169,11 @@ list_devs(void)
 		}
 		for (p = conf; p < &conf[pc.num_matches]; p++) {
 
-			printf("%s%d@pci%d:%d:%d:\tclass=0x%06x card=0x%08lx "
-			       "chip=0x%08lx rev=0x%02x hdr=0x%02x\n", 
+			printf("%s%d@pci%d:%d:%d:\tclass=0x%06x card=0x%08x "
+			       "chip=0x%08x rev=0x%02x hdr=0x%02x\n", 
 			       (p->pd_name && *p->pd_name) ? p->pd_name :
 			       "none",
-			       (p->pd_name && *p->pd_name) ? p->pd_unit :
+			       (p->pd_name && *p->pd_name) ? (int)p->pd_unit :
 			       none_count++,
 			       p->pc_sel.pc_bus, p->pc_sel.pc_dev, 
 			       p->pc_sel.pc_func, (p->pc_class << 16) |
