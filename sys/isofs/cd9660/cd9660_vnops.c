@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)cd9660_vnops.c	8.3 (Berkeley) 1/23/94
- * $Id: cd9660_vnops.c,v 1.7 1994/09/21 03:46:35 wollman Exp $
+ * $Id: cd9660_vnops.c,v 1.8 1994/09/22 19:37:46 wollman Exp $
  */
 
 #include <sys/param.h>
@@ -183,7 +183,6 @@ cd9660_getattr(ap)
 	struct vnode *vp = ap->a_vp;
 	register struct vattr *vap = ap->a_vap;
 	register struct iso_node *ip = VTOI(vp);
-	int i;
 
 	vap->va_fsid	= ip->i_dev;
 	vap->va_fileid	= ip->i_number;
@@ -234,7 +233,7 @@ cd9660_read(ap)
 	register struct iso_node *ip = VTOI(vp);
 	register struct iso_mnt *imp;
 	struct buf *bp;
-	daddr_t lbn, bn, rablock;
+	daddr_t lbn, rablock;
 	off_t diff;
 	int rasize, error = 0;
 	long size, n, on;
@@ -400,7 +399,7 @@ iso_uiodir(idp,dp,off)
 		--idp->ncookies;
 	}
 	
-	if (error = uiomove((caddr_t)dp,dp->d_reclen,idp->uio))
+	if ((error = uiomove((caddr_t)dp,dp->d_reclen,idp->uio)))
 		return error;
 	idp->uio_off = off;
 	return 0;
@@ -417,7 +416,8 @@ iso_shipdir(idp)
 	
 	cl = idp->current.d_namlen;
 	cname = idp->current.d_name;
-	if (assoc = cl > 1 && *cname == ASSOCCHAR) {
+assoc = (cl > 1) && (*cname == ASSOCCHAR);
+	if (assoc) {
 		cl--;
 		cname++;
 	}
@@ -433,12 +433,12 @@ iso_shipdir(idp)
 		if (sl != cl
 		    || bcmp(sname,cname,sl)) {
 			if (idp->assocent.d_namlen) {
-				if (error = iso_uiodir(idp,&idp->assocent,idp->assocoff))
+				if ((error = iso_uiodir(idp,&idp->assocent,idp->assocoff)))
 					return error;
 				idp->assocent.d_namlen = 0;
 			}
 			if (idp->saveent.d_namlen) {
-				if (error = iso_uiodir(idp,&idp->saveent,idp->saveoff))
+				if ((error = iso_uiodir(idp,&idp->saveent,idp->saveoff)))
 					return error;
 				idp->saveent.d_namlen = 0;
 			}
@@ -499,7 +499,7 @@ cd9660_readdir(ap)
 	
 	entryoffsetinblock = iso_blkoff(imp, idp->curroff);
 	if (entryoffsetinblock != 0) {
-		if (error = iso_blkatoff(ip, idp->curroff, &bp)) {
+		if ((error = iso_blkatoff(ip, idp->curroff, &bp))) {
 			FREE(idp,M_TEMP);
 			return (error);
 		}
@@ -517,7 +517,7 @@ cd9660_readdir(ap)
 		if (iso_blkoff(imp, idp->curroff) == 0) {
 			if (bp != NULL)
 				brelse(bp);
-			if (error = iso_blkatoff(ip, idp->curroff, &bp))
+			if ((error = iso_blkatoff(ip, idp->curroff, &bp)))
 				break;
 			entryoffsetinblock = 0;
 		}
@@ -648,7 +648,6 @@ cd9660_readlink(ap)
 	u_short	symlen;
 	int	error;
 	char	*symname;
-	ino_t	ino;
 	
 	ip  = VTOI(ap->a_vp);
 	imp = ip->i_mnt;
@@ -806,8 +805,8 @@ cd9660_strategy(ap)
 	if (vp->v_type == VBLK || vp->v_type == VCHR)
 		panic("cd9660_strategy: spec");
 	if (bp->b_blkno == bp->b_lblkno) {
-		if (error =
-		    VOP_BMAP(vp, bp->b_lblkno, NULL, &bp->b_blkno, NULL)) {
+		if ((error =
+		    VOP_BMAP(vp, bp->b_lblkno, NULL, &bp->b_blkno, NULL))) {
 			bp->b_error = error;
 			bp->b_flags |= B_ERROR;
 			biodone(bp);
