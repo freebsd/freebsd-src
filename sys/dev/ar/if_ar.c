@@ -28,7 +28,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $Id: if_ar.c,v 1.4 1995/12/15 00:54:03 bde Exp $
+ * $Id: if_ar.c,v 1.5 1996/02/06 18:50:32 wollman Exp $
  */
 
 /*
@@ -710,10 +710,10 @@ static void ar_up(struct ar_softc *sc)
 	 * And what about CTS/DCD etc... ?
 	 */
 	if(sc->hc->handshake & AR_SHSK_RTS)
-		msci->ctl |= SCA_CTL_RTS;
+		msci->ctl &= ~SCA_CTL_RTS;
 	if(sc->hc->handshake & AR_SHSK_DTR) {
-		sc->hc->txc_dtr[sc->scano] |= sc->scachan ? 
-			AR_TXC_DTR_DTR1 : AR_TXC_DTR_DTR0;
+		sc->hc->txc_dtr[sc->scano] &= sc->scachan ? 
+			~AR_TXC_DTR_DTR1 : ~AR_TXC_DTR_DTR0;
 		outb(sc->hc->iobase + sc->hc->txc_dtr_off[sc->scano],
 			sc->hc->txc_dtr[sc->scano]);
 	}
@@ -751,7 +751,7 @@ static void ar_down(struct ar_softc *sc)
 	msci->cmd = SCA_CMD_TXDISABLE;
 
 	if(sc->hc->handshake & AR_SHSK_RTS)
-		msci->ctl &= ~SCA_CTL_RTS;
+		msci->ctl |= SCA_CTL_RTS;
 	if(sc->hc->handshake & AR_SHSK_DTR) {
 		sc->hc->txc_dtr[sc->scano] |= sc->scachan ? 
 			AR_TXC_DTR_DTR1 : AR_TXC_DTR_DTR0;
@@ -789,17 +789,18 @@ void arc_init(struct isa_device *id)
 				M_DEVBUF, M_WAITOK);
 	bzero(sc, hc->numports * sizeof(struct ar_softc));
 
+	hc->txc_dtr[0] = AR_TXC_DTR_NOTRESET |
+			 AR_TXC_DTR_DTR0 | AR_TXC_DTR_DTR1;
+	hc->txc_dtr[1] = AR_TXC_DTR_DTR0 | AR_TXC_DTR_DTR1;
+	hc->txc_dtr_off[0] = AR_TXC_DTR0;
+	hc->txc_dtr_off[1] = AR_TXC_DTR2;
+
 	/*
 	 * reset the card and wait at least 1uS.
 	 */
-	outb(hc->iobase + AR_TXC_DTR0, AR_TXC_DTR_RESET);
+	outb(hc->iobase + AR_TXC_DTR0, ~AR_TXC_DTR_NOTRESET & hc->txc_dtr[0]);
 	DELAY(2);
-	outb(hc->iobase + AR_TXC_DTR0, AR_TXC_DTR_NOTRESET);
-
-	hc->txc_dtr[0] = AR_TXC_DTR_NOTRESET;
-	hc->txc_dtr[1] = 0;
-	hc->txc_dtr_off[0] = AR_TXC_DTR0;
-	hc->txc_dtr_off[1] = AR_TXC_DTR2;
+	outb(hc->iobase + AR_TXC_DTR0, hc->txc_dtr[0]);
 
 	/*
 	 * Configure the card.
@@ -929,7 +930,7 @@ void ar_init_msci(struct ar_softc *sc)
 	 * mode registers.
 	 */
 	msci->cmd = SCA_CMD_RXRESET;
-	msci->ctl = SCA_CTL_IDLPAT | SCA_CTL_UDRNC;
+	msci->ctl = SCA_CTL_IDLPAT | SCA_CTL_UDRNC | SCA_CTL_RTS;
 
 	/*
 	 * For now all interfaces are programmed to use the RX clock for
