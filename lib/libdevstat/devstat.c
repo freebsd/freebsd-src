@@ -32,7 +32,6 @@ __FBSDID("$FreeBSD$");
 #include <sys/types.h>
 #include <sys/sysctl.h>
 #include <sys/errno.h>
-#include <sys/dkstat.h>
 #include <sys/resource.h>
 #include <sys/queue.h>
 
