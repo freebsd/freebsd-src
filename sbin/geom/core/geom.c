@@ -60,11 +60,13 @@ static void (*usage)(const char *name);
 static struct g_command *find_command(const char *cmdstr, int all);
 static int std_available(const char *name);
 
+static void std_help(struct gctl_req *req, unsigned flags);
 static void std_list(struct gctl_req *req, unsigned flags);
 static void std_load(struct gctl_req *req, unsigned flags);
 static void std_unload(struct gctl_req *req, unsigned flags);
 
 struct g_command std_commands[] = {
+	{ "help", 0, std_help, G_NULL_OPTS },
 	{ "list", 0, std_list, G_NULL_OPTS },
 	{ "load", G_FLAG_VERBOSE | G_FLAG_LOADKLD, std_load, G_NULL_OPTS },
 	{ "unload", G_FLAG_VERBOSE, std_unload, G_NULL_OPTS },
@@ -110,8 +112,8 @@ geom_usage(void)
 {
 
 	if (class_name == NULL) {
-		errx(EXIT_FAILURE, "usage: %s <class name> <command> "
-		    "[options]", "geom");
+		errx(EXIT_FAILURE, "usage: %s <class> <command> [options]",
+		    "geom");
 	} else {
 		const char *prefix;
 		unsigned i;
@@ -597,6 +599,13 @@ show_one(struct gprovider *pp)
 	printf("\n");
 }
 
+static void
+std_help(struct gctl_req *req __unused, unsigned flags __unused)
+{
+
+	geom_usage();
+}
+
 static int
 std_list_available(void)
 {
@@ -743,7 +752,9 @@ static int
 std_available(const char *name)
 {
 
-	if (strcmp(name, "list") == 0)
+	if (strcmp(name, "help") == 0)
+		return (1);
+	else if (strcmp(name, "list") == 0)
 		return (std_list_available());
 	else if (strcmp(name, "load") == 0)
 		return (std_load_available());
