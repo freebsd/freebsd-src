@@ -47,6 +47,7 @@ __FBSDID("$FreeBSD$");
 #include <stdio.h>
 #include <errno.h>
 #include <netconfig.h>
+#include <stddef.h>
 #include <stdlib.h>
 #include <string.h>
 #include <rpc/rpc.h>
@@ -461,7 +462,7 @@ getnetconfigent(netid)
 	return (NULL);
     }
     do {
-	int len;
+	ptrdiff_t len;
 	char *tmpp;	/* tmp string pointer */
 
 	do {
@@ -476,7 +477,7 @@ getnetconfigent(netid)
 	    nc_error = NC_BADFILE;
 	    break;
 	}
-	if (strlen(netid) == (len = tmpp - stringp) &&	/* a match */
+	if (strlen(netid) == (size_t) (len = tmpp - stringp) &&	/* a match */
 		strncmp(stringp, netid, (size_t)len) == 0) {
 	    if ((ncp = (struct netconfig *)
 		    malloc(sizeof (struct netconfig))) == NULL) {
@@ -663,7 +664,7 @@ struct netconfig	*ncp;
 {
     struct netconfig	*p;
     char	*tmp;
-    int	i;
+    u_int	i;
 
     if ((tmp=malloc(MAXNETCONFIGLINE)) == NULL)
 	return(NULL);
@@ -676,7 +677,7 @@ struct netconfig	*ncp;
      * adjust some of the member pointer to a pre-allocated buffer where
      * contains part of the data.
      * To follow the convention used in parse_ncp(), we store all the
-     * neccessary information in the pre-allocated buffer and let each
+     * necessary information in the pre-allocated buffer and let each
      * of the netconfig char pointer member point to the right address
      * in the buffer.
      */
