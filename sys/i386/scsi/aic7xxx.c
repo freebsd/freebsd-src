@@ -32,7 +32,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *      $Id: aic7xxx.c,v 1.81.2.3 1997/01/30 01:14:00 jkh Exp $
+ *      $Id: aic7xxx.c,v 1.81.2.4 1997/02/03 02:18:16 gibbs Exp $
  */
 /*
  * TODO:
@@ -277,7 +277,11 @@ static int	ahc_poll __P((struct ahc_softc *ahc, int wait));
 #ifdef AHC_DEBUG
 static void	ahc_print_scb __P((struct scb *scb));
 #endif
-static u_int8_t find_scb __P((struct ahc_softc *ahc, struct scb *scb));
+static u_int8_t ahc_find_scb __P((struct ahc_softc *ahc, struct scb *scb));
+static int	ahc_search_qinfo __P((struct ahc_softc *ahc, int target,
+				      char channel, u_int8_t tag,
+				      u_int32_t flags, u_int32_t xs_error,
+				      int requeue));
 static int	ahc_reset_channel __P((struct ahc_softc *ahc, char channel,
 				       u_int32_t xs_error, int initiate_reset));
 static int	ahc_reset_device __P((struct ahc_softc *ahc, int target,
@@ -2840,11 +2844,11 @@ ahc_timeout(arg)
 			u_int8_t hscb_index;
 			int	 disconnected;
 
+			hscb_index = ahc_find_scb(ahc, scb);
 			disconnected = FALSE;
-			hscb_index = find_scb(ahc, scb);
-			if (hscb_index == SCB_LIST_NULL)
+			if (hscb_index == SCB_LIST_NULL) {
 				disconnected = TRUE;
-			else {
+			} else {
 				ahc_outb(ahc, SCBPTR, hscb_index);
 				if (ahc_inb(ahc, SCB_CONTROL) & DISCONNECTED)
 					disconnected = TRUE;
@@ -2870,15 +2874,19 @@ ahc_timeout(arg)
 				 * tagged, unbusy it first so that we don't
 				 * get held back from sending the command.
 				 */
-				STAILQ_INSERT_HEAD(&ahc->waiting_scbs, scb,
-						   links);
-				if ((scb->hscb->control & TAG_ENB) != 0) {
+				if ((scb->hscb->control & TAG_ENB) == 0) {
 					u_int8_t target;
 
 					target = scb->xs->sc_link->target;
 					ahc_unbusy_target(ahc, target, channel);
+					ahc_search_qinfo(ahc, target,
+							 channel,
+							 SCB_LIST_NULL,
+							 0, 0,
+							 /*requeue*/TRUE);
 				}
-
+				STAILQ_INSERT_HEAD(&ahc->waiting_scbs, scb,
+						   links);
 				timeout(ahc_timeout, (caddr_t)scb,
 					(100 * hz) / 1000);
 				ahc_run_waiting_queue(ahc);
@@ -2900,7 +2908,7 @@ ahc_timeout(arg)
  * card is already paused.
  */
 static u_int8_t
-find_scb(ahc, scb)
+ahc_find_scb(ahc, scb)
 	struct ahc_softc *ahc;
 	struct scb *scb;
 {
@@ -2921,6 +2929,56 @@ find_scb(ahc, scb)
 	return curindex;
 }
 
+static int
+ahc_search_qinfo(ahc, target, channel, tag, flags, xs_error, requeue)
+	struct	  ahc_softc *ahc;
+	int	  target;
+	char	  channel;
+	u_int8_t  tag;
+	u_int32_t flags;
+	u_int32_t xs_error;
+	int	  requeue;
+{
+	u_int8_t saved_queue[AHC_SCB_MAX];
+	u_int8_t queued = ahc_inb(ahc, QINCNT) & ahc->qcntmask;
+	int	 i;
+	int	 found;
+	struct	 scb *scbp;
+	STAILQ_HEAD(, scb) removed_scbs;
+
+	for (i = 0; i < (queued - found); i++) {
+		saved_queue[i] = ahc_inb(ahc, QINFIFO);
+		scbp = ahc->scb_data->scbarray[saved_queue[i]];
+		if (ahc_match_scb(scbp, target, channel, tag)) {
+			/*
+			 * We found an scb that needs to be removed.
+			 */
+			if (requeue) {
+				STAILQ_INSERT_TAIL(&removed_scbs, scbp, links);
+			} else {
+				scbp->flags = flags;
+				scbp->xs->error = xs_error;
+				untimeout(ahc_timeout, (caddr_t)scbp);
+			}
+			i--;
+			found++;
+		}
+	}
+	/* Now put the saved scbs back. */
+	for (queued = 0; queued < i; queued++)
+		ahc_outb(ahc, QINFIFO, saved_queue[queued]);
+
+	if (requeue) {
+		while ((scbp = removed_scbs.stqh_first) != NULL) {
+			STAILQ_REMOVE_HEAD(&removed_scbs, links);
+			STAILQ_INSERT_HEAD(&ahc->waiting_scbs, scbp, links);
+		}
+	}
+
+	return found;
+}
+
+
 /*
  * The device at the given target/channel has been reset.  Abort 
  * all active and queued scbs for that target/channel. 
@@ -2936,37 +2994,17 @@ ahc_reset_device(ahc, target, channel, tag, xs_error)
         struct scb *scbp;
 	u_char active_scb;
 	int i = 0;
-	int found = 0;
+	int found;
 
 	/* restore this when we're done */
 	active_scb = ahc_inb(ahc, SCBPTR);
 
 	/*
-	 * Search the QINFIFO.
+	 * Remove any entries from the Queue-In FIFO.
 	 */
-	{
-		u_int8_t saved_queue[AHC_SCB_MAX];
-		u_int8_t queued = ahc_inb(ahc, QINCNT) & ahc->qcntmask;
-
-		for (i = 0; i < (queued - found); i++) {
-			saved_queue[i] = ahc_inb(ahc, QINFIFO);
-			scbp = ahc->scb_data->scbarray[saved_queue[i]];
-			if (ahc_match_scb(scbp, target, channel, tag)) {
-				/*
-				 * We found an scb that needs to be aborted.
-				 */
-				scbp->flags = SCB_ABORTED|SCB_QUEUED_FOR_DONE;
-				scbp->xs->error = xs_error;
-				untimeout(ahc_timeout, (caddr_t)scbp);
-				i--;
-				found++;
-			}
-		}
-		/* Now put the saved scbs back. */
-		for (queued = 0; queued < i; queued++) {
-			ahc_outb(ahc, QINFIFO, saved_queue[queued]);
-		}
-	}
+	found = ahc_search_qinfo(ahc, target, channel, tag,
+				 SCB_ABORTED|SCB_QUEUED_FOR_DONE, xs_error,
+				 /*requeue*/FALSE);
 
 	/*
 	 * Search waiting for selection list.
