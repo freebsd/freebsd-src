@@ -1,9 +1,5 @@
 # $FreeBSD$
 
-.if ${MACHINE_ARCH} == "amd64"
-.MAKEFLAGS:  MACHINE_ARCH=i386 MACHINE=i386 REALLY_AMD64=true
-.endif
-
 .if !defined(NOFORTH)
 # Build the add-in FORTH interpreter.
 SUBDIR+=		ficl
@@ -15,7 +11,7 @@ SUBDIR+=		ofw
 .endif
 
 # Pick the machine-dependent subdir based on the target architecture.
-SUBDIR+=		${MACHINE}
+SUBDIR+=		${MACHINE:S/amd64/i386/}
 
 # Build ARC / AlphaBIOS executable on the Alpha
 # (this is a WIP (work in progress)).

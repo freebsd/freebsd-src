@@ -96,7 +96,7 @@ loader.sym: ${OBJS} ${LIBFICL} ${LIBI386} ${LIBSTAND}
 	${CC} ${LDFLAGS} -o ${.TARGET} ${BTXCRT} ${OBJS} \
 		${LIBFICL} ${LIBI386} ${LIBSTAND}
 
-.if defined(REALLY_AMD64)
+.if ${MACHINE_ARCH} == "amd64"
 ${OBJS}: machine
 CLEANFILES+=	machine
 machine:

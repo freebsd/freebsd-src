@@ -1,10 +1,6 @@
 # $FreeBSD$
 #
-.if ${MACHINE_ARCH} == "amd64"
-.MAKEFLAGS:  MACHINE_ARCH=i386 MACHINE=i386 REALLY_AMD64=true
-.endif
-
-.PATH: ${.CURDIR}/${MACHINE_ARCH}
+.PATH: ${.CURDIR}/${MACHINE_ARCH:S/amd64/i386/}
 BASE_SRCS=	dict.c ficl.c fileaccess.c float.c loader.c math64.c \
 		prefix.c search.c stack.c tools.c vm.c words.c
 
@@ -14,7 +10,7 @@ CFLAGS+=	-ffreestanding
 .if ${MACHINE_ARCH} == "alpha"
 CFLAGS+=	-mno-fp-regs
 .endif
-.if ${MACHINE_ARCH} == "i386"
+.if ${MACHINE_ARCH} == "i386" || ${MACHINE_ARCH} == "amd64"
 CFLAGS+=	-mpreferred-stack-boundary=2
 .endif
 .if ${MACHINE_ARCH} == "powerpc"
@@ -44,17 +40,18 @@ SOFTWORDS=	softcore.fr jhlocal.fr marker.fr freebsd.fr ficllocal.fr \
 # Optional OO extension softwords
 #SOFTWORDS+=	oo.fr classes.fr
 
-.if defined(REALLY_AMD64)
+.if ${MACHINE_ARCH} == "amd64"
 CFLAGS+=	-m32 -I.
 .endif
 
-CFLAGS+=	-I${.CURDIR} -I${.CURDIR}/${MACHINE_ARCH} -I${.CURDIR}/../common
+CFLAGS+=	-I${.CURDIR} -I${.CURDIR}/${MACHINE_ARCH:S/amd64/i386/} \
+		-I${.CURDIR}/../common
 
 softcore.c: ${SOFTWORDS} softcore.awk
 	(cd ${.CURDIR}/softwords; cat ${SOFTWORDS} \
 	    | awk -f softcore.awk -v datestamp="`LC_ALL=C date`") > ${.TARGET}
 
-.if defined(REALLY_AMD64)
+.if ${MACHINE_ARCH} == "amd64"
 ${SRCS:M*.c:R:S/$/.o/g}: machine
 
 beforedepend ${OBJS}: machine
