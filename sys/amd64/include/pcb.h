@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)pcb.h	5.10 (Berkeley) 5/12/91
- *	$Id: pcb.h,v 1.8 1994/12/03 10:02:55 bde Exp $
+ *	$Id: pcb.h,v 1.9 1995/08/17 11:30:03 davidg Exp $
  */
 
 #ifndef _I386_PCB_H_
@@ -80,7 +80,7 @@ struct md_coredump {
 
 #ifdef KERNEL
 extern struct pcb *curpcb;		/* our current running pcb */
-int	savectx __P((struct pcb*,int));
+int	savectx __P((struct pcb*));
 #endif
 
 #endif /* _I386_PCB_H_ */
