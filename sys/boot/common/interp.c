@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: interp.c,v 1.11 1999/01/13 21:59:58 abial Exp $
+ *	$Id: interp.c,v 1.12 1999/01/15 00:31:45 abial Exp $
  */
 /*
  * Simple commandline interpreter, toplevel and misc.
@@ -99,8 +99,8 @@ interact(void)
     /*
      * Read our default configuration
      */
-    if(source("/boot/loader.rc")!=CMD_OK)
-	source("/boot/boot.conf");
+    if(include("/boot/loader.rc")!=CMD_OK)
+	include("/boot/boot.conf");
     printf("\n");
     /*
      * Before interacting, we might want to autoboot.
@@ -141,34 +141,34 @@ interact(void)
  * Commands may be prefixed with '@' (so they aren't displayed) or '-' (so
  * that the script won't stop if they fail).
  */
-COMMAND_SET(source, "source", "read commands from a file", command_source);
+COMMAND_SET(include, "include", "read commands from a file", command_include);
 
 static int
-command_source(int argc, char *argv[])
+command_include(int argc, char *argv[])
 {
     int		i;
     int		res;
 
     res=CMD_OK;
     for (i = 1; (i < argc) && (res == CMD_OK); i++)
-	res=source(argv[i]);
+	res = include(argv[i]);
     return(res);
 }
 
-struct sourceline 
+struct includeline 
 {
     char		*text;
     int			flags;
     int			line;
 #define SL_QUIET	(1<<0)
 #define SL_IGNOREERR	(1<<1)
-    struct sourceline	*next;
+    struct includeline	*next;
 };
 
 int
-source(char *filename)
+include(char *filename)
 {
-    struct sourceline	*script, *se, *sp;
+    struct includeline	*script, *se, *sp;
     char		input[256];			/* big enough? */
     int			argc,res;
     char		**argv, *cp;
@@ -203,8 +203,8 @@ source(char *filename)
 	    flags |= SL_IGNOREERR;
 	}
 	/* Allocate script line structure and copy line, flags */
-	sp = malloc(sizeof(struct sourceline) + strlen(cp) + 1);
-	sp->text = (char *)sp + sizeof(struct sourceline);
+	sp = malloc(sizeof(struct includeline) + strlen(cp) + 1);
+	sp->text = (char *)sp + sizeof(struct includeline);
 	strcpy(sp->text, cp);
 	sp->flags = flags;
 	sp->line = line;

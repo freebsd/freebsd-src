@@ -21,12 +21,12 @@ static int		pnp_readconf(char *path);
 static int		pnp_scankernel(void);
 
 /*
- * Perform complete enumeration sweep, and load required module(s) if possible.
+ * Perform complete enumeration sweep
  */
 
 COMMAND_SET(pnpscan, "pnpscan", "scan for PnP devices", pnp_scan);
 
-int
+static int
 pnp_scan(int argc, char *argv[]) 
 {
     struct pnpinfo	*pi;
@@ -57,19 +57,15 @@ pnp_scan(int argc, char *argv[])
     /* forget anything we think we knew */
     pnp_discard();
 
-    if (verbose)
-	pager_open();
-
     /* iterate over all of the handlers */
     for (hdlr = 0; pnphandlers[hdlr] != NULL; hdlr++) {
-	if (verbose) {
-	    pager_output("Probing ");
-	    pager_output(pnphandlers[hdlr]->pp_name);
-	    pager_output("...\n");
-	}
+	if (verbose)
+	    printf("Probing %s...\n", pnphandlers[hdlr]->pp_name);
 	pnphandlers[hdlr]->pp_enumerate();
     }
     if (verbose) {
+	pager_open();
+	pager_output("PNP scan summary:\n");
 	for (pi = pnp_devices.stqh_first; pi != NULL; pi = pi->pi_link.stqe_next) {
 	    pager_output(pi->pi_ident.stqh_first->id_ident);	/* first ident should be canonical */
 	    if (pi->pi_desc != NULL) {
@@ -83,11 +79,14 @@ pnp_scan(int argc, char *argv[])
     return(CMD_OK);
 }
 
+#if 0
 /*
  * Try to load outstanding modules (eg. after disk change)
  */
-int
-pnp_reload(char *fname)
+COMMAND_SET(pnpload, "pnpload", "load modules for PnP devices", pnp_load);
+
+static int
+pnp_load(int argc, char *argv[])
 {
     struct pnpinfo	*pi;
     char		*modfname;
@@ -125,9 +124,9 @@ pnp_reload(char *fname)
     }
     return(CMD_OK);
 }
-
+#endif
 /*
- * Throw away anything we think we know about PnP devices on (list)
+ * Throw away anything we think we know about PnP devices.
  */
 static void
 pnp_discard(void)
@@ -140,7 +139,7 @@ pnp_discard(void)
 	pnp_freeinfo(pi);
     }
 }
-
+#if 0
 /*
  * The PnP configuration database consists of a flat text file with 
  * entries one per line.  Valid lines are:
@@ -292,7 +291,7 @@ pnp_scankernel(void)
 {
     return(CMD_OK);
 }
-
+#endif
 /*
  * Add a unique identifier to (pi)
  */
