@@ -539,9 +539,7 @@ cbb_insert(struct cbb_softc *sc)
 	} else if (sockstate & CBB_STATE_CB_CARD) {
 		if (sc->cbdev != NULL) {
 			sc->flags &= ~CBB_16BIT_CARD;
-			if (CARD_ATTACH_CARD(sc->cbdev) != 0)
-				device_printf(sc->dev,
-				    "CardBus card activation failed\n");
+			CARD_ATTACH_CARD(sc->cbdev);
 		} else {
 			device_printf(sc->dev,
 			    "CardBus card inserted, but no cardbus bus.\n");
