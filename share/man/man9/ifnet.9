@@ -27,6 +27,7 @@
 .\" SUCH DAMAGE.
 .\"
 .\" $FreeBSD$
+.\"
 .Dd June 8, 2004
 .Os
 .Dt IFNET 9
@@ -228,7 +229,7 @@ The name of the interface,
 (e.g.,
 .Dq Li fxp0
 or
-.Dq Li lo0) .
+.Dq Li lo0 ) .
 (Initialized by driver.)
 .It Va if_dname
 .Pq Vt "const char *"
@@ -535,7 +536,7 @@ if the MTU is set above the hardcoded limit.
 This interface can do checksum calculation on transmitting data.
 .It Dv IFCAP_HWCSUM
 A shorthand for
-.Dq Dv IFCAP_RXCSUM | Dv IFCAP_TXCSUM .
+.Pq Dv IFCAP_RXCSUM | IFCAP_TXCSUM .
 .It Dv IFCAP_VLAN_HWTAGGING
 This interface can do VLAN tagging on output and
 demultiplex frames by their VLAN tag on input.
@@ -585,9 +586,9 @@ or
 .Dv CSUM_UDP .
 .It Dv CSUM_FRAGMENT
 The interface will do the fragmentation of IP packets if necessary.
-The host CPU doesn't need to care about MTU on this interface
+The host CPU does not need to care about MTU on this interface
 as long as a packet to transmit through it is an IP one and it
-doesn't exceed the size of the hardware buffer.
+does not exceed the size of the hardware buffer.
 .El
 .Pp
 An interface notifies the TCP/IP module about the tasks
@@ -1035,7 +1036,8 @@ Get interface configuration.
 .Pp
 .It Dv SIOCSIFNAME
 Set the interface name.
-.Dv RTM_IFANNOUCNE departure and arrival messages are sent so that
+.Dv RTM_IFANNOUNCE
+departure and arrival messages are sent so that
 routing code that relies on the interface name will update its interface
 list.
 Caller must have appropriate privilege.
@@ -1055,7 +1057,7 @@ Before a call to the driver-specific
 .Fn if_ioctl
 routine, the requested mask for enabled capabilities is checked
 against the mask of capabilities supported by the interface,
-.Va if_capabilities.
+.Va if_capabilities .
 Requesting to enable an unsupported capability is invalid.
 The rest is supposed to be done by the driver,
 which includes updating
