@@ -1,0 +1,54 @@
+use File::Find;
+use Config;
+
+if (@ARGV != 2) {
+    warn <<"EOT";
+Usage: makeliblinks libautodir targetdir
+where libautodir is the architecture-dependent auto directory
+(e.g. $Config::Config{archlib}/auto).
+EOT
+    exit 2;
+}
+
+my ($libautodir, $targetdir) = @ARGV;
+
+# Calculate relative path prefix from $targetdir to $libautodir
+sub relprefix {
+    my ($to, $from) = @_;
+    my $up;
+    for ($up = 0; substr($to, 0, length($from)) ne $from; $up++) {
+	$from =~ s(
+		   [^/]+	(?# a group of non-slashes) 
+		   /*		(?# maybe with some trailing slashes)
+		   $		(?# at the end of the path)
+                  )()x;
+    }
+    return (("../" x $up) . substr($to, length($from)));
+}
+
+my $relprefix = relprefix($libautodir, $targetdir);
+
+my ($dlext, $lib_ext) = @Config::Config{qw(dlext lib_ext)};
+
+sub link_if_library {
+    if (/\.($dlext|$lib_ext)$/o) {
+	my $ext = $1;
+	my $name = $File::Find::name;
+	if (substr($name, 0, length($libautodir) + 1) ne "$libautodir/") {
+	    die "directory of $name doesn't match $libautodir\n";
+	}
+	substr($name, 0, length($libautodir) + 1) = '';
+	my @parts = split(m(/), $name);
+	if ($parts[-1] ne "$parts[-2].$ext") {
+	    die "module name $_ doesn't match its directory $libautodir\n";
+	}
+	pop @parts;
+	my $libpath = "$targetdir/lib" . join("__", @parts) . ".$ext";
+	print "$libpath -> $relprefix/$name\n";
+	symlink("$relprefix/$name", $libpath)
+	    or warn "above link failed with error: $!\n";
+    }
+}
+
+find(\&link_if_library, $libautodir);
+exit 0;

@@ -1,0 +1,22 @@
+use B::Disassembler qw(disassemble_fh);
+use FileHandle;
+
+my $fh;
+if (@ARGV == 0) {
+    $fh = \*STDIN;
+} elsif (@ARGV == 1) {
+    $fh = new FileHandle "<$ARGV[0]";
+} else {
+    die "Usage: disassemble [filename]\n";
+}
+
+sub print_insn {
+    my ($insn, $arg) = @_;
+    if (defined($arg)) {
+	printf "%s %s\n", $insn, $arg;
+    } else {
+	print $insn, "\n";
+    }
+}
+
+disassemble_fh($fh, \&print_insn);
