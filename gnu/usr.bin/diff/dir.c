@@ -1,5 +1,5 @@
 /* Read, sort and compare two directories.  Used for GNU DIFF.
-   Copyright (C) 1988, 1989, 1992 Free Software Foundation, Inc.
+   Copyright (C) 1988, 1989, 1992, 1993, 1994 Free Software Foundation, Inc.
 
 This file is part of GNU DIFF.
 
@@ -19,8 +19,6 @@ the Free Software Foundation, 675 Mass Ave, Cambridge, MA 02139, USA.  */
 
 #include "diff.h"
 
-static int compare_names ();
-
 /* Read the directory named by DIR and store into DIRDATA a sorted vector
    of filenames for its contents.  DIR->desc == -1 means this directory is
    known to be nonexistent, so set DIRDATA to an empty vector.
@@ -28,31 +26,35 @@ static int compare_names ();
 
 struct dirdata
 {
-  char **files;	/* Sorted names of files in dir, terminated by (char *) 0. */
+  char const **names;	/* Sorted names of files in dir, 0-terminated.  */
   char *data;	/* Allocated storage for file names.  */
 };
 
+static int compare_names PARAMS((void const *, void const *));
+static int dir_sort PARAMS((struct file_data const *, struct dirdata *));
+
 static int
 dir_sort (dir, dirdata)
-     struct file_data *dir;
+     struct file_data const *dir;
      struct dirdata *dirdata;
 {
-  register struct direct *next;
+  register struct dirent *next;
   register int i;
 
   /* Address of block containing the files that are described.  */
-  char **files;
+  char const **names;
 
   /* Number of files in directory.  */
-  int nfiles;
+  size_t nnames;
 
   /* Allocated and used storage for file name data.  */
   char *data;
   size_t data_alloc, data_used;
 
-  dirdata->files = 0;
+  dirdata->names = 0;
   dirdata->data = 0;
-  nfiles = 0;
+  nnames = 0;
+  data = 0;
 
   if (dir->desc != -1)
     {
@@ -65,7 +67,7 @@ dir_sort (dir, dirdata)
 
       data_alloc = max (1, (size_t) dir->stat.st_size);
       data_used = 0;
-      dirdata->data = data = (char *) xmalloc (data_alloc);
+      dirdata->data = data = xmalloc (data_alloc);
 
       /* Read the directory entries, and insert the subfiles
 	 into the `data' table.  */
@@ -73,7 +75,7 @@ dir_sort (dir, dirdata)
       while ((errno = 0, (next = readdir (reading)) != 0))
 	{
 	  char *d_name = next->d_name;
-	  size_t d_size;
+	  size_t d_size = NAMLEN (next) + 1;
 
 	  /* Ignore the files `.' and `..' */
 	  if (d_name[0] == '.'
@@ -83,12 +85,11 @@ dir_sort (dir, dirdata)
 	  if (excluded_filename (d_name))
 	    continue;
 
-	  d_size = strlen (d_name) + 1;
 	  while (data_alloc < data_used + d_size)
-	    dirdata->data = data = (char *) xrealloc (data, data_alloc *= 2);
-	  bcopy (d_name, data + data_used, d_size);
+	    dirdata->data = data = xrealloc (data, data_alloc *= 2);
+	  memcpy (data + data_used, d_name, d_size);
 	  data_used += d_size;
-	  nfiles++;
+	  nnames++;
 	}
       if (errno)
 	{
@@ -97,7 +98,7 @@ dir_sort (dir, dirdata)
 	  errno = e;
 	  return -1;
 	}
-#ifdef VOID_CLOSEDIR
+#if CLOSEDIR_VOID
       closedir (reading);
 #else
       if (closedir (reading) != 0)
@@ -105,17 +106,18 @@ dir_sort (dir, dirdata)
 #endif
     }
 
-  /* Create the `files' table from the `data' table.  */
-  dirdata->files = files = (char **) xmalloc (sizeof (char *) * (nfiles + 1));
-  for (i = 0;  i < nfiles;  i++)
+  /* Create the `names' table from the `data' table.  */
+  dirdata->names = names = (char const **) xmalloc (sizeof (char *)
+						    * (nnames + 1));
+  for (i = 0;  i < nnames;  i++)
     {
-      files[i] = data;
+      names[i] = data;
       data += strlen (data) + 1;
     }
-  files[nfiles] = 0;
+  names[nnames] = 0;
 
   /* Sort the table.  */
-  qsort (files, nfiles, sizeof (char *), compare_names);
+  qsort (names, nnames, sizeof (char *), compare_names);
 
   return 0;
 }
@@ -124,9 +126,10 @@ dir_sort (dir, dirdata)
 
 static int
 compare_names (file1, file2)
-     char **file1, **file2;
+     void const *file1, *file2;
 {
-  return strcmp (*file1, *file2);
+  return filename_cmp (* (char const *const *) file1,
+		       * (char const *const *) file2);
 }
 
 /* Compare the contents of two directories named in FILEVEC[0] and FILEVEC[1].
@@ -151,8 +154,8 @@ compare_names (file1, file2)
 
 int
 diff_dirs (filevec, handle_file, depth)
-     struct file_data filevec[];
-     int (*handle_file) ();
+     struct file_data const filevec[];
+     int (*handle_file) PARAMS((char const *, char const *, char const *, char const *, int));
      int depth;
 {
   struct dirdata dirdata[2];
@@ -169,42 +172,42 @@ diff_dirs (filevec, handle_file, depth)
 
   if (val == 0)
     {
-      register char **files0 = dirdata[0].files;
-      register char **files1 = dirdata[1].files;
-      char *name0 = filevec[0].name;
-      char *name1 = filevec[1].name;
+      register char const * const *names0 = dirdata[0].names;
+      register char const * const *names1 = dirdata[1].names;
+      char const *name0 = filevec[0].name;
+      char const *name1 = filevec[1].name;
 
       /* If `-S name' was given, and this is the topmost level of comparison,
 	 ignore all file names less than the specified starting name.  */
 
       if (dir_start_file && depth == 0)
 	{
-	  while (*files0 && strcmp (*files0, dir_start_file) < 0)
-	    files0++;
-	  while (*files1 && strcmp (*files1, dir_start_file) < 0)
-	    files1++;
+	  while (*names0 && filename_cmp (*names0, dir_start_file) < 0)
+	    names0++;
+	  while (*names1 && filename_cmp (*names1, dir_start_file) < 0)
+	    names1++;
 	}
 
       /* Loop while files remain in one or both dirs.  */
-      while (*files0 || *files1)
+      while (*names0 || *names1)
 	{
 	  /* Compare next name in dir 0 with next name in dir 1.
 	     At the end of a dir,
 	     pretend the "next name" in that dir is very large.  */
-	  int nameorder = (!*files0 ? 1 : !*files1 ? -1
-			   : strcmp (*files0, *files1));
-	  int v1 = (*handle_file) (name0, 0 < nameorder ? 0 : *files0++,
-				   name1, nameorder < 0 ? 0 : *files1++,
+	  int nameorder = (!*names0 ? 1 : !*names1 ? -1
+			   : filename_cmp (*names0, *names1));
+	  int v1 = (*handle_file) (name0, 0 < nameorder ? 0 : *names0++,
+				   name1, nameorder < 0 ? 0 : *names1++,
 				   depth + 1);
 	  if (v1 > val)
 	    val = v1;
 	}
     }
-  
+
   for (i = 0; i < 2; i++)
     {
-      if (dirdata[i].files)
-	free (dirdata[i].files);
+      if (dirdata[i].names)
+	free (dirdata[i].names);
       if (dirdata[i].data)
 	free (dirdata[i].data);
     }

@@ -1,5 +1,5 @@
 /* Normal-format output routines for GNU DIFF.
-   Copyright (C) 1988, 1989 Free Software Foundation, Inc.
+   Copyright (C) 1988, 1989, 1993 Free Software Foundation, Inc.
 
 This file is part of GNU DIFF.
 
@@ -20,10 +20,7 @@ the Free Software Foundation, 675 Mass Ave, Cambridge, MA 02139, USA.  */
 
 #include "diff.h"
 
-int change_letter ();
-void print_normal_hunk ();
-void print_number_range ();
-struct change *find_change ();
+static void print_normal_hunk PARAMS((struct change *));
 
 /* Print the edit-script SCRIPT as a normal diff.
    INF points to an array of descriptions of the two files.  */
@@ -39,7 +36,7 @@ print_normal_script (script)
    This is a contiguous portion of a complete edit script,
    describing changes in consecutive lines.  */
 
-void
+static void
 print_normal_hunk (hunk)
      struct change *hunk;
 {

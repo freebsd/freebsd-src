@@ -1,5 +1,5 @@
 /* Output routines for ed-script format.
-   Copyright (C) 1988, 89, 91, 92 Free Software Foundation, Inc.
+   Copyright (C) 1988, 89, 91, 92, 93 Free Software Foundation, Inc.
 
 This file is part of GNU DIFF.
 
@@ -19,14 +19,9 @@ the Free Software Foundation, 675 Mass Ave, Cambridge, MA 02139, USA.  */
 
 #include "diff.h"
 
-int change_letter ();
-int translate_line_number ();
-static void print_rcs_hunk ();
-static void print_ed_hunk ();
-static void pr_forward_ed_hunk ();
-void translate_range ();
-struct change *find_change ();
-struct change *find_reverse_change ();
+static void print_ed_hunk PARAMS((struct change *));
+static void print_rcs_hunk PARAMS((struct change *));
+static void pr_forward_ed_hunk PARAMS((struct change *));
 
 /* Print our script as ed commands.  */
 

@@ -17,13 +17,17 @@
    Foundation, 675 Mass Ave, Cambridge, MA 02139, USA.  */
 
 #ifdef HAVE_CONFIG_H
-#include "config.h"
+#include <config.h>
 #endif
 
 #include "getopt.h"
 
-#if !__STDC__ && !defined(const) && IN_GCC
+#ifndef __STDC__
+/* This is a separate conditional since some stdc systems
+   reject `defined (const)'.  */
+#ifndef const
 #define const
+#endif
 #endif
 
 #include <stdio.h>
