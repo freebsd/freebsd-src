@@ -30,6 +30,7 @@ static const char rcsid[] =
 #endif /* not lint */
 
 #include <calendar.h>
+#include <ctype.h>
 #include <err.h>
 #include <langinfo.h>
 #include <locale.h>
@@ -200,8 +201,9 @@ main(int argc, char *argv[])
 	 * and use the country code to determine the default
 	 * switchdate and date format from the switches table.
 	 */
-	if ((locale = setlocale(LC_TIME, "")) == NULL)
+	if (setlocale(LC_ALL, "") == NULL)
 		warn("setlocale");
+	locale = setlocale(LC_TIME, NULL);
 	if (locale == NULL || locale == "C")
 		locale = "_US";
 	q = switches + sizeof(switches) / sizeof(struct djswitch);
@@ -583,6 +585,7 @@ mkmonth(int y, int m, int jd_flag, struct monthlines *mlines)
 	memset(&tm, 0, sizeof(tm));
 	tm.tm_mon = m;
 	strftime(mlines->name, sizeof(mlines->name), "%OB", &tm);
+	mlines->name[0] = toupper((unsigned char)mlines->name[0]);
 
 	/*
 	 * Set first and last to the day number of the first day of this
@@ -674,6 +677,7 @@ mkmonthb(int y, int m, int jd_flag, struct monthlines *mlines)
 	memset(&tm, 0, sizeof(tm));
 	tm.tm_mon = m;
 	strftime(mlines->name, sizeof(mlines->name), "%OB", &tm);
+	mlines->name[0] = toupper((unsigned char)mlines->name[0]);
 
 	/*
 	 * Set first and last to the day number of the first day of this
@@ -745,6 +749,7 @@ mkweekdays(struct weekdays *wds)
 		tm.tm_wday = (i+1) % 7;
 		strftime(wds->names[i], 4, "%a", &tm);
 		wds->names[i][2] = ' '; 
+		wds->names[i][3] = '\0';
 	}
 }
 
