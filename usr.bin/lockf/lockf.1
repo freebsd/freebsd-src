@@ -22,7 +22,7 @@
 .\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 .\" SUCH DAMAGE.
 .\"
-.\" $Id$
+.\" $Id: lockf.1,v 1.1.1.1 1997/01/08 20:12:59 jdp Exp $
 .\"
 .Dd January 8, 1997
 .Os FreeBSD
@@ -85,11 +85,28 @@ break a lock that is held by another process.
 .Sh DIAGNOSTICS
 If
 .Nm
-is unable to acquire the lock, it returns an exit status of 1.
-Otherwise, it returns the exit status produced by
+successfully acquires the lock, it returns the exit status produced by
 .Ar command .
+Otherwise, it returns one of the exit codes defined in
+.Xr sysexits 3 ,
+as follows:
+.Bl -tag -width F_CANTCREATX
+.It Dv EX_TEMPFAIL
+The specified lock file was already locked by another process.
+.It Dv EX_CANTCREAT
+.Nm
+was unable to create the lock file, e.g., because of insufficient access
+privileges.
+.It Dv EX_USAGE
+There was an error on the
+.Nm
+command line.
+.It Dv EX_OSERR
+A system call (e.g., fork) failed unexpectedly.
+.El
 .Sh SEE ALSO
-.Xr flock 2 .
+.Xr flock 2 ,
+.Xr sysexits 3 .
 .Sh AUTHORS
 John Polstra,
 .Aq jdp@polstra.com .
