@@ -8,6 +8,7 @@
 PROG=	atmconfig
 SRCS=	main.c diag.c natm.c
 MAN=	atmconfig.8
+# CFLAGS+= -DPATH_HELP='".:/usr/share/doc/atm:/usr/local/share/doc/atm"'
 
 .if ${MACHINE_ARCH} == "arm"
 WARNS?= 3
