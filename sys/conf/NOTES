@@ -2,7 +2,7 @@
 # LINT -- config file for checking all the sources, tries to pull in
 #	as much of the source tree as it can.
 #
-#	$Id: LINT,v 1.478 1998/09/29 17:33:45 abial Exp $
+#	$Id: LINT,v 1.479 1998/10/01 11:48:38 yokota Exp $
 #
 # NB: You probably don't want to try running a kernel built from this
 # file.  Instead, you should start from GENERIC, and add options from
@@ -702,6 +702,14 @@ options		SCSI_DELAY=8000	# Be pessimistic about Joe SCSI device
 #
 options		"CHANGER_MIN_BUSY_SECONDS=2"
 options		"CHANGER_MAX_BUSY_SECONDS=10"
+
+# Options for the CAM sequential access driver:
+# SA_SPACE_TIMEOUT: Timeout for space operations, in minutes
+# SA_REWIND_TIMEOUT: Timeout for rewind operations, in minutes
+# SA_ERASE_TIMEOUT: Timeout for erase operations, in minutes
+options		"SA_SPACE_TIMEOUT=(60)"
+options		"SA_REWIND_TIMEOUT=(2*60)"
+options		"SA_ERASE_TIMEOUT=(4*60)"
 
 
 #####################################################################
