@@ -1125,7 +1125,10 @@ acpi_probe_child(ACPI_HANDLE handle, UINT32 level, void *context, void **status)
 	    child = BUS_ADD_CHILD(bus, level * 10, NULL, -1);
 	    if (child == NULL)
 		break;
+
+	    /* Associate the handle with the device_t and vice versa. */
 	    acpi_set_handle(child, handle);
+	    AcpiAttachData(handle, acpi_fake_objhandler, child);
 
 	    /* Check if the device can generate wake events. */
 	    if (ACPI_SUCCESS(AcpiEvaluateObject(handle, "_PRW", NULL, NULL)))
@@ -1157,6 +1160,15 @@ acpi_probe_child(ACPI_HANDLE handle, UINT32 level, void *context, void **status)
     }
 
     return_ACPI_STATUS (AE_OK);
+}
+
+/*
+ * AcpiAttachData() requires an object handler but never uses it.  This is a
+ * placeholder object handler so we can store a device_t in an ACPI_HANDLE.
+ */
+void
+acpi_fake_objhandler(ACPI_HANDLE h, UINT32 fn, void *data)
+{
 }
 
 static void
