@@ -15,6 +15,7 @@ ddb/db_trap.c		optional ddb
 ddb/db_variables.c	optional ddb
 ddb/db_watch.c		optional ddb
 ddb/db_write_cmd.c	optional ddb
+dev/ccd/ccd.c		optional ccd device-driver
 dev/vn/vn.c		optional vn
 gnu/isdn/iitel.c            optional itel device-driver
 gnu/isdn/iitty.c            optional ity device-driver
