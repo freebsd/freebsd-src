@@ -2663,7 +2663,7 @@ Job_ParseShell(line)
     Shell   	  newShell;
     Boolean 	  fullSpec = FALSE;
 
-    while (isspace(*line)) {
+    while (isspace((unsigned char) *line)) {
 	line++;
     }
     words = brk_string(line, &wordCount, TRUE);
