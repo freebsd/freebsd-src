@@ -32,7 +32,7 @@
  * SUCH DAMAGE.
  *
  *	from: Steve McCanne's microtime code
- *	$Id: microtime.s,v 1.13 1996/05/31 01:08:02 peter Exp $
+ *	$Id: microtime.s,v 1.14 1996/06/17 12:43:04 bde Exp $
  */
 
 #include <machine/asmacros.h>
@@ -153,7 +153,7 @@ overflow:
 	 */
 
 #if 0
-	imul	$27645, %edx				/* 25 cycles on a 486 */
+	imul	$27465, %edx				/* 25 cycles on a 486 */
 #else
 	leal	(%edx,%edx,2), %eax	/* a = 3	2 cycles on a 486   */
 	leal	(%edx,%eax,4), %eax	/* a = 13	2		    */
