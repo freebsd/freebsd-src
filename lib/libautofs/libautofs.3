@@ -29,7 +29,7 @@
 .Os
 .Sh NAME
 .Nm libautofs
-.Nd "procedural interface to managing an autofs filesystem"
+.Nd "procedural interface to managing an autofs file system"
 .Sh SYNOPSIS
 .In libautofs.h
 .Ft int
@@ -81,7 +81,7 @@ The
 .Nm libautofs
 libarary provides a "mostly" stable interface to the
 .Xr autofs 9
-filesystem.
+file system.
 .Pp
 The inteface to
 .Xr autofs 9
@@ -97,7 +97,7 @@ The
 .Fn autoh_get
 function returns a handle to an
 .Xr autofs 9
-filesystem based on the
+file system based on the
 .Fa path
 parameter.
 The handle returned should be freed via the
@@ -108,7 +108,7 @@ The
 .Fn autoh_getall
 function returns an array of handles to all mounted
 .Xr autofs 9
-filesystems, each of which should be released via the
+file systems, each of which should be released via the
 .Fn autoh_free
 function or released en-mass via the
 .Fn autoh_freeall
@@ -136,7 +136,7 @@ argument.
 .Pp
 The
 .Fn autoh_mp
-function returns the path to the autofs filesystem that the
+function returns the path to the autofs file system that the
 .Fa hndl
 is derived from.
 .Pp
@@ -253,5 +253,5 @@ The
 utility first appeared in
 .Fx 6.0 .
 .Sh AUTHORS
-This manual page and the autofs filesystem suite were written by
+This manual page and the autofs file system suite were written by
 .An Alfred Perlstein .
