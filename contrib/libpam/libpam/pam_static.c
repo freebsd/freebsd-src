@@ -16,7 +16,7 @@
 
 #ifdef PAM_STATIC
 
-extern struct linker_set _pam_static_modules;
+SET_DECLARE(_pam_static_modules, struct pam_module);
 
 /* Return pointer to data structure used to define a static module */
 struct pam_module * _pam_open_static_handler(const char *path)
@@ -24,8 +24,7 @@ struct pam_module * _pam_open_static_handler(const char *path)
     int i;
     const char *clpath = path;
     char *lpath, *end;
-    struct pam_module **static_modules =
-	(struct pam_module **)_pam_static_modules.ls_items;
+    struct pam_module **static_module;
 
     if (strchr(clpath, '/')) {
         /* ignore path and leading "/" */
@@ -41,16 +40,17 @@ struct pam_module * _pam_open_static_handler(const char *path)
     }
 
     /* now go find the module */
-    for (i = 0; static_modules[i] != NULL; i++) {
-	D(("%s=?%s\n", lpath, static_modules[i]->name));
-        if (static_modules[i]->name &&
-	    ! strcmp(static_modules[i]->name, lpath)) {
-	    break;
+    SET_FOREACH(static_module, _pam_static_modules) {
+	D(("%s=?%s\n", lpath, (*static_module)->name));
+        if ((*static_module)->name &&
+	    ! strcmp((*static_module)->name, lpath)) {
+	    free(lpath);
+	    return (*static_module);
 	}
     }
 
     free(lpath);
-    return (static_modules[i]);
+    return (NULL);
 }
 
 /* Return pointer to function requested from static module

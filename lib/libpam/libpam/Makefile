@@ -95,16 +95,7 @@ _EXTRADEPEND:	pam_static.c
 CLEANFILES+=	setdef0.o _pam_static_modules.o setdef1.o \
 		setdef0.c setdef1.c setdefs.h
 
-pam_static_modules.o:	setdef0.o pam_static.o _pam_static_modules.o setdef1.o
-	${LD} -o ${.TARGET} -r ${.ALLSRC}
-
-setdef0.o:	setdef0.c setdefs.h
-setdef1.o:	setdef1.c setdefs.h
-
-setdef0.c setdef1.c setdefs.h:	_pam_static_modules.o
-	gensetdefs ${.ALLSRC}
-
-_pam_static_modules.o:	${STATIC_MODULES}
+pam_static_modules.o:	pam_static.o ${STATIC_MODULES}
 	${LD} -o ${.TARGET} -r --whole-archive ${.ALLSRC}
 .else
 pam_static_modules.o:	pam_static.o ${STATIC_MODULES}
