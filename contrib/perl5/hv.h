@@ -1,27 +1,31 @@
 /*    hv.h
  *
- *    Copyright (c) 1991-2000, Larry Wall
+ *    Copyright (c) 1991-2001, Larry Wall
  *
  *    You may distribute under the terms of either the GNU General Public
  *    License or the Artistic License, as specified in the README file.
  *
  */
 
+/* typedefs to eliminate some typing */
 typedef struct he HE;
 typedef struct hek HEK;
 
+/* entry in hash value chain */
 struct he {
-    HE		*hent_next;
-    HEK		*hent_hek;
-    SV		*hent_val;
+    HE		*hent_next;	/* next entry in chain */
+    HEK		*hent_hek;	/* hash key */
+    SV		*hent_val;	/* scalar value that was hashed */
 };
 
+/* hash key -- defined separately for use as shared pointer */
 struct hek {
-    U32		hek_hash;
-    I32		hek_len;
-    char	hek_key[1];
+    U32		hek_hash;	/* hash of key */
+    I32		hek_len;	/* length of hash key */
+    char	hek_key[1];	/* variable-length hash key */
 };
 
+/* hash structure: */
 /* This structure must match the beginning of struct xpvmg in sv.h. */
 struct xpvhv {
     char *	xhv_array;	/* pointer to malloced string */
@@ -38,6 +42,7 @@ struct xpvhv {
     char	*xhv_name;	/* name, if a symbol table */
 };
 
+/* hash a key */
 #define PERL_HASH(hash,str,len) \
      STMT_START	{ \
 	register const char *s_PeRlHaSh = str; \
@@ -171,6 +176,7 @@ C<SV*>.
 #define HEK_LEN(hek)		(hek)->hek_len
 #define HEK_KEY(hek)		(hek)->hek_key
 
+/* calculate HV array allocation */
 #if defined(STRANGE_MALLOC) || defined(MYMALLOC)
 #  define PERL_HV_ARRAY_ALLOC_BYTES(size) ((size) * sizeof(HE*))
 #else

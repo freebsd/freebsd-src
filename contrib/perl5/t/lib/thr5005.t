@@ -2,7 +2,7 @@
 
 BEGIN {
     chdir 't' if -d 't';
-    unshift @INC, '../lib';
+    @INC = '../lib';
     require Config; import Config;
     if (! $Config{'use5005threads'}) {
 	print "1..0 # Skip: not use5005threads\n";
@@ -13,7 +13,7 @@ BEGIN {
     $ENV{PERL_DESTRUCT_LEVEL} = 0 unless $ENV{PERL_DESTRUCT_LEVEL} > 3;
 }
 $| = 1;
-print "1..21\n";
+print "1..22\n";
 use Thread 'yield';
 print "ok 1\n";
 
@@ -89,6 +89,18 @@ my $long  = "This is short.";
 my $longe  = " short.";
 my $thr1 = new Thread \&threaded, $short, $shorte, "19";
 my $thr2 = new Thread \&threaded, $long, $longe, "20";
+my $thr3 = new Thread \&testsprintf, "21";
+
+sub testsprintf {
+  my $testno = shift;
+  # this may coredump if thread vars are not properly initialised
+  my $same = sprintf "%.0f", $testno;
+  if ($testno eq $same) {
+    print "ok $testno\n";
+  } else {
+    print "not ok $testno\t# '$testno' ne '$same'\n";
+  }
+}
 
 sub threaded {
   my ($string, $string_end, $testno) = @_;
@@ -115,4 +127,5 @@ EOT
 }
 $thr1->join;
 $thr2->join;
-print "ok 21\n";
+$thr3->join;
+print "ok 22\n";

@@ -214,4 +214,17 @@ DESTROY { die "@{$_[0]} foo bar" }
 { bless ['A'], 'Foo' for 1..10 }
 { bless ['B'], 'Foo' for 1..10 }
 EXPECT
-
+########
+# pp_ctl.c
+use warnings;
+eval 'print $foo';
+EXPECT
+Use of uninitialized value in print at (eval 1) line 1.
+########
+# pp_ctl.c
+use warnings;
+{
+    no warnings;
+    eval 'print $foo';
+}
+EXPECT

@@ -36,14 +36,15 @@ my @rdlcnv = qw(cartesian_to_cylindrical
 
 %EXPORT_TAGS = ('radial' => [ @rdlcnv ]);
 
-sub pi2 () { 2 * pi }		# use constant generates warning
-sub pip2 () { pi / 2 }		# use constant generates warning
-use constant DR   => pi2/360;
-use constant RD   => 360/pi2;
-use constant DG   => 400/360;
-use constant GD   => 360/400;
-use constant RG   => 400/pi2;
-use constant GR   => pi2/400;
+sub pi2  () { 2 * pi }
+sub pip2 () { pi / 2 }
+
+sub DR  () { pi2/360 }
+sub RD  () { 360/pi2 }
+sub DG  () { 400/360 }
+sub GD  () { 360/400 }
+sub RG  () { 400/pi2 }
+sub GR  () { pi2/400 }
 
 #
 # Truncating remainder.
@@ -58,17 +59,23 @@ sub remt ($$) {
 # Angle conversions.
 #
 
-sub rad2deg ($)  { remt(RD * $_[0], 360) }
+sub rad2rad($)     { remt($_[0], pi2) }
 
-sub deg2rad ($)  { remt(DR * $_[0], pi2) }
+sub deg2deg($)     { remt($_[0], 360) }
 
-sub grad2deg ($) { remt(GD * $_[0], 360) }
+sub grad2grad($)   { remt($_[0], 400) }
 
-sub deg2grad ($) { remt(DG * $_[0], 400) }
+sub rad2deg ($;$)  { my $d = RD * $_[0]; $_[1] ? $d : deg2deg($d) }
 
-sub rad2grad ($) { remt(RG * $_[0], 400) }
+sub deg2rad ($;$)  { my $d = DR * $_[0]; $_[1] ? $d : rad2rad($d) }
 
-sub grad2rad ($) { remt(GR * $_[0], pi2) }
+sub grad2deg ($;$) { my $d = GD * $_[0]; $_[1] ? $d : deg2deg($d) }
+
+sub deg2grad ($;$) { my $d = DG * $_[0]; $_[1] ? $d : grad2grad($d) }
+
+sub rad2grad ($;$) { my $d = RG * $_[0]; $_[1] ? $d : grad2grad($d) }
+
+sub grad2rad ($;$) { my $d = GR * $_[0]; $_[1] ? $d : rad2rad($d) }
 
 sub cartesian_to_spherical {
     my ( $x, $y, $z ) = @_;
@@ -280,6 +287,14 @@ and the imaginary part of approximately C<-1.317>.
 	$gradians = rad2grad($radians);
 
 The full circle is 2 I<pi> radians or I<360> degrees or I<400> gradians.
+The result is by default wrapped to be inside the [0, {2pi,360,400}[ circle.
+If you don't want this, supply a true second argument:
+
+	$zillions_of_radians  = deg2rad($zillions_of_degrees, 1);
+	$negative_degrees     = rad2deg($negative_radians, 1);
+
+You can also do the wrapping explicitly by rad2rad(), deg2deg(), and
+grad2grad().
 
 =head1 RADIAL COORDINATE CONVERSIONS
 

@@ -4,7 +4,7 @@
 
 BEGIN {
     chdir 't' if -d 't';
-    unshift @INC, '../lib';
+    @INC = '../lib';
 }
 
 use Config;
@@ -32,7 +32,7 @@ if (open(FOO, ">Op.stat.tmp")) {
   else {
     print "# res=$res, nlink=$nlink.\nnot ok 1\n";
   }
-  if ($Is_MSWin32 or $Is_Cygwin || ($mtime && $mtime == $ctime)) {
+  if ($Is_MSWin32 or $Is_Cygwin or $Is_Dos || ($mtime && $mtime == $ctime)) {
     print "ok 2\n";
   }
   else {
@@ -80,6 +80,7 @@ else {
     print "not ok 4\n";
     print "#4 If test op/stat.t fails test 4, check if you are on a tmpfs\n";
     print "#4 of some sort.  Building in /tmp sometimes has this problem.\n";
+    print "#4 Also building on the ClearCase VOBS filesystem may cause this failure.\n";
 }
 print "#4	:$mtime: should != :$ctime:\n";
 
@@ -177,14 +178,18 @@ if ($^O eq 'mpeix' or $^O eq 'amigaos' or $Is_Dosish or $Is_Cygwin) {
 $cnt = $uid = 0;
 
 die "Can't run op/stat.t test 35 without pwd working" unless $cwd;
-($bin) = grep {-d} ($^O eq 'machten' ? qw(/usr/bin /bin) : qw(/bin /usr/bin))
-    or print ("not ok 35\n"), goto tty_test;
-opendir BIN, $bin or die "Can't opendir $bin: $!";
-while (defined($_ = readdir BIN)) {
-    $_ = "$bin/$_";
-    $cnt++;
-    $uid++ if -u;
-    last if $uid && $uid < $cnt;
+my @bin = grep {-d} ($^O eq 'machten' ?
+		     qw(/usr/bin /bin) :
+		     qw(/sbin /usr/sbin /bin /usr/bin));
+unless (@bin) { print ("not ok 35\n"), goto tty_test; }
+for my $bin (@bin) {
+    opendir BIN, $bin or die "Can't opendir $bin: $!";
+    while (defined($_ = readdir BIN)) {
+        $_ = "$bin/$_";
+        $cnt++;
+        $uid++ if -u;
+        last if $uid && $uid < $cnt;
+    }
 }
 closedir BIN;
 

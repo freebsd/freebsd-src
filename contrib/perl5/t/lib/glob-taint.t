@@ -2,7 +2,12 @@
 
 BEGIN {
     chdir 't' if -d 't';
-    unshift @INC, '../lib';
+    if ($^O eq 'MacOS') { 
+	@INC = qw(: ::lib ::macos:lib); 
+    } else { 
+	@INC = '.'; 
+	push @INC, '../lib'; 
+    }
     require Config; import Config;
     if ($Config{'extensions'} !~ /\bFile\/Glob\b/i) {
         print "1..0\n";
@@ -18,7 +23,7 @@ $loaded = 1;
 print "ok 1\n";
 
 # all filenames should be tainted
-@a = File::Glob::glob("*");
+@a = File::Glob::bsd_glob("*");
 eval { $a = join("",@a), kill 0; 1 };
 unless ($@ =~ /Insecure dependency/) {
     print "not ";

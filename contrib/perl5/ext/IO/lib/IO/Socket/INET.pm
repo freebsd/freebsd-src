@@ -34,6 +34,7 @@ sub new {
 
 sub _sock_info {
   my($addr,$port,$proto) = @_;
+  my $origport = $port;
   my @proto = ();
   my @serv = ();
 
@@ -59,14 +60,14 @@ sub _sock_info {
     my $defport = $1 || undef;
     my $pnum = ($port =~ m,^(\d+)$,)[0];
 
-    if ($port =~ m,\D,) {
-      unless (@serv = getservbyname($port, $proto[0] || "")) {
-	$@ = "Bad service '$port'";
-	return;
-      }
-    }
+    @serv = getservbyname($port, $proto[0] || "")
+	if ($port =~ m,\D,);
 
     $port = $pnum || $serv[2] || $defport || undef;
+    unless (defined $port) {
+	$@ = "Bad service '$origport'";
+	return;
+    }
 
     $proto = (getprotobyname($serv[3]))[2] || undef
 	if @serv && !$proto;
@@ -150,8 +151,13 @@ sub configure {
 	$sock->socket(AF_INET, $type, $proto) or
 	    return _error($sock, $!, "$!");
 
-	if ($arg->{Reuse}) {
+	if ($arg->{Reuse} || $arg->{ReuseAddr}) {
 	    $sock->sockopt(SO_REUSEADDR,1) or
+		    return _error($sock, $!, "$!");
+	}
+
+	if ($arg->{ReusePort}) {
+	    $sock->sockopt(SO_REUSEPORT,1) or
 		    return _error($sock, $!, "$!");
 	}
 
@@ -301,7 +307,9 @@ C<IO::Socket::INET> provides.
     Proto	Protocol name (or number)    "tcp" | "udp" | ...
     Type	Socket type                  SOCK_STREAM | SOCK_DGRAM | ...
     Listen	Queue size for listen
-    Reuse	Set SO_REUSEADDR before binding
+    ReuseAddr	Set SO_REUSEADDR before binding
+    Reuse	Set SO_REUSEADDR before binding (deprecated, prefer ReuseAddr)
+    ReusePort	Set SO_REUSEPORT before binding
     Timeout	Timeout	value for various operations
     MultiHomed  Try all adresses for multi-homed hosts
 

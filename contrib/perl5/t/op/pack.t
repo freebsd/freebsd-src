@@ -2,11 +2,11 @@
 
 BEGIN {
     chdir 't' if -d 't';
-    unshift @INC, '../lib' if -d '../lib';
+    @INC = '../lib';
     require Config; import Config;
 }
 
-print "1..156\n";
+print "1..159\n";
 
 $format = "c2 x5 C C x s d i l a6";
 # Need the expression in here to force ary[5] to be numeric.  This avoids
@@ -372,8 +372,9 @@ print $@ eq '' && $y eq 'z' ? "ok $test\n" : "not ok $test\n"; $test++;
 
 eval { ($x) = pack '/a*','hello' };
 print 'not ' unless $@; print "ok $test\n"; $test++;
-$z = pack 'n/a* w/A*','string','etc';
-print 'not ' unless $z eq "\000\006string\003etc"; print "ok $test\n"; $test++;
+$z = pack 'n/a* N/Z* w/A*','string','hi there ','etc';
+print 'not ' unless $z eq "\000\006string\0\0\0\012hi there \000\003etc";
+print "ok $test\n"; $test++;
 
 eval { ($x) = unpack 'a/a*/a*', '212ab345678901234567' };
 print $@ eq '' && $x eq 'ab3456789012' ? "ok $test\n" : "#$x,$@\nnot ok $test\n";
@@ -405,3 +406,13 @@ $z = pack <<EOP,'string','etc';
   w/A*			# Count a  BER integer
 EOP
 print 'not ' unless $z eq "\000\006string\003etc"; print "ok $test\n"; $test++;
+
+print 'not ' unless "1.20.300.4000" eq sprintf "%vd", pack("U*",1,20,300,4000); 
+print "ok $test\n"; $test++;
+print 'not ' unless "1.20.300.4000" eq 
+                    sprintf "%vd", pack("  U*",1,20,300,4000); 
+print "ok $test\n"; $test++;
+print 'not ' unless v1.20.300.4000 ne 
+                    sprintf "%vd", pack("C0U*",1,20,300,4000); 
+print "ok $test\n"; $test++;
+

@@ -6,6 +6,7 @@ use Config qw(%Config);
 use Carp qw(carp);
 use File::Basename ();
 use File::Path qw(mkpath);
+use File::Spec::Functions qw(curdir catfile);
 use strict;
 our($VERSION, @ISA, @EXPORT, @EXPORT_OK, $Verbose, $Keep, $Maxlen,
     $CheckForAutoloader, $CheckModTime);
@@ -173,16 +174,23 @@ sub autosplit_lib_modules{
     my(@modules) = @_; # list of Module names
 
     while(defined($_ = shift @modules)){
-	s#::#/#g;	# incase specified as ABC::XYZ
+    	while (m#(.*?[^:])::([^:].*)#) { # in case specified as ABC::XYZ
+	    $_ = catfile($1, $2);
+	}
 	s|\\|/|g;		# bug in ksh OS/2
 	s#^lib/##s; # incase specified as lib/*.pm
+	my($lib) = catfile(curdir(), "lib");
+	if ($Is_VMS) { # may need to convert VMS-style filespecs
+	    $lib =~ s#^\[\]#.\/#;
+	}
+	s#^$lib\W+##s; # incase specified as ./lib/*.pm
 	if ($Is_VMS && /[:>\]]/) { # may need to convert VMS-style filespecs
 	    my ($dir,$name) = (/(.*])(.*)/s);
 	    $dir =~ s/.*lib[\.\]]//s;
 	    $dir =~ s#[\.\]]#/#g;
 	    $_ = $dir . $name;
 	}
-	autosplit_file("lib/$_", "lib/auto",
+	autosplit_file(catfile($lib, $_), catfile($lib, "auto"),
 		       $Keep, $CheckForAutoloader, $CheckModTime);
     }
     0;
@@ -199,7 +207,7 @@ sub autosplit_file {
     local($/) = "\n";
 
     # where to write output files
-    $autodir ||= "lib/auto";
+    $autodir ||= catfile(curdir(), "lib", "auto");
     if ($Is_VMS) {
 	($autodir = VMS::Filespec::unixpath($autodir)) =~ s|/\z||;
 	$filename = VMS::Filespec::unixify($filename); # may have dirs
@@ -245,6 +253,9 @@ sub autosplit_file {
     $def_package or die "Can't find 'package Name;' in $filename\n";
 
     my($modpname) = _modpname($def_package); 
+    if ($Is_VMS) {
+	$modpname = VMS::Filespec::unixify($modpname); # may have dirs
+    }
 
     # this _has_ to match so we have a reasonable timestamp file
     die "Package $def_package ($modpname.pm) does not ".
@@ -253,7 +264,7 @@ sub autosplit_file {
 		    ($^O eq 'dos') or ($^O eq 'MSWin32') or
 	            $Is_VMS && $filename =~ m/$modpname.pm/i);
 
-    my($al_idx_file) = "$autodir/$modpname/$IndexFile";
+    my($al_idx_file) = catfile($autodir, $modpname, $IndexFile);
 
     if ($check_mod_time){
 	my($al_ts_time) = (stat("$al_idx_file"))[9] || 1;
@@ -264,11 +275,12 @@ sub autosplit_file {
 	}
     }
 
-    print "AutoSplitting $filename ($autodir/$modpname)\n"
+    my($modnamedir) = catfile($autodir, $modpname);
+    print "AutoSplitting $filename ($modnamedir)\n"
 	if $Verbose;
 
-    unless (-d "$autodir/$modpname"){
-	mkpath("$autodir/$modpname",0,0777);
+    unless (-d $modnamedir){
+	mkpath($modnamedir,0,0777);
     }
 
     # We must try to deal with some SVR3 systems with a limit of 14
@@ -311,9 +323,10 @@ sub autosplit_file {
 	    push(@subnames, $fq_subname);
 	    my($lname, $sname) = ($subname, substr($subname,0,$maxflen-3));
 	    $modpname = _modpname($this_package);
-	    mkpath("$autodir/$modpname",0,0777);
-	    my($lpath) = "$autodir/$modpname/$lname.al";
-	    my($spath) = "$autodir/$modpname/$sname.al";
+    	    my($modnamedir) = catfile($autodir, $modpname);
+	    mkpath($modnamedir,0,0777);
+	    my($lpath) = catfile($modnamedir, "$lname.al");
+	    my($spath) = catfile($modnamedir, "$sname.al");
 	    my $path;
 	    if (!$Is83 and open(OUT, ">$lpath")){
 	        $path=$lpath;
@@ -379,7 +392,7 @@ EOT
 	    opendir(OUTDIR,$dir);
 	    foreach (sort readdir(OUTDIR)){
 		next unless /\.al\z/;
-		my($file) = "$dir/$_";
+		my($file) = catfile($dir, $_);
 		$file = lc $file if $Is83 or $Is_VMS;
 		next if $outfiles{$file};
 		print "  deleting $file\n" if ($Verbose>=2);
@@ -418,7 +431,9 @@ sub _modpname ($) {
     if ($^O eq 'MSWin32') {
 	$modpname =~ s#::#\\#g; 
     } else {
-	$modpname =~ s#::#/#g;
+    	while ($modpname =~ m#(.*?[^:])::([^:].*)#) {
+	    $modpname = catfile($1, $2);
+	}
     }
     $modpname;
 }

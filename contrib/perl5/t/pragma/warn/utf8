@@ -15,6 +15,12 @@
 
 __END__
 # utf8.c [utf8_to_uv] -W
+BEGIN {
+    if (ord('A') == 193) {
+        print "SKIPPED\n# ebcdic platforms do not generate Malformed UTF-8 warnings.";
+        exit 0;
+    }
+}
 use utf8 ;
 my $a = "snøstorm" ;
 {
@@ -24,6 +30,6 @@ my $a = "snøstorm" ;
     my $a = "snøstorm";
 }
 EXPECT
-Malformed UTF-8 character at - line 3.
-Malformed UTF-8 character at - line 8.
+Malformed UTF-8 character (unexpected non-continuation byte 0x73 after start byte 0xf8) at - line 9.
+Malformed UTF-8 character (unexpected non-continuation byte 0x73 after start byte 0xf8) at - line 14.
 ########

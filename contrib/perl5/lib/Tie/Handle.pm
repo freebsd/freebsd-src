@@ -1,7 +1,7 @@
 package Tie::Handle;
 
 use 5.005_64;
-our $VERSION = '1.0';
+our $VERSION = '4.0';
 
 =head1 NAME
 
@@ -105,6 +105,15 @@ destruction of an instance.
 
 The L<perltie> section contains an example of tying handles.
 
+=head1 COMPATIBILITY
+
+This version of Tie::Handle is neither related to nor compatible with
+the Tie::Handle (3.0) module available on CPAN. It was due to an
+accident that two modules with the same name appeared. The namespace
+clash has been cleared in favor of this module that comes with the
+perl core in September 2000 and accordingly the version number has
+been bumped up to 4.0.
+
 =cut
 
 use Carp;
@@ -120,8 +129,7 @@ sub new {
 sub TIEHANDLE {
     my $pkg = shift;
     if (defined &{"{$pkg}::new"}) {
-	warnings::warn "WARNING: calling ${pkg}->new since ${pkg}->TIEHANDLE is missing"
-	    if warnings::enabled();
+	warnings::warnif("WARNING: calling ${pkg}->new since ${pkg}->TIEHANDLE is missing");
 	$pkg->new(@_);
     }
     else {
@@ -184,10 +192,10 @@ sub WRITE {
 sub CLOSE {
     my $pkg = ref $_[0];
     croak "$pkg doesn't define a CLOSE method";
-} 
+}
 
 package Tie::StdHandle; 
-our @ISA = 'Tie::Handle';       
+our @ISA = 'Tie::Handle';
 use Carp;
 
 sub TIEHANDLE 
@@ -197,7 +205,7 @@ sub TIEHANDLE
  bless $fh,$class;
  $fh->OPEN(@_) if (@_);
  return $fh;
-}         
+}
 
 sub EOF     { eof($_[0]) }
 sub TELL    { tell($_[0]) }
@@ -207,9 +215,9 @@ sub CLOSE   { close($_[0]) }
 sub BINMODE { binmode($_[0]) }
 
 sub OPEN
-{         
+{
  $_[0]->CLOSE if defined($_[0]->FILENO);
- open($_[0],$_[1]);
+ @_ == 2 ? open($_[0], $_[1]) : open($_[0], $_[1], $_[2]);
 }
 
 sub READ     { read($_[0],$_[1],$_[2]) }
@@ -217,7 +225,7 @@ sub READLINE { my $fh = $_[0]; <$fh> }
 sub GETC     { getc($_[0]) }
 
 sub WRITE
-{        
+{
  my $fh = $_[0];
  print $fh substr($_[1],0,$_[2])
 }

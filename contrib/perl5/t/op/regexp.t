@@ -1,8 +1,5 @@
 #!./perl
 
-# XXX known to leak scalars
-$ENV{PERL_DESTRUCT_LEVEL} = 0 unless $ENV{PERL_DESTRUCT_LEVEL} > 3;
-
 # The tests are in a separate file 't/op/re_tests'.
 # Each line in that file is a separate test.
 # There are five columns, separated by tabs.
@@ -26,6 +23,9 @@ $ENV{PERL_DESTRUCT_LEVEL} = 0 unless $ENV{PERL_DESTRUCT_LEVEL} > 3;
 # Column 5 contains the expected result of double-quote
 # interpolating that string after the match, or start of error message.
 #
+# Column 6, if present, contains a reason why the test is skipped.
+# This is printed with "skipped", for harness to pick up.
+#
 # \n in the tests are interpolated, as are variables of the form ${\w+}.
 #
 # If you want to add a regular expression test that can't be expressed
@@ -33,7 +33,7 @@ $ENV{PERL_DESTRUCT_LEVEL} = 0 unless $ENV{PERL_DESTRUCT_LEVEL} > 3;
 
 BEGIN {
     chdir 't' if -d 't';
-    unshift @INC, '../lib' if -d '../lib';
+    @INC = '../lib';
 }
 
 $iters = shift || 1;		# Poor man performance suite, 10000 is OK.
@@ -56,7 +56,7 @@ TEST:
 while (<TESTS>) {
     chomp;
     s/\\n/\n/g;
-    ($pat, $subject, $result, $repl, $expect) = split(/\t/,$_);
+    ($pat, $subject, $result, $repl, $expect, $reason) = split(/\t/,$_,6);
     $input = join(':',$pat,$subject,$result,$repl,$expect);
     infty_subst(\$pat);
     infty_subst(\$expect);
@@ -70,7 +70,8 @@ while (<TESTS>) {
     $expect = $repl = '-' if $skip_amp and $input =~ /\$[&\`\']/;
     $skip = ($skip_amp ? ($result =~ s/B//i) : ($result =~ s/B//));
     # Certain tests don't work with utf8 (the re_test should be in UTF8)
-    $skip = 1 if ($^H &= ~0x00000008) && $pat =~ /\[:\^(alnum|print|word):\]/;
+    $skip = 1, $reason = 'utf8'
+      if ($^H &= ~0x00000008) && $pat =~ /\[:\^(alnum|print|word|ascii|xdigit):\]/;
     $result =~ s/B//i unless $skip;
     for $study ('', 'study \$subject') {
  	$c = $iters;
@@ -81,7 +82,8 @@ while (<TESTS>) {
 	    last;  # no need to study a syntax error
 	}
 	elsif ( $skip ) {
-	    print "ok $. # skipped\n"; next TEST;
+	    print "ok $. # skipped", length($reason) ? " $reason" : '', "\n";
+	    next TEST;
 	}
 	elsif ($@) {
 	    print "not ok $. $input => error `$err'\n"; next TEST;

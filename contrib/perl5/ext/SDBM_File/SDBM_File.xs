@@ -57,7 +57,7 @@ sdbm_TIEHASH(dbtype, filename, flags, mode)
 	    DBM * 	dbp ;
 
 	    RETVAL = NULL ;
-	    if (dbp = sdbm_open(filename,flags,mode) ) {
+	    if ((dbp = sdbm_open(filename,flags,mode))) {
 	        RETVAL = (SDBM_File)safemalloc(sizeof(SDBM_File_type)) ;
     	        Zero(RETVAL, 1, SDBM_File_type) ;
 		RETVAL->dbp = dbp ;

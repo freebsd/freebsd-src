@@ -150,6 +150,17 @@ EXPECT
 # op.c
 use warnings 'closure' ;
 sub x {
+      our $x;
+      sub y {
+         $x
+      }
+   }
+EXPECT
+
+########
+# op.c
+use warnings 'closure' ;
+sub x {
       my $x;
       sub y {
          sub { $x }
@@ -267,7 +278,7 @@ Useless use of hash element in void context at - line 29.
 Useless use of hash slice in void context at - line 30.
 Useless use of unpack in void context at - line 31.
 Useless use of pack in void context at - line 32.
-Useless use of join in void context at - line 33.
+Useless use of join or string in void context at - line 33.
 Useless use of list slice in void context at - line 34.
 Useless use of sort in void context at - line 37.
 Useless use of reverse in void context at - line 38.
@@ -558,7 +569,7 @@ Useless use of a constant in void context at - line 3.
 Useless use of a constant in void context at - line 4.
 ########
 # op.c
-BEGIN{ $ENV{PERL_DESTRUCT_LEVEL} = 0 unless $ENV{PERL_DESTRUCT_LEVEL} > 3; } # known scalar leak
+#
 use warnings 'misc' ;
 my $a ; my @a = () ; my %a = () ; my $b = \@a ; my $c = \%a ;
 @a =~ /abc/ ;
@@ -592,7 +603,6 @@ my $a ; my @a = () ; my %a = () ; my $b = \@a ; my $c = \%a ;
 EXPECT
 Applying pattern match (m//) to @array will act on scalar(@array) at - line 5.
 Applying substitution (s///) to @array will act on scalar(@array) at - line 6.
-Can't modify private array in substitution (s///) at - line 6, near "s/a/b/ ;"
 Applying transliteration (tr///) to @array will act on scalar(@array) at - line 7.
 Applying pattern match (m//) to @array will act on scalar(@array) at - line 8.
 Applying substitution (s///) to @array will act on scalar(@array) at - line 9.
@@ -603,6 +613,7 @@ Applying transliteration (tr///) to %hash will act on scalar(%hash) at - line 13
 Applying pattern match (m//) to %hash will act on scalar(%hash) at - line 14.
 Applying substitution (s///) to %hash will act on scalar(%hash) at - line 15.
 Applying transliteration (tr///) to %hash will act on scalar(%hash) at - line 16.
+Can't modify private array in substitution (s///) at - line 6, near "s/a/b/ ;"
 BEGIN not safe after errors--compilation aborted at - line 18.
 ########
 # op.c

@@ -37,10 +37,12 @@ print OUT '  my $dl_dlext = ', to_string($Config::Config{'dlext'}), ";\n" ;
 
 print OUT <<'EOT';
 
-# No prizes for guessing why we don't say 'bootstrap DynaLoader;' here.
 package DynaLoader;
+
+# No prizes for guessing why we don't say 'bootstrap DynaLoader;' here.
+# NOTE: All dl_*.xs (including dl_none.xs) define a dl_error() XSUB
 boot_DynaLoader('DynaLoader') if defined(&boot_DynaLoader) &&
-                                !defined(&dl_load_file);
+                                !defined(&dl_error);
 package XSLoader;
 
 1; # End of main code

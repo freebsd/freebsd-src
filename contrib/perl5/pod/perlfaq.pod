@@ -4,710 +4,1303 @@ perlfaq - frequently asked questions about Perl ($Date: 1999/05/23 20:38:02 $)
 
 =head1 DESCRIPTION
 
-This document is structured into the following sections:
+The perlfaq is structured into the following documents:
 
-=over
 
-=item perlfaq: Structural overview of the FAQ.
+=head2 perlfaq: Structural overview of the FAQ.
 
 This document.
 
-=item L<perlfaq1>: General Questions About Perl
+=head2 L<perlfaq1>: General Questions About Perl
 
 Very general, high-level information about Perl.
 
 =over 4
 
-=item * What is Perl?
+=item *
 
-=item * Who supports Perl?  Who develops it?  Why is it free?
+What is Perl?
 
-=item * Which version of Perl should I use?
+=item *
 
-=item * What are perl4 and perl5?
+Who supports Perl?  Who develops it?  Why is it free?
 
-=item * What is perl6?
+=item *
 
-=item * How stable is Perl?
+Which version of Perl should I use?
 
-=item * Is Perl difficult to learn?
+=item *
 
-=item * How does Perl compare with other languages like Java, Python, REXX, Scheme, or Tcl?
+What are perl4 and perl5?
 
-=item * Can I do [task] in Perl?
+=item *
 
-=item * When shouldn't I program in Perl?
+What is perl6?
 
-=item * What's the difference between "perl" and "Perl"?
+=item *
 
-=item * Is it a Perl program or a Perl script?
+How stable is Perl?
 
-=item * What is a JAPH?
+=item *
 
-=item * Where can I get a list of Larry Wall witticisms?
+Is Perl difficult to learn?
 
-=item * How can I convince my sysadmin/supervisor/employees to use version (5/5.005/Perl instead of some other language)?
+=item *
+
+How does Perl compare with other languages like Java, Python, REXX, Scheme, or Tcl?
+
+=item *
+
+Can I do [task] in Perl?
+
+=item *
+
+When shouldn't I program in Perl?
+
+=item *
+
+What's the difference between "perl" and "Perl"?
+
+=item *
+
+Is it a Perl program or a Perl script?
+
+=item *
+
+What is a JAPH?
+
+=item *
+
+Where can I get a list of Larry Wall witticisms?
+
+=item *
+
+How can I convince my sysadmin/supervisor/employees to use version 5/5.005/Perl instead of some other language?
 
 =back
 
 
-=item L<perlfaq2>: Obtaining and Learning about Perl
+=head2 L<perlfaq2>: Obtaining and Learning about Perl
 
 Where to find source and documentation to Perl, support,
 and related matters.
 
 =over 4
 
-=item * What machines support Perl?  Where do I get it?
+=item *
 
-=item * How can I get a binary version of Perl?
+What machines support Perl?  Where do I get it?
 
-=item * I don't have a C compiler on my system.  How can I compile perl?
+=item *
 
-=item * I copied the Perl binary from one machine to another, but scripts don't work.
+How can I get a binary version of Perl?
 
-=item * I grabbed the sources and tried to compile but gdbm/dynamic loading/malloc/linking/... failed.  How do I make it work?
+=item *
 
-=item * What modules and extensions are available for Perl?  What is CPAN?  What does CPAN/src/... mean?
+I don't have a C compiler on my system.  How can I compile perl?
 
-=item * Is there an ISO or ANSI certified version of Perl?
+=item *
 
-=item * Where can I get information on Perl?
+I copied the Perl binary from one machine to another, but scripts don't work.
 
-=item * What are the Perl newsgroups on USENET?  Where do I post questions?
+=item *
 
-=item * Where should I post source code?
+I grabbed the sources and tried to compile but gdbm/dynamic loading/malloc/linking/... failed.  How do I make it work?
 
-=item * Perl Books
+=item *
 
-=item * Perl in Magazines
+What modules and extensions are available for Perl?  What is CPAN?  What does CPAN/src/... mean?
 
-=item * Perl on the Net: FTP and WWW Access
+=item *
 
-=item * What mailing lists are there for perl?
+Is there an ISO or ANSI certified version of Perl?
 
-=item * Archives of comp.lang.perl.misc
+=item *
 
-=item * Where can I buy a commercial version of Perl?
+Where can I get information on Perl?
 
-=item * Where do I send bug reports?
+=item *
 
-=item * What is perl.com?  
+What are the Perl newsgroups on Usenet?  Where do I post questions?
+
+=item *
+
+Where should I post source code?
+
+=item *
+
+Perl Books
+
+=item *
+
+Perl in Magazines
+
+=item *
+
+Perl on the Net: FTP and WWW Access
+
+=item *
+
+What mailing lists are there for Perl?
+
+=item *
+
+Archives of comp.lang.perl.misc
+
+=item *
+
+Where can I buy a commercial version of Perl?
+
+=item *
+
+Where do I send bug reports?
+
+=item *
+
+What is perl.com? Perl Mongers? pm.org? perl.org?
 
 =back
 
 
-=item L<perlfaq3>: Programming Tools
+=head2 L<perlfaq3>: Programming Tools
 
 Programmer tools and programming support.
 
 =over 4
 
-=item * How do I do (anything)?
+=item *
 
-=item * How can I use Perl interactively?
+How do I do (anything)?
 
-=item * Is there a Perl shell?
+=item *
 
-=item * How do I debug my Perl programs?
+How can I use Perl interactively?
 
-=item * How do I profile my Perl programs?
+=item *
 
-=item * How do I cross-reference my Perl programs?
+Is there a Perl shell?
 
-=item * Is there a pretty-printer (formatter) for Perl?
+=item *
 
-=item * Is there a ctags for Perl?
+How do I debug my Perl programs?
 
-=item * Is there an IDE or Windows Perl Editor?
+=item *
 
-=item * Where can I get Perl macros for vi?
+How do I profile my Perl programs?
 
-=item * Where can I get perl-mode for emacs?
+=item *
 
-=item * How can I use curses with Perl?
+How do I cross-reference my Perl programs?
 
-=item * How can I use X or Tk with Perl?
+=item *
 
-=item * How can I generate simple menus without using CGI or Tk?
+Is there a pretty-printer (formatter) for Perl?
 
-=item * What is undump?
+=item *
 
-=item * How can I make my Perl program run faster?
+Is there a ctags for Perl?
 
-=item * How can I make my Perl program take less memory?
+=item *
 
-=item * Is it unsafe to return a pointer to local data?
+Is there an IDE or Windows Perl Editor?
 
-=item * How can I free an array or hash so my program shrinks?
+=item *
 
-=item * How can I make my CGI script more efficient?
+Where can I get Perl macros for vi?
 
-=item * How can I hide the source for my Perl program?
+=item *
 
-=item * How can I compile my Perl program into byte code or C?
+Where can I get perl-mode for emacs?
 
-=item * How can I compile Perl into Java?
+=item *
 
-=item * How can I get C<#!perl> to work on [MS-DOS,NT,...]?
+How can I use curses with Perl?
 
-=item * Can I write useful perl programs on the command line?
+=item *
 
-=item * Why don't perl one-liners work on my DOS/Mac/VMS system?
+How can I use X or Tk with Perl?
 
-=item * Where can I learn about CGI or Web programming in Perl?
+=item *
 
-=item * Where can I learn about object-oriented Perl programming?
+How can I generate simple menus without using CGI or Tk?
 
-=item * Where can I learn about linking C with Perl? [h2xs, xsubpp]
+=item *
 
-=item * I've read perlembed, perlguts, etc., but I can't embed perl in
-my C program, what am I doing wrong?
+What is undump?
 
-=item * When I tried to run my script, I got this message. What does it
+=item *
+
+How can I make my Perl program run faster?
+
+=item *
+
+How can I make my Perl program take less memory?
+
+=item *
+
+Is it unsafe to return a pointer to local data?
+
+=item *
+
+How can I free an array or hash so my program shrinks?
+
+=item *
+
+How can I make my CGI script more efficient?
+
+=item *
+
+How can I hide the source for my Perl program?
+
+=item *
+
+How can I compile my Perl program into byte code or C?
+
+=item *
+
+How can I compile Perl into Java?
+
+=item *
+
+How can I get C<#!perl> to work on [MS-DOS,NT,...]?
+
+=item *
+
+Can I write useful Perl programs on the command line?
+
+=item *
+
+Why don't Perl one-liners work on my DOS/Mac/VMS system?
+
+=item *
+
+Where can I learn about CGI or Web programming in Perl?
+
+=item *
+
+Where can I learn about object-oriented Perl programming?
+
+=item *
+
+Where can I learn about linking C with Perl? [h2xs, xsubpp]
+
+=item *
+
+I've read perlembed, perlguts, etc., but I can't embed perl in
+my C program; what am I doing wrong?
+
+=item *
+
+When I tried to run my script, I got this message. What does it
 mean?
 
-=item * What's MakeMaker?
+=item *
+
+What's MakeMaker?
 
 =back
 
 
-=item L<perlfaq4>: Data Manipulation
+=head2 L<perlfaq4>: Data Manipulation
 
 Manipulating numbers, dates, strings, arrays, hashes, and
 miscellaneous data issues.
 
 =over 4
 
-=item * Why am I getting long decimals (eg, 19.9499999999999) instead of the numbers I should be getting (eg, 19.95)?
+=item *
 
-=item * Why isn't my octal data interpreted correctly?
+Why am I getting long decimals (eg, 19.9499999999999) instead of the numbers I should be getting (eg, 19.95)?
 
-=item * Does Perl have a round() function?  What about ceil() and floor()?  Trig functions?
+=item *
 
-=item * How do I convert bits into ints?
+Why isn't my octal data interpreted correctly?
 
-=item * Why doesn't & work the way I want it to?
+=item *
 
-=item * How do I multiply matrices?
+Does Perl have a round() function?  What about ceil() and floor()?  Trig functions?
 
-=item * How do I perform an operation on a series of integers?
+=item *
 
-=item * How can I output Roman numerals?
+How do I convert bits into ints?
 
-=item * Why aren't my random numbers random?
+=item *
 
-=item * How do I find the week-of-the-year/day-of-the-year?
+Why doesn't & work the way I want it to?
 
-=item * How do I find the current century or millennium?
+=item *
 
-=item * How can I compare two dates and find the difference?
+How do I multiply matrices?
 
-=item * How can I take a string and turn it into epoch seconds?
+=item *
 
-=item * How can I find the Julian Day?
+How do I perform an operation on a series of integers?
 
-=item * How do I find yesterday's date?
+=item *
 
-=item * Does Perl have a year 2000 problem?  Is Perl Y2K compliant?
+How can I output Roman numerals?
 
-=item * How do I validate input?
+=item *
 
-=item * How do I unescape a string?
+Why aren't my random numbers random?
 
-=item * How do I remove consecutive pairs of characters?
+=item *
 
-=item * How do I expand function calls in a string?
+How do I find the week-of-the-year/day-of-the-year?
 
-=item * How do I find matching/nesting anything?
+=item *
 
-=item * How do I reverse a string?
+How do I find the current century or millennium?
 
-=item * How do I expand tabs in a string?
+=item *
 
-=item * How do I reformat a paragraph?
+How can I compare two dates and find the difference?
 
-=item * How can I access/change the first N letters of a string?
+=item *
 
-=item * How do I change the Nth occurrence of something?
+How can I take a string and turn it into epoch seconds?
 
-=item * How can I count the number of occurrences of a substring within a string?
+=item *
 
-=item * How do I capitalize all the words on one line?
+How can I find the Julian Day?
 
-=item * How can I split a [character] delimited string except when inside
+=item *
+
+How do I find yesterday's date?
+
+=item *
+
+Does Perl have a Year 2000 problem?  Is Perl Y2K compliant?
+
+=item *
+
+How do I validate input?
+
+=item *
+
+How do I unescape a string?
+
+=item *
+
+How do I remove consecutive pairs of characters?
+
+=item *
+
+How do I expand function calls in a string?
+
+=item *
+
+How do I find matching/nesting anything?
+
+=item *
+
+How do I reverse a string?
+
+=item *
+
+How do I expand tabs in a string?
+
+=item *
+
+How do I reformat a paragraph?
+
+=item *
+
+How can I access/change the first N letters of a string?
+
+=item *
+
+How do I change the Nth occurrence of something?
+
+=item *
+
+How can I count the number of occurrences of a substring within a string?
+
+=item *
+
+How do I capitalize all the words on one line?
+
+=item *
+
+How can I split a [character] delimited string except when inside
 [character]? (Comma-separated files)
 
-=item * How do I strip blank space from the beginning/end of a string?
+=item *
 
-=item * How do I pad a string with blanks or pad a number with zeroes?
+How do I strip blank space from the beginning/end of a string?
 
-=item * How do I extract selected columns from a string?
+=item *
 
-=item * How do I find the soundex value of a string?
+How do I pad a string with blanks or pad a number with zeroes?
 
-=item * How can I expand variables in text strings?
+=item *
 
-=item * What's wrong with always quoting "$vars"?
+How do I extract selected columns from a string?
 
-=item * Why don't my <<HERE documents work?
+=item *
 
-=item * What is the difference between a list and an array?
+How do I find the soundex value of a string?
 
-=item * What is the difference between $array[1] and @array[1]?
+=item *
 
-=item * How can I remove duplicate elements from a list or array?
+How can I expand variables in text strings?
 
-=item * How can I tell whether a list or array contains a certain element?
+=item *
 
-=item * How do I compute the difference of two arrays?  How do I compute the intersection of two arrays?
+What's wrong with always quoting "$vars"?
 
-=item * How do I test whether two arrays or hashes are equal?
+=item *
 
-=item * How do I find the first array element for which a condition is true?
+Why don't my <<HERE documents work?
 
-=item * How do I handle linked lists?
+=item *
 
-=item * How do I handle circular lists?
+What is the difference between a list and an array?
 
-=item * How do I shuffle an array randomly?
+=item *
 
-=item * How do I process/modify each element of an array?
+What is the difference between $array[1] and @array[1]?
 
-=item * How do I select a random element from an array?
+=item *
 
-=item * How do I permute N elements of a list?
+How can I remove duplicate elements from a list or array?
 
-=item * How do I sort an array by (anything)?
+=item *
 
-=item * How do I manipulate arrays of bits?
+How can I tell whether a list or array contains a certain element?
 
-=item * Why does defined() return true on empty arrays and hashes?
+=item *
 
-=item * How do I process an entire hash?
+How do I compute the difference of two arrays?  How do I compute the intersection of two arrays?
 
-=item * What happens if I add or remove keys from a hash while iterating over it?
+=item *
 
-=item * How do I look up a hash element by value?
+How do I test whether two arrays or hashes are equal?
 
-=item * How can I know how many entries are in a hash?
+=item *
 
-=item * How do I sort a hash (optionally by value instead of key)?
+How do I find the first array element for which a condition is true?
 
-=item * How can I always keep my hash sorted?
+=item *
 
-=item * What's the difference between "delete" and "undef" with hashes?
+How do I handle linked lists?
 
-=item * Why don't my tied hashes make the defined/exists distinction?
+=item *
 
-=item * How do I reset an each() operation part-way through?
+How do I handle circular lists?
 
-=item * How can I get the unique keys from two hashes?
+=item *
 
-=item * How can I store a multidimensional array in a DBM file?
+How do I shuffle an array randomly?
 
-=item * How can I make my hash remember the order I put elements into it?
+=item *
 
-=item * Why does passing a subroutine an undefined element in a hash create it?
+How do I process/modify each element of an array?
 
-=item * How can I make the Perl equivalent of a C structure/C++ class/hash or array of hashes or arrays?
+=item *
 
-=item * How can I use a reference as a hash key?
+How do I select a random element from an array?
 
-=item * How do I handle binary data correctly?
+=item *
 
-=item * How do I determine whether a scalar is a number/whole/integer/float?
+How do I permute N elements of a list?
 
-=item * How do I keep persistent data across program calls?
+=item *
 
-=item * How do I print out or copy a recursive data structure?
+How do I sort an array by (anything)?
 
-=item * How do I define methods for every class/object?
+=item *
 
-=item * How do I verify a credit card checksum?
+How do I manipulate arrays of bits?
 
-=item * How do I pack arrays of doubles or floats for XS code?
+=item *
+
+Why does defined() return true on empty arrays and hashes?
+
+=item *
+
+How do I process an entire hash?
+
+=item *
+
+What happens if I add or remove keys from a hash while iterating over it?
+
+=item *
+
+How do I look up a hash element by value?
+
+=item *
+
+How can I know how many entries are in a hash?
+
+=item *
+
+How do I sort a hash (optionally by value instead of key)?
+
+=item *
+
+How can I always keep my hash sorted?
+
+=item *
+
+What's the difference between "delete" and "undef" with hashes?
+
+=item *
+
+Why don't my tied hashes make the defined/exists distinction?
+
+=item *
+
+How do I reset an each() operation part-way through?
+
+=item *
+
+How can I get the unique keys from two hashes?
+
+=item *
+
+How can I store a multidimensional array in a DBM file?
+
+=item *
+
+How can I make my hash remember the order I put elements into it?
+
+=item *
+
+Why does passing a subroutine an undefined element in a hash create it?
+
+=item *
+
+How can I make the Perl equivalent of a C structure/C++ class/hash or array of hashes or arrays?
+
+=item *
+
+How can I use a reference as a hash key?
+
+=item *
+
+How do I handle binary data correctly?
+
+=item *
+
+How do I determine whether a scalar is a number/whole/integer/float?
+
+=item *
+
+How do I keep persistent data across program calls?
+
+=item *
+
+How do I print out or copy a recursive data structure?
+
+=item *
+
+How do I define methods for every class/object?
+
+=item *
+
+How do I verify a credit card checksum?
+
+=item *
+
+How do I pack arrays of doubles or floats for XS code?
 
 =back
 
 
-=item L<perlfaq5>: Files and Formats
+=head2 L<perlfaq5>: Files and Formats
 
 I/O and the "f" issues: filehandles, flushing, formats and footers.
 
 =over 4
 
-=item * How do I flush/unbuffer an output filehandle?  Why must I do this?
+=item *
 
-=item * How do I change one line in a file/delete a line in a file/insert a line in the middle of a file/append to the beginning of a file?
+How do I flush/unbuffer an output filehandle?  Why must I do this?
 
-=item * How do I count the number of lines in a file?
+=item *
 
-=item * How do I make a temporary file name?
+How do I change one line in a file/delete a line in a file/insert a line in the middle of a file/append to the beginning of a file?
 
-=item * How can I manipulate fixed-record-length files?
+=item *
 
-=item * How can I make a filehandle local to a subroutine?  How do I pass filehandles between subroutines?  How do I make an array of filehandles?
+How do I count the number of lines in a file?
 
-=item * How can I use a filehandle indirectly?
+=item *
 
-=item * How can I set up a footer format to be used with write()?
+How do I make a temporary file name?
 
-=item * How can I write() into a string?
+=item *
 
-=item * How can I output my numbers with commas added?
+How can I manipulate fixed-record-length files?
 
-=item * How can I translate tildes (~) in a filename?
+=item *
 
-=item * How come when I open a file read-write it wipes it out?
+How can I make a filehandle local to a subroutine?  How do I pass filehandles between subroutines?  How do I make an array of filehandles?
 
-=item * Why do I sometimes get an "Argument list too long" when I use <*>?
+=item *
 
-=item * Is there a leak/bug in glob()?
+How can I use a filehandle indirectly?
 
-=item * How can I open a file with a leading ">" or trailing blanks?
+=item *
 
-=item * How can I reliably rename a file?
+How can I set up a footer format to be used with write()?
 
-=item * How can I lock a file?
+=item *
 
-=item * Why can't I just open(FH, ">file.lock")?
+How can I write() into a string?
 
-=item * I still don't get locking.  I just want to increment the number in the file.  How can I do this?
+=item *
 
-=item * How do I randomly update a binary file?
+How can I output my numbers with commas added?
 
-=item * How do I get a file's timestamp in perl?
+=item *
 
-=item * How do I set a file's timestamp in perl?
+How can I translate tildes (~) in a filename?
 
-=item * How do I print to more than one file at once?
+=item *
 
-=item * How can I read in an entire file all at once?
+How come when I open a file read-write it wipes it out?
 
-=item * How can I read in a file by paragraphs?
+=item *
 
-=item * How can I read a single character from a file?  From the keyboard?
+Why do I sometimes get an "Argument list too long" when I use <*>?
 
-=item * How can I tell whether there's a character waiting on a filehandle?
+=item *
 
-=item * How do I do a C<tail -f> in perl?
+Is there a leak/bug in glob()?
 
-=item * How do I dup() a filehandle in Perl?
+=item *
 
-=item * How do I close a file descriptor by number?
+How can I open a file with a leading ">" or trailing blanks?
 
-=item * Why can't I use "C:\temp\foo" in DOS paths?  What doesn't `C:\temp\foo.exe` work?
+=item *
 
-=item * Why doesn't glob("*.*") get all the files?
+How can I reliably rename a file?
 
-=item * Why does Perl let me delete read-only files?  Why does C<-i> clobber protected files?  Isn't this a bug in Perl?
+=item *
 
-=item * How do I select a random line from a file?
+How can I lock a file?
 
-=item * Why do I get weird spaces when I print an array of lines?
+=item *
+
+Why can't I just open(FH, ">file.lock")?
+
+=item *
+
+I still don't get locking.  I just want to increment the number in the file.  How can I do this?
+
+=item *
+
+How do I randomly update a binary file?
+
+=item *
+
+How do I get a file's timestamp in perl?
+
+=item *
+
+How do I set a file's timestamp in perl?
+
+=item *
+
+How do I print to more than one file at once?
+
+=item *
+
+How can I read in an entire file all at once?
+
+=item *
+
+How can I read in a file by paragraphs?
+
+=item *
+
+How can I read a single character from a file?  From the keyboard?
+
+=item *
+
+How can I tell whether there's a character waiting on a filehandle?
+
+=item *
+
+How do I do a C<tail -f> in perl?
+
+=item *
+
+How do I dup() a filehandle in Perl?
+
+=item *
+
+How do I close a file descriptor by number?
+
+=item *
+
+Why can't I use "C:\temp\foo" in DOS paths?  What doesn't `C:\temp\foo.exe` work?
+
+=item *
+
+Why doesn't glob("*.*") get all the files?
+
+=item *
+
+Why does Perl let me delete read-only files?  Why does C<-i> clobber protected files?  Isn't this a bug in Perl?
+
+=item *
+
+How do I select a random line from a file?
+
+=item *
+
+Why do I get weird spaces when I print an array of lines?
 
 =back
 
 
-=item L<perlfaq6>: Regexps
+=head2 L<perlfaq6>: Regexps
 
 Pattern matching and regular expressions.
 
 =over 4
 
-=item * How can I hope to use regular expressions without creating illegible and unmaintainable code?
+=item *
 
-=item * I'm having trouble matching over more than one line.  What's wrong?
+How can I hope to use regular expressions without creating illegible and unmaintainable code?
 
-=item * How can I pull out lines between two patterns that are themselves on different lines?
+=item *
 
-=item * I put a regular expression into $/ but it didn't work. What's wrong?
+I'm having trouble matching over more than one line.  What's wrong?
 
-=item * How do I substitute case insensitively on the LHS, but preserving case on the RHS?
+=item *
 
-=item * How can I make C<\w> match national character sets?
+How can I pull out lines between two patterns that are themselves on different lines?
 
-=item * How can I match a locale-smart version of C</[a-zA-Z]/>?
+=item *
 
-=item * How can I quote a variable to use in a regex?
+I put a regular expression into $/ but it didn't work. What's wrong?
 
-=item * What is C</o> really for?
+=item *
 
-=item * How do I use a regular expression to strip C style comments from a file?
+How do I substitute case insensitively on the LHS while preserving case on the RHS?
 
-=item * Can I use Perl regular expressions to match balanced text?
+=item *
 
-=item * What does it mean that regexes are greedy?  How can I get around it?
+How can I make C<\w> match national character sets?
 
-=item * How do I process each word on each line?
+=item *
 
-=item * How can I print out a word-frequency or line-frequency summary?
+How can I match a locale-smart version of C</[a-zA-Z]/>?
 
-=item * How can I do approximate matching?
+=item *
 
-=item * How do I efficiently match many regular expressions at once?
+How can I quote a variable to use in a regex?
 
-=item * Why don't word-boundary searches with C<\b> work for me?
+=item *
 
-=item * Why does using $&, $`, or $' slow my program down?
+What is C</o> really for?
 
-=item * What good is C<\G> in a regular expression?
+=item *
 
-=item * Are Perl regexes DFAs or NFAs?  Are they POSIX compliant?
+How do I use a regular expression to strip C style comments from a file?
 
-=item * What's wrong with using grep or map in a void context?
+=item *
 
-=item * How can I match strings with multibyte characters?
+Can I use Perl regular expressions to match balanced text?
 
-=item * How do I match a pattern that is supplied by the user?
+=item *
+
+What does it mean that regexes are greedy?  How can I get around it?
+
+=item *
+
+How do I process each word on each line?
+
+=item *
+
+How can I print out a word-frequency or line-frequency summary?
+
+=item *
+
+How can I do approximate matching?
+
+=item *
+
+How do I efficiently match many regular expressions at once?
+
+=item *
+
+Why don't word-boundary searches with C<\b> work for me?
+
+=item *
+
+Why does using $&, $`, or $' slow my program down?
+
+=item *
+
+What good is C<\G> in a regular expression?
+
+=item *
+
+Are Perl regexes DFAs or NFAs?  Are they POSIX compliant?
+
+=item *
+
+What's wrong with using grep or map in a void context?
+
+=item *
+
+How can I match strings with multibyte characters?
+
+=item *
+
+How do I match a pattern that is supplied by the user?
 
 =back
 
 
-=item L<perlfaq7>: General Perl Language Issues
+=head2 L<perlfaq7>: General Perl Language Issues
 
 General Perl language issues that don't clearly fit into any of the
 other sections.
 
 =over 4
 
-=item * Can I get a BNF/yacc/RE for the Perl language?
+=item *
 
-=item * What are all these $@%&* punctuation signs, and how do I know when to use them?
+Can I get a BNF/yacc/RE for the Perl language?
 
-=item * Do I always/never have to quote my strings or use semicolons and commas?
+=item *
 
-=item * How do I skip some return values?
+What are all these $@%&* punctuation signs, and how do I know when to use them?
 
-=item * How do I temporarily block warnings?
+=item *
 
-=item * What's an extension?
+Do I always/never have to quote my strings or use semicolons and commas?
 
-=item * Why do Perl operators have different precedence than C operators?
+=item *
 
-=item * How do I declare/create a structure?
+How do I skip some return values?
 
-=item * How do I create a module?
+=item *
 
-=item * How do I create a class?
+How do I temporarily block warnings?
 
-=item * How can I tell if a variable is tainted?
+=item *
 
-=item * What's a closure?
+What's an extension?
 
-=item * What is variable suicide and how can I prevent it?
+=item *
 
-=item * How can I pass/return a {Function, FileHandle, Array, Hash, Method, Regex}?
+Why do Perl operators have different precedence than C operators?
 
-=item * How do I create a static variable?
+=item *
 
-=item * What's the difference between dynamic and lexical (static) scoping?  Between local() and my()?
+How do I declare/create a structure?
 
-=item * How can I access a dynamic variable while a similarly named lexical is in scope?
+=item *
 
-=item * What's the difference between deep and shallow binding?
+How do I create a module?
 
-=item * Why doesn't "my($foo) = <FILE>;" work right?
+=item *
 
-=item * How do I redefine a builtin function, operator, or method?
+How do I create a class?
 
-=item * What's the difference between calling a function as &foo and foo()?
+=item *
 
-=item * How do I create a switch or case statement?
+How can I tell if a variable is tainted?
 
-=item * How can I catch accesses to undefined variables/functions/methods?
+=item *
 
-=item * Why can't a method included in this same file be found?
+What's a closure?
 
-=item * How can I find out my current package?
+=item *
 
-=item * How can I comment out a large block of perl code?
+What is variable suicide and how can I prevent it?
 
-=item * How do I clear a package?
+=item *
 
-=item * How can I use a variable as a variable name?
+How can I pass/return a {Function, FileHandle, Array, Hash, Method, Regex}?
+
+=item *
+
+How do I create a static variable?
+
+=item *
+
+What's the difference between dynamic and lexical (static) scoping?  Between local() and my()?
+
+=item *
+
+How can I access a dynamic variable while a similarly named lexical is in scope?
+
+=item *
+
+What's the difference between deep and shallow binding?
+
+=item *
+
+Why doesn't "my($foo) = <FILE>;" work right?
+
+=item *
+
+How do I redefine a builtin function, operator, or method?
+
+=item *
+
+What's the difference between calling a function as &foo and foo()?
+
+=item *
+
+How do I create a switch or case statement?
+
+=item *
+
+How can I catch accesses to undefined variables/functions/methods?
+
+=item *
+
+Why can't a method included in this same file be found?
+
+=item *
+
+How can I find out my current package?
+
+=item *
+
+How can I comment out a large block of perl code?
+
+=item *
+
+How do I clear a package?
+
+=item *
+
+How can I use a variable as a variable name?
 
 =back
 
 
-=item L<perlfaq8>: System Interaction
+=head2 L<perlfaq8>: System Interaction
 
 Interprocess communication (IPC), control over the user-interface
 (keyboard, screen and pointing devices).
 
 =over 4
 
-=item * How do I find out which operating system I'm running under?
+=item *
 
-=item * How come exec() doesn't return?
+How do I find out which operating system I'm running under?
 
-=item * How do I do fancy stuff with the keyboard/screen/mouse?
+=item *
 
-=item * How do I print something out in color?
+How come exec() doesn't return?
 
-=item * How do I read just one key without waiting for a return key?
+=item *
 
-=item * How do I check whether input is ready on the keyboard?
+How do I do fancy stuff with the keyboard/screen/mouse?
 
-=item * How do I clear the screen?
+=item *
 
-=item * How do I get the screen size?
+How do I print something out in color?
 
-=item * How do I ask the user for a password?
+=item *
 
-=item * How do I read and write the serial port?
+How do I read just one key without waiting for a return key?
 
-=item * How do I decode encrypted password files?
+=item *
 
-=item * How do I start a process in the background?
+How do I check whether input is ready on the keyboard?
 
-=item * How do I trap control characters/signals?
+=item *
 
-=item * How do I modify the shadow password file on a Unix system?
+How do I clear the screen?
 
-=item * How do I set the time and date?
+=item *
 
-=item * How can I sleep() or alarm() for under a second?
+How do I get the screen size?
 
-=item * How can I measure time under a second?
+=item *
 
-=item * How can I do an atexit() or setjmp()/longjmp()? (Exception handling)
+How do I ask the user for a password?
 
-=item * Why doesn't my sockets program work under System V (Solaris)? What does the error message "Protocol not supported" mean?
+=item *
 
-=item * How can I call my system's unique C functions from Perl?
+How do I read and write the serial port?
 
-=item * Where do I get the include files to do ioctl() or syscall()?
+=item *
 
-=item * Why do setuid perl scripts complain about kernel problems?
+How do I decode encrypted password files?
 
-=item * How can I open a pipe both to and from a command?
+=item *
 
-=item * Why can't I get the output of a command with system()?
+How do I start a process in the background?
 
-=item * How can I capture STDERR from an external command?
+=item *
 
-=item * Why doesn't open() return an error when a pipe open fails?
+How do I trap control characters/signals?
 
-=item * What's wrong with using backticks in a void context?
+=item *
 
-=item * How can I call backticks without shell processing?
+How do I modify the shadow password file on a Unix system?
 
-=item * Why can't my script read from STDIN after I gave it EOF (^D on Unix, ^Z on MS-DOS)?
+=item *
 
-=item * How can I convert my shell script to perl?
+How do I set the time and date?
 
-=item * Can I use perl to run a telnet or ftp session?
+=item *
 
-=item * How can I write expect in Perl?
+How can I sleep() or alarm() for under a second?
 
-=item * Is there a way to hide perl's command line from programs such as "ps"?
+=item *
 
-=item * I {changed directory, modified my environment} in a perl script.  How come the change disappeared when I exited the script?  How do I get my changes to be visible?
+How can I measure time under a second?
 
-=item * How do I close a process's filehandle without waiting for it to complete?
+=item *
 
-=item * How do I fork a daemon process?
+How can I do an atexit() or setjmp()/longjmp()? (Exception handling)
 
-=item * How do I make my program run with sh and csh?
+=item *
 
-=item * How do I find out if I'm running interactively or not?
+Why doesn't my sockets program work under System V (Solaris)?  What does the error message "Protocol not supported" mean?
 
-=item * How do I timeout a slow event?
+=item *
 
-=item * How do I set CPU limits?
+How can I call my system's unique C functions from Perl?
 
-=item * How do I avoid zombies on a Unix system?
+=item *
 
-=item * How do I use an SQL database?
+Where do I get the include files to do ioctl() or syscall()?
 
-=item * How do I make a system() exit on control-C?
+=item *
 
-=item * How do I open a file without blocking?
+Why do setuid perl scripts complain about kernel problems?
 
-=item * How do I install a module from CPAN?
+=item *
 
-=item * What's the difference between require and use?
+How can I open a pipe both to and from a command?
 
-=item * How do I keep my own module/library directory?
+=item *
 
-=item * How do I add the directory my program lives in to the module/library search path?
+Why can't I get the output of a command with system()?
 
-=item * How do I add a directory to my include path at runtime?
+=item *
 
-=item * What is socket.ph and where do I get it?
+How can I capture STDERR from an external command?
+
+=item *
+
+Why doesn't open() return an error when a pipe open fails?
+
+=item *
+
+What's wrong with using backticks in a void context?
+
+=item *
+
+How can I call backticks without shell processing?
+
+=item *
+
+Why can't my script read from STDIN after I gave it EOF (^D on Unix, ^Z on MS-DOS)?
+
+=item *
+
+How can I convert my shell script to perl?
+
+=item *
+
+Can I use perl to run a telnet or ftp session?
+
+=item *
+
+How can I write expect in Perl?
+
+=item *
+
+Is there a way to hide perl's command line from programs such as "ps"?
+
+=item *
+
+I {changed directory, modified my environment} in a perl script.  How come the change disappeared when I exited the script?  How do I get my changes to be visible?
+
+=item *
+
+How do I close a process's filehandle without waiting for it to complete?
+
+=item *
+
+How do I fork a daemon process?
+
+=item *
+
+How do I find out if I'm running interactively or not?
+
+=item *
+
+How do I timeout a slow event?
+
+=item *
+
+How do I set CPU limits?
+
+=item *
+
+How do I avoid zombies on a Unix system?
+
+=item *
+
+How do I use an SQL database?
+
+=item *
+
+How do I make a system() exit on control-C?
+
+=item *
+
+How do I open a file without blocking?
+
+=item *
+
+How do I install a module from CPAN?
+
+=item *
+
+What's the difference between require and use?
+
+=item *
+
+How do I keep my own module/library directory?
+
+=item *
+
+How do I add the directory my program lives in to the module/library search path?
+
+=item *
+
+How do I add a directory to my include path at runtime?
+
+=item *
+
+What is socket.ph and where do I get it?
 
 =back
 
 
-=item L<perlfaq9>: Networking
+=head2 L<perlfaq9>: Networking
 
 Networking, the Internet, and a few on the web.
 
 =over 4
 
-=item * My CGI script runs from the command line but not the browser.   (500 Server Error)
+=item *
 
-=item * How can I get better error messages from a CGI program?
+My CGI script runs from the command line but not the browser.  (500 Server Error)
 
-=item * How do I remove HTML from a string?
+=item *
 
-=item * How do I extract URLs?
+How can I get better error messages from a CGI program?
 
-=item * How do I download a file from the user's machine?  How do I open a file on another machine?
+=item *
 
-=item * How do I make a pop-up menu in HTML?
+How do I remove HTML from a string?
 
-=item * How do I fetch an HTML file?
+=item *
 
-=item * How do I automate an HTML form submission?
+How do I extract URLs?
 
-=item * How do I decode or create those %-encodings on the web?
+=item *
 
-=item * How do I redirect to another page?
+How do I download a file from the user's machine?  How do I open a file on another machine?
 
-=item * How do I put a password on my web pages?
+=item *
 
-=item * How do I edit my .htpasswd and .htgroup files with Perl?
+How do I make a pop-up menu in HTML?
 
-=item * How do I make sure users can't enter values into a form that cause my CGI script to do bad things?
+=item *
 
-=item * How do I parse a mail header?
+How do I fetch an HTML file?
 
-=item * How do I decode a CGI form?
+=item *
 
-=item * How do I check a valid mail address?
+How do I automate an HTML form submission?
 
-=item * How do I decode a MIME/BASE64 string?
+=item *
 
-=item * How do I return the user's mail address?
+How do I decode or create those %-encodings on the web?
 
-=item * How do I send mail?
+=item *
 
-=item * How do I read mail?
+How do I redirect to another page?
 
-=item * How do I find out my hostname/domainname/IP address?
+=item *
 
-=item * How do I fetch a news article or the active newsgroups?
+How do I put a password on my web pages?
 
-=item * How do I fetch/put an FTP file?
+=item *
 
-=item * How can I do RPC in Perl?
+How do I edit my .htpasswd and .htgroup files with Perl?
+
+=item *
+
+How do I make sure users can't enter values into a form that cause my CGI script to do bad things?
+
+=item *
+
+How do I parse a mail header?
+
+=item *
+
+How do I decode a CGI form?
+
+=item *
+
+How do I check a valid mail address?
+
+=item *
+
+How do I decode a MIME/BASE64 string?
+
+=item *
+
+How do I return the user's mail address?
+
+=item *
+
+How do I send mail?
+
+=item *
+
+How do I read mail?
+
+=item *
+
+How do I find out my hostname/domainname/IP address?
+
+=item *
+
+How do I fetch a news article or the active newsgroups?
+
+=item *
+
+How do I fetch/put an FTP file?
+
+=item *
+
+How can I do RPC in Perl?
 
 =back
 
 
-=back
+=head1 About the perlfaq documents
 
-=head2 Where to get this document
+=head2 Where to get the perlfaq
 
 This document is posted regularly to comp.lang.perl.announce and
 several other related newsgroups.  It is available in a variety of
-formats from CPAN in the /CPAN/doc/FAQs/FAQ/ directory, or on the web
+formats from CPAN in the /CPAN/doc/FAQs/FAQ/ directory or on the web
 at http://www.perl.com/perl/faq/ .
 
-=head2 How to contribute to this document
+=head2 How to contribute to the perlfaq
 
 You may mail corrections, additions, and suggestions to
 perlfaq-suggestions@perl.com .  This alias should not be 
@@ -740,11 +1333,11 @@ All rights reserved.
 
 =head2 Bundled Distributions
 
-When included as part of the Standard Version of Perl, or as part of
+When included as part of the Standard Version of Perl or as part of
 its complete documentation whether printed or otherwise, this work
 may be distributed only under the terms of Perl's Artistic License.
 Any distribution of this file or derivatives thereof I<outside>
-of that package require that special arrangements be made with
+of that package requires that special arrangements be made with
 copyright holder.
 
 Irrespective of its distribution, all code examples in these files
@@ -763,6 +1356,10 @@ in respect of this information or its use.
 =head1 Changes
 
 =over 4
+
+=item 1/November/2000
+
+A few grammatical fixes and updates implemented by John Borwick.
 
 =item 23/May/99
 

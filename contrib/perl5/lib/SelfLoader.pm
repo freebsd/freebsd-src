@@ -3,7 +3,7 @@ package SelfLoader;
 require Exporter;
 @ISA = qw(Exporter);
 @EXPORT = qw(AUTOLOAD);
-$VERSION = "1.0901";
+$VERSION = "1.0902";
 sub Version {$VERSION}
 $DEBUG = 0;
 
@@ -20,6 +20,7 @@ sub croak { require Carp; goto &Carp::croak }
 AUTOLOAD {
     print STDERR "SelfLoader::AUTOLOAD for $AUTOLOAD\n" if $DEBUG;
     my $SL_code = $Cache{$AUTOLOAD};
+    my $save = $@; # evals in both AUTOLOAD and _load_stubs can corrupt $@
     unless ($SL_code) {
         # Maybe this pack had stubs before __DATA__, and never initialized.
         # Or, this maybe an automatic DESTROY method call when none exists.
@@ -31,11 +32,13 @@ AUTOLOAD {
         croak "Undefined subroutine $AUTOLOAD" unless $SL_code;
     }
     print STDERR "SelfLoader::AUTOLOAD eval: $SL_code\n" if $DEBUG;
+
     eval $SL_code;
     if ($@) {
         $@ =~ s/ at .*\n//;
         croak $@;
     }
+    $@ = $save;
     defined(&$AUTOLOAD) || die "SelfLoader inconsistency error";
     delete $Cache{$AUTOLOAD};
     goto &$AUTOLOAD

@@ -11,10 +11,15 @@ require AutoLoader;
 
 @ISA = qw(Exporter AutoLoader);
 
+# NOTE: The glob() export is only here for compatibility with 5.6.0.
+# csh_glob() should not be used directly, unless you know what you're doing.
+
 @EXPORT_OK   = qw(
     csh_glob
+    bsd_glob
     glob
     GLOB_ABEND
+    GLOB_ALPHASORT
     GLOB_ALTDIRFUNC
     GLOB_BRACE
     GLOB_CSH
@@ -33,6 +38,7 @@ require AutoLoader;
 %EXPORT_TAGS = (
     'glob' => [ qw(
         GLOB_ABEND
+	GLOB_ALPHASORT
         GLOB_ALTDIRFUNC
         GLOB_BRACE
         GLOB_CSH
@@ -47,6 +53,7 @@ require AutoLoader;
         GLOB_QUOTE
         GLOB_TILDE
         glob
+        bsd_glob
     ) ],
 );
 
@@ -99,7 +106,13 @@ sub GLOB_ERROR {
     return constant('GLOB_ERROR', 0);
 }
 
-sub GLOB_CSH () { GLOB_BRACE() | GLOB_NOMAGIC() | GLOB_QUOTE() | GLOB_TILDE() }
+sub GLOB_CSH () {
+    GLOB_BRACE()
+	| GLOB_NOMAGIC()
+	| GLOB_QUOTE()
+	| GLOB_TILDE()
+	| GLOB_ALPHASORT()
+}
 
 $DEFAULT_FLAGS = GLOB_CSH();
 if ($^O =~ /^(?:MSWin32|VMS|os2|dos|riscos|MacOS)$/) {
@@ -108,10 +121,16 @@ if ($^O =~ /^(?:MSWin32|VMS|os2|dos|riscos|MacOS)$/) {
 
 # Autoload methods go after =cut, and are processed by the autosplit program.
 
-sub glob {
+sub bsd_glob {
     my ($pat,$flags) = @_;
     $flags = $DEFAULT_FLAGS if @_ < 2;
     return doglob($pat,$flags);
+}
+
+# File::Glob::glob() is deprecated because its prototype is different from
+# CORE::glob() (use bsd_glob() instead)
+sub glob {
+    goto &bsd_glob;
 }
 
 ## borrowed heavily from gsar's File::DosGlob
@@ -127,6 +146,9 @@ sub csh_glob {
     $pat = $_ unless defined $pat;
 
     # extract patterns
+    $pat =~ s/^\s+//;	# Protect against empty elements in
+    $pat =~ s/\s+$//;	# things like < *.c> and <*.c >.
+			# These alone shouldn't trigger ParseWords.
     if ($pat =~ /\s/) {
         # XXX this is needed for compatibility with the csh
 	# implementation in Perl.  Need to support a flag
@@ -177,13 +199,13 @@ File::Glob - Perl extension for BSD glob routine
 =head1 SYNOPSIS
 
   use File::Glob ':glob';
-  @list = glob('*.[ch]');
-  $homedir = glob('~gnat', GLOB_TILDE | GLOB_ERR);
+  @list = bsd_glob('*.[ch]');
+  $homedir = bsd_glob('~gnat', GLOB_TILDE | GLOB_ERR);
   if (GLOB_ERROR) {
     # an error occurred reading $homedir
   }
 
-  ## override the core glob (core glob() does this automatically
+  ## override the core glob (CORE::glob() does this automatically
   ## by default anyway, since v5.6.0)
   use File::Glob ':globally';
   my @sources = <*.{c,h,y}>
@@ -198,19 +220,27 @@ File::Glob - Perl extension for BSD glob routine
 
 =head1 DESCRIPTION
 
-File::Glob implements the FreeBSD glob(3) routine, which is a superset
-of the POSIX glob() (described in IEEE Std 1003.2 "POSIX.2").  The
-glob() routine takes a mandatory C<pattern> argument, and an optional
+File::Glob::bsd_glob() implements the FreeBSD glob(3) routine, which is
+a superset of the POSIX glob() (described in IEEE Std 1003.2 "POSIX.2").
+bsd_glob() takes a mandatory C<pattern> argument, and an optional
 C<flags> argument, and returns a list of filenames matching the
 pattern, with interpretation of the pattern modified by the C<flags>
-variable.  The POSIX defined flags are:
+variable.
+
+Since v5.6.0, Perl's CORE::glob() is implemented in terms of bsd_glob().
+Note that they don't share the same prototype--CORE::glob() only accepts
+a single argument.  Due to historical reasons, CORE::glob() will also
+split its argument on whitespace, treating it as multiple patterns,
+whereas bsd_glob() considers them as one pattern.
+
+The POSIX defined flags for bsd_glob() are:
 
 =over 4
 
 =item C<GLOB_ERR>
 
-Force glob() to return an error when it encounters a directory it
-cannot open or read.  Ordinarily glob() continues to find matches.
+Force bsd_glob() to return an error when it encounters a directory it
+cannot open or read.  Ordinarily bsd_glob() continues to find matches.
 
 =item C<GLOB_MARK>
 
@@ -220,18 +250,18 @@ appended.
 =item C<GLOB_NOCASE>
 
 By default, file names are assumed to be case sensitive; this flag
-makes glob() treat case differences as not significant.
+makes bsd_glob() treat case differences as not significant.
 
 =item C<GLOB_NOCHECK>
 
-If the pattern does not match any pathname, then glob() returns a list
+If the pattern does not match any pathname, then bsd_glob() returns a list
 consisting of only the pattern.  If C<GLOB_QUOTE> is set, its effect
 is present in the pattern returned.
 
 =item C<GLOB_NOSORT>
 
 By default, the pathnames are sorted in ascending ASCII order; this
-flag prevents that sorting (speeding up glob()).
+flag prevents that sorting (speeding up bsd_glob()).
 
 =back
 
@@ -266,7 +296,7 @@ Expand patterns that start with '~' to user name home directories.
 =item C<GLOB_CSH>
 
 For convenience, C<GLOB_CSH> is a synonym for
-C<GLOB_BRACE | GLOB_NOMAGIC | GLOB_QUOTE | GLOB_TILDE>.
+C<GLOB_BRACE | GLOB_NOMAGIC | GLOB_QUOTE | GLOB_TILDE | GLOB_ALPHASORT>.
 
 =back
 
@@ -275,9 +305,21 @@ extensions C<GLOB_ALTDIRFUNC>, and C<GLOB_MAGCHAR> flags have not been
 implemented in the Perl version because they involve more complex
 interaction with the underlying C structures.
 
+The following flag has been added in the Perl implementation for
+compatibility with common flavors of csh:
+
+=over 4
+
+=item C<GLOB_ALPHASORT>
+
+If C<GLOB_NOSORT> is not in effect, sort filenames is alphabetical
+order (case does not matter) rather than in ASCII order.
+
+=back
+
 =head1 DIAGNOSTICS
 
-glob() returns a list of matching paths, possibly zero length.  If an
+bsd_glob() returns a list of matching paths, possibly zero length.  If an
 error occurred, &File::Glob::GLOB_ERROR will be non-zero and C<$!> will be
 set.  &File::Glob::GLOB_ERROR is guaranteed to be zero if no error occurred,
 or one of the following values otherwise:
@@ -294,12 +336,12 @@ The glob was stopped because an error was encountered.
 
 =back
 
-In the case where glob() has found some matching paths, but is
-interrupted by an error, glob() will return a list of filenames B<and>
+In the case where bsd_glob() has found some matching paths, but is
+interrupted by an error, it will return a list of filenames B<and>
 set &File::Glob::ERROR.
 
-Note that glob() deviates from POSIX and FreeBSD glob(3) behaviour by
-not considering C<ENOENT> and C<ENOTDIR> as errors - glob() will
+Note that bsd_glob() deviates from POSIX and FreeBSD glob(3) behaviour
+by not considering C<ENOENT> and C<ENOTDIR> as errors - bsd_glob() will
 continue processing despite those errors, unless the C<GLOB_ERR> flag is
 set.
 
@@ -311,10 +353,10 @@ Be aware that all filenames returned from File::Glob are tainted.
 
 =item *
 
-If you want to use multiple patterns, e.g. C<glob "a* b*">, you should
-probably throw them in a set as in C<glob "{a*,b*}>.  This is because
-the argument to glob isn't subjected to parsing by the C shell.  Remember
-that you can use a backslash to escape things.
+If you want to use multiple patterns, e.g. C<bsd_glob "a* b*">, you should
+probably throw them in a set as in C<bsd_glob "{a*,b*}">.  This is because
+the argument to bsd_glob() isn't subjected to parsing by the C shell.
+Remember that you can use a backslash to escape things.
 
 =item *
 
@@ -334,14 +376,32 @@ Win32 users should use the real slash.  If you really want to use
 backslashes, consider using Sarathy's File::DosGlob, which comes with
 the standard Perl distribution.
 
+=item *
+
+Mac OS (Classic) users should note a few differences. Since
+Mac OS is not Unix, when the glob code encounters a tilde glob (e.g.
+~user/foo) and the C<GLOB_TILDE> flag is used, it simply returns that
+pattern without doing any expansion.
+
+Glob on Mac OS is case-insensitive by default (if you don't use any
+flags). If you specify any flags at all and still want glob
+to be case-insensitive, you must include C<GLOB_NOCASE> in the flags.
+
+The path separator is ':' (aka colon), not '/' (aka slash). Mac OS users
+should be careful about specifying relative pathnames. While a full path
+always begins with a volume name, a relative pathname should always
+begin with a ':'.  If specifying a volume name only, a trailing ':' is
+required.
+
 =back
 
 =head1 AUTHOR
 
 The Perl interface was written by Nathan Torkington E<lt>gnat@frii.comE<gt>,
 and is released under the artistic license.  Further modifications were
-made by Greg Bacon E<lt>gbacon@cs.uah.eduE<gt> and Gurusamy Sarathy
-E<lt>gsar@activestate.comE<gt>.  The C glob code has the
+made by Greg Bacon E<lt>gbacon@cs.uah.eduE<gt>, Gurusamy Sarathy
+E<lt>gsar@activestate.comE<gt>, and Thomas Wegner
+E<lt>wegner_thomas@yahoo.comE<gt>.  The C glob code has the
 following copyright:
 
     Copyright (c) 1989, 1993 The Regents of the University of California.

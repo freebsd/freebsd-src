@@ -3,8 +3,8 @@
  DB_File.xs -- Perl 5 interface to Berkeley DB 
 
  written by Paul Marquess <Paul.Marquess@btinternet.com>
- last modified 16th January 2000
- version 1.72
+ last modified 17 December 2000
+ version 1.75
 
  All comments/suggestions/problems are welcome
 
@@ -82,6 +82,14 @@
 		Support for Berkeley DB 2/3's backward compatability mode.
 		Rewrote push
         1.72 -  No change to DB_File.xs
+        1.73 -  No change to DB_File.xs
+        1.74 -  A call to open needed parenthesised to stop it clashing
+                with a win32 macro.
+		Added Perl core patches 7703 & 7801.
+        1.75 -  Fixed Perl core patch 7703.
+		Added suppport to allow DB_File to be built with 
+		Berkeley DB 3.2 -- btree_compare, btree_prefix and hash_cb
+		needed to be changed.
 
 */
 
@@ -127,6 +135,10 @@
 #    include <db.h>
 #endif
 
+#ifdef CAN_PROTOTYPE
+extern void __getBerkeleyDBInfo(void);
+#endif
+
 #ifndef pTHX
 #    define pTHX
 #    define pTHX_
@@ -156,6 +168,10 @@
 
 #if DB_VERSION_MAJOR == 2
 #    define BERKELEY_DB_1_OR_2
+#endif
+
+#if DB_VERSION_MAJOR > 3 || (DB_VERSION_MAJOR == 3 && DB_VERSION_MINOR >= 2)
+#    define AT_LEAST_DB_3_2
 #endif
 
 /* map version 2 features & constants onto their version 1 equivalent */
@@ -243,6 +259,7 @@ typedef db_recno_t	recno_t;
 
 #else /* db version 1.x */
 
+#define BERKELEY_DB_1
 #define BERKELEY_DB_1_OR_2
 
 typedef union INFO {
@@ -472,6 +489,19 @@ u_int		flags ;
 
 
 static int
+#ifdef AT_LEAST_DB_3_2
+
+#ifdef CAN_PROTOTYPE
+btree_compare(DB * db, const DBT *key1, const DBT *key2)
+#else
+btree_compare(db, key1, key2)
+DB * db ;
+const DBT * key1 ;
+const DBT * key2 ;
+#endif /* CAN_PROTOTYPE */
+
+#else /* Berkeley DB < 3.2 */
+
 #ifdef CAN_PROTOTYPE
 btree_compare(const DBT *key1, const DBT *key2)
 #else
@@ -479,6 +509,9 @@ btree_compare(key1, key2)
 const DBT * key1 ;
 const DBT * key2 ;
 #endif
+
+#endif
+
 {
 #ifdef dTHX
     dTHX;
@@ -528,12 +561,27 @@ const DBT * key2 ;
 }
 
 static DB_Prefix_t
+#ifdef AT_LEAST_DB_3_2
+
+#ifdef CAN_PROTOTYPE
+btree_prefix(DB * db, const DBT *key1, const DBT *key2)
+#else
+btree_prefix(db, key1, key2)
+Db * db ;
+const DBT * key1 ;
+const DBT * key2 ;
+#endif
+
+#else /* Berkeley DB < 3.2 */
+
 #ifdef CAN_PROTOTYPE
 btree_prefix(const DBT *key1, const DBT *key2)
 #else
 btree_prefix(key1, key2)
 const DBT * key1 ;
 const DBT * key2 ;
+#endif
+
 #endif
 {
 #ifdef dTHX
@@ -583,13 +631,35 @@ const DBT * key2 ;
     return (retval) ;
 }
 
+
+#ifdef BERKELEY_DB_1
+#    define HASH_CB_SIZE_TYPE size_t
+#else
+#    define HASH_CB_SIZE_TYPE u_int32_t
+#endif
+
 static DB_Hash_t
+#ifdef AT_LEAST_DB_3_2
+
 #ifdef CAN_PROTOTYPE
-hash_cb(const void *data, size_t size)
+hash_cb(DB * db, const void *data, u_int32_t size)
+#else
+hash_cb(db, data, size)
+DB * db ;
+const void * data ;
+HASH_CB_SIZE_TYPE size ;
+#endif
+
+#else /* Berkeley DB < 3.2 */
+
+#ifdef CAN_PROTOTYPE
+hash_cb(const void *data, HASH_CB_SIZE_TYPE size)
 #else
 hash_cb(data, size)
 const void * data ;
-size_t size ;
+HASH_CB_SIZE_TYPE size ;
+#endif
+
 #endif
 {
 #ifdef dTHX
@@ -1265,7 +1335,7 @@ SV *   sv ;
             Flags |= DB_TRUNCATE ;
 #endif
 
-        status = RETVAL->dbp->open(RETVAL->dbp, name, NULL, RETVAL->type, 
+        status = (RETVAL->dbp->open)(RETVAL->dbp, name, NULL, RETVAL->type, 
 	    			Flags, mode) ; 
 	/* printf("open returned %d %s\n", status, db_strerror(status)) ; */
 

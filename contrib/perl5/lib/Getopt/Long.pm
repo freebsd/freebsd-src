@@ -2,17 +2,17 @@
 
 package Getopt::Long;
 
-# RCS Status      : $Id: GetoptLong.pl,v 2.24 2000-03-14 21:28:52+01 jv Exp $
+# RCS Status      : $Id: GetoptLong.pl,v 2.26 2001-01-31 10:20:29+01 jv Exp $
 # Author          : Johan Vromans
 # Created On      : Tue Sep 11 15:00:12 1990
 # Last Modified By: Johan Vromans
-# Last Modified On: Tue Mar 14 21:28:40 2000
-# Update Count    : 721
+# Last Modified On: Sat Jan  6 17:12:27 2001
+# Update Count    : 748
 # Status          : Released
 
 ################ Copyright ################
 
-# This program is Copyright 1990,2000 by Johan Vromans.
+# This program is Copyright 1990,2001 by Johan Vromans.
 # This program is free software; you can redistribute it and/or
 # modify it under the terms of the Perl Artistic License or the
 # GNU General Public License as published by the Free Software
@@ -30,19 +30,24 @@ package Getopt::Long;
 
 ################ Module Preamble ################
 
+use 5.004;
+
 use strict;
 
-BEGIN {
-    require 5.004;
-    use Exporter ();
-    use vars     qw($VERSION @ISA @EXPORT @EXPORT_OK %EXPORT_TAGS);
-    $VERSION     = "2.23";
+use vars qw($VERSION $VERSION_STRING);
+$VERSION        =  2.25;
+$VERSION_STRING = "2.25";
 
-    @ISA         = qw(Exporter);
+use Exporter;
+use AutoLoader qw(AUTOLOAD);
+
+use vars qw(@ISA @EXPORT @EXPORT_OK %EXPORT_TAGS);
+@ISA = qw(Exporter);
+%EXPORT_TAGS = qw();
+BEGIN {
+    # Init immediately so their contents can be used in the 'use vars' below.
     @EXPORT      = qw(&GetOptions $REQUIRE_ORDER $PERMUTE $RETURN_IN_ORDER);
-    %EXPORT_TAGS = qw();
     @EXPORT_OK   = qw();
-    use AutoLoader qw(AUTOLOAD);
 }
 
 # User visible variables.
@@ -52,7 +57,7 @@ use vars qw($error $debug $major_version $minor_version);
 use vars qw($autoabbrev $getopt_compat $ignorecase $bundling $order
 	    $passthrough);
 # Official invisible variables.
-use vars qw($genprefix $caller);
+use vars qw($genprefix $caller $gnu_compat);
 
 # Public subroutines.
 sub Configure (@);
@@ -89,6 +94,27 @@ sub ConfigDefaults () {
     $error = 0;			# error tally
     $ignorecase = 1;		# ignore case when matching options
     $passthrough = 0;		# leave unrecognized options alone
+    $gnu_compat = 0;		# require --opt=val if value is optional
+}
+
+# Override import.
+sub import {
+    my $pkg = shift;		# package
+    my @syms = ();		# symbols to import
+    my @config = ();		# configuration
+    my $dest = \@syms;		# symbols first
+    for ( @_ ) {
+	if ( $_ eq ':config' ) {
+	    $dest = \@config;	# config next
+	    next;
+	}
+	push (@$dest, $_);	# push
+    }
+    # Hide one level and call super.
+    local $Exporter::ExportLevel = 1;
+    $pkg->SUPER::import(@syms);
+    # And configure.
+    Configure (@config) if @config;
 }
 
 ################ Initialization ################
@@ -100,6 +126,87 @@ sub ConfigDefaults () {
 
 ConfigDefaults();
 
+################ OO Interface ################
+
+package Getopt::Long::Parser;
+
+# NOTE: The object oriented routines use $error for thread locking.
+my $_lock = sub {
+    lock ($Getopt::Long::error) if $] >= 5.005
+};
+
+# Store a copy of the default configuration. Since ConfigDefaults has
+# just been called, what we get from Configure is the default.
+my $default_config = do {
+    &$_lock;
+    Getopt::Long::Configure ()
+};
+
+sub new {
+    my $that = shift;
+    my $class = ref($that) || $that;
+    my %atts = @_;
+
+    # Register the callers package.
+    my $self = { caller_pkg => (caller)[0] };
+
+    bless ($self, $class);
+
+    # Process config attributes.
+    if ( defined $atts{config} ) {
+	&$_lock;
+	my $save = Getopt::Long::Configure ($default_config, @{$atts{config}});
+	$self->{settings} = Getopt::Long::Configure ($save);
+	delete ($atts{config});
+    }
+    # Else use default config.
+    else {
+	$self->{settings} = $default_config;
+    }
+
+    if ( %atts ) {		# Oops
+	Getopt::Long::Croak(__PACKAGE__.": unhandled attributes: ".
+			    join(" ", sort(keys(%atts))));
+    }
+
+    $self;
+}
+
+sub configure {
+    my ($self) = shift;
+
+    &$_lock;
+
+    # Restore settings, merge new settings in.
+    my $save = Getopt::Long::Configure ($self->{settings}, @_);
+
+    # Restore orig config and save the new config.
+    $self->{settings} = Configure ($save);
+}
+
+sub getoptions {
+    my ($self) = shift;
+
+    &$_lock;
+
+    # Restore config settings.
+    my $save = Getopt::Long::Configure ($self->{settings});
+
+    # Call main routine.
+    my $ret = 0;
+    $Getopt::Long::caller = $self->{caller_pkg};
+    eval { $ret = Getopt::Long::GetOptions (@_); };
+
+    # Restore saved settings.
+    Getopt::Long::Configure ($save);
+
+    # Handle errors and return value.
+    die ($@) if $@;
+    return $ret;
+}
+
+package Getopt::Long;
+
 ################ Package return ################
 
 1;
@@ -108,12 +215,12 @@ __END__
 
 ################ AutoLoading subroutines ################
 
-# RCS Status      : $Id: GetoptLongAl.pl,v 2.27 2000-03-17 09:07:26+01 jv Exp $
+# RCS Status      : $Id: GetoptLongAl.pl,v 2.30 2001-01-31 10:21:11+01 jv Exp $
 # Author          : Johan Vromans
 # Created On      : Fri Mar 27 11:50:30 1998
 # Last Modified By: Johan Vromans
-# Last Modified On: Fri Mar 17 09:00:09 2000
-# Update Count    : 55
+# Last Modified On: Tue Dec 26 18:01:16 2000
+# Update Count    : 98
 # Status          : Released
 
 sub GetOptions {
@@ -137,13 +244,14 @@ sub GetOptions {
     print STDERR ("GetOpt::Long $Getopt::Long::VERSION ",
 		  "called from package \"$pkg\".",
 		  "\n  ",
-		  'GetOptionsAl $Revision: 2.27 $ ',
+		  'GetOptionsAl $Revision: 2.30 $ ',
 		  "\n  ",
 		  "ARGV: (@ARGV)",
 		  "\n  ",
 		  "autoabbrev=$autoabbrev,".
 		  "bundling=$bundling,",
 		  "getopt_compat=$getopt_compat,",
+		  "gnu_compat=$gnu_compat,",
 		  "order=$order,",
 		  "\n  ",
 		  "ignorecase=$ignorecase,",
@@ -200,7 +308,7 @@ sub GetOptions {
 	    next;
 	}
 
-	# Match option spec. Allow '?' as an alias.
+	# Match option spec. Allow '?' as an alias only.
 	if ( $opt !~ /^((\w+[-\w]*)(\|(\?|\w[-\w]*)?)*)?([!~+]|[=:][infse][@%]?)?$/ ) {
 	    $error .= "Error in option spec: \"$opt\"\n";
 	    next;
@@ -208,14 +316,24 @@ sub GetOptions {
 	my ($o, $c, $a) = ($1, $5);
 	$c = '' unless defined $c;
 
+	# $linko keeps track of the primary name the user specified.
+	# This name will be used for the internal or external linkage.
+	# In other words, if the user specifies "FoO|BaR", it will
+	# match any case combinations of 'foo' and 'bar', but if a global
+	# variable needs to be set, it will be $opt_FoO in the exact case
+	# as specified.
+	my $linko;
+
 	if ( ! defined $o ) {
 	    # empty -> '-' option
-	    $opctl{$o = ''} = $c;
+	    $linko = $o = '';
+	    $opctl{''} = $c;
+	    $bopctl{''} = $c if $bundling;
 	}
 	else {
 	    # Handle alias names
 	    my @o =  split (/\|/, $o);
-	    my $linko = $o = $o[0];
+	    $linko = $o = $o[0];
 	    # Force an alias if the option name is not locase.
 	    $a = $o unless $o eq lc($o);
 	    $o = lc ($o)
@@ -254,18 +372,18 @@ sub GetOptions {
 		    $a = $_;
 		}
 	    }
-	    $o = $linko;
 	}
 
 	# If no linkage is supplied in the @optionlist, copy it from
 	# the userlinkage if available.
 	if ( defined $userlinkage ) {
 	    unless ( @optionlist > 0 && ref($optionlist[0]) ) {
-		if ( exists $userlinkage->{$o} && ref($userlinkage->{$o}) ) {
-		    print STDERR ("=> found userlinkage for \"$o\": ",
-				  "$userlinkage->{$o}\n")
+		if ( exists $userlinkage->{$linko} &&
+		     ref($userlinkage->{$linko}) ) {
+		    print STDERR ("=> found userlinkage for \"$linko\": ",
+				  "$userlinkage->{$linko}\n")
 			if $debug;
-		    unshift (@optionlist, $userlinkage->{$o});
+		    unshift (@optionlist, $userlinkage->{$linko});
 		}
 		else {
 		    # Do nothing. Being undefined will be handled later.
@@ -276,13 +394,13 @@ sub GetOptions {
 
 	# Copy the linkage. If omitted, link to global variable.
 	if ( @optionlist > 0 && ref($optionlist[0]) ) {
-	    print STDERR ("=> link \"$o\" to $optionlist[0]\n")
+	    print STDERR ("=> link \"$linko\" to $optionlist[0]\n")
 		if $debug;
 	    if ( ref($optionlist[0]) =~ /^(SCALAR|CODE)$/ ) {
-		$linkage{$o} = shift (@optionlist);
+		$linkage{$linko} = shift (@optionlist);
 	    }
 	    elsif ( ref($optionlist[0]) =~ /^(ARRAY)$/ ) {
-		$linkage{$o} = shift (@optionlist);
+		$linkage{$linko} = shift (@optionlist);
 		$opctl{$o} .= '@'
 		  if $opctl{$o} ne '' and $opctl{$o} !~ /\@$/;
 		$bopctl{$o} .= '@'
@@ -290,7 +408,7 @@ sub GetOptions {
 		    $bopctl{$o} ne '' and $bopctl{$o} !~ /\@$/;
 	    }
 	    elsif ( ref($optionlist[0]) =~ /^(HASH)$/ ) {
-		$linkage{$o} = shift (@optionlist);
+		$linkage{$linko} = shift (@optionlist);
 		$opctl{$o} .= '%'
 		  if $opctl{$o} ne '' and $opctl{$o} !~ /\%$/;
 		$bopctl{$o} .= '%'
@@ -304,22 +422,22 @@ sub GetOptions {
 	else {
 	    # Link to global $opt_XXX variable.
 	    # Make sure a valid perl identifier results.
-	    my $ov = $o;
+	    my $ov = $linko;
 	    $ov =~ s/\W/_/g;
 	    if ( $c =~ /@/ ) {
-		print STDERR ("=> link \"$o\" to \@$pkg","::opt_$ov\n")
+		print STDERR ("=> link \"$linko\" to \@$pkg","::opt_$ov\n")
 		    if $debug;
-		eval ("\$linkage{\$o} = \\\@".$pkg."::opt_$ov;");
+		eval ("\$linkage{\$linko} = \\\@".$pkg."::opt_$ov;");
 	    }
 	    elsif ( $c =~ /%/ ) {
-		print STDERR ("=> link \"$o\" to \%$pkg","::opt_$ov\n")
+		print STDERR ("=> link \"$linko\" to \%$pkg","::opt_$ov\n")
 		    if $debug;
-		eval ("\$linkage{\$o} = \\\%".$pkg."::opt_$ov;");
+		eval ("\$linkage{\$linko} = \\\%".$pkg."::opt_$ov;");
 	    }
 	    else {
-		print STDERR ("=> link \"$o\" to \$$pkg","::opt_$ov\n")
+		print STDERR ("=> link \"$linko\" to \$$pkg","::opt_$ov\n")
 		    if $debug;
-		eval ("\$linkage{\$o} = \\\$".$pkg."::opt_$ov;");
+		eval ("\$linkage{\$linko} = \\\$".$pkg."::opt_$ov;");
 	    }
 	}
     }
@@ -382,7 +500,11 @@ sub GetOptions {
 	    next unless defined $opt;
 
 	    if ( defined $arg ) {
-		$opt = $aliases{$opt} if defined $aliases{$opt};
+		if ( defined $aliases{$opt} ) {
+		    print STDERR ("=> alias \"$opt\" -> \"$aliases{$opt}\"\n")
+		      if $debug;
+		    $opt = $aliases{$opt};
+		}
 
 		if ( defined $linkage{$opt} ) {
 		    print STDERR ("=> ref(\$L{$opt}) -> ",
@@ -543,7 +665,8 @@ sub FindOption ($$$$$$$) {
 
     print STDERR ("=> find \"$opt\", prefix=\"$prefix\"\n") if $debug;
 
-    return (0) unless $opt =~ /^$prefix(.*)$/s;
+    return 0 unless $opt =~ /^$prefix(.*)$/s;
+    return 0 if $opt eq "-" && !defined $opctl->{""};
 
     $opt = $+;
     my ($starter) = $1;
@@ -572,7 +695,7 @@ sub FindOption ($$$$$$$) {
 
     if ( $bundling && $starter eq '-' ) {
 	# Unbundle single letter option.
-	$rest = substr ($tryopt, 1);
+	$rest = length ($tryopt) > 0 ? substr ($tryopt, 1) : "";
 	$tryopt = substr ($tryopt, 0, 1);
 	$tryopt = lc ($tryopt) if $ignorecase > 1;
 	print STDERR ("=> $starter$tryopt unbundled from ",
@@ -646,7 +769,7 @@ sub FindOption ($$$$$$$) {
     }
     # Apparently valid.
     $opt = $tryopt;
-    print STDERR ("=> found \"$type\" for ", $opt, "\n") if $debug;
+    print STDERR ("=> found \"$type\" for \"", $opt, "\"\n") if $debug;
 
     #### Determine argument status ####
 
@@ -675,7 +798,16 @@ sub FindOption ($$$$$$$) {
     ($mand, $type, $dsttype, $key) = $type =~ /^(.)(.)([@%]?)$/;
 
     # Check if there is an option argument available.
-    if ( defined $optarg ? ($optarg eq '')
+    if ( $gnu_compat ) {
+	return (1, $opt, $optarg, $dsttype, $incr, $key)
+	  if defined $optarg;
+	return (1, $opt, $type eq "s" ? '' : 0, $dsttype, $incr, $key)
+	  if $mand eq ':';
+    }
+
+    # Check if there is an option argument available.
+    if ( defined $optarg
+	 ? ($optarg eq '')
 	 : !(defined $rest || @ARGV > 0) ) {
 	# Complain if this option needs an argument.
 	if ( $mand eq "=" ) {
@@ -684,10 +816,7 @@ sub FindOption ($$$$$$$) {
 	    $error++;
 	    undef $opt;
 	}
-	if ( $mand eq ":" ) {
-	    $arg = $type eq "s" ? '' : 0;
-	}
-	return (1, $opt,$arg,$dsttype,$incr,$key);
+	return (1, $opt, $type eq "s" ? '' : 0, $dsttype, $incr, $key);
     }
 
     # Get (possibly optional) argument.
@@ -795,12 +924,12 @@ sub Configure (@) {
     my $prevconfig =
       [ $error, $debug, $major_version, $minor_version,
 	$autoabbrev, $getopt_compat, $ignorecase, $bundling, $order,
-	$passthrough, $genprefix ];
+	$gnu_compat, $passthrough, $genprefix ];
 
     if ( ref($options[0]) eq 'ARRAY' ) {
 	( $error, $debug, $major_version, $minor_version,
 	  $autoabbrev, $getopt_compat, $ignorecase, $bundling, $order,
-	  $passthrough, $genprefix ) = @{shift(@options)};
+	  $gnu_compat, $passthrough, $genprefix ) = @{shift(@options)};
     }
 
     my $opt;
@@ -811,14 +940,30 @@ sub Configure (@) {
 	    $action = 0;
 	    $try = $+;
 	}
-	if ( $try eq 'default' or $try eq 'defaults' ) {
-	    ConfigDefaults () if $action;
+	if ( ($try eq 'default' or $try eq 'defaults') && $action ) {
+	    ConfigDefaults ();
+	}
+	elsif ( ($try eq 'posix_default' or $try eq 'posix_defaults') ) {
+	    local $ENV{POSIXLY_CORRECT};
+	    $ENV{POSIXLY_CORRECT} = 1 if $action;
+	    ConfigDefaults ();
 	}
 	elsif ( $try eq 'auto_abbrev' or $try eq 'autoabbrev' ) {
 	    $autoabbrev = $action;
 	}
 	elsif ( $try eq 'getopt_compat' ) {
 	    $getopt_compat = $action;
+	}
+	elsif ( $try eq 'gnu_getopt' ) {
+	    if ( $action ) {
+		$gnu_compat = 1;
+		$bundling = 1;
+		$getopt_compat = 0;
+		$permute = 1;
+	    }
+	}
+	elsif ( $try eq 'gnu_compat' ) {
+	    $gnu_compat = $action;
 	}
 	elsif ( $try eq 'ignorecase' or $try eq 'ignore_case' ) {
 	    $ignorecase = $action;
@@ -841,14 +986,14 @@ sub Configure (@) {
 	elsif ( $try eq 'pass_through' or $try eq 'passthrough' ) {
 	    $passthrough = $action;
 	}
-	elsif ( $try =~ /^prefix=(.+)$/ ) {
+	elsif ( $try =~ /^prefix=(.+)$/ && $action ) {
 	    $genprefix = $1;
 	    # Turn into regexp. Needs to be parenthesized!
 	    $genprefix = "(" . quotemeta($genprefix) . ")";
 	    eval { '' =~ /$genprefix/; };
 	    Croak ("Getopt::Long: invalid pattern \"$genprefix\"") if $@;
 	}
-	elsif ( $try =~ /^prefix_pattern=(.+)$/ ) {
+	elsif ( $try =~ /^prefix_pattern=(.+)$/ && $action ) {
 	    $genprefix = $1;
 	    # Parenthesize if needed.
 	    $genprefix = "(" . $genprefix . ")"
@@ -930,7 +1075,7 @@ could use the more descriptive C<--long>. To distinguish between a
 bundle of single-character options and a long one, two dashes are used
 to precede the option name. Early implementations of long options used
 a plus C<+> instead. Also, option values could be specified either
-like 
+like
 
     --size=24
 
@@ -943,7 +1088,7 @@ The C<+> form is now obsolete and strongly deprecated.
 =head1 Getting Started with Getopt::Long
 
 Getopt::Long is the Perl5 successor of C<newgetopt.pl>. This was
-the firs Perl module that provided support for handling the new style
+the first Perl module that provided support for handling the new style
 of command line options, hence the name Getopt::Long. This module
 also supports single-character options and bundling. In this case, the
 options are restricted to alphabetic characters only, and the
@@ -1166,11 +1311,11 @@ requires a least C<--hea> and C<--hei> for the head and height options.
 =head2 Summary of Option Specifications
 
 Each option specifier consists of two parts: the name specification
-and the argument specification. 
+and the argument specification.
 
 The name specification contains the name of the option, optionally
 followed by a list of alternative names separated by vertical bar
-characters. 
+characters.
 
     length	      option name is "length"
     length|size|l     name is "length", aliases are "size" and "l"
@@ -1242,6 +1387,24 @@ considered an option on itself.
 =back
 
 =head1 Advanced Possibilities
+
+=head2 Object oriented interface
+
+Getopt::Long can be used in an object oriented way as well:
+
+    use Getopt::Long;
+    $p = new Getopt::Long::Parser;
+    $p->configure(...configuration options...);
+    if ($p->getoptions(...options descriptions...)) ...
+
+Configuration options can be passed to the constructor:
+
+    $p = new Getopt::Long::Parser
+             config => [...configuration options...];
+
+For thread safety, each method call will acquire an exclusive lock to
+the Getopt::Long module. So don't call these methods from a callback
+routine!
 
 =head2 Documentation and help texts
 
@@ -1365,7 +1528,7 @@ options,
 
     -vax
 
-would set C<a>, C<v> and C<x>, but 
+would set C<a>, C<v> and C<x>, but
 
     --vax
 
@@ -1398,13 +1561,18 @@ It goes without saying that bundling can be quite confusing.
 
 =head2 The lonesome dash
 
-Some applications require the option C<-> (that's a lone dash). This
-can be achieved by adding an option specification with an empty name:
+Normally, a lone dash C<-> on the command line will not be considered
+an option. Option processing will terminate (unless "permute" is
+configured) and the dash will be left in C<@ARGV>.
+
+It is possible to get special treatment for a lone dash. This can be
+achieved by adding an option specification with an empty name, for
+example:
 
     GetOptions ('' => \$stdio);
 
-A lone dash on the command line will now be legal, and set options
-variable C<$stdio>.
+A lone dash on the command line will now be a legal option, and using
+it will set variable C<$stdio>.
 
 =head2 Argument call-back
 
@@ -1423,8 +1591,8 @@ When applied to the following command line:
 
     arg1 --width=72 arg2 --width=60 arg3
 
-This will call 
-C<process("arg1")> while C<$width> is C<80>, 
+This will call
+C<process("arg1")> while C<$width> is C<80>,
 C<process("arg2")> while C<$width> is C<72>, and
 C<process("arg3")> while C<$width> is C<60>.
 
@@ -1436,9 +1604,14 @@ L<Configuring Getopt::Long>.
 
 Getopt::Long can be configured by calling subroutine
 Getopt::Long::Configure(). This subroutine takes a list of quoted
-strings, each specifying a configuration option to be set, e.g.
-C<ignore_case>, or reset, e.g. C<no_ignore_case>. Case does not
+strings, each specifying a configuration option to be enabled, e.g.
+C<ignore_case>, or disabled, e.g. C<no_ignore_case>. Case does not
 matter. Multiple calls to Configure() are possible.
+
+Alternatively, as of version 2.24, the configuration options may be
+passed together with the C<use> statement:
+
+    use Getopt::Long qw(:config no_ignore_case bundling);
 
 The following options are available:
 
@@ -1449,34 +1622,53 @@ The following options are available:
 This option causes all configuration options to be reset to their
 default values.
 
+=item posix_default
+
+This option causes all configuration options to be reset to their
+default values as if the environment variable POSIXLY_CORRECT had
+been set.
+
 =item auto_abbrev
 
 Allow option names to be abbreviated to uniqueness.
-Default is set unless environment variable
-POSIXLY_CORRECT has been set, in which case C<auto_abbrev> is reset.
+Default is enabled unless environment variable
+POSIXLY_CORRECT has been set, in which case C<auto_abbrev> is disabled.
 
 =item getopt_compat
 
 Allow C<+> to start options.
-Default is set unless environment variable
-POSIXLY_CORRECT has been set, in which case C<getopt_compat> is reset.
+Default is enabled unless environment variable
+POSIXLY_CORRECT has been set, in which case C<getopt_compat> is disabled.
+
+=item gnu_compat
+
+C<gnu_compat> controls whether C<--opt=> is allowed, and what it should
+do. Without C<gnu_compat>, C<--opt=> gives an error. With C<gnu_compat>,
+C<--opt=> will give option C<opt> and empty value.
+This is the way GNU getopt_long() does it.
+
+=item gnu_getopt
+
+This is a short way of setting C<gnu_compat> C<bundling> C<permute>
+C<no_getopt_compat>. With C<gnu_getopt>, command line handling should be
+fully compatible with GNU getopt_long().
 
 =item require_order
 
 Whether command line arguments are allowed to be mixed with options.
-Default is set unless environment variable
-POSIXLY_CORRECT has been set, in which case C<require_order> is reset.
+Default is disabled unless environment variable
+POSIXLY_CORRECT has been set, in which case C<require_order> is enabled.
 
 See also C<permute>, which is the opposite of C<require_order>.
 
 =item permute
 
 Whether command line arguments are allowed to be mixed with options.
-Default is set unless environment variable
-POSIXLY_CORRECT has been set, in which case C<permute> is reset.
+Default is enabled unless environment variable
+POSIXLY_CORRECT has been set, in which case C<permute> is disabled.
 Note that C<permute> is the opposite of C<require_order>.
 
-If C<permute> is set, this means that 
+If C<permute> is enabled, this means that
 
     --foo arg1 --bar arg2 arg3
 
@@ -1493,7 +1685,7 @@ processed. The only exception is when C<--> is used:
 will call the call-back routine for arg1 and arg2, and terminate
 GetOptions() leaving C<"arg2"> in C<@ARGV>.
 
-If C<require_order> is set, options processing
+If C<require_order> is enabled, options processing
 terminates when the first non-option is encountered.
 
     --foo arg1 --bar arg2 arg3
@@ -1502,40 +1694,44 @@ is equivalent to
 
     --foo -- arg1 --bar arg2 arg3
 
-=item bundling (default: reset)
+If C<pass_through> is also enabled, options processing will terminate
+at the first unrecognized option, or non-option, whichever comes
+first.
 
-Setting this option will allow single-character options to be bundled.
+=item bundling (default: disabled)
+
+Enabling this option will allow single-character options to be bundled.
 To distinguish bundles from long option names, long options I<must> be
 introduced with C<--> and single-character options (and bundles) with
 C<->.
 
-Note: resetting C<bundling> also resets C<bundling_override>.
+Note: disabling C<bundling> also disables C<bundling_override>.
 
-=item bundling_override (default: reset)
+=item bundling_override (default: disabled)
 
-If C<bundling_override> is set, bundling is enabled as with
-C<bundling> but now long option names override option bundles. 
+If C<bundling_override> is enabled, bundling is enabled as with
+C<bundling> but now long option names override option bundles.
 
-Note: resetting C<bundling_override> also resets C<bundling>.
+Note: disabling C<bundling_override> also disables C<bundling>.
 
 B<Note:> Using option bundling can easily lead to unexpected results,
 especially when mixing long options and bundles. Caveat emptor.
 
-=item ignore_case  (default: set)
+=item ignore_case  (default: enabled)
 
-If set, case is ignored when matching long option names. Single
+If enabled, case is ignored when matching long option names. Single
 character options will be treated case-sensitive.
 
-Note: resetting C<ignore_case> also resets C<ignore_case_always>.
+Note: disabling C<ignore_case> also disables C<ignore_case_always>.
 
-=item ignore_case_always (default: reset)
+=item ignore_case_always (default: disabled)
 
 When bundling is in effect, case is ignored on single-character
-options also. 
+options also.
 
-Note: resetting C<ignore_case_always> also resets C<ignore_case>.
+Note: disabling C<ignore_case_always> also disables C<ignore_case>.
 
-=item pass_through (default: reset)
+=item pass_through (default: disabled)
 
 Options that are unknown, ambiguous or supplied with an invalid option
 value are passed through in C<@ARGV> instead of being flagged as
@@ -1543,7 +1739,9 @@ errors. This makes it possible to write wrapper scripts that process
 only part of the user supplied command line arguments, and pass the
 remaining options to some other program.
 
-This can be very confusing, especially when C<permute> is also set.
+If C<require_order> is enabled, options processing will terminate at
+the first unrecognized option, or non-option, whichever comes first.
+However, if C<permute> is enabled instead, results can become confusing.
 
 =item prefix
 
@@ -1556,9 +1754,9 @@ A Perl pattern that identifies the strings that introduce options.
 Default is C<(--|-|\+)> unless environment variable
 POSIXLY_CORRECT has been set, in which case it is C<(--|-)>.
 
-=item debug (default: reset)
+=item debug (default: disabled)
 
-Enable copious debugging output.
+Enable debugging output.
 
 =back
 
@@ -1569,11 +1767,10 @@ signalled using die() and will terminate the calling program unless
 the call to Getopt::Long::GetOptions() was embedded in C<eval { ...
 }>, or die() was trapped using C<$SIG{__DIE__}>.
 
-A return value of 1 (true) indicates success.
-
-A return status of 0 (false) indicates that the function detected one
-or more errors during option parsing. These errors are signalled using
-warn() and can be trapped with C<$SIG{__WARN__}>.
+GetOptions returns true to indicate success.
+It returns false when the function detected one or more errors during
+option parsing. These errors are signalled using warn() and can be
+trapped with C<$SIG{__WARN__}>.
 
 Errors that can't happen are signalled using Carp::croak().
 
@@ -1629,21 +1826,44 @@ Now the command line may look like:
 Note that to terminate options processing still requires a double dash
 C<-->.
 
-GetOptions() will not interpret a leading C<"<>"> as option starters
-if the next argument is a reference. To force C<"<"> and C<">"> as
-option starters, use C<"><">. Confusing? Well, B<using a starter
+GetOptions() will not interpret a leading C<< "<>" >> as option starters
+if the next argument is a reference. To force C<< "<" >> and C<< ">" >> as
+option starters, use C<< "><" >>. Confusing? Well, B<using a starter
 argument is strongly deprecated> anyway.
 
 =head2 Configuration variables
 
 Previous versions of Getopt::Long used variables for the purpose of
-configuring. Although manipulating these variables still work, it
-is strongly encouraged to use the new C<config> routine. Besides, it
-is much easier.
+configuring. Although manipulating these variables still work, it is
+strongly encouraged to use the C<Configure> routine that was introduced
+in version 2.17. Besides, it is much easier.
+
+=head1 Trouble Shooting
+
+=head2 Warning: Ignoring '!' modifier for short option
+
+This warning is issued when the '!' modifier is applied to a short
+(one-character) option and bundling is in effect. E.g.,
+
+    Getopt::Long::Configure("bundling");
+    GetOptions("foo|f!" => \$foo);
+
+Note that older Getopt::Long versions did not issue a warning, because
+the '!' modifier was applied to the first name only. This bug was
+fixed in 2.22.
+
+Solution: separate the long and short names and apply the '!' to the
+long names only, e.g.,
+
+    GetOptions("foo!" => \$foo, "f" => \$foo);
+
+=head2 GetOptions does not return a false result when an option is not supplied
+
+That's why they're called 'options'.
 
 =head1 AUTHOR
 
-Johan Vromans E<lt>jvromans@squirrel.nlE<gt>
+Johan Vromans <jvromans@squirrel.nl>
 
 =head1 COPYRIGHT AND DISCLAIMER
 
@@ -1660,12 +1880,11 @@ MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
 GNU General Public License for more details.
 
 If you do not have a copy of the GNU General Public License write to
-the Free Software Foundation, Inc., 675 Mass Ave, Cambridge, 
+the Free Software Foundation, Inc., 675 Mass Ave, Cambridge,
 MA 02139, USA.
 
 =cut
 
 # Local Variables:
-# mode: perl
 # eval: (load-file "pod.el")
 # End:

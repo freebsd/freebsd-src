@@ -23,6 +23,11 @@
 # HP-UX 10 pthreads hints: Matthew T Harden <mthard@mthard1.monsanto.com>
 # From: Dominic Dunlop <domo@computer.org>
 # Abort and offer advice if bundled (non-ANSI) C compiler selected
+# From: H.Merijn Brand <h.m.brand@hccnet.nl>
+# ccversion detection
+# perl/64/HP-UX wants libdb-3.0 to be shared ELF 64
+# generic pthread support detection for PTH package
+
 
 # This version: March 8, 2000
 # Current maintainer: Jeff Okamoto <okamoto@corp.hp.com>
@@ -105,9 +110,13 @@ EOM
     ;;
 esac
 
+cc=${cc:-cc}
+
 case `$cc -v 2>&1`"" in
 *gcc*) ccisgcc="$define" ;;
-*) ccisgcc='' ;;
+*) ccisgcc=''
+   ccversion=`which cc | xargs what | awk '/Compiler/{print $2}'`
+   ;;
 esac
 
 # Determine the architecture type of this system.
@@ -154,7 +163,6 @@ $define|true|[yY]*)
 64-bit compilation is not supported on HP-UX $xxOsRevMajor.
 You need at least HP-UX 11.0.
 Cannot continue, aborting.
-
 EOM
 		exit 1
     fi
@@ -167,7 +175,6 @@ EOM
 *** You do not seem to have the 64-bit libraries in /lib/pa20_64.
 *** Most importantly, I cannot find the $libc.
 *** Cannot continue, aborting.
-
 EOM
 		exit 1
     fi
@@ -175,6 +182,7 @@ EOM
     ccflags="$ccflags +DD64"
     ldflags="$ldflags +DD64"
     test -d /lib/pa20_64 && loclibpth="$loclibpth /lib/pa20_64"
+    libswanted="$libswanted pthread"
     libscheck='case "`/usr/bin/file $xxx`" in
 *LP64*|*PA-RISC2.0*) ;;
 *) xxx=/no/64-bit$xxx ;;
@@ -321,6 +329,7 @@ case "$usethreads" in
 $define|true|[yY]*)
         if [ "$xxOsRevMajor" -lt 10 ]; then
             cat <<EOM >&4
+
 HP-UX $xxOsRevMajor cannot support POSIX threads.
 Consider upgrading to at least HP-UX 11.
 Cannot continue, aborting.
@@ -329,33 +338,56 @@ EOM
         fi
         case "$xxOsRevMajor" in
         10)
-            # Under 10.X, a threaded perl can be built, but it needs
-            # libcma and OLD_PTHREADS_API.  Also <pthread.h> needs to
-            # be #included before any other includes (in perl.h)
-            if [ ! -f /usr/include/pthread.h -o ! -f /usr/lib/libcma.sl ]; then
+            # Under 10.X, a threaded perl can be built
+            if [ -f /usr/include/pthread.h ]; then
+		if [ -f /usr/lib/libcma.sl ]; then
+		    # DCE (from Core OS CD) is installed
+
+		    # It needs # libcma and OLD_PTHREADS_API. Also <pthread.h>
+		    # needs to be #included before any other includes
+		    # (in perl.h)
+
+		    # HP-UX 10.X uses the old pthreads API
+		    d_oldpthreads="$define"
+
+		    # include libcma before all the others
+		    libswanted="cma $libswanted"
+
+		    # tell perl.h to include <pthread.h> before other include files
+		    ccflags="$ccflags -DPTHREAD_H_FIRST"
+
+		    # CMA redefines select to cma_select, and cma_select expects int *
+		    # instead of fd_set * (just like 9.X)
+		    selecttype='int *'
+
+		elif [ -f /usr/lib/libpthread.sl ]; then
+		    # PTH package is installed
+		    libswanted="pthread $libswanted"
+		else
+		    libswanted="no_threads_available"
+		    fi
+	    else
+		libswanted="no_threads_available"
+		fi
+
+            if [ $libswanted = "no_threads_available" ]; then
                 cat <<EOM >&4
+
 In HP-UX 10.X for POSIX threads you need both of the files
-/usr/include/pthread.h and /usr/lib/libcma.sl.
-Either you must install the CMA package or you must upgrade to HP-UX 11.
+/usr/include/pthread.h and either /usr/lib/libcma.sl or /usr/lib/libpthread.sl.
+Either you must upgrade to HP-UX 11 or install a posix thread library:
+
+    DCE-CoreTools from HP-UX 10.20 Hardware Extensions 3.0 CD (B3920-13941)
+
+or
+
+    PTH package from http://hpux.tn.tudelft.nl/hppd/hpux/alpha.html
+
 Cannot continue, aborting.
 EOM
      	        exit 1
-            fi
+		fi
 
-            # HP-UX 10.X uses the old pthreads API
-            case "$d_oldpthreads" in
-            '') d_oldpthreads="$define" ;;
-            esac
-
-            # include libcma before all the others
-            libswanted="cma $libswanted"
-
-            # tell perl.h to include <pthread.h> before other include files
-            ccflags="$ccflags -DPTHREAD_H_FIRST"
-
-            # CMA redefines select to cma_select, and cma_select expects int *
-            # instead of fd_set * (just like 9.X)
-            selecttype='int *'
             ;;
         11 | 12) # 12 may want upping the _POSIX_C_SOURCE datestamp...
             ccflags=" -D_POSIX_C_SOURCE=199506L $ccflags"
@@ -387,8 +419,10 @@ cat > UU/uselargefiles.cbu <<'EOCBU'
 case "$uselargefiles" in
 ''|$define|true|[yY]*)
 	# there are largefile flags available via getconf(1)
-	# but we cheat for now.
-	ccflags="$ccflags -D_LARGEFILE_SOURCE -D_FILE_OFFSET_BITS=64"
+	# but we cheat for now.  (Keep that in the left margin.)
+ccflags_uselargefiles="-D_LARGEFILE_SOURCE -D_FILE_OFFSET_BITS=64"
+
+	ccflags="$ccflags $ccflags_uselargefiles"
 
         if test -z "$ccisgcc" -a -z "$gccversion"; then
            # The strict ANSI mode (-Aa) doesn't like large files.

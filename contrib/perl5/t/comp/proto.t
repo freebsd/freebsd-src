@@ -11,12 +11,12 @@
 
 BEGIN {
     chdir 't' if -d 't';
-    unshift @INC, '../lib';
+    @INC = '../lib';
 }
 
 use strict;
 
-print "1..107\n";
+print "1..122\n";
 
 my $i = 1;
 
@@ -293,6 +293,25 @@ printf "ok %d\n",$i++;
 ##
 ##
 
+testing \&a_subx, '\&';
+
+sub a_subx (\&) {
+    print "# \@_ = (",join(",",@_),")\n";
+    &{$_[0]};
+}
+
+sub tmp_sub_2 { printf "ok %d\n",$i++ }
+a_subx &tmp_sub_2;
+
+@array = ( \&tmp_sub_2 );
+eval 'a_subx @array';
+print "not " unless $@;
+printf "ok %d\n",$i++;
+
+##
+##
+##
+
 testing \&sub_aref, '&\@';
 
 sub sub_aref (&\@) {
@@ -465,4 +484,15 @@ sub sreftest (\$$) {
     sreftest my $sref, $i++;
     sreftest($helem{$i}, $i++);
     sreftest $aelem[0], $i++;
+}
+
+# test prototypes when they are evaled and there is a syntax error
+#
+for my $p ( "", qw{ () ($) ($@) ($%) ($;$) (&) (&\@) (&@) (%) (\%) (\@) } ) {
+  no warnings 'redefine';
+  my $eval = "sub evaled_subroutine $p { &void *; }";
+  eval $eval;
+  # The /Syntax error/ is seen on OS/390.  It's /syntax error/ elsewhere
+  print "# eval[$eval]\nnot " unless $@ && $@ =~ /[Ss]yntax error/;
+  print "ok ", $i++, "\n";
 }

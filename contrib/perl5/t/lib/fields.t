@@ -4,7 +4,7 @@ my $w;
 
 BEGIN {
    chdir 't' if -d 't';
-   unshift @INC, '../lib' if -d '../lib';
+   @INC = '../lib';
    $SIG{__WARN__} = sub {
        if ($_[0] =~ /^Hides field 'b1' in base class/) {
            $w++;

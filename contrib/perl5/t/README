@@ -13,4 +13,4 @@ will fail, you may want to use Test::Harness thusly:
 	./perl -I../lib harness
 This method pinpoints failed tests automatically.
 
-If you come up with new tests, please send them to larry@wall.org.
+If you come up with new tests, please send them to perlbug@perl.org.

@@ -59,7 +59,7 @@ sub writemain{
 	my($mname, $cname);
 	($mname = $pname) =~ s!/!::!g;
 	($cname = $pname) =~ s!/!__!g;
-	print "EXTERN_C void boot_${cname} (CV* cv);\n";
+        print "EXTERN_C void boot_${cname} (pTHX_ CV* cv);\n";
     }
 
     my ($tail1,$tail2) = ( $tail =~ /\A(.*\n)(\s*\}.*)\Z/s );

@@ -47,7 +47,7 @@ Makefile.PL PREFIX=/my/perl_directory> to install the modules
 into C</my/perl_directory>.  Then you can use the modules
 from your Perl programs with C<use lib
 "/my/perl_directory/lib/site_perl"> or sometimes just C<use
-"/my/perl_directory">.  
+"/my/perl_directory">.
 
 =over 4
 
@@ -55,16 +55,16 @@ from your Perl programs with C<use lib
 
 B<If you're on Unix,>
 
-You can use Andreas Koenig's CPAN module 
+You can use Andreas Koenig's CPAN module
 (which comes standard with Perl, or can itself be downloaded
-from http://www.perl.com/CPAN/modules/by-module/CPAN) 
+from http://www.perl.com/CPAN/modules/by-module/CPAN)
 to automate the following steps, from DECOMPRESS through INSTALL.
 
-A. DECOMPRESS 
+A. DECOMPRESS
 
 Decompress the file with C<gzip -d yourmodule.tar.gz>
 
-You can get gzip from ftp://prep.ai.mit.edu/pub/gnu. 
+You can get gzip from ftp://prep.ai.mit.edu/pub/gnu.
 
 Or, you can combine this step with the next to save disk space:
 
@@ -126,13 +126,14 @@ CPAN for others to use.  If it doesn't, go to INSTALL.
    D. INSTALL
 
 Copy the module into your Perl's I<lib> directory.  That'll be one
-of the directories you see when you type 
+of the directories you see when you type
 
    perl -e 'print "@INC"'
 
 =item *
 
-B<If you're running Windows 95 or NT with the core Windows distribution of Perl,>
+B<If you're running Windows 95 or NT with the core Windows distribution of
+Perl,>
 
    A. DECOMPRESS
 
@@ -185,63 +186,66 @@ B<If you're using a Macintosh,>
 
 A. DECOMPRESS
 
-In general, all Macintosh decompression utilities mentioned here
-can be found in the Info-Mac Hyperarchive
-( http://hyperarchive.lcs.mit.edu/HyperArchive.html ).
-Specificly the "Commpress & Translate" listing
-( http://hyperarchive.lcs.mit.edu/HyperArchive/Abstracts/cmp/HyperArchive.html ).
+First thing you should do is make sure you have the latest B<cpan-mac>
+distribution ( http://www.cpan.org/authors/id/CNANDOR/ ), which has
+utilities for doing all of the steps.  Read the cpan-mac directions
+carefully and install it.  If you choose not to use cpan-mac
+for some reason, there are alternatives listed here.
 
+After installing cpan-mac, drop the module archive on the
+B<untarzipme> droplet, which will decompress and unpack for you.
 
-You can either use the shareware B<StuffIt Expander> program
-( http://www.aladdinsys.com/expander/ ) 
-in combination with I<DropStuff with Expander Enhancer>
-( http://www.aladdinsys.com/dropstuff/ ) 
+B<Or>, you can either use the shareware B<StuffIt Expander> program
+( http://www.aladdinsys.com/expander/ )
+in combination with B<DropStuff with Expander Enhancer>
+( http://www.aladdinsys.com/dropstuff/ )
 or the freeware B<MacGzip> program (
 http://persephone.cps.unizar.es/general/gente/spd/gzip/gzip.html ).
 
-
 B. UNPACK
 
-If you're using DropStuff or Stuffit, you can just extract the tar
-archive.  Otherwise, you can use the freeware B<suntar> or I<Tar> (
+If you're using untarzipme or StuffIt, the archive should be extracted
+now.  B<Or>, you can use the freeware B<suntar> or I<Tar> (
 http://hyperarchive.lcs.mit.edu/HyperArchive/Archive/cmp/ ).
 
 C. BUILD
 
-Does the module require compilation? 
+Check the contents of the distribution.
+Read the module's documentation, looking for
+reasons why you might have trouble using it with MacPerl.  Look for
+F<.xs> and F<.c> files, which normally denote that the distribution
+must be compiled, and you cannot install it "out of the box."
+(See L<"PORTABILITY">.)
 
-1. If it does,
-
-Overview: You need MPW and a combination of new and old CodeWarrior
-compilers for MPW and libraries.  Makefiles created for building under
-MPW use Metrowerks compilers.  It's most likely possible to build
-without other compilers, but it has not been done successfully, to our
-knowledge.  Read the documentation in I<MacPerl: Power and Ease> (
-http://www.ptf.com/macperl/ ) on porting/building extensions, or find
-an existing precompiled binary, or hire someone to build it for you.
-
-Or, ask someone on the mac-perl mailing list (mac-perl@iis.ee.ethz.ch)
-to build it for you.  To subscribe to the mac-perl mailing list, send
-mail to mac-perl-request@iis.ee.ethz.ch.
-
-2. If the module doesn't require compilation, go to INSTALL.
+If a module does not work on MacPerl but should, or needs to be
+compiled, see if the module exists already as a port on the
+MacPerl Module Porters site (http://pudge.net/mmp/).
+For more information on doing XS with MacPerl yourself, see
+Arved Sandstrom's XS tutorial (http://macperl.com/depts/Tutorials/),
+and then consider uploading your binary to the CPAN and
+registering it on the MMP site.
 
 D. INSTALL
+
+If you are using cpan-mac, just drop the folder on the
+B<installme> droplet, and use the module.
+
+B<Or>, if you aren't using cpan-mac, do some manual labor.
 
 Make sure the newlines for the modules are in Mac format, not Unix format.
 If they are not then you might have decompressed them incorrectly.  Check
 your decompression and unpacking utilities settings to make sure they are
 translating text files properly.
 
-As a last resort, you can use the perl one-liner:  
+As a last resort, you can use the perl one-liner:
 
-    perl -i.bak -pe 's/(?:\015)?\012/\015/g' <filenames> 
+    perl -i.bak -pe 's/(?:\015)?\012/\015/g' <filenames>
 
 on the source files.
 
-Move the files manually into the correct folders.
-
-Move the files to their final destination: This will
+Then move the files (probably just the F<.pm> files, though there
+may be some additional ones, too; check the module documentation)
+to their final destination: This will
 most likely be in C<$ENV{MACPERL}site_lib:> (i.e.,
 C<HD:MacPerl folder:site_lib:>).  You can add new paths to
 the default C<@INC> in the Preferences menu item in the
@@ -251,15 +255,12 @@ automagically).  Create whatever directory structures are required
 C<$ENV{MACPERL}site_lib:Some:> and put
 C<Module.pm> in that directory).
 
-Run the following script (or something like it):
+Then run the following script (or something like it):
 
      #!perl -w
      use AutoSplit;
      my $dir = "${MACPERL}site_perl";
      autosplit("$dir:Some:Module.pm", "$dir:auto", 0, 1, 1);
-
-Eventually there should be a way to automate the installation process; some
-solutions exist, but none are ready for the general public yet.
 
 =item *
 
@@ -268,7 +269,7 @@ B<If you're on the DJGPP port of DOS,>
    A. DECOMPRESS
 
 djtarx ( ftp://ftp.simtel.net/pub/simtelnet/gnu/djgpp/v2/ )
-will both uncompress and unpack.  
+will both uncompress and unpack.
 
    B. UNPACK
 
@@ -289,7 +290,7 @@ in the Perl distribution.
 
 While still in that directory, type:
 
-     make install	
+     make install
 
 You will need the packages mentioned in F<README.dos> in the Perl distribution.
 
@@ -313,17 +314,17 @@ C<Your-Module-1_33.tgz>.
 
 A. DECOMPRESS
 
-Type 
+Type
 
     gzip -d Your-Module.tgz
 
-or, for zipped modules, type 
+or, for zipped modules, type
 
     unzip Your-Module.zip
 
 Executables for gzip, zip, and VMStar ( Alphas:
 http://www.openvms.digital.com/freeware/000TOOLS/ALPHA/ and Vaxen:
-http://www.openvms.digital.com/freeware/000TOOLS/VAX/ ).  
+http://www.openvms.digital.com/freeware/000TOOLS/VAX/ ).
 
 gzip and tar
 are also available at ftp://ftp.digital.com/pub/VMS.
@@ -342,10 +343,11 @@ Or, if you're fond of VMS command syntax:
 
      tar/extract/verbose Your_Module.tar
 
-C. BUILD 
+C. BUILD
 
-Make sure you have MMS (from Digital) or the freeware MMK ( available from MadGoat at  http://www.madgoat.com ).  Then type this to create the
-DESCRIP.MMS for the module: 
+Make sure you have MMS (from Digital) or the freeware MMK ( available from
+MadGoat at  http://www.madgoat.com ).  Then type this to create the
+DESCRIP.MMS for the module:
 
     perl Makefile.PL
 
@@ -358,7 +360,7 @@ Substitute C<mmk> for C<mms> above if you're using MMK.
 
 D. INSTALL
 
-Type 
+Type
 
     mms install
 
@@ -371,16 +373,16 @@ B<If you're on MVS>,
 Introduce the F<.tar.gz> file into an HFS as binary; don't translate from
 ASCII to EBCDIC.
 
-A. DECOMPRESS 
+A. DECOMPRESS
 
       Decompress the file with C<gzip -d yourmodule.tar.gz>
 
-      You can get gzip from 
+      You can get gzip from
       http://www.s390.ibm.com/products/oe/bpxqp1.html.
 
 B. UNPACK
 
-Unpack the result with 
+Unpack the result with
 
      pax -o to=IBM-1047,from=ISO8859-1 -r < yourmodule.tar
 
@@ -389,6 +391,52 @@ modules generate Makefiles that work better with GNU make, which is
 available from http://www.mks.com/s390/gnu/index.htm.
 
 =back
+
+
+=head1 PORTABILITY
+
+Note that not all modules will work with on all platforms.
+See L<perlport> for more information on portability issues.
+Read the documentation to see if the module will work on your
+system.  There are basically three categories
+of modules that will not work "out of the box" with all
+platforms (with some possibility of overlap):
+
+=over 4
+
+=item *
+
+B<Those that should, but don't.>  These need to be fixed; consider
+contacting the author and possibly writing a patch.
+
+=item *
+
+B<Those that need to be compiled, where the target platform
+doesn't have compilers readily available.>  (These modules contain
+F<.xs> or F<.c> files, usually.)  You might be able to find
+existing binaries on the CPAN or elsewhere, or you might
+want to try getting compilers and building it yourself, and then
+release the binary for other poor souls to use.
+
+=item *
+
+B<Those that are targeted at a specific platform.>
+(Such as the Win32:: modules.)  If the module is targeted
+specifically at a platform other than yours, you're out
+of luck, most likely.
+
+=back
+
+
+
+Check the CPAN Testers if a module should work with your platform
+but it doesn't behave as you'd expect, or you aren't sure whether or
+not a module will work under your platform.  If the module you want
+isn't listed there, you can test it yourself and let CPAN Testers know,
+you can join CPAN Testers, or you can request it be tested.
+
+    http://testers.cpan.org/
+
 
 =head1 HEY
 
@@ -401,7 +449,7 @@ familiar with Perl on your operating system.
 
 =head1 AUTHOR
 
-Jon Orwant 
+Jon Orwant
 
 orwant@tpj.com
 
@@ -413,11 +461,13 @@ Nick Ing-Simmons, Tuomas J. Lukka, Laszlo Molnar, Chris Nandor, Alan
 Olsen, Peter Prymmer, Gurusamy Sarathy, Christoph Spalinger, Dan
 Sugalski, Larry Virden, and Ilya Zakharevich.
 
-July 22, 1998
+First version July 22, 1998
+
+Last Modified August 22, 2000
 
 =head1 COPYRIGHT
 
-Copyright (C) 1998 Jon Orwant.  All Rights Reserved.
+Copyright (C) 1998, 2000 Jon Orwant.  All Rights Reserved.
 
 Permission is granted to make and distribute verbatim copies of this
 documentation provided the copyright notice and this permission notice are
@@ -434,4 +484,3 @@ to this one.
 Permission is granted to copy and distribute translations of this
 documentation into another language, under the above conditions for
 modified versions.
-

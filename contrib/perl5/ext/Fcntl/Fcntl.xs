@@ -33,13 +33,6 @@
    --AD  October 16, 1995
 */
 
-static int
-not_here(char *s)
-{
-    croak("%s not implemented on this architecture", s);
-    return -1;
-}
-
 static double
 constant(char *name, int arg)
 {

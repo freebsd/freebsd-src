@@ -111,7 +111,7 @@ to inet_aton('255.255.255.255').
 
 =item sockaddr_in SOCKADDR_IN
 
-In an array context, unpacks its SOCKADDR_IN argument and returns an array
+In a list context, unpacks its SOCKADDR_IN argument and returns an array
 consisting of (PORT, ADDRESS).  In a scalar context, packs its (PORT,
 ADDRESS) arguments as a SOCKADDR_IN and returns it.  If this is confusing,
 use pack_sockaddr_in() and unpack_sockaddr_in() explicitly.
@@ -135,7 +135,7 @@ Will croak if the structure does not have AF_INET in the right place.
 
 =item sockaddr_un SOCKADDR_UN
 
-In an array context, unpacks its SOCKADDR_UN argument and returns an array
+In a list context, unpacks its SOCKADDR_UN argument and returns an array
 consisting of (PATHNAME).  In a scalar context, packs its PATHNAME
 arguments as a SOCKADDR_UN and returns it.  If this is confusing, use
 pack_sockaddr_un() and unpack_sockaddr_un() explicitly.
@@ -268,6 +268,7 @@ use XSLoader ();
 	SO_RCVLOWAT
 	SO_RCVTIMEO
 	SO_REUSEADDR
+	SO_REUSEPORT
 	SO_SNDBUF
 	SO_SNDLOWAT
 	SO_SNDTIMEO

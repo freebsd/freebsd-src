@@ -9,13 +9,13 @@ PP(pp_range)
 }
 
 pp_range is a LOGOP.
-In array context, it just returns op_next.
+In list context, it just returns op_next.
 In scalar context it checks the truth of targ and returns
 op_other if true, op_next if false.
 
 flip is an UNOP.
 It "looks after" its child which is always a pp_range LOGOP.
-In array context, it just returns the child's op_other.
+In list context, it just returns the child's op_other.
 In scalar context, there are three possible outcomes:
   (1) set child's targ to 1, our targ to 1 and return op_next.
   (2) set child's targ to 1, our targ to 0, sp-- and return child's op_other.

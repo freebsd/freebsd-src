@@ -10,7 +10,7 @@ formats, and footers.
 =head2 How do I flush/unbuffer an output filehandle?  Why must I do this?
 
 The C standard I/O library (stdio) normally buffers characters sent to
-devices.  This is done for efficiency reasons, so that there isn't a
+devices.  This is done for efficiency reasons so that there isn't a
 system call for each byte.  Any time you use print() or write() in
 Perl, you go though this buffering.  syswrite() circumvents stdio and
 buffering.
@@ -83,16 +83,17 @@ Perl is a programming language.  You have to decompose the problem into
 low-level calls to read, write, open, close, and seek.
 
 Although humans have an easy time thinking of a text file as being a
-sequence of lines that operates much like a stack of playing cards -- or
-punch cards -- computers usually see the text file as a sequence of bytes.
+sequence of lines that operates much like a stack of playing cards--or
+punch cards--computers usually see the text file as a sequence of bytes.
 In general, there's no direct way for Perl to seek to a particular line
 of a file, insert text into a file, or remove text from a file.
 
-(There are exceptions in special circumstances.  You can add or remove at
-the very end of the file.  Another is replacing a sequence of bytes with
-another sequence of the same length.  Another is using the C<$DB_RECNO>
-array bindings as documented in L<DB_File>.  Yet another is manipulating
-files with all lines the same length.)
+(There are exceptions in special circumstances.  You can add or remove
+data at the very end of the file.  A sequence of bytes can be replaced
+with another sequence of the same length.  The C<$DB_RECNO> array
+bindings as documented in L<DB_File> also provide a direct way of
+modifying a file.  Files where all lines are the same length are also
+easy to alter.)
 
 The general solution is to create a temporary copy of the text file with
 the changes you want, then copy that over the original.  This assumes
@@ -174,16 +175,17 @@ This assumes no funny games with newline translations.
 =head2 How do I make a temporary file name?
 
 Use the C<new_tmpfile> class method from the IO::File module to get a
-filehandle opened for reading and writing.  Use this if you don't
-need to know the file's name.
+filehandle opened for reading and writing.  Use it if you don't
+need to know the file's name:
 
     use IO::File;
     $fh = IO::File->new_tmpfile()
 	or die "Unable to make new temporary file: $!";
 
-Or you can use the C<tmpnam> function from the POSIX module to get a
-filename that you then open yourself.  Use this if you do need to know
-the file's name.
+If you do need to know the file's name, you can use the C<tmpnam>
+function from the POSIX module to get a filename that you then open
+yourself:
+
 
     use Fcntl;
     use POSIX qw(tmpnam);
@@ -199,9 +201,9 @@ the file's name.
 
     # now go on to use the file ...
 
-If you're committed to doing this by hand, use the process ID and/or
-the current time-value.  If you need to have many temporary files in
-one process, use a counter:
+If you're committed to creating a temporary file by hand, use the
+process ID and/or the current time-value.  If you need to have many
+temporary files in one process, use a counter:
 
     BEGIN {
 	use Fcntl;
@@ -272,7 +274,7 @@ had, for example, a function named TmpHandle(), or a variable named
 	# *HostFile automatically closes/disappears here
     }
 
-Here's how to use this in a loop to open and store a bunch of
+Here's how to use typeglobs in a loop to open and store a bunch of
 filehandles.  We'll use as values of the hash an ordered
 pair to make it easy to sort the hash in insertion order.
 
@@ -292,8 +294,8 @@ pair to make it easy to sort the hash in insertion order.
     }
 
 For passing filehandles to functions, the easiest way is to 
-preface them with a star, as in func(*STDIN).  See L<perlfaq7/"Passing
-Filehandles"> for details.
+preface them with a star, as in func(*STDIN).  
+See L<perlfaq7/"Passing Filehandles"> for details.
 
 If you want to create many anonymous handles, you should check out the
 Symbol, FileHandle, or IO::Handle (etc.) modules.  Here's the equivalent
@@ -306,7 +308,7 @@ code with Symbol::gensym, which is reasonably light-weight:
         $file{$filename} = [ $i++, $fh ];
     }
 
-Or here using the semi-object-oriented FileHandle module, which certainly
+Here's using the semi-object-oriented FileHandle module, which certainly
 isn't light-weight:
 
     use FileHandle;
@@ -317,7 +319,7 @@ isn't light-weight:
     }
 
 Please understand that whether the filehandle happens to be a (probably
-localized) typeglob or an anonymous handle from one of the modules,
+localized) typeglob or an anonymous handle from one of the modules
 in no way affects the bizarre rules for managing indirect handles.
 See the next question.
 
@@ -325,7 +327,7 @@ See the next question.
 
 An indirect filehandle is using something other than a symbol
 in a place that a filehandle is expected.  Here are ways
-to get those:
+to get indirect filehandles:
 
     $fh =   SOME_FH;       # bareword is strict-subs hostile
     $fh =  "SOME_FH";      # strict-refs hostile; same package only
@@ -333,7 +335,7 @@ to get those:
     $fh = \*SOME_FH;       # ref to typeglob (bless-able)
     $fh =  *SOME_FH{IO};   # blessed IO::Handle from *SOME_FH typeglob
 
-Or to use the C<new> method from the FileHandle or IO modules to
+Or, you can use the C<new> method from the FileHandle or IO modules to
 create an anonymous filehandle, store that in a scalar variable,
 and use it as though it were a normal filehandle.
 
@@ -378,9 +380,10 @@ is risky.)
     accept_fh($handle);
 
 In the examples above, we assigned the filehandle to a scalar variable
-before using it.  That is because only simple scalar variables,
-not expressions or subscripts into hashes or arrays, can be used with
-built-ins like C<print>, C<printf>, or the diamond operator.  These are
+before using it.  That is because only simple scalar variables, not
+expressions or subscripts of hashes or arrays, can be used with
+built-ins like C<print>, C<printf>, or the diamond operator.  Using
+something other than a simple scalar varaible as a filehandle is
 illegal and won't even compile:
 
     @fd = (*STDIN, *STDOUT, *STDERR);
@@ -449,7 +452,7 @@ You can't just:
 because you have to put the comma in and then recalculate your
 position.
 
-Alternatively, this commifies all numbers in a line regardless of
+Alternatively, this code commifies all numbers in a line regardless of
 whether they have decimal portions, are preceded by + or -, or
 whatever:
 
@@ -463,11 +466,11 @@ whatever:
 
 =head2 How can I translate tildes (~) in a filename?
 
-Use the <> (glob()) operator, documented in L<perlfunc>.  This
-requires that you have a shell installed that groks tildes, meaning
-csh or tcsh or (some versions of) ksh, and thus may have portability
-problems.  The Glob::KGlob module (available from CPAN) gives more
-portable glob functionality.
+Use the <> (glob()) operator, documented in L<perlfunc>.  Older
+versions of Perl require that you have a shell installed that groks
+tildes.  Recent perl versions have this feature built in. The
+Glob::KGlob module (available from CPAN) gives more portable glob
+functionality.
 
 Within Perl, you may use this directly:
 
@@ -551,8 +554,8 @@ To open a file without blocking, creating if necessary:
 
 Be warned that neither creation nor deletion of files is guaranteed to
 be an atomic operation over NFS.  That is, two processes might both
-successful create or unlink the same file!  Therefore O_EXCL
-isn't so exclusive as you might wish.
+successfully create or unlink the same file!  Therefore O_EXCL
+isn't as exclusive as you might wish.
 
 See also the new L<perlopentut> if you have it (new for 5.6).
 
@@ -573,15 +576,15 @@ one that doesn't use the shell to do globbing.
 
 Due to the current implementation on some operating systems, when you
 use the glob() function or its angle-bracket alias in a scalar
-context, you may cause a leak and/or unpredictable behavior.  It's
+context, you may cause a memory leak and/or unpredictable behavior.  It's
 best therefore to use glob() only in list context.
 
 =head2 How can I open a file with a leading ">" or trailing blanks?
 
 Normally perl ignores trailing blanks in filenames, and interprets
 certain leading characters (or a trailing "|") to mean something
-special.  To avoid this, you might want to use a routine like this.
-It makes incomplete pathnames into explicit relative ones, and tacks a
+special.  To avoid this, you might want to use a routine like the one below.
+It turns incomplete pathnames into explicit relative ones, and tacks a
 trailing null byte on the name to make perl leave it alone:
 
     sub safe_filename {
@@ -603,7 +606,7 @@ It would be a lot clearer to use sysopen(), though:
 
     use Fcntl;
     $badpath = "<<<something really wicked   ";
-    open (FH, $badpath, O_WRONLY | O_CREAT | O_TRUNC)
+    sysopen (FH, $badpath, O_WRONLY | O_CREAT | O_TRUNC)
 	or die "can't open $badpath: $!";
 
 For more information, see also the new L<perlopentut> if you have it
@@ -611,10 +614,10 @@ For more information, see also the new L<perlopentut> if you have it
 
 =head2 How can I reliably rename a file?
 
-Well, usually you just use Perl's rename() function.  But that may not
-work everywhere, in particular, renaming files across file systems.
+Well, usually you just use Perl's rename() function.  That may not
+work everywhere, though, particularly when renaming files across file systems.
 Some sub-Unix systems have broken ports that corrupt the semantics of
-rename() -- for example, WinNT does this right, but Win95 and Win98
+rename()--for example, WinNT does this right, but Win95 and Win98
 are broken.  (The last two parts are not surprising, but the first is. :-)
 
 If your operating system supports a proper mv(1) program or its moral
@@ -624,11 +627,11 @@ equivalent, this works:
 
 It may be more compelling to use the File::Copy module instead.  You
 just copy to the new file to the new name (checking return values),
-then delete the old one.  This isn't really the same semantics as a
+then delete the old one.  This isn't really the same semantically as a
 real rename(), though, which preserves metainformation like
 permissions, timestamps, inode info, etc.
 
-The newer version of File::Copy exports a move() function.
+Newer versions of File::Copy exports a move() function.
 
 =head2 How can I lock a file?
 
@@ -654,12 +657,12 @@ filehandle be open for writing (or appending, or read/writing).
 
 Some versions of flock() can't lock files over a network (e.g. on NFS file
 systems), so you'd need to force the use of fcntl(2) when you build Perl.
-But even this is dubious at best.  See the flock entry of L<perlfunc>,
+But even this is dubious at best.  See the flock entry of L<perlfunc>
 and the F<INSTALL> file in the source distribution for information on
 building Perl to do this.
 
 Two potentially non-obvious but traditional flock semantics are that
-it waits indefinitely until the lock is granted, and that its locks
+it waits indefinitely until the lock is granted, and that its locks are
 I<merely advisory>.  Such discretionary locks are more flexible, but
 offer fewer guarantees.  This means that files locked with flock() may
 be modified by programs that do not also use flock().  Cars that stop
@@ -667,13 +670,13 @@ for red lights get on well with each other, but not with cars that don't
 stop for red lights.  See the perlport manpage, your port's specific
 documentation, or your system-specific local manpages for details.  It's
 best to assume traditional behavior if you're writing portable programs.
-(But if you're not, you should as always feel perfectly free to write
+(If you're not, you should as always feel perfectly free to write
 for your own system's idiosyncrasies (sometimes called "features").
 Slavish adherence to portability concerns shouldn't get in the way of
 your getting your job done.)
 
-For more information on file locking, see also L<perlopentut/"File
-Locking"> if you have it (new for 5.6).
+For more information on file locking, see also 
+L<perlopentut/"File Locking"> if you have it (new for 5.6).
 
 =back
 
@@ -700,20 +703,18 @@ these tend to involve busy-wait, which is also subdesirable.
 
 Didn't anyone ever tell you web-page hit counters were useless?
 They don't count number of hits, they're a waste of time, and they serve
-only to stroke the writer's vanity.  Better to pick a random number.
-It's more realistic.
+only to stroke the writer's vanity.  It's better to pick a random number;
+they're more realistic.
 
 Anyway, this is what you can do if you can't help yourself.
 
-    use Fcntl ':flock';
+    use Fcntl qw(:DEFAULT :flock);
     sysopen(FH, "numfile", O_RDWR|O_CREAT) 	 or die "can't open numfile: $!";
     flock(FH, LOCK_EX) 				 or die "can't flock numfile: $!";
     $num = <FH> || 0;
     seek(FH, 0, 0) 				 or die "can't rewind numfile: $!";
     truncate(FH, 0) 				 or die "can't truncate numfile: $!";
     (print FH $num+1, "\n")			 or die "can't write numfile: $!";
-    # Perl as of 5.004 automatically flushes before unlocking
-    flock(FH, LOCK_UN) 				 or die "can't flock numfile: $!";
     close FH 					 or die "can't close numfile: $!";
 
 Here's a much better web-page hit counter:
@@ -743,7 +744,7 @@ like this:
     close FH;
 
 Locking and error checking are left as an exercise for the reader.
-Don't forget them, or you'll be quite sorry.
+Don't forget them or you'll be quite sorry.
 
 =head2 How do I get a file's timestamp in perl?
 
@@ -793,7 +794,7 @@ Error checking is, as usual, left as an exercise for the reader.
 
 Note that utime() currently doesn't work correctly with Win95/NT
 ports.  A bug has been reported.  Check it carefully before using
-it on those platforms.
+utime() on those platforms.
 
 =head2 How do I print to more than one file at once?
 
@@ -815,8 +816,8 @@ Or even:
     close(STDOUT)                            or die "Closing: $!\n";
 
 Otherwise you'll have to write your own multiplexing print
-function -- or your own tee program -- or use Tom Christiansen's,
-at http://www.perl.com/CPAN/authors/id/TOMC/scripts/tct.gz, which is
+function--or your own tee program--or use Tom Christiansen's,
+at http://www.perl.com/CPAN/authors/id/TOMC/scripts/tct.gz , which is
 written in Perl and offers much greater functionality
 than the stock version.
 
@@ -834,20 +835,20 @@ do so one line at a time:
 
 This is tremendously more efficient than reading the entire file into
 memory as an array of lines and then processing it one element at a time,
-which is often -- if not almost always -- the wrong approach.  Whenever
+which is often--if not almost always--the wrong approach.  Whenever
 you see someone do this:
 
     @lines = <INPUT>;
 
-You should think long and hard about why you need everything loaded
+you should think long and hard about why you need everything loaded
 at once.  It's just not a scalable solution.  You might also find it
-more fun to use the the standard DB_File module's $DB_RECNO bindings,
+more fun to use the standard DB_File module's $DB_RECNO bindings,
 which allow you to tie an array to a file so that accessing an element
 the array actually accesses the corresponding line in the file.
 
 On very rare occasion, you may have an algorithm that demands that
 the entire file be in memory at once as one scalar.  The simplest solution
-to that is:
+to that is
 
     $var = `cat $file`;
 
@@ -886,7 +887,7 @@ Note that a blank line must have no blanks in it.  Thus C<"fred\n
 
 You can use the builtin C<getc()> function for most filehandles, but
 it won't (easily) work on a terminal device.  For STDIN, either use
-the Term::ReadKey module from CPAN, or use the sample code in
+the Term::ReadKey module from CPAN or use the sample code in
 L<perlfunc/getc>.
 
 If your system supports the portable operating system programming
@@ -942,7 +943,7 @@ turns off echo processing as well.
 
     END { cooked() }
 
-The Term::ReadKey module from CPAN may be easier to use.  Recent version
+The Term::ReadKey module from CPAN may be easier to use.  Recent versions
 include also support for non-portable systems as well.
 
     use Term::ReadKey;
@@ -997,8 +998,8 @@ table:
     # 78-83   ALT 1234567890-=
     # 84      CTR PgUp
 
-This is all trial and error I did a long time ago, I hope I'm reading the
-file that worked.
+This is all trial and error I did a long time ago; I hope I'm reading the
+file that worked...
 
 =head2 How can I tell whether there's a character waiting on a filehandle?
 
@@ -1056,7 +1057,7 @@ And then hard-code it, leaving porting as an exercise to your successor.
     ioctl(FH, $FIONREAD, $size)     or die "Couldn't call ioctl: $!\n";
     $size = unpack("L", $size);
 
-FIONREAD requires a filehandle connected to a stream, meaning sockets,
+FIONREAD requires a filehandle connected to a stream, meaning that sockets,
 pipes, and tty devices work, but I<not> files.
 
 =head2 How do I do a C<tail -f> in perl?
@@ -1111,14 +1112,14 @@ Error checking, as always, has been left as an exercise for the reader.
 
 This should rarely be necessary, as the Perl close() function is to be
 used for things that Perl opened itself, even if it was a dup of a
-numeric descriptor, as with MHCONTEXT above.  But if you really have
+numeric descriptor as with MHCONTEXT above.  But if you really have
 to, you may be able to do this:
 
     require 'sys/syscall.ph';
     $rc = syscall(&SYS_close, $fd + 0);  # must force numeric
     die "can't sysclose $fd: $!" unless $rc == -1;
 
-Or just use the fdopen(3S) feature of open():
+Or, just use the fdopen(3S) feature of open():
 
     { 
 	local *F; 
@@ -1138,7 +1139,7 @@ have a file called "c:(tab)emp(formfeed)oo" or
 Either single-quote your strings, or (preferably) use forward slashes.
 Since all DOS and Windows versions since something like MS-DOS 2.0 or so
 have treated C</> and C<\> the same in a path, you might as well use the
-one that doesn't clash with Perl -- or the POSIX shell, ANSI C and C++,
+one that doesn't clash with Perl--or the POSIX shell, ANSI C and C++,
 awk, Tcl, Java, or Python, just to mention a few.  POSIX paths
 are more portable, too.
 
@@ -1173,7 +1174,7 @@ Here's an algorithm from the Camel Book:
 
 This has a significant advantage in space over reading the whole
 file in.  A simple proof by induction is available upon 
-request if you doubt its correctness.
+request if you doubt the algorithm's correctness.
 
 =head2 Why do I get weird spaces when I print an array of lines?
 
@@ -1183,7 +1184,7 @@ Saying
 
 joins together the elements of C<@lines> with a space between them.
 If C<@lines> were C<("little", "fluffy", "clouds")> then the above
-statement would print:
+statement would print
 
     little fluffy clouds
 

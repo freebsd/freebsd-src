@@ -1,6 +1,6 @@
 /*    deb.c
  *
- *    Copyright (c) 1991-2000, Larry Wall
+ *    Copyright (c) 1991-2001, Larry Wall
  *
  *    You may distribute under the terms of either the GNU General Public
  *    License or the Artistic License, as specified in the README file.
@@ -45,7 +45,6 @@ void
 Perl_vdeb(pTHX_ const char *pat, va_list *args)
 {
 #ifdef DEBUGGING
-    dTHR;
     char* file = CopFILE(PL_curcop);
 
 #ifdef USE_THREADS
@@ -65,7 +64,6 @@ I32
 Perl_debstackptrs(pTHX)
 {
 #ifdef DEBUGGING
-    dTHR;
     PerlIO_printf(Perl_debug_log,
 		  "%8"UVxf" %8"UVxf" %8"IVdf" %8"IVdf" %8"IVdf"\n",
 		  PTR2UV(PL_curstack), PTR2UV(PL_stack_base),
@@ -84,7 +82,6 @@ I32
 Perl_debstack(pTHX)
 {
 #ifdef DEBUGGING
-    dTHR;
     I32 top = PL_stack_sp - PL_stack_base;
     register I32 i = top - 30;
     I32 *markscan = PL_markstack + PL_curstackinfo->si_markoff;

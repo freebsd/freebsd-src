@@ -3,7 +3,7 @@
 BEGIN {
     unless(grep /blib/, @INC) {
         chdir 't' if -d 't';
-        unshift @INC, '../lib' if -d '../lib';
+        @INC = '../lib';
     }
 }
 
@@ -15,7 +15,7 @@ if ($^O eq 'mpeix') {
 select(STDERR); $| = 1;
 select(STDOUT); $| = 1;
 
-print "1..8\n";
+print "1..9\n";
 
 use IO::Handle;
 use IO::Poll qw(/POLL/);
@@ -75,3 +75,8 @@ $poll->poll(0.1);
 print "not "
 	if $poll->events($stdout);
 print "ok 8\n";
+
+$poll->remove($dupout);
+print "not "
+    if $poll->handles;
+print "ok 9\n";

@@ -425,6 +425,10 @@ this could be done:
 Notice how there's no memory to deallocate in the destructor?  That's
 something that Perl takes care of for you all by itself.
 
+Alternatively, you could use the Class::Data::Inheritable module from
+CPAN.
+
+
 =head2 Accessing Class Data
 
 It turns out that this is not really a good way to go about handling
@@ -1700,7 +1704,7 @@ as with any other local().
 It would be nice to combine Alias with
 something like Class::Struct or Class::MethodMaker.
 
-=head2 NOTES
+=head1 NOTES
 
 =head2 Object Terminology
 
@@ -1727,7 +1731,7 @@ as a class or object method is by usage only.  You could accidentally
 call a class method (one expecting a string argument) on an
 object (one expecting a reference), or vice versa.
 
-Z<>From the C++ perspective, all methods in Perl are virtual.
+From the C++ perspective, all methods in Perl are virtual.
 This, by the way, is why they are never checked for function
 prototypes in the argument list as regular builtin and user-defined
 functions can be.
@@ -1749,6 +1753,16 @@ L<perlbot>,
 L<perltie>,
 and
 L<overload>.
+
+L<perlboot> is a kinder, gentler introduction to object-oriented
+programming.
+
+L<perltootc> provides more detail on class data.
+
+Some modules which might prove interesting are Class::Accessor,
+Class::Class, Class::Contract, Class::Data::Inheritable,
+Class::MethodMaker and Tie::SecureHash
+
 
 =head1 AUTHOR AND COPYRIGHT
 

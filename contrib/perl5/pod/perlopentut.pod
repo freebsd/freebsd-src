@@ -73,8 +73,8 @@ from a different file, and forget to trim it before opening:
 This is not a bug, but a feature.  Because C<open> mimics the shell in
 its style of using redirection arrows to specify how to open the file, it
 also does so with respect to extra white space around the filename itself
-as well.  For accessing files with naughty names, see L<"Dispelling
-the Dweomer">.
+as well.  For accessing files with naughty names, see 
+L<"Dispelling the Dweomer">.
 
 =head2 Pipe Opens
 
@@ -107,13 +107,13 @@ In most systems, such an C<open> will not return an error. That's
 because in the traditional C<fork>/C<exec> model, running the other
 program happens only in the forked child process, which means that
 the failed C<exec> can't be reflected in the return value of C<open>.
-Only a failed C<fork> shows up there.  See L<perlfaq8/"Why doesn't open()
-return an error when a pipe open fails?"> to see how to cope with this.
-There's also an explanation in L<perlipc>.
+Only a failed C<fork> shows up there.  See 
+L<perlfaq8/"Why doesn't open() return an error when a pipe open fails?"> 
+to see how to cope with this.  There's also an explanation in L<perlipc>.
 
 If you would like to open a bidirectional pipe, the IPC::Open2
-library will handle this for you.  Check out L<perlipc/"Bidirectional
-Communication with Another Process">
+library will handle this for you.  Check out 
+L<perlipc/"Bidirectional Communication with Another Process">
 
 =head2 The Minus File
 
@@ -126,8 +126,8 @@ access the standard output.
 If minus can be used as the default input or default output, what happens
 if you open a pipe into or out of minus?  What's the default command it
 would run?  The same script as you're currently running!  This is actually
-a stealth C<fork> hidden inside an C<open> call.  See L<perlipc/"Safe Pipe
-Opens"> for details.
+a stealth C<fork> hidden inside an C<open> call.  See 
+L<perlipc/"Safe Pipe Opens"> for details.
 
 =head2 Mixing Reads and Writes
 
@@ -309,7 +309,7 @@ C<O_DEFER>, C<O_SYNC>, C<O_ASYNC>, C<O_DSYNC>, C<O_RSYNC>,
 C<O_NOCTTY>, C<O_NDELAY> and C<O_LARGEFILE>.  Consult your open(2)
 manpage or its local equivalent for details.  (Note: starting from
 Perl release 5.6 the O_LARGEFILE flag, if available, is automatically
-added to the sysopen() flags because large files are the the default.)
+added to the sysopen() flags because large files are the default.)
 
 Here's how to use C<sysopen> to emulate the simple C<open> calls we had
 before.  We'll omit the C<|| die $!> checks for clarity, but make sure
@@ -684,9 +684,9 @@ also some high-level modules on CPAN that can help you with these games.
 Check out Term::ReadKey and Term::ReadLine.
 
 What else can you open?  To open a connection using sockets, you won't use
-one of Perl's two open functions.  See L<perlipc/"Sockets: Client/Server
-Communication"> for that.  Here's an example.  Once you have it,
-you can use FH as a bidirectional filehandle.
+one of Perl's two open functions.  See 
+L<perlipc/"Sockets: Client/Server Communication"> for that.  Here's an 
+example.  Once you have it, you can use FH as a bidirectional filehandle.
 
     use IO::Socket;
     local *FH = IO::Socket::INET->new("www.perl.com:80");

@@ -91,8 +91,7 @@ sub new {
 sub TIESCALAR {
     my $pkg = shift;
     if (defined &{"{$pkg}::new"}) {
-	warnings::warn "WARNING: calling ${pkg}->new since ${pkg}->TIESCALAR is missing"
-	    if warnings::enabled();
+	warnings::warnif("WARNING: calling ${pkg}->new since ${pkg}->TIESCALAR is missing");
 	$pkg->new(@_);
     }
     else {

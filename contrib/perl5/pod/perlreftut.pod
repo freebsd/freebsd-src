@@ -386,7 +386,7 @@ to do with references.
 
 =head1 Credits
 
-Author: Mark-Jason Dominus, Plover Systems (C<mjd-perl-ref@plover.com>)
+Author: Mark-Jason Dominus, Plover Systems (C<mjd-perl-ref+@plover.com>)
 
 This article originally appeared in I<The Perl Journal>
 (http://tpj.com) volume 3, #2.  Reprinted with permission.  

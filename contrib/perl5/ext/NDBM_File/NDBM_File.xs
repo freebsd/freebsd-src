@@ -1,6 +1,11 @@
 #include "EXTERN.h"
 #include "perl.h"
 #include "XSUB.h"
+/* If using the DB3 emulation, ENTER is defined both
+ * by DB3 and Perl.  We drop the Perl definition now.
+ * See also INSTALL section on DB3.
+ * -- Stanislav Brabec <utx@penguin.cz> */
+#undef ENTER
 #include <ndbm.h>
 
 typedef struct {

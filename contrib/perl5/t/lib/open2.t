@@ -2,7 +2,7 @@
 
 BEGIN {
     chdir 't' if -d 't';
-    unshift @INC, '../lib';
+    @INC = '../lib';
     require Config; import Config;
     if (!$Config{'d_fork'}
        # open2/3 supported on win32 (but not Borland due to CRT bugs)

@@ -4,7 +4,7 @@ $| = 1;
 
 BEGIN {
     chdir 't' if -d 't';
-    unshift @INC, '../lib';
+    @INC = '../lib';
 }
 
 if ($^O eq 'VMS') {

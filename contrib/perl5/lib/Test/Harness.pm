@@ -8,7 +8,7 @@ use FileHandle;
 use strict;
 
 our($VERSION, $verbose, $switches, $have_devel_corestack, $curtest,
-    @ISA, @EXPORT, @EXPORT_OK);
+    $columns, @ISA, @EXPORT, @EXPORT_OK);
 $have_devel_corestack = 0;
 
 $VERSION = "1.1604";
@@ -27,36 +27,18 @@ my $subtests_skipped = 0;
 @EXPORT= qw(&runtests);
 @EXPORT_OK= qw($verbose $switches);
 
-format STDOUT_TOP =
-Failed Test  Status Wstat Total Fail  Failed  List of failed
--------------------------------------------------------------------------------
-.
-
-format STDOUT =
-@<<<<<<<<<<<<<< @>> @>>>> @>>>> @>>> ^##.##%  ^<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
-{ $curtest->{name},
-                $curtest->{estat},
-                    $curtest->{wstat},
-                          $curtest->{max},
-                                $curtest->{failed},
-                                     $curtest->{percent},
-                                              $curtest->{canon}
-}
-~~                                            ^<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
-                                              $curtest->{canon}
-.
-
-
 $verbose = 0;
 $switches = "-w";
+$columns = $ENV{HARNESS_COLUMNS} || $ENV{COLUMNS} || 80;
 
 sub globdir { opendir DIRH, shift; my @f = readdir DIRH; closedir DIRH; @f }
 
 sub runtests {
     my(@tests) = @_;
     local($|) = 1;
-    my($test,$te,$ok,$next,$max,$pct,$totok,$totbonus,@failed,%failedtests);
+    my($test,$te,$ok,$next,$max,$pct,$totbonus,@failed,%failedtests);
     my $totmax = 0;
+    my $totok = 0;
     my $files = 0;
     my $bad = 0;
     my $good = 0;
@@ -102,7 +84,7 @@ sub runtests {
 	$fh->close or print "can't close $test. $!\n";
 	my $cmd = ($ENV{'HARNESS_COMPILE_TEST'})
 		? "./perl -I../lib ../utils/perlcc $test "
-		  . "-run 2>> ./compilelog |" 
+		  . "-r 2>> ./compilelog |" 
 		: "$^X $s $test|";
 	$cmd = "MCR $cmd" if $^O eq 'VMS';
 	$fh->open($cmd) or print "can't run $test. $!\n";
@@ -158,12 +140,12 @@ sub runtests {
 		    $bonus++, $totbonus++ if $todo{$this};
 		}
 		if ($this > $next) {
-		    # warn "Test output counter mismatch [test $this]\n";
+		    # print "Test output counter mismatch [test $this]\n";
 		    # no need to warn probably
 		    push @failed, $next..$this-1;
 		} elsif ($this < $next) {
 		    #we have seen more "ok" lines than the number suggests
-		    warn "Confused test output: test $this answered after test ", $next-1, "\n";
+		    print "Confused test output: test $this answered after test ", $next-1, "\n";
 		    $next = $this;
 		}
 		$next = $this + 1;
@@ -230,7 +212,7 @@ sub runtests {
 	    }
 	    if (@failed) {
 		my ($txt, $canon) = canonfailed($max,$skipped,@failed);
-		print $txt;
+		print "${ml}$txt";
 		$failedtests{$test} = { canon => $canon,  max => $max,
 					failed => scalar @failed,
 					name => $test, percent => 100*(scalar @failed)/$max,
@@ -304,7 +286,54 @@ sub runtests {
 	$pct = sprintf("%.2f", $good / $total * 100);
 	my $subpct = sprintf " %d/%d subtests failed, %.2f%% okay.",
 	$totmax - $totok, $totmax, 100*$totok/$totmax;
+	# Create formats
+	#    First, figure out max length of test names
+	my $failed_str = "Failed Test";
+	my $middle_str = " Status Wstat Total Fail  Failed  ";
+	my $list_str = "List of Failed";
+	my $max_namelen = length($failed_str);
 	my $script;
+	foreach $script (keys %failedtests) {
+	    $max_namelen =
+		(length $failedtests{$script}->{name} > $max_namelen) ?
+		    length $failedtests{$script}->{name} : $max_namelen;
+	}
+	my $list_len = $columns - length($middle_str) - $max_namelen;
+	if ($list_len < length($list_str)) {
+	    $list_len = length($list_str);
+	    $max_namelen = $columns - length($middle_str) - $list_len;
+	    if ($max_namelen < length($failed_str)) {
+		$max_namelen = length($failed_str);
+		$columns = $max_namelen + length($middle_str) + $list_len;
+	    }
+	}
+
+	my $fmt_top = "format STDOUT_TOP =\n"
+		      . sprintf("%-${max_namelen}s", $failed_str)
+		      . $middle_str
+		      . $list_str . "\n"
+		      . "-" x $columns
+		      . "\n.\n";
+	my $fmt = "format STDOUT =\n"
+		  . "@" . "<" x ($max_namelen - 1)
+		  . "	 @>> @>>>> @>>>> @>>> ^##.##%  "
+		  . "^" . "<" x ($list_len - 1) . "\n"
+		  . '{ $curtest->{name}, $curtest->{estat},'
+		  . '  $curtest->{wstat}, $curtest->{max},'
+		  . '  $curtest->{failed}, $curtest->{percent},'
+		  . '  $curtest->{canon}'
+		  . "\n}\n"
+		  . "~~" . " " x ($columns - $list_len - 2) . "^"
+		  . "<" x ($list_len - 1) . "\n"
+		  . '$curtest->{canon}'
+		  . "\n.\n";
+
+	eval $fmt_top;
+	die $@ if $@;
+	eval $fmt;
+	die $@ if $@;
+
+	# Now write to formats
 	for $script (sort keys %failedtests) {
 	  $curtest = $failedtests{$script};
 	  write;
@@ -323,16 +352,9 @@ sub runtests {
 my $tried_devel_corestack;
 sub corestatus {
     my($st) = @_;
-    my($ret);
 
     eval {require 'wait.ph'};
-    if ($@) {
-      SWITCH: {
-	    $ret = ($st & 0200); # Tim says, this is for 90%
-	}
-    } else {
-	$ret = WCOREDUMP($st);
-    }
+    my $ret = defined &WCOREDUMP ? WCOREDUMP($st) : $st & 0200;
 
     eval { require Devel::CoreStack; $have_devel_corestack++ } 
       unless $tried_devel_corestack++;
@@ -515,6 +537,12 @@ The value of C<HARNESS_PERL_SWITCHES> will be prepended to the
 switches used to invoke perl on each test.  For example, setting
 C<HARNESS_PERL_SWITCHES> to "-W" will run all tests with all
 warnings enabled.
+
+If C<HARNESS_COLUMNS> is set, then this value will be used for the
+width of the terminal. If it is not set then it will default to
+C<COLUMNS>. If this is not set, it will default to 80. Note that users
+of Bourne-sh based shells will need to C<export COLUMNS> for this
+module to use that variable.
 
 Harness sets C<HARNESS_ACTIVE> before executing the individual tests.
 This allows the tests to determine if they are being executed through the

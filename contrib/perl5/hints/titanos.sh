@@ -12,7 +12,6 @@ intsize='4'
 usenm='true'
 nm_opt='-eh'
 malloctype='void *'
-models='none'
 ccflags="$ccflags -I/usr/include/net -DDEBUGGING -DSTANDARD_C"
 cppflags="$cppflags -I/usr/include/net -DDEBUGGING -DSTANDARD_C"
 stdchar='unsigned char'

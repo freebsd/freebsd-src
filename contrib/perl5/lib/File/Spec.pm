@@ -3,12 +3,13 @@ package File::Spec;
 use strict;
 use vars qw(@ISA $VERSION);
 
-$VERSION = '0.8';
+$VERSION = 0.82 ;
 
 my %module = (MacOS   => 'Mac',
 	      MSWin32 => 'Win32',
 	      os2     => 'OS2',
-	      VMS     => 'VMS');
+	      VMS     => 'VMS',
+	      epoc    => 'Epoc');
 
 my $module = $module{$^O} || 'Unix';
 require "File/Spec/$module.pm";

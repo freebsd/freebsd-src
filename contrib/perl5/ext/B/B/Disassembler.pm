@@ -31,6 +31,13 @@ sub GET_U16 {
     return unpack("n", $str);
 }
 
+sub GET_NV {
+    my $fh = shift;
+    my $str = $fh->readn(8);
+    croak "reached EOF while reading NV" unless length($str) == 8;
+    return unpack("N", $str);
+}
+
 sub GET_U32 {
     my $fh = shift;
     my $str = $fh->readn(4);

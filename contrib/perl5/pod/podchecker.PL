@@ -39,7 +39,7 @@ print OUT <<'!NO!SUBS!';
 #############################################################################
 # podchecker -- command to invoke the podchecker function in Pod::Checker
 #
-# Copyright (c) 1998-1999 by Bradford Appleton. All rights reserved.
+# Copyright (c) 1998-2000 by Bradford Appleton. All rights reserved.
 # This file is part of "PodParser". PodParser is free software;
 # you can redistribute it and/or modify it under the same terms
 # as Perl itself.
@@ -70,7 +70,9 @@ Print the manual page and exit.
 
 =item B<-warnings> B<-nowarnings>
 
-Turn on/off printing of warnings.
+Turn on/off printing of warnings. Repeating B<-warnings> increases the
+warning level, i.e. more warnings are printed. Currently increasing to
+level two causes flagging of unescaped "E<lt>,E<gt>" characters.
 
 =item I<file>
 
@@ -84,6 +86,8 @@ B<podchecker> will read the given input files looking for POD
 syntax errors in the POD documentation and will print any errors
 it find to STDERR. At the end, it will print a status message
 indicating the number of errors found.
+
+Directories are ignored, an appropriate warning message is printed.
 
 B<podchecker> invokes the B<podchecker()> function exported by B<Pod::Checker>
 Please see L<Pod::Checker/podchecker()> for more details.
@@ -124,24 +128,34 @@ use Pod::Usage;
 use Getopt::Long;
 
 ## Define options
-my %options = (
-        "help"     => 0,
-        "man"      => 0,
-        "warnings" => 1,
-);
+my %options;
 
 ## Parse options
-GetOptions(\%options, "help", "man", "warnings!")  ||  pod2usage(2);
+GetOptions(\%options, qw(help man warnings+ nowarnings))  ||  pod2usage(2);
 pod2usage(1)  if ($options{help});
 pod2usage(-verbose => 2)  if ($options{man});
+
+if($options{nowarnings}) {
+  $options{warnings} = 0;
+}
+elsif(!defined $options{warnings}) {
+  $options{warnings} = 1; # default is warnings on
+}
 
 ## Dont default to STDIN if connected to a terminal
 pod2usage(2) if ((@ARGV == 0) && (-t STDIN));
 
 ## Invoke podchecker()
 my $status = 0;
-@ARGV = ("<&STDIN") unless(@ARGV);
+@ARGV = qw(-) unless(@ARGV);
 for (@ARGV) {
+    if($_ eq '-') {
+      $_ = "<&STDIN";
+    }
+    elsif(-d) {
+      warn "podchecker: Warning: Ignoring directory '$_'\n";
+      next;
+    }
     my $s = podchecker($_, undef, '-warnings' => $options{warnings});
     if($s > 0) {
         # errors occurred

@@ -100,7 +100,11 @@
 #define fwrite1 fwrite
 
 #define Fstat(fd,bufptr)   fstat((fd),(bufptr))
-#define Fflush(fp)         fflush(fp)
+#ifdef DJGPP
+#   define Fflush(fp)      djgpp_fflush(fp)
+#else
+#   define Fflush(fp)      fflush(fp)
+#endif
 #define Mkdir(path,mode)   mkdir((path),(mode))
 
 #ifndef WIN32

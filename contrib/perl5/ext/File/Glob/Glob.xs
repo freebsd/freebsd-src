@@ -4,15 +4,8 @@
 
 #include "bsd_glob.h"
 
+/* XXX: need some thread awareness */
 static int GLOB_ERROR = 0;
-
-static int
-not_here(char *s)
-{
-    croak("%s not implemented on this architecture", s);
-    return -1;
-}
-
 
 static double
 constant(char *name, int arg)
@@ -25,6 +18,12 @@ constant(char *name, int arg)
 	if (strEQ(name, "GLOB_ABEND"))
 #ifdef GLOB_ABEND
 	    return GLOB_ABEND;
+#else
+	    goto not_there;
+#endif
+	if (strEQ(name, "GLOB_ALPHASORT"))
+#ifdef GLOB_ALPHASORT
+	    return GLOB_ALPHASORT;
 #else
 	    goto not_there;
 #endif

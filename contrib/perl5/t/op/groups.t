@@ -115,7 +115,8 @@ for (split(' ', $()) {
     }
 } 
 
-if ($^O eq "uwin") { # Or anybody else who can have spaces in group names.
+if ($^O =~ /^(?:uwin|solaris)$/) {
+	# Or anybody else who can have spaces in group names.
 	$gr1 = join(' ', grep(!$did{$_}++, sort split(' ', join(' ', @gr))));
 } else {
 	$gr1 = join(' ', sort @gr);
