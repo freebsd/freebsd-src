@@ -290,6 +290,6 @@ static void
 usage()
 {
 	(void)fprintf(stderr,
-		"usage: mount_portal [-o options] config mount-point\n");
+		"usage: mount_portalfs [-o options] config mount-point\n");
 	exit(EX_USAGE);
 }
