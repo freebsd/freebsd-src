@@ -521,8 +521,8 @@ digest_dynamic(Obj_Entry *obj)
 	    break;
 
 	default:
-	    xprintf("Ignored d_tag %d\n",dynp->d_tag);
-            break;
+	    dbg("Ignoring d_tag %d = %#x", dynp->d_tag, dynp->d_tag);
+	    break;
 	}
     }
 
