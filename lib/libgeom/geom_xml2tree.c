@@ -341,9 +341,13 @@ geom_xml2tree(struct gmesh *gmp, char *p)
 			}
 			LIST_FOREACH(co, &ge->consumer, consumer) {
 				co->geom = geom_lookupid(gmp, co->geom)->ptr;
-				if (co->provider != NULL)
+				if (co->provider != NULL) {
 					co->provider = 
 					    geom_lookupid(gmp, co->provider)->ptr;
+					LIST_INSERT_HEAD(
+					    &co->provider->consumers,
+					    co, consumers);
+				}
 			}
 		}
 	}
