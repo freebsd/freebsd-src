@@ -134,32 +134,9 @@ SYSCTL_INT(_net_inet_tcp, OID_AUTO, do_tcpdrain, CTLFLAG_RW, &do_tcpdrain, 0,
 SYSCTL_INT(_net_inet_tcp, OID_AUTO, pcbcount, CTLFLAG_RD, 
     &tcbinfo.ipi_count, 0, "Number of active PCBs");
 
-/*
- * Treat ICMP unreachables like a TCP RST as required by rfc1122 section 3.2.2.1
- *
- * Administatively prohibited kill's sessions regardless of
- * their current state, other unreachable by default only kill 
- * sessions if they are in SYN-SENT state, this ensure temporary 
- * routing problems doesn't kill existing TCP sessions.
- * This can be overridden by icmp_like_rst_syn_sent_only.
- */
- 
-static int	icmp_unreach_like_rst = 1;
-SYSCTL_INT(_net_inet_tcp, OID_AUTO, icmp_unreach_like_rst, CTLFLAG_RW,
-	&icmp_unreach_like_rst, 0, 
-	"Treat ICMP unreachable messages like TCP RST, rfc1122 section 3.2.2.1");
-
-/*
- * Control if ICMP unreachable messages other that administratively prohibited
- * ones will kill sessions not in SYN-SENT state.
- *
- * Has no effect unless icmp_unreach_like_rst is enabled.
- */
-
-static int	icmp_like_rst_syn_sent_only = 1;
-SYSCTL_INT(_net_inet_tcp, OID_AUTO, icmp_like_rst_syn_sent_only, CTLFLAG_RW,
-	&icmp_like_rst_syn_sent_only, 0, 
-	"When icmp_unreach_like_rst is enabled, only act on sessions in SYN-SENT state");
+static int	icmp_may_rst = 1;
+SYSCTL_INT(_net_inet_tcp, OID_AUTO, icmp_may_rst, CTLFLAG_RW, &icmp_may_rst, 0, 
+    "Certain ICMP unreachable messages may abort connections in SYN_SENT");
 
 static void	tcp_cleartaocache __P((void));
 static void	tcp_notify __P((struct inpcb *, int));
@@ -993,35 +970,17 @@ tcp_ctlinput(cmd, sa, vip)
 	struct sockaddr *sa;
 	void *vip;
 {
-	register struct ip *ip = vip;
-	register struct tcphdr *th;
+	struct ip *ip = vip;
+	struct tcphdr *th;
 	void (*notify) __P((struct inpcb *, int)) = tcp_notify;
 	tcp_seq tcp_sequence = 0;
 	int tcp_seq_check = 0;
 
 	if (cmd == PRC_QUENCH)
 		notify = tcp_quench;
-	else if ((icmp_unreach_like_rst == 1) && ((cmd == PRC_UNREACH_HOST) ||
-			(cmd == PRC_UNREACH_ADMIN_PROHIB)) && (ip) && 
-			((IP_VHL_HL(ip->ip_vhl) << 2) == sizeof(struct ip))) {
-		/*
-		 * Only go here if the length of the IP header in the ICMP packet
-		 * is 20 bytes, that is it doesn't have options, if it does have
-		 * options, we will not have the first 8 bytes of the TCP header,
-		 * and thus we cannot match against TCP source/destination port
-		 * numbers and TCP sequence number.
-		 *
-		 * If PRC_UNREACH_ADMIN_PROHIB drop session regardsless of current
-		 * state, else we check the sysctl icmp_like_rst_syn_sent_only to
-		 * see if we should drop the session only in SYN-SENT state, or
-		 * in all states.
-		 */
+	else if (icmp_may_rst && cmd == PRC_UNREACH_ADMIN_PROHIB && ip) {
 		tcp_seq_check = 1;
-		if (cmd == PRC_UNREACH_ADMIN_PROHIB) {
-			notify = tcp_drop_all_states;
-		} else {
-			notify = tcp_drop_syn_sent;
-		}
+		notify = tcp_drop_syn_sent;
 	} else if (cmd == PRC_MSGSIZE)
 		notify = tcp_mtudisc;
 	else if (PRC_IS_REDIRECT(cmd)) {
@@ -1173,10 +1132,9 @@ tcp_quench(inp, errno)
 }
 
 /*
- * When a ICMP unreachable is recieved, drop the
- * TCP connection, depending on the sysctl
- * icmp_like_rst_syn_sent_only, it only drops
- * the session if it's in SYN-SENT state
+ * When a specific ICMP unreachable message is received and the
+ * connection state is SYN-SENT, drop the connection.  This behavior
+ * is controlled by the icmp_may_rst sysctl.
  */
 void
 tcp_drop_syn_sent(inp, errno)
@@ -1184,22 +1142,8 @@ tcp_drop_syn_sent(inp, errno)
 	int errno;
 {
 	struct tcpcb *tp = intotcpcb(inp);
-	if((tp) && ((icmp_like_rst_syn_sent_only == 0) || 
-			(tp->t_state == TCPS_SYN_SENT)))
-		tcp_drop(tp, errno);
-}
 
-/*
- * When a ICMP unreachable is recieved, drop the
- * TCP connection, regardless of the state.
- */
-void
-tcp_drop_all_states(inp, errno)
-	struct inpcb *inp;
-	int errno;
-{
-	struct tcpcb *tp = intotcpcb(inp);
-	if(tp)
+	if (tp && tp->t_state == TCPS_SYN_SENT)
 		tcp_drop(tp, errno);
 }
 
