@@ -334,7 +334,7 @@ ptrace(struct thread *td, struct ptrace_args *uap)
 	} r;
 	struct proc *curp, *p, *pp;
 	struct thread *td2;
-	int error, write;
+	int error, write, tmp;
 	int proctree_locked = 0;
 
 	curp = td->td_proc;
@@ -586,9 +586,9 @@ ptrace(struct thread *td, struct ptrace_args *uap)
 	case PT_READ_I:
 	case PT_READ_D:
 		PROC_UNLOCK(p);
+		tmp = 0;
 		/* write = 0 set above */
-		iov.iov_base = write ? (caddr_t)&uap->data :
-		    (caddr_t)td->td_retval;
+		iov.iov_base = write ? (caddr_t)&uap->data : (caddr_t)&tmp;
 		iov.iov_len = sizeof(int);
 		uio.uio_iov = &iov;
 		uio.uio_iovcnt = 1;
@@ -611,6 +611,8 @@ ptrace(struct thread *td, struct ptrace_args *uap)
 			if (error == 0 || error == ENOSPC || error == EPERM)
 				error = EINVAL;	/* EOF */
 		}
+		if (!write)
+			td->td_retval[0] = tmp;
 		return (error);
 
 	case PT_IO:
