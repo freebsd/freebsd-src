@@ -6,7 +6,7 @@
  * this stuff is worth it, you can buy me a beer in return.   Poul-Henning Kamp
  * ----------------------------------------------------------------------------
  *
- * $Id: ctm.c,v 1.8 1995/03/04 20:36:45 phk Exp $
+ * $Id: ctm.c,v 1.9 1995/03/19 13:42:54 joerg Exp $
  *
  * This is the client program of 'CTM'.  It will apply a CTM-patch to a 
  * collection of files.
@@ -141,7 +141,7 @@ Proc(char *filename, unsigned applied)
 
     /* If we cannot seek, we're doomed, so copy to a tmp-file in that case */
     if(!p &&  -1 == fseek(f,0,SEEK_END)) {
-	char *fn = tempnam(TmpDir,"CMTclient");
+	char *fn = tempnam(TmpDir,"CTMclient");
 	FILE *f2 = fopen(fn,"w+");
 	int i;
 
