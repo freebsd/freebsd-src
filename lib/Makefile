@@ -71,6 +71,12 @@ _libthr=	libthr
 .endif
 .endif
 
+.if ${MACHINE_ARCH} == "ia64"
+.if !defined(NOLIBTHR)
+_libthr=	libthr
+.endif
+.endif
+
 .if ${MACHINE_ARCH} == "alpha"
 _libio=		libio
 _compat=	compat
