@@ -51,12 +51,17 @@
 .Sh DESCRIPTION
 The
 .Fn remove
-function
-is an alias for the 
-.Xr unlink 2
-system call.
-It deletes the file referenced by
+function removes the file or directory specified by
 .Fa path .
+.Pp
+If
+.Fa path
+specifies a directory,
+.Fn remove "path"
+is the equivalent of
+.Fn rmdir "path" .
+Otherwise, it is the equivalent of
+.Fn unlink "path" .
 .Sh RETURN VALUES
 Upon successful completion, 
 .Fn remove
@@ -70,12 +75,18 @@ The
 function
 may fail and set
 .Va errno
-for any of the errors specified for the routine
+for any of the errors specified for the routines
+.Xr lstat 2 ,
+.Xr rmdir 2
+or
 .Xr unlink 2 .
 .Sh SEE ALSO
+.Xr rmdir 2 ,
 .Xr unlink 2
 .Sh STANDARDS
 The
 .Fn remove
 function conforms to
-.St -ansiC .
+.St -ansiC
+and
+.St -xpg4.2 .
