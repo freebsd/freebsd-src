@@ -30,7 +30,6 @@
  */
 
 #include "vx.h"
-#if NVX > 0
 
 #include <sys/param.h>
 #include <sys/systm.h>
@@ -138,5 +137,3 @@ static struct pci_device vxdevice = {
 };
 
 COMPAT_PCI_DRIVER (vx, vxdevice);
-
-#endif	/* NVX */
