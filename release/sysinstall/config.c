@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: config.c,v 1.51.2.15 1997/01/15 04:50:03 jkh Exp $
+ * $Id: config.c,v 1.51.2.16 1997/01/19 09:59:23 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -485,7 +485,7 @@ configRouter(dialogMenuItem *self)
 	cp = variable_get(VAR_ROUTER);
 	if (strcmp(cp, "NO")) {
 	    if (!strcmp(cp, "gated")) {
-		if (package_add(PACKAGE_GATED) != DITEM_SUCCESS) {
+		if (package_add(variable_get(VAR_GATED_PKG)) != DITEM_SUCCESS) {
 		    msgConfirm("Unable to load gated package.  Falling back to no router.");
 		    variable_set2(VAR_ROUTER, "NO");
 		}
@@ -609,7 +609,7 @@ configPCNFSD(dialogMenuItem *self)
     if (variable_get(VAR_PCNFSD))
 	variable_unset(VAR_PCNFSD);
     else {
-	ret = package_add(PACKAGE_PCNFSD);
+	ret = package_add(variable_get(VAR_PCNFSD_PKG));
 	if (DITEM_STATUS(ret) == DITEM_SUCCESS) {
 	    variable_set2(VAR_PCNFSD, "YES");
 	    variable_set2("weak_mountd_authentication", "YES");
