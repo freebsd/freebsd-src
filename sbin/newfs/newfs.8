@@ -341,16 +341,17 @@ man page for possible options and their meanings.
 .El
 .Sh EXAMPLES
 .Pp
-.Dl mount_mfs -s 131072 -o nosuid,nodev /dev/da0s1b /tmp
+.Dl mount_mfs -s 131072 -o nosuid,nodev,nosymfollow /dev/da0s1b /tmp
 .Pp
 Mount a 64 MB large memory file system on
 .Pa /tmp ,
 with
 .Xr mount 8
 options
-.Ar nosuid
+.Ar nosuid ,
+.Ar nodev ,
 and
-.Ar nodev .
+.Ar nosymfollow .
 .Sh BUGS
 The boot code of
 .Fx
