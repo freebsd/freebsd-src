@@ -39,13 +39,15 @@
 #include <pthread.h>
 #include "pthread_private.h"
 
+static void	free_thread_resources(struct pthread *thread);
+
 __weak_reference(_fork, fork);
 
 pid_t
 _fork(void)
 {
 	struct pthread	*curthread = _get_curthread();
-	int             i, flags;
+	int             i, flags, use_deadlist = 0;
 	pid_t           ret;
 	pthread_t	pthread;
 	pthread_t	pthread_save;
@@ -115,7 +117,10 @@ _fork(void)
 			 * Enter a loop to remove all threads other than
 			 * the running thread from the thread list:
 			 */
-			pthread = TAILQ_FIRST(&_thread_list);
+			if ((pthread = TAILQ_FIRST(&_thread_list)) == NULL) {
+				pthread = TAILQ_FIRST(&_dead_list);
+				use_deadlist = 1;
+			}
 			while (pthread != NULL) {
 				/* Save the thread to be freed: */
 				pthread_save = pthread;
@@ -124,45 +129,37 @@ _fork(void)
 				 * Advance to the next thread before
 				 * destroying the current thread:
 				 */
-				pthread = TAILQ_NEXT(pthread, dle);
+				if (use_deadlist != 0)
+					pthread = TAILQ_NEXT(pthread, dle);
+				else
+					pthread = TAILQ_NEXT(pthread, tle);
 
 				/* Make sure this isn't the running thread: */
 				if (pthread_save != curthread) {
-					/* Remove this thread from the list: */
-					TAILQ_REMOVE(&_thread_list,
-					    pthread_save, tle);
+					/*
+					 * Remove this thread from the
+					 * appropriate list:
+					 */
+					if (use_deadlist != 0)
+						TAILQ_REMOVE(&_thread_list,
+						    pthread_save, dle);
+					else
+						TAILQ_REMOVE(&_thread_list,
+						    pthread_save, tle);
 
-					if (pthread_save->attr.stackaddr_attr ==
-					    NULL && pthread_save->stack != NULL) {
-						if (pthread_save->attr.stacksize_attr
-						    == PTHREAD_STACK_DEFAULT) {
-							/*
-							 * Default-size stack.
-							 * Cache it:
-							 */
-							struct stack	*spare_stack;
+					free_thread_resources(pthread_save);
+				}
 
-							spare_stack
-							    = (pthread_save->stack
-							    + PTHREAD_STACK_DEFAULT
-							    - sizeof(struct stack));
-							SLIST_INSERT_HEAD(&_stackq,
-						  	    spare_stack, qe);
-						} else
-							/*
-							 * Free the stack of
-							 * the dead thread:
-							 */
-							free(pthread_save->stack);
-					}
-
-					if (pthread_save->specific_data != NULL)
-						free(pthread_save->specific_data);
-
-					if (pthread_save->poll_data.fds != NULL)
-						free(pthread_save->poll_data.fds);
-
-					free(pthread_save);
+				/*
+				 * Switch to the deadlist when the active
+				 * thread list has been consumed.  This can't
+				 * be at the top of the loop because it is
+				 * used to determine to which list the thread
+				 * belongs (when it is removed from the list).
+				 */
+				if (pthread == NULL) {
+					pthread = TAILQ_FIRST(&_dead_list);
+					use_deadlist = 1;
 				}
 			}
 
@@ -218,4 +215,40 @@ _fork(void)
 
 	/* Return the process ID: */
 	return (ret);
+}
+
+static void
+free_thread_resources(struct pthread *thread)
+{
+	struct stack	*spare_stack;
+
+	/* Check to see if the threads library allocated the stack. */
+	if ((thread->attr.stackaddr_attr == NULL) && (thread->stack != NULL)) {
+		if (thread->attr.stacksize_attr != PTHREAD_STACK_DEFAULT) {
+			/*
+			 * The threads library malloc()'d the stack;
+			 * just free() it.
+			 */
+			free(thread->stack);
+		} else {
+			/*
+			 * This stack was allocated from the main threads
+			 * stack; cache it for future use.  Since this is
+			 * being called from fork, we are currently single
+			 * threaded so there is no need to protect the
+			 * queue insertion.
+			 */
+			spare_stack = (thread->stack + PTHREAD_STACK_DEFAULT -
+			    sizeof(struct stack));
+			SLIST_INSERT_HEAD(&_stackq, spare_stack, qe);
+		}
+	}
+
+	if (thread->specific_data != NULL)
+		free(thread->specific_data);
+
+	if (thread->poll_data.fds != NULL)
+		free(thread->poll_data.fds);
+
+	free(thread);
 }
