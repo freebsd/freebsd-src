@@ -78,7 +78,7 @@ static struct seeprom_cmd {
  * Wait for the SEERDY to go high; about 800 ns.
  */
 #define CLOCK_PULSE(sd, rdy)			\
-	while ((SEEPROM_INB(sd) & rdy) == 0) {		\
+	while ((SEEPROM_INB(sd) & rdy) == 0) {	\
 		;  /* Do nothing */		\
 	}
 
