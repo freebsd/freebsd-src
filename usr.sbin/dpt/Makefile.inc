@@ -1,6 +1,3 @@
-#	$Id: Makefile.inc,v 1.2 1998/01/21 07:46:46 ShimonR Exp ShimonR $
+#	$Id: Makefile.inc,v 1.1 1998/01/26 06:20:35 julian Exp $
 
-.include "${.CURDIR}/../../Makefile.inc"
-#	$Id: Makefile.inc,v 1.2 1998/01/21 07:46:46 ShimonR Exp ShimonR $
-
-.include "${.CURDIR}/../../Makefile.inc"
+.include "../Makefile.inc"
