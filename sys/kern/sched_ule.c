@@ -374,6 +374,9 @@ kseq_balance(void *arg)
 	low_load = -1;
 
 	mtx_lock_spin(&sched_lock);
+	if (smp_started == 0)
+		goto out;
+
 	for (i = 0; i < mp_maxid; i++) {
 		if (CPU_ABSENT(i))
 			continue;
