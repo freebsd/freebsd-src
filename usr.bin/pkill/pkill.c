@@ -285,7 +285,7 @@ main(int argc, char **argv)
 		}
 
 		for (i = 0, kp = plist; i < nproc; i++, kp++) {
-			if ((kp->ki_flag & P_SYSTEM) != 0 || kp->ki_pid == mypid)
+			if ((kp->ki_flag & P_SYSTEM) != 0)
 				continue;
 
 			if (matchargs) {
