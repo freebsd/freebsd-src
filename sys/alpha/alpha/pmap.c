@@ -551,8 +551,6 @@ pmap_uses_prom_console()
 
 	cputype = hwrpb->rpb_type;
 	return (cputype == ST_DEC_21000 || ST_DEC_4100);
-
-	return 0;
 }
 
 /*
@@ -1441,9 +1439,7 @@ pmap_remove_entry(pmap_t pmap, vm_page_t m, vm_offset_t va)
 {
 	pv_entry_t pv;
 	int rtval;
-	int s;
 
-	s = splvm();
 	if (m->md.pv_list_count < pmap->pm_stats.resident_count) {
 		TAILQ_FOREACH(pv, &m->md.pv_list, pv_list) {
 			if (pmap == pv->pv_pmap && va == pv->pv_va) 
@@ -1468,7 +1464,6 @@ pmap_remove_entry(pmap_t pmap, vm_page_t m, vm_offset_t va)
 		free_pv_entry(pv);
 	}
 			
-	splx(s);
 	return rtval;
 }
 
@@ -1479,11 +1474,8 @@ pmap_remove_entry(pmap_t pmap, vm_page_t m, vm_offset_t va)
 static void
 pmap_insert_entry(pmap_t pmap, vm_offset_t va, vm_page_t mpte, vm_page_t m)
 {
-
-	int s;
 	pv_entry_t pv;
 
-	s = splvm();
 	pv = get_pv_entry();
 	pv->pv_va = va;
 	pv->pv_pmap = pmap;
@@ -1494,7 +1486,6 @@ pmap_insert_entry(pmap_t pmap, vm_offset_t va, vm_page_t mpte, vm_page_t m)
 	TAILQ_INSERT_TAIL(&m->md.pv_list, pv, pv_list);
 	m->md.pv_list_count++;
 	vm_page_unlock_queues();
-	splx(s);
 }
 
 /*
@@ -1524,8 +1515,6 @@ pmap_remove_pte(pmap_t pmap, pt_entry_t *ptq, vm_offset_t va)
 	} else {
 		return pmap_unuse_pt(pmap, va, NULL);
 	}
-
-	return 0;
 }
 
 /*
@@ -1550,8 +1539,6 @@ pmap_remove_page(pmap_t pmap, vm_offset_t va)
 	 */
 	(void) pmap_remove_pte(pmap, ptq, va);
 	pmap_invalidate_page(pmap, va);
-
-	return;
 }
 
 /*
@@ -1624,7 +1611,6 @@ pmap_remove_all(vm_page_t m)
 {
 	register pv_entry_t pv;
 	pt_entry_t *pte, tpte;
-	int s;
 
 #if defined(PMAP_DIAGNOSTIC)
 	/*
@@ -1636,7 +1622,6 @@ pmap_remove_all(vm_page_t m)
 	}
 #endif
 
-	s = splvm();
 	while ((pv = TAILQ_FIRST(&m->md.pv_list)) != NULL) {
 		PMAP_LOCK(pv->pv_pmap);
 		pte = pmap_lev3pte(pv->pv_pmap, pv->pv_va);
@@ -1673,8 +1658,6 @@ pmap_remove_all(vm_page_t m)
 	}
 
 	vm_page_flag_clear(m, PG_WRITEABLE);
-
-	splx(s);
 }
 
 /*
@@ -2164,26 +2147,21 @@ pmap_page_exists_quick(pmap, m)
 {
 	pv_entry_t pv;
 	int loops = 0;
-	int s;
 
 	if (!pmap_initialized || (m->flags & PG_FICTITIOUS))
 		return FALSE;
-
-	s = splvm();
 
 	/*
 	 * Not found, check current mappings returning immediately if found.
 	 */
 	TAILQ_FOREACH(pv, &m->md.pv_list, pv_list) {
 		if (pv->pv_pmap == pmap) {
-			splx(s);
 			return TRUE;
 		}
 		loops++;
 		if (loops >= 16)
 			break;
 	}
-	splx(s);
 	return (FALSE);
 }
 
@@ -2276,14 +2254,12 @@ pmap_changebit(vm_page_t m, int bit, boolean_t setem)
 	pv_entry_t pv;
 	pt_entry_t *pte;
 	int changed;
-	int s;
 
 	if (!pmap_initialized || (m->flags & PG_FICTITIOUS) ||
 	    (!setem && bit == (PG_UWE|PG_KWE) &&
 	     (m->flags & PG_WRITEABLE) == 0))
 		return;
 
-	s = splvm();
 	changed = 0;
 
 	/*
@@ -2326,7 +2302,6 @@ pmap_changebit(vm_page_t m, int bit, boolean_t setem)
 	}
 	if (!setem && bit == (PG_UWE|PG_KWE))
 		vm_page_flag_clear(m, PG_WRITEABLE);
-	splx(s);
 }
 
 /*
