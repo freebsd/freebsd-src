@@ -2845,7 +2845,8 @@ bge_intr(xsc)
 			 * effect on copper NICs.)
 			 */
 			status = CSR_READ_4(sc, BGE_MAC_STS);
-			if (!(status & BGE_MACSTAT_PORT_DECODE_ERROR)) {
+			if (!(status & (BGE_MACSTAT_PORT_DECODE_ERROR|
+			    BGE_MACSTAT_MI_COMPLETE))) {
 				sc->bge_link = 0;
 				untimeout(bge_tick, sc, sc->bge_stat_ch);
 				bge_tick(sc);
