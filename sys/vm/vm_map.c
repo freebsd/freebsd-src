@@ -61,7 +61,7 @@
  * any improvements or extensions that they make and grant Carnegie the
  * rights to redistribute these changes.
  *
- * $Id: vm_map.c,v 1.101 1997/12/25 20:55:15 dyson Exp $
+ * $Id: vm_map.c,v 1.102 1997/12/29 00:24:43 dyson Exp $
  */
 
 /*
@@ -93,7 +93,6 @@
 #include <vm/vm_zone.h>
 
 static MALLOC_DEFINE(M_VMMAP, "VM map", "VM map structures");
-extern int vfs_ioopt;
 
 /*
  *	Virtual memory maps provide for the mapping, protection,
