@@ -508,6 +508,7 @@ mount(td, uap)
 	char *fstype;
 	char *fspath;
 	struct vfsconf *vfsp;
+	struct mntarg *ma = NULL;
 	int error;
 
 	/* Kick out MNT_ROOTFS early as it is legal internally */
@@ -515,27 +516,33 @@ mount(td, uap)
 		return (EINVAL);
 
 	fstype = malloc(MFSNAMELEN, M_TEMP, M_WAITOK);
-	fspath = malloc(MNAMELEN, M_TEMP, M_WAITOK);
 
 	/*
 	 * vfs_mount() actually takes a kernel string for `type' and
 	 * `path' now, so extract them.
 	 */
 	error = copyinstr(uap->type, fstype, MFSNAMELEN, NULL);
-	if (error == 0)
-		error = copyinstr(uap->path, fspath, MNAMELEN, NULL);
-	if (error == 0) {
+	mtx_lock(&Giant); /* XXX ? */
+	vfsp = vfs_byname_kld(fstype, td, &error);
+	mtx_unlock(&Giant); /* XXX ? */
+	if (vfsp == NULL) {
+		free(fstype, M_TEMP);
+		return (ENOENT);
+	}
+	fspath = malloc(MNAMELEN, M_TEMP, M_WAITOK);
+	error = copyinstr(uap->path, fspath, MNAMELEN, NULL);
+	if (error == 0 && vfsp->vfc_vfsops->vfs_cmount != NULL) {
+		ma = mount_argsu(ma, "fstype", uap->type, MNAMELEN);
+		ma = mount_argsu(ma, "fspath", uap->path, MNAMELEN);
+		ma = mount_argb(ma, uap->flags & MNT_RDONLY, "noro");
+		ma = mount_argb(ma, !(uap->flags & MNT_NOSUID), "nosuid");
+		ma = mount_argb(ma, !(uap->flags & MNT_NOEXEC), "noexec");
+		error = vfsp->vfc_vfsops->vfs_cmount(
+		    ma, uap->data, uap->flags, td);
+	} else if (error == 0) {
 		mtx_lock(&Giant);
-		vfsp = vfs_byname_kld(fstype, td, &error);
-		if (vfsp != NULL) {
-			if (vfsp->vfc_vfsops->vfs_cmount != NULL) {
-				error = vfsp->vfc_vfsops->vfs_cmount(
-				    fspath, uap->data, uap->flags, td);
-			} else {
-				error = vfs_domount(td, fstype, fspath,
-				    uap->flags, uap->data, 1);
-			}
-		}
+		error = vfs_domount(td, fstype, fspath,
+		    uap->flags, uap->data, 1);
 		mtx_unlock(&Giant);
 	}
 	free(fstype, M_TEMP);

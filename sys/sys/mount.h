@@ -461,7 +461,7 @@ struct nameidata;
 struct sysctl_req;
 struct mntarg;
 
-typedef int vfs_cmount_t(char *path, void *data, int flags, struct thread *td);
+typedef int vfs_cmount_t(struct mntarg *ma, void *data, int flags, struct thread *td);
 typedef int vfs_omount_t(struct mount *mp, char *path, caddr_t data,
 			 struct thread *td);
 typedef int vfs_start_t(struct mount *mp, int flags, struct thread *td);
