@@ -43,6 +43,7 @@ RCSID("$Id: kstring2key.c,v 1.16 1999/12/02 16:58:28 joda Exp $");
 
 #include <roken.h>
 
+#define OPENSSL_DES_LIBDES_COMPATIBILITY
 #include <openssl/des.h>
 #include <krb.h>
 

@@ -75,6 +75,7 @@ RCSID("$Id: krb4encpwd.c,v 1.18 1999/09/16 20:41:34 assar Exp $");
 #include <pwd.h>
 #include <stdio.h>
 
+#define OPENSSL_DES_LIBDES_COMPATIBILITY
 #include <openssl/des.h>
 #include <krb.h>
 #include <stdlib.h>
