@@ -3,7 +3,7 @@
 .\"
 .\"	Written by John F. Woods <jfw@jfwhome.funhouse.com>
 .\"
-.\"	$Id: tar.1,v 1.2 1995/01/31 04:36:48 jkh Exp $
+.\"	$Id: tar.1,v 1.3 1995/04/10 11:47:34 jkh Exp $
 .\"
 .Dd 6 August 1994
 .Os FreeBSD
@@ -176,7 +176,7 @@ Ignore blocks of zeroes in archive (usually means End-Of-File).
 .It Fl -ignore-failed-read
 Don't exit with non-zero status on unreadable files.
 .It Fl k
--It Fl -keep-old-files
+.It Fl -keep-old-files
 Keep files which already exist on disk; don't overwrite them from the archive.
 .It Fl K Ar file
 .It Fl -starting-file Ar file
@@ -215,6 +215,9 @@ Extract all protection information.
 .It Fl -preserve
 Has the effect of
 .Fl p s.
+.It Fl P
+.It Fl -absolute-paths
+Don't strip leading `/' from file names.
 .It Fl R
 .It Fl -record-number
 Show record number within archive with each message.
