@@ -170,6 +170,8 @@ __END_DECLS
 #define	ENOATTR		87		/* Attribute not found */
 #define	ELAST		87		/* Must be equal largest errno */
 
+#define EDOFUS		88		/* Programming error */
+
 #endif /* _POSIX_SOURCE */
 
 #ifdef _KERNEL
