@@ -87,18 +87,16 @@ main(int argc, char *argv[])
 {
 	struct iovec iov;
 	struct utmp utmp;
-	gid_t grps[NGROUPS_MAX];
 	int ch;
-	int ingroup, ngrps, i;
+	int ingroup;
 	FILE *fp;
 	struct wallgroup *g;
 	struct group *grp;
-	char *p;
+	char *p, **np;
 	struct passwd *pw;
 	char line[sizeof(utmp.ut_line) + 1];
 	char username[sizeof(utmp.ut_name) + 1];
 
-	ingroup = 0;
 	(void)setlocale(LC_CTYPE, "");
 
 	while ((ch = getopt(argc, argv, "g:n")) != -1)
@@ -144,19 +142,24 @@ main(int argc, char *argv[])
 		    !strncmp(utmp.ut_name, IGNOREUSER, sizeof(utmp.ut_name)))
 			continue;
 		if (grouplist) {
+			ingroup = 0;
 			strlcpy(username, utmp.ut_name, sizeof(utmp.ut_name));
 			pw = getpwnam(username);
 			if (!pw)
 				continue;
-			ngrps = getgroups(pw->pw_gid, grps);
 			for (g = grouplist; g && ingroup == 0; g = g->next) {
 				if (g->gid == -1)
 					continue;
 				if (g->gid == pw->pw_gid)
 					ingroup = 1;
-				for (i = 0; i < ngrps && ingroup == 0; i++)
-					if (g->gid == grps[i])
-						ingroup = 1;
+				else if ((grp = getgrgid(g->gid)) != NULL) {
+					for (np = grp->gr_mem; *np; np++) {
+						if (strcmp(*np, username) == 0) {
+							ingroup = 1;
+							break;
+						}
+					}
+				}
 			}
 			if (ingroup == 0)
 				continue;
