@@ -8,7 +8,7 @@ MLINKS=	pstat.8 swapinfo.8
 
 WARNS?=	2
 
-DPADD=	${LIBKVM}
-LDADD=	-lkvm
+DPADD=	${LIBKVM} ${LIBUTIL}
+LDADD=	-lkvm -lutil
 
 .include <bsd.prog.mk>
