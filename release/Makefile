@@ -1,4 +1,4 @@
-#	$Id: Makefile,v 1.169 1995/05/22 14:08:45 jkh Exp $
+#	$Id: Makefile,v 1.170 1995/05/22 17:39:22 jkh Exp $
 #
 # How to roll a release:
 #
@@ -293,7 +293,7 @@ release.7:
 	rm -rf ${RD}/cpiofd
 	mkdir ${RD}/cpiofd
 	cd ${RD}/cpiofd && \
-		mkdir stand stand/scripts
+		mkdir stand
 	ln -f ${RD}/kernels/GENERIC ${RD}/cpiofd/kernel
 	@cd ${.CURDIR} ; $(MAKE) installCRUNCH CRUNCH=cpio \
 		DIR=${RD}/cpiofd/stand ZIP=false
