@@ -521,19 +521,6 @@ main(argc, argv)
 	sbsize = lp->d_sbsize;
 #endif
 	oldpartition = *pp;
-#ifdef tahoe
-	realsectorsize = sectorsize;
-	if (sectorsize != DEV_BSIZE) {		/* XXX */
-		int secperblk = DEV_BSIZE / sectorsize;
-
-		sectorsize = DEV_BSIZE;
-		nsectors /= secperblk;
-		nphyssectors /= secperblk;
-		secpercyl /= secperblk;
-		fssize /= secperblk;
-		pp->p_size /= secperblk;
-	}
-#else
 	realsectorsize = sectorsize;
 	if (sectorsize != DEV_BSIZE) {		/* XXX */
 		int secperblk = sectorsize / DEV_BSIZE;
@@ -545,15 +532,9 @@ main(argc, argv)
 		fssize *= secperblk;
 		pp->p_size *= secperblk;
 	}
-#endif
 	mkfs(pp, special, fsi, fso);
-#ifdef tahoe
-	if (realsectorsize != DEV_BSIZE)
-		pp->p_size *= DEV_BSIZE / realsectorsize;
-#else
 	if (realsectorsize != DEV_BSIZE)
 		pp->p_size /= realsectorsize /DEV_BSIZE;
-#endif
 	if (!Nflag && bcmp(pp, &oldpartition, sizeof(oldpartition)))
 		rewritelabel(special, fso, lp);
 	if (!Nflag)
