@@ -29,7 +29,7 @@
  * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF
  * THE POSSIBILITY OF SUCH DAMAGE.
  *
- *	$Id: if_tl.c,v 1.34 1999/07/06 19:23:29 des Exp $
+ *	$Id: if_tl.c,v 1.37 1999/07/23 02:06:56 wpaul Exp $
  */
 
 /*
@@ -208,6 +208,9 @@
 #include <sys/bus.h>
 #include <sys/rman.h>
 
+#include <dev/mii/mii.h>
+#include <dev/mii/miivar.h>
+
 #include <pci/pcireg.h>
 #include <pci/pcivar.h>
 
@@ -218,13 +221,13 @@
  */
 #define TL_USEIOSPACE
 
-/* #define TL_BACKGROUND_AUTONEG */
-
 #include <pci/if_tlreg.h>
+
+#include "miibus_if.h"
 
 #if !defined(lint)
 static const char rcsid[] =
-	"$Id: if_tl.c,v 1.34 1999/07/06 19:23:29 des Exp $";
+	"$Id: if_tl.c,v 1.37 1999/07/23 02:06:56 wpaul Exp $";
 #endif
 
 /*
@@ -263,26 +266,9 @@ static struct tl_type tl_devs[] = {
 	{ 0, 0, NULL }
 };
 
-/*
- * Various supported PHY vendors/types and their names. Note that
- * this driver will work with pretty much any MII-compliant PHY,
- * so failure to positively identify the chip is not a fatal error.
- */
-
-static struct tl_type tl_phys[] = {
-	{ TI_PHY_VENDORID, TI_PHY_10BT, "<TI ThunderLAN 10BT (internal)>" },
-	{ TI_PHY_VENDORID, TI_PHY_100VGPMI, "<TI TNETE211 100VG Any-LAN>" },
-	{ NS_PHY_VENDORID, NS_PHY_83840A, "<National Semiconductor DP83840A>"},
-	{ LEVEL1_PHY_VENDORID, LEVEL1_PHY_LXT970, "<Level 1 LXT970>" }, 
-	{ INTEL_PHY_VENDORID, INTEL_PHY_82555, "<Intel 82555>" },
-	{ SEEQ_PHY_VENDORID, SEEQ_PHY_80220, "<SEEQ 80220>" },
-	{ 0, 0, "<MII-compliant physical interface>" }
-};
-
 static int tl_probe		__P((device_t));
 static int tl_attach		__P((device_t));
 static int tl_detach		__P((device_t));
-static int tl_attach_phy	__P((struct tl_softc *));
 static int tl_intvec_rxeoc	__P((void *, u_int32_t));
 static int tl_intvec_txeoc	__P((void *, u_int32_t));
 static int tl_intvec_txeof	__P((void *, u_int32_t));
@@ -315,10 +301,10 @@ static void tl_mii_sync		__P((struct tl_softc *));
 static void tl_mii_send		__P((struct tl_softc *, u_int32_t, int));
 static int tl_mii_readreg	__P((struct tl_softc *, struct tl_mii_frame *));
 static int tl_mii_writereg	__P((struct tl_softc *, struct tl_mii_frame *));
-static u_int16_t tl_phy_readreg	__P((struct tl_softc *, int));
-static void tl_phy_writereg	__P((struct tl_softc *, int, int));
+static int tl_miibus_readreg	__P((device_t, int, int));
+static int tl_miibus_writereg	__P((device_t, int, int, int));
+static void tl_miibus_statchg	__P((device_t));
 
-static void tl_autoneg		__P((struct tl_softc *, int, int));
 static void tl_setmode		__P((struct tl_softc *, int));
 static int tl_calchash		__P((caddr_t));
 static void tl_setmulti		__P((struct tl_softc *));
@@ -353,6 +339,16 @@ static device_method_t tl_methods[] = {
 	DEVMETHOD(device_attach,	tl_attach),
 	DEVMETHOD(device_detach,	tl_detach),
 	DEVMETHOD(device_shutdown,	tl_shutdown),
+
+	/* bus interface */
+	DEVMETHOD(bus_print_child,	bus_generic_print_child),
+	DEVMETHOD(bus_driver_added,	bus_generic_driver_added),
+
+	/* MII interface */
+	DEVMETHOD(miibus_readreg,	tl_miibus_readreg),
+	DEVMETHOD(miibus_writereg,	tl_miibus_writereg),
+	DEVMETHOD(miibus_statchg,	tl_miibus_statchg),
+
 	{ 0, 0 }
 };
 
@@ -365,6 +361,7 @@ static driver_t tl_driver = {
 static devclass_t tl_devclass;
 
 DRIVER_MODULE(tl, pci, tl_driver, tl_devclass, 0, 0);
+DRIVER_MODULE(miibus, tl, miibus_driver, miibus_devclass, 0, 0);
 
 static u_int8_t tl_dio_read8(sc, reg)
 	struct tl_softc		*sc;
@@ -798,340 +795,79 @@ static int tl_mii_writereg(sc, frame)
 	return(0);
 }
 
-static u_int16_t tl_phy_readreg(sc, reg)
-	struct tl_softc		*sc;
-	int			reg;
+static int tl_miibus_readreg(dev, phy, reg)
+	device_t		dev;
+	int			phy, reg;
 {
+	struct tl_softc		*sc;
 	struct tl_mii_frame	frame;
 
+	sc = device_get_softc(dev);
 	bzero((char *)&frame, sizeof(frame));
 
-	frame.mii_phyaddr = sc->tl_phy_addr;
+	frame.mii_phyaddr = phy;
 	frame.mii_regaddr = reg;
 	tl_mii_readreg(sc, &frame);
-
-	/* Reenable MII interrupts, just in case. */
-	tl_dio_setbit(sc, TL_NETSIO, TL_SIO_MINTEN);
 
 	return(frame.mii_data);
 }
 
-static void tl_phy_writereg(sc, reg, data)
-	struct tl_softc		*sc;
-	int			reg;
-	int			data;
+static int tl_miibus_writereg(dev, phy, reg, data)
+	device_t		dev;
+	int			phy, reg, data;
 {
+	struct tl_softc		*sc;
 	struct tl_mii_frame	frame;
 
+	sc = device_get_softc(dev);
 	bzero((char *)&frame, sizeof(frame));
 
-	frame.mii_phyaddr = sc->tl_phy_addr;
+	frame.mii_phyaddr = phy;
 	frame.mii_regaddr = reg;
 	frame.mii_data = data;
 
 	tl_mii_writereg(sc, &frame);
 
-	/* Reenable MII interrupts, just in case. */
-	tl_dio_setbit(sc, TL_NETSIO, TL_SIO_MINTEN);
-
-	return;
+	return(0);
 }
 
-/*
- * Initiate autonegotiation with a link partner.
- *
- * Note that the Texas Instruments ThunderLAN programmer's guide
- * fails to mention one very important point about autonegotiation.
- * Autonegotiation is done largely by the PHY, independent of the
- * ThunderLAN chip itself: the PHY sets the flags in the BMCR
- * register to indicate what modes were selected and if link status
- * is good. In fact, the PHY does pretty much all of the work itself,
- * except for one small detail.
- *
- * The PHY may negotiate a full-duplex of half-duplex link, and set
- * the PHY_BMCR_DUPLEX bit accordingly, but the ThunderLAN's 'NetCommand'
- * register _also_ has a half-duplex/full-duplex bit, and you MUST ALSO
- * SET THIS BIT MANUALLY TO CORRESPOND TO THE MODE SELECTED FOR THE PHY!
- * In other words, both the ThunderLAN chip and the PHY have to be
- * programmed for full-duplex mode in order for full-duplex to actually
- * work. So in order for autonegotiation to really work right, we have
- * to wait for the link to come up, check the BMCR register, then set
- * the ThunderLAN for full or half-duplex as needed.
- *
- * I struggled for two days to figure this out, so I'm making a point
- * of drawing attention to this fact. I think it's very strange that
- * the ThunderLAN doesn't automagically track the duplex state of the
- * PHY, but there you have it.
- *
- * Also when, using a National Semiconductor DP83840A PHY, we have to
- * allow a full three seconds for autonegotiation to complete. So what
- * we do is flip the autonegotiation restart bit, then set a timeout
- * to wake us up in three seconds to check the link state.
- *
- * Note that there are some versions of the Olicom 2326 that use a
- * Micro Linear ML6692 100BaseTX PHY. This particular PHY is designed
- * to provide 100BaseTX support only, but can be used with a controller
- * that supports an internal 10Mbps PHY to provide a complete
- * 10/100Mbps solution. However, the ML6692 does not have vendor and
- * device ID registers, and hence always shows up with a vendor/device
- * ID of 0.
- *
- * We detect this configuration by checking the phy vendor ID in the
- * softc structure. If it's a zero, and we're negotiating a high-speed
- * mode, then we turn off the internal PHY. If it's a zero and we've
- * negotiated a high-speed mode, we turn on the internal PHY. Note
- * that to make things even more fun, we have to make extra sure that
- * the loopback bit in the internal PHY's control register is turned
- * off.
- */
-static void tl_autoneg(sc, flag, verbose)
-	struct tl_softc		*sc;
-	int			flag;
-	int			verbose;
+static void tl_miibus_statchg(dev)
+	device_t		dev;
 {
-	u_int16_t		phy_sts = 0, media = 0, advert, ability;
-	struct ifnet		*ifp;
-	struct ifmedia		*ifm;
+	struct tl_softc		*sc;
+	struct mii_data		*mii;
 
-	ifm = &sc->ifmedia;
-	ifp = &sc->arpcom.ac_if;
+	sc = device_get_softc(dev);
+	mii = device_get_softc(sc->tl_miibus);
 
-	/*
-	 * First, see if autoneg is supported. If not, there's
-	 * no point in continuing.
-	 */
-	phy_sts = tl_phy_readreg(sc, PHY_BMSR);
-	if (!(phy_sts & PHY_BMSR_CANAUTONEG)) {
-		if (verbose)
-			printf("tl%d: autonegotiation not supported\n",
-							sc->tl_unit);
-		return;
-	}
-
-	switch (flag) {
-	case TL_FLAG_FORCEDELAY:
-		/*
-	 	 * XXX Never use this option anywhere but in the probe
-	 	 * routine: making the kernel stop dead in its tracks
- 		 * for three whole seconds after we've gone multi-user
-		 * is really bad manners.
-	 	 */
-		tl_phy_writereg(sc, PHY_BMCR, PHY_BMCR_RESET);
-		DELAY(500);
-		phy_sts = tl_phy_readreg(sc, PHY_BMCR);
-		phy_sts |= PHY_BMCR_AUTONEGENBL|PHY_BMCR_AUTONEGRSTR;
-		tl_phy_writereg(sc, PHY_BMCR, phy_sts);
-		DELAY(5000000);
-		break;
-	case TL_FLAG_SCHEDDELAY:
-		/*
-		 * Wait for the transmitter to go idle before starting
-		 * an autoneg session, otherwise tl_start() may clobber
-	 	 * our timeout, and we don't want to allow transmission
-		 * during an autoneg session since that can screw it up.
-	 	 */
-		if (!sc->tl_txeoc) {
-			sc->tl_want_auto = 1;
-			return;
-		}
-		tl_phy_writereg(sc, PHY_BMCR, PHY_BMCR_RESET);
-		DELAY(500);
-		phy_sts = tl_phy_readreg(sc, PHY_BMCR);
-		phy_sts |= PHY_BMCR_AUTONEGENBL|PHY_BMCR_AUTONEGRSTR;
-		tl_phy_writereg(sc, PHY_BMCR, phy_sts);
-		ifp->if_timer = 5;
-		sc->tl_autoneg = 1;
-		sc->tl_want_auto = 0;
-		return;
-	case TL_FLAG_DELAYTIMEO:
-		ifp->if_timer = 0;
-		sc->tl_autoneg = 0;
-		break;
-	default:
-		printf("tl%d: invalid autoneg flag: %d\n", sc->tl_unit, flag);
-		return;
-	}
-
-	/*
- 	 * Read the BMSR register twice: the LINKSTAT bit is a
-	 * latching bit.
-	 */
-	tl_phy_readreg(sc, PHY_BMSR);
-	phy_sts = tl_phy_readreg(sc, PHY_BMSR);
-	if (phy_sts & PHY_BMSR_AUTONEGCOMP) {
-		if (verbose)
-			printf("tl%d: autoneg complete, ", sc->tl_unit);
-		phy_sts = tl_phy_readreg(sc, PHY_BMSR);
+	if ((mii->mii_media_active & IFM_GMASK) == IFM_FDX) {
+		tl_dio_setbit(sc, TL_NETCMD, TL_CMD_DUPLEX);
 	} else {
-		if (verbose)
-			printf("tl%d: autoneg not complete, ", sc->tl_unit);
-	}
-
-	/* Link is good. Report modes and set duplex mode. */
-	if (phy_sts & PHY_BMSR_LINKSTAT) {
-		if (verbose)
-			printf("link status good ");
-
-		advert = tl_phy_readreg(sc, TL_PHY_ANAR);
-		ability = tl_phy_readreg(sc, TL_PHY_LPAR);
-		media = tl_phy_readreg(sc, PHY_BMCR);
-
-		/*
-	 	 * Be sure to turn off the ISOLATE and
-		 * LOOPBACK bits in the control register,
-		 * otherwise we may not be able to communicate.
-		 */
-		media &= ~(PHY_BMCR_LOOPBK|PHY_BMCR_ISOLATE);
-		/* Set the DUPLEX bit in the NetCmd register accordingly. */
-		if (advert & PHY_ANAR_100BT4 && ability & PHY_ANAR_100BT4) {
-			ifm->ifm_media = IFM_ETHER|IFM_100_T4;
-			media |= PHY_BMCR_SPEEDSEL;
-			media &= ~PHY_BMCR_DUPLEX;
-			if (verbose)
-				printf("(100baseT4)\n");
-		} else if (advert & PHY_ANAR_100BTXFULL &&
-			ability & PHY_ANAR_100BTXFULL) {
-			ifm->ifm_media = IFM_ETHER|IFM_100_TX|IFM_FDX;
-			media |= PHY_BMCR_SPEEDSEL;
-			media |= PHY_BMCR_DUPLEX;
-			if (verbose)
-				printf("(full-duplex, 100Mbps)\n");
-		} else if (advert & PHY_ANAR_100BTXHALF &&
-			ability & PHY_ANAR_100BTXHALF) {
-			ifm->ifm_media = IFM_ETHER|IFM_100_TX|IFM_HDX;
-			media |= PHY_BMCR_SPEEDSEL;
-			media &= ~PHY_BMCR_DUPLEX;
-			if (verbose)
-				printf("(half-duplex, 100Mbps)\n");
-		} else if (advert & PHY_ANAR_10BTFULL &&
-			ability & PHY_ANAR_10BTFULL) {
-			ifm->ifm_media = IFM_ETHER|IFM_10_T|IFM_FDX;
-			media &= ~PHY_BMCR_SPEEDSEL;
-			media |= PHY_BMCR_DUPLEX;
-			if (verbose)
-				printf("(full-duplex, 10Mbps)\n");
-		} else {
-			ifm->ifm_media = IFM_ETHER|IFM_10_T|IFM_HDX;
-			media &= ~PHY_BMCR_SPEEDSEL;
-			media &= ~PHY_BMCR_DUPLEX;
-			if (verbose)
-				printf("(half-duplex, 10Mbps)\n");
-		}
-
-		if (media & PHY_BMCR_DUPLEX)
-			tl_dio_setbit(sc, TL_NETCMD, TL_CMD_DUPLEX);
-		else
-			tl_dio_clrbit(sc, TL_NETCMD, TL_CMD_DUPLEX);
-
-		media &= ~PHY_BMCR_AUTONEGENBL;
-		tl_phy_writereg(sc, PHY_BMCR, media);
-	} else {
-		if (verbose)
-			printf("no carrier\n");
-	}
-
-	tl_init(sc);
-
-	if (sc->tl_tx_pend) {
-		sc->tl_autoneg = 0;
-		sc->tl_tx_pend = 0;
-		tl_start(ifp);
+		tl_dio_clrbit(sc, TL_NETCMD, TL_CMD_DUPLEX);
 	}
 
 	return;
 }
 
 /*
- * Set speed and duplex mode. Also program autoneg advertisements
- * accordingly.
+ * Set modes for bitrate devices.
  */
 static void tl_setmode(sc, media)
 	struct tl_softc		*sc;
 	int			media;
 {
-	u_int16_t		bmcr;
-
-	if (sc->tl_bitrate) {
-		if (IFM_SUBTYPE(media) == IFM_10_5)
-			tl_dio_setbit(sc, TL_ACOMMIT, TL_AC_MTXD1);
-		if (IFM_SUBTYPE(media) == IFM_10_T) {
-			tl_dio_clrbit(sc, TL_ACOMMIT, TL_AC_MTXD1);
-			if ((media & IFM_GMASK) == IFM_FDX) {
-				tl_dio_clrbit(sc, TL_ACOMMIT, TL_AC_MTXD3);
-				tl_dio_setbit(sc, TL_NETCMD, TL_CMD_DUPLEX);
-			} else {
-				tl_dio_setbit(sc, TL_ACOMMIT, TL_AC_MTXD3);
-				tl_dio_clrbit(sc, TL_NETCMD, TL_CMD_DUPLEX);
-			}
-		}
-		return;
-	}
-
-	bmcr = tl_phy_readreg(sc, PHY_BMCR);
-
-	bmcr &= ~(PHY_BMCR_SPEEDSEL|PHY_BMCR_DUPLEX|PHY_BMCR_AUTONEGENBL|
-		  PHY_BMCR_LOOPBK|PHY_BMCR_ISOLATE);
-
-	if (IFM_SUBTYPE(media) == IFM_LOOP)
-		bmcr |= PHY_BMCR_LOOPBK;
-
-	if (IFM_SUBTYPE(media) == IFM_AUTO)
-		bmcr |= PHY_BMCR_AUTONEGENBL;
-
-	/*
-	 * The ThunderLAN's internal PHY has an AUI transceiver
-	 * that can be selected. This is usually attached to a
-	 * 10base2/BNC port. In order to activate this port, we
-	 * have to set the AUISEL bit in the internal PHY's
-	 * special control register.
-	 */
-	if (IFM_SUBTYPE(media) == IFM_10_5) {
-		u_int16_t		addr, ctl;
-		addr = sc->tl_phy_addr;
-		sc->tl_phy_addr = TL_PHYADDR_MAX;
-		ctl = tl_phy_readreg(sc, TL_PHY_CTL);
-		ctl |= PHY_CTL_AUISEL;
-		tl_phy_writereg(sc, TL_PHY_CTL, ctl);
-		tl_phy_writereg(sc, PHY_BMCR, bmcr);
-		sc->tl_phy_addr = addr;
-		bmcr |= PHY_BMCR_ISOLATE;
-	} else {
-		u_int16_t		addr, ctl;
-		addr = sc->tl_phy_addr;
-		sc->tl_phy_addr = TL_PHYADDR_MAX;
-		ctl = tl_phy_readreg(sc, TL_PHY_CTL);
-		ctl &= ~PHY_CTL_AUISEL;
-		tl_phy_writereg(sc, TL_PHY_CTL, ctl);
-		tl_phy_writereg(sc, PHY_BMCR, PHY_BMCR_ISOLATE);
-		sc->tl_phy_addr = addr;
-		bmcr &= ~PHY_BMCR_ISOLATE;
-	}
-
-	if (IFM_SUBTYPE(media) == IFM_100_TX) {
-		bmcr |= PHY_BMCR_SPEEDSEL;
-		if ((media & IFM_GMASK) == IFM_FDX) {
-			bmcr |= PHY_BMCR_DUPLEX;
-			tl_dio_setbit(sc, TL_NETCMD, TL_CMD_DUPLEX);
-		} else {
-			bmcr &= ~PHY_BMCR_DUPLEX;
-			tl_dio_clrbit(sc, TL_NETCMD, TL_CMD_DUPLEX);
-		}
-	}
-
+	if (IFM_SUBTYPE(media) == IFM_10_5)
+		tl_dio_setbit(sc, TL_ACOMMIT, TL_AC_MTXD1);
 	if (IFM_SUBTYPE(media) == IFM_10_T) {
-		bmcr &= ~PHY_BMCR_SPEEDSEL;
+		tl_dio_clrbit(sc, TL_ACOMMIT, TL_AC_MTXD1);
 		if ((media & IFM_GMASK) == IFM_FDX) {
-			bmcr |= PHY_BMCR_DUPLEX;
+			tl_dio_clrbit(sc, TL_ACOMMIT, TL_AC_MTXD3);
 			tl_dio_setbit(sc, TL_NETCMD, TL_CMD_DUPLEX);
 		} else {
-			bmcr &= ~PHY_BMCR_DUPLEX;
+			tl_dio_setbit(sc, TL_ACOMMIT, TL_AC_MTXD3);
 			tl_dio_clrbit(sc, TL_NETCMD, TL_CMD_DUPLEX);
 		}
 	}
-
-	tl_phy_writereg(sc, PHY_BMCR, bmcr);
-
-	tl_init(sc);
 
 	return;
 }
@@ -1263,9 +999,9 @@ static void tl_setmulti(sc)
 static void tl_hardreset(sc)
 	struct tl_softc		*sc;
 {
+#ifdef foo
 	int			i;
 	u_int16_t		old_addr, flags;
-
 	old_addr = sc->tl_phy_addr;
 
 	for (i = 0; i < TL_PHYADDR_MAX + 1; i++) {
@@ -1292,7 +1028,7 @@ static void tl_hardreset(sc)
 	while(tl_phy_readreg(sc, PHY_BMCR) & PHY_BMCR_RESET);
 
 	sc->tl_phy_addr = old_addr;
-
+#endif
 	return;
 }
 
@@ -1389,156 +1125,10 @@ static int tl_probe(dev)
 	return(ENXIO);
 }
 
-/*
- * Do the interface setup and attach for a PHY on a particular
- * ThunderLAN chip. Also also set up interrupt vectors.
- */ 
-static int tl_attach_phy(sc)
-	struct tl_softc		*sc;
-{
-	int			phy_ctl;
-	struct tl_type		*p = tl_phys;
-	int			media = IFM_ETHER|IFM_100_TX|IFM_FDX;
-	struct ifnet		*ifp;
-
-	ifp = &sc->arpcom.ac_if;
-
-	sc->tl_phy_did = tl_phy_readreg(sc, TL_PHY_DEVID);
-	sc->tl_phy_vid = tl_phy_readreg(sc, TL_PHY_VENID);
-	sc->tl_phy_sts = tl_phy_readreg(sc, TL_PHY_GENSTS);
-	phy_ctl = tl_phy_readreg(sc, TL_PHY_GENCTL);
-
-	/*
-	 * PHY revision numbers tend to vary a bit. Our algorithm here
-	 * is to check everything but the 8 least significant bits.
-	 */
-	while(p->tl_vid) {
-		if (sc->tl_phy_vid  == p->tl_vid &&
-			(sc->tl_phy_did | 0x000F) == p->tl_did) {
-			sc->tl_pinfo = p;
-			break;
-		}
-		p++;
-	}
-	if (sc->tl_pinfo == NULL) {
-		sc->tl_pinfo = &tl_phys[PHY_UNKNOWN];
-	}
-
-	if (sc->tl_phy_sts & PHY_BMSR_100BT4 ||
-		sc->tl_phy_sts & PHY_BMSR_100BTXFULL ||
-		sc->tl_phy_sts & PHY_BMSR_100BTXHALF)
-		ifp->if_baudrate = 100000000;
-	else
-		ifp->if_baudrate = 10000000;
-
-	if (bootverbose) {
-		printf("tl%d: phy at mii address %d\n", sc->tl_unit,
-							sc->tl_phy_addr);
-
-		printf("tl%d: %s ", sc->tl_unit, sc->tl_pinfo->tl_name);
-	}
-
-	if (sc->tl_phy_sts & PHY_BMSR_100BT4 ||
-		sc->tl_phy_sts & PHY_BMSR_100BTXHALF ||
-		sc->tl_phy_sts & PHY_BMSR_100BTXHALF) {
-		if (bootverbose)
-			printf("10/100Mbps ");
-	} else {
-		media &= ~IFM_100_TX;
-		media |= IFM_10_T;
-		if (bootverbose)
-			printf("10Mbps ");
-	}
-
-	if (sc->tl_phy_sts & PHY_BMSR_100BTXFULL ||
-		sc->tl_phy_sts & PHY_BMSR_10BTFULL) {
-		if (bootverbose)
-			printf("full duplex ");
-	} else {
-		if (bootverbose)
-			printf("half duplex ");
-		media &= ~IFM_FDX;
-	}
-
-	if (sc->tl_phy_sts & PHY_BMSR_CANAUTONEG) {
-		media = IFM_ETHER|IFM_AUTO;
-		if (bootverbose)
-			printf("autonegotiating\n");
-	} else
-		if (bootverbose)
-			printf("\n");
-
-	/* If this isn't a known PHY, print the PHY indentifier info. */
-	if (sc->tl_pinfo->tl_vid == 0 && bootverbose)
-		printf("tl%d: vendor id: %04x product id: %04x\n",
-			sc->tl_unit, sc->tl_phy_vid, sc->tl_phy_did);
-
-	/* Set up ifmedia data and callbacks. */
-	ifmedia_init(&sc->ifmedia, 0, tl_ifmedia_upd, tl_ifmedia_sts);
-
-	/*
-	 * All ThunderLANs support at least 10baseT half duplex.
-	 * They also support AUI selection if used in 10Mb/s modes.
-	 */
-	ifmedia_add(&sc->ifmedia, IFM_ETHER|IFM_10_T|IFM_HDX, 0, NULL);
-	ifmedia_add(&sc->ifmedia, IFM_ETHER|IFM_10_T, 0, NULL);
-	ifmedia_add(&sc->ifmedia, IFM_ETHER|IFM_10_5, 0, NULL);
-
-	/* Some ThunderLAN PHYs support autonegotiation. */
-	if (sc->tl_phy_sts & PHY_BMSR_CANAUTONEG)
-		ifmedia_add(&sc->ifmedia, IFM_ETHER|IFM_AUTO, 0, NULL);
-
-	/* Some support 10baseT full duplex. */
-	if (sc->tl_phy_sts & PHY_BMSR_10BTFULL)
-		ifmedia_add(&sc->ifmedia,
-			IFM_ETHER|IFM_10_T|IFM_FDX, 0, NULL);
-
-	/* Some support 100BaseTX half duplex. */
-	if (sc->tl_phy_sts & PHY_BMSR_100BTXHALF)
-		ifmedia_add(&sc->ifmedia, IFM_ETHER|IFM_100_TX, 0, NULL);
-	if (sc->tl_phy_sts & PHY_BMSR_100BTXHALF)
-		ifmedia_add(&sc->ifmedia,
-			IFM_ETHER|IFM_100_TX|IFM_HDX, 0, NULL);
-
-	/* Some support 100BaseTX full duplex. */
-	if (sc->tl_phy_sts & PHY_BMSR_100BTXFULL)
-		ifmedia_add(&sc->ifmedia,
-			IFM_ETHER|IFM_100_TX|IFM_FDX, 0, NULL);
-
-	/* Some also support 100BaseT4. */
-	if (sc->tl_phy_sts & PHY_BMSR_100BT4)
-		ifmedia_add(&sc->ifmedia, IFM_ETHER|IFM_100_T4, 0, NULL);
-
-	/* Set default media. */
-	ifmedia_set(&sc->ifmedia, media);
-
-	/*
-	 * Kick off an autonegotiation session if this PHY supports it.
-	 * This is necessary to make sure the chip's duplex mode matches
-	 * the PHY's duplex mode. It may not: once enabled, the PHY may
-	 * autonegotiate full-duplex mode with its link partner, but the
-	 * ThunderLAN chip defaults to half-duplex and stays there unless
-	 * told otherwise.
-	 */
-	if (sc->tl_phy_sts & PHY_BMSR_CANAUTONEG) {
-		tl_init(sc);
-#ifdef TL_BACKGROUND_AUTONEG
-		tl_autoneg(sc, TL_FLAG_SCHEDDELAY, 1);
-#else
-		if (cold)
-			tl_autoneg(sc, TL_FLAG_FORCEDELAY, 1);
-		else
-			tl_autoneg(sc, TL_FLAG_SCHEDDELAY, 1);
-#endif
-	}
-
-	return(0);
-}
-
 static int tl_attach(dev)
 	device_t		dev;
 {
-	int			s, i, phys = 0;
+	int			s, i;
 	u_int32_t		command;
 	u_int16_t		did, vid;
 	struct tl_type		*t;
@@ -1773,43 +1363,12 @@ static int tl_attach(dev)
 	tl_softreset(sc, 1);
 
 	/*
-	 * Now attach the ThunderLAN's PHYs. There will always
-	 * be at least one PHY; if the PHY address is 0x1F, then
-	 * it's the internal one.
+	 * Do MII setup. If no PHYs are found, then this is a
+	 * bitrate ThunderLAN chip that only supports 10baseT
+	 * and AUI/BNC.
 	 */
-
-	for (i = TL_PHYADDR_MIN; i < TL_PHYADDR_MAX + 1; i++) {
-		sc->tl_phy_addr = i;
-		if (bootverbose)
-			printf("tl%d: looking for phy at addr %x\n", unit, i);
-		tl_phy_writereg(sc, PHY_BMCR, PHY_BMCR_RESET);
-		DELAY(500);
-		while(tl_phy_readreg(sc, PHY_BMCR) & PHY_BMCR_RESET);
-		sc->tl_phy_sts = tl_phy_readreg(sc, PHY_BMSR);
-		if (bootverbose)
-			printf("tl%d: status: %x\n", unit, sc->tl_phy_sts);
-		if (!sc->tl_phy_sts)
-			continue;
-		if (tl_attach_phy(sc)) {
-			bus_teardown_intr(dev, sc->tl_irq, sc->tl_intrhand);
-			bus_release_resource(dev, SYS_RES_IRQ, 0, sc->tl_irq);
-			bus_release_resource(dev, TL_RES, TL_RID, sc->tl_res);
-			free(sc->tl_ldata_ptr, M_DEVBUF);
-			printf("tl%d: failed to attach a phy %d\n", unit, i);
-			error = ENXIO;
-			goto fail;
-		}
-		phys++;
-		if (phys && i != TL_PHYADDR_MAX)
-			break;
-	}
-
-	/*
-	 * If no MII-based PHYs were detected, then this is a
-	 * TNETE110 device with a bit rate PHY. There's no autoneg
-	 * support, so just default to 10baseT mode.
-	 */
-	if (!phys) {
+	if (mii_phy_probe(dev, &sc->tl_miibus,
+	    tl_ifmedia_upd, tl_ifmedia_sts)) {
 		struct ifmedia		*ifm;
 		sc->tl_bitrate = 1;
 		ifmedia_init(&sc->ifmedia, 0, tl_ifmedia_upd, tl_ifmedia_sts);
@@ -1824,15 +1383,6 @@ static int tl_attach(dev)
 		ifm->ifm_media = ifm->ifm_cur->ifm_media;
 		tl_ifmedia_upd(ifp);
 	}
-
-	tl_intvec_adchk((void *)sc, 0);
-	tl_stop(sc);
-
-	/*
-	 * Attempt to clear any stray interrupts
-	 * that may be lurking.
-	 */
-	tl_intr((void *)sc);
 
 	/*
 	 * Call MI attach routines.
@@ -1864,8 +1414,12 @@ static int tl_detach(dev)
 	tl_stop(sc);
 	if_detach(ifp);
 
+	bus_generic_detach(dev);
+	device_delete_child(dev, sc->tl_miibus);
+
 	free(sc->tl_ldata_ptr, M_DEVBUF);
-	ifmedia_removeall(&sc->ifmedia);
+	if (sc->tl_bitrate)
+		ifmedia_removeall(&sc->ifmedia);
 
 	bus_teardown_intr(dev, sc->tl_irq, sc->tl_intrhand);
 	bus_release_resource(dev, SYS_RES_IRQ, 0, sc->tl_irq);
@@ -2171,16 +1725,6 @@ static int tl_intvec_txeoc(xsc, type)
 		ifp->if_flags &= ~IFF_OACTIVE;
 		sc->tl_cdata.tl_tx_tail = NULL;
 		sc->tl_txeoc = 1;
-		/*
-		 * If we just drained the TX queue and
-		 * there's an autoneg request waiting, set
-		 * it in motion. This will block the transmitter
-		 * until the autoneg session completes which will
-		 * no doubt piss off any processes waiting to
-		 * transmit, but that's the way the ball bounces.
-		 */
-		if (sc->tl_want_auto)
-			tl_autoneg(sc, TL_FLAG_SCHEDDELAY, 1);
 	} else {
 		sc->tl_txeoc = 0;
 		/* First we have to ack the EOC interrupt. */
@@ -2204,7 +1748,6 @@ static int tl_intvec_adchk(xsc, type)
 	u_int32_t		type;
 {
 	struct tl_softc		*sc;
-	u_int16_t		bmcr, ctl;
 
 	sc = xsc;
 
@@ -2212,24 +1755,7 @@ static int tl_intvec_adchk(xsc, type)
 		printf("tl%d: adapter check: %x\n", sc->tl_unit,
 			(unsigned int)CSR_READ_4(sc, TL_CH_PARM));
 
-	/*
-	 * Before resetting the adapter, try reading the PHY
-	 * settings so we can put them back later. This is
-	 * necessary to keep the chip operating at the same
-	 * speed and duplex settings after the reset completes.
-	 */
-	if (!sc->tl_bitrate) {
-	bmcr = tl_phy_readreg(sc, PHY_BMCR);
-	ctl = tl_phy_readreg(sc, TL_PHY_CTL);
 	tl_softreset(sc, 1);
-	tl_phy_writereg(sc, PHY_BMCR, bmcr);
-	tl_phy_writereg(sc, TL_PHY_CTL, ctl);
-	if (bmcr & PHY_BMCR_DUPLEX) {
-		tl_dio_setbit(sc, TL_NETCMD, TL_CMD_DUPLEX);
-	} else {
-		tl_dio_clrbit(sc, TL_NETCMD, TL_CMD_DUPLEX);
-	}
-	}
 	tl_stop(sc);
 	tl_init(sc);
 	CMD_SET(sc, TL_CMD_INTSON);
@@ -2332,6 +1858,7 @@ static void tl_stats_update(xsc)
 	struct tl_softc		*sc;
 	struct ifnet		*ifp;
 	struct tl_stats		tl_stats;
+	struct mii_data		*mii;
 	u_int32_t		*p;
 	int			s;
 
@@ -2360,6 +1887,11 @@ static void tl_stats_update(xsc)
 	ifp->if_oerrors += tl_tx_underrun(tl_stats);
 
 	sc->tl_stat_ch = timeout(tl_stats_update, sc, hz);
+
+	if (!sc->tl_bitrate) {
+		mii = device_get_softc(sc->tl_miibus);
+		mii_tick(mii);
+	}
 
 	splx(s);
 
@@ -2477,11 +2009,6 @@ static void tl_start(ifp)
 
 	sc = ifp->if_softc;
 
-	if (sc->tl_autoneg) {
-		sc->tl_tx_pend = 1;
-		return;
-	}
-
 	/*
 	 * Check for an available queue slot. If there are none,
 	 * punt.
@@ -2568,10 +2095,7 @@ static void tl_init(xsc)
 	struct tl_softc		*sc = xsc;
 	struct ifnet		*ifp = &sc->arpcom.ac_if;
         int			s;
-	u_int16_t		phy_sts;
-
-	if (sc->tl_autoneg)
-		return;
+	struct mii_data		*mii;
 
 	s = splimp();
 
@@ -2615,16 +2139,6 @@ static void tl_init(xsc)
 	/* Init TX pointers. */
 	tl_list_tx_init(sc);
 
-	/*
-	 * Enable PHY interrupts.
-	 */
-	phy_sts = tl_phy_readreg(sc, TL_PHY_CTL);
-	phy_sts |= PHY_CTL_INTEN;
-	tl_phy_writereg(sc, TL_PHY_CTL, phy_sts);
-
-	/* Enable MII interrupts. */
-	tl_dio_setbit(sc, TL_NETSIO, TL_SIO_MINTEN);
-
 	/* Enable PCI interrupts. */
 	CMD_SET(sc, TL_CMD_INTSON);
 
@@ -2632,29 +2146,12 @@ static void tl_init(xsc)
 	CMD_SET(sc, TL_CMD_RT);
 	CSR_WRITE_4(sc, TL_CH_PARM, vtophys(&sc->tl_ldata->tl_rx_list[0]));
 
-	/*
-	 * XXX This is a kludge to handle adapters with the Micro Linear
-	 * ML6692 100BaseTX PHY, which only supports 100Mbps modes and
-	 * relies on the controller's internal 10Mbps PHY to provide
-	 * 10Mbps modes. The ML6692 always shows up with a vendor/device ID
-	 * of 0 (it doesn't actually have vendor/device ID registers)
-	 * so we use that property to detect it. In theory there ought to
-	 * be a better way to 'spot the looney' but I can't find one.
-         */
-        if (!sc->tl_phy_vid) {
-                u_int8_t                        addr = 0;
-                u_int16_t                       bmcr;
-
-                bmcr = tl_phy_readreg(sc, PHY_BMCR);
-                addr = sc->tl_phy_addr;
-                sc->tl_phy_addr = TL_PHYADDR_MAX;
-                tl_phy_writereg(sc, PHY_BMCR, PHY_BMCR_RESET);
-                if (bmcr & PHY_BMCR_SPEEDSEL)
-                        tl_phy_writereg(sc, PHY_BMCR, PHY_BMCR_ISOLATE);
-                else
-                        tl_phy_writereg(sc, PHY_BMCR, bmcr);
-                sc->tl_phy_addr = addr;
-        }
+	if (!sc->tl_bitrate) {
+		if (sc->tl_miibus != NULL) {
+			mii = device_get_softc(sc->tl_miibus);
+			mii_mediachg(mii);
+		}
+	}
 
 	/* Send the RX go command */
 	CMD_SET(sc, TL_CMD_GO|TL_CMD_RT);
@@ -2677,18 +2174,16 @@ static int tl_ifmedia_upd(ifp)
 	struct ifnet		*ifp;
 {
 	struct tl_softc		*sc;
-	struct ifmedia		*ifm;
+	struct mii_data		*mii = NULL;
 
 	sc = ifp->if_softc;
-	ifm = &sc->ifmedia;
 
-	if (IFM_TYPE(ifm->ifm_media) != IFM_ETHER)
-		return(EINVAL);
-
-	if (IFM_SUBTYPE(ifm->ifm_media) == IFM_AUTO)
-		tl_autoneg(sc, TL_FLAG_SCHEDDELAY, 1);
-	else
-		tl_setmode(sc, ifm->ifm_media);
+	if (sc->tl_bitrate)
+		tl_setmode(sc, sc->ifmedia.ifm_media);
+	else {
+		mii = device_get_softc(sc->tl_miibus);
+		mii_mediachg(mii);
+	}
 
 	return(0);
 }
@@ -2700,9 +2195,8 @@ static void tl_ifmedia_sts(ifp, ifmr)
 	struct ifnet		*ifp;
 	struct ifmediareq	*ifmr;
 {
-	u_int16_t		phy_ctl;
-	u_int16_t		phy_sts;
 	struct tl_softc		*sc;
+	struct mii_data		*mii;
 
 	sc = ifp->if_softc;
 
@@ -2718,28 +2212,11 @@ static void tl_ifmedia_sts(ifp, ifmr)
 		else
 			ifmr->ifm_active |= IFM_FDX;
 		return;
-	}
-
-	phy_ctl = tl_phy_readreg(sc, PHY_BMCR);
-	phy_sts = tl_phy_readreg(sc, TL_PHY_CTL);
-
-	if (phy_sts & PHY_CTL_AUISEL)
-		ifmr->ifm_active = IFM_ETHER|IFM_10_5;
-
-	if (phy_ctl & PHY_BMCR_LOOPBK)
-		ifmr->ifm_active = IFM_ETHER|IFM_LOOP;
-
-	if (phy_ctl & PHY_BMCR_SPEEDSEL)
-		ifmr->ifm_active = IFM_ETHER|IFM_100_TX;
-	else
-		ifmr->ifm_active = IFM_ETHER|IFM_10_T;
-
-	if (phy_ctl & PHY_BMCR_DUPLEX) {
-		ifmr->ifm_active |= IFM_FDX;
-		ifmr->ifm_active &= ~IFM_HDX;
 	} else {
-		ifmr->ifm_active &= ~IFM_FDX;
-		ifmr->ifm_active |= IFM_HDX;
+		mii = device_get_softc(sc->tl_miibus);
+		mii_pollstat(mii);
+		ifmr->ifm_active = mii->mii_media_active;
+		ifmr->ifm_status = mii->mii_media_status;
 	}
 
 	return;
@@ -2764,12 +2241,24 @@ static int tl_ioctl(ifp, command, data)
 		break;
 	case SIOCSIFFLAGS:
 		if (ifp->if_flags & IFF_UP) {
-			tl_init(sc);
+			if (ifp->if_flags & IFF_RUNNING &&
+			    ifp->if_flags & IFF_PROMISC &&
+			    !(sc->tl_if_flags & IFF_PROMISC)) {
+				tl_dio_setbit(sc, TL_NETCMD, TL_CMD_CAF);
+				tl_setmulti(sc);
+			} else if (ifp->if_flags & IFF_RUNNING &&
+			    !(ifp->if_flags & IFF_PROMISC) &&
+			    sc->tl_if_flags & IFF_PROMISC) {
+				tl_dio_clrbit(sc, TL_NETCMD, TL_CMD_CAF);
+				tl_setmulti(sc);
+			} else
+				tl_init(sc);
 		} else {
 			if (ifp->if_flags & IFF_RUNNING) {
 				tl_stop(sc);
 			}
 		}
+		sc->tl_if_flags = ifp->if_flags;
 		error = 0;
 		break;
 	case SIOCADDMULTI:
@@ -2779,7 +2268,14 @@ static int tl_ioctl(ifp, command, data)
 		break;
 	case SIOCSIFMEDIA:
 	case SIOCGIFMEDIA:
-		error = ifmedia_ioctl(ifp, ifr, &sc->ifmedia, command);
+		if (sc->tl_bitrate)
+			error = ifmedia_ioctl(ifp, ifr, &sc->ifmedia, command);
+		else {
+			struct mii_data		*mii;
+			mii = device_get_softc(sc->tl_miibus);
+			error = ifmedia_ioctl(ifp, ifr,
+			    &mii->mii_media, command);
+		}
 		break;
 	default:
 		error = EINVAL;
@@ -2795,15 +2291,11 @@ static void tl_watchdog(ifp)
 	struct ifnet		*ifp;
 {
 	struct tl_softc		*sc;
-	u_int16_t		bmsr;
 
 	sc = ifp->if_softc;
 
-	if (sc->tl_autoneg) {
-		tl_autoneg(sc, TL_FLAG_DELAYTIMEO, 1);
-		return;
-	}
-
+#ifdef foo
+	u_int16_t		bmsr;
 	/* Check that we're still connected. */
 	tl_phy_readreg(sc, PHY_BMSR);
 	bmsr = tl_phy_readreg(sc, PHY_BMSR);
@@ -2811,7 +2303,8 @@ static void tl_watchdog(ifp)
 		printf("tl%d: no carrier\n", sc->tl_unit);
 		tl_autoneg(sc, TL_FLAG_SCHEDDELAY, 1);
 	} else
-		printf("tl%d: device timeout\n", sc->tl_unit);
+#endif
+	printf("tl%d: device timeout\n", sc->tl_unit);
 
 	ifp->if_oerrors++;
 
@@ -2849,11 +2342,6 @@ static void tl_stop(sc)
 	 * Disable host interrupts.
 	 */
 	CMD_SET(sc, TL_CMD_INTSOFF);
-
-	/*
-	 * Disable MII interrupts.
-	 */
-	tl_dio_clrbit(sc, TL_NETSIO, TL_SIO_MINTEN);
 
 	/*
 	 * Clear list pointer.
