@@ -40,7 +40,7 @@ static const char copyright[] =
 #ifndef lint
 /*static char sccsid[] = "From: @(#)xinstall.c	8.1 (Berkeley) 7/21/93";*/
 static const char rcsid[] =
-	"$Id: xinstall.c,v 1.8 1996/06/23 12:59:18 bde Exp $";
+	"$Id: xinstall.c,v 1.9 1996/08/12 17:03:30 peter Exp $";
 #endif /* not lint */
 
 /*-
@@ -62,6 +62,7 @@ static const char rcsid[] =
 #include <sys/wait.h>
 #include <sys/mman.h>
 #include <sys/stat.h>
+#include <sys/mount.h>
 
 #include <ctype.h>
 #include <err.h>
@@ -95,6 +96,7 @@ void	install __P((char *, char *, u_long, u_int));
 u_long	string_to_flags __P((char **, u_long *, u_long *));
 void	strip __P((char *));
 void	usage __P((void));
+int	trymmap __P((int));
 
 #define ALLOW_NUMERIC_IDS 1
 #ifdef ALLOW_NUMERIC_IDS
@@ -488,7 +490,7 @@ compare(int from_fd, const char *from_name, int to_fd, const char *to_name,
 
 	tsize = (size_t)from_sb->st_size;
 
-	if (tsize <= 8 * 1024 * 1024) {
+	if (tsize <= 8 * 1024 * 1024 && trymmap(from_fd) && trymmap(to_fd)) {
 		p = mmap(NULL, tsize, PROT_READ, 0, from_fd, (off_t)0);
 		if ((long)p == -1)
 			err(EX_OSERR, "mmap %s", from_name);
@@ -500,7 +502,26 @@ compare(int from_fd, const char *from_name, int to_fd, const char *to_name,
 		munmap(p, tsize);
 		munmap(q, tsize);
 	} else {
-		rv = 1;		/* don't bother in this case */
+		char buf1[16384];
+		char buf2[16384];
+		int n1, n2;
+
+		rv = 0;
+		lseek(from_fd, 0, SEEK_SET);
+		lseek(to_fd, 0, SEEK_SET);
+		while (rv == 0) {
+			n1 = read(from_fd, buf1, sizeof(buf1));
+			if (n1 == 0)
+				break;
+			else if (n1 > 0) {
+				n2 = read(to_fd, buf2, n1);
+				if (n2 == n1)
+					rv = memcmp(buf1, buf2, n1);
+				else
+					rv = 1;
+			} else
+				rv = 1;
+		}
 	}
 	return rv;
 }
@@ -524,7 +545,7 @@ copy(from_fd, from_name, to_fd, to_name, size)
 	 * trash memory on big files.  This is really a minor hack, but it
 	 * wins some CPU back.
 	 */
-	if (size <= 8 * 1048576) {
+	if (size <= 8 * 1048576 && trymmap(from_fd)) {
 		if ((p = mmap(NULL, (size_t)size, PROT_READ,
 		    0, from_fd, (off_t)0)) == (char *)-1)
 			err(EX_OSERR, "mmap %s", from_name);
@@ -584,4 +605,24 @@ usage()
 	(void)fprintf(stderr,
 "usage: install [-Ccdps] [-f flags] [-g group] [-m mode] [-o owner] file1 file2;\n\tor file1 ... fileN directory\n");
 	exit(1);
+}
+
+/*
+ * trymmap --
+ *	return true (1) if mmap should be tried, false (0) if not.
+ */
+int
+trymmap(fd)
+	int fd;
+{
+	struct statfs stfs;
+
+	if (fstatfs(fd, &stfs) < 0)
+		return 0;
+	switch(stfs.f_type) {
+	case MOUNT_UFS:		/* should be safe.. */
+	case MOUNT_CD9660:	/* should be safe.. */
+		return 1;
+	}
+	return 0;
 }
