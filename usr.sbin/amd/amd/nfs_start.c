@@ -37,7 +37,7 @@
  *
  *	@(#)nfs_start.c	8.1 (Berkeley) 6/6/93
  *
- * $Id$
+ * $Id: nfs_start.c,v 1.4 1997/02/22 16:01:38 peter Exp $
  *
  */
 
@@ -64,9 +64,12 @@ unsigned short nfs_port;
 SVCXPRT *nfsxprt;
 
 extern int fwd_sock;
-int max_fds = -1;
 
 #define	MASKED_SIGS	(sigmask(SIGINT)|sigmask(SIGTERM)|sigmask(SIGCHLD)|sigmask(SIGHUP))
+
+#ifndef FD_SET
+#define FD_SETSIZE	32	/* XXX kludge. bind does it this way */
+#endif
 
 #ifdef DEBUG
 /*
@@ -173,7 +176,7 @@ static int rpc_pending_now()
 #endif /* FD_SET */
 
 	tvv.tv_sec = tvv.tv_usec = 0;
-	nsel = select(max_fds+1, &readfds, (int *) 0, (int *) 0, &tvv);
+	nsel = select(FD_SETSIZE, &readfds, (int *) 0, (int *) 0, &tvv);
 	if (nsel < 1)
 		return(0);
 #ifdef FD_SET
@@ -188,7 +191,6 @@ static int rpc_pending_now()
 
 static serv_state run_rpc(P_void)
 {
-	int dtbsz = max_fds + 1;
 	int smask = sigblock(MASKED_SIGS);
 
 	next_softclock = clocktime();
@@ -251,7 +253,7 @@ static serv_state run_rpc(P_void)
 			dlog("Select waits for Godot");
 #endif /* DEBUG */
 
-		nsel = do_select(smask, dtbsz, &readfds, &tvv);
+		nsel = do_select(smask, FD_SETSIZE, &readfds, &tvv);
 
 
 		switch (nsel) {
@@ -337,6 +339,7 @@ int mount_automounter(ppid)
 int ppid;
 {
 	int so = socket(AF_INET, SOCK_DGRAM, 0);
+	int so2 = socket(AF_INET, SOCK_STREAM, 0);
 	SVCXPRT *amqp;
 	int nmount;
 
@@ -345,9 +348,16 @@ int ppid;
 		return 1;
 	}
 
-	if ((nfsxprt = svcudp_create(so)) == NULL ||
-			(amqp = svcudp_create(so)) == NULL) {
+	if (so2 < 0 || bind_resv_port(so2, NULL) < 0) {
+		perror("Can't create privileged port");
+		return 1;
+	}
+	if ((nfsxprt = svcudp_create(so)) == NULL) {
 		plog(XLOG_FATAL, "cannot create rpc/udp service");
+		return 2;
+	}
+	if ((amqp = svctcp_create(so2, 0, 0)) == NULL) {
+		plog(XLOG_FATAL, "cannot create rpc/tcp service");
 		return 2;
 	}
 
@@ -361,16 +371,6 @@ int ppid;
 	 */
 	if (fwd_init() != 0)
 		return 3;
-
-	/*
-	 * One or other of so, fwd_sock
-	 * must be the highest fd on
-	 * which to select.
-	 */
-	if (so > max_fds)
-		max_fds = so;
-	if (fwd_sock > max_fds)
-		max_fds = fwd_sock;
 
 	/*
 	 * Construct the root automount node
@@ -410,8 +410,8 @@ int ppid;
 	 */
 	unregister_amq();
 
-	if (!svc_register(amqp, AMQ_PROGRAM, AMQ_VERSION, amq_program_1, IPPROTO_UDP)) {
-		plog(XLOG_FATAL, "unable to register (AMQ_PROGRAM, AMQ_VERSION, udp)");
+	if (!svc_register(amqp, AMQ_PROGRAM, AMQ_VERSION, amq_program_1, IPPROTO_TCP)) {
+		plog(XLOG_FATAL, "unable to register (AMQ_PROGRAM, AMQ_VERSION, tcp)");
 		return 3;
 	}
 #ifdef DEBUG

@@ -37,7 +37,7 @@
  *
  *	@(#)amq.c	8.1 (Berkeley) 6/7/93
  *
- * $Id$
+ * $Id: amq.c,v 1.4 1997/02/22 16:02:07 peter Exp $
  *
  */
 
@@ -54,7 +54,7 @@ char copyright[] = "\
 #endif /* not lint */
 
 #ifndef lint
-static char rcsid[] = "$Id$";
+static char rcsid[] = "$Id: amq.c,v 1.4 1997/02/22 16:02:07 peter Exp $";
 static char sccsid[] = "@(#)amq.c	8.1 (Berkeley) 6/7/93";
 #endif /* not lint */
 
@@ -409,7 +409,7 @@ Usage: %s [-h host] [[-f] [-m] [-v] [-s]] | [[-u] directory ...]] |\n\
 	/*
 	 * Create RPC endpoint
 	 */
-	s = privsock(SOCK_STREAM);
+	s = RPC_ANYSOCK;
 	clnt = clnttcp_create(&server_addr, AMQ_PROGRAM, AMQ_VERSION, &s, 0, 0);
 	if (clnt == 0) {
 		close(s);
