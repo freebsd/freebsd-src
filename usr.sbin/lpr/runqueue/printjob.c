@@ -288,6 +288,8 @@ again:
 			if (TR != NULL)		/* output trailer */
 				(void) write(ofd, TR, strlen(TR));
 		}
+		(void) close(ofd);
+		(void) wait(NULL);
 		(void) unlink(tempfile);
 		exit(0);
 	}
