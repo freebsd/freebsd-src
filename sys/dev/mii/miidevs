@@ -172,5 +172,5 @@ model XAQTI XMACII		0x0000 XaQti Corp. XMAC II gigabit interface
 
 /* Marvell Semiconductor PHYs */
 model MARVELL E1000		0x0000 Marvell 88E1000 Gigabit PHY
+model MARVELL E1011		0x0002 Marvell 88E1011 Gigabit PHY
 model xxMARVELL E1000		0x0005 Marvell 88E1000 Gigabit PHY
-
