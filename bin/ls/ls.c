@@ -528,9 +528,10 @@ display(p, list)
 		 case 5: maxflags = 0;
 		 case 6: maxsize  = 0;
 		 case 7: maxlen   = 0;
-#ifndef COLORLS
-		 f_notabs = 0;
+#ifdef COLORLS
+		 if (!f_color)
 #endif
+			 f_notabs = 0;
 		}
 		maxinode = makenines(maxinode);
 		maxblock = makenines(maxblock);
