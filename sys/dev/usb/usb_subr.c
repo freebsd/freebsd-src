@@ -257,6 +257,10 @@ usbd_devinfo_vp(usbd_device_handle dev, char *v, char *p, int usedev)
 		usbd_trim_spaces(vendor);
 		product = usbd_get_string(dev, udd->iProduct, p);
 		usbd_trim_spaces(product);
+		if (vendor && !*vendor)
+			vendor = NULL;
+		if (product && !*product)
+			product = NULL;
 	} else {
 		vendor = NULL;
 		product = NULL;
