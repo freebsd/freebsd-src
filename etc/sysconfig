@@ -4,7 +4,7 @@
 # This is sysconfig - a file full of useful variables that you can set 
 # to change the default startup behavior of your system.
 #
-#	$Id: sysconfig,v 1.2 1995/03/21 16:44:04 wollman Exp $
+#	$Id: sysconfig,v 1.3 1995/03/22 03:29:55 ache Exp $
 
 ######################### Start Of Syscons Section #######################
 
@@ -45,6 +45,11 @@ saver=NO
 # saver=snake
 
 ######################### End Of Syscons Section #######################
+
+######################### Start Of Netconfig Section #######################
+
+# Set to the name of your host - this is pretty important!
+hostname=myname.my.domain
 
 # Set to the host you'd like set as your default router, or NO of none.
 defaultrouter=NO
