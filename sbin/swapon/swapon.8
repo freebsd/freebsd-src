@@ -39,79 +39,93 @@
 .Nm swapon , swapoff
 .Nd "specify devices for paging and swapping"
 .Sh SYNOPSIS
-.Nm swap[on|off]
-.Fl a
-.Nm swap[on|off]
-.Ar special_file ...
+.Nm swapon Ar
+.Nm swapon Fl a
+.Nm swapoff Ar
+.Nm swapoff Fl a
 .Nm swapctl
-.Fl lshk
-.Nm swapctl
-.Fl AU
-.Nm swapctl
-.Fl a
-.Ar special_file ...
-.Nm swapctl
-.Fl d
-.Ar special_file ...
+.Op Fl AhklsU
+.Oo
+.Fl a Ar
+|
+.Fl d Ar
+.Oc
 .Sh DESCRIPTION
 The
-.Nm swap[on,off,ctl]
-utilties are used to control swap devices in the system.  At boot time all
-swap entries in 
+.Nm swapon , swapoff
+and
+.Nm swapctl
+utilties are used to control swap devices in the system.
+At boot time all swap entries in
 .Pa /etc/fstab
 are added automatically when the system goes multi-user.
 Swap devices use a fixed interleave; the maximum number of devices
-is specified by the kernel configuration option NSWAPDEV, which
-is typically set to 4.
+is specified by the kernel configuration option
+.Dv NSWAPDEV ,
+which is typically set to 4.
 There is no priority mechanism.
 .Pp
 The
 .Nm swapon
-utility adds the specified swap devices to the system.  If the
+utility adds the specified swap devices to the system.
+If the
 .Fl a
 option is used, all swap devices in
 .Pa /etc/fstab
-will be added, unless their ``noauto'' option is also set.
+will be added, unless their
+.Dq noauto
+option is also set.
 .Pp
 The
 .Nm swapoff
-utility removes the specified swap devices from the system.  If the
+utility removes the specified swap devices from the system.
+If the
 .Fl a
 option is used, all swap devices in
 .Pa /etc/fstab
-will be removed, unless their ``noauto'' option is also set.
+will be removed, unless their
+.Dq noauto
+option is also set.
 Note that
 .Nm swapoff
 will fail and refuse to remove a swap device if there is insufficient
 VM (memory + remaining swap devices) to run the system.
-.Nm Swapoff
+The
+.Nm swapoff
+utility
 must move swapped pages out of the device being removed which could
 lead to high system loads for a period of time, depending on how
 much data has been swapped out to that device.
 .Pp
 The
 .Nm swapctl
-utility exists primarily for those familiar with other BSDs and may be
-used to add, remove, or list swap.  Note that the
+utility exists primarily for those familiar with other
+.Bx Ns s
+and may be
+used to add, remove, or list swap.
+Note that the
 .Fl a
 option is used diferently in
 .Nm swapctl
 and indicates that a specific list of devices should be added.
-The 
+The
 .Fl d
-option indicates that a specific list should be removed.  The
+option indicates that a specific list should be removed.
+The
 .Fl A
-and 
-.Fl D
+and
+.Fl U
 options to
 .Nm swapctl
 operate on all swap entries in
 .Pa /etc/fstab
-which do not have their ``noauto'' option set.
+which do not have their
+.Dq noauto
+option set.
 .Pp
 Swap information can be generated using the
-.Nm swapinfo
-program,
+.Xr swapinfo 8
+utility,
 .Nm pstat
 .Fl s ,
 or
@@ -121,17 +135,20 @@ The
 .Nm swapctl
 utility has the following options for listing swap:
 .Bl -tag -width indent
-.It Fl l
-List the devices making up system swap.
-.It Fl s
-Print a summary line for system swap.
 .It Fl h
 Output values in megabytes.
 .It Fl k
 Output values in kilobytes.
+.It Fl l
+List the devices making up system swap.
+.It Fl s
+Print a summary line for system swap.
 .Pp
-The BLOCKSIZE environment variable is used if not specifically
-overridden.  512 byte blocks are used by default.
+The
+.Ev BLOCKSIZE
+environment variable is used if not specifically
+overridden.
+512 byte blocks are used by default.
 .El
 .Sh DIAGNOSTICS
 These utilities may fail for the reasons described in
@@ -144,13 +161,14 @@ These utilities may fail for the reasons described in
 .Xr pstat 8 ,
 .Xr rc 8
 .Sh FILES
-.Bl -tag -width "/dev/{ad,da}?s?b" -compact
+.Bl -tag -width ".Pa /dev/{ad,da}?s?b" -compact
 .It Pa /dev/{ad,da}?s?b
 standard paging devices
 .It Pa /dev/md?
 memory disk devices
 .It Pa /etc/fstab
-ASCII file system description table
+.Tn ASCII
+file system description table
 .El
 .Sh HISTORY
 The
