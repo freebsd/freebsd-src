@@ -87,6 +87,20 @@ static struct kern_devconf kdc_qcam_template = {
 };
 
 #define	UNIT(dev)		minor(dev)
+#define CDEV_MAJOR 73
+
+
+static	d_open_t	qcam_open;
+static	d_close_t	qcam_close;
+static	d_read_t	qcam_read;
+static	d_ioctl_t	qcam_ioctl;
+
+static struct cdevsw qcam_cdevsw = 
+	{ qcam_open,	qcam_close,	qcam_read,	nowrite,
+	  qcam_ioctl,	nostop,		nullreset,	nodevtotty,
+	  noselect,	nommap,		nostrategy,	"qcam",
+	  NULL,		-1  };
+
 
 static void
 qcam_registerdev (struct isa_device *id)
@@ -302,14 +316,6 @@ qcam_ioctl (dev_t dev, int cmd, caddr_t data, int flag, struct proc *p)
 
 struct isa_driver	qcamdriver =
 			{qcam_probe, qcam_attach, "qcam"};
-
-#define CDEV_MAJOR 73
-
-static struct cdevsw qcam_cdevsw = 
-	{ qcam_open,	qcam_close,	qcam_read,	nowrite,
-	  qcam_ioctl,	nostop,		nullreset,	nodevtotty,
-	  noselect,	nommap,		nostrategy,	"qcam",
-	  NULL,		-1  };
 
 /*
  * Initialize the dynamic cdevsw hooks.
