@@ -39,7 +39,7 @@
 static char sccsid[] = "@(#)error.c	8.2 (Berkeley) 5/4/95";
 #endif
 static const char rcsid[] =
-	"$Id: error.c,v 1.10 1998/05/18 06:43:32 charnier Exp $";
+	"$Id: error.c,v 1.11 1998/08/24 10:20:36 cracauer Exp $";
 #endif /* not lint */
 
 /*
@@ -64,7 +64,7 @@ static const char rcsid[] =
 
 struct jmploc *handler;
 volatile sig_atomic_t exception;
-int suppressint;
+volatile sig_atomic_t suppressint;
 volatile sig_atomic_t intpending;
 char *commandname;
 
