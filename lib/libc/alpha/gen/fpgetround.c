@@ -41,11 +41,12 @@ __FBSDID("$FreeBSD$");
 fp_rnd_t
 fpgetround()
 {
-	double fpcrval;
-	u_int64_t old;
+	union {
+		double fpcrval;
+		u_int64_t intval;
+	} u;
 
-	GET_FPCR(fpcrval);
-	old = *(u_int64_t *)&fpcrval;
+	GET_FPCR(u.fpcrval);
 
-	return ((old & FPCR_DYN_MASK) >> FPCR_DYN_SHIFT);
+	return ((u.intval & FPCR_DYN_MASK) >> FPCR_DYN_SHIFT);
 }

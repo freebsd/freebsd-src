@@ -47,13 +47,14 @@ static const int map[] = {
 int
 __flt_rounds()
 {
-	double fpcrval;
-	u_int64_t old;
+	union {
+		double fpcrval;
+		u_int64_t intval;
+	} u;
 
 	__asm__("trapb");
-	__asm__("mf_fpcr %0" : "=f" (fpcrval));
+	__asm__("mf_fpcr %0" : "=f" (u.fpcrval));
 	__asm__("trapb");
-	old = *(u_int64_t *)&fpcrval;
 
-	return map[(old >> 58) & 0x3];
+	return map[(u.intval >> 58) & 0x3];
 }
