@@ -1,4 +1,3 @@
-# $FreeBSD$
 1.1 07/12/95 - eay
 	Many thanks to Rhys Weatherley <rweather@us.oracle.com>
 	for pointing out that I was assuming little endian byte
