@@ -25,7 +25,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *	$Id: syscons.h,v 1.17 1996/06/23 17:12:03 bde Exp $
+ *	$Id: syscons.h,v 1.18 1996/06/25 08:54:47 sos Exp $
  */
 
 #ifndef _I386_ISA_SYSCONS_H_
@@ -94,9 +94,10 @@
 #define TIMER_FREQ	1193182			/* should be in isa.h */
 #define CONSOLE_BUFSIZE 1024
 #define PCBURST		128
-#define FONT_8		0x001
-#define FONT_14		0x002
-#define FONT_16		0x004
+#define FONT_NONE	1
+#define FONT_8		8
+#define FONT_14		14
+#define FONT_16		16
 #define HISTORY_SIZE	100*80
 
 /* defines related to hardware addresses */
@@ -141,6 +142,7 @@ typedef struct scr_stat {
 	int 		ypos;			/* current Y position */
 	int 		xsize;			/* X size */
 	int 		ysize;			/* Y size */
+	int		font_size;		/* fontsize in Y direction */
 	int		start;			/* modified area start */
 	int		end;			/* modified area end */
 	term_stat 	term;			/* terminal emulation stuff */
@@ -165,7 +167,6 @@ typedef struct scr_stat {
 	u_short		bell_pitch;
 	u_char		border;			/* border color */
 	u_char	 	mode;			/* mode */
-	u_char		font;			/* font on this screen */
 	pid_t 		pid;			/* pid of controlling proc */
 	struct proc 	*proc;			/* proc* of controlling proc */
 	struct vt_mode 	smode;			/* switch mode */
