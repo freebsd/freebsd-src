@@ -159,7 +159,7 @@ vx_eisa_attach(e_dev)
 
     level_intr = FALSE;
 
-    if (eisa_reg_intr(e_dev, irq, (void (*)(void *)) vxintr, (void *) sc, &net_imask,
+    if (eisa_reg_intr(e_dev, irq, vxintr, (void *) sc, &net_imask,
 		       /* shared == */ level_intr)) {
 	vxfree(sc);
 	return -1;
@@ -172,7 +172,7 @@ vx_eisa_attach(e_dev)
 
     if (eisa_enable_intr(e_dev, irq)) {
 	vxfree(sc);
-	eisa_release_intr(e_dev, irq, (void (*)(void *)) vxintr);
+	eisa_release_intr(e_dev, irq, vxintr);
 	return -1;
     }
     return 0;
