@@ -40,6 +40,7 @@
  */
 
 #include "opt_quota.h"
+#include "opt_ufs.h"
 
 #include <sys/param.h>
 #include <sys/systm.h>
@@ -56,6 +57,10 @@
 #include <ufs/ufs/inode.h>
 #include <ufs/ufs/ufsmount.h>
 #include <ufs/ufs/ufs_extern.h>
+#ifdef UFS_DIRHASH
+#include <ufs/ufs/dir.h>
+#include <ufs/ufs/dirhash.h>
+#endif
 
 MALLOC_DEFINE(M_UFSMNT, "UFS mount", "UFS mount structure");
 /*
@@ -171,14 +176,31 @@ int
 ufs_init(vfsp)
 	struct vfsconf *vfsp;
 {
-	static int done;
 
-	if (done)
-		return (0);
-	done = 1;
 	ufs_ihashinit();
 #ifdef QUOTA
 	dqinit();
+#endif
+#ifdef UFS_DIRHASH
+	ufsdirhash_init();
+#endif
+	return (0);
+}
+
+/*
+ * Uninitialise UFS filesystems, done before module unload.
+ */
+int
+ufs_uninit(vfsp)
+	struct vfsconf *vfsp;
+{
+
+	ufs_ihashuninit();
+#ifdef QUOTA
+	dquninit();
+#endif
+#ifdef UFS_DIRHASH
+	ufsdirhash_uninit();
 #endif
 	return (0);
 }
