@@ -1,3 +1,8 @@
+Version 2.4.2
+
+  - Added more check in configure to default the grep-${version}/src/regex.c
+    instead of the one in GNU Lib C.
+
 Version 2.4.1
 
   - If the final byte of an input file is not a newline, grep now silently
