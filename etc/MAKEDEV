@@ -134,7 +134,11 @@
 # $FreeBSD$
 #
 
-PATH=/sbin:/bin/:/usr/bin:/usr/sbin:$PATH
+if [ -n "$MAKEDEVPATH" ]; then
+	PATH="$MAKEDEVPATH"
+else
+	PATH=/sbin:/bin
+fi
 umask 77
 
 # Usage: die exitcode msg
@@ -297,9 +301,12 @@ std)
 	mknod stderr	c 22 2; chmod 666 stderr
 	mknod pci	c 78 0; chmod 644 pci
 	mkdir -p fd
-	(cd fd && eval `echo "" | awk ' BEGIN { \
-		for (i = 0; i < 64; i++) \
-			printf("mknod %d c 22 %d;", i, i)}'`)
+	(cd fd && i=0 &&
+		while [ $i -lt 64 ]; do
+			mknod $i c 22 $i
+			i=$(($i + 1))
+		done
+	)
 	chown -R root:wheel fd
 	chmod 555 fd
 	chmod 666 fd/*
@@ -607,13 +614,14 @@ xpt*)
 	if [ -z "${units}" ]; then
 		units=1
 	fi
-	eval `echo ${chr} ${units} ${name} |awk \
-		'{ c=$1; n=$2; name=$3;} END {
-		for (i = 0; i < n; i++)
-			printf("rm -f %s%d r%s%d; mknod %s%d c %d %d; \
-				chgrp operator %s%d;", \
-				name, i, name, i, name, i, c, i, \
-				name, i); }'`
+	i=0
+	while [ $i -lt $units ]; do
+		dname=$name$i
+		rm -rf $dname r$dname
+		mknod $dname c $chr $i
+		chown root:operator $dname
+		i=$(($i + 1))
+	done	
 	;;
 # CAM passthrough device
 pass*|uk*)
@@ -625,13 +633,14 @@ pass*|uk*)
 	if [ -z "${units}" ]; then
 		units=1
 	fi
-	eval `echo ${chr} ${units} ${name} |awk \
-		'{ c=$1; n=$2; name=$3;} END {
-		for (i = 0; i < n; i++)
-			printf("rm -f %s%d r%s%d; mknod %s%d c %d %d; \
-				chgrp operator %s%d;", \
-				name, i, name, i, name, i, c, i, \
-				name, i); }'`
+	i=0
+	while [ $i -lt $units ]; do
+		dname=$name$i
+		rm -rf $dname r$dname
+		mknod $dname c $chr $i
+		chown root:operator $dname
+		i=$(($i + 1))
+	done	
 	;;
 pty*)
 	class=`expr $i : 'pty\(.*\)'`
@@ -648,21 +657,21 @@ pty*)
 	# This still leaves [tuTU].
 	*) echo bad unit for pty in: $i;;
 	esac
+	umask 0
 	case $class in
 	0|1|2|3|4|5|6|7)
-		umask 0
-		eval `echo $offset $name | awk ' { b=0+$1; n=$2 } END { \
-			for (i = 0; i < 32; i++) {
-				c = substr("0123456789abcdefghijklmnopqrstuv", i + 1, 1); \
-				printf("mknod tty%s%s c 5 %d; \
-					mknod pty%s%s c 6 %d;", \
-					n, c, b+i, \
-					n, c, b+i); \
-			} \
-		}'`
-		umask 77
+		i=0
+		while [ $i -lt 32 ]; do
+#			This was an awk substr() before.
+			c=$(echo 0123456789abcdefghijklmnopqrstuv |
+			    dd bs=1 skip=$i count=1 2>/dev/null)
+			mknod tty$name$c c 5 $(($offset + $i))
+			mknod pty$name$c c 6 $(($offset + $i))
+			i=$(($i + 1))
+		done
 		;;
 	esac
+	umask 77
 	;;
 
 sa*)
@@ -742,21 +751,17 @@ acd*|cd*|mcd*|scd*)
 		units=1
 	fi
 	if [ "${units}" -le 31 ]; then
-		eval `echo ${chr} ${units} ${name} |awk \
-			'{ c=$1; n=$2; name=$3;} END{
-			for (i = 0; i < n; i++){
-				printf("rm -f %s%d* r%s%d*; \
-					mknod %s%da c %d %d; \
-					mknod %s%dc c %d %d; \
-					mknod r%s%da c %d %d; \
-					mknod r%s%dc c %d %d; \
-					chgrp operator %s%d* r%s%d*;",
-					name, i, name, i,
-					name, i, c, (i * 8),
-					name, i, c, (i * 8) + 2,
-					name, i, c, (i * 8),
-					name, i, c, (i * 8) + 2,
-					name, i, name, i); }}'`
+		i=0
+		while [ $i -lt $units ]; do
+			dname=$name$i
+			rm -rf ${dname}* r${dname}*
+			mknod ${dname}a c $chr $(($i * 8))
+			mknod ${dname}c c $chr $(($i * 8 + 2))
+			mknod r${dname}a c $chr $(($i * 8))
+			mknod r${dname}c c $chr $(($i * 8 + 2))
+			chown root:operator ${dname}* r${dname}*
+			i=$(($i + 1))
+		done
 	else
 		echo "$i is invalid -- can't have more than 32 cd devices"
 	fi
@@ -871,12 +876,14 @@ ugen*)
 		echo $i - Invalid unit number
 	fi
 	if [ -z "${endpoint}" ]; then		# ugen0 & ugen0.1 - ugen0.15
-	eval `echo ${unit} | awk ' { u=0+$1 } END {
-		printf("mknod ugen%d c 114 %d;", u, u*16+0);
-		for (i = 1; i < 16; i++)
-			printf("mknod ugen%d.%d c 114 %d;", u, i, u*16+i); }'`
+		mknod ugen$unit c 114 $(($unit * 16))
+		i=1
+		while [ $i -lt 16 ]; do
+			mknod ugen$unit.$i c 114 $(($unit * 16 + $i))
+			i=$(($i + 1))
+		done
 	else
-		minor=`expr $unit \* 16 + $endpoint`
+		minor=$(($unit * 16 + $endpoint))
 		mknod ugen$unit.$endpoint c 114 $minor
 	fi
 	;;
@@ -899,9 +906,11 @@ tw*)
 vty*)
 	chr=12
 	units=`expr $i : 'vty\(.*\)'`
-	eval `echo ${chr} ${units} | awk ' { c=0+$1; n=0+$2 } END {
-		for (i = 0; i < n; i++)
-			printf("mknod ttyv%01x c %d %d;", i, c, i); }'`
+	i=0
+	while [ $i -lt $units ]; do
+		mknod ttyv$(printf %01x $i) c $chr $i
+		i=$(($i + 1))
+	done
 	ln -fs ttyv0 vga	# XXX X still needs this pccons relic
 	;;
 
@@ -910,7 +919,7 @@ bpf*)
 	unit=0
 	while [ $unit -le $nbpf ]; do
 		mknod bpf$unit c 23 $unit
-		unit=`expr $unit + 1`
+		unit=$(($unit + 1))
 	done
 	;;
 
@@ -1002,7 +1011,7 @@ ttyA*)
 		mknod ttyA$name c $major $minor
 		mknod ttyiA$name c $major `expr $minor + 65536`
 		mknod ttylA$name c $major `expr $minor + 131072`
-		port=`expr $port + 1`
+		port=$(($port + 1))
 	done
 	# For the user-mode control program, 'sicontrol'
 	mknod si_control c 68 262144
@@ -1020,7 +1029,7 @@ cuaA*)
 		mknod cuaiA$name c $major `expr $minor + 128 + 65536`
 		mknod cualA$name c $major `expr $minor + 128 + 131072`
 		chown uucp:dialer cuaA$name cuaiA$name cualA$name
-		port=`expr $port + 1`
+		port=$(($port + 1))
 	done
 	umask 77
 	;;
@@ -1121,46 +1130,80 @@ cuaM?)
 
 ttyR?)
 	major=81
-	BOARD=1; MINOR=65536; Rnum=0
-	MINOR=`expr $BOARD \* 65536`
-	dmesg | grep ^RocketPort[0-4] > /tmp/rp_list
-	controllers=`awk '{print $1}' < /tmp/rp_list`
-	rm -f /dev/ttyR*; rm -f /dev/ttyiR*; rm -f /dev/ttylR*
-	for i in $controllers;do
- 	   ndevices=`grep ^$i /tmp/rp_list | sed -e 's/.* \([0-9]*\) ports/\1/'`
+	BOARD=1; Rnum=0
+	MINOR=$(($BOARD * 65536))
+	controllers=$(
+		dmesg | while read first rest; do
+			case "\$first" in
+			RocketPort[0-4])
+				echo "\$first"
+				;;
+			esac
+		done
+	)
+	rm -f /dev/ttyR* /dev/ttyiR* /dev/ttylR*
+	for i in $controllers; do
+	   ndevices=$(
+		dmesg | while read first bar ports rest; do
+			case "\$first" in
+			$i*)
+				echo "\$ports"
+				;;
+			esac
+		done
+	   )
 	   echo -n "Creating $ndevices devices for $i: "
-	   for dev in `jot $ndevices 0`;do
+	   dev=0
+	   while [ $dev -lt $ndevices ]; do
 		   mknod /dev/ttyR$Rnum c $major $MINOR
-		   mknod /dev/ttylR$Rnum c $major `expr $MINOR + 32`
-		   mknod /dev/ttyiR$Rnum c $major `expr $MINOR + 64`
-		   Rnum=`expr $Rnum + 1`
-		   MINOR=`expr $MINOR + 1`
+		   mknod /dev/ttylR$Rnum c $major $(($MINOR + 32))
+		   mknod /dev/ttyiR$Rnum c $major $(($MINOR + 64))
+		   Rnum=$(($Rnum + 1))
+		   MINOR=$(($MINOR + 1))
+		   dev=$(($dev + 1))
 	   done
-		BOARD=`expr $BOARD + 1`
-		MINOR=`expr $BOARD \* 65536`
+		BOARD=$(($BOARD + 1))
+		MINOR=$(($BOARD * 65536))
 	   echo " "
 	done
 	;;
 
 cuaR?)
 	major=81
-	BOARD=1; MINOR=65536; Rnum=0
-	MINOR=`expr $BOARD \* 65536`
-	dmesg | grep ^RocketPort[0-4] > /tmp/rp_list
-	controllers=`awk '{print $1}' < /tmp/rp_list`
-	rm -f /dev/cuaR*; rm -f /dev/cuaiR*; rm -f /dev/cualR*
-	for i in $controllers;do
- 	   ndevices=`grep ^$i /tmp/rp_list | sed -e 's/.* \([0-9]*\) ports/\1/'`
+	BOARD=1; Rnum=0
+	MINOR=$(($BOARD * 65536))
+	controllers=$(
+		dmesg | while read first rest; do
+			case "\$first" in
+			RocketPort[0-4])
+				echo "\$first"
+				;;
+			esac
+		done
+	)
+	rm -f /dev/cuaR* /dev/cuaiR* /dev/cualR*
+	for i in $controllers; do
+	   ndevices=$(
+		dmesg | while read first bar ports rest; do
+			case "\$first" in
+			$i*)
+				echo "\$ports"
+				;;
+			esac
+		done
+	   )
 	   echo -n "Creating $ndevices devices for $i: "
-	   for dev in `jot $ndevices 0`;do
-		   mknod /dev/cuaR$Rnum c  $major `expr $MINOR + 128`
-		   mknod /dev/cualR$Rnum c $major `expr $MINOR + 128 + 32`
-		   mknod /dev/cuaiR$Rnum c $major `expr $MINOR + 128 + 64`
-		   Rnum=`expr $Rnum + 1`
-		   MINOR=`expr $MINOR + 1`
+	   dev=0
+	   while [ $dev -lt $ndevices ]; do
+		   mknod /dev/cuaR$Rnum c  $major $(($MINOR + 128))
+		   mknod /dev/cualR$Rnum c $major $(($MINOR + 128 + 32))
+		   mknod /dev/cuaiR$Rnum c $major $(($MINOR + 128 + 64))
+		   Rnum=$(($Rnum + 1))
+		   MINOR=$(($MINOR + 1))
+		   dev=$(($dev + 1))
 	   done
-		BOARD=`expr $BOARD + 1`
-		MINOR=`expr $BOARD \* 65536`
+		BOARD=$(($BOARD + 1))
+		MINOR=$(($BOARD * 65536))
 	   echo " "
 	done
 	chown uucp:dialer /dev/cuaR*
@@ -1324,7 +1367,7 @@ tun*)
 	while [ $unit -le $ntun ]; do
 		mknod tun$unit c 52 $unit
 		chown uucp:dialer tun$unit
-		unit=`expr $unit + 1`
+		unit=$(($unit + 1))
 	done
 	;;
 
