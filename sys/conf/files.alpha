@@ -201,7 +201,6 @@ isa/ppc.c                       optional        ppc
 isa/psm.c			optional	psm
 isa/syscons_isa.c		optional	sc
 isa/vga_isa.c			optional	vga
-kern/subr_disklabel.c		standard
 libkern/alpha/bswap16.S		standard
 libkern/alpha/bswap32.S		standard
 libkern/bcmp.c			standard
