@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)varargs.h	8.2 (Berkeley) 3/22/94
- * $Id$
+ * $Id: varargs.h,v 1.2 1994/08/02 07:39:17 davidg Exp $
  */
 
 #ifndef _VARARGS_H_
@@ -44,7 +44,14 @@
 
 typedef char *va_list;
 
+#ifdef __GNUC__
+#define	va_alist	__builtin_va_alist
+#endif
+#if __GNUC__ > 1
+#define	va_dcl	int va_alist; ...
+#else
 #define	va_dcl	int va_alist;
+#endif
 
 #define	va_start(ap) \
 	ap = (char *)&va_alist
