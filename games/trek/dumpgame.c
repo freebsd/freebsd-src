@@ -141,7 +141,7 @@ int	fd1;
 	register int		fd;
 	register struct dump	*d;
 	register int		i;
-	int			junk;
+	long			junk;
 
 	fd = fd1;
 
