@@ -147,15 +147,30 @@ addrmerge(struct netbuf *caller, char *serv_uaddr, char *clnt_uaddr,
 	serv_sa = (struct sockaddr *)serv_nbp->buf;
 	if (clnt_uaddr != NULL) {
 		clnt_nbp = uaddr2taddr(nconf, clnt_uaddr);
+		if (clnt_nbp == NULL) {
+			free(serv_nbp);
+			return NULL;
+		}
 		clnt_sa = (struct sockaddr *)clnt_nbp->buf;
+		if (clnt_sa->sa_family == AF_LOCAL) {
+			free(serv_nbp);
+			free(clnt_nbp);
+			free(clnt_sa);
+			return strdup(clnt_uaddr);
+		}
 	} else {
 		clnt_sa = (struct sockaddr *)
 		    malloc(sizeof (struct sockaddr_storage));
 		memcpy(clnt_sa, clnt, clnt->sa_len);
 	}
 
-	if (getifaddrs(&ifp) < 0)
+	if (getifaddrs(&ifp) < 0) {
+		free(serv_nbp);
+		free(clnt_sa);
+		if (clnt_nbp != NULL)
+			free(clnt_nbp);
 		return 0;
+	}
 
 	/*
 	 * Loop through all interfaces. For each interface, see if the
@@ -186,15 +201,6 @@ addrmerge(struct netbuf *caller, char *serv_uaddr, char *clnt_uaddr,
 			ifsin = (struct sockaddr_in *)ifap->ifa_addr;
 			if (!bitmaskcmp(&ifsin->sin_addr, &clntsin->sin_addr,
 			    &sinmask->sin_addr, sizeof (struct in_addr))) {
-				/*
-				 * Found it.
-				 */
-				memcpy(newsin, ifap->ifa_addr,
-				    clnt_sa->sa_len);
-				newsin->sin_port = servsin->sin_port;
-				tbuf.len = clnt_sa->sa_len;
-				tbuf.maxlen = sizeof (struct sockaddr_storage);
-				tbuf.buf = newsin;
 				goto found;
 			}
 			break;
@@ -227,18 +233,12 @@ addrmerge(struct netbuf *caller, char *serv_uaddr, char *clnt_uaddr,
 				if (ifsin6->sin6_scope_id !=
 				    realsin6->sin6_scope_id)
 					continue;
-match:
-				memcpy(newsin6, ifsin6, clnt_sa->sa_len);
-				newsin6->sin6_port = servsin6->sin6_port;
-				tbuf.maxlen = sizeof (struct sockaddr_storage);
-				tbuf.len = clnt_sa->sa_len;
-				tbuf.buf = newsin6;
 				goto found;
 			}
 			if (!bitmaskcmp(&ifsin6->sin6_addr,
 			    &clntsin6->sin6_addr, &sin6mask->sin6_addr,
 			    sizeof (struct in6_addr)))
-				goto match;
+				goto found;
 			break;
 #endif
 		default:
@@ -268,6 +268,26 @@ match:
 	}
 	ifap = bestif;
 found:
+	switch (clnt->sa_family) {
+	case AF_INET:
+		memcpy(newsin, ifap->ifa_addr, clnt_sa->sa_len);
+		newsin->sin_port = servsin->sin_port;
+		tbuf.len = clnt_sa->sa_len;
+		tbuf.maxlen = sizeof (struct sockaddr_storage);
+		tbuf.buf = newsin;
+		break;				
+#ifdef INET6
+	case AF_INET6:
+		memcpy(newsin6, ifsin6, clnt_sa->sa_len);
+		newsin6->sin6_port = servsin6->sin6_port;
+		tbuf.maxlen = sizeof (struct sockaddr_storage);
+		tbuf.len = clnt_sa->sa_len;
+		tbuf.buf = newsin6;
+		break;
+#endif
+	default:
+		goto freeit;
+	}
 	if (ifap != NULL)
 		ret = taddr2uaddr(nconf, &tbuf);
 freeit:
