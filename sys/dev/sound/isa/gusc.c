@@ -324,7 +324,8 @@ gusc_attach(device_t dev)
 		return (ENXIO);
 	}
 
-	bus_setup_intr(dev, scp->irq, INTR_TYPE_TTY, gusc_intr, scp, &ih);
+	if (scp->irq != NULL)
+		bus_setup_intr(dev, scp->irq, INTR_TYPE_TTY, gusc_intr, scp, &ih);
 	bus_generic_attach(dev);
 
 	return (0);
