@@ -26,7 +26,7 @@
 #
 # makewhatis -- update the whatis database in the man directories.
 #
-# $Id: makewhatis.perl,v 1.14 1997/03/01 15:20:50 wosch Exp $
+# $Id: makewhatis.perl,v 1.11 1996/08/27 20:04:09 wosch Exp $
 
 
 sub usage {
@@ -337,7 +337,7 @@ sub manual {
     while(<F>) {
 	# ``man'' style pages
 	# &&: it takes you only half the user time, regexp is slow!!!
-	if (/^\.SH/ && /^\.SH[ \t]+["]?(NAME|Name|NAMN|BEZEICHNUNG)["]?/) {
+	if (/^\.SH/ && /^\.SH[ \t]+["]?(NAME|Name|NAMN|BEZEICHNUNG|Ì¾¾Î)["]?/) {
 	    #while(<F>) { last unless /^\./ } # Skip
 	    #chop; $list = $_;
 	    while(<F>) {
@@ -354,7 +354,7 @@ sub manual {
 		}
 	    }
 	    &out($list); close F; return 1;
-	} elsif (/^\.Sh/ && /^\.Sh[ \t]+["]?(NAME|Name)["]?/) {
+	} elsif (/^\.Sh/ && /^\.Sh[ \t]+["]?(NAME|Name|BEZEICHNUNG|Ì¾¾Î)["]?/) {
 	    # ``doc'' style pages
 	    local($flag) = 0;
 	    while(<F>) {
