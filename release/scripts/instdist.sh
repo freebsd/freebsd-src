@@ -10,7 +10,7 @@
 # putting your name on top after doing something trivial like reindenting
 # it, just to make it look like you wrote it!).
 #
-# $Id: instdist.sh,v 1.17 1995/04/09 08:56:02 jkh Exp $
+# $Id: instdist.sh,v 1.18 1995/04/09 09:01:56 jkh Exp $
 
 if [ "${_INSTINST_SH_LOADED_}" = "yes" ]; then
 	return 0
@@ -189,11 +189,6 @@ the files yourself."; then return 1; fi
 
 media_extract_dist()
 {
-	if [ ! -f do_cksum.sh ]; then
-		if [ -f ${MEDIA_DISTRIBUTION}/do_cksum.sh ]; then
-			cd ${MEDIA_DISTRIBUTION}
-		fi
-	fi
 	if [ -f do_cksum.sh ]; then
 		message "Verifying checksums for ${MEDIA_DISTRIBUTION} distribution.  Please wait!"
 		if sh ./do_cksum.sh; then
@@ -223,7 +218,7 @@ media_install_set()
 	if [ -f ${TMPDIR}/${MEDIA_DISTRIBUTION}/extract.sh ]; then
 		cd ${TMPDIR}/${MEDIA_DISTRIBUTION}
 		media_extract_dist
-		cd /
+		media_rm_tmpdir
 		return
 	fi
 	case ${MEDIA_TYPE} in
@@ -233,7 +228,6 @@ media_install_set()
 			media_reset
 		else
 			media_extract_dist
-			cd /
 		fi
 		return
 	;;
@@ -289,6 +283,7 @@ media_install_set()
 		if ! echo ${MEDIA_DEVICE} | grep -q -v 'ftp://'; then
 			message "Fetching ${MEDIA_DISTRIBUTION} distribution over ftp.\nUse ALT-F2 to see output, ALT-F1 to return."
 			mkdir -p ${MEDIA_DISTRIBUTION}
+			cd ${MEDIA_DISTRIBUTION}
 			if ! ncftp ${MEDIA_DEVICE}/${MEDIA_DISTRIBUTION}/* < /dev/null > /dev/ttyv1 2>&1; then
 				error "Couldn't fetch ${MEDIA_DISTRIBUTION} distribution from\n${MEDIA_DEVICE}!"
 			else
