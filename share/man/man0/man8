@@ -30,7 +30,6 @@
 /usr/src/usr.sbin/config/config.8
 /usr/src/usr.sbin/config.new/config.new.8
 /usr/src/usr.sbin/cron/cron/cron.8
-/usr/src/sbin/i386/cxconfig/cxconfig.8
 /usr/src/sbin/disklabel/disklabel.8
 /usr/src/usr.sbin/diskpart/diskpart.8
 /usr/src/games/dm/dm.8
@@ -145,6 +144,7 @@
 /usr/src/usr.sbin/rwhod/rwhod.8
 /usr/src/usr.sbin/sa/sa.8
 /usr/src/sbin/savecore/savecore.8
+/usr/src/sbin/sconfig/sconfig.8
 /usr/src/sbin/scsiformat/scsiformat.8
 /usr/src/usr.sbin/sendmail/src/sendmail.8
 /usr/src/usr.bin/showmount/showmount.8
