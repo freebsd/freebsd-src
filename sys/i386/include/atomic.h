@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: atomic.h,v 1.3 1999/07/13 06:35:25 alc Exp $
+ *	$Id: atomic.h,v 1.4 1999/07/23 23:45:19 alc Exp $
  */
 #ifndef _MACHINE_ATOMIC_H_
 #define _MACHINE_ATOMIC_H_
@@ -54,9 +54,19 @@
  */
 
 /*
- * Make kernel modules portable between UP and SMP.
+ * The above functions are expanded inline in the statically-linked
+ * kernel.  Lock prefixes are generated if an SMP kernel is being
+ * built.
+ *
+ * Kernel modules call real functions which are built into the kernel.
+ * This allows kernel modules to be portable between UP and SMP systems.
  */
-#if defined(SMP) || defined(KLD_MODULE)
+#if defined(KLD_MODULE)
+#define ATOMIC_ASM(NAME, TYPE, OP, V)			\
+	extern void atomic_##NAME##_##TYPE(volatile u_##TYPE *p, u_##TYPE v);
+
+#else /* !KLD_MODULE */
+#if defined(SMP)
 #define MPLOCKED	"lock ; "
 #else
 #define MPLOCKED
@@ -74,6 +84,7 @@ atomic_##NAME##_##TYPE(volatile u_##TYPE *p, u_##TYPE v)\
 			 : "=m" (*p)			\
 			 :  "0" (*p), "ir" (V)); 	\
 }
+#endif /* KLD_MODULE */
 
 ATOMIC_ASM(set,	     char,  "orb %2,%0",   v)
 ATOMIC_ASM(clear,    char,  "andb %2,%0", ~v)
