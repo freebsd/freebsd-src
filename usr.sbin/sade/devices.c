@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: devices.c,v 1.11 1995/05/08 10:20:46 jkh Exp $
+ * $Id: devices.c,v 1.12 1995/05/08 21:39:33 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -159,8 +159,8 @@ print_command_summary()
     mvprintw(17, 0, "D = Delete Partition   G = Set BIOS Geometry  S = Set Bootable");
     mvprintw(18, 0, "U = Undo All Changes   W = `Wizard' Mode      ESC = Proceed to next screen");
     mvprintw(20, 0, "The currently selected partition is displayed in ");
-    attrset(A_REVERSE); addstr("reverse video"); attrset(A_NORMAL);
-    mvprintw(21, 0, "Use F1 or ? to get more help");
+    attrset(A_REVERSE); addstr("reverse video."); attrset(A_NORMAL);
+    mvprintw(21, 0, "Use F1 or ? to get more help, arrow keys to move.");
     move(0, 0);
 }
 
