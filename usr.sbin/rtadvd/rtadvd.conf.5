@@ -1,4 +1,5 @@
-.\"	$KAME: rtadvd.conf.5,v 1.8 2000/10/25 05:37:43 jinmei Exp $
+.\"	$FreeBSD$
+.\"	$KAME: rtadvd.conf.5,v 1.32 2001/01/19 05:32:05 jinmei Exp $
 .\"
 .\" Copyright (C) 1995, 1996, 1997, and 1998 WIDE Project.
 .\" All rights reserved.
@@ -27,8 +28,6 @@
 .\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 .\" SUCH DAMAGE.
 .\"
-.\"	$FreeBSD$
-.\"
 .Dd May 17, 1998
 .Dt RTADVD.CONF 5
 .Os
@@ -36,13 +35,15 @@
 .Nm rtadvd.conf
 .Nd config file for router advertisement daemon
 .Sh DESCRIPTION
-This file describes how the router advertisement packet must be constructed
+This file describes how the router advertisement packets must be constructed
 for each of the interfaces.
+.Pp
 As described in
 .Xr rtadvd 8 ,
 you do not have to set this configuration file up at all,
 unless you need some special configurations.
-You may even omit to create this file. In such cases, the
+You may even omit the file as a whole.
+In such cases, the
 .Nm rtadvd
 daemon will automatically configure itself using default values
 specified in the specification.
@@ -54,11 +55,11 @@ Each line in the file describes a network interface.
 Fields are separated by a colon
 .Pq Sq \&: ,
 and each field contains one capability description.
-Lines may be concatenated by
+Lines may be concatenated by the
 .Sq \e
 character.
 The comment marker is the
-.Sq \#
+.Sq \&#
 character.
 .Pp
 .Sh CAPABILITIES
@@ -66,10 +67,10 @@ Capabilities describe the value to be filled into ICMPv6 router
 advertisement messages and to control
 .Xr rtadvd 8
 behavior.
-You are therefore encouraged to read IETF neighbor discovery documents
+Therefore, you are encouraged to read IETF neighbor discovery documents
 if you would like to modify the sample configuration file.
 .Pp
-As explained above, note that almost all items have default values.
+Note that almost all items have default values.
 If you omit an item, the default value of the item will be used.
 .Pp
 There are two items which control the interval of sending router advertisements.
@@ -89,10 +90,10 @@ and no greater than 1800 seconds.
 router advertisements
 .Pq unit: seconds .
 The default value is the one third of value of
-.Ic maxinterval.
+.Cm maxinterval .
 Its value must be no less than 3 seconds and no greater than .75 *
 the value of
-.Ic maxinterval.
+.Cm maxinterval .
 .El
 .Pp
 The following items are for ICMPv6 router advertisement message
@@ -121,6 +122,11 @@ The default value is 0.
 (num) Router lifetime field
 .Pq unit: seconds .
 Its value must be no greater than 3600000.
+When
+.Nm rtadvd
+runs on a host, this value must explicitly set 0 on all the
+advertising interfaces as described in
+.Xr rtadvd 8 .
 The default value is 1800.
 .It Cm \&rtime
 (num) Reachable time field
@@ -152,7 +158,7 @@ If its value is more than 1, you must specify the index of the prefix
 for each item below.
 Indices vary from 0 to N-1, where N is the
 value of
-.Ic addrs .
+.Cm addrs .
 Each index shall follow the name of each item, e.g.,
 .Dq prefixlen2 .
 .It Cm \&prefixlen
@@ -181,16 +187,16 @@ file format as well as IPv6 numeric address, the field MUST be quoted by
 doublequote character.
 This field cannot be
 omitted if the value of
-.Ic addrs
+.Cm addrs
 is more than 0.
 .It Cm \&vltime
 (num) Valid lifetime field
 .Pq unit: seconds .
-The default value is 2592000(30 days).
+The default value is 2592000 (30 days).
 .It Cm \&pltime
 (num) Preferred lifetime field
 .Pq unit: seconds .
-The default value is 604800(7 days).
+The default value is 604800 (7 days).
 .El
 .Pp
 The following item is for ICMPv6 MTU option,
@@ -238,35 +244,44 @@ See
 .Xr termcap 5
 for details on the capability.
 .Sh EXAMPLES
+As presented above, all of the advertised parameters have default values
+defined in specifications, and hence you usually do not have to set them
+by hand, unless you need special non-default values.
+It can cause interoperability problem if you use an ill-configured
+parameter.
+.Pp
+To override a configuration parameter, you can specify the parameter alone.
+With the following configuration,
+.Xr rtadvd 8
+overrides the router lifetime parameter for the
+.Li ne0
+interface.
 .Bd -literal -offset
-#
-# common definitions.
-#
-# Note: All of the following parameters have default values defined
-#       in specifications, and hence you usually do not have to set them
-#       by hand unless you need special non-default values.
-#
-#       You even do not need to create the configuration file. rtadvd
-#       would usually work well without a configuration file.
-#       See also: rtadvd(8)
-
-#default:\\
-#	:chlim#64:raflags#0:rltime#1800:rtime#30000:retrans#1000:\\
-#	:pinfoflags#192:vltime#3600000:pltime#3600000:mtu#1500:
-#ether:\\
-#	:mtu#1500:tc=default:
-
-# per-interface definitions.
-#   Mainly IPv6 prefixes are configured in this part. However, rtadvd
-#   automatically learns appropriate prefixes from the kernel's routing
-#   table, and advertises the prefixes, so you don't have to configure
-#   this part, either.
-#   If you don't want the automatic advertisement, invoke rtadvd with
-#   the -s option and configure this part by hand.
- 
-#ef0:\\
-#	:addrs#1:addr="3ffe:501:4819:1000::":prefixlen#64:tc=ether:
-
+ne0:\\
+	:rltime#0:
+.Ed
+.Pp
+The following example manually configures prefixes advertised from the
+.Li ef0
+interface.
+The configuration must be used with the
+.Fl s
+option to
+.Xr rtadvd 8 .
+.Bd -literal -offset
+ef0:\\
+	:addrs#1:addr="3ffe:501:ffff:1000::":prefixlen#64:
+.Ed
+.Pp
+The following example presents the default values in an explicit manner.
+The configuration is provided just for reference purposes;
+YOU DO NOT NEED TO HAVE IT AT ALL.
+.Bd -literal -offset
+default:\\
+	:chlim#64:raflags#0:rltime#1800:rtime#0:retrans#0:\\
+	:pinfoflags#192:vltime#2592000:pltime#604800:mtu#0:
+ef0:\\
+	:addrs#1:addr="3ffe:501:ffff:1000::":prefixlen#64:tc=default:
 .Ed
 .Sh SEE ALSO
 .Xr termcap 5 ,
