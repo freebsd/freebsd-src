@@ -106,14 +106,18 @@ do {								\
 #define DRM_OS_ERR(v)	v
 
 
-#define DRM_OS_KRNTOUSR(arg1, arg2, arg3) \
-	*arg1 = arg2
-#define DRM_OS_KRNFROMUSR(arg1, arg2, arg3) \
-	arg1 = *arg2
-#define DRM_OS_COPYTOUSR(arg1, arg2, arg3) \
-	copyout(arg2, arg1, arg3)
-#define DRM_OS_COPYFROMUSR(arg1, arg2, arg3) \
-	copyin(arg2, arg1, arg3)
+#define DRM_OS_KRNTOUSR( user, kern, size)	\
+	if ( IOCPARM_LEN(cmd) != size)			\
+		return EINVAL;				\
+	*user = kern;
+#define DRM_OS_KRNFROMUSR(kern, user, size) \
+	if ( IOCPARM_LEN(cmd) != size)			\
+		return EINVAL;				\
+	kern = *user;
+#define DRM_OS_COPYTOUSR(user, kern, size) \
+	copyout(kern, user, size)
+#define DRM_OS_COPYFROMUSR(kern, user, size) \
+	copyin(user, kern, size)
 
 #define DRM_OS_READMEMORYBARRIER \
 {												\
