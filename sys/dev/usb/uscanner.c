@@ -72,7 +72,7 @@
 
 #include <dev/usb/usbdevs.h>
 
-#ifdef USCANNER_DEBUG
+#ifdef USB_DEBUG
 #define DPRINTF(x)	if (uscannerdebug) logprintf x
 #define DPRINTFN(n,x)	if (uscannerdebug>(n)) logprintf x
 int	uscannerdebug = 0;

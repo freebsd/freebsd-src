@@ -64,10 +64,10 @@
 #include <dev/usb/usbdevs.h>
 #include <dev/usb/dsbr100io.h>
 
-#ifdef UFM_DEBUG
+#ifdef USB_DEBUG
 #define DPRINTF(x)	if (ufmdebug) logprintf x
 #define DPRINTFN(n,x)	if (ufmdebug>(n)) logprintf x
-int	ufmdebug = 100;
+int	ufmdebug = 0;
 SYSCTL_INT(_debug_usb, OID_AUTO, ufm, CTLFLAG_RW,
 	   &ufmdebug, 0, "ufm debug level");
 #else

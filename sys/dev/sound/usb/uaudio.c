@@ -86,7 +86,7 @@
 #include <dev/sound/usb/uaudioreg.h>
 #include <dev/sound/usb/uaudio.h>
 
-#ifdef UAUDIO_DEBUG
+#ifdef USB_DEBUG
 #define DPRINTF(x)	if (uaudiodebug) logprintf x
 #define DPRINTFN(n,x)	if (uaudiodebug>(n)) logprintf x
 int	uaudiodebug = 0;
@@ -479,7 +479,7 @@ USB_ATTACH(uaudio)
 	if (usbd_get_quirks(sc->sc_udev)->uq_flags & UQ_AU_NO_FRAC)
 		sc->sc_chan.nofrac = 1;
 
-#ifndef UAUDIO_DEBUG
+#ifndef USB_DEBUG
 	if (bootverbose)
 #endif
 		printf("%s: %d mixer controls\n", USBDEVNAME(sc->sc_dev),
@@ -691,7 +691,7 @@ uaudio_mixer_add_ctl(struct uaudio_softc *sc, struct mixerctl *mc)
 
 	sc->sc_ctls[sc->sc_nctls++] = *mc;
 
-#ifdef UAUDIO_DEBUG
+#ifdef USB_DEBUG
 	if (uaudiodebug > 2) {
 		int i;
 		DPRINTF(("uaudio_mixer_add_ctl: wValue=%04x",mc->wValue[0]));
@@ -790,7 +790,7 @@ void
 uaudio_add_input(struct uaudio_softc *sc, usb_descriptor_t *v, 
 		 usb_descriptor_t **dps)
 {
-#ifdef UAUDIO_DEBUG
+#ifdef USB_DEBUG
 	struct usb_audio_input_terminal *d = 
 		(struct usb_audio_input_terminal *)v;
 
@@ -807,7 +807,7 @@ void
 uaudio_add_output(struct uaudio_softc *sc, usb_descriptor_t *v,
 		  usb_descriptor_t **dps)
 {
-#ifdef UAUDIO_DEBUG
+#ifdef USB_DEBUG
 	struct usb_audio_output_terminal *d = 
 		(struct usb_audio_output_terminal *)v;
 
@@ -893,7 +893,7 @@ void
 uaudio_add_selector(struct uaudio_softc *sc, usb_descriptor_t *v,
 		    usb_descriptor_t **dps)
 {
-#ifdef UAUDIO_DEBUG
+#ifdef USB_DEBUG
 	struct usb_audio_selector_unit *d =
 		(struct usb_audio_selector_unit *)v;
 
@@ -1152,7 +1152,7 @@ uaudio_add_processing(struct uaudio_softc *sc, usb_descriptor_t *v,
 	case CHORUS_PROCESS:
 	case DYN_RANGE_COMP_PROCESS:
 	default:
-#ifdef UAUDIO_DEBUG
+#ifdef USB_DEBUG
 		printf("uaudio_add_processing: unit %d, type=%d not impl.\n",
 		       d->bUnitId, ptype);
 #endif
@@ -1298,7 +1298,7 @@ uaudio_process_as(struct uaudio_softc *sc, char *buf, int *offsp,
 	chan = asf1d->bNrChannels;
 	prec = asf1d->bBitResolution;
 	if (prec != 8 && prec != 16) {
-#ifdef UAUDIO_DEBUG
+#ifdef USB_DEBUG
 		printf("%s: ignored setting with precision %d\n",
 		       USBDEVNAME(sc->sc_dev), prec);
 #endif
@@ -1374,7 +1374,7 @@ uaudio_identify_as(struct uaudio_softc *sc, usb_config_descriptor_t *cdesc)
 			err = uaudio_process_as(sc, buf, &offs, size, id);
 			break;
 		default:
-#ifdef UAUDIO_DEBUG
+#ifdef USB_DEBUG
 			printf("%s: ignored audio interface with %d "
 			       "endpoints\n",
 			       USBDEVNAME(sc->sc_dev), id->bNumEndpoints);
@@ -1785,7 +1785,7 @@ uaudio_set(struct uaudio_softc *sc, int which, int type, int wValue,
 		    "wIndex=0x%04x len=%d, val=%d\n", 
 		    type, which, wValue, wIndex, len, val & 0xffff));
 	err = usbd_do_request(sc->sc_udev, &req, &data);
-#ifdef UAUDIO_DEBUG
+#ifdef USB_DEBUG
 	if (err)
 		DPRINTF(("uaudio_set: err=%d\n", err));
 #endif
@@ -2039,7 +2039,7 @@ uaudio_chan_open(struct uaudio_softc *sc, struct chan *ch)
 		return (err);
 
 	/* Some devices do not support this request, so ignore errors. */
-#ifdef UAUDIO_DEBUG
+#ifdef USB_DEBUG
 	err = uaudio_set_speed(sc, endpt, ch->sample_rate);
 	if (err)
 		DPRINTF(("uaudio_chan_open: set_speed failed err=%s\n",
@@ -2157,7 +2157,7 @@ uaudio_chan_ptransfer(struct chan *ch)
 		ch->cur += total;
 	}
 
-#ifdef UAUDIO_DEBUG
+#ifdef USB_DEBUG
 	if (uaudiodebug > 8) {
 		DPRINTF(("uaudio_chan_ptransfer: buffer=%p, residue=0.%03d\n",
 			 cb->buffer, ch->residue));
@@ -2253,7 +2253,7 @@ uaudio_chan_rtransfer(struct chan *ch)
 	ch->residue = residue;
 	cb->size = total;
 
-#ifdef UAUDIO_DEBUG
+#ifdef USB_DEBUG
 	if (uaudiodebug > 8) {
 		DPRINTF(("uaudio_chan_rtransfer: buffer=%p, residue=0.%03d\n",
 			 cb->buffer, ch->residue));

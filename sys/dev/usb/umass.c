@@ -121,7 +121,7 @@
 #include <sys/devicestat.h>
 #include <cam/cam_periph.h>
 
-#ifdef UMASS_DEBUG
+#ifdef USB_DEBUG
 #define DIF(m, x)	if (umassdebug & (m)) do { x ; } while (0)
 #define	DPRINTF(m, x)	if (umassdebug & (m)) logprintf x
 #define UDMASS_GEN	0x00010000	/* general */
@@ -134,7 +134,7 @@
 #define UDMASS_CBI	0x00400000	/* CBI transfers */
 #define UDMASS_WIRE	(UDMASS_BBB|UDMASS_CBI)
 #define UDMASS_ALL	0xffff0000	/* all of the above */
-int umassdebug = UDMASS_ALL;
+int umassdebug = 0;
 SYSCTL_INT(_debug_usb, OID_AUTO, umass, CTLFLAG_RW,
 	   &umassdebug, 0, "umass debug level");
 #else
@@ -171,7 +171,7 @@ SYSCTL_INT(_debug_usb, OID_AUTO, umass, CTLFLAG_RW,
  *
  * The SIM is the highest target number, so umass0 corresponds to SCSI target 0.
  */
-#ifndef UMASS_DEBUG
+#ifndef USB_DEBUG
 #define UMASS_SCSIID_MAX	32	/* maximum number of drives expected */
 #else
 /* while debugging avoid unnecessary clutter in the output at umass_cam_rescan
@@ -491,7 +491,7 @@ struct umass_softc {
 	int			maxlun;			/* maximum LUN number */
 };
 
-#ifdef UMASS_DEBUG
+#ifdef USB_DEBUG
 char *states[TSTATE_STATES+1] = {
 	/* should be kept in sync with the list at transfer_state */
 	"Attach",
@@ -616,7 +616,7 @@ Static int umass_rbc_transform	(struct umass_softc *sc,
 				unsigned char *cmd, int cmdlen,
 		     		unsigned char **rcmd, int *rcmdlen);
 
-#ifdef UMASS_DEBUG
+#ifdef USB_DEBUG
 /* General debugging functions */
 Static void umass_bbb_dump_cbw	(struct umass_softc *sc, umass_bbb_cbw_t *cbw);
 Static void umass_bbb_dump_csw	(struct umass_softc *sc, umass_bbb_csw_t *csw);
@@ -781,7 +781,7 @@ USB_ATTACH(umass)
 
 	id = usbd_get_interface_descriptor(sc->iface);
 	printf("%s: %s\n", USBDEVNAME(sc->sc_dev), devinfo);
-#ifdef UMASS_DEBUG
+#ifdef USB_DEBUG
 	printf("%s: ", USBDEVNAME(sc->sc_dev));
 	switch (sc->proto&UMASS_PROTO_COMMAND) {
 	case UMASS_PROTO_SCSI:
@@ -866,7 +866,7 @@ USB_ATTACH(umass)
 		    && UE_GET_DIR(ed->bEndpointAddress) == UE_DIR_IN
 		    && (ed->bmAttributes & UE_XFERTYPE) == UE_INTERRUPT) {
 			sc->intrin = ed->bEndpointAddress;
-#ifdef UMASS_DEBUG
+#ifdef USB_DEBUG
 			if (UGETW(ed->wMaxPacketSize) > 2) {
 				DPRINTF(UDMASS_CBI, ("%s: intr size is %d\n",
 					USBDEVNAME(sc->sc_dev),
@@ -948,7 +948,7 @@ USB_ATTACH(umass)
 		sc->reset = umass_cbi_reset;
 		sc->transfer = umass_cbi_transfer;
 		sc->state = umass_cbi_state;
-#ifdef UMASS_DEBUG
+#ifdef USB_DEBUG
 	} else {
 		panic("%s:%d: Unknown proto 0x%02x\n",
 		      __FILE__, __LINE__, sc->proto);
@@ -963,7 +963,7 @@ USB_ATTACH(umass)
 		sc->transform = umass_atapi_transform;
 	else if (sc->proto & UMASS_PROTO_RBC)
 		sc->transform = umass_rbc_transform;
-#ifdef UMASS_DEBUG
+#ifdef USB_DEBUG
 	else
 		panic("No transformation defined for command proto 0x%02x\n",
 		      sc->proto & UMASS_PROTO_COMMAND);
@@ -2082,7 +2082,7 @@ umass_cam_attach_sim()
 Static void
 umass_cam_rescan_callback(struct cam_periph *periph, union ccb *ccb)
 {
-#ifdef UMASS_DEBUG
+#ifdef USB_DEBUG
 	if (ccb->ccb_h.status != CAM_REQ_CMP) {
 		DPRINTF(UDMASS_SCSI, ("scbus%d: Rescan failed, 0x%04x\n",
 			cam_sim_path(umass_sim),
@@ -2104,7 +2104,7 @@ umass_cam_rescan(void *addr)
 	 * is disconnected before umass_cam_rescan has been able to run the
 	 * driver might bomb.
 	 */
-#ifdef UMASS_DEBUG
+#ifdef USB_DEBUG
 	struct umass_softc *sc = (struct umass_softc *) addr;
 #endif
 	struct cam_path *path;
@@ -2148,7 +2148,7 @@ umass_cam_attach(struct umass_softc *sc)
 		return(1);
 	}
 
-#ifndef UMASS_DEBUG
+#ifndef USB_DEBUG
 	if (bootverbose)
 #endif
 		printf("%s:%d:%d:%d: Attached to scbus%d as device %d\n",
@@ -2449,7 +2449,7 @@ umass_cam_action(struct cam_sim *sim, union ccb *ccb)
 	}
 	case XPT_CALC_GEOMETRY:
 	{
-#ifdef UMASS_DEBUG
+#ifdef USB_DEBUG
 		struct ccb_calc_geometry *ccg = &ccb->ccg;
 #endif
 		DPRINTF(UDMASS_SCSI, ("%s:%d:%d:%d:XPT_CALC_GEOMETRY: "
@@ -2495,7 +2495,7 @@ umass_cam_action(struct cam_sim *sim, union ccb *ccb)
 Static void
 umass_cam_poll(struct cam_sim *sim)
 {
-#ifdef UMASS_DEBUG
+#ifdef USB_DEBUG
 	struct umass_softc *sc = (struct umass_softc *) sim->softc;
 
 	DPRINTF(UDMASS_SCSI, ("%s: CAM poll\n",
@@ -2981,7 +2981,7 @@ DRIVER_MODULE(umass, uhub, umass_driver, umass_devclass, umass_driver_load, 0);
 
 
 
-#ifdef UMASS_DEBUG
+#ifdef USB_DEBUG
 Static void
 umass_bbb_dump_cbw(struct umass_softc *sc, umass_bbb_cbw_t *cbw)
 {

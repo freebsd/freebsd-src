@@ -75,7 +75,7 @@
 
 #include <dev/usb/ucomvar.h>
 
-#ifdef UVISOR_DEBUG
+#ifdef USB_DEBUG
 #define DPRINTF(x)	if (uvisordebug) printf x
 #define DPRINTFN(n,x)	if (uvisordebug>(n)) printf x
 int uvisordebug = 0;
@@ -396,7 +396,7 @@ uvisor_init(struct uvisor_softc *sc)
 	if (err)
 		return (err);
 
-#ifdef UVISOR_DEBUG
+#ifdef USB_DEBUG
 	{
 		int i, np;
 		char *string;
