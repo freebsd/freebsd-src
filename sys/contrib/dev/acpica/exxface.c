@@ -1,8 +1,8 @@
 
 /******************************************************************************
  *
- * Module Name: amxface - External interpreter interfaces
- *              $Revision: 24 $
+ * Module Name: exxface - External interpreter interfaces
+ *              $Revision: 27 $
  *
  *****************************************************************************/
 
@@ -115,14 +115,14 @@
  *
  *****************************************************************************/
 
-#define __AMXFACE_C__
+#define __EXXFACE_C__
 
 #include "acpi.h"
 #include "acinterp.h"
 
 
-#define _COMPONENT          INTERPRETER
-        MODULE_NAME         ("amxface")
+#define _COMPONENT          ACPI_EXECUTER
+        MODULE_NAME         ("exxface")
 
 
 /*
@@ -147,7 +147,7 @@
 
 /*******************************************************************************
  *
- * FUNCTION:    AcpiAmlExecuteMethod
+ * FUNCTION:    AcpiExExecuteMethod
  *
  * PARAMETERS:  Pcode               - Pointer to the pcode stream
  *              PcodeLength         - Length of pcode that comprises the method
@@ -162,7 +162,7 @@
  ******************************************************************************/
 
 ACPI_STATUS
-AcpiAmlExecuteMethod (
+AcpiExExecuteMethod (
     ACPI_NAMESPACE_NODE     *MethodNode,
     ACPI_OPERAND_OBJECT     **Params,
     ACPI_OPERAND_OBJECT     **ReturnObjDesc)
@@ -170,7 +170,7 @@ AcpiAmlExecuteMethod (
     ACPI_STATUS             Status;
 
 
-    FUNCTION_TRACE ("AmlExecuteMethod");
+    FUNCTION_TRACE ("ExExecuteMethod");
 
 
     /*
@@ -178,11 +178,15 @@ AcpiAmlExecuteMethod (
      * level execute.
      */
 
-    AcpiAmlEnterInterpreter ();
+    Status = AcpiExEnterInterpreter ();
+    if (ACPI_FAILURE (Status))
+    {
+        return_ACPI_STATUS (Status);
+    }
 
     Status = AcpiPsxExecute (MethodNode, Params, ReturnObjDesc);
 
-    AcpiAmlExitInterpreter ();
+    AcpiExExitInterpreter ();
 
     return_ACPI_STATUS (Status);
 }

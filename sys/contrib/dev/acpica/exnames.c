@@ -1,8 +1,8 @@
 
 /******************************************************************************
  *
- * Module Name: amnames - interpreter/scanner name load/execute
- *              $Revision: 73 $
+ * Module Name: exnames - interpreter/scanner name load/execute
+ *              $Revision: 79 $
  *
  *****************************************************************************/
 
@@ -115,15 +115,15 @@
  *
  *****************************************************************************/
 
-#define __AMNAMES_C__
+#define __EXNAMES_C__
 
 #include "acpi.h"
 #include "acinterp.h"
 #include "amlcode.h"
 #include "acnamesp.h"
 
-#define _COMPONENT          INTERPRETER
-        MODULE_NAME         ("amnames")
+#define _COMPONENT          ACPI_EXECUTER
+        MODULE_NAME         ("exnames")
 
 
 /* AML Package Length encodings */
@@ -136,7 +136,7 @@
 
 /*******************************************************************************
  *
- * FUNCTION:    AcpiAmlAllocateNameString
+ * FUNCTION:    AcpiExAllocateNameString
  *
  * PARAMETERS:  PrefixCount         - Count of parent levels. Special cases:
  *                                    (-1) = root,  0 = none
@@ -151,7 +151,7 @@
  ******************************************************************************/
 
 NATIVE_CHAR *
-AcpiAmlAllocateNameString (
+AcpiExAllocateNameString (
     UINT32                  PrefixCount,
     UINT32                  NumNameSegs)
 {
@@ -159,7 +159,7 @@ AcpiAmlAllocateNameString (
     NATIVE_CHAR             *NameString;
     UINT32                   SizeNeeded;
 
-    FUNCTION_TRACE ("AmlAllocateNameString");
+    FUNCTION_TRACE ("ExAllocateNameString");
 
 
     /*
@@ -184,10 +184,10 @@ AcpiAmlAllocateNameString (
      * This buffer must be deleted by the caller!
      */
 
-    NameString = AcpiCmAllocate (SizeNeeded);
+    NameString = AcpiUtAllocate (SizeNeeded);
     if (!NameString)
     {
-        REPORT_ERROR (("AmlAllocateNameString: name allocation failure\n"));
+        REPORT_ERROR (("ExAllocateNameString: name allocation failure\n"));
         return_PTR (NULL);
     }
 
@@ -227,7 +227,7 @@ AcpiAmlAllocateNameString (
     }
 
     /*
-     * Terminate string following prefixes. AcpiAmlExecNameSegment() will
+     * Terminate string following prefixes. AcpiExNameSegment() will
      * append the segment(s)
      */
 
@@ -238,7 +238,7 @@ AcpiAmlAllocateNameString (
 
 /*******************************************************************************
  *
- * FUNCTION:    AcpiAmlExecNameSegment
+ * FUNCTION:    AcpiExNameSegment
  *
  * PARAMETERS:  InterpreterMode     - Current running mode (load1/Load2/Exec)
  *
@@ -249,7 +249,7 @@ AcpiAmlAllocateNameString (
  ******************************************************************************/
 
 ACPI_STATUS
-AcpiAmlExecNameSegment (
+AcpiExNameSegment (
     UINT8                   **InAmlAddress,
     NATIVE_CHAR             *NameString)
 {
@@ -259,27 +259,25 @@ AcpiAmlExecNameSegment (
     NATIVE_CHAR             CharBuf[5];
 
 
-    FUNCTION_TRACE ("AmlExecNameSegment");
+    FUNCTION_TRACE ("ExNameSegment");
 
 
     /*
      * If first character is a digit, then we know that we aren't looking at a
      * valid name segment
      */
-
     CharBuf[0] = *AmlAddress;
 
     if ('0' <= CharBuf[0] && CharBuf[0] <= '9')
     {
-        DEBUG_PRINT (ACPI_ERROR,
-            ("AmlExecNameSegment: leading digit: %c\n", CharBuf[0]));
+        DEBUG_PRINTP (ACPI_ERROR, ("leading digit: %c\n", CharBuf[0]));
         return_ACPI_STATUS (AE_CTRL_PENDING);
     }
 
-    DEBUG_PRINT (TRACE_LOAD, ("AmlExecNameSegment: Bytes from stream:\n"));
+    DEBUG_PRINTP (TRACE_LOAD, ("Bytes from stream:\n"));
 
     for (Index = 4;
-        (Index > 0) && (AcpiCmValidAcpiCharacter (*AmlAddress));
+        (Index > 0) && (AcpiUtValidAcpiCharacter (*AmlAddress));
         --Index)
     {
         CharBuf[4 - Index] = *AmlAddress++;
@@ -298,14 +296,14 @@ AcpiAmlExecNameSegment (
         if (NameString)
         {
             STRCAT (NameString, CharBuf);
-            DEBUG_PRINT (TRACE_NAMES,
-                ("AmlExecNameSegment: Appended to - %s \n", NameString));
+            DEBUG_PRINTP (TRACE_NAMES,
+                ("Appended to - %s \n", NameString));
         }
 
         else
         {
-            DEBUG_PRINT (TRACE_NAMES,
-                ("AmlExecNameSegment: No Name string - %s \n", CharBuf));
+            DEBUG_PRINTP (TRACE_NAMES,
+                ("No Name string - %s \n", CharBuf));
         }
     }
 
@@ -315,8 +313,8 @@ AcpiAmlExecNameSegment (
          * First character was not a valid name character,
          * so we are looking at something other than a name.
          */
-        DEBUG_PRINT (ACPI_INFO,
-            ("AmlExecNameSegment: Leading INT8 not alpha: %02Xh (not a name)\n",
+        DEBUG_PRINTP (ACPI_INFO,
+            ("Leading character is not alpha: %02Xh (not a name)\n",
             CharBuf[0]));
         Status = AE_CTRL_PENDING;
     }
@@ -326,23 +324,18 @@ AcpiAmlExecNameSegment (
         /* Segment started with one or more valid characters, but fewer than 4 */
 
         Status = AE_AML_BAD_NAME;
-        DEBUG_PRINT (ACPI_ERROR,
-            ("AmlExecNameSegment: Bad INT8 %02x in name, at %p\n",
+        DEBUG_PRINTP (ACPI_ERROR, ("Bad character %02x in name, at %p\n",
             *AmlAddress, AmlAddress));
     }
 
-    DEBUG_PRINT (TRACE_EXEC, ("Leave AcpiAmlExecNameSegment %s \n",
-        AcpiCmFormatException (Status)));
-
     *InAmlAddress = AmlAddress;
-
     return_ACPI_STATUS (Status);
 }
 
 
 /*******************************************************************************
  *
- * FUNCTION:    AcpiAmlGetNameString
+ * FUNCTION:    AcpiExGetNameString
  *
  * PARAMETERS:  DataType            - Data type to be associated with this name
  *
@@ -354,8 +347,8 @@ AcpiAmlExecNameSegment (
 
 
 ACPI_STATUS
-AcpiAmlGetNameString (
-    OBJECT_TYPE_INTERNAL    DataType,
+AcpiExGetNameString (
+    ACPI_OBJECT_TYPE8       DataType,
     UINT8                   *InAmlAddress,
     NATIVE_CHAR             **OutNameString,
     UINT32                  *OutNameLength)
@@ -369,23 +362,23 @@ AcpiAmlGetNameString (
     BOOLEAN                 HasPrefix = FALSE;
 
 
-    FUNCTION_TRACE_PTR ("AmlGetNameString", AmlAddress);
+    FUNCTION_TRACE_PTR ("ExGetNameString", AmlAddress);
 
 
-    if (INTERNAL_TYPE_DEF_FIELD == DataType   ||
-        INTERNAL_TYPE_BANK_FIELD == DataType  ||
+    if (INTERNAL_TYPE_REGION_FIELD == DataType   ||
+        INTERNAL_TYPE_BANK_FIELD == DataType     ||
         INTERNAL_TYPE_INDEX_FIELD == DataType)
     {
-        /* Disallow prefixes for types associated with field names */
+        /* Disallow prefixes for types associated with FieldUnit names */
 
-        NameString = AcpiAmlAllocateNameString (0, 1);
+        NameString = AcpiExAllocateNameString (0, 1);
         if (!NameString)
         {
             Status = AE_NO_MEMORY;
         }
         else
         {
-            Status = AcpiAmlExecNameSegment (&AmlAddress, NameString);
+            Status = AcpiExNameSegment (&AmlAddress, NameString);
         }
     }
 
@@ -406,7 +399,7 @@ AcpiAmlGetNameString (
 
             /*
              * Remember that we have a RootPrefix --
-             * see comment in AcpiAmlAllocateNameString()
+             * see comment in AcpiExAllocateNameString()
              */
             PrefixCount = (UINT32) -1;
             HasPrefix = TRUE;
@@ -445,7 +438,7 @@ AcpiAmlGetNameString (
             Prefix = *AmlAddress++;
             DEBUG_PRINT (TRACE_LOAD, ("DualNamePrefix: %x\n", Prefix));
 
-            NameString = AcpiAmlAllocateNameString (PrefixCount, 2);
+            NameString = AcpiExAllocateNameString (PrefixCount, 2);
             if (!NameString)
             {
                 Status = AE_NO_MEMORY;
@@ -455,10 +448,10 @@ AcpiAmlGetNameString (
             /* Indicate that we processed a prefix */
             HasPrefix = TRUE;
 
-            Status = AcpiAmlExecNameSegment (&AmlAddress, NameString);
+            Status = AcpiExNameSegment (&AmlAddress, NameString);
             if (ACPI_SUCCESS (Status))
             {
-                Status = AcpiAmlExecNameSegment (&AmlAddress, NameString);
+                Status = AcpiExNameSegment (&AmlAddress, NameString);
             }
             break;
 
@@ -472,7 +465,7 @@ AcpiAmlGetNameString (
 
             NumSegments = *AmlAddress++;
 
-            NameString = AcpiAmlAllocateNameString (PrefixCount, NumSegments);
+            NameString = AcpiExAllocateNameString (PrefixCount, NumSegments);
             if (!NameString)
             {
                 Status = AE_NO_MEMORY;
@@ -483,7 +476,7 @@ AcpiAmlGetNameString (
             HasPrefix = TRUE;
 
             while (NumSegments &&
-                    (Status = AcpiAmlExecNameSegment (&AmlAddress, NameString)) == AE_OK)
+                    (Status = AcpiExNameSegment (&AmlAddress, NameString)) == AE_OK)
             {
                 --NumSegments;
             }
@@ -497,14 +490,13 @@ AcpiAmlGetNameString (
 
             if (-1 == PrefixCount)
             {
-                DEBUG_PRINT (TRACE_EXEC,
-                    ("AmlDoName: NameSeg is \"\\\" followed by NULL\n"));
+                DEBUG_PRINTP (TRACE_EXEC, ("NameSeg is \"\\\" followed by NULL\n"));
             }
 
             /* Consume the NULL byte */
 
             AmlAddress++;
-            NameString = AcpiAmlAllocateNameString (PrefixCount, 0);
+            NameString = AcpiExAllocateNameString (PrefixCount, 0);
             if (!NameString)
             {
                 Status = AE_NO_MEMORY;
@@ -518,14 +510,14 @@ AcpiAmlGetNameString (
 
             /* Name segment string */
 
-            NameString = AcpiAmlAllocateNameString (PrefixCount, 1);
+            NameString = AcpiExAllocateNameString (PrefixCount, 1);
             if (!NameString)
             {
                 Status = AE_NO_MEMORY;
                 break;
             }
 
-            Status = AcpiAmlExecNameSegment (&AmlAddress, NameString);
+            Status = AcpiExNameSegment (&AmlAddress, NameString);
             break;
 
         }   /* Switch (PeekOp ())    */
@@ -537,7 +529,7 @@ AcpiAmlGetNameString (
         /* Ran out of segments after processing a prefix */
 
         REPORT_ERROR (
-            ("AmlDoName: Malformed Name at %p\n", NameString));
+            ("ExDoName: Malformed Name at %p\n", NameString));
         Status = AE_AML_BAD_NAME;
     }
 

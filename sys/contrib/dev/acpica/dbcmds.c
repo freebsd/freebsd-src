@@ -1,7 +1,7 @@
 /*******************************************************************************
  *
  * Module Name: dbcmds - debug commands and output routines
- *              $Revision: 46 $
+ *              $Revision: 60 $
  *
  ******************************************************************************/
 
@@ -125,10 +125,11 @@
 #include "acinterp.h"
 #include "acdebug.h"
 #include "actables.h"
+#include "acresrc.h"
 
 #ifdef ENABLE_DEBUGGER
 
-#define _COMPONENT          DEBUGGER
+#define _COMPONENT          ACPI_DEBUGGER
         MODULE_NAME         ("dbcmds")
 
 
@@ -241,6 +242,33 @@ AcpiDbFindReferences (
 
 /*******************************************************************************
  *
+ * FUNCTION:    AcpiDbDisplayLocks
+ *
+ * PARAMETERS:  None
+ *
+ * RETURN:      None
+ *
+ * DESCRIPTION: Display information about internal mutexes.
+ *
+ ******************************************************************************/
+
+void
+AcpiDbDisplayLocks (void)
+{
+    UINT32                  i;
+
+
+    for (i = 0; i < MAX_MTX; i++)
+    {
+        AcpiOsPrintf ("%26s : %s\n", AcpiUtGetMutexName (i),
+                    AcpiGbl_AcpiMutexInfo[i].OwnerId == ACPI_MUTEX_NOT_ACQUIRED
+                        ? "Locked" : "Unlocked");
+    }
+}
+
+
+/*******************************************************************************
+ *
  * FUNCTION:    AcpiDbDisplayTableInfo
  *
  * PARAMETERS:  TableArg        - String with name of table to be displayed
@@ -309,7 +337,7 @@ AcpiDbUnloadAcpiTable (
             }
             else
             {
-                AcpiOsPrintf ("%s, while unloading [%s]\n", AcpiCmFormatException (Status), TableArg);
+                AcpiOsPrintf ("%s, while unloading [%s]\n", AcpiUtFormatException (Status), TableArg);
             }
 
             return;
@@ -595,7 +623,7 @@ AcpiDbSendNotify (
 
          /* Send the notify */
 
-        AcpiEvNotifyDispatch (Node, Value);
+        AcpiEvQueueNotifyRequest (Node, Value);
         break;
 
     default:
@@ -660,7 +688,7 @@ AcpiDbSetMethodData (
 
     /* Create and initialize the new object */
 
-    ObjDesc = AcpiCmCreateInternalObject (ACPI_TYPE_INTEGER);
+    ObjDesc = AcpiUtCreateInternalObject (ACPI_TYPE_INTEGER);
     if (!ObjDesc)
     {
         AcpiOsPrintf ("Could not create an internal object\n");
@@ -684,7 +712,7 @@ AcpiDbSetMethodData (
             return;
         }
 
-        AcpiDsMethodDataSetValue (MTH_TYPE_ARG, Index, ObjDesc, WalkState);
+        AcpiDsStoreObjectToLocal (AML_ARG_OP, Index, ObjDesc, WalkState);
         ObjDesc = WalkState->Arguments[Index].Object;
 
         AcpiOsPrintf ("Arg%d: ", Index);
@@ -701,7 +729,7 @@ AcpiDbSetMethodData (
             return;
         }
 
-        AcpiDsMethodDataSetValue (MTH_TYPE_LOCAL, Index, ObjDesc, WalkState);
+        AcpiDsStoreObjectToLocal (AML_LOCAL_OP, Index, ObjDesc, WalkState);
         ObjDesc = WalkState->LocalVariables[Index].Object;
 
         AcpiOsPrintf ("Local%d: ", Index);
@@ -810,13 +838,11 @@ AcpiDbDisplayObjects (
     NATIVE_CHAR             *ObjTypeArg,
     NATIVE_CHAR             *DisplayCountArg)
 {
-    UINT32                  DisplayCount;
-    OBJECT_TYPE_INTERNAL    Type;
+    ACPI_OBJECT_TYPE8       Type;
 
 
     /* Get the object type */
 
-    STRUPR (ObjTypeArg);
     Type = AcpiDbMatchArgument (ObjTypeArg, AcpiDbObjectTypes);
     if (Type == ACPI_TYPE_NOT_FOUND)
     {
@@ -824,20 +850,8 @@ AcpiDbDisplayObjects (
         return (AE_OK);
     }
 
-    /* Get the display depth */
-
-    if (DisplayCountArg)
-    {
-        DisplayCount = STRTOUL (DisplayCountArg, NULL, 0);
-    }
-
-    else
-    {
-        DisplayCount = ACPI_UINT32_MAX;
-    }
-
     AcpiDbSetOutputDestination (DB_DUPLICATE_OUTPUT);
-    AcpiOsPrintf ("Objects of type [%s] defined in the current ACPI Namespace: \n", AcpiCmGetTypeName (Type));
+    AcpiOsPrintf ("Objects of type [%s] defined in the current ACPI Namespace: \n", AcpiUtGetTypeName (Type));
 
     AcpiDbSetOutputDestination (DB_REDIRECTABLE_OUTPUT);
 
@@ -871,15 +885,11 @@ AcpiDbWalkAndMatchName (
     void                    *Context,
     void                    **ReturnValue)
 {
-    ACPI_OPERAND_OBJECT     *ObjDesc;
     ACPI_STATUS             Status;
     NATIVE_CHAR             *RequestedName = (NATIVE_CHAR *) Context;
     UINT32                  i;
     UINT32                  BufSize;
     NATIVE_CHAR             Buffer[96];
-
-
-    ObjDesc = ((ACPI_NAMESPACE_NODE *)ObjHandle)->Object;
 
 
     /* Check for a name match */
@@ -911,7 +921,7 @@ AcpiDbWalkAndMatchName (
     else
     {
         AcpiOsPrintf ("%32s (%p) - %s\n", Buffer, ObjHandle,
-            AcpiCmGetTypeName (((ACPI_NAMESPACE_NODE *) ObjHandle)->Type));
+            AcpiUtGetTypeName (((ACPI_NAMESPACE_NODE *) ObjHandle)->Type));
     }
 
     return (AE_OK);
@@ -1004,7 +1014,7 @@ AcpiDbSetScope (
  *
  * RETURN:      None
  *
- * DESCRIPTION: 
+ * DESCRIPTION:
  *
  ******************************************************************************/
 
@@ -1012,11 +1022,10 @@ void
 AcpiDbDisplayResources (
     NATIVE_CHAR             *ObjectArg)
 {
+#ifndef _IA16
     ACPI_OPERAND_OBJECT     *ObjDesc;
     ACPI_STATUS             Status;
     ACPI_BUFFER             ReturnObj;
-    PCI_ROUTING_TABLE       *Prt;
-    UINT32                  i;
 
 
     AcpiDbSetOutputDestination (DB_REDIRECTABLE_OUTPUT);
@@ -1030,11 +1039,15 @@ AcpiDbDisplayResources (
     ReturnObj.Pointer           = Buffer;
     ReturnObj.Length            = BUFFER_SIZE;
 
+    /* _PRT */
+
+    AcpiOsPrintf ("Evaluating _PRT\n");
+
     Status = AcpiEvaluateObject (ObjDesc, "_PRT", NULL, &ReturnObj);
     if (ACPI_FAILURE (Status))
     {
-        AcpiOsPrintf ("Could not obtain _PRT: %s\n", AcpiCmFormatException (Status));
-        goto Cleanup;
+        AcpiOsPrintf ("Could not obtain _PRT: %s\n", AcpiUtFormatException (Status));
+        goto GoCRS;
     }
 
     ReturnObj.Pointer           = Buffer;
@@ -1043,28 +1056,73 @@ AcpiDbDisplayResources (
     Status = AcpiGetIrqRoutingTable (ObjDesc, &ReturnObj);
     if (ACPI_FAILURE (Status))
     {
-        AcpiOsPrintf ("GetIrqRoutingTable failed: %s\n", AcpiCmFormatException (Status));
+        AcpiOsPrintf ("GetIrqRoutingTable failed: %s\n", AcpiUtFormatException (Status));
+        goto GoCRS;
+    }
+
+
+    AcpiRsDumpIrqList((UINT8 *)Buffer);
+
+    /* _CRS */
+GoCRS:
+    AcpiOsPrintf ("Evaluating _CRS\n");
+
+    ReturnObj.Pointer           = Buffer;
+    ReturnObj.Length            = BUFFER_SIZE;
+
+    Status = AcpiEvaluateObject (ObjDesc, "_CRS", NULL, &ReturnObj);
+    if (ACPI_FAILURE (Status))
+    {
+        AcpiOsPrintf ("Could not obtain _CRS: %s\n", AcpiUtFormatException (Status));
+        goto GoPRS;
+    }
+
+    ReturnObj.Pointer           = Buffer;
+    ReturnObj.Length            = BUFFER_SIZE;
+
+    Status = AcpiGetCurrentResources (ObjDesc, &ReturnObj);
+    if (ACPI_FAILURE (Status))
+    {
+        AcpiOsPrintf ("AcpiGetCurrentResources failed: %s\n", AcpiUtFormatException (Status));
+        goto GoPRS;
+    }
+
+    AcpiRsDumpResourceList ((ACPI_RESOURCE *) Buffer);
+
+    /* _PRS */
+GoPRS:
+    AcpiOsPrintf ("Evaluating _PRS\n");
+
+    ReturnObj.Pointer           = Buffer;
+    ReturnObj.Length            = BUFFER_SIZE;
+
+    Status = AcpiEvaluateObject (ObjDesc, "_PRS", NULL, &ReturnObj);
+    if (ACPI_FAILURE (Status))
+    {
+        AcpiOsPrintf ("Could not obtain _PRS: %s\n", AcpiUtFormatException (Status));
         goto Cleanup;
     }
 
-    Prt = (PCI_ROUTING_TABLE *) Buffer;
-    i = 0;
-    while ((char *) Prt < (Buffer + ReturnObj.Length))
+    ReturnObj.Pointer           = Buffer;
+    ReturnObj.Length            = BUFFER_SIZE;
+
+    Status = AcpiGetPossibleResources (ObjDesc, &ReturnObj);
+    if (ACPI_FAILURE (Status))
     {
-        AcpiOsPrintf ("Prt[%d] Src=%s: Addr=%X\n", i, Prt->Source, Prt->Address);
-        i++;
-        Prt = (PCI_ROUTING_TABLE *) (((char *) Prt) + Prt->Length);
+        AcpiOsPrintf ("AcpiGetPossibleResources failed: %s\n", AcpiUtFormatException (Status));
+        goto Cleanup;
     }
+
+    AcpiRsDumpResourceList ((ACPI_RESOURCE *) Buffer);
+
 
 Cleanup:
 
     AcpiDbSetOutputDestination (DB_CONSOLE_OUTPUT);
     return;
+#endif
 
 }
-
-
-
 
 
 #endif /* ENABLE_DEBUGGER */

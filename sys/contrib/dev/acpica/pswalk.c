@@ -1,7 +1,7 @@
 /******************************************************************************
  *
  * Module Name: pswalk - Parser routines to walk parsed op tree(s)
- *              $Revision: 52 $
+ *              $Revision: 55 $
  *
  *****************************************************************************/
 
@@ -122,7 +122,7 @@
 #include "acnamesp.h"
 #include "acinterp.h"
 
-#define _COMPONENT          PARSER
+#define _COMPONENT          ACPI_PARSER
         MODULE_NAME         ("pswalk")
 
 
@@ -349,6 +349,9 @@ AcpiPsDeleteParseTree (
     /* Create and initialize a new walk list */
 
     WalkList.WalkState = NULL;
+    WalkList.AcquiredMutexList.Prev = NULL;
+    WalkList.AcquiredMutexList.Next = NULL;
+
     WalkState = AcpiDsCreateWalkState (TABLE_ID_DSDT, NULL, NULL, &WalkList);
     if (!WalkState)
     {
@@ -379,6 +382,7 @@ AcpiPsDeleteParseTree (
 
     /* We are done with this walk */
 
+    AcpiExReleaseAllMutexes ((ACPI_OPERAND_OBJECT *) &WalkList.AcquiredMutexList);
     AcpiDsDeleteWalkState (WalkState);
 
     return_VOID;

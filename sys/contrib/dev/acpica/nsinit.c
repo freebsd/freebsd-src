@@ -1,7 +1,7 @@
 /******************************************************************************
  *
  * Module Name: nsinit - namespace initialization
- *              $Revision: 15 $
+ *              $Revision: 25 $
  *
  *****************************************************************************/
 
@@ -121,7 +121,7 @@
 #include "acnamesp.h"
 #include "acdispat.h"
 
-#define _COMPONENT          NAMESPACE
+#define _COMPONENT          ACPI_NAMESPACE
         MODULE_NAME         ("nsinit")
 
 
@@ -149,8 +149,8 @@ AcpiNsInitializeObjects (
     FUNCTION_TRACE ("NsInitializeObjects");
 
 
-    DEBUG_PRINT (TRACE_DISPATCH,
-        ("NsInitializeObjects: **** Starting initialization of namespace objects ****\n"));
+    DEBUG_PRINTP (TRACE_DISPATCH,
+        ("**** Starting initialization of namespace objects ****\n"));
     DEBUG_PRINT_RAW (ACPI_OK, ("Completing Region and Field initialization:"));
 
 
@@ -168,23 +168,23 @@ AcpiNsInitializeObjects (
                                 &Info, NULL);
     if (ACPI_FAILURE (Status))
     {
-        DEBUG_PRINT (ACPI_ERROR,
-            ("NsInitializeObjects: WalkNamespace failed! %x\n", Status));
+        DEBUG_PRINTP (ACPI_ERROR, ("WalkNamespace failed! %x\n", Status));
     }
 
     DEBUG_PRINT_RAW (ACPI_OK,
         ("\n%d/%d Regions, %d/%d Fields initialized (%d nodes total)\n",
-        Info.OpRegionInit, Info.OpRegionCount, Info.FieldInit, Info.FieldCount, Info.ObjectCount));
-    DEBUG_PRINT (TRACE_DISPATCH,
-        ("NsInitializeObjects: %d Control Methods found\n", Info.MethodCount));
-    DEBUG_PRINT (TRACE_DISPATCH,
-        ("NsInitializeObjects: %d Op Regions found\n", Info.OpRegionCount));
+        Info.OpRegionInit, Info.OpRegionCount, Info.FieldInit,
+        Info.FieldCount, Info.ObjectCount));
+    DEBUG_PRINTP (TRACE_DISPATCH,
+        ("%d Control Methods found\n", Info.MethodCount));
+    DEBUG_PRINTP (TRACE_DISPATCH,
+        ("%d Op Regions found\n", Info.OpRegionCount));
 
     return_ACPI_STATUS (AE_OK);
 }
 
 
-/******************************************************************************
+/*******************************************************************************
  *
  * FUNCTION:    AcpiNsInitializeDevices
  *
@@ -195,11 +195,10 @@ AcpiNsInitializeObjects (
  * DESCRIPTION: Walk the entire namespace and initialize all ACPI devices.
  *              This means running _INI on all present devices.
  *
- *              Also: Install PCI config space handler for all PCI root bridges.
- *              A PCI root bridge is found by searching for devices containing
- *              a HID with the value EISAID("PNP0A03")
+ *              Note: We install PCI config space handler on region access,
+ *              not here.
  *
- *****************************************************************************/
+ ******************************************************************************/
 
 ACPI_STATUS
 AcpiNsInitializeDevices (
@@ -219,13 +218,12 @@ AcpiNsInitializeDevices (
 
     DEBUG_PRINT_RAW (ACPI_OK, ("Executing device _INI methods:"));
 
-    Status = AcpiNsWalkNamespace (ACPI_TYPE_DEVICE, ACPI_ROOT_OBJECT, ACPI_UINT32_MAX,
-                        FALSE, AcpiNsInitOneDevice, &Info, NULL);
+    Status = AcpiNsWalkNamespace (ACPI_TYPE_DEVICE, ACPI_ROOT_OBJECT,
+                    ACPI_UINT32_MAX, FALSE, AcpiNsInitOneDevice, &Info, NULL);
 
     if (ACPI_FAILURE (Status))
     {
-        DEBUG_PRINT (ACPI_ERROR,
-            ("NsInitializeDevices: WalkNamespace failed! %x\n", Status));
+        DEBUG_PRINTP (ACPI_ERROR, ("WalkNamespace failed! %x\n", Status));
     }
 
 
@@ -264,7 +262,7 @@ AcpiNsInitOneObject (
     void                    *Context,
     void                    **ReturnValue)
 {
-    OBJECT_TYPE_INTERNAL    Type;
+    ACPI_OBJECT_TYPE8       Type;
     ACPI_STATUS             Status;
     ACPI_INIT_WALK_INFO     *Info = (ACPI_INIT_WALK_INFO *) Context;
     ACPI_NAMESPACE_NODE     *Node = (ACPI_NAMESPACE_NODE *) ObjHandle;
@@ -299,8 +297,9 @@ AcpiNsInitOneObject (
         if (ACPI_FAILURE (Status))
         {
             DEBUG_PRINT_RAW (ACPI_ERROR, ("\n"));
-            DEBUG_PRINT (ACPI_ERROR, ("%s while getting region arguments [%4.4s]\n",
-                            AcpiCmFormatException (Status), &Node->Name));
+            DEBUG_PRINT (ACPI_ERROR,
+                    ("%s while getting region arguments [%4.4s]\n",
+                    AcpiUtFormatException (Status), &Node->Name));
         }
 
         if (!(AcpiDbgLevel & TRACE_INIT))
@@ -311,7 +310,7 @@ AcpiNsInitOneObject (
         break;
 
 
-    case ACPI_TYPE_FIELD_UNIT:
+    case ACPI_TYPE_BUFFER_FIELD:
 
         Info->FieldCount++;
         if (ObjDesc->Common.Flags & AOPOBJ_DATA_VALID)
@@ -320,12 +319,13 @@ AcpiNsInitOneObject (
         }
 
         Info->FieldInit++;
-        Status = AcpiDsGetFieldUnitArguments (ObjDesc);
+        Status = AcpiDsGetBufferFieldArguments (ObjDesc);
         if (ACPI_FAILURE (Status))
         {
             DEBUG_PRINT_RAW (ACPI_ERROR, ("\n"));
-            DEBUG_PRINT (ACPI_ERROR, ("%s while getting field arguments [%4.4s]\n",
-                            AcpiCmFormatException (Status), &Node->Name));
+            DEBUG_PRINT (ACPI_ERROR,
+                    ("%s while getting buffer field arguments [%4.4s]\n",
+                    AcpiUtFormatException (Status), &Node->Name));
         }
         if (!(AcpiDbgLevel & TRACE_INIT))
         {
@@ -347,11 +347,11 @@ AcpiNsInitOneObject (
 }
 
 
-/******************************************************************************
+/*******************************************************************************
  *
  * FUNCTION:    AcpiNsInitOneDevice
  *
- * PARAMETERS:  WALK_CALLBACK
+ * PARAMETERS:  ACPI_WALK_CALLBACK
  *
  * RETURN:      ACPI_STATUS
  *
@@ -359,7 +359,7 @@ AcpiNsInitOneObject (
  *              to initialize each device. It determines if the device is
  *              present, and if so, calls _INI.
  *
- *****************************************************************************/
+ ******************************************************************************/
 
 ACPI_STATUS
 AcpiNsInitOneDevice (
@@ -384,23 +384,23 @@ AcpiNsInitOneDevice (
 
     Info->DeviceCount++;
 
-    AcpiCmAcquireMutex (ACPI_MTX_NAMESPACE);
+    AcpiUtAcquireMutex (ACPI_MTX_NAMESPACE);
 
     Node = AcpiNsConvertHandleToEntry (ObjHandle);
     if (!Node)
     {
-        AcpiCmReleaseMutex (ACPI_MTX_NAMESPACE);
+        AcpiUtReleaseMutex (ACPI_MTX_NAMESPACE);
         return (AE_BAD_PARAMETER);
     }
 
-    AcpiCmReleaseMutex (ACPI_MTX_NAMESPACE);
+    AcpiUtReleaseMutex (ACPI_MTX_NAMESPACE);
 
     /*
      * Run _STA to determine if we can run _INI on the device.
      */
 
-    DEBUG_EXEC(AcpiCmDisplayInitPathname (Node, "_STA  [Method]"));
-    Status = AcpiCmExecute_STA (Node, &Flags);
+    DEBUG_EXEC (AcpiUtDisplayInitPathname (Node, "_STA  [Method]"));
+    Status = AcpiUtExecute_STA (Node, &Flags);
     if (ACPI_FAILURE (Status))
     {
         /* Ignore error and move on to next device */
@@ -413,20 +413,20 @@ AcpiNsInitOneDevice (
     if (!(Flags & 0x01))
     {
         /* don't look at children of a not present device */
+
         return_ACPI_STATUS(AE_CTRL_DEPTH);
     }
-
 
 
     /*
      * The device is present. Run _INI.
      */
-
-    DEBUG_EXEC(AcpiCmDisplayInitPathname (ObjHandle, "_INI  [Method]"));
+    DEBUG_EXEC (AcpiUtDisplayInitPathname (ObjHandle, "_INI  [Method]"));
     Status = AcpiNsEvaluateRelative (ObjHandle, "_INI", NULL, NULL);
     if (AE_NOT_FOUND == Status)
     {
         /* No _INI means device requires no initialization */
+
         Status = AE_OK;
     }
 
@@ -437,16 +437,16 @@ AcpiNsInitOneDevice (
 #ifdef ACPI_DEBUG
         NATIVE_CHAR *ScopeName = AcpiNsGetTablePathname (ObjHandle);
 
-        DEBUG_PRINT (ACPI_WARN, ("%s._INI failed: %s\n",
-                ScopeName, AcpiCmFormatException (Status)));
+        DEBUG_PRINTP (ACPI_WARN, ("%s._INI failed: %s\n",
+                ScopeName, AcpiUtFormatException (Status)));
 
-        AcpiCmFree (ScopeName);
+        AcpiUtFree (ScopeName);
 #endif
     }
 
     else
     {
-        /* Count of successfull INIs */
+        /* Count of successful INIs */
 
         Info->Num_INI++;
     }
