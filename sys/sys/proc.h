@@ -592,7 +592,7 @@ struct proc {
 #define	p_session	p_pgrp->pg_session
 #define	p_pgid		p_pgrp->pg_id
 
-#define	NOCPU	0xff		/* For p_oncpu when we aren't on a CPU. */
+#define	NOCPU	0xff		/* For when we aren't on a CPU. (SMP) */
 
 /* Status values (p_stat). */
 
