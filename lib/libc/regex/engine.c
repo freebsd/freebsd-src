@@ -180,7 +180,7 @@ int eflags;
 
 	/* prescreening; this does wonders for this rather slow code */
 	if (g->must != NULL) {
-		if(g->charjump != NULL && g->matchjump != NULL) {
+		if (g->charjump != NULL && g->matchjump != NULL) {
 			mustlen = -g->mlen;
 			mustfirst = g->must;
 			mustlast = g->must + g->mlen - 1;
@@ -188,21 +188,21 @@ int eflags;
 			matchjump = g->matchjump;
 			bmps = stop;
 			pp = mustlast;
-			for(bmp = start+g->mlen-1; bmp < bmps;) {
+			for (bmp = start+g->mlen-1; bmp < bmps;) {
 				/* Fast skip non-matches */
-				while(bmp < bmps && charjump[*bmp])
+				while (bmp < bmps && charjump[*bmp])
 					bmp += charjump[*bmp];
 
-				if(bmp >= bmps)
+				if (bmp >= bmps)
 					break;
 
 				/* Greedy matcher */
 				/* We depend on not being used for
 				 * for strings of length 1
 				 */
-				while(*--bmp == *--pp && pp != mustfirst);
+				while (*--bmp == *--pp && pp != mustfirst);
 
-				if(*bmp == *pp)
+				if (*bmp == *pp)
 					break;
 
 				/* Jump to next possible match */
@@ -211,8 +211,9 @@ int eflags;
 				bmp += (cj < mj ? mj : cj);
 				pp = mustlast;				
 			}
-			if(pp != mustfirst)
+			if (pp != mustfirst)
 				return(REG_NOMATCH);
+			dp = bmp;
 		} else {
 			for (dp = start; dp < stop; dp++)
 				if (*dp == g->must[0] &&
@@ -238,6 +239,10 @@ int eflags;
 	SETUP(m->tmp);
 	SETUP(m->empty);
 	CLEAR(m->empty);
+
+	/* Adjust start according to moffset, to speed things up */
+	if (g->moffset > -1)
+		start = dp - g->moffset;
 
 	/* this loop does only one repetition except for backrefs */
 	for (;;) {
