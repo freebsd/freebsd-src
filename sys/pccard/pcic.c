@@ -41,9 +41,7 @@
 
 #include <pccard/i82365.h>
 #include <pccard/cardinfo.h>
-#include <pccard/driver.h>
 #include <pccard/slot.h>
-#include <pccard/pcic.h>
 
 /* Get pnp IDs */
 #include <isa/isavar.h>
@@ -499,6 +497,7 @@ pcic_attach(device_t dev)
 	int error;
 	struct pcic_slot *sp;
 	int i;
+	int stat;
 	
 	SET_UNIT(dev, validunits);
 	sp = &pcic_slots[GET_UNIT(dev) * PCIC_CARD_SLOTS];
@@ -552,7 +551,10 @@ pcic_attach(device_t dev)
 		setb(sp, PCIC_POWER, PCIC_PCPWRE| PCIC_DISRST);
 		if (sp->slt == NULL)
 			continue;
-		if ((sp->getb(sp, PCIC_STATUS) & PCIC_CD) != PCIC_CD) {
+		stat = sp->getb(sp, PCIC_STATUS);
+		if (bootverbose)
+			printf("stat is %x\n", stat);
+		if ((stat & PCIC_CD) != PCIC_CD) {
 			sp->slt->laststate = sp->slt->state = empty;
 		} else {
 			sp->slt->laststate = sp->slt->state = filled;
@@ -772,6 +774,8 @@ pcicintr(void *arg)
 	s = splhigh();
 	for (slot = 0; slot < PCIC_CARD_SLOTS; slot++, sp++) {
 		if (sp->slt && (chg = sp->getb(sp, PCIC_STAT_CHG)) != 0) {
+			if (bootverbose)
+				printf("Slot %d chg = 0x%x\n", slot, chg);
 			if (chg & PCIC_CDTCH) {
 				if ((sp->getb(sp, PCIC_STATUS) & PCIC_CD) ==
 						PCIC_CD) {
