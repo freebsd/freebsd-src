@@ -218,11 +218,9 @@ struct mutex_prof {
 	const char	*name;
 	const char	*file;
 	int		line;
-	struct {
-		uintmax_t	max;
-		uintmax_t	tot;
-		uintmax_t	cur;
-	} cnt;
+	uintmax_t	cnt_max;
+	uintmax_t	cnt_tot;
+	uintmax_t	cnt_cur;
 	struct mutex_prof *next;
 };
 
@@ -294,11 +292,11 @@ dump_mutex_prof_stats(SYSCTL_HANDLER_ARGS)
 	mtx_lock_spin(&mprof_mtx);
 	for (i = 0; i < first_free_mprof_buf; ++i)
 		sbuf_printf(sb, "%6ju %12ju %11ju %5ju %s:%d (%s)\n",
-		    mprof_buf[i].cnt.max / 1000,
-		    mprof_buf[i].cnt.tot / 1000,
-		    mprof_buf[i].cnt.cur,
-		    mprof_buf[i].cnt.cur == 0 ? (uintmax_t)0 :
-			mprof_buf[i].cnt.tot / (mprof_buf[i].cnt.cur * 1000),
+		    mprof_buf[i].cnt_max / 1000,
+		    mprof_buf[i].cnt_tot / 1000,
+		    mprof_buf[i].cnt_cur,
+		    mprof_buf[i].cnt_cur == 0 ? (uintmax_t)0 :
+			mprof_buf[i].cnt_tot / (mprof_buf[i].cnt_cur * 1000),
 		    mprof_buf[i].file, mprof_buf[i].line, mprof_buf[i].name);
 	mtx_unlock_spin(&mprof_mtx);
 	sbuf_finish(sb);
@@ -393,10 +391,10 @@ _mtx_unlock_flags(struct mtx *m, int opts, const char *file, int line)
 		 * Record if the mutex has been held longer now than ever
 		 * before.
 		 */
-		if (now - acqtime > mpp->cnt.max)
-			mpp->cnt.max = now - acqtime;
-		mpp->cnt.tot += now - acqtime;
-		mpp->cnt.cur++;
+		if (now - acqtime > mpp->cnt_max)
+			mpp->cnt_max = now - acqtime;
+		mpp->cnt_tot += now - acqtime;
+		mpp->cnt_cur++;
 unlock:
 		mtx_unlock_spin(&mprof_mtx);
 	}
