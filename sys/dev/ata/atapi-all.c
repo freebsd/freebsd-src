@@ -139,7 +139,7 @@ atapi_attach(void *notused)
 			       atp->atapi_parm->dmaflag);
 
 #ifdef ATA_ENABLE_ATAPI_DMA
-		if (!(atp->atapi_parm->drqtype == ATAPI_DRQT_INTR) &&
+		if (!(atp->atapi_parm->drqtype == ATAPI_DRQT_INTR)) {
 		    !ata_dmainit(atp->controller, atp->unit,
 				 (apiomode(atp->atapi_parm) < 0) ? 
 				 (atp->atapi_parm->dmaflag ? 4 : 0) : 
@@ -149,7 +149,13 @@ atapi_attach(void *notused)
 				 wdmamode(atp->atapi_parm),
 				 udmamode(atp->atapi_parm)))
 		    atp->flags |= ATAPI_F_DMA_ENABLED;
+		}
+		else
 #endif
+		    /* set PIO mode */
+		    ata_dmainit(atp->controller, atp->unit,
+				(apiomode(atp->atapi_parm) < 0) ?
+				  0 : apiomode(atp->atapi_parm), -1, -1);
 
 		switch (atp->atapi_parm->device_type) {
 #if NATAPICD > 0
