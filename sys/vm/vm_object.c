@@ -61,7 +61,7 @@
  * any improvements or extensions that they make and grant Carnegie the
  * rights to redistribute these changes.
  *
- * $Id: vm_object.c,v 1.97 1997/09/01 03:17:22 bde Exp $
+ * $Id: vm_object.c,v 1.98 1997/09/21 04:24:22 dyson Exp $
  */
 
 /*
@@ -212,7 +212,7 @@ vm_object_init()
 
 void
 vm_object_init2() {
-	zinitna(obj_zone, NULL, NULL, 0, 0, 0, 4);
+	zinitna(obj_zone, NULL, NULL, 0, 0, 0, 1);
 }
 
 /*
