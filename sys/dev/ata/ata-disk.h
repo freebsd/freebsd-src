@@ -79,10 +79,9 @@ struct ad_softc {
 
 void ad_attach(struct ata_device *);
 void ad_detach(struct ata_device *, int);
+void ad_reinit(struct ata_device *);
 void ad_start(struct ata_device *);
 int ad_transfer(struct ad_request *);
 int ad_interrupt(struct ad_request *);
 int ad_service(struct ad_softc *, int);
-void ad_reinit(struct ad_softc *);
 void ad_print(struct ad_softc *, char *);
-

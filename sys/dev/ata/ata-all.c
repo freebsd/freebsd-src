@@ -854,22 +854,30 @@ ata_reinit(struct ata_channel *ch)
 #ifdef DEV_ATADISK
     if (newdev & ATA_ATA_MASTER && !ch->device[MASTER].driver)
 	ad_attach(&ch->device[MASTER]);
-    else if (ch->devices & ATA_ATA_MASTER && ch->device[MASTER].driver)
-	ad_reinit((struct ad_softc *)ch->device[MASTER].driver);
+    else if (ch->devices & ATA_ATA_MASTER && ch->device[MASTER].driver) {
+	ata_getparam(&ch->device[MASTER], ATA_C_ATA_IDENTIFY);
+	ad_reinit(&ch->device[MASTER]);
+    }
     if (newdev & ATA_ATA_SLAVE && !ch->device[SLAVE].driver)
 	ad_attach(&ch->device[SLAVE]);
-    else if (ch->devices & (ATA_ATA_SLAVE) && ch->device[SLAVE].driver)
-	ad_reinit((struct ad_softc *)ch->device[SLAVE].driver);
+    else if (ch->devices & (ATA_ATA_SLAVE) && ch->device[SLAVE].driver) {
+	ata_getparam(&ch->device[SLAVE], ATA_C_ATA_IDENTIFY);
+	ad_reinit(&ch->device[SLAVE]);
+    }
 #endif
 #if defined(DEV_ATAPICD) || defined(DEV_ATAPIFD) || defined(DEV_ATAPIST)
     if (newdev & ATA_ATAPI_MASTER && !ch->device[MASTER].driver)
 	atapi_attach(&ch->device[MASTER]);
-    else if (ch->devices & (ATA_ATAPI_MASTER) && ch->device[MASTER].driver)
-	atapi_reinit(ch->device[MASTER].driver);
+    else if (ch->devices & (ATA_ATAPI_MASTER) && ch->device[MASTER].driver) {
+	ata_getparam(&ch->device[MASTER], ATA_C_ATAPI_IDENTIFY);
+	atapi_reinit(&ch->device[MASTER]);
+    }
     if (newdev & ATA_ATAPI_SLAVE && !ch->device[SLAVE].driver)
 	atapi_attach(&ch->device[SLAVE]);
-    else if (ch->devices & (ATA_ATAPI_SLAVE) && ch->device[SLAVE].driver)
-	atapi_reinit(ch->device[SLAVE].driver);
+    else if (ch->devices & (ATA_ATAPI_SLAVE) && ch->device[SLAVE].driver) {
+	ata_getparam(&ch->device[SLAVE], ATA_C_ATAPI_IDENTIFY);
+	atapi_reinit(&ch->device[SLAVE]);
+    }
 #endif
     printf("done\n");
     ch->active = ATA_IDLE;
