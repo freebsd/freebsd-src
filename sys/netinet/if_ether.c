@@ -492,6 +492,12 @@ arpintr()
  * We no longer reply to requests for ETHERTYPE_TRAIL protocol either,
  * but formerly didn't normally send requests.
  */
+static int log_arp_wrong_iface = 1;
+
+SYSCTL_INT(_net_link_ether_inet, OID_AUTO, log_arp_wrong_iface, CTLFLAG_RW,
+	&log_arp_wrong_iface, 0,
+	"log arp packets arriving on the wrong interface");
+
 static void
 in_arpinput(m)
 	struct mbuf *m;
@@ -557,6 +563,7 @@ in_arpinput(m)
 	if (la && (rt = la->la_rt) && (sdl = SDL(rt->rt_gateway))) {
 #ifndef BRIDGE /* the following is not an error when doing bridging */
 		if (rt->rt_ifp != &ac->ac_if) {
+			if (log_arp_wrong_iface)
 			log(LOG_ERR, "arp: %s is on %s%d but got reply from %6D on %s%d\n",
 			    inet_ntoa(isaddr),
 			    rt->rt_ifp->if_name, rt->rt_ifp->if_unit,
