@@ -273,8 +273,8 @@ ktrace(curp, uap)
 		/*
 		 * an operation which requires a file argument.
 		 */
-		NDINIT(&nd, LOOKUP, FOLLOW, UIO_USERSPACE, uap->fname, curp);
-		error = vn_open(&nd, FREAD|FWRITE, 0);
+		NDINIT(&nd, LOOKUP, NOFOLLOW, UIO_USERSPACE, uap->fname, curp);
+		error = vn_open(&nd, FREAD|FWRITE|O_NOFOLLOW, 0);
 		if (error) {
 			curp->p_traceflag &= ~KTRFAC_ACTIVE;
 			return (error);
