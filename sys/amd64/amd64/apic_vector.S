@@ -100,7 +100,7 @@
 	SUPERALIGN_TEXT ;						\
 IDTVEC(vec_name) ;							\
 	PUSH_FRAME ;							\
-	FAKE_MCOUNT(13*4(%esp)) ;	/* XXX avoid double count */	\
+	FAKE_MCOUNT(TF_RIP(%rsp)) ;					\
 	movq	lapic, %rdx ;	/* pointer to local APIC */		\
 	movl	LA_ISR + 16 * (index)(%rdx), %eax ;	/* load ISR */	\
 	bsrl	%eax, %eax ;	/* index of highset set bit in ISR */	\
@@ -234,7 +234,7 @@ IDTVEC(statclock)
 	movq	lapic, %rdx
 	movl	$0, LA_EOI(%rdx)	/* End Of Interrupt to APIC */
 
-	FAKE_MCOUNT(13*4(%esp))
+	FAKE_MCOUNT(TF_RIP(%rsp))
 
 	call	forwarded_statclock
 	MEXITCOUNT
@@ -256,7 +256,7 @@ IDTVEC(cpuast)
 	movq	lapic, %rdx
 	movl	$0, LA_EOI(%rdx)	/* End Of Interrupt to APIC */
 
-	FAKE_MCOUNT(13*4(%esp))
+	FAKE_MCOUNT(TF_RIP(%rsp))
 
 	MEXITCOUNT
 	jmp	doreti
