@@ -3460,14 +3460,14 @@ ath_tx_start(struct ath_softc *sc, struct ieee80211_node *ni, struct ath_buf *bf
 			(caddr_t)bf->bf_daddr, bf->bf_desc, txq->axq_depth);
 	}
 	txq->axq_link = &bf->bf_desc[bf->bf_nseg - 1].ds_link;
-	ATH_TXQ_UNLOCK(txq);
-
 	/*
 	 * The CAB queue is started from the SWBA handler since
 	 * frames only go out on DTIM and to avoid possible races.
 	 */
 	if (txq != sc->sc_cabq)
 		ath_hal_txstart(ah, txq->axq_qnum);
+	ATH_TXQ_UNLOCK(txq);
+
 	return 0;
 #undef updateCTSForBursting
 #undef CTS_DURATION
