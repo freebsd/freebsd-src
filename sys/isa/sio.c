@@ -31,12 +31,13 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)com.c	7.5 (Berkeley) 5/16/91
- *	$Id: sio.c,v 1.162 1997/04/05 13:11:27 bde Exp $
+ *	$Id: sio.c,v 1.163 1997/04/18 18:28:09 bde Exp $
  */
 
 #include "opt_comconsole.h"
 #include "opt_ddb.h"
 #include "opt_sio.h"
+#include "opt_smp.h"
 #include "sio.h"
 
 /*
@@ -81,6 +82,16 @@
 #include <pccard/driver.h>
 #include <pccard/slot.h>
 #endif
+
+#if defined(APIC_IO)
+/*
+ * INTs are masked in the (global) IO APIC,
+ *  but the IRR register is in each LOCAL APIC,
+ *   so we HAVE to unmask the INT to be able to "see INT pending"
+ * BUT how do we clear them???
+ */
+#define isa_irq_pending		icu_irq_pending
+#endif /* APIC_IO */
 
 #define	LOTS_OF_EVENTS	64	/* helps separate urgent events from input */
 #define	RB_I_HIGH_WATER	(TTYHOG - 2 * RS_IBUFSIZE)

@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)genassym.c	5.11 (Berkeley) 5/10/91
- *	$Id: genassym.c,v 1.43 1997/04/07 06:45:11 peter Exp $
+ *	$Id: genassym.c,v 1.44 1997/04/07 07:15:48 peter Exp $
  */
 
 #include <stdio.h>
@@ -102,6 +102,8 @@ main()
 	printf("#define\tP_WCHAN %p\n", &p->p_wchan);
 	printf("#define\tP_FLAG %p\n", &p->p_flag);
 	printf("#define\tP_PID %p\n", &p->p_pid);
+	printf("#define\tP_ONCPU %p\n", &p->p_oncpu);
+	printf("#define\tP_LASTCPU %p\n", &p->p_lastcpu);
 	printf("#define\tSSLEEP %d\n", SSLEEP);
 	printf("#define\tSRUN %d\n", SRUN);
 	printf("#define\tV_TRAP %p\n", &vm->v_trap);
@@ -131,6 +133,7 @@ main()
 	printf("#define\tPCB_EIP %p\n", &pcb->pcb_eip);
 	printf("#define\tTSS_ESP0 %p\n", &tss->tss_esp0);
 	printf("#define\tPCB_USERLDT %p\n", &pcb->pcb_ldt);
+	printf("#define\tPCB_MPNEST %p\n", &pcb->pcb_mpnest);
 	printf("#define\tU_PROF %p\n", &up->u_stats.p_prof);
 	printf("#define\tU_PROFSCALE %p\n", &up->u_stats.p_prof.pr_scale);
 	printf("#define\tPR_BASE %p\n", &uprof->pr_base);

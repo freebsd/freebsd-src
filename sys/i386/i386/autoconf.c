@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)autoconf.c	7.1 (Berkeley) 5/9/91
- *	$Id$
+ *	$Id: autoconf.c,v 1.64 1997/02/22 09:32:08 peter Exp $
  */
 
 /*
@@ -45,6 +45,8 @@
  * devices are determined (from possibilities mentioned in ioconf.c),
  * and the drivers are initialized.
  */
+#include "opt_smp.h"
+
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/buf.h>
@@ -60,6 +62,10 @@
 #include <machine/cons.h>
 #include <machine/md_var.h>
 #include <i386/isa/icu.h> /* For interrupts */
+
+#if defined(APIC_IO)
+#include <machine/smp.h>
+#endif /* APIC_IO */
 
 #include "isa.h"
 #if NISA > 0
@@ -158,8 +164,18 @@ configure(dummy)
 	configure_start();
 
 	/* Allow all routines to decide for themselves if they want intrs */
+#if defined(APIC_IO)
+	configure_local_apic();
+        enable_intr();
+#else
         enable_intr();
         INTREN(IRQ_SLAVE);
+#endif /* APIC_IO */
+
+#if NCRD > 0
+	/* Before isa_configure to avoid ISA drivers finding our cards */
+	pccard_configure();
+#endif
 
 #if NEISA > 0
 	eisa_configure();

@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)pcb.h	5.10 (Berkeley) 5/12/91
- *	$Id: pcb.h,v 1.18 1997/02/22 09:34:56 peter Exp $
+ *	$Id: pcb.h,v 1.19 1997/04/07 06:45:18 peter Exp $
  */
 
 #ifndef _I386_PCB_H_
@@ -60,6 +60,8 @@ struct pcb {
 	u_char	pcb_flags;
 #define	FP_SOFTFP	0x01	/* process using software fltng pnt emulator */
 	caddr_t	pcb_onfault;	/* copyin/out fault recovery */
+	u_long	pcb_mpnest;
+	u_long	__pcb_spare[7];	/* adjust to avoid core dump size changes */
 #if 0	/* some day we may switch between procs that have their own i386tss */
 	struct	i386tss pcb_tss;
 	u_char	pcb_iomap[NPORT/sizeof(u_char)]; /* i/o port bitmap */
@@ -74,7 +76,15 @@ struct md_coredump {
 };
 
 #ifdef KERNEL
+
+#include "opt_smp.h"
+#include <machine/smp.h>
+#ifdef SMP
+#define curpcb (SMPcurpcb[cpunumber()])
+#else /* !SMP */
 extern struct pcb *curpcb;		/* our current running pcb */
+#endif /* SMP */
+
 void	savectx __P((struct pcb*));
 #endif
 
