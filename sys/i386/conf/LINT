@@ -2,7 +2,7 @@
 # LINT -- config file for checking all the sources, tries to pull in
 #	as much of the source tree as it can.
 #
-#	$Id: LINT,v 1.259 1996/05/17 09:42:46 jkh Exp $
+#	$Id: LINT,v 1.260 1996/05/31 00:20:34 peter Exp $
 #
 # NB: You probably don't want to try running a kernel built from this
 # file.  Instead, you should start from GENERIC, and add options from
@@ -546,6 +546,7 @@ disk		wd3	at wdc1 drive 1
 # ATAPI enables the support for ATAPI-compatible IDE devices
 #
 options         ATAPI   #Enable ATAPI support for IDE bus
+options		ATAPI_STATIC	#Don't do it as an LKM
 
 # IDE CD-ROM driver - requires wdc controller and ATAPI option
 device          wcd0
