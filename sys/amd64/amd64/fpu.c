@@ -32,7 +32,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)npx.c	7.2 (Berkeley) 5/12/91
- *	$Id: npx.c,v 1.65 1999/01/08 16:29:59 bde Exp $
+ *	$Id: npx.c,v 1.66 1999/03/28 23:28:18 dt Exp $
  */
 
 #include "npx.h"
@@ -43,10 +43,14 @@
 
 #include <sys/param.h>
 #include <sys/systm.h>
+#include <sys/bus.h>
 #include <sys/kernel.h>
 #include <sys/malloc.h>
+#include <sys/module.h>
 #include <sys/sysctl.h>
 #include <sys/proc.h>
+#include <machine/bus.h>
+#include <sys/rman.h>
 #ifdef NPX_DEBUG
 #include <sys/syslog.h>
 #endif
@@ -64,6 +68,7 @@
 #ifndef SMP
 #include <machine/clock.h>
 #endif
+#include <machine/resource.h>
 #include <machine/specialreg.h>
 #include <machine/segments.h>
 
@@ -72,7 +77,6 @@
 #include <i386/isa/intr_machdep.h>
 #include <i386/isa/isa.h>
 #endif
-#include <i386/isa/isa_device.h>
 
 /*
  * 387 and 287 Numeric Coprocessor Extension (NPX) Driver.
@@ -82,9 +86,6 @@
 #define	NPX_DISABLE_I586_OPTIMIZED_BCOPY	(1 << 0)
 #define	NPX_DISABLE_I586_OPTIMIZED_BZERO	(1 << 1)
 #define	NPX_DISABLE_I586_OPTIMIZED_COPYIO	(1 << 2)
-
-/* XXX - should be in header file. */
-ointhand2_t	npxintr;
 
 #ifdef	__GNUC__
 
@@ -119,17 +120,14 @@ void	stop_emulating	__P((void));
 
 typedef u_char bool_t;
 
-static	int	npxattach	__P((struct isa_device *dvp));
-static	int	npxprobe	__P((struct isa_device *dvp));
-static	int	npxprobe1	__P((struct isa_device *dvp));
+static	int	npx_attach	__P((device_t dev));
+	void	npx_intr	__P((void *));
+static	int	npx_probe	__P((device_t dev));
+static	int	npx_probe1	__P((device_t dev));
 #ifdef I586_CPU
 static	long	timezero	__P((const char *funcname,
 				     void (*func)(void *buf, size_t len)));
 #endif /* I586_CPU */
-
-struct	isa_driver npxdriver = {
-	npxprobe, npxattach, "npx",
-};
 
 int	hw_float;		/* XXX currently just alias for npx_exists */
 
@@ -191,12 +189,13 @@ __asm("								\n\
  * need to use interrupts.  Return 1 if device exists.
  */
 static int
-npxprobe(dvp)
-	struct isa_device *dvp;
+npx_probe(dev)
+	device_t dev;
 {
-#ifdef SMP
+/*#ifdef SMP*/
+#if 1
 
-	return npxprobe1(dvp);
+	return npx_probe1(dev);
 
 #else /* SMP */
 
@@ -213,20 +212,20 @@ npxprobe(dvp)
 	 * install suitable handlers and run with interrupts enabled so we
 	 * won't need to do so much here.
 	 */
-	npx_intrno = NRSVIDT + ffs(dvp->id_irq) - 1;
+	npx_intrno = NRSVIDT + 13;
 	save_eflags = read_eflags();
 	disable_intr();
 	save_icu1_mask = inb(IO_ICU1 + 1);
 	save_icu2_mask = inb(IO_ICU2 + 1);
 	save_idt_npxintr = idt[npx_intrno];
 	save_idt_npxtrap = idt[16];
-	outb(IO_ICU1 + 1, ~(IRQ_SLAVE | dvp->id_irq));
-	outb(IO_ICU2 + 1, ~(dvp->id_irq >> 8));
+	outb(IO_ICU1 + 1, ~IRQ_SLAVE);
+	outb(IO_ICU2 + 1, ~(1 << (13 - 8)));
 	setidt(16, probetrap, SDT_SYS386TGT, SEL_KPL, GSEL(GCODE_SEL, SEL_KPL));
 	setidt(npx_intrno, probeintr, SDT_SYS386IGT, SEL_KPL, GSEL(GCODE_SEL, SEL_KPL));
 	npx_idt_probeintr = idt[npx_intrno];
 	enable_intr();
-	result = npxprobe1(dvp);
+	result = npx_probe1(dev);
 	disable_intr();
 	outb(IO_ICU1 + 1, save_icu1_mask);
 	outb(IO_ICU2 + 1, save_icu2_mask);
@@ -239,8 +238,8 @@ npxprobe(dvp)
 }
 
 static int
-npxprobe1(dvp)
-	struct isa_device *dvp;
+npx_probe1(dev)
+	device_t dev;
 {
 #ifndef SMP
 	u_short control;
@@ -280,21 +279,18 @@ npxprobe1(dvp)
 	 */
 	fninit();
 
-#ifdef SMP
-
+/*#ifdef SMP*/
+#if 1
 	/*
 	 * Exception 16 MUST work for SMP.
 	 */
 	npx_irq13 = 0;
 	npx_ex16 = hw_float = npx_exists = 1;
-	dvp->id_irq = 0;	/* zap the interrupt */
-	/*
-	 * special return value to flag that we do not
-	 * actually use any I/O registers
-	 */
-	return (-1);
+	device_set_desc(dev, "math processor");
+	return (0);
 
-#else /* SMP */
+#else /* !SMP */
+	device_set_desc(dev, "math processor");
 
 	/*
 	 * Don't use fwait here because it might hang.
@@ -335,14 +331,12 @@ npxprobe1(dvp)
 				 * Good, exception 16 works.
 				 */
 				npx_ex16 = 1;
-				dvp->id_irq = 0;	/* zap the interrupt */
-				/*
-				 * special return value to flag that we do not
-				 * actually use any I/O registers
-				 */
-				return (-1);
+				return (0);
 			}
 			if (npx_intrs_while_probing != 0) {
+				int	rid;
+				struct	resource *r;
+				void	*intr;
 				/*
 				 * Bad, we are stuck with IRQ13.
 				 */
@@ -350,8 +344,30 @@ npxprobe1(dvp)
 				/*
 				 * npxattach would be too late to set npx0_imask.
 				 */
-				npx0_imask |= dvp->id_irq;
-				return (IO_NPXSIZE);
+				npx0_imask |= (1 << 13);
+
+				/*
+				 * We allocate these resources permanently,
+				 * so there is no need to keep track of them.
+				 */
+				rid = 0;
+				r = bus_alloc_resource(dev, SYS_RES_IOPORT,
+						       &rid, IO_NPX, IO_NPX,
+						       IO_NPXSIZE, RF_ACTIVE);
+				if (r == 0)
+					panic("npx: can't get ports");
+				rid = 0;
+				r = bus_alloc_resource(dev, SYS_RES_IRQ,
+						       &rid, 13, 13,
+						       1, RF_ACTIVE);
+				if (r == 0)
+					panic("npx: can't get IRQ");
+				BUS_SETUP_INTR(device_get_parent(dev),
+					       dev, r, npx_intr, 0, &intr);
+				if (intr == 0)
+					panic("npx: can't create intr");
+
+				return (0);
 			}
 			/*
 			 * Worse, even IRQ13 is broken.  Use emulator.
@@ -363,13 +379,7 @@ npxprobe1(dvp)
 	 * emulator and say that it has been installed.  XXX handle devices
 	 * that aren't really devices better.
 	 */
-	dvp->id_irq = 0;
-	/*
-	 * special return value to flag that we do not
-	 * actually use any I/O registers
-	 */
-	return (-1);
-
+	return (0);
 #endif /* SMP */
 }
 
@@ -377,14 +387,15 @@ npxprobe1(dvp)
  * Attach routine - announce which it is, and wire into system
  */
 int
-npxattach(dvp)
-	struct isa_device *dvp;
+npx_attach(dev)
+	device_t dev;
 {
-	dvp->id_ointr = npxintr;
+	int flags;
 
-	/* The caller has printed "irq 13" for the npx_irq13 case. */
-	if (!npx_irq13) {
-		printf("npx%d: ", dvp->id_unit);
+	device_print_prettyname(dev);
+	if (npx_irq13) {
+		printf("using IRQ 13 interface\n");
+	} else {
 		if (npx_ex16)
 			printf("INT 16 interface\n");
 #if defined(MATH_EMULATE) || defined(GPL_MATH_EMULATE)
@@ -401,23 +412,26 @@ npxattach(dvp)
 	npxinit(__INITIAL_NPXCW__);
 
 #ifdef I586_CPU
+	if (resource_int_value("npx", 0, "flags", &flags) != 0)
+		flags = 0;
+
 	if (cpu_class == CPUCLASS_586 && npx_ex16 &&
 	    timezero("i586_bzero()", i586_bzero) <
 	    timezero("bzero()", bzero) * 4 / 5) {
-		if (!(dvp->id_flags & NPX_DISABLE_I586_OPTIMIZED_BCOPY)) {
+		if (!(flags & NPX_DISABLE_I586_OPTIMIZED_BCOPY)) {
 			bcopy_vector = i586_bcopy;
 			ovbcopy_vector = i586_bcopy;
 		}
-		if (!(dvp->id_flags & NPX_DISABLE_I586_OPTIMIZED_BZERO))
+		if (!(flags & NPX_DISABLE_I586_OPTIMIZED_BZERO))
 			bzero = i586_bzero;
-		if (!(dvp->id_flags & NPX_DISABLE_I586_OPTIMIZED_COPYIO)) {
+		if (!(flags & NPX_DISABLE_I586_OPTIMIZED_COPYIO)) {
 			copyin_vector = i586_copyin;
 			copyout_vector = i586_copyout;
 		}
 	}
 #endif
 
-	return (1);		/* XXX unused */
+	return (0);		/* XXX unused */
 }
 
 /*
@@ -494,8 +508,8 @@ npxexit(p)
  * solution for signals other than SIGFPE.
  */
 void
-npxintr(unit)
-	int unit;
+npx_intr(dummy)
+	void *dummy;
 {
 	int code;
 	struct intrframe *frame;
@@ -518,7 +532,7 @@ npxintr(unit)
 	/*
 	 * Pass exception to process.
 	 */
-	frame = (struct intrframe *)&unit;	/* XXX */
+	frame = (struct intrframe *)&dummy;	/* XXX */
 	if ((ISPL(frame->if_cs) == SEL_UPL) || (frame->if_eflags & PSL_VM)) {
 		/*
 		 * Interrupt is essentially a trap, so we can afford to call
@@ -685,5 +699,32 @@ timezero(funcname, func)
 	return (usec);
 }
 #endif /* I586_CPU */
+
+static device_method_t npx_methods[] = {
+	/* Device interface */
+	DEVMETHOD(device_probe,		npx_probe),
+	DEVMETHOD(device_attach,	npx_attach),
+	DEVMETHOD(device_detach,	bus_generic_detach),
+	DEVMETHOD(device_shutdown,	bus_generic_shutdown),
+	DEVMETHOD(device_suspend,	bus_generic_suspend),
+	DEVMETHOD(device_resume,	bus_generic_resume),
+	
+	{ 0, 0 }
+};
+
+static driver_t npx_driver = {
+	"npx",
+	npx_methods,
+	DRIVER_TYPE_MISC,
+	1,			/* no softc */
+};
+
+static devclass_t npx_devclass;
+
+/*
+ * We prefer to attach to the root nexus so that the usual case (exception 16)
+ * doesn't describe the processor as being `on isa'.
+ */
+DRIVER_MODULE(npx, nexus, npx_driver, npx_devclass, 0, 0);
 
 #endif /* NNPX > 0 */

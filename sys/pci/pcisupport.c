@@ -1,6 +1,6 @@
 /**************************************************************************
 **
-**  $Id: pcisupport.c,v 1.94 1999/02/21 11:39:37 dfr Exp $
+**  $Id: pcisupport.c,v 1.95 1999/04/07 03:59:13 msmith Exp $
 **
 **  Device driver for DEC/INTEL PCI chipsets.
 **
@@ -41,6 +41,7 @@
 ***************************************************************************
 */
 
+#include "opt_bus.h"
 #include "opt_pci.h"
 #include "opt_smp.h"
 #include "intpm.h"
@@ -50,6 +51,7 @@
 #include <sys/systm.h>
 #include <sys/malloc.h>
 #include <sys/kernel.h>
+#include <sys/bus.h>
 
 #include <pci/pcivar.h>
 #include <pci/pcireg.h>
@@ -65,19 +67,7 @@
 **---------------------------------------------------------
 */
 
-static	const char*	chipset_probe (pcici_t tag, pcidi_t type);
-static	void	chipset_attach(pcici_t tag, int unit);
-static	u_long	chipset_count;
-
-static struct pci_device chipset_device = {
-	"chip",
-	chipset_probe,
-	chipset_attach,
-	&chipset_count,
-	NULL
-};
-
-DATA_SET (pcidevice_set, chipset_device);
+static	void	chipset_attach(device_t dev, int unit);
 
 struct condmsg {
     unsigned char	port;
@@ -127,20 +117,22 @@ generic_pci_bridge (pcici_t tag)
  */
 
 static void
-fixbushigh_orion(pcici_t tag)
+fixbushigh_orion(device_t dev)
 {
-	tag->secondarybus = pci_cfgread(tag, 0x4a, 1);
-	tag->subordinatebus = pci_cfgread(tag, 0x4b, 1);
+	pci_set_secondarybus(dev, pci_read_config(dev, 0x4a, 1));
+	pci_set_subordinatebus(dev, pci_read_config(dev, 0x4b, 1));
 }
 
 static void
-fixbushigh_i1225(pcici_t tag)
+fixbushigh_i1225(device_t dev)
 {
 	int sublementarybus;
 
-	sublementarybus = pci_cfgread(tag, 0x41, 1);
-	if (sublementarybus != 0xff)
-		tag->secondarybus = tag->subordinatebus = sublementarybus +1;
+	sublementarybus = pci_read_config(dev, 0x41, 1);
+	if (sublementarybus != 0xff) {
+		pci_set_secondarybus(dev, sublementarybus + 1);
+		pci_set_subordinatebus(dev, sublementarybus + 1);
+	}
 }
 
 
@@ -158,7 +150,7 @@ fixbushigh_i1225(pcici_t tag)
  * most sense.
  */
 static void
-fixbushigh_450nx(pcici_t tag)
+fixbushigh_450nx(device_t dev)
 {
 	int subordinatebus;
 	unsigned long devmap;
@@ -170,7 +162,7 @@ fixbushigh_450nx(pcici_t tag)
 	 * If this doesn't find all the PCI busses, complain to the
 	 * BIOS vendor.  There is nothing more we can do.
 	 */
-	devmap = pci_cfgread(tag, 0xd6, 2) & 0x3c;
+	devmap = pci_read_config(dev, 0xd6, 2) & 0x3c;
 	if (!devmap)
 		panic("450NX MIOC: No host to PCI bridges marked present.\n");
 	/*
@@ -178,13 +170,13 @@ fixbushigh_450nx(pcici_t tag)
 	 * find the highest bus, and use those numbers.
 	 */
 	if (devmap & 0x20) {			/* B1 */
-		subordinatebus = pci_cfgread(tag, 0xd5, 1);
+		subordinatebus = pci_read_config(dev, 0xd5, 1);
 	} else if (devmap & 0x10) {		/* A1 */
-		subordinatebus = pci_cfgread(tag, 0xd4, 1);
+		subordinatebus = pci_read_config(dev, 0xd4, 1);
 	} else if (devmap & 0x8) {		/* B0 */
-		subordinatebus = pci_cfgread(tag, 0xd2, 1);
+		subordinatebus = pci_read_config(dev, 0xd2, 1);
 	} else /* if (devmap & 0x4) */ {	/* A0 */
-		subordinatebus = pci_cfgread(tag, 0xd1, 1);
+		subordinatebus = pci_read_config(dev, 0xd1, 1);
 	}
 	if (subordinatebus == 255) {
 		printf("fixbushigh_450nx: bogus highest PCI bus %d",
@@ -201,214 +193,44 @@ fixbushigh_450nx(pcici_t tag)
 		printf("fixbushigh_450nx: subordinatebus is %d\n",
 			subordinatebus);
 
-	tag->secondarybus = tag->subordinatebus = subordinatebus;
+	pci_set_secondarybus(dev, subordinatebus);
+	pci_set_subordinatebus(dev, subordinatebus);
 }
 
 static void
-fixbushigh_Ross(pcici_t tag)
+fixbushigh_Ross(device_t dev)
 {
 	int secondarybus;
 
 	/* just guessing the secondary bus register number ... */
-	secondarybus = pci_cfgread(tag, 0x45, 1);
-	if (secondarybus != 0)
-		tag->secondarybus = tag->subordinatebus = secondarybus + 1;
+	secondarybus = pci_read_config(dev, 0x45, 1);
+	if (secondarybus != 0) {
+		pci_set_secondarybus(dev, secondarybus + 1);
+		pci_set_subordinatebus(dev, secondarybus + 1);
+	}
 }
 
 static void
-fixwsc_natoma(pcici_t tag)
+fixwsc_natoma(device_t dev)
 {
 	int pmccfg;
 
-	pmccfg = pci_cfgread(tag, 0x50, 2);
+	pmccfg = pci_read_config(dev, 0x50, 2);
 #if defined(SMP)
 	if (pmccfg & 0x8000) {
 		printf("Correcting Natoma config for SMP\n");
 		pmccfg &= ~0x8000;
-		pci_cfgwrite(tag, 0x50, 2, pmccfg);
+		pci_write_config(dev, 0x50, 2, pmccfg);
 	}
 #else
 	if ((pmccfg & 0x8000) == 0) {
 		printf("Correcting Natoma config for non-SMP\n");
 		pmccfg |= 0x8000;
-		pci_cfgwrite(tag, 0x50, 2, pmccfg);
+		pci_write_config(dev, 0x50, 2, pmccfg);
 	}
 #endif
 }
 		
-
-static const char*
-chipset_probe (pcici_t tag, pcidi_t type)
-{
-	unsigned	rev;
-	char		*descr;
-
-	switch (type) {
-	case 0x00088086:
-		/* Silently ignore this one! What is it, anyway ??? */
-		return ("");
-	case 0x04868086:
-		return ("Intel 82425EX PCI system controller");
-	case 0x04848086:
-		rev = (unsigned) pci_conf_read (tag, PCI_CLASS_REG) & 0xff;
-		if (rev == 3)
-		    return ("Intel 82378ZB PCI to ISA bridge");
-		return ("Intel 82378IB PCI to ISA bridge");
-	case 0x04838086:
-		return ("Intel 82424ZX (Saturn) cache DRAM controller");
-	case 0x04828086:
-		return ("Intel 82375EB PCI-EISA bridge");
-	case 0x04a38086:
-		rev = (unsigned) pci_conf_read (tag, PCI_CLASS_REG) & 0xff;
-		if (rev == 16 || rev == 17)
-		    return ("Intel 82434NX (Neptune) PCI cache memory controller");
-		return ("Intel 82434LX (Mercury) PCI cache memory controller");
-	case 0x12258086:
-		fixbushigh_i1225(tag);
-		return ("Intel 824?? host to PCI bridge");
-	case 0x122d8086:
-		return ("Intel 82437FX PCI cache memory controller");
-	case 0x122e8086:
-		return ("Intel 82371FB PCI to ISA bridge");
-	case 0x12348086:
-		return ("Intel 82371MX mobile PCI I/O IDE accelerator (MPIIX)");
-	case 0x12358086:
-		return ("Intel 82437MX mobile PCI cache memory controller");
-	case 0x12508086:
-		return ("Intel 82439");
-	case 0x70008086:
-		return ("Intel 82371SB PCI to ISA bridge");
-	case 0x70308086:
-		return ("Intel 82437VX PCI cache memory controller");
-	case 0x71008086:
-		return ("Intel 82439TX System Controller (MTXC)");
-	case 0x71108086:
-		return ("Intel 82371AB PCI to ISA bridge");
-	case 0x71138086:
-#if NINTPM > 0
-	        return NULL;	/* Need to stop generic_pci_bridge() */
-#else
-		return ("Intel 82371AB Power management controller");
-#endif
-	case 0x71908086:
-		return ("Intel 82443BX host to PCI bridge");
-	case 0x71918086:
-		return ("Intel 82443BX host to AGP bridge");
-	case 0x71928086:
-		return ("Intel 82443BX host to PCI bridge (AGP disabled)");
-	case 0x12378086:
-		fixwsc_natoma(tag);
-		return ("Intel 82440FX (Natoma) PCI and memory controller");
-	case 0x84c48086:
-		fixbushigh_orion(tag);
-		return ("Intel 82454KX/GX (Orion) host to PCI bridge");
-	case 0x84c58086:
-		return ("Intel 82453KX/GX (Orion) PCI memory controller");
-	case 0x84ca8086:
-		fixbushigh_450nx(tag);
-		return ("Intel 82451NX Memory and I/O Controller");
-	case 0x84cb8086:
-		return ("Intel 82454NX PCI Expander Bridge");
-	case 0x00221014:
-		return ("IBM 82351 PCI-PCI bridge");
-	case 0x00011011:
-		return ("DEC 21050 PCI-PCI bridge");
-	case 0x124b8086:
-		return ("Intel 82380FB mobile PCI to PCI bridge");
-	/* SiS -- vendor 0x1039 */
-	case 0x04961039:
-		return ("SiS 85c496");
-	case 0x04061039:
-		return ("SiS 85c501");
-	case 0x00081039:
-		return ("SiS 85c503");
-	case 0x06011039:
-		return ("SiS 85c601");
-	
-	/* VLSI -- vendor 0x1004 */
-	case 0x00051004:
-		return ("VLSI 82C592 Host to PCI bridge");
-	case 0x00061004:
-		return ("VLSI 82C593 PCI to ISA bridge");
-	case 0x01011004:
-		return ("VLSI 82C532 Eagle II Peripheral Controller");
-	case 0x01021004:
-		return ("VLSI 82C534 Eagle II PCI Bus bridge");
-	case 0x01031004:
-		return ("VLSI 82C538 Eagle II PCI Docking bridge");
-	case 0x01041004:
-		return ("VLSI 82C535 Eagle II System Controller");
-	case 0x01051004:
-		return ("VLSI 82C147 IrDA Controller");
-
-	/* VIA Technologies -- vendor 0x1106 
-	 * Note that the old Apollo Master chipset is not in here, as VIA
-	 * does not seem to have any docs on their website for it, and I do
-	 * not have a Master board in my posession. -LC */
-
-	case 0x05851106:
-		return("VIA 82C585 (Apollo VP1/VPX) system controller");
-	case 0x05861106: /* south bridge section -- IDE is covered in ide_pci.c */
-		return("VIA 82C586 PCI-ISA bridge");
-	case 0x05951106:
-	case 0x15951106:
-		return("VIA 82C595 (Apollo VP2) system controller");
-	case 0x05971106:
-		return("VIA 82C597 (Apollo VP3) system controller");
-	/* XXX need info on the MVP3 -- any takers? */
-	case 0x30401106:
-		return("VIA 82C586B ACPI interface");
-	/* XXX Here is MVP3, I got the datasheet but NO M/B to test it  */
-	/* totally. Please let me know if anything wrong.            -F */
-	case 0x05981106:
-		return("VIA 82C598MVP (Apollo MVP3) host bridge");
-	case 0x85981106:
-		return("VIA 82C598MVP (Apollo MVP3) PCI-PCI bridge");
-
-	/* AcerLabs -- vendor 0x10b9 */
-	/* Funny : The datasheet told me vendor id is "10b8",sub-vendor */
-	/* id is '10b9" but the register always shows "10b9". -Foxfair  */
-	case 0x154110b9:
-		return("AcerLabs M1541 (Aladdin-V) PCI host bridge");
-	case 0x153310b9:
-		return("AcerLabs M1533 portable PCI-ISA bridge");
-	case 0x154310b9:
-		return("AcerLabs M1543 desktop PCI-ISA bridge");
-	case 0x524710b9:
-		return("AcerLabs M5247 PCI-PCI(AGP Supported) bridge");
-	case 0x524310b9:/* 5243 seems like 5247, need more info to divide*/
-		return("AcerLabs M5243 PCI-PCI bridge");
-	case 0x710110b9:
-#if NALPM > 0
-	        return NULL;	/* Need to stop generic_pci_bridge() */
-#else
-		return("AcerLabs M15x3 Power Management Unit");
-#endif
-
-	/* NEC -- vendor 0x1033 */
-	case 0x00011033:
-		return ("NEC 0001 PCI to PC-98 C-bus bridge");
-	case 0x00021033:
-		return ("NEC 0002 PCI to PC-98 local bus bridge");
-	case 0x00161033:
-		return ("NEC 0016 PCI to PC-98 local bus bridge");
-	case 0x002c1033:
-		return ("NEC 002C PCI to PC-98 C-bus bridge");
-	case 0x003b1033:
-		return ("NEC 003B PCI to PC-98 C-bus bridge");
-
-	/* Ross (?) -- vendor 0x1166 */
-	case 0x00051166:
-		fixbushigh_Ross(tag);
-		return ("Ross (?) host to PCI bridge");
-	};
-
-	if ((descr = generic_pci_bridge(tag)) != NULL)
-		return descr;
-
-	return NULL;
-}
-
 #ifndef PCI_QUIET
 
 #define	M_XX 0	/* end of list */
@@ -848,17 +670,8 @@ static const struct condmsg conf82371fb2[] =
     { 0 }
 };
 
-static char confread (pcici_t config_id, int port)
-{
-    unsigned long portw = port & ~3;
-    unsigned long ports = (port - portw) << 3;
-
-    unsigned long l = pci_conf_read (config_id, portw);
-    return (l >> ports);
-}
-
 static void
-writeconfig (pcici_t config_id, const struct condmsg *tbl)
+writeconfig (device_t dev, const struct condmsg *tbl)
 {
     while (tbl->flags != M_XX) {
 	const char *text = 0;
@@ -866,7 +679,7 @@ writeconfig (pcici_t config_id, const struct condmsg *tbl)
 	if (tbl->flags == M_TR) {
 	    text = tbl->text;
 	} else {
-	    unsigned char v = (unsigned char) confread(config_id, tbl->port);
+	    unsigned char v = pci_read_config(dev, tbl->port, 1);
 	    switch (tbl->flags) {
     case M_EQ:
 		if ((v & tbl->mask) == tbl->value) text = tbl->text;
@@ -888,14 +701,14 @@ writeconfig (pcici_t config_id, const struct condmsg *tbl)
 
 #ifdef DUMPCONFIGSPACE
 static void
-dumpconfigspace (pcici_t tag)
+dumpconfigspace (device_t dev)
 {
     int reg;
     printf ("configuration space registers:");
     for (reg = 0; reg < 0x100; reg+=4) {
 	if ((reg & 0x0f) == 0) 
 	    printf ("\n%02x:\t", reg);
-	printf ("%08x ", pci_conf_read (tag, reg));
+	printf ("%08x ", pci_read_config(dev, reg, 4));
     }
     printf ("\n");
 }
@@ -904,48 +717,447 @@ dumpconfigspace (pcici_t tag)
 #endif /* PCI_QUIET */
 
 static void
-chipset_attach (pcici_t config_id, int unit)
+chipset_attach (device_t dev, int unit)
 {
 #ifndef PCI_QUIET
 	if (!bootverbose)
 		return;
 
-	switch (pci_conf_read (config_id, PCI_ID_REG)) {
+	switch (pci_get_devid(dev)) {
 	case 0x04868086:
-		writeconfig (config_id, conf82425ex);
+		writeconfig (dev, conf82425ex);
 		break;
 	case 0x04838086:
-		writeconfig (config_id, conf82424zx);
+		writeconfig (dev, conf82424zx);
 		break;
 	case 0x04a38086:
-		writeconfig (config_id, conf82434lx);
+		writeconfig (dev, conf82434lx);
 		break;
 	case 0x04848086:
-		writeconfig (config_id, conf82378);
+		writeconfig (dev, conf82378);
 		break;
 	case 0x122d8086:
-		writeconfig (config_id, conf82437fx);
+		writeconfig (dev, conf82437fx);
 		break;
 	case 0x70308086:
-		writeconfig (config_id, conf82437vx);
+		writeconfig (dev, conf82437vx);
 		break;
 	case 0x70008086:
 	case 0x122e8086:
-		writeconfig (config_id, conf82371fb);
+		writeconfig (dev, conf82371fb);
 		break;
 	case 0x70108086:
 	case 0x12308086:
-		writeconfig (config_id, conf82371fb2);
+		writeconfig (dev, conf82371fb2);
 		break;
 #if 0
 	case 0x00011011: /* DEC 21050 */
 	case 0x00221014: /* IBM xxx */
-		writeconfig (config_id, conf_pci2pci);
+		writeconfig (dev, conf_pci2pci);
 		break;
 #endif
 	};
 #endif /* PCI_QUIET */
 }
+
+static const char *
+pci_bridge_type(device_t dev)
+{
+    char *descr, tmpbuf[120];
+
+    if (pci_get_class(dev) != PCIC_BRIDGE)
+	    return NULL;
+
+    switch (pci_get_subclass(dev)) {
+    case PCIS_BRIDGE_HOST:	strcpy(tmpbuf, "Host to PCI"); break;
+    case PCIS_BRIDGE_ISA:	strcpy(tmpbuf, "PCI to ISA"); break;
+    case PCIS_BRIDGE_EISA:	strcpy(tmpbuf, "PCI to EISA"); break;
+    case PCIS_BRIDGE_MCA:	strcpy(tmpbuf, "PCI to MCA"); break;
+    case PCIS_BRIDGE_PCI:	strcpy(tmpbuf, "PCI to PCI"); break;
+    case PCIS_BRIDGE_PCMCIA:	strcpy(tmpbuf, "PCI to PCMCIA"); break;
+    case PCIS_BRIDGE_NUBUS:	strcpy(tmpbuf, "PCI to NUBUS"); break;
+    case PCIS_BRIDGE_CARDBUS:	strcpy(tmpbuf, "PCI to CardBus"); break;
+    default: 
+	    snprintf(tmpbuf, sizeof(tmpbuf),
+		     "PCI to 0x%x", pci_get_subclass(dev)); 
+	    break;
+    }
+    snprintf(tmpbuf+strlen(tmpbuf), sizeof(tmpbuf)-strlen(tmpbuf),
+	     " bridge (vendor=%04x device=%04x)",
+	     pci_get_vendor(dev), pci_get_device(dev));
+    descr = malloc (strlen(tmpbuf) +1, M_DEVBUF, M_WAITOK);
+    strcpy(descr, tmpbuf);
+    return descr;
+}
+
+static const char*
+pcib_match(device_t dev)
+{
+	switch (pci_get_devid(dev)) {
+	case 0x84cb8086:
+		return ("Intel 82454NX PCI Expander Bridge");
+	case 0x00221014:
+		return ("IBM 82351 PCI-PCI bridge");
+	case 0x00011011:
+		return ("DEC 21050 PCI-PCI bridge");
+	case 0x124b8086:
+		return ("Intel 82380FB mobile PCI to PCI bridge");
+	
+	/* VLSI -- vendor 0x1004 */
+	case 0x01021004:
+		return ("VLSI 82C534 Eagle II PCI Bus bridge");
+	case 0x01031004:
+		return ("VLSI 82C538 Eagle II PCI Docking bridge");
+
+	/* XXX Here is MVP3, I got the datasheet but NO M/B to test it  */
+	/* totally. Please let me know if anything wrong.            -F */
+	case 0x85981106:
+		return("VIA 82C598MVP (Apollo MVP3) PCI-PCI bridge");
+
+	/* AcerLabs -- vendor 0x10b9 */
+	/* Funny : The datasheet told me vendor id is "10b8",sub-vendor */
+	/* id is '10b9" but the register always shows "10b9". -Foxfair  */
+	case 0x524710b9:
+		return("AcerLabs M5247 PCI-PCI(AGP Supported) bridge");
+	case 0x524310b9:/* 5243 seems like 5247, need more info to divide*/
+		return("AcerLabs M5243 PCI-PCI bridge");
+
+	};
+
+	if (pci_get_class(dev) == PCIC_BRIDGE
+	    && pci_get_subclass(dev) == PCIS_BRIDGE_PCI)
+		return pci_bridge_type(dev);
+
+	return NULL;
+}
+
+static int pcib_probe(device_t dev)
+{
+	const char *desc;
+
+	desc = pcib_match(dev);
+	if (desc) {
+		device_set_desc_copy(dev, desc);
+		return 0;
+	}
+
+	return ENXIO;
+}
+
+static int pcib_attach(device_t dev)
+{
+	struct pci_devinfo *dinfo;
+	pcicfgregs *cfg;
+
+	dinfo = device_get_ivars(dev);
+	cfg = &dinfo->cfg;
+
+	chipset_attach(dev, device_get_unit(dev));
+
+	if (cfg->secondarybus) {
+		device_add_child(dev, "pci", cfg->secondarybus, 0);
+		return bus_generic_attach(dev);
+	} else
+		return 0;
+}
+
+static device_method_t pcib_methods[] = {
+	/* Device interface */
+	DEVMETHOD(device_probe,		pcib_probe),
+	DEVMETHOD(device_attach,	pcib_attach),
+	DEVMETHOD(device_shutdown,	bus_generic_shutdown),
+
+	/* Bus interface */
+	DEVMETHOD(bus_print_child,	bus_generic_print_child),
+	DEVMETHOD(bus_alloc_resource,	bus_generic_alloc_resource),
+	DEVMETHOD(bus_release_resource,	bus_generic_release_resource),
+	DEVMETHOD(bus_activate_resource, bus_generic_activate_resource),
+	DEVMETHOD(bus_deactivate_resource, bus_generic_deactivate_resource),
+	DEVMETHOD(bus_setup_intr,	bus_generic_setup_intr),
+	DEVMETHOD(bus_teardown_intr,	bus_generic_teardown_intr),
+
+	{ 0, 0 }
+};
+
+static driver_t pcib_driver = {
+	"pcib",
+	pcib_methods,
+	DRIVER_TYPE_MISC,
+	1,
+};
+
+static devclass_t pcib_devclass;
+
+DRIVER_MODULE(pcib, pci, pcib_driver, pcib_devclass, 0, 0);
+
+static const char *
+isab_match(device_t dev)
+{
+	unsigned	rev;
+
+	switch (pci_get_devid(dev)) {
+	case 0x04848086:
+		rev = pci_get_revid(dev);
+		if (rev == 3)
+		    return ("Intel 82378ZB PCI to ISA bridge");
+		return ("Intel 82378IB PCI to ISA bridge");
+	case 0x04828086:
+		return ("Intel 82375EB PCI-EISA bridge");
+	case 0x122e8086:
+		return ("Intel 82371FB PCI to ISA bridge");
+	case 0x70008086:
+		return ("Intel 82371SB PCI to ISA bridge");
+	case 0x71108086:
+		return ("Intel 82371AB PCI to ISA bridge");
+	
+	/* VLSI -- vendor 0x1004 */
+	case 0x00061004:
+		return ("VLSI 82C593 PCI to ISA bridge");
+
+	/* VIA Technologies -- vendor 0x1106 
+	 * Note that the old Apollo Master chipset is not in here, as VIA
+	 * does not seem to have any docs on their website for it, and I do
+	 * not have a Master board in my posession. -LC */
+
+	case 0x05861106: /* south bridge section -- IDE is covered in ide_pci.c */
+		return("VIA 82C586 PCI-ISA bridge");
+
+	/* AcerLabs -- vendor 0x10b9 */
+	/* Funny : The datasheet told me vendor id is "10b8",sub-vendor */
+	/* id is '10b9" but the register always shows "10b9". -Foxfair  */
+	case 0x153310b9:
+		return("AcerLabs M1533 portable PCI-ISA bridge");
+	case 0x154310b9:
+		return("AcerLabs M1543 desktop PCI-ISA bridge");
+	}
+
+	if (pci_get_class(dev) == PCIC_BRIDGE
+	    && (pci_get_subclass(dev) == PCIS_BRIDGE_ISA
+		|| pci_get_subclass(dev) == PCIS_BRIDGE_EISA))
+		return pci_bridge_type(dev);
+
+	return NULL;
+}
+
+static int
+isab_probe(device_t dev)
+{
+	const char *desc;
+
+	desc = isab_match(dev);
+	if (desc) {
+		device_set_desc_copy(dev, desc);
+		/* Don't bother adding more than one ISA bus */
+		if (!devclass_get_device(devclass_find("isa"), 0))
+			device_add_child(dev, "isa", -1, 0);
+		return 0;
+	}
+
+	return ENXIO;
+}
+
+static device_method_t isab_methods[] = {
+	/* Device interface */
+	DEVMETHOD(device_probe,		isab_probe),
+	DEVMETHOD(device_attach,	bus_generic_attach),
+	DEVMETHOD(device_shutdown,	bus_generic_shutdown),
+
+	/* Bus interface */
+	DEVMETHOD(bus_print_child,	bus_generic_print_child),
+	DEVMETHOD(bus_alloc_resource,	bus_generic_alloc_resource),
+	DEVMETHOD(bus_release_resource,	bus_generic_release_resource),
+	DEVMETHOD(bus_activate_resource, bus_generic_activate_resource),
+	DEVMETHOD(bus_deactivate_resource, bus_generic_deactivate_resource),
+	DEVMETHOD(bus_setup_intr,	bus_generic_setup_intr),
+	DEVMETHOD(bus_teardown_intr,	bus_generic_teardown_intr),
+
+	{ 0, 0 }
+};
+
+static driver_t isab_driver = {
+	"isab",
+	isab_methods,
+	DRIVER_TYPE_MISC,
+	1,
+};
+
+static devclass_t isab_devclass;
+
+DRIVER_MODULE(isab, pci, isab_driver, isab_devclass, 0, 0);
+
+static const char*
+chip_match(device_t dev)
+{
+	unsigned	rev;
+
+	switch (pci_get_devid(dev)) {
+	case 0x00088086:
+		/* Silently ignore this one! What is it, anyway ??? */
+		return ("");
+	case 0x71108086:
+		/*
+		 * On my laptop (Tecra 8000DVD), this device has a
+		 * bogus subclass 0x80 so make sure that it doesn't
+		 * match the generic 'chip' driver by accident.
+		 */
+		return NULL;
+	case 0x12258086:
+		fixbushigh_i1225(dev);
+		return ("Intel 824?? host to PCI bridge");
+	case 0x71908086:
+		return ("Intel 82443BX host to PCI bridge");
+	case 0x71918086:
+		return ("Intel 82443BX host to AGP bridge");
+	case 0x71928086:
+		return ("Intel 82443BX host to PCI bridge (AGP disabled)");
+	case 0x84c48086:
+		fixbushigh_orion(dev);
+		return ("Intel 82454KX/GX (Orion) host to PCI bridge");
+	case 0x84ca8086:
+		fixbushigh_450nx(dev);
+		return ("Intel 82451NX Memory and I/O Controller");
+	case 0x04868086:
+		return ("Intel 82425EX PCI system controller");
+	case 0x04838086:
+		return ("Intel 82424ZX (Saturn) cache DRAM controller");
+	case 0x04a38086:
+		rev = pci_get_revid(dev);
+		if (rev == 16 || rev == 17)
+		    return ("Intel 82434NX (Neptune) PCI cache memory controller");
+		return ("Intel 82434LX (Mercury) PCI cache memory controller");
+	case 0x122d8086:
+		return ("Intel 82437FX PCI cache memory controller");
+	case 0x12348086:
+		return ("Intel 82371MX mobile PCI I/O IDE accelerator (MPIIX)");
+	case 0x12358086:
+		return ("Intel 82437MX mobile PCI cache memory controller");
+	case 0x12508086:
+		return ("Intel 82439");
+	case 0x70308086:
+		return ("Intel 82437VX PCI cache memory controller");
+	case 0x71008086:
+		return ("Intel 82439TX System Controller (MTXC)");
+
+	case 0x71138086:
+		return ("Intel 82371AB Power management controller");
+	case 0x12378086:
+		fixwsc_natoma(dev);
+		return ("Intel 82440FX (Natoma) PCI and memory controller");
+	case 0x84c58086:
+		return ("Intel 82453KX/GX (Orion) PCI memory controller");
+	/* SiS -- vendor 0x1039 */
+	case 0x04961039:
+		return ("SiS 85c496");
+	case 0x04061039:
+		return ("SiS 85c501");
+	case 0x00081039:
+		return ("SiS 85c503");
+	case 0x06011039:
+		return ("SiS 85c601");
+	
+	/* VLSI -- vendor 0x1004 */
+	case 0x00051004:
+		return ("VLSI 82C592 Host to PCI bridge");
+	case 0x01011004:
+		return ("VLSI 82C532 Eagle II Peripheral Controller");
+	case 0x01041004:
+		return ("VLSI 82C535 Eagle II System Controller");
+	case 0x01051004:
+		return ("VLSI 82C147 IrDA Controller");
+
+	/* VIA Technologies -- vendor 0x1106 
+	 * Note that the old Apollo Master chipset is not in here, as VIA
+	 * does not seem to have any docs on their website for it, and I do
+	 * not have a Master board in my posession. -LC */
+
+	case 0x05851106:
+		return("VIA 82C585 (Apollo VP1/VPX) system controller");
+	case 0x05951106:
+	case 0x15951106:
+		return("VIA 82C595 (Apollo VP2) system controller");
+	case 0x05971106:
+		return("VIA 82C597 (Apollo VP3) system controller");
+	/* XXX Here is MVP3, I got the datasheet but NO M/B to test it  */
+	/* totally. Please let me know if anything wrong.            -F */
+	/* XXX need info on the MVP3 -- any takers? */
+	case 0x05981106:
+		return("VIA 82C598MVP (Apollo MVP3) host bridge");
+	case 0x30401106:
+		return("VIA 82C586B ACPI interface");
+#if 0
+	/* XXX New info added-in */
+        case 0x05711106:
+		return("VIA 82C586B IDE controller");
+	case 0x30381106:
+		return("VIA 82C586B USB controller");
+#endif
+
+	/* NEC -- vendor 0x1033 */
+	case 0x00011033:
+		return ("NEC 0001 PCI to PC-98 C-bus bridge");
+	case 0x00021033:
+		return ("NEC 0002 PCI to PC-98 local bus bridge");
+	case 0x00161033:
+		return ("NEC 0016 PCI to PC-98 local bus bridge");
+	case 0x002c1033:
+		return ("NEC 002C PCI to PC-98 C-bus bridge");
+	case 0x003b1033:
+		return ("NEC 003B PCI to PC-98 C-bus bridge");
+
+	/* AcerLabs -- vendor 0x10b9 */
+	/* Funny : The datasheet told me vendor id is "10b8",sub-vendor */
+	/* id is '10b9" but the register always shows "10b9". -Foxfair  */
+	case 0x154110b9:
+		return("AcerLabs M1541 (Aladdin-V) PCI host bridge");
+	};
+
+	if (pci_get_class(dev) == PCIC_BRIDGE
+	    && pci_get_subclass(dev) != PCIS_BRIDGE_PCI
+	    && pci_get_subclass(dev) != PCIS_BRIDGE_ISA
+	    && pci_get_subclass(dev) != PCIS_BRIDGE_EISA)
+		return pci_bridge_type(dev);
+
+	return NULL;
+}
+
+static int chip_probe(device_t dev)
+{
+	const char *desc;
+
+	desc = chip_match(dev);
+	if (desc) {
+		device_set_desc_copy(dev, desc);
+		return 0;
+	}
+
+	return ENXIO;
+}
+
+static int chip_attach(device_t dev)
+{
+	chipset_attach(dev, device_get_unit(dev));
+
+	return 0;
+}
+
+static device_method_t chip_methods[] = {
+	/* Device interface */
+	DEVMETHOD(device_probe,		chip_probe),
+	DEVMETHOD(device_attach,	chip_attach),
+
+	{ 0, 0 }
+};
+
+static driver_t chip_driver = {
+	"chip",
+	chip_methods,
+	DRIVER_TYPE_MISC,
+	1,
+};
+
+static devclass_t chip_devclass;
+
+DRIVER_MODULE(chip, pci, chip_driver, chip_devclass, 0, 0);
 
 /*---------------------------------------------------------
 **
@@ -957,29 +1169,16 @@ chipset_attach (pcici_t config_id, int unit)
 **---------------------------------------------------------
 */
 
-static	const char*	vga_probe  (pcici_t tag, pcidi_t type);
-static	void	vga_attach (pcici_t tag, int unit);
-static	u_long	vga_count;
-
-static struct pci_device vga_device = {
-	"vga",
-	vga_probe,
-	vga_attach,
-	&vga_count,
-	NULL
-};
-
-DATA_SET (pcidevice_set, vga_device);
-
-static const char* vga_probe (pcici_t tag, pcidi_t typea)
+static const char* vga_match(device_t dev)
 {
-	int data = pci_conf_read(tag, PCI_CLASS_REG);
-	u_int id = pci_conf_read(tag, PCI_ID_REG);
+	/* int data = pci_conf_read(tag, PCI_CLASS_REG); */
+	u_int id = pci_get_devid(dev);
 	const char *vendor, *chip, *type;
 
-	vendor = chip = type = 0;
+	return 0;		/* XXX interferes with syscons */
 
-	switch (id & 0xffff) {
+	vendor = chip = type = 0;
+	switch (id) {
 	case 0x10c8:
 		vendor = "NeoMagic";
 		switch (id >> 16) {
@@ -1209,20 +1408,18 @@ static const char* vga_probe (pcici_t tag, pcidi_t typea)
 		return buf;
 	}
 
-	switch (data & PCI_CLASS_MASK) {
+	switch (pci_get_class(dev)) {
 
-	case PCI_CLASS_PREHISTORIC:
-		if ((data & PCI_SUBCLASS_MASK)
-			!= PCI_SUBCLASS_PREHISTORIC_VGA)
+	case PCIC_OLD:
+		if (pci_get_subclass(dev) != PCIS_OLD_VGA)
 			return 0;
 		if (type == 0)
 			type = "VGA-compatible display device";
 		break;
 
-	case PCI_CLASS_DISPLAY:
+	case PCIC_DISPLAY:
 		if (type == 0) {
-			if ((data & PCI_SUBCLASS_MASK)
-			    == PCI_SUBCLASS_DISPLAY_VGA)
+			if (pci_get_subclass(dev) != PCIS_DISPLAY_VGA)
 				type = "VGA-compatible display device";
 			else {
 				/*
@@ -1260,7 +1457,20 @@ static const char* vga_probe (pcici_t tag, pcidi_t typea)
 	return type;
 }
 
-static void vga_attach (pcici_t tag, int unit)
+static int vga_probe(device_t dev)
+{
+	const char *desc;
+
+	desc = vga_match(dev);
+	if (desc) {
+		device_set_desc(dev, desc);
+		return 0;
+	}
+
+	return ENXIO;
+}
+
+static int vga_attach(device_t dev)
 {
 /*
 **	If the assigned addresses are remapped,
@@ -1273,42 +1483,27 @@ static void vga_attach (pcici_t tag, int unit)
 	for (reg = PCI_MAP_REG_START; reg < PCI_MAP_REG_END; reg += 4)
 		(void) pci_map_mem (tag, reg, &va, &pa);
 #endif
+	return 0;
 }
 
-/*---------------------------------------------------------
-**
-**	Hook for loadable pci drivers
-**
-**---------------------------------------------------------
-*/
+static device_method_t vga_methods[] = {
+	/* Device interface */
+	DEVMETHOD(device_probe,		vga_probe),
+	DEVMETHOD(device_attach,	vga_attach),
 
-static	const char*	lkm_probe  (pcici_t tag, pcidi_t type);
-static	void	lkm_attach (pcici_t tag, int unit);
-static	u_long	lkm_count;
-
-static struct pci_device lkm_device = {
-	"lkm",
-	lkm_probe,
-	lkm_attach,
-	&lkm_count,
-	NULL
+	{ 0, 0 }
 };
 
-DATA_SET (pcidevice_set, lkm_device);
+static driver_t vga_driver = {
+	"vga",
+	vga_methods,
+	DRIVER_TYPE_MISC,
+	1,
+};
 
-static const char*
-lkm_probe (pcici_t tag, pcidi_t type)
-{
-	/*
-	**	Not yet!
-	**	(Should try to load a matching driver)
-	*/
-	return ((char*)0);
-}
+static devclass_t vga_devclass;
 
-static void
-lkm_attach (pcici_t tag, int unit)
-{}
+DRIVER_MODULE(vga, pci, vga_driver, vga_devclass, 0, 0);
 
 /*---------------------------------------------------------
 **
@@ -1317,32 +1512,39 @@ lkm_attach (pcici_t tag, int unit)
 **---------------------------------------------------------
 */
 
-static	const char*	ign_probe  (pcici_t tag, pcidi_t type);
-static	void	ign_attach (pcici_t tag, int unit);
-static	u_long	ign_count;
-
-static struct pci_device ign_device = {
-	NULL,
-	ign_probe,
-	ign_attach,
-	&ign_count,
-	NULL
-};
-
-DATA_SET (pcidevice_set, ign_device);
-
-static const char*
-ign_probe (pcici_t tag, pcidi_t type)
+static int
+ign_probe (device_t dev)
 {
-	switch (type) {
+	switch (pci_get_devid(dev)) {
 
 	case 0x10001042ul:	/* wd */
-		return ("");
+		return 0;
 /*		return ("SMC FDC 37c665");*/
 	};
-	return ((char*)0);
+	return ENXIO;
 }
 
-static void
-ign_attach (pcici_t tag, int unit)
-{}
+static int
+ign_attach (device_t dev)
+{
+	return 0;
+}
+
+static device_method_t ign_methods[] = {
+	/* Device interface */
+	DEVMETHOD(device_probe,		ign_probe),
+	DEVMETHOD(device_attach,	ign_attach),
+
+	{ 0, 0 }
+};
+
+static driver_t ign_driver = {
+	"ign",
+	ign_methods,
+	DRIVER_TYPE_MISC,
+	1,
+};
+
+static devclass_t ign_devclass;
+
+DRIVER_MODULE(ign, pci, ign_driver, ign_devclass, 0, 0);

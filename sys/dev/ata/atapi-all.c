@@ -25,7 +25,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *	$Id: atapi-all.c,v 1.5 1999/03/28 18:57:19 sos Exp $
+ *	$Id: atapi-all.c,v 1.6 1999/04/10 18:53:35 sos Exp $
  */
 
 #include "ata.h"
@@ -310,13 +310,13 @@ printf("atapi_interrupt: length=%d reason=0x%02x\n", length, reason);
 	    printf("atapi_interrupt: write data underrun %d/%d\n",
 		   length, request->bytecount);
 	    outsw(atp->controller->ioaddr + ATA_DATA, 
-		  (void *)((int32_t)request->data), length / sizeof(int16_t));
+		  (void *)((uintptr_t)request->data), length / sizeof(int16_t));
 	    for (resid=request->bytecount; resid<length; resid+=sizeof(int16_t))
 		outw(atp->controller->ioaddr + ATA_DATA, 0);
 	}
 	else {
 	    outsw(atp->controller->ioaddr + ATA_DATA, 
-                  (void *)((int32_t)request->data), length / sizeof(int16_t));
+                  (void *)((uintptr_t)request->data), length / sizeof(int16_t));
 	}
 	request->bytecount -= length;
 	request->data += length;
@@ -331,13 +331,13 @@ printf("atapi_interrupt: length=%d reason=0x%02x\n", length, reason);
             printf("atapi_interrupt: read data overrun %d/%d\n",
                    length, request->bytecount);
             insw(atp->controller->ioaddr + ATA_DATA, 
-                  (void *)((int32_t)request->data), length / sizeof(int16_t));
+                  (void *)((uintptr_t)request->data), length / sizeof(int16_t));
             for (resid=request->bytecount; resid<length; resid+=sizeof(int16_t))
                 inw(atp->controller->ioaddr + ATA_DATA);
         }                       
         else {
             insw(atp->controller->ioaddr + ATA_DATA,
-                  (void *)((int32_t)request->data), length / sizeof(int16_t));
+                  (void *)((uintptr_t)request->data), length / sizeof(int16_t));
         }
 	request->bytecount -= length;
 	request->data += length;

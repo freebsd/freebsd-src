@@ -1,7 +1,7 @@
 # This file tells config what files go into building a kernel,
 # files marked standard are always included.
 #
-#	$Id: files.i386,v 1.234 1999/04/13 19:38:10 peter Exp $
+#	$Id: files.i386,v 1.235 1999/04/15 14:52:23 bde Exp $
 #
 # The long compile-with and dependency lines are required because of
 # limitations in config: backslash-newline doesn't work in strings, and
@@ -90,6 +90,7 @@ i386/i386/mp_machdep.c		optional	smp
 i386/i386/mpapic.c		optional	smp
 i386/i386/mpboot.s		optional	smp
 i386/i386/mplock.s		optional	smp
+i386/i386/nexus.c		standard
 i386/i386/perfmon.c		optional	perfmon	profiling-routine
 i386/i386/perfmon.c		optional	perfmon
 i386/i386/pmap.c		standard
@@ -125,8 +126,8 @@ i386/ibcs2/imgact_coff.c	optional	ibcs2
 i386/isa/adv_isa.c		optional	adv	device-driver
 #i386/isa/aha1542.c		optional	aha	device-driver
 i386/isa/aha_isa.c		optional	aha	device-driver
-i386/isa/atkbd_isa.c		optional	atkbd	device-driver
-i386/isa/atkbdc_isa.c		optional	atkbdc	device-driver
+isa/atkbd_isa.c			optional	atkbd	device-driver
+isa/atkbdc_isa.c		optional	atkbdc	device-driver
 i386/isa/bt_isa.c		optional	bt	device-driver
 i386/isa/clock.c		standard
 i386/isa/cronyx.c		optional	cx	device-driver
@@ -177,6 +178,8 @@ i386/isa/mse.c			optional	mse	device-driver
 i386/isa/npx.c			mandatory	npx	device-driver
 i386/isa/pcaudio.c		optional	pca	device-driver
 i386/isa/matcd/matcd.c		optional	matcd	device-driver
+i386/isa/isa_compat.c		optional	isa	device-driver
+i386/isa/isa_dma.c		optional	isa	device-driver
 i386/isa/pcibus.c		optional	pci	device-driver
 i386/isa/pcicx.c		optional	ze	device-driver
 i386/isa/pcicx.c		optional	zp	device-driver
@@ -190,7 +193,7 @@ i386/isa/pnp.c			optional	pnp	device-driver
 i386/isa/prof_machdep.c		optional	profiling-routine
 i386/isa/ppc.c			optional	ppc	device-driver
 i386/isa/pcf.c			optional	pcf	device-driver
-i386/isa/psm.c			optional	psm	device-driver
+isa/psm.c			optional	psm	device-driver
 i386/isa/random_machdep.c	standard
 i386/isa/rc.c			optional	rc	device-driver
 i386/isa/rp.c			optional	rp	device-driver
@@ -198,7 +201,7 @@ i386/isa/scd.c			optional	scd	device-driver
 i386/isa/si.c			optional	si	device-driver
 i386/isa/si2_z280.c		optional	si	device-driver
 i386/isa/si3_t225.c		optional	si	device-driver
-i386/isa/sio.c			optional	sio	device-driver
+isa/sio.c			optional	sio	device-driver
 i386/isa/snd/sound.c		optional	pcm	device-driver
 i386/isa/snd/dmabuf.c		optional	pcm	device-driver
 i386/isa/snd/ad1848.c		optional	pcm	device-driver
@@ -268,9 +271,9 @@ i386/isa/sound/cs4232.c		optional	css	device-driver
 i386/isa/spigot.c		optional	spigot	device-driver
 i386/isa/spkr.c			optional	speaker	device-driver
 i386/isa/stallion.c		optional	stl	device-driver
-i386/isa/syscons_isa.c		optional	sc	device-driver
+isa/syscons_isa.c		optional	sc	device-driver
 i386/isa/vesa.c			optional	vga	device-driver
-i386/isa/vga_isa.c		optional	vga	device-driver
+isa/vga_isa.c			optional	vga	device-driver
 i386/isa/tw.c			optional	tw	device-driver
 i386/isa/wd.c			optional	wdc	device-driver
 i386/isa/wd.c			optional	wd	device-driver

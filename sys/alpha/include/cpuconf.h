@@ -73,6 +73,7 @@ extern struct platform {
 	void    (*pci_intr_map) __P((void *));
 	void    (*pci_intr_disable) __P((int));
 	void    (*pci_intr_enable) __P((int));
+	int	(*pci_setup_ide_intr) __P((int chan, void (*fn)(void*), void *arg));
 } platform;
 
 /*

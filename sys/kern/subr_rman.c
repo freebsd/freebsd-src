@@ -26,7 +26,7 @@
  * OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: subr_rman.c,v 1.5 1999/03/29 08:30:17 dfr Exp $
+ *	$Id: subr_rman.c,v 1.6 1999/04/11 02:27:06 eivind Exp $
  */
 
 /*
@@ -62,8 +62,9 @@
 #include <sys/kernel.h>
 #include <sys/lock.h>
 #include <sys/malloc.h>
-#include <sys/rman.h>
 #include <sys/bus.h>		/* XXX debugging */
+#include <machine/bus.h>
+#include <sys/rman.h>
 
 static MALLOC_DEFINE(M_RMAN, "rman", "Resource manager");
 
@@ -73,6 +74,7 @@ static	struct simplelock rman_lock; /* mutex to protect rman_head */
 #endif
 static	int int_rman_activate_resource(struct rman *rm, struct resource *r,
 				       struct resource **whohas);
+static	int int_rman_deactivate_resource(struct resource *r);
 static	int int_rman_release_resource(struct rman *rm, struct resource *r);
 
 #define	CIRCLEQ_TERMCOND(var, head)	(var == (void *)&(head))
@@ -117,6 +119,7 @@ rman_manage_region(struct rman *rm, u_long start, u_long end)
 	r = malloc(sizeof *r, M_RMAN, M_NOWAIT);
 	if (r == 0)
 		return ENOMEM;
+	bzero(r, sizeof *r);
 	r->r_sharehead = 0;
 	r->r_start = start;
 	r->r_end = end;
@@ -148,8 +151,10 @@ rman_fini(struct rman *rm)
 	simple_lock(rm->rm_slock);
 	for (r = rm->rm_list.cqh_first;	!CIRCLEQ_TERMCOND(r, rm->rm_list);
 	     r = r->r_link.cqe_next) {
-		if (r->r_flags & RF_ALLOCATED)
+		if (r->r_flags & RF_ALLOCATED) {
+			simple_unlock(rm->rm_slock);
 			return EBUSY;
+		}
 	}
 
 	/*
@@ -254,14 +259,16 @@ rman_reserve_resource(struct rman *rm, u_long start, u_long end, u_long count,
 			 * split it in two.  The first case requires
 			 * two new allocations; the second requires but one.
 			 */
-			rv = malloc(sizeof *r, M_RMAN, M_NOWAIT);
+			rv = malloc(sizeof *rv, M_RMAN, M_NOWAIT);
 			if (rv == 0)
 				goto out;
+			bzero(rv, sizeof *rv);
 			rv->r_start = rstart;
 			rv->r_end = rstart + count - 1;
 			rv->r_flags = flags | RF_ALLOCATED;
 			rv->r_dev = dev;
 			rv->r_sharehead = 0;
+			rv->r_rm = rm;
 			
 			if (s->r_start < rv->r_start && s->r_end > rv->r_end) {
 #ifdef RMAN_DEBUG
@@ -280,11 +287,13 @@ rman_reserve_resource(struct rman *rm, u_long start, u_long end, u_long count,
 					rv = 0;
 					goto out;
 				}
+				bzero(r, sizeof *r);
 				r->r_start = rv->r_end + 1;
 				r->r_end = s->r_end;
 				r->r_flags = s->r_flags;
 				r->r_dev = 0;
 				r->r_sharehead = 0;
+				r->r_rm = rm;
 				s->r_end = rv->r_start - 1;
 				CIRCLEQ_INSERT_AFTER(&rm->rm_list, s, rv,
 						     r_link);
@@ -342,6 +351,7 @@ rman_reserve_resource(struct rman *rm, u_long start, u_long end, u_long count,
 			rv = malloc(sizeof *rv, M_RMAN, M_NOWAIT);
 			if (rv == 0)
 				goto out;
+			bzero(rv, sizeof *rv);
 			rv->r_start = s->r_start;
 			rv->r_end = s->r_end;
 			rv->r_flags = s->r_flags & 
@@ -356,6 +366,7 @@ rman_reserve_resource(struct rman *rm, u_long start, u_long end, u_long count,
 					rv = 0;
 					goto out;
 				}
+				bzero(s->r_sharehead, sizeof *s->r_sharehead);
 				LIST_INIT(s->r_sharehead);
 				LIST_INSERT_HEAD(s->r_sharehead, s, 
 						 r_sharelink);
@@ -451,7 +462,7 @@ rman_await_resource(struct resource *r, int pri, int timo)
 		simple_lock(rm->rm_slock);
 		rv = int_rman_activate_resource(rm, r, &whohas);
 		if (rv != EBUSY)
-			return (rv);
+			return (rv);	/* returns with simplelock */
 
 		if (r->r_sharehead == 0)
 			panic("rman_await_resource");
@@ -474,6 +485,20 @@ rman_await_resource(struct resource *r, int pri, int timo)
 	}
 }
 
+static int
+int_rman_deactivate_resource(struct resource *r)
+{
+	struct	rman *rm;
+
+	rm = r->r_rm;
+	r->r_flags &= ~RF_ACTIVE;
+	if (r->r_flags & RF_WANTED) {
+		r->r_flags &= ~RF_WANTED;
+		wakeup(r->r_sharehead);
+	}
+	return 0;
+}
+
 int
 rman_deactivate_resource(struct resource *r)
 {
@@ -481,11 +506,7 @@ rman_deactivate_resource(struct resource *r)
 
 	rm = r->r_rm;
 	simple_lock(rm->rm_slock);
-	r->r_flags &= ~RF_ACTIVE;
-	if (r->r_flags & RF_WANTED) {
-		r->r_flags &= ~RF_WANTED;
-		wakeup(r->r_sharehead);
-	}
+	int_rman_deactivate_resource(r);
 	simple_unlock(rm->rm_slock);
 	return 0;
 }
@@ -496,7 +517,7 @@ int_rman_release_resource(struct rman *rm, struct resource *r)
 	struct	resource *s, *t;
 
 	if (r->r_flags & RF_ACTIVE)
-		return EBUSY;
+		int_rman_deactivate_resource(r);
 
 	/*
 	 * Check for a sharing list first.  If there is one, then we don't

@@ -27,7 +27,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: if_fxpvar.h,v 1.5 1998/06/07 17:12:38 dfr Exp $
+ *	$Id: if_fxpvar.h,v 1.6 1998/08/02 00:29:15 dg Exp $
  */
 
 /*
@@ -48,6 +48,9 @@ struct fxp_softc {
 #else
 	struct arpcom arpcom;		/* per-interface network data */
 	caddr_t csr;			/* control/status registers */
+	struct resource *mem;		/* resource descriptor for registers */
+	struct resource *irq;		/* resource descriptor for interrupt */
+	void *ih;			/* interrupt handler cookie */
 #endif /* __NetBSD__ */
 	struct mbuf *rfa_headm;		/* first mbuf in receive frame area */
 	struct mbuf *rfa_tailm;		/* last mbuf in receive frame area */

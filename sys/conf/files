@@ -613,6 +613,21 @@ pci/ncr.c		optional ncr device-driver
 pci/pci.c		optional pci device-driver
 pci/pci_compat.c	optional pci
 pci/pcisupport.c	optional pci
+pci_if.o		optional pci					\
+	dependency	"pci_if.c pci_if.h"				\
+	compile-with	"${NORMAL_C}"					\
+	no-implicit-rule local
+pci_if.c		optional pci					\ 
+	dependency	"$S/kern/makedevops.pl $S/pci/pci_if.m"		\
+	compile-with	"perl5 $S/kern/makedevops.pl -c $S/pci/pci_if.m" \
+	no-obj no-implicit-rule before-depend local			\
+	clean		"pci_if.c"
+pci_if.h		optional pci					\ 
+	dependency	"$S/kern/makedevops.pl $S/pci/pci_if.m"		\
+	compile-with	"perl5 $S/kern/makedevops.pl -h $S/pci/pci_if.m" \
+	no-obj no-implicit-rule before-depend				\
+	clean		"pci_if.h"
+pci/tek390.c		optional amd device-driver
 pci/simos.c		optional simos device-driver
 pci/alpm.c		optional alpm	device-driver
 pci/xrpu.c		optional xrpu device-driver

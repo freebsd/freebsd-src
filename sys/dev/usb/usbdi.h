@@ -336,7 +336,6 @@ usb_endpoint_descriptor_t *usbd_get_endpoint_descriptor
 #if defined(__FreeBSD__)
 int usbd_driver_load    __P((module_t mod, int what, void *arg));
 void usbd_device_set_desc __P((device_t device, char *devinfo));
-char *usbd_devname(bdevice *bdev);
 bus_print_child_t usbd_print_child;
 #endif
 

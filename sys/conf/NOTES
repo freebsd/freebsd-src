@@ -2,7 +2,7 @@
 # LINT -- config file for checking all the sources, tries to pull in
 #	as much of the source tree as it can.
 #
-#	$Id: LINT,v 1.581 1999/04/14 16:54:00 peter Exp $
+#	$Id: LINT,v 1.582 1999/04/16 16:17:04 n_hibma Exp $
 #
 # NB: You probably don't want to try running a kernel built from this
 # file.  Instead, you should start from GENERIC, and add options from
@@ -827,7 +827,7 @@ options		"MSGBUF_SIZE=40960"
 #
 # Mandatory ISA devices: isa, npx
 #
-controller	isa0
+controller	isa0	at nexus?
 
 #
 # Options for `isa':
@@ -888,10 +888,10 @@ options		"NTIMECOUNTER=20"
 controller	pnp0
 
 # The keyboard controller; it controlls the keyboard and the PS/2 mouse.
-controller	atkbdc0	at isa? port IO_KBD tty
+controller	atkbdc0	at isa? port IO_KBD
 
 # The AT keyboard
-device		atkbd0	at isa? tty irq 1
+device		atkbd0	at atkbdc? tty irq 1
 
 # Options for atkbd:
 options		ATKBD_DFLT_KEYMAP	# specify the built-in keymap
@@ -907,7 +907,7 @@ options		KBD_INSTALL_CDEV	# install a CDEV entry in /dev
 #       0x04    Old-style (XT) keyboard support, useful for older ThinkPads
 
 # PS/2 mouse
-device		psm0	at isa? tty irq 12
+device		psm0	at atkbdc? tty irq 12
 
 # Options for psm:
 options		PSM_HOOKAPM		#hook the APM resume event, useful
@@ -977,7 +977,7 @@ options		SC_DISABLE_REBOOT	# disable reboot key sequence
 # buggy. If it is not configured then you *must* configure math emulation
 # (see above).  If both npx0 and emulation are configured, then only npx0
 # is used (provided it works).
-device		npx0	at isa? port IO_NPX iosiz 0x0 flags 0x0 irq 13
+device		npx0	at nexus? port IO_NPX iosiz 0x0 flags 0x0 irq 13
 
 #
 # `flags' for npx0:
@@ -1464,7 +1464,7 @@ controller      matcd0  at isa? port 0x230 bio
 device		wt0	at isa? port 0x300 bio irq 5 drq 1
 device		ctx0	at isa? port 0x230 iomem 0xd0000
 device		spigot0 at isa? port 0xad6 irq 15 iomem 0xee000
-device		apm0	at isa? 
+device		apm0	at nexus? 
 device		gp0	at isa? port 0x2c0 tty
 device		gsc0	at isa? port "IO_GSC1" tty drq 3
 device		joy0	at isa? port IO_GAME
@@ -1632,7 +1632,7 @@ options	"EISA_SLOTS=12"
 # The "oltr" driver supports the following Olicom PCI token-ring adapters
 # OC-3136, OC-3137, OC-3139, OC-3140, OC-3141, OC-3540, OC-3250
 #
-controller	pci0
+controller	pci0	at nexus?
 controller	ahc1
 controller	ncr0
 controller	isp0

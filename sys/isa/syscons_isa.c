@@ -23,7 +23,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- * $Id:$
+ * $Id: syscons_isa.c,v 1.1 1999/01/23 16:53:30 dfr Exp $
  */
 
 #include "sc.h"
@@ -38,6 +38,9 @@
 #include <sys/bus.h>
 
 #include <machine/console.h>
+#ifdef __i386__
+#include <machine/apm_bios.h>
+#endif
 
 #include <dev/syscons/syscons.h>
 

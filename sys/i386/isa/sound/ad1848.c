@@ -165,6 +165,10 @@ short ipri_to_irq(u_short ipri);
 void
 adintr(unit)
 {
+#if 1
+    /* this isn't ideal but should work */
+    ad1848_interrupt(-1);
+#else
     static short    unit_to_irq[4] = {9, -1, -1, -1};
     struct isa_device *dev;
 
@@ -183,6 +187,7 @@ adintr(unit)
 	    ad1848_interrupt(unit_to_irq[unit]);
 	}
     }
+#endif
 }
 
 static int

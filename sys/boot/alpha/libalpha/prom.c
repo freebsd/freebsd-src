@@ -1,4 +1,4 @@
-/* $Id$ */
+/* $Id: prom.c,v 1.1.1.1 1998/08/21 03:17:42 msmith Exp $ */
 /* $NetBSD: prom.c,v 1.3 1997/09/06 14:03:58 drochner Exp $ */
 
 /*  
@@ -41,7 +41,7 @@ static void prom_probe(struct console *cp);
 static int prom_init(int);
 void prom_putchar(int);
 int prom_getchar(void);
-static int prom_poll(void);
+int prom_poll(void);
 
 struct console promconsole = {
     "prom",

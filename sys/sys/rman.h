@@ -26,7 +26,7 @@
  * OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id$
+ *	$Id: rman.h,v 1.1 1998/10/29 01:48:30 wollman Exp $
  */
 
 #ifndef _SYS_RMAN_H_
@@ -51,6 +51,8 @@ struct	resource {
 	u_long	r_end;		/* index of the last entry (inclusive) */
 	u_int	r_flags;
 	void	*r_virtual;	/* virtual address of this resource */
+	bus_space_tag_t r_bustag; /* bus_space tag */
+	bus_space_handle_t r_bushandle;	/* bus_space handle */
 	struct	device *r_dev;	/* device which has allocated this resource */
 	struct	rman *r_rm;	/* resource manager from whence this came */
 };
@@ -88,8 +90,15 @@ struct	resource *rman_reserve_resource(struct rman *rm, u_long start,
 					u_long end, u_long count,
 					u_int flags, struct device *dev);
 
+#define rman_get_start(r)	((r)->r_start)
+#define rman_get_end(r)		((r)->r_end)
+#define rman_get_flags(r)	((r)->r_flags)
 #define	rman_set_virtual(r,v)	((r)->r_virtual = (v))
 #define	rman_get_virtual(r)	((r)->r_virtual)
+#define rman_set_bustag(r,t)	((r)->r_bustag = (t))
+#define rman_get_bustag(r)	((r)->r_bustag)
+#define rman_set_bushandle(r,h)	((r)->r_bushandle = (h))
+#define rman_get_bushandle(r)	((r)->r_bushandle)
 
 extern	struct rman_head rman_head;
 #endif /* KERNEL */

@@ -1,5 +1,5 @@
 /*	$NetBSD: if_media.h,v 1.3 1997/03/26 01:19:27 thorpej Exp $	*/
-/*	$Id: if_media.h,v 1.3 1999/02/20 11:17:59 julian Exp $ */
+/*	$Id: if_media.h,v 1.5 1999/03/07 04:39:25 wpaul Exp $ */
 
 /*
  * Copyright (c) 1997
@@ -86,6 +86,9 @@ struct ifmedia {
 /* Initialize an interface's struct if_media field. */
 void	ifmedia_init __P((struct ifmedia *ifm, int dontcare_mask,
 	    ifm_change_cb_t change_callback, ifm_stat_cb_t status_callback));
+
+/* Remove all mediums from a struct ifmedia.  */
+void	ifmedia_removeall __P(( struct ifmedia *ifm));
 
 /* Add one supported medium to a struct ifmedia. */
 void	ifmedia_add __P((struct ifmedia *ifm, int mword, int data, void *aux));

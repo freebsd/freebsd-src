@@ -26,7 +26,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- * $Id: vga_isa.c,v 1.2 1999/02/05 11:52:08 yokota Exp $
+ * $Id: vga_isa.c,v 1.3 1999/02/05 12:58:32 yokota Exp $
  */
 
 #include "vga.h"
@@ -52,7 +52,7 @@
 #include <dev/fb/fbreg.h>
 #include <dev/fb/vgareg.h>
 
-#ifndef __i386__
+#if 1
 #include <isa/isareg.h>
 #include <isa/isavar.h>
 #else
@@ -71,7 +71,7 @@ typedef struct isavga_softc {
 	video_adapter_t	*adp;
 } isavga_softc_t;
 
-#ifndef __i386__
+#if 1
 
 #define ISAVGA_SOFTC(unit)		\
 	((isavga_softc_t *)devclass_get_softc(isavga_devclass, unit))
@@ -135,7 +135,7 @@ static struct  cdevsw vga_cdevsw = {
 
 #endif /* FB_INSTALL_CDEV */
 
-#ifndef __i386__
+#if 1
 
 static int
 isavga_probe(device_t dev)
@@ -776,6 +776,9 @@ verify_adapter(video_adapter_t *adp)
 {
     vm_offset_t buf;
     u_int16_t v;
+#if !defined(VGA_NO_BIOS) && !defined(VGA_NO_MODE_CHANGE)
+    u_int32_t p;
+#endif
 
     buf = BIOS_PADDRTOVADDR(adp->va_window);
     v = readw(buf);
@@ -1077,6 +1080,7 @@ probe_adapters(void)
 		rows_offset = 1;
 	    } else {
 		/* discard the table if we are not familiar with it... */
+		u_char *mp;
 		map_mode_table(mode_map, video_mode_ptr, M_VGA_CG320 + 1);
 		mp = get_mode_param(adp->va_initial_mode);
 		if (mp != NULL)
@@ -1138,6 +1142,7 @@ probe_adapters(void)
 	    if (video_mode_ptr == NULL) {
 		rows_offset = 1;
 	    } else {
+		u_char *mp;
 		map_mode_table(mode_map, video_mode_ptr, M_ENH_C80x25 + 1);
 		/* XXX how can one validate the EGA table... */
 		mp = get_mode_param(adp->va_initial_mode);

@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: cia.c,v 1.14 1998/12/04 22:54:42 archie Exp $
+ *	$Id: cia.c,v 1.15 1999/03/28 17:52:17 dfr Exp $
  */
 /*-
  * Copyright (c) 1998 The NetBSD Foundation, Inc.
@@ -96,6 +96,7 @@
 #include <sys/kernel.h>
 #include <sys/module.h>
 #include <sys/bus.h>
+#include <machine/bus.h>
 #include <sys/rman.h>
 
 #include <alpha/pci/ciareg.h>
@@ -654,6 +655,7 @@ static device_method_t cia_methods[] = {
 	DEVMETHOD(device_attach,	cia_attach),
 
 	/* Bus interface */
+	DEVMETHOD(bus_print_child,	bus_generic_print_child),
 	DEVMETHOD(bus_alloc_resource,	pci_alloc_resource),
 	DEVMETHOD(bus_release_resource,	pci_release_resource),
 	DEVMETHOD(bus_activate_resource, pci_activate_resource),
@@ -724,11 +726,12 @@ cia_probe(device_t dev)
 	if (cia0)
 		return ENXIO;
 	cia0 = dev;
-	device_set_desc(dev, "2117x PCI adapter"); /* XXX */
+	device_set_desc(dev, "2117x Core Logic chipset"); /* XXX */
 
 	pci_init_resources();
+	isa_init_intr();
 
-	device_add_child(dev, "isa", 0, 0);
+	device_add_child(dev, "pcib", 0, 0);
 
 	return 0;
 }
@@ -736,12 +739,10 @@ cia_probe(device_t dev)
 static int
 cia_attach(device_t dev)
 {
-	struct cia_softc* sc = CIA_SOFTC(dev);
 	char* name;
 	int pass;
 
 	cia_init();
-	chipset.intrdev = dev;
 
 	name = cia_ispyxis ? "Pyxis" : "ALCOR/ALCOR2";
 	if (cia_ispyxis) {
@@ -832,6 +833,9 @@ cia_setup_intr(device_t dev, device_t child,
 	/* Enable PCI interrupt */
 	platform.pci_intr_enable(irq->r_start);
 
+	device_printf(child, "interrupting at CIA irq %d\n",
+		      (int) irq->r_start);
+
 	return 0;
 }
 
@@ -844,4 +848,3 @@ cia_teardown_intr(device_t dev, device_t child,
 }
 
 DRIVER_MODULE(cia, root, cia_driver, cia_devclass, 0, 0);
-

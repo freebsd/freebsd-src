@@ -28,7 +28,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: aha_isa.c,v 1.5 1998/11/10 06:44:54 gibbs Exp $
+ *	$Id: aha_isa.c,v 1.6 1999/01/20 06:21:23 imp Exp $
  */
 
 #include "pnp.h"
@@ -257,7 +257,6 @@ static void
 ahapnp_attach(u_long csn, u_long vend_id, char *name, struct isa_device *dev)
 {
 	struct pnp_cinfo d;
-	struct isa_device *dvp;
 
 	if (dev->id_unit >= NAHATOT)
 		return;
@@ -278,9 +277,7 @@ ahapnp_attach(u_long csn, u_long vend_id, char *name, struct isa_device *dev)
 
 	if (dev->id_driver == NULL) {
 		dev->id_driver = &ahadriver;
-		dvp = find_isadev(isa_devtab_tty, &ahadriver, 0);
-		if (dvp != NULL)
-			dev->id_id = dvp->id_id;
+		dev->id_id = isa_compat_nextid();
 	}
 
 	if ((dev->id_alive = aha_isa_probe(dev)) != 0)

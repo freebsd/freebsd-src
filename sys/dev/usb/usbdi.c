@@ -1302,30 +1302,7 @@ usbd_driver_load(module_t mod, int what, void *arg)
 void
 usbd_device_set_desc(device_t device, char *devinfo)
 {
-	size_t l;
-	char *desc;
-
-	if ( devinfo ) {
-		l = strlen(devinfo);
-		desc = malloc(l+1, M_USB, M_NOWAIT);
-		if (desc)
-			memcpy(desc, devinfo, l+1);
-	} else
-		desc = NULL;
-
-	device_set_desc(device, desc);
-}
-
-char *
-usbd_devname(bdevice *bdev)
-{
-	static char buf[20];
-	/* XXX a static buffer is not exactly a good idea, but the only
-	 * thing that goes wrong is the string that is being printed
-	 */
-
-	sprintf(buf, "%s%d", device_get_name(*bdev), device_get_unit(*bdev));
-	return (buf);
+	device_set_desc_copy(device, devinfo);
 }
 
 #endif

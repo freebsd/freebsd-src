@@ -1180,7 +1180,6 @@ int
 rpattach(dev)
 struct	isa_device	*dev;
 {
-	struct	isa_device	*idev;
 	dev_t	rp_dev;
 	int	iobase, unit, /*rpmajor,*/ oldspl;
 	int	num_ports, num_chan, num_aiops;
@@ -1280,13 +1279,6 @@ struct	isa_device	*dev;
 		}
 	}
 
-		idev = find_isadev(isa_devtab_tty, &rpdriver,
-				RP_MPMASTER(dev) + rp_pcicount);
-		if(idev == NULL) {
-			printf("rp%d: master device %d not configured\n",
-				dev->id_unit, RP_MPMASTER(dev));
-		}
-/*		printf("COOL!! Device is found!!\n");
 	for(rpmajor=0;rpmajor<nchrdev;rpmajor++)
 		if(cdevsw[rpmajor].d_open == rpopen)
 			printf("From %d entries: Found entry at major = %d\n",nchrdev,rpmajor);

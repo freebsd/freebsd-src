@@ -23,7 +23,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- * $Id: atkbd_isa.c,v 1.1 1999/01/23 16:53:27 dfr Exp $
+ * $Id: atkbd_isa.c,v 1.2 1999/03/10 10:36:49 yokota Exp $
  */
 
 #include "atkbd.h"
@@ -37,6 +37,7 @@
 #include <sys/conf.h>
 #include <sys/tty.h>
 #include <sys/bus.h>
+#include <machine/bus.h>
 #include <sys/rman.h>
 
 #include <machine/resource.h>
@@ -70,9 +71,9 @@ static driver_t atkbd_driver = {
 static int
 atkbdprobe(device_t dev)
 {
-	u_long port;
-	u_long irq;
-	u_long flags;
+	uintptr_t port;
+	uintptr_t irq;
+	uintptr_t flags;
 
 	device_set_desc(dev, "AT Keyboard");
 
@@ -89,9 +90,9 @@ static int
 atkbdattach(device_t dev)
 {
 	atkbd_softc_t *sc;
-	u_long port;
-	u_long irq;
-	u_long flags;
+	uintptr_t port;
+	uintptr_t irq;
+	uintptr_t flags;
 	struct resource *res;
 	void *ih;
 	int zero = 0;

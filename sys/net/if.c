@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)if.c	8.3 (Berkeley) 1/4/94
- *	$Id: if.c,v 1.65 1999/02/01 20:03:27 phk Exp $
+ *	$Id: if.c,v 1.66 1999/02/19 13:41:35 phk Exp $
  */
 
 #include "opt_compat.h"
@@ -178,6 +178,39 @@ if_attach(ifp)
 		TAILQ_INSERT_HEAD(&ifp->if_addrhead, ifa, ifa_link);
 	}
 }
+
+/*
+ * Detach an interface, removing it from the
+ * list of "active" interfaces.
+ */
+void
+if_detach(ifp)
+	struct ifnet *ifp;
+{
+	struct ifaddr *ifa;
+
+	/*
+	 * Remove routes and flush queues.
+	 */
+	if_down(ifp);
+
+	/*
+	 * Remove address from ifnet_addrs[] and maybe decrement if_index.
+	 * Clean up all addresses.
+	 */
+	ifnet_addrs[ifp->if_index] = 0;
+	while (ifnet_addrs[if_index] == 0)
+		if_index--;
+
+	for (ifa = TAILQ_FIRST(&ifp->if_addrhead); ifa;
+	     ifa = TAILQ_FIRST(&ifp->if_addrhead)) {
+		TAILQ_REMOVE(&ifp->if_addrhead, ifa, ifa_link);
+		IFAFREE(ifa);
+	}    
+
+	TAILQ_REMOVE(&ifnet, ifp, if_link);
+}
+
 /*
  * Locate an interface based on a complete address.
  */

@@ -30,7 +30,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: sio.c,v 1.220 1999/01/19 00:21:47 peter Exp $
+ *	$Id: sio.c,v 1.221 1999/01/30 12:17:35 phk Exp $
  *	from: @(#)com.c	7.5 (Berkeley) 5/16/91
  *	from: i386/isa sio.c,v 1.215
  */
@@ -68,6 +68,7 @@
 #include <sys/syslog.h>
 #include <sys/sysctl.h>
 #include <sys/bus.h>
+#include <machine/bus.h>
 #include <sys/rman.h>
 #ifdef DEVFS
 #include <sys/devfsext.h>
@@ -103,8 +104,10 @@
 
 #endif
 
+#ifndef __i386__
 #define disable_intr()	0
 #define enable_intr()	0
+#endif
 
 #ifdef SMP
 #define disable_intr()	COM_DISABLE_INTR()
@@ -2607,6 +2610,21 @@ static void siocnclose	__P((struct siocnstate *sp, Port_t iobase));
 static void siocnopen	__P((struct siocnstate *sp, Port_t iobase, int speed));
 static void siocntxwait	__P((Port_t iobase));
 
+#ifdef __i386__
+/*
+ * XXX: sciocnget() and sciocnputc() are not declared static, as they are
+ * referred to from i386/i386/i386-gdbstub.c.
+ */
+static cn_probe_t siocnprobe;
+static cn_init_t siocninit;
+static cn_checkc_t siocncheckc;
+       cn_getc_t siocngetc;
+       cn_putc_t siocnputc;
+
+CONS_DRIVER(sio, siocnprobe, siocninit, siocngetc, siocncheckc, siocnputc);
+
+#endif
+
 static void
 siocntxwait(iobase)
 	Port_t	iobase;
@@ -2731,11 +2749,9 @@ void
 siocnprobe(cp)
 	struct consdev	*cp;
 {
-#if 0
 	speed_t			boot_speed;
 	u_char			cfcr;
-	struct isa_device	*dvp;
-	int			s;
+	int			s, unit;
 	struct siocnstate	sp;
 
 	/*
@@ -2753,10 +2769,16 @@ siocnprobe(cp)
 	 * don't need to probe.
 	 */
 	cp->cn_pri = CN_DEAD;
-	for (dvp = isa_devtab_tty; dvp->id_driver != NULL; dvp++)
-		if (dvp->id_driver == &siodriver && dvp->id_enabled
-		    && COM_CONSOLE(dvp)) {
-			siocniobase = dvp->id_iobase;
+
+	for (unit = 0; unit < 16; unit++) { /* XXX need to know how many */
+		int flags;
+		if (resource_int_value("sio", unit, "flags", &flags))
+			continue;
+		if (COM_CONSOLE(flags)) {
+			int port;
+			if (resource_int_value("sio", unit, "port", &port))
+				continue;
+			siocniobase = port;
 			s = spltty();
 			if (boothowto & RB_SERIAL) {
 				boot_speed = siocngetspeed(siocniobase,
@@ -2784,16 +2806,18 @@ siocnprobe(cp)
 
 			siocnopen(&sp, siocniobase, comdefaultrate);
 			splx(s);
-			if (!COM_LLCONSOLE(dvp)) {
-				cp->cn_dev = makedev(CDEV_MAJOR, dvp->id_unit);
-				cp->cn_pri = COM_FORCECONSOLE(dvp)
+			if (!COM_LLCONSOLE(flags)) {
+				cp->cn_dev = makedev(CDEV_MAJOR, unit);
+				cp->cn_pri = COM_FORCECONSOLE(flags)
 					     || boothowto & RB_SERIAL
 					     ? CN_REMOTE : CN_NORMAL;
 			}
 			break;
 		}
-#endif
+	}
 }
+
+#ifdef __alpha__
 
 struct consdev siocons = {
 	NULL, NULL, siocngetc, siocncheckc, siocnputc,
@@ -2876,6 +2900,8 @@ siogdbattach(port, speed)
 
 	return 0;
 }
+
+#endif
 
 void
 siocninit(cp)
@@ -3158,7 +3184,6 @@ static void
 siopnp_attach(u_long csn, u_long vend_id, char *name, struct isa_device *dev)
 {
 	struct pnp_cinfo d;
-	struct isa_device *dvp;
 
 	if (dev->id_unit >= NSIOTOT)
 		return;
@@ -3180,9 +3205,7 @@ siopnp_attach(u_long csn, u_long vend_id, char *name, struct isa_device *dev)
 
 	if (dev->id_driver == NULL) {
 		dev->id_driver = &siodriver;
-		dvp = find_isadev(isa_devtab_tty, &siodriver, 0);
-		if (dvp != NULL)
-			dev->id_id = dvp->id_id;
+		dev->id_id = isa_compat_nextid();
 	}
 
 	if ((dev->id_alive = sioprobe(dev)) != 0)

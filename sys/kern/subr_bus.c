@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: subr_bus.c,v 1.15 1999/01/27 21:49:57 dillon Exp $
+ *	$Id: subr_bus.c,v 1.16 1999/03/29 08:54:20 dfr Exp $
  */
 
 #include <sys/param.h>
@@ -94,50 +94,62 @@ static void device_unregister_oids(device_t dev);
  * Method table handling
  */
 static int next_method_offset = 1;
-static int methods_count = 0;
-static int methods_size = 0;
 
+LIST_HEAD(methodlist, method) methods;
 struct method {
-    int offset;
-    char* name;
+    LIST_ENTRY(method) link;	/* linked list of methods */
+    int offset;			/* offset in method table */
+    int refs;			/* count of device_op_desc users */
+    char* name;			/* unique name of method */
 };
-
-static struct method *methods = 0;
 
 static void
 register_method(struct device_op_desc *desc)
 {
-    int i;
     struct method* m;
 
-    for (i = 0; i < methods_count; i++)
-	if (!strcmp(methods[i].name, desc->name)) {
-	    desc->offset = methods[i].offset;
-	    PDEBUG(("methods[%d] has the same name, %s, with offset %d",
-	    		i, desc->name, desc->offset));
+    if (desc->method) {
+	desc->method->refs++;
+	return;
+    }
+
+    for (m = LIST_FIRST(&methods); m; m = LIST_NEXT(m, link)) {
+	if (!strcmp(m->name, desc->name)) {
+	    desc->offset = m->offset;
+	    desc->method = m;
+	    m->refs++;
+	    PDEBUG(("methods %x has the same name, %s, with offset %d",
+		    m, desc->name, desc->offset));
 	    return;
 	}
-
-    if (methods_count == methods_size) {
-	struct method* p;
-
-	methods_size += 10;
-	p = (struct method*) malloc(methods_size * sizeof(struct method),
-				     M_DEVBUF, M_NOWAIT);
-	if (!p)
-	    panic("register_method: out of memory");
-	if (methods) {
-	    bcopy(methods, p, methods_count * sizeof(struct method));
-	    free(methods, M_DEVBUF);
-	}
-	methods = p;
     }
-    m = &methods[methods_count++];
-    m->name = malloc(strlen(desc->name) + 1, M_DEVBUF, M_NOWAIT);
-    if (!m->name)
+
+    m = (struct method *) malloc(sizeof(struct method)
+				 + strlen(desc->name) + 1,
+				 M_DEVBUF, M_NOWAIT);
+    if (!m)
 	    panic("register_method: out of memory");
+    bzero(m, sizeof(struct method) + strlen(desc->name) + 1);
+    m->offset = next_method_offset++;
+    m->refs = 1;
+    m->name = (char*) (m + 1);
     strcpy(m->name, desc->name);
-    desc->offset = m->offset = next_method_offset++;
+    LIST_INSERT_HEAD(&methods, m, link);
+
+    desc->offset = m->offset;
+    desc->method = m;
+}
+
+static void
+unregister_method(struct device_op_desc *desc)
+{
+    struct method *m = desc->method;
+    m->refs--;
+    if (m->refs == 0) {
+	LIST_REMOVE(m, link);
+	free(m, M_DEVBUF);
+    }
+    desc->method = 0;
 }
 
 static int error_method(void)
@@ -161,10 +173,7 @@ compile_methods(driver_t *driver)
      * First register any methods which need it.
      */
     for (i = 0, m = driver->methods; m->desc; i++, m++)
-	if (!m->desc->offset)
-	    register_method(m->desc);
-	else
-	    PDEBUG(("offset not equal to zero, method desc %d left as is", i));
+	register_method(m->desc);
 
     /*
      * Then allocate the compiled op table.
@@ -173,6 +182,7 @@ compile_methods(driver_t *driver)
 		 M_DEVBUF, M_NOWAIT);
     if (!ops)
 	panic("compile_methods: out of memory");
+    bzero(ops, sizeof(struct device_ops) + (next_method_offset-1) * sizeof(devop_t));
 
     ops->maxoffset = next_method_offset;
     for (i = 0; i < next_method_offset; i++)
@@ -184,6 +194,25 @@ compile_methods(driver_t *driver)
 		(next_method_offset-i)*sizeof(devop_t)));
 
     driver->ops = ops;
+}
+
+static void
+free_methods(driver_t *driver)
+{
+    int i;
+    struct device_method *m;
+
+    /*
+     * Unregister any methods which are no longer used.
+     */
+    for (i = 0, m = driver->methods; m->desc; i++, m++)
+	unregister_method(m->desc);
+
+    /*
+     * Free memory and clean up.
+     */
+    free(driver->ops, M_DEVBUF);
+    driver->ops = 0;
 }
 
 /*
@@ -211,6 +240,7 @@ devclass_find_internal(const char *classname, int create)
 		    M_DEVBUF, M_NOWAIT);
 	if (!dc)
 	    return NULL;
+	bzero(dc, sizeof(struct devclass) + strlen(classname) + 1);
 	dc->name = (char*) (dc + 1);
 	strcpy(dc->name, classname);
 	dc->devices = NULL;
@@ -233,17 +263,20 @@ int
 devclass_add_driver(devclass_t dc, driver_t *driver)
 {
     driverlink_t dl;
+    int i;
 
     PDEBUG(("%s", DRIVERNAME(driver)));
 
     dl = malloc(sizeof *dl, M_DEVBUF, M_NOWAIT);
     if (!dl)
 	return ENOMEM;
+    bzero(dl, sizeof *dl);
 
     /*
-     * Compile the drivers methods.
+     * Compile the driver's methods.
      */
-    compile_methods(driver);
+    if (!driver->ops)
+	compile_methods(driver);
 
     /*
      * Make sure the devclass which the driver is implementing exists.
@@ -252,6 +285,14 @@ devclass_add_driver(devclass_t dc, driver_t *driver)
 
     dl->driver = driver;
     TAILQ_INSERT_TAIL(&dc->drivers, dl, link);
+    driver->refs++;
+
+    /*
+     * Call BUS_DRIVER_ADDED for any existing busses in this class.
+     */
+    for (i = 0; i < dc->maxunit; i++)
+	if (dc->devices[i])
+	    BUS_DRIVER_ADDED(dc->devices[i], driver);
 
     return 0;
 }
@@ -308,6 +349,10 @@ devclass_delete_driver(devclass_t busclass, driver_t *driver)
 
     TAILQ_REMOVE(&busclass->drivers, dl, link);
     free(dl, M_DEVBUF);
+
+    driver->refs--;
+    if (driver->refs == 0)
+	free_methods(driver);
 
     return 0;
 }
@@ -382,6 +427,7 @@ devclass_get_devices(devclass_t dc, device_t **devlistp, int *devcountp)
     list = malloc(count * sizeof(device_t), M_TEMP, M_NOWAIT);
     if (!list)
 	return ENOMEM;
+    bzero(list, count * sizeof(device_t));
 
     count = 0;
     for (i = 0; i < dc->maxunit; i++)
@@ -462,6 +508,7 @@ devclass_add_device(devclass_t dc, device_t dev)
     dev->nameunit = malloc(buflen, M_DEVBUF, M_NOWAIT);
     if (!dev->nameunit)
 	return ENOMEM;
+    bzero(dev->nameunit, buflen);
 
     if ((error = devclass_alloc_unit(dc, &dev->unit)) != 0) {
 	free(dev->nameunit, M_DEVBUF);
@@ -528,6 +575,7 @@ make_device(device_t parent, const char *name,
     dev = malloc(sizeof(struct device), M_DEVBUF, M_NOWAIT);
     if (!dev)
 	return 0;
+    bzero(dev, sizeof(struct device));
 
     dev->parent = parent;
     TAILQ_INIT(&dev->children);
@@ -721,6 +769,7 @@ device_get_children(device_t dev, device_t **devlistp, int *devcountp)
     list = malloc(count * sizeof(device_t), M_TEMP, M_NOWAIT);
     if (!list)
 	return ENOMEM;
+    bzero(list, count * sizeof(device_t));
 
     count = 0;
     for (child = TAILQ_FIRST(&dev->children); child;
@@ -1146,11 +1195,68 @@ device_unregister_oids(device_t dev)
 
 #endif
 
+/*======================================*/
 /*
  * Access functions for device resources.
  */
-extern struct config_device devtab[];
+
+/* Supplied by config(8) in ioconf.c */
+extern struct config_device config_devtab[];
 extern int devtab_count;
+
+/* Runtime version */
+struct config_device *devtab = config_devtab;
+
+static int
+resource_new_name(char *name, int unit)
+{
+	struct config_device *new;
+
+	new = malloc((devtab_count + 1) * sizeof(*new), M_TEMP, M_NOWAIT);
+	if (new == NULL)
+		return -1;
+	if (devtab && devtab_count > 0)
+		bcopy(devtab, new, devtab_count * sizeof(*new));
+	bzero(&new[devtab_count], sizeof(*new));
+	new[devtab_count].name = malloc(strlen(name) + 1, M_TEMP, M_NOWAIT);
+	if (new[devtab_count].name == NULL) {
+		free(new, M_TEMP);
+		return -1;
+	}
+	strcpy(new[devtab_count].name, name);
+	new[devtab_count].unit = unit;
+	new[devtab_count].resource_count = 0;
+	new[devtab_count].resources = NULL;
+	devtab = new;
+	return devtab_count++;
+}
+
+static int
+resource_new_resname(int j, char *resname, resource_type type)
+{
+	struct config_resource *new;
+	int i;
+
+	i = devtab[j].resource_count;
+	new = malloc((i + 1) * sizeof(*new), M_TEMP, M_NOWAIT);
+	if (new == NULL)
+		return -1;
+	if (devtab[j].resources && i > 0)
+		bcopy(devtab[j].resources, new, i * sizeof(*new));
+	bzero(&new[i], sizeof(*new));
+	new[i].name = malloc(strlen(resname) + 1, M_TEMP, M_NOWAIT);
+	if (new[i].name == NULL) {
+		free(new, M_TEMP);
+		return -1;
+	}
+	strcpy(new[i].name, resname);
+	new[i].type = type;
+	if (devtab[j].resources)
+		free(devtab[j].resources, M_TEMP);
+	devtab[j].resources = new;
+	devtab[j].resource_count = i + 1;
+	return i;
+}
 
 static int
 resource_match_string(int i, char *resname, char *value)
@@ -1163,8 +1269,8 @@ resource_match_string(int i, char *resname, char *value)
 		if (!strcmp(res->name, resname)
 		    && res->type == RES_STRING
 		    && !strcmp(res->u.stringval, value))
-			return TRUE;
-	return FALSE;
+			return j;
+	return -1;
 }
 
 static int
@@ -1209,6 +1315,7 @@ resource_int_value(const char *name, int unit, char *resname, int *result)
 {
 	int error;
 	struct config_resource *res;
+
 	if ((error = resource_find(name, unit, resname, &res)) != 0)
 		return error;
 	if (res->type != RES_INT)
@@ -1222,6 +1329,7 @@ resource_long_value(const char *name, int unit, char *resname, long *result)
 {
 	int error;
 	struct config_resource *res;
+
 	if ((error = resource_find(name, unit, resname, &res)) != 0)
 		return error;
 	if (res->type != RES_LONG)
@@ -1235,6 +1343,7 @@ resource_string_value(const char *name, int unit, char *resname, char **result)
 {
 	int error;
 	struct config_resource *res;
+
 	if ((error = resource_find(name, unit, resname, &res)) != 0)
 		return error;
 	if (res->type != RES_STRING)
@@ -1251,9 +1360,28 @@ resource_query_string(int i, char *resname, char *value)
 	else
 		i = i + 1;
 	for (; i < devtab_count; i++)
-		if (resource_match_string(i, resname, value))
+		if (resource_match_string(i, resname, value) >= 0)
 			return i;
 	return -1;
+}
+
+int
+resource_locate(int i, char *resname)
+{
+	if (i < 0)
+		i = 0;
+	else
+		i = i + 1;
+	for (; i < devtab_count; i++)
+		if (!strcmp(devtab[i].name, resname))
+			return i;
+	return -1;
+}
+
+int
+resource_count(void)
+{
+	return devtab_count;
 }
 
 char *
@@ -1268,7 +1396,165 @@ resource_query_unit(int i)
 	return devtab[i].unit;
 }
 
+static int
+resource_create(char *name, int unit, char *resname, resource_type type,
+		struct config_resource **result)
+{
+	int i, j;
+	struct config_resource *res = NULL;
 
+	for (i = 0; i < devtab_count; i++) {
+		if (!strcmp(devtab[i].name, name) && devtab[i].unit == unit) {
+			res = devtab[i].resources;
+			break;
+		}
+	}
+	if (res == NULL) {
+		i = resource_new_name(name, unit);
+		if (i < 0)
+			return ENOMEM;
+		res = devtab[i].resources;
+	}
+	for (j = 0; j < devtab[i].resource_count; j++, res++) {
+		if (!strcmp(res->name, resname)) {
+			*result = res;
+			return 0;
+		}
+	}
+	j = resource_new_resname(i, resname, type);
+	if (j < 0)
+		return ENOMEM;
+	res = &devtab[i].resources[j];
+	*result = res;
+	return 0;
+}
+
+int
+resource_set_int(int i, char *resname, int value)
+{
+	int error;
+	struct config_resource *res;
+
+printf("resource_set_int\n");
+	if (i < 0 || i >= devtab_count)
+		return EINVAL;
+	error = resource_create(devtab[i].name, devtab[i].unit, resname,
+				RES_INT, &res);
+	if (error)
+		return error;
+	if (res->type != RES_INT)
+		return EFTYPE;
+	res->u.intval = value;
+	return 0;
+}
+
+int
+resource_set_long(int i, char *resname, long value)
+{
+	int error;
+	struct config_resource *res;
+
+printf("resource_set_long\n");
+	if (i < 0 || i >= devtab_count)
+		return EINVAL;
+	error = resource_create(devtab[i].name, devtab[i].unit, resname,
+				RES_LONG, &res);
+	if (error)
+		return error;
+	if (res->type != RES_LONG)
+		return EFTYPE;
+	res->u.longval = value;
+	return 0;
+}
+
+int
+resource_set_string(int i, char *resname, char *value)
+{
+	int error;
+	struct config_resource *res;
+
+printf("resource_set_string\n");
+	if (i < 0 || i >= devtab_count)
+		return EINVAL;
+	error = resource_create(devtab[i].name, devtab[i].unit, resname,
+				RES_STRING, &res);
+	if (error)
+		return error;
+	if (res->type != RES_STRING)
+		return EFTYPE;
+	if (res->u.stringval)
+		free(res->u.stringval, M_TEMP);
+	res->u.stringval = malloc(strlen(value) + 1, M_TEMP, M_NOWAIT);
+	if (res->u.stringval == NULL)
+		return ENOMEM;
+	strcpy(res->u.stringval, value);
+	return 0;
+}
+
+
+static void
+resource_cfgload(void *dummy __unused)
+{
+	struct config_resource *res, *cfgres;
+	int i, j;
+	int error;
+	char *name, *resname;
+	int unit;
+	resource_type type;
+	char *stringval;
+	int config_devtab_count;
+
+	config_devtab_count = devtab_count;
+	devtab = NULL;
+	devtab_count = 0;
+
+	for (i = 0; i < config_devtab_count; i++) {
+		name = config_devtab[i].name;
+		unit = config_devtab[i].unit;
+
+		for (j = 0; j < config_devtab[i].resource_count; j++) {
+			cfgres = config_devtab[i].resources;
+			resname = cfgres[j].name;
+			type = cfgres[j].type;
+			error = resource_create(name, unit, resname, type,
+						&res);
+			if (error) {
+				printf("create resource %s%d: error %d\n",
+					name, unit, error);
+				continue;
+			}
+			if (res->type != type) {
+				printf("type mismatch %s%d: %d != %d\n",
+					name, unit, res->type, type);
+				continue;
+			}
+			switch (type) {
+			case RES_INT:
+				res->u.intval = cfgres[j].u.intval;
+				break;
+			case RES_LONG:
+				res->u.longval = cfgres[j].u.longval;
+				break;
+			case RES_STRING:
+				if (res->u.stringval)
+					free(res->u.stringval, M_TEMP);
+				stringval = cfgres[j].u.stringval;
+				res->u.stringval = malloc(strlen(stringval) + 1,
+							  M_TEMP, M_NOWAIT);
+				if (res->u.stringval == NULL)
+					break;
+				strcpy(res->u.stringval, stringval);
+				break;
+			default:
+				panic("unknown resource type %d\n", type);
+			}
+		}
+	}
+}
+SYSINIT(cfgload, SI_SUB_KMEM, SI_ORDER_ANY + 50, resource_cfgload, 0)
+
+
+/*======================================*/
 /*
  * Some useful method implementations to make life easier for bus drivers.
  */
@@ -1308,7 +1594,7 @@ bus_generic_shutdown(device_t dev)
 
     for (child = TAILQ_FIRST(&dev->children);
 	 child; child = TAILQ_NEXT(child, link))
-	DEVICE_SHUTDOWN(child);
+	device_shutdown(child);
 
     return 0;
 }
@@ -1364,6 +1650,17 @@ bus_generic_write_ivar(device_t dev, device_t child, int index,
 		       uintptr_t value)
 {
     return ENOENT;
+}
+
+void
+bus_generic_driver_added(device_t dev, driver_t *driver)
+{
+    device_t child;
+
+    for (child = TAILQ_FIRST(&dev->children);
+	 child; child = TAILQ_NEXT(child, link))
+	if (child->state == DS_NOTPRESENT)
+	    device_probe_and_attach(child);
 }
 
 int
@@ -1513,6 +1810,7 @@ root_setup_intr(device_t dev, device_t child, driver_intr_t *intr, void *arg,
 
 static device_method_t root_methods[] = {
 	/* Device interface */
+	DEVMETHOD(device_shutdown,	bus_generic_shutdown),
 	DEVMETHOD(device_suspend,	bus_generic_suspend),
 	DEVMETHOD(device_resume,	bus_generic_resume),
 
@@ -1547,6 +1845,10 @@ root_bus_module_handler(module_t mod, int what, void* arg)
 	root_bus->driver = &root_driver;
 	root_bus->state = DS_ATTACHED;
 	root_devclass = devclass_find_internal("root", FALSE);
+	return 0;
+
+    case MOD_SHUTDOWN:
+	device_shutdown(root_bus);
 	return 0;
     }
 

@@ -25,7 +25,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *	$Id: ata-dma.c,v 1.3 1999/03/30 13:09:47 sos Exp $
+ *	$Id: ata-dma.c,v 1.4 1999/04/10 18:53:35 sos Exp $
  */
 
 #include "ata.h"
@@ -41,6 +41,12 @@
 #include <pci/pcivar.h>
 #include <pci/pcireg.h>
 #include <dev/ata/ata-all.h>
+
+#ifdef __alpha__
+#undef vtophys
+#define	vtophys(va)	(pmap_kextract(((vm_offset_t) (va))) \
+			 + 1*1024*1024*1024)
+#endif
 
 /* misc defines */
 #define MIN(a,b) ((a)>(b)?(b):(a))    
@@ -64,7 +70,7 @@ ata_dmainit(struct ata_softc *scp, int32_t device,
     if (!(dmatab = malloc(PAGE_SIZE, M_DEVBUF, M_NOWAIT)))
         return -1;
 
-    if (((int)dmatab>>PAGE_SHIFT)^(((int)dmatab+PAGE_SIZE-1)>>PAGE_SHIFT)) {
+    if (((uintptr_t)dmatab>>PAGE_SHIFT)^(((uintptr_t)dmatab+PAGE_SIZE-1)>>PAGE_SHIFT)) {
         printf("ata_dmainit: dmatab crosses page boundary, no DMA\n");
         free(dmatab, M_DEVBUF);
         return -1;
@@ -252,7 +258,7 @@ ata_dmasetup(struct ata_softc *scp, int32_t device,
 #ifdef ATA_DEBUGDMA
     printf("ata%d: dmasetup\n", scp->lun);
 #endif
-    if (((u_int32_t)data & 1) || (count & 1))
+    if (((uintptr_t)data & 1) || (count & 1))
 	return -1;
 
     if (!count) {
@@ -263,7 +269,7 @@ ata_dmasetup(struct ata_softc *scp, int32_t device,
     
     dmatab = scp->dmatab[device ? 1 : 0];
     dma_base = vtophys(data);
-    dma_count = MIN(count, (PAGE_SIZE - ((u_int32_t)data & PAGE_MASK)));
+    dma_count = MIN(count, (PAGE_SIZE - ((uintptr_t)data & PAGE_MASK)));
     data += dma_count;
     count -= dma_count;
 

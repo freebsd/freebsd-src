@@ -44,6 +44,8 @@
  * USB spec: http://www.teleport.com/cgi-bin/mailmerge.cgi/~usb/cgiform.tpl
  */
 
+#include "opt_bus.h"
+
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/kernel.h>
@@ -52,22 +54,12 @@
 #include <sys/device.h>
 #include <sys/proc.h>
 #include <sys/queue.h>
+#include <machine/bus.h>
+#include <sys/rman.h>
+#include <machine/resource.h>
 
 #include <pci/pcivar.h>
 #include <pci/pcireg.h>
-
-#define PCI_CLASS_SERIALBUS                     0x0c000000
-#define PCI_SUBCLASS_COMMUNICATIONS_SERIAL      0x00000000
-#define PCI_SUBCLASS_SERIALBUS_FIREWIRE         0x00000000
-#define PCI_SUBCLASS_SERIALBUS_ACCESS           0x00010000
-#define PCI_SUBCLASS_SERIALBUS_SSA              0x00020000
-#define PCI_SUBCLASS_SERIALBUS_USB              0x00030000
-#define PCI_SUBCLASS_SERIALBUS_FIBER            0x00040000
-
-#define PCI_INTERFACE(d)        (((d) >> 8) & 0xff)
-#define PCI_SUBCLASS(d)         ((d) & PCI_SUBCLASS_MASK)
-#define PCI_CLASS(d)            ((d) & PCI_CLASS_MASK)
-
 
 #include <dev/usb/usb.h>
 #include <dev/usb/usbdi.h>
@@ -76,7 +68,6 @@
 
 #include <dev/usb/ohcireg.h>
 #include <dev/usb/ohcivar.h>
-
 
 #define PCI_OHCI_VENDORID_ALI		0x10b9
 #define PCI_OHCI_VENDORID_CMDTECH	0x1095
@@ -98,27 +89,12 @@ static const char *ohci_device_usb0673	 = "CMD Tech 673 (USB0673) USB Host Contr
 
 static const char *ohci_device_generic   = "OHCI (generic) USB Host Controller";
 
-
-static const char *ohci_pci_probe              __P((pcici_t, pcidi_t));
-static void ohci_pci_attach              __P((pcici_t, int));
-
-static u_long ohci_count = 0;
-
-static struct pci_device ohci_pci_device = {
-        "ohci",
-	ohci_pci_probe,
-	ohci_pci_attach,
-	&ohci_count,
-	NULL
-};
-
-DATA_SET(pcidevice_set, ohci_pci_device);
-
+#define PCI_OHCI_BASE_REG	0x10
 
 static const char *
-ohci_pci_probe(pcici_t config_id, pcidi_t device_id)
+ohci_pci_match(device_t dev)
 {
-        u_int32_t class;
+	u_int32_t device_id = pci_get_devid(dev);
 
 	switch(device_id) {
 	case PCI_OHCI_DEVICEID_ALADDIN_V:
@@ -132,54 +108,72 @@ ohci_pci_probe(pcici_t config_id, pcidi_t device_id)
 	case PCI_OHCI_DEVICEID_NEC:
 		return (ohci_device_nec);
 	default:
-		class = pci_conf_read(config_id, PCI_CLASS_REG);
-		if (   (PCI_CLASS(class)     == PCI_CLASS_SERIALBUS)
-		    && (PCI_SUBCLASS(class)  == PCI_SUBCLASS_SERIALBUS_USB)
-		    && (PCI_INTERFACE(class) == PCI_INTERFACE_OHCI)) {
-			return(ohci_device_generic);
+		if (   pci_get_class(dev)    == PCIC_SERIALBUS
+		    && pci_get_subclass(dev) == PCIS_SERIALBUS_USB
+		    && pci_get_progif(dev)   == PCI_INTERFACE_OHCI) {
+			return (ohci_device_generic);
 		}
 	}
 
 	return NULL;	/* dunno */
 }
 
-static void
-ohci_pci_attach(pcici_t config_id, int unit)
+static int
+ohci_pci_probe(device_t dev)
 {
-	vm_offset_t pbase;
-	device_t usbus;
-	ohci_softc_t *sc;
-	usbd_status err;
-	int id;
-
-	sc = malloc(sizeof(ohci_softc_t), M_DEVBUF, M_NOWAIT);
-	/* Do not free it below, intr might use the sc */
-	if ( sc == NULL ) {
-		printf("ohci%d: could not allocate memory", unit);
-		return;
+	const char *desc = ohci_pci_match(dev);
+	if (desc) {
+		device_set_desc(dev, desc);
+		return 0;
+	} else {
+		return ENXIO;
 	}
-	memset(sc, 0, sizeof(ohci_softc_t));
+}
 
-	if(!pci_map_mem(config_id, PCI_CBMEM,
-           (vm_offset_t *)&sc->sc_iobase, &pbase)) {
-		printf("ohci%d: could not map memory\n", unit);
-		return;
+static int
+ohci_pci_attach(device_t dev)
+{
+	int unit = device_get_unit(dev);
+	ohci_softc_t *sc = device_get_softc(dev);
+	device_t usbus;
+	usbd_status err;
+	int rid;
+	struct resource *res;
+	void *ih;
+	int error;
+
+	rid = PCI_CBMEM;
+	res = bus_alloc_resource(dev, SYS_RES_MEMORY, &rid,
+				 0, ~0, 1, RF_ACTIVE);
+	if (!res) {
+		device_printf(dev, "could not map memory\n");
+		return ENXIO;
         }
 
-	if ( !pci_map_int(config_id, (pci_inthand_t *)ohci_intr,
-			  (void *) sc, &bio_imask)) {
-		printf("ohci%d: could not map irq\n", unit);
-		return;                    
+	sc->iot = rman_get_bustag(res);
+	sc->ioh = rman_get_bushandle(res);
+
+	rid = 0;
+	res = bus_alloc_resource(dev, SYS_RES_IRQ, &rid, 0, ~0, 1,
+				 RF_SHAREABLE | RF_ACTIVE);
+	if (res == NULL) {
+		device_printf(dev, "could not allocate irq\n");
+		return ENOMEM;
 	}
 
-	usbus = device_add_child(root_bus, "usb", -1, sc);
+	error = bus_setup_intr(dev, res, (driver_intr_t *) ohci_intr, sc, &ih);
+	if (error) {
+		device_printf(dev, "could not setup irq\n");
+		return error;
+	}
+
+	usbus = device_add_child(dev, "usb", -1, sc);
 	if (!usbus) {
-		printf("ohci%d: could not add USB device to root bus\n", unit);
-		return;
+		printf("ohci%d: could not add USB device\n", unit);
+		return ENOMEM;
 	}
 
-	id = pci_conf_read(config_id, PCI_ID_REG);
-	switch(id) {
+	switch (pci_get_devid(dev)) {
 	case PCI_OHCI_DEVICEID_ALADDIN_V:
 		device_set_desc(usbus, ohci_device_aladdin_v);
 		sprintf(sc->sc_vendor, "AcerLabs");
@@ -202,7 +196,7 @@ ohci_pci_attach(pcici_t config_id, int unit)
 		break;
 	default:
 		if (bootverbose)
-			printf("(New OHCI DeviceId=0x%08x)\n", id);
+			printf("(New OHCI DeviceId=0x%08x)\n", pci_get_devid(dev));
 		device_set_desc(usbus, ohci_device_generic);
 		sprintf(sc->sc_vendor, "(unknown)");
 	}
@@ -211,8 +205,36 @@ ohci_pci_attach(pcici_t config_id, int unit)
 	err = ohci_init(sc);
 	if (err != USBD_NORMAL_COMPLETION) {
 		printf("ohci%d: init failed, error=%d\n", unit, err);
-		device_delete_child(root_bus, usbus);
+		device_delete_child(dev, usbus);
 	}
 
-	return;
+	return device_probe_and_attach(sc->sc_bus.bdev);
 }
+
+static device_method_t ohci_methods[] = {
+	/* Device interface */
+	DEVMETHOD(device_probe,		ohci_pci_probe),
+	DEVMETHOD(device_attach,	ohci_pci_attach),
+
+	/* Bus interface */
+	DEVMETHOD(bus_print_child,	bus_generic_print_child),
+	DEVMETHOD(bus_alloc_resource,	bus_generic_alloc_resource),
+	DEVMETHOD(bus_release_resource,	bus_generic_release_resource),
+	DEVMETHOD(bus_activate_resource, bus_generic_activate_resource),
+	DEVMETHOD(bus_deactivate_resource, bus_generic_deactivate_resource),
+	DEVMETHOD(bus_setup_intr,	bus_generic_setup_intr),
+	DEVMETHOD(bus_teardown_intr,	bus_generic_teardown_intr),
+
+	{ 0, 0 }
+};
+
+static driver_t ohci_driver = {
+	"ohci",
+	ohci_methods,
+	DRIVER_TYPE_BIO,
+	sizeof(ohci_softc_t),
+};
+
+static devclass_t ohci_devclass;
+
+DRIVER_MODULE(ohci, pci, ohci_driver, ohci_devclass, 0, 0);

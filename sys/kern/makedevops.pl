@@ -323,7 +323,7 @@ foreach $src ( @filenames ) {
          if ( $cfile ) {
             # Print out the method desc
             print CFILE "struct device_op_desc $mname\_desc = {\n";
-            print CFILE "\t0, \"$mname\"\n";
+            print CFILE "\t0, 0, \"$mname\"\n";
             print CFILE "};\n\n";
 
             # Print out the method itself

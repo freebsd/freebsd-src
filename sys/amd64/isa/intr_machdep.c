@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)isa.c	7.2 (Berkeley) 5/13/91
- *	$Id: intr_machdep.c,v 1.16 1999/01/08 19:17:48 bde Exp $
+ *	$Id: intr_machdep.c,v 1.17 1999/04/14 14:26:36 bde Exp $
  */
 
 #include "opt_auto_eoi.h"
@@ -328,6 +328,7 @@ isa_get_nameunit(int id)
 		return ("clk0");	/* XXX may also be sloppy driver */
 	if (id == 1)
 		return ("rtc0");
+#if 0
 	for (dp = isa_devtab_bio; dp->id_driver != NULL; dp++)
 		if (dp->id_id == id)
 			goto found_device;
@@ -343,6 +344,7 @@ isa_get_nameunit(int id)
 	for (dp = isa_devtab_tty; dp->id_driver != NULL; dp++)
 		if (dp->id_id == id)
 			goto found_device;
+#endif
 	return "???";
 
 found_device:
