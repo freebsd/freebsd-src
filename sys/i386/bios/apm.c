@@ -15,7 +15,7 @@
  *
  * Sep, 1994	Implemented on FreeBSD 1.1.5.1R (Toshiba AVS001WD)
  *
- *	$Id: apm.c,v 1.93 1999/07/28 20:20:29 msmith Exp $
+ *	$Id: apm.c,v 1.94 1999/07/29 01:49:12 msmith Exp $
  */
 
 #include "opt_devfs.h"
@@ -972,7 +972,7 @@ apm_attach(device_t dev)
 		if (apm_enable_disable_pm(1)) {
 #ifdef APM_DEBUG
 			printf("apm: *Warning* enable function failed! [%x]\n",
-				apm_errno);
+				(sc->bios.r.eax >> 8) & 0xff);
 #endif
 		}
 	}
@@ -982,7 +982,7 @@ apm_attach(device_t dev)
 		if (apm_engage_disengage_pm(1)) {
 #ifdef APM_DEBUG
 			printf("apm: *Warning* engage function failed err=[%x]",
-				apm_errno);
+				(sc->bios.r.eax >> 8) & 0xff);
 			printf(" (Docked or using external power?).\n");
 #endif
 		}
