@@ -12,6 +12,9 @@ SRCS=   kernel.c rc.c checklist.c inputbox.c menubox.c msgbox.c \
 
 CFLAGS+= -I${.CURDIR} -Wall -Wstrict-prototypes -DLOCALE
 
+LDADD+= -lncurses -lmytinfo
+DPADD+= ${LIBNCURSES} ${LIBMYTINFO}
+
 beforeinstall:
 	-cd ${.CURDIR}; cmp -s dialog.h ${DESTDIR}/usr/include/dialog.h || \
 	      ${INSTALL} -c -o ${BINOWN} -g ${BINGRP} -m 444 dialog.h \
