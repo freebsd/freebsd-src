@@ -14,12 +14,16 @@
  */
 
 /*
- * $Id: if_ed.c,v 1.29 93/09/12 04:43:31 davidg Exp Locker: davidg $
+ * $Id: if_ed.c,v 1.30 93/09/24 18:43:31 davidg Exp Locker: davidg $
  */
 
 /*
  * Modification history
  *
+ * Revision 1.30  93/09/24  18:43:31  davidg
+ * fix bug where Compex boards ident themselves as 8003E's and the
+ * 16bit override wasn't working
+ * 
  * Revision 1.29  93/09/12  04:43:31  davidg
  * cleaned-up probe routine to make it easier to add future board types
  * 
@@ -407,15 +411,13 @@ ed_probe_WD80x3(isa_dev)
 	/*
 	 * Set upper address bits and 8/16 bit access to shared memory
 	 */
-	if ((sc->type & ED_WD_SOFTCONFIG) || (sc->type == ED_TYPE_WD8013EBT)) {
-		if (isa16bit) {
-			outb(sc->asic_addr + ED_WD_LAAR, (sc->wd_laar_proto =
-				ED_WD_LAAR_L16EN | ED_WD_LAAR_M16EN |
-				((kvtop(sc->smem_start) >> 19) & ED_WD_LAAR_ADDRHI)));
-		} else {
-			outb(sc->asic_addr + ED_WD_LAAR, (sc->wd_laar_proto =
+	if (isa16bit) {
+		outb(sc->asic_addr + ED_WD_LAAR, (sc->wd_laar_proto =
+			ED_WD_LAAR_L16EN | ED_WD_LAAR_M16EN |
 			((kvtop(sc->smem_start) >> 19) & ED_WD_LAAR_ADDRHI)));
-		}
+	} else {
+		outb(sc->asic_addr + ED_WD_LAAR, (sc->wd_laar_proto =
+		((kvtop(sc->smem_start) >> 19) & ED_WD_LAAR_ADDRHI)));
 	}
 
 	/*
