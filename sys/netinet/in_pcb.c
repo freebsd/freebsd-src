@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)in_pcb.c	8.4 (Berkeley) 5/24/95
- *	$Id: in_pcb.c,v 1.14 1995/10/29 15:32:25 phk Exp $
+ *	$Id: in_pcb.c,v 1.15 1995/11/14 20:33:59 phk Exp $
  */
 
 #include <sys/param.h>
@@ -46,6 +46,8 @@
 #include <sys/time.h>
 #include <sys/proc.h>
 #include <sys/queue.h>
+#include <sys/kernel.h>
+#include <sys/sysctl.h>
 
 #include <net/if.h>
 #include <net/route.h>
@@ -58,6 +60,18 @@
 #include <netinet/ip_var.h>
 
 struct	in_addr zeroin_addr;
+
+/*
+ * These configure the range of local port addresses assigned to
+ * "unspecified" outgoing connections/packets/whatever.
+ */
+static int ipport_firstauto = IPPORT_FIRSTAUTO;
+static int ipport_lastauto = IPPORT_LASTAUTO;
+
+SYSCTL_INT(_net_inet_ip, OID_AUTO, port_first_auto, CTLFLAG_RW,
+	   &ipport_firstauto, 0, "");
+SYSCTL_INT(_net_inet_ip, OID_AUTO, port_last_auto, CTLFLAG_RW,
+	   &ipport_lastauto, 0, "");
 
 static void	 in_pcbinshash __P((struct inpcb *));
 static void	 in_rtchange __P((struct inpcb *, int));
@@ -151,9 +165,9 @@ in_pcbbind(inp, nam)
 	if (lport == 0)
 		do {
 			++*lastport;
-			if (*lastport < IPPORT_RESERVED ||
-			    *lastport > IPPORT_USERRESERVED)
-				*lastport = IPPORT_RESERVED;
+			if (*lastport < ipport_firstauto ||
+			    *lastport > ipport_lastauto)
+				*lastport = ipport_firstauto;
 			lport = htons(*lastport);
 		} while (in_pcblookup(head,
 			    zeroin_addr, 0, inp->inp_laddr, lport, wild));

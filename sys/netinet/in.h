@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)in.h	8.3 (Berkeley) 1/3/94
- * $Id: in.h,v 1.12 1995/11/01 17:18:26 wollman Exp $
+ * $Id: in.h,v 1.13 1995/11/14 20:33:57 phk Exp $
  */
 
 #ifndef _NETINET_IN_H_
@@ -73,6 +73,20 @@
  */
 #define	IPPORT_RESERVED		1024
 #define	IPPORT_USERRESERVED	5000
+
+/*
+ * Range of ports for automatic assignment to local addresses that
+ * have not explicitly specified an address.
+ *
+ * These can be overridden at kernel config time, and are used to init
+ * sysctl variables.  The sysctl variables can be changed at runtime.
+ */
+#ifndef IPPORT_FIRSTAUTO
+#define	IPPORT_FIRSTAUTO	20000
+#endif
+#ifndef IPPORT_LASTAUTO
+#define	IPPORT_LASTAUTO		30000
+#endif
 
 /*
  * Internet address (a structure for historical reasons)
