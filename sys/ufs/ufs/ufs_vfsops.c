@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)ufs_vfsops.c	8.4 (Berkeley) 4/16/94
- * $Id$
+ * $Id: ufs_vfsops.c,v 1.2 1994/08/02 07:55:01 davidg Exp $
  */
 
 #include <sys/param.h>
@@ -85,7 +85,8 @@ ufs_root(mp, vpp)
 	struct vnode *nvp;
 	int error;
 
-	if (error = VFS_VGET(mp, (ino_t)ROOTINO, &nvp))
+	error = VFS_VGET(mp, (ino_t)ROOTINO, &nvp);
+	if (error)
 		return (error);
 	*vpp = nvp;
 	return (0);
@@ -102,11 +103,11 @@ ufs_quotactl(mp, cmds, uid, arg, p)
 	caddr_t arg;
 	struct proc *p;
 {
-	int cmd, type, error;
-
 #ifndef QUOTA
 	return (EOPNOTSUPP);
 #else
+	int cmd, type, error;
+
 	if (uid == -1)
 		uid = p->p_cred->p_ruid;
 	cmd = cmds >> SUBCMDSHIFT;
@@ -190,7 +191,8 @@ ufs_check_export(mp, ufhp, nam, vpp, exflagsp, credanonp)
 	if (np == NULL)
 		return (EACCES);
 
-	if (error = VFS_VGET(mp, ufhp->ufid_ino, &nvp)) {
+	error = VFS_VGET(mp, ufhp->ufid_ino, &nvp);
+	if (error) {
 		*vpp = NULLVP;
 		return (error);
 	}

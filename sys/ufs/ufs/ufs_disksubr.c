@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)ufs_disksubr.c	8.5 (Berkeley) 1/21/94
- * $Id$
+ * $Id: ufs_disksubr.c,v 1.3 1994/08/02 07:54:53 davidg Exp $
  */
 
 #include <sys/param.h>
@@ -46,6 +46,7 @@
 #include <sys/syslog.h>
 #include <sys/dkbad.h>
 
+int	dkcksum __P((struct disklabel *));
 /*
  * Seek sort for disks.  We depend on the driver which calls us using b_resid
  * as the current cylinder number.
@@ -181,8 +182,6 @@ readdisklabel(dev, strat, lp, dp, bdp)
 	dospartoff = 0;
 	cyl = LABELSECTOR / lp->d_secpercyl;
 	if (dp) {
-		struct dos_partition *ap;
-
 		/* read master boot record */
 		bp->b_dev = dev; 
 		bp->b_blkno = DOSBBSECTOR;
@@ -217,8 +216,14 @@ readdisklabel(dev, strat, lp, dp, bdp)
 						dp->dp_start;
 					lp->d_ntracks = dp->dp_ehd + 1;
 					lp->d_nsectors = DPSECT(dp->dp_esect);
+#ifdef CC_WALL
+/* The next statement looks bogus... i runs int 0..3 ??? */
+					lp->d_subtype |= ((lp->d_subtype & 3)
+							+ i) | DSTYPE_INDOSPART;
+#else /* CC_WALL */
 					lp->d_subtype |= (lp->d_subtype & 3)
 							+ i | DSTYPE_INDOSPART;
+#endif /* CC_WALL */
 					lp->d_secpercyl = lp->d_ntracks *
 						lp->d_nsectors;
 				}
@@ -258,7 +263,7 @@ readdisklabel(dev, strat, lp, dp, bdp)
 	if (bdp && (lp->d_flags & D_BADSECT)) {
 		struct dkbad *db;
 
-		printf("d_secsize: %d\n", lp->d_secsize);
+		printf("d_secsize: %ld\n", lp->d_secsize);
 		i = 0;
 		do {
 			/* read a bad sector table */
@@ -367,7 +372,8 @@ writedisklabel(dev, strat, lp)
 	bp->b_bcount = lp->d_secsize;
 	bp->b_flags = B_READ;
 	(*strat)(bp);
-	if (error = biowait(bp))
+	error = biowait(bp);
+	if (error)
 		goto done;
 	for (dlp = (struct disklabel *)bp->b_data;
 	    dlp <= (struct disklabel *)
