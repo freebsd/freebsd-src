@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997, 1998 Kenneth D. Merry.
+ * Copyright (c) 1997, 1998, 1999 Kenneth D. Merry.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -357,6 +357,7 @@ cam_open_btl(path_id_t path_id, target_id_t target_id, lun_id_t target_lun,
 	if (ccb.cdm.matches == NULL) {
 		snprintf(cam_errbuf, CAM_ERRBUF_SIZE, 
 			 "%s: couldn't malloc match buffer", func_name);
+		close(fd);
 		return(NULL);
 	}
 	ccb.cdm.num_matches = 0;
@@ -370,6 +371,7 @@ cam_open_btl(path_id_t path_id, target_id_t target_id, lun_id_t target_lun,
 		snprintf(cam_errbuf, CAM_ERRBUF_SIZE, 
 			 "%s: couldn't malloc pattern buffer", func_name);
 		free(ccb.cdm.matches);
+		close(fd);
 		return(NULL);
 	}
 	ccb.cdm.patterns[0].type = DEV_MATCH_PERIPH;
@@ -429,6 +431,7 @@ cam_open_btl(path_id_t path_id, target_id_t target_id, lun_id_t target_lun,
 		pass_unit = periph_result->unit_number;
 		free(ccb.cdm.matches);
 		free(ccb.cdm.patterns);
+		close(fd);
 		sprintf(dev_path, "/dev/pass%d", pass_unit);
 		return(cam_real_open_device(dev_path, flags, device, NULL,
 					    NULL, 0));
@@ -444,6 +447,7 @@ cam_open_btl(path_id_t path_id, target_id_t target_id, lun_id_t target_lun,
 btl_bailout:
 	free(ccb.cdm.matches);
 	free(ccb.cdm.patterns);
+	close(fd);
 	return(NULL);
 }
 
