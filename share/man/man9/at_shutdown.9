@@ -48,34 +48,34 @@ The
 facility allows a kernel module to ensure that it is notified
 at system shutdown.
 The function
-.Ar func
+.Fa func
 is called with the flags indicating boot type, and the opaque argument
-.Ar arg
+.Fa arg
 when the system is shut down.
 .Pp
 If the requirement for notification is removed, then the function 
-.Nm rm_at_shutdown
+.Fn rm_at_shutdown
 must be called with the exact
-.Ar func
+.Fa func
 and
-.Ar arg
+.Fa arg
 arguments as the corresponding call to
 .Fn at_shutdown .
 There are two shutdown queues, one run before the final sync and one after.
 The last argument to 
-.Nm at_shutdown
+.Fa at_shutdown
 should be one of 
-.Em SHUTDOWN_PRE_SYNC
+.Dv SHUTDOWN_PRE_SYNC
 or
-.Em SHUTDOWN_POST_SYNC
+.Dv SHUTDOWN_POST_SYNC
 to specify which queue should be used.
-.Nm rm_at_shutdown
+.Fn rm_at_shutdown
 will remove an entry from either queue.
 .Pp
 .Sh RETURN VALUES
-.Nm at_shutdown
+.Fn at_shutdown
 returns an error code, 0 meaning success. 
-.Nm rm_at_shutdown
+.Fn rm_at_shutdown
 returns the number of items removed (should be 0 or 1).
 .Sh SEE ALSO
 .Xr reboot 2 ,
