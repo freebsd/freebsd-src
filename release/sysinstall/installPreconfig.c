@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: installPreconfig.c,v 1.5 1995/10/22 01:32:47 jkh Exp $
+ * $Id: installPreconfig.c,v 1.6 1995/10/22 10:25:20 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -97,6 +97,7 @@ static struct _word {
     { "mediaSetFtpUserPass",	mediaSetFtpUserPass	},
     { "mediaSetCPIOVerbosity",	mediaSetCPIOVerbosity	},
     { "mediaGetType",		mediaGetType		},
+    { "packageAdd",		package_add		},
     { "tcpInstallDevice",	tcpInstallDevice	},
     { NULL, NULL },
 };
