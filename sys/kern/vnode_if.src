@@ -512,6 +512,7 @@ vop_getextattr {
 	IN int attrnamespace;
 	IN const char *name;
 	INOUT struct uio *uio;
+	OUT size_t *size;
 	IN struct ucred *cred;
 	IN struct thread *td;
 };
