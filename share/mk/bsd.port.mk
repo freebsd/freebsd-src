@@ -1,7 +1,7 @@
 #-*- mode: Fundamental; tab-width: 4; -*-
 # ex:ts=4
 #
-#	$Id: bsd.port.mk,v 1.276 1998/05/20 22:27:18 jkh Exp $
+#	$Id: bsd.port.mk,v 1.277 1998/07/13 23:39:02 se Exp $
 #	$NetBSD: $
 #
 #	bsd.port.mk - 940820 Jordan K. Hubbard.
@@ -622,9 +622,10 @@ PATCH_SITES:=	${MASTER_SITE_OVERRIDE} ${PATCH_SITES}
 
 # Search CDROM first if mounted, symlink instead of copy if
 # FETCH_SYMLINK_DISTFILES is set
-.if exists(/cdrom/ports/distfiles)
-MASTER_SITES:=	file:/cdrom/ports/distfiles/${DIST_SUBDIR}/ ${MASTER_SITES}
-PATCH_SITES:=	file:/cdrom/ports/distfiles/${DIST_SUBDIR}/ ${PATCH_SITES}
+CD_MOUNTPT?=	/cdrom
+.if exists(${CD_MOUNTPT}/ports/distfiles)
+MASTER_SITES:=	file:${CD_MOUNTPT}/ports/distfiles/${DIST_SUBDIR}/ ${MASTER_SITES}
+PATCH_SITES:=	file:${CD_MOUNTPT}/ports/distfiles/${DIST_SUBDIR}/ ${PATCH_SITES}
 .if defined(FETCH_SYMLINK_DISTFILES)
 FETCH_BEFORE_ARGS+=	-l
 .endif
