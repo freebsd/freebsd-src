@@ -181,7 +181,7 @@ contiguousfail:
 	case AF_APPLETALK:
 		break;
 	default:
-		printf("looutput: af=%d unexpected", dst->sa_family);
+		printf("looutput: af=%d unexpected\n", dst->sa_family);
 		m_freem(m);
 		return (EAFNOSUPPORT);
 	}
