@@ -249,7 +249,6 @@ g_io_request(struct bio *bp, struct g_consumer *cp)
 			break;
 		case BIO_SETATTR:
 		case BIO_DELETE:
-		case BIO_FORMAT:
 			if ((cp->acw == 0) || (cp->ace == 0))
 				error = EPERM;
 			break;

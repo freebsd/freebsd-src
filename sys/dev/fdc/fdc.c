@@ -165,6 +165,8 @@ struct fdc_data
 	void	(*fdctl_wr)(struct fdc_data *fdc, u_int8_t v);
 };
 
+#define BIO_FORMAT	BIO_CMD2
+
 typedef int	fdu_t;
 typedef int	fdcu_t;
 typedef int	fdsu_t;
