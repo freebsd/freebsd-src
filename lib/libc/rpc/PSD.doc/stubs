@@ -1,0 +1,10 @@
+.\" $FreeBSD$
+.\"
+.ie n \{\
+.	ftr CW R
+.	ftr L R
+\}
+.el \{\
+.	ftr CW CR
+.	ftr L CR
+\}
