@@ -63,6 +63,8 @@
 #include <openssl/rsa.h>
 #include <openssl/rand.h>
 
+#ifndef RSA_NULL
+
 static int RSA_eay_public_encrypt(int flen, unsigned char *from,
 		unsigned char *to, RSA *rsa,int padding);
 static int RSA_eay_private_encrypt(int flen, unsigned char *from,
@@ -88,7 +90,7 @@ static RSA_METHOD rsa_pkcs1_eay_meth={
 	NULL,
 	};
 
-RSA_METHOD *RSA_PKCS1(void)
+RSA_METHOD *RSA_PKCS1_SSLeay(void)
 	{
 	return(&rsa_pkcs1_eay_meth);
 	}
@@ -105,7 +107,7 @@ static int RSA_eay_public_encrypt(int flen, unsigned char *from,
 	BN_init(&ret);
 	if ((ctx=BN_CTX_new()) == NULL) goto err;
 	num=BN_num_bytes(rsa->n);
-	if ((buf=(unsigned char *)Malloc(num)) == NULL)
+	if ((buf=(unsigned char *)OPENSSL_malloc(num)) == NULL)
 		{
 		RSAerr(RSA_F_RSA_EAY_PUBLIC_ENCRYPT,ERR_R_MALLOC_FAILURE);
 		goto err;
@@ -160,7 +162,7 @@ err:
 	if (buf != NULL) 
 		{
 		memset(buf,0,num);
-		Free(buf);
+		OPENSSL_free(buf);
 		}
 	return(r);
 	}
@@ -178,7 +180,7 @@ static int RSA_eay_private_encrypt(int flen, unsigned char *from,
 
 	if ((ctx=BN_CTX_new()) == NULL) goto err;
 	num=BN_num_bytes(rsa->n);
-	if ((buf=(unsigned char *)Malloc(num)) == NULL)
+	if ((buf=(unsigned char *)OPENSSL_malloc(num)) == NULL)
 		{
 		RSAerr(RSA_F_RSA_EAY_PRIVATE_ENCRYPT,ERR_R_MALLOC_FAILURE);
 		goto err;
@@ -236,7 +238,7 @@ err:
 	if (buf != NULL)
 		{
 		memset(buf,0,num);
-		Free(buf);
+		OPENSSL_free(buf);
 		}
 	return(r);
 	}
@@ -257,13 +259,13 @@ static int RSA_eay_private_decrypt(int flen, unsigned char *from,
 
 	num=BN_num_bytes(rsa->n);
 
-	if ((buf=(unsigned char *)Malloc(num)) == NULL)
+	if ((buf=(unsigned char *)OPENSSL_malloc(num)) == NULL)
 		{
 		RSAerr(RSA_F_RSA_EAY_PRIVATE_DECRYPT,ERR_R_MALLOC_FAILURE);
 		goto err;
 		}
 
-	/* This check was for equallity but PGP does evil things
+	/* This check was for equality but PGP does evil things
 	 * and chops off the top '0' bytes */
 	if (flen > num)
 		{
@@ -329,7 +331,7 @@ err:
 	if (buf != NULL)
 		{
 		memset(buf,0,num);
-		Free(buf);
+		OPENSSL_free(buf);
 		}
 	return(r);
 	}
@@ -349,14 +351,14 @@ static int RSA_eay_public_decrypt(int flen, unsigned char *from,
 	if (ctx == NULL) goto err;
 
 	num=BN_num_bytes(rsa->n);
-	buf=(unsigned char *)Malloc(num);
+	buf=(unsigned char *)OPENSSL_malloc(num);
 	if (buf == NULL)
 		{
 		RSAerr(RSA_F_RSA_EAY_PUBLIC_DECRYPT,ERR_R_MALLOC_FAILURE);
 		goto err;
 		}
 
-	/* This check was for equallity but PGP does evil things
+	/* This check was for equality but PGP does evil things
 	 * and chops off the top '0' bytes */
 	if (flen > num)
 		{
@@ -401,7 +403,7 @@ err:
 	if (buf != NULL)
 		{
 		memset(buf,0,num);
-		Free(buf);
+		OPENSSL_free(buf);
 		}
 	return(r);
 	}
@@ -487,4 +489,4 @@ static int RSA_eay_finish(RSA *rsa)
 	return(1);
 	}
 
-
+#endif

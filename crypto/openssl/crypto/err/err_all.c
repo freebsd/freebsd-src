@@ -65,6 +65,9 @@
 #ifndef NO_RSA
 #include <openssl/rsa.h>
 #endif
+#ifdef RSAref
+#include <openssl/rsaref.h>
+#endif
 #ifndef NO_DH
 #include <openssl/dh.h>
 #endif
@@ -80,6 +83,7 @@
 #include <openssl/pkcs12.h>
 #include <openssl/rand.h>
 #include <openssl/err.h>
+#include <openssl/dso.h>
 
 void ERR_load_crypto_strings(void)
 	{
@@ -94,7 +98,11 @@ void ERR_load_crypto_strings(void)
 	ERR_load_BIO_strings();
 	ERR_load_CONF_strings();
 #ifndef NO_RSA
+#ifdef RSAref
+	ERR_load_RSAREF_strings();
+#else
 	ERR_load_RSA_strings();
+#endif
 #endif
 #ifndef NO_DH
 	ERR_load_DH_strings();
@@ -112,5 +120,6 @@ void ERR_load_crypto_strings(void)
 	ERR_load_PKCS7_strings();
 	ERR_load_PKCS12_strings();
 	ERR_load_RAND_strings();
+	ERR_load_DSO_strings();
 #endif
 	}
