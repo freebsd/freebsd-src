@@ -4,7 +4,7 @@
  * This is probably the last attempt in the `sysinstall' line, the next
  * generation being slated to essentially a complete rewrite.
  *
- * $Id: media.c,v 1.63 1996/11/02 19:50:32 jkh Exp $
+ * $Id: media.c,v 1.64 1996/11/04 02:12:49 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -332,7 +332,6 @@ mediaSetFTP(dialogMenuItem *self)
 	msgDebug("port # = `%d'\n", FtpPort);
     }
     if (variable_get(VAR_NAMESERVER)) {
-	msgNotify("Looking up host %s..", hostname);
 	if ((gethostbyname(hostname) == NULL) && (inet_addr(hostname) == INADDR_NONE)) {
 	    msgConfirm("Cannot resolve hostname `%s'!  Are you sure that your\n"
 		       "name server, gateway and network interface are correctly configured?", hostname);
@@ -340,6 +339,8 @@ mediaSetFTP(dialogMenuItem *self)
 	    network_init = TRUE;
 	    return DITEM_FAILURE | what;
 	}
+	else
+	    msgNotify("Found DNS entry for %s successfully..", hostname);
     }
     variable_set2(VAR_FTP_HOST, hostname);
     variable_set2(VAR_FTP_DIR, dir ? dir : "/");
@@ -418,12 +419,14 @@ mediaSetNFS(dialogMenuItem *self)
     }
     *idx = '\0';
     if (variable_get(VAR_NAMESERVER)) {
-	msgNotify("Looking up host %s..", cp);
 	if ((gethostbyname(cp) == NULL) && (inet_addr(cp) == INADDR_NONE)) {
 	    msgConfirm("Cannot resolve hostname `%s'!  Are you sure that your\n"
 		       "name server, gateway and network interface are correctly configured?", cp);
 	    return DITEM_FAILURE;
 	}
+	else
+	    msgNotify("Found DNS entry for %s successfully..", cp);
+
     }
     variable_set2(VAR_NFS_HOST, cp);
     nfsDevice.type = DEVICE_TYPE_NFS;
