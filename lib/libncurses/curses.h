@@ -162,7 +162,9 @@ extern int	LINES, COLS;
 extern "C" {
 #endif
 
+#if 0 /* MYTINFO not have it */
 extern char ttytype[];		/* needed for backward compatibility */
+#endif
 
 extern int tigetflag(char *);
 extern int tigetnum(char *);
