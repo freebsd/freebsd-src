@@ -33,7 +33,7 @@ SRCS+=  _rand48.c _spinlock_stub.c alarm.c arc4random.c assert.c \
 
 .if ${LIB} == "c"
 MAN3+=  alarm.3 arc4random.3 clock.3 \
-	confstr.3 crypt.3 ctermid.3 daemon.3 \
+	confstr.3 ctermid.3 daemon.3 \
 	devname.3 directory.3 dladdr.3 dllockinit.3 dlopen.3 \
 	err.3 exec.3 fnmatch.3 frexp.3 ftok.3 fts.3 \
 	getbootfile.3 getbsize.3 getcap.3 getcwd.3 \
