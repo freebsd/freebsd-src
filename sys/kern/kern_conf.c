@@ -300,7 +300,7 @@ make_dev(struct cdevsw *devsw, int minor, uid_t uid, gid_t gid, int perms, char 
 
 	dev = makedev(devsw->d_maj, minor);
 	va_start(ap, fmt);
-	i = kvprintf(fmt, NULL, dev->si_name, 32, ap);
+	i = kvprintf(fmt, NULL, dev->si_name, SPECNAMELEN + 1, ap);
 	dev->si_name[i] = '\0';
 	va_end(ap);
 	dev->si_devsw = devsw;
