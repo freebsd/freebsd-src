@@ -194,7 +194,7 @@ nfssvc(p, uap)
 		error = copyin(uap->argp, (caddr_t)&nfsdarg, sizeof(nfsdarg));
 		if (error)
 			return (error);
-		error = getsock(p->p_fd, nfsdarg.sock, &fp);
+		error = holdsock(p->p_fd, nfsdarg.sock, &fp);
 		if (error)
 			return (error);
 		/*
@@ -205,10 +205,13 @@ nfssvc(p, uap)
 		else {
 			error = getsockaddr(&nam, nfsdarg.name,
 					    nfsdarg.namelen);
-			if (error)
+			if (error) {
+				fdrop(fp, p);
 				return (error);
+			}
 		}
 		error = nfssvc_addsock(fp, nam, p);
+		fdrop(fp, p);
 	} else {
 		error = copyin(uap->argp, (caddr_t)nsd, sizeof (*nsd));
 		if (error)

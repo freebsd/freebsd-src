@@ -116,10 +116,13 @@ socket(p, uap)
 	error = falloc(p, &fp, &fd);
 	if (error)
 		return (error);
+	fhold(fp);
 	error = socreate(uap->domain, &so, uap->type, uap->protocol, p);
 	if (error) {
-		fdp->fd_ofiles[fd] = 0;
-		ffree(fp);
+		if (fdp->fd_ofiles[fd] == fp) {
+			fdp->fd_ofiles[fd] = NULL;
+			fdrop(fp, p);
+		}
 	} else {
 		fp->f_data = (caddr_t)so;
 		fp->f_flag = FREAD|FWRITE;
@@ -127,6 +130,7 @@ socket(p, uap)
 		fp->f_type = DTYPE_SOCKET;
 		p->p_retval[0] = fd;
 	}
+	fdrop(fp, p);
 	return (error);
 }
 
@@ -144,14 +148,17 @@ bind(p, uap)
 	struct sockaddr *sa;
 	int error;
 
-	error = getsock(p->p_fd, uap->s, &fp);
+	error = holdsock(p->p_fd, uap->s, &fp);
 	if (error)
 		return (error);
 	error = getsockaddr(&sa, uap->name, uap->namelen);
-	if (error)
+	if (error) {
+		fdrop(fp, p);
 		return (error);
+	}
 	error = sobind((struct socket *)fp->f_data, sa, p);
 	FREE(sa, M_SONAME);
+	fdrop(fp, p);
 	return (error);
 }
 
@@ -167,10 +174,12 @@ listen(p, uap)
 	struct file *fp;
 	int error;
 
-	error = getsock(p->p_fd, uap->s, &fp);
+	error = holdsock(p->p_fd, uap->s, &fp);
 	if (error)
 		return (error);
-	return (solisten((struct socket *)fp->f_data, uap->backlog, p));
+	error = solisten((struct socket *)fp->f_data, uap->backlog, p);
+	fdrop(fp, p);
+	return(error);
 }
 
 static int
@@ -184,7 +193,8 @@ accept1(p, uap, compat)
 	int compat;
 {
 	struct filedesc *fdp = p->p_fd;
-	struct file *fp;
+	struct file *lfp = NULL;
+	struct file *nfp = NULL;
 	struct sockaddr *sa;
 	int namelen, error, s;
 	struct socket *head, *so;
@@ -197,18 +207,20 @@ accept1(p, uap, compat)
 		if(error)
 			return (error);
 	}
-	error = getsock(fdp, uap->s, &fp);
+	error = holdsock(fdp, uap->s, &lfp);
 	if (error)
 		return (error);
 	s = splnet();
-	head = (struct socket *)fp->f_data;
+	head = (struct socket *)lfp->f_data;
 	if ((head->so_options & SO_ACCEPTCONN) == 0) {
 		splx(s);
-		return (EINVAL);
+		error = EINVAL;
+		goto done;
 	}
 	if ((head->so_state & SS_NBIO) && TAILQ_EMPTY(&head->so_comp)) {
 		splx(s);
-		return (EWOULDBLOCK);
+		error = EWOULDBLOCK;
+		goto done;
 	}
 	while (TAILQ_EMPTY(&head->so_comp) && head->so_error == 0) {
 		if (head->so_state & SS_CANTRCVMORE) {
@@ -219,14 +231,14 @@ accept1(p, uap, compat)
 		    "accept", 0);
 		if (error) {
 			splx(s);
-			return (error);
+			goto done;
 		}
 	}
 	if (head->so_error) {
 		error = head->so_error;
 		head->so_error = 0;
 		splx(s);
-		return (error);
+		goto done;
 	}
 
 	/*
@@ -240,8 +252,8 @@ accept1(p, uap, compat)
 	TAILQ_REMOVE(&head->so_comp, so, so_list);
 	head->so_qlen--;
 
-	fflag = fp->f_flag;
-	error = falloc(p, &fp, &fd);
+	fflag = lfp->f_flag;
+	error = falloc(p, &nfp, &fd);
 	if (error) {
 		/*
 		 * Probably ran out of file descriptors. Put the
@@ -253,9 +265,10 @@ accept1(p, uap, compat)
 		head->so_qlen++;
 		wakeup_one(&head->so_timeo);
 		splx(s);
-		return (error);
-	} else
-		p->p_retval[0] = fd;
+		goto done;
+	}
+	fhold(nfp);
+	p->p_retval[0] = fd;
 
 	/* connection has been removed from the listen queue */
 	KNOTE(&head->so_rcv.sb_sel.si_note, 0);
@@ -265,18 +278,19 @@ accept1(p, uap, compat)
 	if (head->so_sigio != NULL)
 		fsetown(fgetown(head->so_sigio), &so->so_sigio);
 
-	fp->f_data = (caddr_t)so;
-	fp->f_flag = fflag;
-	fp->f_ops = &socketops;
-	fp->f_type = DTYPE_SOCKET;
+	nfp->f_data = (caddr_t)so;
+	nfp->f_flag = fflag;
+	nfp->f_ops = &socketops;
+	nfp->f_type = DTYPE_SOCKET;
 	sa = 0;
 	(void) soaccept(so, &sa);
-	if (sa == 0) {
+	if (sa == NULL) {
 		namelen = 0;
 		if (uap->name)
 			goto gotnoname;
 		splx(s);
-		return 0;
+		error = 0;
+		goto done;
 	}
 	if (uap->name) {
 		/* check sa_len before it is destroyed */
@@ -295,11 +309,26 @@ gotnoname:
 	}
 	if (sa)
 		FREE(sa, M_SONAME);
+
+	/*
+	 * close the new descriptor, assuming someone hasn't ripped it
+	 * out from under us.
+	 */
 	if (error) {
-		fdp->fd_ofiles[fd] = 0;
-		ffree(fp);
+		if (fdp->fd_ofiles[fd] == nfp) {
+			fdp->fd_ofiles[fd] = NULL;
+			fdrop(nfp, p);
+		}
 	}
 	splx(s);
+
+	/*
+	 * Release explicitly held references before returning.
+	 */
+done:
+	if (nfp != NULL)
+		fdrop(nfp, p);
+	fdrop(lfp, p);
 	return (error);
 }
 
@@ -338,21 +367,24 @@ connect(p, uap)
 	struct sockaddr *sa;
 	int error, s;
 
-	error = getsock(p->p_fd, uap->s, &fp);
+	error = holdsock(p->p_fd, uap->s, &fp);
 	if (error)
 		return (error);
 	so = (struct socket *)fp->f_data;
-	if ((so->so_state & SS_NBIO) && (so->so_state & SS_ISCONNECTING))
-		return (EALREADY);
+	if ((so->so_state & SS_NBIO) && (so->so_state & SS_ISCONNECTING)) {
+		error = EALREADY;
+		goto done;
+	}
 	error = getsockaddr(&sa, uap->name, uap->namelen);
 	if (error)
-		return (error);
+		goto done;
 	error = soconnect(so, sa, p);
 	if (error)
 		goto bad;
 	if ((so->so_state & SS_NBIO) && (so->so_state & SS_ISCONNECTING)) {
 		FREE(sa, M_SONAME);
-		return (EINPROGRESS);
+		error = EINPROGRESS;
+		goto done;
 	}
 	s = splnet();
 	while ((so->so_state & SS_ISCONNECTING) && so->so_error == 0) {
@@ -371,6 +403,8 @@ bad:
 	FREE(sa, M_SONAME);
 	if (error == ERESTART)
 		error = EINTR;
+done:
+	fdrop(fp, p);
 	return (error);
 }
 
@@ -398,11 +432,13 @@ socketpair(p, uap)
 	error = falloc(p, &fp1, &fd);
 	if (error)
 		goto free2;
+	fhold(fp1);
 	sv[0] = fd;
 	fp1->f_data = (caddr_t)so1;
 	error = falloc(p, &fp2, &fd);
 	if (error)
 		goto free3;
+	fhold(fp2);
 	fp2->f_data = (caddr_t)so2;
 	sv[1] = fd;
 	error = soconnect2(so1, so2);
@@ -420,13 +456,21 @@ socketpair(p, uap)
 	fp1->f_ops = fp2->f_ops = &socketops;
 	fp1->f_type = fp2->f_type = DTYPE_SOCKET;
 	error = copyout((caddr_t)sv, (caddr_t)uap->rsv, 2 * sizeof (int));
+	fdrop(fp1, p);
+	fdrop(fp2, p);
 	return (error);
 free4:
-	fdp->fd_ofiles[sv[1]] = 0;
-	ffree(fp2);
+	if (fdp->fd_ofiles[sv[1]] == fp2) {
+		fdp->fd_ofiles[sv[1]] = NULL;
+		fdrop(fp2, p);
+	}
+	fdrop(fp2, p);
 free3:
-	fdp->fd_ofiles[sv[0]] = 0;
-	ffree(fp1);
+	if (fdp->fd_ofiles[sv[0]] == fp1) {
+		fdp->fd_ofiles[sv[0]] = NULL;
+		fdrop(fp1, p);
+	}
+	fdrop(fp1, p);
 free2:
 	(void)soclose(so2);
 free1:
@@ -454,7 +498,7 @@ sendit(p, s, mp, flags)
 	struct uio ktruio;
 #endif
 
-	error = getsock(p->p_fd, s, &fp);
+	error = holdsock(p->p_fd, s, &fp);
 	if (error)
 		return (error);
 	auio.uio_iov = mp->msg_iov;
@@ -466,15 +510,20 @@ sendit(p, s, mp, flags)
 	auio.uio_resid = 0;
 	iov = mp->msg_iov;
 	for (i = 0; i < mp->msg_iovlen; i++, iov++) {
-		if ((auio.uio_resid += iov->iov_len) < 0)
+		if ((auio.uio_resid += iov->iov_len) < 0) {
+			fdrop(fp, p);
 			return (EINVAL);
+		}
 	}
 	if (mp->msg_name) {
 		error = getsockaddr(&to, mp->msg_name, mp->msg_namelen);
-		if (error)
+		if (error) {
+			fdrop(fp, p);
 			return (error);
-	} else
+		}
+	} else {
 		to = 0;
+	}
 	if (mp->msg_control) {
 		if (mp->msg_controllen < sizeof(struct cmsghdr)
 #ifdef COMPAT_OLDSOCK
@@ -504,8 +553,9 @@ sendit(p, s, mp, flags)
 			}
 		}
 #endif
-	} else
+	} else {
 		control = 0;
+	}
 #ifdef KTRACE
 	if (KTRPOINT(p, KTR_GENIO)) {
 		int iovlen = auio.uio_iovcnt * sizeof (struct iovec);
@@ -539,6 +589,7 @@ sendit(p, s, mp, flags)
 	}
 #endif
 bad:
+	fdrop(fp, p);
 	if (to)
 		FREE(to, M_SONAME);
 	return (error);
@@ -695,7 +746,7 @@ recvit(p, s, mp, namelenp)
 	struct uio ktruio;
 #endif
 
-	error = getsock(p->p_fd, s, &fp);
+	error = holdsock(p->p_fd, s, &fp);
 	if (error)
 		return (error);
 	auio.uio_iov = mp->msg_iov;
@@ -707,8 +758,10 @@ recvit(p, s, mp, namelenp)
 	auio.uio_resid = 0;
 	iov = mp->msg_iov;
 	for (i = 0; i < mp->msg_iovlen; i++, iov++) {
-		if ((auio.uio_resid += iov->iov_len) < 0)
+		if ((auio.uio_resid += iov->iov_len) < 0) {
+			fdrop(fp, p);
 			return (EINVAL);
+		}
 	}
 #ifdef KTRACE
 	if (KTRPOINT(p, KTR_GENIO)) {
@@ -820,6 +873,7 @@ recvit(p, s, mp, namelenp)
 		mp->msg_controllen = ctlbuf - (caddr_t)mp->msg_control;
 	}
 out:
+	fdrop(fp, p);
 	if (fromsa)
 		FREE(fromsa, M_SONAME);
 	if (control)
@@ -1004,10 +1058,12 @@ shutdown(p, uap)
 	struct file *fp;
 	int error;
 
-	error = getsock(p->p_fd, uap->s, &fp);
+	error = holdsock(p->p_fd, uap->s, &fp);
 	if (error)
 		return (error);
-	return (soshutdown((struct socket *)fp->f_data, uap->how));
+	error = soshutdown((struct socket *)fp->f_data, uap->how);
+	fdrop(fp, p);
+	return(error);
 }
 
 /* ARGSUSED */
@@ -1031,7 +1087,7 @@ setsockopt(p, uap)
 	if (uap->valsize < 0)
 		return (EINVAL);
 
-	error = getsock(p->p_fd, uap->s, &fp);
+	error = holdsock(p->p_fd, uap->s, &fp);
 	if (error)
 		return (error);
 
@@ -1041,8 +1097,9 @@ setsockopt(p, uap)
 	sopt.sopt_val = uap->val;
 	sopt.sopt_valsize = uap->valsize;
 	sopt.sopt_p = p;
-
-	return (sosetopt((struct socket *)fp->f_data, &sopt));
+	error = sosetopt((struct socket *)fp->f_data, &sopt);
+	fdrop(fp, p);
+	return(error);
 }
 
 /* ARGSUSED */
@@ -1061,18 +1118,23 @@ getsockopt(p, uap)
 	struct	file *fp;
 	struct	sockopt sopt;
 
-	error = getsock(p->p_fd, uap->s, &fp);
+	error = holdsock(p->p_fd, uap->s, &fp);
 	if (error)
 		return (error);
 	if (uap->val) {
 		error = copyin((caddr_t)uap->avalsize, (caddr_t)&valsize,
 		    sizeof (valsize));
-		if (error)
+		if (error) {
+			fdrop(fp, p);
 			return (error);
-		if (valsize < 0)
+		}
+		if (valsize < 0) {
+			fdrop(fp, p);
 			return (EINVAL);
-	} else
+		}
+	} else {
 		valsize = 0;
+	}
 
 	sopt.sopt_dir = SOPT_GET;
 	sopt.sopt_level = uap->level;
@@ -1087,6 +1149,7 @@ getsockopt(p, uap)
 		error = copyout((caddr_t)&valsize,
 				(caddr_t)uap->avalsize, sizeof (valsize));
 	}
+	fdrop(fp, p);
 	return (error);
 }
 
@@ -1109,12 +1172,14 @@ getsockname1(p, uap, compat)
 	struct sockaddr *sa;
 	int len, error;
 
-	error = getsock(p->p_fd, uap->fdes, &fp);
+	error = holdsock(p->p_fd, uap->fdes, &fp);
 	if (error)
 		return (error);
 	error = copyin((caddr_t)uap->alen, (caddr_t)&len, sizeof (len));
-	if (error)
+	if (error) {
+		fdrop(fp, p);
 		return (error);
+	}
 	so = (struct socket *)fp->f_data;
 	sa = 0;
 	error = (*so->so_proto->pr_usrreqs->pru_sockaddr)(so, &sa);
@@ -1138,6 +1203,7 @@ gotnothing:
 bad:
 	if (sa)
 		FREE(sa, M_SONAME);
+	fdrop(fp, p);
 	return (error);
 }
 
@@ -1180,15 +1246,19 @@ getpeername1(p, uap, compat)
 	struct sockaddr *sa;
 	int len, error;
 
-	error = getsock(p->p_fd, uap->fdes, &fp);
+	error = holdsock(p->p_fd, uap->fdes, &fp);
 	if (error)
 		return (error);
 	so = (struct socket *)fp->f_data;
-	if ((so->so_state & (SS_ISCONNECTED|SS_ISCONFIRMING)) == 0)
+	if ((so->so_state & (SS_ISCONNECTED|SS_ISCONFIRMING)) == 0) {
+		fdrop(fp, p);
 		return (ENOTCONN);
+	}
 	error = copyin((caddr_t)uap->alen, (caddr_t)&len, sizeof (len));
-	if (error)
+	if (error) {
+		fdrop(fp, p);
 		return (error);
+	}
 	sa = 0;
 	error = (*so->so_proto->pr_usrreqs->pru_peeraddr)(so, &sa);
 	if (error)
@@ -1209,7 +1279,9 @@ getpeername1(p, uap, compat)
 gotnothing:
 	error = copyout((caddr_t)&len, (caddr_t)uap->alen, sizeof (len));
 bad:
-	if (sa) FREE(sa, M_SONAME);
+	if (sa)
+		FREE(sa, M_SONAME);
+	fdrop(fp, p);
 	return (error);
 }
 
@@ -1300,21 +1372,31 @@ getsockaddr(namp, uaddr, len)
 	return error;
 }
 
+/*
+ * holdsock() - load the struct file pointer associated
+ * with a socket into *fpp.  If an error occurs, non-zero
+ * will be returned and *fpp will be set to NULL.
+ */
 int
-getsock(fdp, fdes, fpp)
+holdsock(fdp, fdes, fpp)
 	struct filedesc *fdp;
 	int fdes;
 	struct file **fpp;
 {
-	register struct file *fp;
+	register struct file *fp = NULL;
+	int error = 0;
 
 	if ((unsigned)fdes >= fdp->fd_nfiles ||
-	    (fp = fdp->fd_ofiles[fdes]) == NULL)
-		return (EBADF);
-	if (fp->f_type != DTYPE_SOCKET)
-		return (ENOTSOCK);
+	    (fp = fdp->fd_ofiles[fdes]) == NULL) {
+		error = EBADF;
+	} else if (fp->f_type != DTYPE_SOCKET) {
+		error = ENOTSOCK;
+		fp = NULL;
+	} else {
+		fhold(fp);
+	}
 	*fpp = fp;
-	return (0);
+	return(error);
 }
 
 /*
@@ -1440,7 +1522,7 @@ sendfile(struct proc *p, struct sendfile_args *uap)
 	 * Do argument checking. Must be a regular file in, stream
 	 * type and connected socket out, positive offset.
 	 */
-	fp = getfp(fdp, uap->fd, FREAD);
+	fp = holdfp(fdp, uap->fd, FREAD);
 	if (fp == NULL) {
 		error = EBADF;
 		goto done;
@@ -1456,7 +1538,8 @@ sendfile(struct proc *p, struct sendfile_args *uap)
 		error = EINVAL;
 		goto done;
 	}
-	error = getsock(p->p_fd, uap->s, &fp);
+	fdrop(fp, p);
+	error = holdsock(p->p_fd, uap->s, &fp);
 	if (error)
 		goto done;
 	so = (struct socket *)fp->f_data;
@@ -1722,5 +1805,7 @@ done:
 	}
 	if (vp)
 		vrele(vp);
+	if (fp)
+		fdrop(fp, p);
 	return (error);
 }

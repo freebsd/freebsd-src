@@ -68,6 +68,7 @@
 #include <vm/vm.h>
 #include <vm/vm_object.h>
 #include <vm/vm_zone.h>
+#include <vm/vm_page.h>
 
 static int change_dir __P((struct nameidata *ndp, struct proc *p));
 static void checkdirs __P((struct vnode *olddp));
@@ -986,24 +987,64 @@ open(p, uap)
 	cmode = ((SCARG(uap, mode) &~ fdp->fd_cmask) & ALLPERMS) &~ S_ISTXT;
 	NDINIT(&nd, LOOKUP, FOLLOW, UIO_USERSPACE, SCARG(uap, path), p);
 	p->p_dupfd = -indx - 1;			/* XXX check for fdopen */
+	/*
+	 * Bump the ref count to prevent another process from closing
+	 * the descriptor while we are blocked in vn_open()
+	 */
+	fhold(fp);
 	error = vn_open(&nd, flags, cmode);
 	if (error) {
-		ffree(fp);
+		/*
+		 * release our own reference
+		 */
+		fdrop(fp, p);
+
+		/*
+		 * handle special fdopen() case.  bleh.  dupfdopen() is
+		 * responsible for dropping the old contents of ofiles[indx]
+		 * if it succeeds.
+		 */
 		if ((error == ENODEV || error == ENXIO) &&
 		    p->p_dupfd >= 0 &&			/* XXX from fdopen */
 		    (error =
-			dupfdopen(fdp, indx, p->p_dupfd, flags, error)) == 0) {
+			dupfdopen(p, fdp, indx, p->p_dupfd, flags, error)) == 0) {
 			p->p_retval[0] = indx;
 			return (0);
 		}
+		/*
+		 * Clean up the descriptor, but only if another thread hadn't
+		 * replaced or closed it.
+		 */
+		if (fdp->fd_ofiles[indx] == fp) {
+			fdp->fd_ofiles[indx] = NULL;
+			fdrop(fp, p);
+		}
+
 		if (error == ERESTART)
 			error = EINTR;
-		fdp->fd_ofiles[indx] = NULL;
 		return (error);
 	}
 	p->p_dupfd = 0;
 	NDFREE(&nd, NDF_ONLY_PNBUF);
 	vp = nd.ni_vp;
+
+	/*
+	 * There should be 2 references on the file, one from the descriptor
+	 * table, and one for us.
+	 *
+	 * Handle the case where someone closed the file (via its file
+	 * descriptor) while we were blocked.  The end result should look
+	 * like opening the file succeeded but it was immediately closed.
+	 */
+	if (fp->f_count == 1) {
+		KASSERT(fdp->fd_ofiles[indx] != fp,
+		    ("Open file descriptor lost all refs"));
+		VOP_UNLOCK(vp, 0, p);
+		vn_close(vp, flags & FMASK, fp->f_cred, p);
+		fdrop(fp, p);
+		p->p_retval[0] = indx;
+		return 0;
+	}
 
 	fp->f_data = (caddr_t)vp;
 	fp->f_flag = flags & FMASK;
@@ -1022,9 +1063,17 @@ open(p, uap)
 			type |= F_WAIT;
 		VOP_UNLOCK(vp, 0, p);
 		if ((error = VOP_ADVLOCK(vp, (caddr_t)fp, F_SETLK, &lf, type)) != 0) {
-			(void) vn_close(vp, fp->f_flag, fp->f_cred, p);
-			ffree(fp);
-			fdp->fd_ofiles[indx] = NULL;
+			/*
+			 * lock request failed.  Normally close the descriptor
+			 * but handle the case where someone might have dup()d
+			 * it when we weren't looking.  One reference is
+			 * owned by the descriptor array, the other by us.
+			 */
+			if (fdp->fd_ofiles[indx] == fp) {
+				fdp->fd_ofiles[indx] = NULL;
+				fdrop(fp, p);
+			}
+			fdrop(fp, p);
 			return (error);
 		}
 		vn_lock(vp, LK_EXCLUSIVE | LK_RETRY, p);
@@ -1034,6 +1083,12 @@ open(p, uap)
 	KASSERT(!vn_canvmio(vp) || vp->v_object != NULL,
 		("open: vmio vnode has no backing object after vn_open"));
 	VOP_UNLOCK(vp, 0, p);
+
+	/*
+	 * release our private reference, leaving the one associated with the
+	 * descriptor table intact.
+	 */
+	fdrop(fp, p);
 	p->p_retval[0] = indx;
 	return (0);
 }
@@ -3248,6 +3303,12 @@ fhopen(p, uap)
 	if ((error = falloc(p, &nfp, &indx)) != 0)
 		goto bad;
 	fp = nfp;	
+
+	/*
+	 * hold an extra reference to avoid having fp ripped out
+	 * from under us while we block in the lock op.
+	 */
+	fhold(fp);
 	nfp->f_data = (caddr_t)vp;
 	nfp->f_flag = fmode & FMASK;
 	nfp->f_ops = &vnops;
@@ -3265,9 +3326,20 @@ fhopen(p, uap)
 			type |= F_WAIT;
 		VOP_UNLOCK(vp, 0, p);
 		if ((error = VOP_ADVLOCK(vp, (caddr_t)fp, F_SETLK, &lf, type)) != 0) {
-			(void) vn_close(vp, fp->f_flag, fp->f_cred, p);
-			ffree(fp);
-			fdp->fd_ofiles[indx] = NULL;
+			/*
+			 * lock request failed.  Normally close the descriptor
+			 * but handle the case where someone might have dup()d
+			 * or close()d it when we weren't looking.
+			 */
+			if (fdp->fd_ofiles[indx] == fp) {
+				fdp->fd_ofiles[indx] = NULL;
+				fdrop(fp, p);
+			}
+
+			/*
+			 * release our private reference.
+			 */
+			fdrop(fp, p);
 			return (error);
 		}
 		vn_lock(vp, LK_EXCLUSIVE | LK_RETRY, p);
@@ -3277,6 +3349,7 @@ fhopen(p, uap)
 		vfs_object_create(vp, p, p->p_ucred);
 
 	VOP_UNLOCK(vp, 0, p);
+	fdrop(fp, p);
 	p->p_retval[0] = indx;
 	return (0);
 

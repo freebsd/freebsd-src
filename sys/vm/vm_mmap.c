@@ -188,7 +188,7 @@ mmap(p, uap)
 	register struct mmap_args *uap;
 {
 	register struct filedesc *fdp = p->p_fd;
-	register struct file *fp;
+	register struct file *fp = NULL;
 	struct vnode *vp;
 	vm_offset_t addr;
 	vm_size_t size, pageoff;
@@ -295,6 +295,12 @@ mmap(p, uap)
 		vp = (struct vnode *) fp->f_data;
 		if (vp->v_type != VREG && vp->v_type != VCHR)
 			return (EINVAL);
+
+		/*
+		 * don't let the descriptor disappear on us if we block
+		 */
+		fhold(fp);
+
 		/*
 		 * XXX hack to handle use of /dev/zero to map anon memory (ala
 		 * SunOS).
@@ -322,8 +328,10 @@ mmap(p, uap)
 			else
 				disablexworkaround = suser(p);
 			if (vp->v_type == VCHR && disablexworkaround &&
-				(flags & (MAP_PRIVATE|MAP_COPY)))
-				 return (EINVAL);
+			    (flags & (MAP_PRIVATE|MAP_COPY))) {
+				error = EINVAL;
+				goto done;
+			}
 			/*
 			 * Ensure that file and memory protections are
 			 * compatible.  Note that we only worry about
@@ -334,10 +342,12 @@ mmap(p, uap)
 			 * proc does a setuid?
 			 */
 			maxprot = VM_PROT_EXECUTE;	/* ??? */
-			if (fp->f_flag & FREAD)
+			if (fp->f_flag & FREAD) {
 				maxprot |= VM_PROT_READ;
-			else if (prot & PROT_READ)
-				return (EACCES);
+			} else if (prot & PROT_READ) {
+				error = EACCES;
+				goto done;
+			}
 			/*
 			 * If we are sharing potential changes (either via
 			 * MAP_SHARED or via the implicit sharing of character
@@ -354,18 +364,23 @@ mmap(p, uap)
 					struct vattr va;
 					if ((error =
 					    VOP_GETATTR(vp, &va,
-						        p->p_ucred, p)))
-						return (error);
+						        p->p_ucred, p))) {
+						goto done;
+					}
 					if ((va.va_flags &
-					    (IMMUTABLE|APPEND)) == 0)
+					    (IMMUTABLE|APPEND)) == 0) {
 						maxprot |= VM_PROT_WRITE;
-					else if (prot & PROT_WRITE)
-						return (EPERM);
-				} else if ((prot & PROT_WRITE) != 0)
-					return (EACCES);
-			} else
+					} else if (prot & PROT_WRITE) {
+						error = EPERM;
+						goto done;
+					}
+				} else if ((prot & PROT_WRITE) != 0) {
+					error = EACCES;
+					goto done;
+				}
+			} else {
 				maxprot |= VM_PROT_WRITE;
-
+			}
 			handle = (void *)vp;
 		}
 	}
@@ -377,13 +392,17 @@ mmap(p, uap)
 	 */
 	if (max_proc_mmap && 
 	    vms->vm_map.nentries >= max_proc_mmap * vms->vm_refcnt) {
-		return (ENOMEM);
+		error = ENOMEM;
+		goto done;
 	}
 
 	error = vm_mmap(&vms->vm_map, &addr, size, prot, maxprot,
 	    flags, handle, pos);
 	if (error == 0)
 		p->p_retval[0] = (register_t) (addr + pageoff);
+done:
+	if (fp)
+		fdrop(fp, p);
 	return (error);
 }
 
@@ -566,6 +585,7 @@ munmap(p, uap)
 	return (0);
 }
 
+#if 0
 void
 munmapfd(p, fd)
 	struct proc *p;
@@ -576,6 +596,7 @@ munmapfd(p, fd)
 	 */
 	p->p_fd->fd_ofileflags[fd] &= ~UF_MAPPED;
 }
+#endif
 
 #ifndef _SYS_SYSPROTO_H_
 struct mprotect_args {

@@ -586,6 +586,11 @@ aio_process(struct aiocblist *aiocbe)
 
 	inblock_st = mycp->p_stats->p_ru.ru_inblock;
 	oublock_st = mycp->p_stats->p_ru.ru_oublock;
+	/*
+	 * Temporarily bump the ref count while reading to avoid the
+	 * descriptor being ripped out from under us.
+	 */
+	fhold(fp);
 	if (cb->aio_lio_opcode == LIO_READ) {
 		auio.uio_rw = UIO_READ;
 		error = fo_read(fp, &auio, fp->f_cred, FOF_OFFSET, mycp);
@@ -593,6 +598,7 @@ aio_process(struct aiocblist *aiocbe)
 		auio.uio_rw = UIO_WRITE;
 		error = fo_write(fp, &auio, fp->f_cred, FOF_OFFSET, mycp);
 	}
+	fdrop(fp, mycp);
 	inblock_end = mycp->p_stats->p_ru.ru_inblock;
 	oublock_end = mycp->p_stats->p_ru.ru_oublock;
 
@@ -982,6 +988,8 @@ aio_qphysio(struct proc *p, struct aiocblist *aiocbe)
 	if (ki->kaio_buffer_count >= ki->kaio_ballowed_count) 
 		return (-1);
 
+	fhold(fp);
+
 	ki->kaio_buffer_count++;
 
 	lj = aiocbe->lio;
@@ -1070,6 +1078,7 @@ aio_qphysio(struct proc *p, struct aiocblist *aiocbe)
 	splx(s);
 	if (notify)
 		KNOTE(&aiocbe->klist, 0);
+	fdrop(fp, p);
 	return 0;
 
 doerror:
@@ -1078,6 +1087,7 @@ doerror:
 		lj->lioj_buffer_count--;
 	aiocbe->bp = NULL;
 	relpbuf(bp, NULL);
+	fdrop(fp, p);
 	return error;
 }
 
@@ -1287,6 +1297,8 @@ _aio_aqueue(struct proc *p, struct aiocb *job, struct aio_liojob *lj, int type)
 		return EINVAL;
 	}
 
+	fhold(fp);
+
 	/*
 	 * XXX  
 	 * Figure out how to do this properly.  This currently won't
@@ -1322,7 +1334,7 @@ aqueue_fail:
 			TAILQ_INSERT_HEAD(&aio_freejobs, aiocbe, list);
 			if (type == 0)
 				suword(&job->_aiocb_private.error, error);
-			return (error);
+			goto done;
 		}
 no_kqueue:
 	}
@@ -1359,18 +1371,19 @@ no_kqueue:
 			ki->kaio_queue_count++;
 			num_queue_count++;
 			splx(s);
-			return 0;
+			error = 0;
+			goto done;
 		}
 		splx(s);
 	}
 
 	if ((error = aio_qphysio(p, aiocbe)) == 0)
-		return 0;
-	else if (error > 0) {
+		goto done;
+	if (error > 0) {
 		suword(&job->_aiocb_private.status, 0);
 		aiocbe->uaiocb._aiocb_private.error = error;
 		suword(&job->_aiocb_private.error, error);
-		return error;
+		goto done;
 	}
 
 	/* No buffer for daemon I/O. */
@@ -1414,6 +1427,8 @@ retryproc:
 		num_aio_resv_start--;
 	}
 	splx(s);
+done:
+	fdrop(fp, p);
 	return error;
 }
 
@@ -1903,7 +1918,13 @@ aio_read(struct proc *p, struct aio_read_args *uap)
 	auio.uio_procp = p;
 
 	cnt = iocb.aio_nbytes;
+	/*
+	 * Temporarily bump the ref count while reading to avoid the
+	 * descriptor being ripped out from under us.
+	 */
+	fhold(fp);
 	error = fo_read(fp, &auio, fp->f_cred, FOF_OFFSET, p);
+	fdrop(fp, p);
 	if (error && (auio.uio_resid != cnt) && (error == ERESTART || error ==
 	    EINTR || error == EWOULDBLOCK))
 		error = 0;
@@ -1970,7 +1991,13 @@ aio_write(struct proc *p, struct aio_write_args *uap)
 	auio.uio_procp = p;
 
 	cnt = iocb.aio_nbytes;
+	/*
+	 * Temporarily bump the ref count while writing to avoid the
+	 * descriptor being ripped out from under us.
+	 */
+	fhold(fp);
 	error = fo_write(fp, &auio, fp->f_cred, FOF_OFFSET, p);
+	fdrop(fp, p);
 	if (error) {
 		if (auio.uio_resid != cnt) {
 			if (error == ERESTART || error == EINTR || error ==
