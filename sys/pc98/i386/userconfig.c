@@ -2787,7 +2787,7 @@ static int
 parse_args(const char *cmd, CmdParm *parms)
 {
     while (1) {
-	const char *ptr;
+	char *ptr;
 
 	if (*cmd == ' ' || *cmd == '\t') {
 	    ++cmd;
@@ -2816,7 +2816,7 @@ parse_args(const char *cmd, CmdParm *parms)
 		    return 1;
 		}
 		/* XXX else should require end of token. */
-		cmd = ptr;
+		cmd = (const char *)ptr;
 	    }
 	    if ((parms->parm.dparm = find_device(devname, unit)) == NULL) {
 	        printf("No such device: %s%d\n", devname, unit);
@@ -2831,7 +2831,7 @@ parse_args(const char *cmd, CmdParm *parms)
 	        printf("Invalid numeric argument\n");
 		return 1;
 	    }
-	    cmd = ptr;
+	    cmd = (const char *)ptr;
 	    ++parms;
 	    continue;
 	}
@@ -2841,7 +2841,7 @@ parse_args(const char *cmd, CmdParm *parms)
 	        printf("Invalid address argument\n");
 	        return 1;
 	    }
-	    cmd = ptr;
+	    cmd = (const char *)ptr;
 	    ++parms;
 	    continue;
 	}
@@ -2987,7 +2987,7 @@ set_pnp_parms(CmdParm *parms)
 {   
     u_long idx, val, ldn, csn;
     int i;
-    const char *q;
+    char *q;
     const char *p = parms[0].parm.u.sparm;
     struct pnp_cinfo d;
 
