@@ -46,14 +46,17 @@
 .Ft int
 .Fn bind "int s" "const struct sockaddr *addr" "socklen_t addrlen"
 .Sh DESCRIPTION
-.Fn Bind
+The
+.Fn bind
+function
 assigns the local protocol address to a socket.
 When a socket is created
 with
 .Xr socket 2
 it exists in an address family space but has no protocol address assigned.
-.Fn Bind
-requests that
+The
+.Fn bind
+function requests that
 .Fa addr
 be assigned to the socket.
 .Sh NOTES
