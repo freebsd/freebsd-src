@@ -30,6 +30,7 @@
 .\" SUCH DAMAGE.
 .\"
 .\"	@(#)chflags.2	8.3 (Berkeley) 5/2/95
+.\"	$Id$
 .\"
 .Dd May 2, 1995
 .Dt CHFLAGS 2
@@ -154,6 +155,8 @@ The file resides on a read-only file system.
 An
 .Tn I/O
 error occurred while reading from or writing to the file system.
+.It Bq Er EOPNOTSUPP
+The underlying file system does not support file flags.
 .El
 .Sh SEE ALSO
 .Xr chflags 1 ,
