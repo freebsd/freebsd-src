@@ -2844,7 +2844,7 @@ ata_cmd_setmode(struct ata_device *atadev, int mode)
 	else if (mode >= ATA_WDMA0) { 
 	    int dmatimings[] = { 0x87, 0x32, 0x3f };
 
-	    pci_write_config(gparent, treg, dmatimings[mode & ATA_MODE_MASK], 1);
+	    pci_write_config(gparent, treg, dmatimings[mode & ATA_MODE_MASK],1);
 	    pci_write_config(gparent, ureg, 
 			     pci_read_config(gparent, ureg, 1) &
 			     ~(atadev->unit == ATA_MASTER ? 0x35 : 0xca), 1);
@@ -2870,7 +2870,8 @@ ata_sis_ident(device_t dev)
     struct ata_pci_controller *ctlr = device_get_softc(dev);
     struct ata_chip_id *idx;
     static struct ata_chip_id ids[] =
-    {{ ATA_SIS181,  0x00, SISSATA,   0, ATA_SA150, "SiS 181" }, /* south */
+    {{ ATA_SIS182,  0x00, SISSATA,   0, ATA_SA150, "SiS 182" }, /* south */
+     { ATA_SIS181,  0x00, SISSATA,   0, ATA_SA150, "SiS 181" }, /* south */
      { ATA_SIS180,  0x00, SISSATA,   0, ATA_SA150, "SiS 180" }, /* south */
      { ATA_SIS965,  0x00, SIS133NEW, 0, ATA_UDMA6, "SiS 965" }, /* south */
      { ATA_SIS964,  0x00, SIS133NEW, 0, ATA_UDMA6, "SiS 964" }, /* south */
