@@ -62,6 +62,7 @@
 #include "chap.h"
 #include "cbcp.h"
 #include "datalink.h"
+#include "id.h"
 #include "exec.h"
 
 static struct device execdevice = {

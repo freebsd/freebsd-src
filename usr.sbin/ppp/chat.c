@@ -72,6 +72,7 @@
 #include "radius.h"
 #endif
 #include "bundle.h"
+#include "id.h"
 
 #define BUFLEFT(c) (sizeof (c)->buf - ((c)->bufend - (c)->buf))
 

@@ -76,6 +76,7 @@
 #ifdef HAVE_DES
 #include "chap_ms.h"
 #endif
+#include "id.h"
 
 static const char * const chapcodes[] = {
   "???", "CHALLENGE", "RESPONSE", "SUCCESS", "FAILURE"
