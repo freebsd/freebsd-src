@@ -1,4 +1,4 @@
-<!-- $Id: install.sgml,v 1.17 1995/11/24 07:55:27 jkh Exp $ -->
+<!-- $Id: install.sgml,v 1.18 1995/11/27 01:46:51 jfieber Exp $ -->
 <!-- The FreeBSD Documentation Project -->
 
 <!--
@@ -19,7 +19,7 @@
       provide important information about compatibility between
       FreeBSD and your hardware which could dictate which
       installation options are possible.  It can also provide
-      early clues to compatibilty problems that could prevent
+      early clues to compatibility problems that could prevent
       FreeBSD running on your system at all.  If you plan on
       installing via anonymous FTP, then this installation disk
       is all you need to download.
@@ -35,7 +35,7 @@
 	  configurations"> section of this installation guide to
 	be sure that your hardware is supported by FreeBSD.  It
 	  may be helpful to make a list of any special cards you
-	  have installed, such as SCSI controllers, etherernet
+	  have installed, such as SCSI controllers, ethernet
 	  adapters or sound cards.  This list should include
 	  relevant configuration parameters such as interrupts
 	  (IRQ) and IO port addresses. </item>
