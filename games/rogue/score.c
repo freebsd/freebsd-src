@@ -360,7 +360,7 @@ const object *monster;
 			(void) strcat(buf, "a total winner");
 			break;
 		case KFIRE:
-			(void) strcpy(buf, "killed by fire");
+			(void) strcat(buf, "killed by fire");
 			break;
 		}
 	} else {
