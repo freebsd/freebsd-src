@@ -25,7 +25,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *  $Id: syscons.c,v 1.177 1996/10/03 00:42:27 jkh Exp $
+ *  $Id: syscons.c,v 1.178 1996/10/09 15:24:21 bde Exp $
  */
 
 #include "sc.h"
@@ -292,7 +292,7 @@ static int
 scprobe(struct isa_device *dev)
 {
     int i, j, retries = 5;
-    unsigned char val;
+    u_char val;
 
     /* Enable interrupts and keyboard controller */
     kbd_wait();
@@ -488,6 +488,10 @@ scopen(dev_t dev, int flag, int mode, struct proc *p)
     if (minor(dev) < MAXCONS && !console[minor(dev)]) {
 	console[minor(dev)] = alloc_scp();
     }
+    if (minor(dev)<MAXCONS && !tp->t_winsize.ws_col && !tp->t_winsize.ws_row) {
+	tp->t_winsize.ws_col = console[minor(dev)]->xsize;
+	tp->t_winsize.ws_row = console[minor(dev)]->ysize;
+    }
     return ((*linesw[tp->t_line].l_open)(dev, tp));
 }
 
@@ -603,7 +607,8 @@ scparam(struct tty *tp, struct termios *t)
 int
 scioctl(dev_t dev, int cmd, caddr_t data, int flag, struct proc *p)
 {
-    int i, error;
+    int error;
+    u_int i;
     struct tty *tp;
     struct trapframe *fp;
     scr_stat *scp;
@@ -2209,8 +2214,8 @@ scinit(void)
 {
     u_short volatile *cp;
     u_short was;
-    unsigned hw_cursor;
-    int i;
+    u_int hw_cursor;
+    u_int i;
 
     if (init_done != COLD)
 	return;
