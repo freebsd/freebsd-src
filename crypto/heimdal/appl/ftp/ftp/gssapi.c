@@ -39,7 +39,7 @@
 #include <gssapi.h>
 #include <krb5_err.h>
 
-RCSID("$Id: gssapi.c,v 1.20 2002/09/04 22:00:50 joda Exp $");
+RCSID("$Id: gssapi.c,v 1.22 2003/03/16 19:40:18 lha Exp $");
 
 struct gss_data {
     gss_ctx_id_t context_hdl;
@@ -214,18 +214,28 @@ gss_adat(void *app_data, void *buf, size_t len)
     if(maj_stat == GSS_S_COMPLETE){
 	char *name;
 	gss_buffer_desc export_name;
-	maj_stat = gss_export_name(&min_stat, client_name, &export_name);
+	gss_OID oid;
+
+	maj_stat = gss_display_name(&min_stat, client_name,
+				    &export_name, &oid);
 	if(maj_stat != 0) {
-	    reply(500, "Error exporting name");
+	    reply(500, "Error displaying name");
+	    goto out;
+	}
+	/* XXX kerberos */
+	if(oid != GSS_KRB5_NT_PRINCIPAL_NAME) {
+	    reply(500, "OID not kerberos principal name");
+	    gss_release_buffer(&min_stat, &export_name);
 	    goto out;
 	}
 	name = realloc(export_name.value, export_name.length + 1);
 	if(name == NULL) {
 	    reply(500, "Out of memory");
-	    free(export_name.value);
+	    gss_release_buffer(&min_stat, &export_name);
 	    goto out;
 	}
 	name[export_name.length] = '\0';
+	gss_release_buffer(&min_stat, &export_name);
 	d->client_name = name;
 	if(p)
 	    reply(235, "ADAT=%s", p);
@@ -423,6 +433,35 @@ gss_auth(void *app_data, char *host)
 	    context_established = 1;
 	}
     }
+
+    {
+	gss_name_t targ_name;
+
+	maj_stat = gss_inquire_context(&min_stat,
+				       d->context_hdl,
+				       NULL,
+				       &targ_name,
+				       NULL,
+				       NULL,
+				       NULL,
+				       NULL,
+				       NULL);
+	if (GSS_ERROR(maj_stat) == 0) {
+	    gss_buffer_desc name;
+	    maj_stat = gss_display_name (&min_stat,
+					 targ_name,
+					 &name,
+					 NULL);
+	    if (GSS_ERROR(maj_stat) == 0) {
+		printf("Authenticated to <%s>\n", (char *)name.value);
+		gss_release_buffer(&min_stat, &name);
+	    }
+	    gss_release_name(&min_stat, &targ_name);
+	} else
+	    printf("Failed to get gss name of peer.\n");
+    }	    
+
+
     return AUTH_OK;
 }
 

@@ -1,8 +1,10 @@
-# $Id: Makefile.am,v 1.20 2002/08/19 17:00:36 joda Exp $
+# $Id: Makefile.am,v 1.21 2003/03/24 16:15:48 joda Exp $
 
 include $(top_srcdir)/Makefile.am.common
 
 INCLUDES += $(INCLUDE_krb4)
+
+man_MANS = login.1 login.access.5
 
 bin_PROGRAMS = login
 

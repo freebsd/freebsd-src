@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997 - 2000 Kungliga Tekniska Högskolan
+ * Copyright (c) 1997 - 2000, 2003 Kungliga Tekniska Högskolan
  * (Royal Institute of Technology, Stockholm, Sweden). 
  * All rights reserved. 
  *
@@ -33,13 +33,14 @@
 
 #include "gssapi_locl.h"
 
-RCSID("$Id: release_buffer.c,v 1.4 2000/04/12 09:47:23 assar Exp $");
+RCSID("$Id: release_buffer.c,v 1.5 2003/03/16 17:58:20 lha Exp $");
 
 OM_uint32 gss_release_buffer
            (OM_uint32 * minor_status,
             gss_buffer_t buffer
            )
 {
+  *minor_status = 0;
   free (buffer->value);
   buffer->value  = NULL;
   buffer->length = 0;

@@ -1,3 +1,18 @@
+2003-03-24  Johan Danielsson  <joda@pdc.kth.se>
+
+	* Makefile.am: install man pages
+
+	* login.1: manpage for login
+
+	* login.c: allow "welcome" as well as "motd" in login.conf
+
+	* login.access.5: login.access manual page
+
+2003-03-18  Love Hörnquist Åstrand <lha@it.su.se>
+	
+	* login.c: also need pag_set
+	* login.c: if there is kerberos 5, call krb5_afslog\*
+	
 2002-08-23  Johan Danielsson  <joda@pdc.kth.se>
 
 	* login.c: if motd is set in login.conf, output its contents

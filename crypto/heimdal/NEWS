@@ -1,3 +1,25 @@
+Changes in release 0.6
+
+* The DES3 GSS-API mechanism has been changed to inter-operate with
+  other GSSAPI implementations. See man page for gssapi(3) how to turn
+  on generation of correct MIC messages. Next major release of heimdal 
+  will generate correct MIC by default.
+
+* More complete GSS-API support
+
+* Better AFS support: kdc (524) supports 2b; 524 in kdc and AFS
+  support in applications no longer requires Kerberos 4 libs
+
+* Kerberos 4 support in kdc defaults to turned off (includes ka and 524)
+
+* other bug fixes
+
+Changes in release 0.5.2
+
+ * kdc: add option for disabling v4 cross-realm (defaults to off)
+
+ * bug fixes
+
 Changes in release 0.5.1
 
  * kadmind: fix remote exploit

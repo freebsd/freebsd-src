@@ -33,7 +33,7 @@
 
 #include "ktutil_locl.h"
 
-RCSID("$Id: copy.c,v 1.8 2002/08/12 15:09:12 joda Exp $");
+RCSID("$Id: copy.c,v 1.9 2003/01/16 18:59:03 lha Exp $");
 
 
 static krb5_boolean
@@ -144,7 +144,6 @@ kt_copy (int argc, char **argv)
     int i = 0;
 
     args[i++].value = &help_flag;
-    args[i++].value = &verbose_flag;
 
     if(getarg(args, num_args, argc, argv, &optind)) {
 	arg_printusage(args, num_args, "ktutil copy",

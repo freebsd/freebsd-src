@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997-2002 Kungliga Tekniska Högskolan
+ * Copyright (c) 1997-2003 Kungliga Tekniska Högskolan
  * (Royal Institute of Technology, Stockholm, Sweden). 
  * All rights reserved. 
  *
@@ -33,9 +33,11 @@
 
 #include "kdc_locl.h"
 
-RCSID("$Id: 524.c,v 1.25 2002/07/31 09:43:20 joda Exp $");
+RCSID("$Id: 524.c,v 1.29 2003/03/17 05:35:47 assar Exp $");
 
-#ifdef KRB4
+#ifndef KRB4
+#include <krb5-v4compat.h>
+#endif
 
 /*
  * fetch the server from `t', returning the name in malloced memory in
@@ -173,6 +175,94 @@ set_address (EncTicketPart *et,
     return 0;
 }
 
+
+static krb5_error_code
+encrypt_v4_ticket(void *buf, 
+		  size_t len, 
+		  krb5_keyblock *skey, 
+		  EncryptedData *reply)
+{
+    krb5_crypto crypto;
+    krb5_error_code ret;
+    ret = krb5_crypto_init(context, skey, ETYPE_DES_PCBC_NONE, &crypto);
+    if (ret) {
+	free(buf);
+	kdc_log(0, "krb5_crypto_init failed: %s",
+		krb5_get_err_text(context, ret));
+	return ret;
+    }
+
+    ret = krb5_encrypt_EncryptedData(context, 
+				     crypto,
+				     KRB5_KU_TICKET,
+				     buf,
+				     len,
+				     0,
+				     reply);
+    krb5_crypto_destroy(context, crypto);
+    if(ret) {
+	kdc_log(0, "Failed to encrypt data: %s",
+		krb5_get_err_text(context, ret));
+	return ret;
+    }
+    return 0;
+}
+
+static krb5_error_code
+encode_524_response(const char *spn, const EncTicketPart et, const Ticket *t,
+		    hdb_entry *server, EncryptedData *ticket, int *kvno)
+{
+    krb5_error_code ret;
+    int use_2b;
+    size_t len;
+
+    use_2b = krb5_config_get_bool(context, NULL, "kdc", "use_2b", spn, NULL);
+    if(use_2b) {
+	ASN1_MALLOC_ENCODE(EncryptedData, 
+			   ticket->cipher.data, ticket->cipher.length, 
+			   &t->enc_part, &len, ret);
+	
+	if (ret) {
+	    kdc_log(0, "Failed to encode v4 (2b) ticket (%s)", spn);
+	    return ret;
+	}
+	
+	ticket->etype = 0;
+	ticket->kvno = NULL;
+	*kvno = 213; /* 2b's use this magic kvno */
+    } else {
+	unsigned char buf[MAX_KTXT_LEN + 4 * 4];
+	Key *skey;
+	
+	if (!enable_v4_cross_realm && strcmp (et.crealm, t->realm) != 0) {
+	    kdc_log(0, "524 cross-realm %s -> %s disabled", et.crealm,
+		    t->realm);
+	    return KRB5KDC_ERR_POLICY;
+	}
+
+	ret = encode_v4_ticket(buf + sizeof(buf) - 1, sizeof(buf),
+			       &et, &t->sname, &len);
+	if(ret){
+	    kdc_log(0, "Failed to encode v4 ticket (%s)", spn);
+	    return ret;
+	}
+	ret = get_des_key(server, TRUE, FALSE, &skey);
+	if(ret){
+	    kdc_log(0, "no suitable DES key for server (%s)", spn);
+	    return ret;
+	}
+	ret = encrypt_v4_ticket(buf + sizeof(buf) - len, len, 
+				&skey->key, ticket);
+	if(ret){
+	    kdc_log(0, "Failed to encrypt v4 ticket (%s)", spn);
+	    return ret;
+	}
+	*kvno = server->kvno;
+    }
+
+    return 0;
+}
+
 /*
  * process a 5->4 request, based on `t', and received `from, addr',
  * returning the reply in `reply'
@@ -193,6 +283,7 @@ do_524(const Ticket *t, krb5_data *reply,
     char *spn = NULL;
     unsigned char buf[MAX_KTXT_LEN + 4 * 4];
     size_t len;
+    int kvno;
     
     if(!enable_524) {
 	ret = KRB5KDC_ERR_POLICY;
@@ -251,31 +342,17 @@ do_524(const Ticket *t, krb5_data *reply,
 	free_EncTicketPart(&et);
 	goto out;
     }
-    ret = encode_v4_ticket(buf + sizeof(buf) - 1, sizeof(buf),
-			   &et, &t->sname, &len);
+
+    ret = encode_524_response(spn, et, t, server, &ticket, &kvno);
     free_EncTicketPart(&et);
-    if(ret){
-	kdc_log(0, "Failed to encode v4 ticket (%s)", spn);
-	goto out;
-    }
-    ret = get_des_key(server, TRUE, FALSE, &skey);
-    if(ret){
-	kdc_log(0, "no suitable DES key for server (%s)", spn);
-	goto out;
-    }
-    ret = encrypt_v4_ticket(buf + sizeof(buf) - len, len, 
-			    skey->key.keyvalue.data, &ticket);
-    if(ret){
-	kdc_log(0, "Failed to encrypt v4 ticket (%s)", spn);
-	goto out;
-    }
+
 out:
     /* make reply */
     memset(buf, 0, sizeof(buf));
     sp = krb5_storage_from_mem(buf, sizeof(buf));
     krb5_store_int32(sp, ret);
     if(ret == 0){
-	krb5_store_int32(sp, server->kvno); /* is this right? */
+	krb5_store_int32(sp, kvno);
 	krb5_store_data(sp, ticket.cipher);
 	/* Aargh! This is coded as a KTEXT_ST. */
 	krb5_storage_seek(sp, MAX_KTXT_LEN - ticket.cipher.length, SEEK_CUR);
@@ -292,5 +369,3 @@ out:
 	free_ent (server);
     return ret;
 }
-
-#endif /* KRB4 */

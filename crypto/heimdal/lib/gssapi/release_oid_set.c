@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997 - 2000 Kungliga Tekniska Högskolan
+ * Copyright (c) 1997 - 2000, 2003 Kungliga Tekniska Högskolan
  * (Royal Institute of Technology, Stockholm, Sweden). 
  * All rights reserved. 
  *
@@ -33,13 +33,15 @@
 
 #include "gssapi_locl.h"
 
-RCSID("$Id: release_oid_set.c,v 1.4 2000/04/19 13:06:13 assar Exp $");
+RCSID("$Id: release_oid_set.c,v 1.5 2003/03/16 17:53:25 lha Exp $");
 
 OM_uint32 gss_release_oid_set
            (OM_uint32 * minor_status,
             gss_OID_set * set
            )
 {
+  if (minor_status)
+      *minor_status = 0;
   free ((*set)->elements);
   free (*set);
   *set = GSS_C_NO_OID_SET;

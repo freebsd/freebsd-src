@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997, 1998 Kungliga Tekniska Högskolan
+ * Copyright (c) 1997-2003 Kungliga Tekniska Högskolan
  * (Royal Institute of Technology, Stockholm, Sweden). 
  * All rights reserved. 
  *
@@ -33,18 +33,20 @@
 
 #include "gssapi_locl.h"
 
-RCSID("$Id: release_cred.c,v 1.6 2002/08/20 12:02:45 nectar Exp $");
+RCSID("$Id: release_cred.c,v 1.8 2003/03/16 17:52:19 lha Exp $");
 
 OM_uint32 gss_release_cred
            (OM_uint32 * minor_status,
             gss_cred_id_t * cred_handle
            )
 {
+    *minor_status = 0;
+
     if (*cred_handle == GSS_C_NO_CREDENTIAL) {
         return GSS_S_COMPLETE;
     }
 
-    gssapi_krb5_init ();
+    GSSAPI_KRB5_INIT ();
 
     if ((*cred_handle)->principal != NULL)
         krb5_free_principal(gssapi_krb5_context, (*cred_handle)->principal);

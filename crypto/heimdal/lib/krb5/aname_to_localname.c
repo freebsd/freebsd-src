@@ -33,7 +33,7 @@
 
 #include <krb5_locl.h>
 
-RCSID("$Id: aname_to_localname.c,v 1.4 2002/04/18 08:56:40 joda Exp $");
+RCSID("$Id: aname_to_localname.c,v 1.6 2003/04/16 16:01:06 lha Exp $");
 
 krb5_error_code
 krb5_aname_to_localname (krb5_context context,
@@ -43,7 +43,7 @@ krb5_aname_to_localname (krb5_context context,
 {
     krb5_error_code ret;
     krb5_realm *lrealms, *r;
-    int foo = 1;
+    int valid;
     size_t len;
     const char *res;
 
@@ -51,26 +51,42 @@ krb5_aname_to_localname (krb5_context context,
     if (ret)
 	return ret;
 
+    valid = 0;
     for (r = lrealms; *r != NULL; ++r) {
-	foo = strcmp (*r, aname->realm);
-	if (foo == 0)
+	if (strcmp (*r, aname->realm) == 0) {
+	    valid = 1;
 	    break;
+	}
     }
     krb5_free_host_realm (context, lrealms);
-    if (foo != 0)
+    if (valid == 0)
 	return KRB5_NO_LOCALNAME;
 
     if (aname->name.name_string.len == 1)
 	res = aname->name.name_string.val[0];
     else if (aname->name.name_string.len == 2
-	     && strcmp (aname->name.name_string.val[1], "root") == 0)
+	     && strcmp (aname->name.name_string.val[1], "root") == 0) {
+	krb5_principal rootprinc;
+	krb5_boolean userok;
+
 	res = "root";
-    else
+
+	ret = krb5_copy_principal(context, aname, &rootprinc);
+	if (ret)
+	    return ret;
+	
+	userok = krb5_kuserok(context, rootprinc, res);
+	krb5_free_principal(context, rootprinc);
+	if (!userok)
+	    return KRB5_NO_LOCALNAME;
+
+    } else
 	return KRB5_NO_LOCALNAME;
 
     len = strlen (res);
     if (len >= lnsize)
 	return ERANGE;
-    strcpy (lname, res);
+    strlcpy (lname, res, lnsize);
+
     return 0;
 }

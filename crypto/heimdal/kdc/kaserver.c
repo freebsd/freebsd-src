@@ -33,7 +33,7 @@
 
 #include "kdc_locl.h"
 
-RCSID("$Id: kaserver.c,v 1.20.2.1 2002/10/21 14:30:51 joda Exp $");
+RCSID("$Id: kaserver.c,v 1.21 2002/10/21 12:59:41 joda Exp $");
 
 
 #include <rx.h>

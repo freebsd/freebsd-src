@@ -1,4 +1,4 @@
-@c $Id: programming.texi,v 1.2 2001/05/16 22:11:00 assar Exp $
+@c $Id: programming.texi,v 1.2.8.1 2003/04/24 11:55:45 lha Exp $
 
 @node Programming with Kerberos
 @chapter Programming with Kerberos
@@ -45,7 +45,7 @@ replay cache, and checksum types.
 
 See the manual page for @manpage{krb5_auth_context,3}.
 
-@subsection Keytab managment
+@subsection Keytab management
 
 A keytab is a storage for locally stored keys. Heimdal includes keytab
 support for Kerberos 5 keytabs, Kerberos 4 srvtab, AFS-KeyFile's,

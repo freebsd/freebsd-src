@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997 - 2002 Kungliga Tekniska Högskolan
+ * Copyright (c) 1997 - 2003 Kungliga Tekniska Högskolan
  * (Royal Institute of Technology, Stockholm, Sweden). 
  * All rights reserved. 
  *
@@ -34,7 +34,7 @@
 #include "kadmin_locl.h"
 #include <krb5-private.h>
 
-RCSID("$Id: server.c,v 1.36.2.1 2002/10/21 14:53:39 joda Exp $");
+RCSID("$Id: server.c,v 1.38 2003/01/29 12:33:05 lha Exp $");
 
 static kadm5_ret_t
 kadmind_dispatch(void *kadm_handle, krb5_boolean initial,
@@ -217,19 +217,36 @@ kadmind_dispatch(void *kadm_handle, krb5_boolean initial,
 
 	/*
 	 * The change is allowed if at least one of:
-	 * a) it's for the principal him/herself and this was an initial ticket
+
+	 * a) it's for the principal him/herself and this was an
+	 *    initial ticket, but then, check with the password quality
+	 *    function.
 	 * b) the user is on the CPW ACL.
 	 */
 
 	if (initial
 	    && krb5_principal_compare (context->context, context->caller,
 				       princ))
-	    ret = 0;
-	else
+	{
+	    krb5_data pwd_data;
+	    const char *pwd_reason;
+
+	    pwd_data.data = password;
+	    pwd_data.length = strlen(password);
+
+	    pwd_reason = kadm5_check_password_quality (context->context,
+						       princ, &pwd_data);
+	    if (pwd_reason != NULL)
+		ret = KADM5_PASS_Q_DICT;
+	    else
+		ret = 0;
+	} else
 	    ret = _kadm5_acl_check_permission(context, KADM5_PRIV_CPW, princ);
 
 	if(ret) {
 	    krb5_free_principal(context->context, princ);
+	    memset(password, 0, strlen(password));
+	    free(password);
 	    goto fail;
 	}
 	ret = kadm5_chpass_principal(kadm_handle, princ, password);
@@ -286,18 +303,11 @@ kadmind_dispatch(void *kadm_handle, krb5_boolean initial,
 	krb5_warnx(context->context, "%s: %s %s", client, op, name);
 
 	/*
-	 * The change is allowed if at least one of:
-	 * a) it's for the principal him/herself and this was an initial ticket
-	 * b) the user is on the CPW ACL.
+	 * The change is only allowed if the user is on the CPW ACL,
+	 * this it to force password quality check on the user.
 	 */
 
-	if (initial
-	    && krb5_principal_compare (context->context, context->caller,
-				       princ))
-	    ret = 0;
-	else
-	    ret = _kadm5_acl_check_permission(context, KADM5_PRIV_CPW, princ);
-
+	ret = _kadm5_acl_check_permission(context, KADM5_PRIV_CPW, princ);
 	if(ret) {
 	    int16_t dummy = n_key_data;
 

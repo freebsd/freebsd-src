@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997 Kungliga Tekniska Högskolan
+ * Copyright (c) 1997, 2003 Kungliga Tekniska Högskolan
  * (Royal Institute of Technology, Stockholm, Sweden). 
  * All rights reserved. 
  *
@@ -33,7 +33,7 @@
 
 #include "gssapi_locl.h"
 
-RCSID("$Id: inquire_context.c,v 1.3 1999/12/02 17:05:04 joda Exp $");
+RCSID("$Id: inquire_context.c,v 1.5 2003/03/16 17:43:30 lha Exp $");
 
 OM_uint32 gss_inquire_context (
             OM_uint32 * minor_status,
@@ -44,7 +44,7 @@ OM_uint32 gss_inquire_context (
             gss_OID * mech_type,
             OM_uint32 * ctx_flags,
             int * locally_initiated,
-            int * open
+            int * open_context
            )
 {
   OM_uint32 ret;
@@ -66,7 +66,7 @@ OM_uint32 gss_inquire_context (
   }
 
   if (lifetime_rec)
-    *lifetime_rec = GSS_C_INDEFINITE;
+    *lifetime_rec = context_handle->lifetime;
 
   if (mech_type)
     *mech_type = GSS_KRB5_MECHANISM;
@@ -77,8 +77,9 @@ OM_uint32 gss_inquire_context (
   if (locally_initiated)
     *locally_initiated = context_handle->more_flags & LOCAL;
 
-  if (open)
-    *open = context_handle->more_flags & OPEN;
+  if (open_context)
+    *open_context = context_handle->more_flags & OPEN;
 
+  *minor_status = 0;
   return GSS_S_COMPLETE;
 }

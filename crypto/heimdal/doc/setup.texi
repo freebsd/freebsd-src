@@ -1,4 +1,4 @@
-@c $Id: setup.texi,v 1.25 2001/08/24 05:24:33 assar Exp $
+@c $Id: setup.texi,v 1.27 2003/03/30 21:43:00 lha Exp $
 
 @node Setting up a realm, Things in search for a better place, Building and Installing, Top
 
@@ -8,6 +8,7 @@
 * Configuration file::          
 * Creating the database::       
 * keytabs::                     
+* Serving Kerberos 4/524/kaserver::
 * Remote administration::       
 * Password changing::           
 * Testing clients and servers::  
@@ -165,7 +166,7 @@ krbtgt/MY.REALM@@MY.REALM 1:0:1:52b53b61c875ce16:-:0:7:c8943be ...
 kadmin/changepw@@MY.REALM 1:0:1:f48c8af2b340e9fb:-:0:7:e3e6088 ...
 @end smallexample
 
-@node keytabs, Remote administration, Creating the database, Setting up a realm
+@node keytabs, Serving Kerberos 4/524/kaserver, Creating the database, Setting up a realm
 @section keytabs
 
 To extract a service ticket from the database and put it in a keytab you
@@ -187,7 +188,56 @@ Version  Type             Principal
      1   des3-cbc-sha1    host/my.host.name@@MY.REALM
 @end example
 
-@node Remote administration, Password changing, keytabs, Setting up a realm
+@node Serving Kerberos 4/524/kaserver, Remote administration, keytabs, Setting up a realm
+@section Serving Kerberos 4/524/kaserver
+
+Heimdal can be configured to support 524, Kerberos 4 or kaserver. All
+theses services are default turned off. Kerberos 4 support also
+depends on if Kerberos 4 support is compiled in with heimdal.
+
+@subsection 524
+
+524 is a service that allows the kdc to convert Kerberos 5 tickets to
+Kerberos 4 tickets for backward compatibility. See also Using 2b
+tokens with AFS in @xref{Things in search for a better place}.
+
+524 can be turned on by adding this to the configuration file
+
+@example
+[kdc]
+	enable-524 = yes
+@end example
+
+@subsection Kerberos 4
+
+Kerberos 4 is the predecessor to to Kerberos 5. It only support single
+DES. You should only enable Kerberos 4 support if you have a need for
+for compatibility with an installed base of Kerberos 4 clients/servers.
+
+Kerberos 4 can be turned on by adding this to the configuration file
+
+@example
+[kdc]
+	enable-kerberos4 = yes
+@end example
+
+@subsection kaserver
+
+Kaserver is a Kerberos 4 that is used in AFS, the protocol have some
+features over plain Kerberos 4, but like kerberos 4 only use single
+DES too.
+
+You should only enable Kerberos 4 support if you have a need for for
+compatibility with an installed base of AFS machines.
+
+Kaserver can be turned on by adding this to the configuration file
+
+@example
+[kdc]
+	enable-kaserver = yes
+@end example
+
+@node Remote administration, Password changing, Serving Kerberos 4/524/kaserver, Setting up a realm
 @section Remote administration
 
 The administration server, @samp{kadmind}, can be started by
@@ -314,7 +364,7 @@ Every slave needs a keytab with a principal,
 @code{propd}, as follows:
 
 @example
-slave# ktutil get -p foo/admin host/`hostname`
+slave# ktutil get -p foo/admin hprop/`hostname`
 slave# hpropd
 @end example
 
@@ -434,8 +484,9 @@ Common types of salting includes
 @itemize @bullet
 @item @code{v4} (or @code{des:pw-salt:})
 
-The Kerberos 4 salting is using no salt att all. Reson there is colon
-that the end is that 
+The Kerberos 4 salting is using no salt att all. Reason there is colon
+that the end or the salt string is that it makes the salt the empty
+string (same as no salt).
 
 @item @code{v5} (or @code{pw-salt})
 
