@@ -45,14 +45,16 @@ struct cpu_top {
 
 extern struct cpu_top *smp_topology;
 extern void (*cpustop_restartfunc)(void);
-extern int mp_ncpus;
 extern int smp_active;
-extern volatile int smp_started;
 extern int smp_cpus;
-extern u_int all_cpus;
 extern volatile u_int started_cpus;
 extern volatile u_int stopped_cpus;
+#endif /* SMP */
+
+extern u_int all_cpus;
 extern u_int mp_maxid;
+extern int mp_ncpus;
+extern volatile int smp_started;
 
 /*
  * Macro allowing us to determine whether a CPU is absent at any given
@@ -61,6 +63,7 @@ extern u_int mp_maxid;
  */
 #define	CPU_ABSENT(x_cpu)	((all_cpus & (1 << (x_cpu))) == 0)
 
+#ifdef SMP
 /*
  * Machine dependent functions used to initialize MP support.
  *
@@ -92,13 +95,11 @@ void	forward_roundrobin(void);
 int	restart_cpus(u_int);
 int	stop_cpus(u_int);
 void	smp_rendezvous_action(void);
+#endif /* SMP */
 void	smp_rendezvous(void (*)(void *), 
 		       void (*)(void *),
 		       void (*)(void *),
 		       void *arg);
-#else /* SMP */
-#define	CPU_ABSENT(x_cpu)	(0)
-#endif /* SMP */
 #endif /* !LOCORE */
 #endif /* _KERNEL */
 #endif /* _SYS_SMP_H_ */
