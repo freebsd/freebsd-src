@@ -88,8 +88,10 @@ static const char rcsid[] =
 #include <utmp.h>
 #include <db.h>
 #include <locale.h>
+#include <sys/syslimits.h>
 
 #include "finger.h"
+#include "pathnames.h"
 
 DB *db;
 time_t now;
@@ -268,6 +270,10 @@ userlist(argc, argv)
 	struct passwd *pw;
 	int r, sflag, *used, *ip;
 	char **ap, **nargv, **np, **p;
+	FILE *conf_fp;
+	char conf_alias[LINE_MAX];
+	char *conf_realname;
+	int conf_length;
 
 	if ((nargv = malloc((argc+1) * sizeof(char *))) == NULL ||
 	    (used = calloc(argc, sizeof(int))) == NULL)
@@ -285,6 +291,30 @@ userlist(argc, argv)
 
 	if (!*argv)
 		goto net;
+
+	/*
+	 * Traverse the finger alias configuration file of the form
+	 * alias:(user|alias), ignoring comment lines beginning '#'.
+	 */
+	if ((conf_fp = fopen(_PATH_FINGERCONF, "r")) != NULL) {
+	    while(fgets(conf_alias, sizeof(conf_alias), conf_fp) != NULL) {
+		conf_length = strlen(conf_alias);
+		if (*conf_alias == '#' || conf_alias[--conf_length] != '\n')
+		    continue;
+		conf_alias[conf_length] = '\0';      /* Remove trailing LF */
+		if ((conf_realname = strchr(conf_alias, ':')) == NULL)
+		    continue;
+		*conf_realname = '\0';               /* Replace : with NUL */
+		for (p = argv; *p; ++p) {
+		    if (strcmp(*p, conf_alias) == NULL) {
+			if ((*p = strdup(conf_realname+1)) == NULL) {
+			    err(1, NULL);
+			}
+		    }
+		}
+	    }
+	    (void)fclose(conf_fp);
+	}
 
 	/*
 	 * Traverse the list of possible login names and check the login name
