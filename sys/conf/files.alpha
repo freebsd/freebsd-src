@@ -169,7 +169,11 @@ dev/advansys/adv_isa.c		optional	adv isa
 dev/aic/aic_isa.c		optional	aic isa
 dev/dec/mcclock.c		optional	mcclock
 dev/dec/mcclock_if.m		optional	mcclock
+dev/ed/if_ed_3c503.c		optional	ed isa ed_3c503
 dev/ed/if_ed_isa.c		optional	ed isa
+dev/ed/if_ed_wd80x3.c		optional	ed isa
+dev/ed/if_ed_hpp.c		optional	ed isa ed_hpp
+dev/ed/if_ed_sic.c		optional	ed isa ed_sic
 dev/fb/fb.c			optional	fb
 dev/fb/fb.c			optional	vga
 dev/fb/splash.c			optional	splash

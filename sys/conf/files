@@ -469,6 +469,7 @@ dev/drm/sis_ds.c		optional sisdrm
 dev/drm/sis_mm.c		optional sisdrm
 dev/drm/tdfx_drv.c		optional tdfxdrm
 dev/ed/if_ed.c			optional ed
+dev/ed/if_ed_novell.c		optional ed
 dev/ed/if_ed_pccard.c		optional ed pccard
 dev/ed/if_ed_pci.c		optional ed pci
 dev/eisa/eisa_if.m		standard
