@@ -1,6 +1,6 @@
 /**************************************************************************
 **
-**  $Id: pcisupport.c,v 1.9 1995/02/14 03:19:27 wollman Exp $
+**  $Id: pcisupport.c,v 1.10 1995/02/27 17:22:09 se Exp $
 **
 **  Device driver for INTEL PCI chipsets.
 **
@@ -377,7 +377,7 @@ static	void	vga_attach(pcici_t tag, int unit)
 **	The assigned adresses may not be remapped,
 **	because certain values are assumed by the console driver.
 */
-#ifndef PCI_REMAP
+#if 0
 	vm_offset_t va;
 	vm_offset_t pa;
 	int reg;
