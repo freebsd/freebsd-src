@@ -66,6 +66,9 @@
 
 #include <sys/cdefs.h>
 #include <sys/types.h>
+#include <sys/malloc.h>
+
+MALLOC_DECLARE(M_OFWPROP);
 
 typedef unsigned long cell_t;
 
@@ -96,6 +99,8 @@ phandle_t	OF_parent(phandle_t);
 phandle_t	OF_instance_to_package(ihandle_t);
 int		OF_getproplen(phandle_t, char *);
 int		OF_getprop(phandle_t, char *, void *, int);
+int		OF_getprop_alloc(phandle_t package, char *propname, int elsz,
+    void **buf);
 int		OF_nextprop(phandle_t, char *, char *);
 int		OF_setprop(phandle_t, char *, void *, int);
 int		OF_canon(const char *, char *, int);

@@ -58,11 +58,15 @@
  */
 
 #include <sys/param.h>
+#include <sys/kernel.h>
+#include <sys/malloc.h>
 #include <sys/systm.h>
 
 #include <machine/stdarg.h>
 
 #include <dev/ofw/openfirm.h>
+
+MALLOC_DEFINE(M_OFWPROP, "openfirm", "OpenFirmware properties");
 
 static ihandle_t stdin;
 static ihandle_t stdout;
@@ -284,6 +288,30 @@ OF_getprop(phandle_t package, char *propname, void *buf, int buflen)
 	if (openfirmware(&args) == -1)
 		return -1;
 	return args.size;
+}
+
+/*
+ * Store the value of a property of a package into newly allocated memory (using
+ * the M_OFWPROP malloc pool and M_WAITOK). elsz is the size of a single element,
+ * the number of elements is return in number.
+ */
+int
+OF_getprop_alloc(phandle_t package, char *propname, int elsz, void **buf)
+{
+	int len;
+
+	*buf = NULL;
+	if ((len = OF_getproplen(package, propname)) == -1 ||
+	    len % elsz != 0)
+		return (-1);
+
+	*buf = malloc(len, M_OFWPROP, M_WAITOK);
+	if (OF_getprop(package, propname, *buf, len) == -1) {
+		free(*buf, M_OFWPROP);
+		*buf = NULL;
+		return (-1);
+	}
+	return (len / elsz);
 }
 
 /* Get the next property of a package. */
