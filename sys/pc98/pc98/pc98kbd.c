@@ -57,12 +57,14 @@ static devclass_t	pckbd_devclass;
 
 static int		pckbdprobe(device_t dev);
 static int		pckbdattach(device_t dev);
+static int		pckbdresume(device_t dev);
 static void		pckbd_isa_intr(void *arg);
 
 static device_method_t pckbd_methods[] = {
 	/* Device interface */
 	DEVMETHOD(device_probe,		pckbdprobe),
 	DEVMETHOD(device_attach,	pckbdattach),
+	DEVMETHOD(device_resume,	pckbdresume),
 	{ 0, 0 }
 };
 
@@ -138,6 +140,19 @@ pckbdattach(device_t dev)
 		return ENXIO;
 	BUS_SETUP_INTR(device_get_parent(dev), dev, res, INTR_TYPE_TTY,
 		       pckbd_isa_intr, kbd, &ih);
+
+	return 0;
+}
+
+static int
+pckbdresume(device_t dev)
+{
+	keyboard_t *kbd;
+
+	kbd = kbd_get_keyboard(kbd_find_keyboard(DRIVER_NAME,
+						 device_get_unit(dev)));
+	if (kbd)
+		(*kbdsw[kbd->kb_index]->clear_state)(kbd);
 
 	return (0);
 }
