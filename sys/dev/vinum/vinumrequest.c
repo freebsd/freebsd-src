@@ -651,7 +651,10 @@ build_write_request(struct request *rq)
     status = REQUEST_OK;
     for (plexno = 0; plexno < vol->plexes; plexno++) {
 	diskstart = bp->b_blkno;			    /* start offset of transfer */
-	status = max(status, bre(rq,			    /* build requests for the plex */
+	/* Build requests for the plex.
+	 * We take the best possible result here (min,
+	 * not max): we're happy if we can write at all */
+	status = min(status, bre(rq,
 		vol->plex[plexno],
 		&diskstart,
 		diskend));
