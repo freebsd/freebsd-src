@@ -2,7 +2,7 @@
 # LINT -- config file for checking all the sources, tries to pull in
 #	as much of the source tree as it can.
 #
-#	$Id: LINT,v 1.122 1994/12/26 17:33:52 ats Exp $
+#	$Id: LINT,v 1.123 1995/01/07 14:51:46 jkh Exp $
 #
 # NB: You probably don't want to try running a kernel built from this
 # file.  Instead, you should start from GENERIC, and add options from
@@ -348,23 +348,14 @@ device		sc0	at isa? port "IO_KBD" tty irq 1 vector scintr
 #
 # Options for `sc':
 #
-# NCONS specifies the number of virtual consoles.  Specification of
-# this value is mandatory.  Due to a compiler bug, when compiling with
-# GCC 2.6.0 this option must be a power of two.
-#
 # FAT_CURSOR specifies the use of a large block cursor rather than the
 # hardware default underline.
 #
 # HARDFONTS allows the driver to load an ISO-8859-1 font to replace
 # the default font in your display adapter's memory.
 #
-# UCONSOLE enables code to let any user get output intended for the
-# console.
-#
-options		"NCONS=8"
 options		"FAT_CURSOR"
 options		HARDFONTS
-options		UCONSOLE
 
 device		npx0	at isa? port "IO_NPX" irq 13 vector npxintr
 
