@@ -11,7 +11,7 @@
  * 2. Absolutely no warranty of function or purpose is made by the author
  *		John S. Dyson.
  *
- * $Id: vfs_bio.c,v 1.190 1999/01/08 17:31:14 eivind Exp $
+ * $Id: vfs_bio.c,v 1.191 1999/01/10 01:58:25 eivind Exp $
  */
 
 /*
@@ -1335,7 +1335,11 @@ static void
 vfs_setdirty(struct buf *bp) {
 	int i;
 	vm_object_t object;
-	vm_offset_t boffset, offset;
+	vm_offset_t boffset;
+#if 0
+	vm_offset_t offset;
+#endif
+
 	/*
 	 * We qualify the scan for modified pages on whether the
 	 * object has been flushed yet.  The OBJ_WRITEABLE flag
@@ -1394,7 +1398,6 @@ getblk(struct vnode * vp, daddr_t blkno, int size, int slpflag, int slptimeo)
 	struct buf *bp;
 	int i, s;
 	struct bufhashhdr *bh;
-	int maxsize;
 
 #if !defined(MAX_PERF)
 	if (size > MAXBSIZE)
@@ -1955,7 +1958,9 @@ biodone(register struct buf * bp)
 			}
 #if defined(VFS_BIO_DEBUG)
 			if (OFF_TO_IDX(foff) != m->pindex) {
-				printf("biodone: foff(%d)/m->pindex(%d) mismatch\n", foff, m->pindex);
+				printf(
+"biodone: foff(%lu)/m->pindex(%d) mismatch\n",
+				    (unsigned long)foff, m->pindex);
 			}
 #endif
 			resid = IDX_TO_OFF(m->pindex + 1) - foff;
@@ -2256,7 +2261,7 @@ vfs_clean_pages(struct buf * bp)
 
 void
 vfs_bio_clrbuf(struct buf *bp) {
-	int i, size, mask = 0;
+	int i, mask = 0;
 	caddr_t sa, ea;
 	if ((bp->b_flags & (B_VMIO | B_MALLOC)) == B_VMIO) {
 		if( (bp->b_npages == 1) && (bp->b_bufsize < PAGE_SIZE) &&
