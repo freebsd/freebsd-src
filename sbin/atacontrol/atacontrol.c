@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 2000,2001 Søren Schmidt
+ * Copyright (c) 2000,2001,2002 Søren Schmidt
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -71,6 +71,8 @@ str2mode(char *str)
 	if (!strcasecmp(str, "UDMA66")) return ATA_UDMA4;
 	if (!strcasecmp(str, "UDMA5")) return ATA_UDMA5;
 	if (!strcasecmp(str, "UDMA100")) return ATA_UDMA5;
+	if (!strcasecmp(str, "UDMA6")) return ATA_UDMA6;
+	if (!strcasecmp(str, "UDMA133")) return ATA_UDMA6;
 	if (!strcasecmp(str, "BIOSDMA")) return ATA_DMA;
 	return -1;
 }
@@ -273,6 +275,11 @@ main(int argc, char **argv)
 		if (ioctl(fd, IOCATA, &iocmd) < 0)
 			warn("ioctl(ATAREINIT)");
 		info_print(fd, iocmd.channel, 0);
+	}
+	else if (!strcmp(argv[1], "rebuild") && argc == 3) {
+		iocmd.cmd = ATAREBUILD;
+		if (ioctl(fd, IOCATA, &iocmd) < 0)
+			warn("ioctl(ATAREBUILD)");
 	}
 	else if (!strcmp(argv[1], "mode") && (argc == 3 || argc == 5)) {
 		if (argc == 5) {
