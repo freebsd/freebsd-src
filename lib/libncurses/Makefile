@@ -1,3 +1,6 @@
+# Makefile for ncurses
+# $Id$
+
 LIB=    ncurses
 INCDIR= /usr/include
 CFLAGS+= -Wall -DMYTINFO -DTERMIOS -DGOOD_SELECT -DBSDTABS
@@ -11,7 +14,7 @@ SRCS=   lib_kernel.c lib_pad.c\
 	lib_box.c lib_clear.c lib_delch.c lib_deleteln.c lib_insch.c \
 	lib_insertln.c lib_getstr.c lib_mvwin.c lib_longname.c lib_tstp.c \
 	lib_newterm.c lib_set_term.c lib_overlay.c lib_scrreg.c lib_color.c \
-	lib_insstr.c lib_insdel.c lib_twait.c
+	lib_insstr.c lib_insdel.c lib_twait.c copyright.c
 CLEANFILES+= lib_keyname.c ${.CURDIR}/keys.tries
 
 beforedepend: ${.CURDIR}/keys.tries
