@@ -55,7 +55,7 @@ __RCSID("$FreeBSD$");
  *	and the given datum.
  *
  * Results:
- *	The found node or NILLNODE if none matches.
+ *	The found node or NULL if none matches.
  *
  * Side Effects:
  *	None.

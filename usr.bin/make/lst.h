@@ -59,9 +59,6 @@
 typedef	struct	Lst	*Lst;
 typedef	struct	LstNode	*LstNode;
 
-#define	NILLST		((Lst) NIL)
-#define	NILLNODE	((LstNode) NIL)
-
 /*
  * NOFREE can be used as the freeProc to Lst_Destroy when the elements are
  *	not to be freed.

@@ -496,7 +496,7 @@ DirExpandInt(word, path, expansions)
     Path	  *p;	    	/* Directory in the node */
 
     if (Lst_Open(path) == SUCCESS) {
-	while ((ln = Lst_Next(path)) != NILLNODE) {
+	while ((ln = Lst_Next(path)) != NULL) {
 	    p = (Path *)Lst_Datum(ln);
 	    DirMatchFiles(word, p, expansions);
 	}
@@ -722,7 +722,7 @@ Dir_FindFile (name, path)
      * and return the resulting string. If we don't find any such thing,
      * we go on to phase two...
      */
-    while ((ln = Lst_Next (path)) != NILLNODE) {
+    while ((ln = Lst_Next (path)) != NULL) {
 	p = (Path *) Lst_Datum (ln);
 	if (DEBUG(DIR)) {
 	    printf("%s...", p->name);
@@ -806,7 +806,7 @@ Dir_FindFile (name, path)
 	    printf("failed. Trying subdirectories...");
 	}
 	(void) Lst_Open (path);
-	while ((ln = Lst_Next (path)) != NILLNODE) {
+	while ((ln = Lst_Next (path)) != NULL) {
 	    p = (Path *) Lst_Datum (ln);
 	    if (p != dot) {
 		file = str_concat (p->name, name, STR_ADDSLASH);
@@ -903,7 +903,7 @@ Dir_FindFile (name, path)
 
     bigmisses += 1;
     ln = Lst_Last (path);
-    if (ln == NILLNODE) {
+    if (ln == NULL) {
 	return ((char *) NULL);
     } else {
 	p = (Path *) Lst_Datum (ln);
@@ -1036,9 +1036,9 @@ Dir_AddDir (path, name)
     register struct dirent *dp; /* entry in directory */
 
     ln = Lst_Find (openDirectories, (ClientData)name, DirFindName);
-    if (ln != NILLNODE) {
+    if (ln != NULL) {
 	p = (Path *)Lst_Datum (ln);
-	if (Lst_Member(path, (ClientData)p) == NILLNODE) {
+	if (Lst_Member(path, (ClientData)p) == NULL) {
 	    p->refCount += 1;
 	    (void)Lst_AtEnd (path, (ClientData)p);
 	}
@@ -1137,7 +1137,7 @@ Dir_MakeFlags (flag, path)
     str = estrdup ("");
 
     if (Lst_Open (path) == SUCCESS) {
-	while ((ln = Lst_Next (path)) != NILLNODE) {
+	while ((ln = Lst_Next (path)) != NULL) {
 	    p = (Path *) Lst_Datum (ln);
 	    tstr = str_concat (flag, p->name, 0);
 	    str = str_concat (str, tstr, STR_ADDSPACE | STR_DOFREE);
@@ -1230,9 +1230,9 @@ Dir_Concat(path1, path2)
     LstNode ln;
     Path    *p;
 
-    for (ln = Lst_First(path2); ln != NILLNODE; ln = Lst_Succ(ln)) {
+    for (ln = Lst_First(path2); ln != NULL; ln = Lst_Succ(ln)) {
 	p = (Path *)Lst_Datum(ln);
-	if (Lst_Member(path1, (ClientData)p) == NILLNODE) {
+	if (Lst_Member(path1, (ClientData)p) == NULL) {
 	    p->refCount += 1;
 	    (void)Lst_AtEnd(path1, (ClientData)p);
 	}
@@ -1253,7 +1253,7 @@ Dir_PrintDirectories()
 	       hits * 100 / (hits + bigmisses + nearmisses) : 0));
     printf ("# %-20s referenced\thits\n", "directory");
     if (Lst_Open (openDirectories) == SUCCESS) {
-	while ((ln = Lst_Next (openDirectories)) != NILLNODE) {
+	while ((ln = Lst_Next (openDirectories)) != NULL) {
 	    p = (Path *) Lst_Datum (ln);
 	    printf ("# %-20s %10d\t%4d\n", p->name, p->refCount, p->hits);
 	}

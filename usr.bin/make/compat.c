@@ -77,7 +77,7 @@ __RCSID("$FreeBSD$");
 
 static char 	    meta[256];
 
-static GNode	    *curTarg = NILGNODE;
+static GNode	    *curTarg = NULL;
 static GNode	    *ENDNode;
 static void CompatInterrupt __P((int));
 static int CompatRunCommand __P((ClientData, ClientData));
@@ -108,7 +108,7 @@ CompatInterrupt (signo)
 {
     GNode   *gn;
 
-    if ((curTarg != NILGNODE) && !Targ_Precious (curTarg)) {
+    if ((curTarg != NULL) && !Targ_Precious (curTarg)) {
 	char	  *p1;
 	char 	  *file = Var_Value (TARGET, curTarg, &p1);
 
@@ -122,7 +122,7 @@ CompatInterrupt (signo)
 	 */
 	if (signo == SIGINT) {
 	    gn = Targ_FindNode(".INTERRUPT", TARG_NOCREATE);
-	    if (gn != NILGNODE) {
+	    if (gn != NULL) {
 		Lst_ForEach(gn->commands, CompatRunCommand, (ClientData)gn);
 	    }
 	}
@@ -444,7 +444,7 @@ CompatMake (gnp, pgnp)
 	    return (0);
 	}
 
-	if (Lst_Member (gn->iParents, pgn) != NILLNODE) {
+	if (Lst_Member (gn->iParents, pgn) != NULL) {
 	    char *p1;
 	    Var_Set (IMPSRC, Var_Value(TARGET, gn, &p1), pgn);
 	    efree(p1);
@@ -503,7 +503,7 @@ CompatMake (gnp, pgnp)
 	    if (!touchFlag) {
 		curTarg = gn;
 		Lst_ForEach (gn->commands, CompatRunCommand, (ClientData)gn);
-		curTarg = NILGNODE;
+		curTarg = NULL;
 	    } else {
 		Job_Touch (gn, gn->type & OP_SILENT);
 	    }
@@ -597,7 +597,7 @@ CompatMake (gnp, pgnp)
 	 */
 	pgn->make = FALSE;
     } else {
-	if (Lst_Member (gn->iParents, pgn) != NILLNODE) {
+	if (Lst_Member (gn->iParents, pgn) != NULL) {
 	    char *p1;
 	    Var_Set (IMPSRC, Var_Value(TARGET, gn, &p1), pgn);
 	    efree(p1);
@@ -676,7 +676,7 @@ Compat_Run(targs)
      */
     if (!queryFlag) {
 	gn = Targ_FindNode(".BEGIN", TARG_NOCREATE);
-	if (gn != NILGNODE) {
+	if (gn != NULL) {
 	    Lst_ForEach(gn->commands, CompatRunCommand, (ClientData)gn);
             if (gn->made == ERROR) {
                 printf("\n\nStop.\n");

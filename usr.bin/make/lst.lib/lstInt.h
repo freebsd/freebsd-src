@@ -61,8 +61,6 @@ typedef struct ListNode {
  */
 #define LN_DELETED  	0x0001      /* List node should be removed when done */
 
-#define NilListNode	((ListNode)-1)
-
 typedef enum {
     Head, Middle, Tail, Unknown
 } Where;
@@ -77,13 +75,11 @@ typedef struct	{
  */
 	Where	  	atEnd;	  /* Where in the list the last access was */
 	Boolean	  	isOpen;	  /* true if list has been Lst_Open'ed */
-	ListNode  	curPtr;	  /* current node, if open. NilListNode if
+	ListNode  	curPtr;	  /* current node, if open. NULL if
 				   * *just* opened */
 	ListNode  	prevPtr;  /* Previous node, if open. Used by
 				   * Lst_Remove */
 } *List;
-
-#define NilList	  	((List)-1)
 
 /*
  * PAlloc (var, ptype) --
@@ -95,18 +91,18 @@ typedef struct	{
  * LstValid (l) --
  *	Return TRUE if the list l is valid
  */
-#define LstValid(l)	(((Lst)l == NILLST) ? FALSE : TRUE)
+#define LstValid(l)	(((Lst)l == NULL) ? FALSE : TRUE)
 
 /*
  * LstNodeValid (ln, l) --
  *	Return TRUE if the LstNode ln is valid with respect to l
  */
-#define LstNodeValid(ln, l)	((((LstNode)ln) == NILLNODE) ? FALSE : TRUE)
+#define LstNodeValid(ln, l)	((((LstNode)ln) == NULL) ? FALSE : TRUE)
 
 /*
  * LstIsEmpty (l) --
  *	TRUE if the list l is empty.
  */
-#define LstIsEmpty(l)	(((List)l)->firstPtr == NilListNode)
+#define LstIsEmpty(l)	(((List)l)->firstPtr == NULL)
 
 #endif /* _LSTINT_H_ */
