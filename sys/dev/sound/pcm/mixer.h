@@ -26,12 +26,12 @@
  * $FreeBSD$
  */
 
-extern int mixer_init(device_t dev, snd_mixer *m, void *devinfo);
+extern int mixer_init(device_t dev, kobj_class_t cls, void *devinfo);
 extern int mixer_uninit(device_t dev);
 extern int mixer_reinit(device_t dev);
 extern int mixer_ioctl(snddev_info *d, u_long cmd, caddr_t arg);
-extern int mixer_busy(snddev_info *d, int busy);
-extern int mixer_isbusy(snddev_info *d);
+extern int mixer_busy(snd_mixer *m, int busy);
+extern int mixer_isbusy(snd_mixer *m);
 
 extern void change_bits(mixer_tab *t, u_char *regval, int dev, int chn, int newval);
 
@@ -40,3 +40,5 @@ void mix_setrecdevs(snd_mixer *m, u_int32_t v);
 u_int32_t mix_getdevs(snd_mixer *m);
 u_int32_t mix_getrecdevs(snd_mixer *m);
 void *mix_getdevinfo(snd_mixer *m);
+
+#define MIXER_DECLARE(name) DEFINE_CLASS(name, name ## _methods, sizeof(snd_mixer))

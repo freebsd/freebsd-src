@@ -114,10 +114,6 @@ struct agg_info {
 	struct agg_chinfo	rch;
 };
 
-
-static u_int32_t	 agg_rdcodec(void *, int);
-static void		 agg_wrcodec(void *, int, u_int32_t);
-
 static inline void	 ringbus_setdest(struct agg_info*, int, int);
 
 static inline u_int16_t	 wp_rdreg(struct agg_info*, u_int16_t);
@@ -136,7 +132,6 @@ static inline void	 wc_wrchctl(struct agg_info*, int, u_int16_t);
 static inline void	 agg_power(struct agg_info*, int);
 
 static void		 agg_init(struct agg_info*);
-static u_int32_t	 agg_ac97_init(void *);
 
 static void		 aggch_start_dac(struct agg_chinfo*);
 static void		 aggch_stop_dac(struct agg_chinfo*);
@@ -145,15 +140,6 @@ static inline void	 suppress_jitter(struct agg_chinfo*);
 
 static inline u_int	 calc_timer_freq(struct agg_chinfo*);
 static void		 set_timer(struct agg_info*);
-
-static pcmchan_init_t		aggch_init;
-static pcmchan_free_t		aggch_free;
-static pcmchan_setformat_t	aggch_setplayformat;
-static pcmchan_setspeed_t	aggch_setspeed;
-static pcmchan_setblocksize_t	aggch_setblocksize;
-static pcmchan_trigger_t	aggch_trigger;
-static pcmchan_getptr_t		aggch_getplayptr;
-static pcmchan_getcaps_t	aggch_getcaps;
 
 static void		 agg_intr(void *);
 static int		 agg_probe(device_t);
@@ -172,8 +158,18 @@ static void	 dma_free(struct agg_info*, void *);
 
 /* Codec/Ringbus */
 
+/* -------------------------------------------------------------------- */
+
 static u_int32_t
-agg_rdcodec(void *sc, int regno)
+agg_ac97_init(kobj_t obj, void *sc)
+{
+	struct agg_info *ess = sc;
+
+	return (bus_space_read_1(ess->st, ess->sh, PORT_CODEC_STAT) & CODEC_STAT_MASK)? 0 : 1;
+}
+
+static int
+agg_rdcodec(kobj_t obj, void *sc, int regno)
 {
 	struct agg_info *ess = sc;
 	unsigned t;
@@ -206,8 +202,8 @@ agg_rdcodec(void *sc, int regno)
 	return bus_space_read_2(ess->st, ess->sh, PORT_CODEC_REG);
 }
 
-static void
-agg_wrcodec(void *sc, int regno, u_int32_t data)
+static int
+agg_wrcodec(kobj_t obj, void *sc, int regno, u_int32_t data)
 {
 	unsigned t;
 	struct agg_info *ess = sc;
@@ -222,13 +218,25 @@ agg_wrcodec(void *sc, int regno, u_int32_t data)
 	if (t == 20) {
 		/* Timed out. Abort writing. */
 		device_printf(ess->dev, "agg_wrcodec() PROGLESS timed out.\n");
-		return;
+		return -1;
 	}
 
 	bus_space_write_2(ess->st, ess->sh, PORT_CODEC_REG, data);
 	bus_space_write_1(ess->st, ess->sh, PORT_CODEC_CMD,
 	    CODEC_CMD_WRITE | regno);
+
+	return 0;
 }
+
+static kobj_method_t agg_ac97_methods[] = {
+    	KOBJMETHOD(ac97_init,		agg_ac97_init),
+    	KOBJMETHOD(ac97_read,		agg_rdcodec),
+    	KOBJMETHOD(ac97_write,		agg_wrcodec),
+	{ 0, 0 }
+};
+AC97_DECLARE(agg_ac97);
+
+/* -------------------------------------------------------------------- */
 
 static inline void
 ringbus_setdest(struct agg_info *ess, int src, int dest)
@@ -396,7 +404,7 @@ agg_initcodec(struct agg_info* ess)
 	    RINGBUS_CTRL_ACLINK_ENABLED);
 	DELAY(21);
 
-	agg_rdcodec(ess, 0);
+	agg_rdcodec(NULL, ess, 0);
 	if (bus_space_read_1(ess->st, ess->sh, PORT_CODEC_STAT)
 	    & CODEC_STAT_MASK) {
 		bus_space_write_4(ess->st, ess->sh, PORT_RINGBUS_CTRL, 0);
@@ -627,16 +635,8 @@ set_timer(struct agg_info *ess)
  * Newpcm glue.
  */
 
-static u_int32_t
-agg_ac97_init(void *sc)
-{
-	struct agg_info *ess = sc;
-
-	return (bus_space_read_1(ess->st, ess->sh, PORT_CODEC_STAT) & CODEC_STAT_MASK)? 0 : 1;
-}
-
 static void *
-aggch_init(void *devinfo, snd_dbuf *b, pcm_channel *c, int dir)
+aggch_init(kobj_t obj, void *devinfo, snd_dbuf *b, pcm_channel *c, int dir)
 {
 	struct agg_info *ess = devinfo;
 	struct agg_chinfo *ch;
@@ -677,7 +677,7 @@ aggch_init(void *devinfo, snd_dbuf *b, pcm_channel *c, int dir)
 }
 
 static int
-aggch_free(void *data)
+aggch_free(kobj_t obj, void *data)
 {
 	struct agg_chinfo *ch = data;
 	struct agg_info *ess = ch->parent;
@@ -690,7 +690,7 @@ aggch_free(void *data)
 }
 
 static int
-aggch_setplayformat(void *data, u_int32_t format)
+aggch_setplayformat(kobj_t obj, void *data, u_int32_t format)
 {
 	struct agg_chinfo *ch = data;
 	u_int16_t wcreg_tpl;
@@ -717,19 +717,19 @@ aggch_setplayformat(void *data, u_int32_t format)
 }
 
 static int
-aggch_setspeed(void *data, u_int32_t speed)
+aggch_setspeed(kobj_t obj, void *data, u_int32_t speed)
 {
 	return speed;
 }
 
 static int
-aggch_setblocksize(void *data, u_int32_t blocksize)
+aggch_setblocksize(kobj_t obj, void *data, u_int32_t blocksize)
 {
 	return ((struct agg_chinfo*)data)->blocksize = blocksize;
 }
 
 static int
-aggch_trigger(void *data, int go)
+aggch_trigger(kobj_t obj, void *data, int go)
 {
 	struct agg_chinfo *ch = data;
 
@@ -767,7 +767,7 @@ aggch_trigger(void *data, int go)
 }
 
 static int
-aggch_getplayptr(void *data)
+aggch_getplayptr(kobj_t obj, void *data)
 {
 	struct agg_chinfo *ch = data;
 	u_int cp;
@@ -782,7 +782,7 @@ aggch_getplayptr(void *data)
 }
 
 static pcmchan_caps *
-aggch_getcaps(void *data)
+aggch_getcaps(kobj_t obj, void *data)
 {
 	static u_int32_t playfmt[] = {
 		AFMT_U8,
@@ -808,6 +808,18 @@ aggch_getcaps(void *data)
 	    &playcaps : &reccaps;
 }
 
+static kobj_method_t aggch_methods[] = {
+    	KOBJMETHOD(channel_init,		aggch_init),
+    	KOBJMETHOD(channel_free,		aggch_free),
+    	KOBJMETHOD(channel_setformat,		aggch_setplayformat),
+    	KOBJMETHOD(channel_setspeed,		aggch_setspeed),
+    	KOBJMETHOD(channel_setblocksize,	aggch_setblocksize),
+    	KOBJMETHOD(channel_trigger,		aggch_trigger),
+    	KOBJMETHOD(channel_getptr,		aggch_getplayptr),
+    	KOBJMETHOD(channel_getcaps,		aggch_getcaps),
+	{ 0, 0 }
+};
+CHANNEL_DECLARE(aggch);
 
 /* -----------------------------
  * Bus space.
@@ -933,24 +945,6 @@ agg_attach(device_t dev)
 	struct resource	*irq = NULL;
 	void	*ih = NULL;
 	char	status[SND_STATUSLEN];
-	static pcm_channel agg_pchtpl = {
-	    	aggch_init,
-		NULL, 			/* setdir */
-	    	aggch_setplayformat,
-	    	aggch_setspeed,
-	    	aggch_setblocksize,
-	    	aggch_trigger,
-	    	aggch_getplayptr,
-	    	aggch_getcaps,
-		aggch_free, 		/* free */
-		NULL, 			/* nop1 */
-		NULL, 			/* nop2 */
-		NULL, 			/* nop3 */
-		NULL, 			/* nop4 */
-		NULL, 			/* nop5 */
-		NULL, 			/* nop6 */
-		NULL, 			/* nop7 */
-	};
 
 	if ((ess = malloc(sizeof *ess, M_DEVBUF, M_NOWAIT)) == NULL) {
 		device_printf(dev, "cannot allocate softc\n");
@@ -1003,14 +997,14 @@ agg_attach(device_t dev)
 	}
 
 	agg_init(ess);
-	if (agg_rdcodec(ess, 0) == 0x80) {
+	if (agg_rdcodec(NULL, ess, 0) == 0x80) {
 		device_printf(dev, "PT101 codec detected!\n");
 		goto bad;
 	}
-	codec = ac97_create(dev, ess, agg_ac97_init, agg_rdcodec, agg_wrcodec);
+	codec = AC97_CREATE(dev, ess, agg_ac97);
 	if (codec == NULL)
 		goto bad;
-	if (mixer_init(dev, &ac97_mixer, codec) == -1)
+	if (mixer_init(dev, ac97_getmixerclass(), codec) == -1)
 		goto bad;
 	ess->codec = codec;
 
@@ -1032,9 +1026,9 @@ agg_attach(device_t dev)
 		goto bad;
 
 	for (data = 0; data < AGG_MAXPLAYCH; data++)
-		pcm_addchan(dev, PCMDIR_PLAY, &agg_pchtpl, ess);
+		pcm_addchan(dev, PCMDIR_PLAY, &aggch_class, ess);
 #if 0	/* XXX - RECORDING */
-	pcm_addchan(dev, PCMDIR_REC, &agg_rchtpl, ess);
+	pcm_addchan(dev, PCMDIR_REC, &aggrch_class, ess);
 #endif
 	pcm_setstatus(dev, status);
 
@@ -1075,7 +1069,7 @@ agg_detach(device_t dev)
 	dma_free(ess, ess->stat);
 
 	/* Power down everything except clock and vref. */
-	agg_wrcodec(ess, AC97_REG_POWER, 0xd700);
+	agg_wrcodec(NULL, ess, AC97_REG_POWER, 0xd700);
 	DELAY(20);
 	bus_space_write_4(ess->st, ess->sh, PORT_RINGBUS_CTRL, 0);
 	agg_power(ess, PPMI_D3);
@@ -1106,7 +1100,7 @@ agg_suspend(device_t dev)
 #endif
 	splx(x);
 	/* Power down everything except clock. */
-	agg_wrcodec(ess, AC97_REG_POWER, 0xdf00);
+	agg_wrcodec(NULL, ess, AC97_REG_POWER, 0xdf00);
 	DELAY(20);
 	bus_space_write_4(ess->st, ess->sh, PORT_RINGBUS_CTRL, 0);
 	DELAY(1);

@@ -111,31 +111,6 @@ struct sc_info {
  * prototypes
  */
 
-/* channel interface */
-static void *emupchan_init(void *devinfo, snd_dbuf *b, pcm_channel *c, int dir);
-static int emupchan_free(void *data);
-static int emupchan_setdir(void *data, int dir);
-static int emupchan_setformat(void *data, u_int32_t format);
-static int emupchan_setspeed(void *data, u_int32_t speed);
-static int emupchan_setblocksize(void *data, u_int32_t blocksize);
-static int emupchan_trigger(void *data, int go);
-static int emupchan_getptr(void *data);
-static pcmchan_caps *emupchan_getcaps(void *data);
-
-/* channel interface */
-static void *emurchan_init(void *devinfo, snd_dbuf *b, pcm_channel *c, int dir);
-static int emurchan_setdir(void *data, int dir);
-static int emurchan_setformat(void *data, u_int32_t format);
-static int emurchan_setspeed(void *data, u_int32_t speed);
-static int emurchan_setblocksize(void *data, u_int32_t blocksize);
-static int emurchan_trigger(void *data, int go);
-static int emurchan_getptr(void *data);
-static pcmchan_caps *emurchan_getcaps(void *data);
-
-/* talk to the codec - called from ac97.c */
-static u_int32_t emu_rdcd(void *, int);
-static void emu_wrcd(void *, int, u_int32_t);
-
 /* stuff */
 static int emu_init(struct sc_info *);
 static void emu_intr(void *);
@@ -183,45 +158,7 @@ static u_int32_t emu_pfmt[] = {
 	0
 };
 
-static pcmchan_caps emu_playcaps = {4000, 48000, emu_pfmt, 0};
-
-static pcm_channel emu_chantemplate = {
-	emupchan_init,
-	emupchan_setdir,
-	emupchan_setformat,
-	emupchan_setspeed,
-	emupchan_setblocksize,
-	emupchan_trigger,
-	emupchan_getptr,
-	emupchan_getcaps,
-	emupchan_free, 		/* free */
-	NULL, 			/* nop1 */
-	NULL, 			/* nop2 */
-	NULL, 			/* nop3 */
-	NULL, 			/* nop4 */
-	NULL, 			/* nop5 */
-	NULL, 			/* nop6 */
-	NULL, 			/* nop7 */
-};
-
-static pcm_channel emur_chantemplate = {
-	emurchan_init,
-	emurchan_setdir,
-	emurchan_setformat,
-	emurchan_setspeed,
-	emurchan_setblocksize,
-	emurchan_trigger,
-	emurchan_getptr,
-	emurchan_getcaps,
-	NULL, 			/* free */
-	NULL, 			/* nop1 */
-	NULL, 			/* nop2 */
-	NULL, 			/* nop3 */
-	NULL, 			/* nop4 */
-	NULL, 			/* nop5 */
-	NULL, 			/* nop6 */
-	NULL, 			/* nop7 */
-};
+static pcmchan_caps emu_playcaps = {48000, 48000, emu_pfmt, 0};
 
 static int adcspeed[8] = {48000, 44100, 32000, 24000, 22050, 16000, 11025, 8000};
 
@@ -300,9 +237,11 @@ emu_wrefx(struct sc_info *sc, unsigned int pc, unsigned int data)
 	emu_wrptr(sc, 0, MICROCODEBASE + pc, data);
 }
 
+/* -------------------------------------------------------------------- */
 /* ac97 codec */
-static u_int32_t
-emu_rdcd(void *devinfo, int regno)
+
+static int
+emu_rdcd(kobj_t obj, void *devinfo, int regno)
 {
 	struct sc_info *sc = (struct sc_info *)devinfo;
 
@@ -310,14 +249,24 @@ emu_rdcd(void *devinfo, int regno)
 	return emu_rd(sc, AC97DATA, 2);
 }
 
-static void
-emu_wrcd(void *devinfo, int regno, u_int32_t data)
+static int
+emu_wrcd(kobj_t obj, void *devinfo, int regno, u_int32_t data)
 {
 	struct sc_info *sc = (struct sc_info *)devinfo;
 
 	emu_wr(sc, AC97ADDRESS, regno, 1);
 	emu_wr(sc, AC97DATA, data, 2);
+	return 0;
 }
+
+static kobj_method_t emu_ac97_methods[] = {
+    	KOBJMETHOD(ac97_read,		emu_rdcd),
+    	KOBJMETHOD(ac97_write,		emu_wrcd),
+	{ 0, 0 }
+};
+AC97_DECLARE(emu_ac97);
+
+/* -------------------------------------------------------------------- */
 
 #if 0
 /* playback channel interrupts */
@@ -671,8 +620,8 @@ emu_vdump(struct sc_info *sc, struct emu_voice *v)
 #endif
 
 /* channel interface */
-void *
-emupchan_init(void *devinfo, snd_dbuf *b, pcm_channel *c, int dir)
+static void *
+emupchan_init(kobj_t obj, void *devinfo, snd_dbuf *b, pcm_channel *c, int dir)
 {
 	struct sc_info *sc = devinfo;
 	struct sc_pchinfo *ch;
@@ -691,7 +640,7 @@ emupchan_init(void *devinfo, snd_dbuf *b, pcm_channel *c, int dir)
 }
 
 static int
-emupchan_free(void *data)
+emupchan_free(kobj_t obj, void *data)
 {
 	struct sc_pchinfo *ch = data;
 	struct sc_info *sc = ch->parent;
@@ -700,13 +649,7 @@ emupchan_free(void *data)
 }
 
 static int
-emupchan_setdir(void *data, int dir)
-{
-	return 0;
-}
-
-static int
-emupchan_setformat(void *data, u_int32_t format)
+emupchan_setformat(kobj_t obj, void *data, u_int32_t format)
 {
 	struct sc_pchinfo *ch = data;
 
@@ -715,7 +658,7 @@ emupchan_setformat(void *data, u_int32_t format)
 }
 
 static int
-emupchan_setspeed(void *data, u_int32_t speed)
+emupchan_setspeed(kobj_t obj, void *data, u_int32_t speed)
 {
 	struct sc_pchinfo *ch = data;
 
@@ -724,13 +667,13 @@ emupchan_setspeed(void *data, u_int32_t speed)
 }
 
 static int
-emupchan_setblocksize(void *data, u_int32_t blocksize)
+emupchan_setblocksize(kobj_t obj, void *data, u_int32_t blocksize)
 {
 	return blocksize;
 }
 
 static int
-emupchan_trigger(void *data, int go)
+emupchan_trigger(kobj_t obj, void *data, int go)
 {
 	struct sc_pchinfo *ch = data;
 	struct sc_info *sc = ch->parent;
@@ -757,7 +700,7 @@ emupchan_trigger(void *data, int go)
 }
 
 static int
-emupchan_getptr(void *data)
+emupchan_getptr(kobj_t obj, void *data)
 {
 	struct sc_pchinfo *ch = data;
 	struct sc_info *sc = ch->parent;
@@ -766,14 +709,27 @@ emupchan_getptr(void *data)
 }
 
 static pcmchan_caps *
-emupchan_getcaps(void *data)
+emupchan_getcaps(kobj_t obj, void *data)
 {
 	return &emu_playcaps;
 }
 
+static kobj_method_t emupchan_methods[] = {
+    	KOBJMETHOD(channel_init,		emupchan_init),
+    	KOBJMETHOD(channel_free,		emupchan_free),
+    	KOBJMETHOD(channel_setformat,		emupchan_setformat),
+    	KOBJMETHOD(channel_setspeed,		emupchan_setspeed),
+    	KOBJMETHOD(channel_setblocksize,	emupchan_setblocksize),
+    	KOBJMETHOD(channel_trigger,		emupchan_trigger),
+    	KOBJMETHOD(channel_getptr,		emupchan_getptr),
+    	KOBJMETHOD(channel_getcaps,		emupchan_getcaps),
+	{ 0, 0 }
+};
+CHANNEL_DECLARE(emupchan);
+
 /* channel interface */
 static void *
-emurchan_init(void *devinfo, snd_dbuf *b, pcm_channel *c, int dir)
+emurchan_init(kobj_t obj, void *devinfo, snd_dbuf *b, pcm_channel *c, int dir)
 {
 	struct sc_info *sc = devinfo;
 	struct sc_rchinfo *ch;
@@ -823,13 +779,7 @@ emurchan_init(void *devinfo, snd_dbuf *b, pcm_channel *c, int dir)
 }
 
 static int
-emurchan_setdir(void *data, int dir)
-{
-	return 0;
-}
-
-static int
-emurchan_setformat(void *data, u_int32_t format)
+emurchan_setformat(kobj_t obj, void *data, u_int32_t format)
 {
 	struct sc_rchinfo *ch = data;
 
@@ -838,7 +788,7 @@ emurchan_setformat(void *data, u_int32_t format)
 }
 
 static int
-emurchan_setspeed(void *data, u_int32_t speed)
+emurchan_setspeed(kobj_t obj, void *data, u_int32_t speed)
 {
 	struct sc_rchinfo *ch = data;
 
@@ -853,14 +803,14 @@ emurchan_setspeed(void *data, u_int32_t speed)
 }
 
 static int
-emurchan_setblocksize(void *data, u_int32_t blocksize)
+emurchan_setblocksize(kobj_t obj, void *data, u_int32_t blocksize)
 {
 	return blocksize;
 }
 
 /* semantic note: must start at beginning of buffer */
 static int
-emurchan_trigger(void *data, int go)
+emurchan_trigger(kobj_t obj, void *data, int go)
 {
 	struct sc_rchinfo *ch = data;
 	struct sc_info *sc = ch->parent;
@@ -903,7 +853,7 @@ emurchan_trigger(void *data, int go)
 }
 
 static int
-emurchan_getptr(void *data)
+emurchan_getptr(kobj_t obj, void *data)
 {
 	struct sc_rchinfo *ch = data;
 	struct sc_info *sc = ch->parent;
@@ -912,7 +862,7 @@ emurchan_getptr(void *data)
 }
 
 static pcmchan_caps *
-emurchan_getcaps(void *data)
+emurchan_getcaps(kobj_t obj, void *data)
 {
 	struct sc_rchinfo *ch = data;
 
@@ -978,6 +928,18 @@ emu_intr(void *p)
 		emu_wr(sc, IPR, stat, 4);
 	}
 }
+
+static kobj_method_t emurchan_methods[] = {
+    	KOBJMETHOD(channel_init,		emurchan_init),
+    	KOBJMETHOD(channel_setformat,		emurchan_setformat),
+    	KOBJMETHOD(channel_setspeed,		emurchan_setspeed),
+    	KOBJMETHOD(channel_setblocksize,	emurchan_setblocksize),
+    	KOBJMETHOD(channel_trigger,		emurchan_trigger),
+    	KOBJMETHOD(channel_getptr,		emurchan_getptr),
+    	KOBJMETHOD(channel_getcaps,		emurchan_getcaps),
+	{ 0, 0 }
+};
+CHANNEL_DECLARE(emurchan);
 
 /* -------------------------------------------------------------------- */
 
@@ -1468,9 +1430,9 @@ emu_pci_attach(device_t dev)
 		goto bad;
 	}
 
-	codec = ac97_create(dev, sc, NULL, emu_rdcd, emu_wrcd);
+	codec = AC97_CREATE(dev, sc, emu_ac97);
 	if (codec == NULL) goto bad;
-	if (mixer_init(dev, &ac97_mixer, codec) == -1) goto bad;
+	if (mixer_init(dev, ac97_getmixerclass(), codec) == -1) goto bad;
 
 	sc->irqid = 0;
 	sc->irq = bus_alloc_resource(dev, SYS_RES_IRQ, &sc->irqid,
@@ -1487,9 +1449,9 @@ emu_pci_attach(device_t dev)
 
 	if (pcm_register(dev, sc, EMU_CHANS, 3)) goto bad;
 	for (i = 0; i < EMU_CHANS; i++)
-		pcm_addchan(dev, PCMDIR_PLAY, &emu_chantemplate, sc);
+		pcm_addchan(dev, PCMDIR_PLAY, &emupchan_class, sc);
 	for (i = 0; i < 3; i++)
-		pcm_addchan(dev, PCMDIR_REC, &emur_chantemplate, sc);
+		pcm_addchan(dev, PCMDIR_REC, &emurchan_class, sc);
 
 	pcm_setstatus(dev, status);
 

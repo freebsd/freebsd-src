@@ -26,17 +26,31 @@
  * $FreeBSD$
  */
 
+struct feeder_class {
+	KOBJ_CLASS_FIELDS;
+	int align;
+	struct pcm_feederdesc *desc;
+	void *data;
+};
+
 void feeder_register(void *p);
-pcm_feeder *feeder_get(struct pcm_feederdesc *desc);
-pcm_feeder *feeder_getroot(void);
-int feeder_set(pcm_feeder *feeder, int what, int value);
+struct feeder_class *feeder_getclass(struct pcm_feederdesc *desc);
 
 u_int32_t chn_fmtchain(pcm_channel *c, u_int32_t *to);
-int chn_addfeeder(pcm_channel *c, pcm_feeder *f);
+int chn_addfeeder(pcm_channel *c, struct feeder_class *fc, struct pcm_feederdesc *desc);
 int chn_removefeeder(pcm_channel *c);
 pcm_feeder *chn_findfeeder(pcm_channel *c, u_int32_t type);
 
-#define FEEDER_DECLARE(feeder) SYSINIT(feeder, SI_SUB_DRIVERS, SI_ORDER_MIDDLE, feeder_register, &feeder)
+#define FEEDER_DECLARE(feeder, palign, pdata) \
+static struct feeder_class feeder ## _class = { \
+	name:		#feeder, \
+	methods:	feeder ## _methods, \
+	size:		sizeof(pcm_feeder), \
+	align:		palign, \
+	desc:		feeder ## _desc, \
+	data:		pdata, \
+}; \
+SYSINIT(feeder, SI_SUB_DRIVERS, SI_ORDER_MIDDLE, feeder_register, &feeder ## _class);
 
 #define FEEDER_ROOT	1
 #define FEEDER_FMT 	2
