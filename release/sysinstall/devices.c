@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: devices.c,v 1.30 1995/05/24 17:49:11 jkh Exp $
+ * $Id: devices.c,v 1.31 1995/05/26 08:41:37 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -145,7 +145,7 @@ deviceDiskFree(Device *dev)
 /* Register a new device in the devices array */
 Device *
 deviceRegister(char *name, char *desc, char *devname, DeviceType type, Boolean enabled,
-	       Boolean (*init)(Device *), int (*get)(char *, char *), Boolean (*close)(Device *, int),
+	       Boolean (*init)(Device *), int (*get)(char *), Boolean (*close)(Device *, int),
 	       void (*shutdown)(Device *), void *private)
 {
     Device *newdev;
