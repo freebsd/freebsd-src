@@ -1,9 +1,10 @@
-#	@(#)Makefile	0.1 (RWGrimes) 3/25/93
+#	$Id$
 
 MAN4=   aha.4 ahb.4 ahc.4 apm.4 ar.4 asc.4 bt.4 cx.4 cy.4 dgb.4 \
 	ed.4 gsc.4 fdc.4 fe.4 ie.4 io.4 \
 	joy.4 keyboard.4 labpc.4 lp.4 lpt.4 matcd.4 mcd.4 mem.4 meteor.4 \
-	mse.4 mtio.4 nca.4 npx.4 pcvt.4 qcam.4 scd.4 screen.4 sea.4 si.4 sio.4 \
+	mse.4 mtio.4 nca.4 npx.4 pcvt.4 perfmon.4 \
+	qcam.4 scd.4 screen.4 sea.4 si.4 sio.4 \
 	spkr.4 tw.4 uha.4 vx.4 wd.4
 
 MLINKS=		aha.4 ../aha.4
@@ -36,6 +37,7 @@ MLINKS+=	mtio.4 ../mtio.4
 MLINKS+=	nca.4 ../nca.4
 MLINKS+=	npx.4 ../npx.4
 MLINKS+=	pcvt.4 ../pcvt.4
+MLINKS+=	perfmon.4 ../perfmon.4
 MLINKS+=	qcam.4 ../qcam.4
 MLINKS+=	scd.4 ../scd.4
 MLINKS+=	screen.4 ../screen.4
