@@ -47,7 +47,10 @@ CFLAGS=	-elf -ffreestanding -Os -fno-builtin \
 
 LDFLAGS=-nostdlib -static -N --gc-sections
 
-all: boot1 boot2
+all: boot1 boot2 boot
+
+boot: boot1 boot2
+	cat boot1 boot2 > boot
 
 boot1: boot1.out
 	objcopy -S -O binary boot1.out ${.TARGET}
@@ -98,6 +101,8 @@ sio.o: sio.s
 		${.IMPSRC} -o ${.TARGET}
 
 install:
+	${INSTALL} -o ${BINOWN} -g ${BINGRP} -m ${BINMODE} \
+		boot ${DESTDIR}${BINDIR}/boot
 	${INSTALL} -o ${BINOWN} -g ${BINGRP} -m ${BINMODE} \
 		boot1 ${DESTDIR}${BINDIR}/boot1
 	${INSTALL} -o ${BINOWN} -g ${BINGRP} -m ${BINMODE} \
