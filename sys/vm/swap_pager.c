@@ -39,7 +39,7 @@
  * from: Utah $Hdr: swap_pager.c 1.4 91/04/30$
  *
  *	@(#)swap_pager.c	8.9 (Berkeley) 3/21/94
- * $Id: swap_pager.c,v 1.41.4.1 1995/07/20 05:52:57 davidg Exp $
+ * $Id: swap_pager.c,v 1.41.4.2 1995/07/22 04:41:47 davidg Exp $
  */
 
 /*
@@ -140,7 +140,7 @@ swapsizecheck()
 {
 	if (vm_swap_size < 128 * btodb(PAGE_SIZE)) {
 		if (swap_pager_full == 0)
-			printf("swap_pager: out of space\n");
+			printf("swap_pager: out of swap space\n");
 		swap_pager_full = 1;
 	} else if (vm_swap_size > 192 * btodb(PAGE_SIZE))
 		swap_pager_full = 0;
