@@ -16,12 +16,12 @@ EXAMPDIR=	/usr/share/examples/more
 EXAMPLES=	default.morerc less.morerc most.morerc
 
 defrc.h: default.morerc
-	@${ECHO} '/* ${.TARGET:T} auto-generated from ${.ALLSRC:T} */' \
+	@echo '/* ${.TARGET:T} auto-generated from ${.ALLSRC:T} */' \
 	    > ${.TARGET}
-	@${ECHO} '#define DEFRC "\' >> ${.TARGET}
+	@echo '#define DEFRC "\' >> ${.TARGET}
 	sed -e 's/\\/\\\\/g' -e 's/\"/\\\"/g' -e 's/$$/\\n\\/' \
 	    < ${.ALLSRC} >> ${.TARGET}
-	@${ECHO} \" >> ${.TARGET}
+	@echo \" >> ${.TARGET}
 
 beforeinstall:
 	${INSTALL} ${COPY} -o ${SHAREOWN} -g ${SHAREGRP} -m ${SHAREMODE} \
