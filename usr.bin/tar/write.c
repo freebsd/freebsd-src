@@ -358,19 +358,26 @@ write_archive(struct archive *a, struct bsdtar *bsdtar)
 
 	while (*bsdtar->argv) {
 		arg = *bsdtar->argv;
-		if (arg[0] == 'C' && arg[1] == '=') {
+		if (arg[0] == '-' && arg[1] == 'C') {
 			arg += 2;
+			if (*arg == '\0') {
+				bsdtar->argv++;
+				arg = *bsdtar->argv;
+				if (arg == NULL)
+					bsdtar_errc(bsdtar, 1, 0,
+					    "Missing argument for -C");
+			}
 
 			/*-
-			 * The logic here for C=<dir> attempts to avoid
+			 * The logic here for -C <dir> attempts to avoid
 			 * chdir() as long as possible.  For example:
-			 * "C=/foo C=/bar file"
+			 * "-C /foo -C /bar file"
 			 *    needs chdir("/bar") but not chdir("/foo")
-			 * "C=/foo C=bar file"
+			 * "-C /foo -C bar file"
 			 *    needs chdir("/foo/bar")
-			 * "C=/foo C=bar /file1"
+			 * "-C /foo -C bar /file1"
 			 *    does not need chdir()
-			 * "C=/foo C=bar /file1 file2"
+			 * "-C /foo -C bar /file1 file2"
 			 *    needs chdir("/foo/bar") before file2
 			 *
 			 * The only correct way to handle this is to
@@ -380,17 +387,17 @@ write_archive(struct archive *a, struct bsdtar *bsdtar)
 			 *
 			 * I went to all this work so that programs
 			 * that build tar command lines don't have to
-			 * worry about C= with non-existent
+			 * worry about -C with non-existent
 			 * directories; such requests will only fail
 			 * if the directory must be accessed.
 			 */
 			if (pending_dir && *arg == '/') {
-				/* The C=/foo C=/bar case; dump first one. */
+				/* The -C /foo -C /bar case; dump first one. */
 				free(pending_dir);
 				pending_dir = NULL;
 			}
 			if (pending_dir) {
-				/* The C=/foo C=bar case; concatenate */
+				/* The -C /foo -C bar case; concatenate */
 				char *old_pending = pending_dir;
 				int old_len = strlen(old_pending);
 
@@ -409,8 +416,7 @@ write_archive(struct archive *a, struct bsdtar *bsdtar)
 		} else {
 			if (pending_dir &&
 			    (*arg != '/' || (*arg == '@' && arg[1] != '/'))) {
-				/* Handle a deferred -C request, see
-				 * comments above. */
+				/* Handle a deferred -C */
 				if (chdir(pending_dir))
 					bsdtar_errc(bsdtar, 1, 0,
 					    "could not chdir to '%s'\n",
