@@ -577,24 +577,24 @@ dump_tables()
 		if (first_d < 0)
 			first_d = curr_d = x;
 		else if (x != curr_d + 1) {
-			fprintf(stderr, "Error: DIGIT is not contiguous\n");
+			fprintf(stderr, "Error: DIGIT range is not contiguous\n");
 			exit(1);
 		} else if (x - first_d > 9) {
-			fprintf(stderr, "Error: DIGIT is too big\n");
+			fprintf(stderr, "Error: DIGIT range is too big\n");
 			exit(1);
 		} else
 			curr_d++;
 		if (!(r & _CTYPE_X)) {
-			fprintf(stderr, "Error: DIGIT is not subset of XDIGIT\n");
+			fprintf(stderr, "Error: DIGIT range is not a subset of XDIGIT range\n");
 			exit(1);
 		}
 	}
     }
     if (first_d < 0) {
-	fprintf(stderr, "Error: no DIGIT defined\n");
+	fprintf(stderr, "Error: no DIGIT range defined in the single byte area\n");
 	exit(1);
     } else if (curr_d - first_d < 9) {
-	fprintf(stderr, "Error: DIGIT is too small\n");
+	fprintf(stderr, "Error: DIGIT range is too small in the single byte area\n");
 	exit(1);
     }
 
