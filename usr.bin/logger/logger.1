@@ -38,7 +38,7 @@
 .Nm logger
 .Nd make entries in the system log
 .Sh SYNOPSIS
-.Nm logger
+.Nm
 .Op Fl is
 .Op Fl f Ar file
 .Op Fl p Ar pri
@@ -81,7 +81,7 @@ provided, standard input is logged.
 .El
 .Pp
 The
-.Nm logger
+.Nm
 utility exits 0 on success, and >0 if an error occurs.
 .Sh EXAMPLES
 .Bd -literal -offset indent -compact
@@ -94,7 +94,7 @@ logger \-p local0.notice \-t HOSTIDM \-f /dev/idmc
 .Xr syslogd 8
 .Sh STANDARDS
 The
-.Nm logger
+.Nm
 command is expected to be
 .St -p1003.2
 compatible.
