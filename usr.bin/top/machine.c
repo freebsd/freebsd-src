@@ -235,10 +235,12 @@ static int pageshift;		/* log base 2 of the pagesize */
 /* useful externals */
 long percentages();
 
+#ifdef ORDER
 /* sorting orders. first is default */
 char *ordernames[] = {
     "cpu", "size", "res", "time", "pri", NULL
 };
+#endif
 
 int
 machine_init(statics)
@@ -308,7 +310,9 @@ struct statics *statics;
     statics->cpustate_names = cpustatenames;
     statics->memory_names = memorynames;
     statics->swap_names = swapnames;
+#ifdef ORDER
     statics->order_names = ordernames;
+#endif
 
     /* all done! */
     return(0);
@@ -718,18 +722,6 @@ static unsigned char sorted_state[] =
     4	/* stop			*/
 };
  
-/* compare routines */
-int compare_cpu(), compare_size(), compare_res(), compare_time(), 
-    compare_prio();
-
-int (*proc_compares[])() = {
-    compare_cpu,
-    compare_size,
-    compare_res,
-    compare_time,
-    compare_prio,
-    NULL
-};
 
 #define ORDERKEY_PCTCPU \
   if (lresult = PP(p2, p_pctcpu) - PP(p1, p_pctcpu), \
@@ -754,7 +746,11 @@ int (*proc_compares[])() = {
 /* compare_cpu - the comparison function for sorting by cpu percentage */
 
 int
+#ifdef ORDER
 compare_cpu(pp1, pp2)
+#else
+proc_compare(pp1, pp2)
+#endif
 
 struct proc **pp1;
 struct proc **pp2;
@@ -779,6 +775,19 @@ struct proc **pp2;
 
     return(result);
 }
+
+#ifdef ORDER
+/* compare routines */
+int compare_size(), compare_res(), compare_time(), compare_prio();
+
+int (*proc_compares[])() = {
+    compare_cpu,
+    compare_size,
+    compare_res,
+    compare_time,
+    compare_prio,
+    NULL
+};
 
 /* compare_size - the comparison function for sorting by total memory usage */
 
@@ -895,6 +904,7 @@ struct proc **pp2;
 
     return(result);
 }
+#endif
 
 /*
  * proc_owner(pid) - returns the uid that owns process "pid", or -1 if
