@@ -42,7 +42,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)conf.c	5.8 (Berkeley) 5/12/91
- *	$Id: conf.c,v 1.85.4.5 1996/05/03 06:02:47 asami Exp $
+ *	$Id: conf.c,v 1.85.4.6 1996/05/04 07:15:15 pst Exp $
  */
 
 #include <sys/param.h>
@@ -214,7 +214,6 @@ d_open_t	odopen;
 d_close_t	odclose;
 d_strategy_t	odstrategy;
 d_ioctl_t	odioctl;
-d_psize_t	odsize;
 #define	oddump	nxdump
 #else
 #define	odopen		nxopen
@@ -222,7 +221,6 @@ d_psize_t	odsize;
 #define	odstrategy	nxstrategy
 #define	odioctl		nxioctl
 #define	oddump		nxdump
-#define	odsize		zerosize
 #endif
 
 #include "ccd.h"
@@ -491,7 +489,7 @@ struct bdevsw	bdevsw[] =
 	{ wcdopen,      wcdclose,       wcdstrategy,    wcdioctl,       /*19*/
 	  nxdump,       zerosize,       0 },
 	{ odopen,	odclose,	odstrategy,	odioctl,	/*20*/
-	  oddump,	odsize,		0 },
+	  oddump,	zerosize,	0 },
 	{ ccdopen,	ccdclose,	ccdstrategy,	ccdioctl,	/*21*/
 	  ccddump,	ccdsize,	0 },
 
