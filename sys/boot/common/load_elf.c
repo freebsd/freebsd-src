@@ -83,7 +83,6 @@ elf_loadfile(char *filename, vm_offset_t dest, struct preloaded_file **result)
     Elf_Ehdr 			*ehdr;
     int				err;
     u_int			pad;
-    char			*s;
     ssize_t			bytes_read;
 
     fp = NULL;
@@ -183,11 +182,7 @@ elf_loadfile(char *filename, vm_offset_t dest, struct preloaded_file **result)
     }
     if (ef.kernel)
 	setenv("kernelname", filename, 1);
-    s = strrchr(filename, '/');
-    if (s)
-	fp->f_name = strdup(s + 1);
-    else
-	fp->f_name = strdup(filename);
+    fp->f_name = strdup(filename);
     fp->f_type = strdup(ef.kernel ? elf_kerneltype : elf_moduletype);
 
 #ifdef ELF_VERBOSE
@@ -242,7 +237,6 @@ elf_loadimage(struct preloaded_file *fp, elf_file_t ef, vm_offset_t off)
     vm_offset_t	ssym, esym;
     Elf_Dyn	*dp;
     int		ndp;
-    char	*s;
     int		symstrindex;
     int		symtabindex;
     long	size;
@@ -515,19 +509,6 @@ nosyms:
     if (ef->kernel)			/* kernel must not depend on anything */
 	goto out;
 
-    for (i = 0; i < ndp; i++) {
-        if (dp[i].d_tag == NULL)
-	    break;
-	if (dp[i].d_tag != DT_NEEDED)
-	    continue;
-	j = dp[i].d_un.d_ptr;
-	if (j < 1 || j > ef->strsz - 2)
-	    continue;
-	s = strdupout((vm_offset_t)&ef->strtab[j]);
-	file_addmetadata(fp, MODINFOMD_DEPLIST, strlen(s) + 1, s);
-	free(s);
-    }
-
 out:
     if (dp)
 	free(dp);
@@ -537,6 +518,7 @@ out:
 }
 
 static char invalid_name[] = "bad";
+
 char *
 fake_modname(const char *name)
 {
@@ -570,9 +552,11 @@ int
 elf_parse_modmetadata(struct preloaded_file *fp, elf_file_t ef)
 {
     struct mod_metadata md;
+    struct mod_depend *mdepend;
+    struct mod_version mver;
     Elf_Sym sym;
     char *s, *v, **p, **p_stop;
-    int modcnt;
+    int modcnt, minfolen;
 
     if (elf_lookup_symbol(fp, ef, "__start_set_modmetadata_set", &sym) != 0)
 	return ENOENT;
@@ -590,12 +574,20 @@ elf_parse_modmetadata(struct preloaded_file *fp, elf_file_t ef)
 	    if (ef->kernel)		/* kernel must not depend on anything */
 	      break;
 	    s = strdupout((vm_offset_t)(md.md_cval + ef->off));
-	    file_addmetadata(fp, MODINFOMD_DEPLIST, strlen(s) + 1, s);
+	    minfolen = sizeof(*mdepend) + strlen(s) + 1;
+	    mdepend = malloc(minfolen);
+	    if (mdepend == NULL)
+		return ENOMEM;
+	    COPYOUT((vm_offset_t)(md.md_data + ef->off), mdepend, sizeof(*mdepend));
+	    strcpy((char*)(mdepend + 1), s);
 	    free(s);
+	    file_addmetadata(fp, MODINFOMD_DEPLIST, minfolen, mdepend);
+	    free(mdepend);
 	    break;
 	  case MDT_VERSION:
 	    s = strdupout((vm_offset_t)(md.md_cval + ef->off));
-	    file_addmodule(fp, s, NULL);
+	    COPYOUT((vm_offset_t)(md.md_data + ef->off), &mver, sizeof(mver));
+	    file_addmodule(fp, s, mver.mv_version, NULL);
 	    free(s);
 	    modcnt++;
 	    break;
@@ -603,7 +595,7 @@ elf_parse_modmetadata(struct preloaded_file *fp, elf_file_t ef)
     }
     if (modcnt == 0) {
 	s = fake_modname(fp->f_name);
-	file_addmodule(fp, s, NULL);
+	file_addmodule(fp, s, 1, NULL);
 	free(s);
     }
     return 0;

@@ -64,7 +64,6 @@ aout_loadfile(char *filename, vm_offset_t dest, struct preloaded_file **result)
     vm_offset_t			addr;
     int				err, kernel;
     u_int			pad;
-    char			*s;
 
     fp = NULL;
     
@@ -134,11 +133,7 @@ aout_loadfile(char *filename, vm_offset_t dest, struct preloaded_file **result)
     fp = file_alloc();
     if (kernel)
 	setenv("kernelname", filename, 1);
-    s = strrchr(filename, '/');
-    if (s)
-	fp->f_name = strdup(s + 1); 
-    else
-	fp->f_name = strdup(filename);
+    fp->f_name = strdup(filename);
     fp->f_type = strdup(kernel ? aout_kerneltype : aout_moduletype);
 
     /* Page-align the load address */
