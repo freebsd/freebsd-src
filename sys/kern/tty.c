@@ -2573,13 +2573,38 @@ ttyregister(struct tty *tp)
 static int
 sysctl_kern_ttys(SYSCTL_HANDLER_ARGS)
 {
+	struct tty *tp;
+	struct xtty xt;
 	int error;
-	struct tty *tp, t;
+
 	SLIST_FOREACH(tp, &tty_list, t_list) {
-		t = *tp;
-		if (t.t_dev)
-			t.ttyu.t_udev = dev2udev(t.t_dev);
-		error = SYSCTL_OUT(req, (caddr_t)&t, sizeof(t));
+		bzero(&xt, sizeof xt);
+		xt.xt_size = sizeof xt;
+#define XT_COPY(field) xt.xt_##field = tp->t_##field
+		xt.xt_rawcc = tp->t_rawq.c_cc;
+		xt.xt_cancc = tp->t_canq.c_cc;
+		xt.xt_outcc = tp->t_outq.c_cc;
+		XT_COPY(line);
+		xt.xt_dev = dev2udev(tp->t_dev);
+		XT_COPY(state);
+		XT_COPY(flags);
+		XT_COPY(timeout);
+		xt.xt_pgid = tp->t_pgrp->pg_id;
+		xt.xt_sid = tp->t_session->s_sid;
+		XT_COPY(termios);
+		XT_COPY(winsize);
+		XT_COPY(column);
+		XT_COPY(rocount);
+		XT_COPY(rocol);
+		XT_COPY(ififosize);
+		XT_COPY(ihiwat);
+		XT_COPY(ilowat);
+		XT_COPY(ispeedwat);
+		XT_COPY(ohiwat);
+		XT_COPY(olowat);
+		XT_COPY(ospeedwat);
+#undef XT_COPY
+		error = SYSCTL_OUT(req, &xt, sizeof xt);
 		if (error)
 			return (error);
 	}
