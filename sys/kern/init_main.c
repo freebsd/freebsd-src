@@ -39,7 +39,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)init_main.c	8.9 (Berkeley) 1/21/94
- * $Id: init_main.c,v 1.106 1999/01/29 23:18:48 dillon Exp $
+ * $Id: init_main.c,v 1.107 1999/01/30 19:36:02 msmith Exp $
  */
 
 #include "opt_devfs.h"
@@ -414,7 +414,7 @@ proc0_init(dummy)
 
 	/* Create procsig. */
 	p->p_procsig = &procsig0;
-	p->p_procsig->ps_refcnt = 2;
+	p->p_procsig->ps_refcnt = 1;
 
 	/* Create the file descriptor table. */
 	fdp = &filedesc0;
