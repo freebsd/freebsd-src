@@ -2173,12 +2173,12 @@ vm_map_delete(vm_map_t map, vm_offset_t start, vm_offset_t end)
 			vm_map_entry_unwire(map, entry);
 		}
 
-		if (map != kmem_map)
+		if (!map->system_map)
 			mtx_lock(&Giant);
 		vm_page_lock_queues();
 		pmap_remove(map->pmap, entry->start, entry->end);
 		vm_page_unlock_queues();
-		if (map != kmem_map)
+		if (!map->system_map)
 			mtx_unlock(&Giant);
 
 		/*
