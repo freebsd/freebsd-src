@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: interp_forth.c,v 1.1 1998/11/04 00:29:01 msmith Exp $
+ *	$Id: interp_forth.c,v 1.2 1998/11/04 03:41:09 msmith Exp $
  */
 
 #include <stand.h>
@@ -90,13 +90,14 @@ bf_init(void)
 {
     struct bootblk_command	**cmdp;
     
-    ficlInitSystem(3000);	/* Default dictionary ~2000 cells */
+    ficlInitSystem(4000);	/* Default dictionary ~4000 cells */
     bf_vm = ficlNewVM();
 
     /* make all commands appear as Forth words */
     SET_FOREACH(cmdp, Xcommand_set)
 	ficlBuild((*cmdp)->c_name, bf_command, FW_DEFAULT);
-    
+    /* run the init word from softcore */
+    ficlExec(bf_vm, "init");
 }
 
 /*

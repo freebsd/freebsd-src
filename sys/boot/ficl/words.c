@@ -4031,26 +4031,31 @@ static void forget(FICL_VM *pVM)
 #define nLINEBUF 256
 static void fload(FICL_VM *pVM)
 {
-    char    cp[nLINEBUF];
-    char    filename[nLINEBUF];
-    FICL_STRING *pFilename = (FICL_STRING *)filename;
+    char    *p, cp[nLINEBUF];
+    FICL_STRING *pFilename;
     int     i, fd, nLine = 0;
     char    ch;
     CELL    id;
+    FICL_DICT *dp = ficlGetDict();
 
-    vmGetString(pVM, pFilename, '\n');
+    if (pVM->state == COMPILE)
+    {
+        dictAppendCell(dp, LVALUEtoCELL(pStringLit));
+        dp->here = PTRtoCELL vmGetString(pVM, (FICL_STRING *)dp->here, '\"');
+        dictAlign(dp);
+	return;
+    }
 
-    if (pFilename->count <= 0)
+    pFilename = (FICL_STRING *)dp->here;
+    vmGetString(pVM, pFilename, '\"');
+    if (pFilename->count <= 1)
     {
         vmTextOut(pVM, "fload: no filename specified", 1);
         return;
     }
 
-    /*
-    ** get the file's size and make sure it exists 
-    */
-    fd = open(pFilename->text, O_RDONLY);
-
+    p = (*pFilename->text == '\"') ? pFilename->text + 1 : pFilename->text;
+    fd = open(p, O_RDONLY);
     if (fd == -1)
     {
         vmTextOut(pVM, "fload: Unable to open file: ", 0);
@@ -4092,6 +4097,39 @@ static void fload(FICL_VM *pVM)
 
     pVM->sourceID = id;
     close(fd);
+    return;
+}
+
+static void fexists(FICL_VM *pVM)
+{
+    char    *p;
+    FICL_STRING *pFilename;
+    int     fd;
+    FICL_DICT *dp = ficlGetDict();
+
+    if (pVM->state == COMPILE)
+    {
+        dictAppendCell(dp, LVALUEtoCELL(pStringLit));
+        dp->here = PTRtoCELL vmGetString(pVM, (FICL_STRING *)dp->here, '\"');
+        dictAlign(dp);
+	return;
+    }
+
+    pFilename = (FICL_STRING *)dp->here;
+    vmGetString(pVM, pFilename, '\"');
+    if (pFilename->count <= 1)
+    {
+        vmTextOut(pVM, "fexists: no filename specified", 1);
+        return;
+    }
+    p = (*pFilename->text == '\"') ? pFilename->text + 1 : pFilename->text;
+    fd = open(p, O_RDONLY);
+    if (fd > 0) {
+	stackPushINT32(pVM->pStack, TRUE);
+	close(fd);
+    }
+    else
+	stackPushINT32(pVM->pStack, FALSE);
     return;
 }
 
@@ -4277,7 +4315,8 @@ void ficlCompileCore(FICL_DICT *dp)
     dictAppendWord(dp, "\\",        commentLine,    FW_IMMEDIATE);
 
     /* FreeBSD extention words */
-    dictAppendWord(dp, "fload",	    fload,	    FW_DEFAULT);
+    dictAppendWord(dp, "fload",	    fload,	    FW_IMMEDIATE);
+    dictAppendWord(dp, "fexists",   fexists,	    FW_IMMEDIATE);
     dictAppendWord(dp, "key",	    key,	    FW_DEFAULT);
 
     /*
