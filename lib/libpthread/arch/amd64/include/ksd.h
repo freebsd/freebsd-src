@@ -33,6 +33,8 @@
 #define	_KSD_H_
 
 #include <sys/types.h>
+#include <machine/sysarch.h>
+extern int sysarch(int, void *);
 
 struct kse;
 struct pthread;
@@ -124,12 +126,7 @@ _ksd_destroy(struct ksd *ksd)
 static __inline int
 _ksd_setprivate(struct ksd *ksd)
 {
-	/*
-	 * Make it fail; only the kernel can do this on amd64.
-	 * This interface is going to be removed.  The KSD
-	 * will be set by the kernel when the kse is created.
-	 */
-	return (-1);
+	return (sysarch(AMD64_SET_GSBASE, &ksd->base));
 }
 
 #endif
