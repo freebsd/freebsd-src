@@ -22,6 +22,9 @@ the Free Software Foundation, 675 Mass Ave, Cambridge, MA 02139, USA.  */
 
 #define GDIFF_MAIN
 #include "diff.h"
+#ifdef __FreeBSD__
+#include <locale.h>
+#endif
 #include <signal.h>
 #include "getopt.h"
 #include "fnmatch.h"
@@ -235,6 +238,9 @@ main (argc, argv)
   int width = DEFAULT_WIDTH;
   int show_c_function = 0;
 
+#ifdef __FreeBSD__
+  (void) setlocale(LC_CTYPE, "");
+#endif
   /* Do our initializations.  */
   initialize_main (&argc, &argv);
   program_name = argv[0];
