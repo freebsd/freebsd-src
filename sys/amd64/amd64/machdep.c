@@ -35,7 +35,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)machdep.c	7.4 (Berkeley) 6/3/91
- *	$Id: machdep.c,v 1.204 1996/09/11 19:53:43 phk Exp $
+ *	$Id: machdep.c,v 1.205 1996/09/27 13:38:02 peter Exp $
  */
 
 #include "npx.h"
@@ -1206,7 +1206,7 @@ init386(first)
 		 * map page into kernel: valid, read/write, non-cacheable
 		 */
 		*(int *)CMAP1 = PG_V | PG_RW | PG_N | target_page;
-		pmap_update();
+		invltlb();
 
 		tmp = *(int *)CADDR1;
 		/*
@@ -1276,7 +1276,7 @@ init386(first)
 	}
 
 	*(int *)CMAP1 = 0;
-	pmap_update();
+	invltlb();
 
 	/*
 	 * XXX
