@@ -85,6 +85,7 @@ static const char rcsid[] =
 
 #include <sys/user.h>
 
+#include <machine/bat.h>
 #include <machine/pcb.h>
 #include <machine/powerpc.h>
 #include <machine/pte.h>
