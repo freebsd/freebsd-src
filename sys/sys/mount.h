@@ -376,34 +376,48 @@ struct mbuf;
 struct mount_args;
 #endif
 
-struct vfsops {
-	int	(*vfs_mount)(struct mount *mp, char *path, caddr_t data,
-		    struct nameidata *ndp, struct thread *td);
-	int	(*vfs_start)(struct mount *mp, int flags, struct thread *td);
-	int	(*vfs_unmount)(struct mount *mp, int mntflags,
-		    struct thread *td);
-	int	(*vfs_root)(struct mount *mp, struct vnode **vpp);
-	int	(*vfs_quotactl)(struct mount *mp, int cmds, uid_t uid,
+typedef int vfs_mount_t(struct mount *mp, char *path, caddr_t data,
+			struct nameidata *ndp, struct thread *td);
+typedef int vfs_start_t(struct mount *mp, int flags, struct thread *td);
+typedef int vfs_unmount_t(struct mount *mp, int mntflags, struct thread *td);
+typedef int vfs_root_t(struct mount *mp, struct vnode **vpp);
+typedef	int vfs_quotactl_t(struct mount *mp, int cmds, uid_t uid,
 		    caddr_t arg, struct thread *td);
-	int	(*vfs_statfs)(struct mount *mp, struct statfs *sbp,
+typedef	int vfs_statfs_t(struct mount *mp, struct statfs *sbp,
 		    struct thread *td);
-	int	(*vfs_sync)(struct mount *mp, int waitfor, struct ucred *cred,
+typedef	int vfs_sync_t(struct mount *mp, int waitfor, struct ucred *cred,
 		    struct thread *td);
-	int	(*vfs_vget)(struct mount *mp, ino_t ino, int flags,
+typedef	int vfs_vget_t(struct mount *mp, ino_t ino, int flags,
 		    struct vnode **vpp);
-	int	(*vfs_fhtovp)(struct mount *mp, struct fid *fhp,
-		    struct vnode **vpp);
-	int	(*vfs_checkexp)(struct mount *mp, struct sockaddr *nam,
+typedef	int vfs_fhtovp_t(struct mount *mp, struct fid *fhp, struct vnode **vpp);
+typedef	int vfs_checkexp_t(struct mount *mp, struct sockaddr *nam,
 		    int *extflagsp, struct ucred **credanonp);
-	int	(*vfs_vptofh)(struct vnode *vp, struct fid *fhp);
-	int	(*vfs_init)(struct vfsconf *);
-	int	(*vfs_uninit)(struct vfsconf *);
-	int	(*vfs_extattrctl)(struct mount *mp, int cmd,
+typedef	int vfs_vptofh_t(struct vnode *vp, struct fid *fhp);
+typedef	int vfs_init_t(struct vfsconf *);
+typedef	int vfs_uninit_t(struct vfsconf *);
+typedef	int vfs_extattrctl_t(struct mount *mp, int cmd,
 		    struct vnode *filename_vp, int attrnamespace,
 		    const char *attrname, struct thread *td);
-	/* additions below are not binary compatible with 5.0 and below */
-	int	(*vfs_nmount)(struct mount *mp, struct nameidata *ndp,
+typedef	int vfs_nmount_t(struct mount *mp, struct nameidata *ndp,
 		    struct thread *td);
+
+struct vfsops {
+	vfs_mount_t		*vfs_mount;
+	vfs_start_t		*vfs_start;
+	vfs_unmount_t		*vfs_unmount;
+	vfs_root_t		*vfs_root;
+	vfs_quotactl_t		*vfs_quotactl;
+	vfs_statfs_t		*vfs_statfs;
+	vfs_sync_t		*vfs_sync;
+	vfs_vget_t		*vfs_vget;
+	vfs_fhtovp_t		*vfs_fhtovp;
+	vfs_checkexp_t		*vfs_checkexp;
+	vfs_vptofh_t		*vfs_vptofh;
+	vfs_init_t		*vfs_init;
+	vfs_uninit_t		*vfs_uninit;
+	vfs_extattrctl_t	*vfs_extattrctl;
+	/* additions below are not binary compatible with 5.0 and below */
+	vfs_nmount_t		*vfs_nmount;
 };
 
 #define VFS_NMOUNT(MP, NDP, P)    (*(MP)->mnt_op->vfs_nmount)(MP, NDP, P)
@@ -485,23 +499,18 @@ extern	struct nfs_public nfs_pub;
  * kern/vfs_default.c, they should be used instead of making "dummy" 
  * functions or casting entries in the VFS op table to "enopnotsupp()".
  */ 
-int	vfs_stdstart(struct mount *mp, int flags, struct thread *td);
-int	vfs_stdroot(struct mount *mp, struct vnode **vpp);
-int	vfs_stdquotactl(struct mount *mp, int cmds, uid_t uid,
-		caddr_t arg, struct thread *td);
-int	vfs_stdstatfs(struct mount *mp, struct statfs *sbp, struct thread *td);
-int	vfs_stdsync(struct mount *mp, int waitfor, struct ucred *cred, 
-		struct thread *td);
-int	vfs_stdvget(struct mount *mp, ino_t ino, int, struct vnode **vpp);
-int	vfs_stdfhtovp(struct mount *mp, struct fid *fhp, struct vnode **vpp);
-int	vfs_stdcheckexp(struct mount *mp, struct sockaddr *nam,
-	   int *extflagsp, struct ucred **credanonp);
-int	vfs_stdvptofh(struct vnode *vp, struct fid *fhp);
-int	vfs_stdinit(struct vfsconf *);
-int	vfs_stduninit(struct vfsconf *);
-int	vfs_stdextattrctl(struct mount *mp, int cmd,
-	    struct vnode *filename_vp, int attrnamespace, const char *attrname,
-	    struct thread *td);
+vfs_start_t		vfs_stdstart;
+vfs_root_t		vfs_stdroot;
+vfs_quotactl_t		vfs_stdquotactl;
+vfs_statfs_t		vfs_stdstatfs;
+vfs_sync_t		vfs_stdsync;
+vfs_vget_t		vfs_stdvget;
+vfs_fhtovp_t		vfs_stdfhtovp;
+vfs_checkexp_t		vfs_stdcheckexp;
+vfs_vptofh_t		vfs_stdvptofh;
+vfs_init_t		vfs_stdinit;
+vfs_uninit_t		vfs_stduninit;
+vfs_extattrctl_t	vfs_stdextattrctl;
 
 /* XXX - these should be indirect functions!!! */
 int	softdep_process_worklist(struct mount *);

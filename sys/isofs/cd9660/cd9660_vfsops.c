@@ -64,14 +64,13 @@
 MALLOC_DEFINE(M_ISOFSMNT, "ISOFS mount", "ISOFS mount structure");
 MALLOC_DEFINE(M_ISOFSNODE, "ISOFS node", "ISOFS vnode private part");
 
-static int cd9660_mount(struct mount *,
-	    char *, caddr_t, struct nameidata *, struct thread *);
-static int cd9660_unmount(struct mount *, int, struct thread *);
-static int cd9660_root(struct mount *, struct vnode **);
-static int cd9660_statfs(struct mount *, struct statfs *, struct thread *);
-static int cd9660_vget(struct mount *, ino_t, int, struct vnode **);
-static int cd9660_fhtovp(struct mount *, struct fid *, struct vnode **);
-static int cd9660_vptofh(struct vnode *, struct fid *);
+static vfs_mount_t	cd9660_mount;
+static vfs_unmount_t	cd9660_unmount;
+static vfs_root_t	cd9660_root;
+static vfs_statfs_t	cd9660_statfs;
+static vfs_vget_t	cd9660_vget;
+static vfs_fhtovp_t	cd9660_fhtovp;
+static vfs_vptofh_t	cd9660_vptofh;
 
 static struct vfsops cd9660_vfsops = {
 	cd9660_mount,

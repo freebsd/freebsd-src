@@ -190,7 +190,7 @@ int	quotaoff(struct thread *td, struct mount *, int);
 int	quotaon(struct thread *td, struct mount *, int, caddr_t);
 int	setquota(struct mount *, u_long, int, caddr_t);
 int	setuse(struct mount *, u_long, int, caddr_t);
-int	ufs_quotactl(struct mount *, int, uid_t, caddr_t, struct thread *td);
+vfs_quotactl_t ufs_quotactl;
 
 #else /* !_KERNEL */
 

@@ -89,16 +89,13 @@ static MALLOC_DEFINE(M_MSDOSFSFAT, "MSDOSFS FAT", "MSDOSFS file allocation table
 static int	update_mp(struct mount *mp, struct msdosfs_args *argp);
 static int	mountmsdosfs(struct vnode *devvp, struct mount *mp,
 		    struct thread *td, struct msdosfs_args *argp);
-static int	msdosfs_fhtovp(struct mount *, struct fid *, struct vnode **);
-static int	msdosfs_mount(struct mount *, char *, caddr_t,
-		    struct nameidata *, struct thread *);
-static int	msdosfs_root(struct mount *, struct vnode **);
-static int	msdosfs_statfs(struct mount *, struct statfs *,
-		    struct thread *);
-static int	msdosfs_sync(struct mount *, int, struct ucred *,
-		    struct thread *);
-static int	msdosfs_unmount(struct mount *, int, struct thread *);
-static int	msdosfs_vptofh(struct vnode *, struct fid *);
+static vfs_fhtovp_t	msdosfs_fhtovp;
+static vfs_mount_t	msdosfs_mount;
+static vfs_root_t	msdosfs_root;
+static vfs_statfs_t	msdosfs_statfs;
+static vfs_sync_t	msdosfs_sync;
+static vfs_unmount_t	msdosfs_unmount;
+static vfs_vptofh_t	msdosfs_vptofh;
 
 static int
 update_mp(mp, argp)
