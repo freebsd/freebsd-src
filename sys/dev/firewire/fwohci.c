@@ -304,32 +304,38 @@ fwohci_set_bus_manager(struct firewire_comm *fc, u_int node)
 static u_int32_t
 fwphy_rddata(struct fwohci_softc *sc,  u_int addr)
 {
-	u_int32_t fun;
-	u_int i;
+	u_int32_t fun, stat;
+	u_int i, retry = 0;
 
 	addr &= 0xf;
+#define MAX_RETRY 100
+again:
+	OWRITE(sc, FWOHCI_INTSTATCLR, OHCI_INT_REG_FAIL);
 	fun = PHYDEV_RDCMD | (addr << PHYDEV_REGADDR);
 	OWRITE(sc, OHCI_PHYACCESS, fun);
-#if 1
-	/* Make sure that SCLK is started */
-	for(i = 0; i < 1000; i++) {
-		if ((OREAD(sc, FWOHCI_INTSTAT) & OHCI_INT_REG_FAIL) == 0)
-			break;
-		DELAY(100);
-		OWRITE(sc, FWOHCI_INTSTATCLR, OHCI_INT_REG_FAIL);
-		OWRITE(sc, OHCI_PHYACCESS, fun);
-	}
-	if (bootverbose)
-		device_printf(sc->fc.dev, "fwphy_rddata: write loop=%d\n", i);
-#endif
-	for ( i = 0 ; i < 1000 ; i ++ ){
+	for ( i = 0 ; i < MAX_RETRY ; i ++ ){
 		fun = OREAD(sc, OHCI_PHYACCESS);
 		if ((fun & PHYDEV_RDCMD) == 0 && (fun & PHYDEV_RDDONE) != 0)
 			break;
 		DELAY(1000);
 	}
-	if( i >= 1000)
+	if(i >= MAX_RETRY) {
 		device_printf(sc->fc.dev, "cannot read phy\n");
+		return 0; /* XXX */
+	}
+	/* Make sure that SCLK is started */
+	stat = OREAD(sc, FWOHCI_INTSTAT);
+	if ((stat & OHCI_INT_REG_FAIL) != 0 ||
+			((fun >> PHYDEV_REGADDR) & 0xf) != addr) {
+		if (++retry < MAX_RETRY) {
+			DELAY(1000);
+			goto again;
+		}
+	}
+	if (bootverbose || retry >= MAX_RETRY)
+		device_printf(sc->fc.dev, 
+			"fwphy_rddata: loop=%d, retry=%d\n", i, retry);
+#undef MAX_RETRY
 	return((fun >> PHYDEV_RDDATA )& 0xff);
 }
 /* Device specific ioctl. */
