@@ -84,32 +84,10 @@ static int amrd_probe(device_t dev);
 static int amrd_attach(device_t dev);
 static int amrd_detach(device_t dev);
 
-static	d_open_t	amrd_open;
-static	d_strategy_t	amrd_strategy;
-
-#define AMRD_CDEV_MAJOR	133
-
-static struct cdevsw amrd_cdevsw = {
-		/* open */	amrd_open,
-		/* close */	nullclose,
-		/* read */	physread,
-		/* write */	physwrite,
-		/* ioctl */	noioctl,
-		/* poll */	nopoll,
-		/* mmap */	nommap,
-		/* strategy */	amrd_strategy,
-		/* name */ 	"amrd",
-		/* maj */	AMRD_CDEV_MAJOR,
-		/* dump */	nodump,
-		/* psize */ 	nopsize,
-		/* flags */	D_DISK,
-#if __FreeBSD_version < 500000
-		/* bmaj */	-1
-#endif
-};
+static	disk_open_t	amrd_open;
+static	disk_strategy_t	amrd_strategy;
 
 static devclass_t	amrd_devclass;
-static struct cdevsw	amrddisk_cdevsw;
 #ifdef FREEBSD_4
 static int		disks_registered = 0;
 #endif
@@ -130,9 +108,9 @@ static driver_t amrd_driver = {
 DRIVER_MODULE(amrd, amr, amrd_driver, amrd_devclass, 0, 0);
 
 static int
-amrd_open(dev_t dev, int flags, int fmt, d_thread_t *td)
+amrd_open(struct disk *dp)
 {
-    struct amrd_softc	*sc = (struct amrd_softc *)dev->si_drv1;
+    struct amrd_softc	*sc = (struct amrd_softc *)dp->d_drv1;
 #if __FreeBSD_version < 500000		/* old buf style */
     struct disklabel    *label;
 #endif
@@ -175,7 +153,7 @@ amrd_open(dev_t dev, int flags, int fmt, d_thread_t *td)
 static void
 amrd_strategy(struct bio *bio)
 {
-    struct amrd_softc	*sc = (struct amrd_softc *)bio->bio_dev->si_drv1;
+    struct amrd_softc	*sc = (struct amrd_softc *)bio->bio_disk->d_drv1;
 
     /* bogus disk? */
     if (sc == NULL) {
@@ -202,7 +180,7 @@ void
 amrd_intr(void *data)
 {
     struct bio *bio = (struct bio *)data;
-    struct amrd_softc *sc = (struct amrd_softc *)bio->bio_dev->si_drv1;
+    struct amrd_softc *sc = (struct amrd_softc *)bio->bio_disk->d_drv1;
 
     debug_called(2);
 
@@ -250,14 +228,15 @@ amrd_attach(device_t dev)
 		      DEVSTAT_TYPE_STORARRAY | DEVSTAT_TYPE_IF_OTHER, 
 		      DEVSTAT_PRIORITY_ARRAY);
 
-    sc->amrd_dev_t = disk_create(sc->amrd_unit, &sc->amrd_disk, 0, &amrd_cdevsw, &amrddisk_cdevsw);
-    sc->amrd_dev_t->si_drv1 = sc;
+    sc->amrd_disk.d_drv1 = sc;
+    sc->amrd_disk.d_maxsize = (AMR_NSEG - 1) * PAGE_SIZE;
+    sc->amrd_disk.d_open = amrd_open;
+    sc->amrd_disk.d_strategy = amrd_strategy;
+    sc->amrd_disk.d_name = "amrd";
+    disk_create(sc->amrd_unit, &sc->amrd_disk, 0, NULL, NULL);
 #ifdef FREEBSD_4
     disks_registered++;
 #endif
-
-    /* set maximum I/O size to match the maximum s/g size */
-    sc->amrd_dev_t->si_iosize_max = (AMR_NSEG - 1) * PAGE_SIZE;
 
     return (0);
 }
