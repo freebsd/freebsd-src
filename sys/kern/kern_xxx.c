@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)kern_xxx.c	8.2 (Berkeley) 11/14/93
- * $Id$
+ * $Id: kern_xxx.c,v 1.3 1994/08/02 07:42:23 davidg Exp $
  */
 
 #include <sys/param.h>
@@ -43,8 +43,8 @@
 #include <sys/sysctl.h>
 #include <sys/utsname.h>
 
-char domainname[MAXHOSTNAMELEN];
-int domainnamelen;
+extern char domainname[MAXHOSTNAMELEN];
+extern int domainnamelen;
 
 struct reboot_args {
 	int	opt;
