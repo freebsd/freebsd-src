@@ -128,7 +128,6 @@ static driver_t pci_driver = {
 
 devclass_t	pci_devclass;
 DRIVER_MODULE(pci, pcib, pci_driver, pci_devclass, pci_modevent, 0);
-DRIVER_MODULE(pci, acpi_pcib, pci_driver, pci_devclass, pci_modevent, 0);
 MODULE_VERSION(pci, 1);
 
 static char	*pci_vendordata;
