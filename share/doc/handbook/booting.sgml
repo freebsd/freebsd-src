@@ -1,0 +1,165 @@
+<!-- This is a SGML version of the text on FreeBSD boot procedures
+     made by Poul-Henning Kamp <phk@FreeBSD.ORG>
+     
+     This conversion has been made by Ollivier Robert.
+
+     $Id: boot-overview.sgml,v 1.1 1995/04/27 08:50:46 roberto Exp $
+-->
+<!DOCTYPE linuxdoc PUBLIC "-//Linux//DTD linuxdoc//EN">
+
+  <article>
+
+      <title>Boot overview</title>
+      <author>Poul-Henning Kamp, <tt/&lt;phk@login.dknet.dk&gt;/</author>
+      <date>v1.1, April 26th</date>
+      <abstract>
+        Booting FreeBSD is essentially a three step: Load the kernel,
+        determine the root filesystem and initialize user-land things. This
+        leads to some interesting possibilities as shown below...
+      </abstract>
+
+    <toc>
+
+    <sect>Loading a kernel
+      <p>
+        We presently have three basic mechanisms for loading the kernel:
+        <enum>
+          <item>biosboot
+          <item>dosboot
+          <item>netboot
+        </enum>
+        Each will be described in detail below.  They all pass some
+        information to the kernel to help the kernel decide what to do
+        next.
+
+      <sect1>Biosboot
+        <p>
+          Biosboot is our ``bootblocks'', it consists of two files, which
+          will be installed in the first 8Kbytes of the floppy or hard-disk
+          slice to be booted from.
+
+          Biosboot can load a kernel from a FreeBSD filesystem.
+
+      <sect1>Dosboot
+        <p>
+          Dosboot was written by DI. Christian Gusenbauer, and is
+          unfortunately at this time one of the few pieces of code that
+          isn't compilable under FreeBSD itself because it is written for
+          MicroSoft compilers.
+
+          Dosboot will boot the kernel from a MS-DOS file or from a FreeBSD
+          filesystem partition on the disk.  It attempts to negotiate with
+          the various and strange kinds of memory manglers that lurk in
+          high memory on MS/DOS systems and usually wins them for it's
+          case.
+
+      <sect1>Netboot
+        <p>
+          Netboot will try to find a supported ethernet card, and use
+          BOOTP, TFTP and NFS to find a kernel file to boot.
+
+    <sect>Determine the root filesystem
+      <p>
+        Once the kernel is loaded and the boot-code jumps to it, the kernel
+        will initialize itself, trying to determine what hardware is
+        present and so on, and then it needs to find a root filesystem.
+
+        Presently we support the following types of rootfilesystems:
+        <itemize>
+          <item>UFS
+          <item>MSDOS
+          <item>MFS
+          <item>CD9660
+          <item>NFS
+        </itemize>
+
+      <sect1>UFS
+        <p>
+          This is the most normal type of root filesystem. It can reside on
+          a floppy or on harddisk.
+
+      <sect1>MSDOS
+        <p>
+          While this is technically possible, it isn't particular useful,
+          because of ``FAT'' filesystems inability to make links, device
+          nodes and such ``UNIXisms''.
+
+      <sect1>MFS
+        <p>
+          This is actually a UFS filesystem which has been compiled into
+          the kernel.  That means that the kernel does not really need any
+          disks/floppies or other HW to function.
+
+      <sect1>CD9660
+        <p>
+          This is for using a CD-ROM as root filesystem.
+
+      <sect1>NFS
+        <p>
+          This is for using a fileserver as root filesystem, basically
+          making it a diskless machine.
+
+    <sect>Initialize user-land things
+      <p>
+        To get the user-land going, when the kernel has finished
+        initialization, it will create a with ``<tt/pid == 1/'' and execute
+        a program on the rootfilesystem, this program is normally
+        ``<tt>/sbin/init</tt>''.
+
+        You can substitute any program for /sbin/init, as long as you keep
+        in mind that:
+
+        there is no stdin/out/err unless you open it yourself, if you exit,
+        the machine panics signal handling is special for ``<tt/pid ==
+        1/''.
+
+
+    <sect>Interesting combinations
+      <p>
+        Boot a kernel with a MFS in it with a special <tt>/sbin/init</tt>
+        which...
+        <descrip>	
+          <tag/A -- Using DOS/
+            <itemize>
+              <item>mounts your <tt/C:/ as <tt>/C:</tt>
+              <item>Attaches <tt>C:/freebsd.fs</tt> on <tt>/dev/vn0</tt>
+              <item>mounts <tt>/dev/vn0</tt> as <tt>/rootfs</tt>
+              <item>makes symlinks<newline>
+                <tt>/rootfs/bin -&gt; /bin</tt><newline>
+                <tt>/rootfs/etc -&gt; /etc</tt><newline>
+                <tt>/rootfs/sbin -&gt; /sbin</tt><newline>
+                ...<newline>
+            </itemize>
+            
+            Now you run FreeBSD without repartitioning your hard disk...
+
+          <tag/B -- Using NFS/
+
+            NFS mounts your <tt>server:&tilde;you/FreeBSD</tt> as
+            <tt>/nfs</tt>, chroots to <tt>/nfs</tt> and executes
+            <tt>/sbin/init</tt> there
+
+            Now you run FreeBSD diskless, even though you don't control
+            the NFS server...
+
+          <tag/C -- Start an X-server/
+
+            Now you have an Xterminal, which is better than that dingy
+            X-under-windows-so-slow-you-can-see-what-it-does thing that
+            your boss insist is better than forking our money on HW.
+
+          <tag/D -- Using a tape/
+            Takes a copy of <tt>/dev/rwd0</tt> and writes it to a remote tape
+            station or fileserver.
+
+            Now you finally got that backup you should have made a year
+            ago...
+
+          <tag>E -- Acts as a firewall/web-server/what do I know...</tag>
+
+            This is particular interesting since you can boot from a write-
+            protected floppy, but still write to your root filesystem...
+        </descrip>
+  </article>
+
+
