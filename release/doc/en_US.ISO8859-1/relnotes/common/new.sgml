@@ -116,8 +116,10 @@
   <sect2 id="security">
     <title>Security Advisories</title>
 
-    <para>A single-byte buffer overflow in &man.realpath.3; has been
-      fixed.  See security advisory 
+    <para>A single-byte buffer overflow in &man.realpath.3; was
+      fixed.  Although the fix was committed prior to &os;
+      &release.prev; (and thus &release.prev; was not affected),
+      it was not noted in the release documentation.  See security advisory 
       <ulink url="ftp://ftp.FreeBSD.org/pub/FreeBSD/CERT/advisories/FreeBSD-SA-03:08.realpath.asc">FreeBSD-SA-03:08</ulink>. &merged;</para>
 
   </sect2>
