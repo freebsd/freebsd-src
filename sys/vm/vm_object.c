@@ -61,7 +61,7 @@
  * any improvements or extensions that they make and grant Carnegie the
  * rights to redistribute these changes.
  *
- * $Id: vm_object.c,v 1.137 1999/01/08 17:31:26 eivind Exp $
+ * $Id: vm_object.c,v 1.138 1999/01/10 01:58:28 eivind Exp $
  */
 
 /*
@@ -1049,9 +1049,10 @@ vm_object_collapse(object)
 			 */
 
 			while ((p = TAILQ_FIRST(&backing_object->memq)) != 0) {
-
-				new_pindex = p->pindex - backing_offset_index;
+				if (vm_page_sleep(p, "vmocol", &p->busy))
+					continue;
 				vm_page_busy(p);
+				new_pindex = p->pindex - backing_offset_index;
 
 				/*
 				 * If the parent has a page here, or if this
