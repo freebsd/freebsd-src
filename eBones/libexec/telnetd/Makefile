@@ -4,16 +4,20 @@
 # current eBones/des lib don't have it
 # Kerberos4 stuff ifdefed by MAKE_KERBEROS (make.conf) because of it
 
+# Do not define -DKLUDGELINEMODE, as it does not interact well with many
+# telnet implementations.
+
 PROG=	telnetd
-CFLAGS+=-DLINEMODE -DKLUDGELINEMODE -DUSE_TERMIO -DDIAGNOSTICS
-CFLAGS+=-DOLD_ENVIRON -DENV_HACK
-CFLAGS+=-I${.CURDIR}/../../lib
+MAN8=	telnetd.8
+
 SRCS=	authenc.c global.c slc.c state.c sys_term.c telnetd.c \
 	termstat.c utility.c
+
 DPADD=	${LIBUTIL} ${LIBTERMCAP}
 LDADD=	-lutil -ltermcap -ltelnet
 
-MAN8=	telnetd.8
+CFLAGS+=-DLINEMODE -DUSE_TERMIO -DDIAGNOSTICS -DOLD_ENVIRON -DENV_HACK
+CFLAGS+=-I${.CURDIR}/../../lib
 
 #ifdef	ENCRYPTION
 
