@@ -4,7 +4,7 @@
 #
 #	This kernel is NOT MEANT to be runnable!
 #
-#	$Id: LINT,v 1.112 1994/12/03 17:36:29 smace Exp $
+#	$Id: LINT,v 1.113 1994/12/11 00:09:34 ats Exp $
 #
 
 #
@@ -275,6 +275,9 @@ pseudo-device	speaker		#Play IBM BASIC-style noises out your speaker
 pseudo-device	log		#Kernel syslog interface (/dev/klog)
 pseudo-device	gzip		#Exec gzipped a.out's
 
+options		"HZ=1000"	#Set hz to a nonstandard value
+option		VN		#Vnode driver (turns a file into a device)
+
 
 #####################################################################
 # HARDWARE DEVICE CONFIGURATION
@@ -291,6 +294,9 @@ controller	isa0
 #
 # Options for `isa':
 #
+# ALLOW_CONFLICT_DRQ suppresses the DMA conflict checks.  This option is
+# not known to be good for anything.
+#
 # ALLOW_CONFLICT_IOADDR suppresses the I/O address conflict checks, so
 # that the PS/2 mouse driver doesn't conflict with the console driver.
 #
@@ -298,19 +304,42 @@ controller	isa0
 # that multiple devices can share the same IRQ, provided that the
 # hardware supports it (it usually doesn't).
 #
+# ALLOW_CONFLICT_MEMADDR suppresses the memory address conflict checks.
+# This option is not known to be good for anything.
+#
+# AUTO_EOI_1 enables the `automatic EOI' feature for the master 8259A
+# interrupt controller.  This saves about 1.25 usec for each interrupt.
+# No problems are known to be caused by this option.
+#
+# AUTO_EOI_2 enables the `automatic EOI' feature for the slave 8259A
+# interrupt controller.  This saves about 1.25 usec for each interrupt.
+# Automatic EOI is documented not to work for for the slave with the
+# original i8259A, but it works for some clones and some integrated
+# versions.
+#
 # BOUNCE_BUFFERS provides support for ISA DMA on machines with more
 # than 16 megabytes of memory.  It doesn't hurt on other machines.
 # Some broken EISA and VLB hardware may need this, too.
 #
-# DUMMY_NOPS disables the use of the inb's for very short spin periods.
-# Should work ok on most EISA bus machines.
+# DISKSLICE provides support for slicing up a disk into virtual disks.
+# It isn't really ISA-specific, but the on-disk slice table is currently
+# required to be a DOS partition table.
+#
+# DUMMY_NOPS disables extra delays for some bus operations.  The delays
+# are mostly for older systems and aren't used consistently.  Probably
+# works OK on most EISA bus machines.
 #
 # TUNE_1542 enables the automatic ISA bus speed selection for the
 # Adaptec 1542 boards. Does not work for all boards, use it with caution.
 #
+#options	ALLOW_CONFLICT_DRQ
 #options	ALLOW_CONFLICT_IOADDR
 #options	ALLOW_CONFLICT_IRQ
+#options	ALLOW_CONFLICT_MEMADDR
+options		"AUTO_EOI_1"
+#options	"AUTO_EOI_2"
 options		BOUNCE_BUFFERS
+options		DISKSLICE
 #options	DUMMY_NOPS
 #options	TUNE_1542
 
@@ -416,6 +445,8 @@ device		psm0	at isa? port "IO_KBD" tty irq 12 vector psmintr
 device		sio0	at isa? port "IO_COM1" tty irq 4 vector siointr
 
 # Options for sio:
+options		COMCONSOLE		#prefer serial console to video console
+options		COM_MULTIPORT		#code for some cards with shared IRQs
 options		DSI_SOFT_MODEM		#code for DSI Softmodems
 
 #
