@@ -420,8 +420,9 @@ supported.
 DPT SmartCACHE Plus, SmartCACHE III, SmartRAID III, SmartCACHE IV and
 SmartRAID IV SCSI/RAID controllers.
 
-DPT SmartRAID V and VI SCSI RAID controllers:
-    PM1554, PM2554, PM2654, PM2865, PM2754, PM3755, PM3757
+DPT SmartRAID V and VI SCSI RAID, and Adaptec SCSI RAID  controllers:
+    PM1554, PM2554, PM2654, PM2865, PM2754, PM3755, PM3757,
+    2100S, 3200S, 3400S
 
 AMI MegaRAID Express and Enterprise family RAID controllers:
     MegaRAID 418
