@@ -1545,7 +1545,7 @@ device		miibus
 #       Compaq Netelligent 10/100 cards and the built-in ethernet controllers
 #       in several Compaq Prosignia, Proliant and Deskpro systems.  It also
 #       supports several Olicom 10Mbps and 10/100 boards.
-# tx:   SMC 9432TX cards.
+# tx:   SMC 9432 TX, BTX and TX_2 cards. (SMC EtherPower II serie)
 # vr:   Support for various fast ethernet adapters based on the VIA
 #       Technologies VT3043 `Rhine I' and VT86C100A `Rhine II' chips,
 #       including the D-Link DFE530TX (see 'rl' for DFE530TX+), the Hawking 
@@ -1655,6 +1655,7 @@ device		sf		# Adaptec AIC-6915 (``Starfire'')
 device		sis		# Silicon Integrated Systems SiS 900/SiS 7016
 device		ste		# Sundance ST201 (D-Link DFE-550TX)
 device		tl		# Texas Instruments ThunderLAN
+device		tx		# SMC EtherPower II (83c170 ``EPIC'')
 device		vr		# VIA Rhine, Rhine II
 device		wb		# Winbond W89C840F
 device		xl		# 3Com 3c90x (``Boomerang'', ``Cyclone'')
@@ -1662,7 +1663,6 @@ device		xl		# 3Com 3c90x (``Boomerang'', ``Cyclone'')
 # PCI Ethernet NICs.
 device		de		# DEC/Intel DC21x4x (``Tulip'')
 device		fxp		# Intel EtherExpress PRO/100B (82557, 82558)
-device		tx		# SMC 9432TX (83c170 ``EPIC'')
 device		vx	1	# 3Com 3c590, 3c595 (``Vortex'')
 
 # PCI Gigabit & FDDI NICs.
