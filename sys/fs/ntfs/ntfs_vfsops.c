@@ -43,6 +43,9 @@
 #include <sys/malloc.h>
 #include <sys/systm.h>
 
+#include <geom/geom.h>
+#include <geom/geom_vfs.h>
+
 #include <vm/vm.h>
 #include <vm/vm_param.h>
 #include <vm/vm_page.h>
@@ -277,10 +280,15 @@ ntfs_mountfs(devvp, mp, argsp, td)
 	struct cdev *dev = devvp->v_rdev;
 	int error, ronly, i;
 	struct vnode *vp;
+	struct g_consumer *cp;
 
 	ronly = (mp->mnt_flag & MNT_RDONLY) != 0;
 	vn_lock(devvp, LK_EXCLUSIVE | LK_RETRY, td);
-	error = VOP_OPEN(devvp, ronly ? FREAD : FREAD|FWRITE, FSCRED, td, -1);
+	DROP_GIANT();
+	g_topology_lock();
+	error = g_vfs_open(devvp, &cp, "ffs", ronly ? 0 : 1);
+	g_topology_unlock();
+	PICKUP_GIANT();
 	VOP_UNLOCK(devvp, 0, td);
 	if (error)
 		return (error);
@@ -323,12 +331,13 @@ ntfs_mountfs(devvp, mp, argsp, td)
 		(u_int32_t)ntmp->ntm_mftcn,(u_int32_t)ntmp->ntm_mftmirrcn));
 
 	ntmp->ntm_mountp = mp;
-	ntmp->ntm_dev = dev;
 	ntmp->ntm_devvp = devvp;
 	ntmp->ntm_uid = argsp->uid;
 	ntmp->ntm_gid = argsp->gid;
 	ntmp->ntm_mode = argsp->mode;
 	ntmp->ntm_flag = argsp->flag;
+	ntmp->ntm_cp = cp;
+	ntmp->ntm_bo = &devvp->v_bufobj;
 
 	/* Copy in the 8-bit to Unicode conversion table */
 	/* Initialize Unicode to 8-bit table from 8toU table */
@@ -456,7 +465,7 @@ ntfs_unmount(
 	struct thread *td)
 {
 	struct ntfsmount *ntmp;
-	int error, ronly, flags, i;
+	int error, flags, i;
 
 	dprintf(("ntfs_unmount: unmounting...\n"));
 	ntmp = VFSTONTFS(mp);
@@ -488,9 +497,11 @@ ntfs_unmount(
 
 	vinvalbuf(ntmp->ntm_devvp, V_SAVE, NOCRED, td, 0, 0);
 
-	ronly = (mp->mnt_flag & MNT_RDONLY) != 0;
-	error = VOP_CLOSE(ntmp->ntm_devvp, ronly ? FREAD : FREAD|FWRITE,
-		NOCRED, td);
+	DROP_GIANT();
+	g_topology_lock();
+	g_wither_geom_close(ntmp->ntm_cp->geom, ENXIO);
+	g_topology_unlock();
+	PICKUP_GIANT();
 
 	vrele(ntmp->ntm_devvp);
 
