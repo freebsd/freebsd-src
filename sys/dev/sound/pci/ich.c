@@ -65,6 +65,7 @@ struct sc_chinfo {
 	struct sc_info *parent;
 
 	struct ich_desc *dtbl;
+	bus_addr_t desc_addr;
 };
 
 /* device private data */
@@ -86,6 +87,7 @@ struct sc_info {
 	struct sc_chinfo ch[3];
 	int ac97rate;
 	struct ich_desc *dtbl;
+	bus_addr_t desc_addr;
 	struct intr_config_hook	intrhook;
 	int use_intrhook;
 };
@@ -188,7 +190,7 @@ ich_filldtbl(struct sc_chinfo *ch)
 	u_int32_t base;
 	int i;
 
-	base = vtophys(sndbuf_getbuf(ch->buffer));
+	base = sndbuf_getbufaddr(ch->buffer);
 	ch->blkcnt = sndbuf_getsize(ch->buffer) / ch->blksz;
 	if (ch->blkcnt != 2 && ch->blkcnt != 4 && ch->blkcnt != 8 && ch->blkcnt != 16 && ch->blkcnt != 32) {
 		ch->blkcnt = 2;
@@ -247,6 +249,7 @@ ichchan_init(kobj_t obj, void *devinfo, struct snd_dbuf *b, struct pcm_channel *
 	ch->parent = sc;
 	ch->run = 0;
 	ch->dtbl = sc->dtbl + (ch->num * ICH_DTBL_LENGTH);
+	ch->desc_addr = sc->desc_addr + (ch->num * ICH_DTBL_LENGTH);
 	ch->blkcnt = 2;
 	ch->blksz = sc->bufsz / ch->blkcnt;
 
@@ -279,7 +282,7 @@ ichchan_init(kobj_t obj, void *devinfo, struct snd_dbuf *b, struct pcm_channel *
 	if (sndbuf_alloc(ch->buffer, sc->dmat, sc->bufsz))
 		return NULL;
 
-	ich_wr(sc, ch->regbase + ICH_REG_X_BDBAR, (u_int32_t)vtophys(ch->dtbl), 4);
+	ich_wr(sc, ch->regbase + ICH_REG_X_BDBAR, (u_int32_t)(ch->desc_addr), 4);
 
 	return ch;
 }
@@ -335,7 +338,7 @@ ichchan_trigger(kobj_t obj, void *data, int go)
 	switch (go) {
 	case PCMTRIG_START:
 		ch->run = 1;
-		ich_wr(sc, ch->regbase + ICH_REG_X_BDBAR, (u_int32_t)vtophys(ch->dtbl), 4);
+		ich_wr(sc, ch->regbase + ICH_REG_X_BDBAR, (u_int32_t)(ch->desc_addr), 4);
 		ich_wr(sc, ch->regbase + ICH_REG_X_CR, ICH_X_CR_RPBM | ICH_X_CR_LVBIE | ICH_X_CR_IOCE, 1);
 		break;
 
@@ -499,7 +502,7 @@ void ich_calibrate(void *arg)
 	/* prepare */
 	ociv = ich_rd(sc, ch->regbase + ICH_REG_X_CIV, 1);
 	nciv = ociv;
-	ich_wr(sc, ch->regbase + ICH_REG_X_BDBAR, (u_int32_t)vtophys(ch->dtbl), 4);
+	ich_wr(sc, ch->regbase + ICH_REG_X_BDBAR, (u_int32_t)(ch->desc_addr), 4);
 
 	/* start */
 	microtime(&t1);
@@ -553,6 +556,8 @@ void ich_calibrate(void *arg)
 static void
 ich_setmap(void *arg, bus_dma_segment_t *segs, int nseg, int error)
 {
+	struct sc_info *sc = (struct sc_info *)arg;
+	sc->desc_addr = segs->ds_addr;
 	return;
 }
 
@@ -584,7 +589,7 @@ ich_init(struct sc_info *sc)
 		return ENOSPC;
 
 	sz = sizeof(struct ich_desc) * ICH_DTBL_LENGTH * 3;
-	if (bus_dmamap_load(sc->dmat, sc->dtmap, sc->dtbl, sz, ich_setmap, NULL, 0)) {
+	if (bus_dmamap_load(sc->dmat, sc->dtmap, sc->dtbl, sz, ich_setmap, sc, 0)) {
 		bus_dmamem_free(sc->dmat, (void **)&sc->dtbl, sc->dtmap);
 		return ENOSPC;
 	}

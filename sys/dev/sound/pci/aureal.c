@@ -243,7 +243,7 @@ au_prepareoutput(struct au_chinfo *ch, u_int32_t format)
 {
 	struct au_info *au = ch->parent;
 	int i, stereo = (format & AFMT_STEREO)? 1 : 0;
-	u_int32_t baseaddr = vtophys(sndbuf_getbuf(ch->buffer));
+	u_int32_t baseaddr = sndbuf_getbufaddr(ch->buffer);
 
 	au_wr(au, 0, 0x1061c, 0, 4);
 	au_wr(au, 0, 0x10620, 0, 4);

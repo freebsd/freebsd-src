@@ -487,7 +487,7 @@ adcdac_prog(struct sc_chinfo *ch)
     if (!ch->dma_setup) {
 	go = adcdac_go(ch, 0);
 	cs4281_wr(sc, CS4281PCI_DBA(ch->dma_chan),
-		  vtophys(sndbuf_getbuf(ch->buffer)));
+		  sndbuf_getbufaddr(ch->buffer));
 	cs4281_wr(sc, CS4281PCI_DBC(ch->dma_chan),
 		  sndbuf_getsize(ch->buffer) / ch->bps - 1);
 	ch->dma_setup = 1;

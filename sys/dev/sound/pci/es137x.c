@@ -283,11 +283,11 @@ eschan_setdir(kobj_t obj, void *data, int dir)
 
 	if (dir == PCMDIR_PLAY) {
 		bus_space_write_1(es->st, es->sh, ES1370_REG_MEMPAGE, ES1370_REG_DAC2_FRAMEADR >> 8);
-		bus_space_write_4(es->st, es->sh, ES1370_REG_DAC2_FRAMEADR & 0xff, vtophys(sndbuf_getbuf(ch->buffer)));
+		bus_space_write_4(es->st, es->sh, ES1370_REG_DAC2_FRAMEADR & 0xff, sndbuf_getbufaddr(ch->buffer));
 		bus_space_write_4(es->st, es->sh, ES1370_REG_DAC2_FRAMECNT & 0xff, (ch->bufsz >> 2) - 1);
 	} else {
 		bus_space_write_1(es->st, es->sh, ES1370_REG_MEMPAGE, ES1370_REG_ADC_FRAMEADR >> 8);
-		bus_space_write_4(es->st, es->sh, ES1370_REG_ADC_FRAMEADR & 0xff, vtophys(sndbuf_getbuf(ch->buffer)));
+		bus_space_write_4(es->st, es->sh, ES1370_REG_ADC_FRAMEADR & 0xff, sndbuf_getbufaddr(ch->buffer));
 		bus_space_write_4(es->st, es->sh, ES1370_REG_ADC_FRAMECNT & 0xff, (ch->bufsz >> 2) - 1);
 	}
 	ch->dir = dir;
