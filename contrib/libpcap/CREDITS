@@ -1,0 +1,36 @@
+This file lists people who have contributed to libpcap:
+
+The current maintainers:
+	Bill Fenner			<fenner@research.att.com>
+	Assar Westerlund	 	<assar@sics.se>
+	Alexey Kuznetsov		<kuznet@ms2.inr.ac.ru>
+	Jun-ichiro itojun Hagino	<itojun@iijlab.net>
+	Guy Harris	 		<guy@alum.mit.edu>
+	Torsten Landschoff	 	<torsten@debian.org>
+	Michael Richardson	 	<mcr@sandelman.ottawa.on.ca>
+	Sebastian Krahmer		<krahmer@cs.uni-potsdam.de>
+
+Additional people who have contributed patches:
+
+	Arkadiusz Miskiewicz		<misiek@pld.org.pl>
+	Fulvio Risso			<risso@polito.it>
+	Charles M. Hannum		<mycroft@netbsd.org>
+	Chris G. Demetriou		<cgd@netbsd.org>
+	Darren Reed			<darrenr@reed.wattle.id.au>
+	Greg Troxel			<gdt@ir.bbn.com>
+	Jefferson Ogata			<jogata@nodc.noaa.gov>
+	Juergen Schoenwaelder		<schoenw@ibr.cs.tu-bs.de>
+	Lorenzo Cavallaro		<sullivan@sikurezza.org>
+	Love Hörnquist-Åstrand		<lha@stacken.kth.se>
+	Monroe Williams			<monroe@pobox.com>
+	Olaf Kirch			<okir@caldera.de>
+	Peter Jeremy			<peter.jeremy@alcatel.com.au>
+	Rafal Maszkowski		<rzm@icm.edu.pl>
+	Rick Jones			<raj@cup.hp.com>
+	Tony Li				<tli@jnx.com>
+	Uwe Girlich			<Uwe.Girlich@philosys.de>
+
+The original LBL crew:
+	Steve McCanne
+	Craig Leres
+	Van Jacobson

@@ -1,0 +1,20 @@
+This version of gxditview uses imake.
+
+Here are the steps needed to install gxditview:
+
+- edit the Imakefile if necessary
+
+- xmkmf
+
+- make depend
+
+- make
+
+- make install
+
+- make install.man (installs the man page)
+
+The gxditview binary will be installed in the usual place for X
+binaries (eg /usr/bin/X11).  Previous versions of gxditview were
+installed along with the other groff binaries (eg in /usr/local/bin);
+you will need to remove these by hand.

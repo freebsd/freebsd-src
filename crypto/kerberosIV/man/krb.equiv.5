@@ -1,0 +1,27 @@
+.\"	$Id: krb.equiv.5,v 1.3 1996/06/18 16:26:20 joda Exp $
+.\"
+.Dd June 18, 1996
+.Dt KRB.EQUIV 5
+.Os KTH-KRB
+.Sh NAME
+.Nm krb.equiv
+.Nd Kerberos equivalent hosts file
+.Sh DESCRIPTION
+.Nm
+contains a list of IP addresses that is to be considered being the
+same host for Kerberos purposes. Plain addresses match a single
+host. Addresses followed by a slash (/) and a number is taken as a
+sub-network that should be considered equal.
+.Pp
+Hash (#) starts a comment. Backslash (\\) is a continuation character.
+.Sh EXAMPLES
+.Bd -literal
+# A machine with two interfaces.
+130.237.232.113 130.237.221.42  # emma emma-ether
+# A machine with *many* interfaces
+193.10.156.0/24 193.10.157.0/24 # syk-* syk-*-hps
+.Ed
+.Sh SEE ALSO
+.Xr krb_equiv 3 ,
+.Xr krb.conf 5 ,
+.Xr krb.realms 5

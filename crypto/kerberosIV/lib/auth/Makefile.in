@@ -1,0 +1,55 @@
+#
+# $Id: Makefile.in,v 1.12 1998/03/15 05:58:10 assar Exp $
+#
+
+srcdir		= @srcdir@
+VPATH		= @srcdir@
+
+SHELL		= /bin/sh
+
+@SET_MAKE@
+
+SUBDIRS		= @LIB_AUTH_SUBDIRS@
+
+all:
+		SUBDIRS='$(SUBDIRS)'; \
+		for i in $$SUBDIRS; \
+		do (cd $$i && $(MAKE) $(MFLAGS) all); done
+
+Wall:
+		make CFLAGS="-g -Wall -Wno-comment -Wmissing-prototypes -Wmissing-declarations -D__USE_FIXED_PROTOTYPES__"
+
+install:
+		SUBDIRS=$(SUBDIRS); \
+		for i in $$SUBDIRS; \
+		do (cd $$i && $(MAKE) $(MFLAGS) install); done
+
+uninstall:
+		SUBDIRS=$(SUBDIRS); \
+		for i in $$SUBDIRS; \
+		do (cd $$i && $(MAKE) $(MFLAGS) uninstall); done
+
+check:
+		SUBDIRS=$(SUBDIRS); \
+		for i in $$SUBDIRS; \
+		do (cd $$i && $(MAKE) $(MFLAGS) check); done
+
+clean:
+		SUBDIRS=$(SUBDIRS); \
+		for i in $$SUBDIRS; \
+		do (cd $$i && $(MAKE) $(MFLAGS) clean); done
+
+mostlyclean:	clean
+
+distclean:
+		SUBDIRS=$(SUBDIRS); \
+		for i in $$SUBDIRS; \
+		do (cd $$i && $(MAKE) $(MFLAGS) distclean); done
+		rm -f Makefile *~
+
+realclean:
+		SUBDIRS=$(SUBDIRS); \
+		for i in $$SUBDIRS; \
+		do (cd $$i && $(MAKE) $(MFLAGS) realclean); done
+
+.PHONY: all Wall install uninstall check clean mostlyclean distclean realclean

@@ -1,0 +1,36 @@
+.\" $FreeBSD$
+.\" @(#)rpc.5	2.2 88/08/03 4.0 RPCSRC; from 1.4 87/11/27 SMI;
+.Dd September 26, 1985
+.Dt RPC 5
+.Os
+.Sh NAME
+.Nm rpc
+.Nd rpc program number data base
+.Sh SYNOPSIS
+/etc/rpc
+.Sh DESCRIPTION
+The
+.Pa /etc/rpc
+file contains user readable names that
+can be used in place of rpc program numbers.
+Each line has the following information:
+.Pp
+.Bl -bullet -compact
+.It
+name of server for the rpc program
+.It
+rpc program number
+.It
+aliases
+.El
+.Pp
+Items are separated by any number of blanks and/or
+tab characters.
+A ``#'' indicates the beginning of a comment; characters up to the end of
+the line are not interpreted by routines which search the file.
+.Sh FILES
+.Bl -tag -compact -width /etc/rpc
+.It Pa /etc/rpc
+.El
+.Sh "SEE ALSO"
+.Xr getrpcent 3

@@ -1,0 +1,18 @@
+Usage: bios_drive:interface(unit,partition)kernel_name options
+    bios_drive   0, 1, ...
+    interface    fd, wd or sd
+    unit         0, 1, ...
+    partition    a, c, ...
+    kernel_name  name of kernel, or ? for list of files in root directory
+    options      -a (ask name) -C (cdrom) -c (userconfig) -D (dual consoles)
+                 -d (debug early) -g (gdb) -h (serial console) -P (probe kbd)
+                 -r (default root) -s (single user) -v (verbose)
+Examples:
+    1:sd(0,a)mykernel  boot `mykernel' on the first SCSI drive when one IDE
+                       drive is present
+    1:wd(2,a)          boot from the second (secondary master) IDE drive
+    1:sd(0,a)?         list the files in the root directory on the specified
+                       drive/unit/partition, and set the default bios_drive,
+                       interface, unit and partition
+    -cv                boot with the defaults, then run UserConfig to modify
+                       hardware parameters (c), and print verbose messages (v)

@@ -1,0 +1,276 @@
+It would be nice if the RCS file format (which is implemented by a
+great many tools, both free and non-free, both by calling GNU RCS and
+by reimplementing access to RCS files) were documented in some
+standard separate from any one tool.  But as far as I know no such
+standard exists.  Hence this file.
+
+The place to start is the rcsfile.5 manpage in the GNU RCS 5.7
+distribution.  Then look at the diff at the end of this file (which
+contains a few fixes and clarifications to that manpage).
+
+If you are interested in MKS RCS, src/ci.c in GNU RCS 5.7 has a
+comment about their date format.  However, as far as we know there
+isn't really any document describing MKS's changes to the RCS file
+format.
+
+The rcsfile.5 manpage does not document what goes in the "text" field
+for each revision.  The answer is that the head revision contains the
+contents of that revision and every other revision contain a bunch of
+edits to produce that revision ("a" and "d" lines).  The GNU diff
+manual (the version I looked at was for GNU diff 2.4) documents this
+format somewhat (as the "RCS output format"), but the presentation is
+a bit confusing as it is all tangled up with the documentation of
+several other output formats.  If you just want some source code to
+look at, the part of CVS which applies these is RCS_deltas in
+src/rcs.c.
+
+The rcsfile.5 documentation only _very_ briefly touches on the order
+of the revisions.  The order _is_ important and CVS relies on it.
+Here is an example of what I was able to find, based on the join3
+sanity.sh testcase (and the behavior I am documenting here seems to be
+the same for RCS 5.7 and CVS 1.9.27):
+
+    1.1 ----------------->  1.2
+     \---> 1.1.2.1           \---> 1.2.2.1
+
+Here is how this shows up in the RCS file (omitting irrelevant parts):
+
+  admin:  head 1.2;
+  deltas:
+    1.2 branches 1.2.2.1; next 1.1;
+    1.1 branches 1.1.2.1; next;
+    1.1.2.1 branches; next;
+    1.2.2.1 branches; next;
+  deltatexts:
+    1.2
+    1.2.2.1
+    1.1
+    1.1.2.1
+
+Yes, the order seems to differ between the deltas and the deltatexts.
+I have no idea how much of this should actually be considered part of
+the RCS file format, and how much programs reading it should expect to
+encounter any order.
+
+The rcsfile.5 grammar shows the {num} after "next" as optional; if it
+is omitted then there is no next delta node (for example 1.1 or the
+head of a branch will typically have no next).
+
+There is one case where CVS uses CVS-specific, non-compatible changes
+to the RCS file format, and this is magic branches.  See cvs.texinfo
+for more information on them.  CVS also sets the RCS state to "dead"
+to indicate that a file does not exist in a given revision (this is
+stored just as any other RCS state is).
+
+The RCS file format allows quite a variety of extensions to be added
+in a compatible manner by use of the "newphrase" feature documented in
+rcsfile.5.  We won't try to document extensions not used by CVS in any
+detail, but we will briefly list them.  Each occurrence of a newphrase
+begins with an identifier, which is what we list here.  Future
+designers of extensions are strongly encouraged to pick
+non-conflicting identifiers.  Note that newphrase occurs several
+places in the RCS grammar, and a given extension may not be legal in
+all locations.  However, it seems better to reserve a particular
+identifier for all locations, to avoid confusion and complicated
+rules.
+
+   Identifier   Used by
+   ----------   -------
+   namespace    RCS library done at Silicon Graphics Inc. (SGI) in 1996
+                (a modified RCS 5.7--not sure it has any other name).
+   dead         A set of RCS patches developed by Rich Pixley at
+                Cygnus about 1992.  These were for CVS, and predated
+                the current CVS death support, which uses a state "dead"
+                rather than a "dead" newphrase.
+
+CVS does use newphrases to implement the `PreservePermissions'
+extension introduced in CVS 1.9.26.  The following new keywords are
+defined when PreservePermissions=yes:
+
+   owner
+   group
+   permissions
+   special
+   symlink
+   hardlinks
+
+The contents of the `owner' and `group' field should be a numeric uid
+and a numeric gid, respectively, representing the user and group who
+own the file.  The `permissions' field contains an octal integer,
+representing the permissions that should be applied to the file.  The
+`special' field contains two words; the first must be either `block'
+or `character', and the second is the file's device number.  The
+`symlink' field should be present only in files which are symbolic
+links to other files, and absent on all regular files.  The
+`hardlinks' field contains a list of filenames to which the current
+file is linked, in alphabetical order.  Because files often contain
+characters special to RCS, like `.' and sometimes even contain spaces
+or eight-bit characters, the filenames in the hardlinks field will
+usually be enclosed in RCS strings.  For example:
+
+	hardlinks	README @install.txt@ @Installation Notes@;
+
+The hardlinks field should always include the name of the current
+file.  That is, in the repository file README,v, any hardlinks fields
+in the delta nodes should include `README'; CVS will not operate
+properly if this is not done.
+
+The rules regarding keyword expansion are not documented along with
+the rest of the RCS file format; they are documented in the co(1)
+manpage in the RCS 5.7 distribution.  See also the "Keyword
+substitution" chapter of cvs.texinfo.  The co(1) manpage refers to
+special behavior if the log prefix for the $Log keyword is /* or (*.
+RCS 5.7 produces a warning whenever it behaves that way, and current
+versions of CVS do not handle this case in a special way (CVS 1.9 and
+earlier invoke RCS to perform keyword expansion).
+
+Note that if the "expand" keyword is omitted from the RCS file, the
+default is "kv".
+
+Note that the "comment {string};" syntax from rcsfile.5 specifies a
+comment leader, which affects expansion of the $Log keyword for old
+versions of RCS.  The comment leader is not used by RCS 5.7 or current
+versions of CVS.
+
+Both RCS 5.7 and current versions of CVS handle the $Log keyword in a
+different way if the log message starts with "checked in with -k by ".
+I don't think this behavior is documented anywhere.
+
+Here is a clarification regarding characters versus bytes in certain
+character sets like JIS and Big5:
+
+    The RCS file format, as described in the rcsfile(5) man page, is
+    actually byte-oriented, not character-oriented, despite hints to
+    the contrary in the man page.  This distinction is important for
+    multibyte characters.  For example, if a multibyte character
+    contains a `@' byte, the `@' must be doubled within strings in RCS
+    files, since RCS uses `@' bytes as escapes.
+
+    This point is not an issue for encodings like ISO 8859, which do
+    not have multibyte characters.  Nor is it an issue for encodings
+    like UTF-8 and EUC-JIS, which never uses ASCII bytes within a
+    multibyte character.  It is an issue only for multibyte encodings
+    like JIS and BIG5, which _do_ usurp ASCII bytes.
+
+    If `@' doubling occurs within a multibyte char, the resulting RCS
+    file is not a properly encoded text file.  Instead, it is a byte
+    stream that does not use a consistent character encoding that can
+    be understood by the usual text tools, since doubling `@' messes
+    up the encoding.  This point affects only programs that examine
+    the RCS files -- it doesn't affect the external RCS interface, as
+    the RCS commands always give you the properly encoded text files
+    and logs (assuming that you always check in properly encoded
+    text).
+
+    CVS 1.10 (and earlier) probably has some bugs in this area on
+    systems where a C "char" is signed and where the data contains
+    bytes with the eighth bit set.
+
+One common concern about the RCS file format is the fact that to get
+the head of a branch, one must apply deltas from the head of the trunk
+to the branchpoint, and then from the branchpoint to the head of the
+branch.  While more detailed analyses might be worth doing, we will
+note:
+
+    * The performance bottleneck for CVS generally is figuring out which
+    files to operate on and that sort of thing, not applying deltas.
+
+    * Here is one quick test (probably not a very good test; a better test
+    would use a normally sized file (say 50-200K) instead of a small one):
+
+	I just did a quick test with a small file (on a Sun Ultra 1/170E
+	running Solaris 5.5.1), with 1000 revisions on the main branch and
+	1000 revisions on branch that forked at the root (i.e., RCS revisions
+	1.1, 1.2, ..., 1.1000, and branch revisions 1.1.1.1, 1.1.1.2, ...,
+	1.1.1.1000).  It took about 0.15 seconds real time to check in the
+	first revision, and about 0.6 seconds to check in and 0.3 seconds to
+	retrieve revision 1.1.1.1000 (the worst case).
+
+    * Any attempt to "fix" this problem should be careful not to interfere
+    with other features, such as lightweight creation of branches
+    (particularly using CVS magic branches).
+
+Diff follows:
+
+(Note that in the following diff the old value for the Id keyword was:
+    Id: rcsfile.5in,v 5.6 1995/06/05 08:28:35 eggert Exp 
+and the new one was:
+    Id: rcsfile.5in,v 5.7 1996/12/09 17:31:44 eggert Exp 
+but since this file itself might be subject to keyword expansion I
+haven't included a diff for that fact).
+
+===================================================================
+RCS file: RCS/rcsfile.5in,v
+retrieving revision 5.6
+retrieving revision 5.7
+diff -u -r5.6 -r5.7
+--- rcsfile.5in	1995/06/05 08:28:35	5.6
++++ rcsfile.5in	1996/12/09 17:31:44	5.7
+@@ -85,7 +85,8 @@
+ .LP
+ \f2sym\fP	::=	{\f2digit\fP}* \f2idchar\fP {\f2idchar\fP | \f2digit\fP}*
+ .LP
+-\f2idchar\fP	::=	any visible graphic character except \f2special\fP
++\f2idchar\fP	::=	any visible graphic character,
++		except \f2digit\fP or \f2special\fP
+ .LP
+ \f2special\fP	::=	\f3$\fP | \f3,\fP | \f3.\fP | \f3:\fP | \f3;\fP | \f3@\fP
+ .LP
+@@ -119,12 +120,23 @@
+ the minute (00\-59),
+ and
+ .I ss
+-the second (00\-60).
++the second (00\-59).
++If
+ .I Y
+-contains just the last two digits of the year
+-for years from 1900 through 1999,
+-and all the digits of years thereafter.
+-Dates use the Gregorian calendar; times use UTC.
++contains exactly two digits,
++they are the last two digits of a year from 1900 through 1999;
++otherwise,
++.I Y
++contains all the digits of the year.
++Dates use the Gregorian calendar.
++Times use UTC, except that for portability's sake leap seconds are not allowed;
++implementations that support leap seconds should output
++.B 59
++for
++.I ss
++during an inserted leap second, and should accept
++.B 59
++for a deleted leap second.
+ .PP
+ The
+ .I newphrase
+@@ -144,16 +156,23 @@
+ field in order of decreasing numbers.
+ The
+ .B head
+-field in the
+-.I admin
+-node points to the head of that sequence (i.e., contains
++field points to the head of that sequence (i.e., contains
+ the highest pair).
+ The
+ .B branch
+-node in the admin node indicates the default
++field indicates the default
+ branch (or revision) for most \*r operations.
+ If empty, the default
+ branch is the highest branch on the trunk.
++The
++.B symbols
++field associates symbolic names with revisions.
++For example, if the file contains
++.B "symbols rr:1.1;"
++then
++.B rr
++is a name for revision
++.BR 1.1 .
+ .PP
+ All
+ .I delta
+

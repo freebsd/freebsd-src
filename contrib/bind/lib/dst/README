@@ -1,0 +1,27 @@
+This directory in BIND contains the Domain Signature Tools (dst)
+library.  It was written by Trusted Information Systems, Inc. and
+integrated into BIND by John Gilmore.  It is used as a generic
+crypto library interface by the DNS Security code in BIND.
+
+	  Installing Domain Signature Tools Library - dst
+
+1. Assess available crypto libraries:
+
+	if you have DNSSAFE (the default)
+		CRYPTFLAGS must include -DDNSSAFE
+		CRYPTINCL must include -I../dnssafe
+
+	if you have RSAREF 
+		CRYPTFLAGS must include -DRSAREF 
+		CRYPTINCL must include -I<path to rsa include files>
+		
+	if you have BSAFE 
+		CRYPTFLAGS must include -DBSAFE
+		CRYPTINCL must include -I<path to bsafe include files>
+
+	if you want HMAC-MD5 support 
+		CRYPTFLAGs must include -DHMAC	
+
+2. Building BIND as usual will include the dst library routines into
+   libbind.a, and link them into the BIND programs that use crypto
+   support.

@@ -1,0 +1,629 @@
+.\" Copyright (c) 1998 Dag-Erling Coïdan Smørgrav
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\" $FreeBSD$
+.\"
+.Dd July 1, 1998
+.Dt FETCH 3
+.Os
+.Sh NAME
+.Nm fetchMakeURL ,
+.Nm fetchParseURL ,
+.Nm fetchFreeURL ,
+.Nm fetchXGetURL ,
+.Nm fetchGetURL ,
+.Nm fetchPutURL ,
+.Nm fetchStatURL ,
+.Nm fetchListURL ,
+.Nm fetchXGet ,
+.Nm fetchGet ,
+.Nm fetchPut ,
+.Nm fetchStat ,
+.Nm fetchList ,
+.Nm fetchXGetFile ,
+.Nm fetchGetFile ,
+.Nm fetchPutFile ,
+.Nm fetchStatFile ,
+.Nm fetchListFile ,
+.Nm fetchXGetHTTP ,
+.Nm fetchGetHTTP ,
+.Nm fetchPutHTTP ,
+.Nm fetchStatHTTP ,
+.Nm fetchListHTTP ,
+.Nm fetchXGetFTP ,
+.Nm fetchGetFTP ,
+.Nm fetchPutFTP ,
+.Nm fetchStatFTP ,
+.Nm fetchListFTP
+.Nd file transfer functions
+.Sh LIBRARY
+.Lb libfetch
+.Sh SYNOPSIS
+.In sys/param.h
+.In stdio.h
+.In fetch.h
+.Ft struct url *
+.Fn fetchMakeURL "const char *scheme" "const char *host" "int port" "const char *doc" "const char *user" "const char *pwd"
+.Ft struct url *
+.Fn fetchParseURL "const char *URL"
+.Ft void
+.Fn fetchFreeURL "struct url *u"
+.Ft FILE *
+.Fn fetchXGetURL "const char *URL" "struct url_stat *us" "const char *flags"
+.Ft FILE *
+.Fn fetchGetURL "const char *URL" "const char *flags"
+.Ft FILE *
+.Fn fetchPutURL "const char *URL" "const char *flags"
+.Ft int
+.Fn fetchStatURL "const char *URL" "struct url_stat *us" "const char *flags"
+.Ft struct url_ent *
+.Fn fetchListURL "const char *URL" "const char *flags"
+.Ft FILE *
+.Fn fetchXGet "struct url *u" "struct url_stat *us" "const char *flags"
+.Ft FILE *
+.Fn fetchGet "struct url *u" "const char *flags"
+.Ft FILE *
+.Fn fetchPut "struct url *u" "const char *flags"
+.Ft int
+.Fn fetchStat "struct url *u" "struct url_stat *us" "const char *flags"
+.Ft struct url_ent *
+.Fn fetchList "struct url *u" "const char *flags"
+.Ft FILE *
+.Fn fetchXGetFile "struct url *u" "struct url_stat *us" "const char *flags"
+.Ft FILE *
+.Fn fetchGetFile "struct url *u" "const char *flags"
+.Ft FILE *
+.Fn fetchPutFile "struct url *u" "const char *flags"
+.Ft int
+.Fn fetchStatFile "struct url *u" "struct url_stat *us" "const char *flags"
+.Ft struct url_ent *
+.Fn fetchListFile "struct url *u" "const char *flags"
+.Ft FILE *
+.Fn fetchXGetHTTP "struct url *u" "struct url_stat *us" "const char *flags"
+.Ft FILE *
+.Fn fetchGetHTTP "struct url *u" "const char *flags"
+.Ft FILE *
+.Fn fetchPutHTTP "struct url *u" "const char *flags"
+.Ft int
+.Fn fetchStatHTTP "struct url *u" "struct url_stat *us" "const char *flags"
+.Ft struct url_ent *
+.Fn fetchListHTTP "struct url *u" "const char *flags"
+.Ft FILE *
+.Fn fetchXGetFTP "struct url *u" "struct url_stat *us" "const char *flags"
+.Ft FILE *
+.Fn fetchGetFTP "struct url *u" "const char *flags"
+.Ft FILE *
+.Fn fetchPutFTP "struct url *u" "const char *flags"
+.Ft int
+.Fn fetchStatFTP "struct url *u" "struct url_stat *us" "const char *flags"
+.Ft struct url_ent *
+.Fn fetchListFTP "struct url *u" "const char *flags"
+.Sh DESCRIPTION
+These functions implement a high-level library for retrieving and
+uploading files using Uniform Resource Locators (URLs).
+.Pp
+.Fn fetchParseURL
+takes a URL in the form of a null-terminated string and splits it into
+its components function according to the Common Internet Scheme Syntax
+detailed in RFC1738.
+A regular expression which produces this syntax is:
+.Bd -literal
+    <scheme>:(//(<user>(:<pwd>)?@)?<host>(:<port>)?)?/(<document>)?
+.Ed
+.Pp
+If the URL does not seem to begin with a scheme name, the following
+syntax is assumed:
+.Bd -literal
+    ((<user>(:<pwd>)?@)?<host>(:<port>)?)?/(<document>)?
+.Ed
+.Pp
+Note that some components of the URL are not necessarily relevant to
+all URL schemes.
+For instance, the file scheme only needs the <scheme> and <document>
+components.
+.Pp
+.Fn fetchMakeURL
+and
+.Fn fetchParseURL
+return a pointer to a
+.Vt url
+structure, which is defined as follows in
+.Aq Pa fetch.h :
+.Bd -literal
+#define URL_SCHEMELEN 16
+#define URL_USERLEN 256
+#define URL_PWDLEN 256
+
+struct url {
+    char	 scheme[URL_SCHEMELEN+1];
+    char	 user[URL_USERLEN+1];
+    char	 pwd[URL_PWDLEN+1];
+    char	 host[MAXHOSTNAMELEN+1];
+    int		 port;
+    char	*doc;
+    off_t	 offset;
+    size_t	 length;
+};
+.Ed
+.Pp
+The pointer returned by
+.Fn fetchMakeURL
+or
+.Fn fetchParseURL
+should be freed using
+.Fn fetchFreeURL .
+.Pp
+.Fn fetchXGetURL ,
+.Fn fetchGetURL ,
+and
+.Fn fetchPutURL
+constitute the recommended interface to the
+.Nm fetch
+library.
+They examine the URL passed to them to determine the transfer
+method, and call the appropriate lower-level functions to perform the
+actual transfer.
+.Fn fetchXGetURL
+also returns the remote document's metadata in the
+.Vt url_stat
+structure pointed to by the
+.Fa us
+argument.
+.Pp
+The
+.Fa flags
+argument is a string of characters which specify transfer options.
+The
+meaning of the individual flags is scheme-dependent, and is detailed
+in the appropriate section below.
+.Pp
+.Fn fetchStatURL
+attempts to obtain the requested document's metadata and fill in the
+structure pointed to by its second argument.
+The
+.Vt url_stat
+structure is defined as follows in
+.Aq Pa fetch.h :
+.Bd -literal
+struct url_stat {
+    off_t	 size;
+    time_t	 atime;
+    time_t	 mtime;
+};
+.Ed
+.Pp
+If the size could not be obtained from the server, the
+.Fa size
+field is set to -1.
+If the modification time could not be obtained from the server, the
+.Fa mtime
+field is set to the epoch.
+If the access time could not be obtained from the server, the
+.Fa atime
+field is set to the modification time.
+.Pp
+.Fn fetchListURL
+attempts to list the contents of the directory pointed to by the URL
+provided.
+If successful, it returns a malloced array of
+.Vt url_ent
+structures.
+The
+.Vt url_ent
+structure is defined as follows in
+.Aq Pa fetch.h :
+.Bd -literal
+struct url_ent {
+    char         name[MAXPATHLEN];
+    struct url_stat stat;
+};
+.Ed
+.Pp
+The list is terminated by an entry with an empty name.
+.Pp
+The pointer returned by
+.Fn fetchListURL
+should be freed using
+.Fn free .
+.Pp
+.Fn fetchXGet ,
+.Fn fetchGet ,
+.Fn fetchPut
+and
+.Fn fetchStat
+are similar to
+.Fn fetchXGetURL ,
+.Fn fetchGetURL ,
+.Fn fetchPutURL
+and
+.Fn fetchStatURL ,
+except that they expect a pre-parsed URL in the form of a pointer to
+a
+.Vt struct url
+rather than a string.
+.Pp
+All of the
+.Fn fetchXGetXXX ,
+.Fn fetchGetXXX
+and
+.Fn fetchPutXXX
+functions return a pointer to a stream which can be used to read or
+write data from or to the requested document, respectively.
+Note that
+although the implementation details of the individual access methods
+vary, it can generally be assumed that a stream returned by one of the
+.Fn fetchXGetXXX
+or
+.Fn fetchGetXXX
+functions is read-only, and that a stream returned by one of the
+.Fn fetchPutXXX
+functions is write-only.
+.Sh FILE SCHEME
+.Fn fetchXGetFile ,
+.Fn fetchGetFile
+and
+.Fn fetchPutFile
+provide access to documents which are files in a locally mounted file
+system.
+Only the <document> component of the URL is used.
+.Pp
+.Fn fetchXGetFile
+and
+.Fn fetchGetFile
+do not accept any flags.
+.Pp
+.Fn fetchPutFile
+accepts the
+.Ql a
+(append to file) flag.
+If that flag is specified, the data written to
+the stream returned by
+.Fn fetchPutFile
+will be appended to the previous contents of the file, instead of
+replacing them.
+.Sh FTP SCHEME
+.Fn fetchXGetFTP ,
+.Fn fetchGetFTP
+and
+.Fn fetchPutFTP
+implement the FTP protocol as described in RFC959.
+.Pp
+If the
+.Ql p
+(passive) flag is specified, a passive (rather than active) connection
+will be attempted.
+.Pp
+If the
+.Ql l
+(low) flag is specified, data sockets will be allocated in the low (or
+default) port range instead of the hifh port range (see
+.Xr ip 4 ) .
+.Pp
+If the
+.Ql d
+(direct) flag is specified,
+.Fn fetchXGetFTP ,
+.Fn fetchGetFTP
+and
+.Fn fetchPutFTP
+will use a direct connection even if a proxy server is defined.
+.Pp
+If no user name or password is given, the
+.Nm fetch
+library will attempt an anonymous login, with user name "anonymous"
+and password "anonymous@<hostname>".
+.Sh HTTP SCHEME
+The
+.Fn fetchXGetHTTP ,
+.Fn fetchGetHTTP
+and
+.Fn fetchPutHTTP
+functions implement the HTTP/1.1 protocol.
+With a little luck, there's
+even a chance that they comply with RFC2616 and RFC2617.
+.Pp
+If the
+.Ql d
+(direct) flag is specified,
+.Fn fetchXGetHTTP ,
+.Fn fetchGetHTTP
+and
+.Fn fetchPutHTTP
+will use a direct connection even if a proxy server is defined.
+.Pp
+Since there seems to be no good way of implementing the HTTP PUT
+method in a manner consistent with the rest of the
+.Nm fetch
+library,
+.Fn fetchPutHTTP
+is currently unimplemented.
+.Sh AUTHENTICATION
+Apart from setting the appropriate environment variables and
+specifying the user name and password in the URL or the
+.Vt struct url ,
+the calling program has the option of defining an authentication
+function with the following prototype:
+.Pp
+.Ft int
+.Fn myAuthMethod "struct url *u"
+.Pp
+The callback function should fill in the
+.Fa user
+and
+.Fa pwd
+fields in the provided
+.Vt struct url
+and return 0 on success, or any other value to indicate failure.
+.Pp
+To register the authentication callback, simply set
+.Va fetchAuthMethod
+to point at it.
+The callback will be used whenever a site requires authentication and
+the appropriate environment variables aren't set.
+.Pp
+This interface is experimental and may be subject to change.
+.Sh RETURN VALUES
+.Fn fetchParseURL
+returns a pointer to a
+.Vt struct url
+containing the individual components of the URL.
+If it is
+unable to allocate memory, or the URL is syntactically incorrect,
+.Fn fetchParseURL
+returns a NULL pointer.
+.Pp
+The
+.Fn fetchStat
+functions return 0 on success and -1 on failure.
+.Pp
+All other functions return a stream pointer which may be used to
+access the requested document, or NULL if an error occurred.
+.Pp
+The following error codes are defined in
+.Aq Pa fetch.h :
+.Bl -tag -width 18n
+.It Bq Er FETCH_ABORT
+Operation aborted
+.It Bq Er FETCH_AUTH
+Authentication failed
+.It Bq Er FETCH_DOWN
+Service unavailable
+.It Bq Er FETCH_EXISTS
+File exists
+.It Bq Er FETCH_FULL
+File system full
+.It Bq Er FETCH_INFO
+Informational response
+.It Bq Er FETCH_MEMORY
+Insufficient memory
+.It Bq Er FETCH_MOVED
+File has moved
+.It Bq Er FETCH_NETWORK
+Network error
+.It Bq Er FETCH_OK
+No error
+.It Bq Er FETCH_PROTO
+Protocol error
+.It Bq Er FETCH_RESOLV
+Resolver error
+.It Bq Er FETCH_SERVER
+Server error
+.It Bq Er FETCH_TEMP
+Temporary error
+.It Bq Er FETCH_TIMEOUT
+Operation timed out
+.It Bq Er FETCH_UNAVAIL
+File is not available
+.It Bq Er FETCH_UNKNOWN
+Unknown error
+.It Bq Er FETCH_URL
+Invalid URL
+.El
+.Pp
+The accompanying error message includes a protocol-specific error code
+and message, e.g. "File is not available (404 Not Found)"
+.Sh ENVIRONMENT
+.Bl -tag -width FTP_PASSIVE_MODE
+.It Ev FTP_LOGIN
+Default FTP login if none was provided in the URL.
+.It Ev FTP_PASSIVE_MODE
+If set to anything but
+.Ql no ,
+forces the FTP code to use passive mode.
+.It Ev FTP_PASSWORD
+Default FTP password if the remote server requests one and none was
+provided in the URL.
+.It Ev FTP_PROXY
+URL of the proxy to use for FTP requests.
+The document part is ignored.
+FTP and HTTP proxies are supported; if no scheme is specified, FTP is
+assumed.
+If the proxy is an FTP proxy,
+.Nm libfetch
+will send
+.Ql user@host
+as user name to the proxy, where
+.Ql user
+is the real user name, and
+.Ql host
+is the name of the FTP server.
+.Pp
+If this variable is set to an empty string, no proxy will be used for
+FTP requests, even if the
+.Ev HTTP_PROXY
+variable is set.
+.It Ev ftp_proxy
+Same as
+.Ev FTP_PROXY ,
+for compatibility.
+.It Ev HTTP_AUTH
+Specifies HTTP authorization parameters as a colon-separated list of
+items.
+The first and second item are the authorization scheme and realm
+respectively; further items are scheme-dependent.
+Currently, only basic authorization is supported.
+.Pp
+Basic authorization requires two parameters: the user name and
+password, in that order.
+.Pp
+This variable is only used if the server requires authorization and
+no user name or password was specified in the URL.
+.It Ev HTTP_PROXY
+URL of the proxy to use for HTTP requests.
+The document part is ignored.
+Only HTTP proxies are supported for HTTP requests.
+If no port number is specified, the default is 3128.
+.Pp
+Note that this proxy will also be used for FTP documents, unless the
+.Ev FTP_PROXY
+variable is set.
+.It Ev http_proxy
+Same as
+.Ev HTTP_PROXY ,
+for compatibility.
+.It Ev HTTP_PROXY_AUTH
+Specifies authorization parameters for the HTTP proxy in the same
+format as the
+.Ev HTTP_AUTH
+variable.
+.Pp
+This variable is used if and only if connected to an HTTP proxy, and
+is ignored if a user and/or a password were specified in the proxy
+URL.
+.It Ev HTTP_USER_AGENT
+Specifies the User-Agent string to use for HTTP requests.
+This can be useful when working with HTTP origin or proxy servers that
+differentiate between user agents.
+.El
+.Sh SEE ALSO
+.Xr fetch 1 ,
+.Xr ftpio 3 ,
+.Xr ip 4
+.Rs
+.%A J. Postel
+.%A J. K. Reynolds
+.%D October 1985
+.%B File Transfer Protocol
+.%O RFC959
+.Re
+.Rs
+.%A P. Deutsch
+.%A A. Emtage
+.%A A. Marine.
+.%D May 1994
+.%T How to Use Anonymous FTP
+.%O RFC1635
+.Re
+.Rs
+.%A T. Berners-Lee
+.%A L. Masinter
+.%A M. McCahill
+.%D December 1994
+.%T Uniform Resource Locators (URL)
+.%O RFC1738
+.Re
+.Rs
+.%A R. Fielding
+.%A J. Gettys
+.%A J. Mogul
+.%A H. Frystyk
+.%A L. Masinter
+.%A P. Leach
+.%A T. Berners-Lee
+.%D Januray 1999
+.%B Hypertext Transfer Protocol -- HTTP/1.1
+.%O RFC2616
+.Re
+.Rs
+.%A J. Franks
+.%A P. Hallam-Baker
+.%A J. Hostetler
+.%A S. Lawrence
+.%A P. Leach
+.%A A. Luotonen
+.%A L. Stewart
+.%D June 1999
+.%B HTTP Authentication: Basic and Digest Access Authentication
+.%O RFC2617
+.Re
+.Sh HISTORY
+The
+.Nm fetch
+library first appeared in
+.Fx 3.0 .
+.Sh AUTHORS
+.An -nosplit
+The
+.Nm fetch
+library was mostly written by
+.An Dag-Erling Co\(:idan Sm\(/orgrav Aq des@FreeBSD.org
+with numerous suggestions from
+.An Jordan K. Hubbard Aq jkh@FreeBSD.org ,
+.An Eugene Skepner Aq eu@qub.com
+and other
+.Fx
+developers.
+It replaces the older
+.Nm ftpio
+library written by
+.An Poul-Henning Kamp Aq pkh@FreeBSD.org
+and
+.An Jordan K. Hubbard Aq jkh@FreeBSD.org .
+.Pp
+This manual page was written by
+.An Dag-Erling Co\(:idan Sm\(/orgrav Aq des@FreeBSD.org .
+.Sh BUGS
+Some parts of the library are not yet implemented.
+The most notable
+examples of this are
+.Fn fetchPutHTTP ,
+.Fn fetchListHTTP ,
+.Fn fetchListFTP
+and FTP proxy support.
+.Pp
+There's no way to select a proxy at run-time other than setting the
+.Ev HTTP_PROXY
+or
+.Ev FTP_PROXY
+environment variables as appropriate.
+.Pp
+.Nm libfetch
+does not understand or obey 305 (Use Proxy) replies.
+.Pp
+Error numbers are unique only within a certain context; the error
+codes used for FTP and HTTP overlap, as do those used for resolver and
+system errors.
+For instance, error code 202 means "Command not
+implemented, superfluous at this site" in an FTP context and
+"Accepted" in an HTTP context.
+.Pp
+.Fn fetchStatFTP
+does not check that the result of an MDTM command is a valid date.
+.Pp
+The man page is incomplete, poorly written and produces badly
+formatted text.
+.Pp
+The error reporting mechanism is unsatisfactory.
+.Pp
+Some parts of the code are not fully reentrant.

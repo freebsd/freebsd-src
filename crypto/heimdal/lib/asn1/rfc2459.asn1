@@ -1,0 +1,21 @@
+RFC2459 DEFINITIONS ::= BEGIN
+
+AttributeType ::= OBJECT-IDENTIFIER
+
+AttributeValue ::= OCTET STRING --ANY DEFINED BY AttributeType
+
+AttributeTypeAndValue ::= SEQUENCE {
+	type AttributeType,
+	value AttributeValue
+}
+
+RelativeDistinguishedName ::= --SET
+SEQUENCE OF AttributeTypeAndValue
+
+RDNSequence ::= SEQUENCE OF RelativeDistinguishedName
+
+Name ::= CHOICE { -- RFC2459
+	x RDNSequence
+}
+
+END

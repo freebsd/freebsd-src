@@ -1,0 +1,57 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 3.2//EN">
+<HTML>
+<HEAD>
+  <TITLE>BIND key Statement</TITLE>
+</HEAD>
+
+<BODY>
+<H2>BIND Configuration File Guide--<CODE>key</CODE> Statement</H2>
+
+<HR>
+
+<A NAME="Syntax"><H3>Syntax</H3></A>
+
+<PRE>
+key <VAR>key_id</VAR> {
+  algorithm <VAR>algorithm_id</VAR>;
+  secret <VAR>secret_string</VAR>;
+};
+</PRE>
+
+<HR>
+
+<A NAME="Usage"><H3>Definition and Usage</H3></A>
+
+<P>The <CODE>key</CODE> statement defines a key ID which can be used
+in a <A HREF="server.html"><CODE>server</CODE></A> statement to
+associate an authentication method with a particular name server.
+
+<P>A key ID must be created with the <CODE>key</CODE>
+statement before it can be used in a <CODE>server</CODE>
+definition or an address match list.</P>
+
+<P>The <VAR>algorithm_id</VAR> is a string that specifies a
+security/authentication algorithm.  The only supported
+algorithm is "hmac-md5".
+
+<P><VAR>secret_string</VAR> is the secret to be used by the algorithm,
+and is treated as a base-64 encoded string.  This may be generated
+using dnskeygen or another utility or created manually.
+
+<P>The <CODE>key</CODE> statement is intended for use in transaction
+security.  Unless included in a <A HREF="server.html"><CODE>server</CODE></A>
+statement, it is not used to sign any requests.  It is used to verify
+requests matching the <VAR>key_id</VAR> and <VAR>algorithm_id</VAR>,
+and sign replies to those requests.
+<HR>
+
+<CENTER><P>[ <A HREF="config.html">BIND Config. File</A>
+| <A HREF="http://www.isc.org/products/BIND/">BIND Home</A>
+| <A HREF="http://www.isc.org/">ISC</A> ]</P></CENTER>
+
+<HR>
+<ADDRESS>
+Last Updated: $Id: key.html,v 1.10 1999/09/15 20:28:02 cyarnell Exp $
+</ADDRESS>
+</BODY>
+</HTML>

@@ -1,0 +1,845 @@
+Configuring VoxWare 3.0 (for Linux) with some most common soundcards
+====================================================================
+
+NOTE! This document may contain some error. Please inform me
+      if you find any mistakes.
+
+Read this before trying to configure the driver
+-----------------------------------------------
+
+There are currently many cards that work with VoxWare. Some of the cards
+have native support while the others work since they emulate some other
+cards (usually SB, MSS/WSS and/or MPU401). The following cards have native
+support in VoxWare. Detailed instructions for configuring these cards
+will be given later in this document.
+
+Pro Audio Spectrum 16 (PAS16) and compatibles:
+	Pro Audio Spectrum 16
+	Pro Audio Studio 16
+	Logitech Sound Man 16
+	NOTE! The original Pro Audio Spectrum as well as the PAS+ are not
+	      and will not be supported by VoxWare.
+
+Media Vision Jazz16 based cards
+	Pro Sonic 16
+	Logitech SoundMan Wave
+	(Other Jazz based cards should work but I don't have any reports
+	about them).
+
+Sound Blasters
+	SB 1.0 to 2.0
+	SB Pro
+	SB 16
+	NOTE!	The ASP chip and the EMU synth of the AWE32 is not supported 
+		since their manufacturer doesn't release information about
+		the card. However both the AB16ASP and the AWE32 work with
+		VoxWare just like a SB16. Also see the comment about some
+		unsupported cards at the end of this file.
+	SB16 compatible cards by other manufacturers than Creative.
+		You have been fooled since there are no SB16 compatible
+		cards in the market (July95). It's likely that your card
+		is compatible just with SB Pro but there is also a non SB
+		compatible 16 bit mode. Usually it's MSS/WSS but could also
+		be a proprietary one like MV Jazz16.
+
+Gravis Ultrasound (GUS)
+	GUS
+	GUS + the 16 bit option
+	GUS MAX
+	GUS ACE (No MIDI port and audio recording)
+
+MPU-401	and compatibles
+	The driver works both with the full (intelligent mode) MPU-401
+	cards (such as MPU IPC-T and MQX-32M) and with the UART only
+	dumb MIDI ports. MPU-401 is currently the most common MIDI
+	interface. Most soundcards are compatible with it. However
+	don't enable MPU401 mode blindly. Many cards having native support
+	in VoxWare have their own MPU401 driver. Enabling the standard one
+	will cause a conflict with these cards. So look if your card is
+	in the list of supported cards before enabling MPU401.
+
+Windows Sound System (MSS/WSS)
+	Even Microsoft has discontinued their own Sound System card, they
+	managed to make a standard. MSS compatible cards are based on a 
+	codec chip which is easily available from at least two manufacturers
+	(AD1848 by Analog Devices and CS4231/CS4248 by Crystal Semiconductor).
+	Currently most soundcards are based on one of the MSS compatible codec
+	chip. The CS4231 is used in the high quality cards such as GUS MAX,
+	MediaTriX AudioTriX Pro and TB Tropez (GUS MAX is not MSS compatible). 
+
+	Having a AD1848, CS4248 or CS4231 codec chip on the card is a good
+	sign. Even if the card is not MSS compatible, it could be easy to write
+	support for it to VoxWare. Note also that most MSS compatible cards
+	require special boot time initialization which may not be present
+	in VoxWare. Also some MSS compatible cards have native support in
+	VoxWare. Enabling the MSS support with these cards is likely to
+	cause a conflict. So check if your card is listed in this file before
+	enabling the MSS support.
+
+6850 UART MIDI
+	This UART chip is used in the MIDI interface of some (rare)
+	soundcards. It's supported by VoxWare in case you need it.
+
+Yamaha FM synthesizers (OPL2, OPL3 and OPL4)
+	Most soundcards have a FM synthesizer chip. The OPL2 is a 2
+	operator chip used in the original AdLib card. Currently it's used
+	only in the cheapest (8 bit mono) cards. The OPL3 is a 4 operator 
+	FM chip which provides better sound quality and/or more available 
+	voices than the OPL2. The OPL4 is a new chip which has a OPL3 and
+	a wave table synthesizer packed on the same chip. VoxWare supports
+	just the OPL3 mode directly. Most cards having a OPL4 (like
+	SM Wave and AudioTriX Pro) support the OPL4 mode using MPU401
+	emulation. Writing a native OPL4 support to VoxWare is difficult
+	since Yamaha doesn't give information about their sample ROM chip.
+
+	Enable the generic OPL2/OPL3 FM synthesizer support if your
+	card has a FM chip made by Yamaha. Don't enable it if your card
+	has a software (TRS) based FM emulator.
+
+PSS based cards (AD1848 + ADSP-2115 + Echo ESC614 ASIC)
+	Analog Devices and Echo Speech have together defined a soundcard
+	architecture based on the above chips. The DSP chip is used
+	for emulation of SB Pro, FM and General MIDI/MT32.
+
+	There are several cards based on this architecture. The most known
+	ones are Orchid SW32 and Cardinal DSP16. 
+
+	VoxWare supports downloading DSP algorithms to these cards.
+
+MediaTriX AudioTriX Pro
+	The ATP card is built around a CS4231 codec and a OPL4 synthesizer
+	chips. The OPL4 mode is supported by a microcontroller running a
+	General MIDI emulator. There is also a SB 1.5 compatible playback mode.
+
+Ensoniq SoundScape and compatibles
+	Ensoniq has designed a soundcard architecture based on the
+	OTTO synthesizer chip used in their professional MIDI synthesizers.
+	Several companies (including Ensoniq, Reveal and Spea) are selling
+	cards based on this architecture.
+
+MAD16 and Mozart based cards
+	The Mozart (OAK OTI-601) and MAD16 Pro (OPTi 82C929) interface
+	chips are used in many different soundcards, including some
+	cards by Reveal and Turtle Beach (Tropez). Purpose of these
+	chips is to connect other audio components to the PC bus. The
+	interface chip performs address decoding for the other chips.
+
+Audio Excell DSP16 
+	Support for this card is made by Riccardo Faccetti
+	(riccardo@cdc8g5.cdc.polimi.it). See aedsp16.c for more info.
+	
+Crystal CS4232 based cards such as AcerMagic S23
+	CS4232 is a PnP multimedia chip which contains a CS3231A codec,
+	SB and MPU401 emulations. There is support for OPL3 too.
+	(Unfortunately the MPU401 mode doesn't work).
+
+Turtle Beach Maui and Tropez
+	VoxWare supports sample, parch and program loading commands
+	described in the Maui/Tropez User's manual. There is no initialization
+	code for Maui so it must be initialized using DOS. Audio side of Tropez
+	is based on the MAD16 chip (see above).
+
+Jumpers and software configuration
+----------------------------------
+
+Some of the earliest soundcards were jumper configurable. You have to
+configure VoxWare to configure VoxWare use I/O, IRQ and DMA settings
+that match the jumpers. Just few 8 bit cards are fully jumper 
+configurable (SB 1.x/2.x, SB Pro and clones).
+Some cards made by Aztech have an EEPROM which contains the 
+config info. These cards behave much like hardware jumpered cards.
+
+Most cards have jumper for the base I/O address but other parameters
+are software configurable. Sometimes there are few other jumpers too.
+
+Latest cards are fully software configurable or they are PnP ISA
+compatible. There are no jumpers on the board.
+
+VoxWare handles software configurable cards automaticly. Just configure
+the driver to use I/O, IRQ and DMA settings which are known to work.
+You could usually use the same values than with DOS and/or Windows.
+Using different settings is possible but not recommended since it may cause
+some trouble (for example when warm booting from an OS to another or
+when installing new hardware to the machine).
+
+VoxWare sets the soft configurable parameters of the card automaticly
+during boot. Usually you don't need to run any extra initialization
+programs when booting Linux but there are some exceptions. See the
+card specific instructions (below) for more info.
+
+The drawback of software configuration is that the driver needs to know
+how the card must be initialized. It cannot initialize unknown cards
+even if they are otherwise compatible with some other cards (like SB,
+MPU401 or Windows Sound System).
+
+What if your card was not listed above?
+---------------------------------------
+
+The first thing to do is to look at the major IC chips on the card.
+Many of the latest soundcards are based on some standard chips. If you
+are lucky, all of them could be supported by VoxWare. The most common ones
+are the OPTi MAD16, Mozart, SoundScape (Ensoniq) and the PSS architectures
+listed above. Also look at the end of this file for list of unsupported
+cards and the ones which could be supported later.
+
+The last resort is to send _exact_ name and model information of the card
+to me together with a list of the major IC chips (manufactured, model) to 
+me. I could then try to check if your card looks like something familiar.
+
+There are much more cards in the word than listed above. The first thing to
+do with these cards is to check if they emulate some other card/interface
+such as SB, MSS and/or MPU401. In this case there is a chance to get the
+card to work by booting DOS before starting Linux (boot DOS, hit ctrl-alt-del
+and boot Linux without hard resetting the machine). In this method the
+DOS based driver initializes the hardware to use a known I/O, IRQ and DMA
+settings. If VoxWare is configured to use the same settings, everything should 
+work OK.
+
+
+Configuring VoxWare (with Linux)
+================================
+
+VoxWare sound driver is currently a part of Linux kernel distribution. The 
+driver files are located in directory /usr/src/linux/drivers/sound. 
+
+****************************************************************************
+*	VoxWare MUST BE CONFIGURED AND COMPILED WITH THE KERNEL. TRYING    *
+*	TO COMPILE IT ALONE WILL _NOT_ WORK.				   *
+*									   *
+*	ALWAYS USE THE SOUND DRIVER VERSION WHICH IS DISTRIBUTED WITH	   *
+*	THE KERNEL SOURCE PACKAGE YOU ARE USING. SOME ALPHA AND BETA TEST  *
+*	VERSIONS CAN BE INSTALLED FROM A SEPARATELY DISTRIBUTED PACKAGE	   *
+*	BUT CHECK THAT THE PACKAGE IS NOT MUCH OLDER (OR NEWER) THAN THE   *
+*	KERNEL YOU ARE USING. IT'S POSSIBLE THAT THE KERNEL/DRIVER 	   *
+*	INTERFACE CHANGES BETWEEN KERNEL RELEASES WHICH MAY CAUSE SOME	   *
+*	INCOMPATIBILITY PROBLEMS.					   *
+*									   *
+*	IN CASE YOU INSTALL A SEPARATELY DISTRIBUTED SOUND DRIVER VERSION, *
+*	BE SURE TO REMOVE OR RENAME THE OLD SOUND DRIVER DIRECTORY BEFORE  *
+*	INSTALLING THE NEW ONE. LEAVING OLD FILES TO THE SOUND DRIVER	   *
+*	DIRECTORY _WILL_ CAUSE PROBLEMS WHEN THE DRIVER IS USED OR	   *
+*	COMPILED.							   *
+****************************************************************************
+
+To configure the driver, run "make config" in the kernel source directory
+(/usr/src/linux). Answer y to the question about Sound card support (after
+questions about mouse, CD-ROM, ftape, etc. supports). Sound config options
+will then be asked after some additional questions.
+
+After configuring the kernel and sound driver, run "make dep" and compile
+the kernel following instructions in the kernel README.
+
+The sound driver configuration dialog
+-------------------------------------
+
+All config information of the sound driver is written to file 
+linux/drivers/sound/local.h. You may save the old version is this file and
+use it again in case you want to use the same config later. In this case
+just answer n to each question made by the sound config program and put
+the original local.h back before running "make dep".
+Don't do this if the version number of the sound driver has changed. In this
+case you have to enter the configuration information again.
+
+If you already have the sound driver installed, consult printout of
+"cat /dev/sndstat" when configuring the driver again. It gives the I/O,
+IRQ and DMA settings you have used earlier.
+
+
+The sound config program (linux/drivers/sound/configure) starts by making
+some yes/no questions. Be careful when answering to these questions since
+answering y to a question may prevent some later ones from being asked. For
+example don't answer y to the first question (PAS16) if you don't really
+have a PAS16. Don't enable more cards than you really need since they
+just consume memory. Also some drivers (like MPU401) may conflict with your
+SCSI controller and prevent kernel from booting. If you card was in the list
+of supported cards (above), please look at the card specific config 
+instructions (later in this file) before starting to configure. Some cards
+must be configured in way which is not obvious.
+
+So here is the beginning of the config dialog. Answer 'y' or 'n' to these
+questions. The default answer is shown so that (y/n) means 'y' by default and
+(n/y) means 'n'. To use the default value, just hit ENTER. But be careful
+since using the default _doesn't_ guarantee anything.
+
+Note also that all questions may not be asked. The configuration program
+may disable some questions dependig on the earlier choices. It may also
+select some options automaticly as well.
+
+  "ProAudioSpectrum 16 support",
+	- Answer 'y'_ONLY_ if you have a Pro Audio Spectrum _16_,
+	  ProAudio Studio 16 or Logitech SoundMan 16 (be sure that
+	  you read the above list correctly). Don't answer 'y' if you
+	  have some other card made by Media Vision or Logitech since they
+	  are not PAS16 compatible.
+  "SoundBlaster support",
+	- Answer 'y' if you have an original SB card made by Creative Labs
+	  or a full 100% hardware compatible clone (like Thunderboard or
+	  SM Games). If your card was in the list of supported cards (above),
+	  please look at the card specific instructions later in this file
+	  before answering this question. For an unknown card you may answer 
+	  'y' if the card claims to be SB compatible.
+
+	 Don't enable SB if you have a MAD16 or Mozart compatible card.
+
+  "Generic OPL2/OPL3 FM synthesizer support",
+	- Answer 'y' if your card has a FM chip made by Yamaha (OPL2/OPL3/OPL4).
+	  Answering 'y' is usually a safe and recommended choice. However some
+	  cards may have software (TSR) FM emulation. Enabling FM support
+	  with these cards may cause trouble. However I don't currently know
+	  such cards.
+  "Gravis Ultrasound support",
+	- Answer 'y' if you have GUS or GUS MAX. Answer 'n' if you don't
+	  have GUS since the GUS driver consumes much memory.
+	  Currently I don't have experiences with the GUS ACE so I don't
+	  know what to answer with it.
+  "MPU-401 support (NOT for SB16)",
+	- Be careful with this question. The MPU401 interface is supported
+	  by almost any soundcard today. However some natively supported cards
+	  have their own driver for MPU401. Enabling the MPU401 option with
+	  these cards wil cause a conflict. Also enabling MPU401 on a system
+	  that doesn't really have a MPU401 could cause some trouble. If your
+	  card was in the list of supported cards (above), please look at
+	  the card specific instructions later in this file.
+	  It's safe to answer 'y' if you have a true MPU401 MIDI interface
+	  card.
+  "6850 UART Midi support",
+	- It's safe to answer 'n' to this question in all cases. The 6850
+	  UART interface is so rarely used.
+  "PSS (ECHO-ADI2111) support",
+	- Answer 'y' only if you have Orchid SW32, Cardinal DSP16 or some
+	  other card based on the PSS chipset (AD1848 codec + ADSP-2115
+	  DSP chip + Echo ESC614 ASIC CHIP).
+  "16 bit sampling option of GUS (_NOT_ GUS MAX)",
+	- Answer 'y' if you have installed the 16 bit sampling daughtercard
+	  to your GUS. Answer 'n' if you have GUS MAX. Enabling this option
+	  disables GUS MAX support.
+  "GUS MAX support",
+	- Answer 'y' only if you have a GUS MAX.
+  "Microsoft Sound System support",
+	- Again think carefully before answering 'y' to this question. It's
+	  safe to answer 'y' in case you have the original Windows Sound 
+	  System card made by Microsoft or Aztech SG 16 Pro (or NX16 Pro).
+	  Also you may answer 'y' in case your card was not listed earlier
+	  in this file. For cards having native support in VoxWare, consult
+	  the card specific instructions later in this file. Some drivers
+	  have their own MSS support and enabling this option wil cause a
+	  conflict.
+  "Ensoniq Soundscape support",
+	- Answer 'y' if you have a soundcard based on the Ensoniq SoundScape
+	  chipset. Suach cards are being manufactured at least by Ensoniq,
+	  Spea and Reveal (note that Reveal makes other cards also).
+  "MediaTriX AudioTriX Pro support",
+	- Answer 'y' if you have the AudioTriX Pro.
+  "Support for MAD16 and/or Mozart based cards",
+	- Answer y if your card has a Mozart (OAK OTI-601) or MAD16
+	  (OPTi 82C928 or 82C929) audio interface chip. These chips are
+	  currently quite common so it's possible that many no-name cards
+	  have one of them. In addition the MAD16 chip is used in some
+	  cards made by known manufacturers such as Turtle Beach (Tropez),
+	  Reveal (some models) and Diamond (latest ones).
+  "SoundBlaster Pro support",
+	- Enable this option if your card is SB Pro or SB16. Enable it
+	  also with any SB Pro clones. Answering 'n' saves some amount of
+	  memory but 'y' is the safe alterative.
+  "SoundBlaster 16 support",
+	- Enable if you have a SB16 (including the AWE32).
+  "Audio Excel DSP 16 initialization support",
+	- Don't know much about this card. Look at aedsp16.c for more info.
+
+Then the configuration program asks some y/n questions about the higher
+level services. It's recommended to answer 'y' to each of these questions.
+Answer 'n' only if you know you will not need the option.
+
+  "/dev/dsp and /dev/audio supports (usually required)",
+	- Answering 'n' disables /dev/dsp and /dev/audio. Answer 'y'.
+  "MIDI interface support",
+	- Answering 'n' disables /dev/midi## devices and access to any
+	  MIDI ports using /dev/sequencer and /dev/music. This option
+	  also affects any MPU401 and/or General MIDI compatible devices.
+  "FM synthesizer (YM3812/OPL-3) support",
+	- Answer 'y' here.
+  "/dev/sequencer support",
+	- Answering 'n' disables /dev/sequencer and /dev/music.
+
+Entering the I/O, IRQ and DMA config parameters
+-----------------------------------------------
+
+After the above questions the configuration program prompts for the
+card specific configuration information. Usually just a set of
+I/O address, IRQ and DMA numbers are asked. With some cards the program
+asks for some files to be used during initialization of the card. For example
+many cards have a DSP chip or microprocessor which must be initialized by
+downloading a program (microcode) file to the card. In some cases this file
+is written to a .h file by the config program and then included to the driver
+during compile.
+
+Instructions for answering these questions are given in the next section.
+
+
+Card specific information
+=========================
+
+This section gives additional instructions about configuring some cards.
+Please refer manual of your card for valid I/O, IRQ and DMA numbers. Using
+the same settings with DOS/Windows and VoxWare is recommended. Using
+different values could cause some problems when switching between
+different operating systems.
+
+SoundBlasters (the original ones by Creative)
+---------------------------------------------
+
+It's possible to configure these cards to use different I/O, IRQ and
+DMA settings. Since the available settings have changed between various
+models, you have to consult manual of your card for the proper ones. It's
+a good idea to use the same values than with DOS/Windows. With SB and SB Pro
+it's the only choice. SB16 has software selectable IRQ and DMA channels but
+using different values with DOS and Linux is likely to cause troubles. The
+DOS driver is not able to reset the card properly after warm boot from Linux
+if Linux has used different IRQ or DMA values.
+
+The original (steam) Sound Blaster (versions 1.x and 2.x) use always
+DMA1. There is no way to change it.
+
+The SB16 needs two DMA channels. A 8 bit one (1 or 3) is required for
+8 bit operation and a 16 bit one (5, 6 or 7) for the 16 bit mode. In theory
+it's possible to use just one (8 bit) DMA channel by answering the 8 bit
+one when the configuration program asks for the 16 bit one. This may work
+in some systems but is likely to cause terrible noise on some other systems.
+
+NOTE!	Don't enable the SM Games option (asked by the configuration program)
+	if you are not 101% sure that your card is a Logitech Soundman Games
+	(not a SM Wave or SM16).
+
+SB Clones
+---------
+
+First of all: There are no SB16 clones. There are SB Pro clones with a
+16 bit mode which is not SB16 compatible. The most likely alternative is that
+the 16 bit mode means MSS/WSS.
+
+There are just few fully 100% hardware SB or SB Pro compatible cards.
+I know just Thunderboard and SM Games. Other cards require some kind of
+hardware initialization before they become SB compatible. Check if your card
+was listed in the beginning of this file. In this case you should follow
+instructions for your card later in this file.
+
+For other not fully SB clones yoy may try initialization using DOS in
+the following way:
+
+	- Boot DOS so that the card specific driver gets run.
+	- Hit ctrl-alt-del (or use loadlin) to boot Linux. Don't
+	  switch off power or press the reset button.
+	- If you use the same I/O, IRQ and DMA settings in Linux, the
+	  card should work.
+
+If your card is both SB and MSS compatible, I recommend using the MSS mode.
+Most cards of this kind are not able to work in the SB and the MSS mode 
+simultaneously. Using the MSS mode provides 16 bit recording and playback.
+
+ProAudioSpectrum 16 and compatibles
+-----------------------------------
+
+There are nothing special with these cards. Just don't enable any
+other cards in case you don't have them also. The PAS16 has
+a SB mode so the driver config program will prompt for the SB settings
+do. Use I/O 0x220 and DMA1 for the SB mode. Ensure that you assign different
+IRQ numbers for the SB and PAS16 modes.
+
+With PAS16 you can use two audio device files at the same time. /dev/dsp (and
+/dev/audio) is connected to the 8/16 bit native codec and the /dev/dsp1 (and
+/dev/audio1) is connected to the SB emulation (8 bit mono only).
+
+Gravis Ultrasound
+-----------------
+
+There are many different revisions of the Ultrasound card (GUS). The
+earliest ones (pre 3.7) don't have a hardware mixer. With these cards
+the driver uses a software emulation for synth and pcm playbacks. It's
+also possible to switch some of the inputs (line in, mic) off by setting
+mixer volume of the channel level below 10%. For recording you have
+to select the channel as a recording source and to use volume above 10%.
+
+GUS 3.7 has a hardware mixer.
+
+GUS MAX and the 16 bit sampling daughtercard have a CS4231 codec chip which 
+also contains a mixer.
+
+Configuring GUS is simple. Just enable the GUS support and GUS MAX or
+the 16 bit daughtercard if you have them. Note that enabling the daughter
+card disables GUS MAX driver.
+
+With just the standard GUS enabled the configuration program prompts
+for the I/O, IRQ and DMA numbers for the card. Use the same values than
+with DOS.
+
+With the daughter card option enabled you will be prompted for the I/O,
+IRQ and DMA numbers for the daughter card. You have to use different I/O
+and DMA values than for the standard GUS. The daughter card permits
+simultaneous recording and playback. Use /dev/dsp (the daughtercard) for
+recording and /dev/dsp1 (GUS GF1) for playback.
+
+GUS MAX uses the same I/O address and IRQ settings than the original GUS
+(GUS MAX = GUS + a CS4231 codec). In addition an extra DMA channel may be used.
+Using two DMA channels permits simultaneous playback using two devices
+(dev/dsp0 and /dev/dsp1). The second DMA channel is required for
+full duplex audio.
+To enable the second DMA channels, give a valid DMA channel when the config
+program asks for the GUS MAX DMA (entering -1 disables the second DMA).
+Using 16 bit DMA channels (5,6 or 7) is recommended.
+
+If you have problems in recording with GUS MAX, you could try to use
+just one 8 bit DMA channel. Recording will not work with one DMA
+channel if it's a 16 bit one.
+
+
+
+MPU401 and Windows Sound System
+-------------------------------
+
+Again. Don't enable these options in case your card is listed
+somewhere else in this file.
+
+Configuring these cards is obvious (or it should be). With MSS
+you should propably enable the OPL3 synth also since
+most MSS compatible cards have it. However check that this is true
+before enabling OPL3.
+
+VoxWare supports more than one MPU401 compatible cards at the same time
+but the config program asks config info for just the first of them.
+Adding the second or third MPU interfaces must be done manually by
+editing sound/local.h (after running the config program). Add defines for
+MPU2_BASE & MPU2_IRQ (and MPU3_BASE & MPU3_IRQ) to the file.
+
+CAUTION!
+
+The default I/O base of Adaptec AHA-1542 SCSI controller is 0x330 which
+is also the default of the MPU401 driver. Don't configure the sound driver to
+use 0x330 as the MPU401 base if you have a AHA1542. The kernel will not boot
+if you make this mistake.
+
+PSS
+---
+
+Even the PSS cards are compatible with SB, MSS and MPU401, you must not
+enable these options when configuring the driver. The configuration
+program handles these options itself. (You may use the SB, MPU and MSS options
+together with PSS if you have another card on the system).
+
+The PSS driver enables MSS and MPU401 modes of the card. SB is not enabled 
+since it doesn't work concurrently with MSS. The driver loads also a
+DSP algorithm which is used to for the general MIDI emulation. The
+algorithm file (.ld) is read by the config program and written to a
+file included when the pss.c is compiled. For this reason the config
+program asks if you want to download the file. Use the genmidi.ld file
+distributed with the DOS/Windows drivers of the card (don't use the mt32.ld).
+With some cards the file is called 'synth.ld'. You must have access to
+the file when configuring the driver. The easiest way is to mount the DOS
+partition containing the file with Linux. 
+
+It's possible to load your own DSP algorithms and run them with the card.
+Look at the directory sound/pss_test for more info (in the VoxWare-3.0.tar.gz)
+package.
+
+AudioTriX Pro
+-------------
+
+You have to enable the OPL3 and SB (not SB Pro or SB16) drivers in addition
+to the native AudioTriX driver. Don't enable MSS or MPU drivers.
+
+Configuring ATP is little bit tricky since it uses so many I/O, IRQ and
+DMA numbers. Using the same values than with DOS/Win is a good idea. Don't
+attemp to use the same IRQ or DMA channels twice.
+
+The SB mode of ATP is implemented so the the ATP driver just enables SB
+in the proper address. The SB driver handles the rest. Yoy have to configure
+both the SB driver and the SB mode of ATP to use the same IRQ, DMA and I/O
+settings.
+
+Also the ATP has a microcontroller for the General MIDI emulation (OPL4).
+For this reason the driver asks for the name of a file containing the
+microcode (TRXPRO.HEX). This file is usually located in the directory
+where the DOS drivers were installed. You must have access to this file
+when configuring the driver. 
+
+If you have the effects daughtercard, it must be initialized by running
+the setfx program of snd-util-3.0.tar.gz package. This step is not required
+when using the (future) binary distribution version of the driver.
+
+Ensoniq SoundScape
+------------------
+
+The SoundScape driver handles initialization of MSS and MPU supports
+itself so you don't need to enable other drivers than SoundScape
+(enable also the /dev/dsp, /dev/sequencer and MIDI supports).
+
+SoundScape driver uses the MSS compatible codec of the card. It's important
+to note that /dev/dsp0 (/dev/dsp is linked to /dev/dsp0 by default)
+doesn't work with SoundScape (yet). The 'ssinit' program needs /dev/dsp0 so
+that's the reason why it's there. It's possible that 'primary' pcm channel
+becomes supported later. Currently the card's firmware doesn't contain
+support for it.
+
+With 3.0 of VoxWare you have to change your system to use /dev/dsp1 by default
+so execute: cd /dev;rm dsp;ln -s dsp1 dsp after you have installed VoxWare
+3.0 (first time).
+
+The configuration program asks two DMA channels and two interrupts. One IRQ
+and one DMA is used by the MSS codec. The second IRQ is required for the
+MPU401 mode (you have to use different IRQs for both purposes).
+The second DMA channel is required for initialization of the microcontroller.
+You have to use separate DMA channels.
+
+The SoundScape card has a Motorola microcontroller which must initialized
+_after_ boot (the driver doesn't initialize it during boot).
+The initialization is done by running the 'ssinit' program which is
+distributed in the snd-util-3.0.tar.gz package. You have to edit two
+defines in the ssinit.c and then compile the program. You may run ssinit 
+manually (after each boot) or add it to /etc/rc.d/rc.local.
+
+The ssinit program needs the microcode file that comes with the DOS/Windows
+driver of the card. You will need to use version 1.30.00 or later
+of the microcode file (sndscape.co0 or sndscape.co1 depending on
+your card model). THE OLD sndscape.cod WILL NOT WORK. IT WILL HANG YOUR
+MACHINE. The only way to get the new microcode file is to download
+and install the DOS/Windows driver from ftp://ftp.ensoniq.com/pub.
+
+Then you have to select the proper microcode file to use: soundscape.co0
+is the right one for most cards and sndscape.co1 is for few (older) cards
+made by Reveal and/or Spea. The driver has capability to detect the card
+version during boot. Look at the boot log messages in /var/adm/messages
+and locate the sound driver initialization message for the SoundScape
+card. If the driver displays string <Ensoniq Soundscape (old)>, you have
+an old card and you will need to use sndscape.co1. For other cards use
+soundscape.co0.
+
+Check /var/adm/messages after running ssinit. The driver prints
+the board version after downloading the microcode file. That version
+number must match the number in the name of the microcode file (extension).
+
+Running ssinit with a wrong version of the sndscape.co? file is not
+dangerous as long as you don't try to use a file called sndscape.cod.
+If you have initialized the card using a wrong microcode file (sounds
+are terrible), just modify ssinit.c to use another microcode file and try
+again. It's possible to use an earlier version of sndscape.co[01] but it
+may sound wierd.
+
+Btw, The driver may complain something about "sscapeintr()" after
+running ssinit. You should just ignore these messages.
+
+MAD16 (Pro) and Mozart
+----------------------
+
+You need to enable just the MAD16 /Mozart support when configuring
+the driver. _Don't_ enable SB, MPU401 or MSS. However you will need the
+/dev/audio, /dev/sequencer and MIDI supports.
+
+Mozart and OPTi 82C928 (the original MAD16) chips don't support
+MPU401 mode so enter just 0 when the configuration program asks the
+MPU/MIDI I/O base. The MAD16 Pro (OPTi 82C929) has MPU401 mode.
+
+TB Tropez is based on the 82C929 chip. It has two MIDI ports.
+The one connected to the MAD16 chip is the second one (there is a second
+MIDI connector/pins somewhere??). If you have not connected the second MIDI
+port, just disable the MIDI port of MAD16. The 'Maui' compatible synth of
+Tropez is jumper configurable and not connected to the MAD16 chip.
+It can be used by enabling the stand alone MPU401 support but you have
+to initialize it by using the MS-DOS SNDSETUP program.
+
+There are some other OPTi chips which may be used in soundcards such as
+82C930 and MAC32. These chips are not supported by VoxWare yet. Please
+contact me if you have a soundcard which uses these chips.
+
+Some MAD16 based cards may cause feedback, whistle or terrible noise if the
+line3 mixer channel is turned too high.
+
+If you have a MAD16 card which have an OPL4 (FM + Wave table) synthesizer
+chip (_not_ an OPL3), you have to apped line containing #define MAD16_OPL4
+to the file linux/dirvers/sound/local.h (after running make config).
+
+MV Jazz (ProSonic)
+------------------
+
+The Jazz16 driver is just a hack made to the SB Pro driver. However it works
+fairly well. You have to enable SB, SB Pro (_not_ SB16) and MPU401 supports
+when configuring the driver. The configuration program asks later if you
+want support for MV Jazz16 based cards (after asking SB base address). Answer
+'y' here and the driver asks the second (16 bit) DMA channel.
+
+The Jazz16 driver uses the MPU401 driver in a way which will cause
+problems if you have another MPU401 compatible card. In this case you must
+give address of the Jazz16 based MPU401 interface when the config
+program prompts for the MPU401 information. Then look at the MPU401
+spesific section for instructions about configuring more than one MPU401 cards.
+
+Logitech Soundman Wave
+----------------------
+
+Read the above MV Jazz spesific instructions first.
+
+The Logitech SoundMan Wave (don't confuse with the SM16 or SM Games) is
+a MV Jazz based card which has an additional OPL4 based wave table
+synthesizer. The OPL4 chip is handled by an on board microcontroller
+which must be initialized during boot. The config program asks if
+you have a SM Wave immediately after asking the second DMA channel of jazz16.
+If you answer 'y', the config program will ask name of the file containing
+code to be loaded to the microcontroller. The file is usually called
+MIDI0001.BIN and it's located in the DOS/Windows driver directory. The file
+may also be called as TSUNAMI.BIN or something else (older cards?).
+
+The OPL4 synth will be inaccessible without loading the microcontroller code.
+Also remember to enable MPU401 support if you want to use the OPL4 mode.
+
+NOTE!	Don't answer 'y' when the driver asks about SM Games support
+	(the next question after the MIDI0001.BIN name). However
+	aneswering 'y' is not dangerous. 
+
+Sound Galaxies
+--------------
+
+There are many different Sound Galaxy cards made by Aztech. The 8 bit
+ones are fully SB or SB Pro compatible and there should be no problems
+with them. 
+
+The older 16 bit cards (SG Pro16, SG NX Pro16, Nova and Lyra) have
+an EEPROM chip for storing the configuration data. There is a microcontroller
+which initializes the card to match the EEPROM settigs when the machine
+is powered on. These cards actually behave just like they have jumpers
+for all of the settings. Configure VoxWare for MSS, MPU, SB/SB Pro  and OPL3 
+supports with these cards. 
+
+The config program asks if you want support for the mixer of
+SG NX Pro. Answer 'y' to these questions if you have one of the above 8 or
+16 bit Aztech cards.
+
+There are some new Sound Galaxies in the market. I have no experience with
+them so read the card's manual carefully.
+
+
+Reveal cards
+------------
+
+There are several different cards made/marketed by Reveal. Some of them
+are compatible with SoundScape and some use the MAD16 chip. You may have
+to look at the card and try to identify origin of the card.
+
+Diamond
+-------
+
+The oldest (Sierra Aria based) soundcards made by Diamond are not supported
+(they may work if the card is initialized using DOS). The recent (LX?)
+models are based on the MAD16 chip which is supported by VoxWare.
+
+Audio Excel DSP16
+-----------------
+
+See comments in aedsp16.c.
+
+
+PCMCIA cards
+------------
+
+Sorry, can't help. Some cards may work and some don't.
+
+TI TM4000M notebooks
+--------------------
+
+These computers have a built in sound support based on the Jazz chipset.
+Look at the instructions for MV Jazz (above). It's also important to note
+that there is something wrong with the mouse port and sound at least on
+some TM models. Don't enable the "C&T 82C710 mouse port support" when
+configuring Linux. Having it enabled is likely to cause mysterious problems
+and kernel failures when sound is used.
+
+Others?
+-------
+
+Since there are so many different soundcards, it's likely that I have 
+forgotten to mention many of them. Please inform me if you know yet another
+card which works with Linux, please inform me (or is anybody else
+willing to maintain a database of supported cards (just like in XF86)?).
+
+Cards not supported yet
+=======================
+
+First of all. There is an easy way to make most soundcards to work
+with Linux. Just use the DOS based driver to initialize the card
+to a _known_ state. Then ctrl-alt-del to Linux. If Linux is configured
+to use the sama I/O, IRQ and DMA numbers than DOS, the card could work.
+
+Don't get fooled with SB compatibility. Most cards are compatible with
+SB but that may require a TSR which is not possible with Linux. If
+the card is compatible with MSS, it's a better choise. Some cards
+don't work in the SB and MSS modes at the same time.
+
+There are some cards which will be supported by VoxWare sooner or later
+(currently at least cards based on the ESS chipset). Such cards are
+so common that there is some idea in writing the driver. Check the
+VoxWare home page (http://personal.eunet.fi/pp/voxware) for latest
+information.
+
+Then there are cards which are no longer manufactured and/or which
+are relatively rarely used (such as the 8 bit ProAudioSpectrum
+models). It's extremely unlikely that such cards never get supported.
+Adding support for a new card requires much work and increases time
+required in maintaining the driver (some changes need to be done
+to all low level drivers and be tested too, maybe with multiple
+operating systems). For this reason I have made a desicion to not support
+obsolete cards. It's possible that someone else makes a separately 
+distributed driver (diffs) for the card. Version v4.0 will be much more
+modular so making separately distributed drivers will be easier with it.
+(The bad news is that v4.0 will not be available before late -96).
+
+Writing a driver for a new card is not possible if there are no 
+programming information available about the card. If you don't
+find your new card from this file, look from the home page 
+(http://personal.eunet.fi/pp/voxware). Then please contact
+manufacturer of the card and ask if they have (or are willing to)
+released technical details of the card. Do this before contacting me. I
+can only answer 'no' if there are no programming information available.
+
+Some companies don't give low level technical information about their
+products to public or at least their require signing a NDA.
+
+I have also made decicion to not accept code based on reverse engineering
+to VoxWare. There are three main reasons: First I don't want to break
+relationships to sound card manufacturers. The second reason is that
+maintaining and supporting a driver withoun any specs will be a pain. The
+third reason is that why shoud we help such companies in selling their
+products to Linux users when they don't want to sell to Linux users
+at all?
+
+Unfortunately many of the leading soundcard manufacturers are not willing
+to co-operate with Linux/Unix community. For example: Creative Technology 
+doesn't give information about the ASP chip and the Emu synth chip of AWE32
+and SB32. Turtle Beach don't give information about any of their
+products. MediaVision requires NDA before they are willing to
+give information about the Jazz16 chip (fortunately Logitech gave
+the info about SM Wave).
+
+So at least the above three companies are out until they are willing to 
+release documentation about their products (the situation is the
+same with many DOS based freeware/shareware games and utilities). If
+you want to use Linux/Unix with their cards, please don't try to push
+me. It's a better idea to contact the manufacturer and explain that
+you want to use your card with Linux/Unix. You could also try to sell
+your card to somebody else and then buy a card that is supported by VoxWare.
+
+However it's possible that things change and a driver gets written
+for some of the banned cards. Please, don't send me messages asking if
+there is any plans to write a driver for the cards mentioned above. I 
+will put any news to the VoxWare www home page (see below).
+
+There are some common audio chipsets that are supported yet. For example
+the ESS chips and Sierra Aria. It's likely that these architectures
+get some support in future but I can't make any promises. Just look
+at the home page for latest info.
+
+Information about unsupported soundcards and chipsets is welcome as well
+as free copies of soundcards, SDKs and operating systems.
+
+If you have any corrections and/or comments, please contact me.
+
+Hannu Savolainen
+hannu@voxware.pp.fi
+VoxWare www home page: http://personal.eunet.fi/pp/voxware
+

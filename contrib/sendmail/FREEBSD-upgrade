@@ -1,0 +1,36 @@
+$FreeBSD$
+
+sendmail 8.12.3
+	originals can be found at: ftp://ftp.sendmail.org/pub/sendmail/
+
+For the import of sendmail, the following files were removed:
+
+	Build
+	cf/cf/Build
+	cf/cf/generic-*.cf
+	devtools/*
+	doc/op/op.ps
+	*/Build
+	*/*.0
+	sendmail/makesendmail
+	sendmail/sysexits.h
+
+The following directories were renamed:
+
+	sendmail -> src
+
+Imported using:
+
+	cvs import -m 'Import sendmail 8.12.3' \
+		src/contrib/sendmail SENDMAIL v8_12_3
+
+
+To make local changes to sendmail, simply patch and commit to the main
+branch (aka HEAD).  Never make local changes on the vendor (SENDMAIL)
+branch.
+
+All local changes should be submitted to the Sendmail Consortium
+<sendmail@sendmail.org> for inclusion in the next vendor release.
+
+gshapiro@FreeBSD.org
+16-April-2002

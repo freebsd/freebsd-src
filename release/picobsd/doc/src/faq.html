@@ -1,0 +1,243 @@
+<HTML>
+<! $FreeBSD$ >
+<HEAD>
+   <META HTTP-EQUIV="Content-Type" CONTENT="text/html; charset=iso-8859-1">
+   <META NAME="Author" CONTENT="Dinesh Nair">
+   <META NAME="Description" CONTENT="Frequently Asked Questions for PicoBSD">
+   <META NAME="Keywords" CONTENT="PicoBSD,FreeBSD,Unix,Dinesh Nair,Andrzej Bialecki,Network Computer">
+   <META NAME="GENERATOR" CONTENT="Mozilla/4.04 [en] (X11; I; FreeBSD 2.2.5-STABLE i386) [Netscape]">
+   <TITLE>PicoBSD FAQ</TITLE>
+</HEAD>
+<BODY TEXT="#000000" BGCOLOR="#FFFFFF" LINK="#0000EF" VLINK="#51188E" ALINK="#FF0000">
+
+<CENTER>
+<H1>
+The PicoBSD FAQ
+</H1></CENTER>
+
+<CENTER>
+<HR WIDTH="100%"></CENTER>
+<p><B>What is PicoBSD ?</B></p>
+
+<P>PicoBSD is a floppy sized version of popular operating system FreeBSD.
+It fits within a single bootable 1.44MB floppy and runs on a minimum i386
+with 8MB RAM. PicoBSD currently comes in four flavours: dialup, net, router and
+isp. For a description of how each of the flavours differ, take a look
+at the <B><A HREF="http://www.freebsd.org/~picobsd/picobsd.html">PicoBSD
+home page</A></B>.
+
+<p><B>What is this "pico" in the name?</B></p>
+
+<p>It's an SI measure unit, which is equivalent of 10e<sup>-12</sup>.
+This is a good approximation of more colloquial "extremely small".</p>
+
+<p>You can also think of normal FreeBSD as a system infested with
+fully grown daemons, and PicoBSD as a system infested with
+"the little people" :-). </p>
+
+<P><B>What version of FreeBSD is PicoBSD based on ?</B></p>
+
+<P>PicoBSD has versions based on FreeBSD 3.2-RELEASE, 4.0-current and
+FreeBSD 2.2.5-RELEASE.
+<A HREF="mailto:abial@freebsd.org">Andrzej Bialecki</A> maintains the <A HREF="http://www.freebsd.org/~picobsd/picobsd.html">FreeBSD
+3.x-RELEASE and -current versions</A> and 
+<A HREF="mailto:dinesh@alphaque.com">Dinesh Nair</A>
+maintains the <A HREF="http://info.net-gw.com/picoBSD/">FreeBSD
+2.2.5-RELEASE</A> version. Both the versions are different:
+<UL TYPE=CIRCLE>
+<LI>
+the 3.x-RELEASE version is the one actively maintained, and provides support
+for many new devices</li>
+
+<LI>
+the 2.2.5-RELEASE version is not maintained anymore - the only difference is
+that it has lynx on board.</li>
+</UL>
+
+<p><b>What is current version of PicoBSD?</b></p>
+
+<p>Current version of PicoBSD is @VER@.</p>
+
+<P><B>What can PicoBSD do?</B></p>
+
+<P>With the TCP/IP capabilities of FreeBSD included in and based on the
+strong 4.4BSD TCP/IP stack, PicoBSD can be used as a low cost Network Computer.
+With a text based HTML 3.2 compliant browser (2.2.5-RELEASE version only)
+and Internet access tools such as telnet and ftp, it can serve as a low
+cost Internet dialup client. With support for mounting MSDOS and Unix harddisks,
+it also can be used as a portable OS which you can carry around in a floppy.
+The net and isp flavours would allow you to make use of those redundant
+i386es as a low cost router or dialin PPP server. With SNMP and firewall
+support built-in, PicoBSD provides the functionality of dedicated routers
+and dialin terminal servers.
+
+<P><B>What are PicoBSD's minimum requirements?</B></p>
+
+<P>PicoBSD runs on a minimum i386 with 8MB RAM for the dialup flavour and
+10MB RAM for the net and isp flavours. Diskspace requirements are a single
+1.44MB floppy. For on-demand PPP access, a modem would be required, either
+external or internal.
+For LAN access, an Ethernet NIC (support for 3Com, NE2000 etc available)
+would also be required.
+<p>In case of "router" flavor, its requirements are even smaller: it can
+run in as low as 4MB of RAM, on a 386SX CPU.</p>
+
+<P><B>Where do I get PicoBSD?</B></p>
+ PicoBSD is available at the following
+locations:
+<UL TYPE=CIRCLE>
+<LI>
+<A HREF="http://www.freebsd.org/~picobsd/picobsd.html">PicoBSD based on
+FreeBSD 3.0-RELEASE and -current</A> maintained by Andrzej Bialecki</LI>
+
+<LI>
+<A HREF="http://info.net-gw.com/picoBSD/">PicoBSD based on FreeBSD 2.2.5-RELEASE</A>
+prepared by Dinesh Nair</LI>
+</UL>
+Additional mirror sites will be brought online as demand increases. If
+you're interested in mirroring the PicoBSD distribution, please get in
+touch with <A HREF="mailto:dinesh@alphaque.com">Dinesh Nair</A> or
+<A HREF="mailto:abial@freebsd.org">Andrzej Bialecki</A>.
+
+<P><B>How do I copy it to the floppy?</B></p>
+
+<P>The binary images provided as part of the PicoBSD distribution are 1.44MB
+sized floppy images. They cannot be copied to a floppy using the <I>MSDOS
+COPY</I> or <I>Unix cp</I> commands. Instead, an image copy must be done
+using tools such as&nbsp; <A HREF="ftp://ftp.freebsd.org/pub/FreeBSD/tools/rawrite.exe">rawrite.exe</A>
+or f<A HREF="ftp://ftp.freebsd.org/pub/FreeBSD/tools/fdimage.exe">dimage.exe</A>
+under MSDOS and <B>dd</B> under Unix.
+
+<P>Under DOS you would do something like this:
+<UL>
+<PRE><B>C:\> fdimage.exe picobsd.flp a:</B></PRE>
+</UL>
+while under Unix you would use something like:
+<UL><B>dd if=picobsd.flp of=/dev/rfd0</B></UL>
+
+<p><B>How do I configure dialup PPP access on the Dialup flavour?</B></p>
+
+<P>There is an auto-configuration script to configure PPP dialup access.
+Run <I>/stand/dialup</I> after booting up from the floppy and make the
+relevant menu selections. Once you've tested it to work, you should make
+your changes permanent by committing them to the floppy using <I>/stand/update</I>.
+
+<P><B>How do I set my DNS server ?</B></p>
+
+<P>Use the provided <I>/stand/ee</I> editor and edit <I>/etc/resolv.conf</I>.
+Replace the <U>domain</U> with your domain and change the <U>nameserver</U>
+IP address to your nameserver or your ISP's nameserver. You may have as
+many <U>nameserver</U> lines as you want. Don't forget to run <I>/stand/update</I>
+to commit your changes to the floppy.
+<p>NOTE: starting with version 0.4, the <i>dialup</i> script asks you to
+set your nameserver as well as default domain name.</p>
+
+<p><b>I can't execute the <i>/stand/update</i> on the "router" floppy.</b></p>
+<p>The "router" floppy doesn't contain any real shell, so some commands work
+differently (and some don't work at all). In order to use this script you
+have to 'source it in', i.e.:
+<pre>
+	(48)/# pwd
+	/
+	(48)/# . /stand/update
+</pre>
+
+<P><B>How do I set my hostname ?</B></p>
+
+<P>Edit /<I>etc/rc.conf</I> and change the value of the <U>hostname</U>
+variable.
+
+<p><b>PicoBSD has "mkdir" but not "rmdir". How can I delete
+subsdirectories?</b></p>
+<p>"rm -d" will delete directories.</p>
+
+<p><b>Can I use a modem configured on COM3/COM4 instead of COM1, COM2?</b></p>
+
+<p>Yes, but these ports are initially disabled - most machines have only
+two serial ports anyway. You have to enable them in UserConfig.</P>
+<p>Here are the preferred settings:</p>
+<ul>
+<li>	sio0=COM1: port 0x3f8, irq 4, used by default for mouse (/dev/cuaa0)
+</li>
+<li>	sio1=COM2: port 0x2f8, irq 3, used by default for modem (/dev/cuaa1)
+</li>
+<li>	sio2=COM3: port 0x3e8, irq 5, disabled by default
+</li>
+<li>	sio3=COM4: port 0x2e8, irq 10, disabled by default
+</li>
+</ul>
+
+<p><b>I see a configuration conflict the first time I boot PicoBSD. What
+should I do?</b></p>
+
+<p>Disable those devices which are not present in your machine. If there is
+still some conflict, change the settings (I/O port, IRQ etc.).</p>
+
+<p><b>Exception:</b> if you're using a PS/2 mouse, the visual configuration
+tool will display CONF for sc0 and psm0. The default settings are correct,
+and you should simply ignore the warning.</p>
+
+<p><b>What kind of SCSI support is there?</b></p>
+
+<p>None. Either build your own version of PicoBSD, or just install normal
+FreeBSD distribution.</p>
+
+<p><b>Using version 0.4 I get many  strange messages on my console...</b></p>
+<p>This is related in large part to DEVFS subsystem - it is still somewhat
+experimental, and its author left some diagnostics turned on.. They are
+harmless. Versions 0.4x, x>0 don't use DEVFS at all, as it was too
+experimental to work reliably...</p>
+
+<P><B>How do I connect using PPP ?</B></p>
+
+<P>Just run the PPP process, <I>/stand/ppp</I>. at the <B>ppp on pico></B>
+prompt, type <U>dial</U> and sit back and wait for the modem to sing it's
+mating tunes. When the <B>ppp on pico></B> prompt is capitalized to <B>PPP
+on pico></B>, you've managed to succesfully achieve a link-level PPP and
+TCP/IP connection with your ISP. Additionally, the PPP program will enter
+<I>Packet Mode</I>. Remember, don't <U>quit</U> or <U>close</U> the PPP
+connection if you want to continue to access the Internet.&nbsp; Type <U>help</U>
+at the <B>ppp on pico></B> prompt for a list of PPP commands.
+
+<P><B>The PPP process is running on my screen. How do I use the browser
+or telnet to a host ?</B></p>
+
+<P>PicoBSD has many virtual terminals, 10 on the dialup flavour. You have
+run PPP on the first virtual terminal. You can switch to the others and
+run the browser and telnet clients there. Switching thru the VTs is done
+by ALT-F1 for VT0, ALT-F2 for VT1, ALT-F3 for VT2 etc. From these terminals,
+you could use telnet or the lynx browser cum newsreader.
+
+<p><b>I can't establish a PPP connection. The mouse pointer randomly appears
+and disappears. and moving the mouse has no effect.</b></p>
+
+<p>You have the mouse driver configured to use the modem's serial port.
+Issue a 'ps -ax', remember the pid (process ID) of 'moused', then issue a
+'kill -9 <pid>'. Edit /etc/rc.conf to specify the correct mouse port. Issue
+an 'update' commmand to save new configuration to the floppy, and reboot.</p>
+
+<P><B>I saved my lynx configuration but it was not there when I rebooted.
+Why ?</B>
+
+<P>The lynx configuration is saved in <I>/etc/lynx.cfg</I>. You should
+run /<I>stand/update</I> to commit this to the floppy when you change the
+configuration. In effect, anything you change in /etc can be committed
+by running /<I>stand/update</I>.
+
+<P><B>How come there are no manual pages ?</B></p>
+
+<P>Well, this is a floppy-sized OS, so there's not enough space for full
+manpages. Instead, short help descriptions are given with the <I>/stand/help</I>
+program. If you need more detailed descriptions, take a look at the <A HREF="http://www.freebsd.org/handbook/">FreeBSD
+Handbook</A> or the <A HREF="http://www.freebsd.org/">FreeBSD Home</A>.
+<BR>&nbsp;
+<BR>&nbsp;
+<HR WIDTH="100%">
+<CENTER><FONT SIZE=-1>More FAQ points will be added as feedback from the
+PicoBSD user community comes in. And big thanks to all of you who already
+sent us some suggestions!</FONT></CENTER>
+<P><B><FONT SIZE=-1>Last Modified:
+@DATE@
+</FONT></B></P>
+</BODY>
+</HTML>

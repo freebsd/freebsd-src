@@ -1,0 +1,246 @@
+.\"#	@(#)COPYRIGHT	1.1a (NRL) 17 August 1995
+.\"
+.\"COPYRIGHT NOTICE
+.\"
+.\"All of the documentation and software included in this software
+.\"distribution from the US Naval Research Laboratory (NRL) are
+.\"copyrighted by their respective developers.
+.\"
+.\"This software and documentation were developed at NRL by various
+.\"people.  Those developers have each copyrighted the portions that they
+.\"developed at NRL and have assigned All Rights for those portions to
+.\"NRL.  Outside the USA, NRL also has copyright on the software
+.\"developed at NRL. The affected files all contain specific copyright
+.\"notices and those notices must be retained in any derived work.
+.\"
+.\"NRL LICENSE
+.\"
+.\"NRL grants permission for redistribution and use in source and binary
+.\"forms, with or without modification, of the software and documentation
+.\"created at NRL provided that the following conditions are met:
+.\"
+.\"1. Redistributions of source code must retain the above copyright
+.\"   notice, this list of conditions and the following disclaimer.
+.\"2. Redistributions in binary form must reproduce the above copyright
+.\"   notice, this list of conditions and the following disclaimer in the
+.\"   documentation and/or other materials provided with the distribution.
+.\"3. All advertising materials mentioning features or use of this software
+.\"   must display the following acknowledgement:
+.\"
+.\"	This product includes software developed at the Information
+.\"	Technology Division, US Naval Research Laboratory.
+.\"
+.\"4. Neither the name of the NRL nor the names of its contributors
+.\"   may be used to endorse or promote products derived from this software
+.\"   without specific prior written permission.
+.\"
+.\"THE SOFTWARE PROVIDED BY NRL IS PROVIDED BY NRL AND CONTRIBUTORS ``AS
+.\"IS'' AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED
+.\"TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A
+.\"PARTICULAR PURPOSE ARE DISCLAIMED.  IN NO EVENT SHALL NRL OR
+.\"CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL,
+.\"EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO,
+.\"PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR
+.\"PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF
+.\"LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING
+.\"NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
+.\"SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+.\"
+.\"The views and conclusions contained in the software and documentation
+.\"are those of the authors and should not be interpreted as representing
+.\"official policies, either expressed or implied, of the US Naval
+.\"Research Laboratory (NRL).
+.\"
+.\"----------------------------------------------------------------------*/
+.\"
+.\"	$ANA: keyadmin.8,v 1.3 1996/06/13 20:15:57 wollman Exp $
+.\" $FreeBSD$
+.\"
+.Dd June 13, 1996
+.Dt KEY 8
+.Os
+.Sh NAME
+.Nm keyadmin
+.Nd manually manipulate the kernel key management database
+.Sh SYNOPSIS
+.Nm
+.Op Ar command Op Ar args
+.Sh DESCRIPTION
+The
+.Nm
+command is used to manually enter security associations into the kernel
+key/security association database.  (See
+.Xr key 4 ) .
+.Pp
+Almost any operation offered in the
+.Xr key 4
+API is available to privileged users running
+.Nm .
+Until there is an implementation of an automated key management protocol,
+which will manipulate the key database in a manner similar to how
+.Xr routed 8
+or
+.Xr gated 8
+manipulates the routing tables,
+.Nm
+is the only way of establishing security associations.
+.Pp
+If
+.Nm
+is invoked without any arguments, it will enter an interactive mode, where
+the user can type in
+.Dq Ar command Op Ar args
+interactively, or use
+.Nm
+to enter a single
+.Dq Ar command Op Ar args .
+.Ar Command
+can be one of the following:
+.Bl -inset
+.It Ic del Ar type spi source destination
+.Pp
+Delete a security association between
+.Ar source
+and
+.Ar destination
+of the given
+.Ar type
+and
+.Ar spi .
+Example:
+.Bd -literal
+	delete esp 90125 anderson.yes.org rabin.yes.org
+.Ed
+.It Ic get Ar type spi source destination
+.Pp
+Retrieve (and print) a security association between
+.Ar source
+and
+.Ar destination
+of the given
+.Ar type
+and
+.Ar spi .
+Example:
+.Bd -literal
+	get ah 5150 eddie.vanhalen.com alex.vanhalen.com
+.Ed
+.It Ic dump
+.Pp
+Display the entire security association table.  WARNING:  This prints a lot
+of data.
+.It Ic load Ar filename
+.Pp
+Load security association information from a file formatted as documented in
+.Xr keys 5 .
+If
+.Dq -
+is specified for the
+.Ar filename ,
+load keys from the standard input.
+.It Ic save Ar filename
+.Pp
+Save security association information to a file formatted as documented in
+.Xr keys 5 .
+If
+.Dq -
+is specified for the
+.Ar filename ,
+place the key file out on the standard output.  (This can be used as a sort
+of lightweight
+.Ic dump
+command.)
+NOTE:  The
+.Ic save
+command must create a new file; it will not write into an
+existing file.  This is to prevent writing into a world-readable file, or a
+named pipe or UNIX socket (see
+.Xr socket 2
+and
+.Xr mkfifo 1 ) .
+.It Ic help Op command
+.Pp
+Offer brief help without an argument, or slightly more specific help on a
+particular command.
+.It Ic flush
+.Pp
+Erase all entries in the kernel security association table.
+.El
+.Pp
+The following values for
+.Ar command
+are only available by using
+.Nm
+in its interactive mode of operation:
+.Bl -inset
+.It Ic add Ar type spi source destination transform key
+.Op Ar iv
+.Pp
+Add a security association of a particular
+.Ar type
+and
+.Ar spi
+from a
+.Ar source
+to a
+.Ar destination ,
+using a particular
+.Ar transform
+and
+.Ar key .
+If a transform requires an initialization vector, the
+.Ar iv
+argument contains it.  This command is available only in interactive mode
+because
+.Nm
+makes no attempt to destroy its argument vector after use.  A malicious user
+of the
+.Xr ps 1
+command could determine security keys if
+.Ic add
+were allowed to be used straight from the command line.  Example:
+.Bd -literal
+	add esp 2112 temples.syrinx.org priests.syrinx.org des-cbc \\
+		a652a476a652a476 87ac9876deac9876
+.Ed
+.It Ic exit
+.It Ic quit
+.Pp
+Exit interaction with
+.Nm .
+An EOF will also end interaction with
+.Nm .
+.El
+.Sh SEE ALSO
+.Xr ipsec 4 ,
+.Xr key 4 ,
+.Xr route 4 ,
+.Xr gated 8 ,
+.Xr routed 8
+.Sh HISTORY
+The
+.Nm
+command first appeared in NRL's
+.Bx 4.4
+IPv6 networking distribution.
+.Nm Keyadmin
+started its life as a pipe dream thought up by Dan McDonald, and came to
+life through the excruciating efforts of Ran Atkinson, Dan McDonald,
+Craig Metz, and Bao Phan.
+The NRL version of the program was originally called
+.Nm key ,
+but was renamed to
+.Nm
+because of the conflict with
+.Xr key 1 .
+.Sh BUGS
+.Nm Keyadmin
+needs a -n flag like
+.Xr route 8
+to avoid name lookups.
+.Pp
+The
+.Ic dump
+and
+.Ic save
+commands currently display the first 30 or so entries.

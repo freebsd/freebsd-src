@@ -1,0 +1,35 @@
+#
+# $FreeBSD$
+#
+
+SRCS+=		cofflink.c	\
+		cpu-powerpc.c	\
+		elf32-ppc.c	\
+		elf32-target.h	\
+		elf32.c		\
+		elflink.c	\
+		pe-ppc.c	\
+		pei-ppc.c	\
+		ppcboot.c	\
+		xcofflink.c
+VECS+=		bfd_elf32_powerpc_vec	\
+		bfd_elf32_powerpcle_vec	\
+		bfd_powerpc_pe_vec	\
+		bfd_powerpc_pei_vec	\
+		bfd_powerpcle_pe_vec	\
+		bfd_powerpcle_pei_vec	\
+		ppcboot_vec
+.if ${TARGET_ARCH} == "powerpc"
+CFLAGS+=	-DDEFAULT_VECTOR=bfd_elf32_powerpc_vec
+.endif
+CFLAGS+=	-DHAVE_bfd_elf32_powerpc_vec	\
+		-DHAVE_bfd_elf32_powerpcle_vec	\
+		-DHAVE_bfd_powerpc_pe_vec	\
+		-DHAVE_bfd_powerpc_pei_vec	\
+		-DHAVE_bfd_powerpcle_pe_vec	\
+		-DHAVE_bfd_powerpcle_pei_vec	\
+		-DHAVE_ppcboot_vec
+CLEANFILES+=	elf32-target.h
+
+elf32-target.h: elfxx-target.h
+	sed -e s/NN/32/g ${.ALLSRC} > ${.TARGET}

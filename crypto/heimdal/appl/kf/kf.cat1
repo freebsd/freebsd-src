@@ -1,0 +1,46 @@
+
+KF(1)                        UNIX Reference Manual                       KF(1)
+
+NNAAMMEE
+     kkff - securly forward tickets
+
+SSYYNNOOPPSSIISS
+     kkff [--pp _p_o_r_t | ----ppoorrtt=_p_o_r_t] [--ll _l_o_g_i_n | ----llooggiinn=_l_o_g_i_n] [--cc _c_c_a_c_h_e |
+     ----ccccaacchhee=_c_c_a_c_h_e] [--FF | ----ffoorrwwaarrddaabbllee] [--GG | ----nnoo--ffoorrwwaarrddaabbllee] [--hh |
+     ----hheellpp] [----vveerrssiioonn] _h_o_s_t _._._.
+
+DDEESSCCRRIIPPTTIIOONN
+     The kkff program forwards tickets to a remove host through an authenticated
+     and encrypted stream.  Options supported are:
+
+     --pp _p_o_r_t, ----ppoorrtt=_p_o_r_t
+             port to connect to
+
+     --ll _l_o_g_i_n, ----llooggiinn=_l_o_g_i_n
+             remote login name
+
+     --cc _c_c_a_c_h_e, ----ccccaacchhee=_c_c_a_c_h_e
+             remote cred cache
+
+     --FF, ----ffoorrwwaarrddaabbllee
+             forward forwardable credentials
+
+     --GG, ----nnoo--ffoorrwwaarrddaabbllee
+             do not forward forwardable credentials
+
+     --hh, ----hheellpp
+
+     ----vveerrssiioonn
+
+     kkff is useful when you do not want to enter your password on a remote host
+     but want to have your tickets one for example afs.
+
+     In order for kkff to work you will need to acquire your initial ticket with
+     forwardable flag, ie kkiinniitt ----ffoorrwwaarrddaabbllee.
+
+     tteellnneett is able to forward ticket by itself.
+
+SSEEEE AALLSSOO
+     kinit(1),  telnet(1),  kfd(8)
+
+ Heimdal                         July 2, 2000                                1

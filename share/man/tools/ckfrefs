@@ -1,0 +1,71 @@
+#! /bin/sh
+set x $*
+. ./.param
+
+for dir in $DIRLST
+do
+	> $TMPDIR/fref$dir
+	cd $MANDIR/man$dir
+	for file in $FILLST
+	do
+		so=`line < $file | sed "s/ .*//"`
+		if test "$so" = ".so"
+		then
+			continue
+		fi
+		ed - $file >> $TMPDIR/fref$dir <<!
+			/FILES/
+			+,/\.SH/-p
+			q
+!
+	done
+
+	cd $TMPDIR
+	date > badfref$dir
+	echo >> badfref$dir
+	grep "/" fref$dir > /dev/null
+	if test $? -eq 1
+	then
+		rm -f fref$dir
+		continue
+	fi
+	echo "\\t ," >> fref$dir
+	ed - fref$dir <<!
+		1,\$s/ /\\
+/g
+		1,\$s/	/\\
+/g
+		1,\$s/,/\\
+/g
+		v/\//d
+		g/:$/s///
+		g/\\\\(\*/s///g
+		g/\\\\s+1/s///g
+		g/\\\\s-1/s///g
+		g/\\\\s0/s///g
+		g/\\\\f./s///g
+		g/\\\\\*S/s///g
+		g/\\\\\&/s///g
+		g/\$\$/s//*/
+		g/^?/d
+		g/^\./d
+		g/tmp/d
+		g/spool/d
+		g/mail/d
+		g/^[^\/]/d
+		g/(/d
+		g/)/d
+		g/\'/d
+		g/\`/d
+		g/\"/d
+		g/\&/d
+		g/\|/d
+		1,\$s/^/ls /
+		w
+		q
+!
+	sort fref$dir | uniq > tmp.$$
+	sh tmp.$$ > fref$dir 2>&1
+	grep "not found" fref$dir | sed "s/ not found//" >> badfref$dir
+	rm -f tmp.$$ fref$dir
+done

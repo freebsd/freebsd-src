@@ -1,0 +1,135 @@
+This is the FreeBSD DiskLabel Editor.
+
+NOTE: If you're entering this editor from the update procedure then
+you probably shouldn't (C)reate anything at all but rather use only
+the (M)ount command to check and mount existing partitions for
+upgrading.
+
+If you would like the label editor to do most of the following for
+you, simply type `A' for automatic partitioning of the disk.
+
+If you wish to create partitions manually you may do so by moving the
+highlighted selection bar with the arrow keys over the FreeBSD
+partition(s) displayed at the top of the screen.  Typing (C)reate
+while a partition with available free space is selected will allow you
+to create a BSD partition inside of it using some or all of its
+available space.
+
+Typing (M)ount over an existing partition entry (displayed in the
+middle of the screen) will allow you to set a mount point for it
+without initializing it.  If you want it initialized, use the (T)oggle
+command to flip the Newfs flag.  When Newfs is set to "Y", the
+filesystem in question will be ERASED and rebuilt from scratch!
+
+
+You should use this editor to create at least the following
+filesystems:
+
+        Name    Purpose                 Min Size?       Optional?
+        ----    -------                 ---------       ---------
+        /       Root filesystem         20MB            No
+        swap    Swap space              2 * MEM         No
+        /usr    System & user files     80MB or more    Yes
+
+Note: If you do not create a /usr filesystem then your / filesystem
+will need to be bigger - at least 100MB.  This is not recommended as
+any media errors that may occur during disk I/O to user files will
+corrupt the filesystem containing vital system files as well.  It is
+for this reason that / is generally kept on its own filesystem, where
+it should be considered essentially "read only" in your administration
+of it.
+
+Swap space is a little tricker, and the rule of "2 * MEM" is simply a
+best-guess approximation and not necessarily accurate for your
+intended usage of the system.  If you intend to use the system heavily
+in a server or multi-user application, you may be well advised to
+increase this size.  You may also create swap space on multiple drives
+for a larger "total" swap and this is, in fact, recommended if you
+have multiple, fast drives for which such load-balancing can only help
+overall I/O performance.
+
+The /usr filesystem should be sized according to what kind of
+distributions you're trying to load and how many packages you intend
+to install in locations like /usr/local.  You can also make /usr/local
+a separate filesystem if you don't want to risk filling up your /usr
+by mistake.
+
+Another useful filesystem to create is /var, which contains mail, news
+printer spool files and other temporary items.  It is a popular
+candidate for a separate partition and should be sized according to
+your estimates of the amount of mail, news or spooled print jobs that
+may be stored there.
+
+WARNING: If you do not create a separate filesystem for /var, space
+for such files will be allocated out of the root (/) filesystem
+instead.  You may therefore wish to make the / partition bigger if you
+expect a lot of mail or news and do not want to make /var its own
+partition.
+
+If you're new to this installation, you might also want to read the
+following explanation of how FreeBSD's new "slice" paradigm for
+looking at disk storage works:
+
+
+In FreeBSD's new system, a device name can be broken up into up to 3
+parts.  Take a typical name like ``/dev/da0s1a'':
+
+      The first three characters represent the drive name.  If we had
+      a system with two SCSI drives on it then we'd see /dev/da0 and
+      /dev/da1 as the device entries representing the entire drives.
+
+      Next you have the "slice" (or "FDISK Partition") number,
+      as seen in the Partition Editor.  Assuming that our da0
+      contained two slices, a FreeBSD slice and a DOS slice, that
+      would give us /dev/da0s1 and /dev/da0s2 as device entries pointing
+      to the entire slices.
+
+      Next, if a slice is a FreeBSD slice, you can have a number of
+      (confusingly named) "partitions" inside of it.
+
+      These partitions are where various filesystems or swap areas live,
+      and using our hypothetical two-SCSI-disk machine again, we might
+      have something like the following layout on da0:
+
+              Name            Mountpoint
+              ----            ----------
+              da0s1a          /
+              da0s1b          <swap space>
+              da0s1e          /usr
+
+Once you understand all this, then the purpose of the label editor
+becomes fairly clear:  You're carving up the FreeBSD slices displayed
+at the top of the screen into smaller pieces, which are displayed in
+the middle of the screen, and then assigning FreeBSD file system names
+(mount points) to them.
+
+You can also use the label editor to mount existing partitions/slices
+into your filesystem hierarchy, as is frequently done for DOS FAT
+slices.  For FreeBSD partitions, you can also toggle the "newfs" state
+so that the partitions are either (re)created from scratch or simply
+checked and mounted (the contents are preserved).
+
+If you set (S)oftUpdates on a filesystem, it will cause the
+"Soft Updates" policy to be in effect for it.  This basically causes
+both metadata and data blocks to be written asynchronously to disk,
+but with extra state information which causes the metadata and any
+related data blocks to be committed in a single transaction.  This
+results in async metadata update speeds (which are considerably
+faster than the default sync) without the potential for data loss
+which could occur if you simply mounted the filesystem with purely
+"async" update policy and then had a power failure.  If you wish
+to later turn the softupdates policy back off, use the command
+"tunefs -n disable devicename".  NOTE:  It is probably not wise
+to use this on your root filesystem unless you have a large
+(e.g. non-standard size) root.  The reason is that smaller filesystems
+with significant activity can temporarily overflow if the soft updates
+policy results in free'd blocks not being "garbage collected" as fast
+as they're being requested.
+
+When you're done, type `Q' to exit.
+
+No actual changes will be made to the disk until you (C)ommit from the
+Install menu or (W)rite directly from this one.  You're working with
+what is essentially a copy of the disk label(s), both here and in the
+FDISK Partition Editor, and the actual on-disk labels won't be
+affected by any changes you make until you explicitly say so.

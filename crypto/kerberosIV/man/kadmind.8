@@ -1,0 +1,134 @@
+.\" $Id: kadmind.8,v 1.6 1999/09/15 15:10:08 assar Exp $
+.\" Copyright 1989 by the Massachusetts Institute of Technology.
+.\"
+.\" For copying and distribution information,
+.\" please see the file <mit-copyright.h>.
+.\"
+.TH KADMIND 8 "Kerberos Version 4.0" "MIT Project Athena"
+.SH NAME
+kadmind \- network daemon for Kerberos database administration
+.SH SYNOPSIS
+.B kadmind
+[
+.B \-n
+] [
+.B \-m
+] [
+.B \-h
+] [
+.B \-r realm
+] [
+.B \-f filename
+] [
+.B \-d dbname
+] [
+.B \-a acldir
+] [
+.B \-i address
+]
+.SH DESCRIPTION
+.I kadmind
+is the network database server for the Kerberos password-changing and
+administration tools.
+.PP
+Upon execution, it fetches the master key from the key cache file.
+.PP
+If the
+.B \-m
+option is specified, it instead prompts the user to enter the master
+key string for the database.
+.PP
+The
+.B \-n
+option is a no-op and is left for compatibility reasons.
+.PP
+If the
+.B \-r
+.I realm
+option is specified, the admin server will pretend that its
+local realm is 
+.I realm
+instead of the actual local realm of the host it is running on.
+This makes it possible to run a server for a foreign kerberos
+realm.
+.PP
+If the
+.B \-f
+.I filename
+option is specified, then that file is used to hold the log information
+instead of the default.
+.PP
+If the
+.B \-d
+.I dbname
+option is specified, then that file is used as the database name instead
+of the default.
+.PP
+If the
+.B \-a
+.I acldir
+option is specified, then
+.I acldir
+is used as the directory in which to search for access control lists
+instead of the default.
+.PP
+If the
+.B \-h
+option is specified,
+.I kadmind
+prints out a short summary of the permissible control arguments, and
+then exits.
+.PP
+If the
+.B \-i
+option is specified,
+.I kadmind
+will only listen on that particular address and not on all configured
+addresses of the host, which is the default.
+.PP
+When performing requests on behalf of clients,
+.I kadmind
+checks access control lists (ACLs) to determine the authorization of the client
+to perform the requested action.
+Currently four distinct access types are supported:
+.TP 1i
+Addition
+(.add ACL file).  If a principal is on this list, it may add new
+principals to the database.
+.TP
+Retrieval
+(.get ACL file).  If a principal is on this list, it may retrieve
+database entries.  NOTE:  A principal's private key is never returned by
+the get functions.
+.TP
+Modification
+(.mod ACL file).  If a principal is on this list, it may modify entries
+in the database.
+.TP
+Deletions
+(.del ACL file).  If a principal is on this list, if may delete
+entries from the database.
+.PP
+A principal is always granted authorization to change its own password.
+.SH FILES
+.TP 20n
+/var/log/admin_server.syslog
+Default log file.
+.TP 
+/var/kerberos
+Default access control list directory.
+.TP
+admin_acl.{add,get,mod}
+Access control list files (within the directory)
+.TP
+/var/kerberos/principal.pag, /var/kerberos/principal.dir
+Default DBM files containing database
+.TP
+/.k
+Master key cache file.
+.SH "SEE ALSO"
+kerberos(1), kpasswd(1), kadmin(8), acl_check(3)
+.SH AUTHORS
+Douglas A. Church, MIT Project Athena
+.br
+John T. Kohl, Project Athena/Digital Equipment Corporation

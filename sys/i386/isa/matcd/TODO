@@ -1,0 +1,42 @@
+Things to do for the matcd driver			4-Jul-95
+
+1.	Someone wants to switch all drivers from disklabel and
+	its assorted mechanisms over to disk slicing and its mechanisms,
+	but I was unable to find any useful documentation on how to 
+	implement the changes for a read-only, single-partition,
+	removable (ie, partition can change size) device.
+	So this will have to wait until after 2.1.
+
+2.	Support for reading R-W subcodes while playing audio.  This would be
+	useful if you have any CD+G or CD+MIDI discs, but the demand for this
+	is pretty low, unless you like Karaoke.  Someone will also have to
+	write a CD+G viewer for X.  The code for the driver to add this is
+	pretty minor but there aren't any precedents on how to handle the
+	data transfer to the application.
+
+3.	Support for reading the ISBN and UPC labels.   The ioctl structures
+	for these appear to be defined but no other driver seems to do this.
+
+4.	Multi-session support.  There are two forms of this; what
+	Philips defined and what Kodak uses.  This will be quite
+	complicated and will probably require changes in the filesystem
+	layer.   The drive support for Kodak multi-session is known to work.
+
+5.	Multiple data tracks.  My vision here was to add an ioctl
+	that caused a track offset to be inserted into block requests,
+	effectively shifting the base to the specified track.  Very
+	easy to add but not a big deal since I have only two discs
+	in my collection that have multiple data tracks and I mastered
+	one of them.
+
+6.	A curses-based CD-Player app (ie, not X).  I will probably do this
+	mainly for its value as a debugging tool.  It was pretty annoying
+	not finding a single application that actually issued all the
+	defined ioctls, let alone any new ones.
+
+If you feel the urge to work on one or more of these remaining items,
+please contact the author first at    bsdmail@nemesis.lonestar.org
+to make sure the work hasn't already been done or started.
+
+					Frank Durda IV
+

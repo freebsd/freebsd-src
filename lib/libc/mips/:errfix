@@ -1,0 +1,5 @@
+?sys_nerr?
+.-4,.+1m1
+.+1,$g/\.data/s//\.text/
+w
+q

@@ -1,0 +1,483 @@
+.\"
+.\" FreeBSD install - a package for the installation and maintainance
+.\" of non-core utilities.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" Jordan K. Hubbard
+.\"
+.\"
+.\"     @(#)pkg_add.1
+.\" $FreeBSD$
+.\"
+.Dd November 25, 1994
+.Dt PKG_ADD 1
+.Os
+.Sh NAME
+.Nm pkg_add
+.Nd a utility for installing software package distributions
+.Sh SYNOPSIS
+.Nm
+.Op Fl vInfrRMS
+.Op Fl t Ar template
+.Op Fl p Ar prefix
+.Ar pkg-name Op Ar pkg-name ...
+.Sh DESCRIPTION
+The
+.Nm
+command is used to extract packages that have been previously created
+with the
+.Xr pkg_create 1
+command.
+.Sh WARNING
+.Bf -emphasis
+Since the
+.Nm
+command may execute scripts or programs contained within a package file,
+your system may be susceptible to
+.Dq Em trojan horses
+or other subtle
+attacks from miscreants who create dangerous package files.
+.Pp
+You are advised to verify the competence and identity of those who
+provide installable package files.  For extra protection, use the
+.Fl M
+flag to extract the package file, and inspect its contents and scripts to
+ensure it poses no danger to your system's integrity.  Pay particular
+attention to any +INSTALL, +POST-INSTALL, +DEINSTALL, +POST-DEINSTALL,
++REQUIRE or +MTREE_DIRS files, and inspect the +CONTENTS file for
+.Cm @cwd ,
+.Cm @mode
+(check for setuid),
+.Cm @dirrm ,
+.Cm @exec ,
+and
+.Cm @unexec
+directives, and/or use the
+.Xr pkg_info 1
+command to examine the package file.
+.Ef
+.Sh OPTIONS
+The following command line arguments are supported:
+.Bl -tag -width indent
+.It Ar pkg-name Op Ar pkg-name ...
+The named packages are installed.  A package name of - will cause
+.Nm
+to read from stdin.
+If the packages are not found in the current
+working directory,
+.Nm
+will search them in each directory named by
+.Ev PKG_PATH .
+.It Fl v
+Turn on verbose output.
+.It Fl I
+If a installation scripts (pre-install or post-install) exist for a given
+package, do not execute them.
+.It Fl n
+Don't actually install a package, just report the steps that
+would be taken if it was.
+.It Fl R
+Do not record the installation of a package.  This means
+that you cannot deinstall it later, so only use this option if
+you know what you are doing!
+.It Fl r
+Use the remote fetching feature.
+This will determine the appropriate
+objformat and release and then fetch and install the package.
+.It Fl f
+Force installation to proceed even if prerequisite packages are not
+installed or the requirements script fails.  Although
+.Nm
+will still try to find and auto-install missing prerequisite packages,
+a failure to find one will not be fatal.
+.It Fl p Ar prefix
+Set
+.Ar prefix
+as the directory in which to extract files from a package.
+If a package has set its default directory, it will be overridden
+by this flag.  Note that only the first
+.Cm @cwd
+directive will be replaced, since
+.Nm
+has no way of knowing which directory settings are relative and
+which are absolute.  It is rare in any case to see more than one
+directory transition made, but when such does happen and you wish
+to have control over *all* directory transitions, then you
+may then wish to look into the use of
+.Cm MASTER
+and
+.Cm SLAVE
+modes (see the
+.Fl M
+and
+.Fl S
+options).
+.It Fl t Ar template
+Use
+.Ar template
+as the input to
+.Xr mktemp 3
+when creating a
+.Dq staging area .
+By default, this is the string
+.Pa /var/tmp/instmp.XXXXXX ,
+but it may be necessary to override it in the situation where
+space in your
+.Pa /var/tmp
+directory is limited.  Be sure to leave some number of `X' characters
+for
+.Xr mktemp 3
+to fill in with a unique ID.
+.Pp
+You can get a performance boost by setting the staging area
+.Ar template
+to reside on the same disk partition as target directories for package
+file installation; often this is
+.Pa /usr .
+.It Fl M
+Run in
+.Cm MASTER
+mode.  This is a very specialized mode for running
+.Nm
+and is meant to be run in conjunction with
+.Cm SLAVE
+mode.  When run in this mode,
+.Nm
+does no work beyond extracting the package into a temporary staging
+area (see the
+.Fl t
+option), reading in the packing list, and then dumping it (prefaced by
+the current staging area) to stdout where it may be filtered by a
+program such as
+.Xr sed 1 .
+When used in conjunction with
+.Cm SLAVE
+mode, it allows you to make radical changes to the package structure
+before acting on its contents.
+.It Fl S
+Run in
+.Cm SLAVE
+mode.  This is a very specialized mode for running
+.Nm
+and is meant to be run in conjunction with
+.Cm MASTER
+mode.  When run in this mode,
+.Nm
+expects the release contents to be already extracted and waiting
+in the staging area, the location of which is read as a string
+from stdin.  The complete packing list is also read from stdin,
+and the contents then acted on as normal.
+.El
+.Pp
+One or more
+.Ar pkg-name
+arguments may be specified, each being either a file containing the
+package (these usually ending with the
+.Dq .tgz
+suffix) or a
+URL pointing at a file available on an ftp site.  Thus you may
+extract files directly from their anonymous ftp locations (e.g.\&
+.Nm
+.Li ftp://ftp.FreeBSD.org/pub/FreeBSD/packages/shells/bash-1.14.4.tgz ) .
+Note:  If you wish to use
+.Bf -emphasis
+passive mode
+.Ef
+ftp in such transfers, set
+the variable
+.Bf -emphasis
+FTP_PASSIVE_MODE
+.Ef
+to some value in your environment.  Otherwise, the more standard
+ACTIVE mode may be used.  If
+.Nm
+consistently fails to fetch a package from a site known to work,
+it may be because you have a firewall that demands the usage of
+.Bf -emphasis
+passive mode
+.Ef
+ftp.
+.Sh TECHNICAL DETAILS
+.Nm
+is fairly simple.  It extracts each package's "packing list"
+into a special staging directory, parses it,
+and then runs through the following sequence to fully extract the contents:
+.Bl -enum
+.It
+Check if the package is already recorded as installed.  If so,
+terminate installation.
+.It
+Scan all the package dependencies (from
+.Cm @pkgdep
+directives, see
+.Xr pkg_create 1 )
+and make sure each one is met.  If not, try and find the missing
+dependencies' packages and auto-install them; if they can't be found
+the installation is terminated.
+.It
+Search for any
+.Cm @option
+directives which control how the package is added to the system.
+At the time of this writing, the only currently implemented option is
+.Cm @option extract-in-place
+which will cause the package to be extracted directly into its
+prefix directory without moving through a staging area in
+.Pa /tmp .
+.It
+If
+.Cm @option extract-in-place
+is enabled, the package is now extracted directly into its
+final location, otherwise it is extracted into the staging area.
+.It
+If the package contains a
+.Ar require
+file (see
+.Xr pkg_create 1 ) ,
+then execute it with the following arguments:
+.Bd -ragged -offset indent -compact
+.Ar pkg-name
+.Ar INSTALL
+.Ed
+where
+.Ar pkg-name
+is the name of the package in question and the
+.Ar INSTALL
+keyword denotes this as an installation requirements check (useful if
+you want to have one script serving multiple functions).
+.It
+If a
+.Ar pre-install
+script exists for the package, it is then executed with the following
+arguments:
+.Bd -ragged -offset indent -compact
+.Cm script
+.Ar pkg-name
+.Ar PRE-INSTALL
+.Ed
+.Pp
+where
+.Ar pkg-name
+is the name of the package in question and
+.Ar PRE-INSTALL
+is a keyword denoting this as the preinstallation phase.
+.Pp
+.Sy Note :
+The
+.Ar PRE-INSTALL
+keyword will not appear if separate scripts for pre-install and post-install
+are given during package creation time (using the
+.Fl i
+and
+.Fl I
+flags to
+.Xr pkg_create 1 ) .
+.It
+If
+.Cm @option extract-in-place
+is not used, then the packing list (this is the
+.Pa +CONTENTS
+file) is now used as a guide for moving (or copying, as necessary) files from
+the staging area into their final locations.
+.It
+If the package contains an
+.Ar mtreefile
+file (see
+.Xr pkg_create 1 ) ,
+then mtree is invoked as:
+.Bd -ragged -offset indent -compact
+.Cm mtree
+.Fl u
+.Fl f
+.Ar mtreefile
+.Fl d
+.Fl e
+.Fl p
+.Pa prefix
+.Ed
+where
+.Pa prefix
+is either the prefix specified with the
+.Fl p
+flag or, if no
+.Fl p
+flag was specified, the name of the first directory named by a
+.Cm @cwd
+directive within this package.
+.It
+If a
+.Ar post-install
+script exists for the package, it is then executed as
+.Bd -ragged -offset indent -compact
+.Cm script
+.Ar pkg-name
+.Ar POST-INSTALL
+.Ed
+where
+.Ar pkg-name
+is the name of the package in question and
+.Ar POST-INSTALL
+is a keyword denoting this as the post-installation phase.
+.Pp
+.Sy Note :
+The
+.Ar POST-INSTALL
+keyword will not appear if separate scripts for pre-install and post-install
+are given during package creation time (using the
+.Fl i
+and
+.Fl I
+flags to
+.Xr pkg_create 1 ) .
+.Pp
+Reasoning behind passing keywords such as
+.Ar POST-INSTALL
+and
+.Ar PRE-INSTALL
+is that this allows you to write a single
+.Ar install
+script that does both
+.Dq before and after
+actions.
+But, separating the
+functionality is more advantageous and easier from a maintainence viewpoint.
+.It
+After installation is complete, a copy of the packing list,
+.Ar deinstall
+script, description, and display files are copied into
+.Pa /var/db/pkg/<pkg-name>
+for subsequent possible use by
+.Xr pkg_delete 1 .
+Any package dependencies are recorded in the other packages'
+.Pa /var/db/pkg/<other-pkg>/+REQUIRED_BY
+file
+(if the environment variable PKG_DBDIR is set, this overrides the
+.Pa /var/db/pkg/
+path shown above).
+.It
+Finally, the staging area is deleted and the program terminates.
+.El
+.Pp
+All the scripts are called with the environment variable
+.Ev PKG_PREFIX
+set to the installation prefix (see the
+.Fl p
+option above).  This allows a package author to write a script
+that reliably performs some action on the directory where the package
+is installed, even if the user might change it with the
+.Fl p
+flag to
+.Cm pkg_add .
+.Sh ENVIRONMENT
+The value of the
+.Ev PKG_PATH
+is used if a given package can't be found.  The environment variable
+should be a series of entries separated by colons.  Each entry
+consists of a directory name.
+The current directory may be indicated
+implicitly by an empty directory name, or explicitly by a single
+period.
+.Pp
+The environment variable
+.Ev PKG_DBDIR
+specifies an alternative location for the installed package database.
+.Pp
+The environment variables
+.Ev PKG_TMPDIR
+and
+.Ev TMPDIR ,
+in that order, are taken to name temporary directories where
+.Nm
+will attempt to create its staging area in.
+If these variables are not present or if the directories named lack
+sufficient space, then
+.Nm
+will use the first of
+.Pa /var/tmp ,
+.Pa /tmp
+or
+.Pa /usr/tmp
+with sufficient space.
+.Pp
+The environment variable
+.Ev PACKAGEROOT
+specifies an alternate location for
+.Nm
+to fetch from.
+The fetch URL is built using this environment variable and the automatic
+directory logic that
+.Nm
+uses when the
+.Fl r
+option is invoked.
+An example setting would be
+.Qq Li ftp://ftp3.FreeBSD.org .
+.Pp
+The environment variable
+.Ev PACKAGESITE
+specifies an alternate location for
+.Nm
+to fetch from.
+This variable subverts the automatic directory logic
+that
+.Nm
+uses when the
+.Fl r
+option is invoked.
+Thus it should be a complete URL to the remote package file(s).
+.Sh FILES
+.Bl -tag -width /var/db/pkg -compact
+.It Pa /var/tmp
+Temporary directory for creating the staging area, if environmental variables
+.Ev PKG_TMPDIR
+or
+.Ev TMPDIR
+do not point to a suitable directory.
+.It Pa /tmp
+Next choice if
+.Pa /var/tmp
+does not exist or has insufficient space.
+.It Pa /usr/tmp
+Last choice if
+.Pa /var/tmp
+and
+.Pa /tmp
+are not suitable for creating the staging area.
+.It Pa /var/db/pkg
+Default location of the installed package database.
+.El
+.Sh SEE ALSO
+.Xr pkg_create 1 ,
+.Xr pkg_delete 1 ,
+.Xr pkg_info 1 ,
+.Xr pkg_update 1 ,
+.Xr pkg_version 1 ,
+.Xr mktemp 3 ,
+.Xr sysconf 3 ,
+.Xr mtree 8
+.Sh AUTHORS
+.An Jordan Hubbard
+.Sh CONTRIBUTORS
+.An John Kohl Aq jtk@rational.com
+.Sh BUGS
+Hard links between files in a distribution are only preserved if either
+(1) the staging area is on the same file system as the target directory of
+all the links to the file, or (2) all the links to the file are bracketed by
+.Cm @cwd
+directives in the contents file,
+.Em and
+the link names are extracted with a single
+.Cm tar
+command (not split between
+invocations due to exec argument-space limitations--this depends on the
+value returned by
+.Fn sysconf _SC_ARG_MAX ) .
+.Pp
+Sure to be others.

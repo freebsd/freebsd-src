@@ -1,0 +1,10 @@
+$ $Id: set11,v 1.2 1995/03/19 18:07:15 christos Exp $
+$ sh.c
+$set 11 
+1 Uwaga: brak dostêpu do tty (%s).\n
+2 Innymi s³owy brak zarz±dzania pracami w tej pow³oce.\n
+3 Masz %d wiadomo¶ci.\n
+4 Masz %d wiadomo¶ci w %s.\n
+5 Masz %spocztê.\n
+6 now± 
+7 Masz %spocztê w %s.\n

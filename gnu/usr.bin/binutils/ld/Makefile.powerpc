@@ -1,0 +1,98 @@
+#
+# $FreeBSD$
+#
+
+.if	${TARGET_ARCH} == "powerpc"
+HOST=		powerpc-unknown-freebsd
+CFLAGS+=	-DDEFAULT_EMULATION=\"elf_powerpc\"
+CFLAGS+=	-DTARGET=\"powerpc-unknown-freebsd\"
+_powerpc_path=	\"/usr/lib\"
+.else
+_powerpc_path=	\"/usr/cross/powerpc-freebsd/usr/lib\"
+.endif
+EMS+=		ld_elf32ppc_emulation	\
+		ld_ppcmacos_emulation	\
+		ld_ppcnw_emulation	\
+		ld_ppcpe_emulation	\
+		ld_aixrs6_emulation	\
+		ld_rs6000lynx_emulation
+LDSCRIPTS+=	elf32ppc.x		\
+		elf32ppc.xbn		\
+		elf32ppc.xn		\
+		elf32ppc.xr		\
+		elf32ppc.xs		\
+		elf32ppc.xu		\
+		ppcmacos.x		\
+		ppcmacos.xbn		\
+		ppcmacos.xn		\
+		ppcmacos.xr		\
+		ppcmacos.xu		\
+		ppcnw.x			\
+		ppcnw.xbn		\
+		ppcnw.xn		\
+		ppcnw.xr		\
+		ppcnw.xu		\
+		ppcpe.x			\
+		ppcpe.xbn		\
+		ppcpe.xn		\
+		ppcpe.xr		\
+		ppcpe.xu		\
+		aixrs6.x		\
+		aixrs6.xbn		\
+		aixrs6.xn		\
+		aixrs6.xr		\
+		aixrs6.xu		\
+		rs6000lynx.x		\
+		rs6000lynx.xbn		\
+		rs6000lynx.xn		\
+		rs6000lynx.xr		\
+		rs6000lynx.xu
+SRCS+=		eelf32ppc.c		\
+		eppcmacos.c		\
+		eppcnw.c		\
+		eppcpe.c		\
+		eaixrs6.c		\
+		ers6000lynx.c
+CLEANFILES+=	eelf32ppc.c		\
+		eppcmacos.c		\
+		eppcnw.c		\
+		eppcpe.c		\
+		eaixrs6.c		\
+		ers6000lynx.c
+
+eelf32ppc.c:	emulparams/elf32ppc.sh emultempl/elf32.em \
+		scripttempl/elfppc.sc genscripts.sh stringify.sed
+	sh ${.CURDIR}/genscripts.sh ${BINUTILSDISTDIR}/ld \
+	    ${_powerpc_path} ${HOST} powerpc-unknown-freebsd \
+	    powerpc-unknown-freebsd elf32ppc "" elf32ppc
+
+eppcmacos.c:	emulparams/ppcmacos.sh emultempl/aix.em \
+		scripttempl/aix.sc genscripts.sh stringify.sed
+	sh ${.CURDIR}/genscripts.sh ${BINUTILSDISTDIR}/ld \
+	    /usr/cross/powerpc_macos/usr/lib ${HOST} \
+	    powerpc-unknown-freebsdmacos \
+	    powerpc-unknown-freebsdmacos ppcmacos "" ppcmacos
+
+eppcnw.c:	emulparams/ppcnw.sh emultempl/elf32.em \
+		scripttempl/nw.sc genscripts.sh stringify.sed
+	sh ${.CURDIR}/genscripts.sh ${BINUTILSDISTDIR}/ld \
+	    /usr/cross/powerpc_nw/usr/lib ${HOST} powerpc-unknown-freebsdnw \
+	    powerpc-unknown-freebsdnw ppcnw "" ppcnw
+
+eppcpe.c:	emulparams/ppcpe.sh emultempl/pe.em \
+		scripttempl/ppcpe.sc genscripts.sh stringify.sed
+	sh ${.CURDIR}/genscripts.sh ${BINUTILSDISTDIR}/ld \
+	    /usr/cross/powerpc_pe/usr/lib ${HOST} powerpc-unknown-freebsdpe \
+	    powerpc-unknown-freebsdpe ppcpe "" ppcpe
+
+eaixrs6.c:	emulparams/aixrs6.sh emultempl/aix.em \
+		scripttempl/aix.sc genscripts.sh stringify.sed
+	sh ${.CURDIR}/genscripts.sh ${BINUTILSDISTDIR}/ld \
+	    /usr/cross/rs6000-lynx/lib ${HOST} aixcoff-rs6000 \
+	    aixcoff-rs6000 aixrs6 "" aixrs6
+
+ers6000lynx.c:	emulparams/rs6000lynx.sh emultempl/aix.em \
+		scripttempl/aix.sc genscripts.sh stringify.sed
+	sh ${.CURDIR}/genscripts.sh ${BINUTILSDISTDIR}/ld \
+	    /usr/cross/rs6000-lynx/lib ${HOST} aixcoff-rs6000 \
+	    aixcoff-rs6000 rs6000lynx "" rs6000lynx

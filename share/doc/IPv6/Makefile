@@ -1,0 +1,7 @@
+# $FreeBSD$
+
+NOOBJ=		noobj
+FILES=		IMPLEMENTATION
+FILESDIR=	${SHAREDIR}/doc/IPv6
+
+.include <bsd.prog.mk>

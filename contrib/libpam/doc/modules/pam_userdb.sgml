@@ -1,0 +1,112 @@
+<!--
+   This file was written by Cristian Gafton <gafton@redhat.com>
+-->
+
+<sect1>The userdb module
+
+<sect2>Synopsis
+
+<p>
+<descrip>
+
+<tag><bf>Module Name:</bf></tag>
+<tt/pam_userdb/
+
+<tag><bf>Author:</bf></tag>
+Cristian Gafton &lt;gafton@redhat.com&gt;
+
+<tag><bf>Maintainer:</bf></tag>
+Author.
+
+<tag><bf>Management groups provided:</bf></tag>
+authentication
+
+<tag><bf>Cryptographically sensitive:</bf></tag>
+	
+<tag><bf>Security rating:</bf></tag>
+
+<tag><bf>Clean code base:</bf></tag>
+
+<tag><bf>System dependencies:</bf></tag>
+Requires Berkeley DB.
+
+<tag><bf>Network aware:</bf></tag>
+
+</descrip>
+
+<sect2>Overview of module
+
+<p>
+Look up users in a .db database and verify their password against
+what is contained in that database.
+
+<sect2>Authentication component
+
+<p>
+<descrip>
+
+<tag><bf>Recognized arguments:</bf></tag>
+<tt/debug/;
+<tt/icase/;
+<tt/dump/;
+<tt/db=XXXX/;
+
+<tag><bf>Description:</bf></tag>
+
+This module is used to verify a username/password pair against values stored in
+a Berkeley DB database. The database is indexed by the username, and the data 
+fields corresponding to the username keys are the passwords, in unencrypted form,
+so caution must be exercised over the access rights to the DB database itself..
+
+The module will read the password from the user using the conversation mechanism. If
+you are using this module on top of another authetication module (like <tt/pam_pwdb/;)
+then you should tell that module to read the entered password from the PAM_AUTHTOK field, which is set by this module.
+
+<p>
+The action of the module may be modified from this default by one or
+more of the following flags in the <tt>/etc/pam.d/&lt;service&gt;</tt> file.
+<itemize>
+<item>
+<tt/debug/ -
+Supply more debugging information to <tt/syslog(3)/.
+
+<item>
+<tt/icase/ -
+Perform the password comparisons case insensitive.
+
+<item>
+<tt/dump/ -
+dump all the entries in the database to the log (eek,
+don't do this by default!)
+
+<item>
+<tt/db=XXXX/ - 
+use the database found on pathname XXXX. Note that Berkeley DB usually adds the 
+needed filename extension for you, so you should use something like <tt>/etc/foodata</tt>
+instead of <tt>/etc/foodata.db</tt>.
+
+</itemize>
+
+<tag><bf>Examples/suggested usage:</bf></tag>
+
+This is a normal ftp configuration file (usually placed as <tt>/etc/pam.d/ftp</tt> 
+on most systems) that will accept for login users whose username/password pairs are 
+provided in the <tt>/tmp/dbtest.db</tt> file:
+
+<tscreen>
+<verb>
+#%PAM-1.0
+auth       required     pam_listfile.so item=user sense=deny file=/etc/ftpusers onerr=succeed
+auth       sufficient   pam_userdb.so icase db=/tmp/dbtest
+auth       required     pam_pwdb.so shadow nullok try_first_pass
+auth       required     pam_shells.so
+account    required     pam_pwdb.so
+session    required     pam_pwdb.so
+</verb>
+</tscreen>
+
+</descrip>
+
+<!--
+End of sgml insert for this module.
+-->

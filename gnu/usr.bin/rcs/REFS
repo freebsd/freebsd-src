@@ -1,0 +1,90 @@
+Here are references to RCS and related free software and documentation.
+Some of this information changes often; see the Frequently Asked Questions
+for more up-to-date references.
+
+ $FreeBSD$
+
+
+Frequently Asked Questions (FAQs)
+
+<http://www.qucis.queensu.ca/Software-Engineering/>
+<ftp://rtfm.mit.edu//pub/usenet-by-hierarchy/comp/software-eng/>
+  for software engineering; e.g. see
+  <http://www.qucis.queensu.ca/Software-Engineering/blurb/rcs>.
+
+<http://www.iac.honeywell.com/Pub/Tech/CM/CMFAQ.html>
+<ftp://rtfm.mit.edu//pub/usenet-by-hierarchy/comp/software/config-mgmt/>
+  for configuration management
+
+<http://www.winternet.com/~zoo/cvs/FAQ.txt>
+<ftp://ftp.odi.com/pub/users/dgg/FAQ.gz>
+  for CVS (see below)
+
+
+RCS and related GNU project software
+
+<ftp://ftp.cs.purdue.edu/pub/RCS/>
+  The RCS project distribution directory also contains beta versions,
+  ports, and prebuilt documentation.
+
+<ftp://prep.ai.mit.edu/pub/gnu/>
+  The GNU project distribution directory contains:
+    diffutils-N-tar.gz
+      the latest diffutils release; recommended for RCS
+    emacs-N-tar.gz
+      The latest Emacs release contains VC, a version-control package
+      that makes RCS easier to use.
+    make-N-tar.gz
+      GNU Make, which can automatically build from RCS files.
+    rcs-N-tar.gz
+      the latest RCS release
+    cvs-N-tar.gz
+      the latest official CVS release (see below)
+
+<ftp://ftp.leo.org/pub/comp/os/os2/gnu/devtools/> DOS, OS/2 ports
+<ftp://ftp.cc.utexas.edu/microlib/nt/gnu/> NT port
+
+
+CVS
+
+CVS, the Concurrent Versions System, keeps tracks of source changes
+made by groups of developers working on the same files concurrently,
+allowing them to resync as needed.
+
+<http://www.winternet.com/~zoo/cvs/>
+<http://www.loria.fr/~molli/cvs-index.html>
+  These pages have useful information about CVS.
+
+<ftp://prep.ai.mit.edu/pub/gnu/cvs-1.3.tar.gz>
+  CVS 1.3 is the latest released version.
+
+<ftp://ftp.delos.com/pub/cvs/alpha/cvs-1.4A2.tar.gz>
+  CVS 1.4 is in alpha test, but it is recommended if you are installing CVS
+  for the first time, or on a recent operating system.
+
+<ftp://ftp-os2.cdrom.com/pub/os2/unix/> DOS, OS/2 ports
+<ftp://ftp.cc.utexas.edu/microlib/nt/gnu/> NT port
+
+<ftp://ftp.cyclic.com/pub/cvs/>
+  Cyclic CVS adds network transparency to CVS; it supports efficient,
+  reliable, and authenticated repository access via TCP/IP.
+
+
+Other software that uses RCS
+
+<ftp://ftp.nau.edu/pub/Aegis/>
+  Aegis manages revisions, baselines, mandatory reviews, and mandatory testing.
+
+<ftp://ftp.vix.com/pub/patches/csu/>
+  BCS, the Baseline Configuration System,
+  manages revisions, baselines, and staging areas.
+
+<ftp://riftp.osf.org/pub/ode/>
+  ODE, the Open Software Foundation Development Environment,
+  manages revisions, builds, and sandboxes.
+  OSF uses it for their own development.
+
+<ftp://bellcore.com/pub/Odin/>
+  Odin, a `make' replacement, can build directly from arbitrary revisions
+  without requiring checkouts of working copies.  It also handles
+  parallel builds on multiple remote hosts and of multiple variants.

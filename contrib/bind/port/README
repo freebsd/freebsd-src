@@ -1,0 +1,66 @@
+
+Porting BIND 8 to Another System
+
+	Make sure to base your port on an existing one.  If your port is
+	for a new release of an already supported operating system, please
+	try to make the existing port support the new release instead of
+	making a new port directory.  For an example of how to do this,
+	look at how the Solaris port uses os_version.h in port_after.h.  See
+	port/solaris/include/Makefile and port/solaris/bin/make_os_version
+	to learn how an os_version.h is made.
+
+	Porting problems fall into broad categories which have simple answers:
+
+	    Include File Missing or Broken
+
+		Make one (possibly empty) in port/*/include or in
+		port/*/include/sys.  Broken include files can be fixed; see
+		the BSD/OS and ULTRIX ports for examples of how to do this.
+
+	    Library Function Missing:
+
+		Make one (possibly copying it from some other port and hacking)
+		and cause it to appear in port/libport.a by virtue of building
+		it in port/*/Makefile.  An example is the __ansi_realloc()
+		routine in the SunOS port.
+
+	    Desired system feature absent or not prototyped or whatever:
+
+		Edit port/*/include/port_{before,after}.h.  read a few source
+		files in lib/ or bin/ to see when/why these are #included.
+
+	    "Make" doesn't work even though my system has a port/* subdir:
+
+		Type "uname -s -r" at your shell and see if the resulting
+		string is present in your system's putative port/*/probe
+		file.  If not, try adding it.  If it works, send mail to
+		bind-bugs@isc.org.
+
+	    My system doesn't have enough of ANSI and POSIX to allow a port:
+
+		Give up.  Get a different system.
+
+	Porting mistakes also fall into broad categories with simple answers:
+
+	    I Can't Get It To Build Without Compiler (Not Linker!) Warnings:
+
+		Keep trying, you're not done yet.
+
+	    I Need To Add Another Portability #define And Some #ifdef's:
+
+		Make sure it won't hurt any other port.  Send us some mail.
+
+	    I Just Have To Edit A Source File To Get It To Compile:
+
+		You are probably missing one of the above opportunities to do
+		the right thing and you should rethink your approach and get
+		some advice before you send in your port.  But it's possible
+		that a non-UNIX system will need a different porting layer,
+		especially in isc/eventlib.c and its friends, so contact us
+		if you're stuck on this point, there may be something we can
+		do.  Send mail to bind-bugs@isc.org.
+
+	    My Employer Won't Allow Me To Send In Porting Diffs:
+
+		You probably need a new employer.  But try really hard, OK?
+

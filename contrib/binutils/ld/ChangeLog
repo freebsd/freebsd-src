@@ -1,0 +1,1873 @@
+2001-07-19  David O'Brien  <obrien@FreeBSD.org>
+
+	* emultempl/elf32.em: Do not assuming that contents of the buffer
+	returned from basename function will remain unchanged accross other
+	function calls.
+
+2001-07-19  Nick Clifton  <nickc@cambridge.redhat.com>
+
+	* ldlang.c (lang_leave_overlay): If a region is specified assign
+	it to all sections inside the overlay unless they have been
+	assigned to the own, non-default, memory region.
+
+2001-07-14  matthew green  <mrg@eterna.com.au>
+
+	* configure.tgt (i386-*-netbsdelf*): New target.
+	(i386-*-netbsd*): Set targ_extra_emuls to `elf_i386'
+
+2001-06-27  Alan Modra  <amodra@bigpond.net.au>
+
+	* emulparams/hppa64linux.sh: New file.
+	* configure.tgt: hppa*64*-*-linux* uses hppa64linux.sh
+	* Makefile.am (ALL_64_EMULATIONS): Add ehppa64linux.o
+	(ehppa64linux.c): Add rule to make it.
+	Run "make dep-am".
+	* Makefile.in: Regenerate.
+
+2001-06-07  Andreas Jaeger  <aj@suse.de>
+
+	* elf_x86_64.sh (NONPAGED_TEXT_START_ADDR): Increase.
+	(TEXT_START_ADDR): Likewise.
+
+2001-06-11  Alan Modra  <amodra@bigpond.net.au>
+
+	Merge from mainline.
+	2001-06-05  Danny Smith  <danny_r_smith_2001@yahoo.co.nz>
+	* emultempl/pe.em (init): Reduce default stack reserve to 0x200000.
+
+	2001-05-25  Alan Modra  <amodra@one.net.au>
+	* configure.host: Replace linuxoldld with linux*oldld.
+	* configure.tgt: Likewise.
+
+	2001-05-14  DJ Delorie  <dj@delorie.com>
+	* Makefile.am (ld.dvi): Search bfd/doc for texinfo files.
+	* Makefile.in: Ditto.
+
+	2001-04-05  Steven J. Hill  <sjhill@cotw.com>
+	* Makefile.am (ALL_EMULATIONS): Add eelf32ltsmip.o.
+	(ALL_64_EMULATIONS): Add eelf64btsmip.o and eelf64ltsmip.o.
+	(eelf32ltsmip.c): New target.
+	(eelf64btsmip.c): Likewise.
+	(eelf64ltsmip.c): Likewise.
+	* Makefile.in: Regenerated.
+	* configure.tgt (mips*el-*-linux-gnu): Uses traditional MIPS
+	target.
+	(mips*-*-linux-gnu*): Likewise.
+	* emulparams/elf32ltsmip.sh: New. Traditional little endian
+	MIPS taget.
+	* emulparams/elf64btsmip.sh: New. Traditional 64bit big endian
+	target.
+	* emulparams/elf64ltsmip.sh: New. Traditional 64bit little
+	endian target.
+
+	2001-02-27  Alan Modra  <alan@linuxcare.com.au>
+	* configure.in (BFD_VERSION): New.
+	(AM_INIT_AUTOMAKE): Use $BFD_VERSION.
+	* configure: Regenerate.
+
+	2001-02-13  H.J. Lu  <hjl@gnu.org>
+	* ldexp.h (node_type): Add etree_provided.
+	* ldexp.c (exp_fold_tree): Handle etree_provided. Set the node
+	type to etree_provided if defined by PROVIDE. Allow updating
+	for etree_provided.
+	(exp_print_tree): Handle etree_provided.
+	* mpw-elfmips.c (gldelf32ebmip_find_exp_assignment): Handle
+	etree_provided.
+
+2001-06-10  Philip Blundell  <philb@gnu.org>
+
+	* configure.in: Set version to 2.11.1.
+	* configure: Regenerate.
+
+2001-06-08  Alan Modra  <amodra@bigpond.net.au>
+
+	* ldlang.c (record_bfd_errors): Remove.
+
+	Merge from mainline.
+	2001-05-31  H.J. Lu  <hjl@gnu.org>
+	* ldlang.c (open_input_bfds): Don't change the bfd error
+	handler whilst loading symbols.
+
+	2001-05-02  Nick Clifton  <nickc@redhat.com>
+	* emultempl/aix.em: Replace buystring with xstrdup.
+	* emultempl/beos.em: Replace buystring with xstrdup.
+
+2001-06-07  Alan Modra  <amodra@bigpond.net.au>
+
+	* Many files: Update copyright notices.
+
+2001-05-23  Alan Modra  <amodra@one.net.au>
+
+	* ldlang.c (wild_doit): Use linker_has_input to reliably determine
+	whether an input section is the first one assigned to an output
+	section.
+	Assorted formatting fixes.
+
+	Merge from mainline.
+	2001-05-03  H.J. Lu  <hjl@gnu.org>
+	* emultempl/elf32.em: Include "libiberty.h".
+	(gld${EMULATION_NAME}_vercheck): Call basename () to get the
+	basename of the bfd filename.
+	(gld${EMULATION_NAME}_stat_needed): Likewise.
+	(gld${EMULATION_NAME}_try_needed): Likewise.
+	(gld${EMULATION_NAME}_open_dynamic_archive): Likewise.
+
+	2001-03-17  Ulrich Drepper  <drepper@redhat.com>
+	* emultmpl/elf32.em (OPTION_GROUP): New macro.
+	Add new option Bgroup to longopts.
+	(gld*_parse_args): Handle GROUP_OPTION and recognize -z defs.
+	(gld*_list_options): Add -Bgroup and -z defs.
+	* ld.1: Document -Bgroup and -z defs.
+	* ld.texinfo: Likewise.
+
+	2001-02-01  Nick Clifton  <nickc@redhat.com>
+	* ld.1: Replace occurances of -oformat with --oformat.
+
+	2001-05-02  H.J. Lu  <hjl@gnu.org>
+	* ldfile.c: Include "libiberty.h".
+	* ldlex.l: Likewise.
+	* ldmisc.c (buystring): Removed.
+	* ldmisc.h: Likewise.
+	* ldfile.c: Replace buystring with xstrdup.
+	* ldlang.c: Likewise.
+	* ldlex.l: Likewise.
+	* ldmain.c: Likewise.
+	* ldmisc.c: Likewise.
+	* lexsup.c: Likewise.
+	* mpw-eppcmac.c: Likewise.
+
+	2001-04-28  Paul Sokolovsky  <Paul.Sokolovsky@technologist.com>
+        * ldlang.c (load_symbols): Give emulation a chance
+        to process unrecognized file before fatal error is
+        reported, not after.
+
+	2001-02-26  H.J. Lu  <hjl@gnu.org>
+	* ldlang.c (open_input_bfds): Set the bfd error handler so
+        that problems can be caught whilst loading symbols.
+        (record_bfd_errors): New function: Report BFD errors and mark
+        the executable output as being invalid.
+
+2001-04-02  Alan Modra  <alan@linuxcare.com.au>
+
+	* emulparams/hppalinux.sh (MAXPAGESIZE): Set to 64k.
+	(TEXT_START_ADDR, TARGET_PAGE_SIZE): Likewise.
+
+2001-03-27  Hans-Peter Nilsson  <hp@axis.com>
+
+	* configure.tgt (cris-*-*): Change default emulation to criself.
+	(cris-*-*aout*): New rule.
+
+2001-03-27  Matthew Wilcox  <willy@ldl.fc.hp.com>
+
+	* emulparams/hppalinux.sh (MAXPAGESIZE): Set to 0x4000.
+	(TEXT_START_ADDR, TARGET_PAGE_SIZE): Ditto.
+
+2001-03-17  Ulrich Drepper  <drepper@redhat.com>
+
+	* emultmpl/elf32.em (gld${EMULATION_NAME}_search_needed): If NAME
+	is an absolute path look only for this file and not along the path.
+
+2001-03-16  Philip Blundell  <philb@gnu.org>
+
+	* configure: Regenerate.
+
+2001-03-11  Philip Blundell  <philb@gnu.org>
+
+	* configure.in: Set version to 2.11.
+
+2001-03-05  Alan Modra  <alan@linuxcare.com.au>
+
+	* emultempl/m68kelf.em (m68k_elf_after_allocation): Call
+	after_allocation_default, not gld..._before_allocation.
+
+001-02-18  David O'Brien  <obrien@FreeBSD.org>
+
+	* configure.tgt: Add FreeBSD/Alpha, FreeBSD/x86-64, FreeBSD/ia64,
+	FreeBSD/PowerPC, FreeBSD/arm, and FreeBSD/sparc64 entries.
+
+2001-02-17  David O'Brien  <obrien@FreeBSD.org>
+
+	* configure.host: Add a generic FreeBSD configuration entry such that
+	all [modern] FreeBSD systems on all platforms will look the same.
+
+2001-02-13  Richard Henderson  <rth@redhat.com>
+
+	* emulparams/elf64_ia64.sh (OTHER_GOT_SYMBOLS): Remove.
+
+2001-02-11  Philip Blundell  <philb@gnu.org>
+
+	* Makefile.am: Remove mention of earmelf_linux26.o.
+	* Makefile.in: Regenerate.
+	* emulparams/armelf_linux.sh (TEXT_START_ADDR): Set to 0x8000.
+	* emulparams/armelf_linux26.sh: Delete.
+	* configure.tgt: Remove mention of armelf_linux26 emulation.
+
+2001-02-09  David Mosberger  <davidm@hpl.hp.com>
+
+	* emulparams/elf64_ia64.sh (OTHER_READONLY_SECTIONS): Add
+	.IA_64.unwind.* pattern to unwind table section and
+	.IA_64.unwind_info* pattern to unwind info section.
+
+2001-01-25  Jim Driftmyer <jdrift@stny.rr.com>
+
+	* ldlang.c (lang_leave_overlay): Don't set lma_region when
+	load_base is specified.
+
+2001-01-24  Hans-Peter Nilsson  <hp@axis.com>
+
+	* emultempl/elf32.em: Correct spelling in comments and listed
+	options.
+
+2001-01-23  Alan Modra  <alan@linuxcare.com.au>
+
+	* ldlang.c (lang_leave_overlay): Only set lma_region from the
+	default for the first section of a group of overlay sections.
+
+2001-01-22  Alan Modra  <alan@linuxcare.com.au>
+
+	* Makefile.am (GENSCRIPTS): Pass exec_prefix.
+	* Makefile.in: Regenerate.
+	* genscripts.sh: Use exec_prefix parameter to specify tool lib.
+	Check for null tool_dir.
+
+2001-01-16  Jim Wilson  <wilson@redhat.com>
+
+	* emulparams/elf64_ia64.sh (OTHER_READONLY_SECTIONS): Add IA_64.unwind
+	and IA_64.unwind.info.
+
+2001-01-16  H.J. Lu  <hjl@gnu.org>
+
+	* ldlang.c (lang_check): Merge the private data only if the
+	input file has contents.
+
+2001-01-14  Alan Modra  <alan@linuxcare.com.au>
+
+	* emulparams/hppalinux.sh (OUTPUT_FORMAT): Set to elf32-hppa-linux.
+
+	* emultempl/hppaelf.em (hppaelf_after_parse): New function,
+	enabling search for libmilli.  On a relocatable link, make .text
+	sections unique.
+	(LDEMUL_AFTER_PARSE): Define.
+	(hppaelf_finish): Correct spelling of relocatable in comments.
+
+	* emultempl/elf32.em (gld${EMULATION_NAME}_place_orphan): Don't
+	rummage through the script for sections on the unique list.
+	Correct length of strncmp for ".note".
+	(gld${EMULATION_NAME}_check_needed): Rearrange function.
+
+	* ldlang.c (unique_section_list): New var.
+	(unique_section_p): New function.
+	(walk_wild_section): Don't match sections on unique_section_list.
+	(lang_add_unique): New function.
+	Correct spelling of relocatable in comments.
+
+	* ldlang.h (struct unique_sections): Declare.
+	(unique_section_list): Declare.
+	(unique_section_p): Declare.
+	(lang_add_unique): Declare.
+
+	* lexsup.c (ld_options): Allow --unique to take an optional arg.
+	(parse_args [OPTION_UNIQUE]): Call lang_add_unique.
+
+	* ld.texinfo (--unique): Update.
+
+2001-01-13  Nick Clifton  <nickc@redhat.com>
+
+	* lexsup.c (parse_args): Remove spurious white space.
+
+2001-01-12  Nick Clifton  <nickc@redhat.com>
+
+	* lexsup.c (parse_args): Update copyright date.
+
+2001-01-12  Philip Blundell  <pb@futuretv.com>
+
+	* configure.host: Set HOSTING_LIBS appropriately for ix86-cygwin.
+
+2001-01-10  Kazu Hirata  <kazu@hxi.com>
+
+	* scripttempl/h8300.sc: Fix formatting.  Fix a comment typo.
+	* scripttempl/h8300h.sc: Fix formatting.
+	* scripttempl/h8300s.sc: Likewise.
+	* scripttempl/h8500.sc: Likewise.
+	* scripttempl/h8500b.sc: Likewise.
+	* scripttempl/h8500c.sc: Likewise.
+	* scripttempl/h8500m.sc: Likewise.
+	* scripttempl/h8500s.sc: Likewise.
+
+2000-01-07  David O'Brien  <obrien@BSDi.com>
+
+	* emultempl/elf32.em: Only perform Linux ld hints processing when
+	targeting Linux.
+
+2001-01-07  Philip Blundell  <philb@gnu.org>
+
+	* ld.texinfo (Bug Reporting): Update email address for reports.
+
+2000-12-31  Nick Clifton  <nickc@redhat.com>
+
+	* lexsup.c (parse_args): Set opterr to 0 and detect unparsed long
+	options by checking for a return value of '?' not -1.
+
+2000-12-28  Nick Clifton  <nickc@redhat.com>
+
+	* lexsup.c (struct ld_option): Add new enum value:
+	EXACTLY_TWO_DASHES.
+	(ld_options[]): Change -omagic, -output and -oformat options
+	to be EXACTLY_TWO_DASHES.
+	(OUTPUT_COUNT): Use ARRAY_SIZE.
+	(parse_args): Change parameter 'argc' to unsigned.
+	Place EXACTLY_TWO_DASHES options into new really_longopts
+	array.
+	If getopt_long_only fails, try calling getopt_long using the
+	really_longopts array.
+	(help): Print a double dash for both EXACTLY_TWO_DASHES and
+	TWO_DASHES options.
+
+	* ldlex.h: Fix prototype of parse_args.
+
+	* ld.texinfo: Document that long options starting with 'o'
+	must be preceeded by two dashes.  Change example of a single
+	dashed long option from -oformat to -trace-symbol.
+
+2000-12-26  Danny Smith  <danny_r_smith_2001@yahoo.co.nz>
+
+	* emultempl/pe.em (OPTION_NO_DEFAULT_EXCLUDES): Define.
+	(longopts[]): New --no-default-excludes option.
+	(gld_${EMULATION_NAME}_list_options): Document.
+	(gld_${EMULATION_NAME}_parse_args): Handle.
+
+2000-12-13  Michael Sokolov  <msokolov@ivan.Harhan.ORG>
+
+	* ldlang.c (new_stat): Revert the last beautification with "innocent"
+	whitespace, it breaks the K&R C preprocessor.
+
+2000-12-11  DJ Delorie  <dj@redhat.com>
+
+	* ld.texinfo: Add notes about --whole-archive and gcc.
+
+2000-11-18  Fred Fish  <fnf@be.com>
+
+	* lexsup.c (OPTION_ALLOW_SHLIB_UNDEFINED): Define.
+	(ld_options): Entry for --allow-shlib-undefined.
+	(parse_args): Handle OPTION_ALLOW_SHLIB_UNDEFINED.
+	* ldmain.c (main): Initialize link_info.allow_shlib_undefined
+	to false.
+	* ld.texinfo: Document new command line switch.
+
+2000-12-12  Geoffrey Keating  <geoffk@redhat.com>
+
+	* emulparams/elf32ppc.sh (OTHER_READWRITE_SECTIONS):
+	.fixup is actually read/write.
+	* emulparams/elf32lppc.sh (OTHER_READWRITE_SECTIONS): Likewise.
+	* emulparams/elf32ppcsim.sh (OTHER_READWRITE_SECTIONS): Likewise.
+	* emulparams/elf32lppcsim.sh (OTHER_READWRITE_SECTIONS): Likewise.
+
+Mon Dec 11 14:50:33 MET 2000  Jan Hubicka  <jh@suse.cz>
+
+	* NEWS: Add note about x86_64 architecture.
+
+2000-12-06  Mark Elbrecht  <snowball3@bigfoot.com>
+
+	* scripttempl/i386go32.sc: Use PROVIDE with _etext, _edata, _end.
+	Set DWARF2 sections to a VMA of zero.
+
+2000-12-01      Joel Sherrill <joel@OARcorp.com>
+
+	* configure.tgt (arm-*-rtems*, a29k-*rtems*, h8300-*-rtems*):
+	New targets.
+	(sparc*-*-rtemself*, sparc*-*-rtemsaout*): New targets.
+	(sparc*-*-rtems*): Switched from a.out to ELF.
+
+2000-11-30  Jan Hubicka  <jh@suse.cz>
+
+	* Makefile.am (ALL_EMULATIONS): Add eelf_x86_64.o
+	(eelf_x86_64.c): New.
+	* Makefile.in: Regenerate.
+	* configure.tgt: Add support for x86_64-*-linux-gnu*.
+	* emulparams/elf_x86_64.sh: New.
+
+2000-11-30  Hans-Peter Nilsson  <hp@axis.com>
+
+	* emulparams/crislinux.sh (ENTRY): Change back to _start.
+	(TEXT_START_SYMBOLS): Remove conditional setting of __start.
+
+	* scripttempl/crisaout.sc: Change all RELOCATING not related to
+	merging non-a.out sections into CONSTRUCTING.
+
+2000-11-28  Nick Clifton  <nickc@redhat.com>
+
+	* ld.1 (COPYING): Mention that the GNU Free Documentation
+	License is present in the sources, but not the output, and
+	also available from the GNU website.
+	(GNU Free Documentation License): Comment out this section.
+
+2000-11-28  David O'Brien  <obrien@dragon.nuxi.com>
+
+	* emulparams/elf64alpha.sh (ENTRY): Remove leading underscore as ELF
+	does not use them.
+
+2000-11-25  David O'Brien  <obrien@FreeBSD.org>
+
+	* ld.1: Remove old date so it does not give the impression the manpage
+	is way out of date.
+
+2000-11-24  Nick Clifton  <nickc@redhat.com>
+
+	* configure.tgt (xscale-coff): Add target.
+	(xscale-elf): Add target.
+
+2000-11-24  Fred Fish  <fnf@be.com>
+
+	* ldmain.c (main): Remove redundant init of config.make_executable
+	to true.
+
+2000-11-15  Richard Henderson  <rth@redhat.com>
+
+	* emulparams/elf64alpha.sh (MAXPAGESIZE): Typo -- 64k, not 1M.
+
+2000-11-14  Kazu Hirata  <kazu@hxi.com>
+
+	* scripttempl/h8300.sc: Fix formatting.
+	* scripttempl/h8300h.sc: Likewise.
+	* scripttempl/h8300s.sc: Likewise.
+
+Tue Nov 14 00:59:19 2000  Denis Chertykov  <denisc@overta.ru>
+
+	* scripttempl/elf32avr.sc: Fix bug in .eeprom segment.
+
+2000-11-09  Philip Blundell  <pb@futuretv.com>
+
+	* emultempl/pe.em: Define ___start_SECNAME and ___stop_SECNAME
+	around orphan sections whose names can be represented in C.
+
+2000-11-07  Jim Wilson  <wilson@redhat.com>
+
+	* emultempl/elf32.em (gld${EMULATION_NAME}_place_orphan): New local
+	hold_sdata.  If SEC_SMALL_DATA set, set place to hold_sdata.
+
+2000-11-06  Nick Clifton  <nickc@redhat.com>
+
+	* ld.texinfo: Add GNU Free Documentation License.
+	* ldint.texinfo: Add GNU Free Documentation License.
+	* ld.1: Add GNU Free Documentation License.
+
+2000-11-05  Alan Modra  <alan@linuxcare.com.au>
+
+	* ldlex.l (yy_create_string_buffer): Init yy_is_our_buffer,
+	yy_is_interactive, yy_at_bol, and yy_fill_buffer.
+
+	* Makefile.am (DISTCLEANFILES): Add stringify.sed.
+	Move 2000-11-02 Makefile.in changes to this file.
+	* Makefile.in: Regenerate.
+
+2000-11-03  Nick Clifton  <nickc@redhat.com>
+
+	* scripttempl/h8300.sc: Use ${CONSTRUCTING...} to enclose
+	constructors and destructors.
+	* scripttempl/h8300h.sc: Ditto.
+	* scripttempl/h8300s.sc: Ditto.
+	* scripttempl/h8500.sc: Ditto.
+	* scripttempl/h8500b.sc: Ditto.
+	* scripttempl/h8500c.sc: Ditto.
+	* scripttempl/h8500m.sc: Ditto.
+	* scripttempl/h8500s.sc: Ditto.
+	* scripttempl/v850.sc: Ditto.
+	* scripttempl/w65.sc: Ditto.
+	* scripttempl/z8000.sc: Ditto.
+
+2000-11-02  Per Lundberg  <plundis@chaosdev.org>
+
+	* Makefile.in (e_i386_chaos.c): New rule.
+	(ALL_EMULATIONS): Added e_i386_chaos.o.
+	* emulparams/elf_i386_chaos.sh: New file.
+	* configure.tgt: Recognise i[3456]86-chaosdev-storm-chaos.
+
+2000-10-20  Jakub Jelinek  <jakub@redhat.com>
+
+	* emulparams/elf64_sparc.sh (TEXT_START_ADDR,
+	NONPAGED_TEXT_START_ADDR): Set to 4GB for Solaris targets.
+	Fix sed invocation, so that it coped with '/' in Solaris 64bit
+	library path suffix.
+	Based on patch by Andrew Macleod <amacleod@cygnus.com>.
+
+2000-10-18  Hans-Peter Nilsson  <hp@axis.com>
+
+	* scripttempl/crisaout.sc (.text, .data): Pad, with ALIGN (32),
+	for consecutive sections.
+
+2000-10-17  Chandrakala Chavva  <cchavva@redhat.com>
+
+	* lexsup.c: New option OPTION_TARGET_HELP. Prints all target specific
+	options.
+	* ld.texinfo: Added notes about this new option.
+
+2000-10-16  Nick Clifton  <nickc@redhat.com>
+
+	* emultempl/pe.em (_after_open): Add tests of return values from
+	bfd functions.  Emit appropriate error messages if necessary.
+
+2000-10-13  Nick Clifton  <nickc@redhat.com>
+
+	* emultempl/pe.em (_after_open): Delete 'is2' and 'nsyms'
+	local variables - they are not used, but leave in the call to
+	bfd_canonicalize_symtab.
+	(_open_dynamic_archive): Add #ifdef DLL_SUPPORT around use of
+	pe_dll_search_prefix.
+
+2000-10-12  Charles Wilson  <cwilson@ece.gatech.edu>
+
+	* emultempl/pe.em (pe_dll_search_prefix): New variable,
+	(longopts): New --dll-search-prefix option.
+	(gld_${EMULATION_NAME}_list_options): Document.
+	(gld_${EMULATION_NAME}_parse_args): Handle.
+	(gld_${EMULATION_NAME}_open_dynamic_archive): When linking
+	dynamically, search for a dll named '<prefix><basename>.dll'
+	in preference to 'lib<basename>.dll' if --dll-search-prefix
+	is specified.
+
+2000-10-12  Alan Modra  <alan@linuxcare.com.au>
+
+	* ldlang.c (section_already_linked): Set kept_section instead of
+	sec->comdat->sec.
+
+2000-10-10  Kazu Hirata  <kazu@hxi.com>
+
+	* deffile.h: Fix formatting.
+	* lexsup.c: Likewise.
+	* mri.c: Likewise.
+
+2000-10-09  Paul Sokolovsky  <Paul.Sokolovsky@technologist.com>
+
+	* pe-dll.c (make_one): Do not generate code thunk for DATA
+	exports.
+	(process_def_file): deduce DATA flag for auto-export sumbols.
+
+2000-10-09  Kazu Hirata  <kazu@hxi.com>
+
+	* ld.h: Fix formatting.
+	* ldcref.c: Likewise.
+	* ldctor.h: Likewise.
+	* ldemul.c: Likewise.
+	* ldemul.h: Likewise.
+	* ldexp.c: Likewise.
+	* ldexp.h: Likewise.
+	* ldfile.c: Likewise.
+	* ldfile.h: Likewise.
+	* ldlang.c: Likewise.
+	* ldlang.h: Likewise.
+	* ldmain.c: Likewise.
+	* pe-dll.c: Likewise.
+
+	* pe-dll.c: Revert some formatting fixes.
+
+2000-10-08  Kazu Hirata  <kazu@hxi.com>
+
+	* pe-dll.c: Fix formatting.
+
+2000-10-05  Kazu Hirata  <kazu@hxi.com>
+
+	* ldlang.c: Fix formatting.
+
+2000-10-03  DJ Delorie  <dj@redhat.com>
+
+	* pe-dll.c (fill_edata): initialize entire block
+	(make_one): fill in correct section.
+
+2000-10-03  Kazu Hirata  <kazu@hxi.com>
+
+	* ldexp.c: Fix formatting.
+
+2000-10-02  DJ Delorie  <dj@redhat.com>
+
+	* emultempl/pe.em (gld_*_after_open): detect case where there two
+	import libraries for same dll; rename one to ensure proper link
+	order.
+
+	* pe-dll.c (process_def_file): compare ordinals to -1, not 0; fix
+	typo
+	(generate_edata): fix typo
+
+2000-09-29  Hans-Peter Nilsson  <hp@axis.com>
+
+	* scripttempl/crisaout.sc (ENTRY): Now __start.
+	(.text): Add default setting for __start.
+	Remove CONSTRUCTORS handling.
+	(/DISCARD/): Add .gnu.warning.*.
+	* emulparams/crislinux.sh (ENTRY): Now __start.
+	(TEXT_START_SYMBOLS): New; provide __Stext and __start default.
+	* emulparams/criself.sh (OUTPUT_FORMAT): Now elf32-us-cris.
+	(ENTRY): Now __start.
+	(INITIAL_READONLY_SECTIONS): Add KEEP for .startup.
+	(EXECUTABLE_SYMBOLS): Add default setting for __start.
+
+2000-09-29  Kazu Hirata  <kazu@hxi.com>
+
+	* deffile.h: Fix formatting.
+	* ld.h: Likewise.
+	* ldcref.c: Likewise.
+	* ldctor.c: Likewise.
+	* ldctor.h: Likewise.
+	* ldemul.c: Likewise.
+	* ldemul.h: Likewise.
+	* ldexp.c: Likewise.
+	* ldexp.h: Likewise.
+	* ldfile.c: Likewise.
+	* ldfile.h: Likewise.
+	* ldlang.c: Likewise.
+	* ldlang.h: Likewise.
+	* lexsup.c: Likewise.
+	* mri.c: Likewise.
+	* pe-dll.c: Likewise.
+
+2000-09-28  Paul Sokolovsky  <Paul.Sokolovsky@technologist.com>
+
+	* pe-dll.c (process_def_file): Uninitialized data wasn't
+	exported with --export-all-symbols switch.
+
+2000-09-28  DJ Delorie  <dj@redhat.com>
+
+	* pe-dll.c (fill_edata): rearrange the data so that ordinals and
+	noname work properly.
+
+2000-09-28  Alan Modra  <alan@linuxcare.com.au>
+
+	* ld.texinfo (HPPA ELF32): New section.
+
+	* emultempl/hppaelf.em (group_size): New.
+	(hppaelf_finish): Pass group_size to elf32_hppa_size_stubs.
+	(PARSE_AND_LIST_PROLOGUE): Add OPTION_STUBGROUP_SIZE.
+	(PARSE_AND_LIST_LONGOPTS): Add --stub-group-size.  Duplicate
+	options to prevent abbreviations matching.
+	(PARSE_AND_LIST_OPTIONS): Describe the above.  Reformat.
+	(PARSE_AND_LIST_ARGS_CASES): Handle it.
+
+2000-09-21  Michael Sokolov  <msokolov@ivan.Harhan.ORG>
+
+	* emultempl/m68kelf.em: Conditionalise the embedded relocs feature
+	on the m68*-*-elf target.  Make it support COFF input objects.
+
+2000-09-21  Kazu Hirata  <kazu@hxi.com>
+
+	* ldmain.c: Fix formatting.
+	* ldmisc.c: Likewise.
+	* ldver.c: Likewise.
+	* ldwrite.c: Likewise.
+
+2000-09-21  Alan Modra  <alan@linuxcare.com.au>
+
+	* ldwrite.c (clone_section): Silence gcc warnings.
+
+2000-09-20  Alan Modra  <alan@linuxcare.com.au>
+
+	* emultempl/elf32.em (gld${EMULATION_NAME}_place_orphan): Handle
+	out of memory failure.
+
+	* ldwrite.c (ldwrite): Remove unnecessary einfo arg.
+	(clone_section): Handle out of memory failures.  Rename var to
+	avoid c++ reserved word.
+
+2000-09-18  Alan Modra  <alan@linuxcare.com.au>
+
+	* emultempl/hppaelf.em (hppaelf_add_stub_section): Rename
+	stub_name param to stub_sec_name.
+	(hppaelf_finish): Modify call to elf32_hppa_size_stubs.
+
+2000-09-10  Michael Sokolov  <msokolov@ivan.Harhan.ORG>
+
+	* emultempl/m68kelf.em: New file.
+	* emulparams/m68kelf.sh (EXTRA_EM_FILE): Use it.
+	* Makefile.am (em68kelf.c): Add dependency on m68kelf.em.
+	* Makefile.in: Regenerate.
+
+2000-09-15  Alan Modra  <alan@linuxcare.com.au>
+
+	* emulparams/hppalinux.sh (DATA_START_SYMBOLS): Provide $global$
+	only as needed.
+
+2000-09-13  Nick Clifton  <nickc@redhat.com>
+
+	* ldmain.c (multiple_definition): Disable relaxation if
+	multiple symbol definitions are encountered - otherwise the
+	linker could abort with an assertion failure.
+
+2000-09-10  Nick Clifton  <nickc@redhat.com>
+
+	* mri.c: Fix formatting.
+
+2000-09-07  H.J. Lu  <hjl@gnu.org>
+
+	* configure.in (AC_ISC_POSIX): Put after AC_CANONICAL_SYSTEM.
+	* configure: Rebuild.
+
+2000-09-07  H.J. Lu  <hjl@gnu.org>
+
+	* Makefile.am (lexsup.o): Also depend on $(INCDIR)/demangle.h.
+	* Makefile.in: Rebuild.
+
+2000-09-07  Alan Modra  <alan@linuxcare.com.au>
+
+	* emultempl/elf32.em (gld${EMULATION_NAME}_place_orphan): Fix
+	broken list handling.  Create __start_SECNAME and __stop_SECNAME
+	when no place-holder.  Add some comments.  Test both SEC_CODE and
+	SEC_READONLY for hold_text to prevent .rodata orphan poisoning.
+	Handle case where no output section statement created.
+
+2000-09-07  Niibe Yutaka  <gniibe@m17n.org>, Kaz Kojima  <kkojima@rr.iij4u.or.jp>, Alexandre Oliva  <aoliva@redhat.com>
+
+	* configure.tgt (sh-*-linux*): Added.
+	* Makefile.am: Added eshelf_linux and eshlelf_linux.
+	* Makefile.in: Rebuilt.
+	* emulparams/shelf_linux.sh: New file.
+	* emulparams/shlelf_linux.sh: New file.
+
+2000-09-06  Alan Modra  <alan@linuxcare.com.au>
+
+	* emultempl/elf32.em (gld${EMULATION_NAME}_place_orphan): Don't
+	try shuffling sections when the orphan happens to be the place
+	holder.  Keep count of unique section names generated so we speed
+	the search for a new name.
+
+2000-09-06  Alexandre Oliva  <aoliva@redhat.com>
+
+	* configure: Rebuilt with new libtool.m4.
+
+2000-09-05  Nick Clifton  <nickc@redhat.com>
+
+	* Makefile.in: Regenerate.
+	* aclocal.m4: Regenerate.
+	* configure: Regenerate.
+	* config.in: Regenerate.
+	* po/ld.pot: Regenerate.
+
+	* ldint.texinfo: Remove CVS revision marker - it foils local
+	comparisons.
+
+	* emultempl/ticoff.em: Remove extraneous comma.
+
+2000-09-05  Alan Modra  <alan@linuxcare.com.au>
+
+	* emultempl/hppaelf.em (hppaelf_add_stub_section): Add SEC_RELOC
+	to stub section flags.
+	(hppa_for_each_input_file_wrapper): New.
+	(hppa_lang_for_each_input_file): New.
+	(lang_for_each_input_file): Define to call above.
+	(multi_subspace): New.
+	(hppaelf_finish): Pass multi_subspace to elf32_hppa_size_stubs.
+	(PARSE_AND_LIST_PROLOGUE): Define.
+	(PARSE_AND_LIST_LONGOPTS): Define.
+	(PARSE_AND_LIST_OPTIONS): Define.
+	(PARSE_AND_LIST_ARGS_CASES): Define.
+	(hppaelf_finish): Call elf32_hppa_set_gp.
+	(hppaelf_set_output_arch): Remove.
+	(LDEMUL_SET_OUTPUT_ARCH): Remove.
+
+	* emulparams/hppalinux.sh (ELFSIZE): Define.
+	(MACHINE): Define.
+	(OTHER_READONLY_SECTIONS): Define.
+	(DATA_PLT): Define.
+	(GENERATE_SHLIB_SCRIPT): Define.
+
+	* ldlang.c: Add missing prototypes, and tidy others.  Change CONST
+	to const throughout.  Change `void *' to `PTR' throughout.
+	(lang_memory_default): Function is local to file, add `static'.
+
+	* Makefile.am (ehppaelf.c): Depend on emultempl/elf32.em.
+	(ehppalinux.c): Likewise.
+	(earmelf.c): Likewise.
+	(earmelf_linux.c): Likewise.
+	(earmelf_linux26.c): Likewise.
+	* Makefile.in: Regenerate.
+
+	* ld.h (ld_config_type): Add unique_orphan_sections.
+	* lexsup.c (OPTION_UNIQUE): Define.
+	(ld_options): Add "--unique".
+	(parse_args): Handle it.
+	* emultempl/elf32.em (gld${EMULATION_NAME}_place_orphan): Don't
+	search for an existing output section if unique_orphan_sections is
+	set.  Make use of bfd_get_unique_section_name rather than
+	duplicating code here.
+	* ld.texinfo: Describe --unique.
+
+	* lexsup.c (ld_options): Make split-by-reloc arg optional. Add
+	optional arg to split-by-file.
+	(parse_args): Handle them.
+	* ld.texinfo: Update description of these options.
+	* ldwrite.c (clone_section): Pass in the section name.  Replace
+	local code with bfd_get_unique_section_name.
+	(split_sections): Tidy code and comments.  Use a list traversal
+	more appropriate to the list construction.  Handle cooked section
+	sizes.  Split when split_by_reloc reached rather than exceeded.
+	Track section size and split when split_by_file reached.  Fix
+	link_order_tail (even though it's not used).
+	(ldwrite): Modify condition for calling split_sections to suit
+	changed split_by_reloc and split_by_file.
+	* ldmain.c (main): Init config.split_by_reloc and
+	config.split_by_file to -1.
+	* ld.h (ld_config_type): Change split_by_reloc to unsigned.
+	Change split_by_file to bfd_size_type.
+
+2000-09-02  Nick Clifton  <nickc@redhat.com>
+
+	* configure.in: Increase version number to 2.10.91.
+	* NEWS: Mention new ability to support removal of duplicate DWARF2
+	debug information.
+	* configure: Regenerate.
+	* aclocal.m4: Regenerate.
+	* config.in: Regenerate.
+
+2000-09-02  Daniel Berlin <dberlin@redhat.com>
+
+	* scripttempl/elf.sc: Add .gnu.linkonce.wi.* to .debug_info
+	sections.
+	* scripttempl/elf32avr.sc: Ditto.
+	* scripttempl/elfd10v.sc: Ditto.
+	* scripttempl/elfd30v.sc: Ditto.
+	* scripttempl/elfi370.sc: Ditto.
+	* scripttempl/elfm68hc11.sc: Ditto.
+	* scripttempl/elfm68hc12.sc: Ditto.
+	* scripttempl/elfi386beos.sc: Ditto.
+	* scripttempl/v850.sc: Ditto.
+
+2000-08-31  Alexandre Oliva  <aoliva@redhat.com>
+
+	* acinclude.m4: Include libtool and gettext macros from the
+	top level.
+	* aclocal.m4, configure: Rebuilt.
+
+2000-08-25  Nick Clifton  <nickc@redhat.com>
+
+	* ldlang.c (open_output): When choosing the target for a
+	particular endianness, do nothing if the target is not
+	supported.
+
+2000-08-25  H.J. Lu  <hjl@gnu.org>
+
+	* emultempl/elf32.em (gld${EMULATION_NAME}_after_open): Don't
+	check -rpath nor LD_RUN_PATH for cross link.
+	* ld.texinfo: Document the change.
+
+2000-08-24  Hans-Peter Nilsson  <hp@axis.com>
+
+	* NEWS: Mention support for CRIS.
+
+2000-08-23  H.J. Lu  <hjl@gnu.org>
+
+	* emultempl/elf32.em (gld${EMULATION_NAME}_after_open): Get
+	the current runpath list from bfd_elf_get_runpath_list ()
+	before search.
+
+2000-08-22  H.J. Lu  <hjl@gnu.org>
+
+	* emultempl/elf32.em (gld${EMULATION_NAME}_after_open): Search
+	the DT_RPATH/DT_RUNPATH entries for DT_NEEDED after
+	LD_LIBRARY_PATH for native linker. Display the needed DSO if
+	trace_file_tries is non-zero.
+	(gld${EMULATION_NAME}_try_needed): Report the needed DSO found
+	if trace_file_tries is non-zero.
+
+	* ld.texinfo: Document the usage of DT_RPATH/DT_RUNPATH.
+	* NEWS: Mention it.
+
+2000-08-14  Jason Eckhardt  <jle@cygnus.com>
+
+	* NEWS: Mention i860 support.
+
+2000-08-14  Andreas Schwab  <schwab@suse.de>
+
+	* scripttempl/elf.sc: Fix last change to use correct comment
+	syntax.
+
+2000-08-10  Geoff Keating  <geoffk@cygnus.com>
+
+	* scripttempl/elf.sc: Add a comment giving the correspondence
+	between sections, per-datum sections, and linkonce sections.  Make
+	the comment true even for .bss, .sdata, .sdata2, .sbss, and
+	.sbss2.
+
+2000-08-10  Jason Eckhardt  <jle@cygnus.com>
+
+	* emulparams/elf32_i860.sh: New file.
+	* configure.tgt: Recognize new target i860-stardent-{sysv4*|elf*}.
+	* Makefile.am (ALL_EMULATIONS): Add eelf32_i860.o.
+	(eelf32_i860.c): New rule.
+	* Makefile.in: Regenerate.
+
+2000-08-10  Nick Clifton  <nickc@cygnus.com>
+
+	* emulparams/mipspe.sh (ENTRY): Add definition.
+
+2000-08-08  Peter Jeremy  <peter.jeremy@alcatel.com.au>
+
+	* emultempl/elf32.em (_after_close): Refer to -rpath not --rpath
+	in error message.
+
+2000-08-08  Stephane Carrez  <Stephane.Carrez@worldnet.fr>
+
+	* scripttempl/elfm68hc11.sc: Define __bss_size symbol to indicate
+	the final size of .bss section.
+	* scripttempl/elfm68hc12.sc: Likewise.
+
+2000-08-04  Alan Modra  <alan@linuxcare.com.au>
+
+	* emultempl/elf32.em (gld_${EMULATION_NAME}_parse_args): Rename to
+	gld${EMULATION_NAME}_parse_args for consistency.  Combine
+	lastoptind and prevoptind vars, and keep track of last optind.
+	(gld_${EMULATION_NAME}_list_options): Rename to
+	gld${EMULATION_NAME}_list_options.
+
+2000-08-03  Rodney Brown  <RodneyBrown@pmsc.com>
+
+	* configure.tgt: Select targ_emul=elf_i386 for Unixware 7
+	(i586-sco-sysv5uw7.1.0).
+
+2000-07-27  H.J. Lu  <hjl@gnu.org>
+
+	* emulparams/elf64alpha.sh (PARSE_AND_LIST_ARGS): Removed.
+	(PARSE_AND_LIST_PROLOGUE): New.
+	(PARSE_AND_LIST_LONGOPTS): Likewise.
+	(PARSE_AND_LIST_OPTIONS): Likewise.
+	(PARSE_AND_LIST_ARGS_CASES): Likewise.
+	(PARSE_AND_LIST_EPILOGUE): Likewise.
+
+2000-07-28  Alan Modra  <alan@linuxcare.com.au>
+
+	* emultempl/armelf.em: Elide functions common to elf32.em,
+	ie. most of the file.
+	(arm_elf_after_open): New.  Do arm specific things then call
+	gld${EMULATION_NAME}_after_open.
+	(arm_elf_before_allocation): New.  Call
+	gld${EMULATION_NAME}_before_allocation then do arm specifics.
+	(PARSE_AND_LIST_PROLOGUE): Define.
+	(PARSE_AND_LIST_SHORTOPTS): Define.
+	(PARSE_AND_LIST_LONGOPTS): Define.
+	(PARSE_AND_LIST_OPTIONS): Define.
+	(PARSE_AND_LIST_ARGS_CASES): Define.
+	(LDEMUL_AFTER_OPEN): Define.
+	(LDEMUL_BEFORE_ALLOCATION): Define.
+	(LDEMUL_BEFORE_PARSE): Define.
+	(LDEMUL_FINISH): Define.
+
+	* emultempl/hppaelf.em: Similarly zap most of this file.
+	(hppaelf_add_stub_section): Prototype.
+	(hppaelf_layaout_sections_again): Prototype.
+	(hook_in_stub): Prototype.
+	(LDEMUL_SET_OUTPUT_ARCH): Define.
+	(LDEMUL_FINISH): Define.
+	(LDEMUL_CREATE_OUTPUT_SECTION_STATEMENTS): Define.
+
+	* emulparams/armelf.sh (TEMPLATE_NAME): Use elf32.
+	(EXTRA_EM_FILE): New.
+	* emulparams/armelf_linux.sh: Likewise.
+	* emulparams/armelf_linux26.sh: Likewise.
+	* emulparams/hppalinux.sh: Likewise.
+	* emulparams/hppaelf.sh: Likewise.
+	(NOP): Define.
+
+	* emultempl/elf32.em: Fix formatting.
+	(EXTRA_EM_FILE): Source it.
+	(LDEMUL_BEFORE_PARSE, LDEMUL_SYSLIB, LDEMUL_HLL,
+	LDEMUL_AFTER_PARSE, LDEMUL_AFTER_OPEN, LDEMUL_AFTER_ALLOCATION,
+	LDEMUL_SET_OUTPUT_ARCH, LDEMUL_CHOOSE_TARGET,
+	LDEMUL_BEFORE_ALLOCATION, LDEMUL_GET_SCRIPT, LDEMUL_FINISH,
+	LDEMUL_CREATE_OUTPUT_SECTION_STATEMENTS,
+	LDEMUL_OPEN_DYNAMIC_ARCHIVE, LDEMUL_PLACE_ORPHAN,
+	LDEMUL_SET_SYMBOLS, LDEMUL_PARSE_ARGS, LDEMUL_UNRECOGNIZED_FILE,
+	LDEMUL_LIST_OPTIONS, LDEMUL_RECOGNIZED_FILE,
+	LDEMUL_FIND_POTENTIAL_LIBRARIES): New shell vars.  Add code to
+	allow functions in this file to be overridden.
+	(PARSE_AND_LIST_SHORTOPTS): Handle it.
+
+	* emultempl/m68kcoff.em: Include ldfile.h before ldemul.h.
+
+	* emultempl/elf32.em: Reorganize file.
+
+2000-07-27  Ivan Kokshaysky  <ink@jurassic.park.msu.ru>
+
+	* emulparams/elf64alpha.sh: Implement "-taso" emulation
+	specific option to fit 64-bit executable in the lower
+	31-bit address range.  This is done by changing start
+	address of .interp (the very first section of executable)
+	and then setting EF_ALPHA_32BIT elf header flag.
+
+2000-07-21  Michael Sokolov  <msokolov@ivan.Harhan.ORG>
+
+	* emultempl/m68kcoff.em: New file.
+	* emulparams/m68kcoff.sh (TEMPLATE_NAME): Use m68kcoff template.
+	* Makefile.am (em68kcoff.c): Depend on m68kcoff.em rather than
+	generic.em.
+	* Makefile.in: Regenerate.
+
+2000-07-20  H.J. Lu  <hjl@gnu.org>
+
+	* emultempl/elf32.em (longopts): Duplicate "disable-new-dtags"
+	and "disable-new-dtags" to stop getopt from treating -d/-e as
+	abbreviations for these options.
+
+2000-07-20  H.J. Lu  <hjl@gnu.org>
+
+	* ld.texinfo: Add documentation for --disable-new-dtags and
+	--enable-new-dtags.
+
+	* ldmain.c (main): Initialize link_info.new_dtags to false.
+
+	* emultempl/elf32.em (gld_${EMULATION_NAME}_parse_args): Add
+	--disable-new-dtags and --enable-new-dtags.
+	(gld_${EMULATION_NAME}_list_options): Likewise.
+
+2000-07-05  Kenneth Block  <krblock@computer.org>
+
+	* lexsup.c: Add optional style to demangle switch
+	* ld.texinfo: Document optional style to demangle switch.
+
+2000-07-20  Hans-Peter Nilsson  <hp@axis.com>
+
+	* Makefile.am (ALL_EMULATIONS): Add ecrisaout.o, ecriself.o,
+	ecrislinux.o.
+	(ecrisaout.c, ecriself.c, ecrislinux.c): New rules.
+	Regenerate dependencies.
+	* Makefile.in: Rebuild.
+	* configure.tgt (cris-*-*): New target.
+	* emulparams/crisaout.sh, emulparams/criself.sh,
+	emulparams/crislinux.sh, scripttempl/crisaout.sc: New files.
+	* po/POTFILES.in, po/ld.pot: Regenerate.
+
+2000-07-20  H.J. Lu  <hjl@gnu.org>
+
+	* emultempl/elf32.em (gld_${EMULATION_NAME}_list_options):
+	Print out ignored -z options.
+
+2000-07-19  H.J. Lu  <hjl@gnu.org>
+
+	* emulparams/elf32mcore.sh (PARSE_AND_LIST_ARGS): Removed.
+	(PARSE_AND_LIST_PROLOGUE): New.
+	(PARSE_AND_LIST_LONGOPTS): Likewise.
+	(PARSE_AND_LIST_OPTIONS): Likewise.
+	(PARSE_AND_LIST_ARGS_CASES): Likewise.
+
+	* ldmain.c (main): Clear link_info.flags and link_info.flags_1.
+
+	* lexsup.c (ld_options): Comment out 'z'.
+	(parse_args): Likewise.
+
+	* emultempl/elf32.em: Include "elf/common.h".
+	(gld_${EMULATION_NAME}_parse_args): Defined. Handle some -z
+	options.
+	(gld_${EMULATION_NAME}_list_options): Likewise.
+
+	* ld.texinfo: Add documentation for the recognized -z options.
+
+2000-07-19  H.J. Lu  <hjl@gnu.org>
+
+	* emultempl/elf32.em (gld${EMULATION_NAME}_try_needed): Call
+	bfd_elf_set_dt_needed_soname ().
+
+2000-07-18  DJ Delorie  <dj@cygnus.com>
+
+	* pe-dll.c (pe_dll_id_target): check object target name also
+
+2000-07-18  Hans-Peter Nilsson  <hp@axis.com>
+
+	* scripttempl/elf.sc (.init): Only do ${INIT_START} and
+	${INIT_END} if relocating.
+	(.fini): Likewise ${FINI_START} and ${FINI_END}.
+
+2000-07-16  Charles Wilson  <cwilson@ece.gatech.edu>
+
+	* emultempl/pe.em (gld_*_open_dynamic_archive): New search
+	order for dynamic library '-lfoo' on pei386: libfoo.dll.a,
+	foo.dll.a, libfoo.a, libfoo.dll, foo.dll. This fixes compatibility
+	errors introduced by the old dynamic lib search order.
+
+2000-07-17  DJ Delorie  <dj@cygnus.com>
+
+	* pe-dll.c (process_def_file): auto-export data items also
+	(pe_process_import_defs): also see if _imp_ form needed
+
+2000-07-12  Charles Wilson  <cwilson@ece.gatech.edu>
+
+	* pe-dll.c (make_one): fix a typo in the __imp_ name decoration
+	for dll import libraries
+
+2000-07-12  Mark Elbrecht  <snowball3@bigfoot.com>
+
+	* scripttempl/i386go32.sc: Support the g++ attribute init_priority in
+	gcc 2.95.2 and later.
+
+2000-07-11  Kazu Hirata  <kazu@hxi.com>
+
+	* ldfile.c (ldfile_try_open_bfd): Output '\n' after an error
+	message.
+
+2000-07-10  Alan Modra  <alan@linuxcare.com.au>
+
+	* ldemul.h (struct lang_input_statement_struct): Remove forward
+	declaration.
+	(struct search_dirs): Likewise.
+	* ldfile.h (struct lang_input_statement_struct): Likewise.
+	Protect file from multiple inclusion.
+	* ldlang.h (LANG_FOR_EACH_INPUT_STATEMENT): Move file_chain
+	declaration from macro to file scope.
+
+	* ldemul.c: ldexp.h,ldlang.h,ldfile.h,ldemul.h go in this order.
+	* ldgram.y: Likewise here.
+	* ldlang.c: And here.
+	* ldmain.c: And here.
+	* mpw-elfmips.c: And here.
+	* mpw-eppcmac.c: And here.
+	* emultempl/aix.em: And here.
+	* emultempl/armcoff.em: And here.
+	* emultempl/armelf.em: And here.
+	* emultempl/armelf_oabi.em: And here.
+	* emultempl/beos.em: And here.
+	* emultempl/elf32.em: And here.
+	* emultempl/hppaelf.em: And here.
+	* emultempl/linux.em: And here.
+	* emultempl/lnk960.em: And here.
+	* emultempl/pe.em: And here.
+	* emultempl/sunos.em: And here.
+	* mpw-esh.c: And here. Include ldexp.h and ldlang.h too.
+	* mpw-idtmips.c: Ditto.
+	* emultempl/generic.em: Ditto.
+	* emultempl/gld960.em: Ditto.
+	* emultempl/gld960c.em: Ditto.
+	* emultempl/mipsecoff.em: Ditto.
+	* emultempl/ticoff.em: Ditto.
+	* emultempl/vanilla.em: Ditto.
+
+	* pe-dll.c: Include ldfile.h
+	* ldver.c: Include ldexp.h, ldlang.h, ldfile.h
+
+	* mpw-elfmips.c: (gldelf32ebmip_before_allocation): Add missing
+	arguments to bfd_elf32_size_dynamic_sections call.
+	(gldelf32ebmip_place_orphan): Add missing arguments to
+	lang_leave_output_section_statement call.
+
+2000-07-10  H.J. Lu  <hjl@gnu.org>
+
+	* emultempl/pe.em (pe_enable_stdcall_fixup): Protect with
+	DLL_SUPPORT.
+	(strhash): Likewise.
+	(compute_dll_image_base): Likewise.
+	(pe_undef_found_sym): Likewise.
+	(pe_undef_cdecl_match): Likewise.
+	(gld_${EMULATION_NAME}_open_dynamic_archive): Mark the
+	argument "arch" with ATTRIBUTE_UNUSED.
+
+2000-07-10  Alan Modra  <alan@linuxcare.com.au>
+
+	* configure.tgt: Remove extraneous hppa*-*-linux-gnu*.
+
+	From  Ryan Bradetich  <rbradetich@uswest.net>
+	* ldwrite.c (SSIZE): Remove to cure macro redefinition warning.
+
+2000-07-09  Alan Modra  <alan@linuxcare.com.au>
+
+	Changes to create multiple linker stubs, positioned immediately
+	before the section where they are required.
+	* emultempl/hppaelf.em: Include elf32-hppa.h.
+	(stub_sec, file_chain): Delete.
+	(hppaelf_create_output_section_statements): Don't make a stub
+	section here.
+	(hook_stub_info): New struct.
+	(hook_in_stub): New function.
+	(hppaelf_add_stub_section): New function.
+	(hppaelf_finish): Do nothing for relocateable links.  Modify the
+	call to elf32_hppa_size_stubs.  Move code for updating section
+	layout from here...
+	(hppaelf_layaout_sections_again): ..to here, a new function.
+
+	* emultempl/hppaelf.em (hppaelf_delete_padding_statements): Fix
+	broken list handling.  Pass in a pointer to the list.
+	(hppaelf_finish): Update call to hppaelf_delete_padding_statements
+	for above changes.
+	(hppaelf_before_parse): Prototype.
+	(hppaelf_set_output_arch): Prototype.
+	(hppaelf_create_output_section_statements): Prototype.
+	(hppaelf_delete_padding_statements): Prototype.
+	(hppaelf_finish): Prototype.
+
+	Merge from elf32.em
+	* emultempl/hppaelf.em: Include ctype.h.
+	(struct orphan_save): New.
+	(gld${EMULATION_NAME}_place_orphan): New.
+	(output_rel_find): New.
+	(hppaelf_get_script): Update from elf32.em.
+	(ld_hppaelf_emulation): Rename to ld_${EMULATION_NAME}_emulation.
+	Change emulation_name field to "${EMULATION_NAME}".  Add
+	gld${EMULATION_NAME}_place_orphan.
+
+	* Makefile.am (ALL_EMULATIONS): Reinstate ehppaelf.o,  add
+	ehppalinux.o, sort it.  Regenerate dependencies.
+	(ehppalinux.c): Depend on hppaelf.em
+	* Makefile.in: Regenerate.
+
+	* configure.tgt: targ_emul=hppalinux for hppa*linux
+
+	* emulparams/hppalinux.sh: New.
+	* emulparams/hppaelf.sh (TARGET_PAGE_SIZE): Write in hex.
+
+2000-07-08  Alan Modra  <alan@linuxcare.com.au>
+
+	* lexsup.c (parse_args): Copy section name.
+
+2000-07-07  Charles Wilson  <cwilson@ece.gatech.edu>
+
+	* emultempl/pe.em: institute the following search order for
+	dynamic libraries on pei386: libfoo.dll.a, foo.dll.a (import
+	libs), libfoo.dll, foo.dll (link direct to dll).  Fall back to
+	static lib (libfoo.a) if none of the above are found.
+
+2000-07-07  Mumit Khan  <khan@xraylith.wisc.edu>
+
+	* emultempl/pe.em (pe_enable_auto_image_base): New variable.
+	(longopts): New --{enable,disable}-auto-image-base options.
+	(gld_${EMULATION_NAME}_list_options): Document.
+	(gld_${EMULATION_NAME}_parse): Handle.
+	(strhash): New static function.
+	(compute_dll_image_base): New static function.
+	(gld_${EMULATION_NAME}_set_symbols): Use.
+
+2000-07-05  DJ Delorie  <dj@redhat.com>
+
+	* MAINTAINERS: new
+
+2000-07-01  Koundinya K  <kk@ddeorg.soft.net>
+
+	* configure.tgt: Add traditional mips (mips*-*-sysv4*) target.
+	* emulparams/elf32btsmip.sh: New file.
+	* Makefile.am: Add traditional mips target.
+	* Makefile.in: Rebuild.
+
+2000-07-01  H.J. Lu  <hjl@gnu.org>
+
+	* Makefile.am (EXTRA_ld_new_SOURCES): Set to deffilep.y for
+	automake to use YLWRAP.
+	* Makefile.in: Rebuild.
+
+2000-07-01  Alan Modra  <alan@linuxcare.com.au>
+
+	* Makefile.am (DEP): Fix 2000-06-22.  grep after running dep.sed
+	(CLEANFILES): Add DEPA.
+	* Makefile.in: Regenerate.
+
+2000-06-30  Timothy Wall  <twall@ppc>
+
+	* scripttempl/tic54xcoff.sc: PAGE N is not implemented, so encode
+	the page in the upper octet of the address.
+
+2000-06-26  Marek Michalkiewicz  <marekm@linux.org.pl>
+
+	* emulparams/avrmega161.sh (ARCH): Change to avr:5.
+
+2000-06-24  Alan Modra  <alan@linuxcare.com.au>
+
+	* NEWS: arm-elf does --gc-sections too.
+
+2000-06-22  Alan Modra  <alan@linuxcare.com.au>
+
+	* Makefile.am (DEP): grep for leading `/' in DEP1, and fail if we
+	find one.
+	* Makefile.in: Regenerate.
+
+2000-06-21  H.J. Lu  <hjl@gnu.org>
+
+	* Makefile.am: Rebuild dependency.
+	* Makefile.in: Rebuild.
+
+2000-06-20  H.J. Lu  <hjl@gnu.org>
+
+	* Makefile.am: Rebuild dependency.
+	* Makefile.in: Rebuild.
+
+2000-06-20  Timothy Wall  <twall@cygnus.com>
+
+	* scripttempl/tic54xcoff.sc: New.
+	* ldlang.c (wild_doit): Propagate SEC_BLOCK flag.
+	* gen-doc.texi: Add flag for TI COFF.
+	* ld.texinfo: Add documentation for TI COFF handling switches.
+	* emultempl/ticoff.em: New. TI COFF handling.
+	* configure.tgt: Add tic54x target.
+	* Makefile.am: Add tic54x target.
+	* Makefile.in: Ditto.
+
+2000-06-20  Alan Modra  <alan@linuxcare.com.au>
+
+	* ldmain.c (set_scripts_dir): Correct pointer comparison when
+	checking for backslashes.
+
+2000-06-19  Alan Modra  <alan@linuxcare.com.au>
+
+	* NEWS: Move entries not in 2.10 above "Changes in version 2.10".
+
+2000-06-18  Alan Modra  <alan@linuxcare.com.au>
+
+	* NEWS: Update list of targets supporting --gc-sections.
+
+	* scripttempl/elf.sc: KEEP .eh_frame contents.
+	* scripttempl/elfd30v.sc: Same here.
+
+2000-06-18  Stephane Carrez  <stcarrez@worldnet.fr>
+
+	* Makefile.am (ALL_EMULATIONS): Added new emulation for m68hc12
+	and m68hc11 (elf).
+	* Makefile.in: Rebuild.
+	* configure.tgt: Recognize m68hc12 and m68hc11.
+	* scripttempl/elfm68hc12.sc: New file.
+	* emulparams/m68hc12elfb: New emulation.
+	* emulparams/m68hc12elf: New emulation.
+	* emulparams/m68hc11elfb.sh: New file.	User configurable emulation
+	(includes a memory.x script to define the ROM and RAM banks).
+	* scripttempl/elfm68hc11.sc, emulparams/m68hc11elf.sh:
+	New configuration files for support of Motorola 68hc11
+
+2000-06-15  Alan Modra  <alan@linuxcare.com.au>
+
+	* ldmain.c (main): Only change SEC_READONLY for final link.
+
+2000-06-13  H.J. Lu  <hjl@gnu.org>
+
+	* configure: Regenerate.
+
+2000-06-08  David O'Brien  <obrien@FreeBSD.org>
+
+	* configure.in (VERSION): Update to show this is the CVS mainline.
+
+2000-06-07  Michael Sokolov  <msokolov@ivan.Harhan.ORG>
+
+	* emultempl/mipsecoff.em (gld{EMULATION_NAME}_after_open): Require all
+	input objects to be ECOFF.
+	(check_sections): einfo takes %B, not %P, to print a BFD name.
+
+2000-06-05  Michael Matz <matz@ifh.de>
+
+	* ldgram.y (vers_defns): Handle 'extern "C++" { ... }' in
+	version scripts.
+
+	* ldlex.l (V_IDENTIFIER): Accept `::' in symbols.
+
+2000-05-23  Marek Michalkiewicz  <marekm@linux.org.pl>
+
+	* emulparams/avr1200.sh (STACK): Define as 0.
+	* emulparams/avr23xx.sh (STACK): Define as last internal SRAM address.
+	* emulparams/avr4433.sh (STACK): Likewise.
+	* emulparams/avr44x4.sh (STACK): Likewise.
+	* emulparams/avr85xx.sh (STACK): Likewise.
+	* emulparams/avrmega103.sh (STACK): Likewise.
+	* emulparams/avrmega161.sh (STACK): Likewise.
+	* emulparams/avrmega603.sh (STACK): Likewise.
+	* scripttempl/elf32avr.sc (__data_start): Define for gcrt1.
+	(__stack): Define from ${STACK} for main().
+
+2000-05-26  Alan Modra  <alan@linuxcare.com.au>
+
+	* Makefile.am: Update dependencies with "make dep-am"
+	* Makefile.in: Regenerate.
+
+2000-05-26  Eli Zaretskii  <eliz@is.elta.co.il>
+
+	* ldmain.c: Include filenames.h.
+	(set_scripts_dir): Support backslashes in program name.
+
+2000-05-22  Igor Shevlyakov  <igor@windriver.com>
+
+	* ldmain.c (main): When deciding if ".text" section should be
+	read-only, don't forget to reset SEC_READONLY because it
+	could be already set.
+
+2000-05-22  Thomas de Lellis  <tdel@windriver.com>
+
+	* ld.1: Add documentation for new command line option:
+		--section-start <sectionname>=<sectionorg>
+	This is a generic version of -Ttext etc. which accepts
+	any section name as a parameter instead of just text/data/
+	bss.
+	* ld.texinfo: More docs.
+	* NEWS: More docs.
+	* lexsup.c: (parse_args): Recognize new command line option.
+	(ld_options): Add new option.
+
+2000-05-18  H.J. Lu  <hjl@gnu.org>
+
+	* lexsup.c (parse_args): `i' == `r', not `q'.
+
+Thu May 18 10:47:57 2000  Jeffrey A Law  (law@cygnus.com)
+
+	* configure.tgt (hppa*64*-*-*): Enable PA64 target.
+
+2000-05-17 S. Bharadwaj Yadavalli  <sby@scrugs.lkg.dec.com>
+	      Rick Gorton	   <gorton@scrugs.lkg.dec.com>
+
+	Add support for '-q' == '--emit-relocs' switch.
+	* ldmain.c (main): Default to false.
+	* lexsup.c (parse_args): Turn on emitrelocations flag if set.
+	* NEWS: Describe the emitrelocations switch.
+	* ld.texinfo: Describe the emitrelocations switch.
+
+2000-05-16  Charles Wilson <cwilson@ece.gatech.edu>
+
+	* emultempl/pe.em (_open_dynamic_archive): New function: Search
+	the library path for "foo.dll" and "libfoo.dll" dynamic libraries
+	before searching for 'libfoo.a' in response to a '-Bdynamic -lfoo'
+	link options.
+
+2000-05-15  David O'Brien  <obrien@FreeBSD.org>
+
+	* lexsup.c (parse_args): Update the year in the copyright notice.
+
+2000-05-13  Alan Modra  <alan@linuxcare.com.au>
+
+	* ld.h (gettext, dgettext, dcgettext, textdomain, bindtextdomain):
+	Replace defines with those from intl/libgettext.h to quieten gcc
+	warnings.
+
+2000-05-10  H.J. Lu  <hjl@gnu.org>
+
+	* ldlang.c (open_input_bfds): Don't load the same file within
+	a group again if the whole archive has been loaded already.
+
+2000-05-03  Alan Modra  <alan@linuxcare.com.au>
+
+	From Ulf Carlsson <ulfc@engr.sgi.com> and Andreas Jaeger <aj@suse.de>
+	* lexsup.c (set_section_start): Use bfd_scan_vma rather than
+	strtoul.
+
+Mon May  1 17:34:34 2000  Jim Wilson  <wilson@cygnus.com>
+
+	* configure.host (ia64-*-linux-gnu*): Change gcc to ${CC}.
+
+	* configure.host: Added HOSTING_CRT0, HOSTING_LIBS for
+	host "ia64-*-linux-gnu*".
+
+2000-04-29  Andreas Jaeger  <aj@suse.de>
+
+	* ld.h: Correctly check GCC version.
+
+Tue Apr 25 11:20:43 2000  Jeffrey A Law  (law@cygnus.com)
+
+	* Makefile.am: Add PA64 support.  Add missing dependencies for
+	PA32 elf support.
+	* Makefile.in: Rebuilt.
+	* configure.tgt: Add PA64 support (currently disabled).
+
+2000-04-25  Alan Modra  <alan@linuxcare.com.au>
+
+	* emultempl/elf32.em (gld${EMULATION_NAME}_place_section): Delete.
+	(output_rel_find): New function.
+	(hold_section, hold_use): Delete.
+	(hold_text, hold_rodata, hold_data, hold_bss, hold_rel,
+	hold_interp): Make local to place_orphan.
+	(gld${EMULATION_NAME}_place_orphan): Use lang_output_section_find
+	rather than place_section to find possible previous use of orphan.
+	Similarly find the place-holder output sections.  Use returned
+	value from lang_enter_output_section_statement rather than calling
+	lang_output_section_statement_lookup.
+	* emultempl/armelf.em: Same here.
+	* emultempl/pe.em: Similar to above, but no need for output_rel_find.
+
+	* ldlang.c (lang_enter_output_section_statement): Return output
+	section statement.
+	* ldlang.h (lang_enter_output_section_statement): Change
+	declaration too.
+
+	* ldlang.h (lang_output_section_statement): Export it.
+	* ldlang.c (lang_output_section_statement): Ditto.
+
+2000-04-24  Nick Clifton  <nickc@cygnus.com>
+
+	* ld.texinfo (Output Section Data): Add note that section data
+	commands cannot appear outside of section directives.
+
+2000-04-2  Matthew Green  <mrg@cygnus.com>
+
+	* configure.tgt: Add NetBSD/sparc ELF, and NetBSD/sparc64 support.
+
+Fri Apr 21 13:20:53 2000  Richard Henderson  <rth@cygnus.com>
+			  David Mosberger  <davidm@hpl.hp.com>
+
+	* Makefile.am (ALL_64_EMULATIONS): Add eelf64_ia64.o.
+	(eelf64_ia64.c): New rule.
+	* Makefile.in: Rebuild.
+	* configure.tgt (ia64-*-elf*, ia64-*-linux*): New targets.
+	* emulparams/elf64_ia64.sh: New file.
+
+2000-04-21  Richard Henderson  <rth@cygnus.com>
+
+	* scripttempl/elfd30v.sc: Place .gcc_except_table.
+
+2000-04-19  Alan Modra  <alan@linuxcare.com.au>
+
+	* dep-in.sed: Match space at start of file name, not at end.
+
+2000-04-18  H.J. Lu  <hjl@gnu.org>
+
+	* emultempl/elf32.em (gld${EMULATION_NAME}_place_orphan): Call
+	lang_leave_output_section_statement () after calling
+	lang_enter_output_section_statement ().
+	* emultempl/armelf.em: Likewise.
+
+2000-04-18  Alan Modra  <alan@linuxcare.com.au>
+
+	* emultempl/elf32.em (struct orphan_save): Add section field.
+	(gld${EMULATION_NAME}_place_orphan): Use above to keep sections in
+	better order, and place first orphan section as we did before the
+	2000-04-12 patch.  Ignore ~SEC_ALLOC sections when choosing place.
+	Don't call make_bfd_section here, let wild_doit do the job for us.
+	Don't build a statement list when we'll only throw it away.
+	* emultempl/armelf.em: Ditto.
+	* emultempl/pe.em: Similarly.
+
+2000-04-14  Geoff Keating  <geoffk@cygnus.com>
+
+	* scripttempl/elfppc.sc: Remove.
+	* emulparams/elf32ppc.sh: Use elf.sc.
+	* emulparams/elf32lppc.sh: Use elf.sc.
+	* emulparams/elf32ppclinux.sh: Use elf.sc.
+	* emulparams/elf32ppcsim.sh: New file.
+	* emulparams/elf32lppcsim.sh: New file.
+	* Makefile.am: Update dependencies.  Add elf32ppcsim ad elf32lppcsim.
+	(ALL_EMULATIONS): Add elf32ppcsim ad elf32lppcsim.
+	* Makefile.in: Regenerate.
+	* configure.tgt (powerpc-*): Add elf32ppcsim and elf32lppcsim.
+
+2000-04-14  Alan Modra  <alan@linuxcare.com.au>
+
+	* emultempl/elf32.em (gld${EMULATION_NAME}_place_orphan): Process
+	~SEC_ALLOC sections too.  Init start address of debug sections.
+	* emultempl/armelf.em (gld${EMULATION_NAME}_place_orphan): Ditto.
+	* emultempl/pe.em (gld${EMULATION_NAME}_place_orphan): Ditto.
+	Also set all relocateable section start addresses.
+
+2000-04-13  Geoff Keating  <geoffk@cygnus.com>
+
+	* scripttempl/elf.sc: Add support for .sbss2 and .sdata2 sections.
+	Add new BSS_PLT variable for when .plt need not be contained in
+	the file.  Move _etext so that it is also after .fini, and provide
+	both etext and _etext with a leading underscore.  Mark the start
+	and end of .sbss.
+
+2000-04-12  Alan Modra  <alan@linuxcare.com.au>
+
+	* emultempl/elf32.em (struct orphan_save): New.
+	(hold_text, hold_rodata, hold_data, hold_bss, hold_rel,
+	hold_interp): Make them struct orphan_save.
+	(gld${EMULATION_NAME}_place_section): Modify for new hold_*.
+	(gld${EMULATION_NAME}_place_orphan): Add new orphan sections to
+	the end of the relevant section list.  Also add associated section
+	statements to the end of any previous orphan statements.
+	* emultempl/armelf.em: Similarly.
+	* emultempl/pe.em: Similarly.
+
+2000-04-11  Alan Modra  <alan@linuxcare.com.au>
+
+	* ld.texinfo (Simple Example): Remove extraneous paragraph.
+
+Fri Apr  7 15:56:57 2000  Andrew Cagney  <cagney@b1.cygnus.com>
+
+	* configure.in (WARN_CFLAGS): Set to -W -Wall by default.  Add
+	--enable-build-warnings option.
+	* Makefile.am (AM_CFLAGS, WARN_CFLAGS): Add definitions.
+	* Makefile.in, configure: Re-generate.
+
+2000-04-04  Alan Modra  <alan@linuxcare.com.au>
+
+	* po/ld.pot: Regenerate.
+
+	* lexsup.c (help): Restore translated part of bug string.
+
+	* Makefile.am (MKDEP): Use gcc -MM rather than mkdep.
+	(DEP): Quote when passing vars to sub-make.  Add warning message
+	to end.
+	(DEP1): Rewrite for "gcc -MM".
+	(CLEANFILES): Add DEP2.
+	Update dependencies.
+	* Makefile.in: Regenerate.
+
+2000-04-03  Alan Modra  <alan@linuxcare.com.au>
+
+	* ld.h: #include "bin-bugs.h"
+	* lexsup.c (help): Use REPORT_BUGS_TO.
+
+2000-03-27  Denis Chertykov  <denisc@overta.ru>
+
+	* configure.tgt (avr-*-*): New target support.
+	* Makefile.am: Likewise.
+	* scripttempl/elf32avr.sc: New script file.
+	* emulparams/avr1200.sh: New file.
+	* emulparams/avr23xx.sh: New file.
+	* emulparams/avr4433.sh New file.
+	* emulparams/avr44x4.sh New file.
+	* emulparams/avr85xx.sh New file.
+	* emulparams/avrmega103.sh New file.
+	* emulparams/avrmega161.sh New file.
+	* emulparams/avrmega603.sh New file.
+	* Makefile.in: Regenerate.
+
+2000-03-09  Andreas Jaeger  <aj@suse.de>
+
+	* Makefile.am (check-DEJAGNU): Also unset LANG.
+	* Makefile.in: Rebuild.
+
+2000-03-06  Ian Lance Taylor  <ian@zembu.com>
+
+	* ldfile.c (ldfile_try_open_bfd): Don't crash if we see an empty
+	archive.
+
+2000-03-02  H.J. Lu  <hjl@gnu.org>
+
+	* emulparams/elf32mcore.sh: Include "getopt.h".
+
+2000-03-01  Ian Lance Taylor  <ian@zembu.com>
+
+	* configure.tgt: Remove *-*-aout, *-*-coff, and *-*-netware.
+
+2000-03-01  H.J. Lu  <hjl@gnu.org>
+
+	* emulparams/mipspe.sh: Add SUBSYSTEM and INITIAL_SYMBOL_CHAR.
+	* emulparams/shpe.sh: Likewise.
+
+2000-03-01  Nick Clifton  <nickc@cygnus.com>
+
+	* pe-dll.c: Remove unused variables and add ATTRIBUTE_UNUSED
+	to unused parameters.
+
+	* emultempl/pe.em: Add "#ifdef DLL_SUPPORT" around static
+	functions only used by DLL code.
+	(_place_orphan): Initialise 'dollar'.
+
+2000-03-01  H.J. Lu  <hjl@gnu.org>
+
+	* ldmain.c (undefined_symbol): Take one more arg, fatal, to
+	indicate if the undefined symbol is a fatal error or not.
+	Don't delete the output file if "fatal" is false.
+
+2000-02-29  H.J. Lu  <hjl@gnu.org>
+
+	* Makefile.am (check-DEJAGNU): Also pass LIBS="$(LIBS)".
+	Set LC_COLLATE and LC_ALL to null and export them. It is for
+	sort which expects the C locale.
+	Add $(LIBS) to all $(HOSTING_LIBS).
+	* Makefile.in: Rebuild.
+
+2000-02-29  Alan Modra  <alan@spri.levels.unisa.edu.au>
+
+	* emultempl/{aix.em, armcoff.em, armelf.em, armelf_oabi.em,
+	beos.em, elf32.em, generic.em, gld960.em, gld960c.em, hppaelf.em,
+	linux.em, lnk960.em, mipsecoff.em, sunos.em, vanilla.em}
+	(ld_emulation_xfer_struct): Add missing NULL initialiser for
+	find_potential_libraries.
+
+2000-02-28  Jim Blandy  <jimb@redhat.com>
+
+	* ldgram.y (exclude_name_list): Don't require a comma to separate
+	list entries; the lexer considers commas to be valid part of a
+	filename, so in something like `foo, bar' the comma is considered
+	part of the first filename, `foo,'.
+	* ld.texinfo: Update section on EXCLUDE_FILE lists.
+
+2000-02-27  Loren J. Rittle  <ljrittle@acm.org>
+
+	* configure.host: Added HOSTING_CRT0, HOSTING_LIBS for
+	host "i[3456]86-*-freebsdelf*".
+
+2000-02-27  Mark Elbrecht  <snowball3@bigfoot.com>
+
+	* scripttempl/i386go32.sc: Move misplaced semicolons.
+
+2000-02-25  Ian Lance Taylor  <ian@zembu.com>
+
+	* Makefile.am (ALL_EMULATIONS): Remove ehppaelf.o.
+	(ALL_64_EMULATIONS): Remove eelf64hppa.o.
+	(eelf64hppa.c, ehppaelf.c): Remove targets.
+	* Makefile.in: Rebuild.
+
+2000-02-25  Alexandre Oliva  <oliva@lsd.ic.unicamp.br>
+
+	* configure.tgt (targ_extra_ofiles): Enable elf64_sparc on
+	GNU/Linux/sparc, but keep the default as 32.
+
+	* configure.tgt: Enable elf64_sparc on Solaris7+/sparc.  And make
+	it default if sparcv9 or sparc64.
+
+2000-02-24  Nick Clifton  <nickc@cygnus.com>
+
+	* Makefile.am: Add rules to build emipspe.o and earmpe.o.
+	* Makefile.in: Regenerate.
+	* configure.tgt: Add targets for arm-wince, sh-pe and mips-pe.
+
+	* ldemul.h (ld_emulation_xfer_struct): Add new field:
+	find_potential_libraries.
+	* ldemul.c (ldemul_find_potential_libraries): New function.
+
+	* ldfile.c (ldfile_open_file_search): Allow function to be
+	exported.
+	(ldfile_open_file): Call ldemul_find_potential_libraries.
+	* ldfile.h: Add prototype for ldfile_open_file_search.
+
+	* pe-dll.c: Add support for ARM, MIPS and SH targets.
+
+	* emulparams/mipspe.sh: New file.  Parameters for mips-pe target.
+	* emulparams/shpe.sh: New file.  Parameters for sh-pe target.
+
+	* emultempl/pe.em: Add support for ARM, MIPS and SH DLLs.
+	(gld_X_find_potential_libraries): New function.  Search for
+	libraries called "*.lib".
+
+	* scripttempl/pe.sc: Add .pdata section.
+
+2000-02-23  Richard Henderson  <rth@cygnus.com>
+
+	* scripttempl/elfd10v.sc: Remove dynamic linking hooks.
+	Add and use memory regions.
+
+2000-02-23  Linas Vepstas (linas@linas.org)
+
+	* emulparams/elf32i370.sh, scripttempl/elfi370.sc: New.
+
+	* Makefile.am: Add support for Linux/IBM 370.
+	* configure.tgt: Likewise.
+
+	* Makefile.in: Regenerate.
+
+2000-02-21  Alan Modra  <alan@spri.levels.unisa.edu.au>
+
+	* ldlang.c (print_input_section, print_data_statement,
+	print_reloc_statement, print_padding_statement, insert_pad,
+	size_input_section, lang_check_section_addresses,
+	lang_size_sections, lang_do_assignments, lang_set_startof,
+	lang_one_common): Change `opb' to unsigned.
+	(lang_do_assignments): Also change `size' to unsigned.
+
+2000-02-16  Richard Henderson  <rth@cygnus.com>
+
+	* scripttempl/elf.sc: Place OTHER_PLT_RELOC_SECTION.
+
+2000-02-16  Timothy Wall  <twall@cygnus.com>
+
+	* mri.c (mri_draw_tree): Add default LMA region argument to call
+	to lang_leave_output_section_statement.
+	* ldlang.h: Update prototypes with LMA region arguments.
+	* ldlang.c (lang_size_sections): Encapsulate region bounds
+	checking in os_check_region call.
+	(os_check_region): New function.
+	(lang_output_section_statement_lookup): Initialize lma_region.
+	(lang_leave_output_section_statement): Add LMA region argument.
+	(lang_leave_overlay): Ditto.
+	* ldgram.y: Handle LMA region syntax.
+	* ld.texinfo (Output Section Description): Describe LMA region usage.
+	* emultempl/armelf.em (gld$place_orphan): Add default value for
+	lma region in call to lang_leave_output_section_statement.
+	* emultempl/elf32.em (gld$place_orphan): Add default value for
+	lma region in call to lang_leave_output_section_statement.
+	* emultempl/pe.em (gld$place_orphan): Add default value for
+	lma region in call to lang_leave_output_section_statement.
+
+
+2000-02-04  Timothy Wall  <twall@redhat.com>
+
+	* ldlang.c (lang_check_section_addresses): Use bytes instead of
+	octets when calculating section end addresses.
+
+2000-02-04  Timothy Wall  <twall@redhat.com>
+
+	* ldlang.c (lang_size_sections): Fix typo in ALIGN_N invocation.
+
+2000-02-03  Timothy Wall <twall@redhat.com>
+
+	* ldexp.c (fold_name): Make SIZEOF operator return byte count, not
+	octet count.
+	* ldlang.c (print_input_section, print_data_statement,
+	print_reloc_statement, print_padding_statement): Print target
+	address values and section sizes as bytes, not octets.
+	(insert_pad) Calculate padding size in octets, and adjust "dot"
+	by bytes.
+	(size_input_section) Always adjust "dot" by bytes, not octets.
+	(lang_check_section_addresses, lang_do_assignments) Adjust
+	"dot" by bytes, not octets.  Use the larger of the directive size
+	or octets_per_byte for the number of octets actually allocated in
+	the output section.
+	(lang_set_startof) Make sure STARTOF returns a target address.
+	(lang_one_common) Record size changes in octets.
+	(lang_abs_symbol_at_end_of) Section end symbol's value is
+	recorded in target bytes.
+	* ld.texinfo:   Updated description of BYTE, SHORT, LONG, etc.
+	to be clear about behavior when an octet is smaller than one byte.
+
+2000-01-27  Alan Modra  <alan@spri.levels.unisa.edu.au>
+
+	* ldcref.c (output_cref): Don't pass message strings to printf
+	as format arg.
+	Update copyright.
+
+	* ldmisc.c (vfinfo): Same here.
+	Update copyright.
+
+2000-01-23  Alan Modra  <alan@spri.levels.unisa.edu.au>
+
+	* emultempl/{armcoff.em,armelf.em,armelf_oabi.em,beos.em,
+	generic.em,gld960.em,gld960c.em,hppaelf.em,linux.em,lnk960.em,
+	mipsecoff.em,sunos.em,vanilla.em} (ld_emulation_xfer_struct):
+	Add missing NULL initialisers, and comments.
+
+	* testsuite/ld-srec/sr3.cc (__rethrow): New.
+
+2000-01-21  Nick Clifton  <nickc@cygnus.com>
+
+	* ldlang.c (lang_size_sections): Fix typo in comment.
+
+2000-01-18  H.J. Lu  <hjl@gnu.org>
+
+	* ldlang.c (lang_size_sections): Also update the current
+	address of a region if the SEC_NEVER_LOAD bit is not set.
+
+2000-01-10  Philip Blundell  <pb@futuretv.com>
+
+	* configure.tgt (arm*-*-conix*): New target.
+
+2000-01-07  Nick Clifton  <nickc@cygnus.com>
+
+	* ld.texinfo (Options): Remind users to preceed linker command
+	line switches with -Wl, (or whatever is appropriate) if it is
+	being invoked by a comnpiler driver program.
+	Fix description of the behaviour of the -n command line switch.
+
+Wed Jan  5 08:02:12 2000  Catherine Moore  <clm@cygnus.com>
+
+	* ld.h (wildcard_spec):  Change exclude_name to exclude_name_list.
+	(name_list): New.
+	* ld.texinfo (EXCLUDE_FILE): Update documentation.
+	* ldgram.y (wildcard_spec): Support a list of excluded_files.
+	(exclude_name_list): New.
+	ldlang.c (walk_wild_section): Support list of excluded files.
+	(print_wild_statement): Likewise.
+	(lang_add_wild): Likewise.
+	* ldlang.h (lang_wild_statement_type): Likewise.
+	* scripttempl/elf.sc (OTHER_EXCLUDE_FILES): Support.
+
+2000-01-04  Mumit Khan  <khan@xraylith.wisc.edu>
+
+	* pe-dll.c (pe_dll_warn_dup_exports): New variable.
+	(process_def_file): Use.
+	(pe_dll_compat_implib): New variable.
+	(make_one): Use.
+
+	* pe-dll.h: Add exports of pe_dll_warn_dup_exports and
+	pe_dll_compat_implib.
+
+	* emultempl/pe.em (longopts): Add warn-duplicate-exports and
+	compat-implib options.
+	(gld_${EMULATION_NAME}_list_options): List new options.
+	(gld_${EMULATION_NAME}_parse_args): Handle.
+
+	* pe-dll.c (pe_dll_generate_implib): Use the correct name for output
+	dll.
+
+	* deffilep.y (opt_name): Allow "." in name.
+
+For older changes see ChangeLog-9899
+
+Local Variables:
+mode: change-log
+left-margin: 8
+fill-column: 74
+version-control: never
+End:

@@ -1,0 +1,50 @@
+#!/bin/sh
+#
+# uuxconv
+#
+# After converting to Taylor from SVR4.03 UUCP, I still had a lot of
+# jobs queued up to go out.
+#
+# This script is a one-shot to mass-requeue a site's spool.
+#
+# It doesn't go and do your whole spool, nor even all grades.
+# you need to go into each grade directory for each site and 
+# execute this.
+#
+# i.e.:  You have a site named 'foo'
+# cd /var/spool/uucp/foo/Z
+# uuxconv foo
+# 
+# it does delete the 'D' & 'X' after requeing them, but doesn't remove
+# the 'C' files.
+#
+# I foolishly went and ran this script on all my queued jobs, without
+# adding the improvements to recursively go through the entire UUCP spool,
+# so now I'm out of files to test with.  I don't want to add the code
+# to do that since I can't test it, and this worked.
+#
+# I hereby give this (trivial :-)) program to the GNU Project/FSF
+# and Ian Taylor in it's entirety, so that it can be placed in
+# the contrib directory of taylor-uucp, and save others the pain
+# of rewriting it.
+#
+# Richard Nickle (rick@trystro.uucp, rnickle@gnu.ai.mit.edu)
+# May 27, 1993
+#
+if [ $# -eq 0 ]
+then
+	echo "Usage: $0 sitename"
+	exit 1
+fi
+exit 0
+site=$1
+tsite=`echo $site | cut -c1-5`
+find . -name "D.$tsite*" -print |
+while read file
+do
+	control=`egrep "^C" $file | cut -c3-`
+	input=`egrep "^I" $file | cut -c3-`
+	(uux - -r -z $site!$control < $input) && (rm $file $input)
+	echo "$site!$control < $input"
+done
+exit 0

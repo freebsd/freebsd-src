@@ -1,0 +1,237 @@
+$FreeBSD$
+
+                              PPP mit isdn4bsd
+     _________________________________________________________________
+   
+   Version 1.01
+   Datum: 22.02.1999
+   Autor: [1]Dominik Brettnacher <domi@saargate.de>
+   
+   - Anmerkungen und Verbesserungsvorschläge sind willkommen -
+   
+    1. vorab
+       Dieser Text soll Neulingen helfen, sich mittels isdn4bsd und BSD
+       per PPP z.B. bei ihrem Provider einwählen zu können.
+       isdn4bsd bringt einiges an Dokumentation und
+       Konfigurationsbeispielen mit, jedoch ist es nicht immer leicht,
+       die entsprechenden Hinweise gut miteinander zu kombinieren, so daß
+       am Schluß das dabei herauskommt, was man haben möchte.
+    2. Wo bekomme ich isdn4bsd?
+       hier solle es keine allzu großen Probleme geben: isdn4bsd ist auf
+       dem FTP-Server [2]ftp.consol.de erhältlich. Man beachte dabei, daß
+       man sich nicht, wie üblich, als anonymous, sondern als isdn4bsd
+       einloggen muß. Benutzer von Browsern geben als Adresse
+       [3]ftp://isdn4bsd@ftp.consol.de und als Passwort ihre
+       eMail-Adresse an.
+       Wertvolle Informationen findet man in der Datei README.
+    3. Welche ISDN-Karten werden unterstützt?
+       Informationen darüber findet man in der README-Datei.
+    4. Ich benutze einen externen ISDN-Adapter - was nun?
+       Externe Adapter benötigen keine direkte Unterstützung, weil sie
+       über die serielle Schnittstelle angesteuert werden. Man kann also
+       das normale PPP benutzen. man ppp hilft hier sicher weiter.
+    5. isdn4bsd installieren
+       Wie man isdn4bsd installiert, steht in der Datei
+       FreeBSD/INSTALLATION (für NetBSD und OpenBSD analog). Eine
+       Beispielkonfiguration des Kernel sieht so aus:
+[...]
+#
+# i4b passive ISDN cards support (isic - I4b Siemens Isdn Chipset driver)
+# note that the ``options'' and ``device'' lines must BOTH be defined !
+#
+# Non-PnP Cards:
+# --------------
+#
+# AVM A1 or AVM Fritz!Card
+options "AVM_A1"
+device    isic0 at isa? port 0x300 net irq 15 flags 4 vector isicintr
+#
+# ISDN Protocol Stack
+# -------------------
+#
+# Q.921 / layer 2 - i4b passive cards D channel handling
+pseudo-device  "i4bq921"
+#
+# Q.931 / layer 3 - i4b passive cards D channel handling
+pseudo-device  "i4bq931"
+#
+# layer 4 - i4b common passive and active card handling
+pseudo-device  "i4b"
+#
+# ISDN devices
+# ------------
+#
+# userland driver to do ISDN tracing (for passive cards only)
+pseudo-device   "i4btrc" 4
+#
+# userland driver to control the whole thing
+pseudo-device   "i4bctl"
+#
+# userland driver for access to raw B channel
+#pseudo-device   "i4brbch"       4
+#
+# userland driver for telephony
+#pseudo-device   "i4btel"        2
+#
+# network driver for IP over raw HDLC ISDN
+#pseudo-device   "i4bipr"     4
+# enable VJ header compression detection for ipr i/f
+#options       IPR_VJ
+#
+# network driver for sync PPP over ISDN
+pseudo-device  "i4bisppp"     1
+pseudo-device  sppp      1
+#
+#---------------------------------------------------------------------------
+[...]
+       Nachdem ein neuer Kernel kompiliert und das System neugestartet
+       wurde, kann es weiter gehen.
+    6. Konfiguration isdnd.rc
+       Die für ISDN wichtigste Konfigurationsdatei ist
+       /etc/isdn/isdnd.rc. Mit man isdnd.rc erhält man Informationen über
+       die Einstellungen, die man dort vornehmen kann. Im Folgenden ein
+       Beispiel:
+
+
+#==============================================================================
+# SYSTEM section: isdnd global configuration parameters
+#==============================================================================
+system
+
+# accounting
+# ----------
+
+acctall         = on                    # generate info for everything
+acctfile        = /var/log/isdnd.acct   # name & location of accounting file
+useacctfile     = yes                   # generate accouting info to file
+
+# monitor
+# -------
+
+monitor-allowed = no                    # global switch: monitor on/off
+monitor-port    = 451                   # default monitor TCP port
+
+# Monitor rights are granted due to the most specific host/net spec, i.e. in
+# the example below host 192.168.1.2 will have the rights specified on that
+# line, even so it belongs to net 192.168.1.0/24 as well.
+#
+# A monitor specification may either be:
+#
+#  - the name of a local (UNIX-domain) socket; this MUST start with a "/"
+monitor         = "/var/run/isdn-monitor"
+monitor-access  = fullcmd
+monitor-access  = channelstate, logevents
+monitor-access  = callin, callout
+
+# ratesfile
+# ---------
+
+ratesfile       = /etc/isdn/isdnd.rates # name & location of rates file
+
+# regular expression pattern matching
+# -----------------------------------
+
+#regexpr        = "connected.*KTS"      # look for matches in log messages
+#regprog        = connectKTS            # execute program when match is found
+
+# realtime priority section
+# -------------------------
+
+rtprio          = 25                    # modify isdnd's process priority
+
+###############################################################################
+entry
+name                    = lf
+usrdevicename           = isp
+usrdeviceunit           = 0
+isdncontroller          = 0
+isdnchannel             = -1
+local-phone-incoming    = 012345678
+remote-phone-incoming   = 876543210
+local-phone-dialout     = 012345678
+remote-phone-dialout    = 876543210
+remdial-handling        = first
+dialin-reaction         = accept
+dialout-type            = normal
+b1protocol              = hdlc
+idletime-incoming       = 240
+idletime-outgoing       = 30
+earlyhangup             = 5
+ratetype                = 0
+unitlength              = 90
+unitlengthsrc           = rate
+dialretries             = 3
+dialrandincr            = on
+recoverytime            = 25
+
+connectprog             = is-up
+disconnectprog          = is-down
+
+       Wichtig sind hier für den Neuling die vier *-phone-* Einträge, die
+       jeweils die lokale Rufnummer und die der Gegenstelle für ein- und
+       ausgehende Verbindungen angeben.
+   
+    7. ISDN-Verbindungen aufbauen
+       um ISDN-Verbindungen aufzubauen, bedarf es einiger Befehle, die
+       beim Systemstart aufgerufen werden. Man kann sie zum Beispiel am
+       Ende von /etc/rc.local unterbringen. Hier gibt es aber durchaus
+       noch andere Lösungen:
+       [...]
+       # start ISDN
+       echo -n 'ppp / ISDN...'
+       echo -n 'isdnd...'
+       /usr/local/bin/isdnd
+       echo -n 'ifconfig...'
+       ifconfig isp0 link1 0.0.0.0 1.1.1.1 netmask 0xffffff00
+       ifconfig isp0 down
+       echo -n 'sppp...'
+       spppcontrol isp0 myauthproto=pap myauthname="xxx"
+       myauthsecret="xxx" hisauthproto=none
+       echo -n 'ifconfig...'
+       ifconfig isp0 up
+       echo -n 'setting routes...'
+       route add default -interface isp0
+       echo '.'
+       Ändern muß man hier eventuell die Zieladresse des Providers (im
+       Beispiel 1.1.1.1). Man bekommt diese entweder vom Provider, oder
+       aber man muß einen Versuch daransetzen, sie selbst herauszufinden.
+       Wie das funktioniert, steht in der Datei FAQ des isdn4bsd-Paketes.
+       Auch am Aufruf von spppcontrol (Vorsicht: spppcontrol bis
+       hisauthproto=none ist eine Zeile!) muß noch etwas umgestellt
+       werden:
+          + myauthproto steht für das Authentifizierungsprotokoll.
+            Möglich sind pap oder chap.
+          + myauthname ist der PPP-Benutzername.
+          + myauthsecret ist das PPP-Kennwort.
+       Wenn man nun die Befehle in /etc/rc.local ausführt, kann man mit
+       einem ping auf eine beliebige Adresse außerhalb des lokalen Netzes
+       eine Verbindung öffnen. Sie wird automatisch nach einiger
+       Inaktivität (siehe isdnd.rc) wieder geschlossen.
+   
+    8. Es funktioniert nicht - was kann ich tun?
+       Es gibt einige Möglichkeiten zur Fehlerdiagnose:
+          + dmesg gibt Aufschluß darüber, ob die Karte richtig erkannt
+            wurde.
+          + ifconfig (siehe rc.local) kann mit dem Parameter debug
+            aufgerufen werden und gibt dann einiges an Informationen aus.
+          + die Nachrichten in /var/log/messages können außerdem
+            hilfreich sein
+   
+    9. wer kann mir helfen?
+          + die erste Adresse für ISDN-Probleme ist die Mailingliste
+            [4]freebsd-isdn@freebsd.org - man bestellt sie, indem man
+            eine Mail mit dem Text subscribe freebsd-isdn an
+            [5]majordomo@freebsd.org schickt.
+          + auch die deutschsprachige Mailingliste kann hilfreich sein.
+            Mit einer Mail an [6]majordomo@de.freebsd.org, die im Text
+            subscribe de-bsd-questions enthält bestellt man sie.
+     _________________________________________________________________
+
+References
+
+   1. mailto:domi@saargate.de
+   2. ftp://isdn4bsd@ftp.consol.de/
+   3. ftp://isdn4bsd@ftp.consol.de/
+   4. mailto:freebsd-isdn@freebsd.org
+   5. mailto:majordomo@freebsd.org
+   6. mailto:majordomo@de.freebsd.org

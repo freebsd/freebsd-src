@@ -1,0 +1,85 @@
+<HTML>
+<HEAD>
+   <META HTTP-EQUIV="Content-Type" CONTENT="text/html; charset=iso-8859-1">
+   <META NAME="GENERATOR" CONTENT="Mozilla/4.01 [en] (Win95; I) [Netscape]">
+   <TITLE>USNO Modem Time Service
+</TITLE>
+</HEAD>
+<BODY>
+
+<H3>
+USNO Modem Time Service</H3>
+
+<HR>
+<H4>
+Synopsis</H4>
+Address: 127.127.24.<I>u</I>
+<BR>Reference ID: <TT>USNO</TT>
+<BR>Driver ID: <TT>ACTS_USNO</TT>
+<BR>Serial Port: <TT>/dev/cua<I>u</I></TT>; 1200 baud, 8-bits, no parity
+<BR>Requires: <TT>/usr/include/sys/termios.h</TT> header file with modem
+control
+<H4>
+Description</H4>
+No information available.
+<H4>
+Fudge Factors</H4>
+
+<DL>
+<DT>
+<TT>time1 <I>time</I></TT></DT>
+
+<DD>
+Specifies the time offset calibration factor, in seconds and fraction,
+with default 0.0.</DD>
+
+<DT>
+<TT>time2 <I>time</I></TT></DT>
+
+<DD>
+Not used by this driver.</DD>
+
+<DT>
+<TT>stratum <I>number</I></TT></DT>
+
+<DD>
+Specifies the driver stratum, in decimal from 0 to 15, with default 0.</DD>
+
+<DT>
+<TT>refid <I>string</I></TT></DT>
+
+<DD>
+Specifies the driver reference identifier, an ASCII string from one to
+four characters, with default <TT>USNO</TT>.</DD>
+
+<DT>
+<TT>flag1 0 | 1</TT></DT>
+
+<DD>
+Not used by this driver.</DD>
+
+<DT>
+<TT>flag2 0 | 1</TT></DT>
+
+<DD>
+Not used by this driver.</DD>
+
+<DT>
+<TT>flag3 0 | 1</TT></DT>
+
+<DD>
+Not used by this driver.</DD>
+
+<DT>
+<TT>flag4 0 | 1</TT></DT>
+
+<DD>
+Enable <TT>clockstats</TT> recording if set.</DD>
+</DL>
+
+<HR>
+<ADDRESS>
+David L. Mills (mills@udel.edu)</ADDRESS>
+
+</BODY>
+</HTML>

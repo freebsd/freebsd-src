@@ -1,0 +1,6 @@
+#
+# $FreeBSD$
+#
+
+SRCS+=		mips-dis.c
+CFLAGS+=	-DARCH_mips

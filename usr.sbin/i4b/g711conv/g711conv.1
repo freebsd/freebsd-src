@@ -1,0 +1,90 @@
+.\"
+.\" Copyright (c) 1999 Hellmuth Michaelis. All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\"	$Id: g711conv.1,v 1.3 1999/12/13 22:11:55 hm Exp $
+.\"
+.\" $FreeBSD$
+.\"
+.\"	last edit-date: [Mon Dec 13 22:54:33 1999]
+.\"
+.Dd March 15, 1999
+.Dt G711CONV 1
+.Os
+.Sh NAME
+.Nm g711conv
+.Nd conversions according to G.711
+.Sh SYNOPSIS
+.Nm
+.Op Fl a
+.Op Fl u
+.Op Fl P
+.Op Fl A
+.Op Fl R
+.Sh DESCRIPTION
+.Nm
+is part of the isdn4bsd package and is used to convert between the A-Law and
+u-law formats as specified in ITU G.711. It is based on a freely available
+and freely usable reference implementation done by Sun Microsystems, Inc.
+.Pp
+The following options are available:
+.Bl -tag -width Ds
+.It Fl a
+Convert A-law to u-law
+.It Fl u
+Convert u-law to A-law
+.It Fl r
+Reverse bits before conversion
+.It Fl R
+Reverse bits after conversion
+.It Fl P
+Print the resulting conversion tables (as C-source) to stdout instead of
+doing the actual conversion.
+.El
+.Sh STANDARDS
+A-Law and u-Law conversions are specified in ITU Recommendation G.711.
+.Pp
+The reference implementation done by Sun Microsystems, Inc. is available
+from http://www.itu.int/itudoc/itu-t/rec/g/g700-799/refimpl.txt
+.Sh EXAMPLES
+The command:
+.Bd -literal -offset indent
+g711conv -P -a
+.Ed
+.Pp
+prints out the A-law to u-law conversion table as C-source to stdout.
+.Pp
+The command:
+.Bd -literal -offset indent
+cat max_headroom.ul | g711conv -u -R > /dev/i4btel0
+.Ed
+.Pp
+converts the u-law coded voice of Max Headroom to A-law, reverses the
+bits of the result and moves that to an active isdn4bsd telephone connection.
+.Sh AUTHORS
+The
+.Nm
+utility and this manpage were written by
+.An Hellmuth Michaelis Aq hm@kts.org
+based on the G.711 conversion reference code written by Sun Microsystems,
+Inc. and code contributed to isdn4bsd by Stefan Bethke.

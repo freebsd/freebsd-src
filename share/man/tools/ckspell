@@ -1,0 +1,23 @@
+#! /bin/sh
+set x $*
+. ./.param
+
+TOOLS=$MANDIR/tools
+
+date > $TMPDIR/sp.errs
+echo >> $TMPDIR/sp.errs
+
+for dir in $DIRLST
+do
+	cd $MANDIR/man$dir
+	echo "cat <<'EOF' >----------------" >> $TMPDIR/sp.errs
+	echo "Section $dir" >> $TMPDIR/sp.errs
+	for file in $FILLST
+	do
+		spell $file >> $TMPDIR/tmp.$$
+	done
+	sort $TMPDIR/tmp.$$ | uniq | comm -23 - $TOOLS/sp.ignore >> $TMPDIR/sp.errs
+	> $TMPDIR/tmp.$$
+done
+
+rm -f $TMPDIR/tmp.$$

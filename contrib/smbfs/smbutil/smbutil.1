@@ -1,0 +1,125 @@
+.\" $Id: smbutil.1,v 1.4 2001/12/20 15:11:34 bp Exp $
+.Dd Feb 14, 2000
+.Dt SMBUTIL 1
+.Os
+.Sh NAME
+.Nm smbutil
+.Nd Interface to SMB requester
+.Sh SYNOPSIS
+.Nm smbutil
+.Op Fl hv
+.Ar command
+.Op Fl options
+.Op Ar args
+.Sh DESCRIPTION
+The
+.Nm
+command used to control SMB requester and issue various commands.
+.Pp
+There are two types of options - global and local to specified command.
+.Pp
+The global options are:
+.Bl -tag -width indent
+.It Fl h
+Print short help message.
+.It Fl v
+Verbose output.
+.El
+.Pp
+The commands and local options are:
+.Bl -tag -width indent
+.It Em crypt Op password
+Slightly encrypt clear text password to use it in the
+.Pa ~/.nsmbrc
+file. The encrypted password starts with '$$1' symbols.
+Warning: the encryption function is very weak and intented only to hide
+clear text password.
+If
+.Ar password
+is ommited from command line, program will prompt for one.
+.It Em help Ar command
+Print usage information about
+.Ar command .
+.It Em lc
+List active connections and their parameters.
+.It Xo
+.Em login
+.Op Fl connection\ options
+.Ar //user@server Ns Op Ar /share
+.Xc
+Login/attach to the specified
+.Ar server
+and/or
+.Ar share
+as
+.Ar user .
+This command will create and authenticate connection to an SMB server, and
+will leave it active after exit.
+Thus, one can login only once and then
+use other SMB commands without authentication procedure and additional
+connections.
+For the description of
+.Op Fl connection\ options
+see
+.Xr mount_smbfs 8
+command (all uppercase options are connection options).
+.It Xo
+.Em logout
+.Ar //user@server Ns Op Ar /share
+.Xc
+Logout/detach from the specified
+.Ar server
+and/or
+.Ar share
+as
+.Ar user .
+This command will destroy connection created by
+.Ar login
+command. A connection may not be closed immediately if it used by other
+programs.
+.It Xo
+.Em lookup
+.Op Fl w Ar host
+.Ar name
+.Xc
+Resolve given
+.Ar name
+to IP address.
+NetBIOS name server can be directly specified via
+.Op Fl w
+option.
+.It Xo
+.Em print
+.Op Fl connection\ options
+.Ar //user@server/share
+.Ar file
+.Xc
+Send given
+.Ar file
+to the specified queue on the remote server.
+If
+.Ar file
+is '-', then standard input will be used.
+.It Xo
+.Em view
+.Op Fl connection\ options
+.Ar //user@server
+.Xc
+List resources avaliable on the specified
+.Ar server
+for the user
+.Ar user .
+.El
+.Sh FILES
+.Bl -tag -width /var/log/wtmp -compact
+.It Pa ~/.nsmbrc
+keeps description for each connection.
+See
+.Pa ./examples/dot.nsmbrc
+for details.
+.El
+.Sh AUTHORS
+.An Boris Popov Aq bp@butya.kz ,
+.Aq bp@freebsd.org
+.Sh BUGS
+Please report any bugs to the author.

@@ -1,0 +1,51 @@
+.\" Copyright (c) 1986, 1988 Regents of the University of California.
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms are permitted
+.\" provided that this notice is preserved and that due credit is given
+.\" to the University of California at Berkeley. The name of the University
+.\" may not be used to endorse or promote products derived from this
+.\" software without specific prior written permission. This software
+.\" is provided ``as is'' without express or implied warranty.
+.\"
+.\"	@(#)00macs.me	6.3 (Berkeley) 2/28/88
+.\"
+.\" usage:	troff -me myfile
+.nr EX 0
+.de BX
+.sp
+.ba +4
+.lp
+.nr EX +1
+.b
+.ta (\\n(.lu-\\n(.iu)R
+EXAMPLE \\n(EX:	\(*D
+.r
+.lp
+..
+.de EX
+.br
+.ba
+.b
+.tl '''\(gr'
+.r
+.lp
+..
+.if \nl .ls 2
+.if t .nr bi 5m
+.nr si 3n
+.de $0		\" create a table of contents magically.
+.(x
+.ti (\\$3u-1u)*2m
+\\$2.  \\$1
+.)x
+..
+.de $1
+.sp
+..
+.de BU
+.ip "\ \(bu" \w'\ \(bu\ 'u
+..
+.de SM
+\s-1\\$1\s0\\$2
+..

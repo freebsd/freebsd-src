@@ -1,0 +1,289 @@
+NOTE
+
+Threading is a highly experimental feature.  There are still a 
+few race conditions that show up under high contention on SMP
+machines.  Internal implementation is still subject to changes.
+It is not recommended for production use at this time.
+
+Building
+
+If you want to build with multi-threading support and you are
+running one of the following:
+
+  * Linux 2.x (with the LinuxThreads library installed: that's
+    the linuxthreads and linuxthreads-devel RPMs for RedHat)
+
+  * Digital UNIX 4.x
+
+  * Digital UNIX 3.x (Formerly DEC OSF/1), see additional note below
+
+  * Solaris 2.x for recentish x (2.5 is OK)
+
+  * IRIX 6.2 or newer. 6.2 will require a few os patches.
+    IMPORTANT: Without patch 2401, a kernel bug in IRIX 6.2 will
+    cause your machine to panic and crash when running threaded perl.
+    IRIX 6.3 and up should be OK. See lower down for patch details.
+
+then you should be able to use
+
+    ./Configure -Dusethreads -des
+    make
+
+and ignore the rest of this "Building" section. If it doesn't
+work or you are using another platform which you believe supports
+POSIX.1c threads then read on.  Additional information may be in
+a platform-specific "hints" file in the hints/ subdirectory.
+
+On other platforms that use Configure to build perl, omit the -d
+from your ./Configure arguments. For example, use:
+
+    ./Configure -Dusethreads
+
+When Configure prompts you for ccflags, insert any other arguments in
+there that your compiler needs to use POSIX threads. When Configure
+prompts you for linking flags, include any flags required for
+threading (usually nothing special is required here).  Finally, when
+COnfigure prompts you for libraries, include any necessary libraries
+(e.g. -lpthread).  Pay attention to the order of libraries.  It is
+probably necessary to specify your threading library *before* your
+standard C library, e.g.  it might be necessary to have -lpthread -lc,
+instead of -lc -lpthread.
+
+Once you have specified all your compiler flags, you can have Configure
+accept all the defaults for the remainder of the session by typing  &-d
+at any Configure prompt.
+
+Some additional notes (some of these may be obsolete now, other items
+may be handled automatically):
+
+For Digital Unix 4.x:
+    Add -pthread to ccflags
+    Add -pthread to ldflags
+    Add -lpthread -lc_r to lddlflags
+
+    For some reason, the extra includes for pthreads make Digital UNIX
+    complain fatally about the sbrk() delcaration in perl's malloc.c
+    so use the native malloc, e.g.  sh Configure -Uusemymalloc, or
+    manually edit your config.sh as follows:
+	Change usemymalloc to n
+	Zap mallocobj and mallocsrc (foo='')
+	Change d_mymalloc to undef
+
+For Digital Unix 3.x (Formerly DEC OSF/1):
+    Add -DOLD_PTHREADS_API to ccflags
+    If compiling with the GNU cc compiler, remove -thread from ccflags
+
+    (The following should be done automatically if you call Configure
+      with the -Dusethreads option).
+    Add -lpthread -lmach -lc_r to libs (in the order specified).
+
+For IRIX:
+    (This should all be done automatically by the hint file).
+    Add -lpthread to libs
+    For IRIX 6.2, you have to have the following patches installed:
+	1404 Irix 6.2 Posix 1003.1b man pages
+	1645 IRIX 6.2 & 6.3 POSIX header file updates
+	2000 Irix 6.2 Posix 1003.1b support modules
+	2254 Pthread library fixes
+	2401 6.2 all platform kernel rollup
+    IMPORTANT: Without patch 2401, a kernel bug in IRIX 6.2 will
+    cause your machine to panic and crash when running threaded perl.
+    IRIX 6.3 and up should be OK.
+
+    For IRIX 6.3 and 6.4 the pthreads should work out of the box.
+    Thanks to Hannu Napari <Hannu.Napari@hut.fi> for the IRIX
+    pthreads patches information.
+For AIX:
+    (This should all be done automatically by the hint file).
+    Change cc to xlc_r or cc_r.
+    Add -DNEED_PTHREAD_INIT to ccflags and cppflags
+    Add -lc_r to libswanted
+    Change -lc in lddflags to be -lpthread -lc_r -lc
+
+For Win32:
+    See README.win32, and the notes at the beginning of win32/Makefile
+    or win32/makefile.mk.
+
+Now you can do a
+    make
+
+
+O/S specific bugs
+
+Irix 6.2:  See the Irix warning above.
+
+LinuxThreads 0.5 has a bug which can cause file descriptor 0 to be
+closed after a fork() leading to many strange symptoms. Version 0.6
+has this fixed but the following patch can be applied to 0.5 for now:
+
+----------------------------- cut here -----------------------------
+--- linuxthreads-0.5/pthread.c.ORI	Mon Oct  6 13:55:50 1997
++++ linuxthreads-0.5/pthread.c	Mon Oct  6 13:57:24 1997
+@@ -312,8 +312,10 @@
+   free(pthread_manager_thread_bos);
+   pthread_manager_thread_bos = pthread_manager_thread_tos = NULL;
+   /* Close the two ends of the pipe */
+-  close(pthread_manager_request);
+-  close(pthread_manager_reader);
++  if (pthread_manager_request >= 0) {
++    close(pthread_manager_request);
++    close(pthread_manager_reader);
++  }
+   pthread_manager_request = pthread_manager_reader = -1;
+   /* Update the pid of the main thread */
+   self->p_pid = getpid();
+----------------------------- cut here -----------------------------
+
+
+Building the Thread extension
+
+The Thread extension is now part of the main perl distribution tree.
+If you did Configure -Dusethreads then it will have been added to
+the list of extensions automatically.
+
+You can try some of the tests with
+    cd ext/Thread
+    perl create.t
+    perl join.t
+    perl lock.t
+    perl io.t
+etc.
+The io one leaves a thread reading from the keyboard on stdin so
+as the ping messages appear you can type lines and see them echoed.
+
+Try running the main perl test suite too. There are known
+failures for some of the DBM/DB extensions (if their underlying
+libraries were not compiled to be thread-aware).
+
+
+Bugs
+
+* FAKE_THREADS should produce a working perl but the Thread
+extension won't build with it yet.  (FAKE_THREADS has not been
+tested at all in recent times.)
+
+* There may still be races where bugs show up under contention.
+
+* Need to document "lock", Thread.pm, Queue.pm, ...
+
+
+Debugging
+
+Use the -DS command-line option to turn on debugging of the
+multi-threading code. Under Linux, that also turns on a quick
+hack I did to grab a bit of extra information from segfaults.
+If you have a fancier gdb/threads setup than I do then you'll
+have to delete the lines in perl.c which say
+    #if defined(DEBUGGING) && defined(USE_THREADS) && defined(__linux__)
+        DEBUG_S(signal(SIGSEGV, (void(*)(int))catch_sigsegv););
+    #endif
+
+
+Background
+
+Some old globals (e.g. stack_sp, op) and some old per-interpreter
+variables (e.g. tmps_stack, cxstack) move into struct thread.
+All fields of struct thread which derived from original perl
+variables have names of the form Tfoo. For example, stack_sp becomes
+the field Tstack_sp of struct thread. For those fields which moved
+from original perl, thread.h does
+    #define foo (thr->Tfoo)
+This means that all functions in perl which need to use one of these
+fields need an (automatic) variable thr which points at the current
+thread's struct thread. For pp_foo functions, it is passed around as
+an argument, for other functions they do
+    dTHR;
+which declares and initialises thr from thread-specific data
+via pthread_getspecific. If a function fails to compile with an
+error about "no such variable thr", it probably just needs a dTHR
+at the top.
+
+
+Fake threads
+
+For FAKE_THREADS, thr is a global variable and perl schedules threads
+by altering thr in between appropriate ops. The next and prev fields
+of struct thread keep all fake threads on a doubly linked list and
+the next_run and prev_run fields keep all runnable threads on a
+doubly linked list. Mutexes are stubs for FAKE_THREADS. Condition
+variables are implemented as a list of waiting threads.
+
+
+Mutexes and condition variables
+
+The API is via macros MUTEX_{INIT,LOCK,UNLOCK,DESTROY} and
+COND_{INIT,WAIT,SIGNAL,BROADCAST,DESTROY}.
+
+A mutex is only required to be a simple, fast mutex (e.g. it does not
+have to be recursive). It is only ever held across very short pieces
+of code. Condition variables are only ever signalled/broadcast while
+their associated mutex is held. (This constraint simplifies the
+implementation of condition variables in certain porting situations.)
+For POSIX threads, perl mutexes and condition variables correspond to
+POSIX ones.  For FAKE_THREADS, mutexes are stubs and condition variables
+are implmented as lists of waiting threads. For FAKE_THREADS, a thread
+waits on a condition variable by removing itself from the runnable
+list, calling SCHEDULE to change thr to the next appropriate
+runnable thread and returning op (i.e. the new threads next op).
+This means that fake threads can only block while in PP code.
+A PP function which contains a COND_WAIT must be prepared to
+handle such restarts and can use the field "private" of struct
+thread to record its state. For fake threads, COND_SIGNAL and
+COND_BROADCAST work by putting back all the threads on the
+condition variables list into the run queue. Note that a mutex
+must *not* be held while returning from a PP function.
+
+Perl locks and condition variables are both implemented as a
+condpair_t structure, containing a mutex, an "owner" condition
+variable, an owner thread field and another condition variable).
+The structure is attached by 'm' magic to any SV. pp_lock locks
+such an object by waiting on the ownercond condition variable until
+the owner field is zero and then setting the owner field to its own
+thread pointer. The lock is semantically recursive so if the owner
+field already matches the current thread then pp_lock returns
+straight away. If the owner field has to be filled in then
+unlock_condpair is queued as an end-of-block destructor and
+that function zeroes out the owner field and signals the ownercond
+condition variable, thus waking up any other thread that wants to
+lock it. When used as a condition variable, the condpair is locked
+(involving the above wait-for-ownership and setting the owner field)
+and the spare condition variable field is used for waiting on.
+
+
+Thread states
+
+
+              $t->join
+R_JOINABLE ---------------------> R_JOINED >----\
+    |      \  pthread_join(t)         |  ^      |
+    |       \                         |  | join | pthread_join
+    |        \                        |  |      |
+    |         \                       |  \------/
+    |          \                      |
+    |           \                     |
+    |  $t->detach\ pthread_detach     |
+    |            _\|                  |
+ends|             R_DETACHED     ends | unlink
+    |                       \         |
+    |                   ends \ unlink |
+    |                         \       |
+    |                          \      |
+    |                           \     |
+    |                            \    |
+    |                             \   |
+    V    join          detach     _\| V
+ZOMBIE ----------------------------> DEAD
+       pthread_join   pthread_detach
+       and unlink     and unlink
+
+
+
+Malcolm Beattie
+mbeattie@sable.ox.ac.uk
+Last updated: 27 November 1997
+
+Configure-related info updated 16 July 1998 by
+Andy Dougherty <doughera@lafayette.edu>
+
+Other minor updates 10 Feb 1999 by
+Gurusamy Sarathy

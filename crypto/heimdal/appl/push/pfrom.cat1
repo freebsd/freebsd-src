@@ -1,0 +1,17 @@
+
+PFROM(1)                     UNIX Reference Manual                    PFROM(1)
+
+NNAAMMEE
+     ppffrroomm - fetch a list of the current mail via POP
+
+SSYYNNOOPPSSIISS
+     ppffrroomm [--44 | ----kkrrbb44] [--55 | ----kkrrbb55] [--vv | ----vveerrbboossee] [--cc | ----ccoouunntt]
+     [----hheeaaddeerr] [--pp _p_o_r_t_-_s_p_e_c | ----ppoorrtt==_p_o_r_t_-_s_p_e_c]
+
+DDEESSCCRRIIPPTTIIOONN
+     ppffrroomm is a script that does push --from.
+
+SSEEEE AALLSSOO
+     push(8)
+
+ HEIMDAL                         Mars 4, 2000                                1

@@ -1,0 +1,757 @@
+<!--
+  $FreeBSDde: de-docproj/relnotes/de_DE.ISO8859-1/relnotes/common/new.sgml,v 1.3.2.43 2002/05/31 20:44:33 ue Exp $
+  basiert auf: 1.22.2.248
+-->
+
+<articleinfo>
+  <title>&os;/&arch; &release.current; Release Notes</title>
+
+  <corpauthor>The FreeBSD Project</corpauthor>
+
+  <pubdate>$FreeBSD$</pubdate>
+
+  <copyright>
+    <year>2000</year>
+
+    <year>2001</year>
+
+    <year>2002</year>
+
+    <holder role="mailto:doc@FreeBSD.org">The FreeBSD Documentation
+      Project</holder>
+  </copyright>
+
+  <copyright>
+    <year>2002</year>
+
+    <holder role="mailto:doc@FreeBSD.org">The FreeBSD German
+      Documentation Project</holder>
+  </copyright>
+
+  <abstract>
+    <para>Die Release Notes f&uuml;r &os; &release.current; enthalten
+      eine &Uuml;bersicht &uuml;ber alle &Auml;nderungen in &os; seit
+      der Version &release.prev;.  Die Liste umfa&szlig;t sowohl die
+      &Auml;nderungen des Kernels als auch &Auml;nderungen der
+      Benutzerprogramme; dazu kommen alle Sicherheitshinweise, die
+      seit der letzten Version herausgegeben wurden.  Einige kurze
+      Anmerkungen zum Thema Aktualisierung wurden ebenfalls
+      aufgenommen.</para>
+  </abstract>
+</articleinfo>
+
+<sect1>
+  <title>Einf&uuml;hrung</title>
+
+  <para>Dieses Dokument enth&auml;lt die Release Notes f&uuml;r &os;
+    &release.current; auf &arch.print; Systemen.  Es beschreibt die
+    Komponenten von &os;, die seit &release.prev; hinzugef&uuml;gt
+    (oder ge&auml;ndert) wurden.  Au&szlig;erdem erhalten Sie Hinweise
+    f&uuml;r die Aktualisierung Ihres &os;-Systems.</para>
+
+<![ %release.type.snapshot [
+
+  <para>Die &release.type; Distribution, f&uuml;r die diese Release
+    Notes g&uuml;ltig sind, markiert einen Punkt im Entwicklungszweig
+    &release.branch; zwischen &release.prev; und der zuk&uuml;nftigen
+    Version &release.next;.  Sie k&ouml;nnen einige fertige
+    &release.type; Distributionen, die in diesem Entwicklungszweig
+    entstanden sind, auf <ulink url="&release.url;"></ulink>
+    finden.</para>
+
+]]>
+
+<![ %release.type.release [
+
+  <para>Diese Distribution von &os; &release.current; ist eine
+    &release.type; Distribution.  Sie k&ouml;nnen Sie von <ulink
+    url="&release.url;"></ulink> und allen seinen Mirrors erhalten.
+    Weitere Informationen, wie Sie diese (oder andere) &release.type;
+    Distributionen von &os; erhalten k&ouml;nnen, finden Sie im Anhang
+    <ulink
+    url="http://www.FreeBSD.org/handbook/mirrors.html"><quote>Obtaining
+    FreeBSD</quote></ulink> des <ulink
+    url="http://www.FreeBSD.org/handbook/">FreeBSD
+    Handbuchs</ulink>.</para>
+
+]]>
+</sect1>
+
+<!--
+        The "What's New" section of the release notes.
+
+        Guidelines for new entries:
+
+        1.  If there is some obvious "keyword" associated with an
+        entry (such as a manpage entry or an application name), try to
+        put it at the start of the sentence.
+
+        2.  Within each subsection (i.e.  kernel, security, userland),
+        list items in alphabetical order by these keywords.
+
+        Some entries will have no obvious keywords to help with
+        ordering.  In sections containing these entries, put those
+        containing (e.g.) manpage references first, then some
+	suitable SGML comment line as a demarc, then the remaining
+        entries.
+
+-->
+
+<sect1>
+  <title>Neuerungen</title>
+
+  <para>Dieser Abschnitt beschreibt die f&uuml;r den Anwender
+    offensichtlichsten Neuerungen und &Auml;nderungen in &os; seit
+    &release.prev;.  Die Eintr&auml;ge dokumentieren neue Treiber bzw.
+    Unterst&uuml;tzung f&uuml;r neue Hardware, neue Befehle oder
+    Optionen, die Behebung wichtiger Fehler, und Aktualisierungen von
+    Dritt-Software.  Sicherheitshinweise, die nach dem Erscheinen von
+    &release.prev; herausgegeben wurden, sind ebenfalls
+    aufgef&uuml;hrt.</para>
+
+  <sect2 id="kernel">
+    <title>&Auml;nderungen im Kernel</title>
+
+    <para arch="i386">Der neue Treiber &man.puc.4; (PCI
+      <quote>Universal</quote> Communications) verbindet serielle
+      Schnittstellen auf PCI-Karten mit dem Treiber
+      &man.sio.4;.</para>
+
+    <para>Das Ger&auml;t, auf dem der Kernel Dumps ablegt, kann jetzt
+      mit der Loader-Einstellung <varname>dumpdev</varname> festgelegt
+      werden.  Damit ist es jetzt m&ouml;glich, schon in den letzten
+      Phasen der Initialisierung des Kernels (vor dem single user
+      mode) einen Crash Dump zu erhalten.</para>
+
+    <para>Der Treiber &man.snp.4; ist nicht mehr statisch und kann
+      jetzt als Modul verwendet werden.</para>
+
+    <para arch="i386">Der neue Treiber &man.spic.4; unterst&uuml;tzt
+      den Zugriff auf das <literal>jog dial</literal>, das in einigen
+      Sony Laptops verwendet wird.  &man.moused.8; unterst&uuml;tzt
+      dieses Ger&auml;t jetzt ebenfalls.</para>
+
+    <para arch="i386">Der neue Treiber &man.viapm.4; unterst&uuml;tzt
+      die VIA SMBus Kontroller f&uuml;r Power Management.</para>
+
+<!-- Above this line, kernel changes ordered by manpage/variable name -->
+
+    <sect3>
+      <title>Unterst&uuml;tzung f&uuml;r Prozessoren und
+        Mainboards</title>
+
+      <para arch="i386">Mit der neuen Kernel-Option
+	<literal>CPU_ATHLON_SSE_HACK</literal> versucht der Kernel,
+	da&szlig; SSE Feature Bit auf neueren Athlon CPUs zu
+	aktivieren, wenn das vom BIOS vergessen wurde.</para>
+
+      <para arch="i386">Bei einigen Rechnern aktiviert das BIOS die
+	I/O-Ports und den Speicher der PCI-Karten nicht, die Karten
+	waren daher nicht benutzbar.  Mit der Kernel-Option
+	<literal>PCI_ENABLE_IO_MODES</literal> aktiviert &os;  diese
+	Karten und macht sie dadurch nutzbar.</para>
+    </sect3>
+
+    <sect3>
+      <title>&Auml;nderungen im Bootloader</title>
+
+      <para arch="i386"><filename>boot2</filename> unterst&uuml;tzt
+	jetzt die Option <option>-n</option>, mit der man den
+	Bootvorgang nicht mehr mit einem Tastendruck abbrechen
+	kann.</para>
+
+<!-- Above this line, order boot loader changes by manpage/variable name-->
+
+    </sect3>
+
+    <sect3>
+      <title>Netzwerke und Netzwerkkarten</title>
+
+      <para>&man.an.4; unterst&uuml;tzt jetzt auch Cisco LEAP und den
+        WEP Schl&uuml;ssel <quote>Home</quote>.  Die Aironet-Programme
+        f&uuml;r Linux werden jetzt vom Emulator unterst&uuml;tzt.</para>
+
+      <para arch="i386">Token-basierte ARCNET Netzwerke werden jetzt
+        unterst&uuml;tzt.</para>
+
+      <para arch="i386">Der neue Treiber cm unterst&uuml;tzt SMC
+        COM90cx6 ARCNET Netzwerkkarten.</para>
+
+      <para>Der Treiber &man.dc.4; unterst&uuml;tzt jetzt VLANs.</para>
+
+      <para arch="i386">Der Standardkernel
+	(<filename>GENERIC</filename>) verwendet zur
+	Unterst&uuml;tzung von Gigabit Ethernet Karten von Intel jetzt
+	den Treiber &man.em.4; und nicht mehr &man.wx.4;.  Letzterer
+	sollte seit &os; 4.5-RELEASE nicht mehr verwendet
+	werden.</para>
+
+      <para arch="alpha">Der Treiber &man.fpa.4; kann jetzt auch auf
+	Alpha-Systemen verwendet werden.</para>
+
+      <para>Der neue Treiber my unterst&uuml;tzt Fast Ethernet und
+	Gigabit Ethernet Karten der Firma Myson.</para>
+
+      <para>Der Treiber &man.wi.4; unterst&uuml;tzt jetzt
+        Netzwerkkarten mit dem Prism II und Prism 2.5.  104/128-bit
+        WEP funktioniert jetzt auf Prism Karten.</para>
+
+      <para>Der Treiber &man.wi.4; unterst&uuml;tzt jetzt auch die
+	Nutzung eines &os; Systems als Wireless Access Point.  Diese
+	Funktion kann mit der &man.ifconfig.8;-Option
+	<literal>mediaopt hostap</literal> aktiviert werden und
+	funktioniert nur mit Wave-LAN Karten mit Prism II
+	Chipsatz.</para>
+
+      <para>Der Treiber &man.wi.4;  unterst&uuml;tzt jetzt die
+	<application>bsd-airtools</application>.</para>
+
+      <para>Der Treiber xe kann jetzt auch als Modul verwendet
+	werden.</para>
+
+<!-- Above this line, order network driver changes by manpage/variable name-->
+
+      <para>Einige Netzwerk-Treiber unterst&uuml;tzen jetzt den Modus
+        semi-polling, durch den die Systeme besser mit Angriffen und
+        &Uuml;berlastungen umgehen k&ouml;nnen.  Um Polling zu
+        aktivieren, m&uuml;ssen die folgenden Optionen in die
+        Konfigurationsdatei des angepa&szlig;ten Kernels eingetragen
+        werden:</para>
+
+      <programlisting>options DEVICE_POLLING
+options HZ=1000 # nicht Pflicht, aber dringend empfohlen</programlisting>
+
+      <para>Danach kann Polling mit der Sysctl-Variable
+        <varname>kern.polling.enable</varname> aktiviert; mit der
+        Sysctl-Variable <varname>kern.polling.user_frac</varname> wird
+        der f&uuml;r Benutzerprozesse zur Verf&uuml;gung stehende
+        Anteil der CPU-Zeit eingestellt.  Die ersten Ger&auml;te, die
+        Polling unterst&uuml;tzen, sind &man.dc.4;, &man.fxp.4;,
+	&man.rl.4; und &man.sis.4;.  Weitere Informationen finden Sie
+	in der Onlinehilfe zu &man.polling.4;.</para>
+    </sect3>
+
+    <sect3>
+      <title>Netzwerk-Protokolle</title>
+
+      <para>Bei &man.bridge.4; wurde die Unterst&uuml;tzung f&uuml;r
+        Systemen mit mehreren komplett unabh&auml;ngigen
+        Bridging-Clustern verbessert und die Stabilit&auml;t bei
+        dynamischen &Auml;nderungen erh&ouml;ht. VLANs werden jetzt
+        vollst&auml;ndig unterst&uuml;tzt.</para>
+
+      <para>Bei der Behandlung von IPsec f&uuml;r IPv4 wurde ein
+        Fehler beseitigt, der dazu f&uuml;hrte, da&szlig; die
+        &Uuml;berpr&uuml;fung von empfangenen SPDs nicht
+        durchgef&uuml;hrt wurde.</para>
+
+      <para>Die neue Netgraph Node ng_eiface wird wie ein
+	Ethernet-Interface behandelt, liefert die Ethernet Rahmen aber
+	an einen Netgraph-Anschlu&szlig;.</para>
+
+      <para>Die neue Netgraph Node &man.ng.etf.4; erlaubt es,
+	Ethernet-Pakete nach Typ zu sortieren.</para>
+
+      <para>Im syncache des &man.tcp.4;-Stacks wurde ein Fehler
+        korrigiert, der zu Kernel Panics f&uuml;hren konnte.</para>
+
+      <para>Der TCP-Stack ignoriert jetzt Pakete, die an eine
+        IP-Broadcast Adresse gesendet wurden.</para>
+    </sect3>
+
+    <sect3>
+      <title>Festplatten und Massenspeicher</title>
+
+      <para>Der Treiber &man.ahc.4; wurde auf den Stand von &os;
+	-CURRENT vom 29. April 2002 gebracht.</para>
+
+      <para>Der Treiber &man.ata.4; wurde auf den Stand von &os;
+	-CURRENT vom 18. M&auml;rz 2002 gebracht.</para>
+
+      <important>
+	<para>Einige Anwender haben von Problemen beim Test von ATA
+	  tagged queueing berichtet.  Typischerweise kommt es
+	  w&auml;hrend des Systemstarts zu Timeouts bei Lesezugriffen,
+	  die dazu f&uuml;hren, da&szlig; das Root-Dateisystem nicht
+	  gemountet werden kann.  Diese Probleme traten nur bei
+	  Systmen auf, bei denen Festplatten mit diesem Feature an die
+	  IDE-Kontroller auf dem Mainboard angeschlossen waren.  Da
+	  dieses Feature nur von einigen Festplatten unterst&uuml;tzt
+	  wird und explizit aktiviert werden mu&szlig; (durch die
+	  Angabe von <literal>hw.ata.tags="1"</literal> in
+	  <filename>/boot/loader.conf</filename>), sollte die Mehrheit
+	  der Benutzer nicht von diesem Problem betroffen sein.</para>
+      </important>
+
+      <para>Der Treiber &man.ata.4; kann jetzt ATA RAIDs erzeugen,
+	l&ouml;schen, abfragen und regenerieren, zur Steuerung dient
+	&man.atacontrol.8;.</para>
+    </sect3>
+
+    <sect3>
+      <title>Dateisystem</title>
+
+      <para>Bei den Soft Updates wurde ein Fehler korrigiert, durch
+        den das Dateisystem unter bestimmten Umst&auml;nden
+        inkonsistent werden konnte.  Der Fehler trat auf, wenn das
+        System unmittelbar nach massiver Benutzung des Dateisystems
+        (z.B. der Installation eines neuen Kernels oder anderer
+        Software) heruntergefahren wurde.</para>
+    </sect3>
+
+    <sect3>
+      <title>Unterst&uuml;tzung f&uuml;r PCCARD</title>
+
+      <para></para>
+    </sect3>
+
+    <sect3>
+      <title>Multimedia</title>
+
+      <para arch="i386">Der neue Treiber ufm unterst&uuml;tzt das
+        D-Link DSB-R100 USB Radio.</para>
+
+      <para arch="i386">Der Audio-Treiber f&uuml;r den via82c686
+        unterst&uuml;tzt jetzt auch den VIA VT8233.</para>
+
+      <para arch="i386">Der Audio-Treiber ich unterst&uuml;tzt jetzt
+        auch den SiS 7012 Chipsatz.</para>
+
+      <para>Der Treiber &man.pcm.4; wurde auf den Stand von &os;
+	-CURRENT vom 22. April 2002 gebracht.</para>
+    </sect3>
+
+    <sect3>
+      <title>Zus&auml;tzliche Software</title>
+
+      <sect4>
+	<title>IPFilter</title>
+
+	<para><application>IPFilter</application> wurde auf Version
+	  3.4.27 aktualisiert.</para>
+      </sect4>
+
+      <sect4 arch="i386">
+	<title>isdn4bsd</title>
+
+	<para>Der neue Treiber &man.ifpi2.4; unterst&uuml;tzt die AVM
+	  Fritz!Card PCI, Version 2.</para>
+      </sect4>
+    </sect3>
+  </sect2>
+
+  <sect2 id="security">
+    <title>Sicherheit</title>
+
+    <para>In der Multiplexer-Routine von
+      <application>OpenSSH</application> wurde ein
+      <quote>off-by-one</quote> Fehler beseitigt.  Durch diesen Fehler
+      w&auml;re ein authentifizierter Benutzer in der Lage gewesen,
+      auf dem Server beliebige Programme mit root-Rechten
+      ausf&uuml;hren zu lassen; ein Server w&auml;re in der Lage
+      gewesen, auf dem Client beliebige Programme mit den
+      Berechtigungen des Benutzers auszuf&uuml;hren (siehe <ulink
+      url="ftp://ftp.FreeBSD.org/pub/FreeBSD/CERT/advisories/FreeBSD-SA-02:13.openssh.asc">FreeBSD-SA-02:13</ulink>).</para>
+
+    <para>Durch einen Fehler in <application>zlib</application> war es
+      m&ouml;glich, da&szlig; Speicher doppelt freigegeben wurde.  Die
+      &man.malloc.3;/&man.free.3; Routinen von &os; sind von diesem
+      Fehler nicht betroffen, einzelne Anwendungen k&ouml;nnten aber
+      durch entsprechend konstruierte Pakete mit komprimierten Daten
+      beeintr&auml;chtigt oder zum Absturz gebracht werden.  Der
+      Fehler in <application>zlib</application> wurde mittlerweile
+      beseitigt.  Informationen, wie Sie dieses Problem umgehen bzw.
+      beseitigen k&ouml;nnen, finden Sie in <ulink
+      url="ftp://ftp.FreeBSD.org/pub/FreeBSD/CERT/advisories/FreeBSD-SA-02:18.zlib.v1.2.asc">FreeBSD-SA-02:18</ulink>.</para>
+
+    <para>Durch Fehler in den TCP SYN Cache (<quote>syncache</quote>)
+      und SYN Cookie (<quote>syncookie</quote>) Routinen war es
+      m&ouml;glich, da&szlig; normale TCP/IP Datenpakete das System
+      abst&uuml;rzen lie&szlig;en.  Die Routinen wurden mittlerweile
+      beseitigt; Informationen, wie Sie die Problem umgehen bzw.
+      beseitigen k&ouml;nnen, finden Sie in <ulink
+      url="ftp://ftp.FreeBSD.org/pub/FreeBSD/CERT/advisories/FreeBSD-SA-02:20.syncache.asc">FreeBSD-SA-02:20</ulink>.</para>
+
+    <para>In den Routinen zur Behandlung der Routing-Tabelle wurde ein
+      Speicherleck gestopft, durch das ein Angreifer den gesamten
+      Speicher eines System verbrauchen konnte.  Informationen, wie
+      Sie die Problem umgehen bzw.  beseitigen k&ouml;nnen, finden Sie
+      in <ulink
+      url="ftp://ftp.FreeBSD.org/pub/FreeBSD/CERT/advisories/FreeBSD-SA-02:21.tcpip.asc">FreeBSD-SA-02:21</ulink>.</para>
+
+    <para>Bei der Behandlung von memory-mapped I/O wurde ein Fehler
+      beseitigt, der zum Absturz des Systems f&uuml;hren konnte.
+      Weitere Informationen finden Sie in <ulink
+      url="ftp://ftp.FreeBSD.org/pub/FreeBSD/CERT/advisories/FreeBSD-SA-02:22.mmap.asc">FreeBSD-SA-02:22</ulink>.</para>
+
+    <para>SUID Programme konnten durch Manipulation Ihrer Standard-I/O
+      File-Descriptoren dazu gebracht werden, die falschen Dateien zu
+      lesen oder zu schreiben, dieser Fehler wurde behoben.  Weitere
+      Informatione finden Sie in <ulink
+      url="ftp://ftp.FreeBSD.org/pub/FreeBSD/CERT/advisories/FreeBSD-SA-02:23.stdio.asc">FreeBSD-SA-02:23</ulink>.</para>
+
+    <para>Bei der Benutzung von &man.k5su.8; konnte es zu unerwarteten
+      Seiteneffekten kommen, da ein Benutzer nicht in der Gruppe
+      <groupname>wheel</groupname> eingetragen sein mu&szlig;, um mit
+      diesem Programm zum Super-User zu werden (so wie das bei
+      &man.su.1; der Fall ist).  Um Probleme zu vermeiden, wird
+      &man.k5su.8;  standardm&auml;&szlig;ig nicht mehr SUID root
+      installiert und damit wirkungslos gemacht.  Weitere
+      Informationen finden Sie in <ulink
+      url="ftp://ftp.FreeBSD.org/pub/FreeBSD/CERT/advisories/FreeBSD-SA-02:24.k5su.asc">FreeBSD-SA-02:24</ulink>.</para>
+
+    <para>In &man.bzip2.1; wurden mehrere Fehler entdeckt, durch die
+      es m&ouml;glich war, da&szlig;  Dateien ohne Warnung
+      &uuml;berschrieben werden konnten;  au&szlig;erdem war es
+      m&ouml;glich, da&szlig;  lokale Benutzer Zugriff auf f&uuml;r
+      sie eigentlich nicht zug&auml;ngliche Dateien erhielten.  Diese
+      Fehler wurden durch den Import einer neuen Version von
+      <application>bzip2</application> behoben.  Weitere Informationen
+      finden Sie in <ulink
+      url="ftp://ftp.FreeBSD.org/pub/FreeBSD/CERT/advisories/FreeBSD-SA-02:25.bzip2.asc">FreeBSD-SA-02:25</ulink>.</para>
+
+    <para>Ein Fehler in der Implementation des TCP SYN Cache
+      (<quote>syncache</quote>) erlaubte es einem Angreifer, einen
+      Denial-of-Service Angriff durchzuf&uuml;hren, wenn
+      &man.accept.filter.9; genutzt wurden.  Dieser Fehler wurde
+      beseitigt, weitere Informationen finden Sie in <ulink
+      url="ftp://ftp.FreeBSD.org/pub/FreeBSD/CERT/advisories/FreeBSD-SA-02:26.accept.asc">FreeBSD-SA-02:26</ulink>.</para>
+
+    <para>Durch einen Fehler bei der Behandlung der Shell-Wildcards in
+      &man.rc.8; war es normalen Anwendern m&ouml;glich, beliebige
+      Dateien zu l&ouml;schen, wenn das Verzeichnis
+      <filename>/tmp/.X11-unix</filename> nicht existierte und sie
+      einen Neustart des Systems erzwingen konnten.  Dieser Fehler
+      wurde beseitigt, weitere Informationen finden Sie in <ulink
+      url="ftp://ftp.FreeBSD.org/pub/FreeBSD/CERT/advisories/FreeBSD-SA-02:27.rc.asc">FreeBSD-SA-02:27</ulink>).</para>
+  </sect2>
+
+  <sect2 id="userland">
+    <title>Benutzerprogramme</title>
+
+    <para>Das neue Programm &man.atacontrol.8; kann zur Konfiguration
+      diversen Einstellungen des Treibers &man.ata.4; genutzt
+      werden.</para>
+
+    <para>Bei ATAPI CD-ROMs kann &man.cdcontrol.1; jetzt die maximal
+      genutzte Geschwindigkeit mit dem Kommando
+      <literal>speed</literal> einstellen.</para>
+
+    <para>&man.ctags.1; erzeugt keine defektes Tag-Datei mehr, wenn in
+      der Quelldatei Kommentare mit <literal>//</literal> (C++-Stil)
+      eingeleitet wurden.</para>
+
+    <para>&man.dump.8; nutzt seinen Eintrag in der Liste der Prozesse
+      jetzt, um Informationen &uuml;ber den Stand des Backups
+      anzuzeigen, was bei der &Uuml;berwachung von automatischen
+      Backups n&uuml;tzlich ist.</para>
+
+    <para><filename>/etc/rc.firewall</filename> und
+      <filename>/etc/rc.firewall6</filename> verwenden die in den
+      Skripten fest kodierten Regeln nicht mehr, wenn die Variable
+      <varname>firewall_type</varname> den Namen einer Datei mit
+      Regeln oder einen unbekannten Firewall-Typ enth&auml;lt.  Damit
+      soll vermieden werden, da&szlig; die Skripte Annahmen &uuml;ber
+      die an einem Standort verwendeten Regelungen f&uuml;r Firewalls
+      machen.  Zus&auml;tzlich wurde daf&uuml;r gesorgt, da&szlig;
+      der Firewall-Typ <literal>closed</literal> genau das macht, was
+      in der Onlinehilfe zu &man.rc.firewall.8; dokumentiert ist.</para>
+
+    <para>Die Funktionalit&auml;t von
+      <filename>/etc/security</filename> wurde auf eine Gruppe von
+      Scripten im Verzeichnis
+      <filename>/etc/periodic/security/</filename> verteilt, die die
+      von &man.periodic.8; bereitgestellte Umgebung nutzen.  Dadurch
+      wird es leichter, diese Scripte auf das eigene System anzupassen
+      und diese &Auml;nderungen zu warten.</para>
+
+    <para>Bei &man.ifconfig.8; wurde die Adre&szlig;-Familie
+      <option>ether</option> durch das allgemeinere
+      <option>link</option> ersetzt.  Die Angabe von
+      <option>ether</option> ist aber auch weiterhin m&ouml;glich, um
+      Probleme mit &auml;lteren Programmen zu vermeiden.</para>
+
+    <para>Bei &man.fsdb.8; kann mit dem neuen Befehl
+      <literal>blocks</literal> die Liste der f&uuml;r eine bestimmte
+      Inode allozierten Bl&ouml;cke angezeigt werden.</para>
+
+    <para>Das Programm &man.ispppcontrol.8; wurde entfernt, seine
+      Funktionen wurden von &man.spppcontrol.8;
+      &uuml;bernommen.</para>
+
+    <para>&man.k5su.8; wird standardm&auml;&szlig;ig nicht mehr SUID
+      <username>root</username> installiert.  Wenn Sie dieses Feature
+      ben&ouml;tigen, m&uuml;ssen Sie die Dateiberechtigungen f&uuml;r
+      &man.k5su.8; manuell &auml;ndern oder vor dem Update via
+      Sourcecode die Zeile <literal>ENABLE_SUID_K5SU=yes</literal> in
+      <filename>/etc/make.conf</filename> eintragen.</para>
+
+    <para>&man.ldd.1; kann jetzt auch auf shared libraries und nicht
+      nur auf Programme angewendet werden.</para>
+
+    <para><filename>libstand</filename> unterst&uuml;tzt jetzt auch
+      Dateisysteme, die mit <application>bzip2</application>
+      komprimierte Dateien enthalten.</para>
+
+    <para><filename>libusb</filename> wurde in
+      <filename>libusbhid</filename> umbenannt und &uuml;bernimmt
+      damit die von NetBSD genutzen Namen.</para>
+
+    <para>&man.lpd.8; hat zwei neue Optionen erhalten:
+      <option>-c</option> protokolliert alle fehlgeschlagenen
+      Verbindungen via &man.syslogd.8;, und <option>-W</option>
+      erlaubt Verbindungen von nicht privilegierten Ports.</para>
+
+    <para>Bei &man.lpd.8; kann in <filename>/etc/printcap</filename>
+      jetzt auch die Option <literal>rc</literal> angegeben werden.
+      Wenn diese Option bei einer Drucker-Warteschlange f&uuml;r ein
+      System im Netzwerk gesetzt ist und der Benutzer mit <command>lpr
+      -#<replaceable>n</replaceable></command> mehrere Kopien
+      angefordert ist, schickt &man.lpd.8; die Daten einmal pro
+      Kopie.</para>
+
+    <para>Wird bei &man.ls.1; die neue Option <option>-h</option>
+      zusammen mit <option>-l</option> verwendet, werden bei den
+      Dateigr&ouml;&szlig;en maximal drei Ziffern und ein Pr&auml;fix
+      verwendet.</para>
+
+    <para>Das Programm &man.m4.1; kann jetzt <literal>#line</literal>
+      Anweisungen f&uuml;r &man.cpp.1; erzeugen, dieses Verhalten wird
+      mit der neuen Option <option>-s</option> aktiviert.</para>
+
+    <para>Es gibt zwei neue Optionen f&uuml;r &man.mergemaster.8;.
+      Mit <option>-p</option> wird der
+      <quote>pre-<literal>buildworld</literal></quote> Modus f&uuml;r
+      die Dateien aktiviert, von denen bekannt ist, da&szlig; sie
+      Einflu&szlig; auf den Erfolg der Schritte
+      <literal>buildworld</literal> und
+      <literal>installworld</literal> haben.  Nach einem erfolgreichen
+      Lauf von &man.mergemaster.8; kann <option>-C</option> genutzt
+      werden, um die Einstellungen in
+      <filename>/etc/rc.conf</filename> mit den Standardwerten in
+      <filename>/etc/defaults/rc.conf</filename> zu
+      vergleichen.</para>
+
+    <para>&man.ngctl.8; unterst&uuml;tzt jetzt das Kommando
+      <option>write</option>, mit dem ein Datenpaket an einem
+      bestimmten Verbinder gesendet wird.</para>
+
+    <para>Bei &man.patch.1; kann jetzt die neue Option
+      <option>-i</option> verwendet werden, um einen Patch aus einer
+      Datei und nicht von der Standardeingabe zu lesen.</para>
+
+    <para>Das neue PAM-Modul &man.pam.ssh.8; erlaubt die
+      Authentifizierung durch SSH Kenns&auml;tze und
+      Schl&uuml;sselpaare.  Das Modul erledigt auch die Verwaltung der
+      Sitzungen via &man.ssh-agent.1;.</para>
+
+    <para>Bei &man.pr.1; k&ouml;nnen jetzt die Optionen
+      <option>-f</option> und <option>-p</option> genutzt werden, um
+      Ausgaben auf einem Terminal anzuhalten.</para>
+
+    <para>Bei &man.ps.1; war die Option <option>-W</option> (zur
+      Abfrage von Informationen aus dem angegebenen Swap) schon seit
+      einer Zeit nutzlos, sie wurde daher entfernt.</para>
+
+    <para>Bei &man.reboot.8; kann jetzt mit <option>-k</option>
+      angegeben werden, welcher Kernel beim Neustart geladen werden
+      soll.</para>
+
+    <para>Wenn ein Benutzer S/Key nicht aktiviert hat, gibt
+      &man.sshd.8; keine S/Key Anforderungen mehr aus.  Das alte
+      Verhalten f&uuml;hrte dazu, da&szlig; Benutzer nach
+      Einmal-Pa&szlig;worten gefragt wurden, wenn Sie f&uuml;r die
+      Verbindung zu einem &os; System bestimmte neuere SSH Programm
+      verwendeten.</para>
+
+    <para>&man.sysinstall.8; verf&uuml;gt jetzt &uuml;ber minimale
+      Unterst&uuml;tzung f&uuml;r die Behandlung mehrerer Medien bei
+      der Installation von Packages (z.B. f&uuml;r Distributionen auf
+      mehreren CDs).</para>
+
+    <para>&man.tftp.1; und &man.tftpd.8; unterst&uuml;tzen jetzt
+      IPv6.</para>
+
+    <para>Mit dem neuen Programm &man.usbhidctl.1; k&ouml;nnen USB
+      Human Interface Devices konfiguriert werden.</para>
+
+    <para>Bei &man.uuencode.1; und &man.uudecode.1; kann mit der neuen
+      Option <option>-o</option> die Zieldatei angegeben werden.  Wird
+      bei &man.uuencode.1; die neue Option <option>-m</option>
+      verwendet, wird Base64-Encoding verwendet; &man.uudecode.1;
+      unterst&uuml;tzt dieses Format jetzt ebenfalls.</para>
+
+    <para>Bei &man.watch.8; kann das verwendete &man.snp.4;
+      Ger&auml;t jetzt mit der Option <option>-f</option> angegeben
+      werden.</para>
+
+<!-- Above this line, order userland changes by manpage/variable name-->
+
+    <para>Bei einem Teil der Locales wurden die Namen ge&auml;ndert,
+      aus <literal>*.EUC</literal> wurde <literal>*.euc??</literal>.
+      Zum Beispiel wurde <literal>ja_JP.EUC</literal> in
+      <literal>ja_JP.eucJP</literal> umbenannt.  Durch diese
+      &Auml;nderung wurde die Kompatibilit&auml;t der Namen mit &os;
+      CURRENT, X11R6 und einigen anderen UNIX-Varianten
+      verbessert.</para>
+
+    <para>Die Routinen zur unterst&uuml;tzung von Locales wurden auf
+      den Stand von &os;-CURRENT gebracht.  Damit steht jetzt
+      Unterst&uuml;tzung f&uuml;r die Kategorien
+      <literal>LC_NUMERIC</literal>, <literal>LC_MONETARY</literal>
+      und <literal>LC_MESSAGES</literal> zur Verf&uuml;gung,
+      au&szlig;erdem gibt es Verbesserungen bei &man.strftime.3;,
+      ge&auml;nderte Locales und Verbesserungen bei der Anpassung
+      vieler Systemprogramme.</para>
+
+    <sect3>
+      <title>Zus&auml;tzliche Software</title>
+
+      <para><application>BIND</application> wurde auf Version
+        8.3.2-T1B aktualisiert.</para>
+
+      <para><application>bzip2</application> wurde auf Version
+        1.0.2 aktualisiert.</para>
+
+      <para><application>Heimdal Kerberos</application> wurde auf
+	Version 0.4e aktualisiert.</para>
+
+      <para>Der <application>ISC DHCP</application> Client wurde auf
+	Version 3.0.1RC8 aktualisiert.</para>
+
+      <para><application>texinfo</application> wurde auf Version 4.1
+	aktualisiert.</para>
+
+      <para>Die Datenbank der Zeitzonen wurde auf Version
+	<filename>tzdata2002c</filename> aktualisiert.</para>
+
+      <sect4>
+	<title>Sendmail</title>
+
+	<para><application>sendmail</application> wurde auf Version
+	  8.12.3 aktualisiert.  &man.sendmail.8; wird nicht mehr SUID
+	  root Programm installiert (jetzt SGID smmsp).  Weitere
+	  Informationen sind in
+	  <filename>/usr/src/contrib/sendmail/RELEASE_NOTES</filename>
+	  und <filename>/etc/mail/README</filename>
+	  verf&uuml;gbar.</para>
+
+	<para>Seit dieser Aktualisierung von
+	  <application>sendmail</application> startet &man.rc.8;
+	  mehrere <application>sendmail</application> Daemonen (einige
+	  von Ihnen sind f&uuml;r den Versand von Mails
+	  zust&auml;ndig), auch wenn die Variable
+	  <varname>sendmail_enable</varname> auf <literal>NO</literal>
+	  gesetzt wurde.  Um <application>sendmail</application>
+	  komplett zu deaktivieren, mu&szlig;
+	  <varname>sendmail_enable</varname> auf
+	  <literal>NONE</literal>.  Auf Systemen, auf denen ein
+	  anderer MTA benutzt wird, kann alternativ auch der Wert der
+	  Variablen <varname>mta_start_script</varname> ge&auml;ndert
+	  werden.  Weitere Informationen finden Sie in der Manualpage
+	  &man.rc.sendmail.8;.</para>
+
+	<para>Wenn die von <application>sendmail</application>
+	  verwendeten Datenbanken alias und map mit
+	  <filename>/etc/mail/Makefile</filename> erzeugt werden,
+	  werden die Zugriffsrechte jetzt standardm&auml;&szlig;ig auf
+	  0640 gesetzt, um einen Denial-of-Service Angriff mittels
+	  File Locking durch lokale Benutzer zu verhindern.  Die
+	  Zugriffsrechte k&ouml;nnen in <filename>make.conf</filename>
+	  mit der neuen Option <varname>SENDMAIL_MAP_PERMS</varname>
+	  ge&auml;ndert werden.</para>
+
+	<para>Die Zugriffsrechte f&uuml;r
+	  <filename>/var/log/sendmail.st</filename>, die Datei mit den
+	  <application>sendmail</application>-Statistiken, wurden von
+	  0644 auf 0640 ge&auml;ndert, um einen Denial-of-Service
+	  Angriff mittels File Locking durch lokale Benutzer zu
+	  verhindern.</para>
+      </sect4>
+    </sect3>
+
+    <sect3>
+      <title>Ports/Packages Collection</title>
+
+      <para>Die Infrastruktur f&uuml;r die Ports Collection benutzt
+	jetzt standardm&auml;&szlig;ig
+	<application>XFree86</application> 4.2.0, um
+	Abh&auml;ngigkeiten zu erf&uuml;llen.  Wenn Sie weiterhin
+	<application>XFree86</application> 3.3.6 verwenden wollen,
+	m&uuml;ssen die folgende Zeile in die Datei
+	<filename>/etc/make.conf</filename> eintragen:</para>
+
+      <programlisting>XFREE86_VERSION=3</programlisting>
+    </sect3>
+  </sect2>
+
+  <sect2>
+    <title>Erzeugung von Releases und Integration</title>
+
+    <para arch="i386,alpha">Die von &man.sysinstall.8;
+      standardm&auml;&szlig;ig installierte Version des X Window
+      System ist jetzt <application>XFree86</application> 4.2.0.
+      Au&szlig;erdem wird <application>XFree86</application> jetzt als
+      ganz normales Paket installiert und kann daher mit den
+      &uuml;blichen Programmen wie &man.pkg.info.1; manipuliert
+      werden.</para>
+  </sect2>
+</sect1>
+
+<sect1>
+  <title>Aktualisierung einer &auml;lteren Version von &os;</title>
+
+  <para>Wenn Sie eine &auml;ltere Version von &os; aktualisieren
+    wollen, haben Sie drei M&ouml;glichkeiten:</para>
+
+  <itemizedlist>
+    <listitem>
+      <para>Die bin&auml;re Aktualisierung mit &man.sysinstall.8;.
+        Diese Variante ben&ouml;tigt die wenigste Zeit, allerdings
+	geht sie davon aus, da&szlig; Sie keine Optionen zur
+	Kompilierung von &os; genutzt haben.</para>
+    </listitem>
+
+    <listitem>
+      <para>Die komplette Neuinstallation von &os;.  Dadurch
+        f&uuml;hren Sie nat&uuml;rlich keine echte Aktualisierung
+        durch und es ist auf jeden Fall nicht so bequem wie die
+        bin&auml;re Aktualisierung, da Sie ihre Konfigurationsdaten in
+        <filename>/etc</filename> selbst sichern und wiederherstellen
+        m&uuml;ssen.  Dennoch kann diese Option sinnvoll sein, wenn
+        Sie die Aufteilung der Partitionen &auml;ndern wollen oder
+        m&uuml;ssen.  </para>
+    </listitem>
+
+    <listitem>
+      <para>Mit dem Sourcecode in <filename>/usr/src</filename>.
+        Diese Variante ist flexibler, ben&ouml;tigt aber mehr
+        Plattenplatz, Zeit, und Erfahrung.  Eine Aktualisierung einer
+        sehr alten Version von &os; kann mit Problemen verbunden sein;
+        in diesen F&auml;llen ist es effektiver, eine bin&auml;re
+        Aktualisierung oder eine komplette Neuinstallation
+        durchzuf&uuml;hren.</para>
+    </listitem>
+  </itemizedlist>
+
+  <para>Bitte lesen Sie den Inhalt der Datei
+    <filename>INSTALL.TXT</filename>, um weitere Informationen zu
+    erhalten, und zwar <emphasis>bevor</emphasis> Sie mit der
+    Aktualisierung beginnen.  Wenn Sie den Sourcecode zur
+    Aktualisierung nutzen, sollten Sie auf jeden Fall auch
+    <filename>/usr/src/UPDATING</filename> lesen.</para>
+
+  <para>Zum guten Schlu&szlig;:  Wenn Sie auf eine der m&ouml;glichen
+    Arten die &os;-Entwicklungszweige -STABLE oder -CURRENT nutzen,
+    sollten Sie auf jeden Fall das Kapitel <ulink
+    url="http://www.FreeBSD.org/handbook/current-stable.html"><quote>-CURRENT
+    vs. -STABLE</quote></ulink> im <ulink
+    url="http://www.FreeBSD.org/handbook/">FreeBSD Handbuch</ulink>
+    lesen.</para>
+
+  <important>
+    <para>Sie sollten vor der Aktualisierung von &os; auf jeden Fall 
+      Sicherheitskopien <emphasis>aller</emphasis> Daten und
+      Konfigurationsdateien anlegen.</para>
+  </important>
+</sect1>
