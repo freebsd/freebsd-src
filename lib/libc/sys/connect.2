@@ -41,7 +41,7 @@
 .Fd #include <sys/types.h>
 .Fd #include <sys/socket.h>
 .Ft int
-.Fn connect "int s" "struct sockaddr *name" "int namelen"
+.Fn connect "int s" "const struct sockaddr *name" "int namelen"
 .Sh DESCRIPTION
 The parameter
 .Fa s
