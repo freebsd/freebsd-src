@@ -30,9 +30,8 @@
 #
 # BOOTP has mounted / for us.  Assume a read-only mount.  We must then
 # - figure out our IP by querying the interface
-# - copy /etc temporarily out of the way to /tmp/etc
 # - mount /etc as an MFS
-# - repopulate /etc with the saved off copy
+# - populate /etc from /conf/default version
 # - override files in /etc with files from /conf/*/etc where
 #   '*' is default, netmask of client, ip-address of client
 #
@@ -96,9 +95,6 @@ for i in ${iflist} ; do
 done
 echo "Interface ${bootp_ifc} IP-Address ${bootp_ipa} Broadcast ${bootp_ipbca}"
 
-
-# Create an MFS /tmp to temporarily hold files from /etc until we
-# can bootstrap /etc as an MFS.
 
 mount_md 4096 /etc 0
 chkerr $? "MFS mount on /etc"
