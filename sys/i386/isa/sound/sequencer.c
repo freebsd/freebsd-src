@@ -1957,7 +1957,7 @@ sequencer_init (long mem_start)
 int
 sequencer_poll (int dev, struct fileinfo *file, int events, select_table * wait)
 {
-  return (events & (POLLIN | POLLOUT | POLLRDNORM | POLLWRNORM | POLLHUP);
+  return (events & (POLLIN | POLLOUT | POLLRDNORM | POLLWRNORM | POLLHUP));
 }
 
 #endif

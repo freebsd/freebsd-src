@@ -26,7 +26,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $Id: soundcard.c,v 1.52 1997/07/20 11:58:40 bde Exp $
+ * $Id: soundcard.c,v 1.53 1997/09/14 03:12:54 peter Exp $
  */
 
 #include <i386/isa/sound/sound_config.h>
@@ -46,6 +46,7 @@
 			}
 
 static int      timer_running = 0;
+static struct	callout_handle timer_ch;
 
 static int      soundcards_installed = 0;	/* Number of installed
 						 * soundcards */
@@ -488,7 +489,7 @@ request_sound_timer (int count)
       if (!count)
 	count = 1;
 
-      timeout (sequencer_timer, 0, count);
+      timer_ch = timeout (sequencer_timer, 0, count);
     }
   timer_running = 1;
 }
@@ -497,7 +498,7 @@ void
 sound_stop_timer (void)
 {
   if (timer_running)
-    untimeout (sequencer_timer, 0);
+    untimeout (sequencer_timer, 0, timer_ch);
   timer_running = 0;
 }
 #endif
