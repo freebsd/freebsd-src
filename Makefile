@@ -1,6 +1,6 @@
 #	@(#)Makefile	8.1 (Berkeley) 6/19/93
 
-SUBDIR=	bin gnu include kerberosIV lib libexec sbin \
+SUBDIR=	bin gnu include lib libexec sbin \
 	share usr.bin usr.sbin
 
 afterinstall:
