@@ -461,12 +461,6 @@ mca_read_ivar (device_t dev, device_t child, int which, u_long * result)
 	return (0);
 }
 
-static int
-mca_write_ivar(device_t dev, device_t child, int which, uintptr_t value)
-{
-	return (EINVAL);
-}
-
 static struct resource *
 mca_alloc_resource (device_t dev, device_t child, int type, int *rid,
 		    u_long start, u_long end, u_long count, u_int flags)
@@ -502,7 +496,7 @@ mca_get_resource_list (device_t dev, device_t child)
 	struct resource_list *	rl = &m_dev->rl;
  
  	if (!rl)
-		return (ENOENT);
+		return (NULL);
  
 	return (rl);
 }
