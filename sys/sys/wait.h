@@ -104,13 +104,13 @@ union wait {
 	 * Terminated process status.
 	 */
 	struct {
-#if BYTE_ORDER == LITTLE_ENDIAN
+#if _BYTE_ORDER == _LITTLE_ENDIAN
 		unsigned int	w_Termsig:7,	/* termination signal */
 				w_Coredump:1,	/* core dump indicator */
 				w_Retcode:8,	/* exit code if w_termsig==0 */
 				w_Filler:16;	/* upper bits filler */
 #endif
-#if BYTE_ORDER == BIG_ENDIAN
+#if _BYTE_ORDER == _BIG_ENDIAN
 		unsigned int	w_Filler:16,	/* upper bits filler */
 				w_Retcode:8,	/* exit code if w_termsig==0 */
 				w_Coredump:1,	/* core dump indicator */
@@ -123,12 +123,12 @@ union wait {
 	 * with the WUNTRACED option bit.
 	 */
 	struct {
-#if BYTE_ORDER == LITTLE_ENDIAN
+#if _BYTE_ORDER == _LITTLE_ENDIAN
 		unsigned int	w_Stopval:8,	/* == W_STOPPED if stopped */
 				w_Stopsig:8,	/* signal that stopped us */
 				w_Filler:16;	/* upper bits filler */
 #endif
-#if BYTE_ORDER == BIG_ENDIAN
+#if _BYTE_ORDER == _BIG_ENDIAN
 		unsigned int	w_Filler:16,	/* upper bits filler */
 				w_Stopsig:8,	/* signal that stopped us */
 				w_Stopval:8;	/* == W_STOPPED if stopped */
