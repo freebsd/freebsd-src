@@ -280,7 +280,10 @@ addump(dev_t dev)
     struct ad_request request;
     u_int count, blkno, secsize;
     vm_offset_t addr = 0;
+    long blkcnt;
+    int dumppages = MAXDUMPPGS;
     int error;
+    int i;
 
     if ((error = disk_dumpcheck(dev, &count, &blkno, &secsize)))
 	return error;
@@ -292,18 +295,27 @@ addump(dev_t dev)
     adp->controller->mode[ATA_DEV(adp->unit)] = ATA_PIO;
     ata_reinit(adp->controller);
 
+    blkcnt = howmany(PAGE_SIZE, secsize);
+
     while (count > 0) {
 	caddr_t va = NULL;
 	DELAY(1000);
-	if (is_physical_memory(addr))
-	    va = pmap_kenter_temporary(trunc_page(addr));
-	else
-	    va = pmap_kenter_temporary(trunc_page(0));
+
+	if ((count / blkcnt) < dumppages)
+	    dumppages = count / blkcnt;
+
+	for (i = 0; i < dumppages; ++i) {
+	    vm_offset_t a = addr + (i * PAGE_SIZE);
+	    if (is_physical_memory(a))
+		va = pmap_kenter_temporary(trunc_page(a), i);
+	    else
+		va = pmap_kenter_temporary(trunc_page(0), i);
+	}
 
 	bzero(&request, sizeof(struct ad_request));
 	request.device = adp;
 	request.blockaddr = blkno;
-	request.bytecount = PAGE_SIZE;
+	request.bytecount = PAGE_SIZE * dumppages;
 	request.data = va;
 
 	while (request.bytecount > 0) {
@@ -323,9 +335,9 @@ addump(dev_t dev)
 	    printf("%ld ", (long)(count * DEV_BSIZE) / (1024 * 1024));
 	}
 
-	blkno += howmany(PAGE_SIZE, secsize);
-	count -= howmany(PAGE_SIZE, secsize);
-	addr += PAGE_SIZE;
+	blkno += blkcnt * dumppages;
+	count -= blkcnt * dumppages;
+	addr += PAGE_SIZE * dumppages;
 	if (cncheckc() != -1)
 	    return EINTR;
     }

@@ -2206,9 +2206,9 @@ retry:
  * during dump.
  */
 void *
-pmap_kenter_temporary(vm_offset_t pa)
+pmap_kenter_temporary(vm_offset_t pa, int i)
 {
-	return (void *) ALPHA_PHYS_TO_K0SEG(pa);
+	return (void *) ALPHA_PHYS_TO_K0SEG(pa - (i * PAGE_SIZE));
 }
 
 #define MAX_INIT_PT (96)

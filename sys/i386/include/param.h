@@ -96,6 +96,7 @@
 #endif
 #define DFLTPHYS	(64 * 1024)	/* default max raw I/O transfer size */
 #define MAXPHYS		(128 * 1024)	/* max raw I/O transfer size */
+#define MAXDUMPPGS	(DFLTPHYS/PAGE_SIZE)
 
 #define IOPAGES	2		/* pages of i/o permission bitmap */
 #define UPAGES	2		/* pages of u-area */
