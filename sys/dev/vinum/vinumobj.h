@@ -207,6 +207,7 @@ struct _sd
      */
     int64_t plexoffset;					    /* offset in plex */
     u_int64_t sectors;					    /* and length in sectors */
+    int sectorsize;					    /* sector size for DIOCGSECTORSIZE */
     int plexno;						    /* index of plex, if it belongs */
     int driveno;					    /* index of the drive on which it is located */
     int sdno;						    /* our index in vinum_conf */
@@ -242,6 +243,7 @@ struct _plex
     u_int64_t length;					    /* total length of plex (sectors) */
     int flags;
     int stripesize;					    /* size of stripe or raid band, in sectors */
+    int sectorsize;					    /* sector size for DIOCGSECTORSIZE */
     int subdisks;					    /* number of associated subdisks */
     int subdisks_allocated;				    /* number of subdisks allocated space for */
     int *sdnos;						    /* list of component subdisks */
@@ -292,6 +294,7 @@ struct _volume
     int openflags;					    /* flags supplied to last open(2) */
     u_int64_t size;					    /* size of volume */
     int blocksize;					    /* logical block size */
+    int sectorsize;					    /* sector size for DIOCGSECTORSIZE */
     int active;						    /* number of outstanding requests active */
     int subops;						    /* and the number of suboperations */
     /* Statistics */
