@@ -61,7 +61,6 @@
 #include <machine/setjmp.h>
 #include <machine/sigframe.h>
 #include <machine/smp.h>
-#include <machine/pv.h>
 #include <machine/tte.h>
 #include <machine/tlb.h>
 #include <machine/tsb.h>

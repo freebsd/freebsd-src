@@ -76,7 +76,6 @@
 #include <machine/frame.h>
 #include <machine/intr_machdep.h>
 #include <machine/pcb.h>
-#include <machine/pv.h>
 #include <machine/smp.h>
 #include <machine/trap.h>
 #include <machine/tstate.h>

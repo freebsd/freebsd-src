@@ -57,7 +57,6 @@
 #include <machine/frame.h>
 #include <machine/trap.h>
 #include <machine/pmap.h>
-#include <machine/pv.h>
 #include <machine/smp.h>
 #include <machine/tlb.h>
 #include <machine/tsb.h>
@@ -149,15 +148,9 @@ tsb_tte_enter(pmap_t pm, vm_page_t m, vm_offset_t va, u_long data)
 	if (pm == kernel_pmap) {
 		TSB_STATS_INC(tsb_nenter_k);
 		tp = tsb_kvtotte(va);
-		if ((m->flags & (PG_UNMANAGED | PG_FICTITIOUS)) == 0) {
-			pv_insert(pm, m, tp);
-			data |= TD_PV;
-		}
-		if (pmap_cache_enter(m, va) != 0)
-			data |= TD_CV;
-		tp->tte_vpn = TV_VPN(va);
-		tp->tte_data = data;
-		return (tp);
+		KASSERT((tp->tte_data & TD_V) == 0,
+		    ("tsb_tte_enter: replacing valid kernel mapping"));
+		goto enter;
 	}
 
 	TSB_STATS_INC(tsb_nenter_u);
@@ -187,21 +180,13 @@ tsb_tte_enter(pmap_t pm, vm_page_t m, vm_offset_t va, u_long data)
 	if ((tp->tte_data & TD_V) != 0) {
 		TSB_STATS_INC(tsb_nrepl);
 		ova = TTE_GET_VA(tp);
-		if ((tp->tte_data & TD_PV) != 0) {
-			om = PHYS_TO_VM_PAGE(TTE_GET_PA(tp));
-			if ((tp->tte_data & TD_W) != 0 &&
-			    pmap_track_modified(pm, ova))
-				vm_page_dirty(om);
-			if ((tp->tte_data & TD_REF) != 0)
-				vm_page_flag_set(om, PG_REFERENCED);
-			pmap_cache_remove(om, ova);
-			pv_remove(pm, om, tp);
-		}
-		tlb_tte_demap(tp, pm);
+		pmap_remove_tte(pm, NULL, tp, ova);
+		tlb_page_demap(TLB_DTLB | TLB_ITLB, pm, ova);
 	}
 
+enter:
 	if ((m->flags & (PG_UNMANAGED | PG_FICTITIOUS)) == 0) {
-		pv_insert(pm, m, tp);
+		pm->pm_stats.resident_count++;
 		data |= TD_PV;
 	}
 	if (pmap_cache_enter(m, va) != 0)
@@ -209,6 +194,8 @@ tsb_tte_enter(pmap_t pm, vm_page_t m, vm_offset_t va, u_long data)
 
 	tp->tte_vpn = TV_VPN(va);
 	tp->tte_data = data;
+	STAILQ_INSERT_TAIL(&m->md.tte_list, tp, tte_link);
+	tp->tte_pmap = pm;
 
 	CTR1(KTR_TSB, "tsb_tte_enter: return tp=%p", tp);
 	return (tp);
