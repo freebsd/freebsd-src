@@ -3,9 +3,10 @@
 
 PROG=	rexecd
 MAN=	rexecd.8
-CFLAGS+= -DSKEY
 
-DPADD=  ${LIBSKEY} ${LIBMD} ${LIBCRYPT} ${LIBUTIL}
-LDADD=	-lskey -lmd -lcrypt -lutil
+CFLAGS=	-DOPIE
+
+DPADD=  ${LIBOPIE} ${LIBMD} ${LIBCRYPT} ${LIBUTIL}
+LDADD=	-lopie -lmd -lcrypt -lutil
 
 .include <bsd.prog.mk>

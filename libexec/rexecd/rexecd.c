@@ -56,10 +56,11 @@ static const char rcsid[] =
 #include <fcntl.h>
 #endif
 #include <libutil.h>
+#include <opie.h>
 #include <paths.h>
+#include <pwd.h>
 #include <signal.h>
 #include <stdio.h>
-#include <skey.h>
 #include <string.h>
 #include <syslog.h>
 #include <unistd.h>
@@ -137,11 +138,13 @@ doit(f, fromp)
 	FILE *fp;
 	char cmdbuf[NCARGS+1], *cp;
 	const char *namep;
-#ifdef SKEY
-	char user[16], pass[100];
-#else /* SKEY */
+	char user[16];
+#ifdef OPIE
+	struct opie opiedata;
+	char pass[OPIE_RESPONSE_MAX+1], opieprompt[OPIE_CHALLENGE_MAX+1];
+#else /* OPIE */
 	char user[16], pass[16];
-#endif /* SKEY */
+#endif /* OPIE */
 	struct passwd *pwd;
 	int s;
 	u_short port;
@@ -197,13 +200,13 @@ doit(f, fromp)
 	}
 	endpwent();
 	if (*pwd->pw_passwd != '\0') {
-#ifdef SKEY
-		namep = skey_crypt(pass, pwd->pw_passwd, pwd,
-				   skeyaccess(user, NULL, remote, NULL));
-#else /* SKEY */
+#ifdef OPIE
+		opiechallenge(&opiedata, user, opieprompt);
+		if (opieverify(&opiedata, pass)) {
+#else /* OPIE */
 		namep = crypt(pass, pwd->pw_passwd);
-#endif /* SKEY */
 		if (strcmp(namep, pwd->pw_passwd)) {
+#endif /* OPIE */
 			syslog(LOG_ERR, "LOGIN FAILURE from %s, %s",
 			       remote, user);
 			error("Login incorrect.\n");
