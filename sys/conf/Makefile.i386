@@ -1,6 +1,6 @@
 # Copyright 1990 W. Jolitz
 #	from: @(#)Makefile.i386	7.1 5/10/91
-#	$Id: Makefile.i386,v 1.13 1993/11/13 02:23:29 davidg Exp $
+#	$Id: Makefile.i386,v 1.14 1993/11/15 21:06:08 paul Exp $
 #
 # Makefile for FreeBSD
 #
@@ -47,7 +47,7 @@ SYSTEM_OBJS=locore.o exception.o swtch.o support.o ${OBJS} param.o \
 	ioconf.o conf.o machdep.o
 SYSTEM_DEP=Makefile symbols.sort ${SYSTEM_OBJS}
 SYSTEM_LD_HEAD= 	@echo loading $@; rm -f $@
-SYSTEM_LD= @${LD} -Z -T ${LOAD_ADDRESS} -o $@ -X vers.o ${SYSTEM_OBJS}
+SYSTEM_LD= @${LD} -z -T ${LOAD_ADDRESS} -o $@ -X vers.o ${SYSTEM_OBJS}
 SYSTEM_LD_TAIL= @echo rearranging symbols; symorder symbols.sort $@; \
 	${DBSYM} -fT ${LOAD_ADDRESS} $@; ${STRIP} -x $@; size $@; chmod 755 $@
 
