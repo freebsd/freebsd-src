@@ -29,7 +29,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: yppush_main.c,v 1.26 1996/04/03 00:27:53 wpaul Exp wpaul $
+ *	$Id: yppush_main.c,v 1.3 1996/04/03 03:24:03 wpaul Exp $
  */
 
 #include <stdio.h>
@@ -53,7 +53,7 @@ struct dom_binding {};
 #include "yppush_extern.h"
 
 #ifndef lint
-static const char rcsid[] = "$Id: yppush_main.c,v 1.26 1996/04/03 00:27:53 wpaul Exp wpaul $";
+static const char rcsid[] = "$Id: yppush_main.c,v 1.3 1996/04/03 03:24:03 wpaul Exp $";
 #endif
 
 char *progname = "yppush";
@@ -400,7 +400,7 @@ int yp_push(server, map, tid)
 	 * transient program number.
 	 */
 	xprt = svcudp_create(sock);
-	for (prognum = 0x4000000; prognum < 0x5FFFFFF; prognum++) {
+	for (prognum = 0x40000000; prognum < 0x5FFFFFFF; prognum++) {
 		if (svc_register(xprt, prognum, 1,
 		    yppush_xfrrespprog_1, IPPROTO_UDP) == TRUE)
 			break;
