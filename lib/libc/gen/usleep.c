@@ -35,6 +35,7 @@
 static char sccsid[] = "@(#)usleep.c	8.1 (Berkeley) 6/4/93";
 #endif /* LIBC_SCCS and not lint */
 
+#include <errno.h>
 #include <sys/time.h>
 #include <signal.h>
 #include <unistd.h>
@@ -68,7 +69,8 @@ usleep(useconds)
 		do {
 			(void)nanosleep(&time_to_sleep, &time_remaining);
 			time_to_sleep = time_remaining;
-		} while (time_to_sleep.tv_sec != 0 ||
+		} while (!errno || errno == EINTR ||
+			 time_to_sleep.tv_sec != 0 ||
 			 time_to_sleep.tv_nsec != 0);
 	}
 #else
@@ -120,7 +122,8 @@ usleep(useconds)
 					   &omask);
 			time_to_sleep = time_remaining;
 		} while (!alarm_termination &&
-			 (time_to_sleep.tv_sec != 0 ||
+			 (!errno || errno == EINTR ||
+			  time_to_sleep.tv_sec != 0 ||
 			  time_to_sleep.tv_nsec != 0));
 
 		if (!alarm_blocked) {
