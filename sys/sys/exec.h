@@ -48,9 +48,9 @@
  */
 struct ps_strings {
 	char	**ps_argvstr;	/* first of 0 or more argument strings */
-	int	ps_nargvstr;	/* the number of argument strings */
+	unsigned int ps_nargvstr; /* the number of argument strings */
 	char	**ps_envstr;	/* first of 0 or more environment strings */
-	int	ps_nenvstr;	/* the number of environment strings */
+	unsigned int ps_nenvstr; /* the number of environment strings */
 };
 
 /*
