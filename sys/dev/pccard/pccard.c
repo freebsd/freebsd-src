@@ -160,7 +160,6 @@ pccard_attach_card(device_t dev)
 		 *
 		 */
 		device_printf(dev, "Starting to attach....\n");
-		/* XXX Need ivars XXXimpXXX */
 		ivar = malloc(sizeof(struct pccard_ivar), M_DEVBUF, M_WAITOK);
 		child = device_add_child(dev, NULL, -1);
 		device_set_ivars(child, ivar);
@@ -739,10 +738,46 @@ pccard_set_memory_offset(device_t dev, device_t child, int rid,
 static int
 pccard_read_ivar(device_t bus, device_t child, int which, u_char *result)
 {
+	struct pccard_ivar *devi = (struct pccard_ivar *) device_get_ivars(child);
+	struct pccard_function *func = devi->fcn;
+	struct pccard_softc *sc = PCCARD_SOFTC(bus);
+
 	/* PCCARD_IVAR_ETHADDR unhandled from oldcard */
-	return ENOENT;
+	switch (which) {
+	default:
+	case PCCARD_IVAR_ETHADDR:
+		return (ENOENT);
+		break;
+	case PCCARD_IVAR_VENDOR:
+		*(u_int32_t *) result = sc->card.manufacturer;
+		break;
+	case PCCARD_IVAR_PRODUCT:
+		*(u_int32_t *) result = sc->card.product;
+		break;
+	case PCCARD_IVAR_FUNCTION_NUMBER:
+		/* XXX imp XXX */
+		/* *(u_int32_t *) result = func->number; */
+		*(u_int32_t *) result = 0;
+		break;
+	case PCCARD_IVAR_VENDOR_STR:
+		*(char **) result = sc->card.cis1_info[0];
+		break;
+	case PCCARD_IVAR_PRODUCT_STR:
+		*(char **) result = sc->card.cis1_info[1];
+		break;
+	case PCCARD_IVAR_CIS3_STR:
+		*(char **) result = sc->card.cis1_info[2];
+		break;
+	}
+	return (0);
 }
 
+static void
+pccard_driver_added(device_t dev, driver_t *driver)
+{
+	/* XXX eventually we need to attach stuff when we know we */
+	/* XXX have kids. */
+}
 
 static device_method_t pccard_methods[] = {
 	/* Device interface */
@@ -755,7 +790,7 @@ static device_method_t pccard_methods[] = {
 
 	/* Bus interface */
 	DEVMETHOD(bus_print_child,	pccard_print_child),
-	DEVMETHOD(bus_driver_added,	bus_generic_driver_added),
+	DEVMETHOD(bus_driver_added,	pccard_driver_added),
 	DEVMETHOD(bus_alloc_resource,	bus_generic_alloc_resource),
 	DEVMETHOD(bus_release_resource,	bus_generic_release_resource),
 	DEVMETHOD(bus_activate_resource, bus_generic_activate_resource),
