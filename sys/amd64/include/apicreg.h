@@ -22,7 +22,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: apic.h,v 1.17 1997/04/26 06:41:36 peter Exp $
+ *	$Id: apic.h,v 1.1 1997/04/26 11:45:32 peter Exp $
  */
 
 #ifndef _MACHINE_APIC_H_
@@ -112,9 +112,6 @@
 /******************************************************************************
  * global defines, etc.
  */
-
-/* enable the InterProcessor Interrupt code, FIXME: temporary marker */
-#define IPI_INTS
 
 /**
  * this enables code concerned with handling more than one IO APIC.

@@ -22,7 +22,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: mp_machdep.c,v 1.47 1997/04/26 08:11:49 peter Exp $
+ *	$Id: mp_machdep.c,v 1.1 1997/04/26 11:45:15 peter Exp $
  */
 
 #include "opt_smp.h"
@@ -59,11 +59,6 @@
 #include <machine/smptests.h>	/** TEST_UPPERPRIO, TEST_DEFAULT_CONFIG */
 
 #include <i386/i386/cons.h>	/* cngetc() */
-
-#if defined(IPI_INTS)
-#include <i386/isa/isa_device.h>
-#include "vector.h"
-#endif				/* IPI_INTS */
 
 #if defined(SMP_INVLTLB)
 #include <i386/isa/icu.h>
@@ -159,16 +154,6 @@ static u_int mpfps;
 static int search_for_sig(u_int32_t target, int count);
 static int mp_probe(u_int base_top);
 static void mp_enable(u_int boot_addr);
-
-#if defined(IPI_INTS)
-static void ipi_intr0(void);
-static void ipi_intr1(void);
-static void ipi_intr2(void);
-static void ipi_intr3(void);
-static int 
-ipi_ihandler_attach(int irq, inthand2_t * func,
-    unsigned *maskptr, int unit);
-#endif				/* IPI_INTS */
 
 
 /*
@@ -325,11 +310,10 @@ static int parse_mp_table(void);
 static void default_mp_table(int type);
 static int start_all_aps(u_int boot_addr);
 
-#if defined(XFAST_IPI32)
-#include <machine/md_var.h>
-#include <i386/isa/isa_device.h>
-extern void Xfastipi32(u_int, u_int, u_int, u_int);
-#endif				/* XFAST_IPI32 */
+#if defined(APIC_IO)
+#include <i386/include/md_var.h>	/* setidt() */
+#include <i386/isa/isa_device.h>	/* Xinvltlb() */
+#endif	/* APIC_IO */
 
 static void
 mp_enable(u_int boot_addr)
@@ -367,31 +351,9 @@ mp_enable(u_int boot_addr)
 		if (io_apic_setup(apic) < 0)
 			panic("IO APIC setup failure\n");
 
-#if defined(IPI_INTS)
-	/* setup IPI INTerrupt mechanism */
-	ipi_ihandler_attach( /* irq */ 24,
-	     /* XXX */ (inthand2_t *) ipi_intr0, NULL, /* unit */ 0);
-	ipi_ihandler_attach( /* irq */ 25,
-	     /* XXX */ (inthand2_t *) ipi_intr1, NULL, /* unit */ 0);
-	ipi_ihandler_attach( /* irq */ 26,
-	     /* XXX */ (inthand2_t *) ipi_intr2, NULL, /* unit */ 0);
-#if !defined(SMP_INVLTLB)
-	ipi_ihandler_attach( /* irq */ 27,
-	     /* XXX */ (inthand2_t *) ipi_intr3, NULL, /* unit */ 0);
-#else
-#if defined(XFAST_IPI32)
-	ipi_ihandler_attach( /* irq */ 27,
-	     /* XXX */ (inthand2_t *) ipi_intr3, NULL, /* unit */ 0);
-	setidt(ICU_OFFSET + 32,
-	    Xfastipi32,
+	/* install an inter-CPU IPI for TLB invalidation */
+	setidt(ICU_OFFSET + XINVLTLB_OFFSET, Xinvltlb,
 	    SDT_SYS386IGT, SEL_KPL, GSEL(GCODE_SEL, SEL_KPL));
-#else
-	ipi_ihandler_attach( /* irq */ 27,
-	     /* XXX */ (inthand2_t *) ipi_invltlb, NULL, /* unit */ 0);
-#endif	/* XFAST_IPI32 */
-#endif
-
-#endif	/* IPI_INTS */
 
 #if defined(TEST_UPPERPRIO)
 
@@ -1504,89 +1466,6 @@ start_ap(int logical_cpu, u_int boot_addr)
 }
 
 
-#if defined(IPI_INTS)
-
-static void
-ipi_intr0(void)
-{
-	printf("IPI 0\n");
-}
-
-
-static void
-ipi_intr1(void)
-{
-	printf("IPI 1\n");
-}
-
-
-static void
-ipi_intr2(void)
-{
-	printf("IPI 2\n");
-}
-
-
-static void
-ipi_intr3(void)
-{
-	printf("IPI 3\n");
-}
-
-/*-----------------------------------------------------------------------
-**
-**	Register an interupt handler for an IPI.
-**	(Stolen from the PCI<->ISA glue code)
-**
-**-----------------------------------------------------------------------
-*/
-
-static int
-ipi_ihandler_attach(int irq, inthand2_t * func, unsigned *maskptr, int unit)
-{
-	char    buf[16];
-	char   *cp;
-	int     free_id, id, result;
-
-	sprintf(buf, "ipi irq%d", irq);
-	for (cp = intrnames, free_id = 0, id = 0; id < NR_DEVICES; id++) {
-		if (strcmp(cp, buf) == 0)
-			break;
-		if (free_id <= 0 && strcmp(cp, "ipi irqnn") == 0)
-			free_id = id;
-		while (*cp++ != '\0');
-	}
-	if (id == NR_DEVICES) {
-		id = free_id;
-		if (id == 0) {
-			/*
-			 * All ipi irq counters are in use, perhaps because
-			 * config is old so there aren't any.  Abuse the clk0
-			 * counter.
-			 */
-			printf(
-			    "ipi_ihandler_attach: counting ipi irq%d's as clk0 irqs\n",
-			    irq);
-		}
-	}
-	result = register_intr(
-	    irq,		/* isa irq	 */
-	    id,			/* device id    */
-	    0,			/* flags?	 */
-	    func,		/* handler	 */
-	    maskptr,		/* mask pointer */
-	    unit);		/* handler arg  */
-
-	if (result) {
-		printf("WARNING: ipi_ihandler_attach: result=%d\n", result);
-		return (result);
-	};
-
-	return (0);
-}
-#endif	/* IPI_INTS */
-
-
 #ifdef SMP_INVLTLB
 /*
  * Flush the TLB on all other CPU's
@@ -1599,11 +1478,7 @@ smp_invltlb()
 {
 	if (smp_active) {
 		if (invldebug & 2)
-#if defined(XFAST_IPI32)
 			all_but_self_ipi(ICU_OFFSET + 32);
-#else
-			all_but_self_ipi(ICU_OFFSET + 27);
-#endif	/* XFAST_IPI32 */
 	}
 }
 

@@ -22,7 +22,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: mpapic.c,v 1.32 1997/04/26 05:58:01 peter Exp $
+ *	$Id: mpapic.c,v 1.1 1997/04/26 11:45:15 peter Exp $
  */
 
 #include <sys/types.h>
@@ -30,7 +30,6 @@
 #include <sys/systm.h>
 
 #include <machine/smp.h>
-#include <machine/apic.h>	/** IPI_INTS */
 #include <machine/mpapic.h>
 #include <machine/smptests.h>	/** TEST_LOPRIO, TEST_IPI */
 #include <machine/cpufunc.h>
@@ -769,64 +768,3 @@ u_sleep(int count)
 	while (read_apic_timer())
 		 /* spin */ ;
 }
-
-
-#if defined(TEST_IPI) && defined(IPI_INTS)
-
-#define TEST_IRQBA	(ICU_OFFSET+24)	/* BSP & AP */
-#define TEST_IRQB	(ICU_OFFSET+25)	/* BSP */
-#define TEST_IRQA	(ICU_OFFSET+26)	/* AP */
-
-/**
- * a series of tests for the apic IPI routines
- * I call them from db (you only get one shot @ the AP, no way to EOI it!)
- */
-
-#include <sys/param.h>
-#include <i386/isa/isa_device.h>
-#include <i386/isa/icu.h>
-
-void    apt1(void);
-void    apt2(void);
-void    apt3(void);
-void    apt4(void);
-void    apt5(void);
-void    apt6(void);
-void    apeoi(void);
-
-void
-apt1(void)
-{
-	selected_procs_ipi(0x0001, TEST_IRQB);	/* INT BSP */
-}
-void
-apt2(void)
-{
-	selected_procs_ipi(0x0002, TEST_IRQA);	/* INT AP */
-}
-void
-apt3(void)
-{
-	selected_procs_ipi(0x0003, TEST_IRQBA);	/* INT BSP/AP */
-}
-void
-apt4(void)
-{
-	all_procs_ipi(TEST_IRQBA);	/* INT BSP/AP */
-}
-void
-apt5(void)
-{
-	all_but_self_ipi(TEST_IRQA);	/* INT AP */
-}
-void
-apt6(void)
-{
-	self_ipi(TEST_IRQB);	/* INT BSP */
-}
-void
-apeoi(void)
-{
-	apic_base[APIC_EOI] = 0;
-}
-#endif	/* TEST_IPI && IPI_INTS */
