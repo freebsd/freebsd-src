@@ -173,6 +173,11 @@ rerelease release:
 .if !defined(CHROOTDIR) || !defined(BUILDNAME) || !defined(CVSROOT)
 	@echo "To make a release you must set CHROOTDIR, BUILDNAME and CVSROOT" && false
 .endif
+.if defined(NOPORTS) && !defined(NODOC)
+	@echo "Ports are required for building the docs.  Either set NODOC or"
+	@echo "unset NOPORTS!"
+	@exit 1
+.endif
 .if make(release)
 .if exists(${CHROOTDIR})
 # The first command will fail on a handful of files that have their schg
