@@ -78,7 +78,7 @@ static driver_t tlsbcpu_driver = {
 static int
 tlsbcpu_probe(device_t dev)
 {
-	u_int32_t vid, imsreg;
+	u_int32_t vid;
 	device_t child;
 	static int inst = 0;
 	struct tlsb_device *tdev = DEVTOTLSB(dev);
