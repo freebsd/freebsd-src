@@ -28,7 +28,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $Id: if_ray.c,v 1.17 2000/04/04 06:43:30 dmlb Exp $
+ * $Id: if_raydbg.h,v 1.1 2000/04/24 14:50:01 dmlb Exp $
  *
  */
 
@@ -49,6 +49,7 @@
  *	RX		packet types reported
  *	CM		common memory re-mapping
  *	COM		new command sleep/wakeup
+ *	STOP		driver detaching
  */
 #define RAY_DBG_RECERR		0x0001
 #define RAY_DBG_SUBR		0x0002
@@ -60,6 +61,7 @@
 #define RAY_DBG_RX		0x0100
 #define RAY_DBG_CM		0x0200
 #define RAY_DBG_COM		0x0400
+#define RAY_DBG_STOP		0x0800
 /* Cut and paste this into a kernel configuration file */
 #if 0
 #define RAY_DEBUG	(				\
@@ -73,28 +75,30 @@
                         /* RAY_DBG_RX		| */	\
                         /* RAY_DBG_CM		| */	\
                         /* RAY_DBG_COM		| */	\
+                        /* RAY_DBG_STOP		| */	\
 			0				\
 			)
 #endif
 
 #if RAY_DEBUG
 
-/* XXX This macro assumes that common memory is mapped into kernel space and
- * XXX does not indirect through SRAM macros - it should */
-#define RAY_DHEX8(p, l, mask) do { if (RAY_DEBUG & mask) {	\
-    u_int8_t *i;						\
-    for (i = p; i < (u_int8_t *)(p+l); i += 8)			\
-    	printf("  0x%08lx %8D\n",				\
-		(unsigned long)i, (unsigned char *)i, " ");	\
-} } while (0)
+/* This macro assumes that common memory is mapped into kernel space */
+#define RAY_DHEX8(sc, mask, off, len) do { if (RAY_DEBUG & (mask)) {	\
+    int i, j;								\
+    for (i = (off); i < (off)+(len); i += 8) {				\
+	    printf("  0x%04x ",	i);					\
+	    for (j = 0; j < 8; j++)					\
+		    printf("%02x ", SRAM_READ_1((sc), i+j));		\
+	    printf("\n");						\
+} } } while (0)
 
 #define RAY_DPRINTF(sc, mask, fmt, args...) do {if (RAY_DEBUG & (mask)) {\
-    printf("ray%d: %s(%d) " fmt "\n",					\
-    	(sc)->unit, __FUNCTION__ , __LINE__ , ##args);			\
+    printf("ray%d: %s(%d) " fmt "\n", (sc)->unit,			\
+	__FUNCTION__ , __LINE__ , ##args);				\
 } } while (0)
 
 #else
-#define RAY_DHEX8(p, l, mask)
+#define RAY_DHEX8(sc, mask, off, len)
 #define RAY_DPRINTF(sc, mask, fmt, args...)
 #endif /* RAY_DEBUG > 0 */
 
@@ -104,13 +108,13 @@
  */
 #if RAY_DEBUG & RAY_DBG_COM
 #define RAY_COM_DUMP(sc, com, s) do { if (RAY_DEBUG & RAY_DBG_COM) {	\
-    printf("ray%d: %s(%d) %s com entry 0x%p\n",				\
-        (sc)->unit, __FUNCTION__ , __LINE__ , (s) , (com));		\
+    printf("ray%d: %s(%d) %s com entry 0x%p\n",	(sc)->unit,		\
+        __FUNCTION__ , __LINE__ , (s) , (com));				\
     printf("  c_mesg %s\n", (com)->c_mesg);				\
     printf("  c_flags 0x%b\n", (com)->c_flags, RAY_COM_FLAGS_PRINTFB);	\
     printf("  c_retval 0x%x\n", (com)->c_retval);			\
     printf("  c_ccs 0x%0x index 0x%02x\n",				\
-        com->c_ccs, RAY_CCS_INDEX((com)->c_ccs));			\
+        (com)->c_ccs, RAY_CCS_INDEX((com)->c_ccs));			\
 } } while (0)
 
 #define RAY_COM_CHECK(sc, com) do { if (RAY_DEBUG & RAY_DBG_COM) {	\
