@@ -168,8 +168,8 @@ MMalloc(int size, char *file, int line)
 	    malloced[i].size = size;
 	    malloced[i].line = line;
 	    malloced[i].address = result;
-	    bcopy(f, malloced[lastfree].file, min(strlen(f), MCFILENAMELEN - 1));
-	    malloced[lastfree].file[MCFILENAMELEN - 1] = '\0';
+	    bcopy(f, malloced[i].file, min(strlen(f), MCFILENAMELEN - 1));
+	    malloced[i].file[MCFILENAMELEN - 1] = '\0';
 	}
 	if (malloccount > highwater)
 	    highwater = malloccount;
