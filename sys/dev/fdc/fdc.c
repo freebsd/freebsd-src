@@ -35,7 +35,7 @@
  * SUCH DAMAGE.
  *
  *	from:	@(#)fd.c	7.4 (Berkeley) 5/25/91
- *	$from: fd.c,v 1.18 1993/12/21 05:09:21 ache Exp $
+ *	$Id:$
  *
  */
 
@@ -389,7 +389,7 @@ void fdstrategy(struct buf *bp)
 		return; 
 		}
 #endif
-	if ((fdu >= (NFD+NFT)) || (bp->b_blkno < 0)) {
+	if ((fdu >= NFD) || (bp->b_blkno < 0)) {
 		printf("fdstrat: fdu = %d, blkno = %d, bcount = %d\n",
 			fdu, bp->b_blkno, bp->b_bcount);
 		pg("fd:error in fdstrategy");
@@ -1174,7 +1174,10 @@ fdioctl (dev, cmd, addr, flag, p)
 	int error;
 
 #if NFT > 0
-	if (fd_data[FDUNIT(minor(dev))].fdc->flags & FDC_TAPE_BUSY)
+	int type = FDTYPE(minor(dev));
+
+	/* check for a tape ioctl */
+	if (type & F_TAPE_TYPE)
 		return ftioctl(dev, cmd, addr, flag, p);
 #endif
 
