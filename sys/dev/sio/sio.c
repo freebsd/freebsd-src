@@ -393,6 +393,9 @@ sysctl_machdep_comdefaultrate(SYSCTL_HANDLER_ARGS)
 		return (ENXIO);
 
 	tp = com->tp;
+	if (tp == NULL)
+		return (ENXIO);
+
 	/*
 	 * set the initial and lock rates for /dev/ttydXX and /dev/cuaXX
 	 * (note, the lock rates really are boolean -- if non-zero, disallow
@@ -406,7 +409,7 @@ sysctl_machdep_comdefaultrate(SYSCTL_HANDLER_ARGS)
 	/*
 	 * if we're open, change the running rate too
 	 */
-	if (tp && (tp->t_state & TS_ISOPEN)) {
+	if (tp->t_state & TS_ISOPEN) {
 		tp->t_termios.c_ispeed =
 		tp->t_termios.c_ospeed = comdefaultrate;
 		s = spltty();
@@ -1405,11 +1408,9 @@ sioclose(dev, flag, mode, td)
 	struct thread	*td;
 {
 	struct com_s	*com;
-	int		mynor;
 	int		s;
 	struct tty	*tp;
 
-	mynor = minor(dev);
 	com = dev->si_drv1;
 	if (com == NULL)
 		return (ENODEV);
