@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: support.s,v 1.1 1998/06/10 10:53:15 dfr Exp $
+ *	$Id: support.s,v 1.2 1998/12/20 13:21:55 dfr Exp $
  */
 /*
  * Copyright (c) 1994, 1995, 1996 Carnegie-Mellon University.
@@ -144,7 +144,6 @@
 
 	stq	zero, U_PCB_ONFAULT(t2)	/* clean up */
 
-	mov	zero, v0
 	RET
 	END(fubyte)
 	
