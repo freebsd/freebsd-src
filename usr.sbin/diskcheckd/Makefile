@@ -1,6 +1,6 @@
 # $FreeBSD$
 
-CFLAGS+= -W -Wall -g -O0
+CFLAGS+= -W -Wall
 
 PROG=	diskcheckd
 MAN8=	diskcheckd.8
