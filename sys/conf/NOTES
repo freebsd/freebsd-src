@@ -570,7 +570,9 @@ device		stf			#6to4 IPv6 over IPv4 encapsulation
 # packets without touching the ttl).  This can be useful to hide firewalls
 # from traceroute and similar tools.
 #
-# TCPDEBUG is undocumented.
+# TCPDEBUG enables code which keeps traces of the TCP state machine
+# for sockets with the SO_DEBUG option set, which can then be examined
+# using the trpt(8) utility.
 #
 options 	MROUTING		# Multicast routing
 options 	IPFIREWALL		#firewall
