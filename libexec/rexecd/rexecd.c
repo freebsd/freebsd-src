@@ -79,10 +79,12 @@ static int pam_err;
 char	**environ;
 char	remote[MAXHOSTNAMELEN];
 
-struct	sockaddr_storage asin;
+struct	sockaddr_storage sa;
+
+char	default_shell[] = _PATH_BSHELL;
 
 static void doit(struct sockaddr *);
-static void getstr(char *, int, char *);
+static void getstr(char *, int, const char *);
 static void error(const char *fmt, ...);
 
 int no_uid_0 = 1;
@@ -131,7 +133,6 @@ static void
 doit(struct sockaddr *fromp)
 {
 	char cmdbuf[NCARGS+1], *cp;
-	const char *namep;
 	char user[16], pass[16];
 	struct passwd *pwd;
 	int fd, r, sd;
@@ -140,7 +141,6 @@ doit(struct sockaddr *fromp)
 	fd_set rfds, fds;
 	char buf[BUFSIZ], sig;
 	int one = 1;
-	char **envlist, **env;
 
 	(void) signal(SIGINT, SIG_DFL);
 	(void) signal(SIGQUIT, SIG_DFL);
@@ -149,6 +149,7 @@ doit(struct sockaddr *fromp)
 	dup2(STDIN_FILENO, STDOUT_FILENO);
 	(void) alarm(60);
 	port = 0;
+	sd = -1;
 	for (;;) {
 		char c;
 		if (read(STDIN_FILENO, &c, 1) != 1)
@@ -161,10 +162,10 @@ doit(struct sockaddr *fromp)
 		sd = socket(fromp->sa_family, SOCK_STREAM, 0);
 		if (sd < 0)
 			exit(1);
-		bzero(&asin, sizeof(asin));
-		asin.ss_family = fromp->sa_family;
-		asin.ss_len = fromp->sa_len;
-		if (bind(sd, (struct sockaddr *)&asin, asin.ss_len) < 0)
+		bzero(&sa, sizeof(sa));
+		sa.ss_family = fromp->sa_family;
+		sa.ss_len = fromp->sa_len;
+		if (bind(sd, (struct sockaddr *)&sa, sa.ss_len) < 0)
 			exit(1);
 		switch (fromp->sa_family) {
 		case AF_INET:
@@ -256,7 +257,7 @@ doit(struct sockaddr *fromp)
 	for (fd = getdtablesize(); fd > 2; fd--)
 		(void) close(fd);
 	if (*pwd->pw_shell == '\0')
-		pwd->pw_shell = _PATH_BSHELL;
+		pwd->pw_shell = default_shell;
 	if (setsid() == -1)
 		syslog(LOG_ERR, "setsid() failed: %m");
 	if (setlogin(pwd->pw_name) < 0)
@@ -300,7 +301,7 @@ error(const char *fmt, ...)
 }
 
 static void
-getstr(char *buf, int cnt, char *err)
+getstr(char *buf, int cnt, const char *field)
 {
 	char c;
 
@@ -309,7 +310,7 @@ getstr(char *buf, int cnt, char *err)
 			exit(1);
 		*buf++ = c;
 		if (--cnt == 0) {
-			error("%s too long\n", err);
+			error("%s too long\n", field);
 			exit(1);
 		}
 	} while (c != 0);

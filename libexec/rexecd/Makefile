@@ -3,7 +3,7 @@
 
 PROG=	rexecd
 MAN=	rexecd.8
-#WARNS?=	4
+WARNS?=	6
 WFORMAT=0
 
 DPADD=  ${LIBPAM} ${LIBUTIL}
