@@ -37,7 +37,7 @@
  *
  *	@(#)procfs_mem.c	8.5 (Berkeley) 6/15/94
  *
- *	$Id: procfs_mem.c,v 1.35 1998/10/28 13:37:00 dg Exp $
+ *	$Id: procfs_mem.c,v 1.36 1999/04/27 11:16:37 phk Exp $
  */
 
 /*
@@ -331,11 +331,12 @@ int procfs_kmemaccess(curp)
 	struct ucred *cred;
 
 	cred = curp->p_cred->pc_ucred;
-	if (suser_xxx(cred, &curp->p_acflag))
+	if (suser(curp))
 		return 1;
-	
+
+	/* XXX: Why isn't this done with file-perms ??? */
 	for (i = 0; i < cred->cr_ngroups; i++)
-		if (cred->cr_groups[i] == KMEM_GROUP)
+		if (cred->cr_groups[i] == KMEM_GROUP)	
 			return 1;
 	
 	return 0;

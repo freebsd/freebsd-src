@@ -1,4 +1,4 @@
-/*	$Id: sysv_msg.c,v 1.20 1999/04/21 13:30:01 sada Exp $ */
+/*	$Id: sysv_msg.c,v 1.21 1999/04/27 11:16:16 phk Exp $ */
 
 /*
  * Implementation of SVID messages
@@ -178,7 +178,6 @@ msgctl(p, uap)
 	int msqid = uap->msqid;
 	int cmd = uap->cmd;
 	struct msqid_ds *user_msqptr = uap->buf;
-	struct ucred *cred = p->p_ucred;
 	int rval, eval;
 	struct msqid_ds msqbuf;
 	register struct msqid_ds *msqptr;
@@ -220,7 +219,7 @@ msgctl(p, uap)
 	case IPC_RMID:
 	{
 		struct msg *msghdr;
-		if ((eval = ipcperm(cred, &msqptr->msg_perm, IPC_M)))
+		if ((eval = ipcperm(p, &msqptr->msg_perm, IPC_M)))
 			return(eval);
 		/* Free the message headers */
 		msghdr = msqptr->msg_first;
@@ -248,12 +247,12 @@ msgctl(p, uap)
 		break;
 
 	case IPC_SET:
-		if ((eval = ipcperm(cred, &msqptr->msg_perm, IPC_M)))
+		if ((eval = ipcperm(p, &msqptr->msg_perm, IPC_M)))
 			return(eval);
 		if ((eval = copyin(user_msqptr, &msqbuf, sizeof(msqbuf))) != 0)
 			return(eval);
 		if (msqbuf.msg_qbytes > msqptr->msg_qbytes) {
-			eval = suser_xxx(cred, &p->p_acflag);
+			eval = suser(p);
 			if (eval)
 				return(eval);
 		}
@@ -279,7 +278,7 @@ msgctl(p, uap)
 		break;
 
 	case IPC_STAT:
-		if ((eval = ipcperm(cred, &msqptr->msg_perm, IPC_R))) {
+		if ((eval = ipcperm(p, &msqptr->msg_perm, IPC_R))) {
 #ifdef MSG_DEBUG_OK
 			printf("requester doesn't have read access\n");
 #endif
@@ -340,7 +339,7 @@ msgget(p, uap)
 #endif
 				return(EEXIST);
 			}
-			if ((eval = ipcperm(cred, &msqptr->msg_perm, msgflg & 0700 ))) {
+			if ((eval = ipcperm(p, &msqptr->msg_perm, msgflg & 0700 ))) {
 #ifdef MSG_DEBUG_OK
 				printf("requester doesn't have 0%o access\n",
 				    msgflg & 0700);
@@ -426,7 +425,6 @@ msgsnd(p, uap)
 	size_t msgsz = uap->msgsz;
 	int msgflg = uap->msgflg;
 	int segs_needed, eval;
-	struct ucred *cred = p->p_ucred;
 	register struct msqid_ds *msqptr;
 	register struct msg *msghdr;
 	short next;
@@ -460,7 +458,7 @@ msgsnd(p, uap)
 		return(EINVAL);
 	}
 
-	if ((eval = ipcperm(cred, &msqptr->msg_perm, IPC_W))) {
+	if ((eval = ipcperm(p, &msqptr->msg_perm, IPC_W))) {
 #ifdef MSG_DEBUG_OK
 		printf("requester doesn't have write access\n");
 #endif
@@ -763,7 +761,6 @@ msgrcv(p, uap)
 	long msgtyp = uap->msgtyp;
 	int msgflg = uap->msgflg;
 	size_t len;
-	struct ucred *cred = p->p_ucred;
 	register struct msqid_ds *msqptr;
 	register struct msg *msghdr;
 	int eval;
@@ -798,7 +795,7 @@ msgrcv(p, uap)
 		return(EINVAL);
 	}
 
-	if ((eval = ipcperm(cred, &msqptr->msg_perm, IPC_R))) {
+	if ((eval = ipcperm(p, &msqptr->msg_perm, IPC_R))) {
 #ifdef MSG_DEBUG_OK
 		printf("requester doesn't have read access\n");
 #endif

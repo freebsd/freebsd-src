@@ -25,7 +25,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *  $Id: linux_misc.c,v 1.54 1999/04/19 14:14:14 peter Exp $
+ *  $Id: linux_misc.c,v 1.55 1999/04/27 11:15:32 phk Exp $
  */
 
 #include <sys/param.h>
@@ -1134,7 +1134,7 @@ linux_setgroups(p, uap)
   gid_t *bsd_gidset;
   int ngrp, error;
 
-  if ((error = suser_xxx(pc->pc_ucred, &p->p_acflag)))
+  if ((error = suser(p)))
     return error;
 
   if (uap->gidsetsize > NGROUPS)

@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)kern_prot.c	8.6 (Berkeley) 1/21/94
- * $Id: kern_prot.c,v 1.44 1999/01/28 00:57:47 dillon Exp $
+ * $Id: kern_prot.c,v 1.45 1999/04/27 11:16:01 phk Exp $
  */
 
 /*
@@ -395,7 +395,7 @@ setuid(p, uap)
 #ifdef POSIX_APPENDIX_B_4_2_2	/* Use BSD-compat clause from B.4.2.2 */
 	    uid != pc->pc_ucred->cr_uid &&	/* allow setuid(geteuid()) */
 #endif
-	    (error = suser_xxx(pc->pc_ucred, &p->p_acflag)))
+	    (error = suser(p)))
 		return (error);
 
 #ifdef _POSIX_SAVED_IDS
@@ -407,7 +407,7 @@ setuid(p, uap)
 #ifdef POSIX_APPENDIX_B_4_2_2	/* Use the clause from B.4.2.2 */
 	    uid == pc->pc_ucred->cr_uid ||
 #endif
-	    suser_xxx(pc->pc_ucred, &p->p_acflag) == 0) /* we are using privs */
+	    suser(p) == 0) /* we are using privs */
 #endif
 	{
 		/*
@@ -467,7 +467,7 @@ seteuid(p, uap)
 	euid = uap->euid;
 	if (euid != pc->p_ruid &&		/* allow seteuid(getuid()) */
 	    euid != pc->p_svuid &&		/* allow seteuid(saved uid) */
-	    (error = suser_xxx(pc->pc_ucred, &p->p_acflag)))
+	    (error = suser(p)))
 		return (error);
 	/*
 	 * Everything's okay, do it.  Copy credentials so other references do
@@ -515,7 +515,7 @@ setgid(p, uap)
 #ifdef POSIX_APPENDIX_B_4_2_2	/* Use BSD-compat clause from B.4.2.2 */
 	    gid != pc->pc_ucred->cr_groups[0] && /* allow setgid(getegid()) */
 #endif
-	    (error = suser_xxx(pc->pc_ucred, &p->p_acflag)))
+	    (error = suser(p)))
 		return (error);
 
 #ifdef _POSIX_SAVED_IDS
@@ -527,7 +527,7 @@ setgid(p, uap)
 #ifdef POSIX_APPENDIX_B_4_2_2	/* use the clause from B.4.2.2 */
 	    gid == pc->pc_ucred->cr_groups[0] ||
 #endif
-	    suser_xxx(pc->pc_ucred, &p->p_acflag) == 0) /* we are using privs */
+	    suser(p) == 0) /* we are using privs */
 #endif
 	{
 		/*
@@ -579,7 +579,7 @@ setegid(p, uap)
 	egid = uap->egid;
 	if (egid != pc->p_rgid &&		/* allow setegid(getgid()) */
 	    egid != pc->p_svgid &&		/* allow setegid(saved gid) */
-	    (error = suser_xxx(pc->pc_ucred, &p->p_acflag)))
+	    (error = suser(p)))
 		return (error);
 	if (pc->pc_ucred->cr_groups[0] != egid) {
 		pc->pc_ucred = crcopy(pc->pc_ucred);
@@ -605,7 +605,7 @@ setgroups(p, uap)
 	register u_int ngrp;
 	int error;
 
-	if ((error = suser_xxx(pc->pc_ucred, &p->p_acflag)))
+	if ((error = suser(p)))
 		return (error);
 	ngrp = uap->gidsetsize;
 	if (ngrp > NGROUPS)
@@ -654,7 +654,7 @@ setreuid(p, uap)
 	if (((ruid != (uid_t)-1 && ruid != pc->p_ruid && ruid != pc->p_svuid) ||
 	     (euid != (uid_t)-1 && euid != pc->pc_ucred->cr_uid &&
 	     euid != pc->p_ruid && euid != pc->p_svuid)) &&
-	    (error = suser_xxx(pc->pc_ucred, &p->p_acflag)) != 0)
+	    (error = suser(p)) != 0)
 		return (error);
 
 	if (euid != (uid_t)-1 && pc->pc_ucred->cr_uid != euid) {
@@ -697,7 +697,7 @@ setregid(p, uap)
 	if (((rgid != (gid_t)-1 && rgid != pc->p_rgid && rgid != pc->p_svgid) ||
 	     (egid != (gid_t)-1 && egid != pc->pc_ucred->cr_groups[0] &&
 	     egid != pc->p_rgid && egid != pc->p_svgid)) &&
-	    (error = suser_xxx(pc->pc_ucred, &p->p_acflag)) != 0)
+	    (error = suser(p)) != 0)
 		return (error);
 
 	if (egid != (gid_t)-1 && pc->pc_ucred->cr_groups[0] != egid) {
