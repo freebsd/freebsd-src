@@ -1,4 +1,4 @@
-.\" 	$Id$
+.\" 	$Id: ftp.1,v 1.5 1997/06/25 08:56:40 msmith Exp $
 .\" 	$NetBSD: ftp.1,v 1.21 1997/06/10 21:59:58 lukem Exp $
 .\"
 .\" Copyright (c) 1985, 1989, 1990, 1993
@@ -38,7 +38,7 @@
 .Dt FTP 1
 .Os BSD 4.2
 .Sh NAME
-.Nm ftp
+.Nm ftp , pftp
 .Nd
 .Tn ARPANET
 file transfer program
@@ -115,6 +115,9 @@ identity on the local machine), and, if necessary, prompt for a password
 and an account with which to login.
 .It Fl p
 Enable passive mode operation for use behind connection filtering firewalls.
+Using the
+.Nm pftp
+command has the same effect.
 .It Fl P Ar port
 Sets the port number to
 .Ar port .
@@ -1349,6 +1352,11 @@ URL of HTTP proxy to use when making HTTP URL requests.
 .Sh SEE ALSO
 .Xr editrc 5 ,
 .Xr ftpd 8
+.Sh NOTES
+The
+.Xr pftp 1
+command is only a link to
+.Nm ftp .
 .Sh HISTORY
 The
 .Nm
