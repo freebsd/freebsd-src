@@ -1,3 +1,5 @@
+/*	$NetBSD: lstDestroy.c,v 1.5 1995/06/14 15:20:58 christos Exp $	*/
+
 /*
  * Copyright (c) 1988, 1989, 1990, 1993
  *	The Regents of the University of California.  All rights reserved.
@@ -35,7 +37,11 @@
  */
 
 #ifndef lint
-static char sccsid[] = "@(#)lstDestroy.c	8.2 (Berkeley) 4/28/95";
+#if 0
+static char sccsid[] = "@(#)lstDestroy.c	8.1 (Berkeley) 6/6/93";
+#else
+static char rcsid[] = "$NetBSD: lstDestroy.c,v 1.5 1995/06/14 15:20:58 christos Exp $";
+#endif
 #endif /* not lint */
 
 /*-
@@ -68,7 +74,7 @@ Lst_Destroy (l, freeProc)
     register ListNode	ln;
     register ListNode	tln = NilListNode;
     register List 	list = (List)l;
-    
+
     if (l == NILLST || ! l) {
 	/*
 	 * Note the check for l == (Lst)0 to catch uninitialized static Lst's.
@@ -97,6 +103,6 @@ Lst_Destroy (l, freeProc)
 	     free ((Address)ln);
 	}
     }
-    
+
     free ((Address)l);
 }

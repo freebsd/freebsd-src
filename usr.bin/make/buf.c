@@ -1,6 +1,8 @@
+/*	$NetBSD: buf.c,v 1.7 1996/03/29 02:17:13 jtc Exp $	*/
+
 /*
- * Copyright (c) 1988, 1989, 1990, 1993
- *	The Regents of the University of California.  All rights reserved.
+ * Copyright (c) 1988, 1989, 1990 The Regents of the University of California.
+ * Copyright (c) 1988, 1989 by Adam de Boor
  * Copyright (c) 1989 by Berkeley Softworks
  * All rights reserved.
  *
@@ -37,7 +39,11 @@
  */
 
 #ifndef lint
-static char sccsid[] = "@(#)buf.c	8.2 (Berkeley) 4/28/95";
+#if 0
+static char sccsid[] = "@(#)buf.c	8.1 (Berkeley) 6/6/93";
+#else
+static char rcsid[] = "$NetBSD: buf.c,v 1.7 1996/03/29 02:17:13 jtc Exp $";
+#endif
 #endif /* not lint */
 
 /*-
@@ -63,7 +69,7 @@ static char sccsid[] = "@(#)buf.c	8.2 (Berkeley) 4/28/95";
 #define BufExpand(bp,nb) \
  	if (bp->left < (nb)+1) {\
 	    int newSize = (bp)->size + max((nb)+1,BUF_ADD_INC); \
-	    Byte  *newBuf = (Byte *) realloc((bp)->buffer, newSize); \
+	    Byte  *newBuf = (Byte *) erealloc((bp)->buffer, newSize); \
 	    \
 	    (bp)->inPtr = newBuf + ((bp)->inPtr - (bp)->buffer); \
 	    (bp)->outPtr = newBuf + ((bp)->outPtr - (bp)->buffer);\
@@ -286,7 +292,7 @@ Buf_GetBytes (bp, numBytes, bytesPtr)
     int	    numBytes;
     Byte    *bytesPtr;
 {
-    
+
     if (bp->inPtr - bp->outPtr < numBytes) {
 	numBytes = bp->inPtr - bp->outPtr;
     }
@@ -323,7 +329,7 @@ Buf_GetAll (bp, numBytesPtr)
     if (numBytesPtr != (int *)NULL) {
 	*numBytesPtr = bp->inPtr - bp->outPtr;
     }
-    
+
     return (bp->outPtr);
 }
 
@@ -336,7 +342,7 @@ Buf_GetAll (bp, numBytesPtr)
  *	None.
  *
  * Side Effects:
- *	The bytes are discarded. 
+ *	The bytes are discarded.
  *
  *-----------------------------------------------------------------------
  */
@@ -428,9 +434,34 @@ Buf_Destroy (buf, freeData)
     Buffer  buf;  	/* Buffer to destroy */
     Boolean freeData;	/* TRUE if the data should be destroyed as well */
 {
-    
+
     if (freeData) {
 	free ((char *)buf->buffer);
     }
     free ((char *)buf);
+}
+
+/*-
+ *-----------------------------------------------------------------------
+ * Buf_ReplaceLastByte --
+ *     Replace the last byte in a buffer.
+ *
+ * Results:
+ *     None.
+ *
+ * Side Effects:
+ *     If the buffer was empty intially, then a new byte will be added.
+ *     Otherwise, the last byte is overwritten.
+ *
+ *-----------------------------------------------------------------------
+ */
+void
+Buf_ReplaceLastByte (buf, byte)
+    Buffer buf;	/* buffer to augment */
+    Byte byte;	/* byte to be written */
+{
+    if (buf->inPtr == buf->outPtr)
+        Buf_AddByte(buf, byte);
+    else
+        *(buf->inPtr - 1) = byte;
 }

@@ -1,6 +1,8 @@
+/*	$NetBSD: buf.h,v 1.5 1995/06/14 15:18:53 christos Exp $	*/
+
 /*
- * Copyright (c) 1988, 1989, 1990, 1993
- *	The Regents of the University of California.  All rights reserved.
+ * Copyright (c) 1988, 1989, 1990 The Regents of the University of California.
+ * Copyright (c) 1988, 1989 by Adam de Boor
  * Copyright (c) 1989 by Berkeley Softworks
  * All rights reserved.
  *
@@ -35,7 +37,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	@(#)buf.h	8.2 (Berkeley) 4/28/95
+ *	from: @(#)buf.h	8.1 (Berkeley) 6/6/93
  */
 
 /*-
@@ -76,5 +78,6 @@ void Buf_Discard __P((Buffer, int));
 int Buf_Size __P((Buffer));
 Buffer Buf_Init __P((int));
 void Buf_Destroy __P((Buffer, Boolean));
+void Buf_ReplaceLastByte __P((Buffer, Byte));
 
 #endif /* _BUF_H */
