@@ -685,7 +685,7 @@ s_output(argc, argv, infile, define, extend, outfile, nomain, netflag)
 		f_print(fout, "#include <sys/types.h>\n");
 	}
 
-	f_print(fout, "#include <memory.h>\n");
+	f_print(fout, "#include <string.h>\n");
 	if (inetdflag || !tirpcflag) {
 		f_print(fout, "#include <sys/socket.h>\n");
 		f_print(fout, "#include <netinet/in.h>\n");
@@ -747,7 +747,7 @@ l_output(infile, define, extend, outfile)
 	open_output(infile, outfilename);
 	add_warning();
 	if (Cflag)
-		f_print (fout, "#include <memory.h> /* for memset */\n");
+		f_print (fout, "#include <string.h> /* for memset */\n");
 	if (infile && (include = extendfile(infile, ".h"))) {
 		f_print(fout, "#include \"%s\"\n", include);
 		free(include);
