@@ -234,7 +234,7 @@ unlockrange(int plexno, struct rangelock *lock)
     wakeup((void *) lock);
 }
 
-/* Get a lock for the global config, wait if it's not available */
+/* Get a lock for the global config.  Wait if it's not available. */
 int
 lock_config(void)
 {
@@ -249,7 +249,7 @@ lock_config(void)
     return 0;
 }
 
-/* Unlock and wake up any waiters  */
+/* Unlock global config and wake up any waiters. */
 void
 unlock_config(void)
 {
