@@ -36,7 +36,7 @@
  *
  *	@(#)procfs_vnops.c	8.18 (Berkeley) 5/21/95
  *
- *	$Id: procfs_vnops.c,v 1.48 1997/12/13 03:13:46 sef Exp $
+ *	$Id: procfs_vnops.c,v 1.49 1997/12/20 03:05:47 sef Exp $
  */
 
 /*
@@ -53,9 +53,9 @@
 #include <sys/signalvar.h>
 #include <sys/vnode.h>
 #include <sys/namei.h>
-#include <sys/malloc.h>
 #include <sys/dirent.h>
 #include <machine/reg.h>
+#include <vm/vm_zone.h>
 #include <miscfs/procfs/procfs.h>
 #include <sys/pioctl.h>
 

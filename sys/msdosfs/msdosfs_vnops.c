@@ -1,4 +1,4 @@
-/*	$Id: msdosfs_vnops.c,v 1.51 1997/10/26 20:55:28 phk Exp $ */
+/*	$Id: msdosfs_vnops.c,v 1.52 1997/10/27 13:33:43 bde Exp $ */
 /*	$NetBSD: msdosfs_vnops.c,v 1.20 1994/08/21 18:44:13 ws Exp $	*/
 
 /*-
@@ -66,6 +66,7 @@
 
 #include <vm/vm.h>
 #include <vm/vm_extern.h>
+#include <vm/vm_zone.h>
 
 #include <msdosfs/bpb.h>
 #include <msdosfs/direntry.h>
