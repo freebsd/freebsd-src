@@ -344,7 +344,7 @@ int ficlExecFD(FICL_VM *pVM, int fd)
         }
     }
     /*
-    ** Pass an empty line with SOURCE-ID == 0 to flush
+    ** Pass an empty line with SOURCE-ID == -1 to flush
     ** any pending REFILLs (as required by FILE wordset)
     */
     pVM->sourceID.i = -1;
