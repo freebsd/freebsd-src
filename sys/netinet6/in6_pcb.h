@@ -74,6 +74,7 @@
 #define	sin6tosa(sin6)	((struct sockaddr *)(sin6))
 #define	ifatoia6(ifa)	((struct in6_ifaddr *)(ifa))
 
+void	in6_pcbpurgeif0 __P((struct in6pcb *, struct ifnet *));
 void	in6_losing __P((struct inpcb *));
 int	in6_pcballoc __P((struct socket *, struct inpcbinfo *, struct proc *));
 int	in6_pcbbind __P((struct inpcb *, struct sockaddr *, struct proc *));

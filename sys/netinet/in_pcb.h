@@ -275,6 +275,7 @@ extern int	ipport_lastauto;
 extern int	ipport_hifirstauto;
 extern int	ipport_hilastauto;
 
+void	in_pcbpurgeif0 __P((struct inpcb *, struct ifnet *));
 void	in_losing __P((struct inpcb *));
 void	in_rtchange __P((struct inpcb *, int));
 int	in_pcballoc __P((struct socket *, struct inpcbinfo *, struct proc *));
