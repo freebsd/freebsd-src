@@ -26,6 +26,12 @@
 
 static MALLOC_DEFINE(M_SEM, "sem", "SVID compatible semaphores");
 
+#ifdef SEM_DEBUG
+#define DPRINTF(a)	printf a
+#else
+#define DPRINTF(a)
+#endif
+
 static void seminit(void);
 static int sysvsem_modload(struct module *, int, void *);
 static int semunload(void);
@@ -477,9 +483,8 @@ __semctl(td, uap)
 	register struct semid_ds *semaptr;
 	u_short usval;
 
-#ifdef SEM_DEBUG
-	printf("call to semctl(%d, %d, %d, 0x%x)\n", semid, semnum, cmd, arg);
-#endif
+	DPRINTF(("call to semctl(%d, %d, %d, 0x%x)\n",
+	    semid, semnum, cmd, arg));
 	if (!jail_sysvipc_allowed && jailed(td->td_ucred))
 		return (ENOSYS);
 
@@ -686,9 +691,7 @@ semget(td, uap)
 	int semflg = uap->semflg;
 	struct ucred *cred = td->td_ucred;
 
-#ifdef SEM_DEBUG
-	printf("semget(0x%x, %d, 0%o)\n", key, nsems, semflg);
-#endif
+	DPRINTF(("semget(0x%x, %d, 0%o)\n", key, nsems, semflg));
 	if (!jail_sysvipc_allowed && jailed(td->td_ucred))
 		return (ENOSYS);
 
@@ -700,24 +703,18 @@ semget(td, uap)
 				break;
 		}
 		if (semid < seminfo.semmni) {
-#ifdef SEM_DEBUG
-			printf("found public key\n");
-#endif
+			DPRINTF(("found public key\n"));
 			if ((error = ipcperm(td, &sema[semid].sem_perm,
 			    semflg & 0700))) {
 				goto done2;
 			}
 			if (nsems > 0 && sema[semid].sem_nsems < nsems) {
-#ifdef SEM_DEBUG
-				printf("too small\n");
-#endif
+				DPRINTF(("too small\n"));
 				error = EINVAL;
 				goto done2;
 			}
 			if ((semflg & IPC_CREAT) && (semflg & IPC_EXCL)) {
-#ifdef SEM_DEBUG
-				printf("not exclusive\n");
-#endif
+				DPRINTF(("not exclusive\n"));
 				error = EEXIST;
 				goto done2;
 			}
@@ -725,23 +722,18 @@ semget(td, uap)
 		}
 	}
 
-#ifdef SEM_DEBUG
-	printf("need to allocate the semid_ds\n");
-#endif
+	DPRINTF(("need to allocate the semid_ds\n"));
 	if (key == IPC_PRIVATE || (semflg & IPC_CREAT)) {
 		if (nsems <= 0 || nsems > seminfo.semmsl) {
-#ifdef SEM_DEBUG
-			printf("nsems out of range (0<%d<=%d)\n", nsems,
-			    seminfo.semmsl);
-#endif
+			DPRINTF(("nsems out of range (0<%d<=%d)\n", nsems,
+			    seminfo.semmsl));
 			error = EINVAL;
 			goto done2;
 		}
 		if (nsems > seminfo.semmns - semtot) {
-#ifdef SEM_DEBUG
-			printf("not enough semaphores left (need %d, got %d)\n",
-			    nsems, seminfo.semmns - semtot);
-#endif
+			DPRINTF((
+			    "not enough semaphores left (need %d, got %d)\n",
+			    nsems, seminfo.semmns - semtot));
 			error = ENOSPC;
 			goto done2;
 		}
@@ -750,15 +742,11 @@ semget(td, uap)
 				break;
 		}
 		if (semid == seminfo.semmni) {
-#ifdef SEM_DEBUG
-			printf("no more semid_ds's available\n");
-#endif
+			DPRINTF(("no more semid_ds's available\n"));
 			error = ENOSPC;
 			goto done2;
 		}
-#ifdef SEM_DEBUG
-		printf("semid %d is available\n", semid);
-#endif
+		DPRINTF(("semid %d is available\n", semid));
 		sema[semid].sem_perm.key = key;
 		sema[semid].sem_perm.cuid = cred->cr_uid;
 		sema[semid].sem_perm.uid = cred->cr_uid;
@@ -774,14 +762,10 @@ semget(td, uap)
 		semtot += nsems;
 		bzero(sema[semid].sem_base,
 		    sizeof(sema[semid].sem_base[0])*nsems);
-#ifdef SEM_DEBUG
-		printf("sembase = 0x%x, next = 0x%x\n", sema[semid].sem_base,
-		    &sem[semtot]);
-#endif
+		DPRINTF(("sembase = 0x%x, next = 0x%x\n", sema[semid].sem_base,
+		    &sem[semtot]));
 	} else {
-#ifdef SEM_DEBUG
-		printf("didn't find it and wasn't asked to create it\n");
-#endif
+		DPRINTF(("didn't find it and wasn't asked to create it\n"));
 		error = ENOENT;
 		goto done2;
 	}
@@ -819,9 +803,7 @@ semop(td, uap)
 	int i, j, error;
 	int do_wakeup, do_undos;
 
-#ifdef SEM_DEBUG
-	printf("call to semop(%d, 0x%x, %u)\n", semid, sops, nsops);
-#endif
+	DPRINTF(("call to semop(%d, 0x%x, %u)\n", semid, sops, nsops));
 
 	if (!jail_sysvipc_allowed && jailed(td->td_ucred))
 		return (ENOSYS);
@@ -844,10 +826,8 @@ semop(td, uap)
 		goto done2;
 	}
 	if (nsops > seminfo.semopm) {
-#ifdef SEM_DEBUG
-		printf("too many sops (max=%d, nsops=%d)\n", seminfo.semopm,
-		    nsops);
-#endif
+		DPRINTF(("too many sops (max=%d, nsops=%d)\n", seminfo.semopm,
+		    nsops));
 		error = E2BIG;
 		goto done2;
 	}
@@ -858,10 +838,8 @@ semop(td, uap)
 		panic("Failed to allocate %d sem_ops", nsops);
 
 	if ((error = copyin(uap->sops, sops, nsops * sizeof(sops[0]))) != 0) {
-#ifdef SEM_DEBUG
-		printf("error = %d from copyin(%08x, %08x, %d)\n", error,
-		    uap->sops, sops, nsops * sizeof(sops[0]));
-#endif
+		DPRINTF(("error = %d from copyin(%08x, %08x, %d)\n", error,
+		    uap->sops, sops, nsops * sizeof(sops[0])));
 		goto done2;
 	}
 
@@ -884,9 +862,7 @@ semop(td, uap)
 	}
 
 	if ((error = ipcperm(td, &semaptr->sem_perm, j))) {
-#ifdef SEM_DEBUG
-		printf("error = %d from ipaccess\n", error);
-#endif
+		DPRINTF(("error = %d from ipaccess\n", error));
 		goto done2;
 	}
 
@@ -907,18 +883,17 @@ semop(td, uap)
 			sopptr = &sops[i];
 			semptr = &semaptr->sem_base[sopptr->sem_num];
 
-#ifdef SEM_DEBUG
-			printf("semop:  semaptr=%x, sem_base=%x, semptr=%x, sem[%d]=%d : op=%d, flag=%s\n",
+			DPRINTF((
+			    "semop:  semaptr=%x, sem_base=%x, "
+			    "semptr=%x, sem[%d]=%d : op=%d, flag=%s\n",
 			    semaptr, semaptr->sem_base, semptr,
 			    sopptr->sem_num, semptr->semval, sopptr->sem_op,
-			    (sopptr->sem_flg & IPC_NOWAIT) ? "nowait" : "wait");
-#endif
+			    (sopptr->sem_flg & IPC_NOWAIT) ?
+			    "nowait" : "wait"));
 
 			if (sopptr->sem_op < 0) {
 				if (semptr->semval + sopptr->sem_op < 0) {
-#ifdef SEM_DEBUG
-					printf("semop:  can't do it now\n");
-#endif
+					DPRINTF(("semop:  can't do it now\n"));
 					break;
 				} else {
 					semptr->semval += sopptr->sem_op;
@@ -928,9 +903,7 @@ semop(td, uap)
 				}
 			} else if (sopptr->sem_op == 0) {
 				if (semptr->semval != 0) {
-#ifdef SEM_DEBUG
-					printf("semop:  not zero now\n");
-#endif
+					DPRINTF(("semop:  not zero now\n"));
 					break;
 				}
 			} else if (semptr->semval + sopptr->sem_op >
@@ -953,9 +926,7 @@ semop(td, uap)
 		/*
 		 * No ... rollback anything that we've already done
 		 */
-#ifdef SEM_DEBUG
-		printf("semop:  rollback 0 through %d\n", i-1);
-#endif
+		DPRINTF(("semop:  rollback 0 through %d\n", i-1));
 		for (j = 0; j < i; j++)
 			semaptr->sem_base[sops[j].sem_num].semval -=
 			    sops[j].sem_op;
@@ -978,21 +949,15 @@ semop(td, uap)
 		else
 			semptr->semncnt++;
 
-#ifdef SEM_DEBUG
-		printf("semop:  good night!\n");
-#endif
+		DPRINTF(("semop:  good night!\n"));
 		error = tsleep(semaptr, (PZERO - 4) | PCATCH, "semwait", 0);
-#ifdef SEM_DEBUG
-		printf("semop:  good morning (error=%d)!\n", error);
-#endif
+		DPRINTF(("semop:  good morning (error=%d)!\n", error));
 
 		if (error != 0) {
 			error = EINTR;
 			goto done2;
 		}
-#ifdef SEM_DEBUG
-		printf("semop:  good morning!\n");
-#endif
+		DPRINTF(("semop:  good morning!\n"));
 
 		/*
 		 * Make sure that the semaphore still exists
@@ -1060,9 +1025,7 @@ done:
 				semaptr->sem_base[sops[j].sem_num].semval -=
 				    sops[j].sem_op;
 
-#ifdef SEM_DEBUG
-			printf("error = %d from semundo_adjust\n", error);
-#endif
+			DPRINTF(("error = %d from semundo_adjust\n", error));
 			goto done2;
 		} /* loop through the sops */
 	} /* if (do_undos) */
@@ -1080,17 +1043,11 @@ done:
 	 * sleeping on it.
 	 */
 	if (do_wakeup) {
-#ifdef SEM_DEBUG
-		printf("semop:  doing wakeup\n");
-#endif
+		DPRINTF(("semop:  doing wakeup\n"));
 		wakeup(semaptr);
-#ifdef SEM_DEBUG
-		printf("semop:  back from wakeup\n");
-#endif
+		DPRINTF(("semop:  back from wakeup\n"));
 	}
-#ifdef SEM_DEBUG
-	printf("semop:  done\n");
-#endif
+	DPRINTF(("semop:  done\n"));
 	td->td_retval[0] = 0;
 done2:
 	if (sops)
@@ -1124,10 +1081,8 @@ semexit_myhook(p)
 	if (suptr == NULL)
 		return;
 
-#ifdef SEM_DEBUG
-	printf("proc @%08x has undo structure with %d entries\n", p,
-	    suptr->un_cnt);
-#endif
+	DPRINTF(("proc @%08x has undo structure with %d entries\n", p,
+	    suptr->un_cnt));
 
 	/*
 	 * If there are any active undo elements then process them.
@@ -1147,13 +1102,12 @@ semexit_myhook(p)
 			if (semnum >= semaptr->sem_nsems)
 				panic("semexit - semnum out of range");
 
-#ifdef SEM_DEBUG
-			printf("semexit:  %08x id=%d num=%d(adj=%d) ; sem=%d\n",
+			DPRINTF((
+			    "semexit:  %08x id=%d num=%d(adj=%d) ; sem=%d\n",
 			    suptr->un_proc, suptr->un_ent[ix].un_id,
 			    suptr->un_ent[ix].un_num,
 			    suptr->un_ent[ix].un_adjval,
-			    semaptr->sem_base[semnum].semval);
-#endif
+			    semaptr->sem_base[semnum].semval));
 
 			if (adjval < 0) {
 				if (semaptr->sem_base[semnum].semval < -adjval)
@@ -1165,18 +1119,14 @@ semexit_myhook(p)
 				semaptr->sem_base[semnum].semval += adjval;
 
 			wakeup(semaptr);
-#ifdef SEM_DEBUG
-			printf("semexit:  back from wakeup\n");
-#endif
+			DPRINTF(("semexit:  back from wakeup\n"));
 		}
 	}
 
 	/*
 	 * Deallocate the undo vector.
 	 */
-#ifdef SEM_DEBUG
-	printf("removing vector\n");
-#endif
+	DPRINTF(("removing vector\n"));
 	suptr->un_proc = NULL;
 	*supptr = suptr->un_next;
 }
