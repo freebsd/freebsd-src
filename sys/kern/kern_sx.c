@@ -197,8 +197,8 @@ void
 _sx_sunlock(struct sx *sx, const char *file, int line)
 {
 
+	_sx_assert(sx, SX_SLOCKED, file, line);
 	mtx_lock(&sx->sx_lock);
-	_SX_ASSERT_SLOCKED(sx, file, line);
 
 	WITNESS_UNLOCK(&sx->sx_object, 0, file, line);
 
@@ -226,8 +226,8 @@ void
 _sx_xunlock(struct sx *sx, const char *file, int line)
 {
 
+	_sx_assert(sx, SX_XLOCKED, file, line);
 	mtx_lock(&sx->sx_lock);
-	_SX_ASSERT_XLOCKED(sx, file, line);
 	MPASS(sx->sx_cnt == -1);
 
 	WITNESS_UNLOCK(&sx->sx_object, LOP_EXCLUSIVE, file, line);
@@ -253,8 +253,8 @@ int
 _sx_try_upgrade(struct sx *sx, const char *file, int line)
 {
 
+	_sx_assert(sx, SX_SLOCKED, file, line);
 	mtx_lock(&sx->sx_lock);
-	_SX_ASSERT_SLOCKED(sx, file, line);
 
 	if (sx->sx_cnt == 1) {
 		sx->sx_cnt = -1;
@@ -277,8 +277,8 @@ void
 _sx_downgrade(struct sx *sx, const char *file, int line)
 {
 
+	_sx_assert(sx, SX_XLOCKED, file, line);
 	mtx_lock(&sx->sx_lock);
-	_SX_ASSERT_XLOCKED(sx, file, line);
 	MPASS(sx->sx_cnt == -1);
 
 	WITNESS_DOWNGRADE(&sx->sx_object, 0, file, line);
@@ -292,3 +292,42 @@ _sx_downgrade(struct sx *sx, const char *file, int line)
 
 	mtx_unlock(&sx->sx_lock);
 }
+
+#ifdef INVARIANT_SUPPORT
+/*
+ * In the non-WITNESS case, sx_assert() can only detect that at least
+ * *some* thread owns an slock, but it cannot guarantee that *this*
+ * thread owns an slock.
+ */
+void
+_sx_assert(struct sx *sx, int what, const char *file, int line)
+{
+
+	switch (what) {
+	case SX_LOCKED:
+	case SX_SLOCKED:
+#ifdef WITNESS
+		witness_assert(&sx->sx_object, what, file, line);
+#else
+		mtx_lock(&sx->sx_lock);
+		if (sx->sx_cnt <= 0 &&
+		    (what == SX_SLOCKED || sx->sx_xholder == curthread))
+			printf("Lock %s not %slocked @ %s:%d",
+			    sx->sx_object.lo_name, (what == SX_SLOCKED) ?
+			    "share " : "", file, line);
+		mtx_unlock(&sx->sx_lock);
+#endif
+		break;
+	case SX_XLOCKED:
+		mtx_lock(&sx->sx_lock);
+		if (sx->sx_xholder != curthread)
+			printf("Lock %s not exclusively locked @ %s:%d",
+			    sx->sx_object.lo_name, file, line);
+		mtx_unlock(&sx->sx_lock);
+		break;
+	default:
+		panic("Unknown sx lock assertion: %d @ %s:%d", what, file,
+		    line);
+	}
+}
+#endif	/* INVARIANT_SUPPORT */

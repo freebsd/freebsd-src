@@ -57,6 +57,9 @@ void	_sx_sunlock(struct sx *sx, const char *file, int line);
 void	_sx_xunlock(struct sx *sx, const char *file, int line);
 int	_sx_try_upgrade(struct sx *sx, const char *file, int line);
 void	_sx_downgrade(struct sx *sx, const char *file, int line);
+#ifdef INVARIANT_SUPPORT
+void	_sx_assert(struct sx *sx, int what, const char *file, int line);
+#endif
 
 #define	sx_slock(sx)		_sx_slock((sx), LOCK_FILE, LOCK_LINE)
 #define	sx_xlock(sx)		_sx_xlock((sx), LOCK_FILE, LOCK_LINE)
@@ -68,45 +71,13 @@ void	_sx_downgrade(struct sx *sx, const char *file, int line);
 #define	sx_downgrade(sx)	_sx_downgrade((sx), LOCK_FILE, LOCK_LINE)
 
 #ifdef INVARIANTS
-/*
- * In the non-WITNESS case, SX_ASSERT_LOCKED() and SX_ASSERT_SLOCKED()
- * can only detect that at least *some* thread owns an slock, but it cannot
- * guarantee that *this* thread owns an slock.
- */
-#ifdef WITNESS
-#define	_SX_ASSERT_LOCKED(sx, file, line)				\
-	witness_assert(&(sx)->sx_object, LA_LOCKED, file, line)
-#define _SX_ASSERT_SLOCKED(sx, file, line)				\
-	witness_assert(&(sx)->sx_object, LA_SLOCKED, file, line)
-#else
-#define	_SX_ASSERT_LOCKED(sx, file, line) do {				\
-	KASSERT(((sx)->sx_cnt > 0 || (sx)->sx_xholder == curthread),	\
-	    ("Lock %s not locked @ %s:%d", (sx)->sx_object.lo_name,	\
-	    file, line));						\
-} while (0)
-#define	_SX_ASSERT_SLOCKED(sx, file, line) do {				\
-	KASSERT(((sx)->sx_cnt > 0), ("Lock %s not share locked @ %s:%d",\
-	    (sx)->sx_object.lo_name, file, line));			\
-} while (0)
-#endif
-#define	SX_ASSERT_LOCKED(sx)	_SX_ASSERT_LOCKED((sx), LOCK_FILE, LOCK_LINE)
-#define	SX_ASSERT_SLOCKED(sx)	_SX_ASSERT_SLOCKED((sx), LOCK_FILE, LOCK_LINE)
+#define	SX_LOCKED		LA_LOCKED
+#define	SX_SLOCKED		LA_SLOCKED
+#define	SX_XLOCKED		LA_XLOCKED
 
-/*
- * SX_ASSERT_XLOCKED() detects and guarantees that *we* own the xlock.
- */
-#define	_SX_ASSERT_XLOCKED(sx, file, line) do {				\
-	KASSERT(((sx)->sx_xholder == curthread),				\
-	    ("Lock %s not exclusively locked @ %s:%d",			\
-	    (sx)->sx_object.lo_name, file, line));			\
-} while (0)
-#define SX_ASSERT_XLOCKED(sx)	_SX_ASSERT_XLOCKED((sx), LOCK_FILE, LOCK_LINE)
-
+#define	sx_assert(sx, what)	_sx_assert((sx), (what), LOCK_FILE, LOCK_LINE)
 #else	/* INVARIANTS */
-#define	SX_ASSERT_SLOCKED(sx)
-#define	SX_ASSERT_XLOCKED(sx)
-#define	_SX_ASSERT_SLOCKED(sx, file, line)
-#define	_SX_ASSERT_XLOCKED(sx, file, line)
+#define	sx_assert(sx, what)
 #endif	/* INVARIANTS */
 
 #endif	/* _KERNEL */
