@@ -1,5 +1,5 @@
 #	@(#)Makefile	8.5 (Berkeley) 3/31/94
-#	$Id: Makefile,v 1.55 1998/09/15 10:25:04 gibbs Exp $
+#	$Id: Makefile,v 1.56 1998/09/15 11:44:41 phk Exp $
 
 # XXX MISSING:		icheck ncheck
 
@@ -58,7 +58,8 @@ SUBDIR=	atm \
 	spppcontrol \
 	swapon \
 	tunefs \
-	umount
+	umount \
+	vinum
 
 .if exists(${.CURDIR}/${MACHINE_ARCH})
 SUBDIR+= ${MACHINE_ARCH}
