@@ -38,7 +38,7 @@
  * from: Utah Hdr: vn.c 1.13 94/04/02
  *
  *	from: @(#)vn.c	8.6 (Berkeley) 4/1/94
- *	$Id: vn.c,v 1.65 1998/07/11 07:45:22 bde Exp $
+ *	$Id: vn.c,v 1.66 1998/07/13 08:22:58 julian Exp $
  */
 
 /*
@@ -232,8 +232,8 @@ vnopen(dev_t dev, int flags, int mode, struct proc *p)
 					label.d_partitions[RAW_PART].p_size =
 					vn->sc_size;
 
-			return (dsopen("vn", dev, mode, &vn->sc_slices, &label,
-				       vnstrategy, (ds_setgeom_t *)NULL,
+			return (dsopen("vn", dev, mode, 0, &vn->sc_slices,
+				       &label, vnstrategy, (ds_setgeom_t *)NULL,
 				       &vn_cdevsw, &vn_cdevsw));
 		}
 		if (dkslice(dev) != WHOLE_DISK_SLICE ||
