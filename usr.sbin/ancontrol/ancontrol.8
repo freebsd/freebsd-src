@@ -96,6 +96,8 @@
 .Nm
 .Fl i Ar iface Fl r Ar RTS threshold
 .Nm
+.Fl i Ar iface Fl M Ar 0-15 (set monitor mode)
+.Nm
 .Fl h
 .Sh DESCRIPTION
 The
@@ -394,6 +396,22 @@ need to be retransmitted instead of the whole packet.
 The fragmentation
 threshold can be anything from 64 to 2312 bytes.
 The default is 2312.
+.It Fl i Ar iface Fl M Ar 0-15
+Set monitor mode via bit mask, meaning:
+.Bl -tag -offset indent -compact -width 0x000000
+.Em "Bit Mask	Meaning"
+.It 0 
+to not dump 802.11 packet. 
+.It 1 
+to enable 802.11 monitor.  
+.It 2 
+to monitor any SSID.  
+.It 4 
+to not skip beacons, monitor beacons produces a high system load.  
+.It 8 
+to enable full Aironet header returned via BPF.  
+Note it appears that a SSID must be set.
+.El
 .It Fl i Ar iface Fl r Ar RTS threshold
 Set the RTS/CTS threshold for a given interface.
 This controls the

@@ -125,6 +125,7 @@ int main			__P((int, char **));
 #define ACT_SET_KEY_TYPE 34
 #define ACT_SET_KEYS 35
 #define ACT_ENABLE_TX_KEY 36
+#define ACT_SET_MONITOR_MODE 37
 
 static void an_getval(iface, areq)
 	const char		*iface;
@@ -283,6 +284,7 @@ static void an_dumpstatus(iface)
 	an_printhex((char *)&sts->an_errcode, 1);
 	printf("\nSignal quality:\t\t");
 	an_printhex((char *)&sts->an_cur_signal_quality, 1);
+	printf("\nSignal strength:\t[ %d%% ]",sts->an_normalized_rssi);
 	/*
 	 * XXX: This uses the old definition of the rate field (units of
 	 * 500kbps).  Technically the new definition is that this field
@@ -839,6 +841,7 @@ static void usage(p)
 	fprintf(stderr, "\t%s -i iface -c val (set ad-hoc channel)\n", p);
 	fprintf(stderr, "\t%s -i iface -f val (set frag threshold)\n", p);
 	fprintf(stderr, "\t%s -i iface -r val (set RTS threshold)\n", p);
+	fprintf(stderr, "\t%s -i iface -M 0-15 (set monitor mode)\n", p);
 #ifdef ANCACHE
 	fprintf(stderr, "\t%s -i iface -Q print signal quality cache\n", p);
 	fprintf(stderr, "\t%s -i iface -Z zero out signal cache\n", p);
@@ -976,6 +979,10 @@ static void an_setconfig(iface, act, arg)
 	case ACT_SET_KEY_TYPE:
 		cfg->an_authtype = (cfg->an_authtype & ~AN_AUTHTYPE_MASK) 
 		        | atoi(arg);
+		break;
+	case ACT_SET_MONITOR_MODE:
+		areq.an_type = AN_RID_MONITOR_MODE;
+		cfg->an_len = atoi(arg);      /* mode is put in length */
 		break;
 	default:
 		errx(1, "unknown action");
@@ -1282,18 +1289,20 @@ static void an_readkeyinfo(iface)
 
 	printf("WEP Key status:\n");
 	areq.an_type = AN_RID_WEP_TEMP;  	/* read first key */
-	for(i=0; i<4; i++){
+	for(i=0; i<5; i++){
 		areq.an_len = sizeof(struct an_ltv_key);
 		an_getval(iface, &areq);
+       		if(k->kindex == 0xffff)
+			break;
 		switch (k->klen){
 		case 0:
-			printf("\tKey %d is unset\n",i);
+			printf("\tKey %d is unset\n",k->kindex);
 			break;
 		case 5:
-			printf("\tKey %d is set  40 bits\n",i);
+			printf("\tKey %d is set  40 bits\n",k->kindex);
 			break;
 		case 13:
-			printf("\tKey %d is set 128 bits\n",i);
+			printf("\tKey %d is set 128 bits\n",k->kindex);
 			break;
 		default:
 			printf("\tWEP Key %d has an unknown size %d\n",
@@ -1369,7 +1378,7 @@ int main(argc, argv)
 	opterr = 1;
 
 	while ((ch = getopt(argc, argv,
-	    "ANISCTht:a:e:o:s:n:v:d:j:b:c:r:p:w:m:l:k:K:W:QZ")) != -1) {
+	    "ANISCTht:a:e:o:s:n:v:d:j:b:c:r:p:w:m:l:k:K:W:QZM:")) != -1) {
 		switch(ch) {
 		case 'Z':
 #ifdef ANCACHE
@@ -1530,6 +1539,10 @@ int main(argc, argv)
 			break;
 		case 'w':
 			act = ACT_SET_WAKE_DURATION;
+			arg = optarg;
+			break;
+		case 'M':
+			act = ACT_SET_MONITOR_MODE;
 			arg = optarg;
 			break;
 		case 'h':
