@@ -61,6 +61,7 @@ struct mytree {
 	struct node		*top;
 	struct node		*cur;
 	int			indent;
+	int			ignore;
 };
 
 struct ref {
@@ -99,6 +100,11 @@ StartElement(void *userData, const char *name, const char **atts __unused)
 	struct node *np;
 
 	mt = userData;
+	if (!strcmp(name, "FreeBSD")) {
+		mt->ignore = 1;
+		return;
+	}
+	mt->ignore = 0;
 	mt->indent += 2;
 	np = new_node();
 	np->name = strdup(name);
@@ -116,6 +122,8 @@ EndElement(void *userData, const char *name __unused)
 	struct node *np;
 
 	mt = userData;
+	if (mt->ignore)
+		return;
 
 	mt->indent -= 2;
 	sbuf_finish(mt->cur->cont);
@@ -136,6 +144,8 @@ CharData(void *userData , const XML_Char *s , int len)
 	const char *b, *e;
 
 	mt = userData;
+	if (mt->ignore)
+		return;
 	b = s;
 	e = s + len - 1;
 	while (isspace(*b) && b < e)
@@ -173,6 +183,8 @@ dofile(char *filename)
 	fstat(fd, &st);
 	p = mmap(NULL, st.st_size, PROT_READ, MAP_NOCORE|MAP_PRIVATE, fd, 0);
 	i = XML_Parse(parser, p, st.st_size, 1);
+	if (i != 1)
+		errx(1, "XML_Parse complained -> %d", i);
 	munmap(p, st.st_size);
 	close(fd);
 	XML_ParserFree(parser);
