@@ -73,7 +73,7 @@ different groups of private addresses
 can be linked to different public addresses,
 comprising several distinct many-to-one
 mappings.  Also, a given public address
-and port can be staticly redirected to
+and port can be statically redirected to
 a private address/port.
 
 The packet aliasing engine was designed
@@ -192,7 +192,7 @@ unknown host address or unknown port number
 (e.g. an FTP data connection), this mode bit
 specifies that a socket be allocated as a place
 holder to prevent port conflicts.  Once a
-connection is extablished, usually within a
+connection is established, usually within a
 minute or so, the socket is closed.
 .It PKT_ALIAS_UNREGISTERED_ONLY.
 If this mode bit is set, traffic on the
@@ -255,7 +255,7 @@ Return codes:
 .Bl -hang -offset left
 .It PKT_ALIAS_ERROR.
 An internal error within the packet aliasing
-engine occured.
+engine occurred.
 .It PKT_ALIAS_OK.
 The packet aliasing process was successful.
 .It PKT_ALIAS_IGNORED.
@@ -289,9 +289,9 @@ The IP packet is pointed to by
 .Em buffer r,
 and
 .Em maxpacketsize
-indicates the maximum packet size permissable
+indicates the maximum packet size permissible
 should the packet length be changed.  IP encoding
-protocols place addresss and port information in
+protocols place address and port information in
 the encapsulated data stream which have to be
 modified and can account for changes in packet
 length.  Well known examples of such protocols
@@ -301,7 +301,7 @@ Return codes:
 .Bl -hang -offset left
 .It PKT_ALIAS_ERROR.
 An internal error within the packet aliasing
-engine occured.
+engine occurred.
 .It PKT_ALIAS_OK.
 The packet aliasing process was successful.
 .It PKT_ALIAS_IGNORED.
@@ -332,7 +332,7 @@ address translations can be designated.
 This function specifies that traffic from a
 given remote address/port to an alias address/port
 be redirected to a specified local address/port.
-The paramater
+The parameter
 .Em proto
 can be either IPPROTO_TCP or IPPROTO_UDP, as
 defined in <netinet/in.h>.
@@ -637,7 +637,7 @@ number for identifying how individual packets
 should be handled.)
 
 Each aliasing link must have a unique
-combination of the following five quanties:
+combination of the following five quantities:
 alias address/port, remote address/port
 and protocol.  This ensures that several
 machines on a local network can share the
@@ -654,7 +654,7 @@ sequence.  For the case of TCP, the connection
 can be monitored to see when the associated
 aliasing link should be deleted.  Aliasing links
 for UDP transactions (and ICMP echo and timestamp
-equests) work on a simple timeout rule.  When
+requests) work on a simple timeout rule.  When
 no activity is observed on a dynamic link for
 a certain amount of time it is automatically
 deleted.  Timeout rules also apply to TCP
@@ -663,7 +663,7 @@ properly.
 .Ss A.3 Partially Specified Aliasing Links
 Aliasing links can be partially specified,
 meaning that the remote address and/or remote
-ports are unkown.  In this case, when a packet
+ports are unknown.  In this case, when a packet
 matching the incomplete specification is found,
 a fully specified dynamic link is created.  If
 the original partially specified link is dynamic,
@@ -705,7 +705,7 @@ the alias address to be used.  If no mapping
 exists, then a default address, usually the
 address of the packet aliasing host, is used.
 If necessary, this default address can be
-changed as often as each indvidual packet
+changed as often as each individual packet
 arrives.
 
 The aliasing port number is determined
