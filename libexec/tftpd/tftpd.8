@@ -68,7 +68,8 @@ Due to the lack of authentication information,
 .Nm tftpd
 will allow only publicly readable files to be
 accessed.
-Files containing the string ``/\|\fB.\|.\fP\|/'' are not allowed.
+Files containing the string ``/\|\fB.\|.\fP\|/'' or starting with
+``\|\fB.\|.\fP\|/'' are not allowed.
 Files may be written only if they already exist and are publicly writable.
 Note that this extends the concept of
 .Dq public
@@ -110,6 +111,9 @@ Causes tftpd to chroot to
 .Pa directory
 before accepting commands.  In addition, the user id is set to
 nobody.
+.Pp
+If you are not running -s, no user id change will be
+attempted.  You should not run tftpd as root unless you are using -s.
 .El
 .Sh SEE ALSO
 .Xr tftp 1 ,
