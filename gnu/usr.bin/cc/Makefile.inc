@@ -18,17 +18,19 @@ OUT_FILE=	${GCC_ARCH}.c
 OUT_OBJ=	${GCC_ARCH}
 target=		${MACHINE_ARCH}-unknown-freebsd
 
-# These architectures are Cygnus's default for enabling Haifa
-.if (${GCC_ARCH} == "alpha") || (${GCC_ARCH} == "sparc")
-USE_EGCS_HAIFA=1
+# These architectures are Cygnus's default for enabling Haifa.
+.if ${GCC_ARCH} == "alpha" || ${GCC_ARCH} == "sparc"
+USE_EGCS_HAIFA=	1
 .endif
 
 version!=	sed -e 's/.*\"\([^ \"]*\)[ \"].*/\1/' < ${GCCDIR}/version.c
-#version!=	sed -e 's/.*\(egcs-[0-9\.]*\).*/\1/' < ${GCCDIR}/version.c 
 
 CFLAGS+=	-DFREEBSD_NATIVE -DIN_GCC -DHAVE_CONFIG_H
 CFLAGS+=	-DDEFAULT_TARGET_VERSION=\"$(version)\"
 CFLAGS+=	-DDEFAULT_TARGET_MACHINE=\"$(target)\"
+.if defined(LONG_TYPE_SIZE)
+CFLAGS+=	-DLONG_TYPE_SIZE=${LONG_TYPE_SIZE}
+.endif
 
 .if defined(USE_EGCS_HAIFA)
 CFLAGS+=	-DHAIFA
@@ -37,7 +39,7 @@ CFLAGS+=	-DHAIFA
 # If hw.machine_arch doesn't match ${MACHINE_ARCH}, then we're cross 
 # compiling.  gcc needs to know about this, so we set the -DCROSS_COMPILE
 # define.
-__M!=/sbin/sysctl -b hw.machine_arch
+__M!=	/sbin/sysctl -b hw.machine_arch
 .if ${__M} != ${MACHINE_ARCH}
 CFLAGS+=	-DCROSS_COMPILE
 .endif
@@ -46,6 +48,8 @@ CFLAGS+=	-DCROSS_COMPILE
 CFLAGS+=	-I${.OBJDIR}/../cc_tools
 .endif
 CFLAGS+=	-I${.CURDIR}/../cc_tools
+# This must go after the -I for cc_tools to resolve ambiguities for hash.h
+# correctly.
 CFLAGS+=	-I${GCCDIR} -I${GCCDIR}/config
 
 .if exists(${.OBJDIR}/../cc_drv)
