@@ -35,8 +35,8 @@ Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.  */
 #define N_DATADDR(x) (N_MAGIC(x)==OMAGIC? (N_TXTADDR(x)+(x).a_text) : (SEGMENT_SIZE + ((0x1020+(x).a_text-1) & ~(SEGMENT_SIZE-1))))
 #define NOSUBEXECB
 
-#endif
 #define PAGE_SIZE 4096
+#endif
 #define SEGMENT_SIZE 0x400000
 #define DEFAULT_ARCH bfd_arch_i386
 
