@@ -233,6 +233,11 @@ USB_MATCH(udbp)
 	     uaa->product == USB_PRODUCT_NETCHIP_TURBOCONNECT))
 		return(UMATCH_VENDOR_PRODUCT);
 
+	if ((uaa->vendor == USB_VENDOR_PROLIFIC &&
+	     (uaa->product == USB_PRODUCT_PROLIFIC_PL2301 ||
+	      uaa->product == USB_PRODUCT_PROLIFIC_PL2302)))
+		return(UMATCH_VENDOR_PRODUCT);
+	
 	if ((uaa->vendor == USB_VENDOR_ANCHOR &&
 	     uaa->product == USB_PRODUCT_ANCHOR_EZLINK))
 		return(UMATCH_VENDOR_PRODUCT);
