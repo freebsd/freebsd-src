@@ -185,12 +185,12 @@ sub tinderbox($$$) {
 
     # Done...
     if (waitpid($pid, 0) == -1) {
-	warn("waitpid(): $!");
+	warn("waitpid(): $!\n");
     } elsif ($? & 0xff) {
-	warn("tinderbox caught signal ", $? & 0x7f);
+	warn("tinderbox caught signal ", $? & 0x7f, "\n");
 	$error = 1;
     } elsif ($? >> 8) {
-	warn("tinderbox returned exit code ", $? >> 8);
+	warn("tinderbox returned exit code ", $? >> 8, "\n");
 	$error = 1;
     }
 
