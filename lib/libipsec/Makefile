@@ -38,8 +38,8 @@ SRCS+=	ipsec_strerror.c policy_parse.y policy_token.l
 SRCS+=	ipsec_dump_policy.c ipsec_get_policylen.c
 SRCS+=	key_debug.c
 CLEANFILES+=	y.tab.c y.tab.h
-YFLAGS+=-d -p __libyy
-LFLAGS+=-P__libyy
+YFLAGS+=-d -p __libipsecyy
+LFLAGS+=-P__libipsecyy
 
 MAN3=	ipsec_set_policy.3 ipsec_strerror.3
 MLINKS+=ipsec_set_policy.3 ipsec_get_policylen.3 \
