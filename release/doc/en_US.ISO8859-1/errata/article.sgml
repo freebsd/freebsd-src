@@ -217,6 +217,8 @@
 	  </para>
 	</listitem>
       </itemizedlist>
+
+      This problem has been corrected in &os; &release.current;.
     </para>
 
     <para>The release notes mentioned the new sbni device driver, but
