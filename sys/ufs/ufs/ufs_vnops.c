@@ -1480,6 +1480,8 @@ ufs_mkdir(ap)
 	default:
 		UFS_VFREE(tvp, ip->i_number, dmode);
 		vput(tvp);
+		FREE(acl, M_ACL);
+		FREE(dacl, M_ACL);
 		return (error);
 	}
 #else /* !UFS_ACL */
@@ -2381,6 +2383,8 @@ ufs_makeinode(mode, dvp, vpp, cnp)
 	default:
 		UFS_VFREE(tvp, ip->i_number, mode);
 		vput(tvp);
+		FREE(acl, M_ACL);
+		acl = NULL;
 		return (error);
 	}
 #else /* !UFS_ACL */
