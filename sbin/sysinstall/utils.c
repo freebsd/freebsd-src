@@ -6,7 +6,7 @@
  * this stuff is worth it, you can buy me a beer in return.   Poul-Henning Kamp
  * ----------------------------------------------------------------------------
  *
- * $Id: utils.c,v 1.5 1994/10/21 02:14:54 phk Exp $
+ * $Id: utils.c,v 1.6 1994/10/21 04:43:07 ache Exp $
  *
  */
 
@@ -23,6 +23,7 @@
 #include <sys/wait.h>
 #include <sys/param.h>
 #include <sys/mount.h>
+#include <sys/reboot.h>
 
 #include "sysinstall.h"
 
@@ -36,6 +37,7 @@ TellEm(char *fmt, ...)
 	vsnprintf(p, 2048, fmt, ap);
 	va_end(ap);
 	dialog_msgbox("Progress", p, 3, 75, 0);
+	dialog_clear();
 	free(p);
 }
 
@@ -43,36 +45,68 @@ void
 Fatal(char *fmt, ...)
 {
 	char *p;
-	int i = errno;
 	va_list ap;
 	p = Malloc(2048);
 	va_start(ap,fmt);
 	vsnprintf(p, 2048, fmt, ap);
 	va_end(ap);
-	sprintf(p+strlen(p),"\nErrno= %d, %s.",i,strerror(i));
 	if (dialog_active) {
 		dialog_msgbox("Fatal", p, 12, 75, 1);
 		end_dialog();
 	} else
 		fprintf(stderr, "Fatal -- %s", p);
 	free(p);
-	exit(7);
+	ExitSysinstall();
 }
 
-int
+void
 AskAbort(char *fmt, ...)
 {
 	char *p;
 	va_list ap;
-	int i;
 
 	p = Malloc(2048);
 	va_start(ap,fmt);
 	vsnprintf(p, 2048, fmt, ap);
 	va_end(ap);
-	i = dialog_yesno("Abort", p, 12, 75);
+	strcat(p, "\n\nDo you wish to abort the installation?");
+	if (!dialog_yesno("Abort", p, 15, 60)) {
+		dialog_clear();
+		Abort();
+	}
+	dialog_clear();
 	free(p);
-	return i;
+}
+
+void
+Abort()
+{
+	if (dialog_yesno("Exit sysinstall","\n\nAre you sure you want to quit?",
+						  10, 40)) {
+		dialog_clear();
+		return;
+	}
+	ExitSysinstall();
+}
+
+void
+ExitSysinstall()
+{
+	if (getpid() == 1) {
+		clear();
+		if (reboot(RB_AUTOBOOT) == -1)
+			if (dialog_active) {
+				dialog_clear();
+				dialog_msgbox(TITLE, "\n\nCan't reboot machine -- hit reset button",
+						  5,30,0);
+			} else
+				fprintf(stderr, "Can't reboot the machine -- hit the reset button");
+			while(1);
+	} else
+		clear();
+		refresh();
+		end_dialog();
+		exit(0);
 }
 
 void *
@@ -121,7 +155,7 @@ MountUfs(char *device, char *prefix, char *mountpoint, int do_mkdir)
 	TellEm("mount /dev/%s /mnt%s",dbuf,pbuf); 
 	ufsargs.fspec = dbuf;
 	if (mount(MOUNT_UFS,pbuf, 0, (caddr_t) &ufsargs) == -1) {
-		Fatal("Error mounting %s on : %s\n",
+		Fatal("Error mounting %s on %s : %s\n",
 			dbuf, pbuf, strerror(errno));
 	}
 }

@@ -12,8 +12,8 @@
  * its use.
  */
 
-#define BOOT1 "/usr/mdec/sdboot"
-#define BOOT2 "/usr/mdec/bootsd"
+#define BOOT1 "/stand/sdboot"
+#define BOOT2 "/stand/bootsd"
 
 /* XXX -- calculate these, this is nasty */
 #define DEFFSIZE 1024

@@ -23,16 +23,16 @@
 #include <string.h>
 #include <unistd.h>
 #include <stdio.h>
+#include <dialog.h>
 
 #include "mbr.h"
 #include "bootarea.h"
 #include "sysinstall.h"
 
-char boot1[] = BOOT1;
-char boot2[] = BOOT2;
-
 extern char *bootblocks;
 extern struct mbr *mbr;
+extern char boot1[];
+extern char boot2[];
 
 int
 enable_label(int fd)
@@ -88,15 +88,17 @@ build_bootblocks(struct disklabel *label)
 
 	int fd;
 
+	sprintf(scratch, "\nLoading boot code from %s\n", boot1);
+	dialog_msgbox(TITLE, scratch, 5, 60, 0);
 	fd = open(boot1, O_RDONLY);
 	if (fd < 0) {
 		sprintf(errmsg, "Couldn't open boot file %s\n", boot1);
 		return(-1);
 	}
 
-	if (read(fd, bootblocks, (int)label->d_secsize) < 0) {
+	if (read(fd, bootblocks, MBRSIZE) < 0) {
 		sprintf(errmsg, "Couldn't read from boot file %s\n", boot1);
-		return(-1);
+		return(-1); 
 	}
 
 	if (close(fd) == -1) {
@@ -104,14 +106,18 @@ build_bootblocks(struct disklabel *label)
 		return(-1);
 	}
 
+	dialog_clear();
+	sprintf(scratch, "\nLoading boot code from %s\n", boot1);
+	dialog_msgbox(TITLE, scratch, 5, 60, 0);
+
 	fd = open(boot2, O_RDONLY);
 	if (fd < 0) {
 		sprintf(errmsg, "Couldn't open boot file %s\n", boot2);
 		return(-1);
 	}
 
-	if (read(fd, &bootblocks[label->d_secsize],
-				(int)(label->d_bbsize - label->d_secsize)) < 0) {
+	if (read(fd, &bootblocks[MBRSIZE],
+				(int)(label->d_bbsize - MBRSIZE)) < 0) {
 		sprintf(errmsg, "Couldn't read from boot file %s\n", boot2);
 		return(-1);
 	}
@@ -121,10 +127,12 @@ build_bootblocks(struct disklabel *label)
 		return(-1);
 	}
 
-	/* Write mbr partition table into bootblocks */
+	/* Copy DOS partition area into bootblocks */
 
 	bcopy(mbr->dospart, &bootblocks[DOSPARTOFF],
-			sizeof(struct dos_partition) * NDOSPART);
+	      sizeof(struct dos_partition) * 4);
+
+	dialog_clear();
 
 	/* Write the disklabel into the bootblocks */
 
