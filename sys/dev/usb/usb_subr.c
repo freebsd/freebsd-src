@@ -3,6 +3,7 @@
 /* Also already have from NetBSD:
  *	$NetBSD: usb_subr.c,v 1.102 2003/01/01 16:21:50 augustss Exp $
  *	$NetBSD: usb_subr.c,v 1.103 2003/01/10 11:19:13 augustss Exp $
+ *	$NetBSD: usb_subr.c,v 1.111 2004/03/15 10:35:04 augustss Exp $
  */
 
 #include <sys/cdefs.h>
@@ -587,7 +588,7 @@ usbd_set_config_index(usbd_device_handle dev, int index, int msg)
 	usb_status_t ds;
 	usb_config_descriptor_t cd, *cdp;
 	usbd_status err;
-	int ifcidx, nifc, len, selfpowered, power;
+	int i, ifcidx, nifc, len, selfpowered, power;
 
 	DPRINTFN(5,("usbd_set_config_index: dev=%p index=%d\n", dev, index));
 
@@ -623,8 +624,14 @@ usbd_set_config_index(usbd_device_handle dev, int index, int msg)
 	cdp = malloc(len, M_USB, M_NOWAIT);
 	if (cdp == NULL)
 		return (USBD_NOMEM);
-	/* Get the full descriptor. */
-	err = usbd_get_desc(dev, UDESC_CONFIG, index, len, cdp);
+
+	/* Get the full descriptor.  Try a few times for slow devices. */
+	for (i = 0; i < 3; i++) {
+		err = usbd_get_desc(dev, UDESC_CONFIG, index, len, cdp);
+		if (!err)
+			break;
+		usbd_delay_ms(dev, 200);
+	}
 	if (err)
 		goto bad;
 	if (cdp->bDescriptorType != UDESC_CONFIG) {
@@ -775,8 +782,14 @@ usbd_setup_pipe(usbd_device_handle dev, usbd_interface_handle iface,
 		return (err);
 	}
 	/* Clear any stall and make sure DATA0 toggle will be used next. */
-	if (UE_GET_ADDR(ep->edesc->bEndpointAddress) != USB_CONTROL_ENDPOINT)
-		usbd_clear_endpoint_stall(p);
+	if (UE_GET_ADDR(ep->edesc->bEndpointAddress) != USB_CONTROL_ENDPOINT) {
+		err = usbd_clear_endpoint_stall(p);
+		/* Some devices reject this command, so ignore a STALL. */
+		if (err && err != USBD_STALLED) {
+			printf("usbd_setup_pipe: failed to start endpoint, %s\n", usbd_errstr(err));
+			return (err);
+		}
+	}
 	*pipe = p;
 	return (USBD_NORMAL_COMPLETION);
 }
@@ -1030,6 +1043,21 @@ usbd_new_device(device_ptr_t parent, usbd_bus_handle bus, int depth,
 	}
 
 	up->device = dev;
+
+	/* Set the address.  Do this early; some devices need that. */
+	err = usbd_set_address(dev, addr);
+	DPRINTFN(5,("usbd_new_device: setting device address=%d\n", addr));
+	if (err) {
+		DPRINTFN(-1,("usb_new_device: set address %d failed\n", addr));
+		err = USBD_SET_ADDR_FAILED;
+		usbd_remove_device(dev, up);
+		return (err);
+	}
+	/* Allow device time to set new address */
+	usbd_delay_ms(dev, USB_SET_ADDRESS_SETTLE);
+	dev->address = addr;	/* New device address now */
+	bus->devices[addr] = dev;
+
 	dd = &dev->ddesc;
 	/* Try a few times in case the device is slow (i.e. outside specs.) */
 	for (i = 0; i < 15; i++) {
@@ -1088,21 +1116,6 @@ usbd_new_device(device_ptr_t parent, usbd_bus_handle bus, int depth,
 		usbd_remove_device(dev, up);
 		return (err);
 	}
-
-	/* Set the address */
-	err = usbd_set_address(dev, addr);
-	DPRINTFN(5,("usbd_new_device: setting device address=%d\n", addr));
-	if (err) {
-		DPRINTFN(-1,("usb_new_device: set address %d failed\n", addr));
-		err = USBD_SET_ADDR_FAILED;
-		usbd_remove_device(dev, up);
-		return (err);
-	}
-	/* Allow device time to set new address */
-	usbd_delay_ms(dev, USB_SET_ADDRESS_SETTLE);
-
-	dev->address = addr;	/* New device address now */
-	bus->devices[addr] = dev;
 
 	/* Assume 100mA bus powered for now. Changed when configured. */
 	dev->power = USB_MIN_POWER;
