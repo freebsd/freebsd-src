@@ -1249,16 +1249,36 @@ ptrace_set_pc(struct thread *td, unsigned long addr)
 int
 ptrace_single_step(struct thread *td)
 {
+	struct trapframe *tf;
 
-	td->td_frame->tf_special.psr |= IA64_PSR_SS;
+	/*
+	 * There's no way to set single stepping when we're leaving the
+	 * kernel through the EPC syscall path. The way we solve this is
+	 * by enabling the lower-privilege trap so that we re-enter the
+	 * kernel as soon as the privilege level changes. See trap.c for
+	 * how we proceed from there.
+	 */
+	tf = td->td_frame;
+	if (tf->tf_flags & FRAME_SYSCALL)
+		tf->tf_special.psr |= IA64_PSR_LP;
+	else
+		tf->tf_special.psr |= IA64_PSR_SS;
 	return (0);
 }
 
 int
 ptrace_clear_single_step(struct thread *td)
 {
+	struct trapframe *tf;
 
-	td->td_frame->tf_special.psr &= ~IA64_PSR_SS;
+	/*
+	 * Clear any and all status bits we may use to implement single
+	 * stepping.
+	 */
+	tf = td->td_frame;
+	tf->tf_special.psr &= ~IA64_PSR_SS;
+	tf->tf_special.psr &= ~IA64_PSR_LP;
+	tf->tf_special.psr &= ~IA64_PSR_TB;
 	return (0);
 }
 
