@@ -1494,8 +1494,6 @@ fdcopy(fdp)
 	if (fdp == NULL)
 		return (NULL);
 
-	FILEDESC_LOCK_ASSERT(fdp, MA_OWNED);
-	FILEDESC_UNLOCK(fdp);
 	newfdp = fdinit(fdp);
 	FILEDESC_LOCK(fdp);
 	while (fdp->fd_lastfile >= newfdp->fd_nfiles) {
@@ -1529,6 +1527,7 @@ fdcopy(fdp)
 	if (newfdp->fd_freefile == -1)
 		newfdp->fd_freefile = i;
 	newfdp->fd_cmask = fdp->fd_cmask;
+	FILEDESC_UNLOCK(fdp);
 	return (newfdp);
 }
 
