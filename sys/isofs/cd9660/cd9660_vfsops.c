@@ -54,11 +54,13 @@ __FBSDID("$FreeBSD$");
 #include <sys/syslog.h>
 #include <sys/iconv.h>
 
-
 #include <isofs/cd9660/iso.h>
 #include <isofs/cd9660/iso_rrip.h>
 #include <isofs/cd9660/cd9660_node.h>
 #include <isofs/cd9660/cd9660_mount.h>
+
+#include <geom/geom.h>
+#include <geom/geom_vfs.h>
 
 MALLOC_DEFINE(M_ISOFSMNT, "ISOFS mount", "ISOFS mount structure");
 MALLOC_DEFINE(M_ISOFSNODE, "ISOFS node", "ISOFS vnode private part");
@@ -86,7 +88,6 @@ static struct vfsops cd9660_vfsops = {
 };
 VFS_SET(cd9660_vfsops, cd9660, VFCF_READONLY);
 MODULE_VERSION(cd9660, 1);
-
 
 /*
  * Called by vfs_mountroot when iso is going to be mounted as root.
@@ -282,7 +283,6 @@ iso_mountfs(devvp, mp, td, argp)
 	struct buf *pribp = NULL, *supbp = NULL;
 	struct cdev *dev = devvp->v_rdev;
 	int error = EINVAL;
-	int needclose = 0;
 	int high_sierra = 0;
 	int iso_bsize;
 	int iso_blknum;
@@ -293,25 +293,18 @@ iso_mountfs(devvp, mp, td, argp)
 	struct iso_supplementary_descriptor *sup = NULL;
 	struct iso_directory_record *rootp;
 	int logical_block_size;
+	struct g_consumer *cp;
+	struct bufobj *bo;
 
 	if (!(mp->mnt_flag & MNT_RDONLY))
 		return EROFS;
 
-	/*
-	 * Disallow multiple mounts of the same device.
-	 * Disallow mounting of a device that is currently in use
-	 * (except for root, which might share swap device for miniroot).
-	 * Flush out any old buffers remaining from a previous use.
-	 */
-	if ((error = vfs_mountedon(devvp)))
-		return error;
-	if (vcount(devvp) > 1)
-		return EBUSY;
-	if ((error = vinvalbuf(devvp, V_SAVE, td->td_ucred, td, 0, 0)))
-		return (error);
-
 	vn_lock(devvp, LK_EXCLUSIVE | LK_RETRY, td);
-	error = VOP_OPEN(devvp, FREAD, FSCRED, td, -1);
+	DROP_GIANT();
+	g_topology_lock();
+	error = g_vfs_open(devvp, &cp, "cd9660", 0);
+	g_topology_unlock();
+	PICKUP_GIANT();
 	VOP_UNLOCK(devvp, 0, td);
 	if (error)
 		return error;
@@ -320,7 +313,9 @@ iso_mountfs(devvp, mp, td, argp)
 	if (mp->mnt_iosize_max > MAXPHYS)
 		mp->mnt_iosize_max = MAXPHYS;
 
-	needclose = 1;
+	bo = &devvp->v_bufobj;
+	bo->bo_private = cp;
+	bo->bo_ops = g_vfs_bufops;
 
 	/* This is the "logical sector size".  The standard says this
 	 * should be 2048 or the physical sector size on the device,
@@ -416,6 +411,8 @@ iso_mountfs(devvp, mp, td, argp)
 		 pri->root_directory_record);
 
 	isomp = malloc(sizeof *isomp, M_ISOFSMNT, M_WAITOK | M_ZERO);
+	isomp->im_cp = cp;
+	isomp->im_bo = bo;
 	isomp->logical_block_size = logical_block_size;
 	isomp->volume_space_size =
 		isonum_733 (high_sierra?
@@ -450,8 +447,6 @@ iso_mountfs(devvp, mp, td, argp)
 	isomp->im_mountp = mp;
 	isomp->im_dev = dev;
 	isomp->im_devvp = devvp;
-
-	devvp->v_rdev->si_mountpoint = mp;
 
 	/* Check the Rock Ridge Extention support */
 	if (!(argp->flags & ISOFSMNT_NORRIP)) {
@@ -527,15 +522,19 @@ iso_mountfs(devvp, mp, td, argp)
 
 	return 0;
 out:
-	devvp->v_rdev->si_mountpoint = NULL;
 	if (bp)
 		brelse(bp);
 	if (pribp)
 		brelse(pribp);
 	if (supbp)
 		brelse(supbp);
-	if (needclose)
-		(void)VOP_CLOSE(devvp, FREAD, NOCRED, td);
+	if (cp != NULL) {
+		DROP_GIANT();
+		g_topology_lock();
+		g_wither_geom_close(cp->geom, ENXIO);
+		g_topology_unlock();
+		PICKUP_GIANT();
+	}
 	if (isomp) {
 		free((caddr_t)isomp, M_ISOFSMNT);
 		mp->mnt_data = (qaddr_t)0;
@@ -573,8 +572,11 @@ cd9660_unmount(mp, mntflags, td)
 		if (isomp->im_l2d)
 			cd9660_iconv->close(isomp->im_l2d);
 	}
-	isomp->im_devvp->v_rdev->si_mountpoint = NULL;
-	error = VOP_CLOSE(isomp->im_devvp, FREAD, NOCRED, td);
+	DROP_GIANT();
+	g_topology_lock();
+	g_wither_geom_close(isomp->im_cp->geom, ENXIO);
+	g_topology_unlock();
+	PICKUP_GIANT();
 	vrele(isomp->im_devvp);
 	free((caddr_t)isomp, M_ISOFSMNT);
 	mp->mnt_data = (qaddr_t)0;
@@ -813,8 +815,7 @@ cd9660_vget_internal(mp, ino, flags, vpp, relocated, isodir)
 		bp = 0;
 
 	ip->i_mnt = imp;
-	ip->i_devvp = imp->im_devvp;
-	VREF(ip->i_devvp);
+	VREF(imp->im_devvp);
 
 	if (relocated) {
 		/*
