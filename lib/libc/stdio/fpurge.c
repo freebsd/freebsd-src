@@ -39,17 +39,14 @@
 static char sccsid[] = "@(#)fpurge.c	8.1 (Berkeley) 6/4/93";
 #endif
 static const char rcsid[] =
-		"$Id$";
+		"$Id: fpurge.c,v 1.5 1997/02/22 15:01:58 peter Exp $";
 #endif /* LIBC_SCCS and not lint */
 
 #include <errno.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include "local.h"
-#ifdef _THREAD_SAFE
-#include <pthread.h>
-#include "pthread_private.h"
-#endif
+#include "libc_private.h"
 
 /*
  * fpurge: like fflush, but without writing anything: leave the
@@ -60,9 +57,7 @@ fpurge(fp)
 	register FILE *fp;
 {
 	int retval;
-#ifdef _THREAD_SAFE
-	_thread_flockfile(fp,__FILE__,__LINE__);
-#endif
+	FLOCKFILE(fp);
 	if (!fp->_flags) {
 		errno = EBADF;
 		retval = EOF;
@@ -74,8 +69,6 @@ fpurge(fp)
 		fp->_w = fp->_flags & (__SLBF|__SNBF) ? 0 : fp->_bf._size;
 		retval = 0;
 	}
-#ifdef _THREAD_SAFE
-	_thread_funlockfile(fp);
-#endif
+	FUNLOCKFILE(fp);
 	return (retval);
 }

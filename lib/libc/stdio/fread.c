@@ -39,16 +39,13 @@
 static char sccsid[] = "@(#)fread.c	8.2 (Berkeley) 12/11/93";
 #endif
 static const char rcsid[] =
-		"$Id$";
+		"$Id: fread.c,v 1.5 1997/02/22 15:02:03 peter Exp $";
 #endif /* LIBC_SCCS and not lint */
 
 #include <stdio.h>
 #include <string.h>
 #include "local.h"
-#ifdef _THREAD_SAFE
-#include <pthread.h>
-#include "pthread_private.h"
-#endif
+#include "libc_private.h"
 
 size_t
 fread(buf, size, count, fp)
@@ -68,9 +65,7 @@ fread(buf, size, count, fp)
 	 */
 	if ((resid = count * size) == 0)
 		return (0);
-#ifdef _THREAD_SAFE
-	_thread_flockfile(fp,__FILE__,__LINE__);
-#endif
+	FLOCKFILE(fp);
 	if (fp->_r < 0)
 		fp->_r = 0;
 	total = resid;
@@ -83,14 +78,13 @@ fread(buf, size, count, fp)
 		resid -= r;
 		if (__srefill(fp)) {
 			/* no more input: return partial result */
+			FUNLOCKFILE(fp);
 			return ((total - resid) / size);
 		}
 	}
 	(void)memcpy((void *)p, (void *)fp->_p, resid);
 	fp->_r -= resid;
 	fp->_p += resid;
-#ifdef _THREAD_SAFE
-	_thread_funlockfile(fp);
-#endif
+	FUNLOCKFILE(fp);
 	return (count);
 }

@@ -39,17 +39,14 @@
 static char sccsid[] = "@(#)ungetc.c	8.2 (Berkeley) 11/3/93";
 #endif
 static const char rcsid[] =
-		"$Id$";
+		"$Id: ungetc.c,v 1.5 1997/02/22 15:02:38 peter Exp $";
 #endif /* LIBC_SCCS and not lint */
 
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 #include "local.h"
-#ifdef _THREAD_SAFE
-#include <pthread.h>
-#include "pthread_private.h"
-#endif
+#include "libc_private.h"
 
 static int __submore __P((FILE *));
 
@@ -101,25 +98,19 @@ ungetc(c, fp)
 		return (EOF);
 	if (!__sdidinit)
 		__sinit();
-#ifdef _THREAD_SAFE
-	_thread_flockfile(fp,__FILE__,__LINE__);
-#endif
+	FLOCKFILE(fp);
 	if ((fp->_flags & __SRD) == 0) {
 		/*
 		 * Not already reading: no good unless reading-and-writing.
 		 * Otherwise, flush any current write stuff.
 		 */
 		if ((fp->_flags & __SRW) == 0) {
-#ifdef _THREAD_SAFE
-			_thread_funlockfile(fp);
-#endif
+			FUNLOCKFILE(fp);
 			return (EOF);
 		}
 		if (fp->_flags & __SWR) {
 			if (__sflush(fp)) {
-#ifdef _THREAD_SAFE
-				_thread_funlockfile(fp);
-#endif
+				FUNLOCKFILE(fp);
 				return (EOF);
 			}
 			fp->_flags &= ~__SWR;
@@ -136,16 +127,12 @@ ungetc(c, fp)
 	 */
 	if (HASUB(fp)) {
 		if (fp->_r >= fp->_ub._size && __submore(fp)) {
-#ifdef _THREAD_SAFE
-			_thread_funlockfile(fp);
-#endif
+			FUNLOCKFILE(fp);
 			return (EOF);
 		}
 		*--fp->_p = c;
 		fp->_r++;
-#ifdef _THREAD_SAFE
-		_thread_funlockfile(fp);
-#endif
+		FUNLOCKFILE(fp);
 		return (c);
 	}
 	fp->_flags &= ~__SEOF;
@@ -159,9 +146,7 @@ ungetc(c, fp)
 	    fp->_p[-1] == c) {
 		fp->_p--;
 		fp->_r++;
-#ifdef _THREAD_SAFE
-		_thread_funlockfile(fp);
-#endif
+		FUNLOCKFILE(fp);
 		return (c);
 	}
 
@@ -176,8 +161,6 @@ ungetc(c, fp)
 	fp->_ubuf[sizeof(fp->_ubuf) - 1] = c;
 	fp->_p = &fp->_ubuf[sizeof(fp->_ubuf) - 1];
 	fp->_r = 1;
-#ifdef _THREAD_SAFE
-	_thread_funlockfile(fp);
-#endif
+	FUNLOCKFILE(fp);
 	return (c);
 }

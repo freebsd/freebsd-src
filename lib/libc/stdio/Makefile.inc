@@ -1,10 +1,11 @@
 #	@(#)Makefile.inc	8.3 (Berkeley) 4/17/94
-#	$Id: Makefile.inc,v 1.12 1998/02/13 02:13:23 imp Exp $
+#	$Id: Makefile.inc,v 1.13 1998/03/12 12:05:14 bde Exp $
 
 # stdio sources
 .PATH: ${.CURDIR}/../libc/stdio
 
-SRCS+=	asprintf.c clrerr.c fclose.c fdopen.c feof.c ferror.c fflush.c \
+SRCS+=	_flock_stub.c \
+	asprintf.c clrerr.c fclose.c fdopen.c feof.c ferror.c fflush.c \
 	fgetc.c fgetln.c fgetpos.c fgets.c fileno.c findfp.c flags.c fopen.c \
 	fprintf.c fpurge.c fputc.c fputs.c fread.c freopen.c fscanf.c \
 	fseek.c fsetpos.c ftell.c funopen.c fvwrite.c fwalk.c fwrite.c \
@@ -12,8 +13,15 @@ SRCS+=	asprintf.c clrerr.c fclose.c fdopen.c feof.c ferror.c fflush.c \
 	printf.c putc.c putchar.c puts.c putw.c refill.c remove.c rewind.c \
 	rget.c scanf.c setbuf.c setbuffer.c setvbuf.c snprintf.c sprintf.c \
 	sscanf.c stdio.c tempnam.c tmpfile.c tmpnam.c ungetc.c vasprintf.c \
-	vfprintf.c vfscanf.c vprintf.c vscanf.c vsnprintf.c vsprintf.c \
+	vfscanf.c vprintf.c vscanf.c vsnprintf.c vsprintf.c \
 	vsscanf.c wbuf.c wsetup.c
+
+.if defined(NETBSD_SYSCALLS)
+#  XXX Temporary until FreeBSD's vfprintf is ported
+SRCS+=	netbsd_vfprintf.c
+.else
+SRCS+=	vfprintf.c
+.endif
 
 .if ${LIB} == "c"
 MAN3+=	fclose.3 ferror.3 fflush.3 fgetln.3 fgets.3 fopen.3 fputs.3 \

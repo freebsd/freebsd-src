@@ -39,17 +39,14 @@
 static char sccsid[] = "@(#)fclose.c	8.1 (Berkeley) 6/4/93";
 #endif
 static const char rcsid[] =
-		"$Id$";
+		"$Id: fclose.c,v 1.5 1997/02/22 15:01:47 peter Exp $";
 #endif /* LIBC_SCCS and not lint */
 
 #include <errno.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include "local.h"
-#ifdef _THREAD_SAFE
-#include <pthread.h>
-#include "pthread_private.h"
-#endif
+#include "libc_private.h"
 
 int
 fclose(fp)
@@ -61,9 +58,7 @@ fclose(fp)
 		errno = EBADF;
 		return (EOF);
 	}
-#ifdef _THREAD_SAFE
-	_thread_flockfile(fp,__FILE__,__LINE__);
-#endif
+	FLOCKFILE(fp);
 	r = fp->_flags & __SWR ? __sflush(fp) : 0;
 	if (fp->_close != NULL && (*fp->_close)(fp->_cookie) < 0)
 		r = EOF;
@@ -73,9 +68,7 @@ fclose(fp)
 		FREEUB(fp);
 	if (HASLB(fp))
 		FREELB(fp);
-#ifdef _THREAD_SAFE
-	_thread_funlockfile(fp);
-#endif
+	FUNLOCKFILE(fp);
 	fp->_flags = 0;		/* Release this FILE for reuse. */
 	fp->_file = -1;
 	fp->_r = fp->_w = 0;	/* Mess up if reaccessed. */

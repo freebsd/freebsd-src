@@ -39,7 +39,7 @@
 static char sccsid[] = "@(#)scanf.c	8.1 (Berkeley) 6/4/93";
 #endif
 static const char rcsid[] =
-		"$Id$";
+		"$Id: scanf.c,v 1.5 1997/02/22 15:02:25 peter Exp $";
 #endif /* LIBC_SCCS and not lint */
 
 #include <stdio.h>
@@ -48,10 +48,7 @@ static const char rcsid[] =
 #else
 #include <varargs.h>
 #endif
-#ifdef _THREAD_SAFE
-#include <pthread.h>
-#include "pthread_private.h"
-#endif
+#include "libc_private.h"
 
 #if __STDC__
 int
@@ -71,13 +68,9 @@ scanf(fmt, va_alist)
 #else
 	va_start(ap);
 #endif
-#ifdef _THREAD_SAFE
-	_thread_flockfile(stdin,__FILE__,__LINE__);
-#endif
+	FLOCKFILE(stdin);
 	ret = __svfscanf(stdin, fmt, ap);
+	FUNLOCKFILE(stdin);
 	va_end(ap);
-#ifdef _THREAD_SAFE
-	_thread_funlockfile(stdin);
-#endif
 	return (ret);
 }
