@@ -17,7 +17,7 @@ beforeinstall:
 		${DESTDIR}${BINDIR}
 
 afterinstall:
-	(DESTDIR=${DESTDIR}; cd ${DESTDIR}/usr/include; h2ph * sys/*)
+	(DESTDIR=${DESTDIR}; cd ${DESTDIR}/usr/include; ${BINDIR}/h2ph * sys/*)
 
 .include "../../Makefile.inc"
 .include <bsd.prog.mk>
