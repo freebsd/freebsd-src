@@ -62,15 +62,23 @@ __FBSDID("$FreeBSD$");
 #define	MASTER	0
 #define	SLAVE	1
 
+/*
+ * Determine the base master and slave modes not including auto EOI support.
+ * All machines that FreeBSD supports use 8086 mode.
+ */
+#define	BASE_MASTER_MODE	ICW4_8086
+#define	BASE_SLAVE_MODE		ICW4_8086
+
+/* Enable automatic EOI if requested. */
 #ifdef AUTO_EOI_1
-#define	MASTER_MODE	(ICW4_8086 | ICW4_AEOI)
+#define	MASTER_MODE		(BASE_MASTER_MODE | ICW4_AEOI)
 #else
-#define	MASTER_MODE	ICW4_8086
+#define	MASTER_MODE		BASE_MASTER_MODE
 #endif
 #ifdef AUTO_EOI_2
-#define	SLAVE_MODE	(ICW4_8086 | ICW4_AEOI)
+#define	SLAVE_MODE		(BASE_SLAVE_MODE | ICW4_AEOI)
 #else
-#define	SLAVE_MODE	ICW4_8086
+#define	SLAVE_MODE		BASE_SLAVE_MODE
 #endif
 
 static void	atpic_init(void *dummy);
