@@ -82,7 +82,7 @@ userret(td, frame, oticks)
 	mtx_lock_spin(&sched_lock);
 	if (SIGPENDING(p) && ((p->p_sflag & PS_NEEDSIGCHK) == 0 ||
 	    (ke->ke_flags & KEF_ASTPENDING) == 0))
-		printf("failed to set signal flags proprly for ast()\n");
+		printf("failed to set signal flags properly for ast()\n");
 	mtx_unlock_spin(&sched_lock);
 	PROC_UNLOCK(p);
 	mtx_unlock(&Giant);
