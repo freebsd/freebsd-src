@@ -93,24 +93,17 @@ nsp_release_resource(DEVPORT_PDEVICE dev)
 {
 	struct nsp_softc	*sc = device_get_softc(dev);
 
-	if (sc->nsp_intrhand) {
+	if (sc->nsp_intrhand)
 		bus_teardown_intr(dev, sc->irq_res, sc->nsp_intrhand);
-	}
-
-	if (sc->port_res) {
+	if (sc->port_res)
 		bus_release_resource(dev, SYS_RES_IOPORT,
 				     sc->port_rid, sc->port_res);
-	}
-
-	if (sc->irq_res) {
+	if (sc->irq_res)
 		bus_release_resource(dev, SYS_RES_IRQ,
 				     sc->irq_rid, sc->irq_res);
-	}
-
-	if (sc->mem_res) {
+	if (sc->mem_res)
 		bus_release_resource(dev, SYS_RES_MEMORY,
 				     sc->mem_rid, sc->mem_res);
-	}
 }
 
 static int
@@ -141,9 +134,8 @@ nsp_alloc_resource(DEVPORT_PDEVICE dev)
 	}
 
 	error = bus_get_resource(dev, SYS_RES_MEMORY, 0, &maddr, &msize);
-	if (error) {
+	if (error)
 		return(0);	/* XXX */
-	}
 
 	/* No need to allocate memory if not configured and it's in PIO mode */
 	if (maddr == 0 || msize == 0) {
@@ -173,7 +165,8 @@ static int nsp_pccard_match(device_t dev)
 
 	if ((pp = pccard_product_lookup(dev, nsp_products,
 	    sizeof(nsp_products[0]), NULL)) != NULL) {
-		device_set_desc(dev, pp->pp_name);
+		if (pp->pp_name)
+			device_set_desc(dev, pp->pp_name);
 		return(0);
 	}
 	return(EIO);
@@ -182,21 +175,15 @@ static int nsp_pccard_match(device_t dev)
 static int
 nsp_pccard_probe(DEVPORT_PDEVICE dev)
 {
-	struct nsp_softc	*sc = device_get_softc(dev);
 	int			error;
 
-	bzero(sc, sizeof(struct nsp_softc));
-
 	error = nsp_alloc_resource(dev);
-	if (error) {
+	if (error)
 		return(error);
-	}
-
 	if (nspprobe(dev) == 0) {
 		nsp_release_resource(dev);
 		return(ENXIO);
 	}
-
 	nsp_release_resource(dev);
 
 	return(0);
@@ -209,17 +196,14 @@ nsp_pccard_attach(DEVPORT_PDEVICE dev)
 	int			error;
 
 	error = nsp_alloc_resource(dev);
-	if (error) {
+	if (error)
 		return(error);
-	}
-
 	error = bus_setup_intr(dev, sc->irq_res, INTR_TYPE_CAM | INTR_ENTROPY,
 			       nsp_pccard_intr, (void *)sc, &sc->nsp_intrhand);
 	if (error) {
 		nsp_release_resource(dev);
 		return(error);
 	}
-
 	if (nspattach(dev) == 0) {
 		nsp_release_resource(dev);
 		return(ENXIO);
@@ -228,7 +212,7 @@ nsp_pccard_attach(DEVPORT_PDEVICE dev)
 	return(0);
 }
 
-static	void
+static void
 nsp_pccard_detach(DEVPORT_PDEVICE dev)
 {
 	nsp_card_unload(dev);
@@ -260,13 +244,12 @@ static devclass_t nsp_devclass;
 MODULE_DEPEND(nsp, scsi_low, 1, 1, 1);
 DRIVER_MODULE(nsp, pccard, nsp_pccard_driver, nsp_devclass, 0, 0);
 
-static	void
+static void
 nsp_card_unload(DEVPORT_PDEVICE devi)
 {
 	struct nsp_softc *sc = DEVPORT_PDEVGET_SOFTC(devi);
 	intrmask_t s;
 
-	printf("%s: unload\n",sc->sc_sclow.sl_xname);
 	s = splcam();
 	scsi_low_deactivate((struct scsi_low_softc *)sc);
         scsi_low_dettach(&sc->sc_sclow);
@@ -298,28 +281,26 @@ nspattach(DEVPORT_PDEVICE devi)
 
 	strcpy(dvname,"nsp");
 
-	if (iobase == 0)
-	{
+	if (iobase == 0) {
 		printf("%s: no ioaddr is given\n", dvname);
 		return (0);
 	}
 
 	sc = DEVPORT_PDEVALLOC_SOFTC(devi);
-	if (sc == NULL) {
+	if (sc == NULL)
 		return (0);
-	}
 
 	slp = &sc->sc_sclow;
 	slp->sl_dev = devi;
 	sc->sc_iot = rman_get_bustag(sc->port_res);
 	sc->sc_ioh = rman_get_bushandle(sc->port_res);
 
-	if(sc->mem_res == NULL){
-	  printf("WARNING: CANNOT GET Memory RESOURCE going PIO mode");
-	  flags |= PIO_MODE;
+	if (sc->mem_res == NULL) {
+		printf("WARNING: CANNOT GET Memory RESOURCE going PIO mode");
+		flags |= PIO_MODE;
 	}
 
-	if((flags & PIO_MODE) == 0) {
+	if ((flags & PIO_MODE) == 0) {
 		sc->sc_memt = rman_get_bustag(sc->mem_res);
 		sc->sc_memh = rman_get_bushandle(sc->mem_res);
 	} else {
