@@ -88,7 +88,8 @@ ${SUBDIR}::
 
 
 .for __target in all all-man checkdpadd clean cleandepend cleandir depend lint \
-		 maninstall obj objlink regress tags
+		 maninstall obj objlink regress tags \
+		 install.debug reinstall.debug
 .if !target(${__target})
 ${__target}: _SUBDIRUSE
 .endif
