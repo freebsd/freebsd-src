@@ -2,7 +2,7 @@
 # LINT -- config file for checking all the sources, tries to pull in
 #	as much of the source tree as it can.
 #
-#	$Id: LINT,v 1.286.2.8 1996/12/23 18:59:06 joerg Exp $
+#	$Id: LINT,v 1.286.2.9 1996/12/30 08:20:26 phk Exp $
 #
 # NB: You probably don't want to try running a kernel built from this
 # file.  Instead, you should start from GENERIC, and add options from
@@ -83,6 +83,10 @@ options		GPL_MATH_EMULATE	#Support for x87 emulation via
 
 # When this is set, be extra conservative in various parts of the kernel
 # and choose functionality over speed (on the widest variety of systems).
+#
+# (Note that one of the effects of removing this option is to enable
+# tagged commands in the `ncr' driver.  See the comments to
+# AHC_TAGENABLE for a note of warning.)
 options		FAILSAFE
 
 #
@@ -915,9 +919,13 @@ controller	ahc0
 
 # enable tagged command queueing, which is a major performance win on
 # devices that support it (and controllers with enough SCB's)
+#
+# Note that some drives claim to grok tagged commands, but actually
+# don't.  The HP C3725S is a known offender.
 options	AHC_TAGENABLE
 
-# enable SCB paging - See the ahc.4 man page
+# enable SCB paging - See the ahc.4 man page for usage warnings.
+# (IOW: better don't use it by now.)
 options	AHC_SCBPAGING_ENABLE
 
 # The aic7xxx driver will attempt to use memory mapped I/O for all PCI
