@@ -36,7 +36,7 @@
 static char sccsid[] = "@(#)verify.c	8.1 (Berkeley) 6/6/93";
 #endif
 static const char rcsid[] =
-	"$Id: verify.c,v 1.5 1997/10/01 06:30:02 charnier Exp $";
+	"$Id: verify.c,v 1.6 1998/06/05 14:43:42 peter Exp $";
 #endif /* not lint */
 
 #include <sys/param.h>
@@ -120,7 +120,7 @@ vwalk()
 				if ((ep->flags & F_NOCHANGE) == 0 &&
 				    compare(ep->name, ep, p))
 					rval = MISMATCHEXIT;
-				if (ep->flags & (F_IGN | F_NOCHANGE))
+				if (ep->flags & F_IGN)
 					(void)fts_set(t, p, FTS_SKIP);
 				else if (ep->child && ep->type == F_DIR &&
 				    p->fts_info == FTS_D) {
