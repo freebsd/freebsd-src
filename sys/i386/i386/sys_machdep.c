@@ -282,7 +282,7 @@ static void
 set_user_ldt_rv(struct thread *td)
 {
 
-	if (td != PCPU_GET(curthread))
+	if (td->td_proc != curthread->td_proc)
 		return;
 
 	mtx_lock_spin(&sched_lock);
