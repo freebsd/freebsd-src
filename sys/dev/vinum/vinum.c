@@ -33,7 +33,7 @@
  * otherwise) arising in any way out of the use of this software, even if
  * advised of the possibility of such damage.
  *
- * $Id: vinum.c,v 1.24 1999/03/19 05:35:25 grog Exp grog $
+ * $Id: vinum.c,v 1.21 1999/05/07 08:07:08 grog Exp $
  */
 
 #define STATIC static					    /* nothing while we're testing XXX */
@@ -237,7 +237,6 @@ vinum_modevent(module_t mod, modeventtype_t type, void *unused)
 	}
 #endif
 	cdevsw[CDEV_MAJOR] = NULL;			    /* no cdevsw any more */
-	bdevsw[BDEV_MAJOR] = NULL;			    /* nor bdevsw */
 	log(LOG_INFO, "vinum: unloaded\n");		    /* tell the world */
 	return 0;
     default:

@@ -47,7 +47,7 @@
  * SUCH DAMAGE.
  *
  *	from:	@(#)fd.c	7.4 (Berkeley) 5/25/91
- *	$Id: fd.c,v 1.57 1999/05/06 20:00:31 phk Exp $
+ *	$Id: fd.c,v 1.58 1999/05/07 07:03:42 phk Exp $
  *
  */
 
@@ -2782,7 +2782,7 @@ static driver_t fd_driver = {
 	sizeof(struct fd_data)
 };
 
-BDEV_DRIVER_MODULE(fd, fdc, fd_driver, fd_devclass, BDEV_MAJOR, CDEV_MAJOR,
+DEV_DRIVER_MODULE(fd, fdc, fd_driver, fd_devclass, CDEV_MAJOR, BDEV_MAJOR,
 		   fd_cdevsw, 0, 0);
 
 #endif /* NFDC > 0 */

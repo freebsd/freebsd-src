@@ -1,4 +1,4 @@
-/* $Id: ccd.c,v 1.44 1999/05/06 19:19:30 phk Exp $ */
+/* $Id: ccd.c,v 1.45 1999/05/07 07:03:17 phk Exp $ */
 
 /*	$NetBSD: ccd.c,v 1.22 1995/12/08 19:13:26 thorpej Exp $	*/
 
@@ -278,7 +278,7 @@ ccd_modevent(mod, type, data)
 	return (error);
 }
 
-BDEV_MODULE(ccd, BDEV_MAJOR, CDEV_MAJOR, ccd_cdevsw, ccd_modevent, NULL);
+DEV_MODULE(ccd, CDEV_MAJOR, BDEV_MAJOR, ccd_cdevsw, ccd_modevent, NULL);
 
 static int
 ccdinit(ccd, cpaths, p)

@@ -30,7 +30,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $Id: kern_conf.c,v 1.30 1999/01/27 21:49:55 dillon Exp $
+ * $Id: kern_conf.c,v 1.31 1999/03/23 21:11:47 dfr Exp $
  */
 
 #include <sys/param.h>
@@ -39,15 +39,14 @@
 #include <sys/conf.h>
 #include <sys/vnode.h>
 
-#define NUMBDEV 128
 #define NUMCDEV 256
-#define bdevsw_ALLOCSTART	(NUMBDEV/2)
 #define cdevsw_ALLOCSTART	(NUMCDEV/2)
 
-struct cdevsw 	*bdevsw[NUMBDEV];
-int	nblkdev = NUMBDEV;
 struct cdevsw 	*cdevsw[NUMCDEV];
 int	nchrdev = NUMCDEV;
+
+int	bmaj2cmaj[NUMCDEV];
+int	nblkdev = NUMCDEV;
 
 /*
  * Routine to convert from character to block device number.
@@ -65,50 +64,6 @@ chrtoblk(dev_t dev)
 	}
 	return(NODEV);
 }
-
-/*
- * (re)place an entry in the bdevsw or cdevsw table
- * return the slot used in major(*descrip)
- */
-static int
-bdevsw_add(dev_t *descrip,
-		struct cdevsw *newentry,
-		struct cdevsw **oldentry)
-{
-	int i ;
-
-	if ( (int)*descrip == NODEV) {	/* auto (0 is valid) */
-		/*
-		 * Search the table looking for a slot...
-		 */
-		for (i = bdevsw_ALLOCSTART; i < nblkdev; i++)
-			if (bdevsw[i] == NULL)
-				break;		/* found one! */
-		/* out of allocable slots? */
-		if (i >= nblkdev) {
-			return ENFILE;
-		}
-	} else {				/* assign */
-		i = major(*descrip);
-		if (i < 0 || i >= nblkdev) {
-			return EINVAL;
-		}
-	}
-
-	/* maybe save old */
-        if (oldentry) {
-		*oldentry = bdevsw[i];
-	}
-	if (newentry) {
-		newentry->d_bmaj = i;
-	}
-	/* replace with new */
-	bdevsw[i] = newentry;
-
-	/* done!  let them know where we put it */
-	*descrip = makedev(i,0);
-	return 0;
-} 
 
 int
 cdevsw_add(dev_t *descrip,
@@ -155,55 +110,29 @@ cdevsw_add(dev_t *descrip,
  * note must call cdevsw_add before bdevsw_add due to d_bmaj hack.
  */
 void
-cdevsw_add_generic(int bdev, int cdev, struct cdevsw *cdevsw)
+cdevsw_add_generic(int bmaj, int cmaj, struct cdevsw *cdevsw)
 {
 	dev_t dev;
 
-	dev = makedev(cdev, 0);
+	dev = makedev(cmaj, 0);
 	cdevsw_add(&dev, cdevsw, NULL);
-	dev = makedev(bdev, 0);
-	bdevsw_add(&dev, cdevsw, NULL);
+	bmaj2cmaj[bmaj] = cmaj;
 }
 
 int
-cdevsw_module_handler(module_t mod, int what, void *arg)
+devsw_module_handler(module_t mod, int what, void* arg)
 {
-	struct cdevsw_module_data* data = (struct cdevsw_module_data*) arg;
-	int error;
-
-	switch (what) {
-	case MOD_LOAD:
-		error = cdevsw_add(&data->dev, data->cdevsw, NULL);
-		if (!error && data->chainevh)
-			error = data->chainevh(mod, what, data->chainarg);
-		return error;
-
-	case MOD_UNLOAD:
-		if (data->chainevh) {
-			error = data->chainevh(mod, what, data->chainarg);
-			if (error)
-				return error;
-		}
-		return cdevsw_add(&data->dev, NULL, NULL);
-	}
-
-	if (data->chainevh)
-		return data->chainevh(mod, what, data->chainarg);
-	else
-		return 0;
-}
-
-int
-bdevsw_module_handler(module_t mod, int what, void* arg)
-{
-	struct bdevsw_module_data* data = (struct bdevsw_module_data*) arg;
+	struct devsw_module_data* data = (struct devsw_module_data*) arg;
 	int error;
 
 	switch (what) {
 	case MOD_LOAD:
 		error = cdevsw_add(&data->cdev, data->cdevsw, NULL);
-		if (!error)
-			error = bdevsw_add(&data->bdev, data->cdevsw, NULL);
+		if (!error && data->cdevsw->d_strategy != nostrategy) {
+			if (data->bdev == NODEV)
+				data->bdev = data->cdev;
+			bmaj2cmaj[major(data->bdev)] = major(data->cdev);
+		}
 		if (!error && data->chainevh)
 			error = data->chainevh(mod, what, data->chainarg);
 		return error;
@@ -214,9 +143,9 @@ bdevsw_module_handler(module_t mod, int what, void* arg)
 			if (error)
 				return error;
 		}
-		error = bdevsw_add(&data->bdev, NULL, NULL);
-		if (!error)
-			error = cdevsw_add(&data->cdev, NULL, NULL);
+		if (data->cdevsw->d_strategy != nostrategy)
+			bmaj2cmaj[major(data->bdev)] = 0;
+		error = cdevsw_add(&data->cdev, NULL, NULL);
 		return error;
 	}
 
