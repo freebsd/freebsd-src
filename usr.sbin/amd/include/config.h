@@ -1784,7 +1784,7 @@
 /* #undef HAVE_SYS_MACHINE_H */
 
 /* Define if you have the <sys/mbuf.h> header file.  */
-#define HAVE_SYS_MBUF_H 1
+/* #define HAVE_SYS_MBUF_H 1 XXX NO NO NO!!! */
 
 /* Define if you have the <sys/mntctl.h> header file.  */
 /* #undef HAVE_SYS_MNTCTL_H */
