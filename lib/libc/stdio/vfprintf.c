@@ -759,8 +759,10 @@ reswitch:	switch (ch) {
 				memset(&mbs, 0, sizeof(mbs));
 				mbseqlen = wcrtomb(cp = buf,
 				    (wchar_t)GETARG(wint_t), &mbs);
-				if (mbseqlen == (size_t)-1)
+				if (mbseqlen == (size_t)-1) {
+					fp->_flags |= __SERR;
 					goto error;
+				}
 				size = (int)mbseqlen;
 			} else {
 				*(cp = buf) = GETARG(int);
@@ -934,8 +936,10 @@ fp_begin:		if (prec == -1)
 					cp = "(null)";
 				else {
 					convbuf = __wcsconv(wcp, prec);
-					if (convbuf == NULL)
+					if (convbuf == NULL) {
+						fp->_flags |= __SERR;
 						goto error;
+					}
 					cp = convbuf;
 				}
 			} else if ((cp = GETARG(char *)) == NULL)

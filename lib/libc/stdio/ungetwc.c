@@ -49,8 +49,10 @@ __ungetwc(wint_t wc, FILE *fp)
 	if (wc == WEOF)
 		return (WEOF);
 	memset(&mbs, 0, sizeof(mbs));
-	if ((len = wcrtomb(buf, wc, &mbs)) == (size_t)-1)
+	if ((len = wcrtomb(buf, wc, &mbs)) == (size_t)-1) {
+		fp->_flags |= __SERR;
 		return (WEOF);
+	}
 	while (len-- != 0)
 		if (__ungetc((unsigned char)buf[len], fp) == EOF)
 			return (WEOF);

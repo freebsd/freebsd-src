@@ -903,8 +903,10 @@ fp_begin:		if (prec == -1)
 					cp = L"(null)";
 				else {
 					convbuf = __mbsconv(mbp, prec);
-					if (convbuf == NULL)
+					if (convbuf == NULL) {
+						fp->_flags |= __SERR;
 						goto error;
+					}
 					cp = convbuf;
 				}
 			}
