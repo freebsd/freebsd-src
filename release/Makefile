@@ -16,6 +16,8 @@
 # the "nodev" option, otherwise the chrooted "buildworld" will likely
 # fail.
 #
+# Note: If you add options to this file, please keep release(7) updated!
+#
 # Set these, release builder!
 #
 # Fixed version:
