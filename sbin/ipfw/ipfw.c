@@ -93,7 +93,7 @@ static struct icmpcode icmpcodes[] = {
       { 0, NULL }
 };
 
-static void show_usage(const char *fmt, ...);
+static void show_usage(const char *fmt, ...) __printf0like(1, 2);
 
 static int
 mask_bits(struct in_addr m_ad)
@@ -286,7 +286,7 @@ show_ipfw(struct ip_fw *chain, int pcwidth, int bcwidth)
 			adrt=(chain->fw_src.s_addr);
 			he=gethostbyaddr((char *)&adrt,sizeof(u_long),AF_INET);
 			if (he==NULL) {
-				printf(inet_ntoa(chain->fw_src));
+				printf("%s",inet_ntoa(chain->fw_src));
 			} else
 				printf("%s",he->h_name);
 		} else {
@@ -296,16 +296,16 @@ show_ipfw(struct ip_fw *chain, int pcwidth, int bcwidth)
 					printf("any");
 				} else {
 					if (mb > 0) {
-						printf(inet_ntoa(chain->fw_src));
+						printf("%s",inet_ntoa(chain->fw_src));
 						printf("/%d",mb);
 					} else {
-						printf(inet_ntoa(chain->fw_src));
+						printf("%s",inet_ntoa(chain->fw_src));
 						printf(":");
-						printf(inet_ntoa(chain->fw_smsk));
+						printf("%s",inet_ntoa(chain->fw_smsk));
 					}
 				}
 			} else
-				printf(inet_ntoa(chain->fw_src));
+				printf("%s",inet_ntoa(chain->fw_src));
 		}
 	}
 
@@ -332,7 +332,7 @@ show_ipfw(struct ip_fw *chain, int pcwidth, int bcwidth)
 			adrt=(chain->fw_dst.s_addr);
 			he=gethostbyaddr((char *)&adrt,sizeof(u_long),AF_INET);
 			if (he==NULL) {
-				printf(inet_ntoa(chain->fw_dst));
+				printf("%s",inet_ntoa(chain->fw_dst));
 			} else
 				printf("%s",he->h_name);
 		} else {
@@ -342,16 +342,16 @@ show_ipfw(struct ip_fw *chain, int pcwidth, int bcwidth)
 					printf("any");
 				} else {
 					if (mb > 0) {
-						printf(inet_ntoa(chain->fw_dst));
+						printf("%s",inet_ntoa(chain->fw_dst));
 						printf("/%d",mb);
 					} else {
-						printf(inet_ntoa(chain->fw_dst));
+						printf("%s",inet_ntoa(chain->fw_dst));
 						printf(":");
-						printf(inet_ntoa(chain->fw_dmsk));
+						printf("%s",inet_ntoa(chain->fw_dmsk));
 					}
 				}
 			} else
-				printf(inet_ntoa(chain->fw_dst));
+				printf("%s",inet_ntoa(chain->fw_dst));
 		}
 	}
 
