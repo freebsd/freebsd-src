@@ -235,7 +235,7 @@ Re-compile, this time with -DZCAT=\\\"/path/to/zcat\\\".\n");
 
 	ignore_rc = 0;
 	(void) strcpy(oline, "open ");
-	while ((opt = Getopt(argc, argv, "D:V:INRHaicmup:rd:g:")) >= 0) {
+	while ((opt = Getopt(argc, argv, "D:V:INPRHaicmup:rd:g:")) >= 0) {
 		switch(opt) {
 			case 'a':
 			case 'c':
