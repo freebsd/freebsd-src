@@ -42,7 +42,7 @@ static char copyright[] =
 static char sccsid[] = "@(#)ktrace.c	8.1 (Berkeley) 6/6/93";
 #endif
 static const char rcsid[] =
-	"$Id$";
+	"$Id: ktrace.c,v 1.4 1996/06/19 09:56:29 jraynard Exp $";
 #endif /* not lint */
 
 #include <sys/param.h>
@@ -71,6 +71,7 @@ main(argc, argv)
 	enum { NOTSET, CLEAR, CLEARALL } clear;
 	int append, ch, fd, inherit, ops, pid, pidset, trpoints;
 	char *tracefile;
+	mode_t omask;
 
 	clear = NOTSET;
 	append = ops = pidset = inherit = 0;
@@ -138,9 +139,11 @@ main(argc, argv)
 		exit(0);
 	}
 
+	omask = umask(S_IRWXG|S_IRWXO);
 	if ((fd = open(tracefile, O_CREAT | O_WRONLY | (append ? 0 : O_TRUNC),
 	    DEFFILEMODE)) < 0)
 		err(1, tracefile);
+	(void)umask(omask);
 	(void)close(fd);
 
 	if (*argv) { 
