@@ -1993,7 +1993,7 @@
 7002 afs3-prserver users&groupsdatabase
 7003 afs3-vlserver volumelocationdatabase
 7004 afs3-kaserver AFS/Kerberosauthenticationservice
-7005 afs3-volser volumemanagmentserver
+7005 afs3-volser volumemanagementserver
 7006 afs3-errors errorinterpretationservice
 7007 afs3-bos basicoverseerprocess
 7008 afs3-update server-to-serverupdater

@@ -7,7 +7,7 @@ packet headers of packets you wish to log.  If a packet header is to be
 logged, the entire header is logged (including any IP options \- TCP/UDP
 options are not included when it calculates header size) or not at all.
 The packet contents are also logged after the header.  If the log reader
-is busy or otherwise unable to read log records, upto IPLLOGSIZE (8192 is the
+is busy or otherwise unable to read log records, up to IPLLOGSIZE (8192 is the
 default) bytes of data are stored.
 .PP
 Prepending every packet header logged is a structure containing information

@@ -16,6 +16,9 @@ if [ $os = FreeBSD ] ; then
 		echo "Copying /usr/include/osreldate.h to /sys/sys"
 		cp /usr/include/osreldate.h /sys/sys
 	fi
+	if [ -f /sys/contrib/ipfilter/netinet/mlfk_ipl.c ] ; then
+		/bin/cp mlfk_ipl.c /sys/contrib/ipfilter/netinet/
+	fi
 fi
 archdir="/sys/arch/$karch"
 ipfdir=/sys/netinet

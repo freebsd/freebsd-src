@@ -52,7 +52,7 @@ etherfind -n -t
 
 #if !defined(lint)
 static const char sccsid[] = "@(#)ipft_ef.c	1.6 2/4/96 (C)1995 Darren Reed";
-static const char rcsid[] = "@(#)$Id: ipft_ef.c,v 2.2.2.4 2002/12/06 11:40:25 darrenr Exp $";
+static const char rcsid[] = "@(#)$Id: ipft_ef.c,v 2.2.2.5 2003/05/19 12:02:35 darrenr Exp $";
 #endif
 
 static	int	etherf_open __P((char *));
@@ -108,9 +108,9 @@ int	cnt, *dir;
 
 	bzero(&pkt, sizeof(pkt));
 
-	if (sscanf(lbuf, "%s %s %s %s %s %s", len, prot, src, dst,
+	if (sscanf(lbuf, "%7s %7s %15s %15s %15s %15s", len, prot, src, dst,
 		   sprt, dprt) != 6)
-		if (sscanf(lbuf, "%s %s %s %s %s %s %s", time,
+		if (sscanf(lbuf, "%7s %7s %7s %15s %15s %15s %15s", time,
 			   len, prot, src, dst, sprt, dprt) != 7)
 			return -1;
 

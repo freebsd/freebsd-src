@@ -220,7 +220,9 @@ static int ipl_remove()
 #ifdef OpenBSD
 		VOP_LOCK(nd.ni_vp, LK_EXCLUSIVE | LK_RETRY, curproc);
 #else
+# if !defined(__NetBSD_Version__) || (__NetBSD_Version__ < 106000000)
 		vn_lock(nd.ni_vp, LK_EXCLUSIVE | LK_RETRY);
+# endif
 #endif
 		VOP_LEASE(nd.ni_dvp, curproc, curproc->p_ucred, LEASE_WRITE);
 		(void) VOP_REMOVE(nd.ni_dvp, nd.ni_vp, &nd.ni_cnd);

@@ -124,7 +124,7 @@ extern	int	ip6_getpmtu(struct route_in6 *, struct route_in6 *,
 
 #if !defined(lint)
 static const char sccsid[] = "@(#)ip_fil.c	2.41 6/5/96 (C) 1993-2000 Darren Reed";
-static const char rcsid[] = "@(#)$Id: ip_fil.c,v 2.42.2.64 2002/12/06 11:45:45 darrenr Exp $";
+static const char rcsid[] = "@(#)$Id: ip_fil.c,v 2.42.2.76 2004/05/12 23:21:03 darrenr Exp $";
 #endif
 
 
@@ -504,9 +504,9 @@ int ipldetach()
     ((__NetBSD_Version__ >= 104200000) || (__FreeBSD_version >= 500011))
 	int error = 0;
 # if __NetBSD_Version__ >= 105150000
-        struct pfil_head *ph_inet = pfil_head_get(PFIL_TYPE_AF, AF_INET);
+	struct pfil_head *ph_inet = pfil_head_get(PFIL_TYPE_AF, AF_INET);
 #  ifdef USE_INET6
-        struct pfil_head *ph_inet6 = pfil_head_get(PFIL_TYPE_AF, AF_INET6);
+	struct pfil_head *ph_inet6 = pfil_head_get(PFIL_TYPE_AF, AF_INET6);
 #  endif
 # endif
 #endif
@@ -651,7 +651,7 @@ int mode;
 	int error = 0, unit = 0, tmp;
 
 #if (BSD >= 199306) && defined(_KERNEL)
-	if ((securelevel >= 2) && (mode & FWRITE))
+	if ((securelevel >= 3) && (mode & FWRITE))
 		return EPERM;
 #endif
 #ifdef	_KERNEL
@@ -1020,8 +1020,8 @@ caddr_t data;
 			while ((f = *ftail))
 				ftail = &f->fr_next;
 		else {
+			ftail = fprev;
 			if (fp->fr_hits) {
-				ftail = fprev;
 				while (--fp->fr_hits && (f = *ftail))
 					ftail = &f->fr_next;
 			}
@@ -1275,7 +1275,7 @@ struct mbuf **mp;
 	frn.fin_ifp = fin->fin_ifp;
 	frn.fin_v = fin->fin_v;
 	frn.fin_out = fin->fin_out;
-	frn.fin_mp = fin->fin_mp;
+	frn.fin_mp = mp;
 
 	ip = mtod(m, ip_t *);
 	hlen = sizeof(*ip);
@@ -1319,9 +1319,10 @@ struct mbuf **mp;
 	m->m_pkthdr.rcvif = NULL;
 # endif
 
-	fr_makefrip(hlen, ip, &frn);
-
-	error = ipfr_fastroute(m, mp, &frn, NULL);
+	if (fr_makefrip(hlen, ip, &frn) == 0)
+		error = ipfr_fastroute(m, mp, &frn, NULL);
+	else
+		error = EINVAL;
 	return error;
 }
 
@@ -1454,7 +1455,13 @@ int dst;
 #endif
 
 	if (avail) {
+		slen = oip->ip_len;
+		oip->ip_len = htons(oip->ip_len);
+		soff = oip->ip_off;
+		oip->ip_off = htons(oip->ip_off);
 		bcopy((char *)oip, (char *)&icmp->icmp_ip, MIN(ohlen, avail));
+		oip->ip_len = slen;
+		oip->ip_off = soff;
 		avail -= MIN(ohlen, avail);
 	}
 
@@ -1475,10 +1482,6 @@ int dst;
 	} else
 #endif
 	{
-		slen = oip->ip_len;
-		oip->ip_len = htons(oip->ip_len);
-		soff = oip->ip_off;
-		oip->ip_off = htons(ip->ip_off);
 
 		ip->ip_src.s_addr = dst4.s_addr;
 		ip->ip_dst.s_addr = oip->ip_src.s_addr;
@@ -1498,13 +1501,7 @@ int dst;
 	fin->fin_hlen = hlen;
 	err = send_ip(oip, fin, &m);
 	fin->fin_hlen = shlen;
-#ifdef	USE_INET6
-	if (fin->fin_v == 4)
-#endif
-	{
-		oip->ip_len = slen;
-		oip->ip_off = soff;
-	}
+
 	return err;
 }
 
@@ -1562,7 +1559,7 @@ frdest_t *fdp;
 	register struct ip *ip, *mhip;
 	register struct mbuf *m = m0;
 	register struct route *ro;
-	int len, off, error = 0, hlen, code;
+	int len, off, error = 0, hlen, code, sout;
 	struct ifnet *ifp, *sifp;
 	struct sockaddr_in *dst;
 	struct route iproute;
@@ -1628,7 +1625,7 @@ frdest_t *fdp;
 	/*
 	 * Route packet.
 	 */
-#if defined(__sgi) && (IRIX >= 605)
+#if (defined(IRIX) && (IRIX >= 605))
 	ROUTE_RDLOCK();
 #endif
 	bzero((caddr_t)ro, sizeof (*ro));
@@ -1647,8 +1644,12 @@ frdest_t *fdp;
 	 * check that we're going in the correct direction.
 	 */
 	if ((fr != NULL) && (fin->fin_rev != 0)) {
-		if ((ifp != NULL) && (fdp == &fr->fr_tif))
+		if ((ifp != NULL) && (fdp == &fr->fr_tif)) {
+# if (defined(IRIX) && (IRIX >= 605))
+			ROUTE_UNLOCK();
+# endif
 			return 0;
+		}
 	} else if (fdp != NULL) {
 		if (fdp->fd_ip.s_addr != 0)
 			dst->sin_addr = fdp->fd_ip;
@@ -1668,13 +1669,12 @@ frdest_t *fdp;
 	rtalloc(ro);
 # endif
 
-#if defined(__sgi) && (IRIX > 602)
-	ROUTE_UNLOCK();
-#endif
-
 	if (!ifp) {
 		if (!fr || !(fr->fr_flags & FR_FASTROUTE)) {
 			error = -2;
+# if (defined(IRIX) && (IRIX >= 605))
+			ROUTE_UNLOCK();
+# endif
 			goto bad;
 		}
 	}
@@ -1687,17 +1687,24 @@ frdest_t *fdp;
 			error = EHOSTUNREACH;
 		else
 			error = ENETUNREACH;
+# if (defined(IRIX) && (IRIX >= 605))
+			ROUTE_UNLOCK();
+# endif
 		goto bad;
 	}
 
 	if (ro->ro_rt->rt_flags & RTF_GATEWAY) {
-#if BSD >= 199306
+#if (BSD >= 199306) || (defined(IRIX) && (IRIX >= 605))
 		dst = (struct sockaddr_in *)ro->ro_rt->rt_gateway;
 #else
 		dst = (struct sockaddr_in *)&ro->ro_rt->rt_gateway;
 #endif
 	}
 	ro->ro_rt->rt_use++;
+
+#if (defined(IRIX) && (IRIX > 602))
+	ROUTE_UNLOCK();
+#endif
 
 	/*
 	 * For input packets which are being "fastrouted", they won't
@@ -1706,6 +1713,7 @@ frdest_t *fdp;
 	 */
 	if (fin->fin_out == 0) {
 		sifp = fin->fin_ifp;
+		sout = fin->fin_out;
 		fin->fin_ifp = ifp;
 		fin->fin_out = 1;
 		if ((fin->fin_fr = ipacct[1][fr_active]) &&
@@ -1715,10 +1723,25 @@ frdest_t *fdp;
 		fin->fin_fr = NULL;
 		if (!fr || !(fr->fr_flags & FR_RETMASK))
 			(void) fr_checkstate(ip, fin);
-		(void) ip_natout(ip, fin);
+
+		switch (ip_natout(ip, fin))
+		{
+		case 0 :
+			break;
+		case 1 :
+			ip->ip_sum = 0;
+			break;
+		case -1 :
+			error = EINVAL;
+			goto done;
+			break;
+		}
+
 		fin->fin_ifp = sifp;
+		fin->fin_out = sout;
 	} else
 		ip->ip_sum = 0;
+
 	/*
 	 * If small enough for interface, can just send directly.
 	 */
@@ -1748,8 +1771,14 @@ frdest_t *fdp;
 			ip->ip_sum = in_cksum(m, hlen);
 # endif /* __NetBSD__ && M_CSUM_IPv4 */
 # if	(BSD >= 199306) || (defined(IRIX) && (IRIX >= 605))
+#  ifdef IRIX
+		IFNET_UPPERLOCK(ifp);
+#  endif
 		error = (*ifp->if_output)(ifp, m, (struct sockaddr *)dst,
 					  ro->ro_rt);
+#  ifdef IRIX
+		IFNET_UPPERUNLOCK(ifp);
+#  endif
 # else
 		error = (*ifp->if_output)(ifp, m, (struct sockaddr *)dst);
 # endif
@@ -1895,7 +1924,7 @@ void *ifp;
 	dst->sin_family = AF_INET;
 	dst->sin_addr = ipa;
 # if    (BSD >= 199306) && !defined(__NetBSD__) && !defined(__bsdi__) && \
-        !defined(__OpenBSD__)
+	!defined(__OpenBSD__)
 #  ifdef        RTF_CLONING
 	rtalloc_ign(&iproute, RTF_CLONING);
 #  else
@@ -1947,17 +1976,18 @@ frdest_t *fdp;
 	u_long mtu;
 	int error;
 
-	ifp = NULL;
 	ro = &ip6route;
 	fr = fin->fin_fr;
 	bzero((caddr_t)ro, sizeof(*ro));
 	dst6 = (struct sockaddr_in6 *)&ro->ro_dst;
 	dst6->sin6_family = AF_INET6;
 	dst6->sin6_len = sizeof(struct sockaddr_in6);
-	dst6->sin6_addr = fin->fin_fi.fi_src.in6;
+	dst6->sin6_addr = fin->fin_fi.fi_dst.in6;
 
 	if (fdp != NULL)
 		ifp = fdp->fd_ifp;
+	else
+		ifp = fin->fin_ifp;
 
 	if ((fr != NULL) && (fin->fin_rev != 0)) {
 		if ((ifp != NULL) && (fdp == &fr->fr_tif))
@@ -1966,9 +1996,14 @@ frdest_t *fdp;
 		if (IP6_NOTZERO(&fdp->fd_ip6))
 			dst6->sin6_addr = fdp->fd_ip6.in6;
 	}
-	if ((ifp == NULL) && ((fr == NULL) || !(fr->fr_flags & FR_FASTROUTE)))
+	if (ifp == NULL)
 		return -2;
 
+#if defined(__FreeBSD__) || defined(__NetBSD__) || defined(__OpenBSD__)
+	/* KAME */
+	if (IN6_IS_ADDR_LINKLOCAL(&dst6->sin6_addr))
+		dst6->sin6_addr.s6_addr16[1] = htons(ifp->if_index);
+#endif
 	rtalloc((struct route *)ro);
 
 	if ((ifp == NULL) && (ro->ro_rt != NULL))
@@ -1989,7 +2024,15 @@ frdest_t *fdp;
 		error = ip6_getpmtu(ro_pmtu, ro, ifp, &finaldst, &mtu);
 		if (error == 0) {
 #else
+# ifdef IN6_LINKMTU
+			mtu = IN6_LINKMTU(ifp);
+# else
+#  ifdef ND_IFINFO
+			mtu = ND_IFINFO(ifp)->linkmtu;
+#  else
 			mtu = nd_ifinfo[ifp->if_index].linkmtu;
+#  endif
+# endif
 #endif
 			if (m0->m_pkthdr.len <= mtu)
 				error = nd6_output(ifp, fin->fin_ifp, m0,
