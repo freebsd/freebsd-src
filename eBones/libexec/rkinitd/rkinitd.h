@@ -1,7 +1,7 @@
 /* 
- * $FreeBSD$
+ * $Id$
  * $Source: /home/ncvs/src/eBones/libexec/rkinitd/rkinitd.h,v $
- * $Author: gibbs $
+ * $Author: jkh $
  *
  * This header file contains function declarations for use for rkinitd
  */
@@ -10,7 +10,7 @@
 #define __RKINITD_H__
 
 #if !defined(lint) && !defined(SABER) && !defined(LOCORE) && defined(RCS_HDRS)
-static char *rcsid_rkinitd_h = "$FreeBSD$";
+static char *rcsid_rkinitd_h = "$Id$";
 #endif /* lint || SABER || LOCORE || RCS_HDRS */
 
 #ifdef __STDC__

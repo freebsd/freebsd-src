@@ -1,5 +1,5 @@
 /* 
- * $FreeBSD$
+ * $Id$
  *
  * Header file for rkinit library and server internal use
  */

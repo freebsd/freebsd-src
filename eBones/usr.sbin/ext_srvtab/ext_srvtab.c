@@ -2,13 +2,13 @@
  * Copyright 1987, 1988 by the Massachusetts Institute of Technology.
  *
  *	from: ext_srvtab.c,v 4.1 89/07/18 16:49:30 jtkohl Exp $
- *	$FreeBSD$
+ *	$Id$
  */
 
 #if 0
 #ifndef	lint
 static char rcsid[] =
-"$FreeBSD$";
+"$Id$";
 #endif	lint
 #endif
 

@@ -43,7 +43,7 @@ static const char copyright[] =
 static char sccsid[] = "@(#)route.c	8.3 (Berkeley) 3/19/94";
 */
 static const char rcsid[] =
-	"$FreeBSD$";
+	"$Id$";
 #endif /* not lint */
 
 #include <sys/param.h>

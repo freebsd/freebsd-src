@@ -1,7 +1,7 @@
 /* 
- * $FreeBSD$
+ * $Id$
  * $Source: /home/ncvs/src/eBones/include/rkinit.h,v $
- * $Author: gibbs $
+ * $Author: jkh $
  *
  * Main header file for rkinit library users
  */
@@ -10,7 +10,7 @@
 #define __RKINIT_H__
 
 #if !defined(lint) && !defined(SABER) && !defined(LOCORE) && defined(RCS_HDRS)
-static char *rcsid_rkinit_h = "$FreeBSD$";
+static char *rcsid_rkinit_h = "$Id$";
 #endif /* lint || SABER || LOCORE || RCS_HDRS */
 
 #include <krb.h>

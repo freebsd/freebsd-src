@@ -5,13 +5,13 @@
  * <Copyright.MIT>.
  *
  *	from: get_pw_tkt.c,v 4.6 89/01/13 18:19:11 steiner Exp $
- *	$FreeBSD$
+ *	$Id$
  */
 
 #if 0
 #ifndef lint
 static char *rcsid =
-"$FreeBSD$";
+"$Id$";
 #endif /* lint */
 #endif
 

@@ -2,7 +2,7 @@
 #	Hacked Makefile to compile and run the DES-certification program,
 #	but not install anything.
 #
-# $FreeBSD$
+# $Id$
 #
 LIBCRYPT= $(.OBJDIR)/libdescrypt.a
 

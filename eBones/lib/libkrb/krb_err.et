@@ -3,7 +3,7 @@
 #	"Copyright.MIT".
 #
 #	from: krb_err.et,v 4.1 89/09/26 09:24:20 jtkohl Exp $
-#	$FreeBSD$
+#	$Id$
 #
 	error_table	krb
 

@@ -5,13 +5,13 @@
  * <Copyright.MIT>.
  *
  *	from: get_request.c,v 4.7 88/12/01 14:00:11 jtkohl Exp $
- *	$FreeBSD$
+ *	$Id$
  */
 
 #if 0
 #ifndef lint
 static char *rcsid =
-"$FreeBSD$";
+"$Id$";
 #endif /* lint */
 #endif
 

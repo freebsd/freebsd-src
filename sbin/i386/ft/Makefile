@@ -1,4 +1,4 @@
-#	$FreeBSD$
+#	$Id$
 
 PROG=	ft
 MAN8=	ft.8

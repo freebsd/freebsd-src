@@ -5,13 +5,13 @@
  * <Copyright.MIT>.
  *
  *	from: create_ticket.c,v 4.11 89/03/22 14:43:23 jtkohl Exp $
- *	$FreeBSD$
+ *	$Id$
  */
 
 #if 0
 #ifndef lint
 static char rcsid[] =
-"$FreeBSD$";
+"$Id$";
 #endif /* lint */
 #endif
 

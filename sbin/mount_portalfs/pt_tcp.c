@@ -36,7 +36,7 @@
  *
  *	@(#)pt_tcp.c	8.3 (Berkeley) 3/27/94
  *
- * $FreeBSD$
+ * $Id$
  */
 
 #include <stdio.h>

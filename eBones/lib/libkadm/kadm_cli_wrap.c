@@ -12,7 +12,7 @@
 static char rcsid_kadm_cli_wrap_c[] =
 "from: Id: kadm_cli_wrap.c,v 4.6 89/12/30 20:09:45 qjb Exp";
 static const char rcsid[] =
-	"$FreeBSD$";
+	"$Id$";
 #endif	lint
 #endif
 

@@ -36,7 +36,7 @@
  *
  *	@(#)conf.c	8.2 (Berkeley) 3/27/94
  *
- * $FreeBSD$
+ * $Id$
  */
 
 #include <stdio.h>

@@ -1,5 +1,5 @@
 #	From: @(#)Makefile	5.2 (Berkeley) 2/14/91
-#	$FreeBSD$
+#	$Id$
 
 PROG=	kdb_util
 CFLAGS+=-DKERBEROS -DDEBUG -I${.CURDIR}/../../kdb_edit

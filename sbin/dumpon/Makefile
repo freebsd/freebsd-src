@@ -1,4 +1,4 @@
-#	$FreeBSD$
+#	$Id$
 
 PROG=	dumpon
 MAN8=	dumpon.8

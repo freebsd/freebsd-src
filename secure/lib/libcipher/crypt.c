@@ -28,7 +28,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$FreeBSD$
+ *	$Id$
  *
  * This is an original implementation of the DES and the crypt(3) interfaces
  * by David Burren <davidb@werj.com.au>.
