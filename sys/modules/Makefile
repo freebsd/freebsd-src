@@ -32,7 +32,6 @@ SUBDIR=	accf_data \
 	if_vlan \
 	iir \
 	ip6fw \
-	ipfilter \
 	ipfw \
 	ispfw \
 	joy \
@@ -90,6 +89,10 @@ SUBDIR=	accf_data \
 	wb \
 	wx \
 	xl
+
+.if !defined(NO_IPFILTER)
+SUBDIR+=ipfilter
+.endif
 
 # XXX some of these can move to the general case when de-i386'ed
 .if ${MACHINE_ARCH} == "i386"

@@ -32,10 +32,6 @@ SUBDIR=	IPXrouted \
 	ifmcstat \
 	inetd \
 	iostat \
-	ipftest \
-	ipresend \
-	ipsend \
-	iptest \
 	jail \
 	kbdcontrol \
 	kbdmap \
@@ -119,6 +115,13 @@ SUBDIR=	IPXrouted \
 	ypserv \
 	ypset \
 	zic
+
+.if !defined(NO_IPFILTER)
+SUBDIR+=ipftest \
+	ipresend \
+	ipsend \
+	iptest
+.endif
 
 .if !defined(NO_BIND)
 SUBDIR+=named \
