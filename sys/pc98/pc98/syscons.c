@@ -2254,8 +2254,8 @@ scrn_update(scr_stat *scp, int show_cursor)
         if (scp->status & MOUSE_MOVED) {
             /* do we need to remove old mouse pointer image ? */
             if (scp->mouse_cut_start != NULL ||
-                (scp->mouse_pos-scp->scr_buf) <= scp->start ||
-                (scp->mouse_pos+scp->xsize + 1 - scp->scr_buf) >= scp->end) {
+                (scp->mouse_oldpos-scp->scr_buf) <= scp->start ||
+                (scp->mouse_oldpos+scp->xsize + 1 - scp->scr_buf) >= scp->end) {
                 remove_mouse_image(scp);
             }
             scp->status &= ~MOUSE_MOVED;
@@ -3879,14 +3879,18 @@ kanji_end:
 #ifdef PC98
 	    scp->cursor_atr += (8 - scp->xpos % 8u);
 #endif
+	    if ((scp->xpos += (8 - scp->xpos % 8u)) >= scp->xsize) {
+	        scp->xpos = 0;
+	        scp->ypos++;
+		scp->cursor_pos = scp->scr_buf + scp->ypos * scp->xsize;
+#ifdef PC98
+		scp->cursor_atr = scp->atr_buf + scp->ypos * scp->xsize;
+#endif
+	    }
 	    mark_for_update(scp, scp->cursor_pos - scp->scr_buf);
 #ifdef PC98
 	    mark_for_update(scp, scp->cursor_atr - scp->atr_buf);
 #endif
-	    if ((scp->xpos += (8 - scp->xpos % 8u)) >= scp->xsize) {
-	        scp->xpos = 0;
-	        scp->ypos++;
-	    }
 	    break;
 
 	case 0x0a:  /* newline, same pos */
