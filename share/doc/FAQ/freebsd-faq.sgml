@@ -4,7 +4,7 @@
 
 <title>Frequently Asked Questions for FreeBSD 2.X
 <author>The FreeBSD FAQ Team, <tt/FAQ@FreeBSD.ORG/
-<date> $Id$
+<date> $Id: freebsd-faq.sgml,v 1.5 1995/06/29 14:05:41 gclarkii Exp $
 <abstract>
 This is the FAQ for FreeBSD systems version 2.X  All entries are
 assumed to be relevant to FreeBSD 2.0.5+, unless otherwise noted.
@@ -24,24 +24,37 @@ Any entries with a &lt;XXX&gt; are under construction.
         <verb>
           questions@FreeBSD.ORG
         </verb>
+
+        The latest released version is FreeBSD 2.0.5R. FreeBSD-current
+        refers to the future FreeBSD 2.2. The 2.1 release will be issued
+        from a special branch of the -current sources and is intended as a
+        even more stable version of 2.0.5.
+
+        There are regular snapshots extracted from 2.2-CURRENT. Check on
+        <tt>ftp.FreeBSD.ORG in <tt>/pub/FreeBSD/*-SNAP*</tt>.
+
         This version of the FAQ use the <tt>linuxdoc-sgml</tt> utility
         written for Linux by Matt Welsh. The initial SGML translation was made 
         by Ollivier Robert <tt/&lt;roberto@FreeBSD.ORG&gt;/
 
         Some of the instructions here will also refer to auxiliary
-        utilities in the <tt>/usr/src/share/FAQ directory</tt>.  CDROM
-        purchasers and net folks who've grabbed the FreeBSD 2.X
+        utilities in the <tt>/usr/src/share/FAQ directory</tt>.  If you do
+        not have this directory, or if it does not contain the file that
+        you want, you are probably using a version of FreeBSD prior to
+        2.0.5R.  In this case, install the FreeBSD sources and look in
+        <tt>/usr/src/share/FAQ</tt> (instead of <tt>/usr/share/FAQ</tt>).
+        CDROM purchasers and net folks who've grabbed the FreeBSD 2.X
         ``<tt/srcdist/'' will have these files.  If you don't have the
         source distribution, then you can either grab the whole thing from:
-        <verb>
-          ftp://ftp.FreeBSD.ORG/pub/FreeBSD/FreeBSD-current
-        </verb>
+
+          <url url="ftp://ftp.FreeBSD.ORG/pub/FreeBSD/FreeBSD-current"
+            name="FreeBSD-current base directory"> 
+
         Or you can grab only those files you're interested in straight out
         of the FreeBSD-current distribution in:
         
-        <verb>
-          ftp://ftp.FreeBSD.ORG/pub/FreeBSD/FreeBSD-current/src
-        </verb>
+          <url url="ftp://ftp.FreeBSD.ORG/pub/FreeBSD/FreeBSD-current/src"
+            name="FreeBSD-current src directory">
 
       <sect1>What is FreeBSD?
 
@@ -71,6 +84,35 @@ Any entries with a &lt;XXX&gt; are under construction.
             <item>Improved SCSI support
           </itemize>
 
+      <sect1>What do I need to run FreeBSD?
+        <p>
+          See section 2, "Hardware compatibility", of this FAQ.
+ 
+      <sect1>Where can I get FreeBSD?
+        <p>
+          The distribution is available via anonymous ftp from:
+
+          <url url="ftp://ftp.FreeBSD.ORG/pub/FreeBSD/" name="FreeBSD
+            home directory">
+
+          For the current release, 2.0.5R, look in:
+
+          <url url="ftp://ftp.FreeBSD.ORG/pub/FreeBSD/2.0.5-RELEASE/"
+            name="FreeBSD 2.0.5-RELEASE">
+          
+          FreeBSD is also available via CDROM, from the following place(s):
+ 
+          Walnut Creek CDROM<newline>
+          4041 Pike Lane, Suite D-386<newline>
+          Concord, CA  94520  USA<newline>
+          Orders:         (800)-786-9907<newline>
+          Questions:      (510)-674-0783<newline>
+          FAX:            (510)-674-0821<newline>
+          email:          <url url="mailto:orders@cdrom.com" name="WC Orders
+            address"> <newline>
+          WWW:            <url url="http://www.cdrom.com/" name="WC Home
+            page"><newline> 
+
       <sect1>What are the FreeBSD mailing lists, and how can I get on them?
 
         <p>
@@ -85,14 +127,22 @@ Any entries with a &lt;XXX&gt; are under construction.
             <tag/questions/ General questions on FreeBSD. 
             <tag/bugs/ Where bugs should be sent.
             <tag/SCSI/ Mailing list for SCSI developers. 
-            <tag/current/ This list is for persons wishing to run
-              FreeBSD-current and carries announcements and discussions on
-              current.
+            <tag/current/ This is the mailing list for communications
+              between the developers and users of freebsd-current. It also
+              carries announcements and discussions on current.
             <tag/security/  For issues dealing with system security. 
             <tag/platforms/ Deals with ports to non-Intel platforms
             <tag/ports/     Discussion of <tt>/usr/ports/???</tt>
             <tag/fs/        Discussion of FreeBSD Filesystems
-            <tag/hardware/  Discussion on hardware requirements for FreeBSD.
+            <tag/hardware/  Discussion on hardware requirements for
+              FreeBSD.
+            <tag/committers/ CVS commit messages for -current users
+            <tag/users-groups/ This is the mailing list for the
+              coordinators from each of the local area Users Groups to
+              dicuss matters with each other and a designated individual
+              from the Core Team.  This mail list should be limited to
+              meeting synopsis and coordination of projects that span User
+              Groups
           </descrip>
 
         <p>
@@ -117,11 +167,147 @@ Any entries with a &lt;XXX&gt; are under construction.
 	  <descrip>
 	    <tag/Comp.unix.bsd/ General BSD topics
 	  </descrip>
-
       </sect1>
-    <sect>Installation
 
-      <sect1>I want to install FreeBSD onto a SCSI disk that has more than
+      <sect1>Books on FreeBSD
+        <p> 
+          There currently aren't any books written specifically for
+          FreeBSD, although some people are supposedly working on some.
+ 
+          However, as FreeBSD 2.X is based upon Berkeley 4.4BSD-Lite, most
+          of the 4.4BSD manuals are applicable to FreeBSD 2.X.  O'Reilly
+          and Associates publishes these manuals:
+
+          4.4BSD System Manager's Manual <newline>
+          By Computer Systems Research Group, UC Berkeley <newline>
+          1st Edition June 1994, 804 pages <newline>
+          ISBN: 1-56592-080-5 <NEWLINE>
+          
+          4.4BSD User's Reference Manual <newline>
+          By Computer Systems Research Group, UC Berkeley <newline>
+          1st Edition June 1994, 905 pages <newline>
+          ISBN: 1-56592-075-9 <NEWLINE>
+          
+          4.4BSD User's Supplementary Documents <newline>
+          By Computer Systems Research Group, UC Berkeley <newline>
+          1st Edition July 1994, 712 pages <newline>
+          ISBN: 1-56592-076-7 <NEWLINE>
+          
+          4.4BSD Programmer's Reference Manual <newline>
+          By Computer Systems Research Group, UC Berkeley <newline>
+          1st Edition June 1994, 886 pages <newline>
+          ISBN: 1-56592-078-3 <NEWLINE>
+          
+          4.4BSD Programmer's Supplementary Documents <newline>
+          By Computer Systems Research Group, UC Berkeley <newline>
+          1st Edition July 1994, 596 pages <newline>
+          ISBN: 1-56592-079-1 <NEWLINE>
+          
+          A description of these can be found via WWW as:
+ 
+          <url url="http://gnn.com/gnn/bus/ora/category/bsd.html"
+            name="4.4BSD books description">
+ 
+          A good book on system administration is:
+ 
+          Evi Nemeth, Garth Snyder, Scott Seebass, & Trent R. Hein,<newline>
+          "Unix System Administraion Handbook", Prentice-Hall, 1995,<newline>
+          ISBN: 0-13-151051-7<newline>
+
+          <bf/Note/ make sure you get the second edition, with a red cover,
+          instead of the first edition.
+ 
+          This book covers the basics, as well as TCP/IP, DNS, NFS,
+          SLIP/PPP, sendmail, INN/NNTP, printing, etc..  It's expensive
+          (approx. US&dollar;45-&dollar;55), but worth it.  It also
+          includes a CDROM with the sources for various tools; most of
+          these, however, are also on the FreeBSD 2.0.5R CDROM (and the
+          FreeBSD CDROM often has newer versions).
+ 
+      <sect1>Other sources of information.
+        <p>
+          One good source of additional information is the
+          ``&lsqb;comp.unix.bsd&rsqb; NetBSD, FreeBSD, and 386BSD (0.1)
+          FAQ''.  Much of the information is relevant to FreeBSD, and this
+          FAQ is posted around twice a month to the following newsgroups:
+ 
+          <verb>
+            comp.unix.bsd.netbsd.announce
+            comp.unix.bsd.freebsd.announce
+            comp.answers
+            news.answers
+          </verb>
+
+          If you have WWW access, the FreeBSD home page is at:
+ 
+          <url url="http://www.freebsd.org/" name="Main FreeBSD page">
+ 
+          A FreeBSD ``handbook'' is being created, and can be found as:
+ 
+          <url url="http://www.freebsd.org/How/handbook/" name="FreeBSD's
+            Handbook"> 
+ 
+          Note that this is a work in progress, and so parts may be incomplete.
+ 
+    <sect>FreeBSD goals
+      <p>
+      <sect1>Copyrights
+        <p>
+          The goals of the FreeBSD Project are to provide software that may
+          be used for any purpose and without strings attached.  Many of us
+          have a significant investment in the code (and project) and would
+          certainly not mind a little financial renumeration now and then,
+          but we're definitely not prepared to insist on it.  We believe
+          that our first and foremost "mission" is to provide code to any
+          and all comers, and for whatever purpose, so that the code gets
+          the widest possible use and provides the widest possible benefit.
+          This is, I believe, one of the most fundamental goals of Free
+          Software and one that we enthusiastically support.
+
+          Our GNU code does make for some strings, which we dislike and
+          endevour to replace whenver possible, but at least those strings
+          are in the direction of greater, rather than lesser, "openness"
+          in how the code is shared and distributed and so is a string we
+          can reasonably live with.
+
+    <sect>Installation
+      <p>
+      <sect1>How do I install FreeBSD?
+        <p>
+
+          <bf/IMPORTANT NOTE/ if you  are installing 2.0.5R from tape,  see
+          the question  titled, <ref id="install-tape" name="Help!  I can't
+          install from tape!">
+ 
+          Installation instructions can be found as:
+ 
+          <url   url="ftp://ftp.FreeBSD.ORG/pub/FreeBSD/2.0.5-RELEASE/INSTALL"
+            name="INSTALL from 2.0.5R">
+ 
+          Release notes are also available as:
+ 
+          <url  url="ftp://ftp.FreeBSD.ORG/pub/FreeBSD/2.0.5-RELEASE/RELNOTES"
+            name="RELNOTES from 2.0.5R">
+ 
+          On the CDROM, the following files are in the top-most directory:
+ 
+          <verb>
+            INSTALL         -- Installation instructions
+            README.TXT      -- Basic README file
+            RELNOTES        -- Release notes
+          </verb>
+ 
+      <sect1>Help!  I can't install from tape!  The install fails with a
+          ``record too big'' error! <label id="install-tape">
+ 
+          If you are installing 2.0.5R from tape, you  must create the tape
+          using a  tar blocksize  of  10  (5120  bytes).  The  default  tar
+          blocksize is 20  (10240   bytes), and  tapes  created using  this
+          default size cannot be used to  install 2.0.5R; with these tapes,
+          you will get an error that complains about  the record size being
+          too big.
+ 
+       <sect1>I want to install FreeBSD onto a SCSI disk that has more than
           1024 cylinders.  How do I do it?
           
         <p>
@@ -159,6 +345,97 @@ Any entries with a &lt;XXX&gt; are under construction.
           translation (often marked as ``&gt;1GB drive support''), try
           toggling its setting and reinstalling FreeBSD.
 
+      <sect1>I'm having lots of trouble trying to disklabel a new SCSI
+          drive.  I have made an entry in <tt>/etc/disktab</tt>, but when I
+          try to label the drive the following happens:
+        <p>
+          <verb>
+            mips# disklabel -w /dev/sd1 sea32550N
+            disklabel: ioctl DIOCWDINFO: Operation not supported by device
+          </verb>
+          What am I doing wrong?
+
+          Doing this using <tt/disklabel/ (and <tt/fdisk/) is probably
+          harder than using <tt/sysinstall/.  The following should work to
+          put FreeBSD-2.0.5 on the whole of an <bf/empty/ disk assuming that
+          the <tt/disktab/ entry is correct.
+
+          <verb>
+            disklabel -r -w /dev/rsd1 sea32550N
+                      ^^         ^
+          </verb>
+
+          The first <tt/-r/ is essential for writing new labels and using
+          the raw device instead of the block device is good technique.  To
+          be ``empty'' the disk should have 0's at critical points on the
+          first two sectors.  In particular, the 2 byte signature at the
+          end of the first sector must not be <tt/0xaa55/ or the disk will
+          be interpreted as having a slice (partition) table and it will be
+          difficult to write to it where you want unless the slice table is
+          initialized correctly.  All bootable hard disks will have the
+          <tt/0xaa55/ signature so they won't be empty.  Empty disks may be
+          created by copying zeros over the first 2 sectors:
+
+          <verb>
+            dd if=/dev/zero of=/dev/rsd1 bs=1k count=1
+          </verb>
+          
+          Note that this will (appear to) destroy all data on the disk.
+
+          The above is not the best method.  Normally you will have a slice
+          table or a label that you want to preserve or modify slightly.
+          This can be done using
+
+          <verb>
+            fdisk -u /dev/rsd1              # install or change slice table
+            disklabel -r -w sd1 sea32550N   # install label
+                            ^no /dev/r
+          </verb>
+
+          <tt/fdisk/ is unintuitive and has poor error handling so it is
+          difficult to change slice tables using it.  However, to install a
+          new slice table on an empty drive you just have to accept all the
+          defaults except for ``n'' to write at the end.
+
+          Note that the <tt/sd1/ drive in the above is different from
+          <tt>/dev/rsd1</tt>.  <tt/disklabel/ modifies path names that
+          don't start with a slash by prefixing <tt>/dev/r</tt> and
+          suffixing the ``raw'' partition letter.  <tt/sd1/ thus means
+          <tt>/dev/rsd1c</tt>, i.e., the ``<tt/c/'' partition on the first
+          BSD slice on drive <tt/sd1/, i.e., the whole of the first BSD
+          slice on drive sd1, while <tt>/dev/rsd1</tt> is the whole of
+          drive sd1.  Thus ``<tt>disklabel ... sd1</tt>'' will fail if
+          there is no FreeBSD slice, while ``<tt>disklabel /dev/rsd1</tt>''
+          will print the in-core label for the whole drive.  Oops, this
+          assumes that slices are enabled by the 0xaa55 signature.  If
+          slices aren't enabled, then /dev/rsd1c means the whole drive.  In
+          practice, slices have to be enabled to make the disk bootable.
+
+          If there are no BSD slices, then <tt>/dev/rsd1c</tt> will be
+          empty instead of unconfigured and attempts to label <tt/sd1/ will
+          fail with a bogus error message about <tt>/dev/rsd1c</tt> not
+          existing.
+
+          <tt>/dev/sd1</tt> didn't exist in previous versions of FreeBSD or
+          386BSD so your ``<tt>disklabel -w /dev/sd1 ...</tt>'' would have
+          printed a less confusing error message before failing.
+
+          <verb>
+The disklabel I'm trying is
+sea32550N|Seagate 32550N:\
+       :ty=winchester:dt=SCSI:se#512:nc#3510:nt#11:ns#108:\
+       :rm#7200:\
+       :pa#2433024:oa#0:ta=4.2BSD:\
+       :pc#4169880:oc#0:
+          </verb>
+          Note that <tt/ns/ has to be < 64 in the slice table.  I would use
+          <tt/nt&num;22:ns&num;54/.  This only matters if you don't accept
+          <tt/fdisk/'s default (bogus) slice table.  You have to use a
+          valid table if you want multiple slices, or the first slice
+          starting at a nonzero offset.  Starting a nonempty slice at
+          offset 0 is invalid so <tt/sysinstall/ doesn't support creating
+          such slices.
+
       <sect1>I have an IDE drive with lots of bad blocks on it and FreeBSD
           doesn't seem to install properly.
 
@@ -179,9 +456,18 @@ Any entries with a &lt;XXX&gt; are under construction.
           <label id="bigram">
 
         <p>
-          No.  FreeBSD 2.0 comes with bounce buffers which allows your bus
+          No.  FreeBSD 2.X comes with bounce buffers which allows your bus
           mastering controller access to greater than 16MB.
 
+      <sect1>My network card    keeps  getting  errors  like,    ``<tt/ed1:
+         timeout/''.  What's going on?
+        <p>
+          This is usually caused by an interrupt conflict (e.g., two boards
+          using the same IRQ).  FreeBSD prior to 2.0.5R used to be tolerant
+          of this, and  the  network driver  would  still function  in  the
+          presence  of IRQ conflicts.  However, with  2.0.5R and later, IRQ
+          conflicts are no  longer tolerated.  
+ 
       <sect1>Do I need to install the complete sources? 
 
         <p> In general, no.  However, we would strongly recommend that you
@@ -369,7 +655,7 @@ Any entries with a &lt;XXX&gt; are under construction.
           SoundBlaster 16 and SoundBlaster 16 ASP cards are not yet
           supported.
           
-          NOTE: This is only for sound!  This driver does not support
+          <bf/NOTE/ This is only for sound!  This driver does not support
           CD-ROMs, SCSI or joysticks on these cards.
           
           
@@ -411,9 +697,9 @@ Any entries with a &lt;XXX&gt; are under construction.
               DEC DEFPA PCI FDDI controller
           </descrip>
 
-          NOTE:	Drivers marked with (*) are known to have problems.
+          <bf/NOTE/	Drivers marked with (*) are known to have problems.
 
-          NOTE: We also support TCP/IP over parallel lines.  At this point
+          <bf/NOTE/ We also support TCP/IP over parallel lines.  At this point
           we are incompatiable with other versions, but we hope to correct
           this in the near future.
 
@@ -428,7 +714,7 @@ Any entries with a &lt;XXX&gt; are under construction.
           particular, drawing arcs in X will be VERY slow.  It is highly
           recommended that you buy a math co-processor; it's well worth it.
 
-          NOTE: Some math co-processors are better than others.  It pains
+          <bf/NOTE/ Some math co-processors are better than others.  It pains
           us to say it, but nobody ever got fired for buying Intel.  Unless
           you're sure it works with FreeBSD, beware of clones.
 
@@ -480,7 +766,7 @@ Any entries with a &lt;XXX&gt; are under construction.
     <sect>Commercial Applications
 
       <p>
-        Note: This section is still very sparse, though we're hoping, of
+        <bf/NOTE/ This section is still very sparse, though we're hoping, of
         course, that companies will add to it! :) The FreeBSD group has no
         financial interest in any of the companies listed here but simply
         lists them as a public service (and feels that commercial interest
@@ -587,8 +873,8 @@ Any entries with a &lt;XXX&gt; are under construction.
             options GPL_MATH_EMULATE
           </verb>
 
-          NOTE: You will need to remove the MATH_EMULATE option when you do
-          this.
+          <bf/NOTE/ You will need to remove the <tt/MATH&lowbar;EMULATE/
+          option when you do this.
 
       <sect1>I want all this neat software, but I haven't got the space or
           CPU power to compile it all myself.  Is there any way of getting
@@ -603,10 +889,9 @@ Any entries with a &lt;XXX&gt; are under construction.
           people will have a <tt>packages/</tt> directory on their CD,
           others can get the currently available packages from:
 
-          <verb>
-            ftp://ftp.FreeBSD.ORG/pub/FreeBSD/packages
-          </verb>
-
+          <url url="ftp://ftp.FreeBSD.ORG/pub/FreeBSD/packages"
+            name="FreeBSD's packages"> 
+ 
           Note that all ports may not be available as packages, and that
           new packages are constantly being added.  It is always a good
           idea to check periodically to see which packages are available.
@@ -615,7 +900,185 @@ Any entries with a &lt;XXX&gt; are under construction.
           explicit details will be given here.
 
     <sect>Miscellaneous Questions
+      <p>
+      <sect1>Hey!  Chmod doesn't change the  file permissions of  symlinked
+          files!  What's going on?
+ 
+          You have to use either ``<tt/-H/'' or ``<tt/-L/'' together with
+          the ``<tt/-R/'' option to make this work.  See the <tt/chmod(1)/
+          and <tt/symlink(7)/ man pages for more info.
+ 
+          <bf/WARNING/ the ``<tt/-R/'' option does a <bf/RECURSIVE/
+          <tt/chmod/.  Be careful about specifying directories or symlinks
+          to directories to <tt/chmod/.  If you want to change the
+          permissions of a directory referenced by a symlink, use
+          <tt/chmod(1)/ without any options and follow the symlink with a
+          trailing slash (``<tt>/</tt>'').  For example, if ``<tt/foo/'' is
+          a symlink to directory ``<tt/bar/'', and you want to change the
+          permissions of ``<tt/foo/'' (actually ``<tt/bar/''), you would do
+          something like:
+          <verb>
+            chmod 555 foo/
+          </verb>
 
+          With the trailing slash, <tt/chmod/ will follow the symlink,
+          ``<tt/foo/'', to change the permissions of the directory,
+          ``<tt/bar/''.
+ 
+      <sect1>How do I mount a CDROM?  I've tried using <tt/mount(8)/, but
+        it keeps on giving me an error like, ``<tt>/dev/cd0a on /mnt:
+        Incorrect super block.</tt>''
+        <p>
+          You have to tell <tt/mount(8)/ the type of the device that you
+          want to mount.  By default, <tt/mount(8)/ will assume the
+          filesystem is of type ``<tt/ufs/''.  You want to mount a CDROM
+          filesystem, and you do this by specifying the ``<tt/-t cd9660/''
+          option to <tt/mount(8)/.  This does, of course, assume that the
+          CDROM contains an ISO 9660 filesystem, which is what most CDROMs
+          have.  As of 1.1R, FreeBSD also understands the Rock Ridge
+          (long filename) extensions.
+
+          As an example, if you want to mount the CDROM device,
+          ``<tt>/dev/cd0c</tt>'', under <tt>/mnt</tt>, you would execute:
+
+          <verb>
+            mount -t cd9660 /dev/cd0c /mnt
+          </verb>
+
+          Note that your device name (``<tt//dev/cd0c</tt>'' in this
+          example) could be different, depending on the CDROM interface.
+          Note that the ``<tt/-t cd9660/'' option just causes the
+          ``<tt/mount&lowbar;cd9660/'' command to be executed, and so the
+          above example could be shortened to:
+          <verb>
+            mount_cd9660 /dev/cd0c /mnt
+          </verb>
+ 
+      <sect1>When I try to mount a CDROM, I get a ``Device not configured''
+          error.  What's going on?
+        <p>
+          This generally means that there is no CDROM in the CDROM drive.
+          Feed the drive something.
+  
+      <sect1>My programs occasionally die with ``Signal 11'' errors.
+          What's going on?
+ 
+          This can be caused by bad hardware (memory, motherboard, etc.).
+          Try running a memory-testing program on your PC.  Note that, even
+          though every memory testing program you try will report your
+          memory as being fine, it's possible for slightly marginal memory
+          to pass all memory tests, yet fail under operating conditions
+          (such as during busmastering DMA from a SCSI controller like the
+          Adaptec 1542).
+ 
+      <sect1>Help, some of my X Window menus and dialog boxes don't work
+          right!  I can't select them.
+        <p>
+          Try turning off the Num Lock key.
+
+          If your Num Lock key is on by default at boot-time, you may add
+          the following line in the ``<tt/Keyboard/'' section of the
+          <tt/XF86config/ file.
+
+<verb> 
+# Let the server do the NumLock processing.  This should only be required
+# when using pre-R6 clients
+    ServerNumLock
+</verb>
+
+      <sect1>How do I access the virtual consoles?
+        <p>
+          If the console is not currently displaying X Window, just press
+          Alt-F1 to Alt-F12.  
+
+          <bf/NOTE/ the default FreeBSD installation has
+          only three (3) virtual consoles enabled, and so only Alt-F1,
+          Alt-F2, and Alt-F3 will work to switch between three virtual
+          consoles.  If you want to increase this number, see the next
+          question.
+ 
+          If the console is currently displaying X Window, you can use
+          Ctrl-Alt-F1, etc. to switch to a virtual console.  Note, however,
+          that once you've switched away from X Window to a virtual
+          terminal, you use only the Alt- function key to switch to another
+          virtual terminal or back to X Window.  You do not also press the
+          Ctrl key; the Ctrl-Alt-function key combination is used only when
+          switching from X Window to a virtual terminal.
+  
+      <sect1>How do I increase the number of virtual consoles?
+        <p>
+          Edit <tt>/etc/ttys</tt> and add entries for ``<tt/ttyv4/'' to
+          ``<tt/ttyvc/'' after the comment on ``Virtual terminals'' (delete
+          the leading whitespace in the following example):
+
+          <verb>
+            # Edit the existing entry for ttyv3 in /etc/ttys and change
+            # "off" to "on".
+            ttyv3   "/usr/libexec/getty Pc"         cons25  on secure
+            ttyv4   "/usr/libexec/getty Pc"         cons25  on secure
+            ttyv5   "/usr/libexec/getty Pc"         cons25  on secure
+            ttyv6   "/usr/libexec/getty Pc"         cons25  on secure
+            ttyv7   "/usr/libexec/getty Pc"         cons25  on secure
+            ttyv8   "/usr/libexec/getty Pc"         cons25  on secure
+            ttyv9   "/usr/libexec/getty Pc"         cons25  on secure
+            ttyva   "/usr/libexec/getty Pc"         cons25  on secure
+            ttyvb   "/usr/libexec/getty Pc"         cons25  on secure
+          </verb> 
+
+          Use as many or as few as you want.  The more virtual terminals
+          you have, the more resources that are used; this can be important
+          if you have 8MB RAM or less.  You may also want to change the
+          ``<tt/secure/'' to ``<tt/insecure/''.
+ 
+          <bf/IMPORTANT NOTE/ if you want to run X Window, you <bf/MUST/
+          leave a virtual terminal unused (or turned off).  For example, if
+          you want to attach a virtual terminal to all of your twelve
+          Alt-function keys, you can only attach virtual terminals to
+          eleven of them.  The last must be left unused, because X Windows
+          will use it, and you will use the last Alt-function key to switch
+          back to X Window (after you have switched from X Window to a
+          virtual console via a Ctrl-Alt-function key).  The easiest way to
+          do this is to disable a console by turning it off.  For example,
+          if you have a keyboard with twelve function keys, you would
+          change settings for virtual terminal 12 from:
+ 
+          <verb>
+            ttyvb   "/usr/libexec/getty Pc"         cons25  on secure
+          </verb>
+          to:
+          <verb>
+            ttyvb   "/usr/libexec/getty Pc"         cons25  off secure
+          </verb>
+
+          If your keyboard has only ten function keys, you would end up with:
+          <verb>
+            ttyv9   "/usr/libexec/getty Pc"         cons25  off secure
+            ttyva   "/usr/libexec/getty Pc"         cons25  off secure
+            ttyvb   "/usr/libexec/getty Pc"         cons25  off secure
+          </verb>
+          (You could also just delete these lines.)
+ 
+          Once you have edited <tt>/etc/ttys</tt>, the next step is to make
+          sure that you have enough virtual terminal devices.  The easiest
+          way to do this is:
+          <verb>
+            cd /dev
+            ./MAKEDEV vty12                 # For 12 devices
+          </verb>
+
+          Next, the easiest (and cleanest) way to activate the virtual
+          consoles is to reboot.  However, if you really don't want to
+          reboot, you can just shut down X Window and execute (as
+          <tt/root/):
+          <verb>
+            kill -HUP 1
+          </verb>
+
+          It's imperative that you completely shut down X Window if it is
+          running, before running this command.  If you don't, your system
+          will probably appear to hang/lock up after executing the kill
+          command.
+ 
       <sect1>I've heard of something called FreeBSD-current.  How do I run
           it, and where can I get more information?
 
@@ -640,9 +1103,8 @@ Any entries with a &lt;XXX&gt; are under construction.
           just mail or news).  First, pick up the <tt/sup.tgz/ package
           from:
 
-          <verb>
-            ftp://ftp.FreeBSD.ORG/pub/FreeBSD/packages/sup.tgz
-          </verb>
+            <url url="ftp://ftp.FreeBSD.ORG/pub/FreeBSD/packages/sup.tgz"
+            name="The SUP package">
 
           Second, read the file <tt>/usr/src/share/FAQ/Text/sup.FAQ</tt>.
 
@@ -651,12 +1113,10 @@ Any entries with a &lt;XXX&gt; are under construction.
           <tt>/usr/src/share/FAQ/extras/*.supfile</tt>, or you may grab
           updated supfiles from:
 
-          <verb>
-            ftp://ftp.FreeBSD.ORG/pub/FreeBSD/FAQ/extras
-          </verb>
+            <url url="ftp://ftp.FreeBSD.ORG/pub/FreeBSD/FAQ/extras"
+            name="Updated SUP files"> 
 
           which are a set of supfiles for supping from <tt/FreeBSD.ORG/.
-
 
       <sect1>How do I create customized installation disks that I can give
           out to other people at my site?
@@ -701,9 +1161,10 @@ Any entries with a &lt;XXX&gt; are under construction.
         <p>
           Yes, you can use the <tt/CTM/ facility.  Check out the
           <tt/ctm.FAQ/ file or
-          <verb>
-            ftp://freefall.cdrom.com/pub/CTM/README
-          </verb>
+
+            <url url="ftp://freefall.cdrom.com/pub/CTM/README" name="README
+            for CTM">
+
           for more information.
 
       <sect1>How do I split up large binary files into smaller 240k files
@@ -733,9 +1194,11 @@ Any entries with a &lt;XXX&gt; are under construction.
           will want.  How do I get it included into the distribution?
         <p>
           Please take a look at the FAQ for submiting code to FreeBSD at:
-          <verb>
-            ftp://ftp.FreeBSD.ORG/pub/FreeBSD/FAQ/Text/submitters.FAQ
-          </verb>
+
+          <url
+            url="ftp://ftp.FreeBSD.ORG/pub/FreeBSD/FAQ/Text/submitters.FAQ"
+            name="Submitters' FAQ">
+
           And thanks for the thought.
 
       </sect1>
@@ -994,9 +1457,8 @@ disk        fd1   at fdc0 drive 1
           page for <tt/sliplogin(8)/.  You may also want to take a look at
           the slip FAQ in:
 
-          <verb>
-          ftp://ftp.FreeBSD.ORG/pub/FreeBSD/FAQ/Text/Slip.FAQ
-          </verb>
+          <url url="ftp://ftp.FreeBSD.ORG/pub/FreeBSD/FAQ/Text/Slip.FAQ"
+            name="SLIP FAQ">
 
       <sect1>How do I get my network set up? I don't see how to make my
           <tt>/dev/ed0</tt> device!
@@ -1029,9 +1491,9 @@ disk        fd1   at fdc0 drive 1
           applications like NFS.
 
           See 
-	  <tt>
-	  ftp://ftp.FreeBSD.ORG/pub/FAQ/Text/NFS.FAQ
-	  </tt> 
+
+	  <url url="ftp://ftp.FreeBSD.ORG/pub/FAQ/Text/NFS.FAQ" name="NFS FAQ">
+
           for more information on
           this topic.
 
@@ -1108,31 +1570,30 @@ vat_nv_record	Recording tools for vat	ftp.sics.se:archive/vat_nv_record.tar.Z
           section <ref id="make-kernel" name="about building a kernel"> for
           more details.
 
+      <sect1>Hey, I just upgraded to 2.0.5 and my <tt/tty0X/ are missing !
+        <p>
+          Don't worry, they have been merged with the <tt/ttydX/
+          devices. You'll have to change old configuration files.
+
       <sect1> How do I access the serial ports once FreeBSD is running?
         <p>
           The third serial port, <tt/sio2/ (known as COM3 in DOS), is on
-          <tt>/dev/tty02</tt> for directly-connected devices, on
           <tt>/dev/cuaa2</tt> for dial-out devices, and on
           <tt>/dev/ttyd2</tt> for dial-in devices.  What's the difference
-          between these three classes of devices?
+          between these two classes of devices?
 
-          You use <tt/ttyXX /for directly-connected or hardwired devices,
-          like printers or terminals.
-
-          In place of <tt/ttyXX/, you can use the pair of devices
-          <tt/cuaaX/ and <tt/ttydX/.  You use <tt/ttydX/ for dial-ins.  The
-          <tt/ttydX/ device acts like the <tt/ttyXX/ device, but it also
-          uses the modem control lines.  When opening <tt>/dev/ttydX</tt>
-          in blocking mode, a process will wait for the corresponding
-          <tt/cuaaX/ device to become inactive, and then wait for the
-          carrier detect line to go active.  When you open the <tt/cuaaX/
-          device, it makes sure the serial port isn't already in use by the
-          <tt/ttydX/ device.  If the port's available, it ``steals'' it
-          from the <tt/ttydX/ device.  Also, the <tt/cuaXX/ device doesn't
-          care about carrier detect.  With this scheme and an auto-answer
-          modem, you can have remote users log in and you can still dialout
-          with the same modem and the system will take care of all the
-          conflicts.
+          You use <tt/ttydX/ for dial-ins.  The <tt/ttydX/ device acts like
+          the <tt/ttyXX/ device, but it also uses the modem control lines.
+          When opening <tt>/dev/ttydX</tt> in blocking mode, a process will
+          wait for the corresponding <tt/cuaaX/ device to become inactive,
+          and then wait for the carrier detect line to go active.  When you
+          open the <tt/cuaaX/ device, it makes sure the serial port isn't
+          already in use by the <tt/ttydX/ device.  If the port's
+          available, it ``steals'' it from the <tt/ttydX/ device.  Also,
+          the <tt/cuaXX/ device doesn't care about carrier detect.  With
+          this scheme and an auto-answer modem, you can have remote users
+          log in and you can still dialout with the same modem and the
+          system will take care of all the conflicts.
 
       <sect1> How do I configure the kernel for my multiport serial card?
         <p>
@@ -1166,12 +1627,12 @@ vat_nv_record	Recording tools for vat	ftp.sics.se:archive/vat_nv_record.tar.Z
           <tt/ttyld1/?  Or, how can I set the default serial parameters for
           a port?
         <p>
-          The <tt/ttyXX/ (or <tt/cuaaX/ or <tt/ttydX/) device is the
-          regular device you'll want to open for your applications.  When a
-          process opens the device, it'll have a default set of terminal
-          I/O settings.  You can see these settings with the command
+          The <tt/ttydX/ (or <tt/cuaaX/) device is the regular device
+          you'll want to open for your applications.  When a process opens
+          the device, it'll have a default set of terminal I/O settings.
+          You can see these settings with the command
           <verb>
-            stty -a -f /dev/tty01
+            stty -a -f /dev/ttyd1
           </verb>
 
           When you change the settings to this device, the settings are in
@@ -1179,9 +1640,9 @@ vat_nv_record	Recording tools for vat	ftp.sics.se:archive/vat_nv_record.tar.Z
           back to the default set.  To make changes to the default set, you
           can open and adjust the settings of the ``initial state'' device.
           For example, to turn on <tt/CLOCAL/ mode, 8 bits, and
-          <tt>XON/XOFF</tt> flow control by default for tty05, do:
+          <tt>XON/XOFF</tt> flow control by default for ttyd5, do:
           <verb>
-            stty -f /dev/ttyi05 clocal cs8 ixon ixoff
+            stty -f /dev/ttyid5 clocal cs8 ixon ixoff
           </verb>
 
           A good place to do this is in <tt>/etc/rc.serial</tt>. Now, an
@@ -1314,6 +1775,15 @@ vat_nv_record	Recording tools for vat	ftp.sics.se:archive/vat_nv_record.tar.Z
           Also, the dial timeout for <tt/tip/ is 60 seconds.  Your modem
           should use something less, or else tip will think there's a
           communication problem.  Try <tt/ATS7=45&amp;W/.
+
+          Actually, as shipped <tt/tip/ doesn't yet support it fully. The
+          solution is to edit the file <tt/tipconf.h> in the directory
+          <tt>/usr/src/usr.bin/tip/tip</tt> Obviously you need the source
+          distribution to do this.
+
+          Edit the line ``<tt/#define HAYES 0/'' to ``<tt/#define HAYES
+          1/''. Then ``<tt/make/'' and ``<tt/make install/''. Everything
+          works nicely after that.
 
       <sect1> How am I expected to enter these AT commands without resorting
           to some DOS-based terminal program? <label id="direct-at">
