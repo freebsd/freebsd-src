@@ -33,7 +33,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: expand.c,v 1.10 1996/09/10 02:42:30 peter Exp $
+ *	$Id: expand.c,v 1.11 1996/10/31 07:15:54 ache Exp $
  */
 
 #ifndef lint
@@ -335,7 +335,10 @@ expari(flag)
 	 * have to rescan starting from the beginning since CTLESC
 	 * characters have to be processed left to right.
 	 */
-	CHECKSTRSPACE(8, expdest);
+#if INT_MAX / 1000000000 >= 10 || INT_MIN / 1000000000 <= -10
+#error "integers with more than 10 digits are not supported"
+#endif
+	CHECKSTRSPACE(12 - 2, expdest);
 	USTPUTC('\0', expdest);
 	start = stackblock();
 	p = expdest;
@@ -350,7 +353,7 @@ expari(flag)
 	if (quotes)
 		rmescapes(p+1);
 	result = arith(p+1);
-	fmtstr(p, 10, "%d", result);
+	fmtstr(p, 12, "%d", result);
 	while (*p++)
 		;
 	result = expdest - p + 1;
