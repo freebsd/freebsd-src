@@ -55,6 +55,7 @@
 #include <sys/kernel.h>
 #include <sys/proc.h>
 #include <sys/timex.h>
+#include <sys/timepps.h>
 #include <sys/sysctl.h>
 
 /*
@@ -201,7 +202,7 @@ static long pps_errcnt = 0;		/* calibration errors */
 static long pps_stbcnt = 0;		/* stability limit exceeded */
 #endif /* PPS_SYNC */
 
-static void hardupdate __P((long offset));
+static void hardupdate __P((int64_t offset, int prescaled));
 
 /*
  * hardupdate() - local clock update
@@ -226,28 +227,33 @@ static void hardupdate __P((long offset));
  * Note: splclock() is in effect.
  */
 static void
-hardupdate(offset)
-	long offset;
+hardupdate(offset, prescaled)
+	int64_t offset;
+	int prescaled;
 {
-	long ltemp, mtemp;
+	long mtemp;
+	int64_t ltemp;
 
 	if (!(time_status & STA_PLL) && !(time_status & STA_PPSTIME))
 		return;
-	ltemp = offset;
+	if (prescaled)
+		ltemp = offset;
+	else
+		ltemp = offset << SHIFT_UPDATE;
 #ifdef PPS_SYNC
 	if (time_status & STA_PPSTIME && time_status & STA_PPSSIGNAL)
-		ltemp = pps_offset;
+		ltemp = pps_offset << SHIFT_UPDATE;
 #endif /* PPS_SYNC */
 
 	/*
 	 * Scale the phase adjustment and clamp to the operating range.
 	 */
-	if (ltemp > MAXPHASE)
+	if (ltemp > (MAXPHASE << SHIFT_UPDATE))
 		time_offset = MAXPHASE << SHIFT_UPDATE;
-	else if (ltemp < -MAXPHASE)
+	else if (ltemp < -(MAXPHASE << SHIFT_UPDATE))
 		time_offset = -(MAXPHASE << SHIFT_UPDATE);
 	else
-		time_offset = ltemp << SHIFT_UPDATE;
+		time_offset = ltemp;
 
 	/*
 	 * Select whether the frequency is to be controlled and in which
@@ -269,15 +275,15 @@ hardupdate(offset)
 		}
 	} else {
 		if (mtemp < MAXSEC) {
-			ltemp *= mtemp;
+			ltemp = time_offset * mtemp;
 			if (ltemp < 0)
-				time_freq -= -ltemp >> (time_constant +
+				time_freq -= -ltemp >> ((int64_t)time_constant +
 				    time_constant + SHIFT_KF -
-				    SHIFT_USEC);
+				    SHIFT_USEC + SHIFT_UPDATE);
 			else
-				time_freq += ltemp >> (time_constant +
+				time_freq += ltemp >> ((int64_t)time_constant +
 				    time_constant + SHIFT_KF -
-				    SHIFT_USEC);
+				    SHIFT_USEC + SHIFT_UPDATE);
 		}
 	}
 	if (time_freq > time_tolerance)
@@ -525,12 +531,15 @@ ntp_adjtime(struct proc *p, struct ntp_adjtime_args *uap)
 	if (modes & MOD_TIMECONST)
 		time_constant = ntv.constant;
 	if (modes & MOD_OFFSET)
-		hardupdate(ntv.offset);
+		hardupdate(ntv.offset, modes & MOD_DOSCALE);
 
+	ntv.modes |= MOD_CANSCALE;
 	/*
 	 * Retrieve all clock variables
 	 */
-	if (time_offset < 0)
+	if (modes & MOD_DOSCALE)
+		ntv.offset = time_offset;
+	else if (time_offset < 0)
 		ntv.offset = -(-time_offset >> SHIFT_UPDATE);
 	else
 		ntv.offset = time_offset >> SHIFT_UPDATE;
@@ -809,3 +818,39 @@ hardpps(tvp, p_usec)
 }
 
 #endif /* PPS_SYNC */
+
+int
+std_pps_ioctl(u_long cmd, caddr_t data, pps_params_t *pp, pps_info_t *pi, int ppscap)
+{
+        pps_params_t *app;
+        pps_info_t *api;
+
+        switch (cmd) {
+        case PPS_IOC_CREATE:
+                return (0);
+        case PPS_IOC_DESTROY:
+                return (0);
+        case PPS_IOC_SETPARAMS:
+                app = (pps_params_t *)data;
+                if (app->mode & ~ppscap)
+                        return (EINVAL);
+                *pp = *app;         
+                return (0);
+        case PPS_IOC_GETPARAMS:
+                app = (pps_params_t *)data;
+                *app = *pp;
+                return (0);
+        case PPS_IOC_GETCAP:
+                *(int*)data = ppscap;
+                return (0);
+        case PPS_IOC_FETCH:
+                api = (pps_info_t *)data;
+                *api = *pi;
+                pi->current_mode = pp->mode;         
+                return (0);
+        case PPS_IOC_WAIT:
+                return (EOPNOTSUPP);
+        default:
+                return (ENODEV);
+        }
+}
