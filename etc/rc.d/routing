@@ -44,16 +44,6 @@ network_pass1() {
 		;;
 	esac
 
-	# ISDN subsystem startup
-	#
-	case ${isdn_enable} in
-	[Yy][Ee][Ss])
-		if [ -r /etc/rc.isdn ]; then
-			. /etc/rc.isdn
-		fi
-		;;
-	esac
-
 	# Special options for sppp(4) interfaces go here.  These need
 	# to go _before_ the general ifconfig section, since in the case
 	# of hardwired (no link1 flag) but required authentication, you
@@ -137,6 +127,16 @@ network_pass1() {
 			ifconfig ${ifn}
 		fi
 	done
+
+	# ISDN subsystem startup
+	#
+	case ${isdn_enable} in
+	[Yy][Ee][Ss])
+		if [ -r /etc/rc.isdn ]; then
+			. /etc/rc.isdn
+		fi
+		;;
+	esac
 
 	# Warm up user ppp if required, must happen before natd.
 	#
