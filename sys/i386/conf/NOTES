@@ -79,7 +79,7 @@ cpu		I686_CPU		# aka Pentium Pro(tm)
 # forgotten to enable them.
 #
 # CPU_BLUELIGHTNING_3X enables triple-clock mode on IBM Blue Lightning
-# CPU if CPU supports it. The default is double-clock mode on
+# CPU if CPU supports it.  The default is double-clock mode on
 # BlueLightning CPU box.
 #
 # CPU_BLUELIGHTNING_FPU_OP_CACHE enables FPU operand cache on IBM
@@ -114,9 +114,9 @@ cpu		I686_CPU		# aka Pentium Pro(tm)
 # on I686_CPU and above.
 #
 # CPU_ENABLE_TCC enables Thermal Control Circuitry (TCC) found in some
-# Pentium(tm) 4 and (possibly) later CPUs. When enabled and detected,
+# Pentium(tm) 4 and (possibly) later CPUs.  When enabled and detected,
 # TCC allows to restrict power consumption by using machdep.cpuperf*
-# sysctls. This operates independently of SpeedStep and is useful on
+# sysctls.  This operates independently of SpeedStep and is useful on
 # systems where other mechanisms such as apm(4) or acpi(4) don't work.
 #
 # CPU_FASTER_5X86_FPU enables faster FPU exception handler.
@@ -230,7 +230,7 @@ options 	PERFMON
 # of network device drivers, which has significant benefits in terms
 # of robustness to overloads and responsivity, as well as permitting
 # accurate scheduling of the CPU time between kernel network processing
-# and other activities. The drawback is a moderate (up to 1/HZ seconds)
+# and other activities.  The drawback is a moderate (up to 1/HZ seconds)
 # potential increase in response times.
 # It is strongly recommended to use HZ=1000 or 2000 with DEVICE_POLLING
 # to achieve smoother behaviour.
@@ -268,7 +268,7 @@ options 	CLK_USE_I8254_CALIBRATION
 device		speaker		#Play IBM BASIC-style noises out your speaker
 hint.speaker.0.at="isa"
 hint.speaker.0.port="0x61"
-device		gzip		#Exec gzipped a.out's. REQUIRES COMPAT_AOUT!
+device		gzip		#Exec gzipped a.out's.  REQUIRES COMPAT_AOUT!
 device		apm_saver	# Requires APM
 
 
@@ -413,13 +413,13 @@ hint.npx.0.irq="13"
 # Optional devices:
 #
 
-# 3Dfx Voodoo Graphics, Voodoo II /dev/3dfx CDEV support. This will create
-# the /dev/3dfx0 device to work with glide implementations. This should get
-# linked to /dev/3dfx and /dev/voodoo. Note that this is not the same as
+# 3Dfx Voodoo Graphics, Voodoo II /dev/3dfx CDEV support.  This will create
+# the /dev/3dfx0 device to work with glide implementations.  This should get
+# linked to /dev/3dfx and /dev/voodoo.  Note that this is not the same as
 # the tdfx DRI module from XFree86 and is completely unrelated.
 #
 # To enable Linuxulator support, one must also include COMPAT_LINUX in the
-# config as well, or you will not have the dependencies. The other option
+# config as well, or you will not have the dependencies.  The other option
 # is to load both as modules.
 
 device 		tdfx			# Enable 3Dfx Voodoo support
@@ -657,13 +657,13 @@ options		SAFE_RNDTEST	# enable rndtest support
 
 # Notes on the Sony Programmable I/O controller
 #  This is a temporary driver that should someday be replaced by something
-#  that hooks into the ACPI layer. The device is hooked to the PIIX4's
+#  that hooks into the ACPI layer.  The device is hooked to the PIIX4's
 #  General Device 10 decoder, which means you have to fiddle with PCI
 #  registers to map it in, even though it is otherwise treated here as
-#  an ISA device. At the moment, the driver polls, although the device
-#  is capable of generating interrupts. It largely undocumented.
+#  an ISA device.  At the moment, the driver polls, although the device
+#  is capable of generating interrupts.  It largely undocumented.
 #  The port location in the hint is where you WANT the device to be
-#  mapped. 0x10a0 seems to be traditional. At the moment the jogdial
+#  mapped.  0x10a0 seems to be traditional.  At the moment the jogdial
 #  is the only thing truly supported, but aparently a fair percentage
 #  of the Vaio extra features are controlled by this device.
 
@@ -998,7 +998,7 @@ device		"i4bcapi"
 
 #
 # Set the number of PV entries per process.  Increasing this can
-# stop panics related to heavy use of shared memory. However, that can
+# stop panics related to heavy use of shared memory.  However, that can
 # (combined with large amounts of physical memory) cause panics at
 # boot time due the kernel running out of VM space.
 #
