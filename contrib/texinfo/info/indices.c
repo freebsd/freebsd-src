@@ -1,7 +1,8 @@
 /* indices.c -- deal with an Info file index.
-   $Id: indices.c,v 1.1 2002/08/25 23:38:38 karl Exp $
+   $Id: indices.c,v 1.2 2003/02/11 16:39:06 karl Exp $
 
-   Copyright (C) 1993, 1997, 1998, 1999, 2002 Free Software Foundation, Inc.
+   Copyright (C) 1993, 1997, 1998, 1999, 2002, 2003 Free Software
+   Foundation, Inc.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -390,7 +391,7 @@ DECLARE_INFO_COMMAND (info_next_index_match,
   /* Report to the user on what we have found. */
   {
     register int j;
-    char *name = _("CAN'T SEE THIS");
+    const char *name = _("CAN'T SEE THIS");
     char *match;
 
     for (j = 0; index_nodenames[j]; j++)
