@@ -80,9 +80,12 @@ PLAN	*c_user __P((char *));
 PLAN	*c_xdev __P((void));
 PLAN	*c_openparen __P((void));
 PLAN	*c_closeparen __P((void));
+PLAN	*c_maxdepth __P((char *));
+PLAN	*c_mindepth __P((char *));
 PLAN	*c_mmin __P((char *));
 PLAN	*c_mtime __P((char *));
 PLAN	*c_not __P((void));
 PLAN	*c_or __P((void));
 
 extern int ftsoptions, isdeprecated, isdepth, isoutput, issort, isxargs;
+extern int mindepth, maxdepth;

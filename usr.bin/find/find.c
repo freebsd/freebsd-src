@@ -35,7 +35,12 @@
  */
 
 #ifndef lint
+#if 0
 static char sccsid[] = "@(#)find.c	8.5 (Berkeley) 8/5/94";
+#else
+static const char rcsid[] =
+  "$FreeBSD$";
+#endif
 #endif /* not lint */
 
 #include <sys/types.h>
@@ -206,12 +211,21 @@ find_execute(plan, paths)
 			continue;
 		}
 
+		if (mindepth != -1 && entry->fts_level < mindepth)
+			continue;
+
 		/*
 		 * Call all the functions in the execution plan until one is
 		 * false or all have been executed.  This is where we do all
 		 * the work specified by the user on the command line.
 		 */
 		for (p = plan; p && (p->eval)(p, entry); p = p->next);
+
+		if (maxdepth != -1 && entry->fts_level >= maxdepth) {
+			if (fts_set(tree, entry, FTS_SKIP))
+			err(1, "%s", entry->fts_path);
+			continue;
+		}
 	}
 	if (errno)
 		err(1, "fts_read");
