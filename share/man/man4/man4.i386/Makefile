@@ -9,6 +9,7 @@ MAN=	acpi_toshiba.4 \
 	asc.4 \
 	CPU_ELAN.4 \
 	cs.4 \
+	ct.4 \
 	cx.4 \
 	cy.4 \
 	el.4 \
@@ -48,6 +49,7 @@ MAN=	acpi_toshiba.4 \
 	wt.4
 
 MLINKS=	CPU_ELAN.4 CPU_SOEKRIS.4
+MLINKS+=ct.4 ctau.4
 MLINKS+=ndis.4 if_ndis.4
 MLINKS+=pae.4 PAE.4
 MLINKS+=sbni.4 if_sbni.4
