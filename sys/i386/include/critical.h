@@ -44,7 +44,6 @@ __BEGIN_DECLS
 /*
  * Prototypes - see <arch>/<arch>/critical.c
  */
-void cpu_unpend(void);
 void cpu_critical_fork_exit(void);
 
 #ifdef	__GNUC__
@@ -59,7 +58,11 @@ void cpu_critical_fork_exit(void);
  *	However, as a side effect any interrupts occuring while td_critnest
  *	is non-zero will be deferred.
  */
-#define cpu_critical_enter()
+static __inline void
+cpu_critical_enter(void)
+{
+	curthread->td_md.md_savecrit = intr_disable();
+}
 
 /*
  *	cpu_critical_exit:
@@ -75,19 +78,7 @@ void cpu_critical_fork_exit(void);
 static __inline void
 cpu_critical_exit(void)
 {
-	/*
-	 * We may have to schedule pending interrupts.  Create
-	 * conditions similar to an interrupt context and call
-	 * unpend().
-	 *
-	 * note: we do this even if we are in an interrupt
-	 * nesting level.  Deep nesting is protected by
-	 * critical_*() and if we conditionalized it then we
-	 * would have to check int_pending again whenever
-	 * we decrement td_intr_nesting_level to 0.
-	 */
-	if (PCPU_GET(int_pending))
-		cpu_unpend();
+	intr_restore(curthread->td_md.md_savecrit);
 }
 
 #else /* !__GNUC__ */
