@@ -43,8 +43,8 @@
 #define	_SYS_TTY_H_
 
 #include <sys/termios.h>
-#include <sys/select.h>		/* For struct selinfo. */
 #include <sys/queue.h>
+#include <sys/select.h>		/* For struct selinfo. */
 
 /*
  * Clists are character lists, which is a variable length linked list

@@ -52,6 +52,7 @@
 #include <sys/time.h>			/* For structs itimerval, timeval. */
 #endif
 #include <sys/ucred.h>
+#include <sys/event.h>			/* For struct klist */
 
 /*
  * One structure allocated per session.
@@ -205,6 +206,7 @@ struct	proc {
 	sigset_t p_oldsigmask;		/* saved mask from before sigpause */
 	int	p_sig;			/* for core dump/debugger XXX */
         u_long	p_code;	  	        /* for core dump/debugger XXX */
+	struct	klist p_klist;		/* knotes attached to this process */
 
 /* End area that is zeroed on creation. */
 #define	p_endzero	p_startcopy
