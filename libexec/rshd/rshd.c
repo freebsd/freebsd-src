@@ -39,7 +39,7 @@ static const char copyright[] =
 
 #ifndef lint
 #if 0
-static char sccsid[] = "@(#)rshd.c	8.2 (Berkeley) 4/6/94";
+static const char sccsid[] = "@(#)rshd.c	8.2 (Berkeley) 4/6/94";
 #endif
 static const char rcsid[] =
 	"$Id$";
@@ -92,7 +92,7 @@ void	 usage __P((void));
 
 #ifdef	KERBEROS
 #include <des.h>
-#include <kerberosIV/krb.h>
+#include <krb.h>
 #define	VERSION_SIZE	9
 #define SECURE_MESSAGE  "This rsh session is using DES encryption for all transmissions.\r\n"
 #define	OPTIONS		"alnkvxL"
@@ -312,8 +312,12 @@ doit(fromp)
 #ifdef	KERBEROS
 		if (!use_kerberos)
 #endif
-			if (port >= IPPORT_RESERVED) {
-				syslog(LOG_ERR, "2nd port not reserved\n");
+			if (port >= IPPORT_RESERVED ||
+			    port < IPPORT_RESERVED/2) {
+				syslog(LOG_NOTICE|LOG_AUTH,
+				    "2nd socket from %s on unreserved port %u",
+				    inet_ntoa(fromp->sin_addr),
+				    port);
 				exit(1);
 			}
 		fromp->sin_port = htons(port);
@@ -418,7 +422,7 @@ doit(fromp)
 				"rcmd", instance, &fromaddr,
 				&local_addr, kdata, "", schedule,
 				version);
-			des_set_key_krb(&kdata->session, schedule);
+			des_set_key(&kdata->session, schedule);
 		} else
 #endif
 			rc = krb_recvauth(authopts, 0, ticket, "rcmd",
@@ -479,7 +483,7 @@ doit(fromp)
 				syslog(LOG_INFO|LOG_AUTH,
 				    "Kerberos rsh denied to %s.%s@%s",
 				    kdata->pname, kdata->pinst, kdata->prealm);
-				error("Permission denied.\n");
+				error("Login incorrect.\n");
 				exit(1);
 			}
 		}
@@ -502,7 +506,7 @@ doit(fromp)
 				    remuser, hostname, locuser, cmdbuf);
 fail:
 			if (errorstr == NULL)
-				errorstr = "Permission denied.\n";
+				errorstr = "Login incorrect.\n";
 			error(errorstr, errorhost);
 			exit(1);
 		}
@@ -572,7 +576,8 @@ fail:
 				static char msg[] = SECURE_MESSAGE;
 				(void) close(pv1[1]);
 				(void) close(pv2[1]);
-				des_write(s, msg, sizeof(msg) - 1);
+				des_enc_write(s, msg, sizeof(msg) - 1, 
+					schedule, &kdata->session);
 
 			} else
 #endif
@@ -628,7 +633,8 @@ fail:
 #ifdef CRYPT
 #ifdef KERBEROS
 					if (doencrypt)
-						ret = des_read(s, &sig, 1);
+						ret = des_enc_read(s, &sig, 1,
+						schedule, &kdata->session);
 					else
 #endif
 #endif
@@ -649,7 +655,8 @@ fail:
 #ifdef KERBEROS
 						if (doencrypt)
 							(void)
-							  des_write(s, buf, cc);
+							  des_enc_write(s, buf, cc,
+								schedule, &kdata->session);
 						else
 #endif
 #endif
@@ -666,14 +673,16 @@ fail:
 						shutdown(pv1[0], 1+1);
 						FD_CLR(pv1[0], &readfrom);
 					} else
-						(void) des_write(STDOUT_FILENO,
-						    buf, cc);
+						(void) des_enc_write(STDOUT_FILENO,
+						    buf, cc,
+							schedule, &kdata->session);
 				}
 
 				if (doencrypt && FD_ISSET(pv2[0], &wready)) {
 					errno = 0;
-					cc = des_read(STDIN_FILENO,
-					    buf, sizeof(buf));
+					cc = des_enc_read(STDIN_FILENO,
+					    buf, sizeof(buf),
+						schedule, &kdata->session);
 					if (cc <= 0) {
 						shutdown(pv2[0], 1+1);
 						FD_CLR(pv2[0], &writeto);
