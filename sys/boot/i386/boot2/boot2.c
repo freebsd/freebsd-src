@@ -135,7 +135,7 @@ static inline int
 strcmp(const char *s1, const char *s2)
 {
     for (; *s1 == *s2 && *s1; s1++, s2++);
-    return (u_char)*s1 - (u_char)*s2;
+    return *s1 - *s2;
 }
 
 #include "ufsread.c"
@@ -143,7 +143,7 @@ strcmp(const char *s1, const char *s2)
 static int
 xfsread(ino_t inode, void *buf, size_t nbyte)
 {
-    if (fsread(inode, buf, nbyte) != nbyte) {
+    if ((size_t)fsread(inode, buf, nbyte) != nbyte) {
 	printf("Invalid %s\n", "format");
 	return -1;
     }
@@ -259,7 +259,7 @@ main(void)
 	    putchar('\n');
 	autoboot = 0;
 	if (parse(cmd))
-	    putchar('\a'); 
+	    putchar('\a');
 	else
 	    load(kname);
     }
@@ -311,7 +311,7 @@ load(const char *fname)
 	    return;
 	p += hdr.ex.a_data + roundup2(hdr.ex.a_bss, PAGE_SIZE);
 	bootinfo.bi_symtab = VTOP(p);
-	memcpy(p, (char *)&hdr.ex.a_syms, sizeof(hdr.ex.a_syms));
+	memcpy(p, &hdr.ex.a_syms, sizeof(hdr.ex.a_syms));
 	p += sizeof(hdr.ex.a_syms);
 	if (hdr.ex.a_syms) {
 	    if (xfsread(ino, p, hdr.ex.a_syms))
@@ -348,7 +348,7 @@ load(const char *fname)
 	    if (xfsread(ino, &es, sizeof(es)))
 		return;
 	    for (i = 0; i < 2; i++) {
-		memcpy(p, (char *)&es[i].sh_size, sizeof(es[i].sh_size));
+		memcpy(p, &es[i].sh_size, sizeof(es[i].sh_size));
 		p += sizeof(es[i].sh_size);
 		fs_off = es[i].sh_offset;
 		if (xfsread(ino, p, es[i].sh_size))
@@ -437,7 +437,7 @@ parse(char *arg)
 		dsk_meta = 0;
 	    }
 	    if ((i = p - arg - !*(p - 1))) {
-		if (i >= sizeof(kname))
+		if ((size_t)i >= sizeof(kname))
 		    return -1;
 		memcpy(kname, arg, i + 1);
 	    }
