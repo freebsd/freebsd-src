@@ -124,11 +124,10 @@ soalloc(waitok)
 		flag = M_WAITOK;
 	else
 		flag = M_NOWAIT;
-
+	flag |= M_ZERO;
 	so = uma_zalloc(socket_zone, flag);
 	if (so) {
 		/* XXX race condition for reentrant kernel */
-		bzero(so, sizeof *so);
 		so->so_gencnt = ++so_gencnt;
 		mtx_init(&so->so_rcv.sb_mtx, "sockbuf rcv", NULL, MTX_DEF);
 		mtx_init(&so->so_snd.sb_mtx, "sockbuf snd", NULL, MTX_DEF);
