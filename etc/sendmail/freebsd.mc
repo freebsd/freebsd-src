@@ -84,6 +84,7 @@ dnl Uncomment both of the following lines to listen on IPv6 as well as IPv4
 dnl DAEMON_OPTIONS(`Name=IPv4, Family=inet')
 dnl DAEMON_OPTIONS(`Name=IPv6, Family=inet6')
 
+define(`confBIND_OPTS', `WorkAroundBrokenAAAA')
 define(`confMAX_MIME_HEADER_LENGTH', `256/128')
 define(`confNO_RCPT_ACTION', `add-to-undisclosed')
 define(`confPRIVACY_FLAGS', `authwarnings,noexpn,novrfy')
