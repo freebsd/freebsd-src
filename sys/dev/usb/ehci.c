@@ -725,7 +725,7 @@ ehci_idone(struct ehci_xfer *ex)
 	usbd_xfer_handle xfer = &ex->xfer;
 	struct ehci_pipe *epipe = (struct ehci_pipe *)xfer->pipe;
 	ehci_soft_qtd_t *sqtd;
-	u_int32_t status = 0, nstatus;
+	u_int32_t status, nstatus;
 	int actlen;
 
 	DPRINTFN(/*12*/2, ("ehci_idone: ex=%p\n", ex));
@@ -761,6 +761,8 @@ ehci_idone(struct ehci_xfer *ex)
 
 	/* The transfer is done, compute actual length and status. */
 	actlen = 0;
+	nstatus = 0;
+	status = 0;
 	for (sqtd = ex->sqtdstart; sqtd != NULL; sqtd = sqtd->nextqtd) {
 		nstatus = le32toh(sqtd->qtd.qtd_status);
 		if (nstatus & EHCI_QTD_ACTIVE)
