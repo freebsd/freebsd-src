@@ -21,16 +21,13 @@
  *  Optimization module for tcpdump intermediate representation.
  */
 #ifndef lint
-static const char rcsid[] =
-    "@(#) $Header: /tcpdump/master/libpcap/optimize.c,v 1.69 2001/11/12 21:57:06 fenner Exp $ (LBL)";
+static const char rcsid[] _U_ =
+    "@(#) $Header: /tcpdump/master/libpcap/optimize.c,v 1.76.2.3 2003/12/22 00:26:36 guy Exp $ (LBL)";
 #endif
 
 #ifdef HAVE_CONFIG_H
 #include "config.h"
 #endif
-
-#include <sys/types.h>
-#include <sys/time.h>
 
 #include <stdio.h>
 #include <stdlib.h>
@@ -120,9 +117,6 @@ static void opt_peep(struct block *);
 static void opt_stmt(struct stmt *, int[], int);
 static void deadstmt(struct stmt *, struct stmt *[]);
 static void opt_deadstores(struct block *);
-static void opt_blk(struct block *, int);
-static int use_conflict(struct block *, struct block *);
-static void opt_j(struct edge *);
 static struct block *fold_edge(struct block *, struct edge *);
 static inline int eq_blk(struct block *, struct block *);
 static int slength(struct slist *);
@@ -766,50 +760,39 @@ opt_peep(b)
 	 * is a known constant, we can merge this value into the
 	 * comparison.
 	 */
-	if (last->s.code == (BPF_ALU|BPF_SUB|BPF_X) &&
-	    !ATOMELEM(b->out_use, A_ATOM)) {
-		val = b->val[X_ATOM];
-		if (vmap[val].is_const) {
-			int op;
-
-			b->s.k += vmap[val].const_val;
-			op = BPF_OP(b->s.code);
-			if (op == BPF_JGT || op == BPF_JGE) {
-				struct block *t = JT(b);
-				JT(b) = JF(b);
-				JF(b) = t;
-				b->s.k += 0x80000000;
+	if (BPF_OP(b->s.code) == BPF_JEQ) {
+		if (last->s.code == (BPF_ALU|BPF_SUB|BPF_X) &&
+		    !ATOMELEM(b->out_use, A_ATOM)) {
+			val = b->val[X_ATOM];
+			if (vmap[val].is_const) {
+				/*
+				 * sub x  ->	nop
+				 * jeq #y	jeq #(x+y)
+				 */
+				b->s.k += vmap[val].const_val;
+				last->s.code = NOP;
+				done = 0;
+			} else if (b->s.k == 0) {
+				/*
+				 * sub #x  ->	nop
+				 * jeq #0	jeq #x
+				 */
+				last->s.code = NOP;
+				b->s.code = BPF_CLASS(b->s.code) |
+					BPF_OP(b->s.code) | BPF_X;
+				done = 0;
 			}
-			last->s.code = NOP;
-			done = 0;
-		} else if (b->s.k == 0) {
-			/*
-			 * sub x  ->	nop
-			 * j  #0	j  x
-			 */
-			last->s.code = NOP;
-			b->s.code = BPF_CLASS(b->s.code) | BPF_OP(b->s.code) |
-				BPF_X;
-			done = 0;
 		}
-	}
-	/*
-	 * Likewise, a constant subtract can be simplified.
-	 */
-	else if (last->s.code == (BPF_ALU|BPF_SUB|BPF_K) &&
-		 !ATOMELEM(b->out_use, A_ATOM)) {
-		int op;
+		/*
+		 * Likewise, a constant subtract can be simplified.
+		 */
+		else if (last->s.code == (BPF_ALU|BPF_SUB|BPF_K) &&
+			 !ATOMELEM(b->out_use, A_ATOM)) {
 
-		b->s.k += last->s.k;
-		last->s.code = NOP;
-		op = BPF_OP(b->s.code);
-		if (op == BPF_JGT || op == BPF_JGE) {
-			struct block *t = JT(b);
-			JT(b) = JF(b);
-			JF(b) = t;
-			b->s.k += 0x80000000;
+			last->s.code = NOP;
+			b->s.k += last->s.k;
+			done = 0;
 		}
-		done = 0;
 	}
 	/*
 	 * and #k	nop
@@ -822,6 +805,16 @@ opt_peep(b)
 		last->s.code = NOP;
 		done = 0;
 		opt_not(b);
+	}
+	/*
+	 * jset #0        ->   never
+	 * jset #ffffffff ->   always
+	 */
+	if (b->s.code == (BPF_JMP|BPF_K|BPF_JSET)) {
+		if (b->s.k == 0)
+			JT(b) = JF(b);
+		if (b->s.k == 0xffffffff)
+			JF(b) = JT(b);
 	}
 	/*
 	 * If the accumulator is a known constant, we can compute the
@@ -992,18 +985,17 @@ opt_stmt(s, val, alter)
 		 * that is 0, and simplify.  This may not seem like
 		 * much of a simplification but it could open up further
 		 * optimizations.
-		 * XXX We could also check for mul by 1, and -1, etc.
+		 * XXX We could also check for mul by 1, etc.
 		 */
 		if (alter && vmap[val[A_ATOM]].is_const
 		    && vmap[val[A_ATOM]].const_val == 0) {
-			if (op == BPF_ADD || op == BPF_OR ||
-			    op == BPF_LSH || op == BPF_RSH || op == BPF_SUB) {
+			if (op == BPF_ADD || op == BPF_OR) {
 				s->code = BPF_MISC|BPF_TXA;
 				vstore(s, &val[A_ATOM], val[X_ATOM], alter);
 				break;
 			}
 			else if (op == BPF_MUL || op == BPF_DIV ||
-				 op == BPF_AND) {
+				 op == BPF_AND || op == BPF_LSH || op == BPF_RSH) {
 				s->code = BPF_LD|BPF_IMM;
 				s->k = 0;
 				vstore(s, &val[A_ATOM], K(s->k), alter);
@@ -1148,7 +1140,7 @@ opt_blk(b, do_stmts)
 	 * already there, or if this block is a return,
 	 * eliminate all the statements.
 	 */
-	if (do_stmts && 
+	if (do_stmts &&
 	    ((b->out_use == 0 && aval != 0 &&b->val[A_ATOM] == aval) ||
 	     BPF_CLASS(b->s.code) == BPF_RET)) {
 		if (b->stmts != 0) {
@@ -1851,17 +1843,23 @@ opt_init(root)
 	unMarkAll();
 	n = count_blocks(root);
 	blocks = (struct block **)malloc(n * sizeof(*blocks));
+	if (blocks == NULL)
+		bpf_error("malloc");
 	unMarkAll();
 	n_blocks = 0;
 	number_blks_r(root);
 
 	n_edges = 2 * n_blocks;
 	edges = (struct edge **)malloc(n_edges * sizeof(*edges));
+	if (edges == NULL)
+		bpf_error("malloc");
 
 	/*
 	 * The number of levels is bounded by the number of nodes.
 	 */
 	levels = (struct block **)malloc(n_blocks * sizeof(*levels));
+	if (levels == NULL)
+		bpf_error("malloc");
 
 	edgewords = n_edges / (8 * sizeof(bpf_u_int32)) + 1;
 	nodewords = n_blocks / (8 * sizeof(bpf_u_int32)) + 1;
@@ -1869,6 +1867,8 @@ opt_init(root)
 	/* XXX */
 	space = (bpf_u_int32 *)malloc(2 * n_blocks * nodewords * sizeof(*space)
 				 + n_edges * edgewords * sizeof(*space));
+	if (space == NULL)
+		bpf_error("malloc");
 	p = space;
 	all_dom_sets = p;
 	for (i = 0; i < n; ++i) {
@@ -1906,6 +1906,8 @@ opt_init(root)
 	maxval = 3 * max_stmts;
 	vmap = (struct vmapinfo *)malloc(maxval * sizeof(*vmap));
 	vnode_base = (struct valnode *)malloc(maxval * sizeof(*vnode_base));
+	if (vmap == NULL || vnode_base == NULL)
+		bpf_error("malloc");
 }
 
 /*
@@ -1954,7 +1956,7 @@ convert_code_r(p)
 
 	/* generate offset[] for convenience  */
 	if (slen) {
-		offset = (struct slist **)calloc(sizeof(struct slist *), slen);
+		offset = (struct slist **)calloc(slen, sizeof(struct slist *));
 		if (!offset) {
 			bpf_error("not enough core");
 			/*NOTREACHED*/
@@ -2100,12 +2102,14 @@ icode_to_fcode(root, lenp)
 	while (1) {
 	    unMarkAll();
 	    n = *lenp = count_stmts(root);
-    
+
 	    fp = (struct bpf_insn *)malloc(sizeof(*fp) * n);
+	    if (fp == NULL)
+		    bpf_error("malloc");
 	    memset((char *)fp, 0, sizeof(*fp) * n);
 	    fstart = fp;
 	    ftail = fp + n;
-    
+
 	    unMarkAll();
 	    if (convert_code_r(root))
 		break;

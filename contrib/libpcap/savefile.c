@@ -29,23 +29,19 @@
  */
 
 #ifndef lint
-static const char rcsid[] =
-    "@(#) $Header: /tcpdump/master/libpcap/savefile.c,v 1.55 2001/11/28 07:16:53 guy Exp $ (LBL)";
+static const char rcsid[] _U_ =
+    "@(#) $Header: /tcpdump/master/libpcap/savefile.c,v 1.92.2.11 2004/03/11 23:46:14 guy Exp $ (LBL)";
 #endif
 
 #ifdef HAVE_CONFIG_H
 #include "config.h"
 #endif
 
-#include <sys/types.h>
-#include <sys/time.h>
-
 #include <errno.h>
 #include <memory.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#include <unistd.h>
 
 #include "pcap-int.h"
 
@@ -61,7 +57,10 @@ static const char rcsid[] =
  * because time is at a premium when we are writing the file.
  * In other words, the pcap_file_header and pcap_pkthdr,
  * records are written in host byte order.
- * Note that the packets are always written in network byte order.
+ * Note that the bytes of packet data are written out in the order in
+ * which they were received, so multi-byte fields in packets are not
+ * written in host byte order, they're written in whatever order the
+ * sending machine put them in.
  *
  * ntoh[ls] aren't sufficient because we might need to swap on a big-endian
  * machine (if the file was written in little-end order).
@@ -119,6 +118,12 @@ static const char rcsid[] =
  * to handle the new encapsulation type, so that they can also be checked
  * into the tcpdump.org CVS repository and so that they will appear in
  * future libpcap and tcpdump releases.
+ *
+ * Do *NOT* assume that any values after the largest value in this file
+ * are available; you might not have the most up-to-date version of this
+ * file, and new values after that one might have been assigned.  Also,
+ * do *NOT* use any values below 100 - those might already have been
+ * taken by one (or more!) organizations.
  */
 #define LINKTYPE_NULL		DLT_NULL
 #define LINKTYPE_ETHERNET	DLT_EN10MB	/* also for 100Mb and up */
@@ -127,7 +132,7 @@ static const char rcsid[] =
 #define LINKTYPE_PRONET		DLT_PRONET
 #define LINKTYPE_CHAOS		DLT_CHAOS
 #define LINKTYPE_TOKEN_RING	DLT_IEEE802	/* DLT_IEEE802 is used for Token Ring */
-#define LINKTYPE_ARCNET		DLT_ARCNET
+#define LINKTYPE_ARCNET		DLT_ARCNET	/* BSD-style headers */
 #define LINKTYPE_SLIP		DLT_SLIP
 #define LINKTYPE_PPP		DLT_PPP
 #define LINKTYPE_FDDI		DLT_FDDI
@@ -151,6 +156,13 @@ static const char rcsid[] =
 
 #define LINKTYPE_PPP_ETHER	51		/* NetBSD PPP-over-Ethernet */
 
+/*
+ * This isn't supported in libpcap 0.8[.x], but is supported in the
+ * current CVS version; we include it here to note that it's not available
+ * for anybody else to use.
+ */
+#define LINKTYPE_SYMANTEC_FIREWALL 99		/* Symantec Enterprise Firewall */
+
 #define LINKTYPE_ATM_RFC1483	100		/* LLC/SNAP-encapsulated ATM */
 #define LINKTYPE_RAW		101		/* raw IP */
 #define LINKTYPE_SLIP_BSDOS	102		/* BSD/OS SLIP BPF header */
@@ -158,26 +170,160 @@ static const char rcsid[] =
 #define LINKTYPE_C_HDLC		104		/* Cisco HDLC */
 #define LINKTYPE_IEEE802_11	105		/* IEEE 802.11 (wireless) */
 #define LINKTYPE_ATM_CLIP	106		/* Linux Classical IP over ATM */
+#define LINKTYPE_FRELAY		107		/* Frame Relay */
 #define LINKTYPE_LOOP		108		/* OpenBSD loopback */
+#define LINKTYPE_ENC		109		/* OpenBSD IPSEC enc */
+
+/*
+ * These three types are reserved for future use.
+ */
+#define LINKTYPE_LANE8023	110		/* ATM LANE + 802.3 */
+#define LINKTYPE_HIPPI		111		/* NetBSD HIPPI */
+#define LINKTYPE_HDLC		112		/* NetBSD HDLC framing */
 
 #define LINKTYPE_LINUX_SLL	113		/* Linux cooked socket capture */
 #define LINKTYPE_LTALK		114		/* Apple LocalTalk hardware */
 #define LINKTYPE_ECONET		115		/* Acorn Econet */
 
+/*
+ * Reserved for use with OpenBSD ipfilter.
+ */
+#define LINKTYPE_IPFILTER	116
+
+#define LINKTYPE_PFLOG		117		/* OpenBSD DLT_PFLOG */
 #define LINKTYPE_CISCO_IOS	118		/* For Cisco-internal use */
 #define LINKTYPE_PRISM_HEADER	119		/* 802.11+Prism II monitor mode */
 #define LINKTYPE_AIRONET_HEADER	120		/* FreeBSD Aironet driver stuff */
 
 /*
- * These types are reserved for future use.
+ * Reserved for Siemens HiPath HDLC.
  */
-#define LINKTYPE_FR		107		/* BSD/OS Frame Relay */
-#define LINKTYPE_ENC		109		/* OpenBSD IPSEC enc */
-#define LINKTYPE_LANE8023	110		/* ATM LANE + 802.3 */
-#define LINKTYPE_HIPPI		111		/* NetBSD HIPPI */
-#define LINKTYPE_HDLC		112		/* NetBSD HDLC framing */
-#define LINKTYPE_IPFILTER	116		/* IP Filter capture files */
-#define LINKTYPE_PFLOG		117		/* OpenBSD DLT_PFLOG */
+#define LINKTYPE_HHDLC		121
+
+#define LINKTYPE_IP_OVER_FC	122		/* RFC 2625 IP-over-Fibre Channel */
+#define LINKTYPE_SUNATM		123		/* Solaris+SunATM */
+
+/*
+ * Reserved as per request from Kent Dahlgren <kent@praesum.com>
+ * for private use.
+ */
+#define LINKTYPE_RIO		124		/* RapidIO */
+#define LINKTYPE_PCI_EXP	125		/* PCI Express */
+#define LINKTYPE_AURORA		126		/* Xilinx Aurora link layer */
+
+#define LINKTYPE_IEEE802_11_RADIO 127		/* 802.11 plus BSD radio header */
+
+/*
+ * Reserved for the TZSP encapsulation, as per request from
+ * Chris Waters <chris.waters@networkchemistry.com>
+ * TZSP is a generic encapsulation for any other link type,
+ * which includes a means to include meta-information
+ * with the packet, e.g. signal strength and channel
+ * for 802.11 packets.
+ */
+#define LINKTYPE_TZSP		128		/* Tazmen Sniffer Protocol */
+
+#define LINKTYPE_ARCNET_LINUX	129		/* Linux-style headers */
+
+/*
+ * Juniper-private data link types, as per request from
+ * Hannes Gredler <hannes@juniper.net>.  The corresponding
+ * DLT_s are used for passing on chassis-internal
+ * metainformation such as QOS profiles, etc..
+ */
+#define LINKTYPE_JUNIPER_MLPPP  130
+#define LINKTYPE_JUNIPER_MLFR   131
+#define LINKTYPE_JUNIPER_ES     132
+#define LINKTYPE_JUNIPER_GGSN   133
+#define LINKTYPE_JUNIPER_MFR    134
+#define LINKTYPE_JUNIPER_ATM2   135
+#define LINKTYPE_JUNIPER_SERVICES 136
+#define LINKTYPE_JUNIPER_ATM1   137
+
+#define LINKTYPE_APPLE_IP_OVER_IEEE1394 138	/* Apple IP-over-IEEE 1394 cooked header */
+
+#define LINKTYPE_RAWSS7         139             /* see rawss7.h for */
+#define LINKTYPE_RAWSS7_MTP2    140	        /* information  on these */
+#define LINKTYPE_RAWSS7_MTP3    141             /* definitions */
+#define LINKTYPE_RAWSS7_SCCP    142
+
+/*
+ * This isn't supported in libpcap 0.8[.x], but is supported in the
+ * current CVS version; we include it here to note that it's not available
+ * for anybody else to use.
+ */
+#define LINKTYPE_DOCSIS		143		/* DOCSIS MAC frames */
+
+#define LINKTYPE_LINUX_IRDA	144		/* Linux-IrDA */
+
+/*
+ * Reserved for IBM SP switch and IBM Next Federation switch.
+ */
+#define LINKTYPE_IBM_SP		145
+#define LINKTYPE_IBM_SN		146
+
+/*
+ * Reserved for private use.  If you have some link-layer header type
+ * that you want to use within your organization, with the capture files
+ * using that link-layer header type not ever be sent outside your
+ * organization, you can use these values.
+ *
+ * No libpcap release will use these for any purpose, nor will any
+ * tcpdump release use them, either.
+ *
+ * Do *NOT* use these in capture files that you expect anybody not using
+ * your private versions of capture-file-reading tools to read; in
+ * particular, do *NOT* use them in products, otherwise you may find that
+ * people won't be able to use tcpdump, or snort, or Ethereal, or... to
+ * read capture files from your firewall/intrusion detection/traffic
+ * monitoring/etc. appliance, or whatever product uses that LINKTYPE_ value,
+ * and you may also find that the developers of those applications will
+ * not accept patches to let them read those files.
+ *
+ * Also, do not use them if somebody might send you a capture using them
+ * for *their* private type and tools using them for *your* private type
+ * would have to read them.
+ *
+ * Instead, in those cases, ask "tcpdump-workers@tcpdump.org" for a new DLT_
+ * and LINKTYPE_ value, as per the comment in pcap-bpf.h, and use the type
+ * you're given.
+ */
+#define LINKTYPE_USER0		147
+#define LINKTYPE_USER1		148
+#define LINKTYPE_USER2		149
+#define LINKTYPE_USER3		150
+#define LINKTYPE_USER4		151
+#define LINKTYPE_USER5		152
+#define LINKTYPE_USER6		153
+#define LINKTYPE_USER7		154
+#define LINKTYPE_USER8		155
+#define LINKTYPE_USER9		156
+#define LINKTYPE_USER10		157
+#define LINKTYPE_USER11		158
+#define LINKTYPE_USER12		159
+#define LINKTYPE_USER13		160
+#define LINKTYPE_USER14		161
+#define LINKTYPE_USER15		162
+
+/*
+ * For future use with 802.11 captures - defined by AbsoluteValue
+ * Systems to store a number of bits of link-layer information
+ * including radio information:
+ *
+ *	http://www.shaftnet.org/~pizza/software/capturefrm.txt
+ *
+ * but could and arguably should also be used by non-AVS Linux
+ * 802.11 drivers; that may happen in the future.
+ */
+#define LINKTYPE_IEEE802_11_RADIO_AVS 163	/* 802.11 plus AVS radio header */
+
+/*
+ * Juniper-private data link type, as per request from
+ * Hannes Gredler <hannes@juniper.net>.  The corresponding
+ * DLT_s are used for passing on chassis-internal
+ * metainformation such as QOS profiles, etc..
+ */
+#define LINKTYPE_JUNIPER_MONITOR 164
 
 static struct linktype_map {
 	int	dlt;
@@ -205,6 +351,12 @@ static struct linktype_map {
 	 * have values that should never be equal to any DLT_*
 	 * code.
 	 */
+#ifdef DLT_FR
+	/* BSD/OS Frame Relay */
+	{ DLT_FR,		LINKTYPE_FRELAY },
+#endif
+
+	{ DLT_SYMANTEC_FIREWALL, LINKTYPE_SYMANTEC_FIREWALL },
 	{ DLT_ATM_RFC1483, 	LINKTYPE_ATM_RFC1483 },
 	{ DLT_RAW,		LINKTYPE_RAW },
 	{ DLT_SLIP_BSDOS,	LINKTYPE_SLIP_BSDOS },
@@ -232,6 +384,9 @@ static struct linktype_map {
 	/* IEEE 802.11 wireless */
 	{ DLT_IEEE802_11,	LINKTYPE_IEEE802_11 },
 
+	/* Frame Relay */
+	{ DLT_FRELAY,		LINKTYPE_FRELAY },
+
 	/* OpenBSD loopback */
 	{ DLT_LOOP,		LINKTYPE_LOOP },
 
@@ -244,6 +399,9 @@ static struct linktype_map {
 	/* Acorn Econet */
 	{ DLT_ECONET,		LINKTYPE_ECONET },
 
+	/* OpenBSD DLT_PFLOG */
+	{ DLT_PFLOG,		LINKTYPE_PFLOG },
+
 	/* For Cisco-internal use */
 	{ DLT_CISCO_IOS,	LINKTYPE_CISCO_IOS },
 
@@ -252,6 +410,59 @@ static struct linktype_map {
 
 	/* FreeBSD Aironet driver stuff */
 	{ DLT_AIRONET_HEADER,	LINKTYPE_AIRONET_HEADER },
+
+	/* Siemens HiPath HDLC */
+	{ DLT_HHDLC,		LINKTYPE_HHDLC },
+
+	/* RFC 2625 IP-over-Fibre Channel */
+	{ DLT_IP_OVER_FC,	LINKTYPE_IP_OVER_FC },
+
+	/* Solaris+SunATM */
+	{ DLT_SUNATM,		LINKTYPE_SUNATM },
+
+	/* RapidIO */
+	{ DLT_RIO,		LINKTYPE_RIO },
+
+	/* PCI Express */
+	{ DLT_PCI_EXP,		LINKTYPE_PCI_EXP },
+
+	/* Xilinx Aurora link layer */
+	{ DLT_AURORA,		LINKTYPE_AURORA },
+
+	/* 802.11 plus BSD radio header */
+	{ DLT_IEEE802_11_RADIO,	LINKTYPE_IEEE802_11_RADIO },
+
+	/* Tazmen Sniffer Protocol */
+	{ DLT_TZSP,		LINKTYPE_TZSP },
+
+	/* Arcnet with Linux-style link-layer headers */
+	{ DLT_ARCNET_LINUX,	LINKTYPE_ARCNET_LINUX },
+
+        /* Juniper-internal chassis encapsulation */
+        { DLT_JUNIPER_MLPPP,    LINKTYPE_JUNIPER_MLPPP },
+        { DLT_JUNIPER_MLFR,     LINKTYPE_JUNIPER_MLFR },
+        { DLT_JUNIPER_ES,       LINKTYPE_JUNIPER_ES },
+        { DLT_JUNIPER_GGSN,     LINKTYPE_JUNIPER_GGSN },
+        { DLT_JUNIPER_MFR,      LINKTYPE_JUNIPER_MFR },
+        { DLT_JUNIPER_ATM2,     LINKTYPE_JUNIPER_ATM2 },
+        { DLT_JUNIPER_SERVICES, LINKTYPE_JUNIPER_SERVICES },
+        { DLT_JUNIPER_ATM1,     LINKTYPE_JUNIPER_ATM1 },
+
+	/* Apple IP-over-IEEE 1394 cooked header */
+	{ DLT_APPLE_IP_OVER_IEEE1394, LINKTYPE_APPLE_IP_OVER_IEEE1394 },
+
+	/* DOCSIS MAC frames */
+	{ DLT_DOCSIS,		LINKTYPE_DOCSIS },
+
+	/* IrDA IrLAP packets + Linux-cooked header */
+	{ DLT_LINUX_IRDA,	LINKTYPE_LINUX_IRDA },
+
+	/* IBM SP and Next Federation switches */
+	{ DLT_IBM_SP,		LINKTYPE_IBM_SP },
+	{ DLT_IBM_SN,		LINKTYPE_IBM_SN },
+
+	/* 802.11 plus AVS radio header */
+	{ DLT_IEEE802_11_RADIO_AVS, LINKTYPE_IEEE802_11_RADIO_AVS },
 
 	/*
 	 * Any platform that defines additional DLT_* codes should:
@@ -271,6 +482,10 @@ static struct linktype_map {
 	 *	defining DLT_* values that collide with those
 	 *	LINKTYPE_* values, either).
 	 */
+
+        /* Juniper-internal chassis encapsulation */
+        { DLT_JUNIPER_MONITOR,     LINKTYPE_JUNIPER_MONITOR },
+
 	{ -1,			-1 }
 };
 
@@ -341,6 +556,43 @@ swap_hdr(struct pcap_file_header *hp)
 	hp->linktype = SWAPLONG(hp->linktype);
 }
 
+static int
+sf_getnonblock(pcap_t *p, char *errbuf)
+{
+	/*
+	 * This is a savefile, not a live capture file, so never say
+	 * it's in non-blocking mode.
+	 */
+	return (0);
+}
+
+static int
+sf_setnonblock(pcap_t *p, int nonblock, char *errbuf)
+{
+	/*
+	 * This is a savefile, not a live capture file, so ignore
+	 * requests to put it in non-blocking mode.
+	 */
+	return (0);
+}
+
+static int
+sf_stats(pcap_t *p, struct pcap_stat *ps)
+{
+	snprintf(p->errbuf, PCAP_ERRBUF_SIZE,
+	    "Statistics aren't available from savefiles");
+	return (-1);
+}
+
+static void
+sf_close(pcap_t *p)
+{
+	if (p->sf.rfile != stdin)
+		(void)fclose(p->sf.rfile);
+	if (p->sf.base != NULL)
+		free(p->sf.base);
+}
+
 pcap_t *
 pcap_open_offline(const char *fname, char *errbuf)
 {
@@ -357,15 +609,15 @@ pcap_open_offline(const char *fname, char *errbuf)
 	}
 
 	memset((char *)p, 0, sizeof(*p));
-	/*
-	 * Set this field so we don't close stdin in pcap_close!
-	 */
-	p->fd = -1;
 
 	if (fname[0] == '-' && fname[1] == '\0')
 		fp = stdin;
 	else {
+#ifndef WIN32
 		fp = fopen(fname, "r");
+#else
+		fp = fopen(fname, "rb");
+#endif
 		if (fp == NULL) {
 			snprintf(errbuf, PCAP_ERRBUF_SIZE, "%s: %s", fname,
 			    pcap_strerror(errno));
@@ -406,7 +658,12 @@ pcap_open_offline(const char *fname, char *errbuf)
 	p->snapshot = hdr.snaplen;
 	p->linktype = linktype_to_dlt(hdr.linktype);
 	p->sf.rfile = fp;
+#ifndef WIN32
 	p->bufsize = hdr.snaplen;
+#else
+	/* Allocate the space for pcap_pkthdr as well. It will be used by pcap_read_ex */
+	p->bufsize = hdr.snaplen+sizeof(struct pcap_pkthdr);
+#endif
 
 	/* Align link header as required for proper data alignment */
 	/* XXX should handle all types */
@@ -441,8 +698,59 @@ pcap_open_offline(const char *fname, char *errbuf)
 	pcap_fddipad = 0;
 #endif
 
+	/*
+	 * We interchanged the caplen and len fields at version 2.3,
+	 * in order to match the bpf header layout.  But unfortunately
+	 * some files were written with version 2.3 in their headers
+	 * but without the interchanged fields.
+	 *
+	 * In addition, DG/UX tcpdump writes out files with a version
+	 * number of 543.0, and with the caplen and len fields in the
+	 * pre-2.3 order.
+	 */
+	switch (hdr.version_major) {
+
+	case 2:
+		if (hdr.version_minor < 3)
+			p->sf.lengths_swapped = SWAPPED;
+		else if (hdr.version_minor == 3)
+			p->sf.lengths_swapped = MAYBE_SWAPPED;
+		else
+			p->sf.lengths_swapped = NOT_SWAPPED;
+		break;
+
+	case 543:
+		p->sf.lengths_swapped = SWAPPED;
+		break;
+
+	default:
+		p->sf.lengths_swapped = NOT_SWAPPED;
+		break;
+	}
+
+#ifndef WIN32
+	/*
+	 * You can do "select()" and "poll()" on plain files on most
+	 * platforms, and should be able to do so on pipes.
+	 *
+	 * You can't do "select()" on anything other than sockets in
+	 * Windows, so, on Win32 systems, we don't have "selectable_fd".
+	 */
+	p->selectable_fd = fileno(fp);
+#endif
+
+	p->read_op = pcap_offline_read;
+	p->setfilter_op = install_bpf_program;
+	p->set_datalink_op = NULL;	/* we don't support munging link-layer headers */
+	p->getnonblock_op = sf_getnonblock;
+	p->setnonblock_op = sf_setnonblock;
+	p->stats_op = sf_stats;
+	p->close_op = sf_close;
+
 	return (p);
  bad:
+	if(fp)
+		fclose(fp);
 	free(p);
 	return (NULL);
 }
@@ -453,10 +761,12 @@ pcap_open_offline(const char *fname, char *errbuf)
  * no more packets, and SFERR_TRUNC if a partial packet was encountered.
  */
 static int
-sf_next_packet(pcap_t *p, struct pcap_pkthdr *hdr, u_char *buf, int buflen)
+sf_next_packet(pcap_t *p, struct pcap_pkthdr *hdr, u_char *buf, u_int buflen)
 {
 	struct pcap_sf_patched_pkthdr sf_hdr;
 	FILE *fp = p->sf.rfile;
+	size_t amt_read;
+	bpf_u_int32 t;
 
 	/*
 	 * Read the packet header; the structure we use as a buffer
@@ -465,9 +775,23 @@ sf_next_packet(pcap_t *p, struct pcap_pkthdr *hdr, u_char *buf, int buflen)
 	 * unpatched libpcap we only read as many bytes as the regular
 	 * header has.
 	 */
-	if (fread(&sf_hdr, p->sf.hdrsize, 1, fp) != 1) {
-		/* probably an EOF, though could be a truncated packet */
-		return (1);
+	amt_read = fread(&sf_hdr, 1, p->sf.hdrsize, fp);
+	if (amt_read != p->sf.hdrsize) {
+		if (ferror(fp)) {
+			snprintf(p->errbuf, PCAP_ERRBUF_SIZE,
+			    "error reading dump file: %s",
+			    pcap_strerror(errno));
+			return (-1);
+		} else {
+			if (amt_read != 0) {
+				snprintf(p->errbuf, PCAP_ERRBUF_SIZE,
+				    "truncated dump file; tried to read %d header bytes, only got %lu",
+				    p->sf.hdrsize, (unsigned long)amt_read);
+				return (-1);
+			}
+			/* EOF */
+			return (1);
+		}
 	}
 
 	if (p->sf.swapped) {
@@ -482,17 +806,27 @@ sf_next_packet(pcap_t *p, struct pcap_pkthdr *hdr, u_char *buf, int buflen)
 		hdr->ts.tv_sec = sf_hdr.ts.tv_sec;
 		hdr->ts.tv_usec = sf_hdr.ts.tv_usec;
 	}
-	/*
-	 * We interchanged the caplen and len fields at version 2.3,
-	 * in order to match the bpf header layout.  But unfortunately
-	 * some files were written with version 2.3 in their headers
-	 * but without the interchanged fields.
-	 */
-	if (p->sf.version_minor < 3 ||
-	    (p->sf.version_minor == 3 && hdr->caplen > hdr->len)) {
-		int t = hdr->caplen;
+	/* Swap the caplen and len fields, if necessary. */
+	switch (p->sf.lengths_swapped) {
+
+	case NOT_SWAPPED:
+		break;
+
+	case MAYBE_SWAPPED:
+		if (hdr->caplen <= hdr->len) {
+			/*
+			 * The captured length is <= the actual length,
+			 * so presumably they weren't swapped.
+			 */
+			break;
+		}
+		/* FALLTHROUGH */
+
+	case SWAPPED:
+		t = hdr->caplen;
 		hdr->caplen = hdr->len;
 		hdr->len = t;
+		break;
 	}
 
 	if (hdr->caplen > buflen) {
@@ -503,7 +837,7 @@ sf_next_packet(pcap_t *p, struct pcap_pkthdr *hdr, u_char *buf, int buflen)
 		 * grossly wrong, try to salvage.
 		 */
 		static u_char *tp = NULL;
-		static int tsize = 0;
+		static size_t tsize = 0;
 
 		if (hdr->caplen > 65535) {
 			snprintf(p->errbuf, PCAP_ERRBUF_SIZE,
@@ -523,9 +857,17 @@ sf_next_packet(pcap_t *p, struct pcap_pkthdr *hdr, u_char *buf, int buflen)
 				return (-1);
 			}
 		}
-		if (fread((char *)tp, hdr->caplen, 1, fp) != 1) {
-			snprintf(p->errbuf, PCAP_ERRBUF_SIZE,
-			    "truncated dump file");
+		amt_read = fread((char *)tp, 1, hdr->caplen, fp);
+		if (amt_read != hdr->caplen) {
+			if (ferror(fp)) {
+				snprintf(p->errbuf, PCAP_ERRBUF_SIZE,
+				    "error reading dump file: %s",
+				    pcap_strerror(errno));
+			} else {
+				snprintf(p->errbuf, PCAP_ERRBUF_SIZE,
+				    "truncated dump file; tried to read %u captured bytes, only got %lu",
+				    hdr->caplen, (unsigned long)amt_read);
+			}
 			return (-1);
 		}
 		/*
@@ -540,10 +882,17 @@ sf_next_packet(pcap_t *p, struct pcap_pkthdr *hdr, u_char *buf, int buflen)
 
 	} else {
 		/* read the packet itself */
-
-		if (fread((char *)buf, hdr->caplen, 1, fp) != 1) {
-			snprintf(p->errbuf, PCAP_ERRBUF_SIZE,
-			    "truncated dump file");
+		amt_read = fread((char *)buf, 1, hdr->caplen, fp);
+		if (amt_read != hdr->caplen) {
+			if (ferror(fp)) {
+				snprintf(p->errbuf, PCAP_ERRBUF_SIZE,
+				    "error reading dump file: %s",
+				    pcap_strerror(errno));
+			} else {
+				snprintf(p->errbuf, PCAP_ERRBUF_SIZE,
+				    "truncated dump file; tried to read %u captured bytes, only got %lu",
+				    hdr->caplen, (unsigned long)amt_read);
+			}
 			return (-1);
 		}
 	}
@@ -563,6 +912,23 @@ pcap_offline_read(pcap_t *p, int cnt, pcap_handler callback, u_char *user)
 
 	while (status == 0) {
 		struct pcap_pkthdr h;
+
+		/*
+		 * Has "pcap_breakloop()" been called?
+		 * If so, return immediately - if we haven't read any
+		 * packets, clear the flag and return -2 to indicate
+		 * that we were told to break out of the loop, otherwise
+		 * leave the flag set, so that the *next* call will break
+		 * out of the loop without having read any packets, and
+		 * return the number of packets we've processed so far.
+		 */
+		if (p->break_loop) {
+			if (n == 0) {
+				p->break_loop = 0;
+				return (-2);
+			} else
+				return (n);
+		}
 
 		status = sf_next_packet(p, &h, p->buffer, p->bufsize);
 		if (status) {
@@ -618,10 +984,18 @@ pcap_dump_open(pcap_t *p, const char *fname)
 		return (NULL);
 	}
 
-	if (fname[0] == '-' && fname[1] == '\0')
+	if (fname[0] == '-' && fname[1] == '\0') {
 		f = stdout;
-	else {
+#ifdef WIN32
+		_setmode(_fileno(f), _O_BINARY);
+#endif
+	} else {
+#ifndef WIN32
 		f = fopen(fname, "w");
+#else
+		f = fopen(fname, "wb");
+		setbuf(f, NULL);	/* XXX - why? */
+#endif
 		if (f == NULL) {
 			snprintf(p->errbuf, PCAP_ERRBUF_SIZE, "%s: %s",
 			    fname, pcap_strerror(errno));
@@ -630,6 +1004,22 @@ pcap_dump_open(pcap_t *p, const char *fname)
 	}
 	(void)sf_write_header(f, linktype, p->tzoff, p->snapshot);
 	return ((pcap_dumper_t *)f);
+}
+
+FILE *
+pcap_dump_file(pcap_dumper_t *p)
+{
+	return ((FILE *)p);
+}
+
+int
+pcap_dump_flush(pcap_dumper_t *p)
+{
+
+	if (fflush((FILE *)p) == EOF)
+		return (-1);
+	else
+		return (0);
 }
 
 void
