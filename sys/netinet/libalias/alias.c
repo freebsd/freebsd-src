@@ -1,7 +1,7 @@
 /* -*- mode: c; tab-width: 8; c-basic-indent: 4; -*- */
 
 /*-
- * Copyright (c) 2001 Charles Mott <cmott@scientech.com>
+ * Copyright (c) 2001 Charles Mott <cm@linktel.net>
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
