@@ -1,6 +1,6 @@
 /**************************************************************************
 **
-**  $Id: ncr.c,v 1.37.4.9 1996/08/05 19:10:33 se Exp $
+**  $Id: ncr.c,v 1.37.4.10 1996/11/09 08:41:50 jkh Exp $
 **
 **  Device driver for the   NCR 53C810   PCI-SCSI-Controller.
 **
@@ -1208,7 +1208,7 @@ static	int     ncr_intr        (void *);
 #else	/* !__NetBSD__ */
 static	int	ncr_intr	(ncb_p np);
 #endif	/* __NetBSD__ */	
-static	void	ncr_int_ma	(ncb_p np);
+static	void	ncr_int_ma	(ncb_p np, u_char dstat);
 static	void	ncr_int_sir	(ncb_p np);
 static  void    ncr_int_sto     (ncb_p np);
 #ifndef NEW_SCSICONF
@@ -1254,7 +1254,7 @@ static	void	ncr_attach	(pcici_t tag, int unit);
 
 
 static char ident[] =
-	"\n$Id: ncr.c,v 1.37.4.9 1996/08/05 19:10:33 se Exp $\n";
+	"\n$Id: ncr.c,v 1.37.4.10 1996/11/09 08:41:50 jkh Exp $\n";
 
 u_long	ncr_version = NCR_VERSION	* 11
 	+ (u_long) sizeof (struct ncb)	*  7
@@ -5026,7 +5026,7 @@ void ncr_exception (ncb_p np)
 	if ((sist  & MA) &&
 		!(sist  & (STO|GEN|HTH|SGE|UDC|RST|PAR)) &&
 		!(dstat & (MDPE|BF|ABRT|SIR|IID))) {
-		ncr_int_ma (np);
+		ncr_int_ma (np, dstat);
 		return;
 	};
 
@@ -5344,7 +5344,7 @@ void ncr_int_sto (ncb_p np)
 **----------------------------------------------------------
 */
 
-static void ncr_int_ma (ncb_p np)
+static void ncr_int_ma (ncb_p np, u_char dstat)
 {
 	u_long	dbc;
 	u_long	rest;
@@ -5375,7 +5375,7 @@ static void ncr_int_ma (ncb_p np)
 	**	Check the sstat2 register in case of wide transfer.
 	*/
 
-	if (! (INB(nc_dstat) & DFE)) rest += delta;
+	if (!(dstat & DFE)) rest += delta;
 	if (ss0 & OLF) rest++;
 	if (ss0 & ORF) rest++;
 	if (INB(nc_scntl3) & EWS) {
@@ -5511,7 +5511,10 @@ static void ncr_int_ma (ncb_p np)
 	*/
 	np->profile.num_break++;
 	OUTL (nc_temp, vtophys (newcmd));
-	OUTL (nc_dsp, NCB_SCRIPT_PHYS (np, dispatch));
+	if ((cmd & 7) == 0)
+		OUTL (nc_dsp, NCB_SCRIPT_PHYS (np, dispatch));
+	else
+		OUTL (nc_dsp, NCB_SCRIPT_PHYS (np, checkatn));
 }
 
 /*==========================================================
