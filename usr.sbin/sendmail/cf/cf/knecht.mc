@@ -38,7 +38,7 @@ divert(-1)
 #
 
 divert(0)dnl
-VERSIONID(`@(#)knecht.mc	8.4 (Berkeley) 11/24/96')
+VERSIONID(`@(#)knecht.mc	8.11 (Berkeley) 6/12/97')
 OSTYPE(bsd4.4)dnl
 DOMAIN(generic)dnl
 define(`confDEF_USER_ID', `mailnull')dnl
@@ -46,6 +46,49 @@ define(`confHOST_STATUS_DIRECTORY', `.hoststat')dnl
 define(`confTO_ICONNECT', `10s')dnl
 define(`confCOPY_ERRORS_TO', `Postmaster')dnl
 define(`confTO_QUEUEWARN', `8h')dnl
+define(`confPRIVACY_FLAGS', ``authwarnings,noexpn,novrfy'')dnl
 FEATURE(virtusertable)dnl
 MAILER(local)dnl
 MAILER(smtp)dnl
+
+LOCAL_CONFIG
+# domains that are not us but which we will relay
+FR-o /etc/sendmail.cR
+
+# domain override table to accept unresolvable/reject resolvable domains
+Kdomaincheck hash -o /etc/domaincheck
+
+
+LOCAL_RULESETS
+
+# reject bogus return addresses
+Scheck_mail
+R<>			$@ <OK>
+R$*			$: <?> $>Parse0 $>3 $1		make domain canonical
+R<?> $* < @ $+ . > $*	$: < $( domaincheck $2 $: OK $) > $1 < @ $2 . > $3
+							tag resolved names
+R<?> $* < @ $+ > $*	$: < $( domaincheck $2 $: ? $) > $1 < @ $2 > $3
+							check for overrides
+R<OK> $*		$@ <OK>
+R<?> $* < @ $+ > $*	$#error $: 451 Sender domain must resolve
+R<?> $*			$: < ? $&{client_name} > $1	no @domain on address...
+R<?> $*			$@ <OK>				...local unqualed ok
+R<? $+> $*		$#error $: 551 Domain name required
+							...remote is not
+R<$+> $*		$#error $: $1			error from domaincheck
+
+# disallow relaying
+Scheck_rcpt
+# anything terminating locally is ok
+R$*			$: $>Parse0 $>3 $1		strip local crud
+R$+ < @ $=w . >		$@ OK
+R$+ < @ $* $=R . >	$@ OK
+
+# anything originating locally is ok
+R$*			$: $(dequote "" $&{client_name} $)
+R$=w			$@ OK
+R$=R			$@ OK
+R$@			$@ OK
+
+# anything else is bogus
+R$*			$#error $: "550 Relaying Denied"

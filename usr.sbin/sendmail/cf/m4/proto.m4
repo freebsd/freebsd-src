@@ -34,7 +34,7 @@ divert(-1)
 #
 divert(0)
 
-VERSIONID(`@(#)proto.m4	8.139 (Berkeley) 12/31/96')
+VERSIONID(`@(#)proto.m4	8.149 (Berkeley) 4/30/97')
 
 MAILER(local)dnl
 
@@ -505,7 +505,8 @@ R$* [ $* : $* ] <@>	$: $1 [ $2 : $3 ]		unmark IPv6 addrs
 R$* : $* [ $* ]		$: $1 : $2 [ $3 ] <@>		remark if leading colon
 R$* : $* <@>		$: $2				strip colon if marked
 R$* <@>			$: $1				unmark
-R$* ;			$: $1				strip trailing semi
+R$* ;			   $1				strip trailing semi
+R$* < $* ; >		   $1 < $2 >			bogus bracketed semi
 
 # null input now results from list:; syntax
 R$@			$@ :; <@>
@@ -593,9 +594,11 @@ ifdef(`_CLASS_X_',
 ifdef(`_CLASS_Y_',
 `R$* < @ $=Y . UUCP > $*	$@ $1 < @ $2 . UUCP . > $3', `dnl')
 
+define(`X', ifdef(`_NO_CANONIFY_', `#', `'))dnl
 # try UUCP traffic as a local address
-R$* < @ $+ . UUCP > $*		$: $1 < @ $[ $2 $] . UUCP . > $3
-R$* < @ $+ . . UUCP . > $*		$@ $1 < @ $2 . > $3')
+X`'R$* < @ $+ . UUCP > $*		$: $1 < @ $[ $2 $] . UUCP . > $3
+X`'R$* < @ $+ . . UUCP . > $*		$@ $1 < @ $2 . > $3')
+undefine(`X')dnl
 ')
 # pass to name server to make hostname canonical
 ifdef(`_NO_CANONIFY_', `#')dnl
@@ -604,7 +607,9 @@ R$* < @ $* $~P > $*		$: $1 < @ $[ $2 $3 $] > $4
 # local host aliases and pseudo-domains are always canonical
 R$* < @ $=w > $*		$: $1 < @ $2 . > $3
 R$* < @ $j > $*			$: $1 < @ $j . > $2
-R$* < @ $* $=M > $*		$: $1 < @ $2 $3 . > $4
+ifdef(`_MASQUERADE_ENTIRE_DOMAIN_',
+`R$* < @ $* $=M > $*		$: $1 < @ $2 $3 . > $4',
+`R$* < @ $=M > $*		$: $1 < @ $2 . > $3')
 R$* < @ $* $=P > $*		$: $1 < @ $2 $3 . > $4
 R$* < @ $* . . > $*		$1 < @ $2 . > $3
 
@@ -656,6 +661,11 @@ R$*			$@ $>0 $1
 
 S0
 
+R$*			$: $>Parse0 $1		initial parsing
+R$*			$: $>98 $1		handle local hacks
+R$*			$: $>Parse1 $1		final parsing
+
+SParse0
 R<@>			$#_LOCAL_ $: <@>		special case error msgs
 R$* : $* ; <@>		$#error $@ 5.1.3 $: "list:; syntax illegal for recipient addresses"
 R<@ $+>			$#error $@ 5.1.1 $: "user address required"
@@ -664,6 +674,7 @@ R<> $* < @ [ $+ ] > $*	$1 < @ [ $2 ] > $3
 R<> $* <$* : $* > $*	$#error $@ 5.1.1 $: "colon illegal in host name part"
 R<> $*			$1
 R$* < @ . $* > $*	$#error $@ 5.1.2 $: "invalid host name"
+R$* < @ $* .. $* > $*	$#error $@ 5.1.2 $: "invalid host name"
 
 ifdef(`_MAILER_smtp_',
 `# handle numeric address spec
@@ -672,20 +683,22 @@ R$* < @ [ $+ ] > $*	$#_SMTP_ $@ [$2] $: $1 < @ [$2] > $3	still numeric: send',
 	`dnl')
 
 # now delete the local info -- note $=O to find characters that cause forwarding
-R$* < @ > $*		$@ $>97 $1		user@ => user
-R< @ $=w . > : $*	$@ $>97 $2		@here:... -> ...
+R$* < @ > $*		$@ $>Parse0 $>3 $1		user@ => user
+R< @ $=w . > : $*	$@ $>Parse0 $>3 $2		@here:... -> ...
 R$- < @ $=w . >		$: $(dequote $1 $) < @ $2 . >	dequote "foo"@here
 R< @ $+ >		$#error $@ 5.1.1 $: "user address required"
-R$* $=O $* < @ $=w . >	$@ $>97 $1 $2 $3		...@here -> ...
+R$* $=O $* < @ $=w . >	$@ $>Parse0 $>3 $1 $2 $3	...@here -> ...
 
-# handle local hacks
-R$*			$: $>98 $1
-
+SParse1
 # handle virtual users
 define(`X', ifdef(`VIRTUSER_TABLE', `', `#'))dnl
 X`'R$+ < @ $=w . > 	$: < $(virtuser $1 @ $2 $@ $1 $: @ $) > $1 < @ $2 . >
-X`'R< @ > $+ < @ $+ . >	$: < $(virtuser @ $2 $@ $1 $: @ $) > $1 < @ $2 . >
-X`'R< @ > $+		$: $1
+X`'R<@> $+ + $* < @ $* . >
+			$: < $(virtuser $1 + * @ $3 $@ $1 $: @ $) > $1 + $2 < @ $3 . >
+X`'R<@> $+ + $* < @ $* . >
+			$: < $(virtuser $1 @ $3 $@ $1 $: @ $) > $1 + $2 < @ $3 . >
+X`'R<@> $+ < @ $+ . >	$: < $(virtuser @ $2 $@ $1 $: @ $) > $1 < @ $2 . >
+X`'R<@> $+			$: $1
 X`'R< error : $- $+ > $* 	$#error $@ $( dequote $1 $) $: $2
 X`'R< $+ > $+ < @ $+ >	$: $>97 $1
 undefine(`X')dnl
@@ -779,26 +792,26 @@ S5
 
 # deal with plussed users so aliases work nicely
 R$+ + *			$#_LOCAL_ $@ $&h $: $1
-R$+ + $*		$#_LOCAL_ $@ $2 $: $1 + *
+R$+ + $*		$#_LOCAL_ $@ + $2 $: $1 + *
 
 # prepend an empty "forward host" on the front
 R$+			$: <> $1
 
 define(`X', ifdef(`LUSER_RELAY', `', `#'))dnl
 # send unrecognized local users to a relay host
-X`'R< > $+ + $*		$: < $L . > $( user $1 $) + $2
 X`'R< > $+ 		$: < $L . > $( user $1 $)	look up user
 X`'R< $* > $+ <> $*	$: < > $2 $3			found; strip $L
 X`'R< $* . > $+		$: < $1 > $2			strip extra dot
 undefine(`X')dnl
 
-# handle plussed local names
-R< > $+ + $*		$#_LOCAL_ $@ $2 $: $1
-
 # see if we have a relay or a hub
 R< > $+			$: < $H > $1			try hub
 R< > $+			$: < $R > $1			try relay
-R< > $+			$@ $1				nope, give up
+R< > $+			$: < > < $1 $(dequote "" $&h $) >	nope, restore +detail
+R< > < $+ + $* > $*	   < > < $1 > + $2 $3		find the user part
+R< > < $+ > + $*	$#_LOCAL_ $@ $2 $: @ $1		strip the extra +
+R< > < $+ >		$@ $1				no +detail
+R$+			$: $1 $(dequote "" $&h $)	add +detail back in
 R< local : $* > $*	$: $>95 < local : $1 > $2	no host extension
 R< error : $* > $*	$: $>95 < error : $1 > $2	no host extension
 R< $- : $+ > $+		$: $>95 < $1 : $2 > $3 < @ $2 >
@@ -840,15 +853,15 @@ SCanonLocal
 R< $* > $* < @ $* . >		$: < $1 > $2 < @ $3 >
 
 # handle local: syntax -- use old user, either with or without host
-R< > $* < @ $* > $*		$#local $@ $1@$2 $: $1
-R< > $+				$#local $@ $1    $: $1
+R< > $* < @ $* > $*		$#_LOCAL_ $@ $1@$2 $: $1
+R< > $+				$#_LOCAL_ $@ $1    $: $1
 
 # handle local:user@host syntax -- ignore host part
-R< $+ @ $+ > $*			$: < $1 > $3
+R< $+ @ $+ > $* < @ $* >	$: < $1 > $3 < @ $4 >
 
 # handle local:user syntax
-R< $+ > $* <@ $* > $*		$#local $@ $2@$3 $: $1
-R< $+ > $* 			$#local $@ $2    $: $1
+R< $+ > $* <@ $* > $*		$#_LOCAL_ $@ $2@$3 $: $1
+R< $+ > $* 			$#_LOCAL_ $@ $2    $: $1
 
 ###################################################################
 ###  Ruleset 93 -- convert header names to masqueraded form	###

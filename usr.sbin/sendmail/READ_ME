@@ -1,5 +1,5 @@
 /*-
- *	@(#)READ_ME	8.29 (Berkeley) 9/24/96
+ *	@(#)READ_ME	8.30 (Berkeley) 5/8/97
  */
 
 			SENDMAIL RELEASE 8
@@ -165,9 +165,9 @@ IF YOU WANT TO RUN THE NEW BERKELEY DB SOFTWARE:  ****  DO NOT  ****
 use the version that was on the Net2 tape -- it has a number of
 nefarious bugs that were bad enough when I got them; you shouldn't have
 to go through the same thing.  Instead, get a new version via public
-FTP from ftp.CS.Berkeley.EDU, file ucb/4bsd/db.tar.Z.  This software
-is highly recommended; it gets rid of several stupid limits, it's much
-faster, and the interface is nicer to animals and plants.  You will
+FTP from ftp.sleepycat.com, file db/packages/db.1.85.tar.gz.  This
+software is highly recommended; it gets rid of several stupid limits, it's
+much faster, and the interface is nicer to animals and plants.  You will
 also probably find that you have to add -I/where/you/put/db/include
 to the sendmail makefile to get db.h to work properly.
 

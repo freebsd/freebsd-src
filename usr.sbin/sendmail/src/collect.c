@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1983, 1995, 1996 Eric P. Allman
+ * Copyright (c) 1983, 1995-1997 Eric P. Allman
  * Copyright (c) 1988, 1993
  *	The Regents of the University of California.  All rights reserved.
  *
@@ -33,7 +33,7 @@
  */
 
 #ifndef lint
-static char sccsid[] = "@(#)collect.c	8.62 (Berkeley) 12/11/96";
+static char sccsid[] = "@(#)collect.c	8.69 (Berkeley) 5/29/97";
 #endif /* not lint */
 
 # include <errno.h>
@@ -52,8 +52,6 @@ static char sccsid[] = "@(#)collect.c	8.62 (Berkeley) 12/11/96";
 **			style message to say we are ready to collect
 **			input, and never ignore a single dot to mean
 **			end of message.
-**		requeueflag -- this message will be requeued later, so
-**			don't do final processing on it.
 **		hdrp -- the location to stash the header.
 **		e -- the current envelope.
 **
@@ -83,10 +81,9 @@ static EVENT	*CollectTimeout;
 #define MS_BODY		2	/* reading message body */
 
 void
-collect(fp, smtpmode, requeueflag, hdrp, e)
+collect(fp, smtpmode, hdrp, e)
 	FILE *fp;
 	bool smtpmode;
-	bool requeueflag;
 	HDR **hdrp;
 	register ENVELOPE *e;
 {
@@ -94,7 +91,7 @@ collect(fp, smtpmode, requeueflag, hdrp, e)
 	volatile bool ignrdot = smtpmode ? FALSE : IgnrDot;
 	volatile time_t dbto = smtpmode ? TimeOuts.to_datablock : 0;
 	register char *volatile bp;
-	volatile int c = '\0';
+	volatile int c = EOF;
 	volatile bool inputerr = FALSE;
 	bool headeronly;
 	char *volatile buf;
@@ -103,7 +100,7 @@ collect(fp, smtpmode, requeueflag, hdrp, e)
 	volatile int mstate;
 	u_char *volatile pbp;
 	u_char peekbuf[8];
-	char dfname[20];
+	char dfname[MAXQFNAME];
 	char bufbuf[MAXLINE];
 	extern bool isheader();
 	extern void eatheader();
@@ -117,10 +114,12 @@ collect(fp, smtpmode, requeueflag, hdrp, e)
 
 	if (!headeronly)
 	{
+		int tfd;
 		struct stat stbuf;
 
 		strcpy(dfname, queuename(e, 'd'));
-		if ((tf = dfopen(dfname, O_WRONLY|O_CREAT|O_TRUNC, FileMode)) == NULL)
+		tfd = dfopen(dfname, O_WRONLY|O_CREAT|O_TRUNC, FileMode, SFF_ANYFILE);
+		if (tfd < 0 || (tf = fdopen(tfd, "w")) == NULL)
 		{
 			syserr("Cannot create %s", dfname);
 			e->e_flags |= EF_NO_BODY_RETN;
@@ -169,12 +168,10 @@ collect(fp, smtpmode, requeueflag, hdrp, e)
 		/* handle possible input timeout */
 		if (setjmp(CtxCollectTimeout) != 0)
 		{
-#ifdef LOG
 			if (LogLevel > 2)
-				syslog(LOG_NOTICE,
+				sm_syslog(LOG_NOTICE, e->e_id,
 				    "timeout waiting for input from %s during message collect",
 				    CurHostName ? CurHostName : "<local machine>");
-#endif
 			errno = 0;
 			usrerr("451 timeout waiting for input during message collect");
 			goto readerr;
@@ -417,10 +414,9 @@ readerr:
 
 		if (tTd(30, 1))
 			printf("collect: premature EOM: %s\n", errmsg);
-#ifdef LOG
 		if (LogLevel >= 2)
-			syslog(LOG_WARNING, "collect: premature EOM: %s", errmsg);
-#endif
+			sm_syslog(LOG_WARNING, e->e_id,
+				"collect: premature EOM: %s", errmsg);
 		inputerr = TRUE;
 	}
 
@@ -455,14 +451,12 @@ readerr:
 			problem = "I/O error";
 		else
 			problem = "read timeout";
-# ifdef LOG
 		if (LogLevel > 0 && feof(fp))
-			syslog(LOG_NOTICE,
+			sm_syslog(LOG_NOTICE, e->e_id,
 			    "collect: %s on connection from %.100s, sender=%s: %s",
 			    problem, host,
 			    shortenstring(e->e_from.q_paddr, 203),
 			    errstring(errno));
-# endif
 		if (feof(fp))
 			usrerr("451 collect: %s on connection from %s, from=%s",
 				problem, host,
@@ -501,7 +495,7 @@ readerr:
 		markstats(e, (ADDRESS *) NULL);
 	}
 
-#ifdef _FFR_DSN_RRT
+#if _FFR_DSN_RRT_OPTION
 	/*
 	**  If we have a Return-Receipt-To:, turn it into a DSN.
 	*/
@@ -576,11 +570,10 @@ readerr:
 		e->e_status = "5.2.3";
 		usrerr("552 Message exceeds maximum fixed size (%ld)",
 			MaxMessageSize);
-# ifdef LOG
 		if (LogLevel > 6)
-			syslog(LOG_NOTICE, "%s: message size (%ld) exceeds maximum (%ld)",
-				e->e_id, e->e_msgsize, MaxMessageSize);
-# endif
+			sm_syslog(LOG_NOTICE, e->e_id,
+				"message size (%ld) exceeds maximum (%ld)",
+				e->e_msgsize, MaxMessageSize);
 	}
 
 	/* check for illegal 8-bit data */
