@@ -99,14 +99,13 @@ __FBSDID("$FreeBSD$");
 #include <arm/xscale/i80321/obiovar.h>
 
 #define KERNEL_PT_SYS		0	/* Page table for mapping proc0 zero page */
-#define KERNEL_PT_KERNEL	1	/* Page table for mapping kernel */
-#define KERNEL_PT_KERNEL_NUM	4
-					/* L2 table for mapping i80321 */
-#define	KERNEL_PT_IOPXS		(KERNEL_PT_KERNEL + KERNEL_PT_KERNEL_NUM)
+#define	KERNEL_PT_IOPXS		1
+#define KERNEL_PT_BEFOREKERN	2
+#define KERNEL_PT_AFKERNEL	3	/* L2 table for mapping after kernel */
+#define	KERNEL_PT_AFKERNEL_NUM	9
 
-#define	KERNEL_PT_VMDATA	(KERNEL_PT_IOPXS + 1)
-#define	KERNEL_PT_VMDATA_NUM	10
-#define	NUM_KERNEL_PTS		(KERNEL_PT_VMDATA + KERNEL_PT_VMDATA_NUM)
+/* this should be evenly divisable by PAGE_SIZE / L2_TABLE_SIZE_REAL (or 4) */
+#define NUM_KERNEL_PTS		(KERNEL_PT_AFKERNEL + KERNEL_PT_AFKERNEL_NUM)
 
 /* Define various stack sizes in pages */
 #define IRQ_STACK_SIZE	1
@@ -303,15 +302,10 @@ initarm(void *arg, void *arg2)
 	/* Map the L2 pages tables in the L1 page table */
 	pmap_link_l2pt(l1pagetable, ARM_VECTORS_HIGH & ~(0x00100000 - 1),
 	    &kernel_pt_table[KERNEL_PT_SYS]);
-	for (i = 0; i < KERNEL_PT_KERNEL_NUM; i++) {
-		pmap_link_l2pt(l1pagetable, KERNBASE + i * 0x00100000,
-	    &kernel_pt_table[KERNEL_PT_KERNEL + i]);
-	}
-	for (loop = 0; loop < KERNEL_PT_VMDATA_NUM; ++loop)
-		pmap_link_l2pt(l1pagetable, KERNBASE + (i + loop) * 0x00100000,
-		    &kernel_pt_table[KERNEL_PT_VMDATA + loop]);
 	pmap_link_l2pt(l1pagetable, IQ80321_IOPXS_VBASE,
 	                &kernel_pt_table[KERNEL_PT_IOPXS]);
+	pmap_link_l2pt(l1pagetable, KERNBASE,
+	    &kernel_pt_table[KERNEL_PT_BEFOREKERN]);
 	pmap_map_chunk(l1pagetable, KERNBASE, SDRAM_START,
 	    freemempos - 0xa0000000 + 0x1000,
 	    VM_PROT_READ|VM_PROT_WRITE, PTE_CACHE);
@@ -323,6 +317,10 @@ initarm(void *arg, void *arg2)
 	freemem_after = ((int)&end + PAGE_SIZE) & ~(PAGE_SIZE - 1);
 	afterkern = round_page(((vm_offset_t)&end + L1_S_SIZE) & ~(L1_S_SIZE 
 	    - 1));
+	for (i = 0; i < KERNEL_PT_AFKERNEL_NUM; i++) {
+		pmap_link_l2pt(l1pagetable, afterkern + i * 0x00100000,
+		    &kernel_pt_table[KERNEL_PT_AFKERNEL + i]);
+	}
 
 	/* Map the stack pages */
 #define	alloc_afterkern(va, pa, size)	\
@@ -462,10 +460,10 @@ initarm(void *arg, void *arg2)
 	freemempos &= ~(PAGE_SIZE - 1);
 	phys_avail[0] = SDRAM_START;
 	phys_avail[1] = freemempos;
-	phys_avail[0] = round_page(virtual_avail - KERNBASE + SDRAM_START);
-	phys_avail[1] = trunc_page(0xa0000000 + memsize - 1);
-	phys_avail[2] = 0;
-	phys_avail[3] = 0;
+	phys_avail[2] = round_page(virtual_avail - KERNBASE + SDRAM_START);
+	phys_avail[3] = trunc_page(0xa0000000 + memsize - 1);
+	phys_avail[4] = 0;
+	phys_avail[5] = 0;
 	
 	/* Do basic tuning, hz etc */
 	init_param1();
