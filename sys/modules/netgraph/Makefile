@@ -2,13 +2,14 @@
 # $FreeBSD$
 
 SUBDIR=	async \
+	UI \
 	bpf \
 	bridge \
 	cisco \
 	echo \
 	eiface \
+	etf \
 	ether \
-	etf\
 	frame_relay \
 	gif \
 	gif_demux \
@@ -16,6 +17,7 @@ SUBDIR=	async \
 	iface \
 	ip_input \
 	ksocket \
+	l2tp \
 	lmi \
 	netgraph \
 	one2many \
@@ -29,7 +31,6 @@ SUBDIR=	async \
 	sync_sr \
 	tee \
 	tty \
-	UI \
 	vjc
 
 .if !defined(NOCRYPT) && exists(${.CURDIR}/../../crypto/rc4/rc4.c)
