@@ -201,7 +201,7 @@ ng_btsocket_l2cap_raw_node_shutdown(node_p node)
 
 	error = ng_name_node(ng_btsocket_l2cap_raw_node,
 				NG_BTSOCKET_L2CAP_RAW_NODE_TYPE);
-	if (error != NULL) {
+	if (error != 0) {
 		NG_BTSOCKET_L2CAP_RAW_ALERT(
 "%s: Could not name Netgraph node, error=%d\n", __func__, error);
 
@@ -856,7 +856,7 @@ ng_btsocket_l2cap_raw_control(struct socket *so, u_long cmd, caddr_t data,
 		pcb->msg = NULL;
 
 		NG_SEND_MSG_HOOK(error, ng_btsocket_l2cap_raw_node, msg,
-			pcb->rt->hook, NULL);
+			pcb->rt->hook, 0);
 		if (error != 0) {
 			pcb->token = 0;
 			break;
@@ -911,7 +911,7 @@ ng_btsocket_l2cap_raw_control(struct socket *so, u_long cmd, caddr_t data,
 		pcb->msg = NULL;
 
 		NG_SEND_MSG_HOOK(error, ng_btsocket_l2cap_raw_node, msg,
-			pcb->rt->hook, NULL);
+			pcb->rt->hook, 0);
 		if (error != 0) {
 			pcb->token = 0;
 			break;
@@ -984,7 +984,7 @@ ng_btsocket_l2cap_raw_control(struct socket *so, u_long cmd, caddr_t data,
 		}
 
 		NG_SEND_MSG_HOOK(error, ng_btsocket_l2cap_raw_node, msg,
-			pcb->rt->hook, NULL);
+			pcb->rt->hook, 0);
 		if (error != 0) {
 			pcb->token = 0;
 			break;
@@ -1045,7 +1045,7 @@ ng_btsocket_l2cap_raw_control(struct socket *so, u_long cmd, caddr_t data,
 		ip->info_type = p->info_type;
 
 		NG_SEND_MSG_HOOK(error, ng_btsocket_l2cap_raw_node, msg,
-			pcb->rt->hook, NULL);
+			pcb->rt->hook, 0);
 		if (error != 0) {
 			pcb->token = 0;
 			break;
@@ -1258,7 +1258,7 @@ ng_btsocket_l2cap_raw_send_ngmsg(hook_p hook, int cmd, void *arg, int arglen)
 	if (arg != NULL && arglen > 0)
 		bcopy(arg, msg->data, arglen);
 
-	NG_SEND_MSG_HOOK(error, ng_btsocket_l2cap_raw_node, msg, hook, NULL);
+	NG_SEND_MSG_HOOK(error, ng_btsocket_l2cap_raw_node, msg, hook, 0);
 
 	return (error);
 } /* ng_btsocket_l2cap_raw_send_ngmsg */
@@ -1284,8 +1284,8 @@ ng_btsocket_l2cap_raw_send_sync_ngmsg(ng_btsocket_l2cap_raw_pcb_p pcb,
 	pcb->token = msg->header.token;
 	pcb->msg = NULL;
 
-	NG_SEND_MSG_HOOK(error, ng_btsocket_l2cap_raw_node, msg, 
-		pcb->rt->hook, NULL);
+	NG_SEND_MSG_HOOK(error, ng_btsocket_l2cap_raw_node, msg,
+		pcb->rt->hook, 0);
 	if (error != 0) {
 		pcb->token = 0;
 		return (error);
