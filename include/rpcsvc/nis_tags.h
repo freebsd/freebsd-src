@@ -43,7 +43,6 @@
 
 /* From: #pragma ident	"@(#)nis_tags.h	1.10	94/05/03 SMI" */
 /* from file: zns_tags.h	1.7 Copyright (c) 1990 Sun Microsystems */
-#pragma ident "$Id: nis_tags.h,v 1.2 1996/07/29 14:26:03 wpaul Exp $"
 
 #ifdef	__cplusplus
 extern "C" {

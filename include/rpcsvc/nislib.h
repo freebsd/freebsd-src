@@ -41,7 +41,6 @@
 #define	_RPCSVC_NISLIB_H
 
 /* From: #pragma ident	"@(#)nislib.h	1.16	94/05/03 SMI" */
-#pragma ident "$Id: nislib.h,v 1.3 1996/09/19 19:37:07 wpaul Exp wpaul $"
 
 #ifdef __cplusplus
 extern "C" {
