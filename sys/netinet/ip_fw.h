@@ -62,6 +62,7 @@ struct ip_fw {
 #define IP_FW_ICMPTYPES_DIM	(IP_FW_ICMPTYPES_MAX / (sizeof(unsigned) * 8))
 	unsigned fw_icmptypes[IP_FW_ICMPTYPES_DIM]; /* ICMP types bitmap */
 	} fw_uar;
+    u_int fw_ipflg;			/* IP flags word */
     u_char fw_ipopt,fw_ipnopt;		/* IP options set/unset */
     u_char fw_tcpopt,fw_tcpnopt;	/* TCP options set/unset */
     u_char fw_tcpf,fw_tcpnf;		/* TCP flags set/unset */
@@ -206,6 +207,10 @@ struct ipfw_dyn_rule {
 #define IP_FW_F_CHECK_S	0x10000000	/* check state	 			*/
 
 #define IP_FW_F_MASK	0x1FFFFFFF	/* All possible flag bits mask		*/
+
+/*
+ * Flags for the 'fw_ipflg' field, for comparing values of ip and its protocols.
+ */
 
 /*
  * For backwards compatibility with rules specifying "via iface" but
