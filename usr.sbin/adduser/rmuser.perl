@@ -107,8 +107,6 @@ if ($< != 0) {
 if ($#ARGV == 0) {
     # Username was given as a parameter
     $login_name = pop(@ARGV);
-    die "Sorry, login name must contain alphanumeric characters only.\n"
-	if ($login_name !~ /^[a-zA-Z0-9_]\w*$/);
 } else {
     if ($affirm) {
 	print STDERR "${whoami}: Error: -y option given without username!\n";
@@ -119,14 +117,13 @@ if ($#ARGV == 0) {
     $login_name = &get_login_name;
 }
 
-if (($pw_ent = &check_login_name($login_name)) eq '0') {
+($name, $password, $uid, $gid, $change, $class, $gecos, $home_dir, $shell) = (getpwnam("$login_name"));
+
+if ($?) {
     print STDERR "${whoami}: Error: User ${login_name} not in password database\n";
     &unlockpw;
     exit 1;
 }
-
-($name, $password, $uid, $gid, $class, $change, $expire, $gecos, $home_dir,
- $shell) = split(/:/, $pw_ent);
 
 if ($uid == 0) {
     print "${whoami}: Error: I'd rather not remove a user with a uid of 0.\n";
@@ -135,7 +132,7 @@ if ($uid == 0) {
 }
 
 if (! $affirm) {
-    print "Matching password entry:\n\n$pw_ent\n\n";
+    print "Matching password entry:\n\n$name\:$password\:$uid\:$gid\:$class\:$change\:0\:$gecos\:$home_dir\:$shell\n\n";
 
     $ans = &get_yn("Is this the entry you wish to remove? ");
 
@@ -275,11 +272,9 @@ sub get_login_name {
     for ($done = 0; ! $done; ) {
 	print "Enter login name for user to remove: ";
 	$login_name = <>;
-	chop $login_name;
-	if (!($login_name =~ /^[a-z0-9_][a-z0-9_\-]*$/)) {
-	    print STDERR "Sorry, login name must contain alphanumeric characters only.\n";
-	} elsif (length($login_name) > 16 || length($login_name) == 0) {
-	    print STDERR "Sorry, login name must be 16 characters or less.\n";
+	chomp $login_name;
+	if (not getpwnam("$login_name")) {
+	    print STDERR "Sorry, login name not in password database.\n";
 	} else {
 	    $done = 1;
 	}
@@ -287,29 +282,6 @@ sub get_login_name {
 
     print "User name is ${login_name}\n" if $debug;
     return($login_name);
-}
-
-sub check_login_name {
-    #
-    # Check to see whether login name is in password file
-    local($login_name) = @_;
-    local($Mname, $Mpassword, $Muid, $Mgid, $Mclass, $Mchange, $Mexpire,
-	  $Mgecos, $Mhome_dir, $Mshell);
-    local($i);
-
-    seek(MASTER_PW, 0, 0);
-    while ($i = <MASTER_PW>) {
-	chop $i;
-	($Mname, $Mpassword, $Muid, $Mgid, $Mclass, $Mchange, $Mexpire,
-	 $Mgecos, $Mhome_dir, $Mshell) = split(/:/, $i);
-	if ($Mname eq $login_name) {
-	    seek(MASTER_PW, 0, 0);
-	    return($i);		# User is in password database
-	}
-    }
-    seek(MASTER_PW, 0, 0);
-
-    return '0';			# User wasn't found
 }
 
 sub get_yn {
@@ -334,7 +306,7 @@ sub get_yn {
 }
 
 sub update_passwd_file {
-    local($skipped, $i);
+    local($skipped);
 
     print STDERR "Updating password file,";
     seek(MASTER_PW, 0, 0);
@@ -343,12 +315,9 @@ sub update_passwd_file {
     chmod(0600, $new_passwd_file) ||
 	print STDERR "\n${whoami}: Warning: couldn't set mode of $new_passwd_file to 0600 ($!)\n\tcontinuing, but please check mode of /etc/master.passwd!\n";
     $skipped = 0;
-    while ($i = <MASTER_PW>) {
-	if ($i =~ /\n$/) {
-	    chop $i;
-	}
-	if ($i ne $pw_ent) {
-	    print NEW_PW "$i\n";
+    while (<MASTER_PW>) {
+	if (not /^$login_name\:/io) {
+	    print NEW_PW;
 	} else {
 	    print STDERR "Dropped entry for $login_name\n" if $debug;
 	    $skipped = 1;
