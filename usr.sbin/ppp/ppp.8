@@ -1,4 +1,4 @@
-.\" $Id: ppp.8,v 1.133 1998/10/31 17:38:47 brian Exp $
+.\" $Id: ppp.8,v 1.134 1998/11/05 21:59:48 brian Exp $
 .Dd 20 September 1995
 .Os FreeBSD
 .Dt PPP 8
@@ -1545,7 +1545,7 @@ required a similar entry in the
 .Pa /etc/ppp/ppp.linkup
 file.  Since the advent of
 .Sq sticky routes ,
-his is no longer required.
+this is no longer required.
 .It
 If your provider requests that you use PAP/CHAP authentication methods, add
 the next lines to your
@@ -1592,7 +1592,7 @@ or directly to the screen:
 .It Li CCP	Generate a CCP packet trace
 .It Li Chat	Generate Chat script trace log
 .It Li Command	Log commands executed
-.It Li Connect	Generate complete Chat log
+.It Li Connect	Log Chat lines containing "CONNECT"
 .It Li Debug	Log debug information
 .It Li HDLC	Dump HDLC packet in hex
 .It Li ID0	Log all function calls specifically made as user id 0.
