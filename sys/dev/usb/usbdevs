@@ -460,6 +460,7 @@ product AVISION 1200U		0x0268	1200U scanner
 /* Belkin products */
 /*product BELKIN F5U111		0x????	F5U111 Ethernet adapter*/
 product BELKIN2 F5U002		0x0002	F5U002 Parallel printer adapter
+product BELKIN USB2LAN		0x0121	USB to LAN Converter
 
 /* Billionton products */
 product BILLIONTON USB100	0x0986	USB100N 10/100 FastEthernet Adapter
