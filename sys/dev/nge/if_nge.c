@@ -1499,13 +1499,12 @@ static void nge_intr(arg)
 			nge_txeof(sc);
 
 		if ((status & NGE_ISR_RX_DESC_OK) ||
+		    (status & NGE_ISR_RX_ERR) ||
 		    (status & NGE_ISR_RX_OK))
 			nge_rxeof(sc);
 
-		if ((status & NGE_ISR_RX_ERR) ||
-		    (status & NGE_ISR_RX_OFLOW)) {
+		if ((status & NGE_ISR_RX_OFLOW))
 			nge_rxeoc(sc);
-		}
 
 		if (status & NGE_ISR_SYSERR) {
 			nge_reset(sc);
