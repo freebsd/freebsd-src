@@ -1,19 +1,12 @@
 # $FreeBSD$
 
+.PATH: ${.CURDIR}/../../sys/kern
+
 PROG=	gstat
-
+NOMAN=
 SRCS=	gstat.c subr_sbuf.c
-
-.PATH:	${CURDIR}/../../sys/kern
-
 WARNS?=	5
-
-LDADD += -lgeom
-LDADD += -ldevstat
-LDADD += -lkvm
-LDADD += -lbsdxml
-LDADD += -lcurses
-
-NOMAN=	sorry
+DPADD=	${LIBGEOM} ${LIBDEVSTAT} ${LIBKVM} ${LIBBSDXML} ${LIBCURSES}
+LDADD=	-lgeom -ldevstat -lkvm -lbsdxml -lcurses
 
 .include <bsd.prog.mk>
