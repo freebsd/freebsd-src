@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: menus.c,v 1.147 1997/10/14 18:17:33 jkh Exp $
+ * $Id: menus.c,v 1.148 1997/10/25 09:27:20 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -718,7 +718,7 @@ DMenu MenuSubDistributions = {
 	DESFlagCheck,	distSetDES },
       { "dict",		"Spelling checker dictionary files",
 	dmenuFlagCheck,	dmenuSetFlag, NULL, &Dists, '[', 'X', ']', DIST_DICT },
-      { "doc",		"FreeBSD Handbook and other online docs",
+      { "doc",		"Miscellaneous FreeBSD online docs",
 	dmenuFlagCheck,	dmenuSetFlag, NULL, &Dists, '[', 'X', ']', DIST_DOC },
       { "games",	"Games (non-commercial)",
 	dmenuFlagCheck,	dmenuSetFlag, NULL, &Dists, '[', 'X', ']', DIST_GAMES },
