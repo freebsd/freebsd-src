@@ -464,11 +464,11 @@ substip(char *tgt, const char *oldstr, struct in_addr ip)
 }
 
 static char *
-substint(char *tgt, const char *oldstr, int i)
+substlong(char *tgt, const char *oldstr, long l)
 {
-  char buf[12];
+  char buf[23];
 
-  snprintf(buf, sizeof buf, "%d", i);
+  snprintf(buf, sizeof buf, "%ld", l);
 
   return subst(tgt, oldstr, buf);
 }
@@ -567,9 +567,9 @@ command_Expand(char **nargv, int argc, char const *const *oargv,
                        mp_Enddisc(bundle->ncp.mp.peer.enddisc.class,
                                   bundle->ncp.mp.peer.enddisc.address,
                                   bundle->ncp.mp.peer.enddisc.len));
-    nargv[arg] = substint(nargv[arg], "PROCESSID", pid);
+    nargv[arg] = substlong(nargv[arg], "PROCESSID", pid);
     if (server.cfg.port)
-      nargv[arg] = substint(nargv[arg], "SOCKNAME", server.cfg.port);
+      nargv[arg] = substlong(nargv[arg], "SOCKNAME", server.cfg.port);
     else
       nargv[arg] = subst(nargv[arg], "SOCKNAME", server.cfg.sockname);
     nargv[arg] = subst(nargv[arg], "UPTIME", uptime);
@@ -659,7 +659,7 @@ ShellCommand(struct cmdargs const *arg, int bg)
 
 	p = getpid();
 	if (daemon(1, 1) == -1) {
-	  log_Printf(LogERROR, "%d: daemon: %s\n", (int)p, strerror(errno));
+	  log_Printf(LogERROR, "%ld: daemon: %s\n", (long)p, strerror(errno));
 	  exit(1);
 	}
       } else if (arg->prompt)
@@ -678,7 +678,7 @@ ShellCommand(struct cmdargs const *arg, int bg)
     _exit(255);
   }
 
-  if (shpid == (pid_t) - 1)
+  if (shpid == (pid_t)-1)
     log_Printf(LogERROR, "Fork failed: %s\n", strerror(errno));
   else {
     int status;
