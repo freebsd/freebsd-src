@@ -35,7 +35,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)lock.h	8.12 (Berkeley) 5/19/95
- * $Id: lock.h,v 1.11 1998/01/06 05:22:48 dyson Exp $
+ * $Id: lock.h,v 1.12 1999/01/02 11:34:56 bde Exp $
  */
 
 #ifndef	_LOCK_H_
@@ -59,6 +59,11 @@ struct lock {
 	char	*lk_wmesg;		/* resource sleeping (for tsleep) */
 	int	lk_timo;		/* maximum sleep time (for tsleep) */
 	pid_t	lk_lockholder;		/* pid of exclusive lock holder */
+#ifdef	DEBUG_LOCKS
+	const char *lk_filename;
+	const char *lk_lockername;
+	int     lk_lineno;
+#endif
 };
 /*
  * Lock request types:
@@ -169,8 +174,19 @@ struct proc;
 
 void	lockinit __P((struct lock *, int prio, char *wmesg, int timo,
 			int flags));
+#ifdef DEBUG_LOCKS
+int	debuglockmgr __P((struct lock *, u_int flags,
+			struct simplelock *, struct proc *p,
+			const char *,
+			const char *,
+			int));
+#define lockmgr(lockp, flags, slockp, proc) \
+	debuglockmgr((lockp), (flags), (slockp), (proc), \
+	    "lockmgr", __FILE__, __LINE__)
+#else
 int	lockmgr __P((struct lock *, u_int flags,
 			struct simplelock *, struct proc *p));
+#endif
 void	lockmgr_printinfo __P((struct lock *));
 int	lockstatus __P((struct lock *));
 
