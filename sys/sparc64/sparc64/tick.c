@@ -29,12 +29,17 @@
 #include <sys/param.h>
 #include <sys/kernel.h>
 #include <sys/systm.h>
+#include <sys/bus.h>
+#include <sys/interrupt.h>
+#include <sys/timetc.h>
 
 #include <machine/frame.h>
 #include <machine/intr_machdep.h>
 #include <machine/tick.h>
 
-static u_long tick_increment;
+extern u_long tick_increment;
+extern u_long tick_freq;
+extern u_long tick_MHz;
 
 void
 tick_hardclock(struct clockframe *cf)
@@ -47,6 +52,8 @@ void
 tick_start(u_long clock, tick_func_t *func)
 {
 	intr_setup(PIL_TICK, (ih_func_t *)func, -1, NULL, NULL);
+	tick_freq = clock;
+	tick_MHz = clock / 1000000;
 	tick_increment = clock / hz;
 	wrpr(tick, 0, 0);
 	wr(asr23, clock / hz, 0);
