@@ -1929,7 +1929,7 @@ bge_dma_alloc(dev)
 			NULL, NULL,		/* filter, filterarg */
 			MAXBSIZE, BGE_NSEG_NEW,	/* maxsize, nsegments */
 			BUS_SPACE_MAXSIZE_32BIT,/* maxsegsize */
-			BUS_DMA_ALLOCNOW,	/* flags */
+			0,			/* flags */
 			NULL, NULL,		/* lockfunc, lockarg */
 			&sc->bge_cdata.bge_parent_tag);
 
@@ -1939,7 +1939,7 @@ bge_dma_alloc(dev)
 	nseg = 32;
 	error = bus_dma_tag_create(sc->bge_cdata.bge_parent_tag, 1,
 	    0, BUS_SPACE_MAXADDR, BUS_SPACE_MAXADDR, NULL,
-	    NULL, MCLBYTES * nseg, nseg, MCLBYTES, 0, NULL, NULL,
+	    NULL, MCLBYTES * nseg, nseg, MCLBYTES, BUS_DMA_ALLOCNOW, NULL, NULL,
 	    &sc->bge_cdata.bge_mtag);
 
 	if (error) {
