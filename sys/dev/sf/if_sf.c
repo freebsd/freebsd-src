@@ -1348,9 +1348,6 @@ static void sf_start(ifp)
 		return;
 	}
 
-	if (sc->sf_tx_cnt)
-		sf_txeof(sc);
-
 	txprod = csr_read_4(sc, SF_TXDQ_PRODIDX);
 	i = SF_IDX_HI(txprod) >> 4;
 
@@ -1388,6 +1385,11 @@ static void sf_start(ifp)
 
 		SF_INC(i, SF_TX_DLIST_CNT);
 		sc->sf_tx_cnt++;
+		/*
+		 * Don't get the TX DMA queue get too full.
+		 */
+		if (sc->sf_tx_cnt > 64)
+			break;
 	}
 
 	if (cur_tx == NULL) {
