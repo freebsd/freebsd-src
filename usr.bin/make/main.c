@@ -1049,7 +1049,9 @@ Cmd_Exec(cmd, error)
 	(void) dup2(fds[1], 1);
 	(void) close(fds[1]);
 
-#if DEFSHELL == 1
+#if defined(DEFSHELL) && DEFSHELL == 0
+	(void) execv("/bin/csh", args);
+#elif DEFSHELL == 1
 	(void) execv("/bin/sh", args);
 #elif DEFSHELL == 2
 	(void) execv("/bin/ksh", args);
