@@ -799,12 +799,18 @@ fb_commonioctl(video_adapter_t *adp, u_long cmd, caddr_t arg)
 		*(u_int *)arg = adp->va_line_width;
 		break;
 
+	case FBIO_BLANK:	/* blank display */
+		error = (*vidsw[adp->va_index]->blank_display)(adp, *(int *)arg);
+		break;
+
 	case FBIO_GETPALETTE:	/* get color palette */
 	case FBIO_SETPALETTE:	/* set color palette */
 		/* XXX */
 
 	case FBIOPUTCMAP:
 	case FBIOGETCMAP:
+	case FBIOPUTCMAPI:
+	case FBIOGETCMAPI:
 		/* XXX */
 
 	case FBIO_SETWINORG:	/* set frame buffer window origin */
@@ -815,11 +821,14 @@ fb_commonioctl(video_adapter_t *adp, u_long cmd, caddr_t arg)
 	case FBIOGATTR:
 	case FBIOSVIDEO:
 	case FBIOGVIDEO:
+	case FBIOVERTICAL:
 	case FBIOSCURSOR:
 	case FBIOGCURSOR:
 	case FBIOSCURPOS:
 	case FBIOGCURPOS:
 	case FBIOGCURMAX:
+	case FBIOMONINFO:
+	case FBIOGXINFO:
 
 	default:
 		error = ENODEV;
