@@ -25,7 +25,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *	$Id: pc98gdc.c,v 1.4 1999/01/28 11:24:36 kato Exp $
+ *	$Id: pc98gdc.c,v 1.5 1999/02/06 09:30:19 kato Exp $
  */
 
 #include "gdc.h"
@@ -669,7 +669,7 @@ gdc_set_mode(video_adapter_t *adp, int mode)
 	return 1;
 
 #ifdef LINE30
-    switch (scp->mode) {
+    switch (info.vi_mode) {
        	case M_PC98_80x25:	/* VGA TEXT MODES */
 		initialize_gdc(T25_G400);
 		break;
