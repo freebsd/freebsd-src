@@ -46,6 +46,9 @@
  * this routine are used by hardclock() to adjust the phase and
  * frequency of the phase-lock loop which controls the system clock.
  */
+
+#include "opt_ntp.h"
+
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/sysproto.h>

@@ -1,4 +1,4 @@
-#	$Id: options,v 1.50 1998/01/26 18:31:18 julian Exp $
+#	$Id: options,v 1.51 1998/01/30 11:32:09 phk Exp $
 
 # Format:
 # Option name	filename
@@ -17,6 +17,7 @@ MD5
 MFS_AUTOLOAD	opt_mfs.h
 MFS_ROOT	opt_mfs.h
 NSWAPDEV	opt_swap.h
+PPS_SYNC	opt_ntp.h
 QUOTA
 SUIDDIR		opt_suiddir.h
 SYSVMSG		opt_sysvipc.h
@@ -135,6 +136,10 @@ PPP_DEFLATE		opt_ppp.h
 PPP_FILTER		opt_ppp.h
 TCP_COMPAT_42		opt_compat.h
 TCPDEBUG
+
+# XXX Conflict: # of devices vs network protocol (Native ATM).
+# This makes "atm.h" unusable.
+NATM			opt_natm.h
 
 # DPT driver debug flags
 DPT_VERIFY_HINTR        opt_dpt.h
