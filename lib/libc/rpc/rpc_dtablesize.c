@@ -40,25 +40,12 @@ static char *rcsid = "rpc_dtablesize.c,v 1.1 1994/08/07 18:36:02 wollman Exp";
  * Cache the result of getdtablesize(), so we don't have to do an
  * expensive system call every time.
  */
-/*
- * XXX In FreeBSD 2.x, you can have the maximum number of open file
- * descriptors be greater than FD_SETSIZE (which us 256 by default).
- * This can lead to many RPC functions getting back an EINVAL from
- * select() and bombing all over the place.
- *
- * You can apparently get select() to handle values larger than 256
- * by patching the kernel, but most people aren't likely to know
- * that. Clamping this function at 256 is a kludge, but it'll have to
- * do until select()'s descriptor table size can be adjusted dynamically.
- */
-int _rpc_dtablesize(void)
+int
+_rpc_dtablesize()
 {
 	static int size;
 
-	if (size == 0) {
+	if (size == 0)
 		size = getdtablesize();
-		if (size > FD_SETSIZE)
-			size = FD_SETSIZE;
-	}
 	return (size);
 }
