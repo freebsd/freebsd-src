@@ -243,6 +243,7 @@ usbioctl(dev, cmd, data, flag, p)
 
 	if (sc == 0 || !sc->sc_running)
 		return (ENXIO);
+
 	switch (cmd) {
 #ifdef USB_DEBUG
 	case USB_SETDEBUG:
@@ -345,23 +346,23 @@ usbpoll(dev, events, p)
 	int events;
 	struct proc *p;
 {
-	int revents, s;
+	int revents = 0;
+	int s;
+
 	USB_GET_SC(usb, USBUNIT(dev), sc);
 
-	DPRINTFN(2, ("usbpoll: sc=%p events=0x%x\n", sc, events));
 	s = splusb();
-	revents = 0;
+
 	if (events & (POLLOUT | POLLWRNORM))
 		if (sc->sc_bus->needs_explore)
 			revents |= events & (POLLOUT | POLLWRNORM);
-	DPRINTFN(2, ("usbpoll: revents=0x%x\n", revents));
-	if (revents == 0) {
-		if (events & (POLLOUT | POLLWRNORM)) {
-			DPRINTFN(2, ("usbpoll: selrecord\n"));
+
+	if (revents == 0)
+		if (events & (POLLOUT | POLLWRNORM))
 			selrecord(p, &sc->sc_consel);
-		}
-	}
+
 	splx(s);
+	
 	return (revents);
 }
 
