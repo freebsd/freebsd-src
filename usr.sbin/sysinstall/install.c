@@ -50,6 +50,7 @@
 #include <sys/stat.h>
 #include <sys/sysctl.h>
 #include <unistd.h>
+#include <termios.h>
 
 static void	create_termcap(void);
 static void	fixit_common(void);

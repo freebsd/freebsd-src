@@ -18,6 +18,7 @@
 
 #include "sysinstall.h"
 #include <signal.h>
+#include <termios.h>
 #include <sys/reboot.h>
 #include <machine/console.h>
 #include <sys/fcntl.h>
@@ -257,15 +258,12 @@ void
 systemChangeTerminal(char *color, const u_char c_term[],
 		     char *mono, const u_char m_term[])
 {
-    extern void init_acs(void);
-
     if (OnVTY) {
 	if (ColorDisplay) {
 	    setenv("TERM", color, 1);
 	    setenv("TERMCAP", c_term, 1);
 	    reset_shell_mode();
 	    setterm(color);
-	    init_acs();
 	    cbreak(); noecho();
 	}
 	else {
@@ -273,7 +271,6 @@ systemChangeTerminal(char *color, const u_char c_term[],
 	    setenv("TERMCAP", m_term, 1);
 	    reset_shell_mode();
 	    setterm(mono);
-	    init_acs();
 	    cbreak(); noecho();
 	}
     }
