@@ -38,7 +38,7 @@
  */
 
 /*
- *  $Id: if_ep.c,v 1.71 1998/02/04 22:32:19 eivind Exp $
+ *  $Id: if_ep.c,v 1.72 1998/02/06 12:13:16 eivind Exp $
  *
  *  Promiscuous mode added and interrupt logic slightly changed
  *  to reduce the number of adapter failures. Transceiver select
@@ -155,7 +155,6 @@ struct isa_driver epdriver = {
 #if NCARD > 0
 #include <sys/select.h>
 #include <pccard/cardinfo.h>
-#include <pccard/driver.h>
 #include <pccard/slot.h>
 
 /*
