@@ -1,8 +1,8 @@
-#	$Id: Makefile,v 1.11 1996/10/08 20:25:36 wollman Exp $
+#	$Id: Makefile,v 1.11.2.1 1997/02/09 20:34:08 joerg Exp $
 
 MAN9=	at_shutdown.9 at_fork.9 at_exit.9 copy.9 devfs_add_devswf.9 cd.9 \
-	devfs_link.9 fetch.9 intro.9 rtalloc.9 rtentry.9 scsiconf.9 sd.9 \
-	sleep.9 spl.9 st.9 store.9 style.9 timeout.9 uio.9
+	devfs_link.9 fetch.9 intro.9 panic.9 rtalloc.9 rtentry.9 scsiconf.9 \
+	sd.9 sleep.9 spl.9 st.9 store.9 style.9 timeout.9 uio.9
 
 MLINKS+= copy.9 copyin.9 copy.9 copyout.9 copy.9 copystr.9 copy.9 copyinstr.9
 MLINKS+= fetch.9 fubyte.9 fetch.9 fusword.9 fetch.9 fuswintr.9 fetch.9 fuword.9
