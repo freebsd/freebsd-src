@@ -1007,23 +1007,17 @@ pmap_new_thread(struct thread *td)
 	/*
 	 * allocate object for the kstack
 	 */
-	ksobj = td->td_kstack_obj;
-	if (ksobj == NULL) {
-		ksobj = vm_object_allocate(OBJT_DEFAULT, KSTACK_PAGES);
-		td->td_kstack_obj = ksobj;
-	}
+	ksobj = vm_object_allocate(OBJT_DEFAULT, KSTACK_PAGES);
+	td->td_kstack_obj = ksobj;
 
 #ifdef KSTACK_GUARD
 	/* get a kernel virtual address for the kstack for this thread */
-	ks = td->td_kstack;
-	if (ks == 0) {
-		ks = kmem_alloc_nofault(kernel_map,
-		    (KSTACK_PAGES + 1) * PAGE_SIZE);
-		if (ks == 0)
-			panic("pmap_new_thread: kstack allocation failed");
-		ks += PAGE_SIZE;
-		td->td_kstack = ks;
-	}
+	ks = kmem_alloc_nofault(kernel_map,
+	    (KSTACK_PAGES + 1) * PAGE_SIZE);
+	if (ks == 0)
+		panic("pmap_new_thread: kstack allocation failed");
+	ks += PAGE_SIZE;
+	td->td_kstack = ks;
 
 	ptek = vtopte(ks - PAGE_SIZE);
 	oldpte = *ptek;
@@ -1038,13 +1032,10 @@ pmap_new_thread(struct thread *td)
 	ptek++;
 #else
 	/* get a kernel virtual address for the kstack for this thread */
-	ks = td->td_kstack;
-	if (ks == 0) {
-		ks = kmem_alloc_nofault(kernel_map, KSTACK_PAGES * PAGE_SIZE);
-		if (ks == 0)
-			panic("pmap_new_thread: kstack allocation failed");
-		td->td_kstack = ks;
-	}
+	ks = kmem_alloc_nofault(kernel_map, KSTACK_PAGES * PAGE_SIZE);
+	if (ks == 0)
+		panic("pmap_new_thread: kstack allocation failed");
+	td->td_kstack = ks;
 	ptek = vtopte(ks);
 #endif
 	for (i = 0; i < KSTACK_PAGES; i++) {
