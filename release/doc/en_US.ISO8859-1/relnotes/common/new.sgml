@@ -123,7 +123,9 @@
     <sect3>
       <title>Multimedia Support</title>
 
-      <para></para>
+      <para arch="i386">A driver for the Advance Logic ALS4000 has
+      been added.</para>
+
     </sect3>
 
     <sect3>
@@ -225,6 +227,14 @@
     program.  They are used by error-reporting routines to produce
     consistent output.</para>
 
+    <para>&man.xargs.1; gained a <option>-J</option> option which allows
+    the user to specify exactly where in the command line the input should
+    be retrofitted.</para>
+
+    <para>&man.ifconfig.8; now has support for setting parameters for
+    IEEE 802.11 wireless network devices.  &man.wi.4; and
+    &man.an.4; devices are supported.</para>
+
     <sect3>
       <title>Contributed Software</title>
 
@@ -246,6 +256,10 @@
       to version 8.11.4.  See
       <filename>/usr/src/contrib/sendmail/RELEASE_NOTES</filename>
       for more information.</para>
+
+      <para>&man.traceroute.8; now takes its default maximum TTL value
+      from the <varname>net.inet.ip.ttl</varname> sysctl
+      variable.</para>
 
     </sect3>
 
