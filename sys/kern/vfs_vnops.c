@@ -620,7 +620,7 @@ vn_stat(vp, sb, td)
 	sb->st_atimespec = vap->va_atime;
 	sb->st_mtimespec = vap->va_mtime;
 	sb->st_ctimespec = vap->va_ctime;
-	sb->st_createtimespec = vap->va_createtime;
+	sb->st_birthtimespec = vap->va_birthtime;
 
         /*
 	 * According to www.opengroup.org, the meaning of st_blksize is 
