@@ -34,13 +34,13 @@
  * SUCH DAMAGE.
  */
 
+#include <sys/cdefs.h>
+
+__FBSDID("$FreeBSD$");
+
 #ifndef lint
-#if 0
-static char sccsid[] = "@(#)forward.c	8.1 (Berkeley) 6/6/93";
+static const char sccsid[] = "@(#)forward.c	8.1 (Berkeley) 6/6/93";
 #endif
-static const char rcsid[] =
-  "$FreeBSD$";
-#endif /* not lint */
 
 #include <sys/types.h>
 #include <sys/stat.h>
@@ -48,14 +48,15 @@ static const char rcsid[] =
 #include <sys/mman.h>
 #include <sys/event.h>
 
-#include <limits.h>
-#include <fcntl.h>
+#include <err.h>
 #include <errno.h>
-#include <unistd.h>
+#include <fcntl.h>
+#include <limits.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#include <err.h>
+#include <unistd.h>
+
 #include "extern.h"
 
 static void rlines __P((FILE *, off_t, struct stat *));
@@ -171,6 +172,7 @@ forward(fp, style, off, sbp)
 			if (lines(fp, off))
 				return;
 		break;
+	default:
 	}
 
 	if (fflag) {
