@@ -46,7 +46,9 @@
 .Op Fl N Ar system
 .Ar directory
 .Sh DESCRIPTION
-.Nm Savecore
+The
+.Nm
+utility
 copies the currently running kernel and its associated core dump into
 .Fa directory ,
 and enters a reboot message and information about the core dump into
@@ -75,7 +77,9 @@ Compress the core dump and kernel (see
 .Xr gzip 1 ) .
 .El
 .Pp
-.Nm Savecore
+The
+.Nm
+utility
 checks the core dump in various ways to make sure that it is current and
 that it corresponds to the currently running system.
 If it passes these checks, it saves the core image in
@@ -88,7 +92,9 @@ and it is incremented and stored back into the file each time
 .Nm
 successfully runs.
 .Pp
-.Nm Savecore
+The
+.Nm
+utility
 also checks the available disk space before attempting to make the copies.
 If there is insufficient disk space in the filesystem containing
 .Ar directory ,
@@ -105,7 +111,9 @@ so that future invocations of
 .Nm
 will ignore it.
 .Pp
-.Nm Savecore
+The
+.Nm
+utility
 is meant to be called near the end of the initialization file
 .Pa /etc/rc
 (see
@@ -120,5 +128,5 @@ The minfree code does not consider the effect of compression.
 .Sh HISTORY
 The
 .Nm
-command appeared in
+utility appeared in
 .Bx 4.1 .
