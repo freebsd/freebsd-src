@@ -15,7 +15,7 @@
  *
  * Sep, 1994	Implemented on FreeBSD 1.1.5.1R (Toshiba AVS001WD)
  *
- *	$Id: apm.c,v 1.91 1999/07/22 14:45:22 iwasaki Exp $
+ *	$Id: apm.c,v 1.92 1999/07/28 19:37:32 msmith Exp $
  */
 
 #include "opt_devfs.h"
@@ -44,7 +44,6 @@
 #include <vm/vm_param.h>
 #include <vm/pmap.h>
 #include <sys/syslog.h>
-#include <i386/apm/apm_setup.h>
 
 #include <machine/psl.h>
 #include <machine/vm86.h>
@@ -56,6 +55,18 @@
 static int apm_display __P((int newstate));
 static int apm_int __P((u_long *eax, u_long *ebx, u_long *ecx, u_long *edx));
 static void apm_resume __P((void));
+
+extern int apm_bios_call __P((struct apm_bios_arg *));	/* in apm_setup.s */
+
+static u_long	apm_version;
+static u_long	apm_cs_entry;
+static u_short	apm_cs32_base;
+static u_short	apm_cs16_base;
+static u_short	apm_ds_base;
+static u_short	apm_cs32_limit;
+static u_short	apm_cs16_limit;
+static u_short	apm_ds_limit;
+static u_short	apm_flags;
 
 #define APM_NEVENTS 16
 #define APM_NPMEV   13
@@ -180,7 +191,7 @@ apm_int(u_long *eax, u_long *ebx, u_long *ecx, u_long *edx)
 {
 	struct apm_bios_arg apa;
 	int cf;
-
+	
 	apa.eax = *eax;
 	apa.ebx = *ebx;
 	apa.ecx = *ecx;
