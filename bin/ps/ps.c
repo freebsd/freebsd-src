@@ -173,8 +173,7 @@ main(int argc, char *argv[])
 	char errbuf[_POSIX2_LINE_MAX];
 
 	(void) setlocale(LC_ALL, "");
-	/* Set the time to what it is right now. */
-	time(&now);
+	time(&now);			/* Used by routines in print.c. */
 
 	if ((cols = getenv("COLUMNS")) != NULL && *cols != '\0')
 		termwidth = atoi(cols);
@@ -206,8 +205,9 @@ main(int argc, char *argv[])
 			argv[1] = kludge_oldps_options(argv[1]);
 	}
 
-	xkeep = -1;				/* Neither -x nor -X */
-	all = _fmt = nselectors = prtheader = wflag = xkeep_implied = 0;
+	all = dropgid = _fmt = nselectors = optfatal = 0;
+	prtheader = showthreads = wflag = xkeep_implied = 0;
+	xkeep = -1;			/* Neither -x nor -X. */
 	init_list(&gidlist, addelem_gid, sizeof(gid_t), "group");
 	init_list(&pgrplist, addelem_pid, sizeof(pid_t), "process group");
 	init_list(&pidlist, addelem_pid, sizeof(pid_t), "process id");
@@ -215,10 +215,7 @@ main(int argc, char *argv[])
 	init_list(&sesslist, addelem_pid, sizeof(pid_t), "session id");
 	init_list(&ttylist, addelem_tty, sizeof(dev_t), "tty");
 	init_list(&uidlist, addelem_uid, sizeof(uid_t), "user");
-	dropgid = 0;
-	optfatal = 0;
 	memf = nlistf = _PATH_DEVNULL;
-	showthreads = 0;
 	while ((ch = getopt(argc, argv, PS_ARGS)) != -1)
 		switch((char)ch) {
 		case 'A':
@@ -246,7 +243,7 @@ main(int argc, char *argv[])
 #ifdef LAZY_PS
 		case 'f':
 			if (getuid() == 0 || getgid() == 0)
-			    forceuread = 1;
+				forceuread = 1;
 			break;
 #endif
 		case 'G':
@@ -254,17 +251,19 @@ main(int argc, char *argv[])
 			xkeep_implied = 1;
 			nselectors++;
 			break;
-#if 0
-		/* XXX - This SUSv3 option is still under debate. */
-		/* (it conflicts with the undocumented `-g' option) */
 		case 'g':
+#if 0
+			/*
+			 * XXX - This SUSv3 behavior is still under debate
+			 *	since it conflicts with the (undocumented)
+			 *	`-g' option.  So we skip it for now.
+			 */
 			add_list(&pgrplist, optarg);
 			xkeep_implied = 1;
 			nselectors++;
 			break;
 #else
-		case 'g':
-			/* Historical BSD-ish (from SunOS) option */
+			/* The historical BSD-ish (from SunOS) behavior. */
 			break;			/* no-op */
 #endif
 		case 'H':
@@ -319,9 +318,14 @@ main(int argc, char *argv[])
 			nselectors++;
 			break;
 #if 0
-		/* XXX - This un-standard option is still under debate. */
 		case 'R':
-			/* This is what SUSv3 defines as the `-U' option. */
+			/*
+			 * XXX - This un-standard option is still under
+			 *	debate.  This is what SUSv3 defines as
+			 *	the `-U' option, and while it would be
+			 *	nice to have, it could cause even more
+			 *	confusion to implement it as `-R'.
+			 */
 			add_list(&ruidlist, optarg);
 			xkeep_implied = 1;
 			nselectors++;
@@ -334,10 +338,13 @@ main(int argc, char *argv[])
 			sumrusage = 1;
 			break;
 #if 0
-		/* XXX - This non-standard option is still under debate. */
-		/* (it conflicts with `-s' in NetBSD) */
 		case 's':
-			/* As seen on Solaris, Linux, IRIX. */
+			/*
+			 * XXX - This non-standard option is still under
+			 *	debate.  This *is* supported on Solaris,
+			 *	Linux, and IRIX, but conflicts with `-s'
+			 *	on NetBSD and maybe some older BSD's.
+			 */
 			add_list(&sesslist, optarg);
 			xkeep_implied = 1;
 			nselectors++;
@@ -404,20 +411,17 @@ main(int argc, char *argv[])
 		}
 	argc -= optind;
 	argv += optind;
-
 	if (optfatal)
-		exit(1);		/* Error messages already printed */
-
-	if (xkeep < 0)			/* Neither -X nor -x was specified */
+		exit(1);		/* Error messages already printed. */
+	if (xkeep < 0)			/* Neither -X nor -x was specified. */
 		xkeep = xkeep_implied;
 
 #define	BACKWARD_COMPATIBILITY
 #ifdef	BACKWARD_COMPATIBILITY
 	if (*argv) {
 		nlistf = *argv;
-		if (*++argv) {
+		if (*++argv)
 			memf = *argv;
-		}
 	}
 #endif
 	/*
@@ -474,7 +478,11 @@ main(int argc, char *argv[])
 			what = KERN_PROC_RUID | showthreads;
 			flag = *ruidlist.uids;
 			nselectors = 0;
-#if 0		/* XXX - KERN_PROC_SESSION causes error in kvm_getprocs? */
+#if 0
+		/*
+		 * XXX - KERN_PROC_SESSION causes error in kvm_getprocs?
+		 *	For now, always do sid-matching in this routine.
+		 */
 		} else if (sesslist.count == 1) {
 			what = KERN_PROC_SESSION | showthreads;
 			flag = *sesslist.pids;
@@ -627,7 +635,7 @@ addelem_gid(struct listinfo *inf, const char *elem)
 		else
 			warnx("%s name too long: %s", inf->lname, elem);
 		optfatal = 1;
-		return (0);			/* Do not add this value */
+		return (0);		/* Do not add this value. */
 	}
 
 	/*
@@ -652,7 +660,7 @@ addelem_gid(struct listinfo *inf, const char *elem)
 	if (grp == NULL) {
 		warnx("No %s %s '%s'", inf->lname, nameorID, elem);
 		optfatal = 1;
-		return (0);			/* Do not add this value */
+		return (0);		/* Do not add this value. */
 	}
 
 	if (inf->count >= inf->maxcount)
@@ -661,7 +669,7 @@ addelem_gid(struct listinfo *inf, const char *elem)
 	return (1);
 }
 
-#define	BSD_PID_MAX	99999		/* Copy of PID_MAX from sys/proc.h */
+#define	BSD_PID_MAX	99999	/* Copy of PID_MAX from sys/proc.h. */
 static int
 addelem_pid(struct listinfo *inf, const char *elem)
 {
@@ -682,7 +690,7 @@ addelem_pid(struct listinfo *inf, const char *elem)
 		}
 		if (errno == ERANGE) {
 			optfatal = 1;
-			return (0);		/* Do not add this value */
+			return (0);	/* Do not add this value. */
 		}
 	}
 
@@ -713,12 +721,12 @@ addelem_tty(struct listinfo *inf, const char *elem)
 	if (stat(ttypath, &sb) == -1) {
 		warn("%s", ttypath);
 		optfatal = 1;
-		return (0);			/* Do not add this value */
+		return (0);		/* Do not add this value. */
 	}
 	if (!S_ISCHR(sb.st_mode)) {
 		warn("%s: Not a terminal", ttypath);
 		optfatal = 1;
-		return (0);			/* Do not add this value */
+		return (0);		/* Do not add this value. */
 	}
 
 	if (inf->count >= inf->maxcount)
@@ -740,7 +748,7 @@ addelem_uid(struct listinfo *inf, const char *elem)
 		else
 			warnx("%s name too long: %s", inf->lname, elem);
 		optfatal = 1;
-		return (0);			/* Do not add this value */
+		return (0);		/* Do not add this value. */
 	}
 
 	pwd = getpwnam(elem);
@@ -765,7 +773,7 @@ addelem_uid(struct listinfo *inf, const char *elem)
 		 * errors (and the command will be aborted).
 		 */
 		optfatal = 1;
-		return (0);			/* Do not add this value */
+		return (0);		/* Do not add this value. */
 	}
 
 	if (inf->count >= inf->maxcount)
@@ -799,17 +807,24 @@ add_list(struct listinfo *inf, const char *argp)
 		if (!toolong) {
 			*cp = '\0';
 #ifndef ADD_PS_LISTRESET
-	/* This is how the standard expects lists to be handled. */
+			/*
+			 * This is how the standard expects lists to
+			 * be handled.
+			 */
 			inf->addelem(inf, elemcopy);
 #else
-	/*
-	 * This would add a simple non-standard-but-convienent feature.
-	 *
-	 * XXX - Adding this check increased the total size of `ps' by
-	 *	3940 bytes on i386!  That's 12% of the entire program!
-	 *	The `ps.o' file grew by only about 40 bytes, but the
-	 *	final (stripped) executable in /bin/ps grew by 12%.
-	 */
+			/*
+			 * This would add a simple non-standard-but-convienent
+			 * feature.
+			 *
+			 * XXX - The first time I tried to add this check,
+			 *	it increased the total size of `ps' by 3940
+			 *	bytes on i386!  That's 12% of the entire
+			 *	program!  The `ps.o' file grew by only about
+			 *	40 bytes, but the final (stripped) executable
+			 *	in /bin/ps grew by 12%.  I have not had time
+			 *	to investigate, so skip the feature for now.
+			 */
 			/*
 			 * We now have a single element.  Add it to the
 			 * list, unless the element is ":".  In that case,
@@ -960,7 +975,7 @@ sizevars(void)
 
 static const char *
 fmt(char **(*fn)(kvm_t *, const struct kinfo_proc *, int), KINFO *ki,
-  char *comm, int maxlen)
+    char *comm, int maxlen)
 {
 	const char *s;
 
