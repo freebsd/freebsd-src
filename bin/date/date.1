@@ -112,9 +112,14 @@ option stops
 .Nm
 from setting the time for other than the current machine.
 .It Fl r
-Print out the date and time in
+Print out the date and time that is
 .Ar seconds
-from the Epoch.
+from the Epoch
+.Po
+00:00:00 UTC, January 1, 1970;
+see
+.Xr time 3
+.Pc .
 .It Fl t
 Set the kernel's value for minutes west of
 .Tn GMT .
