@@ -465,10 +465,6 @@ amr_ioctl(dev_t dev, u_long cmd, caddr_t addr, int32_t flag, struct proc *p)
 		ac->ac_flags |= AMR_CMD_DATAIN;
 	    if (au->au_direction & AMR_IO_WRITE)
 		ac->ac_flags |= AMR_CMD_DATAOUT;
-
-	    /* XXX debugging */
-	    if ((au->au_direction & AMR_IO_READ) && !(au->au_direction & AMR_IO_WRITE))
-		memset(dp, 0xa5, au->au_length);
 	}
 
 	/* run the command */
