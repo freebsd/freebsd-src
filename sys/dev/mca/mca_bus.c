@@ -440,7 +440,6 @@ static int
 mca_read_ivar (device_t dev, device_t child, int which, u_long * result)
 {
 	struct mca_device *		m_dev = device_get_ivars(child);
-	struct resource_list_entry *	rle;
 
 	switch (which) {
 		case MCA_IVAR_SLOT:
@@ -486,7 +485,7 @@ mca_alloc_resource (device_t dev, device_t child, int type, int *rid,
 		}
 	}
 
-	return (resource_list_alloc(dev, child, type, rid,
+	return (resource_list_alloc(&(m_dev->rl), dev, child, type, rid,
 				    start, end, count, flags));
 }
 
@@ -494,7 +493,9 @@ static int
 mca_release_resource (device_t dev, device_t child, int type, int rid,
 		      struct resource * r)
 {
-        return (resource_list_release(dev, child, type, rid, r));
+	struct mca_device *		m_dev = device_get_ivars(child);
+
+        return (resource_list_release(&(m_dev->rl), dev, child, type, rid, r));
 }
 
 static device_method_t mca_methods[] = {
