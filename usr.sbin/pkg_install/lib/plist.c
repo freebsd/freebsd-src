@@ -29,7 +29,7 @@ static const char rcsid[] =
 
 /* Add an item to a packing list */
 void
-add_plist(Package *p, plist_t type, char *arg)
+add_plist(Package *p, plist_t type, const char *arg)
 {
     PackingList tmp;
 
@@ -47,7 +47,7 @@ add_plist(Package *p, plist_t type, char *arg)
 }
 
 void
-add_plist_top(Package *p, plist_t type, char *arg)
+add_plist_top(Package *p, plist_t type, const char *arg)
 {
     PackingList tmp;
 
@@ -99,7 +99,7 @@ find_plist(Package *pkg, plist_t type)
 
 /* Look for a specific boolean option argument in the list */
 char *
-find_plist_option(Package *pkg, char *name)
+find_plist_option(Package *pkg, const char *name)
 {
     PackingList p = pkg->head;
 
@@ -116,7 +116,7 @@ find_plist_option(Package *pkg, char *name)
  * too.)  If 'all' is set, delete all items, not just the first occurance.
  */
 void
-delete_plist(Package *pkg, Boolean all, plist_t type, char *name)
+delete_plist(Package *pkg, Boolean all, plist_t type, const char *name)
 {
     PackingList p = pkg->head;
 
@@ -175,10 +175,11 @@ free_plist(Package *pkg)
  * optionally its argument(s)
  */
 int
-plist_cmd(char *s, char **arg)
+plist_cmd(const char *s, char **arg)
 {
     char cmd[FILENAME_MAX + 20];	/* 20 == fudge for max cmd len */
-    char *cp, *sp;
+    char *cp;
+    const char *sp;
 
     strcpy(cmd, s);
     str_lowercase(cmd);
@@ -194,7 +195,7 @@ plist_cmd(char *s, char **arg)
 	++cp, ++sp;
     }
     if (arg)
-	*arg = sp;
+	(const char *)*arg = sp;
     if (!strcmp(cmd, "cwd"))
 	return PLIST_CWD;
     else if (!strcmp(cmd, "srcdir"))
@@ -355,7 +356,7 @@ int
 delete_package(Boolean ign_err, Boolean nukedirs, Package *pkg)
 {
     PackingList p;
-    char *Where = ".", *last_file = "";
+    const char *Where = ".", *last_file = "";
     Boolean fail = SUCCESS;
     Boolean preserve;
     char tmp[FILENAME_MAX], *name = NULL;
@@ -464,11 +465,11 @@ delete_package(Boolean ign_err, Boolean nukedirs, Package *pkg)
 
 /* Selectively delete a hierarchy */
 int
-delete_hierarchy(char *dir, Boolean ign_err, Boolean nukedirs)
+delete_hierarchy(const char *dir, Boolean ign_err, Boolean nukedirs)
 {
     char *cp1, *cp2;
 
-    cp1 = cp2 = dir;
+    cp1 = cp2 = strdup(dir);
     if (!fexists(dir)) {
 	if (!ign_err)
 	    warnx("%s `%s' doesn't really exist",
@@ -503,7 +504,7 @@ delete_hierarchy(char *dir, Boolean ign_err, Boolean nukedirs)
 	}
 	/* back up the pathname one component */
 	if (cp2) {
-	    cp1 = dir;
+	    cp1 = strdup(dir);
 	}
     }
     return 0;

@@ -39,7 +39,7 @@ struct store {
     char **store;
 };
 
-static int rex_match(char *, char *);
+static int rex_match(const char *, const char *);
 static int storeappend(struct store *, const char *);
 static int fname_cmp(const FTSENT **, const FTSENT **);
 
@@ -58,8 +58,8 @@ char **
 matchinstalled(match_t MatchType, char **patterns, int *retval)
 {
     int i, errcode, len;
-    char *tmp, *matched;
-    char *paths[2];
+    char *matched;
+    const char *paths[2] = {LOG_DIR, NULL};
     static struct store *store = NULL;
     FTS *ftsp;
     FTSENT *f;
@@ -85,8 +85,7 @@ matchinstalled(match_t MatchType, char **patterns, int *retval)
     if (retval != NULL)
 	*retval = 0;
 
-    tmp = LOG_DIR;
-    if (!isdir(tmp)) {
+    if (!isdir(paths[0])) {
 	if (retval != NULL)
 	    *retval = 1;
 	return NULL;
@@ -109,9 +108,7 @@ matchinstalled(match_t MatchType, char **patterns, int *retval)
     for (i = 0; i < len; i++)
 	lmatched[i] = FALSE;
 
-    paths[0] = tmp;
-    paths[1] = NULL;
-    ftsp = fts_open(paths, FTS_LOGICAL | FTS_NOCHDIR | FTS_NOSTAT, fname_cmp);
+    ftsp = fts_open((char * const *)(uintptr_t)paths, FTS_LOGICAL | FTS_NOCHDIR | FTS_NOSTAT, fname_cmp);
     if (ftsp != NULL) {
 	while ((f = fts_read(ftsp)) != NULL) {
 	    if (f->fts_info == FTS_D && f->fts_level == 1) {
@@ -173,7 +170,7 @@ matchinstalled(match_t MatchType, char **patterns, int *retval)
  * engine reported an error (usually invalid syntax).
  */
 static int
-rex_match(char *pattern, char *pkgname)
+rex_match(const char *pattern, const char *pkgname)
 {
     char errbuf[128];
     int errcode;

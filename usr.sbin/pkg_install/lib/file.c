@@ -32,7 +32,7 @@ static const char rcsid[] =
 
 /* Quick check to see if a file exists */
 Boolean
-fexists(char *fname)
+fexists(const char *fname)
 {
     struct stat dummy;
     if (!lstat(fname, &dummy))
@@ -42,7 +42,7 @@ fexists(char *fname)
 
 /* Quick check to see if something is a directory or symlink to a directory */
 Boolean
-isdir(char *fname)
+isdir(const char *fname)
 {
     struct stat sb;
 
@@ -56,7 +56,7 @@ isdir(char *fname)
 
 /* Check to see if file is a dir or symlink to a dir, and is empty */
 Boolean
-isemptydir(char *fname)
+isemptydir(const char *fname)
 {
     if (isdir(fname)) {
 	DIR *dirp;
@@ -82,7 +82,7 @@ isemptydir(char *fname)
  * file
  */
 Boolean
-isfile(char *fname)
+isfile(const char *fname)
 {
     struct stat sb;
     if (stat(fname, &sb) != FAIL && S_ISREG(sb.st_mode))
@@ -96,7 +96,7 @@ isfile(char *fname)
  * zero sized.
  */
 Boolean
-isemptyfile(char *fname)
+isemptyfile(const char *fname)
 {
     struct stat sb;
     if (stat(fname, &sb) != FAIL && S_ISREG(sb.st_mode)) {
@@ -108,7 +108,7 @@ isemptyfile(char *fname)
 
 /* Returns TRUE if file is a symbolic link. */
 Boolean
-issymlink(char *fname)
+issymlink(const char *fname)
 {
     struct stat sb;
     if (lstat(fname, &sb) != FAIL && S_ISLNK(sb.st_mode))
@@ -118,7 +118,7 @@ issymlink(char *fname)
 
 /* Returns TRUE if file is a URL specification */
 Boolean
-isURL(char *fname)
+isURL(const char *fname)
 {
     /*
      * I'm sure there are other types of URL specifications that I could
@@ -140,7 +140,7 @@ isURL(char *fname)
  * it's unpacked, if successful.
  */
 char *
-fileGetURL(char *base, char *spec)
+fileGetURL(const char *base, const char *spec)
 {
     char *cp, *rp;
     char fname[FILENAME_MAX];
@@ -148,8 +148,7 @@ fileGetURL(char *base, char *spec)
     char buf[8192];
     FILE *ftp;
     pid_t tpid;
-    int pfd[2], pstat;
-    size_t r, w;
+    int pfd[2], pstat, r, w;
     char *hint;
     int fd;
 
@@ -235,10 +234,10 @@ fileGetURL(char *base, char *spec)
 	if ((w = write(pfd[1], buf, r)) != r)
 	    break;
     }
+    if (ferror(ftp))
+	warn("warning: error reading from server");
     fclose(ftp);
     close(pfd[1]);
-    if (r == -1)
-	warn("warning: error reading from server");
     if (w == -1)
 	warn("warning: error writing to tar");
     tpid = waitpid(tpid, &pstat, 0);
@@ -250,11 +249,11 @@ fileGetURL(char *base, char *spec)
 }
 
 char *
-fileFindByPath(char *base, char *fname)
+fileFindByPath(const char *base, const char *fname)
 {
     static char tmp[FILENAME_MAX];
     char *cp;
-    char *suffixes[] = {".tgz", ".tar", ".tbz2", NULL};
+    const char *suffixes[] = {".tgz", ".tar", ".tbz2", NULL};
     int i;
 
     if (fexists(fname) && isfile(fname)) {
@@ -294,7 +293,7 @@ fileFindByPath(char *base, char *fname)
 }
 
 char *
-fileGetContents(char *fname)
+fileGetContents(const char *fname)
 {
     char *contents;
     struct stat sb;
@@ -314,7 +313,7 @@ fileGetContents(char *fname)
     if (read(fd, contents, sb.st_size) != sb.st_size) {
 	cleanup(0);
 	errx(2, __FUNCTION__ ": short read on '%s' - did not get %qd bytes",
-	     fname, sb.st_size);
+	     fname, (long long)sb.st_size);
     }
     close(fd);
     contents[sb.st_size] = '\0';
@@ -326,7 +325,7 @@ fileGetContents(char *fname)
  * canonical "preserve" name for it.
  */
 Boolean
-make_preserve_name(char *try, int max, char *name, char *file)
+make_preserve_name(char *try, int max, const char *name, const char *file)
 {
     int len, i;
 
@@ -358,10 +357,10 @@ make_preserve_name(char *try, int max, char *name, char *file)
 
 /* Write the contents of "str" to a file */
 void
-write_file(char *name, char *str)
+write_file(const char *name, const char *str)
 {
     FILE *fp;
-    int len;
+    size_t len;
 
     fp = fopen(name, "w");
     if (!fp) {
@@ -371,7 +370,7 @@ write_file(char *name, char *str)
     len = strlen(str);
     if (fwrite(str, 1, len, fp) != len) {
 	cleanup(0);
-	errx(2, __FUNCTION__ ": short fwrite on '%s', tried to write %d bytes", name, len);
+	errx(2, __FUNCTION__ ": short fwrite on '%s', tried to write %ld bytes", name, (long)len);
     }
     if (fclose(fp)) {
 	cleanup(0);
@@ -380,7 +379,7 @@ write_file(char *name, char *str)
 }
 
 void
-copy_file(char *dir, char *fname, char *to)
+copy_file(const char *dir, const char *fname, const char *to)
 {
     char cmd[FILENAME_MAX];
 
@@ -395,7 +394,7 @@ copy_file(char *dir, char *fname, char *to)
 }
 
 void
-move_file(char *dir, char *fname, char *to)
+move_file(const char *dir, const char *fname, const char *to)
 {
     char cmd[FILENAME_MAX];
 
@@ -418,7 +417,7 @@ move_file(char *dir, char *fname, char *to)
  * without me having to write some big hairy routine to do it.
  */
 void
-copy_hierarchy(char *dir, char *fname, Boolean to)
+copy_hierarchy(const char *dir, const char *fname, Boolean to)
 {
     char cmd[FILENAME_MAX * 3];
 
@@ -443,9 +442,9 @@ copy_hierarchy(char *dir, char *fname, Boolean to)
 
 /* Unpack a tar file */
 int
-unpack(char *pkg, char *flist)
+unpack(const char *pkg, const char *flist)
 {
-    char args[10], suffix[80], *cp;
+    char args[10], suff[80], *cp;
 
     args[0] = '\0';
     /*
@@ -455,9 +454,9 @@ unpack(char *pkg, char *flist)
     if (strcmp(pkg, "-")) {
 	cp = strrchr(pkg, '.');
 	if (cp) {
-	    strcpy(suffix, cp + 1);
-	    if (strchr(suffix, 'z') || strchr(suffix, 'Z')) {
-		if (strchr(suffix, 'b'))
+	    strcpy(suff, cp + 1);
+	    if (strchr(suff, 'z') || strchr(suff, 'Z')) {
+		if (strchr(suff, 'b'))
 		    strcpy(args, "-y");
 		else
 		    strcpy(args, "-z");
@@ -486,7 +485,7 @@ unpack(char *pkg, char *flist)
  *
  */
 void
-format_cmd(char *buf, char *fmt, char *dir, char *name)
+format_cmd(char *buf, const char *fmt, const char *dir, const char *name)
 {
     char *cp, scratch[FILENAME_MAX * 2];
 

@@ -80,7 +80,7 @@ sortdeps(char **pkgs)
  * Returns 1 if depends, 0 if not, and -1 if error occured.
  */ 
 int
-chkifdepends(char *pkgname1, char *pkgname2)
+chkifdepends(const char *pkgname1, const char *pkgname2)
 {
     char pkgdir[FILENAME_MAX];
     int errcode;
