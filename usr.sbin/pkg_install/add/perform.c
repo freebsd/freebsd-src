@@ -1,5 +1,5 @@
 #ifndef lint
-static const char *rcsid = "$Id: perform.c,v 1.7 1994/05/25 06:24:18 jkh Exp $";
+static const char *rcsid = "$Id: perform.c,v 1.8 1994/05/25 17:59:54 asami Exp $";
 #endif
 
 /*
@@ -60,6 +60,7 @@ pkg_do(char *pkg)
     char *home;
     int code = 0;
     PackingList p;
+    struct stat sb;
 
     /* Reset some state */
     if (Plist.head)
@@ -77,16 +78,25 @@ pkg_do(char *pkg)
 	read_plist(&Plist, stdin);
     }
     else {
-	home = make_playpen(PlayPen);
 	if (pkg[0] == '/')	/* full pathname? */
 	    strcpy(pkg_fullname, pkg);
 	else
 	    sprintf(pkg_fullname, "%s/%s", home, pkg);
 	if (!fexists(pkg_fullname)) {
-	    whinge("Can't open package '%s'.", pkg_fullname);
+	    whinge("Can't find package '%s'.", pkg_fullname);
 	    return 1;
 	}
-
+	/*
+	 * Apply a crude heuristic to see how much space the package will
+	 * take up once it's unpacked.  I've noticed that most packages
+	 * compress an average of 65%.
+	 */
+	if (stat(pkg_fullname, &sb) == FAIL) {
+	    whinge("Can't stat package file '%s'.", pkg_fullname);
+	    return 1;
+	}
+	sb.st_size *= 1.65;
+	home = make_playpen(PlayPen, sb.st_size);
 	if (unpack(pkg_fullname, NULL))
 	    return 1;
 
