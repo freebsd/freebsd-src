@@ -285,7 +285,7 @@ edit_cmd() {
 	char		n[MAX_FNAME], q[MAX_TEMPSTR], *editor;
 	FILE		*f;
 	int		ch, t, x;
-	struct stat	statbuf;
+	struct stat	statbuf, fsbuf;
 	time_t		mtime;
 	WAIT_T		waiter;
 	PID_T		pid, xpid;
@@ -317,7 +317,7 @@ edit_cmd() {
 		warn("fchown");
 		goto fatal;
 	}
-	if (!(NewCrontab = fdopen(t, "w"))) {
+	if (!(NewCrontab = fdopen(t, "r+"))) {
 		warn("fdopen");
 		goto fatal;
 	}
@@ -347,14 +347,20 @@ edit_cmd() {
 		while (EOF != (ch = get_char(f)))
 			putc(ch, NewCrontab);
 	fclose(f);
-	if (fclose(NewCrontab))
+	if (fflush(NewCrontab))
 		err(ERROR_EXIT, "%s", Filename);
+	if (fstat(t, &fsbuf) < 0) {
+		warn("unable to fstat temp file");
+		goto fatal;
+	}
  again:
 	if (stat(Filename, &statbuf) < 0) {
 		warn("stat");
  fatal:		unlink(Filename);
 		exit(ERROR_EXIT);
 	}
+	if (statbuf.st_dev != fsbuf.st_dev || statbuf.st_ino != fsbuf.st_ino)
+		errx(ERROR_EXIT, "temp file must be edited in place");
 	mtime = statbuf.st_mtime;
 
 	if ((!(editor = getenv("VISUAL")))
@@ -419,15 +425,13 @@ edit_cmd() {
 		warn("stat");
 		goto fatal;
 	}
+	if (statbuf.st_dev != fsbuf.st_dev || statbuf.st_ino != fsbuf.st_ino)
+		errx(ERROR_EXIT, "temp file must be edited in place");
 	if (mtime == statbuf.st_mtime) {
 		warnx("no changes made to crontab");
 		goto remove;
 	}
 	warnx("installing new crontab");
-	if (!(NewCrontab = fopen(Filename, "r"))) {
-		warn("%s", Filename);
-		goto fatal;
-	}
 	switch (replace_cmd()) {
 	case 0:
 		break;
@@ -497,10 +501,10 @@ replace_cmd() {
 
 	/* copy the crontab to the tmp
 	 */
+	rewind(NewCrontab);
 	Set_LineNum(1)
 	while (EOF != (ch = get_char(NewCrontab)))
 		putc(ch, tmp);
-	fclose(NewCrontab);
 	ftruncate(fileno(tmp), ftell(tmp));
 	fflush(tmp);  rewind(tmp);
 
