@@ -1606,7 +1606,8 @@ pmap_enter(pmap_t pmap, vm_offset_t va, vm_page_t m, vm_prot_t prot,
 	/*
 	 * Enter on the PV list if part of our managed memory.
 	 */
-	if (pmap_initialized && (m->flags & PG_FICTITIOUS) == 0) {
+	if (pmap_initialized &&
+	    (m->flags & (PG_FICTITIOUS | PG_UNMANAGED)) == 0) {
 		pmap_insert_entry(pmap, va, m);
 		managed |= PTE_IG_MANAGED;
 	}
@@ -1653,17 +1654,23 @@ pmap_enter_quick(pmap_t pmap, vm_offset_t va, vm_page_t m, vm_page_t mpte)
 {
 	struct ia64_lpte *pte;
 	pmap_t oldpmap;
+	int managed;
 
 	oldpmap = pmap_install(pmap);
 
 	pte = pmap_find_pte(va);
 	if (pte->pte_p)
 		goto reinstall;
+	managed = 0;
 
 	/*
 	 * Enter on the PV list since its part of our managed memory.
 	 */
-	pmap_insert_entry(pmap, va, m);
+	if (pmap_initialized &&
+	    (m->flags & (PG_FICTITIOUS | PG_UNMANAGED)) == 0) {
+		pmap_insert_entry(pmap, va, m);
+		managed |= PTE_IG_MANAGED;
+	}
 
 	/*
 	 * Increment counters
@@ -1673,8 +1680,7 @@ pmap_enter_quick(pmap_t pmap, vm_offset_t va, vm_page_t m, vm_page_t mpte)
 	/*
 	 * Initialise PTE with read-only protection and enter into VHPT.
 	 */
-	pmap_set_pte(pte, va, VM_PAGE_TO_PHYS(m),
-		     PTE_IG_MANAGED,
+	pmap_set_pte(pte, va, VM_PAGE_TO_PHYS(m), managed,
 		     PTE_PL_USER, PTE_AR_R);
 reinstall:
 	pmap_install(oldpmap);
