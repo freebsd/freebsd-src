@@ -62,6 +62,7 @@ static MALLOC_DEFINE(M_BIOBUF, "BIO buffer", "BIO buffer");
 struct	bio_ops bioops;		/* I/O operation notification */
 
 static int ibwrite(struct buf *);
+static int inmem(struct vnode * vp, daddr_t blkno);
 
 struct	buf_ops buf_ops_bio = {
 	"buf_ops_bio",
@@ -803,20 +804,20 @@ ibwrite(struct buf *bp)
 	 * writing this block if it is asynchronous. Otherwise
 	 * wait for the background write to complete.
 	 */
-	VI_LOCK(bp->b_vp);
+	BO_LOCK(bp->b_bufobj);
 	if (bp->b_vflags & BV_BKGRDINPROG) {
 		if (bp->b_flags & B_ASYNC) {
-			VI_UNLOCK(bp->b_vp);
+			BO_UNLOCK(bp->b_bufobj);
 			splx(s);
 			bdwrite(bp);
 			return (0);
 		}
 		bp->b_vflags |= BV_BKGRDWAIT;
-		msleep(&bp->b_xflags, VI_MTX(bp->b_vp), PRIBIO, "bwrbg", 0);
+		msleep(&bp->b_xflags, BO_MTX(bp->b_bufobj), PRIBIO, "bwrbg", 0);
 		if (bp->b_vflags & BV_BKGRDINPROG)
 			panic("ibwrite: still writing");
 	}
-	VI_UNLOCK(bp->b_vp);
+	BO_UNLOCK(bp->b_bufobj);
 
 	/* Mark the buffer clean */
 	bundirty(bp);
@@ -833,10 +834,8 @@ ibwrite(struct buf *bp)
 	    (bp->b_flags & B_ASYNC) &&
 	    !vm_page_count_severe() &&
 	    !buf_dirty_count_severe()) {
-		if (bp->b_iodone != NULL) {
-			printf("bp->b_iodone = %p\n", bp->b_iodone);
-			panic("ibwrite: need chained iodone");
-		}
+		KASSERT(bp->b_iodone == NULL,
+		    ("bufwrite: needs chained iodone (%p)", bp->b_iodone));
 
 		/* get a new block */
 		newbp = geteblk(bp->b_bufsize);
@@ -849,10 +848,11 @@ ibwrite(struct buf *bp)
 		memcpy(newbp->b_data, bp->b_data, bp->b_bufsize);
 		newbp->b_lblkno = bp->b_lblkno;
 		newbp->b_xflags |= BX_BKGRDMARKER;
-		VI_LOCK(bp->b_vp);
+		BO_LOCK(bp->b_bufobj);
 		bp->b_vflags |= BV_BKGRDINPROG;
 		bgetvp(bp->b_vp, newbp);
-		VI_UNLOCK(bp->b_vp);
+		BO_UNLOCK(bp->b_bufobj);
+		newbp->b_bufobj = &bp->b_vp->v_bufobj;
 		newbp->b_blkno = bp->b_blkno;
 		newbp->b_offset = bp->b_offset;
 		newbp->b_iodone = vfs_backgroundwritedone;
@@ -880,7 +880,7 @@ ibwrite(struct buf *bp)
 	bp->b_flags |= B_CACHE;
 	bp->b_iocmd = BIO_WRITE;
 
-	bufobj_wref(&bp->b_vp->v_bufobj);
+	bufobj_wref(bp->b_bufobj);
 	vfs_busy_pages(bp, 1);
 
 	/*
@@ -934,8 +934,8 @@ vfs_backgroundwritedone(struct buf *bp)
 	/*
 	 * Find the original buffer that we are writing.
 	 */
-	VI_LOCK(bp->b_vp);
-	if ((origbp = gbincore(bp->b_vp, bp->b_lblkno)) == NULL)
+	BO_LOCK(bp->b_bufobj);
+	if ((origbp = gbincore(bp->b_bufobj, bp->b_lblkno)) == NULL)
 		panic("backgroundwritedone: lost buffer");
 
 	/*
@@ -951,7 +951,7 @@ vfs_backgroundwritedone(struct buf *bp)
 		origbp->b_vflags &= ~BV_BKGRDWAIT;
 		wakeup(&origbp->b_xflags);
 	}
-	VI_UNLOCK(bp->b_vp);
+	BO_UNLOCK(bp->b_bufobj);
 	/*
 	 * Process dependencies then return any unfinished ones.
 	 */
@@ -963,7 +963,7 @@ vfs_backgroundwritedone(struct buf *bp)
 	/*
 	 * This buffer is marked B_NOCACHE, so when it is released
 	 * by biodone, it will be tossed. We mark it with BIO_READ
-	 * to avoid biodone doing a second bufobj_wakeup.
+	 * to avoid biodone doing a second bufobj_wdrop.
 	 */
 	bp->b_flags |= B_NOCACHE;
 	bp->b_iocmd = BIO_READ;
@@ -987,11 +987,12 @@ bdwrite(struct buf *bp)
 	struct thread *td = curthread;
 	struct vnode *vp;
 	struct buf *nbp;
+	struct bufobj *bo;
 
 	GIANT_REQUIRED;
 
-	if (BUF_REFCNT(bp) == 0)
-		panic("bdwrite: buffer is not busy");
+	KASSERT(bp->b_bufobj != NULL, ("No b_bufobj %p", bp));
+	KASSERT(BUF_REFCNT(bp) != 0, ("bdwrite: buffer is not busy"));
 
 	if (bp->b_flags & B_INVAL) {
 		brelse(bp);
@@ -1006,38 +1007,39 @@ bdwrite(struct buf *bp)
 	 * disaster and not try to clean up after our own cleanup!
 	 */
 	vp = bp->b_vp;
-	VI_LOCK(vp);
+	bo = bp->b_bufobj;
+	BO_LOCK(bo);
 	if (td->td_pflags & TDP_COWINPROGRESS) {
 		recursiveflushes++;
-	} else if (vp != NULL && vp->v_dirtybufcnt > dirtybufthresh + 10) {
-		VI_UNLOCK(vp);
+	} else if (bo->bo_dirty.bv_cnt > dirtybufthresh + 10) {
+		BO_UNLOCK(bo);
 		(void) VOP_FSYNC(vp, td->td_ucred, MNT_NOWAIT, td);
-		VI_LOCK(vp);
+		BO_LOCK(bo);
 		altbufferflushes++;
-	} else if (vp != NULL && vp->v_dirtybufcnt > dirtybufthresh) {
+	} else if (bo->bo_dirty.bv_cnt > dirtybufthresh) {
 		/*
 		 * Try to find a buffer to flush.
 		 */
-		TAILQ_FOREACH(nbp, &vp->v_dirtyblkhd, b_bobufs) {
+		TAILQ_FOREACH(nbp, &bo->bo_dirty.bv_hd, b_bobufs) {
 			if ((nbp->b_vflags & BV_BKGRDINPROG) ||
 			    buf_countdeps(nbp, 0) ||
 			    BUF_LOCK(nbp, LK_EXCLUSIVE | LK_NOWAIT, NULL))
 				continue;
 			if (bp == nbp)
 				panic("bdwrite: found ourselves");
-			VI_UNLOCK(vp);
+			BO_UNLOCK(bo);
 			if (nbp->b_flags & B_CLUSTEROK) {
 				vfs_bio_awrite(nbp);
 			} else {
 				bremfree(nbp);
 				bawrite(nbp);
 			}
-			VI_LOCK(vp);
+			BO_LOCK(bo);
 			dirtybufferflushes++;
 			break;
 		}
 	}
-	VI_UNLOCK(vp);
+	BO_UNLOCK(bo);
 
 	bdirty(bp);
 	/*
@@ -1110,6 +1112,7 @@ void
 bdirty(struct buf *bp)
 {
 
+	KASSERT(bp->b_bufobj != NULL, ("No b_bufobj %p", bp));
 	KASSERT(bp->b_qindex == QUEUE_NONE,
 	    ("bdirty: buffer %p still on queue %d", bp, bp->b_qindex));
 	bp->b_flags &= ~(B_RELBUF);
@@ -1139,6 +1142,7 @@ void
 bundirty(struct buf *bp)
 {
 
+	KASSERT(bp->b_bufobj != NULL, ("No b_bufobj %p", bp));
 	KASSERT(bp->b_qindex == QUEUE_NONE,
 	    ("bundirty: buffer %p still on queue %d", bp, bp->b_qindex));
 
@@ -1287,10 +1291,10 @@ brelse(struct buf *bp)
 		 * cleared if it is already pending.
 		 */
 		if (bp->b_vp) {
-			VI_LOCK(bp->b_vp);
+			BO_LOCK(bp->b_bufobj);
 			if (!(bp->b_vflags & BV_BKGRDINPROG))
 				bp->b_flags |= B_RELBUF;
-			VI_UNLOCK(bp->b_vp);
+			BO_UNLOCK(bp->b_bufobj);
 		} else
 			bp->b_flags |= B_RELBUF;
 	}
@@ -1526,9 +1530,9 @@ bqrelse(struct buf *bp)
 		 * cannot be set while we hold the buf lock, it can only be
 		 * cleared if it is already pending.
 		 */
-		VI_LOCK(bp->b_vp);
+		BO_LOCK(bp->b_bufobj);
 		if (!vm_page_count_severe() || bp->b_vflags & BV_BKGRDINPROG) {
-			VI_UNLOCK(bp->b_vp);
+			BO_UNLOCK(bp->b_bufobj);
 			bp->b_qindex = QUEUE_CLEAN;
 			TAILQ_INSERT_TAIL(&bufqueues[QUEUE_CLEAN], bp,
 			    b_freelist);
@@ -1538,7 +1542,7 @@ bqrelse(struct buf *bp)
 			 * the buffer (most importantly: the wired pages
 			 * making up its backing store) *now*.
 			 */
-			VI_UNLOCK(bp->b_vp);
+			BO_UNLOCK(bp->b_bufobj);
 			mtx_unlock(&bqlock);
 			splx(s);
 			brelse(bp);
@@ -1635,7 +1639,7 @@ vfs_bio_clcheck(struct vnode *vp, int size, daddr_t lblkno, daddr_t blkno)
 	match = 0;
 
 	/* If the buf isn't in core skip it */
-	if ((bpa = gbincore(vp, lblkno)) == NULL)
+	if ((bpa = gbincore(&vp->v_bufobj, lblkno)) == NULL)
 		return (0);
 
 	/* If the buf is busy we don't want to wait for it */
@@ -1851,12 +1855,12 @@ restart:
 			}
 		}
 		if (bp->b_vp) {
-			VI_LOCK(bp->b_vp);
+			BO_LOCK(bp->b_bufobj);
 			if (bp->b_vflags & BV_BKGRDINPROG) {
-				VI_UNLOCK(bp->b_vp);
+				BO_UNLOCK(bp->b_bufobj);
 				continue;
 			}
-			VI_UNLOCK(bp->b_vp);
+			BO_UNLOCK(bp->b_bufobj);
 		}
 
 		/*
@@ -1942,6 +1946,7 @@ restart:
 		bp->b_magic = B_MAGIC_BIO;
 		bp->b_op = &buf_ops_bio;
 		bp->b_object = NULL;
+		bp->b_bufobj = NULL;
 
 		LIST_INIT(&bp->b_dep);
 
@@ -2168,13 +2173,13 @@ flushbufqueues(int flushdeps)
 			continue;
 		KASSERT((bp->b_flags & B_DELWRI),
 		    ("unexpected clean buffer %p", bp));
-		VI_LOCK(bp->b_vp);
+		BO_LOCK(bp->b_bufobj);
 		if ((bp->b_vflags & BV_BKGRDINPROG) != 0) {
-			VI_UNLOCK(bp->b_vp);
+			BO_UNLOCK(bp->b_bufobj);
 			BUF_UNLOCK(bp);
 			continue;
 		}
-		VI_UNLOCK(bp->b_vp);
+		BO_UNLOCK(bp->b_bufobj);
 		if (bp->b_flags & B_INVAL) {
 			bremfreel(bp);
 			mtx_unlock(&bqlock);
@@ -2224,14 +2229,14 @@ flushbufqueues(int flushdeps)
  * Check to see if a block is currently memory resident.
  */
 struct buf *
-incore(struct vnode * vp, daddr_t blkno)
+incore(struct bufobj *bo, daddr_t blkno)
 {
 	struct buf *bp;
 
 	int s = splbio();
-	VI_LOCK(vp);
-	bp = gbincore(vp, blkno);
-	VI_UNLOCK(vp);
+	BO_LOCK(bo);
+	bp = gbincore(bo, blkno);
+	BO_UNLOCK(bo);
 	splx(s);
 	return (bp);
 }
@@ -2242,7 +2247,7 @@ incore(struct vnode * vp, daddr_t blkno)
  * it also hunts around in the VM system for the data.
  */
 
-int
+static int
 inmem(struct vnode * vp, daddr_t blkno)
 {
 	vm_object_t obj;
@@ -2253,7 +2258,7 @@ inmem(struct vnode * vp, daddr_t blkno)
 	GIANT_REQUIRED;
 	ASSERT_VOP_LOCKED(vp, "inmem");
 
-	if (incore(vp, blkno))
+	if (incore(&vp->v_bufobj, blkno))
 		return 1;
 	if (vp->v_mount == NULL)
 		return 0;
@@ -2420,6 +2425,7 @@ getblk(struct vnode * vp, daddr_t blkno, int size, int slpflag, int slptimeo,
     int flags)
 {
 	struct buf *bp;
+	struct bufobj *bo;
 	int s;
 	int error;
 	ASSERT_VOP_LOCKED(vp, "getblk");
@@ -2427,6 +2433,7 @@ getblk(struct vnode * vp, daddr_t blkno, int size, int slpflag, int slptimeo,
 	if (size > MAXBSIZE)
 		panic("getblk: size(%d) > MAXBSIZE(%d)\n", size, MAXBSIZE);
 
+	bo = &vp->v_bufobj;
 	s = splbio();
 loop:
 	/*
@@ -2448,7 +2455,8 @@ loop:
 	}
 
 	VI_LOCK(vp);
-	if ((bp = gbincore(vp, blkno))) {
+	bp = gbincore(bo, blkno);
+	if (bp != NULL) {
 		int lockflags;
 		/*
 		 * Buffer is in-core.  If the buffer is not busy, it must
@@ -2596,7 +2604,8 @@ loop:
 		maxsize = vmio ? size + (offset & PAGE_MASK) : size;
 		maxsize = imax(maxsize, bsize);
 
-		if ((bp = getnewbuf(slpflag, slptimeo, size, maxsize)) == NULL) {
+		bp = getnewbuf(slpflag, slptimeo, size, maxsize);
+		if (bp == NULL) {
 			if (slpflag || slptimeo) {
 				splx(s);
 				return NULL;
@@ -2619,9 +2628,9 @@ loop:
 		 * the splay tree implementation when dealing with duplicate
 		 * lblkno's.
 		 */
-		VI_LOCK(vp);
-		if (gbincore(vp, blkno)) {
-			VI_UNLOCK(vp);
+		BO_LOCK(bo);
+		if (gbincore(bo, blkno)) {
+			BO_UNLOCK(bo);
 			bp->b_flags |= B_INVAL;
 			brelse(bp);
 			goto loop;
@@ -2635,7 +2644,7 @@ loop:
 		bp->b_offset = offset;
 
 		bgetvp(vp, bp);
-		VI_UNLOCK(vp);
+		BO_UNLOCK(bo);
 
 		/*
 		 * set B_VMIO bit.  allocbuf() the buffer bigger.  Since the
@@ -2663,6 +2672,8 @@ loop:
 		bp->b_flags &= ~B_DONE;
 	}
 	KASSERT(BUF_REFCNT(bp) == 1, ("getblk: bp %p not locked",bp));
+	KASSERT(bp->b_bufobj == bo,
+	    ("wrong b_bufobj %p should be %p", bp->b_bufobj, bo));
 	return (bp);
 }
 
@@ -3153,8 +3164,8 @@ bufdone(struct buf *bp)
 	bp->b_flags |= B_DONE;
 	runningbufwakeup(bp);
 
-	if (bp->b_iocmd == BIO_WRITE && bp->b_vp != NULL)
-		bufobj_wdrop(&bp->b_vp->v_bufobj);
+	if (bp->b_iocmd == BIO_WRITE && bp->b_bufobj != NULL)
+		bufobj_wdrop(bp->b_bufobj);
 
 	/* call optional completion function if requested */
 	if (bp->b_iodone != NULL) {
@@ -3324,11 +3335,11 @@ vfs_unbusy_pages(struct buf *bp)
 		m = bp->b_pages[i];
 		if (m == bogus_page) {
 			m = vm_page_lookup(obj, OFF_TO_IDX(bp->b_offset) + i);
-			if (!m) {
+			if (!m)
 				panic("vfs_unbusy_pages: page missing\n");
-			}
 			bp->b_pages[i] = m;
-			pmap_qenter(trunc_page((vm_offset_t)bp->b_data), bp->b_pages, bp->b_npages);
+			pmap_qenter(trunc_page((vm_offset_t)bp->b_data),
+			    bp->b_pages, bp->b_npages);
 		}
 		vm_object_pip_subtract(obj, 1);
 		vm_page_io_finish(m);
@@ -3851,7 +3862,6 @@ bufobj_wwait(struct bufobj *bo, int slpflag, int timeo)
 	}
 	return (error);
 }
-
 
 #include "opt_ddb.h"
 #ifdef DDB

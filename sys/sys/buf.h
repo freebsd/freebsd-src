@@ -44,6 +44,7 @@
 
 struct bio;
 struct buf;
+struct bufobj;
 struct mount;
 struct vnode;
 
@@ -110,6 +111,7 @@ struct buf {
 #define	b_iooffset	b_io.bio_offset
 #define	b_resid		b_io.bio_resid
 	struct buf_ops	*b_op;
+	struct bufobj	*b_bufobj;
 	unsigned		b_magic;
 #define B_MAGIC_BIO	0x10b10b10
 #define B_MAGIC_NFS	0x67238234
@@ -495,9 +497,8 @@ void	brelse(struct buf *);
 void	bqrelse(struct buf *);
 int	vfs_bio_awrite(struct buf *);
 struct buf *     getpbuf(int *);
-struct buf *incore(struct vnode *, daddr_t);
-struct buf *gbincore(struct vnode *, daddr_t);
-int	inmem(struct vnode *, daddr_t);
+struct buf *incore(struct bufobj *, daddr_t);
+struct buf *gbincore(struct bufobj *, daddr_t);
 struct buf *getblk(struct vnode *, daddr_t, int, int, int, int);
 struct buf *geteblk(int);
 int	bufwait(struct buf *);

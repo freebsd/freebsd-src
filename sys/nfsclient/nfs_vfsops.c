@@ -954,7 +954,8 @@ loop:
 	MNT_VNODE_FOREACH(vp, mp, nvp) {
 		VI_LOCK(vp);
 		MNT_IUNLOCK(mp);
-		if (VOP_ISLOCKED(vp, NULL) || TAILQ_EMPTY(&vp->v_dirtyblkhd) ||
+		if (VOP_ISLOCKED(vp, NULL) ||
+		    vp->v_bufobj.bo_dirty.bv_cnt == 0 ||
 		    waitfor == MNT_LAZY) {
 			VI_UNLOCK(vp);
 			MNT_ILOCK(mp);

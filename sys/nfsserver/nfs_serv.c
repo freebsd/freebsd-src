@@ -4093,7 +4093,7 @@ nfsrv_commit(struct nfsrv_descript *nfsd, struct nfssvc_sock *slp,
 			 * should not be set if B_INVAL is set there could be
 			 * a race here since we haven't locked the buffer).
 			 */
-			if ((bp = gbincore(vp, lblkno)) != NULL) {
+			if ((bp = gbincore(&vp->v_bufobj, lblkno)) != NULL) {
 				if (BUF_LOCK(bp, LK_EXCLUSIVE | LK_SLEEPFAIL |
 				    LK_INTERLOCK, VI_MTX(vp)) == ENOLCK) {
 					VI_LOCK(vp);

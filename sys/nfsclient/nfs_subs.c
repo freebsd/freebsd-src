@@ -813,8 +813,7 @@ nfs_clearcommit(struct mount *mp)
 			continue;
 		}
 		MNT_IUNLOCK(mp);
-		for (bp = TAILQ_FIRST(&vp->v_dirtyblkhd); bp; bp = nbp) {
-			nbp = TAILQ_NEXT(bp, b_bobufs);
+		TAILQ_FOREACH_SAFE(bp, &vp->v_bufobj.bo_dirty.bv_hd, b_bobufs, nbp) {
 			if (BUF_REFCNT(bp) == 0 &&
 			    (bp->b_flags & (B_DELWRI | B_NEEDCOMMIT))
 				== (B_DELWRI | B_NEEDCOMMIT))
