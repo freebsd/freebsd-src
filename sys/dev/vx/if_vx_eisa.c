@@ -66,16 +66,12 @@ vx_match(eisa_id_t type)
     switch (type) {
       case EISA_DEVICE_ID_3COM_3C592:
 	return "3Com 3C592 Network Adapter";
-	break;
       case EISA_DEVICE_ID_3COM_3C597_TX:
 	return "3Com 3C597-TX Network Adapter";
-	break;
       case EISA_DEVICE_ID_3COM_3C597_T4:
 	return "3Com 3C597-T4 Network Adapter";
-	break;
       case EISA_DEVICE_ID_3COM_3C597_MII:
 	return "3Com 3C597-MII Network Adapter";
-	break;
       default:
 	break;
     }
