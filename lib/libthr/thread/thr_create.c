@@ -119,11 +119,10 @@ _pthread_create(pthread_t * thread, const pthread_attr_t * attr,
 	new_thread->arch_id = _set_curthread(&new_thread->ctx, new_thread, &ret);
 	if (ret != 0) {
 		if (pattr->stackaddr_attr == NULL) {
-			/* XXX - We really need to decouple from this lock */
-			DEAD_LIST_LOCK;
+			STACK_LOCK;
 			_thread_stack_free(new_thread->stack,
 			    pattr->stacksize_attr, pattr->guardsize_attr);
-			DEAD_LIST_UNLOCK;
+			STACK_UNLOCK;
 		}
 		free(new_thread);
 		return (ret);

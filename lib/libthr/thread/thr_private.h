@@ -578,6 +578,14 @@ SCLASS void *_usrstack
 ;
 #endif
 
+SCLASS spinlock_t stack_lock
+#ifdef GLOBAL_PTHREAD_PRIVATE
+= _SPINLOCK_INITIALIZER
+#endif
+;
+#define STACK_LOCK	_SPINLOCK(&stack_lock);
+#define STACK_UNLOCK	_SPINUNLOCK(&stack_lock);
+
 /* List of all threads: */
 SCLASS TAILQ_HEAD(, pthread)	_thread_list
 #ifdef GLOBAL_PTHREAD_PRIVATE
