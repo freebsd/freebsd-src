@@ -71,7 +71,7 @@ optpat()
 		sprintf(errmsg, "invalid pattern delimiter");
 		return NULL;
 	} else if (*ibufp == delim) {
-		sprintf(errmsg, "no previous pattern");
+		if (!exp) sprintf(errmsg, "no previous pattern");
 		return exp;
 	} else if ((exps = getlhs(delim)) == NULL)
 		return NULL;
