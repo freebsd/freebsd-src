@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: smb.c,v 1.7 1999/02/13 17:57:19 nsouch Exp $
+ *	$Id: smb.c,v 1.8 1999/02/14 14:36:45 nsouch Exp $
  *
  */
 #include <sys/param.h>
@@ -270,7 +270,7 @@ smb_drvinit(void *unused)
         }
 }
 
-CDEV_DRIVER_MODULE(smb, smbus, smb_driver, smb_devclass, CDEV_MAJOR,
+DEV_DRIVER_MODULE(smb, smbus, smb_driver, smb_devclass, CDEV_MAJOR, NODEV,
 			smb_cdevsw, 0, 0);
 
 SYSINIT(smbdev,SI_SUB_DRIVERS,SI_ORDER_MIDDLE+CDEV_MAJOR,smb_drvinit,NULL)

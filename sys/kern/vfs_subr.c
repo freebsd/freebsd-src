@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)vfs_subr.c	8.31 (Berkeley) 5/26/95
- * $Id: vfs_subr.c,v 1.189 1999/03/12 02:24:56 julian Exp $
+ * $Id: vfs_subr.c,v 1.190 1999/05/03 23:57:24 billf Exp $
  */
 
 /*
@@ -1177,7 +1177,7 @@ bdevvp(dev, vpp)
 
 	/* XXX 255 is for mfs. */
 	if (dev == NODEV || (major(dev) != 255 && (major(dev) >= nblkdev ||
-	    bdevsw[major(dev)] == NULL))) {
+	    bdevsw(major(dev)) == NULL))) {
 		*vpp = NULLVP;
 		return (ENXIO);
 	}
@@ -1275,9 +1275,9 @@ loop:
 		 */
 
 		if (nvp->v_type == VBLK && rmaj < nblkdev) {
-			if (bdevsw[rmaj] && bdevsw[rmaj]->d_parms)
+			if (bdevsw(rmaj) && bdevsw(rmaj)->d_parms)
 				
-				(*bdevsw[rmaj]->d_parms)(nvp_rdev, sinfo, DPARM_GET);
+				(*bdevsw(rmaj)->d_parms)(nvp_rdev, sinfo, DPARM_GET);
 		} else if (nvp->v_type == VCHR && rmaj < nchrdev) {
 			if (cdevsw[rmaj] && cdevsw[rmaj]->d_parms)
 				(*cdevsw[rmaj]->d_parms)(nvp_rdev, sinfo, DPARM_GET);
@@ -2585,7 +2585,7 @@ retry:
 				goto retn;
 			object = vnode_pager_alloc(vp, vat.va_size, 0, 0);
 		} else if (major(vp->v_rdev) < nblkdev &&
-		    bdevsw[major(vp->v_rdev)] != NULL) {
+		    bdevsw(major(vp->v_rdev)) != NULL) {
 			/*
 			 * This simply allocates the biggest object possible
 			 * for a VBLK vnode.  This should be fixed, but doesn't

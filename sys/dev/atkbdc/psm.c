@@ -20,7 +20,7 @@
  * NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
  * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- * $Id: psm.c,v 1.4 1999/04/16 21:22:34 peter Exp $
+ * $Id: psm.c,v 1.5 1999/04/18 15:12:11 peter Exp $
  */
 
 /*
@@ -2272,7 +2272,7 @@ psmresume(void *dummy)
 }
 #endif /* PSM_HOOKAPM */
 
-CDEV_DRIVER_MODULE(psm, atkbdc, psm_driver, psm_devclass,
-		   CDEV_MAJOR, psm_cdevsw, 0, 0);
+DEV_DRIVER_MODULE(psm, atkbdc, psm_driver, psm_devclass,
+		   CDEV_MAJOR, NODEV, psm_cdevsw, 0, 0);
 
 #endif /* NPSM > 0 */

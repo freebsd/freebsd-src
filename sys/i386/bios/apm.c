@@ -15,7 +15,7 @@
  *
  * Sep, 1994	Implemented on FreeBSD 1.1.5.1R (Toshiba AVS001WD)
  *
- *	$Id: apm.c,v 1.80 1999/04/21 07:57:55 imp Exp $
+ *	$Id: apm.c,v 1.81 1999/05/06 01:07:03 luoqi Exp $
  */
 
 #include "opt_devfs.h"
@@ -1065,5 +1065,5 @@ static driver_t apm_driver = {
 
 static devclass_t apm_devclass;
 
-CDEV_DRIVER_MODULE(apm, nexus, apm_driver, apm_devclass,
-		   CDEV_MAJOR, apm_cdevsw, 0, 0);
+DEV_DRIVER_MODULE(apm, nexus, apm_driver, apm_devclass,
+	   CDEV_MAJOR, NODEV, apm_cdevsw, 0, 0);
