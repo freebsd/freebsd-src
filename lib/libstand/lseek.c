@@ -70,6 +70,7 @@
 off_t
 lseek(int fd, off_t offset, int where)
 {
+    off_t bufpos, filepos, target;
     struct open_file *f = &files[fd];
 
     if ((unsigned)fd >= SOPEN_MAX || f->f_flags == 0) {
@@ -94,6 +95,36 @@ lseek(int fd, off_t offset, int where)
 	    return (-1);
 	}
 	return (f->f_offset);
+    }
+
+    /*
+     * If there is some unconsumed data in the readahead buffer and it
+     * contains the desired offset, simply adjust the buffer offset and
+     * length.  We don't bother with SEEK_END here, since the code to
+     * handle it would fail in the same cases where the non-readahead
+     * code fails (namely, for streams which cannot seek backward and whose
+     * size isn't known in advance).
+     */
+    if (f->f_ralen != 0 && where != SEEK_END) {
+	if ((filepos = (f->f_ops->fo_seek)(f, (off_t)0, SEEK_CUR)) == -1)
+	    return (-1);
+	bufpos = filepos - f->f_ralen;
+	switch (where) {
+	case SEEK_SET:
+	    target = offset;
+	    break;
+	case SEEK_CUR:
+	    target = bufpos + offset;
+	    break;
+	default:
+	    errno = EINVAL;
+	    return (-1);
+	}
+	if (bufpos <= target && target < filepos) {
+	    f->f_raoffset += target - bufpos;
+	    f->f_ralen -= target - bufpos;
+	    return (target);
+	}
     }
 
     /*
