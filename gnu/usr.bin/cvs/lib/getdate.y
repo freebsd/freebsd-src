@@ -92,6 +92,14 @@ struct timeb {
 #define bcopy(from, to, len) memcpy ((to), (from), (len))
 #endif
 
+#if defined (STDC_HEADERS)
+#include <stdlib.h>
+#endif
+
+#if defined (HAVE_ALLOCA_H)
+#include <alloca.h>
+#endif
+
 extern struct tm	*gmtime();
 extern struct tm	*localtime();
 

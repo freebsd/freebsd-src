@@ -47,6 +47,10 @@
 
 #include <stdio.h>
 
+#ifdef HAVE_STRING_H
+#include <string.h>
+#endif
+
 /* Comment out all this code if we are using the GNU C Library, and are not
    actually compiling the library itself.  This code is part of the GNU C
    Library, but also included in many other GNU distributions.  Compiling
@@ -494,7 +498,7 @@ _getopt_internal (argc, argv, optstring, longopts, longind, long_only)
       for (p = longopts, option_index = 0; p->name; p++, option_index++)
 	if (!strncmp (p->name, nextchar, nameend - nextchar))
 	  {
-	    if (nameend - nextchar == strlen (p->name))
+	    if (nameend - nextchar == (int) strlen (p->name))
 	      {
 		/* Exact match found.  */
 		pfound = p;

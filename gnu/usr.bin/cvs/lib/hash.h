@@ -44,23 +44,12 @@ struct list
 };
 typedef struct list List;
 
-struct entnode
-{
-    char *version;
-    char *timestamp;
-    char *options;
-    char *tag;
-    char *date;
-    char *conflict;
-};
-typedef struct entnode Entnode;
-
 List *getlist PROTO((void));
-Node *findnode PROTO((List * list, char *key));
+Node *findnode PROTO((List * list, const char *key));
 Node *getnode PROTO((void));
 int addnode PROTO((List * list, Node * p));
-int walklist PROTO((List * list, int PROTO((*proc)) PROTO((Node *n, void *closure)), void *closure));
+int walklist PROTO((List * list, int (*)(Node *n, void *closure), void *closure));
 void dellist PROTO((List ** listp));
 void delnode PROTO((Node * p));
 void freenode PROTO((Node * p));
-void sortlist PROTO((List * list, int PROTO((*comp))()));
+void sortlist PROTO((List * list, int (*)(const Node *, const Node *)));

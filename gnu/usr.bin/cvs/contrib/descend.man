@@ -1,4 +1,4 @@
-.\" $Id: descend.man,v 1.1 1992/04/03 05:22:53 berliner Exp $
+.\" $Id: descend.man,v 1.1.1.3 1995/08/28 16:20:31 jimb Exp $
 .TH DESCEND 1 "31 March 1992"
 .SH NAME 
 descend \- walk directory tree and execute a command at each node
