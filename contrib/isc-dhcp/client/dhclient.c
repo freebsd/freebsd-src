@@ -41,7 +41,7 @@
 
 #ifndef lint
 static char ocopyright[] =
-"$Id: dhclient.c,v 1.129.2.10 2002/04/26 23:33:05 murray Exp $ Copyright (c) 1995-2001 Internet Software Consortium.  All rights reserved.\n";
+"$Id: dhclient.c,v 1.129.2.12 2002/11/07 23:26:38 dhankins Exp $ Copyright (c) 1995-2002 Internet Software Consortium.  All rights reserved.\n";
 #endif /* not lint */
 
 #include "dhcpd.h"
@@ -71,19 +71,19 @@ struct in_addr giaddr;
    assert (state_is == state_shouldbe). */
 #define ASSERT_STATE(state_is, state_shouldbe) {}
 
-static char copyright[] = "Copyright 1995-2001 Internet Software Consortium.";
+static char copyright[] = "Copyright 1995-2002 Internet Software Consortium.";
 static char arr [] = "All rights reserved.";
 static char message [] = "Internet Software Consortium DHCP Client";
 static char url [] = "For info, please visit http://www.isc.org/products/DHCP";
 
-u_int16_t local_port;
-u_int16_t remote_port;
-int no_daemon;
-struct string_list *client_env;
-int client_env_count;
-int onetry;
-int quiet;
-int nowait;
+u_int16_t local_port=0;
+u_int16_t remote_port=0;
+int no_daemon=0;
+struct string_list *client_env=NULL;
+int client_env_count=0;
+int onetry=0;
+int quiet=0;
+int nowait=0;
 
 static void usage PROTO ((void));
 
@@ -289,8 +289,10 @@ int main (argc, argv, envp)
 
 	/* Default to the DHCP/BOOTP port. */
 	if (!local_port) {
+		/* If we're faking a relay agent, and we're not using loopback,
+		   use the server port, not the client port. */
 		if (relay && giaddr.s_addr != htonl (INADDR_LOOPBACK)) {
-			local_port = htons (67);
+			local_port = htons(67);
 		} else {
 			ent = getservbyname ("dhcpc", "udp");
 			if (!ent)
@@ -304,13 +306,12 @@ int main (argc, argv, envp)
 	}
 
 	/* If we're faking a relay agent, and we're not using loopback,
-	   use the server port, not the client port. */
+	   we're using the server port, not the client port. */
 	if (relay && giaddr.s_addr != htonl (INADDR_LOOPBACK)) {
-		local_port = htons (ntohs (local_port) - 1);
 		remote_port = local_port;
 	} else
 		remote_port = htons (ntohs (local_port) - 1);	/* XXX */
-  
+
 	/* Get the current time... */
 	GET_TIME (&cur_time);
 
