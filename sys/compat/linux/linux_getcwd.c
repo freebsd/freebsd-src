@@ -162,7 +162,11 @@ linux_getcwd_scandir(lvpp, uvpp, bpp, bufp, td)
 	 * At this point, lvp is locked and will be unlocked by the lookup.
 	 * On successful return, *uvpp will be locked
 	 */
-	error = VOP_LOOKUP(lvp, uvpp, &cn);
+#ifdef MAC
+	error = mac_check_vnode_lookup(td->td_ucred, lvp, &cn);
+	if (error == 0)
+#endif
+		error = VOP_LOOKUP(lvp, uvpp, &cn);
 	if (error) {
 		vput(lvp);
 		*lvpp = NULL;
