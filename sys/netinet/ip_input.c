@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)ip_input.c	8.2 (Berkeley) 1/4/94
- * $Id: ip_input.c,v 1.50.2.5 1997/05/11 18:01:24 tegge Exp $
+ * $Id: ip_input.c,v 1.50.2.6 1997/06/20 23:05:35 julian Exp $
  *	$ANA: ip_input.c,v 1.5 1996/09/18 14:34:59 wollman Exp $
  */
 
@@ -491,6 +491,20 @@ found:
 				return;
 			ipstat.ips_reassembled++;
 			m = dtom(ip);
+#ifdef IPDIVERT
+			if (frag_divert_port) {
+				ip->ip_len += hlen;
+				HTONS(ip->ip_len);
+				HTONS(ip->ip_off);
+				HTONS(ip->ip_id);
+				ip->ip_sum = 0;
+				ip->ip_sum = in_cksum_hdr(ip);
+				NTOHS(ip->ip_id);
+				NTOHS(ip->ip_off);
+				NTOHS(ip->ip_len);
+				ip->ip_len -= hlen;
+			}
+#endif
 		} else
 			if (fp)
 				ip_freef(fp);
