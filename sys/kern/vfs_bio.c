@@ -3579,7 +3579,9 @@ vmapbuf(struct buf *bp)
 		if (pa == 0)
 			panic("vmapbuf: page not present");
 		m = PHYS_TO_VM_PAGE(pa);
+		vm_page_lock_queues();
 		vm_page_hold(m);
+		vm_page_unlock_queues();
 		bp->b_pages[pidx] = m;
 	}
 	if (pidx > btoc(MAXPHYS))
