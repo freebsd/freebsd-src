@@ -174,19 +174,34 @@ _writev(int fd, const struct iovec * iov, int iovcnt)
 				 * interrupted by a signal
 				 */
 				if (curthread->interrupted) {
-					/* Return an error: */
-					ret = -1;
+					if (num > 0) {
+						/* Return partial success: */
+						ret = num;
+					} else {
+						/* Return an error: */
+						errno = EINTR;
+						ret = -1;
+					}
 				}
 
 			/*
-			 * If performing a non-blocking write or if an
-			 * error occurred, just return whatever the write
-			 * syscall did:
+			 * If performing a non-blocking write,
+			 * just return whatever the write syscall did:
 			 */
-			} else if (!blocking || n < 0) {
+			} else if (!blocking) {
 				/* A non-blocking call might return zero: */
 				ret = n;
 				break;
+
+			/*
+			 * If there was an error, return partial success
+			 * (if any bytes were written) or else the error:
+			 */
+			} else if (n < 0) {
+				if (num > 0)
+					ret = num;
+				else
+					ret = n;
 
 			/* Check if the write has completed: */
 			} else if (idx == iovcnt)
