@@ -367,6 +367,7 @@ void line_flags(unit)
 }
 
 
+int
 main(argc, argv)
 	int argc;
 	char *argv[];
