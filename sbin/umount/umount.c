@@ -54,6 +54,7 @@ static const char rcsid[] =
 #include <nfs/rpcv2.h>
 
 #include <err.h>
+#include <errno.h>
 #include <fstab.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -72,10 +73,10 @@ struct  addrinfo *nfshost_ai = NULL;
 int	fflag, vflag;
 char   *nfshost;
 
-void	 checkmntlist (char *, char **, char **, char **);
+struct statfs *checkmntlist (char *, char **);
 int	 checkvfsname (const char *, char **);
-char	*getmntname (const char *, const char *,
-	 mntwhat, char **, dowhat);
+struct statfs *getmntentry (const char *, const char *, mntwhat, char **,
+	     dowhat);
 char 	*getrealname(char *, char *resolved_path);
 char   **makevfslist (const char *);
 size_t	 mntinfo (struct statfs **);
@@ -83,7 +84,7 @@ int	 namematch (struct addrinfo *);
 int	 sacmp (struct sockaddr *, struct sockaddr *);
 int	 umountall (char **);
 int	 checkname (char *, char **);
-int	 umountfs (char *, char *, char *);
+int	 umountfs (char *, char *, fsid_t *, char *);
 void	 usage (void);
 int	 xdr_dir (XDR *, char *);
 
@@ -92,8 +93,8 @@ main(int argc, char *argv[])
 {
 	int all, errs, ch, mntsize, error;
 	char **typelist = NULL, *mntonname, *mntfromname;
-	char *type, *mntfromnamerev, *mntonnamerev;
-	struct statfs *mntbuf;
+	char *type;
+	struct statfs *mntbuf, *sfsrev;
 	struct addrinfo hints;
 
 	/* Start disks transferring immediately. */
@@ -166,18 +167,16 @@ main(int argc, char *argv[])
 			 */
 			mntonname = mntbuf[mntsize].f_mntonname;
 			mntfromname = mntbuf[mntsize].f_mntfromname;
-			mntonnamerev = getmntname(getmntname(mntonname,
-			    NULL, MNTFROM, &type, NAME), NULL,
-			    MNTON, &type, NAME);
 
-			mntfromnamerev = getmntname(mntonnamerev,
-			    NULL, MNTFROM, &type, NAME);
+			sfsrev = getmntentry(mntonname, NULL, MNTON, &type,
+			    NAME);
 
-			if (strcmp(mntonnamerev, mntonname) == 0 &&
-			    strcmp(mntfromnamerev, mntfromname ) != 0)
+			if (!fflag && bcmp(&sfsrev->f_fsid,
+			    &mntbuf[mntsize].f_fsid, sizeof(fsid_t)) != 0) {
 				warnx("cannot umount %s, %s\n        "
 				    "is mounted there, umount it first",
-				    mntonname, mntfromnamerev);
+				    mntonname, sfsrev->f_mntfromname);
+			}
 
 			if (checkname(mntbuf[mntsize].f_mntonname,
 			    typelist) != 0)
@@ -196,7 +195,7 @@ main(int argc, char *argv[])
 				errs = 1;
 		break;
 	}
-	(void)getmntname(NULL, NULL, NOTHING, NULL, FREE);
+	(void)getmntentry(NULL, NULL, NOTHING, NULL, FREE);
 	exit(errs);
 }
 
@@ -258,29 +257,29 @@ checkname(char *name, char **typelist)
 {
 	size_t len;
 	int speclen;
-	char *mntonname, *mntfromname;
-	char *mntfromnamerev;
 	char *resolved, realname[MAXPATHLEN];
 	char *type, *hostp, *delimp, *origname;
+	struct statfs *sfs, *sfsrev;
 
 	len = 0;
-	mntfromname = mntonname = delimp = hostp = NULL;
+	delimp = hostp = NULL;
+	sfs = NULL;
 
 	/*
 	 * 1. Check if the name exists in the mounttable.
 	 */
-	(void)checkmntlist(name, &mntfromname, &mntonname, &type);
+	sfs = checkmntlist(name, &type);
 	/*
 	 * 2. Remove trailing slashes if there are any. After that
 	 * we look up the name in the mounttable again.
 	 */
-	if (mntfromname == NULL && mntonname == NULL) {
+	if (sfs == NULL) {
 		speclen = strlen(name);
 		for (speclen = strlen(name); 
 		    speclen > 1 && name[speclen - 1] == '/';
 		    speclen--)
 			name[speclen - 1] = '\0';
-		(void)checkmntlist(name, &mntfromname, &mntonname, &type);
+		sfs = checkmntlist(name, &type);
 		resolved = name;
 		/* Save off original name in origname */
 		if ((origname = strdup(name)) == NULL)
@@ -290,7 +289,7 @@ checkname(char *name, char **typelist)
 		 * has been used and translate it to the ':' syntax.
 		 * Look up the name in the mounttable again.
 		 */
-		if (mntfromname == NULL && mntonname == NULL) {
+		if (sfs == NULL) {
 			if ((delimp = strrchr(name, '@')) != NULL) {
 				hostp = delimp + 1;
 				if (*hostp != '\0') {
@@ -313,8 +312,7 @@ checkname(char *name, char **typelist)
 				    speclen--)
 					name[speclen - 1] = '\0';
 				name[len + speclen + 1] = '\0';
-				(void)checkmntlist(name, &mntfromname,
-				    &mntonname, &type);
+				sfs = checkmntlist(name, &type);
 				resolved = name;
 			}
 			/*
@@ -325,11 +323,10 @@ checkname(char *name, char **typelist)
 			 * basedir of mountpoint and add the dirname again.
 			 * Check the name in mounttable one last time.
 			 */
-			if (mntfromname == NULL && mntonname == NULL) {
+			if (sfs == NULL) {
 				(void)strcpy(name, origname);
 				if ((getrealname(name, realname)) != NULL) {
-					(void)checkmntlist(realname,
-					    &mntfromname, &mntonname, &type);
+					sfs = checkmntlist(realname, &type);
 					resolved = realname;
 				}
 				/*
@@ -343,9 +340,9 @@ checkname(char *name, char **typelist)
 				 * fstat structure get's more reliable,
 				 * but at the moment we cannot thrust it.
 				 */
-				if (mntfromname == NULL && mntonname == NULL) {
+				if (sfs == NULL) {
 					(void)strcpy(name, origname);
-					if (umountfs(NULL, origname,
+					if (umountfs(NULL, origname, NULL,
 					    "none") == 0) {;
 						warnx("%s not found in "
 						    "mount table, "
@@ -370,38 +367,37 @@ checkname(char *name, char **typelist)
 	 * Check if the reverse entrys of the mounttable are really the
 	 * same as the normal ones.
 	 */
-	if ((mntfromnamerev = strdup(getmntname(getmntname(mntfromname,
-	    NULL, MNTON, &type, NAME), NULL, MNTFROM, &type, NAME))) == NULL)
-		err(1, "strdup");
+	sfsrev = getmntentry(sfs->f_mntonname, NULL, MNTON, &type, NAME);
 	/*
 	 * Mark the uppermost mount as unmounted.
 	 */
-	(void)getmntname(mntfromname, mntonname, NOTHING, &type, MARK);
+	(void)getmntentry(sfs->f_mntfromname, sfs->f_mntonname, NOTHING, &type,
+	     MARK);
 	/*
 	 * If several equal mounts are in the mounttable, check the order
 	 * and warn the user if necessary.
 	 */
-	if (strcmp(mntfromnamerev, mntfromname ) != 0 &&
-	    strcmp(resolved, mntonname) != 0) {
+	if (fflag != MNT_FORCE && sfsrev != sfs) {
 		warnx("cannot umount %s, %s\n        "
 		    "is mounted there, umount it first",
-		    mntonname, mntfromnamerev);
+		    sfs->f_mntonname, sfsrev->f_mntfromname);
 
-		/* call getmntname again to set mntcheck[i] to 0 */
-		(void)getmntname(mntfromname, mntonname,
+		/* call getmntentry again to set mntcheck[i] to 0 */
+		(void)getmntentry(sfs->f_mntfromname, sfs->f_mntonname,
 		    NOTHING, &type, UNMARK);
 		return (1);
 	}
-	free(mntfromnamerev);
-	return (umountfs(mntfromname, mntonname, type));
+	return (umountfs(sfs->f_mntfromname, sfs->f_mntonname, &sfs->f_fsid,
+	    type));
 }
 
 /*
  * NFS stuff and unmount(2) call
  */
 int
-umountfs(char *mntfromname, char *mntonname, char *type)
+umountfs(char *mntfromname, char *mntonname, fsid_t *fsid, char *type)
 {
+	char fsidbuf[64];
 	enum clnt_stat clnt_stat;
 	struct timeval try;
 	struct addrinfo *ai, hints;
@@ -439,14 +435,27 @@ umountfs(char *mntfromname, char *mntonname, char *type)
 		 * A non-NULL return means that this is the last
 		 * mount from mntfromname that is still mounted.
 		 */
-		if (getmntname(mntfromname, NULL, NOTHING, &type, COUNT)
-		     != NULL)
+		if (getmntentry(mntfromname, NULL, NOTHING, &type, COUNT)
+		    != NULL)
 			do_rpc = 1;
 	}
 
 	if (!namematch(ai))
 		return (1);
-	if (unmount(mntonname, fflag) != 0 ) {
+	/* First try to unmount using the specified file system ID. */
+	if (fsid != NULL) {
+		snprintf(fsidbuf, sizeof(fsidbuf), "FSID:%d:%d", fsid->val[0],
+		    fsid->val[1]);
+		if (unmount(fsidbuf, fflag | MNT_BYFSID) != 0) {
+			warn("unmount of %s failed", mntonname);
+			if (errno != ENOENT)
+				return (1);
+			/* Compatability for old kernels. */
+			warnx("retrying using path instead of file system ID");
+			fsid = NULL;
+		}
+	}
+	if (fsid == NULL && unmount(mntonname, fflag) != 0) {
 		warn("unmount of %s failed", mntonname);
 		return (1);
 	}
@@ -490,9 +499,9 @@ umountfs(char *mntfromname, char *mntonname, char *type)
 	return (0);
 }
 
-char *
-getmntname(const char *fromname, const char *onname,
-    mntwhat what, char **type, dowhat mark)
+struct statfs *
+getmntentry(const char *fromname, const char *onname, mntwhat what,
+    char **type, dowhat mark)
 {
 	static struct statfs *mntbuf;
 	static size_t mntsize = 0;
@@ -523,21 +532,15 @@ getmntname(const char *fromname, const char *onname,
 	case NAME:
 		/* Return only the specific name */
 		for (i = mntsize - 1; i >= 0; i--) {
-			if (fromname != NULL && what == MNTON &&
-			    !strcmp(mntbuf[i].f_mntfromname, fromname) &&
-			    mntcheck[i] != 1) {
+			if (fromname != NULL && !strcmp((what == MNTFROM) ?
+			    mntbuf[i].f_mntfromname : mntbuf[i].f_mntonname,
+			    fromname) && mntcheck[i] != 1) {
 				if (type)
 					*type = mntbuf[i].f_fstypename;
-				return (mntbuf[i].f_mntonname);
-			}
-			if (fromname != NULL && what == MNTFROM &&
-			    !strcmp(mntbuf[i].f_mntonname, fromname) &&
-			    mntcheck[i] != 1) {
-				if (type)
-					*type = mntbuf[i].f_fstypename;
-				return (mntbuf[i].f_mntfromname);
+				return (&mntbuf[i]);
 			}
 		}
+
 		return (NULL);
 	case MARK:
 		/* Mark current mount with '1' and return name */
@@ -546,7 +549,7 @@ getmntname(const char *fromname, const char *onname,
 			    (strcmp(mntbuf[i].f_mntonname, onname) == 0) &&
 			    (strcmp(mntbuf[i].f_mntfromname, fromname) == 0)) {
 				mntcheck[i] = 1;
-				return (mntbuf[i].f_mntonname);
+				return (&mntbuf[i]);
 			}
 		}
 		return (NULL);
@@ -557,7 +560,7 @@ getmntname(const char *fromname, const char *onname,
 			    (strcmp(mntbuf[i].f_mntonname, onname) == 0) &&
 			    (strcmp(mntbuf[i].f_mntfromname, fromname) == 0)) {
 				mntcheck[i] = 0;
-				return (mntbuf[i].f_mntonname);
+				return (&mntbuf[i]);
 			}
 		}
 		return (NULL);
@@ -582,7 +585,7 @@ getmntname(const char *fromname, const char *onname,
 			}
 		}
 		if (count <= 1)
-			return (mntbuf[i].f_mntonname);
+			return (&mntbuf[i]);
 		else
 			return (NULL);
 	case FREE:
@@ -646,17 +649,15 @@ namematch(struct addrinfo *ai)
 	return (0);
 }
 
-void
-checkmntlist(char *name, char **fromname, char **onname, char **type)
+struct statfs *
+checkmntlist(char *name, char **type)
 {
+	struct statfs *sfs;
 
-	*fromname = getmntname(name, NULL, MNTFROM, type, NAME);
-	if (*fromname == NULL) {
-		*onname = getmntname(name, NULL, MNTON, type, NAME);
-		if (*onname != NULL)
-			*fromname = name;
-	} else
-		*onname = name;
+	sfs = getmntentry(name, NULL, MNTON, type, NAME);
+	if (sfs == NULL)
+		sfs = getmntentry(name, NULL, MNTFROM, type, NAME);
+	return (sfs);
 }
 
 size_t
