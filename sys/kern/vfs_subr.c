@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)vfs_subr.c	8.31 (Berkeley) 5/26/95
- * $Id: vfs_subr.c,v 1.73 1997/02/27 02:57:03 dyson Exp $
+ * $Id: vfs_subr.c,v 1.74 1997/02/27 05:28:58 dyson Exp $
  */
 
 /*
@@ -772,14 +772,12 @@ loop:
 			vgonel(vp, p);
 			goto loop;
 		}
-		simple_unlock(&spechash_slock);
 		if (vget(vp, LK_EXCLUSIVE | LK_INTERLOCK, p)) {
+			simple_unlock(&spechash_slock);
 			goto loop;
 		}
-		simple_lock(&spechash_slock);
 		break;
 	}
-
 	if (vp == NULL || vp->v_tag != VT_NON) {
 		MALLOC(nvp->v_specinfo, struct specinfo *,
 		    sizeof(struct specinfo), M_VNODE, M_WAITOK);
@@ -1524,14 +1522,18 @@ vfinddev(dev, type, vpp)
 	struct vnode **vpp;
 {
 	register struct vnode *vp;
+	int rc = 0;
 
+	simple_lock(&spechash_slock);
 	for (vp = speclisth[SPECHASH(dev)]; vp; vp = vp->v_specnext) {
 		if (dev != vp->v_rdev || type != vp->v_type)
 			continue;
 		*vpp = vp;
-		return (1);
+		rc = 1;
+		break;
 	}
-	return (0);
+	simple_unlock(&spechash_slock);
+	return (rc);
 }
 
 /*
@@ -1547,6 +1549,7 @@ vcount(vp)
 loop:
 	if ((vp->v_flag & VALIASED) == 0)
 		return (vp->v_usecount);
+	simple_lock(&spechash_slock);
 	for (count = 0, vq = *vp->v_hashchain; vq; vq = vnext) {
 		vnext = vq->v_specnext;
 		if (vq->v_rdev != vp->v_rdev || vq->v_type != vp->v_type)
@@ -1555,11 +1558,13 @@ loop:
 		 * Alias, but not in use, so flush it out.
 		 */
 		if (vq->v_usecount == 0 && vq != vp) {
+			simple_unlock(&spechash_slock);
 			vgone(vq);
 			goto loop;
 		}
 		count += vq->v_usecount;
 	}
+	simple_unlock(&spechash_slock);
 	return (count);
 }
 
