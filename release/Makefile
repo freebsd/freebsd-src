@@ -789,9 +789,9 @@ cdrom.1:
 	@cp ${CD_DISC1}/floppies/boot.flp ${CD_DISC2}/floppies
 .endif
 .if !defined(NOPORTS)
-	@-rm -rf /usr/ports/distfiles/*
 	@mkdir -p ${CD_DISC1}/ports && \
-	  tar --exclude CVS -czf ${CD_DISC1}/ports/ports.tgz -C /usr ports && \
+	  tar --exclude CVS --exclude 'ports/distfiles/*' -czf \
+	  ${CD_DISC1}/ports/ports.tgz -C /usr ports && \
 	  cp ${.CURDIR}/scripts/ports-install.sh ${CD_DISC1}/ports/install.sh \
 	  && (cd ${CD_DISC1}/ports; md5 * > CHECKSUM.MD5)
 .endif
