@@ -1,5 +1,5 @@
 #
-# $Id: Makefile,v 1.17 1998/05/15 06:42:01 jb Exp $
+# $Id: Makefile,v 1.18 1998/05/24 21:51:50 eivind Exp $
 #
 
 LIB=	gmp
@@ -96,7 +96,7 @@ SRCS+=$(_src)
 
 SRCS+=	${MPZ_SRCS} ${MPF_SRCS} ${MPQ_SRCS}
 
-.if defined(BINFORMAT) && ${BINFORMAT} == elf
+.if defined(OBJFORMAT) && ${OBJFORMAT} == elf
 
 sysdep.h: ${GMPDIR}/mpn/sysv.h
 	cp ${GMPDIR}/mpn/sysv.h sysdep.h

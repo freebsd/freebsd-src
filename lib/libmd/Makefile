@@ -1,7 +1,7 @@
-#	$Id: Makefile,v 1.24 1997/09/05 11:49:43 peter Exp $
+#	$Id: Makefile,v 1.25 1998/03/19 15:27:08 bde Exp $
 
 LIB=	md
-.if ${BINFORMAT} != elf
+.if ${OBJFORMAT} != elf
 NOPIC=	true
 .endif
 SRCS=	md2c.c md4c.c md5c.c md2hl.c md4hl.c md5hl.c

@@ -1,5 +1,5 @@
 #
-# $Id: Makefile,v 1.10 1997/09/05 12:12:35 peter Exp $
+# $Id: Makefile,v 1.11 1998/05/28 12:52:03 peter Exp $
 #
 
 LCRYPTBASE= 	libcrypt
@@ -19,7 +19,7 @@ LIB=	scrypt
 SRCS=	crypt.c md5c.c
 CFLAGS+=	-I${.CURDIR}/../libmd -DLIBC_SCCS
 
-.if ${BINFORMAT} == elf
+.if ${OBJFORMAT} == elf
 SONAME=	${LCRYPTBASE}.so.${SHLIB_MAJOR}
 .endif
 
