@@ -95,7 +95,7 @@ hpfs_mount (
 	char *path,
 	caddr_t data,
 	struct nameidata *ndp,
-	struct thread *p )
+	struct thread *td )
 {
 	u_int		size;
 	int		err = 0;
@@ -144,7 +144,7 @@ hpfs_mount (
 	 * Not an update, or updating the name: look up the name
 	 * and verify that it refers to a sensible block device.
 	 */
-	NDINIT(ndp, LOOKUP, FOLLOW, UIO_USERSPACE, args.fspec, p);
+	NDINIT(ndp, LOOKUP, FOLLOW, UIO_USERSPACE, args.fspec, td);
 	err = namei(ndp);
 	if (err) {
 		/* can't get devvp!*/
@@ -178,7 +178,7 @@ hpfs_mount (
 			&size);				/* real size*/
 	bzero( mp->mnt_stat.f_mntfromname + size, MNAMELEN - size);
 
-	err = hpfs_mountfs(devvp, mp, &args, p);
+	err = hpfs_mountfs(devvp, mp, &args, td);
 	if (err)
 		goto error_2;
 
@@ -188,7 +188,7 @@ hpfs_mount (
 	 *
 	 * This code is common to root and non-root mounts
 	 */
-	(void)VFS_STATFS(mp, &mp->mnt_stat, p);
+	(void)VFS_STATFS(mp, &mp->mnt_stat, td);
 
 	goto success;
 
@@ -208,11 +208,11 @@ success:
  * Common code for mount and mountroot
  */
 int
-hpfs_mountfs(devvp, mp, argsp, p)
+hpfs_mountfs(devvp, mp, argsp, td)
 	register struct vnode *devvp;
 	struct mount *mp;
 	struct hpfs_args *argsp;
-	struct thread *p;
+	struct thread *td;
 {
 	int error, ncount, ronly;
 	struct sublock *sup;
@@ -238,16 +238,16 @@ hpfs_mountfs(devvp, mp, argsp, p)
 	if (ncount > 1 && devvp != rootvp)
 		return (EBUSY);
 
-	vn_lock(devvp, LK_EXCLUSIVE | LK_RETRY, p);
-	error = vinvalbuf(devvp, V_SAVE, p->td_proc->p_ucred, p, 0, 0);
-	VOP_UNLOCK(devvp, 0, p);
+	vn_lock(devvp, LK_EXCLUSIVE | LK_RETRY, td);
+	error = vinvalbuf(devvp, V_SAVE, td->td_proc->p_ucred, td, 0, 0);
+	VOP_UNLOCK(devvp, 0, td);
 	if (error)
 		return (error);
 
 	ronly = (mp->mnt_flag & MNT_RDONLY) != 0;
-	vn_lock(devvp, LK_EXCLUSIVE | LK_RETRY, p);
-	error = VOP_OPEN(devvp, ronly ? FREAD : FREAD|FWRITE, FSCRED, p);
-	VOP_UNLOCK(devvp, 0, p);
+	vn_lock(devvp, LK_EXCLUSIVE | LK_RETRY, td);
+	error = VOP_OPEN(devvp, ronly ? FREAD : FREAD|FWRITE, FSCRED, td);
+	VOP_UNLOCK(devvp, 0, td);
 	if (error)
 		return (error);
 
@@ -324,7 +324,7 @@ failed:
 		brelse (bp);
 	mp->mnt_data = (qaddr_t)NULL;
 	devvp->v_rdev->si_mountpoint = NULL;
-	(void)VOP_CLOSE(devvp, ronly ? FREAD : FREAD|FWRITE, NOCRED, p);
+	(void)VOP_CLOSE(devvp, ronly ? FREAD : FREAD|FWRITE, NOCRED, td);
 	return (error);
 }
 
@@ -332,7 +332,7 @@ static int
 hpfs_unmount( 
 	struct mount *mp,
 	int mntflags,
-	struct thread *p)
+	struct thread *td)
 {
 	int error, flags, ronly;
 	register struct hpfsmount *hpmp = VFSTOHPFS(mp);
@@ -355,9 +355,9 @@ hpfs_unmount(
 
 	hpmp->hpm_devvp->v_rdev->si_mountpoint = NULL;
 
-	vinvalbuf(hpmp->hpm_devvp, V_SAVE, NOCRED, p, 0, 0);
+	vinvalbuf(hpmp->hpm_devvp, V_SAVE, NOCRED, td, 0, 0);
 	error = VOP_CLOSE(hpmp->hpm_devvp, ronly ? FREAD : FREAD|FWRITE,
-		NOCRED, p);
+		NOCRED, td);
 
 	vrele(hpmp->hpm_devvp);
 
@@ -393,7 +393,7 @@ static int
 hpfs_statfs(
 	struct mount *mp,
 	struct statfs *sbp,
-	struct thread *p)
+	struct thread *td)
 {
 	struct hpfsmount *hpmp = VFSTOHPFS(mp);
 
@@ -466,7 +466,7 @@ hpfs_vget(
 	struct vnode *vp;
 	struct hpfsnode *hp;
 	struct buf *bp;
-	struct thread *p = curthread;	/* XXX */
+	struct thread *td = curthread;	/* XXX */
 	int error;
 
 	dprintf(("hpfs_vget(0x%x): ",ino));
@@ -475,7 +475,7 @@ hpfs_vget(
 	hp = NULL;
 	vp = NULL;
 
-	if ((*vpp = hpfs_hphashvget(hpmp->hpm_dev, ino, p)) != NULL) {
+	if ((*vpp = hpfs_hphashvget(hpmp->hpm_dev, ino, td)) != NULL) {
 		dprintf(("hashed\n"));
 		return (0);
 	}
@@ -524,14 +524,14 @@ hpfs_vget(
 	hp->h_devvp = hpmp->hpm_devvp;
 	VREF(hp->h_devvp);
 
-	error = vn_lock(vp, LK_EXCLUSIVE, p);
+	error = vn_lock(vp, LK_EXCLUSIVE, td);
 	if (error) {
 		vput(vp);
 		return (error);
 	}
 
 	do {
-		if ((*vpp = hpfs_hphashvget(hpmp->hpm_dev, ino, p)) != NULL) {
+		if ((*vpp = hpfs_hphashvget(hpmp->hpm_dev, ino, td)) != NULL) {
 			dprintf(("hashed2\n"));
 			vput(vp);
 			return (0);
