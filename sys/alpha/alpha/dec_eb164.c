@@ -1,4 +1,4 @@
-/* $Id: dec_eb164.c,v 1.4 1998/08/10 07:53:58 dfr Exp $ */
+/* $Id: dec_eb164.c,v 1.5 1998/12/05 22:36:31 mjacob Exp $ */
 /* $NetBSD: dec_eb164.c,v 1.26 1998/04/17 02:45:19 mjacob Exp $ */
 
 /*
@@ -80,6 +80,7 @@ dec_eb164_init()
 	platform.pci_intr_enable = eb164_intr_enable;
 }
 
+extern int comconsole; /* XXX for forcing comconsole when srm serial console is used */
 static void
 dec_eb164_cons_init()
 {
@@ -98,7 +99,6 @@ dec_eb164_cons_init()
 		/* serial console ... */
 		/* XXX */
 		{
-			extern int comconsole;
 			/*
 			 * Delay to allow PROM putchars to complete.
 			 * FIFO depth * character time,
@@ -132,7 +132,7 @@ dec_eb164_cons_init()
 		printf("ctb->ctb_turboslot = 0x%lx\n", ctb->ctb_turboslot);
 
 		panic("consinit: unknown console type %d\n",
-		    ctb->ctb_term_type);
+		    (int) ctb->ctb_term_type);
 	}
 }
 
