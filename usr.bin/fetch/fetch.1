@@ -37,7 +37,7 @@
 .Nd retrieve a file by Uniform Resource Locator
 .Sh SYNOPSIS
 .Nm
-.Op Fl 146AFHMPRadlmnpqrsv
+.Op Fl 146AFMPRUadlmnpqrsv
 .Op Fl B Ar bytes
 .Op Fl S Ar bytes
 .Op Fl T Ar seconds
@@ -101,11 +101,6 @@ The file to retrieve is named
 on the remote host.
 This option is deprecated and is provided for backward compatibility
 only.
-.It Fl H
-When using passive FTP, allocate a high port for the data connection.
-See
-.Xr ip 4
-for details on how to specify which port range this corresponds to.
 .It Fl h Ar host
 The file to retrieve is located on the host
 .Ar host .
@@ -171,6 +166,12 @@ Overrides the environment variables
 for FTP transfers or
 .Ev HTTP_TIMEOUT 
 for HTTP transfers if set.
+.It Fl U
+When using passive FTP, allocate the port for the data connection from
+the low (default) port range.
+See
+.Xr ip 4
+for details on how to specify which port range this corresponds to.
 .It Fl v
 Increase verbosity level.
 .It Fl w Ar seconds
