@@ -33,7 +33,6 @@
  * regular-expression syntax might require a total rethink.
  */
 #include <limits.h>
-#include <locale.h>
 #include <regexp.h>
 #include <stdio.h>
 #include <ctype.h>
@@ -182,9 +181,27 @@ STATIC void regc();
 STATIC void reginsert();
 STATIC void regtail();
 STATIC void regoptail();
+STATIC int  collate_range_cmp();
 #ifdef STRCSPN
 STATIC int strcspn();
 #endif
+
+static int collate_range_cmp (c1, c2)
+	int c1, c2;
+{
+	static char s1[2], s2[2];
+	int ret;
+
+	c1 &= UCHAR_MAX;
+	c2 &= UCHAR_MAX;
+	if (c1 == c2)
+		return (0);
+	s1[0] = c1;
+	s2[0] = c2;
+	if ((ret = strcoll(s1, s2)) != 0)
+		return (ret);
+	return (c1 - c2);
+}
 
 /*
  - regcomp - compile a regular expression into internal code
