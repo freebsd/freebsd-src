@@ -120,8 +120,6 @@ sbrk(td, uap)
 	struct sbrk_args *uap;
 {
 	/* Not yet implemented */
-	/* mtx_lock(&Giant); */
-	/* mtx_unlock(&Giant); */
 	return (EOPNOTSUPP);
 }
 
@@ -141,8 +139,6 @@ sstk(td, uap)
 	struct sstk_args *uap;
 {
 	/* Not yet implemented */
-	/* mtx_lock(&Giant); */
-	/* mtx_unlock(&Giant); */
 	return (EOPNOTSUPP);
 }
 
