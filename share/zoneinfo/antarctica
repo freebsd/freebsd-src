@@ -1,4 +1,4 @@
-# @(#)antarctica	7.22
+# @(#)antarctica	7.23
 
 # From Paul Eggert (1999-11-15):
 # To keep things manageable, we list only locations occupied year-round; see
@@ -255,6 +255,13 @@ Zone Antarctica/Vostok	0	-	zzz	1957 Dec 16
 #	Halley is on a moving ice shelf and is periodically relocated
 #	so that it is never more than 10km from its nominal location.
 # Rothera, Adelaide Island, -6734-6808, since 1976-12-01
+#
+# From Paul Eggert (2002-10-22)
+# <http://webexhibits.org/daylightsaving/g.html> says Rothera is -03 all year.
+#
+# Zone	NAME		GMTOFF	RULES	FORMAT	[UNTIL]
+Zone Antarctica/Rothera	0	-	zzz	1976 Dec  1
+			-3:00	-	ROTT	# Rothera time
 
 # Uruguay - year round base
 # Artigas, King George Island, -621104-0585107
