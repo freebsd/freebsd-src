@@ -35,18 +35,18 @@
 
 typedef struct __ucontext {
 	/*
-	 * Keep the order of the first three fields. Also,
-	 * keep them the first to fields in the structure.
+	 * Keep the order of the first two fields. Also,
+	 * keep them the first two fields in the structure.
 	 * This way we can have a union with struct
 	 * sigcontext and ucontext_t. This allows us to
 	 * support them both at the same time.
 	 * note: the union is not defined, though.
 	 */
 	sigset_t	uc_sigmask;
-	stack_t		uc_stack;
 	mcontext_t	uc_mcontext;
 
 	struct __ucontext_t *uc_link;
+	stack_t		uc_stack;
 	int		__spare__[8];
 } ucontext_t;
 
