@@ -225,6 +225,17 @@ options are ignored unless the
 option is specified.
 In addition, these options override each other and the
 command's actions are determined by the last one specified.
+.Pp
+If
+.Nm
+receives a
+.Dv SIGINFO
+(see the
+.Cm status
+argument for
+.Xr stty 1 )
+signal, the current input and output file and the percentage complete
+will be written to the standard output.
 .Sh DIAGNOSTICS
 .Ex -std
 .Sh COMPATIBILITY
