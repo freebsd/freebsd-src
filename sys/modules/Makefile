@@ -110,6 +110,7 @@ SUBDIR+=aac \
 	scsi_low \
 	smbfs \
 	splash \
+	sppp \
 	stg \
 	streams \
 	svr4 \
