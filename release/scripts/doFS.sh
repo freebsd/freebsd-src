@@ -45,12 +45,9 @@ dofs_vn () {
 	vnconfig -u /dev/r${VNDEVICE} 2>/dev/null || true
 
 	dd of=${FSIMG} if=/dev/zero count=${FSSIZE} bs=1k 2>/dev/null
-	# this suppresses the `invalid primary partition table: no magic'
-	awk 'BEGIN {printf "%c%c", 85, 170}' |\
-	    dd of=${FSIMG} obs=1 seek=510 conv=notrunc 2>/dev/null
 
 	vnconfig -s labels -c /dev/r${VNDEVICE} ${FSIMG}
-	disklabel -Brw /dev/r${VNDEVICE} ${FSLABEL}
+	disklabel -Brw ${VNDEVICE} ${FSLABEL}
 	newfs -i ${FSINODE} -o space -m 1 /dev/r${VNDEVICE}c
 
 	mount /dev/${VNDEVICE}c ${MNT}
