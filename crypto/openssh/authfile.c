@@ -36,7 +36,7 @@
  */
 
 #include "includes.h"
-RCSID("$OpenBSD: authfile.c,v 1.49 2002/05/23 19:24:30 markus Exp $");
+RCSID("$OpenBSD: authfile.c,v 1.50 2002/06/24 14:55:38 markus Exp $");
 
 #include <openssl/err.h>
 #include <openssl/evp.h>
@@ -270,7 +270,7 @@ key_load_public_rsa1(int fd, const char *filename, char **commentp)
 	(void) buffer_get_int(&buffer);		/* reserved */
 
 	/* Read the public key from the buffer. */
-	buffer_get_int(&buffer);
+	(void) buffer_get_int(&buffer);
 	pub = key_new(KEY_RSA1);
 	buffer_get_bignum(&buffer, pub->rsa->n);
 	buffer_get_bignum(&buffer, pub->rsa->e);
@@ -357,7 +357,7 @@ key_load_private_rsa1(int fd, const char *filename, const char *passphrase,
 	(void) buffer_get_int(&buffer);	/* Reserved data. */
 
 	/* Read the public key from the buffer. */
-	buffer_get_int(&buffer);
+	(void) buffer_get_int(&buffer);
 	prv = key_new_private(KEY_RSA1);
 
 	buffer_get_bignum(&buffer, prv->rsa->n);
