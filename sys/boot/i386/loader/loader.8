@@ -22,7 +22,7 @@
 .\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 .\" SUCH DAMAGE.
 .\"
-.\"	$Id: loader.8,v 1.6 1999/05/22 13:18:28 rnordier Exp $
+.\"	$Id: loader.8,v 1.7 1999/06/23 09:06:18 ru Exp $
 .\"
 .\" Note: The date here should be updated whenever a non-trivial
 .\" change is made to the manual page.
@@ -70,7 +70,7 @@ are set, and
 .Va LINES
 is set to 24 . Next, 
 .Tn FICL
-is initialized, the builtin words are added to it's vocabulary, and
+is initialized, the builtin words are added to its vocabulary, and
 .Pa /boot/boot.4th
 will be processed if it exists. No disk switching is possible while
 that file is being read. The inner interpreter
@@ -106,7 +106,7 @@ will be set and
 will engage interactive mode.
 .Sh BUILTIN COMMANDS
 .Nm Loader Ns No 's
-builtin commands take it's parameters from the command line. Presently,
+builtin commands take its parameters from the command line. Presently,
 the only way to call them from a script is by using
 .Pa evaluate
 on a string. If an error condition occurs, an exception will be
@@ -157,7 +157,7 @@ will list the topics available.
 .Pp
 .It Ic include Ar file Op Ar
 Process script files. Each file is, at a turn, completely read into
-memory, and then have each of it's lines passed to the command line
+memory, and then have each of its lines passed to the command line
 interpreter. If any error is returned by the interpreter, the include
 commands aborts immediately, without reading any other files, and
 returns an error itself (see
@@ -381,7 +381,7 @@ or the preset default of 512.  Must be a power of 2.
 .El
 .Ss BUILTIN PARSER
 When a builtin command is executed, the rest of the line is taken
-by it as arguments, and it's processed by a special parser which
+by it as arguments, and it is processed by a special parser which
 is not used for regular Forth commands.
 .Pp
 This special parser applies the following rules to the parsed text:
@@ -451,7 +451,7 @@ If no arguments are passed, a 0
 .Em must
 be passed, even if the builtin accepts no arguments.
 .Pp
-While this behavior has benefits, it has it's trade-offs. If the
+While this behavior has benefits, it has its trade-offs. If the
 execution token of a builtin is acquired (through
 .Ic No '
 or
@@ -748,6 +748,6 @@ The
 .Ic expect
 and
 .Ic accept
-words will read from the input buffer instead of the console. The later
+words will read from the input buffer instead of the console. The latter
 will be fixed, but the former will not.
 
