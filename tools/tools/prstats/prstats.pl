@@ -124,6 +124,10 @@ sub scan_pr($) {
     if ($pr->{'state'} eq 'closed') {
 	$pr->{'_closed'} = $pr->{'closed-date'} || $pr->{'state-changed-when'};
 	$pr->{'_closed_by'} = $pr->{'state-changed-by'};
+	if (!defined($pr->{'_closed_by'})) {
+	    warn("PR $pr->{'category'}/$pr->{'number'} is incomplete\n");
+	    return;
+	}
 	++$CLOSER{$pr->{'_closed_by'}};
     } else {
 	$age = $pr->{'arrival-date'} / 86400;
