@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)tcp_input.c	8.12 (Berkeley) 5/24/95
- *	$Id: tcp_input.c,v 1.39 1996/03/22 18:09:20 wollman Exp $
+ *	$Id: tcp_input.c,v 1.40 1996/03/25 20:13:21 wollman Exp $
  */
 
 #ifndef TUBA_INCLUDE
@@ -46,6 +46,7 @@
 #include <sys/socket.h>
 #include <sys/socketvar.h>
 #include <sys/errno.h>
+#include <sys/syslog.h>
 
 #include <machine/cpu.h>	/* before tcp_seq.h, for tcp_random18() */
 
@@ -75,6 +76,10 @@ tcp_cc	tcp_ccgen;
 struct	tcpstat tcpstat;
 SYSCTL_STRUCT(_net_inet_tcp, TCPCTL_STATS, stats,
 	CTLFLAG_RD, &tcpstat , tcpstat, "");
+
+static int log_in_vain = 1;
+SYSCTL_INT(_net_inet_tcp, OID_AUTO, log_in_vain, CTLFLAG_RW, 
+	&log_in_vain, 0, "");
 
 u_long	tcp_now;
 struct inpcbhead tcb;
@@ -371,8 +376,14 @@ findpcb:
 	 * If the TCB exists but is in CLOSED state, it is embryonic,
 	 * but should either do a listen or a connect soon.
 	 */
-	if (inp == NULL)
+	if (inp == NULL) {
+		if (log_in_vain && tiflags & TH_SYN) 
+			log(LOG_INFO, "Connection attempt to TCP %s:%d"
+			    " from %s:%d\n",
+			    inet_ntoa(ti->ti_dst), ntohs(ti->ti_dport),
+			    inet_ntoa(ti->ti_src), ntohs(ti->ti_sport));
 		goto dropwithreset;
+	}
 	tp = intotcpcb(inp);
 	if (tp == 0)
 		goto dropwithreset;
