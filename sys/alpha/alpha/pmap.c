@@ -43,7 +43,7 @@
  *	from:	@(#)pmap.c	7.7 (Berkeley)	5/12/91
  *	from:	i386 Id: pmap.c,v 1.193 1998/04/19 15:22:48 bde Exp
  *		with some ideas from NetBSD's alpha pmap
- *	$Id: pmap.c,v 1.6 1998/07/26 18:13:28 dfr Exp $
+ *	$Id: pmap.c,v 1.7 1998/07/28 09:34:50 dfr Exp $
  */
 
 /*
@@ -184,8 +184,10 @@
 
 #define MINPV 2048
 
+#if 0
 #define PMAP_DIAGNOSTIC
 #define PMAP_DEBUG
+#endif
 
 #if !defined(PMAP_DIAGNOSTIC)
 #define PMAP_INLINE __inline
@@ -1446,8 +1448,6 @@ pmap_growkernel(vm_offset_t addr)
 
 	s = splhigh();
 
-	printf("pmap_growkernel: growing to %lx\n", addr);
-
 	if (kernel_vm_end == 0) {
 		kernel_vm_end = VM_MIN_KERNEL_ADDRESS;;
 
@@ -1483,6 +1483,9 @@ pmap_growkernel(vm_offset_t addr)
 			if (!nkpg)
 				panic("pmap_growkernel: no memory to grow kernel");
 #endif
+			printf("pmap_growkernel: growing to %lx\n", addr);
+			printf("pmap_growkernel: adding new level2 page table\n");
+
 			nklev2++;
 			vm_page_wire(nkpg);
 			pa = VM_PAGE_TO_PHYS(nkpg);
