@@ -428,10 +428,9 @@ m_tag_copy_chain(struct mbuf *to, struct mbuf *from, int how)
 		}
 		if (tprev == NULL)
 			SLIST_INSERT_HEAD(&to->m_pkthdr.tags, t, m_tag_link);
-		else {
+		else
 			SLIST_INSERT_AFTER(tprev, t, m_tag_link);
-			tprev = t;
-		}
+		tprev = t;
 	}
 	return 1;
 }
