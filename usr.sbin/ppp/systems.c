@@ -59,79 +59,106 @@ CloseSecret(FILE *fp)
 }
 
 /* Move string from ``from'' to ``to'', interpreting ``~'' and $.... */
-static const char *
+const char *
 InterpretArg(const char *from, char *to)
 {
-  const char *env;
   char *ptr, *startto, *endto;
-  int len;
+  struct passwd *pwd;
+  int len, instring;
+  const char *env;
 
+  instring = 0;
   startto = to;
   endto = to + LINE_LEN - 1;
 
   while(issep(*from))
     from++;
 
-  if (*from == '~') {
-    struct passwd *pwd;
+  while (*from != '\0') {
+    switch (*from) {
+      case '"':
+        instring = !instring;
+        *to++ = *from++;
+        break;
+      case '\\':
+        switch (*++from) {
+          case '$':
+          case '~':
+            break;		/* Swallow the escapes */
 
-    ptr = strchr(++from, '/');
-    len = ptr ? ptr - from : strlen(from);
-    if (len == 0) {
-      pwd = getpwuid(ID0realuid());
-    } else {
-      strncpy(to, from, len);
-      to[len] = '\0';
-      pwd = getpwnam(to);
-    }
-    strncpy(to, pwd ? pwd->pw_dir : _PATH_PPP, endto - to);
-    endpwent();
-
-    *endto = '\0';
-    to += strlen(to);
-    from += len;
-  }
-
-  while (to < endto && !issep(*from) && *from != '#' && *from != '\0') {
-    if (*from == '$') {
-      if (from[1] == '$') {
-        *to = '\0';	/* For an empty var name below */
-        from += 2;
-      } else if (from[1] == '{') {
-        ptr = strchr(from+2, '}');
-        if (ptr) {
-          len = ptr - from - 2;
-          if (endto - to < len )
-            len = endto - to;
-          if (len) {
-            strncpy(to, from+2, len);
-            to[len] = '\0';
-            from = ptr+1;
+          default:
+            *to++ = '\\';	/* Pass the escapes on, maybe skipping \# */
+            break;
+        }
+        *to++ = *from++;
+        break;
+      case '$':
+        if (from[1] == '$') {
+          *to = '\0';	/* For an empty var name below */
+          from += 2;
+        } else if (from[1] == '{') {
+          ptr = strchr(from+2, '}');
+          if (ptr) {
+            len = ptr - from - 2;
+            if (endto - to < len )
+              len = endto - to;
+            if (len) {
+              strncpy(to, from+2, len);
+              to[len] = '\0';
+              from = ptr+1;
+            } else {
+              *to++ = *from++;
+              continue;
+            }
           } else {
             *to++ = *from++;
             continue;
           }
         } else {
-          *to++ = *from++;
-          continue;
+          ptr = to;
+          for (from++; (isalnum(*from) || *from == '_') && ptr < endto; from++)
+            *ptr++ = *from;
+          *ptr = '\0';
         }
-      } else {
-        ptr = to;
-        for (from++; (isalnum(*from) || *from == '_') && ptr < endto; from++)
-          *ptr++ = *from;
-        *ptr = '\0';
-      }
-      if (*to == '\0')
-        *to++ = '$';
-      else if ((env = getenv(to)) != NULL) {
-        strncpy(to, env, endto - to);
-        *endto = '\0';
-        to += strlen(to);
-      }
-    } else {
-      if (*from == '\\')
-        from++;
-      *to++ = *from++;
+        if (*to == '\0')
+          *to++ = '$';
+        else if ((env = getenv(to)) != NULL) {
+          strncpy(to, env, endto - to);
+          *endto = '\0';
+          to += strlen(to);
+        }
+        break;
+
+      case '~':
+        ptr = strchr(++from, '/');
+        len = ptr ? ptr - from : strlen(from);
+        if (len == 0)
+          pwd = getpwuid(ID0realuid());
+        else {
+          strncpy(to, from, len);
+          to[len] = '\0';
+          pwd = getpwnam(to);
+        }
+        if (pwd == NULL)
+          *to++ = '~';
+        else {
+          strncpy(to, pwd->pw_dir, endto - to);
+          *endto = '\0';
+          to += strlen(to);
+          from += len;
+        }
+        endpwent();
+        break;
+
+      case '#':
+        if (!instring)
+          while (*from != '\0')
+            *to++ = *from++;
+        break;
+
+      default:
+        *to++ = *from++;
+        break;
     }
   }
 
@@ -143,9 +170,6 @@ InterpretArg(const char *from, char *to)
     }
   }
   *to = '\0';
-
-  while (issep(*from))
-    from++;
 
   return from;
 }
@@ -363,7 +387,7 @@ ReadSystem(struct bundle *bundle, const char *name, const char *file,
           }
 
           len = strlen(cp);
-          if ((argc = command_Interpret(cp, len, argv)) < 0)
+          if ((argc = command_Expand_Interpret(cp, len, argv, cp - line)) < 0)
             log_Printf(LogWARN, "%s: %d: Syntax error\n", filename, linenum);
           else {
             allowcmd = argc > 0 && !strcasecmp(argv[0], "allow");
