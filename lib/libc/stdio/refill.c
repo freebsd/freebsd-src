@@ -44,7 +44,7 @@ static char sccsid[] = "@(#)refill.c	8.1 (Berkeley) 6/4/93";
 #include "local.h"
 
 static
-lflush(fp)
+int lflush(fp)
 	FILE *fp;
 {
 
@@ -57,7 +57,7 @@ lflush(fp)
  * Refill a stdio buffer.
  * Return EOF on eof or error, 0 otherwise.
  */
-__srefill(fp)
+int __srefill(fp)
 	register FILE *fp;
 {
 
