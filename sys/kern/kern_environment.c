@@ -87,7 +87,8 @@ getenv_int(char *name, int *data)
 quad_t
 getenv_quad(char *name, quad_t *data)
 {
-    const char	*value, *vtp;
+    const char	*value;
+    char	*vtp;
     quad_t	iv;
     
     if ((value = getenv(name)) == NULL)

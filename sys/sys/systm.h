@@ -122,8 +122,10 @@ int     vsprintf __P((char *buf, const char *, _BSD_VA_LIST_)) __printflike(2, 0
 void	ttyprintf __P((struct tty *, const char *, ...)) __printflike(2, 3);
 int	sscanf __P((const char *, char const *, ...));
 int	vsscanf __P((const char *, char const *, _BSD_VA_LIST_));
+long	strtol __P((const char *, char **, int));
+u_long	strtoul __P((const char *, char **, int));
+quad_t	strtoq __P((const char *, char **, int));
 u_quad_t strtouq __P((const char *, char **, int));
-quad_t	strtoq __P((const char *, char **, int base));
 
 void	bcopy __P((const void *from, void *to, size_t len));
 void	ovbcopy __P((const void *from, void *to, size_t len));
