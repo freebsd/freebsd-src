@@ -4,6 +4,7 @@
 #include "hack.h"
 #include <stdio.h>
 #include <signal.h>
+#include <stdlib.h>
 #define Strcpy	(void) strcpy
 #define	Strcat	(void) strcat
 #define	UNDEF_TYP	0
@@ -307,7 +308,6 @@ extern struct obj *mkobj();
 #ifdef WIZARD
 wiz_inv(){
 register struct trobj *trop = &Extra_objs[0];
-extern char *getenv();
 register char *ep = getenv("INVENT");
 register int type;
 	while(ep && *ep) {
