@@ -471,3 +471,13 @@ and
 .An Poul-Henning Kamp .
 This manual page was written by
 .An Murray Stokely Aq murray@FreeBSD.org .
+.Sh BUGS
+Infrastructure changes are occassionally made to the FreeBSD
+documentation set in such a way that release builds on security
+branches can fail.
+To work around this, release builds can be made to checkout the
+documentation from the last fully supported release of FreeBSD.
+For example:
+.Bd
+make release RELEASETAG=RELENG_4_5 DOCRELEASETAG=RELEASE_4_5_0 ...
+.Ed
