@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)ufs_readwrite.c	8.11 (Berkeley) 5/8/95
- * $Id: ufs_readwrite.c,v 1.34 1997/12/15 03:09:54 wollman Exp $
+ * $Id: ufs_readwrite.c,v 1.35 1997/12/16 22:28:26 eivind Exp $
  */
 
 #ifdef LFS_READWRITE
@@ -54,9 +54,16 @@
 #define	WRITE_S			"ffs_write"
 #include <vm/vm.h>
 #include <vm/vm_pager.h>
+#include <vm/vm_map.h>
 #include <vm/vnode_pager.h>
 #endif
 #include <sys/poll.h>
+#include <sys/sysctl.h>
+
+int vfs_ioopt = 1;
+
+SYSCTL_INT(_vfs, OID_AUTO, ioopt,
+	CTLFLAG_RW, &vfs_ioopt, 0, "");
 
 /*
  * Vnode op for reading.
@@ -154,8 +161,20 @@ READ(ap)
 				break;
 			xfersize = size;
 		}
-		error =
-		    uiomove((char *)bp->b_data + blkoffset, (int)xfersize, uio);
+
+		if (vfs_ioopt &&
+				(bp->b_flags & B_VMIO) &&
+				((blkoffset & PAGE_MASK) == 0) &&
+				((xfersize & PAGE_MASK) == 0)) {
+			error =
+				uiomoveco((char *)bp->b_data + blkoffset,
+					(int)xfersize, uio, vp->v_object);
+		} else {
+			error =
+				uiomove((char *)bp->b_data + blkoffset,
+					(int)xfersize, uio);
+		}
+
 		if (error)
 			break;
 
@@ -272,6 +291,14 @@ WRITE(ap)
 		size = BLKSIZE(fs, ip, lbn) - bp->b_resid;
 		if (size < xfersize)
 			xfersize = size;
+
+		if (vfs_ioopt &&
+			vp->v_object && (vp->v_object->flags & OBJ_OPT) &&
+			vp->v_object->shadow_count) {
+			vm_freeze_copyopts(vp->v_object,
+				OFF_TO_IDX(uio->uio_offset),
+				OFF_TO_IDX(uio->uio_offset + size));
+		}
 
 		error =
 		    uiomove((char *)bp->b_data + blkoffset, (int)xfersize, uio);

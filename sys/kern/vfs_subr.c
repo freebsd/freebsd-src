@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)vfs_subr.c	8.31 (Berkeley) 5/26/95
- * $Id: vfs_subr.c,v 1.114 1997/11/22 08:35:39 bde Exp $
+ * $Id: vfs_subr.c,v 1.115 1997/12/15 03:09:32 wollman Exp $
  */
 
 /*
@@ -63,6 +63,8 @@
 #include <vm/vm.h>
 #include <vm/vm_object.h>
 #include <vm/vm_extern.h>
+#include <vm/pmap.h>
+#include <vm/vm_map.h>
 #include <vm/vnode_pager.h>
 #include <sys/sysctl.h>
 
@@ -921,6 +923,8 @@ vputrele(vp, put)
 	if ((vp->v_usecount == 2) &&
 		vp->v_object &&
 		(vp->v_object->flags & OBJ_VFS_REF)) {
+
+		vm_freeze_copyopts(vp->v_object, 0, vp->v_object->size);
 		vp->v_usecount--;
 		vp->v_object->flags &= ~OBJ_VFS_REF;
 		if (put) {

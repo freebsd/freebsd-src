@@ -66,7 +66,7 @@
  * any improvements or extensions that they make and grant Carnegie the
  * rights to redistribute these changes.
  *
- * $Id: vm_fault.c,v 1.70 1997/08/25 22:15:19 bde Exp $
+ * $Id: vm_fault.c,v 1.71 1997/09/01 03:17:15 bde Exp $
  */
 
 /*
@@ -202,7 +202,8 @@ RetryFault:;
 	 * to COW .text.  We simply keep .text from ever being COW'ed
 	 * and take the heat that one cannot debug wired .text sections.
 	 */
-	if (((fault_flags & VM_FAULT_WIRE_MASK) == VM_FAULT_USER_WIRE) && (entry->eflags & MAP_ENTRY_NEEDS_COPY)) {
+	if (((fault_flags & VM_FAULT_WIRE_MASK) == VM_FAULT_USER_WIRE) &&
+		(entry->eflags & MAP_ENTRY_NEEDS_COPY)) {
 		if(entry->protection & VM_PROT_WRITE) {
 			int tresult;
 			vm_map_lookup_done(map, entry);
@@ -222,6 +223,10 @@ RetryFault:;
 	}
 
 	vp = vnode_pager_lock(first_object);
+	if ((fault_type & VM_PROT_WRITE) &&
+		(first_object->type == OBJT_VNODE)) {
+		vm_freeze_copyopts(first_object, first_pindex, first_pindex + 1);
+	}
 
 	lookup_still_valid = TRUE;
 
