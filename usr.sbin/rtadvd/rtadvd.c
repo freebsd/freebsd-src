@@ -151,7 +151,12 @@ main(argc, argv)
 	openlog(*argv, LOG_NDELAY|LOG_PID, LOG_DAEMON);
 
 	/* get command line options and arguments */
-	while ((ch = getopt(argc, argv, "c:dDfR:s")) != -1) {
+#if defined(IPSEC) && defined(IPSEC_POLICY_IPSEC)
+	while ((ch = getopt(argc, argv, "c:dDfP:R:s")) != -1)
+#else
+	while ((ch = getopt(argc, argv, "c:dDfR:s")) != -1)
+#endif
+	{
 		switch(ch) {
 		 case 'c':
 			 conffile = optarg;
