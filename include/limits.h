@@ -36,9 +36,9 @@
 
 #ifndef _LIMITS_H_
 #define	_LIMITS_H_
-#include <sys/_posix.h>
+#include <sys/cdefs.h>
 
-#ifndef _ANSI_SOURCE
+#if __POSIX_VISIBLE
 #define	_POSIX_ARG_MAX		4096
 #define	_POSIX_CHILD_MAX	6
 #define	_POSIX_LINK_MAX		8
@@ -61,11 +61,9 @@
 #define	_POSIX2_EXPR_NEST_MAX	32
 #define	_POSIX2_LINE_MAX	2048
 #define	_POSIX2_RE_DUP_MAX	255
+#endif
 
-#define	_XOPEN_IOV_MAX		16
-
-#ifdef _P1003_1B_VISIBLE
-
+#if __POSIX_VISIBLE >= 199309
 #define _POSIX_AIO_LISTIO_MAX	16
 #define _POSIX_AIO_MAX		1
 #define _POSIX_DELAYTIMER_MAX	32
@@ -76,12 +74,14 @@
 #define _POSIX_SEM_VALUE_MAX	32767
 #define _POSIX_SIGQUEUE_MAX	32
 #define _POSIX_TIMER_MAX	32
-
 #endif
 
-#endif /* !_ANSI_SOURCE */
+#if __POSIX_VISIBLE >= 200112
+#define	_POSIX_HOST_NAME_MAX	255
+#endif
 
-#if !defined(_ANSI_SOURCE) && !defined(_POSIX_SOURCE) || defined(_XOPEN_SOURCE)
+#if __XSI_VISIBLE
+#define	_XOPEN_IOV_MAX		16
 #define PASS_MAX		128	/* _PASSWORD_LEN from <pwd.h> */
 
 #define NL_ARGMAX		99	/* max # of position args for printf */
@@ -93,7 +93,7 @@
 #endif 
 
 #include <machine/limits.h>
-#if !defined(_ANSI_SOURCE)
+#if __POSIX_VISIBLE
 #include <sys/syslimits.h>
 #endif
 
