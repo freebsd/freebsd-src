@@ -36,10 +36,14 @@ do
 
 	vnconfig -s labels -c /dev/r${VNDEVICE} fs-image
 
-	disklabel -Brw \
-		-b ${RD}/trees/bin/usr/mdec/fdboot \
-		-s ${RD}/trees/bin/usr/mdec/bootfd \
-		/dev/r${VNDEVICE} minimum
+	if [ "`uname -m`" = "alpha" ]; then
+		disklabel -Brw -b ${RD}/trees/bin/usr/mdec/boot1 \
+		  /dev/r${VNDEVICE} minimum
+	else
+		disklabel -Brw \
+		  -b ${RD}/trees/bin/usr/mdec/fdboot \
+		  -s ${RD}/trees/bin/usr/mdec/bootfd \
+		  /dev/r${VNDEVICE} minimum
 
 	newfs -u 0 -t 0 -i ${FSINODE} -m 0 -T minimum -o space /dev/r${VNDEVICE}c
 
