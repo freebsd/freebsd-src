@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)nfs_vnops.c	8.16 (Berkeley) 5/27/95
- * $Id: nfs_vnops.c,v 1.91 1998/05/31 01:03:07 peter Exp $
+ * $Id: nfs_vnops.c,v 1.92 1998/05/31 17:27:55 peter Exp $
  */
 
 
@@ -122,7 +122,8 @@ static	int	nfs_symlink __P((struct vop_symlink_args *));
 static	int	nfs_readdir __P((struct vop_readdir_args *));
 static	int	nfs_bmap __P((struct vop_bmap_args *));
 static	int	nfs_strategy __P((struct vop_strategy_args *));
-static	int	nfs_lookitup __P((struct vnode *,char *,int,struct ucred *,struct proc *,struct nfsnode **));
+static	int	nfs_lookitup __P((struct vnode *, const char *, int,
+			struct ucred *, struct proc *, struct nfsnode **));
 static	int	nfs_sillyrename __P((struct vnode *,struct vnode *,struct componentname *));
 static int	nfsspec_access __P((struct vop_access_args *));
 static int	nfs_readlink __P((struct vop_readlink_args *));
@@ -222,11 +223,12 @@ static int	nfs_commit __P((struct vnode *vp, u_quad_t offset, int cnt,
 static int	nfs_mknodrpc __P((struct vnode *dvp, struct vnode **vpp,
 				  struct componentname *cnp,
 				  struct vattr *vap));
-static int	nfs_removerpc __P((struct vnode *dvp, char *name, int namelen,
+static int	nfs_removerpc __P((struct vnode *dvp, const char *name,
+				   int namelen,
 				   struct ucred *cred, struct proc *proc));
-static int	nfs_renamerpc __P((struct vnode *fdvp, char *fnameptr,
+static int	nfs_renamerpc __P((struct vnode *fdvp, const char *fnameptr,
 				   int fnamelen, struct vnode *tdvp,
-				   char *tnameptr, int tnamelen,
+				   const char *tnameptr, int tnamelen,
 				   struct ucred *cred, struct proc *proc));
 static int	nfs_renameit __P((struct vnode *sdvp,
 				  struct componentname *scnp,
@@ -1496,7 +1498,7 @@ nfs_removeit(sp)
 static int
 nfs_removerpc(dvp, name, namelen, cred, proc)
 	register struct vnode *dvp;
-	char *name;
+	const char *name;
 	int namelen;
 	struct ucred *cred;
 	struct proc *proc;
@@ -1614,10 +1616,10 @@ nfs_renameit(sdvp, scnp, sp)
 static int
 nfs_renamerpc(fdvp, fnameptr, fnamelen, tdvp, tnameptr, tnamelen, cred, proc)
 	register struct vnode *fdvp;
-	char *fnameptr;
+	const char *fnameptr;
 	int fnamelen;
 	register struct vnode *tdvp;
-	char *tnameptr;
+	const char *tnameptr;
 	int tnamelen;
 	struct ucred *cred;
 	struct proc *proc;
@@ -2448,7 +2450,7 @@ bad:
 static int
 nfs_lookitup(dvp, name, len, cred, procp, npp)
 	register struct vnode *dvp;
-	char *name;
+	const char *name;
 	int len;
 	struct ucred *cred;
 	struct proc *procp;

@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)nfsm_subs.h	8.2 (Berkeley) 3/30/95
- * $Id: nfsm_subs.h,v 1.16 1998/05/16 15:11:24 bde Exp $
+ * $Id: nfsm_subs.h,v 1.17 1998/05/31 17:27:57 peter Exp $
  */
 
 
@@ -317,7 +317,7 @@ struct mbuf *nfsm_rpchead __P((struct ucred *cr, int nmflag, int procid,
 			nfsm_build(tl,u_long *,t2); \
 			*tl++ = txdr_unsigned(s); \
 			*(tl+((t2>>2)-2)) = 0; \
-			bcopy((caddr_t)(a), (caddr_t)tl, (s)); \
+			bcopy((const char *)(a), (caddr_t)tl, (s)); \
 		} else if ((t2 = nfsm_strtmbuf(&mb, &bpos, (a), (s))) != 0) { \
 			error = t2; \
 			m_freem(mreq); \
