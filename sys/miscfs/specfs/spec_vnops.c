@@ -120,6 +120,9 @@ VNODEOP_SET(spec_vnodeop_opv_desc);
 static int bdev_buffered = 1;
 SYSCTL_INT(_vfs, OID_AUTO, bdev_buffered, CTLFLAG_RW, &bdev_buffered, 0, "");
 
+static int enable_userblk_io = 1;
+SYSCTL_INT(_vfs, OID_AUTO, enable_userblk_io, CTLFLAG_RW, &enable_userblk_io, 0, "");
+
 int
 spec_vnoperate(ap)
 	struct vop_generic_args /* {
@@ -331,6 +334,8 @@ spec_bufread(ap)
 	int seqcount = ap->a_ioflag >> 16;
 	dev_t dev;
 
+	if (!enable_userblk_io)
+		return (EINVAL);
 	if (uio->uio_offset < 0)
 		return (EINVAL);
 	dev = vp->v_rdev;
@@ -453,6 +458,8 @@ spec_bufwrite(ap)
 	register int n, on;
 	int error = 0;
 
+	if (!enable_userblk_io)
+		return (EINVAL);
 	if (uio->uio_resid == 0)
 		return (0);
 	if (uio->uio_offset < 0)
