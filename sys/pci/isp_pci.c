@@ -1,5 +1,5 @@
-/* $Id: $ */
-/* release_12_28_98_A */
+/* $Id: isp_pci.c,v 1.12 1998/12/28 19:24:23 mjacob Exp $ */
+/* release_12_28_98_A+ */
 /*
  * PCI specific probe and attach routines for Qlogic ISP SCSI adapters.
  * FreeBSD Version.
@@ -79,7 +79,7 @@ static struct ispmdvec mdvec = {
 	ISP_CODE_LENGTH,
 	ISP_CODE_ORG,
 	ISP_CODE_VERSION,
-	BIU_BURST_ENABLE,
+	BIU_BURST_ENABLE|BIU_PCI_CONF1_FIFO_64,
 	0
 };
 
@@ -96,7 +96,7 @@ static struct ispmdvec mdvec_2100 = {
 	ISP2100_CODE_LENGTH,
 	ISP2100_CODE_ORG,
 	ISP2100_CODE_VERSION,
-	BIU_BURST_ENABLE,
+	0,			/* Irrelevant to the 2100 */
 	0
 };
 
