@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: install.c,v 1.67 1995/05/29 11:01:23 jkh Exp $
+ * $Id: install.c,v 1.68 1995/05/29 13:37:43 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -401,11 +401,12 @@ root_extract(void)
     if (mediaDevice) {
 	switch(mediaDevice->type) {
 
-	case DEVICE_TYPE_DOS:
-	case DEVICE_TYPE_FTP:
-	case DEVICE_TYPE_DISK:
-	case DEVICE_TYPE_NETWORK:
-	case DEVICE_TYPE_CDROM:
+	case DEVICE_TYPE_TAPE:
+	case DEVICE_TYPE_FLOPPY:
+	    loop_on_root_floppy();
+	    break;
+
+	default:
 	    if (mediaDevice->init)
 		if (!(*mediaDevice->init)(mediaDevice))
 		    break;
@@ -424,12 +425,6 @@ root_extract(void)
 		    (*mediaDevice->shutdown)(mediaDevice);
 	        loop_on_root_floppy();
 	    }
-	    break;
-
-	case DEVICE_TYPE_TAPE:
-	case DEVICE_TYPE_FLOPPY:
-	default:
-	    loop_on_root_floppy();
 	    break;
 	}
     }
