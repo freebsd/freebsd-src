@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)inode.h	8.9 (Berkeley) 5/14/95
- * $Id$
+ * $Id: inode.h,v 1.12 1997/02/22 09:47:42 peter Exp $
  */
 
 #ifndef _UFS_UFS_INODE_H_
@@ -83,7 +83,6 @@ struct inode {
 	doff_t	  i_offset;	/* Offset of free space in directory. */
 	ino_t	  i_ino;	/* Inode number of found directory. */
 	u_int32_t i_reclen;	/* Size of found directory entry. */
-	int	  i_lockcount;	/* Process lock count (recursion) */
 	int	  i_spare[10];	/* XXX spare storage (for ext2fs) */
 	/*
 	 * The on-disk dinode itself.
@@ -118,7 +117,6 @@ struct inode {
 #define	IN_RENAME	0x0010		/* Inode is being renamed. */
 #define	IN_SHLOCK	0x0020		/* File has shared lock. */
 #define	IN_EXLOCK	0x0040		/* File has exclusive lock. */
-#define	IN_RECURSE	0x0080		/* Recursion expected */
 
 #ifdef KERNEL
 /*
