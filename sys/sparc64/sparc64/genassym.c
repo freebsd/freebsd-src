@@ -40,6 +40,7 @@
 #include <machine/asi.h>
 #include <machine/vmparam.h>
 #include <machine/cpufunc.h>
+#include <machine/fp.h>
 #include <machine/frame.h>
 #include <machine/globals.h>
 #include <machine/pcb.h>
@@ -49,6 +50,13 @@
 #include <machine/tte.h>
 #include <machine/tlb.h>
 #include <machine/tsb.h>
+
+/*
+ * XXX: gas, as of version 2.11.2, does not know this ASI (and some other
+ * UltraSparc specific ones). This definition will probably get us into trouble
+ * as soon as they are added.
+ */
+ASSYM(ASI_BLK_S, ASI_BLK_S);
 
 ASSYM(EFAULT, EFAULT);
 ASSYM(ENAMETOOLONG, ENAMETOOLONG);
@@ -62,6 +70,17 @@ ASSYM(PSTATE_PRIV, PSTATE_PRIV);
 ASSYM(PSTATE_PEF, PSTATE_PEF);
 ASSYM(PSTATE_MG, PSTATE_MG);
 ASSYM(PSTATE_IG, PSTATE_IG);
+
+ASSYM(TSTATE_AG, TSTATE_AG);
+ASSYM(TSTATE_IE, TSTATE_IE);
+ASSYM(TSTATE_PRIV, TSTATE_PRIV);
+ASSYM(TSTATE_PEF, TSTATE_PEF);
+ASSYM(TSTATE_MG, TSTATE_MG);
+ASSYM(TSTATE_IG, TSTATE_IG);
+
+ASSYM(FPRS_DL, FPRS_DL);
+ASSYM(FPRS_DU, FPRS_DU);
+ASSYM(FPRS_FEF, FPRS_FEF);
 
 ASSYM(TTE_SHIFT, TTE_SHIFT);
 ASSYM(STTE_SHIFT, STTE_SHIFT);
@@ -97,7 +116,6 @@ ASSYM(TT_CTX_SHIFT, TT_CTX_SHIFT);
 
 ASSYM(GD_CURPROC, offsetof(struct globaldata, gd_curproc));
 ASSYM(GD_CURPCB, offsetof(struct globaldata, gd_curpcb));
-ASSYM(GD_FPCURPROC, offsetof(struct globaldata, gd_fpcurproc));
 
 ASSYM(JB_FP, offsetof(struct _jmp_buf, _jb[_JB_FP]));
 ASSYM(JB_PC, offsetof(struct _jmp_buf, _jb[_JB_PC]));
@@ -105,10 +123,19 @@ ASSYM(JB_SP, offsetof(struct _jmp_buf, _jb[_JB_SP]));
 
 ASSYM(P_ADDR, offsetof(struct proc, p_addr));
 ASSYM(P_VMSPACE, offsetof(struct proc, p_vmspace));
+ASSYM(P_FRAME, offsetof(struct proc, p_frame));
 
+ASSYM(PCB_FPSTATE, offsetof(struct pcb, pcb_fpstate));
 ASSYM(PCB_FP, offsetof(struct pcb, pcb_fp));
 ASSYM(PCB_PC, offsetof(struct pcb, pcb_pc));
 ASSYM(PCB_ONFAULT, offsetof(struct pcb, pcb_onfault));
+
+ASSYM(FP_FB0, offsetof(struct fpstate, fp_fb[0]));
+ASSYM(FP_FB1, offsetof(struct fpstate, fp_fb[1]));
+ASSYM(FP_FB2, offsetof(struct fpstate, fp_fb[2]));
+ASSYM(FP_FB3, offsetof(struct fpstate, fp_fb[3]));
+ASSYM(FP_FSR, offsetof(struct fpstate, fp_fsr));
+ASSYM(FP_FPRS, offsetof(struct fpstate, fp_fprs));
 
 ASSYM(F_L0, offsetof(struct frame, f_local[0]));
 ASSYM(F_L1, offsetof(struct frame, f_local[1]));
