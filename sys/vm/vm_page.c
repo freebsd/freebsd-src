@@ -757,12 +757,12 @@ vm_page_alloc(vm_object_t object, vm_pindex_t pindex, int req)
 	vm_pindex_t color;
 	int page_req, s;
 
-	GIANT_REQUIRED;
-
 #ifdef INVARIANTS
 	if ((req & VM_ALLOC_NOOBJ) == 0) {
 		KASSERT(object != NULL,
 		    ("vm_page_alloc: NULL object."));
+		mtx_assert(object == kmem_object ? &object->mtx : &Giant,
+		    MA_OWNED);
 		KASSERT(!vm_page_lookup(object, pindex),
 		    ("vm_page_alloc: page already allocated"));
 	}
