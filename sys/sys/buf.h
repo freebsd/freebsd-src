@@ -440,12 +440,6 @@ buf_countdeps(struct buf *bp, int i)
 	(bp)->b_resid = 0;						\
 }
 
-/* Flags to low-level allocation routines. */
-#define B_CLRBUF	0x01	/* Request allocated buffer be cleared. */
-#define B_SYNC		0x02	/* Do all allocations synchronously. */
-#define	B_METAONLY	0x04	/* Return indirect block buffer. */
-#define B_NOWAIT	0x08	/* do not sleep to await lock */
-
 #ifdef _KERNEL
 extern int	nbuf;			/* The number of buffer headers */
 extern int	maxswzone;		/* Max KVA for swap structures */
