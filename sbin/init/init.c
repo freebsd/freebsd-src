@@ -33,7 +33,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *		$Id: init.c,v 1.17 1997/06/13 06:24:42 charnier Exp $
+ *		$Id: init.c,v 1.18 1997/06/28 08:18:29 pst Exp $
  */
 
 #ifndef lint
@@ -1471,7 +1471,7 @@ setprocresources(cname)
 	const char *cname;
 {
 	login_cap_t *lc;
-	if ((lc = login_getclassbyname(cname, (char*)NULL)) != NULL) {
+	if ((lc = login_getclassbyname(cname, NULL)) != NULL) {
 		setusercontext(lc, (struct passwd*)NULL, 0, LOGIN_SETPRIORITY|LOGIN_SETRESOURCES);
 		login_close(lc);
 	}
