@@ -299,7 +299,11 @@ read:	 	push %dx			// Save
 		mov 0x2(%bp),%ah		// Blocks to read
 		cmpb %ah,%al			// To read
 		jb read.2			//  this
+#ifdef	TRACK_AT_A_TIME
 		movb %ah,%al			//  track
+#else
+		movb $1,%al			//  one sector
+#endif
 read.2: 	mov $0x5,%di	 		// Try count
 read.3: 	les 0x4(%bp),%bx		// Transfer buffer
 		push %ax			// Save
