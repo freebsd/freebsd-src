@@ -292,11 +292,11 @@ creator_init(int unit, video_adapter_t *adp, int flags)
 	FFB_WRITE(sc, FFB_DAC, FFB_DAC_VALUE2, 0x0);
 
 	if (sc->sc_console) {
-		col = NULL;
-		row = NULL;
+		col = 0;
+		row = 0;
 		OF_interpret("stdout @ is my-self addr line# addr column# ",
 		    2, &col, &row);
-		if (col != NULL && row != NULL) {
+		if (col != 0 && row != 0) {
 			sc->sc_colp = (int *)(col + 4);
 			sc->sc_rowp = (int *)(row + 4);
 		}
