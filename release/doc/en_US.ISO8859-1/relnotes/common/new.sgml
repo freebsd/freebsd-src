@@ -427,7 +427,7 @@ hw.pcic.irq="0"</programlisting>
     <para>&man.c89.1; has been converted from a shell script to a
     binary executable, fixing some minor bugs.</para>
 
-    <para>&man.vidcontrol.1; now supports a <option>-p</option> to
+    <para>&man.vidcontrol.1; now supports a <option>-p</option> option to
     take a snapshot of a &man.syscons.4; video buffer.  These
     snapshots can be manipulated by the
     <port>graphics/scr2png</port> utility in the Ports
@@ -527,9 +527,9 @@ hw.pcic.irq="0"</programlisting>
 
     <para>&man.vidcontrol.1; now supports a <option>-C</option> option to
     clear the history buffer for a given tty, as well as a
-    <option>-h</option> to set the size of the history buffer.</para>
+    <option>-h</option> option to set the size of the history buffer.</para>
 
-    <para>&man.last.1; now implements a <option>-d</option> that provides a
+    <para>&man.last.1; now implements a <option>-d</option> option that provides a
     <quote>snapshot</quote> of who was logged in at a particular date and
     time.</para>
 
@@ -561,7 +561,7 @@ hw.pcic.irq="0"</programlisting>
     <para>The &man.kldconfig.8; utility has been added to make it easier to
     manipulate the kernel module search path.</para>
 
-    <para>&man.moused.8; now takes a <option>-a</option> to control
+    <para>&man.moused.8; now takes a <option>-a</option> option to control
     mouse acceleration.</para>
 
     <para>The <literal>tcpmssfixup</literal> &man.ppp.8; option now
@@ -574,7 +574,7 @@ hw.pcic.irq="0"</programlisting>
     <para>&man.sysctl.8; has replaced the <option>-A</option> and
     <option>-X</option> options with <option>-ao</option> and
     <option>-ax</option> respectively; the former options are now
-    deprecated.  The <option>-w</option> is deprecated as well; it is
+    deprecated.  The <option>-w</option> flag is deprecated as well; it is
     not needed to determine the user's intentions.</para>
 
     <para>&man.cdcontrol.1; now supports <literal>next</literal> and
