@@ -122,7 +122,7 @@ thread_link(struct thread *td, struct ksegrp *kg)
 
 	td->td_proc     = p;
 	td->td_ksegrp   = kg;
-	td->td_last_kse = NULL;
+	td->td_last_kse = &p->p_kse;
 
 	TAILQ_INSERT_HEAD(&p->p_threads, td, td_plist);
 	TAILQ_INSERT_HEAD(&kg->kg_threads, td, td_kglist);
