@@ -42,7 +42,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)conf.c	5.8 (Berkeley) 5/12/91
- *	$Id: conf.c,v 1.91 1995/08/05 21:33:04 peter Exp $
+ *	$Id: conf.c,v 1.92 1995/08/18 11:26:26 jkh Exp $
  */
 
 #include <sys/param.h>
@@ -206,6 +206,23 @@ d_ioctl_t	stioctl;
 #define	stioctl		nxioctl
 #define	stdump		nxdump
 #define	stsize		zerosize
+#endif
+
+#include "od.h"
+#if NOD > 0
+d_open_t	odopen;
+d_close_t	odclose;
+d_strategy_t	odstrategy;
+d_ioctl_t	odioctl;
+d_psize_t	odsize;
+#define	oddump	nxdump
+#else
+#define	odopen		nxopen
+#define	odclose		nxclose
+#define	odstrategy	nxstrategy
+#define	odioctl		nxioctl
+#define	oddump		nxdump
+#define	odsize		zerosize
 #endif
 
 #include "cd.h"
@@ -438,6 +455,8 @@ struct bdevsw	bdevsw[] =
 	  atadump,	atasize,	0 },
 	{ wcdopen,      wcdclose,       wcdstrategy,    wcdioctl,       /*19*/
 	  nxdump,       zerosize,       0 },
+	{ odopen,	odclose,	odstrategy,	odioctl,	/*20*/
+	  oddump,	odsize,		0 },
 
 /*
  * If you need a bdev major number for a driver that you intend to donate
@@ -1294,6 +1313,9 @@ struct cdevsw	cdevsw[] =
 	{ wcdopen,      wcdclose,       rawread,        nowrite,        /*69*/
 	  wcdioctl,     nostop,         nullreset,      nodevtotty,/* atapi */
 	  seltrue,      nommap,         wcdstrategy },
+	{ odopen,	odclose,	rawread,	rawwrite,	/*70*/
+	  odioctl,	nostop,		nullreset,	nodevtotty,/* od */
+	  seltrue,	nommap,		odstrategy }
 };
 int	nchrdev = sizeof (cdevsw) / sizeof (cdevsw[0]);
 
@@ -1346,21 +1368,30 @@ isdisk(dev, type)
 {
 
 	switch (major(dev)) {
-	case 15:
+	case 15:		/* VBLK: vn, VCHR: cd */
 		return (1);
-	case 0:
-	case 2:
-	case 4:
-	case 6:
-	case 7:
+	case 0:			/* wd */
+	case 2:			/* fd */
+	case 4:			/* sd */
+	case 6:			/* cd */
+	case 7:			/* mcd */
+	case 16:		/* scd */
+	case 17:		/* matcd */
+	case 18:		/* ata */
+	case 19:		/* wcd */
+	case 20:		/* od */
 		if (type == VBLK)
 			return (1);
 		return (0);
-	case 3:
-	case 9:
-	case 13:
-	case 29:
-	case 43:
+	case 3:			/* wd */
+	case 9:			/* fd */
+	case 13:		/* sd */
+	case 29:		/* mcd */
+	case 43:		/* vn */
+	case 45:		/* scd */
+	case 46:		/* matcd */
+	case 69:		/* wcd */
+	case 70:		/* od */
 		if (type == VCHR)
 			return (1);
 		/* fall through */
@@ -1382,14 +1413,18 @@ chrtoblk(dev)
 	int blkmaj;
 
 	switch (major(dev)) {
-	case 3:		blkmaj = 0;  break;
-	case 9:		blkmaj = 2;  break;
-	case 10:	blkmaj = 3;  break;
-	case 13:	blkmaj = 4;  break;
-	case 14:	blkmaj = 5;  break;
-	case 15:	blkmaj = 6;  break;
-	case 29:	blkmaj = 7;  break;
-	case 43:	blkmaj = 15; break;
+	case 3:		blkmaj = 0;  break; /* wd */
+	case 9:		blkmaj = 2;  break; /* fd */
+	case 10:	blkmaj = 3;  break; /* wt */
+	case 13:	blkmaj = 4;  break; /* sd */
+	case 14:	blkmaj = 5;  break; /* st */
+	case 15:	blkmaj = 6;  break; /* cd */
+	case 29:	blkmaj = 7;  break; /* mcd */
+	case 43:	blkmaj = 15; break; /* vn */
+	case 45:	blkmaj = 16; break; /* scd */
+	case 46:	blkmaj = 17; break; /* matcd */
+	case 69:	blkmaj = 19; break; /* wcd */
+	case 70:	blkmaj = 20; break; /* od */
 	default:
 		return (NODEV);
 	}
