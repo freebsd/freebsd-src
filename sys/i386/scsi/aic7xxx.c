@@ -32,7 +32,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *      $Id: aic7xxx.c,v 1.81.2.4 1997/02/03 02:18:16 gibbs Exp $
+ *      $Id: aic7xxx.c,v 1.81.2.5 1997/02/03 16:29:29 gibbs Exp $
  */
 /*
  * TODO:
@@ -2946,6 +2946,7 @@ ahc_search_qinfo(ahc, target, channel, tag, flags, xs_error, requeue)
 	struct	 scb *scbp;
 	STAILQ_HEAD(, scb) removed_scbs;
 
+	found = 0;
 	for (i = 0; i < (queued - found); i++) {
 		saved_queue[i] = ahc_inb(ahc, QINFIFO);
 		scbp = ahc->scb_data->scbarray[saved_queue[i]];
