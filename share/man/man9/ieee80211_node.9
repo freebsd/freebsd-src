@@ -1,0 +1,91 @@
+.\"
+.\" Copyright (c) 2004 Bruce M. Simpson <bms@spc.org>
+.\" Copyright (c) 2004 Darron Broad <darron@kewl.org>
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\" $FreeBSD$
+.\" $Id: ieee80211_node.9,v 1.6 2004/03/04 12:33:27 bruce Exp $
+.\"
+.Dd March 2, 2004
+.Dt ieee80211_node 9
+.Os
+.Sh NAME
+.Nm ieee80211_node
+.Nd software 802.11 stack node management functions
+.Sh SYNOPSIS
+.In net80211/ieee80211_var.h
+.In net80211/ieee80211_proto.h
+.In net80211/ieee80211_node.h
+.Ft void
+.Fn ieee80211_node_attach "struct ifnet *ifp"
+.Ft void
+.Fn ieee80211_node_lateattach "struct ifnet *ifp"
+.Ft void
+.Fn ieee80211_node_detach "struct ifnet *ifp"
+.Ft void
+.Fn ieee80211_begin_scan "struct ifnet *ifp"
+.Ft void
+.Fn ieee80211_next_scan "struct ifnet *ifp"
+.Ft void
+.Fn ieee80211_create_ibss "struct ieee80211com *ic" "struct ieee80211_channel *chan"
+.Ft void
+.Fn ieee80211_end_scan "struct ifnet *ifp"
+.Ft struct ieee80211_node *
+.Fn ieee80211_alloc_node "struct ieee80211com *ic" "u_int8_t *macaddr"
+.Ft struct ieee80211_node *
+.Fn ieee80211_dup_bss "struct ieee80211com *ic" "u_int8_t *macaddr"
+.Ft struct ieee80211_node *
+.Fn ieee80211_find_node "struct ieee80211com *ic" "u_int8_t *macaddr"
+.Ft struct ieee80211_node *
+.Fn ieee80211_lookup_node "struct ieee80211com *ic" "u_int8_t *macaddr" "struct ieee80211_channel *chan"
+.Ft void
+.Fn ieee80211_free_node "struct ieee80211com *ic" "struct ieee80211_node *ni"
+.Ft void
+.Fn ieee80211_free_allnodes "struct ieee80211com *ic"
+.Ft void
+.Fn ieee80211_timeout_nodes "struct ieee80211com *ic"
+.Ft void
+.Fn ieee80211_iterate_nodes "struct ieee80211com *ic" "ieee80211_iter_func *f" "void *arg"
+.Sh DESCRIPTION
+The
+.Nm
+collection of functions are used to manage node lists within the software
+802.11 stack.
+These lists are typically used for implementing host-mode AP functionality,
+or providing signal quality information about neighbouring nodes.
+.Sh SEE ALSO
+.Xr ieee80211 9 ,
+.Xr ifnet 9
+.Sh HISTORY
+The
+.Nm
+series of functions first appeared in
+.Nx 1.5 ,
+and were later ported to
+.Fx 4.6 .
+.Sh AUTHORS
+This man page was written by
+.An Bruce M. Simpson Aq bms@FreeBSD.org
+and
+.An Darron Broad Aq darron@kewl.org .

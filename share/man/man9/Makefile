@@ -450,6 +450,53 @@ MLINKS+=g_geom.9 g_destroy_geom.9 \
 MLINKS+=g_provider.9 g_destroy_provider.9 \
 	g_provider.9 g_error_provider.9 \
 	g_provider.9 g_new_providerf.9
+MLINKS+=ieee80211.9 ieee80211_attach.9 \
+	ieee80211.9 ieee80211_chan2ieee.9 \
+	ieee80211.9 ieee80211_chan2mode.9 \
+	ieee80211.9 ieee80211_ieee2mhz.9 \
+	ieee80211.9 ieee80211_ifattach.9 \
+	ieee80211.9 ieee80211_ifdetach.9 \
+	ieee80211.9 ieee80211_media2rate.9 \
+	ieee80211.9 ieee80211_media_change.9 \
+	ieee80211.9 ieee80211_media_init.9 \
+	ieee80211.9 ieee80211_media_status.9 \
+	ieee80211.9 ieee80211_mhz2ieee.9 \
+	ieee80211.9 ieee80211_rate2media.9 \
+	ieee80211.9 ieee80211_setmode.9 \
+	ieee80211.9 ieee80211_watchdog.9
+MLINKS+=ieee80211_crypto.9 ieee80211_crypto_attach.9 \
+	ieee80211_crypto.9 ieee80211_crypto_detach.9 \
+	ieee80211_crypto.9 ieee80211_wep_crypt.9
+MLINKS+=ieee80211_input.9 ieee80211_decap.9 \
+	ieee80211_input.9 ieee80211_input.9 \
+	ieee80211_input.9 ieee80211_recv_mgmt.9
+MLINKS+=ieee80211_ioctl.9 ieee80211_cfgget.9 \
+	ieee80211_ioctl.9 ieee80211_cfgset.9 \
+	ieee80211_ioctl.9 ieee80211_ioctl.9 \
+MLINKS+=ieee80211_node.9 ieee80211_alloc_node.9 \
+	ieee80211_node.9 ieee80211_begin_scan.9 \
+	ieee80211_node.9 ieee80211_create_ibss.9 \
+	ieee80211_node.9 ieee80211_dup_bss.9 \
+	ieee80211_node.9 ieee80211_end_scan.9 \
+	ieee80211_node.9 ieee80211_find_node.9 \
+	ieee80211_node.9 ieee80211_free_allnodes.9 \
+	ieee80211_node.9 ieee80211_free_node.9 \
+	ieee80211_node.9 ieee80211_iterate_nodes.9 \
+	ieee80211_node.9 ieee80211_lookup_node.9 \
+	ieee80211_node.9 ieee80211_next_scan.9 \
+	ieee80211_node.9 ieee80211_node_attach.9 \
+	ieee80211_node.9 ieee80211_node_detach.9 \
+	ieee80211_node.9 ieee80211_node_lateattach.9 \
+	ieee80211_node.9 ieee80211_timeout_nodes.9
+MLINKS+=ieee80211_output.9 ieee80211_add_rates.9 \
+	ieee80211_output.9 ieee80211_add_xrates.9 \
+	ieee80211_output.9 ieee80211_encap.9 \
+	ieee80211_output.9 ieee80211_send_mgmt.9
+MLINKS+=ieee80211_proto.9 ieee80211_dump_pkt.9 \
+	ieee80211_proto.9 ieee80211_fix_rate.9 \
+	ieee80211_proto.9 ieee80211_print_essid.9 \
+	ieee80211_proto.9 ieee80211_proto_attach.9 \
+	ieee80211_proto.9 ieee80211_proto_detach.9
 MLINKS+=ifnet.9 ifaddr.9 \
 	ifnet.9 if_data.9 \
 	ifnet.9 ifqueue.9
