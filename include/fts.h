@@ -47,7 +47,7 @@ typedef struct {
 	int fts_pathlen;		/* sizeof(path) */
 	int fts_nitems;			/* elements in the sort array */
 	int (*fts_compar)		/* compare function */
-	    (const struct _ftsent **, const struct _ftsent **);
+	    (const struct _ftsent * const *, const struct _ftsent * const *);
 
 #define	FTS_COMFOLLOW	0x001		/* follow command line symlinks */
 #define	FTS_LOGICAL	0x002		/* logical walk */
@@ -62,6 +62,7 @@ typedef struct {
 #define	FTS_NAMEONLY	0x100		/* (private) child names only */
 #define	FTS_STOP	0x200		/* (private) unrecoverable error */
 	int fts_options;		/* fts_open options, global flags */
+	void *fts_clientptr;		/* thunk for sort function */
 } FTS;
 
 typedef struct _ftsent {
@@ -113,7 +114,8 @@ typedef struct _ftsent {
 	u_short fts_instr;		/* fts_set() instructions */
 
 	struct stat *fts_statp;		/* stat(2) information */
-	char fts_name[1];		/* file name */
+	char *fts_name;			/* file name */
+	FTS *fts_fts;			/* back pointer to main FTS */
 } FTSENT;
 
 #include <sys/cdefs.h>
@@ -121,10 +123,15 @@ typedef struct _ftsent {
 __BEGIN_DECLS
 FTSENT	*fts_children(FTS *, int);
 int	 fts_close(FTS *);
+void	*fts_get_clientptr(FTS *);
+#define	 fts_get_clientptr(fts)	((fts)->fts_clientptr)
+FTS	*fts_get_stream(FTSENT *);
+#define	 fts_get_stream(ftsent)	((ftsent)->fts_fts)
 FTS	*fts_open(char * const *, int,
-	    int (*)(const FTSENT **, const FTSENT **));
+	    int (*)(const FTSENT * const *, const FTSENT * const *));
 FTSENT	*fts_read(FTS *);
 int	 fts_set(FTS *, FTSENT *, int);
+void	 fts_set_clientptr(FTS *, void *);
 __END_DECLS
 
 #endif /* !_FTS_H_ */

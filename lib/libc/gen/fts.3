@@ -32,7 +32,7 @@
 .\"     @(#)fts.3	8.5 (Berkeley) 4/16/94
 .\" $FreeBSD$
 .\"
-.Dd April 16, 1994
+.Dd September 15, 2002
 .Dt FTS 3
 .Os
 .Sh NAME
@@ -52,6 +52,12 @@
 .Fn fts_children "FTS *ftsp" "int options"
 .Ft int
 .Fn fts_set "FTS *ftsp" "FTSENT *f" "int options"
+.Ft void
+.Fn fts_set_clientptr "FTS *ftsp" "void *clientdata"
+.Ft void *
+.Fn fts_get_clientptr "FTS *ftsp"
+.Ft FTS *
+.Fn fts_get_stream "FTSENT *f"
 .Ft int
 .Fn fts_close "FTS *ftsp"
 .Sh DESCRIPTION
@@ -105,6 +111,26 @@ and
 .Dq Fa FTSENT No structure
 are generally
 interchangeable.
+.Pp
+The
+.Fa FTS
+structure contains space for a single pointer, which may be used to
+store application data or per-hierarchy state.
+The
+.Fn fts_set_clientptr
+and
+.Fn fts_get_clientptr
+functions may be used to set and retrieve this pointer.
+This is likely to be useful only when accessed from the sort
+comparison function, which can determine the original
+.Fa FTS
+stream of its arguments using the
+.Fn fts_get_stream
+function.
+The two
+.Li get
+functions are also available as macros of the same name.
+.Pp
 The
 .Fa FTSENT
 structure contains at least the following fields, which are
@@ -753,9 +779,18 @@ The options were invalid.
 .Xr chdir 2 ,
 .Xr stat 2 ,
 .Xr qsort 3
-.Sh STANDARDS
+.Sh HISTORY
 The
 .Nm
-utility is expected to be included in a future
-.St -p1003.1-88
-revision.
+interface was first introduced in
+.Bx 4.4 .
+The
+.Fn fts_get_clientptr ,
+.Fn fts_get_stream ,
+and
+.Fn fts_set_clientptr
+functions were introduced in
+.Fx 5.0 ,
+principally to provide for alternative interfaces to the
+.Nm
+functionality using different data structures.
