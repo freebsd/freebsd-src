@@ -245,6 +245,10 @@ static struct sa_quirk_entry sa_quirk_table[] =
 		{ T_SEQUENTIAL, SIP_MEDIA_REMOVABLE, "M4 DATA",
 		  "123107 SCSI*", "*"}, SA_QUIRK_VARIABLE|SA_QUIRK_2FM, 0
 	},
+	{	/* jreynold@primenet.com */
+		{ T_SEQUENTIAL, SIP_MEDIA_REMOVABLE, "Seagate",
+		"STT8000N*", "*"}, SA_QUIRK_1FM, 0
+	},
 	{
 		{ T_SEQUENTIAL, SIP_MEDIA_REMOVABLE, "TANDBERG",
 		  " TDC 3600", "U07:"}, SA_QUIRK_NOCOMP|SA_QUIRK_1FM, 512
@@ -535,7 +539,7 @@ saclose(dev_t dev, int flag, int fmt, struct proc *p)
 				printf("unable to backspace over one of double"
 				   " filemarks at end of tape\n");
 				xpt_print_path(periph->path);
-				printf("it is possible that this device "
+				printf("it is possible that this device"
 				   " needs a SA_QUIRK_1FM quirk set for it\n");
 				softc->flags |= SA_FLAG_TAPE_FROZEN;
 			}
