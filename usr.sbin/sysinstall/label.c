@@ -1078,7 +1078,7 @@ diskLabel(Device *dev)
 		msgConfirm("You've already written out your changes -\n"
 			   "it's too late to undo!");
 	    }
-	    else if (!msgYesNo("Are you SURE you want to Undo everything?")) {
+	    else if (!msgNoYes("Are you SURE you want to Undo everything?")) {
 		variable_unset(DISK_PARTITIONED);
 		variable_unset(DISK_LABELLED);
 		for (i = 0; devs[i]; i++) {
@@ -1103,7 +1103,7 @@ diskLabel(Device *dev)
 			   "wish to overwrite them, you'll have to start this\n"
 			   "procedure again from the beginning.");
 	    }
-	    else if (!msgYesNo("WARNING:  This should only be used when modifying an EXISTING\n"
+	    else if (!msgNoYes("WARNING:  This should only be used when modifying an EXISTING\n"
 			  "installation.  If you are installing FreeBSD for the first time\n"
 			  "then you should simply type Q when you're finished here and your\n"
 			  "changes will be committed in one batch automatically at the end of\n"
@@ -1116,7 +1116,7 @@ diskLabel(Device *dev)
 	    break;
 
 	case '|':
-	    if (!msgYesNo("Are you sure you want to go into Wizard mode?\n\n"
+	    if (!msgNoYes("Are you sure you want to go into Wizard mode?\n\n"
 			  "This is an entirely undocumented feature which you are not\n"
 			  "expected to understand!")) {
 		int i;
