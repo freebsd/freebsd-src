@@ -4,7 +4,13 @@
 
 .PATH: ../cc_tools ${GCCDIR}
 
+.if !defined(OSVERSION)
+OSVERSION!=    /sbin/sysctl -n kern.osreldate
+.endif
+
 SRCS=	multilib.h choose-temp.c obstack.c prefix.c pexecute.c version.c
+# Maintain backward compatibility
+SRCS+= mkstemp.c
 
 CFLAGS+=	-DPREFIX=\"/usr\"
 CFLAGS+=	-DIN_GCC
