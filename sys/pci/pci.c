@@ -1,6 +1,6 @@
 /**************************************************************************
 **
-**  $Id: pci.c,v 1.12 1995/02/09 20:20:33 se Exp $
+**  $Id: pci.c,v 1.9 1994/11/02 23:47:13 se Exp $
 **
 **  General subroutines for the PCI bus on 80*86 systems.
 **  pci_configure ()
@@ -124,7 +124,7 @@ static	vm_offset_t pci_paddr = PCI_PMEM_START;
 */
 
 #ifndef PCI_PORT_START
-#define PCI_PORT_START 0x0400
+#define PCI_PORT_START 0xbc00
 #endif
 
 static	u_short pci_ioaddr = PCI_PORT_START;
@@ -482,6 +482,12 @@ int pci_map_port (pcici_t tag, u_long reg, u_short* pa)
 	printf ("\treg%d: ioaddr=0x%x size=0x%x\n",
 		(unsigned) reg, (unsigned) pci_ioaddr, (unsigned) size);
 #endif
+
+	/*
+	**	set device address
+	*/
+
+	pcibus.pb_write (tag, reg, (u_long) pci_ioaddr);
 
 	/*
 	**	return them to the driver
