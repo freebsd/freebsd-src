@@ -34,6 +34,7 @@
 .\" otherwise) arising in any way out of the use of this software, even if
 .\" advised of the possibility of such damage.
 .\"
+.\" $Id: vinum.4,v 1.12 1999/10/13 03:03:07 grog Exp grog $
 .\" $FreeBSD$
 .\"
 .Dd 5 October 1999
@@ -186,8 +187,9 @@ in the kernel configuration file or remove the -DVINUMDEBUG option from
 .Pa /usr/src/sbin/vinum/Makefile
 as described above.
 .Pp
-If the VINUMDEBUG variables do not match, vinum(8) will fail with a message
-explaining the problem and what to do to correct it.
+If the VINUMDEBUG variables do not match, 
+.Xr vinum 8
+will fail with a message explaining the problem and what to do to correct it.
 .Pp
 .Nm
 was previously available in two versions: a freely available version which did
@@ -306,12 +308,9 @@ For example, if you have a volume
 use the following command to create a ufs file system on it:
 .Pp
 .Bd -literal
-  # newfs -v /dev/vinum/rconcat
+  # newfs -v /dev/vinum/concat
 .Ed
 .Pp
-As with other file systems, you perform the
-.Nm newfs
-command on the raw device, not the block device.
 .Sh OBJECT NAMING
 .Nm
 assigns default names to plexes and subdisks, although they may be overridden.
@@ -330,21 +329,16 @@ from which they are derived.
 .Bl -bullet 
 .It
 When
-.Nm vinum(8)
+.Xr vinum 8
 creates or deletes objects, it creates a directory
 .Pa /dev/vinum ,
-in which it makes device entries for each volume it finds.  It also creates 
-subdirectories,
-.Pa /dev/vinum/plex ,
-.Pa /dev/vinum/sd 
-and 
-.Pa /dev/vinum/rsd ,
-in which it stores device entries for the plexes and subdisks.  
-.Pa /dev/vinum/sd
-contains block device entries, while
-.Pa /dev/vinum/rsd
-contains character device entries.  In addition, it creates two more
-directories,
+in which it makes device entries for each volume.  It also creates the
+subdirectories
+.Pa /dev/vinum/plex
+and
+.Pa /dev/vinum/sd ,
+in which it stores device entries for the plexes and subdisks.  In addition, it
+creates two more directories,
 .Pa /dev/vinum/vol
 and
 .Pa /dev/vinum/drive ,
@@ -432,152 +426,137 @@ The directory
 .Ar /dev/vinum
 looks like:
 .Bd -literal -offset indent
-# ls -lR /dev/vinum/ /dev/rvinum
+# ls -lR /dev/vinum
 total 5
-brwxr-xr--  1 root  wheel   25,   2 Mar 30 16:08 concat
-brwx------  1 root  wheel   25, 0x40000000 Mar 30 16:08 control
-brwx------  1 root  wheel   25, 0x40000001 Mar 30 16:08 controld
+crwxr-xr--  1 root  wheel   91,   2 Mar 30 16:08 concat
+crwx------  1 root  wheel   91, 0x40000000 Mar 30 16:08 control
+crwx------  1 root  wheel   91, 0x40000001 Mar 30 16:08 controld
 drwxrwxrwx  2 root  wheel       512 Mar 30 16:08 drive
 drwxrwxrwx  2 root  wheel       512 Mar 30 16:08 plex
 drwxrwxrwx  2 root  wheel       512 Mar 30 16:08 rvol
 drwxrwxrwx  2 root  wheel       512 Mar 30 16:08 sd
-brwxr-xr--  1 root  wheel   25,   3 Mar 30 16:08 strcon
-brwxr-xr--  1 root  wheel   25,   1 Mar 30 16:08 stripe
-brwxr-xr--  1 root  wheel   25,   0 Mar 30 16:08 tinyvol
-drwxrwxrwx  7 root  wheel       512 Mar 30 16:08 vol
-brwxr-xr--  1 root  wheel   25,   4 Mar 30 16:08 vol5
-
-/dev/vinum/drive:
-total 0
-brw-r-----  1 root  operator    4,  15 Oct 21 16:51 drive2
-brw-r-----  1 root  operator    4,  31 Oct 21 16:51 drive4
-
-/dev/vinum/plex:
-total 0
-brwxr-xr--  1 root  wheel   25, 0x10000002 Mar 30 16:08 concat.p0
-brwxr-xr--  1 root  wheel   25, 0x10010002 Mar 30 16:08 concat.p1
-brwxr-xr--  1 root  wheel   25, 0x10000003 Mar 30 16:08 strcon.p0
-brwxr-xr--  1 root  wheel   25, 0x10010003 Mar 30 16:08 strcon.p1
-brwxr-xr--  1 root  wheel   25, 0x10000001 Mar 30 16:08 stripe.p0
-brwxr-xr--  1 root  wheel   25, 0x10000000 Mar 30 16:08 tinyvol.p0
-brwxr-xr--  1 root  wheel   25, 0x10000004 Mar 30 16:08 vol5.p0
-brwxr-xr--  1 root  wheel   25, 0x10010004 Mar 30 16:08 vol5.p1
-
-/dev/vinum/rvol:
-total 0
-crwxr-xr--  1 root  wheel   91,   2 Mar 30 16:08 concat
 crwxr-xr--  1 root  wheel   91,   3 Mar 30 16:08 strcon
 crwxr-xr--  1 root  wheel   91,   1 Mar 30 16:08 stripe
 crwxr-xr--  1 root  wheel   91,   0 Mar 30 16:08 tinyvol
+drwxrwxrwx  7 root  wheel       512 Mar 30 16:08 vol
 crwxr-xr--  1 root  wheel   91,   4 Mar 30 16:08 vol5
+
+/dev/vinum/drive:
+total 0
+crw-r-----  1 root  operator    4,  15 Oct 21 16:51 drive2
+crw-r-----  1 root  operator    4,  31 Oct 21 16:51 drive4
+
+/dev/vinum/plex:
+total 0
+crwxr-xr--  1 root  wheel   91, 0x10000002 Mar 30 16:08 concat.p0
+crwxr-xr--  1 root  wheel   91, 0x10010002 Mar 30 16:08 concat.p1
+crwxr-xr--  1 root  wheel   91, 0x10000003 Mar 30 16:08 strcon.p0
+crwxr-xr--  1 root  wheel   91, 0x10010003 Mar 30 16:08 strcon.p1
+crwxr-xr--  1 root  wheel   91, 0x10000001 Mar 30 16:08 stripe.p0
+crwxr-xr--  1 root  wheel   91, 0x10000000 Mar 30 16:08 tinyvol.p0
+crwxr-xr--  1 root  wheel   91, 0x10000004 Mar 30 16:08 vol5.p0
+crwxr-xr--  1 root  wheel   91, 0x10010004 Mar 30 16:08 vol5.p1
 
 /dev/vinum/sd:
 total 0
-brwxr-xr--  1 root  wheel   25, 0x20000002 Mar 30 16:08 concat.p0.s0
-brwxr-xr--  1 root  wheel   25, 0x20100002 Mar 30 16:08 concat.p0.s1
-brwxr-xr--  1 root  wheel   25, 0x20010002 Mar 30 16:08 concat.p1.s0
-brwxr-xr--  1 root  wheel   25, 0x20000003 Mar 30 16:08 strcon.p0.s0
-brwxr-xr--  1 root  wheel   25, 0x20100003 Mar 30 16:08 strcon.p0.s1
-brwxr-xr--  1 root  wheel   25, 0x20010003 Mar 30 16:08 strcon.p1.s0
-brwxr-xr--  1 root  wheel   25, 0x20110003 Mar 30 16:08 strcon.p1.s1
-brwxr-xr--  1 root  wheel   25, 0x20000001 Mar 30 16:08 stripe.p0.s0
-brwxr-xr--  1 root  wheel   25, 0x20100001 Mar 30 16:08 stripe.p0.s1
-brwxr-xr--  1 root  wheel   25, 0x20000000 Mar 30 16:08 tinyvol.p0.s0
-brwxr-xr--  1 root  wheel   25, 0x20100000 Mar 30 16:08 tinyvol.p0.s1
-brwxr-xr--  1 root  wheel   25, 0x20000004 Mar 30 16:08 vol5.p0.s0
-brwxr-xr--  1 root  wheel   25, 0x20100004 Mar 30 16:08 vol5.p0.s1
-brwxr-xr--  1 root  wheel   25, 0x20010004 Mar 30 16:08 vol5.p1.s0
-brwxr-xr--  1 root  wheel   25, 0x20110004 Mar 30 16:08 vol5.p1.s1
+crwxr-xr--  1 root  wheel   91, 0x20000002 Mar 30 16:08 concat.p0.s0
+crwxr-xr--  1 root  wheel   91, 0x20100002 Mar 30 16:08 concat.p0.s1
+crwxr-xr--  1 root  wheel   91, 0x20010002 Mar 30 16:08 concat.p1.s0
+crwxr-xr--  1 root  wheel   91, 0x20000003 Mar 30 16:08 strcon.p0.s0
+crwxr-xr--  1 root  wheel   91, 0x20100003 Mar 30 16:08 strcon.p0.s1
+crwxr-xr--  1 root  wheel   91, 0x20010003 Mar 30 16:08 strcon.p1.s0
+crwxr-xr--  1 root  wheel   91, 0x20110003 Mar 30 16:08 strcon.p1.s1
+crwxr-xr--  1 root  wheel   91, 0x20000001 Mar 30 16:08 stripe.p0.s0
+crwxr-xr--  1 root  wheel   91, 0x20100001 Mar 30 16:08 stripe.p0.s1
+crwxr-xr--  1 root  wheel   91, 0x20000000 Mar 30 16:08 tinyvol.p0.s0
+crwxr-xr--  1 root  wheel   91, 0x20100000 Mar 30 16:08 tinyvol.p0.s1
+crwxr-xr--  1 root  wheel   91, 0x20000004 Mar 30 16:08 vol5.p0.s0
+crwxr-xr--  1 root  wheel   91, 0x20100004 Mar 30 16:08 vol5.p0.s1
+crwxr-xr--  1 root  wheel   91, 0x20010004 Mar 30 16:08 vol5.p1.s0
+crwxr-xr--  1 root  wheel   91, 0x20110004 Mar 30 16:08 vol5.p1.s1
 
 /dev/vinum/vol:
 total 5
-brwxr-xr--  1 root  wheel   25,   2 Mar 30 16:08 concat
+crwxr-xr--  1 root  wheel   91,   2 Mar 30 16:08 concat
 drwxr-xr-x  4 root  wheel       512 Mar 30 16:08 concat.plex
-brwxr-xr--  1 root  wheel   25,   3 Mar 30 16:08 strcon
+crwxr-xr--  1 root  wheel   91,   3 Mar 30 16:08 strcon
 drwxr-xr-x  4 root  wheel       512 Mar 30 16:08 strcon.plex
-brwxr-xr--  1 root  wheel   25,   1 Mar 30 16:08 stripe
+crwxr-xr--  1 root  wheel   91,   1 Mar 30 16:08 stripe
 drwxr-xr-x  3 root  wheel       512 Mar 30 16:08 stripe.plex
-brwxr-xr--  1 root  wheel   25,   0 Mar 30 16:08 tinyvol
+crwxr-xr--  1 root  wheel   91,   0 Mar 30 16:08 tinyvol
 drwxr-xr-x  3 root  wheel       512 Mar 30 16:08 tinyvol.plex
-brwxr-xr--  1 root  wheel   25,   4 Mar 30 16:08 vol5
+crwxr-xr--  1 root  wheel   91,   4 Mar 30 16:08 vol5
 drwxr-xr-x  4 root  wheel       512 Mar 30 16:08 vol5.plex
 
 /dev/vinum/vol/concat.plex:
 total 2
-brwxr-xr--  1 root  wheel   25, 0x10000002 Mar 30 16:08 concat.p0
+crwxr-xr--  1 root  wheel   91, 0x10000002 Mar 30 16:08 concat.p0
 drwxr-xr-x  2 root  wheel       512 Mar 30 16:08 concat.p0.sd
-brwxr-xr--  1 root  wheel   25, 0x10010002 Mar 30 16:08 concat.p1
+crwxr-xr--  1 root  wheel   91, 0x10010002 Mar 30 16:08 concat.p1
 drwxr-xr-x  2 root  wheel       512 Mar 30 16:08 concat.p1.sd
 
 /dev/vinum/vol/concat.plex/concat.p0.sd:
 total 0
-brwxr-xr--  1 root  wheel   25, 0x20000002 Mar 30 16:08 concat.p0.s0
-brwxr-xr--  1 root  wheel   25, 0x20100002 Mar 30 16:08 concat.p0.s1
+crwxr-xr--  1 root  wheel   91, 0x20000002 Mar 30 16:08 concat.p0.s0
+crwxr-xr--  1 root  wheel   91, 0x20100002 Mar 30 16:08 concat.p0.s1
 
 /dev/vinum/vol/concat.plex/concat.p1.sd:
 total 0
-brwxr-xr--  1 root  wheel   25, 0x20010002 Mar 30 16:08 concat.p1.s0
+crwxr-xr--  1 root  wheel   91, 0x20010002 Mar 30 16:08 concat.p1.s0
 
 /dev/vinum/vol/strcon.plex:
 total 2
-brwxr-xr--  1 root  wheel   25, 0x10000003 Mar 30 16:08 strcon.p0
+crwxr-xr--  1 root  wheel   91, 0x10000003 Mar 30 16:08 strcon.p0
 drwxr-xr-x  2 root  wheel       512 Mar 30 16:08 strcon.p0.sd
-brwxr-xr--  1 root  wheel   25, 0x10010003 Mar 30 16:08 strcon.p1
+crwxr-xr--  1 root  wheel   91, 0x10010003 Mar 30 16:08 strcon.p1
 drwxr-xr-x  2 root  wheel       512 Mar 30 16:08 strcon.p1.sd
 
 /dev/vinum/vol/strcon.plex/strcon.p0.sd:
 total 0
-brwxr-xr--  1 root  wheel   25, 0x20000003 Mar 30 16:08 strcon.p0.s0
-brwxr-xr--  1 root  wheel   25, 0x20100003 Mar 30 16:08 strcon.p0.s1
+crwxr-xr--  1 root  wheel   91, 0x20000003 Mar 30 16:08 strcon.p0.s0
+crwxr-xr--  1 root  wheel   91, 0x20100003 Mar 30 16:08 strcon.p0.s1
 
 /dev/vinum/vol/strcon.plex/strcon.p1.sd:
 total 0
-brwxr-xr--  1 root  wheel   25, 0x20010003 Mar 30 16:08 strcon.p1.s0
-brwxr-xr--  1 root  wheel   25, 0x20110003 Mar 30 16:08 strcon.p1.s1
+crwxr-xr--  1 root  wheel   91, 0x20010003 Mar 30 16:08 strcon.p1.s0
+crwxr-xr--  1 root  wheel   91, 0x20110003 Mar 30 16:08 strcon.p1.s1
 
 /dev/vinum/vol/stripe.plex:
 total 1
-brwxr-xr--  1 root  wheel   25, 0x10000001 Mar 30 16:08 stripe.p0
+crwxr-xr--  1 root  wheel   91, 0x10000001 Mar 30 16:08 stripe.p0
 drwxr-xr-x  2 root  wheel       512 Mar 30 16:08 stripe.p0.sd
 
 /dev/vinum/vol/stripe.plex/stripe.p0.sd:
 total 0
-brwxr-xr--  1 root  wheel   25, 0x20000001 Mar 30 16:08 stripe.p0.s0
-brwxr-xr--  1 root  wheel   25, 0x20100001 Mar 30 16:08 stripe.p0.s1
+crwxr-xr--  1 root  wheel   91, 0x20000001 Mar 30 16:08 stripe.p0.s0
+crwxr-xr--  1 root  wheel   91, 0x20100001 Mar 30 16:08 stripe.p0.s1
 
 /dev/vinum/vol/tinyvol.plex:
 total 1
-brwxr-xr--  1 root  wheel   25, 0x10000000 Mar 30 16:08 tinyvol.p0
+crwxr-xr--  1 root  wheel   91, 0x10000000 Mar 30 16:08 tinyvol.p0
 drwxr-xr-x  2 root  wheel       512 Mar 30 16:08 tinyvol.p0.sd
 
 /dev/vinum/vol/tinyvol.plex/tinyvol.p0.sd:
 total 0
-brwxr-xr--  1 root  wheel   25, 0x20000000 Mar 30 16:08 tinyvol.p0.s0
-brwxr-xr--  1 root  wheel   25, 0x20100000 Mar 30 16:08 tinyvol.p0.s1
+crwxr-xr--  1 root  wheel   91, 0x20000000 Mar 30 16:08 tinyvol.p0.s0
+crwxr-xr--  1 root  wheel   91, 0x20100000 Mar 30 16:08 tinyvol.p0.s1
 
 /dev/vinum/vol/vol5.plex:
 total 2
-brwxr-xr--  1 root  wheel   25, 0x10000004 Mar 30 16:08 vol5.p0
+crwxr-xr--  1 root  wheel   91, 0x10000004 Mar 30 16:08 vol5.p0
 drwxr-xr-x  2 root  wheel       512 Mar 30 16:08 vol5.p0.sd
-brwxr-xr--  1 root  wheel   25, 0x10010004 Mar 30 16:08 vol5.p1
+crwxr-xr--  1 root  wheel   91, 0x10010004 Mar 30 16:08 vol5.p1
 drwxr-xr-x  2 root  wheel       512 Mar 30 16:08 vol5.p1.sd
 
 /dev/vinum/vol/vol5.plex/vol5.p0.sd:
 total 0
-brwxr-xr--  1 root  wheel   25, 0x20000004 Mar 30 16:08 vol5.p0.s0
-brwxr-xr--  1 root  wheel   25, 0x20100004 Mar 30 16:08 vol5.p0.s1
+crwxr-xr--  1 root  wheel   91, 0x20000004 Mar 30 16:08 vol5.p0.s0
+crwxr-xr--  1 root  wheel   91, 0x20100004 Mar 30 16:08 vol5.p0.s1
 
 /dev/vinum/vol/vol5.plex/vol5.p1.sd:
 total 0
-brwxr-xr--  1 root  wheel   25, 0x20010004 Mar 30 16:08 vol5.p1.s0
-brwxr-xr--  1 root  wheel   25, 0x20110004 Mar 30 16:08 vol5.p1.s1
-
-/dev/rvinum:
-crwxr-xr--  1 root  wheel   91,   2 Mar 30 16:08 rconcat
-crwxr-xr--  1 root  wheel   91,   3 Mar 30 16:08 rstrcon
-crwxr-xr--  1 root  wheel   91,   1 Mar 30 16:08 rstripe
-crwxr-xr--  1 root  wheel   91,   0 Mar 30 16:08 rtinyvol
-crwxr-xr--  1 root  wheel   91,   4 Mar 30 16:08 rvol5
+crwxr-xr--  1 root  wheel   91, 0x20010004 Mar 30 16:08 vol5.p1.s0
+crwxr-xr--  1 root  wheel   91, 0x20110004 Mar 30 16:08 vol5.p1.s1
 .Ed
 .Pp
 In the case of unattached plexes and subdisks, the naming is reversed.  Subdisks
@@ -738,34 +717,25 @@ updates:
 .if t .ps -3
 .if t .vs -3
 .Bd -literal
-# vinum setdaemon 4
+# \fBvinum setdaemon 4\fP
 .Ed
 .if t .vs
 .if t .ps
 .Pp
 This will stop updates and any further corruption of the on-disk configuration.
 .Pp
-Next, look at the on-disk configuration, using a Bourne-style shell:
+Next, look at the on-disk configuration with the
+.Nm vinum dumpconfig
+command, for example:
 .if t .ps -3
 .if t .vs -3
 .Bd -literal
-# rm -f log
-# for i in /dev/da0s1h /dev/da1s1h /dev/da2s1h /dev/da3s1h; do
-    (dd if=$i skip=8 count=6|tr -d '\e000-\e011\e200-\e377'; echo) >> log
-  done
-.Ed
-.if t .vs
-.if t .ps
-.Pp
-The names of the devices are the names of all
-.Nm
-slices.  The file
-.Pa log
-should then contain something like this:
-.if t .ps -3
-.if t .vs -3
-.Bd -literal
-IN VINOpanic.lemis.comdrive1}6E7~^K6T^Yfoovolume obj state up
+# \fBvinum dumpconfig\fP
+Drive 4:        Device /dev/da3h
+                Created on crash.lemis.com at Sat May 20 16:32:44 2000
+                Config last updated Sat May 20 16:32:56 2000
+                Size:        601052160 bytes (573 MB)
+volume obj state up
 volume src state up
 volume raid state down
 volume r state down
@@ -788,28 +758,11 @@ sd name obj.p1.s3 drive drive4 plex obj.p1 state up len 204800b driveoffset 4098
 .if t .vs
 .if t .ps
 .Pp
-The first line contains the
-.Nm 
-label and must start with the text
-.Li IN VINO.
-It also contains the name of the system.  The exact definition is contained in 
-.Pa /usr/src/sys/dev/vinum/vinumvar.h.
-The saved configuration starts in the middle of the line with the text
-.Li volume obj state up
-and starts in sector 9 of the disk.
-The rest of the output shows the remainder of the  on-disk configuration.  It
-may be necessary to increase the
-.Ar count
-argument of
-.Cm dd
-in order to see the complete configuration.
-.Pp
 The configuration on all disks should be the same.  If this is not the case,
-please report the problem with the exact contents of the file
-.Pa log .
-There is probably little that can be done to recover the on-disk configuration,
-but if you keep a copy of the files used to create the objects, you should be
-able to re-create them.  The
+please save the output to a file and report the problem.  There is probably
+little that can be done to recover the on-disk configuration, but if you keep a
+copy of the files used to create the objects, you should be able to re-create
+them.  The
 .Cm create
 command does not change the subdisk data, so this will not cause data
 corruption.  You may need to use the
@@ -917,7 +870,7 @@ specification).
 The following example shows a remote debugging session using the
 .Ar debug
 command of
-.Nm vinum(8):
+.Xr vinum 8 :
 .if t .ps -3
 .if t .vs -3
 .Bd -literal
