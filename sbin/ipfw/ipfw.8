@@ -81,11 +81,33 @@ The commands listed here are a superset of the old
 firewall, which we will call
 .Nm ipfw1
 when it is necessary to distinguish between the two.
+.Pp
+.Nm ipfw2
+is standard in
+.Fx
+CURRENT, whereas
+.Fx
+STABLE still uses
+.Nm ipfw1
+unless the kernel is compiled with
+.Cm options IPFW2 ,
+and
+.Nm /sbin/ipfw
+and
+.Nm /usr/lib/libalias
+are recompiled with
+.Cm -DIPFW2
+and reinstalled (the same effect can be achieved by adding
+.Cm IPFW2=TRUE
+to
+.Nm /etc/make.conf
+before a buildworld).
+.Pp
 See the
 .Sx IPFW2 ENHANCEMENTS
 Section for a list of features which are not present in
 .Nm ipfw1 .
-This list can also be useful to revise your ruleset and
+This list can also be useful to revise your rules and
 write them more efficiently.
 .Pp
 An
@@ -1466,12 +1488,36 @@ dropped.
 .Sh SYSCTL VARIABLES
 A set of
 .Xr sysctl 8
-variables controls the behaviour of the firewall.
+variables controls the behaviour of the firewall and
+associated modules (
+.Nm dummynet, bridge
+).
 These are shown below together with their default value
 (but always check with the
 .Xr sysctl 8
 command what value is actually in use) and meaning:
 .Bl -tag -width indent
+.It Em net.inet.ip.dummynet.expire : No 1
+Lazily delete dynamic pipes/queue once they have no pending traffic.
+You can disable this by setting the variable to 0, in which case
+the pipes/queues will only be deleted when the threshold is reached.
+.It Em net.inet.ip.dummynet.hash_size : No 64
+Default size of the hash table used for dynamic pipes/queues.
+This value is used when no
+.Cm buckets
+option is specified when configuring a pipe/queue.
+.It Em net.inet.ip.dummynet.max_chain_len : No 16
+Target value for the maximum number of pipes/queues in a hash bucket.
+The product
+.Cm max_chain_len*hash_size
+is used to determine the threshold over which empty pipes/queues
+will be expired even when
+.Cm net.inet.ip.dummynet.expire=0 .
+.It net.inet.ip.dummynet.red_lookup_depth : No 256
+.It net.inet.ip.dummynet.red_avg_pkt_size : No 512
+.It net.inet.ip.dummynet.red_max_pkt_size : No 1500
+Parameters used in the computations of the drop probability
+for the RED algorithm.
 .It Em net.inet.ip.fw.autoinc_step : No 100
 Delta beween rule numbers when auto-generating them.
 The value must be in the range 1..1000.
@@ -1483,7 +1529,7 @@ Controls debugging messages produced by
 .Nm .
 .It Em net.inet.ip.fw.dyn_buckets : No 256
 The number of buckets in the hash table for dynamic rules.
-Must be a power of 2, up to 1^^20.
+Must be a power of 2, up to 65536.
 It only takes effect when all dynamic rules have expired, so you
 are advised to use a
 .Cm flush
@@ -1559,7 +1605,19 @@ write your rulesets in a more efficient way.
 .Nm ipfw1
 does not supports address sets (those in the form
 .Ar addr/masklen{num,num,...}
-)
+).
+.Pp
+A minor difference between
+.Nm ipfw1
+and
+.Nm ipfw2
+is that the former allows addresses to be specified as
+.Ar ipno:mask
+where the mask can be an arbitrary bitmask instead of
+a countiguous set of bits.
+.Nm ipfw2
+no longer supports this syntax though it would be trivial
+to reintroduce it as it is supported on the kernel side.
 .It Port specifications
 .Nm ipfw1
 only allows one port range when specifying TCP and UDP ports, and
@@ -1576,12 +1634,20 @@ packets. With
 you can put port specifications in rules matching all packets,
 and the match will be attempted only on those packets carrying
 protocols which include port identifiers.
+.Pp
+Finally,
+.Nm ipfw1
+allowed the first port entry to be specified as
+.Ar port:mask
+where
+.Ar mask
+can be an arbitrary 16-bit mask.
+This syntax is of questionable usefulness and it is not
+supported anymore in
+.Nm ipfw2 .
 .It Or-blocks
 .Nm ipfw1
-does not support Or-blocks. All match operators are implicitly
-connected by
-.Cm and
-operators.
+does not support Or-blocks.
 .It keepalives
 .Nm ipfw1
 does not generate keepalives for stateful sessions.
@@ -1600,6 +1666,19 @@ and
 The sysctl variable
 .Em net.link.ether.ipfw
 has no effect there.
+.It Options
+The following options are not supported in
+.Nm ipfw1
+(RELENG_4)
+rules:
+.Pp
+.Cm layer2, ipid, iplen, ipprecedence, iptos, ipttl,
+.Cm ipversion, tcpack, tcpseq, tcpwin .
+.It Dummynet options
+The following option for
+.Nm dummynet
+pipes/queues is not supported:
+.Cm noerror .
 .El
 .Sh EXAMPLES
 There are far too many possible uses of
@@ -1870,9 +1949,11 @@ the sleep terminates thus restoring the previous situation.
 .%O "RFC 2309"
 .Re
 .Sh BUGS
-The syntax has grown over the years and it is not very clean.
+The syntax has grown over the years and sometimes it might be confusing.
+Unfortunately, backward compatibility prevents cleaning up mistakes
+done in the definition of the syntax.
 .Pp
-.Em WARNING
+.Em !!! WARNING !!!
 .Pp
 Misconfiguring the firewall can put your computer in an unusable state,
 possibly shutting down network services and requiring console access to
@@ -1925,3 +2006,5 @@ was introduced in
 .Fx 2.2.8 .
 Stateful extensions were introduced in
 .Fx 4.0 .
+.Nm ipfw2
+was introduced in Summer 2002.
