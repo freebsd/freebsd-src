@@ -77,6 +77,20 @@ function add_debug_code(name, arg)
 	}
 }
 
+function add_debug_pre(name)
+{
+	if (debug_all_vfs_locks && lockdata[name, "pre"]) {
+		printh("\t"lockdata[name, "pre"]"(&a);");
+	}
+}
+
+function add_debug_post(name)
+{
+	if (debug_all_vfs_locks && lockdata[name, "post"]) {
+		printh("\t"lockdata[name, "post"]"(&a, rc);");
+	}
+}
+
 function find_arg_with_type (type)
 {
 	for (jj = 0; jj < numargs; jj++) {
@@ -147,7 +161,7 @@ if (cfile) {
 while ((getline < srcfile) > 0) {
 	if (NF == 0)
 		continue;
-	if ($1 ~ /^#/) {
+	if ($1 ~ /^#%/) {
 		if (NF != 6  ||  $1 != "#%"  || \
 		    $2 !~ /^[a-z]+$/  ||  $3 !~ /^[a-z]+$/  || \
 		    $4 !~ /^.$/  ||  $5 !~ /^.$/  ||  $6 !~ /^.$/)
@@ -157,6 +171,17 @@ while ((getline < srcfile) > 0) {
 		lockdata["vop_" $2, $3, "Error"] = $6;			
 		continue;
 	}
+
+	if ($1 ~ /^#!/) {
+		if (NF != 4 || $1 != "#!")
+			continue;
+		if ($3 != "pre" && $3 != "post")
+			continue;
+		lockdata["vop_" $2, $3] = $4;
+		continue;
+	}
+	if ($1 ~ /^#/)
+		continue;
 
 	# Get the function name.
 	name = $1;
@@ -228,7 +253,9 @@ while ((getline < srcfile) > 0) {
 			printh("\ta.a_" args[i] " = " args[i] ";");
 		for (i = 0; i < numargs; ++i)
 			add_debug_code(name, args[i]);
+		add_debug_pre(name);
 		printh("\trc = VCALL(" args[0] ", VOFFSET(" name "), &a);");
+		add_debug_post(name);
 		printh("\treturn (rc);\n}");
 	}
 
