@@ -2,7 +2,7 @@
 .\"
 .Dd May 8, 1995
 .Dt MRINFO 8
-.UC 5
+.Os
 .Sh NAME
 .Nm mrinfo
 .Nd display configuration info from a multicast router
@@ -60,14 +60,14 @@ reply.
 Default timeout is 4 seconds.
 .El
 .Sh SAMPLE OUTPUT
-.nf
-.Nm mrinfo mbone.phony.dom.net
+.Bd -literal
+.Nm mrinfo Ar mbone.phony.dom.net
 127.148.176.10 (mbone.phony.dom.net) [version 3.3]:
  127.148.176.10 -> 0.0.0.0 (?) [1/1/querier]
  127.148.176.10 -> 127.0.8.4 (mbone2.phony.dom.net) [1/45/tunnel]
  127.148.176.10 -> 105.1.41.9 (momoney.com) [1/32/tunnel/down]
  127.148.176.10 -> 143.192.152.119 (mbone.dipu.edu) [1/32/tunnel]
-.fi
+.Ed
 .Pp
 For each neighbor of the queried multicast router, the IP of the queried router
 is displayed, followed by the IP and name of the neighbor.

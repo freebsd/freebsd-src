@@ -232,7 +232,6 @@ It is safe to invoke
 multiple times concurrently (with different input files),
 as might happen when
 .Xr sendmail
-.nh
 is delivering mail asynchronously.  This is because locking is used to
 keep things orderly.
 .Sh FILE FORMAT
@@ -464,7 +463,7 @@ will report:
 .Bd -literal -offset indent
 ctm_rmail: message contains no delta
 .Ed
-.sp \n(Ppu
+.Pp
 and return an exit status of 1.  You can use this to redirect wayward messages
 back into your real mailbox if your mail filter goes wonky.
 .Pp

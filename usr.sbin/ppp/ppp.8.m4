@@ -1,6 +1,5 @@
 .\" $FreeBSD$
 .Dd 20 September 1995
-.nr XX \w'\fC00'
 .Dt PPP 8
 .Os
 .Sh NAME
@@ -2264,7 +2263,7 @@ locally.
 .Sh SIGNAL HANDLING
 .Nm
 deals with the following signals:
-.Bl -tag -width XX
+.Bl -tag -width "USR2"
 .It INT
 Receipt of this signal causes the termination of the current connection
 (if any).
@@ -2466,7 +2465,7 @@ session, from a configuration file or from a
 or
 .Xr telnet 1
 session.
-.Bl -tag -width XX
+.Bl -tag -width 2n
 .It accept|deny|enable|disable Ar option....
 These directives tell
 .Nm
@@ -2485,7 +2484,7 @@ means that the option will not be requested by us.
 .Pp
 .Dq Option
 may be one of the following:
-.Bl -tag -width XX
+.Bl -tag -width 2n
 .It acfcomp
 Default: Enabled and Accepted.
 ACFComp stands for Address and Control Field Compression.
@@ -2767,7 +2766,7 @@ This option determines if Van Jacobson header compression will be used.
 .Pp
 The following options are not actually negotiated with the peer.
 Therefore, accepting or denying them makes no sense.
-.Bl -tag -width XX
+.Bl -tag -width 2n
 .It filter-decapsulation
 Default: Disabled.
 When this option is enabled,
@@ -3077,7 +3076,7 @@ in
 mode.
 .Pp
 User id 0 is immune to these commands.
-.Bl -tag -width XX
+.Bl -tag -width 2n
 .It allow user Ns Xo
 .Op s
 .Ar logname Ns No ...
@@ -3151,7 +3150,7 @@ may be used in place of
 .Dq nat .
 If nat is enabled on your system (it may be omitted at compile time),
 the following commands are possible:
-.Bl -tag -width XX
+.Bl -tag -width 2n
 .It nat enable yes|no
 This command either switches network address translation on or turns it off.
 The
@@ -3460,7 +3459,7 @@ This command is used to control the interface used by
 .Nm ppp .
 .Ar Command
 may be one of the following:
-.Bl -tag -width XX
+.Bl -tag -width 2n
 .It iface add Ns Xo
 .Op \&!
 .Ar addr Ns Op / Ns Ar bits
@@ -3771,7 +3770,7 @@ for details) and are never responded to.
 .Ar var value
 .Xc
 This option allows the setting of any of the following variables:
-.Bl -tag -width XX
+.Bl -tag -width 2n
 .It set accmap Ar hex-value
 ACCMap stands for Asynchronous Control Character Map.
 This is always
@@ -5241,7 +5240,7 @@ Use the
 command if you wish processing to happen in the background.
 .It show Ar var
 This command allows the user to examine the following:
-.Bl -tag -width XX
+.Bl -tag -width 2n
 .It show bundle
 Show the current bundle settings.
 .It show ccp
@@ -5342,7 +5341,7 @@ and
 These files are placed in the
 .Pa /etc/ppp
 directory.
-.Bl -tag -width XX
+.Bl -tag -width 2n
 .It Pa /etc/ppp/ppp.conf
 System default configuration file.
 .It Pa /etc/ppp/ppp.secret
