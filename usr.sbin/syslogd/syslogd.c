@@ -626,10 +626,11 @@ static void
 usage(void)
 {
 
-	fprintf(stderr, "%s\n%s\n%s\n",
-		"usage: syslogd [-46Adnsuv] [-a allowed_peer] [-f config_file]",
-		"               [-m mark_interval] [-l log_socket]",
-		"               [-p log_socket] [-P pid_file]");
+	fprintf(stderr, "%s\n%s\n%s\n%s\n",
+		"usage: syslogd [-46Acdknosuv] [-a allowed_peer]",
+		"               [-b bind address] [-f config_file]",
+		"               [-l log_socket] [-m mark_interval]",
+		"               [-P pid_file] [-p log_socket]");
 	exit(1);
 }
 
