@@ -1,4 +1,4 @@
-.\" $Id: ppp.8,v 1.101 1998/05/21 23:45:10 brian Exp $
+.\" $Id: ppp.8,v 1.102 1998/05/29 18:32:41 brian Exp $
 .Dd 20 September 1995
 .Os FreeBSD
 .Dt PPP 8
@@ -7,13 +7,13 @@
 .Nd Point to Point Protocol (a.k.a. user-ppp) 
 .Sh SYNOPSIS
 .Nm
-[
+.Oo
 .Fl auto |
 .Fl background |
 .Fl ddial |
 .Fl direct |
 .Fl dedicated
-]
+.Oc
 .Op Fl alias
 .Op Ar system
 .Sh DESCRIPTION
