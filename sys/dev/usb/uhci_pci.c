@@ -94,6 +94,13 @@ static const char *uhci_device_generic	= "UHCI (generic) USB controller";
 
 #define PCI_UHCI_BASE_REG               0x20
 
+
+static int uhci_pci_attach(device_t self);
+static int uhci_pci_detach(device_t self);
+static int uhci_pci_suspend(device_t self);
+static int uhci_pci_resume(device_t self);
+
+
 static int
 uhci_pci_suspend(device_t self)
 {
@@ -162,8 +169,6 @@ uhci_pci_attach(device_t self)
 {
 	uhci_softc_t *sc = device_get_softc(self);
 	int rid;
-	void *ih;
-	struct resource *io_res, *irq_res;
 	int intr;
 	int err;
 
@@ -176,33 +181,34 @@ uhci_pci_attach(device_t self)
 	}
 
 	rid = PCI_UHCI_BASE_REG;
-	io_res = bus_alloc_resource(self, SYS_RES_IOPORT, &rid,
-				    0, ~0, 1, RF_ACTIVE);
-	if (!io_res) {
-		device_printf(self, "could not map ports\n");
+	sc->io_res = bus_alloc_resource(self, SYS_RES_IOPORT, &rid,
+					0, ~0, 1, RF_ACTIVE);
+	if (!sc->io_res) {
+		device_printf(self, "Could not map ports\n");
 		return ENXIO;
         }
 
-	sc->iot = rman_get_bustag(io_res);
-	sc->ioh = rman_get_bushandle(io_res);
+	sc->iot = rman_get_bustag(sc->io_res);
+	sc->ioh = rman_get_bushandle(sc->io_res);
 
 	/* disable interrupts */
 	bus_space_write_2(sc->iot, sc->ioh, UHCI_INTR, 0);
 
 	rid = 0;
-	irq_res = bus_alloc_resource(self, SYS_RES_IRQ, &rid, 0, ~0, 1,
-				     RF_SHAREABLE | RF_ACTIVE);
-	if (irq_res == NULL) {
-		device_printf(self, "could not allocate irq\n");
-		err = ENOMEM;
-		goto bad1;
+	sc->irq_res = bus_alloc_resource(self, SYS_RES_IRQ, &rid,
+					 0, ~0, 1,
+					 RF_SHAREABLE | RF_ACTIVE);
+	if (sc->irq_res == NULL) {
+		device_printf(self, "Could not allocate irq\n");
+		uhci_pci_detach(self);
+		return ENXIO;
 	}
-		
+			
 	sc->sc_bus.bdev = device_add_child(self, "usb", -1);
 	if (!sc->sc_bus.bdev) {
-		device_printf(self, "could not add USB device\n");
-		err = ENOMEM;
-		goto bad2;
+		device_printf(self, "Could not add USB device\n");
+		uhci_pci_detach(self);
+		return ENOMEM;
 	}
 	device_set_ivars(sc->sc_bus.bdev, sc);
 
@@ -246,11 +252,13 @@ uhci_pci_attach(device_t self)
 		break;
 	}
 
-	err = bus_setup_intr(self, irq_res, INTR_TYPE_BIO,
-			       (driver_intr_t *) uhci_intr, sc, &ih);
+	err = bus_setup_intr(self, sc->irq_res, INTR_TYPE_BIO,
+			     (driver_intr_t *) uhci_intr, sc, &sc->ih);
 	if (err) {
-		device_printf(self, "could not setup irq, %d\n", err);
-		goto bad3;
+		device_printf(self, "Could not setup irq, %d\n", err);
+		sc->ih = NULL;
+		uhci_pci_detach(self);
+		return ENXIO;
 	}
 
 	/* Set the PIRQD enable bit and switch off all the others. We don't
@@ -271,32 +279,60 @@ uhci_pci_attach(device_t self)
 
 	if (err) {
 		device_printf(self, "USB init failed\n");
-		err = EIO;
-		goto bad4;
+		uhci_pci_detach(self);
+		return EIO;
 	}
 
-	return 0;
+	return 0;	/* success */
+}
 
-bad4:
+int
+uhci_pci_detach(device_t self)
+{
+	uhci_softc_t *sc = device_get_softc(self);
+
+	/* XXX This function is not yet complete and should not be added
+	 *     method list.
+	 */
+#if 0
+	if uhci_init was successful
+		we should call something like uhci_deinit
+#endif
+
 	/* disable interrupts that might have been switched on
 	 * in uhci_init.
 	 */
-	bus_space_write_2(sc->iot, sc->ioh, UHCI_INTR, 0);
+	if (sc->iot && sc->ioh)
+		bus_space_write_2(sc->iot, sc->ioh, UHCI_INTR, 0);
 
-	err = bus_teardown_intr(self, irq_res, ih);
-	if (err)
-		/* XXX or should we panic? */
-		device_printf(self, "could not tear down irq, %d\n",
-			      err);
+	if (sc->irq_res && sc->ih) {
+		int err = bus_teardown_intr(self, sc->irq_res, sc->ih);
+		if (err)
+			/* XXX or should we panic? */
+			device_printf(self, "Could not tear down irq, %d\n",
+				      err);
+		sc->ih = NULL;
+	}
 
-bad3:
-	device_delete_child(self, sc->sc_bus.bdev);
-bad2:
-	bus_release_resource(self, SYS_RES_IRQ, 0, irq_res);
-bad1:
-	bus_release_resource(self, SYS_RES_IOPORT, PCI_UHCI_BASE_REG, io_res);
-	return err;
+	if (sc->sc_bus.bdev) {
+		device_delete_child(self, sc->sc_bus.bdev);
+		sc->sc_bus.bdev = NULL;
+	}
+	if (sc->irq_res) {
+		bus_release_resource(self, SYS_RES_IRQ, 0, sc->irq_res);
+		sc->irq_res = NULL;
+	}
+	if (sc->io_res) {
+		bus_release_resource(self, SYS_RES_IOPORT, PCI_UHCI_BASE_REG,
+				     sc->io_res);
+	        sc->io_res = NULL;
+		sc->iot = 0;
+		sc->ioh = 0;
+	}
+
+	return 0;
 }
+
 
 static device_method_t uhci_methods[] = {
 	/* Device interface */
