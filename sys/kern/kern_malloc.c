@@ -133,6 +133,14 @@ u_int vm_kmem_size;
 SYSCTL_UINT(_vm, OID_AUTO, kmem_size, CTLFLAG_RD, &vm_kmem_size, 0,
     "Size of kernel memory");
 
+u_int vm_kmem_size_max;
+SYSCTL_UINT(_vm, OID_AUTO, kmem_size_max, CTLFLAG_RD, &vm_kmem_size_max, 0,
+    "Maximum size of kernel memory");
+
+u_int vm_kmem_size_scale;
+SYSCTL_UINT(_vm, OID_AUTO, kmem_size_scale, CTLFLAG_RD, &vm_kmem_size_scale, 0,
+    "Scale factor for kernel memory size");
+
 /*
  * The malloc_mtx protects the kmemstatistics linked list.
  */
@@ -455,14 +463,19 @@ kmeminit(dummy)
 	mem_size = cnt.v_page_count;
 
 #if defined(VM_KMEM_SIZE_SCALE)
-	if ((mem_size / VM_KMEM_SIZE_SCALE) > (vm_kmem_size / PAGE_SIZE))
-		vm_kmem_size = (mem_size / VM_KMEM_SIZE_SCALE) * PAGE_SIZE;
+	vm_kmem_size_scale = VM_KMEM_SIZE_SCALE;
 #endif
+	TUNABLE_INT_FETCH("vm.kmem_size_scale", &vm_kmem_size_scale);
+	if (vm_kmem_size_scale > 0 &&
+	    (mem_size / vm_kmem_size_scale) > (vm_kmem_size / PAGE_SIZE))
+		vm_kmem_size = (mem_size / vm_kmem_size_scale) * PAGE_SIZE;
 
 #if defined(VM_KMEM_SIZE_MAX)
-	if (vm_kmem_size >= VM_KMEM_SIZE_MAX)
-		vm_kmem_size = VM_KMEM_SIZE_MAX;
+	vm_kmem_size_max = VM_KMEM_SIZE_MAX;
 #endif
+	TUNABLE_INT_FETCH("vm.kmem_size_max", &vm_kmem_size_max);
+	if (vm_kmem_size_max > 0 && vm_kmem_size >= vm_kmem_size_max)
+		vm_kmem_size = vm_kmem_size_max;
 
 	/* Allow final override from the kernel environment */
 #ifndef BURN_BRIDGES
