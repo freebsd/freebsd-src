@@ -25,7 +25,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *  $Id: linux_socket.c,v 1.10 1997/12/14 03:17:54 msmith Exp $
+ *  $Id: linux_socket.c,v 1.11 1997/12/16 17:40:11 eivind Exp $
  */
 
 /* XXX we use functions that might not exist. */
@@ -39,6 +39,7 @@
 #include <sys/proc.h>
 #include <sys/systm.h>
 #include <sys/sysproto.h>
+#include <sys/fcntl.h>
 #include <sys/socket.h>
 
 #include <netinet/in.h>
@@ -348,7 +349,58 @@ linux_connect(struct proc *p, struct linux_connect_args *args)
     bsd_args.s = linux_args.s;
     bsd_args.name = (caddr_t)linux_args.name;
     bsd_args.namelen = linux_args.namelen;
-    return connect(p, &bsd_args);
+    error = connect(p, &bsd_args);
+    if (error == EISCONN) {
+	/*
+	 * Linux doesn't return EISCONN the first time it occurs,
+	 * when on a non-blocking socket. Instead it returns the
+	 * error getsockopt(SOL_SOCKET, SO_ERROR) would return on BSD.
+	 */
+	struct fcntl_args /* {
+	    int fd;
+	    int cmd;
+	    int arg;
+	} */ bsd_fcntl_args;
+	struct getsockopt_args /* {
+	    int s;
+	    int level;
+	    int name;
+	    caddr_t val;
+	    int *avalsize;
+	} */ bsd_getsockopt_args;
+	void *status, *statusl;
+	int stat, statl = sizeof stat;
+	caddr_t sg;
+
+	/* Check for non-blocking */
+	bsd_fcntl_args.fd = linux_args.s;
+	bsd_fcntl_args.cmd = F_GETFL;
+	bsd_fcntl_args.arg = 0;
+	error = fcntl(p, &bsd_fcntl_args);
+	if (error == 0 && (p->p_retval[0] & O_NONBLOCK)) {
+	    sg = stackgap_init();
+	    status = stackgap_alloc(&sg, sizeof stat);
+	    statusl = stackgap_alloc(&sg, sizeof statusl);
+
+	    if ((error = copyout(&statl, statusl, sizeof statl)))
+		return error;
+
+	    bsd_getsockopt_args.s = linux_args.s;
+	    bsd_getsockopt_args.level = SOL_SOCKET;
+	    bsd_getsockopt_args.name = SO_ERROR;
+	    bsd_getsockopt_args.val = status;
+	    bsd_getsockopt_args.avalsize = statusl;
+
+	    error = getsockopt(p, &bsd_getsockopt_args);
+	    if (error)
+		return error;
+	    if ((error = copyin(status, &stat, sizeof stat)))
+		return error;  
+	    p->p_retval[0] = stat;
+	    return 0;
+	}
+    }
+    return error;
 }
 
 struct linux_listen_args {
@@ -661,6 +713,10 @@ linux_setsockopt(struct proc *p, struct linux_setsockopt_args *args)
     case IPPROTO_IP:
 	name = linux_to_bsd_ip_sockopt(linux_args.optname);
 	break;
+    case IPPROTO_TCP:
+	/* Linux TCP option values match BSD's */
+	name = linux_args.optname;
+	break;
     default:
 	return EINVAL;
     }
@@ -703,6 +759,10 @@ linux_getsockopt(struct proc *p, struct linux_getsockopt_args *args)
 	break;
     case IPPROTO_IP:
 	name = linux_to_bsd_ip_sockopt(linux_args.optname);
+	break;
+    case IPPROTO_TCP:
+	/* Linux TCP option values match BSD's */
+	name = linux_args.optname;
 	break;
     default:
 	return EINVAL;
