@@ -1280,10 +1280,6 @@ pnpmss_probe(device_t dev)
  		s = "ENSONIQ SoundscapeVIVO";
  		break;
 
-    	case 0x80719304: /* ADS7180 */
- 		s = "Terratec Soundsystem BASE 1";
- 		break;
-
     	case 0x1093143e: /* OPT9310 */
  		s = "OPTi931";
  		break;
