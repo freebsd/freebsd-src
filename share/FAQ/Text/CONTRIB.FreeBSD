@@ -130,6 +130,7 @@ Ollivier Robert <roberto@FreeBSD.org>
 Paul Kranenburg <pk@cs.few.eur.nl>
 Paul Mackerras <paulus@cs.anu.edu.au>
 Paul Traina <pst@cisco.com>
+Peter Dufault <dufault@hda.com>
 Poul-Henning Kamp <phk@login.dkuug.dk>
 Chris Provenzano <proven@athena.mit.edu>
 Rob Shady <rls@id.net>
@@ -247,4 +248,4 @@ Last, but not least, the release engineer would like to thank:
 	His Wife, for chocolate chip cookies, and some other things.
 	The DGB project @ TFS, for patience and tolerance.
 
-$Id: CONTRIB.FreeBSD,v 1.5 1995/04/11 03:14:50 martin Exp $
+$Id: CONTRIB.FreeBSD,v 1.6 1995/04/12 22:47:31 jkh Exp $
