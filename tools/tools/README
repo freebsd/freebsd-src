@@ -23,6 +23,8 @@ gdb_regofs	A simple tool that prints out a register offset table
 		for mapping gdb(1) register numbers to struct reg and
 		struct fpreg offsets. The tool is useful on selected
 		platforms only.
+genericize	Turn a kernel config into something that can more easily
+		be diffed against the appropriate GENERIC.
 hcomp		Compress header files by removing comments and whitespace.
 html-mv         Rename HTML generated filenames to human readable filenames.
 ifinfo		Uses the interface MIB to print out all the information
