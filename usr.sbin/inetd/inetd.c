@@ -42,7 +42,7 @@ static const char copyright[] =
 static char sccsid[] = "@(#)from: inetd.c	8.4 (Berkeley) 4/13/94";
 #endif
 static const char rcsid[] =
-	"$Id$";
+	"$Id: inetd.c,v 1.26 1997/09/19 06:26:31 charnier Exp $";
 #endif /* not lint */
 
 /*
@@ -132,6 +132,10 @@ static const char rcsid[] =
 
 #ifdef LOGIN_CAP
 #include <login_cap.h>
+
+/* see init.c */
+#define RESOURCE_RC "daemon"
+
 #endif
 
 #include "pathnames.h"
@@ -162,6 +166,9 @@ struct	servtab {
 	short	se_numchild;		/* current number of children */
 	pid_t	*se_pids;		/* array of child pids */
 	char	*se_user;		/* user name to run as */
+#ifdef  LOGIN_CAP
+	char    *se_class;              /* login class name to run with */
+#endif
 	struct	biltin *se_bi;		/* if built-in, description */
 	char	*se_server;		/* server program */
 #define	MAXARGV 20
@@ -513,11 +520,15 @@ main(argc, argv, envp)
 					_exit(EX_NOUSER);
 				}
 #ifdef LOGIN_CAP
-				/*
-				 * Establish the class now, falls back to
-				 * the "default" if unavailable.
-				 */
-				lc = login_getpwclass(pwd);
+				if ((lc = login_getclass(sep->se_class)) == NULL) {
+					/* error syslogged by getclass */
+					syslog(LOG_ERR,
+					    "%s/%s: %s: login class error",
+						sep->se_service, sep->se_proto);
+					if (sep->se_socktype != SOCK_STREAM)
+						recv(0, buf, sizeof (buf), 0);
+					_exit(EX_NOUSER);
+				}
 #endif
 				if (setsid() < 0) {
 					syslog(LOG_ERR,
@@ -650,6 +661,15 @@ config(signo)
 				new->se_service, new->se_proto, new->se_user);
 			continue;
 		}
+#ifdef LOGIN_CAP
+		if (login_getclass(new->se_class) == NULL) {
+			/* error syslogged by getclass */
+			syslog(LOG_ERR,
+				"%s/%s: login class error, service ignored",
+				new->se_service, new->se_proto);
+			continue;
+		}
+#endif
 		for (sep = servtab; sep; sep = sep->se_next)
 			if (strcmp(sep->se_service, new->se_service) == 0 &&
 			    strcmp(sep->se_proto, new->se_proto) == 0)
@@ -684,6 +704,10 @@ config(signo)
 			sep->se_accept = new->se_accept;
 			if (new->se_user)
 				SWAP(sep->se_user, new->se_user);
+#ifdef LOGIN_CAP
+			if (new->se_class)
+				SWAP(sep->se_class, new->se_class);
+#endif
 			if (new->se_server)
 				SWAP(sep->se_server, new->se_server);
 			for (i = 0; i < MAXARGV; i++)
@@ -1129,6 +1153,13 @@ more:
 		}
 	}
 	sep->se_user = newstr(sskip(&cp));
+#ifdef LOGIN_CAP
+	if ((s = strrchr(sep->se_user, '/')) != NULL) {
+		*s = '\0';
+		sep->se_class = newstr(s + 1);
+	} else
+		sep->se_class = newstr(RESOURCE_RC);
+#endif
 	sep->se_server = newstr(sskip(&cp));
 	if (strcmp(sep->se_server, "internal") == 0) {
 		struct biltin *bi;
@@ -1185,6 +1216,10 @@ freeconfig(cp)
 		free(cp->se_proto);
 	if (cp->se_user)
 		free(cp->se_user);
+#ifdef LOGIN_CAP
+	if (cp->se_class)
+		free(cp->se_class);
+#endif
 	if (cp->se_server)
 		free(cp->se_server);
 	if (cp->se_pids)
@@ -1608,9 +1643,16 @@ print_service(action, sep)
 	struct servtab *sep;
 {
 	fprintf(stderr,
+#ifdef LOGIN_CAP
+	    "%s: %s proto=%s accept=%d max=%d user=%s class=%s builtin=%x server=%s\n",
+#else
 	    "%s: %s proto=%s accept=%d max=%d user=%s builtin=%x server=%s\n",
+#endif
 	    action, sep->se_service, sep->se_proto,
 	    sep->se_accept, sep->se_maxchild, sep->se_user,
+#ifdef LOGIN_CAP
+	    sep->se_class,
+#endif
 	    (int)sep->se_bi, sep->se_server);
 }
 
