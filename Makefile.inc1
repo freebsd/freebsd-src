@@ -76,6 +76,9 @@ SUBDIR+= libexec
 .if exists(${.CURDIR}/sbin)
 SUBDIR+= sbin
 .endif
+.if exists(${.CURDIR}/secure) && !defined(NOCRYPT) && !defined(NOSECURE)
+SUBDIR+= secure
+.endif
 .if exists(${.CURDIR}/share) && !defined(NOSHARE)
 SUBDIR+= share
 .endif
@@ -87,9 +90,6 @@ SUBDIR+= usr.bin
 .endif
 .if exists(${.CURDIR}/usr.sbin)
 SUBDIR+= usr.sbin
-.endif
-.if exists(${.CURDIR}/secure) && !defined(NOCRYPT) && !defined(NOSECURE)
-SUBDIR+= secure
 .endif
 
 # etc must be last for "distribute" to work
