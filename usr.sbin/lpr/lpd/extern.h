@@ -37,7 +37,6 @@
 #include <sys/cdefs.h>
 
 extern char scnkey[][HEIGHT];	/* in lpdchar.c */
-extern char fromb[];
 extern int lflag;		/* in lpd.c */
 
 struct	printer;

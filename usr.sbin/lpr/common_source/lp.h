@@ -154,10 +154,24 @@ struct	request {
  */
 extern char	line[BUFSIZ];
 extern const char	*progname;	/* program name (lpr, lpq, etc) */
-				/* host machine name */
-extern char	host[MAXHOSTNAMELEN];
-extern char	*from;		/* client's machine name */
-extern char	from_ip[NI_MAXHOST];   /* client machine's IP address */
+
+    /*
+     * 'local_host' is the name of the machine that lpd (lpr, whatever)
+     * is actually running on.
+     *
+     * 'from_host' will point to the 'host' variable when receiving a job
+     * from a user on the same host, or "somewhere else" when receiving a
+     * job from a remote host.  If 'from_host != local_host', then 'from_ip'
+     * is the character representation of the IP address of from_host (note
+     * that string could be an IPv6 address).
+     *
+     * Also note that when 'from_host' is not pointing at 'local_host', the
+     * string it is pointing at may be as long as NI_MAXHOST (which is very
+     * likely to be much longer than MAXHOSTNAMELEN).
+     */
+extern char	 local_host[MAXHOSTNAMELEN];
+extern const char	*from_host;	/* client's machine name */
+extern const char	*from_ip;	/* client machine's IP address */
 
 extern int	requ[];		/* job number of spool entries */
 extern int	requests;	/* # of spool requests */
