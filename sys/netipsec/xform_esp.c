@@ -957,4 +957,4 @@ esp_attach(void)
 	xform_register(&esp_xformsw);
 #undef MAXIV
 }
-SYSINIT(esp_xform_init, SI_SUB_DRIVERS, SI_ORDER_FIRST, esp_attach, NULL)
+SYSINIT(esp_xform_init, SI_SUB_PROTO_DOMAIN, SI_ORDER_MIDDLE, esp_attach, NULL);
