@@ -112,6 +112,7 @@ static int debug = 0;
 static int auto_login = 1;
 static int max_speed = 2;
 static int sbp_cold = 1;
+static int exlogin = 1;
 
 SYSCTL_DECL(_hw_firewire);
 SYSCTL_NODE(_hw_firewire, OID_AUTO, sbp, CTLFLAG_RD, 0, "SBP-II Subsystem");
@@ -121,6 +122,8 @@ SYSCTL_INT(_hw_firewire_sbp, OID_AUTO, auto_login, CTLFLAG_RW, &auto_login, 0,
 	"SBP perform login automatically");
 SYSCTL_INT(_hw_firewire_sbp, OID_AUTO, max_speed, CTLFLAG_RW, &max_speed, 0,
 	"SBP transfer max speed");
+SYSCTL_INT(_hw_firewire_sbp, OID_AUTO, exclusive_login, CTLFLAG_RW,
+	&exlogin, 0, "SBP transfer max speed");
 
 #define NEED_RESPONSE 0
 
@@ -1297,7 +1300,9 @@ END_DEBUG
 		ocb->orb[0] = ocb->orb[1] = 0; /* password */
 		ocb->orb[2] = htonl(nid << 16);
 		ocb->orb[3] = htonl(sdev->dma.bus_addr);
-		ocb->orb[4] = htonl(ORB_NOTIFY | ORB_EXV | sdev->lun_id);
+		ocb->orb[4] = htonl(ORB_NOTIFY | sdev->lun_id);
+		if (exlogin)
+			ocb->orb[4] |= htonl(ORB_EXV);
 		ocb->orb[5] = htonl(SBP_LOGIN_SIZE);
 		fwdma_sync(&sdev->dma, BUS_DMASYNC_PREREAD);
 		break;
