@@ -137,12 +137,20 @@ init_param2(long physpages)
 
 	/* Kernel map size */
 	int kmempages, kmemtunable;
+	kmempages = VM_KMEM_SIZE / PAGE_SIZE;
+#if defined(VM_KMEM_SIZE_SCALE)
+        if ((physpages / VM_KMEM_SIZE_SCALE) > kmempages)
+                kmempages = (physpages / VM_KMEM_SIZE_SCALE);
+#endif   
+      
+#if defined(VM_KMEM_SIZE_MAX)
+        if (kmempages * PAGE_SIZE >= VM_KMEM_SIZE_MAX)
+                kmempages = VM_KMEM_SIZE_MAX / PAGE_SIZE;
+#endif
 	kmemtunable = 0;
 	TUNABLE_INT_FETCH("kern.vm.kmem.size", &kmemtunable);
 	if (kmemtunable != 0)
 		kmempages = kmemtunable / PAGE_SIZE;
-	else
-		kmempages = VM_KMEM_SIZE_MAX / PAGE_SIZE;
 	kmempages = min(physpages, kmempages);
 	/* Base parameters */
 	maxusers = MAXUSERS;
@@ -178,7 +186,7 @@ init_param2(long physpages)
 	 * pipe memory usage to 1% of the same.  Ensure that all have
 	 * reasonable floors.  (See sys_pipe.c for more info.)
 	 */
-	maxpipes = kmempages / 20;
+	maxpipes = kmempages / 5;
 	maxpipekva = (kmempages / 40) * PAGE_SIZE;
 	maxpipekvawired = (kmempages / 100) * PAGE_SIZE;
 
