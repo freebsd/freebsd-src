@@ -1,6 +1,6 @@
 /**************************************************************************
 **
-**  $Id: pcireg.h,v 1.7 1996/01/25 18:31:59 se Exp $
+**  $Id: pcireg.h,v 1.8 1996/10/22 20:20:14 se Exp $
 **
 **  Names for PCI configuration space registers.
 **
@@ -160,7 +160,8 @@
 #define PCI_PCI_BRIDGE_MEM_REG		0x20
 #define PCI_PCI_BRIDGE_PMEM_REG		0x24
 
-#define PCI_SUBID_REG			0x2c
+#define PCI_SUBID_REG0			0x2c
+#define PCI_SUBID_REG1			0x34
 
 #define PCI_SUBORDINATE_BUS_MASK	0x00ff0000
 #define PCI_SECONDARY_BUS_MASK		0x0000ff00
@@ -174,11 +175,11 @@
 #define	PCI_SECONDARY_BUS_INSERT(x, y)	(((x) & ~PCI_SECONDARY_BUS_MASK) | ((y) <<  8))
 #define	PCI_SUBORDINATE_BUS_INSERT(x, y) (((x) & ~PCI_SUBORDINATE_BUS_MASK) | ((y) << 16))
 
-#define	PCI_PPB_IOBASE_EXTRACT(x)	(((x) << 8) & 0xFF00)
-#define	PCI_PPB_IOLIMIT_EXTRACT(x)	(((x) << 0) & 0xFF00)
+#define	PCI_PPB_IOBASE_EXTRACT(x)	(((x) << 8) & 0xF000)
+#define	PCI_PPB_IOLIMIT_EXTRACT(x)	(((x) << 0) & 0xF000 | 0x0FFF)
 
-#define	PCI_PPB_MEMBASE_EXTRACT(x)	(((x) << 16) & 0xFFFF0000)
-#define	PCI_PPB_MEMLIMIT_EXTRACT(x)	(((x) <<  0) & 0xFFFF0000)
+#define	PCI_PPB_MEMBASE_EXTRACT(x)	(((x) << 16) & 0xFFF00000)
+#define	PCI_PPB_MEMLIMIT_EXTRACT(x)	(((x) <<  0) & 0xFFF00000 | 0x000FFFFF)
 
 /*
 ** Interrupt configuration register
