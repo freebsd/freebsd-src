@@ -1,37 +1,33 @@
 # $FreeBSD$
 
-.PATH: ${.CURDIR}/../../contrib/dev/acpica/Subsystem/Common \
-       ${.CURDIR}/../../contrib/dev/acpica/Subsystem/Debugger \
-       ${.CURDIR}/../../contrib/dev/acpica/Subsystem/Dispatcher \
-       ${.CURDIR}/../../contrib/dev/acpica/Subsystem/Events \
-       ${.CURDIR}/../../contrib/dev/acpica/Subsystem/Hardware \
-       ${.CURDIR}/../../contrib/dev/acpica/Subsystem/Interpreter \
-       ${.CURDIR}/../../contrib/dev/acpica/Subsystem/Namespace \
-       ${.CURDIR}/../../contrib/dev/acpica/Subsystem/Parser \
-       ${.CURDIR}/../../contrib/dev/acpica/Subsystem/Resources \
-       ${.CURDIR}/../../contrib/dev/acpica/Subsystem/Tables \
+.PATH: ${.CURDIR}/../../contrib/dev/acpica \
        ${.CURDIR}/../../pci ${.CURDIR}/../../dev/acpica \
        ${.CURDIR}/../../dev/acpica/Osd
 
 KMOD=	acpica
-SRCS=	cmalloc.c cmclib.c cmcopy.c cmdebug.c cmdelete.c cmeval.c
-SRCS+=	cmglobal.c cminit.c cmobject.c cmutils.c cmxface.c dbcmds.c
-SRCS+=	dbdisasm.c dbdisply.c dbexec.c dbfileio.c dbhistry.c 
-SRCS+=	dbinput.c dbstats.c dbutils.c dbxface.c dsfield.c dsmethod.c
-SRCS+=	dsmthdat.c dsobject.c dsopcode.c dsutils.c dswexec.c
-SRCS+=	dswload.c dswscope.c dswstate.c evevent.c evmisc.c evregion.c
-SRCS+=	evrgnini.c evsci.c evxface.c evxfevnt.c evxfregn.c hwacpi.c
-SRCS+=	hwsleep.c hwtimer.c hwgpe.c hwregs.c amconfig.c amcreate.c amdump.c
-SRCS+=	amfield.c amfldio.c ammisc.c ammonad.c amnames.c amprep.c
-SRCS+=	amdyadic.c amregion.c amresnte.c amresolv.c amresop.c amstore.c 
-SRCS+=	amstoren.c amstorob.c amsystem.c amutils.c amxface.c amconvrt.c
-SRCS+=	nsaccess.c nsalloc.c nsdump.c nseval.c nsinit.c nsload.c
-SRCS+=	nsnames.c nsobject.c nssearch.c nsutils.c nswalk.c
-SRCS+=	nsxfobj.c nsxfname.c  psargs.c psfind.c psopcode.c psparse.c psscope.c
-SRCS+=	pstree.c psutils.c pswalk.c psxface.c rsaddr.c rscalc.c
-SRCS+=	rscreate.c rsdump.c rsio.c rsirq.c rslist.c rsmemory.c 
-SRCS+=	rsmisc.c rsutils.c rsxface.c tbconvrt.c tbget.c tbinstal.c tbutils.c 
-SRCS+=	tbxface.c tbxfroot.c acpi.c acpi_button.c
+
+# ACPI CA sources
+SRCS+=	dsfield.c dsmethod.c dsmthdat.c dsobject.c dsopcode.c dsutils.c
+SRCS+=	dswexec.c dswload.c dswscope.c dswstate.c evevent.c evmisc.c evregion.c
+SRCS+=	evrgnini.c evsci.c evxface.c evxfevnt.c evxfregn.c exconfig.c exconvrt.c
+SRCS+=	excreate.c exdump.c exdyadic.c exfield.c exfldio.c exmisc.c exmonad.c
+SRCS+=	exmutex.c exnames.c exprep.c exregion.c exresnte.c exresolv.c exresop.c
+SRCS+=	exstore.c exstoren.c exstorob.c exsystem.c exutils.c exxface.c hwacpi.c
+SRCS+=	hwgpe.c hwregs.c hwsleep.c hwtimer.c nsaccess.c nsalloc.c nsdump.c
+SRCS+=	nseval.c nsinit.c nsload.c nsnames.c nsobject.c nssearch.c nsutils.c
+SRCS+=	nswalk.c nsxfname.c nsxfobj.c psargs.c psfind.c psopcode.c psparse.c
+SRCS+=	psscope.c pstree.c psutils.c pswalk.c psxface.c rsaddr.c rscalc.c
+SRCS+=  rscreate.c rsdump.c rsio.c rsirq.c rslist.c rsmemory.c rsmisc.c
+SRCS+=  rsutils.c rsxface.c tbconvrt.c tbget.c tbinstal.c tbutils.c tbxface.c
+SRCS+=	tbxfroot.c utalloc.c utclib.c utcopy.c utdebug.c utdelete.c uteval.c
+SRCS+=	utglobal.c utinit.c utmisc.c utobject.c utxface.c
+
+# ACPI CA debug support
+#SRCS=	dbcmds.c dbdisasm.c dbdisply.c dbexec.c dbfileio.c dbhistry.c dbinput.c
+#SRCS+=	dbstats.c dbutils.c dbxface.c 
+
+# OSD layer
+SRCS+=	acpi.c acpi_button.c
 SRCS+=	acpi_ec.c acpi_isa.c acpi_lid.c acpi_pcib.c
 SRCS+=	acpi_acad.c acpi_cmbat.c
 SRCS+=	acpi_resource.c acpi_thermal.c acpi_timer.c OsdDebug.c 
