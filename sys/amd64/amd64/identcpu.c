@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	from: Id: machdep.c,v 1.193 1996/06/18 01:22:04 bde Exp
- *	$Id: identcpu.c,v 1.54 1998/12/27 23:23:26 msmith Exp $
+ *	$Id: identcpu.c,v 1.55 1999/01/08 16:29:56 bde Exp $
  */
 
 #include "opt_cpu.h"
@@ -106,13 +106,13 @@ do_cpuid(u_int ax, u_int *p)
 {
 	__asm __volatile(
 	".byte	0x0f, 0xa2;"
-	"movl	%%eax, (%%esi);"
-	"movl	%%ebx, (4)(%%esi);"
-	"movl	%%ecx, (8)(%%esi);"
-	"movl	%%edx, (12)(%%esi);"
-	:
-	: "a" (ax), "S" (p)
-	: "ax", "bx", "cx", "dx"
+	"movl	%%eax, (%2);"
+	"movl	%%ebx, 4(%2);"
+	"movl	%%ecx, 8(%2);"
+	"movl	%%edx, 12(%2);"
+	: "=a" (ax)
+	:  "0" (ax), "S" (p)
+	: "bx", "cx", "dx"
 	);
 }
 
