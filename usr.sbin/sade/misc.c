@@ -1,7 +1,7 @@
 /*
  * Miscellaneous support routines..
  *
- * $Id: misc.c,v 1.23 1996/12/09 08:22:15 jkh Exp $
+ * $Id: misc.c,v 1.24 1996/12/11 18:23:18 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -80,8 +80,8 @@ string_concat(char *one, char *two)
 char *
 sstrncpy(char *dst, const char *src, int size)
 {
-    dst[size - 1] = '\0';
-    return strncpy(dst, src, size - 1);
+    dst[--size] = '\0';
+    return strncpy(dst, src, size);
 }
 
 /* Concatenate three strings into static storage */
