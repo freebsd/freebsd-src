@@ -1,4 +1,4 @@
-# $Id: Makefile,v 1.3 1997/02/22 16:06:35 peter Exp $
+# $Id: Makefile,v 1.4 1997/12/19 23:56:18 bde Exp $
 
 PROG=	mkdosfs
 
@@ -16,6 +16,7 @@ CFLAGS+=	-Wall
 #MKDOSFS_MAINTENANCE=	yes
 
 .if defined(MKDOSFS_MAINTENANCE)
+SRCS=	mkdosfs.c bootcode.h
 CFLAGS+=	-I.
 CLEANFILES+=	bootcode.h
 
@@ -41,8 +42,6 @@ CLEANFILES+=	*.obj *.bin *.com
 	${LD86} ${LD86FLAGS} -T 0x100 -o ${.PREFIX}.tmp ${.IMPSRC}
 	dd bs=32 skip=1 of=${.TARGET} if=${.PREFIX}.tmp
 	rm -f ${.PREFIX}.tmp
-
-all beforedepend: bootcode.h
 
 bootcode.h: bootcode.bin
 	@echo converting ${.TARGET} into ${.TARGET}...
