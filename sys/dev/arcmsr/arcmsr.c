@@ -116,8 +116,10 @@ static LONG arcmsr_probe(device_t dev);
 static LONG arcmsr_attach(device_t dev);
 static LONG arcmsr_detach(device_t dev);
 static VOID arcmsr_shutdown(device_t dev);
+#if 0
 ULONG arcmsr_make_timespec(ULONG year,ULONG mon,ULONG day,ULONG hour,ULONG min,ULONG sec);
 ULONG arcmsr_getcmos_time(VOID);
+#endif
 LONG arcmsr_queue_dpc(PACB pACB,DPCFUN dpcfun,VOID *arg);
 LONG arcmsr_iop_ioctlcmd(PACB pACB,ULONG ioctl_cmd,caddr_t arg);
 BOOLEAN arcmsr_seek_cmd2abort(union ccb * pabortccb);
@@ -380,6 +382,7 @@ VOID arcmsr_do_dpcQ(PACB pACB)
 	}
 	return;
 }
+#if 0
 /*
 **********************************************************************
 ** <second> bit 05,04,03,02,01,00: 0 - 59 
@@ -415,6 +418,7 @@ ULONG arcmsr_getcmos_time(VOID)
 		year +=100;
 	return arcmsr_make_timespec(year,mon,day,hour,min,sec);
 }
+#endif
 /*
 *********************************************************************************
 **  Asynchronous notification handler.
