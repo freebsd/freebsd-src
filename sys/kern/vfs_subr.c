@@ -1937,6 +1937,7 @@ vget(vp, flags, td)
 		} else {
 			vp->v_iflag |= VI_XWANT;
 			msleep(vp, VI_MTX(vp), PINOD | PDROP, "vget", 0);
+			mp_fixme("interlock not released.");
 			return (ENOENT);
 		}
 	}
