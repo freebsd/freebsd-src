@@ -59,8 +59,15 @@ struct vpo_nibble {
 	char l;			/* less significant nibble */
 };
 
+/* Mode found during initialisation */
+#define VP0_MODE_UNDEFINED	0x0
+#define VP0_MODE_NIBBLE		0x1
+#define VP0_MODE_PS2		0x2
+#define VP0_MODE_EPP		0x3
+
 struct vpoio_data {
 	unsigned short int vpo_unit;
+	int vpo_mode_found;		/* Mode found during init */
 
 	struct vpo_nibble vpo_nibble;
 
