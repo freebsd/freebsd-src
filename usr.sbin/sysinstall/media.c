@@ -445,7 +445,6 @@ int mediaSetHTTP(dialogMenuItem *self)
     if (DITEM_STATUS(result) != DITEM_SUCCESS)
 	return result;
  
-    variable_set2(VAR_HTTP_PATH, "", 0);
     cp = variable_get_value(VAR_HTTP_PATH,
 	"Please enter the address of the HTTP proxy in this format:\n"
 	" hostname:port (the ':port' is optional, default is 3128)",0);
@@ -461,11 +460,11 @@ int mediaSetHTTP(dialogMenuItem *self)
 
     variable_set2(VAR_HTTP_HOST, hostname, 0);
     variable_set2(VAR_HTTP_PORT, itoa(HttpPort), 0);
-    msgDebug("VAR_HTTP_HOST, _PORT: %s:%s",variable_get(VAR_HTTP_HOST),
-                                           variable_get(VAR_HTTP_PORT));
-
-    msgDebug("VAR_FTP_HOST, _PORT: %s:%s", variable_get(VAR_FTP_HOST),
-                                           variable_get(VAR_FTP_PORT));
+    if (isDebug()) {
+      msgDebug("VAR_FTP_PATH : %s",variable_get(VAR_FTP_PATH));
+      msgDebug("VAR_HTTP_HOST, _PORT: %s:%s",variable_get(VAR_HTTP_HOST),
+                                             variable_get(VAR_HTTP_PORT));
+    }
 
     /* mediaDevice has been set by mediaSetFTP(), overwrite partly: */
     mediaDevice->type = DEVICE_TYPE_HTTP;
