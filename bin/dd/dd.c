@@ -221,14 +221,8 @@ getfdtype(IO *io)
 		} else {
 			if (type & D_TAPE)
 				io->flags |= ISTAPE;
-			else if (type & (D_DISK | D_MEM)) {
-				if (type & D_DISK) {
-					const int one = 1;
-
-					(void)ioctl(io->fd, DIOCWLABEL, &one);
-				}
+			else if (type & (D_DISK | D_MEM))
 				io->flags |= ISSEEK;
-			}
 			if (S_ISCHR(sb.st_mode) && (type & D_TAPE) == 0)
 				io->flags |= ISCHR;
 		}
