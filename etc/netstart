@@ -1,6 +1,6 @@
 #!/bin/sh -
 #
-#	$Id: netstart,v 1.40 1996/01/31 15:02:24 mpp Exp $
+#	$Id: netstart,v 1.41 1996/02/09 12:45:37 jkh Exp $
 #	From: @(#)netstart	5.9 (Berkeley) 3/30/91
 
 # Note that almost all the user-configurable behavior is no longer in
@@ -49,7 +49,7 @@ if [ -n "$defaultrouter" -a "x$defaultrouter" != "xNO" ] ; then
 fi
 
 # Set up any static routes.  This should be done before router discovery.
-if [ "x${static_routes}" != "xNO" ]; then
+if [ "x${static_routes}" != "x" ]; then
 	for i in ${static_routes}; do
 		eval route_args=\$route_${i}
 		route add ${route_args}
