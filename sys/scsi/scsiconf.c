@@ -16,7 +16,7 @@
  *
  * New configuration setup: dufault@hda.com
  *
- *      $Id: scsiconf.c,v 1.35 1995/10/09 15:14:59 joerg Exp $
+ *      $Id: scsiconf.c,v 1.36 1995/10/31 17:21:00 joerg Exp $
  */
 
 #include <sys/types.h>
@@ -24,6 +24,7 @@
 #include <sys/systm.h>
 #include <sys/stat.h>
 #include <sys/malloc.h>
+#include <sys/sysctl.h>
 #include <sys/devconf.h>
 #include <sys/conf.h>
 
@@ -62,7 +63,6 @@ struct extend_array
 	void **ps;
 };
 
-static errval scsi_attach_sctarg __P((void));
 
 static void *
 extend_alloc(size_t s)
@@ -602,7 +602,8 @@ scsi_bus_conf(sc_link_proto)
 				    "Scbus will be assigned dynamically.\n",
 				    sc_link_proto->adapter->name,
 				    sc_link_proto->adapter_unit,
-				    sc_link_proto->adapter_bus);
+				    sc_link_proto->adapter_bus,
+				    sc_link_proto->adapter_bus );
 			     break;
 			  }
 			}
@@ -682,6 +683,10 @@ scsi_configure_start(void)
 {
 	scsi_init();
 }
+
+#if NSCTARG > 0
+static errval scsi_attach_sctarg __P((void));
+#endif
 
 void
 scsi_configure_finish(void)
@@ -1421,12 +1426,7 @@ scsi_selectdev(qualifier, type, remov, manu, model, rev)
 }
 
 int
-scsi_externalize(struct scsi_link *sl, void *userp, size_t *lenp)
+scsi_externalize(struct scsi_link *sl, struct sysctl_req *req)
 {
-	if(*lenp < sizeof *sl)
-		return ENOMEM;
-
-	*lenp -= sizeof *sl;
-
-	return copyout(sl, userp, sizeof *sl);
+	return SYSCTL_OUT(req, sl, sizeof *sl);
 }

@@ -43,7 +43,7 @@
  * SUCH DAMAGE.
  *
  *	from:	@(#)fd.c	7.4 (Berkeley) 5/25/91
- *	$Id: fd.c,v 1.69 1995/11/04 17:07:17 bde Exp $
+ *	$Id: fd.c,v 1.70 1995/11/18 07:48:11 bde Exp $
  *
  */
 
@@ -89,8 +89,7 @@
 
 static int fd_goaway(struct kern_devconf *, int);
 static int fdc_goaway(struct kern_devconf *, int);
-static int
-fd_externalize(struct proc *, struct kern_devconf *, void *, size_t);
+static int fd_externalize(struct kern_devconf *, struct sysctl_req *);
 
 /*
  * Templates for the kern_devconf structures used when we attach.
@@ -344,17 +343,9 @@ struct isa_device *fdcdevs[NFDC];
  * Provide hw.devconf information.
  */
 static int
-fd_externalize(struct proc *p, struct kern_devconf *kdc,
-	       void *userp, size_t len)
+fd_externalize(struct kern_devconf *kdc, struct sysctl_req *req)
 {
-	return disk_externalize(fd_data[kdc->kdc_unit].fdsu, userp, &len);
-}
-
-static int
-fdc_externalize(struct proc *p, struct kern_devconf *kdc,
-		void *userp, size_t len)
-{
-	return isa_externalize(fdcdevs[kdc->kdc_unit], userp, &len);
+	return disk_externalize(fd_data[kdc->kdc_unit].fdsu, req);
 }
 
 static int

@@ -14,7 +14,7 @@
  *
  * Ported to run under 386BSD by Julian Elischer (julian@tfs.com) Sept 1992
  *
- *      $Id: cd.c,v 1.43 1995/11/15 03:27:14 asami Exp $
+ *      $Id: cd.c,v 1.44 1995/11/19 22:22:18 dyson Exp $
  */
 
 #define SPLCD splbio
@@ -128,11 +128,9 @@ static struct scsi_device cd_switch =
 #define CD_EJECT	-2
 
 static int
-cd_externalize(struct proc *p, struct kern_devconf *kdc, void *userp,
-	       size_t len)
+cd_externalize(struct kern_devconf *kdc, struct sysctl_req *req)
 {
-	return scsi_externalize(SCSI_LINK(&cd_switch, kdc->kdc_unit),
-				userp, &len);
+	return scsi_externalize(SCSI_LINK(&cd_switch, kdc->kdc_unit), req);
 }
 
 static struct kern_devconf kdc_cd_template = {

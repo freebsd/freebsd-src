@@ -35,7 +35,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)machdep.c	7.4 (Berkeley) 6/3/91
- *	$Id: machdep.c,v 1.150 1995/11/12 19:51:22 phk Exp $
+ *	$Id: machdep.c,v 1.151 1995/11/14 09:52:25 phk Exp $
  */
 
 #include "npx.h"
@@ -1821,12 +1821,7 @@ bad:
 }
 
 int
-disk_externalize(int drive, void *userp, size_t *maxlen)
+disk_externalize(int drive, struct sysctl_req *req)
 {
-	if(*maxlen < sizeof drive) {
-		return ENOMEM;
-	}
-
-	*maxlen -= sizeof drive;
-	return copyout(&drive, userp, sizeof drive);
+	return SYSCTL_OUT(req, &drive, sizeof drive);
 }

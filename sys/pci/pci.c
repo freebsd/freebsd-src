@@ -1,6 +1,6 @@
 /**************************************************************************
 **
-**  $Id: pci.c,v 1.31 1995/09/14 23:24:29 se Exp $
+**  $Id: pci.c,v 1.32 1995/10/02 13:43:11 davidg Exp $
 **
 **  General subroutines for the PCI bus.
 **  pci_configure ()
@@ -51,6 +51,7 @@
 #include <sys/malloc.h>
 #include <sys/errno.h>
 #include <sys/kernel.h>
+#include <sys/sysctl.h>
 #include <sys/proc.h> /* declaration of wakeup(), used by vm.h */
 #include <sys/devconf.h>
 
@@ -109,11 +110,9 @@ struct pcicb {
 	u_long		pcicb_p_memlimit;
 };
 
-static int
-pci_externalize (struct proc *, struct kern_devconf *, void *, size_t);
+static int pci_externalize (struct kern_devconf *, struct sysctl_req *);
 
-static int
-pci_internalize (struct proc *, struct kern_devconf *, void *, size_t);
+static int pci_internalize (struct kern_devconf *, struct sysctl_req *);
 
 static void
 not_supported (pcici_t tag, u_long type);
@@ -1091,16 +1090,12 @@ int pci_map_mem (pcici_t tag, u_long reg, vm_offset_t* va, vm_offset_t* pa)
 */
 
 static int
-pci_externalize (struct proc *p, struct kern_devconf *kdcp, void *u, size_t l)
+pci_externalize (struct kern_devconf *kdcp, struct sysctl_req *req)
 {
 	struct pci_externalize_buffer buffer;
 	struct pci_info * pip = kdcp->kdc_parentdata;
 	pcici_t tag;
 	int	i;
-
-	if (l < sizeof buffer) {
-		return ENOMEM;
-	};
 
 	tag = pcibus->pb_tag (pip->pi_bus, pip->pi_device, 0);
 
@@ -1110,12 +1105,12 @@ pci_externalize (struct proc *p, struct kern_devconf *kdcp, void *u, size_t l)
 		buffer.peb_config[i] = pcibus->pb_read (tag, i*4);
 	};
 
-	return copyout(&buffer, u, sizeof buffer);
+	return SYSCTL_OUT(req, &buffer, sizeof buffer);
 }
 
 
 static int
-pci_internalize (struct proc *p, struct kern_devconf *kdcp, void *u, size_t s)
+pci_internalize (struct kern_devconf *kdcp, struct sysctl_req *re)
 {
 	return EOPNOTSUPP;
 }

@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)kern_sysctl.c	8.4 (Berkeley) 4/14/94
- * $Id: kern_sysctl.c,v 1.50 1995/11/14 20:43:29 phk Exp $
+ * $Id: kern_sysctl.c,v 1.51 1995/11/16 18:59:49 phk Exp $
  */
 
 /*
@@ -49,6 +49,17 @@
 #include <sys/unistd.h>
 #include <sys/conf.h>
 #include <sys/sysctl.h>
+
+/*
+ * Locking and stats
+ */
+static struct sysctl_lock {
+	int	sl_lock;
+	int	sl_want;
+	int	sl_locked;
+} memlock;
+
+static int sysctl_root SYSCTL_HANDLER_ARGS;
 
 extern struct linker_set sysctl_;
 
@@ -144,6 +155,66 @@ char hostname[MAXHOSTNAMELEN];
 
 SYSCTL_STRING(_kern, KERN_HOSTNAME, hostname, CTLFLAG_RW,
 	hostname, sizeof(hostname), "");
+
+int securelevel = -1;
+
+static int
+sysctl_kern_securelvl SYSCTL_HANDLER_ARGS
+{
+		int error, level;
+
+		level = securelevel;
+		error = sysctl_handle_int(oidp, &level, 0, req);
+		if (error || !req->newptr)
+			return (error);
+		if (level < securelevel && req->p->p_pid != 1)
+			return (EPERM);
+		securelevel = level;
+		return (error);
+}
+
+SYSCTL_PROC(_kern, KERN_SECURELVL, securelevel, CTLTYPE_INT|CTLFLAG_RW,
+	0, 0, sysctl_kern_securelvl, "");
+
+static int
+sysctl_kern_dumpdev SYSCTL_HANDLER_ARGS
+{
+	int error;
+	dev_t ndumpdev;
+
+	ndumpdev = dumpdev;
+	error = sysctl_handle_opaque(oidp, &ndumpdev, sizeof ndumpdev, req);
+	if (!error && ndumpdev != dumpdev) {
+		error = setdumpdev(ndumpdev);
+	}
+	return (error);
+}
+
+SYSCTL_PROC(_kern, KERN_DUMPDEV, dumpdev, CTLTYPE_OPAQUE|CTLFLAG_RW,
+	0, sizeof dumpdev, sysctl_kern_dumpdev, "");
+
+static int
+sysctl_hw_physmem SYSCTL_HANDLER_ARGS
+{
+	int error = sysctl_handle_int(oidp, 0, ctob(physmem), req);
+	return (error);
+}
+
+SYSCTL_PROC(_hw, HW_PHYSMEM, physmem, CTLTYPE_INT|CTLFLAG_RD,
+	0, 0, sysctl_hw_physmem, "");
+
+static int
+sysctl_hw_usermem SYSCTL_HANDLER_ARGS
+{
+	int error = sysctl_handle_int(oidp, 0,
+		ctob(physmem - cnt.v_wire_count), req);
+	return (error);
+}
+
+SYSCTL_PROC(_hw, HW_USERMEM, usermem, CTLTYPE_INT|CTLFLAG_RD,
+	0, 0, sysctl_hw_usermem, "");
+
+/* END_MIB */
 
 static int
 sysctl_order_cmp(const void *a, const void *b)
@@ -370,6 +441,10 @@ sysctl_old_user(struct sysctl_req *req, void *p, int l)
 {
 	int error = 0, i = 0;
 
+	if (req->lock == 1 && req->oldptr) {
+		vslock(req->oldptr, req->oldlen);
+		req->lock = 2;
+	}
 	if (req->oldptr) {
 		i = min(req->oldlen - req->oldidx, l);
 		if (i > 0)
@@ -398,22 +473,9 @@ sysctl_new_user(struct sysctl_req *req, void *p, int l)
 }
 
 /*
- * Locking and stats
- */
-static struct sysctl_lock {
-	int	sl_lock;
-	int	sl_want;
-	int	sl_locked;
-} memlock;
-
-
-
-/*
  * Traverse our tree, and find the right node, execute whatever it points
  * at, and return the resulting error code.
- * We work entirely in kernel-space at this time.
  */
-
 
 int
 sysctl_root SYSCTL_HANDLER_ARGS
@@ -431,6 +493,8 @@ sysctl_root SYSCTL_HANDLER_ARGS
 	while (j-- && indx < CTL_MAXNAME) {
 		if (*oidpp && ((*oidpp)->oid_number == name[indx])) {
 			indx++;
+			if ((*oidpp)->oid_kind & CTLFLAG_NOLOCK)
+				req->lock = 0;
 			if (((*oidpp)->oid_kind & CTLTYPE) == CTLTYPE_NODE) {
 				if ((*oidpp)->oid_handler)
 					goto found;
@@ -482,10 +546,7 @@ struct sysctl_args {
 #endif
 
 int
-__sysctl(p, uap, retval)
-	struct proc *p;
-	register struct sysctl_args *uap;
-	int *retval;
+__sysctl(struct proc *p, struct sysctl_args *uap, int *retval)
 {
 	int error, i, j, name[CTL_MAXNAME];
 
@@ -509,8 +570,6 @@ __sysctl(p, uap, retval)
 	return (error);
 }
 
-static sysctlfn kern_sysctl;
-
 /*
  * This is used from various compatibility syscalls too.  That's why name
  * must be in kernel space.
@@ -518,9 +577,7 @@ static sysctlfn kern_sysctl;
 int
 userland_sysctl(struct proc *p, int *name, u_int namelen, void *old, size_t *oldlenp, int inkernel, void *new, size_t newlen, int *retval)
 {
-	int error = 0, dolock = 1, oldlen = 0;
-	u_int savelen = 0;
-	sysctlfn *fn;
+	int error = 0;
 	struct sysctl_req req;
 
 	bzero(&req, sizeof req);
@@ -555,15 +612,30 @@ userland_sysctl(struct proc *p, int *name, u_int namelen, void *old, size_t *old
 
 	req.oldfunc = sysctl_old_user;
 	req.newfunc = sysctl_new_user;
+	req.lock = 1;
+
+	/* XXX this should probably be done in a general way */
+	while (memlock.sl_lock) {
+		memlock.sl_want = 1;
+		(void) tsleep((caddr_t)&memlock, PRIBIO+1, "sysctl", 0);
+		memlock.sl_locked++;
+	}
+	memlock.sl_lock = 1;
 
 	error = sysctl_root(0, name, namelen, &req);
 
-/*
+	if (req.lock == 2)
+		vsunlock(req.oldptr, req.oldlen, B_WRITE);
+
+	memlock.sl_lock = 0;
+
+	if (memlock.sl_want) {
+		memlock.sl_want = 0;
+		wakeup((caddr_t)&memlock);
+	}
+
 	if (error && error != ENOMEM)
 		return (error);
-*/
-	if (error == ENOENT)
-		goto oldstuff;
 
 	if (retval) {
 		if (req.oldptr && req.oldidx > req.oldlen)
@@ -571,334 +643,6 @@ userland_sysctl(struct proc *p, int *name, u_int namelen, void *old, size_t *old
 		else
 			*retval = req.oldidx;
 	}
-	return (error);
-
-oldstuff:
-	oldlen = req.oldlen;
-
-	switch (name[0]) {
-	case CTL_KERN:
-		fn = kern_sysctl;
-		if (name[1] != KERN_VNODE)      /* XXX */
-			dolock = 0;
-		break;
-	case CTL_HW:
-		fn = hw_sysctl;
-		break;
-	case CTL_FS:
-		fn = fs_sysctl;
-		break;
-	default:
-		return (EOPNOTSUPP);
-	}
-	if (old != NULL) {
-		if (!useracc(old, oldlen, B_WRITE))
-			return (EFAULT);
-		while (memlock.sl_lock) {
-			memlock.sl_want = 1;
-			(void) tsleep((caddr_t)&memlock, PRIBIO+1, "sysctl", 0);
-			memlock.sl_locked++;
-		}
-		memlock.sl_lock = 1;
-		if (dolock)
-			vslock(old, oldlen);
-		savelen = oldlen;
-	}
-
-
-	error = (*fn)(name + 1, namelen - 1, old, &oldlen,
-	    new, newlen, p);
-
-
-	if (old != NULL) {
-		if (dolock)
-			vsunlock(old, savelen, B_WRITE);
-		memlock.sl_lock = 0;
-		if (memlock.sl_want) {
-			memlock.sl_want = 0;
-			wakeup((caddr_t)&memlock);
-		}
-	}
-#if 0
-	if (error) {
-		printf("SYSCTL_ERROR: ");
-		for(i=0;i<namelen;i++)
-			printf("%d ", name[i]);
-		printf("= %d\n", error);
-	}
-#endif
-	if (error)
-		return (error);
-	if (retval)
-		*retval = oldlen;
-	return (error);
-}
-
-/*
- * Attributes stored in the kernel.
- */
-int securelevel = -1;
-
-/*
- * kernel related system variables.
- */
-static int
-kern_sysctl(name, namelen, oldp, oldlenp, newp, newlen, p)
-	int *name;
-	u_int namelen;
-	void *oldp;
-	size_t *oldlenp;
-	void *newp;
-	size_t newlen;
-	struct proc *p;
-{
-
-	/* all sysctl names at this level are terminal */
-	if (namelen != 1 && !(name[0] == KERN_PROC || name[0] == KERN_PROF
-			      || name[0] == KERN_NTP_PLL))
-		return (ENOTDIR);		/* overloaded */
-
-	switch (name[0]) {
-
-	case KERN_VNODE:
-		return (sysctl_vnode(oldp, oldlenp));
-#ifdef GPROF
-	case KERN_PROF:
-		return (sysctl_doprof(name + 1, namelen - 1, oldp, oldlenp,
-		    newp, newlen));
-#endif
-	default:
-		return (EOPNOTSUPP);
-	}
-	/* NOTREACHED */
-}
-
-static int
-sysctl_kern_securelvl SYSCTL_HANDLER_ARGS
-{
-		int error, level;
-
-		level = securelevel;
-		error = sysctl_handle_int(oidp, &level, 0, req);
-		if (error || !req->newptr)
-			return (error);
-		if (level < securelevel && req->p->p_pid != 1)
-			return (EPERM);
-		securelevel = level;
-		return (error);
-}
-
-SYSCTL_PROC(_kern, KERN_SECURELVL, securelevel, CTLTYPE_INT|CTLFLAG_RW,
-	0, 0, sysctl_kern_securelvl, "");
-
-static int
-sysctl_kern_dumpdev SYSCTL_HANDLER_ARGS
-{
-	int error;
-	dev_t ndumpdev;
-
-	ndumpdev = dumpdev;
-	error = sysctl_handle_opaque(oidp, &ndumpdev, sizeof ndumpdev, req);
-	if (!error && ndumpdev != dumpdev) {
-		error = setdumpdev(ndumpdev);
-	}
-	return (error);
-}
-
-SYSCTL_PROC(_kern, KERN_DUMPDEV, dumpdev, CTLTYPE_OPAQUE|CTLFLAG_RW,
-	0, sizeof dumpdev, sysctl_kern_dumpdev, "");
-/*
- * hardware related system variables.
- */
-int
-hw_sysctl(name, namelen, oldp, oldlenp, newp, newlen, p)
-	int *name;
-	u_int namelen;
-	void *oldp;
-	size_t *oldlenp;
-	void *newp;
-	size_t newlen;
-	struct proc *p;
-{
-	/* almost all sysctl names at this level are terminal */
-	if (namelen != 1 && name[0] != HW_DEVCONF)
-		return (ENOTDIR);		/* overloaded */
-
-	switch (name[0]) {
-	case HW_PHYSMEM:
-		return (sysctl_rdint(oldp, oldlenp, newp, ctob(physmem)));
-	case HW_USERMEM:
-		return (sysctl_rdint(oldp, oldlenp, newp,
-		    ctob(physmem - cnt.v_wire_count)));
-	case HW_DEVCONF:
-		return (dev_sysctl(name + 1, namelen - 1, oldp, oldlenp,
-				   newp, newlen, p));
-	default:
-		return (EOPNOTSUPP);
-	}
-	/* NOTREACHED */
-}
-
-/*
- * Validate parameters and get old / set new parameters
- * for an integer-valued sysctl function.
- */
-int
-sysctl_int(oldp, oldlenp, newp, newlen, valp)
-	void *oldp;
-	size_t *oldlenp;
-	void *newp;
-	size_t newlen;
-	int *valp;
-{
-	int error = 0;
-
-	if (oldp && *oldlenp < sizeof(int))
-		return (ENOMEM);
-	if (newp && newlen != sizeof(int))
-		return (EINVAL);
-	*oldlenp = sizeof(int);
-	if (oldp)
-		error = copyout(valp, oldp, sizeof(int));
-	if (error == 0 && newp)
-		error = copyin(newp, valp, sizeof(int));
-	return (error);
-}
-
-/*
- * As above, but read-only.
- */
-int
-sysctl_rdint(oldp, oldlenp, newp, val)
-	void *oldp;
-	size_t *oldlenp;
-	void *newp;
-	int val;
-{
-	int error = 0;
-
-	if (oldp && *oldlenp < sizeof(int))
-		return (ENOMEM);
-	if (newp)
-		return (EPERM);
-	*oldlenp = sizeof(int);
-	if (oldp)
-		error = copyout((caddr_t)&val, oldp, sizeof(int));
-	return (error);
-}
-
-/*
- * Validate parameters and get old / set new parameters
- * for a string-valued sysctl function.
- */
-int
-sysctl_string(oldp, oldlenp, newp, newlen, str, maxlen)
-	void *oldp;
-	size_t *oldlenp;
-	void *newp;
-	size_t newlen;
-	char *str;
-	int maxlen;
-{
-	int len, error = 0, rval = 0;
-
-	len = strlen(str) + 1;
-	if (oldp && *oldlenp < len) {
-		len = *oldlenp;
-		rval = ENOMEM;
-	}
-	if (newp && newlen >= maxlen)
-		return (EINVAL);
-	if (oldp) {
-		*oldlenp = len;
-		error = copyout(str, oldp, len);
-		if (error)
-			rval = error;
-	}
-	if ((error == 0 || error == ENOMEM) && newp) {
-		error = copyin(newp, str, newlen);
-		if (error)
-			rval = error;
-		str[newlen] = 0;
-	}
-	return (rval);
-}
-
-/*
- * As above, but read-only.
- */
-int
-sysctl_rdstring(oldp, oldlenp, newp, str)
-	void *oldp;
-	size_t *oldlenp;
-	void *newp;
-	char *str;
-{
-	int len, error = 0, rval = 0;
-
-	len = strlen(str) + 1;
-	if (oldp && *oldlenp < len) {
-		len = *oldlenp;
-		rval = ENOMEM;
-	}
-	if (newp)
-		return (EPERM);
-	*oldlenp = len;
-	if (oldp)
-		error = copyout(str, oldp, len);
-		if (error)
-			rval = error;
-	return (rval);
-}
-
-/*
- * Validate parameters and get old / set new parameters
- * for a structure oriented sysctl function.
- */
-int
-sysctl_struct(oldp, oldlenp, newp, newlen, sp, len)
-	void *oldp;
-	size_t *oldlenp;
-	void *newp;
-	size_t newlen;
-	void *sp;
-	int len;
-{
-	int error = 0;
-
-	if (oldp && *oldlenp < len)
-		return (ENOMEM);
-	if (newp && newlen > len)
-		return (EINVAL);
-	if (oldp) {
-		*oldlenp = len;
-		error = copyout(sp, oldp, len);
-	}
-	if (error == 0 && newp)
-		error = copyin(newp, sp, len);
-	return (error);
-}
-
-/*
- * Validate parameters and get old parameters
- * for a structure oriented sysctl function.
- */
-int
-sysctl_rdstruct(oldp, oldlenp, newp, sp, len)
-	void *oldp;
-	size_t *oldlenp;
-	void *newp, *sp;
-	int len;
-{
-	int error = 0;
-
-	if (oldp && *oldlenp < len)
-		return (ENOMEM);
-	if (newp)
-		return (EPERM);
-	*oldlenp = len;
-	if (oldp)
-		error = copyout(sp, oldp, len);
 	return (error);
 }
 
@@ -969,10 +713,7 @@ struct getkerninfo_args {
 #endif
 
 int
-ogetkerninfo(p, uap, retval)
-	struct proc *p;
-	register struct getkerninfo_args *uap;
-	int *retval;
+ogetkerninfo(struct proc *p, struct getkerninfo_args *uap, int *retval)
 {
 	int error, name[6];
 	u_int size;
@@ -987,14 +728,14 @@ ogetkerninfo(p, uap, retval)
 		name[4] = uap->op & 0xff;
 		name[5] = uap->arg;
 		error = userland_sysctl(p, name, 6, uap->where, uap->size,
-			0, 0, 0, 0);
+			0, 0, 0, &size);
 		break;
 
 	case KINFO_VNODE:
 		name[0] = CTL_KERN;
 		name[1] = KERN_VNODE;
 		error = userland_sysctl(p, name, 2, uap->where, uap->size,
-			0, 0, 0, 0);
+			0, 0, 0, &size);
 		break;
 
 	case KINFO_PROC:
@@ -1003,35 +744,35 @@ ogetkerninfo(p, uap, retval)
 		name[2] = uap->op & 0xff;
 		name[3] = uap->arg;
 		error = userland_sysctl(p, name, 4, uap->where, uap->size,
-			0, 0, 0, 0);
+			0, 0, 0, &size);
 		break;
 
 	case KINFO_FILE:
 		name[0] = CTL_KERN;
 		name[1] = KERN_FILE;
 		error = userland_sysctl(p, name, 2, uap->where, uap->size,
-			0, 0, 0, 0);
+			0, 0, 0, &size);
 		break;
 
 	case KINFO_METER:
 		name[0] = CTL_VM;
 		name[1] = VM_METER;
 		error = userland_sysctl(p, name, 2, uap->where, uap->size,
-			0, 0, 0, 0);
+			0, 0, 0, &size);
 		break;
 
 	case KINFO_LOADAVG:
 		name[0] = CTL_VM;
 		name[1] = VM_LOADAVG;
 		error = userland_sysctl(p, name, 2, uap->where, uap->size,
-			0, 0, 0, 0);
+			0, 0, 0, &size);
 		break;
 
 	case KINFO_CLOCKRATE:
 		name[0] = CTL_KERN;
 		name[1] = KERN_CLOCKRATE;
 		error = userland_sysctl(p, name, 2, uap->where, uap->size,
-			0, 0, 0, 0);
+			0, 0, 0, &size);
 		break;
 
 	case KINFO_BSDI_SYSINFO: {

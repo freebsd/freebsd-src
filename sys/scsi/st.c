@@ -12,7 +12,7 @@
  * on the understanding that TFS is not responsible for the correct
  * functioning of this software in any circumstances.
  *
- * $Id: st.c,v 1.42 1995/11/04 13:25:23 bde Exp $
+ * $Id: st.c,v 1.43 1995/11/19 22:22:32 dyson Exp $
  */
 
 /*
@@ -285,11 +285,9 @@ static struct scsi_device st_switch =
 			ST_FM_WRITTEN | ST_2FM_AT_EOD | ST_PER_ACTION)
 
 static int
-st_externalize(struct proc *p, struct kern_devconf *kdc, void *userp,
-	       size_t len)
+st_externalize(struct kern_devconf *kdc, struct sysctl_req *req)
 {
-	return scsi_externalize(SCSI_LINK(&st_switch, kdc->kdc_unit),
-				userp, &len);
+	return scsi_externalize(SCSI_LINK(&st_switch, kdc->kdc_unit), req);
 }
 
 static struct kern_devconf kdc_st_template = {

@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)isa.c	7.2 (Berkeley) 5/13/91
- *	$Id: isa.c,v 1.54 1995/10/31 21:03:57 peter Exp $
+ *	$Id: isa.c,v 1.55 1995/11/05 04:45:15 gibbs Exp $
  */
 
 /*
@@ -50,6 +50,7 @@
 #include <sys/param.h>
 #include <sys/systm.h>		/* isn't it a joy */
 #include <sys/kernel.h>		/* to have three of these */
+#include <sys/sysctl.h>
 #include <sys/proc.h>
 #include <sys/conf.h>
 #include <sys/file.h>
@@ -508,14 +509,9 @@ config_isadev_c(isdp, mp, reconfig)
  * hw.devconf interface.
  */
 int
-isa_externalize(struct isa_device *id, void *userp, size_t *maxlen)
+isa_externalize(struct isa_device *id, struct sysctl_req *req)
 {
-	if(*maxlen < sizeof *id) {
-		return ENOMEM;
-	}
-
-	*maxlen -= sizeof *id;
-	return copyout(id, userp, sizeof *id);
+	return (SYSCTL_OUT(req, id, sizeof *id));
 }
 
 /*
@@ -524,20 +520,14 @@ isa_externalize(struct isa_device *id, void *userp, size_t *maxlen)
  * what the `internalize' routine is supposed to do.
  */
 int
-isa_internalize(struct isa_device *id, void **userpp, size_t *len)
+isa_internalize(struct isa_device *id, struct sysctl_req *req)
 {
 	struct isa_device myid;
-	char *userp = *userpp;
 	int rv;
 
-	if(*len < sizeof *id) {
-		return EINVAL;
-	}
-
-	rv = copyin(userp, &myid, sizeof myid);
-	if(rv) return rv;
-	*userpp = userp + sizeof myid;
-	*len -= sizeof myid;
+	rv = SYSCTL_IN(req, &myid, sizeof *id);
+	if(rv)
+		return rv;
 
 	rv = EOPNOTSUPP;
 	/* code would go here to validate the configuration request */
@@ -546,10 +536,9 @@ isa_internalize(struct isa_device *id, void **userpp, size_t *len)
 }
 
 int
-isa_generic_externalize(struct proc *p, struct kern_devconf *kdc,
-			void *userp, size_t l)
+isa_generic_externalize(struct kern_devconf *kdc, struct sysctl_req *req)
 {
-	return isa_externalize(kdc->kdc_isa, userp, &l);
+	return isa_externalize(kdc->kdc_isa, req);
 }
 
 /*

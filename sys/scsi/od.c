@@ -28,7 +28,7 @@
  * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF
  * THE POSSIBILITY OF SUCH DAMAGE.
  *
- *	$Id: od.c,v 1.1 1995/10/31 17:25:58 joerg Exp $
+ *	$Id: od.c,v 1.2 1995/11/19 22:22:21 dyson Exp $
  */
 
 /*
@@ -136,11 +136,9 @@ struct scsi_device od_switch =
 static struct scsi_xfer sx;
 
 static int
-od_externalize(struct proc *p, struct kern_devconf *kdc, void *userp,
-	       size_t len)
+od_externalize(struct kern_devconf *kdc, struct sysctl_req *req)
 {
-	return scsi_externalize(SCSI_LINK(&od_switch, kdc->kdc_unit),
-				userp, &len);
+	return scsi_externalize(SCSI_LINK(&od_switch, kdc->kdc_unit), req);
 }
 
 static struct kern_devconf kdc_od_template = {
