@@ -89,6 +89,10 @@
 
 /* More types and definitions used throughout the kernel. */
 #ifdef _KERNEL
+#if (defined(BURN_BRIDGES) || __FreeBSD_version >= 600000) \
+	&& defined(OBSOLETE_IN_6)
+#error "This file contains obsolete code to be removed in 6.0-current"
+#endif
 #include <sys/cdefs.h>
 #include <sys/errno.h>
 #include <sys/time.h>
