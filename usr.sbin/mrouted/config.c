@@ -7,7 +7,7 @@
  * Leland Stanford Junior University.
  *
  *
- * $Id: config.c,v 3.6 1995/06/25 18:50:37 fenner Exp $
+ * $Id: config.c,v 3.8 1995/11/29 22:36:57 fenner Rel $
  */
 
 
