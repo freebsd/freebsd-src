@@ -226,7 +226,7 @@ typedef struct {
     u_short	dta_seg		__attribute__ ((packed));	/*   0Ch    DWORD   current DTA */
     u_short	psp		__attribute__ ((packed));	/*   10h    WORD    current PSP */
     u_short	int_23_sp	__attribute__ ((packed));	/*   12h    WORD    stores SP across an INT 23 */
-    u_short	wait_status	__attribute__ ((packed));	/*   14h    WORD    return code from last process termination (zerod after reading with AH=4Dh) */
+    u_short	wait_status	__attribute__ ((packed));	/*   14h    WORD    return code from last process termination (set to 0 after reading with AH=4Dh) */
     u_char	current_drive	__attribute__ ((packed));	/*   16h    BYTE    current drive */
     u_char	break_flag	__attribute__ ((packed));	/*   17h    BYTE    extended break flag */
     u_char	unknown1[2]	__attribute__ ((packed));	/*   18h  2 BYTEs   ??? */
@@ -336,7 +336,7 @@ struct exehdr {
 	u_short nreloc;
 	u_short hdr_size; /* paragraphs */
 	u_short min_memory; /* paragraphs */
-	u_short max_memory; /* pargraphs */
+	u_short max_memory; /* paragraphs */
 	u_short init_ss;
 	u_short init_sp;
 	u_short checksum;

@@ -30,12 +30,12 @@
 __FBSDID("$FreeBSD$");
 
 /*
- * XMS memory manmagement 
+ * XMS memory management 
  *
  * To emulate DOS extended memory (EMM) we use an implementation of
- * HIMEM.SYS driver capabitlities, according to the XMS 3.0 Spec.
+ * HIMEM.SYS driver capabilities, according to the XMS 3.0 Spec.
  * The actual memory allocated via XMS calls from DOS is allocated
- * via malloc by the emulator. Maximum memory allocation is configureable.
+ * via malloc by the emulator. Maximum memory allocation is configurable.
  *
  * Credits to:
  *	The original author of this file, some parts are still here
@@ -126,14 +126,14 @@ xms_init(void)
 
 /*
  * UMB management routines: UMBs normally lie between 0xd0000 and
- * 0xefff0 in VM86 memory space and are accessible for all DOS applictions.
+ * 0xefff0 in VM86 memory space and are accessible for all DOS applications.
  * We could enable more space, but with the emulator we do not
  * need many drivers, so I think 2 * 64kB will suffice. If EMS emulation
  * exists, a 64kB segment (0xe0000 - 0xeffff for example) is needed for
  * the EMS mapping, in this case we have 64kB UMB space. This is more than 
  * many PCs are able to do.
  * This emulation does only the management for the memory, the memory
- * is present and read/write/excutable for VM86 applications.
+ * is present and read/write/executable for VM86 applications.
  */
 
 /* Add a block to a list, maintain ascending start address order */
