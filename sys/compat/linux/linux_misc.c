@@ -761,9 +761,15 @@ linux_newuname(struct thread *td, struct linux_newuname_args *args)
 		}
 		strlcpy(utsname.machine, class, LINUX_MAX_UTSNAME);
 	}
+#elif defined(__amd64__)	/* XXX: Linux can change 'personality'. */
+#ifdef COMPAT_LINUX32
+	strlcpy(utsname.machine, "i686", LINUX_MAX_UTSNAME);
 #else
+	strlcpy(utsname.machine, "x86_64", LINUX_MAX_UTSNAME);
+#endif /* COMPAT_LINUX32 */
+#else /* something other than i386 or amd64 - assume we and Linux agree */
 	strlcpy(utsname.machine, machine, LINUX_MAX_UTSNAME);
-#endif
+#endif /* __i386__ */
 	strlcpy(utsname.domainname, domainname, LINUX_MAX_UTSNAME);
 
 	return (copyout(&utsname, args->buf, sizeof(utsname)));
