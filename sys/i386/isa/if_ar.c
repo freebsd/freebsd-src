@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1995 John Hay.  All rights reserved.
+ * Copyright (c) 1995, 1999 John Hay.  All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -9,10 +9,7 @@
  * 2. Redistributions in binary form must reproduce the above copyright
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
- * 3. All advertising materials mentioning features or use of this software
- *    must display the following acknowledgement:
- *	This product includes software developed by John Hay.
- * 4. Neither the name of the author nor the names of any co-contributors
+ * 3. Neither the name of the author nor the names of any co-contributors
  *    may be used to endorse or promote products derived from this software
  *    without specific prior written permission.
  *
@@ -74,7 +71,6 @@
 #error device 'ar' require sppp.
 #endif
 
-
 #ifdef TRACE
 #define TRC(x)               x
 #else
@@ -93,27 +89,33 @@
 				AR_ENA_SCA | (ch ? AR_SEL_SCA_1:AR_SEL_SCA_0))
 #define ARC_SET_OFF(iobase)	outb(iobase+AR_MSCA_EN, 0)
 
-static struct ar_hardc {
+struct ar_hardc {
 	int cunit;
 	struct ar_softc *sc;
 	u_short iobase;
-	int startunit;
+	int isa_irq;
 	int numports;
 	caddr_t mem_start;
 	caddr_t mem_end;
+	u_char *orbase;
 
 	u_int memsize;		/* in bytes */
+	u_int winsize;		/* in bytes */
+	u_int winmsk;
 	u_char bustype;		/* ISA, MCA, PCI.... */
-	u_char interface;	/* X21, V.35, EIA-530.... */
+	u_char interface[NPORT];/* X21, V.35, EIA-530.... */
 	u_char revision;
 	u_char handshake;	/* handshake lines supported by card. */
 
 	u_char txc_dtr[NPORT/NCHAN]; /* the register is write only */
 	u_int txc_dtr_off[NPORT/NCHAN];
 
-	sca_regs *sca;
+	sca_regs *sca[NPORT/NCHAN];
 
-}ar_hardc[NAR];
+};
+
+static int	next_ar_unit = 0;
+static struct	ar_hardc ar_hardc[NAR];
 
 struct ar_softc {
 	struct sppp ifsppp;
@@ -143,10 +145,11 @@ struct ar_softc {
 
 	int scano;
 	int scachan;
+	sca_regs *sca;
 };
 
 static int arprobe(struct isa_device *id);
-static int arattach(struct isa_device *id);
+static int arattach_isa(struct isa_device *id);
 
 /*
  * This translate from irq numbers to
@@ -173,9 +176,13 @@ static int irqtable[16] = {
 	7	/* 15 */
 };
 
-struct isa_driver ardriver = {arprobe, arattach, "arc"};
+struct isa_driver ardriver = {arprobe, arattach_isa, "ar"};
+
+struct ar_hardc *arattach_pci(int unit, vm_offset_t mem_addr);
+void arintr_hc(struct ar_hardc *hc);
 
 static ointhand2_t arintr;
+static int arattach(struct ar_hardc *hc);
 static void ar_xmit(struct ar_softc *sc);
 static void arstart(struct ifnet *ifp);
 static int arioctl(struct ifnet *ifp, u_long cmd, caddr_t data);
@@ -185,9 +192,10 @@ static void ar_copy_rxbuf(struct mbuf *m, struct ar_softc *sc, int len);
 static void ar_eat_packet(struct ar_softc *sc, int single);
 static void ar_get_packets(struct ar_softc *sc);
 
+static int ar_read_pim_iface(volatile struct ar_hardc *hc, int channel);
 static void ar_up(struct ar_softc *sc);
 static void ar_down(struct ar_softc *sc);
-static void arc_init(struct isa_device *id);
+static void arc_init(struct ar_hardc *hc);
 static void ar_init_sca(struct ar_hardc *hc, int scano);
 static void ar_init_msci(struct ar_softc *sc);
 static void ar_init_rx_dmac(struct ar_softc *sc);
@@ -231,19 +239,27 @@ arprobe(struct isa_device *id)
 	hc->memsize = (tmp & AR_MEM_MSK) >> AR_MEM_SHFT;
 	hc->memsize = 1 << hc->memsize;
 	hc->memsize <<= 16;
-	hc->interface = (tmp & AR_IFACE_MSK);
-	hc->revision = inb(port + AR_REV);
+	hc->interface[0] = (tmp & AR_IFACE_MSK);
+	hc->interface[1] = hc->interface[0];
+	hc->interface[2] = hc->interface[0];
+	hc->interface[3] = hc->interface[0];
+	tmp = inb(port + AR_REV);
+	hc->revision = tmp & AR_REV_MSK;
+	hc->winsize = 1 << ((tmp & AR_WSIZ_MSK) >> AR_WSIZ_SHFT);
+	hc->winsize *= ARC_WIN_SIZ;
+	hc->winmsk = hc->winsize - 1;
 	hc->numports = inb(port + AR_PNUM);
 	hc->handshake = inb(port + AR_HNDSH);
 
-	id->id_msize = ARC_WIN_SIZ;
+	id->id_msize = hc->winsize;
 
 	hc->iobase = id->id_iobase;
 	hc->mem_start = id->id_maddr;
 	hc->mem_end = id->id_maddr + id->id_msize;
 	hc->cunit = id->id_unit;
+	hc->isa_irq = id->id_irq;
 
-	switch(hc->interface) {
+	switch(hc->interface[0]) {
 	case AR_IFACE_EIA_232:
 		printf("ar%d: The EIA 232 interface is not supported.\n",
 			id->id_unit);
@@ -262,12 +278,6 @@ arprobe(struct isa_device *id)
 		break;
 	}
 
-	if(id->id_unit == 0)
-		hc->startunit = 0;
-	else
-		hc->startunit = ar_hardc[id->id_unit - 1].startunit +
-				ar_hardc[id->id_unit - 1].numports;
-
 	/*
 	 * Do a little sanity check.
 	 */
@@ -277,7 +287,6 @@ arprobe(struct isa_device *id)
 	return ARC_IO_SIZ;      /* return the amount of IO addresses used. */
 }
 
-
 /*
  * Malloc memory for the softc structures.
  * Reset the card to put it in a known state.
@@ -286,33 +295,70 @@ arprobe(struct isa_device *id)
  * Attach each port to sppp and bpf.
  */
 static int
-arattach(struct isa_device *id)
+arattach_isa(struct isa_device *id)
 {
 	struct ar_hardc *hc = &ar_hardc[id->id_unit];
+	id->id_ointr = arintr;
+	return arattach(hc);
+}
+
+struct ar_hardc *
+arattach_pci(int unit, vm_offset_t mem_addr)
+{
+	struct ar_hardc *hc;
+	u_int i, tmp;
+
+	hc = malloc(sizeof(struct ar_hardc), M_DEVBUF, M_WAITOK);
+	bzero(hc, sizeof(struct ar_hardc));
+
+	hc->cunit = unit;
+	hc->mem_start = (caddr_t)mem_addr;
+	hc->sca[0] = (sca_regs *)(mem_addr + AR_PCI_SCA_1_OFFSET);
+	hc->sca[1] = (sca_regs *)(mem_addr + AR_PCI_SCA_2_OFFSET);
+	hc->iobase = 0;
+	hc->orbase = (u_char *)(mem_addr + AR_PCI_ORBASE_OFFSET);
+
+	tmp = hc->orbase[AR_BMI * 4];
+	hc->bustype = tmp & AR_BUS_MSK;
+	hc->memsize = (tmp & AR_MEM_MSK) >> AR_MEM_SHFT;
+	hc->memsize = 1 << hc->memsize;
+	hc->memsize <<= 16;
+	hc->interface[0] = (tmp & AR_IFACE_MSK);
+	tmp = hc->orbase[AR_REV * 4];
+	hc->revision = tmp & AR_REV_MSK;
+	hc->winsize = (1 << ((tmp & AR_WSIZ_MSK) >> AR_WSIZ_SHFT)) * 16 * 1024;
+	hc->mem_end = (caddr_t)(mem_addr + hc->winsize);
+	hc->winmsk = hc->winsize - 1;
+	hc->numports = hc->orbase[AR_PNUM * 4];
+	hc->handshake = hc->orbase[AR_HNDSH * 4];
+
+	for(i = 1; i < hc->numports; i++)
+		hc->interface[i] = hc->interface[0];
+
+	TRC(printf("arp%d: bus %x, rev %d, memstart %p, winsize %d, "
+	    "winmsk %x, interface %x\n",
+	    unit, hc->bustype, hc->revision, hc->mem_start, hc->winsize,
+	    hc->winmsk, hc->interface[0]));
+
+	arattach(hc);
+	return hc;
+}
+
+static int
+arattach(struct ar_hardc *hc)
+{
 	struct ar_softc *sc;
 	struct ifnet *ifp;
 	int unit;
 	char *iface;
 
-	id->id_ointr = arintr;
-	switch(hc->interface) {
-	default: iface = "UNKNOWN"; break;
-	case AR_IFACE_EIA_232: iface = "EIA-232"; break;
-	case AR_IFACE_V_35: iface = "EIA-232 or V.35"; break;
-	case AR_IFACE_EIA_530: iface = "EIA-530"; break;
-	case AR_IFACE_X_21: iface = "X.21"; break;
-	case AR_IFACE_COMBO: iface = "COMBO X.21 / EIA-530"; break;
-	}
-
-	printf("arc%d: %uK RAM, %u ports, rev %u, "
-		"%s interface.\n",
-		id->id_unit,
+	printf("arc%d: %uK RAM, %u ports, rev %u.\n",
+		hc->cunit,
 		hc->memsize/1024,
 		hc->numports,
-		hc->revision,
-		iface);
+		hc->revision);
 	
-	arc_init(id);
+	arc_init(hc);
 
 	sc = hc->sc;
 
@@ -325,7 +371,8 @@ arattach(struct isa_device *id)
 	for(unit=0;unit<hc->numports;sc++,unit++) {
 		sc->hc = hc;
 		sc->subunit = unit;
-		sc->unit = hc->startunit + unit;
+		sc->unit = next_ar_unit;
+		next_ar_unit++;
 		sc->scano = unit / NCHAN;
 		sc->scachan = unit%NCHAN;
 
@@ -336,7 +383,7 @@ arattach(struct isa_device *id)
 		ifp = &sc->ifsppp.pp_if;
 
 		ifp->if_softc = sc;
-		ifp->if_unit = hc->startunit + unit;
+		ifp->if_unit = sc->unit;
 		ifp->if_name = "ar";
 		ifp->if_mtu = PP_MTU;
 		ifp->if_flags = IFF_POINTOPOINT | IFF_MULTICAST;
@@ -346,10 +393,20 @@ arattach(struct isa_device *id)
 
 		sc->ifsppp.pp_flags = PP_KEEPALIVE;
 
-		printf("ar%d: Adapter %d, port %d.\n",
+		switch(hc->interface[unit]) {
+		default: iface = "UNKNOWN"; break;
+		case AR_IFACE_EIA_232: iface = "EIA-232"; break;
+		case AR_IFACE_V_35: iface = "EIA-232 or V.35"; break;
+		case AR_IFACE_EIA_530: iface = "EIA-530"; break;
+		case AR_IFACE_X_21: iface = "X.21"; break;
+		case AR_IFACE_COMBO: iface = "COMBO X.21 / EIA-530"; break;
+		}
+
+		printf("ar%d: Adapter %d, port %d, interface %s.\n",
 			sc->unit,
 			hc->cunit,
-			sc->subunit);
+			sc->subunit,
+			iface);
 
 		sppp_attach((struct ifnet *)&sc->ifsppp);
 		if_attach(ifp);
@@ -357,7 +414,8 @@ arattach(struct isa_device *id)
 		bpfattach(ifp, DLT_PPP, PPP_HEADER_LEN);
 	}
 
-	ARC_SET_OFF(hc->iobase);
+	if(hc->bustype == AR_BUS_ISA)
+		ARC_SET_OFF(hc->iobase);
 
 	return 1;
 }
@@ -371,32 +429,49 @@ arattach(struct isa_device *id)
 static void
 arintr(int unit)
 {
-	struct ar_hardc *hc = &ar_hardc[unit];
-	sca_regs *sca = hc->sca;
+	struct ar_hardc *hc;
+
+	hc = &ar_hardc[unit];
+	arintr_hc(hc);
+	return;
+}
+
+void
+arintr_hc(struct ar_hardc *hc)
+{
+	sca_regs *sca;
 	u_char isr0, isr1, isr2, arisr;
 	int scano;
 
-	arisr = inb(hc->iobase + AR_ISTAT);
+	/* XXX Use the PCI interrupt score board register later */
+	if(hc->bustype == AR_BUS_PCI)
+		arisr = hc->orbase[AR_ISTAT * 4];
+	else
+		arisr = inb(hc->iobase + AR_ISTAT);
 
 	while(arisr & AR_BD_INT) {
+		TRC(printf("arisr = %x\n", arisr));
 		if(arisr & AR_INT_0)
 			scano = 0;
 		else if(arisr & AR_INT_1)
 			scano = 1;
 		else {
 			/* XXX Oops this shouldn't happen. */
-			printf("arc%d: Interrupted with no interrupt.\n", unit);
+			printf("arc%d: Interrupted with no interrupt.\n",
+				hc->cunit);
 			return;
 		}
+		sca = hc->sca[scano];
 
-		ARC_SET_SCA(hc->iobase, scano);
+		if(hc->bustype == AR_BUS_ISA)
+			ARC_SET_SCA(hc->iobase, scano);
 
 		isr0 = sca->isr0;
 		isr1 = sca->isr1;
 		isr2 = sca->isr2;
 
 		TRC(printf("arc%d: ARINTR isr0 %x, isr1 %x, isr2 %x\n",
-			unit,
+			hc->cunit,
 			isr0,
 			isr1,
 			isr2));
@@ -415,11 +490,16 @@ arintr(int unit)
 		 */
 		if((arisr & AR_INT_0) && (arisr & AR_INT_1))
 			arisr &= ~AR_INT_0;
-		else
-			arisr = inb(hc->iobase + AR_ISTAT);
+		else {
+			if(hc->bustype == AR_BUS_PCI)
+				arisr = hc->orbase[AR_ISTAT * 4];
+			else
+				arisr = inb(hc->iobase + AR_ISTAT);
+		}
 	}
 
-	ARC_SET_OFF(hc->iobase);
+	if(hc->bustype == AR_BUS_ISA)
+		ARC_SET_OFF(hc->iobase);
 }
 
 
@@ -431,10 +511,14 @@ arintr(int unit)
 static void
 ar_xmit(struct ar_softc *sc)
 {
-	struct ifnet *ifp = &sc->ifsppp.pp_if;
-	dmac_channel *dmac = &sc->hc->sca->dmac[DMAC_TXCH(sc->scachan)];
+	struct ifnet *ifp;
+	dmac_channel *dmac;
 
-	ARC_SET_SCA(sc->hc->iobase, sc->scano);
+	ifp = &sc->ifsppp.pp_if;
+	dmac = &sc->sca->dmac[DMAC_TXCH(sc->scachan)];
+
+	if(sc->hc->bustype == AR_BUS_ISA)
+		ARC_SET_SCA(sc->hc->iobase, sc->scano);
 	dmac->cda = (u_short)(sc->block[sc->txb_next_tx].txdesc & 0xffff);
 
 	dmac->eda = (u_short)(sc->block[sc->txb_next_tx].txeda & 0xffff);
@@ -447,7 +531,8 @@ ar_xmit(struct ar_softc *sc)
 		sc->txb_next_tx = 0;
 
 	ifp->if_timer = 2; /* Value in seconds. */
-	ARC_SET_OFF(sc->hc->iobase);
+	if(sc->hc->bustype == AR_BUS_ISA)
+		ARC_SET_OFF(sc->hc->iobase);
 }
 
 /*
@@ -496,7 +581,8 @@ top_arstart:
 	 * all tx buffers and descriptors are assumed to be in the same
 	 * 16K window.
 	 */
-	ARC_SET_MEM(sc->hc->iobase, sc->block[0].txdesc);
+	if(sc->hc->bustype == AR_BUS_ISA)
+		ARC_SET_MEM(sc->hc->iobase, sc->block[0].txdesc);
 
 	/*
 	 * We stay in this loop until there is nothing in the
@@ -505,8 +591,8 @@ top_arstart:
 	i = 0;
 	blkp = &sc->block[sc->txb_new];
 	txdesc = (sca_descriptor *)
-		(sc->hc->mem_start + (blkp->txdesc & ARC_WIN_MSK));
-	txdata = (u_char *)(sc->hc->mem_start + (blkp->txstart & ARC_WIN_MSK));
+		(sc->hc->mem_start + (blkp->txdesc & sc->hc->winmsk));
+	txdata = (u_char *)(sc->hc->mem_start + (blkp->txstart & sc->hc->winmsk));
 	for(;;) {
 		len = mtx->m_pkthdr.len;
 
@@ -578,7 +664,8 @@ top_arstart:
 	if(sc->xmit_busy == 0)
 		ar_xmit(sc);
 
-	ARC_SET_OFF(sc->hc->iobase);
+	if(sc->hc->bustype == AR_BUS_ISA)
+		ARC_SET_OFF(sc->hc->iobase);
 
 	goto top_arstart;
 }
@@ -632,12 +719,13 @@ static void
 arwatchdog(struct ifnet *ifp)
 {
 	struct ar_softc *sc = ifp->if_softc;
-	msci_channel *msci = &sc->hc->sca->msci[sc->scachan];
+	msci_channel *msci = &sc->sca->msci[sc->scachan];
 
 	if(!(ifp->if_flags & IFF_RUNNING))
 		return;
 
-	ARC_SET_SCA(sc->hc->iobase, sc->scano);
+	if(sc->hc->bustype == AR_BUS_ISA)
+		ARC_SET_SCA(sc->hc->iobase, sc->scano);
 
 	/* XXX if(sc->ifsppp.pp_if.if_flags & IFF_DEBUG) */
 		printf("ar%d: transmit failed, "
@@ -646,7 +734,7 @@ arwatchdog(struct ifnet *ifp)
 			msci->st0,
 			msci->st1,
 			msci->st3,
-			sc->hc->sca->dmac[DMAC_TXCH(sc->scachan)].dsr);
+			sc->sca->dmac[DMAC_TXCH(sc->scachan)].dsr);
 
 	if(msci->st1 & SCA_ST1_UDRN) {
 		msci->cmd = SCA_CMD_TXABORT;
@@ -666,8 +754,11 @@ arwatchdog(struct ifnet *ifp)
 static void
 ar_up(struct ar_softc *sc)
 {
-	sca_regs *sca = sc->hc->sca;
-	msci_channel *msci = &sca->msci[sc->scachan];
+	sca_regs *sca;
+	msci_channel *msci;
+
+	sca = sc->sca;
+	msci = &sca->msci[sc->scachan];
 
 	TRC(printf("ar%d: sca %p, msci %p, ch %d\n",
 		sc->unit, sca, msci, sc->scachan));
@@ -677,7 +768,8 @@ ar_up(struct ar_softc *sc)
 	 * Raise DTR and RTS.
 	 * Enable interrupts.
 	 */
-	ARC_SET_SCA(sc->hc->iobase, sc->scano);
+	if(sc->hc->bustype == AR_BUS_ISA)
+		ARC_SET_SCA(sc->hc->iobase, sc->scano);
 
 	/* XXX
 	 * What about using AUTO mode in msci->md0 ???
@@ -688,8 +780,12 @@ ar_up(struct ar_softc *sc)
 	if(sc->hc->handshake & AR_SHSK_DTR) {
 		sc->hc->txc_dtr[sc->scano] &= sc->scachan ? 
 			~AR_TXC_DTR_DTR1 : ~AR_TXC_DTR_DTR0;
-		outb(sc->hc->iobase + sc->hc->txc_dtr_off[sc->scano],
-			sc->hc->txc_dtr[sc->scano]);
+		if(sc->hc->bustype == AR_BUS_PCI)
+			sc->hc->orbase[sc->hc->txc_dtr_off[sc->scano]] =
+				sc->hc->txc_dtr[sc->scano];
+		else
+			outb(sc->hc->iobase + sc->hc->txc_dtr_off[sc->scano],
+				sc->hc->txc_dtr[sc->scano]);
 	}
 
 	if(sc->scachan == 0) {
@@ -701,26 +797,33 @@ ar_up(struct ar_softc *sc)
 	}
 
 	msci->cmd = SCA_CMD_RXENABLE;
-	inb(sc->hc->iobase + AR_ID_5); /* XXX slow it down a bit. */
+	if(sc->hc->bustype == AR_BUS_ISA)
+		inb(sc->hc->iobase + AR_ID_5); /* XXX slow it down a bit. */
 	msci->cmd = SCA_CMD_TXENABLE;
 
-	ARC_SET_OFF(sc->hc->iobase);
+	if(sc->hc->bustype == AR_BUS_ISA)
+		ARC_SET_OFF(sc->hc->iobase);
 }
 
 static void
 ar_down(struct ar_softc *sc)
 {
-	sca_regs *sca = sc->hc->sca;
-	msci_channel *msci = &sca->msci[sc->scachan];
+	sca_regs *sca;
+	msci_channel *msci;
+
+	sca = sc->sca;
+	msci = &sca->msci[sc->scachan];
 
 	/*
 	 * Disable transmitter and receiver.
 	 * Lower DTR and RTS.
 	 * Disable interrupts.
 	 */
-	ARC_SET_SCA(sc->hc->iobase, sc->scano);
+	if(sc->hc->bustype == AR_BUS_ISA)
+		ARC_SET_SCA(sc->hc->iobase, sc->scano);
 	msci->cmd = SCA_CMD_RXDISABLE;
-	inb(sc->hc->iobase + AR_ID_5); /* XXX slow it down a bit. */
+	if(sc->hc->bustype == AR_BUS_ISA)
+		inb(sc->hc->iobase + AR_ID_5); /* XXX slow it down a bit. */
 	msci->cmd = SCA_CMD_TXDISABLE;
 
 	if(sc->hc->handshake & AR_SHSK_RTS)
@@ -728,8 +831,12 @@ ar_down(struct ar_softc *sc)
 	if(sc->hc->handshake & AR_SHSK_DTR) {
 		sc->hc->txc_dtr[sc->scano] |= sc->scachan ? 
 			AR_TXC_DTR_DTR1 : AR_TXC_DTR_DTR0;
-		outb(sc->hc->iobase + sc->hc->txc_dtr_off[sc->scano],
-			sc->hc->txc_dtr[sc->scano]);
+		if(sc->hc->bustype == AR_BUS_PCI)
+			sc->hc->orbase[sc->hc->txc_dtr_off[sc->scano]] =
+				sc->hc->txc_dtr[sc->scano];
+		else
+			outb(sc->hc->iobase + sc->hc->txc_dtr_off[sc->scano],
+				sc->hc->txc_dtr[sc->scano]);
 	}
 
 	if(sc->scachan == 0) {
@@ -740,7 +847,100 @@ ar_down(struct ar_softc *sc)
 		sca->ier1 &= ~0xF0;
 	}
 
-	ARC_SET_OFF(sc->hc->iobase);
+	if(sc->hc->bustype == AR_BUS_ISA)
+		ARC_SET_OFF(sc->hc->iobase);
+}
+
+static int
+ar_read_pim_iface(volatile struct ar_hardc *hc, int channel)
+{
+	int ctype, i, val, x;
+	volatile u_char *pimctrl;
+
+	ctype = 0;
+	val = 0;
+
+	pimctrl = hc->orbase + AR_PIMCTRL;
+
+	/* Reset the PIM */
+	*pimctrl = 0x00;
+	*pimctrl = AR_PIM_STROBE;
+
+	/* Check if there is a PIM */
+	*pimctrl = 0x00;
+	*pimctrl = AR_PIM_READ;
+	x = *pimctrl;
+	TRC(printf("x = %x", x));
+	if(x & AR_PIM_DATA) {
+		printf("No PIM installed\n");
+		return(AR_IFACE_UNKNOWN);
+	}
+
+	x = (x >> 1) & 0x01;
+	val |= x << 0;
+
+	/* Now read the next 15 bits */
+	for(i = 1; i < 16; i++) {
+		*pimctrl = AR_PIM_READ;
+		*pimctrl = AR_PIM_READ | AR_PIM_STROBE;
+		x = *pimctrl;
+		TRC(printf(" %x ", x));
+		x = (x >> 1) & 0x01;
+		val |= x << i;
+		if(i == 8 && (val & 0x000f) == 0x0004) {
+			int ii;
+			
+			/* Start bit */
+			*pimctrl = AR_PIM_A2D_DOUT | AR_PIM_A2D_STROBE;
+			*pimctrl = AR_PIM_A2D_DOUT;
+
+			/* Mode bit */
+			*pimctrl = AR_PIM_A2D_DOUT | AR_PIM_A2D_STROBE;
+			*pimctrl = AR_PIM_A2D_DOUT;
+
+			/* Sign bit */
+			*pimctrl = AR_PIM_A2D_DOUT | AR_PIM_A2D_STROBE;
+			*pimctrl = AR_PIM_A2D_DOUT;
+
+			/* Select channel */
+			*pimctrl = AR_PIM_A2D_STROBE | ((channel & 2) << 2);
+			*pimctrl = ((channel & 2) << 2);
+			*pimctrl = AR_PIM_A2D_STROBE | ((channel & 1) << 3);
+			*pimctrl = ((channel & 1) << 3);
+
+			*pimctrl = AR_PIM_A2D_STROBE;
+
+			x = *pimctrl;
+			if(x & AR_PIM_DATA)
+				printf("\nOops A2D start bit not zero (%X)\n", x);
+
+			for(ii = 7; ii >= 0; ii--) {
+				*pimctrl = 0x00;
+				*pimctrl = AR_PIM_A2D_STROBE;
+				x = *pimctrl;
+				if(x & AR_PIM_DATA)
+					ctype |= 1 << ii;
+			}
+		}
+	}
+	TRC(printf("\nPIM val %x, ctype %x, %d\n", val, ctype, ctype));
+	*pimctrl = AR_PIM_MODEG;
+	*pimctrl = AR_PIM_MODEG | AR_PIM_AUTO_LED;
+	if(ctype > 255)
+		return(AR_IFACE_UNKNOWN);
+	if(ctype > 239)
+		return(AR_IFACE_V_35);
+	if(ctype > 207)
+		return(AR_IFACE_EIA_232);
+	if(ctype > 178)
+		return(AR_IFACE_X_21);
+	if(ctype > 150)
+		return(AR_IFACE_EIA_530);
+	if(ctype > 25)
+		return(AR_IFACE_UNKNOWN);
+	if(ctype > 7)
+		return(AR_IFACE_LOOPBACK);
+	return(AR_IFACE_UNKNOWN);
 }
 
 /*
@@ -748,9 +948,8 @@ ar_down(struct ar_softc *sc)
  * and fill in the pointers.
  */
 static void
-arc_init(struct isa_device *id)
+arc_init(struct ar_hardc *hc)
 {
-	struct ar_hardc *hc = &ar_hardc[id->id_unit];
 	struct ar_softc *sc;
 	int x;
 	u_int chanmem;
@@ -768,55 +967,87 @@ arc_init(struct isa_device *id)
 	hc->txc_dtr[1] = AR_TXC_DTR_DTR0 | AR_TXC_DTR_DTR1;
 	hc->txc_dtr_off[0] = AR_TXC_DTR0;
 	hc->txc_dtr_off[1] = AR_TXC_DTR2;
+	if(hc->bustype == AR_BUS_PCI) {
+		hc->txc_dtr_off[0] *= 4;
+		hc->txc_dtr_off[1] *= 4;
+	}
 
 	/*
 	 * reset the card and wait at least 1uS.
 	 */
-	outb(hc->iobase + AR_TXC_DTR0, ~AR_TXC_DTR_NOTRESET & hc->txc_dtr[0]);
+	if(hc->bustype == AR_BUS_PCI)
+		hc->orbase[AR_TXC_DTR0 * 4] = ~AR_TXC_DTR_NOTRESET &
+			hc->txc_dtr[0];
+	else
+		outb(hc->iobase + AR_TXC_DTR0, ~AR_TXC_DTR_NOTRESET &
+			hc->txc_dtr[0]);
 	DELAY(2);
-	outb(hc->iobase + AR_TXC_DTR0, hc->txc_dtr[0]);
+	if(hc->bustype == AR_BUS_PCI)
+		hc->orbase[AR_TXC_DTR0 * 4] = hc->txc_dtr[0];
+	else
+		outb(hc->iobase + AR_TXC_DTR0, hc->txc_dtr[0]);
 
-	/*
-	 * Configure the card.
-	 * Mem address, irq, 
-	 */
-	mar = kvtop(id->id_maddr) >> 16;
-	isr = irqtable[ffs(id->id_irq) - 1] << 1;
-	if(isr == 0)
-		printf("ar%d: Warning illegal interrupt %d\n",
-			id->id_unit, ffs(id->id_irq) - 1);
-	isr = isr | ((kvtop(id->id_maddr) & 0xc000) >> 10);
+	if(hc->bustype == AR_BUS_ISA) {
+		/*
+		 * Configure the card.
+		 * Mem address, irq, 
+		 */
+		mar = kvtop(hc->mem_start) >> 16;
+		isr = irqtable[ffs(hc->isa_irq) - 1] << 1;
+		if(isr == 0)
+			printf("ar%d: Warning illegal interrupt %d\n",
+				hc->cunit, ffs(hc->isa_irq) - 1);
+		isr = isr | ((kvtop(hc->mem_start) & 0xc000) >> 10);
 
-	hc->sca = (sca_regs *)hc->mem_start;
+		hc->sca[0] = (sca_regs *)hc->mem_start;
+		hc->sca[1] = (sca_regs *)hc->mem_start;
 
-	outb(hc->iobase + AR_MEM_SEL, mar);
-	outb(hc->iobase + AR_INT_SEL, isr | AR_INTS_CEN);
+		outb(hc->iobase + AR_MEM_SEL, mar);
+		outb(hc->iobase + AR_INT_SEL, isr | AR_INTS_CEN);
+	}
+
+	if(hc->bustype == AR_BUS_PCI && hc->interface[0] == AR_IFACE_PIM)
+		for(x = 0; x < hc->numports; x++)
+			hc->interface[x] = ar_read_pim_iface(hc, x);
 
 	/*
 	 * Set the TX clock direction and enable TX.
 	 */
-	switch(hc->interface) {
-	case AR_IFACE_V_35:
-		hc->txc_dtr[0] |= AR_TXC_DTR_TX0 | AR_TXC_DTR_TX1 |
-				  AR_TXC_DTR_TXCS0 | AR_TXC_DTR_TXCS1;
-		hc->txc_dtr[1] |= AR_TXC_DTR_TX0 | AR_TXC_DTR_TX1 |
-				  AR_TXC_DTR_TXCS0 | AR_TXC_DTR_TXCS1;
-		break;
-	case AR_IFACE_EIA_530:
-	case AR_IFACE_COMBO:
-	case AR_IFACE_X_21:
-		hc->txc_dtr[0] |= AR_TXC_DTR_TX0 | AR_TXC_DTR_TX1;
-		hc->txc_dtr[1] |= AR_TXC_DTR_TX0 | AR_TXC_DTR_TX1;
+	for(x=0;x<hc->numports;x++) {
+		switch(hc->interface[x]) {
+		case AR_IFACE_V_35:
+			hc->txc_dtr[x / NCHAN] |= (x % NCHAN == 0) ?
+			    AR_TXC_DTR_TX0 : AR_TXC_DTR_TX1;
+			hc->txc_dtr[x / NCHAN] |= (x % NCHAN == 0) ?
+			    AR_TXC_DTR_TXCS0 : AR_TXC_DTR_TXCS1;
+			break;
+		case AR_IFACE_EIA_530:
+		case AR_IFACE_COMBO:
+		case AR_IFACE_X_21:
+			hc->txc_dtr[x / NCHAN] |= (x % NCHAN == 0) ?
+			    AR_TXC_DTR_TX0 : AR_TXC_DTR_TX1;
+			break;
+		}
 	}
-	outb(hc->iobase + AR_TXC_DTR0, hc->txc_dtr[0]);
-	if(hc->numports > NCHAN)
-		outb(hc->iobase + AR_TXC_DTR2, hc->txc_dtr[1]);
+
+	if(hc->bustype == AR_BUS_PCI)
+		hc->orbase[AR_TXC_DTR0 * 4] = hc->txc_dtr[0];
+	else
+		outb(hc->iobase + AR_TXC_DTR0, hc->txc_dtr[0]);
+	if(hc->numports > NCHAN) {
+		if(hc->bustype == AR_BUS_PCI)
+			hc->orbase[AR_TXC_DTR2 * 4] = hc->txc_dtr[1];
+		else
+			outb(hc->iobase + AR_TXC_DTR2, hc->txc_dtr[1]);
+	}
 
 	chanmem = hc->memsize / hc->numports;
 	next = 0;
 
 	for(x=0;x<hc->numports;x++, sc++) {
 		int blk;
+
+		sc->sca = hc->sca[x / NCHAN];
 
 		for(blk = 0; blk < AR_TX_BLOCKS; blk++) {
 			sc->block[blk].txdesc = next;
@@ -850,7 +1081,14 @@ arc_init(struct isa_device *id)
 		sc->rxend = next + bufmem;
 		sc->rxmax = (sc->rxend - sc->rxstart) / AR_BUF_SIZ;
 		next += bufmem;
+		TRC(printf("ar%d: rxdesc %x, rxstart %x, "
+			   "rxend %x, rxmax %d\n",
+			   x, sc->rxdesc, sc->rxstart, sc->rxend, sc->rxmax));
 	}
+
+	if(hc->bustype == AR_BUS_PCI)
+		hc->orbase[AR_PIMCTRL] = AR_PIM_MODEG | AR_PIM_AUTO_LED;
+
 }
 
 
@@ -864,9 +1102,12 @@ arc_init(struct isa_device *id)
 static void
 ar_init_sca(struct ar_hardc *hc, int scano)
 {
-	sca_regs *sca = hc->sca;
+	sca_regs *sca;
 
-	ARC_SET_SCA(hc->iobase, scano);
+	sca = hc->sca[scano];
+
+	if(hc->bustype == AR_BUS_ISA)
+		ARC_SET_SCA(hc->iobase, scano);
 
 	/*
 	 * Do the wait registers.
@@ -901,8 +1142,21 @@ ar_init_sca(struct ar_hardc *hc, int scano)
 	 *
 	 * Enable all dma channels.
 	 */
-	sca->pcr = SCA_PCR_PR2;
-	sca->dmer = SCA_DMER_EN;
+	if(hc->bustype == AR_BUS_PCI) {
+		u_char *t;
+
+		/*
+		 * Stupid problem with the PCI interface chip that break
+		 * things.
+		 * XXX
+		 */
+		t = (u_char *)sca;
+		t[AR_PCI_SCA_PCR] = SCA_PCR_PR2;
+		t[AR_PCI_SCA_DMER] = SCA_DMER_EN;
+	} else {
+		sca->pcr = SCA_PCR_PR2;
+		sca->dmer = SCA_DMER_EN;
+	}
 }
 
 
@@ -914,9 +1168,12 @@ ar_init_sca(struct ar_hardc *hc, int scano)
 static void
 ar_init_msci(struct ar_softc *sc)
 {
-	msci_channel *msci = &sc->hc->sca->msci[sc->scachan];
+	msci_channel *msci;
 
-	ARC_SET_SCA(sc->hc->iobase, sc->scano);
+	msci = &sc->sca->msci[sc->scachan];
+
+	if(sc->hc->bustype == AR_BUS_ISA)
+		ARC_SET_SCA(sc->hc->iobase, sc->scano);
 
 	msci->cmd = SCA_CMD_RESET;
 
@@ -938,7 +1195,7 @@ ar_init_msci(struct ar_softc *sc)
 	 * For now all interfaces are programmed to use the RX clock for
 	 * the TX clock.
 	 */
-	switch(sc->hc->interface) {
+	switch(sc->hc->interface[sc->subunit]) {
 	case AR_IFACE_V_35:
 		msci->rxs = SCA_RXS_CLK_RXC0 | SCA_RXS_DIV1;
 		msci->txs = SCA_TXS_CLK_TXC | SCA_TXS_DIV1;
@@ -980,29 +1237,36 @@ ar_init_msci(struct ar_softc *sc)
 static void
 ar_init_rx_dmac(struct ar_softc *sc)
 {
-	dmac_channel *dmac = &sc->hc->sca->dmac[DMAC_RXCH(sc->scachan)];
+	dmac_channel *dmac;
 	sca_descriptor *rxd;
 	u_int rxbuf;
 	u_int rxda;
 	u_int rxda_d;
+	int x = 0;
 
-	ARC_SET_MEM(sc->hc->iobase, sc->rxdesc);
+	dmac = &sc->sca->dmac[DMAC_RXCH(sc->scachan)];
 
-	rxd = (sca_descriptor *)(sc->hc->mem_start + (sc->rxdesc&ARC_WIN_MSK));
-	rxda_d = (u_int)sc->hc->mem_start - (sc->rxdesc & ~ARC_WIN_MSK);
+	if(sc->hc->bustype == AR_BUS_ISA)
+		ARC_SET_MEM(sc->hc->iobase, sc->rxdesc);
+
+	rxd = (sca_descriptor *)(sc->hc->mem_start + (sc->rxdesc&sc->hc->winmsk));
+	rxda_d = (u_int)sc->hc->mem_start - (sc->rxdesc & ~sc->hc->winmsk);
 
 	for(rxbuf=sc->rxstart;rxbuf<sc->rxend;rxbuf += AR_BUF_SIZ, rxd++) {
 		rxda = (u_int)&rxd[1] - rxda_d;
 		rxd->cp = (u_short)(rxda & 0xfffful);
 
-		TRC(printf("Descrp %p, data pt %p, data long %lx, ",
-			&sc->rxdesc[x], rxinuse->buf, rxbuf));
+		x++;
+		if(x < 6)
+		TRC(printf("Descrp %p, data pt %x, data %x, ",
+			rxd, rxda, rxbuf));
 
 		rxd->bp = (u_short)(rxbuf & 0xfffful);
 		rxd->bpb = (u_char)((rxbuf >> 16) & 0xff);
 		rxd->len = 0;
 		rxd->stat = 0xff; /* The sca write here when it is finished. */
 
+		if(x < 6)
 		TRC(printf("bpb %x, bp %x.\n", rxd->bpb, rxd->bp));
 	}
 	rxd--;
@@ -1010,7 +1274,8 @@ ar_init_rx_dmac(struct ar_softc *sc)
 
 	sc->rxhind = 0;
 
-	ARC_SET_SCA(sc->hc->iobase, sc->scano);
+	if(sc->hc->bustype == AR_BUS_ISA)
+		ARC_SET_SCA(sc->hc->iobase, sc->scano);
 
 	dmac->dsr = 0;    /* Disable DMA transfer */
 	dmac->dcr = SCA_DCR_ABRT;
@@ -1037,7 +1302,7 @@ ar_init_rx_dmac(struct ar_softc *sc)
 static void
 ar_init_tx_dmac(struct ar_softc *sc)
 {
-	dmac_channel *dmac = &sc->hc->sca->dmac[DMAC_TXCH(sc->scachan)];
+	dmac_channel *dmac;
 	struct buf_block *blkp;
 	int blk;
 	sca_descriptor *txd;
@@ -1045,14 +1310,17 @@ ar_init_tx_dmac(struct ar_softc *sc)
 	u_int txda;
 	u_int txda_d;
 
-	ARC_SET_MEM(sc->hc->iobase, sc->block[0].txdesc);
+	dmac = &sc->sca->dmac[DMAC_TXCH(sc->scachan)];
+
+	if(sc->hc->bustype == AR_BUS_ISA)
+		ARC_SET_MEM(sc->hc->iobase, sc->block[0].txdesc);
 
 	for(blk = 0; blk < AR_TX_BLOCKS; blk++) {
 		blkp = &sc->block[blk];
 		txd = (sca_descriptor *)(sc->hc->mem_start +
-					(blkp->txdesc&ARC_WIN_MSK));
+					(blkp->txdesc&sc->hc->winmsk));
 		txda_d = (u_int)sc->hc->mem_start -
-				(blkp->txdesc & ~ARC_WIN_MSK);
+				(blkp->txdesc & ~sc->hc->winmsk);
 
 		txbuf=blkp->txstart;
 		for(;txbuf<blkp->txend;txbuf += AR_BUF_SIZ, txd++) {
@@ -1071,11 +1339,12 @@ ar_init_tx_dmac(struct ar_softc *sc)
 
 		blkp->txtail = (u_int)txd - (u_int)sc->hc->mem_start;
 		TRC(printf("TX Descriptors start %x, end %x.\n",
-			blkp->txhead,
+			blkp->txdesc,
 			blkp->txtail));
 	}
 
-	ARC_SET_SCA(sc->hc->iobase, sc->scano);
+	if(sc->hc->bustype == AR_BUS_ISA)
+		ARC_SET_SCA(sc->hc->iobase, sc->scano);
 
 	dmac->dsr = 0; /* Disable DMA */
 	dmac->dcr = SCA_DCR_ABRT;
@@ -1102,17 +1371,21 @@ ar_packet_avail(struct ar_softc *sc,
 		    int *len,
 		    u_char *rxstat)
 {
+	dmac_channel *dmac;
 	sca_descriptor *rxdesc;
 	sca_descriptor *endp;
 	sca_descriptor *cda;
 
-	ARC_SET_SCA(sc->hc->iobase, sc->scano);
+	if(sc->hc->bustype == AR_BUS_ISA)
+		ARC_SET_SCA(sc->hc->iobase, sc->scano);
+	dmac = &sc->sca->dmac[DMAC_RXCH(sc->scachan)];
 	cda = (sca_descriptor *)(sc->hc->mem_start +
-	      (sc->hc->sca->dmac[DMAC_RXCH(sc->scachan)].cda &  ARC_WIN_MSK));
+	      ((((u_int)dmac->sarb << 16) + dmac->cda) & sc->hc->winmsk));
 
-	ARC_SET_MEM(sc->hc->iobase, sc->rxdesc);
+	if(sc->hc->bustype == AR_BUS_ISA)
+		ARC_SET_MEM(sc->hc->iobase, sc->rxdesc);
 	rxdesc = (sca_descriptor *)
-			(sc->hc->mem_start + (sc->rxdesc & ARC_WIN_MSK));
+			(sc->hc->mem_start + (sc->rxdesc & sc->hc->winmsk));
 	endp = rxdesc;
 	rxdesc = &rxdesc[sc->rxhind];
 	endp = &endp[sc->rxmax];
@@ -1124,15 +1397,15 @@ ar_packet_avail(struct ar_softc *sc,
 
 		if(rxdesc->stat & SCA_DESC_EOM) {
 			*rxstat = rxdesc->stat;
-			TRC(printf("ar%d: PKT AVAIL len %d, %x, bufs %u.\n",
-				sc->unit, *len, *rxstat, x));
+			TRC(printf("ar%d: PKT AVAIL len %d, %x.\n",
+				sc->unit, *len, *rxstat));
 			return 1;
 		}
 
 		rxdesc++;
 		if(rxdesc == endp)
 			rxdesc = (sca_descriptor *)
-			       (sc->hc->mem_start + (sc->rxdesc & ARC_WIN_MSK));
+			       (sc->hc->mem_start + (sc->rxdesc & sc->hc->winmsk));
 	}
 
 	*len = 0;
@@ -1161,20 +1434,22 @@ ar_copy_rxbuf(struct mbuf *m,
 	rxmax = sc->rxstart + (sc->rxmax * AR_BUF_SIZ);
 
 	rxdesc = (sca_descriptor *)
-			(sc->hc->mem_start + (sc->rxdesc & ARC_WIN_MSK));
+			(sc->hc->mem_start + (sc->rxdesc & sc->hc->winmsk));
 	rxdesc = &rxdesc[sc->rxhind];
 
 	while(len) {
 		tlen = (len < AR_BUF_SIZ) ? len : AR_BUF_SIZ;
-		ARC_SET_MEM(sc->hc->iobase, rxdata);
-		bcopy(sc->hc->mem_start + (rxdata & ARC_WIN_MSK), 
+		if(sc->hc->bustype == AR_BUS_ISA)
+			ARC_SET_MEM(sc->hc->iobase, rxdata);
+		bcopy(sc->hc->mem_start + (rxdata & sc->hc->winmsk), 
 			mtod(m, caddr_t) + off,
 			tlen);
 
 		off += tlen;
 		len -= tlen;
 
-		ARC_SET_MEM(sc->hc->iobase, sc->rxdesc);
+		if(sc->hc->bustype == AR_BUS_ISA)
+			ARC_SET_MEM(sc->hc->iobase, sc->rxdesc);
 		rxdesc->len = 0;
 		rxdesc->stat = 0xff;
 
@@ -1183,7 +1458,7 @@ ar_copy_rxbuf(struct mbuf *m,
 		if(rxdata == rxmax) {
 			rxdata = sc->rxstart;
 			rxdesc = (sca_descriptor *)
-				(sc->hc->mem_start + (sc->rxdesc & ARC_WIN_MSK));
+				(sc->hc->mem_start + (sc->rxdesc & sc->hc->winmsk));
 		}
 	}
 }
@@ -1195,24 +1470,28 @@ ar_copy_rxbuf(struct mbuf *m,
 static void
 ar_eat_packet(struct ar_softc *sc, int single)
 {
+	dmac_channel *dmac;
 	sca_descriptor *rxdesc;
 	sca_descriptor *endp;
 	sca_descriptor *cda;
 	int loopcnt = 0;
 	u_char stat;
 
-	ARC_SET_SCA(sc->hc->iobase, sc->scano);
+	if(sc->hc->bustype == AR_BUS_ISA)
+		ARC_SET_SCA(sc->hc->iobase, sc->scano);
+	dmac = &sc->sca->dmac[DMAC_RXCH(sc->scachan)];
 	cda = (sca_descriptor *)(sc->hc->mem_start +
-	      (sc->hc->sca->dmac[DMAC_RXCH(sc->scachan)].cda &  ARC_WIN_MSK));
+	      ((((u_int)dmac->sarb << 16) + dmac->cda) & sc->hc->winmsk));
 
 	/*
 	 * Loop until desc->stat == (0xff || EOM)
 	 * Clear the status and length in the descriptor.
 	 * Increment the descriptor.
 	 */
-	ARC_SET_MEM(sc->hc->iobase, sc->rxdesc);
+	if(sc->hc->bustype == AR_BUS_ISA)
+		ARC_SET_MEM(sc->hc->iobase, sc->rxdesc);
 	rxdesc = (sca_descriptor *)
-		(sc->hc->mem_start + (sc->rxdesc & ARC_WIN_MSK));
+		(sc->hc->mem_start + (sc->rxdesc & sc->hc->winmsk));
 	endp = rxdesc;
 	rxdesc = &rxdesc[sc->rxhind];
 	endp = &endp[sc->rxmax];
@@ -1239,7 +1518,7 @@ ar_eat_packet(struct ar_softc *sc, int single)
 		sc->rxhind++;
 		if(rxdesc == endp) {
 			rxdesc = (sca_descriptor *)
-			       (sc->hc->mem_start + (sc->rxdesc & ARC_WIN_MSK));
+			       (sc->hc->mem_start + (sc->rxdesc & sc->hc->winmsk));
 			sc->rxhind = 0;
 		}
 
@@ -1250,12 +1529,13 @@ ar_eat_packet(struct ar_softc *sc, int single)
 	/*
 	 * Update the eda to the previous descriptor.
 	 */
-	ARC_SET_SCA(sc->hc->iobase, sc->scano);
+	if(sc->hc->bustype == AR_BUS_ISA)
+		ARC_SET_SCA(sc->hc->iobase, sc->scano);
 
 	rxdesc = (sca_descriptor *)sc->rxdesc;
 	rxdesc = &rxdesc[(sc->rxhind + sc->rxmax - 2 ) % sc->rxmax];
 
-	sc->hc->sca->dmac[DMAC_RXCH(sc->scachan)].eda = 
+	sc->sca->dmac[DMAC_RXCH(sc->scachan)].eda = 
 			(u_short)((u_int)rxdesc & 0xffff);
 }
 
@@ -1274,6 +1554,7 @@ ar_get_packets(struct ar_softc *sc)
 	u_char rxstat;
 
 	while(ar_packet_avail(sc, &len, &rxstat)) {
+		TRC(printf("apa: len %d, rxstat %x\n", len, rxstat));
 		if(((rxstat & SCA_DESC_ERRORS) == 0) && (len < MCLBYTES)) {
 			MGETHDR(m, M_DONTWAIT, MT_DATA);
 			if(m == NULL) {
@@ -1303,13 +1584,14 @@ ar_get_packets(struct ar_softc *sc)
 			i = (len + AR_BUF_SIZ - 1) / AR_BUF_SIZ;
 			sc->rxhind = (sc->rxhind + i) % sc->rxmax;
 
-			ARC_SET_SCA(sc->hc->iobase, sc->scano);
+			if(sc->hc->bustype == AR_BUS_ISA)
+				ARC_SET_SCA(sc->hc->iobase, sc->scano);
 
 			rxdesc = (sca_descriptor *)sc->rxdesc;
 			rxdesc =
 			     &rxdesc[(sc->rxhind + sc->rxmax - 2 ) % sc->rxmax];
 
-			sc->hc->sca->dmac[DMAC_RXCH(sc->scachan)].eda = 
+			sc->sca->dmac[DMAC_RXCH(sc->scachan)].eda = 
 				(u_short)((u_int)rxdesc & 0xffff);
 		} else {
 			int tries = 5;
@@ -1329,7 +1611,8 @@ ar_get_packets(struct ar_softc *sc)
 
 			sc->ifsppp.pp_if.if_ierrors++;
 
-			ARC_SET_SCA(sc->hc->iobase, sc->scano);
+			if(sc->hc->bustype == AR_BUS_ISA)
+				ARC_SET_SCA(sc->hc->iobase, sc->scano);
 
 			TRCL(printf("ar%d: Receive error chan %d, "
 					"stat %x, msci st3 %x,"
@@ -1337,11 +1620,11 @@ ar_get_packets(struct ar_softc *sc)
 					sc->unit,
 					sc->scachan, 
 					rxstat,
-					sc->hc->sca->msci[sc->scachan].st3,
+					sc->sca->msci[sc->scachan].st3,
 					sc->rxhind,
-					sc->hc->sca->dmac[
+					sc->sca->dmac[
 						DMAC_RXCH(sc->scachan)].cda,
-					sc->hc->sca->dmac[
+					sc->sca->dmac[
 						DMAC_RXCH(sc->scachan)].eda));
 		}
 	}
@@ -1362,9 +1645,10 @@ ar_dmac_intr(struct ar_hardc *hc, int scano, u_char isr1)
 	u_char dotxstart = isr1;
 	int mch;
 	struct ar_softc *sc;
-	sca_regs *sca = hc->sca;
+	sca_regs *sca;
 	dmac_channel *dmac;
 
+	sca = hc->sca[scano];
 	mch = 0;
 	/*
 	 * Shortcut if there is no interrupts for dma channel 0 or 1
@@ -1383,7 +1667,8 @@ ar_dmac_intr(struct ar_hardc *hc, int scano, u_char isr1)
 		if(isr1 & 0x0C) {
 			dmac = &sca->dmac[DMAC_TXCH(mch)];
 
-			ARC_SET_SCA(hc->iobase, scano);
+			if(hc->bustype == AR_BUS_ISA)
+				ARC_SET_SCA(hc->iobase, scano);
 
 			dsr = dmac->dsr;
 			dmac->dsr = dsr;
@@ -1435,7 +1720,8 @@ ar_dmac_intr(struct ar_hardc *hc, int scano, u_char isr1)
 		if(isr1 & 0x03) {
 			dmac = &sca->dmac[DMAC_RXCH(mch)];
 
-			ARC_SET_SCA(hc->iobase, scano);
+			if(hc->bustype == AR_BUS_ISA)
+				ARC_SET_SCA(hc->iobase, scano);
 
 			dsr = dmac->dsr;
 			dmac->dsr = dsr;
@@ -1453,7 +1739,8 @@ ar_dmac_intr(struct ar_hardc *hc, int scano, u_char isr1)
 					sca_descriptor *rxdesc;
 					int i;
 
-					ARC_SET_SCA(hc->iobase, scano);
+					if(hc->bustype == AR_BUS_ISA)
+						ARC_SET_SCA(hc->iobase, scano);
 					printf("AR: RXINTR isr1 %x, dsr %x, "
 					       "no data %d pkts, orxhind %d.\n",
 					       dotxstart,
@@ -1472,10 +1759,12 @@ ar_dmac_intr(struct ar_hardc *hc, int scano, u_char isr1)
 					       dmac->cda,
 					       dmac->eda);
 
-					ARC_SET_MEM(sc->hc->iobase, sc->rxdesc);
+					if(sc->hc->bustype == AR_BUS_ISA)
+						ARC_SET_MEM(sc->hc->iobase,
+						    sc->rxdesc);
 					rxdesc = (sca_descriptor *)
 						 (sc->hc->mem_start +
-						  (sc->rxdesc & ARC_WIN_MSK));
+						  (sc->rxdesc & sc->hc->winmsk));
 					rxdesc = &rxdesc[sc->rxhind];
 					for(i=0;i<3;i++,rxdesc++)
 						printf("AR: rxdesc->stat %x, "
@@ -1496,7 +1785,8 @@ ar_dmac_intr(struct ar_hardc *hc, int scano, u_char isr1)
 
 			/* Buffer overflow */
 			if(dsr & SCA_DSR_BOF) {
-				ARC_SET_SCA(hc->iobase, scano);
+				if(hc->bustype == AR_BUS_ISA)
+					ARC_SET_SCA(hc->iobase, scano);
 				printf("ar%d: RX DMA Buffer overflow, "
 					"rxpkts %lu, rxind %d, "
 					"cda %x, eda %x, dsr %x.\n",
@@ -1512,7 +1802,8 @@ ar_dmac_intr(struct ar_hardc *hc, int scano, u_char isr1)
 				 */
 				ar_eat_packet(sc, 0);
 				sc->ifsppp.pp_if.if_ierrors++;
-				ARC_SET_SCA(hc->iobase, scano);
+				if(hc->bustype == AR_BUS_ISA)
+					ARC_SET_SCA(hc->iobase, scano);
 				sca->msci[mch].cmd = SCA_CMD_RXMSGREJ;
 				dmac->dsr = SCA_DSR_DE;
 
