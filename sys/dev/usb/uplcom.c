@@ -89,6 +89,7 @@
 #include <sys/proc.h>
 #include <sys/vnode.h>
 #include <sys/poll.h>
+#include <sys/sysctl.h>
 
 #include <dev/usb/usb.h>
 #include <dev/usb/usbcdc.h>
@@ -101,11 +102,7 @@
 #include <dev/usb/ucomvar.h>
 
 #ifdef UPLCOM_DEBUG
-#include <sys/sysctl.h>
-
 static int	uplcomdebug = 1;
-
-SYSCTL_DECL(_debug_usb);
 SYSCTL_INT(_debug_usb, OID_AUTO, uplcom, CTLFLAG_RW,
 	   &uplcomdebug, 0, "uplcom debug level");
 

@@ -88,6 +88,7 @@
 #include <sys/proc.h>
 #include <sys/vnode.h>
 #include <sys/poll.h>
+#include <sys/sysctl.h>
 
 #include <dev/usb/usb.h>
 #include <dev/usb/usbcdc.h>
@@ -100,14 +101,9 @@
 #include <dev/usb/ucomvar.h>
 
 #ifdef UCOM_DEBUG
-#include <sys/sysctl.h>
-
 static int	ucomdebug = 1;
-
-SYSCTL_NODE(_debug, OID_AUTO, usb, CTLFLAG_RW, 0, "USB debugging");
 SYSCTL_INT(_debug_usb, OID_AUTO, ucom, CTLFLAG_RW,
 	   &ucomdebug, 0, "ucom debug level");
-
 #define DPRINTF(x)	do { \
 				if (ucomdebug) \
 					logprintf x; \
