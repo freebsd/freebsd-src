@@ -57,13 +57,12 @@ file vnodes should NOT be released on exit.
 .Sh LOCKS
 The directory,
 .Fa dvp
-is locked on entry.  The caller will unlock and release the directory
-on return.  The VOP routine should not try to unlock or release
-the directory.
+is locked on entry and should remain locked on return.
 The file
 .Fa vp
-is not locked on entry.  If the VOP routine locks it, it must remember
-to unlock it prior to returning.
+is not locked on entry and should be left unlocked on return.
+If the VOP routine locks the file, it must remember to unlock it
+prior to returning.
 .Sh RETURN VALUES
 Zero is returned if the file was linked successfully, otherwise an
 error is returned.
