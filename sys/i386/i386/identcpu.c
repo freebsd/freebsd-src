@@ -604,6 +604,15 @@ printcpuinfo(void)
 			"\037IA64"	/* CPU can execute IA64 instructions */
 			"\040PBE"	/* Pending Break Enable */
 			);
+
+			/*
+			 * If this CPU supports hyperthreading then mention
+			 * the number of logical CPU's it contains.
+			 */
+			if (cpu_feature & CPUID_HTT &&
+			    (cpuid_cpuinfo & CPUID_HTT_CORES) > 0x100)
+				printf("\n  Hyperthreading: %d logical CPUs",
+				    (cpuid_cpuinfo & CPUID_HTT_CORES) >> 16);
 		}
 		if (strcmp(cpu_vendor, "AuthenticAMD") == 0 &&
 		    nreg >= 0x80000001)
