@@ -489,8 +489,18 @@ ogetrlimit(td, uap)
 	PROC_LOCK(p);
 	lim_rlimit(p, uap->which, &rl);
 	PROC_UNLOCK(p);
-	olim.rlim_cur = rl.rlim_cur == -1 ? 0x7fffffff : rl.rlim_cur;
-	olim.rlim_max = rl.rlim_max == -1 ? 0x7fffffff : rl.rlim_max;
+
+	/*
+	 * XXX would be more correct to convert only RLIM_INFINITY to the
+	 * old RLIM_INFINITY and fail with EOVERFLOW for other larger
+	 * values.  Most 64->32 and 32->16 conversions, including not
+	 * unimportant ones of uids are even more broken than what we
+	 * do here (they blindly truncate).  We don't do this correctly
+	 * here since we have little experience with EOVERFLOW yet.
+	 * Elsewhere, getuid() can't fail...
+	 */
+	olim.rlim_cur = rl.rlim_cur > 0x7fffffff ? 0x7fffffff : rl.rlim_cur;
+	olim.rlim_max = rl.rlim_max > 0x7fffffff ? 0x7fffffff : rl.rlim_max;
 	error = copyout(&olim, uap->rlp, sizeof(olim));
 	return (error);
 }
@@ -712,9 +722,8 @@ calcru(p, up, sp, ip)
 	tu = (u_int64_t)tv.tv_sec * 1000000 + tv.tv_usec;
 	ptu = p->p_uu + p->p_su + p->p_iu;
 	if (tu < ptu || (int64_t)tu < 0) {
-		/* XXX no %qd in kernel.  Truncate. */
-		printf("calcru: negative time of %ld usec for pid %d (%s)\n",
-		   (long)tu, p->p_pid, p->p_comm);
+		printf("calcru: negative time of %jd usec for pid %d (%s)\n",
+		    (intmax_t)tu, p->p_pid, p->p_comm);
 		tu = ptu;
 	}
 
@@ -773,35 +782,33 @@ getrusage(td, uap)
 	register struct thread *td;
 	register struct getrusage_args *uap;
 {
-	struct proc *p = td->td_proc;
-	register struct rusage *rup;
-	int error = 0;
+	struct rusage ru;
+	struct proc *p;
 
-	mtx_lock(&Giant);
-
+	p = td->td_proc;
 	switch (uap->who) {
+
 	case RUSAGE_SELF:
-		rup = &p->p_stats->p_ru;
+		mtx_lock(&Giant);
 		mtx_lock_spin(&sched_lock);
-		calcru(p, &rup->ru_utime, &rup->ru_stime, NULL);
+		calcru(p, &p->p_stats->p_ru.ru_utime, &p->p_stats->p_ru.ru_stime,
+		    NULL);
 		mtx_unlock_spin(&sched_lock);
+		ru = p->p_stats->p_ru;
+		mtx_unlock(&Giant);
 		break;
 
 	case RUSAGE_CHILDREN:
-		rup = &p->p_stats->p_cru;
+		mtx_lock(&Giant);
+		ru = p->p_stats->p_cru;
+		mtx_unlock(&Giant);
 		break;
 
 	default:
-		rup = NULL;
-		error = EINVAL;
+		return (EINVAL);
 		break;
 	}
-	mtx_unlock(&Giant);
-	if (error == 0) {
-		/* XXX Unlocked access to p_stats->p_ru or p_cru. */
-		error = copyout(rup, uap->rusage, sizeof (struct rusage));
-	}
-	return(error);
+	return (copyout(&ru, uap->rusage, sizeof(struct rusage)));
 }
 
 void
