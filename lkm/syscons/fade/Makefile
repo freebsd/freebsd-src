@@ -1,6 +1,6 @@
-#	$Id$
+#	$Id: Makefile,v 1.1 1995/02/22 13:46:32 sos Exp $
 
-BINDIR=	${DESTDIR}/lkm
+BINDIR=	/lkm
 KMOD=	fade_saver_mod
 SRCS= 	fade_saver.c
 
