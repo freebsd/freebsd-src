@@ -526,7 +526,8 @@ dskread(void *buf, unsigned lba, unsigned nblk)
 		printf("Invalid %s\n", "partition");
 		return -1;
 	    }
-	    dsk.start = d->d_partitions[dsk.part].p_offset;
+	    dsk.start += d->d_partitions[dsk.part].p_offset;
+	    dsk.start -= d->d_partitions[RAW_PART].p_offset;
 	}
     }
     return drvread(buf, dsk.start + lba, nblk);
