@@ -44,38 +44,44 @@
 .Sh SYNOPSIS
 .Nm
 .Op Fl A
-.Ar disk
+.Op Fl f
+.Ar disk/file
 .Nm
 .Fl w
 .Op Fl \&An
 .Op Fl B Op Fl b Ar boot
 .Op Fl m Ar machine
-.Ar disk
+.Op Fl f
+.Ar disk/file
 .Op Ar type
 .Nm
 .Fl e
 .Op Fl \&An
 .Op Fl B Op Fl b Ar boot
 .Op Fl m Ar machine
-.Ar disk
+.Op Fl f
+.Ar disk/file
 .Nm
 .Fl R
 .Op Fl \&An
 .Op Fl B Op Fl b Ar boot
 .Op Fl m Ar machine
-.Ar disk protofile
+.Op Fl f
+.Ar disk/file protofile
 .Sh DESCRIPTION
 The
 .Nm
 utility
 installs, examines or modifies the
 .Bx
-label on a disk partition.
+label on a disk partition, or on a file containing a partition image.
 In addition,
 .Nm
 can install bootstrap code.
 .Ss Disk Device Name
-When specifying the device,
+When specifying the device (i.e. when the
+.Fl f
+option is not used), 
 the
 .Pa /dev/
 path prefix may be omitted;
@@ -91,8 +97,14 @@ label.
 If the option is not given, suitable values are set for these fields.
 .Pp
 The
+.Fl f
+option tells
+.Nm
+that the program will operate on a file instead of a disk partition.
+.Pp
+The
 .Fl n
-stops the
+option stops the
 .Nm
 program right before the disk would have been modified, and displays
 the result instead of writing it.
