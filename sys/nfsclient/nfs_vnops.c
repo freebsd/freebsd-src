@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)nfs_vnops.c	8.16 (Berkeley) 5/27/95
- * $Id: nfs_vnops.c,v 1.112 1998/11/13 02:39:09 msmith Exp $
+ * $Id: nfs_vnops.c,v 1.113 1998/11/13 22:58:48 msmith Exp $
  */
 
 
@@ -248,7 +248,7 @@ struct nfsmount *nfs_iodmount[NFS_MAXASYNCDAEMON];
 int nfs_numasync = 0;
 #define	DIRHDSIZ	(sizeof (struct dirent) - (MAXNAMLEN + 1))
 
-static int	nfsaccess_cache_timeout;
+static int	nfsaccess_cache_timeout = 2;
 SYSCTL_INT(_vfs_nfs, OID_AUTO, access_cache_timeout, CTLFLAG_RW, 
 	   &nfsaccess_cache_timeout, 0, "NFS ACCESS cache timeout");
 
@@ -259,23 +259,6 @@ SYSCTL_INT(_vfs_nfs, OID_AUTO, access_cache_hits, CTLFLAG_RD,
 static int	nfsaccess_cache_fills;
 SYSCTL_INT(_vfs_nfs, OID_AUTO, access_cache_fills, CTLFLAG_RD, 
 	   &nfsaccess_cache_fills, 0, "NFS ACCESS cache fill count");
-
-/*
- * Compare two ucred structures, returns zero on equality, nonzero
- * otherwise.
- */
-static int
-nfsa_ucredcmp(struct ucred *c1, struct ucred *c2)
-{
-    int		i;
-    
-    if ((c1->cr_uid != c2->cr_uid) || (c1->cr_ngroups != c2->cr_ngroups))
-	return(1);
-    for (i = 0; i < c1->cr_ngroups; i++)
-	if (c1->cr_groups[i] != c2->cr_groups[i])
-	    return(1);
-    return(0);
-}
 
 /*
  * nfs access vnode op.
@@ -352,13 +335,18 @@ nfs_access(ap)
 			wmode = mode;
 		}
 
-		/* do we have a cached result? */
+		/*
+		 * Does our cached result allow us to give a definite yes to
+		 * this request?
+		 */
 		if ((time_second < (np->n_modestamp + nfsaccess_cache_timeout)) &&
-		    !nfsa_ucredcmp(ap->a_cred, &np->n_modecred)) {
+		    (ap->a_cred->cr_uid == np->n_modeuid) &&
+		    ((np->n_mode & mode) == mode)) {
 			nfsaccess_cache_hits++;
-			if ((np->n_mode & mode) != mode)
-				error = EACCES;
 		} else {
+			/*
+			 * Either a no, or a don't know.  Go to the wire.
+			 */
 			nfsstats.rpccnt[NFSPROC_ACCESS]++;
 			nfsm_reqhead(vp, NFSPROC_ACCESS, NFSX_FH(v3) + NFSX_UNSIGNED);
 			nfsm_fhtom(vp, v3);
@@ -380,7 +368,7 @@ nfs_access(ap)
 					/* cache the result */
 					nfsaccess_cache_fills++;
 					np->n_mode = rmode;
-					np->n_modecred = *ap->a_cred;
+					np->n_modeuid = ap->a_cred->cr_uid;
 					np->n_modestamp = time_second;
 				}
 			}
@@ -700,11 +688,6 @@ nfs_setattr(ap)
 		 ap->a_p, 1)) == EINTR)
 		return (error);
 	error = nfs_setattrrpc(vp, vap, ap->a_cred, ap->a_p);
-	/* 
-	 * Attributes on server may have changed, make no assumptions about 
-	 * the server's reaction to these changes.
-	 */
-	np->n_modestamp = 0;
 	if (error && vap->va_size != VNOVAL) {
 		np->n_size = np->n_vattr.va_size = tsize;
 		vnode_pager_setsize(vp, np->n_size);
@@ -1562,7 +1545,6 @@ nfs_remove(ap)
 		error = nfs_sillyrename(dvp, vp, cnp);
 	zfree(namei_zone, cnp->cn_pnbuf);
 	np->n_attrstamp = 0;
-	np->n_modestamp = 0;
 	return (error);
 }
 
@@ -1666,18 +1648,6 @@ nfs_rename(ap)
 			cache_purge(tdvp);
 		cache_purge(fdvp);
 	}
-
-	/* 
-	 * We can't presume too much on the server's access control method(s),
-	 * and it may use rules based on filenames or locations.  Moving to a
-	 * more restrictive location would be harmless, but moving to a less
-	 * restrictive location you would be forced to wait for the cache
-	 * entry to time out.
-	 */
-	if (fvp->v_data)
-		VTONFS(fvp)->n_modestamp = 0;
-	if (tvp != NULL)
-		VTONFS(tvp)->n_modestamp = 0;
 
 out:
 	if (tdvp == tvp)
