@@ -195,11 +195,9 @@ psmprobe(struct isa_device *dvp)
 #endif
 	psm_poll_status(ioport);
 	outb(ioport+PSM_CNTRL, PSM_AUX_TEST);
-#if 0
 	psm_poll_status(ioport);
+#if 0
 	outb(ioport+PSM_CNTRL, 0xaa);
-#else
-	DELAY(1000);
 #endif
 	c = inb(ioport+PSM_DATA);
 	if(c & 0x04) {
