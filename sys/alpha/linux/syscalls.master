@@ -6,7 +6,8 @@
 
 ; Columns: number type nargs namespc name alt{name,tag,rtyp}/comments
 ;	number	system call number, must be in order
-;	type	one of STD, OBSOL, UNIMPL, COMPAT
+;	type	one of STD, OBSOL, UNIMPL, COMPAT, CPT_NOA, LIBCOMPAT,
+;		NODEF, NOARGS, NOPROTO
 ;	namespc one of POSIX, BSD, STD, NOHIDE (I dont care :-) -Peter
 ;	name	psuedo-prototype of syscall routine
 ;		If one of the following alts is different, then all appear:
@@ -18,7 +19,12 @@
 ; types:
 ;	STD	always included
 ;	COMPAT	included on COMPAT #ifdef
+;	CPT_NOA	combines COMPAT with NOARGS
 ;	LIBCOMPAT included on COMPAT #ifdef, and placed in syscall.h
+;	NOARGS	same as STD except do not create structure in sys/sysproto.h
+;	NODEF	??
+;	NOPROTO	same as STD except do not create structure or function in
+;		sys/sysproto.h
 ;	OBSOL	obsolete, not included in system, only specifies name
 ;	UNIMPL	not implemented, placeholder only
 
@@ -145,7 +151,8 @@
 97	STD	LINUX	{ int osf1_socket(int domain, int type, \
 			    int protocol); }
 98	NOPROTO	LINUX	{ int connect(int s, caddr_t name, int namelen); }
-99	NOPROTO	LINUX	{ int oaccept(int s, caddr_t name, int *anamelen); }
+99	NOPROTO	LINUX	{ int oaccept(int s, caddr_t name, int *anamelen); } \
+			    accept accept_args int
 100	UNIMPL	LINUX
 101	NOPROTO	LINUX	{ int osend(int s, caddr_t buf, int len, \
 			    int flags); }
@@ -180,7 +187,8 @@
 124	NOPROTO	LINUX	{ int fchmod(int fd, int mode); }
 125	NOPROTO	LINUX	{ int orecvfrom(int s, caddr_t buf, \
 			    size_t len, int flags, caddr_t from, \
-			    int *fromlenaddr); }
+			    int *fromlenaddr); } \
+			    recvfrom recvfrom_args int
 126	NOPROTO	LINUX	{ int setreuid(int ruid, int euid); }
 127	NOPROTO	LINUX	{ int setregid(int rgid, int egid); }
 128	STD	LINUX	{ int linux_rename(char *from, char *to); }
@@ -208,7 +216,8 @@
 147	NOPROTO	LINUX	{ int setsid(void); }
 148	STD	LINUX	{ int linux_quotactl(void); }
 149	UNIMPL	LINUX
-150	NOPROTO	LINUX	{ int ogetsockname(int fdec, caddr_t asa, int *alen);}
+150	NOPROTO	LINUX	{ int ogetsockname(int fdec, caddr_t asa, int *alen);} \
+			    getsockname getsockname_args int
 151	UNIMPL	LINUX
 152	UNIMPL	LINUX
 153	UNIMPL	LINUX
