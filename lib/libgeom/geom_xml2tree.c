@@ -217,7 +217,7 @@ EndElement(void *userData, const char *name)
 	}
 
 	if (p != NULL) {
-printf("<<<%s>>>\n", p);
+		printf("Unexpected XML: name=%s data=\"%s\"\n", name, p);
 		free(p);
 	}
 
@@ -267,7 +267,7 @@ CharData(void *userData , const XML_Char *s , int len)
 }
 
 struct gident *
-geom_lookupid(struct gmesh *gmp, void *id)
+geom_lookupid(struct gmesh *gmp, const void *id)
 {
 	struct gident *gip;
 

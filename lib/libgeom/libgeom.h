@@ -121,7 +121,7 @@ struct gprovider {
 	struct gconf		config;
 };
 
-struct gident * geom_lookupid(struct gmesh *gmp, void *id);
+struct gident * geom_lookupid(struct gmesh *gmp, const void *id);
 int geom_xml2tree(struct gmesh *gmp, char *p);
 int geom_gettree(struct gmesh *gmp);
 void geom_deletetree(struct gmesh *gmp);
