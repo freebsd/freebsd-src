@@ -105,6 +105,8 @@
 #include "sio.h"
 #include "opt_ddb.h"
 
+void		gdb_handle_exception (db_regs_t *, int, int);
+
 #if NSIO == 0
 void
 gdb_handle_exception (db_regs_t *raw_regs, int type, int code)
@@ -112,8 +114,6 @@ gdb_handle_exception (db_regs_t *raw_regs, int type, int code)
 }
 #else
 /************************************************************************/
-
-void		gdb_handle_exception (db_regs_t *, int, int);
 
 extern jmp_buf	db_jmpbuf;
 

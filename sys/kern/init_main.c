@@ -39,7 +39,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)init_main.c	8.9 (Berkeley) 1/21/94
- * $Id: init_main.c,v 1.104 1999/01/26 02:38:10 julian Exp $
+ * $Id: init_main.c,v 1.105 1999/01/29 08:36:44 dillon Exp $
  */
 
 #include "opt_devfs.h"
@@ -283,9 +283,9 @@ restart:
 /* ARGSUSED*/
 void
 kproc_start(udata)
-	void *udata;
+	const void *udata;
 {
-	struct kproc_desc	*kp = udata;
+	const struct kproc_desc	*kp = udata;
 	struct proc		*p = curproc;
 
 #ifdef DIAGNOSTIC
