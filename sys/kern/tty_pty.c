@@ -157,6 +157,7 @@ ptyinit(n)
 
 	devs->si_drv1 = devc->si_drv1 = pt;
 	devs->si_tty = devc->si_tty = &pt->pt_tty;
+	pt->pt_tty.t_timeout = -1;
 	ttyregister(&pt->pt_tty);
 }
 
