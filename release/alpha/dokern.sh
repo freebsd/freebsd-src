@@ -6,8 +6,6 @@
 sed	\
 	-e '/DEC_3000_300/d' \
 	-e '/DEC_3000_500/d' \
-	-e '/DEC_AXPPCI_33/d' \
-	-e '/DEC_EB64PLUS/d' \
 	-e '/SOFTUPDATES/d' \
 	-e '/MFS/d' \
 	-e '/NFS_ROOT/d' \
