@@ -30,7 +30,7 @@
 .\" SUCH DAMAGE.
 .\"
 .\"     @(#)uuencode.1	8.1 (Berkeley) 6/6/93
-.\"	$Id: uuencode.1,v 1.3 1996/10/21 22:02:30 wosch Exp $
+.\"	$Id: uuencode.1,v 1.3.2.1 1997/08/25 06:29:53 charnier Exp $
 .\"
 .Dd June 6, 1993
 .Dt UUENCODE 1
@@ -44,7 +44,7 @@
 .Op Ar file
 .Ar name
 .Nm uudecode
-.Op Fl cp
+.Op Fl cips
 .Op Ar
 .Sh DESCRIPTION
 .Nm Uuencode
@@ -86,10 +86,17 @@ The following options are available for
 Decode more than one uuencode'd file from 
 .Ar file 
 if possible.
+.It Fl i
+Do not overwrite files.
 .It Fl p
 Decode
 .Ar file
 and write output to standard output.
+.It Fl s
+Do not strip output pathname to base filename. By default 
+.Nm uudecode 
+deletes any prefix ending with the last slash '/' for security
+purpose.
 .Sh EXAMPLES
 The following example packages up a source tree, compresses it,
 uuencodes it and mails it to a user on another system.
@@ -118,6 +125,7 @@ archive from your mailbox
 uudecode -p < $MAIL | zcat | tar xfv -
 .Ed
 .Sh SEE ALSO
+.Xr basename 1 ,
 .Xr compress 1 ,
 .Xr mail 1 ,
 .Xr uucp 1 ,
