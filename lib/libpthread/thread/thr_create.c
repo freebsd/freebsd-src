@@ -49,16 +49,13 @@
 static u_int64_t next_uniqueid = 1;
 
 #define OFF(f)	offsetof(struct pthread, f)
-#define SIGFRAME_OFF(f)	offsetof(struct pthread_signal_frame, f)
 int _thread_next_offset			= OFF(tle.tqe_next);
 int _thread_uniqueid_offset		= OFF(uniqueid);
 int _thread_state_offset		= OFF(state);
 int _thread_name_offset			= OFF(name);
-int _thread_curframe_offset		= OFF(curframe);
-int _thread_sigframe_ctx_offset		= SIGFRAME_OFF(ctx);
-int _thread_sigframe_ctxtype_offset	= SIGFRAME_OFF(ctxtype);
+int _thread_ctxtype_offset		= OFF(ctxtype);
+int _thread_ctx_offset			= OFF(ctx);
 #undef OFF
-#undef SIGFRAME_OFF
 
 int _thread_PS_RUNNING_value		= PS_RUNNING;
 int _thread_PS_DEAD_value		= PS_DEAD;
@@ -66,12 +63,12 @@ int _thread_CTX_JB_NOSIG_value		= CTX_JB_NOSIG;
 int _thread_CTX_JB_value		= CTX_JB;
 int _thread_CTX_SJB_value		= CTX_SJB;
 int _thread_CTX_UC_value		= CTX_UC;
-int _thread_sigframe_size_value		= sizeof(struct pthread_signal_frame);
 
 int
 pthread_create(pthread_t * thread, const pthread_attr_t * attr,
 	       void *(*start_routine) (void *), void *arg)
 {
+	struct itimerval itimer;
 	int		f_gc = 0;
 	int             ret = 0;
 	pthread_t       gc_thread;
@@ -127,7 +124,7 @@ pthread_create(pthread_t * thread, const pthread_attr_t * attr,
 			} else {
 				/* Allocate a new stack. */
 				stack = _next_stack + PTHREAD_STACK_GUARD;
-			    
+
 				/*
 				 * Even if stack allocation fails, we don't want
 				 * to try to use this location again, so
@@ -184,40 +181,35 @@ pthread_create(pthread_t * thread, const pthread_attr_t * attr,
 
 			/* Initialise the thread for signals: */
 			new_thread->sigmask = _thread_run->sigmask;
+			new_thread->sigmask_seqno = 0;
 
-			/* Initialize the first signal frame: */
-			new_thread->sigframes[0] = &new_thread->sigframe0;
-			new_thread->curframe = &new_thread->sigframe0;
+			/* Initialize the signal frame: */
+			new_thread->curframe = NULL;
 
 			/* Initialise the jump buffer: */
-			_setjmp(new_thread->curframe->ctx.jb);
+			_setjmp(new_thread->ctx.jb);
 
 			/*
 			 * Set up new stack frame so that it looks like it
 			 * returned from a longjmp() to the beginning of
 			 * _thread_start().
 			 */
-			SET_RETURN_ADDR_JB(new_thread->curframe->ctx.jb,
-			    _thread_start);
+			SET_RETURN_ADDR_JB(new_thread->ctx.jb, _thread_start);
 
 			/* The stack starts high and builds down: */
-			SET_STACK_JB(new_thread->curframe->ctx.jb,
+			SET_STACK_JB(new_thread->ctx.jb,
 			    (long)new_thread->stack + pattr->stacksize_attr
 			    - sizeof(double));
 
 			/* Initialize the rest of the frame: */
-			new_thread->curframe->ctxtype = CTX_JB_NOSIG;
-			/* Set the base of the stack: */
-			new_thread->curframe->stackp =
-			    GET_STACK_JB(new_thread->curframe->ctx.jb);
-			new_thread->sigframe_count = 0;
+			new_thread->ctxtype = CTX_JB_NOSIG;
 
 			/* Copy the thread attributes: */
 			memcpy(&new_thread->attr, pattr, sizeof(struct pthread_attr));
 
 			/*
 			 * Check if this thread is to inherit the scheduling
-			 * attributes from its parent: 
+			 * attributes from its parent:
 			 */
 			if (new_thread->attr.flags & PTHREAD_INHERIT_SCHED) {
 				/* Copy the scheduling attributes: */
@@ -233,7 +225,7 @@ pthread_create(pthread_t * thread, const pthread_attr_t * attr,
 				/*
 				 * Use just the thread priority, leaving the
 				 * other scheduling attributes as their
-				 * default values: 
+				 * default values:
 				 */
 				new_thread->base_priority =
 				    new_thread->attr.prio;
@@ -292,8 +284,19 @@ pthread_create(pthread_t * thread, const pthread_attr_t * attr,
 			/* Return a pointer to the thread structure: */
 			(*thread) = new_thread;
 
+			if (f_gc != 0) {
+				/* Install the scheduling timer: */
+				itimer.it_interval.tv_sec = 0;
+				itimer.it_interval.tv_usec = _clock_res_usec;
+				itimer.it_value = itimer.it_interval;
+				if (setitimer(_ITIMER_SCHED_TIMER, &itimer,
+				    NULL) != 0)
+					PANIC("Cannot set interval timer");
+			}
+
 			/* Schedule the new user thread: */
 			_thread_kern_sched(NULL);
+
 			/*
 			 * Start a garbage collector thread
 			 * if necessary.
