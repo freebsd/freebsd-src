@@ -433,9 +433,9 @@ _mtx_lock_spin(struct mtx *m, int opts, const char *file, int line)
 		/* Give interrupts a chance while we spin. */
 		critical_exit();
 		while (m->mtx_lock != MTX_UNOWNED) {
-			if (i++ < 1000000)
+			if (i++ < 10000000)
 				continue;
-			if (i++ < 6000000)
+			if (i++ < 60000000)
 				DELAY(1);
 #ifdef DDB
 			else if (!db_active)
