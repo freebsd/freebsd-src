@@ -466,7 +466,7 @@
    configuration files will be read first, followed by the V2
    configuration files, followed by the HDB configuration files.  */
 #define HAVE_V2_CONFIG 0
-#define HAVE_HDB_CONFIG 0
+#define HAVE_HDB_CONFIG 1
 
 /* Exactly one of the following macros must be set to 1.  The exact
    format of the spool directories is explained in unix/spool.c.
