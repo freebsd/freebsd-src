@@ -54,12 +54,12 @@
 
 #include <sys/sysproto.h>
 
-#include <svr4/svr4_types.h>
-#include <svr4/svr4_util.h>
-#include <svr4/svr4_signal.h>
-#include <svr4/svr4_ioctl.h>
-#include <svr4/svr4_stropts.h>
-#include <svr4/svr4_socket.h>
+#include <compat/svr4/svr4_types.h>
+#include <compat/svr4/svr4_util.h>
+#include <compat/svr4/svr4_signal.h>
+#include <compat/svr4/svr4_ioctl.h>
+#include <compat/svr4/svr4_stropts.h>
+#include <compat/svr4/svr4_socket.h>
 
 static int svr4_soo_close __P((struct file *, struct proc *));
 static int svr4_ptm_alloc __P((struct proc *));
