@@ -30,7 +30,7 @@
  * MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN
  * NO EVENT SHALL THE AUTHORS BE LIABLE.
  *
- *	$Id: sicontrol.c,v 1.1 1995/08/13 15:24:23 peter Exp $
+ *	$Id: sicontrol.c,v 1.2 1995/08/14 01:56:17 peter Exp $
  */
 
 #include <stdio.h>
@@ -59,7 +59,7 @@ struct lv {
 	"param",	DBG_PARAM,
 	"modem",	DBG_MODEM,
 	"select",	DBG_SELECT,
-	"direct",	DBG_DIRECT,
+	"optim",	DBG_OPTIM,
 	"intr",		DBG_INTR,
 	"start",	DBG_START,
 	"lstart",	DBG_LSTART,
