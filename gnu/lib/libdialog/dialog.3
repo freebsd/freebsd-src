@@ -15,7 +15,7 @@
 .\"
 .Dd January 1, 2000
 .Dt DIALOG 3
-.Os FreeBSD
+.Os
 .Sh NAME
 .Nm draw_shadow ,
 .Nm draw_box ,
@@ -24,6 +24,7 @@
 .Nm strwidth ,
 .Nm dialog_create_rc ,
 .Nm dialog_yesno ,
+.Nm dialog_noyes ,
 .Nm dialog_prgbox ,
 .Nm dialog_msgbox ,
 .Nm dialog_textbox ,
@@ -46,7 +47,7 @@
 .Nm restore_helpline ,
 .Nm dialog_ftree ,
 .Nm dialog_tree
-.Nd provide a simple ncurses-based GUI interface.
+.Nd provide a simple ncurses-based GUI interface
 .Sh SYNOPSIS
 .Fd #include <dialog.h>
 .Ft "void"
@@ -60,7 +61,7 @@
 .Fa "int box_x"
 .Fa "int flen"
 .Fa "int box_width"
-.Fa "chtype attrs"
+.Fa "chtype attr"
 .Fa "int first"
 .Fa "unsigned char *result"
 .Fa "int attr_mask"
@@ -73,10 +74,11 @@
 .Fn dialog_create_rc "unsigned char *filename"
 .Ft "int"
 .Fn dialog_yesno "unsigned char *title" "unsigned char *prompt" "int height" "int width"
+.Fn dialog_noyes "unsigned char *title" "unsigned char *prompt" "int height" "int width"
 .Ft "int"
 .Fn dialog_prgbox "unsigned char *title" "const unsigned char *line" "int height" "int width" "int pause" "int use_shell"
 .Ft "int"
-.Fn dialog_textbox "unsigned char *title" "unsigned char *prompt" "int height" "int width"
+.Fn dialog_textbox "unsigned char *title" "unsigned char *file" "int height" "int width"
 .Ft "int"
 .Fo dialog_menu
 .Fa "unsigned char *title"
@@ -84,16 +86,16 @@
 .Fa "int height"
 .Fa "int width"
 .Fa "int menu_height"
-.Fa "int item_no"
-.Fa "void *itptr"
+.Fa "int cnt"
+.Fa "void *it"
 .Fa "unsigned char *result"
 .Fa "int *ch"
 .Fa "int *sc"
 .Fc
 .Ft "int"
-.Fn dialog_checklist "unsigned char *title" "unsigned char *prompt" "int height" "int width" "int m_height" "int item_no" "void *itptr" "unsigned char *result"
+.Fn dialog_checklist "unsigned char *title" "unsigned char *prompt" "int height" "int width" "int list_height" "int cnt" "void *it" "unsigned char *result"
 .Ft "int"
-.Fn dialog_radiolist "unsigned char *title" "unsigned char *prompt" "int height" "int width" "int m_height" "int item_no" "void *it" "unsigned char *result"
+.Fn dialog_radiolist "unsigned char *title" "unsigned char *prompt" "int height" "int width" "int list_height" "int cnt" "void *it" "unsigned char *result"
 .Ft "int"
 .Fn dialog_inputbox "unsigned char *title" "unsigned char *prompt" "int height" "int width" "unsigned char *result"
 .Ft "char *"
@@ -107,9 +109,9 @@
 .Ft "void"
 .Fn dialog_gauge "char *title" "char *prompt" "int y" "int x" "int height" "int width" "int perc"
 .Ft "void"
-.Fn use_helpfile "char *helpfile"
+.Fn use_helpfile "char *hfile"
 .Ft "void"
-.Fn use_helpline "char *helpline"
+.Fn use_helpline "char *hline"
 .Ft "char *"
 .Fn get_helpline "void"
 .Ft "void"
@@ -162,6 +164,7 @@ typedef struct _dmenu_item {
    int (*selected)(struct _dmenu_item *self, int is_selected);
    void *data;
    char lbra, mark, rbra;
+   long aux;
 } dialogMenuItem;
 .Ed
 .Pp
@@ -199,16 +202,26 @@ which should return TRUE for the
 .Dq marked
 state and FALSE for
 .Dq unmarked .
+The
+.Va aux
+field is not used internally, and is available for miscellaneous usage.
 If an item has a
 .Va fire
 hook associated with it, it will also be called
 whenever the item is "toggled" in some way and should return one of the
 following codes:
 .Bd -literal -offset 4n
-#define DITEM_SUCCESS            0    /* Successful completion */
-#define DITEM_FAILURE           -1    /* Failed to "fire" */
-#define DITEM_LEAVE_MENU        -2    /* Treat selection as "Ok" */
-#define DITEM_REDRAW            -3    /* Menu has changed, redraw it */
+#define DITEM_SUCCESS           0    /* Successful completion */
+#define DITEM_FAILURE           1    /* Failed to "fire" */
+.Ed
+.Pp
+The following flags are in the upper 16 bits of return status:
+.Bd -literal -offset 4n
+#define DITEM_LEAVE_MENU        (1 << 16)
+#define DITEM_REDRAW            (1 << 17)
+#define DITEM_RECREATE          (1 << 18)
+#define DITEM_RESTORE           (1 << 19)
+#define DITEM_CONTINUE          (1 << 20)
 .Ed
 .Pp
 Two special globals also exist for putting a dialog at any arbitrary
@@ -225,7 +238,6 @@ using the dimensions of
 .Va x , y , width
 and
 .Va height .
-Returns 0 on success, -1 on failure.
 .Pp
 .Fn draw_box
 draws a bordered box using the dimensions of
@@ -250,10 +262,10 @@ starting at the
 .Va first
 character specified and
 optionally displayed with character attributes
-.Va attrs .
+.Va attr .
 The string being edited is stored in
 .Va result .
-Returns 0 on success, -1 on failure.
+Returns 0 on success, 1 on Cancel, and -1 on failure or ESC.
 .Pp
 .Fn strheight
 returns the height of string in
@@ -283,11 +295,20 @@ Also paint a pair of
 .Em Yes
 and
 .Em \&No
-buttons at the bottom.  If the
+buttons at the bottom.
+The default selection is
+.Em Yes .
+If the
 .Em Yes
 button is chosen, return FALSE.  If
 .Em \&No ,
 return TRUE.
+.Pp
+.Fn dialog_noyes
+is the same as
+.Fn dialog_yesno ,
+except the default selection is
+.Em \&No .
 .Pp
 .Fn dialog_prgbox
 display a text box of dimensions
@@ -310,13 +331,12 @@ is TRUE, a final confirmation requestor will be put up when execution
 terminates.  Returns 0 on success, -1 on failure.
 .Pp
 .Fn dialog_textbox
-display a text box containing the contents of string
-.Va prompt
-of dimensions
+display a text box containing the contents of
+.Va file
+with dimensions of
 .Va height
 and
 .Va width .
-Returns 0 on success, -1 on failure.
 .Pp
 .Fn dialog_menu
 display a menu of dimensions
@@ -326,16 +346,16 @@ and
 with an optional internal menu height of
 .Va menu_height .
 The
-.Va item_no
+.Va cnt
 and
-.Va itptr
+.Va it
 arguments are of particular importance since they,
 together, determine which of the 2 available APIs to use.  To use the
 older and traditional interface,
-.Va item_no
+.Va cnt
 should be a positive
 integer representing the number of string pointer pairs to find in
-.Va itptr
+.Va it
 (which should be of type
 .Ft char "**" ) ,
 the strings are
@@ -344,34 +364,34 @@ expected to be in prompt and title order for each item and the
 parameter is expected to point to an array where the
 prompt string of the item selected will be copied.  To use the newer
 interface,
-.Va item_no
+.Va cnt
 should be a
 .Va negative
 integer representing the number of
 .Va dialogMenuItem
 structures pointed to by
-.Va itptr
+.Va it
 (which should be of type
 .Vt dialogMenuItem "*" ) ,
 one structure per item.  In the new interface, the
 .Va result
 variable is used as a simple boolean (not a pointer) and should be NULL if
-.Va itptr
+.Va it
 only points to menu items and the default OK and Cancel buttons are desired.  If
 .Va result
 is non-NULL, then
-.Va itptr
+.Va it
 is actually expected to point 2 locations
 .Va past
 the start of the menu item list.
-.Va itptr
+.Va it
 is then expected to
 point to an item representing the Cancel button, from which the
 .Va prompt
 and
 .Va fire
 actions are used to override the default behavior, and
-.Va itptr
+.Va it
 to the same for the OK button.
 .Pp
 Using either API behavior, the
@@ -381,8 +401,6 @@ and
 values may be passed in to preserve current
 item selection and scroll position values across calls.
 .Pp
-Returns 0 on success, 1 on Cancel and -1 on failure or ESC.
-.Pp
 .Fn dialog_checklist
 display a menu of dimensions
 .Va height
@@ -390,18 +408,18 @@ and
 .Va width
 with an
 optional internal menu height of
-.Va menu_height .
+.Va list_height .
 The
-.Va item_no
+.Va cnt
 and
-.Va itptr
+.Va it
 arguments are of particular importance since they,
 together, determine which of the 2 available APIs to use.  To use the
 older and traditional interface,
-.Va item_no
+.Va cnt
 should be a positive
 integer representing the number of string pointer tuples to find in
-.Va itptr
+.Va it
 (which should be of type
 .Ft "char **" ) ,
 the strings are
@@ -411,13 +429,13 @@ each item and the
 parameter is expected to point to an
 array where the prompt string of the item(s) selected will be
 copied.  To use the newer interface,
-.Va item_no
+.Va cnt
 should be a
 .Em negative
 integer representing the number of
 .Ft dialogMenuItem
 structures pointed to by
-.Va itptr
+.Va it
 (which should be of type
 .Ft "dialogMenuItem *" ) ,
 one structure per item. In the new interface,
@@ -425,24 +443,24 @@ the
 .Va result
 variable is used as a simple boolean (not a pointer)
 and should be NULL if
-.Va itptr
+.Va it
 only points to menu items and the default OK and Cancel
 buttons are desired.  If
 .Va result
 is non-NULL, then
-.Va itptr
+.Va it
 is actually expected to
 point 2 locations
 .Va past
 the start of the menu item list.
-.Va itptr
+.Va it
 is then expected to point to an item representing the Cancel
 button, from which the
 .Va prompt
 and
 .Va fire
 actions are used to override the default behavior, and
-.Va itptr
+.Va it
 to the same for the OK button.
 .Pp
 In the standard API model, the menu supports the selection of multiple items,
@@ -464,7 +482,7 @@ over
 in the new API model is to inherit the base
 behavior, you're no longer constrained by it.
 .Pp
-Returns 0 on success, 1 on Cancel and -1 on failure or ESC.
+Returns 0 on success, 1 on Cancel, and -1 on failure or ESC.
 .Pp
 .Fn dialog_radiolist
 display a menu of dimensions
@@ -473,18 +491,18 @@ and
 .Va width
 with an
 optional internal menu height of
-.Va menu_height .
+.Va list_height .
 The
-.Va item_no
+.Va cnt
 and
-.Va itptr
+.Va it
 arguments are of particular importance since they,
 together, determine which of the 2 available APIs to use.  To use the
 older and traditional interface,
-.Va item_no
+.Va cnt
 should be a positive
 integer representing the number of string pointer tuples to find in
-.Va itptr
+.Va it
 (which should be of type
 .Ft "char **" ) ,
 the strings are
@@ -494,13 +512,13 @@ each item and the
 parameter is expected to point to an
 array where the prompt string of the item(s) selected will be
 copied.  To use the newer interface,
-.Va item_no
+.Va cnt
 should be a
 .Dv negative
 integer representing the number of
 .Ft dialogMenuItem
 structures pointed to by
-.Va itptr
+.Va it
 (which should be of type
 .Ft "dialogMenuItem *" ,
 one structure per item. In the new interface,
@@ -508,23 +526,23 @@ the
 .Va result
 variable is used as a simple boolean (not a pointer)
 and should be NULL if
-.Va itptr
+.Va it
 only points to menu items and the default OK and Cancel
 buttons are desired.  If
 .Va result
 is non-NULL, then
-.Va itptr
+.Va it
 is actually expected to point 2 locations
 .Va past
 the start of the menu item list.
-.Va itptr
+.Va it
 is then expected to point to an item representing the Cancel
 button, from which the
 .Va prompt
 and
 .Va fire
 actions are used to override the default behavior, and
-.Va itptr
+.Va it
 does the same for the traditional OK button.
 .Pp
 In the standard API model, the menu supports the selection of only one
