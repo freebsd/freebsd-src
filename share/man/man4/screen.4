@@ -66,6 +66,8 @@ ANSI	Seq	Function				Termcap entry
 
 --	E8	Restore	saved cursor position		rc
 
+--	Ec	Reset					rs
+
 CUU     E[nA    move cursor up n lines                  up/UP (ku)
 
 CUD     E[nB    move cursor down n lines                do/DO (kd)
@@ -120,15 +122,19 @@ SD      E[nT    Scroll display n lines down (reverse)   sr/SR
 
 
 SGR	E[nm	Set character attributes:		--
-		n= 0 normal attribute (all off)
-		n= 1 bold (highlight)
-		n= 4 underscore (if supported by HW)
-		n= 5 blink (if supported by HW)
-		n= 7 reverse 
-		n=3X set ANSI foreground color
-		     (see table)
-		n=4X set ANSI background color
-		     (see table)
+		n= 0  normal attribute (all off)
+		n= 1  bold (highlight)
+		n= 4  underscore (if supported by HW)
+		n= 5  blink (if supported by HW)
+		n= 7  reverse
+		n= 22 remove bold
+		n= 24 remove underscore
+		n= 25 remove blink
+		n= 27 remove reverse
+		n= 3X set ANSI foreground color
+		      (see table)
+		n= 4X set ANSI background color
+		      (see table)
 
 		   X=0 black 	X=1 red
 		   X=2 green	X=3 brown
