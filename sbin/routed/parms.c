@@ -36,7 +36,7 @@ static char sccsid[] = "@(#)if.c	8.1 (Berkeley) 6/5/93";
 #elif defined(__NetBSD__)
 static char rcsid[] = "$NetBSD$";
 #endif
-#ident "$Revision: 1.1.1.3 $"
+#ident "$Revision: 1.2 $"
 
 #include "defs.h"
 #include "pathnames.h"
@@ -376,7 +376,7 @@ parse_quote(char **linep,
 		if (c == '\0')
 			break;
 
-		if (c == '\\' && pc != '\0') {
+		if (c == '\\' && *pc != '\0') {
 			if ((c = *pc++) == 'n') {
 				c = '\n';
 			} else if (c == 'r') {

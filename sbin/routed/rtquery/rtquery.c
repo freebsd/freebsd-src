@@ -42,7 +42,7 @@ static const char copyright[] =
 static char sccsid[] = "@(#)query.c	8.1 (Berkeley) 6/5/93";
 #endif
 static const char rcsid[] =
-	"$Id$";
+	"$Id: rtquery.c,v 1.7 1998/01/14 07:17:12 charnier Exp $";
 #endif /* not lint */
 
 #include <sys/param.h>
@@ -797,7 +797,7 @@ parse_quote(char **linep,
 		if (c == '\0')
 			break;
 
-		if (c == '\\' && pc != '\0') {
+		if (c == '\\' && *pc != '\0') {
 			if ((c = *pc++) == 'n') {
 				c = '\n';
 			} else if (c == 'r') {
