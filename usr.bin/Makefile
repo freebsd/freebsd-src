@@ -20,7 +20,6 @@ SUBDIR=	apply \
 	chat \
 	checknr \
 	chflags \
-	chkey \
 	chpass \
 	cksum \
 	cmp \
@@ -105,7 +104,6 @@ SUBDIR=	apply \
 	mt \
 	ncal \
 	netstat \
-	newkey \
 	nfsstat \
 	nice \
 	nl \
@@ -228,6 +226,10 @@ SUBDIR+=ar \
 
 .if ${MACHINE_ARCH} == "alpha"
 SUBDIR+=uac
+.endif
+
+.if exists(${.CURDIR}/../../crypto) && !defined(NOCRYPT) && !defined(NO_OPENSSL)
+SUBDIR+=chkey newkey
 .endif
 
 .include <bsd.subdir.mk>
