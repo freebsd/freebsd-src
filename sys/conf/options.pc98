@@ -61,7 +61,6 @@ CYRIX_CACHE_WORKS		opt_cpu.h
 CYRIX_CACHE_REALLY_WORKS	opt_cpu.h
 NO_MEMORY_HOLE			opt_cpu.h
 CPU_ENABLE_SSE			opt_cpu.h
-CPU_ATHLON_SSE_HACK		opt_cpu.h
 CPU_DISABLE_SSE			opt_cpu.h
 CPU_DISABLE_CMPXCHG		opt_global.h
 
