@@ -6,7 +6,7 @@
  * this stuff is worth it, you can buy me a beer in return.   Poul-Henning Kamp
  * ----------------------------------------------------------------------------
  *
- * $Id: kernbb.c,v 1.6 1997/02/22 16:06:06 peter Exp $
+ * $Id: kernbb.c,v 1.7 1997/08/14 10:36:02 phk Exp $
  *
  */
 
@@ -105,7 +105,7 @@ main()
 						func[j] = 0;
 					}
 			}
-			if (!pn[i] && i < bb.ncounts)
+			if (!pn[i])
 				pn[i] = "-";
 			if (!fn[i] && file[i]) {
 				kvm_read(kv,file[i], buf, sizeof buf);
