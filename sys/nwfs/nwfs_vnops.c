@@ -854,41 +854,6 @@ nwfs_bmap(ap)
 	return (0);
 }
 
-int
-nwfs_nget(struct mount *mp, ncpfid fid, struct nw_entry_info *fap,
-	  struct vnode *dvp, struct vnode **vpp)
-{
-	int error;
-	struct nwnode *newnp;
-	struct vnode *vp;
-
-	*vpp = NULL;
-	error = nwfs_allocvp(mp, fid, &vp);
-	if (error)
-		return error;
-	newnp = VTONW(vp);
-	if (fap) {
-		newnp->n_attr = fap->attributes;
-		vp->v_type = newnp->n_attr & aDIR ? VDIR : VREG;
-		nwfs_attr_cacheenter(vp, fap);
-	}
-	if (dvp) {
-		newnp->n_parent = VTONW(dvp)->n_fid;
-		if ((newnp->n_flag & NNEW) && vp->v_type == VDIR) {
-			if ((dvp->v_flag & VROOT) == 0) {
-				newnp->n_refparent = 1;
-				vref(dvp);	/* vhold */
-			}
-		}
-	} else {
-		if ((newnp->n_flag & NNEW) && vp->v_type == VREG)
-			printf("new vnode '%s' borned without parent ?\n",newnp->n_name);
-	}
-	newnp->n_flag &= ~NNEW;
-	*vpp = vp;
-	return 0;
-}
-
 /*
  * How to keep the brain busy ...
  * Currently lookup routine can make two lookup for vnode. This can be
