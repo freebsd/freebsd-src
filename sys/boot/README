@@ -1,3 +1,5 @@
+$FreeBSD$
+
        README file, for the boot config file setup.  This is meant
        to explain how to manage the loader configuration process.
        The boot and loading process is either defined, or being

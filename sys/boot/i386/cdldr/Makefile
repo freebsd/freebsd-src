@@ -32,9 +32,6 @@ ${LDR}: ${LDR}.o
 	objcopy -S -O binary ${LDR}.out ${.TARGET}
 .endif
 
-${LDR}.o: ${.CURDIR}/${LDR}.s
-	${AS} ${AFLAGS} -o ${.TARGET} ${.CURDIR}/${LDR}.s
-
 CLEANFILES+= ${LDR} ${LDR}.out ${LDR}.o ${BOOT}.tmp
 
 .include <bsd.prog.mk>

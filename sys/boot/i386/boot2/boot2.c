@@ -113,27 +113,126 @@ static uint8_t ioctrl = 0x1;
 void exit(int);
 static void load(const char *);
 static int parse(char *);
-static void readfile(const char *, void *, size_t);
 static ino_t lookup(const char *);
-static int fsfind(const char *, ino_t *);
 static int xfsread(ino_t, void *, size_t);
 static ssize_t fsread(ino_t, void *, size_t);
 static int dskread(void *, unsigned, unsigned);
 static int printf(const char *,...);
-static void getstr(char *, int);
 static int putchar(int);
-static int getchar(void);
 static void *memcpy(void *, const void *, size_t);
-static int strcmp(const char *, const char *);
 static void *malloc(size_t);
 static uint32_t memsize(int);
-static uint32_t drvinfo(int);
 static int drvread(void *, unsigned, unsigned);
 static int keyhit(unsigned);
 static int xputc(int);
 static int xgetc(int);
-static void putc(int);
 static int getc(int);
+
+static inline void
+readfile(const char *fname, void *buf, size_t size)
+{
+    ino_t ino;
+
+    if ((ino = lookup(fname)))
+	fsread(ino, buf, size);
+}
+
+static inline int
+strcmp(const char *s1, const char *s2)
+{
+    for (; *s1 == *s2 && *s1; s1++, s2++);
+    return (u_char)*s1 - (u_char)*s2;
+}
+
+static inline int
+fsfind(const char *name, ino_t * ino)
+{
+    char buf[DEV_BSIZE];
+    struct dirent *d;
+    char *s;
+    ssize_t n;
+
+    fs_off = 0;
+    while ((n = fsread(*ino, buf, DEV_BSIZE)) > 0)
+	for (s = buf; s < buf + DEV_BSIZE;) {
+	    d = (void *)s;
+	    if (ls)
+		printf("%s ", d->d_name);
+	    else if (!strcmp(name, d->d_name)) {
+		*ino = d->d_fileno;
+		return d->d_type;
+	    }
+	    s += d->d_reclen;
+	}
+    if (n != -1 && ls)
+	putchar('\n');
+    return 0;
+}
+
+static inline int
+getchar(void)
+{
+    int c;
+
+    c = xgetc(0);
+    if (c == '\r')
+	c = '\n';
+    return c;
+}
+
+static inline void
+getstr(char *str, int size)
+{
+    char *s;
+    int c;
+
+    s = str;
+    do {
+	switch (c = getchar()) {
+	case 0:
+	    break;
+	case '\b':
+	case '\177':
+	    if (s > str) {
+		s--;
+		putchar('\b');
+		putchar(' ');
+	    } else
+		c = 0;
+	    break;
+	case '\n':
+	    *s = 0;
+	    break;
+	default:
+	    if (s - str < size - 1)
+		*s++ = c;
+	}
+	if (c)
+	    putchar(c);
+    } while (c != '\n');
+}
+
+static inline uint32_t
+drvinfo(int drive)
+{
+    v86.addr = 0x13;
+    v86.eax = 0x800;
+    v86.edx = DRV_HARD + drive;
+    v86int();
+    if (V86_CY(v86.efl))
+	return 0x4f010f;
+    return ((v86.ecx & 0xc0) << 18) | ((v86.ecx & 0xff00) << 8) |
+	   (v86.edx & 0xff00) | (v86.ecx & 0x3f);
+}
+
+static inline void
+putc(int c)
+{
+    v86.addr = 0x10;
+    v86.eax = 0xe00 | (c & 0xff);
+    v86.ebx = 0x7;
+    v86int();
+}
 
 int
 main(void)
@@ -191,6 +290,7 @@ main(void)
     }
 }
 
+/* XXX - Needed for btxld to link the boot2 binary; do not remove. */
 void
 exit(int x)
 {
@@ -374,15 +474,6 @@ parse(char *arg)
     return 0;
 }
 
-static void
-readfile(const char *fname, void *buf, size_t size)
-{
-    ino_t ino;
-
-    if ((ino = lookup(fname)))
-	fsread(ino, buf, size);
-}
-
 static ino_t
 lookup(const char *path)
 {
@@ -411,32 +502,6 @@ lookup(const char *path)
     }
     return dt == DT_REG ? ino : 0;
 }
-
-static int
-fsfind(const char *name, ino_t * ino)
-{
-    char buf[DEV_BSIZE];
-    struct dirent *d;
-    char *s;
-    ssize_t n;
-
-    fs_off = 0;
-    while ((n = fsread(*ino, buf, DEV_BSIZE)) > 0)
-	for (s = buf; s < buf + DEV_BSIZE;) {
-	    d = (void *)s;
-	    if (ls)
-		printf("%s ", d->d_name);
-	    else if (!strcmp(name, d->d_name)) {
-		*ino = d->d_fileno;
-		return d->d_type;
-	    }
-	    s += d->d_reclen;
-	}
-    if (n != -1 && ls)
-	putchar('\n');
-    return 0;
-}
-
 static int
 xfsread(ino_t inode, void *buf, size_t nbyte)
 {
@@ -626,55 +691,12 @@ printf(const char *fmt,...)
     return 0;
 }
 
-static void
-getstr(char *str, int size)
-{
-    char *s;
-    int c;
-
-    s = str;
-    do {
-	switch (c = getchar()) {
-	case 0:
-	    break;
-	case '\b':
-	case '\177':
-	    if (s > str) {
-		s--;
-		putchar('\b');
-		putchar(' ');
-	    } else
-		c = 0;
-	    break;
-	case '\n':
-	    *s = 0;
-	    break;
-	default:
-	    if (s - str < size - 1)
-		*s++ = c;
-	}
-	if (c)
-	    putchar(c);
-    } while (c != '\n');
-}
-
 static int
 putchar(int c)
 {
     if (c == '\n')
 	xputc('\r');
     return xputc(c);
-}
-
-static int
-getchar(void)
-{
-    int c;
-
-    c = xgetc(0);
-    if (c == '\r')
-	c = '\n';
-    return c;
 }
 
 static void *
@@ -686,13 +708,6 @@ memcpy(void *dst, const void *src, size_t size)
     for (d = dst, s = src; size; size--)
 	*d++ = *s++;
     return dst;
-}
-
-static int
-strcmp(const char *s1, const char *s2)
-{
-    for (; *s1 == *s2 && *s1; s1++, s2++);
-    return (u_char)*s1 - (u_char)*s2;
 }
 
 static void *
@@ -715,19 +730,6 @@ memsize(int type)
     v86.eax = 0x8800;
     v86int();
     return v86.eax;
-}
-
-static uint32_t
-drvinfo(int drive)
-{
-    v86.addr = 0x13;
-    v86.eax = 0x800;
-    v86.edx = DRV_HARD + drive;
-    v86int();
-    if (V86_CY(v86.efl))
-	return 0x4f010f;
-    return ((v86.ecx & 0xc0) << 18) | ((v86.ecx & 0xff00) << 8) |
-	   (v86.edx & 0xff00) | (v86.ecx & 0x3f);
 }
 
 static int
@@ -791,15 +793,6 @@ xgetc(int fn)
 	if (fn)
 	    return 0;
     }
-}
-
-static void
-putc(int c)
-{
-    v86.addr = 0x10;
-    v86.eax = 0xe00 | (c & 0xff);
-    v86.ebx = 0x7;
-    v86int();
 }
 
 static int
