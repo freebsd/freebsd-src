@@ -33,7 +33,7 @@
 .\" SUCH DAMAGE.
 .\"
 .\"	@(#)find.1	8.4 (Berkeley) 4/1/94
-.\"	$Id$
+.\"	$Id: find.1,v 1.3 1996/08/29 18:05:51 wosch Exp $
 .\"
 .Dd April 1, 1994
 .Dt FIND 1
@@ -143,6 +143,13 @@ information and the time
 was started, rounded up to the next full 24\-hour period, is
 .Ar n
 24\-hour periods.
+.It Ic -delete
+Delete found files and/or directories.  Always returns True.  This executes
+from the current working directory as
+.Nm
+recurses down the tree.  It will not attempt to delete a filename with a ``/''
+character in it's pathname relative to "." for security reasons.
+Depth\-first traversal processing is implied by this option.
 .It Ic -exec Ar utility Op argument ... ; 
 True if the program named
 .Ar utility
@@ -414,6 +421,7 @@ and
 options and the
 .Ic -inum ,
 .Ic -print0 ,
+.Ic -delete ,
 and
 .Ic -ls
 primaries are extensions to
@@ -461,6 +469,11 @@ These problems are handled by the
 option and the
 .Xr getopt 3
 ``--'' construct.
+.Pp
+The
+.Ic -delete
+primary do not interact well with other options that cause the filesystem
+tree traversal options to be changed.
 .Sh HISTORY
 A
 .Nm
