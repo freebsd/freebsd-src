@@ -437,18 +437,18 @@ g_access_rel(struct g_consumer *cp, int dcr, int dcw, int dce)
 
 	/* Ok then... */
 
-	/*
-	 * If we open first write, spoil any partner consumers.
-	 * If we close last write, trigger re-taste.
-	 */
-	if (pp->acw == 0 && dcw != 0)
-		g_spoil(pp, cp);
-	else if (pp->acw != 0 && pp->acw == -dcw && 
-	    !(pp->geom->flags & G_GEOM_WITHER))
-		g_post_event(EV_NEW_PROVIDER, NULL, NULL, pp, NULL);
-
 	error = pp->geom->access(pp, dcr, dcw, dce);
 	if (!error) {
+		/*
+		 * If we open first write, spoil any partner consumers.
+		 * If we close last write, trigger re-taste.
+		 */
+		if (pp->acw == 0 && dcw != 0)
+			g_spoil(pp, cp);
+		else if (pp->acw != 0 && pp->acw == -dcw && 
+		    !(pp->geom->flags & G_GEOM_WITHER))
+			g_post_event(EV_NEW_PROVIDER, NULL, NULL, pp, NULL);
+
 		pp->acr += dcr;
 		pp->acw += dcw;
 		pp->ace += dce;
@@ -472,7 +472,6 @@ g_handleattr_off_t(struct bio *bp, const char *attribute, off_t val)
 
 	return (g_handleattr(bp, attribute, &val, sizeof val));
 }
-
 
 int
 g_handleattr(struct bio *bp, const char *attribute, void *val, int len)
