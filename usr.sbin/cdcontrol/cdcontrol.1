@@ -1,4 +1,4 @@
-.\"	$Id: cdcontrol.1,v 1.13 1997/12/08 07:43:13 charnier Exp $
+.\"	$Id: cdcontrol.1,v 1.14 1998/01/07 07:43:04 charnier Exp $
 .\"
 .Dd July 3, 1995
 .Dt CDCONTROL 1
@@ -126,10 +126,18 @@ Play the right subtrack on both left and right channels.
 .It Cm info
 Print the table of contents.
 
-.It Cm status
+.It Cm status 
+.Op Ar audio | media | volume
+
 Print the information about the disc:
+
+.Nm audio
 the current playing status and position,
+
+.Nm media
 the current media catalog status,
+
+.Nm volume
 the current values of the volume for left and right channels.
 
 .It Cm help
