@@ -87,46 +87,46 @@ an interrupt.
 These signals are defined in the file
 .Aq Pa signal.h :
 .Bl -column SIGVTALARMXX "create core imagexxx"
-.It Sy "  Name  " "	  Default Action  " "	              Description"
-.It Dv SIGHUP No "	terminate process" "	terminal line hangup"
-.It Dv SIGINT No "	terminate process" "	interrupt program"
-.It Dv SIGQUIT No "	create core image" "	quit program"
-.It Dv SIGILL No "	create core image" "	illegal instruction"
-.It Dv SIGTRAP No "	create core image" "	trace trap"
-.It Dv SIGABRT No "	create core image" Xr 	abort 2
+.It Sy Name	Default Action	Description
+.It Dv SIGHUP Ta "terminate process" Ta "terminal line hangup"
+.It Dv SIGINT Ta "terminate process" Ta "interrupt program"
+.It Dv SIGQUIT Ta "create core image" Ta "quit program"
+.It Dv SIGILL Ta "create core image" Ta "illegal instruction"
+.It Dv SIGTRAP Ta "create core image" Ta "trace trap"
+.It Dv SIGABRT Ta "create core image" Ta Xr abort 2
 call (formerly
 .Dv SIGIOT )
-.It Dv SIGEMT No "	create core image" "	emulate instruction executed"
-.It Dv SIGFPE No "	create core image" "	floating-point exception"
-.It Dv SIGKILL No "	terminate process" "	kill program"
-.It Dv SIGBUS No "	create core image" "	bus error"
-.It Dv SIGSEGV No "	create core image" "	segmentation violation"
-.It Dv SIGSYS No "	create core image" "	non-existent system call invoked"
-.It Dv SIGPIPE No "	terminate process" "	write on a pipe with no reader"
-.It Dv SIGALRM No "	terminate process" "	real-time timer expired"
-.It Dv SIGTERM No "	terminate process" "	software termination signal"
-.It Dv SIGURG No "	discard signal" "	urgent condition present on socket"
-.It Dv SIGSTOP No "	stop process" "	stop (cannot be caught or ignored)"
-.It Dv SIGTSTP No "	stop process" "	stop signal generated from keyboard"
-.It Dv SIGCONT No "	discard signal" "	continue after stop"
-.It Dv SIGCHLD No "	discard signal" "	child status has changed"
-.It Dv SIGTTIN No "	stop process" "	background read attempted from control terminal"
-.It Dv SIGTTOU No "	stop process" "	background write attempted to control terminal"
-.It Dv SIGIO No "	discard signal" Tn "	I/O"
+.It Dv SIGEMT Ta "create core image" Ta "emulate instruction executed"
+.It Dv SIGFPE Ta "create core image" Ta "floating-point exception"
+.It Dv SIGKILL Ta "terminate process" Ta "kill program"
+.It Dv SIGBUS Ta "create core image" Ta "bus error"
+.It Dv SIGSEGV Ta "create core image" Ta "segmentation violation"
+.It Dv SIGSYS Ta "create core image" Ta "non-existent system call invoked"
+.It Dv SIGPIPE Ta "terminate process" Ta "write on a pipe with no reader"
+.It Dv SIGALRM Ta "terminate process" Ta "real-time timer expired"
+.It Dv SIGTERM Ta "terminate process" Ta "software termination signal"
+.It Dv SIGURG Ta "discard signal" Ta "urgent condition present on socket"
+.It Dv SIGSTOP Ta "stop process" Ta "stop (cannot be caught or ignored)"
+.It Dv SIGTSTP Ta "stop process" Ta "stop signal generated from keyboard"
+.It Dv SIGCONT Ta "discard signal" Ta "continue after stop"
+.It Dv SIGCHLD Ta "discard signal" Ta "child status has changed"
+.It Dv SIGTTIN Ta "stop process" Ta "background read attempted from control terminal"
+.It Dv SIGTTOU Ta "stop process" Ta "background write attempted to control terminal"
+.It Dv SIGIO Ta "discard signal" Ta Tn "I/O"
 is possible on a descriptor (see
 .Xr fcntl 2 )
-.It Dv SIGXCPU No "	terminate process" "	cpu time limit exceeded (see"
+.It Dv SIGXCPU Ta "terminate process" Ta "cpu time limit exceeded (see"
 .Xr setrlimit 2 )
-.It Dv SIGXFSZ No "	terminate process" "	file size limit exceeded (see"
+.It Dv SIGXFSZ Ta "terminate process" Ta "file size limit exceeded (see"
 .Xr setrlimit 2 )
-.It Dv SIGVTALRM No "	terminate process" "	virtual time alarm (see"
+.It Dv SIGVTALRM Ta "terminate process" Ta "virtual time alarm (see"
 .Xr setitimer 2 )
-.It Dv SIGPROF No "	terminate process" "	profiling timer alarm (see"
+.It Dv SIGPROF Ta "terminate process" Ta "profiling timer alarm (see"
 .Xr setitimer 2 )
-.It Dv SIGWINCH No "	discard signal" "	Window size change"
-.It Dv SIGINFO No "	discard signal" "	status request from keyboard"
-.It Dv SIGUSR1 No "	terminate process" "	User defined signal 1"
-.It Dv SIGUSR2 No "	terminate process" "	User defined signal 2"
+.It Dv SIGWINCH Ta "discard signal" Ta "Window size change"
+.It Dv SIGINFO Ta "discard signal" Ta "status request from keyboard"
+.It Dv SIGUSR1 Ta "terminate process" Ta "User defined signal 1"
+.It Dv SIGUSR2 Ta "terminate process" Ta "User defined signal 2"
 .El
 .Pp
 The
@@ -185,6 +185,8 @@ or
 .Xr wait 2 .
 However, calls that have already committed are not restarted,
 but instead return a partial success (for example, a short read count).
+This semantics could be changed with
+.Xr siginterrupt 3 .
 .Pp
 When a process which has installed signal handlers forks,
 the child process inherits the signals.
@@ -221,6 +223,7 @@ or
 .Xr sigsuspend 2 ,
 .Xr fpsetmask 3 ,
 .Xr setjmp 3 ,
+.Xr siginterrupt 3 ,
 .Xr tty 4
 .Sh HISTORY
 This
