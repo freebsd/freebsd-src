@@ -340,9 +340,11 @@ atapi_action(struct cam_sim *sim, union ccb *ccb)
 	cpi->base_transfer_speed = 3300;
 
 	if (softc->ata_ch && tid != CAM_TARGET_WILDCARD) {
+	    mtx_lock(&softc->state_lock);
 	    if (softc->atadev[tid] == NULL) {
 		ccb->ccb_h.status = CAM_DEV_NOT_THERE;
 		xpt_done(ccb);
+		mtx_unlock(&softc->state_lock);
 		return;
 	    }
 	    switch (softc->atadev[ccb_h->target_id]->mode) {
@@ -375,6 +377,7 @@ atapi_action(struct cam_sim *sim, union ccb *ccb)
 	    default:
 		break;
 	    }
+	    mtx_unlock(&softc->state_lock);
 	}
 	ccb->ccb_h.status = CAM_REQ_CMP;
 	xpt_done(ccb);
@@ -595,15 +598,19 @@ action_oom:
 	ata_free_request(request);
     if (hcb != NULL)
 	free_hcb(hcb);
+    mtx_unlock(&softc->state_lock);
+    mtx_lock(&Giant);
     xpt_print_path(ccb_h->path);
     printf("out of memory, freezing queue.\n");
     softc->flags |= RESOURCE_SHORTAGE;
     xpt_freeze_simq(sim, /*count*/ 1);
+    mtx_unlock(&Giant);
     ccb_h->status = CAM_REQUEUE_REQ;
     xpt_done(ccb);
     return;
 
 action_invalid:
+    mtx_unlock(&softc->state_lock);
     ccb_h->status = CAM_REQ_INVALID;
     xpt_done(ccb);
     return;
@@ -619,14 +626,16 @@ atapi_poll(struct cam_sim *sim)
 static void
 atapi_cb(struct ata_request *request)
 {
+    struct atapi_xpt_softc *scp;
     struct atapi_hcb *hcb;
     struct ccb_scsiio *csio;
     u_int32_t rc;
 
     hcb = (struct atapi_hcb *)request->driver;
+    scp = hcb->softc;
     csio = &hcb->ccb->csio;
 
-#ifdef XXXCAMDEBUG
+#ifdef CAMDEBUG
 # define err (request->u.atapi.sense_key)
     if (CAM_DEBUGGED(csio->ccb_h.path, CAM_DEBUG_CDB)) {
 	printf("atapi_cb: hcb@%p error = %02x: (sk = %02x%s%s%s)\n",
@@ -635,7 +644,7 @@ atapi_cb(struct ata_request *request)
 	       (err & 2) ? " EOM" : "",
 	       (err & 1) ? " ILI" : "");
 	printf("dev %s: cmd %02x status %02x result %02x\n",
-	    request->device->name, request->u.atapi.ccb[0],
+	    device_get_nameunit(request->dev), request->u.atapi.ccb[0],
 	    request->status, request->result);
     }
 #endif
@@ -685,9 +694,9 @@ atapi_cb(struct ata_request *request)
 	}
     }
 
-    mtx_lock(&hcb->softc->state_lock);
+    mtx_lock(&scp->state_lock);
     free_hcb_and_ccb_done(hcb, rc);
-    mtx_unlock(&hcb->softc->state_lock);
+    mtx_unlock(&scp->state_lock);
 
     ata_free_request(request);
 }
