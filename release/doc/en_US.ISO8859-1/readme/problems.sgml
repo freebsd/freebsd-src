@@ -12,31 +12,8 @@ RELNOTES.TXT.
 <sect1 id="contacting">
   <title>Contacting the &os; Project</title>
 
-  <para>Suggestions, bug reports and contributions of code are
-  always valued &mdash; please do not hesitate to report any problems you
-  may find.  Bug reports with attached fixes are of course even more
-  welcome.</para>
-
-  <para>The preferred method to submit bug reports from a machine with
-  Internet mail connectivity is to use the &man.send-pr.1; command or
-  use the Web form at <ulink
-  url="http://www.FreeBSD.org/send-pr.html">http://www.FreeBSD.org/send-pr.html</ulink>.
-  <quote>Problem Reports</quote> (PRs) submitted in this way will be filed and
-  their progress tracked; the &os; developers will do their best to respond to all
-  reported bugs as soon as possible.  <ulink url="http://www.FreeBSD.org/cgi/query-pr-summary.cgi">A list of all active PRs</ulink> is
-  available on the &os; Web site; this list is useful to see what
-  potential problems other users have encountered.</para>
-
-  <para>Note that &man.send-pr.1; itself is a shell script that should
-  be easy to move even onto a non-&os; system.  Using this interface
-  is highly preferred.
-  If, for some reason, you are unable to use &man.send-pr.1; to
-  submit a bug report, you can try to send it to the &a.bugs;.</para>
-
-  <para>In any case, before submitting a PR,
-  please try to determine whether the problem might have already been
-  fixed since.</para>
-
+  <sect2>
+    <title>Email and Mailing Lists</title>
   <para>For any questions or general technical support issues, please send
   mail to the &a.questions;.</para>
 
@@ -74,5 +51,36 @@ RELNOTES.TXT.
   be subscribed.  Use the &a.majordomo; address
   instead.</para>
   </important>
+  </sect2>
+
+  <sect2>
+    <title>Submitting Problem Reports</title>
+
+  <para>Suggestions, bug reports and contributions of code are
+  always valued &mdash; please do not hesitate to report any problems you
+  may find.  Bug reports with attached fixes are of course even more
+  welcome.</para>
+
+  <para>The preferred method to submit bug reports from a machine with
+  Internet mail connectivity is to use the &man.send-pr.1; command or
+  use the Web form at <ulink
+  url="http://www.FreeBSD.org/send-pr.html">http://www.FreeBSD.org/send-pr.html</ulink>.
+  <quote>Problem Reports</quote> (PRs) submitted in this way will be filed and
+  their progress tracked; the &os; developers will do their best to respond to all
+  reported bugs as soon as possible.  <ulink url="http://www.FreeBSD.org/cgi/query-pr-summary.cgi">A list of all active PRs</ulink> is
+  available on the &os; Web site; this list is useful to see what
+  potential problems other users have encountered.</para>
+
+  <para>Note that &man.send-pr.1; itself is a shell script that should
+  be easy to move even onto a non-&os; system.  Using this interface
+  is highly preferred.
+  If, for some reason, you are unable to use &man.send-pr.1; to
+  submit a bug report, you can try to send it to the &a.bugs;.</para>
+
+  <para>In any case, before submitting a PR,
+  please try to determine whether the problem might have already been
+  fixed since.</para>
+
+  </sect2>
 
 </sect1>
