@@ -114,6 +114,7 @@ PORTAL		opt_dontuse.h
 PROCFS		opt_dontuse.h
 UMAPFS		opt_dontuse.h
 NTFS		opt_dontuse.h
+HPFS		opt_dontuse.h
 
 # These static filesystems has one slightly bogus static dependency in
 # sys/i386/i386/autoconf.c.  If any of these filesystems are
