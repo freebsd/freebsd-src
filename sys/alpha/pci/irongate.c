@@ -43,12 +43,14 @@ __FBSDID("$FreeBSD$");
 #include <alpha/isa/isavar.h>
 #include <alpha/pci/irongatereg.h>
 #include <alpha/pci/irongatevar.h>
+
 #include <machine/bwx.h>
+#include <machine/cpuconf.h>
 #include <machine/intr.h>
 #include <machine/intrcnt.h>
-#include <machine/cpuconf.h>
-#include <machine/rpb.h>
+#include <machine/md_var.h>
 #include <machine/resource.h>
+#include <machine/rpb.h>
 #include <machine/sgmap.h>
 
 #include <vm/vm.h>

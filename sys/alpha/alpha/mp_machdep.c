@@ -42,17 +42,18 @@ __FBSDID("$FreeBSD$");
 #include <sys/smp.h>
 #include <sys/sysctl.h>
 #include <sys/bus.h>
+#include <sys/user.h>
 
 #include <vm/vm.h>
 #include <vm/pmap.h>
 #include <vm/vm_map.h>
-#include <sys/user.h>
 
 #include <machine/atomic.h>
-#include <machine/pmap.h>
-#include <machine/rpb.h>
 #include <machine/clock.h>
+#include <machine/md_var.h>
+#include <machine/pmap.h>
 #include <machine/prom.h>
+#include <machine/rpb.h>
 #include <machine/smp.h>
 
 /* Set to 1 once we're ready to let the APs out of the pen. */

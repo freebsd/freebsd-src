@@ -58,13 +58,15 @@ __FBSDID("$FreeBSD$");
 #include <sys/bus.h>
 #include <sys/timetc.h>
 
-#include <machine/cpuconf.h>
 #include <machine/bus.h>
 #include <machine/clock.h>
 #include <machine/clockvar.h>
+#include <machine/cpuconf.h>
+#include <machine/md_var.h>
+#include <machine/rpb.h>	/* for CPU definitions, etc */
+
 #include <isa/isareg.h>
 #include <alpha/alpha/timerreg.h>
-#include <machine/rpb.h>	/* for CPU definitions, etc */
 
 #define	SECMIN	((unsigned)60)			/* seconds per minute */
 #define	SECHOUR	((unsigned)(60*SECMIN))		/* seconds per hour */

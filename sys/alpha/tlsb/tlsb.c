@@ -44,8 +44,9 @@ __FBSDID("$FreeBSD$");
 #include <sys/bus.h>
 #include <sys/malloc.h>
 
-#include <machine/rpb.h>
 #include <machine/cpuconf.h>
+#include <machine/md_var.h>
+#include <machine/rpb.h>
 
 #include <alpha/tlsb/tlsbreg.h>
 #include <alpha/tlsb/tlsbvar.h>

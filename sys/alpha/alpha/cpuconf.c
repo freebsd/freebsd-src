@@ -33,13 +33,15 @@
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
+#include "opt_cpu.h"
+
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/bus.h>
-#include <machine/cpuconf.h>
-#include <machine/rpb.h>
 
-#include "opt_cpu.h"
+#include <machine/cpuconf.h>
+#include <machine/md_var.h>
+#include <machine/rpb.h>
 
 #ifdef DEC_AXPPCI_33
 extern void dec_axppci_33_init(int);

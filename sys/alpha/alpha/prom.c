@@ -38,8 +38,9 @@ __FBSDID("$FreeBSD$");
 #include <sys/user.h>
 #include <sys/cons.h>
 
-#include <machine/rpb.h>
+#include <machine/md_var.h>
 #include <machine/prom.h>
+#include <machine/rpb.h>
 #include <machine/vmparam.h>
 
 struct rpb	*hwrpb;
