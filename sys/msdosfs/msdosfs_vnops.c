@@ -1,4 +1,4 @@
-/*	$Id: msdosfs_vnops.c,v 1.70 1998/06/09 13:20:29 dt Exp $ */
+/*	$Id: msdosfs_vnops.c,v 1.71 1998/06/10 06:30:31 peter Exp $ */
 /*	$NetBSD: msdosfs_vnops.c,v 1.68 1998/02/10 14:10:04 mrg Exp $	*/
 
 /*-
@@ -473,7 +473,7 @@ msdosfs_setattr(ap)
 		    (error = suser(cred, &ap->a_p->p_acflag)))
 			return error;
 		if (uid != pmp->pm_uid || gid != pmp->pm_gid)
-			return EINVAL;
+			return EOPNOTSUPP;
 	}
 
 	if (vap->va_size != VNOVAL) {
