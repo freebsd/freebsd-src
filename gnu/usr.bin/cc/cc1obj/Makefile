@@ -10,7 +10,7 @@ SRCS=	objc-parse.c c-parse.h objc-act.c
 SRCS+=	c-decl.c c-lex.c
 BINDIR=	/usr/libexec
 NOMAN=	1
-NOSHARED=yes
+NOSHARED?=yes
 
 CFLAGS+= -I${GCCDIR}/objc -I.
 
