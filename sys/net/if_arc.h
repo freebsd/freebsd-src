@@ -46,7 +46,7 @@
  */
 struct arc_addr {
 	u_int8_t  arc_addr_octet[1];
-} __attribute__((__packed__));
+} __packed;
 
 /*
  * Structure of a 2.5MB/s Arcnet header.
@@ -69,7 +69,7 @@ struct	arc_header {
 	u_int8_t  arc_type2;	/* same as arc_type */
 	u_int8_t  arc_flag2;	/* real flag value */
 	u_int16_t arc_seqid2;	/* real seqid value */
-} __attribute__((__packed__));
+} __packed;
 
 #define	ARC_ADDR_LEN		1
 
