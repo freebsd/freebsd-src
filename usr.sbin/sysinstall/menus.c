@@ -867,11 +867,7 @@ DMenu MenuSubDistributions = {
       { " local",	"Local additions collection",
 	dmenuFlagCheck,	dmenuSetFlag, NULL, &Dists, '[', 'X', ']', DIST_LOCAL},
       { " XFree86",	"The XFree86 3.3.6 distribution",
-#ifdef X_AS_PKG
-	dmenuFlagCheck,	dmenuSetFlag, NULL, &Dists, '[', 'X', ']', DIST_XF86 },
-#else
 	x11FlagCheck,	distSetXF86 },
-#endif
       { NULL } },
 };
 

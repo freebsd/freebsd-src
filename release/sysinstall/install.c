@@ -817,21 +817,6 @@ installFixupBin(dialogMenuItem *self)
     return DITEM_SUCCESS | DITEM_RESTORE;
 }
 
-#ifdef X_AS_PKG
-int
-installX11package(dialogMenuItem *self)
-{
-    WINDOW *w = savescr();
-    int i;
-
-    dialog_clear_norefresh();
-    msgNotify("Installing XFree86 package...");
-    i = package_add("XFree86");
-    restorescr(w);
-    return i;
-}
-#endif
-
 /* Fix side-effects from the the XFree86 installation */
 int
 installFixupXFree(dialogMenuItem *self)
@@ -843,14 +828,12 @@ installFixupXFree(dialogMenuItem *self)
 	vsystem("chmod -R a+r /usr/X11R6");
 	vsystem("find /usr/X11R6 -type d | xargs chmod a+x");
 
-#ifndef X_AS_PKG
 	/* Also do bogus minimal package registration so ports don't whine */
 	if (file_readable("/usr/X11R6/lib/X11/pkgreg.tar.gz")) {
 	    dialog_clear_norefresh();
 	    msgNotify("Installing package metainfo..");
 	    vsystem("tar xpzf /usr/X11R6/lib/X11/pkgreg.tar.gz -C / && rm /usr/X11R6/lib/X11/pkgreg.tar.gz");
 	}
-#endif
     }
     return DITEM_SUCCESS | DITEM_RESTORE;
 }
