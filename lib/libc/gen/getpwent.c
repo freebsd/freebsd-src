@@ -966,6 +966,9 @@ pwnam_netgrp:
 				break;
 			}
 			break;
+		default:
+			_pw_passwd.pw_fields &= ~_PWF_SOURCE;
+			_pw_passwd.pw_fields |= _PWF_FILES;
 		}
 		if ((search == _PW_KEYBYNAME &&
 			    strcmp(_pw_passwd.pw_name, name) == 0)
