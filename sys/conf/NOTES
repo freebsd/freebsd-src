@@ -1270,6 +1270,7 @@ options 	AML_DEBUG
 #      53C876, 53C885,  53C895, 53C895A, 53C896,  53C897, 53C1510D, 
 #      53C1010-33, 53C1010-66.
 # stg: TMC 18C30, 18C50 based SCSI host adapters.
+# wds: WD7000
 
 #
 # Note that the order is important in order for Buslogic ISA/EISA cards to be
@@ -1294,6 +1295,11 @@ device		ncv
 device		nsp
 device		sym
 device		stg
+device		wds
+hint.wds.0.at="isa"
+hint.wds.0.port="0x350"
+hint.wds.0.irq="11"
+hint.wds.0.drq="6"
 
 # The aic7xxx driver will attempt to use memory mapped I/O for all PCI
 # controllers that have it configured only if this option is set. Unfortunately,
