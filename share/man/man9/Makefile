@@ -81,6 +81,7 @@ MAN=	BUF_LOCK.9 BUF_LOCKFREE.9 BUF_LOCKINIT.9 BUF_REFCNT.9 \
 	vfsconf.9 \
 	vget.9 vgone.9 vhold.9 vinvalbuf.9 \
 	vflush.9 \
+	vm_map.9 \
 	vm_map_check_protection.9 vm_map_clean.9 vm_map_create.9 \
 	vm_map_delete.9 vm_map_find.9 vm_map_findspace.9 vm_map_inherit.9 \
 	vm_map_init.9 vm_map_insert.9 vm_map_lock.9 vm_map_lookup.9 \
