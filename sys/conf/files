@@ -760,6 +760,7 @@ netgraph/ng_parse.c	optional netgraph
 netgraph/ng_async.c	optional netgraph_async
 netgraph/ng_bpf.c	optional netgraph_bpf
 net/bpf_filter.c	optional netgraph_bpf
+netgraph/ng_bridge.c	optional netgraph_bridge
 netgraph/ng_cisco.c	optional netgraph_cisco
 netgraph/ng_echo.c	optional netgraph_echo
 netgraph/ng_ether.c	optional netgraph_ether
