@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)init_main.c	8.9 (Berkeley) 1/21/94
- * $Id: init_main.c,v 1.7 1994/08/27 16:14:25 davidg Exp $
+ * $Id: init_main.c,v 1.8 1994/09/01 05:12:37 davidg Exp $
  */
 
 #include <sys/param.h>
@@ -167,6 +167,8 @@ main(framep)
 	p->p_flag = P_INMEM | P_SYSTEM;
 	p->p_stat = SRUN;
 	p->p_nice = NZERO;
+	p->p_rtprio = RTPRIO_RTOFF;
+
 	bcopy("swapper", p->p_comm, sizeof ("swapper"));
 
 	/* Create credentials. */
@@ -362,9 +364,6 @@ start_init(p, framep)
 	 * passed a pointer to that space as main's argument.
 	 */
 	cpu_set_init_frame(p, framep);
-
-	/* XXX */
-	p->p_rtprio = RTPRIO_RTOFF;
 
 	/*
 	 * Need just enough stack to hold the faked-up "execve()" arguments.
