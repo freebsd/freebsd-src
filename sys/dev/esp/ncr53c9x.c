@@ -944,7 +944,7 @@ ncr53c9x_action(struct cam_sim *sim, union ccb *ccb)
 		ecb->ccb = ccb;
 		ecb->timeout = ccb->ccb_h.timeout;
 
-		if (ccb->ccb_h.func_code == XPT_RESET_BUS) {
+		if (ccb->ccb_h.func_code == XPT_RESET_DEV) {
 			ecb->flags |= ECB_RESET;
 			ecb->clen = 0;
 			ecb->dleft = 0;
@@ -1219,6 +1219,7 @@ ncr53c9x_done(struct ncr53c9x_softc *sc, struct ncr53c9x_ecb *ecb)
 		if ((ecb->flags & ECB_ABORT) != 0) {
 			ccb->ccb_h.status = CAM_CMD_TIMEOUT;
 		} else if ((ecb->flags & ECB_SENSE) != 0) {
+			ccb->ccb_h.status = CAM_AUTOSNS_VALID;
 		} else if (ecb->stat == SCSI_STATUS_CHECK_COND) {
 			if ((ecb->flags & ECB_SENSE) != 0)
 				ccb->ccb_h.status = CAM_AUTOSENSE_FAIL;
