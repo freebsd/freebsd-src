@@ -20,10 +20,12 @@ CWARNFLAGS	+=	-Werror
 CWARNFLAGS	+=	-Wall -Wno-format-y2k
 .  endif
 .  if ${WARNS} >= 3
-CWARNFLAGS	+=	-W -Wstrict-prototypes -Wmissing-prototypes -Wpointer-arith
+CWARNFLAGS	+=	-W -Wno-unused-parameter -Wstrict-prototypes\
+			-Wmissing-prototypes -Wpointer-arith
 .  endif
 .  if ${WARNS} >= 4
-CWARNFLAGS	+=	-Wreturn-type -Wcast-qual -Wwrite-strings -Wswitch -Wshadow -Wcast-align
+CWARNFLAGS	+=	-Wreturn-type -Wcast-qual -Wwrite-strings -Wswitch\
+			-Wshadow -Wcast-align -Wunused-parameter
 .  endif
 # BDECFLAGS
 .  if ${WARNS} >= 6
