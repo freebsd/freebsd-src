@@ -332,6 +332,7 @@ int		 acpi_checksum(void *, size_t);
 
 /* Command line flags */
 extern int	dflag;
+extern int	sflag;
 extern int	tflag;
 extern int	vflag;
 
