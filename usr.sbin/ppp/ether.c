@@ -508,7 +508,7 @@ ether_Create(struct physical *p)
       return ether_Abandon(dev, p);
     }
 
-    log_Printf(LogDEBUG, "List of netgraph node ``%s'' (id %08x) hooks:\n",
+    log_Printf(LogDEBUG, "List of netgraph node ``%s'' (id %x) hooks:\n",
                path, ninfo->id);
 
     /* look for a hook already attached.  */
@@ -527,7 +527,7 @@ ether_Create(struct physical *p)
          */
         if (!strcmp(nlink->nodeinfo.type, NG_PPPOE_NODE_TYPE))
           /* Use this PPPoE node ! */
-          snprintf(ngc.path, sizeof ngc.path, "[%08x]:", nlink->nodeinfo.id);
+          snprintf(ngc.path, sizeof ngc.path, "[%x]:", nlink->nodeinfo.id);
         else {
           log_Printf(LogWARN, "%s Node type ``%s'' is currently active\n",
                      path, nlink->nodeinfo.type);
@@ -545,7 +545,7 @@ ether_Create(struct physical *p)
       snprintf(mkp.type, sizeof mkp.type, "%s", NG_PPPOE_NODE_TYPE);
       snprintf(mkp.ourhook, sizeof mkp.ourhook, "%s", NG_ETHER_HOOK_ORPHAN);
       snprintf(mkp.peerhook, sizeof mkp.peerhook, "%s", NG_PPPOE_HOOK_ETHERNET);
-      snprintf(etherid, sizeof etherid, "[%08x]:", ninfo->id);
+      snprintf(etherid, sizeof etherid, "[%x]:", ninfo->id);
 
       log_Printf(LogDEBUG, "Creating PPPoE netgraph node %s%s -> %s\n",
                  etherid, mkp.ourhook, mkp.peerhook);
@@ -680,7 +680,7 @@ ether_Create(struct physical *p)
       strncpy(dev->hook, hlist->link->ourhook, sizeof dev->hook - 1);
       dev->hook[sizeof dev->hook - 1] = '\0';
 
-      log_Printf(LogDEBUG, "Using netgraph hook ``.:%s'' -> [%08x]:%s\n",
+      log_Printf(LogDEBUG, "Using netgraph hook ``.:%s'' -> [%x]:%s\n",
                  dev->hook, hlist->link->nodeinfo.id, hlist->link->peerhook);
     }
   }
