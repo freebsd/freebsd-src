@@ -5,7 +5,7 @@ SRCS=	named-xfer.c db_glue.c
 CFLAGS+=-I${.CURDIR}/..
 .PATH:	${.CURDIR}/..
 BINDIR=	/usr/libexec
-NOMAN=	noman
+MAN8= named-xfer.8
 
 .include "../../Makefile.inc"
 .include <bsd.prog.mk>
