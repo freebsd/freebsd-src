@@ -111,17 +111,17 @@ static Layout layout[] = {
       "Name server:", "IP address of your local DNS server",
       nameserver, STRINGOBJ, NULL },
 #define LAYOUT_NAMESERVER	3
-{ 11, 10, 18, IPADDR_FIELD_LEN - 1,
+{ 10, 10, 18, IPADDR_FIELD_LEN - 1,
       "IP Address:",
       "The IP address to be used for this interface",
       ipaddr, STRINGOBJ, NULL },
 #define LAYOUT_IPADDR		5
-{ 11, 35, 18, IPADDR_FIELD_LEN - 1,
+{ 10, 35, 18, IPADDR_FIELD_LEN - 1,
       "Netmask:",
       "The netmask for this interfaace, e.g. 0xffffff00 for a class C network",
       netmask, STRINGOBJ, NULL },
 #define LAYOUT_NETMASK		6
-{ 15, 10, 37, HOSTNAME_FIELD_LEN - 1,
+{ 14, 10, 37, HOSTNAME_FIELD_LEN - 1,
       "Extra options to ifconfig:",
       "Any interface-specific options to ifconfig you would like to use",
       extras, STRINGOBJ, NULL },
