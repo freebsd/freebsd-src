@@ -17,7 +17,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: chap.c,v 1.42 1999/02/07 13:56:29 brian Exp $
+ * $Id: chap.c,v 1.43 1999/02/11 10:14:07 brian Exp $
  *
  *	TODO:
  */
@@ -31,12 +31,12 @@
 #include <fcntl.h>
 #ifdef HAVE_DES
 #include <md4.h>
-#include <string.h>
 #endif
 #include <md5.h>
 #include <paths.h>
 #include <signal.h>
 #include <stdlib.h>
+#include <string.h>
 #include <sys/wait.h>
 #include <termios.h>
 #include <unistd.h>
@@ -105,7 +105,8 @@ ChapOutput(struct physical *physical, u_int code, u_int id,
 }
 
 static char *
-chap_BuildAnswer(char *name, char *key, u_char id, char *challenge, int MSChap)
+chap_BuildAnswer(char *name, char *key, u_char id, char *challenge,
+                 u_char type, int lanman)
 {
   char *result, *digest;
   size_t nlen, klen;
@@ -114,7 +115,7 @@ chap_BuildAnswer(char *name, char *key, u_char id, char *challenge, int MSChap)
   klen = strlen(key);
 
 #ifdef HAVE_DES
-  if (MSChap) {
+  if (type == 0x80) {
     char expkey[AUTHLEN << 2];
     MD4_CTX MD4context;
     int f;
@@ -122,38 +123,42 @@ chap_BuildAnswer(char *name, char *key, u_char id, char *challenge, int MSChap)
     if ((result = malloc(1 + nlen + MS_CHAP_RESPONSE_LEN)) == NULL)
       return result;
 
-    digest = result;				/* this is the response */
-    *digest++ = MS_CHAP_RESPONSE_LEN;		/* 49 */
-    memset(digest, '\0', 24);
-    digest += 24;
+    digest = result;					/* the response */
+    *digest++ = MS_CHAP_RESPONSE_LEN;			/* 49 */
+    memcpy(digest + MS_CHAP_RESPONSE_LEN, name, nlen);
+    if (lanman) {
+      memset(digest + 24, '\0', 25);
+      mschap_LANMan(digest, challenge + 1, key);	/* LANMan response */
+    } else {
+      memset(digest, '\0', 25);
+      digest += 24;
 
-    for (f = klen; f; f--) {
-      expkey[2*f-2] = key[f-1];
-      expkey[2*f-1] = 0;
+      for (f = 0; f < klen; f++) {
+        expkey[2*f] = key[f];
+        expkey[2*f+1] = '\0';
+      }
+      /*
+       *           -----------
+       * expkey = | k\0e\0y\0 |
+       *           -----------
+       */
+      MD4Init(&MD4context);
+      MD4Update(&MD4context, expkey, klen << 1);
+      MD4Final(digest, &MD4context);
+
+      /*
+       *           ---- -------- ---------------- ------- ------
+       * result = | 49 | LANMan | 16 byte digest | 9 * ? | name |
+       *           ---- -------- ---------------- ------- ------
+       */
+      mschap_NT(digest, challenge + 1);
     }
-
     /*
-     *           -----------
-     * answer = | k\0e\0y\0 |
-     *           -----------
-     */
-    MD4Init(&MD4context);
-    MD4Update(&MD4context, expkey, klen << 1);
-    MD4Final(digest, &MD4context);
-    memcpy(digest + 25, name, nlen);
-
-    /*
-     * ``result'' is:
-     *           ---- --------- -------------------- ------
-     * result = | 49 | 24 * \0 | digest (pad to 25) | name |
-     *           ---- --------- -------------------- ------
-     */
-    chap_MS(digest, challenge + 1, *challenge);
-
-    /*
-     *           ---- --------- ---------------- --- ----------
-     * result = | 49 | 24 * \0 | 24 byte digest | 1 | authname |
-     *           ---- --------- ---------------- --- ----------
+     *           ---- -------- ------------- ----- ------
+     *          |    |  struct MS_ChapResponse24  |      |
+     * result = | 49 | LANMan  |  NT digest | 0/1 | name |
+     *           ---- -------- ------------- ----- ------
+     * where only one of LANMan & NT digest are set.
      */
   } else
 #endif
@@ -281,18 +286,20 @@ chap_Cleanup(struct chap *chap, int sig)
       log_Printf(LogERROR, "Chap: Child exited %d\n", WEXITSTATUS(status));
   }
   *chap->challenge = 0;
+  chap->peertries = 0;
 }
 
 static void
-chap_SendResponse(struct chap *chap, char *name, char *key)
+chap_Respond(struct chap *chap, char *name, char *key, u_char type, int lm)
 {
-  char *ans;
+  u_char *ans;
 
-  ans = chap_BuildAnswer(name, key, chap->auth.id, chap->challenge, 0);
+  ans = chap_BuildAnswer(name, key, chap->auth.id, chap->challenge, type, lm);
 
   if (ans) {
     ChapOutput(chap->auth.physical, CHAP_RESPONSE, chap->auth.id,
                ans, *ans + 1 + strlen(name), name);
+    chap->NTRespSent = !lm;
     free(ans);
   } else
     ChapOutput(chap->auth.physical, CHAP_FAILURE, chap->auth.id,
@@ -355,6 +362,11 @@ chap_Read(struct descriptor *d, struct bundle *bundle, const fd_set *fdset)
         chap_Cleanup(chap, SIGTERM);
       }
     } else {
+      int lanman = chap->auth.physical->link.lcp.his_authtype == 0x80 &&
+                   ((chap->NTRespSent &&
+                     IsAccepted(chap->auth.physical->link.lcp.cfg.chap80lm)) ||
+                    !IsAccepted(chap->auth.physical->link.lcp.cfg.chap80nt));
+
       while (end >= name && strchr(" \t\r\n", *end))
         *end-- = '\0';
       end = key - 1;
@@ -362,7 +374,8 @@ chap_Read(struct descriptor *d, struct bundle *bundle, const fd_set *fdset)
         *end-- = '\0';
       key += strspn(key, " \t");
 
-      chap_SendResponse(chap, name, key);
+      chap_Respond(chap, name, key,
+                   chap->auth.physical->link.lcp.his_authtype, lanman);
       chap_Cleanup(chap, 0);
     }
   }
@@ -398,7 +411,12 @@ chap_Challenge(struct authinfo *authp)
     } else
 #endif
     {
-      *cp++ = random() % (CHAPCHALLENGELEN-16) + 16;
+#ifdef HAVE_DES
+      if (authp->physical->link.lcp.want_authtype == 0x80)
+        *cp++ = 8;	/* MS does 8 byte callenges :-/ */
+      else
+#endif
+        *cp++ = random() % (CHAPCHALLENGELEN-16) + 16;
       for (i = 0; i < *chap->challenge; i++)
         *cp++ = random() & 0xff;
     }
@@ -432,6 +450,35 @@ chap_Failure(struct authinfo *authp)
   datalink_AuthNotOk(authp->physical->dl);
 }
 
+static int
+chap_Cmp(u_char type, int lm, char *myans, int mylen, char *hisans, int hislen)
+{
+  if (mylen != hislen)
+    return 0;
+  else if (type == 0x80) {
+    int off = lm ? 0 : 24;
+
+    if (memcmp(myans + off, hisans + off, 24))
+      return 0;
+  } else if (memcmp(myans, hisans, mylen))
+    return 0;
+
+  return 1;
+}
+
+static int
+chap_HaveAnotherGo(struct chap *chap)
+{
+  if (++chap->peertries < 3) {
+    /* Give the peer another shot */
+    *chap->challenge = '\0';
+    chap_Challenge(&chap->auth);
+    return 1;
+  }
+
+  return 0;
+}
+
 void
 chap_Init(struct chap *chap, struct physical *p)
 {
@@ -444,7 +491,8 @@ chap_Init(struct chap *chap, struct physical *p)
   chap->child.fd = -1;
   auth_Init(&chap->auth, p, chap_Challenge, chap_Success, chap_Failure);
   *chap->challenge = 0;
-  chap->using_MSChap = 0;
+  chap->NTRespSent = 0;
+  chap->peertries = 0;
 }
 
 void
@@ -457,8 +505,8 @@ void
 chap_Input(struct physical *p, struct mbuf *bp)
 {
   struct chap *chap = &p->dl->chap;
-  char *name, *key, *ans, *myans;
-  int len, nlen;
+  char *name, *key, *ans;
+  int len, nlen, lanman;
   u_char alen;
 
   if ((bp = auth_ReadHeader(&chap->auth, bp)) == NULL)
@@ -482,17 +530,22 @@ chap_Input(struct physical *p, struct mbuf *bp)
     }
     chap->auth.id = chap->auth.in.hdr.id;	/* We respond with this id */
 
+    lanman = 0;
     switch (chap->auth.in.hdr.code) {
       case CHAP_CHALLENGE:
-        bp = mbuf_Read(bp, chap->challenge, 1);
-        len -= *chap->challenge + 1;
+        bp = mbuf_Read(bp, &alen, 1);
+        len -= alen + 1;
         if (len < 0) {
           log_Printf(LogERROR, "Chap Input: Truncated challenge !\n");
           mbuf_Free(bp);
           return;
         }
-        bp = mbuf_Read(bp, chap->challenge + 1, *chap->challenge);
+        *chap->challenge = alen;
+        bp = mbuf_Read(bp, chap->challenge + 1, alen);
         bp = auth_ReadName(&chap->auth, bp, len);
+        lanman = p->link.lcp.his_authtype == 0x80 &&
+                 ((chap->NTRespSent && IsAccepted(p->link.lcp.cfg.chap80lm)) ||
+                  !IsAccepted(p->link.lcp.cfg.chap80nt));
         break;
 
       case CHAP_RESPONSE:
@@ -513,6 +566,7 @@ chap_Input(struct physical *p, struct mbuf *bp)
         bp = mbuf_Read(bp, ans + 1, alen);
         ans[alen+1] = '\0';
         bp = auth_ReadName(&chap->auth, bp, len);
+        lanman = alen == 49 && ans[alen] == 0;
         break;
 
       case CHAP_SUCCESS:
@@ -532,11 +586,16 @@ chap_Input(struct physical *p, struct mbuf *bp)
       case CHAP_CHALLENGE:
       case CHAP_RESPONSE:
         if (*chap->auth.in.name)
-          log_Printf(LogPHASE, "Chap Input: %s (from %s)\n",
-                     chapcodes[chap->auth.in.hdr.code], chap->auth.in.name);
+          log_Printf(LogPHASE, "Chap Input: %s (%d bytes from %s%s)\n",
+                     chapcodes[chap->auth.in.hdr.code], alen,
+                     chap->auth.in.name,
+                     lanman && chap->auth.in.hdr.code == CHAP_RESPONSE ?
+                     " - lanman" : "");
         else
-          log_Printf(LogPHASE, "Chap Input: %s\n",
-                     chapcodes[chap->auth.in.hdr.code]);
+          log_Printf(LogPHASE, "Chap Input: %s (%d bytes%s)\n",
+                     chapcodes[chap->auth.in.hdr.code], alen,
+                     lanman && chap->auth.in.hdr.code == CHAP_RESPONSE ?
+                     " - lanman" : "");
         break;
 
       case CHAP_SUCCESS:
@@ -556,8 +615,9 @@ chap_Input(struct physical *p, struct mbuf *bp)
           chap_StartChild(chap, p->dl->bundle->cfg.auth.key + 1,
                           p->dl->bundle->cfg.auth.name);
         else
-          chap_SendResponse(chap, p->dl->bundle->cfg.auth.name,
-                            p->dl->bundle->cfg.auth.key);
+          chap_Respond(chap, p->dl->bundle->cfg.auth.name,
+                       p->dl->bundle->cfg.auth.key,
+                       p->link.lcp.his_authtype, lanman);
         break;
 
       case CHAP_RESPONSE:
@@ -573,14 +633,29 @@ chap_Input(struct physical *p, struct mbuf *bp)
         {
           key = auth_GetSecret(p->dl->bundle, name, nlen, p);
           if (key) {
-            myans = chap_BuildAnswer(name, key, chap->auth.id, chap->challenge,
-                                     chap->using_MSChap);
-            if (myans == NULL)
+            char *myans;
+            if (lanman && !IsEnabled(p->link.lcp.cfg.chap80lm)) {
+              log_Printf(LogPHASE, "Auth failure: LANMan not enabled\n");
+              if (chap_HaveAnotherGo(chap))
+                break;
               key = NULL;
-            else {
-              if (*myans != alen || memcmp(myans + 1, ans + 1, *myans))
+            } else if (!lanman && !IsEnabled(p->link.lcp.cfg.chap80nt)) {
+              log_Printf(LogPHASE, "Auth failure: mschap not enabled\n");
+              if (chap_HaveAnotherGo(chap))
+                break;
+              key = NULL;
+            } else {
+              myans = chap_BuildAnswer(name, key, chap->auth.id,
+                                       chap->challenge,
+                                       p->link.lcp.want_authtype, lanman);
+              if (myans == NULL)
                 key = NULL;
-              free(myans);
+              else {
+                if (!chap_Cmp(p->link.lcp.want_authtype, lanman,
+                              myans + 1, *myans, ans + 1, alen))
+                  key = NULL;
+                free(myans);
+              }
             }
           }
 
