@@ -5,7 +5,7 @@ operator:*:2:20::0:0:System &:/usr/guest/operator:/bin/csh
 bin:*:3:7::0:0:Binaries Commands and Source,,,:/:/nonexistent
 games:*:7:13::0:0:Games pseudo-user:/usr/games:
 man:*:9:9::0:0:Mister Man Pages:/usr/share/man:
-uucp:*:66:1::0:0:UUCP pseudo-user:/var/spool/uucppublic:/usr/libexec/uucp/uucico
+uucp:*:66:66::0:0:UUCP pseudo-user:/var/spool/uucppublic:/usr/libexec/uucp/uucico
 ingres:*:267:74::0:0:& Group:/usr/ingres:/bin/csh
 falcon:*:32766:31::0:0:Prof. Steven &:/usr/games:/usr/games/wargames
 nobody:*:32767:9999::0:0:Unprivileged user:/nonexistent:/nonexistent
