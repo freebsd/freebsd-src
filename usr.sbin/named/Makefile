@@ -31,7 +31,7 @@ HTMLS=	acl.html address_list.html comments.html config.html controls.html \
 	docdef.html example.html include.html index.html key.html \
 	logging.html master.html options.html server.html trusted-keys.html \
 	zone.html
-MISCS=	DynamicUpdate FAQ.1of2 FAQ.2of2 style.txt
+MISCS=	DynamicUpdate FAQ.1of2 FAQ.2of2 rfc2317-notes.txt style.txt
 FILES=	${HTMLS} ${MISCS}
 .PATH: ${BIND_DIR}/doc/html ${BIND_DIR}/doc/misc
 
