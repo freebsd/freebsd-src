@@ -1,4 +1,4 @@
-/*	$OpenBSD: tree.h,v 1.6 2002/06/11 22:09:52 provos Exp $	*/
+/*	$OpenBSD: tree.h,v 1.7 2002/10/17 21:51:54 art Exp $	*/
 /*
  * Copyright 2002 Niels Provos <provos@citi.umich.edu>
  * All rights reserved.
@@ -343,12 +343,13 @@ struct {								\
 			RB_LEFT(RB_PARENT(elm, field), field) = (tmp);	\
 		else							\
 			RB_RIGHT(RB_PARENT(elm, field), field) = (tmp);	\
-		RB_AUGMENT(RB_PARENT(elm, field));			\
 	} else								\
 		(head)->rbh_root = (tmp);				\
 	RB_LEFT(tmp, field) = (elm);					\
 	RB_PARENT(elm, field) = (tmp);					\
 	RB_AUGMENT(tmp);						\
+	if ((RB_PARENT(tmp, field)))					\
+		RB_AUGMENT(RB_PARENT(tmp, field));			\
 } while (0)
 
 #define RB_ROTATE_RIGHT(head, elm, tmp, field) do {			\
@@ -362,12 +363,13 @@ struct {								\
 			RB_LEFT(RB_PARENT(elm, field), field) = (tmp);	\
 		else							\
 			RB_RIGHT(RB_PARENT(elm, field), field) = (tmp);	\
-		RB_AUGMENT(RB_PARENT(elm, field));			\
 	} else								\
 		(head)->rbh_root = (tmp);				\
 	RB_RIGHT(tmp, field) = (elm);					\
 	RB_PARENT(elm, field) = (tmp);					\
 	RB_AUGMENT(tmp);						\
+	if ((RB_PARENT(tmp, field)))					\
+		RB_AUGMENT(RB_PARENT(tmp, field));			\
 } while (0)
 
 /* Generates prototypes and inline functions */
