@@ -6,6 +6,7 @@ LINKS=	${BINDIR}/pkg_sign ${BINDIR}/pkg_check
 MLINKS=	pkg_sign.1 pkg_check.1
 SRCS=	main.c check.c common.c gzip.c pgp_check.c pgp_sign.c \
 	sha1.c sign.c stand.c x509.c
+CFLAGS+=-DOPENSSL_NO_KRB5
 
 DPADD=	${LIBINSTALL} ${LIBCRYPTO}
 LDADD=	${LIBINSTALL} -lcrypto
