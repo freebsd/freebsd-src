@@ -132,6 +132,7 @@ struct fdc_data
 {
 	int	fdcu;		/* our unit number */
 	int	dmachan;
+	int	dmacnt;
 	int	flags;
 #define FDC_ATTACHED	0x01
 #define FDC_STAT_VALID	0x08
@@ -770,7 +771,8 @@ fdc_alloc_resources(struct fdc_data *fdc)
 	}
 
 	fdc->res_irq = bus_alloc_resource_any(dev, SYS_RES_IRQ,
-					      &fdc->rid_irq, RF_ACTIVE | RF_SHAREABLE);
+					      &fdc->rid_irq,
+					      RF_ACTIVE | RF_SHAREABLE);
 	if (fdc->res_irq == 0) {
 		device_printf(dev, "cannot reserve interrupt line\n");
 		return ENXIO;
@@ -778,8 +780,7 @@ fdc_alloc_resources(struct fdc_data *fdc)
 
 	if ((fdc->flags & FDC_NODMA) == 0) {
 		fdc->res_drq = bus_alloc_resource_any(dev, SYS_RES_DRQ,
-						      &fdc->rid_drq,
-						      RF_ACTIVE);
+		    &fdc->rid_drq, RF_ACTIVE | RF_SHAREABLE);
 		if (fdc->res_drq == 0) {
 			device_printf(dev, "cannot reserve DMA request line\n");
 			fdc->flags |= FDC_NODMA;
@@ -964,9 +965,6 @@ fdc_detach(device_t dev)
 	/* reset controller, turn motor off */
 	fdout_wr(fdc, 0);
 
-	if ((fdc->flags & FDC_NODMA) == 0)
-		isa_dma_release(fdc->dmachan);
-
 	if ((fdc->flags & FDC_ATTACHED) == 0) {
 		device_printf(dev, "already unloaded\n");
 		return (0);
@@ -1030,15 +1028,6 @@ fdc_attach(device_t dev)
 	fdc->fdcu = device_get_unit(dev);
 	fdc->flags |= FDC_ATTACHED | FDC_NEEDS_RESET;
 
-	if ((fdc->flags & FDC_NODMA) == 0) {
-		/*
-		 * Acquire the DMA channel forever, the driver will do
-		 * the rest
-		 * XXX should integrate with rman
-		 */
-		isa_dma_acquire(fdc->dmachan);
-		isa_dmainit(fdc->dmachan, MAX_SEC_SIZE);
-	}
 	fdc->state = DEVIDLE;
 
 	/* reset controller, turn motor off, clear fdout mirror reg */
@@ -1574,6 +1563,14 @@ fdopen(struct cdev *dev, int flags, int mode, struct thread *td)
 			return (rv);
 	}
 	fd->flags |= FD_OPEN;
+
+	if ((fdc->flags & FDC_NODMA) == 0) {
+		if (fdc->dmacnt++ == 0) {
+			isa_dma_acquire(fdc->dmachan);
+			isa_dmainit(fdc->dmachan, MAX_SEC_SIZE);
+		}
+	}
+
 	/*
 	 * Clearing the DMA overrun counter at open time is a bit messy.
 	 * Since we're only managing one counter per controller, opening
@@ -1594,10 +1591,16 @@ static int
 fdclose(struct cdev *dev, int flags, int mode, struct thread *td)
 {
 	struct fd_data *fd;
+ 	fdc_p	fdc;
 
 	fd = dev->si_drv1;
+	fdc = fd->fdc;
 	fd->flags &= ~(FD_OPEN | FD_NONBLOCK);
 	fd->options &= ~(FDOPT_NORETRY | FDOPT_NOERRLOG | FDOPT_NOERROR);
+
+	if ((fdc->flags & FDC_NODMA) == 0)
+		if (--fdc->dmacnt == 0)
+			isa_dma_release(fdc->dmachan);
 
 	return (0);
 }
