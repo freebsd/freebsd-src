@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)kern_sysctl.c	8.4 (Berkeley) 4/14/94
- * $Id: kern_sysctl.c,v 1.25.4.4 1996/05/30 01:24:41 davidg Exp $
+ * $Id: kern_sysctl.c,v 1.25.4.5 1996/05/31 08:04:10 peter Exp $
  */
 
 /*
@@ -648,17 +648,24 @@ sysctl_doproc(name, namelen, where, sizep)
 	size_t *sizep;
 {
 	register struct proc *p;
-	register struct kinfo_proc *dp = (struct kinfo_proc *)where;
-	register int needed = 0;
-	int buflen = where != NULL ? *sizep : 0;
+	register struct kinfo_proc *dp;
+	register int needed;
+	int buflen;
 	int doingzomb;
 	struct eproc eproc;
 	int error = 0;
 
 	if (namelen != 2 && !(namelen == 1 && name[0] == KERN_PROC_ALL))
 		return (EINVAL);
-	p = (struct proc *)allproc;
+restart:
 	doingzomb = 0;
+	p = (struct proc *)allproc;
+	if (where != NULL)
+		buflen = *sizep;
+	else
+		buflen = 0;
+	dp = (struct kinfo_proc *)where;
+	needed = 0;
 again:
 	for (; p != NULL; p = p->p_next) {
 		/*
@@ -703,15 +710,37 @@ again:
 			break;
 		}
 		if (buflen >= sizeof(struct kinfo_proc)) {
+			pid_t pid = p->p_pid;
+
 			fill_eproc(p, &eproc);
 			error = copyout((caddr_t)p, &dp->kp_proc,
 			    sizeof(struct proc));
 			if (error)
 				return (error);
+			/*
+			 * Since copyout can block, our cached struct proc * may
+			 * no longer be valid. For allproc, restart from the
+			 * beginning if the process no longer exists. For
+			 * zombproc, just stop if it's gone.
+			 */
+			if (!doingzomb) {
+				if (pid && (pfind(pid) != p))
+					goto restart;
+			} else {
+				if (zpfind(pid) != p)
+					break;
+			}
 			error = copyout((caddr_t)&eproc, &dp->kp_eproc,
 			    sizeof(eproc));
 			if (error)
 				return (error);
+			if (!doingzomb) {
+				if (pid && (pfind(pid) != p))
+					goto restart;
+			} else {
+				if (zpfind(pid) != p)
+					break;
+			}
 			dp++;
 			buflen -= sizeof(struct kinfo_proc);
 		}
