@@ -42,7 +42,6 @@
  */
 
 struct mfsnode {
-	struct lock mfs_lock;
 	struct	vnode *mfs_vnode;	/* vnode associated with this mfsnode */
 	caddr_t	mfs_baseoff;		/* base of file system in memory */
 	long	mfs_size;		/* size of memory file system */
