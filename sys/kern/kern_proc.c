@@ -151,6 +151,7 @@ kse_link(struct kse *ke, struct ksegrp *kg)
 static void
 ksegrp_link(struct ksegrp *kg, struct proc *p)
 {
+
 	TAILQ_INIT(&kg->kg_threads);
 	TAILQ_INIT(&kg->kg_runq);	/* links with td_runq */
 	TAILQ_INIT(&kg->kg_slpq);	/* links with td_runq */
@@ -173,6 +174,7 @@ void
 proc_linkup(struct proc *p, struct ksegrp *kg,
 			struct kse *ke, struct thread *td)
 {
+
 	TAILQ_INIT(&p->p_ksegrps);	     /* all ksegrps in proc */
 	TAILQ_INIT(&p->p_threads);	     /* all threads in proc */
 
