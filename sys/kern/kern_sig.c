@@ -844,7 +844,7 @@ kern_sigtimedwait(struct thread *td, sigset_t waitset, siginfo_t *info,
     struct timespec *timeout)
 {
 	struct sigacts *ps;
-	sigset_t savedmask, sigset;
+	sigset_t savedmask;
 	struct proc *p;
 	int error, sig, hz, i, timevalid = 0;
 	struct timespec rts, ets, ts;
@@ -894,22 +894,11 @@ again:
 			i = 0;
 			mtx_unlock(&ps->ps_mtx);
 		}
-		if (sig) {
-			td->td_sigmask = savedmask;
-			signotify(td);
+		if (sig)
 			goto out;
-		}
 	}
 	if (error)
 		goto out;
-
-	td->td_sigmask = savedmask;
-	signotify(td);
-	sigset = td->td_siglist;
-	SIGSETOR(sigset, p->p_siglist);
-	SIGSETAND(sigset, waitset);
-	if (!SIGISEMPTY(sigset))
-		goto again;
 
 	/*
 	 * POSIX says this must be checked after looking for pending
@@ -933,6 +922,9 @@ again:
 		hz = 0;
 
 	td->td_waitset = &waitset;
+	td->td_sigmask = savedmask;
+	SIGSETNAND(td->td_sigmask, waitset);
+	signotify(td);
 	error = msleep(&ps, &p->p_mtx, PPAUSE|PCATCH, "sigwait", hz);
 	td->td_waitset = NULL;
 	if (timeout) {
@@ -947,6 +939,8 @@ again:
 	goto again;
 
 out:
+	td->td_sigmask = savedmask;
+	signotify(td);
 	if (sig) {
 		sig_t action;
 
@@ -1597,8 +1591,8 @@ sigtd(struct proc *p, int sig, int prop)
 	FOREACH_THREAD_IN_PROC(p, td) {
 		if (td->td_waitset != NULL &&
 		    SIGISMEMBER(*(td->td_waitset), sig)) {
-				mtx_unlock_spin(&sched_lock);
-				return (td);
+			mtx_unlock_spin(&sched_lock);
+			return (td);
 		}
 		if (!SIGISMEMBER(td->td_sigmask, sig)) {
 			if (td == curthread)
@@ -1705,9 +1699,6 @@ do_tdsignal(struct thread *td, int sig, sigtarget_t target)
 	} else {
 		if (!SIGISMEMBER(td->td_sigmask, sig))
 			siglist = &td->td_siglist;
-		else if (td->td_waitset != NULL &&
-			SIGISMEMBER(*(td->td_waitset), sig))
-			siglist = &td->td_siglist;
 		else
 			siglist = &p->p_siglist;
 	}
@@ -1733,11 +1724,7 @@ do_tdsignal(struct thread *td, int sig, sigtarget_t target)
 			mtx_unlock(&ps->ps_mtx);
 			return;
 		}
-		if (((td->td_waitset == NULL) &&
-		     SIGISMEMBER(td->td_sigmask, sig)) ||
-		    ((td->td_waitset != NULL) &&
-		     SIGISMEMBER(td->td_sigmask, sig) &&
-		     !SIGISMEMBER(*(td->td_waitset), sig)))
+		if (SIGISMEMBER(td->td_sigmask, sig))
 			action = SIG_HOLD;
 		else if (SIGISMEMBER(ps->ps_sigcatch, sig))
 			action = SIG_CATCH;
@@ -1779,11 +1766,6 @@ do_tdsignal(struct thread *td, int sig, sigtarget_t target)
 
 	SIGADDSET(*siglist, sig);
 	signotify(td);			/* uses schedlock */
-	if (siglist == &td->td_siglist && (td->td_waitset != NULL) &&
-	    action != SIG_HOLD) {
-		td->td_waitset = NULL;
-	}
-
 	/*
 	 * Defer further processing for signals which are held,
 	 * except that stopped processes must be continued by SIGCONT.
