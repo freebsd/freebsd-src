@@ -171,6 +171,13 @@ _sseek(fp, offset, whence)
 	 */
 	if (ret < 0) {
 		if (errret == 0) {
+			if (offset != 0 || whence != SEEK_CUR) {
+				if (HASUB(fp))
+					FREEUB(fp);
+				fp->_p = fp->_bf._base;
+				fp->_r = 0;
+				fp->_flags &= ~__SEOF;
+			}
 			fp->_flags |= __SERR;
 			errno = EINVAL;
 		} else if (errret == ESPIPE)
