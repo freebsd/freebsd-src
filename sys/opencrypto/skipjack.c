@@ -1,6 +1,4 @@
-/*	$FreeBSD$	*/
 /*	$OpenBSD: skipjack.c,v 1.3 2001/05/05 00:31:34 angelos Exp $	*/
-
 /* 
  * Further optimized test implementation of SKIPJACK algorithm 
  * Mark Tillotson <markt@chaos.org.uk>, 25 June 98
@@ -13,6 +11,9 @@
  * Version 2.0 
  * 29 May 1998
 */
+
+#include <sys/cdefs.h>
+__FBSDID("$FreeBSD$");
 
 #include <sys/param.h>
 
@@ -62,6 +63,7 @@ static const u_int8_t ftable[0x100] =
  * the tables are hopefully pointed to by register allocated variables
  * k0, k1..k9
  */
+
 void
 subkey_table_gen (u_int8_t *key, u_int8_t **key_tables)
 {
