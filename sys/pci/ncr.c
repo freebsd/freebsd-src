@@ -1,6 +1,6 @@
 /**************************************************************************
 **
-**  $Id: ncr.c,v 1.104 1997/08/23 21:53:47 se Exp $
+**  $Id: ncr.c,v 1.105 1997/08/23 22:01:49 se Exp $
 **
 **  Device driver for the   NCR 53C810   PCI-SCSI-Controller.
 **
@@ -1340,7 +1340,7 @@ static	void	ncr_attach	(pcici_t tag, int unit);
 
 
 static char ident[] =
-	"\n$Id: ncr.c,v 1.104 1997/08/23 21:53:47 se Exp $\n";
+	"\n$Id: ncr.c,v 1.105 1997/08/23 22:01:49 se Exp $\n";
 
 static const u_long	ncr_version = NCR_VERSION	* 11
 	+ (u_long) sizeof (struct ncb)	*  7
@@ -3320,9 +3320,6 @@ static ncr_chip ncr_chip_table[] = {
  FE_WIDE|FE_ERL|FE_BOF}
  ,
  {NCR_825_ID, 0x10,	"ncr 53c825a fast10 wide scsi",		7,  8, 4,
- FE_WIDE|FE_CACHE_SET|FE_DFS|FE_LDSTR|FE_PFEN/*|FE_RAM*/}
- ,
- {NCR_825_ID, 0x13,	"ncr 53c825a fast10 wide scsi",		7,  8, 4,
  FE_WIDE|FE_CACHE_SET|FE_DFS|FE_LDSTR|FE_PFEN|FE_RAM}
  ,
  {NCR_860_ID, 0x00,	"ncr 53c860 fast20 scsi",		4,  8, 5,
@@ -4901,6 +4898,7 @@ void ncr_init (ncb_p np, char * msg, u_long code)
 
 	OUTB (nc_istat,  SRST);
 	DELAY (1000);
+	OUTB (nc_istat, 0);
 
 	/*
 	**	Message.
