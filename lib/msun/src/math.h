@@ -20,8 +20,11 @@
 /*
  * ANSI/POSIX
  */
-extern char __infinity[];
-#define HUGE_VAL	(*(double *) __infinity)
+extern const union __infinity_un {
+	unsigned char	__uc[8];
+	double		__ud;
+} __infinity;
+#define HUGE_VAL	(__infinity.__ud)
 
 /*
  * XOPEN/SVID
