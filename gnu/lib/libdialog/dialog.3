@@ -153,7 +153,7 @@ typedef struct _dmenu_item {
    char lbra, mark, rbra;
 } dialogMenuItem;
 .Ed
-
+.Pp
 The
 .Dv prompt
 and
@@ -193,14 +193,13 @@ If an item has a
 hook associated with it, it will also be called
 whenever the item is "toggled" in some way and should return one of the
 following codes:
-
 .Bd -literal -offset 4n
 #define DITEM_SUCCESS            0    /* Successful completion */
 #define DITEM_FAILURE           -1    /* Failed to "fire" */
 #define DITEM_LEAVE_MENU        -2    /* Treat selection as "Ok" */
 #define DITEM_REDRAW            -3    /* Menu has changed, redraw it */
 .Ed
-
+.Pp
 Two special globals also exist for putting a dialog at any arbitrary
 X,Y location (the early designers rather short-sightedly made no provisions
 for this).  If set to zero, the default centering behavior will be in
@@ -363,16 +362,16 @@ and
 actions are used to override the default behavior, and
 .Va itptr
 to the same for the OK button.
-
+.Pp
 Using either API behavior, the
 .Va ch
 and
 .Va sc
 values may be passed in to preserve current
 item selection and scroll position values across calls.
-
+.Pp
 Returns 0 on success, 1 on Cancel and -1 on failure or ESC.
-
+.Pp
 .Fn dialog_checklist
 display a menu of dimensions
 .Va height
@@ -434,14 +433,14 @@ and
 actions are used to override the default behavior, and
 .Va itptr
 to the same for the OK button.
-
+.Pp
 In the standard API model, the menu supports the selection of multiple items,
 each of which is marked with an `X' character to denote selection.  When
 the OK button is selected, the prompt values for all items selected are
 concatenated into the
 .Va result
 string.
-
+.Pp
 In the new API model, it is not actually necessary to preserve
 "checklist" semantics at all since practically everything about how
 each item is displayed or marked as "selected" is fully configurable.
@@ -453,9 +452,9 @@ over
 .Fn dialog_radiolist
 in the new API model is to inherit the base
 behavior, you're no longer constrained by it.
-
+.Pp
 Returns 0 on success, 1 on Cancel and -1 on failure or ESC.
-
+.Pp
 .Fn dialog_radiolist
 display a menu of dimensions
 .Va height
@@ -516,14 +515,14 @@ and
 actions are used to override the default behavior, and
 .Va itptr
 does the same for the traditional OK button.
-
+.Pp
 In the standard API model, the menu supports the selection of only one
 of multiple items, the currently active item marked with an `*'
 character to denote selection.  When the OK button is selected, the
 prompt value for this item is copied into the
 .Va result
 string.
-
+.Pp
 In the new API model, it is not actually necessary to preserve
 "radio button" semantics at all since practically everything about how
 each item is displayed or marked as "selected" is fully configurable.
@@ -535,9 +534,9 @@ over
 .Fn dialog_checklistlist
 in the new API model is to inherit the base
 behavior.
-
+.Pp
 Returns 0 on success, 1 on Cancel and -1 on failure or ESC.
-
+.Pp
 .Fn dialog_inputbox
 displays a single-line text input field in a box displaying
 .Va title
@@ -549,31 +548,31 @@ and
 .Va width .
 The field entered is stored in
 .Va result .
-
+.Pp
 Returns 0 on success, -1 on failure or ESC.
-
+.Pp
 .Fn dialog_fselect
 brings up a file selector dialog starting at
 .Va dir
 and showing only those file names
 matching
 .Va fmask .
-
+.Pp
 Returns filename selected or NULL.
-
+.Pp
 .Fn dialog_dselect
 brings up a directory selector dialog starting at
 .Va dir
 and showing only those directory names
 matching
 .Va fmask .
-
+.Pp
 Returns directory name selected or NULL.
-
+.Pp
 .Fn dialog_notify
 brings up a generic "hey, you!" notifier dialog containing
 .Va msg .
-
+.Pp
 .Fn dialog_mesgbox
 like a notifier dialog, but with more control over
 .Va title ,
@@ -583,9 +582,9 @@ and
 .Va height .
 This object will also wait for user confirmation, unlike
 .Fn dialog_notify .
-
+.Pp
 Returns 0 on success, -1 on failure.
-
+.Pp
 .Fn dialog_gauge
 displays a horizontal bar-graph style gauge.  A value of
 .Em 100
@@ -594,36 +593,36 @@ for
 constitutes a full gauge, a value of
 .Em 0
 an empty one.
-
+.Pp
 .Fn use_helpfile
 for any menu supporting context sensitive help, invoke the text box
 object on this file whenever the
 .Em F1
 key is pressed.
-
+.Pp
 .Fn use_helpline
 displays this line of helpful text below any menu being displayed.
-
+.Pp
 .Fn get_helpline
 get the current value of the helpful text line.
-
+.Pp
 .Fn dialog_clear_norefresh
 clear the screen back to the dialog background color, but don't refresh the
 contents just yet.
-
+.Pp
 .Fn dialog_clear
 clear the screen back to the dialog background color immediately.
-
+.Pp
 .Fn dialog_update
 do any pending screen refreshes now.
-
+.Pp
 .Fn init_dialog
 initialize the dialog library (call this routine before any other dialog
 API calls).
-
+.Pp
 .Fn end_dialog
 shut down the dialog library (call this if you need to get back to sanity).
-
+.Pp
 .Fn dialog_ftree
 shows a tree described by the data from the file
 .Pa filename .
@@ -687,7 +686,7 @@ with
 .Fl d
 option. Some of the transient paths to the leaves of the tree may
 be absent. Such data is corrected when fed from filename.
-
+.Pp
 The function returns 0 and a pointer to the selected leaf (to the path to
 the leaf from the root of the tree) into result, if the OK button was
 selected. The memory allocated for the building of the tree is freed on
@@ -698,7 +697,7 @@ later manually, if necessary. If the Cancel button was selected, the
 function returns 1. In case of exiting
 .Fn dialog_ftree
 on ESC, the function returns -1.
-
+.Pp
 .Fn dialog_tree 
 function returns the same results as
 .Fn dialog_ftree .
