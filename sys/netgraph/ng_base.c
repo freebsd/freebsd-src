@@ -1167,6 +1167,26 @@ ng_newtype(struct ng_type *tp)
 }
 
 /*
+ * unlink a netgraph type
+ * If no examples exist
+ */
+int
+ng_rmtype(struct ng_type *tp)
+{
+	/* Check for name collision */
+	if (tp->refs != 1) {
+		TRAP_ERROR();
+		return (EBUSY);
+	}
+
+	/* Unlink type */
+	mtx_lock(&ng_typelist_mtx);
+	LIST_REMOVE(tp, types);
+	mtx_unlock(&ng_typelist_mtx);
+	return (0);
+}
+
+/*
  * Look for a type of the name given
  */
 struct ng_type *
