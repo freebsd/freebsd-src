@@ -50,10 +50,8 @@ __FBSDID("$FreeBSD$");
 #include "extern.h"
 
 void
-c_special(fd1, file1, skip1, fd2, file2, skip2)
-	int fd1, fd2;
-	const char *file1, *file2;
-	off_t skip1, skip2;
+c_special(int fd1, const char *file1, off_t skip1,
+    int fd2, const char *file2, off_t skip2)
 {
 	int ch1, ch2;
 	off_t byte, line;

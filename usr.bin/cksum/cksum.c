@@ -62,9 +62,7 @@ __FBSDID("$FreeBSD$");
 static void usage(void);
 
 int
-main(argc, argv)
-	int argc;
-	char **argv;
+main(int argc, char **argv)
 {
 	int ch, fd, rval;
 	u_int32_t len, val;
@@ -132,7 +130,7 @@ main(argc, argv)
 }
 
 static void
-usage()
+usage(void)
 {
 	(void)fprintf(stderr, "usage: cksum [-o 1 | 2 | 3] [file ...]\n");
 	(void)fprintf(stderr, "       sum [file ...]\n");
