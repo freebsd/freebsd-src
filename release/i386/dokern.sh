@@ -44,7 +44,6 @@ echo "options  NETGRAPH"
 echo "options  NETGRAPH_ETHER"
 echo "options  NETGRAPH_PPPOE"
 echo "options  NETGRAPH_SOCKET"
-echo "options  NO_COMPAT_FREEBSD4"
 
 echo "options  SCSI_NO_OP_STRINGS" 
 echo "options  SCSI_NO_SENSE_STRINGS"
