@@ -429,8 +429,9 @@ mem_ioctl(dev, cmd, data, flags, p)
 			md = (struct mem_range_desc *)
 				malloc(nd * sizeof(struct mem_range_desc),
 				       M_MEMDESC, M_WAITOK);
-			mem_range_attr_get(md, &nd);
-			error = copyout(md, mo->mo_desc, 
+			error = mem_range_attr_get(md, &nd);
+			if (!error)
+				error = copyout(md, mo->mo_desc, 
 					nd * sizeof(struct mem_range_desc));
 			free(md, M_MEMDESC);
 		} else {
@@ -460,7 +461,7 @@ mem_ioctl(dev, cmd, data, flags, p)
  * Implementation-neutral, kernel-callable functions for manipulating
  * memory range attributes.
  */
-void
+int
 mem_range_attr_get(mrd, arg)
 	struct mem_range_desc *mrd;
 	int *arg;
@@ -474,6 +475,7 @@ mem_range_attr_get(mrd, arg)
 	} else {
 		bcopy(mem_range_softc.mr_desc, mrd, (*arg) * sizeof(struct mem_range_desc));
 	}
+	return(0);
 }
 
 int
