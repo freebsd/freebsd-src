@@ -190,12 +190,14 @@
 #define	EEPROM_SSID		0x0006	/* Subsystem Id */
 
 /*
- * Hardware structures
+ * Hardware structures.
  */
 
-/* EPIC's hardware descriptors, must be aligned on dword in memory */
-/* NB: to make driver happy, this two structures MUST have thier sizes */
-/* be divisor of PAGE_SIZE */
+/*
+ * EPIC's hardware descriptors, must be aligned on dword in memory.
+ * NB: to make driver happy, this two structures MUST have their sizes
+ * be divisor of PAGE_SIZE.
+ */
 struct epic_tx_desc {
 	volatile u_int16_t	status;
 	volatile u_int16_t	txlength;
@@ -212,9 +214,11 @@ struct epic_rx_desc {
 	volatile u_int32_t	next;
 };
 
-/* This structure defines EPIC's fragment list, maximum number of frags */
-/* is 63. Let use maximum, becouse size of struct MUST be divisor of */
-/* PAGE_SIZE, and sometimes come mbufs with more then 30 frags */
+/*
+ * This structure defines EPIC's fragment list, maximum number of frags
+ * is 63. Let's use the maximum, because size of struct MUST be divisor
+ * of PAGE_SIZE, and sometimes come mbufs with more then 30 frags.
+ */
 #define EPIC_MAX_FRAGS 63
 struct epic_frag_list {
 	volatile u_int32_t		numfrags;
@@ -242,4 +246,3 @@ struct epic_frag_list {
 #define	SMC9434TX_XG_ADHOC	0xA021
 #define	SMC9432FTX_ADHOC	0xA022
 #define	SMC9432BTX1		0xA024
-
