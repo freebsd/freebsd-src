@@ -748,7 +748,7 @@ vm_object_page_clean(vm_object_t object, vm_pindex_t start, vm_pindex_t end, int
 	 * object flags.
 	 */
 	clearobjflags = 1;
-
+	vm_page_lock_queues();
 	TAILQ_FOREACH(p, &object->memq, listq) {
 		vm_page_flag_set(p, PG_CLEANCHK);
 		if ((flags & OBJPC_NOSYNC) && (p->flags & PG_NOSYNC))
@@ -756,6 +756,7 @@ vm_object_page_clean(vm_object_t object, vm_pindex_t start, vm_pindex_t end, int
 		else
 			pmap_page_protect(p, VM_PROT_READ);
 	}
+	vm_page_unlock_queues();
 
 	if (clearobjflags && (tstart == 0) && (tend == object->size)) {
 		struct vnode *vp;
@@ -962,13 +963,14 @@ vm_object_pmap_copy_1(vm_object_t object, vm_pindex_t start, vm_pindex_t end)
 
 	if (object == NULL || (object->flags & OBJ_WRITEABLE) == 0)
 		return;
-
+	vm_page_lock_queues();
 	for (idx = start; idx < end; idx++) {
 		p = vm_page_lookup(object, idx);
 		if (p == NULL)
 			continue;
 		pmap_page_protect(p, VM_PROT_READ);
 	}
+	vm_page_unlock_queues();
 }
 #endif
 
