@@ -21,5 +21,6 @@ SRCS=	ndp.c gmt2local.c
 
 CFLAGS+= -DINET6
 CFLAGS+= -I. -I${.CURDIR} -I${.CURDIR}/../../contrib/tcpdump
+CFLAGS+= -D_U_=""
 
 .include <bsd.prog.mk>
