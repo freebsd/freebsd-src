@@ -6,8 +6,9 @@
 #PicoBSD       2200    init    4096            32768
 options MD_ROOT_SIZE=2200      # same as def_sz
 
+hints  "PICOBSD.hints"
 machine		i386
-cpu		I386_CPU
+#cpu		I386_CPU
 cpu		I486_CPU
 cpu		I586_CPU
 cpu		I686_CPU
