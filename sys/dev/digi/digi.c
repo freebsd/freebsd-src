@@ -792,9 +792,13 @@ digi_loadmoduledata(struct digi_softc *sc)
 
 	sym = malloc(modlen + 10, M_TEMP, M_WAITOK);
 	snprintf(sym, modlen + 10, "digi_mod_%s", sc->module);
-	if ((symptr = linker_file_lookup_symbol(lf, sym, 0)) == NULL)
-		printf("digi_%s.ko: Symbol `%s' not found\n", sc->module, sym);
+	symptr = linker_file_lookup_symbol(lf, sym, 0);
 	free(sym, M_TEMP);
+	if (symptr == NULL) {
+		printf("digi_%s.ko: Symbol `%s' not found\n", sc->module, sym);
+		linker_file_unload(lf, LINKER_UNLOAD_FORCE);
+		return (EINVAL);
+	}
 
 	digi_mod = (struct digi_mod *)symptr;
 	if (digi_mod->dm_version != DIGI_MOD_VERSION) {
