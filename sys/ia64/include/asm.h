@@ -114,33 +114,27 @@ _name_:
  *	A nested function calls other functions and needs
  *	to use alloc to save registers.
  */
-#define	NESTED(_name_,_n_args_,_n_locals_,_n_outputs_,			\
-	       _pfs_reg_,_rp_reg_)					\
-	.globl	_name_;							\
-	.proc	_name_;							\
-_name_:;								\
-	alloc	_pfs_reg_=ar.pfs,_n_args_,_n_locals_,_n_outputs_,0;;	\
-	mov	_rp_reg_=rp						\
+#define	NESTED(_name_,_n_args_)			\
+	.globl	_name_;				\
+	.proc	_name_;				\
+_name_:;					\
+	.regstk	_n_args_, 0, 0, 0		\
 	MCOUNT
 
-#define	NESTED_NOPROFILE(_name_,_n_args_,_n_locals_,_n_outputs_,	\
-			 _pfs_reg_,_rp_reg_)				\
-	.globl	_name_;							\
-	.proc	_name_;							\
-_name_:;								\
-	alloc	_pfs_reg_=ar.pfs,_n_args_,_n_locals_,_n_outputs_,0;;	\
-	mov	_rp_reg_=rp
+#define	NESTED_NOPROFILE(_name_,_n_args_)	\
+	.globl	_name_;				\
+	.proc	_name_;				\
+_name_:;					\
+	.regstk	_n_args_, 0, 0, 0
 
 /*
  * STATIC_NESTED
  *	Declare a local nested function.
  */
-#define	STATIC_NESTED(_name_,_n_args_,_n_locals_,_n_outputs_,		\
-		      _pfs_reg_,_rp_reg_)				\
-	.proc	_name_;							\
-_name_:;								\
-	alloc	_pfs_reg_=ar.pfs,_n_args_,_n_locals_,_n_outputs_,0;;	\
-	mov	_rp_reg_=rp;;						\
+#define	STATIC_NESTED(_name_,_n_args_)		\
+	.proc	_name_;				\
+_name_:;					\
+	.regstk	_n_args_, 0, 0, 0		\
 	MCOUNT
 
 /*

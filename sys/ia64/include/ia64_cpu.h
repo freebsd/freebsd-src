@@ -186,13 +186,36 @@ ia64_tpa(u_int64_t va)
  * Read the value of ar.itc.
  */
 static __inline u_int64_t
-ia64_read_itc(void)
+ia64_get_itc(void)
 {
 	u_int64_t result;
 	__asm __volatile("mov %0=ar.itc" : "=r" (result));
 	return result;
 }
 
+/*
+ * Read the value of ar.itm.
+ */
+static __inline u_int64_t
+ia64_get_itm(void)
+{
+	u_int64_t result;
+	__asm __volatile("mov %0=cr.itm" : "=r" (result));
+	return result;
+}
+
+/*
+ * Write the value of ar.itm.
+ */
+static __inline void
+ia64_set_itm(u_int64_t v)
+{
+	__asm __volatile("mov cr.itm=%0" :: "r" (v));
+}
+
+/*
+ * Write a region register.
+ */
 static __inline void
 ia64_set_rr(u_int64_t rrbase, u_int64_t v)
 {

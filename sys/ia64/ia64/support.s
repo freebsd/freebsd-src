@@ -63,7 +63,7 @@
  * fu{byte,word} : fetch a byte (word) from user memory
  */
 	
-	LEAF(suword, 1)
+LEAF(suword, 1)
 #if 0
 	LDGP(pv)
 
@@ -83,9 +83,9 @@
 	mov	zero, v0
 	RET
 #endif
-	END(suword)
+END(suword)
 	
-	LEAF(subyte, 1)
+LEAF(subyte, 1)
 #if 0
 	LDGP(pv)
 
@@ -110,9 +110,9 @@
 	mov	zero, v0
 	RET
 #endif
-	END(subyte)
+END(subyte)
 
-	LEAF(fuword, 1)
+LEAF(fuword, 1)
 #if 0
 	LDGP(pv)
 
@@ -131,9 +131,9 @@
 
 	RET
 #endif
-	END(fuword)
+END(fuword)
 
-	LEAF(fubyte, 1)
+LEAF(fubyte, 1)
 #if 0
 	LDGP(pv)
 
@@ -153,9 +153,9 @@
 
 	RET
 #endif
-	END(fubyte)
+END(fubyte)
 	
-	LEAF(suibyte, 2)
+LEAF(suibyte, 2)
 #if 0
 	ldiq	v0, -1
 	RET
@@ -170,7 +170,7 @@
 	ldiq	v0, -1
 	RET
 #endif
-	END(fusufault)
+END(fusufault)
 	
 LEAF(fswintrberr, 0)
 XLEAF(fuswintr)					/* XXX what is a 'word'? */
@@ -180,7 +180,7 @@ XLEAF(suswintr)					/* XXX what is a 'word'? */
 	ldiq	v0, -1
 	RET
 #endif
-	END(fswintrberr)
+END(fswintrberr)
 	
 /**************************************************************************/
 
@@ -191,406 +191,266 @@ XLEAF(suswintr)					/* XXX what is a 'word'? */
  * int copystr(char *from, char *to, size_t len, size_t *lenp);
  */
 LEAF(copystr, 4)
-#if 0
-	LDGP(pv)
+	mov	r14=in2			// r14 = i = len
+	cmp.eq	p6,p0=r0,in2
+(p6)	br.cond.spnt.few 2f		// if (len == 0), bail out
 
-	mov	a2, t0			/* t0 = i = len */
-	beq	a2, Lcopystr2		/* if (len == 0), bail out */
+1:	ld1	r15=[in0],1		// read one byte
+	;;
+	st1	[in1]=r15,1		// write that byte
+	add	in2=-1,in2		// len--
+	;;
+	cmp.eq	p6,p0=r0,r15
+	cmp.ne	p7,p0=r0,in2
+	;; 
+(p6)	br.cond.spnt.few 2f		// if (*from == 0), bail out
+(p7)	br.cond.sptk.few 1b		// if (len != 0) copy more
 
-Lcopystr1:
-	ldq_u	t1, 0(a0)		/* t1 = *from */
-	extbl	t1, a0, t1
-	ldq_u	t3, 0(a1)		/* set up t2 with quad around *to */
-	insbl	t1, a1, t2
-	mskbl	t3, a1, t3
-	or	t3, t2, t3		/* add *from to quad around *to */
-	stq_u	t3, 0(a1)		/* write out that quad */
-
-	subl	a2, 1, a2		/* len-- */
-	beq	t1, Lcopystr2		/* if (*from == 0), bail out */
-	addq	a1, 1, a1		/* to++ */
-	addq	a0, 1, a0		/* from++ */
-	bne	a2, Lcopystr1		/* if (len != 0) copy more */
-
-Lcopystr2:
-	beq	a3, Lcopystr3		/* if (lenp != NULL) */
-	subl	t0, a2, t0		/* *lenp = (i - len) */
-	stq	t0, 0(a3)
-Lcopystr3:
-	beq	t1, Lcopystr4		/* *from == '\0'; leave quietly */
-
-	ldiq	v0, ENAMETOOLONG		/* *from != '\0'; error. */
-	RET
-
-Lcopystr4:
-	mov	zero, v0		/* return 0. */
-	RET
-#endif
-	END(copystr)
-
-LEAF(copyinstr, 4)
-#if 0
-	LDGP(pv)
-	lda	sp, -16(sp)			/* set up stack frame	     */
-	stq	ra, (16-8)(sp)			/* save ra		     */
-	ldiq	t0, VM_MAXUSER_ADDRESS		/* make sure that src addr   */
-	cmpult	a0, t0, t1			/* is in user space.	     */
-	beq	t1, copyerr			/* if it's not, error out.   */
-	lda	v0, copyerr			/* set up fault handler.     */
-	.set noat
-	ldq	at_reg, curproc
-	ldq	at_reg, P_ADDR(at_reg)
-	stq	v0, U_PCB_ONFAULT(at_reg)
-	.set at
-	CALL(copystr)				/* do the copy.		     */
-	.set noat
-	ldq	at_reg, curproc			/* kill the fault handler.   */
-	ldq	at_reg, P_ADDR(at_reg)
-	stq	zero, U_PCB_ONFAULT(at_reg)
-	.set at
-	ldq	ra, (16-8)(sp)			/* restore ra.		     */
-	lda	sp, 16(sp)			/* kill stack frame.	     */
-	RET					/* v0 left over from copystr */
-#endif
-	END(copyinstr)
-
-LEAF(copyoutstr, 4)
-#if 0
-	LDGP(pv)
-	lda	sp, -16(sp)			/* set up stack frame	     */
-	stq	ra, (16-8)(sp)			/* save ra		     */
-	ldiq	t0, VM_MAXUSER_ADDRESS		/* make sure that dest addr  */
-	cmpult	a1, t0, t1			/* is in user space.	     */
-	beq	t1, copyerr			/* if it's not, error out.   */
-	lda	v0, copyerr			/* set up fault handler.     */
-	.set noat
-	ldq	at_reg, curproc
-	ldq	at_reg, P_ADDR(at_reg)
-	stq	v0, U_PCB_ONFAULT(at_reg)
-	.set at
-	CALL(copystr)				/* do the copy.		     */
-	.set noat
-	ldq	at_reg, curproc			/* kill the fault handler.   */
-	ldq	at_reg, P_ADDR(at_reg)
-	stq	zero, U_PCB_ONFAULT(at_reg)
-	.set at
-	ldq	ra, (16-8)(sp)			/* restore ra.		     */
-	lda	sp, 16(sp)			/* kill stack frame.	     */
-	RET					/* v0 left over from copystr */
-#endif
-	END(copyoutstr)
-
-/*
- * Alternative memory mover
- */
-	LEAF(memcpy,3)
-#if 0
-	mov	a0,t0
-	mov	a1,a0
-	mov	t0,a1
-	br	bcopy
-#endif
-	END(memcpy)
+2:	cmp.eq	p6,p0=r0,in3
+(p6)	br.cond.dpnt.few 3f		// if (lenp != NULL)
+	sub	r14=in2,r14		// *lenp = (i - len)
+	;;
+	st8	[in3]=r14
 	
+3:	cmp.eq	p6,p0=r0,r15
+(p6)	br.cond.spnt.few 4f		// *from == '\0'; leave quietly
+
+	mov	ret0=ENAMETOOLONG	// *from != '\0'; error.
+	br.ret.sptk.few rp
+
+4:	mov	ret0=0			// return 0.
+	br.ret.sptk.few rp
+	
+END(copystr)
+
+NESTED(copyinstr, 4)
+	alloc	loc0=ar.pfs,4,3,4,0
+	mov	loc1=rp
+
+	movl	loc2=VM_MAXUSER_ADDRESS		// make sure that src addr
+	;; 
+	cmp.ltu	p6,p0=in0,loc2			// is in user space.
+	;; 
+(p6)	br.cond.spnt.few copyerr		// if it's not, error out.
+	movl	r14=copyerr			// set up fault handler.
+	add	r15=GD_CURPROC,r13		// find curproc
+	;;
+	ld8	r15=[r15]
+	;;
+	add	r15=P_ADDR,r15			// find pcb
+	;;
+	ld8	r15=[r15]
+	;;
+	add	loc2=U_PCB_ONFAULT,r15
+	;;
+	st8	[loc2]=r14
+	;;
+	mov	out0=in0
+	mov	out1=in1
+	mov	out2=in2
+	mov	out3=in3
+	;;
+	br.call.sptk.few rp=copystr		// do the copy.
+	st8	[loc2]=r0			// kill the fault handler.
+	mov	rp=loc1				// restore ra.
+	br.ret.sptk.few rp			// ret0 left over from copystr
+
+END(copyinstr)
+
+NESTED(copyoutstr, 4)
+	alloc	loc0=ar.pfs,4,3,4,0
+	mov	loc1=rp
+
+	movl	loc2=VM_MAXUSER_ADDRESS		// make sure that dest addr
+	;; 
+	cmp.ltu	p6,p0=in1,loc2			// is in user space.
+	;; 
+(p6)	br.cond.spnt.few copyerr		// if it's not, error out.
+	movl	r14=copyerr			// set up fault handler.
+	add	r15=GD_CURPROC,r13		// find curproc
+	;;
+	ld8	r15=[r15]
+	;;
+	add	r15=P_ADDR,r15			// find pcb
+	;;
+	ld8	r15=[r15]
+	;;
+	add	loc2=U_PCB_ONFAULT,r15
+	;;
+	st8	[loc2]=r14
+	;;
+	mov	out0=in0
+	mov	out1=in1
+	mov	out2=in2
+	mov	out3=in3
+	;;
+	br.call.sptk.few rp=copystr		// do the copy.
+	st8	[loc2]=r0			// kill the fault handler.
+	mov	rp=loc1				// restore ra.
+	br.ret.sptk.few rp			// ret0 left over from copystr
+
+END(copyoutstr)
+
 /*
- * Copy a bytes within the kernel's address space.
- *
- * In the kernel, bcopy() doesn't have to handle the overlapping
- * case; that's that ovbcopy() is for.  However, it doesn't hurt
- * to do both in bcopy, and it does provide a measure of safety.
- *
- * void bcopy(char *from, char *to, size_t len);
- * void ovbcopy(char *from, char *to, size_t len);
+ * Not the fastest bcopy in the world.
  */
-LEAF(bcopy,3)
+LEAF(bcopy, 3)
 XLEAF(ovbcopy)
-#if 0
-	/* Check for negative length */
-	ble	a2,bcopy_done
 
-	/* Check for overlap */
-	subq	a1,a0,t5
-	cmpult	t5,a2,t5
-	bne	t5,bcopy_overlap
+	mov	ret0=r0				// return zero for copy{in,out}
+	;; 
+	cmp.le	p6,p0=in2,r0			// bail if len <= 0
+(p6)	br.ret.spnt.few rp
 
-	/* a3 = end address */
-	addq	a0,a2,a3
+	sub	r14=in1,in0 ;;			// check for overlap
+	cmp.ltu	p6,p0=r14,in2			// dst-src < len
+(p6)	br.cond.spnt.few 5f
 
-	/* Get the first word */
-	ldq_u	t2,0(a0)
+	extr.u	r14=in0,0,3			// src & 7
+	extr.u	r15=in1,0,3 ;;			// dst & 7
+	cmp.eq	p6,p0=r14,r15			// different alignment?
+(p6)	br.cond.spnt.few 2f			// branch if same alignment
 
-	/* Do they have the same alignment? */
-	xor	a0,a1,t0
-	and	t0,7,t0
-	and	a1,7,t1
-	bne	t0,bcopy_different_alignment
+1:	ld1	r14=[in0],1 ;;			// copy bytewise
+	st1	[in1]=r14,1
+	add	in2=-1,in2 ;;			// len--
+	cmp.ne	p6,p0=r0,in2
+(p6)	br.cond.dptk.few 1b			// loop
+	br.ret.sptk.few rp			// done
 
-	/* src & dst have same alignment */
-	beq	t1,bcopy_all_aligned
+2:	cmp.eq	p6,p0=r14,r0			// aligned?
+(p6)	br.cond.sptk.few 4f
 
-	ldq_u	t3,0(a1)
-	addq	a2,t1,a2
-	mskqh	t2,a0,t2
-	mskql	t3,a0,t3
-	or	t2,t3,t2
+3:	ld1	r14=[in0],1 ;;			// copy bytewise
+	st1	[in1]=r14,1
+	extr.u	r15=in0,0,3			// src & 7
+	add	in2=-1,in2 ;;			// len--
+	cmp.eq	p6,p0=r0,in2			// done?
+	cmp.eq	p7,p0=r0,r15 ;;			// aligned now?
+(p6)	br.ret.spnt.few rp			// return if done
+(p7)	br.cond.spnt.few 4f			// go to main copy
+	br.cond.sptk.few 3b			// more bytes to copy
 
-	/* Dst is 8-byte aligned */
+	// At this point, in2 is non-zero
 
-bcopy_all_aligned:
-	/* If less than 8 bytes,skip loop */
-	subq	a2,1,t0
-	and	a2,7,a2
-	bic	t0,7,t0
-	beq	t0,bcopy_samealign_lp_end
+4:	mov	r14=8 ;;
+	cmp.ltu	p6,p0=in2,r14 ;;		// len < 8?
+(p6)	br.cond.spnt.few 1b			// byte copy the end
+	ld8	r15=[in0],8 ;;			// copy word
+	st8	[in1]=r15,8
+	add	in2=-8,in2 ;;			// len -= 8
+	cmp.ne	p6,p0=r0,in2			// done?
+(p6)	br.cond.spnt.few 4b			// again
 
-bcopy_samealign_lp:
-	stq_u	t2,0(a1)
-	addq	a1,8,a1
-	ldq_u	t2,8(a0)
-	subq	t0,8,t0
-	addq	a0,8,a0
-	bne	t0,bcopy_samealign_lp
+	br.ret.sptk.few rp			// return
 
-bcopy_samealign_lp_end:
-	/* If we're done, exit */
-	bne	a2,bcopy_small_left
-	stq_u	t2,0(a1)
-	RET
+	// Don't bother optimising overlap case
 
-bcopy_small_left:
-	mskql	t2,a2,t4
-	ldq_u	t3,0(a1)
-	mskqh	t3,a2,t3
-	or	t4,t3,t4
-	stq_u	t4,0(a1)
-	RET
+5:	add	in0=in0,in2
+	add	in1=in1,in2 ;;
+	add	in0=-1,in0
+	add	in1=-1,in1 ;;
 
-bcopy_different_alignment:
-	/*
-	 * this is the fun part
-	 */
-	addq	a0,a2,a3
-	cmpule	a2,8,t0
-	bne	t0,bcopy_da_finish
+6:	ld1	r14=[in0],-1 ;;
+	st1	[in1]=r14,-1
+	add	in2=-1,in2 ;;
+	cmp.ne	p6,p0=r0,in2
+(p6)	br.cond.spnt.few 6b
 
-	beq	t1,bcopy_da_noentry
+	br.ret.sptk.few rp
 
-	/* Do the initial partial word */
-	subq	zero,a1,t0
-	and	t0,7,t0
-	ldq_u	t3,7(a0)
-	extql	t2,a0,t2
-	extqh	t3,a0,t3
-	or	t2,t3,t5
-	insql	t5,a1,t5
-	ldq_u	t6,0(a1)
-	mskql	t6,a1,t6
-	or	t5,t6,t5
-	stq_u	t5,0(a1)
-	addq	a0,t0,a0
-	addq	a1,t0,a1
-	subq	a2,t0,a2
-	ldq_u	t2,0(a0)
+END(bcopy)
 
-bcopy_da_noentry:
-	subq	a2,1,t0
-	bic	t0,7,t0
-	and	a2,7,a2
-	beq	t0,bcopy_da_finish2
-
-bcopy_da_lp:
-	ldq_u	t3,7(a0)
-	addq	a0,8,a0
-	extql	t2,a0,t4
-	extqh	t3,a0,t5
-	subq	t0,8,t0
-	or	t4,t5,t5
-	stq	t5,0(a1)
-	addq	a1,8,a1
-	beq	t0,bcopy_da_finish1
-	ldq_u	t2,7(a0)
-	addq	a0,8,a0
-	extql	t3,a0,t4
-	extqh	t2,a0,t5
-	subq	t0,8,t0
-	or	t4,t5,t5
-	stq	t5,0(a1)
-	addq	a1,8,a1
-	bne	t0,bcopy_da_lp
-
-bcopy_da_finish2:
-	/* Do the last new word */
-	mov	t2,t3
-
-bcopy_da_finish1:
-	/* Do the last partial word */
-	ldq_u	t2,-1(a3)
-	extql	t3,a0,t3
-	extqh	t2,a0,t2
-	or	t2,t3,t2
-	br	zero,bcopy_samealign_lp_end
-
-bcopy_da_finish:
-	/* Do the last word in the next source word */
-	ldq_u	t3,-1(a3)
-	extql	t2,a0,t2
-	extqh	t3,a0,t3
-	or	t2,t3,t2
-	insqh	t2,a1,t3
-	insql	t2,a1,t2
-	lda	t4,-1(zero)
-	mskql	t4,a2,t5
-	cmovne	t5,t5,t4
-	insqh	t4,a1,t5
-	insql	t4,a1,t4
-	addq	a1,a2,a4
-	ldq_u	t6,0(a1)
-	ldq_u	t7,-1(a4)
-	bic	t6,t4,t6
-	bic	t7,t5,t7
-	and	t2,t4,t2
-	and	t3,t5,t3
-	or	t2,t6,t2
-	or	t3,t7,t3
-	stq_u	t3,-1(a4)
-	stq_u	t2,0(a1)
-	RET
-
-bcopy_overlap:
-	/*
-	 * Basically equivalent to previous case, only backwards.
-	 * Not quite as highly optimized
-	 */
-	addq	a0,a2,a3
-	addq	a1,a2,a4
-
-	/* less than 8 bytes - don't worry about overlap */
-	cmpule	a2,8,t0
-	bne	t0,bcopy_ov_short
-
-	/* Possibly do a partial first word */
-	and	a4,7,t4
-	beq	t4,bcopy_ov_nostart2
-	subq	a3,t4,a3
-	subq	a4,t4,a4
-	ldq_u	t1,0(a3)
-	subq	a2,t4,a2
-	ldq_u	t2,7(a3)
-	ldq	t3,0(a4)
-	extql	t1,a3,t1
-	extqh	t2,a3,t2
-	or	t1,t2,t1
-	mskqh	t3,t4,t3
-	mskql	t1,t4,t1
-	or	t1,t3,t1
-	stq	t1,0(a4)
-
-bcopy_ov_nostart2:
-	bic	a2,7,t4
-	and	a2,7,a2
-	beq	t4,bcopy_ov_lp_end
-
-bcopy_ov_lp:
-	/* This could be more pipelined, but it doesn't seem worth it */
-	ldq_u	t0,-8(a3)
-	subq	a4,8,a4
-	ldq_u	t1,-1(a3)
-	subq	a3,8,a3
-	extql	t0,a3,t0
-	extqh	t1,a3,t1
-	subq	t4,8,t4
-	or	t0,t1,t0
-	stq	t0,0(a4)
-	bne	t4,bcopy_ov_lp
-
-bcopy_ov_lp_end:
-	beq	a2,bcopy_done
-
-	ldq_u	t0,0(a0)
-	ldq_u	t1,7(a0)
-	ldq_u	t2,0(a1)
-	extql	t0,a0,t0
-	extqh	t1,a0,t1
-	or	t0,t1,t0
-	insql	t0,a1,t0
-	mskql	t2,a1,t2
-	or	t2,t0,t2
-	stq_u	t2,0(a1)
-
-bcopy_done:
-	RET
-
-bcopy_ov_short:
-	ldq_u	t2,0(a0)
-	br	zero,bcopy_da_finish
-#endif
-	END(bcopy)
+LEAF(memcpy,3)
 	
-LEAF(copyin, 3)
-#if 0
-	LDGP(pv)
-	lda	sp, -16(sp)			/* set up stack frame	     */
-	stq	ra, (16-8)(sp)			/* save ra		     */
-	ldiq	t0, VM_MAXUSER_ADDRESS		/* make sure that src addr   */
-	cmpult	a0, t0, t1			/* is in user space.	     */
-	beq	t1, copyerr			/* if it's not, error out.   */
-	lda	v0, copyerr			/* set up fault handler.     */
-	.set noat
-	ldq	at_reg, curproc
-	ldq	at_reg, P_ADDR(at_reg)
-	stq	v0, U_PCB_ONFAULT(at_reg)
-	.set at
-	CALL(bcopy)				/* do the copy.		     */
-	.set noat
-	ldq	at_reg, curproc			/* kill the fault handler.   */
-	ldq	at_reg, P_ADDR(at_reg)
-	stq	zero, U_PCB_ONFAULT(at_reg)
-	.set at
-	ldq	ra, (16-8)(sp)			/* restore ra.		     */
-	lda	sp, 16(sp)			/* kill stack frame.	     */
-	mov	zero, v0			/* return 0. */
-	RET
-#endif
-	END(copyin)
+	mov	r14=in0 ;;
+	mov	in0=in1 ;;
+	mov	in1=r14
+	br.cond.sptk.few bcopy
+	
+END(memcpy)
+	
+NESTED(copyin, 3)
+	
+	alloc	loc0=ar.pfs,3,3,3,0
+	mov	loc1=rp
 
-LEAF(copyout, 3)
-#if 0
-	LDGP(pv)
-	lda	sp, -16(sp)			/* set up stack frame	     */
-	stq	ra, (16-8)(sp)			/* save ra		     */
-	ldiq	t0, VM_MAXUSER_ADDRESS		/* make sure that dest addr  */
-	cmpult	a1, t0, t1			/* is in user space.	     */
-	beq	t1, copyerr			/* if it's not, error out.   */
-	lda	v0, copyerr			/* set up fault handler.     */
-	.set noat
-	ldq	at_reg, curproc
-	ldq	at_reg, P_ADDR(at_reg)
-	stq	v0, U_PCB_ONFAULT(at_reg)
-	.set at
-	CALL(bcopy)				/* do the copy.		     */
-	.set noat
-	ldq	at_reg, curproc			/* kill the fault handler.   */
-	ldq	at_reg, P_ADDR(at_reg)
-	stq	zero, U_PCB_ONFAULT(at_reg)
-	.set at
-	ldq	ra, (16-8)(sp)			/* restore ra.		     */
-	lda	sp, 16(sp)			/* kill stack frame.	     */
-	mov	zero, v0			/* return 0. */
-	RET
-#endif
-	END(copyout)
+	movl	loc2=VM_MAXUSER_ADDRESS		// make sure that src addr
+	;; 
+	cmp.ltu	p6,p0=in0,loc2			// is in user space.
+	;; 
+(p6)	br.cond.spnt.few copyerr		// if it's not, error out.
+	movl	r14=copyerr			// set up fault handler.
+	add	r15=GD_CURPROC,r13		// find curproc
+	;;
+	ld8	r15=[r15]
+	;;
+	add	r15=P_ADDR,r15			// find pcb
+	;;
+	ld8	r15=[r15]
+	;;
+	add	loc2=U_PCB_ONFAULT,r15
+	;;
+	st8	[loc2]=r14
+	;;
+	mov	out0=in0
+	mov	out1=in1
+	mov	out2=in2
+	;;
+	br.call.sptk.few rp=bcopy		// do the copy.
+	st8	[loc2]=r0			// kill the fault handler.
+	mov	rp=loc1				// restore ra.
+	br.ret.sptk.few rp			// ret0 left over from bcopy
+	
+END(copyin)
+
+NESTED(copyout, 3)
+	
+	alloc	loc0=ar.pfs,3,3,3,0
+	mov	loc1=rp
+
+	movl	loc2=VM_MAXUSER_ADDRESS		// make sure that dest addr
+	;; 
+	cmp.ltu	p6,p0=in1,loc2			// is in user space.
+	;; 
+(p6)	br.cond.spnt.few copyerr		// if it's not, error out.
+	movl	r14=copyerr			// set up fault handler.
+	add	r15=GD_CURPROC,r13		// find curproc
+	;;
+	ld8	r15=[r15]
+	;;
+	add	r15=P_ADDR,r15			// find pcb
+	;;
+	ld8	r15=[r15]
+	;;
+	add	loc2=U_PCB_ONFAULT,r15
+	;;
+	st8	[loc2]=r14
+	;;
+	mov	out0=in0
+	mov	out1=in1
+	mov	out2=in2
+	;;
+	br.call.sptk.few rp=bcopy		// do the copy.
+	st8	[loc2]=r0			// kill the fault handler.
+	mov	rp=loc1				// restore ra.
+	br.ret.sptk.few rp			// ret0 left over from bcopy
+	
+END(copyout)
 
 LEAF(copyerr, 0)
-#if 0
-	ldq	t0, curproc
-	ldq	t0, P_ADDR(t0)
-	stq	zero, U_PCB_ONFAULT(t0)		/* reset fault handler.	     */
-	ldq	ra, (16-8)(sp)			/* restore ra.		     */
-	lda	sp, 16(sp)			/* kill stack frame.	     */
-	ldiq	v0, EFAULT			/* return EFAULT.	     */
-	RET
-#endif
-	END(copyerr)
+
+	add	r14=GD_CURPROC,r13 ;;		// find curproc
+	ld8	r14=[r14] ;;
+	add	r14=P_ADDR,r14 ;;		// curproc->p_addr
+	ld8	r14=[r14] ;;
+	add	r14=U_PCB_ONFAULT,r14 ;;	// &curproc->p_addr->u_pcb.pcb_onfault
+	st8	[r14]=r0			// reset fault handler
+	
+	mov	ret0=EFAULT			// return EFAULT
+	br.ret.sptk.few rp
+
+END(copyerr)
 	
 /**************************************************************************/
 
