@@ -35,7 +35,7 @@
  * SUCH DAMAGE.
  *
  *	from:@(#)syscons.c	1.3 940129
- *	$Id: syscons.c,v 1.29 1994/02/01 10:43:02 ache Exp $
+ *	$Id: syscons.c,v 1.30 1994/02/01 11:13:49 ache Exp $
  *
  */
 
@@ -2303,7 +2303,7 @@ next_code:
 				if (cur_console->smode.mode == VT_AUTO &&
 		    		    console[0].smode.mode == VT_AUTO)
 					switch_scr(0); 
-				Debugger();
+				Debugger("manual escape to debugger");
 				return(NOKEY);
 #else
 				printf("No debugger in kernel\n");
@@ -2389,7 +2389,7 @@ int getchar(void)
 
 u_int sgetc(int noblock)
 {
-	return (scgetc(noblock & 0xff);
+	return (scgetc(noblock & 0xff));
 }
 
 int pcmmap(dev_t dev, int offset, int nprot)
