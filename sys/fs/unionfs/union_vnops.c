@@ -74,7 +74,6 @@ static vop_advlock_t	union_advlock;
 static vop_close_t	union_close;
 static vop_closeextattr_t	union_closeextattr;
 static vop_create_t	union_create;
-static vop_createvobject_t	union_createvobject;
 static vop_deleteextattr_t	union_deleteextattr;
 static vop_destroyvobject_t	union_destroyvobject;
 static vop_fsync_t	union_fsync;
@@ -1694,22 +1693,6 @@ union_reclaim(ap)
 }
 
 /*
- * unionvp do not hold a VM object and there is no need to create one for
- * upper or lower vp because it is done in the union_open()
- */
-static int
-union_createvobject(ap)
-	struct vop_createvobject_args /* {
-		struct vnode *vp;
-		struct ucred *cred;
-		struct thread *td;
-	} */ *ap;
-{
-
-	return (0);
-}
-
-/*
  * We have nothing to destroy and this operation shouldn't be bypassed.
  */
 static int
@@ -2053,7 +2036,6 @@ struct vop_vector union_vnodeops = {
 	.vop_close =		union_close,
 	.vop_closeextattr =	union_closeextattr,
 	.vop_create =		union_create,
-	.vop_createvobject =	union_createvobject,
 	.vop_deleteextattr =	union_deleteextattr,
 	.vop_destroyvobject =	union_destroyvobject,
 	.vop_fsync =		union_fsync,

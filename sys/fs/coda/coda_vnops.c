@@ -140,7 +140,6 @@ struct vop_vector coda_vnodeops = {
     .vop_poll = vop_stdpoll,
     .vop_getpages = vop_stdgetpages,	/* pager intf.*/
     .vop_putpages = vop_stdputpages,	/* pager intf.*/
-    .vop_createvobject = vop_stdcreatevobject,
     .vop_destroyvobject = vop_stddestroyvobject,
     .vop_getvobject = vop_stdgetvobject,
     .vop_getwritemount =	vop_stdgetwritemount,
