@@ -26,7 +26,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd June 1, 2004
+.Dd March 30, 2005
 .Dt SUNLABEL 8
 .Os
 .Sh NAME
@@ -238,7 +238,7 @@ be written to disk.
 The label presented for editing is the same as the standard
 printout, with some added hints about the possible options to
 specify the sector size and starting cylinder.
-There are two areas in the template that can be edited:
+The following areas in the template that can be edited:
 .Bl -tag -width indent
 .It Sy Textual label, geometry emulation
 The line
@@ -266,6 +266,15 @@ The product
 .D1 Em (CC + 2) * HH * SS
 must be less than or equal to the total number of sectors of the
 disk (which is given as a hint in a comment field).
+.It Sy Volume name
+The volume name (if present) is introduced by the string
+.Dq "volume name:" .
+It can be up to 8 characters long, and might be useful to distinguish
+different disks in a system.
+Note that volume names require the VTOC elements to be present, so
+any of the VTOC constraints described below need to be obeyed as well
+if a volume name is to be set.
+Setting an empty volume name will delete it from the label.
 .It Sy Partition entries
 Partition entries start with a letter from
 .Ql a
