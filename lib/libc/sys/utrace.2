@@ -59,10 +59,7 @@ bytes from memory pointed to by
 .Fa addr .
 This call only has an effect if the calling process is being traced.
 .Sh RETURN VALUES
-Upon successful completion, a value of 0 is returned.
-Otherwise, a value of -1 is returned and
-.Va errno
-is set to indicate the error.
+.Rv -std
 .Sh ERRORS
 .Bl -tag -width Er
 .It Bq Er EINVAL
@@ -75,7 +72,8 @@ Insufficient memory to honor the request.
 .It Bq Er ENOSYS
 Currently running kernel was compiled without
 .Xr ktrace 2
-support (option KTRACE).
+support
+.Pq Cd "options KTRACE" .
 .El
 .Sh SEE ALSO
 .Xr kdump 1 ,
