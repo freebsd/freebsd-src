@@ -104,6 +104,8 @@ extern u_int64_t kernel_text[], _end[];
 extern u_int64_t _ia64_unwind_start[];
 extern u_int64_t _ia64_unwind_end[];
 
+FPSWA_INTERFACE *fpswa_interface;
+
 u_int64_t ia64_port_base;
 
 char machine[] = "ia64";
@@ -224,6 +226,12 @@ cpu_startup(dummy)
 
 	printf("avail memory = %ld (%ldK bytes)\n", ptoa(cnt.v_free_count),
 	    ptoa(cnt.v_free_count) / 1024);
+ 
+	if (fpswa_interface == NULL)
+		printf("Warning: no FPSWA package supplied\n");
+	else
+		printf("FPSWA Revision = 0x%lx, Entry = %p\n",
+		    fpswa_interface->Revision, (void *)fpswa_interface->Fpswa);
 
 	/*
 	 * Set up buffers, so they can be used to read disk labels.
@@ -510,6 +518,9 @@ ia64_init(u_int64_t arg1, u_int64_t arg2)
 		kern_envp = static_env;
 	else
 		kern_envp = (caddr_t)bootinfo.bi_envp;
+
+	/* get fpswa interface */
+	fpswa_interface = (FPSWA_INTERFACE*)IA64_PHYS_TO_RR7(bootinfo.bi_fpswa);
 
 	/* Init basic tunables, including hz */
 	init_param();
