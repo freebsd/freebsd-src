@@ -129,6 +129,7 @@ command_unload(int argc, char *argv[])
 	file_discard(fp);
     }
     loadaddr = 0;
+    unsetenv("kernelname");
     return(CMD_OK);
 }
 
