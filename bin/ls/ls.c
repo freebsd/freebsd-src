@@ -486,7 +486,8 @@ display(FTSENT *p, FTSENT *list)
 	size_t flen, ulen, glen;
 	char *initmax;
 	int entries, needstats;
-	char *user, *group, *flags, *lattr = NULL;
+	const char *user, *group;
+	char *flags, *lattr = NULL;
 	char buf[STRBUF_SIZEOF(u_quad_t) + 1];
 	char ngroup[STRBUF_SIZEOF(uid_t) + 1];
 	char nuser[STRBUF_SIZEOF(gid_t) + 1];
