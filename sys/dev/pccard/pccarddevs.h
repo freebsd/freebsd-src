@@ -4,7 +4,7 @@
  * THIS FILE AUTOMATICALLY GENERATED.  DO NOT EDIT.
  *
  * generated from:
- *	FreeBSD: src/sys/dev/pccard/pccarddevs,v 1.79 2003/11/03 16:09:17 imp Exp 
+ *	FreeBSD: src/sys/dev/pccard/pccarddevs,v 1.80 2003/12/31 04:19:50 kato Exp 
  */
 /* $NetBSD: pcmciadevs,v 1.186 2003/09/16 08:26:37 onoe Exp $ */
 /* $OpenBSD: pcmciadevs,v 1.93 2002/06/21 08:31:10 henning Exp $ */
@@ -770,6 +770,9 @@
 #define	PCMCIA_CIS_TDK_C6500012	{ NULL, NULL, NULL, NULL }
 #define	PCMCIA_PRODUCT_TDK_C6500012	0x410a
 #define	PCMCIA_STR_TDK_C6500012	"TDK ELSA MicroLink MC all"
+#define	PCMCIA_CIS_TDK_LAK_CD031	{ NULL, NULL, NULL, NULL }
+#define	PCMCIA_PRODUCT_TDK_LAK_CD031	0xc1ab
+#define	PCMCIA_STR_TDK_LAK_CD031	"TDK LAK-CD031 Ethernet"
 
 /* Telecom Device */
 #define	PCMCIA_CIS_TELECOMDEVICE_TCD_HPC100	{ NULL, NULL, NULL, NULL }
