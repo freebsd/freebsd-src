@@ -147,6 +147,11 @@ CTASSERT(sizeof(struct reg) == 256);
 CTASSERT(sizeof(struct fpreg) == 272);
 CTASSERT(sizeof(struct __mcontext) == 512);
 
+CTASSERT((sizeof(struct pcb) & (64 - 1)) == 0);
+CTASSERT((offsetof(struct pcb, pcb_kfp) & (64 - 1)) == 0);
+CTASSERT((offsetof(struct pcb, pcb_ufp) & (64 - 1)) == 0);
+CTASSERT(sizeof(struct pcb) <= ((KSTACK_PAGES * PAGE_SIZE) / 8));
+
 CTASSERT(sizeof(struct pcpu) <= ((PCPU_PAGES * PAGE_SIZE) / 2));
 
 static void
