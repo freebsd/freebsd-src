@@ -1,4 +1,4 @@
-# $Id: Makefile,v 1.7 1997/02/22 14:57:35 peter Exp $
+# $Id: Makefile,v 1.8 1999/04/06 12:51:42 peter Exp $
 
 DISTRIBUTION=	compat1x
 
@@ -9,7 +9,8 @@ LIBS=	libc.so.1.1 libcurses.so.1.1 libf2c.so.1.1 libg++.so.1.1 \
 	libutil.so.1.1 liby.so.1.1
 
 CLEANFILES+=	${LIBS}
-LINKS=	${LIBCOMPATDIR}/libtermcap.so.1.1 ${LIBCOMPATDIR}/libtermlib.so.1.1
+LINKS=	${LIBCOMPATDIR}/aout/libtermcap.so.1.1 \
+	${LIBCOMPATDIR}/aout/libtermlib.so.1.1
 
 all:	${LIBS}
 
