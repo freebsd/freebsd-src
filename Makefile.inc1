@@ -325,7 +325,7 @@ _depend:
 everything:
 	@echo
 	@echo "--------------------------------------------------------------"
-	@echo ">>> stage 4.4: building everything.."
+	@echo ">>> stage 4.4: building everything"
 	@echo "--------------------------------------------------------------"
 	cd ${.CURDIR}; ${WMAKE} par-all
 
@@ -466,13 +466,13 @@ reinstall: ${SPECIAL_INSTALLCHECKS}
 	cd ${.CURDIR}; ${MAKE} -f Makefile.inc1 hierarchy
 	@echo
 	@echo "--------------------------------------------------------------"
-	@echo ">>> Installing everything.."
+	@echo ">>> Installing everything"
 	@echo "--------------------------------------------------------------"
 	cd ${.CURDIR}; ${MAKE} -f Makefile.inc1 install
 
 redistribute:
 	@echo "--------------------------------------------------------------"
-	@echo ">>> Distributing everything.."
+	@echo ">>> Distributing everything"
 	@echo "--------------------------------------------------------------"
 	cd ${.CURDIR}; ${MAKE} -f Makefile.inc1 distribute
 
