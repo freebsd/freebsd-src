@@ -33,11 +33,7 @@ __FBSDID("$FreeBSD$");
 #include <stdlib.h>
 #include <string.h>
 #include <wchar.h>
-
-extern size_t (*__mbrtowc)(wchar_t * __restrict, const char * __restrict,
-    size_t, mbstate_t * __restrict);
-extern int (*__mbsinit)(const mbstate_t *);
-extern size_t (*__wcrtomb)(char * __restrict, wchar_t, mbstate_t * __restrict);
+#include "mblocal.h"
 
 int	_GB2312_init(_RuneLocale *);
 size_t	_GB2312_mbrtowc(wchar_t * __restrict, const char * __restrict, size_t,

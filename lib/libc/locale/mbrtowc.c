@@ -28,9 +28,7 @@
 __FBSDID("$FreeBSD$");
 
 #include <wchar.h>
-
-extern size_t (*__mbrtowc)(wchar_t * __restrict, const char * __restrict,
-    size_t, mbstate_t * __restrict);
+#include "mblocal.h"
 
 size_t
 mbrtowc(wchar_t * __restrict pwc, const char * __restrict s,

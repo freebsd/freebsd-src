@@ -49,6 +49,7 @@ __FBSDID("$FreeBSD$");
 #include <unistd.h>
 #include <wchar.h>
 #include "ldpart.h"
+#include "mblocal.h"
 #include "setlocale.h"
 
 extern int		_none_init(_RuneLocale *);
@@ -61,18 +62,6 @@ extern int		_GBK_init(_RuneLocale *);
 extern int		_BIG5_init(_RuneLocale *);
 extern int		_MSKanji_init(_RuneLocale *);
 extern _RuneLocale	*_Read_RuneMagi(FILE *);
-
-extern size_t (*__mbrtowc)(wchar_t * __restrict, const char * __restrict,
-    size_t, mbstate_t * __restrict);
-extern int (*__mbsinit)(const mbstate_t *);
-extern size_t (*__wcrtomb)(char * __restrict, wchar_t, mbstate_t * __restrict);
-extern rune_t __emulated_sgetrune(const char *, size_t, const char **);
-extern int __emulated_sputrune(rune_t, char *, size_t, char **);
-extern size_t	_none_mbrtowc(wchar_t * __restrict, const char * __restrict,
-    size_t, mbstate_t * __restrict);
-extern int	_none_mbsinit(const mbstate_t *);
-extern size_t	_none_wcrtomb(char * __restrict, wchar_t,
-    mbstate_t * __restrict);
 
 static int		__setrunelocale(const char *);
 
