@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: vm86.c,v 1.12 1998/04/15 17:45:08 bde Exp $
+ *	$Id: vm86.c,v 1.13 1998/07/27 16:45:04 jlemon Exp $
  */
 
 #include "opt_vm86.h"
@@ -524,7 +524,7 @@ initial_bioscalls(u_int *basemem, u_int *extmem)
 	method = 0x88;
 
 done:
-	printf("BIOS basemem: %dK, extmem: %dK (from %p call)\n",
+	printf("BIOS basemem: %dK, extmem: %dK (from %#x call)\n",
 	    *basemem, *extmem, method);
 #endif /* !PC98 */
 #if 0
