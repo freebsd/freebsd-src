@@ -61,7 +61,7 @@
  * any improvements or extensions that they make and grant Carnegie the
  * rights to redistribute these changes.
  *
- * $Id: vm_map.c,v 1.50 1996/06/12 04:03:21 dyson Exp $
+ * $Id: vm_map.c,v 1.51 1996/06/16 20:37:29 dyson Exp $
  */
 
 /*
@@ -371,7 +371,7 @@ vm_map_entry_create(map)
 
 			m = vm_page_alloc(kernel_object,
 			        OFF_TO_IDX(mapvm - VM_MIN_KERNEL_ADDRESS),
-				    (map == kmem_map) ? VM_ALLOC_INTERRUPT : VM_ALLOC_NORMAL);
+				    (map == kmem_map || map == mb_map) ? VM_ALLOC_INTERRUPT : VM_ALLOC_NORMAL);
 
 			if (m) {
 				int newentries;
@@ -396,7 +396,7 @@ vm_map_entry_create(map)
 		splx(s);
 	}
 
-	if (map == kernel_map || map == kmem_map || map == pager_map) {
+	if (map == kernel_map || map == kmem_map || map == mb_map || map == pager_map) {
 		s = splvm();
 		entry = kentry_free;
 		if (entry) {
@@ -798,14 +798,14 @@ vm_map_find(map, object, offset, addr, length, find_space, prot, max, cow)
 
 	start = *addr;
 
-	if (map == kmem_map)
+	if (map == kmem_map || map == mb_map)
 		s = splvm();
 
 	vm_map_lock(map);
 	if (find_space) {
 		if (vm_map_findspace(map, start, length, addr)) {
 			vm_map_unlock(map);
-			if (map == kmem_map)
+			if (map == kmem_map || map == mb_map)
 				splx(s);
 			return (KERN_NO_SPACE);
 		}
@@ -815,7 +815,7 @@ vm_map_find(map, object, offset, addr, length, find_space, prot, max, cow)
 		start, start + length, prot, max, cow);
 	vm_map_unlock(map);
 
-	if (map == kmem_map)
+	if (map == kmem_map || map == mb_map)
 		splx(s);
 
 	return (result);
@@ -1826,7 +1826,7 @@ vm_map_remove(map, start, end)
 {
 	register int result, s = 0;
 
-	if (map == kmem_map)
+	if (map == kmem_map || map == mb_map)
 		s = splvm();
 
 	vm_map_lock(map);
@@ -1834,7 +1834,7 @@ vm_map_remove(map, start, end)
 	result = vm_map_delete(map, start, end);
 	vm_map_unlock(map);
 
-	if (map == kmem_map)
+	if (map == kmem_map || map == mb_map)
 		splx(s);
 
 	return (result);
