@@ -105,7 +105,8 @@ help_func(int argc, char *argv[])
 		errx(1, "help file not found");
 
 	if (argc == 0) {
-		argv[0] = __DECONST(char *, "intro");
+		if ((argv[0] = strdup("intro")) == NULL)
+			err(1, NULL);
 		argc = 1;
 	}
 
