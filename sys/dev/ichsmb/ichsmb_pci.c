@@ -146,7 +146,7 @@ ichsmb_pci_probe(device_t dev)
 		    && pci_get_subclass(dev) == PCIS_SERIALBUS_SMBUS
 		    && pci_get_progif(dev) == PCIS_SERIALBUS_SMBUS_PROGIF) {
 			device_set_desc(dev, "SMBus controller");
-			return (-2);		/* XXX */
+			return (BUS_PROBE_DEFAULT); /* XXX */
 		}
 		return (ENXIO);
 	}

@@ -40,15 +40,15 @@ static int ips_pci_probe(device_t dev)
         if ((pci_get_vendor(dev) == IPS_VENDOR_ID) &&
 	    (pci_get_device(dev) == IPS_MORPHEUS_DEVICE_ID)) {
 		device_set_desc(dev, "IBM ServeRAID Adapter");
-                return 0;
+                return (BUS_PROBE_DEFAULT);
         } else if ((pci_get_vendor(dev) == IPS_VENDOR_ID) &&
 	    (pci_get_device(dev) == IPS_COPPERHEAD_DEVICE_ID)) {
 		device_set_desc(dev, "IBM ServeRAID Adapter");
-		return (0);
+		return (BUS_PROBE_DEFAULT);
         } else if ((pci_get_vendor(dev) == IPS_VENDOR_ID_ADAPTEC) &&
 	    (pci_get_device(dev) == IPS_MARCO_DEVICE_ID)) {
 		device_set_desc(dev, "Adaptec ServeRAID Adapter");
-		return (0);
+		return (BUS_PROBE_DEFAULT);
 	}
         return(ENXIO);
 }
