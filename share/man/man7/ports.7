@@ -25,7 +25,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd June 2, 2004
+.Dd June 18, 2004
 .Dt PORTS 7
 .Os
 .Sh NAME
@@ -239,13 +239,27 @@ to create a browsable web of all ports on your system!
 .It Cm search
 Search the
 .Pa INDEX
-file for the pattern specified by either the
+file for the pattern specified by the
 .Va key
-(searches the port name, comment, and dependencies) or
+(searches the port name, comment, and dependencies),
 .Va name
-(searches the port name only)
+(searches the port name only),
+.Va path
+(searches the port path),
+.Va info
+(searches the port info),
+.Va maint
+(searches the port maintainer),
+.Va cat
+(searches the port category),
+.Va bdeps
+(searches the port build-time dependency),
+.Va rdeps
+(searches the port run-time dependency)
 .Xr make 1
-variable.
+variables, and their exclusion counterparts:
+.Va xname , xkey
+etc.
 For example, one would type:
 .Pp
 .Dl "cd /usr/ports && make search name=query"
@@ -255,6 +269,35 @@ name matches
 .Dq Li query .
 Results include the matching ports' path, comment, maintainer,
 build dependencies, and run dependencies.
+.Bd -literal -offset indent
+cd /usr/ports && make search name=pear- \e
+    xbdeps=apache
+.Ed
+.Pp
+To find all ports whose
+names contain
+.Dq Li pear-
+and which do not have apache
+listed in build-time dependencies.
+.Bd -literal -offset indent
+cd /usr/ports && make search name=pear- \e
+    xname='ht(tp|ml)'
+.Ed
+.Pp
+To find all ports whose names contain
+.Dq Li pear- ,
+but not
+.Dq Li html
+or
+.Dq Li http .
+.Bd -literal -offset indent
+make search key=apache display=name,path,info keylim=1
+.Ed
+.Pp
+To find ports that contain
+.Dq Li apache
+in either of the name, path, info
+fields, ignore the rest of the record.
 .It Cm describe
 Generate a one-line description of each port for use in the
 .Pa INDEX
