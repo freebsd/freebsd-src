@@ -1,5 +1,5 @@
 #
-#	$Id: Makefile,v 1.192 1998/06/02 11:22:08 peter Exp $
+#	$Id: Makefile,v 1.193 1998/06/02 18:28:55 jhay Exp $
 #
 # While porting to the another architecture include the bootstrap instead
 # of the normal build.
@@ -201,8 +201,8 @@ STRICTTMPPATH=	${WORLDTMP}/sbin:${WORLDTMP}/usr/sbin:${WORLDTMP}/bin:${WORLDTMP}
 TMPPATH=	${STRICTTMPPATH}:${PATH}
 
 # XXX COMPILER_PATH is needed for finding cc1, ld and as
-# XXX GCC_EXEC_PREFIX is for *crt.o.  It is probably unnecssary now
-#	tbat LIBRARY_PATH is set.  We still can't use -nostdlib, since gcc
+# XXX GCC_EXEC_PREFIX is for *crt.o.  It is probably unnecessary now
+#	that LIBRARY_PATH is set.  We still can't use -nostdlib, since gcc
 #	wouldn't link *crt.o or libgcc if it were used.
 # XXX LD_LIBRARY_PATH is for ld.so.  It is also used by ld, although we don't
 #	want that - all compile-time library paths should be resolved by gcc.
