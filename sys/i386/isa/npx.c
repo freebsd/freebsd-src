@@ -121,8 +121,10 @@ void	stop_emulating	__P((void));
 typedef u_char bool_t;
 
 static	int	npx_attach	__P((device_t dev));
-	void	npx_intr	__P((void *));
 static	void	npx_identify	__P((driver_t *driver, device_t parent));
+#ifndef SMP
+static	void	npx_intr	__P((void *));
+#endif
 static	int	npx_probe	__P((device_t dev));
 static	int	npx_probe1	__P((device_t dev));
 #ifdef I586_CPU
@@ -198,6 +200,51 @@ npx_identify(driver, parent)
 		panic("npx_identify");
 }
 
+#ifndef SMP
+/*
+ * Do minimal handling of npx interrupts to convert them to traps.
+ */
+static void
+npx_intr(dummy)
+	void *dummy;
+{
+	struct proc *p;
+
+	/*
+	 * The BUSY# latch must be cleared in all cases so that the next
+	 * unmasked npx exception causes an interrupt.
+	 */
+	outb(0xf0, 0);
+
+	/*
+	 * npxproc is normally non-null here.  In that case, schedule an
+	 * AST to finish the exception handling in the correct context
+	 * (this interrupt may occur after the process has entered the
+	 * kernel via a syscall or an interrupt).  Otherwise, the npx
+	 * state of the process that caused this interrupt must have been
+	 * pushed to the process' pcb, and clearing of the busy latch
+	 * above has finished the (essentially null) handling of this
+	 * interrupt.  Control will eventually return to the instruction
+	 * that caused it and it will repeat.  We will eventually (usually
+	 * soon) win the race to handle the interrupt properly.
+	 */
+	p = PCPU_GET(npxproc);
+	if (p != NULL) {
+		p->p_addr->u_pcb.pcb_flags |= PCB_NPXTRAP;
+		mtx_lock_spin(&sched_lock);
+		aston(p);
+		mtx_unlock_spin(&sched_lock);
+	}
+}
+
+/*
+ * XXX these "local" variables of npx_probe() are non-local so that
+ * npxprobe1() can abuse them.
+ */
+static	int	npx_intrno;
+static	struct	gate_descriptor save_idt_npxintr;
+#endif /* !SMP */
+
 /*
  * Probe routine.  Initialize cr0 to give correct behaviour for [f]wait
  * whether the device exists or not (XXX should be elsewhere).  Set flags
@@ -216,12 +263,10 @@ npx_probe(dev)
 
 #else /* SMP */
 
-	int	npx_intrno;
 	int	result;
 	critical_t	savecrit;
 	u_char	save_icu1_mask;
 	u_char	save_icu2_mask;
-	struct	gate_descriptor save_idt_npxintr;
 	struct	gate_descriptor save_idt_npxtrap;
 	/*
 	 * This routine is now just a wrapper for npxprobe1(), to install
@@ -383,10 +428,19 @@ npx_probe1(dev)
 					panic("npx: can't get IRQ");
 				BUS_SETUP_INTR(device_get_parent(dev),
 					       dev, r,
-					       INTR_TYPE_MISC | INTR_MPSAFE,
+					       INTR_TYPE_MISC | INTR_FAST,
 					       npx_intr, 0, &intr);
 				if (intr == 0)
 					panic("npx: can't create intr");
+
+				/*
+				 * XXX BUS_SETUP_INTR() has changed
+				 * idt[npx_intrno] to point to Xfastintr0
+				 * instead of Xfastintr0.  Adjust
+				 * save_idt_npxintr so that npxprobe()
+				 * doesn't undo this.
+				 */
+				save_idt_npxintr = idt[npx_intrno];
 
 				return (0);
 			}
@@ -714,87 +768,39 @@ static char fpetable[128] = {
  * destroyed by IRQ13 bugs.  Clearing FP exceptions is not an acceptable
  * solution for signals other than SIGFPE.
  */
-void
-npx_intr(dummy)
-	void *dummy;
+int
+npxtrap()
 {
-	int code;
-	u_short control;
-	struct intrframe *frame;
+	critical_t savecrit;
+	u_short control, status;
 
 	if (!npx_exists) {
-		printf("npxintr: npxproc = %p, curproc = %p, npx_exists = %d\n",
+		printf("npxtrap: npxproc = %p, curproc = %p, npx_exists = %d\n",
 		       PCPU_GET(npxproc), curproc, npx_exists);
-		panic("npxintr from nowhere");
+		panic("npxtrap from nowhere");
 	}
-	outb(0xf0, 0);
-	mtx_lock_spin(&sched_lock);
-	if (PCPU_GET(npxproc) != curproc) {
-		/*
-		 * Interrupt handling (for this or another interrupt) has
-		 * switched npxproc from underneath us before we managed
-		 * to handle this interrupt.  Just ignore this interrupt.
-		 * Control will eventually return to the instruction that
-		 * caused it and it will repeat.  In the npx_ex16 case,
-		 * then we will eventually (usually soon) win the race.
-		 * In the npx_irq13 case, we will always lose the race
-		 * because we have switched to the IRQ13 thread.  This will
-		 * be fixed later.
-		 */
-		mtx_unlock_spin(&sched_lock);
-		return;
-	}
-	fnstsw(&PCPU_GET(curpcb)->pcb_savefpu.sv_ex_sw);
-	fnstcw(&control);
-	fnclex();
-	mtx_unlock_spin(&sched_lock);
+	savecrit = critical_enter();
 
 	/*
-	 * Pass exception to process.
+	 * Interrupt handling (for another interrupt) may have pushed the
+	 * state to memory.  Fetch the relevant parts of the state from
+	 * wherever they are.
 	 */
-	mtx_lock(&Giant);
-	frame = (struct intrframe *)&dummy;	/* XXX */
-	if ((ISPL(frame->if_cs) == SEL_UPL) || (frame->if_eflags & PSL_VM)) {
-		/*
-		 * Interrupt is essentially a trap, so we can afford to call
-		 * the SIGFPE handler (if any) as soon as the interrupt
-		 * returns.
-		 *
-		 * XXX little or nothing is gained from this, and plenty is
-		 * lost - the interrupt frame has to contain the trap frame
-		 * (this is otherwise only necessary for the rescheduling trap
-		 * in doreti, and the frame for that could easily be set up
-		 * just before it is used).
-		 */
-		curproc->p_md.md_regs = INTR_TO_TRAPFRAME(frame);
-		/*
-		 * Encode the appropriate code for detailed information on
-		 * this exception.
-		 */
-		code = 
-		    fpetable[(PCPU_GET(curpcb)->pcb_savefpu.sv_ex_sw & ~control & 0x3f) |
-			(PCPU_GET(curpcb)->pcb_savefpu.sv_ex_sw & 0x40)];
-		trapsignal(curproc, SIGFPE, code);
+	if (PCPU_GET(npxproc) != curproc) {
+		control = curproc->p_addr->u_pcb.pcb_savefpu.sv_env.en_cw;
+		status = curproc->p_addr->u_pcb.pcb_savefpu.sv_env.en_sw;
 	} else {
-		/*
-		 * Nested interrupt.  These losers occur when:
-		 *	o an IRQ13 is bogusly generated at a bogus time, e.g.:
-		 *		o immediately after an fnsave or frstor of an
-		 *		  error state.
-		 *		o a couple of 386 instructions after
-		 *		  "fstpl _memvar" causes a stack overflow.
-		 *	  These are especially nasty when combined with a
-		 *	  trace trap.
-		 *	o an IRQ13 occurs at the same time as another higher-
-		 *	  priority interrupt.
-		 *
-		 * Treat them like a true async interrupt.
-		 */
-		PROC_LOCK(curproc);
-		psignal(curproc, SIGFPE);
-		PROC_UNLOCK(curproc);
+		fnstcw(&control);
+		fnstsw(&status);
 	}
-	mtx_unlock(&Giant);
+
+	curproc->p_addr->u_pcb.pcb_savefpu.sv_ex_sw = status;
+	if (PCPU_GET(npxproc) != curproc)
+		curproc->p_addr->u_pcb.pcb_savefpu.sv_env.en_sw &= ~0x80bf;
+	else
+		fnclex();
+	critical_exit(savecrit);
+	return (fpetable[status & ((~control & 0x3f) | 0x40)]);
 }
 
 /*
