@@ -595,7 +595,7 @@ out:
 		 */
 		if (*ap->a_vpp != dvp) {
 			if (!lockparent || (cnp->cn_flags & ISLASTCN) == 0)
-				VOP_UNLOCK(dvp, 0, td);
+				VOP_UNLOCK(dvp, 0, p);
 		}
 
 		if (cnp->cn_namelen == 1 &&
