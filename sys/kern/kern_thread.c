@@ -287,11 +287,11 @@ kse_thr_interrupt(struct thread *td, struct kse_thr_interrupt_args *uap)
 			mtx_unlock_spin(&sched_lock);
 			td->td_retval[0] = 0;
 			td->td_retval[1] = 0;
-			return 0;
+			return (0);
 		}
 	}
 	mtx_unlock_spin(&sched_lock);
-	return(ESRCH);
+	return (ESRCH);
 }
 
 int
@@ -303,10 +303,10 @@ kse_exit(struct thread *td, struct kse_exit_args *uap)
 	p = td->td_proc;
 	/* KSE-enabled processes only, please. */
 	if (!(p->p_flag & P_KSES))
-		return EINVAL;
+		return (EINVAL);
 	/* must be a bound thread */ 
 	if (td->td_flags & TDF_UNBOUND)
-		return EINVAL;
+		return (EINVAL);
 	kg = td->td_ksegrp;
 	/* serialize killing kse */
 	PROC_LOCK(p);
@@ -327,7 +327,7 @@ kse_exit(struct thread *td, struct kse_exit_args *uap)
 		thread_exit();
 		/* NOTREACHED */
 	}
-	return 0;
+	return (0);
 }
 
 int
@@ -376,7 +376,7 @@ kse_wakeup(struct thread *td, struct kse_wakeup_args *uap)
 					mtx_unlock_spin(&sched_lock);
 					td->td_retval[0] = 0;
 					td->td_retval[1] = 0;
-					return 0;
+					return (0);
 				}
 			}	
 		}
@@ -386,14 +386,14 @@ kse_wakeup(struct thread *td, struct kse_wakeup_args *uap)
 	}
 	if (ke == NULL) {
 		mtx_unlock_spin(&sched_lock);
-		return ESRCH;
+		return (ESRCH);
 	}
 found:
 	thread_schedule_upcall(td, ke);
 	mtx_unlock_spin(&sched_lock);
 	td->td_retval[0] = 0;
 	td->td_retval[1] = 0;
-	return 0;
+	return (0);
 }
 
 /* 
@@ -1092,7 +1092,7 @@ thread_schedule_upcall(struct thread *td, struct kse *ke)
 		 * a reserve thread, then we've used it, so do not
 		 * create an upcall.
 		 */
-		return(NULL);
+		return (NULL);
 	}
 	CTR3(KTR_PROC, "thread_schedule_upcall: thread %p (pid %d, %s)",
 	     td2, td->td_proc->p_pid, td->td_proc->p_comm);
@@ -1266,7 +1266,7 @@ thread_userret(struct thread *td, struct trapframe *frame)
 	 * or transform into an upcall.
 	 * (having saved their context to user space in both cases)
 	 */
-	if (unbound ) {
+	if (unbound) {
 		/*
 		 * We are an unbound thread, looking to return to 
 		 * user space.
