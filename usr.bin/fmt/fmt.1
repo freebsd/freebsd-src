@@ -32,46 +32,105 @@
 .\"     @(#)fmt.1	8.1 (Berkeley) 6/6/93
 .\" $FreeBSD$
 .\"
-.Dd June 6, 1993
+.\" Modified by Gareth McCaughan to describe the new version of `fmt'
+.\" rather than the old one.
+.Dd June 25, 2000
 .Dt FMT 1
 .Os
 .Sh NAME
 .Nm fmt
 .Nd simple text formatter
 .Sh SYNOPSIS
-.Nm
-.Op Fl c
-.Oo
-.Ar goal
-.Op Ar maximum
-.Oc
-.Op name ...
+.Nm fmt
+.Op Fl cmps
+.Op Fl d Ar chars
+.Op Fl l Ar num
+.Op Fl t Ar num
+.Op Ar goal Oo Ar maximum Oc | Fl Ns Ar width | Fl w Ar width
+.Op Ar
 .Sh DESCRIPTION
-.Nm Fmt
+.Nm
 is a simple text formatter which reads the concatenation of input
 files (or standard input if none are given) and produces on standard
 output a version of its input with lines as close to the
 .Ar goal
 length
-as possible without exceeding the maximum.  The
+as possible without exceeding the
+.Ar maximum .
+The
 .Ar goal
 length defaults
-to 65 and the maximum to 75.  The spacing at the beginning of the
-input lines is preserved in the output, as are blank lines and
-interword spacing.
+to 65 and the
+.Ar maximum
+to 10 more than the
+.Ar goal
+length.
+Alternatively, a single
+.Ar width
+parameter can be specified either by prepending a hyphen to it or by using
+.Fl w .
+For example,
+.Dq Li fmt -w 72 ,
+.Dq Li fmt -72 ,
+and
+.Dq Li fmt 72 72
+all produce identical output.
+The spacing at the beginning of the input lines is preserved in the output,
+as are blank lines and interword spacing.
+Lines are joined or split only at white space; that is, words are never
+joined or hyphenated.
 .Pp
-.Fl c
-instructs
+The options are as follows:
+.Bl -tag -width indent
+.It Fl c
+Center the text, line by line.
+In this case, most of the other
+options are ignored; no splitting or joining of lines is done.
+.It Fl m
+Try to format mail header lines contained in the input sensibly.
+.It Fl p
+Allow indented paragraphs.
+Without the
+.Fl p
+flag, any change in the amount of whitespace at the start of a line
+results in a new paragraph being begun.
+.It Fl s
+Collapse whitespace inside lines, so that multiple whitespace
+characters are turned into a single space.
+(Or, at the end of a
+sentence, a double space.)
+.It Fl d Ar chars
+Treat the
+.Ar chars
+(and no others) as sentence-ending characters.
+By default the
+sentence-ending characters are full stop
+.Pq Ql \&. ,
+question mark
+.Pq Ql \&?
+and exclamation mark
+.Pq Ql \&! .
+Remember that some characters may need to be
+escaped to protect them from your shell.
+.It Fl l Ar number
+Replace multiple spaces with tabs at the start of each output
+line, if possible.
+.Ar number
+spaces will be replaced with one tab.
+.It Fl t Ar number
+Assume that the input files' tabs assume
+.Ar number
+spaces per tab stop.
+The default is 8.
+.El
+.Pp
 .Nm
-to center the text.
-.Pp
-.Nm Fmt
 is meant to format mail messages prior to sending, but may also be useful
 for other simple tasks.
 For instance,
 within visual mode of the
 .Xr ex 1
-editor (e.g.
+editor (e.g.,
 .Xr vi 1 )
 the command
 .Pp
@@ -87,10 +146,24 @@ The
 .Nm
 command appeared in
 .Bx 3 .
-.\" .Sh AUTHOR
-.\" Kurt Shoens
-.\" .br
-.\" Liz Allen (added goal length concept)
+.Pp
+The version described herein is a complete rewrite and appeared in
+.Fx 4.4 .
+.Sh AUTHORS
+.An Kurt Shoens
+.An Liz Allen
+(added
+.Ar goal
+length concept)
+.An Gareth McCaughan
 .Sh BUGS
 The program was designed to be simple and fast \- for more complex
 operations, the standard text processors are likely to be more appropriate.
+.Pp
+When the first line of an indented paragraph is very long (more than
+about twice the goal length), the indentation in the output can be
+wrong.
+.Pp
+.Nm
+is not infallible in guessing what lines are mail headers and what
+lines are not.
