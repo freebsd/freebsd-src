@@ -1,4 +1,4 @@
-/*	$NetBSD: uhub.c,v 1.47 2000/09/24 02:08:38 augustss Exp $	*/
+/*	$NetBSD: uhub.c,v 1.48 2000/12/29 01:24:56 augustss Exp $	*/
 /*	$FreeBSD$	*/
 
 /*
@@ -39,7 +39,7 @@
  */
 
 /*
- * USB spec: http://www.usb.org/developers/docs.htm
+ * USB spec: http://www.usb.org/developers/data/usbspec.zip
  */
 
 #include <sys/param.h>
@@ -338,6 +338,7 @@ uhub_explore(usbd_device_handle dev)
 	struct uhub_softc *sc = dev->hub->hubsoftc;
 	struct usbd_port *up;
 	usbd_status err;
+	int speed;
 	int port;
 	int change, status;
 
@@ -437,10 +438,18 @@ uhub_explore(usbd_device_handle dev)
 			continue;
 		}
 
+		/* Figure out device speed */
+		if (status & UPS_HIGH_SPEED)
+			speed = USB_SPEED_HIGH;
+		else if (status & UPS_LOW_SPEED)
+			speed = USB_SPEED_LOW;
+		else
+			speed = USB_SPEED_FULL;
+
 		/* Get device info and set its address. */
 		err = usbd_new_device(USBDEV(sc->sc_dev), dev->bus, 
-			  dev->depth + 1, status & UPS_LOW_SPEED, 
-			  port, up);
+		    dev->depth + 1, speed, port, up);
+
 		/* XXX retry a few times? */
 		if (err) {
 			DPRINTFN(-1,("uhub_explore: usb_new_device failed, "
