@@ -1,4 +1,4 @@
-static short gpib_port=0x2c0;
+static int gpib_port=0x2c0;
 #define IEEE gpib_port
 
 /*NAT4882 Registers*/
