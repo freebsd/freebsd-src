@@ -448,24 +448,30 @@ g_raid3_kill_consumer(struct g_raid3_softc *sc, struct g_consumer *cp)
 static int
 g_raid3_connect_disk(struct g_raid3_disk *disk, struct g_provider *pp)
 {
+	struct g_consumer *cp;
 	int error;
 
 	g_topology_assert();
 	KASSERT(disk->d_consumer == NULL,
 	    ("Disk already connected (device %s).", disk->d_softc->sc_name));
 
-	disk->d_consumer = g_new_consumer(disk->d_softc->sc_geom);
-	disk->d_consumer->private = disk;
-	disk->d_consumer->index = 0;
-	error = g_attach(disk->d_consumer, pp);
-	if (error != 0)
-		return (error);
-	error = g_access(disk->d_consumer, 1, 1, 1);
+	cp = g_new_consumer(disk->d_softc->sc_geom);
+	error = g_attach(cp, pp);
 	if (error != 0) {
+		g_destroy_consumer(cp);
+		return (error);
+	}
+	error = g_access(cp, 1, 1, 1);
+	if (error != 0) {
+		g_detach(cp);
+		g_destroy_consumer(cp);
 		G_RAID3_DEBUG(0, "Cannot open consumer %s (error=%d).",
 		    pp->name, error);
 		return (error);
 	}
+	disk->d_consumer = cp;
+	disk->d_consumer->private = disk;
+	disk->d_consumer->index = 0;
 	G_RAID3_DEBUG(2, "Disk %s connected.", g_raid3_get_diskname(disk));
 	return (0);
 }
@@ -497,8 +503,11 @@ g_raid3_init_disk(struct g_raid3_softc *sc, struct g_provider *pp,
 
 	disk = &sc->sc_disks[md->md_no];
 	error = g_raid3_connect_disk(disk, pp);
-	if (error != 0)
-		goto fail;
+	if (error != 0) {
+		if (errorp != NULL)
+			*errorp = error;
+		return (NULL);
+	}
 	disk->d_state = G_RAID3_DISK_STATE_NONE;
 	disk->d_flags = md->md_dflags;
 	if (md->md_provider[0] != '\0')
@@ -512,12 +521,6 @@ g_raid3_init_disk(struct g_raid3_softc *sc, struct g_provider *pp,
 	if (errorp != NULL)
 		*errorp = 0;
 	return (disk);
-fail:
-	if (errorp != NULL)
-		*errorp = error;
-	if (disk != NULL)
-		g_raid3_disconnect_consumer(sc, disk->d_consumer);
-	return (NULL);
 }
 
 static void
