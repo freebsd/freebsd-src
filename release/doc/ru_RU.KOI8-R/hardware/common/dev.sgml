@@ -2,9 +2,9 @@
      The FreeBSD Russian Documentation Project
 
      $FreeBSD$
-     $FreeBSDru: frdp/release/doc/ru_RU.KOI8-R/hardware/common/dev.sgml,v 1.3 2004/08/11 10:21:31 den Exp $
+     $FreeBSDru: frdp/release/doc/ru_RU.KOI8-R/hardware/common/dev.sgml,v 1.5 2004/09/01 13:10:46 den Exp $
 
-     Original revision: 1.226
+     Original revision: 1.238
 -->
 
 <!--
@@ -55,11 +55,10 @@
     справочника.</para>
 
   <note>
-    <para>Список специфичных поддерживаемых устройств постепенно будет удален
-      из этого документа для уменьшения объема дублированной (и потенциально
-      устаревшей) информации.  После завершения этого процесса в странице
-      справочника каждого драйвера должен находиться полный список устройств,
-      поддерживаемых данным драйвером.</para>
+    <para>Список устройств в этом документе генерируется автоматически из
+      страниц справочной системы &os;.  Это означает, что некоторые
+      устройства, поддерживаемые несколькими драйверами, могут
+      появляться несколько раз.</para>
   </note>
 
   <sect2 id="disk">
@@ -245,19 +244,15 @@
 
     &hwlist.twa;
 
-    <para arch="i386,pc98,alpha,sparc64,amd64">LSI/Symbios (бывшие NCR)
-      53C8<replaceable>XX</replaceable> и 53C10<replaceable>XX</replaceable> PCI
-      SCSI контроллеры, встроенные в материнскую плату или в виде дополнительных
-      плат (драйверы &man.ncr.4; и &man.sym.4;)</para>      
+    &hwlist.ncr;
+
+    &hwlist.sym;
 
     &hwlist.ncv;
 
     &hwlist.stg;
 
     &hwlist.isp;
-
-    <para arch="i386,amd64">DTC 3290 EISA SCSI контроллер в режиме эмуляции
-      1542.</para>
 
     &hwlist.amd;
 
@@ -279,12 +274,9 @@
 
     &hwlist.ips;
 
-    <para arch="i386,alpha,pc98,sparc64,ia64,amd64">LSI Logic Fusion/MP
-	architecture Fiber Channel контроллеры (драйвер &man.mpt.4;)</para>
-
-    <para arch="i386,amd64">PCI SCSI хост адаптеры, использующие Tekram
-	TRM-S1040 SCSI чипсет (драйвер &man.trm.4;)
-    </para>
+    &hwlist.mpt;
+ 
+    &hwlist.trm;
 
     <para>Со всеми поддерживаемыми SCSI контроллерами, предоставлена полная
       поддержка периферии SCSI-I, SCSI-II и SCSI-III, включая жесткие диски,
@@ -338,12 +330,6 @@
 	  </para>
 	</listitem>
 	<listitem arch="i386">
-	  <para>Seagate ST01/02 SCSI контроллеры</para>
-	</listitem>
-	<listitem arch="i386">
-	  <para>Future Domain 8xx/950 series SCSI контроллеры</para>
-	</listitem>
-	<listitem arch="i386">
 	  <para>WD7000 SCSI контроллер</para>
 	</listitem>
       </itemizedlist>
@@ -362,9 +348,7 @@
   <sect2 id="ethernet">
     <title>Ethernet интерфейсы</title>
 
-    <para arch="i386,pc98,alpha,amd64">Adaptec Duralink PCI Fast Ethernet
-      адаптеры, основанные на Adaptec
-      AIC-6915 Fast Ethernet контроллере (драйвер &man.sf.4;)</para>
+    &hwlist.sf;
 
     <para arch="i386,pc98,amd64">Alteon Networks PCI Gigabit Ethernet сетевые карты на
       чипсетах Tigon 1 и Tigon 2 (драйвер &man.ti.4;)</para>
@@ -649,17 +633,13 @@
       </itemizedlist>
     </para>
 
-    <para arch="i386,pc98,alpha,sparc64,amd64">RealTek 8129/8139 Fast Ethernet
-      сетевые карты (драйвер &man.rl.4;)
-    </para>
+    &hwlist.rl;
 
     <para arch="i386,pc98,alpha,amd64">Winbond W89C840F Fast Ethernet сетевые карты
       (драйвер &man.wb.4;)
     </para>
 
-    <para arch="i386,pc98,alpha,amd64">VIA Technologies VT3043 <quote>Rhine I</quote>, VT86C100A
-    <quote>Rhine II</quote>, и VT6105/VT6105M <quote>Rhine III</quote> Fast
-      Ethernet сетевые карты (драйвер &man.vr.4;)</para>
+    &hwlist.vr;
 
     <para arch="i386,pc98,alpha,amd64">Silicon Integrated Systems SiS 900 и SiS 7016 PCI Fast
     Ethernet сетевые карты (драйвер &man.sis.4;)
@@ -677,35 +657,26 @@
       (драйвер &man.ste.4;)
     </para>
 
-    <para arch="i386,pc98,alpha,amd64">SysKonnect SK-984x PCI Gigabit Ethernet
-      карты (драйвер &man.sk.4;)
-    </para>
+    &hwlist.sk;
 
     <para arch="i386,pc98,alpha,amd64">Texas Instruments ThunderLAN PCI сетевые карты
       (драйвер &man.tl.4;)</para>
 
-    <para arch="i386,pc98,alpha,sparc64,amd64">DEC/Intel 21143 Fast Ethernet
-      сетевые карты и клоны для PCI, MiniPCI, и CardBus (драйвер &man.dc.4;)</para>
+    &hwlist.dc;
 
     &hwlist.aue;
 
-    <para arch="i386,pc98,amd64">CATC USB-EL1210A USB Ethernet сетевые карты
-      (драйвер &man.cue.4;)</para>
+    &hwlist.cue;
 
-    <para arch="i386,pc98,amd64">Kawasaki LSI KU5KUSB101B USB Ethernet сетевые карты
-      (драйвер &man.kue.4;)</para>
+    &hwlist.kue;
 
-    <para arch="i386,pc98,amd64">ASIX Electronics AX88172 USB Ethernet сетевые карты
-      (драйвер &man.axe.4;)</para>
+    &hwlist.axe;
 
-    <para arch="i386,pc98,amd64">RealTek RTL8150 USB Ethernet сетевые карты
-      (драйвер &man.rue.4;)</para>
+    &hwlist.rue;
 
     &hwlist.udav;
 
-    <para arch="i386,pc98,alpha,amd64">DEC DC21040, DC21041, DC21140, DC21141,
-     DC21142, и DC21143 сетевые карты (драйвер &man.de.4;)
-    </para>
+    &hwlist.de;
 
     &hwlist.fe;
 
@@ -724,8 +695,7 @@
 
     &hwlist.xl;
 
-    <para arch="i386,pc98,amd64">3Com 3C59X series сетевые карты (драйвер &man.vx.4;)
-    </para>
+    &hwlist.vx;
 
     <para arch="i386,amd64">Crystal Semiconductor CS89x0 сетевые карты 
       (драйвер &man.cs.4;)
@@ -748,9 +718,7 @@
       </itemizedlist>
     </para>
 
-    <para arch="i386,pc98,amd64">Gigabit Ethernet карты, основанные на Level 1
-    LXT1001 NetCellerator контроллере (драйвер &man.lge.4;)
-    </para>
+    &hwlist.lge;
 
     &hwlist.txp;
 
@@ -765,8 +733,7 @@
 
     &hwlist.hme;
 
-    <para arch="sparc64">Sun GEM (Gigabit Ethernet) и ERI (Fast
-    Ethernet) сетевые карты (драйвер &man.gem.4;)</para>
+    &hwlist.gem;
 
     &hwlist.my;
 
@@ -776,6 +743,8 @@
     <para arch="alpha,i386,pc98,amd64">RealTek RTL8139C+, RTL8169, RTL8169S и
       RTL8110S based PCI Fast Ethernet и Gigabit Ethernet
       контроллеры (драйвер &man.re.4;)</para>
+
+    &hwlist.ixgb;
 
   </sect2>
 
@@ -825,9 +794,7 @@
 
     &hwlist.awi;
 
-    <para arch="i386">Atheros AR5210, AR5211, и AR5212
-      802.11a/b/g сетевые интерфейсы (драйвер &man.ath.4;)
-    </para>
+    &hwlist.ath;
 
   </sect2>
 
@@ -1184,6 +1151,10 @@
   <sect2 id="audio">
     <title>Аудио устройства</title>
 
+    &hwlist.snd.ad1816;
+    &hwlist.snd.cs4281;
+    &hwlist.snd.solo;
+
     <para arch="i386,amd64">Advance (драйвер &man.sbc.4;)
       <itemizedlist>
 	<listitem>
@@ -1195,13 +1166,7 @@
       </itemizedlist>
     </para>
 
-    <para arch="i386,amd64">CMedia sound chips
-      <itemizedlist>
-	<listitem>
-	  <para>CMI8338/CMI8738</para>
-	</listitem>
-      </itemizedlist>
-    </para>
+    &hwlist.snd.cmi;
 
     <para arch="i386,amd64">Crystal Semiconductor (драйвер &man.csa.4;)
       <itemizedlist>
@@ -1214,13 +1179,7 @@
       </itemizedlist>
     </para>
 
-    <para arch="i386,amd64">ENSONIQ (драйвер &man.pcm.4;)
-      <itemizedlist>
-	<listitem>
-	  <para>AudioPCI ES1370/1371</para>
-	</listitem>
-      </itemizedlist>
-    </para>
+    &hwlist.snd.es137x;
 
     <para arch="i386,alpha,amd64">ESS
       <itemizedlist>
@@ -1292,23 +1251,13 @@
       </itemizedlist>
     </para>
 
-    <para arch="i386,amd64">Creative Technologies Sound Blaster Live! series
-      (драйвер emu10k1)</para>
+    &hwlist.snd.emu10k1;
 
     <para arch="i386,amd64">Trident 4DWave DX/NX (драйвер &man.pcm.4;)</para>
 
     <para arch="i386,amd64">VIA Technologies VT82C686A</para>
 
-    <para arch="i386,amd64">Yamaha
-      <itemizedlist>
-	<listitem>
-	  <para>DS1</para>
-	</listitem>
-	<listitem>
-	  <para>DS1e</para>
-	</listitem>
-      </itemizedlist>
-    </para>
+    &hwlist.snd.ds1;
 
     <para arch="pc98">NEC PC-9801-73, 86 и совместимые (драйвер nss)
       <itemizedlist>
@@ -1398,19 +1347,9 @@
 	</listitem>
       </itemizedlist>
     </para>
-    <para arch="i386,pc98,amd64">Модемы (драйвер &man.umodem.4;)
-      <itemizedlist>
-	<listitem>
-	  <para>3Com 5605</para>
-	</listitem>
-	<listitem>
-	  <para>Metricom Ricochet GS USB беспроводный модем</para>
-	</listitem>
-	<listitem>
-	  <para>Yamaha Broadband Wireless Router RTW65b</para>
-	</listitem>
-      </itemizedlist>
-    </para>
+
+    &hwlist.umodem;
+
     <para arch="i386,pc98,alpha,amd64">Мышь (драйвер &man.ums.4;)
     </para>
     <para arch="i386,pc98,alpha,amd64">Принтеры и переходные кабели к
@@ -1446,9 +1385,9 @@
       &man.ubser.4;,
       &man.uftdi.4;, и &man.uplcom.4;)
     </para>
-    <para arch="i386,pc98,amd64">Сканеры (через
-      <application>SANE</application>) (драйвер &man.uscanner.4;)
-    </para>
+
+    &hwlist.uscanner;
+
     <para arch="i386,pc98,alpha,amd64">Хранение данных (драйвер &man.umass.4;)
       <itemizedlist>
 	<listitem>
