@@ -3594,19 +3594,18 @@ ncr_attach (device_t dev)
 		np->bst2 = rman_get_bustag(np->sram_res);
 		np->bsh2 = rman_get_bushandle(np->sram_res);
 	} else if (sizeof (struct script) > PAGE_SIZE) {
-		np->script  = (struct script*) vm_page_alloc_contig 
-			(round_page(sizeof (struct script)), 
-			 0, 0xffffffff, PAGE_SIZE);
+		np->script  = (struct script*) contigmalloc 
+			(round_page(sizeof (struct script)), M_DEVBUF, M_WAITOK,
+			 0, 0xffffffff, PAGE_SIZE, 0);
 	} else {
 		np->script  = (struct script *)
 			malloc (sizeof (struct script), M_DEVBUF, M_WAITOK);
 	}
 
-	/* XXX JGibbs - Use contigmalloc */
 	if (sizeof (struct scripth) > PAGE_SIZE) {
-		np->scripth = (struct scripth*) vm_page_alloc_contig 
-			(round_page(sizeof (struct scripth)), 
-			 0, 0xffffffff, PAGE_SIZE);
+		np->scripth = (struct scripth*) contigmalloc 
+			(round_page(sizeof (struct scripth)), M_DEVBUF, M_WAITOK,
+			 0, 0xffffffff, PAGE_SIZE, 0);
 	} else 
 		{
 		np->scripth = (struct scripth *)
