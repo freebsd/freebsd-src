@@ -196,12 +196,16 @@ options 	MUTEX_WAKE_ALL
 
 # SMP Debugging Options:
 #
+# PREEMPTION allows the threads that are in the kernel to be preempted
+#	  by higher priority threads.  It helps with interactivity and
+#	  allows interrupt threads to run sooner rather than waiting.
+#	  WARNING! Only tested on alpha, amd64, and i386.
 # FULL_PREEMPTION instructs the kernel to preempt non-realtime kernel
 #	  threads.  It sole use is to expose race conditions and other
 #	  bugs during development.  Enabling this option will reduce
 #	  performance and increase the frequency of kernel panics by
 #	  design.  If you aren't sure that you need it then you don't.
-#         DON'T TURN THIS ON.
+#	  Relies on the PREEMPTION option.  DON'T TURN THIS ON.
 # MUTEX_DEBUG enables various extra assertions in the mutex code.
 # SLEEPQUEUE_PROFILING enables rudimentary profiling of the hash table
 #	  used to hold active sleep queues.
@@ -213,6 +217,7 @@ options 	MUTEX_WAKE_ALL
 #	  a lock hierarchy violation occurs or if locks are held when going to
 #	  sleep.
 # WITNESS_SKIPSPIN disables the witness checks on spin mutexes.
+options		PREEMPTION
 options 	FULL_PREEMPTION
 options 	MUTEX_DEBUG
 options 	WITNESS

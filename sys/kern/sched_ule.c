@@ -29,6 +29,8 @@ __FBSDID("$FreeBSD$");
 
 #define kse td_sched
 
+#include <opt_sched.h>
+
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/kdb.h>
@@ -76,6 +78,18 @@ SYSCTL_INT(_kern_sched, OID_AUTO, slice_max, CTLFLAG_RW, &slice_max, 0, "");
 
 int realstathz;
 int tickincr = 1;
+
+#ifdef PREEMPTION
+static void
+printf_caddr_t(void *data)
+{
+	printf("%s", (char *)data);
+}
+static char preempt_warning[] =
+    "WARNING: Kernel PREEMPTION is unstable under SCHED_ULE.\n"; 
+SYSINIT(preempt_warning, SI_SUB_COPYRIGHT, SI_ORDER_ANY, printf_caddr_t,
+    preempt_warning)
+#endif
 
 /*
  * The schedulable entity that can be given a context to run.
