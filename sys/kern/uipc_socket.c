@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)uipc_socket.c	8.3 (Berkeley) 4/15/94
- * $Id: uipc_socket.c,v 1.5 1994/10/02 17:35:32 phk Exp $
+ * $Id: uipc_socket.c,v 1.6 1995/02/02 08:49:08 davidg Exp $
  */
 
 #include <sys/param.h>
@@ -298,7 +298,7 @@ bad:
 	return (error);
 }
 
-#define	SBLOCKWAIT(f)	(((f) & MSG_DONTWAIT) ? M_KERNEL : M_WAITOK)
+#define	SBLOCKWAIT(f)	(((f) & MSG_DONTWAIT) ? M_NOWAIT : M_WAITOK)
 /*
  * Send on a socket.
  * If send must go all at once and message is larger than
