@@ -268,7 +268,8 @@ rerelease release:
 	if [ -f /etc/resolv.conf ]; then \
 		cp -p /etc/resolv.conf ${CHROOTDIR}/etc; \
 	fi
-	cd ${.CURDIR}/.. && ${MAKE} installworld DESTDIR=${CHROOTDIR} NOMAN=1
+	cd ${.CURDIR}/.. && ${MAKE} -DNOHTML -DNOINFO -DNOMAN installworld \
+	    DESTDIR=${CHROOTDIR}
 	mkdir ${CHROOTDIR}/${BOOTSTRAPDIR}
 	for i in ${BOOTSTRAPUTILS} ; do \
 		cp -p ${CHROOTDIR}$$i ${CHROOTDIR}/${BOOTSTRAPDIR} ; \
@@ -394,7 +395,7 @@ rerelease release:
 	echo "	make ${WORLD_FLAGS} world && \\"	>> ${CHROOTDIR}/mk
 .endif
 .if make(rerelease)
-	echo "	make ${WORLD_FLAGS} all install && \\" >> ${CHROOTDIR}/mk
+	echo "	make ${WORLD_FLAGS} -DNOCLEAN world && \\" >> ${CHROOTDIR}/mk
 .endif
 	echo "	touch /tmp/.world_done"		>> ${CHROOTDIR}/mk
 	echo "fi"				>> ${CHROOTDIR}/mk
