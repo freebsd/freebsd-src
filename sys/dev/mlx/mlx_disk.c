@@ -275,7 +275,7 @@ mlxd_detach(device_t dev)
     debug_called(1);
 
     devstat_remove_entry(&sc->mlxd_stats);
-    disk_destroy(sc->mlxd_dev_t);
+    disk_destroy(&sc->mlxd_disk);
 
     return(0);
 }
