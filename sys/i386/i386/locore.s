@@ -235,6 +235,24 @@ NON_GPROF_ENTRY(btext)
 	mov	%ax, %fs
 	mov	%ax, %gs
 
+/*
+ * Clear the bss.  Not all boot programs do it, and it is our job anyway.
+ *
+ * XXX we don't check that there is memory for our bss and page tables
+ * before using it.
+ *
+ * Note: we must be careful to not overwrite an active gdt or idt.  They
+ * inactive from now until we switch to new ones, since we don't load any
+ * more segment registers or permit interrupts until after the switch.
+ */
+	movl	$R(end),%ecx
+	movl	$R(edata),%edi
+	subl	%edi,%ecx
+	xorl	%eax,%eax
+	cld
+	rep
+	stosb
+
 	call	recover_bootinfo
 
 /* Get onto a stack that we can trust. */
@@ -273,15 +291,6 @@ NON_GPROF_ENTRY(btext)
 #endif
 
 	call	identify_cpu
-
-/*
- * We used to clear BSS here, but it isn't needed anymore and actually
- * causes harm.  gcc now optimizes 'int foo = 0' to be uninitialized in
- * the bss.  All the supported loaders already zero the bss.  The a.out
- * kgzip case does not, but we do not generate a.out kernels anymore.
- * This is trivial to fix anyway, is a bug in kgzip.
- */
-
 	call	create_pagetables
 
 /*
