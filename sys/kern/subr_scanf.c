@@ -84,14 +84,6 @@
 #define	CT_INT		3	/* integer, i.e., strtoq or strtouq */
 typedef u_quad_t (*ccfntype)(const char *, const char **, int);
 
-#define isspace(c)	((c) == ' ' || (c) == '\t' || \
-			 (c) == '\r' || (c) == '\n')
-#define isascii(c)	(((c) & ~0x7f) == 0)
-#define isupper(c)	((c) >= 'A' && (c) <= 'Z')
-#define islower(c)	((c) >= 'a' && (c) <= 'z')
-#define isalpha(c)	(isupper(c) || (islower(c)))
-#define isdigit(c)	((c) >= '0' && (c) <= '9')
-
 static const u_char *__sccl(char *, const u_char *);
 
 int
