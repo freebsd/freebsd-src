@@ -55,7 +55,7 @@
 #define	_BSD_SIZE_T_	unsigned int		/* sizeof() */
 #define	_BSD_SOCKLEN_T_	__uint32_t		/* socklen_t (duh) */
 #define	_BSD_SSIZE_T_	long			/* byte count or error */
-#define	_BSD_TIME_T_	long			/* time() */
+#define	_BSD_TIME_T_	int			/* time() */
 #define	_BSD_TIMER_T_	int			/* timer_t */
 #define	_BSD_WCHAR_T_	_BSD_CT_RUNE_T_		/* wchar_t (see below) */
 #define	_BSD_WINT_T_	_BSD_CT_RUNE_T_		/* wint_t (see below) */
