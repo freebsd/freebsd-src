@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)slcompress.c	8.2 (Berkeley) 4/16/94
- * $Id: slcompress.c,v 1.4 1994/10/08 22:38:27 phk Exp $
+ * $Id: slcompress.c,v 1.5 1995/05/30 08:08:33 rgrimes Exp $
  */
 
 /*
@@ -416,9 +416,16 @@ sl_uncompress_tcp(bufp, len, type, comp)
 		cs = &comp->rstate[comp->last_recv = ip->ip_p];
 		comp->flags &=~ SLF_TOSS;
 		ip->ip_p = IPPROTO_TCP;
-		hlen = ip->ip_hl;
-		hlen += ((struct tcphdr *)&((int *)ip)[hlen])->th_off;
-		hlen <<= 2;
+		/*
+		 * Calculate the size of the TCP/IP header and make sure that
+		 * we don't overflow the space we have available for it.
+		 */
+		hlen = ip->ip_hl << 2;
+		if (hlen + sizeof(struct tcphdr) > len)
+			goto bad;
+		hlen += ((struct tcphdr *)&((char *)ip)[hlen])->th_off << 2;
+		if (hlen > MAX_HDR)
+			goto bad;
 		BCOPY(ip, &cs->cs_ip, hlen);
 		cs->cs_ip.ip_sum = 0;
 		cs->cs_hlen = hlen;
