@@ -245,12 +245,13 @@ trap(struct trapframe *tf)
 		td->td_frame = tf;
 		if (td->td_ucred != p->p_ucred)
 			cred_update_thread(td);
+		PROC_LOCK(p);
 		if ((p->p_flag & P_WEXIT) && (p->p_singlethread != td)) {
-			PROC_LOCK(p);
 			mtx_lock_spin(&sched_lock);
 			thread_exit();
 			/* NOTREACHED */
 		}
+		PROC_UNLOCK(p);
 
 		switch (tf->tf_type) {
 		case T_DATA_MISS:
