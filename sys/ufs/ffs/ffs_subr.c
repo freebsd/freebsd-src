@@ -31,14 +31,14 @@
  * SUCH DAMAGE.
  *
  *	@(#)ffs_subr.c	8.5 (Berkeley) 3/21/95
- * $Id: ffs_subr.c,v 1.12 1997/03/09 06:00:42 mpp Exp $
+ * $Id: ffs_subr.c,v 1.13 1997/10/16 10:49:30 phk Exp $
  */
 
 #include <sys/param.h>
+#include <ufs/ffs/fs.h>
 
 #ifndef KERNEL
 #include <ufs/ufs/dinode.h>
-#include <ufs/ffs/fs.h>
 #else
 #include "opt_ddb.h"
 
@@ -47,8 +47,6 @@
 #include <sys/buf.h>
 #include <ufs/ufs/quota.h>
 #include <ufs/ufs/inode.h>
-#include <ufs/ufs/dinode.h>
-#include <ufs/ffs/fs.h>
 #include <ufs/ffs/ffs_extern.h>
 
 /*
@@ -155,7 +153,7 @@ ffs_checkoverlap(bp, ip)
 		panic("ffs_checkoverlap: Disk buffer overlap");
 	}
 }
-#endif /* DIAGNOSTIC */
+#endif /* KERNEL && DIAGNOSTIC && DDB */
 
 /*
  * block operations
