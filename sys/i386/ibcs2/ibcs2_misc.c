@@ -45,7 +45,7 @@
  *
  *	@(#)sun_misc.c	8.1 (Berkeley) 6/18/93
  *
- * $Id: ibcs2_misc.c,v 1.10 1996/06/12 05:03:08 gpalmer Exp $
+ * $Id: ibcs2_misc.c,v 1.11 1996/12/05 01:45:08 nate Exp $
  */
 
 /*
@@ -128,7 +128,7 @@ ibcs2_ulimit(p, uap, retval)
 	switch (SCARG(uap, cmd)) {
 	case IBCS2_GETFSIZE:
 		*retval = p->p_rlimit[RLIMIT_FSIZE].rlim_cur;
-		if (*retval == -1) *retval--;
+		if (*retval == -1) *retval = 0x7fffffff;
 		return 0;
 	case IBCS2_SETFSIZE:	/* XXX - fix this */
 #ifdef notyet
