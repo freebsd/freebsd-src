@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)mfs_vfsops.c	8.11 (Berkeley) 6/19/95
- * $Id: mfs_vfsops.c,v 1.44 1998/09/07 13:17:06 bde Exp $
+ * $Id: mfs_vfsops.c,v 1.45 1998/09/14 19:56:42 sos Exp $
  */
 
 
@@ -58,11 +58,6 @@
 
 #include <ufs/mfs/mfsnode.h>
 #include <ufs/mfs/mfs_extern.h>
-
-#ifdef MFS_AUTOLOAD
-# include <sys/stat.h>		/* S_IFCHR */
-# include <i386/i386/cons.h>	/* console IO */
-#endif
 
 MALLOC_DEFINE(M_MFSNODE, "MFS node", "MFS vnode private part");
 
@@ -104,79 +99,27 @@ static struct vfsops mfs_vfsops = {
 VFS_SET(mfs_vfsops, mfs, 0);
 
 #ifdef MFS_ROOT
+#ifdef MFS_ROOT_SIZE
 
-static u_char mfs_root[MFS_ROOT*1024] = "MFS Filesystem goes here";
+/* Image was already written into mfs_root */
+static u_char mfs_root[MFS_ROOT_SIZE*1024] = "MFS Filesystem goes here";
 static u_char end_mfs_root[] = "MFS Filesystem had better STOP here";
 
-#ifdef MFS_AUTOLOAD
-/*
- * XXX: UGLY UGLY UGLY!!!!!
- * XXX: This whole MFS_ROOT thing would be loads cleaner if we used
- * XXX: a "proper" ramdisk with a FFS image.
- *
- * This is a crude hack to load a floppy image into the MFS image (above)
- * in case the boot kernel did not have the root image installed due to
- * kzip size problems in 4MB. -Peter
- */
-#define IMAGE_BLOCKING (32 * 1024)
+#else	/* load it from module area */
 
-static int
-mfs_imageload (dev, addr, size)
-	dev_t dev;
-	caddr_t	addr;
-	int size;
+static u_char *
+mfs_getimage(void)
 {
-	int error, offset, chunk;
-	int maj = major(dev);
-	int mindev = minor(dev);
-	struct	iovec iovec;
-	struct	uio uio;
+	caddr_t p, q;
 
-	error = (*cdevsw[maj]->d_open)(dev, 0, S_IFCHR , (struct proc *)0);
-	if (error) {
-		printf("mfs_imageload: could not open load device c %d,%d\n", maj, mindev);
-		goto out;
-	}
-
-	offset = 0;
-	while (offset < size) {
-
-		/* pick a size to transfer, preferably a whole cylinder */
-		chunk = min(size - offset, IMAGE_BLOCKING);
-			
-		/* do I/O to kernel space. Is there a better way ? */
-		iovec.iov_base = addr + offset;
-		iovec.iov_len  = chunk;
-		uio.uio_iov    = &iovec;
-		uio.uio_iovcnt = 1;
-		uio.uio_offset = offset;
-		uio.uio_resid  = chunk;
-		uio.uio_segflg = UIO_SYSSPACE;
-		uio.uio_rw     = UIO_READ;
-		uio.uio_procp  = (struct proc *)0;
-
-		/* perform the read request */
-		error = (*cdevsw[maj]->d_read)(dev, &uio, 0);
-		if (error) {
-			printf("mfs_imageload: read failed! (error %d)\n", error);
-			break;
-		}
-
-		/* sanity check - check there's no leftover... */
-		if (uio.uio_resid != 0) {
-			printf("mfs_imageload: load failing...\n");
-			break;
-		}
-
-		offset += chunk;
-	}
-
-	/* close the driver */
-out:
-	(void)(*cdevsw[maj]->d_close)(dev, 0, S_IFCHR, (struct proc *)0);
-	return (error);
+	p = module_search_by_type("mfs_root");
+	if (!p)
+		return NULL;
+	q = module_search_info(p, MODINFO_ADDR);
+	return q;
 }
-#endif	/* MFS_AUTOLOAD */
+
+#endif	/* MFS_ROOT_SIZE */
 #endif	/* MFS_ROOT */
 
 /*
@@ -229,6 +172,7 @@ mfs_mount(mp, path, data, ndp, p)
 	struct mfs_args args;
 	struct ufsmount *ump;
 	struct fs *fs;
+	u_char *base;
 	struct mfsnode *mfsp;
 	u_int size;
 	int flags, err;
@@ -244,35 +188,23 @@ mfs_mount(mp, path, data, ndp, p)
 		 */
 
 #ifdef MFS_ROOT
-		/* Location of MFS/FFS superblock */
-		fs = (struct fs *)(mfs_root + SBOFF);
-
-#ifdef MFS_AUTOLOAD
-		/*
-		 * check if image was installed during build
-		 * if not, attempt to load it now
-		 */
-
+#ifdef MFS_ROOT_SIZE
+		/* Get it from compiled-in code */
+		base = mfs_root;
+#else
+		/* Get it from module area */
+		base = mfs_getimage();
+		if (!base)
+		    panic("No module of type mfs_root loaded; can't continue!");
+#endif /* MFS_ROOT_SIZE */
+		fs = (struct fs *)(base + SBOFF);
 		/* check for valid super block */
-		if (fs->fs_magic != FS_MAGIC || fs->fs_bsize > MAXBSIZE ||
-		    fs->fs_bsize < sizeof(struct fs)) {
-
-			dev_t dev = makedev(9, 0);	/* boot floppy */
-			printf("MFS image not present in boot kernel!\n");
-			printf("Please replace boot disk with MFS disk...\n");
-			printf("Press any key when done.\n");
-			cngetc();
-			mfs_imageload(dev, mfs_root, end_mfs_root - mfs_root);
-		}
-#endif /* MFS_AUTOLOAD */
-
-		/* recheck for valid super block */
 		if (fs->fs_magic != FS_MAGIC || fs->fs_bsize > MAXBSIZE ||
 		    fs->fs_bsize < sizeof(struct fs)) {
 			panic("MFS image is invalid!!");
 		}
 
-		mfs_rootbase = mfs_root;
+		mfs_rootbase = base;
 		mfs_rootsize = fs->fs_fsize * fs->fs_size;
 		rootdev = makedev(255, mfs_minor++);
 		printf("rootfs is %ld Kbyte compiled in MFS\n",
@@ -310,7 +242,7 @@ mfs_mount(mp, path, data, ndp, p)
 		}
 
 		goto dostatfs;		/* success*/
-#else
+#else	/* !MFS_ROOT */
 		/* you loose */
 		panic("mfs_mount: mount MFS as root: not configured!");
 #endif /* MFS_ROOT */
