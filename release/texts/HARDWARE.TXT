@@ -572,9 +572,13 @@ Agiler Mouse 29UO.
 
 Andromeda hub.
 
+Apple iMac mouse.
+Apple iMac keyboard.
+
 ATen parallel printer adapter.
 
 Belkin F5U002 parallel printer adapter.
+Belkin Mouse.
 
 BTC BTC7935 keyboard with mouse port.
 
@@ -596,12 +600,15 @@ Logitech M2452 keyboard.
 Logitech wheel mouse (3 buttons).
 Logitech PS/2 / USB mouse (3 buttons).
 
+MacAlly mouse (3 buttons).
 MacAlly self powered hub (4 ports).
 
 Microsoft IntelliMouse (3 buttons).
 Microsoft keyboard.
 
 NEC hub.
+
+Trust Ami Mouse (3 buttons).
 
 
 4.4.    ISDN (European DSS1 [Q.921/Q.931] protocol)
