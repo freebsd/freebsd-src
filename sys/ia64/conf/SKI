@@ -34,6 +34,7 @@ makeoptions	DEBUG=-g		#Build kernel with gdb(1) debug symbols
 makeoptions	NO_CPU_COPTFLAGS=true	#Ignore any x86 CPUTYPE
 
 options 	SKI			#Support for HP simulator
+options         SCHED_4BSD              #4BSD scheduler
 options 	INET			#InterNETworking
 #options 	INET6			#IPv6 communications protocols
 options 	FFS			#Berkeley Fast Filesystem

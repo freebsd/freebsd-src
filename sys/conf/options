@@ -112,6 +112,8 @@ PANIC_REBOOT_WAIT_TIME	opt_panic.h
 PPS_SYNC	opt_ntp.h
 PUC_FASTINTR	opt_puc.h
 QUOTA
+SCHED_4BSD	opt_sched.h
+SCHED_ULE	opt_sched.h
 SHOW_BUSYBUFS
 SPX_HACK
 SUIDDIR		opt_suiddir.h
