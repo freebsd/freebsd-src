@@ -24,13 +24,13 @@
  * notice must be reproduced on all copies.
  */
 
-#include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
 #ifndef lint
 #if 0	/* original (broken) import id */
 static char *RCSid = "@(#) $Id: atm_addr.c,v 1.1 1998/07/09 21:45:18 johnc Exp $";
 #endif
 #endif
+#include <sys/cdefs.h>
+__FBSDID("$FreeBSD$");
 
 /*
  * User Space Library Functions
