@@ -219,22 +219,20 @@ ipsec4_getpolicybysock(m, dir, so, error)
 	if (m == NULL || so == NULL || error == NULL)
 		panic("ipsec4_getpolicybysock: NULL pointer was passed.\n");
 
-	switch (so->so_proto->pr_domain->dom_family) {
-	case AF_INET:
+	if ((sotoinpcb(so)->inp_vflag & INP_IPV4) != 0) {
 		/* set spidx in pcb */
 		ipsec4_setspidx_inpcb(m, sotoinpcb(so));
 		pcbsp = sotoinpcb(so)->inp_sp;
-		break;
+	}
 #ifdef INET6
-	case AF_INET6:
+	else if ((sotoinpcb(so)->inp_vflag & INP_IPV6) != 0) {
 		/* set spidx in pcb */
 		ipsec6_setspidx_in6pcb(m, sotoin6pcb(so));
 		pcbsp = sotoin6pcb(so)->in6p_sp;
-		break;
-#endif
-	default:
-		panic("ipsec4_getpolicybysock: unsupported address family\n");
 	}
+#endif
+	else
+		panic("ipsec4_getpolicybysock: unsupported address family\n");
 
 	/* sanity check */
 	if (pcbsp == NULL)

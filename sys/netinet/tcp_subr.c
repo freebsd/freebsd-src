@@ -36,6 +36,7 @@
 
 #include "opt_compat.h"
 #include "opt_inet6.h"
+#include "opt_ipsec.h"
 #include "opt_tcpdebug.h"
 
 #include <sys/param.h>
