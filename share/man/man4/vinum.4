@@ -99,7 +99,11 @@ address space is mapped in \fIstripes\fP, integral fractions of the subdisk
 size.  Consecutive plex address space is mapped to stripes in each subdisk in
 .if n turn.
 .if t \{\
-turn:
+turn.
+.ig
+.\" FIXME
+.br
+.ne 1.5i
 .PS
 move right 2i
 down
@@ -112,6 +116,7 @@ SD2: box
 "subdisk 1" rjust at SD1.w-(.2,0)
 "subdisk 2" rjust at SD2.w-(.2,0)
 .PE
+..
 .\}
 The subdisks of a striped plex must all be the same size.
 .It
@@ -363,8 +368,8 @@ Names may contain any non-blank character, but it is recommended to restrict
 them to letters, digits and the underscore characters.  The names of volumes,
 plexes and subdisks may be up to 64 characters long, and the names of drives may
 up to 32 characters long.  When choosing volume and plex names, bear in mind
-that automatically generated plex and subvolume names are longer than the
-name from which they are derived.
+that automatically generated plex and subdisk names are longer than the name
+from which they are derived.
 .Bl -bullet 
 .It
 When
@@ -444,7 +449,7 @@ and so on.  These names can be overridden, but it is not recommended.
 .It
 Like plexes, subdisks are assigned names automatically, and explicit naming is
 discouraged.  A subdisk name is the name of the plex followed by the letters
-\f(CW.s\fR and a number identifying the subdisk.  For example, the subdisks of
+\f(CW\&.s\fR and a number identifying the subdisk.  For example, the subdisks of
 plex
 .Ar vol3.p0
 are called
