@@ -20,7 +20,7 @@
  * the original CMU copyright notice.
  *
  * Version 1.3, Thu Nov 11 12:09:13 MSK 1993
- * $Id: wt.c,v 1.30 1996/02/22 00:31:48 joerg Exp $
+ * $Id: wt.c,v 1.31 1996/03/28 14:28:55 scrappy Exp $
  *
  */
 
@@ -392,6 +392,9 @@ wtopen (dev_t dev, int flag, int fmt, struct proc *p)
 	if (! t->buf)
 		return (EAGAIN);
 
+	if (isa_dma_acquire(t->chan))
+		return(EBUSY);
+
 	t->flags = TPINUSE;
 	kdc_wt[u].kdc_state = DC_BUSY;
 
@@ -445,6 +448,7 @@ done:
 	t->flags &= TPREW | TPRMARK | TPSTART | TPTIMER;
 	kdc_wt[u].kdc_state = DC_IDLE;
 	free (t->buf, M_TEMP);
+	isa_dma_release(t->chan);
 	return (0);
 }
 

@@ -600,6 +600,9 @@ gscopen  (dev_t dev, int flags, int fmt, struct proc *p)
       return EBUSY;
     }
 
+  if (isa_dma_acquire(scu->channel))
+      return(EBUSY);
+
   scu->flags |= OPEN;
 
   return SUCCESS;
@@ -634,6 +637,8 @@ gscclose (dev_t dev, int flags, int fmt, struct proc *p)
   scu->sbuf.base = NULL;
   scu->sbuf.size = INVALID;
   scu->sbuf.poi  = INVALID;
+
+  isa_dma_release(scu->channel);
 
   scu->flags &= ~(FLAG_DEBUG | OPEN | READING);
 
