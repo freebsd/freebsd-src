@@ -88,14 +88,12 @@ ipcperm(td, perm, mode)
 	struct ipc_perm *perm;
 	int mode;
 {
-	struct proc *p = td->td_proc;
-	struct ucred *cred = p->p_ucred;
+	struct ucred *cred = td->td_proc->p_ucred;
 
 	/* Check for user match. */
 	if (cred->cr_uid != perm->cuid && cred->cr_uid != perm->uid) {
 		if (mode & IPC_M)
-			return (suser_xxx(p->p_ucred, NULL, 0) == 0 ? 0 :
-			    EPERM);
+			return (suser_td(td) == 0 ? 0 : EPERM);
 		/* Check for group match. */
 		mode >>= 3;
 		if (!groupmember(perm->gid, cred) &&
@@ -107,5 +105,5 @@ ipcperm(td, perm, mode)
 	if (mode & IPC_M)
 		return (0);
 	return ((mode & perm->mode) == mode ||
-	    suser_xxx(p->p_ucred, NULL, 0) == 0 ? 0 : EACCES);
+	    suser_td(td) == 0 ? 0 : EACCES);
 }
