@@ -202,7 +202,7 @@ pthread_rwlock_tryrdlock (pthread_rwlock_t *rwlock)
 
 	/* give writers priority over readers */
 	if (prwlock->blocked_writers || prwlock->state < 0)
-		ret = EWOULDBLOCK;
+		ret = EBUSY;
 	else if (prwlock->state == MAX_READ_LOCKS)
 		ret = EAGAIN; /* too many read locks acquired */
 	else
@@ -238,7 +238,7 @@ pthread_rwlock_trywrlock (pthread_rwlock_t *rwlock)
 		return(ret);
 
 	if (prwlock->state != 0)
-		ret = EWOULDBLOCK;
+		ret = EBUSY;
 	else
 		/* indicate we are locked for writing */
 		prwlock->state = -1;
