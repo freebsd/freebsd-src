@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)locore.s	7.3 (Berkeley) 5/13/91
- *	$Id: locore.s,v 1.25 1994/09/05 05:20:29 davidg Exp $
+ *	$Id: locore.s,v 1.26 1994/09/05 14:09:41 bde Exp $
  */
 
 /*
@@ -480,7 +480,6 @@ NON_GPROF_ENTRY(btext)
 
 	/* load base of page directory and enable mapping */
 	movl	%esi,%eax			/* phys address of ptd in proc 0 */
-	orl	$I386_CR3PAT,%eax
 	movl	%eax,%cr3			/* load ptd addr into mmu */
 	movl	%cr0,%eax			/* get control word */
 	orl	$CR0_PE|CR0_PG,%eax		/* enable paging */
