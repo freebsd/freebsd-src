@@ -132,6 +132,8 @@ ASSYM(KTR_CT7, KTR_CT7);
 ASSYM(KTR_CT8, KTR_CT8);
 
 ASSYM(KTR_SIZEOF, sizeof(struct ktr_entry));
+ASSYM(KTR_LINE, offsetof(struct ktr_entry, ktr_line));
+ASSYM(KTR_FILE, offsetof(struct ktr_entry, ktr_file));
 ASSYM(KTR_DESC, offsetof(struct ktr_entry, ktr_desc));
 ASSYM(KTR_CPU, offsetof(struct ktr_entry, ktr_cpu));
 ASSYM(KTR_TIMESTAMP, offsetof(struct ktr_entry, ktr_timestamp));
