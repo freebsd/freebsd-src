@@ -46,6 +46,6 @@ struct usb_qdat {
 
 void usb_register_netisr	__P((void));
 void usb_ether_input		__P((struct mbuf *));
-void usb_tx_done		__P((struct ifnet *));
+void usb_tx_done		__P((struct mbuf *));
 
 #endif

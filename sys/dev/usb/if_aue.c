@@ -1036,15 +1036,14 @@ static void aue_txeof(xfer, priv, status)
 	ifp->if_flags &= ~IFF_OACTIVE;
 	usbd_get_xfer_status(c->aue_xfer, NULL, NULL, NULL, &err);
 
-	m_freem(c->aue_mbuf);
+	c->aue_mbuf->m_pkthdr.rcvif = ifp;
+	usb_tx_done(c->aue_mbuf);
 	c->aue_mbuf = NULL;
 
 	if (err)
 		ifp->if_oerrors++;
 	else
 		ifp->if_opackets++;
-
-	usb_tx_done(ifp);
 
 	splx(s);
 

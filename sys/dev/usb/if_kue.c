@@ -770,15 +770,14 @@ static void kue_txeof(xfer, priv, status)
 
 	usbd_get_xfer_status(c->kue_xfer, NULL, NULL, NULL, &err);
 
-	m_freem(c->kue_mbuf);
+	c->kue_mbuf->m_pkthdr.rcvif = ifp;
+	usb_tx_done(c->kue_mbuf);
 	c->kue_mbuf = NULL;
 
 	if (err)
 		ifp->if_oerrors++;
 	else
 		ifp->if_opackets++;
-
-	usb_tx_done(ifp);
 
 	splx(s);
 
