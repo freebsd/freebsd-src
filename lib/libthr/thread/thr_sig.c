@@ -120,9 +120,9 @@ _thread_sig_wrapper(int sig, siginfo_t *info, ucontext_t *context)
 
 	GIANT_LOCK(curthread);
 	/* Save the thread's previous state. */
-	curthread->data = psd.psd_wait_data;
-	curthread->state = psd.psd_state;
-	curthread->flags = psd.psd_flags;
+	psd.psd_wait_data = curthread->data;
+	psd.psd_state = curthread->state;
+	psd.psd_flags = curthread->flags;
 
 	/*
 	 * Do a little cleanup handling for those threads in
@@ -137,7 +137,7 @@ _thread_sig_wrapper(int sig, siginfo_t *info, ucontext_t *context)
 		break;
 
 	case PS_MUTEX_WAIT:
-		/* _mutex_lock_backout(curthread); XXXTHR */
+		_mutex_lock_backout(curthread);
 		psd.psd_state = PS_RUNNING;
 		break;
 
@@ -154,9 +154,9 @@ _thread_sig_wrapper(int sig, siginfo_t *info, ucontext_t *context)
 	}
 
         /* Restore the signal frame. */
-	psd.psd_wait_data = curthread->data;
-	psd.psd_state = curthread->state;
-	psd.psd_flags = curthread->flags &
+	curthread->data = psd.psd_wait_data;
+	curthread->state = psd.psd_state;
+	curthread->flags = psd.psd_flags &
 	    (PTHREAD_FLAGS_PRIVATE | PTHREAD_FLAGS_TRACE);
 	GIANT_UNLOCK(curthread);
 }
