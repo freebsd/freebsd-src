@@ -135,7 +135,6 @@ int	 form_file_list __P((char **, int));
 int	 fortlen __P((void));
 void	 get_fort __P((void));
 void	 get_pos __P((FILEDESC *));
-long 	 get_random __P((void));
 void	 get_tbl __P((FILEDESC *));
 void	 getargs __P((int, char *[]));
 void	 init_prob __P((void));
@@ -200,7 +199,8 @@ char	*av[];
 #endif
 
 	init_prob();
-	srandom((unsigned long)(time((time_t *) NULL) ^ getpid()));
+	if (srandomdev() < 0)
+		srandom((unsigned long)(time((time_t *) NULL) ^ getpid()));
 	do {
 		get_fort();
 	} while ((Short_only && fortlen() > SLEN) ||
@@ -953,7 +953,7 @@ get_fort()
 	if (File_list->next == NULL || File_list->percent == NO_PROB)
 		fp = File_list;
 	else {
-		choice = get_random() % 100;
+		choice = random() % 100;
 		DPRINTF(1, (stderr, "choice = %d\n", choice));
 		for (fp = File_list; fp->percent != NO_PROB; fp = fp->next)
 			if (choice < fp->percent)
@@ -973,7 +973,7 @@ get_fort()
 	else {
 		if (fp->next != NULL) {
 			sum_noprobs(fp);
-			choice = get_random() % Noprob_tbl.str_numstr;
+			choice = random() % Noprob_tbl.str_numstr;
 			DPRINTF(1, (stderr, "choice = %d (of %ld) \n", choice,
 				    Noprob_tbl.str_numstr));
 			while (choice >= fp->tbl.str_numstr) {
@@ -1015,7 +1015,7 @@ FILEDESC	*parent;
 	register int		choice;
 
 	if (Equal_probs) {
-		choice = get_random() % parent->num_children;
+		choice = random() % parent->num_children;
 		DPRINTF(1, (stderr, "    choice = %d (of %d)\n",
 			    choice, parent->num_children));
 		for (fp = parent->child; choice--; fp = fp->next)
@@ -1025,7 +1025,7 @@ FILEDESC	*parent;
 	}
 	else {
 		get_tbl(parent);
-		choice = get_random() % parent->tbl.str_numstr;
+		choice = random() % parent->tbl.str_numstr;
 		DPRINTF(1, (stderr, "    choice = %d (of %ld)\n",
 			    choice, parent->tbl.str_numstr));
 		for (fp = parent->child; choice >= fp->tbl.str_numstr;
@@ -1114,48 +1114,18 @@ FILEDESC	*fp;
 #ifdef	OK_TO_WRITE_DISK
 		if ((fd = open(fp->posfile, 0)) < 0 ||
 		    read(fd, &fp->pos, sizeof fp->pos) != sizeof fp->pos)
-			fp->pos = get_random() % fp->tbl.str_numstr;
+			fp->pos = random() % fp->tbl.str_numstr;
 		else if (fp->pos >= fp->tbl.str_numstr)
 			fp->pos %= fp->tbl.str_numstr;
 		if (fd >= 0)
 			(void) close(fd);
 #else
-		fp->pos = get_random() % fp->tbl.str_numstr;
+		fp->pos = random() % fp->tbl.str_numstr;
 #endif /* OK_TO_WRITE_DISK */
 	}
 	if (++(fp->pos) >= fp->tbl.str_numstr)
 		fp->pos -= fp->tbl.str_numstr;
 	DPRINTF(1, (stderr, "pos for %s is %ld\n", fp->name, fp->pos));
-}
-
-/*
- * get_random:
- *	Get a random number, either via /dev/urandom, or random()
- *	if /dev/urandom is not available.
- */
-long
-get_random()
-{
-	static int	how = 0;
-	static int      fd;
-	long	rnd;
-
-	if (how == 0) {
-		if ((fd = open("/dev/urandom", O_RDONLY)) >= 0)
-			how = 1;
-		else
-			how = 2;
-	}
-	if (how == 1) {
-		if (read(fd, (void *) &rnd, sizeof(rnd)) < 0) {
-			how = 2;
-		}
-		else {
-			rnd = abs(rnd);
-			return (rnd);
-		}
-	}
-	return (random());
 }
 
 /*
