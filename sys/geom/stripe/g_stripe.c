@@ -877,9 +877,6 @@ g_stripe_taste(struct g_class *mp, struct g_provider *pp, int flags __unused)
 	g_topology_assert();
 
 	G_STRIPE_DEBUG(3, "Tasting %s.", pp->name);
-	/* Skip providers with 0 sectorsize. */
-	if (pp->sectorsize == 0)
-		return (NULL);
 
 	gp = g_new_geomf(mp, "stripe:taste");
 	gp->start = g_stripe_start;
