@@ -36,7 +36,7 @@
 static char sccsid[] = "@(#)netstat.c	8.1 (Berkeley) 6/6/93";
 */
 static const char rcsid[] =
-	"$Id: netstat.c,v 1.9 1998/06/09 04:17:23 imp Exp $";
+	"$Id: netstat.c,v 1.10 1998/06/12 14:15:24 peter Exp $";
 #endif /* not lint */
 
 /*
@@ -167,7 +167,7 @@ initnetstat()
 void
 fetchnetstat()
 {
-	register struct inpcb *prev, *next;
+	register struct inpcb *next;
 	register struct netinfo *p;
 	struct inpcbhead head;
 	struct inpcb inpcb;

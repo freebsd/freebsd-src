@@ -36,7 +36,7 @@
 static char sccsid[] = "@(#)vmstat.c	8.2 (Berkeley) 1/12/94";
 #endif
 static const char rcsid[] =
-	"$Id: vmstat.c,v 1.27 1998/09/15 08:16:40 gibbs Exp $";
+	"$Id: vmstat.c,v 1.28 1998/10/05 04:04:27 ken Exp $";
 #endif /* not lint */
 
 /*
@@ -69,6 +69,7 @@ static const char rcsid[] =
 #include <devstat.h>
 #include "systat.h"
 #include "extern.h"
+#include "devs.h"
 
 static struct Info {
 	long	time[CPUSTATES];
@@ -198,7 +199,6 @@ initkre()
 {
 	char *intrnamebuf, *cp;
 	int i;
-	static int once = 0;
 
 	if (namelist[0].n_type == 0) {
 		if (kvm_nlist(kd, namelist)) {
@@ -744,7 +744,6 @@ copyinfo(from, to)
 	register struct Info *from, *to;
 {
 	long *intrcnt;
-	struct devinfo tmp_dinfo;
 
 	/*
 	 * time, wds, seek, and xfer are malloc'd so we have to
