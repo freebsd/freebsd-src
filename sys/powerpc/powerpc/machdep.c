@@ -363,6 +363,8 @@ powerpc_init(u_int startkernel, u_int endkernel, u_int basekernel, char *args)
 	 * XXX: Initialize the interrupt tables.
 	 */
 	bcopy(&decrint, (void *)EXC_DECR, (size_t)&decrsize);
+	bcopy(&dsitrap, (void *)EXC_DSI, (size_t)&dsisize);
+	bcopy(&isitrap, (void *)EXC_ISI, (size_t)&isisize);
 
 	/*
 	 * Start initializing proc0 and thread0.
