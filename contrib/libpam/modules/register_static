@@ -1,0 +1,49 @@
+#!/bin/bash
+
+if [ `basename $PWD` != "modules" ]; then
+	echo "$0 must be run from the .../modules directory"
+	exit 1
+fi
+
+merge_line ()
+{
+	if [ $# != 3 ]; then
+		echo "usage: merge_line token filename 'new line'"
+	fi
+	if [ -f $2 ]; then
+# remove any existing entry...
+		grep -v "$1" $2 > tmp.$2
+		rm -f $2
+		mv {tmp.,}$2
+	fi
+	cat << EOT >> $2
+$3
+EOT
+
+}
+
+
+if [ $# -ne 2 ]; then
+
+	cat << EOT 2>&1
+$0:	this script takes TWO arguments:
+	the 'alphanumeric label' of the module and the location of
+	its object file from the .../modules/ directory
+EOT
+	exit 1
+
+else
+	echo "
+ *> registering static module: $1 ($2) <*
+"
+	merge_line "$1" _static_module_list "\
+extern struct pam_module _$1_modstruct;"
+
+	merge_line "$1" _static_module_entry "    &_$1_modstruct,"
+	if [ -n "$2" ]; then
+		merge_line "$2" _static_module_objects "../modules/$2"
+	fi
+
+fi
+
+exit 0

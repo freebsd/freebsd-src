@@ -1,0 +1,50 @@
+#!/bin/sh
+#
+# this is a wrapper for difficult mkdir programs...
+#
+
+for d in $*
+do
+	if [ ! -d $d ]; then
+		mkdir -p $d
+		if [ $? -ne 0 ]; then exit $? ; fi
+	fi
+done
+
+exit 0
+
+##########################################################################
+# if your mkdir does not support the -p option delete the above lines and
+# use what follows:
+--------------------
+#!/bin/sh
+
+#VERBOSE=yes
+Cwd=`pwd`
+
+for d in $*
+do
+	if [ "`echo $d|cut -c1`" != "/" ]; then 
+		x=`pwd`/$d
+	else
+		x=$d
+	fi
+	x="`echo $x|sed -e 'yX/X X'`"
+	cd /
+	for s in $x
+	do
+		if [ -d $s ]; then
+			if [ -n "$VERBOSE" ]; then echo -n "[$s/]"; fi
+			cd $s
+		else
+			mkdir $s
+			if [ $? -ne 0 ]; then exit $? ; fi
+			if [ -n "$VERBOSE" ]; then echo -n "$s/"; fi
+			cd $s
+		fi
+	done
+	if [ -n "$VERBOSE" ]; then echo ; fi
+	cd $Cwd
+done
+
+exit 0

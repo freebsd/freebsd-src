@@ -1,0 +1,33 @@
+
+pam_wheel:
+	only permit root authentication too members of wheel group
+
+RECOGNIZED ARGUMENTS:
+	debug		write a message to syslog indicating success or
+			failure.
+
+	use_uid		the check for wheel membership will be done against
+			the current uid instead of the original one
+			(useful when jumping with su from one account to
+			another for example)
+
+	trust		the pam_wheel module will return PAM_SUCCESS instead
+			of PAM_IGNORE if the user is a member of the wheel
+			group (thus with a little play stacking the modules
+			the wheel members may be able to su to root without
+			being prompted for a passwd).
+
+	deny		Reverse the sense of the auth operation: if the user
+			is trying to get UID 0 access and is a member of the
+			wheel group, deny access (well, kind of nonsense, but
+			for use in conjunction with 'group' argument... :-)
+
+	group=xxxx	Instead of checking the GID 0 group, use the xxxx
+			group to perform the authentification.
+
+MODULE SERVICES PROVIDED:
+	auth		_authetication and _setcred (blank)
+
+AUTHOR:
+	Cristian Gafton <gafton@sorosis.ro>
+

@@ -1,0 +1,138 @@
+<!--
+   $Id: pam_listfile.sgml,v 1.3 1997/02/15 18:25:44 morgan Exp $
+   
+   This file was written by Michael K. Johnson <johnsonm@redhat.com>
+-->
+
+<sect1>The list-file module
+
+<sect2>Synopsis
+
+<p>
+<descrip>
+
+<tag><bf>Module Name:</bf></tag>
+<tt/pam_listfile/
+
+<tag><bf>Author:</bf></tag>
+Elliot Lee <tt>&lt;sopwith@cuc.edu&gt;</tt>
+
+<tag><bf>Maintainer:</bf></tag>
+Red Hat Software:<newline>
+Michael K. Johnson &lt;johnsonm@redhat.com&gt;  1996/11/18<newline>
+(if unavailable, contact Elliot Lee &lt;sopwith@cuc.edu&gt;).
+
+<tag><bf>Management groups provided:</bf></tag>
+authentication
+
+<tag><bf>Cryptographically sensitive:</bf></tag>
+	
+<tag><bf>Security rating:</bf></tag>
+
+<tag><bf>Clean code base:</bf></tag>
+clean
+
+<tag><bf>System dependencies:</bf></tag>
+
+<tag><bf>Network aware:</bf></tag>
+
+</descrip>
+
+<sect2>Overview of module
+
+<p>
+The list-file module provides a way to deny or allow services based on
+an arbitrary file.
+
+<sect2>Authentication component
+
+<p>
+<descrip>
+
+<tag><bf>Recognized arguments:</bf></tag>
+
+<tt>onerr=succeed|fail</tt>;
+<tt>sense=allow|deny</tt>;
+<tt>file=</tt><it>filename</it>;
+<tt>item=user|tty|rhost|ruser|group|shell</tt>
+<tt>apply=user|@group</tt>
+
+<tag><bf>Description:</bf></tag>
+
+The module gets the item of the type specified -- <tt>user</tt> specifies
+the username, <tt>PAM_USER</tt>; tty specifies the name of the terminal
+over which the request has been made, <tt>PAM_TTY</tt>; rhost specifies
+the name of the remote host (if any) from which the request was made,
+<tt>PAM_RHOST</tt>; and ruser specifies the name of the remote user
+(if available) who made the request, <tt>PAM_RUSER</tt> -- and looks for
+an instance of that item in the file <it>filename</it>.  <it>filename</it>
+contains one line per item listed.  If the item is found, then if
+<tt>sense=allow</tt>, <tt>PAM_SUCCESS</tt> is returned, causing the
+authorization request to succeed; else if <tt>sense=deny</tt>,
+<tt>PAM_AUTH_ERR</tt> is returned, causing the authorization
+request to fail.
+
+<p>
+If an error is encountered (for instance, if <it>filename</it>
+does not exist, or a poorly-constructed argument is encountered),
+then if <tt>onerr=succeed</tt>, <tt>PAM_SUCCESS</tt> is returned,
+otherwise if <tt>onerr=fail</tt>, <tt>PAM_AUTH_ERR</tt> or
+<tt>PAM_SERVICE_ERR</tt> (as appropriate) will be returned.
+
+<p>
+An additional argument, <tt>apply=</tt>, can be used to restrict the
+application of the above to a specific user
+(<tt>apply=</tt><em>username</em>) or a given group
+(<tt>apply=@</tt><em>groupname</em>).  This added restriction is only
+meaningful when used with the <tt/tty/, <tt/rhost/ and <tt/shell/
+<em/items/.
+
+<p>
+Besides this last one, all arguments should be specified; do not count
+on any default behavior, as it is subject to change.
+
+<p>
+No credentials are awarded by this module.
+
+<tag><bf>Examples/suggested usage:</bf></tag>
+
+Classic ``ftpusers'' authentication can be implemented with this entry
+in <tt>/etc/pam.conf</tt>:
+<tscreen>
+<verb>
+#
+# deny ftp-access to users listed in the /etc/ftpusers file
+#
+ftp	auth	 required	pam_listfile.so \
+	onerr=succeed item=user sense=deny file=/etc/ftpusers
+</verb>
+</tscreen>
+Note, users listed in <tt>/etc/ftpusers</tt> file are
+(counterintuitively) <bf/not/ allowed access to the ftp service.
+
+<p>
+To allow login access only for certain users, you can use an
+pam.conf entry like this:
+<tscreen>
+<verb>
+#
+# permit login to users listed in /etc/loginusers
+#
+login	auth	 required	pam_listfile.so \
+	onerr=fail item=user sense=allow file=/etc/loginusers
+</verb>
+</tscreen>
+
+<p>
+For this example to work, all users who are allowed to use the login
+service should be listed in the file <tt>/etc/loginusers</tt>.  Unless
+you are explicitly trying to lock out root, make sure that when you do
+this, you leave a way for root to log in, either by listing root in
+<tt>/etc/loginusers</tt>, or by listing a user who is able to <em/su/
+to the root account.
+
+</descrip>
+
+<!--
+End of sgml insert for this module.
+-->

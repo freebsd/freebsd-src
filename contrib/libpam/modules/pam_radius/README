@@ -1,0 +1,58 @@
+
+pam_radius module:
+	RADIUS session module.
+
+WHAT IT DOES:
+	This module is intended to provide the session service for users
+autheticated with a RADIUS server. At the present stage, the only option
+supported is the use of the RADIUS server as an accounting server. There are
+few things which needs to be cleared out first in the PAM project until one
+will be able to use this module and expect it to magically start pppd in
+response to a RADIUS server command to use PPP for this user, or to initiate
+a telnet connection to another host, or to hang and call back the user using
+parameters provided in the RADIUS server response. Most of these things are
+better suited for the radius login application. I hope to make available
+Real Soon (tm) patches for the login apps to make it work this way.
+
+
+ARGUMENTS RECOGNIZED:
+    debug		verbose logging
+
+MODULE SERVICES PROVIDED:
+	session            _open_session and _close_session
+	
+	When opening a session, this module sends an Accounting-Start
+message to the RADIUS server, which will log/update/whatever a database for
+this user. On close, an Accounting-Stop message is sent to the RADIUS
+server.
+
+This module have no other pre-requisites for making it work. One can install
+a RADIUS server just for fun and use it as a centralized accounting server and
+forget about wtmp/last/sac&comp :-)
+
+USAGE:
+	For the services you need this module (login for example) put
+	the following line in /etc/pam.conf as the last line for that
+	service (usually after the pam_unix session line):
+
+	login   session    required     /lib/security/pam_radius.so
+
+	Replace "login" for each service you are using this module.
+
+	This module make extensive use of the API provided in libpwdb
+	0.54preB or later. By default, it will read the radius server
+	configuration (hostname and secret) from /etc/raddb/server. This is
+	a default compiled into libpwdb, and curently there is no way to
+	modify this default without recompiling libpwdb. I am working on
+	extending the radius support from libpwdb to provide a possibility
+	to make this runtime-configurable.
+
+	Also please note that libpwdb will require also the RADIUS
+	dictionary to be present (/etc/raddb/dictionary).
+
+TODO:
+	The work is far from complete. Deal with "real" session things.
+
+AUTHOR:
+        Cristian Gafton <gafton@redhat.com>
+
