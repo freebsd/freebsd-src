@@ -623,7 +623,16 @@ swi_net(void *dummy)
 	u_int bits;
 	int i;
 
+#ifdef DEVICE_POLLING
+    for (;;) {
+	int pollmore;
+#endif
 	bits = atomic_readandclear_int(&netisr);
+#ifdef DEVICE_POLLING
+	if (bits == 0)
+		return;
+	pollmore = bits & (1 << NETISR_POLL);
+#endif
 	while ((i = ffs(bits)) != 0) {
 		i--;
 		if (netisrs[i] != NULL)
@@ -632,6 +641,11 @@ swi_net(void *dummy)
 			printf("swi_net: unregistered isr number: %d.\n", i);
 		bits &= ~(1 << i);
 	}
+#ifdef DEVICE_POLLING
+	if (pollmore)
+		ether_pollmore();
+    }
+#endif
 }
 
 /* 
