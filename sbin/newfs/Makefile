@@ -9,7 +9,6 @@ MOUNT=	${.CURDIR}/../mount
 CFLAGS+=-DMFS -DFSIRAND -I${MOUNT}
 .PATH:	${MOUNT}
 
-LINKS=	${BINDIR}/newfs ${BINDIR}/mount_mfs
-MLINKS=	newfs.8 mount_mfs.8 newfs.8 mfs.8 newfs.8 tmpfs.8
+LINKS=	${BINDIR}/newfs
 
 .include <bsd.prog.mk>
