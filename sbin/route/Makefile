@@ -2,7 +2,7 @@
 
 PROG=	route
 MAN8=	route.8
-SRCS=	route.c keywords.h # ccitt_addr.h
+SRCS=	route.c keywords.h
 CFLAGS+=-I. -Wall -DNS
 CLEANFILES+=keywords.h
 BINOWN=	root
