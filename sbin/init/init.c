@@ -32,18 +32,20 @@
  * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
- *
- *		$Id: init.c,v 1.28 1997/10/10 12:14:48 peter Exp $
  */
 
 #ifndef lint
-static char copyright[] =
+static const char copyright[] =
 "@(#) Copyright (c) 1991, 1993\n\
 	The Regents of the University of California.  All rights reserved.\n";
 #endif /* not lint */
 
 #ifndef lint
+#if 0
 static char sccsid[] = "@(#)init.c	8.1 (Berkeley) 7/15/93";
+#endif
+static const char rcsid[] =
+	"$Id$";
 #endif /* not lint */
 
 #include <sys/param.h>
@@ -94,7 +96,7 @@ static char sccsid[] = "@(#)init.c	8.1 (Berkeley) 7/15/93";
 #define	WINDOW_WAIT		 3	/* wait N secs after starting window */
 #define	STALL_TIMEOUT		30	/* wait N secs after warning */
 #define	DEATH_WATCH		10	/* wait N secs for procs to die */
-#define DEATH_SCRIPT		120	/* wait for 2mn for /etc/rc.shutdown */
+#define DEATH_SCRIPT		120	/* wait for 2min for /etc/rc.shutdown */
 #define RESOURCE_RC		"daemon"
 #define RESOURCE_WINDOW 	"default"
 #define RESOURCE_GETTY		"default"
