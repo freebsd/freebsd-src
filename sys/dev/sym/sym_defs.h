@@ -91,6 +91,7 @@ struct sym_pci_chip {
 	u_char	burst_max;	/* log-base-2 of max burst */
 	u_char	offset_max;
 	u_char	nr_divisor;
+	u_char	lp_probe_bit;
 	u_int	features;
 #define FE_LED0		(1<<0)
 #define FE_WIDE		(1<<1)    /* Wide data transfers */
