@@ -47,8 +47,8 @@ int dialog_inputbox(unsigned char *title, unsigned char *prompt, int height, int
   if (height > LINES)
 	height = LINES;
   /* center dialog box on screen */
-  x = (COLS - width)/2;
-  y = (LINES - height)/2;
+  x = DialogX ? DialogX : (COLS - width)/2;
+  y = DialogY ? DialogY : (LINES - height)/2;
 
 #ifdef HAVE_NCURSES
   if (use_shadow)
