@@ -37,7 +37,7 @@
  */
 
 extern	long	Maxmem;
-extern	u_int	atdevbase;	/* offset in virtual memory of ISA io mem */
+extern	u_long	atdevbase;	/* offset in virtual memory of ISA io mem */
 extern	int	busdma_swi_pending;
 extern	u_int	cpu_exthigh;
 extern	u_int	cpu_feature;
