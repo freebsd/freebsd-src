@@ -47,7 +47,7 @@ static int splash_on = FALSE;
 static int pcx_start(video_adapter_t *adp);
 static int pcx_end(video_adapter_t *adp);
 static int pcx_splash(video_adapter_t *adp, int on);
-static int pcx_init(const char *data, int sdepth);
+static int pcx_init(char *data, int sdepth);
 static int pcx_draw(video_adapter_t *adp);
 
 static splash_decoder_t pcx_decoder = {
@@ -60,7 +60,8 @@ static struct
 {
     int		  width, height, bpsl;
     int		  bpp, planes, zlen;
-    const u_char *zdata, *palette;
+    const u_char *zdata;
+    u_char	 *palette;
 } pcx_info;
 
 static int 
@@ -158,7 +159,7 @@ struct pcxheader {
 #define MAXSCANLINE 1024
 
 static int
-pcx_init(const char *data, int size)
+pcx_init(char *data, int size)
 {
     const struct pcxheader *hdr;
 
