@@ -36,14 +36,18 @@
 #include <pthread.h>
 #include "libc_private.h"
 #include "thr_private.h"
+
 extern	int	errno;
 
-int * __error()
+int *
+__error(void)
 {
 	struct pthread *curthread;
 
 	if (__isthreaded == 0)
 		return (&errno);
+	else if (_kse_in_critical())
+		return &(_get_curkse()->k_error);
 	else {
 		curthread = _get_curthread();
 		if ((curthread == NULL) || (curthread == _thr_initial))
