@@ -6,7 +6,7 @@
  * this stuff is worth it, you can buy me a beer in return.   Poul-Henning Kamp
  * ----------------------------------------------------------------------------
  *
- * $Id: stage2.c,v 1.20 1994/12/27 23:26:56 jkh Exp $
+ * $Id: stage2.c,v 1.21 1995/01/14 10:31:21 jkh Exp $
  *
  */
 
@@ -89,9 +89,6 @@ stage2()
 
     TellEm("unzipping /stand/sysinstall onto hard disk");
     exec(4, "/stand/gzip", "zcat", 0 );
-/*
-    CopyFile("/stand/sysinstall","/mnt/stand/sysinstall");
-*/
     Link("/mnt/stand/sysinstall","/mnt/stand/cpio");
     Link("/mnt/stand/sysinstall","/mnt/stand/bad144");
     Link("/mnt/stand/sysinstall","/mnt/stand/gunzip");
@@ -125,7 +122,6 @@ stage2()
 	}
     }
 
-    CopyFile("/kernel","/mnt/kernel");
     TellEm("make /dev entries");
     chdir("/mnt/dev");
     makedevs();
@@ -152,11 +148,76 @@ stage2()
     fprintf(f1,"proc\t\t/proc\tprocfs rw 0 0\n");
     fclose(f1);
 
+#if 1   
+{
+#include <sys/wait.h>
+
+    int ffd, pfd[2];
+    int zpid, cpid;
+    int i,j,k;
+
+    j = fork();
+    if (!j) {
+	chroot("/mnt");
+	chdir("/");
+	retry:
+	    while (1) {
+		dialog_msgbox(TITLE, 
+			      "Insert CPIO floppy in floppy drive 0", -1, -1, 1);
+		ffd = open("/dev/rfd0",O_RDONLY);
+		if (ffd > 0)
+		    break;
+		Debug("problems opening /dev/rfd0: %d",errno);
+	    }
+	    dialog_clear_norefresh();
+	    TellEm("cd /stand ; gunzip < /dev/fd0 | cpio -idum");
+	    pipe(pfd);
+	    zpid = fork();
+	    if (!zpid) {
+		close(0); dup(ffd); close(ffd);
+		close(1); dup(pfd[1]); close(pfd[1]);
+		close(pfd[0]);
+		i = exec (1,"/stand/gunzip","/stand/gunzip", 0);
+		exit(i);
+	    }
+	    cpid = fork();
+	    if (!cpid) {
+		close(0); dup(pfd[0]); close(pfd[0]);
+		close(ffd);
+		close(pfd[1]);
+		close(1); open("/dev/null",O_WRONLY);
+		chdir("/stand");
+		i = exec (1,"/stand/cpio","/stand/cpio","-iduvm", 0);
+		exit(i);
+	    }
+	    close(pfd[0]);
+	    close(pfd[1]);
+	    close(ffd);
+	    i = wait(&j);
+	    if (i < 0 || j)
+		Fatal("Pid %d, status %d, cpio=%d, gunzip=%d.\nerror:%s",
+		      i, j, cpid, zpid, strerror(errno));
+	    i = wait(&j);
+	    if (i < 0 || j)
+		Fatal("Pid %d, status %d, cpio=%d, gunzip=%d.\nerror:%s",
+		      i, j, cpid, zpid, strerror(errno));
+	    
+	    /* bininst.sh MUST be the last file on the floppy */
+	    if (access("/stand/OK", R_OK) == -1) {
+		AskAbort("CPIO floppy was bad!  Please check media for defects and retry.");
+		goto retry;
+	    }
+	unlink("/stand/OK");
+	i = rename ("/stand/kernel","/kernel");
+	exit (i);
+    }
+    i = wait(&k);
+    Debug("chroot'er: %d %d %d",i,j,k);
+}
+
+#endif
+
     sync();
-    TellEm("Make marker file");
-    i = open("/mnt/stand/need_cpio_floppy",O_CREAT|O_WRONLY|O_TRUNC);
-    close(i);
-    
     TellEm("Unmount disks");
     for (j = 1; Fsize[j]; j++) 
 	continue;
