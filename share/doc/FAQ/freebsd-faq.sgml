@@ -4,7 +4,7 @@
 
 <title>Frequently Asked Questions for FreeBSD 2.X
 <author>The FreeBSD FAQ Team, <tt/FAQ@FreeBSD.ORG/
-<date> $Id: freebsd-faq.sgml,v 1.61 1996/08/16 13:51:55 wosch Exp $
+<date> $Id: freebsd-faq.sgml,v 1.62 1996/08/25 21:11:46 wosch Exp $
 <abstract>
 This is the FAQ for FreeBSD systems version 2.X  All entries are
 assumed to be relevant to FreeBSD 2.0.5+, unless otherwise noted.
@@ -150,7 +150,7 @@ Any entries with a &lt;XXX&gt; are under construction.
            -current, which essentially has been one unbroken line since 2.0
            was released. If a little ASCII art would help, this is how it 
            looks:
-         <p>
+<verb>
 		       2.0
 			|
 			|
@@ -165,6 +165,7 @@ Any entries with a &lt;XXX&gt; are under construction.
 			|
 			|
 			.
+</verb>
          <p>
            The -current branch is slowly progressing towards 2.2 and beyond, 
            whereas the -stable branch will effectively end with 2.1.5.
@@ -3131,7 +3132,7 @@ domain foo.bar.edu
           For many Hayes command-set--compatible modems, this command will
           make these settings and store them in nonvolatile memory:
           <verb>
-            AT &ero;C1 &ero;D3 &ero;K3 &ero;Q6 S0=1 &ero;W
+            AT &amp;C1 &amp;D3 &amp;K3 &amp;Q6 S0=1 &amp;W
           </verb>
           See the section <ref id="direct-at" name="on sending AT
           commands"> below for information on how to make these settings
