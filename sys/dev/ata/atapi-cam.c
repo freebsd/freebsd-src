@@ -544,22 +544,25 @@ atapi_cb(struct ata_request *request)
 {
     struct atapi_hcb *hcb = (struct atapi_hcb *) request->driver;
     struct ccb_scsiio *csio = &hcb->ccb->csio;
-    int hcb_status = request->result;
+    u_int32_t rc;
 
     mtx_lock(&Giant);
-
 #ifdef CAMDEBUG
-	if (CAM_DEBUGGED(csio->ccb_h.path, CAM_DEBUG_CDB)) {
-		printf("atapi_cb: hcb@%p status = %02x: (sk = %02x%s%s%s)\n",
-		       hcb, hcb_status, hcb_status >> 4,
-		       (hcb_status & 4) ? " ABRT" : "",
-		       (hcb_status & 2) ? " EOM" : "",
-		       (hcb_status & 1) ? " ILI" : "");
-		printf("    %s: cmd %02x\n",
-		    request->device->name, request->u.atapi.ccb[0]);
-	}
+# define err (request->error)
+    if (CAM_DEBUGGED(csio->ccb_h.path, CAM_DEBUG_CDB)) {
+	printf("atapi_cb: hcb@%p error = %02x: (sk = %02x%s%s%s)\n",
+	       hcb, err, err >> 4,
+	       (err & 4) ? " ABRT" : "",
+	       (err & 2) ? " EOM" : "",
+	       (err & 1) ? " ILI" : "");
+	printf("dev %s: cmd %02x status %02x result %02x\n",
+	    request->device->name, request->u.atapi.ccb[0],
+	    request->status, request->result);
+    }
 #endif
-    if (hcb_status != 0) {
+
+    if (request->result != 0) {
+	rc = CAM_SCSI_STATUS_ERROR;
 	csio->scsi_status = SCSI_STATUS_CHECK_COND;
 #if 0
 	/*
@@ -578,17 +581,16 @@ atapi_cb(struct ata_request *request)
 	    }
 	}
 #endif
-	free_hcb_and_ccb_done(hcb, CAM_SCSI_STATUS_ERROR);
-    }
-    else {
+    } else {
+	rc = CAM_REQ_CMP;
+	csio->scsi_status = SCSI_STATUS_OK;
 	if (((csio->ccb_h.flags & CAM_DIR_MASK) == CAM_DIR_IN) &&
 	    hcb->dxfer_alloc != NULL)
 	{
 	    bcopy(hcb->dxfer_alloc, csio->data_ptr, csio->dxfer_len);
 	}
-	csio->scsi_status = SCSI_STATUS_OK;
-	free_hcb_and_ccb_done(hcb, CAM_REQ_CMP);
     }
+    free_hcb_and_ccb_done(hcb, rc);
     mtx_unlock(&Giant);
 }
 
