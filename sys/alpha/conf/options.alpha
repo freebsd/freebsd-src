@@ -1,4 +1,4 @@
-#	$Id: options.alpha,v 1.9 1999/01/23 16:53:26 dfr Exp $
+#	$Id: options.alpha,v 1.10 1999/03/10 10:36:50 yokota Exp $
 
 EV5			opt_global.h
 EV4			opt_global.h
@@ -8,6 +8,7 @@ DEC_EB64PLUS		opt_cpu.h
 DEC_KN20AA		opt_cpu.h
 DEC_2100_A50		opt_cpu.h
 DEC_ST550		opt_cpu.h
+DEC_ST6600		opt_cpu.h
 DEC_AXPPCI_33		opt_cpu.h
 DEC_3000_300		opt_cpu.h
 DEC_3000_500		opt_cpu.h
