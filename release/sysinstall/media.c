@@ -4,7 +4,7 @@
  * This is probably the last attempt in the `sysinstall' line, the next
  * generation being slated to essentially a complete rewrite.
  *
- * $Id: media.c,v 1.62.2.14 1997/03/07 16:16:58 jkh Exp $
+ * $Id: media.c,v 1.62.2.15 1997/03/11 16:41:15 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -96,7 +96,7 @@ cpioVerbosity()
     return "";
 }
 
-static void
+void
 mediaClose(void)
 {
     if (mediaDevice)

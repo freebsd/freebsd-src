@@ -4,7 +4,7 @@
  * This is probably the last attempt in the `sysinstall' line, the next
  * generation being slated to essentially a complete rewrite.
  *
- * $Id: floppy.c,v 1.16.2.3 1997/01/22 00:28:54 jkh Exp $
+ * $Id: floppy.c,v 1.16.2.4 1997/01/24 21:05:52 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -129,9 +129,9 @@ mediaInitFloppy(Device *dev)
 
     msgDebug("Init floppy called for %s distribution.\n", distWanted ? distWanted : "some");
     if (!distWanted)
-    	msgConfirm("Please insert floppy for %s", dev->description);
+    	msgConfirm("Please insert floppy in %s", dev->description);
     else
-	msgConfirm("Please insert floppy containing %s for %s", distWanted, dev->description);
+	msgConfirm("Please insert floppy containing %s in %s", distWanted, dev->description);
 
     memset(&dosargs, 0, sizeof dosargs);
     dosargs.fspec = dev->devname;
