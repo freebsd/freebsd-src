@@ -50,7 +50,6 @@
 
 #include <sys/param.h>
 #include <sys/systm.h>
-#include <sys/buf.h>		/* B_READ and B_RAW */
 #include <sys/malloc.h>
 #include <sys/bus.h>
 #include <vm/vm.h>
@@ -257,15 +256,15 @@ static void isa_dmastart_cb(void *arg, bus_dma_segment_t *segs, int nseg,
 		 */
 		/* set dma channel mode, and reset address ff */
 
-		/* If B_RAW flag is set, then use autoinitialise mode */
-		if (flags & B_RAW) {
-		  if (flags & B_READ)
+		/* If ISADMA_RAW flag is set, then use autoinitialise mode */
+		if (flags & ISADMA_RAW) {
+		  if (flags & ISADMA_READ)
 			outb(DMA1_MODE, DMA37MD_AUTO|DMA37MD_WRITE|chan);
 		  else
 			outb(DMA1_MODE, DMA37MD_AUTO|DMA37MD_READ|chan);
 		}
 		else
-		if (flags & B_READ)
+		if (flags & ISADMA_READ)
 			outb(DMA1_MODE, DMA37MD_SINGLE|DMA37MD_WRITE|chan);
 		else
 			outb(DMA1_MODE, DMA37MD_SINGLE|DMA37MD_READ|chan);
@@ -290,15 +289,15 @@ static void isa_dmastart_cb(void *arg, bus_dma_segment_t *segs, int nseg,
 		 */
 		/* set dma channel mode, and reset address ff */
 
-		/* If B_RAW flag is set, then use autoinitialise mode */
-		if (flags & B_RAW) {
-		  if (flags & B_READ)
+		/* If ISADMA_RAW flag is set, then use autoinitialise mode */
+		if (flags & ISADMA_RAW) {
+		  if (flags & ISADMA_READ)
 			outb(DMA2_MODE, DMA37MD_AUTO|DMA37MD_WRITE|(chan&3));
 		  else
 			outb(DMA2_MODE, DMA37MD_AUTO|DMA37MD_READ|(chan&3));
 		}
 		else
-		if (flags & B_READ)
+		if (flags & ISADMA_READ)
 			outb(DMA2_MODE, DMA37MD_SINGLE|DMA37MD_WRITE|(chan&3));
 		else
 			outb(DMA2_MODE, DMA37MD_SINGLE|DMA37MD_READ|(chan&3));
@@ -352,7 +351,7 @@ isa_dmastart(int flags, caddr_t addr, u_int nbytes, int chan)
 
 	dma_busy |= (1 << chan);
 
-	if (flags & B_RAW) {
+	if (flags & ISADMA_RAW) {
 		dma_auto_mode |= (1 << chan);
 	} else { 
 		dma_auto_mode &= ~(1 << chan);

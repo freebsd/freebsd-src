@@ -38,6 +38,11 @@
 #define	_I386_ISA_ISA_DMA_H_
 
 #ifdef _KERNEL
+
+#define ISADMA_READ	0x00100000
+#define ISADMA_WRITE	0
+#define ISADMA_RAW	0x00080000
+
 void	isa_dmacascade __P((int chan));
 void	isa_dmadone __P((int flags, caddr_t addr, int nbytes, int chan));
 void	isa_dmainit __P((int chan, u_int bouncebufsize));

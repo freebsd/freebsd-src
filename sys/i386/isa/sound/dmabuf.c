@@ -1104,14 +1104,14 @@ DMAbuf_start_dma(int dev, u_long physaddr, int count, int dma_mode)
 #ifndef PSEUDO_DMA_AUTOINIT
     if (audio_devs[dev]->flags & DMA_AUTOMODE) {
 	/* Auto restart mode. Transfer the whole buffer */
-	isa_dmastart(B_RAW | ((dma_mode == 0) ? B_READ : B_WRITE),
+	isa_dmastart(ISADMA_RAW | ((dma_mode == 0) ? ISADMA_READ : ISADMA_WRITE),
 	     (caddr_t) (void *) (uintptr_t) dmap->raw_buf_phys,
 	     dmap->bytes_in_use, chan);
 
     } else
 #endif
     {
-	isa_dmastart((dma_mode == 0) ? B_READ : B_WRITE,
+	isa_dmastart((dma_mode == 0) ? ISADMA_READ : ISADMA_WRITE,
 		 (caddr_t) (void *) (uintptr_t) physaddr, count, chan);
     }
     return count;
