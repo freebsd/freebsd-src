@@ -463,34 +463,39 @@ log_it(username, xpid, event, detail)
 		     + strlen(detail)
 		     + MAX_TEMPSTR);
 
-	if (LogFD < OK) {
-		LogFD = open(LOG_FILE, O_WRONLY|O_APPEND|O_CREAT, 0600);
+	if (msg == NULL)
+		warnx("failed to allocate memory for log message");
+	else {
 		if (LogFD < OK) {
-			warn("can't open log file %s", LOG_FILE);
-		} else {
-			(void) fcntl(LogFD, F_SETFD, 1);
+			LogFD = open(LOG_FILE, O_WRONLY|O_APPEND|O_CREAT, 0600);
+			if (LogFD < OK) {
+				warn("can't open log file %s", LOG_FILE);
+			} else {
+				(void) fcntl(LogFD, F_SETFD, 1);
+			}
 		}
+
+		/* we have to sprintf() it because fprintf() doesn't always
+		 * write everything out in one chunk and this has to be
+		 * atomically appended to the log file.
+		 */
+		sprintf(msg, "%s (%02d/%02d-%02d:%02d:%02d-%d) %s (%s)\n",
+			username,
+			t->tm_mon+1, t->tm_mday, t->tm_hour, t->tm_min,
+			t->tm_sec, pid, event, detail);
+
+		/* we have to run strlen() because sprintf() returns (char*)
+		 * on old BSD.
+		 */
+		if (LogFD < OK || write(LogFD, msg, strlen(msg)) < OK) {
+			if (LogFD >= OK)
+				warn("%s", LOG_FILE);
+			warnx("can't write to log file");
+			write(STDERR, msg, strlen(msg));
+		}
+
+		free(msg);
 	}
-
-	/* we have to sprintf() it because fprintf() doesn't always write
-	 * everything out in one chunk and this has to be atomically appended
-	 * to the log file.
-	 */
-	sprintf(msg, "%s (%02d/%02d-%02d:%02d:%02d-%d) %s (%s)\n",
-		username,
-		t->tm_mon+1, t->tm_mday, t->tm_hour, t->tm_min, t->tm_sec, pid,
-		event, detail);
-
-	/* we have to run strlen() because sprintf() returns (char*) on old BSD
-	 */
-	if (LogFD < OK || write(LogFD, msg, strlen(msg)) < OK) {
-		if (LogFD >= OK)
-			warn("%s", LOG_FILE);
-		warnx("can't write to log file");
-		write(STDERR, msg, strlen(msg));
-	}
-
-	free(msg);
 #endif /*LOG_FILE*/
 
 #if defined(SYSLOG)
@@ -603,7 +608,8 @@ mkprints(src, len)
 {
 	register char *dst = malloc(len*4 + 1);
 
-	mkprint(dst, src, len);
+	if (dst != NULL)
+		mkprint(dst, src, len);
 
 	return dst;
 }
