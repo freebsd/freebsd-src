@@ -96,10 +96,10 @@ is used, then the new child will be added as if its order was zero.
 .Pp
 When adding a device in the context of
 .Xr DEVICE_IDENTIFY 9
-routine, some care must be taken to ensure that the device hasn't
+routine, some care must be taken to ensure that the device has not
 already been added to the tree.
 Because the device name and
-.Ft devclass_t
+.Vt devclass_t
 are associated at probe time (not child addition time), previous
 instances of the driver (say in a module that was later unloaded) may
 have already added the instance.

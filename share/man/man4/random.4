@@ -32,6 +32,7 @@
 .Sh DESCRIPTION
 The
 .Nm
+device
 returns an endless supply of random bytes when read.
 It also accepts and reads data
 as any ordinary (and willing) file,
@@ -81,6 +82,7 @@ kern.random.yarrow.fastthresh: 100
 kern.random.yarrow.slowthresh: 160
 kern.random.yarrow.slowoverthresh: 2
 .Ed
+.Pp
 (These would not be seen if a
 hardware generator is present.)
 .Pp
@@ -322,7 +324,7 @@ algorithm by Bruce Schneier,
 .Em et al .
 The only hardware implementation
 currently is for the
-.Em VIA C3 Nehemiah
+.Tn VIA C3 Nehemiah
 (stepping 3 or greater)
 CPU.
 More will be added in the future.

@@ -326,9 +326,9 @@ consequences that the administrator should carefully evaluate before
 modifying these settings.
 .Pp
 Ports are allocated at random within the specified port range in order
-to increase the difficulty of random spoofing attacks.  In scenarios
-such as benchmarking, this behavior may be undesireable.  In these
-cases,
+to increase the difficulty of random spoofing attacks.
+In scenarios such as benchmarking, this behavior may be undesireable.
+In these cases,
 .Va net.inet.ip.portrange.randomized
 can be used to toggle randomization off.
 .Ss "Multicast Options"
@@ -431,7 +431,7 @@ struct ip_mreq {
 }
 .Ed
 .Pp
-.Dv imr_interface
+.Va imr_interface
 should be set to
 .Dv INADDR_ANY
 to choose the default multicast interface,
@@ -442,7 +442,7 @@ the host is multihomed.
 Since
 .Fx 4.4 ,
 if the
-.Dv imr_interface
+.Va imr_interface
 member is within the network range
 .Li 0.0.0.0/8 ,
 it is treated as an interface index in the system interface MIB,

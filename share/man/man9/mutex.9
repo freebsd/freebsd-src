@@ -334,7 +334,7 @@ This check should only be made if the running thread already owns
 The
 .Fn mtx_assert
 function allows assertions specified in
-.Ar what
+.Fa what
 to be made about
 .Fa mutex .
 If the assertions are not true and the kernel is compiled with
@@ -499,8 +499,8 @@ No locks are needed when calling these functions.
 .Sh SEE ALSO
 .Xr condvar 9 ,
 .Xr msleep 9 ,
-.Xr MUTEX_PROFILING 9 ,
 .Xr mtx_pool 9 ,
+.Xr MUTEX_PROFILING 9 ,
 .Xr panic 9 ,
 .Xr sema 9 ,
 .Xr sx 9

@@ -148,7 +148,7 @@ variable in
 to the desired keymap file so that it will be automatically loaded
 when the system starts up.
 .Ss Software Font
-For most modern video cards, e.g. VGA, the
+For most modern video cards, e.g., VGA, the
 .Nm
 driver and the video card driver allow the user to change
 the font used on the screen.
@@ -345,11 +345,16 @@ unless you explicitly load a software font at startup.
 See
 .Sx EXAMPLES
 below.
-.It SC_NO_SUSPEND_VTYSWITCH
-This option, which is also available as loader tunable and sysctl
-.Va ( hw.syscons.sc_no_suspend_vtswitch ) ,
+.It Dv SC_NO_SUSPEND_VTYSWITCH
+This option, which is also available as
+.Xr loader 8
+tunable and
+.Xr sysctl 8
+variable
+.Pq Va hw.syscons.sc_no_suspend_vtswitch ,
 disables switching between virtual terminals (graphics <-> text) during
-suspend/resume (ACPI and APM).  Use this option if your system is freezing
+suspend/resume (ACPI and APM).
+Use this option if your system is freezing
 when you are running X and trying to suspend.
 .El
 .Pp

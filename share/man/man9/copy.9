@@ -94,12 +94,10 @@ to kernel-space address
 The number of bytes actually copied, including the terminating
 NUL, is returned in
 .Fa *done
-.Po
-if
+(if
 .Fa done
 is
-.No non- Ns Dv NULL
-.Pc .
+.No non- Ns Dv NULL ) .
 .It Fn copyinstr
 Copies a NUL-terminated string, at most
 .Fa len
@@ -110,21 +108,19 @@ to kernel-space address
 The number of bytes actually copied, including the terminating
 NUL, is returned in
 .Fa *done
-.Po
-if
+(if
 .Fa done
 is
-.No non- Ns Dv NULL Ns
-.Pc .
+.No non- Ns Dv NULL ) .
 .\" .It Fn copyoutstr
 .\" Copies a NUL-terminated string, at most
 .\" bytes long, from kernel-space address
-.\" .Pa kaddr
+.\" .Fa kaddr
 .\" to user-space address
-.\" .Pa uaddr .
+.\" .Fa uaddr .
 .\" The number of bytes actually copied, including the terminating
 .\" NUL, is returned in
-.\" .Pa *done .
+.\" .Fa *done .
 .El
 .Sh RETURN VALUES
 The

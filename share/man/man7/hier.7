@@ -40,7 +40,7 @@
 .Nd layout of file systems
 .Sh DESCRIPTION
 A sketch of the file system hierarchy.
-.Bl -tag -width "/stand/"
+.Bl -tag -width ".Pa /libexec/"
 .It Pa /
 root directory of the file system
 .It Pa /bin/
@@ -48,7 +48,7 @@ user utilities fundamental to both single-user and multi-user environments
 .It Pa /boot/
 programs and configuration files used during operating system bootstrap
 .Pp
-.Bl -tag -width defaults/ -compact
+.Bl -tag -width ".Pa defaults/" -compact
 .It Pa defaults/
 default bootstrapping configuration files; see
 .Xr loader.conf 5
@@ -87,7 +87,7 @@ mount point used by
 .It Pa /etc/
 system configuration files and scripts
 .Pp
-.Bl -tag -width "disklabels/" -compact
+.Bl -tag -width ".Pa defaults/" -compact
 .It Pa defaults/
 default system configuration files;
 see
@@ -137,7 +137,7 @@ critical system libraries needed for binaries in
 and
 .Pa /sbin
 .Pp
-.Bl -tag -width "geom/" -compact
+.Bl -tag -width ".Pa geom/" -compact
 .It Pa geom/
 class-specific libraries for the
 .Xr geom 8
@@ -172,7 +172,7 @@ temporary files that are not guaranteed to persist across system reboots
 .It Pa /usr/
 contains the majority of user utilities and applications
 .Pp
-.Bl -tag -width "libdata/" -compact
+.Bl -tag -width ".Pa libdata/" -compact
 .It Pa bin/
 common utilities, programming tools, and applications
 .It Pa compat/
@@ -185,7 +185,7 @@ useful and semi-frivolous programs
 .It Pa include/
 standard C include files
 .Pp
-.Bl -tag -width "kerberos5/" -compact
+.Bl -tag -width ".Pa kerberos5/" -compact
 .It Pa altq/
 C include files for alternate queueing
 .It Pa arpa/
@@ -194,7 +194,7 @@ C include files for Internet service protocols
 C include files for the SNMP daemon
 .It Pa cam/
 C include files for the Common Access Methods Layer
-.Bl -tag -width "kerberos5/" -compact
+.Bl -tag -width ".Pa kerberos5/" -compact
 .It Pa scsi/
 The SCSI device on top of CAM
 .El
@@ -202,7 +202,7 @@ The SCSI device on top of CAM
 C include files for programming various
 .Fx
 devices
-.Bl -tag -width "kerberos5/" -compact
+.Bl -tag -width ".Pa kerberos5/" -compact
 .It Pa ic/
 Various header files describing driver- and bus-independent
 hardware circuits
@@ -224,7 +224,7 @@ The
 WaveLAN driver
 .El
 .It Pa fs/
-.Bl -tag -width "kerberos5/" -compact
+.Bl -tag -width ".Pa kerberos5/" -compact
 .It Pa fdescfs/
 per-process file descriptors file system
 .It Pa fifofs/
@@ -253,13 +253,13 @@ union file system
 .El
 .It Pa g++/
 GNU C++ include files
-.Bl -tag -width "kerberos5/" -compact
+.Bl -tag -width ".Pa kerberos5/" -compact
 .It Pa std/
 GNU C++ libstdc++ include files
 .El
 .It Pa geom/
 GEOM framework
-.Bl -tag -width "kerberos5/" -compact
+.Bl -tag -width ".Pa kerberos5/" -compact
 .It Pa concat/
 CONCAT GEOM class
 .It Pa gate/
@@ -273,7 +273,7 @@ STRIPE GEOM class
 .It Pa isc/
 ISC utility library libisc include files
 .It Pa isofs/
-.Bl -tag -width "kerberos5/" -compact
+.Bl -tag -width ".Pa kerberos5/" -compact
 .It Pa cd9660/
 iso9660 file system
 .El
@@ -344,7 +344,7 @@ system C include files (kernel data structures)
 .\" Tcl language;
 .\" see
 .\" .Xr Tcl n
-.\" .Bl -tag -width "kerberos5/" -compact
+.\" .Bl -tag -width ".Pa kerberos5/" -compact
 .\" .It Pa generic/
 .\" ???
 .\" .It Pa unix/
@@ -352,7 +352,7 @@ system C include files (kernel data structures)
 .\" .El
 .It Pa ufs/
 C include files for UFS (The U-word File System)
-.Bl -tag -width "kerberos5/" -compact
+.Bl -tag -width ".Pa kerberos5/" -compact
 .It Pa ffs/
 Fast file system
 .It Pa ufs/
@@ -439,7 +439,7 @@ system daemons & system utilities (executed by users)
 .It Pa share/
 architecture-independent files
 .Pp
-.Bl -tag -width "calendar/" -compact
+.Bl -tag -width ".Pa calendar/" -compact
 .It Pa calendar/
 a variety of pre-fab calendar files;
 see
@@ -575,7 +575,7 @@ MIB files
 files used by syscons;
 see
 .Xr syscons 4
-.Bl -tag -width "scrnmaps/xx" -compact
+.Bl -tag -width ".Pa scrnmaps/" -compact
 .It Pa fonts/
 console fonts;
 see
@@ -614,7 +614,7 @@ see
 .Bx ,
 third-party, and/or local source files
 .Pp
-.Bl -tag -width "kerberos5/" -compact
+.Bl -tag -width ".Pa kerberos5/" -compact
 .It Pa bin/
 source code for files in /bin
 .It Pa contrib/
@@ -658,7 +658,7 @@ source code for files in /usr/sbin
 .Pp
 .It Pa X11R6/
 X11R6 distribution executables, libraries, etc (optional).
-.Bl -tag -width "include/" -compact
+.Bl -tag -width ".Pa include/" -compact
 .It Pa bin/
 X11R6 binaries (servers, utilities, local packages/ports).
 .It Pa etc/
@@ -676,7 +676,7 @@ architecture-independent files.
 .It Pa /var/
 multi-purpose log, temporary, transient, and spool files
 .Pp
-.Bl -tag -width "preserve/" -compact
+.Bl -tag -width ".Pa preserve/" -compact
 .It Pa account/
 system accounting files
 .Pp
@@ -691,7 +691,7 @@ see
 timed command scheduling files;
 see
 .Xr \&at 1
-.Bl -tag -width "preserve/" -compact
+.Bl -tag -width ".Pa preserve/" -compact
 .It Pa jobs/
 directory containing job files
 .It Pa spool/
@@ -709,7 +709,7 @@ and
 files used by cron;
 see
 .Xr cron 8
-.Bl -tag -width "preserve/" -compact
+.Bl -tag -width ".Pa preserve/" -compact
 .It Pa tabs/
 crontab files;
 see
