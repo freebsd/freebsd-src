@@ -1,4 +1,5 @@
 /*-
+ * Copyright (c) 2003 Tim J. Robbins. All rights reserved.
  * Copyright (c) 1993
  *	The Regents of the University of California.  All rights reserved.
  *
@@ -47,33 +48,18 @@ __FBSDID("$FreeBSD$");
 #include <rune.h>
 #include <stddef.h>
 #include <stdio.h>
+#include <wchar.h>
 
 __warn_references(fgetrune, "warning: fgetrune() is deprecated. See fgetrune(3).");
 long
 fgetrune(fp)
 	FILE *fp;
 {
-	rune_t  r;
-	int c, len;
-	char buf[MB_LEN_MAX];
-	char const *result;
+	wint_t ch;
 
-	len = 0;
-	do {
-		if ((c = getc(fp)) == EOF) {
-			if (len)
-				break;
-			return (EOF);
-		}
-		buf[len++] = c;
-
-		if ((r = sgetrune(buf, len, &result)) != _INVALID_RUNE)
-			return (r);
-	} while (result == buf && len < MB_LEN_MAX);
-
-	while (--len > 0)
-		ungetc(buf[len], fp);
-	return (_INVALID_RUNE);
+	if ((ch = fgetwc(fp)) == WEOF)
+		return (feof(fp) ? EOF : _INVALID_RUNE);
+	return ((long)ch);
 }
 
 __warn_references(fungetrune, "warning: fungetrune() is deprecated. See fungetrune(3).");
@@ -82,14 +68,8 @@ fungetrune(r, fp)
 	rune_t r;
 	FILE* fp;
 {
-	int len;
-	char buf[MB_LEN_MAX];
 
-	len = sputrune(r, buf, MB_LEN_MAX, 0);
-	while (len-- > 0)
-		if (ungetc(buf[len], fp) == EOF)
-			return (EOF);
-	return (0);
+	return (ungetwc((wint_t)r, fp) == WEOF ? EOF : 0);
 }
 
 __warn_references(fputrune, "warning: fputrune() is deprecated. See fputrune(3).");
@@ -98,14 +78,6 @@ fputrune(r, fp)
 	rune_t r;
 	FILE *fp;
 {
-	int i, len;
-	char buf[MB_LEN_MAX];
 
-	len = sputrune(r, buf, MB_LEN_MAX, 0);
-
-	for (i = 0; i < len; ++i)
-		if (putc(buf[i], fp) == EOF)
-			return (EOF);
-
-	return (0);
+	return (fputwc((wchar_t)r, fp) == WEOF ? EOF : 0);
 }
