@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	From: @(#)tcp_input.c	8.5 (Berkeley) 4/10/94
- *	$Id: tcp_input.c,v 1.16 1995/03/16 18:15:04 bde Exp $
+ *	$Id: tcp_input.c,v 1.17 1995/03/27 07:12:24 davidg Exp $
  */
 
 #ifndef TUBA_INCLUDE
@@ -324,6 +324,12 @@ tcp_input(m, iphlen)
 	NTOHS(ti->ti_urp);
 
 	/*
+	 * Drop TCP, IP headers and TCP options.
+	 */
+	m->m_data += sizeof(struct tcpiphdr)+off-sizeof(struct tcphdr);
+	m->m_len  -= sizeof(struct tcpiphdr)+off-sizeof(struct tcphdr);
+
+	/*
 	 * Locate pcb for segment.
 	 */
 findpcb:
@@ -515,11 +521,8 @@ findpcb:
 			tcpstat.tcps_rcvpack++;
 			tcpstat.tcps_rcvbyte += ti->ti_len;
 			/*
-			 * Drop TCP, IP headers and TCP options then add data
-			 * to socket buffer.
+			 * Add data to socket buffer.
 			 */
-			m->m_data += sizeof(struct tcpiphdr)+off-sizeof(struct tcphdr);
-			m->m_len -= sizeof(struct tcpiphdr)+off-sizeof(struct tcphdr);
 			sbappend(&so->so_rcv, m);
 			sorwakeup(so);
 			/*
@@ -536,12 +539,6 @@ findpcb:
 			return;
 		}
 	}
-
-	/*
-	 * Drop TCP, IP headers and TCP options.
-	 */
-	m->m_data += sizeof(struct tcpiphdr)+off-sizeof(struct tcphdr);
-	m->m_len  -= sizeof(struct tcpiphdr)+off-sizeof(struct tcphdr);
 
 	/*
 	 * Calculate amount of space in receive window,
