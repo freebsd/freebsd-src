@@ -42,16 +42,6 @@
 
 #include <netinet/ip_fw.h>
 
-#ifdef IPFIREWALL
-struct ip_fw *ip_fw_fwd_chain;
-struct ip_fw *ip_fw_blk_chain;
-u_short ip_fw_policy=0;
-#endif
-#ifdef IPACCT
-struct ip_fw *ip_acct_chain;
-#endif
-
-
 #ifdef IPFIREWALL_DEBUG 
 #define dprintf1(a)		printf(a)
 #define dprintf2(a1,a2)		printf(a1,a2)
@@ -75,20 +65,6 @@ struct ip_fw *ip_acct_chain;
 #else
 #define dprint_ip(a)	
 #endif
-
-/*
-inline
-void
-print_ip(xaddr)
-struct in_addr xaddr;
-{
-    u_long addr = ntohl(xaddr.s_addr);
-    printf("%d.%d.%d.%d",(addr>>24) & 0xff,
-                         (addr>>16)&0xff,
-                         (addr>>8)&0xff,
-                         addr&0xFF);
-}                  
-*/
 
 
 /*
@@ -931,8 +907,7 @@ struct mbuf *m;
 {
 if ( stage == IP_FW_FLUSH )
        {
-	free_fw_chain(&ip_fw_blk_chain);
-	free_fw_chain(&ip_fw_fwd_chain);
+	free_fw_chain(&ip_fw_chain);
 	return(0);
        }  
 
@@ -954,40 +929,29 @@ if ( stage == IP_FW_POLICY )
 
 /*
  * Here we really working hard-adding new elements
- * to blocking/forwarding chains or deleting'em
+ * to firewall chain or deleting'em
  */
 
-if ( stage == IP_FW_ADD_BLK
-  || stage == IP_FW_ADD_FWD
-  || stage == IP_FW_DEL_BLK
-  || stage == IP_FW_DEL_FWD
-   ) {
+if ( stage == IP_FW_ADD || 
+     stage == IP_FW_DEL ) {
 
 	    struct ip_fw *frwl;
  
-		frwl=check_ipfw_struct(m);
-		if (frwl==NULL)
-			return (EINVAL);
-#ifdef nenado
 	    if (!(frwl=check_ipfw_struct(m)))
 			return (EINVAL);
-#endif
 
 	    switch (stage) {
-	    case IP_FW_ADD_BLK:
-		return(add_entry(&ip_fw_blk_chain,frwl));
-	    case IP_FW_ADD_FWD:
-		return(add_entry(&ip_fw_fwd_chain,frwl));
-	    case IP_FW_DEL_BLK:
-		return(del_entry(&ip_fw_blk_chain,frwl));
-	    case IP_FW_DEL_FWD: 
-		return(del_entry(&ip_fw_fwd_chain,frwl));
+	    case IP_FW_ADD:
+		return(add_entry(&ip_fw_chain,frwl));
+	    case IP_FW_DEL:
+		return(del_entry(&ip_fw_chain,frwl));
 	    default:
-		/*
- 		 * Should be panic but...
-		 */
+#ifdef DIAGNOSTICS
+		panic("Can't happen");
+#else
 		dprintf2("ip_fw_ctl:  unknown request %d\n",stage);
 		return(EINVAL);
+#endif
 	    }
 } 
 
