@@ -20,7 +20,7 @@ SRCS+=  _rand48.c _spinlock_stub.c alarm.c arc4random.c assert.c \
 	nlist.c nrand48.c ntp_gettime.c opendir.c \
 	pause.c popen.c psignal.c pwcache.c raise.c readdir.c rewinddir.c \
 	scandir.c seed48.c seekdir.c semconfig.c semctl.c semget.c semop.c \
-	setdomainname.c sethostname.c setjmperr.c setmode.c shmat.c \
+	setdomainname.c setflags.c sethostname.c setjmperr.c setmode.c shmat.c \
 	shmctl.c shmdt.c shmget.c siginterrupt.c siglist.c signal.c \
 	sigsetops.c sleep.c srand48.c stringlist.c \
 	sysconf.c sysctl.c sysctlbyname.c \

@@ -58,8 +58,6 @@ static char rcsid[] = "$FreeBSD$";
 
 #include "find.h"
 
-int string_to_flags __P((char **, u_long *, u_long *));
-
 #define	COMPARE(a, b) {							\
 	switch (plan->flags) {						\
 	case F_EQUAL:							\
@@ -994,7 +992,7 @@ c_flags(flags_str)
 		new->flags = F_ATLEAST;
 		flags_str++;
 	}
-	if (string_to_flags(&flags_str, &flags, &notflags) == 1)
+	if (setflags(&flags_str, &flags, &notflags) == 1)
 		errx(1, "-flags: %s: illegal flags string", flags_str);
 
 	new->fl_flags = flags;

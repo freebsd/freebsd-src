@@ -3,8 +3,6 @@
 
 PROG=	xinstall
 MAN1=	install.1
-DPADD=	${LIBUTIL}
-LDADD=	-lutil
 
 install: maninstall
 	${INSTALL} ${COPY} ${STRIP} -o ${BINOWN} -g ${BINGRP} -m ${BINMODE} \

@@ -543,8 +543,7 @@ display(p, list)
 				if ((glen = strlen(group)) > maxgroup)
 					maxgroup = glen;
 				if (f_flags) {
-					flags =
-					    flags_to_string(sp->st_flags, "-");
+					flags = getflags(sp->st_flags, "-");
 					if ((flen = strlen(flags)) > maxflags)
 						maxflags = flen;
 				} else
