@@ -164,13 +164,12 @@ set_drive_parms(struct drive *drive)
 {
     drive->blocksize = BLKDEV_IOSIZE;			    /* do we need this? */
     drive->secsperblock = drive->blocksize		    /* number of sectors per block */
-	/ drive->partinfo.disklab->d_secsize;
+	/ drive->sectorsize;
 
     /* Now update the label part */
     bcopy(hostname, drive->label.sysname, VINUMHOSTNAMELEN); /* put in host name */
     getmicrotime(&drive->label.date_of_birth);		    /* and current time */
-    drive->label.drive_size = ((u_int64_t) drive->partinfo.part->p_size) /* size of the drive in bytes */
-    *((u_int64_t) drive->partinfo.disklab->d_secsize);
+    drive->label.drive_size = drive->mediasize;
 #ifdef VINUMDEBUG
     if (debug & DEBUG_BIGDRIVE)				    /* pretend we're 100 times as big */
 	drive->label.drive_size *= 100;
@@ -220,10 +219,16 @@ init_drive(struct drive *drive, int verbose)
 	return drive->lasterror;
 
     drive->lasterror = (*devsw(drive->dev)->d_ioctl) (drive->dev,
-	DIOCGPART,
-	(caddr_t) & drive->partinfo,
+	DIOCGSECTORSIZE,
+	(caddr_t) & drive->sectorsize,
 	FREAD,
 	curthread);
+    if (drive->lasterror == 0)
+	    drive->lasterror = (*devsw(drive->dev)->d_ioctl) (drive->dev,
+		DIOCGMEDIASIZE,
+		(caddr_t) & drive->mediasize,
+		FREAD,
+		curthread);
     if (drive->lasterror) {
 	if (verbose)
 	    log(LOG_WARNING,
@@ -233,6 +238,11 @@ init_drive(struct drive *drive, int verbose)
 	close_drive(drive);
 	return drive->lasterror;
     }
+#if 0
+    /*
+     * XXX: this check is bogus and needs to be rewitten, we cannot guarantee
+     * XXX: that there will be a label with a typefield on all platforms.
+     */
     if (drive->partinfo.part->p_fstype != FS_VINUM) {	    /* not Vinum */
 	drive->lasterror = EFTYPE;
 	if (verbose)
@@ -242,6 +252,7 @@ init_drive(struct drive *drive, int verbose)
 	close_drive(drive);
 	return EFTYPE;
     }
+#endif
     return set_drive_parms(drive);			    /* set various odds and ends */
 }
 
@@ -326,7 +337,7 @@ driveio(struct drive *drive, char *buf, size_t length, off_t offset, int flag)
 	bp->b_flags = 0;
 	bp->b_iocmd = flag;
 	bp->b_dev = drive->dev;				    /* device */
-	bp->b_blkno = offset / drive->partinfo.disklab->d_secsize; /* block number */
+	bp->b_blkno = offset / drive->sectorsize;           /* block number */
 	bp->b_saveaddr = bp->b_data;
 	bp->b_data = buf;
 	bp->b_bcount = len;

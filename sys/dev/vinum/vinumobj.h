@@ -176,7 +176,8 @@ struct _drive
     int freelist_entries;				    /* number of entries used in free list */
     struct drive_freelist *freelist;			    /* sorted list of free space on drive */
 #ifdef _KERNEL
-    struct partinfo partinfo;				    /* partition information */
+    u_int sectorsize;
+    off_t mediasize;
     dev_t dev;						    /* device information */
 #ifdef VINUMDEBUG
     char lockfilename[16];				    /* name of file from which we were locked */
