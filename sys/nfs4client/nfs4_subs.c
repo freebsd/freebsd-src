@@ -421,10 +421,11 @@ nfsm_v4build_setattr_xx(struct nfs4_compound *cp, struct vattr *vap,
     struct nfs4_fctx *fcp, struct mbuf **mb, caddr_t *bpos)
 {
 	int error;
+	static char zero_stateid[NFSX_V4STATEID];
 
 	nfsm_buildf_xx(mb, bpos, "uo",
 	    NFSV4OP_SETATTR,
-	    NFSX_V4STATEID, fcp->stateid);
+	    NFSX_V4STATEID, fcp ? fcp->stateid : zero_stateid);
 	error = nfsm_v4build_attrs_xx(vap, mb, bpos);
 	if (error == 0)
 		cp->req_nops++;

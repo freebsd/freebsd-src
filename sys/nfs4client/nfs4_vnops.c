@@ -90,6 +90,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/lockf.h>
 #include <sys/stat.h>
 #include <sys/sysctl.h>
+#include <sys/lockmgr.h>
 
 #include <vm/vm.h>
 #include <vm/vm_extern.h>
@@ -498,7 +499,7 @@ nfs4_openrpc(struct vnode *dvp, struct vnode **vpp, struct componentname *cnp,
 
 	/*
 	 * Since we are currently only one lockowner; we only open the
-	 * file one each for reading and writing.
+	 * file once each for reading and writing.
 	 */
 	if (fcp->refcnt++ != 0) {
 		*vpp = vp;
@@ -507,7 +508,6 @@ nfs4_openrpc(struct vnode *dvp, struct vnode **vpp, struct componentname *cnp,
 	}
 
 	fcp->lop = &nfs4_masterlowner;
-	fcp->pid = cnp->cn_thread->td_proc->p_pid;
 	fcp->np = np;
 
 	nfs_v4initcompound(&cp);
@@ -723,30 +723,7 @@ nfs4_closerpc(struct vnode *vp, struct ucred *cred, struct thread *td, int flags
 
 /*
  * nfs close vnode op
- * What an NFS client should do upon close after writing is a debatable issue.
- * Most NFS clients push delayed writes to the server upon close, basically for
- * two reasons:
- * 1 - So that any write errors may be reported back to the client process
- *     doing the close system call. By far the two most likely errors are
- *     NFSERR_NOSPC and NFSERR_DQUOT to indicate space allocation failure.
- * 2 - To put a worst case upper bound on cache inconsistency between
- *     multiple clients for the file.
- * There is also a consistency problem for Version 2 of the protocol w.r.t.
- * not being able to tell if other clients are writing a file concurrently,
- * since there is no way of knowing if the changed modify time in the reply
- * is only due to the write for this client.
- * (NFS Version 3 provides weak cache consistency data in the reply that
- *  should be sufficient to detect and handle this case.)
- *
- * The current code does the following:
- * for NFS Version 2 - play it safe and flush/invalidate all dirty buffers
- * for NFS Version 3 - flush dirty buffers to the server but don't invalidate
- *                     or commit them (this satisfies 1 and 2 except for the
- *                     case where the server crashes after this close but
- *                     before the commit RPC, which is felt to be "good
- *                     enough". Changing the last argument to nfs_flush() to
- *                     a 1 would force a commit operation, if it is felt a
- *                     commit is necessary now.
+ * play it safe for now (see comments in v2/v3 nfs_close regarding dirty buffers)
  */
 /* ARGSUSED */
 static int
@@ -760,32 +737,9 @@ nfs4_close(struct vop_close_args *ap)
 		return (0);
 
 	if (np->n_flag & NMODIFIED) {
-		if (NFS_ISV3(vp)) {
-			/*
-			 * Under NFSv3 we have dirty buffers to
-			 * dispose of.  We must flush them to the NFS
-			 * server.  We have the option of waiting all
-			 * the way through the commit rpc or just
-			 * waiting for the initial write.  The default
-			 * is to only wait through the initial write
-			 * so the data is in the server's cache, which
-			 * is roughly similar to the state a standard
-			 * disk subsystem leaves the file in on
-			 * close().
-			 *
-			 * We cannot clear the NMODIFIED bit in
-			 * np->n_flag due to potential races with
-			 * other processes, and certainly cannot clear
-			 * it if we don't commit.
-			 */
-			int cm = nfsv3_commit_on_close ? 1 : 0;
-			error = nfs4_flush(vp, ap->a_cred, MNT_WAIT, ap->a_td, cm);
-			/* np->n_flag &= ~NMODIFIED; */
-		} else {
-			vn_lock(vp, LK_EXCLUSIVE | LK_RETRY, ap->a_td);
-			error = nfs_vinvalbuf(vp, V_SAVE, ap->a_cred, ap->a_td, 1);
-			VOP_UNLOCK(vp, 0, ap->a_td);
-		}
+		vn_lock(vp, LK_EXCLUSIVE | LK_RETRY, ap->a_td);
+		error = nfs_vinvalbuf(vp, V_SAVE, ap->a_cred, ap->a_td, 1);
+		VOP_UNLOCK(vp, 0, ap->a_td);
 		np->n_attrstamp = 0;
 	}
 
@@ -946,6 +900,21 @@ nfs4_setattr(struct vop_setattr_args *ap)
   		(error = nfs_vinvalbuf(vp, V_SAVE, ap->a_cred,
 		 ap->a_td, 1)) == EINTR)
 		return (error);
+
+	if (vap->va_size != VNOVAL && np->n_wfc.refcnt == 0) {
+		/* Have to open the file before we can truncate it */
+		struct componentname cn;
+
+		cn.cn_nameptr = np->n_name;
+		cn.cn_namelen = np->n_namelen;
+		cn.cn_cred = ap->a_cred;
+		cn.cn_thread = ap->a_td;
+		error = nfs4_openrpc(np->n_dvp, &vp, &cn, FWRITE, NULL);
+		if (error)
+			return error;
+		np->n_flag |= NTRUNCATE;
+	}
+
 	error = nfs4_setattrrpc(vp, vap, ap->a_cred, ap->a_td);
 	if (error && vap->va_size != VNOVAL) {
 		np->n_size = np->n_vattr.va_size = tsize;
@@ -967,7 +936,7 @@ nfs4_setattrrpc(struct vnode *vp, struct vattr *vap, struct ucred *cred,
 	struct nfs4_compound cp;
 	struct nfs4_oparg_getattr ga;
 	struct nfsnode *np = VTONFS(vp);
-	struct nfs4_fctx *fcp = &np->n_wfc;
+	struct nfs4_fctx *fcp;
 
 	nfsstats.rpccnt[NFSPROC_SETATTR]++;
 	mreq = nfsm_reqhead(vp, NFSV4PROC_COMPOUND, 0);
@@ -975,6 +944,7 @@ nfs4_setattrrpc(struct vnode *vp, struct vattr *vap, struct ucred *cred,
 	bpos = mtod(mb, caddr_t);
 
 	ga.bm = &nfsv4_getattrbm;
+	fcp = (vap->va_size != VNOVAL) ? &np->n_wfc : NULL;
 	nfs_v4initcompound(&cp);
 
 	nfsm_v4build_compound(&cp, "nfs4_setattrrpc");
@@ -994,7 +964,7 @@ nfs4_setattrrpc(struct vnode *vp, struct vattr *vap, struct ucred *cred,
 
 	nfs4_vnop_loadattrcache(vp, &ga.fa, NULL);
 
-	/* XXX -- need to implement this in nfs4_setattr*/
+	/* TODO: do the settatr and close in a single compound rpc */
 	if (np->n_flag & NTRUNCATE) {
 		error = nfs4_closerpc(vp, cred, td, FWRITE);
 		np->n_flag &= ~NTRUNCATE;
