@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)com.c	7.5 (Berkeley) 5/16/91
- *	$Id: sio.c,v 1.175 1997/08/20 05:25:16 fsmp Exp $
+ *	$Id: sio.c,v 1.5 1997/08/21 06:08:45 smp Exp smp $
  */
 
 #include "opt_comconsole.h"
@@ -69,6 +69,7 @@
 #include <i386/isa/isa.h>
 #include <i386/isa/isa_device.h>
 #include <i386/isa/sioreg.h>
+#include <i386/isa/intr_machdep.h>
 
 #ifdef COM_ESP
 #include <i386/isa/ic/esp.h>
@@ -86,10 +87,9 @@
 /*
  * INTs are masked in the (global) IO APIC,
  *  but the IRR register is in each LOCAL APIC,
- *   so we HAVE to unmask the INT to be able to "see INT pending"
- * BUT how do we clear them???
+ *  so we would have to unmask the INT to be able to "see INT pending".
+ * So instead we just look in the 8259 ICU.
  */
-#include <i386/isa/intr_machdep.h>
 #define isa_irq_pending		icu_irq_pending
 #endif /* APIC_IO */
 
