@@ -388,6 +388,10 @@
       <para>The &man.ata.4; driver now supports the Promise SATA150
 	TX2 and TX4 Serial ATA/150 controllers.</para>
 
+      <para>The &man.ata.4; driver now flushes devices on shutdown.
+	This change may result in failure messages being printed on
+	the console for devices that do not support flushing.</para>
+
       <para>The CAM layer now has support for devices with more than
 	2<superscript>32</superscript> blocks.  (Assuming 512-byte
 	blocks, this means support for devices larger than 2TB.)
@@ -599,6 +603,9 @@
     <para>The MAKEDEV script is now unnecessary, due to the mandatory
       presence of &man.devfs.5;, and has been removed.</para>
 
+    <para>&man.mergemaster.8; now supports a <option>-P</option>
+      option to preserve the contents of files being replaced.</para>
+
     <para>&man.mixer.8; can now implement relative volume
       adjustments.</para>
 
@@ -748,6 +755,38 @@
       Note that <filename>libthr</filename> is not (at this time)
       built by default.</para>
 
+    <para>The historic BSD boot scripts in <filename>/etc</filename>
+      have been removed, in favor of the <filename>rc.d</filename>
+      system imported from <application>NetBSD</application>
+      (sometimes referred to as <quote>RCng</quote>).  All
+      functionality of the historic system has been preserved.  In
+      particular, files such as <filename>/etc/rc.conf</filename>
+      continue to be the recommended means of configuring the system
+      startup.  The <filename>rc.d</filename> system has been the
+      default since &os; 5.0-RELEASE, so this change should be largely
+      transparent for the vast majority of users.  Users who have
+      customized their historic-style startup scripts should be aware
+      that the following files have been removed from
+      <filename>/etc</filename>:
+
+      <filename>rc.atm</filename>,
+      <filename>rc.devfs</filename>,
+      <filename>rc.diskless1</filename>,
+      <filename>rc.diskless2</filename>,
+      <filename>rc.i386</filename>,
+      <filename>rc.isdn</filename>,
+      <filename>rc.network</filename>,
+      <filename>rc.network6</filename>,
+      <filename>rc.pccard</filename>,
+      <filename>rc.sendmail</filename>,
+      <filename>rc.serial</filename>,
+      <filename>rc.syscons</filename>,
+      <filename>rc.sysctl</filename>.
+
+      &man.mergemaster.8;, when run, will offer to move these files
+      out of the way for convenience.  More details can be found in
+      &man.rc.subr.8;.</para>
+
   </sect2>
 
   <sect2 id="contrib">
@@ -810,8 +849,9 @@
       by default) has been updated to a snapshot from 22 January
       2003.</para>
 
-    <para><application>OpenPAM</application> has been updated to the
-      <quote>Daffodil</quote> release.</para>
+    <para><application>OpenPAM</application> has been updated from the
+      <quote>Citronella</quote> release to the
+      <quote>Dianthus</quote> release.</para>
 
     <para><application>OpenSSH</application> has been updated to
       3.6.1p1.</para>
@@ -829,6 +869,9 @@
       link types available on an interface and a <option>-y</option>
       option to specify the data link type to use while capturing
       packets.</para>
+
+    <para><application>texinfo</application> has been updated from 4.2
+      to 4.5.</para>
 
     <para>The timezone database has been updated from
       <filename>tzdata2002d</filename> to
