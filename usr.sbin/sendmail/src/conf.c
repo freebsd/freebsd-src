@@ -1020,10 +1020,10 @@ refuseconnections()
 #  ifdef __bsdi__
 #   undef PS_STRINGS	/* BSDI 1.0 doesn't do PS_STRINGS as we expect */
 #   define PROCTITLEPAD	'\0'
+#  endif
 #  ifdef __FreeBSD__
 #   undef PS_STRINGS	/* XXX This is broken due to needing<machine/pmap.h> */
 #   define PROCTITLEPAD	'\0'
-#  endif
 #  endif
 #  ifdef PS_STRINGS
 #   define SETPROC_STATIC static
