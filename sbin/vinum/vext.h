@@ -35,7 +35,7 @@
  */
 
 /*
- * $Id: vext.h,v 1.14 1999/12/27 03:55:26 grog Exp grog $
+ * $Id: vext.h,v 1.15 2000/02/17 05:10:47 grog Exp grog $
  * $FreeBSD$
  */
 
@@ -113,6 +113,7 @@ void vinum_lv(int argc, char *argv[], char *arg0[]);
 void vinum_setstate(int argc, char *argv[], char *argv0[]);
 void vinum_checkparity(int argc, char *argv[], char *argv0[]);
 void vinum_rebuildparity(int argc, char *argv[], char *argv0[]);
+void parityops(int argc, char *argv[], enum parityop op);
 void start_daemon(void);
 #ifdef VINUMDEBUG
 void vinum_debug(int argc, char *argv[], char *arg0[]);
