@@ -19,15 +19,15 @@ SRCS+=	dev_net.c
 .endif
 
 # Machine-independant ISA PnP
-.if HAVE_ISABUS
+.if defined(HAVE_ISABUS)
 SRCS+=	isapnp.c
 .endif
-.if HAVE_PNP
+.if defined(HAVE_PNP)
 SRCS+=	pnp.c
 .endif
 
 # Forth interpreter
-.if BOOT_FORTH
+.if defined(BOOT_FORTH)
 SRCS+=	interp_forth.c
 MAN+=	../forth/loader.conf.5
 MAN+=	../forth/loader.4th.8
