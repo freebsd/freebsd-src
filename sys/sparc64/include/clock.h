@@ -29,4 +29,8 @@
 #ifndef	_MACHINE_CLOCK_H_
 #define	_MACHINE_CLOCK_H_
 
+extern u_long tick_increment;
+extern u_long tick_freq;
+extern u_long tick_MHz;
+
 #endif /* !_MACHINE_CLOCK_H_ */
