@@ -197,7 +197,6 @@ static Distribution XF86FontDistTable[] = {
 { NULL },
 };
 
-static int	distMaybeSetCRYPTO(dialogMenuItem *self);
 static int	distMaybeSetPorts(dialogMenuItem *self);
 
 static void
@@ -211,7 +210,7 @@ distVerifyFlags(void)
 	Dists |= DIST_CRYPTO;
     }
     else if ((Dists & DIST_CRYPTO) && !CRYPTODists)
-	CRYPTODists |= DIST_CRYPTO_CRYPTO;
+	CRYPTODists |= DIST_CRYPTO_ALL;
     if (XF86Dists & DIST_XF86_SET)
 	XF86ServerDists |= DIST_XF86_SERVER_VGA16;
     if (XF86ServerDists)
@@ -291,7 +290,9 @@ distSetDeveloper(dialogMenuItem *self)
     distReset(NULL);
     Dists = _DIST_DEVELOPER;
     SrcDists = DIST_SRC_ALL;
-    i = distMaybeSetCRYPTO(self) | distMaybeSetPorts(self);
+    CRYPTODists |= (DIST_CRYPTO_SCRYPTO | DIST_CRYPTO_SSECURE |
+	DIST_CRYPTO_SKERBEROS4 | DIST_CRYPTO_SKERBEROS5);
+    i = distMaybeSetPorts(self);
     distVerifyFlags();
     return i;
 }
@@ -315,7 +316,7 @@ distSetKernDeveloper(dialogMenuItem *self)
     distReset(NULL);
     Dists = _DIST_DEVELOPER;
     SrcDists = DIST_SRC_SYS;
-    i = distMaybeSetCRYPTO(self) | distMaybeSetPorts(self);
+    i = distMaybeSetPorts(self);
     distVerifyFlags();
     return i;
 }
@@ -338,7 +339,7 @@ distSetUser(dialogMenuItem *self)
 
     distReset(NULL);
     Dists = _DIST_USER;
-    i = distMaybeSetCRYPTO(self) | distMaybeSetPorts(self);
+    i = distMaybeSetPorts(self);
     distVerifyFlags();
     return i;
 }
@@ -369,48 +370,13 @@ distSetEverything(dialogMenuItem *self)
 
     Dists = DIST_ALL | DIST_XF86;
     SrcDists = DIST_SRC_ALL;
+    CRYPTODists = DIST_CRYPTO_ALL;
     XF86Dists = DIST_XF86_ALL;
     XF86ServerDists = DIST_XF86_SERVER_ALL;
     XF86FontDists = DIST_XF86_FONTS_ALL;
-    i = distMaybeSetCRYPTO(self) | distMaybeSetPorts(self);
+    i = distMaybeSetPorts(self);
     distVerifyFlags();
     return i;
-}
-
-int
-distSetCRYPTO(dialogMenuItem *self)
-{
-    int i;
-
-    dialog_clear_norefresh();
-    if (!dmenuOpenSimple(&MenuCRYPTODistributions, FALSE))
-	i = DITEM_FAILURE;
-    else
-	i = DITEM_SUCCESS;
-    distVerifyFlags();
-    return i | DITEM_REDRAW | DITEM_RESTORE;
-}
-
-static int
-distMaybeSetCRYPTO(dialogMenuItem *self)
-{
-    int i = DITEM_SUCCESS | DITEM_REDRAW;
-
-    dialog_clear_norefresh();
-    if (!msgYesNo("Do you wish to install cryptographic software?\n\n"
-		  "If you choose No, FreeBSD will use an MD5-based password scheme which,\n"
-		  "while more secure, is not interoperable with the traditional\n"
-		  "DES-based passwords used on other Unix systems.\n\n"
-		  "Note that the international crypto distribution has a better\n"
-		  "implementation of the RSA algorithm, which is patented in the U.S.\n"
-		  "If you are in the USA, use crypto + the rsaref port/package\n.")) {
-	if (!dmenuOpenSimple(&MenuCRYPTODistributions, FALSE))
-	    i = DITEM_FAILURE;
-    }
-
-    dialog_clear_norefresh();
-    distVerifyFlags();
-    return i | DITEM_REDRAW | DITEM_RESTORE;
 }
 
 static int
