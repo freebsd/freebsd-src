@@ -14,7 +14,7 @@
  * Turned inside out. Now returns xfers as new file ids, not as a special
  * `state' of FTP_t
  *
- * $Id: ftpio.c,v 1.18 1996/11/14 06:59:39 ache Exp $
+ * $Id: ftpio.c,v 1.20 1996/11/14 09:51:47 ache Exp $
  *
  */
 
@@ -45,7 +45,7 @@
 #endif
 
 /* How to see by a given code whether or not the connection has timed out */
-#define FTP_TIMEOUT(code)	(code == 421)
+#define FTP_TIMEOUT(code)	(FtpTimedOut || code == FTP_TIMED_OUT)
 
 /* Internal routines - deal only with internal FTP_t type */
 static FTP_t	ftp_new(void);
@@ -62,18 +62,27 @@ static int	ftp_login_session(FTP_t ftp, char *host, char *user, char *passwd, in
 static int	ftp_file_op(FTP_t ftp, char *operation, char *file, FILE **fp, char *mode, off_t *seekto);
 static int	ftp_close(FTP_t ftp);
 static int	get_url_info(char *url_in, char *host_ret, int *port_ret, char *name_ret);
+static void	ftp_timeout(int sig);
+static void	ftp_set_timeout(void);
+static void	ftp_clear_timeout(void);
+
 
 /* Global status variable - ick */
 int FtpTimedOut;
 
-/* FTP status codes */
-#define FTP_ASCII_HAPPY	200
-#define FTP_BINARY_HAPPY	200
-#define FTP_PORT_HAPPY		200
+/* FTP happy status codes */
+#define FTP_GENERALLY_HAPPY	200
+#define FTP_ASCII_HAPPY		FTP_GENERALLY_HAPPY
+#define FTP_BINARY_HAPPY	FTP_GENERALLY_HAPPY
+#define FTP_PORT_HAPPY		FTP_GENERALLY_HAPPY
+#define FTP_HAPPY_COMMENT	220
 #define FTP_QUIT_HAPPY		221
 #define FTP_TRANSFER_HAPPY	226
 #define FTP_PASSIVE_HAPPY	227
 #define FTP_CHDIR_HAPPY		250
+
+/* FTP unhappy status codes */
+#define FTP_TIMED_OUT		421
 
 /*
  * XXX
@@ -98,11 +107,11 @@ check_code(FTP_t ftp, int var, int preferred)
     while (1) {
 	if (var == preferred)
 	    return 0;
-	else if (var == 226)	/* last operation succeeded */
+	else if (var == FTP_TRANSFER_HAPPY)	/* last operation succeeded */
 	    var = get_a_number(ftp, NULL);
-	else if (var == 220)	/* chit-chat */
+	else if (var == FTP_HAPPY_COMMENT)	/* chit-chat */
 	    var = get_a_number(ftp, NULL);
-	else if (var == 200)	/* success codes */
+	else if (var == FTP_GENERALLY_HAPPY)	/* general success code */
 	    var = get_a_number(ftp, NULL);
 	else {
 	    ftp->errno = var;
@@ -189,8 +198,7 @@ ftpGetSize(FILE *fp, char *name)
     sprintf(p, "SIZE %s\r\n", name);
     if (ftp->is_verbose)
 	fprintf(stderr, "Sending %s", p);
-    i = writes(ftp->fd_ctrl, p);
-    if (i)
+    if (writes(ftp->fd_ctrl, p))
 	return (off_t)-1;
     i = get_a_number(ftp, &cp);
     if (check_code(ftp, i, 213))
@@ -216,8 +224,7 @@ ftpGetModtime(FILE *fp, char *name)
     sprintf(p, "MDTM %s\r\n", name);
     if (ftp->is_verbose)
 	fprintf(stderr, "Sending %s", p);
-    i = writes(ftp->fd_ctrl, p);
-    if (i)
+    if (writes(ftp->fd_ctrl, p))
 	return (time_t)0;
     i = get_a_number(ftp, &cp);
     if (check_code(ftp, i, 213))
@@ -473,10 +480,31 @@ check_passive(FILE *fp)
 }
 
 static void
-ftp_timeout()
+ftp_timeout(int sig)
 {
     FtpTimedOut = TRUE;
     /* Debug("ftp_pkg: ftp_timeout called - operation timed out"); */
+}
+
+static void
+ftp_set_timeout(void)
+{
+    char *cp;
+    int ival;
+
+    FtpTimedOut = FALSE;
+    signal(SIGALRM, ftp_timeout);
+    cp = getenv("FTP_TIMEOUT_INTERVAL");
+    if (!cp || !(ival = atoi(cp)))
+	ival = 120;
+    alarm(ival);
+}
+
+static void
+ftp_clear_timeout(void)
+{
+    alarm(0);
+    signal(SIGALRM, SIG_DFL);
 }
 
 static int
@@ -484,16 +512,12 @@ writes(int fd, char *s)
 {
     int n, i = strlen(s);
 
-    /* Set the timer */
-    FtpTimedOut = FALSE;
-    signal(SIGALRM, ftp_timeout);
-    alarm(120);
-    /* Debug("ftp_pkg: writing \"%s\" to ftp connection %d", s, fd); */
+    ftp_set_timeout();
     n = write(fd, s, i);
-    alarm(0);
-    if (i != n)
-	return FAILURE;
-    return SUCCESS;
+    ftp_clear_timeout();
+    if (FtpTimedOut || i != n)
+	return TRUE;
+    return FALSE;
 }
 
 static __inline char *
@@ -502,16 +526,12 @@ get_a_line(FTP_t ftp)
     static char buf[BUFSIZ];
     int i,j;
 
-    /* Set the timer */
-    FtpTimedOut = FALSE;
-    signal(SIGALRM, ftp_timeout);
-
     /* Debug("ftp_pkg: trying to read a line from %d", ftp->fd_ctrl); */
     for(i = 0; i < BUFSIZ;) {
-	alarm(120);
+	ftp_set_timeout();
 	j = read(ftp->fd_ctrl, buf + i, 1);
-	alarm(0);
-	if (j != 1)
+	ftp_clear_timeout();
+	if (FtpTimedOut || j != 1)
 	    return NULL;
 	if (buf[i] == '\r' || buf[i] == '\n') {
 	    if (!i)
@@ -537,6 +557,8 @@ get_a_number(FTP_t ftp, char **q)
 	p = get_a_line(ftp);
 	if (!p) {
 	    ftp_close(ftp);
+	    if (FtpTimedOut)
+		return FTP_TIMED_OUT;
 	    return FAILURE;
 	}
 	if (!(isdigit(p[0]) && isdigit(p[1]) && isdigit(p[2])))
@@ -606,10 +628,12 @@ cmd(FTP_t ftp, const char *fmt, ...)
     strcat(p, "\r\n");
     if (ftp->is_verbose)
 	fprintf(stderr, "Sending: %s", p);
-    i = writes(ftp->fd_ctrl, p);
-    if (i)
+    if (writes(ftp->fd_ctrl, p)) {
+	if (FtpTimedOut)
+	    return FTP_TIMED_OUT;
 	return FAILURE;
-    while ((i = get_a_number(ftp, NULL)) == 220);
+    }
+    while ((i = get_a_number(ftp, NULL)) == FTP_HAPPY_COMMENT);
     return i;
 }
 
@@ -728,6 +752,7 @@ ftp_file_op(FTP_t ftp, char *operation, char *file, FILE **fp, char *mode, off_t
 	    (void)close(s);
 	    return FAILURE;
 	}
+
 	if (seekto && *seekto) {
 	    i = cmd(ftp, "REST %d", *seekto);
 	    if (i < 0 || FTP_TIMEOUT(i)) {
@@ -753,7 +778,7 @@ ftp_file_op(FTP_t ftp, char *operation, char *file, FILE **fp, char *mode, off_t
 	sin.sin_port = 0;
 	i = sizeof sin;
 	if (bind(s, (struct sockaddr *)&sin, i) < 0) {
-	    close (s);	
+	    close(s);	
 	    return FAILURE;
 	}
 	getsockname(s,(struct sockaddr *)&sin,&i);
