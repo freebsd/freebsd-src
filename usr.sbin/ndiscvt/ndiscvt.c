@@ -171,7 +171,7 @@ main(int argc, char *argv[])
 	char		*inffile = NULL, *sysfile = NULL, *outfile = NULL;
 	int		ch;
 
-	while((ch = getopt(argc, argv, "i:s:o")) != -1) {
+	while((ch = getopt(argc, argv, "i:s:o:")) != -1) {
 		switch(ch) {
 		case 'i':
 			inffile = optarg;
