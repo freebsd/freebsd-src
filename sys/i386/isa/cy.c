@@ -27,7 +27,7 @@
  * NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
  * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *	$Id: cy.c,v 1.79 1998/12/17 18:43:08 bde Exp $
+ *	$Id: cy.c,v 1.80 1998/12/17 19:23:09 bde Exp $
  */
 
 #include "opt_compat.h"
@@ -355,6 +355,7 @@ ointhand2_t	siointr;
 static	int	cy_units	__P((cy_addr cy_iobase, int cy_align));
 static	int	sioattach	__P((struct isa_device *dev));
 static	void	cd1400_channel_cmd __P((struct com_s *com, int cmd));
+static	void	cd1400_channel_cmd_wait __P((struct com_s *com));
 static	void	cd_etc		__P((struct com_s *com, int etc));
 static	int	cd_getreg	__P((struct com_s *com, int reg));
 static	void	cd_setreg	__P((struct com_s *com, int reg, int val));
@@ -2682,22 +2683,35 @@ cd1400_channel_cmd(com, cmd)
 	struct com_s	*com;
 	int		cmd;
 {
-	/* XXX hsu@clinet.fi: This is always more dependent on ISA bus speed,
-	   as the card is probed every round?  Replaced delaycount with 8k.
-	   Either delaycount has to be implemented in FreeBSD or more sensible
-	   way of doing these should be implemented.  DELAY isn't enough here.
-	   */
-	u_int	maxwait = 5 * 8 * 1024;	/* approx. 5 ms */
-
-	/* wait for processing of previous command to complete */
-	while (cd_getreg(com, CD1400_CCR) && maxwait--)
-		;
-
-	if (!maxwait)
-		log(LOG_ERR, "cy: channel command timeout (%d loops) - arrgh\n",
-		    5 * 8 * 1024);
-
+	cd1400_channel_cmd_wait(com);
 	cd_setreg(com, CD1400_CCR, cmd);
+	cd1400_channel_cmd_wait(com);
+}
+
+static void
+cd1400_channel_cmd_wait(com)
+	struct com_s	*com;
+{
+	struct timeval	start;
+	struct timeval	tv;
+	long		usec;
+
+	if (cd_getreg(com, CD1400_CCR) == 0)
+		return;
+	microtime(&start);
+	for (;;) {
+		if (cd_getreg(com, CD1400_CCR) == 0)
+			return;
+		microtime(&tv);
+		usec = 1000000 * (tv.tv_sec - start.tv_sec) +
+		    tv.tv_usec - start.tv_usec;
+		if (usec >= 5000) {
+			log(LOG_ERR,
+			    "cy%d: channel command timeout (%ld usec)\n",
+			    com->unit, usec);
+			return;
+		}
+	}
 }
 
 static void
