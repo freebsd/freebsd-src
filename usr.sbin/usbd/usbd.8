@@ -52,7 +52,7 @@
 .Sh DESCRIPTION
 The
 .Nm
-utility handles the USB device attachment and detachment.
+utility handles USB device attachment and detachment.
 It does two things.
 Through opening the
 .Pa /dev/usb0 ,
@@ -71,7 +71,9 @@ If the
 .Dq ohci
 and
 .Dq uhci
-modules are not loaded, it will load them automatically.
+modules are not loaded,
+.Nm
+will load them automatically.
 .Pp
 The second part is the handling of the attachment and detachment of USB
 devices.
@@ -81,7 +83,7 @@ is opened and events are read from it.
 Whenever a device is attached or
 detached the list of actions read from
 .Pa /etc/usbd.conf
-are searched for a matching entry.
+is searched for a matching entry.
 If found, the corresponding action is
 executed.
 .Pp
