@@ -62,10 +62,6 @@ isp_pci_dmateardown(struct ispsoftc *, XS_T *, u_int16_t);
 static void isp_pci_reset1(struct ispsoftc *);
 static void isp_pci_dumpregs(struct ispsoftc *, const char *);
 
-#ifndef	ISP_CODE_ORG
-#define	ISP_CODE_ORG		0x1000
-#endif
-
 static struct ispmdvec mdvec = {
 	isp_pci_rd_isr,
 	isp_pci_rd_reg,
@@ -266,7 +262,7 @@ struct isp_pcisoftc {
 	bus_dma_tag_t			dmat;
 	bus_dmamap_t			*dmaps;
 };
-ispfwfunc *isp_get_firmware_p = NULL;
+extern ispfwfunc *isp_get_firmware_p;
 
 static device_method_t isp_pci_methods[] = {
 	/* Device interface */
@@ -281,7 +277,6 @@ static driver_t isp_pci_driver = {
 };
 static devclass_t isp_devclass;
 DRIVER_MODULE(isp, pci, isp_pci_driver, isp_devclass, 0, 0);
-MODULE_VERSION(isp, 1);
 
 static int
 isp_pci_probe(device_t dev)
@@ -320,11 +315,12 @@ isp_pci_probe(device_t dev)
 	default:
 		return (ENXIO);
 	}
-	if (device_get_unit(dev) == 0 && bootverbose) {
+	if (isp_announced == 0 && bootverbose) {
 		printf("Qlogic ISP Driver, FreeBSD Version %d.%d, "
 		    "Core Version %d.%d\n",
 		    ISP_PLATFORM_VERSION_MAJOR, ISP_PLATFORM_VERSION_MINOR,
 		    ISP_CORE_VERSION_MAJOR, ISP_CORE_VERSION_MINOR);
+		isp_announced++;
 	}
 	/*
 	 * XXXX: Here is where we might load the f/w module
@@ -688,7 +684,6 @@ isp_pci_attach(device_t dev)
 		}
 	}
 
-	isp_debug = 0;
 	isp_debug = 0;
         (void) resource_int_value(device_get_name(dev), device_get_unit(dev),
             "debug", &isp_debug);
