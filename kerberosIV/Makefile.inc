@@ -72,13 +72,13 @@ CFLAGS+= -I${.CURDIR}/../../include -Wall -DHAVE_CONFIG_H \
 COMPILE_ET=     compile_et
 
 ${KADMOBJDIR}/kadm_err.c ${KADMOBJDIR}/kadm_err.h: ${KRB4DIR}/lib/kadm/kadm_err.et          
-	test -e ${KADMOBJDIR}/kadm_err.et || ln -s ${.ALLSRC} ${KADMOBJDIR}
+	test -e ${KADMOBJDIR}/kadm_err.et || ln -sf ${.ALLSRC} ${KADMOBJDIR}
 	cd ${KADMOBJDIR}; ${COMPILE_ET} kadm_err.et
 
 CLEANFILES+=${KADMOBJDIR}/kadm_err.h ${KADMOBJDIR}/kadm_err.c ${KADMOBJDIR}/kadm_err.et
 
 ${KRBOBJDIR}/krb_err.c ${KRBOBJDIR}/krb_err.h: ${KRB4DIR}/lib/krb/krb_err.et
-	test -e ${KRBOBJDIR}/krb_err.et || ln -s ${.ALLSRC} ${KRBOBJDIR}
+	test -e ${KRBOBJDIR}/krb_err.et || ln -sf ${.ALLSRC} ${KRBOBJDIR}
 	cd ${KRBOBJDIR}; ${COMPILE_ET} krb_err.et
 
 CLEANFILES+=${KRBOBJDIR}/krb_err.h ${KRBOBJDIR}/krb_err.c ${KRBOBJDIR}/krb_err.et
