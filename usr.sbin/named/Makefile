@@ -27,8 +27,7 @@ CFLAGS+=	-I${SRCDIR}/unix/include -I${SRCDIR}/include -I${LIB_BIND_DIR}
 DPADD+=		${BIND_DPADD} ${CRYPTO_DPADD} ${PTHREAD_DPADD}
 LDADD+=		${BIND_LDADD} ${CRYPTO_LDADD} ${PTHREAD_LDADD}
 
-MAN5=		named.conf.5
-MAN8=		named.8 lwresd.8
+MAN=		named.8 lwresd.8 named.conf.5
 
 MANFILTER=	sed -e "s@/etc/named\.conf@/etc/namedb/named.conf@g"
 
