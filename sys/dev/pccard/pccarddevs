@@ -147,8 +147,8 @@ vendor ELSA			0xd601  Elsa
 
 /*
  * The following vendor IDs are not, as far as I can tell, actually
- * assigned to these people.  However, all the ones starting with '0xc'
- * look coherent enough that maybe somebody other than PCMCIA is
+ * assigned to these people by the pcmcia.  However, all the ones starting
+ * with '0xc' look coherent enough that maybe somebody other than PCMCIA is
  * assigning numbers in that range.
  */
 vendor NEWMEDIA2		0x10cd	NewMedia
@@ -165,6 +165,7 @@ vendor COREGA2			0xc00f	Corega K.K.
 vendor ALLIEDTELESIS		0xc00f	Allied Telesis K.K.
 vendor HAGIWARASYSCOM		0xc012	Hagiwara SYS-COM
 vendor RATOC			0xc015  RATOC System Inc.
+vendor NEXTCOM			0xc020	NextCom K.K.
 vendor WORKBIT			0xc024	WORKBIT
 vendor EMTAC			0xc250	EMTAC Technology Corporation
 
@@ -389,6 +390,9 @@ product NETGEAR FA411		0x0411 Netgear FA411
 
 /* National Instruments */
 product NI PCMCIA_GPIB	 	0x4882 National Instruments PCMCIA-GPIB
+
+/* NextCom K.K. */
+product NEXTCOM NEXTHAWK	0x0001 Next Hawk Ethernet
 
 /* Nokia Products */
 product NOKIA C110_WLAN		0x1110 Nokia C110/C111
