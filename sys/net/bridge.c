@@ -593,16 +593,16 @@ bdg_timeout(void *dummy)
 	if (l > HASH_SIZE)
 	    l = HASH_SIZE ;
 
-    for (i=0; i<n_clusters; i++) {
-	bdg_hash_table *bdg_table = clusters[i].ht;
-	for (; age_index < l ; age_index++)
-	    if (bdg_table[age_index].used)
-		bdg_table[age_index].used = 0 ;
-	    else if (bdg_table[age_index].name) {
-		/* printf("xx flushing stale entry %d\n", age_index); */
-		bdg_table[age_index].name = NULL ;
-	    }
-    }
+	for (i=0; i<n_clusters; i++) {
+	    bdg_hash_table *bdg_table = clusters[i].ht;
+	    for (; age_index < l ; age_index++)
+		if (bdg_table[age_index].used)
+		    bdg_table[age_index].used = 0 ;
+		else if (bdg_table[age_index].name) {
+		    /* printf("xx flushing stale entry %d\n", age_index); */
+		    bdg_table[age_index].name = NULL ;
+		}
+	}
 	if (age_index >= HASH_SIZE)
 	    age_index = 0 ;
 
