@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)uipc_socket.c	8.3 (Berkeley) 4/15/94
- *	$Id: uipc_socket.c,v 1.35 1998/02/04 22:32:37 eivind Exp $
+ *	$Id: uipc_socket.c,v 1.36 1998/02/06 12:13:28 eivind Exp $
  */
 
 #include <sys/param.h>
@@ -384,8 +384,12 @@ restart:
 		s = splnet();
 		if (so->so_state & SS_CANTSENDMORE)
 			snderr(EPIPE);
-		if (so->so_error)
-			snderr(so->so_error);
+		if (so->so_error) {
+			error = so->so_error;
+			so->so_error = 0;
+			splx(s);
+			goto release;
+		}
 		if ((so->so_state & SS_ISCONNECTED) == 0) {
 			/*
 			 * `sendto' and `sendmsg' is allowed on a connection-
