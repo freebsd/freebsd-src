@@ -33,7 +33,7 @@
 .\" SUCH DAMAGE.
 .\"
 .\"	from: @(#)quota.1	8.1 (Berkeley) 6/6/93
-.\"	$Id: quota.1,v 1.2 1996/01/05 08:37:28 graichen Exp $
+.\"	$Id: quota.1,v 1.3 1996/10/05 22:27:14 wosch Exp $
 .\"
 .Dd June 6, 1993
 .Dt QUOTA 1
@@ -69,7 +69,7 @@ The optional
 .Fl u
 flag is equivalent to the default.
 .It Fl v
-.Nm quota
+.Nm Quota
 will display quotas on filesystems
 where no storage is allocated.
 .It Fl q
@@ -116,7 +116,7 @@ For
 filesystems, quotas must be turned on in
 .Pa /etc/fstab .
 If
-.Nm quota
+.Nm
 exits with a non-zero status, one or more filesystems
 are over quota.
 .Sh FILES
@@ -130,7 +130,7 @@ to find filesystem names and locations
 .El
 .Sh HISTORY
 The
-.Nm quota
+.Nm
 command appeared in
 .Bx 4.2 .
 .Sh SEE ALSO
