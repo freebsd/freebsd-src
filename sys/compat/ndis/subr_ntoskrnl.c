@@ -183,6 +183,7 @@ __stdcall static void dummy(void);
 
 static struct mtx ntoskrnl_dispatchlock;
 static kspin_lock ntoskrnl_global;
+static kspin_lock ntoskrnl_cancellock;
 static int ntoskrnl_kth = 0;
 static struct nt_objref_head ntoskrnl_reflist;
 
@@ -531,7 +532,14 @@ IoBuildSynchronousFsdRequest(func, dobj, buf, len, off, event, status)
 	nt_kevent		*event;
 	io_status_block		*status;
 {
-	return(NULL);
+	irp			*ip;
+
+	ip = IoBuildAsynchronousFsdRequest(func, dobj, buf, len, off, status);
+	if (ip == NULL)
+		return(NULL);
+	ip->irp_usrevent = event;
+
+	return(ip);
 }
 
 __stdcall static irp *
@@ -543,7 +551,66 @@ IoBuildAsynchronousFsdRequest(func, dobj, buf, len, off, status)
 	uint64_t		*off;
 	io_status_block		*status;
 {
-	return(NULL);
+	irp			*ip;
+	io_stack_location	*sl;
+
+	ip = IoAllocateIrp(dobj->do_stacksize, TRUE);
+	if (ip == NULL)
+		return(NULL);
+
+	ip->irp_usriostat = status;
+	ip->irp_tail.irp_overlay.irp_thread = NULL;
+
+	sl = IoGetNextIrpStackLocation(ip);
+	sl->isl_major = func;
+	sl->isl_minor = 0;
+	sl->isl_flags = 0;
+	sl->isl_ctl = 0;
+	sl->isl_devobj = dobj;
+	sl->isl_fileobj = NULL;
+	sl->isl_completionfunc = NULL;
+
+	ip->irp_userbuf = buf;
+
+	if (dobj->do_flags & DO_BUFFERED_IO) {
+		ip->irp_assoc.irp_sysbuf =
+		    ExAllocatePoolWithTag(NonPagedPool, len, 0);
+		if (ip->irp_assoc.irp_sysbuf == NULL) {
+			IoFreeIrp(ip);
+			return(NULL);
+		}
+		bcopy(buf, ip->irp_assoc.irp_sysbuf, len);
+	}
+
+	if (dobj->do_flags & DO_DIRECT_IO) {
+		ip->irp_mdl = IoAllocateMdl(buf, len, FALSE, FALSE, ip);
+		if (ip->irp_mdl == NULL) {
+			if (ip->irp_assoc.irp_sysbuf != NULL)
+				ExFreePool(ip->irp_assoc.irp_sysbuf);
+			IoFreeIrp(ip);
+			return(NULL);
+		}
+		ip->irp_userbuf = NULL;
+		ip->irp_assoc.irp_sysbuf = NULL;
+	}
+
+	if (func == IRP_MJ_READ) {
+		sl->isl_parameters.isl_read.isl_len = len;
+		if (off != NULL)
+			sl->isl_parameters.isl_read.isl_byteoff = *off;
+		else
+			sl->isl_parameters.isl_read.isl_byteoff = 0;
+	}
+
+	if (func == IRP_MJ_WRITE) {
+		sl->isl_parameters.isl_write.isl_len = len;
+		if (off != NULL)
+			sl->isl_parameters.isl_write.isl_byteoff = *off;
+		else
+			sl->isl_parameters.isl_write.isl_byteoff = 0;
+	}	
+
+	return(ip);
 }
 
 __stdcall static irp *
@@ -559,7 +626,87 @@ IoBuildDeviceIoControlRequest(iocode, dobj, ibuf, ilen, obuf, olen,
 	nt_kevent		*event;
 	io_status_block		*status;
 {
-	return (NULL);
+	irp			*ip;
+	io_stack_location	*sl;
+	uint32_t		buflen;
+
+	ip = IoAllocateIrp(dobj->do_stacksize, TRUE);
+	if (ip == NULL)
+		return(NULL);
+	ip->irp_usrevent = event;
+	ip->irp_usriostat = status;
+	ip->irp_tail.irp_overlay.irp_thread = NULL;
+
+	sl = IoGetNextIrpStackLocation(ip);
+	sl->isl_major = isinternal == TRUE ?
+	    IRP_MJ_INTERNAL_DEVICE_CONTROL : IRP_MJ_DEVICE_CONTROL;
+	sl->isl_minor = 0;
+	sl->isl_flags = 0;
+	sl->isl_ctl = 0;
+	sl->isl_devobj = dobj;
+	sl->isl_fileobj = NULL;
+	sl->isl_completionfunc = NULL;
+	sl->isl_parameters.isl_ioctl.isl_iocode = iocode;
+	sl->isl_parameters.isl_ioctl.isl_ibuflen = ilen;
+	sl->isl_parameters.isl_ioctl.isl_obuflen = olen;
+
+	switch(IO_METHOD(iocode)) {
+	case METHOD_BUFFERED:
+		if (ilen > olen)
+			buflen = ilen;
+		else
+			buflen = olen;
+		if (buflen) {
+			ip->irp_assoc.irp_sysbuf =
+			    ExAllocatePoolWithTag(NonPagedPool, buflen, 0);
+			if (ip->irp_assoc.irp_sysbuf == NULL) {
+				IoFreeIrp(ip);
+				return(NULL);
+			}
+		}
+		if (ilen && ibuf != NULL) {
+			bcopy(ibuf, ip->irp_assoc.irp_sysbuf, ilen);
+			bzero((char *)ip->irp_assoc.irp_sysbuf + ilen,
+			    buflen - ilen);
+		} else
+			bzero(ip->irp_assoc.irp_sysbuf, ilen);
+		ip->irp_userbuf = obuf;
+		break;
+	case METHOD_IN_DIRECT:
+	case METHOD_OUT_DIRECT:
+		if (ilen && ibuf != NULL) {
+			ip->irp_assoc.irp_sysbuf =
+			    ExAllocatePoolWithTag(NonPagedPool, ilen, 0);
+			if (ip->irp_assoc.irp_sysbuf == NULL) {
+				IoFreeIrp(ip);
+				return(NULL);
+			}
+			bcopy(ibuf, ip->irp_assoc.irp_sysbuf, ilen);
+		}
+		if (olen && obuf != NULL) {
+			ip->irp_mdl = IoAllocateMdl(obuf, olen,
+			    FALSE, FALSE, ip);
+			/*
+			 * Normally we would MmProbeAndLockPages()
+			 * here, but we don't have to in our
+			 * imlementation.
+			 */
+		}
+		break;
+	case METHOD_NEITHER:
+		ip->irp_userbuf = obuf;
+		sl->isl_parameters.isl_ioctl.isl_type3ibuf = ibuf;
+		break;
+	default:
+		break;
+	}
+
+	/*
+	 * Ideally, we should associate this IRP with the calling
+	 * thread here.
+	 */
+
+	return (ip);
 }
 
 __stdcall static irp *
@@ -637,6 +784,38 @@ IoReuseIrp(ip, status)
 	ip->irp_allocflags = allocflags;
 
 	return;
+}
+
+__stdcall void
+IoAcquireCancelSpinLock(irql)
+	uint8_t			*irql;
+{
+	KeAcquireSpinLock(&ntoskrnl_cancellock, irql);
+	return;
+}
+
+__stdcall void
+IoReleaseCancelSpinLock(irql)
+	uint8_t			irql;
+{
+	KeReleaseSpinLock(&ntoskrnl_cancellock, irql);
+	return;
+}
+
+__stdcall uint8_t
+IoCancelIrp(irp *ip)
+{
+	cancel_func		cfunc;
+
+	IoAcquireCancelSpinLock(&ip->irp_cancelirql);
+	cfunc = IoSetCancelRoutine(ip, NULL);
+	ip->irp_cancel = TRUE;
+	if (ip->irp_cancelfunc == NULL) {
+		IoReleaseCancelSpinLock(ip->irp_cancelirql);
+		return(FALSE);
+	}
+	MSCALL2(cfunc, IoGetCurrentIrpStackLocation(ip)->isl_devobj, ip);
+	return(TRUE);
 }
 
 __fastcall uint32_t
@@ -1496,6 +1675,20 @@ KefReleaseSpinLockFromDpcLevel(REGARGS1(kspin_lock *lock))
 	atomic_store_rel_int((volatile u_int *)lock, 0);
 
 	return;
+}
+
+__fastcall uintptr_t
+InterlockedExchange(REGARGS2(volatile uint32_t *dst, uintptr_t val))
+{
+	uint8_t			irql;
+	uintptr_t		r;
+
+	KeAcquireSpinLock(&ntoskrnl_global, &irql);
+	r = *dst;
+	*dst = val;
+	KeReleaseSpinLock(&ntoskrnl_global, irql);
+
+	return(r);
 }
 
 __fastcall static uint32_t
@@ -2376,6 +2569,9 @@ image_patch_table ntoskrnl_functbl[] = {
 	IMPORT_FUNC(IoGetDriverObjectExtension),
 	IMPORT_FUNC(IofCallDriver),
 	IMPORT_FUNC(IofCompleteRequest),
+	IMPORT_FUNC(IoAcquireCancelSpinLock),
+	IMPORT_FUNC(IoReleaseCancelSpinLock),
+	IMPORT_FUNC(IoCancelIrp),
 	IMPORT_FUNC(IoCreateDevice),
 	IMPORT_FUNC(IoDeleteDevice),
 	IMPORT_FUNC(IoGetAttachedDevice),
