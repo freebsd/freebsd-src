@@ -1,5 +1,5 @@
 #
-#	$Id: Makefile,v 1.34 1995/01/13 21:00:05 wollman Exp $
+#	$Id: Makefile,v 1.35 1995/01/19 22:41:25 wollman Exp $
 #
 # Make command line options:
 #	-DCLOBBER will remove /usr/include and MOST of /usr/lib 
@@ -222,6 +222,7 @@ includes:
 	cd ${.CURDIR}/lib/librpcsvc &&		${MAKE} beforeinstall
 	cd ${.CURDIR}/lib/libskey &&		${MAKE} beforeinstall
 	cd ${.CURDIR}/lib/libtermcap &&		${MAKE}	beforeinstall
+	cd ${.CURDIR}/lib/libcom_err &&		${MAKE} beforeinstall
 
 lib-tools:
 	@echo "--------------------------------------------------------------"
