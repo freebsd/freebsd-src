@@ -39,12 +39,14 @@
 .Nm LIST_HEAD ,
 .Nm LIST_INIT ,
 .Nm LIST_INSERT_AFTER ,
+.Nm LIST_INSERT_BEFORE ,
 .Nm LIST_INSERT_HEAD ,
 .Nm LIST_REMOVE ,
 .Nm TAILQ_ENTRY ,
 .Nm TAILQ_HEAD ,
 .Nm TAILQ_INIT ,
 .Nm TAILQ_INSERT_AFTER ,
+.Nm TAILQ_INSERT_BEFORE ,
 .Nm TAILQ_INSERT_HEAD ,
 .Nm TAILQ_INSERT_TAIL ,
 .Nm TAILQ_REMOVE ,
@@ -64,6 +66,7 @@
 .Fn LIST_HEAD "HEADNAME" "TYPE"
 .Fn LIST_INIT "LIST_HEAD *head"
 .Fn LIST_INSERT_AFTER "LIST_ENTRY *listelm" "TYPE *elm" "LIST_ENTRY NAME"
+.Fn LIST_INSERT_BEFORE "LIST_ENTRY *listelm" "TYPE *elm" "LIST_ENTRY NAME"
 .Fn LIST_INSERT_HEAD "LIST_HEAD *head" "TYPE *elm" "LIST_ENTRY NAME"
 .Fn LIST_REMOVE "TYPE *elm" "LIST_ENTRY NAME"
 .sp
@@ -71,6 +74,7 @@
 .Fn TAILQ_HEAD "HEADNAME" "TYPE"
 .Fn TAILQ_INIT "TAILQ_HEAD *head"
 .Fn TAILQ_INSERT_AFTER "TAILQ_HEAD *head" "TYPE *listelm" "TYPE *elm" "TAILQ_ENTRY NAME"
+.Fn TAILQ_INSERT_BEFORE "TAILQ_HEAD *head" "TYPE *listelm" "TYPE *elm" "TAILQ_ENTRY NAME"
 .Fn TAILQ_INSERT_HEAD "TAILQ_HEAD *head" "TYPE *elm" "TAILQ_ENTRY NAME"
 .Fn TAILQ_INSERT_TAIL "TAILQ_HEAD *head" "TYPE *elm" "TAILQ_ENTRY NAME"
 .Fn TAILQ_REMOVE "TAILQ_HEAD *head" "TYPE *elm" "TAILQ_ENTRY NAME"
@@ -92,6 +96,8 @@ All three structures support the following functionality:
 Insertion of a new entry at the head of the list.
 .It
 Insertion of a new entry after any element in the list.
+.It
+Insertion of a new entry before any element in the list.
 .It
 Removal of any entry in the list.
 .It
@@ -121,8 +127,6 @@ Circular queues add the following functionality:
 .Bl -enum -compact -offset indent
 .It
 Entries can be added at the end of a list.
-.It
-Entries can be added before another entry.
 .It
 They may be traversed backwards, from tail to head.
 .El
@@ -216,6 +220,13 @@ after the element
 .Fa listelm .
 .Pp
 The macro
+.Nm LIST_INSERT_BEFORE
+inserts the new element
+.Fa elm
+before the element
+.Fa listelm .
+.Pp
+The macro
 .Nm LIST_REMOVE
 removes the element
 .Fa elm
@@ -228,7 +239,7 @@ struct entry {
 	...
 	LIST_ENTRY(entry) entries;	/* List. */
 	...
-} *n1, *n2, *np;
+} *n1, *n2, *n3, *np;
 
 LIST_INIT(&head);			/* Initialize the list. */
 
@@ -237,12 +248,31 @@ LIST_INSERT_HEAD(&head, n1, entries);
 
 n2 = malloc(sizeof(struct entry));	/* Insert after. */
 LIST_INSERT_AFTER(n1, n2, entries);
+
+n3 = malloc(sizeof(struct entry));	/* Insert before. */
+LIST_INSERT_BEFORE(n2, n3, entries);
+
+LIST_REMOVE(n2, entries);		/* Deletion. */
+free(n2);
+
 					/* Forward traversal. */
 for (np = head.lh_first; np != NULL; np = np->entries.le_next)
 	np-> ...
 
-while (head.lh_first != NULL)		/* Delete. */
-	LIST_REMOVE(head.lh_first, entries);
+while (head.lh_first != NULL) {		/* List Deletion. */
+	n1 = head.lh_first;
+	LIST_REMOVE(n1, entries);
+	free(n1);
+}
+
+n1 = head.lh_first;			/* Faster List Delete. */
+while (n1 != NULL) {
+	n2 = n1->entires.le_next;
+	free(n1);
+	n1 = n2;
+}
+LIST_INIT(&head);
+
 .Ed
 .Sh TAIL QUEUES
 A tail queue is headed by a structure defined by the
@@ -308,6 +338,13 @@ after the element
 .Fa listelm .
 .Pp
 The macro
+.Nm TAILQ_INSERT_BEFORE
+inserts the new element
+.Fa elm
+before the element
+.Fa listelm .
+.Pp
+The macro
 .Nm TAILQ_REMOVE
 removes the element
 .Fa elm
@@ -320,7 +357,7 @@ struct entry {
 	...
 	TAILQ_ENTRY(entry) entries;	/* Tail queue. */
 	...
-} *n1, *n2, *np;
+} *n1, *n2, *n3, *np;
 
 TAILQ_INIT(&head);			/* Initialize the queue. */
 
@@ -332,12 +369,29 @@ TAILQ_INSERT_TAIL(&head, n1, entries);
 
 n2 = malloc(sizeof(struct entry));	/* Insert after. */
 TAILQ_INSERT_AFTER(&head, n1, n2, entries);
+
+n3 = malloc(sizeof(struct entry));	/* Insert before. */
+TAILQ_INSERT_BEFORE(&head, n2, n3, entries);
+
+TAILQ_REMOVE(&head, n2, entries);	/* Deletion. */
+free(n2);
 					/* Forward traversal. */
 for (np = head.tqh_first; np != NULL; np = np->entries.tqe_next)
 	np-> ...
-					/* Delete. */
-while (head.tqh_first != NULL)
+					/* TailQ Deletion. */
+while (head.tqh_first != NULL) {
+	n1 = head.tqh_first;
 	TAILQ_REMOVE(&head, head.tqh_first, entries);
+	free(n1);
+}
+					/* Faster TailQ Deletion. */
+n1 = head.tqh_first;
+while (n1 != NULL) {
+	n2 = n1->entries.tqe_next;
+	free(n1);
+	n1 = n2;
+}
+TAILQ_INIT(&head);
 .Ed
 .Sh CIRCULAR QUEUES
 A circular queue is headed by a structure defined by the
@@ -438,15 +492,29 @@ CIRCLEQ_INSERT_AFTER(&head, n1, n2, entries);
 
 n2 = malloc(sizeof(struct entry));	/* Insert before. */
 CIRCLEQ_INSERT_BEFORE(&head, n1, n2, entries);
+
+CIRCLEQ_REMOVE(&head, n1, entries);	/* Deletion. */
+free(n1);
 					/* Forward traversal. */
 for (np = head.cqh_first; np != (void *)&head; np = np->entries.cqe_next)
 	np-> ...
 					/* Reverse traversal. */
 for (np = head.cqh_last; np != (void *)&head; np = np->entries.cqe_prev)
 	np-> ...
-					/* Delete. */
-while (head.cqh_first != (void *)&head)
+					/* CircleQ Deletion. */
+while (head.cqh_first != (void *)&head) {
+	n1 = head.cqh_first;
 	CIRCLEQ_REMOVE(&head, head.cqh_first, entries);
+	free(n1);
+}
+					/* Faster CircleQ Deletion. */
+n1 = head.cqh_first;
+while (n1 != (void *)&head) {
+	n2 = n1->entries.cqh_next;
+	free(n1);
+	n1 = n2;
+}
+CIRCLEQ_INIT(&head);
 .Ed
 .Sh HISTORY
 The
