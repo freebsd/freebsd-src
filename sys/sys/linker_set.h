@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id$
+ *	$Id: linker_set.h,v 1.1 1999/01/14 05:48:46 jdp Exp $
  */
 
 #ifndef _SYS_LINKER_SET_H_
@@ -81,8 +81,8 @@
 #endif
 
 struct linker_set {
-	int		ls_length;
-	const void	*ls_items[1];		/* really ls_length of them,
+	int	ls_length;
+	void	*ls_items[1];		/* really ls_length of them,
 						 * trailing NULL */
 };
 
