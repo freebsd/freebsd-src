@@ -405,7 +405,7 @@ statclock(frame)
 		}
 	}
 
-	sched_clock(td);
+	sched_clock(ke);
 
 	/* Update resource usage integrals and maximums. */
 	if ((pstats = p->p_stats) != NULL &&
