@@ -4,7 +4,7 @@
  * This is probably the last attempt in the `sysinstall' line, the next
  * generation being slated to essentially a complete rewrite.
  *
- * $Id: ftp_strat.c,v 1.27 1996/10/02 08:25:05 jkh Exp $
+ * $Id: ftp_strat.c,v 1.28 1996/10/02 10:44:28 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -102,9 +102,10 @@ try:
     FtpPassive(ftp, !strcmp(variable_get(VAR_FTP_STATE), "passive"));
     FtpBinary(ftp, 1);
     if (dir && *dir != '\0') {
-	msgDebug("Attempt to chdir to distribution in %s\n", dir);
-	if (FtpChdir(ftp, dir) == IO_ERROR)
+	if (FtpChdir(ftp, dir) == IO_ERROR) {
+	    msgDebug("Attempt to chdir to distribution in %s returns I/O error\n", dir);
 	    goto punt;
+	}
     }
 
     /* Give it a shot - can't hurt to try and zoom in if we can, unless the release is set to
