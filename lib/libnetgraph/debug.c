@@ -171,7 +171,8 @@ _NgDebugSockaddr(const struct sockaddr_ng *sg)
 	       sg->sg_family, sg->sg_len, sg->sg_data);
 }
 
-#define ARGS_BUFSIZE	1024
+#define ARGS_BUFSIZE		2048
+#define RECURSIVE_DEBUG_ADJUST	4
 
 /*
  * Display a negraph message
@@ -182,11 +183,7 @@ _NgDebugMsg(const struct ng_mesg *msg, const char *path)
 	u_char buf[2 * sizeof(struct ng_mesg) + ARGS_BUFSIZE];
 	struct ng_mesg *const req = (struct ng_mesg *)buf;
 	struct ng_mesg *const bin = (struct ng_mesg *)req->data;
-	int arglen, debugSave, csock = -1;
-
-	/* Lower debugging to avoid infinite recursion */
-	debugSave = _gNgDebugLevel;
-	_gNgDebugLevel -= 4;
+	int arglen, csock = -1;
 
 	/* Display header stuff */
 	NGLOGX("NG_MESG :");
@@ -217,12 +214,22 @@ _NgDebugMsg(const struct ng_mesg *msg, const char *path)
 	memcpy(bin, msg, sizeof(*msg) + arglen);
 	bin->header.arglen = arglen;
 
+	/* Lower debugging to avoid infinite recursion */
+	_gNgDebugLevel -= RECURSIVE_DEBUG_ADJUST;
+
 	/* Ask the node to translate the binary message to ASCII for us */
 	if (NgSendMsg(csock, path, NGM_GENERIC_COOKIE,
-	    NGM_BINARY2ASCII, bin, sizeof(*bin) + bin->header.arglen) < 0)
+	    NGM_BINARY2ASCII, bin, sizeof(*bin) + bin->header.arglen) < 0) {
+		_gNgDebugLevel += RECURSIVE_DEBUG_ADJUST;
 		goto fail;
-	if (NgRecvMsg(csock, req, sizeof(buf), NULL) < 0)
+	}
+	if (NgRecvMsg(csock, req, sizeof(buf), NULL) < 0) {
+		_gNgDebugLevel += RECURSIVE_DEBUG_ADJUST;
 		goto fail;
+	}
+
+	/* Restore debugging level */
+	_gNgDebugLevel += RECURSIVE_DEBUG_ADJUST;
 
 	/* Display command string and arguments */
 	NGLOGX("  cmd    %s (%d)", bin->header.cmdstr, bin->header.cmd);
@@ -240,7 +247,6 @@ fail2:
 done:
 	if (csock != -1)
 		(void)close(csock);
-	_gNgDebugLevel = debugSave;
 }
 
 /*
