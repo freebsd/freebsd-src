@@ -518,7 +518,7 @@ ptcpoll(dev, events, p)
 		    ((pti->pt_flags & PF_REMOTE) ?
 		     (tp->t_canq.c_cc == 0) : 
 		     ((tp->t_rawq.c_cc + tp->t_canq.c_cc < TTYHOG - 2) ||
-		      (tp->t_canq.c_cc == 0 && (tp->t_iflag & ICANON)))))
+		      (tp->t_canq.c_cc == 0 && (tp->t_lflag & ICANON)))))
 			revents |= events & (POLLOUT | POLLWRNORM);
 
 	if (events & POLLHUP)
@@ -610,7 +610,7 @@ again:
 		}
 		while (cc > 0) {
 			if ((tp->t_rawq.c_cc + tp->t_canq.c_cc) >= TTYHOG - 2 &&
-			   (tp->t_canq.c_cc > 0 || !(tp->t_iflag&ICANON))) {
+			   (tp->t_canq.c_cc > 0 || !(tp->t_lflag&ICANON))) {
 				wakeup(TSA_HUP_OR_INPUT(tp));
 				goto block;
 			}
