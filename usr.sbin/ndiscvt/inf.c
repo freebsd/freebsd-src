@@ -303,7 +303,7 @@ dump_defaultinfo(const struct section *s, const struct reg *r, int devidx)
 		if (strcasecmp(reg->key, "Default"))
 			continue;
 		fprintf(ofp, "\n\t{ \"%s\" }, %d },", reg->value == NULL ? "" :
-		    reg->value, devidx);
+		    stringcvt(reg->value), devidx);
 			break;
 	}
 	return;
