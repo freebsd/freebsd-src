@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)lfs_alloc.c	8.7 (Berkeley) 5/14/95
- * $Id: lfs_alloc.c,v 1.18 1997/10/16 10:49:41 phk Exp $
+ * $Id: lfs_alloc.c,v 1.19 1997/10/16 11:58:30 phk Exp $
  */
 
 #include "opt_quota.h"
@@ -54,8 +54,6 @@
 
 #include <ufs/lfs/lfs.h>
 #include <ufs/lfs/lfs_extern.h>
-
-extern u_long nextgennumber;
 
 /* Allocate a new inode. */
 /* ARGSUSED */
@@ -128,9 +126,8 @@ lfs_valloc(pvp, mode, cred, vpp)
 	ip->i_din.di_inumber = new_ino;
 
 	/* Set a new generation number for this inode. */
-	if (++nextgennumber < (u_long)time.tv_sec)
-		nextgennumber = time.tv_sec;
-	ip->i_gen = nextgennumber;
+	if (ip->i_gen == 0 || ++ip->i_gen == 0)
+		ip->i_gen = random() / 2 + 1;
 
 	/* Insert into the inode hash table. */
 	ufs_ihashins(ip);
