@@ -3,7 +3,7 @@
 #	bsd.port.mk - 940820 Jordan K. Hubbard.
 #	This file is in the public domain.
 #
-# $Id: bsd.port.mk,v 1.130 1995/04/01 10:01:49 jkh Exp $
+# $Id: bsd.port.mk,v 1.131 1995/04/04 04:23:37 gpalmer Exp $
 #
 # Please view me with 4 column tabs!
 
@@ -81,6 +81,7 @@
 # NO_DEPENDS	- Don't verify build of dependencies.
 # USE_GMAKE		- Says that the port uses gmake.
 # USE_IMAKE		- Says that the port uses imake.
+# USE_X11		- Says that the port uses X11.
 # NO_INSTALL_MANPAGES - For imake ports that don't like the install.man
 #						target.
 # HAS_CONFIGURE	- Says that the port has its own configure script.
@@ -164,7 +165,7 @@ PATCHDIR?=		${.CURDIR}/patches
 SCRIPTDIR?=		${.CURDIR}/scripts
 FILESDIR?=		${.CURDIR}/files
 PKGDIR?=		${.CURDIR}/pkg
-.if defined(USE_IMAKE)
+.if defined(USE_IMAKE) || defined(USE_X11)
 PREFIX?=		${X11BASE}
 .else
 PREFIX?=		/usr/local
