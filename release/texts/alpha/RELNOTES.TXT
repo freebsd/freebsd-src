@@ -243,6 +243,9 @@ to a SCSI card driven by 'isp' has been fixed. [MERGED]
 Condition variables have now been implemented in the FreeBSD kernel.
 See condvar(9) for more details.
 
+A bug in FFS that could cause superblock corruption on very large
+filesystems has been corrected. [MERGED]
+
 
 1.2. SECURITY FIXES
 -------------------
@@ -381,7 +384,7 @@ The sendmail(8) configuration building tools are installed in
 /usr/share/sendmail/cf/. [MERGED]
 
 awk has been upgraded from gawk-3.0.4 to gawk-3.0.6.  This fixes a number
-of non-critical bugs and includes a few performance tweaks.
+of non-critical bugs and includes a few performance tweaks. [MERGED]
 
 routed(8) has been updated to version 2.22.  [MERGED]
 
@@ -520,7 +523,7 @@ new filesystems up to seven times faster. [MERGED]
 A number of buffer overflows in config(8) have been fixed. [MERGED]
 
 pwd(1) can now double as realpath(1), a program to resolve pathnames
-to their underlying physical paths.
+to their underlying physical paths. [MERGED]
 
 file(1) has been contribify-ed, and imported as version 3.33. [MERGED]
 
@@ -555,7 +558,7 @@ gcc has been updated to 2.95.3.
 Shortly after the receipt of a SIGINFO signal (normally control-T from
 the controlling tty), fsck_ffs will now output a line indicating the
 current phase number and progress information relevant to the current
-phase.
+phase. [MERGED]
 
 Catching up with most other network utilities in the base system,
 lpd(1), lpd(8), syslogd(8), and logger(1) are now all IPv6-capable.
@@ -591,12 +594,8 @@ In preparation for meeting SUSv2/POSIX <sys/select.h> requirements,
 'struct selinfo' and related functions have been moved to
 <sys/selinfo.h>.
 
-Changes were made to force strong references to several pthread_*
-functions which are weakly referenced to by libgcc.a. [MERGED]
-
-gcc now uses a unified libgcc rather than a separate one fro threaded
-and non-threaded programs.  This provides threaded programs with the
-needed exception frame symbols. [MERGED]
+gcc now uses a unified libgcc rather than a separate one for threaded
+and non-threaded programs.  /usr/lib/libgcc_r.a can be removed. [MERGED]
 
 syslogd(8) now supports a "LOG_CONSOLE" facility (disabled by
 default), which can be used to log /dev/console output. [MERGED]
@@ -614,7 +613,8 @@ used as a filename for stdin.
 dmesg(8) now has a -a option to show the entire message buffer,
 including syslog records and /dev/console output. [MERGED]
 
-In /etc/ssh/sshd_config, ConnectionsPerPeriod has been deprecated.
+In /etc/ssh/sshd_config, the ConnectionsPerPeriod parameter has been
+deprecated in favor of MaxStartups. [MERGED]
 
 Entropy from the random(4) device is now periodically saved to files 
 in /var/db/entropy.
@@ -631,6 +631,11 @@ from which a package was built. [MERGED]
 sysinstall(8) now lives in /usr/sbin, which simplifies the installation
 process.  The sysinstall(8) manpage is also installed in a more
 consistent fashion now.
+
+config(8) is now better about converting various warnings that should
+have been errors into actual fatal errors with an exit code.  This
+ensures that that 'make buildkernel' doesn't quitely ignore them and
+build a bogus kernel without a human to read the errors. [MERGED]
 
 
 2. Supported Configurations
