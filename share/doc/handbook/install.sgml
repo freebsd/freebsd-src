@@ -1,4 +1,4 @@
-<!-- $Id: install.sgml,v 1.1 1995/06/14 18:38:54 jfieber Exp $ -->
+<!-- $Id: install.sgml,v 1.2 1995/06/30 17:37:39 jfieber Exp $ -->
 <!-- The FreeBSD Documentation Project -->
 
 <!--
@@ -338,22 +338,25 @@
 
 	<p>To prepare for installation from an MS-DOS partition,
 	  you should simply copy the files from the distribution
-	  into a directory called "FREEBSD".  For example, to do
+	  into a directory called <tt>FREEBSD</tt>.  For example, to do
 	  a minimal installation of FreeBSD from DOS using files
 	  copied from the CDROM, you might do something like
-	  this: <tscreen> C> MD C:\FREEBSD<newline> C> XCOPY /S
-	  E:\DISTS\BIN C:\FREEBSD<newline> C> XCOPY /S
-	  E:\FLOPPIES C:\FREEBSD</tscreen>
+	  this: 
+<tscreen><verb>
+C> MD C:\FREEBSD
+C> XCOPY /S E:\DISTS\BIN C:\FREEBSD
+C> XCOPY /S E:\FLOPPIES C:\FREEBSD
+</verb></tscreen>
 
-	  Asssuming that `C:' was where you had free space and
-	  `E:' was where your CD was mounted.  Note that you need
-	  the FLOPPIES directory because the `root.flp' image is
-	  automatically looked for there when you're doing a
+	  Asssuming that <tt>C:</tt> was where you had free space and
+	  <tt>E:</tt> was where your CD was mounted.  Note that you need
+	  the <tt>FLOPPIES</tt> directory because the <tt>root.flp</tt> image is
+	  automatically looked for there when you are doing a
 	  MS-DOS installation.
 
 	  For as many `DISTS' you wish to install from MS-DOS
 	  (and you have free space for), install each one under
-	  `C:\FREEBSD' - the BIN dist is only the minimal
+	  <tt>C:&bsol;FREEBSD</tt> - the BIN dist is only the minimal
 	  requirement.
 
 
