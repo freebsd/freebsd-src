@@ -44,6 +44,7 @@ SUBDIR=	${_3dfx} \
 	${_cbb} \
 	cd9660 \
 	cd9660_iconv \
+	cdce \
 	${_ciss} \
 	${_cm} \
 	coda \
