@@ -561,7 +561,7 @@ dofix(idesc, msg)
 		if (idesc->id_type == DATA)
 			direrror(idesc->id_number, msg);
 		else
-			pwarn(msg);
+			pwarn("%s", msg);
 		if (preen) {
 			printf(" (SALVAGED)\n");
 			idesc->id_fix = FIX;
