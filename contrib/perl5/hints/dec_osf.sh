@@ -58,20 +58,41 @@
 # and it is called GEM. Many of the options we are going to use depend
 # on the compiler style.
 
-# do NOT, I repeat, *NOT* take away those leading tabs
-	# reset
-	_DEC_uname_r=
-	_DEC_cc_style=
-	# set
-	_DEC_uname_r=`uname -r`
-	# _DEC_cc_style set soon below
-# Configure Black Magic (TM)
+cc=${cc:-cc}
 
-case "$cc" in
-*gcc*)	;; # pass
+# do NOT, I repeat, *NOT* take away the leading tabs
+# Configure Black Magic (TM)
+	# reset
+	_DEC_cc_style=
+case "`$cc -v 2>&1 | grep cc`" in
+*gcc*)	_gcc_version=`$cc -v 2>&1 | grep "gcc version" | sed 's%^gcc version \([0-9]*\)\.\([0-9]*\) .*%\1 \2%'`
+	set $_gcc_version
+	if test "$1" -lt 2 -o \( "$1" -eq 2 -a "$2" -lt 95 \); then
+	    cat >&4 <<EOF
+
+Your cc seems to be gcc and its version seems to be less than 2.95.
+This is not a good idea since old versions of gcc are known to produce
+buggy code when compiling Perl (and no doubt for other programs, too).
+
+Therefore, I strongly suggest upgrading your gcc.  (Why don't you
+use the vendor cc is also a good question.  It comes with the operating
+system and produces good code.)
+
+Note that as of gcc 2.95 (19990728) and Perl 5.6.0 (end of March 2000)
+if the said Perl is compiled with the said gcc the lib/sdbm test will 
+dump core.  As this doesn't happen with the vendor cc, this is
+most probably a lingering bug in gcc.  Therefore unless you have
+a better gcc you are still better off using the vendor cc.
+
+Cannot continue, aborting.
+
+EOF
+	    exit 1
+	fi
+        ;;
 *)	# compile something small: taint.c is fine for this.
     	# the main point is the '-v' flag of 'cc'.
-       	case "`cc -v -I. -c taint.c -o /tmp/taint$$.o 2>&1`" in
+       	case "`cc -v -I. -c taint.c -o taint$$.o 2>&1`" in
 	*/gemc_cc*)	# we have the new DEC GEM CC
 			_DEC_cc_style=new
 			;;
@@ -80,12 +101,12 @@ case "$cc" in
 			;;
 	esac
 	# cleanup
-	rm -f /tmp/taint$$.o
+	rm -f taint$$.o
 	;;
 esac
 
 # be nauseatingly ANSI
-case "$cc" in
+case "`$cc -v 2>&1 | grep gcc`" in
 *gcc*)	ccflags="$ccflags -ansi"
 	;;
 *)	ccflags="$ccflags -std"
@@ -98,7 +119,7 @@ esac
 # we want optimisation
 
 case "$optimize" in
-'')	case "$cc" in 
+'')	case "`$cc -v 2>&1 | grep gcc`" in
 	*gcc*)	
 		optimize='-O3'				;;
 	*)	case "$_DEC_cc_style" in
@@ -147,13 +168,26 @@ lddlflags='-shared -expect_unresolved "*"'
 
 # Fancy compiler suites use optimising linker as well as compiler.
 # <spider@Orb.Nashua.NH.US>
-case "$_DEC_uname_r" in
+case "`uname -r`" in
 *[123].*)	# old loader
 		lddlflags="$lddlflags -O3"
 		;;
-*)		lddlflags="$lddlflags $optimize -msym"
-		# -msym: If using a sufficiently recent /sbin/loader,
-		# keep the module symbols with the modules.
+*)            if $test "X$optimize" = "X$undef"; then
+                      lddlflags="$lddlflags -msym"
+              else
+		  case "`/usr/sbin/sizer -v`" in
+		  *4.0D*)
+		      # QAR 56761: -O4 + .so may produce broken code,
+		      # fixed in 4.0E or better.
+		      ;;
+		  *)    
+                      lddlflags="$lddlflags $optimize"
+		      ;;
+		  esac
+		  # -msym: If using a sufficiently recent /sbin/loader,
+		  # keep the module symbols with the modules.
+                  lddlflags="$lddlflags -msym -std"
+              fi
 		;;
 esac
 # Yes, the above loses if gcc does not use the system linker.
@@ -165,7 +199,7 @@ esac
 # As noted above the -DDEBUGGING is added automagically by Configure if -g.
 case "$optimize" in
 	*-g*) ;; # left intentionally blank
-*)	case "$_DEC_uname_r" in
+*)	case "`uname -r`" in
 	*[123].*)
 		case "$useshrplib" in
 		false|undef|'')	lddlflags="$lddlflags -s"	;;
@@ -187,25 +221,57 @@ case "$_DEC_cc_style.$useshrplib" in
 	new.)	useshrplib="$define"	;;
 esac
 
+# The EFF_ONLY_OK from <sys/access.h> is present but dysfunctional for
+# [RWX]_OK as of Digital UNIX 4.0[A-D]?.  If and when this gets fixed,
+# please adjust this appropriately.  See also pp_sys.c just before the
+# emulate_eaccess().
+
+# Fixed in V5.0A.
+case "`/usr/sbin/sizer -v`" in
+*5.0[A-Z]*|*5.[1-9]*|*[6-9].[0-9]*)
+	: ok
+	;;
+*)
+# V5.0 or previous
+pp_sys_cflags='ccflags="$ccflags -DNO_EFF_ONLY_OK"'
+	;;
+esac
+
+# The off_t is already 8 bytes, so we do have largefileness.
+
+cat > UU/usethreads.cbu <<'EOCBU'
 # This script UU/usethreads.cbu will get 'called-back' by Configure 
 # after it has prompted the user for whether to use threads.
-cat > UU/usethreads.cbu <<'EOCBU'
 case "$usethreads" in
 $define|true|[yY]*)
-        # Threads interfaces changed with V4.0.
-        case "`uname -r`" in
-        *[123].*)
-	    libswanted="$libswanted pthreads mach exc c_r"
-  	    ccflags="-threads $ccflags"
+	# Threads interfaces changed with V4.0.
+	case "`$cc -v 2>&1 | grep gcc`" in
+	*gcc*)ccflags="-D_REENTRANT $ccflags" ;;
+	*)  case "`uname -r`" in
+	    *[123].*)	ccflags="-threads $ccflags" ;;
+	    *)          ccflags="-pthread $ccflags" ;;
+	    esac
 	    ;;
-        *)
-	    libswanted="$libswanted pthread exc"
-    	    ccflags="-pthread $ccflags"
-	    ;;
-        esac
+	esac    
+	case "`uname -r`" in
+	*[123].*) libswanted="$libswanted pthreads mach exc c_r" ;;
+	*)        libswanted="$libswanted pthread exc" ;;
+	esac
 
-        usemymalloc='n'
+	case "$usemymalloc" in
+	'')
+		usemymalloc='n'
+		;;
+	esac
 	;;
+esac
+EOCBU
+
+cat > UU/uselongdouble.cbu <<'EOCBU'
+# This script UU/uselongdouble.cbu will get 'called-back' by Configure 
+# after it has prompted the user for whether to use long doubles.
+case "$uselongdouble" in
+$define|true|[yY]*) d_Gconvert='sprintf((b),"%.*Lg",(n),(x))' ;;
 esac
 EOCBU
 
@@ -214,10 +280,15 @@ EOCBU
 #
 
 unset _DEC_cc_style
-unset _DEC_uname_r
     
 #
 # History:
+#
+# perl5.005_51:
+#
+#	September-1998 Jarkko Hietaniemi <jhi@iki.fi>
+#
+#	* Added the -DNO_EFF_ONLY_OK flag ('use filetest;' support).
 #
 # perl5.004_57:
 #

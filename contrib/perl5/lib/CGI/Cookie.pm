@@ -7,19 +7,15 @@ package CGI::Cookie;
 # documentation in manual or html file format (these utilities are part of the
 # Perl 5 distribution).
 
-# Copyright 1995,1996, Lincoln D. Stein.  All rights reserved.
+# Copyright 1995-1999, Lincoln D. Stein.  All rights reserved.
 # It may be used and modified freely, but I do request that this copyright
 # notice remain attached to the file.  You may modify this module as you 
 # wish, but if you redistribute a modified version, please attach a note
 # listing the modifications you have made.
 
-# The most recent version and complete docs are available at:
-#   http://www.genome.wi.mit.edu/ftp/pub/software/WWW/cgi_docs.html
-#   ftp://ftp-genome.wi.mit.edu/pub/software/WWW/
+$CGI::Cookie::VERSION='1.12';
 
-$CGI::Cookie::VERSION='1.06';
-
-use CGI;
+use CGI qw(-no_debug);
 use overload '""' => \&as_string,
     'cmp' => \&compare,
     'fallback'=>1;
@@ -100,10 +96,13 @@ sub new {
 	'value'=>[@values],
 	},$class;
 
-    # IE requires the path to be present for some reason.
-    ($path = $ENV{'SCRIPT_NAME'})=~s![^/]+$!! unless $path;
+    # IE requires the path and domain to be present for some reason.
+    $path   = CGI::url(-absolute=>1) unless defined $path;
+# however, this breaks networks which use host tables without fully qualified
+# names, so we comment it out.
+#    $domain = CGI::virtual_host()    unless defined $domain;
 
-    $self->path($path) if defined $path;
+    $self->path($path)     if defined $path;
     $self->domain($domain) if defined $domain;
     $self->secure($secure) if defined $secure;
     $self->expires($expires) if defined $expires;
@@ -251,10 +250,10 @@ cookie originated from.
 If you provide a cookie path attribute, the browser will check it
 against your script's URL before returning the cookie.  For example,
 if you specify the path "/cgi-bin", then the cookie will be returned
-to each of the scripts "/cgi-bin/tally.pl", "/cgi-bin/order.pl",
-and "/cgi-bin/customer_service/complain.pl", but not to the script
-"/cgi-private/site_admin.pl".  By default, path is set to "/", which
-causes the cookie to be sent to any CGI script on your site.
+to each of the scripts "/cgi-bin/tally.pl", "/cgi-bin/order.pl", and
+"/cgi-bin/customer_service/complain.pl", but not to the script
+"/cgi-private/site_admin.pl".  By default, the path is set to your
+script, so that only it will receive the cookie.
 
 =item B<4. secure flag>
 
@@ -344,7 +343,7 @@ can iterate through the cookies this way:
 
 In a scalar context, fetch() returns a hash reference, which may be more
 efficient if you are manipulating multiple cookies.
-    
+
 CGI.pm uses the URL escaping methods to save and restore reserved characters
 in its cookies.  If you are trying to retrieve a cookie set by a foreign server,
 this escaping method may trip you up.  Use raw_fetch() instead, which has the
@@ -415,5 +414,5 @@ This section intentionally left blank.
 =head1 SEE ALSO
 
 L<CGI::Carp>, L<CGI>
- 
+
 =cut

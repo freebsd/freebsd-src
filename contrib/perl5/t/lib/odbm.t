@@ -4,10 +4,10 @@
 
 BEGIN {
     chdir 't' if -d 't';
-    @INC = '../lib';
+    unshift @INC, '../lib';
     require Config; import Config;
     if ($Config{'extensions'} !~ /\bODBM_File\b/) {
-	print "1..0\n";
+	print "1..0 # Skip: ODBM_File was not built\n";
 	exit 0;
     }
 }
@@ -16,7 +16,7 @@ require ODBM_File;
 #If Fcntl is not available, try 0x202 or 0x102 for O_RDWR|O_CREAT
 use Fcntl;
 
-print "1..18\n";
+print "1..64\n";
 
 unlink <Op.dbmx*>;
 
@@ -204,4 +204,203 @@ EOM
     untie(%h);
     unlink "SubDB.pm", <dbhash.tmp*> ;
 
+}
+
+{
+   # DBM Filter tests
+   use strict ;
+   my (%h, $db) ;
+   my ($fetch_key, $store_key, $fetch_value, $store_value) = ("") x 4 ;
+
+   sub checkOutput
+   {
+       my($fk, $sk, $fv, $sv) = @_ ;
+       print "# ", join('|', $fetch_key, $fk, $store_key, $sk,
+			$fetch_value, $fv, $store_value, $sv, $_), "\n";
+       return
+           $fetch_key eq $fk && $store_key eq $sk && 
+	   $fetch_value eq $fv && $store_value eq $sv &&
+	   $_ eq 'original' ;
+   }
+   
+   unlink <Op.dbmx*>;
+   ok(19, $db = tie(%h, 'ODBM_File','Op.dbmx', O_RDWR|O_CREAT, 0640)) ;
+
+   $db->filter_fetch_key   (sub { $fetch_key = $_ }) ;
+   $db->filter_store_key   (sub { $store_key = $_ }) ;
+   $db->filter_fetch_value (sub { $fetch_value = $_}) ;
+   $db->filter_store_value (sub { $store_value = $_ }) ;
+
+   $_ = "original" ;
+
+   $h{"fred"} = "joe" ;
+   #                   fk   sk     fv   sv
+   ok(20, checkOutput( "", "fred", "", "joe")) ;
+
+   ($fetch_key, $store_key, $fetch_value, $store_value) = ("") x 4 ;
+   ok(21, $h{"fred"} eq "joe");
+   #                   fk    sk     fv    sv
+   ok(22, checkOutput( "", "fred", "joe", "")) ;
+
+   ($fetch_key, $store_key, $fetch_value, $store_value) = ("") x 4 ;
+   ok(23, $db->FIRSTKEY() eq "fred") ;
+   #                    fk     sk  fv  sv
+   ok(24, checkOutput( "fred", "", "", "")) ;
+
+   # replace the filters, but remember the previous set
+   my ($old_fk) = $db->filter_fetch_key   
+   			(sub { $_ = uc $_ ; $fetch_key = $_ }) ;
+   my ($old_sk) = $db->filter_store_key   
+   			(sub { $_ = lc $_ ; $store_key = $_ }) ;
+   my ($old_fv) = $db->filter_fetch_value 
+   			(sub { $_ = "[$_]"; $fetch_value = $_ }) ;
+   my ($old_sv) = $db->filter_store_value 
+   			(sub { s/o/x/g; $store_value = $_ }) ;
+   
+   ($fetch_key, $store_key, $fetch_value, $store_value) = ("") x 4 ;
+   $h{"Fred"} = "Joe" ;
+   #                   fk   sk     fv    sv
+   ok(25, checkOutput( "", "fred", "", "Jxe")) ;
+
+   ($fetch_key, $store_key, $fetch_value, $store_value) = ("") x 4 ;
+   ok(26, $h{"Fred"} eq "[Jxe]");
+   #                   fk   sk     fv    sv
+   ok(27, checkOutput( "", "fred", "[Jxe]", "")) ;
+
+   ($fetch_key, $store_key, $fetch_value, $store_value) = ("") x 4 ;
+   ok(28, $db->FIRSTKEY() eq "FRED") ;
+   #                   fk   sk     fv    sv
+   ok(29, checkOutput( "FRED", "", "", "")) ;
+
+   # put the original filters back
+   $db->filter_fetch_key   ($old_fk);
+   $db->filter_store_key   ($old_sk);
+   $db->filter_fetch_value ($old_fv);
+   $db->filter_store_value ($old_sv);
+
+   ($fetch_key, $store_key, $fetch_value, $store_value) = ("") x 4 ;
+   $h{"fred"} = "joe" ;
+   ok(30, checkOutput( "", "fred", "", "joe")) ;
+
+   ($fetch_key, $store_key, $fetch_value, $store_value) = ("") x 4 ;
+   ok(31, $h{"fred"} eq "joe");
+   ok(32, checkOutput( "", "fred", "joe", "")) ;
+
+   ($fetch_key, $store_key, $fetch_value, $store_value) = ("") x 4 ;
+   ok(33, $db->FIRSTKEY() eq "fred") ;
+   ok(34, checkOutput( "fred", "", "", "")) ;
+
+   # delete the filters
+   $db->filter_fetch_key   (undef);
+   $db->filter_store_key   (undef);
+   $db->filter_fetch_value (undef);
+   $db->filter_store_value (undef);
+
+   ($fetch_key, $store_key, $fetch_value, $store_value) = ("") x 4 ;
+   $h{"fred"} = "joe" ;
+   ok(35, checkOutput( "", "", "", "")) ;
+
+   ($fetch_key, $store_key, $fetch_value, $store_value) = ("") x 4 ;
+   ok(36, $h{"fred"} eq "joe");
+   ok(37, checkOutput( "", "", "", "")) ;
+
+   ($fetch_key, $store_key, $fetch_value, $store_value) = ("") x 4 ;
+   ok(38, $db->FIRSTKEY() eq "fred") ;
+   ok(39, checkOutput( "", "", "", "")) ;
+
+   undef $db ;
+   untie %h;
+   unlink <Op.dbmx*>;
+}
+
+{    
+    # DBM Filter with a closure
+
+    use strict ;
+    my (%h, $db) ;
+
+    unlink <Op.dbmx*>;
+    ok(40, $db = tie(%h, 'ODBM_File','Op.dbmx', O_RDWR|O_CREAT, 0640)) ;
+
+    my %result = () ;
+
+    sub Closure
+    {
+        my ($name) = @_ ;
+	my $count = 0 ;
+	my @kept = () ;
+
+	return sub { ++$count ; 
+		     push @kept, $_ ; 
+		     $result{$name} = "$name - $count: [@kept]" ;
+		   }
+    }
+
+    $db->filter_store_key(Closure("store key")) ;
+    $db->filter_store_value(Closure("store value")) ;
+    $db->filter_fetch_key(Closure("fetch key")) ;
+    $db->filter_fetch_value(Closure("fetch value")) ;
+
+    $_ = "original" ;
+
+    $h{"fred"} = "joe" ;
+    ok(41, $result{"store key"} eq "store key - 1: [fred]");
+    ok(42, $result{"store value"} eq "store value - 1: [joe]");
+    ok(43, !defined $result{"fetch key"} );
+    ok(44, !defined $result{"fetch value"} );
+    ok(45, $_ eq "original") ;
+
+    ok(46, $db->FIRSTKEY() eq "fred") ;
+    ok(47, $result{"store key"} eq "store key - 1: [fred]");
+    ok(48, $result{"store value"} eq "store value - 1: [joe]");
+    ok(49, $result{"fetch key"} eq "fetch key - 1: [fred]");
+    ok(50, ! defined $result{"fetch value"} );
+    ok(51, $_ eq "original") ;
+
+    $h{"jim"}  = "john" ;
+    ok(52, $result{"store key"} eq "store key - 2: [fred jim]");
+    ok(53, $result{"store value"} eq "store value - 2: [joe john]");
+    ok(54, $result{"fetch key"} eq "fetch key - 1: [fred]");
+    ok(55, $result{"fetch value"} eq "");
+    ok(56, $_ eq "original") ;
+
+    ok(57, $h{"fred"} eq "joe");
+    ok(58, $result{"store key"} eq "store key - 3: [fred jim fred]");
+    ok(59, $result{"store value"} eq "store value - 2: [joe john]");
+    ok(60, $result{"fetch key"} eq "fetch key - 1: [fred]");
+    ok(61, $result{"fetch value"} eq "fetch value - 1: [joe]");
+    ok(62, $_ eq "original") ;
+
+    undef $db ;
+    untie %h;
+    unlink <Op.dbmx*>;
+}		
+
+{
+   # DBM Filter recursion detection
+   use strict ;
+   my (%h, $db) ;
+   unlink <Op.dbmx*>;
+
+   ok(63, $db = tie(%h, 'ODBM_File','Op.dbmx', O_RDWR|O_CREAT, 0640)) ;
+
+   $db->filter_store_key (sub { $_ = $h{$_} }) ;
+
+   eval '$h{1} = 1234' ;
+   ok(64, $@ =~ /^recursion detected in filter_store_key at/ );
+   
+   undef $db ;
+   untie %h;
+   unlink <Op.dbmx*>;
+}
+
+if ($^O eq 'hpux') {
+    print <<EOM;
+#
+# If you experience failures with the odbm test in HP-UX,
+# this is a well-known bug that's unfortunately very hard to fix.
+# The suggested course of action is to avoid using the ODBM_File,
+# but to use instead the NDBM_File extension.
+#
+EOM
 }

@@ -1,4 +1,4 @@
-# $Header$ 
+# $Header: /home/rmb1/misc/CVS/perl5.005_61/lib/ExtUtils/typemap,v 1.3 1999/09/13 09:46:43 rmb1 Exp $ 
 # basic C types
 int			T_IV
 unsigned		T_UV
@@ -29,6 +29,7 @@ HV *			T_HVREF
 CV *			T_CVREF
 
 IV			T_IV
+UV			T_UV
 I32			T_IV
 I16			T_IV
 I8			T_IV
@@ -106,11 +107,11 @@ T_DOUBLE
 T_PV
 	$var = ($type)SvPV($arg,PL_na)
 T_PTR
-	$var = ($type)SvIV($arg)
+	$var = INT2PTR($type,SvIV($arg))
 T_PTRREF
 	if (SvROK($arg)) {
 	    IV tmp = SvIV((SV*)SvRV($arg));
-	    $var = ($type) tmp;
+	    $var = INT2PTR($type,tmp);
 	}
 	else
 	    croak(\"$var is not a reference\")
@@ -131,7 +132,7 @@ T_REF_IV_PTR
 T_PTROBJ
 	if (sv_derived_from($arg, \"${ntype}\")) {
 	    IV tmp = SvIV((SV*)SvRV($arg));
-	    $var = ($type) tmp;
+	    $var = INT2PTR($type,tmp);
 	}
 	else
 	    croak(\"$var is not of type ${ntype}\")
@@ -146,14 +147,14 @@ T_PTRDESC
 T_REFREF
 	if (SvROK($arg)) {
 	    IV tmp = SvIV((SV*)SvRV($arg));
-	    $var = *($type) tmp;
+	    $var = *INT2PTR($type,tmp);
 	}
 	else
 	    croak(\"$var is not a reference\")
 T_REFOBJ
 	if (sv_isa($arg, \"${ntype}\")) {
 	    IV tmp = SvIV((SV*)SvRV($arg));
-	    $var = *($type) tmp;
+	    $var = *INT2PTR($type,tmp);
 	}
 	else
 	    croak(\"$var is not of type ${ntype}\")
@@ -250,7 +251,7 @@ T_REFOBJ
 T_OPAQUE
 	sv_setpvn($arg, (char *)&$var, sizeof($var));
 T_OPAQUEPTR
-	sv_setpvn($arg, (char *)$var, sizeof(*$var)), XFree((char *)$var);
+	sv_setpvn($arg, (char *)$var, sizeof(*$var));
 T_PACKED
 	XS_pack_$ntype($arg, $var);
 T_PACKEDARRAY

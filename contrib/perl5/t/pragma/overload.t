@@ -2,7 +2,7 @@
 
 BEGIN {
     chdir 't' if -d 't';
-    @INC = '../lib';
+    unshift @INC, '../lib';
 }
 
 package Oscalar;
@@ -706,5 +706,227 @@ test($c, "bareword");	# 135
   my @sorted2 = map $$_, @sorted1;
   test "@sorted2", '0 10 7 4 1 11 8 5 12 2 9 6 3';
 }
+{
+  package iterator;
+  use overload '<>' => \&iter;
+  sub new { my ($p, $v) = @_; bless \$v, $p }
+  sub iter { my ($x) = @_; return undef if $$x < 0; return $$x--; }
+}
+
+# XXX iterator overload not intended to work with CORE::GLOBAL?
+if (defined &CORE::GLOBAL::glob) {
+  test '1', '1';	# 175
+  test '1', '1';	# 176
+  test '1', '1';	# 177
+}
+else {
+  my $iter = iterator->new(5);
+  my $acc = '';
+  my $out;
+  $acc .= " $out" while $out = <${iter}>;
+  test $acc, ' 5 4 3 2 1 0';	# 175
+  $iter = iterator->new(5);
+  test scalar <${iter}>, '5';	# 176
+  $acc = '';
+  $acc .= " $out" while $out = <$iter>;
+  test $acc, ' 4 3 2 1 0';	# 177
+}
+{
+  package deref;
+  use overload '%{}' => \&hderef, '&{}' => \&cderef, 
+    '*{}' => \&gderef, '${}' => \&sderef, '@{}' => \&aderef;
+  sub new { my ($p, $v) = @_; bless \$v, $p }
+  sub deref {
+    my ($self, $key) = (shift, shift);
+    my $class = ref $self;
+    bless $self, 'deref::dummy'; # Disable overloading of %{} 
+    my $out = $self->{$key};
+    bless $self, $class;	# Restore overloading
+    $out;
+  }
+  sub hderef {shift->deref('h')}
+  sub aderef {shift->deref('a')}
+  sub cderef {shift->deref('c')}
+  sub gderef {shift->deref('g')}
+  sub sderef {shift->deref('s')}
+}
+{
+  my $deref = bless { h => { foo => 5 , fake => 23 },
+		      c => sub {return shift() + 34},
+		      's' => \123,
+		      a => [11..13],
+		      g => \*srt,
+		    }, 'deref';
+  # Hash:
+  my @cont = sort %$deref;
+  if ("\t" eq "\011") { # ascii
+      test "@cont", '23 5 fake foo';	# 178
+  } 
+  else {                # ebcdic alpha-numeric sort order
+      test "@cont", 'fake foo 23 5';	# 178
+  }
+  my @keys = sort keys %$deref;
+  test "@keys", 'fake foo';	# 179
+  my @val = sort values %$deref;
+  test "@val", '23 5';		# 180
+  test $deref->{foo}, 5;	# 181
+  test defined $deref->{bar}, ''; # 182
+  my $key;
+  @keys = ();
+  push @keys, $key while $key = each %$deref;
+  @keys = sort @keys;
+  test "@keys", 'fake foo';	# 183  
+  test exists $deref->{bar}, ''; # 184
+  test exists $deref->{foo}, 1; # 185
+  # Code:
+  test $deref->(5), 39;		# 186
+  test &$deref(6), 40;		# 187
+  sub xxx_goto { goto &$deref }
+  test xxx_goto(7), 41;		# 188
+  my $srt = bless { c => sub {$b <=> $a}
+		  }, 'deref';
+  *srt = \&$srt;
+  my @sorted = sort srt 11, 2, 5, 1, 22;
+  test "@sorted", '22 11 5 2 1'; # 189
+  # Scalar
+  test $$deref, 123;		# 190
+  # Code
+  @sorted = sort $srt 11, 2, 5, 1, 22;
+  test "@sorted", '22 11 5 2 1'; # 191
+  # Array
+  test "@$deref", '11 12 13';	# 192
+  test $#$deref, '2';		# 193
+  my $l = @$deref;
+  test $l, 3;			# 194
+  test $deref->[2], '13';		# 195
+  $l = pop @$deref;
+  test $l, 13;			# 196
+  $l = 1;
+  test $deref->[$l], '12';	# 197
+  # Repeated dereference
+  my $double = bless { h => $deref,
+		     }, 'deref';
+  test $double->{foo}, 5;	# 198
+}
+
+{
+  package two_refs;
+  use overload '%{}' => \&gethash, '@{}' => sub { ${shift()} };
+  sub new { 
+    my $p = shift; 
+    bless \ [@_], $p;
+  }
+  sub gethash {
+    my %h;
+    my $self = shift;
+    tie %h, ref $self, $self;
+    \%h;
+  }
+
+  sub TIEHASH { my $p = shift; bless \ shift, $p }
+  my %fields;
+  my $i = 0;
+  $fields{$_} = $i++ foreach qw{zero one two three};
+  sub STORE { 
+    my $self = ${shift()};
+    my $key = $fields{shift()};
+    defined $key or die "Out of band access";
+    $$self->[$key] = shift;
+  }
+  sub FETCH { 
+    my $self = ${shift()};
+    my $key = $fields{shift()};
+    defined $key or die "Out of band access";
+    $$self->[$key];
+  }
+}
+
+my $bar = new two_refs 3,4,5,6;
+$bar->[2] = 11;
+test $bar->{two}, 11;		# 199
+$bar->{three} = 13;
+test $bar->[3], 13;		# 200
+
+{
+  package two_refs_o;
+  @ISA = ('two_refs');
+}
+
+$bar = new two_refs_o 3,4,5,6;
+$bar->[2] = 11;
+test $bar->{two}, 11;		# 201
+$bar->{three} = 13;
+test $bar->[3], 13;		# 202
+
+{
+  package two_refs1;
+  use overload '%{}' => sub { ${shift()}->[1] },
+               '@{}' => sub { ${shift()}->[0] };
+  sub new { 
+    my $p = shift; 
+    my $a = [@_];
+    my %h;
+    tie %h, $p, $a;
+    bless \ [$a, \%h], $p;
+  }
+  sub gethash {
+    my %h;
+    my $self = shift;
+    tie %h, ref $self, $self;
+    \%h;
+  }
+
+  sub TIEHASH { my $p = shift; bless \ shift, $p }
+  my %fields;
+  my $i = 0;
+  $fields{$_} = $i++ foreach qw{zero one two three};
+  sub STORE { 
+    my $a = ${shift()};
+    my $key = $fields{shift()};
+    defined $key or die "Out of band access";
+    $a->[$key] = shift;
+  }
+  sub FETCH { 
+    my $a = ${shift()};
+    my $key = $fields{shift()};
+    defined $key or die "Out of band access";
+    $a->[$key];
+  }
+}
+
+$bar = new two_refs_o 3,4,5,6;
+$bar->[2] = 11;
+test $bar->{two}, 11;		# 203
+$bar->{three} = 13;
+test $bar->[3], 13;		# 204
+
+{
+  package two_refs1_o;
+  @ISA = ('two_refs1');
+}
+
+$bar = new two_refs1_o 3,4,5,6;
+$bar->[2] = 11;
+test $bar->{two}, 11;		# 205
+$bar->{three} = 13;
+test $bar->[3], 13;		# 206
+
+{
+  package B;
+  use overload bool => sub { ${+shift} };
+}
+
+my $aaa;
+{ my $bbbb = 0; $aaa = bless \$bbbb, B }
+
+test !$aaa, 1;
+
+unless ($aaa) {
+  test 'ok', 'ok';
+} else {
+  test 'is not', 'ok';
+}
+
+
 # Last test is:
-sub last {174}
+sub last {208}

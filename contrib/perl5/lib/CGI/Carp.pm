@@ -192,9 +192,16 @@ use Carp;
 @EXPORT = qw(confess croak carp);
 @EXPORT_OK = qw(carpout fatalsToBrowser wrap set_message cluck);
 
+BEGIN {
+  $] >= 5.005
+    ? eval q#sub ineval { $^S }#
+      : eval q#sub ineval { _longmess() =~ /eval [\{\']/m }#;
+  $@ and die;
+}
+
 $main::SIG{__WARN__}=\&CGI::Carp::warn;
 $main::SIG{__DIE__}=\&CGI::Carp::die;
-$CGI::Carp::VERSION = '1.13';
+$CGI::Carp::VERSION = '1.14';
 $CGI::Carp::CUSTOM_MSG = undef;
 
 # fancy import routine detects and handles 'errorWrap' specially.
@@ -216,7 +223,7 @@ sub realdie { CORE::die(@_); }
 sub id {
     my $level = shift;
     my($pack,$file,$line,$sub) = caller($level);
-    my($id) = $file=~m|([^/]+)$|;
+    my($id) = $file=~m|([^/]+)\z|;
     return ($file,$line,$id);
 }
 
@@ -228,7 +235,7 @@ sub stamp {
 	$id = $file;
 	($pack,$file) = caller($frame++);
     } until !$file;
-    ($id) = $id=~m|([^/]+)$|;
+    ($id) = $id=~m|([^/]+)\z|;
     return "[$time] $id: ";
 }
 
@@ -251,14 +258,15 @@ sub _longmess {
 }
 
 sub die {
-    my $message = shift;
-    my $time = scalar(localtime);
-    my($file,$line,$id) = id(1);
-    $message .= " at $file line $line." unless $message=~/\n$/;
-    &fatalsToBrowser($message) if $WRAP && _longmess() !~ /eval [{\']/m;
-    my $stamp = stamp;
-    $message=~s/^/$stamp/gm;
-    realdie $message;
+  realdie @_ if ineval;
+  my $message = shift;
+  my $time = scalar(localtime);
+  my($file,$line,$id) = id(1);
+  $message .= " at $file line $line." unless $message=~/\n$/;
+  &fatalsToBrowser($message) if $WRAP;
+  my $stamp = stamp;
+  $message=~s/^/$stamp/gm;
+  realdie $message;
 }
 
 sub set_message {

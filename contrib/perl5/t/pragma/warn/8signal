@@ -1,0 +1,18 @@
+Check interaction of __WARN__, __DIE__ & lexical Warnings
+
+TODO
+
+__END__
+# 8signal
+BEGIN { $| = 1; $SIG{__WARN__} = sub { print "WARN -- @_" } }
+BEGIN { $SIG{__DIE__}  = sub { print "DIE -- @_" } }
+1 if 1 EQ 2 ;
+use warnings qw(deprecated) ;
+1 if 1 EQ 2 ;
+use warnings FATAL => qw(deprecated) ;
+1 if 1 EQ 2 ;
+print "The End.\n" ;
+EXPECT
+WARN -- Use of EQ is deprecated at - line 6.
+DIE -- Use of EQ is deprecated at - line 8.
+Use of EQ is deprecated at - line 8.

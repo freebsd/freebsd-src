@@ -8,24 +8,24 @@ Tie::Scalar, Tie::StdScalar - base class definitions for tied scalars
 
     package NewScalar;
     require Tie::Scalar;
-     
+
     @ISA = (Tie::Scalar);
-     
+
     sub FETCH { ... }		# Provide a needed method
     sub TIESCALAR { ... }	# Overrides inherited method
-         
-     
+
+
     package NewStdScalar;
     require Tie::Scalar;
-    
+
     @ISA = (Tie::StdScalar);
-    
+
     # All methods provided by default, so define only what needs be overridden
     sub FETCH { ... }
-    
-    
+
+
     package main;
-    
+
     tie $new_scalar, 'NewScalar';
     tie $new_std_scalar, 'NewStdScalar';
 
@@ -79,6 +79,7 @@ process IDs with priority.
 =cut
 
 use Carp;
+use warnings::register;
 
 sub new {
     my $pkg = shift;
@@ -90,8 +91,8 @@ sub new {
 sub TIESCALAR {
     my $pkg = shift;
     if (defined &{"{$pkg}::new"}) {
-	carp "WARNING: calling ${pkg}->new since ${pkg}->TIESCALAR is missing"
-	    if $^W;
+	warnings::warn "WARNING: calling ${pkg}->new since ${pkg}->TIESCALAR is missing"
+	    if warnings::enabled();
 	$pkg->new(@_);
     }
     else {

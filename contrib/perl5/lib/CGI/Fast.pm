@@ -16,7 +16,7 @@ package CGI::Fast;
 # The most recent version and complete docs are available at:
 #   http://www.genome.wi.mit.edu/ftp/pub/software/WWW/cgi_docs.html
 #   ftp://ftp-genome.wi.mit.edu/pub/software/WWW/
-$CGI::Fast::VERSION='1.01';
+$CGI::Fast::VERSION='1.02';
 
 use CGI;
 use FCGI;
@@ -170,5 +170,5 @@ This section intentionally left blank.
 =head1 SEE ALSO
 
 L<CGI::Carp>, L<CGI>
- 
+
 =cut

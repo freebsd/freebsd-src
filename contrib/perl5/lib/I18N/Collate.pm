@@ -108,6 +108,7 @@ European character set.
 # ---
 
 use POSIX qw(strxfrm LC_COLLATE);
+use warnings::register;
 
 require Exporter;
 
@@ -123,9 +124,9 @@ cmp		collate_cmp
 sub new {
   my $new = $_[1];
 
-  if ($^W && $] >= 5.003_06) {
+  if (warnings::enabled() && $] >= 5.003_06) {
     unless ($please_use_I18N_Collate_even_if_deprecated) {
-      warn <<___EOD___;
+      warnings::warn <<___EOD___;
 ***
 
   WARNING: starting from the Perl version 5.003_06

@@ -18,6 +18,7 @@ extern int	_stdprintf _ARG_((const char*, ...));
 #define PerlIO_write(f,buf,count)	sfwrite(f,buf,count)
 #define PerlIO_open(path,mode)		sfopen(NULL,path,mode)
 #define PerlIO_fdopen(fd,mode)		_stdopen(fd,mode)
+#define PerlIO_reopen(path,mode,f)	sfopen(f,path,mode)
 #define PerlIO_close(f)			sfclose(f)
 #define PerlIO_puts(f,s)		sfputr(f,s,-1)
 #define PerlIO_putc(f,c)		sfputc(f,c)
@@ -34,10 +35,10 @@ extern int	_stdprintf _ARG_((const char*, ...));
 #define PerlIO_rewind(f)		(void) sfseek((f),0L,0)
 #define PerlIO_tmpfile()		sftmp(0)
 
-#define PerlIO_importFILE(f,fl)		croak("Import from FILE * unimplemeted")
-#define PerlIO_exportFILE(f,fl)		croak("Export to FILE * unimplemeted")
+#define PerlIO_importFILE(f,fl)		Perl_croak(aTHX_ "Import from FILE * unimplemeted")
+#define PerlIO_exportFILE(f,fl)		Perl_croak(aTHX_ "Export to FILE * unimplemeted")
 #define PerlIO_findFILE(f)		NULL
-#define PerlIO_releaseFILE(p,f)		croak("Release of FILE * unimplemeted")
+#define PerlIO_releaseFILE(p,f)		Perl_croak(aTHX_ "Release of FILE * unimplemeted")
 
 #define PerlIO_setlinebuf(f)		sfset(f,SF_LINE,1)
 

@@ -17,7 +17,7 @@
 
 BEGIN {
     chdir "t" if -d "t";
-    @INC = "../lib" if -d "../lib";
+    unshift @INC, "../lib" if -d "../lib";
 }
 
 use strict;
@@ -52,6 +52,17 @@ sub bits ($) {
     $max = $min = rand(1);
     for (1..$reps) {
 	my $n = rand(1);
+	if ($n < 0.0 or $n >= 1.0) {
+	    print <<EOM;
+# WHOA THERE!  \$Config{drand01} is set to '$Config{drand01}',
+# but that apparently produces values < 0.0 or >= 1.0.
+# Make sure \$Config{drand01} is a valid expression in the
+# C-language, and produces values in the range [0.0,1.0).
+#
+# I give up.
+EOM
+	    exit;
+	}
 	$sum += $n;
 	$bits += bits($n * 256);	# Don't be greedy; 8 is enough
 		    # It's too many if randbits is less than 8!
@@ -74,8 +85,8 @@ sub bits ($) {
     # reason that the diagnostic message might get the
     # wrong value is that Config.pm is incorrect.)
     #
-    if ($max <= 0 or $max >= (1 << $randbits)) {	# Just in case...
-	print "not ok 1\n";
+    if ($max <= 0 or $max >= (2 ** $randbits)) {# Just in case...
+	print "# max=[$max] min=[$min]\nnot ok 1\n";
 	print "# This perl was compiled with randbits=$randbits\n";
 	print "# which is _way_ off. Or maybe your system rand is broken,\n";
 	print "# or your C compiler can't multiply, or maybe Martians\n";
@@ -91,7 +102,7 @@ sub bits ($) {
     $off = int($off) + ($off > 0);		# Next more positive int
     if ($off) {
 	$shouldbe = $Config{randbits} + $off;
-	print "not ok 1\n";
+	print "# max=[$max] min=[$min]\nnot ok 1\n";
 	print "# This perl was compiled with randbits=$randbits on $^O.\n";
 	print "# Consider using randbits=$shouldbe instead.\n";
 	# And skip the remaining tests; they would be pointless now.

@@ -14,3 +14,5 @@ case "$usemymalloc" in
     usemymalloc='n'
     ;;
 esac
+# Configure gets fooled for some reason.  There is no getpgid().
+d_getpgid='undef'

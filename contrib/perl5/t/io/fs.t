@@ -4,7 +4,7 @@
 
 BEGIN {
     chdir 't' if -d 't';
-    @INC = '../lib';
+    unshift @INC, '../lib';
 }
 
 use Config;
@@ -12,12 +12,16 @@ use Config;
 $Is_Dosish = ($^O eq 'MSWin32' or $^O eq 'dos' or
 	      $^O eq 'os2' or $^O eq 'mint');
 
-print "1..28\n";
+if (defined &Win32::IsWinNT && Win32::IsWinNT()) {
+    $Is_Dosish = '' if Win32::FsType() eq 'NTFS';
+}
+
+print "1..29\n";
 
 $wd = (($^O eq 'MSWin32') ? `cd` : `pwd`);
 chop($wd);
 
-if ($^O eq 'MSWin32') { `del tmp 2>nul`; `mkdir tmp`; }
+if ($^O eq 'MSWin32') { `rmdir /s /q tmp 2>nul`; `mkdir tmp`; }
 else {  `rm -f tmp 2>/dev/null; mkdir tmp 2>/dev/null`; }
 chdir './tmp';
 `/bin/rm -rf a b c x` if -x '/bin/rm';
@@ -54,28 +58,35 @@ elsif (($mode & 0777) == 0666)
     {print "ok 5\n";} 
 else {print "not ok 5\n";}
 
-if ((chmod 0777,'a') == 1) {print "ok 6\n";} else {print "not ok 6\n";}
+$newmode = $^O eq 'MSWin32' ? 0444 : 0777;
+if ((chmod $newmode,'a') == 1) {print "ok 6\n";} else {print "not ok 6\n";}
 
 ($dev,$ino,$mode,$nlink,$uid,$gid,$rdev,$size,$atime,$mtime,$ctime,
     $blksize,$blocks) = stat('c');
 if ($Is_Dosish) {print "ok 7 # skipped: no link\n";} 
-elsif (($mode & 0777) == 0777) {print "ok 7\n";} 
+elsif (($mode & 0777) == $newmode) {print "ok 7\n";} 
 else {print "not ok 7\n";}
 
+$newmode = 0700;
+if ($^O eq 'MSWin32') {
+    chmod 0444, 'x';
+    $newmode = 0666;
+}
+
 if ($Is_Dosish) {print "ok 8 # skipped: no link\n";} 
-elsif ((chmod 0700,'c','x') == 2) {print "ok 8\n";} 
+elsif ((chmod $newmode,'c','x') == 2) {print "ok 8\n";} 
 else {print "not ok 8\n";}
 
 ($dev,$ino,$mode,$nlink,$uid,$gid,$rdev,$size,$atime,$mtime,$ctime,
     $blksize,$blocks) = stat('c');
 if ($Is_Dosish) {print "ok 9 # skipped: no link\n";} 
-elsif (($mode & 0777) == 0700) {print "ok 9\n";} 
+elsif (($mode & 0777) == $newmode) {print "ok 9\n";} 
 else {print "not ok 9\n";}
 
 ($dev,$ino,$mode,$nlink,$uid,$gid,$rdev,$size,$atime,$mtime,$ctime,
     $blksize,$blocks) = stat('x');
 if ($Is_Dosish) {print "ok 10 # skipped: no link\n";} 
-elsif (($mode & 0777) == 0700) {print "ok 10\n";} 
+elsif (($mode & 0777) == $newmode) {print "ok 10\n";} 
 else {print "not ok 10\n";}
 
 if ($Is_Dosish) {print "ok 11 # skipped: no link\n"; unlink 'b','x'; } 
@@ -93,6 +104,7 @@ if (rename('a','b')) {print "ok 14\n";} else {print "not ok 14\n";}
     $blksize,$blocks) = stat('a');
 if ($ino == 0) {print "ok 15\n";} else {print "not ok 15\n";}
 $delta = $Is_Dosish ? 2 : 1;	# Granularity of time on the filesystem
+chmod 0777, 'b';
 $foo = (utime 500000000,500000000 + $delta,'b');
 if ($foo == 1) {print "ok 16\n";} else {print "not ok 16 $foo\n";}
 ($dev,$ino,$mode,$nlink,$uid,$gid,$rdev,$size,$atime,$mtime,$ctime,
@@ -141,25 +153,45 @@ else {
   truncate "Iofs.tmp", 0;
   if (-z "Iofs.tmp") {print "ok 24\n"} else {print "not ok 24\n"}
   open(FH, ">Iofs.tmp") or die "Can't create Iofs.tmp";
+  binmode FH;
   { select FH; $| = 1; select STDOUT }
-  print FH "helloworld\n";
-  truncate FH, 5;
-  if ($^O eq 'dos') {
+  {
+    use strict;
+    print FH "x\n" x 200;
+    truncate(FH, 200) or die "Can't truncate FH: $!";
+  }
+  if ($^O eq 'dos'
+	# Not needed on HPFS, but needed on HPFS386 ?!
+      or $^O eq 'os2')
+  {
       close (FH); open (FH, ">>Iofs.tmp") or die "Can't reopen Iofs.tmp";
   }
-  if (-s "Iofs.tmp" == 5) {print "ok 25\n"} else {print "not ok 25\n"}
+  if (-s "Iofs.tmp" == 200) {print "ok 25\n"} else {print "not ok 25\n"}
   truncate FH, 0;
-  if ($^O eq 'dos') {
+  if ($^O eq 'dos'
+	# Not needed on HPFS, but needed on HPFS386 ?!
+      or $^O eq 'os2')
+  {
       close (FH); open (FH, ">>Iofs.tmp") or die "Can't reopen Iofs.tmp";
   }
   if (-z "Iofs.tmp") {print "ok 26\n"} else {print "not ok 26\n"}
   close FH;
 }
 
+# check if rename() can be used to just change case of filename
+chdir './tmp';
+open(fh,'>x') || die "Can't create x";
+close(fh);
+rename('x', 'X');
+print 'not ' unless -e 'X';
+print "ok 27\n";
+unlink 'X';
+chdir $wd || die "Can't cd back to $wd";
+
 # check if rename() works on directories
 rename 'tmp', 'tmp1' or print "not ";
-print "ok 27\n";
--d 'tmp1' or print "not ";
 print "ok 28\n";
+-d 'tmp1' or print "not ";
+print "ok 29\n";
 
 END { rmdir 'tmp1'; unlink "Iofs.tmp"; }

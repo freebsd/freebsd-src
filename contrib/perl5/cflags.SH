@@ -28,7 +28,7 @@ $startsh
 
 : In the following dollars and backticks do not need the extra backslash.
 $spitshell >>cflags <<'!NO!SUBS!'
-case $CONFIG in
+case $CONFIGDOTSH in
 '')
 	if test -f config.sh; then TOP=.;
 	elif test -f ../config.sh; then TOP=..;
@@ -65,7 +65,7 @@ case $# in
 0) set *.c; echo "The current C flags are:" ;;
 esac
 
-set `echo "$* " | sed -e 's/\.[oc] / /g' -e 's/\.obj / /g'`
+set `echo "$* " | sed -e 's/\.[oc] / /g' -e 's/\.obj / /g' -e "s/\\$obj_ext / /g"`
 
 for file do
 
@@ -76,7 +76,10 @@ for file do
 
     : allow variables like toke_cflags to be evaluated
 
-    eval 'eval ${'"${file}_cflags"'-""}'
+    if echo $file | grep -v / >/dev/null
+    then
+      eval 'eval ${'"${file}_cflags"'-""}'
+    fi
 
     : or customize here
 
@@ -102,6 +105,7 @@ for file do
     miniperlmain) ;;
     op) ;;
     perl) ;;
+    perlapi) ;;
     perlmain) ;;
     perly) ;;
     pp) ;;

@@ -16,11 +16,11 @@ echo find it.  By default, it is placed in /usr/local/include/gdbm.h.	>&4
 echo It will not be found there.  Try moving it to			>&4
 echo /NextDeveloper/Headers/bsd/gdbm.h.					>&4
 
-ccflags='-DUSE_NEXT_CTYPE -DNEXT30_NO_ATTRIBUTE'
+ccflags="$ccflags -DUSE_NEXT_CTYPE -DNEXT30_NO_ATTRIBUTE"
 POSIX_cflags='ccflags="-posix $ccflags"'
 useposix='undef'
-ldflags='-u libsys_s'
-libswanted='dbm gdbm db'
+ldflags="$ldflags -u libsys_s"
+libswanted="$libswanted dbm gdbm db"
 #
 lddlflags='-r'
 # Give cccdlflags an empty value since Configure will detect we are

@@ -1,13 +1,16 @@
 #!./perl
 
-# $RCSfile: tell.t,v $$Revision: 4.1 $$Date: 92/08/07 18:27:33 $
+# $RCSfile: tell.t,v $$Revision$$Date$
 
-print "1..13\n";
+print "1..21\n";
 
 $TST = 'tst';
 
+$Is_Dosish = ($^O eq 'MSWin32' or $^O eq 'dos' or
+	      $^O eq 'os2' or $^O eq 'mint' or $^O eq 'cygwin');
+
 open($TST, '../Configure') || (die "Can't open ../Configure");
-binmode $TST if $^O eq 'MSWin32';
+binmode $TST if $Is_Dosish;
 if (eof(tst)) { print "not ok 1\n"; } else { print "ok 1\n"; }
 
 $firstline = <$TST>;
@@ -42,3 +45,40 @@ if (seek(tst,0,2)) { print "ok 11\n"; } else { print "not ok 11\n"; }
 if ($lastpos == tell) { print "ok 12\n"; } else { print "not ok 12\n"; }
 
 unless (eof) { print "not ok 13\n"; } else { print "ok 13\n"; }
+
+if ($. == 0) { print "not ok 14\n"; } else { print "ok 14\n"; }
+
+$curline = $.;
+open(other, '../Configure') || (die "Can't open ../Configure");
+binmode other if $^O eq 'MSWin32';
+
+{
+    local($.);
+
+    if ($. == 0) { print "not ok 15\n"; } else { print "ok 15\n"; }
+
+    tell other;
+    if ($. == 0) { print "ok 16\n"; } else { print "not ok 16\n"; }
+
+    $. = 5;
+    scalar <other>;
+    if ($. == 6) { print "ok 17\n"; } else { print "not ok 17\n"; }
+}
+
+if ($. == $curline) { print "ok 18\n"; } else { print "not ok 18\n"; }
+
+{
+    local($.);
+
+    scalar <other>;
+    if ($. == 7) { print "ok 19\n"; } else { print "not ok 19\n"; }
+}
+
+if ($. == $curline) { print "ok 20\n"; } else { print "not ok 20\n"; }
+
+{
+    local($.);
+
+    tell other;
+    if ($. == 7) { print "ok 21\n"; } else { print "not ok 21\n"; }
+}

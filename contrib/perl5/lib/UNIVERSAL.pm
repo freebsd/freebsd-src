@@ -62,19 +62,23 @@ The C<isa> and C<can> methods can also be called as subroutines
 
 =item UNIVERSAL::isa ( VAL, TYPE )
 
-C<isa> returns I<true> if the first argument is a reference and either
-of the following statements is true.
+C<isa> returns I<true> if one of the following statements is true.
 
 =over 8
 
-=item
+=item *
 
-C<VAL> is a blessed reference and is blessed into package C<TYPE>
-or inherits from package C<TYPE>
+C<VAL> is a reference blessed into either package C<TYPE> or a package
+which inherits from package C<TYPE>.
 
-=item
+=item *
 
-C<VAL> is a reference to a C<TYPE> of perl variable (er 'HASH')
+C<VAL> is a reference to a C<TYPE> of Perl variable (e.g. 'HASH').
+
+=item *
+
+C<VAL> is the name of a package that inherits from (or is itself)
+package C<TYPE>.
 
 =back
 

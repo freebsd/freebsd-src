@@ -65,6 +65,8 @@ while (<DATA>) {
     }
 } 
 
+close DATA;
+
 unless (caller) { 
     foreach $type ( @Type_Order ) {
 	$list = join(", ", sort @{$Kinds{$type}});
@@ -90,9 +92,9 @@ __DATA__
 abs	Math	absolute value function
 accept	Socket	accept an incoming socket connect
 alarm	Process	schedule a SIGALRM 
-atan2	Math	arctangent of Y/X 
+atan2	Math	arctangent of Y/X in the range -PI to PI
 bind	Socket	binds an address to a socket
-binmode	I/O	prepare binary files on old systems
+binmode	I/O	prepare binary files for I/O
 bless	Objects	create an object 
 caller	Flow,Namespace	get context of the current subroutine call
 chdir	File	change your current working directory
@@ -104,7 +106,7 @@ chr	String 	get character this number represents
 chroot	File	make directory new root for path lookups
 close	I/O	close file (or pipe or socket) handle
 closedir	I/O	close directory handle
-connect	Socket	connect to a remove socket
+connect	Socket	connect to a remote socket
 continue	Flow	optional trailing block in a while or foreach 
 cos	Math	cosine function
 crypt	String	one-way passwd-style encryption
@@ -123,12 +125,12 @@ endprotoent	Network	be done using protocols file
 endpwent	User	be done using passwd file
 endservent	Network	be done using services file
 eof	I/O	test a filehandle for its end
-eval	Flow,Misc	catch exceptions or compile code
+eval	Flow,Misc	catch exceptions or compile and run code
 exec	Process	abandon this program to run another
 exists	HASH	test whether a hash key is present
 exit	Flow	terminate this program
 exp	Math	raise I<e> to a power
-fcntl	File	file control system all
+fcntl	File	file control system call
 fileno	I/O	return file descriptor from filehandle
 flock	I/O	lock an entire file with an advisory lock
 fork	Process	create a new process just like this one
@@ -145,7 +147,7 @@ getlogin	User	return who logged in at this tty
 getnetbyaddr	Network	get network record given its address
 getnetbyname	Network	get networks record given name
 getnetent	Network	get next networks record 
-getpeername	Socket	find the other hend of a socket connection
+getpeername	Socket	find the other end of a socket connection
 getpgrp	Process	get process group
 getppid	Process	get parent process ID
 getpriority	Process	get current nice value
@@ -180,6 +182,7 @@ link	File	create a hard link in the filesytem
 listen	Socket	register your socket as a server 
 local	Misc,Namespace	create a temporary value for a global variable (dynamic scoping)
 localtime	Time	convert UNIX time into record or string using local time
+lock	Threads	get a thread lock on a variable, subroutine, or method
 log	Math	retrieve the natural logarithm for a number
 lstat	File	stat a symbolic link
 m//	Regexp	match a string with a regular expression pattern
@@ -210,9 +213,11 @@ qq/STRING/	String	doubly quote a string
 quotemeta	Regexp	quote regular expression magic characters
 qw/STRING/	LIST	quote a list of words
 qx/STRING/	Process	backquote quote a string
+qr/PATTERN/	Regexp	Compile pattern 
 rand	Math	retrieve the next pseudorandom number 
 read	I/O,Binary	fixed-length buffered input from a filehandle
 readdir	I/O	get a directory from a directory handle
+readline	I/O	fetch a record from a file
 readlink	File	determine where a symbolic link is pointing
 recv	Socket	receive a message over a Socket
 redo	Flow	start this loop iteration over again
@@ -249,7 +254,7 @@ shmget	SysV	get SysV shared memory segment identifier
 shmread	SysV	read SysV shared memory 
 shmwrite	SysV	write SysV shared memory 
 shutdown	Socket	close down just half of a socket connection
-sin	Math	return the sin of a number
+sin	Math	return the sine of a number
 sleep	Process	block for some number of seconds
 socket	Socket	create a socket
 socketpair	Socket	create a pair of sockets
@@ -266,6 +271,7 @@ substr	String	get or alter a portion of a stirng
 symlink	File	create a symbolic link to a file
 syscall	I/O,Binary	execute an arbitrary system call
 sysread	I/O,Binary	fixed-length unbuffered input from a filehandle
+sysseek	I/O,Binary	position I/O pointer on handle used with sysread and syswrite
 system	Process	run a separate program 
 syswrite	I/O,Binary	fixed-length unbuffered output to a filehandle
 tell	I/O	get current seekpointer on a filehandle

@@ -4,11 +4,11 @@
 # the format supported by op/regexp.t.  If you want to add a test
 # that does fit that format, add it to op/re_tests, not here.
 
-print "1..142\n";
+print "1..211\n";
 
 BEGIN {
     chdir 't' if -d 't';
-    @INC = "../lib" if -d "../lib";
+    unshift @INC, "../lib" if -d "../lib";
 }
 eval 'use Config';          #  Defaults assumed if this fails
 
@@ -282,14 +282,7 @@ eval qq("${context}y" =~ /(?<=$context)y/);
 print "not " if $@ !~ m%^\Q/(?<=\Ex+/: lookbehind longer than 255 not%;
 print "ok 71\n";
 
-# This one will fail when POSIX character classes do get implemented
-{
-	my $w;
-	local $^W = 1;
-	local $SIG{__WARN__} = sub{$w = shift};
-	eval q('a' =~ /[[:alpha:]]/);
-	print "not " if $w !~ /^\QCharacter class syntax [: :] is reserved/;
-}
+# removed test
 print "ok 72\n";
 
 # Long Monsters
@@ -363,6 +356,7 @@ sub matchit {
    /xg;
 }
 
+@ans = ();
 push @ans, $res while $res = matchit;
 
 print "# ans='@ans'\n# expect='$expect'\nnot " if "@ans" ne "1 1 1";
@@ -370,6 +364,30 @@ print "ok $test\n";
 $test++;
 
 @ans = matchit;
+
+print "# ans='@ans'\n# expect='$expect'\nnot " if "@ans" ne $expect;
+print "ok $test\n";
+$test++;
+
+print "not " unless "abc" =~ /^(??{"a"})b/;
+print "ok $test\n";
+$test++;
+
+my $matched;
+$matched = qr/\((?:(?>[^()]+)|(??{$matched}))*\)/;
+
+@ans = @ans1 = ();
+push(@ans, $res), push(@ans1, $&) while $res = m/$matched/g;
+
+print "# ans='@ans'\n# expect='$expect'\nnot " if "@ans" ne "1 1 1";
+print "ok $test\n";
+$test++;
+
+print "# ans1='@ans1'\n# expect='$expect'\nnot " if "@ans1" ne $expect;
+print "ok $test\n";
+$test++;
+
+@ans = m/$matched/g;
 
 print "# ans='@ans'\n# expect='$expect'\nnot " if "@ans" ne $expect;
 print "ok $test\n";
@@ -555,8 +573,8 @@ sub must_warn_pat {
 
 sub must_warn {
     my ($warn_pat, $code) = @_;
-    local $^W; local %SIG;
-    eval 'BEGIN { $^W = 1; $SIG{__WARN__} = $warn_pat };' . $code;
+    local %SIG;
+    eval 'BEGIN { use warnings; $SIG{__WARN__} = $warn_pat };' . $code;
     print "ok $test\n";
     $test++;
 }
@@ -595,8 +613,385 @@ print "not " if @_;
 print "ok $test\n";
 $test++;
 
+/a(?=.$)/;
+print "not " if $#+ != 0 or $#- != 0;
+print "ok $test\n";
+$test++;
+
+print "not " if $+[0] != 2 or $-[0] != 1;
+print "ok $test\n";
+$test++;
+
+print "not " 
+   if defined $+[1] or defined $-[1] or defined $+[2] or defined $-[2];
+print "ok $test\n";
+$test++;
+
+/a(a)(a)/;
+print "not " if $#+ != 2 or $#- != 2;
+print "ok $test\n";
+$test++;
+
+print "not " if $+[0] != 3 or $-[0] != 0;
+print "ok $test\n";
+$test++;
+
+print "not " if $+[1] != 2 or $-[1] != 1;
+print "ok $test\n";
+$test++;
+
+print "not " if $+[2] != 3 or $-[2] != 2;
+print "ok $test\n";
+$test++;
+
+print "not " 
+   if defined $+[3] or defined $-[3] or defined $+[4] or defined $-[4];
+print "ok $test\n";
+$test++;
+
+/.(a)(b)?(a)/;
+print "not " if $#+ != 3 or $#- != 3;
+print "ok $test\n";
+$test++;
+
+print "not " if $+[0] != 3 or $-[0] != 0;
+print "ok $test\n";
+$test++;
+
+print "not " if $+[1] != 2 or $-[1] != 1;
+print "ok $test\n";
+$test++;
+
+print "not " if $+[3] != 3 or $-[3] != 2;
+print "ok $test\n";
+$test++;
+
+print "not " 
+   if defined $+[2] or defined $-[2] or defined $+[4] or defined $-[4];
+print "ok $test\n";
+$test++;
+
+/.(a)/;
+print "not " if $#+ != 1 or $#- != 1;
+print "ok $test\n";
+$test++;
+
+print "not " if $+[0] != 2 or $-[0] != 0;
+print "ok $test\n";
+$test++;
+
+print "not " if $+[1] != 2 or $-[1] != 1;
+print "ok $test\n";
+$test++;
+
+print "not " 
+   if defined $+[2] or defined $-[2] or defined $+[3] or defined $-[3];
+print "ok $test\n";
+$test++;
+
+/.(a)(ba*)?/;
+print "#$#-..$#+\nnot " if $#+ != 2 or $#- != 1;
+print "ok $test\n";
+$test++;
+
+$_ = 'aaa';
+pos = 1;
+@a = /\Ga/g;
+print "not " unless "@a" eq "a a";
+print "ok $test\n";
+$test++;
+
+$str = 'abcde';
+pos $str = 2;
+
+print "not " if $str =~ /^\G/;
+print "ok $test\n";
+$test++;
+
+print "not " if $str =~ /^.\G/;
+print "ok $test\n";
+$test++;
+
+print "not " unless $str =~ /^..\G/;
+print "ok $test\n";
+$test++;
+
+print "not " if $str =~ /^...\G/;
+print "ok $test\n";
+$test++;
+
+print "not " unless $str =~ /.\G./ and $& eq 'bc';
+print "ok $test\n";
+$test++;
+
+print "not " unless $str =~ /\G../ and $& eq 'cd';
+print "ok $test\n";
+$test++;
+
+undef $foo; undef $bar;
+print "#'$str','$foo','$bar'\nnot "
+    unless $str =~ /b(?{$foo = $_; $bar = pos})c/ 
+	and $foo eq 'abcde' and $bar eq 2;
+print "ok $test\n";
+$test++;
+
+undef $foo; undef $bar;
+pos $str = undef;
+print "#'$str','$foo','$bar'\nnot "
+    unless $str =~ /b(?{$foo = $_; $bar = pos})c/g 
+	and $foo eq 'abcde' and $bar eq 2 and pos $str eq 3;
+print "ok $test\n";
+$test++;
+
+$_ = $str;
+
+undef $foo; undef $bar;
+print "#'$str','$foo','$bar'\nnot "
+    unless /b(?{$foo = $_; $bar = pos})c/ 
+	and $foo eq 'abcde' and $bar eq 2;
+print "ok $test\n";
+$test++;
+
+undef $foo; undef $bar;
+print "#'$str','$foo','$bar'\nnot "
+    unless /b(?{$foo = $_; $bar = pos})c/g 
+	and $foo eq 'abcde' and $bar eq 2 and pos eq 3;
+print "ok $test\n";
+$test++;
+
+undef $foo; undef $bar;
+pos = undef;
+1 while /b(?{$foo = $_; $bar = pos})c/g;
+print "#'$str','$foo','$bar'\nnot "
+    unless $foo eq 'abcde' and $bar eq 2 and not defined pos;
+print "ok $test\n";
+$test++;
+
+undef $foo; undef $bar;
+$_ = 'abcde|abcde';
+print "#'$str','$foo','$bar','$_'\nnot "
+    unless s/b(?{$foo = $_; $bar = pos})c/x/g and $foo eq 'abcde|abcde' 
+	and $bar eq 8 and $_ eq 'axde|axde';
+print "ok $test\n";
+$test++;
+
+@res = ();
+# List context:
+$_ = 'abcde|abcde';
+@dummy = /([ace]).(?{push @res, $1,$2})([ce])(?{push @res, $1,$2})/g;
+@res = map {defined $_ ? "'$_'" : 'undef'} @res;
+$res = "@res";
+print "#'@res' '$_'\nnot "
+    unless "@res" eq "'a' undef 'a' 'c' 'e' undef 'a' undef 'a' 'c'";
+print "ok $test\n";
+$test++;
+
+@res = ();
+@dummy = /([ace]).(?{push @res, $`,$&,$'})([ce])(?{push @res, $`,$&,$'})/g;
+@res = map {defined $_ ? "'$_'" : 'undef'} @res;
+$res = "@res";
+print "#'@res' '$_'\nnot "
+    unless "@res" eq
+  "'' 'ab' 'cde|abcde' " .
+  "'' 'abc' 'de|abcde' " .
+  "'abcd' 'e|' 'abcde' " .
+  "'abcde|' 'ab' 'cde' " .
+  "'abcde|' 'abc' 'de'" ;
+print "ok $test\n";
+$test++;
+
+#Some more \G anchor checks
+$foo='aabbccddeeffgg';
+
+pos($foo)=1;
+
+$foo=~/.\G(..)/g;
+print "not " unless($1 eq 'ab');
+print "ok $test\n";
+$test++;
+
+pos($foo) += 1;
+$foo=~/.\G(..)/g;
+print "not " unless($1 eq 'cc');
+print "ok $test\n";
+$test++;
+
+pos($foo) += 1;
+$foo=~/.\G(..)/g;
+print "not " unless($1 eq 'de');
+print "ok $test\n";
+$test++;
+
+print "not " unless $foo =~ /\Gef/g;
+print "ok $test\n";
+$test++;
+
+undef pos $foo;
+
+$foo=~/\G(..)/g;
+print "not " unless($1  eq 'aa');
+print "ok $test\n";
+$test++;
+
+$foo=~/\G(..)/g;
+print "not " unless($1  eq 'bb');
+print "ok $test\n";
+$test++;
+
+pos($foo)=5;
+$foo=~/\G(..)/g;
+print "not " unless($1  eq 'cd');
+print "ok $test\n";
+$test++;
+
+$_='123x123'; 
+@res = /(\d*|x)/g;
+print "not " unless('123||x|123|' eq join '|', @res);
+print "ok $test\n";
+$test++;
+
 # see if matching against temporaries (created via pp_helem()) is safe
 { foo => "ok $test\n".$^X }->{foo} =~ /^(.*)\n/g;
 print "$1\n";
 $test++;
 
+# See if $i work inside (?{}) in the presense of saved substrings and
+# changing $_
+@a = qw(foo bar);
+@b = ();
+s/(\w)(?{push @b, $1})/,$1,/g for @a;
+
+print "# \@b='@b', expect 'f o o b a r'\nnot " unless("@b" eq "f o o b a r");
+print "ok $test\n";
+$test++;
+
+print "not " unless("@a" eq ",f,,o,,o, ,b,,a,,r,");
+print "ok $test\n";
+$test++;
+
+$brackets = qr{
+	         {  (?> [^{}]+ | (??{ $brackets }) )* }
+	      }x;
+
+"{{}" =~ $brackets;
+print "ok $test\n";		# Did we survive?
+$test++;
+
+"something { long { and } hairy" =~ $brackets;
+print "ok $test\n";		# Did we survive?
+$test++;
+
+"something { long { and } hairy" =~ m/((??{ $brackets }))/;
+print "not " unless $1 eq "{ and }";
+print "ok $test\n";
+$test++;
+
+$_ = "a-a\nxbb";
+pos=1;
+m/^-.*bb/mg and print "not ";
+print "ok $test\n";
+$test++;
+
+$text = "aaXbXcc";
+pos($text)=0;
+$text =~ /\GXb*X/g and print 'not ';
+print "ok $test\n";
+$test++;
+
+$text = "xA\n" x 500;
+$text =~ /^\s*A/m and print 'not ';
+print "ok $test\n";
+$test++;
+
+$text = "abc dbf";
+@res = ($text =~ /.*?(b).*?\b/g);
+"@res" eq 'b b' or print 'not ';
+print "ok $test\n";
+$test++;
+
+@a = map chr,0..255;
+
+@b = grep(/\S/,@a);
+@c = grep(/[^\s]/,@a);
+print "not " if "@b" ne "@c";
+print "ok $test\n";
+$test++;
+
+@b = grep(/\S/,@a);
+@c = grep(/[\S]/,@a);
+print "not " if "@b" ne "@c";
+print "ok $test\n";
+$test++;
+
+@b = grep(/\s/,@a);
+@c = grep(/[^\S]/,@a);
+print "not " if "@b" ne "@c";
+print "ok $test\n";
+$test++;
+
+@b = grep(/\s/,@a);
+@c = grep(/[\s]/,@a);
+print "not " if "@b" ne "@c";
+print "ok $test\n";
+$test++;
+
+@b = grep(/\D/,@a);
+@c = grep(/[^\d]/,@a);
+print "not " if "@b" ne "@c";
+print "ok $test\n";
+$test++;
+
+@b = grep(/\D/,@a);
+@c = grep(/[\D]/,@a);
+print "not " if "@b" ne "@c";
+print "ok $test\n";
+$test++;
+
+@b = grep(/\d/,@a);
+@c = grep(/[^\D]/,@a);
+print "not " if "@b" ne "@c";
+print "ok $test\n";
+$test++;
+
+@b = grep(/\d/,@a);
+@c = grep(/[\d]/,@a);
+print "not " if "@b" ne "@c";
+print "ok $test\n";
+$test++;
+
+@b = grep(/\W/,@a);
+@c = grep(/[^\w]/,@a);
+print "not " if "@b" ne "@c";
+print "ok $test\n";
+$test++;
+
+@b = grep(/\W/,@a);
+@c = grep(/[\W]/,@a);
+print "not " if "@b" ne "@c";
+print "ok $test\n";
+$test++;
+
+@b = grep(/\w/,@a);
+@c = grep(/[^\W]/,@a);
+print "not " if "@b" ne "@c";
+print "ok $test\n";
+$test++;
+
+@b = grep(/\w/,@a);
+@c = grep(/[\w]/,@a);
+print "not " if "@b" ne "@c";
+print "ok $test\n";
+$test++;
+
+# see if backtracking optimization works correctly
+"\n\n" =~ /\n  $ \n/x or print "not ";
+print "ok $test\n";
+$test++;
+
+"\n\n" =~ /\n* $ \n/x or print "not ";
+print "ok $test\n";
+$test++;
+
+"\n\n" =~ /\n+ $ \n/x or print "not ";
+print "ok $test\n";
+$test++;

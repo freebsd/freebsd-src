@@ -1,5 +1,12 @@
 # exceptions.pl
 # tchrist@convex.com
+#
+# This library is no longer being maintained, and is included for backward
+# compatibility with Perl 4 programs which may require it.
+#
+# In particular, this should not be used as an example of modern Perl
+# programming techniques.
+#
 # 
 # Here's a little code I use for exception handling.  It's really just
 # glorfied eval/die.  The way to use use it is when you might otherwise

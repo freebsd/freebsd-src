@@ -1,0 +1,29 @@
+
+  utf8.c AOK
+
+     [utf8_to_uv]
+     Malformed UTF-8 character
+	my $a = ord "\x80" ;
+
+     Malformed UTF-8 character
+	my $a = ord "\xf080" ;
+     <<<<<< this warning can't be easily triggered from perl anymore
+
+     [utf16_to_utf8]
+     Malformed UTF-16 surrogate		
+     <<<<<< Add a test when somethig actually calls utf16_to_utf8
+
+__END__
+# utf8.c [utf8_to_uv] -W
+use utf8 ;
+my $a = "snøstorm" ;
+{
+    no warnings 'utf8' ;
+    my $a = "snøstorm";
+    use warnings 'utf8' ;
+    my $a = "snøstorm";
+}
+EXPECT
+Malformed UTF-8 character at - line 3.
+Malformed UTF-8 character at - line 8.
+########

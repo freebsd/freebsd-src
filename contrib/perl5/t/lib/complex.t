@@ -9,7 +9,7 @@
 
 BEGIN {
     chdir 't' if -d 't';
-    @INC = '../lib';
+    unshift @INC, '../lib';
 }
 
 use Math::Complex;
@@ -73,6 +73,7 @@ push(@script, <<'EOT');
     my $z = cplx(  1,  1);
     $z->Re(2);
     $z->Im(3);
+    print "# $test Re(z) = ",$z->Re(), " Im(z) = ", $z->Im(), " z = $z\n";
     print 'not ' unless Re($z) == 2 and Im($z) == 3;
 EOT
     push(@script, qq(print "ok $test\\n"}\n));
@@ -82,6 +83,7 @@ push(@script, <<'EOT');
 {
     my $z = cplx(  1,  1);
     $z->abs(3 * sqrt(2));
+    print "# $test Re(z) = ",$z->Re(), " Im(z) = ", $z->Im(), " z = $z\n";
     print 'not ' unless (abs($z) - 3 * sqrt(2)) < $eps and
                         (arg($z) - pi / 4     ) < $eps and
                         (Re($z) - 3           ) < $eps and
@@ -94,6 +96,7 @@ push(@script, <<'EOT');
 {
     my $z = cplx(  1,  1);
     $z->arg(-3 / 4 * pi);
+    print "# $test Re(z) = ",$z->Re(), " Im(z) = ", $z->Im(), " z = $z\n";
     print 'not ' unless (arg($z) + 3 / 4 * pi) < $eps and
                         (abs($z) - sqrt(2)   ) < $eps and
                         (Re($z) + 1          ) < $eps and
@@ -120,10 +123,11 @@ push(@script, $constants);
 sub test_dbz {
     for my $op (@_) {
 	$test++;
-
 	push(@script, <<EOT);
-eval '$op';
-print 'not ' unless (\$@ =~ /Division by zero/);
+	eval '$op';
+	(\$bad) = (\$@ =~ /(.+)/);
+	print "# $test op = $op divbyzero? \$bad...\n";
+	print 'not ' unless (\$@ =~ /Division by zero/);
 EOT
         push(@script, qq(print "ok $test\\n";\n));
     }
@@ -134,10 +138,11 @@ EOT
 sub test_loz {
     for my $op (@_) {
 	$test++;
-
 	push(@script, <<EOT);
-eval '$op';
-print 'not ' unless (\$@ =~ /Logarithm of zero/);
+	eval '$op';
+	(\$bad) = (\$@ =~ /(.+)/);
+	print "# $test op = $op logofzero? \$bad...\n";
+	print 'not ' unless (\$@ =~ /Logarithm of zero/);
 EOT
         push(@script, qq(print "ok $test\\n";\n));
     }
@@ -178,16 +183,110 @@ test_loz(
 sub test_broot {
     for my $op (@_) {
 	$test++;
-
 	push(@script, <<EOT);
-eval 'root(2, $op)';
-print 'not ' unless (\$@ =~ /root must be/);
+	eval 'root(2, $op)';
+	(\$bad) = (\$@ =~ /(.+)/);
+	print "# $test op = $op badroot? \$bad...\n";
+	print 'not ' unless (\$@ =~ /root must be/);
 EOT
         push(@script, qq(print "ok $test\\n";\n));
     }
 }
 
 test_broot(qw(-3 -2.1 0 0.99));
+
+sub test_display_format {
+    push @script, <<EOS;
+    my \$j = (root(1,3))[1];
+
+    \$j->display_format('polar');
+EOS
+
+    $test++;
+    push @script, <<EOS;
+    print "# display_format polar?\n";
+    print "not " unless \$j->display_format eq 'polar';
+    print "ok $test\n";
+EOS
+
+    $test++;
+    push @script, <<EOS;
+    print "# j = \$j\n";
+    print "not " unless "\$j" eq "[1,2pi/3]";
+    print "ok $test\n";
+
+    my %display_format;
+
+    %display_format = \$j->display_format;
+EOS
+
+    $test++;
+    push @script, <<EOS;
+    print "# display_format{style} polar?\n";
+    print "not " unless \$display_format{style} eq 'polar';
+    print "ok $test\n";
+EOS
+
+    $test++;
+    push @script, <<EOS;
+    print "# keys %display_format == 2?\n";
+    print "not " unless keys %display_format == 2;
+    print "ok $test\n";
+
+    \$j->display_format('style' => 'cartesian', 'format' => '%.5f');
+EOS
+
+    $test++;
+    push @script, <<EOS;
+    print "# j = \$j\n";
+    print "not " unless "\$j" eq "-0.50000+0.86603i";
+    print "ok $test\n";
+
+    %display_format = \$j->display_format;
+EOS
+
+    $test++;
+    push @script, <<EOS;
+    print "# display_format{format} %.5f?\n";
+    print "not " unless \$display_format{format} eq '%.5f';
+    print "ok $test\n";
+EOS
+
+    $test++;
+    push @script, <<EOS;
+    print "# keys %display_format == 3?\n";
+    print "not " unless keys %display_format == 3;
+    print "ok $test\n";
+
+    \$j->display_format('format' => undef);
+EOS
+
+    $test++;
+    push @script, <<EOS;
+    print "# j = \$j\n";
+    print "not " unless "\$j" =~ /^-0\\.5\\+0.86602540\\d+i\$/;
+    print "ok $test\n";
+
+    \$j->display_format('style' => 'polar', 'polar_pretty_print' => 0);
+EOS
+
+    $test++;
+    push @script, <<EOS;
+    print "# j = \$j\n";
+    print "not " unless "\$j" =~ /^\\[1,2\\.09439510\\d+\\]\$/;
+    print "ok $test\n";
+
+    \$j->display_format('style' => 'cartesian', 'format' => '(%.5g)');
+EOS
+    $test++;
+    push @script, <<EOS;
+    print "# j = \$j\n";
+    print "not " unless "\$j" eq "(-0.5)+(0.86603)i";
+    print "ok $test\n";
+EOS
+}
+
+test_display_format();
 
 print "1..$test\n";
 eval join '', @script;
@@ -294,7 +393,7 @@ sub value {
 sub check {
 	my ($test, $try, $got, $expected, @z) = @_;
 
-#	print "# @_\n";
+	print "# @_\n";
 
 	if ("$got" eq "$expected"
 	    ||

@@ -1,6 +1,6 @@
 =head1 NAME
 
-perlfaq5 - Files and Formats ($Revision: 1.34 $, $Date: 1999/01/08 05:46:13 $)
+perlfaq5 - Files and Formats ($Revision: 1.38 $, $Date: 1999/05/23 16:08:30 $)
 
 =head1 DESCRIPTION
 
@@ -69,7 +69,7 @@ or even this:
 
 Note the bizarrely hardcoded carriage return and newline in their octal
 equivalents.  This is the ONLY way (currently) to assure a proper flush
-on all platforms, including Macintosh.  That the way things work in
+on all platforms, including Macintosh.  That's the way things work in
 network programming: you really should specify the exact bit pattern
 on the network line terminator.  In practice, C<"\n\n"> often works,
 but this is not portable.
@@ -347,7 +347,7 @@ Then use any of those as you would a normal filehandle.  Anywhere that
 Perl is expecting a filehandle, an indirect filehandle may be used
 instead. An indirect filehandle is just a scalar variable that contains
 a filehandle.  Functions like C<print>, C<open>, C<seek>, or
-the C<E<lt>FHE<gt>> diamond operator will accept either a read filehandle
+the C<< <FH> >> diamond operator will accept either a read filehandle
 or a scalar variable containing one:
 
     ($ifh, $ofh, $efh) = (*STDIN, *STDOUT, *STDERR);
@@ -407,7 +407,7 @@ calls doesn't work for the diamond operator.  That's because it's a
 real operator, not just a function with a comma-less argument.  Assuming
 you've been storing typeglobs in your structure as we did above, you
 can use the built-in function named C<readline> to reads a record just
-as C<E<lt>E<gt>> does.  Given the initialization shown above for @fd, this
+as C<< <> >> does.  Given the initialization shown above for @fd, this
 would work, but only because readline() require a typeglob.  It doesn't
 work with objects or strings, which might be a bug we haven't fixed yet.
 
@@ -463,7 +463,7 @@ whatever:
 
 =head2 How can I translate tildes (~) in a filename?
 
-Use the E<lt>E<gt> (glob()) operator, documented in L<perlfunc>.  This
+Use the <> (glob()) operator, documented in L<perlfunc>.  This
 requires that you have a shell installed that groks tildes, meaning
 csh or tcsh or (some versions of) ksh, and thus may have portability
 problems.  The Glob::KGlob module (available from CPAN) gives more
@@ -491,8 +491,12 @@ I<then> gives you read-write access:
     open(FH, "+> /path/name");		# WRONG (almost always)
 
 Whoops.  You should instead use this, which will fail if the file
-doesn't exist.  Using "E<gt>" always clobbers or creates. 
-Using "E<lt>" never does either.  The "+" doesn't change this.
+doesn't exist.  
+
+    open(FH, "+< /path/name");  	# open for update
+
+Using ">" always clobbers or creates.  Using "<" never does
+either.  The "+" doesn't change this.
 
 Here are examples of many kinds of file opens.  Those using sysopen()
 all assume
@@ -550,19 +554,20 @@ be an atomic operation over NFS.  That is, two processes might both
 successful create or unlink the same file!  Therefore O_EXCL
 isn't so exclusive as you might wish.
 
-See also the new L<perlopentut> if you have it (new for 5.006).
+See also the new L<perlopentut> if you have it (new for 5.6).
 
-=head2 Why do I sometimes get an "Argument list too long" when I use E<lt>*E<gt>?
+=head2 Why do I sometimes get an "Argument list too long" when I use <*>?
 
-The C<E<lt>E<gt>> operator performs a globbing operation (see above).
-By default glob() forks csh(1) to do the actual glob expansion, but
+The C<< <> >> operator performs a globbing operation (see above).
+In Perl versions earlier than v5.6.0, the internal glob() operator forks
+csh(1) to do the actual glob expansion, but
 csh can't handle more than 127 items and so gives the error message
 C<Argument list too long>.  People who installed tcsh as csh won't
 have this problem, but their users may be surprised by it.
 
-To get around this, either do the glob yourself with readdir() and
-patterns, or use a module like Glob::KGlob, one that doesn't use the
-shell to do globbing.  This is expected to be fixed soon.
+To get around this, either upgrade to Perl v5.6.0 or later, do the glob
+yourself with readdir() and patterns, or use a module like Glob::KGlob,
+one that doesn't use the shell to do globbing.
 
 =head2 Is there a leak/bug in glob()?
 
@@ -571,7 +576,7 @@ use the glob() function or its angle-bracket alias in a scalar
 context, you may cause a leak and/or unpredictable behavior.  It's
 best therefore to use glob() only in list context.
 
-=head2 How can I open a file with a leading "E<gt>" or trailing blanks?
+=head2 How can I open a file with a leading ">" or trailing blanks?
 
 Normally perl ignores trailing blanks in filenames, and interprets
 certain leading characters (or a trailing "|") to mean something
@@ -602,14 +607,18 @@ It would be a lot clearer to use sysopen(), though:
 	or die "can't open $badpath: $!";
 
 For more information, see also the new L<perlopentut> if you have it
-(new for 5.006).
+(new for 5.6).
 
 =head2 How can I reliably rename a file?
 
-Well, usually you just use Perl's rename() function.  But that may
-not work everywhere, in particular, renaming files across file systems.
-If your operating system supports a mv(1) program or its moral equivalent,
-this works:
+Well, usually you just use Perl's rename() function.  But that may not
+work everywhere, in particular, renaming files across file systems.
+Some sub-Unix systems have broken ports that corrupt the semantics of
+rename() -- for example, WinNT does this right, but Win95 and Win98
+are broken.  (The last two parts are not surprising, but the first is. :-)
+
+If your operating system supports a proper mv(1) program or its moral
+equivalent, this works:
 
     rename($old, $new) or system("mv", $old, $new);
 
@@ -643,14 +652,28 @@ filehandle be open for writing (or appending, or read/writing).
 
 =item 3
 
-Some versions of flock() can't lock files over a network (e.g. on NFS
-file systems), so you'd need to force the use of fcntl(2) when you
-build Perl.  See the flock entry of L<perlfunc>, and the F<INSTALL>
-file in the source distribution for information on building Perl to do
-this.
+Some versions of flock() can't lock files over a network (e.g. on NFS file
+systems), so you'd need to force the use of fcntl(2) when you build Perl.
+But even this is dubious at best.  See the flock entry of L<perlfunc>,
+and the F<INSTALL> file in the source distribution for information on
+building Perl to do this.
+
+Two potentially non-obvious but traditional flock semantics are that
+it waits indefinitely until the lock is granted, and that its locks
+I<merely advisory>.  Such discretionary locks are more flexible, but
+offer fewer guarantees.  This means that files locked with flock() may
+be modified by programs that do not also use flock().  Cars that stop
+for red lights get on well with each other, but not with cars that don't
+stop for red lights.  See the perlport manpage, your port's specific
+documentation, or your system-specific local manpages for details.  It's
+best to assume traditional behavior if you're writing portable programs.
+(But if you're not, you should as always feel perfectly free to write
+for your own system's idiosyncrasies (sometimes called "features").
+Slavish adherence to portability concerns shouldn't get in the way of
+your getting your job done.)
 
 For more information on file locking, see also L<perlopentut/"File
-Locking"> if you have it (new for 5.006).
+Locking"> if you have it (new for 5.6).
 
 =back
 
@@ -796,6 +819,58 @@ function -- or your own tee program -- or use Tom Christiansen's,
 at http://www.perl.com/CPAN/authors/id/TOMC/scripts/tct.gz, which is
 written in Perl and offers much greater functionality
 than the stock version.
+
+=head2 How can I read in an entire file all at once?
+
+The customary Perl approach for processing all the lines in a file is to
+do so one line at a time:
+
+    open (INPUT, $file) 	|| die "can't open $file: $!";
+    while (<INPUT>) {
+	chomp;
+	# do something with $_
+    } 
+    close(INPUT)	    	|| die "can't close $file: $!";
+
+This is tremendously more efficient than reading the entire file into
+memory as an array of lines and then processing it one element at a time,
+which is often -- if not almost always -- the wrong approach.  Whenever
+you see someone do this:
+
+    @lines = <INPUT>;
+
+You should think long and hard about why you need everything loaded
+at once.  It's just not a scalable solution.  You might also find it
+more fun to use the the standard DB_File module's $DB_RECNO bindings,
+which allow you to tie an array to a file so that accessing an element
+the array actually accesses the corresponding line in the file.
+
+On very rare occasion, you may have an algorithm that demands that
+the entire file be in memory at once as one scalar.  The simplest solution
+to that is:
+
+    $var = `cat $file`;
+
+Being in scalar context, you get the whole thing.  In list context,
+you'd get a list of all the lines:
+
+    @lines = `cat $file`;
+
+This tiny but expedient solution is neat, clean, and portable to
+all systems on which decent tools have been installed.  For those
+who prefer not to use the toolbox, you can of course read the file
+manually, although this makes for more complicated code.
+
+    {
+	local(*INPUT, $/);
+	open (INPUT, $file) 	|| die "can't open $file: $!";
+	$var = <INPUT>;
+    }
+
+That temporarily undefs your record separator, and will automatically 
+close the file at block exit.  If the file is already open, just use this:
+
+    $var = do { local $/; <INPUT> };
 
 =head2 How can I read in a file by paragraphs?
 
@@ -1025,7 +1100,7 @@ Or even with a literal numeric descriptor:
    $fd = $ENV{MHCONTEXTFD};
    open(MHCONTEXT, "<&=$fd");	# like fdopen(3S)
 
-Note that "E<lt>&STDIN" makes a copy, but "E<lt>&=STDIN" make
+Note that "<&STDIN" makes a copy, but "<&=STDIN" make
 an alias.  That means if you close an aliased handle, all
 aliases become inaccessible.  This is not true with 
 a copied one.
@@ -1042,6 +1117,14 @@ to, you may be able to do this:
     require 'sys/syscall.ph';
     $rc = syscall(&SYS_close, $fd + 0);  # must force numeric
     die "can't sysclose $fd: $!" unless $rc == -1;
+
+Or just use the fdopen(3S) feature of open():
+
+    { 
+	local *F; 
+	open F, "<&=$fd" or die "Cannot reopen fd=$fd: $!";
+	close F;
+    }
 
 =head2 Why can't I use "C:\temp\foo" in DOS paths?  What doesn't `C:\temp\foo.exe` work?
 
@@ -1121,13 +1204,12 @@ Copyright (c) 1997-1999 Tom Christiansen and Nathan Torkington.
 All rights reserved.
 
 When included as an integrated part of the Standard Distribution
-of Perl or of its documentation (printed or otherwise), this work is
-covered under Perl's Artistic Licence.  For separate distributions of
+of Perl or of its documentation (printed or otherwise), this works is
+covered under Perl's Artistic License.  For separate distributions of
 all or part of this FAQ outside of that, see L<perlfaq>.
 
-Irrespective of its distribution, all code examples here are public
+Irrespective of its distribution, all code examples here are in the public
 domain.  You are permitted and encouraged to use this code and any
 derivatives thereof in your own programs for fun or for profit as you
 see fit.  A simple comment in the code giving credit to the FAQ would
 be courteous but is not required.
-

@@ -25,6 +25,7 @@ $MANIFEST = 'MANIFEST';
 
 # Really cool fix from Ilya :)
 unless (defined $Config{d_link}) {
+    no warnings;
     *ln = \&cp;
 }
 
@@ -186,7 +187,6 @@ sub manicopy {
     require File::Basename;
     my(%dirs,$file);
     $target = VMS::Filespec::unixify($target) if $Is_VMS;
-    umask 0 unless $Is_VMS;
     File::Path::mkpath([ $target ],1,$Is_VMS ? undef : 0755);
     foreach $file (keys %$read){
 	$file = VMS::Filespec::unixify($file) if $Is_VMS;
@@ -268,27 +268,27 @@ ExtUtils::Manifest - utilities to write and check a MANIFEST file
 
 =head1 SYNOPSIS
 
-C<require ExtUtils::Manifest;>
+    require ExtUtils::Manifest;
 
-C<ExtUtils::Manifest::mkmanifest;>
+    ExtUtils::Manifest::mkmanifest;
 
-C<ExtUtils::Manifest::manicheck;>
+    ExtUtils::Manifest::manicheck;
 
-C<ExtUtils::Manifest::filecheck;>
+    ExtUtils::Manifest::filecheck;
 
-C<ExtUtils::Manifest::fullcheck;>
+    ExtUtils::Manifest::fullcheck;
 
-C<ExtUtils::Manifest::skipcheck;>
+    ExtUtils::Manifest::skipcheck;
 
-C<ExtUtild::Manifest::manifind();>
+    ExtUtils::Manifest::manifind();
 
-C<ExtUtils::Manifest::maniread($file);>
+    ExtUtils::Manifest::maniread($file);
 
-C<ExtUtils::Manifest::manicopy($read,$target,$how);>
+    ExtUtils::Manifest::manicopy($read,$target,$how);
 
 =head1 DESCRIPTION
 
-Mkmanifest() writes all files in and below the current directory to a
+mkmanifest() writes all files in and below the current directory to a
 file named in the global variable $ExtUtils::Manifest::MANIFEST (which
 defaults to C<MANIFEST>) in the current directory. It works similar to
 
@@ -302,33 +302,33 @@ comments are separated by one or more TAB characters in the
 output. All files that match any regular expression in a file
 C<MANIFEST.SKIP> (if such a file exists) are ignored.
 
-Manicheck() checks if all the files within a C<MANIFEST> in the
+manicheck() checks if all the files within a C<MANIFEST> in the
 current directory really do exist. It only reports discrepancies and
 exits silently if MANIFEST and the tree below the current directory
 are in sync.
 
-Filecheck() finds files below the current directory that are not
+filecheck() finds files below the current directory that are not
 mentioned in the C<MANIFEST> file. An optional file C<MANIFEST.SKIP>
 will be consulted. Any file matching a regular expression in such a
 file will not be reported as missing in the C<MANIFEST> file.
 
-Fullcheck() does both a manicheck() and a filecheck().
+fullcheck() does both a manicheck() and a filecheck().
 
-Skipcheck() lists all the files that are skipped due to your
+skipcheck() lists all the files that are skipped due to your
 C<MANIFEST.SKIP> file.
 
-Manifind() returns a hash reference. The keys of the hash are the
+manifind() returns a hash reference. The keys of the hash are the
 files found below the current directory.
 
-Maniread($file) reads a named C<MANIFEST> file (defaults to
+maniread($file) reads a named C<MANIFEST> file (defaults to
 C<MANIFEST> in the current directory) and returns a HASH reference
 with files being the keys and comments being the values of the HASH.
 Blank lines and lines which start with C<#> in the C<MANIFEST> file
 are discarded.
 
-I<Manicopy($read,$target,$how)> copies the files that are the keys in
+C<manicopy($read,$target,$how)> copies the files that are the keys in
 the HASH I<%$read> to the named target directory. The HASH reference
-I<$read> is typically returned by the maniread() function. This
+$read is typically returned by the maniread() function. This
 function is useful for producing a directory tree identical to the
 intended distribution tree. The third parameter $how can be used to
 specify a different methods of "copying". Valid values are C<cp>,

@@ -4,7 +4,7 @@
 # test recursive functions.
 #
 
-print "1..23\n";
+print "1..25\n";
 
 sub gcd ($$) {
     return gcd($_[0] - $_[1], $_[1]) if ($_[0] > $_[1]);
@@ -84,3 +84,33 @@ for $x (0..3) {
 print 'not ' unless (($t = takeuchi($x, $y, $z)) == $z + 1);
 print "ok ", $i++, "\n";
 print "# takeuchi($x, $y, $z) = $t\n";
+
+{
+    sub get_first1 {
+	get_list1(@_)->[0];
+    }
+
+    sub get_list1 {
+	return [24] unless $_[0];
+	my $u = get_first1(0);
+	[$u];
+    }
+    my $x = get_first1(1);
+    print "ok $x\n";
+}
+
+{
+    sub get_first2 {
+	return get_list2(@_)->[0];
+    }
+
+    sub get_list2 {
+	return [25] unless $_[0];
+	my $u = get_first2(0);
+	return [$u];
+    }
+    my $x = get_first2(1);
+    print "ok $x\n";
+}
+
+$i = 26;

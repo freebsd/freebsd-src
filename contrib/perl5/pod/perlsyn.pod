@@ -5,21 +5,14 @@ perlsyn - Perl syntax
 =head1 DESCRIPTION
 
 A Perl script consists of a sequence of declarations and statements.
-The only things that need to be declared in Perl are report formats
-and subroutines.  See the sections below for more information on those
-declarations.  All uninitialized user-created objects are assumed to
-start with a C<null> or C<0> value until they are defined by some explicit
-operation such as assignment.  (Though you can get warnings about the
-use of undefined values if you like.)  The sequence of statements is
-executed just once, unlike in B<sed> and B<awk> scripts, where the
-sequence of statements is executed for each input line.  While this means
-that you must explicitly loop over the lines of your input file (or
-files), it also means you have much more control over which files and
-which lines you look at.  (Actually, I'm lying--it is possible to do an
-implicit loop with either the B<-n> or B<-p> switch.  It's just not the
-mandatory default like it is in B<sed> and B<awk>.)
-
-=head2 Declarations
+The sequence of statements is executed just once, unlike in B<sed>
+and B<awk> scripts, where the sequence of statements is executed
+for each input line.  While this means that you must explicitly
+loop over the lines of your input file (or files), it also means
+you have much more control over which files and which lines you look at.
+(Actually, I'm lying--it is possible to do an implicit loop with
+either the B<-n> or B<-p> switch.  It's just not the mandatory
+default like it is in B<sed> and B<awk>.)
 
 Perl is, for the most part, a free-form language.  (The only exception
 to this is format declarations, for obvious reasons.)  Text from a
@@ -29,11 +22,27 @@ interpreted either as division or pattern matching, depending on the
 context, and C++ C<//> comments just look like a null regular
 expression, so don't do that.
 
+=head2 Declarations
+
+The only things you need to declare in Perl are report formats
+and subroutines--and even undefined subroutines can be handled
+through AUTOLOAD.  A variable holds the undefined value (C<undef>)
+until it has been assigned a defined value, which is anything
+other than C<undef>.  When used as a number, C<undef> is treated
+as C<0>; when used as a string, it is treated the empty string,
+C<"">; and when used as a reference that isn't being assigned
+to, it is treated as an error.  If you enable warnings, you'll
+be notified of an uninitialized value whenever you treat C<undef>
+as a string or a number.  Well, usually.  Boolean ("don't-care")
+contexts and operators such as C<++>, C<-->, C<+=>, C<-=>, and
+C<.=> are always exempt from such warnings.
+
 A declaration can be put anywhere a statement can, but has no effect on
 the execution of the primary sequence of statements--declarations all
 take effect at compile time.  Typically all the declarations are put at
 the beginning or the end of the script.  However, if you're using
-lexically-scoped private variables created with C<my()>, you'll have to make sure
+lexically-scoped private variables created with C<my()>, you'll
+have to make sure
 your format or subroutine definition is within the same block scope
 as the my if you expect to be able to access those private variables.
 
@@ -44,7 +53,7 @@ subroutine without defining it by saying C<sub name>, thus:
     sub myname;
     $me = myname $0 		or die "can't get myname";
 
-Note that it functions as a list operator, not as a unary operator; so
+Note that my() functions as a list operator, not as a unary operator; so
 be careful to use C<or> instead of C<||> in this case.  However, if
 you were to declare the subroutine as C<sub myname ($)>, then
 C<myname> would function as a unary operator, so either C<or> or
@@ -86,7 +95,7 @@ presuming you're a speaker of English.  The C<foreach> modifier is an
 iterator:  For each value in EXPR, it aliases C<$_> to the value and
 executes the statement.  The C<while> and C<until> modifiers have the
 usual "C<while> loop" semantics (conditional evaluated first), except
-when applied to a C<do>-BLOCK (or to the now-deprecated C<do>-SUBROUTINE
+when applied to a C<do>-BLOCK (or to the deprecated C<do>-SUBROUTINE
 statement), in which case the block executes once before the
 conditional is evaluated.  This is so that you can write loops like:
 
@@ -134,6 +143,7 @@ The following compound statements may be used to control flow:
     LABEL while (EXPR) BLOCK continue BLOCK
     LABEL for (EXPR; EXPR; EXPR) BLOCK
     LABEL foreach VAR (LIST) BLOCK
+    LABEL foreach VAR (LIST) BLOCK continue BLOCK
     LABEL BLOCK continue BLOCK
 
 Note that, unlike C and Pascal, these are defined in terms of BLOCKs,
@@ -154,13 +164,17 @@ C<if> an C<else> goes with.  If you use C<unless> in place of C<if>,
 the sense of the test is reversed.
 
 The C<while> statement executes the block as long as the expression is
-true (does not evaluate to the null string (C<"">) or C<0> or C<"0")>.  The LABEL is
-optional, and if present, consists of an identifier followed by a colon.
-The LABEL identifies the loop for the loop control statements C<next>,
-C<last>, and C<redo>.  If the LABEL is omitted, the loop control statement
+true (does not evaluate to the null string C<""> or C<0> or C<"0">).
+The LABEL is optional, and if present, consists of an identifier followed
+by a colon.  The LABEL identifies the loop for the loop control
+statements C<next>, C<last>, and C<redo>.
+If the LABEL is omitted, the loop control statement
 refers to the innermost enclosing loop.  This may include dynamically
 looking back your call-stack at run time to find the LABEL.  Such
-desperate behavior triggers a warning if you use the B<-w> flag.
+desperate behavior triggers a warning if you use the C<use warnings>
+praga or the B<-w> flag.
+Unlike a C<foreach> statement, a C<while> statement never implicitly
+localises any variables.
 
 If there is a C<continue> BLOCK, it is always executed just before the
 conditional is about to be evaluated again, just like the third part of a
@@ -289,9 +303,7 @@ is therefore visible only within the loop.  Otherwise, the variable is
 implicitly local to the loop and regains its former value upon exiting
 the loop.  If the variable was previously declared with C<my>, it uses
 that variable instead of the global one, but it's still localized to
-the loop.  (Note that a lexically scoped variable can cause problems
-if you have subroutine or format declarations within the loop which
-refer to it.)
+the loop.  
 
 The C<foreach> keyword is actually a synonym for the C<for> keyword, so
 you can use C<foreach> for readability or C<for> for brevity.  (Or because
@@ -312,7 +324,7 @@ Examples:
 
     for (@ary) { s/foo/bar/ }
 
-    foreach my $elem (@elements) {
+    for my $elem (@elements) {
 	$elem *= 2;
     }
 
@@ -341,8 +353,8 @@ Here's how a C programmer might code up a particular algorithm in Perl:
 Whereas here's how a Perl programmer more comfortable with the idiom might
 do it:
 
-    OUTER: foreach my $wid (@ary1) {
-    INNER:   foreach my $jet (@ary2) {
+    OUTER: for my $wid (@ary1) {
+    INNER:   for my $jet (@ary2) {
 		next OUTER if $wid > $jet;
 		$wid += $jet;
 	     }
@@ -490,15 +502,15 @@ C<HTTP_USER_AGENT> envariable.
 That kind of switch statement only works when you know the C<&&> clauses
 will be true.  If you don't, the previous C<?:> example should be used.
 
-You might also consider writing a hash instead of synthesizing a C<switch>
-statement.
+You might also consider writing a hash of subroutine references
+instead of synthesizing a C<switch> statement.
 
 =head2 Goto
 
-Although not for the faint of heart, Perl does support a C<goto> statement.
-A loop's LABEL is not actually a valid target for a C<goto>;
-it's just the name of the loop.  There are three forms: C<goto>-LABEL,
-C<goto>-EXPR, and C<goto>-&NAME.
+Although not for the faint of heart, Perl does support a C<goto>
+statement.  There are three forms: C<goto>-LABEL, C<goto>-EXPR, and
+C<goto>-&NAME.  A loop's LABEL is not actually a valid target for
+a C<goto>; it's just the name of the loop.
 
 The C<goto>-LABEL form finds the statement labeled with LABEL and resumes
 execution there.  It may not be used to go into any construct that
@@ -513,7 +525,7 @@ The C<goto>-EXPR form expects a label name, whose scope will be resolved
 dynamically.  This allows for computed C<goto>s per FORTRAN, but isn't
 necessarily recommended if you're optimizing for maintainability:
 
-    goto ("FOO", "BAR", "GLARCH")[$i];
+    goto(("FOO", "BAR", "GLARCH")[$i]);
 
 The C<goto>-&NAME form is highly magical, and substitutes a call to the
 named subroutine for the currently running subroutine.  This is used by
@@ -582,7 +594,7 @@ this, one can control Perl's idea of filenames and line numbers in
 error or warning messages (especially for strings that are processed
 with C<eval()>).  The syntax for this mechanism is the same as for most
 C preprocessors: it matches the regular expression
-C</^#\s*line\s+(\d+)\s*(?:\s"([^"]*)")?/> with C<$1> being the line
+C</^#\s*line\s+(\d+)\s*(?:\s"([^"]+)")?\s*$/> with C<$1> being the line
 number for the next line, and C<$2> being the optional filename
 (specified within quotes).
 

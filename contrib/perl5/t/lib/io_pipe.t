@@ -3,7 +3,7 @@
 BEGIN {
     unless(grep /blib/, @INC) {
 	chdir 't' if -d 't';
-	@INC = '../lib' if -d '../lib';
+	unshift @INC, '../lib' if -d '../lib';
     }
 }
 
@@ -11,10 +11,16 @@ use Config;
 
 BEGIN {
     if(-d "lib" && -f "TEST") {
-        if (! $Config{'d_fork'} ||
-	    ($Config{'extensions'} !~ /\bIO\b/ && $^O ne 'VMS'))
-	{
-	    print "1..0\n";
+	my $reason;
+	if (! $Config{'d_fork'}) {
+	    $reason = 'no fork';
+	}
+	elsif ($Config{'extensions'} !~ /\bIO\b/) {
+	    $reason = 'IO extension unavailable';
+	}
+	undef $reason if $^O eq 'VMS';
+	if ($reason) {
+	    print "1..0 # Skip: $reason\n";
 	    exit 0;
         }
     }

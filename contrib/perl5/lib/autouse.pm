@@ -3,7 +3,7 @@ package autouse;
 #use strict;		# debugging only
 use 5.003_90;		# ->can, for my $var
 
-$autouse::VERSION = '1.01';
+$autouse::VERSION = '1.02';
 
 $autouse::DEBUG ||= 0;
 
@@ -25,7 +25,7 @@ sub import {
 	vet_import $module;
 	local $Exporter::ExportLevel = $Exporter::ExportLevel + 1;
 	# $Exporter::Verbose = 1;
-	return $module->import(map { (my $f = $_) =~ s/\(.*?\)$// } @_);
+	return $module->import(map { (my $f = $_) =~ s/\(.*?\)$//; $f } @_);
     }
 
     # It is not loaded: need to do real work.

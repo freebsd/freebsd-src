@@ -34,16 +34,16 @@ case "$cc" in
 *gcc*) ;;
 *)
     case "$osvers" in
-    *4.1*)	ccflags="$ccflags -DLANGUAGE_C -Olimit 3400" ;;
-    *4.2*)	ccflags="$ccflags -DLANGUAGE_C -Olimit 3400"
+    *4.1*)	ccflags="$ccflags -DLANGUAGE_C -Olimit 3800" ;;
+    *4.2*)	ccflags="$ccflags -DLANGUAGE_C -Olimit 3800"
 		# Prototypes sometimes cause compilation errors in 4.2.
 		prototype=undef   
 		case "$myuname" in
 		*risc*)  d_volatile=undef ;;
 		esac
 		;;
-    *4.3*)	ccflags="$ccflags -std1 -DLANGUAGE_C -Olimit 3400" ;;
-    *)	ccflags="$ccflags -std -Olimit 3400" ;;
+    *4.3*)	ccflags="$ccflags -std1 -DLANGUAGE_C -Olimit 3800" ;;
+    *)	ccflags="$ccflags -std -Olimit 3800" ;;
     esac
     ;;
 esac
@@ -64,3 +64,7 @@ groupstype='int'
 # configure test should be beefed up to try using the field when
 # it can't find any of the standardly-named fields.
 d_dirnamlen='define'
+
+# Ultrix can mmap only character devices, not regular files,
+# which is rather useless state of things for Perl.
+d_mmap='undef'

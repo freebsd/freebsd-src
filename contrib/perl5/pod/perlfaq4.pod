@@ -1,6 +1,6 @@
 =head1 NAME
 
-perlfaq4 - Data Manipulation ($Revision: 1.40 $, $Date: 1999/01/08 04:26:39 $)
+perlfaq4 - Data Manipulation ($Revision: 1.49 $, $Date: 1999/05/23 20:37:49 $)
 
 =head1 DESCRIPTION
 
@@ -31,7 +31,7 @@ representation is converted back to decimal.  These decimal numbers
 are displayed in either the format you specify with printf(), or the
 current output format for numbers (see L<perlvar/"$#"> if you use
 print.  C<$#> has a different default value in Perl5 than it did in
-Perl4.  Changing C<$#> yourself is deprecated.
+Perl4.  Changing C<$#> yourself is deprecated.)
 
 This affects B<all> computer languages that represent decimal
 floating-point numbers in binary, not just Perl.  Perl provides
@@ -67,7 +67,7 @@ route.
 
     printf("%.3f", 3.1415926535);	# prints 3.142
 
-The POSIX module (part of the standard perl distribution) implements
+The POSIX module (part of the standard Perl distribution) implements
 ceil(), floor(), and a number of other mathematical and trigonometric
 functions.
 
@@ -76,7 +76,7 @@ functions.
     $floor  = floor(3.5);			# 3
 
 In 5.000 to 5.003 Perls, trigonometry was done in the Math::Complex
-module.  With 5.004, the Math::Trig module (part of the standard perl
+module.  With 5.004, the Math::Trig module (part of the standard Perl
 distribution) implements the trigonometric functions. Internally it
 uses the Math::Complex module and some functions can break out from
 the real axis into the complex plane, for example the inverse sine of
@@ -104,14 +104,21 @@ are not guaranteed.
 =head2 How do I convert bits into ints?
 
 To turn a string of 1s and 0s like C<10110110> into a scalar containing
-its binary value, use the pack() function (documented in
-L<perlfunc/"pack">):
+its binary value, use the pack() and unpack() functions (documented in
+L<perlfunc/"pack"> and L<perlfunc/"unpack">):
 
-    $decimal = pack('B8', '10110110');
+    $decimal = unpack('c', pack('B8', '10110110'));
+
+This packs the string C<10110110> into an eight bit binary structure.
+This is then unpacked as a character, which returns its ordinal value.
+
+This does the same thing:
+
+    $decimal = ord(pack('B8', '10110110'));
 
 Here's an example of going the other way:
 
-    $binary_string = join('', unpack('B*', "\x29"));
+    $binary_string = unpack('B*', "\x29");
 
 =head2 Why doesn't & work the way I want it to?
 
@@ -176,6 +183,15 @@ ranges.  Instead use:
         push(@results, some_func($i));
     }
 
+This situation has been fixed in Perl5.005. Use of C<..> in a C<for>
+loop will iterate over the range, without creating the entire range.
+
+    for my $i (5 .. 500_005) {
+        push(@results, some_func($i));
+    }
+
+will not create a list of 500,000 integers.
+
 =head2 How can I output Roman numerals?
 
 Get the http://www.perl.com/CPAN/modules/by-module/Roman module.
@@ -228,12 +244,34 @@ American businesses often consider the first week with a Monday
 in it to be Work Week #1, despite ISO 8601, which considers
 WW1 to be the first week with a Thursday in it.
 
+=head2 How do I find the current century or millennium?
+
+Use the following simple functions:
+
+    sub get_century    { 
+	return int((((localtime(shift || time))[5] + 1999))/100);
+    } 
+    sub get_millennium { 
+	return 1+int((((localtime(shift || time))[5] + 1899))/1000);
+    } 
+
+On some systems, you'll find that the POSIX module's strftime() function
+has been extended in a non-standard way to use a C<%C> format, which they
+sometimes claim is the "century".  It isn't, because on most such systems,
+this is only the first two digits of the four-digit year, and thus cannot
+be used to reliably determine the current century or millennium.
+
 =head2 How can I compare two dates and find the difference?
 
 If you're storing your dates as epoch seconds then simply subtract one
 from the other.  If you've got a structured date (distinct year, day,
-month, hour, minute, seconds values) then use one of the Date::Manip
-and Date::Calc modules from CPAN.
+month, hour, minute, seconds values), then for reasons of accessibility,
+simplicity, and efficiency, merely use either timelocal or timegm (from
+the Time::Local module in the standard distribution) to reduce structured
+dates to epoch seconds.  However, if you don't know the precise format of
+your dates, then you should probably use either of the Date::Manip and
+Date::Calc modules from CPAN before you go hacking up your own parsing
+routine to handle arbitrary date formats.
 
 =head2 How can I take a string and turn it into epoch seconds?
 
@@ -244,23 +282,81 @@ and Date::Manip modules from CPAN.
 
 =head2 How can I find the Julian Day?
 
-Neither Date::Manip nor Date::Calc deal with Julian days.  Instead,
-there is an example of Julian date calculation that should help you in
-Time::JulianDay (part of the Time-modules bundle) which can be found at
-http://www.perl.com/CPAN/modules/by-module/Time/.
+Use the Time::JulianDay module (part of the Time-modules bundle
+available from CPAN.)
 
+Before you immerse yourself too deeply in this, be sure to verify that it
+is the I<Julian> Day you really want.  Are they really just interested in
+a way of getting serial days so that they can do date arithmetic?  If you
+are interested in performing date arithmetic, this can be done using
+either Date::Manip or Date::Calc, without converting to Julian Day first.
+
+There is too much confusion on this issue to cover in this FAQ, but the
+term is applied (correctly) to a calendar now supplanted by the Gregorian
+Calendar, with the Julian Calendar failing to adjust properly for leap
+years on centennial years (among other annoyances).  The term is also used
+(incorrectly) to mean: [1] days in the Gregorian Calendar; and [2] days
+since a particular starting time or `epoch', usually 1970 in the Unix
+world and 1980 in the MS-DOS/Windows world.  If you find that it is not
+the first meaning that you really want, then check out the Date::Manip
+and Date::Calc modules.  (Thanks to David Cassell for most of this text.)
 
 =head2 How do I find yesterday's date?
 
 The C<time()> function returns the current time in seconds since the
-epoch.  Take one day off that:
+epoch.  Take twenty-four hours off that:
 
     $yesterday = time() - ( 24 * 60 * 60 );
 
 Then you can pass this to C<localtime()> and get the individual year,
 month, day, hour, minute, seconds values.
 
-=head2 Does Perl have a year 2000 problem?  Is Perl Y2K compliant?
+Note very carefully that the code above assumes that your days are
+twenty-four hours each.  For most people, there are two days a year
+when they aren't: the switch to and from summer time throws this off.
+A solution to this issue is offered by Russ Allbery.
+
+    sub yesterday {
+	my $now  = defined $_[0] ? $_[0] : time;
+	my $then = $now - 60 * 60 * 24;
+	my $ndst = (localtime $now)[8] > 0;
+	my $tdst = (localtime $then)[8] > 0;
+	$then - ($tdst - $ndst) * 60 * 60;
+    }
+    # Should give you "this time yesterday" in seconds since epoch relative to
+    # the first argument or the current time if no argument is given and
+    # suitable for passing to localtime or whatever else you need to do with
+    # it.  $ndst is whether we're currently in daylight savings time; $tdst is
+    # whether the point 24 hours ago was in daylight savings time.  If $tdst
+    # and $ndst are the same, a boundary wasn't crossed, and the correction
+    # will subtract 0.  If $tdst is 1 and $ndst is 0, subtract an hour more
+    # from yesterday's time since we gained an extra hour while going off
+    # daylight savings time.  If $tdst is 0 and $ndst is 1, subtract a
+    # negative hour (add an hour) to yesterday's time since we lost an hour.
+    #
+    # All of this is because during those days when one switches off or onto
+    # DST, a "day" isn't 24 hours long; it's either 23 or 25.
+    #
+    # The explicit settings of $ndst and $tdst are necessary because localtime
+    # only says it returns the system tm struct, and the system tm struct at
+    # least on Solaris doesn't guarantee any particular positive value (like,
+    # say, 1) for isdst, just a positive value.  And that value can
+    # potentially be negative, if DST information isn't available (this sub
+    # just treats those cases like no DST).
+    #
+    # Note that between 2am and 3am on the day after the time zone switches
+    # off daylight savings time, the exact hour of "yesterday" corresponding
+    # to the current hour is not clearly defined.  Note also that if used
+    # between 2am and 3am the day after the change to daylight savings time,
+    # the result will be between 3am and 4am of the previous day; it's
+    # arguable whether this is correct.
+    #
+    # This sub does not attempt to deal with leap seconds (most things don't).
+    #
+    # Copyright relinquished 1999 by Russ Allbery <rra@stanford.edu>
+    # This code is in the public domain
+
+=head2 Does Perl have a Year 2000 problem?  Is Perl Y2K compliant?
 
 Short answer: No, Perl does not have a Year 2000 problem.  Yes, Perl is
 Y2K compliant (whatever that means).  The programmers you've hired to
@@ -271,7 +367,7 @@ Perl is just as Y2K compliant as your pencil--no more, and no less.
 Can you use your pencil to write a non-Y2K-compliant memo?  Of course
 you can.  Is that the pencil's fault?  Of course it isn't.
 
-The date and time functions supplied with perl (gmtime and localtime)
+The date and time functions supplied with Perl (gmtime and localtime)
 supply adequate information to determine the year well beyond 2000
 (2038 is when trouble strikes for 32-bit machines).  The year returned
 by these functions when used in an array context is the year minus 1900.
@@ -312,7 +408,11 @@ This won't expand C<"\n"> or C<"\t"> or any other special escapes.
 
 To turn C<"abbcccd"> into C<"abccd">:
 
-    s/(.)\1/$1/g;
+    s/(.)\1/$1/g;	# add /s to include newlines
+
+Here's a solution that turns "abbcccd" to "abcd":
+
+    y///cs;	# y == tr, but shorter :-)
 
 =head2 How do I expand function calls in a string?
 
@@ -344,16 +444,14 @@ nested patterns, nor can they.  For that you'll have to write a
 parser.
 
 If you are serious about writing a parser, there are a number of
-modules or oddities that will make your life a lot easier.  There is
-the CPAN module Parse::RecDescent, the standard module Text::Balanced,
-the byacc program, the CPAN module Parse::Yapp, and Mark-Jason
-Dominus's excellent I<py> tool at http://www.plover.com/~mjd/perl/py/
-.
+modules or oddities that will make your life a lot easier.  There are
+the CPAN modules Parse::RecDescent, Parse::Yapp, and Text::Balanced;
+and the byacc program.
 
 One simple destructive, inside-out approach that you might try is to
 pull out the smallest nesting parts one at a time:
 
-    while (s//BEGIN((?:(?!BEGIN)(?!END).)*)END/gs) {
+    while (s/BEGIN((?:(?!BEGIN)(?!END).)*)END//gs) {
 	# do something with $1
     } 
 
@@ -365,7 +463,7 @@ really does work:
     # $_ contains the string to parse
     # BEGIN and END are the opening and closing markers for the
     # nested text.
- 
+
     @( = ('(','');
     @) = (')','');
     ($re=$_)=~s/((BEGIN)|(END)|.)/$)[!$3]\Q$1\E$([!$2]/gs;
@@ -385,7 +483,7 @@ You can do it yourself:
 
     1 while $string =~ s/\t+/' ' x (length($&) * 8 - length($`) % 8)/e;
 
-Or you can just use the Text::Tabs module (part of the standard perl
+Or you can just use the Text::Tabs module (part of the standard Perl
 distribution).
 
     use Text::Tabs;
@@ -393,7 +491,7 @@ distribution).
 
 =head2 How do I reformat a paragraph?
 
-Use Text::Wrap (part of the standard perl distribution):
+Use Text::Wrap (part of the standard Perl distribution):
 
     use Text::Wrap;
     print wrap("\t", '  ', @paragraphs);
@@ -422,24 +520,25 @@ likely prefer:
 
 You have to keep track of N yourself.  For example, let's say you want
 to change the fifth occurrence of C<"whoever"> or C<"whomever"> into
-C<"whosoever"> or C<"whomsoever">, case insensitively.
+C<"whosoever"> or C<"whomsoever">, case insensitively.  These
+all assume that $_ contains the string to be altered.
 
     $count = 0;
     s{((whom?)ever)}{
 	++$count == 5   	# is it the 5th?
 	    ? "${2}soever"	# yes, swap
 	    : $1		# renege and leave it there
-    }igex;
+    }ige;
 
 In the more general case, you can use the C</g> modifier in a C<while>
 loop, keeping count of matches.
 
     $WANT = 3;
     $count = 0;
+    $_ = "One fish two fish red fish blue fish";
     while (/(\w+)\s+fish\b/gi) {
         if (++$count == $WANT) {
             print "The third fish is a $1 one.\n";
-            # Warning: don't `last' out of this loop
         }
     }
 
@@ -456,7 +555,7 @@ C<tr///> function like so:
 
     $string = "ThisXlineXhasXsomeXx'sXinXit";
     $count = ($string =~ tr/X//);
-    print "There are $count X charcters in the string";
+    print "There are $count X characters in the string";
 
 This is fine if you are just looking for a single character.  However,
 if you are trying to count multiple character substrings within a
@@ -475,8 +574,8 @@ To make the first letter of each word upper case:
         $line =~ s/\b(\w)/\U$1/g;
 
 This has the strange effect of turning "C<don't do it>" into "C<Don'T
-Do It>".  Sometimes you might want this, instead (Suggested by Brian
-Foy):
+Do It>".  Sometimes you might want this, instead (Suggested by brian d. 
+foy):
 
     $string =~ s/ (
                  (^\w)    #at the beginning of the line
@@ -499,7 +598,7 @@ characters by placing a C<use locale> pragma in your program.
 See L<perllocale> for endless details on locales.
 
 This is sometimes referred to as putting something into "title
-case", but that's not quite accurate.  Consdier the proper
+case", but that's not quite accurate.  Consider the proper
 capitalization of the movie I<Dr. Strangelove or: How I Learned to
 Stop Worrying and Love the Bomb>, for example.
 
@@ -532,7 +631,7 @@ quotation-mark-delimited field, escape them with backslashes (eg,
 C<"like \"this\"">.  Unescaping them is a task addressed earlier in
 this section.
 
-Alternatively, the Text::ParseWords module (part of the standard perl
+Alternatively, the Text::ParseWords module (part of the standard Perl
 distribution) lets you say:
 
     use Text::ParseWords;
@@ -546,8 +645,8 @@ Although the simplest approach would seem to be:
 
     $string =~ s/^\s*(.*?)\s*$/$1/;
 
-This is unnecessarily slow, destructive, and fails with embedded newlines.
-It is much better faster to do this in two steps:
+Not only is this unnecessarily slow and destructive, it also fails with
+embedded newlines.  It is much faster to do this operation in two steps:
 
     $string =~ s/^\s+//;
     $string =~ s/\s+$//;
@@ -562,7 +661,7 @@ Or more nicely written as:
 This idiom takes advantage of the C<foreach> loop's aliasing
 behavior to factor out common code.  You can do this
 on several strings at once, or arrays, or even the 
-values of a hash if you use a slide:
+values of a hash if you use a slice:
 
     # trim whitespace in the scalar, the array, 
     # and all the values in the hash
@@ -573,41 +672,48 @@ values of a hash if you use a slide:
 
 =head2 How do I pad a string with blanks or pad a number with zeroes?
 
-(This answer contributed by Uri Guttman)
+(This answer contributed by Uri Guttman, with kibitzing from
+Bart Lateur.) 
 
 In the following examples, C<$pad_len> is the length to which you wish
-to pad the string, C<$text> or C<$num> contains the string to be
-padded, and C<$pad_char> contains the padding character. You can use a
-single character string constant instead of the C<$pad_char> variable
-if you know what it is in advance.
+to pad the string, C<$text> or C<$num> contains the string to be padded,
+and C<$pad_char> contains the padding character. You can use a single
+character string constant instead of the C<$pad_char> variable if you
+know what it is in advance. And in the same way you can use an integer in
+place of C<$pad_len> if you know the pad length in advance.
 
-The simplest method use the C<sprintf> function. It can pad on the
-left or right with blanks and on the left with zeroes.
+The simplest method uses the C<sprintf> function. It can pad on the left
+or right with blanks and on the left with zeroes and it will not
+truncate the result. The C<pack> function can only pad strings on the
+right with blanks and it will truncate the result to a maximum length of
+C<$pad_len>.
 
-    # Left padding with blank:
-    $padded = sprintf( "%${pad_len}s", $text ) ;
+    # Left padding a string with blanks (no truncation):
+    $padded = sprintf("%${pad_len}s", $text);
 
-    # Right padding with blank:
-    $padded = sprintf( "%${pad_len}s", $text ) ;
+    # Right padding a string with blanks (no truncation):
+    $padded = sprintf("%-${pad_len}s", $text);
 
-    # Left padding with 0:
-    $padded = sprintf( "%0${pad_len}d", $num ) ;
+    # Left padding a number with 0 (no truncation): 
+    $padded = sprintf("%0${pad_len}d", $num);
+
+    # Right padding a string with blanks using pack (will truncate):
+    $padded = pack("A$pad_len",$text);
 
 If you need to pad with a character other than blank or zero you can use
-one of the following methods.
+one of the following methods.  They all generate a pad string with the
+C<x> operator and combine that with C<$text>. These methods do
+not truncate C<$text>.
 
-These methods generate a pad string with the C<x> operator and
-concatenate that with the original text.
+Left and right padding with any character, creating a new string:
 
-Left and right padding with any character:
+    $padded = $pad_char x ( $pad_len - length( $text ) ) . $text;
+    $padded = $text . $pad_char x ( $pad_len - length( $text ) );
 
-    $padded = $pad_char x ( $pad_len - length( $text ) ) . $text ;
-    $padded = $text . $pad_char x ( $pad_len - length( $text ) ) ;
+Left and right padding with any character, modifying C<$text> directly:
 
-Or you can left or right pad $text directly:
-
-    $text .= $pad_char x ( $pad_len - length( $text ) ) ;
-    substr( $text, 0, 0 ) = $pad_char x ( $pad_len - length( $text ) ) ;
+    substr( $text, 0, 0 ) = $pad_char x ( $pad_len - length( $text ) );
+    $text .= $pad_char x ( $pad_len - length( $text ) );
 
 =head2 How do I extract selected columns from a string?
 
@@ -633,7 +739,14 @@ you can use this kind of thing:
 
 =head2 How do I find the soundex value of a string?
 
-Use the standard Text::Soundex module distributed with perl.
+Use the standard Text::Soundex module distributed with Perl.
+But before you do so, you may want to determine whether `soundex' is in
+fact what you think it is.  Knuth's soundex algorithm compresses words
+into a small space, and so it does not necessarily distinguish between
+two words which you might want to appear separately.  For example, the
+last names `Knuth' and `Kant' are both mapped to the soundex code K530.
+If Text::Soundex does not do what you are looking for, you might want
+to consider the String::Approx module available at CPAN.
 
 =head2 How can I expand variables in text strings?
 
@@ -706,7 +819,7 @@ Stringification also destroys arrays.
     print "@lines";		# WRONG - extra blanks
     print @lines;		# right
 
-=head2 Why don't my E<lt>E<lt>HERE documents work?
+=head2 Why don't my <<HERE documents work?
 
 Check for these three things:
 
@@ -767,7 +880,7 @@ This works with leading special strings, dynamically determined:
 	@@@ runops() {
 	@@@     SAVEI32(runlevel);
 	@@@     runlevel++;
-	@@@     while ( op = (*op->op_ppaddr)() ) ;
+	@@@     while ( op = (*op->op_ppaddr)() );
 	@@@     TAINT_NOT;
 	@@@     return 0;
 	@@@ }
@@ -805,9 +918,9 @@ When you say
 
     $scalar = (2, 5, 7, 9);
 
-you're using the comma operator in scalar context, so it evaluates the
-left hand side, then evaluates and returns the left hand side.  This
-causes the last value to be returned: 9.
+you're using the comma operator in scalar context, so it uses the scalar
+comma operator.  There never was a list there at all!  This causes the
+last value to be returned: 9.
 
 =head2 What is the difference between $array[1] and @array[1]?
 
@@ -825,9 +938,10 @@ with
 
     @bad[0]  = `same program that outputs several lines`;
 
-The B<-w> flag will warn you about these matters.
+The C<use warnings> pragma and the B<-w> flag will warn you about these 
+matters.
 
-=head2 How can I extract just the unique elements of an array?
+=head2 How can I remove duplicate elements from a list or array?
 
 There are several possible ways, depending on whether the array is
 ordered and whether you wish to preserve the ordering.
@@ -843,7 +957,7 @@ ordered and whether you wish to preserve the ordering.
 This is nice in that it doesn't use much extra memory, simulating
 uniq(1)'s behavior of removing only adjacent duplicates.  It's less
 nice in that it won't work with false values like undef, 0, or "";
-"0 but true" is ok, though.
+"0 but true" is OK, though.
 
 =item b) If you don't know whether @in is sorted:
 
@@ -864,7 +978,7 @@ nice in that it won't work with false values like undef, 0, or "";
 
     undef @ary;
     @ary[@in] = @in;
-    @out = @ary;
+    @out = grep {defined} @ary;
 
 =back
 
@@ -893,7 +1007,8 @@ array.  This kind of an array will take up less space:
 
     @primes = (2, 3, 5, 7, 11, 13, 17, 19, 23, 29, 31);
     undef @is_tiny_prime;
-    for (@primes) { $is_tiny_prime[$_] = 1; }
+    for (@primes) { $is_tiny_prime[$_] = 1 }
+    # or simply  @istiny_prime[@primes] = (1) x @primes;
 
 Now you check whether $is_tiny_prime[$some_number].
 
@@ -916,7 +1031,7 @@ or worse yet
 
 These are slow (checks every element even if the first matches),
 inefficient (same reason), and potentially buggy (what if there are
-regexp characters in $whatever?).  If you're only testing once, then
+regex characters in $whatever?).  If you're only testing once, then
 use:
 
     $is_there = 0;
@@ -941,6 +1056,9 @@ each element is unique in a given array:
 	push @{ $count{$element} > 1 ? \@intersection : \@difference }, $element;
     }
 
+Note that this is the I<symmetric difference>, that is, all elements in
+either A or in B, but not in both.  Think of it as an xor operation.
+
 =head2 How do I test whether two arrays or hashes are equal?
 
 The following code works for single-level arrays.  It uses a stringwise
@@ -951,7 +1069,7 @@ strings.  Modify if you have other needs.
 
     sub compare_arrays {
 	my ($first, $second) = @_;
-	local $^W = 0;  # silence spurious -w undef complaints
+	no warnings;  # silence spurious -w undef complaints
 	return 0 unless @$first == @$second;
 	for (my $i = 0; $i < @$first; $i++) {
 	    return 0 if $first->[$i] ne $second->[$i];
@@ -1008,7 +1126,7 @@ Now C<$found_index> has what you want.
 In general, you usually don't need a linked list in Perl, since with
 regular arrays, you can push and pop or shift and unshift at either end,
 or you can use splice to add and/or remove arbitrary number of elements at
-arbitrary points.  Both pop and shift are both O(1) operations on perl's
+arbitrary points.  Both pop and shift are both O(1) operations on Perl's
 dynamic arrays.  In the absence of shifts and pops, push in general
 needs to reallocate on the order every log(N) times, and unshift will
 need to copy pointers each time.
@@ -1078,7 +1196,7 @@ Use this:
 
     fisher_yates_shuffle( \@array );    # permutes @array in place
 
-You've probably seen shuffling algorithms that works using splice,
+You've probably seen shuffling algorithms that work using splice,
 randomly picking another element to swap the current element with:
 
     srand;
@@ -1163,7 +1281,7 @@ Supply a comparison function to sort() (described in L<perlfunc/sort>):
     @list = sort { $a <=> $b } @list;
 
 The default sort function is cmp, string comparison, which would
-sort C<(1, 2, 10)> into C<(1, 10, 2)>.  C<E<lt>=E<gt>>, used above, is
+sort C<(1, 2, 10)> into C<(1, 10, 2)>.  C<< <=> >>, used above, is
 the numerical comparison operator.
 
 If you have a complicated function needed to pull out the part you
@@ -1185,7 +1303,7 @@ that's come to be known as the Schwartzian Transform:
 
     @sorted = map  { $_->[0] }
 	      sort { $a->[1] cmp $b->[1] }
-	      map  { [ $_, uc((/\d+\s*(\S+)/ )[0] ] } @data;
+	      map  { [ $_, uc( (/\d+\s*(\S+)/)[0]) ] } @data;
 
 If you need to sort on several fields, the following paradigm is useful.
 
@@ -1311,7 +1429,19 @@ sorting the keys as shown in an earlier question.
 
 =head2 What happens if I add or remove keys from a hash while iterating over it?
 
-Don't do that.
+Don't do that. :-)
+
+[lwall] In Perl 4, you were not allowed to modify a hash at all while
+iterating over it.  In Perl 5 you can delete from it, but you still
+can't add to it, because that might cause a doubling of the hash table,
+in which half the entries get copied up to the new top half of the
+table, at which point you've totally bamboozled the iterator code.
+Even if the table doesn't double, there's no telling whether your new
+entry will be inserted before or after the current iterator position.
+
+Either treasure up your changes and make them after the iterator finishes,
+or use keys to fetch all the old keys at once, and iterate over the list
+of keys.
 
 =head2 How do I look up a hash element by value?
 
@@ -1327,8 +1457,13 @@ to use:
 	$by_value{$value} = $key;
     }
 
-If your hash could have repeated values, the methods above will only
-find one of the associated keys.   This may or may not worry you.
+If your hash could have repeated values, the methods above will only find
+one of the associated keys.   This may or may not worry you.  If it does
+worry you, you can always reverse the hash into a hash of arrays instead:
+
+     while (($key, $value) = each %by_key) {
+	 push @{$key_list_by_value{$value}}, $key;
+     }
 
 =head2 How can I know how many entries are in a hash?
 
@@ -1337,8 +1472,9 @@ take the scalar sense of the keys() function:
 
     $num_keys = scalar keys %hash;
 
-In void context it just resets the iterator, which is faster
-for tied hashes.
+In void context, the keys() function just resets the iterator, which is
+faster for tied hashes than would be iterating through the whole 
+hash, one key-value pair at a time.
 
 =head2 How do I sort a hash (optionally by value instead of key)?
 
@@ -1396,7 +1532,7 @@ And these conditions hold
 	$ary{'d'}                       is false
 	defined $ary{'d'}               is true
 	defined $ary{'a'}               is true
-	exists $ary{'a'}                is true (perl5 only)
+	exists $ary{'a'}                is true (Perl5 only)
 	grep ($_ eq 'a', keys %ary)     is true
 
 If you now say
@@ -1420,7 +1556,7 @@ and these conditions now hold; changes in caps:
 	$ary{'d'}                       is false
 	defined $ary{'d'}               is true
 	defined $ary{'a'}               is FALSE
-	exists $ary{'a'}                is true (perl5 only)
+	exists $ary{'a'}                is true (Perl5 only)
 	grep ($_ eq 'a', keys %ary)     is true
 
 Notice the last two: you have an undef value, but a defined key!
@@ -1444,7 +1580,7 @@ and these conditions now hold; changes in caps:
 	$ary{'d'}                       is false
 	defined $ary{'d'}               is true
 	defined $ary{'a'}               is false
-	exists $ary{'a'}                is FALSE (perl5 only)
+	exists $ary{'a'}                is FALSE (Perl5 only)
 	grep ($_ eq 'a', keys %ary)     is FALSE
 
 See, the whole entry is gone!
@@ -1467,8 +1603,8 @@ re-enter it, the hash iterator has been reset.
 
 =head2 How can I get the unique keys from two hashes?
 
-First you extract the keys from the hashes into arrays, and then solve
-the uniquifying the array problem described above.  For example:
+First you extract the keys from the hashes into lists, then solve
+the "removing duplicates" problem described above.  For example:
 
     %seen = ();
     for $element (keys(%foo), keys(%bar)) {
@@ -1520,7 +1656,7 @@ whether you store something there or not.  That's because functions
 get scalars passed in by reference.  If somefunc() modifies C<$_[0]>,
 it has to be ready to write it back into the caller's version.
 
-This has been fixed as of perl5.004.
+This has been fixed as of Perl5.004.
 
 Normally, merely accessing a key's value for a nonexistent key does
 I<not> cause that key to be forever there.  This is different than
@@ -1547,7 +1683,7 @@ in L<perltoot>.
 =head2 How can I use a reference as a hash key?
 
 You can't do this directly, but you could use the standard Tie::Refhash
-module distributed with perl.
+module distributed with Perl.
 
 =head1 Data: Misc
 
@@ -1560,9 +1696,11 @@ this works fine (assuming the files are found):
 	print "Your kernel is GNU-zip enabled!\n";
     }
 
-On some legacy systems, however, you have to play tedious games with
-"text" versus "binary" files.  See L<perlfunc/"binmode">, or the upcoming
-L<perlopentut> manpage.
+On less elegant (read: Byzantine) systems, however, you have
+to play tedious games with "text" versus "binary" files.  See
+L<perlfunc/"binmode"> or L<perlopentut>.  Most of these ancient-thinking
+systems are curses out of Microsoft, who seem to be committed to putting
+the backward into backward compatibility.
 
 If you're concerned about 8-bit ASCII data, then see L<perllocale>.
 
@@ -1604,13 +1742,12 @@ if you just want to say, ``Is this a float?''
         } 
     } 
 
-    sub is_numeric { defined &getnum } 
+    sub is_numeric { defined getnum($_[0]) } 
 
-Or you could check out String::Scanf which can be found at
-http://www.perl.com/CPAN/modules/by-module/String/.
-The POSIX module (part of the standard Perl distribution) provides 
-the C<strtol> and C<strtod> for converting strings to double
-and longs, respectively.
+Or you could check out the String::Scanf module on CPAN instead.  The
+POSIX module (part of the standard Perl distribution) provides the
+C<strtol> and C<strtod> for converting strings to double and longs,
+respectively.
 
 =head2 How do I keep persistent data across program calls?
 
@@ -1663,7 +1800,7 @@ All rights reserved.
 
 When included as part of the Standard Version of Perl, or as part of
 its complete documentation whether printed or otherwise, this work
-may be distributed only under the terms of Perl's Artistic Licence.
+may be distributed only under the terms of Perl's Artistic License.
 Any distribution of this file or derivatives thereof I<outside>
 of that package require that special arrangements be made with
 copyright holder.
@@ -1673,4 +1810,3 @@ are hereby placed into the public domain.  You are permitted and
 encouraged to use this code in your own programs for fun
 or for profit as you see fit.  A simple comment in the code giving
 credit would be courteous but is not required.
-

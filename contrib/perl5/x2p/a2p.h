@@ -73,13 +73,11 @@
 
 #define MEM_SIZE Size_t
 
-#ifdef STANDARD_C
-#   include <stdlib.h>
-#else
-    Malloc_t malloc _((MEM_SIZE nbytes));
-    Malloc_t calloc _((MEM_SIZE elements, MEM_SIZE size));
-    Malloc_t realloc _((Malloc_t where, MEM_SIZE nbytes));
-    Free_t   free _((Malloc_t where));
+#ifndef STANDARD_C
+    Malloc_t malloc (MEM_SIZE nbytes);
+    Malloc_t calloc (MEM_SIZE elements, MEM_SIZE size);
+    Malloc_t realloc (Malloc_t where, MEM_SIZE nbytes);
+    Free_t   free (Malloc_t where);
 #endif
 
 #if defined(I_STRING) || defined(__cplusplus)
@@ -138,8 +136,13 @@
 /* All of these are in stdlib.h or time.h for ANSI C */
 Time_t time();
 struct tm *gmtime(), *localtime();
+#if defined(OEMVS) || defined(__OPEN_VM)
+char *(strchr)(), *(strrchr)();
+char *(strcpy)(), *(strcat)();
+#else
 char *strchr(), *strrchr();
 char *strcpy(), *strcat();
+#endif
 #endif /* ! STANDARD_C */
 
 #ifdef VMS
@@ -374,27 +377,27 @@ EXT STR *Str;
 #define GROWSTR(pp,lp,len) if (*(lp) < (len)) growstr(pp,lp,len)
 
 /* Prototypes for things in a2p.c */
-int aryrefarg _(( int arg ));
-int bl _(( int arg, int maybe ));
-void dump _(( int branch ));
-int fixfargs _(( int name, int arg, int prevargs ));
-int fixrargs _(( char *name, int arg, int prevargs ));
-void fixup _(( STR *str ));
-int numary _(( int arg ));
-int oper0 _(( int type ));
-int oper1 _(( int type, int arg1 ));
-int oper2 _(( int type, int arg1, int arg2 ));
-int oper3 _(( int type, int arg1, int arg2, int arg3 ));
-int oper4 _(( int type, int arg1, int arg2, int arg3, int arg4 ));
-int oper5 _(( int type, int arg1, int arg2, int arg3, int arg4, int arg5 ));
-void putlines _(( STR *str ));
-void putone _(( void ));
-int rememberargs _(( int arg ));
-char * scannum _(( char *s ));
-char * scanpat _(( char *s ));
-int string _(( char *ptr, int len ));
-void yyerror _(( char *s ));
-int yylex _(( void ));
+int aryrefarg ( int arg );
+int bl ( int arg, int maybe );
+void dump ( int branch );
+int fixfargs ( int name, int arg, int prevargs );
+int fixrargs ( char *name, int arg, int prevargs );
+void fixup ( STR *str );
+int numary ( int arg );
+int oper0 ( int type );
+int oper1 ( int type, int arg1 );
+int oper2 ( int type, int arg1, int arg2 );
+int oper3 ( int type, int arg1, int arg2, int arg3 );
+int oper4 ( int type, int arg1, int arg2, int arg3, int arg4 );
+int oper5 ( int type, int arg1, int arg2, int arg3, int arg4, int arg5 );
+void putlines ( STR *str );
+void putone ( void );
+int rememberargs ( int arg );
+char * scannum ( char *s );
+char * scanpat ( char *s );
+int string ( char *ptr, int len );
+void yyerror ( char *s );
+int yylex ( void );
 
 EXT int line INIT(0);
 

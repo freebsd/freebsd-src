@@ -1,13 +1,21 @@
 package SelfLoader;
-use Carp;
+# use Carp;
 require Exporter;
 @ISA = qw(Exporter);
 @EXPORT = qw(AUTOLOAD);
-$VERSION = "1.08";
+$VERSION = "1.0901";
 sub Version {$VERSION}
 $DEBUG = 0;
 
 my %Cache;      # private cache for all SelfLoader's client packages
+
+# allow checking for valid ': attrlist' attachments
+my $nested;
+$nested = qr{ \( (?: (?> [^()]+ ) | (??{ $nested }) )* \) }x;
+my $one_attr = qr{ (?> (?! \d) \w+ (?:$nested)? ) (?:\s*\:\s*|\s+(?!\:)) }x;
+my $attr_list = qr{ \s* : \s* (?: $one_attr )* }x;
+
+sub croak { require Carp; goto &Carp::croak }
 
 AUTOLOAD {
     print STDERR "SelfLoader::AUTOLOAD for $AUTOLOAD\n" if $DEBUG;
@@ -48,7 +56,7 @@ sub _load_stubs {
 
     local($/) = "\n";
     while(defined($line = <$fh>) and $line !~ m/^__END__/) {
-        if ($line =~ m/^sub\s+([\w:]+)\s*(\([\\\$\@\%\&\*\;]*\))?/) {
+	if ($line =~ m/^sub\s+([\w:]+)\s*((?:\([\\\$\@\%\&\*\;]*\))?(?:$attr_list)?)/) {
             push(@stubs, $self->_add_to_cache($name, $currpack, \@lines, $protoype));
             $protoype = $2;
             @lines = ($line);
@@ -92,7 +100,8 @@ sub _load_stubs {
 sub _add_to_cache {
     my($self,$fullname,$pack,$lines, $protoype) = @_;
     return () unless $fullname;
-    carp("Redefining sub $fullname") if exists $Cache{$fullname};
+    (require Carp), Carp::carp("Redefining sub $fullname")
+      if exists $Cache{$fullname};
     $Cache{$fullname} = join('', "package $pack; ",@$lines);
     print STDERR "SelfLoader cached $fullname: $Cache{$fullname}" if $DEBUG;
     # return stub to be eval'd
@@ -112,9 +121,9 @@ SelfLoader - load functions only on demand
 
     package FOOBAR;
     use SelfLoader;
-    
+
     ... (initializing code)
-    
+
     __DATA__
     sub {....
 

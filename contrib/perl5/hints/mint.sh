@@ -18,7 +18,7 @@ cc='gcc'
 
 # The weird include path is really to work around some bugs in
 # broken system header files.
-ccflags="-D__MINT__ -Uatarist -DDEBUGGING -I$here/../mint"
+ccflags="$ccflags -D__MINT__ -Uatarist -DDEBUGGING -I$here/../mint"
 
 # libs
 
@@ -44,6 +44,7 @@ util_cflags='ccflags="$ccflags -DLOCALE_ENVIRON_REQUIRED"'
 
 #
 # Some good answers to the questions in Configure:
+# Does Configure really get all these wrong?
 usenm='true'
 d_suidsafe='true'
 clocktype='long'

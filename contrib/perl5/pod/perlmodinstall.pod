@@ -5,21 +5,23 @@ perlmodinstall - Installing CPAN Modules
 =head1 DESCRIPTION
 
 You can think of a module as the fundamental unit of reusable Perl
-code; see L<perlmod> for details.  Whenever anyone creates a chunk of
-Perl code that they think will be useful to the world, they register
-as a Perl developer at http://www.perl.com/CPAN/modules/04pause.html
-so that they can then upload their code to the CPAN.  The CPAN is the
-Comprehensive Perl Archive Network and can be accessed at
-http://www.perl.com/CPAN/.
+code; See L<perlmod> for details.  Whenever anyone creates a chunk
+of Perl code that they think will be useful to the world, they
+register as a Perl developer at
+http://www.perl.com/CPAN/modules/04pause.html so that they can then
+upload their code to CPAN.  CPAN is the Comprehensive Perl Archive
+Network and can be accessed at http://www.perl.com/CPAN/, or searched
+via http://cpan.perl.com/ and
+http://theory.uwinnipeg.ca/mod_perl/cpan-search.pl .
 
 This documentation is for people who want to download CPAN modules
 and install them on their own computer.
 
 =head2 PREAMBLE
 
-You have a file ending in .tar.gz (or, less often, .zip).  You know
-there's a tasty module inside.  There are four steps you must now
-take:
+You have a file ending in F<.tar.gz> (or, less often, F<.zip>).
+You know there's a tasty module inside.  You must now take four
+steps:
 
 =over 5
 
@@ -44,8 +46,8 @@ say C<perl Makefile.PL>, you can substitute C<perl
 Makefile.PL PREFIX=/my/perl_directory> to install the modules
 into C</my/perl_directory>.  Then you can use the modules
 from your Perl programs with C<use lib
-"/my/perl_directory/lib/site_perl";> or sometimes just C<use
-"/my/perl_directory";>.  
+"/my/perl_directory/lib/site_perl"> or sometimes just C<use
+"/my/perl_directory">.  
 
 =over 4
 
@@ -54,7 +56,8 @@ from your Perl programs with C<use lib
 B<If you're on Unix,>
 
 You can use Andreas Koenig's CPAN module 
-( http://www.perl.com/CPAN/modules/by-module/CPAN ) 
+(which comes standard with Perl, or can itself be downloaded
+from http://www.perl.com/CPAN/modules/by-module/CPAN) 
 to automate the following steps, from DECOMPRESS through INSTALL.
 
 A. DECOMPRESS 
@@ -85,12 +88,17 @@ While still in that directory, type:
 
       make install
 
-Make sure you have the appropriate permissions to install the module
+Make sure you have appropriate permissions to install the module
 in your Perl 5 library directory.  Often, you'll need to be root.
 
+Perl maintains a record of all module installations.  To look at
+this list, simply type:
+
+      perldoc perllocal
+
 That's all you need to do on Unix systems with dynamic linking.
-Most Unix systems have dynamic linking -- if yours doesn't, or if for
-another reason you have a statically-linked perl, B<and> the
+Most Unix systems have dynamic linking--if yours doesn't, or if for
+another reason you have a statically-linked perl, I<and> the
 module requires compilation, you'll need to build a new Perl binary
 that includes the module.  Again, you'll probably need to be root.
 
@@ -100,7 +108,7 @@ B<If you're running Windows 95 or NT with the ActiveState port of Perl>
 
    A. DECOMPRESS
 
-You can use the shareware Winzip ( http://www.winzip.com ) to
+You can use the shareware B<Winzip> program ( http://www.winzip.com ) to
 decompress and unpack modules.
 
    B. UNPACK
@@ -112,7 +120,7 @@ If you used WinZip, this was already done for you.
 Does the module require compilation (i.e. does it have files
 that end in .xs, .c, .h, .y, .cc, .cxx, or .C)?  If it does, you're on
 your own.  You can try compiling it yourself if you have a C compiler.
-If you're successful, consider uploading the resulting binary to the
+If you're successful, consider uploading the resulting binary to
 CPAN for others to use.  If it doesn't, go to INSTALL.
 
    D. INSTALL
@@ -129,17 +137,16 @@ B<If you're running Windows 95 or NT with the core Windows distribution of Perl,
    A. DECOMPRESS
 
 When you download the module, make sure it ends in either
-C<.tar.gz> or C<.zip>.  Windows browsers sometimes
+F<.tar.gz> or F<.zip>.  Windows browsers sometimes
 download C<.tar.gz> files as C<_tar.tar>, because
 early versions of Windows prohibited more than one dot in a filename.
 
-You can use the shareware WinZip ( http://www.winzip.com ) to
+You can use the shareware B<WinZip> program ( http://www.winzip.com ) to
 decompress and unpack modules.
 
 Or, you can use InfoZip's C<unzip> utility (
-http://www.cdrom.com/pub/infozip/Info-Zip.html ) to uncompress
-C<.zip> files; type C<unzip yourmodule.zip> in
-your shell.
+http://www.cdrom.com/pub/infozip/ ) to uncompress C<.zip> files; type
+C<unzip yourmodule.zip> in your shell.
 
 Or, if you have a working C<tar> and C<gzip>, you can
 type
@@ -151,7 +158,7 @@ UNPACK your module as well.
 
    B. UNPACK
 
-All of the methods in DECOMPRESS will have done this for you.
+The methods in DECOMPRESS will have done this for you.
 
    C. BUILD
 
@@ -185,20 +192,19 @@ Specificly the "Commpress & Translate" listing
 ( http://hyperarchive.lcs.mit.edu/HyperArchive/Abstracts/cmp/HyperArchive.html ).
 
 
-You can either use the shareware StuffIt Expander 
-( http://hyperarchive.lcs.mit.edu/HyperArchive/Archive/cmp/stuffit-expander-401.hqx ) 
+You can either use the shareware B<StuffIt Expander> program
+( http://www.aladdinsys.com/expander/ ) 
 in combination with I<DropStuff with Expander Enhancer>
-( http://hyperarchive.lcs.mit.edu/HyperArchive/Archive/cmp/drop-stuff-with-ee-40.hqx ) 
-or the freeware MacGzip (
+( http://www.aladdinsys.com/dropstuff/ ) 
+or the freeware B<MacGzip> program (
 http://persephone.cps.unizar.es/general/gente/spd/gzip/gzip.html ).
 
 
 B. UNPACK
 
 If you're using DropStuff or Stuffit, you can just extract the tar
-archive.  Otherwise, you can use the freeware I<suntar> 
-( http://hyperarchive.lcs.mit.edu/HyperArchive/Archive/cmp/suntar-221.hqx )
-or I<Tar> ( http://hyperarchive.lcs.mit.edu/HyperArchive/Archive/cmp/tar-40b.hqx ).
+archive.  Otherwise, you can use the freeware B<suntar> or I<Tar> (
+http://hyperarchive.lcs.mit.edu/HyperArchive/Archive/cmp/ ).
 
 C. BUILD
 
@@ -208,9 +214,9 @@ Does the module require compilation?
 
 Overview: You need MPW and a combination of new and old CodeWarrior
 compilers for MPW and libraries.  Makefiles created for building under
-MPW use the Metrowerks compilers.  It's most likely possible to build
+MPW use Metrowerks compilers.  It's most likely possible to build
 without other compilers, but it has not been done successfully, to our
-knowledge.  Read the documentation in MacPerl: Power and Ease (
+knowledge.  Read the documentation in I<MacPerl: Power and Ease> (
 http://www.ptf.com/macperl/ ) on porting/building extensions, or find
 an existing precompiled binary, or hire someone to build it for you.
 
@@ -226,9 +232,10 @@ Make sure the newlines for the modules are in Mac format, not Unix format.
 If they are not then you might have decompressed them incorrectly.  Check
 your decompression and unpacking utilities settings to make sure they are
 translating text files properly.
-As a last resort, you can use the perl one-liner:
 
-	perl -i.bak -pe 's/(?:\015)?\012/\015/g' filenames
+As a last resort, you can use the perl one-liner:  
+
+    perl -i.bak -pe 's/(?:\015)?\012/\015/g' <filenames> 
 
 on the source files.
 
@@ -275,7 +282,7 @@ Go into the newly-created directory and type:
       make
       make test
 
-You will need the packages mentioned in C<Readme.dos>
+You will need the packages mentioned in F<README.dos>
 in the Perl distribution.
 
    D. INSTALL
@@ -283,8 +290,8 @@ in the Perl distribution.
 While still in that directory, type:
 
      make install	
-     
-You will need the packages mentioned in Readme.dos in the Perl distribution.
+
+You will need the packages mentioned in F<README.dos> in the Perl distribution.
 
 =item *
 
@@ -298,8 +305,8 @@ the instructions for Unix.
 
 B<If you're on VMS,>
 
-When downloading from CPAN, save your file with a C<.tgz>
-extension instead of C<.tar.gz>.  All other periods in the
+When downloading from CPAN, save your file with a F<.tgz>
+extension instead of F<.tar.gz>.  All other periods in the
 filename should be replaced with underscores.  For example,
 C<Your-Module-1.33.tar.gz> should be downloaded as
 C<Your-Module-1_33.tgz>.
@@ -315,8 +322,8 @@ or, for zipped modules, type
     unzip Your-Module.zip
 
 Executables for gzip, zip, and VMStar ( Alphas:
-http://www.openvms.digital.com/cd/000TOOLS/ALPHA/ and Vaxen:
-http://www.openvms.digital.com/cd/000TOOLS/VAX/ ).  
+http://www.openvms.digital.com/freeware/000TOOLS/ALPHA/ and Vaxen:
+http://www.openvms.digital.com/freeware/000TOOLS/VAX/ ).  
 
 gzip and tar
 are also available at ftp://ftp.digital.com/pub/VMS.
@@ -361,7 +368,7 @@ Substitute C<mmk> for C<mms> above if you're using MMK.
 
 B<If you're on MVS>,
 
-Introduce the .tar.gz file into an HFS as binary; don't translate from
+Introduce the F<.tar.gz> file into an HFS as binary; don't translate from
 ASCII to EBCDIC.
 
 A. DECOMPRESS 

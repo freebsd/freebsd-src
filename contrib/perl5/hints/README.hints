@@ -11,7 +11,9 @@ over from perl4.
 
 Please send any problems or suggested changes to perlbug@perl.com.
 
-Hint file naming convention:   Each hint file name should have only
+=head1 Hint file naming convention.
+
+Each hint file name should have only
 one '.'.  (This is for portability to non-unix file systems.)  Names
 should also fit in <= 14 characters, for portability to older SVR3
 systems.  File names are of the form $osname_$osvers.sh, with all '.'
@@ -50,6 +52,56 @@ That way, a future version of Configure may be able to automatically
 detect what is needed.
 
 A glossary of config.sh variables is in the file Porting/Glossary.
+
+=head1 Setting variables
+
+=head2 Optimizer
+
+If you want to set a variable, try to allow for Configure command-line
+overrides.  For example, suppose you think the default optimizer
+setting to be -O2 for a particular platform.  You should allow for
+command line overrides with something like
+
+	case "$optimize" in
+	'') optimize='-O2' ;;
+	esac
+
+or, if your system has a decent test(1) command,
+
+	test -z "$optimize" && optimize='-O2'
+
+This allows the user to select a different optimization level, e.g.
+-O6 or -g.
+
+=head2 Compiler and Linker flags
+
+If you want to set $ccflags or $ldflags, you should append to the existing
+value to allow Configure command-line settings, e.g. use
+
+	ccflags="$ccflags -DANOTHER_OPTION_I_NEED"
+
+so that the user can do something like
+
+	sh Configure -Dccflags='FIX_NEGATIVE_ZERO'
+
+and have the FIX_NEGATIVE_ZERO value preserved by the hints file.
+
+=head2 Libraries
+
+Configure will attempt to use the libraries listed in the variable
+$libswanted.  If necessary, you should remove broken libraries from
+that list, or add additional libraries to that list.  You should
+*not* simply set $libs -- that ignores the possibilities of local
+variations.  For example, a setting of libs='-lgdbm -lm -lc' would
+fail if another user were to try to compile Perl on a system without
+GDBM but with Berkeley DB.  See hints/dec_osf.sh and hints/solaris_2.sh
+for examples.
+
+=head2 Other
+
+In general, try to avoid hard-wiring something that Configure will
+figure out anyway.  Also try to allow for Configure command-line
+overrides.
 
 =head1 Hint file tricks
 
@@ -189,12 +241,6 @@ after Configure prompts the user for the C compiler, it will load in
 and run the UU/cc.cbu "call-back" unit.  See hints/solaris_2.sh for an
 example.
 
-=item Threading-related flags
-
-Similarly, after Configure prompts the user about whether or not to
-compile Perl with threads, it will look for a "call-back" unit
-usethreads.cbu.  See hints/linux.sh for an example.
-
 =item Future status
 
 I hope this "call-back" scheme is simple enough to use but powerful
@@ -210,4 +256,4 @@ say things like "sh Configure -Dcc=gcc -Dusethreads" on the command line.
 
 Have the appropriate amount of fun :-)
 
-    Andy Dougherty		doughera@lafcol.lafayette.edu
+    Andy Dougherty		doughera@lafayette.edu

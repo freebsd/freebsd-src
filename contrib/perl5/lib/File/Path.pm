@@ -2,15 +2,14 @@ package File::Path;
 
 =head1 NAME
 
-File::Path - create or remove a series of directories
+File::Path - create or remove directory trees
 
 =head1 SYNOPSIS
 
-C<use File::Path>
+    use File::Path;
 
-C<mkpath(['/foo/bar/baz', 'blurfl/quux'], 1, 0711);>
-
-C<rmtree(['foo/bar/baz', 'blurfl/quux'], 1, 1);>
+    mkpath(['/foo/bar/baz', 'blurfl/quux'], 1, 0711);
+    rmtree(['foo/bar/baz', 'blurfl/quux'], 1, 1);
 
 =head1 DESCRIPTION
 
@@ -74,7 +73,7 @@ than VMS is settled.  (defaults to FALSE)
 =back
 
 It returns the number of files successfully deleted.  Symlinks are
-treated as ordinary files.
+simply deleted and not followed.
 
 B<NOTE:> If the third parameter is not TRUE, C<rmtree> is B<unsecure>
 in the face of failure or interruption.  Files and directories which
@@ -90,22 +89,17 @@ in situations where security is an issue.
 Tim Bunce <F<Tim.Bunce@ig.co.uk>> and
 Charles Bailey <F<bailey@newman.upenn.edu>>
 
-=head1 REVISION
-
-Current $VERSION is 1.0401.
-
 =cut
 
+use 5.005_64;
 use Carp;
 use File::Basename ();
-use DirHandle ();
 use Exporter ();
 use strict;
 
-use vars qw( $VERSION @ISA @EXPORT );
-$VERSION = "1.0401";
-@ISA = qw( Exporter );
-@EXPORT = qw( mkpath rmtree );
+our $VERSION = "1.0403";
+our @ISA = qw( Exporter );
+our @EXPORT = qw( mkpath rmtree );
 
 my $Is_VMS = $^O eq 'VMS';
 
@@ -124,20 +118,22 @@ sub mkpath {
     $paths = [$paths] unless ref $paths;
     my(@created,$path);
     foreach $path (@$paths) {
-	$path .= '/' if $^O eq 'os2' and $path =~ /^\w:$/; # feature of CRT 
+	$path .= '/' if $^O eq 'os2' and $path =~ /^\w:\z/s; # feature of CRT 
 	next if -d $path;
 	# Logic wants Unix paths, so go with the flow.
 	$path = VMS::Filespec::unixify($path) if $Is_VMS;
 	my $parent = File::Basename::dirname($path);
 	# Allow for creation of new logical filesystems under VMS
 	if (not $Is_VMS or $parent !~ m:/[^/]+/000000/?:) {
-	    push(@created,mkpath($parent, $verbose, $mode)) unless (-d $parent);
+	    unless (-d $parent or $path eq $parent) {
+		push(@created,mkpath($parent, $verbose, $mode));
+	    }
 	}
 	print "mkdir $path\n" if $verbose;
 	unless (mkdir($path,$mode)) {
-	  my $e = $!;
-	  # allow for another process to have created it meanwhile
-	  croak "mkdir $path: $e" unless -d $path;
+	    my $e = $!;
+	    # allow for another process to have created it meanwhile
+	    croak "mkdir $path: $e" unless -d $path;
 	}
 	push(@created, $path);
     }
@@ -148,13 +144,20 @@ sub rmtree {
     my($roots, $verbose, $safe) = @_;
     my(@files);
     my($count) = 0;
-    $roots = [$roots] unless ref $roots;
     $verbose ||= 0;
     $safe ||= 0;
 
+    if ( defined($roots) && length($roots) ) {
+      $roots = [$roots] unless ref $roots;
+    }
+    else {
+      carp "No root path(s) specified\n";
+      return 0;
+    }
+
     my($root);
     foreach $root (@{$roots}) {
-	$root =~ s#/$##;
+	$root =~ s#/\z##;
 	(undef, undef, my $rp) = lstat $root or next;
 	$rp &= 07777;	# don't forget setuid, setgid, sticky bits
 	if ( -d _ ) {
@@ -166,16 +169,20 @@ sub rmtree {
 	      or carp "Can't make directory $root read+writeable: $!"
 		unless $safe;
 
-	    my $d = DirHandle->new($root)
-	      or carp "Can't read $root: $!";
-	    @files = $d->read;
-	    $d->close;
+	    if (opendir my $d, $root) {
+		@files = readdir $d;
+		closedir $d;
+	    }
+	    else {
+	        carp "Can't read $root: $!";
+		@files = ();
+	    }
 
 	    # Deleting large numbers of files from VMS Files-11 filesystems
 	    # is faster if done in reverse ASCIIbetical order 
 	    @files = reverse @files if $Is_VMS;
-	    ($root = VMS::Filespec::unixify($root)) =~ s#\.dir$## if $Is_VMS;
-	    @files = map("$root/$_", grep $_!~/^\.{1,2}$/,@files);
+	    ($root = VMS::Filespec::unixify($root)) =~ s#\.dir\z## if $Is_VMS;
+	    @files = map("$root/$_", grep $_!~/^\.{1,2}\z/s,@files);
 	    $count += rmtree(\@files,$verbose,$safe);
 	    if ($safe &&
 		($Is_VMS ? !&VMS::Filespec::candelete($root) : !-w $root)) {
@@ -198,7 +205,9 @@ sub rmtree {
 	}
 	else { 
 	    if ($safe &&
-		($Is_VMS ? !&VMS::Filespec::candelete($root) : !-w $root)) {
+		($Is_VMS ? !&VMS::Filespec::candelete($root)
+		         : !(-l $root || -w $root)))
+	    {
 		print "skipped $root\n" if $verbose;
 		next;
 	    }

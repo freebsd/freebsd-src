@@ -2,8 +2,7 @@ use Thread;
 
 $global = undef;
 
-sub single_file {
-    use attrs 'locked';
+sub single_file : locked {
     my $who = shift;
     my $i;
 
