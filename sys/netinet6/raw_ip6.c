@@ -104,11 +104,6 @@
 
 #include <machine/stdarg.h>
 
-#include "faith.h"
-#if defined(NFAITH) && 0 < NFAITH
-#include <net/if_faith.h>
-#endif
-
 #define	satosin6(sa)	((struct sockaddr_in6 *)(sa))
 #define	ifatoia6(ifa)	((struct in6_ifaddr *)(ifa))
 
@@ -142,13 +137,11 @@ rip6_input(mp, offp, proto)
 
 	rip6stat.rip6s_ipackets++;
 
-#if defined(NFAITH) && 0 < NFAITH
-	if (faithprefix(&ip6->ip6_dst)) {
+	if (faithprefix_p != NULL && (*faithprefix_p)(&ip6->ip6_dst)) {
 		/* XXX send icmp6 host/port unreach? */
 		m_freem(m);
 		return IPPROTO_DONE;
 	}
-#endif
 
 	init_sin6(&rip6src, m); /* general init */
 

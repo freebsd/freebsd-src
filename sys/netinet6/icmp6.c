@@ -103,11 +103,6 @@
 #include <netkey/key.h>
 #endif
 
-#include "faith.h"
-#if defined(NFAITH) && 0 < NFAITH
-#include <net/if_faith.h>
-#endif
-
 #include <net/net_osdep.h>
 
 #ifdef HAVE_NRL_INPCB
@@ -439,8 +434,7 @@ icmp6_input(mp, offp, proto)
 		goto freeit;
 	}
 
-#if defined(NFAITH) && 0 < NFAITH
-	if (faithprefix(&ip6->ip6_dst)) {
+	if (faithprefix_p != NULL && (*faithprefix_p)(&ip6->ip6_dst)) {
 		/*
 		 * Deliver very specific ICMP6 type only.
 		 * This is important to deilver TOOBIG.  Otherwise PMTUD
@@ -455,7 +449,6 @@ icmp6_input(mp, offp, proto)
 			goto freeit;
 		}
 	}
-#endif
 
 	icmp6stat.icp6s_inhist[icmp6->icmp6_type]++;
 	icmp6_ifstat_inc(m->m_pkthdr.rcvif, ifs6_in_msg);

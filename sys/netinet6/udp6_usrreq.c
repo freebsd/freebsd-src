@@ -106,11 +106,6 @@
 #include <netinet6/ipsec6.h>
 #endif /*IPSEC*/
 
-#include "faith.h"
-#if defined(NFAITH) && NFAITH > 0
-#include <net/if_faith.h>
-#endif
-
 /*
  * UDP protocol inplementation.
  * Per RFC 768, August, 1980.
@@ -161,13 +156,11 @@ udp6_input(mp, offp, proto)
 
 	ip6 = mtod(m, struct ip6_hdr *);
 
-#if defined(NFAITH) && 0 < NFAITH
-	if (faithprefix(&ip6->ip6_dst)) {
+	if (faithprefix_p != NULL && (*faithprefix_p)(&ip6->ip6_dst)) {
 		/* XXX send icmp6 host/port unreach? */
 		m_freem(m);
 		return IPPROTO_DONE;
 	}
-#endif
 
 	udpstat.udps_ipackets++;
 
