@@ -1,5 +1,5 @@
 #	from: @(#)Makefile	5.1 (Berkeley) 6/25/90
-#	$Id$
+#	$Id: Makefile,v 1.7 1996/07/30 21:15:58 markm Exp $
 
 FILES=	kparse.h krb.h krb_db.h
 
@@ -10,9 +10,9 @@ CFLAGS+=	KERBEROS
 all include clean cleandir depend lint tags:
 
 beforeinstall:
-	-cd ${.CURDIR}; for file in ${FILES}; do \
-		cmp -s $$file ${DESTDIR}/usr/include/kerberosIV/$$file || \
-		install -c -o ${BINOWN} -g ${BINGRP} -m 444 $$file \
-		${DESTDIR}/usr/include/kerberosIV; done
+.for i in ${FILES}
+	${INSTALL} -C -o ${BINOWN} -g ${BINGRP} -m 444 ${.CURDIR}/$i \
+		${DESTDIR}/usr/include/kerberosIV/$i
+.endfor
 
 .include <bsd.prog.mk>

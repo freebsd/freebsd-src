@@ -1,5 +1,5 @@
 #	From: @(#)Makefile	5.1 (Berkeley) 6/25/90
-#	$Id$
+#	$Id: Makefile,v 1.11 1996/07/30 21:16:12 markm Exp $
 
 LIB=	kadm
 
@@ -7,14 +7,10 @@ SRCS=	kadm_err.c kadm_stream.c kadm_supp.c kadm_cli_wrap.c
 CFLAGS+=	-I. -I${.CURDIR} -I${KRBOBJDIR} -DPOSIX -DKERBEROS
 
 beforeinstall: kadm_err.c
-	-cd ${.CURDIR}; cmp -s kadm.h \
-	    ${DESTDIR}/usr/include/kerberosIV/kadm.h || \
-	    install -c -o ${BINOWN} -g ${BINGRP} -m 444 kadm.h \
-	    ${DESTDIR}/usr/include/kerberosIV
-	-cd ${.OBJDIR}; cmp -s kadm_err.h \
-	    ${DESTDIR}/usr/include/kerberosIV/kadm_err.h || \
-	    install -c -o ${BINOWN} -g ${BINGRP} -m 444 kadm_err.h \
-	    ${DESTDIR}/usr/include/kerberosIV
+.for i in kadm.h kadm_err.h
+	${INSTALL} -C -o ${BINOWN} -g ${BINGRP} -m 444 ${.CURDIR}/$i \
+	    ${DESTDIR}/usr/include/kerberosIV/$i
+.endfor
 
 .include <bsd.lib.mk>
 
