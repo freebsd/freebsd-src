@@ -895,8 +895,13 @@ ffs_unmount(mp, mntflags, td)
 	ump->um_devvp->v_rdev->si_mountpoint = NULL;
 
 	vinvalbuf(ump->um_devvp, V_SAVE, NOCRED, td, 0, 0);
+	/* XXX: see comment above VOP_OPEN */
+#ifdef notyet
 	error = VOP_CLOSE(ump->um_devvp, fs->fs_ronly ? FREAD : FREAD|FWRITE,
 		NOCRED, td);
+#else
+	error = VOP_CLOSE(ump->um_devvp, FREAD|FWRITE, NOCRED, td);
+#endif
 
 	vrele(ump->um_devvp);
 
