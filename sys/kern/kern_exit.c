@@ -53,8 +53,8 @@
 #include <sys/pioctl.h>
 #include <sys/tty.h>
 #include <sys/wait.h>
-#include <sys/vnode.h>
 #include <sys/vmmeter.h>
+#include <sys/vnode.h>
 #include <sys/resourcevar.h>
 #include <sys/signalvar.h>
 #include <sys/sx.h>
@@ -66,8 +66,8 @@
 #include <sys/jail.h>
 
 #include <vm/vm.h>
-#include <vm/vm_param.h>
 #include <vm/vm_extern.h>
+#include <vm/vm_param.h>
 #include <vm/pmap.h>
 #include <vm/vm_map.h>
 #include <vm/uma.h>
@@ -139,10 +139,11 @@ exit1(td, rv)
 		panic("Going nowhere without my init!");
 	}
 
-/* XXXXKSE */
-/* MUST abort all other threads before proceeding past this point */
+	/*
+	 * XXXXKSE: MUST abort all other threads before proceeding past here.
+	 */
 
-	/* are we a task leader? */
+	/* Are we a task leader? */
 	PROC_LOCK(p);
 	if (p == p->p_leader) {
 		q = p->p_peers;
@@ -376,7 +377,7 @@ exit1(td, rv)
 	ruadd(p->p_ru, &p->p_stats->p_cru);
 
 	/*
-	 * notify interested parties of our demise.
+	 * Notify interested parties of our demise.
 	 */
 	KNOTE(&p->p_klist, NOTE_EXIT);
 
@@ -450,7 +451,7 @@ exit1(td, rv)
 
 #ifdef COMPAT_43
 /*
- * MPSAFE, the dirty work is handled by wait1().
+ * MPSAFE.  The dirty work is handled by wait1().
  */
 int
 owait(td, uap)
@@ -470,7 +471,7 @@ owait(td, uap)
 #endif /* COMPAT_43 */
 
 /*
- * MPSAFE, the dirty work is handled by wait1().
+ * MPSAFE.  The dirty work is handled by wait1().
  */
 int
 wait4(td, uap)
@@ -778,7 +779,7 @@ rm_at_exit(function)
 		if (ep->function == function) {
 			TAILQ_REMOVE(&exit_list, ep, next);
 			free(ep, M_ATEXIT);
-			return(1);
+			return (1);
 		}
 	}	
 	return (0);
