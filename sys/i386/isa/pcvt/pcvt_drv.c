@@ -1092,6 +1092,14 @@ pccnprobe(struct consdev *cp)
 	 * The system clock has not been calibrated...
 	 */
 	reset_keyboard = 0;
+#if PCVT_SCANSET == 2
+	/*
+	 * Turn off scancode translation early so that UserConfig 
+	 * and DDB can read the keyboard.
+	 */
+	empty_both_buffers(kbdc, 10);
+	set_controller_command_byte(kbdc, KBD_TRANSLATION, 0);
+#endif /* PCVT_SCANSET == 2 */
 #endif /* _I386_ISA_KBDIO_H_ */
 
 	/*
