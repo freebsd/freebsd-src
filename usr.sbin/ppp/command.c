@@ -263,7 +263,11 @@ IdentCommand(struct cmdargs const *arg)
   for (pos = 0, f = arg->argn; f < arg->argc && pos < max; f++) {
     n = snprintf(arg->cx->physical->link.lcp.cfg.ident + pos, max - pos,
                  "%s%s", f == arg->argn ? "" : " ", arg->argv[f]);
-    if (n == -1 || (pos += n) >= max)
+    if (n < 0) {
+      arg->cx->physical->link.lcp.cfg.ident[pos] = '\0';
+      break;
+    }
+    if ((pos += n) >= max)
       break;
   }
 
