@@ -80,6 +80,7 @@ struct nd_ifinfo {
 	int recalctm;			/* BaseReacable re-calculation timer */
 	u_int8_t chlim;			/* CurHopLimit */
 	u_int8_t receivedra;
+	u_int8_t initialized; /* Flag to see the entry is initialized */
 	/* the following 3 members are for privacy extension for addrconf */
 	u_int8_t randomseed0[8]; /* upper 64 bits of MD5 digest */
 	u_int8_t randomseed1[8]; /* lower 64 bits (usually the EUI64 IFID) */
@@ -88,6 +89,16 @@ struct nd_ifinfo {
 
 #define ND6_IFF_PERFORMNUD	0x1
 #define ND6_IFF_ACCEPT_RTADV	0x2
+
+#ifdef _KERNEL
+#define ND_IFINFO(ifp) \
+	(((struct in6_ifextra *)(ifp)->if_afdata[AF_INET6])->nd_ifinfo)
+#define IN6_LINKMTU(ifp) \
+	((ND_IFINFO(ifp)->linkmtu && ND_IFINFO(ifp)->linkmtu < (ifp)->if_mtu) \
+	    ? ND_IFINFO(ifp)->linkmtu \
+	    : ((ND_IFINFO(ifp)->maxmtu && ND_IFINFO(ifp)->maxmtu < (ifp)->if_mtu) \
+		? ND_IFINFO(ifp)->maxmtu : (ifp)->if_mtu))
+#endif
 
 struct in6_nbrinfo {
 	char ifname[IFNAMSIZ];	/* if name, e.g. "en0" */
@@ -341,7 +352,8 @@ union nd_opts {
 /* XXX: need nd6_var.h?? */
 /* nd6.c */
 void nd6_init __P((void));
-void nd6_ifattach __P((struct ifnet *));
+struct nd_ifinfo *nd6_ifattach __P((struct ifnet *));
+void nd6_ifdetach __P((struct nd_ifinfo *));
 int nd6_is_addr_neighbor __P((struct sockaddr_in6 *, struct ifnet *));
 void nd6_option_init __P((void *, int, union nd_opts *));
 struct nd_opt_hdr *nd6_option __P((union nd_opts *));

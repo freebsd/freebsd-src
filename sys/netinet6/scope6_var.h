@@ -34,11 +34,21 @@
 #define _NETINET6_SCOPE6_VAR_H_
 
 #ifdef _KERNEL
-void	scope6_ifattach __P((struct ifnet *));
-int	scope6_set __P((struct ifnet *, u_int32_t *));
-int	scope6_get __P((struct ifnet *, u_int32_t *));
+struct scope6_id {
+	/*
+	 * 16 is correspondent to 4bit multicast scope field.
+	 * i.e. from node-local to global with some reserved/unassigned types.
+	 */
+	u_int32_t s6id_list[16];
+};
+
+void	scope6_init __P((void));
+struct scope6_id *scope6_ifattach __P((struct ifnet *));
+void	scope6_ifdetach __P((struct scope6_id *));
+int	scope6_set __P((struct ifnet *, struct scope6_id *));
+int	scope6_get __P((struct ifnet *, struct scope6_id *));
 void	scope6_setdefault __P((struct ifnet *));
-int	scope6_get_default __P((u_int32_t *));
+int	scope6_get_default __P((struct scope6_id *));
 u_int32_t scope6_in6_addrscope __P((struct in6_addr *));
 u_int32_t scope6_addr2default __P((struct in6_addr *));
 #endif /* _KERNEL */

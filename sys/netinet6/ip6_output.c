@@ -794,7 +794,7 @@ skip_ipsec2:;
 		}
 	}
 	if (ro_pmtu->ro_rt != NULL) {
-		u_int32_t ifmtu = nd_ifinfo[ifp->if_index].linkmtu;
+		u_int32_t ifmtu = ND_IFINFO(ifp)->linkmtu;
 
 		mtu = ro_pmtu->ro_rt->rt_rmx.rmx_mtu;
 		if (mtu > ifmtu || mtu == 0) {
@@ -814,7 +814,7 @@ skip_ipsec2:;
 				 ro_pmtu->ro_rt->rt_rmx.rmx_mtu = mtu; /* XXX */
 		}
 	} else {
-		mtu = nd_ifinfo[ifp->if_index].linkmtu;
+		mtu = ND_IFINFO(ifp)->linkmtu;
 	}
 
 	/*

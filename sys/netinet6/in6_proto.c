@@ -264,7 +264,8 @@ struct domain inet6domain =
       (struct protosw *)&inet6sw[sizeof(inet6sw)/sizeof(inet6sw[0])], 0,
       in6_inithead,
       offsetof(struct sockaddr_in6, sin6_addr) << 3,
-      sizeof(struct sockaddr_in6) };
+      sizeof(struct sockaddr_in6),
+      in6_domifattach, in6_domifdetach, };
 
 DOMAIN_SET(inet6);
 

@@ -178,6 +178,8 @@ struct ifnet {
 	struct	ifprefixhead if_prefixhead; /* list of prefixes per if */
 	u_int8_t *if_broadcastaddr;	/* linklevel broadcast bytestring */
 	struct	label if_label;		/* interface MAC label */
+
+	void	*if_afdata[AF_MAX];
 };
 
 typedef void if_init_f_t(void *);

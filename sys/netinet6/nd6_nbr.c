@@ -641,7 +641,7 @@ nd6_na_input(m, off, icmp6len)
 			ln->ln_byhint = 0;
 			if (ln->ln_expire) {
 				ln->ln_expire = time_second +
-				    nd_ifinfo[rt->rt_ifp->if_index].reachable;
+				    ND_IFINFO(rt->rt_ifp)->reachable;
 			}
 		} else {
 			ln->ln_state = ND6_LLINFO_STALE;
@@ -723,7 +723,7 @@ nd6_na_input(m, off, icmp6len)
 				ln->ln_byhint = 0;
 				if (ln->ln_expire) {
 					ln->ln_expire = time_second +
-					    nd_ifinfo[ifp->if_index].reachable;
+					    ND_IFINFO(ifp)->reachable;
 				}
 			} else {
 				if (lladdr && llchange) {
@@ -1081,8 +1081,8 @@ nd6_dad_start(ifa, tick)
 	dp->dad_ns_ocount = dp->dad_ns_tcount = 0;
 	if (tick == NULL) {
 		nd6_dad_ns_output(dp, ifa);
-		nd6_dad_starttimer(dp, 
-		    nd_ifinfo[ifa->ifa_ifp->if_index].retrans * hz / 1000);
+		nd6_dad_starttimer(dp,
+		    ND_IFINFO(ifa->ifa_ifp)->retrans * hz / 1000);
 	} else {
 		int ntick;
 
@@ -1174,7 +1174,7 @@ nd6_dad_timer(ifa)
 		 */
 		nd6_dad_ns_output(dp, ifa);
 		nd6_dad_starttimer(dp,
-		    nd_ifinfo[ifa->ifa_ifp->if_index].retrans * hz / 1000);
+		    ND_IFINFO(ifa->ifa_ifp)->retrans * hz / 1000);
 	} else {
 		/*
 		 * We have transmitted sufficient number of DAD packets.
