@@ -25,10 +25,12 @@
 
 #include <sys/param.h>
 #include <sys/systm.h>
+#include <sys/kernel.h>
 #include <sys/sockio.h>
 #include <sys/mbuf.h>
 #include <sys/socket.h>
 #include <sys/syslog.h>
+#include <sys/bus.h>
 
 #include <net/ethernet.h>
 #include <net/if.h>
@@ -42,6 +44,10 @@
 
 #include <i386/isa/isa_device.h>
 #include <i386/isa/if_elreg.h>
+
+#ifndef COMPAT_OLDISA
+#error "The el device requires the old isa compatibility shims"
+#endif
 
 /* For debugging convenience */
 #ifdef EL_DEBUG
@@ -75,8 +81,12 @@ static __inline void el_hardreset(void *);
 
 /* isa_driver structure for autoconf */
 struct isa_driver eldriver = {
-	el_probe, el_attach, "el"
+	INTR_TYPE_NET,
+	el_probe,
+	el_attach,
+	"el"
 };
+COMPAT_ISA_DRIVER(el, eldriver);
 
 /* Probe routine.  See if the card is there and at the right place. */
 static int

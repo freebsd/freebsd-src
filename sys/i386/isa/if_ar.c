@@ -50,16 +50,17 @@
 
 #include <sys/param.h>
 #include <sys/systm.h>
+#include <sys/kernel.h>
 #include <sys/malloc.h>
 #include <sys/mbuf.h>
 #include <sys/sockio.h>
 #include <sys/socket.h>
+#include <sys/bus.h>
 
 #include <net/if.h>
 #ifdef NETGRAPH
 #include <netgraph/ng_message.h>
 #include <netgraph/netgraph.h>
-#include <sys/kernel.h>
 #include <sys/syslog.h>
 #include <i386/isa/if_ar.h>
 #else /* NETGRAPH */
@@ -73,6 +74,10 @@
 #include <i386/isa/if_arregs.h>
 #include <i386/isa/ic/hd64570.h>
 #include <i386/isa/isa_device.h>
+
+#ifndef COMPAT_OLDISA
+#error "The ar device requires the old isa compatibility shims"
+#endif
 
 #ifndef NETGRAPH
 #include "sppp.h"
@@ -218,7 +223,13 @@ static int irqtable[16] = {
 	7	/* 15 */
 };
 
-struct isa_driver ardriver = {arprobe, arattach_isa, "ar"};
+struct isa_driver ardriver = {
+	INTR_TYPE_NET,
+	arprobe,
+	arattach_isa,
+	"ar"
+};
+COMPAT_ISA_DRIVER(ar, ardriver);
 
 struct ar_hardc *arattach_pci(int unit, vm_offset_t mem_addr);
 void arintr_hc(struct ar_hardc *hc);

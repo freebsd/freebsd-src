@@ -54,6 +54,7 @@
 #include <net/if.h>
 
 #ifdef __FreeBSD__
+#include <sys/bus.h>
 #include <machine/i4b_debug.h>
 #include <machine/i4b_ioctl.h>
 #include <i386/isa/isa_device.h>
@@ -67,6 +68,10 @@
 #include <i4b/include/i4b_mbuf.h>
 #include <i4b/tina-dd/i4b_tina_ioctl.h>
 
+#ifndef COMPAT_OLDISA
+#error "The tina device requires the old isa compatibility shims"
+#endif
+
 static int openflag = 0;
 
 int tinaprobe(struct isa_device *dev);
@@ -74,11 +79,13 @@ int tinaattach(struct isa_device *dev);
 void tinaintr(int unit);
 
 struct isa_driver tinadriver = {
+	INTR_TYPE_NET,
 	tinaprobe,
 	tinaattach,
 	"tina",
 	0
 };
+COMPAT_ISA_DRIVER(tina, tinadriver);
 
 static struct tina_softc {
 	int sc_unit;

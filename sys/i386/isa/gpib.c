@@ -23,12 +23,18 @@
 
 #include <sys/param.h>
 #include <sys/systm.h>
+#include <sys/kernel.h>
 #include <sys/conf.h>
 #include <sys/uio.h>
 #include <sys/malloc.h>
+#include <sys/bus.h>
 #include <i386/isa/gpibreg.h>
 #include <i386/isa/gpib.h>
 #include <i386/isa/isa_device.h>
+
+#ifndef COMPAT_OLDISA
+#error "The gpib device requires the old isa compatibility shims"
+#endif
 
 #define MIN(a,b) ((a < b) ? a : b)
 
@@ -57,7 +63,13 @@ static char spoll(unsigned char device);
 static int gpprobe(struct isa_device *dvp);
 static int gpattach(struct isa_device *dvp);
 
-struct   isa_driver gpdriver = {gpprobe, gpattach, "gp"};
+struct   isa_driver gpdriver = {
+	INTR_TYPE_TTY,
+	gpprobe,
+	gpattach,
+	"gp"
+};
+COMPAT_ISA_DRIVER(gp, gpdriver);
 
 static	d_open_t	gpopen;
 static	d_close_t	gpclose;

@@ -50,11 +50,12 @@
 #include "scd.h"
 #include <sys/param.h>
 #include <sys/systm.h>
+#include <sys/kernel.h>
 #include <sys/conf.h>
 #include <sys/bio.h>
 #include <sys/cdio.h>
 #include <sys/disklabel.h>
-#include <sys/kernel.h>
+#include <sys/bus.h>
 
 #include <machine/clock.h>
 #include <machine/stdarg.h>
@@ -168,7 +169,13 @@ static int scd_toc_entry(int unit, struct ioc_read_toc_single_entry *te);
 
 static int	scd_probe(struct isa_device *dev);
 static int	scd_attach(struct isa_device *dev);
-struct	isa_driver	scddriver = { scd_probe, scd_attach, "scd" };
+struct	isa_driver	scddriver = {
+	INTR_TYPE_BIO,
+	scd_probe,
+	scd_attach,
+	"scd"
+};
+COMPAT_ISA_DRIVER(scd, scddriver);
 
 /* For canceling our timeout */
 static struct callout_handle tohandle = CALLOUT_HANDLE_INITIALIZER(&tohanle);

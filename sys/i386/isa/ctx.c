@@ -112,13 +112,19 @@
 
 #include <sys/param.h>
 #include <sys/systm.h>
+#include <sys/kernel.h>
 #include <sys/conf.h>
 #include <sys/uio.h>
 #include <sys/malloc.h>
+#include <sys/bus.h>
 #include <i386/isa/isa_device.h>
 #include <i386/isa/ctxreg.h>
 #include <machine/ioctl_ctx.h>
 #include <machine/md_var.h>
+
+#ifndef COMPAT_OLDISA
+#error "The ctx device requires the old isa compatibility shims"
+#endif
 
 static int     waitvb(int port);
 
@@ -129,7 +135,13 @@ static int     waitvb(int port);
 
 static int	ctxprobe __P((struct isa_device *devp));
 static int	ctxattach __P((struct isa_device *devp));
-struct isa_driver ctxdriver = {ctxprobe, ctxattach, "ctx"};
+struct isa_driver ctxdriver = {
+	INTR_TYPE_MISC,
+	ctxprobe,
+	ctxattach,
+	"ctx"
+};
+COMPAT_ISA_DRIVER(ctx, ctxdriver);
 
 static	d_open_t	ctxopen;
 static	d_close_t	ctxclose;

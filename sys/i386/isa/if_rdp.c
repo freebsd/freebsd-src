@@ -65,10 +65,12 @@
 
 #include <sys/param.h>
 #include <sys/systm.h>
+#include <sys/kernel.h>
 #include <sys/sockio.h>
 #include <sys/mbuf.h>
 #include <sys/socket.h>
 #include <sys/syslog.h>
+#include <sys/bus.h>
 
 #include <net/ethernet.h>
 #include <net/if.h>
@@ -95,6 +97,10 @@
 #include <i386/isa/icu.h>
 #include <i386/isa/if_rdpreg.h>
 #include <i386/isa/intr_machdep.h>
+
+#ifndef COMPAT_OLDISA
+#error "The rdp device requires the old isa compatibility shims"
+#endif
 
 #define IOCTL_CMD_T u_long
 
@@ -188,11 +194,13 @@ static void rdp_93c46_cmd(struct rdp_softc *, u_short, unsigned);
 static u_short rdp_93c46_read(struct rdp_softc *);
 
 struct isa_driver rdpdriver = {
+	INTR_TYPE_NET,
 	rdp_probe,
 	rdp_attach,
 	"rdp",
 	1			/* we wanna get a chance before lptN */
 };
+COMPAT_ISA_DRIVER(rdp, rdpdriver);
 
 /*
  * REDP-specific functions.

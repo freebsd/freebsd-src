@@ -42,6 +42,7 @@
 #include "opt_pc98.h"
 #include "bs.h"
 #include <i386/isa/bs/bsif.h>
+#include <sys/bus.h>
 #endif	/* __FreeBSD__ */
 
 #include <sys/bio.h>
@@ -88,10 +89,12 @@ static ointhand2_t bsintr;
 static int bs_dmarangecheck __P((caddr_t, unsigned));
 
 struct isa_driver bsdriver = {
+	INTR_TYPE_CAM,
 	bsprobe,
 	bsattach,
 	"bs"
 };
+COMPAT_ISA_DRIVER(bs, bsdriver);
 #if 0
 struct scsi_device bs_dev = {
 	NULL,	/* Use default error handler */
