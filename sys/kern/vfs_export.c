@@ -333,33 +333,52 @@ vfs_getvfs(fsid)
 
 /*
  * Get a new unique fsid
+ *
+ * Keep in mind that several mounts may be running in parallel,
+ * so always increment mntid_base even if lower numbers are available.
  */
+
+static u_short mntid_base;
+
 void
 vfs_getnewfsid(mp)
 	struct mount *mp;
 {
-	static u_short xxxfs_mntid;
-
 	fsid_t tfsid;
 	int mtype;
 
 	simple_lock(&mntid_slock); 
+
 	mtype = mp->mnt_vfc->vfc_typenum;
-	mp->mnt_stat.f_fsid.val[0] = makeudev(255, mtype);
-	mp->mnt_stat.f_fsid.val[1] = mtype;
-	if (xxxfs_mntid == 0)
-		++xxxfs_mntid;
-	tfsid.val[0] = makeudev(255, mtype + (xxxfs_mntid << 16));
-	tfsid.val[1] = mtype;
-	if (mountlist.cqh_first != (void *)&mountlist) {
-		while (vfs_getvfs(&tfsid)) {
-			xxxfs_mntid++;
-			tfsid.val[0] = makeudev(255,
-			    mtype + (xxxfs_mntid << 16));
-		}
+	for (;;) {
+		tfsid.val[0] = makeudev(255, mtype + (mntid_base << 16));
+		tfsid.val[1] = mtype;
+		++mntid_base;
+		if (vfs_getvfs(&tfsid) == NULL)
+			break;
 	}
+
 	mp->mnt_stat.f_fsid.val[0] = tfsid.val[0];
+	mp->mnt_stat.f_fsid.val[1] = tfsid.val[1];
+
 	simple_unlock(&mntid_slock);
+}
+
+/*
+ * Get what should become the root fsid.
+ *
+ * This is somewhat of a hack.  If the rootdev is not known we
+ * assume that vfs_getnewfsid() will be called momentarily to
+ * allocate it, and we return what vfs_getnewfsid() will return.
+ */
+
+dev_t
+vfs_getrootfsid(struct mount *mp)
+{
+	int mtype;
+
+	mtype = mp->mnt_vfc->vfc_typenum;
+	return(makedev(255, mtype + (mntid_base << 16)));
 }
 
 /*
@@ -1303,11 +1322,7 @@ addaliasu(nvp, nvp_rdev)
 
 	if (nvp->v_type != VBLK && nvp->v_type != VCHR)
 		panic("addaliasu on non-special vnode");
-
-	nvp->v_rdev = udev2dev(nvp_rdev, nvp->v_type == VBLK ? 1 : 0);
-	simple_lock(&spechash_slock);
-	SLIST_INSERT_HEAD(&nvp->v_rdev->si_hlist, nvp, v_specnext);
-	simple_unlock(&spechash_slock);
+	addalias(nvp, udev2dev(nvp_rdev, nvp->v_type == VBLK ? 1 : 0));
 }
 
 void
@@ -1650,8 +1665,9 @@ vclean(vp, flags, p)
 	if ((obj = vp->v_object) != NULL) {
 		if (obj->ref_count == 0) {
 			/*
-			 * This is a normal way of shutting down the object/vnode
-			 * association.
+			 * vclean() may be called twice.  The first time removes the
+			 * primary reference to the object, the second time goes
+			 * one further and is a special-case to terminate the object.
 			 */
 			vm_object_terminate(obj);
 		} else {
