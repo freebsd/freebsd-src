@@ -3,7 +3,7 @@
 #	bsd.port.mk - 940820 Jordan K. Hubbard.
 #	This file is in the public domain.
 #
-# $Id: bsd.port.mk,v 1.121 1995/03/21 03:59:11 jkh Exp $
+# $Id: bsd.port.mk,v 1.122 1995/03/21 22:43:36 jkh Exp $
 #
 # Please view me with 4 column tabs!
 
@@ -92,7 +92,12 @@
 #				  the above two categories.
 # EXTRACT_CMD	- Command for extracting archive (default: tar).
 # EXTRACT_SUFX	- Suffix for archive names (default: .tar.gz).
-# EXTRACT_ARGS	- Arguments to ${EXTRACT_CMD} (default: -C ${WRKDIR} -xzf).
+# EXTRACT_BEFORE_ARGS -
+#				  Arguments to ${EXTRACT_CMD} before filename
+#				  (default: -C ${WRKDIR} -xzf).
+# EXTRACT_AFTER_ARGS -
+#				  Arguments to ${EXTRACT_CMD} following filename
+#				  (default: none).
 #
 # NCFTP			- Full path to ncftp command if not in $PATH (default: ncftp).
 # NCFTPFLAGS    - Arguments to ${NCFTP} (default: -N).
@@ -193,7 +198,12 @@ PATCH_ARGS?=	-d ${WRKSRC} --forward --quiet -E ${PATCH_STRIP}
 
 EXTRACT_CMD?=	tar
 EXTRACT_SUFX?=	.tar.gz
-EXTRACT_ARGS?=	-xzf
+# Backwards compatability.
+.if defined(EXTRACT_ARGS)
+EXTRACT_BEFORE_ARGS?=   ${EXTRACT_ARGS}
+.else
+EXTRACT_BEFORE_ARGS?=   -xzf
+.endif
 
 PKG_CMD?=		pkg_create
 PKG_ARGS?=		-v -c ${PKGDIR}/COMMENT -d ${PKGDIR}/DESCR -f ${PKGDIR}/PLIST -p ${PREFIX}
@@ -660,14 +670,14 @@ ${EXTRACT_COOKIE}:
 	@mkdir -p ${WRKDIR}
 .if defined(EXTRACT_ONLY)
 	@for file in ${EXTRACT_ONLY}; do \
-		if ! (cd ${WRKDIR};${EXTRACT_CMD} ${EXTRACT_ARGS} ${DISTDIR}/$$file);\
+		if ! (cd ${WRKDIR};${EXTRACT_CMD} ${EXTRACT_BEFORE_ARGS} ${DISTDIR}/$$file ${EXTRACT_AFTER_ARGS});\
 		then \
 			exit 1; \
 		fi \
 	done
 .else
 	@for file in ${DISTFILES}; do \
-		if ! (cd ${WRKDIR};${EXTRACT_CMD} ${EXTRACT_ARGS} ${DISTDIR}/$$file);\
+		if ! (cd ${WRKDIR};${EXTRACT_CMD} ${EXTRACT_BEFORE_ARGS} ${DISTDIR}/$$file ${EXTRACT_AFTER_ARGS});\
 		then \
 			exit 1; \
 		fi \
