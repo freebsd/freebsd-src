@@ -104,7 +104,7 @@ command's actions are determined by the last one specified.
 .Pp
 Only the owner of a file or the super-user is permitted to change
 the mode of a file.
-.Sh DIAGNOSTICS
+.Sh EXIT STATUS
 .Ex -std
 .Sh MODES
 Modes may be absolute or symbolic.
@@ -304,10 +304,6 @@ clear all mode bits for group and others.
 .It Li g=u-w
 set the group bits equal to the user bits, but clear the group write bit.
 .El
-.Sh BUGS
-There's no
-.Ar perm
-option for the naughty bits.
 .Sh COMPATIBILITY
 The
 .Fl v
@@ -340,3 +336,7 @@ A
 .Nm
 command appeared in
 .At v1 .
+.Sh BUGS
+There's no
+.Ar perm
+option for the naughty bits.

@@ -66,6 +66,8 @@ character as a decimal point).
 This is a non-portable extension, and its use will nearly guarantee that
 a shell script will not execute properly on another system.
 .Ef
+.Sh EXIT STATUS
+.Ex -std
 .Sh EXAMPLES
 To schedule the execution of a command for
 .Va x
@@ -106,8 +108,6 @@ The script checks every five minutes for the file zzz.rawdata,
 when the file is found, then another portion processing
 is done courteously by sleeping for 70 seconds in between each
 awk job.
-.Sh DIAGNOSTICS
-.Ex -std
 .Sh SEE ALSO
 .Xr nanosleep 2 ,
 .Xr sleep 3

@@ -180,6 +180,18 @@ also enables compatibility mode.
 .It Ev EXPR_COMPAT
 If set, enables compatibility mode.
 .El
+.Sh EXIT STATUS
+The
+.Nm
+utility exits with one of the following values:
+.Bl -tag -width indent -compact
+.It 0
+the expression is neither an empty string nor 0.
+.It 1
+the expression is an empty string or 0.
+.It 2
+the expression is invalid.
+.El
 .Sh EXAMPLES
 .Bl -bullet
 .It
@@ -235,18 +247,6 @@ this is simple:
 For portability to older systems, however, a more complicated command
 is required:
 .Dl "expr \e( \*qX$a\*q \&: \*q.*\*q \e) - 1"
-.El
-.Sh DIAGNOSTICS
-The
-.Nm
-utility exits with one of the following values:
-.Bl -tag -width indent -compact
-.It 0
-the expression is neither an empty string nor 0.
-.It 1
-the expression is an empty string or 0.
-.It 2
-the expression is invalid.
 .El
 .Sh SEE ALSO
 .Xr sh 1 ,
