@@ -115,7 +115,7 @@ options(void)
 	for (ol = otab; ol != 0; ol = ol->o_next)
 		do_option(ol->o_name);
 	for (op = opt; op; op = op->op_next) {
-		if (!op->op_ownfile) {
+		if (!op->op_ownfile && strncmp(op->op_name, "DEV_", 4)) {
 			printf("%s:%d: unknown option \"%s\"\n",
 			       PREFIX, op->op_line, op->op_name);
 			exit(1);
