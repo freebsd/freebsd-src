@@ -28,8 +28,8 @@ LDADD+=	${LIBCVS} ${LIBDIFF} -lgnuregex -lmd -lcrypt -lz
 
 .if exists(${DESTDIR}${LIBDIR}/libkrb.a) && defined(MAKE_KERBEROS4)
 CFLAGS+=-DHAVE_KERBEROS -DHAVE_KRB_GET_ERR_TEXT
-LDADD+=	-lkrb -ldes
-DPADD+=	${LIBKRB} ${LIBDES}
+LDADD+=	-lkrb -ldes -lcom_err
+DPADD+=	${LIBKRB} ${LIBDES} ${LIBCOM_ERR}
 DISTRIBUTION=	krb
 # XXX do we want to mess with this?  It's probably not really worth it for
 # the public freebsd stuff, but others might want it.  It's an optional

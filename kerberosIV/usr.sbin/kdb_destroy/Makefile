@@ -11,8 +11,10 @@ CFLAGS+=	-I${KRB4DIR}/include \
 		-I${KRB4DIR}/admin \
 		-I${.CURDIR}/../include
 LDADD=		-L${ROKENOBJDIR} -lroken \
-		-L${KDBOBJDIR} -lkdb -L${KRBOBJDIR} -lkrb -ldes -lcrypt
-DPADD=		${LIBROKEN} ${LIBKDB} ${LIBKRB} ${LIBDES} ${CRYPT}
+		-L${KDBOBJDIR} -lkdb -L${KRBOBJDIR} -lkrb -ldes -lcrypt \
+		-lcom_err
+DPADD=		${LIBROKEN} ${LIBKDB} ${LIBKRB} ${LIBDES} ${LIBCRYPT} \
+		${LIBCOM_ERR}
 
 .include <bsd.prog.mk>
 
