@@ -2,7 +2,7 @@
 # LINT -- config file for checking all the sources, tries to pull in
 #	as much of the source tree as it can.
 #
-#	$Id: LINT,v 1.474 1998/09/25 11:00:11 jkh Exp $
+#	$Id: LINT,v 1.475 1998/09/25 11:38:30 yokota Exp $
 #
 # NB: You probably don't want to try running a kernel built from this
 # file.  Instead, you should start from GENERIC, and add options from
@@ -749,10 +749,6 @@ controller	isa0
 # original i8259A, but it works for some clones and some integrated
 # versions.
 #
-# BOUNCE_BUFFERS provides support for ISA DMA on machines with more
-# than 16 megabytes of memory.  It doesn't hurt on other machines.
-# Some broken EISA and VLB hardware may need this, too.
-#
 # MAXMEM specifies the amount of RAM on the machine; if this is not
 # specified, FreeBSD will first read the amount of memory from the CMOS
 # RAM, so the amount of memory will initially be limited to 64MB or 16MB
@@ -773,7 +769,6 @@ controller	isa0
 
 options		"AUTO_EOI_1"
 #options	"AUTO_EOI_2"
-options		BOUNCE_BUFFERS
 options		"MAXMEM=(128*1024)"
 options 	"TUNE_1542"
 #options	BROKEN_KEYBOARD_RESET

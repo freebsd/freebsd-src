@@ -11,7 +11,7 @@
  * 2. Absolutely no warranty of function or purpose is made by the author
  *		John S. Dyson.
  *
- * $Id: vfs_bio.c,v 1.175 1998/09/05 14:13:06 phk Exp $
+ * $Id: vfs_bio.c,v 1.176 1998/09/15 10:05:18 gibbs Exp $
  */
 
 /*
@@ -24,8 +24,6 @@
  * Significant help during the development and debugging phases
  * had been provided by David Greenman, also of the FreeBSD core team.
  */
-
-#include "opt_bounce.h"
 
 #define VMIO
 #include <sys/param.h>
@@ -1897,12 +1895,6 @@ biodone(register struct buf * bp)
 	if ((bp->b_flags & B_READ) == 0) {
 		vwakeup(bp);
 	}
-
-#ifdef BOUNCE_BUFFERS
-	if (bp->b_flags & B_BOUNCE) {
-		vm_bounce_free(bp);
-	}
-#endif
 
 	/* call optional completion function if requested */
 	if (bp->b_flags & B_CALL) {
