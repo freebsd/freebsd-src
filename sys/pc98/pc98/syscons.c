@@ -25,7 +25,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *  $Id: syscons.c,v 1.122 1999/06/24 10:51:38 kato Exp $
+ *  $Id: syscons.c,v 1.123 1999/06/24 12:13:06 kato Exp $
  */
 
 #include "sc.h"
@@ -420,7 +420,7 @@ scmeminit(void *arg)
 
 #ifndef SC_NO_HISTORY
     /* initialize history buffer & pointers */
-    sc_alloc_history_buffer(sc_console, 0, FALSE);
+    sc_alloc_history_buffer(sc_console, 0, 0, FALSE);
 #endif
 }
 
@@ -578,11 +578,7 @@ scclose(dev_t dev, int flag, int mode, struct proc *p)
 	else {
 	    sc_vtb_destroy(&scp->vtb);
 	    sc_vtb_destroy(&scp->scr);
-	    if (scp->history != NULL) {
-		/* XXX not quite correct */
-		sc_vtb_destroy(scp->history);
-		free(scp->history, M_DEVBUF);
-	    }
+	    sc_free_history_buffer(scp, scp->ysize);
 	    free(scp, M_DEVBUF);
 	    sc->console[SC_VTY(dev) - sc->first_vty] = NULL;
 	}
@@ -3784,7 +3780,7 @@ static scr_stat
 #endif
 
 #ifndef SC_NO_HISTORY
-    sc_alloc_history_buffer(scp, 0, TRUE);
+    sc_alloc_history_buffer(scp, 0, 0, TRUE);
 #endif
 
     sc_clear_screen(scp);
