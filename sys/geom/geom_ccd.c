@@ -107,8 +107,6 @@ struct ccdbuf {
 
 static dev_t	ccdctldev;
 
-static d_open_t ccdopen;
-static d_close_t ccdclose;
 static d_strategy_t ccdstrategy;
 static d_ioctl_t ccdctlioctl;
 
@@ -131,24 +129,6 @@ static struct cdevsw ccdctl_cdevsw = {
 	/* psize */	nopsize,
 	/* flags */	0
 };
-
-static struct cdevsw ccd_cdevsw = {
-	/* open */	ccdopen,
-	/* close */	ccdclose,
-	/* read */	physread,
-	/* write */	physwrite,
-	/* ioctl */	noioctl,
-	/* poll */	nopoll,
-	/* mmap */	nommap,
-	/* strategy */	ccdstrategy,
-	/* name */	"ccd",
-	/* maj */	CDEV_MAJOR,
-	/* dump */	nodump,
-	/* psize */	nopsize,
-	/* flags */	D_DISK,
-};
-
-static struct cdevsw ccddisk_cdevsw;
 
 static LIST_HEAD(, ccd_s) ccd_softc_list =
 	LIST_HEAD_INITIALIZER(&ccd_softc_list);
@@ -548,27 +528,6 @@ ccdinterleave(struct ccd_s *cs, int unit)
 		lbn = smallci->ci_size / cs->sc_ileave;
 		size = smallci->ci_size;
 	}
-}
-
-static int
-ccdopen(dev_t dev, int flags, int fmt, struct thread *td)
-{
-	struct ccd_s *cs;
-
-	cs = dev->si_drv1;
-	cs->sc_openmask = 1;
-	return (0);
-}
-
-/* ARGSUSED */
-static int
-ccdclose(dev_t dev, int flags, int fmt, struct thread *td)
-{
-	struct ccd_s *cs;
-
-	cs = dev->si_drv1;
-	cs->sc_openmask = 0;
-	return (0);
 }
 
 static void
@@ -1164,16 +1123,17 @@ ccdioctltoo(int unit, u_long cmd, caddr_t data, int flag, struct thread *td)
 		 */
 		ccio->ccio_unit = unit;
 		ccio->ccio_size = cs->sc_size;
-		cs->sc_disk = malloc(sizeof(struct disk), M_CCD, 0);
-		cs->sc_dev = disk_create(unit, cs->sc_disk, 0,
-		    &ccd_cdevsw, &ccddisk_cdevsw);
-		cs->sc_dev->si_drv1 = cs;
 		ccg = &cs->sc_geom;
+		cs->sc_disk = malloc(sizeof(struct disk), M_CCD, M_ZERO);
+		cs->sc_disk->d_strategy = ccdstrategy;
+		cs->sc_disk->d_name = "ccd";
 		cs->sc_disk->d_sectorsize = ccg->ccg_secsize;
 		cs->sc_disk->d_mediasize =
 		    cs->sc_size * (off_t)ccg->ccg_secsize;
 		cs->sc_disk->d_fwsectors = ccg->ccg_nsectors;
 		cs->sc_disk->d_fwheads = ccg->ccg_ntracks;
+		cs->sc_dev = disk_create(unit, cs->sc_disk, 0, NULL, NULL);
+		cs->sc_dev->si_drv1 = cs;
 
 		ccdunlock(cs);
 
@@ -1193,7 +1153,7 @@ ccdioctltoo(int unit, u_long cmd, caddr_t data, int flag, struct thread *td)
 			return (error);
 
 		/* Don't unconfigure if any other partitions are open */
-		if (cs->sc_openmask) {
+		if (cs->sc_disk->d_flags & DISKFLAG_OPEN) {
 			ccdunlock(cs);
 			return (EBUSY);
 		}
