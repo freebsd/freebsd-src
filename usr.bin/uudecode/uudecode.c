@@ -308,7 +308,7 @@ getline(char *buf, size_t size)
 {
 	if (fgets(buf, size, infp) != NULL)
 		return (2);
-	if (!rflag)
+	if (rflag)
 		return (0);
 	warnx("%s: %s: short file", infile, outfile);
 	return (1);
