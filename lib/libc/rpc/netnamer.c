@@ -58,7 +58,9 @@ __FBSDID("$FreeBSD$");
 #include "un-namespace.h"
 
 static char    *OPSYS = "unix";
+#ifdef YP
 static char    *NETID = "netid.byname";
+#endif
 static char    *NETIDFILE = "/etc/netid";
 
 static int getnetid( char *, char * );

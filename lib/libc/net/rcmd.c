@@ -55,8 +55,8 @@ __FBSDID("$FreeBSD$");
 #include <stdio.h>
 #include <ctype.h>
 #include <string.h>
-#ifdef YP
 #include <rpc/rpc.h>
+#ifdef YP
 #include <rpcsvc/yp_prot.h>
 #include <rpcsvc/ypclnt.h>
 #endif

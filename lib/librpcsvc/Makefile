@@ -9,8 +9,12 @@ RPCSRCS= klm_prot.x mount.x nfs_prot.x nlm_prot.x rex.x rnusers.x \
 	rquota.x rstat.x rwall.x sm_inter.x spray.x yppasswd.x ypxfrd.x \
 	ypupdate_prot.x
 
-OTHERSRCS=  rnusers.c rstat.c rwall.c yp_passwd.c yp_update.c
+OTHERSRCS=  rnusers.c rstat.c rwall.c
 SECRPCSRCS= secretkey.c xcrypt.c
+
+.if !defined(NO_NIS)
+OTHERSRCS+= yp_passwd.c yp_update.c
+.endif
 
 RPCCOM = rpcgen -C
 
