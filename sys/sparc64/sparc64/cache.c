@@ -86,6 +86,8 @@
 
 struct cacheinfo cache;
 
+cache_enable_t *cache_enable;
+cache_flush_t *cache_flush;
 dcache_page_inval_t *dcache_page_inval;
 icache_page_inval_t *icache_page_inval;
 
@@ -125,10 +127,14 @@ cache_init(phandle_t node)
 		panic("cache_init: E$ set size not a power of 2");
 
 	if (cpu_impl >= CPU_IMPL_ULTRASPARCIII) {
+		cache_enable = cheetah_cache_enable;
+		cache_flush = cheetah_cache_flush;
 		dcache_page_inval = cheetah_dcache_page_inval;
 		icache_page_inval = cheetah_icache_page_inval;
 		tlb_flush_user = cheetah_tlb_flush_user;
 	} else {
+		cache_enable = spitfire_cache_enable;
+		cache_flush = spitfire_cache_flush;
 		dcache_page_inval = spitfire_dcache_page_inval;
 		icache_page_inval = spitfire_icache_page_inval;
 		tlb_flush_user = spitfire_tlb_flush_user;
