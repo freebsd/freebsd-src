@@ -1,4 +1,4 @@
-.\" $Id$
+.\" $Id: fetch.1,v 1.2 1996/07/05 01:03:20 jkh Exp $
 .Dd July 2, 1996
 .Dt FETCH 1
 .Os
@@ -7,11 +7,11 @@
 .Nd retrieve a file by Uniform Resource Locator
 .Sh SYNOPSIS
 .Nm fetch
-.Op Fl MPmpqr
+.Op Fl MPmnpqr
 .Op Fl o Ar file
 .Ar URL
 .Nm fetch
-.Op Fl MPmpqr
+.Op Fl MPmnpqr
 .Op Fl o Ar file
 .Op Fl c Ar dir
 .Fl f Ar file
@@ -51,6 +51,8 @@ Mirror mode: Set the modification time of the file so that it is
 identical to the modification time of the file at the remote host.
 If the file already exists on the local host and is identical (as
 gauged by size and modification time), no transfer is done.
+.It Fl n
+Don't preserve the modtime of the transfered file, use the current time.
 .It Fl P
 .It Fl p
 Use passive mode if you are behind a firewall.

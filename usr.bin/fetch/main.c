@@ -24,7 +24,7 @@
  * SUCH DAMAGE.
  */
 
-/* $Id: main.c,v 1.7 1996/07/02 01:49:47 jmz Exp $ */
+/* $Id: main.c,v 1.8 1996/07/05 00:06:36 jmz Exp $ */
 
 #include <stdlib.h>
 #include <stdio.h>
@@ -63,6 +63,7 @@ char *file_to_get = 0;
 int http = 0;
 int http_port = 80;
 int mirror = 0;
+int newtime = 0;
 int restart = 0;
 time_t modtime;
 
@@ -102,7 +103,7 @@ rm ()
 		if (file != stdout) {
 			if (!restart && !mirror)
 			    remove (outputfile);
-			else if (!mirror) {
+			else if (!mirror && !newtime) {
 				tv[0].tv_usec = tv[1].tv_usec = 0;
 				tv[0].tv_sec = time(0);
 				tv[1].tv_sec = modtime;
@@ -120,7 +121,7 @@ main (int argc, char **argv)
 
 	progname = s ? s+1 : argv[0];
 
-	while ((c = getopt (argc, argv, "D:HINPMV:Lqc:f:h:o:pmr")) != EOF) {
+	while ((c = getopt (argc, argv, "D:HINPMV:Lqc:f:h:o:pmnr")) != EOF) {
 		switch (c) {
 		      case 'D': case 'H': case 'I': case 'N': case 'L': case 'V': 
 			break;	/* ncftp compatibility */
@@ -150,6 +151,10 @@ main (int argc, char **argv)
 
 		      case 'm': case 'M':
 			mirror = 1;
+			break;
+
+		      case 'n':
+			newtime = 1;
 			break;
 
 		      case 'r':
