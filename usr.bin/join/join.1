@@ -106,13 +106,16 @@ option specifies the fields that will be output from each file for
 each line with matching join fields.
 Each element of
 .Ar list
-has the form
+has the either the form
 .Ql file_number.field ,
 where
 .Ar file_number
 is a file number and
 .Ar field
-is a field number.
+is a field number, or the form
+.Ql 0
+.Pq zero ,
+representing the join field.
 The elements of list must be either comma
 .Pf ( Dq , Ns )
 or whitespace separated.
@@ -216,9 +219,11 @@ modification and should not be used.
 .Sh STANDARDS
 The
 .Nm
-command is expected to be
-.St -p1003.2
-compatible.
+command conforms to
+.St -p1003.1-2001
+except for the requirement that there be no space between the
+.Fl a
+option and its argument.
 .Sh SEE ALSO
 .Xr awk 1 ,
 .Xr comm 1 ,

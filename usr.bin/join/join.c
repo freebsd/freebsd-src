@@ -405,6 +405,8 @@ outoneline(F, lp)
 		for (cnt = 0; cnt < olistcnt; ++cnt) {
 			if (olist[cnt].filenum == F->number)
 				outfield(lp, olist[cnt].fieldno, 0);
+			else if (olist[cnt].filenum == 0)
+				outfield(lp, F->joinf, 0);
 			else
 				outfield(lp, 0, 1);
 		}
@@ -427,7 +429,12 @@ outtwoline(F1, lp1, F2, lp2)
 	/* Output a pair of lines according to the join list (if any). */
 	if (olist)
 		for (cnt = 0; cnt < olistcnt; ++cnt)
-			if (olist[cnt].filenum == 1)
+			if (olist[cnt].filenum == 0) {
+				if (lp1->fieldcnt >= F1->joinf)
+					outfield(lp1, F1->joinf, 0);
+				else
+					outfield(lp2, F2->joinf, 0);
+			} else if (olist[cnt].filenum == 1)
 				outfield(lp1, olist[cnt].fieldno, 0);
 			else /* if (olist[cnt].filenum == 2) */
 				outfield(lp2, olist[cnt].fieldno, 0);
@@ -480,27 +487,33 @@ void
 fieldarg(option)
 	char *option;
 {
-	u_long fieldno;
+	u_long fieldno, filenum;
 	char *end, *token;
 
 	while ((token = strsep(&option, ", \t")) != NULL) {
 		if (*token == '\0')
 			continue;
-		if (token[0] != '1' && token[0] != '2' || token[1] != '.')
+		if (token[0] == '0')
+			filenum = fieldno = 0;
+		else if ((token[0] == '1' || token[0] == '2') &&
+		    token[1] == '.') {
+			filenum = token[0] - '0';
+			fieldno = strtol(token + 2, &end, 10);
+			if (*end)
+				errx(1, "malformed -o option field");
+			if (fieldno == 0)
+				errx(1, "field numbers are 1 based");
+			--fieldno;
+		} else
 			errx(1, "malformed -o option field");
-		fieldno = strtol(token + 2, &end, 10);
-		if (*end)
-			errx(1, "malformed -o option field");
-		if (fieldno == 0)
-			errx(1, "field numbers are 1 based");
 		if (olistcnt == olistalloc) {
 			olistalloc += 50;
 			if ((olist = realloc(olist,
 			    olistalloc * sizeof(OLIST))) == NULL)
 				err(1, NULL);
 		}
-		olist[olistcnt].filenum = token[0] - '0';
-		olist[olistcnt].fieldno = fieldno - 1;
+		olist[olistcnt].filenum = filenum;
+		olist[olistcnt].fieldno = fieldno;
 		++olistcnt;
 	}
 }
@@ -567,8 +580,8 @@ jbad:				errx(1, "illegal option -- %s", ap);
 			if (ap[2] != '\0')
 				break;
 			for (p = argv + 2; *p; ++p) {
-				if (p[0][0] != '1' &&
-				    p[0][0] != '2' || p[0][1] != '.')
+				if (p[0][0] == '0' || (p[0][0] != '1' &&
+				    p[0][0] != '2' || p[0][1] != '.'))
 					break;
 				len = strlen(*p);
 				if (len - 2 != strspn(*p + 2, "0123456789"))
