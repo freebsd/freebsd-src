@@ -24,7 +24,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd July 12, 2004
+.Dd January 26, 2005
 .Dt CSPLIT 1
 .Os
 .Sh NAME
@@ -151,3 +151,7 @@ utility conforms to
 A
 .Nm
 command appeared in PWB UNIX.
+.Sh BUGS
+Input lines are limited to
+.Dv LINE_MAX
+(2048) bytes in length.
