@@ -69,8 +69,12 @@ mount -a       # chown and chgrp are in /usr
 #	mount_null /var/tmp /tmp
 #fi
 
-# extract a list of device entries, then copy them to a writable partition
-(cd /; find -x dev | cpio -o -H newc) > /tmp/dev.tmp
-echo "+++ mount_mfs of /dev"
-mount_md 4096 /dev 3
-(cd /; cpio -i -H newc -d < /tmp/dev.tmp)
+if sysctl vfs.devfs.generation > /dev/null 2>&1 ; then
+	# we have DEVFS, no worries...
+	true
+else
+	# extract a list of device entries, then copy them to a writable fs
+	(cd /; find -x dev | cpio -o -H newc) > /tmp/dev.tmp
+	mount_mfs -s 4096 -i 512 -T qp120at dummy /dev
+	(cd /; cpio -i -H newc -d < /tmp/dev.tmp)
+fi
