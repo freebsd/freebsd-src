@@ -176,5 +176,6 @@ void		 acpi_load_dsdt(char *, u_int8_t **, u_int8_t **);
 void		 acpi_dump_dsdt(u_int8_t *, u_int8_t *);
 extern char	*aml_dumpfile;
 extern struct	ACPIsdt dsdt_header;
+extern int	rflag;
 
 #endif	/* !_ACPIDUMP_H_ */
