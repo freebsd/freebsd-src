@@ -1,5 +1,5 @@
 #	@(#)Makefile	8.1 (Berkeley) 6/4/93
-#	$Id: Makefile,v 1.67 1998/05/03 05:06:13 peter Exp $
+#	$Id: Makefile,v 1.68 1998/05/13 22:54:03 jb Exp $
 
 # To satisfy shared library or ELF linkage when only the libraries being
 # built are visible:
@@ -31,9 +31,10 @@ _libc_r=	libc_r
 
 # Build both libraries. They have different names, so no harm,
 # and this avoids having stale libscrypt.*
-_libcrypt=	libcrypt
 .if exists(${.CURDIR}/../secure) && !defined(NOSECURE) && !defined(NOCRYPT)
-_libcrypt+=	../secure/lib/libcrypt
+_libcrypt=	../secure/lib/libcrypt libcrypt
+.else
+_libcrypt=	libcrypt
 .endif
 
 .if ${MACHINE_ARCH} == "i386"
