@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)if_arp.h	8.1 (Berkeley) 6/10/93
- * $Id: if_arp.h,v 1.9 1998/01/08 23:41:18 eivind Exp $
+ * $Id: if_arp.h,v 1.10 1998/01/10 07:29:10 bde Exp $
  */
 
 #ifndef _NET_IF_ARP_H_
@@ -50,6 +50,7 @@
 struct	arphdr {
 	u_short	ar_hrd;		/* format of hardware address */
 #define ARPHRD_ETHER 	1	/* ethernet hardware format */
+#define ARPHRD_IEEE802	6	/* token-ring hardware format */
 #define ARPHRD_FRELAY 	15	/* frame relay hardware format */
 	u_short	ar_pro;		/* format of protocol address */
 	u_char	ar_hln;		/* length of hardware address */
