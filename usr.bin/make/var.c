@@ -100,6 +100,16 @@ __FBSDID("$FreeBSD$");
 #include "util.h"
 #include "var.h"
 
+/**
+ *
+ */
+typedef struct VarParser {
+	const char	*const input;	/* pointer to input string */
+	GNode		*ctxt;
+	Boolean		err;
+} VarParser;
+static char *VarParse(const char [], VarParser *, size_t *, Boolean *);
+
 /*
  * This is a harmless return value for Var_Parse that can be used by Var_Subst
  * to determine if there was an error in parsing -- easier than returning
@@ -689,7 +699,7 @@ SortIncreasing(const void *l, const void *r)
  *-----------------------------------------------------------------------
  */
 static char *
-VarGetPattern(GNode *ctxt, int err, const char **tstr, int delim, int *flags,
+VarGetPattern(VarParser *vp, const char **tstr, int delim, int *flags,
     size_t *length, VarPattern *pattern)
 {
     const char *cp;
@@ -735,7 +745,7 @@ VarGetPattern(GNode *ctxt, int err, const char **tstr, int delim, int *flags,
 		     * substitution and recurse.
 		     */
 		    len = 0;
-		    cp2 = Var_Parse(cp, ctxt, err, &len, &freeIt);
+		    cp2 = Var_Parse(cp, vp->ctxt, vp->err, &len, &freeIt);
 		    Buf_Append(buf, cp2);
 		    if (freeIt)
 			free(cp2);
@@ -849,11 +859,11 @@ VarREError(int err, regex_t *pat, const char *str)
     free(errbuf);
 }
 
-/*
+/**
  * Make sure this variable is fully expanded.
  */
 static char *
-VarExpand(Var *v, GNode *ctxt, Boolean err)
+VarExpand(Var *v, VarParser *vp)
 {
 	char	*value;
 	char	*result;
@@ -881,7 +891,7 @@ VarExpand(Var *v, GNode *ctxt, Boolean err)
 	} else {
 		Buffer	*buf;
 
-		buf = Var_Subst(NULL, value, ctxt, err);
+		buf = Var_Subst(NULL, value, vp->ctxt, vp->err);
 		result = Buf_GetAll(buf, NULL);
 		Buf_Destroy(buf, FALSE);
 	}
@@ -939,7 +949,7 @@ modifier_M(const char mod[], const char value[], char endc, size_t *consumed)
 }
 
 static char *
-modifier_S(const char mod[], const char value[], Var *v, GNode *ctxt, Boolean err, size_t *consumed)
+modifier_S(const char mod[], const char value[], Var *v, VarParser *vp, size_t *consumed)
 {
 	VarPattern	pattern;
 	Buffer		*buf;		/* Buffer for patterns */
@@ -1004,7 +1014,7 @@ modifier_S(const char mod[], const char value[], Var *v, GNode *ctxt, Boolean er
 				Boolean freeIt;
 
 				len = 0;
-				cp2 = Var_Parse(cur, ctxt, err, &len, &freeIt);
+				cp2 = Var_Parse(cur, vp->ctxt, vp->err, &len, &freeIt);
 				cur += len;
 				Buf_Append(buf, cp2);
 				if (freeIt) {
@@ -1061,7 +1071,7 @@ modifier_S(const char mod[], const char value[], Var *v, GNode *ctxt, Boolean er
 				Boolean freeIt;
 
 				len = 0;
-				cp2 = Var_Parse(cur, ctxt, err, &len, &freeIt);
+				cp2 = Var_Parse(cur, vp->ctxt, vp->err, &len, &freeIt);
 				cur += len;
 				Buf_Append(buf, cp2);
 				if (freeIt) {
@@ -1145,13 +1155,13 @@ modifier_S(const char mod[], const char value[], Var *v, GNode *ctxt, Boolean er
 static char *
 ParseModifier(const char input[], const char tstr[],
 	char startc, char endc, Boolean dynamic, Var *v,
-	GNode *ctxt, Boolean err, size_t *lengthPtr, Boolean *freePtr)
+	VarParser *vp, size_t *lengthPtr, Boolean *freePtr)
 {
 	char		*value;
 	const char	*cp;
 	size_t		used;
 
-	value = VarExpand(v, ctxt, err);
+	value = VarExpand(v, vp);
 	*freePtr = TRUE;
 
 	tstr++;
@@ -1174,7 +1184,7 @@ ParseModifier(const char input[], const char tstr[],
 
 			readonly = TRUE; /* tstr isn't modified here */
 
-			newStr = modifier_S(tstr, value, v, ctxt, err, &consumed);
+			newStr = modifier_S(tstr, value, v, vp, &consumed);
 			tstr += consumed;
 			break;
 		case 'C':
@@ -1190,7 +1200,7 @@ ParseModifier(const char input[], const char tstr[],
 
 		    cp = tstr;
 
-		    if ((re = VarGetPattern(ctxt, err, &cp, delim, NULL,
+		    if ((re = VarGetPattern(vp, &cp, delim, NULL,
 			NULL, NULL)) == NULL) {
 			*lengthPtr = cp - input + 1;
 			if (*freePtr)
@@ -1201,7 +1211,7 @@ ParseModifier(const char input[], const char tstr[],
 			return (var_Error);
 		    }
 
-		    if ((pattern.replace = VarGetPattern(ctxt, err, &cp,
+		    if ((pattern.replace = VarGetPattern(vp, &cp,
 			delim, NULL, NULL, NULL)) == NULL){
 			free(re);
 
@@ -1393,8 +1403,8 @@ ParseModifier(const char input[], const char tstr[],
 			cp = tstr;
 
 			delim = '=';
-			if ((pattern.lhs = VarGetPattern(ctxt,
-			    err, &cp, delim, &pattern.flags, &pattern.leftLen,
+			if ((pattern.lhs = VarGetPattern(vp,
+			    &cp, delim, &pattern.flags, &pattern.leftLen,
 			    NULL)) == NULL) {
 				/* was: goto cleanup */
 				*lengthPtr = cp - input + 1;
@@ -1407,8 +1417,8 @@ ParseModifier(const char input[], const char tstr[],
 			}
 
 			delim = endc;
-			if ((pattern.rhs = VarGetPattern(ctxt,
-			    err, &cp, delim, NULL, &pattern.rightLen,
+			if ((pattern.rhs = VarGetPattern(vp,
+			    &cp, delim, NULL, &pattern.rightLen,
 			    &pattern)) == NULL) {
 				/* was: goto cleanup */
 				*lengthPtr = cp - input + 1;
@@ -1504,7 +1514,7 @@ ParseModifier(const char input[], const char tstr[],
 			VarDestroy(v, TRUE);
 
 			*freePtr = FALSE;
-			return (err ? var_Error : varNoError);
+			return (vp->err ? var_Error : varNoError);
 		}
 	} else {
 		return (value);
@@ -1512,7 +1522,7 @@ ParseModifier(const char input[], const char tstr[],
 }
 
 static char *
-ParseRestModifier(const char input[], const char ptr[], char startc, char endc, Buffer *buf, GNode *ctxt, Boolean err, size_t *lengthPtr, Boolean *freePtr)
+ParseRestModifier(const char input[], const char ptr[], char startc, char endc, Buffer *buf, VarParser *vp, size_t *lengthPtr, Boolean *freePtr)
 {
 	const char	*vname;
 	size_t		vlen;
@@ -1526,14 +1536,14 @@ ParseRestModifier(const char input[], const char ptr[], char startc, char endc, 
 
 	dynamic = FALSE;
 
-	v = VarFind(vname, ctxt, FIND_ENV | FIND_GLOBAL | FIND_CMD);
+	v = VarFind(vname, vp->ctxt, FIND_ENV | FIND_GLOBAL | FIND_CMD);
 	if (v != NULL) {
 		return (ParseModifier(input, ptr,
 				startc, endc, dynamic, v,
-				ctxt, err, lengthPtr, freePtr));
+				vp, lengthPtr, freePtr));
 	}
 
-	if ((ctxt == VAR_CMD) || (ctxt == VAR_GLOBAL)) {
+	if ((vp->ctxt == VAR_CMD) || (vp->ctxt == VAR_GLOBAL)) {
 		if ((vlen == 1) ||
 		    ((vlen == 2) && (vname[1] == 'F' || vname[1] == 'D'))) {
 			/*
@@ -1568,7 +1578,7 @@ ParseRestModifier(const char input[], const char ptr[], char startc, char endc, 
 		v = VarCreate(vname, NULL, VAR_JUNK);
 		return (ParseModifier(input, ptr,
 				      startc, endc, dynamic, v,
-				    ctxt, err, lengthPtr, freePtr));
+				    vp, lengthPtr, freePtr));
 	} else {
 		/*
 		 * Check for D and F forms of local variables since we're in
@@ -1585,11 +1595,11 @@ ParseRestModifier(const char input[], const char ptr[], char startc, char endc, 
 			name[0] = vname[0];
 			name[1] = '\0';
 
-			v = VarFind(name, ctxt, 0);
+			v = VarFind(name, vp->ctxt, 0);
 			if (v != NULL) {
 				return (ParseModifier(input, ptr,
 						startc, endc, dynamic, v,
-						ctxt, err, lengthPtr, freePtr));
+						vp, lengthPtr, freePtr));
 			}
 		}
 
@@ -1601,13 +1611,13 @@ ParseRestModifier(const char input[], const char ptr[], char startc, char endc, 
 		v = VarCreate(vname, NULL, VAR_JUNK);
 		return (ParseModifier(input, ptr,
 				      startc, endc, dynamic, v,
-				    ctxt, err, lengthPtr, freePtr));
+				    vp, lengthPtr, freePtr));
 	}
 }
 
 static char *
 ParseRestEnd(const char input[], Buffer *buf,
-	GNode *ctxt, Boolean err, size_t *consumed, Boolean *freePtr)
+	VarParser *vp, size_t *consumed, Boolean *freePtr)
 {
 	const char	*vname;
 	size_t		vlen;
@@ -1616,9 +1626,9 @@ ParseRestEnd(const char input[], Buffer *buf,
 
 	vname = Buf_GetAll(buf, &vlen);
 
-	v = VarFind(vname, ctxt, FIND_ENV | FIND_GLOBAL | FIND_CMD);
+	v = VarFind(vname, vp->ctxt, FIND_ENV | FIND_GLOBAL | FIND_CMD);
 	if (v != NULL) {
-		value = VarExpand(v, ctxt, err);
+		value = VarExpand(v, vp);
 
 		if (v->flags & VAR_FROM_ENV) {
 			VarDestroy(v, TRUE);
@@ -1628,7 +1638,7 @@ ParseRestEnd(const char input[], Buffer *buf,
 		return (value);
 	}
 
-	if ((ctxt == VAR_CMD) || (ctxt == VAR_GLOBAL)) {
+	if ((vp->ctxt == VAR_CMD) || (vp->ctxt == VAR_GLOBAL)) {
 		/*
 		 * If substituting a local variable in a non-local
 		 * context, assume it's for dynamic source stuff. We
@@ -1667,7 +1677,7 @@ ParseRestEnd(const char input[], Buffer *buf,
 		}
 
 		*freePtr = FALSE;
-		return (err ? var_Error : varNoError);
+		return (vp->err ? var_Error : varNoError);
 	} else {
 		/*
 		 * Check for D and F forms of local variables since we're in
@@ -1681,7 +1691,7 @@ ParseRestEnd(const char input[], Buffer *buf,
 			name[0] = vname[0];
 			name[1] = '\0';
 
-			v = VarFind(name, ctxt, 0);
+			v = VarFind(name, vp->ctxt, 0);
 			if (v != NULL) {
 				char	*val;
 				/*
@@ -1705,7 +1715,7 @@ ParseRestEnd(const char input[], Buffer *buf,
 		}
 
 		*freePtr = FALSE;
-		return (err ? var_Error : varNoError);
+		return (vp->err ? var_Error : varNoError);
 	}
 }
 
@@ -1713,7 +1723,7 @@ ParseRestEnd(const char input[], Buffer *buf,
  * Parse a multi letter variable name, and return it's value.
  */
 static char *
-VarParseLong(const char input[], GNode *ctxt, Boolean err,
+VarParseLong(const char input[], VarParser *vp,
 	size_t *consumed, Boolean *freePtr)
 {
 	Buffer		*buf;
@@ -1750,7 +1760,7 @@ VarParseLong(const char input[], GNode *ctxt, Boolean err,
 		} else if (*ptr == ':') {
 			result = ParseRestModifier(input - 2, ptr,
 				     startc, endc, buf,
-				     ctxt, err, consumed, freePtr);
+				     vp, consumed, freePtr);
 			Buf_Destroy(buf, TRUE);
 			return (result);
 
@@ -1760,7 +1770,7 @@ VarParseLong(const char input[], GNode *ctxt, Boolean err,
 			char	*rval;
 
 			rlen = 0;
-			rval = Var_Parse(ptr, ctxt, err, &rlen, &rfree);
+			rval = Var_Parse(ptr, vp->ctxt, vp->err, &rlen, &rfree);
 			if (rval == var_Error) {
 				Fatal("Error expanding embedded variable.");
 			}
@@ -1779,7 +1789,7 @@ VarParseLong(const char input[], GNode *ctxt, Boolean err,
 
 	*consumed += 1;	/* consume closing paren or brace */
 
-	result = ParseRestEnd(input - 2, buf, ctxt, err, consumed, freePtr);
+	result = ParseRestEnd(input - 2, buf, vp, consumed, freePtr);
 
 	Buf_Destroy(buf, TRUE);
 	return (result);
@@ -1789,7 +1799,7 @@ VarParseLong(const char input[], GNode *ctxt, Boolean err,
  * Parse a single letter variable name, and return it's value.
  */
 static char *
-VarParseShort(const char input[], GNode *ctxt, Boolean err,
+VarParseShort(const char input[], VarParser *vp,
 	size_t *consumed, Boolean *freeResult)
 {
 	char	vname[2];
@@ -1801,9 +1811,9 @@ VarParseShort(const char input[], GNode *ctxt, Boolean err,
 
 	*consumed += 1;	/* consume single letter */
 
-	v = VarFind(vname, ctxt, FIND_ENV | FIND_GLOBAL | FIND_CMD);
+	v = VarFind(vname, vp->ctxt, FIND_ENV | FIND_GLOBAL | FIND_CMD);
 	if (v != NULL) {
-		value = VarExpand(v, ctxt, err);
+		value = VarExpand(v, vp);
 
 		if (v->flags & VAR_FROM_ENV) {
 			VarDestroy(v, TRUE);
@@ -1821,7 +1831,7 @@ VarParseShort(const char input[], GNode *ctxt, Boolean err,
 	 * variables are treated specially as they are the only four that
 	 * will be set when dynamic sources are expanded.
 	 */
-	if ((ctxt == VAR_CMD) || (ctxt == VAR_GLOBAL)) {
+	if ((vp->ctxt == VAR_CMD) || (vp->ctxt == VAR_GLOBAL)) {
 
 		/* XXX: It looks like $% and $! are reversed here */
 		switch (vname[0]) {
@@ -1839,7 +1849,7 @@ VarParseShort(const char input[], GNode *ctxt, Boolean err,
 			return (estrdup("$(.MEMBER)"));
 		default:
 			*freeResult = FALSE;
-			return (err ? var_Error : varNoError);
+			return (vp->err ? var_Error : varNoError);
 		}
 	}
 
@@ -1847,7 +1857,30 @@ VarParseShort(const char input[], GNode *ctxt, Boolean err,
 	 * Variable name was not found.
 	 */
 	*freeResult = FALSE;
-	return (err ? var_Error : varNoError);
+	return (vp->err ? var_Error : varNoError);
+}
+
+static char *
+VarParse(const char input[], VarParser *vp, size_t *consumed, Boolean *freeResult)
+{
+	/* assert(input[0] == '$'); */
+
+	*consumed += 1;	/* consume '$' */
+	input += 1;
+
+	if (input[0] == '\0') {
+		/* Error, there is only a dollar sign in the input string. */
+		*freeResult = FALSE;
+		return (vp->err ? var_Error : varNoError);
+
+	} else if (input[0] == OPEN_PAREN || input[0] == OPEN_BRACE) {
+		/* multi letter variable name */
+		return (VarParseLong(input, vp, consumed, freeResult));
+
+	} else {
+		/* single letter variable name */
+		return (VarParseShort(input, vp, consumed, freeResult));
+	}
 }
 
 /*-
@@ -1878,24 +1911,13 @@ char *
 Var_Parse(const char input[], GNode *ctxt, Boolean err,
 	size_t *consumed, Boolean *freeResult)
 {
-	/* assert(input[0] == '$'); */
+	VarParser	vp = {
+		input,
+		ctxt,
+		err
+	};
 
-	*consumed += 1;	/* consume '$' */
-	input += 1;
-
-	if (input[0] == '\0') {
-		/* Error, there is only a dollar sign in the input string. */
-		*freeResult = FALSE;
-		return (err ? var_Error : varNoError);
-
-	} else if (input[0] == OPEN_PAREN || input[0] == OPEN_BRACE) {
-		/* multi letter variable name */
-		return (VarParseLong(input, ctxt, err, consumed, freeResult));
-
-	} else {
-		/* single letter variable name */
-		return (VarParseShort(input, ctxt, err, consumed, freeResult));
-	}
+	return VarParse(input, &vp, consumed, freeResult);
 }
 
 /*-
