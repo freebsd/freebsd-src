@@ -45,6 +45,7 @@
 #include <sys/time.h>
 #include <sys/stat.h>
 #include <sys/types.h>
+#include <sys/kernel.h>
 #include <sys/vnode.h>
 #include <sys/mount.h>
 #include <sys/namei.h>
