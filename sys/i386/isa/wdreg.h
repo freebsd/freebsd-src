@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)wdreg.h	7.1 (Berkeley) 5/9/91
- *	$Id: wdreg.h,v 1.12.2.2 1996/11/23 08:31:35 phk Exp $
+ *	$Id: wdreg.h,v 1.12.2.3 1997/01/14 17:32:07 bde Exp $
  */
 
 /*
@@ -62,7 +62,7 @@
 #define	wd_ctlr_nec	0x10c	 /*fixed disk controller control(via 1015) (W)*/
 #define	wd_altsts_epson	0x3	 /*alternate fixed disk status(via 1015) (R)*/
 #define	wd_ctlr_epson	0x3	 /*fixed disk controller control(via 1015) (W)*/
-#define wd_altsts		wd_alsts_nec
+#define wd_altsts		wd_altsts_nec
 
 #define  WDCTL_4BIT	 0x8	/* use four head bits (wd1003) */
 #define  WDCTL_RST	 0x4	/* reset the controller */
