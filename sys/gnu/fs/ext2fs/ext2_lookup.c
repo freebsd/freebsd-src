@@ -252,9 +252,6 @@ printf("ext2_readdir called uio->uio_offset %d uio->uio_resid %d count %d \n",
  *
  * Overall outline of ufs_lookup:
  *
- *	check accessibility of directory
- *	look for name in cache, if found, then if at end of path
- *	  and deleting or creating, drop it, else return name
  *	search for name in directory, to found or notfound
  * notfound:
  *	if creating, return locked directory, leaving info on available slots
@@ -310,14 +307,6 @@ ext2_lookup(ap)
 	dp = VTOI(vdp);
 	lockparent = flags & LOCKPARENT;
 	wantparent = flags & (LOCKPARENT|WANTPARENT);
-
-	/*
-	 * Check accessiblity of directory.
-	 */
-	if ((dp->i_mode & IFMT) != IFDIR)
-		return (ENOTDIR);
-	if (error = VOP_ACCESS(vdp, VEXEC, cred, cnp->cn_proc))
-		return (error);
 
 	/*
 	 * We now have a segment name to search for, and a directory to search.
