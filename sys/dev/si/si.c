@@ -30,7 +30,7 @@
  * MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN
  * NO EVENT SHALL THE AUTHORS BE LIABLE.
  *
- *	$Id: si.c,v 1.38 1996/05/05 17:09:04 peter Exp $
+ *	$Id: si.c,v 1.39 1996/05/05 17:35:19 peter Exp $
  */
 
 #ifndef lint
@@ -52,6 +52,7 @@ static char si_copyright1[] =  "@(#) (C) Specialix International, 1990,1992",
 #include <sys/kernel.h>
 #include <sys/syslog.h>
 #include <sys/malloc.h>
+#include <sys/sysctl.h>
 #include <sys/devconf.h>
 #ifdef DEVFS
 #include <sys/devfsext.h>
@@ -228,7 +229,7 @@ static int si_default_cflag =	TTYDEF_CFLAG;
 #endif
 
 #ifdef POLL
-static int si_pollrate = (hz / 10);	/* 10 per second, in addition to irq */
+static int si_pollrate;			/* in addition to irq */
 
 SYSCTL_INT(_machdep, OID_AUTO, si_pollrate, CTLFLAG_RD, &si_pollrate, 0, "");
 		 
@@ -287,6 +288,8 @@ siprobe(id)
 	unsigned char *paddr;
 
 	si_registerdev(id);
+
+	si_pollrate = (hz / 10);	/* 10 per second */
 
 	maddr = id->id_maddr;		/* virtual address... */
 	paddr = (caddr_t)vtophys(id->id_maddr);	/* physical address... */
