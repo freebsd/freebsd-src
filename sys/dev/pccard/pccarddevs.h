@@ -4,7 +4,7 @@
  * THIS FILE AUTOMATICALLY GENERATED.  DO NOT EDIT.
  *
  * generated from:
- *	FreeBSD: src/sys/dev/pccard/pccarddevs,v 1.50 2003/04/27 03:31:47 imp Exp 
+ *	FreeBSD: src/sys/dev/pccard/pccarddevs,v 1.51 2003/06/03 01:29:01 imp Exp 
  */
 /* $NetBSD: pcmciadevs,v 1.182 2003/04/09 02:09:55 christos Exp $ */
 /* $OpenBSD: pcmciadevs,v 1.93 2002/06/21 08:31:10 henning Exp $ */
@@ -969,6 +969,9 @@
 #define	PCMCIA_CIS_OEM2_CDROM1	{ "PCMCIA", "CD-ROM", NULL, NULL }
 #define	PCMCIA_PRODUCT_OEM2_CDROM1	0xffffffff
 #define	PCMCIA_STR_OEM2_CDROM1	"Generic PCMCIA CD-ROM"
+#define	PCMCIA_CIS_OEM2_IDE	{ "PCMCIA", "IDE CARD", NULL, NULL }
+#define	PCMCIA_PRODUCT_OEM2_IDE	0xffffffff
+#define	PCMCIA_STR_OEM2_IDE	"Generic PCMCIA IDE CARD"
 #define	PCMCIA_CIS_PLANET_SMARTCOM2000	{ "PCMCIA", "UE2212", NULL, NULL }
 #define	PCMCIA_PRODUCT_PLANET_SMARTCOM2000	0xffffffff
 #define	PCMCIA_STR_PLANET_SMARTCOM2000	"Planet SmartCOM 2000"
