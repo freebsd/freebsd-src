@@ -628,4 +628,18 @@ def rqi
       end
    end
 end
-
+def asf
+   set $file = files.tqh_first
+   set $found = 0
+   while ($found == 0)
+     if (*$file->filename == 'V')
+	set $found = 1
+     else
+       set $file = $file->link.tqe_next
+     end
+   end
+   shell /usr/bin/objdump --section-headers /modules/vinum.ko | grep ' .text' | awk '{print "add-symbol-file /modules/vinum.ko \$file->address+0x" $4}' > .asf
+   source .asf
+end
+asf
+f 1
