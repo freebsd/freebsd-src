@@ -139,6 +139,9 @@ tm.h:
 	echo '#include "${GCC_ARCH}/att.h"'		>> ${.TARGET}
 .endif
 	echo '#include <freebsd.h>'			>> ${.TARGET}
+.if exists(${GCCDIR}/config/${GCC_ARCH}/elf.h)
+	echo '#include "${GCC_ARCH}/elf.h"'		>> ${.TARGET}
+.endif
 	echo '#include "${GCC_ARCH}/freebsd.h"'		>> ${.TARGET}
 .if ${GCC_ARCH} == "i386"
 	echo '#include "${GCC_ARCH}/perform.h"'		>> ${.TARGET}
