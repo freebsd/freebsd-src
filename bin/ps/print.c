@@ -69,26 +69,23 @@ printheader(void)
 {
 	VAR *v;
 	struct varent *vent;
-	int allempty;
 
-	allempty = 1;
-	for (vent = vhead; vent; vent = vent->next)
-		if (*vent->header != '\0') {
-			allempty = 0;
+	STAILQ_FOREACH(vent, &varlist, next_ve)
+		if (*vent->header != '\0')
 			break;
-		}
-	if (allempty)
+	if (!vent)
 		return;
-	for (vent = vhead; vent; vent = vent->next) {
+
+	STAILQ_FOREACH(vent, &varlist, next_ve) {
 		v = vent->var;
 		if (v->flag & LJUST) {
-			if (vent->next == NULL)	/* last one */
+			if (STAILQ_NEXT(vent, next_ve) == NULL)	/* last one */
 				(void)printf("%s", vent->header);
 			else
 				(void)printf("%-*s", v->width, vent->header);
 		} else
 			(void)printf("%*s", v->width, vent->header);
-		if (vent->next != NULL)
+		if (STAILQ_NEXT(vent, next_ve) != NULL)
 			(void)putchar(' ');
 	}
 	(void)putchar('\n');
@@ -105,7 +102,7 @@ arguments(KINFO *k, VARENT *ve)
 	if ((vis_args = malloc(strlen(k->ki_args) * 4 + 1)) == NULL)
 		errx(1, "malloc failed");
 	strvis(vis_args, k->ki_args, VIS_TAB | VIS_NL | VIS_NOSLASH);
-	if (ve->next == NULL) {
+	if (STAILQ_NEXT(ve, next_ve) == NULL) {
 		/* last field */
 		if (termwidth == UNLIMITED) {
 			(void)printf("%s", vis_args);
@@ -131,7 +128,8 @@ command(KINFO *k, VARENT *ve)
 
 	v = ve->var;
 	if (cflag) {
-		if (ve->next == NULL)	/* last field, don't pad */
+		/* If it is the last field, then don't pad */
+		if (STAILQ_NEXT(ve, next_ve) == NULL)
 			(void)printf("%s", k->ki_p->ki_comm);
 		else
 			(void)printf("%-*s", v->width, k->ki_p->ki_comm);
@@ -147,7 +145,7 @@ command(KINFO *k, VARENT *ve)
 	} else
 		vis_env = NULL;
 
-	if (ve->next == NULL) {
+	if (STAILQ_NEXT(ve, next_ve) == NULL) {
 		/* last field */
 		if (termwidth == UNLIMITED) {
 			if (vis_env)
@@ -180,7 +178,7 @@ ucomm(KINFO *k, VARENT *ve)
 	VAR *v;
 
 	v = ve->var;
-	if (ve->next == NULL)		/* last field, don't pad */
+	if (STAILQ_NEXT(ve, next_ve) == NULL)	/* last field, don't pad */
 		(void)printf("%s", k->ki_p->ki_comm);
 	else
 		(void)printf("%-*s", v->width, k->ki_p->ki_comm);

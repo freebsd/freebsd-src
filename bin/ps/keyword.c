@@ -235,7 +235,6 @@ showkey(void)
 void
 parsefmt(const char *p, int user)
 {
-	static struct varent *vtail;
 	char *tempstr, *tempstr1;
 
 #define		FMTSEP	" \t,\n"
@@ -282,16 +281,10 @@ parsefmt(const char *p, int user)
 		if (vent->var == NULL)
 			errx(1, "malloc failed");
 		memcpy(vent->var, v, sizeof(*vent->var));
-		vent->next = NULL;
-		if (vhead == NULL)
-			vhead = vtail = vent;
-		else {
-			vtail->next = vent;
-			vtail = vent;
-		}
+		STAILQ_INSERT_TAIL(&varlist, vent, next_ve);
 	}
 	free(tempstr1);
-	if (!vhead) {
+	if (STAILQ_EMPTY(&varlist)) {
 		warnx("no valid keywords; valid keywords:");
 		showkey();
 		exit(1);

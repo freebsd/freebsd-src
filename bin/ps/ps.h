@@ -30,6 +30,8 @@
  * $FreeBSD$
  */
 
+#include <sys/queue.h>
+
 #define	UNLIMITED	0	/* unlimited terminal width */
 enum type { CHAR, UCHAR, SHORT, USHORT, INT, UINT, LONG, ULONG, KPTR, PGTOK };
 
@@ -44,8 +46,8 @@ typedef struct kinfo {
 
 /* Variables. */
 typedef struct varent {
+	STAILQ_ENTRY(varent) next_ve;
 	const char *header;
-	struct varent *next;
 	struct var *var;
 } VARENT;
 

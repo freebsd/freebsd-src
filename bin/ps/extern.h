@@ -40,7 +40,7 @@ extern int cflag, eval, fscale, nlistread, rawcpu;
 extern unsigned long mempages;
 extern time_t now;
 extern int sumrusage, termwidth, totwidth;
-extern VARENT *vhead;
+extern STAILQ_HEAD(velisthead, varent) varlist;
 
 __BEGIN_DECLS
 void	 arguments(KINFO *, VARENT *);
