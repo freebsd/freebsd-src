@@ -49,19 +49,23 @@ db_stack_trace_cmd(db_expr_t addr, boolean_t have_addr, db_expr_t count,
     char *modif)
 {
 	struct unw_regstate rs;
+	struct trapframe *tf;
 	const char *name;
 	db_expr_t offset;
-	uint64_t bsp, cfm, ip, pfs, reg;
+	uint64_t bsp, cfm, ip, pfs, reg, sp;
 	c_db_sym_t sym;
 	int args, error, i;
 
-	error = unw_create(&rs, &ddb_regs);
+	tf = &ddb_regs;
+	error = unw_create(&rs, tf);
 	while (!error && count--) {
 		error = unw_get_cfm(&rs, &cfm);
 		if (!error)
 			error = unw_get_bsp(&rs, &bsp);
 		if (!error)
 			error = unw_get_ip(&rs, &ip);
+		if (!error)
+			error = unw_get_sp(&rs, &sp);
 		if (error)
 			break;
 
@@ -98,6 +102,21 @@ db_stack_trace_cmd(db_expr_t addr, boolean_t have_addr, db_expr_t count,
 
 		db_printsym(ip, DB_STGY_PROC);
 		db_printf("\n");
+
+		if (error != EOVERFLOW)
+			continue;
+		if (sp < IA64_RR_BASE(5))
+			break;
+
+		tf = (struct trapframe *)(sp + 16);
+		if ((tf->tf_flags & FRAME_SYSCALL) != 0 ||
+		    tf->tf_special.iip < IA64_RR_BASE(5))
+			break;
+
+		/* XXX ask if we should unwind across the trapframe. */
+		db_printf("--- trapframe at %p\n", tf);
+		unw_delete(&rs);
+		error = unw_create(&rs, tf);
 	}
 
 	unw_delete(&rs);

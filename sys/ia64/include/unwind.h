@@ -44,6 +44,7 @@ int unw_step(struct unw_regstate *s);
 int unw_get_bsp(struct unw_regstate *s, uint64_t *r);
 int unw_get_cfm(struct unw_regstate *s, uint64_t *r);
 int unw_get_ip(struct unw_regstate *s, uint64_t *r);
+int unw_get_sp(struct unw_regstate *s, uint64_t *r);
 
 int unw_table_add(uint64_t, uint64_t, uint64_t);
 void unw_table_remove(uint64_t);
