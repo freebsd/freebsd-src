@@ -35,7 +35,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)machdep.c	7.4 (Berkeley) 6/3/91
- *	$Id: machdep.c,v 1.206 1996/09/28 22:37:33 dyson Exp $
+ *	$Id: machdep.c,v 1.207 1996/10/05 10:44:03 jkh Exp $
  */
 
 #include "npx.h"
@@ -249,12 +249,6 @@ cpu_startup(dummy)
 	 * Quickly wire in netisrs.
 	 */
 	setup_netisrs(&netisr_set);
-
-/*
-#ifdef ISDN
-	DONET(isdnintr, NETISR_ISDN);
-#endif
-*/
 
 	/*
 	 * Allocate space for system data structures.
