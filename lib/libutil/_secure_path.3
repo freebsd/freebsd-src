@@ -58,8 +58,9 @@ gid, if gid is not -1.
 This function returns zero if the file exists and may be
 considered secure, -2 if the file does not exist, and
 -1 otherwise to indicate a security failure.
+The
 .Xr syslog 3
-is used to log any failure of this function, including the
+function is used to log any failure of this function, including the
 reason, at LOG_ERR priority.
 .Sh BUGS
 The checks carried out are rudimentary and no attempt is made

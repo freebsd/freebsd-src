@@ -262,12 +262,14 @@ The
 .Fn ipsec_set_policy
 function returns a pointer to the allocated buffer of policy specification if
 successful; otherwise a NULL pointer is returned.
+The
 .Fn ipsec_get_policylen
-returns with positive value
+function returns with positive value
 (meaning the buffer size)
 on success, and negative value on errors.
+The
 .Fn ipsec_dump_policy
-returns a pointer to dynamically allocated region on success,
+function returns a pointer to dynamically allocated region on success,
 and
 .Dv NULL
 on errors.

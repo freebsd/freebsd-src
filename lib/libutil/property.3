@@ -63,15 +63,17 @@ and returns the head of a new property list, assuming that the
 file's contents have been parsed properly, or NULL in case
 of error.
 .Pp
+The
 .Fn property_find
-Returns the associated value string for the property named
+function returns the associated value string for the property named
 .Fa name
 if found, otherwise NULL.  The value returned may be up to
 .Dv PROPERTY_MAX_VALUE
 bytes in length.
 .Pp
+The
 .Fn properties_free
-is used to free the structure returned by
+function is used to free the structure returned by
 .Fn properties_read
 when it is no longer needed.
 .Sh FILE FORMAT

@@ -72,27 +72,31 @@ run over the data with
 and finally extract the result using
 .Fn MDXFinal .
 .Pp
+The
 .Fn MDXPad
-can be used to pad message data in same way
+function can be used to pad message data in same way
 as done by
 .Fn MDXFinal
 without terminating calculation.
 .Pp
+The
 .Fn MDXEnd
-is a wrapper for
+function is a wrapper for
 .Fn MDXFinal
 which converts the return value to a 33-character
 (including the terminating '\e0')
 .Tn ASCII
 string which represents the 128 bits in hexadecimal.
 .Pp
+The
 .Fn MDXFile
-calculates the digest of a file, and uses
+function calculates the digest of a file, and uses
 .Fn MDXEnd
 to return the result.
 If the file cannot be opened, a null pointer is returned.
+The
 .Fn MDXFileChunk
-is similar to
+function is similar to
 .Fn MDXFile ,
 but it only calculates the digest over a byte-range of the file specified,
 starting at
@@ -108,8 +112,9 @@ of the file,
 calculates the digest from
 .Fa offset
 to the end of file.
+The
 .Fn MDXData
-calculates the digest of a chunk of data in memory, and uses
+function calculates the digest of a chunk of data in memory, and uses
 .Fn MDXEnd
 to return the result.
 .Pp

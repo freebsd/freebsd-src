@@ -82,8 +82,9 @@ and
 .Fa aslave ,
 respectively.
 .Pp
-.Fn Forkpty
-first calls
+The
+.Fn forkpty
+function first calls
 .Fn openpty
 to obtain the next available pseudo-terminal from the system.  Upon success,
 it forks off a new process.  In the child process, it closes the descriptor
@@ -99,12 +100,14 @@ and
 have the same meaning as described for
 .Fn openpty .
 .Sh RETURN VALUES
-.Fn Openpty
-returns 0 on success, or -1 on failure.
+The
+.Fn openpty
+function returns 0 on success, or -1 on failure.
 .Pp
-.Fn Forkpty
-returns -1 on failure, 0 in the slave process, and the process ID of the
-slave process in the parent process.
+The
+.Fn forkpty
+function returns -1 on failure, 0 in the slave process, and the process ID of
+the slave process in the parent process.
 .Sh ERRORS
 On failure,
 .Fn openpty

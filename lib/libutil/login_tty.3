@@ -51,8 +51,9 @@ a new session with
 This terminal device will also be made the standard input, standard output,
 and standard error output of the calling process.
 .Sh RETURN VALUES
-.Fn Login_tty
-returns -1 if it could not make the device referenced by
+The
+.Fn login_tty
+function returns -1 if it could not make the device referenced by
 .Ar fd
 the controlling terminal of the calling process, and 0 otherwise.
 .Sh SEE ALSO

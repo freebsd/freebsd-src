@@ -69,10 +69,11 @@ Use
 .Xr strftime 3
 instead.
 .Pp
-.Fn Ascftime
-is almost identical with
+The
+.Fn ascftime
+function is almost identical to
 .Xr strftime 3 ,
-with the only exception there's no parameter to tell about the
+with the only exception that there's no parameter to tell about the
 maximal buffer length, and the
 .Fa format
 parameter defaults to
@@ -81,8 +82,9 @@ if a
 .Em NULL
 pointer is given.
 .Pp
-.Fn Cftime
-does the same job, but it first invokes
+The
+.Fn cftime
+function does the same job, but it first invokes
 .Xr localtime 3
 in order to convert the given
 .Fa clock ,

@@ -50,8 +50,9 @@ name is determined by calling
 and removing everything up to the first period.  The name is determined
 the first time this function is called and is cached for future use.
 .Pp
+The
 .Fn trimdomain
-will only trim the domain name if the passed
+function will only trim the domain name if the passed
 .Ar fullname
 ends with the current domain name and if the length of the resulting host
 name does not exceed
@@ -75,7 +76,8 @@ numbers to the end of the base host name and resulting in
 .Ar host : nn Op . Ar nn .
 .Sm on
 .Sh RETURN VALUES
+The
 .Fn trimdomain
-does not return a value.
+function does not return a value.
 .Sh SEE ALSO
 .Xr gethostname 3
