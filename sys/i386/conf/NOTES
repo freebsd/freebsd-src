@@ -609,7 +609,7 @@ device		gsc	1
 hint.gsc.0.at="isa"
 hint.gsc.0.port="0x270"
 hint.gsc.0.drq="3"
-device		rc	1
+device		rc
 hint.rc.0.at="isa"
 hint.rc.0.port="0x220"
 hint.rc.0.irq="12"
