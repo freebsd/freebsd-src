@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)vm_page.c	7.4 (Berkeley) 5/7/91
- *	$Id: vm_page.c,v 1.135 1999/07/31 04:19:49 alc Exp $
+ *	$Id: vm_page.c,v 1.136 1999/07/31 18:30:59 alc Exp $
  */
 
 /*
@@ -1820,6 +1820,15 @@ contigmalloc(size, type, flags, low, high, alignment, boundary)
 {
 	return contigmalloc1(size, type, flags, low, high, alignment, boundary,
 			     kernel_map);
+}
+
+void
+contigfree(addr, size, type)
+	void *addr;
+	unsigned long size;
+	struct malloc_type *type;
+{
+	kmem_free(kernel_map, (vm_offset_t)addr, size);
 }
 
 vm_offset_t
