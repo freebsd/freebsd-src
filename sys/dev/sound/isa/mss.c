@@ -61,6 +61,7 @@ struct mss_info {
     int bd_id;      /* used to hold board-id info, eg. sb version,
 		     * mss codec type, etc. etc.
 		     */
+    int opti_offset;		/* offset from config_base for opti931 */
     u_long  bd_flags;       /* board-specific flags */
     struct mss_chinfo pch, rch;
 };
@@ -224,6 +225,20 @@ conf_rd(struct mss_info *mss, u_char reg)
     	return port_rd(mss->conf_base, 1);
 }
 
+static void
+opti_wr(struct mss_info *mss, u_char reg, u_char value)
+{
+    	port_wr(mss->conf_base, mss->opti_offset + 0, reg);
+    	port_wr(mss->conf_base, mss->opti_offset + 1, value);
+}
+
+static u_char
+opti_rd(struct mss_info *mss, u_char reg)
+{
+	port_wr(mss->conf_base, mss->opti_offset + 0, reg);
+    	return port_rd(mss->conf_base, mss->opti_offset + 1);
+}
+
 #if NPNP > 0
 static void
 gus_wr(struct mss_info *mss, u_char reg, u_char value)
@@ -323,10 +338,21 @@ mss_init(struct mss_info *mss, device_t dev)
 	switch(mss->bd_id) {
 #if NPNP > 0
 	case MD_OPTI931:
-    		conf_wr(mss, 4, 0xd6); /* fifo empty, OPL3, audio enable, SB3.2 */
+		/*
+		 * The MED3931 v.1.0 allocates 3 bytes for the config
+		 * space, whereas v.2.0 allocates 4 bytes. What I know
+		 * for sure is that the upper two ports must be used,
+		 * and they should end on a boundary of 4 bytes. So I
+		 * need the following trick.
+		 */
+		mss->opti_offset =
+			(rman_get_start(mss->conf_base) & ~3) + 2
+			- rman_get_start(mss->conf_base);
+		printf("mss_init: opti_offset=%d\n", mss->opti_offset);
+    		opti_wr(mss, 4, 0xd6); /* fifo empty, OPL3, audio enable, SB3.2 */
     		ad_write(mss, 10, 2); /* enable interrupts */
-    		conf_wr(mss, 6, 2);  /* MCIR6: mss enable, sb disable */
-    		conf_wr(mss, 5, 0x28);  /* MCIR5: codec in exp. mode,fifo */
+    		opti_wr(mss, 6, 2);  /* MCIR6: mss enable, sb disable */
+    		opti_wr(mss, 5, 0x28);  /* MCIR5: codec in exp. mode,fifo */
 		break;
 
 	case MD_GUSPNP:
@@ -1302,6 +1328,7 @@ pnpmss_attach(device_t dev)
 	case 0x2000a865:	/* Yamaha SA2 */
 	case 0x3000a865:	/* Yamaha SA3 */
 	case 0x0000a865:	/* Yamaha YMF719 SA3 */
+    	case 0x2100a865:	/* pnpbios sets vendor=logical */
 	    mss->io_rid = 1;
 	    mss->conf_rid = 4;
 	    mss->bd_id = MD_YM0020;
@@ -1391,7 +1418,7 @@ opti931_intr(void *arg)
     	i11 = ad_read(mss, 11); /* XXX what's for ? */
 	again:
 
-    	c = mc11 = FULL_DUPLEX(mss)? conf_rd(mss, 11) : 0xc;
+    	c = mc11 = FULL_DUPLEX(mss)? opti_rd(mss, 11) : 0xc;
     	mc11 &= 0x0c;
     	if (c & 0x10) {
 		DEB(printf("Warning: CD interrupt\n");)
@@ -1421,7 +1448,7 @@ opti931_intr(void *arg)
 
     	if (mss->rch.buffer->dl && (mc11 & 8)) chn_intr(mss->rch.channel);
     	if (mss->pch.buffer->dl && (mc11 & 4)) chn_intr(mss->pch.channel);
-    	conf_wr(mss, 11, ~mc11); /* ack */
+    	opti_wr(mss, 11, ~mc11); /* ack */
     	if (--loops) goto again;
     	DEB(printf("xxx too many loops\n");)
 }
