@@ -40,7 +40,6 @@
  */
 
 #include "opt_compat.h"
-#include "opt_dontuse.h"
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/sysproto.h>
@@ -952,11 +951,9 @@ fdfree(p)
 static int
 is_unsafe(struct file *fp)
 {
-#if PROCFS
 	if (fp->f_type == DTYPE_VNODE && 
 	    ((struct vnode *)(fp->f_data))->v_tag == VT_PROCFS)
 		return (1);
-#endif
 	return (0);
 }
 
