@@ -35,14 +35,15 @@ SND_DECLARE_FILE("$FreeBSD$");
 MALLOC_DEFINE(M_AC97, "ac97", "ac97 codec");
 
 struct ac97mixtable_entry {
-	int		reg:8;
-	unsigned	bits:4;
-	unsigned	ofs:4;
-	unsigned	stereo:1;
-	unsigned	mute:1;
-	unsigned	recidx:4;
-	unsigned        mask:1;
-	unsigned	enable:1;
+	int	 reg:8;		/* register index		*/
+				/* reg < 0 if inverted polarity	*/
+	unsigned bits:4;	/* width of control field	*/
+	unsigned ofs:4;		/* offset (only if stereo=0)	*/
+	unsigned stereo:1;	/* set for stereo controls	*/
+	unsigned mute:1;	/* bit15 is MUTE		*/
+	unsigned recidx:4;	/* index in rec mux		*/
+	unsigned mask:1;	/* use only masked bits		*/
+	unsigned enable:1;	/* entry is enabled		*/
 };
 
 #define AC97_NAMELEN	16
@@ -72,6 +73,7 @@ struct ac97_codecid {
 };
 
 static const struct ac97mixtable_entry ac97mixtable_default[32] = {
+    /*	[offset]			reg	     bits of st mu re mk en */
 	[SOUND_MIXER_VOLUME]	= { AC97_MIX_MASTER, 	5, 0, 1, 1, 6, 0, 1 },
 	[SOUND_MIXER_MONITOR]	= { AC97_MIX_AUXOUT, 	5, 0, 1, 1, 0, 0, 0 },
 	[SOUND_MIXER_PHONEOUT]	= { AC97_MIX_MONO, 	5, 0, 0, 1, 7, 0, 0 },
@@ -81,7 +83,9 @@ static const struct ac97mixtable_entry ac97mixtable_default[32] = {
 	[SOUND_MIXER_SPEAKER]	= { AC97_MIX_BEEP, 	4, 1, 0, 1, 0, 0, 0 },
 	[SOUND_MIXER_LINE]	= { AC97_MIX_LINE, 	5, 0, 1, 1, 5, 0, 1 },
 	[SOUND_MIXER_PHONEIN]	= { AC97_MIX_PHONE, 	5, 0, 0, 1, 8, 0, 0 },
-	[SOUND_MIXER_MIC] 	= { AC97_MIX_MIC, 	5, 0, 0, 1, 1, 0, 1 },
+	[SOUND_MIXER_MIC] 	= { AC97_MIX_MIC, 	5, 0, 0, 1, 1, 1, 1 },
+	/* use igain for the mic 20dB boost */
+	[SOUND_MIXER_IGAIN] 	= { -AC97_MIX_MIC, 	1, 6, 0, 0, 0, 1, 1 },
 	[SOUND_MIXER_CD]	= { AC97_MIX_CD, 	5, 0, 1, 1, 2, 0, 1 },
 	[SOUND_MIXER_LINE1]	= { AC97_MIX_AUX, 	5, 0, 1, 1, 4, 0, 0 },
 	[SOUND_MIXER_VIDEO]	= { AC97_MIX_VIDEO, 	5, 0, 1, 1, 3, 0, 0 },
@@ -360,16 +364,26 @@ ac97_setmixer(struct ac97_info *codec, unsigned channel, unsigned left, unsigned
 	struct ac97mixtable_entry *e = &codec->mix[channel];
 
 	if (e->reg && e->enable && e->bits) {
-		int max, val, reg = (e->reg >= 0)? e->reg : -e->reg;
+		int mask, max, val, reg;
+
+		reg = (e->reg >= 0) ? e->reg : -e->reg;	/* AC97 register    */
+		max = (1 << e->bits) - 1;		/* actual range	    */
+		mask = (max << 8) | max;		/* bits of interest */
 
 		if (!e->stereo)
 			right = left;
+
+		/*
+		 * Invert the range if the polarity requires so,
+		 * then scale to 0..max-1 to compute the value to
+		 * write into the codec, and scale back to 0..100
+		 * for the return value.
+		 */
 		if (e->reg > 0) {
 			left = 100 - left;
 			right = 100 - right;
 		}
 
-		max = (1 << e->bits) - 1;
 		left = (left * max) / 100;
 		right = (right * max) / 100;
 
@@ -383,17 +397,35 @@ ac97_setmixer(struct ac97_info *codec, unsigned channel, unsigned left, unsigned
 			right = 100 - right;
 		}
 
-		if (!e->stereo) {
+		/*
+		 * For mono controls, trim val and mask, also taking
+		 * care of e->ofs (offset of control field).  
+		 */
+		if (e->ofs) {
 			val &= max;
 			val <<= e->ofs;
-			if (e->mask) {
-				int cur = ac97_rdcd(codec, e->reg);
-				val |= cur & ~(max << e->ofs);
-			}
+			mask = (max << e->ofs);
 		}
-		if (left == 0 && right == 0 && e->mute == 1)
-			val = AC97_MUTE;
+
+		/*
+		 * If we have a mute bit, add it to the mask and
+		 * update val and set mute if both channels require a
+		 * zero volume.
+		 */
+		if (e->mute == 1) {
+			mask |= AC97_MUTE;
+			if (left == 0 && right == 0)
+				val = AC97_MUTE;
+		}
+
+		/*
+		 * If the mask bit is set, do not alter the other bits.
+		 */
 		snd_mtxlock(codec->lock);
+		if (e->mask) {
+			int cur = ac97_rdcd(codec, e->reg);
+			val |= cur & ~(mask);
+		}
 		ac97_wrcd(codec, reg, val);
 		snd_mtxunlock(codec->lock);
 		return left | (right << 8);
