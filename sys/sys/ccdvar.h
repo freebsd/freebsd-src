@@ -86,19 +86,6 @@
  */
 
 /*
- * A concatenated disk is described at initialization time by this structure.
- */
-struct ccddevice {
-	int		ccd_unit;	/* logical unit of this ccd */
-	int		ccd_interleave;	/* interleave (DEV_BSIZE blocks) */
-	int		ccd_flags;	/* misc. information */
-	int		ccd_dk;		/* disk number */
-	struct vnode	**ccd_vpp;	/* array of component vnodes */
-	char		**ccd_cpp;	/* array of component pathnames */
-	int		ccd_ndev;	/* number of component devices */
-};
-
-/*
  * This structure is used to configure a ccd via ioctl(2).
  */
 struct ccd_ioctl {
@@ -109,12 +96,6 @@ struct ccd_ioctl {
 	int	ccio_unit;		/* unit number: use varies */
 	size_t	ccio_size;		/* (returned) size of ccd */
 };
-
-/* ccd_flags */
-#define	CCDF_SWAP	0x01	/* interleave should be dmmax */
-#define CCDF_UNIFORM	0x02	/* use LCCD of sizes for uniform interleave */
-#define CCDF_MIRROR	0x04	/* use mirroring */
-#define CCDF_PARITY	0x08	/* use parity (RAID level 5) */
 
 /* Mask of user-settable ccd flags. */
 #define CCDF_USERMASK	(CCDF_SWAP|CCDF_UNIFORM|CCDF_MIRROR|CCDF_PARITY)
@@ -175,10 +156,13 @@ struct ccdgeom {
 };
 
 /*
- * A concatenated disk is described after initialization by this structure.
+ * A concatenated disk is described by this structure.
  */
-struct ccd_softc {
+struct ccd_s {
+	LIST_ENTRY(ccd_s) list;
+
 	int		 sc_unit;		/* logical unit number */
+	struct vnode	 **sc_vpp;		/* array of component vnodes */
 	int		 sc_flags;		/* flags */
 	int		 sc_cflags;		/* configuration flags */
 	size_t		 sc_size;		/* size of ccd */
@@ -195,10 +179,14 @@ struct ccd_softc {
 };
 
 /* sc_flags */
-#define CCDF_INITED	0x01	/* unit has been initialized */
-#define CCDF_WLABEL	0x02	/* label area is writable */
-#define CCDF_LABELLING	0x04	/* unit is currently being labelled */
-#define CCDF_WANTED	0x40	/* someone is waiting to obtain a lock */
+#define CCDF_SWAP	0x01	/* interleave should be dmmax */
+#define CCDF_UNIFORM	0x02	/* use LCCD of sizes for uniform interleave */
+#define CCDF_MIRROR	0x04	/* use mirroring */
+#define CCDF_PARITY	0x08	/* use parity (RAID level 5) */
+#define CCDF_INITED	0x10	/* unit has been initialized */
+#define CCDF_WLABEL	0x20	/* label area is writable */
+#define CCDF_LABELLING	0x40	/* unit is currently being labelled */
+#define CCDF_WANTED	0x60	/* someone is waiting to obtain a lock */
 #define CCDF_LOCKED	0x80	/* unit is locked */
 
 /*
@@ -210,3 +198,15 @@ struct ccd_softc {
  */
 #define CCDIOCSET	_IOWR('F', 16, struct ccd_ioctl)   /* enable ccd */
 #define CCDIOCCLR	_IOW('F', 17, struct ccd_ioctl)    /* disable ccd */
+
+struct ccdconf {
+	int		 size;		/* sizeof of buffer below */
+	struct ccd_s	 *buffer;	/* pointer to a configuration array */
+};
+#define CCDCONFINFO	_IOWR('F', 19, struct ccdconf)     /* get config */
+
+struct ccdcpps {
+	int		size;
+	char		*buffer;
+};
+#define CCDCPPINFO	_IOWR('F', 20, struct ccdcpps)	   /* get components */
