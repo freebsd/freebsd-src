@@ -383,6 +383,10 @@
             ..
             sliplogin
             ..
+            smbfs
+                print
+                ..
+            ..
             startslip
             ..
             sunrpc

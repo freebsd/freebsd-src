@@ -229,6 +229,7 @@ SUBDIR+=ar \
 	ranlib \
 	sasc \
 	size \
+	smbutil \
 	strings \
 	strip
 .endif

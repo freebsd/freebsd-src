@@ -2,7 +2,12 @@
 #
 # Doing a make install builds /usr/share/examples
 
-DIRS!=	for i in *; do if test -d $$i -a $$i != CVS; then echo $$i; fi; done
+DIRS!=	for i in *; do \
+	    if test -d $$i -a $$i != CVS -a \
+		$$i != smbfs; then \
+		echo $$i; \
+            fi; \
+	done
 
 DDIR=	${DESTDIR}/usr/share/examples
 
@@ -33,6 +38,10 @@ symlinks::
 etc-examples:
 .if ${SHARED} != "symlinks"
 	(cd ${.CURDIR}/../../etc; ${MAKE} etc-examples)
+.endif
+
+.if ${SHARED} != "symlinks"
+SUBDIR=	smbfs
 .endif
 
 .include <bsd.prog.mk>
