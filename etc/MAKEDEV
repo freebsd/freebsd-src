@@ -24,6 +24,7 @@
 # Device "make" file.  Valid arguments:
 #	all	makes all known devices, standard number of units (or close)
 #	std	standard devices
+#	jail	suitable for a jail(8)
 #	local	configuration specific devices
 #	mach-4	mach4&lites+devices for Mach's XFree86 distribution
 #	(see http://www.cs.hut.fi/lites.html for more info on LITES)
@@ -129,7 +130,7 @@
 #	ipl	ipfilter control devices (ipl, ipnat, ipstate, ipauth)
 #	kbd	keyboard devices
 #
-#	$Id: MAKEDEV,v 1.203 1999/07/09 12:52:02 sheldonh Exp $
+#	$Id: MAKEDEV,v 1.204 1999/07/09 13:37:58 sheldonh Exp $
 #
 
 PATH=/sbin:/bin/:/usr/bin:/usr/sbin:$PATH
@@ -267,6 +268,14 @@ std)
 	chmod 666 fd/*
 	;;
 
+jail)
+	sh MAKEDEV std pty0
+	rm mem kmem drum pci io klog	# for security
+	ln -sf null mem			# for libkvm (ab)users
+	ln -sf null kmem		# --//--
+	ln -sf null drum		# --//--
+	;;
+	
 mach-4)
 	mknod iopl c 22 0
 	mknod kbd c 23 0
