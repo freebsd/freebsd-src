@@ -47,56 +47,43 @@
 .Nd IEEE floating point interface
 .Sh SYNOPSIS
 .Fd #include <ieeefp.h>
-.Ft typedef enum {
-.br
-.Fa 	FP_RN,	
-.Li		/* round to nearest */
-.br
-.Fa 	FP_RM,	
-.Li		/* round to minus infinity */
-.br
-.Fa 	FP_RP,	
-.Li		/* round to plus infinity */
-.br
-.Fa 	FP_RZ,	
-.Li		/* truncate */
-.br
-.Ft } fp_rnd_t;
 .Pp
+.Bd -literal
+typedef enum {
+	FP_RN,		/* round to nearest */
+	FP_RM,		/* round down to minus infinity */
+	FP_RP,		/* round up to plus infinity */
+	FP_RZ		/* truncate */
+} fp_rnd_t;
+.Ed
 .Ft fp_rnd_t
 .Fn fpgetround void
 .Ft fp_rnd_t
 .Fn fpsetround "fp_rnd_t direction"
 .Pp
-.nr fZ 0
-.Ft typedef enum {
-.br
-.Fa 	FP_PS,	
-.Li		/* 24 bit (single-precision) */
-.br
-.Fa 	FP_PRS,	
-.Li		/* reserved */
-.br
-.Fa 	FP_PD,	
-.Li		/* 53 bit (double-precision) */
-.br
-.Fa 	FP_PE,	
-.Li		/* 64 bit (extended-precision) */
-.br
-.Ft } fp_prec_t;
-.Pp
+.Bd -literal
+typedef enum {
+	FP_PS,		/* 24 bit (single-precision) */
+	FP_PRS,		/* reserved */
+	FP_PD,		/* 53 bit (double-precision) */
+	FP_PE		/* 64 bit (extended-precision) */
+} fp_prec_t;
+.Ed
 .Ft fp_prec_t
 .Fn fpgetprec void
 .Ft fp_prec_t
 .Fn fpsetprec "fp_prec_t precision"
 .Pp
-.Fd #define fp_except_t int
-.Fd #define FP_X_INV	0x01		/* invalid */
-.Fd #define FP_X_OFL	0x08		/* overflow */
-.Fd #define FP_X_UFL	0x10		/* underflow */
-.Fd #define FP_X_DZ	0x04		/* divide-by-zero */
-.Fd #define FP_X_IMP	0x20		/* loss of precision */
-.Fd #define FP_X_DNML	0x02		/* denormal */
+.Bd -literal
+#define fp_except_t	int
+#define FP_X_INV	0x01	/* invalid operation */
+#define FP_X_DNML	0x02	/* denormal */
+#define FP_X_DZ		0x04	/* zero divide */
+#define FP_X_OFL	0x08	/* overflow */
+#define FP_X_UFL	0x10	/* underflow */
+#define FP_X_IMP	0x20	/* (im)precision */
+#define FP_X_STK	0x40	/* stack fault */
+.Ed
 .Ft fp_except_t
 .Fn fpgetmask void
 .Ft fp_except_t

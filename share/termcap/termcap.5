@@ -109,7 +109,7 @@ The following suffixes should be used where possible:
 .Pp
 .Bd -filled -offset indent
 .Bl -column indent "With automatic margins (usually default)xx"
-.Sy Suffix	Meaning	Example
+.Sy "Suffix	Meaning	Example"
 -w	Wide mode (more than 80 columns)	vt100-w
 -am	With automatic margins (usually default)	vt100-am
 -nam	Without automatic margins	vt100-nam
@@ -927,7 +927,7 @@ give this as
 (Normally this will be carriage-return,
 .Sy \&^M . )
 If there is a code to produce an audible signal (bell, beep,
-etc. ) ,
+etc.),
 give this as
 .Sy \&bl .
 .Pp
@@ -1090,7 +1090,7 @@ no output
 .It "%r	reverse order of two parameters, no output"
 .It "%i	increment by one, no output"
 .It "%n	exclusive-or all parameters with 0140 (Datamedia 2500)"
-.It "%B" Ta Tn BCD No "(16*(value/10)) + (value%10), no output"
+.It "\&%B" Ta Tn BCD No "(16*(value/10)) + (value%10), no output"
 .It "%D	Reverse coding (value \- 2*(value%16)), no output (Delta Data)."
 .El
 .Pp
@@ -1111,7 +1111,7 @@ The Datamedia 2500 needs the current row and column sent
 encoded in binary using
 .Dq \&%. .
 Terminals that use
-.Dq \&%.
+.Dq %.\&
 need to be able to
 backspace the cursor
 .Po Sy \&le Pc
@@ -1550,13 +1550,13 @@ If there are function keys such as f0, f1, ..., f9, the codes they send
 can be given as
 .Sy \&k0 ,
 .Sy \&k1 ,
-...,
+\&...,
 .Sy \&k9 .
 If these keys have labels other than the default f0 through f9, the labels
 can be given as
 .Sy \&l0 ,
 .Sy \&l1 ,
-...,
+\&...,
 .Sy \&l9 .
 The codes transmitted by certain other special keys can be given:
 .Sy \&kH
@@ -2030,7 +2030,9 @@ should indicate
 .Sy \&xt
 (destructive tabs).
 This glitch is also taken to mean that it is not possible
-to position the cursor on top of a \*(lqmagic cookie\*(rq, and that
+to position the cursor on top of a
+.Dq magic cookie ,
+and that
 to erase standout mode it is necessary to use delete and insert line.
 .Pp
 The Beehive Superbee, which is unable to correctly transmit the

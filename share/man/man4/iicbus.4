@@ -55,7 +55,7 @@ The BUS physically consists of 2 active wires and a ground connection.
 The active wires, SDA and SCL, are both bidirectional.
 Where SDA is the
 Serial DAta line and SCL is the Serial CLock line.
-
+.Pp
 Every component hooked up to the bus has its own unique address whether it
 is a CPU, LCD driver, memory, or complex function chip.
 Each of these chips
@@ -64,7 +64,7 @@ Obviously an LCD driver is only a receiver, while a memory or I/O chip can
 both be transmitter and receiver.
 Furthermore there may be one or
 more BUS MASTERs.
-
+.Pp
 The BUS MASTER is the chip issuing the commands on the BUS.
 In the I2C protocol
 specification it is stated that the IC that initiates a data transfer on the
@@ -90,11 +90,11 @@ interfaces rely on very simple hardware, usually two lines
 twiddled by 2 registers.
 Hardware interfaces are more intelligent and receive
 8-bit characters they write to the bus according to the I2C protocol.
-
+.Pp
 I2C interfaces may act on the bus as slave devices, allowing spontaneous
 bidirectional communications, thanks to the multi-master capabilities of the
 I2C protocol.
-
+.Pp
 Some I2C interfaces are available:
 .Pp
 .Bl -column "Interface drivers" -compact

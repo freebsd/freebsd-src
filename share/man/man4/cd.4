@@ -34,8 +34,8 @@
 .Sh SYNOPSIS
 .Cd device cd
 .Cd device cd1 at scbus0 target 4 unit 0
-.Cd options	"CHANGER_MIN_BUSY_SECONDS=3"
-.Cd options	"CHANGER_MAX_BUSY_SECONDS=11"
+.Cd "options ""CHANGER_MIN_BUSY_SECONDS=3"""
+.Cd "options ""CHANGER_MAX_BUSY_SECONDS=11""
 .Sh DESCRIPTION
 The
 .Nm
@@ -105,7 +105,7 @@ in the header files
 and
 .Aq Pa sys/disklabel.h .
 .Pp
-.Bl -tag -width CDIOCREADSUBCHANNEL -compact
+.Bl -tag -width CDIOCREADSUBCHANNEL
 .It Dv DIOCGDINFO
 .It Dv DIOCSDINFO
 .Pq Li "struct disklabel"
@@ -114,7 +114,6 @@ drive.  The disklabel is initialized with information
 read from the scsi inquiry commands, and should be the same as
 the information printed at boot.  This structure is defined in
 .Xr disklabel 5 .
-
 .It Dv CDIOCCAPABILITY
 .Pq Li "struct ioc_capability"
 Retrieve information from the drive on what features it supports.  The
@@ -178,7 +177,7 @@ struct ioc_capability {
 	/* The tray has dynamic debugging */
 };
 .Ed
-.It Dv CDIOCPLAYTRACKS	
+.It Dv CDIOCPLAYTRACKS
 .Pq Li "struct ioc_play_track"
 Start audio playback given a track address and length.  The structure
 is defined as follows:
@@ -191,7 +190,6 @@ struct ioc_play_track
 	u_char	end_index;
 };
 .Ed
-
 .It Dv CDIOCPLAYBLOCKS
 .Pq Li "struct ioc_play_blocks"
 Start audio playback given a block address and length.  The structure
@@ -203,8 +201,7 @@ struct ioc_play_blocks
 	int	len;
 };
 .Ed
-
-.It Dv CDIOCPLAYMSF	
+.It Dv CDIOCPLAYMSF
 .Pq Li "struct ioc_play_msf"
 Start audio playback given a `minutes-seconds-frames' address and
 length.  The structure is defined as follows:
@@ -219,7 +216,6 @@ struct ioc_play_msf
 	u_char	end_f;
 };
 .Ed
-
 .It Dv CDIOCREADSUBCHANNEL 
 .Pq Li "struct ioc_read_subchannel"
 Read information from the subchannel at the location specified by this
@@ -239,7 +235,6 @@ struct ioc_read_subchannel {
 	struct  cd_sub_channel_info *data;
 };
 .Ed
-
 .It Dv CDIOREADTOCHEADER
 .Pq Li "struct ioc_toc_header"
 Return summary information about the table of contents for the mounted 
@@ -252,7 +247,6 @@ struct ioc_toc_header {
 	u_char  ending_track;
 };
 .Ed
-
 .It Dv CDIOREADTOCENTRYS 
 .Pq Li "struct ioc_read_toc_entry"
 Return information from the table of contents entries mentioned.  (Yes, this
@@ -269,7 +263,6 @@ The requested data is written into an area of size
 .Li data_len
 and pointed to by
 .Li data .
-
 .It Dv CDIOCSETPATCH
 .Pq Li "struct ioc_patch"
 Attach various audio channels to various output channels.  The
@@ -280,7 +273,6 @@ struct ioc_patch {
 	/* one for each channel */
 };
 .Ed
-
 .It Dv CDIOCGETVOL
 .It Dv CDIOCSETVOL
 .Pq Li "struct ioc_vol"
@@ -293,51 +285,39 @@ struct	ioc_vol
 	/* one for each channel */
 };
 .Ed
-
-.It Dv CDIOCSETMONO	
+.It Dv CDIOCSETMONO
 Patch all output channels to all source channels.
-
 .It Dv CDIOCSETSTEREO
 Patch left source channel to the left output channel and the right
 source channel to the right output channel.
-
-.It Dv CDIOCSETMUTE	
+.It Dv CDIOCSETMUTE
 Mute output without changing the volume settings.
-
 .It Dv CDIOCSETLEFT
 .It Dv CDIOCSETRIGHT
 Attach both output channels to the left (right) source channel.
-
-.It Dv CDIOCSETDEBUG	
-.It Dv CDIOCCLRDEBUG	
+.It Dv CDIOCSETDEBUG
+.It Dv CDIOCCLRDEBUG
 Turn on (off) debugging for the appropriate device.
-
-.It Dv CDIOCPAUSE	
-.It Dv CDIOCRESUME	
+.It Dv CDIOCPAUSE
+.It Dv CDIOCRESUME
 Pause (resume) audio play, without resetting the location of the read-head.
-
-.It Dv CDIOCRESET	
+.It Dv CDIOCRESET
 Reset the drive.
-
-.It Dv CDIOCSTART	
-.It Dv CDIOCSTOP	
+.It Dv CDIOCSTART
+.It Dv CDIOCSTOP
 Tell the drive to spin-up (-down) the
 .Tn CD-ROM .
-
 .It Dv CDIOCALLOW
 .It Dv CDIOCPREVENT
 Tell the drive to allow (prevent) manual ejection of the 
 .Tn CD-ROM
 disc.  Not all drives support this feature.
-
-.It Dv CDIOCEJECT	
+.It Dv CDIOCEJECT
 Eject the 
 .Tn CD-ROM .
-
 .It Dv CDIOCCLOSE
 Tell the drive to close its door and load the media.  Not all drives
 support this feature.
-
 .It Dv CDIOCPITCH
 .Pq Li "struct ioc_pitch"
 For drives that support it, this command instructs the drive to play
@@ -404,17 +384,21 @@ another LUN, the driver will allow indefinite access to a given LUN.
 .Pp
 The minimum and maximum time quanta are configurable via kernel options and
 also via sysctl variables.  The kernel options are:
-
-.Bl -tag -width 1234 -compact
-.It Cd options     "CHANGER_MIN_BUSY_SECONDS=3"
-.It Cd options     "CHANGER_MAX_BUSY_SECONDS=11"
+.Pp
+.Bl -item -compact
+.It
+.Cd "options ""CHANGER_MIN_BUSY_SECONDS=3"""
+.It
+.Cd "options ""CHANGER_MAX_BUSY_SECONDS=11"""
 .El
 .Pp
 The sysctl variables are:
 .Pp
-.Bl -tag -width 1234 -compact
-.It Cd kern.cam.cd.changer.min_busy_seconds
-.It Cd kern.cam.cd.changer.max_busy_seconds
+.Bl -item -compact
+.It
+.Va kern.cam.cd.changer.min_busy_seconds
+.It
+.Va kern.cam.cd.changer.max_busy_seconds
 .El
 .Pp
 It is suggested that the user try experimenting with the minimum and

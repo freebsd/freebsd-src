@@ -51,10 +51,11 @@ All values are just examples.
 The \fBNDGBPORTS\fR option defines the total number of ports on all cards
 installed in the system.
 When not defined the number is computed:
-
-.br
-    default \fBNDGBPORTS\fR = number_of_described_DigiBoard_cards * 16
-
+.Pp
+.Bd -ragged -offset 4n
+default \fBNDGBPORTS\fR = number_of_described_DigiBoard_cards * 16
+.Ed
+.Pp
 If it is less than the actual number of ports 
 the system will be able to use only the
 first \fBNDGBPORTS\fR ports.
@@ -344,6 +345,7 @@ Internal problems in driver.
 .Bl -diag
 .It dgb\fIX\fB: port \fIY\fB: timeout on FEP command
 Problems in hardware.
+.El
 .Sh SEE ALSO
 .Xr stty 1 ,
 .Xr termios 4 ,
