@@ -189,7 +189,7 @@ intpr(interval, ifnetaddr)
 				cp = sa->sa_data;
 			hexprint:
 				while (--n >= 0)
-					m += printf("%x%c", *cp++ & 0xff,
+					m += printf("%02x%c", *cp++ & 0xff,
 						    n > 0 ? '.' : ' ');
 				m = 28 - m;
 				while (m-- > 0)
