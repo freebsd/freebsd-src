@@ -17,7 +17,6 @@
 #include <sys/types.h>
 #include <sys/diskslice.h>
 #include <sys/disklabel.h>
-#include <err.h>
 #include "libdisk.h"
 
 int
