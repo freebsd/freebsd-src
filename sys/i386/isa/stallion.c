@@ -552,14 +552,6 @@ static struct cdevsw stl_cdevsw = {
 	/* kqfilter */	ttykqfilter,
 };
 
-static void stl_drvinit(void *unused)
-{
-
-	cdevsw_add(&stl_cdevsw);
-}
-
-SYSINIT(sidev,SI_SUB_DRIVERS,SI_ORDER_MIDDLE+CDEV_MAJOR,stl_drvinit,NULL)
-
 #endif
 
 /*****************************************************************************/
@@ -662,6 +654,9 @@ static int stlattach(struct isa_device *idp)
 	brdp->irqtype = stl_irqshared;
 	stl_brdinit(brdp);
 
+	if (0) {
+		make_dev(&stl_cdevsw, 0, 0, 0, 0, "stallion_is_broken");
+	}
 	return(1);
 }
 
