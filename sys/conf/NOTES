@@ -432,7 +432,7 @@ device		disc			#Discard device (ds0, ds1, etc)
 device		tap			#Virtual Ethernet driver
 device		tun			#Tunnel driver (ppp(8), nos-tun(8))
 device		sl			#Serial Line IP
-device		ppp	2		#Point-to-point protocol
+device		ppp			#Point-to-point protocol
 options 	PPP_BSDCOMP		#PPP BSD-compress support
 options 	PPP_DEFLATE		#PPP zlib/deflate/gzip support
 options 	PPP_FILTER		#enable bpf filtering (needs bpf)

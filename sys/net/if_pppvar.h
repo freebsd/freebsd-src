@@ -96,6 +96,7 @@ struct ppp_softc {
 	u_short	sc_outfcs;		/* FCS so far for output packet */
 	u_char	sc_rawin[16];		/* chars as received */
 	int	sc_rawin_count;		/* # in sc_rawin */
+	LIST_ENTRY(ppp_softc) sc_list;
 };
 
 struct	ppp_softc *pppalloc(pid_t pid);

@@ -1033,7 +1033,7 @@ net/if_iso88025subr.c	optional token
 net/if_loop.c		optional loop
 net/if_media.c		standard
 net/if_mib.c		standard
-net/if_ppp.c		count ppp
+net/if_ppp.c		optional ppp
 net/if_sl.c		optional sl
 net/if_spppsubr.c	optional sppp
 net/if_spppsubr.c	optional i4bisppp

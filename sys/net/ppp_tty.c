@@ -114,6 +114,7 @@ static void	ppplogchar(struct ppp_softc *, int);
 
 /* XXX called from if_ppp.c - layering violation */
 void		pppasyncattach(void *);
+void		pppasyncdetach(void);
 
 /*
  * Some useful mbuf macros not in mbuf.h.
@@ -156,8 +157,13 @@ void
 pppasyncattach(dummy)
     void *dummy;
 {
-    /* register line discipline */
-    linesw[PPPDISC] = pppdisc;
+    ldisc_register(PPPDISC, &pppdisc);
+}
+
+void
+pppasyncdetach()
+{
+    ldisc_deregister(PPPDISC);
 }
 
 /*
