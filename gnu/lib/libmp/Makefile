@@ -101,9 +101,7 @@ mpz:
 
 CLEANDIRS+=	 ${.OBJDIR}/mpz ${.CURDIR}/mpz
 
-beforeinstall:
-	${INSTALL} -C -o ${BINOWN} -g ${BINGRP} -m 444 \
-		${GMPDIR}/mp.h ${DESTDIR}/usr/include
+INCS=		mp.h
 
 .include "../libgmp/Makefile.inc"
 .include <bsd.lib.mk>

@@ -273,19 +273,7 @@ _libinstall:
 .endif !defined(INTERNALLIB)
 
 .include <bsd.files.mk>
-
-.if !target(beforeinstall)
-beforeinstall: _includeinstall
-.endif
-_includeinstall:
-.if defined(INCS)
-.for header in ${INCS}
-	cd ${.CURDIR} && \
-	${INSTALL} -C -o ${INCOWN} -g ${INCGRP} -m ${INCMODE} \
-	    ${header} ${DESTDIR}${INCDIR}
-.endfor
-.endif
-
+.include <bsd.incs.mk>
 .include <bsd.links.mk>
 
 .if !defined(NOMAN)

@@ -7,8 +7,8 @@
 # links.
 
 CLEANFILES= osreldate.h version vers.c
-SUBDIR= rpcsvc
-HDRS=	a.out.h ar.h assert.h bitstring.h complex.h ctype.h db.h \
+SUBDIR= arpa protocols rpc rpcsvc
+INCS=	a.out.h ar.h assert.h bitstring.h complex.h ctype.h db.h \
 	dirent.h disktab.h \
 	dlfcn.h elf.h elf-hints.h err.h fnmatch.h fstab.h \
 	fts.h glob.h grp.h strhash.h histedit.h ieeefp.h ifaddrs.h iso646.h \
@@ -21,23 +21,10 @@ HDRS=	a.out.h ar.h assert.h bitstring.h complex.h ctype.h db.h \
 	string.h stringlist.h strings.h struct.h sysexits.h tar.h time.h \
 	timers.h ttyent.h unistd.h utime.h utmp.h vis.h wchar.h wctype.h
 
-ARPAHDRS=	ftp.h inet.h nameser.h nameser_compat.h telnet.h tftp.h
-
-PROTOHDRS=	dumprestore.h routed.h rwhod.h talkd.h timed.h
-
-RPCHDRS=	auth.h auth_unix.h clnt.h pmap_clnt.h pmap_prot.h pmap_rmt.h \
-		rpc.h rpc_com.h rpc_msg.h svc.h svc_auth.h types.h xdr.h \
-		auth_des.h des.h des_crypt.h
-
-NETSMBHDRS=	nb_lib.h smb_lib.h smb_rap.h
-
 MHDRS=	float.h floatingpoint.h stdarg.h varargs.h
 
 # posix4/aio.h conflicts with dysons and isn't installed:
 PHDRS=	mqueue.h sched.h semaphore.h # aio.h
-
-# Only for default SHARED=copies case
-SHDRS=	soundcard.h joystick.h
 
 LHDRS=	aio.h errno.h fcntl.h inttypes.h linker_set.h poll.h syslog.h \
 	termios.h ucontext.h
@@ -46,13 +33,14 @@ LDIRS=	cam msdosfs net netatalk netatm netgraph netinet netinet6 \
 	netipx netkey netnatm netncp netns netsmb nfs ntfs nwfs pccard posix4 \
 	sys vm
 
-LNOHEADERDIRS=	fs isofs ufs dev
-LSUBDIRS=	fs/smbfs isofs/cd9660 ufs/ffs ufs/mfs ufs/ufs \
-	cam/scsi dev/an dev/ppbus dev/usb dev/wi
+LSUBDIRS=	cam/scsi dev/an dev/ppbus dev/usb dev/wi \
+	fs/smbfs isofs/cd9660 \
+	netatm/ipatm netatm/sigpvc netatm/spans netatm/uni \
+	ufs/ffs ufs/mfs ufs/ufs
 
-# For SHARED=symlinks, cam is a symlink, so cam/scsi is taken care of
-LSYMSUBDIRS=	fs/smbfs isofs/cd9660 ufs/ffs ufs/mfs ufs/ufs dev/ppbus \
-	dev/usb dev/wi
+# For SHARED=symlinks, cam and netatm are symlinks, so cam/scsi and netatm/*
+# are taken care of
+LSYMSUBDIRS=	${LSUBDIRS:Ncam/scsi:Nnetatm/*}
 
 # Define SHARED to indicate whether you want symbolic links to the system
 # source (``symlinks''), or a separate copy (``copies'').  ``symlinks'' is
@@ -61,7 +49,7 @@ LSYMSUBDIRS=	fs/smbfs isofs/cd9660 ufs/ffs ufs/mfs ufs/ufs dev/ppbus \
 #SHARED=	symlinks
 SHARED?=	copies
 
-all:	osreldate.h
+INCS+=	osreldate.h
 
 osreldate.h:	${.CURDIR}/../sys/conf/newvers.sh \
 		${.CURDIR}/../sys/sys/param.h
@@ -76,31 +64,14 @@ osreldate.h:	${.CURDIR}/../sys/conf/newvers.sh \
 	echo \#'define __FreeBSD_version' $$RELDATE >> osreldate.h; \
 	echo "#endif" >> osreldate.h
 
-beforeinstall: ${SHARED}
-	@rm -f ${DESTDIR}/usr/include/timepps.h
-	cd ${.CURDIR}; \
-		${INSTALL} -C -o ${BINOWN} -g ${BINGRP} -m 444 \
-		${HDRS} ${DESTDIR}/usr/include
-	cd ${.CURDIR}/arpa; \
-		${INSTALL} -C -o ${BINOWN} -g ${BINGRP} -m 444 \
-		${ARPAHDRS} ${DESTDIR}/usr/include/arpa
-	cd ${.CURDIR}/protocols; \
-		${INSTALL} -C -o ${BINOWN} -g ${BINGRP} -m 444 \
-		${PROTOHDRS} ${DESTDIR}/usr/include/protocols
-	cd ${.CURDIR}/rpc; \
-		${INSTALL} -C -o ${BINOWN} -g ${BINGRP} -m 444 \
-		${RPCHDRS} ${DESTDIR}/usr/include/rpc
-	${INSTALL} -C -o ${BINOWN} -g ${BINGRP} -m 444 \
-		${.OBJDIR}/osreldate.h \
-		${DESTDIR}/usr/include
 .for i in ${LHDRS}
-	ln -sf sys/$i ${DESTDIR}/usr/include/$i
+INCSLINKS+=	sys/$i ${INCLUDEDIR}/$i
 .endfor
 .for i in ${MHDRS}
-	ln -sf machine/$i ${DESTDIR}/usr/include/$i
+INCSLINKS+=	machine/$i ${INCLUDEDIR}/$i
 .endfor
 .for i in ${PHDRS}
-	ln -sf posix4/$i ${DESTDIR}/usr/include/$i
+INCSLINKS+=	posix4/$i ${INCLUDEDIR}/$i
 .endfor
 
 copies:
@@ -116,24 +87,16 @@ copies:
 		${INSTALL} -C -o ${BINOWN} -g ${BINGRP} -m 444 $i/*.h \
 		${DESTDIR}/usr/include/$i
 .endfor
-.if exists(${.CURDIR}/../sys/contrib/ipfilter/netinet)
-	cd ${.CURDIR}/../sys/contrib/ipfilter/netinet; \
-		${INSTALL} -C -o ${BINOWN} -g ${BINGRP} -m 444 *.h \
-		${DESTDIR}/usr/include/netinet
-.endif
-.if exists(${.CURDIR}/../sys/contrib/netsmb/include/netsmb)
-	cd ${.CURDIR}/../sys/contrib/netsmb/include/netsmb; \
-		${INSTALL} -C -o ${BINOWN} -g ${BINGRP} -m 444 ${NETSMBHDRS} \
-		${DESTDIR}/usr/include/netsmb
-.endif
 .if exists(${.CURDIR}/../sys/${MACHINE_ARCH}/include)
 	cd ${.CURDIR}/../sys/${MACHINE_ARCH}/include; \
 		${INSTALL} -C -o ${BINOWN} -g ${BINGRP} -m 444 *.h \
 		${DESTDIR}/usr/include/machine
+.if exists(${.CURDIR}/../sys/${MACHINE_ARCH}/include/pc)
+	cd ${.CURDIR}/../sys/${MACHINE_ARCH}/include/pc; \
+		${INSTALL} -C -o ${BINOWN} -g ${BINGRP} -m 444 *.h \
+		${DESTDIR}/usr/include/machine/pc
 .endif
-.for i in ${SHDRS}
-	ln -sf ../sys/$i ${DESTDIR}/usr/include/machine/$i
-.endfor
+.endif
 
 symlinks:
 	@${ECHO} "Setting up symlinks to kernel source tree..."
@@ -141,14 +104,13 @@ symlinks:
 	rm -rf ${DESTDIR}/usr/include/$i
 	ln -s ../../sys/$i ${DESTDIR}/usr/include/$i
 .endfor
-.for i in ${LNOHEADERDIRS}
-	rm -rf ${DESTDIR}/usr/include/$i
-	mkdir ${DESTDIR}/usr/include/$i
-.endfor
 .for i in ${LSYMSUBDIRS}
+	rm -rf ${DESTDIR}/usr/include/$i
 	ln -s ../../../sys/$i ${DESTDIR}/usr/include/$i
 .endfor
 	rm -rf ${DESTDIR}/usr/include/machine
 	ln -s ../../sys/${MACHINE_ARCH}/include ${DESTDIR}/usr/include/machine
 
 .include <bsd.prog.mk>
+
+installincludes: ${SHARED}

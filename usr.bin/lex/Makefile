@@ -18,6 +18,8 @@ SRCS=		scan.c ccl.c dfa.c ecs.c gen.c main.c misc.c nfa.c parse.y \
 		skel.c sym.c tblcmp.c yylex.c
 LFLAGS+=	-is
 CFLAGS+=	-I. -I${.CURDIR}
+INCS=		FlexLexer.h
+INCSDIR=	${INCLUDEDIR}/g++
 MLINKS+=	lex.1 flex.1
 MLINKS+=	lex.1 flex++.1
 MLINKS+=	lex.1 lex++.1
@@ -28,10 +30,6 @@ SUBDIR=		lib
 
 skel.c: mkskel.sh flex.skl
 	sh ${.CURDIR}/mkskel.sh ${.CURDIR}/flex.skl > skel.c
-
-beforeinstall:
-	${INSTALL} -C -o ${BINOWN} -g ${BINGRP} -m 444 \
-		${.CURDIR}/FlexLexer.h ${DESTDIR}/usr/include/g++
 
 bootstrap: initscan.c
 	@cmp -s ${.CURDIR}/initscan.c scan.c || { \

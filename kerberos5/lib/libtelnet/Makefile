@@ -18,7 +18,7 @@ CFLAGS+=	-DENCRYPTION -DAUTHENTICATION -DSRA -I${TELNETDIR}
 CFLAGS+=	-DKRB5 -I${KRB5DIR}/lib/krb5 -I${KRB5OBJDIR} -I${ASN1OBJDIR}
 
 INCS=		${TELNETDIR}/arpa/telnet.h
-INCDIR=		/usr/include/arpa
+INCSDIR=	${INCLUDEDIR}/arpa
 
 .include <bsd.lib.mk>
 

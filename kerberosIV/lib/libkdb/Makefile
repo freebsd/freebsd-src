@@ -9,8 +9,7 @@ CFLAGS+=	-I${KRB4DIR}/include \
 		-I${KADMOBJDIR}
 SRCS=		krb_cache.c krb_kdb_utils.c copykey.c krb_lib.c krb_dbm.c \
 		print_princ.c
-
-INCLUDES=	${KRB4DIR}/lib/kdb/kdc.h ${KRB4DIR}/lib/kdb/krb_db.h
+INCS=		kdc.h krb_db.h
 
 .include <bsd.lib.mk>
 

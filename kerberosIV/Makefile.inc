@@ -93,14 +93,6 @@ ${KRBOBJDIR}/krb_err.c ${KRBOBJDIR}/krb_err.h: ${KRB4DIR}/lib/krb/krb_err.et
 
 CLEANFILES+=${KRBOBJDIR}/krb_err.h ${KRBOBJDIR}/krb_err.c ${KRBOBJDIR}/krb_err.et
 
-.if defined(INCLUDES)
-beforeinstall: ${INCLUDES}
-.for INC in ${INCLUDES}
-	${INSTALL} -C -o ${BINOWN} -g ${BINGRP} -m 444 \
-		${INC} ${DESTDIR}/usr/include
-.endfor
-.endif
-
 .else
 
 KRB4DIR=	${.CURDIR}/../../crypto/kerberosIV

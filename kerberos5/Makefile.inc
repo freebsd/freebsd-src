@@ -6,13 +6,12 @@ DISTRIBUTION=	krb5
 
 .if !defined(INCLUDEOBJDIR)
 
-INCLUDEDIR=	${.CURDIR}/../../include
 KRB4DIR=	${.CURDIR}/../../../crypto/kerberosIV
 KRB5DIR=	${.CURDIR}/../../../crypto/heimdal
 ROKENDIR=	${.CURDIR}/../../lib/libroken
 TELNETDIR=	${.CURDIR}/../../../crypto/telnet
 
-CFLAGS+=-Wall -I${INCLUDEDIR} -I${INCLUDEOBJDIR} -DHAVE_CONFIG_H
+CFLAGS+=-Wall -I${INCLUDEOBJDIR} -DHAVE_CONFIG_H
 
 .if defined(MAKE_KERBEROS4) && \
 	(${MAKE_KERBEROS4} == "YES" || ${MAKE_KERBEROS4} == "yes")
@@ -151,14 +150,6 @@ k524_err.c k524_err.h: \
 
 CLEANFILES+=k524_err.h k524_err.c k524_err.et
 
-.if defined(INCLUDES)
-beforeinstall: ${INCLUDES}
-.for INC in ${INCLUDES}
-	${INSTALL} -C -o ${BINOWN} -g ${BINGRP} -m 444 \
-		${INC} ${DESTDIR}/usr/include
-.endfor
-.endif
-
 roken.h: make-roken
 	./make-roken > tmp.h ;\
 	if [ -f roken.h ] && cmp -s tmp.h roken.h ; then rm -f tmp.h ; \
@@ -171,7 +162,6 @@ CLEANFILES+=	make-roken.c make-roken roken.h
 
 .else
 
-INCLUDEDIR=	${.CURDIR}/../../include
 KRB4DIR=	${.CURDIR}/../../crypto/kerberosIV
 KRB5DIR=	${.CURDIR}/../../crypto/heimdal
 ROKENDIR=	${.CURDIR}/../../lib/libroken

@@ -363,11 +363,9 @@ MLINKS= des_crypt.3 des_read_password.3 \
 	des_crypt.3 des_enc_read.3 des_crypt.3 des_enc_write.3 \
 	des_crypt.3 des_set_odd_parity.3 des_crypt.3 des_is_weak_key.3
 
-beforeinstall:  openssl/opensslconf.h openssl/evp.h
-	${INSTALL} ${COPY} -o ${BINOWN} -g ${BINGRP} -m 444 \
-	    ${CRYPTO_HDRS} openssl/evp.h openssl/opensslconf.h \
-	    ${DESTDIR}/usr/include/openssl
-	ln -fs openssl/des.h ${DESTDIR}/usr/include/des.h
+INCS=		${HDRS} openssl/evp.h openssl/opensslconf.h
+INCSDIR=	${INCLUDEDIR}/openssl
+INCSLINKS=	openssl/des.h ${INCLUDEDIR}/des.h
 
 afterinstall:
 .if !defined(NOPIC)

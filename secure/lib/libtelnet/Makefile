@@ -13,7 +13,7 @@ CFLAGS+=	-DENCRYPTION -DAUTHENTICATION -DSRA \
 WARNS?=		2
 
 INCS=		${TELNETDIR}/arpa/telnet.h
-INCDIR=		/usr/include/arpa
+INCSDIR=	${INCLUDEDIR}/arpa
 
 .include <bsd.lib.mk>
 

@@ -121,6 +121,8 @@ ${ARCH_PREFIX}${i}: ${.CURDIR}/${ARCH}/${i}
 	cp ${.ALLSRC} ${.TARGET}
 .endfor
 
+INCS=	math.h
+
 MAN=	acos.3 acosh.3 asin.3 asinh.3 atan.3 atan2.3 atanh.3 ceil.3 \
 	cos.3 cosh.3 erf.3 exp.3 fabs.3 floor.3 fmod.3 hypot.3 ieee.3 \
 	ieee_test.3 j0.3 lgamma.3 math.3 rint.3 sin.3 sinh.3 sqrt.3 \
@@ -160,10 +162,5 @@ MLINKS+=sinh.3 sinhf.3
 MLINKS+=sqrt.3 cbrt.3 sqrt.3 cbrtf.3 sqrt.3 sqrtf.3
 MLINKS+=tan.3 tanf.3
 MLINKS+=tanh.3 tanhf.3
-
-# XXX we should have only one math.h, and a rule for installing .h's...
-beforeinstall:
-	${INSTALL} -C -o ${BINOWN} -g ${BINGRP} -m 444 ${.CURDIR}/src/math.h \
-		${DESTDIR}/usr/include
 
 .include <bsd.lib.mk>

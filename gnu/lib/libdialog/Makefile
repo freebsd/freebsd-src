@@ -2,6 +2,7 @@
 # $FreeBSD$
 
 LIB=    dialog
+INCS=	dialog.h
 MAN=	dialog.3
 
 SHLIB_MAJOR= 4
@@ -19,10 +20,6 @@ CFLAGS+= -I${.CURDIR} -Wall -Wstrict-prototypes -DLOCALE
 
 LDADD+= -lncurses
 DPADD+= ${LIBNCURSES}
-
-beforeinstall:
-	${INSTALL} -C -o ${BINOWN} -g ${BINGRP} -m 444 ${.CURDIR}/dialog.h \
-	      ${DESTDIR}/usr/include
 
 .if !defined(NOHTML)
 afterinstall:

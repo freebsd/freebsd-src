@@ -38,6 +38,8 @@
     libmilter
     ..
     machine
+        pc
+        ..
     ..
     msdosfs
     ..
@@ -46,6 +48,14 @@
     netatalk
     ..
     netatm
+        ipatm
+        ..
+        sigpvc
+        ..
+        spans
+        ..
+        uni
+        ..
     ..
     netgraph
     ..
@@ -88,8 +98,6 @@
     rpcsvc
     ..
     security
-    ..
-    ss
     ..
     sys
     ..

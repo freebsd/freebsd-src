@@ -35,8 +35,8 @@ ONEUL=		1UL
 .PATH:  ${NCURSES}/include
 .PATH:  ${NCURSES}/man
 
-INCS=	-I. -I${.CURDIR} -I${NCURSES}/ncurses -I${NCURSES}/include
-CFLAGS+=${INCS} -Wall -DFREEBSD_NATIVE -DNDEBUG -DHAVE_CONFIG_H -DTERMIOS
+CFLAGS+=-I. -I${.CURDIR} -I${NCURSES}/ncurses -I${NCURSES}/include
+CFLAGS+=-Wall -DFREEBSD_NATIVE -DNDEBUG -DHAVE_CONFIG_H -DTERMIOS
 
 GENSRC= \
 	codes.c \
@@ -60,6 +60,8 @@ GENHDR= \
 
 # Installed
 HEADERS=curses.h term.h termcap.h unctrl.h
+INCS=	${HEADERS}
+INCSLINKS= curses.h ${INCLUDEDIR}/ncurses.h
 
 # Components of names.c and codes.c
 NAMESRC=boolnames boolfnames numnames numfnames strnames strfnames
@@ -251,12 +253,6 @@ SYMLINKS+=libncurses_p.a ${LIBDIR}/libtinfo_p.a
 DOCSDIR= /usr/share/doc/ncurses
 DOCS=	ncurses-intro.html hackguide.html
 
-beforeinstall:	${HEADERS}
-	${INSTALL} ${COPY} -o ${BINOWN} -g ${BINGRP} -m 444 ${HEADERS} \
-	    ${DESTDIR}/usr/include
-	rm -f ${DESTDIR}/usr/include/ncurses.h
-	ln -s curses.h ${DESTDIR}/usr/include/ncurses.h
-
 .if !defined(NOHTML)
 afterinstall:
 .for file in ${DOCS}
@@ -279,7 +275,7 @@ codes.c:	 namehdr ${CODESRC} codeftr
 	cat namehdr ${CODESRC} codeftr > $@
 
 lib_gen.c:	MKlib_gen.sh curses.h
-	sh ${NCURSES}/ncurses/base/MKlib_gen.sh "${CC} -E ${INCS}" \
+	sh ${NCURSES}/ncurses/base/MKlib_gen.sh "${CC} -E ${CFLAGS}" \
 	    "${AWK}" < curses.h >$@
 
 lib_keyname.c:	keys.list MKkeyname.awk
@@ -305,7 +301,7 @@ ncurses_def.h:	MKncurses_def.sh ncurses_defs
 	    ${NCURSES}/include/ncurses_defs > ncurses_def.h
 
 nomacros.h:	MKlib_gen.sh curses.h
-	sh ${NCURSES}/ncurses/base/MKlib_gen.sh "${CC} -E ${INCS}" \
+	sh ${NCURSES}/ncurses/base/MKlib_gen.sh "${CC} -E ${CFLAGS}" \
 	    "${AWK}" < curses.h | fgrep undef > $@
 
 init_keytry.h:	keys.list make_keys

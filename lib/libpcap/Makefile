@@ -6,6 +6,7 @@ SRCS=	grammar.y tokdefs.h pcap-bpf.c \
 	pcap.c inet.c gencode.c optimize.c nametoaddr.c \
 	etherent.c savefile.c bpf_filter.c bpf_image.c bpf_dump.c \
 	scanner.l version.c
+INCS=	pcap.h pcap-int.h pcap-namedb.h
 MAN=	pcap.3
 CLEANFILES=tokdefs.h version.c
 
@@ -28,12 +29,6 @@ CFLAGS+=-I${PCAP_DISTDIR}
 version.c: ${PCAP_DISTDIR}/VERSION
 	@rm -f $@
 	sed 's/.*/char pcap_version[] = "&";/' ${PCAP_DISTDIR}/VERSION > $@
-
-beforeinstall:
-.for i in pcap.h pcap-int.h pcap-namedb.h
-	${INSTALL} -C -o ${BINOWN} -g ${BINGRP} -m 444 ${PCAP_DISTDIR}/$i \
-		${DESTDIR}/usr/include
-.endfor
 
 tokdefs.h: grammar.h
 	ln -sf grammar.h tokdefs.h

@@ -105,15 +105,9 @@ pam_static_modules.o:	pam_static.o ${STATIC_MODULES}
 	${LD} -o ${.TARGET} -r -Bforcearchive ${.ALLSRC}
 .endif
 
-beforeinstall:
-	cd ${PAMDIR}/libpam/include/security; \
-		${INSTALL} -C -o ${BINOWN} -g ${BINGRP} -m 444 \
-		${HDRS1} ${DESTDIR}/usr/include/security
-	cd ${PAMDIR}/libpam_misc; \
-		${INSTALL} -C -o ${BINOWN} -g ${BINGRP} -m 444 \
-		${HDRS2} ${DESTDIR}/usr/include/security
-	cd ${.CURDIR}; \
-		${INSTALL} -C -o ${BINOWN} -g ${BINGRP} -m 444 \
-		${HDRS3} ${DESTDIR}/usr/include/security
+# Headers
+INCS=		${HDRS1:S;^;${PAMDIR}/libpam/include/security/;} \
+		${HDRS2} ${HDRS3}
+INCSDIR=	${INCLUDEDIR}/security
 
 .include <bsd.lib.mk>
