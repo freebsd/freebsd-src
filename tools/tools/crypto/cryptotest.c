@@ -22,8 +22,8 @@
  * symmetric operations.  To get meaningful numbers you must run on an idle
  * machine.
  *
- * Expect ~400 Mb/s for a Broadcom 582x for 16K buffers on a reasonable CPU.
- * Hifn 7811 parts top out at ~110 Mb/s.
+ * Expect ~400 Mb/s for a Broadcom 582x for 8K buffers on a reasonable CPU
+ * (64-bit PCI helps).  Hifn 7811 parts top out at ~110 Mb/s.
  *
  * This code originally came from openbsd; give them all the credit.
  */
@@ -53,6 +53,7 @@ struct	session_op session;
 struct	crypt_op cryptop;
 char	iv[8] = "00000000";
 int	verbose = 0;
+int	opflags = 0;
 
 struct alg {
 	const char* name;
@@ -158,7 +159,7 @@ runtest(struct alg *alg, int count, int size, int cmd, struct timeval *tv)
 	gettimeofday(&start, NULL);
 	for (i = 0; i < count; i++) {
 		cryptop.op = COP_ENCRYPT;
-		cryptop.flags = 0;
+		cryptop.flags = opflags;
 		cryptop.len = size;
 		cryptop.src = cleartext;
 		cryptop.dst = ciphertext;
@@ -170,7 +171,7 @@ runtest(struct alg *alg, int count, int size, int cmd, struct timeval *tv)
 
 		memset(cleartext, 'x', MIN(size, CHUNK));
 		cryptop.op = COP_DECRYPT;
-		cryptop.flags = 0;
+		cryptop.flags = opflags;
 		cryptop.len = size;
 		cryptop.src = ciphertext;
 		cryptop.dst = cleartext;
@@ -197,6 +198,7 @@ runtest(struct alg *alg, int count, int size, int cmd, struct timeval *tv)
 	close(fd);
 }
 
+#ifdef __FreeBSD__
 static void
 resetstats()
 {
@@ -233,6 +235,7 @@ printt(const char* tag, struct cryptotstat *ts)
 	printf("%16.16s: avg %6llu ns : min %6llu ns : max %7llu ns [%u samps]\n",
 		tag, avg, min, max, ts->count);
 }
+#endif
 
 static void
 runtests(struct alg *alg, int count, int size, int cmd, int threads, int profile)
@@ -259,6 +262,7 @@ runtests(struct alg *alg, int count, int size, int cmd, int threads, int profile
 		return;
 	}
 	tvp = (struct timeval *) region;
+#ifdef __FreeBSD__
 	if (profile) {
 		size_t tlen = sizeof (otiming);
 		int timing = 1;
@@ -268,6 +272,7 @@ runtests(struct alg *alg, int count, int size, int cmd, int threads, int profile
 				&timing, sizeof (timing)) < 0)
 			perror("debug.crypto_timing");
 	}
+#endif
 
 	if (threads > 1) {
 		for (i = 0; i < threads; i++)
@@ -288,6 +293,7 @@ runtests(struct alg *alg, int count, int size, int cmd, int threads, int profile
 		    t/threads, 2*count*threads, alg->name, size, (double)2*count*size*threads / t,
 		    (double)2*count*size*threads / t * 8 / 1024 / 1024);
 	}
+#ifdef __FreeBSD__
 	if (profile) {
 		struct cryptostats stats;
 		size_t slen = sizeof (stats);
@@ -304,6 +310,7 @@ runtests(struct alg *alg, int count, int size, int cmd, int threads, int profile
 			printt("cb->finis", &stats.cs_finis);
 		}
 	}
+#endif
 	fflush(stdout);
 }
 
@@ -319,7 +326,7 @@ main(int argc, char **argv)
 	int profile = 0;
 	int i, ch;
 
-	while ((ch = getopt(argc, argv, "pzsva:t:")) != -1) {
+	while ((ch = getopt(argc, argv, "pzsva:bt:")) != -1) {
 		switch (ch) {
 #ifdef CIOCGSSESSION
 		case 's':
@@ -346,6 +353,9 @@ main(int argc, char **argv)
 			break;
 		case 'p':
 			profile = 1;
+			break;
+		case 'b':
+			opflags |= COP_F_BATCH;
 			break;
 		default:
 			usage(argv[0]);
