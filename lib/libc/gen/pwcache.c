@@ -48,7 +48,7 @@ __FBSDID("$FreeBSD$");
 #define	NCACHE	64			/* power of 2 */
 #define	MASK	(NCACHE - 1)		/* bits to store with */
 
-char *
+const char *
 user_from_uid(uid_t uid, int nouser)
 {
 	static struct ncache {
@@ -82,7 +82,7 @@ user_from_uid(uid_t uid, int nouser)
 	return ((nouser && !cp->found) ? NULL : cp->name);
 }
 
-char *
+const char *
 group_from_gid(gid_t gid, int nogroup)
 {
 	static struct ncache {

@@ -106,7 +106,7 @@ struct passwd	*getpwent __P((void));
 int		 setpassent __P((int));
 void		 setpwent __P((void));
 void		 endpwent __P((void));
-char		*user_from_uid __P((uid_t, int));
+const char	*user_from_uid __P((uid_t, int));
 #endif
 __END_DECLS
 

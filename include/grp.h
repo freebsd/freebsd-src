@@ -70,7 +70,7 @@ int setgrent __P((void));
 void endgrent __P((void));
 void setgrfile __P((const char *));
 int setgroupent __P((int));
-char	*group_from_gid __P((gid_t, int));
+const char *group_from_gid __P((gid_t, int));
 #endif
 __END_DECLS
 
