@@ -121,3 +121,5 @@ extern const char *NumStr(long, char *, size_t);
 extern const char *HexStr(long, char *, size_t);
 extern const char *ex_desc(int);
 extern void SetTitle(const char *);
+extern fd_set *mkfdset(void);
+extern void zerofdset(fd_set *);
