@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)kern_resource.c	8.5 (Berkeley) 1/21/94
- * $Id: kern_resource.c,v 1.11 1995/02/20 19:42:33 guido Exp $
+ * $Id: kern_resource.c,v 1.12 1995/05/30 08:05:39 rgrimes Exp $
  */
 
 #include <sys/param.h>
@@ -450,14 +450,15 @@ getrlimit(p, uap, retval)
  */
 void
 calcru(p, up, sp, ip)
-	register struct proc *p;
-	register struct timeval *up;
-	register struct timeval *sp;
-	register struct timeval *ip;
+	struct proc *p;
+	struct timeval *up;
+	struct timeval *sp;
+	struct timeval *ip;
 {
-	register u_quad_t u, st, ut, it, tot;
-	register u_long sec, usec;
-	register int s;
+	quad_t totusec;
+	u_quad_t u, st, ut, it, tot;
+	long sec, usec;
+	int s;
 	struct timeval tv;
 
 	s = splstatclock();
@@ -468,11 +469,8 @@ calcru(p, up, sp, ip)
 
 	tot = st + ut + it;
 	if (tot == 0) {
-		up->tv_sec = up->tv_usec = 0;
-		sp->tv_sec = sp->tv_usec = 0;
-		if (ip != NULL)
-			ip->tv_sec = ip->tv_usec = 0;
-		return;
+		st = 1;
+		tot = 1;
 	}
 
 	sec = p->p_rtime.tv_sec;
@@ -487,7 +485,15 @@ calcru(p, up, sp, ip)
 		sec += tv.tv_sec - runtime.tv_sec;
 		usec += tv.tv_usec - runtime.tv_usec;
 	}
-	u = sec * 1000000 + usec;
+	totusec = (quad_t)sec * 1000000 + usec;
+	if (totusec < 0) {
+#ifdef DIAGNOSTIC
+		/* XXX no %qd in kernel.  Truncate. */
+		printf("calcru: negative time: %ld usec\n", (long)totusec);
+#endif
+		totusec = 0;
+	}
+	u = totusec;
 	st = (u * st) / tot;
 	sp->tv_sec = st / 1000000;
 	sp->tv_usec = st % 1000000;
