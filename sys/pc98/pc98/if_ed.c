@@ -24,7 +24,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: if_ed.c,v 1.11.2.13 1998/04/14 13:52:25 kato Exp $
+ *	$Id: if_ed.c,v 1.11.2.14 1998/04/18 23:27:02 nate Exp $
  */
 
 /*
@@ -1298,6 +1298,7 @@ ed_probe_Novell_generic(sc, port, unit, flags)
 #else
 	tmp = inb(sc->asic_addr + ED_NOVELL_RESET);
 #endif
+
 	/*
 	 * I don't know if this is necessary; probably cruft leftover from
 	 * Clarkson packet driver code. Doesn't do a thing on the boards I've
@@ -2680,11 +2681,11 @@ ed_init(xsc)
 	 * Copy out our station address
 	 */
 #ifdef PC98
-		for (i = 0; i < ETHER_ADDR_LEN; ++i)
-			outb(sc->nic_addr + ED_P1_PAR(i), sc->arpcom.ac_enaddr[i]);
+	for (i = 0; i < ETHER_ADDR_LEN; ++i)
+		outb(sc->nic_addr + ED_P1_PAR(i), sc->arpcom.ac_enaddr[i]);
 #else
-		for (i = 0; i < ETHER_ADDR_LEN; ++i)
-			outb(sc->nic_addr + ED_P1_PAR0 + i, sc->arpcom.ac_enaddr[i]);
+	for (i = 0; i < ETHER_ADDR_LEN; ++i)
+		outb(sc->nic_addr + ED_P1_PAR0 + i, sc->arpcom.ac_enaddr[i]);
 #endif
 
 	/*
@@ -3583,6 +3584,7 @@ ed_pio_readmem(sc, src, dst, amount)
 	outb(sc->nic_addr + ED_P0_RSAR1, src >> 8);
 
 	outb(sc->nic_addr + ED_P0_CR, ED_CR_RD0 | ED_CR_STA);
+
 #ifdef PC98
 	if (sc->type == ED_TYPE98_LPC)
 		LPCT_1d0_ON();
@@ -3592,6 +3594,7 @@ ed_pio_readmem(sc, src, dst, amount)
 		insw(sc->asic_addr + ED_NOVELL_DATA, dst, amount / 2);
 	} else
 		insb(sc->asic_addr + ED_NOVELL_DATA, dst, amount);
+
 #ifdef PC98
 	if (sc->type == ED_TYPE98_LPC)
 		LPCT_1d0_OFF();
@@ -4104,12 +4107,13 @@ ed_setrcr(sc)
 		 * Reconfigure the multicast filter.
 		 */
 #ifdef PC98
-			for (i = 0; i < 8; i++)
-				outb(sc->nic_addr + ED_P1_MAR(i), 0xff);
+		for (i = 0; i < 8; i++)
+			outb(sc->nic_addr + ED_P1_MAR(i), 0xff);
 #else
-			for (i = 0; i < 8; i++)
-				outb(sc->nic_addr + ED_P1_MAR0 + i, 0xff);
+		for (i = 0; i < 8; i++)
+			outb(sc->nic_addr + ED_P1_MAR0 + i, 0xff);
 #endif
+
 		/*
 		 * And turn on promiscuous mode. Also enable reception of
 		 * runts and packets with CRC & alignment errors.
@@ -4140,6 +4144,7 @@ ed_setrcr(sc)
 			for (i = 0; i < 8; i++)
 				outb(sc->nic_addr + ED_P1_MAR0 + i, ((u_char *) mcaf)[i]);
 #endif
+
 			/* Set page 0 registers */
 			outb(sc->nic_addr + ED_P0_CR, sc->cr_proto | ED_CR_STP);
 
