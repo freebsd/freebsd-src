@@ -264,7 +264,7 @@ rerelease release:
 	-rm -rf ${CHROOTDIR}
 .endif
 	mkdir -p ${CHROOTDIR}
-	@echo ">>> make release started on `LC_ALL=C TZ=GMT date`"
+	@echo ">>> make release for ${TARGET} started on `LC_ALL=C TZ=GMT date`"
 	cd ${.CURDIR}/.. && ${NATIVEMAKE} -DNOGAMES -DNOHTML -DNOINFO -DNOMAN \
 	    -DNOPROFILE installworld DESTDIR=${CHROOTDIR}
 	cd ${.CURDIR}/../etc && ${NATIVEMAKE} distribution DESTDIR=${CHROOTDIR}
@@ -398,7 +398,7 @@ rerelease release:
 	echo "cd /usr/src/release"		>> ${CHROOTDIR}/mk
 	echo "make obj"				>> ${CHROOTDIR}/mk
 	echo "make \$${_RELTARGET}"		>> ${CHROOTDIR}/mk
-	echo "echo \">>> make ${.TARGET} finished on \`LC_ALL=C TZ=GMT date\`\"" >> ${CHROOTDIR}/mk
+	echo "echo \">>> make ${.TARGET} for ${TARGET} finished on \`LC_ALL=C TZ=GMT date\`\"" >> ${CHROOTDIR}/mk
 	chmod 755 ${CHROOTDIR}/mk
 	chroot ${CHROOTDIR} /mk
 
