@@ -317,6 +317,9 @@ ess_intr(void *arg)
 	if (ess_rd(sc, 0x0c) & 0x01)
 		src |= 1;
 
+	if (src == 0)
+		return;
+
 	if (sc->duplex) {
 		pirq = (src & sc->pch.hwch)? 1 : 0;
 		rirq = (src & sc->rch.hwch)? 1 : 0;
