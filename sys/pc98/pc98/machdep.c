@@ -35,7 +35,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)machdep.c	7.4 (Berkeley) 6/3/91
- *	$Id: machdep.c,v 1.76 1998/02/06 12:13:59 eivind Exp $
+ *	$Id: machdep.c,v 1.77 1998/02/09 15:04:39 kato Exp $
  */
 
 #include "apm.h"
@@ -367,7 +367,7 @@ again:
 				(nswbuf*MAXPHYS) + pager_map_size);
 	pager_map->system_map = 1;
 	exec_map = kmem_suballoc(kernel_map, &minaddr, &maxaddr,
-				(16*(ARG_MAX+PAGE_SIZE)));
+				(16*(ARG_MAX+(PAGE_SIZE*3))));
 
 	/*
 	 * Finally, allocate mbuf pool.  Since mclrefcnt is an off-size
