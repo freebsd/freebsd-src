@@ -88,7 +88,7 @@ struct md_page {
 
 struct pmap {
 	TAILQ_HEAD(,pv_entry)	pm_pvlist;	/* list of mappings in pmap */
-	u_int64_t		pm_rid;		/* base RID for pmap */
+	u_int32_t		pm_rid[5];	/* base RID for pmap */
 	int			pm_count;	/* reference count */
 	int			pm_flags;	/* pmap flags */
 	int			pm_active;	/* active flag */
