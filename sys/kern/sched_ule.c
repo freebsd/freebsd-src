@@ -237,7 +237,7 @@ void sched_pctcpu_update(struct kse *ke);
 int sched_pickcpu(void);
 
 /* Operations on per processor queues */
-static struct kse * kseq_choose(struct kseq *kseq);
+static struct kse * kseq_choose(struct kseq *kseq, int steal);
 static void kseq_setup(struct kseq *kseq);
 static void kseq_add(struct kseq *kseq, struct kse *ke);
 static void kseq_rem(struct kseq *kseq, struct kse *ke);
@@ -455,7 +455,7 @@ kseq_move(struct kseq *from, int cpu)
 {
 	struct kse *ke;
 
-	ke = kseq_choose(from);
+	ke = kseq_choose(from, 1);
 	runq_remove(ke->ke_runq, ke);
 	ke->ke_state = KES_THREAD;
 	kseq_rem(from, ke);
@@ -465,8 +465,14 @@ kseq_move(struct kseq *from, int cpu)
 }
 #endif
 
+/*
+ * Pick the highest priority task we have and return it.   If steal is 1 we
+ * will return kses that have been denied slices due to their nice being too
+ * low.  In the future we should prohibit stealing interrupt threads as well.
+ */
+
 struct kse *
-kseq_choose(struct kseq *kseq)
+kseq_choose(struct kseq *kseq, int steal)
 {
 	struct kse *ke;
 	struct runq *swap;
@@ -492,7 +498,7 @@ kseq_choose(struct kseq *kseq)
 		 * TIMESHARE kse group and its nice was too far out
 		 * of the range that receives slices. 
 		 */
-		if (ke->ke_slice == 0) {
+		if (ke->ke_slice == 0 && steal == 0) {
 			runq_remove(ke->ke_runq, ke);
 			sched_slice(ke);
 			ke->ke_runq = kseq->ksq_next;
@@ -1062,7 +1068,7 @@ sched_clock(struct kse *ke)
 	 */
 	kseq = KSEQ_SELF();
 #if 0
-	if (kseq->ksq_load > 1 && (nke = kseq_choose(kseq)) != NULL) {
+	if (kseq->ksq_load > 1 && (nke = kseq_choose(kseq, 0)) != NULL) {
 		if (sched_strict &&
 		    nke->ke_thread->td_priority < td->td_priority)
 			td->td_flags |= TDF_NEEDRESCHED;
@@ -1159,7 +1165,7 @@ sched_userret(struct thread *td)
 #else
 		    kseq->ksq_load > 1 &&
 #endif
-		    (ke = kseq_choose(kseq)) != NULL &&
+		    (ke = kseq_choose(kseq, 0)) != NULL &&
 		    ke->ke_thread->td_priority < td->td_priority)
 			curthread->td_flags |= TDF_NEEDRESCHED;
 		mtx_unlock_spin(&sched_lock);
@@ -1177,7 +1183,7 @@ sched_choose(void)
 retry:
 #endif
 	kseq = KSEQ_SELF();
-	ke = kseq_choose(kseq);
+	ke = kseq_choose(kseq, 0);
 	if (ke) {
 		runq_remove(ke->ke_runq, ke);
 		ke->ke_state = KES_THREAD;
