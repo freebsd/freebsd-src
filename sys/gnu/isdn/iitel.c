@@ -1,6 +1,6 @@
-static char     _itelid[] = "@(#)$Id: iitel.c,v 1.11 1995/12/17 21:17:44 phk Exp $";
+static char     _itelid[] = "@(#)$Id: iitel.c,v 1.12 1996/03/28 14:27:51 scrappy Exp $";
 /*******************************************************************************
- *  II - Version 0.1 $Revision: 1.11 $   $State: Exp $
+ *  II - Version 0.1 $Revision: 1.12 $   $State: Exp $
  *
  * Copyright 1994 Dietmar Friede
  *******************************************************************************
@@ -201,7 +201,7 @@ itelread(dev_t dev, struct uio * uio, int ioflag)
 	while((itel->ilen == 0) && (itel->state & CONNECT))
 	{
 		itel->state |= READ_WAIT;
-                sleep((caddr_t) itel->ibuf, PZERO | PCATCH);
+                tsleep((caddr_t) itel->ibuf, PZERO | PCATCH, "itelrd", 0);
 	}
 
 	x = splhigh();
@@ -227,7 +227,7 @@ itelwrite(dev_t dev, struct uio * uio, int ioflag)
 	while(itel->olen  && (itel->state & CONNECT))
 	{
 		itel->state |= WRITE_WAIT;
-                sleep((caddr_t) itel->obuf, PZERO | PCATCH);
+                tsleep((caddr_t) itel->obuf, PZERO | PCATCH, "itelwr", 0);
 	}
 
 	x = splhigh();
