@@ -138,7 +138,6 @@ struct denode {
 	struct denode *de_next;	/* Hash chain forward */
 	struct denode **de_prev; /* Hash chain back */
 	struct vnode *de_vnode;	/* addr of vnode we are part of */
-	struct vnode *de_devvp;	/* vnode of blk dev we live on */
 	u_long de_flag;		/* flag bits */
 	struct cdev *de_dev;	/* device where direntry lives */
 	u_long de_dirclust;	/* cluster of the directory file containing this entry */
