@@ -39,8 +39,6 @@ MLINKS+=	rpc_xdr.3 xdr_accepted_reply.3 \
 		xdr.3 xdr_setpos.3 \
 		xdr.3 xdr_short.3 \
 		xdr.3 xdrstdio_create.3 \
-		xdr.3 xdr_short.3 \
-		xdr.3 xdrstdio_create.3 \
 		xdr.3 xdr_string.3 \
 		xdr.3 xdr_u_char.3 \
 		xdr.3 xdr_u_long.3 \
