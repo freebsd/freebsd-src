@@ -1,6 +1,6 @@
 /**************************************************************************
 **
-**  $Id: pcibus.c,v 1.16 1995/10/09 21:56:24 se Exp $
+**  $Id: pcibus.c,v 1.17 1995/10/15 23:43:08 se Exp $
 **
 **  pci bus subroutines for i386 architecture.
 **
@@ -146,7 +146,8 @@ DATA_SET (pcibus_set, i386pci);
 
 #define CONF1_ENABLE       0x80000000ul
 #define CONF1_ENABLE_CHK   0x80000000ul
-#define CONF1_ENABLE_CHK1  0xFF000001ul
+#define CONF1_ENABLE_MSK   0x00ff07fful
+#define CONF1_ENABLE_CHK1  0xff000001ul
 #define CONF1_ENABLE_MSK1  0x80000001ul
 #define CONF1_ENABLE_RES1  0x80000000ul
 
@@ -187,7 +188,7 @@ pcibus_setup (void)
 	oldval1 = inl (CONF1_ADDR_PORT);
 
 	if (bootverbose) {
-		printf ("pcibus_setup(1):\tmode1 addr port (0x0cf8) is 0x%08lx\n", oldval1);
+		printf ("pcibus_setup(1):\tmode 1 addr port (0x0cf8) is 0x%08lx\n", oldval1);
 	}
 
 	/*---------------------------------------
@@ -195,7 +196,7 @@ pcibus_setup (void)
 	**---------------------------------------
 	*/
 
-	if ((oldval1 & CONF1_ENABLE) == 0) {
+	if ((oldval1 & CONF1_ENABLE_MSK) == 0) {
 
 		pci_mechanism = 1;
 		pci_maxdevice = 32;
