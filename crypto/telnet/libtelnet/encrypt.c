@@ -63,6 +63,7 @@ static const char sccsid[] = "@(#)encrypt.c	8.2 (Berkeley) 5/30/95";
 
 #ifdef	ENCRYPTION
 
+#include <sys/types.h>
 #define	ENCRYPT_NAMES
 #include <arpa/telnet.h>
 #include <stdio.h>
@@ -99,20 +100,20 @@ static const char *Name = "Noname";
 
 #define	typemask(x)	((x) > 0 ? 1 << ((x)-1) : 0)
 
-static long i_support_encrypt = 0
+static u_long i_support_encrypt = 0
  | typemask(ENCTYPE_DES_CFB64) | typemask(ENCTYPE_DES_OFB64)
  |0;
-static long i_support_decrypt = 0
+static u_long i_support_decrypt = 0
  | typemask(ENCTYPE_DES_CFB64) | typemask(ENCTYPE_DES_OFB64)
  |0;
 
-static long i_wont_support_encrypt = 0;
-static long i_wont_support_decrypt = 0;
+static u_long i_wont_support_encrypt = 0;
+static u_long i_wont_support_decrypt = 0;
 #define	I_SUPPORT_ENCRYPT	(i_support_encrypt & ~i_wont_support_encrypt)
 #define	I_SUPPORT_DECRYPT	(i_support_decrypt & ~i_wont_support_decrypt)
 
-static long remote_supports_encrypt = 0;
-static long remote_supports_decrypt = 0;
+static u_long remote_supports_encrypt = 0;
+static u_long remote_supports_decrypt = 0;
 
 static Encryptions encryptions[] = {
     { "DES_CFB64",	ENCTYPE_DES_CFB64,
