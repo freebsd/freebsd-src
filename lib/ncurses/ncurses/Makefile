@@ -318,7 +318,7 @@ term.h:		MKterm.h.awk edit_cfg.sh Caps
 
 curses.h:	curses.head MKkey_defs.sh Caps
 	cat curses.head > $@.new
-	AWK=${AWK} sh ${NCURSES}/include/MKkey_defs.sh \
+	AWK=${AWK} _POSIX2_VERSION=199209 sh ${NCURSES}/include/MKkey_defs.sh \
 	    ${NCURSES}/include/Caps >> $@.new
 	cat ${NCURSES}/include/curses.tail >> $@.new
 	mv -f $@.new $@
