@@ -640,13 +640,30 @@ fdc_probe(device_t dev)
 	fdc->portt = rman_get_bustag(fdc->res_ioport);
 	fdc->porth = rman_get_bushandle(fdc->res_ioport);
 
+	/*
+	 * Some bios' report the device at 0x3f2-0x3f5,0x3f7 and some at
+	 * 0x3f0-0x3f5,0x3f7. We detect the former by checking the size
+	 * and adjust the port address accordingly.
+	 *
+	 * And some (!!) report 0x3f2-0x3f5 and completely leave out the
+	 * control register!  It seems that some non-antique controller chips
+	 * have a different method of programming the transfer speed which
+	 * doesn't require the control register, but it's mighty bogus as the
+	 * chip still responds to the address for the control register.
+	 * This hack is truely evil as we use the 6th port in a 4-port chunk.
+	 */
+	/* 0x3f2-0x3f5 */
+	if (bus_get_resource_count(dev, SYS_RES_IOPORT, 0) == 4 &&
+	    bus_get_resource_count(dev, SYS_RES_IOPORT, 1) == 0) {
+		fdc->port_off = -2;
+		ispnp = 0;	/* hack, don't reserve second port chunk */
+	}
+	/* 0x3f0-0x3f5 */
+	if (bus_get_resource_count(dev, SYS_RES_IOPORT, 0) == 6 &&
+	    bus_get_resource_count(dev, SYS_RES_IOPORT, 1) == 0) {
+		ispnp = 0;	/* hack, don't reserve second port chunk */
+	}
 	if (ispnp) {
-		/*
-		 * Some bios' report the device at 0x3f2-0x3f5,0x3f7
-		 * and some at 0x3f0-0x3f5,0x3f7. We detect the former 
-		 * by checking the size and adjust the port address
-		 * accordingly.
-		 */
 		if (bus_get_resource_count(dev, SYS_RES_IOPORT, 0) == 4)
 			fdc->port_off = -2;
 		fdc->flags |= FDC_ISPNP;
