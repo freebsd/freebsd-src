@@ -9,7 +9,7 @@
  * Copyright (C) 1993  Hannu Savolainen
  * Ported to 386bsd by Serge Vakulenko
  * based on tools/build.c by Linus Torvalds
- * $Id: kzip.c,v 1.2 1995/04/25 05:27:04 phk Exp $
+ * $Id: kzip.c,v 1.4 1995/10/06 02:42:15 peter Exp $
  *
  */
 
@@ -18,6 +18,8 @@
 #include <unistd.h>
 #include <sys/file.h>
 #include <sys/types.h>
+#include <sys/stat.h>
+#include <sys/param.h>
 #include <sys/wait.h>
 #include <a.out.h>
 #include <string.h>
@@ -26,29 +28,81 @@
 	/* This is the limit because a kzip'ed kernel loads at 3Mb and
 	 * ends up at 1Mb
 	 */
+void
+Usage(char *prog)
+{
+	fprintf(stderr,"usage:\n\t%s [ -l loadaddr] kernel\n", prog);
+	exit(1);
+}
 
 int
 main(int argc, char **argv)
 {
 	pid_t Pext, Pgzip, Ppiggy, Pld;
 	int pipe1[2], pipe2[2];
-	int status,fdi,fdo;
+	int status, fdi, fdo, fdn, c, verbose;
+	int size;
+	struct exec hdr;
+	int zip_size, offset;
+	struct stat st;
+	u_long forceaddr = 0, addr, entry;
+	char *kernname;
 	char obj[BUFSIZ];
 	char out[BUFSIZ];
-
-	if(argc != 2) {
-		fprintf(stderr,"usage:\n\t%s kernel\n",argv[0]);
-		return 2;
+	char base[32];
+	
+	while ((c = getopt(argc, argv, "l:v")) != EOF) {
+		switch (c) {
+		case 'l':
+			forceaddr = strtoul(optarg, NULL, 0);
+			if (forceaddr == 0) {
+				fprintf(stderr, "Invalid load address!\n");
+				exit(1);
+			}
+			break;
+		case 'v':
+			verbose++;
+			break;
+		default:
+			Usage(argv[0]);
+			break;
+		}
 	}
 
-	strcpy(obj,argv[1]); strcat(obj,".o");
-	strcpy(out,argv[1]); strcat(out,".kz");
+	if ((argc - optind) != 1)
+		Usage(argv[0]);
 
-	fdi = open(argv[1],O_RDONLY);
+	argc -= optind;
+	argv += optind;
+
+	kernname = argv[0];
+			
+	strcpy(obj, kernname); strcat(obj,".o");
+	strcpy(out, kernname); strcat(out,".kz");
+
+	fdi = open(kernname ,O_RDONLY);
 	if(fdi<0) {
-		perror(argv[1]);
+		perror(kernname);
 		return 2;
 	}
+
+	/* figure out how big the uncompressed image will be */
+	if (read (fdi, (char *)&hdr, sizeof(hdr)) != sizeof(hdr)) {
+		perror(argv[1]);
+		exit(2);
+	}
+
+	size = hdr.a_text + hdr.a_data + hdr.a_bss;
+	entry = hdr.a_entry - 0xf0000000;	/* replace KZBASE */
+
+	lseek (fdi, 0, SEEK_SET);
+
+	if (verbose) {
+		printf("real kernel start address will be: 0x%x\n", entry);
+		printf("real kernel end   address will be: 0x%x\n", entry+size);
+	}
+
+
 	fdo = open(obj,O_WRONLY|O_TRUNC|O_CREAT,0666);
 	if(fdo<0) {
 		perror(obj);
@@ -67,7 +121,7 @@ main(int argc, char **argv)
 		close(pipe1[0]); close(pipe1[1]);
 		close(pipe2[0]); close(pipe2[1]);
 		close(fdi); close(fdo);
-		extract(argv[1]);
+		extract(kernname);
 		exit(0);
 	}
 
@@ -123,6 +177,19 @@ main(int argc, char **argv)
 		return 3;
 	}
 
+	if (forceaddr)
+		offset = forceaddr;
+	else {
+		/* a kludge to dynamically figure out where to start it */
+		if (stat (obj, &st) < 0) {
+			perror("cannot get size of compressed data");
+			return 3;
+		}
+		zip_size = (int)st.st_size;
+		offset = entry + size - zip_size + 0x8000; /* fudge factor */
+	}
+	sprintf(base, "0x%x", roundup(offset, 4096));
+
 	Pld = fork();
 	if (Pld < 0) { perror("fork()"); return 1; }
 	if (!Pld) {
@@ -131,11 +198,12 @@ main(int argc, char **argv)
 			"-Bstatic",
 			"-Z",
 			"-T",
-			KZBASE,
+			base,
 			"-o",
 			out,
-			"/usr/lib/kzip.o",
+			"/usr/lib/kzhead.o",
 			obj,
+			"/usr/lib/kztail.o",
 			0);
 		exit(2);
 	}
@@ -146,6 +214,27 @@ main(int argc, char **argv)
 	if(status) {
 		fprintf(stderr,"ld returned %x\n",status);
 		return 3;
+	}
+
+	if (verbose) {
+
+		fdn = open(obj ,O_RDONLY);
+		if(fdn<0) {
+			perror(obj);
+			return 3;
+		}
+
+		/* figure out how big the compressed image is */
+		if (read (fdn, (char *)&hdr, sizeof(hdr)) != sizeof(hdr)) {
+			perror(obj);
+			return 3;
+		}
+		close(fdn);
+
+		size = hdr.a_text + hdr.a_data + hdr.a_bss;
+
+		printf("kzip data   start address will be: 0x%x\n",offset);
+		printf("kzip data   end   address will be: 0x%x\n",offset+size);
 	}
 
 	unlink(obj);
