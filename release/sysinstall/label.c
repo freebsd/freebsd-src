@@ -904,6 +904,28 @@ diskLabel(Device *dev)
 		    clear_wins();
 		    break;
 		}
+
+#ifdef __alpha__
+		/*
+		 * SRM requires that the root partition is at the
+		 * begining of the disk and cannot boot otherwise. 
+		 * Warn Alpha users if they are about to shoot themselves in
+		 * the foot in this way.
+		 *
+		 * Since partitions may not start precisely at offset 0 we
+		 * check for a "close to 0" instead. :-(
+		 */
+		if ((flags & CHUNK_IS_ROOT) && (tmp->offset > 1024)) {
+		    msgConfirm("Your root partition `a' does not seem to be the first\n"
+			       "partition.  The Alpha's firmware can only boot from the\n"
+			       "first partition.  So it is unlikely that your current\n"
+			       "disk layout will be bootable boot after installation.\n"
+			       "\n"
+			       "Please allocate the root partition before allocating\n"
+			       "any others.\n");
+		}
+#endif	/* alpha */
+
 		if (type != PART_SWAP) {
 		    /* This is needed to tell the newfs -u about the size */
 		    tmp->private_data = new_part(p->mountpoint, p->newfs, tmp->size);
