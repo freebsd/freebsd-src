@@ -502,18 +502,6 @@ as.
 Comma separated list of supplementary groups to run the chrooted
 .Sy command
 with.
-.It Sy ${name}_systrace
-Flags passed to
-.Xr systrace 1 ,
-if it is used.
-Setting this variable enables systracing
-of the given program.  The use of
-.Sq -a
-is
-recommended so that the boot process is not
-stalled.  In order to pass no flags to
-systrace, set this variable to
-.Sq -- .
 .It Ar argument Ns Sy _cmd
 Shell commands which override the default method for
 .Ar argument .
