@@ -114,13 +114,19 @@ static int nsems = 0;
 SYSCTL_DECL(_p1003_1b);
 SYSCTL_INT(_p1003_1b, OID_AUTO, nsems, CTLFLAG_RD, &nsems, 0, "");
 
+#ifdef SEM_DEBUG
+#define DP(x)	printf x
+#else
+#define DP(x)
+#endif
+
 static __inline
 void
 sem_ref(struct ksem *ks)
 {
 
 	ks->ks_ref++;
-	printf("sem_ref: ks = %p, ref = %d\n", ks, ks->ks_ref);
+	DP(("sem_ref: ks = %p, ref = %d\n", ks, ks->ks_ref));
 }
 
 static __inline
@@ -128,7 +134,7 @@ void
 sem_rel(struct ksem *ks)
 {
 
-	printf("sem_rel: ks = %p, ref = %d\n", ks, ks->ks_ref - 1);
+	DP(("sem_rel: ks = %p, ref = %d\n", ks, ks->ks_ref - 1));
 	if (--ks->ks_ref == 0)
 		sem_free(ks);
 }
@@ -142,9 +148,9 @@ id_to_sem(id)
 {
 	struct ksem *ks;
 
-	printf("id_to_sem: id = %0x,%p\n", id, (struct ksem *)id);
+	DP(("id_to_sem: id = %0x,%p\n", id, (struct ksem *)id));
 	LIST_FOREACH(ks, &ksem_head, ks_entry) {
-		printf("id_to_sem: ks = %p\n", ks);
+		DP(("id_to_sem: ks = %p\n", ks));
 		if (ks == (struct ksem *)id)
 			return (ks);
 	}
@@ -177,7 +183,7 @@ sem_create(td, name, ksret, mode, value)
 	size_t len;
 	int error;
 
-	printf("sem_create\n");
+	DP(("sem_create\n"));
 	p = td->td_proc;
 	uc = p->p_ucred;
 	if (value > SEM_VALUE_MAX)
@@ -297,10 +303,10 @@ ksem_open(td, uap)
 	error = copyinstr(uap->name, name, SEM_MAX_NAMELEN + 1, &done);
 	if (error)
 		return (error);
-	printf(">>> sem_open start\n");
+	DP((">>> sem_open start\n"));
 	error = kern_sem_open(td, UIO_USERSPACE,
 	    name, uap->oflag, uap->mode, uap->value, uap->idp);
-	printf("<<< sem_open end\n");
+	DP(("<<< sem_open end\n"));
 	return (error);
 }
 
@@ -348,7 +354,7 @@ kern_sem_open(td, dir, name, oflag, mode, value, idp)
 			return (error);
 		id = SEM_TO_ID(ksnew);
 		if (dir == UIO_USERSPACE) {
-			printf("about to copyout! %d to %p\n", id, idp);
+			DP(("about to copyout! %d to %p\n", id, idp));
 			error = copyout(&id, idp, sizeof(id));
 			if (error) {
 				mtx_lock(&sem_lock);
@@ -358,7 +364,7 @@ kern_sem_open(td, dir, name, oflag, mode, value, idp)
 				return (error);
 			}
 		} else {
-			printf("about to set! %d to %p\n", id, idp);
+			DP(("about to set! %d to %p\n", id, idp));
 			*idp = id;
 		}
 		/*
@@ -377,11 +383,11 @@ kern_sem_open(td, dir, name, oflag, mode, value, idp)
 				return (EEXIST);
 			}
 		} else {
-			printf("sem_create: about to add to list...\n");
+			DP(("sem_create: about to add to list...\n"));
 			LIST_INSERT_HEAD(&ksem_head, ksnew, ks_entry); 
-			printf("sem_create: setting list bit...\n");
+			DP(("sem_create: setting list bit...\n"));
 			ksnew->ks_onlist = 1;
-			printf("sem_create: done, about to unlock...\n");
+			DP(("sem_create: done, about to unlock...\n"));
 		}
 		mtx_unlock(&sem_lock);
 	} else {
@@ -422,9 +428,9 @@ sem_perm(p, ks)
 	struct ucred *uc;
 
 	uc = p->p_ucred;
-	printf("sem_perm: uc(%d,%d) ks(%d,%d,%o)\n",
+	DP(("sem_perm: uc(%d,%d) ks(%d,%d,%o)\n",
 	    uc->cr_uid, uc->cr_gid,
-	     ks->ks_uid, ks->ks_gid, ks->ks_mode);
+	     ks->ks_uid, ks->ks_gid, ks->ks_mode));
 	if ((uc->cr_uid == ks->ks_uid && (ks->ks_mode & S_IWUSR) != 0) ||
 	    (uc->cr_gid == ks->ks_gid && (ks->ks_mode & S_IWGRP) != 0) ||
 	    (ks->ks_mode & S_IWOTH) != 0 || suser_cred(uc, 0) == 0)
@@ -477,15 +483,15 @@ sem_leave(p, ks)
 {
 	struct kuser *k;
 
-	printf("sem_leave: ks = %p\n", ks);
+	DP(("sem_leave: ks = %p\n", ks));
 	k = sem_getuser(p, ks);
-	printf("sem_leave: ks = %p, k = %p\n", ks, k);
+	DP(("sem_leave: ks = %p, k = %p\n", ks, k));
 	if (k != NULL) {
 		LIST_REMOVE(k, ku_next);
 		sem_rel(ks);
-		printf("sem_leave: about to free k\n");
+		DP(("sem_leave: about to free k\n"));
 		free(k, M_SEM);
-		printf("sem_leave: returning\n");
+		DP(("sem_leave: returning\n"));
 		return (0);
 	}
 	return (-1);
@@ -547,7 +553,7 @@ kern_sem_unlink(td, name)
 		error = ENOENT;
 	else
 		error = sem_perm(td->td_proc, ks);
-	printf("sem_unlink: '%s' ks = %p, error = %d\n", name, ks, error);
+	DP(("sem_unlink: '%s' ks = %p, error = %d\n", name, ks, error));
 	if (error == 0) {
 		LIST_REMOVE(ks, ks_entry);
 		LIST_INSERT_HEAD(&ksem_deadhead, ks, ks_entry); 
@@ -671,21 +677,21 @@ kern_sem_wait(td, id, tryflag)
 	struct ksem *ks;
 	int error;
 
-	printf(">>> kern_sem_wait entered!\n");
+	DP((">>> kern_sem_wait entered!\n"));
 	mtx_lock(&sem_lock);
 	ks = ID_TO_SEM(id);
 	if (ks == NULL) {
-		printf("kern_sem_wait ks == NULL\n");
+		DP(("kern_sem_wait ks == NULL\n"));
 		error = EINVAL;
 		goto err;
 	}
 	sem_ref(ks);
 	if (!sem_hasopen(td->td_proc, ks)) {
-		printf("kern_sem_wait hasopen failed\n");
+		DP(("kern_sem_wait hasopen failed\n"));
 		error = EINVAL;
 		goto err;
 	}
-	printf("kern_sem_wait value = %d, tryflag %d\n", ks->ks_value, tryflag);
+	DP(("kern_sem_wait value = %d, tryflag %d\n", ks->ks_value, tryflag));
 	if (ks->ks_value == 0) {
 		ks->ks_waiters++;
 		error = tryflag ? EAGAIN : cv_wait_sig(&ks->ks_cv, &sem_lock);
@@ -699,7 +705,7 @@ err:
 	if (ks != NULL)
 		sem_rel(ks);
 	mtx_unlock(&sem_lock);
-	printf("<<< kern_sem_wait leaving, error = %d\n", error);
+	DP(("<<< kern_sem_wait leaving, error = %d\n", error));
 	return (error);
 }
 
