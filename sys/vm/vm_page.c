@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)vm_page.c	7.4 (Berkeley) 5/7/91
- *	$Id: vm_page.c,v 1.6 1994/09/27 18:00:27 davidg Exp $
+ *	$Id: vm_page.c,v 1.7 1994/09/27 19:34:16 davidg Exp $
  */
 
 /*
@@ -605,7 +605,7 @@ again:
 	 * Find first page in array that is free, within range, and aligned.
 	 */
 	for (i = start; i < cnt.v_page_count; i++) {
-		phys = pga[i].phys_addr;
+		phys = VM_PAGE_TO_PHYS(&pga[i]);
 		if (((pga[i].flags & PG_FREE) == PG_FREE) &&
 		    (phys >= low) && (phys < high) &&
 		    ((phys & (alignment - 1)) == 0))
@@ -615,7 +615,7 @@ again:
 	/*
 	 * If the above failed or we will exceed the upper bound, fail.
 	 */
-	if ((i == cnt.v_page_count) || ((pga[i].phys_addr + size) > high)) {
+	if ((i == cnt.v_page_count) || ((VM_PAGE_TO_PHYS(&pga[i]) + size) > high)) {
 		splx(s);
 		return (NULL);
 	}
@@ -626,8 +626,8 @@ again:
 	 * Check successive pages for contiguous and free.
 	 */
 	for (i = start + 1; i < (start + size / PAGE_SIZE); i++) {
-		if ((pga[i].phys_addr !=
-		    (pga[i - 1].phys_addr + PAGE_SIZE)) ||
+		if ((VM_PAGE_TO_PHYS(&pga[i]) !=
+		    (VM_PAGE_TO_PHYS(&pga[i - 1]) + PAGE_SIZE)) ||
 		    ((pga[i].flags & PG_FREE) != PG_FREE)) {
 			start++;
 			goto again;
@@ -646,7 +646,7 @@ again:
 		cnt.v_free_count--;
 		vm_page_wire(&pga[i]);
 		pga[i].flags = PG_CLEAN; /* shut off PG_FREE and any other flags */
-		pmap_kenter(tmp_addr, pga[start].phys_addr);
+		pmap_kenter(tmp_addr, VM_PAGE_TO_PHYS(&pga[i]));
 		tmp_addr += PAGE_SIZE;
 	}
 	
