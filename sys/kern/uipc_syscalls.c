@@ -1354,6 +1354,10 @@ getsockname1(td, uap, compat)
 	error = copyin(uap->alen, &len, sizeof (len));
 	if (error)
 		goto done1;
+	if (len < 0) {
+		error = EINVAL;
+		goto done1;
+	}
 	sa = 0;
 	error = (*so->so_proto->pr_usrreqs->pru_sockaddr)(so, &sa);
 	if (error)
@@ -1438,6 +1442,10 @@ getpeername1(td, uap, compat)
 	error = copyin(uap->alen, &len, sizeof (len));
 	if (error)
 		goto done1;
+	if (len < 0) {
+		error = EINVAL;
+		goto done1;
+	}
 	sa = 0;
 	error = (*so->so_proto->pr_usrreqs->pru_peeraddr)(so, &sa);
 	if (error)
