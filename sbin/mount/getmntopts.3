@@ -62,7 +62,7 @@ or
 .Dv m_altloc
 field of the option's table entry)
 are updated.
-The flag word is not initialized by
+The flag words are not initialized by
 .Nm getmntopt .
 The table,
 .Dv mopts ,
@@ -70,8 +70,8 @@ has the following format:
 .Bd -literal
 struct mntopt {
 	char *m_option;		/* option name */
-	int m_inverse;		/* is this a negative option, eg "dev" */
-	int m_flag;		/* bit to set, eg MNT_RDONLY */
+	int m_inverse;		/* is this a negative option, e.g. "dev" */
+	int m_flag;		/* bit to set, e.g. MNT_RDONLY */
 	int m_altloc;		/* non-zero to use altflagp rather than flagp */
 };
 .Ed

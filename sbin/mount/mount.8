@@ -30,7 +30,7 @@
 .\" SUCH DAMAGE.
 .\"
 .\"     @(#)mount.8	8.7 (Berkeley) 3/27/94
-.\"	$Id: mount.8,v 1.11.2.3 1997/12/01 00:47:09 steve Exp $
+.\"	$Id: mount.8,v 1.11.2.4 1998/07/20 02:33:46 jkoshy Exp $
 .\"
 .Dd March 27, 1994
 .Dt MOUNT 8
@@ -70,7 +70,7 @@ file.
 .Pp
 The system maintains a list of currently mounted file systems.
 If no arguments are given to
-.Nm mount,
+.Nm mount ,
 this list is printed.
 .Pp
 The options are as follows:
@@ -163,7 +163,9 @@ distinguished by a leading
 .Dq \&-
 (dash).
 Options that take a value are specified using the syntax -option=value.
-For example, the mount command:
+For example, the
+.Nm
+command:
 .Bd -literal -offset indent
 mount -t mfs -o nosuid,-N,-s=4000 /dev/dk0b /tmp
 .Ed
@@ -217,7 +219,8 @@ and
 .Tn MFS .
 .Pp
 If the type is not one of the internally known types,
-mount will attempt to execute a program in
+.Nm
+will attempt to execute a program in
 .Pa /sbin/mount_ Ns Em XXX
 where
 .Em XXX
@@ -255,7 +258,7 @@ files on the filesystem are currently open for writing unless the
 flag is also specified.
 The set of options is determined by first extracting the options
 for the file system from the
-.Xr fstab
+.Xr fstab 5
 table,
 then applying any options specified by the
 .Fl o
