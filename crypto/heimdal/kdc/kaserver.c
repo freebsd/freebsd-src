@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997, 1998, 1999 Kungliga Tekniska Högskolan
+ * Copyright (c) 1997 - 2000 Kungliga Tekniska Högskolan
  * (Royal Institute of Technology, Stockholm, Sweden). 
  * All rights reserved. 
  *
@@ -33,7 +33,7 @@
 
 #include "kdc_locl.h"
 
-RCSID("$Id: kaserver.c,v 1.9 1999/12/02 17:04:59 joda Exp $");
+RCSID("$Id: kaserver.c,v 1.10 2000/02/13 19:21:22 assar Exp $");
 
 #ifdef KASERVER
 
@@ -468,7 +468,7 @@ do_authenticate (struct rx_header *hdr,
 
     create_reply_ticket (hdr, skey,
 			 name, instance, v4_realm,
-			 addr, life, client_entry->kvno,
+			 addr, life, server_entry->kvno,
 			 max_seq_len,
 			 "krbtgt", v4_realm,
 			 chal + 1, "tgsT",

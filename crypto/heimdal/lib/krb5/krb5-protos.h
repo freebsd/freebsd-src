@@ -449,6 +449,13 @@ krb5_change_password __P((
 	krb5_data *result_code_string,
 	krb5_data *result_string));
 
+krb5_error_code
+krb5_check_transited_realms __P((
+	krb5_context context,
+	const char *const *realms,
+	int num_realms,
+	int *bad_realm));
+
 krb5_boolean
 krb5_checksum_is_collision_proof __P((
 	krb5_context context,
@@ -1948,7 +1955,7 @@ krb5_set_default_realm __P((
 krb5_error_code
 krb5_set_extra_addresses __P((
 	krb5_context context,
-	krb5_addresses *addresses));
+	const krb5_addresses *addresses));
 
 krb5_error_code
 krb5_set_fcache_version __P((

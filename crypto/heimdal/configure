@@ -1,6 +1,6 @@
 #! /bin/sh
 
-# From configure.in Revision: 1.216 
+# From configure.in Revision: 1.217 
 
 
 
@@ -911,7 +911,7 @@ fi
 
 PACKAGE=heimdal
 
-VERSION=0.2n
+VERSION=0.2o
 
 if test "`cd $srcdir && pwd`" != "`pwd`" && test -f $srcdir/config.status; then
   { echo "configure: error: source directory already configured; run "make distclean" there first" 1>&2; exit 1; }

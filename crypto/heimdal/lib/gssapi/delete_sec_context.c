@@ -33,7 +33,7 @@
 
 #include "gssapi_locl.h"
 
-RCSID("$Id: delete_sec_context.c,v 1.6 2000/01/26 00:45:46 assar Exp $");
+RCSID("$Id: delete_sec_context.c,v 1.7 2000/02/11 23:00:48 assar Exp $");
 
 OM_uint32 gss_delete_sec_context
            (OM_uint32 * minor_status,
@@ -60,5 +60,6 @@ OM_uint32 gss_delete_sec_context
     krb5_free_ticket (gssapi_krb5_context,
 		      (*context_handle)->ticket);
   free (*context_handle);
+  *context_handle = GSS_C_NO_CONTEXT;
   return GSS_S_COMPLETE;
 }

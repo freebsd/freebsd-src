@@ -1,11 +1,11 @@
-# $Id: Makefile.am,v 1.19 2000/02/07 04:00:51 assar Exp $
+# $Id: Makefile.am,v 1.21 2000/02/13 20:34:49 assar Exp $
 
 include $(top_srcdir)/Makefile.am.common
 
 INCLUDES += -I$(srcdir)/../krb5
 
 lib_LTLIBRARIES = libgssapi.la
-libgssapi_la_LDFLAGS = -version-info 0:5:0
+libgssapi_la_LDFLAGS = -version-info 1:0:1
 
 include_HEADERS = gssapi.h
 
@@ -24,12 +24,14 @@ libgssapi_la_SOURCES =		\
 	display_status.c	\
 	duplicate_name.c	\
 	encapsulate.c		\
+	export_sec_context.c	\
 	export_name.c		\
 	external.c		\
 	get_mic.c		\
 	gssapi.h		\
 	gssapi_locl.h		\
 	import_name.c		\
+	import_sec_context.c	\
 	indicate_mechs.c	\
 	init.c			\
 	init_sec_context.c	\

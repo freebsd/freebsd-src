@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997 - 1999 Kungliga Tekniska Högskolan
+ * Copyright (c) 1997 - 2000 Kungliga Tekniska Högskolan
  * (Royal Institute of Technology, Stockholm, Sweden). 
  * All rights reserved. 
  *
@@ -31,7 +31,7 @@
  * SUCH DAMAGE. 
  */
 
-/* $Id: test_locl.h,v 1.7 1999/12/04 18:17:07 assar Exp $ */
+/* $Id: test_locl.h,v 1.8 2000/02/14 02:52:55 assar Exp $ */
 
 #ifdef HAVE_CONFIG_H
 #include <config.h>
@@ -79,6 +79,7 @@
 #define PORT "test"
 
 extern char *service;
+extern int fork_flag;
 int server_setup(krb5_context*, int, char**);
 int client_setup(krb5_context*, int*, char**);
 int client_doit (const char *hostname, int port, const char *service,

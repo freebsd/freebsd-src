@@ -33,7 +33,7 @@
 
 #include "telnet_locl.h"
 
-RCSID("$Id: commands.c,v 1.59 2000/01/08 08:04:16 assar Exp $");
+RCSID("$Id: commands.c,v 1.60 2000/02/12 16:00:07 assar Exp $");
 
 #if	defined(IPPROTO_IP) && defined(IP_TOS)
 int tos = -1;
@@ -2201,7 +2201,7 @@ tn(int argc, char **argv)
 		perror("setsockopt (IP_OPTIONS)");
 #endif
 #if	defined(IPPROTO_IP) && defined(IP_TOS)
-	    {
+	    if (a->ai_family == AF_INET) {
 # if	defined(HAVE_GETTOSBYNAME)
 		struct tosent *tp;
 		if (tos < 0 && (tp = gettosbyname("telnet", "tcp")))
