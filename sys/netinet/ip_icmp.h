@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)ip_icmp.h	8.1 (Berkeley) 6/10/93
- * $Id$
+ * $Id: ip_icmp.h,v 1.11 1997/02/22 09:41:34 peter Exp $
  */
 
 #ifndef _NETINET_IP_ICMP_H_
@@ -99,7 +99,7 @@ struct icmp {
 			/* options and then 64 bits of data */
 		} id_ip;
 		struct icmp_ra_addr id_radv;
-		u_long	id_mask;
+		u_int32_t id_mask;
 		char	id_data[1];
 	} icmp_dun;
 #define	icmp_otime	icmp_dun.id_ts.its_otime
