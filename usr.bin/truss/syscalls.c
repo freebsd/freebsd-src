@@ -414,7 +414,7 @@ print_arg(int fd, struct syscall_args *sc, unsigned long *args, long retval) {
 	(POLLIN | POLLPRI | POLLOUT | POLLERR | POLLHUP | POLLNVAL | \
 	 POLLRDNORM |POLLRDBAND | POLLWRBAND | POLLINIGNEOF) 
 
-	  u += snprintf(tmp + used, per_fd,
+	  u = snprintf(tmp + used, per_fd,
 	    "%s%d 0x%hx%s%s%s%s%s%s%s%s%s ",
 	    i > 0 ? " " : "",
 	    pfd[i].fd,
