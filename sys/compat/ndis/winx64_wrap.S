@@ -91,7 +91,6 @@
 	.globl x86_64_wrap_end
 
 ENTRY(x86_64_wrap)
-x86_64_wrap:
 	subq	$96,%rsp
 	mov     %rsi,96-8(%rsp)	
 	mov     %rdi,96-16(%rsp)
