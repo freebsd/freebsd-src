@@ -25,7 +25,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *	$Id: linux.h,v 1.23 1998/10/05 16:37:36 jfieber Exp $
+ *	$Id: linux.h,v 1.24 1998/11/12 00:42:08 jkh Exp $
  */
 
 #ifndef _I386_LINUX_LINUX_H_
@@ -418,6 +418,7 @@ struct trapframe;
 #define LINUX_MAP_PRIVATE	0x0002
 #define LINUX_MAP_FIXED		0x0010
 #define LINUX_MAP_ANON		0x0020
+#define LINUX_MAP_GROWSDOWN     0x0100
 
 /* SystemV ipc defines */
 #define LINUX_SEMOP		1

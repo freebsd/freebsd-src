@@ -1,4 +1,4 @@
-	$Id: syscalls.master,v 1.11 1998/06/09 03:28:14 bde Exp $
+	$Id: syscalls.master,v 1.12 1998/07/10 22:30:08 jkh Exp $
 
 ;	@(#)syscalls.master	8.1 (Berkeley) 7/19/93
 ; System call name/number master file (or rather, slave, from LINUX).
@@ -171,7 +171,7 @@
 			    caddr_t ptr); }
 118	NOPROTO	LINUX	{ int fsync(int fd); }
 119	STD	LINUX	{ int linux_sigreturn(struct linux_sigcontext *scp); }
-120	STD	LINUX	{ int linux_clone(void); }
+120	STD	LINUX	{ int linux_clone(int flags, void *stack); }
 121	NOPROTO	LINUX	{ int setdomainname(char *name, \
 			    int len); }
 122	STD	LINUX	{ int linux_newuname(struct linux_newuname_t *buf); }

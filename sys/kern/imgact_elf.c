@@ -26,7 +26,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *	$Id: imgact_elf.c,v 1.42 1998/10/25 17:44:50 phk Exp $
+ *	$Id: imgact_elf.c,v 1.43 1998/12/04 22:54:51 archie Exp $
  */
 
 #include "opt_rlimit.h"
@@ -854,7 +854,11 @@ elf_corehdr(p, vp, cred, numsegs, hdr, hdrsize)
 	status.pr_gregsetsz = sizeof(gregset_t);
 	status.pr_fpregsetsz = sizeof(fpregset_t);
 	status.pr_osreldate = osreldate;
+#ifndef COMPAT_LINUX_THREADS
 	status.pr_cursig = p->p_sigacts->ps_sig;
+#else
+	status.pr_cursig = p->p_sig;
+#endif /* COMPAT_LINUX_THREADS */
 	status.pr_pid = p->p_pid;
 	fill_regs(p, &status.pr_reg);
 
