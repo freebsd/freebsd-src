@@ -210,6 +210,7 @@ static int decimal(char *str, int *num, int deflt);
 static char *get_type(int type);
 static int read_config(char *config_file);
 static void reset_boot(void);
+static int sanitize_partition(struct dos_partition *);
 static void usage(void);
 #if 0
 static int hex(char *str, int *num, int deflt);
@@ -340,8 +341,8 @@ main(int argc, char *argv[])
 		partp->dp_typ = DOSPTYP_386BSD;
 		partp->dp_flag = ACTIVE;
 		partp->dp_start = dos_sectors;
-		partp->dp_size = ((disksecs - dos_sectors) / dos_cylsecs) *
-			dos_cylsecs;
+		partp->dp_size = (disksecs / dos_cylsecs) * dos_cylsecs -
+		    dos_sectors;
 
 		dos(partp->dp_start, partp->dp_size, 
 		    &partp->dp_scyl, &partp->dp_ssect, &partp->dp_shd);
@@ -384,7 +385,7 @@ main(int argc, char *argv[])
 	    }
 
 	    if (read_s0())
-		init_sector0(1);
+		init_sector0(dos_sectors);
 
 	    printf("Media sector size is %d\n", secsize);
 	    printf("Warning: BIOS sector numbering starts with sector 1\n");
@@ -512,19 +513,16 @@ static void
 init_sector0(unsigned long start)
 {
 struct dos_partition *partp = (struct dos_partition *) (&mboot.parts[3]);
-unsigned long size;
 
 	init_boot();
 
 	partp->dp_typ = DOSPTYP_386BSD;
 	partp->dp_flag = ACTIVE;
-	/* ensure cylinder boundaries */
-	start = (start / dos_sectors) * dos_sectors;
+	start = ((start + dos_sectors - 1) / dos_sectors) * dos_sectors;
 	if(start == 0)
 		start = dos_sectors;
-	size = ((disksecs - start) / dos_cylsecs) * dos_cylsecs;
 	partp->dp_start = start;
-	partp->dp_size = size;
+	partp->dp_size = (disksecs / dos_cylsecs) * dos_cylsecs - start;
 
 	dos(partp->dp_start, partp->dp_size, 
 	    &partp->dp_scyl, &partp->dp_ssect, &partp->dp_shd);
@@ -580,20 +578,8 @@ struct dos_partition *partp = ((struct dos_partition *) &mboot.parts) + i - 1;
 			partp->dp_esect = DOSSECT(tsec,tcyl);
 			partp->dp_ehd = thd;
 		} else {
-			if(partp->dp_start % dos_sectors != 0) {
-				printf("Adjusting partition to start at a "
-				   "cylinder boundary\n");
-				partp->dp_start =
-				    (partp->dp_start / dos_sectors) *
-				    dos_sectors;
-			}
-			if(partp->dp_size % dos_cylsecs != 0) {
-				printf("Adjusting partition to end at a "
-				    "cylinder boundary\n");
-				partp->dp_size =
-				    (partp->dp_size / dos_cylsecs) *
-				    dos_cylsecs;
-			}
+			if (!sanitize_partition(partp))
+				partp->dp_typ = 0;
 			dos(partp->dp_start, partp->dp_size,
 			    &partp->dp_scyl, &partp->dp_ssect, &partp->dp_shd);
 			dos(partp->dp_start + partp->dp_size - 1, partp->dp_size,
@@ -1155,7 +1141,8 @@ process_partition(command)
     CMD		*command;
 {
     int				status = 0, partition;
-    unsigned long		chunks, adj_size, max_end;
+    u_int32_t			prev_head_boundary, prev_cyl_boundary;
+    u_int32_t			adj_size, max_end;
     struct dos_partition	*partp;
 
     while (1)
@@ -1199,51 +1186,53 @@ process_partition(command)
 	 */
 	if (partp->dp_start % dos_sectors != 0)
 	{
-	    adj_size =
-		(partp->dp_start / dos_sectors + 1) * dos_sectors;
-	    if (adj_size > max_end)
+	    prev_head_boundary = partp->dp_start / dos_sectors * dos_sectors;
+	    if (max_end < dos_sectors ||
+		prev_head_boundary > max_end - dos_sectors)
 	    {
 		/*
 		 * Can't go past end of partition
 		 */
 		warnx(
 	"ERROR line %d: unable to adjust start of partition %d to fall on\n\
-    a cylinder boundary",
+    a head boundary",
 			current_line_number, partition);
 		break;
 	    }
 	    warnx(
-	"WARNING: adjusting start offset of partition '%d' from %lu\n\
-    to %lu, to round to an head boundary",
-		    partition, (u_long)partp->dp_start, adj_size);
-	    partp->dp_start = adj_size;
+	"WARNING: adjusting start offset of partition %d\n\
+    from %u to %u, to fall on a head boundary",
+		    partition, (u_int)partp->dp_start,
+		    (u_int)(prev_head_boundary + dos_sectors));
+	    partp->dp_start = prev_head_boundary + dos_sectors;
 	}
 
 	/*
 	 * Adjust size downwards, if necessary, to fall on a cylinder
 	 * boundary.
 	 */
-	chunks =
+	prev_cyl_boundary =
 	    ((partp->dp_start + partp->dp_size) / dos_cylsecs) * dos_cylsecs;
-	adj_size = chunks - partp->dp_start;
+	if (prev_cyl_boundary > partp->dp_start)
+	    adj_size = prev_cyl_boundary - partp->dp_start;
+	else
+	{
+	    warnx(
+	"ERROR: could not adjust partition to start on a head boundary\n\
+    and end on a cylinder boundary.");
+	    return (0);
+	}
 	if (adj_size != partp->dp_size)
 	{
 	    warnx(
-	"WARNING: adjusting size of partition '%d' from %lu to %lu,\n\
-    to round to a cylinder boundary",
-		    partition, (u_long)partp->dp_size, adj_size);
-	    if (chunks > 0)
-	    {
-		partp->dp_size = adj_size;
-	    }
-	    else
-	    {
-		partp->dp_size = 0;
-	    }
+	"WARNING: adjusting size of partition %d from %u to %u\n\
+    to end on a cylinder boundary",
+		    partition, (u_int)partp->dp_size, (u_int)adj_size);
+	    partp->dp_size = adj_size;
 	}
-	if (partp->dp_size < 1)
+	if (partp->dp_size == 0)
 	{
-	    warnx("ERROR line %d: size for partition '%d' is zero",
+	    warnx("ERROR line %d: size for partition %d is zero",
 		    current_line_number, partition);
 	    break;
 	}
@@ -1402,4 +1391,63 @@ reset_boot(void)
 	partp = ((struct dos_partition *) &mboot.parts) + i;
 	bzero((char *)partp, sizeof (struct dos_partition));
     }
+}
+
+static int
+sanitize_partition(partp)
+    struct dos_partition	*partp;
+{
+    u_int32_t			prev_head_boundary, prev_cyl_boundary;
+    u_int32_t			adj_size, max_end;
+
+    max_end = partp->dp_start + partp->dp_size;
+
+    /*
+     * Adjust start upwards, if necessary, to fall on an head boundary.
+     */
+    if (partp->dp_start % dos_sectors != 0) {
+	prev_head_boundary = partp->dp_start / dos_sectors * dos_sectors;
+	if (max_end < dos_sectors ||
+	    prev_head_boundary > max_end - dos_sectors) {
+	    /*
+	     * Can't go past end of partition
+	     */
+	    warnx(
+    "ERROR: unable to adjust start of partition to fall on a head boundary");
+	    return (0);
+        }
+	warnx(
+    "WARNING: adjusting start offset of partition\n\
+    to %u to fall on a head boundary",
+	    (u_int)(prev_head_boundary + dos_sectors));
+	partp->dp_start = prev_head_boundary + dos_sectors;
+    }
+
+    /*
+     * Adjust size downwards, if necessary, to fall on a cylinder
+     * boundary.
+     */
+    prev_cyl_boundary = ((partp->dp_start + partp->dp_size) / dos_cylsecs) *
+	dos_cylsecs;
+    if (prev_cyl_boundary > partp->dp_start)
+	adj_size = prev_cyl_boundary - partp->dp_start;
+    else
+    {
+	warnx("ERROR: could not adjust partition to start on a head boundary\n\
+    and end on a cylinder boundary.");
+	return (0);
+    }
+    if (adj_size != partp->dp_size) {
+	warnx(
+    "WARNING: adjusting size of partition to %u to end on a\n\
+    cylinder boundary",
+	    (u_int)adj_size);
+	partp->dp_size = adj_size;
+    }
+    if (partp->dp_size == 0) {
+	warnx("ERROR: size for partition is zero");
+	return (0);
+    }
+
+    return (1);
 }
