@@ -114,13 +114,20 @@ static u_long htable = 0xF1020;	/* Hard disk table */
 static struct diskinfo diskinfo[26];
 
 static struct diskinfo floppyinfo[] = {
-    {    0,  9,   40,  1, 512, -1, 0, 0, }, /* Probably not correct */
-    {    1,  9,   40,  2, 512, -1, 0, 0, }, 
-    {    2,  9,   80,  2, 512, -1, 0, 0, }, 
-    {    3, 15,   80,  2, 512, -1, 0, 0, }, 
-    {    4, 18,   80,  2, 512, -1, 0, 0, },
-    {    6, 36,   80,  2, 512, -1, 0, 0, },
-    {   -1,  0,    0,  0,   0,  0, 0, 0, },
+    {0,  9, 40, 1, 512, -1, NULL, 0, NULL, 0,
+     {NULL, NULL, NULL, NULL}, 0, 0, 0, 0}, /* Probably not correct */
+    {1,  9, 40, 2, 512, -1, NULL, 0, NULL, 0,
+     {NULL, NULL, NULL, NULL}, 0, 0, 0, 0},
+    {2,  9, 80, 2, 512, -1, NULL, 0, NULL, 0,
+     {NULL, NULL, NULL, NULL}, 0, 0, 0, 0},
+    {3, 15, 80, 2, 512, -1, NULL, 0, NULL, 0,
+     {NULL, NULL, NULL, NULL}, 0, 0, 0, 0},
+    {4, 18, 80, 2, 512, -1, NULL, 0, NULL, 0,
+     {NULL, NULL, NULL, NULL}, 0, 0, 0, 0},
+    {6, 36, 80, 2, 512, -1, NULL, 0, NULL, 0,
+     {NULL, NULL, NULL, NULL}, 0, 0, 0, 0},
+    {-1, 0,  0, 0,   0,  0, NULL, 0, NULL, 0,
+     {NULL, NULL, NULL, NULL}, 0, 0, 0, 0}
 };
 
 static struct diskinfo *

@@ -60,9 +60,9 @@ timer_init(void)
         (((tm.tm_hour * 60 + tm.tm_min) * 60) + tm.tm_sec) * 182 / 10;
 
     itv.it_interval.tv_sec = 0;
-    itv.it_interval.tv_usec = 54925; /* 1193182/65536 times per second */
+    itv.it_interval.tv_usec = 54925;	/* 1193182/65536 times per second */
     itv.it_value.tv_sec = 0;
-    itv.it_value.tv_usec = 54925;	 /* 1193182/65536 times per second */
+    itv.it_value.tv_usec = 54925;	/* 1193182/65536 times per second */
     if (! timer_disable)
         setitimer(ITIMER_REAL, &itv, 0);
 }
