@@ -510,11 +510,11 @@ dev/vinum/vinumrevive.c		optional vinum
 dev/vinum/vinumstate.c		optional vinum
 dev/vinum/vinumutil.c		optional vinum
 dev/vn/vn.c			optional vn
-dev/vx/if_vx.c			count vx
+dev/vx/if_vx.c			optional vx
 dev/vx/if_vx_eisa.c		optional vx eisa
 dev/vx/if_vx_pci.c		optional vx pci
 dev/xe/if_xe.c			optional xe card
-dev/wds/wd7000.c			optional wds isa
+dev/wds/wd7000.c		optional wds isa
 fs/devfs/devfs_vnops.c		optional devfs
 fs/devfs/devfs_vfsops.c		optional devfs
 fs/devfs/devfs_devs.c		optional devfs
