@@ -136,6 +136,34 @@ cmsg_level = IPPROTO_IP
 cmsg_type = IP_RECVDSTADDR
 .Ed
 .Pp
+The source address to be used for outgoing
+.Tn UDP
+datagrams on a socket that is not bound to a specific
+.Tn IP
+address can be specified as ancillary data with a type code of
+.Dv IP_SENDSRCADDR .
+The msg_control field in the msghdr structure should point to a buffer
+that contains a cmsghdr structure followed by the
+.Tn IP
+address.
+The cmsghdr fields should have the following values:
+.Bd -literal
+cmsg_len = sizeof(struct in_addr)
+cmsg_level = IPPROTO_IP
+cmsg_type = IP_SENDSRCADDR
+.Ed
+.Pp
+For convenience,
+.Dv IP_SENDSRCADDR
+is defined to have the same value as
+.Dv IP_RECVDSTADDR ,
+so the
+.Dv IP_RECVDSTADDR
+control message from
+.Xr recvmsg 2
+can be used directly as a control message for
+.Xr sendmsg 2 .
+.Pp
 .Dv IP_PORTRANGE
 may be used to set the port range used for selecting a local port number
 on a socket with an unspecified (zero) port number.
