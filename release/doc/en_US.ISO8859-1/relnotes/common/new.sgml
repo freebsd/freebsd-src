@@ -221,6 +221,10 @@
       in security advisory <ulink
       url="ftp://ftp.FreeBSD.org/pub/FreeBSD/CERT/advisories/FreeBSD-SA-02:33.openssl.asc">FreeBSD-SA-02:33</ulink>.</para>
 
+    <para>A heap buffer overflow in the XDR decoder has been fixed.
+      For more details, see security advisory <ulink
+      url="ftp://ftp.FreeBSD.org/pub/FreeBSD/CERT/advisories/FreeBSD-SA-02:34.rpc.asc">FreeBSD-SA-02:34</ulink>.</para>
+
   </sect2>
 
   <sect2 id="userland">
