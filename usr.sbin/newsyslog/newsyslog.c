@@ -567,7 +567,7 @@ static void dotrim(log,pid_file,numdays,flags,perm,owner_uid,group_gid,sig)
 
 	if ((flags & CE_COMPACT)) {
 		if (need_notification && !notified)
-			warnx("log not compressed because daemon not notified");
+			warnx("log %s not compressed because daemon not notified", log);
 		else if (noaction)
                         printf("Compress %s.0\n",log);
 		else {
