@@ -31,19 +31,19 @@
  * SUCH DAMAGE.
  */
 
+#include <sys/cdefs.h>
+
+__FBSDID("$FreeBSD$");
+
 #ifndef lint
 static const char copyright[] =
 "@(#) Copyright (c) 1980, 1986, 1991, 1993\n\
 	The Regents of the University of California.  All rights reserved.\n";
-#endif /* not lint */
+#endif
 
 #ifndef lint
-#if 0
-static char sccsid[] = "@(#)vmstat.c	8.1 (Berkeley) 6/6/93";
+static const char sccsid[] = "@(#)vmstat.c	8.1 (Berkeley) 6/6/93";
 #endif
-static const char rcsid[] =
-  "$FreeBSD$";
-#endif /* not lint */
 
 #include <sys/param.h>
 #include <sys/time.h>
@@ -61,6 +61,7 @@ static const char rcsid[] =
 #include <vm/vm_param.h>
 
 #include <ctype.h>
+#include <devstat.h>
 #include <err.h>
 #include <errno.h>
 #include <kvm.h>
@@ -73,9 +74,10 @@ static const char rcsid[] =
 #include <sysexits.h>
 #include <time.h>
 #include <unistd.h>
-#include <devstat.h>
 
-struct nlist namelist[] = {
+static char da[] = "da";
+
+static struct nlist namelist[] = {
 #define	X_CPTIME	0
 	{ "_cp_time" },
 #define X_SUM		1
@@ -147,20 +149,29 @@ kvm_t *kd;
 #define	VMSTAT		0x20
 #define ZMEMSTAT	0x40
 
-void	cpustats(), dointr(), domem(), dosum(), dozmem();
-void	dovmstat(), kread(), usage();
-#ifdef notyet
-void	dotimes(), doforkst();
-#endif
-void printhdr __P((void));
-static void devstats();
+static void	cpustats __P((void));
+static void	devstats __P((void));
+static void	domem __P((void));
+static void	dointr __P((void));
+static void	dosum __P((void));
+static void	dovmstat __P((u_int, int));
+static void	dozmem __P((void));
+static void	kread __P((int, void *, size_t));
+static void	needhdr __P((int));
+static void	printhdr __P((void));
+static void	usage __P((void));
+
+static long	pct __P((long, long));
+static long	getuptime __P((void));
+
+char **getdrivedata __P((char **));
 
 int
 main(argc, argv)
-	register int argc;
-	register char **argv;
+	int argc;
+	char **argv;
 {
-	register int c, todo;
+	int c, todo;
 	u_int interval;
 	int reps;
 	char *memf, *nlistf;
@@ -175,11 +186,7 @@ main(argc, argv)
 			reps = atoi(optarg);
 			break;
 		case 'f':
-#ifdef notyet
-			todo |= FORKSTAT;
-#else
 			errx(EX_USAGE, "sorry, -f is not (re)implemented yet");
-#endif
 			break;
 		case 'i':
 			todo |= INTRSTAT;
@@ -247,7 +254,8 @@ main(argc, argv)
 		if (c > 0) {
 			warnx("undefined symbols:");
 			for (c = 0;
-			    c < sizeof(namelist)/sizeof(namelist[0]); c++)
+			    c < (int)(sizeof(namelist)/sizeof(namelist[0]));
+			    c++)
 				if (namelist[c].n_type == 0)
 					(void)fprintf(stderr, " %s",
 					    namelist[c].n_name);
@@ -258,7 +266,6 @@ main(argc, argv)
 	}
 
 	if (todo & VMSTAT) {
-		char **getdrivedata();
 		struct winsize winsize;
 
 		/*
@@ -358,7 +365,7 @@ getdrivedata(argv)
 	 * those devices.
 	 */
 	if ((num_devices_specified == 0) && (num_matches == 0)) {
-		if (buildmatch("da", &matches, &num_matches) != 0)
+		if (buildmatch(da, &matches, &num_matches) != 0)
 			errx(1, "%s", devstat_errbuf);
 
 		select_mode = DS_SELECT_ADD;
@@ -405,7 +412,6 @@ dovmstat(interval, reps)
 	struct vmtotal total;
 	time_t uptime, halfuptime;
 	struct devinfo *tmp_dinfo;
-	void needhdr();
 	int mib[2];
 	size_t size;
 
@@ -547,7 +553,8 @@ printhdr()
  * Force a header to be prepended to the next output.
  */
 void
-needhdr()
+needhdr(dummy)
+	int dummy __unused;
 {
 
 	hdrcnt = 1;
@@ -590,7 +597,7 @@ pct(top, bot)
 void
 dosum()
 {
-	struct nchstats nchstats;
+	struct nchstats lnchstats;
 	long nchtotal;
 
 	kread(X_SUM, &sum, sizeof(sum));
@@ -633,20 +640,20 @@ dosum()
 	(void)printf("%9u pages wired down\n", sum.v_wire_count);
 	(void)printf("%9u pages free\n", sum.v_free_count);
 	(void)printf("%9u bytes per page\n", sum.v_page_size);
-	kread(X_NCHSTATS, &nchstats, sizeof(nchstats));
-	nchtotal = nchstats.ncs_goodhits + nchstats.ncs_neghits +
-	    nchstats.ncs_badhits + nchstats.ncs_falsehits +
-	    nchstats.ncs_miss + nchstats.ncs_long;
+	kread(X_NCHSTATS, &lnchstats, sizeof(lnchstats));
+	nchtotal = lnchstats.ncs_goodhits + lnchstats.ncs_neghits +
+	    lnchstats.ncs_badhits + lnchstats.ncs_falsehits +
+	    lnchstats.ncs_miss + lnchstats.ncs_long;
 	(void)printf("%9ld total name lookups\n", nchtotal);
 	(void)printf(
 	    "%9s cache hits (%ld%% pos + %ld%% neg) system %ld%% per-directory\n",
-	    "", PCT(nchstats.ncs_goodhits, nchtotal),
-	    PCT(nchstats.ncs_neghits, nchtotal),
-	    PCT(nchstats.ncs_pass2, nchtotal));
+	    "", PCT(lnchstats.ncs_goodhits, nchtotal),
+	    PCT(lnchstats.ncs_neghits, nchtotal),
+	    PCT(lnchstats.ncs_pass2, nchtotal));
 	(void)printf("%9s deletions %ld%%, falsehits %ld%%, toolong %ld%%\n", "",
-	    PCT(nchstats.ncs_badhits, nchtotal),
-	    PCT(nchstats.ncs_falsehits, nchtotal),
-	    PCT(nchstats.ncs_long, nchtotal));
+	    PCT(lnchstats.ncs_badhits, nchtotal),
+	    PCT(lnchstats.ncs_falsehits, nchtotal),
+	    PCT(lnchstats.ncs_long, nchtotal));
 }
 
 #ifdef notyet
@@ -666,7 +673,7 @@ doforkst()
 static void
 devstats()
 {
-	register int dn, state;
+	int dn, state;
 	long double transfers_per_second;
 	long double busy_seconds;
 	long tmp;
@@ -701,30 +708,30 @@ devstats()
 void
 cpustats()
 {
-	register int state;
-	double pct, total;
+	int state;
+	double lpct, total;
 
 	total = 0;
 	for (state = 0; state < CPUSTATES; ++state)
 		total += cur.cp_time[state];
 	if (total)
-		pct = 100 / total;
+		lpct = 100.0 / total;
 	else
-		pct = 0;
+		lpct = 0.0;
 	(void)printf("%2.0f ", (cur.cp_time[CP_USER] +
-				cur.cp_time[CP_NICE]) * pct);
+				cur.cp_time[CP_NICE]) * lpct);
 	(void)printf("%2.0f ", (cur.cp_time[CP_SYS] +
-				cur.cp_time[CP_INTR]) * pct);
-	(void)printf("%2.0f", cur.cp_time[CP_IDLE] * pct);
+				cur.cp_time[CP_INTR]) * lpct);
+	(void)printf("%2.0f", cur.cp_time[CP_IDLE] * lpct);
 }
 
 void
 dointr()
 {
-	register u_long *intrcnt, uptime;
-	register u_int64_t inttotal;
-	register int nintr, inamlen;
-	register char *intrname;
+	u_long *intrcnt, uptime;
+	u_int64_t inttotal;
+	int nintr, inamlen;
+	char *intrname;
 
 	uptime = getuptime();
 	nintr = namelist[X_EINTRCNT].n_value - namelist[X_INTRCNT].n_value;
@@ -755,9 +762,9 @@ dointr()
 void
 domem()
 {
-	register struct kmembuckets *kp;
-	register struct malloc_type *ks;
-	register int i, j;
+	struct kmembuckets *kp;
+	struct malloc_type *ks;
+	int i, j;
 	int len, size, first, nkms;
 	long totuse = 0, totfree = 0, totreq = 0;
 	const char *name;
@@ -774,7 +781,7 @@ domem()
 		if (sizeof(buf) !=  kvm_read(kd, 
 	            (u_long)kmemstats[nkms].ks_shortdesc, buf, sizeof(buf)))
 			err(1, "kvm_read(%p)", 
-			    (void *)kmemstats[nkms].ks_shortdesc);
+			    (const void *)kmemstats[nkms].ks_shortdesc);
 		buf[sizeof(buf) - 1] = '\0';
 		kmemstats[nkms].ks_shortdesc = strdup(buf);
 		kmsp = kmemstats[nkms].ks_next;
@@ -906,7 +913,7 @@ kread(nlx, addr, size)
 			++sym;
 		errx(1, "symbol %s not defined", sym);
 	}
-	if (kvm_read(kd, namelist[nlx].n_value, addr, size) != size) {
+	if (kvm_read(kd, namelist[nlx].n_value, addr, size) != (int)size) {
 		sym = namelist[nlx].n_name;
 		if (*sym == '_')
 			++sym;
