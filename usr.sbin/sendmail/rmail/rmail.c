@@ -29,6 +29,8 @@
  * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
+ *
+ * $Id$
  */
 
 #ifndef lint
@@ -121,6 +123,8 @@ main(argc, argv)
 	if (argc < 1)
 		usage();
 
+	fplen = fptlen = 0;
+	addrp = "";
 	from_path = from_sys = from_user = NULL;
 	for (offset = 0;;) {
 
@@ -232,7 +236,11 @@ main(argc, argv)
 	i = 0;
 	args[i++] = _PATH_SENDMAIL;	/* Build sendmail's argument list. */
 	args[i++] = "-oee";		/* No errors, just status. */
+#ifdef QUEUE_ONLY
 	args[i++] = "-odq";		/* Queue it, don't try to deliver. */
+#else
+	args[i++] = "-odi";		/* Deliver in foreground. */
+#endif
 	args[i++] = "-oi";		/* Ignore '.' on a line by itself. */
 
 	/* set from system and protocol used */
