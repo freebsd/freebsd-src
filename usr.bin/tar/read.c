@@ -278,7 +278,7 @@ list_item_verbose(struct bsdtar *bsdtar, struct archive_entry *entry)
 	/* Format the time using 'ls -l' conventions. */
 	tim = (time_t)st->st_mtime;
 	if (tim < now - 6*30*24*60*60 || tim > now + 6*30*24*60*60)
-		strftime(tmp, sizeof(tmp), "%b %e %Y", localtime(&tim));
+		strftime(tmp, sizeof(tmp), "%b %e  %Y", localtime(&tim));
 	else
 		strftime(tmp, sizeof(tmp), "%b %e %R", localtime(&tim));
 	safe_fprintf(out, " %s %s", tmp, archive_entry_pathname(entry));
