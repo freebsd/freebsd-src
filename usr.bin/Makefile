@@ -111,6 +111,7 @@ SUBDIR=	apply \
 	newkey \
 	nfsstat \
 	nice \
+	nl \
 	nohup \
 	objformat \
 	opieinfo \
