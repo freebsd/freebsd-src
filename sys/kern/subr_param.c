@@ -127,7 +127,7 @@ init_param1(void)
  * Boot time overrides that are scaled against main memory
  */
 void
-init_param2(int physpages)
+init_param2(long physpages)
 {
 
 	/* Base parameters */
