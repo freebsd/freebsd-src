@@ -31,7 +31,7 @@
  *
  * $FreeBSD$
  *
- *      last edit-date: [Mon May 29 16:56:30 2000]
+ *      last edit-date: [Thu Oct 12 17:58:35 2000]
  *
  *---------------------------------------------------------------------------*/
 
@@ -112,6 +112,8 @@ static void F_SIGN(call_desc_t *cd), F_DLEI(call_desc_t *cd), F_ILL(call_desc_t 
 static void F_309TO(call_desc_t *cd), F_DECF(call_desc_t *cd), F_FCTY(call_desc_t *cd);
 static void F_DECF1(call_desc_t *cd), F_DECF2(call_desc_t *cd), F_DECF3(call_desc_t *cd);
 static void F_DLRI(call_desc_t *cd), F_DLRIA(call_desc_t *cd), F_DECF4(call_desc_t *cd);
+
+static void F_308TO(call_desc_t *cd);
 
 #if DO_I4B_DEBUG
 static char *l3state_text[N_STATES] = {
@@ -215,7 +217,7 @@ struct l3state_tab {
 /* ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------*/
 /*EV_T303EXP*/	{{F_ILL,  ST_ILL},	{F_01U,	 ST_SUSE},	{F_ILL,  ST_ILL},	{F_ILL,  ST_ILL},	{F_ILL,	 ST_ILL},	{F_ILL,	 ST_ILL},	{F_ILL,	 ST_ILL},	{F_ILL,	 ST_ILL},	{F_ILL,	 ST_ILL},	{F_ILL,	 ST_ILL},	{F_ILL,	 ST_ILL},	{F_ILL,	 ST_ILL},	{F_ILL,	 ST_ILL},	{F_ILL,	 ST_ILL},	{F_ILL,	 ST_ILL},	{F_ILL,	 ST_ILL},	{F_ILL,	ST_ILL},        {F_ILL, ST_ILL}},
 /*EV_T305EXP*/	{{F_ILL,  ST_ILL},	{F_ILL,	 ST_ILL},	{F_ILL,  ST_ILL},	{F_ILL,  ST_ILL},	{F_ILL,	 ST_ILL},	{F_ILL,	 ST_ILL},	{F_ILL,	 ST_ILL},	{F_ILL,	 ST_ILL},	{F_ILL,	 ST_ILL},	{F_11V,	 ST_U19},	{F_ILL,	 ST_ILL},	{F_ILL,	 ST_ILL},	{F_ILL,	 ST_ILL},	{F_ILL,	 ST_ILL},	{F_ILL,	 ST_ILL},	{F_ILL,	 ST_ILL},	{F_ILL,	ST_ILL},        {F_ILL, ST_ILL}},
-/*EV_T308EXP*/	{{F_ILL,  ST_ILL},	{F_ILL,	 ST_ILL},	{F_ILL,  ST_ILL},	{F_ILL,  ST_ILL},	{F_ILL,	 ST_ILL},	{F_ILL,	 ST_ILL},	{F_ILL,	 ST_ILL},	{F_ILL,	 ST_ILL},	{F_ILL,	 ST_ILL},	{F_ILL,	 ST_ILL},	{F_ILL,	 ST_ILL},	{F_19W,	 ST_SUSE},	{F_ILL,	 ST_ILL},	{F_ILL,	 ST_ILL},	{F_ILL,	 ST_ILL},	{F_ILL,	 ST_ILL},	{F_ILL,	ST_ILL},        {F_ILL, ST_ILL}},
+/*EV_T308EXP*/	{{F_ILL,  ST_ILL},	{F_ILL,	 ST_ILL},	{F_ILL,  ST_ILL},	{F_ILL,  ST_ILL},	{F_ILL,	 ST_ILL},	{F_ILL,	 ST_ILL},	{F_ILL,	 ST_ILL},	{F_ILL,	 ST_ILL},	{F_ILL,	 ST_ILL},	{F_ILL,	 ST_ILL},	{F_308TO,ST_ILL},	{F_19W,	 ST_SUSE},	{F_ILL,	 ST_ILL},	{F_ILL,	 ST_ILL},	{F_ILL,	 ST_ILL},	{F_ILL,	 ST_ILL},	{F_ILL,	ST_ILL},        {F_ILL, ST_ILL}},
 /*EV_T309EXP*/	{{F_309TO,ST_U0},	{F_309TO,ST_U0},	{F_309TO,ST_U0},	{F_309TO,ST_U0},	{F_309TO,ST_U0},	{F_309TO,ST_U0},	{F_309TO,ST_U0},	{F_309TO,ST_U0},	{F_309TO,ST_U0},	{F_309TO,ST_U0},	{F_309TO,ST_U0},	{F_309TO,ST_U0},	{F_309TO,ST_U0},	{F_309TO,ST_U0},	{F_309TO,ST_U0},	{F_309TO,ST_U0},	{F_ILL,	ST_ILL},        {F_ILL, ST_ILL}},
 /*EV_T310EXP*/	{{F_ILL,  ST_ILL},	{F_ILL,	 ST_ILL},	{F_03Y,  ST_U11},	{F_ILL,  ST_ILL},	{F_ILL,	 ST_ILL},	{F_ILL,	 ST_ILL},	{F_ILL,	 ST_ILL},	{F_ILL,	 ST_ILL},	{F_ILL,	 ST_ILL},	{F_ILL,	 ST_ILL},	{F_ILL,	 ST_ILL},	{F_ILL,	 ST_ILL},	{F_ILL,	 ST_ILL},	{F_ILL,	 ST_ILL},	{F_ILL,	 ST_ILL},	{F_ILL,	 ST_ILL},	{F_ILL,	ST_ILL},        {F_ILL, ST_ILL}},
 /*EV_T313EXP*/	{{F_ILL,  ST_ILL},	{F_ILL,	 ST_ILL},	{F_ILL,  ST_ILL},	{F_ILL,  ST_ILL},	{F_ILL,	 ST_ILL},	{F_ILL,	 ST_ILL},	{F_08Z,	 ST_U11},	{F_ILL,	 ST_ILL},	{F_ILL,	 ST_ILL},	{F_ILL,	 ST_ILL},	{F_ILL,	 ST_ILL},	{F_ILL,	 ST_ILL},	{F_ILL,	 ST_ILL},	{F_ILL,	 ST_ILL},	{F_ILL,	 ST_ILL},	{F_ILL,	 ST_ILL},	{F_ILL,	ST_ILL},        {F_ILL, ST_ILL}},
@@ -845,6 +847,17 @@ static void F_INFO(call_desc_t *cd)
 	NDBGL3(L3_F_MSG, "FSM function F_INFO executing");
 	i4b_l4_info_ind(cd);
 	/* remain in current state */
+}
+
+/*---------------------------------------------------------------------------*
+ *	L3 FSM T308 timeout while expecting RELEASE COMPLETE
+ *---------------------------------------------------------------------------*/	
+static void F_308TO(call_desc_t *cd)
+{
+	NDBGL3(L3_F_MSG, "FSM function F_308TO executing");
+	i4b_l3_stop_all_timers(cd);
+	i4b_l4_disconnect_ind(cd);
+	freecd_by_cd(cd);
 }
 
 /*---------------------------------------------------------------------------*
