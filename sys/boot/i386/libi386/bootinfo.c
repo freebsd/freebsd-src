@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: bootinfo.c,v 1.3 1998/09/14 18:27:05 msmith Exp $
+ *	$Id: bootinfo.c,v 1.4 1998/09/17 23:52:09 msmith Exp $
  */
 
 #include <sys/reboot.h>
@@ -133,6 +133,7 @@ bi_copyenv(vm_offset_t addr)
     }
     i386_copyin("", addr, 1);
     addr++;
+    return(addr);
 }
 
 /*
