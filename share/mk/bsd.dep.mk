@@ -1,4 +1,4 @@
-#	$Id: bsd.dep.mk,v 1.21 1998/05/08 06:31:05 bde Exp $
+#	$Id: bsd.dep.mk,v 1.22 1998/05/11 15:37:13 bde Exp $
 #
 # The include file <bsd.dep.mk> handles Makefile dependencies.
 #
@@ -93,6 +93,12 @@ ${DEPENDFILE}: ${SRCS}
 	${MKDEPCMD} -f ${DEPENDFILE} -a ${MKDEP} \
 	    ${CXXFLAGS:M-nostdinc*} ${CXXFLAGS:M-[BID]*} \
 	    ${.ALLSRC:M*.cc} ${.ALLSRC:M*.C} ${.ALLSRC:M*.cxx}
+.endif
+.if ${SRCS:M*.m} != ""
+	${MKDEPCMD} -f ${DEPENDFILE} -a ${MKDEP} \
+	    ${OBJCFLAGS:M-nostdinc*} ${OBJCFLAGS:M-[BID]*} \
+	    ${OBJCFLAGS:M-Wno-import*} \
+	    ${.ALLSRC:M*.m}
 .endif
 .if target(_EXTRADEPEND)
 	cd ${.CURDIR}; ${MAKE} _EXTRADEPEND

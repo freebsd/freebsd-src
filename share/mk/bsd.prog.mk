@@ -1,5 +1,5 @@
 #	from: @(#)bsd.prog.mk	5.26 (Berkeley) 6/25/91
-#	$Id: bsd.prog.mk,v 1.71 1998/05/06 15:01:18 bde Exp $
+#	$Id: bsd.prog.mk,v 1.72 1998/05/08 06:31:05 bde Exp $
 
 .if exists(${.CURDIR}/../Makefile.inc)
 .include "${.CURDIR}/../Makefile.inc"
@@ -8,7 +8,7 @@
 # Default executable format
 BINFORMAT?=	aout
 
-.SUFFIXES: .out .o .c .cc .cxx .C .y .l .s .S
+.SUFFIXES: .out .o .c .cc .cxx .C .m .y .l .s .S
 
 CFLAGS+=${COPTS} ${DEBUG_FLAGS}
 .if defined(DESTDIR)
@@ -26,6 +26,12 @@ LDFLAGS+= -static
 
 .if defined(PROG)
 .if defined(SRCS)
+
+# If there are Objective C sources, link with Objective C libraries.
+.if ${SRCS:M*.m} != ""
+OBJCLIBS?= -lobjc
+LDADD+=	${OBJCLIBS}
+.endif
 
 OBJS+=  ${SRCS:N*.h:R:S/$/.o/g}
 

@@ -1,5 +1,5 @@
 #	from: @(#)bsd.lib.mk	5.26 (Berkeley) 5/2/91
-#	$Id: bsd.lib.mk,v 1.69 1998/03/07 13:13:41 bde Exp $
+#	$Id: bsd.lib.mk,v 1.70 1998/03/12 20:02:13 eivind Exp $
 #
 
 .if exists(${.CURDIR}/../Makefile.inc)
@@ -84,6 +84,18 @@ STRIP?=	-s
 	${FC} ${PICFLAG} -DPIC ${FFLAGS} -o ${.TARGET} -c ${.IMPSRC}
 	@${LD} -O ${.TARGET} -x -r ${.TARGET}
 
+.m.o:
+	${OBJC} ${OBJCFLAGS} -c ${.IMPSRC} -o ${.TARGET}
+	@${LD} -O ${.TARGET} -x -r ${.TARGET}
+
+.m.po:
+	${OBJC} ${OBJCFLAGS} -pg -c ${.IMPSRC} -o ${.TARGET}
+	@${LD} -O ${.TARGET} -X -r ${.TARGET}
+
+.m.so:
+	${OBJC} ${PICFLAG} -DPIC ${OBJCFLAGS} -c ${.IMPSRC} -o ${.TARGET}
+	@${LD} -O ${.TARGET} -x -r ${.TARGET}
+
 .s.o:
 	${CC} -x assembler-with-cpp ${CFLAGS:M-[BID]*} ${AINC} -c \
 	    ${.IMPSRC} -o ${.TARGET}
@@ -110,14 +122,6 @@ STRIP?=	-s
 .S.so:
 	${CC} -fpic -DPIC ${CFLAGS:M-[BID]*} ${AINC} -c ${.IMPSRC} -o ${.TARGET}
 	@${LD} -O ${.TARGET} -x -r ${.TARGET}
-
-.m.o:
-	${CC} ${CFLAGS} -fgnu-runtime -c ${.IMPSRC} -o ${.TARGET}
-	@${LD} -O ${.TARGET} -x -r ${.TARGET}
-
-.m.po:
-	${CC} ${CFLAGS} -fgnu-runtime -pg -c ${.IMPSRC} -o ${.TARGET}
-	@${LD} -O ${.TARGET} -X -r ${.TARGET}
 
 .if !defined(INTERNALLIB) || defined(INTERNALSTATICLIB)
 .if !defined(NOPROFILE) && !defined(INTERNALLIB)
