@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)vm_extern.h	8.2 (Berkeley) 1/12/94
- * $Id: vm_extern.h,v 1.27 1996/09/15 11:24:21 bde Exp $
+ * $Id: vm_extern.h,v 1.27.2.1 1997/03/25 04:54:22 dyson Exp $
  */
 
 #ifndef _VM_EXTERN_H_
@@ -76,7 +76,7 @@ int pager_cache __P((vm_object_t, boolean_t));
 int swaponvp __P((struct proc *, struct vnode *, dev_t , u_long));
 void swapout_procs __P((void));
 int useracc __P((caddr_t, int, int));
-int vm_fault __P((vm_map_t, vm_offset_t, vm_prot_t, boolean_t));
+int vm_fault __P((vm_map_t, vm_offset_t, vm_prot_t, int));
 void vm_fault_copy_entry __P((vm_map_t, vm_map_t, vm_map_entry_t, vm_map_entry_t));
 void vm_fault_unwire __P((vm_map_t, vm_offset_t, vm_offset_t));
 int vm_fault_wire __P((vm_map_t, vm_offset_t, vm_offset_t));

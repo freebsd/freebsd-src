@@ -61,7 +61,7 @@
  * any improvements or extensions that they make and grant Carnegie the
  * rights to redistribute these changes.
  *
- * $Id: vm_map.c,v 1.57.2.4 1997/03/25 04:54:26 dyson Exp $
+ * $Id: vm_map.c,v 1.57.2.5 1997/11/04 09:02:38 dyson Exp $
  */
 
 /*
@@ -2344,13 +2344,21 @@ RetryLookup:;
 		vm_map_unlock_read(old_map);
 		goto RetryLookup;
 	}
+
 	/*
 	 * Check whether this task is allowed to have this page.
+	 * Note the special case for MAP_ENTRY_COW
+	 * pages with an override.  This is to implement a forced
+	 * COW for debuggers.
 	 */
 
 	prot = entry->protection;
-	if ((fault_type & (prot)) != fault_type)
-		RETURN(KERN_PROTECTION_FAILURE);
+	if ((fault_type & VM_PROT_OVERRIDE_WRITE) == 0 ||
+		(entry->eflags & MAP_ENTRY_COW) == 0 ||
+		(entry->wired_count != 0)) {
+		if ((fault_type & (prot)) != fault_type)
+			RETURN(KERN_PROTECTION_FAILURE);
+	}
 
 	/*
 	 * If this page is not pageable, we have to get it for all possible
