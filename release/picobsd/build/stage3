@@ -1,7 +1,7 @@
 #! /bin/sh -
 
 #
-#	$Id: stage3,v 1.4.2.1 1999/02/21 22:04:24 abial Exp $
+#	$Id: stage3,v 1.4.2.2 1999/03/09 21:19:11 abial Exp $
 #
 set -e
 
@@ -66,9 +66,6 @@ then
 fi
 
 echo "-> Populating floppy filesystem..."
-cat ../lang/boot.help.${LANGUAGE} | \
-	sed -e "s/@VER@/${VER}/g" > \
-	/mnt/boot.help
 cp -pr . /mnt
 rm -rf /mnt/CVS /mnt/etc/CVS /mnt/etc/ppp/CVS
 if [ "${TYPE}" = "dial" ]
@@ -94,15 +91,27 @@ then
 	exit 10
 fi
 mkdir /mnt/boot
+mkdir /mnt/boot/defaults
 cp /boot/loader .
+# Make sure we have the a.out stubs we need...
+if [ ! -f /usr/lib/aout/kzhead.o ]
+then
+	(cd ${SRC}/sys/i386/boot/kzipboot && make all install clean)
+fi
 kzip -v loader
 mv loader.kz /mnt/boot/loader
 rm -f loader loader.o
-echo "/boot/loader" >/mnt/boot.config
-for i in menu frames screen boot
+#echo "/boot/loader" >/mnt/boot.config
+cp ${SRC}/sys/boot/forth/loader.4th /mnt/boot/
+cp ${SRC}/sys/boot/forth/support.4th /mnt/boot/
+cp ${SRC}/sys/boot/forth/loader.conf /mnt/boot/defaults
+echo "userconfig_script_load=\"YES\"">/mnt/boot/loader.conf
+for i in frames screen
 do
 	cp ${SRC}/share/examples/bootforth/${i}.4th /mnt/boot/
 done
+cp ../forth/loader.rc /mnt/boot/loader.rc
+cp ../forth/menu.4th /mnt/boot/menu.4th
 (echo "-> Fixing permissions"; cd /mnt; chown -R root *)
 rm kernel.gz
 
