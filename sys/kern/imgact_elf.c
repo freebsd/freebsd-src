@@ -26,25 +26,31 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *	$Id: imgact_elf.c,v 1.29 1998/07/29 18:39:35 dfr Exp $
+ *	$Id: imgact_elf.c,v 1.30 1998/09/14 05:36:49 jdp Exp $
  */
 
 #include "opt_rlimit.h"
 
 #include <sys/param.h>
-#include <sys/systm.h>
+#include <sys/acct.h>
 #include <sys/exec.h>
-#include <sys/mman.h>
+#include <sys/fcntl.h>
 #include <sys/imgact.h>
 #include <sys/imgact_elf.h>
 #include <sys/kernel.h>
-#include <sys/sysent.h>
 #include <sys/malloc.h>
+#include <sys/mman.h>
 #include <sys/namei.h>
+#include <sys/pioctl.h>
 #include <sys/proc.h>
-#include <sys/syscall.h>
+#include <sys/procfs.h>
+#include <sys/resourcevar.h>
 #include <sys/signalvar.h>
+#include <sys/stat.h>
+#include <sys/syscall.h>
 #include <sys/sysctl.h>
+#include <sys/sysent.h>
+#include <sys/systm.h>
 #include <sys/vnode.h>
 
 #include <vm/vm.h>
@@ -78,9 +84,13 @@
 
 
 static int elf_check_header __P((const Elf_Ehdr *hdr, int type));
-static int elf_load_section __P((struct vmspace *vmspace, struct vnode *vp, vm_offset_t offset, caddr_t vmaddr, size_t memsz, size_t filsz, vm_prot_t prot));
-static int elf_load_file __P((struct proc *p, char *file, u_long *addr, u_long *entry));
-static int elf_freebsd_fixup __P((long **stack_base, struct image_params *imgp));
+static int elf_freebsd_fixup __P((long **stack_base,
+    struct image_params *imgp));
+static int elf_load_file __P((struct proc *p, char *file, u_long *addr,
+    u_long *entry));
+static int elf_load_section __P((struct vmspace *vmspace, struct vnode *vp,
+    vm_offset_t offset, caddr_t vmaddr, size_t memsz, size_t filsz,
+    vm_prot_t prot));
 static int exec_elf_imgact __P((struct image_params *imgp));
 
 static int elf_trace = 0;
@@ -639,14 +649,6 @@ fail:
 	return error;
 }
 
-int
-elf_coredump (p)
-	register struct proc *p;
-{
-	/* Not implemented yet. */
-	return EFAULT;
-}
-
 static int
 elf_freebsd_fixup(long **stack_base, struct image_params *imgp)
 {
@@ -677,6 +679,268 @@ elf_freebsd_fixup(long **stack_base, struct image_params *imgp)
 	**stack_base = (long)imgp->argc;
 	return 0;
 } 
+
+/*
+ * Code for generating ELF core dumps.
+ */
+
+static int elf_corehdr __P((struct proc *, struct vnode *, struct ucred *));
+static size_t elf_hdrsize(void);
+static void elf_puthdr(void *, size_t *, const prstatus_t *,
+    const prfpregset_t *, const prpsinfo_t *, const void *, size_t,
+    const void *, size_t);
+static void elf_putnote(void *, size_t *, const char *, int, const void *,
+    size_t);
+
+extern int osreldate;
+
+int
+elf_coredump(p)
+	register struct proc *p;
+{
+	register struct vnode *vp;
+	register struct ucred *cred = p->p_cred->pc_ucred;
+	register struct vmspace *vm = p->p_vmspace;
+	struct nameidata nd;
+	struct vattr vattr;
+	int error, error1;
+	char *name;			/* name of corefile */
+	size_t hdrsize;
+
+	STOPEVENT(p, S_CORE, 0);
+
+	if (sugid_coredump == 0 && p->p_flag & P_SUGID)
+		return (EFAULT);
+	hdrsize = elf_hdrsize();
+	if (hdrsize + ctob(vm->vm_dsize + vm->vm_ssize) >=
+	    p->p_rlimit[RLIMIT_CORE].rlim_cur)
+		return (EFAULT);
+	name = expand_name(p->p_comm, p->p_ucred->cr_uid, p->p_pid);
+	if (name == NULL)
+		return (EFAULT);	/* XXX -- not the best error */
+	
+	NDINIT(&nd, LOOKUP, FOLLOW, UIO_SYSSPACE, name, p);
+	error = vn_open(&nd, O_CREAT | FWRITE, S_IRUSR | S_IWUSR);
+	free(name, M_TEMP);
+	if (error)
+		return (error);
+	vp = nd.ni_vp;
+
+	/* Don't dump to non-regular files or files with links. */
+	if (vp->v_type != VREG ||
+	    VOP_GETATTR(vp, &vattr, cred, p) || vattr.va_nlink != 1) {
+		error = EFAULT;
+		goto out;
+	}
+	VATTR_NULL(&vattr);
+	vattr.va_size = 0;
+	VOP_LEASE(vp, p, cred, LEASE_WRITE);
+	VOP_SETATTR(vp, &vattr, cred, p);
+	p->p_acflag |= ACORE;
+	error = elf_corehdr(p, vp, cred);
+	if (error == 0)
+		error = vn_rdwr(UIO_WRITE, vp, vm->vm_daddr,
+		    (int)ctob(vm->vm_dsize), (off_t)hdrsize, UIO_USERSPACE,
+		    IO_NODELOCKED|IO_UNIT, cred, (int *) NULL, p);
+	if (error == 0)
+		error = vn_rdwr(UIO_WRITE, vp,
+		    (caddr_t) trunc_page(USRSTACK - ctob(vm->vm_ssize)),
+		    round_page(ctob(vm->vm_ssize)),
+		    (off_t)hdrsize + ctob(vm->vm_dsize), UIO_USERSPACE,
+		    IO_NODELOCKED|IO_UNIT, cred, (int *) NULL, p);
+out:
+	VOP_UNLOCK(vp, 0, p);
+	error1 = vn_close(vp, FWRITE, cred, p);
+	if (error == 0)
+		error = error1;
+	return (error);
+}
+
+static int
+elf_corehdr(p, vp, cred)
+	struct proc *p;
+	struct vnode *vp;
+	struct ucred *cred;
+{
+	struct vmspace *vm = p->p_vmspace;
+	size_t off;
+	size_t hdrsize;
+	prstatus_t status;
+	prfpregset_t fpregset;
+	prpsinfo_t psinfo;
+	void *hdr;
+	int error;
+
+	/* Gather the information for the header. */
+	bzero(&status, sizeof status);
+	status.pr_version = PRSTATUS_VERSION;
+	status.pr_statussz = sizeof(prstatus_t);
+	status.pr_gregsetsz = sizeof(gregset_t);
+	status.pr_fpregsetsz = sizeof(fpregset_t);
+	status.pr_osreldate = osreldate;
+	status.pr_cursig = p->p_sigacts->ps_sig;
+	status.pr_pid = p->p_pid;
+	fill_regs(p, &status.pr_reg);
+
+	fill_fpregs(p, &fpregset);
+
+	bzero(&psinfo, sizeof psinfo);
+	psinfo.pr_version = PRPSINFO_VERSION;
+	psinfo.pr_psinfosz = sizeof(prpsinfo_t);
+	strncpy(psinfo.pr_fname, p->p_comm, MAXCOMLEN);
+	psinfo.pr_psargs[0] = '\0';	/* XXX - args not implemented yet */
+
+	/* Allocate memory for building the header. */
+	hdrsize = elf_hdrsize();
+	hdr = malloc(hdrsize, M_TEMP, M_WAITOK);
+	if (hdr == NULL)
+		return EINVAL;
+	bzero(hdr, hdrsize);
+
+	/* Fill in the header. */
+	off = 0;
+	elf_puthdr(hdr, &off, &status, &fpregset, &psinfo,
+	    vm->vm_daddr, ctob(vm->vm_dsize),
+	    (void *)trunc_page(USRSTACK - ctob(vm->vm_ssize)),
+	    ctob(vm->vm_ssize));
+
+	/* Write it to the core file. */
+	error = vn_rdwr(UIO_WRITE, vp, hdr, hdrsize, (off_t)0,
+	    UIO_SYSSPACE, IO_NODELOCKED|IO_UNIT, cred, NULL, p);
+
+	free(hdr, M_TEMP);
+	return error;
+}
+
+static size_t
+elf_hdrsize(void)
+{
+	size_t off;
+
+	off = 0;
+	elf_puthdr(NULL, &off, NULL, NULL, NULL, NULL, 0, NULL, 0);
+	return off;
+}
+
+static void
+elf_puthdr(void *dst, size_t *off, const prstatus_t *status,
+    const prfpregset_t *fpregset, const prpsinfo_t *psinfo,
+    const void *data, size_t datasz, const void *stack, size_t stacksz)
+{
+	size_t ehoff;
+	size_t phoff;
+	size_t noteoff;
+	size_t notesz;
+	size_t dataoff;
+	size_t stackoff;
+	int numsegs = 3;
+
+	ehoff = *off;
+	*off += sizeof(Elf_Ehdr);
+
+	phoff = *off;
+	*off += numsegs * sizeof(Elf_Phdr);
+
+	noteoff = *off;
+	elf_putnote(dst, off, "FreeBSD", NT_PRSTATUS, status,
+	    sizeof *status);
+	elf_putnote(dst, off, "FreeBSD", NT_FPREGSET, fpregset,
+	    sizeof *fpregset);
+	elf_putnote(dst, off, "FreeBSD", NT_PRPSINFO, psinfo,
+	    sizeof *psinfo);
+	notesz = *off - noteoff;
+
+	/* Align up to a page boundary for the data segment. */
+	*off = round_page(*off);
+
+	if (dst != NULL) {
+		Elf_Ehdr *ehdr;
+		Elf_Phdr *phdr;
+
+		/*
+		 * Fill in the ELF header.
+		 */
+		ehdr = (Elf_Ehdr *)((char *)dst + ehoff);
+		ehdr->e_ident[EI_MAG0] = ELFMAG0;
+		ehdr->e_ident[EI_MAG1] = ELFMAG1;
+		ehdr->e_ident[EI_MAG2] = ELFMAG2;
+		ehdr->e_ident[EI_MAG3] = ELFMAG3;
+		ehdr->e_ident[EI_CLASS] = ELF_CLASS;
+		ehdr->e_ident[EI_DATA] = ELF_DATA;
+		ehdr->e_ident[EI_VERSION] = EV_CURRENT;
+		ehdr->e_ident[EI_PAD] = 0;
+		strncpy(ehdr->e_ident + EI_BRAND, "FreeBSD",
+		    EI_NIDENT - EI_BRAND);
+		ehdr->e_type = ET_CORE;
+		ehdr->e_machine = ELF_ARCH;
+		ehdr->e_version = EV_CURRENT;
+		ehdr->e_entry = 0;
+		ehdr->e_phoff = phoff;
+		ehdr->e_flags = 0;
+		ehdr->e_ehsize = sizeof(Elf_Ehdr);
+		ehdr->e_phentsize = sizeof(Elf_Phdr);
+		ehdr->e_phnum = numsegs;
+		ehdr->e_shentsize = sizeof(Elf_Shdr);
+		ehdr->e_shnum = 0;
+		ehdr->e_shstrndx = SHN_UNDEF;
+
+		/*
+		 * Fill in the program header entries.
+		 */
+		phdr = (Elf_Phdr *)((char *)dst + phoff);
+
+		/* The note segement. */
+		phdr->p_type = PT_NOTE;
+		phdr->p_offset = noteoff;
+		phdr->p_vaddr = 0;
+		phdr->p_paddr = 0;
+		phdr->p_filesz = notesz;
+		phdr->p_memsz = 0;
+		phdr->p_flags = 0;
+		phdr->p_align = 0;
+		phdr++;
+
+		/* The data segment. */
+		phdr->p_type = PT_LOAD;
+		phdr->p_offset = *off;
+		phdr->p_vaddr = (Elf_Addr)data;
+		phdr->p_paddr = 0;
+		phdr->p_filesz = phdr->p_memsz = datasz;
+		phdr->p_align = PAGE_SIZE;
+		phdr->p_flags = PF_R | PF_W | PF_X;
+		phdr++;
+
+		/* The stack segment. */
+		phdr->p_type = PT_LOAD;
+		phdr->p_offset = *off + datasz;
+		phdr->p_vaddr = (Elf_Addr)stack;
+		phdr->p_paddr = 0;
+		phdr->p_filesz = phdr->p_memsz = stacksz;
+		phdr->p_align = PAGE_SIZE;
+		phdr->p_flags = PF_R | PF_W | PF_X;
+		phdr++;
+	}
+}
+
+static void
+elf_putnote(void *dst, size_t *off, const char *name, int type,
+    const void *desc, size_t descsz)
+{
+	Elf_Note note;
+
+	note.n_namesz = strlen(name) + 1;
+	note.n_descsz = descsz;
+	note.n_type = type;
+	if (dst != NULL)
+		bcopy(&note, (char *)dst + *off, sizeof note);
+	*off += sizeof note;
+	if (dst != NULL)
+		bcopy(name, (char *)dst + *off, note.n_namesz);
+	*off += roundup2(note.n_namesz, sizeof(Elf_Size));
+	if (dst != NULL)
+		bcopy(desc, (char *)dst + *off, note.n_descsz);
+	*off += roundup2(note.n_descsz, sizeof(Elf_Size));
+}
 
 /*
  * Tell kern_execve.c about it, with a little help from the linker.
