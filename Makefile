@@ -81,10 +81,10 @@ BITGTS:=${BITGTS} ${BITGTS:S/^/build/} ${BITGTS:S/^/install/}
 PATH=	/sbin:/bin:/usr/sbin:/usr/bin
 MAKEOBJDIRPREFIX?=	/usr/obj
 MAKEPATH=	${MAKEOBJDIRPREFIX}${.CURDIR}/make.${MACHINE}
-BINMAKE=	PATH=${PATH} \
+BINMAKE= \
 	`if [ -x ${MAKEPATH}/make ]; then echo ${MAKEPATH}/make; else echo ${MAKE}; fi` \
 	-m ${.CURDIR}/share/mk
-_MAKE=	${BINMAKE} -f Makefile.inc1
+_MAKE=	PATH=${PATH} ${BINMAKE} -f Makefile.inc1
 
 #
 # Handle the user-driven targets, using the source relative mk files.
