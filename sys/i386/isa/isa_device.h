@@ -31,15 +31,11 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)isa_device.h	7.1 (Berkeley) 5/9/91
- *	$Id: isa_device.h,v 1.37 1997/04/26 19:07:36 fsmp Exp $
+ *	$Id: isa_device.h,v 1.38 1997/04/26 19:26:37 peter Exp $
  */
 
 #ifndef _I386_ISA_ISA_DEVICE_H_
 #define	_I386_ISA_ISA_DEVICE_H_
-
-#ifdef KERNEL
-#include "opt_smp.h"
-#endif
 
 /*
  * ISA Bus Autoconfiguration
@@ -71,12 +67,8 @@ struct isa_device {
 	int	id_id;		/* device id */
 	struct	isa_driver *id_driver;
 	int	id_iobase;	/* base i/o address */
-#if defined(APIC_IO)
 	u_int	id_irq;		/* interrupt request */
-#else
-	u_short	id_irq;		/* interrupt request */
-#endif /* APIC_IO */
-	short	id_drq;		/* DMA request */
+	int	id_drq;		/* DMA request */
 	caddr_t id_maddr;	/* physical i/o memory address on bus (if any)*/
 	int	id_msize;	/* size of i/o memory */
 	inthand2_t *id_intr;	/* interrupt interface routine */
@@ -150,7 +142,8 @@ inthand_t
 	IDTVEC(intr4), IDTVEC(intr5), IDTVEC(intr6), IDTVEC(intr7),
 	IDTVEC(intr8), IDTVEC(intr9), IDTVEC(intr10), IDTVEC(intr11),
 	IDTVEC(intr12), IDTVEC(intr13), IDTVEC(intr14), IDTVEC(intr15);
-#if defined(APIC_IO)
+
+/* these functions ONLY exist in an SMP/APIC_IO kernel: */
 inthand_t
 	IDTVEC(fastintr16), IDTVEC(fastintr17),
 	IDTVEC(fastintr18), IDTVEC(fastintr19),
@@ -159,12 +152,10 @@ inthand_t
 inthand_t
 	IDTVEC(intr16), IDTVEC(intr17), IDTVEC(intr18), IDTVEC(intr19),
 	IDTVEC(intr20), IDTVEC(intr21), IDTVEC(intr22), IDTVEC(intr23);
-#include <machine/apic.h>
-#if defined(IPI_INTS)
+#define XINVLTLB_OFFSET	32
 inthand_t
-	IDTVEC(ipi24), IDTVEC(ipi25), IDTVEC(ipi26), IDTVEC(ipi27);
-#endif /* IPI_INTS */
-#endif /* APIC_IO */
+	Xinvltlb;
+
 struct isa_device *
 	find_display __P((void));
 struct isa_device *
@@ -180,9 +171,8 @@ void	isa_dmastart __P((int flags, caddr_t addr, u_int nbytes, int chan));
 int	isa_dma_acquire __P((int chan));
 void	isa_dma_release __P((int chan));
 int	isa_irq_pending __P((struct isa_device *dvp));
-#if defined(APIC_IO)
+/* this functions ONLY exists in an SMP/APIC_IO kernel: */
 int	icu_irq_pending __P((struct isa_device *dvp));
-#endif /* APIC_IO */
 int	isa_nmi __P((int cd));
 void	reconfig_isadev __P((struct isa_device *isdp, u_int *mp));
 int	register_intr __P((int intr, int device_id, u_int flags,
