@@ -104,6 +104,7 @@ static pid_t pid;
 static int nflag;	/* no reverse dns lookups */
 static int aflag;	/* do it for all entries */
 static int s = -1;
+static char *rifname;
 
 struct	sockaddr_in so_mask;
 struct	sockaddr_inarp blank_sin, sin_m;
@@ -132,7 +133,7 @@ main(int argc, char *argv[])
 	int rtn = 0;
 
 	pid = getpid();
-	while ((ch = getopt(argc, argv, "andfsS")) != -1)
+	while ((ch = getopt(argc, argv, "andfsSi:")) != -1)
 		switch((char)ch) {
 		case 'a':
 			aflag = 1;
@@ -151,6 +152,9 @@ main(int argc, char *argv[])
 			break;
 		case 'f' :
 			SETFUNC(F_FILESET);
+			break;
+		case 'i':
+			rifname = optarg;
 			break;
 		case '?':
 		default:
@@ -171,6 +175,16 @@ main(int argc, char *argv[])
 
 	if (!func)
 		func = F_GET;
+	if (rifname) {
+		if (func != F_GET)
+			errx(1, "-i not applicable to this operation");
+		if (if_nametoindex(rifname) == 0) {
+			if (errno == ENXIO)
+				errx(1, "interface %s does not exist", rifname);
+			else
+				err(1, "if_nametoindex(%s)", rifname);
+		}
+	}
 	switch (func) {
 	case F_GET:
 		if (aflag) {
@@ -376,8 +390,11 @@ get(char *host)
 	}
 	search(addr->sin_addr.s_addr, print_entry);
 	if (found_entry == 0) {
-		printf("%s (%s) -- no entry\n",
+		printf("%s (%s) -- no entry",
 		    host, inet_ntoa(addr->sin_addr));
+		if (rifname)
+			printf(" on %s", rifname);
+		printf("\n");
 		return(1);
 	}
 	return(0);
@@ -459,6 +476,7 @@ search(u_long addr, void (*action)(struct sockaddr_dl *sdl,
 	struct rt_msghdr *rtm;
 	struct sockaddr_inarp *sin2;
 	struct sockaddr_dl *sdl;
+	char ifname[IF_NAMESIZE];
 
 	mib[0] = CTL_NET;
 	mib[1] = PF_ROUTE;
@@ -477,6 +495,9 @@ search(u_long addr, void (*action)(struct sockaddr_dl *sdl,
 		rtm = (struct rt_msghdr *)next;
 		sin2 = (struct sockaddr_inarp *)(rtm + 1);
 		(char *)sdl = (char *)sin2 + ROUNDUP(sin2->sin_len);
+		if (rifname && if_indextoname(sdl->sdl_index, ifname) &&
+		    strcmp(ifname, rifname))
+			continue;
 		if (addr) {
 			if (addr != sin2->sin_addr.s_addr)
 				continue;
@@ -593,8 +614,8 @@ void
 usage(void)
 {
 	fprintf(stderr, "%s\n%s\n%s\n%s\n%s\n%s\n%s\n",
-		"usage: arp [-n] hostname",
-		"       arp [-n] -a",
+		"usage: arp [-n] [-i interface] hostname",
+		"       arp [-n] [-i interface] -a",
 		"       arp -d hostname [pub]",
 		"       arp -d -a",
 		"       arp -s hostname ether_addr [temp] [pub]",
