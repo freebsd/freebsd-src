@@ -802,6 +802,8 @@ Updater failed: Cannot delete "/usr/ports/www/jakarta-tomcat/files": Directory n
 	of the config file has changed as well.  Please see GENERIC or
 	NEWCARD for examples of the new format.
 
+	Indirectly, this also breaks USERCONFIG
+
 20000522:
 	A new set of binutils went into the tree today.  Anybody
 	building a kernel after this point is advised that they need
