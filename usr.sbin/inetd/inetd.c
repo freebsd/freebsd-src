@@ -812,7 +812,8 @@ main(int argc, char **argv)
 				}
 #ifdef LOGIN_CAP
 				if (setusercontext(lc, pwd, pwd->pw_uid,
-				    LOGIN_SETALL) != 0) {
+				    LOGIN_SETRESOURCES | LOGIN_SETPRIORITY)
+				    != 0) {
 					syslog(LOG_ERR,
 					 "%s: can't setusercontext(..%s..): %m",
 					 sep->se_service, sep->se_user);
