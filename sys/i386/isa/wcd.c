@@ -209,7 +209,7 @@ static int wcd_read_toc (struct wcd *t);
 static int wcd_request_wait (struct wcd *t, u_char cmd, u_char a1, u_char a2,
 	u_char a3, u_char a4, u_char a5, u_char a6, u_char a7, u_char a8,
 	u_char a9, char *addr, int count);
-static int wcd_externalize (struct proc*, struct kern_devconf*, void*, size_t);
+static int wcd_externalize (struct kern_devconf*, struct sysctl_req *);
 static int wcd_goaway (struct kern_devconf *kdc, int force);
 static void wcd_describe (struct wcd *t);
 static int wcd_open(dev_t dev, int rawflag);
@@ -236,10 +236,9 @@ static void wcd_dump (int lun, char *label, void *data, int len)
 	printf ("\n");
 }
 
-static int wcd_externalize (struct proc *p, struct kern_devconf *kdc,
-	void *userp, size_t len)
+static int wcd_externalize (struct kern_devconf *kdc, struct sysctl_req *req)
 {
-	return disk_externalize (wcdtab[kdc->kdc_unit]->unit, userp, &len);
+	return disk_externalize (wcdtab[kdc->kdc_unit]->unit, req);
 }
 
 static int wcd_goaway (struct kern_devconf *kdc, int force)

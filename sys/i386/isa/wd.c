@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)wd.c	7.2 (Berkeley) 5/9/91
- *	$Id: wd.c,v 1.89 1995/10/28 15:39:28 phk Exp $
+ *	$Id: wd.c,v 1.90 1995/10/29 17:34:17 bde Exp $
  */
 
 /* TODO:
@@ -107,8 +107,7 @@ extern void wdstart(int ctrlr);
 
 static int wd_goaway(struct kern_devconf *, int);
 static int wdc_goaway(struct kern_devconf *, int);
-static int wd_externalize(struct proc *, struct kern_devconf *, void *, size_t);
-static int wdc_externalize(struct proc *, struct kern_devconf *, void *, size_t);
+static int wd_externalize(struct kern_devconf *, struct sysctl_req *);
 
 /*
  * Templates for the kern_devconf structures used when we attach.
@@ -274,9 +273,9 @@ static int wdwait(struct disk *du, u_char bits_wanted, int timeout);
  * Provide hw.devconf information.
  */
 static int
-wd_externalize(struct proc *p, struct kern_devconf *kdc, void *userp, size_t len)
+wd_externalize(struct kern_devconf *kdc, struct sysctl_req *req)
 {
-	return disk_externalize(wddrives[kdc->kdc_unit]->dk_unit, userp, &len);
+	return disk_externalize(wddrives[kdc->kdc_unit]->dk_unit, req);
 }
 
 struct isa_driver wdcdriver = {

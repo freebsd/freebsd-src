@@ -22,7 +22,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: kern_devconf.c,v 1.9 1995/04/13 15:33:14 wollman Exp $
+ *	$Id: kern_devconf.c,v 1.10 1995/05/30 08:05:23 rgrimes Exp $
  */
 
 /*
@@ -126,67 +126,49 @@ make_devconf(struct kern_devconf *kdc, struct devconf *dc)
 	dc->dc_descr[(sizeof dc->dc_descr) - 1] = '\0';
 }
 
-int
-dev_sysctl(int *name, u_int namelen, void *oldp, size_t *oldlenp,
-	   void *newp, size_t newlen, struct proc *p)
+static int
+sysctl_hw_devconfig SYSCTL_HANDLER_ARGS
 {
+	int *name = (int *) arg1;
+	u_int namelen = arg2;
 	struct kern_devconf *kdc;
 	struct devconf dc;
 	int rv;
-	size_t len;
 
 	/* all sysctl names at this level are terminal */
 	if (namelen != 1)
 		return ENOTDIR;
 
-	switch(name[0]) {
-	case DEVCONF_NUMBER:
-		return (sysctl_rdint(oldp, oldlenp, newp, dc_lastnum));
+	if (name[0] == DEVCONF_NUMBER)
+		return sysctl_handle_int(oidp, 0, dc_lastnum, req);
 
-	default:
-		for(kdc = dc_list; kdc; kdc = kdc->kdc_next) {
-			if(kdc->kdc_number == name[0])
-				break;
-		}
-
-		if(!kdc)
-			return ENXIO;
-
-		if(!oldp) {
-			*oldlenp = sizeof(struct devconf) - 1;
-
-			*oldlenp += kdc->kdc_datalen;
-			return 0;
-		}
-
-		len = *oldlenp;
-		make_devconf(kdc, &dc);
-		*oldlenp = (sizeof dc) - 1 + dc.dc_datalen;
-
-		if(len < *oldlenp) {
-			return ENOMEM;
-		}
-
-		rv = copyout(&dc, oldp, (sizeof dc) - 1);
-		if(rv)
-			return rv;
-
-		if(kdc->kdc_externalize)
-			rv = kdc->kdc_externalize(p, kdc,
-				            &((struct devconf *)oldp)->dc_data,
-						  len - ((sizeof dc) - 1));
-		if(rv)
-			return rv;
-
-		if(!newp)
-			return 0;
-
-		if(!kdc->kdc_internalize)
-			return EOPNOTSUPP;
-
-		rv = kdc->kdc_internalize(p, kdc,
-				     &((struct devconf *)newp)->dc_data,
-				     newlen - ((sizeof dc) - 1));
-		return rv;
+	for(kdc = dc_list; kdc; kdc = kdc->kdc_next) {
+		if(kdc->kdc_number == name[0])
+			break;
 	}
+
+	if(!kdc)
+		return ENXIO;
+
+	make_devconf(kdc, &dc);
+
+	rv = SYSCTL_OUT(req, &dc, (sizeof dc) -1);
+	if(rv)
+		return rv;
+
+	if(kdc->kdc_externalize)
+		rv = kdc->kdc_externalize(kdc, req);
+	if(rv)
+		return rv;
+
+	if(!req->newptr)
+		return 0;
+
+	if(!kdc->kdc_internalize)
+		return EOPNOTSUPP;
+
+	rv = kdc->kdc_internalize(kdc, req);
+	return rv;
 }
+
+SYSCTL_NODE(_hw, HW_DEVCONF, devconfig, CTLFLAG_RW, sysctl_hw_devconfig,"");

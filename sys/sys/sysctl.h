@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)sysctl.h	8.1 (Berkeley) 6/2/93
- * $Id: sysctl.h,v 1.33 1995/11/14 09:42:10 phk Exp $
+ * $Id: sysctl.h,v 1.34 1995/11/16 19:00:27 phk Exp $
  */
 
 #ifndef _SYS_SYSCTL_H_
@@ -86,6 +86,7 @@ struct ctlname {
  */
 struct sysctl_req {
 	struct proc	*p;
+	int		lock;
 	void		*oldptr;
 	int		oldlen;
 	int		oldidx;
@@ -362,33 +363,11 @@ extern char	ostype[];
 
 int userland_sysctl(struct proc *p, int *name, u_int namelen, void *old, size_t *oldlenp, int inkernel, void *new, size_t newlen, int *retval);
 /*
- * Internal sysctl function calling convention:
- *
- *	(*sysctlfn)(name, namelen, oldval, oldlenp, newval, newlen, p);
- *
- * The name parameter points at the next component of the name to be
- * interpreted.  The namelen parameter is the number of integers in
- * the name.
- */
-typedef int (sysctlfn)
-    __P((int *, u_int, void *, size_t *, void *, size_t, struct proc *));
-
-sysctlfn dev_sysctl;
-sysctlfn fs_sysctl;
-sysctlfn hw_sysctl;
-
-int sysctl_int __P((void *, size_t *, void *, size_t, int *));
-int sysctl_rdint __P((void *, size_t *, void *, int));
-int sysctl_string __P((void *, size_t *, void *, size_t, char *, int));
-int sysctl_rdstring __P((void *, size_t *, void *, char *));
-int sysctl_rdstruct __P((void *, size_t *, void *, void *, int));
-int sysctl_struct __P((void *oldp, size_t *, void *, size_t, void *, int));
-
 int	sysctl_clockrate __P((char *, size_t*));
-int	sysctl_vnode __P((char *, size_t*));
 int	sysctl_file __P((char *, size_t*));
 int	sysctl_doproc __P((int *, u_int, char *, size_t*));
 int	sysctl_doprof __P((int *, u_int, void *, size_t *, void *, size_t));
+*/
 
 #else	/* !KERNEL */
 #include <sys/cdefs.h>

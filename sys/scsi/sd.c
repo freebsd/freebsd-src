@@ -14,7 +14,7 @@
  *
  * Ported to run under 386BSD by Julian Elischer (julian@dialix.oz.au) Sept 1992
  *
- *      $Id: sd.c,v 1.70 1995/11/19 22:22:28 dyson Exp $
+ *      $Id: sd.c,v 1.71 1995/11/20 02:12:34 davidg Exp $
  */
 
 #define SPLSD splbio
@@ -113,11 +113,9 @@ static struct scsi_device sd_switch =
 static struct scsi_xfer sx;
 
 static int
-sd_externalize(struct proc *p, struct kern_devconf *kdc, void *userp,
-	       size_t len)
+sd_externalize(struct kern_devconf *kdc, struct sysctl_req *req)
 {
-	return scsi_externalize(SCSI_LINK(&sd_switch, kdc->kdc_unit),
-				userp, &len);
+	return scsi_externalize(SCSI_LINK(&sd_switch, kdc->kdc_unit), req);
 }
 
 static struct kern_devconf kdc_sd_template = {
