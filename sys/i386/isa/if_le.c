@@ -57,7 +57,7 @@ __FBSDID("$FreeBSD$");
 #include <netinet/in.h>
 #include <netinet/if_ether.h>
 
-
+#include <machine/frame.h>
 
 #include <i386/isa/isa_device.h>
 #include <i386/isa/icu.h>
