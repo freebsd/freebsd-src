@@ -1,7 +1,7 @@
 # This file tells config what files go into building a kernel,
 # files marked standard are always included.
 #
-#	$Id: files.i386,v 1.200 1998/08/04 21:44:09 brian Exp $
+#	$Id: files.i386,v 1.201 1998/09/04 06:06:55 nsouch Exp $
 #
 # The long compile-with and dependency lines are required because of
 # limitations in config: backslash-newline doesn't work in strings, and
@@ -241,6 +241,7 @@ i386/isa/ultra14f.c		optional	uha	device-driver
 i386/isa/wd.c			optional	wdc	device-driver
 i386/isa/wd.c			optional	wd	device-driver
 i386/isa/atapi.c		optional	atapi	device-driver
+i386/isa/atapi-cd.c		optional	acd	device-driver
 i386/isa/wcd.c			optional	wcd	device-driver
 i386/isa/wfd.c			optional	wfd	device-driver
 i386/isa/wst.c			optional	wst	device-driver
