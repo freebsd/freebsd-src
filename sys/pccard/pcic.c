@@ -97,14 +97,14 @@ static struct slot_ctrl cinfo;
 /*
  * Read a register from the PCIC.
  */
-static inline unsigned char
+static __inline unsigned char
 getb1(struct pcic_slot *sp, int reg)
 {
 	outb(sp->index, sp->offset + reg);
 	return inb(sp->data);
 }
 
-static inline unsigned char
+static __inline unsigned char
 getb2(struct pcic_slot *sp, int reg)
 {
 	return (sp->regs[reg]);
@@ -113,14 +113,14 @@ getb2(struct pcic_slot *sp, int reg)
 /*
  * Write a register on the PCIC
  */
-static inline void
+static __inline void
 putb1(struct pcic_slot *sp, int reg, unsigned char val)
 {
 	outb(sp->index, sp->offset + reg);
 	outb(sp->data, val);
 }
 
-static inline void
+static __inline void
 putb2(struct pcic_slot *sp, int reg, unsigned char val)
 {
 	sp->regs[reg] = val;
@@ -129,7 +129,7 @@ putb2(struct pcic_slot *sp, int reg, unsigned char val)
 /*
  * Clear bit(s) of a register.
  */
-static inline void
+static __inline void
 clrb(struct pcic_slot *sp, int reg, unsigned char mask)
 {
 	sp->putb(sp, reg, sp->getb(sp, reg) & ~mask);
@@ -138,7 +138,7 @@ clrb(struct pcic_slot *sp, int reg, unsigned char mask)
 /*
  * Set bit(s) of a register
  */
-static inline void
+static __inline void
 setb(struct pcic_slot *sp, int reg, unsigned char mask)
 {
 	sp->putb(sp, reg, sp->getb(sp, reg) | mask);
@@ -147,7 +147,7 @@ setb(struct pcic_slot *sp, int reg, unsigned char mask)
 /*
  * Write a 16 bit value to 2 adjacent PCIC registers
  */
-static inline void
+static __inline void
 putw(struct pcic_slot *sp, int reg, unsigned short word)
 {
 	sp->putb(sp, reg, word & 0xFF);
@@ -175,14 +175,14 @@ pcic_handle(struct lkm_table *lkmtp, int cmd)
 {
 	int err = 0;	/* default = success*/
 
-	switch( cmd) {
+	switch(cmd) {
 	case LKM_E_LOAD:
 
 		/*
 		 * Don't load twice! (lkmexists() is exported by kern_lkm.c)
 		 */
-		if( lkmexists( lkmtp))
-			return( EEXIST);
+		if (lkmexists(lkmtp))
+			return(EEXIST);
 		/*
 		 *	Call the probe routine to find the slots. If
 		 *	no slots exist, then don't bother loading the module.
@@ -203,7 +203,7 @@ pcic_handle(struct lkm_table *lkmtp, int cmd)
 		break;
 	}
 
-	return( err);
+	return(err);
 }
 
 /*
@@ -280,10 +280,15 @@ pcic_dump_attributes(unsigned char *scratch, int maxlen)
 }
 #endif
 
+static void
+nullfunc(int unit)
+{
+	/* empty */
+}
+
 static u_int
 build_freelist(u_int pcic_mask)
 { 
-	inthand2_t *nullfunc; 
 	int irq;
 	u_int mask, freemask; 
  
@@ -701,13 +706,6 @@ pcic_probe(void)
 			cinfo.name = "Unknown!";
 			break;
 		}
-#ifndef	PCIC_NOCLRREGS
-		/*
-		 *	clear out the registers.
-		 */
-		for (i = 2; i < 0x40; i++)
-			sp->putb(sp, i, 0);
-#endif	/* PCIC_NOCLRREGS */
 		/*
 		 *	OK it seems we have a PCIC or lookalike.
 		 *	Allocate a slot and initialise the data structures.
@@ -795,7 +793,7 @@ pcic_probe(void)
 	}
 #endif	/* PC98 */
 	if (validslots)
-		timeout(pcictimeout,0,hz/2);
+		timeout(pcictimeout, 0, hz/2);
 	return(validslots);
 }
 
@@ -1056,8 +1054,8 @@ pcic_disable(struct slot *slt)
 static void
 pcictimeout(void *chan)
 {
-	timeout(pcictimeout,0,hz/2);
 	pcicintr(0);
+	timeout(pcictimeout, 0, hz/2);
 }
 
 /*
