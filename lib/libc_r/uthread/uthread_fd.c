@@ -1005,7 +1005,11 @@ _thread_fd_unlock(int fd, int lock_type)
 int
 _thread_fd_lock(int fd, int lock_type, struct timespec * timeout)
 {
-	return (0);
+	/*
+	 * Insure that the file descriptor table is initialized for this
+	 * entry: 
+	 */
+	return (_thread_fd_table_init(fd));
 }
 
 void
@@ -1017,7 +1021,11 @@ int
 _thread_fd_lock_debug(int fd, int lock_type, struct timespec * timeout,
 		char *fname, int lineno)
 {
-	return (0);
+	/*
+	 * Insure that the file descriptor table is initialized for this
+	 * entry: 
+	 */
+	return (_thread_fd_table_init(fd));
 }
 
 void
