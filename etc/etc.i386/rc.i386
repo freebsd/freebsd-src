@@ -1,10 +1,15 @@
 #!/bin/sh -
 #
-#	$Id: rc.i386,v 1.18 1996/09/09 19:59:14 ache Exp $
+#	$Id: rc.i386,v 1.18.2.1 1997/04/26 22:39:36 jkh Exp $
 #	Do i386 specific processing
 #
 
 echo -n 'Initial rc.i386 initialization:'
+if [ "X$apm_enable" = X"YES" ] ; then
+	echo -n ' apm'
+	apmconf -e > /dev/null 2>&1
+fi
+
 # Start the SCO binary emulation if requested.
 if [ "X${ibcs2_enable}" = X"YES" ]; then
 	echo -n ' ibcs2';		ibcs2 > /dev/null 2>&1
@@ -97,9 +102,9 @@ echo '.'
 
 # interrupts for /dev/random device
 if [ "X${rand_irqs}" != X"NO" ] ; then
-	echo -n 'entropy source: '
-	rndcontrol ${rand_irqs}
+	echo -n 'entropy IRQs:'
+	for irq in ${rand_irqs}; do
+		echo -n " ${irq}" && rndcontrol -q -s ${irq}
+	done
 	echo '.'
 fi
-
-
