@@ -1,5 +1,5 @@
 #ifndef lint
-static const char *rcsid = "$Id: perform.c,v 1.15 1995/04/10 08:01:44 jkh Exp $";
+static const char *rcsid = "$Id: perform.c,v 1.16 1995/04/19 14:01:49 jkh Exp $";
 #endif
 
 /*
@@ -210,42 +210,9 @@ pkg_do(char *pkg)
 	    printf("mtree -u -f %s -d -e -p %s\n", MTREE_FNAME,
 		   p ? p->name : "/");
 	if (!Fake) {
-	    pid_t chpid;
-	    int rval, status;
-	    chpid = fork();
-	    if (chpid == 0) {
-		execl("/usr/sbin/mtree", "mtree", "-u", "-f", MTREE_FNAME,
-		      "-d", "-e", "-p", p ? p->name : "/");
-		perror("cannot execute mtree");
-		exit(3);
-	    }
-	    if (chpid == (pid_t) -1) {
-		warn("Cannot fork mtree");
-		code = 1;
-		goto fail;
-	    }
-	    if (waitpid(chpid, &status, 0) == -1) {
-		warn("Cannot wait for mtree");
-		code = 1;
-		goto fail;
-	    }
-	    if (!WIFEXITED(status)) {
-		whinge("Strange exit from mtree: %x", status);
-		code = 1;
-		goto fail;
-	    }
-#ifdef DEBUG
-	    whinge("mtree exits %d\n", WEXITSTATUS(status));
-#endif
-	    switch (WEXITSTATUS(status)) {
-	    case 0:
-		break;			/* normal */
-	    case 2:
-		whinge("\nWARNING: Mtree attempted some work which may not have completed.\n\tExamine the above output.\n\t(most likely it changed directory permissions)\n");
-		break;
-	    default:
-		whinge("Error status %d from mtree.", WEXITSTATUS(status));
-		code = 1;
+	    if (vsystem("/usr/sbin/mtree -u -f %s -d -e -p %s",
+			MTREE_FNAME, p ? p->name : "/")) {
+		perror("error in the execution of mtree");
 		goto fail;
 	    }
 	}
