@@ -667,7 +667,6 @@ options 	NFS			#Network File System
 #options 	NFS_NOSERVER		#Disable the NFS-server code.
 options 	CD9660			#ISO 9660 filesystem
 options 	FDESC			#File descriptor filesystem
-options 	KERNFS			#Kernel filesystem
 options 	MSDOSFS			#MS DOS File System (FAT, FAT32)
 options 	NTFS			#NT File System
 options 	NULLFS			#NULL filesystem
