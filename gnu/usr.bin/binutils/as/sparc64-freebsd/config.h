@@ -151,7 +151,7 @@
 #define PACKAGE "gas"
 
 /* Version number of package */
-/* #define VERSION "2.13" */
+/* #define VERSION "2.13.2" */
 
 /* Define if defaulting to ELF on SCO 5. */
 /* #undef SCO_ELF */
