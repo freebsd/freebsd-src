@@ -37,6 +37,7 @@
 #include <unistd.h>
 #include <fcntl.h>
 #include <pthread.h>
+#include <sys/signalvar.h>
 #include "thr_private.h"
 
 __weak_reference(_fork, fork);
@@ -44,15 +45,35 @@ __weak_reference(_fork, fork);
 pid_t
 _fork(void)
 {
+	sigset_t sigset, oldset;
 	struct pthread *curthread;
 	pid_t ret;
 
+	if (!_kse_isthreaded())
+		return (__sys_fork());
+
 	curthread = _get_curthread();
 
+	/*
+	 * Masks all signals until we reach a safe point in
+	 * _kse_single_thread, and the signal masks will be
+	 * restored in that function, for M:N thread, all 
+	 * signals were already masked in kernel atomically,
+	 * we only need to do this for bound thread.
+	 */
+	if (curthread->attr.flags & PTHREAD_SCOPE_SYSTEM) {
+		SIGFILLSET(sigset);
+		__sys_sigprocmask(SIG_SETMASK, &sigset, &oldset);
+	}
 	/* Fork a new process: */
-	if ((ret = __sys_fork()) == 0)
+	if ((ret = __sys_fork()) == 0) {
 		/* Child process */
 		_kse_single_thread(curthread);
+		/* Kernel signal mask is restored in _kse_single_thread */
+	} else {
+		if (curthread->attr.flags & PTHREAD_SCOPE_SYSTEM)
+			__sys_sigprocmask(SIG_SETMASK, &oldset, NULL);
+	}
 
 	/* Return the process ID: */
 	return (ret);
