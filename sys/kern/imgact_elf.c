@@ -150,13 +150,16 @@ int
 elf_brand_inuse(Elf_Brandinfo *entry)
 {
 	struct proc *p;
+	int rval = FALSE;
 
 	LIST_FOREACH(p, &allproc, p_list) {
-		if (p->p_sysent == entry->sysvec)
-			return TRUE;
+		if (p->p_sysent == entry->sysvec) {
+			rval = TRUE;
+			break;
+		}
 	}
 
-	return FALSE;
+	return (rval);
 }
 
 static int
@@ -238,8 +241,9 @@ elf_load_section(struct proc *p, struct vmspace *vmspace, struct vnode *vp, vm_o
 		}
 
 		/* we can stop now if we've covered it all */
-		if (memsz == filsz)
+		if (memsz == filsz) {
 			return 0;
+		}
 	}
 
 
@@ -260,8 +264,9 @@ elf_load_section(struct proc *p, struct vmspace *vmspace, struct vnode *vp, vm_o
 					map_addr, map_addr + map_len,
 					VM_PROT_ALL, VM_PROT_ALL, 0);
 		vm_map_unlock(&vmspace->vm_map);
-		if (rv != KERN_SUCCESS)
+		if (rv != KERN_SUCCESS) {
 			return EINVAL; 
+		}
 	}
 
 	if (copy_len != 0) {
@@ -283,8 +288,9 @@ elf_load_section(struct proc *p, struct vmspace *vmspace, struct vnode *vp, vm_o
 		/* send the page fragment to user space */
 		error = copyout((caddr_t)data_buf, (caddr_t)map_addr, copy_len);
 		vm_map_remove(exec_map, data_buf, data_buf + PAGE_SIZE);
-		if (error)
+		if (error) {
 			return (error);
+		}
 	}
 
 	/*
@@ -311,48 +317,57 @@ elf_load_section(struct proc *p, struct vmspace *vmspace, struct vnode *vp, vm_o
 static int
 elf_load_file(struct proc *p, const char *file, u_long *addr, u_long *entry)
 {
+	struct {
+		struct nameidata nd;
+		struct vattr attr;
+		struct image_params image_params;
+	} *tempdata;
 	const Elf_Ehdr *hdr = NULL;
 	const Elf_Phdr *phdr = NULL;
-	struct nameidata nd;
+	struct nameidata *nd;
 	struct vmspace *vmspace = p->p_vmspace;
-	struct vattr attr;
-	struct image_params image_params, *imgp;
+	struct vattr *attr;
+	struct image_params *imgp;
 	vm_prot_t prot;
 	u_long rbase;
 	u_long base_addr = 0;
 	int error, i, numsegs;
 
-	imgp = &image_params;
+	tempdata = malloc(sizeof(*tempdata), M_TEMP, M_WAITOK);
+	nd = &tempdata->nd;
+	attr = &tempdata->attr;
+	imgp = &tempdata->image_params;
+
 	/*
 	 * Initialize part of the common data
 	 */
 	imgp->proc = p;
 	imgp->uap = NULL;
-	imgp->attr = &attr;
+	imgp->attr = attr;
 	imgp->firstpage = NULL;
 	imgp->image_header = (char *)kmem_alloc_wait(exec_map, PAGE_SIZE);
 
 	if (imgp->image_header == NULL) {
-		nd.ni_vp = NULL;
+		nd->ni_vp = NULL;
 		error = ENOMEM;
 		goto fail;
 	}
 
-        NDINIT(&nd, LOOKUP, LOCKLEAF|FOLLOW, UIO_SYSSPACE, file, p);   
+        NDINIT(nd, LOOKUP, LOCKLEAF|FOLLOW, UIO_SYSSPACE, file, p);   
 			 
-	if ((error = namei(&nd)) != 0) {
-		nd.ni_vp = NULL;
+	if ((error = namei(nd)) != 0) {
+		nd->ni_vp = NULL;
 		goto fail;
 	}
-	NDFREE(&nd, NDF_ONLY_PNBUF);
-	imgp->vp = nd.ni_vp;
+	NDFREE(nd, NDF_ONLY_PNBUF);
+	imgp->vp = nd->ni_vp;
 
 	/*
 	 * Check permissions, modes, uid, etc on the file, and "open" it.
 	 */
 	error = exec_check_permissions(imgp);
 	if (error) {
-		VOP_UNLOCK(nd.ni_vp, 0, p);
+		VOP_UNLOCK(nd->ni_vp, 0, p);
 		goto fail;
 	}
 
@@ -362,8 +377,8 @@ elf_load_file(struct proc *p, const char *file, u_long *addr, u_long *entry)
 	 * its VTEXT flag, too.
 	 */
 	if (error == 0)
-		nd.ni_vp->v_flag |= VTEXT;
-	VOP_UNLOCK(nd.ni_vp, 0, p);
+		nd->ni_vp->v_flag |= VTEXT;
+	VOP_UNLOCK(nd->ni_vp, 0, p);
 	if (error)
                 goto fail;
 
@@ -398,7 +413,7 @@ elf_load_file(struct proc *p, const char *file, u_long *addr, u_long *entry)
 			if (phdr[i].p_flags & PF_R)
   				prot |= VM_PROT_READ;
 
-			if ((error = elf_load_section(p, vmspace, nd.ni_vp,
+			if ((error = elf_load_section(p, vmspace, nd->ni_vp,
   						     phdr[i].p_offset,
   						     (caddr_t)phdr[i].p_vaddr +
 							rbase,
@@ -423,8 +438,10 @@ fail:
 	if (imgp->image_header)
 		kmem_free_wakeup(exec_map, (vm_offset_t)imgp->image_header,
 			PAGE_SIZE);
-	if (nd.ni_vp)
-		vrele(nd.ni_vp);
+	if (nd->ni_vp)
+		vrele(nd->ni_vp);
+
+	free(tempdata, M_TEMP);
 
 	return error;
 }
@@ -451,7 +468,7 @@ exec_elf_imgact(struct image_params *imgp)
 	int error, i;
 	const char *interp = NULL;
 	Elf_Brandinfo *brand_info;
-	char path[MAXPATHLEN];
+	char *path;
 
 	/*
 	 * Do we have a valid ELF header ?
@@ -615,16 +632,19 @@ exec_elf_imgact(struct image_params *imgp)
 
 	imgp->proc->p_sysent = brand_info->sysvec;
 	if (interp != NULL) {
-	        snprintf(path, sizeof(path), "%s%s",
+		path = malloc(MAXPATHLEN, M_TEMP, M_WAITOK);
+	        snprintf(path, MAXPATHLEN, "%s%s",
 			 brand_info->emul_path, interp);
 		if ((error = elf_load_file(imgp->proc, path, &addr,
 					   &imgp->entry_addr)) != 0) {
 		        if ((error = elf_load_file(imgp->proc, interp, &addr,
 						   &imgp->entry_addr)) != 0) {
 			        uprintf("ELF interpreter %s not found\n", path);
+				free(path, M_TEMP);
 				goto fail;
 			}
                 }
+		free(path, M_TEMP);
 	}
 
 	/*
@@ -882,35 +902,46 @@ elf_corehdr(p, vp, cred, numsegs, hdr, hdrsize)
 	size_t hdrsize;
 	void *hdr;
 {
+	struct {
+		prstatus_t status;
+		prfpregset_t fpregset;
+		prpsinfo_t psinfo;
+	} *tempdata;
 	size_t off;
-	prstatus_t status;
-	prfpregset_t fpregset;
-	prpsinfo_t psinfo;
+	prstatus_t *status;
+	prfpregset_t *fpregset;
+	prpsinfo_t *psinfo;
+
+	tempdata = malloc(sizeof(*tempdata), M_TEMP, M_ZERO | M_WAITOK);
+	status = &tempdata->status;
+	fpregset = &tempdata->fpregset;
+	psinfo = &tempdata->psinfo;
 
 	/* Gather the information for the header. */
-	bzero(&status, sizeof status);
-	status.pr_version = PRSTATUS_VERSION;
-	status.pr_statussz = sizeof(prstatus_t);
-	status.pr_gregsetsz = sizeof(gregset_t);
-	status.pr_fpregsetsz = sizeof(fpregset_t);
-	status.pr_osreldate = osreldate;
-	status.pr_cursig = p->p_sig;
-	status.pr_pid = p->p_pid;
-	fill_regs(p, &status.pr_reg);
+	status->pr_version = PRSTATUS_VERSION;
+	status->pr_statussz = sizeof(prstatus_t);
+	status->pr_gregsetsz = sizeof(gregset_t);
+	status->pr_fpregsetsz = sizeof(fpregset_t);
+	status->pr_osreldate = osreldate;
+	status->pr_cursig = p->p_sig;
+	status->pr_pid = p->p_pid;
+	fill_regs(p, &status->pr_reg);
 
-	fill_fpregs(p, &fpregset);
+	fill_fpregs(p, fpregset);
 
-	bzero(&psinfo, sizeof psinfo);
-	psinfo.pr_version = PRPSINFO_VERSION;
-	psinfo.pr_psinfosz = sizeof(prpsinfo_t);
-	strncpy(psinfo.pr_fname, p->p_comm, MAXCOMLEN);
+	psinfo->pr_version = PRPSINFO_VERSION;
+	psinfo->pr_psinfosz = sizeof(prpsinfo_t);
+	strncpy(psinfo->pr_fname, p->p_comm, sizeof(psinfo->pr_fname) - 1);
+
 	/* XXX - We don't fill in the command line arguments properly yet. */
-	strncpy(psinfo.pr_psargs, p->p_comm, PRARGSZ);
+	strncpy(psinfo->pr_psargs, p->p_comm, PRARGSZ);
 
 	/* Fill in the header. */
 	bzero(hdr, hdrsize);
 	off = 0;
-	elf_puthdr(p, hdr, &off, &status, &fpregset, &psinfo, numsegs);
+	elf_puthdr(p, hdr, &off, status, fpregset, psinfo, numsegs);
+
+	free(tempdata, M_TEMP);
 
 	/* Write it to the core file. */
 	return vn_rdwr_inchunks(UIO_WRITE, vp, hdr, hdrsize, (off_t)0,
