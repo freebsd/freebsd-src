@@ -115,6 +115,5 @@ int	softdep_slowdown(struct vnode *);
  */
 #define BA_CLRBUF	0x00010000	/* Request alloced buffer be cleared. */
 #define BA_METAONLY	0x00020000	/* Return indirect block buffer. */
-#define BA_NOWAIT	0x00040000	/* Do not sleep to await lock. */
 
 #endif /* !_UFS_UFS_EXTERN_H_ */
