@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: devices.c,v 1.42 1996/03/24 09:36:41 jkh Exp $
+ * $Id: devices.c,v 1.43 1996/04/07 03:52:19 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -19,13 +19,6 @@
  * 2. Redistributions in binary form must reproduce the above copyright
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
- * 3. All advertising materials mentioning features or use of this software
- *    must display the following acknowledgement:
- *	This product includes software developed by Jordan Hubbard
- *	for the FreeBSD Project.
- * 4. The name of Jordan Hubbard or the FreeBSD project may not be used to
- *    endorse or promote products derived from this software without specific
- *    prior written permission.
  *
  * THIS SOFTWARE IS PROVIDED BY JORDAN HUBBARD ``AS IS'' AND
  * ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
@@ -356,7 +349,7 @@ deviceCount(Device **devs)
  * menu is cloned.
  */
 DMenu *
-deviceCreateMenu(DMenu *menu, DeviceType type, int (*hook)())
+deviceCreateMenu(DMenu *menu, DeviceType type, int (*hook)(dialogMenuItem *d), int (*check)(dialogMenuItem *d))
 {
     Device **devs;
     int numdevs;
@@ -381,7 +374,7 @@ deviceCreateMenu(DMenu *menu, DeviceType type, int (*hook)())
 	if (!device_names[j].name)
 	    tmp->items[i].title = "<unknown device type>";
 	tmp->items[i].fire = hook;
-	tmp->items[i].checked = NULL;
+	tmp->items[i].checked = check;
     }
     tmp->items[i].title = NULL;
     return tmp;

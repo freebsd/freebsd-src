@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: label.c,v 1.40 1996/03/24 18:57:37 joerg Exp $
+ * $Id: label.c,v 1.41 1996/04/07 03:52:30 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -19,13 +19,6 @@
  * 2. Redistributions in binary form must reproduce the above copyright
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
- * 3. All advertising materials mentioning features or use of this software
- *    must display the following acknowledgement:
- *	This product includes software developed by Jordan Hubbard
- *	for the FreeBSD Project.
- * 4. The name of Jordan Hubbard or the FreeBSD project may not be used to
- *    endorse or promote products derived from this software without specific
- *    prior written permission.
  *
  * THIS SOFTWARE IS PROVIDED BY JORDAN HUBBARD ``AS IS'' AND
  * ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
@@ -82,47 +75,14 @@ static int here;
 
 static int diskLabel(char *str);
 
-static int
-labelHook(char *str)
-{
-    Device **devs = NULL;
-
-    /* Clip garbage off the ends */
-    string_prune(str);
-    str = string_skipwhite(str);
-    /* Try and open all the disks */
-    while (str) {
-	char *cp;
-
-	cp = index(str, '\n');
-	if (cp)
-	   *cp++ = 0;
-	if (!*str) {
-	    beep();
-	    return 0;
-	}
-	devs = deviceFind(str, DEVICE_TYPE_DISK);
-	if (!devs) {
-	    dialog_clear();
-	    msgConfirm("Unable to find disk %s!", str);
-	    return 0;
-	}
-	devs[0]->enabled = TRUE;
-	str = cp;
-    }
-    return devs ? 1 : 0;
-}
-
 int
 diskLabelEditor(dialogMenuItem *self)
 {
     Device **devs;
-    DMenu *menu;
-    int i, cnt;
-    char *cp, *str;
+    int i, cnt, enabled;
+    char *cp;
 
     cp = variable_get(VAR_DISK);
-    str = variable_get(SYSTEM_STATE);
     devs = deviceFind(cp, DEVICE_TYPE_DISK);
     cnt = deviceCount(devs);
     if (!cnt) {
@@ -130,32 +90,20 @@ diskLabelEditor(dialogMenuItem *self)
 	msgConfirm("No disks found!  Please verify that your disk controller is being\n"
 		   "properly probed at boot time.  See the Hardware Guide on the\n"
 		   "Documentation menu for clues on diagnosing this type of problem.");
-	return RET_FAIL;
+	return DITEM_FAILURE;
     }
-    else if (cnt == 1 || variable_get(DISK_SELECTED)) {
-	if (cnt == 1)
-	    devs[0]->enabled = TRUE;
-	i = diskLabel(str);
+    for (i = 0, enabled = 0; i < cnt; i++) {
+	if (devs[i]->enabled)
+	    ++enabled;
     }
-    else {
-	menu = deviceCreateMenu(&MenuDiskDevices, DEVICE_TYPE_DISK, labelHook);
-	if (!menu) {
-	    dialog_clear();
-	    msgConfirm("No devices suitable for installation found!\n\n"
-		       "Please verify that your disk controller (and attached drives)\n"
-		       "were detected properly.  This can be done by pressing the\n"
-		       "[Scroll Lock] key and using the Arrow keys to move back to\n"
-		       "the boot messages.  Press [Scroll Lock] again to return.");
-	    i = RET_FAIL;
-	}
-	else {
-	    if (!dmenuOpenSimple(menu))
-		i = RET_FAIL;
-	    else
-		i = diskLabel(str);
-	    free(menu);
-	}
+    if (!enabled) {
+	devs[0]->enabled = TRUE;
+	if (diskPartitionEditor(self) == DITEM_FAILURE)
+	    return DITEM_FAILURE;
     }
+    i = diskLabel(devs[0]->name);
+    if (i != DITEM_FAILURE)
+	variable_set2(DISK_LABELLED, "yes");
     return i;
 }
 
@@ -168,22 +116,22 @@ diskLabelCommit(dialogMenuItem *self)
     /* Already done? */
     if ((cp = variable_get(DISK_LABELLED)) && strcmp(cp, "yes")) {
         variable_set2(DISK_PARTITIONED, "yes");
-	i = RET_SUCCESS;
+	i = DITEM_SUCCESS;
     }
     else if (!cp) {
 	dialog_clear();
 	msgConfirm("You must assign disk labels before this option can be used.");
-	i = RET_FAIL;
+	i = DITEM_FAILURE;
     }
     /* The routine will guard against redundant writes, just as this one does */
-    else if (diskPartitionWrite(self) != RET_SUCCESS)
-	i = RET_FAIL;
-    else if (installFilesystems(self) != RET_SUCCESS)
-	i = RET_FAIL;
+    else if (diskPartitionWrite(self) != DITEM_SUCCESS)
+	i = DITEM_FAILURE;
+    else if (installFilesystems(self) != DITEM_SUCCESS)
+	i = DITEM_FAILURE;
     else {
 	msgInfo("All filesystem information written successfully.");
 	variable_set2(DISK_LABELLED, "written");
-	i = RET_SUCCESS;
+	i = DITEM_SUCCESS;
     }
     return i;
 }
@@ -522,7 +470,7 @@ diskLabel(char *str)
     if (!devs) {
 	dialog_clear();
 	msgConfirm("No disks found!");
-	return RET_FAIL;
+	return DITEM_FAILURE;
     }
 
     labeling = TRUE;
@@ -878,7 +826,6 @@ diskLabel(char *str)
 		break;
 	    variable_unset(DISK_PARTITIONED);
 	    for (i = 0; devs[i]; i++) {
-		extern void diskPartition(Device *dev, Disk *d);
 		Disk *d;
 
 		if (!devs[i]->enabled)
@@ -945,5 +892,5 @@ diskLabel(char *str)
 	}
     }
     dialog_clear();
-    return RET_SUCCESS;
+    return DITEM_SUCCESS;
 }

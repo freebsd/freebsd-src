@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: package.c,v 1.29 1996/03/18 15:28:05 jkh Exp $
+ * $Id: package.c,v 1.30 1996/03/21 09:30:14 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -19,13 +19,6 @@
  * 2. Redistributions in binary form must reproduce the above copyright
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
- * 3. All advertising materials mentioning features or use of this software
- *    must display the following acknowledgement:
- *	This product includes software developed by Jordan Hubbard
- *	for the FreeBSD Project.
- * 4. The name of Jordan Hubbard or the FreeBSD project may not be used to
- *    endorse or promote products derived from this software without specific
- *    prior written permission.
  *
  * THIS SOFTWARE IS PROVIDED BY JORDAN HUBBARD ``AS IS'' AND
  * ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
@@ -55,7 +48,7 @@ int
 package_add(char *name)
 {
     if (!mediaVerify())
-	return RET_FAIL;
+	return DITEM_FAILURE;
     return package_extract(mediaDevice, name, FALSE);
 }
 
@@ -74,17 +67,17 @@ package_extract(Device *dev, char *name, Boolean depended)
     /* Check to make sure it's not already there */
     if (!vsystem("pkg_info -e %s", name)) {
 	msgDebug("package %s marked as already installed - return SUCCESS.\n", name);
-	return RET_SUCCESS;
+	return DITEM_SUCCESS;
     }
 
     if (!dev->init(dev)) {
 	dialog_clear();
 	msgConfirm("Unable to initialize media type for package extract.");
-	return RET_FAIL;
+	return DITEM_FAILURE;
     }
 
     /* Be initially optimistic */
-    ret = RET_SUCCESS;
+    ret = DITEM_SUCCESS;
     /* Make a couple of paranoid locations for temp files to live if user specified none */
     if (!variable_get("PKG_TMPDIR")) {
 	Mkdir("/usr/tmp", NULL);
@@ -117,9 +110,17 @@ package_extract(Device *dev, char *name, Boolean depended)
 
 	    tot = 0;
 	    while ((i = read(fd, buf, BUFSIZ)) > 0) {
+		char line[80];
+		int x, len;
+
 		write(pfd[1], buf, i);
 		tot += i;
-		mvprintw(0, 0, "%d bytes read from package %s", tot, name);
+		sprintf(line, "%d bytes read from package %s", tot, name);
+		len = strlen(line);
+		for (x = len; x < 79; x++)
+		    line[x] = ' ';
+		line[79] = '\0';
+		mvprintw(0, 0, line);
 		clrtoeol();
 		refresh();
 	    }
@@ -146,7 +147,7 @@ package_extract(Device *dev, char *name, Boolean depended)
 	    msgConfirm("Unable to fetch package %s from selected media.\n"
 		       "No package add will be done.", name);
 	}
-	ret = RET_FAIL;
+	ret = DITEM_FAILURE;
     }
     return ret;
 }

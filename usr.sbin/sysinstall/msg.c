@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: msg.c,v 1.29.2.8 1995/10/22 21:38:17 jkh Exp $
+ * $Id: msg.c,v 1.30 1995/12/07 10:34:09 peter Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -19,13 +19,6 @@
  * 2. Redistributions in binary form must reproduce the above copyright
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
- * 3. All advertising materials mentioning features or use of this software
- *    must display the following acknowledgement:
- *	This product includes software developed by Jordan Hubbard
- *	for the FreeBSD Project.
- * 4. The name of Jordan Hubbard or the FreeBSD project may not be used to
- *    endorse or promote products derived from this software without specific
- *    prior written permission.
  *
  * THIS SOFTWARE IS PROVIDED BY JORDAN HUBBARD ``AS IS'' AND
  * ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
@@ -214,16 +207,14 @@ msgConfirm(char *fmt, ...)
     va_end(args);
     use_helpline(NULL);
     use_helpfile(NULL);
-    w = dupwin(newscr);
+    w = savescr();
     if (OnVTY) {
 	msgDebug("Switching back to VTY1\n");
 	ioctl(0, VT_ACTIVATE, 1);
 	msgInfo(NULL);
     }
     dialog_notify(errstr);
-    touchwin(w);
-    wrefresh(w);
-    delwin(w);
+    restorescr(w);
     free(errstr);
 }
 
@@ -262,16 +253,14 @@ msgYesNo(char *fmt, ...)
     va_end(args);
     use_helpline(NULL);
     use_helpfile(NULL);
-    w = dupwin(newscr);
+    w = savescr();
     if (OnVTY) {
 	msgDebug("Switching back to VTY1\n");
 	ioctl(0, VT_ACTIVATE, 1);	/* Switch back */
 	msgInfo(NULL);
     }
     ret = dialog_yesno("User Confirmation Requested", errstr, -1, -1);
-    touchwin(w);
-    wrefresh(w);
-    delwin(w);
+    restorescr(w);
     free(errstr);
     return ret;
 }
@@ -296,16 +285,14 @@ msgGetInput(char *buf, char *fmt, ...)
 	strcpy(input_buffer, buf);
     else
 	input_buffer[0] = '\0';
-    w = dupwin(newscr);
+    w = savescr();
     if (OnVTY) {
 	msgDebug("Switching back to VTY1\n");
 	ioctl(0, VT_ACTIVATE, 1);	/* Switch back */
 	msgInfo(NULL);
     }
     rval = dialog_inputbox("Value Required", errstr, -1, -1, input_buffer);
-    touchwin(w);
-    wrefresh(w);
-    delwin(w);
+    restorescr(w);
     free(errstr);
     if (!rval)
 	return input_buffer;
@@ -357,12 +344,12 @@ int
 msgSimpleConfirm(char *str)
 {
     msgConfirm(str);
-    return RET_SUCCESS;
+    return DITEM_SUCCESS;
 }
 
 int
 msgSimpleNotify(char *str)
 {
     msgNotify(str);
-    return RET_SUCCESS;
+    return DITEM_SUCCESS;
 }

@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: install.c,v 1.81 1996/03/24 18:57:36 joerg Exp $
+ * $Id: install.c,v 1.82 1996/04/07 03:52:25 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -19,13 +19,6 @@
  * 2. Redistributions in binary form must reproduce the above copyright
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
- * 3. All advertising materials mentioning features or use of this software
- *    must display the following acknowledgement:
- *	This product includes software developed by Jordan Hubbard
- *	for the FreeBSD Project.
- * 4. The name of Jordan Hubbard or the FreeBSD project may not be used to
- *    endorse or promote products derived from this software without specific
- *    prior written permission.
  *
  * THIS SOFTWARE IS PROVIDED BY JORDAN HUBBARD ``AS IS'' AND
  * ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
@@ -168,12 +161,12 @@ installInitial(void)
     static Boolean alreadyDone = FALSE;
 
     if (alreadyDone)
-	return RET_SUCCESS;
+	return DITEM_SUCCESS;
 
     if (!variable_get(DISK_LABELLED)) {
 	dialog_clear();
 	msgConfirm("You need to assign disk labels before you can proceed with\nthe installation.");
-	return RET_FAIL;
+	return DITEM_FAILURE;
     }
     /* If it's labelled, assume it's also partitioned */
     if (!variable_get(DISK_PARTITIONED))
@@ -186,25 +179,25 @@ installInitial(void)
 		 "then WE STRONGLY ENCOURAGE YOU TO MAKE PROPER BACKUPS before\n"
 		 "proceeding!\n\n"
 		 "We can take no responsibility for lost disk contents!"))
-	return RET_FAIL;
+	return DITEM_FAILURE;
 
-    if (diskLabelCommit(NULL) != RET_SUCCESS) {
+    if (diskLabelCommit(NULL) != DITEM_SUCCESS) {
 	dialog_clear();
 	msgConfirm("Couldn't make filesystems properly.  Aborting.");
-	return RET_FAIL;
+	return DITEM_FAILURE;
     }
 
     if (!copySelf()) {
 	dialog_clear();
 	msgConfirm("Couldn't clone the boot floppy onto the root file system.\n"
 		   "Aborting.");
-	return RET_FAIL;
+	return DITEM_FAILURE;
     }
 
     if (chroot("/mnt") == -1) {
 	dialog_clear();
 	msgConfirm("Unable to chroot to /mnt - this is bad!");
-	return RET_FAIL;
+	return DITEM_FAILURE;
     }
 
     chdir("/");
@@ -215,11 +208,17 @@ installInitial(void)
     systemCreateHoloshell();
 
     alreadyDone = TRUE;
-    return RET_SUCCESS;
+    return DITEM_SUCCESS;
 }
 
 int
-installFixit(dialogMenuItem *self)
+installFixitCDROM(dialogMenuItem *self)
+{
+    return DITEM_SUCCESS;
+}
+
+int
+installFixitFloppy(dialogMenuItem *self)
 {
     struct ufs_args args;
     pid_t child;
@@ -237,7 +236,7 @@ installFixit(dialogMenuItem *self)
 	    break;
 	dialog_clear();
 	if (msgYesNo("Unable to mount the fixit floppy - do you want to try again?"))
-	    return RET_FAIL;
+	    return DITEM_FAILURE;
     }
     dialog_clear();
     dialog_update();
@@ -246,7 +245,7 @@ installFixit(dialogMenuItem *self)
     if (!directory_exists("/tmp"))
 	(void)symlink("/mnt2/tmp", "/tmp");
     if (!directory_exists("/var/tmp/vi.recover")) {
-	if (Mkdir("/var/tmp/vi.recover", NULL) != RET_SUCCESS) {
+	if (Mkdir("/var/tmp/vi.recover", NULL) != DITEM_SUCCESS) {
 	    dialog_clear();
 	    msgConfirm("Warning:  Was unable to create a /var/tmp/vi.recover directory.\n"
 		       "vi will kvetch and moan about it as a result but should still\n"
@@ -254,7 +253,7 @@ installFixit(dialogMenuItem *self)
 	}
     }
     /* Link the spwd.db file */
-    if (Mkdir("/etc", NULL) != RET_SUCCESS) {
+    if (Mkdir("/etc", NULL) != DITEM_SUCCESS) {
 	dialog_clear();
 	msgConfirm("Unable to create an /etc directory!  Things are weird on this floppy..");
     }
@@ -294,33 +293,33 @@ installFixit(dialogMenuItem *self)
     unmount("/mnt2", MNT_FORCE);
     dialog_clear();
     msgConfirm("Please remove the fixit floppy now.");
-    return RET_SUCCESS;
+    return DITEM_SUCCESS;
 }
   
 int
 installExpress(dialogMenuItem *self)
 {
     variable_set2(SYSTEM_STATE, "express");
-    if (diskPartitionEditor(self) == RET_FAIL)
-	return RET_FAIL;
+    if (diskPartitionEditor(self) == DITEM_FAILURE)
+	return DITEM_FAILURE;
     
-    if (diskLabelEditor(self) == RET_FAIL)
-	return RET_FAIL;
+    if (diskLabelEditor(self) == DITEM_FAILURE)
+	return DITEM_FAILURE;
 
     if (!Dists) {
 	if (!dmenuOpenSimple(&MenuDistributions))
-	    return RET_FAIL;
+	    return DITEM_FAILURE;
     }
 
     if (!mediaDevice) {
 	if (!dmenuOpenSimple(&MenuMedia) || !mediaDevice)
-	    return RET_FAIL;
+	    return DITEM_FAILURE;
     }
 
-    if (installCommit(self) == RET_FAIL)
-	return RET_FAIL;
+    if (installCommit(self) == DITEM_FAILURE)
+	return DITEM_FAILURE;
 
-    return RET_DONE;
+    return DITEM_LEAVE_MENU;
 }
 
 /* Novice mode installation */
@@ -336,8 +335,8 @@ installNovice(dialogMenuItem *self)
 	       "by a (Q)uit.  If you wish to allocate only free space to FreeBSD, move to a\n"
 	       "partition marked \"unused\" and use the (C)reate command.");
 
-    if (diskPartitionEditor(self) == RET_FAIL)
-	return RET_FAIL;
+    if (diskPartitionEditor(self) == DITEM_FAILURE)
+	return DITEM_FAILURE;
     
     dialog_clear();
     msgConfirm("Next, you need to create BSD partitions inside of the fdisk partition(s)\n"
@@ -347,8 +346,8 @@ installNovice(dialogMenuItem *self)
 	       "care for the layout chosen by (A)uto, press F1 for more information on\n"
 	       "manual layout.");
 
-    if (diskLabelEditor(self) == RET_FAIL)
-	return RET_FAIL;
+    if (diskLabelEditor(self) == DITEM_FAILURE)
+	return DITEM_FAILURE;
 
     dialog_clear();
     msgConfirm("Now it is time to select an installation subset.  There are a number of\n"
@@ -357,7 +356,7 @@ installNovice(dialogMenuItem *self)
 	       "of distributions if none of the provided ones are suitable.");
     while (1) {
 	if (!dmenuOpenSimple(&MenuDistributions))
-	    return RET_FAIL;
+	    return DITEM_FAILURE;
 	
 	if (Dists || !msgYesNo("No distributions selected.  Are you sure you wish to continue?"))
 	    break;
@@ -367,13 +366,13 @@ installNovice(dialogMenuItem *self)
 	dialog_clear();
 	msgConfirm("Finally, you must specify an installation medium.");
 	if (!dmenuOpenSimple(&MenuMedia) || !mediaDevice)
-	    return RET_FAIL;
+	    return DITEM_FAILURE;
     }
 
-    if (installCommit(self) == RET_FAIL)
-	return RET_FAIL;
+    if (installCommit(self) == DITEM_FAILURE)
+	return DITEM_FAILURE;
 
-    return RET_DONE;
+    return DITEM_LEAVE_MENU;
 }
 
 /*
@@ -392,30 +391,30 @@ installCommit(dialogMenuItem *self)
     char *str;
 
     if (!mediaVerify())
-	return RET_FAIL;
+	return DITEM_FAILURE;
 
     str = variable_get(SYSTEM_STATE);
-    i = RET_DONE;
+    i = DITEM_LEAVE_MENU;
     if (RunningAsInit) {
-	if (installInitial() == RET_FAIL)
-	    return RET_FAIL;
-	if (configFstab() == RET_FAIL)
-	    return RET_FAIL;
+	if (installInitial() == DITEM_FAILURE)
+	    return DITEM_FAILURE;
+	if (configFstab() == DITEM_FAILURE)
+	    return DITEM_FAILURE;
 	if (!rootExtract()) {
 	    dialog_clear();
 	    msgConfirm("Failed to load the ROOT distribution.  Please correct\n"
 		       "this problem and try again.");
-	    return RET_FAIL;
+	    return DITEM_FAILURE;
 	}
     }
 
-    if (distExtractAll(self) == RET_FAIL)
-	i = RET_FAIL;
+    if (distExtractAll(self) == DITEM_FAILURE)
+	i = DITEM_FAILURE;
 
-    if (installFixup(self) == RET_FAIL)
-	i = RET_FAIL;
+    if (installFixup(self) == DITEM_FAILURE)
+	i = DITEM_FAILURE;
 
-    if (i != RET_FAIL && !strcmp(str, "novice")) {
+    if (i != DITEM_FAILURE && !strcmp(str, "novice")) {
 	dialog_clear();
 	msgConfirm("Since you're running the novice installation, a few post-configuration\n"
 		   "questions will be asked at this point.  For any option you do not wish\n"
@@ -509,7 +508,7 @@ installCommit(dialogMenuItem *self)
 
     /* Don't print this if we're express or novice installing */
     if (strcmp(str, "express") && strcmp(str, "novice")) {
-	if (Dists || i == RET_FAIL) {
+	if (Dists || i == DITEM_FAILURE) {
 	    dialog_clear();
 	    msgConfirm("Installation completed with some errors.  You may wish to\n"
 		       "scroll through the debugging messages on VTY1 with the\n"
@@ -523,7 +522,7 @@ installCommit(dialogMenuItem *self)
 	}
     }
     else if (!strcmp(str, "novice")) {
-	if (Dists || i == RET_FAIL) {
+	if (Dists || i == DITEM_FAILURE) {
 	    dialog_clear();
 	    msgConfirm("Installation completed with some errors.  You may wish to\n"
 		       "scroll through the debugging messages on VTY1 with the\n"
@@ -541,7 +540,7 @@ installCommit(dialogMenuItem *self)
 		       "may do so by typing: /stand/sysinstall.");
 	}
     }
-    variable_set2(SYSTEM_STATE, i == RET_FAIL ? "error-install" : "full-install");
+    variable_set2(SYSTEM_STATE, i == DITEM_FAILURE ? "error-install" : "full-install");
 
     return i;
 }
@@ -557,7 +556,7 @@ installFixup(dialogMenuItem *self)
 	    if (vsystem("cp -p /kernel.GENERIC /kernel")) {
 		dialog_clear();
 		msgConfirm("Unable to link /kernel into place!");
-		return RET_FAIL;
+		return DITEM_FAILURE;
 	    }
 	}
 	else {
@@ -565,7 +564,7 @@ installFixup(dialogMenuItem *self)
 	    msgConfirm("Can't find a kernel image to link to on the root file system!\n"
 		       "You're going to have a hard time getting this system to\n"
 		       "boot from the hard disk, I'm afraid!");
-	    return RET_FAIL;
+	    return DITEM_FAILURE;
 	}
     }
     /* Resurrect /dev after bin distribution screws it up */
@@ -574,7 +573,7 @@ installFixup(dialogMenuItem *self)
 	if (vsystem("cd /dev; sh MAKEDEV all")) {
 	    dialog_clear();
 	    msgConfirm("MAKEDEV returned non-zero status");
-	    return RET_FAIL;
+	    return DITEM_FAILURE;
 	}
 
 	msgNotify("Resurrecting /dev entries for slices..");
@@ -597,7 +596,7 @@ installFixup(dialogMenuItem *self)
 		    if (vsystem("cd /dev; sh MAKEDEV %sh", c1->name)) {
 			dialog_clear();
 			msgConfirm("Unable to make slice entries for %s!", c1->name);
-			return RET_FAIL;
+			return DITEM_FAILURE;
 		    }
 		}
 	    }
@@ -622,7 +621,7 @@ installFixup(dialogMenuItem *self)
         vsystem("mtree -deU -f /etc/mtree/BSD.var.dist -p /var");
         vsystem("mtree -deU -f /etc/mtree/BSD.usr.dist -p /usr");
     }
-    return RET_SUCCESS;
+    return DITEM_SUCCESS;
 }
 
 /* Go newfs and/or mount all the filesystems we've been asked to */
@@ -641,7 +640,7 @@ installFilesystems(dialogMenuItem *self)
     str = variable_get(SYSTEM_STATE);
 
     if (!checkLabels(&rootdev, &swapdev, &usrdev))
-	return RET_FAIL;
+	return DITEM_FAILURE;
 
     root = (PartInfo *)rootdev->private_data;
     command_clear();
@@ -653,7 +652,7 @@ installFilesystems(dialogMenuItem *self)
 	dialog_clear();
 	msgConfirm("Unable to make device node for %s in /dev!\n"
 		   "The creation of filesystems will be aborted.", dname);
-	return RET_FAIL;
+	return DITEM_FAILURE;
     }
     if (!swapon(dname))
 	msgNotify("Added %s as initial swap device", dname);
@@ -668,7 +667,7 @@ installFilesystems(dialogMenuItem *self)
 	dialog_clear();
 	msgConfirm("Unable to make device node for %s in /dev!\n"
 		   "The creation of filesystems will be aborted.", dname);
-	return RET_FAIL;
+	return DITEM_FAILURE;
     }
 
     if (strcmp(root->mountpoint, "/")) {
@@ -685,7 +684,7 @@ installFilesystems(dialogMenuItem *self)
 	    dialog_clear();
 	    msgConfirm("Unable to make new root filesystem on %s!\n"
 		       "Command returned status %d", dname, i);
-	    return RET_FAIL;
+	    return DITEM_FAILURE;
 	}
     }
     else {
@@ -707,7 +706,7 @@ installFilesystems(dialogMenuItem *self)
     if (Mount("/mnt", dname)) {
 	dialog_clear();
 	msgConfirm("Unable to mount the root file system on %s!  Giving up.", dname);
-	return RET_FAIL;
+	return DITEM_FAILURE;
     }
 
     /* Now buzz through the rest of the partitions and mount them too */
@@ -720,7 +719,7 @@ installFilesystems(dialogMenuItem *self)
 	if (!disk->chunks) {
 	    dialog_clear();
 	    msgConfirm("No chunk list found for %s!", disk->name);
-	    return RET_FAIL;
+	    return DITEM_FAILURE;
 	}
 	if (root->newfs || upgrade) {
 	    Mkdir("/mnt/dev", NULL);
@@ -774,12 +773,12 @@ installFilesystems(dialogMenuItem *self)
     if ((root->newfs || upgrade) && vsystem("find -x /dev | cpio -pdumv /mnt")) {
 	dialog_clear();
 	msgConfirm("Couldn't clone the /dev files!");
-	return RET_FAIL;
+	return DITEM_FAILURE;
     }
     
     command_sort();
     command_execute();
-    return RET_SUCCESS;
+    return DITEM_SUCCESS;
 }
 
 int
@@ -802,7 +801,7 @@ installVarDefaults(dialogMenuItem *self)
 	variable_set2(SYSTEM_STATE,		"update");
     else
 	variable_set2(SYSTEM_STATE,		"init");
-    return RET_SUCCESS;
+    return DITEM_SUCCESS;
 }
 
 /* Copy the boot floppy contents into /stand */
