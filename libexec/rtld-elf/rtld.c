@@ -134,6 +134,7 @@ void r_debug_state(struct r_debug*, struct link_map*);
  */
 static char *error_message;	/* Message for dlerror(), or NULL */
 struct r_debug r_debug;		/* for GDB; */
+static bool libmap_disable;	/* Disable libmap */
 static bool trust;		/* False for setuid and setgid programs */
 static char *ld_bind_now;	/* Environment variable for immediate binding */
 static char *ld_debug;		/* Environment variable for debugging */
@@ -263,6 +264,8 @@ _rtld(Elf_Addr *sp, func_ptr_type *exit_proc, Obj_Entry **objp)
 
     trust = geteuid() == getuid() && getegid() == getgid();
 
+    libmap_disable = getenv("LD_LIBMAP_DISABLE") != NULL;
+
     ld_bind_now = getenv("LD_BIND_NOW");
     if (trust) {
 	ld_debug = getenv("LD_DEBUG");
@@ -339,7 +342,8 @@ _rtld(Elf_Addr *sp, func_ptr_type *exit_proc, Obj_Entry **objp)
     sym_zero.st_shndx = SHN_UNDEF;
 
 #ifdef WITH_LIBMAP
-    lm_init();
+    if (!libmap_disable)
+        lm_init();
 #endif
 
     dbg("loading LD_PRELOAD libraries");
@@ -795,7 +799,7 @@ find_library(const char *xname, const Obj_Entry *refobj)
     }
 
 #ifdef WITH_LIBMAP
-    if ((name = lm_find(refobj->path, xname)) == NULL)
+    if (libmap_disable || (name = lm_find(refobj->path, xname)) == NULL)
 #endif
 	name = (char *)xname;
 
@@ -1434,7 +1438,8 @@ rtld_exit(void)
     objlist_call_fini(&list_fini);
     /* No need to remove the items from the list, since we are exiting. */
 #ifdef WITH_LIBMAP
-    lm_fini();
+    if (!libmap_disable)
+        lm_fini();
 #endif
 }
 
