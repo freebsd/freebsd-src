@@ -731,9 +731,6 @@
 	</note>
       </para>
 
-      <para><application>tcsh</application> has been updated to version
-      6.11.</para>
-
       <para arch="i386">Version 1.4.3 of the <application>smbfs</application>
       userland utilities have been imported.  &man.smbutil.1; and
       &man.mount.smbfs.8; are now available in the base system,
@@ -741,6 +738,9 @@
       &man.mount.smbfs.8; will automatically load the <filename>smbfs.ko</filename>
       module into the kernel, even if <literal>LIBMCHAIN</literal> and
       <literal>LIBICONV</literal> were not compiled into the kernel.</para>
+
+      <para><application>tcsh</application> has been updated to version
+      6.11.</para>
 
       <para>The timezone database has been updated to the
       <filename>tzdata2001d</filename> release.</para>
