@@ -40,6 +40,7 @@ my $PKG_DEP_FILE = "+REQUIRED_BY";
 
 my $PKG_ADD = "/usr/sbin/pkg_add";
 my $PKG_CREATE = "/usr/sbin/pkg_create";
+my $PKG_DELETE = "/usr/sbin/pkg_delete -f";
 my $PKG_INFO = "/usr/sbin/pkg_info -Ia";
 
 sub error ($) {
@@ -115,7 +116,7 @@ my %requires;
 my $pkg = "";
 my $update_pkg = "";
 
-our($opt_v, $opt_r, $opt_n);
+our($opt_a, $opt_c, $opt_v, $opt_r, $opt_n);
 getopts('acnvr:');
 
 if ($opt_a && $opt_c) {
