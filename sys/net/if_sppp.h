@@ -145,6 +145,8 @@ struct sppp {
 	int	rst_counter[IDX_COUNT];	/* restart counter */
 	int	fail_counter[IDX_COUNT]; /* negotiation failure counter */
 	int	enable_vj;	/* VJ header compression enabled */
+	time_t	pp_last_recv;	/* time last packet has been received */
+	time_t	pp_last_sent;	/* time last packet has been sent */
 	struct callout_handle ch[IDX_COUNT]; /* per-proto and if callouts */
 	struct callout_handle pap_my_to_ch; /* PAP needs one more... */
 	struct slcp lcp;		/* LCP params */
