@@ -83,6 +83,8 @@
 #define FTP_FILE_STATUS			213
 #define FTP_SERVICE_READY		220
 #define FTP_PASSIVE_MODE		227
+#define FTP_LPASSIVE_MODE		228
+#define FTP_EPASSIVE_MODE		229
 #define FTP_LOGGED_IN			230
 #define FTP_FILE_ACTION_OK		250
 #define FTP_NEED_PASSWORD		331
@@ -104,6 +106,27 @@ static int last_code;
                          && (foo[3] == ' ' || foo[3] == '\0'))
 #define isftpinfo(foo) (isdigit(foo[0]) && isdigit(foo[1]) \
 			&& isdigit(foo[2]) && foo[3] == '-')
+
+/* translate IPv4 mapped IPv6 address to IPv4 address */
+static void
+unmappedaddr(struct sockaddr_in6 *sin6)
+{
+    struct sockaddr_in *sin4;
+    u_int32_t addr;
+    int port;
+
+    if (sin6->sin6_family != AF_INET6 ||
+	!IN6_IS_ADDR_V4MAPPED(&sin6->sin6_addr))
+	return;
+    sin4 = (struct sockaddr_in *)sin6;
+    addr = *(u_int32_t *)&sin6->sin6_addr.s6_addr[12];
+    port = sin6->sin6_port;
+    memset(sin4, 0, sizeof(struct sockaddr_in));
+    sin4->sin_addr.s_addr = addr;
+    sin4->sin_port = port;
+    sin4->sin_family = AF_INET;
+    sin4->sin_len = sizeof(struct sockaddr_in);
+}
 
 /*
  * Get server response
@@ -181,7 +204,9 @@ static FILE *
 _ftp_transfer(int cd, char *oper, char *file,
 	      char *mode, off_t offset, char *flags)
 {
-    struct sockaddr_in sin;
+    struct sockaddr_storage sin;
+    struct sockaddr_in6 *sin6;
+    struct sockaddr_in *sin4;
     int pasv, high, verbose;
     int e, sd = -1;
     socklen_t l;
@@ -217,35 +242,78 @@ _ftp_transfer(int cd, char *oper, char *file,
 
     /* s now points to file name */
 
+    /* find our own address, bind, and listen */
+    l = sizeof sin;
+    if (getsockname(cd, (struct sockaddr *)&sin, &l) == -1)
+	goto sysouch;
+    if (sin.ss_family == AF_INET6)
+	unmappedaddr((struct sockaddr_in6 *)&sin);
+
     /* open data socket */
-    if ((sd = socket(PF_INET, SOCK_STREAM, IPPROTO_TCP)) == -1) {
+    if ((sd = socket(sin.ss_family, SOCK_STREAM, IPPROTO_TCP)) == -1) {
 	_fetch_syserr();
 	return NULL;
     }
     
     if (pasv) {
-	u_char addr[6];
+	u_char addr[64];
 	char *ln, *p;
 	int i;
+	int port;
 	
 	/* send PASV command */
 	if (verbose)
 	    _fetch_info("setting passive mode");
-	if ((e = _ftp_cmd(cd, "PASV")) != FTP_PASSIVE_MODE)
+	switch (sin.ss_family) {
+	case AF_INET:
+	    if ((e = _ftp_cmd(cd, "PASV")) != FTP_PASSIVE_MODE)
+		goto ouch;
+	    break;
+	case AF_INET6:
+	    if ((e = _ftp_cmd(cd, "EPSV")) != FTP_EPASSIVE_MODE) {
+		if (e == -1)
+		    goto ouch;
+		if ((e = _ftp_cmd(cd, "LPSV")) != FTP_LPASSIVE_MODE)
+		    goto ouch;
+	    }
+	    break;
+	default:
+	    e = 999;		/* XXX: error code should be prepared */
 	    goto ouch;
+	}
 
 	/*
 	 * Find address and port number. The reply to the PASV command
          * is IMHO the one and only weak point in the FTP protocol.
 	 */
 	ln = last_reply;
-	for (p = ln + 3; *p && !isdigit(*p); p++)
+	for (p = ln + 3; *p && *p != '('; p++)
 	    /* nothing */ ;
-	for (i = 0; *p, i < 6; i++, p++)
-	    addr[i] = strtol(p, &p, 10);
-	if (i < 6) {
+	if (!*p) {
 	    e = 999;
 	    goto ouch;
+	}
+	p++;
+	switch (e) {
+	case FTP_PASSIVE_MODE:
+	case FTP_LPASSIVE_MODE:
+	    l = (e == FTP_PASSIVE_MODE ? 6 : 21);
+	    for (i = 0; *p && i < l; i++, p++)
+		addr[i] = strtol(p, &p, 10);
+	    if (i < l) {
+		e = 999;
+		goto ouch;
+	    }
+	    break;
+	case FTP_EPASSIVE_MODE:
+	    if (sscanf(p, "%c%c%c%d%c", &addr[0], &addr[1], &addr[2],
+		       &port, &addr[3]) != 5 ||
+		addr[0] != addr[1] ||
+		addr[0] != addr[2] || addr[0] != addr[3]) {
+		e = 999;
+		goto ouch;
+	    }
+	    break;
 	}
 
 	/* seek to required offset */
@@ -257,13 +325,36 @@ _ftp_transfer(int cd, char *oper, char *file,
 	l = sizeof sin;
 	if (getpeername(cd, (struct sockaddr *)&sin, &l) == -1)
 	    goto sysouch;
-	bcopy(addr, (char *)&sin.sin_addr, 4);
-	bcopy(addr + 4, (char *)&sin.sin_port, 2);	
+	if (sin.ss_family == AF_INET6)
+	    unmappedaddr((struct sockaddr_in6 *)&sin);
+	switch (sin.ss_family) {
+	case AF_INET6:
+	    sin6 = (struct sockaddr_in6 *)&sin;
+	    if (e == FTP_EPASSIVE_MODE)
+		sin6->sin6_port = htons(port);
+	    else {
+		bcopy(addr + 2, (char *)&sin6->sin6_addr, 16);
+		bcopy(addr + 19, (char *)&sin6->sin6_port, 2);
+	    }
+	    break;
+	case AF_INET:
+	    sin4 = (struct sockaddr_in *)&sin;
+	    if (e == FTP_EPASSIVE_MODE)
+		sin4->sin_port = htons(port);
+	    else {
+		bcopy(addr, (char *)&sin4->sin_addr, 4);
+		bcopy(addr + 4, (char *)&sin4->sin_port, 2);
+	    }
+	    break;
+	default:
+	    e = 999;		/* XXX: error code should be prepared */
+	    break;
+	}
 
 	/* connect to data port */
 	if (verbose)
 	    _fetch_info("opening data connection");
-	if (connect(sd, (struct sockaddr *)&sin, sizeof sin) == -1)
+	if (connect(sd, (struct sockaddr *)&sin, sin.ss_len) == -1)
 	    goto sysouch;
 
 	/* make the server initiate the transfer */
@@ -277,19 +368,30 @@ _ftp_transfer(int cd, char *oper, char *file,
 	u_int32_t a;
 	u_short p;
 	int arg, d;
+	char *ap;
+	char hname[INET6_ADDRSTRLEN];
 	
-	/* find our own address, bind, and listen */
-	l = sizeof sin;
-	if (getsockname(cd, (struct sockaddr *)&sin, &l) == -1)
-	    goto sysouch;
-	sin.sin_port = 0;
-	arg = high ? IP_PORTRANGE_HIGH : IP_PORTRANGE_DEFAULT;
-	if (setsockopt(sd, IPPROTO_IP, IP_PORTRANGE,
-		       (char *)&arg, sizeof arg) == -1)
-	    goto sysouch;
+	switch (sin.ss_family) {
+	case AF_INET6:
+	    ((struct sockaddr_in6 *)&sin)->sin6_port = 0;
+#ifdef IPV6_PORTRANGE
+	    arg = high ? IPV6_PORTRANGE_HIGH : IPV6_PORTRANGE_DEFAULT;
+	    if (setsockopt(sd, IPPROTO_IPV6, IPV6_PORTRANGE,
+			   (char *)&arg, sizeof(arg)) == -1)
+		goto sysouch;
+#endif
+	    break;
+	case AF_INET:
+	    ((struct sockaddr_in *)&sin)->sin_port = 0;
+	    arg = high ? IP_PORTRANGE_HIGH : IP_PORTRANGE_DEFAULT;
+	    if (setsockopt(sd, IPPROTO_IP, IP_PORTRANGE,
+			   (char *)&arg, sizeof arg) == -1)
+		goto sysouch;
+	    break;
+	}
 	if (verbose)
 	    _fetch_info("binding data socket");
-	if (bind(sd, (struct sockaddr *)&sin, l) == -1)
+	if (bind(sd, (struct sockaddr *)&sin, sin.ss_len) == -1)
 	    goto sysouch;
 	if (listen(sd, 1) == -1)
 	    goto sysouch;
@@ -297,12 +399,46 @@ _ftp_transfer(int cd, char *oper, char *file,
 	/* find what port we're on and tell the server */
 	if (getsockname(sd, (struct sockaddr *)&sin, &l) == -1)
 	    goto sysouch;
-	a = ntohl(sin.sin_addr.s_addr);
-	p = ntohs(sin.sin_port);
-	e = _ftp_cmd(cd, "PORT %d,%d,%d,%d,%d,%d",
-		     (a >> 24) & 0xff, (a >> 16) & 0xff,
-		     (a >> 8) & 0xff, a & 0xff,
-		     (p >> 8) & 0xff, p & 0xff);
+	switch (sin.ss_family) {
+	case AF_INET:
+	    sin4 = (struct sockaddr_in *)&sin;
+	    a = ntohl(sin4->sin_addr.s_addr);
+	    p = ntohs(sin4->sin_port);
+	    e = _ftp_cmd(cd, "PORT %d,%d,%d,%d,%d,%d",
+			 (a >> 24) & 0xff, (a >> 16) & 0xff,
+			 (a >> 8) & 0xff, a & 0xff,
+			 (p >> 8) & 0xff, p & 0xff);
+	    break;
+	case AF_INET6:
+#define UC(b)	(((int)b)&0xff)
+	    e = -1;
+	    sin6 = (struct sockaddr_in6 *)&sin;
+	    if (getnameinfo((struct sockaddr *)&sin, sin.ss_len,
+			    hname, sizeof(hname),
+			    NULL, 0, NI_NUMERICHOST) == 0) {
+		e = _ftp_cmd(cd, "EPRT |%d|%s|%d|", 2, hname,
+			     htons(sin6->sin6_port));
+		if (e == -1)
+		    goto ouch;
+	    }
+	    if (e != FTP_OK) {
+		ap = (char *)&sin6->sin6_addr;
+		e = _ftp_cmd(cd,
+     "LPRT %d,%d,%d,%d,%d,%d,%d,%d,%d,%d,%d,%d,%d,%d,%d,%d,%d,%d,%d,%d,%d",
+			     6, 16,
+			     UC(ap[0]), UC(ap[1]), UC(ap[2]), UC(ap[3]),
+			     UC(ap[4]), UC(ap[5]), UC(ap[6]), UC(ap[7]),
+			     UC(ap[8]), UC(ap[9]), UC(ap[10]), UC(ap[11]),
+			     UC(ap[12]), UC(ap[13]), UC(ap[14]), UC(ap[15]),
+			     2,
+			     (ntohs(sin6->sin6_port) >> 8) & 0xff,
+			     ntohs(sin6->sin6_port)        & 0xff);
+	    }
+	    break;
+	default:
+	    e = 999;		/* XXX: error code should be prepared */
+	    goto ouch;
+	}
 	if (e != FTP_OK)
 	    goto ouch;
 
@@ -326,13 +462,15 @@ _ftp_transfer(int cd, char *oper, char *file,
 
 sysouch:
     _fetch_syserr();
-    close(sd);
+    if (sd >= 0)
+	close(sd);
     return NULL;
 
 ouch:
     if (e != -1)
 	_ftp_seterr(e);
-    close(sd);
+    if (sd >= 0)
+	close(sd);
     return NULL;
 }
 
@@ -343,14 +481,30 @@ static int
 _ftp_connect(char *host, int port, char *user, char *pwd, char *flags)
 {
     int cd, e, pp = 0, direct, verbose;
+#ifdef INET6
+    int af = AF_UNSPEC;
+#else
+    int af = AF_INET;
+#endif
     char *p, *q;
 
     direct = (flags && strchr(flags, 'd'));
     verbose = (flags && strchr(flags, 'v'));
-    
+    if ((flags && strchr(flags, '4')))
+	af = AF_INET;
+    else if ((flags && strchr(flags, '6')))
+	af = AF_INET6;
+
     /* check for proxy */
     if (!direct && (p = getenv("FTP_PROXY")) != NULL) {
-	if ((q = strchr(p, ':')) != NULL) {
+	char c = 0;
+
+#ifdef INET6
+	if (*p != '[' || (q = strchr(p + 1, ']')) == NULL ||
+	    (*++q != '\0' && *q != ':'))
+#endif
+	    q = strchr(p, ':');
+	if (q != NULL && *q == ':') {
 	    if (strspn(q+1, "0123456789") != strlen(q+1) || strlen(q+1) > 5) {
 		/* XXX we should emit some kind of warning */
 	    }
@@ -367,14 +521,22 @@ _ftp_connect(char *host, int port, char *user, char *pwd, char *flags)
 	    else
 		pp = FTP_DEFAULT_PORT;
 	}
-	if (q)
+	if (q) {
+#ifdef INET6
+	    if (q > p && *p == '[' && *(q - 1) == ']') {
+		p++;
+		q--;
+	    }
+#endif
+	    c = *q;
 	    *q = 0;
-	cd = _fetch_connect(p, pp, verbose);
+	}
+	cd = _fetch_connect(p, pp, af, verbose);
 	if (q)
-	    *q = ':';
+	    *q = c;
     } else {
 	/* no proxy, go straight to target */
-	cd = _fetch_connect(host, port, verbose);
+	cd = _fetch_connect(host, port, af, verbose);
 	p = NULL;
     }
 
