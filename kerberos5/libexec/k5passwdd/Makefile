@@ -2,7 +2,7 @@
 
 PROG=		k5passwdd
 SRCS=		kpasswdd.c krb5_err.h heim_err.h hdb_err.h \
-		kadm5/admin.h
+		kadm5/admin.h kadm5/private.h
 CFLAGS+=	-I${KRB5DIR}/include \
 		-I${KRB5DIR}/lib/asn1 \
 		-I${KRB5DIR}/lib/hdb \
@@ -33,8 +33,11 @@ MAN=		kpasswdd.8
 kadm5/admin.h:	kadm5
 	cp ${KRB5DIR}/lib/kadm5/admin.h ${.TARGET}
 
+kadm5/private.h: kadm5
+	cp ${KRB5DIR}/lib/kadm5/private.h ${.TARGET}
+
 kadm5:
 	mkdir ${.TARGET}
 
-CLEANFILES+=	kadm5/admin.h
+CLEANFILES+=	kadm5/admin.h kadm5/private.h
 CLEANDIRS+=	kadm5
