@@ -408,6 +408,7 @@
 /* Linksys products */
 #define	USB_PRODUCT_LINKSYS_USB10T	0x2202		/* USB10T Ethernet */
 #define	USB_PRODUCT_LINKSYS_USB100TX	0x2203		/* USB100TX Ethernet */
+#define	USB_PRODUCT_LINKSYS_USB10TA	0x2206		/* USB10TA Ethernet */
 
 /* Logitech products */
 #define	USB_PRODUCT_LOGITECH_M2452	0x0203		/* M2452 keyboard */
