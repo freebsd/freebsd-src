@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)nfs_subs.c	8.3 (Berkeley) 1/4/94
- * $Id: nfs_subs.c,v 1.7 1994/10/17 17:47:37 phk Exp $
+ * $Id: nfs_subs.c,v 1.8 1995/01/09 16:05:08 davidg Exp $
  */
 
 /*
@@ -1207,17 +1207,20 @@ retry:
 int
 nfsrv_vput( struct vnode *vp) {
 	if( (vp->v_flag & VVMIO) && vp->v_vmdata) {
+		vput( vp);
 		vm_object_deallocate( (vm_object_t) vp->v_vmdata);
+	} else {
+		vput( vp);
 	}
-	vput( vp);
 	return 0;
 }
 int
 nfsrv_vrele( struct vnode *vp) {
 	if( (vp->v_flag & VVMIO) && vp->v_vmdata) {
+		vrele( vp);
 		vm_object_deallocate( (vm_object_t) vp->v_vmdata);
+	} else {
+		vrele( vp);
 	}
-	vrele( vp);
 	return 0;
 }
-
