@@ -69,6 +69,7 @@ main(argc, argv)
 	char *argv[];
 {
 	int ch, mntflags;
+	struct vfsconf *vfc;
 
 	mntflags = 0;
 	while ((ch = getopt(argc, argv, "o:")) != EOF)
@@ -86,7 +87,16 @@ main(argc, argv)
 	if (argc != 2)
 		usage();
 
-	if (mount(MOUNT_KERNFS, argv[1], mntflags, NULL))
+	vfc = getvfsbyname("kernfs");
+	if(!vfc && vfsisloadable("kernfs")) {
+		if(vfsload("kernfs")) {
+			err(1, "vfsload(kernfs)");
+		}
+		endvfsent();
+		vfc = getvfsbyname("kernfs");
+	}
+
+	if (mount(vfc ? vfc->vfc_index : MOUNT_KERNFS, argv[1], mntflags, NULL))
 		err(1, NULL);
 	exit(0);
 }
