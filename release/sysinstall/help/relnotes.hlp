@@ -64,7 +64,7 @@ other devices), but it has been proved to be stable by now.
 Support for NFSv3 clients and servers went into the 2.2 sources
 shortly after branching off the 2.0.5/2.1.X tree.  There are also
 other options available with NFS, like the ability to turn an NFSv2
-server into asychronous write mode (which is in violation of the
+server into asynchronous write mode (which is in violation of the
 specs, but has precedents e.g. in SGI Irix).
 
 The mount option `async' allows asynchronous metadata updates on UFS
@@ -373,7 +373,7 @@ networking terms) to you.  Additional mirror sites are always welcome!
 Contact admin@freebsd.org for more details if you'd like to become an
 official mirror site.
 
-If you do not have access to the internet and electronic mail is your
+If you do not have access to the Internet and electronic mail is your
 only recourse, then you may still fetch the files by sending mail to
 `ftpmail@decwrl.dec.com' - putting the keyword "help" in your message
 to get more information on how to fetch files using this mechanism.
@@ -391,13 +391,13 @@ FreeBSD 2.1.6-RELEASE and 2.2-RELEASE CDs may be ordered on CDROM from:
         Concord CA  94520
         1-800-786-9907, +1-510-674-0783, +1-510-674-0821 (fax)
 
-Or via the internet from orders@cdrom.com or http://www.cdrom.com.
+Or via the Internet from orders@cdrom.com or http://www.cdrom.com.
 Their current catalog can be obtained via ftp from:
         ftp://ftp.cdrom.com/cdrom/catalog.
 
 Cost per -RELEASE CD is $39.95 or $24.95 with a FreeBSD subscription.
 FreeBSD 3.0-SNAP CDs are $29.95 or $14.95 with a FreeBSD-SNAP subscription
-(-RELEASE and -SNAP subscriptions are entirely seperate).  With a
+(-RELEASE and -SNAP subscriptions are entirely separate).  With a
 subscription, you will automatically receive updates as they are released.
 Your credit card will be billed when each disk is shipped and you may cancel
 your subscription at any time without further obligation.
@@ -419,7 +419,7 @@ valued - please do not hesitate to report any problems you may find
 (preferably with a fix attached, if you can!).
 
 The preferred method to submit bug reports from a machine with
-internet mail connectivity is to use the send-pr command or use the CGI
+Internet mail connectivity is to use the send-pr command or use the CGI
 script at http://www.freebsd.org/send-pr.html.  Bug reports
 will be dutifully filed by our faithful bugfiler program and you can
 be sure that we'll do our best to respond to all reported bugs as soon
@@ -599,4 +599,4 @@ We sincerely hope you enjoy this release of FreeBSD!
 
                         The FreeBSD Core Team
 
-$Id: relnotes.hlp,v 1.28 1996/12/15 18:14:35 jkh Exp $
+$Id: relnotes.hlp,v 1.29 1996/12/26 21:24:00 joerg Exp $

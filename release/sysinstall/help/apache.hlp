@@ -29,7 +29,7 @@ The second set of options determine what information is made available
 to each client:
 
         The "Document Root Path" is the top of the tree of documents
-        that are made avaliable. For example, if the value is
+        that are made available. For example, if the value is
         "/usr/web", then the URL "http://www.foo.com/doc.html" would
         translate as "/usr/web/doc.html".
 

@@ -46,7 +46,7 @@ also the local mail name for this user (though it's possible to also
 setup more descriptive mail alias names later).
 
 The user's login group determines which group access rights the user
-will initally get when logging in.  If an additional list of groups is
+will initially get when logging in.  If an additional list of groups is
 provided where the user will become a member of, (s)he will also be
 able to access files of those groups later without providing any
 additional password etc.  Except for the "wheel" case mentioned below,
@@ -71,7 +71,7 @@ shutting down the system -- without first becoming superuser!  So,
 take care with adding people to this group.
 
 The ``full name'' field serves as a comment only.  It is also used by
-mail frontends to determine the real name of the user, hence you
+mail front ends to determine the real name of the user, hence you
 should actually fill in the first and last name of this user.  By
 convention, this field can be divided into comma-separated subfields,
 where the office location, the work phone number, and the home phone
