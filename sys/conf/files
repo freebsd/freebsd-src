@@ -608,8 +608,6 @@ dev/pci/pci_if.m	standard
 dev/pci/pci_pci.c	optional pci
 dev/pci/pci_user.c	optional pci
 dev/pci/pcib_if.m	standard
-dev/pcic/i82365.c	optional pcic pccard
-dev/pcic/i82365_isa.c	optional pcic pccard isa
 dev/pdq/if_fea.c	optional fea eisa
 dev/pdq/if_fpa.c	optional fpa pci
 dev/pdq/pdq.c		optional fea eisa nowerror
