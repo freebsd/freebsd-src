@@ -204,6 +204,22 @@ of the CVS tree
 .Pp
 Optional variables:
 .Bl -tag -width ".Va RELEASEDISTFILES"
+.It Va CVSCMDARGS
+Additional arguments for
+.Xr cvs 1
+.Ic checkout
+and
+.Ic update
+commands.
+For example, setting this variable to
+.Dq Li "-D '01/01/2002 00:00:00 GMT'"
+for
+.Dq Li "make release"
+or
+.Dq Li "make rerelease"
+will ask
+.Xr cvs 1
+to check out or update sources as of 00:00:00 GMT, January 1 2002, respectively.
 .It Va LOCAL_PATCHES
 A patch file against
 .Pa /usr/src
