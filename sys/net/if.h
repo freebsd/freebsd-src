@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)if.h	8.1 (Berkeley) 6/10/93
- * $Id: if.h,v 1.31 1996/07/23 14:44:46 wollman Exp $
+ * $Id: if.h,v 1.32 1996/07/30 19:17:00 wollman Exp $
  */
 
 #ifndef _NET_IF_H_
@@ -160,9 +160,13 @@ struct ifnet {
 		__P((struct ifnet *));
 	void	(*if_poll_slowinput)	/* input routine for slow devices */
 		__P((struct ifnet *, struct mbuf *));
+	void	(*if_init)		/* Init routine */
+		__P((void *));
 	struct	ifqueue if_snd;		/* output queue */
 	struct	ifqueue *if_poll_slowq;	/* input queue for slow devices */
 };
+typedef void if_init_f_t __P((void *));       
+
 #define	if_mtu		if_data.ifi_mtu
 #define	if_type		if_data.ifi_type
 #define if_physical	if_data.ifi_physical
@@ -414,6 +418,7 @@ void	ether_ifattach __P((struct ifnet *));
 void	ether_input __P((struct ifnet *, struct ether_header *, struct mbuf *));
 int	ether_output __P((struct ifnet *,
 	   struct mbuf *, struct sockaddr *, struct rtentry *));
+void	ether_ioctl __P((struct ifnet *, int , caddr_t ));
 
 void	if_attach __P((struct ifnet *));
 void	if_down __P((struct ifnet *));
