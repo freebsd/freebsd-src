@@ -143,13 +143,13 @@ __FBSDID("$FreeBSD$");
 #include <sys/param.h>
 #include <sys/kernel.h>
 #include <sys/bus.h>
+#include <sys/malloc.h>
 
 #include <machine/bus.h>
 #include <machine/resource.h>
 #include <sys/rman.h>
 
 #include "acpi.h"
-
 #include <dev/acpica/acpivar.h>
 
 /*
@@ -234,15 +234,16 @@ typedef struct {
     char			ec_id[0];
 } ACPI_TABLE_ECDT;
 
+/* Additional params to pass from the probe routine */
+struct acpi_ec_params {
+    int		glk;
+    int		gpe_bit;
+    ACPI_HANDLE	gpe_handle;
+    int		uid;
+};
+
 /* Indicate that this device has already been probed via ECDT. */
-#define DEV_ECDT(x)		(acpi_get_private(x) == &acpi_ec_devclass)
-
-/* Indicate that this device should use the global lock. */
-#define DEV_GLK_FLAG		0x40000000
-
-/* Get/set GPE bit value in the magic ivar. */
-#define DEV_GET_GPEBIT(x)	((x) & 0xff)
-#define DEV_SET_GPEBIT(x, y)	((x) = ((x) & ~0xff) | ((y) & 0xff))
+#define DEV_ECDT(x)		(acpi_get_magic(x) == (int)&acpi_ec_devclass)
 
 /*
  * Driver softc.
@@ -250,6 +251,8 @@ typedef struct {
 struct acpi_ec_softc {
     device_t		ec_dev;
     ACPI_HANDLE		ec_handle;
+    int			ec_uid;
+    ACPI_HANDLE		ec_gpehandle;
     UINT8		ec_gpebit;
     UINT8		ec_csrvalue;
     
@@ -367,7 +370,7 @@ acpi_ec_ecdt_probe(device_t parent)
     ACPI_STATUS	     status;
     device_t	     child;
     ACPI_HANDLE	     h;
-    int		     glk, magic;
+    struct acpi_ec_params *params;
 
     ACPI_FUNCTION_TRACE((char *)(uintptr_t)__func__);
 
@@ -383,7 +386,7 @@ acpi_ec_ecdt_probe(device_t parent)
     /* Create the child device with the given unit number. */
     child = BUS_ADD_CHILD(parent, 0, "acpi_ec", ecdt->uid);
     if (child == NULL) {
-	printf("acpi_ec_ecdt_probe: can't add child\n");
+	printf("%s: can't add child\n", __func__);
 	return;
     }
 
@@ -391,7 +394,7 @@ acpi_ec_ecdt_probe(device_t parent)
     status = AcpiGetHandle(NULL, ecdt->ec_id, &h);
     if (ACPI_FAILURE(status)) {
 	device_delete_child(parent, child);
-	printf("acpi_ec_ecdt_probe: can't get handle\n");
+	printf("%s: can't get handle\n", __func__);
 	return;
     }
     acpi_set_handle(child, h);
@@ -405,13 +408,17 @@ acpi_ec_ecdt_probe(device_t parent)
     /*
      * Store values for the probe/attach routines to use.  Store the
      * ECDT GPE bit and set the global lock flag according to _GLK.
+     * Note that it is not perfectly correct to be evaluating a method
+     * before initializing devices, but in practice this function
+     * should be safe to call at this point.
      */
-    acpi_set_private(child, &acpi_ec_devclass);
-    magic = 0;
-    if (ACPI_SUCCESS(acpi_GetInteger(h, "_GLK", &glk)) && glk != 0)
-	magic = DEV_GLK_FLAG;
-    DEV_SET_GPEBIT(magic, ecdt->gpe_bit);
-    acpi_set_magic(child, magic);
+    params = malloc(sizeof(struct acpi_ec_params), M_TEMP, M_WAITOK | M_ZERO);
+    params->gpe_handle = NULL;
+    params->gpe_bit = ecdt->gpe_bit;
+    params->uid = ecdt->uid;
+    acpi_GetInteger(h, "_GLK", &params->glk);
+    acpi_set_private(child, params);
+    acpi_set_magic(child, (int)&acpi_ec_devclass);
 
     /* Finish the attach process. */
     if (device_probe_and_attach(child) != 0)
@@ -421,11 +428,14 @@ acpi_ec_ecdt_probe(device_t parent)
 static int
 acpi_ec_probe(device_t dev)
 {
+    ACPI_BUFFER buf;
     ACPI_HANDLE h;
+    ACPI_OBJECT *obj;
     ACPI_STATUS status;
     device_t	peer;
     char	desc[64];
-    int		magic, uid, glk, gpebit, ret = ENXIO;
+    int		ret;
+    struct acpi_ec_params *params;
 
     /* Check that this is a device and that EC is not disabled. */
     if (acpi_get_type(dev) != ACPI_TYPE_DEVICE || acpi_disabled("ec"))
@@ -436,10 +446,16 @@ acpi_ec_probe(device_t dev)
      * we can access the namespace and make sure this is not a
      * duplicate probe.
      */
-    magic = acpi_get_magic(dev);
-    if (DEV_ECDT(dev))
+    ret = ENXIO;
+    params = NULL;
+    buf.Pointer = NULL;
+    buf.Length = ACPI_ALLOCATE_BUFFER;
+    if (DEV_ECDT(dev)) {
+	params = acpi_get_private(dev);
 	ret = 0;
-    else if (acpi_MatchHid(dev, "PNP0C09")) {
+    } else if (acpi_MatchHid(dev, "PNP0C09")) {
+	params = malloc(sizeof(struct acpi_ec_params), M_TEMP,
+			M_WAITOK | M_ZERO);
 	h = acpi_get_handle(dev);
 
 	/*
@@ -447,49 +463,74 @@ acpi_ec_probe(device_t dev)
 	 * global lock value to see if we should acquire it when
 	 * accessing the EC.
 	 */
-	status = acpi_GetInteger(h, "_UID", &uid);
+	status = acpi_GetInteger(h, "_UID", &params->uid);
 	if (ACPI_FAILURE(status))
-	    uid = 0;
-	status = acpi_GetInteger(h, "_GLK", &glk);
+	    params->uid = 0;
+	status = acpi_GetInteger(h, "_GLK", &params->glk);
 	if (ACPI_FAILURE(status))
-	    glk = 0;
+	    params->glk = 0;
 
 	/*
 	 * Evaluate the _GPE method to find the GPE bit used by the EC to
-	 * signal status (SCI).  Note that we don't handle the case where
-	 * it can return a package instead of an int.
+	 * signal status (SCI).  If it's a package, it contains a reference
+	 * and GPE bit, similar to _PRW.
 	 */
-	status = acpi_GetInteger(h, "_GPE", &gpebit);
+	status = AcpiEvaluateObject(h, "_GPE", NULL, &buf);
 	if (ACPI_FAILURE(status)) {
 	    device_printf(dev, "can't evaluate _GPE - %s\n",
 			  AcpiFormatException(status));
 	    return (ENXIO);
 	}
+	obj = (ACPI_OBJECT *)buf.Pointer;
+	if (obj == NULL)
+	    return (ENXIO);
+
+	switch (obj->Type) {
+	case ACPI_TYPE_INTEGER:
+	    params->gpe_handle = NULL;
+	    params->gpe_bit = obj->Integer.Value;
+	    break;
+	case ACPI_TYPE_PACKAGE:
+	    if (!ACPI_PKG_VALID(obj, 2))
+		goto out;
+	    params->gpe_handle =
+		acpi_GetReference(NULL, &obj->Package.Elements[0]);
+	    if (params->gpe_handle == NULL ||
+		acpi_PkgInt32(obj, 1, &params->gpe_bit) != 0)
+		goto out;
+	    break;
+	default:
+	    device_printf(dev, "_GPE has invalid type %d\n", obj->Type);
+	    goto out;
+	}
 
 	/* Store the values we got from the namespace for attach. */
-	magic = (glk != 0) ? DEV_GLK_FLAG : 0;
-	DEV_SET_GPEBIT(magic, gpebit);
-	acpi_set_magic(dev, magic);
+	acpi_set_private(dev, params);
 
 	/*
 	 * Check for a duplicate probe.  This can happen when a probe
 	 * via ECDT succeeded already.  If this is a duplicate, disable
 	 * this device.
 	 */
-	peer = devclass_get_device(acpi_ec_devclass, uid);
+	peer = devclass_get_device(acpi_ec_devclass, params->uid);
 	if (peer == NULL || !device_is_alive(peer))
 	    ret = 0;
 	else
 	    device_disable(dev);
     }
 
+out:
     if (ret == 0) {
 	snprintf(desc, sizeof(desc), "Embedded Controller: GPE %#x%s%s",
-		 DEV_GET_GPEBIT(magic), (magic & DEV_GLK_FLAG) ? ", GLK" : "",
+		 params->gpe_bit, (params->glk) ? ", GLK" : "",
 		 DEV_ECDT(dev) ? ", ECDT" : "");
 	device_set_desc_copy(dev, desc);
     }
 
+    if (ret > 0 && params)
+	free(params, M_TEMP);
+    if (buf.Pointer)
+	AcpiOsFree(buf.Pointer);
     return (ret);
 }
 
@@ -497,22 +538,26 @@ static int
 acpi_ec_attach(device_t dev)
 {
     struct acpi_ec_softc	*sc;
+    struct acpi_ec_params	*params;
     ACPI_STATUS			Status;
-    int				magic, errval = 0;
+    int				errval = 0;
 
     ACPI_FUNCTION_TRACE((char *)(uintptr_t)__func__);
 
     /* Fetch/initialize softc (assumes softc is pre-zeroed). */
     sc = device_get_softc(dev);
+    params = acpi_get_private(dev);
     sc->ec_dev = dev;
     sc->ec_handle = acpi_get_handle(dev);
     sc->ec_polldelay = EC_POLL_DELAY;
     mtx_init(&sc->ec_mtx, "ACPI embedded controller", NULL, MTX_DEF);
 
     /* Retrieve previously probed values via device ivars. */
-    magic = acpi_get_magic(dev);
-    sc->ec_glk = (magic & DEV_GLK_FLAG) != 0 ? 1 : 0;
-    sc->ec_gpebit = DEV_GET_GPEBIT(magic);
+    sc->ec_glk = params->glk;
+    sc->ec_gpebit = params->gpe_bit;
+    sc->ec_gpehandle = params->gpe_handle;
+    sc->ec_uid = params->uid;
+    free(params, M_TEMP);
 
     /* Attach bus resources for data and command/status ports. */
     sc->ec_data_rid = 0;
@@ -542,7 +587,7 @@ acpi_ec_attach(device_t dev)
      * behavior.
      */
     ACPI_DEBUG_PRINT((ACPI_DB_RESOURCES, "attaching GPE handler\n"));
-    Status = AcpiInstallGpeHandler(NULL, sc->ec_gpebit,
+    Status = AcpiInstallGpeHandler(sc->ec_gpehandle, sc->ec_gpebit,
 		ACPI_GPE_EDGE_TRIGGERED, &EcGpeHandler, sc);
     if (ACPI_FAILURE(Status)) {
 	device_printf(dev, "can't install GPE handler for %s - %s\n",
@@ -560,7 +605,8 @@ acpi_ec_attach(device_t dev)
     if (ACPI_FAILURE(Status)) {
 	device_printf(dev, "can't install address space handler for %s - %s\n",
 		      acpi_name(sc->ec_handle), AcpiFormatException(Status));
-	Status = AcpiRemoveGpeHandler(NULL, sc->ec_gpebit, &EcGpeHandler);
+	Status = AcpiRemoveGpeHandler(sc->ec_gpehandle, sc->ec_gpebit,
+				      &EcGpeHandler);
 	if (ACPI_FAILURE(Status))
 	    panic("Added GPE handler but can't remove it");
 	errval = ENXIO;
