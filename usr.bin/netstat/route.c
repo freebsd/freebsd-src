@@ -36,7 +36,7 @@
 static char sccsid[] = "From: @(#)route.c	8.6 (Berkeley) 4/28/95";
 #endif
 static const char rcsid[] =
-	"$Id: route.c,v 1.31 1998/06/09 04:13:03 imp Exp $";
+	"$Id: route.c,v 1.32 1998/07/06 20:52:08 bde Exp $";
 #endif /* not lint */
 
 #include <sys/param.h>
@@ -100,6 +100,7 @@ struct bits {
 };
 
 typedef union {
+	long	dummy;		/* Helps align structure. */
 	struct	sockaddr u_sa;
 	u_short	u_data[128];
 } sa_u;
@@ -243,7 +244,7 @@ again:
 	kget(rn, rnode);
 	if (rnode.rn_b < 0) {
 		if (Aflag)
-			printf("%-8.8x ", (int)rn);
+			printf("%-8.8lx ", (u_long)rn);
 		if (rnode.rn_flags & RNF_ROOT) {
 			if (Aflag)
 				printf("(root node)%s",
@@ -262,7 +263,7 @@ again:
 			goto again;
 	} else {
 		if (Aflag && do_rtent) {
-			printf("%-8.8x ", (int)rn);
+			printf("%-8.8lx ", (u_long)rn);
 			p_rtnode();
 		}
 		rn = rnode.rn_r;
@@ -287,13 +288,13 @@ p_rtnode()
 			return;
 	} else {
 		sprintf(nbuf, "(%d)", rnode.rn_b);
-		printf("%6.6s %8.8x : %8.8x", nbuf, (int)rnode.rn_l, (int)rnode.rn_r);
+		printf("%6.6s %8.8lx : %8.8lx", nbuf, (u_long)rnode.rn_l, (u_long)rnode.rn_r);
 	}
 	while (rm) {
 		kget(rm, rmask);
 		sprintf(nbuf, " %d refs, ", rmask.rm_refs);
-		printf(" mk = %8.8x {(%d),%s",
-			(int)rm, -1 - rmask.rm_b, rmask.rm_refs ? nbuf : " ");
+		printf(" mk = %8.8lx {(%d),%s",
+			(u_long)rm, -1 - rmask.rm_b, rmask.rm_refs ? nbuf : " ");
 		if (rmask.rm_flags & RNF_NORMAL) {
 			struct radix_node rnode_aux;
 			printf(" <normal>, ");
