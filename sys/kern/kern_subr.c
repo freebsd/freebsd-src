@@ -491,9 +491,6 @@ iov_to_uio(struct iovec *iovp, u_int iovcnt, struct uio *auio)
 	u_int iovlen;
 	struct iovec *iov = NULL;
 
-	if (iovcnt < 0)
-		panic("iovcnt < 0!\n");
-
         /* note: can't use iovlen until iovcnt is validated */
         iovlen = iovcnt * sizeof (struct iovec);
         if (iovcnt > UIO_MAXIOV) {
