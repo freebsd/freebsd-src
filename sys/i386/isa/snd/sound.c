@@ -50,6 +50,8 @@
  *
  */
 
+#include "opt_devfs.h"
+
 #include <i386/isa/snd/sound.h>
 #ifdef	DEVFS
 #include <sys/devfsext.h>
