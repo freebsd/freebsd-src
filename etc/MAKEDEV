@@ -69,13 +69,12 @@
 #
 # Special purpose devices:
 #	bpf*	packet filter
-#	dcf*	dcf clock
 #	speaker	pc speaker
 #	tw*	xten power controller
 #	snd*	various sound cards
 #	pcaudio PCM audio driver 
 #
-#	$Id: MAKEDEV,v 1.37 1994/06/17 21:50:07 jkh Exp $
+#	$Id: MAKEDEV,v 1.38 1994/09/03 22:46:43 csgr Exp $
 #
 
 PATH=/sbin:/bin/:/usr/bin:/usr/sbin:
@@ -86,9 +85,10 @@ case $i in
 
 all)
 	sh MAKEDEV std						# standard
-	sh MAKEDEV wd0 wd1 fd0 fd1 ft0 wt0 sd0 sd1 st0 cd0 mcd0	# bdev
+	sh MAKEDEV wd0 wd1 wd2 wd3 fd0 fd1 sd0 sd1 cd0 mcd0	# bdev, disk
+	sh MAKEDEV ft0 wt0 st0 					# bdev, tape
 	sh MAKEDEV pty0 tty0 tty1 pc0 lpt0 lpt1 lpt2            # cdev
-	sh MAKEDEV ch0 tw0 bpf0 dcf0 				# cdev
+	sh MAKEDEV ch0 tw0 bpf0 				# cdev
 	sh MAKEDEV speaker pcaudio psm0 mse0 ttyd2 ttyd3        # cdev
 	sh MAKEDEV vty4						# cdev
 	;;
@@ -462,13 +462,6 @@ bpf*)
 	rm -f bpf$unit
 	mknod bpf$unit c 23 $unit
 	chown root.wheel bpf$unit
-	;;
-
-dcf*)
-	unit=`expr $i : 'dcf\(.*\)'`
-	rm -f dcf$unit
-	mknod dcf$unit c 24 $unit
-	chown root.wheel dcf$unit
 	;;
 
 speaker)
