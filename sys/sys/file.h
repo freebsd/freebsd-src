@@ -150,6 +150,7 @@ LIST_HEAD(filelist, file);
 extern struct filelist filehead; /* (fl) head of list of open files */
 extern struct fileops vnops;
 extern struct fileops badfileops;
+extern struct fileops socketops;
 extern int maxfiles;		/* kernel limit on number of open files */
 extern int maxfilesperproc;	/* per process limit on number of open files */
 extern int nfiles;		/* (fl) actual number of open files */
@@ -166,14 +167,13 @@ int fdrop_locked(struct file *fp, struct thread *td);
  * XXX: This is wrong, they should go through the operations vector for
  * XXX: sockets instead of going directly for the individual functions. /phk
  */
-fo_rdwr_t soo_read;
-fo_rdwr_t soo_write;
-fo_ioctl_t soo_ioctl;
-fo_poll_t soo_poll;
-fo_kqfilter_t soo_kqfilter;
-fo_stat_t soo_stat;
-fo_close_t soo_close;
-extern	struct fileops socketops;
+fo_rdwr_t	soo_read;
+fo_rdwr_t	soo_write;
+fo_ioctl_t	soo_ioctl;
+fo_poll_t	soo_poll;
+fo_kqfilter_t	soo_kqfilter;
+fo_stat_t	soo_stat;
+fo_close_t	soo_close;
 
 /* Lock a file. */
 #define	FILE_LOCK(f)	mtx_lock((f)->f_mtxp)
@@ -201,14 +201,13 @@ void fputsock(struct socket *sp);
 		FILE_UNLOCK(fp);					\
 	} while (0)
 
-static __inline fo_rdwr_t fo_read;
-static __inline fo_rdwr_t fo_write;
-static __inline fo_ioctl_t fo_ioctl;
-static __inline fo_poll_t fo_poll;
-static __inline fo_kqfilter_t fo_kqfilter;
-static __inline fo_stat_t fo_stat;
-static __inline fo_close_t fo_close;
-struct proc;
+static __inline fo_rdwr_t	fo_read;
+static __inline fo_rdwr_t	fo_write;
+static __inline fo_ioctl_t	fo_ioctl;
+static __inline fo_poll_t	fo_poll;
+static __inline fo_kqfilter_t	fo_kqfilter;
+static __inline fo_stat_t	fo_stat;
+static __inline fo_close_t	fo_close;
 
 static __inline int
 fo_read(fp, uio, active_cred, flags, td)
