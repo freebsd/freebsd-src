@@ -45,6 +45,10 @@ static const char rcsid[] =
 #include <syslog.h>
 #include <vis.h>
 #include <netdb.h>	/* for gethostbyname()		*/
+#include <sys/types.h>
+#include <sys/socket.h>
+#include <netinet/in.h>
+#include <arpa/inet.h>
 
 #include "statd.h"
 
