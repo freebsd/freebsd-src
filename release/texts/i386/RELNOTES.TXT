@@ -134,6 +134,9 @@ To provide more flexible configuration, the various options for the
 ata(4) driver are now boot loader tunables, rather than kernel
 configure-time options.
 
+The ata(4) driver now supports ATA66 and ATA100 mode on Acer Alladin
+chipsets.
+
 kqueue(2) has been extended to the device layer, and has also received
 some bug fixes.
 
@@ -226,6 +229,8 @@ allowed a race condition that could cause users to have unauthorized
 access to data, has been fixed (see security advisory FreeBSD-SA-01:30).
 
 A remotely-exploitable vulnerability in ntpd(8) has been closed.
+
+A security hole in IPFilter's fragment cache has been closed.
 
 
 1.3. USERLAND CHANGES
