@@ -32,6 +32,7 @@ static const char rcsid[] =
 #include <err.h>
 #include <stdio.h>
 #include <stdlib.h>
+#include <string.h>
 
 typedef int (*main_t)(int, char **);
 
