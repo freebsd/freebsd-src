@@ -43,7 +43,7 @@
  *	from:	@(#)pmap.c	7.7 (Berkeley)	5/12/91
  *	from:	i386 Id: pmap.c,v 1.193 1998/04/19 15:22:48 bde Exp
  *		with some ideas from NetBSD's alpha pmap
- *	$Id: pmap.c,v 1.8 1998/08/17 08:04:42 dfr Exp $
+ *	$Id: pmap.c,v 1.9 1998/08/23 16:05:55 dfr Exp $
  */
 
 /*
@@ -1011,9 +1011,9 @@ pmap_new_proc(struct proc *p)
 			pmap_invalidate_page(kernel_pmap,
 					     (vm_offset_t)up + i * PAGE_SIZE);
 
-		PAGE_WAKEUP(m);
-		PAGE_CLEAR_FLAG(m, PG_ZERO);
-		PAGE_SET_FLAG(m, PG_MAPPED | PG_WRITEABLE);
+		vm_page_wakeup(m);
+		vm_page_flag_clear(m, PG_ZERO);
+		vm_page_flag_set(m, PG_MAPPED | PG_WRITEABLE);
 		m->valid = VM_PAGE_BITS_ALL;
 	}
 }
@@ -1039,7 +1039,7 @@ pmap_dispose_proc(p)
 		if ((m = vm_page_lookup(upobj, i)) == NULL)
 			panic("pmap_dispose_proc: upage already missing???");
 
-		PAGE_SET_FLAG(m, PG_BUSY);
+		vm_page_flag_set(m, PG_BUSY);
 
 		oldpte = *(ptek + i);
 		*(ptek + i) = 0;
@@ -1105,8 +1105,8 @@ pmap_swapin_proc(p)
 		}
 
 		vm_page_wire(m);
-		PAGE_WAKEUP(m);
-		PAGE_SET_FLAG(m, PG_MAPPED | PG_WRITEABLE);
+		vm_page_wakeup(m);
+		vm_page_flag_set(m, PG_MAPPED | PG_WRITEABLE);
 	}
 
 	/*
@@ -1178,11 +1178,11 @@ _pmap_unwire_pte_hold(pmap_t pmap, vm_offset_t va, vm_page_t m)
 		if (m->wire_count == 0) {
 
 			if (m->flags & PG_WANTED) {
-				PAGE_CLEAR_FLAG(m, PG_WANTED);
+				vm_page_flag_clear(m, PG_WANTED);
 				wakeup(m);
 			}
 
-			PAGE_SET_FLAG(m, PG_BUSY);
+			vm_page_flag_set(m, PG_BUSY);
 			vm_page_free_zero(m);
 			--cnt.v_wire_count;
 		}
@@ -1267,7 +1267,7 @@ retry:
 	lev1pg->wire_count = 1;
 	++cnt.v_wire_count;
 
-	PAGE_CLEAR_FLAG(lev1pg, PG_MAPPED | PG_BUSY);	/* not mapped normally */
+	vm_page_flag_clear(lev1pg, PG_MAPPED | PG_BUSY);	/* not mapped normally */
 	lev1pg->valid = VM_PAGE_BITS_ALL;
 
 	pmap->pm_lev1 = (pt_entry_t*) ALPHA_PHYS_TO_K0SEG(VM_PAGE_TO_PHYS(lev1pg));
@@ -1320,7 +1320,7 @@ pmap_release_free_page(pmap_t pmap, vm_page_t p)
 	if (vm_page_sleep(p, "pmaprl", NULL))
 		return 0;
 
-	PAGE_SET_FLAG(p, PG_BUSY);
+	vm_page_flag_set(p, PG_BUSY);
 
 	/*
 	 * Remove the page table page from the processes address space.
@@ -1431,8 +1431,8 @@ _pmap_allocpte(pmap, ptepindex)
 		bzero((caddr_t) ALPHA_PHYS_TO_K0SEG(ptepa), PAGE_SIZE);
 
 	m->valid = VM_PAGE_BITS_ALL;
-	PAGE_CLEAR_FLAG(m, PG_ZERO | PG_BUSY);
-	PAGE_SET_FLAG(m, PG_MAPPED);
+	vm_page_flag_clear(m, PG_ZERO | PG_BUSY);
+	vm_page_flag_set(m, PG_MAPPED);
 
 	return m;
 }
@@ -1780,7 +1780,7 @@ pmap_remove_entry(pmap_t pmap, pv_table_t* ppv, vm_offset_t va)
 		TAILQ_REMOVE(&ppv->pv_list, pv, pv_list);
 		ppv->pv_list_count--;
 		if (TAILQ_FIRST(&ppv->pv_list) == NULL)
-			PAGE_CLEAR_FLAG(ppv->pv_vm_page, PG_MAPPED | PG_WRITEABLE);
+			vm_page_flag_clear(ppv->pv_vm_page, PG_MAPPED | PG_WRITEABLE);
 
 		TAILQ_REMOVE(&pmap->pm_pvlist, pv, pv_plist);
 		free_pv_entry(pv);
@@ -1970,7 +1970,7 @@ pmap_remove_all(vm_offset_t pa)
 		free_pv_entry(pv);
 	}
 
-	PAGE_CLEAR_FLAG(ppv->pv_vm_page, PG_MAPPED | PG_WRITEABLE);
+	vm_page_flag_clear(ppv->pv_vm_page, PG_MAPPED | PG_WRITEABLE);
 
 	splx(s);
 	return;
@@ -2335,12 +2335,12 @@ pmap_object_init_pt(pmap_t pmap, vm_offset_t addr,
 			    (p->flags & (PG_BUSY | PG_FICTITIOUS)) == 0) {
 				if ((p->queue - p->pc) == PQ_CACHE)
 					vm_page_deactivate(p);
-				PAGE_SET_FLAG(p, PG_BUSY);
+				vm_page_flag_set(p, PG_BUSY);
 				mpte = pmap_enter_quick(pmap, 
 					addr + alpha_ptob(tmpidx),
 					VM_PAGE_TO_PHYS(p), mpte);
-				PAGE_SET_FLAG(p, PG_MAPPED);
-				PAGE_WAKEUP(p);
+				vm_page_flag_set(p, PG_MAPPED);
+				vm_page_wakeup(p);
 			}
 			objpgs -= 1;
 		}
@@ -2355,12 +2355,12 @@ pmap_object_init_pt(pmap_t pmap, vm_offset_t addr,
 			    (p->flags & (PG_BUSY | PG_FICTITIOUS)) == 0) {
 				if ((p->queue - p->pc) == PQ_CACHE)
 					vm_page_deactivate(p);
-				PAGE_SET_FLAG(p, PG_BUSY);
+				vm_page_flag_set(p, PG_BUSY);
 				mpte = pmap_enter_quick(pmap, 
 					addr + alpha_ptob(tmpidx),
 					VM_PAGE_TO_PHYS(p), mpte);
-				PAGE_SET_FLAG(p, PG_MAPPED);
-				PAGE_WAKEUP(p);
+				vm_page_flag_set(p, PG_MAPPED);
+				vm_page_wakeup(p);
 			}
 		}
 	}
@@ -2452,11 +2452,11 @@ pmap_prefault(pmap, addra, entry)
 			if ((m->queue - m->pc) == PQ_CACHE) {
 				vm_page_deactivate(m);
 			}
-			PAGE_SET_FLAG(m, PG_BUSY);
+			vm_page_flag_set(m, PG_BUSY);
 			mpte = pmap_enter_quick(pmap, addr,
 				VM_PAGE_TO_PHYS(m), mpte);
-			PAGE_SET_FLAG(m, PG_MAPPED);
-			PAGE_WAKEUP(m);
+			vm_page_flag_set(m, PG_MAPPED);
+			vm_page_wakeup(m);
 		}
 	}
 }
@@ -2670,7 +2670,7 @@ pmap_remove_pages(pmap, sva, eva)
 		ppv->pv_list_count--;
 		TAILQ_REMOVE(&ppv->pv_list, pv, pv_list);
 		if (TAILQ_FIRST(&ppv->pv_list) == NULL) {
-			PAGE_CLEAR_FLAG(ppv->pv_vm_page, PG_MAPPED | PG_WRITEABLE);
+			vm_page_flag_clear(ppv->pv_vm_page, PG_MAPPED | PG_WRITEABLE);
 		}
 
 		pmap_unuse_pt(pv->pv_pmap, pv->pv_va, pv->pv_ptem);
@@ -2975,7 +2975,7 @@ pmap_emulate_reference(struct proc *p, vm_offset_t v, int user, int write)
 	ppv = pa_to_pvh(pa);
 	ppv->pv_flags = PV_TABLE_REF;
 	faultoff = PG_FOR | PG_FOE;
-	PAGE_SET_FLAG(ppv->pv_vm_page, PG_REFERENCED);
+	vm_page_flag_set(ppv->pv_vm_page, PG_REFERENCED);
 	if (write) {
 		ppv->pv_flags |= PV_TABLE_MOD;
 		ppv->pv_vm_page->dirty = VM_PAGE_BITS_ALL;
@@ -3102,7 +3102,7 @@ pmap_mincore(pmap, addr)
 		 */
 		else if ((m->flags & PG_REFERENCED) || pmap_ts_referenced(pa)) {
 			val |= MINCORE_REFERENCED_OTHER;
-			PAGE_SET_FLAG(m, PG_REFERENCED);
+			vm_page_flag_set(m, PG_REFERENCED);
 		}
 	} 
 	return val;
