@@ -1,0 +1,151 @@
+.\"
+.\" Copyright (c) 2003 Robert N. M. Watson
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice(s), this list of conditions and the following disclaimer as
+.\"    the first lines of this file unmodified other than the possible
+.\"    addition of one or more copyright notices.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice(s), this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDER(S) ``AS IS'' AND ANY
+.\" EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
+.\" WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
+.\" DISCLAIMED.  IN NO EVENT SHALL THE COPYRIGHT HOLDER(S) BE LIABLE FOR ANY
+.\" DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES
+.\" (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR
+.\" SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER
+.\" CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH
+.\" DAMAGE.
+.\"
+.\" $FreeBSD$
+.\"
+.Dd September 26, 2003
+.Dt disk 9
+.Os
+.Sh NAME
+.Nm disk
+.Nd Kernel disk storage API
+.Sh SYNOPSIS
+.In sys/geom_disk.h
+.Ft void
+.Fn disk_create "int unit" "struct disk *disk" "int flags" "void *unused" "void *unused2"
+.Ft void
+.Fn disk_destroy "struct disk *disk"
+.Sh DESCRIPTION
+The disk storage API permits kernel device drivers providing access to
+disk-like storage devices to advertise the device to other kernel
+components, including
+.Xr GEOM 4 ,
+and
+.Xr devfs 5 .
+Each disk device is described by a
+.Vt "struct disk"
+structure, which contains a variety of parameters for the disk device,
+function pointers for various methods that may be performed on the device,
+as well as private data storage for the device driver.
+In addition, some fields are reserved for use by GEOM in managing access
+to the device and its statistics.
+Fields in the structure will generally be assumed not to change once the
+structure is submitted to
+.Fn disk_create ,
+and so no explicit locking is employed; drivers that change the values of
+any of these fields do so at their own risk.
+Memory associated with the
+.Vt "struct disk"
+is owned by the device driver, but should not be released until after
+the completion of a call to
+.Fn disk_destroy .
+.Ss Descriptive Fields
+.Pp
+The following fields identify the disk device described by the structure
+instance, and must be filled in prior to submitting the structure to
+.Fn disk_create :
+.Bl -tag -width XXX
+.It Vt u_int Va d_flags
+Optional flags indicating to the storage framework what optional features
+or descriptions the storage device driver supports.
+Currently supported flags are
+.Dv DISKFLAG_NOGIANT
+(maintained by device driver),
+.Dv DISKFLAG_OPEN
+(maintained by storage framework),
+and
+.Dv DISKFLAG_CANDELETE
+(maintained by device driver).
+.Pp
+.It Vt "const char *" Va d_name
+Holds the name of the storage device class, e.g.,
+.Dq ahd .
+This value typically uniquely identifies a particular driver device,
+and must not conflict with devices serviced by other device drivers.
+.It Vt u_int Va d_unit
+Holds the instance of the storage device class, e.g.,
+.Dq 4 .
+This namespace is managed by the device driver, and assignment of unit
+numbers might be a property of probe order, or in some cases topology.
+Together, the
+.Va d_name
+and
+.Va d_unit
+values will uniquely identify a disk storage device.
+.El
+.Ss Disk Device Methods
+The following fields identify various disk device methods, if implemented:
+.Bl -tag -width XXX
+.It Vt "disk_open_t *" Va d_open
+Invoked when the disk device is opened.
+.It Vt "disk_close_t *" Va d_close
+Invoked when the disk device is closed.
+.It Vt "disk_strategy_t *" Va d_strategy
+Invoked when a new
+.Vt struct bio
+is to be initiated on the disk device.
+.It Vt "disk_ioctl_t *" Va d_ioctl
+Invoked when a I/O control operation is initiated on the disk device.
+.It Vt "dumper_t *" Va d_dump
+Invoked when a kernel crash dump is performed on the disk device.
+.El
+.Ss Media Properties
+The following fields identify the size, layout, and other media properties
+of the disk device.
+.Bl -tag -width XXX
+.It Vt u_int Va d_sectorsize
+The sectorsize of the disk device.
+.It Vt off_t Va d_mediasize
+The size of the disk device in bytes.
+.It Vt u_int Va d_fwsectors
+The number of sectors advertised on the disk device by the firmware or
+BIOS.
+.It Vt u_int Va d_fwheads
+The number of heads advertised on the disk device by the firmeware or
+BIOS.
+.It Vt u_int Va d_maxsize
+The maximum I/O request the disk device supports.
+.It Vt u_int Va d_stripeoffset
+If the disk device supports an optimal stripe size and offset, such as
+a RAID device, it may advertise that offset using this field.
+.It Vt u_int Va d_stripesize
+If the disk device supports an optimal stripe size and offset, such as
+a RAID device, it may advertise that size using this field.
+.El
+.Ss Driver Private Data
+This field may be used by the device driver to store a pointer to
+private data to implement the disk service.
+.Bl -tag -width XXX
+.It Vt "void *" Va d_drv1
+Private data pointer.
+.El
+.Sh SEE ALSO
+.Xr GEOM 4 ,
+.Xr devfs 5
+.Sh AUTHORS
+This man page was written by
+.An Robert Watson .
