@@ -266,6 +266,10 @@ SUBDIR+=linprocfs \
 	vinum
 .endif
 
+.if ${MACHINE_ARCH} == "sparc64"
+SUBDIR+=if_hme
+.endif
+
 .if defined(MODULES_OVERRIDE) && !defined(ALL_MODULES)
 SUBDIR=${MODULES_OVERRIDE}
 .endif
