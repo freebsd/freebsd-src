@@ -40,7 +40,7 @@
 /* Prototypes */
 static int		kldModuleFire(dialogMenuItem *self);
 
-#define MODULESDIR "/stand/modules"
+#define MODULESDIR "/modules"
 #define DISTMOUNT "/dist"
 
 void

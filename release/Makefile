@@ -658,10 +658,10 @@ release.9:
 	@echo "Compressing doc files..."
 	@gzip -9 ${RD}/mfsfd/stand/help/*.hlp
 .if exists(${.CURDIR}/${TARGET}/drivers.conf)
-	@mkdir -p ${RD}/mfsfd/stand/modules
+	@mkdir -p ${RD}/mfsfd/modules
 	@awk -f  ${.CURDIR}/scripts/driver-copy2.awk \
 	    ${.CURDIR}/${TARGET}/drivers.conf \
-	    ${RD}/trees/bin/modules ${RD}/mfsfd/stand/modules
+	    ${RD}/trees/bin/modules ${RD}/mfsfd/modules
 .endif
 	sh -e ${.CURDIR}/scripts/doFS.sh -s mfsroot ${RD} ${MNT} \
 		${MFSSIZE} ${RD}/mfsfd ${MFSINODE} ${MFSLABEL}
@@ -975,6 +975,7 @@ doMFSKERN:
 	@echo "read" >> ${RD}/image.${FSIMAGE}/boot/loader.rc
 .endif
 	@echo "load -t mfs_root /mfsroot" >> ${RD}/image.${FSIMAGE}/boot/loader.rc
+	@echo "set module_path=\"/modules;/dist\"" >> ${RD}/image.${FSIMAGE}/boot/loader.rc
 	@echo "echo \\007\\007" >> ${RD}/image.${FSIMAGE}/boot/loader.rc
 	@echo "autoboot 10" >> ${RD}/image.${FSIMAGE}/boot/loader.rc
 .if ${TARGET_ARCH} == "i386" && ${AUTO_KEYBOARD_DETECT}
