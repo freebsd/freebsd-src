@@ -334,10 +334,7 @@ sysmouse_event(mouse_info_t *info)
 							       sysmouse_tty);
 	}
 
-	/* do the /dev/random device a favour                        */
-	/* The nasty-looking cast is to force treatment of 8 u_chars */
-	/* in buf as a u_int64_t                                     */
-	random_harvest(*((u_int64_t *)buf), 2, 0, RANDOM_MOUSE);
+	random_harvest(buf, sizeof(buf), 2, 0, RANDOM_MOUSE);
 
 	return mouse_status.flags;
 }
