@@ -1,10 +1,10 @@
-# @(#)asia	7.13
+# @(#)asia	7.18
 
 # This data is by no means authoritative; if you think you know better,
 # go ahead and edit the file (and please send any changes to
 # tz@elsie.nci.nih.gov for general use in the future).
 
-# From Paul Eggert <eggert@twinsun.com> (August 18, 1994):
+# From Paul Eggert <eggert@twinsun.com> (1995-12-19):
 #
 # A good source for time zone historical data outside the U.S. is
 # Thomas G. Shanks, The International Atlas (3rd edition),
@@ -28,17 +28,21 @@
 #	2:00	EET  EET DST	Eastern European Time
 #	2:00	IST IDT	Israel
 #	3:00	AST ADT	Arabia*
-#	3:00	MSK MSD	Moscow
+#	3:00	BSK BSD	Baku (was 4:00)*
 #	3:30	IST IDT	Iran
-#	4:00	BSK BSD	Baku*
+#	4:00	TBSK TBSD Tbilisi (was 3:00)*
+#	4:00	YSK YSD Yerevan (was 3:00)*
 #	4:00	GST GDT	Gulf*
 #	4:30	AFT	Afghanistan*
-#	5:00	ASK ASD	Ashkhabad*
+#	5:00	ASK ASD	Ashkhabad (was 4:00)*
+#	5:00	BSK BSD Bishkek (was 6:00) (was FSK, FSD)*
 #	5:00	PKT	Pakistan*
+#	5:00	TSK TSD	Tashkent (was 6:00)*
 #	5:30	IST IST	India
 #	5:45	NPT	Nepal*
+#	6:00	AASK AASD Alma-Ata (was 5:00)*
 #	6:00	BGT	Bengal, Bangladesh*
-#	6:00	TSK TSD	Tashkent*
+#	6:00	DSK DSD	Dushanbe (was 5:00)*
 #	6:30	BMT	Burma*
 #	7:00	ICT	Indochina*
 #	7:00	JVT	Java*
@@ -65,14 +69,11 @@
 
 ###############################################################################
 
-# From Paul Eggert <eggert@twinsun.com> (May 28, 1994):
-# We don't know what happened to the clocks in the Caucausus and the ex-Soviet
-# Central Asia after 1990.  Until we get more info, stick with the pre-1991 rules.
 # Rule	NAME	FROM	TO	TYPE	IN	ON	AT	SAVE	LETTER/S
 Rule	Russia	1981	1984	-	Apr	1	0:00	1:00	D
 Rule	Russia	1981	1983	-	Oct	1	0:00	0	K
-Rule	Russia	1984	max	-	Sep	lastSun	3:00	0	K
-Rule	Russia	1985	max	-	Mar	lastSun	2:00	1:00	D
+Rule	Russia	1984	max	-	Sep	lastSun	2:00s	0	K
+Rule	Russia	1985	max	-	Mar	lastSun	2:00s	1:00	D
 
 # Afghanistan
 # Zone	NAME		GMTOFF	RULES	FORMAT	[UNTIL]
@@ -85,16 +86,22 @@ Zone	Asia/Kabul	4:36:48 -	LMT	1890
 # Armenia
 # Zone	NAME		GMTOFF	RULES	FORMAT	[UNTIL]
 Zone	Asia/Yerevan	2:58:00 -	LMT	1924 May  2
-			3:00	-	MSK	1957 Mar
-			4:00	Russia	BS%s
+			3:00	-	YSK	1957 Mar
+			4:00	Russia	YS%s
+# Shanks has Yerevan switching to 3:00 (with Russian DST) in spring 1991,
+# but usno1995 has Armenia at 4:00 (with DST).  Ignore the 1991 switch for now.
 
 # ZONE-DESCR Asia Yerevan Armenia All points
 
 # Azerbaijan
 # Zone	NAME		GMTOFF	RULES	FORMAT	[UNTIL]
 Zone	Asia/Baku	3:19:24 -	LMT	1924 May  2
-			3:00	-	MSK	1957 Mar
-			4:00	Russia	BS%s
+			3:00	-	BSK	1957 Mar
+			4:00	Russia	BS%s	1991 Mar 31 2:00s
+			3:00	1:00	BSD	1991 Sep 29 2:00s
+			3:00	-	BSK
+# Shanks has Baku using Russian DST rules after 1991,
+# but usno1995 has Azerbaijan with no DST.  Go with usno1995.
 
 # ZONE-DESCR Asia Baku Azerbaijan All points
 
@@ -140,7 +147,7 @@ Zone	Asia/Brunei	7:39:40 -	LMT	1926 Mar   # Bandar Seri Begawan
 
 # ZONE-DESCR Asia Brunei Brunei All points
 
-# Burma
+# Burma / Myanmar
 # Zone	NAME		GMTOFF	RULES	FORMAT	[UNTIL]
 Zone	Asia/Rangoon	6:24:40 -	LMT	1880
 			6:25	-	RMT	1920
@@ -179,19 +186,16 @@ Zone	Asia/Phnom_Penh	6:59:40 -	LMT	1906 Jun  9
 #     1986 May 4 - Sept 14
 #     1987 mid-April - ??
 
-# From Paul Eggert <eggert@twinsun.com> (November 18, 1993):
-# According to Shanks, China started using DST in 1986,
-# but it's still all one big happy time zone.
-
 # From U. S. Naval Observatory (January 19, 1989):
 # CHINA               8 H  AHEAD OF UTC  ALL OF CHINA, INCL TAIWAN
 # CHINA               9 H  AHEAD OF UTC  APR 17 - SEP 10
 
-# From Paul Eggert <eggert@twinsun.com> (November 18, 1993):
+# From Paul Eggert <eggert@twinsun.com> (1995-12-19):
 # Shanks writes that China switched from the Chinese calendar on 1912 Feb 12.
 # He also writes that China has had a single time zone since 1980 May 1,
-# and that they instituted DST on 1986 May 4; this contradicts Devine's
+# observing summer DST from 1986 through 1991; this contradicts Devine's
 # note about Time magazine, though apparently _something_ happened in 1986.
+# Go with Shanks for now.  I made up names for the other pre-1980 time zones.
 
 # From Shanks (1991):
 # Rule	NAME	FROM	TO	TYPE	IN	ON	AT	SAVE	LETTER/S
@@ -201,14 +205,35 @@ Rule	Shang	1940	1941	-	Oct	 1	0:00	0	S
 Rule	Shang	1941	only	-	Mar	16	0:00	1:00	D
 Rule	PRC	1949	only	-	Jan	 1	0:00	0	S
 Rule	PRC	1986	only	-	May	 4	0:00	1:00	D
-Rule	PRC	1986	max	-	Sep	Sun>=11	0:00	0	S
-Rule	PRC	1987	max	-	Apr	Sun>=10	0:00	1:00	D
+Rule	PRC	1986	1991	-	Sep	Sun>=11	0:00	0	S
+Rule	PRC	1987	1991	-	Apr	Sun>=10	0:00	1:00	D
 # Zone	NAME		GMTOFF	RULES	FORMAT	[UNTIL]
+Zone	Asia/Harbin	8:26:44	-	LMT	1928
+			8:30	-	MAT	1932 Mar    # Manchuria
+			8:00	-	CST	1940
+			9:00	-	KST	1966 May
+			8:30	-	MAT	1980 May
+			8:00	PRC	C%sT
 Zone	Asia/Shanghai	8:05:52	-	LMT	1928
 			8:00	Shang	C%sT	1949
 			8:00	PRC	C%sT
 
-# ZONE-DESCR Asia Shanghai China All points
+Zone	Asia/Chungking	7:06:20	-	LMT	1928
+			7:00	-	ICT	1980 May
+			8:00	PRC	C%sT
+Zone	Asia/Urumqi	5:50:20	-	LMT	1928
+			6:00	-	URT	1980 May    # Urumqi
+			8:00	PRC	C%sT
+Zone	Asia/Kashgar	5:03:56	-	LMT	1928
+			5:30	-	ETT	1940	    # Eastern Turkestan
+			5:00	-	ETT	1980 May
+			8:00	PRC	C%sT
+
+# ZONE-DESCR Asia Shanghai China All points except:
+# ZONE-DESCR Asia Harbin China Manchuria
+# ZONE-DESCR Asia Chungking China Chungking
+# ZONE-DESCR Asia Urumqi China Urumqi
+# ZONE-DESCR Asia Kashgar China Eastern Turkestan
 
 ###############################################################################
 
@@ -235,8 +260,6 @@ Zone	Asia/Taipei	8:06:00 -	LMT	1896
 
 ###############################################################################
 # Hong Kong
-# Presumably Hong Kong will have DST again when it merges with China,
-# but it's too early to predict the details.
 # Rule	NAME	FROM	TO	TYPE	IN	ON	AT	SAVE	LETTER/S
 Rule	HK	1904	only	-	Oct	30	0:00	0	-
 Rule	HK	1946	only	-	Apr	20	3:30	1:00	S
@@ -261,8 +284,6 @@ Zone	Asia/Hong_Kong	7:36:36 -	LMT	1904 Oct 30
 # ZONE-DESCR Asia Hong_Kong Hong_Kong All points
 
 # Macao
-# Presumably Macao will have DST again when it merges with China,
-# but it's too early to predict the details.
 # Rule	NAME	FROM	TO	TYPE	IN	ON	AT	SAVE	LETTER/S
 Rule	Macao	1912	only	-	Jan	1	0:00	0	S
 Rule	Macao	1961	1962	-	Mar	Sun>=16	3:30	1:00	D
@@ -310,12 +331,20 @@ Zone	Asia/Nicosia	2:13:28 -	LMT	1921 Nov 14
 # Today's _Economist_ (p 60) reports that Georgia moved its clocks forward
 # an hour recently, due to a law proposed by Zurab Murvanidze,
 # an MP who went on a hunger strike for 11 days to force discussion about it!
-# Alas, we have no details.
+# We have no details, but we'll guess they didn't move the clocks back in fall.
+#
+# From Paul Eggert (1995-11-13):
+# usno1995 has Georgia at 4:00.  Guess that Georgia stopped transitions
+# after spring 1994 (thus sticking at 4:00).
+# Most likely we're still missing some rule changes between 1991 and 1994.
 # Zone	NAME		GMTOFF	RULES	FORMAT	[UNTIL]
 Zone	Asia/Tbilisi	2:59:16 -	LMT	1880
 			2:59	-	LST	1924 May  2
-			3:00	-	MSK	1957 Mar
-			4:00	Russia	BS%s
+			3:00	-	TBSK	1957 Mar
+			4:00	Russia	TBS%s	1991 Mar 31 2:00s
+			3:00	1:00	TBSD	1991 Sep 29 2:00s
+			3:00	Russia	TBS%s	1994 Sep 25 2:00s
+			4:00	-	TBSK
 
 # ZONE-DESCR Asia Tbilisi Georgia All points
 
@@ -360,26 +389,12 @@ Zone Asia/Jayapura	9:22:48 -	LMT	1932 Nov
 # ZONE-DESCR Asia Jayapura Indonesia Jayapura
 
 # Iran
-
-# Shanks has no record of DST after 1980.
-
-# From Bob Devine (January 28, 1988):
-# Iran: Last Sunday in March to third (?) Sunday in
-# September.  Since the revolution, the official calendar is Monarchic
-# calendar; I have no idea what the correspondence between dates are.
-
-# From U. S. Naval Observatory (January 19, 1989):
-# IRAN                3.5H AHEAD OF UTC
-
-# From Shanks (1991), with corrections from Devine:
 # Rule	NAME	FROM	TO	TYPE	IN	ON	AT	SAVE	LETTER/S
 Rule	Iran	1977	only	-	Nov	1	0:00	0	S
 Rule	Iran	1978	1980	-	Mar	21	0:00	1:00	D
 Rule	Iran	1978	only	-	Oct	21	0:00	0	S
 Rule	Iran	1979	only	-	Sep	19	0:00	0	S
 Rule	Iran	1980	only	-	Sep	23	0:00	0	S
-Rule	Iran	1988	max	-	Mar	lastSun	2:00	1:00	D
-Rule	Iran	1988	max	-	Sep	Sun>=15	2:00	0	S
 # Zone	NAME		GMTOFF	RULES	FORMAT	[UNTIL]
 Zone	Asia/Tehran	3:25:44	-	LMT	1916
 			3:26	-	TMT	1946
@@ -468,7 +483,7 @@ Rule	Zion	1988	only	-	Sep	 3	0:00	0	S
 #Rule	Zion	1991	only	-	Mar	10	0:00	1:00	D
 #Rule	Zion	1991	only	-	Sep	 1	0:00	0	S
 
-# From Ephraim Silverberg (September 5, 1993):
+# From Ephraim Silverberg (1996-01-02):
 #
 # According to the Office of the Secretary General of the Ministry of
 # Interior, there is NO set rule for Daylight-Savings/Standard time changes.
@@ -477,8 +492,13 @@ Rule	Zion	1988	only	-	Sep	 3	0:00	0	S
 # on the party the Minister of Interior, the size of the coalition
 # government, the phase of the moon and the direction of the wind.  Hence,
 # changes may need to be made on a semi-annual basis.  One thing is entrenched
-# in law, however: that there must be at least 150 days on daylight savings
-# time annually.
+# in law, however: that there must be at least 150 days of daylight savings
+# time annually.  Ever since 1993, the change to daylight savings time has
+# been from midnight Thursday night to 1 a.m. Friday morning and the change
+# back to standard time on Saturday night from midnight daylight savings time
+# to 11 p.m. standard time.  1996 is an exception to this rule where the
+# change back to standard time takes place on Sunday night instead of Saturday
+# night to avoid conflicts with the Jewish New Year.
 
 # Rule	NAME	FROM	TO	TYPE	IN	ON	AT	SAVE	LETTER/S
 Rule	Zion	1989	only	-	Apr	30	0:00	1:00	D
@@ -492,30 +512,43 @@ Rule	Zion	1992	only	-	Sep	 6	0:00	0:00	S
 Rule	Zion	1993	only	-	Apr	 2	0:00	1:00	D
 Rule	Zion	1993	only	-	Sep	 5	0:00	0:00	S
 
-# The dates for 1994-1995 were obtained from Office of the Spokeswoman for
-# the Ministry of Interior, Jerusalem.  There are no dates yet for 1996 and
-# beyond so your guess is as good as theirs (those who are interested can
-# call 972-2-701411 and ask for the spokeswoman).
+# The dates for 1994-1995 were obtained from Office of the Spokeswoman for the
+# Ministry of Interior, Jerusalem, Israel.  The spokeswoman can be reached by
+# calling the switchboard at 972-2-701411 and asking for the spokeswoman.
 
 # Rule	NAME	FROM	TO	TYPE	IN	ON	AT	SAVE	LETTER/S
 Rule    Zion    1994    only    -       Apr      1      0:00    1:00    D
 Rule    Zion    1994    only    -       Aug     28      0:00    0:00    S
 Rule    Zion    1995    only    -       Mar     31      0:00    1:00    D
-# On 1995-03-13 Ephraim Silverberg corrected the next line from Aug 27 to Sep 3.
 Rule    Zion    1995    only    -       Sep      3      0:00    0:00    S
 
-# From Ephraim Silverberg (1995-03-13):
-# The Spokeswoman's office confirmed that there are not yet any dates
-# for the timezone conversion for the years 1996 and beyond yet
-# and this is one of the things the newly-appointed Minister of Interior
-# will have to decide sometime this year.
+# The dates for 1996-1998 were also obtained from Office of the Spokeswoman
+# for the Ministry of Interior, Jerusalem, Israel.  The official announcement
+# can be viewed (in Hebrew) at the following URL:
+#
+#   ftp://ftp.huji.ac.il/pub/misc/timezones/announcements/1996-1998.ps.gz
+#
+# Emptor Caveat: The dates for the years 1996-1998 were originally announced
+# on August 31, 1995, by the previous Minister of Interior.  The new Minister
+# of Interior changed the dates on January 1, 1996, to take into account the
+# desires of certain portions of Israeli society (the next election is in the
+# Fall of 1996).  After this (1996) year's Daylight Savings Time is over, the
+# new minister has announced that a study will be conducted as to the wishes of
+# the populace regarding the length of Daylight Savings Time and the Interior
+# Committee will meet to review the results of the study and make any necessary
+# changes to the 1997-1998 dates.  Never a dull moment in the State of Israel.
+
+# Rule	NAME	FROM	TO	TYPE	IN	ON	AT	SAVE	LETTER/S
+Rule	Zion	1996	1998	-	Mar	Fri>=14	0:00	1:00	D
+Rule	Zion	1996	only	-	Sep	16	0:00	0:00	S
+Rule	Zion	1997	1998	-	Oct	Sun>=14	0:00	0:00	S
 
 # Zone	NAME		GMTOFF	RULES	FORMAT	[UNTIL]
-Zone	Asia/Tel_Aviv	2:19:04 -	LMT	1880
+Zone	Asia/Jerusalem	2:20:56 -	LMT	1880
 			2:21	-	JMT	1918
 			2:00	Zion	I%sT
 
-# ZONE-DESCR Asia Tel_Aviv Israel All points
+# ZONE-DESCR Asia Jerusalem Israel All points
 
 ###############################################################################
 
@@ -552,12 +585,11 @@ Zone	Asia/Tokyo	9:19:04	-	LMT	1896
 #			9:00	Japan	J%sT
 # and uncomment the two `Rule' lines commented out above.
 
-# From Paul Eggert <eggert@twinsun.com> (November 18, 1993):
+# From Paul Eggert <eggert@twinsun.com> (1995-12-19):
 # Shanks says that the far southern Ryukyu Is (Nansei-Shoto) are 8:00,
-# but we don't have a good location name for them;
-# we don't even know the name of the principal town.
+# but we haven't confirmed this.
 # Zone	NAME		GMTOFF	RULES	FORMAT	[UNTIL]
-#Zone Asia/South_Ryukyu	8:14:44	-	LMT	1896	# Amitori
+#Zone	Asia/Ishigaki	8:16:36	-	LMT	1896
 #			8:00	-	CST
 # There is no information for Marcus.
 # Other Japanese possessions are probably like Asia/Tokyo.
@@ -597,16 +629,20 @@ Zone	Asia/Amman	2:23:44 -	LMT	1931
 # From Shanks (1991):
 # Zone	NAME		GMTOFF	RULES	FORMAT	[UNTIL]
 Zone	Asia/Alma-Ata	5:07:48 -	LMT	1924 May  2
-			5:00	-	TSK	1957 Mar
-			6:00	Russia	TS%s
+			5:00	-	AASK	1957 Mar
+			6:00	Russia	AAS%s
+# Shanks has Alma-Ata switching to 5:00 in 1991,
+# but usno1995 has Kazakhstan at 6:00.  Ignore the 1991 switch for now.
 
 # ZONE-DESCR Asia Alma-Ata Kazakhstan All points
 
 # Kirgizstan
 # Zone	NAME		GMTOFF	RULES	FORMAT	[UNTIL]
 Zone	Asia/Bishkek	4:58:24 -	LMT	1924 May  2
-			5:00	-	TSK	1957 Mar
-			6:00	Russia	TS%s
+			5:00	-	FSK	1957 Mar	# Frunze
+			6:00	Russia	FS%s	1991 Mar 31 2:00s
+			5:00	1:00	FSD	1991 Sep 29 2:00s
+			5:00	Russia	BS%s
 
 # ZONE-DESCR Asia Bishkek Kirgizstan All points
 
@@ -778,6 +814,9 @@ Zone	Asia/Gaza	2:17:52	-	LMT	1900 Oct
 			2:00	Zion	I%sT
 # This will undoubtedly change soon.
 
+# Paracel Is
+# no information
+
 # Philippines
 # Howse writes (p 162) that until 1844 the Philippines kept American date.
 # The rest of this data is from Shanks.
@@ -826,6 +865,9 @@ Zone	Asia/Singapore	6:55:24 -	LMT	1880
 
 # ZONE-DESCR Asia Singapore Singapore All points
 
+# Spratly Is
+# no information
+
 # Sri Lanka
 # Zone	NAME		GMTOFF	RULES	FORMAT	[UNTIL]
 Zone	Asia/Colombo	5:19:24 -	LMT	1880
@@ -872,8 +914,11 @@ Zone	Asia/Damascus	2:25:12 -	LMT	1920
 # Tajikistan
 # Zone	NAME		GMTOFF	RULES	FORMAT	[UNTIL]
 Zone	Asia/Dushanbe	4:35:12 -	LMT	1924 May  2
-			5:00	-	TSK	1957 Mar
-			6:00	Russia	TS%s
+			5:00	-	DSK	1957 Mar
+			6:00	Russia	DS%s	1991
+			6:00	-	DSK
+# Shanks has Dushanbe at 5:00 (6:00 summer) after 1991 Sep 29 3:00,
+# but usno1995 has it at 6:00.  Go with usno1995.
 
 # ZONE-DESCR Asia Dushanbe Tajikistan All points
 
@@ -889,7 +934,10 @@ Zone	Asia/Bangkok	6:42:04	-	LMT	1880
 # Zone	NAME		GMTOFF	RULES	FORMAT	[UNTIL]
 Zone	Asia/Ashkhabad	3:53:32 -	LMT	1924 May  2
 			4:00	-	ASK	1957 Mar
-			5:00	Russia	AS%s
+			5:00	Russia	AS%s	1991
+			5:00	-	ASK
+# Shanks has Ashkhabad at 4:00 (5:00 summer) after 1991 Sep 20 3:00,
+# but usno has it at 5:00.  Go with usno1995.
 
 # ZONE-DESCR Asia Ashkhabad Turkmenistan All points
 
@@ -904,7 +952,11 @@ Zone	Asia/Dubai	3:41:12 -	LMT	1920
 # Zone	NAME		GMTOFF	RULES	FORMAT	[UNTIL]
 Zone	Asia/Tashkent	4:37:12 -	LMT	1924 May  2
 			5:00	-	TSK	1957 Mar
-			6:00	Russia	TS%s
+			6:00	Russia	TS%s	1991 Mar 31 2:00s
+			5:00	1:00	TSD	1991 Sep 29 2:00s
+			5:00	-	TSK
+# Shanks has Tashkent using DST after 1991, but usno1995 says they don't.
+# Go with usno1995.
 
 # ZONE-DESCR Asia Tashkent Uzbekistan All points
 
