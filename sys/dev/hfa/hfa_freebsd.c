@@ -97,6 +97,36 @@ devclass_t hfa_devclass;
 
 static int hfa_modevent(module_t, int, void *);
 
+SYSCTL_DECL(_hw_atm);
+
+/*
+ * Sysctl handler for the traffic shaping option
+ */
+static int
+hfa_sysctl_shape(SYSCTL_HANDLER_ARGS)
+{
+	struct hfa_softc *sc = arg1;
+	int error;
+	u_int new;
+
+	error = SYSCTL_OUT(req, &sc->fup.fu_shape , sizeof(sc->fup.fu_shape));
+	if (error != 0 || req->newptr == NULL) {
+		return (error);
+	}
+
+	error = SYSCTL_IN(req, &new, sizeof(new));
+	if (error != 0) {
+		return (error);
+	}
+
+	if (new > FUS_SHAPE_ALL) {
+		return (EINVAL);
+	}
+
+	sc->fup.fu_shape = new;
+	return (0);
+}
+
 int
 hfa_alloc (device_t dev)
 {
@@ -121,6 +151,19 @@ hfa_alloc (device_t dev)
 		error = ENXIO;
 		goto fail;
 	}
+
+	/*
+	 * Make the sysctl tree
+	 */
+	if ((sc->sysctl_tree = SYSCTL_ADD_NODE(&sc->sysctl_ctx,
+	    SYSCTL_STATIC_CHILDREN(_hw_atm), OID_AUTO,
+	    device_get_nameunit(dev), CTLFLAG_RW, 0, "")) == NULL)
+		goto fail;
+
+	if (SYSCTL_ADD_PROC(&sc->sysctl_ctx, SYSCTL_CHILDREN(sc->sysctl_tree),
+	    OID_AUTO, "shape", CTLFLAG_RW | CTLTYPE_UINT, sc, 0,
+	    hfa_sysctl_shape, "IU", "traffic shaping") == NULL)
+		goto fail;
 
 	mtx_init(&sc->mtx, device_get_nameunit(dev), "Interrupt lock", MTX_DEF|MTX_RECURSE);
 

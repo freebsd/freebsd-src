@@ -40,6 +40,10 @@ struct hfa_softc {
         struct mtx              mtx;
 
 	Fore_unit		fup;
+
+	/* sysctl support */
+	struct sysctl_ctx_list	sysctl_ctx;
+	struct sysctl_oid *	sysctl_tree;
 };
 
 #define	HFA_LOCK(_sc)	mtx_lock(&(_sc)->mtx)
