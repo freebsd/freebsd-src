@@ -54,6 +54,11 @@ sed	-e '/	pci$/d' \
 	-e '/SOFTUPDATES/d' \
 	-e '/MFS/d' \
 	-e '/NFS_ROOT/d' \
+	-e '/DEBUG/d' \
+	-e '/DDB/d' \
+	-e '/INVARIANTS/d' \
+	-e '/INVARIANT_SUPPORT/d' \
+	-e '/WITNESS/d' \
 	-e '/pcm/d' \
 	-e '/atapist/d' \
 	-e '/ugen/d' \
@@ -82,6 +87,11 @@ sed	-e '/pty/d' \
 	-e '/SOFTUPDATES/d' \
 	-e '/MFS/d' \
 	-e '/NFS_ROOT/d' \
+ 	-e '/DEBUG/d' \
+ 	-e '/DDB/d' \
+ 	-e '/INVARIANTS/d' \
+ 	-e '/INVARIANT_SUPPORT/d' \
+ 	-e '/WITNESS/d' \
 	-e '/	ncr/d' \
 	-e '/pcm/d' \
 	-e '/atapist/d' \
@@ -118,6 +128,11 @@ sed	\
 	-e '/SYSV/d' \
 	-e '/P1003_1B/d' \
 	-e '/_KPOSIX_PRIORITY_SCHEDULING/d' \
+ 	-e '/DEBUG/d' \
+ 	-e '/DDB/d' \
+ 	-e '/INVARIANTS/d' \
+ 	-e '/INVARIANT_SUPPORT/d' \
+ 	-e '/WITNESS/d' \
 	-e '/atapist/d' \
 	-e '/	ncr/d' \
 	-e '/pass/d' \
